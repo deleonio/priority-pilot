@@ -3460,6 +3460,12 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: Das Abo ist bereits gekündigt (#2048)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /billing/google/rtdn:
     post:
       summary: Abo-Ereignis von Google Play annehmen (RTDN)
