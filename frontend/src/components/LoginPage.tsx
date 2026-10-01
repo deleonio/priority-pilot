@@ -45,7 +45,7 @@ export const LoginPage = () => {
 	// Sektion sofort und ohne Layout-Shift; der Fetch im Hintergrund bestätigt den Stand frisch.
 	const [magicLinkEnabled, setMagicLinkEnabled] = useState(() => {
 		try {
-			return sessionStorage.getItem('pp_magic_link_enabled') === '1';
+			return sessionStorage.getItem('pp-magic-link-enabled') === '1';
 		} catch {
 			return false;
 		}
@@ -63,7 +63,7 @@ export const LoginPage = () => {
 			.getAuthProviders()
 			.then((providers) => {
 				try {
-					sessionStorage.setItem('pp_magic_link_enabled', providers.magicLink ? '1' : '0');
+					sessionStorage.setItem('pp-magic-link-enabled', providers.magicLink ? '1' : '0');
 				} catch {
 					// Storage verweigert — der Fetch entscheidet weiterhin live je Antwort.
 				}
