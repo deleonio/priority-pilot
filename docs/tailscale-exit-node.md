@@ -3,7 +3,7 @@
 Anleitung, um einen GitHub-Actions-Runner über einen eigenen Nürnberger Server als
 **Tailscale-Exit-Node** zu routen — sodass ausgehende CI-Requests an z.ai mit der deutschen IP des
 Servers ankommen. Manuell anstoßbar via
-[`tailscale-test.yml`](../.github/workflows/tailscale-test.yml).
+[`test-tailscale.yml`](../.github/workflows/test-tailscale.yml).
 
 > **Status:** Der Exit Node ist nur für den Fall gedacht, dass der LLM-Provider **z.ai** ist und der
 > Lauf auf einem **gehosteten GitHub-Runner** (Azure-IP) stattfindet — z.ai blockt Azure-IPs. Die
@@ -101,7 +101,7 @@ Im Repo unter **Settings → Secrets and variables → Actions** anlegen:
 ## 4. Workflow
 
 Der Workflow
-[`tailscale-test.yml`](../.github/workflows/tailscale-test.yml) (`workflow_dispatch`) prüft in fünf
+[`test-tailscale.yml`](../.github/workflows/test-tailscale.yml) (`workflow_dispatch`) prüft in fünf
 Schritten:
 
 1. **IP davor** — originale Runner-IP (`ifconfig.me`).
