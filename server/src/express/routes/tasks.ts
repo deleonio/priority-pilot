@@ -13,6 +13,9 @@ import { isCategoryExistent, remapCategoryForRecipient, validateCategoryId } fro
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { requirePlanFeature } from '../planGuard.js';
 import { GEO_CONFIG_DEFAULTS, resolveGeoUser } from './geoConfig.js';
+import { allowEmail } from '../../logics/allowedEmails.js';
+import { sendAccountAccessMail } from '../../logics/accessMail.js';
+import { upsertOAuthUser } from '../../logics/oauthUser.js';
 import { notifyTaskCreated } from '../../logics/taskCreatedNotification.js';
 import { notifyTaskCompleted } from '../../logics/taskCompletedNotification.js';
 import { notifyReachedMilestones } from '../../logics/milestoneNotification.js';
@@ -235,6 +238,33 @@ export const resolveRecipientId = async (
 		return { ok: false, status: 403, message: 'Der Empfänger teilt keine Gruppe mit dir.' };
 	}
 	return { ok: true, recipientId: recipientInput };
+};
+
+/**
+ * #1983 (AK5): Empfänger per `recipientEmail` statt `userId`. Ein bekanntes Konto liefert dessen
+ * userId (die Shared-Group-Prüfung von `resolveRecipientId` greift danach unverändert); eine
+ * unbekannte Adresse wird als Konto angelegt, mit Herkunft `delegation` freigeschaltet und per
+ * Zugangs-Mail benachrichtigt — das frische Konto teilt noch keine Gruppe mit dem Ersteller,
+ * die Übergabe an die externe Adresse ist der Freischalt-Anlass, deshalb `directRecipientId`.
+ */
+type EmailRecipientResolution =
+	{ ok: true; recipientInput: number; newRecipientEmail: string | null } | { ok: false; status: 400; message: string };
+
+const resolveRecipientByEmail = async (input: unknown): Promise<EmailRecipientResolution> => {
+	if (typeof input !== 'string' || input.trim() === '') {
+		return { ok: false, status: 400, message: 'recipientEmail muss eine nicht-leere Zeichenkette sein.' };
+	}
+	const email = input.trim().toLowerCase();
+	if (!email.includes('@') || email.length > 254) {
+		return { ok: false, status: 400, message: 'Bitte gib eine gültige E-Mail-Adresse an.' };
+	}
+	const existing = await User.findOne({ where: { email } });
+	if (existing) {
+		return { ok: true, recipientInput: existing.id, newRecipientEmail: null };
+	}
+	const recipient = await upsertOAuthUser({ email });
+	await allowEmail(email, 'delegation');
+	return { ok: true, recipientInput: recipient.id, newRecipientEmail: email };
 };
 
 /**
@@ -644,7 +674,29 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			// der Aufrufer keine Gruppe teilt, wird mit 403 abgelehnt, ohne einen Datensatz anzulegen (AK2).
 			const requester = await resolveGeoUser(req);
 			const requesterId = requester?.id ?? null;
-			const recipientResolution = await resolveRecipientId(requesterId, (req.body as { userId?: unknown }).userId);
+			// #1983 (AK5): `recipientEmail` benennt den Empfänger alternativ zur userId — eine
+			// unbekannte Adresse wird zum Konto + DB-Zulassung (`delegation`) aufgelöst.
+			let recipientInput: unknown = (req.body as { userId?: unknown }).userId;
+			let newRecipientEmail: string | null = null;
+			if ((req.body as { recipientEmail?: unknown }).recipientEmail !== undefined) {
+				const emailResolution = await resolveRecipientByEmail(
+					(req.body as { recipientEmail?: unknown }).recipientEmail,
+				);
+				if (!emailResolution.ok) {
+					sendError(res, emailResolution.status, emailResolution.message);
+					return;
+				}
+				recipientInput = emailResolution.recipientInput;
+				newRecipientEmail = emailResolution.newRecipientEmail;
+			}
+			let recipientResolution: RecipientResolution;
+			if (newRecipientEmail !== null) {
+				// Frisch angelegtes Konto teilt keine Gruppe mit dem Ersteller — der Shared-Group-Check
+				// entfällt für die externe Übergabe (AK5), `resolveRecipientId` liefe sonst ins 403.
+				recipientResolution = { ok: true, recipientId: recipientInput as number };
+			} else {
+				recipientResolution = await resolveRecipientId(requesterId, recipientInput);
+			}
 			if (!recipientResolution.ok) {
 				sendError(res, recipientResolution.status, recipientResolution.message);
 				return;
@@ -724,6 +776,21 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 					console.warn('Benachrichtigung zur neu angelegten Aufgabe fehlgeschlagen:', error);
 				}
 			}
+			// #1983 (AK5): Benachrichtigung an die externe Adresse — E-Mail mit direktem Zugang,
+			// nach dem Commit und vor der Antwort abgewartet (Nebenwirkung beobachtbar).
+			if (newRecipientEmail !== null) {
+				try {
+					await sendAccountAccessMail(newRecipientEmail, {
+						subject: `Aufgabe „${created.title}" bei Balamentum`,
+						lines: [
+							`${requester?.displayName ?? 'Jemand'} hat dir die Aufgabe „${created.title}" übergeben.`,
+							'Sieh sie dir in Ruhe an — du entscheidest, was daraus wird.',
+						],
+					});
+				} catch (error) {
+					console.warn('Zugangs-Mail zur delegierten Aufgabe fehlgeschlagen:', error);
+				}
+			}
 			// #1798 AK2: Aufgabe aus einer Fürsorge-Vorlage → anonymes Übernahme-Ereignis.
 			const careTemplateKey = (req.body as { careTemplateKey?: unknown }).careTemplateKey;
 			if (typeof careTemplateKey === 'string' && careTemplateKey.trim()) {
@@ -778,7 +845,25 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 		// ohne dass Feldänderungen aus demselben Request durchkommen (AK2).
 		const requester = await resolveGeoUser(req);
 		const requesterId = requester?.id ?? null;
-		const recipientResolution = await resolveRecipientId(requesterId, (req.body as { userId?: unknown }).userId);
+		// #1983 (AK5): `recipientEmail` wie bei POST /tasks — unbekannte Adresse wird zum Konto +
+		// DB-Zulassung (`delegation`) aufgelöst; bekanntes Konto läuft durch resolveRecipientId.
+		let patchRecipientInput: unknown = (req.body as { userId?: unknown }).userId;
+		let patchNewRecipientEmail: string | null = null;
+		if ((req.body as { recipientEmail?: unknown }).recipientEmail !== undefined) {
+			const emailResolution = await resolveRecipientByEmail((req.body as { recipientEmail?: unknown }).recipientEmail);
+			if (!emailResolution.ok) {
+				sendError(res, emailResolution.status, emailResolution.message);
+				return;
+			}
+			patchRecipientInput = emailResolution.recipientInput;
+			patchNewRecipientEmail = emailResolution.newRecipientEmail;
+		}
+		let recipientResolution: RecipientResolution;
+		if (patchNewRecipientEmail !== null) {
+			recipientResolution = { ok: true, recipientId: patchRecipientInput as number };
+		} else {
+			recipientResolution = await resolveRecipientId(requesterId, patchRecipientInput);
+		}
 		if (!recipientResolution.ok) {
 			sendError(res, recipientResolution.status, recipientResolution.message);
 			return;
@@ -948,6 +1033,21 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 					await ScoreEntry.destroy({ where: { taskId: task.id }, transaction });
 				}
 			});
+			// #1983 (AK5): Zugangs-Mail an die externe Adresse — nach dem Commit und vor der Antwort
+			// abgewartet; ein Versandfehler lässt die Übergabe unberührt (Muster #1224/#1363).
+			if (patchNewRecipientEmail !== null) {
+				try {
+					await sendAccountAccessMail(patchNewRecipientEmail, {
+						subject: `Aufgabe „${task.title}" bei Balamentum`,
+						lines: [
+							`${requester?.displayName ?? 'Jemand'} hat dir die Aufgabe „${task.title}" übergeben.`,
+							'Sieh sie dir in Ruhe an — du entscheidest, was daraus wird.',
+						],
+					});
+				} catch (error) {
+					console.warn('Zugangs-Mail zur übergebenen Aufgabe fehlgeschlagen:', error);
+				}
+			}
 			// #1363: Nach dem Commit erneut den Meilenstein-Stand ermitteln und neu erreichte Schwellen
 			// melden — erst nach dem Commit, damit die Punkte-/Streak-Vergabe bereits eingerechnet ist.
 			// Wie bei #1224 (`notifyTaskCreated`) bleibt ein Versandfehler folgenlos für den PATCH.

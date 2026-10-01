@@ -1,3 +1,5 @@
+import AllowedEmail, { type AllowedEmailOrigin } from '../models/allowedEmail.js';
+
 // Multi-User-Allowlist (Issue #193): Liest die erlaubten E-Mail-Adressen aus der Umgebung.
 //
 // Konfigurationsquellen (Priorität):
@@ -11,8 +13,6 @@
 // erfolgt ebenfalls normalisiert, sodass Groß-/Kleinschreibung und Whitespace ignoriert werden.
 // Neben der Env-Allowlist steht die DB-Zulassung (`AllowedEmail`, Freischaltung mit Herkunft):
 // `isDbEmailAllowed()` prüft sie, die Aufrufer kombinieren beide Quellen (siehe unten).
-
-import AllowedEmail from '../models/allowedEmail.js';
 
 /** Normalisiert eine E-Mail-Adresse für den Vergleich (trim + lowercase). */
 const normalize = (email: string): string => email.trim().toLowerCase();
@@ -110,11 +110,13 @@ export const isEmailAllowed = (email: string): boolean => {
 };
 
 /**
+/**
  * Prüft, ob die Adresse in der DB-Zulassung (`allowed_emails`) steht — Freischaltung mit Herkunft
- * (`AllowedEmail.origin`): Warteliste (`'warteliste'`, #1982/ADR 0019), später Einladung/Delegation
- * (#1983). Normalisiert wie `isEmailAllowed`; leere Adresse → false. Die Env-Allowlist wird hier
- * bewusst NICHT geprüft — die Aufrufer kombinieren beide Quellen:
- * `(await isDbEmailAllowed(email)) || isEmailAllowed(email)`.
+ * (`AllowedEmail.origin`): Warteliste (`'warteliste'`, #1982/ADR 0019), Einladung, Delegation oder
+ * Admin (#1983). Normalisiert wie `isEmailAllowed`; leere Adresse → false. Die Env-Allowlist wird
+ * hier bewusst NICHT geprüft — die Aufrufer kombinieren beide Quellen:
+ * `(await isDbEmailAllowed(email)) || isEmailAllowed(email)`. DB-Fehler werden nicht gefangen,
+ * die Aufrufstellen (Auth-Gates) entscheiden über den Fehlerfall.
  */
 export const isDbEmailAllowed = async (email: string): Promise<boolean> => {
 	const normalized = normalize(email);
@@ -123,4 +125,17 @@ export const isDbEmailAllowed = async (email: string): Promise<boolean> => {
 	}
 	const allowed = await AllowedEmail.findOne({ where: { email: normalized } });
 	return allowed !== null;
+};
+
+/**
+ * Schaltet eine Adresse per DB-Eintrag frei (#1982/#1983): vorhandene Einträge bleiben unverändert
+ * (die erste Herkunft gewinnt), für neue entsteht genau eine Zeile — idempotent, wiederholte
+ * Einladungen oder Freischaltungen derselben Adresse erzeugen keine zweite.
+ */
+export const allowEmail = async (email: string, origin: AllowedEmailOrigin): Promise<void> => {
+	const normalized = normalize(email);
+	await AllowedEmail.findOrCreate({
+		where: { email: normalized },
+		defaults: { email: normalized, origin, createdAt: new Date() },
+	});
 };

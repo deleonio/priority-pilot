@@ -39,9 +39,9 @@ export const getUserId = (req: Request): number | undefined => {
  * Ist zusätzlich eine Allowlist gesetzt, wird die E-Mail bei jedem Request erneut geprüft, damit ein
  * nachträglich gesperrter Account auch mit bestehender Session sofort herausfällt.
  *
- * Async, weil die Prüfung seit #1982 zusätzlich die DB-Zulassungen aus der DB liest
- * (`isDbEmailAllowed`, kombiniert mit der Env-Allowlist) — wie `requireRole` darunter als
- * Promise-Middleware.
+ * Async, weil die Prüfung seit #1982/#1983 zusätzlich die DB-Zulassungen (Warteliste, Einladung,
+ * Delegation, Admin) liest (`isDbEmailAllowed`, kombiniert mit der Env-Allowlist) — wie
+ * `requireRole` darunter als Promise-Middleware.
  */
 export const requireAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 	if (!isAuthActive()) {
@@ -50,13 +50,23 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
 		return;
 	}
 	const user = req.session?.user;
-	if (
-		!user ||
-		typeof user.id !== 'number' ||
-		(hasAllowlist() && !(await isDbEmailAllowed(user.email)) && !isEmailAllowed(user.email))
-	) {
+	if (!user || typeof user.id !== 'number') {
 		res.status(401).json({ message: 'Nicht eingeloggt.' });
 		return;
+	}
+	if (hasAllowlist()) {
+		// Express 4 fängt abgelehnte Promises einer async-Middleware nicht ein — der DB-Zweig wird
+		// deshalb hier gefangen; bei DB-Fehler bleibt der Initialwert, die Env-Allowlist entscheidet.
+		let dbAllowed = false;
+		try {
+			dbAllowed = await isDbEmailAllowed(user.email);
+		} catch {
+			// siehe oben — dbAllowed bleibt false
+		}
+		if (!dbAllowed && !isEmailAllowed(user.email)) {
+			res.status(401).json({ message: 'Nicht eingeloggt.' });
+			return;
+		}
 	}
 	next();
 };

@@ -2121,6 +2121,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /admin/allowed-emails:
+    get:
+      summary: Zugelassene E-Mail-Adressen mit Herkunft auflisten
+      description: >-
+        #1983 (AK6): Nur für Admins (403 sonst). Listet die per Einladung,
+        Delegation oder Admin-Freischaltung zugelassenen Adressen — auch solche
+        ohne bestehendes Konto (das Konto entsteht beim ersten Login). Die
+        Nutzerliste (GET /admin/users) bleibt davon unberührt.
+      operationId: listAllowedEmails
+      tags: [admin]
+      responses:
+        '200':
+          description: Zugelassene Adressen
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AllowedEmail'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /admin/waitlist:
     get:
       summary: Warteliste im Referral-Rang auslesen
@@ -4059,6 +4084,21 @@ components:
       properties:
         plan:
           $ref: '#/components/schemas/Plan'
+    AllowedEmail:
+      type: object
+      description: >-
+        Zugelassene E-Mail-Adresse mit Herkunft (#1983) — unabhängig davon, ob
+        bereits ein Konto existiert (das Konto entsteht beim ersten Login).
+      required: [email, origin, createdAt]
+      properties:
+        email:
+          type: string
+        origin:
+          type: string
+          enum: [einladung, delegation, admin, warteliste]
+        createdAt:
+          type: string
+          format: date-time
     ReassignStatusFilter:
       type: string
       enum: [all, open, done]
@@ -4316,11 +4356,18 @@ components:
           enum: [admin, member]
     GroupInvitationInput:
       type: object
-      description: Payload zum Einladen eines Kontos (#1212).
-      required: [userId]
+      description: >-
+        Payload zum Einladen eines Kontos (#1212). Alternativ zur userId kann eine
+        E-Mail-Adresse eingeladen werden (#1983): Eine unbekannte Adresse wird als
+        Konto angelegt, mit Herkunft einladung freigeschaltet und per Zugangs-Mail
+        benachrichtigt; ein bekanntes Konto verhält sich wie der userId-Pfad.
       properties:
         userId:
           type: integer
+        email:
+          type: string
+          description: >-
+            E-Mail-Adresse statt userId (#1983, AK2) — eines von beiden ist Pflicht.
     GroupInvitation:
       type: object
       description: Offene Einladung aus Sicht der Gruppe (#1212).
@@ -4695,6 +4742,13 @@ components:
             Optionaler Empfänger (#1213): das Konto, dem die Aufgabe gehören soll.
             Der Aufrufer muss mit ihm eine Gruppe teilen (sonst 403); ohne das Feld
             oder mit der eigenen ID gehört die Aufgabe dem Aufrufer wie bisher.
+        recipientEmail:
+          type: string
+          description: >-
+            Optionaler Empfänger per E-Mail statt userId (#1983, AK5): Ein bekanntes
+            Konto wird wie userId behandelt (Shared-Group-Prüfung), eine unbekannte
+            Adresse wird zum Konto angelegt, mit Herkunft delegation freigeschaltet
+            und per Zugangs-Mail benachrichtigt.
         groupId:
           type: integer
           nullable: true
@@ -4798,6 +4852,13 @@ components:
             das Feld oder mit der eigenen ID bleibt der Eigentümer unverändert.
             Übergabe schreibt nur die Eigentumsfelder; Abhängigkeiten, die der
             Empfänger nicht sehen kann, lehnen die Übergabe mit 409 ab.
+        recipientEmail:
+          type: string
+          description: >-
+            Optionaler Empfänger per E-Mail statt userId (#1983, AK5): Ein bekanntes
+            Konto wird wie userId behandelt (Shared-Group-Prüfung), eine unbekannte
+            Adresse wird zum Konto angelegt, mit Herkunft delegation freigeschaltet
+            und per Zugangs-Mail benachrichtigt.
         status:
           $ref: '#/components/schemas/TaskStatus'
         priority:

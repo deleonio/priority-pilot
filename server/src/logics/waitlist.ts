@@ -1,5 +1,5 @@
 import { UniqueConstraintError } from 'sequelize';
-import AllowedEmail from '../models/allowedEmail.js';
+import { allowEmail } from './allowedEmails.js';
 import WaitlistEntry, { newReferralCode } from '../models/waitlistEntry.js';
 
 /**
@@ -112,15 +112,6 @@ export const listWaitlistRanked = async (): Promise<WaitlistRankedEntry[]> =>
 		createdAt: createdAt.toISOString(),
 	}));
 
-/**
- * Legt die DB-Zulassung für eine freigeschaltete Adresse an (idempotent, #1983-Vertrag): Der
- * Login nimmt die Adresse ab sofort über `isDbEmailAllowed` an — `status = 'activated'` allein
- * wäre nur Anzeige.
- */
-const allowEmail = async (email: string): Promise<void> => {
-	await AllowedEmail.findOrCreate({ where: { email }, defaults: { email, origin: 'warteliste' } });
-};
-
 /** Schaltet einen einzelnen Eintrag frei (idempotent); `null`, wenn die Id unbekannt ist. */
 export const activateWaitlistEntry = async (id: number): Promise<'activated' | null> => {
 	const entry = await WaitlistEntry.findByPk(id);
@@ -130,7 +121,7 @@ export const activateWaitlistEntry = async (id: number): Promise<'activated' | n
 	if (entry.status !== 'activated') {
 		await entry.update({ status: 'activated' });
 	}
-	await allowEmail(entry.email);
+	await allowEmail(entry.email, 'warteliste');
 	return 'activated';
 };
 
@@ -152,7 +143,7 @@ export const activateTopWaitlist = async (count: number): Promise<number> => {
 	// Sequentiell statt Promise.all: findOrCreate öffnet je eine Transaktion, und die Tests
 	// laufen auf einer einzigen In-Memory-SQLite-Verbindung (Muster wie admin.ts-Subquery-Hinweis).
 	for (const entry of waiting) {
-		await allowEmail(entry.email);
+		await allowEmail(entry.email, 'warteliste');
 	}
 	return affected;
 };

@@ -7,6 +7,9 @@ import { Group, GroupInvitation, GroupInviteLink, GroupMember, Series, Task, Use
 import sequelize from '../../database.js';
 import { resolveGeoUser } from './geoConfig.js';
 import { requirePlanFeature } from '../planGuard.js';
+import { allowEmail } from '../../logics/allowedEmails.js';
+import { sendAccountAccessMail } from '../../logics/accessMail.js';
+import { upsertOAuthUser } from '../../logics/oauthUser.js';
 
 /**
  * Gruppen-CRUD (#1211, Teil 1 der Gruppen-Epic #952). Der Router hängt hinter dem globalen
@@ -385,16 +388,44 @@ groupsRouter.post(
 				sendError(res, 403, 'Nur Administratoren dürfen einladen.');
 				return;
 			}
-			const body = (req.body ?? {}) as { userId?: unknown };
-			const invitedUserId = typeof body.userId === 'number' ? body.userId : Number(body.userId);
-			if (!Number.isInteger(invitedUserId)) {
-				sendError(res, 400, 'Die einzuladende userId ist Pflicht.');
-				return;
-			}
-			const invited = await User.findByPk(invitedUserId);
-			if (!invited) {
-				sendError(res, 404, 'Konto nicht gefunden.');
-				return;
+			const body = (req.body ?? {}) as { userId?: unknown; email?: unknown };
+			// #1983 (AK2): Alternativ zur `userId` lädt der Admin eine E-Mail-Adresse ein. Eine
+			// unbekannte Adresse wird als Konto angelegt und mit Herkunft `einladung` freigeschaltet
+			// (AK4: Zugangs-Mail, unten nach angelegter Einladung); ein bekanntes Konto verhält
+			// sich exakt wie der userId-Pfad.
+			let invitedUserId: number;
+			let invitedName: string;
+			let newInviteeEmail: string | null = null;
+			if (typeof body.email === 'string' && body.email.trim() !== '') {
+				const email = body.email.trim().toLowerCase();
+				if (!email.includes('@') || email.length > 254) {
+					sendError(res, 400, 'Bitte gib eine gültige E-Mail-Adresse an.');
+					return;
+				}
+				const existingUser = await User.findOne({ where: { email } });
+				if (existingUser) {
+					invitedUserId = existingUser.id;
+					invitedName = displayNameOf(existingUser);
+				} else {
+					const invitee = await upsertOAuthUser({ email });
+					await allowEmail(email, 'einladung');
+					invitedUserId = invitee.id;
+					invitedName = invitee.displayName;
+					newInviteeEmail = email;
+				}
+			} else {
+				const parsedUserId = typeof body.userId === 'number' ? body.userId : Number(body.userId);
+				if (!Number.isInteger(parsedUserId)) {
+					sendError(res, 400, 'Die einzuladende userId ist Pflicht.');
+					return;
+				}
+				const invited = await User.findByPk(parsedUserId);
+				if (!invited) {
+					sendError(res, 404, 'Konto nicht gefunden.');
+					return;
+				}
+				invitedUserId = invited.id;
+				invitedName = displayNameOf(invited);
 			}
 			const existingMember = await GroupMember.findOne({ where: { groupId: found.group.id, userId: invitedUserId } });
 			if (existingMember) {
@@ -415,11 +446,27 @@ groupsRouter.post(
 				status: 'pending',
 				createdAt: new Date(),
 			});
+			if (newInviteeEmail !== null) {
+				// #1983 (AK4): Die Einladungs-Benachrichtigung an die neue Adresse ist eine E-Mail
+				// mit direktem Konto-Zugang — nach angelegter Einladung, vor der Antwort abgewartet
+				// (Nebenwirkung beobachtbar). Transportfehler schluckt sendAccountAccessMail selbst.
+				try {
+					await sendAccountAccessMail(newInviteeEmail, {
+						subject: `Einladung zur Gruppe „${found.group.name}" bei Balamentum`,
+						lines: [
+							`${displayNameOf(user)} lädt dich ein, in Balamentum die Gruppe „${found.group.name}" zu teilen.`,
+							'Dort könnt ihr Aufgaben gemeinsam planen — schau in Ruhe vorbei.',
+						],
+					});
+				} catch (error) {
+					console.warn('Einladungs-Mail fehlgeschlagen:', error);
+				}
+			}
 			res.status(201).json({
 				id: created.id,
 				groupId: created.groupId,
 				userId: created.invitedUserId,
-				displayName: displayNameOf(invited),
+				displayName: invitedName,
 				status: created.status,
 			});
 		} catch {

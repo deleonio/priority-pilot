@@ -66,6 +66,9 @@ vi.mock('@public-ui/react-v19', () => ({
 vi.mock('../api', () => ({
 	api: {
 		getAdminUsers: vi.fn(),
+		// #1983 (AK6): Zulassungsliste — ohne Mock-Key liefe der Loader in den Fehler-Alert
+		// und kippte die Bestands-Assertions.
+		getAllowedEmails: vi.fn(),
 		updateUserRole: vi.fn(),
 		reassignTaskPillars: vi.fn(),
 		getReassignPillarsStatus: vi.fn(),
@@ -83,6 +86,7 @@ import { api } from '../api';
 import { AdminUsersSection } from './AdminUsersSection';
 
 const mockGetAdminUsers = api.getAdminUsers as ReturnType<typeof vi.fn>;
+const mockGetAllowedEmails = api.getAllowedEmails as ReturnType<typeof vi.fn>;
 const mockUpdateUserRole = api.updateUserRole as ReturnType<typeof vi.fn>;
 const mockReassignTaskPillars = api.reassignTaskPillars as ReturnType<typeof vi.fn>;
 const mockGetReassignPillarsStatus = api.getReassignPillarsStatus as ReturnType<typeof vi.fn>;
@@ -118,6 +122,9 @@ const finishBatchWith = (result: {
 	mockReassignTaskPillars.mockResolvedValue({ running: true, processed: 0 });
 };
 mockGetReassignPillarsStatus.mockImplementation(() => Promise.resolve(NO_RUN));
+// #1983: Bestandstests erwarten keine Zulassungseinträge — leerer Default, der AK6-Test
+// überschreibt ihn.
+mockGetAllowedEmails.mockResolvedValue([]);
 
 type TestUser = {
 	id: number;
@@ -191,6 +198,23 @@ describe('AdminUsersSection — Nutzerverwaltung (Rollensystem admin/member/test
 		expect(badgeInRow(rowOf('Anna Admin'), 'Admin')).toBeInTheDocument();
 		expect(screen.getByText('Max Member')).toBeInTheDocument();
 		expect(badgeInRow(rowOf('Max Member'), 'Mitglied')).toBeInTheDocument();
+	});
+
+	it('zeigt zugelassene Adressen mit Herkunfts-Badge an (#1983 AK6)', async () => {
+		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
+		mockGetAllowedEmails.mockResolvedValue([
+			{ email: 'neu@beispiel.de', origin: 'einladung', createdAt: '2026-10-01T00:00:00Z' },
+			{ email: 'delegiert@beispiel.de', origin: 'delegation', createdAt: '2026-10-01T00:00:00Z' },
+		]);
+
+		render(<AdminUsersSection />);
+
+		await waitFor(() => expect(screen.getByText('neu@beispiel.de')).toBeInTheDocument());
+		expect(screen.getByText('delegiert@beispiel.de')).toBeInTheDocument();
+		const invitedRow = screen.getByText('neu@beispiel.de').closest('li') as HTMLElement;
+		expect(within(invitedRow).getByText('Einladung')).toBeInTheDocument();
+		const delegatedRow = screen.getByText('delegiert@beispiel.de').closest('li') as HTMLElement;
+		expect(within(delegatedRow).getByText('Delegation')).toBeInTheDocument();
 	});
 
 	it('Auswahl von „Admin" in der Rollen-Radiogruppe ruft updateUserRole auf und lädt neu', async () => {
