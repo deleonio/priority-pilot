@@ -234,7 +234,7 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		assert.equal(cancelled, false, 'Altes Abo erst nach Bestätigung des neuen kündigen');
 		assert.equal(created.length, 1, 'Genau ein neues Abo wird angelegt');
 		const first = created[0].override?.firstCycleCents;
-		assert.ok(first !== undefined && first > 999 - 499 && first < 999, `erster Zyklus reduziert, war ${first}`);
+		assert.ok(first !== undefined && first > 899 - 399 && first < 899, `erster Zyklus reduziert, war ${first}`);
 	});
 
 	it('#1912: zwei abgebrochene Upgrade-Anläufe hinterlassen genau ein ausstehendes Abo neben dem aktiven', async () => {

@@ -37,15 +37,15 @@ describe('invoices.ts — Verrechnung beim Upgrade (#1912 AK5)', () => {
 		const invoice = await issueInvoiceForPeriod(sub, now, async () => {});
 		assert.deepEqual(
 			(invoice.get('lineItems') as { amountCents: number }[]).map((i) => i.amountCents),
-			[999, -249],
+			[899, -249],
 		);
-		assert.equal(invoice.get('amountCents'), 750);
+		assert.equal(invoice.get('amountCents'), 650);
 	});
 
 	it('Rechnung ohne Verrechnung bleibt gültig: voller Preis, keine Verrechnungsposition', async () => {
 		const sub = await makeSub('normal@example.com', {});
 		const invoice = await issueInvoiceForPeriod(sub, now, async () => {});
-		assert.equal(invoice.get('amountCents'), 999);
+		assert.equal(invoice.get('amountCents'), 899);
 		const items = (invoice.get('lineItems') ?? []) as { amountCents: number }[];
 		assert.ok(items.every((i) => i.amountCents > 0));
 	});

@@ -97,8 +97,8 @@ describe('renderLanding', () => {
 			expect(html).toContain(`<html lang="${locale}">`);
 			for (const target of LOCALES) expect(html).toContain(`hreflang="${target}" href="https://example.org/`);
 		}
-		expect(landing('pl')).toMatch(/4,99\s€/u);
-		expect(landing('en')).toContain('€4.99');
+		expect(landing('pl')).toMatch(/3,99\s€/u);
+		expect(landing('en')).toContain('€3.99');
 	});
 
 	it('setzt Sprache, canonical und hreflang für beide Sprachen', () => {
@@ -141,10 +141,10 @@ describe('renderLanding', () => {
 
 	it('zeigt Preise aus plans.ts und die KI-Hilfe ohne Anzahl (#1783)', () => {
 		const html = landing('de');
-		expect(html).toContain('4,99 €');
-		expect(html).toContain('9,99 €');
-		expect(html).toContain('47,90 €');
-		expect(html).toContain('95,90 €');
+		expect(html).toContain('3,99 €');
+		expect(html).toContain('8,99 €');
+		expect(html).toContain('38,30 €');
+		expect(html).toContain('86,30 €');
 		expect(html).toContain('KI-Hilfe nach Fair Use');
 		expect(html).not.toMatch(/\d+ KI-Anfragen/);
 		for (const plan of PLAN_VALUES) {
@@ -157,10 +157,10 @@ describe('renderLanding', () => {
 		expect(template).toBeTypeOf('string');
 		const html = landing('de');
 		const card = (plan: string) => html.slice(html.indexOf(`data-plan="${plan}"`)).split('</article>')[0];
-		expect(card('plus')).toContain(template!.replace('{price}', '3,99 €'));
-		expect(card('pro')).toContain(template!.replace('{price}', '7,99 €'));
-		expect(card('plus')).toContain('47,90 €');
-		expect(card('pro')).toContain('95,90 €');
+		expect(card('plus')).toContain(template!.replace('{price}', '3,19 €'));
+		expect(card('pro')).toContain(template!.replace('{price}', '7,19 €'));
+		expect(card('plus')).toContain('38,30 €');
+		expect(card('pro')).toContain('86,30 €');
 		expect(card('free')).not.toContain(template!.replace('{price}', ''));
 	});
 
@@ -462,7 +462,7 @@ describe('Preisseite Free/Plus/Pro (#1786)', () => {
 		for (const price of ['1,11 €', '2,22 €', '3,33 €', '4,44 €', '5,55 €', '6,66 €']) {
 			expect(html).toContain(price);
 		}
-		expect(html).not.toContain('13,47 €');
+		expect(html).not.toContain('10,77 €');
 	});
 });
 

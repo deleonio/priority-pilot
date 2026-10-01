@@ -10,11 +10,11 @@ const equivalent = (plans as unknown as { yearlyMonthlyEquivalent?: (yearlyCents
 	.yearlyMonthlyEquivalent;
 
 describe('yearlyMonthlyEquivalent (#1898 AK1/AK2/AK4)', () => {
-	it('rundet den Jahrespreis / 12 auf den Cent ab (Plus 399, Pro 799)', () => {
+	it('rundet den Jahrespreis / 12 auf den Cent ab (Plus 319, Pro 719)', () => {
 		assert.equal(typeof equivalent, 'function');
 		const { prices } = plans.getPlansCatalog();
-		assert.equal(equivalent!(prices.plus.yearly), 399);
-		assert.equal(equivalent!(prices.pro.yearly), 799);
+		assert.equal(equivalent!(prices.plus.yearly), 319);
+		assert.equal(equivalent!(prices.pro.yearly), 719);
 	});
 
 	it('liefert für Free (Jahrespreis 0) keinen Wert', () => {

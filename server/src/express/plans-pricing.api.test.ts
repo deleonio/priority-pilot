@@ -43,9 +43,9 @@ describe('GET /plans — Cent-Preise mit Quartalsstaffel (#1494 AK5)', () => {
 		}
 	});
 
-	it('Pro liefert 999 / 2697 / 9590 Cent laut ADR 0018 (#1782)', async () => {
+	it('Pro liefert 899 / 2427 / 8630 Cent laut ADR 0018 (#1782)', async () => {
 		const res = await fetch(`${server.baseUrl}/plans`);
 		const body = (await res.json()) as { prices: Record<string, Record<string, number>> };
-		assert.deepEqual(body.prices.pro, { monthly: 999, quarterly: 2697, yearly: 9590 });
+		assert.deepEqual(body.prices.pro, { monthly: 899, quarterly: 2427, yearly: 8630 });
 	});
 });

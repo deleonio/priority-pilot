@@ -17,7 +17,7 @@ test.describe('Öffentliche Website', () => {
 		for (const name of ['Free', 'Plus', 'Pro']) {
 			await expect(pricing.getByRole('heading', { level: 3, name, exact: true })).toBeVisible();
 		}
-		await expect(pricing.getByText('4,99 €')).toBeVisible();
+		await expect(pricing.getByText('3,99 €')).toBeVisible();
 	});
 
 	test('Preiskarten zeigen Monat, Quartal und Jahr ohne Überlauf (#1786)', async ({ page }) => {
@@ -25,7 +25,7 @@ test.describe('Öffentliche Website', () => {
 		const pricing = page.locator('#pricing');
 		await pricing.scrollIntoViewIfNeeded();
 		await expect(pricing.locator('[data-plan]')).toHaveCount(3);
-		for (const price of ['4,99 €', '13,47 €', '47,90 €', '9,99 €', '26,97 €', '95,90 €']) {
+		for (const price of ['3,99 €', '10,77 €', '38,30 €', '8,99 €', '24,27 €', '86,30 €']) {
 			await expect(pricing.getByText(price).first()).toBeVisible();
 		}
 		const viewport = page.viewportSize()?.width ?? 0;
@@ -41,11 +41,11 @@ test.describe('Öffentliche Website', () => {
 		await page.goto('/');
 		const pricing = page.locator('#pricing');
 		await pricing.scrollIntoViewIfNeeded();
-		await expect(pricing.locator('[data-plan="free"]').getByText(/3,99|7,99/)).toHaveCount(0);
+		await expect(pricing.locator('[data-plan="free"]').getByText(/3,19|7,19/)).toHaveCount(0);
 		const viewport = page.viewportSize()?.width ?? 0;
 		for (const [plan, amount] of [
-			['plus', '3,99 €'],
-			['pro', '7,99 €'],
+			['plus', '3,19 €'],
+			['pro', '7,19 €'],
 		]) {
 			const hint = pricing.locator(`[data-plan="${plan}"]`).getByText(amount);
 			await expect(hint).toBeVisible();

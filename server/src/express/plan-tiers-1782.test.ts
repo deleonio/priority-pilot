@@ -86,8 +86,8 @@ describe('Pakete free/plus/pro über die API (#1782)', () => {
 		const res = await fetch(`${server.baseUrl}/plans`);
 		const body = (await res.json()) as { prices: Record<string, unknown> };
 		assert.deepEqual(Object.keys(body.prices).sort(), ['free', 'plus', 'pro']);
-		assert.deepEqual(body.prices.plus, { monthly: 499, quarterly: 1347, yearly: 4790 });
-		assert.deepEqual(body.prices.pro, { monthly: 999, quarterly: 2697, yearly: 9590 });
+		assert.deepEqual(body.prices.plus, { monthly: 399, quarterly: 1077, yearly: 3830 });
+		assert.deepEqual(body.prices.pro, { monthly: 899, quarterly: 2427, yearly: 8630 });
 	});
 
 	it('AK4: Free legt ohne weight an und entfernt (Rollout an), mit weight 403 graph_weight ohne Kante', async () => {

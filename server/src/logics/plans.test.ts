@@ -247,8 +247,8 @@ describe('plans.ts — Cent-Preise und Quartalsstaffel (#1494 AK1-AK3)', () => {
 	it('Beträge entsprechen der Konzepttabelle in Cent (AK2)', () => {
 		const catalog = getPlansCatalog();
 		assert.deepEqual(catalog.prices.free, { monthly: 0, quarterly: 0, yearly: 0 });
-		assert.deepEqual(catalog.prices.plus, { monthly: 499, quarterly: 1347, yearly: 4790 });
-		assert.deepEqual(catalog.prices.pro, { monthly: 999, quarterly: 2697, yearly: 9590 });
+		assert.deepEqual(catalog.prices.plus, { monthly: 399, quarterly: 1077, yearly: 3830 });
+		assert.deepEqual(catalog.prices.pro, { monthly: 899, quarterly: 2427, yearly: 8630 });
 	});
 
 	it('Quartal = 3× Monat minus 10 %, Jahr = 12× Monat minus 20 %, kaufmännisch gerundet (AK3)', () => {
