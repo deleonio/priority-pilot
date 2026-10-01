@@ -61,7 +61,7 @@ phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
 | `ai:continued` on the issue | soft abort at the time limit, the next run resumes — wait. A second run without push is a finding |
 | PR of the issue appears | subscribe to its activity immediately |
 | `ai:needs-human` on the PR | read the stop comment; fix small causes yourself (base merge, re-review), otherwise ask the author |
-| PR has a merge conflict (`mergeable_state: dirty`) | check every open PR of the epic at each check-in and after each merge to main. `ai:needs-fixup` set or a fixup queued → the fixup run merges main into the branch before it starts and resolves the conflict markers as its first step; post the resolution rule (which side wins, what to merge into one) as an inline review comment on the conflicting file instead of pushing — the fixup reads review threads and the collected review comment, not plain PR comments. No phase running or queued on the branch → hand the resolution to a subagent (section 6, one per PR, in parallel); phase running → wait for its end. After the subagent's push: if the PR already had its review verdict, re-arm `ai:needs-review`. A conflict that needs a product decision goes to the author |
+| PR has a merge conflict (`mergeable_state: dirty`) | check every open PR of the epic at each check-in and after each merge to main. No phase **running** on the branch → hand the resolution to a subagent at once (section 6, one per PR, in parallel), even if a fixup is merely queued or crashed — waiting for the queue costs hours when phases stall. Phase running → wait for its end; the fixup run merges main before it starts and resolves the markers itself, so give it the resolution rule as an inline review comment on the conflicting file (it reads review threads, not plain PR comments). After the subagent's push: if the PR already had its review verdict, re-arm `ai:needs-review`. A conflict that needs a product decision goes to the author |
 | Author comments as PO on a PR or issue | apply at once (ticket body, ADR, labels), adjust dependent tickets |
 | PR merged, issue closed | check main CI, start the next issue in the same turn |
 | All sub-issues of an epic closed | check the merged PRs for named follow-up work that no ticket covers; ask the author about a follow-up ticket. Never close the epic yourself |
@@ -154,6 +154,17 @@ pipeline and later readers see it.
     (model name, file, fields, function signature) on both draft PRs before their implementation
     starts. Check the implementation diff against it; a deviation is a blocking PO comment on
     the PR before the review, so the review sends it into fixup.
+
+16. **Provider quota exhausted.** A phase crash with `429 [1310] ... Limit Exhausted. Your limit will
+    reset at <time>` stops every LLM phase (spec, implementation, fixup, review). The reset time
+    is in the provider's zone (UTC+8 — the request ID starts with the provider's local
+    timestamp). Do not re-arm before the reset, every attempt burns a run and adds an
+    `ai:needs-human`; schedule one check-in shortly after the reset and re-arm all crashed
+    triggers then. Work that needs no pipeline LLM (conflict subagent, label fixes) goes on.
+17. **Fixing a finding on your own PR yourself.** Swap `ai:needs-fixup` for `ai:needs-review` in
+    the same step (else the pipeline fixup runs on the branch in parallel) and post the proof
+    as an `<!-- ai-fixup-decisions -->` comment with the fixed-findings table; a thread reply
+    alone lets the re-review end in a false `ai:needs-human`.
 
 ## 5. Tool notes
 
