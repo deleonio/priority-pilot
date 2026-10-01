@@ -1,6 +1,6 @@
 # ADR 0017 — Store-Billing: Google Play Billing mit eigener Server-Verifikation
 
-- **Status:** Accepted (2026-09-24), Preisgestaltung offen
+- **Status:** Accepted (2026-09-24), Preisgestaltung entschieden (2026-09-30)
 - **Datum:** 2026-09-24
 - **Kontext:** [ADR 0016](0016-nativer-wrapper-capacitor-remote-modus.md) (Kanal `play`, ein Zahlungsweg pro Kanal), [ADR 0013](0013-zahlungsweg-paypal-abos.md) (PayPal im Web, Store-Billing vertagt), [Plan native Apps](../plan-native-apps.md) Stufe 2, [Epic #1664](https://github.com/deleonio/priority-pilot/issues/1664)
 
@@ -40,12 +40,11 @@ Beispiel für einen Kunden in Deutschland. Im Web gilt die Kleinunternehmerregel
 
 ¹ Store-Preis, der nach Umsatzsteuer und Gebühr denselben Erlös bringt wie PayPal.
 
-## Offene Entscheidung: Preisgestaltung
+## Entscheidung: Preisgestaltung
 
-Der PO entscheidet, ob die Store-Preise den Web-Preisen entsprechen oder höher liegen. Die Entscheidung muss vor dem Anlegen der Abo-Produkte in der Play Console (#1691) fallen.
+Entschieden am 2026-09-30 ([#1800](https://github.com/deleonio/priority-pilot/issues/1800)): die Store-Preise entsprechen den Web-Preisen (`PLAN_PRICES` in `server/src/logics/plans.ts`) je Paket und Zeitraum.
 
-- **Gleicher Preis:** einfach zu erklären, überall dieselbe Paketmatrix. Ein Store-Abo bringt je nach Paket und Zeitraum rund 23 bis 27 % weniger als ein PayPal-Abo.
-- **Höherer Preis:** gleicher Erlös je Abo. Google erlaubt abweichende Preise, die App darf aber nicht auf den günstigeren Kauf im Web hinweisen (ADR 0016). Die Website zeigt weiter die Web-Preise.
+Gegen die Alternative eines höheren Store-Preises mit gleichem Erlös sprachen die einfache Erklärung (überall dieselbe Paketmatrix) und der geringere Pflegeaufwand. Die Konsequenz — ein Store-Abo bringt je nach Paket und Zeitraum rund 23 bis 27 % weniger Erlös als ein PayPal-Abo — ist bewusst akzeptiert (Tabelle oben). Die Play-Produkte werden mit diesen Preisen in #1691 angelegt.
 
 ## Verworfene Alternativen
 
