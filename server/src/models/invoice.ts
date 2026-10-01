@@ -23,6 +23,8 @@ class Invoice extends Model {
 	public deliveredAt?: Date | null;
 	/** Positionen (#1912) — nur bei Verrechnung befüllt; Altrechnungen tragen `[]`. */
 	public lineItems!: { label: string; amountCents: number }[];
+	/** PDF-Bytes (#1955 AK3) — zum Erzeugungszeitpunkt gespeichert; Altrechnungen tragen `null`. */
+	public pdfBytes?: Buffer | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -72,6 +74,10 @@ Invoice.init(
 			type: DataTypes.JSON,
 			allowNull: false,
 			defaultValue: [],
+		},
+		pdfBytes: {
+			type: DataTypes.BLOB,
+			allowNull: true,
 		},
 	},
 	{

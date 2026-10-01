@@ -5,6 +5,8 @@ import type Subscription from '../models/subscription.js';
 import User from '../models/user.js';
 import { getPlansCatalog, type Plan } from './plans.js';
 import { sendMailToUser, type MailSender } from './mail.js';
+import { buildInvoicePdf } from './invoicePdf.js';
+import { OPERATOR } from './operator.js';
 
 /**
  * Rechnungsstellung (Issue #1495 AK8). Erzeugt je Abrechnungszeitraum genau eine Rechnung mit
@@ -91,8 +93,15 @@ export const issueInvoiceForPeriod = async (
 	}
 
 	const user = await User.findByPk(subscription.get('userId') as number);
+	const number = invoice.get('number') as string;
+	// PDF zum Erzeugungszeitpunkt bauen und speichern (#1955 AK3) — Anhang und späterer Download
+	// teilen dieselben Bytes (byte-identisch).
+	const pdfBytes = await buildInvoicePdf(invoice, OPERATOR, {
+		displayName: String(user?.get('displayName') ?? ''),
+		email: String(user?.get('email') ?? ''),
+	});
+	await invoice.update({ pdfBytes: Buffer.from(pdfBytes) });
 	if (user) {
-		const number = invoice.get('number') as string;
 		const sent = await sendMailToUser(
 			user,
 			{
@@ -105,6 +114,7 @@ export const issueInvoiceForPeriod = async (
 					`Betrag: ${(amountCents / 100).toFixed(2)} EUR`,
 					TAX_NOTE,
 				].join('\n'),
+				attachments: [{ filename: `${number}.pdf`, contentType: 'application/pdf', content: pdfBytes }],
 			},
 			mailSend,
 		);

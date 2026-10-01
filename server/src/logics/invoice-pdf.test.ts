@@ -47,11 +47,11 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 		await closeDb();
 	});
 
-	const invoice = () =>
+	const invoice = (number = 'INV-2026-100001') =>
 		Invoice.create({
 			userId: 1,
 			subscriptionId: 1,
-			number: 'INV-2026-100001',
+			number,
 			periodStart: new Date('2026-02-01T00:00:00Z'),
 			periodEnd: new Date('2026-03-01T00:00:00Z'),
 			amountCents: 799,
@@ -83,7 +83,11 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 		const base = invoicePdfLines(await invoice(), OPERATOR, RECIPIENT).join('\n');
 		assert.ok(!base.includes('USt-IdNr'), 'Ohne ustId darf keine USt-IdNr.-Zeile erscheinen');
 
-		const withId = invoicePdfLines(await invoice(), { ...OPERATOR, ustId: 'DE123456789' }, RECIPIENT).join('\n');
+		const withId = invoicePdfLines(
+			await invoice('INV-2026-100002'),
+			{ ...OPERATOR, ustId: 'DE123456789' },
+			RECIPIENT,
+		).join('\n');
 		assert.ok(withId.includes('DE123456789'), 'Bei gesetzter ustId muss die USt-IdNr. im PDF stehen');
 	});
 

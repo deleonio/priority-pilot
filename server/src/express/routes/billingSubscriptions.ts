@@ -301,5 +301,33 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 		res.json(serializeInvoice(invoice));
 	});
 
+	// GET /billing/invoices/{id}/pdf — das zum Erzeugungszeitpunkt gespeicherte Rechnungs-PDF
+	// (#1955 AK4, byte-identisch zum Mail-Anhang). Fremde oder unbekannte Ids — darunter
+	// Altrechnungen ohne gespeichertes PDF — liefern 404 wie die Stamm-Route.
+	router.get('/billing/invoices/:id/pdf', async (req: Request, res: Response<Buffer | ErrorDto>) => {
+		const userId = getUserId(req);
+		if (userId === undefined) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const id = parseId(req.params.id);
+		if (id === null) {
+			sendError(res, 404, 'Rechnung nicht gefunden.');
+			return;
+		}
+		const invoice = await Invoice.findOne({ where: { id, userId } });
+		const pdfBytes = invoice?.get('pdfBytes') as Buffer | null | undefined;
+		if (!invoice || !pdfBytes) {
+			sendError(res, 404, 'Rechnung nicht gefunden.');
+			return;
+		}
+		// Rechnungsnummer ist servergeneriert (`INV-<Jahr>-<6-stellig>`) — header-sicher.
+		res
+			.status(200)
+			.set('Content-Type', 'application/pdf')
+			.set('Content-Disposition', `attachment; filename="${invoice.get('number') as string}.pdf"`)
+			.send(pdfBytes);
+	});
+
 	return router;
 };

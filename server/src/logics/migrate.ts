@@ -1079,6 +1079,21 @@ export const migrateInvoiceLineItemsColumn = async (db: Sequelize): Promise<void
 };
 
 /**
+ * Zieht die nullbare `pdfBytes`-Spalte (Rechnungs-PDF, #1955 AK3) auf einer **bestehenden**
+ * `invoices`-Tabelle nach, BEVOR `sequelize.sync()` läuft — Muster
+ * {@link migrateInvoiceLineItemsColumn}. Nullable, daher kein Default nötig; Altrechnungen bleiben
+ * ohne gespeichertes PDF (der Download antwortet dann 404). Idempotent; ohne Tabelle ein No-op.
+ */
+export const migrateInvoicePdfBytesColumn = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('invoices')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+	if (existing.length > 0 && !existing.includes('pdfBytes')) {
+		await db.query('ALTER TABLE `invoices` ADD COLUMN `pdfBytes` BLOB');
+		console.log('Spalte pdfBytes an invoices nachgezogen.');
+	}
+};
+
+/**
  * Stellt die Altpakete des Vier-Paket-Modells um (#1785): `max` wird `plus`, `ultimate` wird `pro` in
  * `users.plan`, `subscriptions.plan` und `subscriptions.pendingPlan`. Idempotent; fehlende Tabellen
  * oder Spalten sind ein No-op.
