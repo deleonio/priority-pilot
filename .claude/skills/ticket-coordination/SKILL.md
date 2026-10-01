@@ -103,13 +103,17 @@ pipeline and later readers see it.
    Real infrastructure failures have a signature in the log (dev server crash, `connection
    refused` from one test on until the shard ends): re-run the failed jobs once, record the
    signature in a ticket, never send the PR into fixup for it.
-3. **Phase ended without a usable result.** Two forms:
+3. **Phase ended without a usable result.** Three forms:
    - No verdict, no branch, no PR, trigger still attached → re-arm the trigger once (remove,
      add). A second failure goes to the author with the cause from the run log.
    - `ai:needs-human` although the work is done: the agent could not write its result (blocked
      tool or file access) or the label step itself crashed, so no reason comment exists. Read the
      agent's final output in the run log; if it has no real open question, post its result as an
      issue comment and set the next phase.
+   - Triage finds the ticket already fulfilled (typical after the blocker's PR covered it): it
+     posts the evidence as a plain comment, the run ends red and `ai:needs-analyse` stays. Check
+     the evidence (file:line, tests), close the issue as completed with a short PO comment, drop
+     the label; hardening points it lists become a ticket proposal to the author.
 4. **Late pushes miss the merge.** The gate merges the reviewed head. A commit pushed after the
    green review may not be in main — check the merged commit and bring the rest in a new PR.
 5. **Optional review nits on own PRs.** Reply and resolve; do not push only for a nit — the push
