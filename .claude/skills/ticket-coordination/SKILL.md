@@ -147,6 +147,13 @@ pipeline and later readers see it.
     `ai:needs-po-review`, but the old `ai:needs-human` can stay. Both together mean "ready to
     route", not "blocked": check the analysis timestamp is after the answer, then route and drop
     `ai:needs-human` in the same write.
+15. **Two tickets, one shared building block.** When two analyses each plan the same piece (a
+    model, a check function), an issue comment alone does not reach the later phases: spec and
+    implementation work from the spec document and the PR. Post the directive on both issues
+    before the spec, then — as soon as the first spec fixes names — post the identical contract
+    (model name, file, fields, function signature) on both draft PRs before their implementation
+    starts. Check the implementation diff against it; a deviation is a blocking PO comment on
+    the PR before the review, so the review sends it into fixup.
 
 ## 5. Tool notes
 
