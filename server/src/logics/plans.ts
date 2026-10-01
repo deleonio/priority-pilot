@@ -90,7 +90,7 @@ const FEATURE_CATALOG: readonly FeatureCatalogEntry[] = [
 const PLAN_PRICES: Record<Plan, PlanPrice> = {
 	free: { monthly: 0, quarterly: 0, yearly: 0 },
 	plus: { monthly: 499, quarterly: 1347, yearly: 4790 },
-	pro: { monthly: 999, quarterly: 2697, yearly: 9590 },
+	pro: { monthly: 899, quarterly: 2427, yearly: 8630 },
 };
 
 /** @public Monatsäquivalent der Jahreszahlung in Cent (abgerundet, #1898); `null` für Free. Nutzer: Website-Render und Tests. */

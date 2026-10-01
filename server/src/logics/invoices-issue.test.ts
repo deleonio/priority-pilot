@@ -42,7 +42,7 @@ describe('invoices.ts — issueInvoiceForPeriod (#1495 AK8)', () => {
 			sent.push({ subject: payload.subject, text: payload.text });
 		});
 
-		assert.equal(invoice.get('amountCents'), 999, 'Betrag kommt aus dem Paketkatalog (plans.ts)');
+		assert.equal(invoice.get('amountCents'), 899, 'Betrag kommt aus dem Paketkatalog (plans.ts)');
 		assert.match(invoice.get('taxNote') as string, /§19 UStG/);
 		assert.ok(!Object.keys(Invoice.getAttributes()).includes('taxRate'), 'Kein Steuersatz — §19 UStG');
 		assert.equal(sent.length, 1, 'Die Rechnung muss zugestellt werden');

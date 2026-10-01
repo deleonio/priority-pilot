@@ -36,10 +36,10 @@ describe('plans.ts — Pakete free/plus/pro (#1782)', () => {
 		}
 	});
 
-	it('AK3: Preise plus 499/1347/4790, pro 999/2697/9590, kein max/ultimate', () => {
+	it('AK3: Preise plus 499/1347/4790, pro 899/2427/8630, kein max/ultimate', () => {
 		const { prices } = getPlansCatalog() as { prices: Record<string, unknown> };
 		assert.deepEqual(prices.plus, { monthly: 499, quarterly: 1347, yearly: 4790 });
-		assert.deepEqual(prices.pro, { monthly: 999, quarterly: 2697, yearly: 9590 });
+		assert.deepEqual(prices.pro, { monthly: 899, quarterly: 2427, yearly: 8630 });
 		assert.equal(prices.max, undefined);
 		assert.equal(prices.ultimate, undefined);
 	});

@@ -4,8 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * Rote Spec-Tests für #1494 AK9 (Spec docs/spec/issue-1494.md) — `PlansSection` formatiert die
- * seit #1494 in Cent gelieferten Preise wieder zu Euro-Beträgen ("9,99 €"), statt die rohe
- * Cent-Zahl zu rendern ("999 €").
+ * seit #1494 in Cent gelieferten Preise wieder zu Euro-Beträgen ("8,99 €"), statt die rohe
+ * Cent-Zahl zu rendern ("899 €").
  *
  * `@public-ui/react-v19` ist gemockt (KoliBri ist in JSDOM nicht hydrierbar, Muster
  * `PlanBadge.test.tsx`); die API-Fassade ist gemockt, damit der Katalog synchron mit Cent-Werten
@@ -41,18 +41,18 @@ const CATALOG_CENTS = {
 	prices: {
 		free: { monthly: 0, quarterly: 0, yearly: 0 },
 		plus: { monthly: 499, quarterly: 1347, yearly: 4790 },
-		pro: { monthly: 999, quarterly: 2697, yearly: 9590 },
+		pro: { monthly: 899, quarterly: 2427, yearly: 8630 },
 	},
 };
 
 describe('PlansSection (#1494 AK9)', () => {
-	it('zeigt den Pro-Monatspreis als "9,99 €" statt der rohen Cent-Zahl', async () => {
+	it('zeigt den Pro-Monatspreis als "8,99 €" statt der rohen Cent-Zahl', async () => {
 		getPlansCatalog.mockResolvedValue(CATALOG_CENTS);
 		render(createElement(PlansSection));
 
 		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
-		expect(screen.getByText(/^9,99 €/)).toBeTruthy();
-		expect(screen.queryByText('999 €')).toBeNull();
+		expect(screen.getByText(/^8,99 €/)).toBeTruthy();
+		expect(screen.queryByText('899 €')).toBeNull();
 	});
 
 	it('zeigt free als "0,00 €"', async () => {
@@ -86,8 +86,8 @@ describe('PlansSection (#1496 AK2: drei Zeiträume, keine festen Beträge)', () 
 		render(createElement(PlansSection));
 
 		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
-		expect(screen.getByText('26,97 €')).toBeTruthy();
-		expect(screen.getByText('95,90 €')).toBeTruthy();
+		expect(screen.getByText('24,27 €')).toBeTruthy();
+		expect(screen.getByText('86,30 €')).toBeTruthy();
 	});
 
 	it('rendert nur Beträge aus dem Katalog — kein fest verdrahteter Fallback-Preis', async () => {
@@ -96,7 +96,7 @@ describe('PlansSection (#1496 AK2: drei Zeiträume, keine festen Beträge)', () 
 			prices: {
 				free: { monthly: 0, quarterly: 0, yearly: 0 },
 				plus: { monthly: 111, quarterly: 222, yearly: 333 },
-				pro: { monthly: 999, quarterly: 2697, yearly: 9590 },
+				pro: { monthly: 899, quarterly: 2427, yearly: 8630 },
 			},
 		};
 		getPlansCatalog.mockResolvedValue(sparseCatalog);
@@ -220,25 +220,25 @@ describe('PlansSection je Kanal (#1674)', () => {
 
 		await waitFor(() => expect(screen.getByText('pro 9,49 €')).toBeTruthy());
 
-		expect(screen.queryByText('9,99 €')).toBeNull();
+		expect(screen.queryByText('8,99 €')).toBeNull();
 		expect(screen.getByTestId('plans-section').querySelector('a')).toBeNull();
 	});
 });
 
 /**
  * Rote Spec-Tests für #1898 (Spec docs/spec/issue-1898.md) — Monatsäquivalent der Jahreszahlung
- * (Plus 3,99 €, Pro 7,99 €) steht in der Monatszelle; Free bleibt „0,00 €"; Jahresbetrag bleibt.
+ * (Plus 3,99 €, Pro 7,19 €) steht in der Monatszelle; Free bleibt „0,00 €"; Jahresbetrag bleibt.
  */
 describe('PlansSection (#1898: Monatsäquivalent bei Jahreszahlung)', () => {
-	it('zeigt 3,99 € bei Plus und 7,99 € bei Pro, Jahresbeträge bleiben sichtbar', async () => {
+	it('zeigt 3,99 € bei Plus und 7,19 € bei Pro, Jahresbeträge bleiben sichtbar', async () => {
 		getPlansCatalog.mockResolvedValue(CATALOG_CENTS);
 		render(createElement(PlansSection));
 
 		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
 		expect(screen.getAllByText(/3,99 €/)).toHaveLength(1);
-		expect(screen.getAllByText(/7,99 €/)).toHaveLength(1);
+		expect(screen.getAllByText(/7,19 €/)).toHaveLength(1);
 		expect(screen.getByText('47,90 €')).toBeTruthy();
-		expect(screen.getByText('95,90 €')).toBeTruthy();
+		expect(screen.getByText('86,30 €')).toBeTruthy();
 	});
 
 	it('Free-Spalte zeigt in allen Preiszeilen nur „0,00 €"', async () => {
