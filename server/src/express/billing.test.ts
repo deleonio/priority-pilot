@@ -5,6 +5,7 @@ import { Subscription, User, WebhookEvent } from '../models/index.js';
 import Invoice from '../models/invoice.js';
 import type { AppDeps } from './index.js';
 import { applyDuePendingPlan, type PaypalVerificationResult } from '../logics/paypal.js';
+import { getPlansCatalog } from '../logics/plans.js';
 
 /**
  * Rote Spec-Tests für #1495 (Spec docs/spec/issue-1495.md) — Webhook-Route AK1/AK3/AK4/AK5/AK6.
@@ -552,6 +553,52 @@ describe('Billing/Webhook-API (#1506 — Zahlungsereignisse)', () => {
 	after(async () => {
 		if (server) await server.close();
 		await closeDb();
+	});
+
+	// Grenzfall-Race beim Downgrade mit Zeitraumwechsel: Die Abbuchung des neuen Zyklus kann eintreffen,
+	// BEVOR irgendein /auth/me die fällige Vormerkung (Paket+Zeitraum) anwendet — Verlängerung und
+	// Rechnung müssen trotzdem mit dem NEUEN Paket×Zeitraum rechnen, nicht mit dem alten.
+	it('eine fällige Downgrade-Vormerkung wird vor der Abbuchung angewendet: Verlängerung und Rechnung rechnen mit dem neuen Paket×Zeitraum', async () => {
+		server = await startTestServer(withVerifierAndMail('verified'));
+		await Subscription.create({
+			userId: 106,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-BOUNDARY',
+			plan: 'pro',
+			period: 'yearly',
+			status: 'active',
+			currentPeriodEnd: new Date('2026-09-01T00:00:00Z'),
+			pendingPlan: 'plus',
+			pendingPeriod: 'monthly',
+			pendingPlanEffectiveAt: new Date('2026-09-01T00:00:00Z'),
+		});
+
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-BOUNDARY-1',
+				event_type: 'PAYMENT.SALE.COMPLETED',
+				resource: { billing_agreement_id: 'I-BOUNDARY' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-BOUNDARY' } });
+		assert.equal(sub?.get('plan'), 'plus', 'Die fällige Vormerkung muss vor der Verlängerung greifen');
+		assert.equal(sub?.get('period'), 'monthly');
+		assert.equal(
+			new Date(sub?.get('currentPeriodEnd') as Date).toISOString().slice(0, 10),
+			'2026-10-01',
+			'Die Verlängerung muss um den NEUEN Zeitraum (1 Monat) erfolgen, nicht um die alte Periode (12 Monate)',
+		);
+		assert.equal(sub?.get('pendingPlan'), null, 'Die Vormerkung ist mit der Abbuchung verbraucht');
+		const invoices = await Invoice.findAll({ where: { subscriptionId: sub?.get('id') as number } });
+		assert.equal(invoices.length, 1, 'Genau eine Rechnung muss entstehen');
+		assert.equal(
+			invoices[0]?.get('amountCents'),
+			getPlansCatalog().prices.plus.monthly,
+			'Die Rechnung trägt den Preis des neuen Pakets (Plus monatlich)',
+		);
 	});
 
 	it('AK1: PAYMENT.SALE.COMPLETED verlängert die Periode um einen Zeitraum, setzt active, löscht firstFailureAt und erzeugt genau eine Rechnung', async () => {

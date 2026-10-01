@@ -1,6 +1,6 @@
 import { Op } from 'sequelize';
 import Subscription from '../models/subscription.js';
-import { rankOf, syncUserPlan } from './billing/lifecycle.js';
+import { rankOf, syncUserPlan, applyDuePendingPlan } from './billing/lifecycle.js';
 import { PAYPAL_PLAN_IDS, type Plan } from './plans.js';
 
 export { applyDuePendingPlan, isGracePeriodExpired } from './billing/lifecycle.js';
@@ -375,8 +375,9 @@ export interface ApplyPaymentEventDeps {
  * Wendet ein verifiziertes Zahlungsereignis auf das Abo an (AK1/AK3/AK4, T6e/#1506):
  *
  * - Erfolgreiche Abbuchung (`PAYMENT.SALE.COMPLETED`, ersatzweise
- *   `BILLING.SUBSCRIPTION.ACTIVATED`) → Periode um einen Zeitraum verschieben, `status: 'active'`,
- *   `firstFailureAt` löschen, danach `deps.issueInvoice` aufrufen.
+ *   `BILLING.SUBSCRIPTION.ACTIVATED`) → zunächst eine fällige Downgrade-Vormerkung anwenden
+ *   (Paket und Zeitraum des NEUEN Zyklus), dann Periode um einen Zeitraum verschieben,
+ *   `status: 'active'`, `firstFailureAt` löschen, danach `deps.issueInvoice` aufrufen.
  * - Fehlgeschlagener Einzug (`BILLING.SUBSCRIPTION.PAYMENT.FAILED`) → nur beim ersten Mal
  *   `firstFailureAt` setzen und `status: 'past_due'`; ein weiterer Fehlschlag verlängert die
  *   bereits laufende Frist nicht.
@@ -393,6 +394,11 @@ export const applyPaymentEvent = async (
 	const eventType = event.event_type ?? '';
 
 	if (eventType === 'PAYMENT.SALE.COMPLETED' || eventType === 'BILLING.SUBSCRIPTION.ACTIVATED') {
+		// Eine fällige Downgrade-Vormerkung (Paket+Zeitraum) wird VOR der Verlängerung angewendet:
+		// Die Abbuchung startet den neuen Zyklus, Verlängerung und Rechnung müssen daher mit dem
+		// neuen Paket×Zeitraum rechnen — das `applyDuePendingPlan` beim nächsten `/auth/me` käme
+		// zu spät (Verlängerung um die alte Periode, Rechnung zum alten Preis).
+		await applyDuePendingPlan(subscription, now);
 		const period = String(subscription.get('period'));
 		const currentPeriodEnd = new Date(subscription.get('currentPeriodEnd') as Date);
 		currentPeriodEnd.setUTCMonth(currentPeriodEnd.getUTCMonth() + (PERIOD_MONTHS[period] ?? 1));

@@ -1028,9 +1028,9 @@ export const migratePillarRecalcColumns = async (db: Sequelize): Promise<void> =
 /**
  * Zieht die Pending-Plan-Spalten (#1505) und `firstFailureAt` (#1506) auf einer **bestehenden**
  * `subscriptions`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog
- * `migrateTaskPinnedColumns`. Alle drei sind nullable (kein DEFAULT nötig), Bestandsabos bleiben
- * ohne Vormerkung. Idempotent: bereits vorhandene Spalten werden übersprungen; bei frischer DB
- * No-op — `sync()` legt Tabelle inkl. Spalten an.
+ * `migrateTaskPinnedColumns`. Alle ergänzten Spalten sind nullable (kein DEFAULT nötig),
+ * Bestandsabos bleiben ohne Vormerkung. Idempotent: bereits vorhandene Spalten werden
+ * übersprungen; bei frischer DB No-op — `sync()` legt Tabelle inkl. Spalten an.
  */
 export const migrateSubscriptionPendingPlanColumns = async (db: Sequelize): Promise<void> => {
 	const [columns] = await db.query("PRAGMA table_info('subscriptions')");
