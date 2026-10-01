@@ -405,7 +405,8 @@ const catalog: McpTool[] = [
 	},
 	{
 		name: 'next_task',
-		description: "Returns the token owner's next important task, or null.",
+		description:
+			"Returns the token owner's next important task including its scoreBreakdown (absolute score contributions per factor, summing to total), or null.",
 		inputSchema: { type: 'object', properties: {} },
 		run: (ctx) => callApi(ctx, '/next'),
 	},

@@ -668,7 +668,7 @@ paths:
               schema:
                 nullable: true
                 allOf:
-                  - $ref: '#/components/schemas/Task'
+                  - $ref: '#/components/schemas/TaskRecommendation'
         '500':
           $ref: '#/components/responses/InternalServerError'
   /suggestions:
@@ -689,7 +689,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Task'
+                  $ref: '#/components/schemas/TaskRecommendation'
         '500':
           $ref: '#/components/responses/InternalServerError'
   /reverse-geocode:
@@ -4564,6 +4564,40 @@ components:
         - Done
       default: Open
       description: Bearbeitungsstatus des Tasks
+    ScoreBreakdown:
+      type: object
+      description: >-
+        Score-Aufschlüsselung einer Empfehlung (#2044): absolute Beiträge je Faktor
+        (Summe der vorhandenen Beiträge = `total`). Ein Faktor mit Beitrag 0 fehlt.
+      required: [total]
+      properties:
+        total:
+          type: number
+          description: Gesamtscore der Empfehlung.
+        priority:
+          type: number
+          description: Beitrag der Priorität.
+        unlock:
+          type: number
+          description: Beitrag der Entsperr-Wirkung.
+        balance:
+          type: number
+          description: Beitrag der Balance-Korrektur.
+        deadline:
+          type: number
+          description: Beitrag der Deadline-Nähe.
+        effort:
+          type: number
+          description: Beitrag des Aufwands.
+    TaskRecommendation:
+      allOf:
+        - $ref: '#/components/schemas/Task'
+        - type: object
+          description: Task plus Begründung der Empfehlung (#2044).
+          required: [scoreBreakdown]
+          properties:
+            scoreBreakdown:
+              $ref: '#/components/schemas/ScoreBreakdown'
     Task:
       type: object
       required:

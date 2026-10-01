@@ -50,7 +50,7 @@ import type { PushSender } from '../logics/push.js';
 import type { MailSender } from '../logics/mail.js';
 import { buildTaskForest } from '../logics/tree.js';
 import { buildTaskGraph } from '../logics/graph.js';
-import { findNextImportantTask, findSuggestedTasks } from '../logics/find.js';
+import { findNextBewertung, findSuggestedBewertungen, toScoreBreakdown } from '../logics/find.js';
 import { isDbEmailAllowed, isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
 import { requireAuth, getUserId, hasGoogleOAuth } from './requireAuth.js';
 import { apiTokenAuth, isApiTokenRequest, apiTokenScopeGuard } from './apiTokenAuth.js';
@@ -60,7 +60,7 @@ import { sendError } from './http-error.js';
 
 type TaskTreeNodeDto = components['schemas']['TaskTreeNode'];
 type TaskGraphDto = components['schemas']['TaskGraph'];
-type TaskDto = components['schemas']['Task'];
+type RecommendationDto = components['schemas']['TaskRecommendation'];
 type ErrorDto = components['schemas']['Error'];
 type HealthDto = components['schemas']['Health'];
 
@@ -394,20 +394,20 @@ export const createApp = (deps: AppDeps = {}) => {
 	});
 
 	// GET /next — nächsten wichtigen Task ermitteln (oder null) — auf den eingeloggten Nutzer gefiltert.
-	app.get('/next', async (req, res: express.Response<TaskDto | null | ErrorDto>) => {
+	app.get('/next', async (req, res: express.Response<RecommendationDto | null | ErrorDto>) => {
 		try {
-			const task = await findNextImportantTask(getUserId(req));
-			res.json(task ? serializeTask(task) : null);
+			const next = await findNextBewertung(getUserId(req));
+			res.json(next ? { ...serializeTask(next.task), scoreBreakdown: toScoreBreakdown(next) } : null);
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	});
 
 	// GET /suggestions — „Was ist jetzt dran?"-Vorschlagsliste (sortiert, post-gefiltert).
-	app.get('/suggestions', async (req, res: express.Response<TaskDto[] | ErrorDto>) => {
+	app.get('/suggestions', async (req, res: express.Response<RecommendationDto[] | ErrorDto>) => {
 		try {
-			const tasks = await findSuggestedTasks(getUserId(req));
-			res.json(tasks.map((task) => serializeTask(task)));
+			const liste = await findSuggestedBewertungen(getUserId(req));
+			res.json(liste.map((eintrag) => ({ ...serializeTask(eintrag.task), scoreBreakdown: toScoreBreakdown(eintrag) })));
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
