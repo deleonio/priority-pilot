@@ -152,15 +152,10 @@ describe('distributeWithMinimum', () => {
  * gleichmäßig, jeder Anteil ≥ SHARE_MIN, Summe exakt SHARE_TOTAL. Wer hier etwas ändert, ändert
  * es auch im Frontend.
  *
- * Der Export existiert noch nicht (neue Funktionalität) — deshalb der optionale Cast statt eines
- * direkten Named-Imports: der Typecheck bleibt grün und die Datei lädt, der Test läuft rot, bis
- * die Funktion implementiert ist.
+ * TEST-PFLEGE #1962 (Impl): Der optionale Cast aus der roten Spec ist durch den direkten
+ * Named-Import ersetzt — die Funktion existiert jetzt, und knip sieht die Nutzung statisch.
  */
-const suggestMainShares = (
-	pillarSharesModule as {
-		suggestMainShares?: (mainIndex: number, count: number) => number[];
-	}
-).suggestMainShares;
+const suggestMainShares = pillarSharesModule.suggestMainShares;
 
 describe('suggestMainShares — Hauptsäulen-Fallback (#1962, AK3)', () => {
 	it('liefert bei fünf Säulen die Hauptsäule mit 80 %, den Rest je 5 %', () => {

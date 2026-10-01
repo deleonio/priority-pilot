@@ -161,6 +161,32 @@ vi.mock('@public-ui/react-v19', () => ({
 		/>
 	),
 	KolInputRange: ({ _label }: { _label?: string }) => <input type="range" aria-label={_label} />,
+	// #1962: KolSelect wie das KolSingleSelect-Mock als natives `<select>` — die echte Komponente
+	// rendert es im offenen Shadow DOM (ApiTokensSection-Muster); Interaktionsvertrag identisch.
+	KolSelect: ({
+		_label,
+		_options,
+		_value,
+		_on,
+	}: {
+		_label?: string;
+		_options?: { label: string; value: string }[];
+		_value?: string;
+		_on?: { onChange?: (_e: unknown, v: string) => void };
+	}) => (
+		<select
+			aria-label={_label}
+			data-testid={`select-${_label}`}
+			value={_value ?? ''}
+			onChange={(e) => _on?.onChange?.(e.nativeEvent, e.target.value)}
+		>
+			{(_options ?? []).map((option) => (
+				<option key={option.value} value={option.value}>
+					{option.label}
+				</option>
+			))}
+		</select>
+	),
 	KolSingleSelect: ({
 		_label,
 		_options,
@@ -874,7 +900,8 @@ describe('AK — Säulenzuordnung im Serien-Edit-Modus (#343)', () => {
 /**
  * #440 (AK2) in der Fassung von #1596: Die fünf Säulen sind fest, hinzugefügt oder entfernt wird
  * nichts mehr. Ohne geladene Säulen (`pillars = []` — Abruf läuft noch oder ist fehlgeschlagen)
- * steht statt der Regler ein Hinweis samt Folge; mit Säulen erscheint die Verteilung.
+ * steht statt der Regler ein Hinweis samt Folge; mit Säulen erscheint die Hauptsäulen-Auswahl und
+ * mit deren Wahl die Beitragszeile (TEST-PFLEGE #1962 — kein Vorbelegen mehr im Anlege-Flow).
  */
 describe('TaskForm — Säulen-Verteilung ohne geladene Säulen (#440/#1596)', () => {
 	it('zeigt den Hinweis samt Folge, wenn pillars leer ist', async () => {
@@ -893,6 +920,13 @@ describe('TaskForm — Säulen-Verteilung ohne geladene Säulen (#440/#1596)', (
 
 		await act(async () => {
 			render(<TaskForm task={null} pillars={[pillarKoerper]} onClose={vi.fn()} onSaved={vi.fn()} />);
+		});
+
+		// TEST-PFLEGE #1962: Der Anlege-Flow belegt keine Säulen mehr vor — die Beitragszeile
+		// erscheint erst mit gewählter Hauptsäule (Auswahlliste „Hauptsäule", Mock → natives select).
+		expect(screen.getByLabelText('Hauptsäule')).toBeInTheDocument();
+		await act(async () => {
+			fireEvent.change(screen.getByLabelText('Hauptsäule'), { target: { value: '1' } });
 		});
 
 		expect(document.querySelectorAll('.pillar-row')).toHaveLength(1);

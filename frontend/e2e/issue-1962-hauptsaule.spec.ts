@@ -50,6 +50,13 @@ test.describe('#1962 — Hauptsäulen-Modus', () => {
 		await page.getByRole('combobox', { name: 'Hauptsäule' }).selectOption({ label });
 	};
 
+	// TEST-PFLEGE #1962 (Impl): „Vorschlag übernehmen" heißt auch der Annehmen-Knopf des
+	// Fürsorge-Hinweises (#1793) auf dem Dashboard HINTER dem modalen Dialog — ein seitensweiter
+	// Locator wäre mehrdeutig (Strict-Mode-Verletzung). Deshalb bewusst auf den Dialog gescoppt;
+	// gemeint ist in allen drei Tests ausschließlich der Button im Vorschlags-Block des Formulars.
+	const dialogButton = (page: Page, name: string): ReturnType<Page['getByRole']> =>
+		page.locator('kol-dialog').getByRole('button', { name });
+
 	test('AK2 — nur Hauptsäule: genau ein Regler, Speichern legt genau eine Säulen-Zeile an', async ({ page }) => {
 		await openNewTaskForm(page);
 		const title = uniqueTitle('Einzel');
@@ -62,7 +69,7 @@ test.describe('#1962 — Hauptsäulen-Modus', () => {
 
 		// Der Vorschlags-Block wird angezeigt, bleibt aber eine Entscheidung (AK3) — hier wird
 		// bewusst NICHT übernommen.
-		await expect(page.getByRole('button', { name: 'Vorschlag übernehmen' })).toBeVisible();
+		await expect(dialogButton(page, 'Vorschlag übernehmen')).toBeVisible();
 
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
 		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
@@ -82,7 +89,7 @@ test.describe('#1962 — Hauptsäulen-Modus', () => {
 		const title = uniqueTitle('Uebernommen');
 
 		await chooseMainPillar(page, 'Körper');
-		await page.getByRole('button', { name: 'Vorschlag übernehmen' }).click();
+		await dialogButton(page, 'Vorschlag übernehmen').click();
 
 		await expect(page.locator('.pillar-row')).toHaveCount(5);
 		await expect(page.locator('kol-input-range[_label="Körper: 80 %"]')).toHaveCount(1);
@@ -107,7 +114,7 @@ test.describe('#1962 — Hauptsäulen-Modus', () => {
 		await openNewTaskForm(page);
 
 		await chooseMainPillar(page, 'Körper');
-		const overnehmen = page.getByRole('button', { name: 'Vorschlag übernehmen' });
+		const overnehmen = dialogButton(page, 'Vorschlag übernehmen');
 		await expect(overnehmen).toBeVisible();
 
 		const selectBox = await page.getByRole('combobox', { name: 'Hauptsäule' }).boundingBox();
