@@ -81,6 +81,10 @@ pipeline and later readers see it.
 
 - React to PR events at once; use scheduled check-ins as fallback with the cadence the author
   asks for. Replace the pending check-in instead of stacking a second one.
+- Issue phases (triage, UX, a spec run before its draft PR) send no events to the coordinator,
+  only PR activity does. While any issue in flight sits in such a phase, check in every
+  ~15 minutes, otherwise a finished analysis waits unrouted until the next check-in. Only when
+  everything in flight has a subscribed PR can the fallback stretch to ~50 minutes.
 - **Schedule the next check-in before asking the author.** A pending question blocks the
   session; without a scheduled wake-up the whole coordination stalls until the answer.
 - The check-in message carries **state only**; the rules live here. Template:
