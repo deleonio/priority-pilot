@@ -69,7 +69,7 @@ jobs:
           || (github.event_name == 'pull_request'
               && github.event.label.name == 'ai:needs-fixup'
               && github.event.pull_request.head.repo.full_name == github.repository) }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
     permissions:
       contents: read # lokale Action + Skript auschecken
@@ -216,7 +216,7 @@ jobs:
           && github.event_name == 'issues'
           && needs.precheck.outputs.model_abort != 'true'
           && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 60
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -644,7 +644,7 @@ jobs:
           && github.event_name == 'pull_request'
           && needs.precheck.outputs.model_abort != 'true'
           && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 60
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin

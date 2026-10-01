@@ -46,7 +46,7 @@ permissions:
 
 jobs:
   daily-version:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
       - name: Zeitfenster prüfen (05-07 Uhr Europe/Berlin; manuell immer)

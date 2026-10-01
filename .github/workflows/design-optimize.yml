@@ -75,7 +75,7 @@ permissions:
 jobs:
   optimize:
     name: Impeccable audit → Maßnahmen laut Audit → PR
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 75
     steps:
       - name: Checkout Repository

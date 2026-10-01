@@ -17,7 +17,7 @@ concurrency:
 jobs:
   analyze:
     name: Test-Suite analysieren
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 35
     permissions:
       contents: read

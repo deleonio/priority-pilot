@@ -61,7 +61,7 @@ jobs:
     # Draft-PRs bekommen wie verify/e2e gar kein CI — dann auch keinen Filter-Laeufer.
     # Ein uebersprungener `changes`-Job laesst `e2e` (needs) korrekt mit entfallen.
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
     permissions:
       contents: read
@@ -100,7 +100,7 @@ jobs:
     # (ready_for_review). push-Events (main) haben kein pull_request-Objekt -> laufen immer.
     # Spiegelt das Muster aus pr-needs-review-label.yml (draft == false).
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     services:
       # Nur hier: die Server-Coverage-Suite (session.test.ts AK-5) verlangt eine laufende Redis-Instanz
       # unter redis://localhost:6379. Der E2E-Job braucht Redis NICHT — das E2E-Backend setzt
@@ -181,7 +181,7 @@ jobs:
     if: >-
       needs.changes.outputs.app == 'true'
       && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     # Playwright-Image: Browser + System-Dependencies sind vorinstalliert (/ms-playwright via
     # PLAYWRIGHT_BROWSERS_PATH) — kein Browser-Install- und kein apt-Lauf (`--with-deps`) mehr.
     # ACHTUNG: Tag-Version MUSS bei Playwright-Upgrades mit @playwright/test in

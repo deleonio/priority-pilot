@@ -85,7 +85,7 @@ jobs:
       ${{ github.event.pull_request.draft == false
           && github.event.pull_request.head.repo.full_name == github.repository
           && github.event.sender.type != 'Bot' }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     permissions:
       contents: read # Schreibzugriff laeuft ueber das App-Token
