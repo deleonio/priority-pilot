@@ -771,6 +771,38 @@ describe('Billing/Webhook-API (#1506 — Zahlungsereignisse)', () => {
 		assert.equal(sub?.get('status'), 'past_due', 'Der erste Fehlschlag muss den Status auf past_due setzen');
 	});
 
+	it('#2030 AK4: BILLING.SUBSCRIPTION.PAYMENT.FAILED versendet keine Rechnungsmail und legt keine Rechnung an', async () => {
+		let mails = 0;
+		server = await startTestServer({
+			paypalVerifier: async () => 'verified',
+			mailSender: async () => {
+				mails++;
+			},
+		} as unknown as AppDeps);
+		const created = await Subscription.create({
+			userId: 105,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-FAIL-NOMAIL',
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date('2026-02-01'),
+		});
+
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-FAIL-NOMAIL',
+				event_type: 'BILLING.SUBSCRIPTION.PAYMENT.FAILED',
+				resource: { billing_agreement_id: 'I-FAIL-NOMAIL' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		assert.equal(mails, 0, 'Bei fehlgeschlagener Zahlung keine Rechnungsmail');
+		assert.equal(await Invoice.count({ where: { subscriptionId: created.get('id') as number } }), 0);
+	});
+
 	it('AK3: ein weiteres PAYMENT.FAILED lässt firstFailureAt unverändert (Frist startet nicht neu)', async () => {
 		server = await startTestServer(withVerifierAndMail('verified'));
 		await Subscription.create({
