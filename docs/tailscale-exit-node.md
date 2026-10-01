@@ -2,8 +2,8 @@
 
 Anleitung, um einen GitHub-Actions-Runner über einen eigenen Nürnberger Server als
 **Tailscale-Exit-Node** zu routen — sodass ausgehende CI-Requests an z.ai mit der deutschen IP des
-Servers ankommen. Manuell anstoßbar via
-[`test-tailscale.yml`](../.github/workflows/test-tailscale.yml).
+Servers ankommen. Verifizieren lässt sich das Routing über einen echten Pipeline-Lauf, siehe
+[Verifizieren](#4-verifizieren).
 
 > **Status:** Der Exit Node ist nur für den Fall gedacht, dass der LLM-Provider **z.ai** ist und der
 > Lauf auf einem **gehosteten GitHub-Runner** (Azure-IP) stattfindet — z.ai blockt Azure-IPs. Die
@@ -98,30 +98,17 @@ Im Repo unter **Settings → Secrets and variables → Actions** anlegen:
 > Verhalten. Secrets eignen sich dafür nicht (ein leeres Secret ist nicht sauber abfragbar und
 > maskiert Werte unnötig, die nicht sensitiv sind).
 
-## 4. Workflow
+## 4. Verifizieren
 
-Der Workflow
-[`test-tailscale.yml`](../.github/workflows/test-tailscale.yml) (`workflow_dispatch`) prüft in fünf
-Schritten:
-
-1. **IP davor** — originale Runner-IP (`ifconfig.me`).
-2. **Tailscale verbinden** — `tailscale up --exit-node=…`.
-3. **DNS-Fix** — öffentlichen Resolver setzen (sonst bricht die Runner-DNS durchs Tunnel, siehe
-   [Troubleshooting](#troubleshooting)).
-4. **IP danach** — Nürnberger IP + Geo-Daten (`ipapi.co`).
-5. **OpenRouter-Test** — Request über die Nürnberger IP.
-
-## 5. Testen & verifizieren
-
-1. Im Repo-Tab **Actions** den Workflow _Test Tailscale Exit Node Route_ öffnen.
-2. **Run workflow** klicken.
-3. Im Job prüfen:
-   - _Check IP (Before)_ → Azure/Microsoft-IP (US/EU).
-   - _Check IP (After)_ → Nürnberger IP, Geo „Nuremberg / DE".
+Ein eigener Test-Workflow existiert nicht mehr (`test-tailscale.yml` wurde mit Commit `2094313d`
+entfernt) — verifizieren lässt sich das Routing nur über einen echten Pipeline-Lauf mit Provider
+`zai` auf einem gehosteten Runner: `setup-agent` verbindet dort den Exit Node und protokolliert die
+Egress-IP im Step _DNS fixen + Egress-IP protokollieren_ — die Log-Zeile
+`Exit-Node aktiv — IP … (Nuremberg, DE)` heißt, das Routing steht.
 
 ## Sicherheitshinweise
 
-- **`--exit-node-allow-lan-access`:** Der Workflow setzt dieses Flag (erlaubt Zugriff auf das LAN
+- **`--exit-node-allow-lan-access`:** `setup-agent` setzt dieses Flag (erlaubt Zugriff auf das LAN
   des Exit-Nodes). Für reinen Egress ist es nicht nötig — für eine striktere Trennung entfernen.
 - **Ephemeral-Keys** räumen den Runner-Knoten nach Run-Ende automatisch ab (keine Leichen im Tailnet).
 - **ACLs:** Getaggte CI-Knoten (`tag:ci`) per ACL nur zum Exit-Node zulassen (Least Privilege).
@@ -131,7 +118,7 @@ Schritten:
 
 - **`curl` scheitert mit exit 28 (Timeout), Verbindung steht aber:** Fast immer **DNS**. Durch den
   Exit Node ist die Azure-Standard-DNS des Runners nicht mehr erreichbar → Hosts lassen sich nicht
-  auflösen. Der Workflow setzt darum nach dem Verbinden `1.1.1.1`/`8.8.8.8` als Resolver. Tritt der
+  auflösen. `setup-agent` setzt darum nach dem Verbinden `1.1.1.1`/`8.8.8.8` als Resolver. Tritt der
   Fehler trotzdem auf, den Output des DNS-Steps (`getent hosts`) prüfen. Siehe auch
   [tailscale/tailscale#12403](https://github.com/tailscale/tailscale/issues/12403).
 - **Exit Node verbunden, aber gar kein Traffic durch:** IP-Forwarding auf dem Nürnberger Server
