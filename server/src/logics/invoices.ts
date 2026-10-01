@@ -40,10 +40,53 @@ export const nextInvoiceNumber = async (now: Date): Promise<string> => {
 };
 
 /**
+ * Stellt eine bereits angelegte Rechnung per Mail zu und setzt bei Erfolg `deliveredAt` (#2030).
+ * Nutzt die gespeicherten `pdfBytes` — das PDF wird nie neu gebaut, Nummer und Anhang bleiben
+ * byte-identisch. Ohne gespeichertes PDF oder Empfänger passiert nichts.
+ */
+const deliverInvoice = async (
+	invoice: Invoice,
+	user: User | null,
+	label: string,
+	now: Date,
+	mailSend?: MailSender,
+): Promise<void> => {
+	const pdf = invoice.get('pdfBytes') as Uint8Array | null | undefined;
+	if (!user || !pdf) {
+		return;
+	}
+	const number = invoice.get('number') as string;
+	const periodStart = invoice.get('periodStart') as Date;
+	const periodEnd = invoice.get('periodEnd') as Date;
+	const lineItems = invoice.get('lineItems') as { label: string; amountCents: number }[];
+	const amountCents = invoice.get('amountCents') as number;
+	const sent = await sendMailToUser(
+		user,
+		{
+			subject: `Ihre Rechnung ${number}`,
+			text: [
+				`Rechnung ${number}`,
+				`Zeitraum: ${periodStart.toISOString().slice(0, 10)} bis ${periodEnd.toISOString().slice(0, 10)}`,
+				`Paket: ${label}`,
+				...lineItems.map((item) => `${item.label}: ${(item.amountCents / 100).toFixed(2)} EUR`),
+				`Betrag: ${(amountCents / 100).toFixed(2)} EUR`,
+				TAX_NOTE,
+			].join('\n'),
+			attachments: [{ filename: `${number}.pdf`, contentType: 'application/pdf', content: pdf }],
+		},
+		mailSend,
+	);
+	if (sent) {
+		await invoice.update({ deliveredAt: now });
+	}
+};
+
+/**
  * Stellt die Rechnung für den laufenden Abrechnungszeitraum des Abos aus und schickt sie dem
  * Nutzer per Mail. Idempotent je Zeitraum: existiert bereits eine Rechnung mit demselben
- * `subscriptionId` + `periodEnd`, wird sie unverändert zurückgegeben (ein wiederholter
- * Hintergrundlauf erzeugt keine zweite Rechnung).
+ * `subscriptionId` + `periodEnd`, wird keine zweite angelegt (ein wiederholter Hintergrundlauf
+ * erzeugt keine zweite Rechnung). Ist deren Mail noch nicht zugestellt (`deliveredAt` leer),
+ * wird sie erneut versendet; ebenso alle älteren unzugestellten Rechnungen desselben Abos (#2030).
  *
  * @param mailSend injizierbarer Versand (Default: `sendMailToUser`s nodemailer-Transport).
  */
@@ -57,9 +100,23 @@ export const issueInvoiceForPeriod = async (
 	const period = String(subscription.get('period'));
 	const plan = String(subscription.get('plan')) as Plan;
 
+	const label = `${plan} (${period})`;
+	const user = await User.findByPk(subscription.get('userId') as number);
+	// #2030: Nachholversand unzugestellter Rechnungen (Mailfehler schluckt `sendMailToUser`).
+	const redeliverPending = async (exceptId?: number): Promise<void> => {
+		const pending = await Invoice.findAll({
+			where: { subscriptionId, deliveredAt: null, ...(exceptId ? { id: { [Op.ne]: exceptId } } : {}) },
+			order: [['periodEnd', 'ASC']],
+		});
+		for (const old of pending) {
+			await deliverInvoice(old, user, label, now, mailSend);
+		}
+	};
+
 	const existing = await Invoice.findOne({ where: { subscriptionId, periodEnd } });
 	if (existing) {
-		return existing;
+		await redeliverPending();
+		return existing.reload();
 	}
 
 	const periodStart = new Date(periodEnd);
@@ -89,8 +146,6 @@ export const issueInvoiceForPeriod = async (
 		lineItems,
 	});
 
-	const user = await User.findByPk(subscription.get('userId') as number);
-	const number = invoice.get('number') as string;
 	// PDF zum Erzeugungszeitpunkt bauen und speichern (#1955 AK3) — Anhang und späterer Download
 	// teilen dieselben Bytes (byte-identisch). Wirft der Bau, bleibt keine halbe Rechnung stehen:
 	// Der Idempotenz-Guard oben liefert sonst bei jedem Retry die unvollständige Rechnung ohne
@@ -115,27 +170,8 @@ export const issueInvoiceForPeriod = async (
 	if (creditCents > 0) {
 		await subscription.update({ creditCents: 0 });
 	}
-	if (user) {
-		const sent = await sendMailToUser(
-			user,
-			{
-				subject: `Ihre Rechnung ${number}`,
-				text: [
-					`Rechnung ${number}`,
-					`Zeitraum: ${periodStart.toISOString().slice(0, 10)} bis ${periodEnd.toISOString().slice(0, 10)}`,
-					`Paket: ${plan} (${period})`,
-					...lineItems.map((item) => `${item.label}: ${(item.amountCents / 100).toFixed(2)} EUR`),
-					`Betrag: ${(amountCents / 100).toFixed(2)} EUR`,
-					TAX_NOTE,
-				].join('\n'),
-				attachments: [{ filename: `${number}.pdf`, contentType: 'application/pdf', content: pdfBytes }],
-			},
-			mailSend,
-		);
-		if (sent) {
-			await invoice.update({ deliveredAt: now });
-		}
-	}
+	await deliverInvoice(invoice, user, label, now, mailSend);
+	await redeliverPending(invoice.get('id') as number);
 
 	return invoice;
 };
