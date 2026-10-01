@@ -1542,6 +1542,12 @@ kol-toolbar {
 	margin-top: var(--pp-gap-generous);
 }
 
+.care-hint-help a {
+	display: inline-block;
+	min-height: 44px;
+	line-height: 44px;
+}
+
 .care-hint-actions {
 	display: flex;
 	flex-wrap: wrap;

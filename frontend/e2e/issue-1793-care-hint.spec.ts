@@ -87,4 +87,15 @@ test.describe('Dashboard — Fürsorge-Hinweis (Issue #1793)', () => {
 			expect(button!.x + button!.width).toBeLessThanOrEqual(375 + 1);
 		}
 	});
+
+	test('#1967 AK5: TelefonSeelsorge-Link bei 375 px sichtbar, antippbar, ohne Überlauf', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await openDashboard(page);
+		const link = page.getByTestId('care-hint').locator('a[href="tel:08001110111"]');
+		await expect(link).toBeVisible();
+		const box = await link.boundingBox();
+		expect(box!.x).toBeGreaterThanOrEqual(0);
+		expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
+		expect(box!.height).toBeGreaterThanOrEqual(44);
+	});
 });
