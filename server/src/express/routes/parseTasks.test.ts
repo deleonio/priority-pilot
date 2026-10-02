@@ -13,6 +13,22 @@ import {
 import { Category } from '../../models/index.js';
 import { CATEGORY_COLORS } from '../../models/categoryColors.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../../test/helpers.js';
+import type { AppDeps } from '../../express/index.js';
+
+/** Vorschlag aus `POST /tasks/parse-suggest` (#1986) — Vertrag `docs/spec/issue-1986.md`. */
+interface TaskSuggestion {
+	title: string;
+	pillarId: number;
+	dependsOnTitle?: string;
+}
+
+/** Injektions-Signatur des Onboarding-Suggesters (Muster `ParseTaskParser`). */
+type TaskSuggester = (
+	text: string,
+	provider: string | undefined,
+	pillars: Array<{ id: number; name: string }>,
+	userId: string | undefined,
+) => Promise<TaskSuggestion[]>;
 
 after(closeDb);
 
@@ -229,5 +245,75 @@ describe('POST /tasks/parse-search', () => {
 		assert.equal(res.status, 200);
 		assert.deepEqual(await res.json(), { text: 'offene Sachen zum Hausbau (geparst)', categoryId: 7 });
 		assert.equal(calls, 1);
+	});
+});
+
+/**
+ * `POST /tasks/parse-suggest` (#1986 AK2, Contract in `docs/spec/issue-1986.md`): Onboarding-Flow
+ * lässt aus Freitext 5–8 Aufgabenvorschläge erzeugen. Vertrag wie die Nachbar-Parser — der
+ * Suggester ist injizierbar, Tests prüfen die Durchreichung, nicht das Modell. Plan-Guard und
+ * Quota-Metering werden NICHT hier getestet: `plan-gating-coverage.test.ts` (AK8) und
+ * `ai-quota-coverage.test.ts` (AK5) erzwingen die Middlewares automatisch am Router-Stack.
+ */
+describe('POST /tasks/parse-suggest (#1986 AK2)', () => {
+	let server: TestServer;
+	let suggesterImpl: TaskSuggester;
+
+	const suggester: TaskSuggester = (text, provider, pillars, userId) => suggesterImpl(text, provider, pillars, userId);
+
+	const postSuggest = (body: unknown) =>
+		fetch(`${server.baseUrl}/tasks/parse-suggest`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		});
+
+	beforeEach(async () => {
+		await resetDb();
+		suggesterImpl = async () => [
+			{ title: 'Küche aufräumen', pillarId: 1 },
+			{ title: 'Wäsche waschen', pillarId: 1 },
+			{ title: 'Steuerunterlagen sortieren', pillarId: 2 },
+			{ title: 'Freunde anrufen', pillarId: 3, dependsOnTitle: 'Steuerunterlagen sortieren' },
+			{ title: 'Sport einplanen', pillarId: 3 },
+		];
+		if (!server) {
+			// `taskSuggester` ist das von der Impl-Phase ergänzte `AppDeps`-Feld — bis dahin legitim
+			// per Cast (tsx prüft Excess-Properties nicht zur Laufzeit; der erste Rot-Zustand ist 404).
+			server = await startTestServer({ taskSuggester: suggester } as unknown as AppDeps);
+		}
+	});
+
+	after(async () => {
+		if (server) await server.close();
+	});
+
+	it('AK2: 200 mit 5–8 Vorschlägen, jeder mit Titel und Säulen-Zuordnung', async () => {
+		const res = await postSuggest({ text: 'Ich ziehe gerade in eine neue Wohnung' });
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { suggestions: TaskSuggestion[] };
+		assert.ok(
+			body.suggestions.length >= 5 && body.suggestions.length <= 8,
+			`5–8 Vorschläge erwartet, erhalten: ${body.suggestions.length}`,
+		);
+		for (const suggestion of body.suggestions) {
+			assert.equal(typeof suggestion.title, 'string', 'title muss ein String sein');
+			assert.ok(suggestion.title.length > 0, 'title darf nicht leer sein');
+			assert.equal(typeof suggestion.pillarId, 'number', 'pillarId muss eine Zahl sein');
+		}
+	});
+
+	it('AK2: Abhängigkeit wird als dependsOnTitle durchgereicht', async () => {
+		const res = await postSuggest({ text: 'Renovierung planen' });
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { suggestions: TaskSuggestion[] };
+		const withDependency = body.suggestions.find((suggestion) => suggestion.dependsOnTitle !== undefined);
+		assert.ok(withDependency, 'mindestens ein Vorschlag muss dependsOnTitle tragen können');
+		assert.equal(withDependency!.dependsOnTitle, 'Steuerunterlagen sortieren');
+	});
+
+	it('AK2: 400 bei leerem text (validateText wie parse-text)', async () => {
+		assert.equal((await postSuggest({ text: '   ' })).status, 400);
+		assert.equal((await postSuggest({})).status, 400);
 	});
 });
