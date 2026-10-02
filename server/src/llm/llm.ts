@@ -110,6 +110,32 @@ export type ParseSearchParser = (
  */
 export type LlmProvider = string | undefined;
 
+/** Eine Säule, so wie der Erststart-Prompt sie dem Modell zur Auswahl vorlegt (Muster `CategoryOption`). */
+export interface PillarOption {
+	id: number;
+	name: string;
+}
+
+/** Ein Erststart-Aufgabenvorschlag (#2068): Titel, Säule und optional ein Vorgänger-Verweis. */
+export interface SuggestedInitialTask {
+	title: string;
+	pillarId: number;
+	/** 0-basierter Index eines anderen Vorschlags derselben Antwort, den dieser voraussetzt. */
+	dependsOn?: number;
+}
+
+/**
+ * Funktionssignatur des Erststart-Suggesters (#2068) — injizierbar, damit Tests ohne echten
+ * API-Call laufen. `pillars` sind die Säulen des eingeloggten Nutzers; die Route bereinigt die
+ * Ausgabe auf gültige Einträge (Titel, Säulen-Scope, dependsOn-Verweise).
+ */
+export type InitialTaskSuggester = (
+	text: string,
+	provider?: LlmProvider,
+	pillars?: PillarOption[],
+	userId?: number,
+) => Promise<SuggestedInitialTask[]>;
+
 /** Der Dienst ist nicht nutzbar (kein Provider/Key/Modell) → der Handler antwortet mit HTTP 503. */
 export class MissingApiKeyError extends Error {
 	constructor(message: string) {
@@ -694,6 +720,60 @@ export const parseSearchQueryWithMistral: ParseSearchParser = async (text, provi
 		userId,
 	);
 	return extractParsedSearch(parsed, categories);
+};
+
+/**
+ * System-Prompt für die Erststart-Vorschläge (#2068): aus einer freien Beschreibung der aktuellen
+ * Lage werden 5–8 konkrete, sofort startbare Aufgaben je Säule des Nutzers vorgeschlagen — nichts
+ * wird angelegt, nur vorgeschlagen.
+ */
+const buildSuggestInitialSystemPrompt = (pillars: PillarOption[]): string =>
+	[
+		'Du schlägst einem Nutzer konkrete erste Aufgaben vor, basierend auf seiner freien Beschreibung, was ihn gerade beschäftigt.',
+		'',
+		'Säulen des Nutzers (Lebensbereiche):',
+		...pillars.map((pillar) => `- ${pillar.id}: ${pillar.name}`),
+		'',
+		'Gib 5 bis 8 Aufgaben-Vorschläge zurück. Für jeden Vorschlag:',
+		`- "title" (Pflicht): kurzer, konkreter, sofort startbarer Aufgabentitel, höchstens ${PARSED_TITLE_MAX_LENGTH} Zeichen.`,
+		'- "pillarId" (Pflicht): ID genau EINER dieser Säulen; niemals eine ID erfinden.',
+		'- "dependsOn" (optional): 0-basierter Index eines ANDEREN Vorschlags aus deiner Liste, den dieser Vorschlag logisch voraussetzt (z. B. erst "Unterlagen sammeln", dann "Antrag stellen"). Nur setzen, wenn es wirklich eine Reihenfolge gibt.',
+		'',
+		'Antworte ausschließlich mit JSON in genau dieser Form (keine Erklärung, kein Markdown):',
+		'{ "suggestions": [ { "title": <string>, "pillarId": <zahl>, "dependsOn": <zahl?> } ] }',
+	].join('\n');
+
+/**
+ * Liest die Erststart-Vorschläge formatseitig aus der Modell-Antwort. Nur die Form-Ebene wird
+ * geprüft; die fachliche Bereinigung (Titel, Säulen-Scope des Nutzers, dependsOn-Verweise) macht
+ * die Route (`sanitizeSuggestions`) — sie gilt gleichermaßen für den injizierten Mock.
+ */
+const extractSuggestedInitialTasks = (parsed: unknown): SuggestedInitialTask[] => {
+	if (typeof parsed !== 'object' || parsed === null) {
+		throw new MistralRequestError('Antwort des Modells hat nicht das erwartete Format (Objekt erwartet).');
+	}
+	const suggestions = (parsed as Record<string, unknown>).suggestions;
+	if (!Array.isArray(suggestions)) {
+		throw new MistralRequestError('Antwort des Modells enthält keine suggestions-Liste.');
+	}
+	return suggestions as SuggestedInitialTask[];
+};
+
+/**
+ * Realer Erststart-Suggester: ruft den aktiven LLM-Provider auf (#951) und erzeugt aus Freitext
+ * 5–8 Aufgaben-Vorschläge mit Säulen-Bezug (#2068). Wirft {@link MissingApiKeyError}, wenn kein
+ * API-Key gesetzt ist, und {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
+ */
+export const suggestInitialTasksWithMistral: InitialTaskSuggester = async (text, provider, pillars = [], userId) => {
+	const parsed = await requestModelJson(
+		[
+			{ role: 'system', content: buildSuggestInitialSystemPrompt(pillars) },
+			{ role: 'user', content: text },
+		],
+		provider,
+		userId,
+	);
+	return extractSuggestedInitialTasks(parsed);
 };
 
 /** Ein Vorschlag des Aktivitäten-Beraters: Aktivität, Begründung und die Säulen, auf die sie einzahlt. */

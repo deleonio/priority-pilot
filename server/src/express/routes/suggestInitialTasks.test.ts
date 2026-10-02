@@ -97,7 +97,9 @@ describe('POST /tasks/suggest-initial (#2068)', () => {
 	describe('AK1 — 200 mit 5–8 gültigen Vorschlägen', () => {
 		it('200 und jede Säulen-/Abhängigkeits-Referenz ist gültig', async () => {
 			const email = 'ak1@example.com';
-			const cookie = await server.register(email);
+			// login statt register: /auth/register sägt fünf Standard-Säulen (#421, auth.ts:82) — der
+			// Test braucht einen Nutzer, dessen Säulen exakt die geseedeten sind (Test-Pflege, PR-Body).
+			const cookie = await server.login(email);
 			const healthId = await seedPillar(email, 'Gesundheit');
 			const workId = await seedPillar(email, 'Beruf');
 			// Sechs gültige Vorschläge (im 5–8-Band), einer mit gültigem dependsOn.
@@ -141,7 +143,8 @@ describe('POST /tasks/suggest-initial (#2068)', () => {
 	describe('AK2 — ungültige Einträge werden verworfen', () => {
 		it('nur die gültigen Vorschläge kommen durch (Titel, Säule, dependsOn geprüft)', async () => {
 			const email = 'ak2@example.com';
-			const cookie = await server.register(email);
+			// login statt register — s. Begründung AK1 (Standard-Säulen-Seeding, #421).
+			const cookie = await server.login(email);
 			const healthId = await seedPillar(email, 'Gesundheit');
 			const workId = await seedPillar(email, 'Beruf');
 			suggesterImpl = async (_text, _provider, pillars) => {
@@ -254,7 +257,9 @@ describe('POST /tasks/suggest-initial (#2068)', () => {
 		});
 
 		it('Nutzer ohne Säulen → 503', async () => {
-			const cookie = await server.register('ak4-nopillars@example.com');
+			// login statt register: register sägt Standard-Säulen (#421) — nur der Test-Login-Nutzer
+			// hat wirklich keine (Muster suggest-pillars.test.ts AK4).
+			const cookie = await server.login('ak4-nopillars@example.com');
 			const res = await post(server.baseUrl, cookie, { text: 'Aufräumen' });
 			assert.equal(res.status, 503);
 		});
