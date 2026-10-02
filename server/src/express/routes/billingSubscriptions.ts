@@ -54,7 +54,7 @@ type ApprovalDto = { approvalUrl: string };
 /** `immediate`: wirkt der Wechsel sofort (Upgrade) oder erst zum Periodenende (ADR 0013) — die Oberfläche hat keine eigene Rangfolge. `startsAt` nennt den Startzeitpunkt (#2049). */
 type PreviewDto = { creditCents: number; dueCents: number; immediate: boolean; startsAt?: string };
 type ReviseDto = { approvalUrl?: string };
-type InvoiceDto = {
+export type InvoiceDto = {
 	id: number;
 	number: string;
 	periodStart: string;
@@ -63,7 +63,7 @@ type InvoiceDto = {
 	taxNote: string;
 };
 
-const serializeInvoice = (invoice: Invoice): InvoiceDto => ({
+export const serializeInvoice = (invoice: Invoice): InvoiceDto => ({
 	id: invoice.id,
 	number: invoice.number,
 	periodStart: invoice.periodStart.toISOString(),

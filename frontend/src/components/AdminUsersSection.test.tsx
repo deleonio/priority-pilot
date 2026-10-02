@@ -17,13 +17,31 @@ import { planLabel } from '../lib/planOffers';
  */
 
 vi.mock('@public-ui/react-v19', () => ({
-	KolAlert: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
-		<div role="alert">
+	KolAlert: ({ _label, _type, children }: { _label?: string; _type?: string; children?: ReactNode }) => (
+		<div role="alert" data-kol-type={_type}>
 			{_label}
 			{children}
 		</div>
 	),
 	KolBadge: ({ _label }: { _label?: string }) => <span>{_label}</span>,
+	// #1958 (KI-UX): Rechnungsansicht je Nutzer — Stub leitet den Aufklapp-Klick an `_on.onClick`
+	// weiter; die Kinder rendert die Komponente selbst zustandsabhängig (Lazy-Load).
+	KolDetails: ({
+		_label,
+		_on,
+		children,
+	}: {
+		_label?: string;
+		_on?: { onClick?: (event: MouseEvent) => void };
+		children?: ReactNode;
+	}) => (
+		<div>
+			<button type="button" onClick={(e) => _on?.onClick?.(e.nativeEvent)}>
+				{_label}
+			</button>
+			<div>{children}</div>
+		</div>
+	),
 	KolButton: ({ _label, _on }: { _label?: string; _on?: { onClick?: (event: MouseEvent) => void } }) => (
 		<button type="button" onClick={(e) => _on?.onClick?.(e.nativeEvent)}>
 			{_label}
@@ -70,6 +88,9 @@ vi.mock('../api', () => ({
 		// und kippte die Bestands-Assertions.
 		getAllowedEmails: vi.fn(),
 		updateUserRole: vi.fn(),
+		// #1958 (AK3): Rechnungen je Nutzer — die Methode entsteht in der Impl-Phase (Spec-Vertrag
+		// `docs/spec/issue-1958.md`), der Mock hält den roten Lauf frei von Importfehlern.
+		getAdminUserInvoices: vi.fn(),
 		reassignTaskPillars: vi.fn(),
 		getReassignPillarsStatus: vi.fn(),
 	},
@@ -88,6 +109,10 @@ import { AdminUsersSection } from './AdminUsersSection';
 const mockGetAdminUsers = api.getAdminUsers as ReturnType<typeof vi.fn>;
 const mockGetAllowedEmails = api.getAllowedEmails as ReturnType<typeof vi.fn>;
 const mockUpdateUserRole = api.updateUserRole as ReturnType<typeof vi.fn>;
+// Cast-Muster wie im Server-Test: die Methode existiert erst mit der Impl-Phase (Spec-Vertrag
+// `docs/spec/issue-1958.md`) — der Mock hält den roten Lauf frei von Import-/Typfehlern.
+const mockGetAdminUserInvoices = (api as unknown as { getAdminUserInvoices: ReturnType<typeof vi.fn> })
+	.getAdminUserInvoices;
 const mockReassignTaskPillars = api.reassignTaskPillars as ReturnType<typeof vi.fn>;
 const mockGetReassignPillarsStatus = api.getReassignPillarsStatus as ReturnType<typeof vi.fn>;
 /** Noch nie gelaufen — dann gibt es kein „Fortsetzen“. */
@@ -573,5 +598,103 @@ describe('AdminUsersSection — Statusauswahl und Fortschritt (#1614)', () => {
 
 		await waitFor(() => expect(mockReassignTaskPillars).toHaveBeenCalled());
 		expect(mockReassignTaskPillars.mock.calls[0][0]).toMatchObject({ restart: false });
+	});
+});
+
+/**
+ * #1958 (Spec `docs/spec/issue-1958.md`, AK3): Rechnungsansicht je Nutzer — aufklappbares
+ * `KolDetails` mit Lazy-Load beim ersten Aufklappen (genau ein Fetch je Nutzer, gecacht),
+ * Einträgen mit Nummer, Betrag und Status „Ausgestellt“ sowie Download je Rechnung
+ * (zugänglicher Name nennt die Rechnungsnummer). Fehler- und Leerzustand nach KI-UX
+ * (`KolAlert` `_type="error"` / Wortlaut wie `SubscriptionSection`).
+ * „Nicht-Admin ohne Rechnungsansicht“ braucht hier keinen eigenen Test: Der Tab ist für Member
+ * unsichtbar und per Deep-Link unerreichbar (`issue-1300-admin-users.spec.ts`), der Server
+ * antwortet 403 (`admin-invoices.test.ts`).
+ */
+describe('#1958 Admin-Rechnungsansicht (AK3)', () => {
+	const INVOICES = [
+		{
+			id: 11,
+			number: 'INV-2026-000001',
+			periodStart: '2026-10-01T00:00:00.000Z',
+			periodEnd: '2026-11-01T00:00:00.000Z',
+			amountCents: 799,
+			taxNote: 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.',
+		},
+		{
+			id: 12,
+			number: 'INV-2026-000002',
+			periodStart: '2026-11-01T00:00:00.000Z',
+			periodEnd: '2026-12-01T00:00:00.000Z',
+			amountCents: 1499,
+			taxNote: 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.',
+		},
+	];
+
+	const renderWithUsers = async (): Promise<void> => {
+		mockGetAdminUsers.mockResolvedValue([
+			user({ id: 1, displayName: 'Anna Admin' }),
+			user({ id: 2, displayName: 'Max Member' }),
+		]);
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
+	};
+
+	it('lädt die Rechnungen erst beim ersten Aufklappen und holt bei erneutem Aufklappen nicht neu (Lazy-Load, gecacht)', async () => {
+		mockGetAdminUserInvoices.mockResolvedValue(INVOICES);
+		await renderWithUsers();
+
+		expect(mockGetAdminUserInvoices).not.toHaveBeenCalled();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Rechnungen von Max Member' }));
+		await waitFor(() => expect(mockGetAdminUserInvoices).toHaveBeenCalledTimes(1));
+		expect(mockGetAdminUserInvoices).toHaveBeenCalledWith({ id: 2 });
+
+		fireEvent.click(screen.getByRole('button', { name: 'Rechnungen von Max Member' }));
+		expect(mockGetAdminUserInvoices).toHaveBeenCalledTimes(1);
+	});
+
+	it('zeigt nach dem Aufklappen die Rechnungen mit Nummer, Betrag, Status Ausgestellt und Download je Rechnung', async () => {
+		mockGetAdminUserInvoices.mockResolvedValue(INVOICES);
+		await renderWithUsers();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Rechnungen von Anna Admin' }));
+
+		await waitFor(() => expect(screen.getByText('INV-2026-000002')).toBeInTheDocument());
+		const entry = screen.getByText('INV-2026-000002').closest('li') as HTMLElement;
+		expect(within(entry).getByText(/14,99/)).toBeInTheDocument();
+		expect(within(entry).getByText('Ausgestellt')).toBeInTheDocument();
+		expect(within(entry).getByRole('button', { name: 'PDF INV-2026-000002 herunterladen' })).toBeInTheDocument();
+	});
+
+	it('zeigt eine Fehlermeldung als KolAlert vom Typ error, wenn die Rechnungen nicht geladen werden können', async () => {
+		mockGetAdminUserInvoices.mockRejectedValue(new Error('Netzwerk weg'));
+		await renderWithUsers();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Rechnungen von Anna Admin' }));
+
+		const alert = await waitFor(() => screen.getByRole('alert'));
+		expect(alert.getAttribute('data-kol-type')).toBe('error');
+	});
+
+	it('holt nach einem Fehlschlag beim erneuten Aufklappen neu (Fixup #1958: openedRef wird zurückgesetzt)', async () => {
+		mockGetAdminUserInvoices.mockRejectedValueOnce(new Error('Netzwerk weg')).mockResolvedValueOnce(INVOICES);
+		await renderWithUsers();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Rechnungen von Anna Admin' }));
+		await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+
+		fireEvent.click(screen.getByRole('button', { name: 'Rechnungen von Anna Admin' }));
+		await waitFor(() => expect(mockGetAdminUserInvoices).toHaveBeenCalledTimes(2));
+		await waitFor(() => expect(screen.getByText('INV-2026-000002')).toBeInTheDocument());
+	});
+
+	it('zeigt „Noch keine Rechnungen vorhanden.“, wenn der Nutzer keine Rechnungen hat', async () => {
+		mockGetAdminUserInvoices.mockResolvedValue([]);
+		await renderWithUsers();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Rechnungen von Anna Admin' }));
+
+		await waitFor(() => expect(screen.getByText('Noch keine Rechnungen vorhanden.')).toBeInTheDocument());
 	});
 });

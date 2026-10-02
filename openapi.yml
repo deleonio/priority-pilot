@@ -2170,6 +2170,88 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /admin/users/{id}/invoices:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Nutzers
+        schema:
+          type: integer
+    get:
+      summary: Rechnungen eines Nutzers auflisten
+      description: >-
+        Rechnungsansicht der Nutzerverwaltung (#1958, AK1): nur für Admins
+        (403 sonst). Liefert die Rechnungen des Nutzers mit denselben Feldern
+        wie GET /billing/invoices, neueste zuerst.
+      operationId: listAdminUserInvoices
+      tags: [admin]
+      responses:
+        '200':
+          description: Rechnungen des Nutzers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invoice'
+        '400':
+          description: Ungültige Nutzer-Id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /admin/users/{id}/invoices/{invoiceId}/pdf:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Nutzers
+        schema:
+          type: integer
+      - name: invoiceId
+        in: path
+        required: true
+        description: Id der Rechnung
+        schema:
+          type: integer
+    get:
+      summary: Rechnungs-PDF eines Nutzers herunterladen
+      description: >-
+        Liefert das gespeicherte PDF einer Nutzer-Rechnung (#1958, AK2) als
+        Download — byte-identisch zum Eigentümer-Download
+        (GET /billing/invoices/{id}/pdf). Nur für Admins (403 sonst); eine
+        Rechnung ohne gespeichertes PDF oder mit fremder Nutzer-Id liefert 404.
+      operationId: getAdminUserInvoicePdf
+      tags: [admin]
+      responses:
+        '200':
+          description: Das gespeicherte Rechnungs-PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Ungültige Nutzer-Id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /admin/allowed-emails:
     get:
       summary: Zugelassene E-Mail-Adressen mit Herkunft auflisten

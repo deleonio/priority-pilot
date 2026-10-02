@@ -571,6 +571,18 @@ export const api = {
 		return data;
 	},
 
+	/** #1958: Rechnungen eines Nutzers — Admin-Sicht (Spiegel der Eigentümer-Route /billing/invoices). */
+	async getAdminUserInvoices({ id, signal }: { id: number } & Init): Promise<components['schemas']['Invoice'][]> {
+		const { data, error, response } = await client.GET('/admin/users/{id}/invoices', {
+			params: { path: { id } },
+			signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
 	/**
 	 * Batch: Säulenverteilung aller Aufgaben (inkl. erledigter) neu berechnen — Admin-Trigger.
 	 * Fortsetzbar (#1614): `restart: true` beginnt den Lauf für alle Konten neu, sonst werden nur
