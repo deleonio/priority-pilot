@@ -494,6 +494,7 @@ describe('TaskForm — Status-Feld entfernt (#315, AK3)', () => {
 		});
 
 		// Anlegen auslösen (Submit-Button im Create-Modus, #334 AK7).
+		await chooseMainPillar();
 		await act(async () => {
 			fireEvent.click(screen.getByRole('button', { name: 'Anlegen' }));
 		});
@@ -540,6 +541,13 @@ const fillTitle = async (value: string): Promise<void> => {
 	await act(async () => {
 		fireEvent.change(titleInput, { target: { value } });
 		fireEvent.blur(titleInput);
+	});
+};
+
+/** Wählt im Anlege-Flow die Hauptsäule (#1962) — Pflicht im Submit-Pfad, sonst bricht das Anlegen ab. */
+const chooseMainPillar = async (): Promise<void> => {
+	await act(async () => {
+		fireEvent.change(screen.getByLabelText('Hauptsäule'), { target: { value: String(pillarKoerper.id) } });
 	});
 };
 
@@ -652,6 +660,7 @@ describe('AK5 — Speichern verzweigt korrekt (#316)', () => {
 
 		await switchToSeriesMode();
 		await fillTitle('Neue Serie über TaskForm');
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
@@ -671,6 +680,7 @@ describe('AK5 — Speichern verzweigt korrekt (#316)', () => {
 
 		await switchToSeriesMode();
 		await fillTitle('Serie ohne explizites Startdatum');
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
@@ -689,6 +699,7 @@ describe('AK5 — Speichern verzweigt korrekt (#316)', () => {
 
 		await switchToSeriesMode();
 		await fillTitle('Serie mit Feldern');
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
@@ -708,6 +719,7 @@ describe('AK5 — Speichern verzweigt korrekt (#316)', () => {
 		});
 
 		await fillTitle('Neue Aufgabe (Task-Modus)');
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateTask).toHaveBeenCalledTimes(1);
@@ -935,6 +947,34 @@ describe('TaskForm — Säulen-Verteilung ohne geladene Säulen (#440/#1596)', (
 });
 
 /**
+ * #1962 (Review-Finding): Pflicht ist die Hauptsäule — ein Anlegen ohne jede Säule wird im
+ * Submit-Pfad abgewiesen (der Task fehlte sonst in der Balance-Rechnung).
+ */
+describe('TaskForm — Hauptsäulen-Pflicht beim Anlegen (#1962)', () => {
+	it('Anlegen ohne Hauptsäule: Fehlermeldung, kein createTask', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		const titleInput = screen.getByRole('textbox', { name: /titel/i });
+		await act(async () => {
+			fireEvent.change(titleInput, { target: { value: 'Ohne Hauptsäule' } });
+			fireEvent.blur(titleInput);
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Anlegen' }));
+		});
+
+		expect(screen.getByText(/Bitte eine Hauptsäule wählen/)).toBeInTheDocument();
+		expect(mockCreateTask).not.toHaveBeenCalled();
+	});
+});
+
+/**
  * Rote Spec-Tests für #470 — Serien-Rhythmen: Werktags/Wochenende/Wochentag (Frontend).
  *
  * Das Backend (#469, gemergt) hat `SeriesRhythm` als String-Union mit 12 Werten umgesetzt
@@ -1029,6 +1069,7 @@ describe('TaskForm — Serien-Rhythmen: Werktags/Wochenende/Wochentag (#470)', (
 		await act(async () => {
 			fireEvent.change(rhythmSelect, { target: { value: 'weekdays' } });
 		});
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
@@ -1051,6 +1092,7 @@ describe('TaskForm — Serien-Rhythmen: Werktags/Wochenende/Wochentag (#470)', (
 		await act(async () => {
 			fireEvent.change(rhythmSelect, { target: { value: 'weekend' } });
 		});
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
@@ -1125,6 +1167,7 @@ describe('TaskForm — Serien-Rhythmen: Werktags/Wochenende/Wochentag (#470)', (
 		await act(async () => {
 			fireEvent.change(rhythmSelect, { target: { value: 'wed' } });
 		});
+		await chooseMainPillar();
 		await clickSave();
 
 		// Die vom Backend kommende 400 wird im Fehler-Alert verständlich angezeigt. Rot, solange die
@@ -1245,6 +1288,7 @@ describe('TaskForm — Auto-Löschen-Schalter an Deadline gekoppelt (#534, Anfor
 		expect(toggle).toBeChecked();
 
 		await fillTitle('Aufgabe mit Deadline und Auto-Delete');
+		await chooseMainPillar();
 		await clickSave();
 
 		// Der aktivierte Schalter fließt korrekt ins Create-Payload (ersetzt den entfernten #523-AK1-Test,
@@ -1277,6 +1321,7 @@ describe('TaskForm — Auto-Löschen-Schalter an Deadline gekoppelt (#534, Anfor
 		expect(toggle).not.toBeChecked();
 
 		await fillTitle('Aufgabe: Deadline wieder entfernt');
+		await chooseMainPillar();
 		await clickSave();
 
 		// Im Payload darf kein hängendes autoDeleteAfterDeadline:true landen.
@@ -1342,6 +1387,7 @@ describe('TaskForm — Auto-Löschen für Serien verfügbar (#534, Anforderung 1
 		await act(async () => {
 			fireEvent.click(autoDeleteToggle());
 		});
+		await chooseMainPillar();
 		await clickSave();
 
 		// rot, solange das Series-Payload autoDeleteAfterDeadline nicht enthält.
@@ -1471,6 +1517,7 @@ describe('TaskForm — Checklisten-Feld (#531)', () => {
 		});
 		await fillTitle('Aufgabe mit Liste');
 		await addItem('Schritt 1');
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateTask).toHaveBeenCalledTimes(1);
@@ -1570,6 +1617,7 @@ describe('TaskForm — Adressfeld (Ortsbezug einer Aufgabe)', () => {
 				target: { value: 'Musterstraße 1, 12345 Musterstadt' },
 			});
 		});
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateTask).toHaveBeenCalledTimes(1);
@@ -1600,6 +1648,7 @@ describe('TaskForm — Adressfeld (Ortsbezug einer Aufgabe)', () => {
 			fireEvent.click(within(screen.getByRole('listbox')).getByRole('option', { name: /München Hauptbahnhof/ }));
 		});
 
+		await chooseMainPillar();
 		await clickSave();
 		expect(mockCreateTask).toHaveBeenCalledTimes(1);
 		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as unknown as [
@@ -1761,6 +1810,7 @@ describe('TaskForm — Koordinaten-Box „Gespeicherter Ortsbezug" (#1111)', () 
 		expect(within(box).getByText(/keine koordinaten/i)).toBeVisible();
 		expect(box.textContent).not.toMatch(/48\.\d/);
 
+		await chooseMainPillar();
 		await clickSave();
 		expect(mockCreateTask).toHaveBeenCalledTimes(1);
 		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as unknown as [
@@ -2175,6 +2225,7 @@ describe('TaskForm — Empfängerauswahl im Serie-Modus (#1222 AK8)', () => {
 			fireEvent.change(select, { target: { value: '2' } });
 		});
 		await fillTitle('Serie für Bobi');
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
@@ -2189,6 +2240,7 @@ describe('TaskForm — Empfängerauswahl im Serie-Modus (#1222 AK8)', () => {
 			fireEvent.change(select, { target: { value: '1' } });
 		});
 		await fillTitle('Serie für mich');
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
@@ -2565,6 +2617,7 @@ describe('TaskForm — Kategorie: Kennzeichen unter dem Feld und Abwahl', () => 
 		// damit eine zuvor gesetzte Kategorie serverseitig wirklich gelöst wird.
 		expect(badge()).toBeNull();
 		expect(screen.getByLabelText('Kategorie (optional)')).toHaveValue('0');
+		await chooseMainPillar();
 		await clickSave();
 
 		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: Record<string, unknown> }];
@@ -2597,6 +2650,7 @@ describe('TaskForm — Kategorie: Kennzeichen unter dem Feld und Abwahl', () => 
 			fireEvent.click(screen.getByRole('button', { name: 'Kategorie entfernen' }));
 		});
 		expect(badge()).toBeNull();
+		await chooseMainPillar();
 		await clickSave();
 
 		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: Record<string, unknown> }];
@@ -2645,6 +2699,7 @@ describe('TaskForm — Standort-Favoriten im Adressfeld (#1342)', () => {
 		// (TaskForm.tsx:701 „Bitte einen Titel angeben.") — der Spec-Test hatte den Pflichttitel
 		// übersehen. Die Payload-Erwartungen darunter bleiben unverändert.
 		await fillTitle('Aufgabe mit Favoriten-Adresse');
+		await chooseMainPillar();
 		await clickSave();
 		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as unknown as [
 			{ taskCreate: { address?: string | null; latitude?: number | null; longitude?: number | null } },
@@ -2709,6 +2764,7 @@ describe('TaskForm — Standort-Favoriten im Adressfeld (#1342)', () => {
 		// Das Formular ist nicht blockiert: Titel eintragen und speichern funktioniert weiterhin,
 		// die Adresse steht unverändert am Task (nur der Favorit fehlt).
 		await fillTitle('Aufgabe trotz fehlgeschlagenem Favorit');
+		await chooseMainPillar();
 		await clickSave();
 		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as unknown as [{ taskCreate: { address?: string | null } }];
 		expect(taskCreate.address).toBe('München Hauptbahnhof, Bahnhofplatz 1, 80331 München');
@@ -2860,6 +2916,7 @@ describe('Titel-Länge beim Speichern (#1818, AK4)', () => {
 			render(<TaskForm task={null} {...defaultProps} />);
 		});
 		await fillTitle('😀'.repeat(10) + 'x'.repeat(55));
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateTask).toHaveBeenCalledTimes(1);

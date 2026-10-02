@@ -670,6 +670,9 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 			}
 			// Der Vorschlag ist eine vollständige Verteilung über alle Säulen (Summe 100 %, #1596).
 			setContributions(next);
+			// #1962: Hauptsäule mitableiten (schwerster Beitrag), sonst zeigt das Auswahl-Feld
+			// trotz übernommener Verteilung leer (#305-Autofill).
+			setMainPillarId(next.reduce((best, entry) => (entry.share > best.share ? entry : best), next[0]).pillarId);
 			suggestionApplied.current = true;
 		} catch (reason) {
 			const apiError = await toApiError(reason);
@@ -884,6 +887,12 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 				: new Date(`${form.current.startDate}T00:00:00Z`);
 		if (isSeriesMode && Number.isNaN(startDate.getTime())) {
 			setError('Das Startdatum ist kein gültiges Datum.');
+			return;
+		}
+		// #1962: Pflicht ist die Hauptsäule — ein neuer Task/Serie ohne jede Säule fehlte in der
+		// Balance-Rechnung. Nur im Anlege-Flow; Edits übernehmen die gespeicherte Verteilung.
+		if (!isEdit && contributions.length === 0) {
+			setError('Bitte eine Hauptsäule wählen.');
 			return;
 		}
 		setError(null);
