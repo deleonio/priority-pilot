@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // ROTER Spec-Test (#1793, Spec docs/spec/issue-1793.md): `CareHint` existiert noch nicht.
 // Der Import schlägt fehl, bis `frontend/src/components/CareHint.tsx` die Komponente bereitstellt.
 import { CareHint } from './CareHint';
+// #2063: i18n läuft echt (vitest.setup.ts pinnt `de`) — die Sprach-Tests wechseln selbst.
+import i18next from '../i18n/config';
 
 /**
  * Spec-Tests für den Fürsorge-Hinweis (AK1–AK6, AK8, #1793): lädt die Vorschläge selbst über
@@ -24,7 +26,12 @@ interface Vorschlag {
 }
 
 vi.mock('@public-ui/react-v19', () => ({
-	KolAlert: ({ children }: { children?: ReactNode }) => <div data-comp="kol-alert">{children}</div>,
+	// #2063: `data-label` macht das `_label` des KolAlert testbar (echtes Label liegt im Shadow-DOM).
+	KolAlert: ({ children, _label }: { children?: ReactNode; _label?: string }) => (
+		<div data-comp="kol-alert" data-label={_label}>
+			{children}
+		</div>
+	),
 	KolButton: ({ _label, _on }: { _label?: string; _on?: { onClick?: (event: MouseEvent) => void } }) => (
 		<button type="button" onClick={() => _on?.onClick?.(new MouseEvent('click'))}>
 			{_label}
@@ -87,6 +94,9 @@ describe('CareHint (#1793)', () => {
 		cleanup();
 		vi.useRealTimers();
 		vi.clearAllMocks();
+		// #2063: Sprach-Tests wechseln auf `en` — zurück auf den Setup-Pin, damit keine Folge-Assertion
+		// in der Testdatei an der Sprache hängt.
+		void i18next.changeLanguage('de');
 	});
 
 	// #1967 AK4: ärztlicher Rat + TelefonSeelsorge als Light-DOM-`a` in beiden Varianten.
@@ -249,6 +259,66 @@ describe('CareHint (#1793)', () => {
 		render(<CareHint />);
 		const el = await zeigeHinweis();
 		expect(el.textContent).toContain('Körper kam diese Woche zu kurz.');
+	});
+
+	// #2063 AK2/AK5 (Spec docs/spec/issue-2063.md): der Hinweis spricht die App-Sprache —
+	// hier Englisch; Server-Daten (Säulenname, Titel, Beschreibung) bleiben wortgleich.
+	it('#2063 AK2+AK5: Sprache en — Label, Knöpfe und Krisenhinweis englisch', async () => {
+		await i18next.changeLanguage('en');
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
+		render(<CareHint />);
+		const el = await zeigeHinweis();
+		expect(screen.getByRole('status').getAttribute('aria-label')).toBe('Care hint');
+		expect(document.querySelector('[data-comp="kol-alert"]')?.getAttribute('data-label')).toBe('Care hint');
+		expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
+			'Accept suggestion',
+			'Not now',
+			'Dismiss suggestion',
+		]);
+		const link = el.querySelector('a[href="tel:08001110111"]');
+		expect(link).not.toBeNull();
+		expect(link!.textContent).toBe('TelefonSeelsorge: 0800 111 0 111');
+		expect(el.textContent).toContain('Not a substitute for medical advice');
+		expect(el.textContent).toContain('(free, around the clock)');
+	});
+
+	it('#2063 AK2: Sprache en — beide Rahmungstexte englisch, Server-Daten unübersetzt', async () => {
+		await i18next.changeLanguage('en');
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
+		const { unmount } = render(<CareHint />);
+		let el = await zeigeHinweis();
+		expect(el.textContent).toContain('Körper could use some care this week. Zehn Minuten spazieren gehen?');
+		expect(el.textContent).not.toContain('kam diese Woche zu kurz');
+		unmount();
+
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [{ ...vorlage, anlass: 'ueberlast' }] });
+		render(<CareHint />);
+		el = await zeigeHinweis();
+		expect(el.textContent).toContain(
+			'You have given a lot lately. Taking it easier today is allowed: Ein kurzer Spaziergang an der frischen Luft',
+		);
+		unmount();
+	});
+
+	it('#2063 AK2: Sprache en — KI-Kennzeichnung und Fehlermeldung englisch', async () => {
+		await i18next.changeLanguage('en');
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [{ ...vorlage, typ: 'ki', templateKey: undefined }] });
+		createTask.mockRejectedValue(new Error('boom'));
+		render(<CareHint />);
+		const el = await zeigeHinweis();
+		expect(el.querySelector('[data-testid="care-hint-ki"]')?.textContent).toBe('AI suggestion');
+		tap('Accept suggestion');
+		await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+		expect(screen.getByRole('alert').textContent).toBe('Could not be created. Please try again in a moment.');
+	});
+
+	it('#2063 AK2: Sprache en — Leerzustand englisch', async () => {
+		await i18next.changeLanguage('en');
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [] });
+		render(<CareHint />);
+		const el = await zeigeHinweis();
+		expect(el.textContent).toContain('There is no suggestion for you right now. Keep going at your own pace.');
+		expect(screen.queryAllByRole('button')).toHaveLength(0);
 	});
 
 	describe('#1873 KI-Vorschlag', () => {
