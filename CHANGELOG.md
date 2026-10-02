@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.13 - 2026-10-02
 
-_Enthält v0.13.0 – v0.13.14._
+_Enthält v0.13.0 – v0.13.15._
 
 ### 🎉 New Features
 
@@ -25,6 +25,7 @@ _Enthält v0.13.0 – v0.13.14._
 - feat(server): suggest initial tasks from free text (#2068) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2079
 - feat(frontend): german labels and unique download buttons (#2031) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2080
 - feat(frontend): first-run flow steps 1-3 (free text, suggestions, apply) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2081
+- feat(frontend): admin invoice list and download (#1958) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2084
 
 ## v0.12 - 2026-10-02
 
@@ -150,6 +151,7 @@ _Enthält v0.10.0 – v0.10.36._
 - feat(frontend): show care hint with suggestion on the dashboard (#1793) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1843
 - feat(server): measure care suggestion impact anonymously (#1798) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1847
 - chore(deps): update gradle to v8.14.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1841
+- fix(ci): 01-triage.yml wieder gültig (Expression-Limit) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1851
 - fix(ci): 01-triage.yml wieder gültig (Expression-Limit) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1851
 - docs(ci): switch documenter free model to laguna-s-2.1 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1852
 - Säulen-Mindestanteil von 5 % auf allen Wegen erzwingen (#1822) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1853
@@ -302,7 +304,6 @@ _Enthält v0.5.0 – v0.5.32._
 - chore(deps): update dependency undici@6 to v8.11.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1654
 - feat(skills): add ticket-tree skill for solution plans and issue trees by @deleonio in https://github.com/deleonio/priority-pilot/pull/1698
 - chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1657
-- docs(adr): add adr 0016 for native wrapper via capacitor remote mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1699
 - docs(adr): add adr 0016 for native wrapper via capacitor remote mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1699
 - chore: serve digital asset links for the android app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1700
 - feat(frontend): detect app channel and hide web prompts in native app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1701
