@@ -2170,6 +2170,104 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /admin/users/{id}/subscription/lock:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Nutzers
+        schema:
+          type: integer
+    post:
+      summary: Abo eines Nutzers sperren
+      description: >-
+        #1959 (AK1): nur für Admins (403 sonst). Stoppt den Zugriff auf das
+        bezahlte Paket sofort (Paket am Nutzer wird auf `free` gesetzt) und
+        markiert das Abo als `locked`. Rein lokale Aktion — es gibt keinen
+        Aufruf beim Zahlungsdienstleister. Die Sperre blockiert keinen neuen
+        Abschluss („bezahlt = Zugang“); eine Entsperrung ist nicht vorgesehen.
+      operationId: lockAdminUserSubscription
+      tags: [admin]
+      responses:
+        '200':
+          description: Nutzer mit gesperrtem Abo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '400':
+          description: Ungültige Nutzer-Id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Nutzer oder Abo nicht gefunden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /admin/users/{id}/subscription/cancel:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Nutzers
+        schema:
+          type: integer
+    post:
+      summary: Abo eines Nutzers kündigen
+      description: >-
+        #1959 (AK2): nur für Admins (403 sonst). Löst die Kündigung beim
+        Zahlungsdienstleister aus; wirksam wird sie ausschließlich über das
+        Webhook-Ereignis (ADR 0013) — das Paket läuft bis zum Ablauf des
+        bezahlten Zeitraums weiter. Google-Play-Abos sind serverseitig nicht
+        kündbar (409, ADR 0017) — sie lassen sich aber sperren.
+      operationId: cancelAdminUserSubscription
+      tags: [admin]
+      responses:
+        '200':
+          description: Storno beim Zahlungsdienstleister ausgelöst
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '400':
+          description: Ungültige Nutzer-Id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Nutzer oder Abo nicht gefunden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Bereits gekündigt oder Google-Play-Abo (serverseitig nicht kündbar)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: Zahlungsdienstleister nicht erreichbar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /admin/allowed-emails:
     get:
       summary: Zugelassene E-Mail-Adressen mit Herkunft auflisten
@@ -4097,6 +4195,13 @@ components:
           type: integer
           minimum: 0
           description: KI-Anfragen im laufenden Monat (#1783) — nur in der Nutzerliste.
+        subscriptionStatus:
+          type: string
+          nullable: true
+          description: >-
+            Status des Zahlungsabos (#1959) — `null` ohne Abo; `locked` markiert die
+            Admin-Sperre (Zugriff aufs bezahlte Paket gestoppt, ein neuer Abschluss
+            ist nicht blockiert).
     AdminWaitlistEntry:
       type: object
       description: Eintrag der Warteliste im Referral-Rang (#1982, ADR 0019).

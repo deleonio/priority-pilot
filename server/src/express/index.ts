@@ -364,7 +364,7 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Nutzerverwaltung (Rollensystem admin/member): Liste + Rollenänderung, nur für Admins
 	// (zusätzliches `requireRole('admin')`-Gate innerhalb des Routers, siehe routes/admin.ts).
-	app.use(createAdminRouter(deps.pillarClassifier));
+	app.use(createAdminRouter(deps.pillarClassifier, { paypalClient: deps.paypalClient }));
 
 	// Web-Push: Subscription an-/abmelden + öffentlichen VAPID-Schlüssel ausliefern (siehe routes/push.ts).
 	// Bewusst kein client-aufrufbarer „send"-Endpunkt — der Versand läuft server-intern (logics/push.ts).

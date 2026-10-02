@@ -2565,6 +2565,19 @@ kol-toolbar {
 	--a11y-min-size: 2.75rem;
 }
 
+/* #1959: Zeilen-Aktionen Abo sperren/stornieren — voll breit unter den Zeileninhalten
+   gestapelt (KI-UX: Daumen-freundlich bei 375px, kein gequetschtes Nebeneinander);
+   Touch-Ziel 44px über `--a11y-min-size` (Muster `.admin-user-plan`). */
+.admin-user-actions {
+	flex: 1 1 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: var(--pp-space-2);
+	min-width: 0;
+	--a11y-min-size: 2.75rem;
+}
+
 /* Batch-Trigger zur Neuberechnung der Säulenverteilung (Admin): Button und Ergebnis unter
    der Nutzerliste, mit Abstand statt direkt angeklebt. */
 .admin-reassign {

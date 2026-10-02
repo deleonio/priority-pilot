@@ -289,12 +289,20 @@ export const applyPlanChange = async (
 
 	if (eventType === 'BILLING.SUBSCRIPTION.CANCELLED') {
 		const currentPeriodEnd = subscription.get('currentPeriodEnd') as Date;
+		// #1959: eine Admin-/Selbstkündigung nimmt das bezahlte Paket dem Nutzer NICHT weg — der
+		// Abgleich hält die Durchsetzung (User.plan, alle Guards lesen sie) in Sync mit dem
+		// Abo-Stand. Gesperrte Abos (Admin-Sperre, `locked`) bleiben gesperrt: die Sperre wirkt
+		// über `User.plan = free` und wird durch das Webhook-Ereignis nicht aufgehoben.
+		const wasLocked = subscription.get('status') === 'locked';
 		await subscription.update({
 			status: 'cancelled',
 			pendingPlan: 'free',
 			pendingPeriod: null,
 			pendingPlanEffectiveAt: currentPeriodEnd > now ? currentPeriodEnd : now,
 		});
+		if (!wasLocked) {
+			await syncUserPlan(subscription, subscription.get('plan') as Plan);
+		}
 		return;
 	}
 

@@ -3,7 +3,8 @@ import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import sequelize from '../../database.js';
 import { sendError, type ErrorDto } from '../http-error.js';
-import { AiUsage, AllowedEmail, User } from '../../models/index.js';
+import { AiUsage, AllowedEmail, Subscription, User } from '../../models/index.js';
+import { OPEN_SUBSCRIPTION_STATUSES } from '../../models/subscription.js';
 import type { UserRole } from '../../models/user.js';
 import { PLAN_VALUES, type Plan } from '../../logics/plans.js';
 import { requireRole } from '../requireAuth.js';
@@ -20,6 +21,9 @@ import { acquireGlobalRun, releaseGlobalRun } from '../../logics/reassignLock.js
 import { BACKGROUND_PORTION_SIZE, readBackgroundRun, startBackgroundRun } from '../../logics/reassignBackgroundRun.js';
 import { ladeCareWirkung, type CareWirkung } from '../../logics/careWirkung.js';
 import { activateTopWaitlist, activateWaitlistEntry, listWaitlistRanked } from '../../logics/waitlist.js';
+import { syncUserPlan } from '../../logics/billing/lifecycle.js';
+import { createPaypalProvider, type PaypalProviderDeps } from '../../logics/billing/paypalProvider.js';
+import { PaypalHttpError } from '../../logics/paypal.js';
 
 /**
  * Nutzerverwaltung für Admins (Rollensystem admin/member/tester) plus Batch-Endpunkt zur
@@ -40,6 +44,8 @@ type AdminUserDto = {
 	createdAt: string;
 	/** KI-Anfragen im laufenden Monat (#1783 AK7) — nur in der Nutzerliste. */
 	aiRequestsThisMonth?: number;
+	/** Abo-Status je Nutzer (#1959) — `null` ohne Abo, `locked` = Admin-Sperre. */
+	subscriptionStatus?: string | null;
 };
 
 /** Zugelassene Adresse mit Herkunft (#1983, AK6) — auch ohne bestehendes Konto. */
@@ -102,8 +108,14 @@ const demoteUnlessLastAdmin = async (id: number, targetRole: Exclude<UserRole, '
  * (Default: realer Mistral-Aufruf), damit Tests ohne echten API-Call laufen — Muster
  * `createSuggestPillarsRouter`.
  */
-export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyPillarsWithMistral): Router => {
+export const createAdminRouter = (
+	pillarClassifier: PillarClassifier = classifyPillarsWithMistral,
+	deps: { paypalClient?: PaypalProviderDeps['client'] } = {},
+): Router => {
 	const adminRouter = Router();
+	// Admin-Storno (#1959) nutzt denselben injizierbaren PayPal-Client wie die Selbstkündigung
+	// (Muster `createBillingSubscriptionsRouter`).
+	const { checkout } = createPaypalProvider({ client: deps.paypalClient });
 
 	// GET /admin/users — alle Nutzer der App (nur Admins). `requireRole` läuft als Route-Middleware
 	// (nicht als `router.use(...)`) — ein pfadloses `.use()` auf einem ohne Präfix gemounteten Router
@@ -116,7 +128,16 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 				const users = await User.findAll({ order: [['displayName', 'ASC']] });
 				const usage = await AiUsage.findAll({ where: { yearMonth: currentYearMonth() } });
 				const countByUser = new Map(usage.map((row) => [row.userId, row.count]));
-				res.json(users.map((user) => ({ ...toDto(user), aiRequestsThisMonth: countByUser.get(user.id) ?? 0 })));
+				// #1959: Abo-Status je Nutzer (null ohne Abo) — Grundlage der Zeilen-Aktionen.
+				const subs = await Subscription.findAll();
+				const statusByUser = new Map(subs.map((sub) => [sub.get('userId') as number, sub.get('status') as string]));
+				res.json(
+					users.map((user) => ({
+						...toDto(user),
+						aiRequestsThisMonth: countByUser.get(user.id) ?? 0,
+						subscriptionStatus: statusByUser.get(user.id) ?? null,
+					})),
+				);
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
 			}
@@ -218,6 +239,101 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 				}
 				await target.update({ plan: body.plan as Plan });
 				res.json(toDto(target));
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	// POST /admin/users/:id/subscription/lock — sperrt das Abo eines Nutzers (#1959, AK1): der
+	// Zugriff auf das bezahlte Paket stoppt sofort, weil ALLE Guards `User.plan` lesen — daher der
+	// Abgleich über `syncUserPlan`. Rein lokale Aktion (kein Provider-Aufruf); die Sperre blockiert
+	// keinen neuen Abschluss (`locked` ist kein offenes Abo — „bezahlt = Zugang"), eine
+	// Entsperrung ist nicht vorgesehen.
+	adminRouter.post(
+		'/admin/users/:id/subscription/lock',
+		requireRole('admin'),
+		async (req: Request, res: Response<AdminUserDto | ErrorDto>) => {
+			try {
+				const id = Number(req.params.id);
+				if (!Number.isInteger(id) || id <= 0) {
+					sendError(res, 400, 'Ungültige Nutzer-Id.');
+					return;
+				}
+				const target = await User.findByPk(id);
+				if (!target) {
+					sendError(res, 404, 'Nutzer nicht gefunden.');
+					return;
+				}
+				const subscription = await Subscription.findOne({ where: { userId: id } });
+				if (!subscription) {
+					sendError(res, 404, 'Kein Abo gefunden.');
+					return;
+				}
+				await subscription.update({ status: 'locked' });
+				await syncUserPlan(subscription, 'free');
+				await target.reload();
+				res.json({ ...toDto(target), subscriptionStatus: 'locked' });
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	// POST /admin/users/:id/subscription/cancel — Admin-Storno (#1959, AK2): löst die Kündigung
+	// beim Zahlungsdienstleister aus (Muster Selbstkündigung, #2048); wirksam wird sie
+	// ausschließlich über das Webhook-Ereignis (ADR 0013) — das Paket läuft bis zum Periodenende
+	// weiter. Google-Play-Abos sind serverseitig nicht kündbar (409, ADR 0017); sie lassen sich
+	// aber sperren.
+	adminRouter.post(
+		'/admin/users/:id/subscription/cancel',
+		requireRole('admin'),
+		async (req: Request, res: Response<AdminUserDto | ErrorDto>) => {
+			try {
+				const id = Number(req.params.id);
+				if (!Number.isInteger(id) || id <= 0) {
+					sendError(res, 400, 'Ungültige Nutzer-Id.');
+					return;
+				}
+				const target = await User.findByPk(id);
+				if (!target) {
+					sendError(res, 404, 'Nutzer nicht gefunden.');
+					return;
+				}
+				const subscription = await Subscription.findOne({
+					where: { userId: id, status: OPEN_SUBSCRIPTION_STATUSES },
+				});
+				if (!subscription) {
+					// Gekündigt mit laufendem Zeitraum ist kein fehlendes Abo — 409 statt 404 (#2048).
+					const cancelled = await Subscription.findOne({
+						where: { userId: id, status: 'cancelled', currentPeriodEnd: { [Op.gt]: new Date() } },
+					});
+					if (cancelled) {
+						sendError(res, 409, 'Das Abo ist bereits gekündigt.');
+						return;
+					}
+					sendError(res, 404, 'Kein Abo gefunden.');
+					return;
+				}
+				if (subscription.get('provider') === 'google') {
+					sendError(
+						res,
+						409,
+						'Google-Play-Abos können serverseitig nicht gekündigt werden — das Abo lässt sich aber sperren.',
+					);
+					return;
+				}
+				try {
+					await checkout.cancel(subscription.get('externalSubscriptionId') as string);
+					res.json({ ...toDto(target), subscriptionStatus: subscription.get('status') as string });
+				} catch (error) {
+					// 4xx heißt: PayPal lehnt ab — verständlicher 409 statt 502 (Muster Selbstkündigung).
+					if (error instanceof PaypalHttpError && error.status < 500) {
+						sendError(res, 409, 'Das Abo ist bereits gekündigt.');
+						return;
+					}
+					sendError(res, 502, 'PayPal war nicht erreichbar.');
+				}
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
 			}
