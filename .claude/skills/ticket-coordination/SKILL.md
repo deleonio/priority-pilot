@@ -28,7 +28,8 @@ phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
    through the groups; epic and groups are containers, not work items.
 2. Per open sub-issue check the native `blocked-by` relations **and** the "Blockiert durch" line
    in the body — they can point into another epic (cross-epic dependency).
-3. Never label: the epic itself ("Nicht in die Pipeline geben"), group tickets titled `Gruppe:`
+3. Never label: the epic itself ("Nicht in die Pipeline geben") — except its closing analysis
+   (section 2, "All sub-issues of an epic closed") — group tickets titled `Gruppe:`
    ("Sammelticket (Gruppe)"), tickets titled `Manuell:` or marked "Aufgabe für den PO", tickets
    marked "zurückgestellt".
 4. A manual ticket on the critical path blocks everything behind it. Ask the author at once (one
@@ -64,7 +65,7 @@ phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
 | PR has a merge conflict (`mergeable_state: dirty`) | check every open PR of the epic at each check-in and after each merge to main. No phase **running** on the branch → hand the resolution to a subagent at once (section 6, one per PR, in parallel), even if a fixup is merely queued or crashed — waiting for the queue costs hours when phases stall. Phase running → wait for its end; the fixup run merges main before it starts and resolves the markers itself, so give it the resolution rule as an inline review comment on the conflicting file (it reads review threads, not plain PR comments). After the subagent's push: if the PR already had a green verdict, re-arm `ai:needs-review`; an attached `ai:needs-fixup` stays (its findings are still open). A conflict that needs a product decision goes to the author |
 | Author comments as PO on a PR or issue | apply at once (ticket body, ADR, labels), adjust dependent tickets |
 | PR merged, issue closed | check main CI, start the next issue in the same turn |
-| All sub-issues of an epic closed | check the merged PRs for named follow-up work that no ticket covers; ask the author about a follow-up ticket. Never close the epic yourself |
+| All sub-issues of an epic closed | an epic always gets at least one closing analysis — something new may have come up. Check the merged PRs for named follow-up work that no ticket covers and post it as a PO comment on the epic, then set `ai:needs-analyse` on the epic. The analysis either creates new sub-issues under the epic (drive them like any other) or closes the epic with evidence. Never close the epic yourself |
 
 Label write rules:
 
@@ -227,5 +228,5 @@ reports the conflict. Labels and comments stay with the coordinator.
 file:line), proposed action (exact label set or comment text), and whether the author is needed.
 
 Fits: diagnosing a red CI or an `ai:needs-human` stop while another issue is being routed;
-checking all PRs of an epic for follow-up work before asking about closing it; a test merge
+checking all PRs of an epic for follow-up work before its closing analysis; a test merge
 against main; resolving a merge conflict (exception above). Does not fit: anything that only needs one label read — do that directly.
