@@ -867,3 +867,156 @@ describe('Billing/Webhook-API (#1506 — Zahlungsereignisse)', () => {
 		);
 	});
 });
+
+/**
+ * Rote Spec-Tests für #2086 (Spec docs/spec/issue-2086.md, AK2/AK3) — echter Zahlungsstatus je
+ * Rechnung: Rechnungen entstehen mit `paymentStatus 'paid'` (plus Sale-Referenz aus
+ * `resource.id`), und `PAYMENT.SALE.REFUNDED` setzt genau die zugehörige Rechnung auf
+ * `refunded`. Bis zur Impl-Phase trägt das Invoice-Modell weder `paymentStatus` noch `saleId`
+ * und der REFUNDED-Zweig ist ein No-op — die Status-Assertion scheitert an `undefined`
+ * (legitimer Erst-Zustand). KEIN Produktivcode.
+ */
+describe('Billing/Webhook-API (#2086 — Zahlungsstatus)', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const createSubscription = async (externalId: string): Promise<void> => {
+		await Subscription.create({
+			userId: 101,
+			provider: 'paypal',
+			externalSubscriptionId: externalId,
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date('2026-02-01T00:00:00.000Z'),
+		});
+	};
+
+	it('AK2: PAYMENT.SALE.COMPLETED erzeugt die Rechnung mit paymentStatus "paid" und der Sale-Referenz aus resource.id', async () => {
+		server = await startTestServer(withVerifierAndMail('verified'));
+		await createSubscription('I-2086-PAID');
+
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-2086-1',
+				event_type: 'PAYMENT.SALE.COMPLETED',
+				resource: { id: 'PAYID-2086-A', billing_agreement_id: 'I-2086-PAID' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-2086-PAID' } });
+		const invoices = await Invoice.findAll({ where: { subscriptionId: sub?.get('id') as number } });
+		assert.equal(invoices.length, 1, 'Genau eine Rechnung muss entstehen');
+		assert.equal(invoices[0]?.get('paymentStatus'), 'paid', 'Eine bestätigte Abbuchung muss die Rechnung paid setzen');
+		assert.equal(
+			invoices[0]?.get('saleId'),
+			'PAYID-2086-A',
+			'Die Sale-Referenz (resource.id) muss auf der Rechnung landen — Anker für spätere Erstattungen',
+		);
+	});
+
+	it('AK2: BILLING.SUBSCRIPTION.ACTIVATED erzeugt die Rechnung mit paymentStatus "paid", aber ohne Sale-Referenz', async () => {
+		server = await startTestServer(withVerifierAndMail('verified'));
+		await createSubscription('I-2086-ACT');
+
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-2086-2',
+				event_type: 'BILLING.SUBSCRIPTION.ACTIVATED',
+				resource: { id: 'I-2086-ACT', billing_agreement_id: 'I-2086-ACT' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-2086-ACT' } });
+		const invoices = await Invoice.findAll({ where: { subscriptionId: sub?.get('id') as number } });
+		assert.equal(invoices.length, 1, 'Genau eine Rechnung muss entstehen');
+		assert.equal(invoices[0]?.get('paymentStatus'), 'paid', 'Die bestätigte Aktivierung muss die Rechnung paid setzen');
+		assert.equal(
+			invoices[0]?.get('saleId'),
+			null,
+			'ACTIVATED trägt keine Sale-Id — eine falsche Erstattungs-Referenz darf nicht entstehen',
+		);
+	});
+
+	it('AK3: PAYMENT.SALE.REFUNDED setzt genau die Rechnung mit passender sale_id auf refunded, andere bleiben paid', async () => {
+		server = await startTestServer(withVerifierAndMail('verified'));
+		await createSubscription('I-2086-REF');
+		const postCompleted = (saleId: string): Promise<Response> =>
+			rawPost(
+				'/webhooks/paypal',
+				JSON.stringify({
+					id: `WH-2086-${saleId}`,
+					event_type: 'PAYMENT.SALE.COMPLETED',
+					resource: { id: saleId, billing_agreement_id: 'I-2086-REF' },
+				}),
+				{ 'paypal-transmission-sig': 'ok' },
+			);
+		// Zwei Perioden: zwei echte Rechnungen (der Rechnungslauf keyed auf subscriptionId + periodEnd).
+		await postCompleted('PAYID-2086-OLD');
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-2086-REF' } });
+		await sub!.update({ currentPeriodEnd: new Date('2026-03-01T00:00:00.000Z') });
+		await postCompleted('PAYID-2086-NEW');
+
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-2086-REFUND',
+				event_type: 'PAYMENT.SALE.REFUNDED',
+				resource: { id: 'REFUND-2086', sale_id: 'PAYID-2086-OLD', billing_agreement_id: 'I-2086-REF' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		const invoices = await Invoice.findAll({ where: { subscriptionId: sub!.get('id') as number } });
+		assert.equal(invoices.length, 2, 'Vorbedingung: zwei Rechnungen müssen existieren');
+		const oldInvoice = invoices.find((invoice) => invoice.get('saleId') === 'PAYID-2086-OLD');
+		const newInvoice = invoices.find((invoice) => invoice.get('saleId') === 'PAYID-2086-NEW');
+		assert.ok(oldInvoice && newInvoice, 'Beide Rechnungen müssen ihre Sale-Referenz tragen');
+		assert.equal(oldInvoice.get('paymentStatus'), 'refunded', 'Genau die betroffene Rechnung wird refunded');
+		assert.equal(newInvoice.get('paymentStatus'), 'paid', 'Andere Rechnungen bleiben unberührt');
+	});
+
+	it('AK3: PAYMENT.SALE.REFUNDED ohne passende sale_id trifft die neueste Rechnung des Abos (Fallback, Erstattung geht nicht still verloren)', async () => {
+		server = await startTestServer(withVerifierAndMail('verified'));
+		await createSubscription('I-2086-FB');
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-2086-3',
+				event_type: 'PAYMENT.SALE.COMPLETED',
+				resource: { id: 'PAYID-2086-FB', billing_agreement_id: 'I-2086-FB' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-2086-REFUND-FB',
+				event_type: 'PAYMENT.SALE.REFUNDED',
+				// sale_id passt zu keiner Rechnung (Altrechnung vor der Spalte) — Fallback neueste Rechnung.
+				resource: { id: 'REFUND-2086-FB', sale_id: 'PAYID-UNBEKANNT', billing_agreement_id: 'I-2086-FB' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-2086-FB' } });
+		const invoices = await Invoice.findAll({ where: { subscriptionId: sub?.get('id') as number } });
+		assert.equal(invoices.length, 1, 'Vorbedingung: genau eine Rechnung muss existieren');
+		assert.equal(
+			invoices[0]?.get('paymentStatus'),
+			'refunded',
+			'Ohne Referenz-Treffer muss der Fallback die neueste Rechnung des Abos treffen',
+		);
+	});
+});

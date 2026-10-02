@@ -83,8 +83,13 @@ describe('Admin-Rechnungs-API (#1958)', () => {
 		assert.equal(adminList.length, 2);
 		assert.deepEqual(
 			Object.keys(adminList[0]).sort(),
-			['amountCents', 'id', 'number', 'periodEnd', 'periodStart', 'taxNote'],
-			'DTO muss die Felder der Eigentümer-Route tragen',
+			['amountCents', 'id', 'number', 'paymentStatus', 'periodEnd', 'periodStart', 'taxNote'],
+			'DTO muss die Felder der Eigentümer-Route tragen — inkl. Zahlungsstatus (#2086, Test-Pflege)',
+		);
+		assert.equal(
+			adminList[0].paymentStatus,
+			'paid',
+			'Der Admin-DTO muss den Zahlungsstatus je Rechnung tragen (#2086) — Bestandsrechnungen sind paid',
 		);
 		// Neueste zuerst: zweite Periode (periodStart 2026-12-01) vor der ersten (2026-11-01).
 		assert.equal(adminList[0].periodStart, '2026-12-01T00:00:00.000Z');
