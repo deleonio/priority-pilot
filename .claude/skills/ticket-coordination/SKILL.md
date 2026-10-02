@@ -30,7 +30,7 @@ phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
    in the body — they can point into another epic (cross-epic dependency).
 3. Never label containers — epics ("Nicht in die Pipeline geben") and group tickets titled
    `Gruppe:` ("Sammelticket (Gruppe)") — except for their closing analysis (section 2, "All
-   sub-issues of a container closed"). Never label tickets titled `Manuell:` or marked "Aufgabe für den PO", tickets
+   sub-issues of a container (epic or group) closed"). Never label tickets titled `Manuell:` or marked "Aufgabe für den PO", tickets
    marked "zurückgestellt".
 4. A manual ticket on the critical path blocks everything behind it. Ask the author at once (one
    question, concrete options) instead of waiting silently.
@@ -70,7 +70,7 @@ phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
 | PR has a merge conflict (`mergeable_state: dirty`) | check every open PR of the epic at each check-in and after each merge to main. No phase **running** on the branch → hand the resolution to a subagent at once (section 6, one per PR, in parallel), even if a fixup is merely queued or crashed — waiting for the queue costs hours when phases stall. Phase running → wait for its end; the fixup run merges main before it starts and resolves the markers itself, so give it the resolution rule as an inline review comment on the conflicting file (it reads review threads, not plain PR comments). After the subagent's push: if the PR already had a green verdict, re-arm `ai:needs-review`; an attached `ai:needs-fixup` stays (its findings are still open). A conflict that needs a product decision goes to the author |
 | Author comments as PO on a PR or issue | apply at once (ticket body, ADR, labels), adjust dependent tickets |
 | PR merged, issue closed | check main CI, start the next issue in the same turn |
-| All sub-issues of a container (epic or group) closed | a container always gets at least one closing analysis — something new may have come up. Check the merged PRs for named follow-up work that no ticket covers and post it as a PO comment on the container, then set `ai:analysed` + `ai:needs-analyse` on it (container bodies do not follow the ticket template; without `ai:analysed` the quality gate parks the analysis) — at once, in the same turn the last sub-issue closes, outside the parallel-ticket limit: new important issues surface early, a finished container leaves the work chain fast. The analysis either creates new sub-issues under the container (drive them like any other), posts them as ticket drafts when its run may not create issues, or closes the container with evidence. For a draft: create the issue with its priority prefix, link it under the container (`POST repos/{owner}/{repo}/issues/<container>/sub_issues` with the issue's numeric id — not its number — as `sub_issue_id`), start it like any other leaf, and drop the `ai:needs-human` on the container — the template-structure check raises it as a false alarm, since containers have no template. When the new sub-issues close, the container gets its next closing analysis. Never close a container yourself |
+| All sub-issues of a container (epic or group) closed | a container always gets at least one closing analysis — something new may have come up. Check the merged PRs for named follow-up work that no ticket covers and post it as a PO comment on the container, then set `ai:analysed` + `ai:needs-analyse` on it (container bodies do not follow the ticket template; without `ai:analysed` the quality gate parks the analysis) — at once, in the same turn the last sub-issue closes, outside the parallel-ticket limit: new important issues surface early, a finished container leaves the work chain fast. The analysis either creates new sub-issues under the container (drive them like any other), posts them as ticket drafts when its run may not create issues, or closes the container with evidence. For a draft: create the issue with its priority prefix, link it under the container (`POST repos/{owner}/{repo}/issues/<container>/sub_issues` with the issue's numeric id — not its number — as `sub_issue_id`), start it like any other leaf, and drop the `ai:needs-human` on the container — the template-structure check raises it as a false alarm, since containers have no template. When the new sub-issues close, the container gets its next closing analysis. Never close a container on your own judgement; when the analysis finds it fulfilled but its run may not close issues, close it with the analysis' evidence |
 
 Label write rules:
 
@@ -133,7 +133,7 @@ pipeline and later readers see it.
    green review may not be in main — check the merged commit and bring the rest in a new PR.
 5. **Optional review nits on own PRs.** Reply and resolve; do not push only for a nit — the push
    resets review and CI. Nits that reveal a product gap (feature built but invisible, cost
-   without benefit) are not nits for the epic: see "All sub-issues of a container closed" above.
+   without benefit) are not nits for the epic: see "All sub-issues of a container (epic or group) closed" above.
 6. **Misleading titles.** "Frontend: …" can need server work. Trust the analysis, not the title.
 7. **Check the practice before calling a rule violation.** A rule in the docs can contradict
    what dozens of files do; then the rule is the finding, not the file.
@@ -194,6 +194,11 @@ pipeline and later readers see it.
 22. **Literal file paths as comment bodies.** A phase comment that reads `@/tmp/<file>.md` was
     posted with `-f body=@…` (raw string); the content is lost. The verdict label still counts;
     report the skill gap instead of re-running the phase.
+23. **Phase killed at the job timeout.** A runtime without soft abort runs into the hard job
+    timeout without pushing: run conclusion `cancelled`, orphan processes in the log, no
+    `ai:continued`, the trigger still attached. After the second such run on the same issue do
+    not re-arm: propose a split to the author (two or three leaves with a `blocked-by` chain,
+    the issue becomes their container, its draft PR is closed).
 
 ## 5. Tool notes
 
