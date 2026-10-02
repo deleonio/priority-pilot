@@ -63,6 +63,8 @@ const UserInvoices = ({ userId, displayName }: { userId: number; displayName: st
 		} catch (reason) {
 			const apiError = await toApiError(reason);
 			setError(apiError.message);
+			// Fehlschlag gilt als „noch nicht geöffnet“ — nächster Klick versucht es erneut (Fixup #1958).
+			openedRef.current = false;
 		}
 	}, [userId]);
 	return (

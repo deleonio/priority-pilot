@@ -677,6 +677,18 @@ describe('#1958 Admin-Rechnungsansicht (AK3)', () => {
 		expect(alert.getAttribute('data-kol-type')).toBe('error');
 	});
 
+	it('holt nach einem Fehlschlag beim erneuten Aufklappen neu (Fixup #1958: openedRef wird zurückgesetzt)', async () => {
+		mockGetAdminUserInvoices.mockRejectedValueOnce(new Error('Netzwerk weg')).mockResolvedValueOnce(INVOICES);
+		await renderWithUsers();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Rechnungen von Anna Admin' }));
+		await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+
+		fireEvent.click(screen.getByRole('button', { name: 'Rechnungen von Anna Admin' }));
+		await waitFor(() => expect(mockGetAdminUserInvoices).toHaveBeenCalledTimes(2));
+		await waitFor(() => expect(screen.getByText('INV-2026-000002')).toBeInTheDocument());
+	});
+
 	it('zeigt „Noch keine Rechnungen vorhanden.“, wenn der Nutzer keine Rechnungen hat', async () => {
 		mockGetAdminUserInvoices.mockResolvedValue([]);
 		await renderWithUsers();

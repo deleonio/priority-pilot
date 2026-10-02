@@ -233,8 +233,8 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 		'/admin/users/:id/invoices',
 		requireRole('admin'),
 		async (req: Request, res: Response<InvoiceDto[] | ErrorDto>) => {
-			const id = Number(req.params.id);
-			if (!Number.isInteger(id) || id <= 0) {
+			const id = parseId(req.params.id);
+			if (id === null) {
 				sendError(res, 400, 'Ungültige Nutzer-Id.');
 				return;
 			}
@@ -255,8 +255,8 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 		'/admin/users/:id/invoices/:invoiceId/pdf',
 		requireRole('admin'),
 		async (req: Request, res: Response<Buffer | ErrorDto>) => {
-			const id = Number(req.params.id);
-			if (!Number.isInteger(id) || id <= 0) {
+			const id = parseId(req.params.id);
+			if (id === null) {
 				sendError(res, 400, 'Ungültige Nutzer-Id.');
 				return;
 			}
