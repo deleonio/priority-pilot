@@ -129,8 +129,14 @@ export const createAdminRouter = (
 				const usage = await AiUsage.findAll({ where: { yearMonth: currentYearMonth() } });
 				const countByUser = new Map(usage.map((row) => [row.userId, row.count]));
 				// #1959: Abo-Status je Nutzer (null ohne Abo) — Grundlage der Zeilen-Aktionen.
-				const subs = await Subscription.findAll();
-				const statusByUser = new Map(subs.map((sub) => [sub.get('userId') as number, sub.get('status') as string]));
+				// Abo-Historie legt je Abschluss eine neue Zeile an: jüngste Zeile gewinnt (first-wins
+				// nach `id DESC`), sonst entscheidet die DB-Zeilenfolge über den angezeigten Status.
+				const subs = await Subscription.findAll({ order: [['id', 'DESC']] });
+				const statusByUser = new Map<number, string>();
+				for (const sub of subs) {
+					const userId = sub.get('userId') as number;
+					if (!statusByUser.has(userId)) statusByUser.set(userId, sub.get('status') as string);
+				}
 				res.json(
 					users.map((user) => ({
 						...toDto(user),
@@ -265,7 +271,16 @@ export const createAdminRouter = (
 					sendError(res, 404, 'Nutzer nicht gefunden.');
 					return;
 				}
-				const subscription = await Subscription.findOne({ where: { userId: id } });
+				// Abo-Historie legt je Abschluss eine neue Zeile an — Zeile deterministisch wählen:
+				// offenes Abo vor alten Zeilen (Bestandsmuster `ACTIVE_FIRST`), bei Gleichstand die
+				// jüngste; ohne Statusfilter, damit Re-Lock idempotent 200 bleibt.
+				const subscription = await Subscription.findOne({
+					where: { userId: id },
+					order: [
+						['status', 'ASC'],
+						['id', 'DESC'],
+					],
+				});
 				if (!subscription) {
 					sendError(res, 404, 'Kein Abo gefunden.');
 					return;

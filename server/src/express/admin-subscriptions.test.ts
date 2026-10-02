@@ -56,7 +56,10 @@ describe('Admin-Abo-Routen #1959 (Spec docs/spec/issue-1959.md)', () => {
 		return { cookie, userId: me.id };
 	};
 
-	const createSub = (userId: number, overrides: Partial<{ provider: string; status: string; plan: string }> = {}) =>
+	const createSub = (
+		userId: number,
+		overrides: Partial<{ provider: string; status: string; plan: string; externalSubscriptionId: string }> = {},
+	) =>
 		Subscription.create({
 			userId,
 			provider: 'paypal',
@@ -123,6 +126,73 @@ describe('Admin-Abo-Routen #1959 (Spec docs/spec/issue-1959.md)', () => {
 		});
 		users = await listUsers();
 		assert.equal(users.find((u) => u.id === member.userId)?.subscriptionStatus, 'locked');
+	});
+
+	it('AK1: Abo-Historie (alt gekündigt + Neuabschluss aktiv) → Liste zeigt aktuellen Status, Sperre trifft die jüngste Zeile', async () => {
+		server = await startTestServer(withPaypal(async () => {}));
+		const admin = await login(ADMIN_EMAIL, 'admin');
+		const member = await login(MEMBER_EMAIL, 'member');
+		// Je Abschluss eine neue Zeile: alte gekündigt (Vortag), Neuabschluss aktiv.
+		await Subscription.create({
+			userId: member.userId,
+			provider: 'paypal',
+			externalSubscriptionId: `I-1959-alt-${member.userId}`,
+			plan: 'plus',
+			period: 'monthly',
+			status: 'cancelled',
+			currentPeriodEnd: new Date(Date.now() - 24 * 3600 * 1000),
+		});
+		await createSub(member.userId, { externalSubscriptionId: `I-1959-neu-${member.userId}` });
+
+		const listRes = await fetch(`${server.baseUrl}/admin/users`, { headers: { Cookie: admin.cookie } });
+		assert.equal(listRes.status, 200);
+		const users = (await listRes.json()) as { id: number; subscriptionStatus: string | null }[];
+		assert.equal(
+			users.find((u) => u.id === member.userId)?.subscriptionStatus,
+			'active',
+			'Liste stellt den Status der jüngsten Zeile (Neuabschluss), nicht der alten',
+		);
+
+		const lockRes = await fetch(`${server.baseUrl}/admin/users/${member.userId}/subscription/lock`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: admin.cookie },
+			body: '{}',
+		});
+		assert.equal(lockRes.status, 200);
+		const subs = await Subscription.findAll({ where: { userId: member.userId }, order: [['id', 'ASC']] });
+		assert.equal(subs.length, 2);
+		assert.equal(subs[0]!.get('status'), 'cancelled', 'alte Zeile unangetastet');
+		assert.equal(subs[1]!.get('status'), 'locked', 'Sperre trifft die jüngste Zeile (Neuabschluss)');
+		const user = (await User.findByPk(member.userId))!;
+		assert.equal(user.get('plan'), 'free');
+	});
+
+	it('AK2: Webhook CANCELLED auf gesperrtem Abo → plan bleibt free (wasLocked-Guard)', async () => {
+		server = await startTestServer(withPaypal(async () => {}));
+		const admin = await login(ADMIN_EMAIL, 'admin');
+		const member = await login(MEMBER_EMAIL, 'member');
+		await createSub(member.userId);
+		const lockRes = await fetch(`${server.baseUrl}/admin/users/${member.userId}/subscription/lock`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: admin.cookie },
+			body: '{}',
+		});
+		assert.equal(lockRes.status, 200, 'Setup: Sperre muss gelungen sein');
+
+		const hook = await fetch(`${server.baseUrl}/webhooks/paypal`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', 'paypal-transmission-sig': 'ok' },
+			body: JSON.stringify({
+				id: 'WH-1959-2',
+				event_type: 'BILLING.SUBSCRIPTION.CANCELLED',
+				resource: { id: `I-1959-${member.userId}` },
+			}),
+		});
+		assert.equal(hook.status, 200);
+		const sub = (await Subscription.findOne({ where: { userId: member.userId } }))!;
+		assert.equal(sub.get('status'), 'cancelled');
+		const user = (await User.findByPk(member.userId))!;
+		assert.equal(user.get('plan'), 'free', 'Sperre überlebt die Kündigung — kein plan-restore');
 	});
 
 	it('AK1: gesperrtes Abo blockiert keinen Zweitabschluss (locked nicht in OPEN_SUBSCRIPTION_STATUSES)', async () => {
