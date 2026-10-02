@@ -84,7 +84,7 @@ For an oversized issue:
 **Epic closing analysis:** An epic whose sub-issues are all closed gets a final analysis. Read its
 body (goals, rank table), its comments (PO notes on follow-up work) and the closed sub-issues
 with their PRs, and compare them with the codebase. Goals or follow-up work no ticket covers
-become new sub-issues under the epic (procedure above; the recursion guard applies to them).
+become new sub-issues under the epic (procedure above; the recursion guard applies to them). If this run may not create issues, post each one as a complete, template-conformant draft (title with priority prefix, body) in the decision comment instead.
 If nothing is open, close the epic per step 6, with the closed sub-issues and PRs as evidence. The epic itself keeps only `ai:analysed` — it is a container; phase triggers go only to the new sub-issues.
 
 ## Step 4 — Solution proposal in the harness comment (with traffic light)
