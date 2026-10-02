@@ -9,7 +9,8 @@ name: Set Agent Config
 # WARUM EIN WORKFLOW FÜR BEIDE (#1184, vorher zwei getrennte Achsen in set-provider.yml):
 # Laufzeit und Provider sind keine unabhängigen Schalter, sondern eine 2x3-Matrix — `pi` + `zai`
 # verhält sich anders als `claude` + `zai`, und manche Kombinationen scheitern erst zur Laufzeit
-# (pi + openrouter ohne PI_MODEL_ALIASES; pi + ein Anthropic-OAuth-Token). Getrennt bräuchte ein
+# (pi + openrouter ohne PI_MODEL_ALIASES — auch über den Documenter, der unabhängig von
+# LLM_PROVIDER auf openrouter läuft; pi + ein Anthropic-OAuth-Token). Getrennt bräuchte ein
 # Wechsel zwei Dispatches, und KEINE Stelle prüfte die Kombination. Hier laufen beide Werte durch
 # denselben Vorab-Check, bevor irgendetwas gesetzt wird.
 #
@@ -117,6 +118,7 @@ jobs:
           RUNTIME: ${{ steps.resolve.outputs.runtime }}
           PROVIDER: ${{ steps.resolve.outputs.provider }}
           PI_MODEL_ALIASES: ${{ vars.PI_MODEL_ALIASES }}
+          DOC_PROVIDER: ${{ vars.LLM_PROVIDER_DOCUMENTER || 'openrouter' }}
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
         run: |
           set -uo pipefail
@@ -133,14 +135,16 @@ jobs:
           [ "$RUNTIME" = "pi" ] || exit 0
 
           # pi + openrouter: Die Modell-IDs stehen bewusst nicht im Repo (Source of Truth ist
-          # die Variable). Ohne Einträge bräche setup-pi beim Modell-Alias ab.
-          if [ "$PROVIDER" = "openrouter" ]; then
+          # die Variable). Ohne Einträge bräche setup-pi beim Modell-Alias ab. Der Documenter
+          # (06-document.yml) nutzt LLM_PROVIDER_DOCUMENTER (Default openrouter) statt
+          # LLM_PROVIDER — er braucht die Einträge also auch bei LLM_PROVIDER=claude|zai.
+          if [ "$PROVIDER" = "openrouter" ] || [ "$DOC_PROVIDER" = "openrouter" ]; then
             count=0
             if [ -n "$PI_MODEL_ALIASES" ]; then
               count="$(printf '%s' "$PI_MODEL_ALIASES" | jq -r '(.openrouter // {}) | length' 2>/dev/null || echo 0)"
             fi
             if [ "${count:-0}" -eq 0 ]; then
-              echo "::error title=pi + openrouter unvollständig::vars.PI_MODEL_ALIASES enthält keine openrouter-Einträge. setup-pi bräche beim Modell-Alias ab. Erst setzen, z. B.: gh variable set PI_MODEL_ALIASES --body '{\"openrouter\":{\"opus\":\"openrouter/<id>\",\"sonnet\":\"…\",\"haiku\":\"…\",\"fable\":\"…\"}}' (s. .github/pi/README.md)."
+              echo "::error title=pi + openrouter unvollständig::vars.PI_MODEL_ALIASES enthält keine openrouter-Einträge (gebraucht von LLM_PROVIDER=${PROVIDER}/Documenter=${DOC_PROVIDER}). setup-pi bräche beim Modell-Alias ab. Erst setzen, z. B.: gh variable set PI_MODEL_ALIASES --body '{\"openrouter\":{\"opus\":\"openrouter/<id>\",\"sonnet\":\"…\",\"haiku\":\"…\",\"fable\":\"…\"}}' (s. .github/pi/README.md)."
               exit 1
             fi
             echo "::notice::pi + openrouter: ${count} Alias-Einträge in PI_MODEL_ALIASES gefunden."
