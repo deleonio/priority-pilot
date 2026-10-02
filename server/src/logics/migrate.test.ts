@@ -24,6 +24,7 @@ import {
 	migrateSubscriptionExternalIdUnique,
 	migrateInvoiceLineItemsColumn,
 	migrateInvoicePdfBytesColumn,
+	migrateInvoicePaymentStatusColumn,
 } from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
 // #1225: `migrateGroupImageUrl` existiert noch nicht (rote Spec-Tests) — Zugriff über den
@@ -1554,6 +1555,9 @@ describe('migrateInvoiceLineItemsColumn (#1912)', () => {
 		// #1955: die Bestands-DB kennt `pdfBytes` noch — dieselbe Nachzieh-Reihenfolge wie in
 		// index.ts, sonst selectiert der Modell-Zugriff darunter eine fehlende Spalte.
 		await migrateInvoicePdfBytesColumn(sequelize);
+		// #2086: `paymentStatus`/`saleId` gehören inzwischen ebenfalls zur index.ts-Reihenfolge
+		// (Test-Pflege — der Modell-Zugriff selectiert die neuen Spalten mit).
+		await migrateInvoicePaymentStatusColumn(sequelize);
 		await assert.doesNotReject(() => migrateInvoiceLineItemsColumn(sequelize), 'zweiter Lauf bleibt stabil');
 
 		const { default: Invoice } = await import('../models/invoice.js');
@@ -1629,5 +1633,76 @@ describe('migrateLegacyPlans (#1785)', () => {
 		await sequelize.getQueryInterface().dropAllTables();
 
 		await assert.doesNotReject(() => migrateLegacyPlans!(sequelize));
+	});
+});
+
+// ── #2086: migrateInvoicePaymentStatusColumn — Zahlungsstatus an invoices ──────────────────────
+// `migrateInvoicePaymentStatusColumn` existiert noch nicht (rote Spec-Tests, Spec
+// docs/spec/issue-2086.md AK1) — Zugriff über den Namespace + Cast, damit tsc grün bleibt, bis die
+// Impl-Phase die Funktion anlegt. Muster `migrateLegacyPlans`.
+describe('migrateInvoicePaymentStatusColumn (#2086)', () => {
+	const migrateInvoicePaymentStatusColumn = (
+		migrateModule as unknown as { migrateInvoicePaymentStatusColumn?: (db: typeof sequelize) => Promise<void> }
+	).migrateInvoicePaymentStatusColumn;
+
+	const createLegacyInvoices = async (): Promise<void> => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `invoices` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `userId` INTEGER NOT NULL, ' +
+				'`subscriptionId` INTEGER NOT NULL, `number` VARCHAR(255) NOT NULL UNIQUE, `periodStart` DATETIME NOT NULL, ' +
+				'`periodEnd` DATETIME NOT NULL, `amountCents` INTEGER NOT NULL, `taxNote` VARCHAR(255) NOT NULL, ' +
+				'`deliveredAt` DATETIME, `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL)',
+		);
+		await sequelize.query(
+			'INSERT INTO `invoices` (`userId`, `subscriptionId`, `number`, `periodStart`, `periodEnd`, `amountCents`, `taxNote`, `createdAt`, `updatedAt`) ' +
+				"VALUES (1, 1, 'INV-2026-000001', '2026-01-01 00:00:00', '2026-02-01 00:00:00', 499, 'x', '2026-01-01 00:00:00', '2026-01-01 00:00:00')",
+		);
+	};
+
+	after(async () => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.sync();
+	});
+
+	it('AK1: zieht paymentStatus mit Default paid und saleId nach, Bestandsrechnungen sind paid; zweiter Lauf ist stabil', async () => {
+		assert.equal(
+			typeof migrateInvoicePaymentStatusColumn,
+			'function',
+			'migrateInvoicePaymentStatusColumn fehlt in migrate.ts',
+		);
+		await createLegacyInvoices();
+
+		await migrateInvoicePaymentStatusColumn!(sequelize);
+		// Nachzieh-Reihenfolge wie in index.ts: die älteren Spalten müssen vor dem Modell-Zugriff da sein.
+		await migrateInvoiceLineItemsColumn(sequelize);
+		await migrateInvoicePdfBytesColumn(sequelize);
+		await assert.doesNotReject(() => migrateInvoicePaymentStatusColumn!(sequelize), 'zweiter Lauf bleibt stabil');
+
+		const [columns] = await sequelize.query("PRAGMA table_info('invoices')");
+		const names = (columns as { name: string }[]).map((column) => column.name);
+		assert.ok(names.includes('paymentStatus'), 'paymentStatus muss an invoices nachgezogen sein');
+		assert.ok(names.includes('saleId'), 'saleId muss an invoices nachgezogen sein (Erstattungs-Zuordnung)');
+		const stock = (
+			await sequelize.query("SELECT paymentStatus, saleId FROM `invoices` WHERE number = 'INV-2026-000001'")
+		)[0] as {
+			paymentStatus: string;
+			saleId: string | null;
+		}[];
+		assert.equal(stock[0]?.paymentStatus, 'paid', 'Bestandsrechnungen müssen durch das Migration-Default paid tragen');
+		assert.equal(stock[0]?.saleId, null, 'Altrechnungen tragen keine Sale-Referenz');
+		// Der Modell-Zugriff muss mit der neuen Spalte lesbar bleiben (Muster #1912).
+		const { default: Invoice } = await import('../models/invoice.js');
+		assert.equal((await Invoice.findOne({ where: { userId: 1 } }))?.get('paymentStatus'), 'paid');
+	});
+
+	it('ist ohne Tabellen ein No-op', async () => {
+		assert.equal(
+			typeof migrateInvoicePaymentStatusColumn,
+			'function',
+			'migrateInvoicePaymentStatusColumn fehlt in migrate.ts',
+		);
+		await sequelize.getQueryInterface().dropAllTables();
+
+		await assert.doesNotReject(() => migrateInvoicePaymentStatusColumn!(sequelize));
 	});
 });

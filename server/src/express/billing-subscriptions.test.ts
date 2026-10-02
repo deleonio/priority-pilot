@@ -459,6 +459,61 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		assert.equal(body[0].number, 'INV-2026-100001');
 	});
 
+	// #2086 (Spec docs/spec/issue-2086.md, AK4): der DTO trägt den Zahlungsstatus — der
+	// Eigentümer-Route wie der Admin-Route (Spiegel via `serializeInvoice`). Bis zur Impl-Phase
+	// fehlt das Feld in `serializeInvoice`: die Value-Assertion scheitert an `undefined`
+	// (legitimer Erst-Zustand). KEIN Produktivcode.
+	it('AK4 (#2086): GET /billing/invoices liefert je Rechnung den Zahlungsstatus paymentStatus', async () => {
+		server = await startTestServer(withClient({}));
+		const cookie = await login('ak4-2086@example.com');
+		const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
+		const sub = await Subscription.create({
+			userId: me.id,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-2086-DTO',
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date('2026-12-01'),
+		});
+		await Invoice.create({
+			userId: me.id,
+			subscriptionId: sub.get('id') as number,
+			number: 'INV-2026-100101',
+			periodStart: new Date('2026-02-01'),
+			periodEnd: new Date('2026-03-01'),
+			amountCents: 799,
+			taxNote: 'Gemäß §19 UStG wird keine Umsatzsteuer ausgewiesen.',
+			paymentStatus: 'paid',
+		} as never);
+		await Invoice.create({
+			userId: me.id,
+			subscriptionId: sub.get('id') as number,
+			number: 'INV-2026-100102',
+			periodStart: new Date('2026-03-01'),
+			periodEnd: new Date('2026-04-01'),
+			amountCents: 799,
+			taxNote: 'Gemäß §19 UStG wird keine Umsatzsteuer ausgewiesen.',
+			paymentStatus: 'refunded',
+		} as never);
+
+		const res = await get('/billing/invoices', cookie);
+
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { number: string; paymentStatus?: string }[];
+		assert.equal(body.length, 2);
+		assert.equal(
+			body.find((invoice) => invoice.number === 'INV-2026-100101')?.paymentStatus,
+			'paid',
+			'Der DTO muss paymentStatus je Rechnung tragen (hier paid)',
+		);
+		assert.equal(
+			body.find((invoice) => invoice.number === 'INV-2026-100102')?.paymentStatus,
+			'refunded',
+			'Der DTO muss paymentStatus je Rechnung tragen (hier refunded)',
+		);
+	});
+
 	it('AK5: GET /billing/invoices/{id} einer fremden Rechnung antwortet 404', async () => {
 		server = await startTestServer(withClient({}));
 		const cookieA = await login('ak5-id-a@example.com');

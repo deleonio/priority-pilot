@@ -3,7 +3,7 @@ import type { AdminUser, AllowedEmail, ReassignStatusFilter, components } from '
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
-import { formatEuro } from '../lib/format';
+import { formatEuro, paymentStatusLabel } from '../lib/format';
 import { planLabel } from '../lib/planOffers';
 import { useReassignRun, type ReassignPortionArgs } from '../lib/useReassignRun';
 import { Modal } from './Modal';
@@ -96,7 +96,7 @@ const UserInvoices = ({ userId, displayName }: { userId: number; displayName: st
 							</span>
 							<span>{formatEuro(invoice.amountCents)}</span>
 							{/* Status als Text-Badge — Information nie allein über Farbe (WCAG 1.4.1, KI-UX). */}
-							<KolBadge _label="Ausgestellt" />
+							<KolBadge _label={paymentStatusLabel(invoice.paymentStatus)} />
 							<KolButton
 								_label={`PDF ${invoice.number} herunterladen`}
 								_variant="secondary"

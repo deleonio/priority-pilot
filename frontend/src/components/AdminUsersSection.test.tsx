@@ -706,6 +706,8 @@ describe('AdminUsersSection — Abo sperren/stornieren (#1959)', () => {
  * antwortet 403 (`admin-invoices.test.ts`).
  */
 describe('#1958 Admin-Rechnungsansicht (AK3)', () => {
+	// #2086: das Fixture trägt den Zahlungsstatus (paid/refunded) — die Sicht zeigt ihn statt des
+	// festen „Ausgestellt“ (Test-Pflege, Spec docs/spec/issue-2086.md AK6).
 	const INVOICES = [
 		{
 			id: 11,
@@ -714,6 +716,7 @@ describe('#1958 Admin-Rechnungsansicht (AK3)', () => {
 			periodEnd: '2026-11-01T00:00:00.000Z',
 			amountCents: 799,
 			taxNote: 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.',
+			paymentStatus: 'paid',
 		},
 		{
 			id: 12,
@@ -722,6 +725,7 @@ describe('#1958 Admin-Rechnungsansicht (AK3)', () => {
 			periodEnd: '2026-12-01T00:00:00.000Z',
 			amountCents: 1499,
 			taxNote: 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.',
+			paymentStatus: 'refunded',
 		},
 	];
 
@@ -748,17 +752,23 @@ describe('#1958 Admin-Rechnungsansicht (AK3)', () => {
 		expect(mockGetAdminUserInvoices).toHaveBeenCalledTimes(1);
 	});
 
-	it('zeigt nach dem Aufklappen die Rechnungen mit Nummer, Betrag, Status Ausgestellt und Download je Rechnung', async () => {
+	it('zeigt nach dem Aufklappen die Rechnungen mit Nummer, Betrag, Download und dynamischem Zahlungsstatus statt „Ausgestellt“ (#2086 AK6, Test-Pflege)', async () => {
 		mockGetAdminUserInvoices.mockResolvedValue(INVOICES);
 		await renderWithUsers();
 
 		fireEvent.click(screen.getByRole('button', { name: 'Rechnungen von Anna Admin' }));
 
 		await waitFor(() => expect(screen.getByText('INV-2026-000002')).toBeInTheDocument());
-		const entry = screen.getByText('INV-2026-000002').closest('li') as HTMLElement;
-		expect(within(entry).getByText(/14,99/)).toBeInTheDocument();
-		expect(within(entry).getByText('Ausgestellt')).toBeInTheDocument();
-		expect(within(entry).getByRole('button', { name: 'PDF INV-2026-000002 herunterladen' })).toBeInTheDocument();
+		const paidEntry = screen.getByText('INV-2026-000001').closest('li') as HTMLElement;
+		const refundedEntry = screen.getByText('INV-2026-000002').closest('li') as HTMLElement;
+		expect(within(paidEntry).getByText(/7,99/)).toBeInTheDocument();
+		expect(within(paidEntry).getByText('Bezahlt')).toBeInTheDocument();
+		expect(within(refundedEntry).getByText(/14,99/)).toBeInTheDocument();
+		expect(within(refundedEntry).getByText('Erstattet')).toBeInTheDocument();
+		expect(
+			within(refundedEntry).getByRole('button', { name: 'PDF INV-2026-000002 herunterladen' }),
+		).toBeInTheDocument();
+		expect(screen.queryByText('Ausgestellt'), 'Das feste Label „Ausgestellt“ ist überall entfallen').toBeNull();
 	});
 
 	it('zeigt eine Fehlermeldung als KolAlert vom Typ error, wenn die Rechnungen nicht geladen werden können', async () => {

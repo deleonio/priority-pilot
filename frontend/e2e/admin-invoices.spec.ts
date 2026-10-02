@@ -3,8 +3,10 @@ import { waitForStableView } from './helpers';
 
 /**
  * Rote Spec-E2E für #1958 (Spec `docs/spec/issue-1958.md`, AK3/AK5): Die Nutzerverwaltung zeigt
- * je Nutzer die aufklappbare Rechnungsansicht (Nummer, Zeitraum, Betrag, Status „Ausgestellt“,
- * Download-Anker) und bleibt bei 375px ohne horizontalen Overflow.
+ * je Nutzer die aufklappbare Rechnungsansicht (Nummer, Zeitraum, Betrag, Status, Download-Anker)
+ * und bleibt bei 375px ohne horizontalen Overflow. #2086 (Test-Pflege, Spec
+ * `docs/spec/issue-2086.md` AK6/AK7): der Status ist der echte Zahlungsstatus
+ * („Bezahlt“/„Erstattet“) statt des festen „Ausgestellt“.
  *
  * Admin-Session über `POST /auth/test-login` mit `role: 'admin'` (nur NODE_ENV=test); die
  * Rechnungsdaten sind gegroutet (das Invoices-Glob der Admin-Routen): echte Rechnungen entstehen
@@ -34,6 +36,7 @@ const INVOICES = [
 		periodEnd: '2026-11-01T00:00:00.000Z',
 		amountCents: 799,
 		taxNote: 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.',
+		paymentStatus: 'paid',
 	},
 	{
 		id: 12,
@@ -42,6 +45,7 @@ const INVOICES = [
 		periodEnd: '2026-12-01T00:00:00.000Z',
 		amountCents: 1499,
 		taxNote: 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.',
+		paymentStatus: 'refunded',
 	},
 ];
 
@@ -76,7 +80,13 @@ test.describe('#1958 Nutzerverwaltung — Rechnungsansicht je Nutzer', () => {
 
 		const entry = page.locator('.admin-user', { hasText: 'Anna Admin' }).locator('li', { hasText: 'INV-2026-000002' });
 		await expect(entry).toBeVisible();
-		await expect(entry.getByText('Ausgestellt')).toBeVisible();
+		// #2086 AK6 (Test-Pflege): dynamischer Zahlungsstatus statt des festen „Ausgestellt“.
+		await expect(entry.getByText('Erstattet')).toBeVisible();
+		const paidEntry = page
+			.locator('.admin-user', { hasText: 'Anna Admin' })
+			.locator('li', { hasText: 'INV-2026-000001' });
+		await expect(paidEntry.getByText('Bezahlt')).toBeVisible();
+		await expect(page.getByText('Ausgestellt')).toHaveCount(0);
 		// AK3: Download-Zugriff je Rechnung — der zugängliche Name nennt die Rechnungsnummer.
 		await expect(page.getByRole('button', { name: 'PDF INV-2026-000002 herunterladen' })).toBeVisible();
 

@@ -1094,6 +1094,25 @@ export const migrateInvoicePdfBytesColumn = async (db: Sequelize): Promise<void>
 };
 
 /**
+ * Zieht `paymentStatus` (#2086) und die nullbare `saleId` (Erstattungs-Zuordnung) auf einer
+ * **bestehenden** `invoices`-Tabelle nach, BEVOR `sequelize.sync()` läuft — Muster
+ * {@link migrateInvoicePdfBytesColumn}. Default `paid`: Rechnungen entstehen erst nach bestätigter
+ * Abbuchung, der komplette Bestand ist damit bezahlt. Idempotent; ohne Tabelle ein No-op.
+ */
+export const migrateInvoicePaymentStatusColumn = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('invoices')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+	if (existing.length > 0 && !existing.includes('paymentStatus')) {
+		await db.query("ALTER TABLE `invoices` ADD COLUMN `paymentStatus` VARCHAR(255) NOT NULL DEFAULT 'paid'");
+		console.log('Spalte paymentStatus an invoices nachgezogen.');
+	}
+	if (existing.length > 0 && !existing.includes('saleId')) {
+		await db.query('ALTER TABLE `invoices` ADD COLUMN `saleId` VARCHAR(255)');
+		console.log('Spalte saleId an invoices nachgezogen.');
+	}
+};
+
+/**
  * Stellt die Altpakete des Vier-Paket-Modells um (#1785): `max` wird `plus`, `ultimate` wird `pro` in
  * `users.plan`, `subscriptions.plan` und `subscriptions.pendingPlan`. Idempotent; fehlende Tabellen
  * oder Spalten sind ein No-op.

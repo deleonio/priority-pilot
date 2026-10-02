@@ -100,11 +100,13 @@ const deliverInvoice = async (
  * wird sie erneut versendet; ebenso alle älteren unzugestellten Rechnungen desselben Abos (#2030).
  *
  * @param mailSend injizierbarer Versand (Default: `sendMailToUser`s nodemailer-Transport).
+ * @param saleId Sale-Referenz des auslösenden Zahlungsereignisses (#2086) — Anker für spätere Erstattungen.
  */
 export const issueInvoiceForPeriod = async (
 	subscription: Subscription,
 	now: Date,
 	mailSend?: MailSender,
+	saleId?: string | null,
 ): Promise<Invoice> => {
 	const subscriptionId = subscription.get('id') as number;
 	const periodEnd = subscription.get('currentPeriodEnd') as Date;
@@ -155,6 +157,7 @@ export const issueInvoiceForPeriod = async (
 		amountCents,
 		taxNote: TAX_NOTE,
 		lineItems,
+		saleId: saleId ?? null,
 	});
 
 	// PDF zum Erzeugungszeitpunkt bauen und speichern (#1955 AK3) — Anhang und späterer Download

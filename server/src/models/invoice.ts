@@ -25,6 +25,10 @@ class Invoice extends Model {
 	public lineItems!: { label: string; amountCents: number }[];
 	/** PDF-Bytes (#1955 AK3) — zum Erzeugungszeitpunkt gespeichert; Altrechnungen tragen `null`. */
 	public pdfBytes?: Buffer | null;
+	/** Zahlungsstatus (#2086) — provider-neutral (`paid`/`refunded`); Rechnungen entstehen erst nach bestätigter Abbuchung. */
+	public paymentStatus!: 'paid' | 'refunded';
+	/** PayPal-Sale-Referenz (#2086) — Anker für spätere Erstattungen; Altrechnungen tragen `null`. */
+	public saleId?: string | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -77,6 +81,15 @@ Invoice.init(
 		},
 		pdfBytes: {
 			type: DataTypes.BLOB,
+			allowNull: true,
+		},
+		paymentStatus: {
+			type: DataTypes.STRING,
+			allowNull: false,
+			defaultValue: 'paid',
+		},
+		saleId: {
+			type: DataTypes.STRING,
 			allowNull: true,
 		},
 	},
