@@ -89,6 +89,8 @@ pipeline and later readers see it.
   session; without a scheduled wake-up the whole coordination stalls until the answer.
 - The check-in message carries **state only**; the rules live here. Template:
   `Check-in ticket-coordination (Skill). Epics: … Stand <UTC>: <je Issue: [Stufe/Aufwand]-Kürzel aus dem Titel, Phase, PR, Run-ID, was als Nächstes zu prüfen ist>. Offen beim Autor: … Reihenfolge danach (mit Rang): … Nicht anfassen: …`
+- Spec, implementation and fixup share one serialized queue; more than two issues in parallel
+  add no throughput there, only triage, UX and review run side by side.
 - Report only on change (phase switch, merge, blocker, question). A quiet check-in stays quiet.
 - Notifications can arrive late, twice, or after the fact. Verify the current state before
   acting on one.
@@ -106,12 +108,15 @@ pipeline and later readers see it.
    reproduce it; state-dependent tests (shared test data within a shard) look like flakes.
    Real infrastructure failures have a signature in the log (dev server crash, `connection
    refused` from one test on until the shard ends): re-run the failed jobs once, record the
-   signature in a ticket, never send the PR into fixup for it.
+   signature in a ticket, never send the PR into fixup for it. A new UI element (an extra
+   select, a second dialog) that breaks a foreign e2e locator is the PR's own fault, not a flake:
+   post the CI cause as an inline thread on the touched file so the fixup reads it.
 3. **Phase ended without a usable result.** Three forms:
    - No verdict, no branch, no PR, trigger still attached → re-arm the trigger once (remove,
      add). A second failure goes to the author with the cause from the run log.
    - `ai:needs-human` although the work is done: the agent could not write its result (blocked
-     tool or file access) or the label step itself crashed, so no reason comment exists. Read the
+     tool or file access), wrote a wrong verdict token (e.g. `URTEIL:` instead of the expected
+     one) or the label step itself crashed, so no reason comment exists. Read the
      agent's final output in the run log; if it has no real open question, post its result as an
      issue comment and set the next phase.
    - Triage finds the ticket already fulfilled (typical after the blocker's PR covered it): it
@@ -168,7 +173,21 @@ pipeline and later readers see it.
 18. **Blocker merged → automatic re-triage.** When a blocker's PR merges, the pipeline itself sets
     `ai:needs-analyse` on the blocked issue. Do not route it before that run ends: the re-triage
     rewrites the label set and drops your trigger. Post PO notes on the issue right away — the
-    re-triage works them into the analysis — and route on its `ai:needs-po-review`.
+    re-triage works them into the analysis — and route on its `ai:needs-po-review`. This only
+    happens for issues that were already analysed; a never-analysed issue needs your
+    `ai:needs-analyse`.
+19. **PO decisions for a fixup.** The fixup reads review threads, not plain PR comments: answer
+    in the thread of the finding itself, also when correcting an earlier decision. Before
+    deciding a new mandatory UI field, check the e2e create flows that would hit it; prefer a
+    preselected default over a hard requirement (one such decision broke ~60 specs).
+20. **Dead self-hosted runner.** Runs stay `queued` with the runner's label, a job without a log
+    means the runner died mid-job. Only the author can switch the runner variable; then cancel
+    the queued runs (force-cancel stragglers) and re-arm every affected trigger with two writes.
+21. **Never re-run an old main run.** Concurrency cancels the newer main run in favour of the
+    re-run; re-run only the latest one.
+22. **Literal file paths as comment bodies.** A phase comment that reads `@/tmp/<file>.md` was
+    posted with `-f body=@…` (raw string); the content is lost. The verdict label still counts;
+    report the skill gap instead of re-running the phase.
 
 ## 5. Tool notes
 

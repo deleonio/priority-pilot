@@ -94,7 +94,7 @@ The freshly created PR is actively cross-examined and reworked — in rounds, un
 1. **Trigger a cross-examination** — adversarially review the full PR diff (see [review-kreuzverhoer](../review-kreuzverhoer/SKILL.md)). Post every finding as an anchored review comment, concluded with a verdict including a **traffic light** (🟢/🟡/🔴).
 2. **Check CI** — `gh pr checks <pr>`. If something fails, diagnose and fix the cause.
 3. **Work through findings:**
-   - **Valid, small, unambiguous →** fix it: commit + push the fix, `pnpm format && prettier && lint`, reply in the thread and resolve.
+   - **Valid, small, unambiguous →** fix it: commit + push the fix, `pnpm format && prettier && lint`, reply in the thread and resolve. Pass a reply body from a file with `-F body=@<file>` (capital `-F`; `-f body=@<file>` posts the literal path).
    - **Ambiguous or architecturally relevant →** ask a follow-up question and wait for an answer.
    - **Not valid →** comment factually on why nothing is changed, and resolve.
    - **Resolve mechanics** (threads are GraphQL-only — REST has no threads endpoint, gh has NO
