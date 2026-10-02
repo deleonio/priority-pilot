@@ -1032,6 +1032,25 @@ kol-toolbar {
 	color: var(--pp-signal-ink);
 }
 
+/* #1985: Begründungssätze („Warum jetzt?“) — Fließtext in der bestehenden Signalfläche, Tinte
+   erbt `--pp-signal-ink` (Fläche und Text reisen zusammen, siehe Kommentar oben). Basis-Schrift-
+   größe statt `--pp-font-size-sm` (Fließtext < 16 px ist Anti-Pattern, docs/mobile-ui-rules.md
+   Regel 6), kein Aufzählungszeichen, kein Farb-/Gewichts-Akzent; langer Säulenname oder Fristtext
+   bricht um, statt die Karte zu sprengen (Muster `.dashboard-next-task-title`). */
+.dashboard-next-task-reasons {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-tight);
+	font-size: var(--pp-font-size-base);
+}
+
+.dashboard-next-task-reasons li {
+	overflow-wrap: anywhere;
+}
+
 .dashboard-next-task-empty {
 	font-size: var(--pp-font-size-sm);
 }

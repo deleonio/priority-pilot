@@ -50,7 +50,7 @@ import type { PushSender } from '../logics/push.js';
 import type { MailSender } from '../logics/mail.js';
 import { buildTaskForest } from '../logics/tree.js';
 import { buildTaskGraph } from '../logics/graph.js';
-import { findNextBewertung, findSuggestedBewertungen, toScoreBreakdown } from '../logics/find.js';
+import { findNextBewertung, findSuggestedBewertungen, toReasons, toScoreBreakdown } from '../logics/find.js';
 import { isDbEmailAllowed, isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
 import { requireAuth, getUserId, hasGoogleOAuth } from './requireAuth.js';
 import { apiTokenAuth, isApiTokenRequest, apiTokenScopeGuard } from './apiTokenAuth.js';
@@ -397,7 +397,13 @@ export const createApp = (deps: AppDeps = {}) => {
 	app.get('/next', async (req, res: express.Response<RecommendationDto | null | ErrorDto>) => {
 		try {
 			const next = await findNextBewertung(getUserId(req));
-			res.json(next ? { ...serializeTask(next.task), scoreBreakdown: toScoreBreakdown(next) } : null);
+			// #1985: Begründungswerte additiv; ohne Anteile entfällt `reasons` komplett.
+			const reasons = next ? toReasons(next) : undefined;
+			res.json(
+				next
+					? { ...serializeTask(next.task), scoreBreakdown: toScoreBreakdown(next), ...(reasons ? { reasons } : {}) }
+					: null,
+			);
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
