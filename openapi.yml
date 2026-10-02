@@ -600,6 +600,54 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /tasks/suggest-initial:
+    post:
+      summary: Erststart-Aufgabenvorschläge aus Freitext erzeugen
+      description: >-
+        Macht aus einer freien Beschreibung („Was beschäftigt dich gerade?“)
+        fünf bis acht konkrete, sofort startbare Aufgaben-Vorschläge (#2068),
+        jeweils mit einer Säule des Nutzers und optional einem Vorgänger-Verweis
+        (`dependsOn`). Es werden keine Aufgaben angelegt, nur vorgeschlagen. Der
+        Aufruf erfolgt über den aktiven LLM-Provider. Ohne angelegte Säulen
+        antwortet der Endpoint mit 503; bei Upstream-/Format-Fehlern mit 502.
+      operationId: suggestInitialTasks
+      parameters:
+        - name: provider
+          in: query
+          required: false
+          description: >-
+            Optionaler Provider-Pinning (#749/#951): Name eines konfigurierten
+            Providers — überschreibt den aktiven Provider für diesen EINEN Aufruf.
+            Fehlt der Parameter → der aktive Provider (`llm_providers`, #951).
+            Ungültiger Wert → HTTP 400.
+          schema:
+            type: string
+            maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuggestInitialTasksInput'
+      responses:
+        '200':
+          description: Bereinigte Liste der Aufgaben-Vorschläge (auch mit weniger als 5 Einträgen)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuggestInitialTasksResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/PlanRequired'
+        '429':
+          $ref: '#/components/responses/QuotaExhausted'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /health:
     get:
       summary: Liveness-Check
@@ -5569,6 +5617,46 @@ components:
           type: string
           maxLength: 2000
           description: Frei formulierter Text, aus dem die Task-Felder extrahiert werden (nicht leer)
+    SuggestInitialTasksInput:
+      type: object
+      description: Eingabe für die Erststart-Vorschläge — freie Beschreibung der aktuellen Lage (#2068).
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          maxLength: 2000
+          description: Freitext, aus dem die Aufgaben-Vorschläge erzeugt werden (nicht leer)
+    SuggestInitialTaskSuggestion:
+      type: object
+      description: Ein Aufgaben-Vorschlag für den Erststart mit Säulen-Bezug.
+      required:
+        - title
+        - pillarId
+      properties:
+        title:
+          type: string
+          description: Kurzer, konkreter, sofort startbarer Aufgabentitel (nicht leer)
+        pillarId:
+          type: integer
+          minimum: 1
+          description: ID einer Säule des Nutzers, zu der der Vorschlag gehört
+        dependsOn:
+          type: integer
+          minimum: 0
+          description: >-
+            0-basierter Index eines anderen Vorschlags derselben Antwort, den dieser
+            Vorschlag logisch voraussetzt
+    SuggestInitialTasksResponse:
+      type: object
+      description: Bereinigte Erststart-Vorschläge (nur gültige Einträge, ursprüngliche Reihenfolge).
+      required:
+        - suggestions
+      properties:
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SuggestInitialTaskSuggestion'
     ParsedTask:
       type: object
       description: >-
