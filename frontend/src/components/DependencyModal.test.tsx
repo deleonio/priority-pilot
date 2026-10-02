@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { TaskStatus } from 'client';
 import type { Task } from 'client';
 import type { ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlanProvider } from '../lib/usePlan';
 
 /**
@@ -105,6 +105,12 @@ import { api } from '../api';
 import { DependencyModal } from './DependencyModal';
 
 const mockAddDependency = api.addDependency as ReturnType<typeof vi.fn>;
+
+// #1984: Bestands-Tests prüfen das Expertenverhalten (Gewichts-Regler sichtbar) — Präferenz
+// explizit an. Die #1984-Spec-Tests entfernen den Key im Testkörper selbst (Standardmodus).
+beforeEach(() => {
+	localStorage.setItem('pp-expert-mode', 'true');
+});
 
 afterEach(() => {
 	vi.clearAllMocks();
@@ -244,7 +250,9 @@ describe('DependencyModal — Standardmodus ohne Gewicht-Regler (#1984, AK1/AK2)
 			);
 		});
 
-		expect(screen.queryByRole('slider')).toHaveLength(0); // ROT: Regler wird heute gerendert
+		// TEST-PFLEGE #1984 (Impl): `queryByRole` liefert bei 0 Treffern `null` — `toHaveLength(0)`
+		// wäre daran nie grün („Target cannot be null or undefined"). Contract unverändert: 0 Slider.
+		expect(screen.queryAllByRole('slider')).toHaveLength(0); // kein Regler im Standardmodus
 
 		await act(async () => {
 			fireEvent.change(screen.getByRole('combobox', { name: 'Vorgänger-Task' }), {

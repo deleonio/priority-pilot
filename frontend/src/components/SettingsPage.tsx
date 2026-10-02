@@ -22,6 +22,7 @@ import { notifyProfileChanged } from '../lib/profileChanged';
 import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
 import { useAiFeaturesEnabled } from '../lib/aiPreferences';
+import { useExpertMode } from '../lib/expertMode';
 import { dismissBalanceHint, readBalancePreferences, storeBalancePreferences } from '../lib/balancePreferences';
 import { planLabel } from '../lib/planOffers';
 import { setupTabsFocusRing } from '../lib/tabsFocusRing';
@@ -185,6 +186,9 @@ export const SettingsPage = ({
 	// #1183: Master-Schalter „Animationen" (Default aus, pro Gerät über localStorage). Konfetti
 	// (#1169) ist der erste Konsument — das Gate sitzt in `launchConfetti`, nicht hier.
 	const { enabled: animationsEnabled, setEnabled: setAnimationsEnabled } = useAnimationsEnabled();
+	// #1984: Expertenmodus-Schalter (Default aus, pro Gerät über localStorage) — Gate für die
+	// Säulen-Gewichtungs-Karte in diesem Tab und die Regler in TaskForm/DependencyModal.
+	const { expertMode, setExpertMode } = useExpertMode();
 	// #1552: Klappzustand des Accordion „Einzelne Animationen" — bewusst app-seitig geführt. Das
 	// Accordion folgt dem Master (AK9), darf sich aber durch Header-Klick auch unabhängig davon
 	// zu-/aufklappen lassen: ein rein gesteuertes `_open={animationsEnabled}` ohne Handler wird vom
@@ -471,6 +475,22 @@ export const SettingsPage = ({
 									}}
 								/>
 							</div>
+							{/* #1984: Expertenmodus — Säulen-Prozente (Aufgabendialog), Gewichte
+							    (Abhängigkeits-Dialog) und die Säulen-Gewichtungspflege sind Experteninhalt.
+							    Ausblenden ist reine UI-Ausblendung; gespeicherte Werte bleiben. */}
+							<div className="settings-switch-row">
+								<KolInputCheckbox
+									_label="Expertenmodus"
+									_variant="switch"
+									_checked={expertMode}
+									_hint="Zeigt die Fach-Regler: Säulen-Prozente im Aufgabendialog, Gewichte im Abhängigkeits-Dialog und die Säulen-Gewichtungspflege im Tab Säulen. Gilt gerätebezogen und ist standardmäßig aus."
+									_on={{
+										onChange: (_event, value) => {
+											setExpertMode(value === true);
+										},
+									}}
+								/>
+							</div>
 							{/* #971: Switch + zugehörige Alerts je in einer `.settings-switch-row` — mobil volle
 									Breite im Stack-Layout, desktop eine Zeile (Switch links, Alert rechts). */}
 							<div className="settings-switch-row">
@@ -699,15 +719,23 @@ export const SettingsPage = ({
 					{/* Alle Gewichts-Regler liegen in EINER gemeinsamen Karte (KoliBri-Karte als
 					    Gruppierungsfläche, Muster wie die Dashboard-Karten); die Slider-Zeilen selbst
 					    tragen bewusst keinen eigenen Kartenrahmen (keine verschachtelten Karten). */}
-					<KolCard className="settings-card" _label="Säulen-Gewichtung" _level={2}>
-						{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
+					{/* #1984: Die Säulen-Gewichtungspflege ist Experteninhalt — im Standardmodus bleibt
+					    die Karte weg (bedingtes Rendern, kein CSS-Hide); gespeicherte Gewichte bleiben. */}
+					{expertMode && (
+						<KolCard className="settings-card" _label="Säulen-Gewichtung" _level={2}>
+							{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
 						    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
 						    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
 						    übernommen werden. Der Key ist die ID-Folge, nicht die Anzahl: Löschen + Anlegen
 						    zwischen zwei Renders lässt die Anzahl gleich, ordnete die Rohwerte im Ref aber
 						    den falschen Säulen zu. */}
-						<PillarWeightsForm key={pillars.map((pillar) => pillar.id).join('-')} pillars={pillars} onSaved={onSaved} />
-					</KolCard>
+							<PillarWeightsForm
+								key={pillars.map((pillar) => pillar.id).join('-')}
+								pillars={pillars}
+								onSaved={onSaved}
+							/>
+						</KolCard>
+					)}
 				</div>
 				{/* #1903: Tab „KI" — Schalter oben, darunter die Karten „KI-Provider" und „Access-Token".
 				    Deren `KolDetails` folgen dem Schalter (eingeklappt, nicht entfernt; Regel 2). */}

@@ -357,9 +357,10 @@ Menü** (Drei-Punkte-Button) einer Aufgabe und wähle **„Abhängigkeiten"**.
 
 - **Aktuelle Vorgänger** listet die verknüpften Aufgaben; jede lässt sich einzeln
   entfernen. (Bereits erledigte Vorgänger erscheinen hier nicht mehr.)
-- **Vorgänger hinzufügen:** eine Aufgabe auswählen, ein **Gewicht (0,1–1)** setzen und
-  **„Hinzufügen"**. Das Gewicht steuert, wie stark der Vorgänger zum Wert der
-  abhängigen Aufgabe beiträgt (1 = voller Einfluss).
+- **Vorgänger hinzufügen:** eine Aufgabe auswählen, im **Expertenmodus** ein **Gewicht
+  (0,1–1)** setzen und **„Hinzufügen"**. Ohne Expertenmodus genügt die Auswahl – die
+  Abhängigkeit wird mit dem Standardgewicht 1 angelegt. Das Gewicht steuert, wie stark der
+  Vorgänger zum Wert der abhängigen Aufgabe beiträgt (1 = voller Einfluss).
 
 Balamentum verhindert **zyklische Abhängigkeiten** (z. B. A → B → A) und lehnt sie
 mit einem verständlichen Hinweis ab. So bleibt der Abhängigkeitsgraph immer
@@ -417,8 +418,9 @@ Im Aufgabenformular wählst du unter **„Säulen-Verteilung"** zuerst die **Hau
 Aufgabe lässt sich damit allein schon speichern (Anteil 100 %). Daneben schlägt die App die
 **Restverteilung** vor (Regel: Hauptsäule 80 %, Rest gleichmäßig, je mindestens 5 %); **„Vorschlag
 übernehmen"** setzt sie ein, **„Nicht übernehmen"** lässt es bei der Hauptsäule. Übernommen oder nicht:
-Je Säule steht ein Regler. Die Regler teilen sich 100 %: Ziehst du einen hoch, geben die anderen
-ab.
+Je Säule steht ein Regler – er gehört zum **Expertenmodus** (Einstellungen → Allgemein);
+standardmäßig bleibt es bei Hauptsäule und Vorschlag. Die Regler teilen sich 100 %: Ziehst du
+einen hoch, geben die anderen ab.
 
 Unter **5 %** fällt keine Säule, sobald sie an der Verteilung teilnimmt. Dahinter steht die
 Annahme, dass jede Aufgabe auf jeden Lebensbereich ein Stück weit einzahlt – bei manchen eben
@@ -432,7 +434,8 @@ dem Speichern anpassen.
 
 ### Säulen-Gewichtung anpassen
 
-Über _Einstellungen → Säulen_ legst du fest, welche Bereiche gerade Priorität haben. Auch hier
+Über _Einstellungen → Säulen_ legst du fest, welche Bereiche gerade Priorität haben – dieser
+Editor gehört zum **Expertenmodus**. Auch hier
 verteilst du 100 % über die fünf Säulen: Ein Regler zieht die anderen mit, keine Säule fällt
 unter 5 %. Bei Gleichverteilung ist die Gewichtung neutral. Erhöhst du z. B. „Körper",
 steigen Aufgaben, die stark auf „Körper" einzahlen, im Wert – und rücken damit in der
@@ -606,6 +609,10 @@ Allgemein, Säulen, Kategorien, Standort, Orte, KI, Gruppen und **Pakete & Abo**
   **„Erledigt animieren"** steuern die Bewegungen des Balance-Bildes auf dem
   Dashboard und den Ablauf beim Erledigen einer Aufgabe. Ohne Bewegung bleibt das
   Bild vollständig, es steht nur still.
+- **Expertenmodus** – ist der Schalter aktiv, zeigt die App die Fach-Regler: Säulen-Prozente im
+  Aufgabendialog, Gewichte im Abhängigkeits-Dialog und die Säulen-Gewichtungspflege im Tab
+  **„Säulen"**. Die Wahl gilt auf diesem Gerät; gespeicherte Werte bleiben auch ohne
+  Expertenmodus erhalten.
 - **Sprachaufnahme automatisch starten** – ist der Schalter aktiv, startet das Mikrofon
   der Sprachfelder (Aufgabenformular, Schnellerfassung, Suche), sobald du sie öffnest.
   Beim Einschalten wird der Mikrofon-Zugriff angefragt.

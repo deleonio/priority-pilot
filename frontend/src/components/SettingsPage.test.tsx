@@ -116,6 +116,9 @@ beforeEach(() => {
 	// Kontext aller Geo-Tests dieser Datei. (Die Panels bleiben gemountet, die URL steuert hier
 	// nur den fachlichen Kontext.)
 	window.history.replaceState({}, '', '/settings/standort');
+	// #1984: Bestands-Tests prüfen das Expertenverhalten (Säulen-Gewichtungs-Karte, Gewichts-Regler)
+	// — Präferenz explizit an. Die #1984-Spec-Tests entfernen den Key in ihrem eigenen beforeEach.
+	localStorage.setItem('pp-expert-mode', 'true');
 });
 
 afterEach(cleanup);

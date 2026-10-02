@@ -33,6 +33,7 @@ import { readNumber, readString } from '../lib/inputValue';
 import { buildRecipientOptions } from '../lib/recipientOptions';
 import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
 import { useAiFeaturesGate } from '../lib/aiPreferences';
+import { useExpertModeGate } from '../lib/expertMode';
 import { CategoryBadge } from './CategoryBadge';
 import { VoiceField } from './VoiceField';
 import { AddressAutocomplete, type PlaceFavoriteSuggestion } from './AddressAutocomplete';
@@ -295,6 +296,9 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	// die Präferenz ist clientseitig gespeichert und ändert sich nur über die Einstellungen.
 	// #1525: zusätzlich an die Paket-Freischaltung `ai_assist` gekoppelt.
 	const aiEnabled = useAiFeaturesGate();
+
+	// #1984: Säulen-Prozentregler nur im Expertenmodus (Default aus, pro Gerät über localStorage).
+	const expertMode = useExpertModeGate();
 
 	// Aktiver Formularmodus: „Serie" beim Serien-Edit fest vorgegeben, sonst Standard „Aufgabe".
 	// Im Anlege-Modus wechselt der Umschalter zwischen beiden; im Bearbeiten-Modus ist er gesperrt.
@@ -1377,21 +1381,25 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 											{suggestError}
 										</KolAlert>
 									)}
-									{contributions.map((entry, index) => (
-										<div key={entry.pillarId} className="pillar-row">
-											<KolInputRange
-												_label={`${pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`}: ${formatNumber(entry.share)} %`}
-												_min={SHARE_MIN}
-												_max={shareCeiling}
-												_step={SHARE_STEP}
-												_value={entry.share}
-												_on={{
-													onInput: (_event, value) => setShare(index, readNumber(value)),
-													onChange: (_event, value) => setShare(index, readNumber(value)),
-												}}
-											/>
-										</div>
-									))}
+									{/* #1984: Säulen-Prozentregler nur im Expertenmodus — Hauptsäulen-Wahl und
+									    Regelvorschlag (#1962) bleiben im Standardmodus; gespeicherte Verteilungen
+									    bleiben unangetastet (reine UI-Ausblendung). */}
+									{expertMode &&
+										contributions.map((entry, index) => (
+											<div key={entry.pillarId} className="pillar-row">
+												<KolInputRange
+													_label={`${pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`}: ${formatNumber(entry.share)} %`}
+													_min={SHARE_MIN}
+													_max={shareCeiling}
+													_step={SHARE_STEP}
+													_value={entry.share}
+													_on={{
+														onInput: (_event, value) => setShare(index, readNumber(value)),
+														onChange: (_event, value) => setShare(index, readNumber(value)),
+													}}
+												/>
+											</div>
+										))}
 									{!isEdit && mainPillarId !== null && (
 										<div aria-live="polite" className="pillar-suggestion">
 											<p className="hint">

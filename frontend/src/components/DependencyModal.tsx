@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import type { DependencyRef } from '../lib/dependencies';
+import { useExpertModeGate } from '../lib/expertMode';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readNumber } from '../lib/inputValue';
 import { formatNumber } from '../lib/task';
@@ -24,11 +25,15 @@ interface DependencyModalProps {
 }
 
 /**
- * Abhängigkeits-Editor: listet die Vorgänger eines Tasks, fügt neue mit Gewicht hinzu
- * (`POST /tasks/{id}/dependencies`) und entfernt bestehende (`DELETE …/dependencies/{depId}`).
+ * Abhängigkeits-Editor: listet die Vorgänger eines Tasks, fügt neue hinzu
+ * (`POST /tasks/{id}/dependencies`; Gewicht-Regler nur im Expertenmodus — #1984, sonst
+ * Standardgewicht 1) und entfernt bestehende (`DELETE …/dependencies/{depId}`).
  * Ein Server-`409` (Zyklus) wird verständlich gemeldet.
  */
 export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChanged }: DependencyModalProps) => {
+	// #1984: Gewicht-Regler nur im Expertenmodus; das Anlegen bleibt im Standardmodus vollständig
+	// über die Aufgaben-Auswahl möglich (POST mit Standardgewicht 1).
+	const expertMode = useExpertModeGate();
 	const dependencyIds = new Set(dependencies.map((dependency) => dependency.id));
 	const candidates = allTasks.filter((candidate) => candidate.id !== task.id && !dependencyIds.has(candidate.id));
 	// #1465: Die Auswahl zeigt den Titel; eindeutig bleibt sie über den `value` (die Task-ID).
@@ -140,22 +145,26 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 						{dependencies.map((dependency) => (
 							<li key={dependency.id}>
 								<span>{dependency.title}</span>
-								<KolInputRange
-									_label={`Gewicht: ${dependency.title}`}
-									_min={0.1}
-									_max={1}
-									_step={0.1}
-									_value={dependency.weight}
-									_disabled={busy}
-									_on={{
-										onChange: (_event, value) => {
-											const next = readNumber(value);
-											if (next !== null) {
-												void changeWeight(dependency.id, next);
-											}
-										},
-									}}
-								/>
+								{/* #1984: Der Gewicht-Regler ist Experteninhalt — der Standardmodus blendet nur
+								    aus; gespeicherte Gewichte bleiben und erscheinen im Expertenmodus wieder. */}
+								{expertMode && (
+									<KolInputRange
+										_label={`Gewicht: ${dependency.title}`}
+										_min={0.1}
+										_max={1}
+										_step={0.1}
+										_value={dependency.weight}
+										_disabled={busy}
+										_on={{
+											onChange: (_event, value) => {
+												const next = readNumber(value);
+												if (next !== null) {
+													void changeWeight(dependency.id, next);
+												}
+											},
+										}}
+									/>
+								)}
 								<KolButton
 									_label={`Vorgänger ${dependency.title} entfernen`}
 									_hideLabel
@@ -191,25 +200,29 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 								},
 							}}
 						/>
-						<KolInputRange
-							_label={`Gewicht (0,1–1): ${formatNumber(weightState)}`}
-							_min={0.1}
-							_max={1}
-							_step={0.1}
-							_value={weightState}
-							_on={{
-								onInput: (_event, value) => {
-									const next = readNumber(value) ?? weightState;
-									weight.current = next;
-									setWeightState(next);
-								},
-								onChange: (_event, value) => {
-									const next = readNumber(value) ?? weightState;
-									weight.current = next;
-									setWeightState(next);
-								},
-							}}
-						/>
+						{/* #1984: Ohne Expertenmodus kein Gewicht-Regler — der Ref bleibt beim Default 1,
+						    der POST legt die Abhängigkeit allein über die Aufgaben-Auswahl an (AK2). */}
+						{expertMode && (
+							<KolInputRange
+								_label={`Gewicht (0,1–1): ${formatNumber(weightState)}`}
+								_min={0.1}
+								_max={1}
+								_step={0.1}
+								_value={weightState}
+								_on={{
+									onInput: (_event, value) => {
+										const next = readNumber(value) ?? weightState;
+										weight.current = next;
+										setWeightState(next);
+									},
+									onChange: (_event, value) => {
+										const next = readNumber(value) ?? weightState;
+										weight.current = next;
+										setWeightState(next);
+									},
+								}}
+							/>
+						)}
 						<KolButton
 							_label="Hinzufügen"
 							_variant="primary"

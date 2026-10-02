@@ -349,6 +349,12 @@ const SeriesEditForm = TaskForm as unknown as (
 	props: typeof defaultProps & { task: null; series: Series },
 ) => ReactNode;
 
+// #1984: Bestands-Tests prüfen das Expertenverhalten (Regler sichtbar) — Präferenz explizit an.
+// Die #1984-Spec-Tests entfernen den Key im Testkörper selbst und bleiben im Standardmodus.
+beforeEach(() => {
+	localStorage.setItem('pp-expert-mode', 'true');
+});
+
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();

@@ -18,6 +18,14 @@ import { waitForStableView } from './helpers';
  * Bounding-Boxes statt `scrollWidth`, weil die App-Shell mit `overflow-x: hidden` clippt und ein
  * stiller Overflow sonst unsichtbar bliebe (#934, gleiche Begründung).
  */
+// #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
+// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+test.beforeEach(async ({ page }) => {
+	await page.addInitScript(() => {
+		localStorage.setItem('pp-expert-mode', 'true');
+	});
+});
+
 test.describe('#996 Säulen-Verteilung im TaskForm (Mobile-Layout)', () => {
 	/** Toleranz für Sub-Pixel-Rundungen der Layout-Engine. */
 	const TOLERANCE_PX = 1;

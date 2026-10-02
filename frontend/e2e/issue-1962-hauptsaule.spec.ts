@@ -15,6 +15,14 @@ import { waitForStableView } from './helpers';
  * solange die Implementierung fehlt (die heutige UI belegt alle fünf Säulen vor).
  */
 
+// #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
+// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+test.beforeEach(async ({ page }) => {
+	await page.addInitScript(() => {
+		localStorage.setItem('pp-expert-mode', 'true');
+	});
+});
+
 test.describe('#1962 — Hauptsäulen-Modus', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {

@@ -25,6 +25,14 @@ import { waitForStableView } from './helpers';
  * **Isolation:** Jeder Test legt Tasks an; `afterEach` räumt alle Tasks über die echte API ab, damit
  * jeder Test von einem leeren Zustand startet (analog `crud.spec.ts`).
  */
+// #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
+// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+test.beforeEach(async ({ page }) => {
+	await page.addInitScript(() => {
+		localStorage.setItem('pp-expert-mode', 'true');
+	});
+});
+
 test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
