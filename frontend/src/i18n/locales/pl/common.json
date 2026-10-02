@@ -80,6 +80,13 @@
 		"applyError": "Nie udało się utworzyć zadań",
 		"partialInfo": "{{count}} zadań jest już utworzonych — ponowne zastosowanie utworzy tylko brakujące.",
 		"balanceHint": "Twoja najsilniejsza oś to {{name}} ({{share}} %).",
-		"fertig": "Gotowe"
+		"fertig": "Gotowe",
+		"emptyDescription": "Beschreibe, womit du gerade kämpfst — der Flow macht daraus erste Aufgaben. Deine Eingabe bleibt erhalten.",
+		"fortsetzen": "Flow fortsetzen",
+		"beispiele": "Beispiele zum Ausprobieren",
+		"beispiel1": "15 Minuten spazieren gehen",
+		"beispiel2": "Wichtige E-Mail beantworten",
+		"beispiel3": "Das kommende Wochenende planen",
+		"erstenTaskAnlegen": "Ersten Task anlegen"
 	}
 }

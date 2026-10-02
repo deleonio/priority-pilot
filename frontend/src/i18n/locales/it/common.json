@@ -80,6 +80,13 @@
 		"applyError": "Creazione delle attività non riuscita",
 		"partialInfo": "{{count}} attività sono già state create — applicare di nuovo crea solo quelle mancanti.",
 		"balanceHint": "Il tuo pilastro più forte è {{name}} ({{share}} %).",
-		"fertig": "Fatto"
+		"fertig": "Fatto",
+		"emptyDescription": "Beschreibe, womit du gerade kämpfst — der Flow macht daraus erste Aufgaben. Deine Eingabe bleibt erhalten.",
+		"fortsetzen": "Flow fortsetzen",
+		"beispiele": "Beispiele zum Ausprobieren",
+		"beispiel1": "15 Minuten spazieren gehen",
+		"beispiel2": "Wichtige E-Mail beantworten",
+		"beispiel3": "Das kommende Wochenende planen",
+		"erstenTaskAnlegen": "Ersten Task anlegen"
 	}
 }

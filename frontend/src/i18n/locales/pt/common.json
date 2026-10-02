@@ -80,6 +80,13 @@
 		"applyError": "Falha ao criar as tarefas",
 		"partialInfo": "{{count}} tarefas já foram criadas — aplicar novamente cria apenas as que faltam.",
 		"balanceHint": "O teu pilar mais forte é {{name}} ({{share}} %).",
-		"fertig": "Pronto"
+		"fertig": "Pronto",
+		"emptyDescription": "Beschreibe, womit du gerade kämpfst — der Flow macht daraus erste Aufgaben. Deine Eingabe bleibt erhalten.",
+		"fortsetzen": "Flow fortsetzen",
+		"beispiele": "Beispiele zum Ausprobieren",
+		"beispiel1": "15 Minuten spazieren gehen",
+		"beispiel2": "Wichtige E-Mail beantworten",
+		"beispiel3": "Das kommende Wochenende planen",
+		"erstenTaskAnlegen": "Ersten Task anlegen"
 	}
 }

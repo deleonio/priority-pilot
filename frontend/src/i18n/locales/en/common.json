@@ -80,6 +80,13 @@
 		"applyError": "Creating the tasks failed",
 		"partialInfo": "{{count}} tasks are already created — applying again only creates the missing ones.",
 		"balanceHint": "Your strongest pillar is {{name}} ({{share}} %).",
-		"fertig": "Done"
+		"fertig": "Done",
+		"emptyDescription": "Describe what you're struggling with right now — the flow turns it into your first tasks. Your input stays intact.",
+		"fortsetzen": "Resume flow",
+		"beispiele": "Examples to try out",
+		"beispiel1": "Take a 15-minute walk",
+		"beispiel2": "Answer an important email",
+		"beispiel3": "Plan the coming weekend",
+		"erstenTaskAnlegen": "Create your first task"
 	}
 }

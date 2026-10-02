@@ -80,6 +80,13 @@
 		"applyError": "Anlegen fehlgeschlagen",
 		"partialInfo": "{{count}} Aufgaben sind bereits angelegt — ein erneuter Klick auf Übernehmen legt nur die fehlenden an.",
 		"balanceHint": "Deine stärkste Säule ist {{name}} ({{share}} %).",
-		"fertig": "Fertig"
+		"fertig": "Fertig",
+		"emptyDescription": "Beschreibe, womit du gerade kämpfst — der Flow macht daraus erste Aufgaben. Deine Eingabe bleibt erhalten.",
+		"fortsetzen": "Flow fortsetzen",
+		"beispiele": "Beispiele zum Ausprobieren",
+		"beispiel1": "15 Minuten spazieren gehen",
+		"beispiel2": "Wichtige E-Mail beantworten",
+		"beispiel3": "Das kommende Wochenende planen",
+		"erstenTaskAnlegen": "Ersten Task anlegen"
 	}
 }

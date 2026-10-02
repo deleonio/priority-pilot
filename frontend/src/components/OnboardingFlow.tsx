@@ -7,6 +7,7 @@ import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readString } from '../lib/inputValue';
 import { AiQuotaHint } from './AiQuotaHint';
+import { EXAMPLE_TASKS } from './EmptyState';
 import { PillarWeightsForm } from './PillarWeightsForm';
 
 interface OnboardingFlowProps {
@@ -71,6 +72,8 @@ export const OnboardingFlow = ({ pillars, onClose, onApplied, onWeightsSaved }: 
 	const [finished, setFinished] = useState(false);
 	// Lokal abgehakte Aufgaben der Abschluss-Karte — optimistisch gesetzt, bei Fehler zurückgerollt.
 	const [doneIds, setDoneIds] = useState<Set<number>>(new Set());
+	// AK2-Fallback: Ohne eigene Auswahl hakt die Abschluss-Karte die erste Beispielaufgabe rein lokal ab.
+	const [exampleDone, setExampleDone] = useState(false);
 	const headingRef = useRef<HTMLHeadingElement>(null);
 
 	// Fokus je Schritt auf der Schritt-Überschrift (UX-Beratung #1986) — auch auf der Abschluss-Karte.
@@ -343,18 +346,32 @@ export const OnboardingFlow = ({ pillars, onClose, onApplied, onWeightsSaved }: 
 					{/* Abschluss-Karte (#2070 AK2): die nächste Aufgabe als eine Primäraktion, direkt
 					    abhakbar; daneben der Balance-Hinweis als Text (stärkste Säule mit Anteil). */}
 					<div className="onboarding-cards">
-						{appliedTasks.map((entry) => (
+						{appliedTasks.length === 0 ? (
+							/* AK2-Fallback: Ohne eigene Auswahl bleibt die Karte nicht leer — die erste
+							   Beispielaufgabe ist rein lokal abhakbar (kein Server-Call, Review #2087). */
 							<KolInputCheckbox
-								key={entry.id ?? entry.index}
-								_label={entry.title}
-								_checked={doneIds.has(entry.id ?? -1)}
+								_label={t(EXAMPLE_TASKS[0])}
+								_checked={exampleDone}
 								_on={{
 									onInput: (_event, value) => {
-										toggleDone(entry.id, readChecked(value));
+										setExampleDone(readChecked(value));
 									},
 								}}
 							/>
-						))}
+						) : (
+							appliedTasks.map((entry) => (
+								<KolInputCheckbox
+									key={entry.id ?? entry.index}
+									_label={entry.title}
+									_checked={doneIds.has(entry.id ?? -1)}
+									_on={{
+										onInput: (_event, value) => {
+											toggleDone(entry.id, readChecked(value));
+										},
+									}}
+								/>
+							))
+						)}
 					</div>
 					{strongest !== null && (
 						<p className="onboarding-balance">

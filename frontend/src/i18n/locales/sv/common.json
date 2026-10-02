@@ -80,6 +80,13 @@
 		"applyError": "Det gick inte att skapa uppgifter",
 		"partialInfo": "{{count}} uppgifter har redan skapats — att tillämpa igen skapar bara de saknade.",
 		"balanceHint": "Din starkaste pelare är {{name}} ({{share}} %).",
-		"fertig": "Klar"
+		"fertig": "Klar",
+		"emptyDescription": "Beschreibe, womit du gerade kämpfst — der Flow macht daraus erste Aufgaben. Deine Eingabe bleibt erhalten.",
+		"fortsetzen": "Flow fortsetzen",
+		"beispiele": "Beispiele zum Ausprobieren",
+		"beispiel1": "15 Minuten spazieren gehen",
+		"beispiel2": "Wichtige E-Mail beantworten",
+		"beispiel3": "Das kommende Wochenende planen",
+		"erstenTaskAnlegen": "Ersten Task anlegen"
 	}
 }

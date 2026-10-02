@@ -1,5 +1,6 @@
 import { KolButton, KolCard, KolInputCheckbox } from '@public-ui/react-v19';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface EmptyStateProps {
 	/** Öffnet den Dialog zum Anlegen des ersten Tasks. */
@@ -8,8 +9,11 @@ interface EmptyStateProps {
 	onReenter?: () => void;
 }
 
-/** Lokale Beispielaufgaben (#2070, PO-Entscheid #1986): rein virtuell — kein Server-Call. */
-const EXAMPLE_TASKS = ['15 Minuten spazieren gehen', 'Wichtige E-Mail beantworten', 'Das kommende Wochenende planen'];
+/**
+ * Lokale Beispielaufgaben (#2070, PO-Entscheid #1986): rein virtuell — kein Server-Call. Die Werte
+ * sind i18n-Schlüssel (Review #2087); der AK2-Fallback des `OnboardingFlow` nutzt dieselben Schlüssel.
+ */
+export const EXAMPLE_TASKS = ['onboarding.beispiel1', 'onboarding.beispiel2', 'onboarding.beispiel3'] as const;
 
 /** Liest den von KoliBri gemeldeten Checkbox-Zustand (Boolean oder State-Objekt) als Boolean. */
 const readChecked = (value: unknown): boolean => {
@@ -26,22 +30,21 @@ const readChecked = (value: unknown): boolean => {
  * Beispielaufgaben (#2070), die beim Ausprobieren keine Server-Daten anlegen.
  */
 export const EmptyState = ({ onCreate, onReenter }: EmptyStateProps) => {
+	const { t } = useTranslation('common');
 	const [checked, setChecked] = useState<boolean[]>(() => EXAMPLE_TASKS.map(() => false));
 	return (
 		<section className="empty-state">
-			<KolCard _label="Was beschäftigt dich gerade?" _level={2}>
-				<p>
-					Beschreibe, womit du gerade kämpfst — der Flow macht daraus erste Aufgaben. Deine Eingabe bleibt erhalten.
-				</p>
+			<KolCard _label={t('onboarding.heading1')} _level={2}>
+				<p>{t('onboarding.emptyDescription')}</p>
 				{onReenter !== undefined && (
-					<KolButton _label="Flow fortsetzen" _variant="primary" _on={{ onClick: onReenter }} />
+					<KolButton _label={t('onboarding.fortsetzen')} _variant="primary" _on={{ onClick: onReenter }} />
 				)}
-				<p>Beispiele zum Ausprobieren</p>
+				<p>{t('onboarding.beispiele')}</p>
 				<div className="onboarding-cards">
-					{EXAMPLE_TASKS.map((title, index) => (
+					{EXAMPLE_TASKS.map((key, index) => (
 						<KolInputCheckbox
-							key={title}
-							_label={title}
+							key={key}
+							_label={t(key)}
 							_checked={checked[index]}
 							_on={{
 								onInput: (_event, value) => {
@@ -51,7 +54,7 @@ export const EmptyState = ({ onCreate, onReenter }: EmptyStateProps) => {
 						/>
 					))}
 				</div>
-				<KolButton _label="Ersten Task anlegen" _variant="secondary" _on={{ onClick: onCreate }} />
+				<KolButton _label={t('onboarding.erstenTaskAnlegen')} _variant="secondary" _on={{ onClick: onCreate }} />
 			</KolCard>
 		</section>
 	);

@@ -80,6 +80,13 @@
 		"applyError": "Aanmaken van de taken mislukt",
 		"partialInfo": "{{count}} taken zijn al aangemaakt — opnieuw toepassen maakt alleen de ontbrekende aan.",
 		"balanceHint": "Je sterkste pijler is {{name}} ({{share}} %).",
-		"fertig": "Klaar"
+		"fertig": "Klaar",
+		"emptyDescription": "Beschreibe, womit du gerade kämpfst — der Flow macht daraus erste Aufgaben. Deine Eingabe bleibt erhalten.",
+		"fortsetzen": "Flow fortsetzen",
+		"beispiele": "Beispiele zum Ausprobieren",
+		"beispiel1": "15 Minuten spazieren gehen",
+		"beispiel2": "Wichtige E-Mail beantworten",
+		"beispiel3": "Das kommende Wochenende planen",
+		"erstenTaskAnlegen": "Ersten Task anlegen"
 	}
 }

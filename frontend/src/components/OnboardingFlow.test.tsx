@@ -347,4 +347,27 @@ describe('OnboardingFlow — Startgewichtung, Abschluss-Karte, dynamische Schrit
 		await clickButton('Fertig');
 		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
 	});
+
+	it('zeigt ohne eigene Auswahl in der Abschluss-Karte die erste Beispielaufgabe — rein lokal, ohne Task-Call (AK2)', async () => {
+		const { onClose } = renderFlow();
+		apiMock.setPillarWeights.mockResolvedValue(pillars);
+		await gotoSuggestions();
+		// Keine Karte ausgewählt — Schritt 2 führt trotzdem weiter, die Auswahl ist zulässig leer.
+		await clickButton('Weiter');
+		await waitFor(() => expect(button('Speichern')).toBeDefined());
+		await clickButton('Speichern');
+		await clickButton('Übernehmen');
+		await waitFor(() => expect(button('Fertig'), 'Abschluss-Karte ohne "Fertig"').toBeDefined());
+
+		// Fallback statt leerer Karte: erste Beispielaufgabe, rein lokal — kein createTask.
+		expect(apiMock.createTask).not.toHaveBeenCalled();
+		const fallback = [...document.body.querySelectorAll('.onboarding-flow kol-input-checkbox')].find(
+			(el) => el.getAttribute('_label') === '15 Minuten spazieren gehen',
+		);
+		expect(fallback, 'Erste Beispielaufgabe fehlt in der leeren Abschluss-Karte').toBeDefined();
+		expect(onClose).not.toHaveBeenCalled();
+
+		await clickButton('Fertig');
+		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+	});
 });

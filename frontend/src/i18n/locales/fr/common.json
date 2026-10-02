@@ -80,6 +80,13 @@
 		"applyError": "Échec de la création des tâches",
 		"partialInfo": "{{count}} tâches sont déjà créées — appliquer à nouveau ne crée que les manquantes.",
 		"balanceHint": "Ton pilier le plus fort est {{name}} ({{share}} %).",
-		"fertig": "Terminé"
+		"fertig": "Terminé",
+		"emptyDescription": "Beschreibe, womit du gerade kämpfst — der Flow macht daraus erste Aufgaben. Deine Eingabe bleibt erhalten.",
+		"fortsetzen": "Flow fortsetzen",
+		"beispiele": "Beispiele zum Ausprobieren",
+		"beispiel1": "15 Minuten spazieren gehen",
+		"beispiel2": "Wichtige E-Mail beantworten",
+		"beispiel3": "Das kommende Wochenende planen",
+		"erstenTaskAnlegen": "Ersten Task anlegen"
 	}
 }
