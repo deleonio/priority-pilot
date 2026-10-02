@@ -1,4 +1,4 @@
-import { expect, test, type Page } from './fixtures';
+import { expect, test, type Page } from '@playwright/test';
 import { waitForStableView } from './helpers';
 
 /**
@@ -11,6 +11,16 @@ import { waitForStableView } from './helpers';
  * erst über Webhook/Rechnungslauf und sind in E2E nicht herstellbar (Testkonzept: `page.route`
  * nur für nicht echt lauffähige Aufrufe). Die Backend-Grenzen (403/404, byte-identisches PDF)
  * deckt `server/src/express/admin-invoices.test.ts` ab.
+ *
+ * Test-Pflege #1958 (Impl): Bewusst NICHT die `./fixtures`-Basis (`test` aus `@playwright/test`)
+ * — deren `/auth/me`-Mock liefert den generischen „Test User“ OHNE Rolle; die App blendet den
+ * Tab „Nutzerverwaltung“ dann als Member aus, obwohl die echte Admin-Session im Cookie-Kontext
+ * liegt (erste rote Ausführung: Timeout beim Klick auf „Rechnungen von …“, Snapshot zeigte
+ * „Säulen“-Fallback). Ohne Fixture kommt `/auth/me` echt aus der test-login-Session (inkl.
+ * `role: 'admin'`) — Muster `login.spec.ts` (ebenso ohne Fixture, wenn `/auth/me` echt sein soll).
+ * Zweite Pflege: KoliBris `KolDetails` trägt weder `button` noch eine benannte `group`-Rolle
+ * (A11y-Snapshot des ersten Laufs: der zugängliche Name liegt am inneren `generic`) — der
+ * Aufklapp-Klick zielt auf den Label-Text (`getByText`, pierct den offenen Shadow-DOM).
  */
 
 const MOBILE = { width: 375, height: 812 } as const;
@@ -62,7 +72,7 @@ test.describe('#1958 Nutzerverwaltung — Rechnungsansicht je Nutzer', () => {
 		await waitForStableView(page, 'Balamentum');
 
 		// AK3: Ansicht je Nutzer, eindeutiges Label, Aufklappen lädt die Rechnungen nach.
-		await page.getByRole('button', { name: 'Rechnungen von Anna Admin' }).click();
+		await page.getByText('Rechnungen von Anna Admin').click();
 
 		const entry = page.locator('.admin-user', { hasText: 'Anna Admin' }).locator('li', { hasText: 'INV-2026-000002' });
 		await expect(entry).toBeVisible();

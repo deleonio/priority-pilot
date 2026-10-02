@@ -2,11 +2,13 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import sequelize from '../../database.js';
-import { sendError, type ErrorDto } from '../http-error.js';
+import { parseId, sendError, type ErrorDto } from '../http-error.js';
+import Invoice from '../../models/invoice.js';
 import { AiUsage, AllowedEmail, User } from '../../models/index.js';
 import type { UserRole } from '../../models/user.js';
 import { PLAN_VALUES, type Plan } from '../../logics/plans.js';
 import { requireRole } from '../requireAuth.js';
+import { serializeInvoice, type InvoiceDto } from './billingSubscriptions.js';
 import { currentYearMonth } from '../aiQuotaMeter.js';
 import { validateProviderQuery } from '../llmProviderQuery.js';
 import { classifyPillarsWithMistral, type PillarClassifier } from '../../llm/llm.js';
@@ -218,6 +220,63 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 				}
 				await target.update({ plan: body.plan as Plan });
 				res.json(toDto(target));
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	// GET /admin/users/:id/invoices — Rechnungen eines Nutzers (#1958 AK1, nur Admins). Spiegel
+	// der Eigentümer-Route GET /billing/invoices — dieselben Felder via `serializeInvoice`, dieselbe
+	// Ordnung (neueste zuerst), damit beide Ansichten identisch sind.
+	adminRouter.get(
+		'/admin/users/:id/invoices',
+		requireRole('admin'),
+		async (req: Request, res: Response<InvoiceDto[] | ErrorDto>) => {
+			const id = Number(req.params.id);
+			if (!Number.isInteger(id) || id <= 0) {
+				sendError(res, 400, 'Ungültige Nutzer-Id.');
+				return;
+			}
+			try {
+				const invoices = await Invoice.findAll({ where: { userId: id }, order: [['periodStart', 'DESC']] });
+				res.json(invoices.map(serializeInvoice));
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	// GET /admin/users/:id/invoices/:invoiceId/pdf — gespeichertes Rechnungs-PDF eines Nutzers
+	// (#1958 AK2, nur Admins), byte-identisch zum Eigentümer-Download. Die Rechnung muss zum
+	// Nutzer auf der Route gehören; ohne pdfBytes oder bei fremder Id 404 — wie die Eigentümer-Route
+	// wird eine fremde Rechnung weder inhaltlich noch über den Status verraten.
+	adminRouter.get(
+		'/admin/users/:id/invoices/:invoiceId/pdf',
+		requireRole('admin'),
+		async (req: Request, res: Response<Buffer | ErrorDto>) => {
+			const id = Number(req.params.id);
+			if (!Number.isInteger(id) || id <= 0) {
+				sendError(res, 400, 'Ungültige Nutzer-Id.');
+				return;
+			}
+			const invoiceId = parseId(req.params.invoiceId);
+			if (invoiceId === null) {
+				sendError(res, 404, 'Rechnung nicht gefunden.');
+				return;
+			}
+			try {
+				const invoice = await Invoice.findOne({ where: { id: invoiceId, userId: id } });
+				const pdfBytes = invoice?.get('pdfBytes') as Buffer | null | undefined;
+				if (!invoice || !pdfBytes) {
+					sendError(res, 404, 'Rechnung nicht gefunden.');
+					return;
+				}
+				res
+					.status(200)
+					.set('Content-Type', 'application/pdf')
+					.set('Content-Disposition', `attachment; filename="${invoice.get('number') as string}.pdf"`)
+					.send(pdfBytes);
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
 			}

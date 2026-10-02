@@ -1,8 +1,9 @@
-import { KolAlert, KolBadge, KolButton, KolInputRadio, KolSpin } from '@public-ui/react-v19';
-import type { AdminUser, AllowedEmail, ReassignStatusFilter } from 'client';
-import { useCallback, useEffect, useState } from 'react';
+import { KolAlert, KolBadge, KolButton, KolDetails, KolInputRadio, KolSpin } from '@public-ui/react-v19';
+import type { AdminUser, AllowedEmail, ReassignStatusFilter, components } from 'client';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { formatEuro } from '../lib/format';
 import { planLabel } from '../lib/planOffers';
 import { useReassignRun, type ReassignPortionArgs } from '../lib/useReassignRun';
 import { Modal } from './Modal';
@@ -25,6 +26,87 @@ const ORIGIN_LABELS: Record<AllowedEmail['origin'], string> = {
 	delegation: 'Delegation',
 	admin: 'Admin',
 	warteliste: 'Warteliste',
+};
+
+/** Rechnung im Vertragsformat der Eigentümer-Route (#1958) — dieselben Felder wie /billing/invoices. */
+type AdminInvoice = components['schemas']['Invoice'];
+
+/** Zeitpunkte in der Rechnungsliste als „TT.MM.JJJJ" (Muster `SubscriptionSection.tsx`). */
+const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de-DE');
+
+/** PDF-Download über die Admin-Route (#1958 AK2) — Anker-Muster `SubscriptionSection.tsx` (`downloadInvoicePdf`). */
+const downloadAdminInvoicePdf = (userId: number, invoice: AdminInvoice): void => {
+	const link = document.createElement('a');
+	link.href = `/api/v1/admin/users/${userId}/invoices/${invoice.id}/pdf`;
+	link.download = `${invoice.number}.pdf`;
+	document.body.appendChild(link);
+	link.click();
+	link.remove();
+};
+
+/**
+ * Rechnungsansicht je Nutzer (#1958 AK3): aufklappbares `KolDetails` mit eindeutigem Label, das
+ * erst beim ersten Aufklappen lädt (die Nutzerliste umfasst alle Nutzer — Eager-Fetch wäre
+ * N Requests), danach gecacht. Vier Zustände nach KI-UX: Laden (KolSpin), leer, Fehler
+ * (KolAlert), Liste mit Nummer, Zeitraum, Betrag, Status „Ausgestellt" und Download je Rechnung.
+ */
+const UserInvoices = ({ userId, displayName }: { userId: number; displayName: string }) => {
+	const [invoices, setInvoices] = useState<AdminInvoice[] | null>(null);
+	const [error, setError] = useState<string | null>(null);
+	// „Schon geöffnet"-Merker: weitere Klicks holen nicht neu (Lazy-Load, gecacht).
+	const openedRef = useRef(false);
+	const load = useCallback(async (): Promise<void> => {
+		try {
+			const loaded = await api.getAdminUserInvoices({ id: userId });
+			setInvoices(Array.isArray(loaded) ? loaded : []);
+			setError(null);
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			setError(apiError.message);
+		}
+	}, [userId]);
+	return (
+		<KolDetails
+			_label={`Rechnungen von ${displayName}`}
+			_on={{
+				onClick: () => {
+					if (openedRef.current) return;
+					openedRef.current = true;
+					void load();
+				},
+			}}
+		>
+			{error !== null ? (
+				<KolAlert _type="error" _label="Rechnungen">
+					{error}
+				</KolAlert>
+			) : invoices === null ? (
+				<KolSpin _show _variant="cycle" _label="Rechnungen werden geladen …" />
+			) : invoices.length === 0 ? (
+				<p>Noch keine Rechnungen vorhanden.</p>
+			) : (
+				<ul className="admin-invoices__list">
+					{invoices.map((invoice) => (
+						<li key={invoice.id} className="admin-invoices__item">
+							<span>{invoice.number}</span>
+							<span>
+								{formatDate(invoice.periodStart)} – {formatDate(invoice.periodEnd)}
+							</span>
+							<span>{formatEuro(invoice.amountCents)}</span>
+							{/* Status als Text-Badge — Information nie allein über Farbe (WCAG 1.4.1, KI-UX). */}
+							<KolBadge _label="Ausgestellt" />
+							<KolButton
+								_label={`PDF ${invoice.number} herunterladen`}
+								_variant="secondary"
+								_icons={{ left: { icon: 'fa-solid fa-download' } }}
+								_on={{ onClick: () => downloadAdminInvoicePdf(userId, invoice) }}
+							/>
+						</li>
+					))}
+				</ul>
+			)}
+		</KolDetails>
+	);
 };
 
 /** Optionen der Rollen-Radiogruppe je Zeile — stabile Objektidentität wie in `AppearanceSetting.tsx`. */
@@ -158,6 +240,8 @@ export const AdminUsersSection = () => {
 										},
 									}}
 								/>
+								{/* #1958 AK3: Rechnungsansicht je Nutzer — aufklappbar, Lazy-Load beim ersten Aufklappen. */}
+								<UserInvoices userId={user.id} displayName={user.displayName} />
 							</li>
 						))}
 					</ul>
