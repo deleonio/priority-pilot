@@ -92,12 +92,12 @@ describe('usePaypalPurchase — Warteverhalten nach dem Wechsel', () => {
 	});
 
 	it('ein Upgrade ohne approvalUrl wartet wie bisher auf die Bestätigung (Poll)', async () => {
-		previewBillingChange.mockResolvedValue({ creditCents: 0, dueCents: 999, immediate: true });
+		previewBillingChange.mockResolvedValue({ creditCents: 0, dueCents: 899, immediate: true });
 		changeBillingSubscription.mockResolvedValue({});
 		render(<Harness />);
 
 		screen.getByRole('button', { name: /wechseln/i }).click();
-		await screen.findByText(/9,99 €/);
+		await screen.findByText(/8,99 €/);
 		screen.getByRole('button', { name: 'Wechseln bestätigen' }).click();
 
 		expect(await screen.findByRole('alert', { name: 'Zahlung wird bestätigt' })).toBeTruthy();

@@ -13,7 +13,7 @@ const CATALOG = {
 	prices: {
 		free: { monthly: 0, quarterly: 0, yearly: 0 },
 		plus: { monthly: 499, quarterly: 1347, yearly: 4790 },
-		pro: { monthly: 999, quarterly: 2697, yearly: 9590 },
+		pro: { monthly: 899, quarterly: 2427, yearly: 8630 },
 	},
 };
 
@@ -51,19 +51,19 @@ const openChangeDialog = async (page: Page, preview: { creditCents: number; dueC
 
 test.describe('Balamentum — #1913: Betragsvorschau im Wechsel-Dialog', () => {
 	test('AK4: Dialog zeigt Guthaben und fälligen Betrag, bevor „Wechseln bestätigen“ aktiv ist', async ({ page }) => {
-		const dialog = await openChangeDialog(page, { creditCents: 249, dueCents: 750, immediate: true });
+		const dialog = await openChangeDialog(page, { creditCents: 249, dueCents: 650, immediate: true });
 
-		await expect(dialog).toContainText('7,50 €');
+		await expect(dialog).toContainText('6,50 €');
 		await expect(dialog).toContainText('2,49 €');
 		await expect(dialog.getByRole('button', { name: /Wechseln bestätigen/ })).toBeEnabled();
 	});
 
 	test('AK5: bei 375 px liegen Betrag und Guthaben vollständig im Viewport (Bounding-Box)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		const dialog = await openChangeDialog(page, { creditCents: 249, dueCents: 750, immediate: true });
-		await expect(dialog).toContainText('7,50 €');
+		const dialog = await openChangeDialog(page, { creditCents: 249, dueCents: 650, immediate: true });
+		await expect(dialog).toContainText('6,50 €');
 
-		for (const text of ['7,50 €', '2,49 €']) {
+		for (const text of ['6,50 €', '2,49 €']) {
 			const box = await dialog.getByText(text).first().boundingBox();
 			expect(box, `${text} muss gerendert sein`).not.toBeNull();
 			expect(box!.x).toBeGreaterThanOrEqual(0);

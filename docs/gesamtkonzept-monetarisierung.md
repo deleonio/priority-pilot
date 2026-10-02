@@ -58,6 +58,8 @@ Randnotizen für die Umsetzung:
 
 ### Paket-Matrix
 
+> **Historischer Preisstand (16.09.2026).** Diese Matrix zeigt das frühere Planmodell Pro/Max/Ultimate mit den damaligen Preisen; [ADR 0018](adr/0018-preismodell-free-plus-pro.md) hat es durch Free/Plus/Pro ersetzt (Pro 8,99 €/Monat). Maßgeblich ist `server/src/logics/plans.ts`.
+
 | Feature                                      | Free  | Pro (7,99 €/Monat) | Max (14,99 €/Monat) | Ultimate (24,99 €/Monat) |
 | -------------------------------------------- | ----- | ------------------ | ------------------- | ------------------------ |
 | Aufgaben-Mengenlimit                         | Keins | Keins              | Keins               | Keins                    |
@@ -81,6 +83,8 @@ KI nutzen will, hinterlegt einen eigenen LLM-Provider, dessen Aufrufe nicht gege
 gebucht werden.
 
 ### Preise und Zeitraumstaffelung
+
+> **Historischer Preisstand (vor dem 01.10.2026).** Diese Staffelung zeigt die alten Pro/Max/Ultimate-Preise. Aktuell: Plus 4,99/13,47/47,90 €, Pro 8,99/24,27/86,30 € (monatlich/quartalsweise/jährlich) laut [ADR 0018](adr/0018-preismodell-free-plus-pro.md); maßgeblich `server/src/logics/plans.ts`.
 
 | Paket    | Monatlich | Quartalsweise (−10 %)     | Jährlich (−20 %)           |
 | -------- | --------- | ------------------------- | -------------------------- |
@@ -553,7 +557,7 @@ Einfach
    bei ausgeschaltetem Schalter und ohne zahlende Nutzer gibt es aber noch keine belastbaren
    Betriebswerte. Die Werte folgen weiter der Basis von rund 18 % des Abopreises; justiert wird in
    einem Folge-Ticket nach einigen Wochen Echtbetrieb.
-5. **Preise** bleiben bei 7,99 / 14,99 / 24,99 € monatlich (T6, ADR 0013). Abgleich: Habitica ~5 €,
+5. **Preise** bleiben bei 7,99 / 14,99 / 24,99 € monatlich (T6, ADR 0013; historisch — Pro liegt seit dem 01.10.2026 bei 8,99 €/Monat, siehe [ADR 0018](adr/0018-preismodell-free-plus-pro.md)). Abgleich: Habitica ~5 €,
    Habitify ~2,50 €, Productive ~11 € monatlich. Pro liegt über den reinen Habit-Trackern, weil es
    KI-Assistenz und Gruppen enthält; Max und Ultimate decken Graph, Standort und MCP ab, die keines
    der Vergleichsprodukte bietet.
