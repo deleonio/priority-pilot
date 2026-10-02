@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.13 - 2026-10-02
 
-_Enthält v0.13.0 – v0.13.5._
+_Enthält v0.13.0 – v0.13.6._
 
 ### 🎉 New Features
 
@@ -16,6 +16,7 @@ _Enthält v0.13.0 – v0.13.5._
 - feat(i18n): restrict app languages to de and en (#1966) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2058
 - docs(skills): closing analysis for finished epics by @deleonio in https://github.com/deleonio/priority-pilot/pull/2061
 - docs(skills): start epic closing analysis at once by @deleonio in https://github.com/deleonio/priority-pilot/pull/2062
+- fix(ci): require pi openrouter aliases for documenter provider by @deleonio in https://github.com/deleonio/priority-pilot/pull/2064
 
 ## v0.12 - 2026-10-02
 
@@ -159,7 +160,6 @@ _Enthält v0.10.0 – v0.10.36._
 ### Other Changes
 
 - test(frontend): add observable outcomes and tab-freedom checks by @deleonio in https://github.com/deleonio/priority-pilot/pull/1831
-- chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1607
 - chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1607
 - feat(server): one care push max per day on deficit or overload (#1794) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1814
 - chore(prompts): apply prompt-audit #1590 option 1 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1834
