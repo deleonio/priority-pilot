@@ -4,9 +4,9 @@ import i18next, { SUPPORTED_LANGUAGES } from '../i18n/config';
 import { LanguageSetting } from './LanguageSetting';
 
 /**
- * Vertrag der Sprachauswahl (#1339, Settings-Tab „Allgemein"): alle mitgelieferten Sprachen stehen
- * zur Wahl, ein Wechsel stellt die Oberfläche um und überlebt den Reload, und ein Browser mit
- * Regionalcode (`en-US`) landet auf der Basissprache statt auf dem Fallback.
+ * Vertrag der Sprachauswahl (#1339, Settings-Tab „Allgemein"): alle freigegebenen Sprachen stehen
+ * zur Wahl (#1966-Allowlist), ein Wechsel stellt die Oberfläche um und überlebt den Reload, und ein
+ * Browser mit Regionalcode (`en-US`) landet auf der Basissprache statt auf dem Fallback.
  */
 
 // KoliBri-Komponenten sind nicht jsdom-kompatibel (Custom Elements, Shadow DOM) — natives
@@ -50,17 +50,17 @@ afterEach(async () => {
 const select = (): HTMLSelectElement => screen.getByRole('combobox') as HTMLSelectElement;
 
 describe('LanguageSetting', () => {
-	it('stellt alle mitgelieferten Sprachen zur Wahl, beschriftet mit dem jeweiligen Endonym', () => {
+	it('stellt die freigegebenen Sprachen zur Wahl, beschriftet mit dem jeweiligen Endonym', () => {
 		render(<LanguageSetting />);
 
 		const values = Array.from(select().options).map((option) => option.value);
 		expect(values).toEqual(SUPPORTED_LANGUAGES);
 
 		// Endonyme: die eigene Sprache bleibt auffindbar, auch wenn man die aktuelle nicht versteht.
+		// #1966: nur die Allowlist-Sprachen werden angeboten — die Dateien der übrigen bleiben zwar
+		// für den Schlüssel-Gleichstand-Test bestehen, erscheinen aber nicht in der Auswahl.
 		const labels = Array.from(select().options).map((option) => option.textContent);
-		expect(labels).toContain('Deutsch');
-		expect(labels).toContain('Svenska');
-		expect(labels).toContain('Русский');
+		expect(labels).toEqual(['Deutsch', 'English']);
 	});
 
 	it('stellt bei der Auswahl die Sprache um und schreibt sie in den localStorage', async () => {
