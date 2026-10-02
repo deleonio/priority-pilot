@@ -108,4 +108,33 @@ test.describe('Balamentum — #1955: PDF-Download je Rechnung', () => {
 			})
 			.toBeLessThanOrEqual(375);
 	});
+
+	// #2031 AK2/AK3 — längere Button-Namen (Rechnungsnummer im zugänglichen Namen) dürfen bei 375 px
+	// nicht überlaufen; mind. zwei Zeilen mit unterschiedlichen Nummern.
+	test('#2031: längere Download-Namen — zugänglicher Name mit Nummer, 375px ohne Überlauf', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await mockPlans(page, { ...USER_NO_SUBSCRIPTION, plan: 'pro', subscription: activeSubscription });
+		await page.route('**/api/v1/billing/invoices', (route: Route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify([INVOICE, { ...INVOICE, id: 8, number: 'INV-2026-100002' }]),
+			}),
+		);
+
+		await openInvoices(page);
+		const items = page.locator('.billing-invoices__item');
+		await expect(items).toHaveCount(2);
+		const buttons = items.getByTestId('invoice-download');
+		await expect(buttons.nth(0)).toHaveAccessibleName('PDF INV-2026-100001 herunterladen');
+		await expect(buttons.nth(1)).toHaveAccessibleName('PDF INV-2026-100002 herunterladen');
+
+		// App-Shell clippt overflow-x: Bounding-Boxen statt scrollWidth (Muster oben).
+		await expect
+			.poll(async () => {
+				const boxes = await items.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().right));
+				return Math.max(...boxes);
+			})
+			.toBeLessThanOrEqual(375);
+	});
 });
