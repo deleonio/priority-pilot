@@ -160,6 +160,7 @@ _Enthält v0.10.0 – v0.10.36._
 
 - test(frontend): add observable outcomes and tab-freedom checks by @deleonio in https://github.com/deleonio/priority-pilot/pull/1831
 - chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1607
+- chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1607
 - feat(server): one care push max per day on deficit or overload (#1794) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1814
 - chore(prompts): apply prompt-audit #1590 option 1 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1834
 - chore: switch pipeline model to sonnet 5.5 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1833
