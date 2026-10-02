@@ -212,3 +212,54 @@ describe('DependencyModal — Badge im Modal ohne Klickziel (#1528 AK3)', () => 
 		expect(container).toBeTruthy();
 	});
 });
+
+// ── #1984: Standardmodus ohne Gewicht-Regler ──────────────────────────────────────────────────
+//
+// Spezifikation: docs/spec/issue-1984.md — AK1/AK2. Ohne Expertenmodus (`pp-expert-mode`
+// fehlt) zeigt der Abhängigkeits-Dialog keinen Gewicht-Regler; die Abhängigkeit wird allein
+// über die Aufgaben-Auswahl angelegt und der POST trägt das Standardgewicht 1.
+// Rot, solange der Regler „Gewicht (0,1–1): 1“ ungefragt gerendert wird.
+describe('DependencyModal — Standardmodus ohne Gewicht-Regler (#1984, AK1/AK2)', () => {
+	const EXPERT_KEY = 'pp-expert-mode';
+
+	afterEach(() => {
+		localStorage.removeItem(EXPERT_KEY);
+	});
+
+	it('AK1/AK2: ohne Expertenmodus kein Regler; Anlegen über die Auswahl sendet Gewicht 1', async () => {
+		localStorage.removeItem(EXPERT_KEY);
+		const task = sampleTask(1, 'Ziel');
+		const candidate = sampleTask(2, 'Vorgänger');
+		const onChanged = vi.fn();
+
+		await act(async () => {
+			render(
+				<DependencyModal
+					task={task}
+					allTasks={[task, candidate]}
+					dependencies={[]}
+					onClose={vi.fn()}
+					onChanged={onChanged}
+				/>,
+			);
+		});
+
+		expect(screen.queryByRole('slider')).toHaveLength(0); // ROT: Regler wird heute gerendert
+
+		await act(async () => {
+			fireEvent.change(screen.getByRole('combobox', { name: 'Vorgänger-Task' }), {
+				target: { value: '2' },
+			});
+		});
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+		});
+
+		expect(mockAddDependency).toHaveBeenCalledTimes(1);
+		expect(mockAddDependency).toHaveBeenCalledWith({
+			id: task.id,
+			dependencyInput: { dependingTaskId: 2, weight: 1 },
+		});
+		expect(onChanged).toHaveBeenCalledTimes(1);
+	});
+});
