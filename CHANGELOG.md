@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.12 - 2026-10-02
 
-_Enthält v0.12.0 – v0.12.24._
+_Enthält v0.12.0 – v0.12.25._
 
 ### 🎉 New Features
 
@@ -20,6 +20,7 @@ _Enthält v0.12.0 – v0.12.24._
 
 - feat(server): shared five-factor scoring for /next and /suggestions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2045
 - feat(frontend): login waitlist as own card with a11y and perf polish by @deleonio in https://github.com/deleonio/priority-pilot/pull/2055
+- feat(billing): upgrade and resume a cancelled subscription by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2057
 
 ### 🔧 Engineering
 
@@ -177,7 +178,6 @@ _Enthält v0.9.0 – v0.9.18._
 - feat(frontend): enable balance sorting by default (#1792) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1812
 - fix(report): render phase comparison bars side by side with average bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1813
 - chore(ci): switch phase runners via vars.PHASE_RUNNER (pi5 rollout) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1817
-- fix(report): render phase comparison bars side by side with average bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1815
 - fix(report): render phase comparison bars side by side with average bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1815
 - chore(ci): route all phase jobs via PHASE_RUNNER, split cache by pi5 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1825
 - fix(ci): pass PI_MODEL_ALIASES to all pi-capable workflows by @deleonio in https://github.com/deleonio/priority-pilot/pull/1828
