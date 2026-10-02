@@ -31,32 +31,34 @@ vi.mock('./Modal', () => ({
 
 const previewBillingChange = vi.fn<() => Promise<{ creditCents: number; dueCents: number; immediate: boolean }>>();
 const changeBillingSubscription = vi.fn();
+const createBillingSubscription = vi.fn();
 
 vi.mock('../api', () => ({
 	api: {
 		previewBillingChange: () => previewBillingChange(),
 		changeBillingSubscription: (input: unknown) => changeBillingSubscription(input),
-		createBillingSubscription: vi.fn(),
+		createBillingSubscription: (input: unknown) => createBillingSubscription(input),
 	},
 }));
 
+const subscriptionState = { subscription: { plan: 'pro', period: 'monthly' } as unknown };
 const refresh = vi.fn(async () => {});
 
 vi.mock('../lib/usePlan', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('../lib/usePlan')>();
 	return {
 		...actual,
-		usePlan: () => ({ plan: 'pro', entitlements: {}, subscription: { plan: 'pro', period: 'monthly' }, refresh }),
+		usePlan: () => ({ plan: 'pro', entitlements: {}, subscription: subscriptionState.subscription, refresh }),
 	};
 });
 
 /** Wirtskomponente: Aktionzeile + Hinweisfläche des Kaufwegs nebeneinander rendern. */
-const Harness = () => {
+const Harness = ({ targetPlan = 'plus' }: { targetPlan?: 'plus' | 'pro' }) => {
 	const { actionCell, notice, dialog } = usePaypalPurchase();
-	const plusMonthly = actionCell?.('plus', 'monthly');
+	const cell = actionCell?.(targetPlan, 'monthly');
 	return (
 		<div>
-			<div>{plusMonthly?.node}</div>
+			<div>{cell?.node}</div>
 			<div>{notice}</div>
 			{dialog}
 		</div>
@@ -67,7 +69,9 @@ describe('usePaypalPurchase — Warteverhalten nach dem Wechsel', () => {
 	beforeEach(() => {
 		previewBillingChange.mockReset();
 		changeBillingSubscription.mockReset();
+		createBillingSubscription.mockReset();
 		refresh.mockClear();
+		subscriptionState.subscription = { plan: 'pro', period: 'monthly' };
 	});
 	afterEach(cleanup);
 
@@ -98,5 +102,25 @@ describe('usePaypalPurchase — Warteverhalten nach dem Wechsel', () => {
 
 		expect(await screen.findByRole('alert', { name: 'Zahlung wird bestätigt' })).toBeTruthy();
 		await waitFor(() => expect(refresh).toHaveBeenCalled());
+	});
+
+	// #2049 AK3: im gekündigtem Zustand führt die Zeile des eigenen Pakets das Abo fort — der
+	// einzige Einstieg für „Abo weiterführen", das Startdatum steht im Label (UX-Beratung).
+	it('#2049 AK3: gekündigtes Abo zeigt in der eigenen Paketzeile „Weiterführen" mit Startdatum und bucht darüber', async () => {
+		subscriptionState.subscription = {
+			plan: 'pro',
+			period: 'monthly',
+			status: 'cancelled',
+			currentPeriodEnd: '2027-01-15T00:00:00.000Z',
+		};
+		createBillingSubscription.mockResolvedValue({});
+		render(<Harness targetPlan="pro" />);
+
+		// Der KolButton-Mock reicht kein data-testid durch — Anker ist das Label mit Startdatum.
+		const resume = screen.getByRole('button', { name: /weiterführen/i });
+		expect(resume).toHaveTextContent(/15\.1\.2027/);
+		resume.click();
+
+		await waitFor(() => expect(createBillingSubscription).toHaveBeenCalledWith({ plan: 'pro', period: 'monthly' }));
 	});
 });

@@ -563,6 +563,7 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		const seedActive = async (email: string, plan: 'plus' | 'pro', period: 'monthly' | 'yearly' = 'monthly') => {
 			const cookie = await login(email);
 			const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
+			const currentPeriodEnd = new Date(Date.now() + 15 * DAY_MS);
 			await Subscription.create({
 				userId: me.id,
 				provider: 'paypal',
@@ -570,9 +571,9 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 				plan,
 				period,
 				status: 'active',
-				currentPeriodEnd: new Date(Date.now() + 15 * DAY_MS),
+				currentPeriodEnd,
 			});
-			return { cookie, userId: me.id };
+			return { cookie, userId: me.id, currentPeriodEnd };
 		};
 
 		it('AK1: Upgrade-Vorschau liefert dieselben Werte wie der anschließende Wechsel, ohne PayPal-Aufruf und DB-Schreibung', async () => {
@@ -617,16 +618,20 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			const sameRes = await post(PREVIEW, same.cookie, { plan: 'plus', period: 'yearly' });
 
 			assert.equal(downRes.status, 200);
+			// Test-Pflege (#2049 AK6): die Vorschau nennt zusätzlich den Startzeitpunkt (hier das
+			// Periodenende des aktiven Abos) — deepEqual führt das neue Feld mit.
 			assert.deepEqual(await downRes.json(), {
 				creditCents: 0,
 				dueCents: prices.plus.monthly,
 				immediate: false,
+				startsAt: down.currentPeriodEnd.toISOString(),
 			});
 			assert.equal(sameRes.status, 200);
 			assert.deepEqual(await sameRes.json(), {
 				creditCents: 0,
 				dueCents: prices.plus.yearly,
 				immediate: false,
+				startsAt: same.currentPeriodEnd.toISOString(),
 			});
 		});
 
