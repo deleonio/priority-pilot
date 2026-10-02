@@ -45,5 +45,19 @@
 			"label": "Come si conta la serie",
 			"text": "Un giorno conta se completi almeno un'attività in quel giorno. Ciò che è completato in ritardo conta per la data di scadenza. La serie è la sequenza ininterrotta di questi giorni fino a oggi o a ieri. Se manca un giorno fino a ieri, scende a 0; il tuo record resta."
 		}
+	},
+	"care": {
+		"label": "Fürsorge-Hinweis",
+		"kiBadge": "KI-Vorschlag",
+		"empty": "Gerade gibt es keinen Vorschlag für dich. Mach in deinem Tempo weiter.",
+		"deficit": "{{saeuleName}} kam diese Woche zu kurz. {{titel}}?",
+		"overload": "Du hast zuletzt viel geleistet. Ein Ausgleich darf heute sein: {{beschreibung}}",
+		"helpBefore": "Kein Ersatz für ärztlichen Rat. In einer Krise erreichst du die",
+		"helpLink": "TelefonSeelsorge: 0800 111 0 111",
+		"helpAfter": "(kostenfrei, rund um die Uhr).",
+		"error": "Konnte nicht angelegt werden. Versuch es gleich noch einmal.",
+		"accept": "Vorschlag übernehmen",
+		"notNow": "Nicht jetzt",
+		"dismiss": "Vorschlag ablehnen"
 	}
 }

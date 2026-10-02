@@ -1,6 +1,7 @@
 import { KolAlert, KolButton } from '@public-ui/react-v19';
 import type { CareVorschlag, TaskCreate } from 'client';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 
 const TAG_MS = 24 * 60 * 60 * 1000;
@@ -30,14 +31,6 @@ const istUnterdrueckt = (vorschlag: CareVorschlag, jetzt: number): boolean =>
 const endeDesTages = (jetzt: Date): number =>
 	new Date(jetzt.getFullYear(), jetzt.getMonth(), jetzt.getDate() + 1).getTime();
 
-/** #1967: Zweckbestimmung + Krisenhinweis; Light-DOM-`a` statt KolLink (sonst im Shadow-DOM, #1873). */
-const HILFE = (
-	<p className="care-hint-help">
-		Kein Ersatz für ärztlichen Rat. In einer Krise erreichst du die{' '}
-		<a href="tel:08001110111">TelefonSeelsorge: 0800 111 0 111</a> (kostenfrei, rund um die Uhr).
-	</p>
-);
-
 /**
  * Fürsorge-Hinweis auf dem Dashboard (#1793, Ton: `docs/fuersorge-tonalitaet.md`): zeigt höchstens
  * EINEN Vorschlag aus `GET /scores/care-suggestions` (der erste; kein Nachrücken nach einer Aktion)
@@ -51,9 +44,17 @@ const HILFE = (
  * `KolAlert` ohne `_alert` keine Live-Region setzt und der Hinweis nichts vorlesen soll.
  */
 export const CareHint = () => {
+	const { t } = useTranslation('common');
 	const [vorschlaege, setVorschlaege] = useState<CareVorschlag[] | undefined>(undefined);
 	const [ausgeblendet, setAusgeblendet] = useState(false);
 	const [fehler, setFehler] = useState(false);
+
+	/* #1967: Zweckbestimmung + Krisenhinweis; Light-DOM-`a` statt KolLink (sonst im Shadow-DOM, #1873). */
+	const hilfe = (
+		<p className="care-hint-help">
+			{t('care.helpBefore')} <a href="tel:08001110111">{t('care.helpLink')}</a> {t('care.helpAfter')}
+		</p>
+	);
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -70,10 +71,10 @@ export const CareHint = () => {
 
 	if (vorschlaege.length === 0) {
 		return (
-			<div className="care-hint" data-testid="care-hint" role="status" aria-label="Fürsorge-Hinweis">
-				<KolAlert _type="info" _variant="card" _label="Fürsorge-Hinweis">
-					<p>Gerade gibt es keinen Vorschlag für dich. Mach in deinem Tempo weiter.</p>
-					{HILFE}
+			<div className="care-hint" data-testid="care-hint" role="status" aria-label={t('care.label')}>
+				<KolAlert _type="info" _variant="card" _label={t('care.label')}>
+					<p>{t('care.empty')}</p>
+					{hilfe}
 				</KolAlert>
 			</div>
 		);
@@ -126,34 +127,33 @@ export const CareHint = () => {
 	};
 
 	return (
-		<div className="care-hint" data-testid="care-hint" role="status" aria-label="Fürsorge-Hinweis">
-			<KolAlert _type="info" _variant="card" _label="Fürsorge-Hinweis">
+		<div className="care-hint" data-testid="care-hint" role="status" aria-label={t('care.label')}>
+			<KolAlert _type="info" _variant="card" _label={t('care.label')}>
 				{/* #1873: `span` statt `KolBadge` wie `SeriesBadge`/`GeoBadge` — der Text läge sonst im Shadow-DOM. */}
 				{vorschlag.typ === 'ki' && (
 					<span className="care-hint-ki" data-testid="care-hint-ki">
-						KI-Vorschlag
+						{t('care.kiBadge')}
 					</span>
 				)}
+				{/* Platzhalter = heutiges `beschreibung ?? titel` — die de-Tests (#1793 AK1) pinnen die Beschreibung. */}
 				{vorschlag.anlass === 'ueberlast' ? (
-					<p>
-						Du hast zuletzt viel geleistet. Ein Ausgleich darf heute sein: {vorschlag.beschreibung ?? vorschlag.titel}
-					</p>
+					<p>{t('care.overload', { beschreibung: vorschlag.beschreibung ?? vorschlag.titel })}</p>
 				) : (
 					<p>
-						{vorschlag.saeuleName} kam diese Woche zu kurz. {vorschlag.beschreibung ?? vorschlag.titel}?
+						{t('care.deficit', { saeuleName: vorschlag.saeuleName, titel: vorschlag.beschreibung ?? vorschlag.titel })}
 					</p>
 				)}
-				{HILFE}
-				{fehler && <p role="alert">Konnte nicht angelegt werden. Versuch es gleich noch einmal.</p>}
+				{hilfe}
+				{fehler && <p role="alert">{t('care.error')}</p>}
 				<div className="care-hint-actions">
 					<KolButton
 						className="care-hint-accept"
-						_label="Vorschlag übernehmen"
+						_label={t('care.accept')}
 						_variant="secondary"
 						_on={{ onClick: () => schliessen(uebernehmen) }}
 					/>
-					<KolButton _label="Nicht jetzt" _variant="tertiary" _on={{ onClick: () => schliessen(nichtJetzt) }} />
-					<KolButton _label="Vorschlag ablehnen" _variant="tertiary" _on={{ onClick: () => schliessen(ablehnen) }} />
+					<KolButton _label={t('care.notNow')} _variant="tertiary" _on={{ onClick: () => schliessen(nichtJetzt) }} />
+					<KolButton _label={t('care.dismiss')} _variant="tertiary" _on={{ onClick: () => schliessen(ablehnen) }} />
 				</div>
 			</KolAlert>
 		</div>
