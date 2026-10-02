@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.13 - 2026-10-02
 
-_Enthält v0.13.0 – v0.13.12._
+_Enthält v0.13.0 – v0.13.14._
 
 ### 🎉 New Features
 
@@ -23,6 +23,8 @@ _Enthält v0.13.0 – v0.13.12._
 - docs(skills): close fulfilled containers, split after job timeouts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2072
 - feat(frontend): localized care hint texts for de and en (#2063) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2071
 - feat(server): suggest initial tasks from free text (#2068) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2079
+- feat(frontend): german labels and unique download buttons (#2031) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2080
+- feat(frontend): first-run flow steps 1-3 (free text, suggestions, apply) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2081
 
 ## v0.12 - 2026-10-02
 
@@ -142,10 +144,6 @@ _Enthält v0.10.0 – v0.10.36._
 
 - fix(ci): give documenter its own openrouter concurrency group by @deleonio in https://github.com/deleonio/priority-pilot/pull/1835
 - feat(server): expose care suggestions via mcp (#1796) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1842
-- feat(frontend): fit dashboard balance card into short viewports by @deleonio in https://github.com/deleonio/priority-pilot/pull/1844
-- ci: add weekly nit digest cron workflow by @deleonio in https://github.com/deleonio/priority-pilot/pull/1845
-- ci(triage): park issues with open analysis questions as needs-human by @deleonio in https://github.com/deleonio/priority-pilot/pull/1846
-- feat(frontend): show care hint with suggestion on the dashboard (#1793) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1843
 - feat(frontend): fit dashboard balance card into short viewports by @deleonio in https://github.com/deleonio/priority-pilot/pull/1844
 - ci: add weekly nit digest cron workflow by @deleonio in https://github.com/deleonio/priority-pilot/pull/1845
 - ci(triage): park issues with open analysis questions as needs-human by @deleonio in https://github.com/deleonio/priority-pilot/pull/1846
@@ -304,6 +302,7 @@ _Enthält v0.5.0 – v0.5.32._
 - chore(deps): update dependency undici@6 to v8.11.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1654
 - feat(skills): add ticket-tree skill for solution plans and issue trees by @deleonio in https://github.com/deleonio/priority-pilot/pull/1698
 - chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1657
+- docs(adr): add adr 0016 for native wrapper via capacitor remote mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1699
 - docs(adr): add adr 0016 for native wrapper via capacitor remote mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1699
 - chore: serve digital asset links for the android app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1700
 - feat(frontend): detect app channel and hide web prompts in native app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1701

@@ -5276,3 +5276,40 @@ a.plan-badge:focus-visible {
 	font-family: inherit;
 	cursor: pointer;
 }
+
+/* --- Erststart-Flow (#2069) --- */
+/* Vollbild-Fläche unter der App-Shell (kein Dialog, UX-Beratung #1986): einspaltig, alle
+   Primäraktionen unten sticky, Touch-Targets übernimmt KoliBri. */
+.onboarding-flow {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-base);
+	margin-top: var(--pp-gap-generous);
+	min-width: 0;
+}
+
+.onboarding-heading {
+	margin: 0;
+}
+
+.onboarding-step-indicator {
+	margin: 0;
+	color: var(--pp-text-muted);
+}
+
+.onboarding-cards {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-base);
+	min-width: 0;
+}
+
+.onboarding-actions {
+	position: sticky;
+	bottom: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-base);
+	padding-block: var(--pp-gap-base);
+	background: var(--pp-surface-0);
+}

@@ -157,6 +157,15 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	 */
 	test('AK7: Toolbar-Aktionen bleiben über Tab-Fokus erreichbar (Screenreader)', async ({ page }) => {
 		await page.goto('/app/');
+		// Ohne eigene Tasks erscheint seit #2069 der Erststart-Flow und nimmt den ersten Tab-Fokus —
+		// für diesen AK schließen wir ihn wie in smoke.spec.ts mit „Später“. Chromes Sequential-Focus-
+		// Starting-Point bleibt danach an der Position des entfernten Buttons, deshalb Fokus-Reset auf
+		// body, damit der Tab wieder vom Dokumentanfang startet.
+		await page.getByRole('button', { name: 'Später' }).click();
+		await page.evaluate(() => {
+			document.body.setAttribute('tabindex', '-1');
+			(document.body as HTMLElement).focus();
+		});
 
 		const toolbar = page.locator('[role="toolbar"]').first();
 		await expect(toolbar).toBeVisible();
