@@ -28,9 +28,9 @@ phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
    through the groups; epic and groups are containers, not work items.
 2. Per open sub-issue check the native `blocked-by` relations **and** the "Blockiert durch" line
    in the body — they can point into another epic (cross-epic dependency).
-3. Never label: the epic itself ("Nicht in die Pipeline geben") — except its closing analysis
-   (section 2, "All sub-issues of an epic closed") — group tickets titled `Gruppe:`
-   ("Sammelticket (Gruppe)"), tickets titled `Manuell:` or marked "Aufgabe für den PO", tickets
+3. Never label containers — epics ("Nicht in die Pipeline geben") and group tickets titled
+   `Gruppe:` ("Sammelticket (Gruppe)") — except for their closing analysis (section 2, "All
+   sub-issues of a container closed"). Never label tickets titled `Manuell:` or marked "Aufgabe für den PO", tickets
    marked "zurückgestellt".
 4. A manual ticket on the critical path blocks everything behind it. Ask the author at once (one
    question, concrete options) instead of waiting silently.
@@ -44,7 +44,12 @@ phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
    implementation and fixup share one queue; triage, UX, review and documentation each have
    their own). **Start leaves whose blockers are closed, highest rank first**, and keep a
    working set of at most four issues in flight (the author may set a different limit) — do not
-   start a lower-ranked leaf while a higher-ranked startable one is still unlabelled. Issues
+   start a lower-ranked leaf while a higher-ranked startable one is still unlabelled.
+   **Containers come first, before rank:** a container (epic or group) whose sub-issues are all
+   closed gets its closing analysis at once — it surfaces important new sub-issues early or
+   closes the container. A nearly finished container (one or two startable leaves left) moves
+   those leaves to the front of the order, so the container leaves the work chain. Scan all
+   containers in scope for both at each check-in and after each merge. Issues
    without dependencies on each other run in parallel; the queues serialise what has to wait.
    Only dependent issues wait for their blocker's merge. A run shown as "pending" is queued, not
    stuck — never re-arm it. Name stage and effort (title prefix) whenever a check-in or decision
@@ -65,7 +70,7 @@ phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
 | PR has a merge conflict (`mergeable_state: dirty`) | check every open PR of the epic at each check-in and after each merge to main. No phase **running** on the branch → hand the resolution to a subagent at once (section 6, one per PR, in parallel), even if a fixup is merely queued or crashed — waiting for the queue costs hours when phases stall. Phase running → wait for its end; the fixup run merges main before it starts and resolves the markers itself, so give it the resolution rule as an inline review comment on the conflicting file (it reads review threads, not plain PR comments). After the subagent's push: if the PR already had a green verdict, re-arm `ai:needs-review`; an attached `ai:needs-fixup` stays (its findings are still open). A conflict that needs a product decision goes to the author |
 | Author comments as PO on a PR or issue | apply at once (ticket body, ADR, labels), adjust dependent tickets |
 | PR merged, issue closed | check main CI, start the next issue in the same turn |
-| All sub-issues of an epic closed | an epic always gets at least one closing analysis — something new may have come up. Check the merged PRs for named follow-up work that no ticket covers and post it as a PO comment on the epic, then set `ai:analysed` + `ai:needs-analyse` on the epic (epic bodies do not follow the ticket template; without `ai:analysed` the quality gate parks the analysis) — at once, in the same turn the last sub-issue closes, outside the parallel-ticket limit: new important issues surface early, a finished epic leaves the work chain fast. The analysis either creates new sub-issues under the epic (drive them like any other), posts them as ticket drafts when its run may not create issues, or closes the epic with evidence. For a draft: create the issue with its priority prefix, link it under the epic (`POST repos/{owner}/{repo}/issues/<epic>/sub_issues` with the numeric `sub_issue_id`), start it like any other leaf, and drop the `ai:needs-human` on the epic — the template-structure check raises it as a false alarm, since epics have no template. When the new sub-issues close, the epic gets its next closing analysis. Never close the epic yourself |
+| All sub-issues of a container (epic or group) closed | a container always gets at least one closing analysis — something new may have come up. Check the merged PRs for named follow-up work that no ticket covers and post it as a PO comment on the container, then set `ai:analysed` + `ai:needs-analyse` on it (container bodies do not follow the ticket template; without `ai:analysed` the quality gate parks the analysis) — at once, in the same turn the last sub-issue closes, outside the parallel-ticket limit: new important issues surface early, a finished container leaves the work chain fast. The analysis either creates new sub-issues under the container (drive them like any other), posts them as ticket drafts when its run may not create issues, or closes the container with evidence. For a draft: create the issue with its priority prefix, link it under the container (`POST repos/{owner}/{repo}/issues/<container>/sub_issues` with the issue's numeric id — not its number — as `sub_issue_id`), start it like any other leaf, and drop the `ai:needs-human` on the container — the template-structure check raises it as a false alarm, since containers have no template. When the new sub-issues close, the container gets its next closing analysis. Never close a container yourself |
 
 Label write rules:
 
@@ -128,7 +133,7 @@ pipeline and later readers see it.
    green review may not be in main — check the merged commit and bring the rest in a new PR.
 5. **Optional review nits on own PRs.** Reply and resolve; do not push only for a nit — the push
    resets review and CI. Nits that reveal a product gap (feature built but invisible, cost
-   without benefit) are not nits for the epic: see "All sub-issues closed" above.
+   without benefit) are not nits for the epic: see "All sub-issues of a container closed" above.
 6. **Misleading titles.** "Frontend: …" can need server work. Trust the analysis, not the title.
 7. **Check the practice before calling a rule violation.** A rule in the docs can contradict
    what dozens of files do; then the rule is the finding, not the file.
