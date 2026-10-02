@@ -416,7 +416,7 @@ besteht aus einem Namen und einer kurzen Beschreibung.
 Im Aufgabenformular wählst du unter **„Säulen-Verteilung"** zuerst die **Hauptsäule** – die
 Aufgabe lässt sich damit allein schon speichern (Anteil 100 %). Daneben schlägt die App die
 **Restverteilung** vor (Regel: Hauptsäule 80 %, Rest gleichmäßig, je mindestens 5 %); **„Vorschlag
-übernehmen"** setzt sie ein, **„Verwerfen"** lässt es bei der Hauptsäule. Übernommen oder nicht:
+übernehmen"** setzt sie ein, **„Nicht übernehmen"** lässt es bei der Hauptsäule. Übernommen oder nicht:
 Je Säule steht ein Regler. Die Regler teilen sich 100 %: Ziehst du einen hoch, geben die anderen
 ab.
 

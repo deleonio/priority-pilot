@@ -620,7 +620,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	};
 
 	// #1962: Vorschlags-Block — Übernehmen wendet die feste Regel an (Hauptsäule 80 %, Rest je
-	// Mindestanteil), Verwerfen kehrt zur Ein-Säulen-Form zurück. Kein automatisches Anwenden.
+	// Mindestanteil), Nicht übernehmen kehrt zur Ein-Säulen-Form zurück. Kein automatisches Anwenden.
 	const applyRuleSuggestion = (): void => {
 		if (mainPillarId === null) {
 			return;
@@ -773,6 +773,9 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 			return;
 		}
 		chooseMainPillar(String(pillars[0].id));
+		// Die Vorbelegung ist Teil des Anfangszustands (#1584) und wird in den Schließen-Snapshot
+		// gespiegelt — sonst gilt Schließen ohne Eingriff als „geändert“ und öffnet die Rückfrage.
+		initialSnapshotRef.current.contributions = [{ pillarId: pillars[0].id, share: SHARE_TOTAL, confidence: 100 }];
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [pillars, isEdit, mainPillarId]);
 
@@ -902,9 +905,11 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 			return;
 		}
 		// #1962: Sicherheitsnetz — die Hauptsäule ist vorausgewählt; der Fehler greift nur, wenn
-		// gar keine Säulen existieren (ein neuer Task/Serie ohne jede Säule fehlte in der
-		// Balance-Rechnung). Nur im Anlege-Flow; Edits übernehmen die gespeicherte Verteilung.
-		if (!isEdit && contributions.length === 0) {
+		// Säulen existieren, aber keine gewählt wurde (Race beim Nachladen). Konten ohne jede Säule
+		// legen wie vor #1962 ohne Beiträge an — dort fehlt nichts in der Balance-Rechnung (#1222,
+		// Empfänger-Konto per test-login). Nur im Anlege-Flow; Edits übernehmen die gespeicherte
+		// Verteilung.
+		if (!isEdit && pillars.length > 0 && contributions.length === 0) {
 			setError('Bitte eine Hauptsäule wählen.');
 			return;
 		}
@@ -1348,8 +1353,8 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 									</div>
 									{/* #1962: Hauptsäule wählen — nur im Anlege-Flow; im Edit-Flow ist die
 									    gespeicherte Verteilung maßgeblich. Der Regel-Vorschlags-Block erscheint
-									    mit der Wahl (Übernehmen wendet an, Verwerfen kehrt zur Ein-Säulen-Form
-									    zurück) und bleibt bis zu einer neuen Wahl stehen. */}
+									    mit der Wahl (Übernehmen wendet an, Nicht übernehmen kehrt zur
+									    Ein-Säulen-Form zurück) und bleibt bis zu einer neuen Wahl stehen. */}
 									{!isEdit && (
 										<div className="pillar-main-row">
 											{/* KolSelect statt KolSingleSelect: es rendert die native `<select>` im
@@ -1408,7 +1413,10 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 													_on={{ onClick: applyRuleSuggestion }}
 												/>
 												<KolButton
-													_label="Verwerfen"
+													// „Nicht übernehmen“ statt „Verwerfen“ (PO-Entscheidung Fixup): der Vorschlags-Block sitzt im
+													// TaskForm-Dialog, dessen Verwerfen-Rückfrage sonst denselben Text trägt —
+													// und die Aktion verwirft nichts.
+													_label="Nicht übernehmen"
 													_variant="secondary"
 													_disabled={saving || suggesting}
 													_on={{ onClick: discardRuleSuggestion }}

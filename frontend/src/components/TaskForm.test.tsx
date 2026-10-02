@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { Category, Group, GroupMember, Pillar, Series, SeriesRhythm, Task } from 'client';
 import { ResponseError, TaskStatus } from 'client';
-import type { ReactNode } from 'react';
+import { createRef, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -274,7 +274,7 @@ vi.mock('./ConfirmSeriesActionModal', () => ({
 }));
 
 import { api } from '../api';
-import { TaskForm, type TaskFormInitialValues } from './TaskForm';
+import { TaskForm, type TaskFormHandle, type TaskFormInitialValues } from './TaskForm';
 import type { EntitlementMap } from '../lib/planOffers';
 import { PlanProvider } from '../lib/usePlan';
 
@@ -949,7 +949,8 @@ describe('TaskForm — Säulen-Verteilung ohne geladene Säulen (#440/#1596)', (
 /**
  * #1962 (Fixup, PO-Entscheidung): Die Hauptsäule ist beim Anlegen vorausgewählt (erste Säule
  * der Liste — ein Balance-Defizit liegt im Formular nicht vor), Absenden funktioniert ohne
- * eigene Wahl. Der Submit-Guard bleibt als Sicherheitsnetz, wenn gar keine Säulen existieren.
+ * eigene Wahl. Der Submit-Guard bleibt als Sicherheitsnetz für „Säulen vorhanden, aber keine
+ * gewählt“ (Race beim Nachladen); Konten ohne jede Säule legen ohne Beiträge an (#1222).
  */
 describe('TaskForm — Hauptsäule vorausgewählt beim Anlegen (#1962)', () => {
 	it('Anlegen ohne eigene Wahl: erste Säule ist vorbelegt, createTask läuft', async () => {
@@ -977,7 +978,7 @@ describe('TaskForm — Hauptsäule vorausgewählt beim Anlegen (#1962)', () => {
 		expect(screen.queryByText(/Bitte eine Hauptsäule wählen/)).toBeNull();
 	});
 
-	it('Anlegen ohne Säulen: Fehlermeldung, kein createTask (Sicherheitsnetz)', async () => {
+	it('Anlegen ohne Säulen im Konto: legt ohne Beiträge an (Test-Pflege Finding 4, #1222-Empfänger)', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 		mockCreateTask.mockResolvedValue(minimalNewTask());
 
@@ -997,8 +998,26 @@ describe('TaskForm — Hauptsäule vorausgewählt beim Anlegen (#1962)', () => {
 			fireEvent.click(screen.getByRole('button', { name: 'Anlegen' }));
 		});
 
-		expect(screen.getByText(/Bitte eine Hauptsäule wählen/)).toBeInTheDocument();
-		expect(mockCreateTask).not.toHaveBeenCalled();
+		expect(mockCreateTask).toHaveBeenCalledTimes(1);
+		expect(screen.queryByText(/Bitte eine Hauptsäule wählen/)).toBeNull();
+	});
+
+	it('Vorbelegung gilt nicht als Änderung: Schließen ohne Eingriff fragt nicht nach (#1584)', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		const onClose = vi.fn();
+		const ref = createRef<TaskFormHandle>();
+
+		await act(async () => {
+			render(<TaskForm ref={ref} task={null} {...defaultProps} onClose={onClose} />);
+		});
+		// Vorbelegung gelaufen: genau eine Beitragszeile — und trotzdem „unverändert“.
+		expect(document.querySelectorAll('.pillar-row')).toHaveLength(1);
+
+		await act(async () => {
+			ref.current?.requestClose();
+		});
+
+		expect(onClose).toHaveBeenCalledTimes(1);
 	});
 });
 
@@ -2957,8 +2976,8 @@ describe('Titel-Länge beim Speichern (#1818, AK4)', () => {
  * Vertrag: Der Aufgaben-Dialog bietet eine Auswahlliste „Hauptsäule“; ohne Wahl rendert der
  * Säulen-Editor keine Beitragszeilen (kein erzwungenes Vorbelegen aller fünf Säulen mehr), mit
  * Wahl genau eine (Anteil 100 %) — absendbar mit genau einem Beitrag im Payload (AK2). Ein
- * Vorschlags-Block („Vorschlag übernehmen“ / „Verwerfen“) bietet die Restverteilung an:
- * Übernehmen wendet Hauptsäule 80 % + Rest je 5 % an, Verwerfen behält den Ein-Säulen-Zustand
+ * Vorschlags-Block („Vorschlag übernehmen“ / „Nicht übernehmen“) bietet die Restverteilung an:
+ * Übernehmen wendet Hauptsäule 80 % + Rest je 5 % an, Nicht übernehmen behält den Ein-Säulen-Zustand
  * (AK3, KI-UX: Vorschlag nie automatisch anwenden).
  *
  * Diese Specs sind rot, solange TaskForm weder die Hauptsäulen-Auswahl noch den Vorschlags-Block
@@ -3038,7 +3057,7 @@ describe('#1962 — Hauptsäulen-Modus', () => {
 		]);
 	});
 
-	it('AK3 — Verwerfen: danach speichert nur die Hauptsäule (keine stillen 20-%-Vorbelegungen)', async () => {
+	it('AK3 — Nicht übernehmen: danach speichert nur die Hauptsäule (keine stillen 20-%-Vorbelegungen)', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 		mockCreateTask.mockResolvedValue(minimalNewTask());
 
@@ -3050,7 +3069,7 @@ describe('#1962 — Hauptsäulen-Modus', () => {
 			fireEvent.click(screen.getByRole('button', { name: 'Vorschlag übernehmen' }));
 		});
 		await act(async () => {
-			fireEvent.click(screen.getByRole('button', { name: 'Verwerfen' }));
+			fireEvent.click(screen.getByRole('button', { name: 'Nicht übernehmen' }));
 		});
 
 		expect(rowLabels()).toEqual(['Körper: 100 %']);
