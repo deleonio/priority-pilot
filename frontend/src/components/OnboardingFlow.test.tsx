@@ -117,6 +117,9 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 		await toggleCard('Erststart A', true);
 		await toggleCard('Erststart B', true);
 		await clickButton('Weiter');
+		// #2070 Test-Pflege: Gewichtungsschritt dazwischen — „Speichern" schließt Schritt 3 ab.
+		apiMock.setPillarWeights.mockResolvedValue(pillars);
+		await clickButton('Speichern');
 		// IDs für den Abhängigkeits-Mock (Test-Infrastruktur, Kreuzverhör #2081 Finding 1).
 		apiMock.createTask.mockResolvedValueOnce({ id: 101 }).mockResolvedValueOnce({ id: 102 });
 		await clickButton('Übernehmen');
@@ -137,8 +140,11 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 		apiMock.createTask.mockResolvedValueOnce({ id: 101 }).mockResolvedValueOnce({ id: 102 });
 		await gotoSuggestions();
 
-		// Nur Karte B gewählt — die Kaskade wählt Vorgänger A mit; beide werden angelegt, Kante B → A.
 		await toggleCard('Erststart B', true);
+		// #2070 Test-Pflege: Navigationspfad Weiter → Speichern → Übernehmen (Gewichtungsschritt).
+		await clickButton('Weiter');
+		apiMock.setPillarWeights.mockResolvedValue(pillars);
+		await clickButton('Speichern');
 		await clickButton('Übernehmen');
 
 		await waitFor(() => expect(apiMock.createTask).toHaveBeenCalledTimes(2));
@@ -149,6 +155,8 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 			taskCreate: expect.objectContaining({ title: 'Erststart B', pillarIds: [11] }),
 		});
 		expect(apiMock.addDependency).toHaveBeenCalledWith({ id: 102, dependencyInput: { dependingTaskId: 101 } });
+		// #2070: Apply zeigt die Abschluss-Karte — onClose feuert erst bei „Fertig" (Test-Pflege).
+		await clickButton('Fertig');
 		expect(onClose).toHaveBeenCalledTimes(1);
 	});
 
@@ -159,6 +167,9 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 		await toggleCard('Erststart B', true); // Kaskade: A + B
 		await toggleCard('Erststart A', false); // Kaskade: B fällt mit weg
 		await clickButton('Weiter');
+		// #2070 Test-Pflege: Gewichtungsschritt — „Speichern" führt zur Zusammenfassung (Schritt 4).
+		apiMock.setPillarWeights.mockResolvedValue(pillars);
+		await clickButton('Speichern');
 
 		// Schritt 3 zeigt Auswahl 0 — ohne Kaskade stünde hier eine verwaiste Karte mit still
 		// übersprungener „nach: …“-Zusage.
@@ -184,8 +195,11 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 		await toggleCard('Erststart A', true);
 		await toggleCard('Erststart B', true);
 		await toggleCard('Erststart C', true);
-		// Der applyError-Alert lebt in Schritt 3 (Zusammenfassung) — zuerst dorthin navigieren.
+		// Der applyError-Alert lebt im Zusammenfassungs-Schritt — zuerst dorthin navigieren
+		// (#2070 Test-Pflege: Gewichtungsschritt dazwischen).
 		await clickButton('Weiter');
+		apiMock.setPillarWeights.mockResolvedValue(pillars);
+		await clickButton('Speichern');
 		await clickButton('Übernehmen');
 
 		// Teilfehler bei C: A und B liegen an (IDs gemerkt), der Alert nennt den Stand.
@@ -201,6 +215,9 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 		apiMock.createTask.mockResolvedValueOnce({ id: 103 });
 		await clickButton('Übernehmen');
 
+		// #2070: Apply endet auf der Abschluss-Karte — „Fertig" schließt (Test-Pflege).
+		await waitFor(() => expect(button('Fertig')).toBeDefined());
+		await clickButton('Fertig');
 		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
 		expect(apiMock.createTask).toHaveBeenCalledTimes(4);
 		expect(apiMock.addDependency).toHaveBeenCalledTimes(1);

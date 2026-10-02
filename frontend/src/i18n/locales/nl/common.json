@@ -61,10 +61,12 @@
 		"dismiss": "Vorschlag ablehnen"
 	},
 	"onboarding": {
-		"step": "Stap {{step}} van 3",
+		"step": "Stap {{step}} van {{total}}",
 		"heading1": "Wat houdt je bezig op dit moment?",
 		"heading2": "Jouw suggesties",
 		"heading3": "Klaar om te starten",
+		"headingWeights": "Je startweging",
+		"finishHeading": "Alles klaar!",
 		"goalLabel": "Beschrijf in eigen woorden waar je nu staat",
 		"weiter": "Doorgaan",
 		"spaeter": "Later",
@@ -76,6 +78,8 @@
 		"selectedCount": "{{selected}} van {{total}} suggesties geselecteerd",
 		"suggestError": "Ophalen van de suggesties mislukt",
 		"applyError": "Aanmaken van de taken mislukt",
-		"partialInfo": "{{count}} taken zijn al aangemaakt — opnieuw toepassen maakt alleen de ontbrekende aan."
+		"partialInfo": "{{count}} taken zijn al aangemaakt — opnieuw toepassen maakt alleen de ontbrekende aan.",
+		"balanceHint": "Je sterkste pijler is {{name}} ({{share}} %).",
+		"fertig": "Klaar"
 	}
 }

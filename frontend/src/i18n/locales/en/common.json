@@ -61,10 +61,12 @@
 		"dismiss": "Dismiss suggestion"
 	},
 	"onboarding": {
-		"step": "Step {{step}} of 3",
+		"step": "Step {{step}} of {{total}}",
 		"heading1": "What's on your mind right now?",
 		"heading2": "Your suggestions",
 		"heading3": "Ready to start",
+		"headingWeights": "Your starting weights",
+		"finishHeading": "All set!",
 		"goalLabel": "Describe in your own words where you stand right now",
 		"weiter": "Continue",
 		"spaeter": "Later",
@@ -76,6 +78,8 @@
 		"selectedCount": "{{selected}} of {{total}} suggestions selected",
 		"suggestError": "Fetching suggestions failed",
 		"applyError": "Creating the tasks failed",
-		"partialInfo": "{{count}} tasks are already created — applying again only creates the missing ones."
+		"partialInfo": "{{count}} tasks are already created — applying again only creates the missing ones.",
+		"balanceHint": "Your strongest pillar is {{name}} ({{share}} %).",
+		"fertig": "Done"
 	}
 }

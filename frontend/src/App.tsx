@@ -1053,27 +1053,33 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			    renderte die Karte tab-unabhängig ÜBER der Tab-Leiste und drückte auf Serien/Wald den
 			    Listenstart um ~230px nach unten (bei 375px+812 blieben statt ≥4 Serien nur 3 ohne
 			    Scrollen sichtbar). Aufgaben- und Wald-Tab haben eigene Leerzustände (TaskTree, #510). */}
-						{tasks !== null &&
-							tasks.length === 0 &&
-							activeTab === 0 &&
-							// Erststart-Flow (#2069): ersetzt den Leerzustand; nach „Später“/erfolgreichem
-							// Übernehmen gilt der EmptyState — onClose lädt die Liste neu.
-							(onboardingDismissed ? (
-								<EmptyState onCreate={() => setDialog({ kind: 'create' })} />
-							) : (
-								<OnboardingFlow
-									pillars={pillars}
-									onClose={() => {
-										setOnboardingDismissed(true);
-										void reload();
-									}}
-									onApplied={() => {
-										// Die neuen Aufgaben zeigen (AK3): der Aufgaben-Tab listet sie — die
-										// Dashboard-Karten (Nächste Aufgabe/Wichtigste) tragen eigene Titel-Klassen.
-										navigate({ pathname: ROUTE_PATHS[1], search: searchParams.toString() });
-									}}
-								/>
-							))}
+						{tasks !== null && tasks.length === 0 && activeTab === 0 && (
+							<>
+								{/* #2070: Nach „Später“/Abschluss zeigt der EmptyState den Wiedereinstieg; der Flow bleibt
+									    verdeckt gemountet, damit Freitext und Auswahl den Wiedereinstieg überleben (AK4). */}
+								{onboardingDismissed ? (
+									<EmptyState
+										onCreate={() => setDialog({ kind: 'create' })}
+										onReenter={() => setOnboardingDismissed(false)}
+									/>
+								) : null}
+								<div hidden={onboardingDismissed}>
+									<OnboardingFlow
+										pillars={pillars}
+										onClose={() => {
+											setOnboardingDismissed(true);
+											void reload();
+										}}
+										onWeightsSaved={() => void reload()}
+										onApplied={() => {
+											// Die neuen Aufgaben zeigen (AK3): der Aufgaben-Tab listet sie — die
+											// Dashboard-Karten (Nächste Aufgabe/Wichtigste) tragen eigene Titel-Klassen.
+											navigate({ pathname: ROUTE_PATHS[1], search: searchParams.toString() });
+										}}
+									/>
+								</div>
+							</>
+						)}
 
 						{tasks !== null && (
 							<KolTabs
