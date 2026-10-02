@@ -13,12 +13,21 @@ import { initReactI18next } from 'react-i18next';
  */
 const modules = import.meta.glob<{ default: Record<string, unknown> }>('./locales/*/*.json', { eager: true });
 
+/**
+ * Sprach-Allowlist: nur vollständig übersetzte Sprachen erscheinen in der App — Kriterium ist der
+ * Schlüssel-Gleichstand gegen `de`, geprüft in `locales.test.ts`. Die übrigen Locale-Dateien bleiben
+ * für diesen Test bestehen, landen aber weder in den Ressourcen noch in der Auswahl; eine fertige
+ * Sprache kehrt per Wiederaufnahme in diese Liste zurück.
+ */
+const LANGUAGE_ALLOWLIST = ['de', 'en'];
+
 const resources: Record<string, Record<string, Record<string, unknown>>> = {};
 for (const [path, module] of Object.entries(modules)) {
 	// './locales/de/common.json' -> ['de', 'common']
 	const match = /\.\/locales\/([^/]+)\/([^/]+)\.json$/.exec(path);
 	if (match === null) continue;
 	const [, language, namespace] = match;
+	if (!LANGUAGE_ALLOWLIST.includes(language)) continue;
 	resources[language] ??= {};
 	resources[language][namespace] = module.default;
 }
