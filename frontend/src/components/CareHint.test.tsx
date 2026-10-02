@@ -130,6 +130,8 @@ describe('CareHint (#1793)', () => {
 		expect(createTask).toHaveBeenCalledTimes(1);
 		const { taskCreate } = createTask.mock.calls[0]![0];
 		expect(taskCreate.title).toBe(vorlage.titel);
+		// #2010 AK1: auch die Beschreibung wandert in die neue Aufgabe.
+		expect(taskCreate.description).toBe(vorlage.beschreibung);
 		expect(taskCreate.pillars).toEqual([{ pillarId: 3, share: 100, confidence: 100 }]);
 		expect(updateTask).not.toHaveBeenCalled();
 	});
