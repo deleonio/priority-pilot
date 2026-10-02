@@ -120,4 +120,32 @@ describe('SubscriptionSection (#2048)', () => {
 		expect(hint).toHaveTextContent(/Gekündigt/);
 		expect(hint).toHaveTextContent(/15\.1?\.2027/);
 	});
+
+	// #2049 AK7: bestätigt das Nutzer ein neues Abo (z. B. Weiterführen), liefert /auth/me wieder
+	// einen nicht gekündigten Status — der lokale Merker verfällt im selben Seitenkontext, der
+	// Gekündigt-Hinweis verschwindet ohne Remount. Ohne den Reset hielte `locallyCancelled` den
+	// Hinweis künstlich am Leben.
+	it('#2049 AK7: nach bestätigtem neuem Abo verschwindet der Gekündigt-Hinweis ohne Remount', async () => {
+		subscriptionState.subscription = { ...baseSubscription, status: 'active' };
+		const { api } = (await import('../api')) as typeof import('../api');
+		const view = render(<SubscriptionSection />);
+
+		// Lokal kündigen: der Merker zeigt den Hinweis, obwohl /auth/me weiter „active" liefert.
+		fireEvent.click(screen.getByTestId('cancel-subscription'));
+		fireEvent.click(screen.getByRole('button', { name: 'Kündigen' }));
+		await waitFor(() => {
+			expect(api.cancelBillingSubscription).toHaveBeenCalledTimes(1);
+		});
+		await waitFor(() => {
+			expect(screen.getByTestId('subscription-cancelled')).toBeInTheDocument();
+		});
+
+		// Neues Abo bestätigt: /auth/me liefert einen nicht gekündigten Status.
+		subscriptionState.subscription = { ...baseSubscription, status: 'approval_pending' };
+		view.rerender(<SubscriptionSection />);
+
+		await waitFor(() => {
+			expect(screen.queryByTestId('subscription-cancelled')).not.toBeInTheDocument();
+		});
+	});
 });

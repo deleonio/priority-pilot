@@ -281,6 +281,63 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 		expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
 	});
 
+	// #2049 AK8: gekündigtes Abo mit Restlaufzeit bei 375px — „Weiterführen"-Knopf in der eigenen
+	// Paketzeile sichtbar und klickbar, die Wechsel-Vorschau nennt Betrag und Startzeitpunkt.
+	test('#2049 AK8: Gekündigtes Abo bei 375px — Weiterführen klickbar, Vorschau mit Startdatum', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await mockCatalog(page);
+		await mockAuthMe(page, {
+			...USER_NO_SUBSCRIPTION,
+			plan: 'pro',
+			subscription: activeSubscription({ status: 'cancelled' }),
+		});
+		await mockEmptyInvoices(page);
+
+		await page.route('**/api/v1/billing/subscriptions/change/preview', (route: Route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					creditCents: 0,
+					dueCents: 1499,
+					immediate: false,
+					startsAt: '2026-10-15T00:00:00.000Z',
+				}),
+			}),
+		);
+
+		// Vorschau: Downgrade-Weg (Wechseln) zeigt Betrag und Startdatum im Dialog.
+		await gotoPakete(page);
+		await page.getByTestId('change-plan-max-monthly').click();
+		const dialogHost = page.locator('kol-dialog');
+		await expect(dialogHost).toContainText(/Wirksam ab/);
+		await expect(dialogHost).toContainText(/15\.10\.2026/);
+		await dialogHost.getByRole('button', { name: 'Abbrechen' }).click();
+
+		// Weiterführen: eigener Paket-Zeile folgt der Auftrag, die Buchung geht mit plan+period raus.
+		let capturedBody: unknown;
+		await page.route('**/api/v1/billing/subscriptions', (route: Route) => {
+			capturedBody = route.request().postDataJSON();
+			return route.fulfill({
+				status: 201,
+				contentType: 'application/json',
+				body: JSON.stringify({ approvalUrl: 'https://paypal.example/approve/resume' }),
+			});
+		});
+		await page.route('https://paypal.example/**', (route: Route) =>
+			route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>PayPal-Sandbox</body></html>' }),
+		);
+
+		const resume = page.getByTestId('resume-pro-monthly');
+		await expect(resume).toBeVisible();
+		await resume.click();
+
+		await expect
+			.poll(() => capturedBody, { message: 'Weiterführen muss plan+period des eigenen Pakets senden' })
+			.toEqual({ plan: 'pro', period: 'monthly' });
+		await expect(page).toHaveURL(/paypal\.example\/approve\/resume/);
+	});
+
 	test('#1940 AK5: Bei 375px ohne Abo — Rechnungsliste ohne horizontalen Überlauf', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await mockCatalog(page);

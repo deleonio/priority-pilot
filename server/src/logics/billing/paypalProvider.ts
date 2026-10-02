@@ -54,13 +54,21 @@ export const createPaypalProvider = (deps: PaypalProviderDeps = {}): BillingProv
 			});
 		},
 		checkout: {
-			create: (plan, period, firstCycleCents) => {
+			create: (plan, period, firstCycleCents, startTime) => {
+				// Aufgeschobener Start (#2049): Weiterführen/Downgrade nach Kündigung buchen erst ab
+				// `startTime` ab — ohne Einrichtungsgebühr (`firstCycleCents` bleibt ungesetzt).
+				if (startTime !== undefined) {
+					return client.createSubscription(paypalPlanIdFor(plan, period), { startTime });
+				}
 				if (firstCycleCents === undefined) {
 					return client.createSubscription(paypalPlanIdFor(plan, period));
 				}
-				const startTime = new Date();
-				startTime.setUTCMonth(startTime.getUTCMonth() + PERIOD_MONTHS[period]);
-				return client.createSubscription(paypalPlanIdFor(plan, period), { firstCycleCents, startTime });
+				const firstCycleStart = new Date();
+				firstCycleStart.setUTCMonth(firstCycleStart.getUTCMonth() + PERIOD_MONTHS[period]);
+				return client.createSubscription(paypalPlanIdFor(plan, period), {
+					firstCycleCents,
+					startTime: firstCycleStart,
+				});
 			},
 			cancel: (externalSubscriptionId) => client.cancel(externalSubscriptionId),
 			change: (externalSubscriptionId, plan, period) =>

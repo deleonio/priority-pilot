@@ -108,6 +108,16 @@ export const SubscriptionSection = () => {
 	// Ehemalige Abonnenten (`subscription === null`) sehen ihre Rechnungen weiter, aber keine leere Gruppe (#1940).
 	const showInvoices = subscription != null || (subscription === null && invoices !== null && invoices.length > 0);
 
+	// Ein neues Abo (z. B. Weiterführen, #2049) meldet /auth/me als `approval_pending` — der lokale
+	// Kündigungs-Merker verfällt, der Gekündigt-Hinweis verschwindet ohne Neuladen (AK7). Ein
+	// weiterhin `active` geliefertes Abo dreht den Merker NICHT zurück: dessen Webhook steht noch
+	// aus, genau dafür trägt der Merker (#2048).
+	useEffect(() => {
+		if (locallyCancelled && subscription?.status === 'approval_pending') {
+			setLocallyCancelled(false);
+		}
+	}, [locallyCancelled, subscription]);
+
 	useEffect(() => {
 		const controller = new AbortController();
 		void Promise.resolve()

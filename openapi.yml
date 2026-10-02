@@ -6360,6 +6360,8 @@ components:
         (0 ohne Upgrade), `dueCents` der fällige Betrag des ersten Zyklus. `immediate`
         sagt, ob der Wechsel sofort wirkt (Upgrade) oder erst zum Periodenende
         (ADR 0013) — die Oberfläche trägt bewusst keine eigene Paket-Rangfolge.
+        `startsAt` nennt den Startzeitpunkt (#2049): sofort beim Upgrade, sonst das
+        Periodenende (Weiterführen/Downgrade auch nach Kündigung).
       required: [creditCents, dueCents, immediate]
       properties:
         creditCents:
@@ -6370,6 +6372,9 @@ components:
           minimum: 0
         immediate:
           type: boolean
+        startsAt:
+          type: string
+          format: date-time
     Invoice:
       type: object
       description: >-

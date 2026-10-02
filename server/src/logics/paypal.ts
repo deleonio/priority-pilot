@@ -30,19 +30,21 @@ type BillingPeriod = 'monthly' | 'quarterly' | 'yearly';
 export interface PaypalClient {
 	createSubscription(
 		planId: string,
-		override?: FirstCycleOverride,
+		override?: CreateSubscriptionOverride,
 	): Promise<{ approvalUrl: string; externalSubscriptionId: string }>;
 	cancel(externalSubscriptionId: string): Promise<void>;
 	revise(externalSubscriptionId: string, targetPlanId: string): Promise<{ approvalUrl?: string }>;
 }
 
 /**
- * Reduzierter erster Zyklus eines Upgrade-Abos (#1912). Der Plan-Override von PayPal kann keinen
- * zusätzlichen Zyklus einfügen — deshalb wird der erste Zyklus als Einrichtungsgebühr sofort
- * eingezogen und die reguläre Abrechnung beginnt erst eine Periode später (`startTime`).
+ * Start-Override eines neuen Abos (#1912/#2049). Der Plan-Override von PayPal kann keinen
+ * zusätzlichen Zyklus einfügen — deshalb wird beim Upgrade der erste Zyklus als Einrichtungsgebühr
+ * sofort eingezogen (`firstCycleCents`) und die reguläre Abrechnung beginnt erst eine Periode später
+ * (`startTime`). Ohne `firstCycleCents` verschiebt `startTime` die erste Abbuchung auf den
+ * Zeitpunkt (Weiterführen/Downgrade nach Kündigung).
  */
-interface FirstCycleOverride {
-	firstCycleCents: number;
+interface CreateSubscriptionOverride {
+	firstCycleCents?: number;
 	startTime: Date;
 }
 
@@ -192,11 +194,15 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 				application_context: { return_url: returnUrl, cancel_url: cancelUrl },
 				...(override && {
 					start_time: override.startTime.toISOString(),
-					plan: {
-						payment_preferences: {
-							setup_fee: { currency_code: 'EUR', value: (override.firstCycleCents / 100).toFixed(2) },
+					// `firstCycleCents` ist beim reinen Start-Aufschub (#2049) nicht gesetzt — ohne
+					// diese Auswahl stünde `undefined/100` als „NaN" im Betrag.
+					...(override.firstCycleCents !== undefined && {
+						plan: {
+							payment_preferences: {
+								setup_fee: { currency_code: 'EUR', value: (override.firstCycleCents / 100).toFixed(2) },
+							},
 						},
-					},
+					}),
 				}),
 			}),
 		});
@@ -360,29 +366,36 @@ export const applyPlanChange = async (
 };
 
 /**
- * Löst nach Bestätigung eines Upgrade-Abos das bisherige ab (#1912): jedes andere aktive PayPal-Abo
+ * Löst nach Bestätigung eines neuen Abos das bisherige ab (#1912/#2049): jedes andere aktive PayPal-Abo
  * desselben Nutzers wird bei PayPal gekündigt und lokal beendet, das neue Paket gilt sofort. Ein
- * zweites laufendes Abo entsteht nur über den Upgrade-Weg (`POST /billing/subscriptions` blockt es
- * mit 409) — ohne Vorgänger ein No-op.
+ * gekündigtes Abo mit Restlaufzeit (#2049) ist bei PayPal bereits beendet — dort entfällt nur der
+ * geplante Fall auf `free`, damit `applyDuePendingPlan` den Nutzer nicht neben dem Nachfolge-Abo
+ * zurückstuft. Ein zweites laufendes Abo entsteht nur über den Upgrade-Weg (`POST
+ * /billing/subscriptions` blockt es mit 409) — ohne Vorgänger ein No-op.
  */
 export const replacePredecessors = async (
 	subscription: Subscription,
 	client: Pick<PaypalClient, 'cancel'>,
 ): Promise<void> => {
-	const predecessors = await Subscription.findAll({
-		where: {
-			userId: subscription.get('userId') as number,
-			provider: 'paypal',
-			status: 'active',
-			id: { [Op.ne]: subscription.get('id') as number },
-		},
+	const where = {
+		userId: subscription.get('userId') as number,
+		provider: 'paypal',
+		id: { [Op.ne]: subscription.get('id') as number },
+	};
+	const predecessors = await Subscription.findAll({ where: { ...where, status: 'active' } });
+	const cancelled = await Subscription.findAll({
+		// Gekündigt mit Restlaufzeit: bei PayPal schon beendet, kein erneuter Kündigungsaufruf (4xx).
+		where: { ...where, status: 'cancelled', currentPeriodEnd: { [Op.gt]: new Date() } },
 	});
-	if (predecessors.length === 0) {
+	if (predecessors.length === 0 && cancelled.length === 0) {
 		return;
 	}
 	for (const predecessor of predecessors) {
 		await client.cancel(predecessor.get('externalSubscriptionId') as string);
 		await predecessor.update({ plan: 'free', status: 'cancelled', pendingPlan: null, pendingPlanEffectiveAt: null });
+	}
+	for (const predecessor of cancelled) {
+		await predecessor.update({ pendingPlan: null, pendingPeriod: null, pendingPlanEffectiveAt: null });
 	}
 	await syncUserPlan(subscription, subscription.get('plan') as Plan);
 };
