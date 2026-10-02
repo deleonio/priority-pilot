@@ -85,6 +85,7 @@ export type PillarWeightsInput = Schemas['PillarWeightsInput'];
 export type SuggestPillarsInput = Schemas['SuggestPillarsInput'];
 export type PillarSuggestion = Schemas['PillarSuggestion'];
 export type SuggestPillarsResult = Schemas['SuggestPillarsResult'];
+export type SuggestInitialTaskSuggestion = Schemas['SuggestInitialTaskSuggestion'];
 export type PillarFeedbackInput = Schemas['PillarFeedbackInput'];
 export type PillarFeedbackResult = Schemas['PillarFeedbackResult'];
 export type ActivityAdvisorInput = Schemas['ActivityAdvisorInput'];

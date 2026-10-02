@@ -70,7 +70,9 @@ test.describe('Balamentum — funktionale CRUD-Specs gegen das echte Backend', (
 	test('Task anlegen: erscheint in der Liste', async ({ page }) => {
 		await page.goto('/app/');
 		await waitForStableView(page);
-		// Frischer Start ohne Demo-Seed: die Onboarding-Ansicht ist sichtbar.
+		// #2069 Test-Pflege: Frisch-Login startet den Erststart-Flow; erst „Später“ zeigt den EmptyState.
+		await page.getByRole('button', { name: 'Später' }).click();
+		// Frischer Start ohne Demo-Seed: nach dem Abbruch ist die Onboarding-Ansicht sichtbar.
 		await expect(page.getByRole('heading', { name: 'Noch keine Aufgaben' })).toBeVisible();
 
 		const title = uniqueTitle('Anlegen');

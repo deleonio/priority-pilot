@@ -55,6 +55,7 @@ import type {
 	SeriesGenerateInput,
 	SeriesUpdate,
 	Streak,
+	SuggestInitialTaskSuggestion,
 	SuggestPillarsInput,
 	Task,
 	TaskCreate,
@@ -819,6 +820,17 @@ export const api = {
 			body: suggestPillarsInput,
 			signal,
 		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data.suggestions;
+	},
+
+	// Erststart-Flow (#2069): schlägt aus einem Freitext konkrete erste Aufgaben vor
+	// (`POST /tasks/suggest-initial`, #2068). Der Server kann nach Bereinigung auch weniger als
+	// 5 Einträge — bis hin zu keiner — mit 200 liefern; das ist kein Fehlerfall.
+	async suggestInitialTasks({ text }: { text: string }): Promise<SuggestInitialTaskSuggestion[]> {
+		const { data, error, response } = await client.POST('/tasks/suggest-initial', { body: { text } });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}
