@@ -61,10 +61,12 @@
 		"dismiss": "Vorschlag ablehnen"
 	},
 	"onboarding": {
-		"step": "Schritt {{step}} von 3",
+		"step": "Schritt {{step}} von {{total}}",
 		"heading1": "Was beschäftigt dich gerade?",
 		"heading2": "Deine Vorschläge",
 		"heading3": "Bereit zum Start",
+		"headingWeights": "Deine Startgewichtung",
+		"finishHeading": "Alles bereit!",
 		"goalLabel": "Deine Situation in eigenen Worten",
 		"weiter": "Weiter",
 		"spaeter": "Später",
@@ -76,6 +78,15 @@
 		"selectedCount": "{{selected}} von {{total}} Vorschlägen ausgewählt",
 		"suggestError": "Vorschläge fehlgeschlagen",
 		"applyError": "Anlegen fehlgeschlagen",
-		"partialInfo": "{{count}} Aufgaben sind bereits angelegt — ein erneuter Klick auf Übernehmen legt nur die fehlenden an."
+		"partialInfo": "{{count}} Aufgaben sind bereits angelegt — ein erneuter Klick auf Übernehmen legt nur die fehlenden an.",
+		"balanceHint": "Deine stärkste Säule ist {{name}} ({{share}} %).",
+		"fertig": "Fertig",
+		"emptyDescription": "Beschreibe, womit du gerade kämpfst — der Flow macht daraus erste Aufgaben. Deine Eingabe bleibt erhalten.",
+		"fortsetzen": "Flow fortsetzen",
+		"beispiele": "Beispiele zum Ausprobieren",
+		"beispiel1": "15 Minuten spazieren gehen",
+		"beispiel2": "Wichtige E-Mail beantworten",
+		"beispiel3": "Das kommende Wochenende planen",
+		"erstenTaskAnlegen": "Ersten Task anlegen"
 	}
 }

@@ -73,7 +73,8 @@ test.describe('Balamentum — funktionale CRUD-Specs gegen das echte Backend', (
 		// #2069 Test-Pflege: Frisch-Login startet den Erststart-Flow; erst „Später“ zeigt den EmptyState.
 		await page.getByRole('button', { name: 'Später' }).click();
 		// Frischer Start ohne Demo-Seed: nach dem Abbruch ist die Onboarding-Ansicht sichtbar.
-		await expect(page.getByRole('heading', { name: 'Noch keine Aufgaben' })).toBeVisible();
+		// #2070 Test-Pflege: Der EmptyState heißt jetzt „Was beschäftigt dich gerade?“.
+		await expect(page.getByRole('heading', { name: 'Was beschäftigt dich gerade?' })).toBeVisible();
 
 		const title = uniqueTitle('Anlegen');
 		await createTaskViaUi(page, title);

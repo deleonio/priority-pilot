@@ -61,10 +61,12 @@
 		"dismiss": "Vorschlag ablehnen"
 	},
 	"onboarding": {
-		"step": "Steg {{step}} av 3",
+		"step": "Steg {{step}} av {{total}}",
 		"heading1": "Vad sysselsätter dig just nu?",
 		"heading2": "Dina förslag",
 		"heading3": "Redo att börja",
+		"headingWeights": "Din startviktning",
+		"finishHeading": "Allt är klart!",
 		"goalLabel": "Beskriv med egna ord var du står just nu",
 		"weiter": "Fortsätt",
 		"spaeter": "Senare",
@@ -76,6 +78,15 @@
 		"selectedCount": "{{selected}} av {{total}} förslag valda",
 		"suggestError": "Det gick inte att hämta förslag",
 		"applyError": "Det gick inte att skapa uppgifter",
-		"partialInfo": "{{count}} uppgifter har redan skapats — att tillämpa igen skapar bara de saknade."
+		"partialInfo": "{{count}} uppgifter har redan skapats — att tillämpa igen skapar bara de saknade.",
+		"balanceHint": "Din starkaste pelare är {{name}} ({{share}} %).",
+		"fertig": "Klar",
+		"emptyDescription": "Beschreibe, womit du gerade kämpfst — der Flow macht daraus erste Aufgaben. Deine Eingabe bleibt erhalten.",
+		"fortsetzen": "Flow fortsetzen",
+		"beispiele": "Beispiele zum Ausprobieren",
+		"beispiel1": "15 Minuten spazieren gehen",
+		"beispiel2": "Wichtige E-Mail beantworten",
+		"beispiel3": "Das kommende Wochenende planen",
+		"erstenTaskAnlegen": "Ersten Task anlegen"
 	}
 }

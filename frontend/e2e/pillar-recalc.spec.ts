@@ -31,7 +31,9 @@ interface FakeServer {
  * mit `processed` und danach das Ergebnis.
  */
 const installFakeServer = async (page: Page, runPath: RegExp, statusPath: RegExp): Promise<FakeServer> => {
-	// Lang genug, dass das Polling (1,5 s) einen Zwischenstand abfängt.
+	// Lang genug, dass das Polling (1,5 s) einen Zwischenstand abfängt. Die Ergebnis-Zusammenfassung
+	// erscheint erst mit dem ersten Poll NACH RUN_MS — Assertions darauf warten mit explizitem
+	// 10-s-Timeout (RUN_MS + 2 Poll-Intervalle + CI-Jitter), sonst flackert es unter Last.
 	const RUN_MS = 4000;
 	const done = new Set<number>();
 	const failedOnce = new Set<number>();
@@ -227,12 +229,12 @@ test.describe('Säulen-Neuberechnung (#1614)', () => {
 		await page.getByRole('button', { name: 'Start' }).click();
 		await expectLiveProgress(page);
 
-		await expect(page.getByText('10 Aufgaben neu zugeordnet', { exact: false })).toBeVisible();
+		await expect(page.getByText('10 Aufgaben neu zugeordnet', { exact: false })).toBeVisible({ timeout: 10_000 });
 		await expect(page.getByText('HTTP 429 (Rate-Limit des KI-Anbieters): 2')).toBeVisible();
 		expect(server.calls(), 'ein Start, die Portionen holt der Server selbst').toBe(1);
 
 		await page.getByRole('button', { name: 'Fortsetzen (2 offen)' }).click();
-		await expect(page.getByText('2 Aufgaben neu zugeordnet', { exact: false })).toBeVisible();
+		await expect(page.getByText('2 Aufgaben neu zugeordnet', { exact: false })).toBeVisible({ timeout: 10_000 });
 		await expect(page.getByRole('button', { name: /Fortsetzen/ })).toHaveCount(0);
 	});
 
@@ -280,13 +282,13 @@ test.describe('Säulen-Neuberechnung (#1614)', () => {
 		await page.getByRole('button', { name: 'Jetzt neu berechnen' }).click();
 		await expectLiveProgress(page);
 
-		await expect(page.getByText('10 Aufgaben neu zugeordnet', { exact: false })).toBeVisible();
+		await expect(page.getByText('10 Aufgaben neu zugeordnet', { exact: false })).toBeVisible({ timeout: 10_000 });
 		await expect(page.getByText('HTTP 429 (Rate-Limit des KI-Anbieters): 2')).toBeVisible();
 		expect(server.calls(), 'ein Start, die Portionen holt der Server selbst').toBe(1);
 
 		await page.getByRole('button', { name: 'Fortsetzen (2 offen)' }).click();
 		await page.getByRole('button', { name: 'Jetzt fortsetzen' }).click();
-		await expect(page.getByText('2 Aufgaben neu zugeordnet', { exact: false })).toBeVisible();
+		await expect(page.getByText('2 Aufgaben neu zugeordnet', { exact: false })).toBeVisible({ timeout: 10_000 });
 		await expect(page.getByRole('button', { name: /Fortsetzen/ })).toHaveCount(0);
 	});
 });

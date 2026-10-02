@@ -61,10 +61,12 @@
 		"dismiss": "Vorschlag ablehnen"
 	},
 	"onboarding": {
-		"step": "Krok {{step}} z 3",
+		"step": "Krok {{step}} z {{total}}",
 		"heading1": "Co Cię teraz zajmuje?",
 		"heading2": "Twoje sugestie",
 		"heading3": "Gotowy na start",
+		"headingWeights": "Twoje wagi początkowe",
+		"finishHeading": "Wszystko gotowe!",
 		"goalLabel": "Opisz własnymi słowami, gdzie teraz jesteś",
 		"weiter": "Dalej",
 		"spaeter": "Później",
@@ -76,6 +78,15 @@
 		"selectedCount": "Wybrano {{selected}} z {{total}} sugestii",
 		"suggestError": "Nie udało się pobrać sugestii",
 		"applyError": "Nie udało się utworzyć zadań",
-		"partialInfo": "{{count}} zadań jest już utworzonych — ponowne zastosowanie utworzy tylko brakujące."
+		"partialInfo": "{{count}} zadań jest już utworzonych — ponowne zastosowanie utworzy tylko brakujące.",
+		"balanceHint": "Twoja najsilniejsza oś to {{name}} ({{share}} %).",
+		"fertig": "Gotowe",
+		"emptyDescription": "Beschreibe, womit du gerade kämpfst — der Flow macht daraus erste Aufgaben. Deine Eingabe bleibt erhalten.",
+		"fortsetzen": "Flow fortsetzen",
+		"beispiele": "Beispiele zum Ausprobieren",
+		"beispiel1": "15 Minuten spazieren gehen",
+		"beispiel2": "Wichtige E-Mail beantworten",
+		"beispiel3": "Das kommende Wochenende planen",
+		"erstenTaskAnlegen": "Ersten Task anlegen"
 	}
 }

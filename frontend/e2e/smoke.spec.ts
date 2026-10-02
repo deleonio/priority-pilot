@@ -20,6 +20,7 @@ test('App lädt gegen das echte Backend und zeigt den leeren Anfangszustand', as
 	// Ohne Demo-Seed startet die DB leer → der Erststart-Flow (#2069) erscheint; „Später“ führt
 	// zur Onboarding-Ansicht (EmptyState).
 	await page.getByRole('button', { name: 'Später' }).click();
-	await expect(page.getByRole('heading', { name: 'Noch keine Aufgaben' })).toBeVisible();
+	// #2070 Test-Pflege: Der EmptyState heißt jetzt „Was beschäftigt dich gerade?“.
+	await expect(page.getByRole('heading', { name: 'Was beschäftigt dich gerade?' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Ersten Task anlegen' })).toBeVisible();
 });

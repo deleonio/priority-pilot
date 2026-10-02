@@ -61,10 +61,12 @@
 		"dismiss": "Vorschlag ablehnen"
 	},
 	"onboarding": {
-		"step": "Passo {{step}} di 3",
+		"step": "Passo {{step}} di {{total}}",
 		"heading1": "Cosa ti occupa in questo momento?",
 		"heading2": "I tuoi suggerimenti",
 		"heading3": "Pronto per iniziare",
+		"headingWeights": "La tua ponderazione iniziale",
+		"finishHeading": "Tutto pronto!",
 		"goalLabel": "Descrivi con parole tue a che punto sei",
 		"weiter": "Continua",
 		"spaeter": "Più tardi",
@@ -76,6 +78,15 @@
 		"selectedCount": "{{selected}} di {{total}} suggerimenti selezionati",
 		"suggestError": "Recupero dei suggerimenti non riuscito",
 		"applyError": "Creazione delle attività non riuscita",
-		"partialInfo": "{{count}} attività sono già state create — applicare di nuovo crea solo quelle mancanti."
+		"partialInfo": "{{count}} attività sono già state create — applicare di nuovo crea solo quelle mancanti.",
+		"balanceHint": "Il tuo pilastro più forte è {{name}} ({{share}} %).",
+		"fertig": "Fatto",
+		"emptyDescription": "Beschreibe, womit du gerade kämpfst — der Flow macht daraus erste Aufgaben. Deine Eingabe bleibt erhalten.",
+		"fortsetzen": "Flow fortsetzen",
+		"beispiele": "Beispiele zum Ausprobieren",
+		"beispiel1": "15 Minuten spazieren gehen",
+		"beispiel2": "Wichtige E-Mail beantworten",
+		"beispiel3": "Das kommende Wochenende planen",
+		"erstenTaskAnlegen": "Ersten Task anlegen"
 	}
 }

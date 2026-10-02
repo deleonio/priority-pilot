@@ -8,6 +8,7 @@ vi.mock('../api', () => ({
 		suggestInitialTasks: vi.fn(),
 		createTask: vi.fn(),
 		addDependency: vi.fn(),
+		setPillarWeights: vi.fn(),
 	},
 }));
 
@@ -43,7 +44,7 @@ const suggestions = [
 
 /** Lose getypte Mock-Handles — `suggestInitialTasks` existiert in api.ts erst mit der Umsetzung. */
 const apiMock = api as unknown as Record<
-	'suggestInitialTasks' | 'createTask' | 'addDependency',
+	'suggestInitialTasks' | 'createTask' | 'addDependency' | 'setPillarWeights',
 	ReturnType<typeof vi.fn>
 >;
 
@@ -116,6 +117,9 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 		await toggleCard('Erststart A', true);
 		await toggleCard('Erststart B', true);
 		await clickButton('Weiter');
+		// #2070 Test-Pflege: Gewichtungsschritt dazwischen — „Speichern" schließt Schritt 3 ab.
+		apiMock.setPillarWeights.mockResolvedValue(pillars);
+		await clickButton('Speichern');
 		// IDs für den Abhängigkeits-Mock (Test-Infrastruktur, Kreuzverhör #2081 Finding 1).
 		apiMock.createTask.mockResolvedValueOnce({ id: 101 }).mockResolvedValueOnce({ id: 102 });
 		await clickButton('Übernehmen');
@@ -136,8 +140,11 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 		apiMock.createTask.mockResolvedValueOnce({ id: 101 }).mockResolvedValueOnce({ id: 102 });
 		await gotoSuggestions();
 
-		// Nur Karte B gewählt — die Kaskade wählt Vorgänger A mit; beide werden angelegt, Kante B → A.
 		await toggleCard('Erststart B', true);
+		// #2070 Test-Pflege: Navigationspfad Weiter → Speichern → Übernehmen (Gewichtungsschritt).
+		await clickButton('Weiter');
+		apiMock.setPillarWeights.mockResolvedValue(pillars);
+		await clickButton('Speichern');
 		await clickButton('Übernehmen');
 
 		await waitFor(() => expect(apiMock.createTask).toHaveBeenCalledTimes(2));
@@ -148,6 +155,8 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 			taskCreate: expect.objectContaining({ title: 'Erststart B', pillarIds: [11] }),
 		});
 		expect(apiMock.addDependency).toHaveBeenCalledWith({ id: 102, dependencyInput: { dependingTaskId: 101 } });
+		// #2070: Apply zeigt die Abschluss-Karte — onClose feuert erst bei „Fertig" (Test-Pflege).
+		await clickButton('Fertig');
 		expect(onClose).toHaveBeenCalledTimes(1);
 	});
 
@@ -158,6 +167,9 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 		await toggleCard('Erststart B', true); // Kaskade: A + B
 		await toggleCard('Erststart A', false); // Kaskade: B fällt mit weg
 		await clickButton('Weiter');
+		// #2070 Test-Pflege: Gewichtungsschritt — „Speichern" führt zur Zusammenfassung (Schritt 4).
+		apiMock.setPillarWeights.mockResolvedValue(pillars);
+		await clickButton('Speichern');
 
 		// Schritt 3 zeigt Auswahl 0 — ohne Kaskade stünde hier eine verwaiste Karte mit still
 		// übersprungener „nach: …“-Zusage.
@@ -183,8 +195,11 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 		await toggleCard('Erststart A', true);
 		await toggleCard('Erststart B', true);
 		await toggleCard('Erststart C', true);
-		// Der applyError-Alert lebt in Schritt 3 (Zusammenfassung) — zuerst dorthin navigieren.
+		// Der applyError-Alert lebt im Zusammenfassungs-Schritt — zuerst dorthin navigieren
+		// (#2070 Test-Pflege: Gewichtungsschritt dazwischen).
 		await clickButton('Weiter');
+		apiMock.setPillarWeights.mockResolvedValue(pillars);
+		await clickButton('Speichern');
 		await clickButton('Übernehmen');
 
 		// Teilfehler bei C: A und B liegen an (IDs gemerkt), der Alert nennt den Stand.
@@ -200,6 +215,9 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 		apiMock.createTask.mockResolvedValueOnce({ id: 103 });
 		await clickButton('Übernehmen');
 
+		// #2070: Apply endet auf der Abschluss-Karte — „Fertig" schließt (Test-Pflege).
+		await waitFor(() => expect(button('Fertig')).toBeDefined());
+		await clickButton('Fertig');
 		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
 		expect(apiMock.createTask).toHaveBeenCalledTimes(4);
 		expect(apiMock.addDependency).toHaveBeenCalledTimes(1);
@@ -280,5 +298,76 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 
 		await clickButton('Später');
 		expect(onClose).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe('OnboardingFlow — Startgewichtung, Abschluss-Karte, dynamische Schritt-Anzeige (#2070, Spec AK1/AK2)', () => {
+	it('fuehrt die Startgewichtung als Schritt 3 von 4 ein — ohne sie ist der Flow nicht abschliessbar', async () => {
+		renderFlow();
+
+		// Dynamische Schritt-Anzeige: Gesamtschrittzahl 4, nicht die hart codierte 3.
+		const indicator = document.body.querySelector('.onboarding-step-indicator');
+		expect(indicator?.textContent).toContain('von 4');
+
+		await gotoSuggestions();
+		await toggleCard('Erststart A', true);
+		await toggleCard('Erststart B', true);
+		await clickButton('Weiter');
+
+		// Schritt 3 ist die eingebettete Startgewichtung (Speichern), nicht die Zusammenfassung.
+		await waitFor(() => expect(button('Speichern'), 'Gewichtungsschritt mit "Speichern" fehlt').toBeDefined());
+		const step3 = document.body.querySelector('.onboarding-step-indicator');
+		expect(step3?.textContent).toContain('Schritt 3 von 4');
+		// Ohne gespeicherte Gewichtung kein Übernehmen — der Button liegt erst auf Schritt 4.
+		expect(button('Übernehmen'), '"Übernehmen" vor Abschluss-Schritt sichtbar').toBeUndefined();
+	});
+
+	it('oeffnet nach dem Übernehmen die Abschluss-Karte (nächste Aufgabe abhakbar, Balance-Hinweis, "Fertig")', async () => {
+		const { onClose } = renderFlow();
+		apiMock.setPillarWeights.mockResolvedValue(pillars);
+		await gotoSuggestions();
+		await toggleCard('Erststart A', true);
+		await toggleCard('Erststart B', true);
+		await clickButton('Weiter');
+		await waitFor(() => expect(button('Speichern')).toBeDefined());
+		await clickButton('Speichern');
+		await waitFor(() => expect(apiMock.setPillarWeights).toHaveBeenCalledTimes(1));
+		await clickButton('Übernehmen');
+		await waitFor(() => expect(apiMock.createTask).toHaveBeenCalledTimes(2));
+
+		// Abschluss-Karte statt sofortigem onClose: Flow bleibt offen, nächste Aufgabe direkt abhakbar.
+		expect(onClose).not.toHaveBeenCalled();
+		await waitFor(() => expect(button('Fertig'), 'Abschluss-Karte ohne "Fertig"').toBeDefined());
+		const next = [...document.body.querySelectorAll('.onboarding-flow kol-input-checkbox')].find(
+			(el) => el.getAttribute('_label') === 'Erststart A',
+		);
+		expect(next, 'Nächste Aufgabe "Erststart A" nicht als Checkbox der Abschluss-Karte').toBeDefined();
+		expect(document.body.querySelector('.onboarding-flow')?.textContent).toContain('stärkste Säule');
+
+		await clickButton('Fertig');
+		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+	});
+
+	it('zeigt ohne eigene Auswahl in der Abschluss-Karte die erste Beispielaufgabe — rein lokal, ohne Task-Call (AK2)', async () => {
+		const { onClose } = renderFlow();
+		apiMock.setPillarWeights.mockResolvedValue(pillars);
+		await gotoSuggestions();
+		// Keine Karte ausgewählt — Schritt 2 führt trotzdem weiter, die Auswahl ist zulässig leer.
+		await clickButton('Weiter');
+		await waitFor(() => expect(button('Speichern')).toBeDefined());
+		await clickButton('Speichern');
+		await clickButton('Übernehmen');
+		await waitFor(() => expect(button('Fertig'), 'Abschluss-Karte ohne "Fertig"').toBeDefined());
+
+		// Fallback statt leerer Karte: erste Beispielaufgabe, rein lokal — kein createTask.
+		expect(apiMock.createTask).not.toHaveBeenCalled();
+		const fallback = [...document.body.querySelectorAll('.onboarding-flow kol-input-checkbox')].find(
+			(el) => el.getAttribute('_label') === '15 Minuten spazieren gehen',
+		);
+		expect(fallback, 'Erste Beispielaufgabe fehlt in der leeren Abschluss-Karte').toBeDefined();
+		expect(onClose).not.toHaveBeenCalled();
+
+		await clickButton('Fertig');
+		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
 	});
 });

@@ -61,10 +61,12 @@
 		"dismiss": "Vorschlag ablehnen"
 	},
 	"onboarding": {
-		"step": "Passo {{step}} de 3",
+		"step": "Passo {{step}} de {{total}}",
 		"heading1": "O que te ocupa neste momento?",
 		"heading2": "As tuas sugestões",
 		"heading3": "Pronto para começar",
+		"headingWeights": "A tua ponderação inicial",
+		"finishHeading": "Tudo pronto!",
 		"goalLabel": "Descreve com as tuas palavras onde estás neste momento",
 		"weiter": "Continuar",
 		"spaeter": "Mais tarde",
@@ -76,6 +78,15 @@
 		"selectedCount": "{{selected}} de {{total}} sugestões selecionadas",
 		"suggestError": "Falha ao obter as sugestões",
 		"applyError": "Falha ao criar as tarefas",
-		"partialInfo": "{{count}} tarefas já foram criadas — aplicar novamente cria apenas as que faltam."
+		"partialInfo": "{{count}} tarefas já foram criadas — aplicar novamente cria apenas as que faltam.",
+		"balanceHint": "O teu pilar mais forte é {{name}} ({{share}} %).",
+		"fertig": "Pronto",
+		"emptyDescription": "Beschreibe, womit du gerade kämpfst — der Flow macht daraus erste Aufgaben. Deine Eingabe bleibt erhalten.",
+		"fortsetzen": "Flow fortsetzen",
+		"beispiele": "Beispiele zum Ausprobieren",
+		"beispiel1": "15 Minuten spazieren gehen",
+		"beispiel2": "Wichtige E-Mail beantworten",
+		"beispiel3": "Das kommende Wochenende planen",
+		"erstenTaskAnlegen": "Ersten Task anlegen"
 	}
 }

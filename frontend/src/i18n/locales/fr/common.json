@@ -61,10 +61,12 @@
 		"dismiss": "Vorschlag ablehnen"
 	},
 	"onboarding": {
-		"step": "Étape {{step}} sur 3",
+		"step": "Étape {{step}} sur {{total}}",
 		"heading1": "Qu'est-ce qui te préoccupe en ce moment ?",
 		"heading2": "Tes suggestions",
 		"heading3": "Prêt à démarrer",
+		"headingWeights": "Ta pondération de départ",
+		"finishHeading": "Tout est prêt !",
 		"goalLabel": "Décris avec tes propres mots où tu en es",
 		"weiter": "Continuer",
 		"spaeter": "Plus tard",
@@ -76,6 +78,15 @@
 		"selectedCount": "{{selected}} suggestions sélectionnées sur {{total}}",
 		"suggestError": "Échec de la récupération des suggestions",
 		"applyError": "Échec de la création des tâches",
-		"partialInfo": "{{count}} tâches sont déjà créées — appliquer à nouveau ne crée que les manquantes."
+		"partialInfo": "{{count}} tâches sont déjà créées — appliquer à nouveau ne crée que les manquantes.",
+		"balanceHint": "Ton pilier le plus fort est {{name}} ({{share}} %).",
+		"fertig": "Terminé",
+		"emptyDescription": "Beschreibe, womit du gerade kämpfst — der Flow macht daraus erste Aufgaben. Deine Eingabe bleibt erhalten.",
+		"fortsetzen": "Flow fortsetzen",
+		"beispiele": "Beispiele zum Ausprobieren",
+		"beispiel1": "15 Minuten spazieren gehen",
+		"beispiel2": "Wichtige E-Mail beantworten",
+		"beispiel3": "Das kommende Wochenende planen",
+		"erstenTaskAnlegen": "Ersten Task anlegen"
 	}
 }

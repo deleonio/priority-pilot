@@ -61,10 +61,12 @@
 		"dismiss": "Vorschlag ablehnen"
 	},
 	"onboarding": {
-		"step": "Шаг {{step}} из 3",
+		"step": "Шаг {{step}} из {{total}}",
 		"heading1": "Что тебя сейчас занимает?",
 		"heading2": "Твои предложения",
 		"heading3": "Всё готово к старту",
+		"headingWeights": "Ваши начальные веса",
+		"finishHeading": "Всё готово!",
 		"goalLabel": "Опиши своими словами, где ты сейчас находишься",
 		"weiter": "Далее",
 		"spaeter": "Позже",
@@ -76,6 +78,15 @@
 		"selectedCount": "Выбрано {{selected}} из {{total}} предложений",
 		"suggestError": "Не удалось получить предложения",
 		"applyError": "Не удалось создать задачи",
-		"partialInfo": "{{count}} задач уже созданы — повторное применение создаст только недостающие."
+		"partialInfo": "{{count}} задач уже созданы — повторное применение создаст только недостающие.",
+		"balanceHint": "Ваш самый сильный столп — {{name}} ({{share}} %).",
+		"fertig": "Готово",
+		"emptyDescription": "Beschreibe, womit du gerade kämpfst — der Flow macht daraus erste Aufgaben. Deine Eingabe bleibt erhalten.",
+		"fortsetzen": "Flow fortsetzen",
+		"beispiele": "Beispiele zum Ausprobieren",
+		"beispiel1": "15 Minuten spazieren gehen",
+		"beispiel2": "Wichtige E-Mail beantworten",
+		"beispiel3": "Das kommende Wochenende planen",
+		"erstenTaskAnlegen": "Ersten Task anlegen"
 	}
 }
