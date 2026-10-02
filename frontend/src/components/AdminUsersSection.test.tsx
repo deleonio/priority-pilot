@@ -66,6 +66,11 @@ vi.mock('@public-ui/react-v19', () => ({
 vi.mock('../api', () => ({
 	api: {
 		getAdminUsers: vi.fn(),
+		// #1959: Admin-Abo-Aktionen — ohne Mock-Key würden spätere Aufrufe in den Fehlerpfad laufen.
+		// Cast über Record: die Methoden existieren im api-Typ erst nach der openapi-Regeneration der
+		// Impl-Phase (MEMORY-Muster 2026-08-23 — Pre-Commit-tsc darf am roten Test nicht sterben).
+		lockUserSubscription: vi.fn(),
+		cancelUserSubscription: vi.fn(),
 		// #1983 (AK6): Zulassungsliste — ohne Mock-Key liefe der Loader in den Fehler-Alert
 		// und kippte die Bestands-Assertions.
 		getAllowedEmails: vi.fn(),
@@ -89,6 +94,8 @@ const mockGetAdminUsers = api.getAdminUsers as ReturnType<typeof vi.fn>;
 const mockGetAllowedEmails = api.getAllowedEmails as ReturnType<typeof vi.fn>;
 const mockUpdateUserRole = api.updateUserRole as ReturnType<typeof vi.fn>;
 const mockReassignTaskPillars = api.reassignTaskPillars as ReturnType<typeof vi.fn>;
+const mockLockUserSubscription = (api as unknown as Record<string, ReturnType<typeof vi.fn>>).lockUserSubscription;
+const mockCancelUserSubscription = (api as unknown as Record<string, ReturnType<typeof vi.fn>>).cancelUserSubscription;
 const mockGetReassignPillarsStatus = api.getReassignPillarsStatus as ReturnType<typeof vi.fn>;
 /** Noch nie gelaufen — dann gibt es kein „Fortsetzen“. */
 const NO_RUN = { startedAt: null, total: 0, pending: 0 };
@@ -136,6 +143,9 @@ type TestUser = {
 	plan: 'free' | 'pro' | 'max' | 'ultimate';
 	createdAt: string;
 	aiRequestsThisMonth?: number;
+	// #1959: Abo-Status je Nutzer — der Client-Typ zieht in der Impl-Phase nach (openapi-
+	// Regeneration); lokal optional, damit Bestands-Tests unberührt bleiben.
+	subscriptionStatus?: string | null;
 };
 
 const user = (overrides: Partial<TestUser>): TestUser => ({
@@ -573,5 +583,89 @@ describe('AdminUsersSection — Statusauswahl und Fortschritt (#1614)', () => {
 
 		await waitFor(() => expect(mockReassignTaskPillars).toHaveBeenCalled());
 		expect(mockReassignTaskPillars.mock.calls[0][0]).toMatchObject({ restart: false });
+	});
+});
+
+/**
+ * #1959 (Spec docs/spec/issue-1959.md): Zeilen-Aktionen „Abo sperren“/„Abo stornieren“ mit je
+ * einem Ja/Nein-Bestätigungsdialog — „Abbrechen“ setzt keinen Request ab (AK4), „Jetzt
+ * sperren“/„Jetzt stornieren“ führt die Aktion aus (Labels benennen die Aktion, Muster „Jetzt neu
+ * berechnen“); der Sperr-Status ist als Text-Badge in der Zeile sichtbar (AK1). Das verbindliche
+ * Fokus-Management sitzt im Modal (KolDialog) und wird in der e2e nachgewiesen — hier ist `Modal`
+ * jsdom-gemockt (Muster der Bestandsdatei).
+ */
+describe('AdminUsersSection — Abo sperren/stornieren (#1959)', () => {
+	const row = (): HTMLElement => screen.getByText('Bernd Beta').closest('li') as HTMLElement;
+
+	/** Zustandsbehafteter Mock: die Sperrung spiegelt sich im nachgeladenen GET wider. */
+	const renderWithUsers = (): void => {
+		let locked = false;
+		mockGetAdminUsers.mockImplementation(() =>
+			Promise.resolve([
+				user({ id: 1, displayName: 'Anna Admin' }),
+				user({
+					id: 7,
+					displayName: 'Bernd Beta',
+					email: 'bernd@example.com',
+					role: 'member',
+					plan: 'pro',
+					subscriptionStatus: locked ? 'locked' : 'active',
+				}),
+			]),
+		);
+		mockLockUserSubscription.mockImplementation(() => {
+			locked = true;
+			return Promise.resolve({});
+		});
+		mockCancelUserSubscription.mockResolvedValue({});
+		render(<AdminUsersSection />);
+	};
+
+	it('AK1: zeigt den Sperr-Status als Text-Badge in der Zeile', async () => {
+		mockGetAdminUsers.mockResolvedValue([
+			user({ id: 1, displayName: 'Anna Admin' }),
+			user({ id: 7, displayName: 'Bernd Beta', role: 'member', plan: 'pro', subscriptionStatus: 'locked' }),
+		]);
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Bernd Beta')).toBeInTheDocument());
+
+		expect(within(row()).getByText('Gesperrt')).toBeInTheDocument();
+	});
+
+	it('AK4: „Abbrechen“ im Sperr-Dialog setzt keinen Request ab und schließt den Dialog', async () => {
+		renderWithUsers();
+		await waitFor(() => expect(screen.getByText('Bernd Beta')).toBeInTheDocument());
+
+		fireEvent.click(within(row()).getByRole('button', { name: 'Abo sperren' }));
+		expect(screen.getByRole('button', { name: 'Jetzt sperren' })).toBeInTheDocument();
+		fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
+
+		expect(screen.queryByRole('button', { name: 'Jetzt sperren' })).not.toBeInTheDocument();
+		expect(mockLockUserSubscription).not.toHaveBeenCalled();
+	});
+
+	it('AK4: „Jetzt sperren“ ruft lockUserSubscription auf und die Zeile zeigt „Gesperrt“', async () => {
+		renderWithUsers();
+		await waitFor(() => expect(screen.getByText('Bernd Beta')).toBeInTheDocument());
+
+		fireEvent.click(within(row()).getByRole('button', { name: 'Abo sperren' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Jetzt sperren' }));
+
+		await waitFor(() => expect(mockLockUserSubscription).toHaveBeenCalledWith({ id: 7 }));
+		await waitFor(() => expect(within(row()).getByText('Gesperrt')).toBeInTheDocument());
+	});
+
+	it('AK4: Storno-Dialog bricht ohne Request ab; „Jetzt stornieren“ ruft cancelUserSubscription auf', async () => {
+		renderWithUsers();
+		await waitFor(() => expect(screen.getByText('Bernd Beta')).toBeInTheDocument());
+
+		fireEvent.click(within(row()).getByRole('button', { name: 'Abo stornieren' }));
+		expect(screen.getByRole('button', { name: 'Jetzt stornieren' })).toBeInTheDocument();
+		fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
+		expect(mockCancelUserSubscription).not.toHaveBeenCalled();
+
+		fireEvent.click(within(row()).getByRole('button', { name: 'Abo stornieren' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Jetzt stornieren' }));
+		await waitFor(() => expect(mockCancelUserSubscription).toHaveBeenCalledWith({ id: 7 }));
 	});
 });
