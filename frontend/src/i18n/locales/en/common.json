@@ -59,5 +59,23 @@
 		"accept": "Accept suggestion",
 		"notNow": "Not now",
 		"dismiss": "Dismiss suggestion"
+	},
+	"onboarding": {
+		"step": "Step {{step}} of 3",
+		"heading1": "What's on your mind right now?",
+		"heading2": "Your suggestions",
+		"heading3": "Ready to start",
+		"goalLabel": "Describe in your own words where you stand right now",
+		"weiter": "Continue",
+		"spaeter": "Later",
+		"uebernehmen": "Apply",
+		"loading": "Preparing suggestions",
+		"saule": "Pillar: {{name}}",
+		"nach": "after: {{title}}",
+		"empty": "The AI service didn't find any suggestions right now. You can try again later.",
+		"selectedCount": "{{selected}} of {{total}} suggestions selected",
+		"suggestError": "Fetching suggestions failed",
+		"applyError": "Creating the tasks failed",
+		"partialInfo": "{{count}} tasks are already created — applying again only creates the missing ones."
 	}
 }

@@ -254,3 +254,10 @@ Konflikte, die er verhindern soll.
 - 2026-10-02 · Vitest/RTL — `expect(screen.queryByRole('slider')).toHaveLength(0)` ist nie grün: `queryByRole` liefert bei 0 Treffern `null`, `toHaveLength` wirft dann „Target cannot be null or undefined“. → `queryAllByRole(...).toHaveLength(0)`; Abweichung vom Spec-Text als Test-Pflege im PR-Body dokumentieren.
 - 2026-10-02 · E2e/Dependency-Dialog — ein Task MIT Abhängigkeit ist eine Unteraufgabe und verschwindet aus der flachen Aufgabenliste; der Dialog lässt sich dafür nicht mehr über `task-list-item-*` öffnen. → Im Graph-Tab öffnen: `graph-node-<id>` klicken, dann „Abhängigkeiten bearbeiten“ (Muster task-graph.spec.ts).
 - 2026-10-02 · Server-API-Tests — `server.register()` säht fünf Standard-Säulen pro Nutzer (#421, `auth.ts:82` Pillar.bulkCreate); Tests, die einen Nutzer OHNE Säulen oder mit exakt bekannten Säulen-IDs brauchen, scheitern daran rätselhaft (503-Test → 200, fremde pillarId) → `server.login(email)` (Test-Login, keine Seeding) nutzen, Muster `suggest-pillars.test.ts` AK4.
+- 2026-10-02 · e2e — Lokale Multi-Spec-Läufe teilen EINEN Server/DB (workers=1), CI-Shards (verify.yml, /8) isolieren je Job: Specs mit 0-Task-Voraussetzung (smoke, crud-Test 1) sind lokal nur shard-aequivalent einzeln pruefbar, sonst scheinen sie faelschlich rot → `playwright test --list --shard=N/8` zeigt die Zuteilung.
+- 2026-10-02 · E2E/Fokus — Element-Entfernung (Flow/Modal schließen per Klick) löscht den Fokus,
+  aber NICHT Chromes Sequential-Focus-Starting-Point: der nächste Tab startet an der alten
+  Position des entfernten Elements, nicht am Dokumentanfang (#2081: erster Tab landete auf dem
+  EmptyState-Button statt `.logo-btn`). → Vor Tab-Ordnungs-Assertions
+  `document.body` `tabindex="-1"` setzen und programmatisch fokussieren, dann startet die
+  Tab-Navigation wieder vorne.

@@ -59,5 +59,23 @@
 		"accept": "Vorschlag übernehmen",
 		"notNow": "Nicht jetzt",
 		"dismiss": "Vorschlag ablehnen"
+	},
+	"onboarding": {
+		"step": "Krok {{step}} z 3",
+		"heading1": "Co Cię teraz zajmuje?",
+		"heading2": "Twoje sugestie",
+		"heading3": "Gotowy na start",
+		"goalLabel": "Opisz własnymi słowami, gdzie teraz jesteś",
+		"weiter": "Dalej",
+		"spaeter": "Później",
+		"uebernehmen": "Zastosuj",
+		"loading": "Przygotowywanie sugestii",
+		"saule": "Filar: {{name}}",
+		"nach": "po: {{title}}",
+		"empty": "Usługa AI nie znalazła teraz żadnych sugestii. Możesz spróbować ponownie później.",
+		"selectedCount": "Wybrano {{selected}} z {{total}} sugestii",
+		"suggestError": "Nie udało się pobrać sugestii",
+		"applyError": "Nie udało się utworzyć zadań",
+		"partialInfo": "{{count}} zadań jest już utworzonych — ponowne zastosowanie utworzy tylko brakujące."
 	}
 }
