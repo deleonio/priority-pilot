@@ -947,11 +947,12 @@ describe('TaskForm — Säulen-Verteilung ohne geladene Säulen (#440/#1596)', (
 });
 
 /**
- * #1962 (Review-Finding): Pflicht ist die Hauptsäule — ein Anlegen ohne jede Säule wird im
- * Submit-Pfad abgewiesen (der Task fehlte sonst in der Balance-Rechnung).
+ * #1962 (Fixup, PO-Entscheidung): Die Hauptsäule ist beim Anlegen vorausgewählt (erste Säule
+ * der Liste — ein Balance-Defizit liegt im Formular nicht vor), Absenden funktioniert ohne
+ * eigene Wahl. Der Submit-Guard bleibt als Sicherheitsnetz, wenn gar keine Säulen existieren.
  */
-describe('TaskForm — Hauptsäulen-Pflicht beim Anlegen (#1962)', () => {
-	it('Anlegen ohne Hauptsäule: Fehlermeldung, kein createTask', async () => {
+describe('TaskForm — Hauptsäule vorausgewählt beim Anlegen (#1962)', () => {
+	it('Anlegen ohne eigene Wahl: erste Säule ist vorbelegt, createTask läuft', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 		mockCreateTask.mockResolvedValue(minimalNewTask());
 
@@ -959,9 +960,36 @@ describe('TaskForm — Hauptsäulen-Pflicht beim Anlegen (#1962)', () => {
 			render(<TaskForm task={null} {...defaultProps} />);
 		});
 
+		// Vorbelegung: genau eine Beitragszeile (die Hauptsäule, Anteil 100 %) statt Leerstand.
+		expect(document.querySelectorAll('.pillar-row')).toHaveLength(1);
+
 		const titleInput = screen.getByRole('textbox', { name: /titel/i });
 		await act(async () => {
-			fireEvent.change(titleInput, { target: { value: 'Ohne Hauptsäule' } });
+			fireEvent.change(titleInput, { target: { value: 'Mit Vorbelegung' } });
+			fireEvent.blur(titleInput);
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Anlegen' }));
+		});
+
+		expect(mockCreateTask).toHaveBeenCalledTimes(1);
+		expect(screen.queryByText(/Bitte eine Hauptsäule wählen/)).toBeNull();
+	});
+
+	it('Anlegen ohne Säulen: Fehlermeldung, kein createTask (Sicherheitsnetz)', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} pillars={[]} />);
+		});
+
+		expect(document.querySelectorAll('.pillar-row')).toHaveLength(0);
+
+		const titleInput = screen.getByRole('textbox', { name: /titel/i });
+		await act(async () => {
+			fireEvent.change(titleInput, { target: { value: 'Ohne Säulen' } });
 			fireEvent.blur(titleInput);
 		});
 
@@ -2954,7 +2982,7 @@ describe('#1962 — Hauptsäulen-Modus', () => {
 	const rowLabels = (): (string | null)[] =>
 		Array.from(document.querySelectorAll('.pillar-row input')).map((input) => input.getAttribute('aria-label'));
 
-	it('AK2 — kein erzwungenes Vorbelegen: ohne Wahl keine Zeilen, mit Hauptsäule genau eine und Payload mit genau einem Beitrag', async () => {
+	it('AK2 — Hauptsäule vorausgewählt (erste Säule), Änderung übernimmt genau eine Zeile ins Payload', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 		mockCreateTask.mockResolvedValue(minimalNewTask());
 
@@ -2962,9 +2990,9 @@ describe('#1962 — Hauptsäulen-Modus', () => {
 			render(<TaskForm task={null} {...defaultProps} pillars={fivePillars} />);
 		});
 
-		// Vor der Wahl keine stillen Vorbelegungen der übrigen Säulen (heute: alle fünf vorbefüllt).
+		// Vorbelegung (PO-Entscheidung): erste Säule der Liste mit genau einer Zeile (Anteil 100 %).
 		expect(screen.getByLabelText('Hauptsäule')).toBeInTheDocument();
-		expect(document.querySelectorAll('.pillar-row')).toHaveLength(0);
+		expect(rowLabels()).toEqual(['Körper: 100 %']);
 
 		await chooseMainPillar(2);
 		expect(rowLabels()).toEqual(['Mentale Gesundheit: 100 %']);

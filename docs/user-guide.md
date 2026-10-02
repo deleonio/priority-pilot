@@ -273,9 +273,9 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
   Vergleich; du entscheidest, ob du den Vorschlag übernimmst.
 - **Kategorie (optional)** – das Thema, zu dem die Aufgabe gehört (siehe „Kategorien").
   Höchstens eine je Aufgabe; sie ordnet nur, sie verändert die Priorisierung nicht.
-- **Säulen-Verteilung** – wie stark die Aufgabe auf die Lebensbereiche einzahlt. Pflicht ist die
-  **Hauptsäule**; die Restverteilung erscheint als übernehmbarer Vorschlag
-  (siehe „Lebensbalance-Säulen").
+- **Säulen-Verteilung** – wie stark die Aufgabe auf die Lebensbereiche einzahlt. Die **Hauptsäule**
+  ist vorausgewählt und lässt sich ändern; die Restverteilung erscheint als übernehmbarer
+  Vorschlag (siehe „Lebensbalance-Säulen").
 - **Empfänger** – für wen die Aufgabe bestimmt ist: dich selbst oder ein Mitglied
   einer deiner Gruppen (siehe „Gruppen"). Das Feld erscheint, solange du Mitglied
   mindestens einer Gruppe bist. Wählst du beim **Bearbeiten** ein fremdes Konto,

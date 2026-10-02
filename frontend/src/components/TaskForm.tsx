@@ -336,9 +336,9 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	// umfasst die Verteilung im Anlege-Flow zunächst nur die gewählte Hauptsäule. `confidence`
 	// bleibt 0–100 und wird nicht mehr im Formular
 	// bearbeitet: Bestandswerte bleiben, neue Beiträge bekommen 100 bzw. den Wert des KI-Vorschlags.
-	// #1962: Im Anlege-Flow startet die Verteilung leer — die Hauptsäule wird gewählt, die
-	// Restverteilung ist ein übernehmbarer Vorschlag. Nur der Edit-Flow übernimmt die gespeicherte
-	// Verteilung und vervollständigt sie auf alle Säulen.
+	// #1962: Im Anlege-Flow wird die Hauptsäule vorausgewählt (s. u.) — die Restverteilung ist ein
+	// übernehmbarer Vorschlag. Nur der Edit-Flow übernimmt die gespeicherte Verteilung und
+	// vervollständigt sie auf alle Säulen.
 	const [contributions, setContributions] = useState<TaskPillarContribution[]>(() =>
 		isEdit ? fillContributions(pillars, task?.pillars ?? series?.pillars ?? []) : [],
 	);
@@ -764,6 +764,18 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 		});
 	}, [pillars, isEdit]);
 
+	// #1962 (Fixup): Die Hauptsäule ist im Anlege-Flow vorausgewählt — PO-Entscheidung statt
+	// harter Pflicht, damit Anlegen ohne Zusatzschritt funktioniert. Ein Balance-Defizit liegt
+	// im Formular nicht vor, also die erste Säule der Liste. Der Submit-Guard bleibt als
+	// Sicherheitsnetz für den Fall, dass gar keine Säulen existieren.
+	useEffect(() => {
+		if (isEdit || mainPillarId !== null || pillars.length === 0) {
+			return;
+		}
+		chooseMainPillar(String(pillars[0].id));
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [pillars, isEdit, mainPillarId]);
+
 	// #1342 (AK1): Einmalig die gespeicherten Orte laden. Ein Ladefehler bleibt stumm — das
 	// Adressfeld funktioniert dann wie bisher, nur ohne Favoritenzeilen.
 	useEffect(() => {
@@ -889,8 +901,9 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 			setError('Das Startdatum ist kein gültiges Datum.');
 			return;
 		}
-		// #1962: Pflicht ist die Hauptsäule — ein neuer Task/Serie ohne jede Säule fehlte in der
-		// Balance-Rechnung. Nur im Anlege-Flow; Edits übernehmen die gespeicherte Verteilung.
+		// #1962: Sicherheitsnetz — die Hauptsäule ist vorausgewählt; der Fehler greift nur, wenn
+		// gar keine Säulen existieren (ein neuer Task/Serie ohne jede Säule fehlte in der
+		// Balance-Rechnung). Nur im Anlege-Flow; Edits übernehmen die gespeicherte Verteilung.
 		if (!isEdit && contributions.length === 0) {
 			setError('Bitte eine Hauptsäule wählen.');
 			return;
@@ -1301,10 +1314,11 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 									}}
 								/>
 							</div>
-							{/* #1962: Säulen-Verteilung im Hauptsäulen-Modus — die Hauptsäule ist Pflicht,
-							    die Restverteilung ist ein übernehmbarer Vorschlag (Regel-Fallback synchron;
-							    der KI-Vorschlag läuft über „Säulen vorschlagen"). Ohne Hauptsäule stehen
-							    keine Beitragszeilen, mit Wahl genau eine (Anteil 100 %). Ein Reglerzug
+							{/* #1962: Säulen-Verteilung im Hauptsäulen-Modus — die Hauptsäule ist
+							    vorausgewählt (erste Säule), die Restverteilung ist ein übernehmbarer
+							    Vorschlag (Regel-Fallback synchron; der KI-Vorschlag läuft über
+							    „Säulen vorschlagen"). Steht genau eine Beitragszeile (Anteil 100 %).
+							    Ein Reglerzug
 							    zieht die anderen Säulen nach, die Summe bleibt 100 %; unter den
 							    Mindestanteil (5 %) fällt keine Säule, weil jede Aufgabe auf jeden
 							    Lebensbereich einzahlt — nur unterschiedlich stark (#1596). */}
