@@ -45,5 +45,19 @@
 			"label": "How the streak counts",
 			"text": "A day counts when you complete at least one task on it. Late completions count for the due date. The streak is the unbroken run of such days up to today or yesterday. If a day is missed up to yesterday, it drops to 0 — your best mark stays."
 		}
+	},
+	"care": {
+		"label": "Care hint",
+		"kiBadge": "AI suggestion",
+		"empty": "There is no suggestion for you right now. Keep going at your own pace.",
+		"deficit": "{{saeuleName}} could use some care this week. {{titel}}?",
+		"overload": "You have given a lot lately. Taking it easier today is allowed: {{beschreibung}}",
+		"helpBefore": "Not a substitute for medical advice. In a crisis, you can reach the",
+		"helpLink": "TelefonSeelsorge: 0800 111 0 111",
+		"helpAfter": "(free, around the clock).",
+		"error": "Could not be created. Please try again in a moment.",
+		"accept": "Accept suggestion",
+		"notNow": "Not now",
+		"dismiss": "Dismiss suggestion"
 	}
 }

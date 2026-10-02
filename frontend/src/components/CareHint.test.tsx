@@ -287,7 +287,11 @@ describe('CareHint (#1793)', () => {
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
 		const { unmount } = render(<CareHint />);
 		let el = await zeigeHinweis();
-		expect(el.textContent).toContain('Körper could use some care this week. Zehn Minuten spazieren gehen?');
+		// Test-Pflege (#2063): der Spec-Vertrag schrieb {{titel}}, aber Deutsch bleibt wortgleich
+		// (`beschreibung ?? titel`, AK1 #1793) — der en-Text spiegelt dasselbe Verhalten.
+		expect(el.textContent).toContain(
+			'Körper could use some care this week. Ein kurzer Spaziergang an der frischen Luft?',
+		);
 		expect(el.textContent).not.toContain('kam diese Woche zu kurz');
 		unmount();
 

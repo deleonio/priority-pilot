@@ -45,5 +45,19 @@
 			"label": "Så räknas serien",
 			"text": "En dag räknas om du bockar av minst en uppgift den dagen. Sent avklarat räknas för förfallodagen. Serien är den obrutna följden av sådana dagar till idag eller igår. Saknas en dag till igår faller den till 0 — ditt rekord finns kvar."
 		}
+	},
+	"care": {
+		"label": "Fürsorge-Hinweis",
+		"kiBadge": "KI-Vorschlag",
+		"empty": "Gerade gibt es keinen Vorschlag für dich. Mach in deinem Tempo weiter.",
+		"deficit": "{{saeuleName}} kam diese Woche zu kurz. {{titel}}?",
+		"overload": "Du hast zuletzt viel geleistet. Ein Ausgleich darf heute sein: {{beschreibung}}",
+		"helpBefore": "Kein Ersatz für ärztlichen Rat. In einer Krise erreichst du die",
+		"helpLink": "TelefonSeelsorge: 0800 111 0 111",
+		"helpAfter": "(kostenfrei, rund um die Uhr).",
+		"error": "Konnte nicht angelegt werden. Versuch es gleich noch einmal.",
+		"accept": "Vorschlag übernehmen",
+		"notNow": "Nicht jetzt",
+		"dismiss": "Vorschlag ablehnen"
 	}
 }
