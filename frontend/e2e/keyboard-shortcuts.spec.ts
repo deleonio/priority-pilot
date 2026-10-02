@@ -20,6 +20,14 @@ import { openAccordionSection, setEqualPillarWeights, taskTitleText, waitForStab
  * **Isolation:** Tests, die einen Task anlegen, räumen über `afterEach` alle Tasks via echter API
  * wieder ab (analog `crud.spec.ts`), damit jeder Test von einem leeren Zustand startet.
  */
+// #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
+// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+test.beforeEach(async ({ page }) => {
+	await page.addInitScript(() => {
+		localStorage.setItem('pp-expert-mode', 'true');
+	});
+});
+
 test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {

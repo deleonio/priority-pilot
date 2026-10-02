@@ -17,6 +17,14 @@ import { openAccordionSection, waitForStableView } from './helpers';
  * **Isolation:** Die In-Memory-DB überlebt den ganzen Backend-Prozess; `afterEach` räumt darum erst
  * alle Tasks (auch generierte Instanzen), dann alle Serien über die echte API wieder ab.
  */
+// #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
+// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+test.beforeEach(async ({ page }) => {
+	await page.addInitScript(() => {
+		localStorage.setItem('pp-expert-mode', 'true');
+	});
+});
+
 test.describe('Balamentum — Serien-Frontend gegen das echte Backend (#142)', () => {
 	// Eindeutige Titel je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen.
 	let runId = 0;

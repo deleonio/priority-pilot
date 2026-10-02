@@ -68,8 +68,8 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		// KolDetails (statt eigener Zeilen) unter dem Master-Schalter — 2 Sub-Zeilen dazu.
 		// Ihr Inhalt bleibt bei geschlossenem KolDetails im DOM (Breite gesetzt, Höhe kollabiert).
 		// Seit #1792 kommt der Balance-Schalter als weitere Hauptzeile dazu → 6 Zeilen, seit #1794
-		// kommt der Fürsorge-Schalter dazu → 7.
-		await expect(rows).toHaveCount(7);
+		// kommt der Fürsorge-Schalter dazu → 7, seit #1984 der Expertenmodus-Schalter → 8.
+		await expect(rows).toHaveCount(8);
 
 		// Volle Breite gilt für die Hauptzeilen; die Sub-Zeilen sitzen im Accordion-Kollapsbereich
 		// und liegen dafür versetzt unter dem Master.
@@ -116,10 +116,10 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 
 		const rows = page.locator('.settings-general .settings-switch-row');
 		// Seit #1183: 3 Switches, seit #1227 (s. AK1) 5 Zeilen, seit #1792 6 (Balance-Schalter dazu),
-		// seit #1794 7 (Fürsorge-Schalter dazu).
-		await expect(rows).toHaveCount(7);
+		// seit #1794 7 (Fürsorge-Schalter dazu), seit #1984 8 (Expertenmodus-Schalter dazu).
+		await expect(rows).toHaveCount(8);
 
-		for (let i = 0; i < 7; i++) {
+		for (let i = 0; i < 8; i++) {
 			const style = await rows.nth(i).evaluate((el) => {
 				const computed = window.getComputedStyle(el);
 				return { flexDirection: computed.flexDirection, alignItems: computed.alignItems };
@@ -153,8 +153,8 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		const switches = page.locator('.settings-general kol-input-checkbox[_variant="switch"]');
 		// Seit #1183: 3 Switches, seit #1227 5 (Sprachaufnahme, Animationen, Herz animieren,
 		// Erledigt animieren, Push), seit #1792 6 (Balance-Priorisierung dazu), seit #1794 7
-		// (Fürsorge-Hinweise dazu).
-		await expect(switches).toHaveCount(7);
+		// (Fürsorge-Hinweise dazu), seit #1984 8 (Expertenmodus dazu).
+		await expect(switches).toHaveCount(8);
 
 		// Das Öffnen animiert die Zeilenhöhe (CSS-Transition) — auf den Endzustand des zuletzt
 		// eingeblendeten Feinschalters („Erledigt animieren") warten, bevor gemessen wird. Am
@@ -166,7 +166,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		);
 		await expect.poll(async () => (await lastSwitch.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
-		for (let i = 0; i < 7; i++) {
+		for (let i = 0; i < 8; i++) {
 			const box = await switches.nth(i).boundingBox();
 			expect(box).toBeTruthy();
 			expect(box!.height).toBeGreaterThanOrEqual(44);

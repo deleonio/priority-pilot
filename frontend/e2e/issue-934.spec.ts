@@ -16,6 +16,14 @@ import { waitForStableView } from './helpers';
  * Messgrundlage ist der Light-DOM-Host `kol-input-range` (boundingBox = Border-Box) — die 300 px
  * beziehen sich auf das Host-Element, damit Slider und Zahlenfeld im Shadow-DOM nicht umbrechen.
  */
+// #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
+// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+test.beforeEach(async ({ page }) => {
+	await page.addInitScript(() => {
+		localStorage.setItem('pp-expert-mode', 'true');
+	});
+});
+
 test.describe('#934 InputRange-Mindestbreite', () => {
 	/** Toleranz für Sub-Pixel-Rundungen der Layout-Engine. */
 	const TOLERANCE_PX = 1;

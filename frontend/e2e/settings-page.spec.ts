@@ -23,6 +23,14 @@ import { headerAction, setEqualPillarWeights, waitForStableView } from './helper
  * Sie prüfen reines UI-Verhalten gegen das echte Backend (kein API-Mock, wie in `crud.spec.ts`);
  * `/auth/me` wird durch die Fixture authentifiziert, damit die Auth-Gate durchlässig ist.
  */
+// #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
+// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+test.beforeEach(async ({ page }) => {
+	await page.addInitScript(() => {
+		localStorage.setItem('pp-expert-mode', 'true');
+	});
+});
+
 test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings/pillars', () => {
 	/**
 	 * AK1 — Zahnrad in der Toolbar, kein Popover: Die Toolbar „Kopf-Aktionen" enthält einen icon-only

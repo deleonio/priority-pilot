@@ -349,6 +349,12 @@ const SeriesEditForm = TaskForm as unknown as (
 	props: typeof defaultProps & { task: null; series: Series },
 ) => ReactNode;
 
+// #1984: Bestands-Tests prüfen das Expertenverhalten (Regler sichtbar) — Präferenz explizit an.
+// Die #1984-Spec-Tests entfernen den Key im Testkörper selbst und bleiben im Standardmodus.
+beforeEach(() => {
+	localStorage.setItem('pp-expert-mode', 'true');
+});
+
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
@@ -3079,5 +3085,36 @@ describe('#1962 — Hauptsäulen-Modus', () => {
 
 		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: { pillars: unknown[] } }];
 		expect(taskCreate.pillars).toEqual([{ pillarId: 1, share: 100, confidence: 100 }]);
+	});
+});
+
+// ── #1984: Standardmodus ohne Säulen-Prozentregler ─────────────────────────────────────────────
+//
+// Spezifikation: docs/spec/issue-1984.md — AK1. Ohne Expertenmodus (`pp-expert-mode` fehlt)
+// rendert der Aufgabendialog keinen Säulen-Prozentregler (bedingtes Rendern, kein CSS-Hide —
+// UX-Block: Slider dürfen nicht im A11y-Baum bleiben). Prioritäts-/Aufwandsregler bleiben
+// unberührt und dürfen den Test nicht stören — daher Suche über den Säulen-Namen.
+// Rot, solange der Editor ohne Präferenz den Regler „Körper: 100 %" rendert (Gegenstück:
+// #1527 AK2, der ihn im Bestand erwartet).
+describe('TaskForm — Standardmodus ohne Säulen-Prozentregler (#1984 AK1)', () => {
+	const EXPERT_KEY = 'pp-expert-mode';
+
+	afterEach(() => {
+		localStorage.removeItem(EXPERT_KEY);
+	});
+
+	it('AK1: ohne Expertenmodus rendert der Dialog keinen Säulen-Regler', () => {
+		localStorage.removeItem(EXPERT_KEY);
+		const entitlements: EntitlementMap = {
+			ai_assist: { allowed: true, requiredPlan: 'pro' } as EntitlementMap['ai_assist'],
+		};
+		const task: Task = { ...minimalNewTask(), pillars: [{ pillarId: 1, share: 100, confidence: 90 }] };
+		render(
+			<PlanProvider value={{ plan: 'pro', entitlements }}>
+				<TaskForm {...defaultProps} task={task} />
+			</PlanProvider>,
+		);
+
+		expect(screen.queryByRole('slider', { name: /Körper/ })).toBeNull();
 	});
 });
