@@ -13,6 +13,7 @@ import {
 	getTaskPillarPoints,
 	redistributeShares,
 	shareMax,
+	suggestMainDistribution,
 	suggestionsToContributions,
 } from './pillar';
 
@@ -658,5 +659,60 @@ describe('isDistributionUnbalanced (#1555)', () => {
 	it('andere Säulenzahlen: 3 Säulen 70/20/10 unausgewogen (2× = 66,7 %), 2 Säulen 70/30 ausgewogen', () => {
 		expect(isDistributionUnbalanced?.([0.7, 0.2, 0.1])).toBe(true);
 		expect(isDistributionUnbalanced?.([0.7, 0.3])).toBe(false);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1962 — Hauptsäulen-Modus (Spec: docs/spec/issue-1962.md).
+ *
+ * Vertrag der Übernahme-Funktion: Hauptsäule 80 %, jede übrige Säule gleichmäßig mit je
+ * mindestens 5 % (bei fünf Säulen 5 %), ganzzahlig, Summe exakt 100, `confidence` 100.
+ * Unbekannte Hauptsäule → leere Liste; eine einzige Säule → 100 %. Der KI-Vorschlag
+ * (`suggestionsToContributions`) hat Vorrang, diese Regel ist der synchrone Fallback.
+ */
+describe('suggestMainDistribution — Hauptsäulen-Fallback (#1962, AK3)', () => {
+	const fivePillars: Pillar[] = [
+		pillar(1, 'Körper', 20),
+		pillar(2, 'Mentale Gesundheit', 20),
+		pillar(3, 'Beziehungen', 20),
+		pillar(4, 'Wirksamkeit', 20),
+		pillar(5, 'Sinn', 20),
+	];
+
+	it('liefert bei fünf Säulen die Hauptsäule mit 80 %, den Rest je 5 %', () => {
+		const result = suggestMainDistribution(1, fivePillars);
+		expect(result.map((entry) => [entry.pillarId, entry.share])).toEqual([
+			[1, 80],
+			[2, 5],
+			[3, 5],
+			[4, 5],
+			[5, 5],
+		]);
+		expect(result.every((entry) => entry.confidence === 100)).toBe(true);
+	});
+
+	it('platziert die 80 % am Index der gewählten Hauptsäule', () => {
+		const result = suggestMainDistribution(4, fivePillars);
+		expect(result.find((entry) => entry.pillarId === 4)?.share).toBe(80);
+		expect(result.filter((entry) => entry.pillarId !== 4).every((entry) => entry.share === 5)).toBe(true);
+	});
+
+	it('hält Summe exakt 100 und jeden Anteil ≥ Mindestanteil bei zwei bis sieben Säulen', () => {
+		for (let count = 2; count <= 7; count += 1) {
+			const pillars = Array.from({ length: count }, (_value, index) => pillar(index + 1, `S${index + 1}`, 20));
+			const shares = suggestMainDistribution(1, pillars).map((entry) => entry.share);
+			expect(shares.reduce((acc, share) => acc + share, 0)).toBe(SHARE_TOTAL);
+			expect(Math.min(...shares)).toBeGreaterThanOrEqual(SHARE_MIN);
+		}
+	});
+
+	it('gibt einer einzelnen Säule 100 %', () => {
+		expect(suggestMainDistribution(1, [pillar(1, 'Körper', 100)])).toEqual([
+			{ pillarId: 1, share: 100, confidence: 100 },
+		]);
+	});
+
+	it('liefert für eine unbekannte Hauptsäule eine leere Liste', () => {
+		expect(suggestMainDistribution(99, fivePillars)).toEqual([]);
 	});
 });

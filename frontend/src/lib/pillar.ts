@@ -180,6 +180,29 @@ export const fillContributions = (
 };
 
 /**
+ * Feste Fallback-Regel des Hauptsäulen-Modus (#1962): die gewählte Hauptsäule bekommt den freien
+ * Pool über den Mindestanteilen (`SHARE_TOTAL − (n−1)·SHARE_MIN`, bei fünf Säulen 80 %), jede
+ * übrige Säule den Mindestanteil — ganzzahlig, Summe exakt `SHARE_TOTAL`, `confidence` 100.
+ * Spiegel zur `suggestMainShares` in `server/src/logics/pillarShares.ts`; wer hier etwas ändert,
+ * ändert es auch im Server. Unbekannte Hauptsäule → leere Liste; eine einzige Säule → 100 %.
+ * Der KI-Vorschlag (`suggestionsToContributions`) hat Vorrang, diese Regel ist der synchrone
+ * Fallback, wenn kein KI-Vorschlag vorliegt.
+ */
+export const suggestMainDistribution = (mainPillarId: number, pillars: readonly Pillar[]): TaskPillarContribution[] => {
+	const mainIndex = pillars.findIndex((pillar) => pillar.id === mainPillarId);
+	if (mainIndex < 0 || pillars.length === 0) {
+		return [];
+	}
+	const main = SHARE_TOTAL - (pillars.length - 1) * SHARE_MIN;
+	if (main < SHARE_MIN) {
+		// Grenzfall sehr vieler Säulen: die Regel kippt unter die Invarianten → Gleichverteilung.
+		return fillContributions(pillars, []);
+	}
+	const shares = pillars.map((_pillar, index) => (index === mainIndex ? main : SHARE_MIN));
+	return pillars.map((pillar, index) => ({ pillarId: pillar.id, share: shares[index], confidence: 100 }));
+};
+
+/**
  * Prüft, ob eine Verteilung **stark unausgewogen** ist (#1555): der Anteil einer Säule an der
  * Gesamtsumme liegt strikt über dem **Doppelten** oder strikt unter der **Hälfte** des
  * gleichmäßigen Anteils `1/n`. Exakt 2× bzw. exakt ½ gelten noch als ausgewogen (Float-Toleranz

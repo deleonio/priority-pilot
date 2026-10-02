@@ -101,7 +101,9 @@ test.describe('#1061 Adress-Combobox im TaskForm', () => {
 		// würde die Liste leer lassen (rot bis die eigene Liste steht).
 		await addressInput.fill('munchen');
 
-		const options = page.getByRole('option');
+		// #1962-Fixup: Locator auf die Adress-Listbox begrenzen — seitenweit zählt er auch die
+		// `<option>`-Kinder der Hauptsäulen-KolSelect mit (3 Treffer + 5 Säulen = 8).
+		const options = page.getByRole('listbox').getByRole('option');
 		await expect(options).toHaveCount(MUNICH_SUGGESTIONS.length, { timeout: 5000 });
 
 		for (let index = 0; index < MUNICH_SUGGESTIONS.length; index += 1) {

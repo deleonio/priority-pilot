@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { Category, Group, GroupMember, Pillar, Series, SeriesRhythm, Task } from 'client';
 import { ResponseError, TaskStatus } from 'client';
-import type { ReactNode } from 'react';
+import { createRef, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -161,6 +161,32 @@ vi.mock('@public-ui/react-v19', () => ({
 		/>
 	),
 	KolInputRange: ({ _label }: { _label?: string }) => <input type="range" aria-label={_label} />,
+	// #1962: KolSelect wie das KolSingleSelect-Mock als natives `<select>` — die echte Komponente
+	// rendert es im offenen Shadow DOM (ApiTokensSection-Muster); Interaktionsvertrag identisch.
+	KolSelect: ({
+		_label,
+		_options,
+		_value,
+		_on,
+	}: {
+		_label?: string;
+		_options?: { label: string; value: string }[];
+		_value?: string;
+		_on?: { onChange?: (_e: unknown, v: string) => void };
+	}) => (
+		<select
+			aria-label={_label}
+			data-testid={`select-${_label}`}
+			value={_value ?? ''}
+			onChange={(e) => _on?.onChange?.(e.nativeEvent, e.target.value)}
+		>
+			{(_options ?? []).map((option) => (
+				<option key={option.value} value={option.value}>
+					{option.label}
+				</option>
+			))}
+		</select>
+	),
 	KolSingleSelect: ({
 		_label,
 		_options,
@@ -248,7 +274,7 @@ vi.mock('./ConfirmSeriesActionModal', () => ({
 }));
 
 import { api } from '../api';
-import { TaskForm, type TaskFormInitialValues } from './TaskForm';
+import { TaskForm, type TaskFormHandle, type TaskFormInitialValues } from './TaskForm';
 import type { EntitlementMap } from '../lib/planOffers';
 import { PlanProvider } from '../lib/usePlan';
 
@@ -468,6 +494,7 @@ describe('TaskForm — Status-Feld entfernt (#315, AK3)', () => {
 		});
 
 		// Anlegen auslösen (Submit-Button im Create-Modus, #334 AK7).
+		await chooseMainPillar();
 		await act(async () => {
 			fireEvent.click(screen.getByRole('button', { name: 'Anlegen' }));
 		});
@@ -514,6 +541,13 @@ const fillTitle = async (value: string): Promise<void> => {
 	await act(async () => {
 		fireEvent.change(titleInput, { target: { value } });
 		fireEvent.blur(titleInput);
+	});
+};
+
+/** Wählt im Anlege-Flow die Hauptsäule (#1962) — Pflicht im Submit-Pfad, sonst bricht das Anlegen ab. */
+const chooseMainPillar = async (): Promise<void> => {
+	await act(async () => {
+		fireEvent.change(screen.getByLabelText('Hauptsäule'), { target: { value: String(pillarKoerper.id) } });
 	});
 };
 
@@ -626,6 +660,7 @@ describe('AK5 — Speichern verzweigt korrekt (#316)', () => {
 
 		await switchToSeriesMode();
 		await fillTitle('Neue Serie über TaskForm');
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
@@ -645,6 +680,7 @@ describe('AK5 — Speichern verzweigt korrekt (#316)', () => {
 
 		await switchToSeriesMode();
 		await fillTitle('Serie ohne explizites Startdatum');
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
@@ -663,6 +699,7 @@ describe('AK5 — Speichern verzweigt korrekt (#316)', () => {
 
 		await switchToSeriesMode();
 		await fillTitle('Serie mit Feldern');
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
@@ -682,6 +719,7 @@ describe('AK5 — Speichern verzweigt korrekt (#316)', () => {
 		});
 
 		await fillTitle('Neue Aufgabe (Task-Modus)');
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateTask).toHaveBeenCalledTimes(1);
@@ -874,7 +912,8 @@ describe('AK — Säulenzuordnung im Serien-Edit-Modus (#343)', () => {
 /**
  * #440 (AK2) in der Fassung von #1596: Die fünf Säulen sind fest, hinzugefügt oder entfernt wird
  * nichts mehr. Ohne geladene Säulen (`pillars = []` — Abruf läuft noch oder ist fehlgeschlagen)
- * steht statt der Regler ein Hinweis samt Folge; mit Säulen erscheint die Verteilung.
+ * steht statt der Regler ein Hinweis samt Folge; mit Säulen erscheint die Hauptsäulen-Auswahl und
+ * mit deren Wahl die Beitragszeile (TEST-PFLEGE #1962 — kein Vorbelegen mehr im Anlege-Flow).
  */
 describe('TaskForm — Säulen-Verteilung ohne geladene Säulen (#440/#1596)', () => {
 	it('zeigt den Hinweis samt Folge, wenn pillars leer ist', async () => {
@@ -895,8 +934,90 @@ describe('TaskForm — Säulen-Verteilung ohne geladene Säulen (#440/#1596)', (
 			render(<TaskForm task={null} pillars={[pillarKoerper]} onClose={vi.fn()} onSaved={vi.fn()} />);
 		});
 
+		// TEST-PFLEGE #1962: Der Anlege-Flow belegt keine Säulen mehr vor — die Beitragszeile
+		// erscheint erst mit gewählter Hauptsäule (Auswahlliste „Hauptsäule", Mock → natives select).
+		expect(screen.getByLabelText('Hauptsäule')).toBeInTheDocument();
+		await act(async () => {
+			fireEvent.change(screen.getByLabelText('Hauptsäule'), { target: { value: '1' } });
+		});
+
 		expect(document.querySelectorAll('.pillar-row')).toHaveLength(1);
 		expect(screen.queryByText(/keine säulen geladen/i)).toBeNull();
+	});
+});
+
+/**
+ * #1962 (Fixup, PO-Entscheidung): Die Hauptsäule ist beim Anlegen vorausgewählt (erste Säule
+ * der Liste — ein Balance-Defizit liegt im Formular nicht vor), Absenden funktioniert ohne
+ * eigene Wahl. Der Submit-Guard bleibt als Sicherheitsnetz für „Säulen vorhanden, aber keine
+ * gewählt“ (Race beim Nachladen); Konten ohne jede Säule legen ohne Beiträge an (#1222).
+ */
+describe('TaskForm — Hauptsäule vorausgewählt beim Anlegen (#1962)', () => {
+	it('Anlegen ohne eigene Wahl: erste Säule ist vorbelegt, createTask läuft', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		// Vorbelegung: genau eine Beitragszeile (die Hauptsäule, Anteil 100 %) statt Leerstand.
+		expect(document.querySelectorAll('.pillar-row')).toHaveLength(1);
+
+		const titleInput = screen.getByRole('textbox', { name: /titel/i });
+		await act(async () => {
+			fireEvent.change(titleInput, { target: { value: 'Mit Vorbelegung' } });
+			fireEvent.blur(titleInput);
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Anlegen' }));
+		});
+
+		expect(mockCreateTask).toHaveBeenCalledTimes(1);
+		expect(screen.queryByText(/Bitte eine Hauptsäule wählen/)).toBeNull();
+	});
+
+	it('Anlegen ohne Säulen im Konto: legt ohne Beiträge an (Test-Pflege Finding 4, #1222-Empfänger)', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} pillars={[]} />);
+		});
+
+		expect(document.querySelectorAll('.pillar-row')).toHaveLength(0);
+
+		const titleInput = screen.getByRole('textbox', { name: /titel/i });
+		await act(async () => {
+			fireEvent.change(titleInput, { target: { value: 'Ohne Säulen' } });
+			fireEvent.blur(titleInput);
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Anlegen' }));
+		});
+
+		expect(mockCreateTask).toHaveBeenCalledTimes(1);
+		expect(screen.queryByText(/Bitte eine Hauptsäule wählen/)).toBeNull();
+	});
+
+	it('Vorbelegung gilt nicht als Änderung: Schließen ohne Eingriff fragt nicht nach (#1584)', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		const onClose = vi.fn();
+		const ref = createRef<TaskFormHandle>();
+
+		await act(async () => {
+			render(<TaskForm ref={ref} task={null} {...defaultProps} onClose={onClose} />);
+		});
+		// Vorbelegung gelaufen: genau eine Beitragszeile — und trotzdem „unverändert“.
+		expect(document.querySelectorAll('.pillar-row')).toHaveLength(1);
+
+		await act(async () => {
+			ref.current?.requestClose();
+		});
+
+		expect(onClose).toHaveBeenCalledTimes(1);
 	});
 });
 
@@ -995,6 +1116,7 @@ describe('TaskForm — Serien-Rhythmen: Werktags/Wochenende/Wochentag (#470)', (
 		await act(async () => {
 			fireEvent.change(rhythmSelect, { target: { value: 'weekdays' } });
 		});
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
@@ -1017,6 +1139,7 @@ describe('TaskForm — Serien-Rhythmen: Werktags/Wochenende/Wochentag (#470)', (
 		await act(async () => {
 			fireEvent.change(rhythmSelect, { target: { value: 'weekend' } });
 		});
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
@@ -1091,6 +1214,7 @@ describe('TaskForm — Serien-Rhythmen: Werktags/Wochenende/Wochentag (#470)', (
 		await act(async () => {
 			fireEvent.change(rhythmSelect, { target: { value: 'wed' } });
 		});
+		await chooseMainPillar();
 		await clickSave();
 
 		// Die vom Backend kommende 400 wird im Fehler-Alert verständlich angezeigt. Rot, solange die
@@ -1211,6 +1335,7 @@ describe('TaskForm — Auto-Löschen-Schalter an Deadline gekoppelt (#534, Anfor
 		expect(toggle).toBeChecked();
 
 		await fillTitle('Aufgabe mit Deadline und Auto-Delete');
+		await chooseMainPillar();
 		await clickSave();
 
 		// Der aktivierte Schalter fließt korrekt ins Create-Payload (ersetzt den entfernten #523-AK1-Test,
@@ -1243,6 +1368,7 @@ describe('TaskForm — Auto-Löschen-Schalter an Deadline gekoppelt (#534, Anfor
 		expect(toggle).not.toBeChecked();
 
 		await fillTitle('Aufgabe: Deadline wieder entfernt');
+		await chooseMainPillar();
 		await clickSave();
 
 		// Im Payload darf kein hängendes autoDeleteAfterDeadline:true landen.
@@ -1308,6 +1434,7 @@ describe('TaskForm — Auto-Löschen für Serien verfügbar (#534, Anforderung 1
 		await act(async () => {
 			fireEvent.click(autoDeleteToggle());
 		});
+		await chooseMainPillar();
 		await clickSave();
 
 		// rot, solange das Series-Payload autoDeleteAfterDeadline nicht enthält.
@@ -1437,6 +1564,7 @@ describe('TaskForm — Checklisten-Feld (#531)', () => {
 		});
 		await fillTitle('Aufgabe mit Liste');
 		await addItem('Schritt 1');
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateTask).toHaveBeenCalledTimes(1);
@@ -1536,6 +1664,7 @@ describe('TaskForm — Adressfeld (Ortsbezug einer Aufgabe)', () => {
 				target: { value: 'Musterstraße 1, 12345 Musterstadt' },
 			});
 		});
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateTask).toHaveBeenCalledTimes(1);
@@ -1566,6 +1695,7 @@ describe('TaskForm — Adressfeld (Ortsbezug einer Aufgabe)', () => {
 			fireEvent.click(within(screen.getByRole('listbox')).getByRole('option', { name: /München Hauptbahnhof/ }));
 		});
 
+		await chooseMainPillar();
 		await clickSave();
 		expect(mockCreateTask).toHaveBeenCalledTimes(1);
 		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as unknown as [
@@ -1727,6 +1857,7 @@ describe('TaskForm — Koordinaten-Box „Gespeicherter Ortsbezug" (#1111)', () 
 		expect(within(box).getByText(/keine koordinaten/i)).toBeVisible();
 		expect(box.textContent).not.toMatch(/48\.\d/);
 
+		await chooseMainPillar();
 		await clickSave();
 		expect(mockCreateTask).toHaveBeenCalledTimes(1);
 		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as unknown as [
@@ -2141,6 +2272,7 @@ describe('TaskForm — Empfängerauswahl im Serie-Modus (#1222 AK8)', () => {
 			fireEvent.change(select, { target: { value: '2' } });
 		});
 		await fillTitle('Serie für Bobi');
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
@@ -2155,6 +2287,7 @@ describe('TaskForm — Empfängerauswahl im Serie-Modus (#1222 AK8)', () => {
 			fireEvent.change(select, { target: { value: '1' } });
 		});
 		await fillTitle('Serie für mich');
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
@@ -2531,6 +2664,7 @@ describe('TaskForm — Kategorie: Kennzeichen unter dem Feld und Abwahl', () => 
 		// damit eine zuvor gesetzte Kategorie serverseitig wirklich gelöst wird.
 		expect(badge()).toBeNull();
 		expect(screen.getByLabelText('Kategorie (optional)')).toHaveValue('0');
+		await chooseMainPillar();
 		await clickSave();
 
 		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: Record<string, unknown> }];
@@ -2563,6 +2697,7 @@ describe('TaskForm — Kategorie: Kennzeichen unter dem Feld und Abwahl', () => 
 			fireEvent.click(screen.getByRole('button', { name: 'Kategorie entfernen' }));
 		});
 		expect(badge()).toBeNull();
+		await chooseMainPillar();
 		await clickSave();
 
 		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: Record<string, unknown> }];
@@ -2611,6 +2746,7 @@ describe('TaskForm — Standort-Favoriten im Adressfeld (#1342)', () => {
 		// (TaskForm.tsx:701 „Bitte einen Titel angeben.") — der Spec-Test hatte den Pflichttitel
 		// übersehen. Die Payload-Erwartungen darunter bleiben unverändert.
 		await fillTitle('Aufgabe mit Favoriten-Adresse');
+		await chooseMainPillar();
 		await clickSave();
 		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as unknown as [
 			{ taskCreate: { address?: string | null; latitude?: number | null; longitude?: number | null } },
@@ -2675,6 +2811,7 @@ describe('TaskForm — Standort-Favoriten im Adressfeld (#1342)', () => {
 		// Das Formular ist nicht blockiert: Titel eintragen und speichern funktioniert weiterhin,
 		// die Adresse steht unverändert am Task (nur der Favorit fehlt).
 		await fillTitle('Aufgabe trotz fehlgeschlagenem Favorit');
+		await chooseMainPillar();
 		await clickSave();
 		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as unknown as [{ taskCreate: { address?: string | null } }];
 		expect(taskCreate.address).toBe('München Hauptbahnhof, Bahnhofplatz 1, 80331 München');
@@ -2826,8 +2963,121 @@ describe('Titel-Länge beim Speichern (#1818, AK4)', () => {
 			render(<TaskForm task={null} {...defaultProps} />);
 		});
 		await fillTitle('😀'.repeat(10) + 'x'.repeat(55));
+		await chooseMainPillar();
 		await clickSave();
 
 		expect(mockCreateTask).toHaveBeenCalledTimes(1);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1962 — Hauptsäulen-Modus (Spec: docs/spec/issue-1962.md).
+ *
+ * Vertrag: Der Aufgaben-Dialog bietet eine Auswahlliste „Hauptsäule“; ohne Wahl rendert der
+ * Säulen-Editor keine Beitragszeilen (kein erzwungenes Vorbelegen aller fünf Säulen mehr), mit
+ * Wahl genau eine (Anteil 100 %) — absendbar mit genau einem Beitrag im Payload (AK2). Ein
+ * Vorschlags-Block („Vorschlag übernehmen“ / „Nicht übernehmen“) bietet die Restverteilung an:
+ * Übernehmen wendet Hauptsäule 80 % + Rest je 5 % an, Nicht übernehmen behält den Ein-Säulen-Zustand
+ * (AK3, KI-UX: Vorschlag nie automatisch anwenden).
+ *
+ * Diese Specs sind rot, solange TaskForm weder die Hauptsäulen-Auswahl noch den Vorschlags-Block
+ * rendert bzw. weiterhin alle fünf Säulen beim Mount vorbefüllt (`fillContributions`).
+ */
+describe('#1962 — Hauptsäulen-Modus', () => {
+	const fivePillars: Pillar[] = [
+		{ id: 1, name: 'Körper', description: '', weight: 20 },
+		{ id: 2, name: 'Mentale Gesundheit', description: '', weight: 20 },
+		{ id: 3, name: 'Beziehungen', description: '', weight: 20 },
+		{ id: 4, name: 'Wirksamkeit', description: '', weight: 20 },
+		{ id: 5, name: 'Sinn', description: '', weight: 20 },
+	];
+
+	const chooseMainPillar = async (id: number): Promise<void> => {
+		await act(async () => {
+			fireEvent.change(screen.getByLabelText('Hauptsäule'), { target: { value: String(id) } });
+		});
+	};
+
+	const rowLabels = (): (string | null)[] =>
+		Array.from(document.querySelectorAll('.pillar-row input')).map((input) => input.getAttribute('aria-label'));
+
+	it('AK2 — Hauptsäule vorausgewählt (erste Säule), Änderung übernimmt genau eine Zeile ins Payload', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} pillars={fivePillars} />);
+		});
+
+		// Vorbelegung (PO-Entscheidung): erste Säule der Liste mit genau einer Zeile (Anteil 100 %).
+		expect(screen.getByLabelText('Hauptsäule')).toBeInTheDocument();
+		expect(rowLabels()).toEqual(['Körper: 100 %']);
+
+		await chooseMainPillar(2);
+		expect(rowLabels()).toEqual(['Mentale Gesundheit: 100 %']);
+
+		await fillTitle('Hauptsäulen-Task');
+		await clickSave();
+
+		expect(mockCreateTask).toHaveBeenCalledTimes(1);
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: { pillars: unknown[] } }];
+		expect(taskCreate.pillars).toEqual([{ pillarId: 2, share: 100, confidence: 100 }]);
+	});
+
+	it('AK3 — Regelfallback übernehmen: fünf Zeilen, Hauptsäule 80 %, Rest je 5 %, Payload summiert 100', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} pillars={fivePillars} />);
+		});
+		await chooseMainPillar(1);
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Vorschlag übernehmen' }));
+		});
+
+		expect(rowLabels()).toEqual([
+			'Körper: 80 %',
+			'Mentale Gesundheit: 5 %',
+			'Beziehungen: 5 %',
+			'Wirksamkeit: 5 %',
+			'Sinn: 5 %',
+		]);
+
+		await fillTitle('Vollverteilt');
+		await clickSave();
+
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: { pillars: unknown[] } }];
+		expect(taskCreate.pillars).toEqual([
+			{ pillarId: 1, share: 80, confidence: 100 },
+			{ pillarId: 2, share: 5, confidence: 100 },
+			{ pillarId: 3, share: 5, confidence: 100 },
+			{ pillarId: 4, share: 5, confidence: 100 },
+			{ pillarId: 5, share: 5, confidence: 100 },
+		]);
+	});
+
+	it('AK3 — Nicht übernehmen: danach speichert nur die Hauptsäule (keine stillen 20-%-Vorbelegungen)', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} pillars={fivePillars} />);
+		});
+		await chooseMainPillar(1);
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Vorschlag übernehmen' }));
+		});
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Nicht übernehmen' }));
+		});
+
+		expect(rowLabels()).toEqual(['Körper: 100 %']);
+
+		await fillTitle('Nur Hauptsäule');
+		await clickSave();
+
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: { pillars: unknown[] } }];
+		expect(taskCreate.pillars).toEqual([{ pillarId: 1, share: 100, confidence: 100 }]);
 	});
 });
