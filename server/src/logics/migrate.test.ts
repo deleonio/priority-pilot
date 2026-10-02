@@ -24,6 +24,7 @@ import {
 	migrateSubscriptionExternalIdUnique,
 	migrateInvoiceLineItemsColumn,
 	migrateInvoicePdfBytesColumn,
+	migrateInvoicePaymentStatusColumn,
 } from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
 // #1225: `migrateGroupImageUrl` existiert noch nicht (rote Spec-Tests) — Zugriff über den
@@ -1554,6 +1555,9 @@ describe('migrateInvoiceLineItemsColumn (#1912)', () => {
 		// #1955: die Bestands-DB kennt `pdfBytes` noch — dieselbe Nachzieh-Reihenfolge wie in
 		// index.ts, sonst selectiert der Modell-Zugriff darunter eine fehlende Spalte.
 		await migrateInvoicePdfBytesColumn(sequelize);
+		// #2086: `paymentStatus`/`saleId` gehören inzwischen ebenfalls zur index.ts-Reihenfolge
+		// (Test-Pflege — der Modell-Zugriff selectiert die neuen Spalten mit).
+		await migrateInvoicePaymentStatusColumn(sequelize);
 		await assert.doesNotReject(() => migrateInvoiceLineItemsColumn(sequelize), 'zweiter Lauf bleibt stabil');
 
 		const { default: Invoice } = await import('../models/invoice.js');

@@ -1,5 +1,6 @@
 import { Op } from 'sequelize';
 import Subscription from '../models/subscription.js';
+import Invoice from '../models/invoice.js';
 import { rankOf, syncUserPlan, applyDuePendingPlan } from './billing/lifecycle.js';
 import { PAYPAL_PLAN_IDS, type Plan } from './plans.js';
 
@@ -248,8 +249,8 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 export interface PaypalWebhookEvent {
 	id?: string;
 	event_type?: string;
-	/** `billing_agreement_id` trägt die Abo-Referenz bei Zahlungsereignissen (#1506). */
-	resource?: { id?: string; plan_id?: string; billing_agreement_id?: string };
+	/** `billing_agreement_id` trägt die Abo-Referenz bei Zahlungsereignissen (#1506), `sale_id` die Sale-Referenz des Erstattungs-Vorgangs (#2086). */
+	resource?: { id?: string; plan_id?: string; billing_agreement_id?: string; sale_id?: string };
 }
 
 /** Monate je Abrechnungszeitraum — Muster `invoices.ts` `PERIOD_MONTHS` (#1506 AK1). */
@@ -402,7 +403,8 @@ export const replacePredecessors = async (
 
 /** Injizierbare Abhängigkeiten von {@link applyPaymentEvent} (Muster `deps` in `billing.ts`). */
 export interface ApplyPaymentEventDeps {
-	issueInvoice?: (subscription: Subscription, now: Date) => Promise<unknown>;
+	/** `saleId`: Sale-Referenz des Ereignisses (`resource.id` bei COMPLETED, `null` bei ACTIVATED, #2086). */
+	issueInvoice?: (subscription: Subscription, now: Date, saleId?: string | null) => Promise<unknown>;
 }
 
 /**
@@ -437,7 +439,28 @@ export const applyPaymentEvent = async (
 		const currentPeriodEnd = new Date(subscription.get('currentPeriodEnd') as Date);
 		currentPeriodEnd.setUTCMonth(currentPeriodEnd.getUTCMonth() + (PERIOD_MONTHS[period] ?? 1));
 		await subscription.update({ currentPeriodEnd, status: 'active', firstFailureAt: null });
-		await deps.issueInvoice?.(subscription, now);
+		// Sale-Referenz nur bei COMPLETED — ACTIVATED trägt kein Sale-Objekt, damit keine falsche
+		// Erstattungs-Referenz entsteht (#2086, Spec docs/spec/issue-2086.md).
+		await deps.issueInvoice?.(
+			subscription,
+			now,
+			eventType === 'PAYMENT.SALE.COMPLETED' ? (event.resource?.id ?? null) : null,
+		);
+		return;
+	}
+
+	if (eventType === 'PAYMENT.SALE.REFUNDED') {
+		// Erstattung (#2086): die Rechnung mit passender Sale-Referenz wird `refunded`; trägt keine
+		// Rechnung die Referenz (Altrechnung vor der Spalte), trifft der Fallback die neueste
+		// Rechnung des Abos — eine Erstattung darf nie still verloren gehen.
+		const subscriptionId = subscription.get('id') as number;
+		const saleId = event.resource?.sale_id ?? null;
+		const invoice =
+			(saleId ? await Invoice.findOne({ where: { subscriptionId, saleId } }) : null) ??
+			(await Invoice.findOne({ where: { subscriptionId }, order: [['periodEnd', 'DESC']] }));
+		if (invoice) {
+			await invoice.update({ paymentStatus: 'refunded' });
+		}
 		return;
 	}
 

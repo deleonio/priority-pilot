@@ -61,6 +61,7 @@ export type InvoiceDto = {
 	periodEnd: string;
 	amountCents: number;
 	taxNote: string;
+	paymentStatus: string;
 };
 
 export const serializeInvoice = (invoice: Invoice): InvoiceDto => ({
@@ -70,6 +71,7 @@ export const serializeInvoice = (invoice: Invoice): InvoiceDto => ({
 	periodEnd: invoice.periodEnd.toISOString(),
 	amountCents: invoice.amountCents,
 	taxNote: invoice.taxNote,
+	paymentStatus: invoice.paymentStatus,
 });
 
 // Neben dem laufenden Abo kann ein ausstehendes Upgrade liegen; Kündigung und Wechsel gelten dem laufenden.

@@ -6595,7 +6595,7 @@ components:
         Rechnung zu einem Abrechnungszeitraum (#1505 AK5). Kein Zahlungsmittel
         (AK9) — `taxNote` trägt den §19-UStG-Hinweis; das gespeicherte PDF
         liefert `GET /billing/invoices/{id}/pdf` (#1955).
-      required: [id, number, periodStart, periodEnd, amountCents, taxNote]
+      required: [id, number, periodStart, periodEnd, amountCents, taxNote, paymentStatus]
       properties:
         id:
           type: integer
@@ -6612,6 +6612,13 @@ components:
           type: integer
         taxNote:
           type: string
+        paymentStatus:
+          type: string
+          enum: [paid, refunded]
+          description: >-
+            Echter Zahlungsstatus (#2086) — provider-neutral (`paid`/`refunded`), damit
+            Google Play (#1688) dieselbe Quelle nutzen kann. `refunded` folgt einer
+            nachträglichen Erstattung des Zahlungsdienstleisters.
     Error:
       type: object
       required:

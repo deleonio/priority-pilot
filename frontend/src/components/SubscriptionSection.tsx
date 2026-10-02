@@ -1,9 +1,9 @@
-import { KolAlert, KolButton, KolDetails, KolSpin } from '@public-ui/react-v19';
+import { KolAlert, KolBadge, KolButton, KolDetails, KolSpin } from '@public-ui/react-v19';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import type { components } from 'client';
 import { toApiError } from '../lib/apiError';
-import { formatEuro } from '../lib/format';
+import { formatEuro, paymentStatusLabel } from '../lib/format';
 import { planLabel } from '../lib/planOffers';
 import { getChannel } from '../lib/platform';
 import { usePlan } from '../lib/usePlan';
@@ -201,6 +201,8 @@ export const SubscriptionSection = () => {
 											{formatDate(invoice.periodStart)} – {formatDate(invoice.periodEnd)}
 										</span>
 										<span>{formatEuro(invoice.amountCents)}</span>
+										{/* Status als Text-Badge — Information nie allein über Farbe (WCAG 1.4.1, KI-UX). */}
+										<KolBadge _label={paymentStatusLabel(invoice.paymentStatus)} />
 										<span>
 											<KolButton
 												data-testid="invoice-download"
