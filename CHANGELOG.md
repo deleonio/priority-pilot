@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.13 - 2026-10-02
 
-_Enthält v0.13.0 – v0.13.16._
+_Enthält v0.13.0 – v0.13.17._
 
 ### 🎉 New Features
 
@@ -27,6 +27,7 @@ _Enthält v0.13.0 – v0.13.16._
 - feat(frontend): first-run flow steps 1-3 (free text, suggestions, apply) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2081
 - feat(frontend): admin invoice list and download (#1958) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2084
 - feat(admin): lock and cancel user subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2085
+- feat(server): invoice payment status replaces fixed label (#2086) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2088
 
 ## v0.12 - 2026-10-02
 
@@ -154,6 +155,7 @@ _Enthält v0.10.0 – v0.10.36._
 - chore(deps): update gradle to v8.14.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1841
 - fix(ci): 01-triage.yml wieder gültig (Expression-Limit) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1851
 - docs(ci): switch documenter free model to laguna-s-2.1 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1852
+- Säulen-Mindestanteil von 5 % auf allen Wegen erzwingen (#1822) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1853
 - Säulen-Mindestanteil von 5 % auf allen Wegen erzwingen (#1822) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1853
 - fix(server): show clear message for too-long task title (#1818) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1854
 - chore(deps): update renovatebot/github-action action to v46.3.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1850
@@ -306,7 +308,6 @@ _Enthält v0.5.0 – v0.5.32._
 - chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1657
 - docs(adr): add adr 0016 for native wrapper via capacitor remote mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1699
 - chore: serve digital asset links for the android app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1700
-- feat(frontend): detect app channel and hide web prompts in native app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1701
 - feat(frontend): detect app channel and hide web prompts in native app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1701
 - feat(server): reject paypal checkout for store app channels by @deleonio in https://github.com/deleonio/priority-pilot/pull/1702
 - feat(server): Google-Login der App mit Einmal-Code abschließen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1703
