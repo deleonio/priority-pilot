@@ -18,9 +18,10 @@ von #1339 deckt sie weiter ab), verschwinden aber aus dem Bundle und aus der Aus
 
 ## Mechanik
 
-`SUPPORTED_LANGUAGES` wird von `Object.keys(resources).sort()` auf die feste Allowlist
-`['de', 'en']` umgestellt; beim Aufbau der `resources` werden Nicht-Allowlist-Sprachen übersprungen.
-Die Glob-Mechanik bleibt — eine fertige Sprache kehrt per Wiederaufnahme in die Allowlist zurück.
+`SUPPORTED_LANGUAGES` bleibt aus `Object.keys(resources).sort()` abgeleitet; der Glob in
+`config.ts` ist auf die Allowlist `['de', 'en']` beschränkt, sodass nur diese Sprachen in
+`resources` und im Bundle landen — eine fertige Sprache kehrt durch Aufnahme in Allowlist und
+Glob-Muster zurück.
 `supportedLngs` + `fallbackLng: 'de'` fangen alte localStorage-Werte und Navigator-Sprachen
 automatisch ab. Die Website (`website/src/i18n/`, 10 Sprachen) ist nicht Teil dieses Vertrags.
 

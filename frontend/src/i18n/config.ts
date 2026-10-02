@@ -3,21 +3,24 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
 
 /**
- * Übersetzungen werden per Glob eingesammelt statt einzeln importiert: eine neue Sprache braucht
- * dann nur einen weiteren Ordner unter `locales/`, keine Änderung an dieser Datei. `eager: true`
- * bündelt die JSONs fest mit — bei vier kleinen Namespaces je Sprache ist das billiger als ein
- * Nachladen zur Laufzeit und erspart einen Ladezustand beim Sprachwechsel.
+ * Übersetzungen werden per Glob eingesammelt statt einzeln importiert. Der Glob ist auf die
+ * Allowlist-Sprachen beschränkt (`import.meta.glob` verlangt ein String-Literal, die Liste im
+ * Muster spiegelt `LANGUAGE_ALLOWLIST` unten): nur übersetzte Sprachen landen im Bundle, die
+ * übrigen Locale-Dateien bleiben für den Schlüssel-Gleichstand-Test in `locales.test.ts` bestehen.
+ * `eager: true` bündelt die JSONs fest mit — bei vier kleinen Namespaces je Sprache ist das
+ * billiger als ein Nachladen zur Laufzeit und erspart einen Ladezustand beim Sprachwechsel.
  *
  * Die Dateien liegen bewusst unter `src/` und nicht unter `public/`: Vite kopiert `public/`
  * unverändert ins dist-Root, ein zusätzlicher Import von dort läge doppelt im Build.
  */
-const modules = import.meta.glob<{ default: Record<string, unknown> }>('./locales/*/*.json', { eager: true });
+const modules = import.meta.glob<{ default: Record<string, unknown> }>('./locales/{de,en}/*.json', {
+	eager: true,
+});
 
 /**
  * Sprach-Allowlist: nur vollständig übersetzte Sprachen erscheinen in der App — Kriterium ist der
- * Schlüssel-Gleichstand gegen `de`, geprüft in `locales.test.ts`. Die übrigen Locale-Dateien bleiben
- * für diesen Test bestehen, landen aber weder in den Ressourcen noch in der Auswahl; eine fertige
- * Sprache kehrt per Wiederaufnahme in diese Liste zurück.
+ * Schlüssel-Gleichstand gegen `de`, geprüft in `locales.test.ts`. Eine fertige Sprache kehrt durch
+ * Aufnahme in diese Liste UND ins Glob-Muster oben zurück.
  */
 const LANGUAGE_ALLOWLIST = ['de', 'en'];
 
