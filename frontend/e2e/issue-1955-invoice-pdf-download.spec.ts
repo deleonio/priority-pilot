@@ -126,8 +126,10 @@ test.describe('Balamentum — #1955: PDF-Download je Rechnung', () => {
 		const items = page.locator('.billing-invoices__item');
 		await expect(items).toHaveCount(2);
 		const buttons = items.getByTestId('invoice-download');
-		await expect(buttons.nth(0)).toHaveAccessibleName('PDF INV-2026-100001 herunterladen');
-		await expect(buttons.nth(1)).toHaveAccessibleName('PDF INV-2026-100002 herunterladen');
+		// Test-Pflege #2031: `toHaveAccessibleName` am kol-button-Host liefert leer (Name sitzt am
+		// internen Shadow-DOM-Button, KoliBri-first) — Assertions piercen via getByRole.
+		await expect(buttons.nth(0).getByRole('button')).toHaveAccessibleName('PDF INV-2026-100001 herunterladen');
+		await expect(buttons.nth(1).getByRole('button')).toHaveAccessibleName('PDF INV-2026-100002 herunterladen');
 
 		// App-Shell clippt overflow-x: Bounding-Boxen statt scrollWidth (Muster oben).
 		await expect
