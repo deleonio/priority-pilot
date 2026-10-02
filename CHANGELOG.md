@@ -2,9 +2,9 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.12 - 2026-10-01
+## v0.12 - 2026-10-02
 
-_Enthält v0.12.0 – v0.12.23._
+_Enthält v0.12.0 – v0.12.24._
 
 ### 🎉 New Features
 
@@ -19,6 +19,7 @@ _Enthält v0.12.0 – v0.12.23._
 ### 🚀 Improvements
 
 - feat(server): shared five-factor scoring for /next and /suggestions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2045
+- feat(frontend): login waitlist as own card with a11y and perf polish by @deleonio in https://github.com/deleonio/priority-pilot/pull/2055
 
 ### 🔧 Engineering
 
@@ -177,6 +178,7 @@ _Enthält v0.9.0 – v0.9.18._
 - fix(report): render phase comparison bars side by side with average bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1813
 - chore(ci): switch phase runners via vars.PHASE_RUNNER (pi5 rollout) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1817
 - fix(report): render phase comparison bars side by side with average bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1815
+- fix(report): render phase comparison bars side by side with average bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1815
 - chore(ci): route all phase jobs via PHASE_RUNNER, split cache by pi5 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1825
 - fix(ci): pass PI_MODEL_ALIASES to all pi-capable workflows by @deleonio in https://github.com/deleonio/priority-pilot/pull/1828
 - fix(ci): stop review retrigger loop for already-reviewed head (#1824) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1830
@@ -317,7 +319,6 @@ _Enthält v0.4.0 – v0.4.22._
 - refactor(frontend): share pillar recalculation run via useReassignRun hook by @deleonio in https://github.com/deleonio/priority-pilot/pull/1633
 - feat(server): distribute confidence remainder evenly across pillars by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1637
 - fix(e2e): await initAiEnabled to fix AK5 KI-aus race (#1408) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1640
-- feat(server): measure balance pillars by cadence, not workload share by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1639
 - feat(server): measure balance pillars by cadence, not workload share by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1639
 - feat(server): let task_create assign tasks to group members by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1643
 - feat(server): withhold tasks with far-future deadlines from suggestions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1644
