@@ -20,6 +20,7 @@ import {
 } from '../../test/helpers.js';
 import { Pillar, User, AiUsage } from '../../models/index.js';
 import { AI_ASSIST_MONTHLY_QUOTA } from '../../logics/plans.js';
+import { suggestInitialTasksWithMistral } from '../../llm/llm.js';
 
 applyTestAuthEnv('test-2068-suggest-initial');
 
@@ -76,8 +77,9 @@ describe('POST /tasks/suggest-initial (#2068)', () => {
 
 	before(async () => {
 		server = await startTestServer({
-			suggestInitialTasksParser: (text, provider, pillars, userId) => suggesterImpl(text, provider, pillars, userId),
-		} as unknown as Parameters<typeof startTestServer>[0]);
+			suggestInitialTasksParser: (text, provider, pillars = [], userId = 0) =>
+				suggesterImpl(text, provider, pillars, userId),
+		});
 	});
 
 	beforeEach(async () => {
@@ -263,6 +265,51 @@ describe('POST /tasks/suggest-initial (#2068)', () => {
 			const cookie = await server.login('ak4-nopillars@example.com');
 			const res = await post(server.baseUrl, cookie, { text: 'Aufräumen' });
 			assert.equal(res.status, 503);
+		});
+	});
+
+	describe('Realkette Extraktor → Route (Fixup Finding 2, PR #2079)', () => {
+		it('form-ungültiger Vorschlag verschiebt die Indexbasis der dependsOn-Verweise nicht', async () => {
+			const email = 'chain@example.com';
+			const cookie = await server.login(email);
+			const healthId = await seedPillar(email, 'Gesundheit');
+			// Echter Suggester statt Mock: nur so läuft die Produktionskette requestModelJson →
+			// extractSuggestedInitialTasks → sanitizeSuggestions; nur der HTTP-Call wird gestubbt.
+			suggesterImpl = suggestInitialTasksWithMistral;
+			const originalFetch = globalThis.fetch;
+			globalThis.fetch = (async (url: string, init?: RequestInit) => {
+				if (typeof url === 'string' && url.includes('api.mistral.ai')) {
+					// Szenario aus dem Finding: X an Index 0 ist form-ungültig (title kein String),
+					// B (Original-Index 2) verweist auf A (Original-Index 1).
+					const parsed = {
+						suggestions: [
+							{ title: 42, pillarId: healthId },
+							{ title: 'Unterlagen sammeln', pillarId: healthId },
+							{ title: 'Antrag stellen', pillarId: healthId, dependsOn: 1 },
+						],
+					};
+					return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(parsed) } }] }), {
+						status: 200,
+						headers: { 'Content-Type': 'application/json' },
+					});
+				}
+				return originalFetch(url, init);
+			}) as typeof fetch;
+			try {
+				const res = await post(server.baseUrl, cookie, { text: 'Erststart organisieren' });
+				assert.equal(res.status, 200);
+				const body = (await res.json()) as { suggestions: SuggestedTask[] };
+				assert.deepEqual(
+					body.suggestions,
+					[
+						{ title: 'Unterlagen sammeln', pillarId: healthId },
+						{ title: 'Antrag stellen', pillarId: healthId, dependsOn: 0 },
+					],
+					'X (Index 0) darf die Indexbasis nicht verschieben: B muss überleben und auf A zeigen',
+				);
+			} finally {
+				globalThis.fetch = originalFetch;
+			}
 		});
 	});
 });

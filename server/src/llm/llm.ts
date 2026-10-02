@@ -744,9 +744,13 @@ const buildSuggestInitialSystemPrompt = (pillars: PillarOption[]): string =>
 	].join('\n');
 
 /**
- * Liest die Erststart-Vorschläge formatseitig aus der Modell-Antwort. Nur die Form-Ebene wird
- * geprüft; die fachliche Bereinigung (Titel, Säulen-Scope des Nutzers, dependsOn-Verweise) macht
- * die Route (`sanitizeSuggestions`) — sie gilt gleichermaßen für den injizierten Mock.
+ * Liest die Erststart-Vorschläge formatseitig aus der Modell-Antwort und reicht die suggestions-
+ * Liste unverändert an die Route durch — bewusst OHNE Dropping je Eintrag (Abweichung vom Muster
+ * `extractSuggestions`): Die Route berechnet die Original-Position eines Eintrags über die
+ * Reihenfolge dieser Liste und prüft darauf die `dependsOn`-Verweise; würde der Extraktor
+ * Einträge verwerfen, verschieben sich alle nachfolgenden Verweise (PR #2079, Finding 2). Form-
+ * und fachliche Bereinigung macht daher ausschließlich die Route (`parseSuggestion`/
+ * `sanitizeSuggestions`) — sie gilt gleichermaßen für den injizierten Mock.
  */
 const extractSuggestedInitialTasks = (parsed: unknown): SuggestedInitialTask[] => {
 	if (typeof parsed !== 'object' || parsed === null) {
@@ -756,27 +760,9 @@ const extractSuggestedInitialTasks = (parsed: unknown): SuggestedInitialTask[] =
 	if (!Array.isArray(suggestions)) {
 		throw new MistralRequestError('Antwort des Modells enthält keine suggestions-Liste.');
 	}
-	// Form-Ebene je Eintrag (Muster extractSuggestions): unbrauchbare Einträge fliegen hier raus,
-	// die fachliche Bereinigung (Säulen-Scope, dependsOn-Verweise) macht die Route.
-	return suggestions.flatMap((entry): SuggestedInitialTask[] => {
-		if (typeof entry !== 'object' || entry === null) {
-			return [];
-		}
-		const { title, pillarId, dependsOn } = entry as Record<string, unknown>;
-		if (
-			typeof title !== 'string' ||
-			title.trim() === '' ||
-			typeof pillarId !== 'number' ||
-			!Number.isInteger(pillarId)
-		) {
-			return [];
-		}
-		const suggestion: SuggestedInitialTask = { title: title.trim(), pillarId };
-		if (typeof dependsOn === 'number' && Number.isInteger(dependsOn)) {
-			suggestion.dependsOn = dependsOn;
-		}
-		return [suggestion];
-	});
+	// Pass-through ohne Dropping: Indexstabilität der dependsOn-Verweise geht vor — die Route
+	// verwirft (identische Form-Prüfung) und renummert die gültigen Verweise selbst.
+	return suggestions as SuggestedInitialTask[];
 };
 
 /**
