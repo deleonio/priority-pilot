@@ -1,5 +1,6 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import zlib from 'node:zlib';
 import sequelize from '../database.js';
 import Invoice from '../models/invoice.js';
 import Subscription from '../models/subscription.js';
@@ -122,5 +123,68 @@ describe('invoices.ts — issueInvoiceForPeriod (#1495 AK8)', () => {
 		assert.ok(old.get('deliveredAt'), 'Ältere Rechnung ist nachgestellt');
 		assert.ok(next.get('deliveredAt'));
 		assert.notEqual(old.get('number'), next.get('number'));
+	});
+
+	// #2031 AK1 — Label „Paket <Plan> (<deutscher Zeitraum>)“ an allen drei Anzeigeorten
+	// (Mailzeile, Rechnungsposition, PDF-Leistungszeile); die Katalog-Schlüssel bleiben englisch.
+	const LABEL_COMBOS = [
+		['plus', 'monthly', 'Plus (monatlich)'],
+		['plus', 'quarterly', 'Plus (vierteljährlich)'],
+		['plus', 'yearly', 'Plus (jährlich)'],
+		['pro', 'monthly', 'Pro (monatlich)'],
+		['pro', 'quarterly', 'Pro (vierteljährlich)'],
+		['pro', 'yearly', 'Pro (jährlich)'],
+	] as const;
+
+	it('#2031 AK1: Mailzeile und Rechnungsposition nennen Paket und Zeitraum deutsch (alle Kombinationen)', async () => {
+		for (const [plan, period, display] of LABEL_COMBOS) {
+			const user = await User.create({
+				email: `label-${plan}-${period}@example.com`,
+				displayName: 'Label',
+				passwordHash: 'x',
+			});
+			const subscription = await Subscription.create({
+				userId: user.get('id') as number,
+				provider: 'paypal',
+				externalSubscriptionId: `I-LABEL-${plan}-${period}`,
+				plan,
+				period,
+				status: 'active',
+				currentPeriodEnd: new Date('2026-04-01T00:00:00Z'),
+				creditCents: 100,
+			});
+			const sent: { text: string }[] = [];
+			const invoice = await issueInvoiceForPeriod(subscription, now, async (payload) => {
+				sent.push({ text: payload.text });
+			});
+			assert.ok(
+				sent[0]?.text.includes(`Paket: ${display}`),
+				`Mailzeile für ${plan}/${period} muss "${display}" zeigen`,
+			);
+			const lineItems = invoice.get('lineItems') as { label: string }[];
+			assert.equal(lineItems[0]?.label, `Paket ${display}`, `Rechnungsposition für ${plan}/${period}`);
+		}
+	});
+
+	it('#2031 AK1: gespeichertes PDF trägt das deutsche Label in der Leistungszeile', async () => {
+		const user = await User.create({ email: 'label-pdf@example.com', displayName: 'Label', passwordHash: 'x' });
+		const subscription = await Subscription.create({
+			userId: user.get('id') as number,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-LABEL-PDF',
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date('2026-04-01T00:00:00Z'),
+		});
+		const invoice = await issueInvoiceForPeriod(subscription, now, async () => {});
+		const pdf = Buffer.from((invoice.get({ plain: true }) as { pdfBytes: Uint8Array }).pdfBytes);
+		// Content-Stream ist Flate-komprimiert (pdf-lib), der Text steht als Hex- oder Literal-String.
+		const start = pdf.indexOf('stream\n') + 7;
+		const text = zlib.inflateSync(pdf.subarray(start, pdf.indexOf('endstream'))).toString('latin1');
+		const label = 'Leistung: Paket Plus (monatlich)';
+		const hex = Buffer.from(label, 'latin1').toString('hex').toUpperCase();
+		const literal = label.replaceAll('(', '\\(').replaceAll(')', '\\)');
+		assert.ok(text.includes(hex) || text.includes(literal), 'Die PDF-Leistungszeile muss das deutsche Label tragen');
 	});
 });

@@ -231,7 +231,8 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 		await gotoAbo(page);
 		await openBilling(page);
 		const invoices = page.getByTestId('billing-invoices');
-		await expect(invoices.getByText('INV-2026-000001')).toBeVisible();
+		// exact: seit #2031 trägt auch der Download-Button die Nummer im Label — Substring-Match trifft doppelt.
+		await expect(invoices.getByText('INV-2026-000001', { exact: true })).toBeVisible();
 		// Test-Pflege (#1529): die Preis-Matrix (AK2, pro/monatlich "7,99 €") liegt seit #1529 auf
 		// dem separaten Pakete-Reiter, nicht mehr auf derselben Seite wie die Rechnungsliste — die
 		// frühere Mehrdeutigkeits-Sorge (#1496) besteht nicht mehr, das Scoping bleibt trotzdem.

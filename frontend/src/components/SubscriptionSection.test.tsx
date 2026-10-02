@@ -148,4 +148,33 @@ describe('SubscriptionSection (#2048)', () => {
 			expect(screen.queryByTestId('subscription-cancelled')).not.toBeInTheDocument();
 		});
 	});
+
+	// #2031 AK2 — der zugängliche Name jedes Download-Buttons nennt die eigene Rechnungsnummer,
+	// damit sich die Zeilen für Screenreader/Nutzer unterscheiden (heute überall „PDF herunterladen“).
+	it('#2031 AK2: Download-Button führt die Rechnungsnummer im zugänglichen Namen, je Zeile unterschiedlich', async () => {
+		subscriptionState.subscription = null;
+		const { api } = (await import('../api')) as typeof import('../api');
+		vi.mocked(api.listBillingInvoices).mockResolvedValue([
+			{
+				id: 1,
+				number: 'INV-2026-000001',
+				periodStart: '2026-02-01T00:00:00.000Z',
+				periodEnd: '2026-03-01T00:00:00.000Z',
+				amountCents: 499,
+			},
+			{
+				id: 2,
+				number: 'INV-2026-000002',
+				periodStart: '2026-03-01T00:00:00.000Z',
+				periodEnd: '2026-04-01T00:00:00.000Z',
+				amountCents: 899,
+			},
+		] as never);
+		render(<SubscriptionSection />);
+
+		await waitFor(() => {
+			expect(screen.getByRole('button', { name: 'PDF INV-2026-000001 herunterladen' })).toBeInTheDocument();
+		});
+		expect(screen.getByRole('button', { name: 'PDF INV-2026-000002 herunterladen' })).toBeInTheDocument();
+	});
 });

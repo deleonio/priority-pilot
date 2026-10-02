@@ -204,7 +204,7 @@ export const SubscriptionSection = () => {
 										<span>
 											<KolButton
 												data-testid="invoice-download"
-												_label="PDF herunterladen"
+												_label={`PDF ${invoice.number} herunterladen`}
 												_variant="secondary"
 												_icons={{ left: { icon: 'fa-solid fa-download' } }}
 												_on={{ onClick: () => downloadInvoicePdf(invoice) }}
