@@ -127,8 +127,8 @@ titles and stays in body and epic. The area prefix names the goal, not the solut
   (#1340, #1455, #1889, #1780). Waves, rank and blocked-by carry the structure.
 - **Beyond ~15 issues: one thematic middle layer.** Cut the leaves into 5–10 **group issues**
   (`Gruppe:` title prefix, e.g. `[P0] Gruppe: Zugang und Registrierung` — group stage = the
-  highest stage of its leaves, no effort). Groups are mini-epics, not work items; they never
-  carry pipeline labels and are never `blocked-by` targets — dependency edges stay
+  highest stage of its leaves, no effort). Groups are mini-epics, not work items; they carry
+  pipeline labels only for their closing analysis and are never `blocked-by` targets — dependency edges stay
   leaf-to-leaf, across groups if needed.
 - **Container bodies must pass the quality check.** The precheck on issue creation/edit
   (00-validate, verify-issue-quality.sh) knows no „Sammelticket" exemption — epic and group
