@@ -756,7 +756,27 @@ const extractSuggestedInitialTasks = (parsed: unknown): SuggestedInitialTask[] =
 	if (!Array.isArray(suggestions)) {
 		throw new MistralRequestError('Antwort des Modells enthält keine suggestions-Liste.');
 	}
-	return suggestions as SuggestedInitialTask[];
+	// Form-Ebene je Eintrag (Muster extractSuggestions): unbrauchbare Einträge fliegen hier raus,
+	// die fachliche Bereinigung (Säulen-Scope, dependsOn-Verweise) macht die Route.
+	return suggestions.flatMap((entry): SuggestedInitialTask[] => {
+		if (typeof entry !== 'object' || entry === null) {
+			return [];
+		}
+		const { title, pillarId, dependsOn } = entry as Record<string, unknown>;
+		if (
+			typeof title !== 'string' ||
+			title.trim() === '' ||
+			typeof pillarId !== 'number' ||
+			!Number.isInteger(pillarId)
+		) {
+			return [];
+		}
+		const suggestion: SuggestedInitialTask = { title: title.trim(), pillarId };
+		if (typeof dependsOn === 'number' && Number.isInteger(dependsOn)) {
+			suggestion.dependsOn = dependsOn;
+		}
+		return [suggestion];
+	});
 };
 
 /**

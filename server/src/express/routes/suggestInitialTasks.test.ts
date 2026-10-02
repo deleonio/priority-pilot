@@ -153,8 +153,9 @@ describe('POST /tasks/suggest-initial (#2068)', () => {
 					{ title: 'Gültig 1', pillarId: first.id },
 					{ title: 'Fremde Säule', pillarId: 99999 }, // unbekannte pillarId → raus
 					{ title: '   ', pillarId: first.id }, // leerer Titel → raus
-					{ title: 'Selbstverweis', pillarId: second.id, dependsOn: 4 }, // eigener Index → raus
+					{ title: 'Selbstverweis', pillarId: second.id, dependsOn: 3 }, // eigener Index → raus
 					{ title: 'Aus dem Rahmen', pillarId: second.id, dependsOn: 99 }, // außerhalb → raus
+					{ title: 'Kaskade', pillarId: second.id, dependsOn: 4 }, // Verweis auf Sterbenden → raus
 					{ title: 'Gültig 2', pillarId: second.id, dependsOn: 0 }, // gültiger Verweis → bleibt
 					{ title: 'Gültig 3', pillarId: first.id },
 					{ title: 'Gültig 4', pillarId: second.id },
