@@ -1,5 +1,5 @@
 import { KolAlert, KolButton, KolInputCheckbox, KolSpin, KolTextarea } from '@public-ui/react-v19';
-import type { Pillar, SuggestInitialTaskSuggestion } from 'client';
+import type { DependencyInput, Pillar, SuggestInitialTaskSuggestion } from 'client';
 import type { ReactElement } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -53,6 +53,8 @@ export const OnboardingFlow = ({ pillars, onClose, onApplied }: OnboardingFlowPr
 	const [quotaHint, setQuotaHint] = useState<string | null>(null);
 	const [applying, setApplying] = useState(false);
 	const [applyError, setApplyError] = useState<string | null>(null);
+	// Bereits erzeugte Task-IDs je Vorschlags-Index — Grundlage des Retry-Schutzes bei Teilfehler.
+	const [createdIds, setCreatedIds] = useState<Record<number, number>>({});
 	const headingRef = useRef<HTMLHeadingElement>(null);
 
 	// Fokus je Schritt auf der Schritt-Überschrift (UX-Beratung #1986).
@@ -88,13 +90,34 @@ export const OnboardingFlow = ({ pillars, onClose, onApplied }: OnboardingFlowPr
 		}
 	};
 
+	// Auswahl kaskadiert (PO-Entscheidung Kreuzverhör #2081): Wer einen Nachfolger wählt, wählt
+	// seine Vorgänger-Kette mit; wer einen Vorgänger abwählt, wählt die abhängigen Nachfolger
+	// mit ab — so bleibt die Karten-Zusage „nach: …“ anlegbar (Ketten wie Zyklen bleiben durch
+	// die Suggester-Bereinigung #2068 theoretisch möglich, daher Fixpunkt-Schleife + Zyklus-Guard).
 	const toggle = (index: number, value: boolean): void => {
 		setSelected((prev) => {
+			if (suggestions === null) return prev;
 			const next = new Set(prev);
 			if (value) {
-				next.add(index);
+				const seen = new Set<number>();
+				let cursor: number | undefined = index;
+				while (cursor !== undefined && !seen.has(cursor)) {
+					seen.add(cursor);
+					next.add(cursor);
+					cursor = suggestions[cursor]?.dependsOn;
+				}
 			} else {
 				next.delete(index);
+				let changed = true;
+				while (changed) {
+					changed = false;
+					suggestions.forEach((suggestion, i) => {
+						if (next.has(i) && suggestion.dependsOn !== undefined && !next.has(suggestion.dependsOn)) {
+							next.delete(i);
+							changed = true;
+						}
+					});
+				}
 			}
 			return next;
 		});
@@ -103,15 +126,19 @@ export const OnboardingFlow = ({ pillars, onClose, onApplied }: OnboardingFlowPr
 	/**
 	 * Legt die ausgewählten Vorschläge als echte Aufgaben an — Vorgänger zuerst, dann je `dependsOn`
 	 * die Kante am Nachfolger (`POST /tasks/{id}/dependencies`, `dependingTaskId` = Vorgänger).
+	 * Bei Teilfehler bleiben die erzeugten IDs je Vorschlags-Index im Zustand (PO-Entscheidung
+	 * Kreuzverhör #2081): ein Retry legt nur die fehlenden an und spannt die Kanten mit den
+	 * gemerkten IDs (der Server aktualisiert vorhandene Kanten idempotent, `tasks.ts`).
 	 */
 	const apply = async (): Promise<void> => {
 		if (suggestions === null || applying) return;
 		setApplying(true);
 		setApplyError(null);
+		const ids: Record<number, number> = { ...createdIds };
 		try {
-			const ids: (number | undefined)[] = [];
 			const ordered = [...selected].sort((a, b) => a - b);
 			for (const index of ordered) {
+				if (ids[index] !== undefined) continue;
 				const suggestion = suggestions[index];
 				// `pillars` ist der echte TaskCreate-Vertrag (Share-Modell, Summe 100); `pillarIds` führt
 				// der Spec-Vertrag (#2069) zusätzlich — serverseitig ein inertes additional property,
@@ -124,16 +151,23 @@ export const OnboardingFlow = ({ pillars, onClose, onApplied }: OnboardingFlowPr
 					pillarIds: [suggestion.pillarId],
 				};
 				const created = await api.createTask({ taskCreate });
-				ids[index] = created?.id;
+				const createdId = created?.id;
+				if (typeof createdId === 'number') {
+					ids[index] = createdId;
+					setCreatedIds((prev) => ({ ...prev, [index]: createdId }));
+				}
 			}
 			for (const index of ordered) {
 				const dependsOn = suggestions[index].dependsOn;
 				const successor = ids[index];
 				const predecessor = dependsOn === undefined ? undefined : ids[dependsOn];
 				if (typeof successor === 'number' && typeof predecessor === 'number') {
+					// Der Flow-Vertrag (#2069) kennt keine Gewichtung — nur `dependingTaskId` (Spec gefroren,
+					// e2e deep-equality). `weight` ist im generierten Client-Typ Pflichtfeld, serverseitig
+					// aber optional mit Default (tasks.ts) — daher der enge Cast statt Default-Gewicht.
 					await api.addDependency({
 						id: successor,
-						dependencyInput: { dependingTaskId: predecessor, weight: 1 },
+						dependencyInput: { dependingTaskId: predecessor } as DependencyInput,
 					});
 				}
 			}
@@ -141,7 +175,11 @@ export const OnboardingFlow = ({ pillars, onClose, onApplied }: OnboardingFlowPr
 			onClose();
 		} catch (reason) {
 			const apiError = await toApiError(reason);
-			setApplyError(apiError.message);
+			// Der Fehler-Alert nennt, wie viele Aufgaben schon angelegt sind — der Retry vervollständigt.
+			const done = Object.keys(ids).length;
+			setApplyError(
+				done > 0 ? `${t('onboarding.partialInfo', { count: String(done) })} ${apiError.message}` : apiError.message,
+			);
 		} finally {
 			setApplying(false);
 		}

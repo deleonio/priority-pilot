@@ -75,6 +75,7 @@
 		"empty": "De AI-dienst heeft nu geen suggesties gevonden. Je kunt het later opnieuw proberen.",
 		"selectedCount": "{{selected}} van {{total}} suggesties geselecteerd",
 		"suggestError": "Ophalen van de suggesties mislukt",
-		"applyError": "Aanmaken van de taken mislukt"
+		"applyError": "Aanmaken van de taken mislukt",
+		"partialInfo": "{{count}} taken zijn al aangemaakt — opnieuw toepassen maakt alleen de ontbrekende aan."
 	}
 }

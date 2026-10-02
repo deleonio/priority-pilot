@@ -75,6 +75,7 @@
 		"empty": "Usługa AI nie znalazła teraz żadnych sugestii. Możesz spróbować ponownie później.",
 		"selectedCount": "Wybrano {{selected}} z {{total}} sugestii",
 		"suggestError": "Nie udało się pobrać sugestii",
-		"applyError": "Nie udało się utworzyć zadań"
+		"applyError": "Nie udało się utworzyć zadań",
+		"partialInfo": "{{count}} zadań jest już utworzonych — ponowne zastosowanie utworzy tylko brakujące."
 	}
 }

@@ -75,6 +75,7 @@
 		"empty": "The AI service didn't find any suggestions right now. You can try again later.",
 		"selectedCount": "{{selected}} of {{total}} suggestions selected",
 		"suggestError": "Fetching suggestions failed",
-		"applyError": "Creating the tasks failed"
+		"applyError": "Creating the tasks failed",
+		"partialInfo": "{{count}} tasks are already created — applying again only creates the missing ones."
 	}
 }

@@ -75,6 +75,7 @@
 		"empty": "Il servizio di IA non ha trovato suggerimenti in questo momento. Puoi riprovare più tardi.",
 		"selectedCount": "{{selected}} di {{total}} suggerimenti selezionati",
 		"suggestError": "Recupero dei suggerimenti non riuscito",
-		"applyError": "Creazione delle attività non riuscita"
+		"applyError": "Creazione delle attività non riuscita",
+		"partialInfo": "{{count}} attività sono già state create — applicare di nuovo crea solo quelle mancanti."
 	}
 }

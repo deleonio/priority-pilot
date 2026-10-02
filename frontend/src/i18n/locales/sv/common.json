@@ -75,6 +75,7 @@
 		"empty": "AI-tjänsten hittade inga förslag just nu. Du kan försöka igen senare.",
 		"selectedCount": "{{selected}} av {{total}} förslag valda",
 		"suggestError": "Det gick inte att hämta förslag",
-		"applyError": "Det gick inte att skapa uppgifter"
+		"applyError": "Det gick inte att skapa uppgifter",
+		"partialInfo": "{{count}} uppgifter har redan skapats — att tillämpa igen skapar bara de saknade."
 	}
 }

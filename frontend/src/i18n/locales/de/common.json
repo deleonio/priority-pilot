@@ -75,6 +75,7 @@
 		"empty": "Der KI-Dienst hat gerade keine Vorschläge gefunden. Du kannst es später erneut versuchen.",
 		"selectedCount": "{{selected}} von {{total}} Vorschlägen ausgewählt",
 		"suggestError": "Vorschläge fehlgeschlagen",
-		"applyError": "Anlegen fehlgeschlagen"
+		"applyError": "Anlegen fehlgeschlagen",
+		"partialInfo": "{{count}} Aufgaben sind bereits angelegt — ein erneuter Klick auf Übernehmen legt nur die fehlenden an."
 	}
 }

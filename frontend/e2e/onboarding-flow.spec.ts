@@ -163,9 +163,11 @@ test.describe('#2069 Erststart-Flow', () => {
 		expect(dependency.url()).toContain(`/api/v1/tasks/${idOf('Erststart B')}/dependencies`);
 		expect(JSON.parse(dependency.postData()!)).toEqual({ dependingTaskId: idOf('Erststart A') });
 
-		// Die neuen Aufgaben erscheinen im Dashboard; die abgewählten nicht.
+		// Die neuen Aufgaben erscheinen im Dashboard; die abgewählten nicht. Erststart B trägt eine
+		// Abhängigkeit auf A und ist damit Unteraufgabe — die flache Liste zeigt sie nicht (Vertrag
+		// Graph: Unteraufgaben nur dort, Muster task-graph.spec.ts); die API-Prüfung oben belegt sie.
 		await expect(taskTitleText(page, 'Erststart A')).toBeVisible();
-		await expect(taskTitleText(page, 'Erststart B')).toBeVisible();
+		await expect(taskTitleText(page, 'Erststart B')).toHaveCount(0);
 		await expect(taskTitleText(page, 'Erststart C')).toHaveCount(0);
 	});
 

@@ -116,6 +116,8 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 		await toggleCard('Erststart A', true);
 		await toggleCard('Erststart B', true);
 		await clickButton('Weiter');
+		// IDs für den Abhängigkeits-Mock (Test-Infrastruktur, Kreuzverhör #2081 Finding 1).
+		apiMock.createTask.mockResolvedValueOnce({ id: 101 }).mockResolvedValueOnce({ id: 102 });
 		await clickButton('Übernehmen');
 
 		await waitFor(() => expect(apiMock.createTask).toHaveBeenCalledTimes(2));
@@ -126,6 +128,81 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 			taskCreate: expect.objectContaining({ title: 'Erststart B', pillarIds: [11] }),
 		});
 		// Vorgänger zuerst angelegt (id 101), dann Abhängigkeits-Kante am Nachfolger (id 102).
+		expect(apiMock.addDependency).toHaveBeenCalledWith({ id: 102, dependencyInput: { dependingTaskId: 101 } });
+	});
+
+	it('wählt beim Wählen eines Nachfolgers dessen Vorgänger-Kette mit (Kaskade, PO-Entscheidung Kreuzverhör #2081)', async () => {
+		const { onClose } = renderFlow();
+		apiMock.createTask.mockResolvedValueOnce({ id: 101 }).mockResolvedValueOnce({ id: 102 });
+		await gotoSuggestions();
+
+		// Nur Karte B gewählt — die Kaskade wählt Vorgänger A mit; beide werden angelegt, Kante B → A.
+		await toggleCard('Erststart B', true);
+		await clickButton('Übernehmen');
+
+		await waitFor(() => expect(apiMock.createTask).toHaveBeenCalledTimes(2));
+		expect(apiMock.createTask).toHaveBeenNthCalledWith(1, {
+			taskCreate: expect.objectContaining({ title: 'Erststart A', pillarIds: [11] }),
+		});
+		expect(apiMock.createTask).toHaveBeenNthCalledWith(2, {
+			taskCreate: expect.objectContaining({ title: 'Erststart B', pillarIds: [11] }),
+		});
+		expect(apiMock.addDependency).toHaveBeenCalledWith({ id: 102, dependencyInput: { dependingTaskId: 101 } });
+		expect(onClose).toHaveBeenCalledTimes(1);
+	});
+
+	it('wählt beim Abwählen eines Vorgängers die abhängigen Nachfolger gleich mit ab (Kaskade, PO-Entscheidung Kreuzverhör #2081)', async () => {
+		const { onClose } = renderFlow();
+		await gotoSuggestions();
+
+		await toggleCard('Erststart B', true); // Kaskade: A + B
+		await toggleCard('Erststart A', false); // Kaskade: B fällt mit weg
+		await clickButton('Weiter');
+
+		// Schritt 3 zeigt Auswahl 0 — ohne Kaskade stünde hier eine verwaiste Karte mit still
+		// übersprungener „nach: …“-Zusage.
+		await waitFor(() => {
+			const counter = [...document.body.querySelectorAll('.onboarding-flow p')].find((el) =>
+				el.textContent?.includes('von 5'),
+			);
+			expect(counter?.textContent).toContain('0 von 5');
+		});
+		expect(apiMock.createTask).not.toHaveBeenCalled();
+		expect(onClose).not.toHaveBeenCalled();
+	});
+
+	it('merkt sich bei Teilfehler die angelegten Aufgaben und legt beim Retry nur die fehlenden an (keine Duplikate, PO-Entscheidung Kreuzverhör #2081)', async () => {
+		const { onClose } = renderFlow();
+		const body = { message: 'Datenbank nicht erreichbar.' };
+		apiMock.createTask
+			.mockResolvedValueOnce({ id: 101 })
+			.mockResolvedValueOnce({ id: 102 })
+			.mockRejectedValueOnce(new ResponseError(new Response(JSON.stringify(body), { status: 503 }), body));
+		await gotoSuggestions();
+
+		await toggleCard('Erststart A', true);
+		await toggleCard('Erststart B', true);
+		await toggleCard('Erststart C', true);
+		// Der applyError-Alert lebt in Schritt 3 (Zusammenfassung) — zuerst dorthin navigieren.
+		await clickButton('Weiter');
+		await clickButton('Übernehmen');
+
+		// Teilfehler bei C: A und B liegen an (IDs gemerkt), der Alert nennt den Stand.
+		await waitFor(() => {
+			const alert = document.body.querySelector('.onboarding-flow kol-alert');
+			expect(alert?.getAttribute('_type')).toBe('error');
+			expect(alert?.textContent).toContain('2 Aufgaben');
+		});
+		expect(apiMock.createTask).toHaveBeenCalledTimes(3);
+		expect(onClose).not.toHaveBeenCalled();
+
+		// Retry: nur C wird angelegt (103), die Kante läuft mit den gemerkten IDs — keine Duplikate.
+		apiMock.createTask.mockResolvedValueOnce({ id: 103 });
+		await clickButton('Übernehmen');
+
+		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+		expect(apiMock.createTask).toHaveBeenCalledTimes(4);
+		expect(apiMock.addDependency).toHaveBeenCalledTimes(1);
 		expect(apiMock.addDependency).toHaveBeenCalledWith({ id: 102, dependencyInput: { dependingTaskId: 101 } });
 	});
 

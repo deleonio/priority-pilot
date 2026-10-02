@@ -75,6 +75,7 @@
 		"empty": "O serviço de IA não encontrou sugestões neste momento. Podes tentar novamente mais tarde.",
 		"selectedCount": "{{selected}} de {{total}} sugestões selecionadas",
 		"suggestError": "Falha ao obter as sugestões",
-		"applyError": "Falha ao criar as tarefas"
+		"applyError": "Falha ao criar as tarefas",
+		"partialInfo": "{{count}} tarefas já foram criadas — aplicar novamente cria apenas as que faltam."
 	}
 }

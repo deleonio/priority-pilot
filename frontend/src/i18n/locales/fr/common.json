@@ -75,6 +75,7 @@
 		"empty": "Le service d'IA n'a trouvé aucune suggestion pour le moment. Tu peux réessayer plus tard.",
 		"selectedCount": "{{selected}} suggestions sélectionnées sur {{total}}",
 		"suggestError": "Échec de la récupération des suggestions",
-		"applyError": "Échec de la création des tâches"
+		"applyError": "Échec de la création des tâches",
+		"partialInfo": "{{count}} tâches sont déjà créées — appliquer à nouveau ne crée que les manquantes."
 	}
 }
