@@ -6,7 +6,7 @@ import { StreakCard } from './StreakCard';
 import { MilestoneBadges } from './MilestoneBadges';
 import { MissedTasksCard } from './MissedTasksCard';
 import { HeartBalance } from './HeartBalance';
-import type { Pillar, Task, TaskTreeNode } from 'client';
+import type { components, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
@@ -26,6 +26,69 @@ import {
 const URGENCY_COLOR: Record<Exclude<DeadlineUrgency, 'later'>, string> = {
 	overdue: '#b42318',
 	soon: '#b54708',
+};
+
+/**
+ * #1985: „Warum jetzt?“ — `GET /next` liefert die Begründungswerte additiv im Payload
+ * (reviveTask-Spread, api.ts); hier über den TaskRecommendation-Vertrag typisiert. Bewusst nur
+ * die zwei Zusatzfelder gepickt — der Vertrags-`deadline` (String) kollidiert mit dem
+ * revivierten `Date` des Frontend-`Task`.
+ */
+type BegrTask = Task & Partial<Pick<components['schemas']['TaskRecommendation'], 'scoreBreakdown' | 'reasons'>>;
+
+/**
+ * Begründungssätze der Karte (#1985): bis zu vier kurze Sätze, absteigend nach dem
+ * scoreBreakdown-Anteil des jeweiligen Faktors (stärkster Grund zuerst = DOM-Reihenfolge, A11y).
+ * Rein informativ, ohne Technik-Werte (KI-UX): keine Anteile/Prozente/Scores. Ohne Anteile
+ * genau ein Fallback-Satz aus Priorität und Frist.
+ */
+const begruendungsSaetze = (task: BegrTask): string[] => {
+	const { reasons, scoreBreakdown } = task;
+	if (reasons === undefined || Object.keys(reasons).length === 0) {
+		return [
+			task.deadline
+				? `Priorität ${task.priority}, fällig am ${formatDeadline(task.deadline)}.`
+				: `Priorität ${task.priority}.`,
+		];
+	}
+	const anteil = (key: keyof NonNullable<typeof reasons>): number =>
+		scoreBreakdown?.[key as keyof NonNullable<typeof scoreBreakdown>] ?? 0;
+	const saetze: Array<{ key: keyof NonNullable<typeof reasons>; satz: string }> = [];
+	const balance = reasons.balance;
+	if (balance !== undefined && balance.pillars.length > 0) {
+		const namen =
+			balance.pillars.length === 1
+				? `Säule ${balance.pillars[0]!}`
+				: `Säulen ${balance.pillars.slice(0, -1).join(', ')} und ${balance.pillars.at(-1)!}`;
+		saetze.push({
+			key: 'balance',
+			satz: `${namen} kam${balance.pillars.length === 1 ? '' : 'en'} diese Woche zu kurz.`,
+		});
+	}
+	if (reasons.unlock !== undefined) {
+		const offen = reasons.unlock.openCount;
+		saetze.push({
+			key: 'unlock',
+			satz: offen === 1 ? 'Schaltet 1 offene Aufgabe frei.' : `Schaltet ${offen} offene Aufgaben frei.`,
+		});
+	}
+	const frist = reasons.deadline;
+	if (frist !== undefined) {
+		const tage = frist.daysUntil;
+		saetze.push({
+			key: 'deadline',
+			satz:
+				tage < 0
+					? `Überfällig seit ${-tage} ${-tage === 1 ? 'Tag' : 'Tagen'}.`
+					: tage === 0
+						? 'Fällig heute.'
+						: `Fällig am ${formatDeadline(new Date(`${frist.date}T00:00:00Z`))} (in ${tage} ${tage === 1 ? 'Tag' : 'Tagen'}).`,
+		});
+	}
+	if (reasons.priority !== undefined) {
+		saetze.push({ key: 'priority', satz: `Priorität ${reasons.priority.priority}.` });
+	}
+	return saetze.sort((a, b) => anteil(b.key) - anteil(a.key)).map(({ satz }) => satz);
 };
 
 interface DashboardProps {
@@ -256,6 +319,14 @@ export const Dashboard = ({
 							<div className="dashboard-next-task-content">
 								<span className="dashboard-next-task-title">{nextTask.title}</span>
 								<span className="dashboard-next-task-priority">Priorität {nextTask.priority}</span>
+								{/* #1985: „Warum jetzt?“ — Begründungssätze, stärkster Grund zuerst (DOM-Reihenfolge,
+								    A11y); ohne Anteile der Fallback-Satz. Reine Information im Signal-Panel: keine
+								    Interaktion, kein Farb-/Gewichts-Akzent (KI-UX). */}
+								<ul className="dashboard-next-task-reasons">
+									{begruendungsSaetze(nextTask).map((satz) => (
+										<li key={satz}>{satz}</li>
+									))}
+								</ul>
 								{/* #1465: Beide Aktionen liegen in EINER Zeile (`.dashboard-next-task-actions`) —
 								    „Erledigen" nimmt die Restbreite, der Stift bleibt inhaltsbreit daneben.
 								    #1447: Bearbeiten steht NACH „Erledigen" im DOM, die Signalfarbe bleibt der

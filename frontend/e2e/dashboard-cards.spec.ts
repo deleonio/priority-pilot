@@ -84,4 +84,55 @@ test.describe('Dashboard — drei Statuskacheln (Issue #390)', () => {
 		);
 		expect(overflowsHorizontally).toBe(false);
 	});
+
+	/**
+	 * Roter Spec-Test für #1985 (TF5 — docs/spec/issue-1985.md): die Karte „Nächste Aufgabe“
+	 * trägt künftig die Begründungssätze; sie muss mit dieser Zusatzlänge bei 375 px UND 320 px
+	 * innerhalb des Viewports bleiben (Bounding-Box, nicht scrollWidth — die App-Shell clippt),
+	 * und die Aktionszeile darf nicht umbrechen. Rot, weil die Begründungsliste (Server→Karte,
+	 * echte Kette) heute noch nicht gerendert wird.
+	 */
+	test('#1985 AK5: „Nächste Aufgabe“-Karte mit Begründungen bei 375/320 px im Viewport', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/app/');
+		await waitForStableView(page);
+		await page.request.post('/api/v1/tasks', { data: { title: 'E2E #1985 Begründung', priority: 2 } });
+		await page.reload();
+		await waitForStableView(page);
+		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
+		await waitForStableView(page);
+
+		const karte = page.locator('.dashboard-next-task');
+		await expect(karte).toBeVisible();
+
+		// Begründungskette Ende-zu-Ende: der Task (Prio 2) bekommt mindestens einen Satz.
+		const begruendungsSaetze = page.locator('.dashboard-next-task-reasons li');
+		await expect(begruendungsSaetze.first()).toBeVisible();
+
+		for (const breite of [375, 320]) {
+			await page.setViewportSize({ width: breite, height: 812 });
+			await waitForStableView(page);
+
+			// Karte vollständig im Viewport (links und rechts), gemessen per Bounding-Box.
+			const box = await karte.evaluate((el) => {
+				const r = el.getBoundingClientRect();
+				return { left: r.left, right: r.right };
+			});
+			expect(box.left, `linke Kante bei ${breite} px`).toBeGreaterThanOrEqual(-1);
+			expect(box.right, `rechte Kante bei ${breite} px`).toBeLessThanOrEqual(breite + 1);
+
+			// Aktionszeile in einer Zeile: alle Buttons auf gleicher Y-Höhe, Zeile im Viewport.
+			const aktionen = page.locator('.dashboard-next-task-actions');
+			const knopfTops = await aktionen
+				.locator('kol-button')
+				.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().top));
+			expect(knopfTops.length, 'Aktionszeile muss beide Buttons tragen').toBeGreaterThanOrEqual(2);
+			expect(
+				Math.max(...knopfTops) - Math.min(...knopfTops),
+				`Aktionszeile umgebrochen bei ${breite} px`,
+			).toBeLessThanOrEqual(2);
+			const aktionenRechts = await aktionen.evaluate((el) => el.getBoundingClientRect().right);
+			expect(aktionenRechts, `Aktionszeile rechts bei ${breite} px`).toBeLessThanOrEqual(breite + 1);
+		}
+	});
 });

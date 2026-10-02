@@ -77,15 +77,19 @@ const MAX_VORSCHLAEGE = 5;
 /** Priorität (1–5) auf 0–1 normieren. */
 const normPriority = (priority: number): number => (priority - 1) / 4;
 
+/** Kalendertage bis zur Frist (auf ganze Tage gerundete Mitternachts-Differenz); negativ = überfällig. */
+const tageBisFrist = (deadline: Date, jetzt: Date): number => {
+	const heuteMitternacht = new Date(jetzt.getFullYear(), jetzt.getMonth(), jetzt.getDate()).getTime();
+	const zielMitternacht = new Date(deadline.getFullYear(), deadline.getMonth(), deadline.getDate()).getTime();
+	return Math.round((zielMitternacht - heuteMitternacht) / TAG_MS);
+};
+
 /** Deadline-Nähe als Faktor (0–1); je dringlicher, desto höher. */
 const normDeadline = (deadline: Date | null | undefined, jetzt: Date): number => {
 	if (!deadline) {
 		return 0;
 	}
-	// Auf ganze Tage gerundete Differenz (kalendertag-unabhängig genug für die Buckets).
-	const heuteMitternacht = new Date(jetzt.getFullYear(), jetzt.getMonth(), jetzt.getDate()).getTime();
-	const zielMitternacht = new Date(deadline.getFullYear(), deadline.getMonth(), deadline.getDate()).getTime();
-	const diffTage = Math.round((zielMitternacht - heuteMitternacht) / TAG_MS);
+	const diffTage = tageBisFrist(deadline, jetzt);
 	if (diffTage < 0) {
 		return 1.0; // überfällig
 	}
@@ -98,10 +102,10 @@ const normDeadline = (deadline: Date | null | undefined, jetzt: Date): number =>
 	return 0.2; // weiter in der Zukunft
 };
 
-/** Entsperr-Wirkung (0–1): Zahl der noch offenen Nachfolger, gedeckelt. */
-const normUnlock = async (task: Task): Promise<number> => {
+/** Entsperr-Wirkung (0–1): Zahl der noch offenen Nachfolger, gedeckelt; Zahl mitgeliefert (#1985). */
+const normUnlock = async (task: Task): Promise<{ offen: number; wert: number }> => {
 	const offen = (await task.getDependents()).filter((nachfolger) => nachfolger.status !== 'Done').length;
-	return Math.min(1, offen / UNLOCK_DECKEL);
+	return { offen, wert: Math.min(1, offen / UNLOCK_DECKEL) };
 };
 
 /** Aufwand (0.1–1) als Faktor; geringer Aufwand ⇒ höherer Wert. */
@@ -133,13 +137,17 @@ const istProSaeule = (summen: Map<number, number>): Map<number, number> => {
 	return ist;
 };
 
-/** Balance-Korrektur eines Tasks: Säulen mit Defizit (`soll > ist`) gewichten ihn hoch. */
+/**
+ * Balance-Korrektur eines Tasks: Säulen mit Defizit (`soll > ist`) gewichten ihn hoch; die Namen
+ * der Defizit-Säulen reisen mit (#1985, Begründungssatz der Karte).
+ */
 const normBalance = (
 	pillars: PillarWithContribution[],
 	soll: Map<number, number>,
 	ist: Map<number, number>,
-): number => {
+): { wert: number; defizitSaeulen: string[] } => {
 	let summe = 0;
+	const defizitSaeulen: string[] = [];
 	for (const pillar of pillars) {
 		const s = soll.get(pillar.id) ?? 0;
 		if (s <= 0) {
@@ -147,15 +155,28 @@ const normBalance = (
 		}
 		const i = ist.get(pillar.id) ?? 0;
 		const defizit = Math.max(0, s - i) / s;
+		if (defizit > 0) {
+			defizitSaeulen.push(pillar.name);
+		}
 		summe += (pillar.TaskPillar.share / PERCENT) * defizit;
 	}
-	return summe;
+	return { wert: summe, defizitSaeulen };
 };
 
 export interface Bewertung {
 	task: Task;
 	score: number;
 	beitraege: { prio: number; entsperr: number; balance: number; deadline: number; aufwand: number };
+	/** Rohwerte je Faktor für die Begründungssätze der Karte (#1985), additiv zu `beitraege`. */
+	kontext: { defizitSaeulen: string[]; offeneNachfolger: number; tageBisFrist: number | null };
+}
+
+/** Strukturierte Begründungswerte (#1985): je Faktor mit Beitrag > 0 ein Schlüssel. */
+export interface TaskReasons {
+	balance?: { pillars: string[] };
+	unlock?: { openCount: number };
+	deadline?: { date: string; daysUntil: number };
+	priority?: { priority: number };
 }
 
 /**
@@ -195,15 +216,26 @@ export const bewerteKandidaten = async (userId?: number, now: Date = new Date())
 
 	const bewertet: Bewertung[] = [];
 	for (const task of kandidaten) {
+		const entsperr = await normUnlock(task);
+		const balance = normBalance(task.Pillars ?? [], soll, ist);
 		const beitraege = {
 			prio: W_PRIO * normPriority(task.priority),
-			entsperr: W_UNLOCK * (await normUnlock(task)),
-			balance: W_BALANCE * normBalance(task.Pillars ?? [], soll, ist),
+			entsperr: W_UNLOCK * entsperr.wert,
+			balance: W_BALANCE * balance.wert,
 			deadline: W_DEADLINE * normDeadline(task.deadline ?? null, now),
 			aufwand: W_EFFORT * normEffort(task.estimatedEffort),
 		};
 		const score = Object.values(beitraege).reduce((summe, beitrag) => summe + beitrag, 0);
-		bewertet.push({ task, score, beitraege });
+		bewertet.push({
+			task,
+			score,
+			beitraege,
+			kontext: {
+				defizitSaeulen: balance.defizitSaeulen,
+				offeneNachfolger: entsperr.offen,
+				tageBisFrist: task.deadline != null ? tageBisFrist(task.deadline, now) : null,
+			},
+		});
 	}
 
 	// Höchster Score zuerst; bei Gleichstand höhere Priorität, dann stabile id-Reihenfolge.
@@ -255,4 +287,28 @@ export const toScoreBreakdown = ({ score, beitraege }: Bewertung) => {
 		total: score,
 		...Object.fromEntries(Object.entries(faktoren).filter(([, beitrag]) => beitrag !== 0)),
 	};
+};
+
+/**
+ * Begründungswerte der Karte (#1985): je Faktor mit Beitrag > 0 der Rohwert — Spiegel der
+ * `toScoreBreakdown`-Konvention (Beitrag 0 ⇒ Schlüssel fehlt); ganz ohne Anteile `undefined`,
+ * damit `reasons` im DTO von `GET /next` komplett entfällt.
+ */
+export const toReasons = ({ task, beitraege, kontext }: Bewertung): TaskReasons | undefined => {
+	const reasons: TaskReasons = {};
+	// Balance an den Defizit-Säulen des Tasks gebunden (nicht am Beitrag — ein Task mit share 0
+	// hat trotzdem eine Begründung, der Vertrag folgt TF1 in suggestions.test.ts).
+	if (kontext.defizitSaeulen.length > 0) {
+		reasons.balance = { pillars: kontext.defizitSaeulen };
+	}
+	if (beitraege.entsperr > 0) {
+		reasons.unlock = { openCount: kontext.offeneNachfolger };
+	}
+	if (beitraege.deadline > 0 && task.deadline != null && kontext.tageBisFrist !== null) {
+		reasons.deadline = { date: task.deadline.toISOString().slice(0, 10), daysUntil: kontext.tageBisFrist };
+	}
+	if (beitraege.prio > 0) {
+		reasons.priority = { priority: task.priority };
+	}
+	return Object.keys(reasons).length > 0 ? reasons : undefined;
 };
