@@ -2,13 +2,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { EXPERT_MODE_STORAGE_KEY, readExpertMode, storeExpertMode } from './expertMode';
 
 /**
- * Rote Spec-Tests für #1984 — AK3: Expertenmodus-Präferenz im localStorage (`pp-expert-mode`).
+ * Vertrags-Tests für #1984 — AK3: Expertenmodus-Präferenz im localStorage (`pp-expert-mode`).
  *
- * Spezifikation: `docs/spec/issue-1984.md`. Vertrag (noch nicht implementiert, Muster
- * `aiPreferences.ts`): `EXPERT_MODE_STORAGE_KEY`, `readExpertMode` (Default **aus**, ungültiger
- * Wert fällt auf den Default zurück, gesperrter Storage crasht nicht) und `storeExpertMode`
- * (Best-Effort). Rot, solange das Modul fehlt (missing module = legitimer erster Rot-Zustand
- * für neue Funktionalität).
+ * Spezifikation: `docs/spec/issue-1984.md`. Vertrag (Muster `aiPreferences.ts`):
+ * `EXPERT_MODE_STORAGE_KEY`, `readExpertMode` (Default **aus**, ungültiger Wert fällt auf den
+ * Default zurück, gesperrter Storage crasht nicht) und `storeExpertMode` (Best-Effort).
  */
 
 afterEach(() => {
