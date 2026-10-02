@@ -20,8 +20,16 @@ import { api } from '../api';
 import { startNativeGoogleLogin } from '../lib/nativeAuth';
 import { LoginPage } from './LoginPage';
 
+// Tab-Session-Cache der Komponente zwischen den Tests leeren (Render-Reihenfolge soll nicht zählen).
+afterEach(() => {
+	sessionStorage.clear();
+});
+
 const providers = vi.mocked(api.getAuthProviders);
 const requestMagicLink = vi.mocked(api.requestMagicLink);
+// `addToWaitlist` gibt es im API-Client noch nicht (rote Spec-Tests) — gecasteter Zugriff,
+// damit der Pre-Commit-tsc an dieser Stelle nicht stirbt (Muster #1566).
+const addToWaitlist = (api as unknown as { addToWaitlist: ReturnType<typeof vi.fn> }).addToWaitlist;
 
 describe('LoginPage — Magic Link per E-Mail', () => {
 	beforeEach(() => {
@@ -170,10 +178,6 @@ describe('LoginPage — Login-Card-Struktur (#1769)', () => {
 });
 
 describe('LoginPage — Wartelisten-Eintrag (#1982, AK5)', () => {
-	// `addToWaitlist` gibt es im API-Client noch nicht (rote Spec-Tests) — gecasteter Zugriff,
-	// damit der Pre-Commit-tsc an dieser Stelle nicht stirbt (Muster #1566).
-	const addToWaitlist = (api as unknown as { addToWaitlist: ReturnType<typeof vi.fn> }).addToWaitlist;
-
 	beforeEach(() => {
 		window.history.replaceState(null, '', '/app/');
 		providers.mockResolvedValue({ google: true, magicLink: true });
@@ -207,5 +211,75 @@ describe('LoginPage — Wartelisten-Eintrag (#1982, AK5)', () => {
 		fireEvent.click(screen.getByRole('button', { name: /Warteliste/ }));
 
 		expect(await screen.findByRole('alert').then((a) => a.textContent)).toMatch(/nicht geklappt|versuch es/i);
+	});
+});
+
+describe('LoginPage — Magic-Link-Session-Cache und Sende-Zustaende', () => {
+	const CACHE_KEY = 'pp-magic-link-enabled';
+
+	beforeEach(() => {
+		window.history.replaceState(null, '', '/app/');
+	});
+	afterEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('liest den Cache initial: Sektion sofort sichtbar, auch wenn der Fetch nie antwortet', () => {
+		sessionStorage.setItem(CACHE_KEY, '1');
+		providers.mockReturnValue(new Promise(() => {}));
+
+		render(<LoginPage />);
+
+		expect(screen.getByLabelText('Anmeldelink per E-Mail')).toBeTruthy();
+	});
+
+	it('schreibt den Cache nach dem Fetch durch: magicLink true → "1", false → "0"', async () => {
+		providers.mockResolvedValue({ google: true, magicLink: true });
+		const { unmount } = render(<LoginPage />);
+		await waitFor(() => expect(providers).toHaveBeenCalled());
+		expect(sessionStorage.getItem(CACHE_KEY)).toBe('1');
+		unmount();
+
+		providers.mockResolvedValue({ google: true, magicLink: false });
+		render(<LoginPage />);
+		await waitFor(() => expect(providers).toHaveBeenCalledTimes(2));
+		expect(sessionStorage.getItem(CACHE_KEY)).toBe('0');
+	});
+
+	it('ueberschreibt bei Fetch-Fehler weder Cache noch Zustand', async () => {
+		sessionStorage.setItem(CACHE_KEY, '1');
+		providers.mockRejectedValue(new Error('offline'));
+
+		render(<LoginPage />);
+
+		expect(screen.getByLabelText('Anmeldelink per E-Mail')).toBeTruthy();
+		expect(sessionStorage.getItem(CACHE_KEY)).toBe('1');
+	});
+
+	it('zeigt beim Magic-Link-Versand „Wird gesendet …“ und deaktiviert den Button', async () => {
+		providers.mockResolvedValue({ google: true, magicLink: true });
+		requestMagicLink.mockReturnValue(new Promise(() => {}));
+		render(<LoginPage />);
+
+		fireEvent.change(await screen.findByLabelText('Anmeldelink per E-Mail'), {
+			target: { value: 'ich@example.com' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Anmeldelink senden' }));
+
+		expect(screen.getByRole('button', { name: 'Wird gesendet …' })).toBeTruthy();
+		expect(requestMagicLink).toHaveBeenCalledWith('ich@example.com');
+	});
+
+	it('zeigt beim Wartelisten-Eintrag „Wird eingetragen …“ und deaktiviert den Button', async () => {
+		providers.mockResolvedValue({ google: true, magicLink: true });
+		addToWaitlist.mockReturnValue(new Promise(() => {}));
+		render(<LoginPage />);
+
+		fireEvent.change(await screen.findByLabelText('Auf die Warteliste per E-Mail'), {
+			target: { value: 'unbekannt@example.com' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: /Warteliste/ }));
+
+		expect(screen.getByRole('button', { name: 'Wird eingetragen …' })).toBeTruthy();
 	});
 });

@@ -4949,20 +4949,11 @@ a.plan-badge:focus-visible {
 	gap: var(--pp-gap-tight);
 }
 
-/* Wortmarke: je Theme ein SVG, das jeweils andere bleibt ausgeblendet (#1741) */
+/* Wortmarke: das Theme-passende SVG wählt die Komponente (ein img statt zweier) */
 .login-page__brand-wordmark {
 	width: 15rem;
 	height: auto;
 	max-width: 100%;
-}
-
-.login-page__brand-wordmark--dark,
-:root[data-theme='dark'] .login-page__brand-wordmark--light {
-	display: none;
-}
-
-:root[data-theme='dark'] .login-page__brand-wordmark--dark {
-	display: block;
 }
 
 .login-page__title {
@@ -4977,6 +4968,15 @@ a.plan-badge:focus-visible {
 	margin: 0;
 	color: var(--pp-ink-muted);
 	font-size: var(--pp-font-size-base);
+}
+
+/* Überschrift einer Folger-Card (Warteliste) — eine Stufe unter dem h1 der Anmelde-Card */
+.login-page__card-title {
+	margin: 0;
+	font-size: var(--pp-font-size-base);
+	font-weight: var(--pp-weight-bold);
+	line-height: var(--pp-line-tight);
+	color: var(--pp-ink);
 }
 
 .login-page__card {
@@ -5055,7 +5055,8 @@ a.plan-badge:focus-visible {
 }
 
 .login-page__btn:focus-visible,
-.login-page__input:focus-visible {
+.login-page__input:focus-visible,
+.login-page__ref-link:focus-visible {
 	outline: 2px solid var(--pp-focus-ring);
 	outline-offset: 2px;
 }
@@ -5090,6 +5091,7 @@ a.plan-badge:focus-visible {
 
 .login-page__label {
 	color: var(--pp-ink);
+	font-size: var(--pp-font-size-sm);
 	font-weight: var(--pp-weight-bold);
 }
 
@@ -5145,6 +5147,13 @@ a.plan-badge:focus-visible {
 	flex-direction: column;
 	gap: var(--pp-gap-tight);
 	overflow-wrap: anywhere;
+}
+
+/* Der Empfehlungs-Link ist ein echter Anker (neuer Tab); Unterstreichung trägt die Klick-Affordanz */
+.login-page__ref-link {
+	color: var(--pp-success);
+	text-decoration: underline;
+	text-underline-offset: 2px;
 }
 
 /* Zustimmungsschritt nach dem Login (#1901) — im .login-page-Rahmen, Haken mit Link darunter */
