@@ -59,5 +59,22 @@
 		"accept": "Vorschlag übernehmen",
 		"notNow": "Nicht jetzt",
 		"dismiss": "Vorschlag ablehnen"
+	},
+	"onboarding": {
+		"step": "Stap {{step}} van 3",
+		"heading1": "Wat houdt je bezig op dit moment?",
+		"heading2": "Jouw suggesties",
+		"heading3": "Klaar om te starten",
+		"goalLabel": "Beschrijf in eigen woorden waar je nu staat",
+		"weiter": "Doorgaan",
+		"spaeter": "Later",
+		"uebernehmen": "Toepassen",
+		"loading": "Suggesties worden voorbereid",
+		"saule": "Pijler: {{name}}",
+		"nach": "na: {{title}}",
+		"empty": "De AI-dienst heeft nu geen suggesties gevonden. Je kunt het later opnieuw proberen.",
+		"selectedCount": "{{selected}} van {{total}} suggesties geselecteerd",
+		"suggestError": "Ophalen van de suggesties mislukt",
+		"applyError": "Aanmaken van de taken mislukt"
 	}
 }

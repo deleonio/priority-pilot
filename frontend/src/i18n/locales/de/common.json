@@ -59,5 +59,22 @@
 		"accept": "Vorschlag übernehmen",
 		"notNow": "Nicht jetzt",
 		"dismiss": "Vorschlag ablehnen"
+	},
+	"onboarding": {
+		"step": "Schritt {{step}} von 3",
+		"heading1": "Was beschäftigt dich gerade?",
+		"heading2": "Deine Vorschläge",
+		"heading3": "Bereit zum Start",
+		"goalLabel": "Deine Situation in eigenen Worten",
+		"weiter": "Weiter",
+		"spaeter": "Später",
+		"uebernehmen": "Übernehmen",
+		"loading": "Vorschläge werden ermittelt",
+		"saule": "Säule: {{name}}",
+		"nach": "nach: {{title}}",
+		"empty": "Der KI-Dienst hat gerade keine Vorschläge gefunden. Du kannst es später erneut versuchen.",
+		"selectedCount": "{{selected}} von {{total}} Vorschlägen ausgewählt",
+		"suggestError": "Vorschläge fehlgeschlagen",
+		"applyError": "Anlegen fehlgeschlagen"
 	}
 }

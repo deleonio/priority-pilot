@@ -1,6 +1,6 @@
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { ResponseError, type Pillar } from 'client';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EntitlementMap } from '../lib/planOffers';
 
 vi.mock('../api', () => ({
@@ -13,9 +13,6 @@ vi.mock('../api', () => ({
 
 import { PlanProvider } from '../lib/usePlan';
 import { api } from '../api';
-// Roter Spec-Zustand (#2069): Das Modul existiert noch nicht — deshalb die Directive auf dem
-// Import (Muster OwnPlanCard.test.tsx). Mit der Implementierung entfernen (sonst unused-Fehler).
-// @ts-expect-error Modul entsteht erst mit der Umsetzung (#2069)
 import { OnboardingFlow } from './OnboardingFlow';
 
 // i18n initialisieren: Die Konfiguration initialisiert synchron beim Import (Ressourcen inline,
@@ -23,6 +20,13 @@ import { OnboardingFlow } from './OnboardingFlow';
 import '../i18n/config';
 
 afterEach(cleanup);
+
+// Test-Infrastruktur (Impl, dokumentiert im PR-Body): Isolierte Mocks je Test — die negativen
+// Aufruf-Assertions („Später“ ruft X nicht auf) sind sonst durch Residuen der Vortests befleckt.
+// Muster der Nachbarn (z. B. QuickCaptureModal.test.tsx). Keine Implementierungen werden entfernt.
+beforeEach(() => {
+	vi.clearAllMocks();
+});
 
 const pillars: Pillar[] = [
 	{ id: 11, name: 'Körper', description: '', weight: 20 },

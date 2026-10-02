@@ -59,5 +59,22 @@
 		"accept": "Vorschlag übernehmen",
 		"notNow": "Nicht jetzt",
 		"dismiss": "Vorschlag ablehnen"
+	},
+	"onboarding": {
+		"step": "Steg {{step}} av 3",
+		"heading1": "Vad sysselsätter dig just nu?",
+		"heading2": "Dina förslag",
+		"heading3": "Redo att börja",
+		"goalLabel": "Beskriv med egna ord var du står just nu",
+		"weiter": "Fortsätt",
+		"spaeter": "Senare",
+		"uebernehmen": "Använd",
+		"loading": "Förbereder förslag",
+		"saule": "Pelare: {{name}}",
+		"nach": "efter: {{title}}",
+		"empty": "AI-tjänsten hittade inga förslag just nu. Du kan försöka igen senare.",
+		"selectedCount": "{{selected}} av {{total}} förslag valda",
+		"suggestError": "Det gick inte att hämta förslag",
+		"applyError": "Det gick inte att skapa uppgifter"
 	}
 }

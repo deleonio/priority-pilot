@@ -59,5 +59,22 @@
 		"accept": "Vorschlag übernehmen",
 		"notNow": "Nicht jetzt",
 		"dismiss": "Vorschlag ablehnen"
+	},
+	"onboarding": {
+		"step": "Étape {{step}} sur 3",
+		"heading1": "Qu'est-ce qui te préoccupe en ce moment ?",
+		"heading2": "Tes suggestions",
+		"heading3": "Prêt à démarrer",
+		"goalLabel": "Décris avec tes propres mots où tu en es",
+		"weiter": "Continuer",
+		"spaeter": "Plus tard",
+		"uebernehmen": "Appliquer",
+		"loading": "Préparation des suggestions",
+		"saule": "Pilier : {{name}}",
+		"nach": "après : {{title}}",
+		"empty": "Le service d'IA n'a trouvé aucune suggestion pour le moment. Tu peux réessayer plus tard.",
+		"selectedCount": "{{selected}} suggestions sélectionnées sur {{total}}",
+		"suggestError": "Échec de la récupération des suggestions",
+		"applyError": "Échec de la création des tâches"
 	}
 }

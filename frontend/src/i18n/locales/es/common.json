@@ -59,5 +59,22 @@
 		"accept": "Vorschlag übernehmen",
 		"notNow": "Nicht jetzt",
 		"dismiss": "Vorschlag ablehnen"
+	},
+	"onboarding": {
+		"step": "Paso {{step}} de 3",
+		"heading1": "¿Qué te ocupa ahora mismo?",
+		"heading2": "Tus sugerencias",
+		"heading3": "Todo listo para empezar",
+		"goalLabel": "Describe con tus palabras dónde estás ahora mismo",
+		"weiter": "Continuar",
+		"spaeter": "Más tarde",
+		"uebernehmen": "Aplicar",
+		"loading": "Preparando sugerencias",
+		"saule": "Pilar: {{name}}",
+		"nach": "después de: {{title}}",
+		"empty": "El servicio de IA no ha encontrado sugerencias en este momento. Puedes intentarlo más tarde.",
+		"selectedCount": "{{selected}} de {{total}} sugerencias seleccionadas",
+		"suggestError": "Error al obtener las sugerencias",
+		"applyError": "Error al crear las tareas"
 	}
 }
