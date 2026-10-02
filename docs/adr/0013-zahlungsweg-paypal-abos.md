@@ -49,6 +49,8 @@ Grundlage sind PayPals Händlerkonditionen für den Inlands- und EWR-Verkauf und
 | Internationale Karte          | 3,15 % + 0,25 € | 7,43 €           | 230,41 €                               |
 | SEPA-Lastschrift über Stripe  | 0,35 € pauschal | 7,58 €           | 237,87 €                               |
 
+> **Preisstand der Entscheidung (September 2026).** Die Beispielbeträge rechnen mit dem damaligen Preis (Pro 7,99 € monatlich, Ultimate 239,90 € jährlich) und sind nicht auf den aktuellen Stand neu gerechnet — Pro liegt seit dem 01.10.2026 bei 8,99 € monatlich bzw. 86,30 € jährlich (`PLAN_PRICES`, [ADR 0018](0018-preismodell-free-plus-pro.md)).
+
 Der Unterschied zwischen Phase 1 und Phase 3 ist die Stripe-Billing-Gebühr von 0,7 % des Abo-Volumens. Bei der realistischen Umsatzgröße des Konzepts liegt die Ersparnis im niedrigen zweistelligen Eurobereich pro Jahr.
 
 Zwei Beobachtungen für Phase 3: Premium-Karten (Firmen- und Rewards-Karten) kosten fast das Doppelte der Standardkarte, und weil die SEPA-Gebühr pauschal ist, wächst ihr Vorteil mit dem Betrag — beim Jahresabo Ultimate rund 6 € gegenüber PayPal.

@@ -40,6 +40,8 @@ Beispiel für einen Kunden in Deutschland. Im Web gilt die Kleinunternehmerregel
 
 ¹ Store-Preis, der nach Umsatzsteuer und Gebühr denselben Erlös bringt wie PayPal.
 
+> **Preisstand der Entscheidung (September 2026).** Die Beispielbeträge rechnen mit dem damaligen Preis (Pro 7,99 € monatlich, Ultimate 239,90 € jährlich) und sind nicht auf den aktuellen Stand neu gerechnet — Pro liegt seit dem 01.10.2026 bei 8,99 € monatlich bzw. 86,30 € jährlich (`PLAN_PRICES`, [ADR 0018](0018-preismodell-free-plus-pro.md)).
+
 ## Entscheidung: Preisgestaltung
 
 Entschieden am 2026-09-30 ([#1800](https://github.com/deleonio/priority-pilot/issues/1800)): die Store-Preise entsprechen den Web-Preisen (`PLAN_PRICES` in `server/src/logics/plans.ts`) je Paket und Zeitraum.

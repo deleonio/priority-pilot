@@ -1626,7 +1626,7 @@ describe('SettingsPage – #1794: Fürsorge-Schalter (AK7)', () => {
 describe('SettingsPage – #1902: Tab „Pakete & Abo"', () => {
 	const catalog = {
 		features: [{ feature: 'groups', allowedPlans: ['pro'] }],
-		prices: { free: { monthly: 0, yearly: 0 }, pro: { monthly: 499, yearly: 4790 } },
+		prices: { free: { monthly: 0, yearly: 0 }, pro: { monthly: 899, yearly: 8630 } },
 	};
 	const subscription = {
 		provider: 'paypal',
@@ -1858,7 +1858,7 @@ describe('SettingsPage – #1940: Rechnungen ohne aktives Abo', () => {
 		number: 'INV-2026-000001',
 		periodStart: '2026-08-15T00:00:00.000Z',
 		periodEnd: '2026-09-15T00:00:00.000Z',
-		amountCents: 799,
+		amountCents: 899,
 		taxNote: '§19 UStG',
 	};
 	const sub = (provider: string) =>
@@ -1876,7 +1876,7 @@ describe('SettingsPage – #1940: Rechnungen ohne aktives Abo', () => {
 	beforeEach(() => {
 		apiMocks.getPlansCatalog = vi.fn().mockResolvedValue({
 			features: [{ feature: 'groups', allowedPlans: ['pro'] }],
-			prices: { free: { monthly: 0, yearly: 0 }, pro: { monthly: 499, yearly: 4790 } },
+			prices: { free: { monthly: 0, yearly: 0 }, pro: { monthly: 899, yearly: 8630 } },
 		});
 		apiMocks.listBillingInvoices = vi.fn().mockResolvedValue([]);
 	});
@@ -1898,7 +1898,7 @@ describe('SettingsPage – #1940: Rechnungen ohne aktives Abo', () => {
 		expect(panel.querySelector('[data-testid="subscription-empty"]')).not.toBeNull();
 		const text = panel.querySelector('[data-testid="billing-invoices"]')?.textContent ?? '';
 		expect(text).toContain('INV-2026-000001');
-		expect(text).toContain('7,99');
+		expect(text).toContain('8,99');
 	});
 
 	it('AK2: kein Abo + keine Rechnung → keine Rechnungsgruppe', async () => {

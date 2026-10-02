@@ -56,12 +56,12 @@ describe('ChangeDialog — Vorschau des fälligen Betrags (#1913)', () => {
 	afterEach(cleanup);
 
 	it('AK4: lädt die Vorschau beim Öffnen und zeigt Guthaben und fälligen Betrag formatiert', async () => {
-		previewBillingChange.mockResolvedValue({ creditCents: 249, dueCents: 750, immediate: true });
+		previewBillingChange.mockResolvedValue({ creditCents: 249, dueCents: 650, immediate: true });
 
 		renderDialog();
 
 		await waitFor(() => expect(previewBillingChange).toHaveBeenCalledWith({ plan: 'pro', period: 'monthly' }));
-		expect(await screen.findByText(/7,50 €/)).toBeTruthy();
+		expect(await screen.findByText(/6,50 €/)).toBeTruthy();
 		expect(screen.getByText(/2,49 €/)).toBeTruthy();
 	});
 
@@ -75,7 +75,7 @@ describe('ChangeDialog — Vorschau des fälligen Betrags (#1913)', () => {
 		expect(confirm.disabled).toBe(true);
 		expect(screen.getByRole('status')).toBeTruthy();
 
-		resolve({ creditCents: 0, dueCents: 999, immediate: true });
+		resolve({ creditCents: 0, dueCents: 899, immediate: true });
 		await waitFor(() => expect(confirm.disabled).toBe(false));
 	});
 
@@ -150,14 +150,14 @@ describe('ChangeDialog — Vorschau des fälligen Betrags (#1913)', () => {
 	it('#2049 AK6: ein sofort wirksamer Wechsel (Upgrade) zeigt „sofort" als Startzeitpunkt', async () => {
 		previewBillingChange.mockResolvedValue({
 			creditCents: 249,
-			dueCents: 750,
+			dueCents: 650,
 			immediate: true,
 			startsAt: new Date().toISOString(),
 		});
 
 		renderDialog();
 
-		expect(await screen.findByText(/7,50 €/)).toBeTruthy();
+		expect(await screen.findByText(/6,50 €/)).toBeTruthy();
 		expect(screen.getByText('Wirksam ab')).toBeTruthy();
 		expect(screen.getByText('sofort')).toBeTruthy();
 	});
