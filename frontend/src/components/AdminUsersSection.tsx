@@ -174,6 +174,11 @@ export const AdminUsersSection = () => {
 	// Neustart über alle Konten oder Fortsetzen der seit dem letzten Start noch offenen Aufgaben.
 	const [mode, setMode] = useState<'restart' | 'resume'>('restart');
 
+	// #1959: Abo-Aktion je Nutzerzeile — `null` = kein Bestätigungsdialog offen.
+	const [subConfirm, setSubConfirm] = useState<{ user: AdminUser; kind: 'lock' | 'cancel' } | null>(null);
+	// Läuft gerade eine Abo-Aktion — Dialog-Buttons sind dann disabled (Doppel-Submit-Schutz).
+	const [subRunning, setSubRunning] = useState(false);
+
 	// Portionierter Lauf, Fortschritt und Fortsetzen: gemeinsam mit dem Nutzer-Modal in
 	// `useReassignRun`, damit beide Einstiege nicht wieder auseinanderlaufen.
 	const runPortion = useCallback(
@@ -205,6 +210,31 @@ export const AdminUsersSection = () => {
 		}
 	};
 
+	// #1959 AK1/AK2: bestätigte Abo-Aktion ausführen — Erfolg lädt die Liste neu (Zeilen-Status
+	// sofort sichtbar), Fehler (409 bereits gekündigt / Google-Play) bleiben als KolAlert stehen
+	// (Muster Rollenwechsel).
+	const handleSubAction = async (): Promise<void> => {
+		if (subConfirm === null) {
+			return;
+		}
+		setSubRunning(true);
+		try {
+			if (subConfirm.kind === 'lock') {
+				await api.lockUserSubscription({ id: subConfirm.user.id });
+			} else {
+				await api.cancelUserSubscription({ id: subConfirm.user.id });
+			}
+			setSubConfirm(null);
+			await load();
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			await load();
+			setError(apiError.message);
+		} finally {
+			setSubRunning(false);
+		}
+	};
+
 	return (
 		<div className="admin-users">
 			{error !== null && (
@@ -229,6 +259,8 @@ export const AdminUsersSection = () => {
 								<KolBadge _label={roleLabel(user.role)} />
 								{/* #1556 AK1: Paket immer als Text-Badge (nie nur Farbe), in jeder Zeile. */}
 								<KolBadge _label={planLabel(user.plan)} />
+								{/* #1959 AK1: Sperr-Status dauerhaft in der Zeile sichtbar (Text-Badge). */}
+								{user.subscriptionStatus === 'locked' && <KolBadge _label="Gesperrt" />}
 								<KolInputRadio
 									_label={`Rolle von ${user.displayName}`}
 									_orientation="horizontal"
@@ -242,6 +274,25 @@ export const AdminUsersSection = () => {
 										},
 									}}
 								/>
+								{user.subscriptionStatus !== null && (
+									<div className="admin-user-actions">
+										{/* #1959 AK4: Einstieg je Aktion — die Bestätigung folgt im Dialog
+										    (Muster „Sequenzielle Bestätigung“); _variant="secondary", die
+										    Primary-Fläche bleibt dem bestätigenden Button vorbehalten. */}
+										<KolButton
+											_label="Abo sperren"
+											_variant="secondary"
+											_disabled={subRunning}
+											_on={{ onClick: () => setSubConfirm({ user, kind: 'lock' }) }}
+										/>
+										<KolButton
+											_label="Abo stornieren"
+											_variant="secondary"
+											_disabled={subRunning}
+											_on={{ onClick: () => setSubConfirm({ user, kind: 'cancel' }) }}
+										/>
+									</div>
+								)}
 								{/* #1958 AK3: Rechnungsansicht je Nutzer — aufklappbar, Lazy-Load beim ersten Aufklappen. */}
 								<UserInvoices userId={user.id} displayName={user.displayName} />
 							</li>
@@ -378,6 +429,37 @@ export const AdminUsersSection = () => {
 							</div>
 						</>
 					)}
+				</Modal>
+			)}
+			{/* #1959 AK4: Bestätigung je Abo-Aktion — ein reiner Ja/Nein-Schritt mit den konkreten
+			    Konsequenzen (Sperre wirkt sofort, Storno läuft bis zum Periodenende weiter). Der
+			    bestätigende Button benennt die Aktion („Jetzt sperren“/„Jetzt stornieren“), Abbrechen
+			    setzt keinen Request ab; beim Schließen kehrt der Fokus auf den auslösenden Button
+			    zurück (Modal, verbindliches Pattern). */}
+			{subConfirm !== null && (
+				<Modal
+					title={subConfirm.kind === 'lock' ? 'Abo sperren' : 'Abo stornieren'}
+					onClose={() => setSubConfirm(null)}
+				>
+					<p>
+						{subConfirm.kind === 'lock'
+							? `Den Zugriff von ${subConfirm.user.displayName} auf das bezahlte Paket (${planLabel(subConfirm.user.plan)}) sofort sperren? Die Sperre wirkt sofort.`
+							: `Das Abo von ${subConfirm.user.displayName} (${planLabel(subConfirm.user.plan)}) beim Zahlungsdienstleister kündigen? Das Paket läuft bis zum Ende des bezahlten Zeitraums weiter.`}
+					</p>
+					<div className="modal-actions">
+						<KolButton
+							_label="Abbrechen"
+							_variant="secondary"
+							_disabled={subRunning}
+							_on={{ onClick: () => setSubConfirm(null) }}
+						/>
+						<KolButton
+							_label={subConfirm.kind === 'lock' ? 'Jetzt sperren' : 'Jetzt stornieren'}
+							_variant="primary"
+							_disabled={subRunning}
+							_on={{ onClick: () => void handleSubAction() }}
+						/>
+					</div>
 				</Modal>
 			)}
 		</div>

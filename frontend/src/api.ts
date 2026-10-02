@@ -571,6 +571,28 @@ export const api = {
 		return data;
 	},
 
+	/** #1959: Sperrt das Abo eines Nutzers — Zugriff aufs bezahlte Paket stoppt sofort (Admin). */
+	async lockUserSubscription({ id }: { id: number }): Promise<AdminUser> {
+		const { data, error, response } = await client.POST('/admin/users/{id}/subscription/lock', {
+			params: { path: { id } },
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	/** #1959: Kündigt das Abo eines Nutzers beim Zahlungsdienstleister (Admin, ADR 0013). */
+	async cancelUserSubscription({ id }: { id: number }): Promise<AdminUser> {
+		const { data, error, response } = await client.POST('/admin/users/{id}/subscription/cancel', {
+			params: { path: { id } },
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
 	/** #1958: Rechnungen eines Nutzers — Admin-Sicht (Spiegel der Eigentümer-Route /billing/invoices). */
 	async getAdminUserInvoices({ id, signal }: { id: number } & Init): Promise<components['schemas']['Invoice'][]> {
 		const { data, error, response } = await client.GET('/admin/users/{id}/invoices', {

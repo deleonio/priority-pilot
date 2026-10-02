@@ -743,6 +743,11 @@ eine Gruppe verwaltet, ist deshalb noch kein Admin der App.
   Bereich _Nutzerverwaltung_ mit allen Konten (Name, E-Mail, Rolle). Über die
   Rollen-Umschalter je Konto (Admin, Mitglied, Tester) änderst du die Rolle;
   die Änderung gilt sofort, auch für bereits angemeldete Personen.
+- **Abo sperren/stornieren:** Über „Abo sperren“ stoppst du den Zugriff einer
+  Person auf ihr bezahltes Paket sofort. „Abo stornieren“ kündigt das Abo beim
+  Zahlungsdienstleister – das bezahlte Paket läuft dann bis zum Ende des
+  gebuchten Zeitraums weiter. Beide Aktionen verlangen eine Bestätigung;
+  Google-Play-Abos lassen sich nicht stornieren, aber sperren.
 - **Mindestens ein Admin:** Den letzten verbleibenden Admin kann niemand
   zurückstufen – ernenne zuerst eine andere Person.
 - **Mitglieder** sehen den Bereich nicht; ein direkter Aufruf von `/settings/nutzer` öffnet bei
