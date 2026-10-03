@@ -83,16 +83,17 @@ Generierten Schlüssel (`tskey-auth-…`) kopieren.
 Die GitHub-Action (`tailscale/github-action`) markiert `authkey` als _deprecated_ — Auth-Keys
 laufen nach spätestens 90 Tagen ab und müssen von Hand erneuert werden. Die Pipeline verbindet
 deshalb **bevorzugt per OAuth-Client** (Admin-Console → **Settings → OAuth clients**, Generate
-client, Tag `tag:ci`) und nutzt den Auth-Key nur noch als **Fallback**, solange die
-OAuth-Secrets fehlen (der Preflight verwirnt das im Log):
+client, Tag `tag:ci`, Scope `auth_keys`) und nutzt den Auth-Key nur noch als **Fallback**,
+solange die OAuth-Secrets fehlen (der Preflight vermerkt das im Log):
 
 | Art        | Name                        | Wert                                                   |
 | ---------- | --------------------------- | ------------------------------------------------------ |
 | **Secret** | `TAILSCALE_OAUTH_CLIENT_ID` | Client-ID (`k123…`) des OAuth-Clients.                 |
 | **Secret** | `TAILSCALE_OAUTH_SECRET`    | Client-Secret (nur beim Erstellen sichtbar). Maskiert. |
 
-Sind beide gesetzt, verbindet der OAuth-Step (`--advertise-tags=tag:ci`); fehlen beide OAuth-
-Secrets UND der Auth-Key, bricht der Lauf fail-closed ab. Nur der Auth-Key gesetzt → Warnung
+Sind beide gesetzt, verbindet der OAuth-Step mit dem Tag `tag:ci` (Input `tags` — bei OAuth
+Pflicht, die Action setzt `--advertise-tags` daraus selbst); fehlen beide OAuth-Secrets UND der
+Auth-Key, bricht der Lauf fail-closed ab. Nur der Auth-Key gesetzt → Warnung
 im Log und Verbindung per Auth-Key (Übergang).
 
 ## 3. GitHub konfigurieren

@@ -551,6 +551,9 @@ runs:
           echo "::error::TAILSCALE_OAUTH_CLIENT_ID ist gesetzt, aber TAILSCALE_OAUTH_SECRET fehlt — OAuth unvollstaendig, fail-closed (kein LLM-Egress von der Azure-IP)."
           exit 1
         fi
+        if [ -n "$TAILSCALE_OAUTH_SECRET" ] && [ -z "$TAILSCALE_OAUTH_ID" ]; then
+          echo "::warning::TAILSCALE_OAUTH_SECRET ist gesetzt, aber TAILSCALE_OAUTH_CLIENT_ID fehlt — Secret wird ignoriert, Verbindung laeuft per Auth-Key-Fallback."
+        fi
         if [ -z "$TAILSCALE_OAUTH_ID" ] && [ -z "$TAILSCALE_AUTHKEY" ]; then
           echo "::error::TAILSCALE_EXIT_NODE ist gesetzt, aber weder OAuth (TAILSCALE_OAUTH_CLIENT_ID/SECRET) noch Auth-Key (TAILSCALE_AUTH_KEY) ist gesetzt — fail-closed (kein LLM-Egress von der Azure-IP)."
           exit 1
@@ -567,7 +570,10 @@ runs:
       with:
         oauth-client-id: ${{ inputs.tailscale-oauth-client-id }}
         oauth-secret: ${{ inputs.tailscale-oauth-secret }}
-        args: --advertise-tags=tag:ci --exit-node=${{ inputs.tailscale-exit-node }} --exit-node-allow-lan-access=true
+        # tags ist bei OAuth Pflicht (v4.2.0 wirft sonst "the tags parameter is required
+        # when using an OAuth client"); --advertise-tags leitet die Action aus dem Input ab.
+        tags: tag:ci
+        args: --exit-node=${{ inputs.tailscale-exit-node }} --exit-node-allow-lan-access=true
 
     - name: Tailscale-Exit-Node verbinden (Auth-Key-Fallback; für zai)
       if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai' && runner.name != 'pi5' && inputs.tailscale-oauth-client-id == ''
