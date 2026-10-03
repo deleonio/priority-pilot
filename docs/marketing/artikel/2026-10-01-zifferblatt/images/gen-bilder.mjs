@@ -229,7 +229,8 @@ function farbrampe() {
 	const light = ['#b61414', '#dbde0d', '#0ca974', '#0f009c', '#a722c8', '#6a1b64', '#a0306f'];
 	const dark = NEON;
 	let body = '';
-	body += `<text x="60" y="120" font-family="${FONT}" font-size="21" fill="${MUTED}">Light theme</text>`;
+	body += `<text x="60" y="120" font-family="${FONT}" font-size="21" fill="${MUTED}">Light theme (swatches on their own light surface)</text>`;
+	body += `<rect x="40" y="124" width="836" height="104" rx="8" fill="#f7f8fa"/>`;
 	light.forEach((c, i) => {
 		body += `<rect x="${60 + i * 116}" y="140" width="96" height="72" rx="8" fill="${c}"/>`;
 		body += `<text x="${108 + i * 116}" y="238" font-family="${MONO}" font-size="15" fill="${MUTED}" text-anchor="middle">${c}</text>`;
@@ -282,10 +283,5 @@ function fursorge() {
 	return frame('Texte, die sorgen', 'Illustration: derselbe Befund, zwei Tonalitäten.', body, 1200, 520);
 }
 
-writeFileSync(`${OUT}/zifferblatt-blasen-de.svg`, hero(PILLARS_DE, true));
-writeFileSync(`${OUT}/zifferblatt-blasen-en.svg`, hero(PILLARS_EN, false));
-writeFileSync(`${OUT}/zifferblatt-herz-de.svg`, herz());
-writeFileSync(`${OUT}/ist-soll-de.svg`, istSoll());
 writeFileSync(`${OUT}/farbrampe-en.svg`, farbrampe());
-writeFileSync(`${OUT}/fursorge-de.svg`, fursorge());
 console.log('OK:', OUT);

@@ -1,10 +1,10 @@
 <!--
-dev.to-Feldbericht (1–2-Seiter) — Fokus-Thema: „Rückmeldungen ohne Druck“ (die vier Streak-Regeln)
+dev.to-Feldbericht — Fokus-Thema: „Rückmeldungen ohne Druck“ (die vier Streak-Regeln)
 Genre: Entwickler-Feldbericht, erste Person, praktisch — allgemeine Muster mit kurzen Skizzen,
 keine Repo-Auszüge (Dateinamen und Pfade bleiben draußen; Zahlen stammen aus dem Produkt, Snippets
-sind als „sketch“ markiert und im Text als Skizzen erkennbar).
+sind als „sketch“ markiert und im Text als Skizzen erkennbar). Eigenständiger Artikel ohne
+Plattform-Verweise.
 Bilder: images/ (echte App-Screenshots, deutschsprachige UI mit Übersetzungshilfe).
-Schwesterartikel: medium.md (deutsch, Methode) und webdev.md (englisch, web.dev).
 -->
 
 # My streak can't take anything away — four rules, one timezone trap
@@ -13,6 +13,11 @@ Streaks have a reputation: the chain breaks, the counter resets, the app becomes
 avoid. I ship one anyway. Balamentum counts calendar days with at least one completed task —
 under four rules that make the counter a pure collector. Same trigger as every guilt mechanic;
 a different outcome by construction, because nothing in the loop subtracts.
+
+Before the rules, the setting: Balamentum users define life-balance pillars and complete tasks
+that pay into them. The streak counts calendar days with at least one completion — multiple
+completions on the same day count once. It answers a single question per day: did anything get
+done at all? Everything below is about making that question safe to answer.
 
 ![The streak card: current run, best mark, counting rule disclosed](images/screenshot-streak-card.png)
 
@@ -27,8 +32,8 @@ people for the time of day. My version keeps the visible chain standing while it
 yesterday.
 
 ```ts
-// sketch: the current chain ignores an unfinished today
-const current = chainEndingAt(isDayOver ? today : yesterday);
+// sketch: the chain simply never needs today — it ends at yesterday
+const current = chainEndingAt(yesterday);
 ```
 
 ## Rule 2: the best mark is a record, not a balance
@@ -39,6 +44,11 @@ The longest chain ever achieved stays achieved. It never shrinks, it never expir
 const best = Math.max(previousBest, current); // records only grow
 ```
 
+Why derive it instead of storing it as a field? Because the day set is the single source of
+truth: a correction or a backdated entry updates the chain automatically, and the record follows.
+The number on the screen is a floor, not a debt account: the worst thing tomorrow can do is leave
+it unchanged.
+
 ## Rule 3: a late completion rescues the day it was due
 
 If a task is completed after its deadline — a day later, ten days later, doesn't matter — the
@@ -46,14 +56,14 @@ day it _was due_ still counts as active. I feed both timestamps, completion and 
 the day set. Being human deletes no progress.
 
 The trap I nearly stepped in lives one level deeper: what counts as "a day"? The server lives in
-UTC; the user lives in Berlin. A completion at 23:30 Berlin time lands on 21:30–22:30 UTC,
-depending on daylight saving — either way, the UTC date is not the date the user experienced.
-Counting days server-side puts a hidden midnight into every German's evening, so the day
-boundary is computed per user timezone, not per server:
+UTC; the user lives in Berlin. A completion shortly after midnight German time — 00:30 Berlin is
+22:30 UTC the _previous_ day — would fall on yesterday's UTC date if I counted server-side. The
+hidden midnight sits in every German's early morning, so the day boundary is computed per user
+timezone, not per server:
 
 ```ts
 // sketch: a calendar day is a user-local fact — so is isDayOver
-const current = chainEndingAt(isDayOver(userTimezone) ? yesterday : today);
+const dayOf = (timestamp: Date) => localCalendarDate(timestamp, userTimezone);
 ```
 
 One honesty footnote: when no valid timezone arrives, the implementation falls back to server
@@ -73,24 +83,34 @@ intended, and it belongs in the article.
 ## Around the counter
 
 Two neighbors share the dashboard and the same design rule. The balance figure pulses at
-1.5–2.6 seconds, and the beat is tied to the fill level — the fuller the heart, the calmer the
-pulse. Declinable, complete as a still picture when
-motion is off. And every care text passes one review question — _does it care, or does it just
-log?_ — including the empty case, where the card admits it has nothing to offer:
+1.5–2.6 seconds, and the beat slows as the vessel fills. Declinable, complete as a still picture
+when motion is off. And every care text passes one review question — _does the text help the
+reader today, or does it just keep records?_ — including the empty case, where the
+card admits it has nothing to offer:
 
 ![Care hint with the always-present crisis line](images/screenshot-care-hint.png)
 
 _„Gerade gibt es keinen Vorschlag für dich. Mach in deinem Tempo weiter.“ — "There's no
 suggestion for you right now. Continue at your pace."_
 
-The math stays honest by separation: the per-pillar display keeps the unclamped ratio, so
-overshoot stays visible; the aggregate refuses to reward it. Pushing past a target changes
+The display shows what the score hides: the per-pillar ratio stays unclamped, so overshoot
+stays visible; the aggregate refuses to reward it. Pushing past a target changes
 nothing about your balance — overwork is not a strategy the number understands. And when
 everything is done, the dashboard says so quietly:
 
 ![Tag geschafft: the end-of-day note](images/screenshot-tag-geschafft.png)
 
-_A note, not a siren._
+_„Tag geschafft“ — "day done": a note, not a siren._
+
+## The mobile view carries it all
+
+The same dashboard on the reference width — 375 px — with the balance heart and the beat intact.
+Feedback that only works on desktop isn't feedback for the pocket.
+
+![The dashboard at 375 px width](images/screenshot-dashboard-mobil.png)
+
+_Mobile view, another demo state (26%) — the heart at the reference width; the pillar legend
+continues below the fold._
 
 ## What I can and can't claim
 
@@ -99,9 +119,7 @@ construction: nothing in the loop subtracts, every rule is disclosed, and the da
 user-local fact. Whether that keeps people opening the app is a question for data I don't have;
 that it never turns progress into a debt is a question the design answers.
 
-Try it at [balamentum.modevel.de](https://balamentum.modevel.de) (web + Android). The German
-companion article on Medium covers the method, and the web.dev piece condenses the practices for
-the web platform.
+Try it at [balamentum.modevel.de](https://balamentum.modevel.de) (web + Android).
 
 If you're building a counter of your own: what does yours subtract? I'd like to hear the edge
 cases I haven't hit yet — the timezone trap came from a reviewer, the next one might come from

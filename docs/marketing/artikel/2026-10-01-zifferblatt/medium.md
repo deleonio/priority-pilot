@@ -1,12 +1,13 @@
 <!--
-Medium-Fachartikel (1–2-Seiter) — Fokus-Thema: „Das Zifferblatt der Lebensbalance“
+Medium-Fachartikel — Fokus-Thema: „Das Zifferblatt der Lebensbalance“
 Titel:      Das Bild, das nie selbst rechnet
 Untertitel: Warum deine To-do-Liste die Verteilung deiner Energie nicht zeigt — und ein Bild, das es tut
 Tags:       Selbstmanagement, Produkt-Design, UX-Design, Work-Life-Balance, Gewohnheiten
 Bilder:     images/ (echte App-Screenshots aus der laufenden App mit Demo-Daten; vor dem
-            Veröffentlichen bei Medium hochladen und an den Bildmarkern einsetzen).
-Genre:      Fachartikel — Balamentum tritt als Praxisbeispiel auf.
-Schwesterartikel: webdev.md (englisch, web.dev) — am Ende verlinken.
+            Veröffentlichen bei Medium hochladen und an den Bildmarkern einsetzen; Galerie liegt
+            als PNG bereit).
+Genre:      Fachartikel — Balamentum tritt als Praxisbeispiel auf, eigenständig ohne
+            Plattform-Verweise.
 -->
 
 # Das Bild, das nie selbst rechnet
@@ -28,23 +29,47 @@ App anwenden kann.
 
 ![Herz-Gefäß mit Säulen-Legende in Balamentum](images/screenshot-herz.png)
 
-_Demo-Daten aus der laufenden App: 23 % „aus der Balance“ („out of balance“). Sinn liegt am
+_Demo-Daten aus der laufenden App: 23 % aus der Balance. Sinn liegt am
 kürzesten (7 % statt 20 %), Körper zieht davon (40 % statt 20 %, also +20 Prozentpunkte über dem
 Ziel). Die Legende nennt Ist, Ziel und Abstand je Säule._
+
+## Fünf Säulen und ein Zielwert
+
+Die Grundlage ist unspektakulär. Balamentum startet mit fünf Säulen, angelehnt an Hilarion
+Petzolds Konzept der Identität: Körper, mentale Gesundheit, Beziehungen, Wirksamkeit und Sinn.
+Die Säulen gehören der Person, nicht der App — benennen, erweitern und kürzen kann jeder. Ein
+Musiker führt vielleicht eine Säule „Proben“, ein Vater eine Säule „Familienzeit“.
+
+Wichtiger als die Namen ist der zweite Schritt: Für jede Säule ein Zielwert festlegen, in
+Prozent der aufgewandten Zeit oder Aufmerksamkeit. Dieses Soll ist eine Absichtserklärung. Wer
+Arbeit 30 Prozent zumisst und Beziehungen 20, sagt damit etwas über das Leben,
+das er führen will — nicht über das, das andere für richtig halten. Von hier an arbeitet die
+App allein: Jede Aufgabe zahlt beim Erledigen auf die Säulen ein, denen sie zugeordnet war, und
+die Investitionen summieren sich von selbst.
 
 ## Die Kennzahl: Ist durch Ziel, ungedeckelt
 
 Die Kennzahl hinter dem Bild ist das Verhältnis von geleisteter Investition zum Zielwert je
 Säule. Zwölf Prozent Aufwand bei einem Ziel von 20 ergeben 0,6; dreißig Prozent bei 20 ergeben
 1,5. Für die Anzeige wird der Wert bewusst nicht bei 1,0 abgeschnitten: Übererfüllung ist
-genauso eine Aussage wie Rückstand, und die Anzeige soll beide zeigen.
+genauso eine Aussage wie Rückstand, und die Anzeige soll beide zeigen. Ein Deckel verschiebt die
+Aufmerksamkeit weg von den Bereichen, in denen jemand über dem Ziel wirkt — von dort kommt
+meistens die Überlast.
 
 Die Gesamt-Balance rechnet dabei strenger, als die Gewichte es nahelegen. Sie misst doppelt —
 einmal als Abweichung gegen die Zielgewichte, einmal als Abweichung ohne Gewichtung, wobei jede
-Säule mit Ziel einzeln zählt — und der niedrigere Wert zählt. Ein Rechenbeispiel: 60/0/10/10/10
+Säule mit Ziel einzeln zählt — und der niedrigere Wert zählt. Ein konstruiertes Rechenbeispiel,
+genau für solche Extreme ist die doppelte Messung da: 60/0/10/10/10
 auf Säulen mit den Gewichten 60/10/10/10/10. Die gewichtete Messung ergibt 0,67 und würde als
 „gut in Balance“ durchgehen; die ungewichtete Prüfung zieht denselben Fall auf 0,55, in die
 leichte Schieflage. Eine leere Säule fällt immer auf, egal wie klein ihr Ziel ist.
+
+Interessant ist die Umkehrung dieses Deckels: Weil mehr als das Soll die Balance nicht
+verbessert, lässt sich das Bild nicht durch Überarbeitung gewinnen.
+
+Überlast zahlt auf die Kennzahl nichts ein.
+
+Das Herz zu füllen heißt nicht, länger zu arbeiten — es heißt, unterschiedlich zu arbeiten.
 
 ## Neun Zifferblätter, eine Auskunft
 
@@ -52,29 +77,43 @@ Das Herz ist eine von neun Darstellungen derselben Rechnung: Herz, Blasen, Schei
 Strahlen, Blüte, Kristall, Segmente, Zeiger. Alle folgen ein und derselben Regel — die Säule mit
 der größten Kennzahl bekommt die größte Form — und unterscheiden sich nur im Material: Die Blase
 legt ihre Farbe in eine dünne Haut und lässt den Hintergrund durchscheinen, die Scheibe ist eine
-satte Fläche mit harter Kante, der Kristall bricht die Kontur kantig mit hellen Knoten.
+satte Fläche mit harter Kante, der Kristall bricht die Kontur kantig mit hellen Knoten. „Blasen“
+und „Scheiben“ sind derselbe Stapel in zwei Materialien, „Blüte“ und „Kristall“ dieselbe
+Silhouette in zwei Haltungen — weich einmal, kantig einmal.
 
 ![Die neun Zifferblätter als Galerie](images/zifferblatt-galerie.png)
 
-_Alle neun Varianten aus der laufenden App (Demo-Daten): Herz, Blasen, Scheiben, Ringe,
-Strahlen, Blüte, Kristall, Segmente, Zeiger — dieselbe Auskunft in neun Materialien. Die Blase
-von der Material-Beschreibung oben ist die zweite Kachel; dünnhäutig sieht man es ihr an._
+_Alle neun Varianten aus der laufenden App (Demo-Daten) — dieselbe Auskunft in neun Materialien._
 
-Das Wählen kann Teil der Methode sein. Wer sein Gleichgewicht täglich ansieht, liest
-vermutlich die Form ohne Übersetzung, die ihm liegt; gespeichert wird die Wahl pro Gerät, das
-Herz ist die Voreinstellung.
+![Die Bildwahl in den Einstellungen](images/screenshot-bildwahl.png)
+
+_Der Ort, an dem gewählt wird: neun Optionen, jede mit einer Lesart._
+
+Das Wählen kann Teil der Methode sein. Wer sein Gleichgewicht täglich ansieht, liest vermutlich
+die Form ohne Übersetzung, die ihm liegt; gespeichert wird die Wahl pro Gerät, das Herz ist die
+Voreinstellung. Wichtig ist die Trennung, die dahintersteht: Das Bild entscheidet nur über die
+Form, nie über die Aussage. Eine Säule, die der Rechnung nach zurückliegt, sieht in allen neun
+Darstellungen zurückliegend aus.
 
 ## Mobil zuerst, Bewegung abbestellbar
 
 Das Dashboard ist zuerst für das Handy gebaut; die schmalste Viewport-Breite der App liegt bei
 375 Pixeln. Die Figur pulsiert mit einem Ruhepuls zwischen 1,5 und 2,6 Sekunden, dessen Dauer am
-Füllstand hängt — je voller das Herz, desto ruhiger der Puls. Anzeige statt Alarm. Und wer keine
-Bewegung mag, stellt sie ab; dann bleibt dasselbe vollständige Bild, nur still.
+Füllstand hängt — je voller das Herz, desto ruhiger der Puls. Anzeige statt Alarm. Die einzelnen
+Formen schwingen dazu in eigenen Perioden, jede Säule mit einer eigenen Phase, damit selbst der
+Bestzustand nicht zu einer einzigen Form kollabiert.
 
 ![Dashboard auf dem Handy](images/screenshot-dashboard-mobil.png)
 
 _Der Handy-Bildschirm zeigt einen anderen Demo-Stand (26 %) als das erste Bild — dasselbe Bild,
 nur auf 375 Pixel Breite._
+
+Und wer keine Bewegung mag, stellt sie ab — über einen Schalter in der App oder über die
+Systemeinstellung für reduzierte Bewegung. Wichtig ist, was dann gezeigt wird: dasselbe
+vollständige Bild, nur still.
+
+Auch die Farben gehorchen einer Regel: Sie tragen nie allein Bedeutung. Der Säulenname steht
+immer als Text daneben, und die Palette ist gegen Farbsehschwächen gerechnet statt geraten.
 
 ## Für das eigene Dashboard
 
@@ -88,5 +127,5 @@ Drei der Entscheidungen lassen sich ohne die App nachbauen:
    die Häufigkeit, mit der du es ansiehst.
 
 Balamentum setzt diese Methode als [Web-App](https://balamentum.modevel.de) um, dazu als
-Android-App. Wie dasselbe Bild in zwei Renderern entsteht und wie die Farben gegen
-Farbsehschwächen gerechnet werden, beschreibt der Schwesterartikel auf web.dev.
+Android-App. Wer es ausprobieren möchte, hat in den Einstellungen die Wahl zwischen allen neun
+Zifferblättern — und in den Aufgaben einen Ort, von dem die Säulen sich speisen.
