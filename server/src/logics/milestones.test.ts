@@ -2,7 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 // ROTER Spec-Test (#1362, Spec docs/spec/issue-1362.md): `berechneMeilensteine` existiert noch nicht.
 // Der Import schlägt fehl, bis `server/src/logics/milestones.ts` die Funktion bereitstellt.
-import { berechneMeilensteine } from './milestones.js';
+import { berechneMeilensteine, meilensteinStandVon, type Meilenstein } from './milestones.js';
+import { ScoreEntry } from '../models/index.js';
 
 /**
  * Vertrag für die Meilenstein-Berechnung (AK2/AK3/AK4/AK6, #1362).
@@ -81,5 +82,32 @@ describe('berechneMeilensteine', () => {
 			result.every((stufe) => stufe.erreicht === false),
 			true,
 		);
+	});
+
+	it('AK2 (#2150, docs/spec/issue-2150.md): mit übergebenen entries identisches Ergebnis ohne erneuten findAll-Leselauf', async (t) => {
+		const original = ScoreEntry.findAll;
+		let aufrufe = 0;
+		ScoreEntry.findAll = (async () => {
+			aufrufe++;
+			return [] as never;
+		}) as typeof ScoreEntry.findAll;
+		t.after(() => {
+			ScoreEntry.findAll = original;
+		});
+
+		// Rückfall (ohne Übergabe): exakt das alte Verhalten — eigener Leselauf.
+		const ohneDaten = await meilensteinStandVon(undefined, 'Europe/Berlin');
+		assert.equal(aufrufe, 1, 'Rückfall: ohne übergebene Daten wird selbst gelesen');
+
+		// Mit vorbereiteten Daten: gleiche Antwort, KEIN erneuter Leselauf.
+		const mitDaten = await (
+			meilensteinStandVon as unknown as (
+				userId: number | undefined,
+				zeitZone: string | undefined,
+				daten: { entries: never[] },
+			) => Promise<Meilenstein[]>
+		)(undefined, 'Europe/Berlin', { entries: [] });
+		assert.deepEqual(mitDaten, ohneDaten, 'übergebene Daten liefern dasselbe Ergebnis wie der Rückfall');
+		assert.equal(aufrufe, 1, 'mit übergebenen Daten darf nicht erneut gelesen werden');
 	});
 });

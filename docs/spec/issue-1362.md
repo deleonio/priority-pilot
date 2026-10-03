@@ -10,7 +10,7 @@ Das Dashboard zeigt eine Card „Meilensteine" mit fest definierten Streak- und 
 
 - Streak (gegen `best` aus `berechneStreak`, #1360): 3, 7, 14, 30, 100 Tage.
 - Punkte (Summe aus `ScoreEntry.punkte`, Quelle B — Gamification-Punkte, nicht das Dashboard-Gesamtguthaben): 50, 250, 1000, 5000 Punkte.
-- Beide Stufenlisten sind Konstanten in `server/src/logics/milestones.ts` und im Gamification-Abschnitt von `docs/user-guide.md` dokumentiert, samt Hinweis, dass ein Punkte-Badge nach dem Wiedereröffnen einer erledigten Aufgabe wieder erlöschen kann (Persistenzvariante „nur ableiten", kein gespeicherter Erreicht-Zustand).
+- Beide Stufenlisten sind Konstanten in `server/src/logics/milestones.ts` und im Gamification-Abschnitt von `docs/user-guide.md` dokumentiert. Seit #1965 ist der Stand sticky: einmal erreichte Stufen werden beim Lesen persistiert (`MilestoneReached`) und bleiben erhalten, auch wenn das Wiedereröffnen einer erledigten Aufgabe die Punktesumme senkt.
 
 ## Logik: `berechneMeilensteine({ bestStreak, punkteSumme })`
 

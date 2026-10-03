@@ -57,9 +57,16 @@ export const berechneMeilensteine = ({
  * befüllt (#1362-Muster), keine Migration. Die Server-Zeitzone dient als Fallback (kein
  * Zeitzonen-Feld am `User`); im Pass-Through-Modus (`userId` `undefined`) bleibt es bei der
  * reinen Berechnung — ohne Besitzer gibt es keinen Stand zum Persistieren (Muster `ownerScope`).
+ * Lesestellen, die die `ScoreEntry`-Liste bereits geladen haben (z. B. /scores/balance, #2150),
+ * reichen sie über `daten.entries` durch — dann entfällt der eigene `findAll`-Leselauf.
  */
-export const meilensteinStandVon = async (userId: number | undefined, zeitZone?: string): Promise<Meilenstein[]> => {
-	const entries = await ScoreEntry.findAll({ include: [{ model: Task, where: ownerScope(userId) }] });
+export const meilensteinStandVon = async (
+	userId: number | undefined,
+	zeitZone?: string,
+	daten?: { entries: ScoreEntry[] },
+): Promise<Meilenstein[]> => {
+	const entries =
+		daten?.entries ?? (await ScoreEntry.findAll({ include: [{ model: Task, where: ownerScope(userId) }] }));
 	const zone = zeitZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 	const { best } = berechneStreak(
 		streakZeitpunkte(
