@@ -12,9 +12,9 @@
 		"prepare": "pnpm generate"
 	},
 	"devDependencies": {
-		"knip": "6.37.0",
+		"knip": "6.39.0",
 		"openapi-typescript": "7.13.0",
-		"prettier": "3.9.8",
+		"prettier": "3.9.9",
 		"typescript": "5.9.3"
 	}
 }
