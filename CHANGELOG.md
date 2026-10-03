@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.14 - 2026-10-03
 
-_Enthält v0.14.0 – v0.14.18._
+_Enthält v0.14.0 – v0.14.19._
 
 ### 🎉 New Features
 
@@ -29,6 +29,7 @@ _Enthält v0.14.0 – v0.14.18._
 - ci: documenter falls back to zai when pi openrouter aliases are missing by @deleonio in https://github.com/deleonio/priority-pilot/pull/2135
 - ci: make phase label precheck parseable again by @deleonio in https://github.com/deleonio/priority-pilot/pull/2136
 - ci: cache pi packages via scheduled warm-up run (#2092) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2134
+- feat(ci): record runtime and configured model per cost entry (#2090) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2121
 
 ## v0.13 - 2026-10-03
 
@@ -131,7 +132,6 @@ _Enthält v0.11.0 – v0.11.31._
 
 ### 🐞 Bug Fixes
 
-- docs(arc42): align package model with free/plus/pro and adr 0018 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1888
 - docs(arc42): align package model with free/plus/pro and adr 0018 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1888
 - fix(native): keep login after app restart by flushing cookies (#1900) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1909
 - revert(ci): sign demo.apk with debug keystore again (#1779) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1910
@@ -327,6 +327,7 @@ _Enthält v0.6.0 – v0.6.15._
 - chore(deps): update node.js to v26.10.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1655
 - feat(android): buy packages via google play by @deleonio in https://github.com/deleonio/priority-pilot/pull/1726
 - feat(android): Käufe wiederherstellen und fremdverwaltetes Abo anzeigen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1730
+- feat(android): Paket über Google Play wechseln by @deleonio in https://github.com/deleonio/priority-pilot/pull/1731
 - feat(android): Paket über Google Play wechseln by @deleonio in https://github.com/deleonio/priority-pilot/pull/1731
 - chore(deps): update pi (cli + erweiterungen) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1656
 - fix(frontend): keep admin confirm dialog mounted across step change by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1732
