@@ -117,8 +117,19 @@ inputs:
   # leerer tailscale-exit-node (vars.TAILSCALE_EXIT_NODE nicht gesetzt) deaktiviert das Routing
   # komplett → exakt heutiges Verhalten. Fail-closed: bei gesetztem Exit-Node + fehlendem/schlech-
   # tem Key scheitert der Connect laut → der Agenten-Step wird übersprungen (kein direkter Azure-Egress).
+  tailscale-oauth-client-id:
+    description: >-
+      Tailscale OAuth-Client-ID (secrets.TAILSCALE_OAUTH_CLIENT_ID, tag:ci) — bevorzugt
+      gegenueber dem Auth-Key: kein 90-Tage-Ablauf, keine Deprecation-Warnung (#2102).
+      Zusammen mit tailscale-oauth-secret gesetzt = OAuth; sonst Auth-Key-Fallback.
+    required: false
+    default: ''
+  tailscale-oauth-secret:
+    description: 'Tailscale OAuth-Client-Secret (secrets.TAILSCALE_OAUTH_SECRET) — nur mit tailscale-oauth-client-id wirksam.'
+    required: false
+    default: ''
   tailscale-authkey:
-    description: 'Tailscale Auth-Key (secret, secrets.TAILSCALE_AUTH_KEY; reusable + ephemeral + tag:ci). Zusammen mit tailscale-exit-node aktiv; sonst ignoriert.'
+    description: 'Tailscale Auth-Key (secret, secrets.TAILSCALE_AUTH_KEY; reusable + ephemeral + tag:ci). NUR Fallback, wenn die OAuth-Secrets fehlen (#2102). Zusammen mit tailscale-exit-node aktiv; sonst ignoriert.'
     required: false
     default: ''
   tailscale-exit-node:
@@ -528,19 +539,44 @@ runs:
     # Belege 02.10.). CLI-Install und Auth brauchen den Exit-Node nicht; nur der
     # LLM-Aufruf selbst muss über Nürnberg laufen.
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    - name: Tailscale-Preflight (Auth-Key ist Pflicht bei aktivem Exit-Node für zai)
+    - name: Tailscale-Preflight (OAuth bevorzugt, Auth-Key als Fallback; #2102)
       if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai' && runner.name != 'pi5'
       shell: bash
       env:
+        TAILSCALE_OAUTH_ID: ${{ inputs.tailscale-oauth-client-id }}
+        TAILSCALE_OAUTH_SECRET: ${{ inputs.tailscale-oauth-secret }}
         TAILSCALE_AUTHKEY: ${{ inputs.tailscale-authkey }}
       run: |
-        if [ -z "$TAILSCALE_AUTHKEY" ]; then
-          echo "::error::TAILSCALE_EXIT_NODE ist gesetzt, aber TAILSCALE_AUTH_KEY fehlt — fail-closed (kein LLM-Egress von der Azure-IP)."
+        if [ -n "$TAILSCALE_OAUTH_ID" ] && [ -z "$TAILSCALE_OAUTH_SECRET" ]; then
+          echo "::error::TAILSCALE_OAUTH_CLIENT_ID ist gesetzt, aber TAILSCALE_OAUTH_SECRET fehlt — OAuth unvollstaendig, fail-closed (kein LLM-Egress von der Azure-IP)."
           exit 1
         fi
+        if [ -n "$TAILSCALE_OAUTH_SECRET" ] && [ -z "$TAILSCALE_OAUTH_ID" ]; then
+          echo "::warning::TAILSCALE_OAUTH_SECRET ist gesetzt, aber TAILSCALE_OAUTH_CLIENT_ID fehlt — Secret wird ignoriert, Verbindung laeuft per Auth-Key-Fallback."
+        fi
+        if [ -z "$TAILSCALE_OAUTH_ID" ] && [ -z "$TAILSCALE_AUTHKEY" ]; then
+          echo "::error::TAILSCALE_EXIT_NODE ist gesetzt, aber weder OAuth (TAILSCALE_OAUTH_CLIENT_ID/SECRET) noch Auth-Key (TAILSCALE_AUTH_KEY) ist gesetzt — fail-closed (kein LLM-Egress von der Azure-IP)."
+          exit 1
+        fi
+        if [ -n "$TAILSCALE_OAUTH_ID" ]; then
+          echo "::notice::Tailscale verbindet per OAuth-Client (#2102) — Auth-Key nur noch Fallback."
+        else
+          echo "::warning::Tailscale verbindet per AUTH-KEY (deprecated) — auf den OAuth-Client umstellen (docs/tailscale-exit-node.md, #2102)."
+        fi
 
-    - name: Tailscale-Exit-Node verbinden (LLM-Egress über feste IP, für zai)
-      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai' && runner.name != 'pi5'
+    - name: Tailscale-Exit-Node verbinden (OAuth-Client; für zai, #2102)
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai' && runner.name != 'pi5' && inputs.tailscale-oauth-client-id != ''
+      uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4.2.0
+      with:
+        oauth-client-id: ${{ inputs.tailscale-oauth-client-id }}
+        oauth-secret: ${{ inputs.tailscale-oauth-secret }}
+        # tags ist bei OAuth Pflicht (v4.2.0 wirft sonst "the tags parameter is required
+        # when using an OAuth client"); --advertise-tags leitet die Action aus dem Input ab.
+        tags: tag:ci
+        args: --exit-node=${{ inputs.tailscale-exit-node }} --exit-node-allow-lan-access=true
+
+    - name: Tailscale-Exit-Node verbinden (Auth-Key-Fallback; für zai)
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai' && runner.name != 'pi5' && inputs.tailscale-oauth-client-id == ''
       uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4.2.0
       with:
         authkey: ${{ inputs.tailscale-authkey }}

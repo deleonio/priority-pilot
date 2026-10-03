@@ -78,19 +78,33 @@ In der Admin-Console unter **Settings → Keys → Generate auth key**:
 
 Generierten Schlüssel (`tskey-auth-…`) kopieren.
 
-> **Hinweis — Auth-Key vs. OAuth-Client:** Die GitHub-Action (`tailscale/github-action`) empfiehlt
-> mittlerweile einen **OAuth-Client** (`oauth-client-id` + `oauth-secret`); der `authkey`-Input ist
-> dort als _deprecated_ markiert, funktioniert aber weiterhin. Diese Anleitung nutzt bewusst den
-> Auth-Key (einfacher, ein Secret). Ein späterer Wechsel auf OAuth ist möglich.
+### Bevorzugt: OAuth-Client statt Auth-Key (#2102)
+
+Die GitHub-Action (`tailscale/github-action`) markiert `authkey` als _deprecated_ — Auth-Keys
+laufen nach spätestens 90 Tagen ab und müssen von Hand erneuert werden. Die Pipeline verbindet
+deshalb **bevorzugt per OAuth-Client** (Admin-Console → **Settings → OAuth clients**, Generate
+client, Tag `tag:ci`, Scope `auth_keys`) und nutzt den Auth-Key nur noch als **Fallback**,
+solange die OAuth-Secrets fehlen (der Preflight vermerkt das im Log):
+
+| Art        | Name                        | Wert                                                   |
+| ---------- | --------------------------- | ------------------------------------------------------ |
+| **Secret** | `TAILSCALE_OAUTH_CLIENT_ID` | Client-ID (`k123…`) des OAuth-Clients.                 |
+| **Secret** | `TAILSCALE_OAUTH_SECRET`    | Client-Secret (nur beim Erstellen sichtbar). Maskiert. |
+
+Sind beide gesetzt, verbindet der OAuth-Step mit dem Tag `tag:ci` (Input `tags` — bei OAuth
+Pflicht, die Action setzt `--advertise-tags` daraus selbst); fehlen beide OAuth-Secrets UND der
+Auth-Key, bricht der Lauf fail-closed ab. Nur der Auth-Key gesetzt → Warnung
+im Log und Verbindung per Auth-Key (Übergang).
 
 ## 3. GitHub konfigurieren
 
 Im Repo unter **Settings → Secrets and variables → Actions** anlegen:
 
-| Art          | Name                  | Wert                                                                       |
-| ------------ | --------------------- | -------------------------------------------------------------------------- |
-| **Secret**   | `TAILSCALE_AUTH_KEY`  | Der generierte Auth-Key (`tskey-auth-…`). Maskiert, da sensitiv.           |
-| **Variable** | `TAILSCALE_EXIT_NODE` | Tailscale-Name oder `100.x.y.z`-IP des Nürnberger Servers (Admin-Console). |
+| Art          | Name                                                   | Wert                                                                       |
+| ------------ | ------------------------------------------------------ | -------------------------------------------------------------------------- |
+| **Secret**   | `TAILSCALE_OAUTH_CLIENT_ID` / `TAILSCALE_OAUTH_SECRET` | OAuth-Client (bevorzugt, #2102) — siehe Abschnitt 2.                       |
+| **Secret**   | `TAILSCALE_AUTH_KEY`                                   | Auth-Key (`tskey-auth-…`) — nur noch Fallback, wenn OAuth fehlt (#2102).   |
+| **Variable** | `TAILSCALE_EXIT_NODE`                                  | Tailscale-Name oder `100.x.y.z`-IP des Nürnberger Servers (Admin-Console). |
 
 > **Warum die Variable als `vars.` und nicht als Secret?** Eine **leere Variable deaktiviert das
 > gesamte Routing** (Kill-Switch): in `setup-agent` prüft die `if:`-Bedingung
