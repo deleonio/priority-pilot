@@ -579,9 +579,8 @@ zählen schon beim ersten Aufruf, ohne dass du dafür etwas Neues erledigen muss
 - **Punkte** (Summe deiner Gamification-Punkte aus erledigten Aufgaben): 50, 250, 1000,
   5000 Punkte.
 
-Es gibt keinen gespeicherten Erreicht-Zustand: Ein Punkte-Badge kann nach dem
-**„Wieder öffnen"** einer erledigten Aufgabe wieder erlöschen, wenn deine Punktesumme
-dadurch unter die Schwelle fällt.
+Ein einmal erreichter Meilenstein bleibt erhalten: Das **„Wieder öffnen“** einer erledigten
+Aufgabe senkt deine Punktesumme, nimmt dir aber keine bereits erreichte Stufe mehr weg.
 
 ---
 

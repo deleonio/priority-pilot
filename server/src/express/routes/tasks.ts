@@ -27,8 +27,7 @@ import { upsertOAuthUser } from '../../logics/oauthUser.js';
 import { notifyTaskCreated } from '../../logics/taskCreatedNotification.js';
 import { notifyTaskCompleted } from '../../logics/taskCompletedNotification.js';
 import { notifyReachedMilestones } from '../../logics/milestoneNotification.js';
-import { berechneMeilensteine } from '../../logics/milestones.js';
-import { berechneStreak, streakZeitpunkte } from '../../logics/streak.js';
+import { meilensteinStandVon } from '../../logics/milestones.js';
 import type { PushSender } from '../../logics/push.js';
 import type { ChecklistItem } from '../../models/task.js';
 import { protokolliereCareReaktion } from '../../logics/careWirkung.js';
@@ -537,27 +536,6 @@ const replaceContributions = (
 
 /** Lädt einen Task inkl. seiner Säulen-Beiträge (für die Serialisierung). */
 const findTaskWithPillars = (id: number): Promise<Task | null> => Task.findByPk(id, { include: [Pillar] });
-
-/**
- * Meilenstein-Stand eines Nutzers (#1363) — dieselbe Berechnung wie `GET /scores/milestones`
- * (`server/src/express/routes/scores.ts`), hier aber ohne Request-Kontext für den PATCH-Handler
- * aufgerufen: einmal vor, einmal nach dem Statuswechsel-Commit, um neu erreichte Schwellen zu
- * erkennen. Die Server-Zeitzone dient als Fallback (kein Zeitzonen-Feld am `User`).
- */
-const meilensteinStandVon = async (userId: number): Promise<ReturnType<typeof berechneMeilensteine>> => {
-	const entries = await ScoreEntry.findAll({ include: [{ model: Task, where: { userId } }] });
-	const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-	const { best } = berechneStreak(
-		streakZeitpunkte(
-			entries.map((entry) => ({ zeitpunkt: entry.zeitpunkt, deadline: entry.Task?.deadline })),
-			zone,
-		),
-		new Date(),
-		zone,
-	);
-	const punkteSumme = entries.reduce((summe, entry) => summe + entry.punkte, 0);
-	return berechneMeilensteine({ bestStreak: best, punkteSumme });
-};
 
 /**
  * Vergibt beim Statuswechsel auf `Done` einen Gamification-`ScoreEntry` (Konzept §4.4) — genau

@@ -7,7 +7,7 @@ import { effectivePlan } from '../../logics/plans.js';
 import { createAiQuotaCounter } from '../aiQuotaMeter.js';
 import { aggregierePunkteProSaeule, type PunkteBeitrag } from '../../logics/score.js';
 import { berechneStreak, istGueltigeZeitzone, streakZeitpunkte } from '../../logics/streak.js';
-import { berechneMeilensteine } from '../../logics/milestones.js';
+import { meilensteinStandVon } from '../../logics/milestones.js';
 import { berechneLebensbalanceNachKadenz } from '../../logics/heartBalance.js';
 import { berechneBalanceVerlauf, istGueltigesDatum, zeitraumInTagen } from '../../logics/balanceHistory.js';
 import { resolvePillarDescription } from '../../models/pillarData.js';
@@ -119,30 +119,17 @@ scoresRouter.get('/scores/streak', async (req: Request, res: Response<StreakDto 
 	}
 });
 
-// GET /scores/milestones — feste Streak-/Punkte-Stufen, rückwirkend aus Bestandsdaten (#1362).
-// Nur Tasks des eingeloggten Nutzers (`ownerScope`, Muster /scores/streak).
+// GET /scores/milestones — feste Streak-/Punkte-Stufen, rückwirkend aus Bestandsdaten (#1362),
+// einmal erreicht bleibt erreicht (#1965): Stand, Merge und Persistierung in `meilensteinStandVon`
+// (Scoping dort, Muster /scores/streak).
 scoresRouter.get('/scores/milestones', async (req: Request, res: Response<MilestoneDto[] | ErrorDto>) => {
 	try {
-		const entries = await ScoreEntry.findAll({
-			include: [{ model: Task, where: ownerScope(getUserId(req)) }],
-		});
-
 		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
 		const zeitZone = istGueltigeZeitzone(angefragteZone)
 			? angefragteZone
 			: Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-		const { best } = berechneStreak(
-			streakZeitpunkte(
-				entries.map((entry) => ({ zeitpunkt: entry.zeitpunkt, deadline: entry.Task?.deadline })),
-				zeitZone,
-			),
-			new Date(),
-			zeitZone,
-		);
-		const punkteSumme = entries.reduce((summe, entry) => summe + entry.punkte, 0);
-
-		res.json(berechneMeilensteine({ bestStreak: best, punkteSumme }));
+		res.json(await meilensteinStandVon(getUserId(req), zeitZone));
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');
 	}
@@ -226,7 +213,6 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 			new Date(),
 			zeitZone,
 		);
-		const punkteSumme = entries.reduce((summe, entry) => summe + entry.punkte, 0);
 
 		res.json({
 			// Eine Dezimalstelle: der Füllstand schwankt mit jeder Erledigung, mehr Stellen wären
@@ -240,9 +226,8 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 			}),
 			streak: { aktuell, best, letzterTag: aktiveTage[aktiveTage.length - 1] ?? null },
 			// Nur die erreichten Stufen: die vollständige Stufenliste liefert /scores/milestones.
-			meilensteine: berechneMeilensteine({ bestStreak: best, punkteSumme }).filter(
-				(meilenstein) => meilenstein.erreicht,
-			),
+			// Sticky-Stand (#1965): einmal erreichte Stufen bleiben erhalten, der Leselauf persistiert.
+			meilensteine: (await meilensteinStandVon(userId, zeitZone)).filter((meilenstein) => meilenstein.erreicht),
 		});
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');
