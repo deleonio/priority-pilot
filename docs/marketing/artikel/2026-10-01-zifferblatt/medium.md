@@ -72,6 +72,31 @@ verbessert, lässt sich das Bild nicht durch Überarbeitung gewinnen.
 
 Das Herz zu füllen heißt nicht, länger zu arbeiten — es heißt, unterschiedlich zu arbeiten.
 
+## Ein Monat als Rechenbeispiel
+
+Ein konstruiertes Beispiel, gerechnet und gelesen. Angenommen, die Zielwerte lauten 30 Arbeit,
+20 Körper, 20 Beziehungen, 15 Mentale Gesundheit, 15 Sinn — und im Monat flossen 45 Prozent der
+Investition in Arbeit, 20 in Körper, je 10 in Beziehungen und Mentale Gesundheit, 5 in Sinn.
+Dann stehen die Säulen bei: Arbeit 1,5 (45 zu 30), Körper 1,0, Beziehungen 0,5, Mentale
+Gesundheit 0,67, Sinn 0,33. Gelesen heißt das: Der Monat hat Arbeit über das Soll getragen —
+sichtbar, nicht weggemittelt — und Sinn bei einem bescheidenen Ziel trotzdem fast leer
+gelassen. Beides steht im selben Bild, und das eine hält das andere nicht klein.
+
+Drei Fallen liegen in dieser Rechnung. Die erste: das Soll nachträglich an die Ist-Werte
+anpassen. Wer den Zielwert auf das senkt, was ohnehin passiert, verwandelt die Auskunft in eine
+Beschreibung der Vergangenheit — die Absichtserklärung ist gerade der Punkt. Die zweite: das
+Splitten. Viele Mini-Aufgaben, über alle Säulen verteilt, machen die Verteilung breit, ohne dass
+irgendwo Substanz entsteht; die Rechnung kennt nur verteilt oder nicht verteilt. Die dritte:
+fremde Ziele übernehmen. Weil die Säulen für alle gleich sind, sieht ein verglichenes Bild
+verlockend aus — die Zielwerte sind es gerade nicht. Der Vergleich mit anderen ist in dieser
+Rechnung nicht vorgesehen; es gibt nur den eigenen Monat gegen die eigene Absicht.
+
+Zwei Grenzen gehören zur Ehrlichkeit dazu. Die Investition ist eine Schätzung beim Abhaken,
+keine gestoppte Zeit — das Bild ist so genau wie die Schätzungen. Und es sagt nichts über die
+Qualität einer Investition: Eine halbe Stunde echtem Zuhören zahlt in der Säule Beziehungen
+genauso ein wie eine kurz hingeworfene Nachricht. Die Verteilung zeigt das Bild; ob die Anteile
+gut gesetzt waren, bleibt der Person überlassen, die sie festgelegt hat.
+
 ## Neun Zifferblätter, eine Auskunft
 
 Das Herz ist eine von neun Darstellungen derselben Rechnung: Herz, Blasen, Scheiben, Ringe,
@@ -101,8 +126,9 @@ immer als Text daneben, und die Palette ist gegen Farbsehschwächen gerechnet st
 
 ## Mobil zuerst, Bewegung abbestellbar
 
-Das Dashboard ist zuerst für das Handy gebaut; die schmalste Viewport-Breite der App liegt bei
-375 Pixeln. Die Figur pulsiert mit einem Ruhepuls zwischen 1,5 und 2,6 Sekunden, dessen Dauer am
+Das Dashboard ist zuerst für das Handy gebaut: Die Basisstile gelten für den schmalen Bildschirm, Breiteres
+kommt über Mindestbreiten-Abfragen dazu; 375 Pixel sind die Referenzbreite, an der jede
+sichtbare Änderung mit einem End-to-End-Lauf geprüft wird. Die Figur pulsiert mit einem Ruhepuls zwischen 1,5 und 2,6 Sekunden, dessen Dauer am
 Füllstand hängt — je voller das Herz, desto ruhiger der Puls. Anzeige statt Alarm. Die einzelnen
 Formen schwingen dazu in eigenen Perioden, jede Säule mit einer eigenen Phase, damit selbst der
 Bestzustand nicht zu einer einzigen Form kollabiert.

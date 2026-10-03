@@ -242,11 +242,5 @@ function fursorge(de) {
 	);
 }
 
-writeFileSync(`${OUT}/pulse-de.svg`, pulse(true));
-writeFileSync(`${OUT}/pulse-en.svg`, pulse(false));
-writeFileSync(`${OUT}/schleifen-de.svg`, schleifen(true));
-writeFileSync(`${OUT}/schleifen-en.svg`, schleifen(false));
 writeFileSync(`${OUT}/states-en.svg`, states());
-writeFileSync(`${OUT}/fursorge-de.svg`, fursorge(true));
-writeFileSync(`${OUT}/fursorge-en.svg`, fursorge(false));
 console.log('OK:', OUT);

@@ -77,6 +77,13 @@ const dayOf = (timestamp: Date) => localCalendarDate(timestamp, userTimezone);
 One honesty footnote: when no valid timezone arrives, the implementation falls back to server
 time instead of guessing. The fallback is documented; the rule above is the normal path.
 
+Two more traps surfaced once the counter met real calendars. Daylight saving time: distances
+are measured in calendar days, not in hours, so the 23-hour spring night and its 25-hour
+autumn sibling never split a chain — a gap is a missing date, not a missing number of hours.
+And volume: a day is a set member, not a counter, and ten completions buy the same active day
+as one. My first instinct was to reward the heavy days; the counter refuses, on principle. It
+tracks that someone showed up, not how much they carried.
+
 ## Rule 4: the counting rule is written in the UI
 
 A disclosure next to the counter explains exactly how it's counted. This is the most important

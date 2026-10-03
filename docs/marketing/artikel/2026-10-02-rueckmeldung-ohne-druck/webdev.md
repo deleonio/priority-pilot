@@ -107,6 +107,26 @@ the counting rule is disclosed in the UI. As long as completions stand, the coun
 adds — deleting one takes its day out of the set, which is the intended behavior and part of the
 honesty here.
 
+A dated example shows the rescue rule at work. A task due on the 1st gets ticked on the 6th —
+five days late, no excuses asked. Both dates enter the day set: the 1st counts as an active
+day even though nothing else happened near it, and the completion date does double duty as an
+ordinary active day. Nothing about the task itself changes — its estimate, its pillar — yet
+the day it stood for stops being a hole.
+
+The whole counter is a view over that set. Current run and best mark are both derivations of
+the same calendar days; nothing is stored per counter, so the numbers re-derive from the day
+set on every read and cannot drift out of sync with what actually happened. It also means the
+streak has no state of its own to lose: a re-import or a corrected timestamp simply recomputes
+the next read from the completions that exist. Distances are
+measured in calendar days rather than elapsed hours, so the night daylight saving time steals
+— and the one it gives back — still count as one civil step between neighbors. And the
+boundary degrades gracefully: with no usable timezone, the counter falls back to the server
+clock, a documented cost rather than a guess.
+
+What the number does not measure is volume. A day is a set member, not a tally — a heavy day
+and a light one leave the same mark. The streak answers "was someone at it?" and deliberately
+stays silent on how much it took.
+
 The math around it stays honest by separation: the per-pillar display keeps the unclamped
 actual-to-target ratio (overshoot stays visible), while the aggregate balance caps at 1.0 —
 overwork is not a winning strategy for the widget. Success is marked quietly: a short note

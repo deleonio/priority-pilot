@@ -40,6 +40,12 @@ both.
 Normalization ends the display scale at the largest ratio present, at least 1.0, so the dashed
 target mark stays inside the picture even when every pillar sits below its goal.
 
+Two limits keep the reading honest. The effort behind a pillar is an estimate recorded at
+completion, not a tracked clock — the dial is as accurate as those estimates. And the only
+comparison available is against one's own targets: the five pillars are fixed for everyone,
+the target weights are personal, so two dials side by side compare two intentions, not two
+people.
+
 ## Nine faces, one answer
 
 Every variant follows a single rule — the largest ratio gets the largest form — and differs only
@@ -47,6 +53,12 @@ in material: soap-film bubbles with a Fresnel rim, hard-edged discs, faceted cry
 petals. "Bubbles" and "discs" are the same stack in two materials; "flower" and "crystal" are the
 same silhouette, smoothed once and fractured once. Users pick their dial in the settings; the
 choice is stored per device.
+
+One reading takes practice: the largest shape belongs to the largest ratio, not to the most
+important pillar. A pillar slightly above a small target outgrows a pillar far below a large
+one — the rank says where someone overshot, the target says where they meant to invest. That
+is why the legend prints actual, target and distance per pillar instead of letting the shapes
+speak alone.
 
 ![The nine-dial picker in the settings](images/screenshot-bildwahl.png)
 
@@ -93,9 +105,14 @@ test: any pair below a ΔE of 7 fails the build. The ramp ships with its worst p
 12.6 (light) and 8.8 (dark), both under tritanopia, against the threshold of 7. Where contrast
 to the background falls short, the pillar name always appears as text beside the color.
 
+The price is a small, constant tax: twenty-one pairs per theme, four vision models, re-checked
+whenever a color moves. That cadence is why the check lives in a test rather than in a design
+review — a reviewer approving a palette once cannot re-run the matrix in their head.
+
 ![The validated pillar color ramp](images/farbrampe-en.svg)
 
-_Seven neon colors per theme — the test guards all 21 pairs across four vision types._
+_Seven pillar colors per theme, shown for light and dark — the test guards all 21 pairs across
+four vision types. The neon look belongs to the dark set._
 
 A detail worth borrowing for any web-components app: the component library behind Balamentum
 resolves its own palette through `light-dark()` against `color-scheme`. Since `color-scheme`
