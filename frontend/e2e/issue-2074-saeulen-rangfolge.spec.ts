@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { registerOwnSession, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #2074 — Säulen-Rangfolge-Treppe (Spec: docs/spec/issue-2074.md).
@@ -17,6 +17,8 @@ import { waitForStableView } from './helpers';
 
 /** Öffnet den Anlege-Dialog bis zum eigentlichen Formular (Modus-Auswahl überspringen). */
 const openNewTaskForm = async (page: Page): Promise<void> => {
+	// Genau fünf Säulen: ohne eigene Session sieht die Spec die Säulen aller Nutzer der Shard-DB.
+	await registerOwnSession(page, 'rangfolge-2074');
 	await page.goto('/app/');
 	await waitForStableView(page);
 	await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
