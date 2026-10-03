@@ -36,9 +36,11 @@ runs:
           exit 0
         fi
 
-        # 1313 = Fair Usage Policy, 1310 = Weekly/Monthly Limit Exhausted. Die Klartext-
-        # Varianten fangen zusaetzlich Provider ab, die keinen Zahlencode mitschicken.
-        FAIR_LINE="$(grep -E '\[131[03]\]|Fair Usage Policy|Limit Exhausted|hit your (session|usage|weekly|monthly) limit' /tmp/claude-output.log | head -1 | cut -c1-400)"
+        # 1313 = Fair Usage Policy, 1310 = Weekly/Monthly Limit Exhausted. Das Muster
+        # (inkl. Klartext-Variante "hit your … limit") kommt aus llm-limit-detect.sh
+        # pattern --wide — das Limit-Muster steht dort EINMAL, die Label-Zweige in
+        # 04-implement.yml/team.yml nutzen dieselbe Quelle (#1954).
+        FAIR_LINE="$(grep -E "$(bash .github/scripts/llm-limit-detect.sh pattern --wide)" /tmp/claude-output.log | head -1 | cut -c1-400)"
         if [ -n "$FAIR_LINE" ]; then
           # BEWUSST ::warning statt ::error — ein Limit-Treffer ist eine Information ueber
           # den Provider, kein Defekt dieses Laufs. `::error` faerbt die Run-Uebersicht rot und
