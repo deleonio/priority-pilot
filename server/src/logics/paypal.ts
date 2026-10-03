@@ -1,5 +1,6 @@
 import { Op } from 'sequelize';
 import Subscription from '../models/subscription.js';
+import Invoice from '../models/invoice.js';
 import { rankOf, syncUserPlan, applyDuePendingPlan } from './billing/lifecycle.js';
 import { PAYPAL_PLAN_IDS, type Plan } from './plans.js';
 
@@ -30,19 +31,21 @@ type BillingPeriod = 'monthly' | 'quarterly' | 'yearly';
 export interface PaypalClient {
 	createSubscription(
 		planId: string,
-		override?: FirstCycleOverride,
+		override?: CreateSubscriptionOverride,
 	): Promise<{ approvalUrl: string; externalSubscriptionId: string }>;
 	cancel(externalSubscriptionId: string): Promise<void>;
 	revise(externalSubscriptionId: string, targetPlanId: string): Promise<{ approvalUrl?: string }>;
 }
 
 /**
- * Reduzierter erster Zyklus eines Upgrade-Abos (#1912). Der Plan-Override von PayPal kann keinen
- * zusätzlichen Zyklus einfügen — deshalb wird der erste Zyklus als Einrichtungsgebühr sofort
- * eingezogen und die reguläre Abrechnung beginnt erst eine Periode später (`startTime`).
+ * Start-Override eines neuen Abos (#1912/#2049). Der Plan-Override von PayPal kann keinen
+ * zusätzlichen Zyklus einfügen — deshalb wird beim Upgrade der erste Zyklus als Einrichtungsgebühr
+ * sofort eingezogen (`firstCycleCents`) und die reguläre Abrechnung beginnt erst eine Periode später
+ * (`startTime`). Ohne `firstCycleCents` verschiebt `startTime` die erste Abbuchung auf den
+ * Zeitpunkt (Weiterführen/Downgrade nach Kündigung).
  */
-interface FirstCycleOverride {
-	firstCycleCents: number;
+interface CreateSubscriptionOverride {
+	firstCycleCents?: number;
 	startTime: Date;
 }
 
@@ -192,11 +195,15 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 				application_context: { return_url: returnUrl, cancel_url: cancelUrl },
 				...(override && {
 					start_time: override.startTime.toISOString(),
-					plan: {
-						payment_preferences: {
-							setup_fee: { currency_code: 'EUR', value: (override.firstCycleCents / 100).toFixed(2) },
+					// `firstCycleCents` ist beim reinen Start-Aufschub (#2049) nicht gesetzt — ohne
+					// diese Auswahl stünde `undefined/100` als „NaN" im Betrag.
+					...(override.firstCycleCents !== undefined && {
+						plan: {
+							payment_preferences: {
+								setup_fee: { currency_code: 'EUR', value: (override.firstCycleCents / 100).toFixed(2) },
+							},
 						},
-					},
+					}),
 				}),
 			}),
 		});
@@ -242,8 +249,8 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 export interface PaypalWebhookEvent {
 	id?: string;
 	event_type?: string;
-	/** `billing_agreement_id` trägt die Abo-Referenz bei Zahlungsereignissen (#1506). */
-	resource?: { id?: string; plan_id?: string; billing_agreement_id?: string };
+	/** `billing_agreement_id` trägt die Abo-Referenz bei Zahlungsereignissen (#1506), `sale_id` die Sale-Referenz des Erstattungs-Vorgangs (#2086). */
+	resource?: { id?: string; plan_id?: string; billing_agreement_id?: string; sale_id?: string };
 }
 
 /** Monate je Abrechnungszeitraum — Muster `invoices.ts` `PERIOD_MONTHS` (#1506 AK1). */
@@ -283,12 +290,20 @@ export const applyPlanChange = async (
 
 	if (eventType === 'BILLING.SUBSCRIPTION.CANCELLED') {
 		const currentPeriodEnd = subscription.get('currentPeriodEnd') as Date;
+		// #1959: eine Admin-/Selbstkündigung nimmt das bezahlte Paket dem Nutzer NICHT weg — der
+		// Abgleich hält die Durchsetzung (User.plan, alle Guards lesen sie) in Sync mit dem
+		// Abo-Stand. Gesperrte Abos (Admin-Sperre, `locked`) bleiben gesperrt: die Sperre wirkt
+		// über `User.plan = free` und wird durch das Webhook-Ereignis nicht aufgehoben.
+		const wasLocked = subscription.get('status') === 'locked';
 		await subscription.update({
 			status: 'cancelled',
 			pendingPlan: 'free',
 			pendingPeriod: null,
 			pendingPlanEffectiveAt: currentPeriodEnd > now ? currentPeriodEnd : now,
 		});
+		if (!wasLocked) {
+			await syncUserPlan(subscription, subscription.get('plan') as Plan);
+		}
 		return;
 	}
 
@@ -360,36 +375,44 @@ export const applyPlanChange = async (
 };
 
 /**
- * Löst nach Bestätigung eines Upgrade-Abos das bisherige ab (#1912): jedes andere aktive PayPal-Abo
+ * Löst nach Bestätigung eines neuen Abos das bisherige ab (#1912/#2049): jedes andere aktive PayPal-Abo
  * desselben Nutzers wird bei PayPal gekündigt und lokal beendet, das neue Paket gilt sofort. Ein
- * zweites laufendes Abo entsteht nur über den Upgrade-Weg (`POST /billing/subscriptions` blockt es
- * mit 409) — ohne Vorgänger ein No-op.
+ * gekündigtes Abo mit Restlaufzeit (#2049) ist bei PayPal bereits beendet — dort entfällt nur der
+ * geplante Fall auf `free`, damit `applyDuePendingPlan` den Nutzer nicht neben dem Nachfolge-Abo
+ * zurückstuft. Ein zweites laufendes Abo entsteht nur über den Upgrade-Weg (`POST
+ * /billing/subscriptions` blockt es mit 409) — ohne Vorgänger ein No-op.
  */
 export const replacePredecessors = async (
 	subscription: Subscription,
 	client: Pick<PaypalClient, 'cancel'>,
 ): Promise<void> => {
-	const predecessors = await Subscription.findAll({
-		where: {
-			userId: subscription.get('userId') as number,
-			provider: 'paypal',
-			status: 'active',
-			id: { [Op.ne]: subscription.get('id') as number },
-		},
+	const where = {
+		userId: subscription.get('userId') as number,
+		provider: 'paypal',
+		id: { [Op.ne]: subscription.get('id') as number },
+	};
+	const predecessors = await Subscription.findAll({ where: { ...where, status: 'active' } });
+	const cancelled = await Subscription.findAll({
+		// Gekündigt mit Restlaufzeit: bei PayPal schon beendet, kein erneuter Kündigungsaufruf (4xx).
+		where: { ...where, status: 'cancelled', currentPeriodEnd: { [Op.gt]: new Date() } },
 	});
-	if (predecessors.length === 0) {
+	if (predecessors.length === 0 && cancelled.length === 0) {
 		return;
 	}
 	for (const predecessor of predecessors) {
 		await client.cancel(predecessor.get('externalSubscriptionId') as string);
 		await predecessor.update({ plan: 'free', status: 'cancelled', pendingPlan: null, pendingPlanEffectiveAt: null });
 	}
+	for (const predecessor of cancelled) {
+		await predecessor.update({ pendingPlan: null, pendingPeriod: null, pendingPlanEffectiveAt: null });
+	}
 	await syncUserPlan(subscription, subscription.get('plan') as Plan);
 };
 
 /** Injizierbare Abhängigkeiten von {@link applyPaymentEvent} (Muster `deps` in `billing.ts`). */
 export interface ApplyPaymentEventDeps {
-	issueInvoice?: (subscription: Subscription, now: Date) => Promise<unknown>;
+	/** `saleId`: Sale-Referenz des Ereignisses (`resource.id` bei COMPLETED, `null` bei ACTIVATED, #2086). */
+	issueInvoice?: (subscription: Subscription, now: Date, saleId?: string | null) => Promise<unknown>;
 }
 
 /**
@@ -424,7 +447,28 @@ export const applyPaymentEvent = async (
 		const currentPeriodEnd = new Date(subscription.get('currentPeriodEnd') as Date);
 		currentPeriodEnd.setUTCMonth(currentPeriodEnd.getUTCMonth() + (PERIOD_MONTHS[period] ?? 1));
 		await subscription.update({ currentPeriodEnd, status: 'active', firstFailureAt: null });
-		await deps.issueInvoice?.(subscription, now);
+		// Sale-Referenz nur bei COMPLETED — ACTIVATED trägt kein Sale-Objekt, damit keine falsche
+		// Erstattungs-Referenz entsteht (#2086, Spec docs/spec/issue-2086.md).
+		await deps.issueInvoice?.(
+			subscription,
+			now,
+			eventType === 'PAYMENT.SALE.COMPLETED' ? (event.resource?.id ?? null) : null,
+		);
+		return;
+	}
+
+	if (eventType === 'PAYMENT.SALE.REFUNDED') {
+		// Erstattung (#2086): die Rechnung mit passender Sale-Referenz wird `refunded`; trägt keine
+		// Rechnung die Referenz (Altrechnung vor der Spalte), trifft der Fallback die neueste
+		// Rechnung des Abos — eine Erstattung darf nie still verloren gehen.
+		const subscriptionId = subscription.get('id') as number;
+		const saleId = event.resource?.sale_id ?? null;
+		const invoice =
+			(saleId ? await Invoice.findOne({ where: { subscriptionId, saleId } }) : null) ??
+			(await Invoice.findOne({ where: { subscriptionId }, order: [['periodEnd', 'DESC']] }));
+		if (invoice) {
+			await invoice.update({ paymentStatus: 'refunded' });
+		}
 		return;
 	}
 

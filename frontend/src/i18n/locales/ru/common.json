@@ -45,5 +45,48 @@
 			"label": "Как считается серия",
 			"text": "День засчитывается, если в этот день вы отметили хотя бы одну задачу. Выполненное с опозданием засчитывается за день срока. Серия — непрерывная цепочка таких дней до сегодня или вчера. Если пропущен день до вчера, серия падает до 0 — рекорд сохраняется."
 		}
+	},
+	"care": {
+		"label": "Fürsorge-Hinweis",
+		"kiBadge": "KI-Vorschlag",
+		"empty": "Gerade gibt es keinen Vorschlag für dich. Mach in deinem Tempo weiter.",
+		"deficit": "{{saeuleName}} kam diese Woche zu kurz. {{titel}}?",
+		"overload": "Du hast zuletzt viel geleistet. Ein Ausgleich darf heute sein: {{beschreibung}}",
+		"helpBefore": "Kein Ersatz für ärztlichen Rat. In einer Krise erreichst du die",
+		"helpLink": "TelefonSeelsorge: 0800 111 0 111",
+		"helpAfter": "(kostenfrei, rund um die Uhr).",
+		"error": "Konnte nicht angelegt werden. Versuch es gleich noch einmal.",
+		"accept": "Vorschlag übernehmen",
+		"notNow": "Nicht jetzt",
+		"dismiss": "Vorschlag ablehnen"
+	},
+	"onboarding": {
+		"step": "Шаг {{step}} из {{total}}",
+		"heading1": "Что тебя сейчас занимает?",
+		"heading2": "Твои предложения",
+		"heading3": "Всё готово к старту",
+		"headingWeights": "Ваши начальные веса",
+		"finishHeading": "Всё готово!",
+		"goalLabel": "Опиши своими словами, где ты сейчас находишься",
+		"weiter": "Далее",
+		"spaeter": "Позже",
+		"uebernehmen": "Применить",
+		"loading": "Готовим предложения",
+		"saule": "Сфера: {{name}}",
+		"nach": "после: {{title}}",
+		"empty": "ИИ-сервис сейчас не нашёл предложений. Можно попробовать ещё раз позже.",
+		"selectedCount": "Выбрано {{selected}} из {{total}} предложений",
+		"suggestError": "Не удалось получить предложения",
+		"applyError": "Не удалось создать задачи",
+		"partialInfo": "{{count}} задач уже созданы — повторное применение создаст только недостающие.",
+		"balanceHint": "Ваш самый сильный столп — {{name}} ({{share}} %).",
+		"fertig": "Готово",
+		"emptyDescription": "Beschreibe, womit du gerade kämpfst — der Flow macht daraus erste Aufgaben. Deine Eingabe bleibt erhalten.",
+		"fortsetzen": "Flow fortsetzen",
+		"beispiele": "Beispiele zum Ausprobieren",
+		"beispiel1": "15 Minuten spazieren gehen",
+		"beispiel2": "Wichtige E-Mail beantworten",
+		"beispiel3": "Das kommende Wochenende planen",
+		"erstenTaskAnlegen": "Ersten Task anlegen"
 	}
 }

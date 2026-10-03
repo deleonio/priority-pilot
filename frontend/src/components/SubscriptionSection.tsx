@@ -1,9 +1,9 @@
-import { KolAlert, KolButton, KolDetails, KolSpin } from '@public-ui/react-v19';
+import { KolAlert, KolBadge, KolButton, KolDetails, KolSpin } from '@public-ui/react-v19';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import type { components } from 'client';
 import { toApiError } from '../lib/apiError';
-import { formatEuro } from '../lib/format';
+import { formatEuro, paymentStatusLabel } from '../lib/format';
 import { planLabel } from '../lib/planOffers';
 import { getChannel } from '../lib/platform';
 import { usePlan } from '../lib/usePlan';
@@ -108,6 +108,16 @@ export const SubscriptionSection = () => {
 	// Ehemalige Abonnenten (`subscription === null`) sehen ihre Rechnungen weiter, aber keine leere Gruppe (#1940).
 	const showInvoices = subscription != null || (subscription === null && invoices !== null && invoices.length > 0);
 
+	// Ein neues Abo (z. B. Weiterführen, #2049) meldet /auth/me als `approval_pending` — der lokale
+	// Kündigungs-Merker verfällt, der Gekündigt-Hinweis verschwindet ohne Neuladen (AK7). Ein
+	// weiterhin `active` geliefertes Abo dreht den Merker NICHT zurück: dessen Webhook steht noch
+	// aus, genau dafür trägt der Merker (#2048).
+	useEffect(() => {
+		if (locallyCancelled && subscription?.status === 'approval_pending') {
+			setLocallyCancelled(false);
+		}
+	}, [locallyCancelled, subscription]);
+
 	useEffect(() => {
 		const controller = new AbortController();
 		void Promise.resolve()
@@ -191,10 +201,12 @@ export const SubscriptionSection = () => {
 											{formatDate(invoice.periodStart)} – {formatDate(invoice.periodEnd)}
 										</span>
 										<span>{formatEuro(invoice.amountCents)}</span>
+										{/* Status als Text-Badge — Information nie allein über Farbe (WCAG 1.4.1, KI-UX). */}
+										<KolBadge _label={paymentStatusLabel(invoice.paymentStatus)} />
 										<span>
 											<KolButton
 												data-testid="invoice-download"
-												_label="PDF herunterladen"
+												_label={`PDF ${invoice.number} herunterladen`}
 												_variant="secondary"
 												_icons={{ left: { icon: 'fa-solid fa-download' } }}
 												_on={{ onClick: () => downloadInvoicePdf(invoice) }}

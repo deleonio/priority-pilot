@@ -21,6 +21,17 @@ const TAX_NOTE = 'Gemäß §19 UStG wird keine Umsatzsteuer ausgewiesen.';
 /** Monate je Abrechnungszeitraum — Grundlage für den Rechnungszeitraum (`periodStart`). */
 const PERIOD_MONTHS: Record<string, number> = { monthly: 1, quarterly: 3, yearly: 12 };
 
+/** Deutsche Anzeige der Abrechnungszeiträume (#2031) — Katalog-Schlüssel bleiben englisch. */
+const PERIOD_DISPLAY: Record<string, string> = {
+	monthly: 'monatlich',
+	quarterly: 'vierteljährlich',
+	yearly: 'jährlich',
+};
+
+/** Anzeigename „Plus (monatlich)“: Paket großgeschrieben, Zeitraum deutsch (#2031). */
+const displayLabel = (plan: Plan, period: string): string =>
+	`${plan.charAt(0).toUpperCase()}${plan.slice(1)} (${PERIOD_DISPLAY[period] ?? period})`;
+
 /**
  * Nächste Rechnungsnummer im Format `INV-<Jahr>-<6-stellig>`, lückenlos aufsteigend je
  * Kalenderjahr und eindeutig auch bei parallelen Aufrufen.
@@ -89,18 +100,20 @@ const deliverInvoice = async (
  * wird sie erneut versendet; ebenso alle älteren unzugestellten Rechnungen desselben Abos (#2030).
  *
  * @param mailSend injizierbarer Versand (Default: `sendMailToUser`s nodemailer-Transport).
+ * @param saleId Sale-Referenz des auslösenden Zahlungsereignisses (#2086) — Anker für spätere Erstattungen.
  */
 export const issueInvoiceForPeriod = async (
 	subscription: Subscription,
 	now: Date,
 	mailSend?: MailSender,
+	saleId?: string | null,
 ): Promise<Invoice> => {
 	const subscriptionId = subscription.get('id') as number;
 	const periodEnd = subscription.get('currentPeriodEnd') as Date;
 	const period = String(subscription.get('period'));
 	const plan = String(subscription.get('plan')) as Plan;
 
-	const label = `${plan} (${period})`;
+	const label = displayLabel(plan, period);
 	const user = await User.findByPk(subscription.get('userId') as number);
 	// #2030: Nachholversand unzugestellter Rechnungen (Mailfehler schluckt `sendMailToUser`).
 	const redeliverPending = async (exceptId?: number): Promise<void> => {
@@ -129,7 +142,7 @@ export const issueInvoiceForPeriod = async (
 	const lineItems =
 		creditCents > 0
 			? [
-					{ label: `Paket ${plan} (${period})`, amountCents: priceCents },
+					{ label: `Paket ${label}`, amountCents: priceCents },
 					{ label: 'Verrechnung Restlaufzeit', amountCents: -creditCents },
 				]
 			: [];
@@ -144,6 +157,7 @@ export const issueInvoiceForPeriod = async (
 		amountCents,
 		taxNote: TAX_NOTE,
 		lineItems,
+		saleId: saleId ?? null,
 	});
 
 	// PDF zum Erzeugungszeitpunkt bauen und speichern (#1955 AK3) — Anhang und späterer Download
@@ -160,7 +174,7 @@ export const issueInvoiceForPeriod = async (
 				displayName: String(user?.get('displayName') ?? ''),
 				email: String(user?.get('email') ?? ''),
 			},
-			`Paket ${plan} (${period})`,
+			`Paket ${label}`,
 		);
 	} catch (error) {
 		await invoice.destroy();

@@ -14,6 +14,14 @@ import { registerOwnSession, setEqualPillarWeights, taskTitleText, waitForStable
  * wieder ab. So startet jeder Test von einem definierten, leeren Task-Zustand — unabhängig von der
  * Ausführungsreihenfolge — und auch der `smoke.spec.ts`-Test findet danach wieder den leeren Anfang.
  */
+// #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
+// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+test.beforeEach(async ({ page }) => {
+	await page.addInitScript(() => {
+		localStorage.setItem('pp-expert-mode', 'true');
+	});
+});
+
 test.describe('Balamentum — funktionale CRUD-Specs gegen das echte Backend', () => {
 	// Eindeutige Titel je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen
 	// (kein Verlass auf Demo-Seed) und parallele/aufeinanderfolgende Läufe sich nicht stören.
@@ -62,8 +70,11 @@ test.describe('Balamentum — funktionale CRUD-Specs gegen das echte Backend', (
 	test('Task anlegen: erscheint in der Liste', async ({ page }) => {
 		await page.goto('/app/');
 		await waitForStableView(page);
-		// Frischer Start ohne Demo-Seed: die Onboarding-Ansicht ist sichtbar.
-		await expect(page.getByRole('heading', { name: 'Noch keine Aufgaben' })).toBeVisible();
+		// #2069 Test-Pflege: Frisch-Login startet den Erststart-Flow; erst „Später“ zeigt den EmptyState.
+		await page.getByRole('button', { name: 'Später' }).click();
+		// Frischer Start ohne Demo-Seed: nach dem Abbruch ist die Onboarding-Ansicht sichtbar.
+		// #2070 Test-Pflege: Der EmptyState heißt jetzt „Was beschäftigt dich gerade?“.
+		await expect(page.getByRole('heading', { name: 'Was beschäftigt dich gerade?' })).toBeVisible();
 
 		const title = uniqueTitle('Anlegen');
 		await createTaskViaUi(page, title);

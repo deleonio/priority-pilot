@@ -45,5 +45,48 @@
 			"label": "Cómo cuenta la racha",
 			"text": "Un día cuenta si completas al menos una tarea ese día. Lo hecho con retraso cuenta para la fecha de vencimiento. La racha es la secuencia ininterrumpida de esos días hasta hoy o ayer. Si falta un día hasta ayer, baja a 0; tu mejor marca se mantiene."
 		}
+	},
+	"care": {
+		"label": "Fürsorge-Hinweis",
+		"kiBadge": "KI-Vorschlag",
+		"empty": "Gerade gibt es keinen Vorschlag für dich. Mach in deinem Tempo weiter.",
+		"deficit": "{{saeuleName}} kam diese Woche zu kurz. {{titel}}?",
+		"overload": "Du hast zuletzt viel geleistet. Ein Ausgleich darf heute sein: {{beschreibung}}",
+		"helpBefore": "Kein Ersatz für ärztlichen Rat. In einer Krise erreichst du die",
+		"helpLink": "TelefonSeelsorge: 0800 111 0 111",
+		"helpAfter": "(kostenfrei, rund um die Uhr).",
+		"error": "Konnte nicht angelegt werden. Versuch es gleich noch einmal.",
+		"accept": "Vorschlag übernehmen",
+		"notNow": "Nicht jetzt",
+		"dismiss": "Vorschlag ablehnen"
+	},
+	"onboarding": {
+		"step": "Paso {{step}} de {{total}}",
+		"heading1": "¿Qué te ocupa ahora mismo?",
+		"heading2": "Tus sugerencias",
+		"heading3": "Todo listo para empezar",
+		"headingWeights": "Tu ponderación inicial",
+		"finishHeading": "¡Todo listo!",
+		"goalLabel": "Describe con tus palabras dónde estás ahora mismo",
+		"weiter": "Continuar",
+		"spaeter": "Más tarde",
+		"uebernehmen": "Aplicar",
+		"loading": "Preparando sugerencias",
+		"saule": "Pilar: {{name}}",
+		"nach": "después de: {{title}}",
+		"empty": "El servicio de IA no ha encontrado sugerencias en este momento. Puedes intentarlo más tarde.",
+		"selectedCount": "{{selected}} de {{total}} sugerencias seleccionadas",
+		"suggestError": "Error al obtener las sugerencias",
+		"applyError": "Error al crear las tareas",
+		"partialInfo": "{{count}} tareas ya están creadas — volver a aplicar solo crea las que faltan.",
+		"balanceHint": "Tu pilar más fuerte es {{name}} ({{share}} %).",
+		"fertig": "Hecho",
+		"emptyDescription": "Beschreibe, womit du gerade kämpfst — der Flow macht daraus erste Aufgaben. Deine Eingabe bleibt erhalten.",
+		"fortsetzen": "Flow fortsetzen",
+		"beispiele": "Beispiele zum Ausprobieren",
+		"beispiel1": "15 Minuten spazieren gehen",
+		"beispiel2": "Wichtige E-Mail beantworten",
+		"beispiel3": "Das kommende Wochenende planen",
+		"erstenTaskAnlegen": "Ersten Task anlegen"
 	}
 }

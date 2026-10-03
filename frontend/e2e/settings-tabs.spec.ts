@@ -17,6 +17,14 @@ import { waitForStableView } from './helpers';
  * Sie prüfen reines UI-Verhalten gegen das echte Backend (kein API-Mock); `/auth/me` wird durch die
  * Fixture authentifiziert, damit die Auth-Gate durchlässig ist.
  */
+// #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
+// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+test.beforeEach(async ({ page }) => {
+	await page.addInitScript(() => {
+		localStorage.setItem('pp-expert-mode', 'true');
+	});
+});
+
 test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 	/**
 	 * AK1 — Tabs vorhanden: Auf der Settings-Seite sind zwei Tabs sichtbar — „Allgemein" und

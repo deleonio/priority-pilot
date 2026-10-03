@@ -45,5 +45,48 @@
 			"label": "How the streak counts",
 			"text": "A day counts when you complete at least one task on it. Late completions count for the due date. The streak is the unbroken run of such days up to today or yesterday. If a day is missed up to yesterday, it drops to 0 — your best mark stays."
 		}
+	},
+	"care": {
+		"label": "Care hint",
+		"kiBadge": "AI suggestion",
+		"empty": "There is no suggestion for you right now. Keep going at your own pace.",
+		"deficit": "{{saeuleName}} could use some care this week. {{titel}}?",
+		"overload": "You have given a lot lately. Taking it easier today is allowed: {{beschreibung}}",
+		"helpBefore": "Not a substitute for medical advice. In a crisis, you can reach the",
+		"helpLink": "TelefonSeelsorge: 0800 111 0 111",
+		"helpAfter": "(free, around the clock).",
+		"error": "Could not be created. Please try again in a moment.",
+		"accept": "Accept suggestion",
+		"notNow": "Not now",
+		"dismiss": "Dismiss suggestion"
+	},
+	"onboarding": {
+		"step": "Step {{step}} of {{total}}",
+		"heading1": "What's on your mind right now?",
+		"heading2": "Your suggestions",
+		"heading3": "Ready to start",
+		"headingWeights": "Your starting weights",
+		"finishHeading": "All set!",
+		"goalLabel": "Describe in your own words where you stand right now",
+		"weiter": "Continue",
+		"spaeter": "Later",
+		"uebernehmen": "Apply",
+		"loading": "Preparing suggestions",
+		"saule": "Pillar: {{name}}",
+		"nach": "after: {{title}}",
+		"empty": "The AI service didn't find any suggestions right now. You can try again later.",
+		"selectedCount": "{{selected}} of {{total}} suggestions selected",
+		"suggestError": "Fetching suggestions failed",
+		"applyError": "Creating the tasks failed",
+		"partialInfo": "{{count}} tasks are already created — applying again only creates the missing ones.",
+		"balanceHint": "Your strongest pillar is {{name}} ({{share}} %).",
+		"fertig": "Done",
+		"emptyDescription": "Describe what you're struggling with right now — the flow turns it into your first tasks. Your input stays intact.",
+		"fortsetzen": "Resume flow",
+		"beispiele": "Examples to try out",
+		"beispiel1": "Take a 15-minute walk",
+		"beispiel2": "Answer an important email",
+		"beispiel3": "Plan the coming weekend",
+		"erstenTaskAnlegen": "Create your first task"
 	}
 }

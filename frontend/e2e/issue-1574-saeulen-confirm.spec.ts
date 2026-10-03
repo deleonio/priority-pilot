@@ -18,6 +18,14 @@ import { registerOwnSession, setEqualPillarWeights, waitForStableView } from './
  */
 test.use({ viewport: { width: 375, height: 800 } });
 
+// #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
+// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+test.beforeEach(async ({ page }) => {
+	await page.addInitScript(() => {
+		localStorage.setItem('pp-expert-mode', 'true');
+	});
+});
+
 test.describe('#1574 Säulen-Gewichtung: Bestätigung vor dem Speichern unausgewogener Verteilungen', () => {
 	/**
 	 * Ungleich machen ohne Extremanteil (#1596): `End` hebt die erste Säule auf ihr Maximum (80 %),

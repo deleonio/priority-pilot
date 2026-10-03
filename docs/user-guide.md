@@ -9,10 +9,10 @@ Zwei Ideen stecken dahinter:
 - **Wertbeitrag statt Bauchgefühl.** Aus der Priorität und den gewichteten
   Abhängigkeiten berechnet Balamentum pro Aufgabe einen Wert. Die wertvollsten
   Aufgaben und die sinnvolle nächste Aufgabe werden dadurch sichtbar.
-- **Lebensbalance-Säulen.** Jede Aufgabe zahlt auf **alle fünf** Lebensbereiche ein, nur
-  unterschiedlich stark: Du verteilst je Aufgabe 100 % auf die Säulen. Die fünf Säulen stehen
-  fest. Über die Gewichtung in den Einstellungen steuerst du, welche Bereiche gerade wichtig
-  sind – und siehst, ob deine Zeit dorthin fließt.
+- **Lebensbalance-Säulen.** Jede Aufgabe zahlt auf die Lebensbereiche ein: Du wählst eine
+  **Hauptsäule** – die Restverteilung schlägt die App als Vorschlag vor, den du übernehmen oder
+  anpassen kannst. Die fünf Säulen stehen fest. Über die Gewichtung in den Einstellungen steuerst
+  du, welche Bereiche gerade wichtig sind – und siehst, ob deine Zeit dorthin fließt.
 
 Dieses Handbuch erklärt alle Funktionen der Anwendung.
 
@@ -273,8 +273,9 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
   Vergleich; du entscheidest, ob du den Vorschlag übernimmst.
 - **Kategorie (optional)** – das Thema, zu dem die Aufgabe gehört (siehe „Kategorien").
   Höchstens eine je Aufgabe; sie ordnet nur, sie verändert die Priorisierung nicht.
-- **Säulen-Verteilung** – wie stark die Aufgabe auf jeden der fünf Lebensbereiche einzahlt
-  (siehe „Lebensbalance-Säulen"). Pflichtangabe, vorbelegt mit einer Gleichverteilung.
+- **Säulen-Verteilung** – wie stark die Aufgabe auf die Lebensbereiche einzahlt. Die **Hauptsäule**
+  ist vorausgewählt und lässt sich ändern; die Restverteilung erscheint als übernehmbarer
+  Vorschlag (siehe „Lebensbalance-Säulen").
 - **Empfänger** – für wen die Aufgabe bestimmt ist: dich selbst oder ein Mitglied
   einer deiner Gruppen (siehe „Gruppen"). Das Feld erscheint, solange du Mitglied
   mindestens einer Gruppe bist. Wählst du beim **Bearbeiten** ein fremdes Konto,
@@ -356,9 +357,10 @@ Menü** (Drei-Punkte-Button) einer Aufgabe und wähle **„Abhängigkeiten"**.
 
 - **Aktuelle Vorgänger** listet die verknüpften Aufgaben; jede lässt sich einzeln
   entfernen. (Bereits erledigte Vorgänger erscheinen hier nicht mehr.)
-- **Vorgänger hinzufügen:** eine Aufgabe auswählen, ein **Gewicht (0,1–1)** setzen und
-  **„Hinzufügen"**. Das Gewicht steuert, wie stark der Vorgänger zum Wert der
-  abhängigen Aufgabe beiträgt (1 = voller Einfluss).
+- **Vorgänger hinzufügen:** eine Aufgabe auswählen, im **Expertenmodus** ein **Gewicht
+  (0,1–1)** setzen und **„Hinzufügen"**. Ohne Expertenmodus genügt die Auswahl – die
+  Abhängigkeit wird mit dem Standardgewicht 1 angelegt. Das Gewicht steuert, wie stark der
+  Vorgänger zum Wert der abhängigen Aufgabe beiträgt (1 = voller Einfluss).
 
 Balamentum verhindert **zyklische Abhängigkeiten** (z. B. A → B → A) und lehnt sie
 mit einem verständlichen Hinweis ab. So bleibt der Abhängigkeitsgraph immer
@@ -412,14 +414,19 @@ besteht aus einem Namen und einer kurzen Beschreibung.
 
 ### Verteilung je Aufgabe
 
-Im Aufgabenformular steht unter **„Säulen-Verteilung"** je Säule ein Regler. Die Regler teilen
-sich 100 %: Ziehst du einen hoch, geben die anderen ab. Eine neue Aufgabe startet gleich
-verteilt (fünf Säulen, je 20 %).
+Im Aufgabenformular wählst du unter **„Säulen-Verteilung"** zuerst die **Hauptsäule** – die
+Aufgabe lässt sich damit allein schon speichern (Anteil 100 %). Daneben schlägt die App die
+**Restverteilung** vor (Regel: Hauptsäule 80 %, Rest gleichmäßig, je mindestens 5 %); **„Vorschlag
+übernehmen"** setzt sie ein, **„Nicht übernehmen"** lässt es bei der Hauptsäule. Übernommen oder nicht:
+Je Säule steht ein Regler – er gehört zum **Expertenmodus** (Einstellungen → Allgemein);
+standardmäßig bleibt es bei Hauptsäule und Vorschlag. Die Regler teilen sich 100 %: Ziehst du
+einen hoch, geben die anderen ab.
 
-Unter **5 %** fällt keine Säule. Dahinter steht die Annahme, dass jede Aufgabe auf jeden
-Lebensbereich ein Stück weit einzahlt – bei manchen eben stärker als bei anderen. Aufgaben aus
-der Zeit davor, die noch keine oder nur einzelne Säulen tragen, werden beim Öffnen des
-Formulars auf eine vollständige Verteilung ergänzt; gespeichert wird das mit der Aufgabe.
+Unter **5 %** fällt keine Säule, sobald sie an der Verteilung teilnimmt. Dahinter steht die
+Annahme, dass jede Aufgabe auf jeden Lebensbereich ein Stück weit einzahlt – bei manchen eben
+stärker als bei anderen. Aufgaben aus der Zeit davor, die noch keine oder nur einzelne Säulen
+tragen, behalten ihre gespeicherte Form; beim **Bearbeiten** wird die Verteilung im Formular auf
+alle Säulen vervollständigt und so mit dem nächsten Speichern.
 
 Mit **„Säulen vorschlagen"** verteilt eine KI die Anteile aus Titel und Beschreibung. Nach der
 Schnellerfassung mit vorbelegtem Titel passiert das automatisch – den Vorschlag kannst du vor
@@ -427,7 +434,8 @@ dem Speichern anpassen.
 
 ### Säulen-Gewichtung anpassen
 
-Über _Einstellungen → Säulen_ legst du fest, welche Bereiche gerade Priorität haben. Auch hier
+Über _Einstellungen → Säulen_ legst du fest, welche Bereiche gerade Priorität haben – dieser
+Editor gehört zum **Expertenmodus**. Auch hier
 verteilst du 100 % über die fünf Säulen: Ein Regler zieht die anderen mit, keine Säule fällt
 unter 5 %. Bei Gleichverteilung ist die Gewichtung neutral. Erhöhst du z. B. „Körper",
 steigen Aufgaben, die stark auf „Körper" einzahlen, im Wert – und rücken damit in der
@@ -601,6 +609,10 @@ Allgemein, Säulen, Kategorien, Standort, Orte, KI, Gruppen und **Pakete & Abo**
   **„Erledigt animieren"** steuern die Bewegungen des Balance-Bildes auf dem
   Dashboard und den Ablauf beim Erledigen einer Aufgabe. Ohne Bewegung bleibt das
   Bild vollständig, es steht nur still.
+- **Expertenmodus** – ist der Schalter aktiv, zeigt die App die Fach-Regler: Säulen-Prozente im
+  Aufgabendialog, Gewichte im Abhängigkeits-Dialog und die Säulen-Gewichtungspflege im Tab
+  **„Säulen"**. Die Wahl gilt auf diesem Gerät; gespeicherte Werte bleiben auch ohne
+  Expertenmodus erhalten.
 - **Sprachaufnahme automatisch starten** – ist der Schalter aktiv, startet das Mikrofon
   der Sprachfelder (Aufgabenformular, Schnellerfassung, Suche), sobald du sie öffnest.
   Beim Einschalten wird der Mikrofon-Zugriff angefragt.
@@ -731,6 +743,11 @@ eine Gruppe verwaltet, ist deshalb noch kein Admin der App.
   Bereich _Nutzerverwaltung_ mit allen Konten (Name, E-Mail, Rolle). Über die
   Rollen-Umschalter je Konto (Admin, Mitglied, Tester) änderst du die Rolle;
   die Änderung gilt sofort, auch für bereits angemeldete Personen.
+- **Abo sperren/stornieren:** Über „Abo sperren“ stoppst du den Zugriff einer
+  Person auf ihr bezahltes Paket sofort. „Abo stornieren“ kündigt das Abo beim
+  Zahlungsdienstleister – das bezahlte Paket läuft dann bis zum Ende des
+  gebuchten Zeitraums weiter. Beide Aktionen verlangen eine Bestätigung;
+  Google-Play-Abos lassen sich nicht stornieren, aber sperren.
 - **Mindestens ein Admin:** Den letzten verbleibenden Admin kann niemand
   zurückstufen – ernenne zuerst eine andere Person.
 - **Mitglieder** sehen den Bereich nicht; ein direkter Aufruf von `/settings/nutzer` öffnet bei

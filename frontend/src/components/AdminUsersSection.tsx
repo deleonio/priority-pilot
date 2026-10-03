@@ -1,8 +1,9 @@
-import { KolAlert, KolBadge, KolButton, KolInputRadio, KolSpin } from '@public-ui/react-v19';
-import type { AdminUser, AllowedEmail, ReassignStatusFilter } from 'client';
-import { useCallback, useEffect, useState } from 'react';
+import { KolAlert, KolBadge, KolButton, KolDetails, KolInputRadio, KolSpin } from '@public-ui/react-v19';
+import type { AdminUser, AllowedEmail, ReassignStatusFilter, components } from 'client';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { formatEuro, paymentStatusLabel } from '../lib/format';
 import { planLabel } from '../lib/planOffers';
 import { useReassignRun, type ReassignPortionArgs } from '../lib/useReassignRun';
 import { Modal } from './Modal';
@@ -25,6 +26,89 @@ const ORIGIN_LABELS: Record<AllowedEmail['origin'], string> = {
 	delegation: 'Delegation',
 	admin: 'Admin',
 	warteliste: 'Warteliste',
+};
+
+/** Rechnung im Vertragsformat der Eigentümer-Route (#1958) — dieselben Felder wie /billing/invoices. */
+type AdminInvoice = components['schemas']['Invoice'];
+
+/** Zeitpunkte in der Rechnungsliste als „TT.MM.JJJJ" (Muster `SubscriptionSection.tsx`). */
+const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de-DE');
+
+/** PDF-Download über die Admin-Route (#1958 AK2) — Anker-Muster `SubscriptionSection.tsx` (`downloadInvoicePdf`). */
+const downloadAdminInvoicePdf = (userId: number, invoice: AdminInvoice): void => {
+	const link = document.createElement('a');
+	link.href = `/api/v1/admin/users/${userId}/invoices/${invoice.id}/pdf`;
+	link.download = `${invoice.number}.pdf`;
+	document.body.appendChild(link);
+	link.click();
+	link.remove();
+};
+
+/**
+ * Rechnungsansicht je Nutzer (#1958 AK3): aufklappbares `KolDetails` mit eindeutigem Label, das
+ * erst beim ersten Aufklappen lädt (die Nutzerliste umfasst alle Nutzer — Eager-Fetch wäre
+ * N Requests), danach gecacht. Vier Zustände nach KI-UX: Laden (KolSpin), leer, Fehler
+ * (KolAlert), Liste mit Nummer, Zeitraum, Betrag, Status „Ausgestellt" und Download je Rechnung.
+ */
+const UserInvoices = ({ userId, displayName }: { userId: number; displayName: string }) => {
+	const [invoices, setInvoices] = useState<AdminInvoice[] | null>(null);
+	const [error, setError] = useState<string | null>(null);
+	// „Schon geöffnet"-Merker: weitere Klicks holen nicht neu (Lazy-Load, gecacht).
+	const openedRef = useRef(false);
+	const load = useCallback(async (): Promise<void> => {
+		try {
+			const loaded = await api.getAdminUserInvoices({ id: userId });
+			setInvoices(Array.isArray(loaded) ? loaded : []);
+			setError(null);
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			setError(apiError.message);
+			// Fehlschlag gilt als „noch nicht geöffnet“ — nächster Klick versucht es erneut (Fixup #1958).
+			openedRef.current = false;
+		}
+	}, [userId]);
+	return (
+		<KolDetails
+			_label={`Rechnungen von ${displayName}`}
+			_on={{
+				onClick: () => {
+					if (openedRef.current) return;
+					openedRef.current = true;
+					void load();
+				},
+			}}
+		>
+			{error !== null ? (
+				<KolAlert _type="error" _label="Rechnungen">
+					{error}
+				</KolAlert>
+			) : invoices === null ? (
+				<KolSpin _show _variant="cycle" _label="Rechnungen werden geladen …" />
+			) : invoices.length === 0 ? (
+				<p>Noch keine Rechnungen vorhanden.</p>
+			) : (
+				<ul className="admin-invoices__list">
+					{invoices.map((invoice) => (
+						<li key={invoice.id} className="admin-invoices__item">
+							<span>{invoice.number}</span>
+							<span>
+								{formatDate(invoice.periodStart)} – {formatDate(invoice.periodEnd)}
+							</span>
+							<span>{formatEuro(invoice.amountCents)}</span>
+							{/* Status als Text-Badge — Information nie allein über Farbe (WCAG 1.4.1, KI-UX). */}
+							<KolBadge _label={paymentStatusLabel(invoice.paymentStatus)} />
+							<KolButton
+								_label={`PDF ${invoice.number} herunterladen`}
+								_variant="secondary"
+								_icons={{ left: { icon: 'fa-solid fa-download' } }}
+								_on={{ onClick: () => downloadAdminInvoicePdf(userId, invoice) }}
+							/>
+						</li>
+					))}
+				</ul>
+			)}
+		</KolDetails>
+	);
 };
 
 /** Optionen der Rollen-Radiogruppe je Zeile — stabile Objektidentität wie in `AppearanceSetting.tsx`. */
@@ -90,6 +174,11 @@ export const AdminUsersSection = () => {
 	// Neustart über alle Konten oder Fortsetzen der seit dem letzten Start noch offenen Aufgaben.
 	const [mode, setMode] = useState<'restart' | 'resume'>('restart');
 
+	// #1959: Abo-Aktion je Nutzerzeile — `null` = kein Bestätigungsdialog offen.
+	const [subConfirm, setSubConfirm] = useState<{ user: AdminUser; kind: 'lock' | 'cancel' } | null>(null);
+	// Läuft gerade eine Abo-Aktion — Dialog-Buttons sind dann disabled (Doppel-Submit-Schutz).
+	const [subRunning, setSubRunning] = useState(false);
+
 	// Portionierter Lauf, Fortschritt und Fortsetzen: gemeinsam mit dem Nutzer-Modal in
 	// `useReassignRun`, damit beide Einstiege nicht wieder auseinanderlaufen.
 	const runPortion = useCallback(
@@ -121,6 +210,31 @@ export const AdminUsersSection = () => {
 		}
 	};
 
+	// #1959 AK1/AK2: bestätigte Abo-Aktion ausführen — Erfolg lädt die Liste neu (Zeilen-Status
+	// sofort sichtbar), Fehler (409 bereits gekündigt / Google-Play) bleiben als KolAlert stehen
+	// (Muster Rollenwechsel).
+	const handleSubAction = async (): Promise<void> => {
+		if (subConfirm === null) {
+			return;
+		}
+		setSubRunning(true);
+		try {
+			if (subConfirm.kind === 'lock') {
+				await api.lockUserSubscription({ id: subConfirm.user.id });
+			} else {
+				await api.cancelUserSubscription({ id: subConfirm.user.id });
+			}
+			setSubConfirm(null);
+			await load();
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			await load();
+			setError(apiError.message);
+		} finally {
+			setSubRunning(false);
+		}
+	};
+
 	return (
 		<div className="admin-users">
 			{error !== null && (
@@ -145,6 +259,8 @@ export const AdminUsersSection = () => {
 								<KolBadge _label={roleLabel(user.role)} />
 								{/* #1556 AK1: Paket immer als Text-Badge (nie nur Farbe), in jeder Zeile. */}
 								<KolBadge _label={planLabel(user.plan)} />
+								{/* #1959 AK1: Sperr-Status dauerhaft in der Zeile sichtbar (Text-Badge). */}
+								{user.subscriptionStatus === 'locked' && <KolBadge _label="Gesperrt" />}
 								<KolInputRadio
 									_label={`Rolle von ${user.displayName}`}
 									_orientation="horizontal"
@@ -158,6 +274,27 @@ export const AdminUsersSection = () => {
 										},
 									}}
 								/>
+								{user.subscriptionStatus !== null && (
+									<div className="admin-user-actions">
+										{/* #1959 AK4: Einstieg je Aktion — die Bestätigung folgt im Dialog
+										    (Muster „Sequenzielle Bestätigung“); _variant="secondary", die
+										    Primary-Fläche bleibt dem bestätigenden Button vorbehalten. */}
+										<KolButton
+											_label="Abo sperren"
+											_variant="secondary"
+											_disabled={subRunning}
+											_on={{ onClick: () => setSubConfirm({ user, kind: 'lock' }) }}
+										/>
+										<KolButton
+											_label="Abo stornieren"
+											_variant="secondary"
+											_disabled={subRunning}
+											_on={{ onClick: () => setSubConfirm({ user, kind: 'cancel' }) }}
+										/>
+									</div>
+								)}
+								{/* #1958 AK3: Rechnungsansicht je Nutzer — aufklappbar, Lazy-Load beim ersten Aufklappen. */}
+								<UserInvoices userId={user.id} displayName={user.displayName} />
 							</li>
 						))}
 					</ul>
@@ -292,6 +429,37 @@ export const AdminUsersSection = () => {
 							</div>
 						</>
 					)}
+				</Modal>
+			)}
+			{/* #1959 AK4: Bestätigung je Abo-Aktion — ein reiner Ja/Nein-Schritt mit den konkreten
+			    Konsequenzen (Sperre wirkt sofort, Storno läuft bis zum Periodenende weiter). Der
+			    bestätigende Button benennt die Aktion („Jetzt sperren“/„Jetzt stornieren“), Abbrechen
+			    setzt keinen Request ab; beim Schließen kehrt der Fokus auf den auslösenden Button
+			    zurück (Modal, verbindliches Pattern). */}
+			{subConfirm !== null && (
+				<Modal
+					title={subConfirm.kind === 'lock' ? 'Abo sperren' : 'Abo stornieren'}
+					onClose={() => setSubConfirm(null)}
+				>
+					<p>
+						{subConfirm.kind === 'lock'
+							? `Den Zugriff von ${subConfirm.user.displayName} auf das bezahlte Paket (${planLabel(subConfirm.user.plan)}) sofort sperren? Die Sperre wirkt sofort.`
+							: `Das Abo von ${subConfirm.user.displayName} (${planLabel(subConfirm.user.plan)}) beim Zahlungsdienstleister kündigen? Das Paket läuft bis zum Ende des bezahlten Zeitraums weiter.`}
+					</p>
+					<div className="modal-actions">
+						<KolButton
+							_label="Abbrechen"
+							_variant="secondary"
+							_disabled={subRunning}
+							_on={{ onClick: () => setSubConfirm(null) }}
+						/>
+						<KolButton
+							_label={subConfirm.kind === 'lock' ? 'Jetzt sperren' : 'Jetzt stornieren'}
+							_variant="primary"
+							_disabled={subRunning}
+							_on={{ onClick: () => void handleSubAction() }}
+						/>
+					</div>
 				</Modal>
 			)}
 		</div>

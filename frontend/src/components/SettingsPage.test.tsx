@@ -116,6 +116,9 @@ beforeEach(() => {
 	// Kontext aller Geo-Tests dieser Datei. (Die Panels bleiben gemountet, die URL steuert hier
 	// nur den fachlichen Kontext.)
 	window.history.replaceState({}, '', '/settings/standort');
+	// #1984: Bestands-Tests prüfen das Expertenverhalten (Säulen-Gewichtungs-Karte, Gewichts-Regler)
+	// — Präferenz explizit an. Die #1984-Spec-Tests entfernen den Key in ihrem eigenen beforeEach.
+	localStorage.setItem('pp-expert-mode', 'true');
 });
 
 afterEach(cleanup);
@@ -1623,7 +1626,7 @@ describe('SettingsPage – #1794: Fürsorge-Schalter (AK7)', () => {
 describe('SettingsPage – #1902: Tab „Pakete & Abo"', () => {
 	const catalog = {
 		features: [{ feature: 'groups', allowedPlans: ['pro'] }],
-		prices: { free: { monthly: 0, yearly: 0 }, pro: { monthly: 499, yearly: 4790 } },
+		prices: { free: { monthly: 0, yearly: 0 }, pro: { monthly: 899, yearly: 8630 } },
 	};
 	const subscription = {
 		provider: 'paypal',
@@ -1855,7 +1858,7 @@ describe('SettingsPage – #1940: Rechnungen ohne aktives Abo', () => {
 		number: 'INV-2026-000001',
 		periodStart: '2026-08-15T00:00:00.000Z',
 		periodEnd: '2026-09-15T00:00:00.000Z',
-		amountCents: 799,
+		amountCents: 899,
 		taxNote: '§19 UStG',
 	};
 	const sub = (provider: string) =>
@@ -1873,7 +1876,7 @@ describe('SettingsPage – #1940: Rechnungen ohne aktives Abo', () => {
 	beforeEach(() => {
 		apiMocks.getPlansCatalog = vi.fn().mockResolvedValue({
 			features: [{ feature: 'groups', allowedPlans: ['pro'] }],
-			prices: { free: { monthly: 0, yearly: 0 }, pro: { monthly: 499, yearly: 4790 } },
+			prices: { free: { monthly: 0, yearly: 0 }, pro: { monthly: 899, yearly: 8630 } },
 		});
 		apiMocks.listBillingInvoices = vi.fn().mockResolvedValue([]);
 	});
@@ -1895,7 +1898,7 @@ describe('SettingsPage – #1940: Rechnungen ohne aktives Abo', () => {
 		expect(panel.querySelector('[data-testid="subscription-empty"]')).not.toBeNull();
 		const text = panel.querySelector('[data-testid="billing-invoices"]')?.textContent ?? '';
 		expect(text).toContain('INV-2026-000001');
-		expect(text).toContain('7,99');
+		expect(text).toContain('8,99');
 	});
 
 	it('AK2: kein Abo + keine Rechnung → keine Rechnungsgruppe', async () => {
@@ -1934,5 +1937,61 @@ describe('SettingsPage – #1940: Rechnungen ohne aktives Abo', () => {
 		expect(panel.querySelector('[data-testid="subscription-section"] kol-details')?.getAttribute('_label')).toBe(
 			'Rechnungen und Kündigung',
 		);
+	});
+});
+
+// ── #1984: Expertenmodus-Schalter im Tab Allgemein ─────────────────────────────────────────────
+//
+// Spezifikation: docs/spec/issue-1984.md — AK3. Der Schalter („Allgemein", neben den
+// KI-Schaltern — UX-Block-Empfehlung, hier festgelegt) schreibt die Präferenz `pp-expert-mode`
+// direkt in den localStorage; Muster #1183 „Animationen“. Der Hook useExpertMode wird NICHT
+// gemockt — der localStorage-Vertrag ist Teil der Prüfung.
+describe('SettingsPage – #1984: Expertenmodus-Schalter im Tab Allgemein', () => {
+	const KEY = 'pp-expert-mode';
+
+	/** KoliBri-Adapter setzt numerische/boolesche Props je nach Adapter als Property oder Attribut. */
+	const bound = (el: Element, name: string): string => {
+		const value = (el as unknown as Record<string, unknown>)[name] ?? el.getAttribute(name);
+		return value === null || value === undefined ? '' : String(value);
+	};
+
+	beforeEach(() => {
+		localStorage.removeItem(KEY);
+	});
+
+	afterEach(() => {
+		localStorage.removeItem(KEY);
+	});
+
+	it('AK3: der Schalter „Expertenmodus“ rendert im Panel Allgemein (tab-0), initial aus', () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+		const tab0 = container.querySelector('[slot="tab-0"]');
+		expect(tab0, 'Allgemein-Panel existiert').not.toBeNull();
+		const toggle = tab0?.querySelector('kol-input-checkbox[_label="Expertenmodus"]');
+		expect(toggle, 'Expertenmodus-Schalter fehlt').not.toBeNull();
+		expect(bound(toggle!, '_checked')).toBe('false');
+	});
+
+	it('AK3: Toggle schreibt den localStorage-Key und übernimmt den Zustand', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+		const toggle = container.querySelector('kol-input-checkbox[_label="Expertenmodus"]');
+		expect(toggle).not.toBeNull();
+
+		await act(async () => {
+			(toggle as unknown as { _on: { onChange: (e: unknown, v: boolean) => void } })._on.onChange(
+				{ target: toggle },
+				true,
+			);
+		});
+		expect(localStorage.getItem(KEY)).toBe('true');
+		expect(bound(toggle!, '_checked')).toBe('true');
+
+		await act(async () => {
+			(toggle as unknown as { _on: { onChange: (e: unknown, v: boolean) => void } })._on.onChange(
+				{ target: toggle },
+				false,
+			);
+		});
+		expect(localStorage.getItem(KEY)).toBe('false');
 	});
 });

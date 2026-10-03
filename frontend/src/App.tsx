@@ -24,6 +24,7 @@ import { DayDoneHint } from './components/DayDoneHint';
 import { DeleteTaskDialog } from './components/DeleteTaskDialog';
 import { DependencyModal } from './components/DependencyModal';
 import { EmptyState } from './components/EmptyState';
+import { OnboardingFlow } from './components/OnboardingFlow';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
 import { SessionExpiredDialog } from './components/SessionExpiredDialog';
@@ -200,6 +201,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [dialog, setDialog] = useState<Dialog>(null);
+	// Erststart-Flow (#2069): „Später“ bzw. erfolgreiches Übernehmen schließt den Flow für die
+	// Session — die App landet beim EmptyState, statt den Flow erneut zu starten.
+	const [onboardingDismissed, setOnboardingDismissed] = useState(false);
 	const [logoutLoading, setLogoutLoading] = useState(false);
 	const [logoutError, setLogoutError] = useState<string | null>(null);
 	const [updateError, setUpdateError] = useState<string | null>(null);
@@ -1050,7 +1054,31 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			    Listenstart um ~230px nach unten (bei 375px+812 blieben statt ≥4 Serien nur 3 ohne
 			    Scrollen sichtbar). Aufgaben- und Wald-Tab haben eigene Leerzustände (TaskTree, #510). */}
 						{tasks !== null && tasks.length === 0 && activeTab === 0 && (
-							<EmptyState onCreate={() => setDialog({ kind: 'create' })} />
+							<>
+								{/* #2070: Nach „Später“/Abschluss zeigt der EmptyState den Wiedereinstieg; der Flow bleibt
+									    verdeckt gemountet, damit Freitext und Auswahl den Wiedereinstieg überleben (AK4). */}
+								{onboardingDismissed ? (
+									<EmptyState
+										onCreate={() => setDialog({ kind: 'create' })}
+										onReenter={() => setOnboardingDismissed(false)}
+									/>
+								) : null}
+								<div hidden={onboardingDismissed}>
+									<OnboardingFlow
+										pillars={pillars}
+										onClose={() => {
+											setOnboardingDismissed(true);
+											void reload();
+										}}
+										onWeightsSaved={() => void reload()}
+										onApplied={() => {
+											// Die neuen Aufgaben zeigen (AK3): der Aufgaben-Tab listet sie — die
+											// Dashboard-Karten (Nächste Aufgabe/Wichtigste) tragen eigene Titel-Klassen.
+											navigate({ pathname: ROUTE_PATHS[1], search: searchParams.toString() });
+										}}
+									/>
+								</div>
+							</>
 						)}
 
 						{tasks !== null && (

@@ -1032,6 +1032,25 @@ kol-toolbar {
 	color: var(--pp-signal-ink);
 }
 
+/* #1985: Begründungssätze („Warum jetzt?“) — Fließtext in der bestehenden Signalfläche, Tinte
+   erbt `--pp-signal-ink` (Fläche und Text reisen zusammen, siehe Kommentar oben). Basis-Schrift-
+   größe statt `--pp-font-size-sm` (Fließtext < 16 px ist Anti-Pattern, docs/mobile-ui-rules.md
+   Regel 6), kein Aufzählungszeichen, kein Farb-/Gewichts-Akzent; langer Säulenname oder Fristtext
+   bricht um, statt die Karte zu sprengen (Muster `.dashboard-next-task-title`). */
+.dashboard-next-task-reasons {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-tight);
+	font-size: var(--pp-font-size-base);
+}
+
+.dashboard-next-task-reasons li {
+	overflow-wrap: anywhere;
+}
+
 .dashboard-next-task-empty {
 	font-size: var(--pp-font-size-sm);
 }
@@ -2546,6 +2565,19 @@ kol-toolbar {
 	--a11y-min-size: 2.75rem;
 }
 
+/* #1959: Zeilen-Aktionen Abo sperren/stornieren — voll breit unter den Zeileninhalten
+   gestapelt (KI-UX: Daumen-freundlich bei 375px, kein gequetschtes Nebeneinander);
+   Touch-Ziel 44px über `--a11y-min-size` (Muster `.admin-user-plan`). */
+.admin-user-actions {
+	flex: 1 1 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: var(--pp-space-2);
+	min-width: 0;
+	--a11y-min-size: 2.75rem;
+}
+
 /* Batch-Trigger zur Neuberechnung der Säulenverteilung (Admin): Button und Ergebnis unter
    der Nutzerliste, mit Abstand statt direkt angeklebt. */
 .admin-reassign {
@@ -2635,6 +2667,35 @@ kol-toolbar {
 
 .pillar-row kol-input-range {
 	min-height: 44px; /* Touch-Ziele (Mobile-First, BITV 9.1.3.3), Muster `.pillar-weight-row` */
+}
+
+/* Hauptsäulen-Modus (#1962): übernehmbarer Vorschlag der Restverteilung — eingesenkte Fläche,
+   Aktionen als volle Breite gestapelt (Touch-Ziele ≥ 44 px, Mobile-First). */
+.pillar-suggestion {
+	display: grid;
+	gap: 0.5rem;
+	padding: 0.5rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 0.375rem;
+}
+
+.pillar-suggestion .hint {
+	margin: 0;
+}
+
+.pillar-suggestion-values {
+	margin: 0;
+	padding-inline-start: 1.25rem;
+}
+
+.pillar-suggestion-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.pillar-suggestion-actions kol-button {
+	min-height: 44px;
 }
 
 /* --- Serien-Tab (#335) --- */
@@ -4949,20 +5010,11 @@ a.plan-badge:focus-visible {
 	gap: var(--pp-gap-tight);
 }
 
-/* Wortmarke: je Theme ein SVG, das jeweils andere bleibt ausgeblendet (#1741) */
+/* Wortmarke: das Theme-passende SVG wählt die Komponente (ein img statt zweier) */
 .login-page__brand-wordmark {
 	width: 15rem;
 	height: auto;
 	max-width: 100%;
-}
-
-.login-page__brand-wordmark--dark,
-:root[data-theme='dark'] .login-page__brand-wordmark--light {
-	display: none;
-}
-
-:root[data-theme='dark'] .login-page__brand-wordmark--dark {
-	display: block;
 }
 
 .login-page__title {
@@ -4977,6 +5029,15 @@ a.plan-badge:focus-visible {
 	margin: 0;
 	color: var(--pp-ink-muted);
 	font-size: var(--pp-font-size-base);
+}
+
+/* Überschrift einer Folger-Card (Warteliste) — eine Stufe unter dem h1 der Anmelde-Card */
+.login-page__card-title {
+	margin: 0;
+	font-size: var(--pp-font-size-base);
+	font-weight: var(--pp-weight-bold);
+	line-height: var(--pp-line-tight);
+	color: var(--pp-ink);
 }
 
 .login-page__card {
@@ -5055,7 +5116,8 @@ a.plan-badge:focus-visible {
 }
 
 .login-page__btn:focus-visible,
-.login-page__input:focus-visible {
+.login-page__input:focus-visible,
+.login-page__ref-link:focus-visible {
 	outline: 2px solid var(--pp-focus-ring);
 	outline-offset: 2px;
 }
@@ -5090,6 +5152,7 @@ a.plan-badge:focus-visible {
 
 .login-page__label {
 	color: var(--pp-ink);
+	font-size: var(--pp-font-size-sm);
 	font-weight: var(--pp-weight-bold);
 }
 
@@ -5145,6 +5208,13 @@ a.plan-badge:focus-visible {
 	flex-direction: column;
 	gap: var(--pp-gap-tight);
 	overflow-wrap: anywhere;
+}
+
+/* Der Empfehlungs-Link ist ein echter Anker (neuer Tab); Unterstreichung trägt die Klick-Affordanz */
+.login-page__ref-link {
+	color: var(--pp-success);
+	text-decoration: underline;
+	text-underline-offset: 2px;
 }
 
 /* Zustimmungsschritt nach dem Login (#1901) — im .login-page-Rahmen, Haken mit Link darunter */
@@ -5205,4 +5275,41 @@ a.plan-badge:focus-visible {
 	border: 0;
 	font-family: inherit;
 	cursor: pointer;
+}
+
+/* --- Erststart-Flow (#2069) --- */
+/* Vollbild-Fläche unter der App-Shell (kein Dialog, UX-Beratung #1986): einspaltig, alle
+   Primäraktionen unten sticky, Touch-Targets übernimmt KoliBri. */
+.onboarding-flow {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-base);
+	margin-top: var(--pp-gap-generous);
+	min-width: 0;
+}
+
+.onboarding-heading {
+	margin: 0;
+}
+
+.onboarding-step-indicator {
+	margin: 0;
+	color: var(--pp-text-muted);
+}
+
+.onboarding-cards {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-base);
+	min-width: 0;
+}
+
+.onboarding-actions {
+	position: sticky;
+	bottom: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-base);
+	padding-block: var(--pp-gap-base);
+	background: var(--pp-surface-0);
 }

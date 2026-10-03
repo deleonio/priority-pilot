@@ -13,6 +13,14 @@ import { waitForStableView } from './helpers';
  *
  * Diese Tests sind **rot**, solange visuelle Überlagerungen im Säulen-Gewichtungs-Bereich bestehen.
  */
+// #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
+// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+test.beforeEach(async ({ page }) => {
+	await page.addInitScript(() => {
+		localStorage.setItem('pp-expert-mode', 'true');
+	});
+});
+
 test.describe('#763 Säulen-Gewichtung Layout-Optimierung', () => {
 	/** Toleranz für Rundungen der Layout-Engine (Sub-Pixel). */
 	const TOLERANCE_PX = 2;

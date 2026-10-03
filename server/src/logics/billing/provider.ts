@@ -18,13 +18,15 @@ interface ProviderEvent {
 
 /**
  * Kauf im Web: Abo anlegen, kündigen und wechseln laufen über den Anbieter (ADR 0013).
- * `firstCycleCents` setzt beim Upgrade den um das Guthaben reduzierten ersten Zyklus (#1912).
+ * `firstCycleCents` setzt beim Upgrade den um das Guthaben reduzierten ersten Zyklus (#1912);
+ * `startTime` schiebt die erste Abbuchung auf einen späteren Zeitpunkt (#2049).
  */
 export interface WebCheckout {
 	create(
 		plan: Exclude<Plan, 'free'>,
 		period: BillingPeriod,
 		firstCycleCents?: number,
+		startTime?: Date,
 	): Promise<{ approvalUrl: string; externalSubscriptionId: string }>;
 	cancel(externalSubscriptionId: string): Promise<void>;
 	change(

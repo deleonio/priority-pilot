@@ -39,6 +39,9 @@ export const BillingReturnWait = ({
 	);
 };
 
+/** Zeitpunkte der Vorschau als „TT.MM.JJJJ" (Muster `SubscriptionSection.tsx`). */
+const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de-DE');
+
 interface ChangeDialogProps {
 	targetPlan: Exclude<Plan, 'free'>;
 	targetPeriod: Period;
@@ -47,11 +50,16 @@ interface ChangeDialogProps {
 	onChanged: (approvalUrl: string | undefined, immediate: boolean) => void;
 }
 
-/** Bestätigungsdialog vor einem Paketwechsel (#1496 AK3) — zeigt vorab Guthaben und fälligen Betrag (#1913). */
+/** Bestätigungsdialog vor einem Paketwechsel (#1496 AK3) — zeigt vorab Guthaben, fälligen Betrag (#1913) und Startzeitpunkt (#2049). */
 export const ChangeDialog = ({ targetPlan, targetPeriod, onClose, onChanged }: ChangeDialogProps) => {
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [preview, setPreview] = useState<{ creditCents: number; dueCents: number; immediate: boolean } | null>(null);
+	const [preview, setPreview] = useState<{
+		creditCents: number;
+		dueCents: number;
+		immediate: boolean;
+		startsAt?: string;
+	} | null>(null);
 	const [previewFailed, setPreviewFailed] = useState(false);
 	const cancelRef = useRef<HTMLKolButtonElement>(null);
 
@@ -116,6 +124,12 @@ export const ChangeDialog = ({ targetPlan, targetPeriod, onClose, onChanged }: C
 								<strong>{formatEuro(preview.dueCents)}</strong>
 							</dd>
 						</div>
+						{preview.startsAt != null && (
+							<div>
+								<dt>Wirksam ab</dt>
+								<dd>{preview.immediate ? 'sofort' : formatDate(preview.startsAt)}</dd>
+							</div>
+						)}
 					</dl>
 				)}
 			</div>

@@ -17,9 +17,8 @@ const CATALOG = {
 	features: [],
 	prices: {
 		free: { monthly: 0, quarterly: 0, yearly: 0 },
-		pro: { monthly: 799, quarterly: 2157, yearly: 7670 },
-		max: { monthly: 1499, quarterly: 4047, yearly: 14390 },
-		ultimate: { monthly: 2499, quarterly: 6747, yearly: 23990 },
+		plus: { monthly: 499, quarterly: 1347, yearly: 4790 },
+		pro: { monthly: 899, quarterly: 2427, yearly: 8630 },
 	},
 };
 
@@ -118,7 +117,11 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 		page,
 	}) => {
 		await mockCatalog(page);
-		await mockAuthMe(page, { ...USER_NO_SUBSCRIPTION, plan: 'pro', subscription: activeSubscription() });
+		await mockAuthMe(page, {
+			...USER_NO_SUBSCRIPTION,
+			plan: 'plus',
+			subscription: activeSubscription({ plan: 'plus' }),
+		});
 		await mockEmptyInvoices(page);
 
 		await page.route('**/api/v1/billing/subscriptions/change/preview', (route: Route) =>
@@ -126,7 +129,7 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 				status: 200,
 				contentType: 'application/json',
 				// immediate: true = Upgrade — nur dann wartet die Oberfläche auf die Plan-Bestätigung.
-				body: JSON.stringify({ creditCents: 249, dueCents: 750, immediate: true }),
+				body: JSON.stringify({ creditCents: 249, dueCents: 650, immediate: true }),
 			}),
 		);
 		let capturedBody: unknown;
@@ -136,7 +139,7 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 		});
 
 		await gotoPakete(page);
-		await page.getByTestId('change-plan-max-monthly').click();
+		await page.getByTestId('change-plan-pro-monthly').click();
 
 		await expect(page.getByRole('dialog')).toBeVisible();
 		// Test-Pflege (#1496): `KolDialog` projiziert den Inhalt per Shadow-DOM-`<slot>` in das
@@ -145,13 +148,13 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 		// Light-DOM der äußeren `<kol-dialog>`). Scoping auf den Host-Tag statt auf die Dialog-Rolle.
 		const dialogHost = page.locator('kol-dialog');
 		await expect(dialogHost).toContainText(/Fällig beim ersten Zyklus/);
-		await expect(dialogHost).toContainText('7,50 €');
+		await expect(dialogHost).toContainText('6,50 €');
 
 		await dialogHost.getByRole('button', { name: /bestätigen|wechseln/i }).click();
 
 		await expect
 			.poll(() => capturedBody, { message: 'POST /billing/subscriptions/change muss plan+period senden' })
-			.toEqual({ plan: 'max', period: 'monthly' });
+			.toEqual({ plan: 'pro', period: 'monthly' });
 		// Ohne approvalUrl bleibt die Oberfläche im Wartezustand (AK3/AK4) — Plan ändert sich nicht
 		// sofort, weil /auth/me hier weiterhin "pro" liefert.
 		await expect(page.getByText(/Zahlung wird bestätigt/i)).toBeVisible();
@@ -221,7 +224,7 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 						number: 'INV-2026-000001',
 						periodStart: '2026-08-15T00:00:00.000Z',
 						periodEnd: '2026-09-15T00:00:00.000Z',
-						amountCents: 799,
+						amountCents: 899,
 						taxNote: '§19 UStG',
 					},
 				]),
@@ -231,11 +234,12 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 		await gotoAbo(page);
 		await openBilling(page);
 		const invoices = page.getByTestId('billing-invoices');
-		await expect(invoices.getByText('INV-2026-000001')).toBeVisible();
-		// Test-Pflege (#1529): die Preis-Matrix (AK2, pro/monatlich "7,99 €") liegt seit #1529 auf
+		// exact: seit #2031 trägt auch der Download-Button die Nummer im Label — Substring-Match trifft doppelt.
+		await expect(invoices.getByText('INV-2026-000001', { exact: true })).toBeVisible();
+		// Test-Pflege (#1529): die Preis-Matrix (AK2, pro/monatlich "8,99 €") liegt seit #1529 auf
 		// dem separaten Pakete-Reiter, nicht mehr auf derselben Seite wie die Rechnungsliste — die
 		// frühere Mehrdeutigkeits-Sorge (#1496) besteht nicht mehr, das Scoping bleibt trotzdem.
-		await expect(invoices.getByText('7,99 €')).toBeVisible();
+		await expect(invoices.getByText('8,99 €')).toBeVisible();
 		await expect(page.getByTestId('invoices-empty')).toHaveCount(0);
 	});
 
@@ -245,7 +249,7 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 			...USER_NO_SUBSCRIPTION,
 			plan: 'pro',
 			subscription: activeSubscription({
-				pendingPlan: 'max',
+				pendingPlan: 'plus',
 				pendingPlanEffectiveAt: '2026-11-15T00:00:00.000Z',
 				graceUntil: '2026-09-20T00:00:00.000Z',
 			}),
@@ -254,7 +258,7 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 
 		await gotoAbo(page);
 		await expect(page.getByTestId('subscription-status')).toBeVisible();
-		await expect(page.getByTestId('subscription-status')).toContainText(/max/i);
+		await expect(page.getByTestId('subscription-status')).toContainText(/plus/i);
 		await expect(page.getByTestId('subscription-status')).toContainText(/2026/);
 	});
 
@@ -281,6 +285,63 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 		expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
 	});
 
+	// #2049 AK8: gekündigtes Abo mit Restlaufzeit bei 375px — „Weiterführen"-Knopf in der eigenen
+	// Paketzeile sichtbar und klickbar, die Wechsel-Vorschau nennt Betrag und Startzeitpunkt.
+	test('#2049 AK8: Gekündigtes Abo bei 375px — Weiterführen klickbar, Vorschau mit Startdatum', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await mockCatalog(page);
+		await mockAuthMe(page, {
+			...USER_NO_SUBSCRIPTION,
+			plan: 'pro',
+			subscription: activeSubscription({ status: 'cancelled' }),
+		});
+		await mockEmptyInvoices(page);
+
+		await page.route('**/api/v1/billing/subscriptions/change/preview', (route: Route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					creditCents: 0,
+					dueCents: 499,
+					immediate: false,
+					startsAt: '2026-10-15T00:00:00.000Z',
+				}),
+			}),
+		);
+
+		// Vorschau: Downgrade-Weg (Wechseln) zeigt Betrag und Startdatum im Dialog.
+		await gotoPakete(page);
+		await page.getByTestId('change-plan-plus-monthly').click();
+		const dialogHost = page.locator('kol-dialog');
+		await expect(dialogHost).toContainText(/Wirksam ab/);
+		await expect(dialogHost).toContainText(/15\.10\.2026/);
+		await dialogHost.getByRole('button', { name: 'Abbrechen' }).click();
+
+		// Weiterführen: eigener Paket-Zeile folgt der Auftrag, die Buchung geht mit plan+period raus.
+		let capturedBody: unknown;
+		await page.route('**/api/v1/billing/subscriptions', (route: Route) => {
+			capturedBody = route.request().postDataJSON();
+			return route.fulfill({
+				status: 201,
+				contentType: 'application/json',
+				body: JSON.stringify({ approvalUrl: 'https://paypal.example/approve/resume' }),
+			});
+		});
+		await page.route('https://paypal.example/**', (route: Route) =>
+			route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>PayPal-Sandbox</body></html>' }),
+		);
+
+		const resume = page.getByTestId('resume-pro-monthly');
+		await expect(resume).toBeVisible();
+		await resume.click();
+
+		await expect
+			.poll(() => capturedBody, { message: 'Weiterführen muss plan+period des eigenen Pakets senden' })
+			.toEqual({ plan: 'pro', period: 'monthly' });
+		await expect(page).toHaveURL(/paypal\.example\/approve\/resume/);
+	});
+
 	test('#1940 AK5: Bei 375px ohne Abo — Rechnungsliste ohne horizontalen Überlauf', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await mockCatalog(page);
@@ -295,7 +356,7 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 						number: 'INV-2026-000001',
 						periodStart: '2026-08-15T00:00:00.000Z',
 						periodEnd: '2026-09-15T00:00:00.000Z',
-						amountCents: 799,
+						amountCents: 899,
 						taxNote: '§19 UStG',
 					},
 				]),

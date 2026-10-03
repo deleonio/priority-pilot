@@ -11,6 +11,7 @@ import { categoriesRouter } from './routes/categories.js';
 import { createSuggestPillarsRouter } from './routes/suggestPillars.js';
 import { createReassignPillarsRouter } from './routes/reassignPillars.js';
 import { createParseTasksRouter } from './routes/parseTasks.js';
+import { createSuggestInitialTasksRouter } from './routes/suggestInitialTasks.js';
 import { createPillarAdvisorRouter } from './routes/pillarAdvisor.js';
 import { createCareSuggestionsRouter, scoresRouter } from './routes/scores.js';
 import { createSeriesRouter } from './routes/series.js';
@@ -45,12 +46,18 @@ import type { PaypalVerifier, PaypalClient } from '../logics/paypal.js';
 import type { GooglePlayClient } from '../logics/googlePlay.js';
 import type { GoogleKeysSource } from '../logics/googleOidc.js';
 import { handleServerError } from './server-error-handler.js';
-import type { PillarClassifier, ParseTaskParser, ParseSearchParser, ActivityAdvisor } from '../llm/llm.js';
+import type {
+	PillarClassifier,
+	ParseTaskParser,
+	ParseSearchParser,
+	ActivityAdvisor,
+	InitialTaskSuggester,
+} from '../llm/llm.js';
 import type { PushSender } from '../logics/push.js';
 import type { MailSender } from '../logics/mail.js';
 import { buildTaskForest } from '../logics/tree.js';
 import { buildTaskGraph } from '../logics/graph.js';
-import { findNextBewertung, findSuggestedBewertungen, toScoreBreakdown } from '../logics/find.js';
+import { findNextBewertung, findSuggestedBewertungen, toReasons, toScoreBreakdown } from '../logics/find.js';
 import { isDbEmailAllowed, isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
 import { requireAuth, getUserId, hasGoogleOAuth } from './requireAuth.js';
 import { apiTokenAuth, isApiTokenRequest, apiTokenScopeGuard } from './apiTokenAuth.js';
@@ -68,6 +75,8 @@ type HealthDto = components['schemas']['Health'];
 export interface AppDeps {
 	pillarClassifier?: PillarClassifier;
 	taskTextParser?: ParseTaskParser;
+	/** Suggester für `POST /tasks/suggest-initial` (Erststart-Vorschläge, #2068). */
+	suggestInitialTasksParser?: InitialTaskSuggester;
 	/** Parser für `POST /tasks/parse-search` (Suchanfrage → Suchbegriff + Kategorie). */
 	searchTextParser?: ParseSearchParser;
 	activityAdvisor?: ActivityAdvisor;
@@ -329,6 +338,10 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Mistral-gestützte Task-Schnellerfassung: Freitext → strukturierte Felder (siehe routes/parseTasks.ts).
 	app.use(createParseTasksRouter(deps.taskTextParser, deps.searchTextParser));
 
+	// Mistral-gestützte Erststart-Vorschläge: Freitext → 5–8 Aufgaben mit Säulen-Bezug (#2068,
+	// siehe routes/suggestInitialTasks.ts).
+	app.use(createSuggestInitialTasksRouter(deps.suggestInitialTasksParser));
+
 	// Mistral-gestützter Aktivitäten-Berater: welche Aktivitäten zahlen auf welche Säulen ein
 	// (siehe routes/pillarAdvisor.ts).
 	app.use(createPillarAdvisorRouter(deps.activityAdvisor));
@@ -351,7 +364,7 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Nutzerverwaltung (Rollensystem admin/member): Liste + Rollenänderung, nur für Admins
 	// (zusätzliches `requireRole('admin')`-Gate innerhalb des Routers, siehe routes/admin.ts).
-	app.use(createAdminRouter(deps.pillarClassifier));
+	app.use(createAdminRouter(deps.pillarClassifier, { paypalClient: deps.paypalClient }));
 
 	// Web-Push: Subscription an-/abmelden + öffentlichen VAPID-Schlüssel ausliefern (siehe routes/push.ts).
 	// Bewusst kein client-aufrufbarer „send"-Endpunkt — der Versand läuft server-intern (logics/push.ts).
@@ -397,7 +410,13 @@ export const createApp = (deps: AppDeps = {}) => {
 	app.get('/next', async (req, res: express.Response<RecommendationDto | null | ErrorDto>) => {
 		try {
 			const next = await findNextBewertung(getUserId(req));
-			res.json(next ? { ...serializeTask(next.task), scoreBreakdown: toScoreBreakdown(next) } : null);
+			// #1985: Begründungswerte additiv; ohne Anteile entfällt `reasons` komplett.
+			const reasons = next ? toReasons(next) : undefined;
+			res.json(
+				next
+					? { ...serializeTask(next.task), scoreBreakdown: toScoreBreakdown(next), ...(reasons ? { reasons } : {}) }
+					: null,
+			);
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}

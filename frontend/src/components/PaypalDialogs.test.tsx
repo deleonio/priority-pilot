@@ -14,6 +14,7 @@ interface Preview {
 	creditCents: number;
 	dueCents: number;
 	immediate: boolean;
+	startsAt?: string;
 }
 
 vi.mock('@public-ui/react-v19', () => ({
@@ -55,12 +56,12 @@ describe('ChangeDialog — Vorschau des fälligen Betrags (#1913)', () => {
 	afterEach(cleanup);
 
 	it('AK4: lädt die Vorschau beim Öffnen und zeigt Guthaben und fälligen Betrag formatiert', async () => {
-		previewBillingChange.mockResolvedValue({ creditCents: 249, dueCents: 750, immediate: true });
+		previewBillingChange.mockResolvedValue({ creditCents: 249, dueCents: 650, immediate: true });
 
 		renderDialog();
 
 		await waitFor(() => expect(previewBillingChange).toHaveBeenCalledWith({ plan: 'pro', period: 'monthly' }));
-		expect(await screen.findByText(/7,50 €/)).toBeTruthy();
+		expect(await screen.findByText(/6,50 €/)).toBeTruthy();
 		expect(screen.getByText(/2,49 €/)).toBeTruthy();
 	});
 
@@ -74,7 +75,7 @@ describe('ChangeDialog — Vorschau des fälligen Betrags (#1913)', () => {
 		expect(confirm.disabled).toBe(true);
 		expect(screen.getByRole('status')).toBeTruthy();
 
-		resolve({ creditCents: 0, dueCents: 999, immediate: true });
+		resolve({ creditCents: 0, dueCents: 899, immediate: true });
 		await waitFor(() => expect(confirm.disabled).toBe(false));
 	});
 
@@ -126,5 +127,38 @@ describe('ChangeDialog — Vorschau des fälligen Betrags (#1913)', () => {
 		screen.getByRole('button', { name: 'Wechseln bestätigen' }).click();
 
 		await waitFor(() => expect(onChanged).toHaveBeenCalledWith(undefined, false));
+	});
+
+	// #2049 AK6: die Vorschau nennt den Startzeitpunkt — Weiterführen/Downgrade wirken erst ab dem
+	// genannten Datum, ein Upgrade sofort.
+	it('#2049 AK6: zeigt den Startzeitpunkt aus der Vorschau als Datum, wenn der Wechsel aufschiebt', async () => {
+		previewBillingChange.mockResolvedValue({
+			creditCents: 0,
+			dueCents: 499,
+			immediate: false,
+			startsAt: '2026-10-15T00:00:00.000Z',
+		});
+
+		renderDialog('plus');
+
+		expect(await screen.findByText(/4,99 €/)).toBeTruthy();
+		expect(screen.getByText('Wirksam ab')).toBeTruthy();
+		// Zeitzone des Runners ist UTC — 15.10.2026 bleibt dort 15.10.2026.
+		expect(screen.getByText(/15\.10\.2026/)).toBeTruthy();
+	});
+
+	it('#2049 AK6: ein sofort wirksamer Wechsel (Upgrade) zeigt „sofort" als Startzeitpunkt', async () => {
+		previewBillingChange.mockResolvedValue({
+			creditCents: 249,
+			dueCents: 650,
+			immediate: true,
+			startsAt: new Date().toISOString(),
+		});
+
+		renderDialog();
+
+		expect(await screen.findByText(/6,50 €/)).toBeTruthy();
+		expect(screen.getByText('Wirksam ab')).toBeTruthy();
+		expect(screen.getByText('sofort')).toBeTruthy();
 	});
 });

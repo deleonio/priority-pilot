@@ -81,6 +81,12 @@ For an oversized issue:
   already the analysis result) and thus fall outside step 1's selection criterion. Only **one** level of splitting is allowed.
 - If sub-issues are immediately implementable (traffic light 🟢), also set the matching phase trigger (`ai:needs-ux-ui` for UI relevance, otherwise `ai:needs-spec`). **For sequential chains (`blocked-by`), give the trigger only to the first, unblocked sub-issue.**
 
+**Container closing analysis (epic or group):** A container whose sub-issues are all closed gets a final analysis. Read its
+body (goals, rank table), its comments (PO notes on follow-up work) and the closed sub-issues
+with their PRs, and compare them with the codebase. Goals or follow-up work no ticket covers
+become new sub-issues under the container (procedure above; the recursion guard applies to them). If this run may not create issues, post each one as a complete, template-conformant draft (title with priority prefix, body) in the decision comment instead.
+If nothing is open, close the container per step 6, with the closed sub-issues and PRs as evidence. The container itself keeps only `ai:analysed`; phase triggers go only to the new sub-issues.
+
 ## Step 4 — Solution proposal in the harness comment (with traffic light)
 
 - Formulate the solution approach concretely and actionably: affected files, steps, alternatives, risks.

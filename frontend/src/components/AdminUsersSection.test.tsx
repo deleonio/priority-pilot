@@ -17,13 +17,31 @@ import { planLabel } from '../lib/planOffers';
  */
 
 vi.mock('@public-ui/react-v19', () => ({
-	KolAlert: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
-		<div role="alert">
+	KolAlert: ({ _label, _type, children }: { _label?: string; _type?: string; children?: ReactNode }) => (
+		<div role="alert" data-kol-type={_type}>
 			{_label}
 			{children}
 		</div>
 	),
 	KolBadge: ({ _label }: { _label?: string }) => <span>{_label}</span>,
+	// #1958 (KI-UX): Rechnungsansicht je Nutzer — Stub leitet den Aufklapp-Klick an `_on.onClick`
+	// weiter; die Kinder rendert die Komponente selbst zustandsabhängig (Lazy-Load).
+	KolDetails: ({
+		_label,
+		_on,
+		children,
+	}: {
+		_label?: string;
+		_on?: { onClick?: (event: MouseEvent) => void };
+		children?: ReactNode;
+	}) => (
+		<div>
+			<button type="button" onClick={(e) => _on?.onClick?.(e.nativeEvent)}>
+				{_label}
+			</button>
+			<div>{children}</div>
+		</div>
+	),
 	KolButton: ({ _label, _on }: { _label?: string; _on?: { onClick?: (event: MouseEvent) => void } }) => (
 		<button type="button" onClick={(e) => _on?.onClick?.(e.nativeEvent)}>
 			{_label}
@@ -66,10 +84,18 @@ vi.mock('@public-ui/react-v19', () => ({
 vi.mock('../api', () => ({
 	api: {
 		getAdminUsers: vi.fn(),
+		// #1959: Admin-Abo-Aktionen — ohne Mock-Key würden spätere Aufrufe in den Fehlerpfad laufen.
+		// Cast über Record: die Methoden existieren im api-Typ erst nach der openapi-Regeneration der
+		// Impl-Phase (MEMORY-Muster 2026-08-23 — Pre-Commit-tsc darf am roten Test nicht sterben).
+		lockUserSubscription: vi.fn(),
+		cancelUserSubscription: vi.fn(),
 		// #1983 (AK6): Zulassungsliste — ohne Mock-Key liefe der Loader in den Fehler-Alert
 		// und kippte die Bestands-Assertions.
 		getAllowedEmails: vi.fn(),
 		updateUserRole: vi.fn(),
+		// #1958 (AK3): Rechnungen je Nutzer — die Methode entsteht in der Impl-Phase (Spec-Vertrag
+		// `docs/spec/issue-1958.md`), der Mock hält den roten Lauf frei von Importfehlern.
+		getAdminUserInvoices: vi.fn(),
 		reassignTaskPillars: vi.fn(),
 		getReassignPillarsStatus: vi.fn(),
 	},
@@ -88,7 +114,13 @@ import { AdminUsersSection } from './AdminUsersSection';
 const mockGetAdminUsers = api.getAdminUsers as ReturnType<typeof vi.fn>;
 const mockGetAllowedEmails = api.getAllowedEmails as ReturnType<typeof vi.fn>;
 const mockUpdateUserRole = api.updateUserRole as ReturnType<typeof vi.fn>;
+// Cast-Muster wie im Server-Test: die Methode existiert erst mit der Impl-Phase (Spec-Vertrag
+// `docs/spec/issue-1958.md`) — der Mock hält den roten Lauf frei von Import-/Typfehlern.
+const mockGetAdminUserInvoices = (api as unknown as { getAdminUserInvoices: ReturnType<typeof vi.fn> })
+	.getAdminUserInvoices;
 const mockReassignTaskPillars = api.reassignTaskPillars as ReturnType<typeof vi.fn>;
+const mockLockUserSubscription = (api as unknown as Record<string, ReturnType<typeof vi.fn>>).lockUserSubscription;
+const mockCancelUserSubscription = (api as unknown as Record<string, ReturnType<typeof vi.fn>>).cancelUserSubscription;
 const mockGetReassignPillarsStatus = api.getReassignPillarsStatus as ReturnType<typeof vi.fn>;
 /** Noch nie gelaufen — dann gibt es kein „Fortsetzen“. */
 const NO_RUN = { startedAt: null, total: 0, pending: 0 };
@@ -136,6 +168,9 @@ type TestUser = {
 	plan: 'free' | 'pro' | 'max' | 'ultimate';
 	createdAt: string;
 	aiRequestsThisMonth?: number;
+	// #1959: Abo-Status je Nutzer — der Client-Typ zieht in der Impl-Phase nach (openapi-
+	// Regeneration); lokal optional, damit Bestands-Tests unberührt bleiben.
+	subscriptionStatus?: string | null;
 };
 
 const user = (overrides: Partial<TestUser>): TestUser => ({
@@ -573,5 +608,197 @@ describe('AdminUsersSection — Statusauswahl und Fortschritt (#1614)', () => {
 
 		await waitFor(() => expect(mockReassignTaskPillars).toHaveBeenCalled());
 		expect(mockReassignTaskPillars.mock.calls[0][0]).toMatchObject({ restart: false });
+	});
+});
+
+/**
+ * #1959 (Spec docs/spec/issue-1959.md): Zeilen-Aktionen „Abo sperren“/„Abo stornieren“ mit je
+ * einem Ja/Nein-Bestätigungsdialog — „Abbrechen“ setzt keinen Request ab (AK4), „Jetzt
+ * sperren“/„Jetzt stornieren“ führt die Aktion aus (Labels benennen die Aktion, Muster „Jetzt neu
+ * berechnen“); der Sperr-Status ist als Text-Badge in der Zeile sichtbar (AK1). Das verbindliche
+ * Fokus-Management sitzt im Modal (KolDialog) und wird in der e2e nachgewiesen — hier ist `Modal`
+ * jsdom-gemockt (Muster der Bestandsdatei).
+ */
+describe('AdminUsersSection — Abo sperren/stornieren (#1959)', () => {
+	const row = (): HTMLElement => screen.getByText('Bernd Beta').closest('li') as HTMLElement;
+
+	/** Zustandsbehafteter Mock: die Sperrung spiegelt sich im nachgeladenen GET wider. */
+	const renderWithUsers = (): void => {
+		let locked = false;
+		mockGetAdminUsers.mockImplementation(() =>
+			Promise.resolve([
+				user({ id: 1, displayName: 'Anna Admin' }),
+				user({
+					id: 7,
+					displayName: 'Bernd Beta',
+					email: 'bernd@example.com',
+					role: 'member',
+					plan: 'pro',
+					subscriptionStatus: locked ? 'locked' : 'active',
+				}),
+			]),
+		);
+		mockLockUserSubscription.mockImplementation(() => {
+			locked = true;
+			return Promise.resolve({});
+		});
+		mockCancelUserSubscription.mockResolvedValue({});
+		render(<AdminUsersSection />);
+	};
+
+	it('AK1: zeigt den Sperr-Status als Text-Badge in der Zeile', async () => {
+		mockGetAdminUsers.mockResolvedValue([
+			user({ id: 1, displayName: 'Anna Admin' }),
+			user({ id: 7, displayName: 'Bernd Beta', role: 'member', plan: 'pro', subscriptionStatus: 'locked' }),
+		]);
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Bernd Beta')).toBeInTheDocument());
+
+		expect(within(row()).getByText('Gesperrt')).toBeInTheDocument();
+	});
+
+	it('AK4: „Abbrechen“ im Sperr-Dialog setzt keinen Request ab und schließt den Dialog', async () => {
+		renderWithUsers();
+		await waitFor(() => expect(screen.getByText('Bernd Beta')).toBeInTheDocument());
+
+		fireEvent.click(within(row()).getByRole('button', { name: 'Abo sperren' }));
+		expect(screen.getByRole('button', { name: 'Jetzt sperren' })).toBeInTheDocument();
+		fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
+
+		expect(screen.queryByRole('button', { name: 'Jetzt sperren' })).not.toBeInTheDocument();
+		expect(mockLockUserSubscription).not.toHaveBeenCalled();
+	});
+
+	it('AK4: „Jetzt sperren“ ruft lockUserSubscription auf und die Zeile zeigt „Gesperrt“', async () => {
+		renderWithUsers();
+		await waitFor(() => expect(screen.getByText('Bernd Beta')).toBeInTheDocument());
+
+		fireEvent.click(within(row()).getByRole('button', { name: 'Abo sperren' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Jetzt sperren' }));
+
+		await waitFor(() => expect(mockLockUserSubscription).toHaveBeenCalledWith({ id: 7 }));
+		await waitFor(() => expect(within(row()).getByText('Gesperrt')).toBeInTheDocument());
+	});
+
+	it('AK4: Storno-Dialog bricht ohne Request ab; „Jetzt stornieren“ ruft cancelUserSubscription auf', async () => {
+		renderWithUsers();
+		await waitFor(() => expect(screen.getByText('Bernd Beta')).toBeInTheDocument());
+
+		fireEvent.click(within(row()).getByRole('button', { name: 'Abo stornieren' }));
+		expect(screen.getByRole('button', { name: 'Jetzt stornieren' })).toBeInTheDocument();
+		fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
+		expect(mockCancelUserSubscription).not.toHaveBeenCalled();
+
+		fireEvent.click(within(row()).getByRole('button', { name: 'Abo stornieren' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Jetzt stornieren' }));
+		await waitFor(() => expect(mockCancelUserSubscription).toHaveBeenCalledWith({ id: 7 }));
+	});
+});
+
+/**
+ * #1958 (Spec `docs/spec/issue-1958.md`, AK3): Rechnungsansicht je Nutzer — aufklappbares
+ * `KolDetails` mit Lazy-Load beim ersten Aufklappen (genau ein Fetch je Nutzer, gecacht),
+ * Einträgen mit Nummer, Betrag und Status „Ausgestellt“ sowie Download je Rechnung
+ * (zugänglicher Name nennt die Rechnungsnummer). Fehler- und Leerzustand nach KI-UX
+ * (`KolAlert` `_type="error"` / Wortlaut wie `SubscriptionSection`).
+ * „Nicht-Admin ohne Rechnungsansicht“ braucht hier keinen eigenen Test: Der Tab ist für Member
+ * unsichtbar und per Deep-Link unerreichbar (`issue-1300-admin-users.spec.ts`), der Server
+ * antwortet 403 (`admin-invoices.test.ts`).
+ */
+describe('#1958 Admin-Rechnungsansicht (AK3)', () => {
+	// #2086: das Fixture trägt den Zahlungsstatus (paid/refunded) — die Sicht zeigt ihn statt des
+	// festen „Ausgestellt“ (Test-Pflege, Spec docs/spec/issue-2086.md AK6).
+	const INVOICES = [
+		{
+			id: 11,
+			number: 'INV-2026-000001',
+			periodStart: '2026-10-01T00:00:00.000Z',
+			periodEnd: '2026-11-01T00:00:00.000Z',
+			amountCents: 799,
+			taxNote: 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.',
+			paymentStatus: 'paid',
+		},
+		{
+			id: 12,
+			number: 'INV-2026-000002',
+			periodStart: '2026-11-01T00:00:00.000Z',
+			periodEnd: '2026-12-01T00:00:00.000Z',
+			amountCents: 1499,
+			taxNote: 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.',
+			paymentStatus: 'refunded',
+		},
+	];
+
+	const renderWithUsers = async (): Promise<void> => {
+		mockGetAdminUsers.mockResolvedValue([
+			user({ id: 1, displayName: 'Anna Admin' }),
+			user({ id: 2, displayName: 'Max Member' }),
+		]);
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
+	};
+
+	it('lädt die Rechnungen erst beim ersten Aufklappen und holt bei erneutem Aufklappen nicht neu (Lazy-Load, gecacht)', async () => {
+		mockGetAdminUserInvoices.mockResolvedValue(INVOICES);
+		await renderWithUsers();
+
+		expect(mockGetAdminUserInvoices).not.toHaveBeenCalled();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Rechnungen von Max Member' }));
+		await waitFor(() => expect(mockGetAdminUserInvoices).toHaveBeenCalledTimes(1));
+		expect(mockGetAdminUserInvoices).toHaveBeenCalledWith({ id: 2 });
+
+		fireEvent.click(screen.getByRole('button', { name: 'Rechnungen von Max Member' }));
+		expect(mockGetAdminUserInvoices).toHaveBeenCalledTimes(1);
+	});
+
+	it('zeigt nach dem Aufklappen die Rechnungen mit Nummer, Betrag, Download und dynamischem Zahlungsstatus statt „Ausgestellt“ (#2086 AK6, Test-Pflege)', async () => {
+		mockGetAdminUserInvoices.mockResolvedValue(INVOICES);
+		await renderWithUsers();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Rechnungen von Anna Admin' }));
+
+		await waitFor(() => expect(screen.getByText('INV-2026-000002')).toBeInTheDocument());
+		const paidEntry = screen.getByText('INV-2026-000001').closest('li') as HTMLElement;
+		const refundedEntry = screen.getByText('INV-2026-000002').closest('li') as HTMLElement;
+		expect(within(paidEntry).getByText(/7,99/)).toBeInTheDocument();
+		expect(within(paidEntry).getByText('Bezahlt')).toBeInTheDocument();
+		expect(within(refundedEntry).getByText(/14,99/)).toBeInTheDocument();
+		expect(within(refundedEntry).getByText('Erstattet')).toBeInTheDocument();
+		expect(
+			within(refundedEntry).getByRole('button', { name: 'PDF INV-2026-000002 herunterladen' }),
+		).toBeInTheDocument();
+		expect(screen.queryByText('Ausgestellt'), 'Das feste Label „Ausgestellt“ ist überall entfallen').toBeNull();
+	});
+
+	it('zeigt eine Fehlermeldung als KolAlert vom Typ error, wenn die Rechnungen nicht geladen werden können', async () => {
+		mockGetAdminUserInvoices.mockRejectedValue(new Error('Netzwerk weg'));
+		await renderWithUsers();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Rechnungen von Anna Admin' }));
+
+		const alert = await waitFor(() => screen.getByRole('alert'));
+		expect(alert.getAttribute('data-kol-type')).toBe('error');
+	});
+
+	it('holt nach einem Fehlschlag beim erneuten Aufklappen neu (Fixup #1958: openedRef wird zurückgesetzt)', async () => {
+		mockGetAdminUserInvoices.mockRejectedValueOnce(new Error('Netzwerk weg')).mockResolvedValueOnce(INVOICES);
+		await renderWithUsers();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Rechnungen von Anna Admin' }));
+		await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+
+		fireEvent.click(screen.getByRole('button', { name: 'Rechnungen von Anna Admin' }));
+		await waitFor(() => expect(mockGetAdminUserInvoices).toHaveBeenCalledTimes(2));
+		await waitFor(() => expect(screen.getByText('INV-2026-000002')).toBeInTheDocument());
+	});
+
+	it('zeigt „Noch keine Rechnungen vorhanden.“, wenn der Nutzer keine Rechnungen hat', async () => {
+		mockGetAdminUserInvoices.mockResolvedValue([]);
+		await renderWithUsers();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Rechnungen von Anna Admin' }));
+
+		await waitFor(() => expect(screen.getByText('Noch keine Rechnungen vorhanden.')).toBeInTheDocument());
 	});
 });

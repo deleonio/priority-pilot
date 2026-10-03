@@ -1,0 +1,53 @@
+[
+	{
+		"timestamp": "2026-10-02T20:59:42.105Z",
+		"tokensIn": 278791,
+		"tokensOut": 11654,
+		"cost": 0.360099,
+		"issueId": "2033",
+		"phase": "analyse",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 229440,
+		"turns": 7,
+		"durationSeconds": 172,
+		"valueCost": 0.360099,
+		"effort": "high"
+	},
+	{
+		"timestamp": "2026-10-02T22:27:47.049Z",
+		"tokensIn": 2121893,
+		"tokensOut": 45112,
+		"cost": 0.7708368672,
+		"issueId": "2033",
+		"phase": "implement",
+		"model": "glm-5-turbo",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1863872,
+		"sidechainTokens": 58941,
+		"turns": 33,
+		"durationSeconds": 1309,
+		"valueCost": 0.7708368672,
+		"effort": "medium"
+	},
+	{
+		"timestamp": "2026-10-02T22:59:37.327Z",
+		"tokensIn": 418568,
+		"tokensOut": 13373,
+		"cost": 0.1949628096,
+		"issueId": "2033",
+		"phase": "review",
+		"model": "glm-5-turbo",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 347456,
+		"turns": 7,
+		"durationSeconds": 246,
+		"valueCost": 0.1949628096,
+		"effort": "medium",
+		"findings": 0,
+		"nits": 0
+	}
+]

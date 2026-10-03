@@ -17,6 +17,14 @@ import { waitForStableView } from './helpers';
  * Ersetzt die gelöschten pillar-crud.spec.ts (#439) und pillar-dynamic-cases.spec.ts (#431),
  * die künftig verbotenes CRUD gegen das echte Backend testeten (Test-Pflege-Bedarf, Spec).
  */
+// #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
+// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+test.beforeEach(async ({ page }) => {
+	await page.addInitScript(() => {
+		localStorage.setItem('pp-expert-mode', 'true');
+	});
+});
+
 test.describe('#1573 Feste Säulen im Settings-Tab (375 px)', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });

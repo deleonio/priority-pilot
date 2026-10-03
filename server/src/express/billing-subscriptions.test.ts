@@ -9,7 +9,8 @@ import Invoice from '../models/invoice.js';
 import { issueInvoiceForPeriod } from '../logics/invoices.js';
 import type { AppDeps } from './index.js';
 import { getPlansCatalog } from '../logics/plans.js';
-import { PaypalHttpError } from '../logics/paypal.js';
+import { PaypalHttpError, replacePredecessors } from '../logics/paypal.js';
+import { prorateUpgrade } from '../logics/proration.js';
 
 /**
  * Rote Spec-Tests für #1505 (Spec docs/spec/issue-1505.md) — AK1-AK5 und AK7. Die Routen
@@ -25,6 +26,15 @@ import { PaypalHttpError } from '../logics/paypal.js';
 applyTestAuthEnv('test-secret-issue-1505');
 
 let server: TestServer;
+
+const login = (email: string) => server.login(email);
+const post = (path: string, cookie: string, body: unknown = {}) =>
+	fetch(`${server.baseUrl}${path}`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json', Cookie: cookie },
+		body: JSON.stringify(body),
+	});
+const get = (path: string, cookie: string) => fetch(`${server.baseUrl}${path}`, { headers: { Cookie: cookie } });
 
 interface FakePaypalClient {
 	createSubscription: (planId: string) => Promise<{ approvalUrl: string; externalSubscriptionId: string }>;
@@ -54,15 +64,6 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		if (server) await server.close();
 		await closeDb();
 	});
-
-	const login = (email: string) => server.login(email);
-	const post = (path: string, cookie: string, body: unknown = {}) =>
-		fetch(`${server.baseUrl}${path}`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json', Cookie: cookie },
-			body: JSON.stringify(body),
-		});
-	const get = (path: string, cookie: string) => fetch(`${server.baseUrl}${path}`, { headers: { Cookie: cookie } });
 
 	it('AK1: POST /billing/subscriptions legt ein Abo mit Status approval_pending an und liefert die Zustimmungs-URL', async () => {
 		server = await startTestServer(withClient({}));
@@ -458,6 +459,61 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		assert.equal(body[0].number, 'INV-2026-100001');
 	});
 
+	// #2086 (Spec docs/spec/issue-2086.md, AK4): der DTO trägt den Zahlungsstatus — der
+	// Eigentümer-Route wie der Admin-Route (Spiegel via `serializeInvoice`). Bis zur Impl-Phase
+	// fehlt das Feld in `serializeInvoice`: die Value-Assertion scheitert an `undefined`
+	// (legitimer Erst-Zustand). KEIN Produktivcode.
+	it('AK4 (#2086): GET /billing/invoices liefert je Rechnung den Zahlungsstatus paymentStatus', async () => {
+		server = await startTestServer(withClient({}));
+		const cookie = await login('ak4-2086@example.com');
+		const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
+		const sub = await Subscription.create({
+			userId: me.id,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-2086-DTO',
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date('2026-12-01'),
+		});
+		await Invoice.create({
+			userId: me.id,
+			subscriptionId: sub.get('id') as number,
+			number: 'INV-2026-100101',
+			periodStart: new Date('2026-02-01'),
+			periodEnd: new Date('2026-03-01'),
+			amountCents: 799,
+			taxNote: 'Gemäß §19 UStG wird keine Umsatzsteuer ausgewiesen.',
+			paymentStatus: 'paid',
+		} as never);
+		await Invoice.create({
+			userId: me.id,
+			subscriptionId: sub.get('id') as number,
+			number: 'INV-2026-100102',
+			periodStart: new Date('2026-03-01'),
+			periodEnd: new Date('2026-04-01'),
+			amountCents: 799,
+			taxNote: 'Gemäß §19 UStG wird keine Umsatzsteuer ausgewiesen.',
+			paymentStatus: 'refunded',
+		} as never);
+
+		const res = await get('/billing/invoices', cookie);
+
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { number: string; paymentStatus?: string }[];
+		assert.equal(body.length, 2);
+		assert.equal(
+			body.find((invoice) => invoice.number === 'INV-2026-100101')?.paymentStatus,
+			'paid',
+			'Der DTO muss paymentStatus je Rechnung tragen (hier paid)',
+		);
+		assert.equal(
+			body.find((invoice) => invoice.number === 'INV-2026-100102')?.paymentStatus,
+			'refunded',
+			'Der DTO muss paymentStatus je Rechnung tragen (hier refunded)',
+		);
+	});
+
 	it('AK5: GET /billing/invoices/{id} einer fremden Rechnung antwortet 404', async () => {
 		server = await startTestServer(withClient({}));
 		const cookieA = await login('ak5-id-a@example.com');
@@ -562,6 +618,7 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		const seedActive = async (email: string, plan: 'plus' | 'pro', period: 'monthly' | 'yearly' = 'monthly') => {
 			const cookie = await login(email);
 			const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
+			const currentPeriodEnd = new Date(Date.now() + 15 * DAY_MS);
 			await Subscription.create({
 				userId: me.id,
 				provider: 'paypal',
@@ -569,9 +626,9 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 				plan,
 				period,
 				status: 'active',
-				currentPeriodEnd: new Date(Date.now() + 15 * DAY_MS),
+				currentPeriodEnd,
 			});
-			return { cookie, userId: me.id };
+			return { cookie, userId: me.id, currentPeriodEnd };
 		};
 
 		it('AK1: Upgrade-Vorschau liefert dieselben Werte wie der anschließende Wechsel, ohne PayPal-Aufruf und DB-Schreibung', async () => {
@@ -616,16 +673,20 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			const sameRes = await post(PREVIEW, same.cookie, { plan: 'plus', period: 'yearly' });
 
 			assert.equal(downRes.status, 200);
+			// Test-Pflege (#2049 AK6): die Vorschau nennt zusätzlich den Startzeitpunkt (hier das
+			// Periodenende des aktiven Abos) — deepEqual führt das neue Feld mit.
 			assert.deepEqual(await downRes.json(), {
 				creditCents: 0,
 				dueCents: prices.plus.monthly,
 				immediate: false,
+				startsAt: down.currentPeriodEnd.toISOString(),
 			});
 			assert.equal(sameRes.status, 200);
 			assert.deepEqual(await sameRes.json(), {
 				creditCents: 0,
 				dueCents: prices.plus.yearly,
 				immediate: false,
+				startsAt: same.currentPeriodEnd.toISOString(),
 			});
 		});
 
@@ -767,5 +828,191 @@ describe('Rechnungs-PDF-Download (#1955 AK4)', () => {
 		const res = await get(`/billing/invoices/${invoice.get('id')}/pdf`, cookieA);
 
 		assert.equal(res.status, 404, 'Fremde PDFs dürfen weder inhaltlich noch über den Status verraten werden');
+	});
+
+	// #2049 (Spec docs/spec/issue-2049.md): ein gekündigtes Abo mit Restlaufzeit
+	// (`status:'cancelled'`, `currentPeriodEnd > now`) gilt als laufendes Abo — Upgrade wie bei
+	// aktiv, Weiterführen/Downgrade als neues Abo mit start_time = Periodenende. Rot: change/preview
+	// liefern heute 404 und die Anlage würde sofort abbuchen.
+	describe('#2049: gekündigtes Abo mit Restlaufzeit', () => {
+		const DAY_MS = 24 * 60 * 60 * 1000;
+		const PREVIEW = '/billing/subscriptions/change/preview';
+
+		const seedCancelled = async (email: string, plan: 'plus' | 'pro', remainingDays = 15) => {
+			const cookie = await login(email);
+			const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
+			const periodEnd = new Date(Date.now() + remainingDays * DAY_MS);
+			await Subscription.create({
+				userId: me.id,
+				provider: 'paypal',
+				externalSubscriptionId: `I-${email}`,
+				plan,
+				period: 'monthly',
+				status: 'cancelled',
+				currentPeriodEnd: periodEnd,
+			});
+			return { cookie, userId: me.id, periodEnd };
+		};
+
+		const captureCreate = () => {
+			const calls: { planId?: string; firstCycleCents?: number; startTime?: Date }[] = [];
+			const client = withClient({
+				createSubscription: (async (planId: string, override?: { firstCycleCents?: number; startTime?: Date }) => {
+					calls.push({ planId, firstCycleCents: override?.firstCycleCents, startTime: override?.startTime });
+					return { approvalUrl: 'https://paypal.example/approve', externalSubscriptionId: 'I-NEW' };
+				}) as FakePaypalClient['createSubscription'],
+			});
+			return { client, calls };
+		};
+
+		it('TF1/AK1: change und preview finden ein gekündigtes Abo mit Restlaufzeit (200 statt 404)', async () => {
+			server = await startTestServer(withClient({}));
+			const { cookie } = await seedCancelled('tf1-2049@example.com', 'plus');
+
+			assert.equal(
+				(await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'monthly' })).status,
+				200,
+				'change muss das gekündigte Abo mit Restlaufzeit als aktuell behandeln',
+			);
+			assert.equal(
+				(await post(PREVIEW, cookie, { plan: 'pro', period: 'monthly' })).status,
+				200,
+				'preview muss das gekündigte Abo mit Restlaufzeit als aktuell behandeln',
+			);
+		});
+
+		it('TF2/AK2: Upgrade bei gekündigtem Abo liefert approvalUrl und reduziert den ersten Zyklus um das Restguthaben', async () => {
+			const { client, calls } = captureCreate();
+			server = await startTestServer(client);
+			const { cookie, periodEnd } = await seedCancelled('tf2-2049@example.com', 'plus');
+
+			const res = await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'monthly' });
+
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as { approvalUrl?: string };
+			assert.ok(body.approvalUrl, 'Antwort muss eine Zustimmungs-URL enthalten');
+			const { prices } = getPlansCatalog();
+			const periodStart = new Date(periodEnd);
+			periodStart.setUTCMonth(periodStart.getUTCMonth() - 1);
+			const { firstCycleCents } = prorateUpgrade({
+				oldPriceCents: prices.plus.monthly,
+				newPriceCents: prices.pro.monthly,
+				periodStart,
+				periodEnd,
+				now: new Date(),
+			});
+			assert.ok(calls[0], 'PayPal-Anlage muss ausgelöst worden sein');
+			assert.equal(
+				calls[0]?.firstCycleCents,
+				firstCycleCents,
+				'erster Zyklus = neuer Preis minus Restguthaben (gleiche Rechnung wie beim aktiven Abo)',
+			);
+		});
+
+		it('TF3/AK3: Weiterführen legt ein neues Abo mit start_time = Periodenende an, ohne sofortige Abbuchung', async () => {
+			const { client, calls } = captureCreate();
+			server = await startTestServer(client);
+			const { cookie, periodEnd } = await seedCancelled('tf3-2049@example.com', 'plus');
+
+			const res = await post('/billing/subscriptions', cookie, { plan: 'plus', period: 'monthly' });
+
+			assert.equal(res.status, 201);
+			assert.ok(calls[0]?.startTime, 'Anlage muss mit Startzeitpunkt-Override laufen');
+			assert.equal(
+				(calls[0]?.startTime as Date).toISOString(),
+				periodEnd.toISOString(),
+				'erste Abbuchung startet erst zum Periodenende des gekündigten Abos',
+			);
+			assert.equal(calls[0]?.firstCycleCents, undefined, 'Weiterführen bucht nicht sofort ab');
+		});
+
+		it('TF4/AK4: Downgrade bei gekündigtem Abo legt ein neues Abo mit Start am Periodenende an', async () => {
+			let reviseCalls = 0;
+			const { calls } = captureCreate();
+			const revised = withClient({
+				revise: async () => {
+					reviseCalls += 1;
+					return {};
+				},
+				createSubscription: (async (_planId: string, override?: { firstCycleCents?: number; startTime?: Date }) => {
+					calls.push({ firstCycleCents: override?.firstCycleCents, startTime: override?.startTime });
+					return { approvalUrl: 'https://paypal.example/approve', externalSubscriptionId: 'I-NEW' };
+				}) as FakePaypalClient['createSubscription'],
+			});
+			server = await startTestServer(revised);
+			const { cookie, periodEnd } = await seedCancelled('tf4-2049@example.com', 'pro');
+
+			const res = await post('/billing/subscriptions/change', cookie, { plan: 'plus', period: 'monthly' });
+
+			assert.equal(res.status, 200);
+			assert.equal(reviseCalls, 0, 'Downgrade darf nicht über revise auf der gekündigten Zeile laufen');
+			assert.ok(calls[0]?.startTime, 'Downgrade muss ein neues Abo mit Startzeitpunkt anlegen');
+			assert.equal(
+				(calls[0]?.startTime as Date).toISOString(),
+				periodEnd.toISOString(),
+				'Downgrade startet erst am Periodenende des gekündigten Abos',
+			);
+			assert.equal(calls[0]?.firstCycleCents, undefined, 'Downgrade bucht nicht sofort ab');
+		});
+
+		it('TF5/AK5: Nachfolge-Aktivierung leert pendingPlan der gekündigten Vorgänger-Zeile', async () => {
+			server = await startTestServer(withClient({}));
+			const cookie = await login('tf5-2049@example.com');
+			const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
+			const periodEnd = new Date(Date.now() + 10 * DAY_MS);
+			await Subscription.create({
+				userId: me.id,
+				provider: 'paypal',
+				externalSubscriptionId: 'I-OLD-2049',
+				plan: 'plus',
+				period: 'monthly',
+				status: 'cancelled',
+				currentPeriodEnd: periodEnd,
+				pendingPlan: 'free',
+				pendingPlanEffectiveAt: periodEnd,
+			});
+			const successor = await Subscription.create({
+				userId: me.id,
+				provider: 'paypal',
+				externalSubscriptionId: 'I-NEW-ACTIVATED',
+				plan: 'pro',
+				period: 'monthly',
+				status: 'active',
+				currentPeriodEnd: new Date(Date.now() + 30 * DAY_MS),
+			});
+
+			await replacePredecessors(successor, { cancel: async () => {} });
+
+			const old = await Subscription.findOne({ where: { externalSubscriptionId: 'I-OLD-2049' } });
+			assert.equal(old?.get('pendingPlan') ?? null, null, 'geplanter Free-Fall des alten Abos entfällt');
+			assert.equal(old?.get('pendingPlanEffectiveAt') ?? null, null);
+		});
+
+		it('TF6/AK6: preview nennt in allen drei Fällen Betrag und Startzeitpunkt', async () => {
+			server = await startTestServer(withClient({}));
+			const up = await seedCancelled('tf6-up-2049@example.com', 'plus');
+			const resume = await seedCancelled('tf6-resume-2049@example.com', 'plus');
+			const down = await seedCancelled('tf6-down-2049@example.com', 'pro');
+
+			const asPreview = async (cookie: string, plan: string) =>
+				(await (await post(PREVIEW, cookie, { plan, period: 'monthly' })).json()) as {
+					dueCents?: number;
+					startsAt?: string;
+				};
+			const upBody = await asPreview(up.cookie, 'pro');
+			const resumeBody = await asPreview(resume.cookie, 'plus');
+			const downBody = await asPreview(down.cookie, 'plus');
+
+			assert.ok(typeof upBody.dueCents === 'number', 'Upgrade-Vorschau nennt den Betrag');
+			assert.ok(typeof upBody.startsAt === 'string', 'Upgrade-Vorschau nennt den Startzeitpunkt');
+			assert.ok(
+				Math.abs(new Date(upBody.startsAt as string).getTime() - Date.now()) < 5 * 60 * 1000,
+				'Upgrade wirkt sofort',
+			);
+			assert.ok(typeof resumeBody.startsAt === 'string', 'Weiterführen-Vorschau nennt den Startzeitpunkt');
+			assert.equal(new Date(resumeBody.startsAt as string).toISOString(), resume.periodEnd.toISOString());
+			assert.ok(typeof downBody.startsAt === 'string', 'Downgrade-Vorschau nennt den Startzeitpunkt');
+			assert.equal(new Date(downBody.startsAt as string).toISOString(), down.periodEnd.toISOString());
+		});
 	});
 });

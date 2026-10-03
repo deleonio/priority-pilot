@@ -51,29 +51,38 @@ const rejectStoreChannel = (req: Request, res: Response<ErrorDto>): boolean => {
 };
 
 type ApprovalDto = { approvalUrl: string };
-/** `immediate`: wirkt der Wechsel sofort (Upgrade) oder erst zum Periodenende (ADR 0013) — die Oberfläche hat keine eigene Rangfolge. */
-type PreviewDto = { creditCents: number; dueCents: number; immediate: boolean };
+/** `immediate`: wirkt der Wechsel sofort (Upgrade) oder erst zum Periodenende (ADR 0013) — die Oberfläche hat keine eigene Rangfolge. `startsAt` nennt den Startzeitpunkt (#2049). */
+type PreviewDto = { creditCents: number; dueCents: number; immediate: boolean; startsAt?: string };
 type ReviseDto = { approvalUrl?: string };
-type InvoiceDto = {
+export type InvoiceDto = {
 	id: number;
 	number: string;
 	periodStart: string;
 	periodEnd: string;
 	amountCents: number;
 	taxNote: string;
+	paymentStatus: string;
 };
 
-const serializeInvoice = (invoice: Invoice): InvoiceDto => ({
+export const serializeInvoice = (invoice: Invoice): InvoiceDto => ({
 	id: invoice.id,
 	number: invoice.number,
 	periodStart: invoice.periodStart.toISOString(),
 	periodEnd: invoice.periodEnd.toISOString(),
 	amountCents: invoice.amountCents,
 	taxNote: invoice.taxNote,
+	paymentStatus: invoice.paymentStatus,
 });
 
 // Neben dem laufenden Abo kann ein ausstehendes Upgrade liegen; Kündigung und Wechsel gelten dem laufenden.
 const ACTIVE_FIRST: Order = [['status', 'ASC']];
+
+// Gekündigtes Abo mit Restlaufzeit (#2049): gilt wie ein laufendes Abo — Muster des Cancel-Fallbacks.
+const findCancelledWithRemaining = (userId: number) =>
+	Subscription.findOne({
+		where: { userId, status: 'cancelled', currentPeriodEnd: { [Op.gt]: new Date() } },
+		order: ACTIVE_FIRST,
+	});
 
 // Guthaben und erster Zyklus eines Upgrades — gemeinsame Eingabe-Ermittlung für Wechsel und Vorschau.
 const upgradeProration = (subscription: Subscription, plan: Plan, period: Period, now: Date) => {
@@ -99,7 +108,9 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 	const { checkout } = provider;
 
 	// POST /billing/subscriptions — legt ein Abo an und liefert die Zustimmungs-URL (AK1). Ein
-	// laufendes oder ausstehendes Abo desselben Nutzers blockt einen zweiten Anlauf (AK2).
+	// laufendes oder ausstehendes Abo desselben Nutzers blockt einen zweiten Anlauf (AK2). Bei einem
+	// gekündigten Abo mit Restlaufzeit kanalisiert diese Route jeden Buchungsweg auf den Start zum
+	// Periodenende (#2049 AK3).
 	router.post('/billing/subscriptions', async (req: Request, res: Response<ApprovalDto | ErrorDto>) => {
 		const userId = getUserId(req);
 		if (userId === undefined) {
@@ -118,7 +129,17 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			return;
 		}
 		try {
-			const { approvalUrl, externalSubscriptionId } = await checkout.create(body.plan, body.period);
+			// Bei einem gekündigten Abo mit Restlaufzeit startet das neue Abo erst zum Periodenende
+			// (#2049) — jeder Buchungsweg läuft über denselben Startzeitpunkt, ein zweites sofort
+			// abbuchendes Abo entsteht so nicht.
+			const cancelled = await findCancelledWithRemaining(userId);
+			const start = (cancelled?.get('currentPeriodEnd') as Date | undefined) ?? new Date();
+			const { approvalUrl, externalSubscriptionId } = await checkout.create(
+				body.plan,
+				body.period,
+				undefined,
+				cancelled === null ? undefined : start,
+			);
 			await Subscription.create({
 				userId,
 				provider: provider.id,
@@ -126,7 +147,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 				plan: body.plan,
 				period: body.period,
 				status: 'approval_pending',
-				currentPeriodEnd: new Date(Date.now() + PERIOD_MS[body.period]),
+				currentPeriodEnd: new Date(start.getTime() + PERIOD_MS[body.period]),
 			});
 			res.status(201).json({ approvalUrl });
 		} catch {
@@ -199,7 +220,8 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 	// POST /billing/subscriptions/change — löst den Paketwechsel bei PayPal aus (AK4). `plan`
 	// bleibt unverändert; wirksam wird der Wechsel erst über das Webhook-Ereignis. Ein Upgrade legt
 	// ein neues Abo mit um das Guthaben reduziertem ersten Zyklus an (#1912); das alte kündigt erst
-	// die Bestätigung des neuen (`replacePredecessors`). Downgrades laufen weiter über `revise`.
+	// die Bestätigung des neuen (`replacePredecessors`). Downgrades laufen weiter über `revise`; bei
+	// einem gekündigten Abo mit Restlaufzeit startet jedes neue Abo erst am Periodenende (#2049).
 	router.post('/billing/subscriptions/change', async (req: Request, res: Response<ReviseDto | ErrorDto>) => {
 		const userId = getUserId(req);
 		if (userId === undefined) {
@@ -212,16 +234,33 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 400, 'plan muss plus oder pro sein, period monthly, quarterly oder yearly.');
 			return;
 		}
-		const subscription = await Subscription.findOne({
-			where: { userId, status: OPEN_SUBSCRIPTION_STATUSES },
-			order: ACTIVE_FIRST,
-		});
+		const subscription =
+			(await Subscription.findOne({ where: { userId, status: OPEN_SUBSCRIPTION_STATUSES }, order: ACTIVE_FIRST })) ??
+			// Gekündigt mit Restlaufzeit gilt als laufendes Abo (#2049) — 404 nur ohne jedes.
+			(await findCancelledWithRemaining(userId));
 		if (!subscription) {
 			sendError(res, 404, 'Kein Abo gefunden.');
 			return;
 		}
 		try {
 			const currentPlan = subscription.get('plan') as Plan;
+			// Gekündigtes Abo, Ziel nicht höher (#2049): `revise` liefe ins Leere (bei PayPal bereits
+			// beendet) — stattdessen ein neues Abo, dessen erste Abbuchung erst am Periodenende startet.
+			if (subscription.get('status') === 'cancelled' && rankOf(body.plan) <= rankOf(currentPlan)) {
+				const start = subscription.get('currentPeriodEnd') as Date;
+				const { approvalUrl, externalSubscriptionId } = await checkout.create(body.plan, body.period, undefined, start);
+				await Subscription.create({
+					userId,
+					provider: provider.id,
+					externalSubscriptionId,
+					plan: body.plan,
+					period: body.period,
+					status: 'approval_pending',
+					currentPeriodEnd: new Date(start.getTime() + PERIOD_MS[body.period]),
+				});
+				res.status(200).json({ approvalUrl });
+				return;
+			}
 			if (subscription.get('provider') === provider.id && rankOf(body.plan) > rankOf(currentPlan)) {
 				const now = new Date();
 				const { creditCents, firstCycleCents } = upgradeProration(subscription, body.plan, body.period, now);
@@ -267,22 +306,27 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 400, 'plan muss plus oder pro sein, period monthly, quarterly oder yearly.');
 			return;
 		}
-		const subscription = await Subscription.findOne({
-			where: { userId, status: OPEN_SUBSCRIPTION_STATUSES },
-			order: ACTIVE_FIRST,
-		});
+		const subscription =
+			(await Subscription.findOne({ where: { userId, status: OPEN_SUBSCRIPTION_STATUSES }, order: ACTIVE_FIRST })) ??
+			(await findCancelledWithRemaining(userId));
 		if (!subscription) {
 			sendError(res, 404, 'Kein Abo gefunden.');
 			return;
 		}
 		if (subscription.get('provider') === provider.id && rankOf(body.plan) > rankOf(subscription.get('plan') as Plan)) {
-			const { creditCents, firstCycleCents } = upgradeProration(subscription, body.plan, body.period, new Date());
-			res.status(200).json({ creditCents, dueCents: firstCycleCents, immediate: true });
+			const now = new Date();
+			const { creditCents, firstCycleCents } = upgradeProration(subscription, body.plan, body.period, now);
+			res.status(200).json({ creditCents, dueCents: firstCycleCents, immediate: true, startsAt: now.toISOString() });
 			return;
 		}
-		res
-			.status(200)
-			.json({ creditCents: 0, dueCents: getPlansCatalog().prices[body.plan][body.period], immediate: false });
+		res.status(200).json({
+			creditCents: 0,
+			dueCents: getPlansCatalog().prices[body.plan][body.period],
+			immediate: false,
+			// Startzeitpunkt des Wechsels (#2049): beim laufenden Abo die nächste Abrechnung, bei
+			// Kündigung mit Restlaufzeit das Periodenende — die Oberfläche zeigt beides.
+			startsAt: (subscription.get('currentPeriodEnd') as Date).toISOString(),
+		});
 	});
 
 	// GET /billing/invoices — eigene Rechnungen des angemeldeten Nutzers (AK5).

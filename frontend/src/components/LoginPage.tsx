@@ -41,7 +41,15 @@ function getErrorMessage(error: string): string {
 export const LoginPage = () => {
 	const [error] = useState<ErrorParam>(getErrorFromSearch);
 	// Magic Link nur anbieten, wenn die Instanz SMTP konfiguriert hat (GET /auth/providers).
-	const [magicLinkEnabled, setMagicLinkEnabled] = useState(false);
+	// Tab-Session-Cache: Wiederkehrende Besuche (OAuth-Redirect, Logout, Session-Ablauf) rendern die
+	// Sektion sofort und ohne Layout-Shift; der Fetch im Hintergrund bestätigt den Stand frisch.
+	const [magicLinkEnabled, setMagicLinkEnabled] = useState(() => {
+		try {
+			return sessionStorage.getItem('pp-magic-link-enabled') === '1';
+		} catch {
+			return false;
+		}
+	});
 	const [email, setEmail] = useState('');
 	const [magicLinkState, setMagicLinkState] = useState<MagicLinkState>('idle');
 	const [referralRef] = useState(getRefFromSearch);
@@ -53,8 +61,16 @@ export const LoginPage = () => {
 	useEffect(() => {
 		api
 			.getAuthProviders()
-			.then((providers) => setMagicLinkEnabled(providers.magicLink))
-			.catch(() => setMagicLinkEnabled(false));
+			.then((providers) => {
+				try {
+					sessionStorage.setItem('pp-magic-link-enabled', providers.magicLink ? '1' : '0');
+				} catch {
+					// Storage verweigert — der Fetch entscheidet weiterhin live je Antwort.
+				}
+				setMagicLinkEnabled(providers.magicLink);
+			})
+			// Fetch-Fehler überschreiben den Cache nicht — ein Netzwerkblipp ist keine Config-Änderung.
+			.catch(() => undefined);
 	}, []);
 
 	const handleMagicLink = (event: FormEvent<HTMLFormElement>) => {
@@ -112,17 +128,15 @@ export const LoginPage = () => {
 		<div className="login-page">
 			<div className="login-page__inner">
 				<div className="login-page__brand">
-					{/* Wortmarke je Theme als eigenes SVG: ein <img> erbt weder currentColor noch Web-Fonts (#1741, AK2) */}
+					{/* Wortmarke je Theme als eigenes SVG: ein <img> erbt weder currentColor noch Web-Fonts
+					    (#1741, AK2). Bewusst EIN img: zwei Varianten im DOM würden beide geladen (je 38 KB).
+					    applyInitialTheme() läuft vor dem ersten Render, und auf der Login-Seite gibt es keinen
+					    Theme-Umschalter — daher reicht die einmalige Entscheidung hier. */}
 					<img
-						className="login-page__brand-wordmark login-page__brand-wordmark--light"
-						src={`${import.meta.env.BASE_URL}logo/logo-with-name.horizontal.svg`}
-						alt="Balamentum"
-						width={240}
-						height={35}
-					/>
-					<img
-						className="login-page__brand-wordmark login-page__brand-wordmark--dark"
-						src={`${import.meta.env.BASE_URL}logo/logo-with-name.horizontal.dark.svg`}
+						className="login-page__brand-wordmark"
+						src={`${import.meta.env.BASE_URL}logo/logo-with-name.horizontal${
+							document.documentElement.dataset.theme === 'dark' ? '.dark' : ''
+						}.svg`}
 						alt="Balamentum"
 						width={240}
 						height={35}
@@ -186,7 +200,7 @@ export const LoginPage = () => {
 								disabled={magicLinkState === 'sending'}
 								className="login-page__btn login-page__btn--secondary"
 							>
-								Anmeldelink senden
+								{magicLinkState === 'sending' ? 'Wird gesendet …' : 'Anmeldelink senden'}
 							</button>
 							{magicLinkState === 'sent' && (
 								<p role="status" className="login-page__status">
@@ -200,12 +214,14 @@ export const LoginPage = () => {
 							)}
 						</form>
 					)}
+				</div>
 
-					{/* Warteliste des Launch-Zugangs (#1982, ADR 0019) — eigener Abschnitt unterhalb der
-					    Login-Wege, immer sichtbar (nicht an SMTP/magicLink gebunden). Duplikat-Eintrag
-					    ist Erfolg: Position + Empfehlungs-Link erscheinen erneut (AK1/AK5). */}
+				{/* Warteliste des Launch-Zugangs (#1982, ADR 0019) — eigene Card, getrennt von der
+					    Anmeldung (immer sichtbar, nicht an SMTP/magicLink gebunden). Duplikat-Eintrag ist
+					    Erfolg: Position + Empfehlungs-Link erscheinen erneut (AK1/AK5). */}
+				<div className="login-page__card">
+					<h2 className="login-page__card-title">Noch ohne Zugang?</h2>
 					<form onSubmit={handleWaitlistJoin} className="login-page__form">
-						<p className="login-page__divider">Noch ohne Zugang?</p>
 						<label className="login-page__label" htmlFor="waitlist-email">
 							Auf die Warteliste per E-Mail
 						</label>
@@ -224,24 +240,35 @@ export const LoginPage = () => {
 							disabled={waitlistState === 'sending'}
 							className="login-page__btn login-page__btn--secondary"
 						>
-							Auf die Warteliste
+							{waitlistState === 'sending' ? 'Wird eingetragen …' : 'Auf die Warteliste'}
 						</button>
 						{waitlistState === 'done' && waitlistResult !== null && (
-							<p role="status" className="login-page__status login-page__status--waitlist">
-								<span>
-									Position {waitlistResult.position}
-									{typeof waitlistResult.total === 'number' ? ` von ${waitlistResult.total}` : ''} — je mehr Freundinnen
-									und Freunde du einlädst, desto weiter rückst du auf.
-								</span>
-								<span className="login-page__ref-link">{waitlistResult.link}</span>{' '}
+							<>
+								<p role="status" className="login-page__status login-page__status--waitlist">
+									<span>
+										Position {waitlistResult.position}
+										{typeof waitlistResult.total === 'number' ? ` von ${waitlistResult.total}` : ''} — je mehr
+										Freundinnen und Freunde du einlädst, desto weiter rückst du auf.
+									</span>
+									<a
+										className="login-page__ref-link"
+										href={waitlistResult.link}
+										target="_blank"
+										rel="noopener noreferrer"
+									>
+										{waitlistResult.link}
+										<span className="visually-hidden"> (öffnet in neuem Tab)</span>
+									</a>
+								</p>
 								<button
 									type="button"
 									onClick={() => void copyReferralLink()}
+									aria-live="polite"
 									className="login-page__btn login-page__btn--secondary"
 								>
 									{referralCopied ? 'Kopiert ✓' : 'Empfehlungs-Link kopieren'}
 								</button>
-							</p>
+							</>
 						)}
 						{waitlistState === 'failed' && (
 							<p role="alert" className="login-page__alert">
@@ -253,7 +280,7 @@ export const LoginPage = () => {
 
 				{/* Zurück zur öffentlichen Website — nur im Web, in der App gibt es dort nichts (#1769) */}
 				{!isNativeChannel() && (
-					<a className="login-page__back" href="/" aria-label="Zurück zur Balamentum-Website">
+					<a className="login-page__back" href="/" aria-label="Balamentum: Zurück zur Website">
 						Zurück zur Website
 					</a>
 				)}

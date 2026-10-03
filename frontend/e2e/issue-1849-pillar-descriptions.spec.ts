@@ -6,6 +6,14 @@ import { waitForStableView } from './helpers';
  * fünf Beschreibungen das Wochen-Soll („pro Woche“) und liegt bei 375 px vollständig im Viewport
  * (Bounding-Box statt `scrollWidth`, die App-Shell clippt `overflow-x`).
  */
+// #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
+// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+test.beforeEach(async ({ page }) => {
+	await page.addInitScript(() => {
+		localStorage.setItem('pp-expert-mode', 'true');
+	});
+});
+
 test.describe('#1849 Säulenbeschreibungen mit Wochen-Soll (375 px)', () => {
 	test('AK4: fünf Beschreibungen nennen „pro Woche“ und laufen nicht aus dem Viewport', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });

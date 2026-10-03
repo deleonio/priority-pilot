@@ -121,7 +121,9 @@ test.describe('Balamentum — Login-Page für Google OAuth (#190)', () => {
 		await mockUnauthenticated(page);
 		await page.goto('/app/');
 
-		const card = page.locator('.login-page__card');
+		// Seit #1982 gibt es zwei Cards (Anmeldung + Warteliste) — die Anmelde-Card wird über
+		// ihren h1 identifiziert, damit der Locator strukturecht bleibt.
+		const card = page.locator('.login-page__card').filter({ has: page.locator('h1.login-page__title') });
 		await expect(card).toBeVisible();
 		await expect(card.locator('h1.login-page__title')).toHaveText('Anmelden');
 		await expect(card.locator('p.login-page__sub')).toHaveText('Melde dich an, um fortzufahren.');
@@ -190,7 +192,9 @@ test.describe('Balamentum — Login-Page für Google OAuth (#190)', () => {
 		await page.goto('/app/');
 
 		const targets: [string, Locator][] = [
-			['Card', page.locator('.login-page__card')],
+			// Seit #1982 zwei Cards — beide gegen Overflow prüfen.
+			['Anmelde-Card', page.locator('.login-page__card').first()],
+			['Wartelisten-Card', page.locator('.login-page__card').nth(1)],
 			['Google-Button', page.getByRole('button', { name: 'Mit Google anmelden' })],
 			['E-Mail-Input', page.getByLabel('Anmeldelink per E-Mail')],
 			['Sende-Button', page.getByRole('button', { name: 'Anmeldelink senden' })],
@@ -205,7 +209,7 @@ test.describe('Balamentum — Login-Page für Google OAuth (#190)', () => {
 				return { x: r.x, width: r.width, height: r.height };
 			});
 			expect(box.x + box.width, `${name}: keine Bounding-Box über den 375px-Viewport hinaus`).toBeLessThanOrEqual(375);
-			if (name !== 'Card') {
+			if (!name.endsWith('Card')) {
 				expect(box.height, `${name}: Touch-Target mindestens 44px hoch`).toBeGreaterThanOrEqual(44);
 			}
 		}

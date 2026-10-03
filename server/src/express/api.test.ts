@@ -293,6 +293,20 @@ describe('Tasks API', () => {
 			]);
 		});
 
+		it('201 mit genau einer Säule (share 100) — Hauptsäulen-Modus (#1962)', async () => {
+			const [koerper] = await seedTwoPillars();
+			const res = await post('/tasks', {
+				title: 'Hauptsäule',
+				priority: 1,
+				estimatedEffort: 1,
+				pillars: [{ pillarId: koerper, share: 100 }],
+			});
+			assert.equal(res.status, 201);
+			const body = (await res.json()) as { pillars: { pillarId: number; share: number; confidence: number }[] };
+			// Genau eine task_pillars-Zeile — die Einzel-Form wird NICHT zur Vollverteilung ergänzt.
+			assert.deepEqual(body.pillars, [{ pillarId: koerper, share: 100, confidence: 100 }]);
+		});
+
 		it('200 ersetzt pillars per PATCH und leert sie mit []', async () => {
 			const [koerper, sinn] = await seedTwoPillars();
 			const task = await Task.create({ title: 'T', priority: 1, estimatedEffort: 1 });

@@ -45,5 +45,48 @@
 			"label": "Zo telt de reeks",
 			"text": "Een dag telt als je op die dag minstens één taak afvinkt. Te laat afgeronde taken tellen mee voor de vervaldatum. De reeks is de ononderbroken rij van zulke dagen tot vandaag of gisteren. Ontbreekt er een dag tot gisteren, dan valt de reeks terug naar 0; je besttijd blijft behouden."
 		}
+	},
+	"care": {
+		"label": "Fürsorge-Hinweis",
+		"kiBadge": "KI-Vorschlag",
+		"empty": "Gerade gibt es keinen Vorschlag für dich. Mach in deinem Tempo weiter.",
+		"deficit": "{{saeuleName}} kam diese Woche zu kurz. {{titel}}?",
+		"overload": "Du hast zuletzt viel geleistet. Ein Ausgleich darf heute sein: {{beschreibung}}",
+		"helpBefore": "Kein Ersatz für ärztlichen Rat. In einer Krise erreichst du die",
+		"helpLink": "TelefonSeelsorge: 0800 111 0 111",
+		"helpAfter": "(kostenfrei, rund um die Uhr).",
+		"error": "Konnte nicht angelegt werden. Versuch es gleich noch einmal.",
+		"accept": "Vorschlag übernehmen",
+		"notNow": "Nicht jetzt",
+		"dismiss": "Vorschlag ablehnen"
+	},
+	"onboarding": {
+		"step": "Stap {{step}} van {{total}}",
+		"heading1": "Wat houdt je bezig op dit moment?",
+		"heading2": "Jouw suggesties",
+		"heading3": "Klaar om te starten",
+		"headingWeights": "Je startweging",
+		"finishHeading": "Alles klaar!",
+		"goalLabel": "Beschrijf in eigen woorden waar je nu staat",
+		"weiter": "Doorgaan",
+		"spaeter": "Later",
+		"uebernehmen": "Toepassen",
+		"loading": "Suggesties worden voorbereid",
+		"saule": "Pijler: {{name}}",
+		"nach": "na: {{title}}",
+		"empty": "De AI-dienst heeft nu geen suggesties gevonden. Je kunt het later opnieuw proberen.",
+		"selectedCount": "{{selected}} van {{total}} suggesties geselecteerd",
+		"suggestError": "Ophalen van de suggesties mislukt",
+		"applyError": "Aanmaken van de taken mislukt",
+		"partialInfo": "{{count}} taken zijn al aangemaakt — opnieuw toepassen maakt alleen de ontbrekende aan.",
+		"balanceHint": "Je sterkste pijler is {{name}} ({{share}} %).",
+		"fertig": "Klaar",
+		"emptyDescription": "Beschreibe, womit du gerade kämpfst — der Flow macht daraus erste Aufgaben. Deine Eingabe bleibt erhalten.",
+		"fortsetzen": "Flow fortsetzen",
+		"beispiele": "Beispiele zum Ausprobieren",
+		"beispiel1": "15 Minuten spazieren gehen",
+		"beispiel2": "Wichtige E-Mail beantworten",
+		"beispiel3": "Das kommende Wochenende planen",
+		"erstenTaskAnlegen": "Ersten Task anlegen"
 	}
 }

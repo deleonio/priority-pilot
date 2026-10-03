@@ -600,6 +600,54 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /tasks/suggest-initial:
+    post:
+      summary: Erststart-Aufgabenvorschläge aus Freitext erzeugen
+      description: >-
+        Macht aus einer freien Beschreibung („Was beschäftigt dich gerade?“)
+        fünf bis acht konkrete, sofort startbare Aufgaben-Vorschläge (#2068),
+        jeweils mit einer Säule des Nutzers und optional einem Vorgänger-Verweis
+        (`dependsOn`). Es werden keine Aufgaben angelegt, nur vorgeschlagen. Der
+        Aufruf erfolgt über den aktiven LLM-Provider. Ohne angelegte Säulen
+        antwortet der Endpoint mit 503; bei Upstream-/Format-Fehlern mit 502.
+      operationId: suggestInitialTasks
+      parameters:
+        - name: provider
+          in: query
+          required: false
+          description: >-
+            Optionaler Provider-Pinning (#749/#951): Name eines konfigurierten
+            Providers — überschreibt den aktiven Provider für diesen EINEN Aufruf.
+            Fehlt der Parameter → der aktive Provider (`llm_providers`, #951).
+            Ungültiger Wert → HTTP 400.
+          schema:
+            type: string
+            maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuggestInitialTasksInput'
+      responses:
+        '200':
+          description: Bereinigte Liste der Aufgaben-Vorschläge (auch mit weniger als 5 Einträgen)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuggestInitialTasksResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/PlanRequired'
+        '429':
+          $ref: '#/components/responses/QuotaExhausted'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /health:
     get:
       summary: Liveness-Check
@@ -2122,6 +2170,186 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /admin/users/{id}/subscription/lock:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Nutzers
+        schema:
+          type: integer
+    post:
+      summary: Abo eines Nutzers sperren
+      description: >-
+        #1959 (AK1): nur für Admins (403 sonst). Stoppt den Zugriff auf das
+        bezahlte Paket sofort (Paket am Nutzer wird auf `free` gesetzt) und
+        markiert das Abo als `locked`. Rein lokale Aktion — es gibt keinen
+        Aufruf beim Zahlungsdienstleister. Die Sperre blockiert keinen neuen
+        Abschluss („bezahlt = Zugang“); eine Entsperrung ist nicht vorgesehen.
+      operationId: lockAdminUserSubscription
+      tags: [admin]
+      responses:
+        '200':
+          description: Nutzer mit gesperrtem Abo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '400':
+          description: Ungültige Nutzer-Id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Nutzer oder Abo nicht gefunden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /admin/users/{id}/subscription/cancel:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Nutzers
+        schema:
+          type: integer
+    post:
+      summary: Abo eines Nutzers kündigen
+      description: >-
+        #1959 (AK2): nur für Admins (403 sonst). Löst die Kündigung beim
+        Zahlungsdienstleister aus; wirksam wird sie ausschließlich über das
+        Webhook-Ereignis (ADR 0013) — das Paket läuft bis zum Ablauf des
+        bezahlten Zeitraums weiter. Google-Play-Abos sind serverseitig nicht
+        kündbar (409, ADR 0017) — sie lassen sich aber sperren.
+      operationId: cancelAdminUserSubscription
+      tags: [admin]
+      responses:
+        '200':
+          description: Storno beim Zahlungsdienstleister ausgelöst
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '400':
+          description: Ungültige Nutzer-Id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Nutzer oder Abo nicht gefunden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Bereits gekündigt oder Google-Play-Abo (serverseitig nicht kündbar)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: Zahlungsdienstleister nicht erreichbar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /admin/users/{id}/invoices:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Nutzers
+        schema:
+          type: integer
+    get:
+      summary: Rechnungen eines Nutzers auflisten
+      description: >-
+        Rechnungsansicht der Nutzerverwaltung (#1958, AK1): nur für Admins
+        (403 sonst). Liefert die Rechnungen des Nutzers mit denselben Feldern
+        wie GET /billing/invoices, neueste zuerst.
+      operationId: listAdminUserInvoices
+      tags: [admin]
+      responses:
+        '200':
+          description: Rechnungen des Nutzers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invoice'
+        '400':
+          description: Ungültige Nutzer-Id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /admin/users/{id}/invoices/{invoiceId}/pdf:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Nutzers
+        schema:
+          type: integer
+      - name: invoiceId
+        in: path
+        required: true
+        description: Id der Rechnung
+        schema:
+          type: integer
+    get:
+      summary: Rechnungs-PDF eines Nutzers herunterladen
+      description: >-
+        Liefert das gespeicherte PDF einer Nutzer-Rechnung (#1958, AK2) als
+        Download — byte-identisch zum Eigentümer-Download
+        (GET /billing/invoices/{id}/pdf). Nur für Admins (403 sonst); eine
+        Rechnung ohne gespeichertes PDF oder mit fremder Nutzer-Id liefert 404.
+      operationId: getAdminUserInvoicePdf
+      tags: [admin]
+      responses:
+        '200':
+          description: Das gespeicherte Rechnungs-PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Ungültige Nutzer-Id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /admin/allowed-emails:
     get:
       summary: Zugelassene E-Mail-Adressen mit Herkunft auflisten
@@ -4049,6 +4277,13 @@ components:
           type: integer
           minimum: 0
           description: KI-Anfragen im laufenden Monat (#1783) — nur in der Nutzerliste.
+        subscriptionStatus:
+          type: string
+          nullable: true
+          description: >-
+            Status des Zahlungsabos (#1959) — `null` ohne Abo; `locked` markiert die
+            Admin-Sperre (Zugriff aufs bezahlte Paket gestoppt, ein neuer Abschluss
+            ist nicht blockiert).
     AdminWaitlistEntry:
       type: object
       description: Eintrag der Warteliste im Referral-Rang (#1982, ADR 0019).
@@ -4595,6 +4830,48 @@ components:
         effort:
           type: number
           description: Beitrag des Aufwands.
+    TaskReasons:
+      type: object
+      description: >-
+        Strukturierte Begründungswerte der Empfehlung (#1985): je Faktor mit Beitrag > 0 der
+        Rohwert für die Begründungssätze der Karte. Ein Faktor ohne Beitrag fehlt; ganz ohne
+        Anteile fehlt `reasons` komplett.
+      properties:
+        balance:
+          type: object
+          description: Namen der Defizit-Säulen (Soll > Ist) des Tasks.
+          required: [pillars]
+          properties:
+            pillars:
+              type: array
+              items:
+                type: string
+        unlock:
+          type: object
+          description: Anzahl der offenen Nachfolger.
+          required: [openCount]
+          properties:
+            openCount:
+              type: integer
+        deadline:
+          type: object
+          description: >-
+            Frist des Tasks; `date` im ISO-Datumsformat, `daysUntil` die auf ganze Tage
+            gerundete Differenz zum heutigen Kalendertag (negativ = überfällig).
+          required: [date, daysUntil]
+          properties:
+            date:
+              type: string
+              format: date
+            daysUntil:
+              type: integer
+        priority:
+          type: object
+          description: Prioritätswert des Tasks.
+          required: [priority]
+          properties:
+            priority:
+              type: integer
     TaskRecommendation:
       allOf:
         - $ref: '#/components/schemas/Task'
@@ -4604,6 +4881,8 @@ components:
           properties:
             scoreBreakdown:
               $ref: '#/components/schemas/ScoreBreakdown'
+            reasons:
+              $ref: '#/components/schemas/TaskReasons'
     Task:
       type: object
       required:
@@ -5525,6 +5804,46 @@ components:
           type: string
           maxLength: 2000
           description: Frei formulierter Text, aus dem die Task-Felder extrahiert werden (nicht leer)
+    SuggestInitialTasksInput:
+      type: object
+      description: Eingabe für die Erststart-Vorschläge — freie Beschreibung der aktuellen Lage (#2068).
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          maxLength: 2000
+          description: Freitext, aus dem die Aufgaben-Vorschläge erzeugt werden (nicht leer)
+    SuggestInitialTaskSuggestion:
+      type: object
+      description: Ein Aufgaben-Vorschlag für den Erststart mit Säulen-Bezug.
+      required:
+        - title
+        - pillarId
+      properties:
+        title:
+          type: string
+          description: Kurzer, konkreter, sofort startbarer Aufgabentitel (nicht leer)
+        pillarId:
+          type: integer
+          minimum: 1
+          description: ID einer Säule des Nutzers, zu der der Vorschlag gehört
+        dependsOn:
+          type: integer
+          minimum: 0
+          description: >-
+            0-basierter Index eines anderen Vorschlags derselben Antwort, den dieser
+            Vorschlag logisch voraussetzt
+    SuggestInitialTasksResponse:
+      type: object
+      description: Bereinigte Erststart-Vorschläge (nur gültige Einträge, ursprüngliche Reihenfolge).
+      required:
+        - suggestions
+      properties:
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SuggestInitialTaskSuggestion'
     ParsedTask:
       type: object
       description: >-
@@ -6360,6 +6679,8 @@ components:
         (0 ohne Upgrade), `dueCents` der fällige Betrag des ersten Zyklus. `immediate`
         sagt, ob der Wechsel sofort wirkt (Upgrade) oder erst zum Periodenende
         (ADR 0013) — die Oberfläche trägt bewusst keine eigene Paket-Rangfolge.
+        `startsAt` nennt den Startzeitpunkt (#2049): sofort beim Upgrade, sonst das
+        Periodenende (Weiterführen/Downgrade auch nach Kündigung).
       required: [creditCents, dueCents, immediate]
       properties:
         creditCents:
@@ -6370,13 +6691,16 @@ components:
           minimum: 0
         immediate:
           type: boolean
+        startsAt:
+          type: string
+          format: date-time
     Invoice:
       type: object
       description: >-
         Rechnung zu einem Abrechnungszeitraum (#1505 AK5). Kein Zahlungsmittel
         (AK9) — `taxNote` trägt den §19-UStG-Hinweis; das gespeicherte PDF
         liefert `GET /billing/invoices/{id}/pdf` (#1955).
-      required: [id, number, periodStart, periodEnd, amountCents, taxNote]
+      required: [id, number, periodStart, periodEnd, amountCents, taxNote, paymentStatus]
       properties:
         id:
           type: integer
@@ -6393,6 +6717,13 @@ components:
           type: integer
         taxNote:
           type: string
+        paymentStatus:
+          type: string
+          enum: [paid, refunded]
+          description: >-
+            Echter Zahlungsstatus (#2086) — provider-neutral (`paid`/`refunded`), damit
+            Google Play (#1688) dieselbe Quelle nutzen kann. `refunded` folgt einer
+            nachträglichen Erstattung des Zahlungsdienstleisters.
     Error:
       type: object
       required:

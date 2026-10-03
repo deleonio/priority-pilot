@@ -164,7 +164,8 @@ age with the diff regardless; what gets consolidated is the **collected comment*
   because other bots/humans may have commented in the meantime (confirmed by the owner):
   `gh api repos/{owner}/{repo}/issues/<pr>/comments` and filter for `<!-- ai-review -->`.
 - **Update instead of creating anew:** if a marked comment is **found**, **update/extend** it
-  (`gh api --method PATCH repos/{owner}/{repo}/issues/comments/<id> -f body=…`) — the
+  (`gh api --method PATCH repos/{owner}/{repo}/issues/comments/<id> -F body=@<file>` — capital
+  `-F` reads the file; `-f body=@<file>` posts the literal path) — the
   comment ID stays the same. If **not found** (no marked comment exists yet),
   **create it once** (`gh pr comment` with the marker as the first line).
 - **Diff scoping on a follow-up review (cost/time savings):** if an existing collected comment is

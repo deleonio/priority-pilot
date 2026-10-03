@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import * as pillarSharesModule from './pillarShares.js';
 import { distributeWithMinimum, SHARE_MIN, SHARE_TOTAL } from './pillarShares.js';
 import { toContributions } from './reassignTaskPillars.js';
 
@@ -142,5 +143,43 @@ describe('distributeWithMinimum', () => {
 
 	it('gibt einer einzelnen Säule 100 %', () => {
 		assert.deepEqual(distributeWithMinimum([0]), [100]);
+	});
+});
+
+/**
+ * #1962 — Hauptsäulen-Modus: feste Fallback-Regel der Restverteilung. Spiegel zur
+ * `suggestMainDistribution` im Frontend (`frontend/src/lib/pillar.ts`) — Hauptsäule 80 %, Rest
+ * gleichmäßig, jeder Anteil ≥ SHARE_MIN, Summe exakt SHARE_TOTAL. Wer hier etwas ändert, ändert
+ * es auch im Frontend.
+ *
+ * TEST-PFLEGE #1962 (Impl): Der optionale Cast aus der roten Spec ist durch den direkten
+ * Named-Import ersetzt — die Funktion existiert jetzt, und knip sieht die Nutzung statisch.
+ */
+const suggestMainShares = pillarSharesModule.suggestMainShares;
+
+describe('suggestMainShares — Hauptsäulen-Fallback (#1962, AK3)', () => {
+	it('liefert bei fünf Säulen die Hauptsäule mit 80 %, den Rest je 5 %', () => {
+		assert.deepEqual(suggestMainShares?.(0, 5), [80, 5, 5, 5, 5]);
+		assert.deepEqual(suggestMainShares?.(2, 5), [5, 5, 80, 5, 5]);
+		assert.deepEqual(suggestMainShares?.(4, 5), [5, 5, 5, 5, 80]);
+	});
+
+	it('hält Summe exakt 100 und jeden Anteil ≥ SHARE_MIN bei ein bis sieben Säulen', () => {
+		for (let count = 1; count <= 7; count += 1) {
+			const shares = suggestMainShares?.(Math.floor(count / 2), count) ?? [];
+			assert.equal(
+				shares.reduce((acc, share) => acc + share, 0),
+				SHARE_TOTAL,
+				`count=${count}: ${JSON.stringify(shares)}`,
+			);
+			assert.ok(
+				shares.every((share) => share >= SHARE_MIN),
+				`count=${count}: ${JSON.stringify(shares)}`,
+			);
+		}
+	});
+
+	it('gibt einer einzelnen Säule 100 %', () => {
+		assert.deepEqual(suggestMainShares?.(0, 1), [100]);
 	});
 });

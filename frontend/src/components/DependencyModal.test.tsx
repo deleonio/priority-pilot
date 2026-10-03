@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { TaskStatus } from 'client';
 import type { Task } from 'client';
 import type { ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlanProvider } from '../lib/usePlan';
 
 /**
@@ -105,6 +105,12 @@ import { api } from '../api';
 import { DependencyModal } from './DependencyModal';
 
 const mockAddDependency = api.addDependency as ReturnType<typeof vi.fn>;
+
+// #1984: Bestands-Tests prüfen das Expertenverhalten (Gewichts-Regler sichtbar) — Präferenz
+// explizit an. Die #1984-Spec-Tests entfernen den Key im Testkörper selbst (Standardmodus).
+beforeEach(() => {
+	localStorage.setItem('pp-expert-mode', 'true');
+});
 
 afterEach(() => {
 	vi.clearAllMocks();
@@ -210,5 +216,58 @@ describe('DependencyModal — Badge im Modal ohne Klickziel (#1528 AK3)', () => 
 
 		expect(onClose).not.toHaveBeenCalled();
 		expect(container).toBeTruthy();
+	});
+});
+
+// ── #1984: Standardmodus ohne Gewicht-Regler ──────────────────────────────────────────────────
+//
+// Spezifikation: docs/spec/issue-1984.md — AK1/AK2. Ohne Expertenmodus (`pp-expert-mode`
+// fehlt) zeigt der Abhängigkeits-Dialog keinen Gewicht-Regler; die Abhängigkeit wird allein
+// über die Aufgaben-Auswahl angelegt und der POST trägt das Standardgewicht 1.
+// Rot, solange der Regler „Gewicht (0,1–1): 1“ ungefragt gerendert wird.
+describe('DependencyModal — Standardmodus ohne Gewicht-Regler (#1984, AK1/AK2)', () => {
+	const EXPERT_KEY = 'pp-expert-mode';
+
+	afterEach(() => {
+		localStorage.removeItem(EXPERT_KEY);
+	});
+
+	it('AK1/AK2: ohne Expertenmodus kein Regler; Anlegen über die Auswahl sendet Gewicht 1', async () => {
+		localStorage.removeItem(EXPERT_KEY);
+		const task = sampleTask(1, 'Ziel');
+		const candidate = sampleTask(2, 'Vorgänger');
+		const onChanged = vi.fn();
+
+		await act(async () => {
+			render(
+				<DependencyModal
+					task={task}
+					allTasks={[task, candidate]}
+					dependencies={[]}
+					onClose={vi.fn()}
+					onChanged={onChanged}
+				/>,
+			);
+		});
+
+		// TEST-PFLEGE #1984 (Impl): `queryByRole` liefert bei 0 Treffern `null` — `toHaveLength(0)`
+		// wäre daran nie grün („Target cannot be null or undefined"). Contract unverändert: 0 Slider.
+		expect(screen.queryAllByRole('slider')).toHaveLength(0); // kein Regler im Standardmodus
+
+		await act(async () => {
+			fireEvent.change(screen.getByRole('combobox', { name: 'Vorgänger-Task' }), {
+				target: { value: '2' },
+			});
+		});
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+		});
+
+		expect(mockAddDependency).toHaveBeenCalledTimes(1);
+		expect(mockAddDependency).toHaveBeenCalledWith({
+			id: task.id,
+			dependencyInput: { dependingTaskId: 2, weight: 1 },
+		});
+		expect(onChanged).toHaveBeenCalledTimes(1);
 	});
 });

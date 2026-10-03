@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { Task } from '../models/index.js';
+import { Pillar, Task } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
 
 /**
@@ -136,5 +136,57 @@ describe('GET /suggestions — Vorschlagsliste (#122)', () => {
 			assert.ok((voll.scoreBreakdown[key] ?? 0) > 0, `${key} fehlt`);
 		}
 		assert.ok(!('balance' in voll.scoreBreakdown), 'balance (keine Säulen) muss fehlen');
+	});
+
+	/**
+	 * Rote Spec-Tests für #1985 (TF1 — docs/spec/issue-1985.md): `GET /next` trägt neben dem
+	 * unveränderten `scoreBreakdown` (#2044) ein additives Feld `reasons` mit strukturierten
+	 * Begründungswerten je Faktor mit Beitrag > 0. Der alte Vertrag bleibt unberührt; dessen
+	 * Summen-/Schlüssel-Prüfungen stehen bereits in den #2044-Tests derselben Datei (Dedup —
+	 * hier bewusst nicht dupliziert).
+	 */
+	describe('GET /next — strukturierte Begründungswerte (#1985)', () => {
+		const inTagen = (tage: number): Date => new Date(Date.now() + tage * 24 * 60 * 60 * 1000);
+
+		it('#1985 AK1: reasons je Faktor mit Anteil > 0 (balance, unlock, deadline, priority)', async () => {
+			const koerper = await Pillar.create({ name: 'Körper', weight: 20 });
+			const frist = inTagen(2);
+			const basis = await Task.create({ title: 'Basis', priority: 3, estimatedEffort: 1, deadline: frist });
+			await basis.addPillar(koerper);
+			for (const titel of ['Nachfolger 1', 'Nachfolger 2']) {
+				const nachfolger = await Task.create({ title: titel, priority: 1, estimatedEffort: 1 });
+				await nachfolger.addDependency(basis);
+			}
+
+			const next = (await (await get('/next')).json()) as {
+				id: number;
+				reasons?: {
+					balance?: { pillars: string[] };
+					unlock?: { openCount: number };
+					deadline?: { date: string; daysUntil: number };
+					priority?: { priority: number };
+				};
+			};
+			assert.equal(next.id, basis.id);
+			assert.ok(next.reasons, 'reasons fehlt vollständig');
+			assert.deepEqual(next.reasons.balance, { pillars: ['Körper'] }, 'Defizit-Säule fehlt');
+			assert.deepEqual(next.reasons.unlock, { openCount: 2 }, 'Anzahl offener Nachfolger falsch');
+			assert.deepEqual(next.reasons.priority, { priority: 3 }, 'Prioritätswert falsch');
+			assert.ok(next.reasons.deadline, 'deadline-reasons fehlen');
+			// Mitternachts-Rundung kann über Tagesgrenze hinweg 1 statt 2 liefern — beides korrekt.
+			assert.ok([1, 2].includes(next.reasons.deadline?.daysUntil ?? -1), 'Tagesdifferenz falsch');
+			assert.equal(next.reasons.deadline?.date, frist.toISOString().slice(0, 10));
+		});
+
+		it('#1985 AK1: Task ohne Anteile → kein reasons, scoreBreakdown-Vertrag unverändert', async () => {
+			await Task.create({ title: 'Ohne Anteile', priority: 1, estimatedEffort: 1 });
+
+			const next = (await (await get('/next')).json()) as {
+				reasons?: unknown;
+				scoreBreakdown: Record<string, number>;
+			};
+			assert.equal(next.reasons, undefined, 'ohne Anteile darf reasons nicht existieren');
+			assert.deepEqual(Object.keys(next.scoreBreakdown), ['total'], 'Beitrag 0 ⇒ Schlüssel fehlt (#2044)');
+		});
 	});
 });

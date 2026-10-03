@@ -19,6 +19,14 @@ import { registerOwnSession, setEqualPillarWeights, waitForStableView } from './
  */
 test.use({ viewport: { width: 375, height: 800 } });
 
+// #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
+// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+test.beforeEach(async ({ page }) => {
+	await page.addInitScript(() => {
+		localStorage.setItem('pp-expert-mode', 'true');
+	});
+});
+
 test.describe('#1555 Säulen-Gewichtung: Hinweis bei Unaustariertheit', () => {
 	// #1573-Test-Pflege: Beide Tests setzen GENAU FÜNF Säulen voraus. Ohne eigene Session liefert
 	// `GET /pillars` den ganzen Säulen-Bestand der Shard-DB — Begründung siehe `registerOwnSession`.
