@@ -2,9 +2,9 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.13 - 2026-10-02
+## v0.13 - 2026-10-03
 
-_Enthält v0.13.0 – v0.13.19._
+_Enthält v0.13.0 – v0.13.20._
 
 ### 🎉 New Features
 
@@ -30,6 +30,10 @@ _Enthält v0.13.0 – v0.13.19._
 - feat(server): invoice payment status replaces fixed label (#2086) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2088
 - feat(frontend): onboarding completion flow (weights, summary, examples) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2087
 - docs: align historic price notes and test mocks with pro plan (#2033) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2089
+
+### Other Changes
+
+- fix(server): truncate LLM activity advice to task limits (#2010) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2103
 
 ## v0.12 - 2026-10-02
 
@@ -159,7 +163,6 @@ _Enthält v0.10.0 – v0.10.36._
 - docs(ci): switch documenter free model to laguna-s-2.1 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1852
 - Säulen-Mindestanteil von 5 % auf allen Wegen erzwingen (#1822) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1853
 - fix(server): show clear message for too-long task title (#1818) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1854
-- chore(deps): update renovatebot/github-action action to v46.3.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1850
 - chore(deps): update renovatebot/github-action action to v46.3.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1850
 - test(frontend): locate title-limit message by text in e2e spec by @deleonio in https://github.com/deleonio/priority-pilot/pull/1858
 - test(e2e): exempt kol-alert from #930 transparency check by @deleonio in https://github.com/deleonio/priority-pilot/pull/1859
@@ -314,6 +317,7 @@ _Enthält v0.5.0 – v0.5.32._
 - feat(server): reject paypal checkout for store app channels by @deleonio in https://github.com/deleonio/priority-pilot/pull/1702
 - feat(server): Google-Login der App mit Einmal-Code abschließen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1703
 - fix(push): warn on zero-device test push and resync subscription by @deleonio in https://github.com/deleonio/priority-pilot/pull/1704
+- feat(server): store android app fcm device token by @deleonio in https://github.com/deleonio/priority-pilot/pull/1706
 - feat(server): store android app fcm device token by @deleonio in https://github.com/deleonio/priority-pilot/pull/1706
 - fix(ci): LLM phases no longer wait for verify by @deleonio in https://github.com/deleonio/priority-pilot/pull/1705
 - feat(server): allow users to delete their account with all personal data by @deleonio in https://github.com/deleonio/priority-pilot/pull/1707
