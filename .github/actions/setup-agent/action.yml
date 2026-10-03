@@ -157,6 +157,9 @@ outputs:
   llm-provider:
     description: 'Der tatsächlich aufgelöste Provider ("claude", "zai" oder "openrouter")'
     value: ${{ steps.provider.outputs.llm-provider }}
+  model-alias:
+    description: 'Der konfigurierte Modell-Alias dieses Laufes (z. B. "sonnet") — Quelle von configured-model in record-cost (#2090)'
+    value: ${{ steps.claude.outputs.model-alias || steps.pi.outputs.model-alias }}
   memory-loaded:
     description: 'Ob pro-Issue Memory aus einer Vor-Phase geladen wurde (State-Branch gefunden UND restauriert)'
     value: ${{ steps.memory-load.outputs.found }}

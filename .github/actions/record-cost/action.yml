@@ -198,7 +198,7 @@ runs:
         # AK3 (#2090): Provider und beobachtetes Modell, die nicht zusammenpassen, laut
         # benennen — sonst vermischen Kostensaetze Agent/Provider/Modell weiter still.
         case "${PROVIDER}:${MODEL}" in
-          claude:glm-*|claude:z-ai-*)
+          claude:glm-*|claude:z-ai-*|zai:claude-*)
             echo "::warning title=Modell/Provider-Mismatch::Provider '${PROVIDER:-?}' mit beobachtetem Modell '${MODEL:-?}' — vermutlich falscher provider-Input oder ein Alias, der zur nativen ID durchschoss (#2090)."
             ;;
         esac
