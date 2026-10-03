@@ -53,9 +53,9 @@
 	// "gepinnt UND gepflegt".
 	customManagers: [
 		{
-			customType: 'regex',
 			// Glob statt /regex/: Der Pfad enthält einen Schrägstrich, der in der
 			// Regex-Schreibweise das Muster vorzeitig beenden würde.
+			customType: 'regex',
 			managerFilePatterns: ['.pi/settings.json'],
 			// Fängt beide erlaubten Schreibweisen ab: den blossen Quell-String und die
 			// Objektform mit Ressourcen-Filtern ("source": "npm:…"). Scope-Pakete
@@ -63,28 +63,18 @@
 			matchStrings: ['"(?:source"\\s*:\\s*")?npm:(?<depName>@?[^"@]+)@(?<currentValue>[^"]+)"'],
 			datasourceTemplate: 'npm',
 		},
-		{
-			// pi-CLI-Pin in setup-pi: einziger Dependency-Stand ohne eingebauten Manager — der Pin
-			// steckt im Input-Default der Composite-Action, kein `uses:`-Ref (GitHub-Actions-Manager
-			// greift nicht) und keine settings.json. Der `# pi pin`-Marker hinter dem Default hält
-			// die Regex exakt auf diese Zeile (die Datei enthaelt weitere Versions-Defaults).
-			customType: 'regex',
-			managerFilePatterns: ['.github/actions/setup-pi/action.yml'],
-			matchStrings: ["default: '(?<currentValue>\\d+\\.\\d+\\.\\d+)' # pi pin"],
-			depNameTemplate: '@earendil-works/pi-coding-agent',
-			datasourceTemplate: 'npm',
-		},
 	],
 
 	packageRules: [
 		{
-			// pi gesammelt (CLI + Erweiterungen) als eigene Gruppe: Beide aendern das VERHALTEN des
-			// Agenten (Runtime, Subagents, MCP, LSP), nicht nur Bibliothekscode — als ein PR statt
-			// getrennter Streams, damit CLI und Erweiterungen zueinander passend bleiben. Automerge
-			// wie alle Nicht-Major-Updates; ein automatischer Bump kann die Kosten-Messbasis
-			// zwischen zwei Pipeline-Laeufen verschieben (bewusst in Kauf genommen, s. .costs/).
-			matchFileNames: ['.pi/settings.json', '.github/actions/setup-pi/action.yml'],
-			groupName: 'pi (CLI + Erweiterungen)',
+			// pi-Erweiterungen als eigene Gruppe: Sie aendern das VERHALTEN des Agenten (Subagents,
+			// MCP, LSP), nicht nur Bibliothekscode — als ein PR statt getrennter Streams, damit sie
+			// zueinander passend bleiben. Automerge wie alle Nicht-Major-Updates; ein automatischer
+			// Bump kann die Kosten-Messbasis zwischen zwei Pipeline-Laeufen verschieben (bewusst
+			// in Kauf genommen, s. .costs/). Die pi-CLI selbst zieht setup-pi ungepinnt als
+			// @latest je Lauf — kein Renovate-Manager mehr dafür.
+			matchFileNames: ['.pi/settings.json'],
+			groupName: 'pi-Erweiterungen',
 			labels: ['dependencies', 'pi'],
 		},
 		{
