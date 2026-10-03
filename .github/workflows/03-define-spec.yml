@@ -249,13 +249,29 @@ jobs:
 
           # Harte Frist (#2097): Der Agent endet IMMER vor timeout-minutes - sonst bricht
           # GitHub den GESAMTEN Job ab (conclusion cancelled) und Label-Auswertung,
-          # Job-Summary und Kostendatensatz laufen nie. Frist = Job-Timeout minus
-          # 9 min Puffer (Commit/Push/Labels/Kosten); Exit 124/137 = Frist, KEIN Fehler:
+          # Job-Summary und Kostendatensatz laufen nie. Budget = Restzeit bis
+          # starttime.epoch + timeout-minutes minus 9 min Puffer (Commit/Push/Labels/
+          # Kosten); Vorlauf (Checkout/Setup/Mentor) schroedert mit ab, Untergrenze
+          # 300 s, Override nur als Obergrenze. Exit 124/137 = Frist, KEIN Fehler:
           # Der Lauf nimmt den Soft-Abort-Weg (ai:continued + Re-Trigger, beim zweiten
           # Mal ai:to-big-issue). vars.AGENT_HARD_BUDGET_OVERRIDE erlaubt einen
           # provozierten Kurzlauf als Nachweis (Issue-AK).
-          HARD_BUDGET="${{ vars.AGENT_HARD_BUDGET_OVERRIDE || '1260' }}"
-          case "$HARD_BUDGET" in ''|*[!0-9]*) HARD_BUDGET=1260 ;; esac
+          START_EPOCH="${{ steps.starttime.outputs.epoch }}"
+          BUDGET=$(( START_EPOCH + 1800 - 540 - $(date +%s) ))
+          if [ "$BUDGET" -lt 300 ]; then
+            echo "::warning::Vorlauf ueberzogen - Agent bekommt nur das Restfenster von 300 s."
+            BUDGET=300
+          fi
+          HARD_BUDGET="$BUDGET"
+          OVERRIDE="${{ vars.AGENT_HARD_BUDGET_OVERRIDE }}"
+          case "$OVERRIDE" in
+            '') : ;; # nicht gesetzt - Restzeit gilt unveraendert
+            *[!0-9]*)
+              echo "::error title=Ungueltiges AGENT_HARD_BUDGET_OVERRIDE::Wert '$OVERRIDE' ist nicht numerisch - provozierte Kurzlaeufe wuerden unbemerkt nichts testen."
+              exit 1
+              ;;
+            *) if [ "$OVERRIDE" -lt "$HARD_BUDGET" ]; then HARD_BUDGET="$OVERRIDE"; fi ;; # absolute Obergrenze
+          esac
           set +e
           timeout --signal=TERM --kill-after=60s "$HARD_BUDGET" \
             ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
@@ -269,6 +285,7 @@ jobs:
           elif [ "$RC" != "0" ]; then
             exit "$RC"
           fi
+
       - name: WIP-Stand sichern (harte Frist, #2097)
         # Nur bei Frist-Abbruch (#2097): Teilstand committen und pushen, damit der
         # Folgelauf (ai:continued -> Re-Trigger) darauf aufsetzt statt von null zu beginnen.
@@ -276,8 +293,8 @@ jobs:
         run: |
           BRANCH="$(git branch --show-current)"
           if [ -z "$BRANCH" ]; then
-            echo "::warning::Kein Branch ausgecheckt - WIP-Sicherung uebersprungen."
-            exit 0
+            BRANCH="ai/harness/${{ steps.setup.outputs.issue-number }}"
+            echo "::notice::Detached HEAD - WIP-Sicherung auf Harness-Branch ${BRANCH} (Folgelauf setzt dort auf)."
           fi
           if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null || [ -n "$(git ls-files --others --exclude-standard)" ]; then
             git add -A
