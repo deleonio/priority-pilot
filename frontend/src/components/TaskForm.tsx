@@ -58,16 +58,19 @@ import { DESCRIPTION_MAX_LENGTH } from '../lib/descriptionLengthValidation';
 
 /**
  * #2078: KI-Anteile für den Vorschlags-Block — trägt die Antwort `share`-Werte (#2076, der Server
- * füllt sie immer), werden diese exakt übernommen; fehlt `share` (Alt-Antworten) liefert der
- * Konfidenz-Fallback (`suggestionsToContributions`) die Anteile. Beide Wege enden in einer
- * Vollverteilung über alle Säulen (#2077): jeder Anteil 5–80, Summe exakt 100.
+ * füllt sie immer), werden diese exakt übernommen; fehlt `share` (Alt-Antworten) oder nennt die
+ * Antwort eine fremde `pillarId`, liefert der Konfidenz-Fallback (`suggestionsToContributions`)
+ * die Anteile — sonst bekäme eine Säule still 0 %. Beide Wege enden in einer Vollverteilung über
+ * alle Säulen (#2077): jeder Anteil 5–80, Summe exakt 100.
  */
 const pillarSuggestionToContributions = (
 	suggestions: readonly PillarSuggestion[],
 	pillars: readonly Pillar[],
 ): TaskPillarContribution[] => {
+	const known = new Set(pillars.map((pillar) => pillar.id));
 	const sharesComplete =
-		suggestions.length === pillars.length && suggestions.every((entry) => typeof entry.share === 'number');
+		suggestions.length === pillars.length &&
+		suggestions.every((entry) => typeof entry.share === 'number' && known.has(entry.pillarId));
 	if (!sharesComplete) {
 		return suggestionsToContributions(suggestions, pillars);
 	}

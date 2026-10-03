@@ -3306,6 +3306,40 @@ describe('TaskForm — KI-Vorschlag-Block (#2078)', () => {
 		});
 	});
 
+	it('AK4c — fremde pillarId in der Antwort fällt auf den Fallback zurück statt 0 % zu setzen', async () => {
+		// Länge und share-Abdeckung täuschen über eine vollständige Antwort hinweg: Säule 5 fehlt,
+		// stattdessen nennt die Antwort die fremde pillarId 999. Ohne ID-Guard bekäme Säule 5 still
+		// 0 % (byId.get verfehlt) — der Konfidenz-Fallback muss greifen.
+		const foreign = [
+			{ pillarId: 1, confidence: 99, share: 40 },
+			{ pillarId: 2, confidence: 10, share: 30 },
+			{ pillarId: 3, confidence: 5, share: 15 },
+			{ pillarId: 4, confidence: 2, share: 10 },
+			{ pillarId: 999, confidence: 1, share: 5 },
+		];
+		await openWithSuggestion(foreign);
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Vorschlag übernehmen' }));
+		});
+
+		const expected = suggestionsToContributions(foreign, fivePillars);
+		expect(expected).toHaveLength(5);
+		expect(expected.reduce((acc, entry) => acc + entry.share, 0)).toBe(100);
+		for (const entry of expected) {
+			expect(entry.share).toBeGreaterThanOrEqual(5);
+			expect(entry.share).toBeLessThanOrEqual(80);
+		}
+		// Rangordnung: Anteile absteigend, Gleichstand nach Listenordnung (stabile Sortierung).
+		const ordered = [...expected].sort((a, b) => b.share - a.share);
+		ordered.forEach((entry, index) => {
+			const name = fivePillars.find((pillar) => pillar.id === entry.pillarId)?.name ?? '';
+			expect(
+				screen.getByRole('button', { name: `Rang ${index + 1} von 5: ${name} — ${entry.share} %` }),
+			).toBeInTheDocument();
+		});
+	});
+
 	it('AK5a — nach Übernahme sendet Speichern die finale Verteilung samt Anteilen als Feedback', async () => {
 		mockCreateTask.mockResolvedValue(minimalNewTask());
 		await openWithSuggestion();
