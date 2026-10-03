@@ -21,8 +21,8 @@
 	},
 	"devDependencies": {
 		"@capacitor/cli": "8.5.2",
-		"@types/node": "25.9.8",
-		"knip": "6.37.0",
+		"@types/node": "25.9.9",
+		"knip": "6.39.0",
 		"typescript": "5.9.3",
 		"vitest": "4.1.11"
 	}
