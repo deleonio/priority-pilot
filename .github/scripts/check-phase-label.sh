@@ -101,6 +101,9 @@ done
 # proceed=false, das Trigger-Label bleibt kleben, der Continue-Sweep weckt kurz nach
 # Fensterende (12:05 Europe/Berlin) neu. Neutral (exit 0) - laufende Jobs werden nie
 # abgebrochen, nur neue Starts vertagt; entscheidet VOR der gh-Abfrage (kein API-Call).
+# Bewusst VOR der Phasen-Namen-Validierung: das Defer hängt allein am Startzeitpunkt,
+# nicht am Phasen-Soll - ein unbekannter Ticker vertagt im Fenster still und scheitert
+# erst nach dem Wecken laut (exit 2), statt den Sweep-Aufruf vorzuverurteilen.
 if [ "${DEFER_ON_PEAK:-false}" = "true" ] \
   && [ "${ZAI_PEAK_MODE:-warn}" = "defer" ] && [ "${LLM_PROVIDER:-}" = "zai" ]; then
   DOW="$(TZ='Asia/Singapore' date +%u)"

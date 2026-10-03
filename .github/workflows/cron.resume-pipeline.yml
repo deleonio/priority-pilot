@@ -90,11 +90,12 @@ jobs:
           client-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - name: Zeitfenster prüfen (nur 00/08/16 Europe/Berlin; manuell immer)
+      - name: Zeitfenster prüfen (nur 00/08/12/16 Europe/Berlin; manuell immer)
         # schedule-Feuerungen laufen 6×/Tag (CEST- und CET-Offsets überlappen je Jahreszeit);
-        # aktiv werden nur die 3, deren Berliner Stunde auf dem 8-Stunden-Raster liegt. Die 3
-        # DST-Doppel-Feuerungen pro Tag enden hier als 12s-No-op. workflow_dispatch umgeht den
-        # Guard bewusst (manueller Test und Steuerversuch jederzeit möglich).
+        # aktiv werden nur die 4 Stunden 00/08/12/16 — die 12:05 bricht den 8h-Rhythmus
+        # bewusst: sie weckt die Peak-vertagten Phasen kurz nach Fensterende (#2100). Die
+        # übrigen DST-Doppel-Feuerungen pro Tag enden hier als 12s-No-op. workflow_dispatch
+        # umgeht den Guard bewusst (manueller Test und Steuerversuch jederzeit möglich).
         id: timegate
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -113,7 +114,7 @@ jobs:
               ;;
             *)
               echo "active=false" >> "$GITHUB_OUTPUT"
-              echo "::notice title=⏭️ Sweep übersprungen::DST-Doppel-Feuerung (Berlin-Stunde ${BERLIN_HOUR} nicht im 8h-Raster) — nichts zu tun."
+              echo "::notice title=⏭️ Sweep übersprungen::DST-Doppel-Feuerung (Berlin-Stunde ${BERLIN_HOUR} nicht im Raster 00/08/12/16) — nichts zu tun."
               ;;
           esac
 
