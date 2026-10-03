@@ -191,7 +191,10 @@ age with the diff regardless; what gets consolidated is the **collected comment*
   - **✅ Behobene Anmerkungen** — a **history table** of findings already resolved across rounds
     (columns: **#** | Finding | Behoben via | **Datum**). When updating, resolved points
     move here so the historical view of what has already been handled is preserved.
-  - **⏸️ Entscheidungs-Findings** — only for needs-human: per finding, a stable number `<F>`
+  - **⏸️ Entscheidungs-Findings** — only for needs-human, and only for REAL entries: placeholders
+    (`-`, `- -`, `(keine)`) and nits never constitute a decision finding (#2101, PR #2089) — if the
+    section would hold only those, the verdict is reviewed/needs-fixup, never needs-human. Per
+    finding, a stable number `<F>`
     (stable across rounds), what/where, 2–3 options EACH with a stable option ID `` `<F>.<n>` ``
     (e.g. `4.1`) and effort/risk, a recommendation with ID and justification. Finally, the
     **selection line**: the human replies with a comment containing the option ID and sets

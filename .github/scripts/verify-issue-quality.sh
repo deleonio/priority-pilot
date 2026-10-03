@@ -94,9 +94,25 @@ SIGNALS="$(gh issue view "$ISSUE" --repo "$REPO" --json labels \
   --jq '[.labels[].name] | "\(any(. == "ai:analysed")) \(any(startswith("ci:")))"' 2>/dev/null)" || SIGNALS=""
 IN_PIPELINE="${SIGNALS%% *}"
 IN_CI="${SIGNALS##* }"
+
+# Container (#2101): Epics/Gruppen folgen nicht dem Ticket-Template und sollen es nicht
+# muessen — ihre Struktur sind die Sub-Issues. Erkenntnis aus #1789/#1999: Der Fehlalarm
+# parkte die Abschluss-Analyse ohne Grund. Signale: Titel-Praefix „Epic:" bzw. „[Px] Gruppe:"
+# oder der Body-Satz „Sammelticket ohne eigene Umsetzung".
+TITLE="$(gh issue view "$ISSUE" --repo "$REPO" --json title --jq '.title // ""' 2>/dev/null)" || TITLE=""
+IS_CONTAINER=false
+if printf '%s' "$TITLE" | grep -qE '^(Epic:|\[P[0-9]\] Gruppe:)' || printf '%s' "$BODY" | grep -q 'Sammelticket ohne eigene Umsetzung'; then
+  IS_CONTAINER=true
+fi
+
 if [ "$IN_PIPELINE" = "true" ] || [ "$IN_CI" = "true" ] || printf '%s' "$BODY" | grep -q 'KI-ANALYSE:START'; then
   echo "skipped=true" >> "$GITHUB_OUTPUT"
   emit true "Ticket ist in der Pipeline oder ein maschineller ci:*-Report — Vorab-Check uebersprungen." ""
+  exit 0
+fi
+if [ "$IS_CONTAINER" = "true" ]; then
+  echo "skipped=true" >> "$GITHUB_OUTPUT"
+  emit true "Container (Epic/Gruppe) — Template-Pruefung bewusst nicht anwendbar, Struktur sind die Sub-Issues (#2101)." ""
   exit 0
 fi
 echo "skipped=false" >> "$GITHUB_OUTPUT"
