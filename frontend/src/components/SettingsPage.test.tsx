@@ -1994,4 +1994,21 @@ describe('SettingsPage – #1984: Expertenmodus-Schalter im Tab Allgemein', () =
 		});
 		expect(localStorage.getItem(KEY)).toBe('false');
 	});
+
+	it('#1984: die Standort-Regler (Reichweite und Intervall) sind nur im Expertenmodus sichtbar', () => {
+		geoState.enabled = true;
+
+		// Standardmodus (der Block-beforeEach hat den Key entfernt): Switch bleibt, Gruppe weg.
+		const standard = render(<SettingsPage {...defaultProps} />);
+		const tab3 = standard.container.querySelector('[slot="tab-3"]');
+		expect(tab3?.querySelector('kol-input-checkbox[_label="Standort erfassen"]')).toBeTruthy();
+		expect(tab3?.querySelector('.geo-range-field'), 'keine Geo-Regler im Standardmodus').toBeNull();
+		standard.unmount();
+
+		// Expertenmodus: die drei Regler sind da.
+		localStorage.setItem(KEY, 'true');
+		const expert = render(<SettingsPage {...defaultProps} />);
+		const expertTab3 = expert.container.querySelector('[slot="tab-3"]');
+		expect(expertTab3?.querySelectorAll('.geo-range-field').length, 'drei Geo-Regler im Expertenmodus').toBe(3);
+	});
 });

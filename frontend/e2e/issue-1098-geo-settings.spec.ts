@@ -54,6 +54,14 @@ const geoSwitch = (page: Page) =>
 		.or(page.getByRole('switch', { name: /standort erfassen/i }));
 
 test.describe('Balamentum — #1098: Geo-Einstellungen', () => {
+	// #1984: Diese Specs prüfen das Expertenverhalten (Geo-Regler sichtbar und bedienbar) — die
+	// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster settings-tabs.spec.ts).
+	test.beforeEach(async ({ page }) => {
+		await page.addInitScript(() => {
+			localStorage.setItem('pp-expert-mode', 'true');
+		});
+	});
+
 	test.afterEach(async ({ page }) => {
 		await deleteAllTasks(page);
 	});

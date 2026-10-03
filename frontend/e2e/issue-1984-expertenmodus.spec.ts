@@ -5,8 +5,8 @@ import { waitForStableView } from './helpers';
  * Spec-Tests für #1984 — Expertenmodus: Prozent- und Gewichtspflege hinter einer Einstellung
  * (Spec: docs/spec/issue-1984.md).
  *
- * - AK1: Standardmodus (kein localStorage-Eintrag) ohne Säulen-Prozentregler (Aufgabendialog) und
- *   ohne Säulen-Gewichtungspflege.
+ * - AK1: Standardmodus (kein localStorage-Eintrag) ohne Säulen-Prozentregler (Aufgabendialog), ohne
+ *   Säulen-Gewichtungspflege und ohne Standort-Regler (Reichweite und Intervall).
  * - AK2: Abhängigkeit im Standardmodus allein über die Aufgaben-Auswahl — POST mit Gewicht 1.
  * - AK3: Schalter „Expertenmodus" blendet ein/aus und überlebt ein Neuladen.
  * - AK4: Gewicht 0,5 bleibt gespeichert — der Standardmodus blendet nur aus.
@@ -81,7 +81,9 @@ test.describe('#1984 Expertenmodus', () => {
 		await waitForStableView(page, 'Balamentum');
 	};
 
-	test('AK1 — Standardmodus: keine Regler im Aufgabendialog, Gewichtspflege nicht erreichbar', async ({ page }) => {
+	test('AK1 — Standardmodus: keine Regler im Aufgabendialog, Gewichtspflege und Standort-Regler nicht erreichbar', async ({
+		page,
+	}) => {
 		await createTask(page, uniqueTitle('Basis'));
 		await page.goto('/app/');
 		await waitForStableView(page);
@@ -96,6 +98,11 @@ test.describe('#1984 Expertenmodus', () => {
 		await waitForStableView(page, 'Balamentum');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toHaveCount(0);
 		await expect(page.locator('.pillar-weights-grid')).toHaveCount(0);
+
+		// Die Standort-Regler (Reichweite und Intervall) bleiben ebenfalls ausgeblendet.
+		await page.goto('/app/settings/standort');
+		await waitForStableView(page, 'Balamentum');
+		await expect(page.locator('.geo-range-field')).toHaveCount(0);
 	});
 
 	test('AK2 — Standardmodus: Anlegen über die Auswahl, POST mit Gewicht 1', async ({ page }) => {

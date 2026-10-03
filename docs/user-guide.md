@@ -610,9 +610,9 @@ Allgemein, Säulen, Kategorien, Standort, Orte, KI, Gruppen und **Pakete & Abo**
   Dashboard und den Ablauf beim Erledigen einer Aufgabe. Ohne Bewegung bleibt das
   Bild vollständig, es steht nur still.
 - **Expertenmodus** – ist der Schalter aktiv, zeigt die App die Fach-Regler: Säulen-Prozente im
-  Aufgabendialog, Gewichte im Abhängigkeits-Dialog und die Säulen-Gewichtungspflege im Tab
-  **„Säulen"**. Die Wahl gilt auf diesem Gerät; gespeicherte Werte bleiben auch ohne
-  Expertenmodus erhalten.
+  Aufgabendialog, Gewichte im Abhängigkeits-Dialog, die Säulen-Gewichtungspflege im Tab
+  **„Säulen"** und Reichweite/Intervall im Tab **„Standort"**. Die Wahl gilt auf diesem Gerät;
+  gespeicherte Werte bleiben auch ohne Expertenmodus erhalten.
 - **Sprachaufnahme automatisch starten** – ist der Schalter aktiv, startet das Mikrofon
   der Sprachfelder (Aufgabenformular, Schnellerfassung, Suche), sobald du sie öffnest.
   Beim Einschalten wird der Mikrofon-Zugriff angefragt.
@@ -665,7 +665,8 @@ nächsten Aufruf.
   Position (Standard alle 5 Minuten). Beim Einschalten wird die
   Standort-Berechtigung angefragt. Mit **„Standort ermitteln"** holst du die
   Position sofort; dazu siehst du die Uhrzeit der letzten Erfassung und eine
-  Adresse zum Standort. Drei Schieberegler steuern die Standortfunktion:
+  Adresse zum Standort. Drei Schieberegler steuern die Standortfunktion – sie
+  gehören zum **Expertenmodus** (Einstellungen → Allgemein):
   **Anzeige-Entfernung** – bis zu dieser Entfernung zeigt die „In der Nähe"-Liste
   Aufgaben; **Alarm-Entfernung** – liegt eine Aufgabe näher als diese Entfernung,
   kommt ein Push-Hinweis; **Aktualisierungsintervall** – wie oft die Position ermittelt
