@@ -62,6 +62,9 @@ outputs:
   session-dir:
     description: 'Sitzungsverzeichnis DIESES Laufes — Quelle der Kostenerfassung (cost-from-pi-session.ts)'
     value: ${{ steps.session.outputs.session-dir }}
+  model-alias:
+    description: 'Konfigurierter Modell-Alias vor der Auflösung (#2090)'
+    value: ${{ steps.model.outputs.model-alias }}
 
 runs:
   using: composite

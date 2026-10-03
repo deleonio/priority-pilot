@@ -120,6 +120,9 @@ outputs:
   invoke-args:
     description: 'Invoke-Argumente (Claude-Flags inkl. --allowedTools)'
     value: ${{ steps.resolve-invoke.outputs.invoke-args }}
+  model-alias:
+    description: 'Konfigurierter Modell-Alias vor der Auflösung (#2090)'
+    value: ${{ steps.provider.outputs.model-alias }}
 
 runs:
   using: composite
