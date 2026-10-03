@@ -1,8 +1,10 @@
 name: Detect PR Conflicts
 
-# Erkennt Merge-Konflikte in offenen PRs bei jedem Push auf main und setzt
-# ai:needs-fixup, damit die Umsetzungsphase (04-claude-implement.yml) sie automatisch auflöst.
-# Kein eigener Auflöser — die Auflösung übernimmt 04-claude-implement.yml (PR-Eingang).
+# Erkennt Merge-Konflikte in offenen PRs bei jedem Push auf main: Mechanisch
+# lösbare Konflikte (Merge-Treiber aus .gitattributes) merged der Job selbst
+# und pusht den Merge-Commit auf den PR-Branch — kein Fixup-Lauf nötig (#2099).
+# Nur echte Konfliktmarker bekommen ai:needs-fixup samt Dateilisten-Kommentar;
+# deren Auflösung übernimmt 04-claude-implement.yml (PR-Eingang).
 #
 # Muster: pr-needs-review-label.yml (App-Token), claude-pr-gate-merge.yml (DIRTY-Erkennung).
 
@@ -57,12 +59,15 @@ jobs:
             echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
           fi
 
-      # Checkout NUR fuer label-transition.sh (persist-credentials: false — der Job
-      # schreibt nach GitHub ausschliesslich via App-Token).
+      # Checkout fuer label-transition.sh UND den mechanischen Auto-Merge
+      # (fetch-depth: 0 — depth 1 pflanzt den main-Tip ohne Eltern, der Merge im
+      # Auto-Merge-Schritt bricht mit "refusing to merge unrelated histories" ab;
+      # persist-credentials: false — der Job schreibt nach GitHub via App-Token).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         if: steps.preflight.outputs.configured == 'true'
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Alle offenen PRs auf Merge-Konflikte prüfen
         id: scan
