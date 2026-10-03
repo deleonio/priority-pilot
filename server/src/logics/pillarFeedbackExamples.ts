@@ -44,7 +44,13 @@ export const loadFeedbackExamples = async (userId?: number): Promise<FeedbackExa
 		examples.push({
 			title: row.title,
 			description: row.description ?? undefined,
-			pillars: row.pillars.map((entry) => ({ pillarId: entry.pillarId, confidence: entry.confidence })),
+			// #2076: gelernte Anteile fließen mit — Altzeilen ohne Anteil unverändert (kein
+			// `share: undefined`, sonst bricht der exakte JSON-Vergleich der Prompt-Tests).
+			pillars: row.pillars.map((entry) =>
+				entry.share === undefined
+					? { pillarId: entry.pillarId, confidence: entry.confidence }
+					: { pillarId: entry.pillarId, confidence: entry.confidence, share: entry.share },
+			),
 		});
 		if (examples.length >= MAX_FEEDBACK_EXAMPLES) {
 			break;

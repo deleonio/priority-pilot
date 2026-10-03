@@ -4,7 +4,7 @@ import { resolvePillarDescription } from '../models/pillarData.js';
 import sequelize from '../database.js';
 import type { FeedbackExample, PillarClassifier } from '../llm/llm.js';
 import { loadFeedbackExamples } from './pillarFeedbackExamples.js';
-import { distributeWithMinimum } from './pillarShares.js';
+import { distributeWithMinimum, normalizeSuggestedShares } from './pillarShares.js';
 
 /**
  * Batch-Neuzuordnung der Säulen-Beiträge („Säulenverteilung"): Berechnet für die Aufgaben
@@ -19,7 +19,8 @@ import { distributeWithMinimum } from './pillarShares.js';
  * API-Call). Pro Aufgabe gilt:
  *  - Klassifikation mit den SÄULEN DES EIGENTÜMERS (`userId`-Scope, #430-Datenisolation)
  *    plus dessen Few-Shot-Korrektur-Beispielen,
- *  - Zuordnungen mit `share`-Summe 100 (proportional aus der Konfidenz normalisiert),
+ *  - Zuordnungen mit `share`-Summe 100 — seit #2076 aus den Anteilen des Klassifikators
+ *    (Normalisierung), sonst weiterhin aus der Konfidenz umgerechnet,
  *  - Ersetzung der TaskPillar-Zeilen in EINER Transaktion je Aufgabe
  *    (`destroy` + `bulkCreate({ validate: true })`, kanonisches Muster aus routes/tasks.ts),
  *  - ein Fehler darf den Batch nicht abreißen: Die Aufgabe wird als fehlgeschlagen
@@ -43,15 +44,20 @@ import { distributeWithMinimum } from './pillarShares.js';
  * unverändert (bewusst anders als das Frontend, das dann gleichverteilt: Ein Batch soll ohne
  * Aussage des Modells keine Zuordnung überschreiben).
  *
+ * Seit #2076 (AK4) gilt auf Antwort-Ebene: Trägt mindestens ein gültiger Vorschlag einen Anteil
+ * (`share`), werden die Anteile — über {@link normalizeSuggestedShares} auf alle Säulen verteilt —
+ * exakt übernommen, statt sie aus der Konfidenz umzurechnen. Trägt keiner einen Anteil (alte
+ * Stub-Klassifikatoren, Altzeilen), gilt die bisherige #1601-Konfidenz-Regel.
+ *
  * `pillarIds` in der Reihenfolge, in der das Frontend die Säulen führt (nach `id`) — sie entscheidet
  * bei Rundungsgleichstand, damit beide Seiten dieselben Anteile liefern.
  */
 export const toContributions = (
-	suggestions: { pillarId: number; confidence: number }[],
+	suggestions: { pillarId: number; confidence: number; share?: number }[],
 	pillarIds: readonly number[],
 ): { pillarId: number; share: number; confidence: number }[] => {
 	const valid = new Set(pillarIds);
-	const byId = new Map<number, number>();
+	const byId = new Map<number, { confidence: number; share?: number }>();
 	for (const entry of suggestions) {
 		if (!valid.has(entry.pillarId) || byId.has(entry.pillarId)) {
 			continue;
@@ -59,23 +65,31 @@ export const toContributions = (
 		if (typeof entry.confidence !== 'number' || !Number.isFinite(entry.confidence) || entry.confidence <= 0) {
 			continue;
 		}
-		byId.set(entry.pillarId, entry.confidence);
+		byId.set(entry.pillarId, entry);
 	}
 	if (byId.size === 0) {
 		return [];
 	}
-	// #1601: Summe ≤ 100 → Konfidenz als Anteil, Rest gleichmäßig auf ALLE Säulen; Summe > 100 →
-	// proportionale Normierung (übernimmt `distributeWithMinimum`).
-	const sum = [...byId.values()].reduce((acc, value) => acc + value, 0);
-	const rest = sum <= 100 ? (100 - sum) / pillarIds.length : 0;
-	const shares = distributeWithMinimum(pillarIds.map((id) => (byId.get(id) ?? 0) + rest));
+	// #2076 (AK4): trägt die Antwort Anteile vor, zählen sie — fehlende als 0, Normalisierung auf
+	// alle Säulen (ganzzahlig, je ≥ 5, je ≤ 80 sofern lösbar, Summe exakt 100).
+	const hasShares = [...byId.values()].some((entry) => typeof entry.share === 'number' && Number.isFinite(entry.share));
+	let shares: number[];
+	if (hasShares) {
+		shares = normalizeSuggestedShares(pillarIds.map((id) => byId.get(id)?.share ?? 0));
+	} else {
+		// #1601: Summe ≤ 100 → Konfidenz als Anteil, Rest gleichmäßig auf ALLE Säulen; Summe > 100 →
+		// proportionale Normierung (übernimmt `distributeWithMinimum`).
+		const sum = [...byId.values()].reduce((acc, entry) => acc + entry.confidence, 0);
+		const rest = sum <= 100 ? (100 - sum) / pillarIds.length : 0;
+		shares = distributeWithMinimum(pillarIds.map((id) => (byId.get(id)?.confidence ?? 0) + rest));
+	}
 	return pillarIds.map((id, index) => {
-		const confidence = byId.get(id);
+		const entry = byId.get(id);
 		return {
 			pillarId: id,
 			share: shares[index],
 			// Wie im Frontend: Säulen ohne Vorschlag tragen den Server-Default 100.
-			confidence: confidence === undefined ? 100 : Math.round(Math.min(Math.max(confidence, 0), 100)),
+			confidence: entry === undefined ? 100 : Math.round(Math.min(Math.max(entry.confidence, 0), 100)),
 		};
 	});
 };

@@ -446,18 +446,22 @@ describe('classifyPillarsWithMistral (Unit, gemockter fetch)', () => {
 				],
 			}),
 		);
-		const result = await classifyPillarsWithMistral(input);
-		assert.deepEqual(result, [
-			{ pillarId: 3, confidence: 60 },
-			{ pillarId: 4, confidence: 60 },
-		]);
+		const result = (await classifyPillarsWithMistral(input)) as { pillarId: number; confidence: number }[];
+		// TEST-PFLEGE #2076: der Server vervollständigt Teilmengen über ALLE Säulen (AK2) — die Deckelung
+		// der schwachen Säulen bleibt, die übrigen Säulen kommen mit Konfidenz 0 dazu.
+		assert.equal(result.length, 5, 'AK2 (#2076): die Verteilung deckt alle Säulen ab');
+		assert.equal(result.find((entry) => entry.pillarId === 3)?.confidence, 60);
+		assert.equal(result.find((entry) => entry.pillarId === 4)?.confidence, 60);
 	});
 
 	it('clamped Konfidenz auf [0,100] und rundet', async () => {
 		await setTestLlmProvider(true);
 		stubFetch(JSON.stringify({ pillars: [{ pillarId: 1, confidence: 150.6 }] }));
-		const result = await classifyPillarsWithMistral(input);
-		assert.deepEqual(result, [{ pillarId: 1, confidence: 100 }]);
+		const result = (await classifyPillarsWithMistral(input)) as { pillarId: number; confidence: number }[];
+		// TEST-PFLEGE #2076: der Server vervollständigt Teilmengen über ALLE Säulen (AK2); das Clamping
+		// selbst bleibt unverändert geprüft.
+		assert.equal(result.length, 5, 'AK2 (#2076): die Verteilung deckt alle Säulen ab');
+		assert.equal(result.find((entry) => entry.pillarId === 1)?.confidence, 100);
 	});
 
 	it('wirft MistralRequestError bei ungültigem JSON-Content', async () => {
@@ -632,14 +636,26 @@ describe('classifyPillarsWithMistral (Unit, gemockter fetch)', () => {
 			}),
 		);
 
-		const result = await classifyPillarsWithMistral({ title: 'Rasen mähen', pillars: customPillars });
+		const result = (await classifyPillarsWithMistral({
+			title: 'Rasen mähen',
+			pillars: customPillars,
+		})) as { pillarId: number; confidence: number; share?: number }[];
 
-		// Gültige pillarIds aus der Custom-Liste, keine Seed-IDs
-		assert.equal(result.length, 2);
-		assert.deepEqual(result, [
-			{ pillarId: 10, confidence: 95 },
-			{ pillarId: 30, confidence: 70 },
-		]);
+		// Gültige pillarIds aus der Custom-Liste, keine Seed-IDs. TEST-PFLEGE #2076: der Server
+		// vervollständigt Teilmengen über ALLE Säulen (AK2) — drei Custom-Säulen mit gültiger Verteilung.
+		assert.equal(result.length, 3);
+		assert.equal(result.find((entry) => entry.pillarId === 10)?.confidence, 95);
+		assert.equal(result.find((entry) => entry.pillarId === 30)?.confidence, 70);
+		assert.equal(result.find((entry) => entry.pillarId === 20)?.confidence, 0, 'ohne Modell-Stimme keine Konfidenz');
+		const shares = result.map((entry) => entry.share ?? Number.NaN);
+		assert.equal(
+			shares.reduce((acc, share) => acc + share, 0),
+			100,
+		);
+		assert.ok(
+			shares.every((share) => Number.isInteger(share) && share >= 5 && share <= 80),
+			JSON.stringify(shares),
+		);
 		// Keine Weak-Signal-Ceiling-Effekte: Custom-Säulen werden nicht gedeckelt
 		assert.ok(
 			result.every((s) => s.confidence > 60 || !weakSignalPillarIds(customPillars).has(s.pillarId)),

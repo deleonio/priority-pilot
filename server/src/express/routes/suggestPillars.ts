@@ -36,8 +36,10 @@ const validateBody = (body: unknown): { ok: true; value: SuggestPillarsInputDto 
 
 /**
  * Validiert den Body von `POST /tasks/suggest-pillars/feedback`: `title` Pflicht, `description`
- * optional, `pillars` eine Liste aus `{ pillarId, confidence }`. `validIds` schränkt auf real
- * existierende Säulen ein, damit kein Müll-Sample gespeichert wird.
+ * optional, `pillars` eine Liste aus `{ pillarId, confidence }` plus seit #2076 optional `share`
+ * (Anteil, additiv zur Konfidenz — nur der Typ wird geprüft, die Normalisierung macht der Server
+ * ohnehin; Alt-Clients ohne Anteil bleiben gültig). `validIds` schränkt auf real existierende
+ * Säulen ein, damit kein Müll-Sample gespeichert wird.
  */
 const validateFeedbackBody = (
 	body: unknown,
@@ -57,12 +59,12 @@ const validateFeedbackBody = (
 		return { ok: false, message: 'pillars muss eine Liste sein.' };
 	}
 	const seen = new Set<number>();
-	const validated: { pillarId: number; confidence: number }[] = [];
+	const validated: { pillarId: number; confidence: number; share?: number }[] = [];
 	for (const entry of pillars) {
 		if (typeof entry !== 'object' || entry === null) {
 			return { ok: false, message: 'Jeder pillars-Eintrag muss ein Objekt sein.' };
 		}
-		const { pillarId, confidence } = entry as Record<string, unknown>;
+		const { pillarId, confidence, share } = entry as Record<string, unknown>;
 		if (typeof pillarId !== 'number' || !Number.isInteger(pillarId) || !validIds.has(pillarId)) {
 			return { ok: false, message: `Unbekannte oder ungültige pillarId: ${String(pillarId)}.` };
 		}
@@ -72,8 +74,11 @@ const validateFeedbackBody = (
 		if (typeof confidence !== 'number' || !Number.isFinite(confidence) || confidence < 0 || confidence > 100) {
 			return { ok: false, message: 'confidence muss eine Zahl in [0, 100] sein.' };
 		}
+		if (share !== undefined && (typeof share !== 'number' || !Number.isFinite(share))) {
+			return { ok: false, message: 'share muss eine Zahl sein.' };
+		}
 		seen.add(pillarId);
-		validated.push({ pillarId, confidence });
+		validated.push(share === undefined ? { pillarId, confidence } : { pillarId, confidence, share });
 	}
 	return {
 		ok: true,
