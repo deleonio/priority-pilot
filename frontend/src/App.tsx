@@ -1458,7 +1458,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			</main>
 			{/* App-weite Einblendungen und die Fußzeile stehen außerhalb von `<main>`: Sie gehören
 			    nicht zum Seiteninhalt, und `contentinfo` ist ein Landmark der obersten Ebene. */}
-			<InstallPrompt />
+			<InstallPrompt tasks={tasks} />
 			<UpdatePrompt />
 			<PushToast />
 			<SessionExpiredDialog />

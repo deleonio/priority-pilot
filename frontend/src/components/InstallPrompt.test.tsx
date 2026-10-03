@@ -176,7 +176,7 @@ describe('InstallPrompt', () => {
 			configurable: true,
 		});
 
-		render(<InstallPrompt onDismiss={mockDismiss} />);
+		render(<InstallPrompt tasks={doneTasks()} onDismiss={mockDismiss} />);
 
 		// Der iOS-Prompt ist sichtbar.
 		expect(screen.getByText(/Teilen/)).toBeInTheDocument();
