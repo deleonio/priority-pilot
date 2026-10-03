@@ -731,3 +731,56 @@ describe('POST /tasks/reassign-pillars — Kontingent je Aufgabe', () => {
 		assert.equal(res.status, 200);
 	});
 });
+
+/**
+ * #2076 (AK4, Spec docs/spec/issue-2076.md): Der Klassifikator liefert Anteile — der Lauf
+ * speichert genau diese (normalisierten) Anteile und Konfidenzen in den TaskPillar-Zeilen,
+ * statt die Anteile aus der Konfidenz umzurechnen.
+ */
+describe('POST /tasks/reassign-pillars — vorgeschlagene Anteile (#2076, AK4)', () => {
+	let shareServer: TestServer;
+
+	before(async () => {
+		// Stub mit Anteilen + Konfidenzen (Contract `share` ist bis zur Impl optional — gecastet).
+		const shareClassifier: PillarClassifier = (async (input: ClassifyPillarsInput) =>
+			input.pillars.map((pillar, index) => ({
+				pillarId: pillar.id,
+				confidence: [70, 20, 10][index] ?? 5,
+				share: [60, 25, 15][index] ?? 5,
+			})) as unknown as PillarSuggestion[]) as PillarClassifier;
+		shareServer = await startTestServer({ pillarClassifier: shareClassifier });
+	});
+
+	beforeEach(async () => {
+		await resetDb();
+	});
+
+	after(async () => {
+		if (shareServer) {
+			await shareServer.close();
+		}
+	});
+
+	it('speichert Anteile und Konfidenzen des Klassifikators, statt sie umzurechnen', async () => {
+		const memberCookie = await shareServer.login(MEMBER_EMAIL, { role: 'member' });
+		const memberId = await userIdOf(MEMBER_EMAIL);
+		const first = await Pillar.create({ userId: memberId, name: 'Wirksamkeit', weight: 1 });
+		const second = await Pillar.create({ userId: memberId, name: 'Sinn', weight: 1 });
+		const third = await Pillar.create({ userId: memberId, name: 'Körper', weight: 1 });
+		const task = await Task.create({ title: 'Anteile vom Modell', status: 'Open', userId: memberId });
+
+		const res = await startAndAwait(shareServer.baseUrl, memberCookie);
+		assert.equal(res.status, 200);
+
+		const rows = await contributionsOf(task.id);
+		assert.deepEqual(
+			rows.map((row) => [row.pillarId, row.share, row.confidence]),
+			[
+				[first.id, 60, 70],
+				[second.id, 25, 20],
+				[third.id, 15, 10],
+			],
+			'die vorgeschlagenen Anteile werden gespeichert, nicht aus der Konfidenz umgerechnet',
+		);
+	});
+});

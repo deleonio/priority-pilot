@@ -313,6 +313,24 @@ test.describe('#2070 Abschluss: Startgewichtung, Abschluss-Karte, Beispielaufgab
 		await expect(cards.nth(0).getByRole('checkbox')).toBeChecked();
 	});
 
+	// Spec issue-2110, AK3: Fokus-Wiedereinstieg — der verdeckt gemountete Flow feuert seinen
+	// Fokus-Effekt beim Fortsetzen nicht; die Schritt-Überschrift muss den Fokus tragen.
+	test('AK3: Wiedereinstieg fokussiert die Schritt-Überschrift, Freitext bleibt erhalten (issue-2110)', async ({
+		page,
+	}) => {
+		const pillarId = await startFreshUser(page);
+		await mockSuggestions(page, pillarId);
+		await fillFreitext(page);
+		await flow(page).getByRole('button', { name: 'Später' }).click();
+		await expect(page.locator('.empty-state')).toBeVisible();
+
+		await page.getByRole('button', { name: 'Flow fortsetzen' }).click();
+		await expect(page.locator('h2.onboarding-heading')).toBeFocused();
+		await expect(flow(page).locator('kol-textarea').getByRole('textbox')).toHaveValue(
+			'Ich möchte wieder mehr Sport machen und geordneter leben',
+		);
+	});
+
 	test.describe('375px (AK5)', () => {
 		test.use({ viewport: { width: 375, height: 812 } });
 

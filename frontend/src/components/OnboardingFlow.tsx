@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
-import { readString } from '../lib/inputValue';
+import { readChecked, readString } from '../lib/inputValue';
 import { AiQuotaHint } from './AiQuotaHint';
 import { EXAMPLE_TASKS } from './EmptyState';
 import { PillarWeightsForm } from './PillarWeightsForm';
@@ -19,16 +19,9 @@ interface OnboardingFlowProps {
 	onApplied?: () => void;
 	/** Nach erfolgreichem Speichern der Startgewichtung — die App lädt die Säulen neu (#2070). */
 	onWeightsSaved?: () => void;
+	/** Sichtbarkeits-Spiegel des verdeckt gemounteten Flows (#2110 AK3): nur bei `true` fokussiert die Schritt-Überschrift. */
+	active?: boolean;
 }
-
-/** Liest den von KoliBri gemeldeten Checkbox-Zustand (Boolean oder State-Objekt) als Boolean. */
-const readChecked = (value: unknown): boolean => {
-	if (typeof value === 'boolean') return value;
-	if (typeof value === 'object' && value !== null && 'checked' in value) {
-		return Boolean((value as { checked?: unknown }).checked);
-	}
-	return false;
-};
 
 /**
  * Erststart-Flow (#2069): Nach dem Login ohne eigene Tasks startet statt des EmptyState eine
@@ -53,7 +46,7 @@ const readChecked = (value: unknown): boolean => {
 /** Gesamtzahl der Flow-Schritte (#2070): Freitext, Vorschläge, Startgewichtung, Übernehmen. */
 const TOTAL_STEPS = 4;
 
-export const OnboardingFlow = ({ pillars, onClose, onApplied, onWeightsSaved }: OnboardingFlowProps) => {
+export const OnboardingFlow = ({ pillars, onClose, onApplied, onWeightsSaved, active = true }: OnboardingFlowProps) => {
 	const { t } = useTranslation('common');
 	const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 	const [goal, setGoal] = useState('');
@@ -77,9 +70,12 @@ export const OnboardingFlow = ({ pillars, onClose, onApplied, onWeightsSaved }: 
 	const headingRef = useRef<HTMLHeadingElement>(null);
 
 	// Fokus je Schritt auf der Schritt-Überschrift (UX-Beratung #1986) — auch auf der Abschluss-Karte.
+	// `active` in den Deps (#2110 AK3): beim Wiedereinstieg bleibt `step` gleich — nur der
+	// Sichtbarkeitswechsel feuert den Effekt erneut; im verdeckten Zustand wird nicht fokussiert.
 	useEffect(() => {
+		if (!active) return;
 		headingRef.current?.focus();
-	}, [step, finished]);
+	}, [active, step, finished]);
 
 	const pillarName = (pillarId: number): string => pillars.find((pillar) => pillar.id === pillarId)?.name ?? '';
 

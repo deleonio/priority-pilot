@@ -1,7 +1,7 @@
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -136,5 +136,106 @@ describe('check-phase-label.sh — die zwei Eingänge der Umsetzungsphase', () =
 		const res = rawPhase('fixup');
 		assert.equal(res.status, 2);
 		assert.match(res.stderr, /unbekannte Phase/);
+	});
+});
+
+/**
+ * ZAI-Peak-Defer (#2100): Mit --defer-on-peak und vars.ZAI_PEAK_MODE=defer vertagt
+ * der Start im Peak-Fenster (Mo-Fr 14-18 Asia/Singapore) neutral — ohne das
+ * Trigger-Label anzutasten und ohne die gh-Abfrage zu erreichen. Ein zweiter
+ * PATH-Stub ersetzt zusätzlich `date` (Fenster-Uhr); der gh-Stub hier hinterlässt
+ * eine Marker-Datei — ihr Fehlen im Defer-Fall belegt das Entscheiden VOR der API.
+ */
+describe('check-phase-label.sh — ZAI-Peak-Defer', () => {
+	let deferDir: string;
+	let deferFixture: string;
+	let ghCalled: string;
+
+	const rawDeferPhase = (extra: Record<string, string>) =>
+		spawnSync('bash', [script, '--repo', 'o/r', '--phase', 'spec', '--ticket', '42', '--defer-on-peak'], {
+			env: {
+				...process.env,
+				PATH: `${deferDir}:${process.env.PATH}`,
+				GH_FIXTURE: deferFixture,
+				GH_CALLED: ghCalled,
+				...extra,
+			},
+			encoding: 'utf8',
+		});
+
+	const deferRun = (extra: Record<string, string>) => {
+		const res = rawDeferPhase({ LLM_PROVIDER: 'zai', ...extra });
+		assert.equal(res.status, 0, `Skript crashte: ${res.stderr}`);
+		return {
+			proceed: res.stdout.match(/^proceed=(.*)$/m)?.[1] ?? '',
+			reason: res.stdout.match(/^reason=(.*)$/m)?.[1] ?? '',
+		};
+	};
+
+	before(() => {
+		deferDir = mkdtempSync(join(tmpdir(), 'cpl-defer-test-'));
+		deferFixture = join(deferDir, 'fixture.json');
+		ghCalled = join(deferDir, 'gh-called');
+		const gh = join(deferDir, 'gh');
+		writeFileSync(gh, '#!/usr/bin/env bash\ntouch "$GH_CALLED"\ncat "$GH_FIXTURE"\n');
+		chmodSync(gh, 0o755);
+		const date = join(deferDir, 'date');
+		writeFileSync(
+			date,
+			'#!/usr/bin/env bash\ncase "$1" in +%u) echo "$CPL_STUB_DOW" ;; +%H) echo "$CPL_STUB_HOUR" ;; *) /bin/date "$@" ;; esac\n',
+		);
+		chmodSync(date, 0o755);
+	});
+
+	after(() => rmSync(deferDir, { recursive: true, force: true }));
+
+	it('vertagt im Fenster (Mo-Fr, Stunde 14 und 17) und entscheidet VOR der gh-Abfrage', () => {
+		writeFileSync(deferFixture, issue('OPEN', 'ai:needs-spec'));
+		for (const hour of ['14', '17']) {
+			const { proceed, reason } = deferRun({ ZAI_PEAK_MODE: 'defer', CPL_STUB_DOW: '3', CPL_STUB_HOUR: hour });
+			assert.equal(proceed, 'false');
+			assert.match(reason, /ZAI-Peak/);
+			assert.equal(
+				existsSync(ghCalled),
+				false,
+				`gh-Stub unbenutzt belegt das Entscheiden vor der API (Stunde ${hour})`,
+			);
+		}
+	});
+
+	it('läuft an den Fensterrändern regulär (Stunde 13 und 18, dow 6 und 7)', () => {
+		writeFileSync(deferFixture, issue('OPEN', 'ai:needs-spec'));
+		for (const [dow, hour] of [
+			['3', '13'],
+			['3', '18'],
+			['6', '15'],
+			['7', '15'],
+		] as const) {
+			const { proceed } = deferRun({ ZAI_PEAK_MODE: 'defer', CPL_STUB_DOW: dow, CPL_STUB_HOUR: hour });
+			assert.equal(proceed, 'true', `dow=${dow}, Stunde=${hour} liegt außerhalb des Fensters`);
+		}
+	});
+
+	it('defert nicht bei ZAI_PEAK_MODE=warn und ungesetztem Modus (Fail-safe-Default)', () => {
+		writeFileSync(deferFixture, issue('OPEN', 'ai:needs-spec'));
+		for (const mode of [{ ZAI_PEAK_MODE: 'warn' }, {}]) {
+			assert.equal(
+				deferRun({ ZAI_PEAK_MODE: mode.ZAI_PEAK_MODE, CPL_STUB_DOW: '3', CPL_STUB_HOUR: '15' }).proceed,
+				'true',
+			);
+		}
+	});
+
+	it('läuft bei anderem Provider regulär (LLM_PROVIDER != zai)', () => {
+		writeFileSync(deferFixture, issue('OPEN', 'ai:needs-spec'));
+		assert.equal(
+			deferRun({
+				ZAI_PEAK_MODE: 'defer',
+				CPL_STUB_DOW: '3',
+				CPL_STUB_HOUR: '15',
+				LLM_PROVIDER: 'openai',
+			}).proceed,
+			'true',
+		);
 	});
 });

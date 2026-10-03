@@ -172,7 +172,7 @@ function states() {
 		`<circle cx="${x + 130}" cy="212" r="17" fill="none" stroke="${GRUEN}" stroke-width="3"/>
 		<path d="M${x + 122},${212} L${x + 128},${219} L${x + 139},203" stroke="${GRUEN}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
 	const body = `
-	<text x="60" y="118" font-family="${FONT}" font-size="${S.label}" fill="${MUTED}">Feedback in under 100 ms · icon and text, never color alone</text>
+	<text x="60" y="118" font-family="${FONT}" font-size="${S.label}" fill="${MUTED}">Feedback aimed at under 100 ms · icon and text, never color alone</text>
 	${card(0, spinner, 'Loading…', 'skeleton over spinner')}
 	${card(1, empty, 'Nothing here yet', 'an invitation to act')}
 	${card(2, error, 'Saving failed', 'cause + next step, no apology')}
@@ -242,11 +242,5 @@ function fursorge(de) {
 	);
 }
 
-writeFileSync(`${OUT}/pulse-de.svg`, pulse(true));
-writeFileSync(`${OUT}/pulse-en.svg`, pulse(false));
-writeFileSync(`${OUT}/schleifen-de.svg`, schleifen(true));
-writeFileSync(`${OUT}/schleifen-en.svg`, schleifen(false));
 writeFileSync(`${OUT}/states-en.svg`, states());
-writeFileSync(`${OUT}/fursorge-de.svg`, fursorge(true));
-writeFileSync(`${OUT}/fursorge-en.svg`, fursorge(false));
 console.log('OK:', OUT);

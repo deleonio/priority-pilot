@@ -5734,7 +5734,7 @@ components:
           description: Optionaler Kontext, z. B. zu abhängigen Aufgaben
     PillarSuggestion:
       type: object
-      description: Eine vorgeschlagene Säulen-Einzahlung mit Konfidenz.
+      description: Eine vorgeschlagene Säulen-Einzahlung mit Konfidenz und — seit #2076 — Anteil.
       required:
         - pillarId
         - confidence
@@ -5749,6 +5749,11 @@ components:
           minimum: 0
           maximum: 100
           description: Konfidenz in % (0–100), dass die Aufgabe auf diese Säule einzahlt
+        share:
+          type: integer
+          minimum: 5
+          maximum: 80
+          description: Anteil der Aufgabe in % (5–80, Summe über alle Säulen 100); optional — Alt-Antworten und Korrekturen ohne Anteil bleiben gültig
     SuggestPillarsResult:
       type: object
       description: Ergebnis der Säulen-Klassifikation.

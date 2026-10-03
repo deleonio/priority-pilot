@@ -1,8 +1,10 @@
 name: Detect PR Conflicts
 
-# Erkennt Merge-Konflikte in offenen PRs bei jedem Push auf main und setzt
-# ai:needs-fixup, damit die Umsetzungsphase (04-claude-implement.yml) sie automatisch auflöst.
-# Kein eigener Auflöser — die Auflösung übernimmt 04-claude-implement.yml (PR-Eingang).
+# Erkennt Merge-Konflikte in offenen PRs bei jedem Push auf main: Mechanisch
+# lösbare Konflikte (Merge-Treiber aus .gitattributes) merged der Job selbst
+# und pusht den Merge-Commit auf den PR-Branch — kein Fixup-Lauf nötig (#2099).
+# Nur echte Konfliktmarker bekommen ai:needs-fixup samt Dateilisten-Kommentar;
+# deren Auflösung übernimmt 04-claude-implement.yml (PR-Eingang).
 #
 # Muster: pr-needs-review-label.yml (App-Token), claude-pr-gate-merge.yml (DIRTY-Erkennung).
 
@@ -57,14 +59,18 @@ jobs:
             echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
           fi
 
-      # Checkout NUR fuer label-transition.sh (persist-credentials: false — der Job
-      # schreibt nach GitHub ausschliesslich via App-Token).
+      # Checkout fuer label-transition.sh UND den mechanischen Auto-Merge
+      # (fetch-depth: 0 — depth 1 pflanzt den main-Tip ohne Eltern, der Merge im
+      # Auto-Merge-Schritt bricht mit "refusing to merge unrelated histories" ab;
+      # persist-credentials: false — der Job schreibt nach GitHub via App-Token).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         if: steps.preflight.outputs.configured == 'true'
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Alle offenen PRs auf Merge-Konflikte prüfen
+        id: scan
         if: steps.preflight.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
@@ -110,39 +116,127 @@ jobs:
               continue
             fi
 
-            # DIRTY / CONFLICTING: Merge-Konflikt erkannt → ai:needs-fixup setzen
+            # DIRTY / CONFLICTING: Konflikt erkannt — nur MERKEN (#2099): Erst versucht der
+            # Folgeschritt einen mechanischen Merge (git wertet die Merge-Treiber aus
+            # .gitattributes, GitHub bei der Mergeability nicht — MEMORY.md union-mergt lokal
+            # sauber, während GitHub dirty meldet, Beleg PR #2084). Nur echte Konfliktmarker
+            # verdienen einen Fixup-LLM-Lauf (früher 10-30 min serielle Queue für einen
+            # Merge, den git selbst kann, Beleg PR #2085).
             if [ "$merge_state" = "DIRTY" ] || [ "$mergeable" = "CONFLICTING" ]; then
-              # Idempotenz-Guard: ai:needs-fixup bereits gesetzt → idempotent überspringen (kein Label-Flackern)
-              labels="$(echo "$view" | jq -r '[.labels[].name? // empty]')"
-              if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-fixup")')" = "true" ]; then
-                echo "PR #$pr: ai:needs-fixup bereits gesetzt — idempotent, No-op."
-                continue
-              fi
-
-              echo "PR #$pr: Merge-Konflikt erkannt (mergeable=$mergeable, state=$merge_state) — setze ai:needs-fixup."
-              # EINE atomare Transition zu ai:needs-fixup (PR #890): Das alte reine Add
-              # liess ein evtl. klebendes ai:needs-review UNBERÜHRT — beide Trigger
-              # gleichzeitig am PR erzeugten Review- und Fixup-Run nebeneinander. Die
-              # Transition ersetzt den gesamten Pipeline-Bestand, die Invariante gilt
-              # damit per Konstruktion. --forbid = Oszillationsschutz zur Laufzeit
-              # (der Check oben las den Zustand nur einmalig). Transition verwirft bei
-              # klebendem ai:needs-human — Parker bleibt, Konflikt wartet auf den Menschen (PR #903).
-              if ! OUT="$(bash .github/scripts/label-transition.sh \
-                  --repo "$REPO" --pr "$pr" --set ai:needs-fixup --forbid ai:needs-fixup)"; then
-                echo "::error::PR #$pr: Label-Transition zu ai:needs-fixup endgültig fehlgeschlagen"
-                continue
-              fi
-              if [ "$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')" != "true" ]; then
-                echo "PR #$pr: Transition verworfen ($(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')) — kein Fixup-Trigger gesetzt."
-              fi
-
+              head_ref="$(gh pr view "$pr" --repo "$REPO" --json headRefName --jq -r .headRefName)"
+              echo "${pr} ${head_ref}" >> /tmp/dirty-prs.txt
+              echo "PR #${pr} (${head_ref}): Konflikt erkannt (mergeable=$mergeable, state=$merge_state) — mechanischer Merge-Versuch folgt."
               {
-                echo "### PR #${pr} — ai:needs-fixup wegen Merge-Konflikt gesetzt"
-                echo ""
-                echo "- Merge-Konflikte erkannt (mergeable=$mergeable, state=$merge_state)"
-                echo "- Folge: 04-claude-implement.yml (PR-Eingang) wird ausgelöst."
+                echo "- PR #${pr} (${head_ref}): Konflikt erkannt — mechanischer Merge-Versuch folgt."
               } >> "$GITHUB_STEP_SUMMARY"
             else
               echo "PR #$pr: Nicht sauber mergebar (mergeable=$mergeable, state=$merge_state) — No-op."
+            fi
+          done
+
+          if [ -f /tmp/dirty-prs.txt ]; then
+            dirty="$(tr '\n' ';' < /tmp/dirty-prs.txt)"
+            echo "dirty=${dirty%;}" >> "$GITHUB_OUTPUT"
+            echo "DIRTY-PRs: ${dirty%;}"
+          else
+            echo "dirty=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Mechanisch lösbare Konflikte selbst mergen (#2099)
+        # git merge mit den Merge-Treibern aus .gitattributes; läuft es sauber durch,
+        # wird der Merge-Commit normal (kein Rebase/Force) auf den PR-Branch gepusht.
+        # CI und Gate laufen danach wie gewohnt — ein grünes Verdict bleibt unangetastet,
+        # es gibt keinen Fixup-Zyklus mehr. Echte Konfliktmarker → Dateiliste für den
+        # Label-Schritt. KEIN Push, solange am PR ein ai:needs-*-Label klebt (= laufende
+        # Phase; der Push würde ihr den Boden unter den Füßen wegziehen, Issue-Weg 4).
+        id: auto-merge
+        if: steps.preflight.outputs.configured == 'true' && steps.scan.outputs.dirty != ''
+        env:
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          REPO: ${{ github.repository }}
+          DIRTY_PRS: ${{ steps.scan.outputs.dirty }}
+        run: |
+          set -uo pipefail
+          git config user.name "conflict-detector[bot]"
+          git config user.email "conflict-detector@users.noreply.github.com"
+
+          conflicted=""
+          for entry in ${DIRTY_PRS//;/ }; do
+            pr="${entry%% *}"
+            head_ref="${entry#* }"
+
+            # Guard: laufende Phase? Ein ai:needs-*-Label am PR heißt, eine Phase ist
+            # getriggert oder läuft — dann KEIN Push (Issue-Weg 4).
+            labels="$(gh pr view "$pr" --repo "$REPO" --json labels --jq '[.labels[].name?]')"
+            if echo "$labels" | jq -e 'any(.[]; startswith("ai:needs-"))' >/dev/null; then
+              echo "PR #${pr}: Pipeline-Phase aktiv ($(echo "$labels" | jq -r 'map(select(startswith("ai:needs-"))) | join(", "))') — kein Push, Konflikt der Phase überlassen."
+              conflicted="${conflicted}${pr} (Phase läuft, kein Auto-Merge);"
+              continue
+            fi
+
+            if ! git -c http.extraheader="AUTHORIZATION: bearer $(gh auth token)" \
+                 fetch --no-tags origin "+refs/pull/${pr}/head" "+refs/heads/main:refs/remotes/origin/main" 2>/dev/null; then
+              echo "::warning::PR #${pr}: fetch fehlgeschlagen — übersprungen."
+              conflicted="${conflicted}${pr} (fetch fehlgeschlagen);"
+              continue
+            fi
+            git switch --force-create "conflict-try-${pr}" FETCH_HEAD >/dev/null 2>&1
+            if git merge --no-ff --no-edit origin/main -m "merge: main nachziehen (automatischer Konflikt-Detektor, #2099)" >/dev/null 2>&1; then
+              # Push ohne Token in der URL: Header-Auth (leakt nicht in Fehlermeldungen).
+              if git -c http.extraheader="AUTHORIZATION: bearer $(gh auth token)" \
+                   push origin "HEAD:refs/heads/${head_ref}" 2>/dev/null; then
+                echo "::notice title=✅ Auto-Merge::PR #${pr}: main mechanisch gemerged und gepusht — kein Fixup nötig (#2099)."
+                echo "- PR #${pr}: mechanisch gemerged, Merge-Commit gepusht — kein Fixup-Lauf." >> "$GITHUB_STEP_SUMMARY"
+              else
+                echo "::warning::PR #${pr}: Merge sauber, aber Push abgelehnt — als Konflikt weitergegeben."
+                conflicted="${conflicted}${pr} (Merge ok, Push abgelehnt);"
+              fi
+            else
+              files="$(git diff --name-only --diff-filter=U | tr '\n' ',' | sed 's/,$//')"
+              git merge --abort >/dev/null 2>&1 || true
+              echo "PR #${pr}: ECHTER Konflikt — Dateien: ${files:-?}"
+              conflicted="${conflicted}${pr} ${files:-unbekannt};"
+            fi
+            git switch - >/dev/null 2>&1 || git checkout main >/dev/null 2>&1 || true
+            git branch -D "conflict-try-${pr}" >/dev/null 2>&1 || true
+          done
+          echo "conflicted=${conflicted%;}" >> "$GITHUB_OUTPUT"
+
+      - name: Echte Konflikte labeln + Dateiliste (#2099)
+        # Nur was auch lokal Konfliktmarker hatte: ai:needs-fixup (atomare Transition wie
+        # zuvor, PR #890) plus Dateiliste als PR-KOMMENTAR — der Fixup liest PR-Kommentare;
+        # ein Inline-Kommentar bräuchte eine Diff-Position, die es für die konfliktierte
+        # Datei nicht zuverlässig gibt. Dateiliste statt bloßem Label spart dem Fixup
+        # die Suche (Issue: „hängt die betroffenen Dateien als Hinweis an").
+        if: steps.preflight.outputs.configured == 'true' && steps.auto-merge.outputs.conflicted != ''
+        env:
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          REPO: ${{ github.repository }}
+          CONFLICTED: ${{ steps.auto-merge.outputs.conflicted }}
+        run: |
+          set -uo pipefail
+          IFS=';' read -ra items <<< "$CONFLICTED"
+          for item in "${items[@]}"; do
+            pr="${item%% *}"
+            rest="${item#* }"
+            echo "PR #${pr}: setze ai:needs-fixup (echter Konflikt: ${rest:-?})."
+            if ! OUT="$(bash .github/scripts/label-transition.sh \
+                --repo "$REPO" --pr "$pr" --set ai:needs-fixup --forbid ai:needs-fixup)"; then
+              echo "::error::PR #${pr}: Label-Transition zu ai:needs-fixup endgültig fehlgeschlagen"
+              continue
+            fi
+            if [ "$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')" = "true" ]; then
+              # Body bewusst per Datei: Die Dateiliste braucht Backticks (Code-Format),
+              # im doppelten Anführungszeichen waeren das Command-Substitutionen.
+              {
+                printf '<!-- ai-conflict-files -->\n'
+                printf '**Merge-Konflikt (automatisch erkannt, #2099):** Lokaler Merge mit den Merge-Treibern aus `.gitattributes` schlug fehl. Betroffene Dateien:\n\n'
+                printf '%s\n' "$rest" | tr ',' '\n' | sed -e 's/^/- `/' -e 's/$/`/'
+                printf '\n`git merge origin/main` lokal auflösen, committen, pushen — danach weiter wie im Fixup-Ablauf.\n'
+              } > "/tmp/conflict-comment-${pr}.md"
+              gh pr comment "$pr" --repo "$REPO" --body-file "/tmp/conflict-comment-${pr}.md"
+              echo "PR #${pr}: ai:needs-fixup gesetzt + Dateiliste kommentiert." >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "PR #${pr}: Transition verworfen ($(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')) — kein Fixup-Trigger gesetzt."
             fi
           done

@@ -1,10 +1,11 @@
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../database.js';
 
-/** Eine vom Nutzer bestätigte/korrigierte Säulen-Einzahlung (Ground Truth): Säulen-ID + Konfidenz. */
+/** Eine vom Nutzer bestätigte/korrigierte Säulen-Einzahlung (Ground Truth): Säulen-ID + Konfidenz, seit #2076 optional der Anteil. */
 interface FeedbackPillar {
 	pillarId: number;
 	confidence: number;
+	share?: number;
 }
 
 /**
@@ -19,8 +20,8 @@ interface FeedbackPillar {
  * Seit #430 ist jedes Feedback **pro Nutzer** isoliert: `userId` bindet das Sample an den anfragenden
  * Nutzer, und `loadFeedbackExamples` lädt nur noch die Korrekturen desselben Nutzers. Vorher war das
  * Feedback global (Single-User-Annahme); bestehende Zeilen bleiben über die nullbare Spalte erhalten.
- * `pillars` hält die bestätigten Beiträge als JSON-Array (`{ pillarId, confidence }`); `share` ist
- * für die Klassifikation irrelevant und wird daher nicht gespeichert.
+ * `pillars` hält die bestätigten Beiträge als JSON-Array (`{ pillarId, confidence, share? }`) —
+ * seit #2076 lernen Korrekturen auch den Anteil; Altzeilen ohne Anteil bleiben gültige Beispiele.
  */
 class PillarFeedback extends Model {
 	public id!: number;

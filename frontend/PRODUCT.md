@@ -17,7 +17,7 @@ Primärnutzer ist der Eigentümer selbst: Balamentum ist sein Daily Driver — d
 Balamentum beantwortet die Frage »Woran sollte ich als Nächstes arbeiten?« für Situationen, in denen Aufgaben voneinander abhängen und zugleich auf unterschiedliche Lebensbereiche einzahlen. Zwei Rechen-Kernkonzepte:
 
 - **Gewichteter Abhängigkeitsgraph:** Abhängigkeiten tragen Gewichte. Pro Aufgabe werden Wertbeitrag (eigene Priorität plus gewichtete Werte der abhängigen Aufgaben) und Gesamtaufwand inklusive transitiver Abhängigkeiten berechnet; Zyklen werden erkannt und abgelehnt.
-- **Lebensbalance-Säulen:** nutzerdefiniert (neue Konten starten mit fünf Defaults: Körper, Beziehungen, Sinn, Mentale Gesundheit, Wirksamkeit — frei bearbeitbar). Jede Aufgabe zahlt auf 0..n Säulen ein (Investitionsanteil `share` mit Konfidenz `confidence`); die Säulen-Gewichtung (Summe 100 %) skaliert den Wertbeitrag multiplikativ. Gleichverteilung bleibt neutral.
+- **Lebensbalance-Säulen:** fünf feste Stammsäulen (Körper, Beziehungen, Sinn, Mentale Gesundheit, Wirksamkeit — je Nutzer eine Kopie; Anlegen, Umbenennen und Löschen sind gesperrt, einstellbar ist nur die Gewichtung). Jede Aufgabe zahlt auf 0..n Säulen ein (Investitionsanteil `share` mit Konfidenz `confidence`); die Säulen-Gewichtung (Summe 100 %) skaliert den Wertbeitrag multiplikativ. Gleichverteilung bleibt neutral.
 
 Erfolg bedeutet heute: Der Eigentümer plant seine echte Arbeit täglich darin. Der bewusst kleine Funktionsumfang (Prototyp-Stadium) ist eine Phase-Beschreibung, kein dauerhaftes Dogma — der Umfang wächst bewusst mit.
 

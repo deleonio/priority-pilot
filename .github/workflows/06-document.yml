@@ -429,7 +429,7 @@ jobs:
         # Alle Schreibzugriffe in einem Schritt: Titel-Rename, Body-Marker-Splice, GENAU EIN
         # ai-documenter-Kommentar (PATCH statt Duplikat), Labels (ai:documented zuletzt).
         # Läuft BEWUSST auch bei fehlgeschlagenem/abwesendem Claude-Schritt: das Skript hat
-        # einen Fallback-Pfad (Minimal-Kommentar + ai:documented + release:engineering), denn
+        # einen Fallback-Pfad (Minimal-Kommentar + ai:documented, seit #2111 ohne release:*), denn
         # der fail-closed-Precheck macht einen Re-Run nach gesetztem ai:documented unmöglich —
         # ein roter Job ohne Fallback wäre eine Sackgasse.
         id: render

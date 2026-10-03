@@ -58,16 +58,16 @@ Shadow-DOM-Selektoren (unpublizierte API).
 | `--pp-ink`, `--pp-ink-muted`      | Primär- und Sekundärtext (beide ≥ 4.5:1)              |
 | `--pp-status-open/inprocess/done` | Aufgabenstatus                                        |
 | `--pp-success/warning/danger`     | Rückmeldung — immer mit Icon **und** Text, nie allein |
-| `--pp-pillar-1…7`                 | Kategoriale Rampe für die nutzerdefinierten Säulen    |
+| `--pp-pillar-1…7`                 | Kategoriale Rampe für die Säulen-Visualisierung       |
 
 **Regeln**
 
 1. **Kontrast ist eine Zusage, keine Schätzung.** Text ≥ 4.5:1, bedienbare Grenzen und Signalflächen
    ≥ 3:1 — in **beiden** Farbschemata. Neue Werte werden gerechnet, nicht geschaut.
 2. **Farbe trägt nie allein Bedeutung** (BITV/WCAG 1.4.1). Status = Farbe **+** Text/Icon.
-3. **Die Säulen-Rampe wird der Reihe nach vergeben, nie durchgezählt-zyklisch.** Die Säulen sind
-   nutzerdefiniert; ab der 8. Säule wird nicht neu eingefärbt, sondern gebündelt oder nur der Name
-   gezeigt. Farbe folgt der Säule, nicht ihrem Rang — eine Umsortierung darf keine Umfärbung auslösen.
+3. **Die Säulen-Rampe wird der Reihe nach vergeben, nie durchgezählt-zyklisch.** Die Säulenzahl
+   ist fest (fünf); Farbe folgt der Säule, nicht ihrem Rang — eine Umsortierung darf keine
+   Umfärbung auslösen.
 4. **Die Rampe ist validiert, nicht geraten.** 7 Neon-Farben (#1273), als Dauer-Test verankert in
    `frontend/src/lib/pillarPalette.test.ts`: alle 21 Paare je Theme erreichen CIEDE2000 ΔE ≥ 7 unter
    Normalsicht und Protanopie/Deuteranopie/Tritanopie — schlechtestes Paar ΔE 12.6 (hell:

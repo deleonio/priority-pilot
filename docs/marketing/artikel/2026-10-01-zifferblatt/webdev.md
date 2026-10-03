@@ -12,11 +12,10 @@ Bilder: images/ (Screenshots + eine SVG zur Farb-Rampe, Generator im Ordner).
 
 _By Martin Oppitz · Balamentum_
 
-**TL;DR:** Six rules worth stealing from the Balamentum dashboard, which draws life balance as a
-dial in nine visual variants: display the unclamped ratio per pillar and cap only the aggregate;
-share one geometry source between renderers; drive entrance motion from a uniform instead of the
-shader clock; validate every color pair with CIEDE2000; own the color-scheme switch when web
-components are in play; and build at 375 px first, proven by a test.
+**TL;DR:** Five rules worth stealing from the Balamentum dashboard, which draws life balance as
+a dial in nine visual variants: display the unclamped ratio per pillar, cap only the aggregate,
+share one geometry between two renderers, drive entrance motion from a uniform instead of the
+shader clock, and validate every color pair with CIEDE2000 before it ships.
 
 ![The heart vessel with the per-pillar legend](images/screenshot-herz.png)
 
@@ -41,6 +40,12 @@ both.
 Normalization ends the display scale at the largest ratio present, at least 1.0, so the dashed
 target mark stays inside the picture even when every pillar sits below its goal.
 
+Two limits keep the reading honest. The effort behind a pillar is an estimate recorded at
+completion, not a tracked clock — the dial is as accurate as those estimates. And the only
+comparison available is against one's own targets: the five pillars are fixed for everyone,
+the target weights are personal, so two dials side by side compare two intentions, not two
+people.
+
 ## Nine faces, one answer
 
 Every variant follows a single rule — the largest ratio gets the largest form — and differs only
@@ -48,6 +53,12 @@ in material: soap-film bubbles with a Fresnel rim, hard-edged discs, faceted cry
 petals. "Bubbles" and "discs" are the same stack in two materials; "flower" and "crystal" are the
 same silhouette, smoothed once and fractured once. Users pick their dial in the settings; the
 choice is stored per device.
+
+One reading takes practice: the largest shape belongs to the largest ratio, not to the most
+important pillar. A pillar slightly above a small target outgrows a pillar far below a large
+one — the rank says where someone overshot, the target says where they meant to invest. That
+is why the legend prints actual, target and distance per pillar instead of letting the shapes
+speak alone.
 
 ![The nine-dial picker in the settings](images/screenshot-bildwahl.png)
 
@@ -58,7 +69,7 @@ _The picker lists all nine variants, each with its own reading guide (German UI;
 _The full set — heart, bubbles, discs, rings, rays, flower, crystal, segments, pointers —
 one answer in nine materials._
 
-## One geometry, two renderers — and a uniform for the clock
+## One geometry, two renderers
 
 Every variant draws from one geometry layer in a 100×100 field: figures top out at radius 33
 plus a swing reserve below the tick ring at 40, a minimum radius keeps a pillar without a target
@@ -74,8 +85,8 @@ the fallback is a full-value rendering, not a degraded one.
 
 Entrance motion must not hang on the shader clock. The render loop pauses in background tabs,
 and a still frame at `u_time = 0` renders the picture empty instead of finished — the dashboard
-was reopened from a background tab when this bit, and the bug report read like a blank widget.
-Progress arrives as a uniform, and a still frame simply passes 1.0.
+was reopened from a background tab when this bit. Progress arrives as a uniform, and a still
+frame simply passes 1.0.
 
 ```glsl
 // sketch: entrance progress must not hang on the shader clock
@@ -85,20 +96,23 @@ float rise = u_rise; // right: a uniform, passed in by the component
 
 ## Measure every color pair
 
-Each theme defines a ramp of seven pillar colors, one per rank — seven ranks, not seven pillars:
-users define their own pillars, and past the last rank the color goes neutral instead of
-cycling. Every pair must stay distinguishable under normal vision and three simulated
-color-vision deficiencies (protanopia, deuteranopia, tritanopia — a mathematical simulation,
-not user testing), so the whole matrix is validated with CIEDE2000 and pinned by a test: any
-pair below a ΔE of 7 fails the build. The ramp ships with its worst pairs measured — 12.6 (light)
-and 8.8 (dark), both under tritanopia, against the threshold of 7. Where contrast to the
-background falls short, the pillar name always appears as text beside the color (WCAG 1.4.1).
+Each theme defines a ramp of seven pillar colors, one per rank. The five fixed pillars map onto
+the first five ranks, and past the last rank the color goes neutral instead of cycling. Every
+pair must stay distinguishable under normal vision and three
+simulated color-vision deficiencies (protanopia, deuteranopia, tritanopia — a mathematical
+simulation, not user testing), so the whole matrix is validated with CIEDE2000 and pinned by a
+test: any pair below a ΔE of 7 fails the build. The ramp ships with its worst pairs measured —
+12.6 (light) and 8.8 (dark), both under tritanopia, against the threshold of 7. Where contrast
+to the background falls short, the pillar name always appears as text beside the color.
+
+The price is a small, constant tax: twenty-one pairs per theme, four vision models, re-checked
+whenever a color moves. That cadence is why the check lives in a test rather than in a design
+review — a reviewer approving a palette once cannot re-run the matrix in their head.
 
 ![The validated pillar color ramp](images/farbrampe-en.svg)
 
-_Seven pillar colors per theme — the light set shown on its own light surface, as users see it._
-
-## Own the color-scheme switch
+_Seven pillar colors per theme, shown for light and dark — the test guards all 21 pairs across
+four vision types. The neon look belongs to the dark set._
 
 A detail worth borrowing for any web-components app: the component library behind Balamentum
 resolves its own palette through `light-dark()` against `color-scheme`. Since `color-scheme`
@@ -108,14 +122,15 @@ mixed state — half your palette, half the component's.
 
 ## Small screens, quiet motion
 
-The reference viewport is 375 px; wider layouts are added with `min-width` queries, never the
-reverse. Interactive elements keep 44 px touch targets by default because the accessibility-
-first buttons they use enforce it, and the team's rule asks for an end-to-end test at 375×812
+The reference viewport is 375 px; the base styles are built for the narrow screen first and
+wider layouts are added with `min-width` queries. Interactive elements keep 44 px touch targets by default because the buttons they use come
+from an accessibility-first component library that enforces it, and the team's rule asks for an end-to-end test at 375×812
 with every user-visible change, asserting the core content stays readable without horizontal
 overflow. Motion uses two duration tokens (120 and 200 ms) that collapse under
 `prefers-reduced-motion`, and the dial's heartbeat follows the fill level — the slower the
 beat, the fuller the vessel — between 1.5 and 2.6 seconds. When motion is declined, the picture
-stays complete, just still.
+stays complete, just
+still.
 
 ![The dashboard at 375 px](images/screenshot-dashboard-mobil.png)
 
@@ -131,8 +146,6 @@ _The dial survives the reference width; screenshots show the German UI, captions
   empty stills.
 - Validate categorical color ramps with CIEDE2000 across vision types and pin the matrix in a
   test; let the name stand beside the color where contrast fails.
-- Own the color-scheme switch when web components are in play — setting only one of `data-theme`
-  and `color-scheme` ships a mixed state.
 - Build mobile-first at your narrowest reference width and prove it with a test, not a
   screenshot.
 

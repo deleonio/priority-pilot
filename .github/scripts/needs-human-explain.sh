@@ -120,6 +120,7 @@ case "$CMD" in
     FINDINGS="$(printf '%s\n' "$SRC" | tr -d '\r' \
       | grep -E '^#{1,6} [^#]|^[[:space:]]*[0-9]+\. ' \
       | sed -E 's/^#{1,6}[[:space:]]*//; s/^[[:space:]]*[0-9]+\.[[:space:]]*//' \
+      | grep -vE '^([-–—)[:space:]]|keine|\(keine\))*$' \
       | cut -c1-120 | head -8 \
       | awk 'NR>1{printf " | "} {printf "%s", $0} END{print ""}')"
 

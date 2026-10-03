@@ -1,7 +1,8 @@
 /**
- * Kanonische Stammdaten der fünf festen Lebensbalance-Säulen. Pillars sind **globale Stammdaten**
- * (für alle Nutzer identisch, nicht pro Nutzer isoliert) – daher liegen Name, Kurzbeschreibung und
- * Default-Gewichtung hier an **einer** Stelle. Genutzt vom Seed (`index.ts`) und der Migration
+ * Kanonische Stammdaten der fünf festen Lebensbalance-Säulen. Der Katalog ist **global** (für alle
+ * Nutzer identisch); jede Nutzerin und jeder Nutzer besitzt in `pillar.ts` eine eigene Kopie –
+ * daher liegen Name, Kurzbeschreibung und Default-Gewichtung hier an **einer** Stelle. Genutzt vom
+ * Seed (`index.ts`) und der Migration
  * (`migrate.ts`), damit beide zwingend dieselben Werte verwenden und nicht auseinander driften.
  *
  * Die Reihenfolge folgt der wissenschaftlichen Systematik von Hilarion Petzolds „Fünf Säulen

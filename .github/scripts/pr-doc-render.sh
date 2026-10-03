@@ -15,7 +15,9 @@
 #                davor das release:*-Mapping; vorhandene release:* bleiben unangetastet
 #
 # Ungültiges/fehlendes doc.json => Fallback: Minimal-Kommentar + ai:documented +
-# release:engineering + ::warning, Exit 0. Bewusst KEIN harter Fehler: der Precheck von
+# ::warning, Exit 0. KEIN release:*-Label mehr (#2111): Das Fallback-Label blockierte
+# den HAS_RELEASE-Guard des spaeteren echten Laufs - die Klassifikation blieb auf
+# Engineering stehen, obwohl der Documenter-Kommentar längst korrekt war. Bewusst KEIN harter Fehler: der Precheck von
 # Phase 7 ist fail-closed auf ai:documented — ein roter Job wäre nicht re-runbar und
 # damit eine Sackgasse. Nur wenn ai:documented selbst nicht setzbar ist: Exit 1 (der
 # Precheck lässt dann einen Re-Run zu).
@@ -106,6 +108,11 @@ fi
 CUR_TITLE="$(printf '%s' "$CUR" | jq -r '.title')"
 CUR_BODY="$(printf '%s' "$CUR" | jq -r '.body // ""')"
 HAS_RELEASE="$(printf '%s' "$CUR" | jq -r 'any(.labels[]; (.name | startswith("release:")))')"
+# #2111: release:engineering ist der erkennbare Fallback-Default (früherer Fallback-Pfad).
+# Ein anderes release:* am PR ist eine bewusste Entscheidung und bleibt unangetastet;
+# NUR Engineering darf ein späterer echter Lauf durch die Klassifikation ersetzen.
+CUR_ENG="$(printf '%s' "$CUR" | jq -r 'any(.labels[]; .name == "release:engineering")')"
+CUR_REAL="$(printf '%s' "$CUR" | jq -r 'any(.labels[]; (.name | startswith("release:")) and .name != "release:engineering")')"
 
 release_label() {
   case "$1" in
@@ -140,13 +147,11 @@ if [ "$DOC_OK" != "true" ]; then
 EOF
   if [ "$DRY_RUN" = "true" ]; then
     echo "[dry-run] Kommentar:"; cat "$WORK/comment.md"
-    echo "[dry-run] Labels: ai:documented, release:engineering"
+    echo "[dry-run] Labels: ai:documented (kein release:* im Fallback, #2111)"
   else
     if ! gh_retry gh pr comment "$PR" --repo "$REPO" --body-file "$WORK/comment.md"; then
       echo "::warning title=Fallback-Kommentar fehlgeschlagen::Konnte nicht gepostet werden."
     fi
-    gh_retry gh pr edit "$PR" --repo "$REPO" --add-label release:engineering || \
-      echo "::warning title=release:engineering fehlgeschlagen::Best-effort."
     gh_retry gh pr edit "$PR" --repo "$REPO" --add-label ai:documented || {
       echo "::error title=ai:documented nicht setzbar::Re-Run ist möglich (Precheck greift nicht)."
       exit 1
@@ -296,7 +301,7 @@ SCOPE="$(printf '%s' "$FINAL_TITLE" | sed -nE 's/^[a-z]+\(([^)]+)\).*/\1/p')"
 
 if [ "$DRY_RUN" = "true" ]; then
   echo "[dry-run] Kommentar:"; cat "$WORK/comment.md"
-  echo "[dry-run] Labels: ai:documented$( [ "$HAS_RELEASE" = "true" ] || echo ", $(release_label "$CLASSIFICATION")" )"
+  echo "[dry-run] Labels: ai:documented$( [ "$HAS_RELEASE" = "true" ] || echo ", $(release_label "$CLASSIFICATION")" )$( [ "$CUR_ENG" = "true" ] && [ "$CUR_REAL" != "true" ] && [ "$(release_label "$CLASSIFICATION")" != "release:engineering" ] && echo " (ersetzt Fallback release:engineering, #2111)" )"
 else
   existing_id="$(gh_retry gh api "repos/$REPO/issues/$PR/comments?per_page=100" \
     --paginate --jq '.[] | select(.body | startswith("<!-- ai-documenter -->")) | .id' 2>/dev/null \
@@ -323,6 +328,10 @@ if [ "$DRY_RUN" != "true" ]; then
   if [ "$HAS_RELEASE" != "true" ]; then
     gh_retry gh pr edit "$PR" --repo "$REPO" --add-label "$(release_label "$CLASSIFICATION")" \
       || echo "::warning title=release-Label fehlgeschlagen::Best-effort."
+  elif [ "$CUR_ENG" = "true" ] && [ "$CUR_REAL" != "true" ] && [ "$(release_label "$CLASSIFICATION")" != "release:engineering" ]; then
+    gh_retry gh pr edit "$PR" --repo "$REPO" --remove-label release:engineering \
+      && gh_retry gh pr edit "$PR" --repo "$REPO" --add-label "$(release_label "$CLASSIFICATION")" \
+      || echo "::warning title=Fallback-Label-Ersatz fehlgeschlagen::release:engineering blieb stehen oder Ersatzlabel fehlt — bitte Labels pruefen (#2111)."
   fi
   gh_retry gh pr edit "$PR" --repo "$REPO" --add-label ai:documented || {
     echo "::error title=ai:documented nicht setzbar::Re-Run ist möglich (Precheck greift nicht)."
