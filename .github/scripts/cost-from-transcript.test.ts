@@ -364,6 +364,8 @@ describe('Bestandsschutz cost-record.ts', () => {
 					cost: 1,
 					phase: 'implement',
 					model: 'claude-haiku-4-5',
+					runtime: 'pi',
+					configuredModel: 'opus',
 					effort: 'high',
 					verdict: 'reviewed',
 					findings: 2,
@@ -384,6 +386,12 @@ describe('Bestandsschutz cost-record.ts', () => {
 			assert.equal(entries[1].nits, 1);
 			assert.equal(entries[1].durationSeconds, 95, 'Dauer darf im Whitelist-Spiegel nicht verloren gehen');
 			assert.equal(entries[1].mcpCalls, 4, 'MCP-Calls dürfen im Whitelist-Spiegel nicht verloren gehen');
+			assert.equal(entries[1].runtime, 'pi', 'Agent-Laufzeit darf im Whitelist-Spiegel nicht verloren gehen (#2090)');
+			assert.equal(
+				entries[1].configuredModel,
+				'opus',
+				'konfiguriertes Modell darf im Whitelist-Spiegel nicht verloren gehen (#2090)',
+			);
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}

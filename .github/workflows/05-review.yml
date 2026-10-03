@@ -516,6 +516,7 @@ jobs:
           phase: review
           since-epoch: ${{ steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
+          configured-model: ${{ steps.setup.outputs.model-alias }}
           effort: ${{ steps.setup.outputs.effort }}
           # Laufzeit + Sitzungsverzeichnis entscheiden, WOHER der Verbrauch gelesen wird.
           # session-dir ist nur bei runtime=pi gefüllt; bei claude bleibt es leer und die

@@ -224,6 +224,7 @@ jobs:
           phase: team
           since-epoch: ${{ steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
+          configured-model: ${{ steps.setup.outputs.model-alias }}
           effort: ${{ steps.setup.outputs.effort }}
           runtime: ${{ steps.setup.outputs.runtime }}
           session-dir: ${{ steps.setup.outputs.session-dir }}

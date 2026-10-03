@@ -43,6 +43,13 @@ inputs:
     description: 'Aufgelöster LLM-Provider (steps.setup.outputs.llm-provider) — nur zur Ablage'
     required: false
     default: ''
+  configured-model:
+    description: >-
+      Konfiguriertes Modell als Alias/Referenz VOR der Auflösung
+      (steps.setup.outputs.model-alias) — landet als configuredModel im Datensatz,
+      im Unterschied zum beobachteten model (#2090). Leer = Feld bleibt weg.
+    required: false
+    default: ''
   runtime:
     description: >-
       Laufzeit dieses Laufes (steps.setup.outputs.runtime): "claude" (Default) oder "pi".
@@ -94,6 +101,7 @@ runs:
         PHASE: ${{ inputs.phase }}
         SINCE_EPOCH: ${{ inputs.since-epoch }}
         PROVIDER: ${{ inputs.provider }}
+        CONFIGURED_MODEL: ${{ inputs.configured-model }}
         RUNTIME: ${{ inputs.runtime }}
         SESSION_DIR: ${{ inputs.session-dir }}
         EFFORT: ${{ inputs.effort }}
@@ -146,9 +154,11 @@ runs:
         SCRIPT="${GITHUB_ACTION_PATH}/../../scripts/${SCRIPT_NAME}"
         OUT="$(node "$SCRIPT" \
           --issue "$ISSUE" --phase "$PHASE" --provider "$PROVIDER" \
+          --runtime "$RUNTIME" --configured-model "$CONFIGURED_MODEL" \
           "${SCOPE_ARGS[@]}" "${EXTRA_ARGS[@]}" 2>&1)" \
           || OUT="$(pnpm exec tsx "$SCRIPT" \
               --issue "$ISSUE" --phase "$PHASE" --provider "$PROVIDER" \
+              --runtime "$RUNTIME" --configured-model "$CONFIGURED_MODEL" \
               "${SCOPE_ARGS[@]}" "${EXTRA_ARGS[@]}" 2>&1 || true)"
         printf '%s\n' "$OUT"
 
@@ -166,6 +176,7 @@ runs:
         PHASE: ${{ inputs.phase }}
         ISSUE: ${{ inputs.issue }}
         PROVIDER: ${{ inputs.provider }}
+        CONFIGURED_MODEL: ${{ inputs.configured-model }}
         RUNTIME: ${{ inputs.runtime }}
         TOKENS_IN: ${{ steps.collect.outputs.tokensIn }}
         TOKENS_OUT: ${{ steps.collect.outputs.tokensOut }}
@@ -181,6 +192,13 @@ runs:
         COST_CACHE_R: ${{ steps.collect.outputs.costCacheReadUsd }}
         COST_OUTPUT: ${{ steps.collect.outputs.costOutputUsd }}
       run: |
+        # AK3 (#2090): Provider und beobachtetes Modell, die nicht zusammenpassen, laut
+        # benennen — sonst vermischen Kostensaetze Agent/Provider/Modell weiter still.
+        case "${PROVIDER}:${MODEL}" in
+          claude:glm-*|claude:z-ai-*)
+            echo "::warning title=Modell/Provider-Mismatch::Provider '${PROVIDER:-?}' mit beobachtetem Modell '${MODEL:-?}' — vermutlich falscher provider-Input oder ein Alias, der zur nativen ID durchschoss (#2090)."
+            ;;
+        esac
         {
           echo "### 💰 Token & Kosten — Phase ${PHASE} (#${ISSUE})"
           echo ""
@@ -191,6 +209,7 @@ runs:
             echo "| --- | --- |"
             echo "| Laufzeit | \`${RUNTIME:-claude}\` |"
             echo "| Modell | \`${MODEL:-unbekannt}\` |"
+            echo "| Konfiguriertes Modell | \`${CONFIGURED_MODEL:-—}\` |"
             echo "| Provider | \`${PROVIDER:-?}\` |"
             echo "| Token in (inkl. Cache) | ${TOKENS_IN} |"
             echo "| → echter Input | ${INPUT_TOKENS:-?} |"

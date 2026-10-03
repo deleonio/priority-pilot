@@ -182,6 +182,10 @@ describe('main — Datensatz im .costs-Schema', () => {
 				'analyse',
 				'--provider',
 				'claude',
+				'--runtime',
+				'pi',
+				'--configured-model',
+				'opus',
 				'--effort',
 				'high',
 				'--verdict',
@@ -210,6 +214,8 @@ describe('main — Datensatz im .costs-Schema', () => {
 			assert.ok(entry.cost > 0, 'Anthropic-Modell ist bepreist — cost darf nicht 0 sein');
 			// Kontext-Flags landen im Eintrag (gleicher Weg wie beim Claude-Pendant)
 			assert.equal(entry.effort, 'high');
+			assert.equal(entry.runtime, 'pi', 'Agent-Laufzeit im Datensatz (#2090)');
+			assert.equal(entry.configuredModel, 'opus', 'konfiguriertes Modell im Datensatz (#2090)');
 			assert.equal(entry.verdict, 'reviewed');
 			assert.equal(entry.findings, 3);
 			assert.equal(entry.nits, 2);

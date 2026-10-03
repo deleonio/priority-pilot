@@ -332,6 +332,10 @@ runs:
           echo "resolved-model=" >> "$GITHUB_OUTPUT"
         fi
 
+        # Konfigurierter Alias VOR der Aufloesung (#2090): Kostensaetze unterscheiden das
+        # geroutete Modell vom beobachteten; leer = kein Phasen-Modell (settings-Default).
+        echo "model-alias=${CLAUDE_MODEL}" >> "$GITHUB_OUTPUT"
+
         # Subagent-Modell: CLAUDE_CODE_SUBAGENT_MODEL ist seit CLI 2.1.251 nur noch der
         # DEFAULT für Subagents ohne eigenes model-Frontmatter — das Rollen-Frontmatter
         # (haiku) schlägt ihn. 'inherit' bedeutet ausdrücklich „kein Override, Subagents
