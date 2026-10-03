@@ -144,6 +144,40 @@ jobs:
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
           echo "soft_deadline_epoch=$((now + 600))" >> "$GITHUB_OUTPUT"
 
+      - name: Documenter-Provider bestimmen (pi-Alias-Ausweich, #2098)
+        # Issue-Weg 2 als Automatik: Ohne openrouter-Aliase bricht jeder pi-Documenter
+        # fail-hard ab (fb566cb3) — der Ausfall vom 02.10. waren 15 rote Laufe in Folge,
+        # weil der Runtime-Wechsel die Alias-Variable nicht mitgezogen hatte. Der Wechsel
+        # auf zai passiert hier LAUT (Warning + Summary), nur wenn pi laeuft UND keine
+        # openrouter-Aliase existieren UND zai-Aliase verfuegbar sind; sonst bleibt es
+        # beim konfigurierten Provider inklusive dessen Fehlerbild.
+        id: doc-provider
+        env:
+          DOC_PROVIDER: ${{ vars.LLM_PROVIDER_DOCUMENTER || 'openrouter' }}
+          RUNTIME: ${{ vars.AGENT_RUNTIME || 'claude' }}
+          PI_ALIASES_JSON: ${{ vars.PI_MODEL_ALIASES }}
+        run: |
+          set -uo pipefail
+          EFF="$DOC_PROVIDER"
+          alias_count() { # <provider> — Alias-Eintrage aus Var + eingecheckter Tabelle
+            local var file
+            var="$(printf '%s' "${PI_ALIASES_JSON:-}" | jq -r --arg p "$1" '.[$p] // {} | length' 2>/dev/null || echo 0)"
+            file="$(jq -r --arg p "$1" '.[$p] // {} | length' .github/pi/model-aliases.json 2>/dev/null || echo 0)"
+            echo $(( var + file ))
+          }
+          if [ "$RUNTIME" = "pi" ] && [ "$DOC_PROVIDER" = "openrouter" ] && [ "$(alias_count openrouter)" -eq 0 ]; then
+            if [ "$(alias_count zai)" -gt 0 ]; then
+              EFF="zai"
+              echo "::warning title=Documenter-Provider-Ausweich::Keine openrouter-Aliase fuer pi (vars.PI_MODEL_ALIASES + model-aliases.json leer) — Documenter laeuft stattdessen ueber zai (#2098, Issue-Weg 2). Fix: openrouter-Aliase setzen oder LLM_PROVIDER_DOCUMENTER=zai stellen."
+              echo "- ⚠️ Documenter-Provider: openrouter → **zai** (keine openrouter-pi-Aliase, #2098-Ausweich)" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::error title=Documenter ohne pi-Aliase::Weder openrouter noch zai haben pi-Alias-Eintraege (vars.PI_MODEL_ALIASES) — der Lauf wuerde im Modell-Step scheitern. vars.PI_MODEL_ALIASES setzen (s. .github/pi/README.md) oder LLM_PROVIDER_DOCUMENTER auf einen Alias-faehigen Provider stellen."
+              exit 1
+            fi
+          fi
+          echo "provider=$EFF" >> "$GITHUB_OUTPUT"
+          echo "Documenter-Provider: $EFF (konfiguriert: $DOC_PROVIDER, Laufzeit: $RUNTIME)."
+
       - name: Setup Claude Code (mit Memory-Load)
         id: setup
         uses: ./.github/actions/setup-agent
@@ -159,7 +193,7 @@ jobs:
           pi-model-aliases-json: ${{ vars.PI_MODEL_ALIASES }}
           # Documenter läuft per Default über OpenRouter (Free-Model über den haiku-Alias via
           # vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER); Notbremse: Repo-Var LLM_PROVIDER_DOCUMENTER.
-          llm-provider: ${{ vars.LLM_PROVIDER_DOCUMENTER || 'openrouter' }}
+          llm-provider: ${{ steps.doc-provider.outputs.provider }}
           model: ${{ vars.CLAUDE_MODEL_DOCUMENTATION || 'haiku' }}
           effort: 'low'
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
