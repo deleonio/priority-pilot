@@ -1,14 +1,20 @@
 import { KolAlert, KolButton } from '@public-ui/react-v19';
+import type { Task } from 'client';
+import { TaskStatus } from 'client';
 import { useEffect, useState } from 'react';
 import { isNativeChannel } from '../lib/platform';
 
 type InstallPromptProps = {
+	/** App-State `Task[] | null` (Start null, Mount außerhalb der Narrowing-Region in App). */
+	tasks: Task[] | null;
 	onDismiss?: () => void;
 };
 
 const DISMISS_KEY = 'pwa-install-dismissed';
 
-export const InstallPrompt = ({ onDismiss }: InstallPromptProps) => {
+export const InstallPrompt = ({ tasks, onDismiss }: InstallPromptProps) => {
+	// #1972: Aha-Moment = mindestens eine erledigte Aufgabe (Muster DayDoneHint).
+	const hasDoneTask = (tasks ?? []).some((task) => task.status === TaskStatus.Done);
 	const [showPrompt, setShowPrompt] = useState(false);
 	const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 	const [isInstalled, setIsInstalled] = useState(false);
@@ -104,8 +110,10 @@ export const InstallPrompt = ({ onDismiss }: InstallPromptProps) => {
 		}
 	};
 
-	// Nicht anzeigen, wenn bereits installiert, kein Prompt verfügbar oder in der nativen App (ADR 0016)
-	if (isInstalled || !showPrompt || isNativeChannel()) {
+	// Nicht anzeigen, wenn bereits installiert, kein Prompt verfügbar oder in der nativen App (ADR 0016).
+	// #1972 Aha-Gate: ohne erledigte Aufgabe bleibt der Prompt aus — auch im iOS-Fallback;
+	// beforeinstallprompt bleibt weiterhin preventDefault()-iert (Browser-Prompt unterdrückt).
+	if (isInstalled || !showPrompt || !hasDoneTask || isNativeChannel()) {
 		return null;
 	}
 

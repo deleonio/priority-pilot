@@ -815,6 +815,13 @@ export const SettingsPage = ({
 							)}
 							{geoEnabled && (
 								<>
+									{/* #1972: PWA-Grenze direkt am Aktivierungspunkt erklären (Positionsmuster geoDenied);
+										    Text-Empfehlung statt zweitem Install-Button — die Aktion bleibt im InstallPrompt. */}
+									<KolAlert _type="warning" _label="Nähe-Alarm nur bei geöffneter App">
+										Zuverlässige Nähe-Alarme gibt es nur, solange die App geöffnet ist. Im Browser kann der
+										Hintergrund-Alarm entfallen — installiere Balamentum als App, damit der Nähe-Alarm zuverlässig
+										ankommt.
+									</KolAlert>
 									{/* #933 AK1/AK5: Test-Schalter stößt refresh() an; während der Ermittlung
 										    deaktiviert (Re-Entrancy-Guard im Hook). Der key-Wechsel auf geoPending
 										    erzwingt einen Remount: Der KoliBri-Adapter setzt Props nach dem Mount als
