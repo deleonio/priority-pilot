@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.14 - 2026-10-03
 
-_Enthält v0.14.0 – v0.14.17._
+_Enthält v0.14.0 – v0.14.18._
 
 ### 🎉 New Features
 
@@ -28,6 +28,7 @@ _Enthält v0.14.0 – v0.14.17._
 - chore(ci): connect tailscale exit node via oauth client with authkey fallback by @deleonio in https://github.com/deleonio/priority-pilot/pull/2128
 - ci: documenter falls back to zai when pi openrouter aliases are missing by @deleonio in https://github.com/deleonio/priority-pilot/pull/2135
 - ci: make phase label precheck parseable again by @deleonio in https://github.com/deleonio/priority-pilot/pull/2136
+- ci: cache pi packages via scheduled warm-up run (#2092) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2134
 
 ## v0.13 - 2026-10-03
 
@@ -122,7 +123,6 @@ _Enthält v0.11.0 – v0.11.31._
 - feat(server): add pacing hint to MCP tool descriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1881
 - feat(server): add evening streak reminder push (#1836) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1883
 - feat(server): send care push in the user's app language (#1879) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1880
-- feat(server): send care push in the user's app language (#1879) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1880
 - docs(skills): add ticket-import skill for document-to-issue imports by @deleonio in https://github.com/deleonio/priority-pilot/pull/1905
 - feat(server): add feedback_send mcp tool for app feedback by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1915
 - feat(frontend): publish terms of use and link them in app help (#1891) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1918
@@ -131,6 +131,7 @@ _Enthält v0.11.0 – v0.11.31._
 
 ### 🐞 Bug Fixes
 
+- docs(arc42): align package model with free/plus/pro and adr 0018 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1888
 - docs(arc42): align package model with free/plus/pro and adr 0018 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1888
 - fix(native): keep login after app restart by flushing cookies (#1900) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1909
 - revert(ci): sign demo.apk with debug keystore again (#1779) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1910
