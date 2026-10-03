@@ -132,6 +132,8 @@ jobs:
           phase: ${{ steps.route.outputs.phase }}
           ticket: ${{ steps.route.outputs.ticket }}
           defer-on-peak: 'true'
+          zai-peak-mode: ${{ vars.ZAI_PEAK_MODE }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
 
       - name: Phasen-Routing aus ai-phase-routing-Tabelle
         # ZUERST: Die Tabelle ist die analysgetriebene Primärsteuerung (ADR-0004).

@@ -29,6 +29,14 @@ inputs:
     description: 'Token für die gh-Abfrage (lesend genügt)'
     required: false
     default: ${{ github.token }}
+  zai-peak-mode:
+    description: 'Wert von vars.ZAI_PEAK_MODE (warn | defer) — der Aufrufer reicht die Repo-Variable durch; composite Actions haben keinen vars-Context (#2100).'
+    required: false
+    default: 'warn'
+  llm-provider:
+    description: 'Wert von vars.LLM_PROVIDER — dito; nur zai-Läufe werden vertagt (#2100).'
+    required: false
+    default: ''
   defer-on-peak:
     description: >-
       true = ZAI_PEAK_MODE=defer vertagt den Lauf im zai-Peak-Fenster (Mo-Fr 14-18 SGT)
@@ -56,8 +64,8 @@ runs:
         REPO: ${{ inputs.repo }}
         TRIGGER_LABEL: ${{ inputs.trigger-label }}
         DEFER_ON_PEAK: ${{ inputs.defer-on-peak }}
-        ZAI_PEAK_MODE: ${{ vars.ZAI_PEAK_MODE }}
-        LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
+        ZAI_PEAK_MODE: ${{ inputs.zai-peak-mode }}
+        LLM_PROVIDER: ${{ inputs.llm-provider }}
       run: |
         # Ein unbekannter Phasen-Name lässt das Skript hart scheitern (exit 2) —
         # bewusst kein Fail-open: ein Tippfehler soll laut auffallen, nicht das

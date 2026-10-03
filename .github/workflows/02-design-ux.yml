@@ -65,6 +65,8 @@ jobs:
           phase: ux
           ticket: ${{ steps.issue.outputs.number }}
           defer-on-peak: 'true'
+          zai-peak-mode: ${{ vars.ZAI_PEAK_MODE }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
 
       - name: Für workflow_dispatch immer proceed=true
         id: check-dispatch
