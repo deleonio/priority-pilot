@@ -6,14 +6,21 @@
  */
 
 import { findProviderByName, loadActiveProvider, toRuntimeConfig } from './llmProviders.js';
+import { normalizeSuggestedShares } from '../logics/pillarShares.js';
 import { fetchProviderEndpoint } from './endpointGuard.js';
 import { upstreamErrorDetail } from './upstreamError.js';
 import type { LlmProvider as LlmProviderRow } from '../models/index.js';
 
-/** Eine vorgeschlagene Säulen-Einzahlung: Säulen-ID plus Konfidenz in Prozent (0–100). */
+/**
+ * Eine vorgeschlagene Säulen-Einzahlung: Säulen-ID plus Konfidenz in Prozent (0–100) und — seit
+ * #2076 — optional der Anteil an der Aufgabe in Prozent (ganzzahlig 5–80, Summe über alle Säulen
+ * 100). Optionale Schnittstelle: Alt-Klassifikatoren und gespeicherte Feedback-Zeilen ohne Anteil
+ * bleiben gültig; `extractSuggestions` liefert den Anteil über die Normalisierung stets mit.
+ */
 export interface PillarSuggestion {
 	pillarId: number;
 	confidence: number;
+	share?: number;
 }
 
 /**
@@ -194,6 +201,11 @@ const WEAK_SIGNAL_PILLARS = ['Sinn', 'Mentale Gesundheit'];
 /**
  * Baut den System-Prompt dynamisch aus den übergebene Säulen-Beschreibungen.
  * Die Beschreibungen stammen aus der Datenbank (SEED_PILLARS) und fließen so automatisch ein.
+ *
+ * Seit #2076 verlangt der Prompt für JEDE Säule einen Anteil (`share`, ganzzahlig 5–80, Summe
+ * exakt 100) neben der Konfidenz — die „leere Liste“-Regel ist entfallen, denn jede Aufgabe zahlt
+ * auf jede Säule ein (#1635), nur unterschiedlich stark. Die Konfidenz-Deckelung der schwachen
+ * Säulen bleibt; für Anteile gibt es keine solche Deckelung.
  */
 const buildSystemPrompt = (pillars: { id: number; name: string; description?: string }[]): string => {
 	const pillarDescriptions = pillars
@@ -213,10 +225,16 @@ const buildSystemPrompt = (pillars: { id: number; name: string; description?: st
 		'Hinweise zur Konfidenz:',
 		'- Körper, Beziehungen und Wirksamkeit lassen sich meist zuverlässig erkennen → hohe Konfidenz möglich.',
 		`- Sinn und Mentale Gesundheit sind nur ein schwaches Signal → Konfidenz höchstens ${WEAK_SIGNAL_CONFIDENCE_CEILING}.`,
-		'- Nenne nur Säulen, auf die die Aufgabe plausibel einzahlt. Passt keine, gib eine leere Liste zurück.',
+		'',
+		'Hinweise zum Anteil (share):',
+		'- Schätze für jede der Säulen, wie viel Prozent der Aufgabe auf sie entfällt.',
+		'- Der Anteil ist eine ganze Zahl zwischen 5 und 80, die Summe aller Anteile ist exakt 100.',
+		'- Wie du die Anteile innerhalb dieser Grenzen verteilst, entscheidet sich je Aufgabe nach Titel und Beschreibung:',
+		'  eine klare Fokusaufgabe darf eine Säule dominant führen, eine gemischte Aufgabe verteilt breiter.',
 		'',
 		'Antworte ausschließlich mit JSON in genau dieser Form (keine Erklärung, kein Markdown):',
-		'{ "pillars": [ { "pillarId": <ganzzahl>, "confidence": <0-100> } ] }',
+		'{ "pillars": [ { "pillarId": <ganzzahl>, "confidence": <0-100>, "share": <5-80> } ] }',
+		'Nenne alle übergebenen Säulen, mit pillarId, confidence und share.',
 		'Verwende nur die pillarId-Werte aus der vom Nutzer übergebenen Säulen-Liste.',
 	].join('\n');
 };
@@ -225,27 +243,43 @@ const buildSystemPrompt = (pillars: { id: number; name: string; description?: st
  * Few-Shot-Beispiele, damit das Modell Format und Konfidenz-Niveau übernimmt. Die Säulen werden über
  * ihren **Namen** referenziert (nicht über hartkodierte IDs) und erst in {@link fewShotMessages} gegen
  * die real injizierte Säulen-Liste aufgelöst — so passen die Beispiel-IDs immer zur Seed-Reihenfolge.
+ *
+ * Seit #2076 tragen die Beispiele je Säule auch den Anteil — ALLE Säulen, Anteile ganzzahlig
+ * 5–80, Summe exakt 100. Bewusst ein Fokusfall (eine Säule dominant) UND ein Mischfall (breite
+ * Verteilung) neben der Treppenform, damit das Modell nicht reflexhaft eine einzige Form wiederholt.
  */
 const FEW_SHOT = [
 	{
 		title: 'Dreimal pro Woche joggen gehen',
 		description: 'Ausdauer aufbauen und morgens 5 km laufen.',
-		pillars: [{ name: 'Körper', confidence: 95 }],
+		pillars: [
+			{ name: 'Körper', confidence: 95, share: 80 },
+			{ name: 'Beziehungen', confidence: 20, share: 5 },
+			{ name: 'Sinn', confidence: 15, share: 5 },
+			{ name: 'Mentale Gesundheit', confidence: 30, share: 5 },
+			{ name: 'Wirksamkeit', confidence: 25, share: 5 },
+		],
 	},
 	{
-		title: 'Wochenende mit den Eltern verbringen',
-		description: 'Besuch über zwei Tage, gemeinsam kochen.',
+		title: 'Mit Freunden joggen und danach gemeinsam kochen',
+		description: 'Sport und Begegnung verbinden — nichts dominiert.',
 		pillars: [
-			{ name: 'Beziehungen', confidence: 90 },
-			{ name: 'Mentale Gesundheit', confidence: 40 },
+			{ name: 'Körper', confidence: 70, share: 30 },
+			{ name: 'Beziehungen', confidence: 85, share: 25 },
+			{ name: 'Sinn', confidence: 40, share: 20 },
+			{ name: 'Mentale Gesundheit', confidence: 55, share: 15 },
+			{ name: 'Wirksamkeit', confidence: 30, share: 10 },
 		],
 	},
 	{
 		title: 'Zertifizierung für Cloud-Architektur abschließen',
 		description: 'Lernen und Prüfung ablegen.',
 		pillars: [
-			{ name: 'Wirksamkeit', confidence: 92 },
-			{ name: 'Mentale Gesundheit', confidence: 35 },
+			{ name: 'Körper', confidence: 10, share: 5 },
+			{ name: 'Beziehungen', confidence: 5, share: 5 },
+			{ name: 'Sinn', confidence: 25, share: 10 },
+			{ name: 'Mentale Gesundheit', confidence: 45, share: 15 },
+			{ name: 'Wirksamkeit', confidence: 90, share: 65 },
 		],
 	},
 ] as const;
@@ -294,10 +328,10 @@ const fewShotMessages = (pillars: { id: number; name: string }[]): { role: strin
 	const idByName = new Map(pillars.map((pillar) => [pillar.name, pillar.id]));
 	return FEW_SHOT.flatMap((example) => {
 		const resolved: PillarSuggestion[] = [];
-		for (const { name, confidence } of example.pillars) {
+		for (const { name, confidence, share } of example.pillars) {
 			const pillarId = idByName.get(name);
 			if (pillarId !== undefined) {
-				resolved.push({ pillarId, confidence });
+				resolved.push({ pillarId, confidence, share });
 			}
 		}
 		return [
@@ -343,7 +377,11 @@ const feedbackMessages = (input: ClassifyPillarsInput): { role: string; content:
 				const confidence = ceilingPillarIds.has(entry.pillarId)
 					? Math.min(clamped, WEAK_SIGNAL_CONFIDENCE_CEILING)
 					: clamped;
-				return { pillarId: entry.pillarId, confidence };
+				// #2076: gelernte Anteile fließen mit — Altzeilen ohne Anteil unverändert (additive
+				// Schnittstelle), damit die assistant-Beispielantworten die alte Form behalten.
+				return entry.share === undefined
+					? { pillarId: entry.pillarId, confidence }
+					: { pillarId: entry.pillarId, confidence, share: entry.share };
 			});
 		if (resolved.length === 0) {
 			return [];
@@ -361,6 +399,12 @@ const feedbackMessages = (input: ClassifyPillarsInput): { role: string; content:
 /**
  * Liest aus der (bereits geparsten) Modell-Antwort die Säulen-Vorschläge: nur bekannte `pillarId`,
  * dublettenfrei, Konfidenz auf [0,100] geclamped und für die schwachen Säulen zusätzlich gedeckelt.
+ *
+ * Seit #2076 wird die Antwort über ALLE Säulen auf eine gültige Verteilung gebracht (#2076, AK2):
+ * Rohe Anteile landen in einer Basis über ALLE Säulen (fehlende Säulen und Unsinns-Werte als 0)
+ * und werden mit {@link normalizeSuggestedShares} auf ganzzahlig · je ≥ 5 · je ≤ 80 · Summe exakt
+ * 100 gebracht. Jede Säule kommt ins Ergebnis — Säulen ohne Modell-Stimme mit Konfidenz 0. Nur
+ * die Konfidenz kennt das Weak-Signal-Ceiling; Anteile werden bewusst nicht darauf gedeckelt.
  */
 const extractSuggestions = (parsed: unknown, input: ClassifyPillarsInput): PillarSuggestion[] => {
 	if (typeof parsed !== 'object' || parsed === null || !Array.isArray((parsed as { pillars?: unknown }).pillars)) {
@@ -369,24 +413,37 @@ const extractSuggestions = (parsed: unknown, input: ClassifyPillarsInput): Pilla
 	const validIds = new Map(input.pillars.map((pillar) => [pillar.id, pillar.name]));
 	const ceilingPillarIds = weakSignalPillarIds(input.pillars);
 
-	const suggestions: PillarSuggestion[] = [];
-	const seen = new Set<number>();
+	const confidences = new Map<number, number>();
+	const rawShares = new Map<number, number>();
 	for (const raw of (parsed as { pillars: unknown[] }).pillars) {
 		if (typeof raw !== 'object' || raw === null) {
 			continue;
 		}
 		const { pillarId } = raw as Record<string, unknown>;
-		if (typeof pillarId !== 'number' || !Number.isInteger(pillarId) || !validIds.has(pillarId) || seen.has(pillarId)) {
+		if (
+			typeof pillarId !== 'number' ||
+			!Number.isInteger(pillarId) ||
+			!validIds.has(pillarId) ||
+			confidences.has(pillarId)
+		) {
 			continue;
 		}
 		let confidence = clampConfidence((raw as Record<string, unknown>).confidence);
 		if (ceilingPillarIds.has(pillarId)) {
 			confidence = Math.min(confidence, WEAK_SIGNAL_CONFIDENCE_CEILING);
 		}
-		seen.add(pillarId);
-		suggestions.push({ pillarId, confidence });
+		const share = (raw as Record<string, unknown>).share;
+		confidences.set(pillarId, confidence);
+		rawShares.set(pillarId, typeof share === 'number' && Number.isFinite(share) ? share : 0);
 	}
-	return suggestions.sort((a, b) => a.pillarId - b.pillarId);
+	const shares = normalizeSuggestedShares(input.pillars.map((pillar) => rawShares.get(pillar.id) ?? 0));
+	return input.pillars
+		.map((pillar, index) => ({
+			pillarId: pillar.id,
+			confidence: confidences.get(pillar.id) ?? 0,
+			share: shares[index],
+		}))
+		.sort((a, b) => a.pillarId - b.pillarId);
 };
 
 /** Extrahiert den JSON-String aus der Chat-Completion-Antwort und parst ihn defensiv. */

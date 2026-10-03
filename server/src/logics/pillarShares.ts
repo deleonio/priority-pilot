@@ -81,6 +81,53 @@ export const distributeWithMinimum = (base: readonly number[]): number[] => {
 	}
 };
 
+/** Anteils-Deckelung des KI-Säulenvorschlags (#2076) — bewusst nur für Anteile, nicht für Konfidenzen. */
+const SHARE_MAX = 80;
+
+/**
+ * Bringt KI-Anteilsvorgaben (#2076, AK1/AK2) auf eine gültige Verteilung über ALLE Säulen:
+ * ganzzahlig, jeder Anteil ≥ `SHARE_MIN`, jeder ≤ 80 — sofern mit der Säulenzahl lösbar, weshalb
+ * der wirksame Cap `min(SHARE_MAX, SHARE_TOTAL − SHARE_MIN·(n−1))` gilt (eine einzige Säule bleibt
+ * über den Früh-Rückweg bei `SHARE_TOTAL`, zwanzig Säulen erzwingen 20 × 5). Fehlende Anteile
+ * kommen als 0 an und rutschen auf den Mindestanteil; Unsinns-Werte (NaN/unendlich) gelten als
+ * fehlend. Das Wasser-Niveau (ein Faktor λ auf die gesäuberte Vorgabe, geklemmt auf
+ * [SHARE_MIN, Cap]) ist monoton in λ, seine Summe daher per Bisektion auf `SHARE_TOTAL` bringbar;
+ * die Ganzzahligkeit liefert anschließend `roundSharesToTotal` — keine zweite Rundungslogik.
+ */
+export const normalizeSuggestedShares = (base: readonly number[]): number[] => {
+	const count = base.length;
+	if (count <= 1) {
+		return count === 0 ? [] : [SHARE_TOTAL];
+	}
+	const cap = Math.min(SHARE_MAX, SHARE_TOTAL - SHARE_MIN * (count - 1));
+	const cleaned = base.map((value) => (Number.isFinite(value) ? Math.min(Math.max(value, 0), cap) : 0));
+	if (cleaned.every((value) => value === 0)) {
+		return distributeWithMinimum(cleaned);
+	}
+	const level = (factor: number): number[] =>
+		cleaned.map((value) => {
+			const clamped = Math.min(cap, Math.max(SHARE_MIN, value * factor));
+			// Konvergiert λ exakt auf eine Ganzzahl-Stelle, wird der exakte Wert fixesiert — sonst
+			// verschenkt `roundSharesToTotal` den Rundungsrest an Bruchteile-Phantome (40−ε → 41).
+			const rounded = Math.round(clamped);
+			return Math.abs(clamped - rounded) < 1e-9 ? rounded : clamped;
+		});
+	let lo = 0;
+	let hi = 1;
+	while (level(hi).reduce((acc, share) => acc + share, 0) < SHARE_TOTAL) {
+		hi *= 2;
+	}
+	for (let iteration = 0; iteration < 64; iteration += 1) {
+		const mid = (lo + hi) / 2;
+		if (level(mid).reduce((acc, share) => acc + share, 0) < SHARE_TOTAL) {
+			lo = mid;
+		} else {
+			hi = mid;
+		}
+	}
+	return roundSharesToTotal(level((lo + hi) / 2));
+};
+
 /** Anteile der Rang-Treppe: die angetippte Säule von Rang n erhält `RANG_ANTEILE[n − 1]` (#2075). */
 const RANG_ANTEILE = [50, 20, 15, 10, 5];
 
