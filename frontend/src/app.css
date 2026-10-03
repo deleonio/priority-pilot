@@ -2722,6 +2722,36 @@ kol-toolbar {
 	min-height: 44px;
 }
 
+/* #2078: KI-Vorschlags-Block — Herkunft + fünf Anteile als kompakte Liste, darunter das
+   Button-Paar Übernehmen/Verwerfen; alles voll breit und ohne festes Maß, damit der Block
+   bei 375 px ohne horizontales Scrollen umbricht. Touch-Ziele >= 44 px wie die Rangliste. */
+.pillar-suggestion-block {
+	margin-top: 0.5rem;
+	padding: 0.5rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 0.375rem;
+	display: grid;
+	gap: 0.5rem;
+}
+
+.pillar-suggestion-shares {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: 0.25rem;
+}
+
+.pillar-suggestion-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--pp-gap-tight);
+}
+
+.pillar-suggestion-actions kol-button {
+	min-height: 44px;
+}
+
 /* --- Serien-Tab (#335) --- */
 /* Baum-Stil analog zur Aufgaben-Liste (`.task-tree`): rundum ohne feste Breiten, damit die Liste
    auf Mobilbreite (375px) ohne horizontales Scrollen umbricht. */

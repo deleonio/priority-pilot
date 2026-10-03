@@ -3267,7 +3267,9 @@ describe('TaskForm — KI-Vorschlag-Block (#2078)', () => {
 		expect(screen.getByRole('button', { name: 'Rang 5 von 5: Sinn — 5 %' })).toBeInTheDocument();
 
 		// Erneutes Antippen einer Säule: Treppe ersetzt die KI-Verteilung, Live-Region meldet Rückkehr.
-		await tapPillar(/^Sinn/);
+		// Test-Pflege: nach der Übernahme trägt jede Zeile ihr „Rang N von 5“-Präfix (AK3-Asserts
+		// darüber) — der Tipp zielt auf den gerankten Button, nicht auf den bloßen Namen.
+		await tapPillar(/^Rang 5 von 5: Sinn/);
 		expect(screen.getByRole('button', { name: 'Rang 1 von 5: Körper — 50 %' })).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: 'Rang 4 von 5: Wirksamkeit — 10 %' })).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: /^Sinn — 5 %$/ })).toBeInTheDocument();

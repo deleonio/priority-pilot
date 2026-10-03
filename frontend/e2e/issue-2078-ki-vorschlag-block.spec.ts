@@ -15,23 +15,30 @@ import { openAccordionSection, registerOwnSession, waitForStableView } from './h
  * scrollWidth — die App-Shell clippt overflow-x.
  */
 
-/** KI-Antwort mit `share`-Werten, bewusst ungleich den Konfidenzen (#2076-Vertrag). */
-const kiShares = [
-	{ pillarId: 1, confidence: 99, share: 40 },
-	{ pillarId: 2, confidence: 10, share: 30 },
-	{ pillarId: 3, confidence: 5, share: 15 },
-	{ pillarId: 4, confidence: 2, share: 10 },
-	{ pillarId: 5, confidence: 1, share: 5 },
-];
+/**
+ * KI-Antwort mit `share`-Werten, bewusst ungleich den Konfidenzen (#2076-Vertrag).
+ * Test-Pflege: die Säulen-IDs kommen aus GET /pillars der Session — feste IDs (1–5) gehören
+ * zum frisch registrierten Nutzer NICHT zuverlässig, und die #2077-Vollverteilungs-Pflicht
+ * lehnt Vorschläge mit fremden IDs beim Speichern zu Recht mit 400 ab.
+ */
+const kiSharesFor = (pillarIds: number[]): { pillarId: number; confidence: number; share: number }[] => {
+	const shares = [40, 30, 15, 10, 5];
+	return pillarIds
+		.slice(0, 5)
+		.map((pillarId, index) => ({ pillarId, confidence: 99 - index * 10, share: shares[index] }));
+};
 
 /** Öffnet den Anlege-Dialog, holt per gemocktem Endpunkt den Vorschlag und zeigt den Block. */
 const openFormWithSuggestion = async (page: Page): Promise<void> => {
 	await registerOwnSession(page, 'ki-vorschlag-2078');
+	const pillarIds = ((await (await page.request.get('/api/v1/pillars')).json()) as { id: number }[]).map(
+		(pillar) => pillar.id,
+	);
 	await page.route('**/api/v1/tasks/suggest-pillars', (route) =>
 		route.fulfill({
 			status: 200,
 			contentType: 'application/json',
-			body: JSON.stringify({ suggestions: kiShares }),
+			body: JSON.stringify({ suggestions: kiSharesFor(pillarIds) }),
 		}),
 	);
 	await page.goto('/app/');
@@ -87,7 +94,9 @@ test.describe('#2078 — KI-Vorschlag-Block', () => {
 
 		await openFormWithSuggestion(page);
 		await page.getByRole('button', { name: 'Vorschlag übernehmen' }).click();
-		await page.getByRole('button', { name: 'Anlegen' }).click();
+		// Test-Pflege: „Anlegen“ per Substring auch auf dem FAB „Neuen Task anlegen“ —
+		// deshalb auf die Dialog-Aktionsleiste eingrenzen (strict mode).
+		await page.getByTestId('task-actions').getByRole('button', { name: 'Anlegen' }).click();
 
 		// Speichern akzeptiert die übernommene Vollverteilung (#2077) — kein 400.
 		await expect.poll(() => taskStatus).toBeGreaterThan(0);
