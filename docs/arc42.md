@@ -8,11 +8,14 @@ Diese Datei beschreibt den Ist-Zustand des Monorepos aus Entwicklersicht. Operat
 
 Balamentum ist eine Web-Anwendung zur persönlichen Aufgabenorganisation: Aufgaben (Tasks)
 mit Abhängigkeiten, Deadlines und Prioritäten, Lebensbalance-Säulen mit Gewichtung und
-Punkte-Konto (Gamification), wiederkehrende Aufgaben (Serien), Gruppen mit geteilten Tasks und
-Serien, ortsbezogene Aufgaben („Nearby"), ÖPNV-Verbindungen (Bahn-Seite), KI-Unterstützung
-(Säulen-Klassifikation, Freitext-Parsing, Aktivitäten-Berater, Lektorat) sowie ein
-Paketmodell mit PayPal-Abos (Free-/Plus-/Pro-Stufen, ADR 0018). Erinnerungen gehen als
-Web-Push oder E-Mail raus.
+Punkte-Konto (Gamification, inklusive Streak und Meilensteinen), wiederkehrende Aufgaben
+(Serien), Gruppen mit geteilten Tasks und Serien, Kategorien als thematische Ordnungsebene,
+ortsbezogene Aufgaben („Nearby") mit Push beim Betreten des Alarmabstands, ÖPNV-Verbindungen
+(Bahn-Seite), KI-Unterstützung (Säulen-Klassifikation, Freitext-Parsing, Aktivitäten-Berater,
+Lektorat), Fürsorge-Hinweise gegen Balance-Defizite sowie ein Paketmodell (Free/Plus/Pro,
+ADR 0018) mit PayPal-Abos; in der Android-App läuft das Abo über Google Play Billing
+(ADR 0017). Erinnerungen gehen als Web-Push oder E-Mail raus; der Zugang zum Launch läuft über
+eine Warteliste mit Empfehlungs-Rang (ADR 0019).
 
 Das Repository ist ein pnpm-Monorepo mit fünf Workspaces ([pnpm-workspace.yaml](../pnpm-workspace.yaml)):
 
@@ -30,15 +33,15 @@ Menschliche Autorinnen und Autoren nutzen denselben PR-Weg; `main` ist der einzi
 
 ### 1.2 Qualitätsziele
 
-| Priorität | Qualitätsziel | Szenario-Motiv                                                                                                                     |
-| --------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| hoch      | #flexible     | Entkopplung, Wartbarkeit, Änderbarkeit: Bausteine mit klarer Abhängigkeitsrichtung, ein Muster je Problem, jede Zeile Wartungslast |
-| hoch      | #secure       | Nur eingeloggte, zugelassene Nutzer erreichen die fachlichen Endpunkte (E-Mail-Allowlist, öffnbar über `OPEN_SIGNUP`)              |
-| hoch      | #usable       | Bedienung mobil-first über zugängliche KoliBri-Komponenten                                                                         |
-| hoch      | #suitable     | Kernfachlichkeit: Tasks, Säulen, Serien, Gruppen bilden die vollständige Domäne ab (Server-Routen + `openapi.yml`)                 |
-| mittel    | #efficient    | Skalierbarkeit: Antwortzeiten und Ressourcen wachsen mit Nutzern und Daten kontrolliert, nicht sprunghaft                          |
-| mittel    | #reliable     | Server bricht bei unbehebbaren Fehlern kontrolliert ab statt in undefiniertem Zustand weiterzulaufen                               |
-| mittel    | #operable     | Release ist ein reproduzierbarer Merge-Build mit `rsync` und `pm2 reload`                                                          |
+| Priorität | Qualitätsziel | Szenario-Motiv                                                                                                                                                                                         |
+| --------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| hoch      | #flexible     | Entkopplung, Wartbarkeit, Änderbarkeit: Bausteine mit klarer Abhängigkeitsrichtung, ein Muster je Problem, jede Zeile Wartungslast                                                                     |
+| hoch      | #secure       | Fachliche Endpunkte verlangen eine Session; OAuth-, Magic-Link- und Native-Login prüfen die Freischaltung (Warteliste/Allowlist, `OPEN_SIGNUP` als Off-Schalter), die Passwort-Registrierung ist offen |
+| hoch      | #usable       | Bedienung mobil-first über zugängliche KoliBri-Komponenten                                                                                                                                             |
+| hoch      | #suitable     | Kernfachlichkeit: Tasks, Säulen, Serien, Gruppen bilden die vollständige Domäne ab (Server-Routen + `openapi.yml`)                                                                                     |
+| mittel    | #efficient    | Skalierbarkeit: Antwortzeiten und Ressourcen wachsen mit Nutzern und Daten kontrolliert, nicht sprunghaft                                                                                              |
+| mittel    | #reliable     | Server bricht bei unbehebbaren Fehlern kontrolliert ab statt in undefiniertem Zustand weiterzulaufen                                                                                                   |
+| mittel    | #operable     | Release ist ein reproduzierbarer Merge-Build mit `rsync` und `pm2 reload`                                                                                                                              |
 
 Diese Tabelle ist der Maßstab, nach dem das tägliche Code-Review-Team
 ([`code-review-team`](../.claude/skills/code-review-team/SKILL.md)) den Wert seiner Findings gewichtet;
@@ -92,20 +95,20 @@ graph LR
     API -->|IF-12 Play Developer API + RTDN| Play[Google Play]
 ```
 
-| ID    | Schnittstelle            | Teilnehmer                    | Bemerkung                                                                                                                                                                                                      |
-| ----- | ------------------------ | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| IF-01 | REST-API (`openapi.yml`) | Frontend ↔ Server             | Vertrag mit generierten Typen (`client/`, `server/src/api.d.ts`); Caddy bzw. Vite-Proxy streifen `/api/v1` ab                                                                                                  |
-| IF-02 | Google OAuth 2.0         | Server ↔ Google               | `passport-google-oauth20`, Login und stiller Login (`/auth/google`, `/auth/google/silent`)                                                                                                                     |
-| IF-03 | LLM-Chat-Completions     | Server ↔ Mistral / OpenRouter | `server/src/llm/llm.ts`; Provider in der DB (`llm_providers`, instanzweit oder je Nutzer, Auswahl je User), Fix-Provider Mistral über `MISTRAL_API_KEY`                                                        |
-| IF-04 | Geocoding                | Server ↔ Nominatim            | Forward- und Reverse-Geocoding, `server/src/logics/nominatim.ts`                                                                                                                                               |
-| IF-05 | Fahrplandaten            | Server ↔ Transitous           | reiner CORS-Proxy unter `/api/transit/*`, ohne Auth                                                                                                                                                            |
-| IF-06 | Web-Push                 | Server ↔ Browser-Push-Dienst  | `web-push` mit VAPID-Keys, Subscriptions in `push_subscriptions`                                                                                                                                               |
-| IF-07 | MCP (Streamable HTTP)    | Externer Client ↔ Server      | `POST /mcp/v1`, handgerollte Teilmenge ohne SDK (`server/src/mcp/`), Auth per persönlichem API-Token; Staffelung: Pacing: at most 1 call per second; space out repeated or bulk calls (pause between writes).  |
-| IF-08 | PayPal-Subscriptions     | Server ↔ PayPal               | Abo-Anlage/-Wechsel/-Storno und Rechnungen (`routes/billingSubscriptions.ts`); signierter Webhook `POST /webhooks/paypal` (`routes/billing.ts`, `logics/paypal.ts`)                                            |
-| IF-09 | SMTP                     | Server ↔ Mailserver           | `nodemailer` (`logics/mail.ts`); ohne `SMTP_HOST`/`MAIL_FROM` deaktiviert (503-Gate); versendet auch Magic-Link-Anmeldelinks (`routes/magicLink.ts`)                                                           |
-| IF-10 | GitHub-Contents-API      | Server ↔ GitHub               | App-Feedback wird als Markdown im Obsidian-Repo abgelegt (`logics/obsidianFeedback.ts`, PAT aus ENV)                                                                                                           |
-| IF-11 | Firebase Cloud Messaging | Server ↔ FCM                  | HTTP v1 mit Service-Account (`FCM_SERVICE_ACCOUNT_FILE`), Gerätetoken der Android-App in `fcm_tokens` (`logics/fcm.ts`)                                                                                        |
-| IF-12 | Play Developer API       | Server ↔ Google Play          | Abo-Käufe der Android-App bestätigen (`POST /billing/google/purchase`) und per RTDN-Webhook `/billing/google/rtdn` nachziehen (`logics/googlePlay.ts`, Service-Account aus `GOOGLE_PLAY_SERVICE_ACCOUNT_FILE`) |
+| ID    | Schnittstelle            | Teilnehmer                    | Bemerkung                                                                                                                                                                                                                                                             |
+| ----- | ------------------------ | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| IF-01 | REST-API (`openapi.yml`) | Frontend ↔ Server             | Vertrag mit generierten Typen (`client/`, `server/src/api.d.ts`); Caddy bzw. Vite-Proxy streifen `/api/v1` ab                                                                                                                                                         |
+| IF-02 | Google OAuth 2.0         | Server ↔ Google               | `passport-google-oauth20`, Login und stiller Login (`/auth/google`, `/auth/google/silent`)                                                                                                                                                                            |
+| IF-03 | LLM-Chat-Completions     | Server ↔ Mistral / OpenRouter | `server/src/llm/llm.ts`; Provider in der DB (`llm_providers`, instanzweit oder je Nutzer, Auswahl je User), Fix-Provider Mistral über `MISTRAL_API_KEY`                                                                                                               |
+| IF-04 | Geocoding                | Server ↔ Nominatim            | Forward- und Reverse-Geocoding, `server/src/logics/nominatim.ts`                                                                                                                                                                                                      |
+| IF-05 | Fahrplandaten            | Server ↔ Transitous           | reiner CORS-Proxy unter `/api/transit/*`, ohne Auth                                                                                                                                                                                                                   |
+| IF-06 | Web-Push                 | Server ↔ Browser-Push-Dienst  | `web-push` mit VAPID-Keys, Subscriptions in `push_subscriptions`                                                                                                                                                                                                      |
+| IF-07 | MCP (Streamable HTTP)    | Externer Client ↔ Server      | `POST /mcp/v1`, handgerollte Teilmenge ohne SDK (`server/src/mcp/`), Auth per persönlichem API-Token; die `initialize`-Antwort weist auf das Pacing hin (`mcp/tools.ts`): Pacing: at most 1 call per second; space out repeated or bulk calls (pause between writes). |
+| IF-08 | PayPal-Subscriptions     | Server ↔ PayPal               | Abo-Anlage/-Wechsel/-Storno und Rechnungen (`routes/billingSubscriptions.ts`); signierter Webhook `POST /webhooks/paypal` (`routes/billing.ts`, `logics/paypal.ts`)                                                                                                   |
+| IF-09 | SMTP                     | Server ↔ Mailserver           | `nodemailer` (`logics/mail.ts`); ohne `SMTP_HOST`/`MAIL_FROM` deaktiviert (503-Gate); versendet auch Magic-Link-Anmeldelinks (`routes/magicLink.ts`)                                                                                                                  |
+| IF-10 | GitHub-Contents-API      | Server ↔ GitHub               | App-Feedback wird als Markdown im Obsidian-Repo abgelegt (`logics/obsidianFeedback.ts`, PAT aus ENV)                                                                                                                                                                  |
+| IF-11 | Firebase Cloud Messaging | Server ↔ FCM                  | HTTP v1 mit Service-Account (`FCM_SERVICE_ACCOUNT_FILE`), Gerätetoken der Android-App in `fcm_tokens` (`logics/fcm.ts`)                                                                                                                                               |
+| IF-12 | Play Developer API       | Server ↔ Google Play          | Abo-Käufe der Android-App bestätigen (`POST /billing/google/purchase`) und per RTDN-Webhook `/billing/google/rtdn` nachziehen (`logics/googlePlay.ts`, Service-Account aus `GOOGLE_PLAY_SERVICE_ACCOUNT_FILE`)                                                        |
 
 ## 4. Lösungsstrategie
 
@@ -129,14 +132,21 @@ graph LR
   direkt aus `server/src/logics/plans.ts` — eine Quelle, keine Kopie. Der Android-Wrapper
   (`native/`) lädt im Remote-Modus dieselbe SPA von `${SITE_URL}/app/` und bündelt nur eine
   Fehlerseite.
-- **Sicherheit:** Zwei Anmeldewege — Google-OAuth oder Magic-Link per E-Mail
-  (`routes/magicLink.ts`, 15 Minuten gültiger Einmal-Link, benötigt SMTP und `PUBLIC_BASE_URL`;
-  `GET /auth/providers` meldet der Login-Seite die verfügbaren Wege) —, Zugang über
-  E-Mail-Allowlist oder offene Registrierung (`OPEN_SIGNUP`), Session-Cookies (`httpOnly`,
-  `SameSite=lax`, `Secure` in Produktion), CSRF-Schutz für schreibende Endpunkte in Produktion
-  (`server/src/express/csrf.ts`), Rate-Limits für Auth- und Geocode-Routen.
+- **Sicherheit:** Drei Anmeldewege — Google-OAuth, Magic-Link per E-Mail
+  (`routes/magicLink.ts`, 15 Minuten gültiger Einmal-Link, benötigt SMTP und `PUBLIC_BASE_URL`)
+  und E-Mail/Passwort (`POST /auth/register`, `POST /auth/login`); `GET /auth/providers` meldet
+  der Login-Seite die verfügbaren Wege, die Android-App tauscht nach dem Google-Login einen
+  Einmal-Code gegen eine Session (`POST /auth/native/exchange`). Zugang: Warteliste mit
+  Empfehlungs-Rang und Admin-Freischaltung (ADR 0019) oder E-Mail-Allowlist (Env
+  `GOOGLE_ALLOWED_EMAILS`, DB-Zulassungen über `/admin/allowed-emails`) oder offene
+  Registrierung (`OPEN_SIGNUP`); die Passwort-Registrierung prüft die Freischaltung nicht.
+  Session-Cookies (`httpOnly`, `SameSite=lax`, `Secure` in Produktion), Merk-Cookie
+  `bm_signed_in` für den Redirect der statischen Website, CSRF-Schutz für schreibende Endpunkte
+  in Produktion (`server/src/express/csrf.ts`), Rate-Limits für Auth- und Geocode-Routen,
+  Bestätigung der Nutzungsbedingungen über `POST /auth/terms` (`TERMS_VERSION`).
 - **Gamification als eigene Fachlogik:** Punktevergabe (`server/src/logics/score.ts`, getrennt vom
-  Wertschöpfungs-Beitrag `value.ts`), Balance-Aggregation je Säule über `/scores/by-pillar`.
+  Wertschöpfungs-Beitrag `value.ts`), Balance-Aggregation je Säule über `/scores/by-pillar`,
+  Streak über `/scores/streak`, Meilensteine über `/scores/milestones`.
 - **Monetarisierung mit einer Rechte-Zentrale:** Paket-Katalog, Preise, Kontingente und
   Entitlements (`free`/`plus`/`pro`) existieren nur in `server/src/logics/plans.ts`
   (`getPlansCatalog()`, `getEntitlements()`, `shouldBlockFeature()`); Routen deklarieren ihren
@@ -187,19 +197,20 @@ graph TB
 
 ### 5.2 Server (Whitebox `server`)
 
-| Baustein     | Verantwortung                                                                                                                   | Wichtige Dateien                                                                                                                                                                      |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `express/`   | Routen, Middleware, Fehlervertrag                                                                                               | `index.ts` (App-Zusammenbau), `routes/*.ts`, `requireAuth.ts`, `apiTokenAuth.ts`, `planGuard.ts`, `aiQuotaMeter.ts`, `csrf.ts`, `http-error.ts`, `session.ts`                         |
-| `mcp/`       | MCP-Endpunkt (Streamable HTTP, Werkzeuge auf Basis der bestehenden Routen)                                                      | `server.ts`, `tools.ts`                                                                                                                                                               |
-| `logics/`    | Fachlogik: Baum/Wert, Serien, Score, Push/Mail-Trigger, Anmeldelinks, Geo, Pakete, Zahlungen (PayPal, Google Play), Migrationen | `tree.ts`, `value.ts`, `score.ts`, `series.ts`, `push.ts`, `fcm.ts`, `mail.ts`, `magicLink.ts`, `nominatim.ts`, `plans.ts`, `paypal.ts`, `googlePlay.ts`, `invoices.ts`, `migrate.ts` |
-| `models/`    | Sequelize-Modelle: User, Task, Pillar, Series, Group, ApiToken, Subscription, Invoice, WebhookEvent u. a.                       | `task.ts`, `pillar.ts`, `series.ts`, `group.ts`, `apiToken.ts`, `llmProvider.ts`, `subscription.ts`, `invoice.ts`, `webhookEvent.ts`                                                  |
-| `llm/`       | Provider-unabhängige LLM-Aufrufe und Prompt-Logik                                                                               | `llm.ts`, `llmProviders.ts`                                                                                                                                                           |
-| `scheduler/` | Intervall-Ticker für Push-Trigger                                                                                               | `index.ts`                                                                                                                                                                            |
-| Start        | Bootstrap: Env, DB, Seed, Exit-Handler                                                                                          | `index.ts`, `env.ts`, `database.ts`                                                                                                                                                   |
+| Baustein     | Verantwortung                                                                                                                                                                                                                   | Wichtige Dateien                                                                                                                                                                                                                               |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `express/`   | Routen, Middleware, Fehlervertrag                                                                                                                                                                                               | `index.ts` (App-Zusammenbau), `routes/*.ts`, `requireAuth.ts`, `apiTokenAuth.ts`, `planGuard.ts`, `aiQuotaMeter.ts`, `csrf.ts`, `http-error.ts`, `session.ts`                                                                                  |
+| `mcp/`       | MCP-Endpunkt (Streamable HTTP, Werkzeuge auf Basis der bestehenden Routen)                                                                                                                                                      | `server.ts`, `tools.ts`                                                                                                                                                                                                                        |
+| `logics/`    | Fachlogik: Baum/Wert, Serien, Score mit Streak und Meilensteinen, Fürsorge (Defizit, Vorschläge, Push), Push-/Mail-Trigger, Zugang (Allowlist, Warteliste, Passwort), Geo, Pakete, Zahlungen (PayPal, Google Play), Migrationen | `tree.ts`, `value.ts`, `score.ts`, `series.ts`, `push.ts`, `fcm.ts`, `mail.ts`, `magicLink.ts`, `allowedEmails.ts`, `waitlist.ts`, `careSuggestions.ts`, `nominatim.ts`, `plans.ts`, `paypal.ts`, `googlePlay.ts`, `invoices.ts`, `migrate.ts` |
+| `models/`    | Sequelize-Modelle: User, Task, Pillar, Series, Group, ApiToken, Subscription, Invoice, WebhookEvent u. a.                                                                                                                       | `task.ts`, `pillar.ts`, `series.ts`, `group.ts`, `apiToken.ts`, `llmProvider.ts`, `subscription.ts`, `invoice.ts`, `webhookEvent.ts`                                                                                                           |
+| `llm/`       | Provider-unabhängige LLM-Aufrufe und Prompt-Logik                                                                                                                                                                               | `llm.ts`, `llmProviders.ts`                                                                                                                                                                                                                    |
+| `scheduler/` | Intervall-Ticker für Push-Trigger                                                                                                                                                                                               | `index.ts`                                                                                                                                                                                                                                     |
+| Start        | Bootstrap: Env, DB, Seed, Exit-Handler                                                                                                                                                                                          | `index.ts`, `env.ts`, `database.ts`                                                                                                                                                                                                            |
 
-Die Route-Mounts stehen in `server/src/express/index.ts`: öffentliche Routen (`/auth/*` inklusive
-Magic-Link-Login, `/health`, `/api/transit/*`, `/invite-links/*` samt `/redeem`, `/plans`,
-`/billing/return` und die Webhooks `/webhooks/paypal` und `/billing/google/rtdn`) liegen vor
+Die Route-Mounts stehen in `server/src/express/index.ts`: öffentliche Routen (`/auth/*` mit
+Passwort- und Magic-Link-Login, Warteliste-Eintrag und Native-Code-Austausch, `/health`,
+`/api/transit/*`, `/invite-links/*` samt `/redeem`, `/plans`, `/billing/return` und die Webhooks
+`/webhooks/paypal` und `/billing/google/rtdn`) liegen vor
 `requireAuth`, alle fachlichen Endpunkte danach hinter der Session-
 oder Bearer-Token-Pflicht. Der globale `apiTokenScopeGuard` hängt hinter `requireAuth`, sperrt die
 Token-Verwaltung (`/api-tokens`) für Bearer-Zugriffe komplett und nimmt den MCP-Endpunkt
@@ -209,7 +220,11 @@ tiefer, am Loopback-Request von `mcp/tools.ts` gegen die Fachroute selbst. Nutze
 `requireRole('admin')`; die Paket-Vergabe (`PATCH /admin/users/:id/plan`) erlaubt zusätzlich
 `tester`, serverseitig auf die eigene Id begrenzt; die Säulen-Neuzuordnung
 (`POST /admin/tasks/reassign-pillars` samt `GET …/status`) verlangt `admin` (`routes/admin.ts`,
-`routes/reassignPillars.ts`). Weitere Admin-Routen gibt es nicht.
+`routes/reassignPillars.ts`). Der Rest der Admin-Oberfläche liegt im selben Router und verlangt
+durchweg `admin`: DB-Zulassungen (`/admin/allowed-emails`), Warteliste mit Einzel- und
+Top-Aktivierung (`/admin/waitlist*`), Abo-Sperre und -Storno je Nutzer
+(`/admin/users/:id/subscription/lock`, `/subscription/cancel`), Rechnungen samt PDF
+(`/admin/users/:id/invoices`) und die Fürsorge-Wirkungsanalyse (`/admin/care-wirkung`).
 
 ### 5.3 Frontend (Whitebox `frontend`)
 
@@ -260,6 +275,12 @@ jede syntaktisch gültige Adresse mit 15 Minuten gültigem Einmal-Link per E-Mai
 zugelassene Adressen nicht verraten); das Einlösen baut über `establishSession` dieselbe Session
 auf (`server/src/express/routes/magicLink.ts`).
 
+Der dritte Weg ist klassisch: `POST /auth/register` legt das Konto mit gehashtem Passwort und den
+fünf persönlichen Säulen an und meldet direkt an, `POST /auth/login` prüft das Passwort mit
+timing-normalisiertem Fehlerverhalten (401 ohne Unterschied zwischen unbekannter Adresse und
+falschem Passwort). Die Android-App empfängt nach dem Google-Login einen Einmal-Code und tauscht
+ihn über `POST /auth/native/exchange` gegen eine Session (`LoginToken`, Zweck `native`).
+
 ### 6.2 Task mit KI-Säulen-Klassifikation anlegen
 
 ```mermaid
@@ -286,11 +307,16 @@ Fehlt ein konfigurierter Provider oder Key, antworten die LLM-Routen mit HTTP 50
 
 Zwei Scheduler teilen sich das 15-Minuten-Intervall (`server/src/scheduler/index.ts`): Der
 Erinnerungs-Ticker feuert jeden Trigger höchstens einmal pro Tag, sobald die konfigurierte
-UTC-Stunde erreicht ist — fällige Aufgaben (`dueTaskReminders`), die drei wichtigsten Aufgaben
-(`dailyTopTasksPush`) — und läuft nur mit Web-Push-Konfiguration und
-`PUSH_REMINDERS_ENABLED=true`. Die Deadline-Auto-Löschung (`autoDeleteAfterDeadline`) läuft
+UTC-Stunde erreicht ist (`PUSH_REMINDERS_HOUR`, Default 8) — fällige Aufgaben
+(`dueTaskReminders`), die drei wichtigsten Aufgaben (`dailyTopTasksPush`), der Fürsorge-Push
+(`carePush`) und die Streak-Erinnerung (`streakReminder`) — und läuft nur mit Web-Push-
+Konfiguration und `PUSH_REMINDERS_ENABLED=true`. Die Deadline-Auto-Löschung
+(`autoDeleteAfterDeadline`) läuft
 push-unabhängig im zweiten Ticker und ist standardmäßig aktiv; sie lässt sich über
-`AUTO_DELETE_AFTER_DEADLINE_ENABLED=false` abschalten. Serien-Instanzen materialisieren über
+`AUTO_DELETE_AFTER_DEADLINE_ENABLED=false` abschalten. Der Nearby-Push ist kein Scheduler-Job:
+Die App meldet ihre Position im Geo-Intervall, der Server verschickt dann je Nutzer eine
+gebündelte Nachricht für offene Aufgaben im Alarmabstand, Feuer-und-vergessen
+(`logics/geo-background-job.ts`). Serien-Instanzen materialisieren über
 `POST /series/generate-all` (idempotent) statt über einen Scheduler.
 
 ## 7. Verteilungssicht
@@ -341,13 +367,16 @@ laufen ausschließlich in GitHub Actions und berühren den Betriebshost nicht.
   (`pnpm build:api` in `server` lint und build).
 - **Authentifizierung und Autorisierung:** Session-basiert (`express-session` + Passport nur als
   OAuth-Brücke); der User lebt in `req.session.user`, `requireAuth` schützt alle fachlichen Routen.
-  Google-Login und Magic-Link bauen dieselbe Session auf (`establishSession`).
+  Google-Login, Magic-Link, E-Mail/Passwort-Login und der Native-Code-Austausch bauen dieselbe
+  Session auf (`establishSession`); die Bestätigung der Nutzungsbedingungen läuft über
+  `POST /auth/terms`, `/auth/me` meldet `termsAccepted` gegen die aktuelle `TERMS_VERSION`.
   Externe Clients (MCP, Skripte) authentifizieren sich alternativ über persönliche API-Tokens
   (`Authorization: Bearer pp_…` oder `api-key`/`x-api-key`, gehasht in `api_tokens`, mit
   Pflicht-Ablaufdatum für Neuanlagen — Altbestand ohne `expiresAt` bleibt unbefristet —, geprüft
   von `apiTokenAuth`); ein Treffer befüllt `req.session.user` im
   selben Shape wie der Login, ohne die Session zu persistieren. Tokens tragen einen Scope
-  (`read`/`readwrite`, `apiTokenScopeGuard`). Nutzer-Rollen `admin`/`member`/`tester` schützen
+  (`read`/`readwrite`, `apiTokenScopeGuard`); auf `free` drosselt das Feature `mcp_readwrite`
+  ein `readwrite`-Token für den MCP-Zugriff auf lesend. Nutzer-Rollen `admin`/`member`/`tester` schützen
   `/admin/*` (`requireRole`, Nutzerliste und Rollenvergabe nur `admin`, Paket-Vergabe zusätzlich
   `tester` auf die eigene Id). Datenisolation je User prüfen eigene
   Testsuiten (`*-dataisolation.test.ts`); Gruppenrechte folgen der Membership in `group_members`,
@@ -381,26 +410,27 @@ laufen ausschließlich in GitHub Actions und berühren den Betriebshost nicht.
 
 Die Begründungen stehen vollständig in [docs/adr/](adr/); hier nur der Verweis.
 
-| ADR                                                        | Titel                                                              | Status                                         |
-| ---------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------- |
-| [0001](adr/0001-github-workflows-bleiben-ungetestet.md)    | GitHub-Workflows bleiben ungetestet                                | Akzeptiert                                     |
-| [0002](adr/0002-pipeline-7-phasen-ux-vor-spec.md)          | Pipeline auf 7 sequenzielle Phasen (UX vor Spec)                   | Akzeptiert; Phasenzahl überholt durch ADR 0005 |
-| [0003](adr/0003-label-schema-ai-needs-und-past.md)         | Label-Schema `ai:needs-*` / `ai:<Vergangenheitsform>`              | Akzeptiert                                     |
-| [0004](adr/0004-analyse-getriebenes-routing.md)            | Analyse-getriebenes Routing statt starrer Phasenkette              | Akzeptiert                                     |
-| [0005](adr/0005-fixup-und-umsetzung-sind-eine-phase.md)    | Fixup und Umsetzung sind eine Phase                                | Akzeptiert                                     |
-| [0006](adr/0006-issue-storage-state-branch.md)             | Issue-Storage: State-Branch pro Issue                              | Ersetzt durch ADR 0007                         |
-| [0007](adr/0007-issue-storage-harness-branch.md)           | Issue-Storage im Harness-Branch                                    | Akzeptiert; Transport ersetzt durch ADR 0010   |
-| [0008](adr/0008-delegation-und-mentor-eskalation.md)       | Delegation nach unten, Mentor nach oben                            | Akzeptiert                                     |
-| [0009](adr/0009-issue-storage-harness-kommentar.md)        | Phasen-Ausgaben im Harness-Kommentar                               | Akzeptiert                                     |
-| [0010](adr/0010-issue-storage-workflow-artefakt.md)        | Phasen-Notizen als Workflow-Artefakt                               | Akzeptiert                                     |
-| [0011](adr/0011-umsetzung-worktree-isolation.md)           | Worktree-Isolation für parallele Ticket-Läufe                      | Vorgeschlagen                                  |
-| [0012](adr/0012-mcp-endpunkt-ohne-sdk.md)                  | MCP-Endpunkt: Streamable-HTTP-Subset ohne offizielles SDK          | Akzeptiert                                     |
-| [0013](adr/0013-zahlungsweg-paypal-abos.md)                | Zahlungsweg: PayPal-Abos direkt, Stripe als Zielbild               | Akzeptiert                                     |
-| [0014](adr/0014-paket-angebote-ohne-dialog.md)             | Paketgrenzen: Angebote in den Einstellungen                        | Akzeptiert; ersetzt #1458 AK5/AK7/AK13         |
-| [0015](adr/0015-oeffentliche-website-und-app-unter-app.md) | Öffentliche Website an der Wurzel, App unter /app/                 | Akzeptiert                                     |
-| [0016](adr/0016-nativer-wrapper-capacitor-remote-modus.md) | Nativer Wrapper: Capacitor im Remote-Modus                         | Akzeptiert                                     |
-| [0017](adr/0017-store-billing-google-play.md)              | Store-Billing: Google Play Billing mit eigener Server-Verifikation | Akzeptiert; Preisgestaltung offen              |
-| [0018](adr/0018-preismodell-free-plus-pro.md)              | Preismodell: Free, Plus und Pro                                    | Akzeptiert; ersetzt Teile von ADR 0014         |
+| ADR                                                        | Titel                                                              | Status                                                                                                           |
+| ---------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| [0001](adr/0001-github-workflows-bleiben-ungetestet.md)    | GitHub-Workflows bleiben ungetestet                                | Akzeptiert                                                                                                       |
+| [0002](adr/0002-pipeline-7-phasen-ux-vor-spec.md)          | Pipeline auf 7 sequenzielle Phasen (UX vor Spec)                   | Akzeptiert; Phasenzahl überholt durch ADR 0005                                                                   |
+| [0003](adr/0003-label-schema-ai-needs-und-past.md)         | Label-Schema `ai:needs-*` / `ai:<Vergangenheitsform>`              | Akzeptiert                                                                                                       |
+| [0004](adr/0004-analyse-getriebenes-routing.md)            | Analyse-getriebenes Routing statt starrer Phasenkette              | Akzeptiert                                                                                                       |
+| [0005](adr/0005-fixup-und-umsetzung-sind-eine-phase.md)    | Fixup und Umsetzung sind eine Phase                                | Akzeptiert                                                                                                       |
+| [0006](adr/0006-issue-storage-state-branch.md)             | Issue-Storage: State-Branch pro Issue                              | Ersetzt durch ADR 0007                                                                                           |
+| [0007](adr/0007-issue-storage-harness-branch.md)           | Issue-Storage im Harness-Branch                                    | Akzeptiert; Transport ersetzt durch ADR 0010                                                                     |
+| [0008](adr/0008-delegation-und-mentor-eskalation.md)       | Delegation nach unten, Mentor nach oben                            | Akzeptiert                                                                                                       |
+| [0009](adr/0009-issue-storage-harness-kommentar.md)        | Phasen-Ausgaben im Harness-Kommentar                               | Akzeptiert                                                                                                       |
+| [0010](adr/0010-issue-storage-workflow-artefakt.md)        | Phasen-Notizen als Workflow-Artefakt                               | Akzeptiert                                                                                                       |
+| [0011](adr/0011-umsetzung-worktree-isolation.md)           | Worktree-Isolation für parallele Ticket-Läufe                      | Vorgeschlagen                                                                                                    |
+| [0012](adr/0012-mcp-endpunkt-ohne-sdk.md)                  | MCP-Endpunkt: Streamable-HTTP-Subset ohne offizielles SDK          | Akzeptiert                                                                                                       |
+| [0013](adr/0013-zahlungsweg-paypal-abos.md)                | Zahlungsweg: PayPal-Abos direkt, Stripe als Zielbild               | Akzeptiert                                                                                                       |
+| [0014](adr/0014-paket-angebote-ohne-dialog.md)             | Paketgrenzen: Angebote in den Einstellungen                        | Akzeptiert; teilweise ersetzt durch ADR 0018 (MCP-Grenzen, KI-Kontingent, Verzicht auf Hinweise im Arbeitsfluss) |
+| [0015](adr/0015-oeffentliche-website-und-app-unter-app.md) | Öffentliche Website an der Wurzel, App unter /app/                 | Akzeptiert                                                                                                       |
+| [0016](adr/0016-nativer-wrapper-capacitor-remote-modus.md) | Nativer Wrapper: Capacitor im Remote-Modus                         | Akzeptiert                                                                                                       |
+| [0017](adr/0017-store-billing-google-play.md)              | Store-Billing: Google Play Billing mit eigener Server-Verifikation | Akzeptiert; Preisgestaltung entschieden                                                                          |
+| [0018](adr/0018-preismodell-free-plus-pro.md)              | Preismodell: Free, Plus und Pro                                    | Akzeptiert; ersetzt Teile von ADR 0014                                                                           |
+| [0019](adr/0019-zugang-launch-warteliste.md)               | Zugang zum Launch: Warteliste statt Ablehnung                      | Akzeptiert; ersetzt teilweise Punkt 6 von ADR 0015                                                               |
 
 ## 10. Qualitätsanforderungen
 
@@ -423,8 +453,11 @@ dokumentiert.
 - **Szenario:** Jede fachliche Operation (Tasks, Säulen, Kategorien, Serien, Gruppen, Push, Mail,
   Geo, LLM-Funktionen, Pakete, Abos, Rechnungen, Token- und Nutzerverwaltung) ist als Pfad in
   `openapi.yml` erfasst und über generierte Typen ansprechbar. Infrastruktur-Endpunkte ohne
-  vertragliche DTOs (Auth-Routen, `/api/transit`, PayPal-Webhook, MCP-Transport) liegen bewusst
-  außerhalb.
+  vertragliche DTOs liegen bewusst außerhalb: die OAuth- und Session-Routen (`/auth/google*`,
+  `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/csrf`), `/api/transit`, der
+  PayPal-Webhook samt `/billing/return` und der MCP-Transport. Fachliche Routen wie `/auth/me`,
+  `/auth/waitlist`, Magic-Link, die gesamte Admin-API und das Play-Billing sind dagegen
+  vertraglich erfasst.
 - **Erfolgsmessung:** `pnpm build` scheitert, sobald Vertrag und generierte Typen auseinanderlaufen.
 
 ### QS-02 — fachliche Kernlogik abgedeckt
@@ -442,13 +475,17 @@ dokumentiert.
 - **Erfolgsmessung:** `csrf.doubleCsrfProtection` lehnt die Anfrage ab; Token gibt nur
   `GET /auth/csrf` (`server/src/express/csrf.ts`).
 
-### QS-04 — Registrierung nur für Bekannte
+### QS-04 — Zugang nur nach Freischaltung
 
 - **Qualitätseigenschaft:** `#secure` — Zugangsbeschränkung
-- **Szenario:** Ein OAuth- oder Magic-Link-Login mit E-Mail außerhalb der Allowlist.
-- **Erfolgsmessung:** Die Prüfung verwirft das Profil (`isEmailAllowed`); ohne konfigurierte
-  Allowlist startet der Server in Produktion nicht, außer `OPEN_SIGNUP` öffnet die Registrierung
-  (`logics/allowedEmails.ts`, Startgate `server/src/express/index.ts`).
+- **Szenario:** Ein OAuth-, Magic-Link- oder Native-Login mit einer Adresse ohne Freischaltung;
+  daneben trägt sich ein Interessent über die Warteliste ein.
+- **Erfolgsmessung:** Die Prüfung `isDbEmailAllowed`/`isEmailAllowed` verwirft das Profil;
+  freigeschaltet ist, wer eine DB-Zulassung trägt (`AllowedEmail`, etwa aus der Warteliste per
+  `/admin/waitlist/:id/activate`), auf der Env-Allowlist steht oder unter `OPEN_SIGNUP` arbeitet.
+  Ohne konfigurierte Allowlist startet der Server in Produktion nicht, außer `OPEN_SIGNUP`
+  öffnet die Registrierung (`logics/allowedEmails.ts`, Startgate `server/src/express/index.ts`).
+  Die Passwort-Registrierung (`POST /auth/register`) ist ohne Freischaltungsprüfung offen.
 
 ### QS-05 — kontrollierter Abbruch
 
@@ -501,23 +538,25 @@ dokumentiert.
 
 ## 12. Glossar
 
-| Begriff                       | Bedeutung                                                                                                                              |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Säule (Pillar)                | Lebensbereich (fünf feste Stammsäulen als je-Nutzer-Kopie), auf den Tasks anteilig „einzahlen"; Gewichtung als 100-%-Verteilung        |
-| Einzahlung (share/confidence) | Anteil eines Tasks an einer Säule mit Konfidenzwert; n:m über `task_pillars`                                                           |
-| Aufgabenwald (Forest)         | Nach Wertschöpfung sortierter Task-Baum inklusive Abhängigkeiten; `GET /forest`, Aufbau in `server/src/logics/tree.ts`                 |
-| Serie (Habit)                 | Vorlage für wiederkehrende Aufgaben; fällige Instanzen werden idempotent materialisiert                                                |
-| Balance                       | Aggregierte Punkte je Säule über `GET /scores/by-pillar`                                                                               |
-| Gamification-Score            | Punkte beim Erledigen eines Tasks; pünktlich volle Punkte, verspätet mit Faktor 0,5 (`server/src/logics/score.ts`)                     |
-| Lektorat                      | KI-gestützte Textprüfung über `POST /lektorat` (bezahlte LLM-Kaskade)                                                                  |
-| Bahn-Seite                    | Öffentliche Verbindungs-Auskunft unter `/bahn` über den Transitous-Proxy                                                               |
-| Harness-Kommentar             | Von der CI-Pipeline geführter Issue-Kommentar, in dem jede Phase ihre Ausgaben ablegt (ADR 0009)                                       |
-| Silent Login                  | Stiller Google-OAuth-Versuch mit `prompt=none` beim App-Start (`frontend/src/Root.tsx`)                                                |
-| VAPID                         | Schlüsselpaar für Web-Push; öffentlicher Teil über `GET /push/vapid-public-key`                                                        |
-| Nearby                        | Ortsbezogene Tasks im Umfeld der gemeldeten Position (`GET /tasks/nearby`)                                                             |
-| Paket (Plan)                  | Buchbare Stufe `free`/`plus`/`pro` am User; Katalog und Rechte allein in `server/src/logics/plans.ts`                                  |
-| Entitlement                   | Feature-Freigabe je Paket (`shouldBlockFeature`), deklariert pro Route über `planGuard.ts`                                             |
-| API-Token                     | Persönlicher Bearer-Token für externe Clients (Präfix `pp_`, gehasht gespeichert), mit Scope `read`/`readwrite`                        |
-| MCP                           | Model Context Protocol; `POST /mcp/v1` bietet externen Clients (Claude Code, ZCode-Connector) `initialize`, `tools/list`, `tools/call` |
-| Magic-Link-Login              | Zweiter Anmeldeweg: 15 Minuten gültiger Einmal-Link per E-Mail (`POST /auth/magic-link`)                                               |
-| RTDN                          | Real-Time Developer Notifications: Google-Play-Webhook `/billing/google/rtdn` meldet Abo-Änderungen der Android-App                    |
+| Begriff                       | Bedeutung                                                                                                                                                                             |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Säule (Pillar)                | Lebensbereich (fünf feste Stammsäulen als je-Nutzer-Kopie), auf den Tasks anteilig „einzahlen"; Gewichtung als 100-%-Verteilung                                                       |
+| Einzahlung (share/confidence) | Anteil eines Tasks an einer Säule mit Konfidenzwert; n:m über `task_pillars`                                                                                                          |
+| Aufgabenwald (Forest)         | Nach Wertschöpfung sortierter Task-Baum inklusive Abhängigkeiten; `GET /forest`, Aufbau in `server/src/logics/tree.ts`                                                                |
+| Serie (Habit)                 | Vorlage für wiederkehrende Aufgaben; fällige Instanzen werden idempotent materialisiert                                                                                               |
+| Balance                       | Aggregierte Punkte je Säule über `GET /scores/by-pillar`                                                                                                                              |
+| Gamification-Score            | Punkte beim Erledigen eines Tasks; pünktlich volle Punkte, verspätet mit Faktor 0,5 (`server/src/logics/score.ts`)                                                                    |
+| Lektorat                      | KI-gestützte Textprüfung über `POST /lektorat` (bezahlte LLM-Kaskade)                                                                                                                 |
+| Bahn-Seite                    | Öffentliche Verbindungs-Auskunft unter `/bahn` über den Transitous-Proxy                                                                                                              |
+| Harness-Kommentar             | Von der CI-Pipeline geführter Issue-Kommentar, in dem jede Phase ihre Ausgaben ablegt (ADR 0009)                                                                                      |
+| Silent Login                  | Stiller Google-OAuth-Versuch mit `prompt=none` beim App-Start (`frontend/src/Root.tsx`)                                                                                               |
+| VAPID                         | Schlüsselpaar für Web-Push; öffentlicher Teil über `GET /push/vapid-public-key`                                                                                                       |
+| Nearby                        | Ortsbezogene Tasks im Umfeld der gemeldeten Position (`GET /tasks/nearby`)                                                                                                            |
+| Paket (Plan)                  | Buchbare Stufe `free`/`plus`/`pro` am User; Katalog und Rechte allein in `server/src/logics/plans.ts`                                                                                 |
+| Entitlement                   | Feature-Freigabe je Paket (`shouldBlockFeature`), deklariert pro Route über `planGuard.ts`                                                                                            |
+| API-Token                     | Persönlicher Bearer-Token für externe Clients (Präfix `pp_`, gehasht gespeichert), mit Scope `read`/`readwrite`                                                                       |
+| MCP                           | Model Context Protocol; `POST /mcp/v1` bietet externen Clients (Claude Code, ZCode-Connector) `initialize`, `tools/list`, `tools/call`                                                |
+| Magic-Link-Login              | Zweiter Anmeldeweg: 15 Minuten gültiger Einmal-Link per E-Mail (`POST /auth/magic-link`)                                                                                              |
+| RTDN                          | Real-Time Developer Notifications: Google-Play-Webhook `/billing/google/rtdn` meldet Abo-Änderungen der Android-App                                                                   |
+| Warteliste                    | Launch-Zugang: öffentlicher Eintrag über `POST /auth/waitlist` mit persönlichem Empfehlungs-Code; die Freischaltung legt eine DB-Zulassung an (`logics/waitlist.ts`, ADR 0019)        |
+| Fürsorge-Hinweis              | Kontextbezogener Hinweis und Vorschlag gegen ein Balance-Defizit (`/scores/care-suggestions`, konfigurierbar über `/care-config`); Push über den Fürsorge-Trigger (`logics/care*.ts`) |
