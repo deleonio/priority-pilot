@@ -606,6 +606,8 @@ describe('migrateUserGeoConfigColumns', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
+				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
+				'`balanceVariant` VARCHAR(255), ' +
 				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
 				'`termsVersion` VARCHAR(255), ' +
 				'`termsAcceptedAt` DATETIME, ' +
@@ -945,6 +947,8 @@ describe('migrateUsersRoleColumn (Rollensystem admin/member)', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
+				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
+				'`balanceVariant` VARCHAR(255), ' +
 				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
 				'`termsVersion` VARCHAR(255), ' +
 				'`termsAcceptedAt` DATETIME, ' +
@@ -1029,6 +1033,8 @@ describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
+				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
+				'`balanceVariant` VARCHAR(255), ' +
 				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
 				'`termsVersion` VARCHAR(255), ' +
 				'`termsAcceptedAt` DATETIME, ' +
@@ -1197,6 +1203,8 @@ describe('migrateUsersPlanColumn (#1456 AK1)', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
+				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
+				'`balanceVariant` VARCHAR(255), ' +
 				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
 				'`termsVersion` VARCHAR(255), ' +
 				'`termsAcceptedAt` DATETIME, ' +

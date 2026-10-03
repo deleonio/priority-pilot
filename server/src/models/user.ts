@@ -35,6 +35,8 @@ class User extends Model {
 	/** IANA-Zeitzone des Nutzers (#1794) — Ruhezeit + Kalendertag-Dedup; `null` = UTC-Fallback. */
 	public zeitzone!: string | null;
 	public sprache!: string | null;
+	/** Zifferblatt-Auswahl (#2009) — serverseitig am Konto statt nur im Gerät; `null` = Default `herz`. */
+	public balanceVariant!: string | null;
 	/** Systemweite Rolle (Rollensystem admin/member/tester) — steuert Admin-Views und -API-Endpunkte. */
 	public role!: UserRole;
 	/**
@@ -124,6 +126,11 @@ User.init(
 			defaultValue: null,
 		},
 		sprache: {
+			type: DataTypes.STRING,
+			allowNull: true,
+			defaultValue: null,
+		},
+		balanceVariant: {
 			type: DataTypes.STRING,
 			allowNull: true,
 			defaultValue: null,

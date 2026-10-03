@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 /**
  * Welches Bild die Startseite für die Lebensbalance zeichnet — die „Zifferblätter" der App.
@@ -31,7 +31,9 @@ import { useCallback, useState } from 'react';
  *
  * Persistenz im Muster von `animations.ts`/`heartAnimation.ts`: reine Funktionen plus ein kleiner
  * Hook, alle `localStorage`-Zugriffe Best-Effort (gesperrter Storage darf den App-Start nie
- * verhindern). Die Wahl gilt **pro Gerät** — wie das Theme, mit dem sie die Zeile in den
+ * verhindern). Die Wahl liegt **am Konto** (#2009): der Hook zieht sie beim Laden vom Server
+ * nach und sendet jede neue Wahl per PUT dorthin — der `localStorage` bleibt als Spiegel für
+ * den schnellen Erst-Paint. Das Theme bleibt bewusst gerätelokal, mit dem sie die Zeile in den
  * Einstellungen teilt.
  */
 
@@ -87,6 +89,20 @@ export const storeBalanceVariant = (variant: BalanceVariant): void => {
 	}
 };
 
+/**
+ * Endpunkt der Konto-Wahl — fester `/api/v1`-Pfad außerhalb der `api`-Fassade (Muster
+ * `lib/auth.ts`), weil der PUT als EINZELNER Aufruf genügen muss: die Fassade würde vor jedem
+ * Schreibzugriff erst einen CSRF-Token holen, der Best-Effort-Vertrag verträgt keinen Vorab-Fetch.
+ * Den Token liefert stattdessen der GET als Antwort-Header (`x-csrf-token`, Server #2009).
+ */
+const API_URL = '/api/v1/balance-variant';
+
+/** CSRF-Token aus dem GET-Antwort-Header; der PUT sendet ihn mit, wenn er bekannt ist. */
+let csrfToken: string | null = null;
+
+/** Die Konto-Wahl wird pro Seitenlade genau einmal nachgezogen — weitere Montierungen (Tab-Wechsel) lesen den Spiegel. */
+let kontoNachgezogen = false;
+
 interface UseBalanceVariantResult {
 	/** Aktuell gewähltes Bild (Default `herz`). */
 	variant: BalanceVariant;
@@ -95,7 +111,9 @@ interface UseBalanceVariantResult {
 }
 
 /**
- * React-Hook zur Bildwahl — liest initial aus `localStorage`, persistiert bei Änderung. Jede
+ * React-Hook zur Bildwahl — liest initial aus `localStorage`, zieht die Konto-Wahl beim ersten
+ * Montieren vom Server nach (#2009) und sendet jede Änderung per PUT dorthin (Best-Effort:
+ * ein einzelner Aufruf, Fehler werden geschluckt — die lokale Wahl bleibt aktiv). Jede
  * Instanz hält ihren eigenen State: Auswahl (Einstellungen) und Bild (Dashboard) liegen in
  * verschiedenen Tabs der App und sind nie gleichzeitig montiert, der Wechsel greift also beim
  * nächsten Aufbau des Dashboards. Dasselbe Muster wie `useHeartAnimationEnabled`.
@@ -103,9 +121,52 @@ interface UseBalanceVariantResult {
 export const useBalanceVariant = (): UseBalanceVariantResult => {
 	const [variant, setVariantState] = useState<BalanceVariant>(readBalanceVariant);
 
+	useEffect(() => {
+		if (kontoNachgezogen) return;
+		kontoNachgezogen = true;
+		try {
+			void fetch(API_URL)
+				.then(async (response) => {
+					if (!response.ok) return;
+					const token = response.headers.get('x-csrf-token');
+					if (token) csrfToken = token;
+					const dto = (await response.json()) as { variant?: string };
+					const kontowahl = dto.variant ?? null;
+					if (!isVariant(kontowahl)) return;
+					// Das Konto gewinnt gegen einen älteren Gerätewert (AK4) — Spiegel folgen.
+					storeBalanceVariant(kontowahl);
+					setVariantState(kontowahl);
+				})
+				.catch(() => {
+					// Konto nicht erreichbar — der Spiegel (Gerät) bleibt Quelle für diese Sitzung.
+				});
+		} catch {
+			// fetch kann mit relativer URL z. B. in Testumgebungen synchron werfen — Best-Effort.
+		}
+	}, []);
+
 	const setVariant = useCallback((next: BalanceVariant): void => {
 		storeBalanceVariant(next);
 		setVariantState(next);
+		try {
+			void fetch(API_URL, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+					...(csrfToken ? { 'x-csrf-token': csrfToken } : {}),
+				},
+				body: JSON.stringify({ variant: next }),
+			})
+				.then((response) => {
+					// Verworfener Token (Rotation): der nächste GET primiert neu (Semantik wie `api.ts`).
+					if (response.status === 403) csrfToken = null;
+				})
+				.catch(() => {
+					// Netzwerk weg — die lokale Wahl bleibt aktiv (Best-Effort).
+				});
+		} catch {
+			// Best-Effort: nichts wirft, die Wahl gilt zumindest lokal.
+		}
 	}, []);
 
 	return { variant, setVariant };

@@ -39,5 +39,7 @@ export const createCsrfUtilities = (sessionSecret: string) => {
 		next(err);
 	};
 
-	return { doubleCsrfProtection, issueCsrfToken, csrfErrorHandler };
+	// `generateCsrfToken` geht auch direkt an Routen (#2009): GET /balance-variant stellt den
+	// Token als Antwort-Header bereit, damit der spätere PUT als einzelner Aufruf genügt.
+	return { doubleCsrfProtection, issueCsrfToken, csrfErrorHandler, generateCsrfToken };
 };
