@@ -107,7 +107,7 @@ flowchart TD
     %% ---- Konflikt-Scan bei Push auf main (z. B. nach Merge) ----
     merged -.->|"pusht nach main"| pushmain
     pushmain -.->|"push: main"| conflictscan
-    conflictscan -->|"offener PR mit Merge-Konflikt<br/>→ label: ai:needs-fixup"| fixup
+    conflictscan -->|"offener PR mit Merge-Konflikt:<br/>mechanisch lösbar → selbst mergen;<br/>echte Marker → label: ai:needs-fixup"| fixup
 
     classDef wf fill:#1f6feb,stroke:#0b3d91,color:#fff;
     classDef evt fill:#2da44e,stroke:#116329,color:#fff;
@@ -290,12 +290,16 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
   ohne sie mergte das Gate auf dem Stale-Label. Der `workflow_run`-Trigger wird nur aus dem Default-Branch (main) gelesen
   und schließt `head_branch == 'main'`-Läufe aus. Dieser eine Workflow ersetzt die früheren zwei
   (Gate + Auto-Merge).
-- **conflict-scan** (`pr-conflict-scan.yml`) läuft bei jedem **Push auf main** (typischerweise
-  nach einem Merge), prüft **alle** offenen Nicht-Draft-same-repo-PRs auf Mergebarkeit und setzt bei
-  Merge-Konflikt (`DIRTY`/`CONFLICTING`) **per App-Token** `ai:needs-fixup` → das stößt
-  `pr-fixup.yml` an, der den Konflikt auflöst (conflict-scan löst selbst NICHT auf). Guards:
-  `UNKNOWN`/`MERGEABLE` → No-op; trägt der PR bereits `ai:needs-fixup`, wird idempotent
-  übersprungen. Kein LLM, kein Checkout, kein Agent-Secret-Check.
+- **conflict-scan** (`detect-pr-conflicts.yml`) läuft bei jedem **Push auf main** (typischerweise
+  nach einem Merge), prüft **alle** offenen Nicht-Draft-same-repo-PRs auf Mergebarkeit und versucht
+  bei Merge-Konflikt (`DIRTY`/`CONFLICTING`) zuerst einen **mechanischen Merge** (`git merge` mit
+  den Merge-Treibern aus `.gitattributes`, Full-Checkout; Guard: klebt am PR ein `ai:needs-*`-Label
+  einer laufenden Phase, wird nicht gepusht) — gelingt er, wird der Merge-Commit auf den PR-Branch
+  gepusht und **kein** Fixup angestoßen. Nur bei echten Konfliktmarkern setzt er **per App-Token**
+  `ai:needs-fixup` samt Dateiliste als PR-Kommentar (`<!-- ai-conflict-files -->`) → das stößt den
+  Fixup-Eingang von `04-claude-implement.yml` an. Guards: `UNKNOWN`/`MERGEABLE` → No-op; der
+  Idempotenz-Guard (`ai:needs-fixup` schon vorhanden) sitzt im Label-Schritt
+  (`label-transition.sh --forbid`). Kein LLM, kein Agent-Secret-Check.
 - **cancel** beendet laufende review/fixup-Runs beim PR-Close (`pull_request.closed`) — reiner
   `gh`-Aufruf mit `GITHUB_TOKEN` (kein App-Token nötig: bricht nur Runs ab, setzt keine Labels).
 - **unblock** (`issue-unblock.yml`) reagiert auf den **Merge** eines PRs (`pull_request.closed`
