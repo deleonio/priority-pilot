@@ -653,6 +653,68 @@ jobs:
             echo "::notice::Label gesetzt: ai:analysed (🟡/🔴)"
           fi
 
+      - name: Container-Ergebnis umsetzen (#2101)
+        # Die Container-Abschluss-Analyse (SKILL: "Container closing analysis") gibt ihr
+        # Ergebnis als ai-container-result-Marker im Agenten-Output aus; dieser Step setzt
+        # es mit App-Token um — vorher machte das der Koordinator von Hand (#1789/#1999):
+        #   followup: Tickets anlegen (Template-Body), als Sub-Issue unter den Container
+        #             haengen (GraphQL addSubIssue), nativ blocked-by setzen (REST),
+        #   closed:   Container mit Begruendung schliessen.
+        # KEINE Phasen-Labels — das Routing bleibt beim PO (Issue-Weg 3). NIE FATAL:
+        # Ein Fehlschlag verwirnt sichtbar, der Marker bleibt im Log und der naive
+        # Draft-Kommentar der Analyse ist die Reserve.
+        if: always() && steps.setup.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure')
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          set -uo pipefail
+          LOG=/tmp/claude-output.log
+          [ -f "$LOG" ] || exit 0
+          PAYLOAD="$(awk '/ai-container-result:START/{f=1;next} /ai-container-result:END/{f=0} f' "$LOG" \
+            | sed -n '/^```json/,/^```$/p' | sed '1d;$d' | tr -d '\r' | grep -v '^[[:space:]]*$' | head -1)"
+          [ -n "$PAYLOAD" ] || { echo "Kein Container-Ergebnis-Marker im Output — nichts umzusetzen."; exit 0; }
+          RESULT="$(printf '%s' "$PAYLOAD" | jq -r '.result // empty' 2>/dev/null || true)"
+          echo "Container-Ergebnis: ${RESULT:-unlesbar}"
+
+          if [ "$RESULT" = "closed" ]; then
+            REASON="$(printf '%s' "$PAYLOAD" | jq -r '.reason // "Abschluss-Analyse: erfuellt."')"
+            gh issue close "$ISSUE" --repo "$GITHUB_REPOSITORY" --reason completed \
+              --comment "Container erfuellt (Abschluss-Analyse, #2101): ${REASON}" \
+              && echo "::notice title=Container geschlossen::#$ISSUE nach Analyse geschlossen."
+            exit 0
+          fi
+
+          if [ "$RESULT" != "followup" ]; then
+            echo "::warning title=Container-Ergebnis::result='$RESULT' weder closed noch followup — Marker unvollstaendig, nichts umgesetzt."
+            exit 0
+          fi
+
+          PARENT_NODE="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json id --jq .id)"
+          COUNT="$(printf '%s' "$PAYLOAD" | jq '.tickets | length')"
+          i=0
+          while [ "$i" -lt "$COUNT" ]; do
+            TITLE="$(printf '%s' "$PAYLOAD" | jq -r ".tickets[$i].title")"
+            printf '%s' "$PAYLOAD" | jq -r ".tickets[$i].body" > "/tmp/container-ticket-${i}.md"
+            NR="$(gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body-file "/tmp/container-ticket-${i}.md" 2>/dev/null | grep -oE '[0-9]+$' || true)"
+            if [ -z "$NR" ]; then
+              echo "::warning title=Ticket-Anlage fehlgeschlagen::'${TITLE:0:60]}…' nicht angelegt (Draft steht im Entscheidungs-Kommentar der Analyse)."
+              i=$((i+1)); continue
+            fi
+            echo "::notice title=Sub-Issue angelegt::#${NR} — ${TITLE:0:60]}"
+            CHILD_NODE="$(gh issue view "$NR" --repo "$GITHUB_REPOSITORY" --json id --jq .id)"
+            gh api graphql -f query='mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,subIssueId:$c}){clientMutationId}}' \
+              -f p="$PARENT_NODE" -f c="$CHILD_NODE" >/dev/null 2>&1 \
+              || echo "::warning title=Sub-Issue-Link fehlgeschlagen::#${NR} angelegt, aber nicht unter #$ISSUE verknuepft — von Hand nachziehen."
+            for BLOCKER in $(printf '%s' "$PAYLOAD" | jq -r ".tickets[$i].blockedBy[]?"); do
+              gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${NR}/dependencies/blocked_by" \
+                -F issue_id="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${BLOCKER}" --jq .id)" >/dev/null 2>&1 \
+                || echo "::warning title=blocked-by fehlgeschlagen::#${NR} nicht als blockiert durch #${BLOCKER} markiert."
+            done
+            i=$((i+1))
+          done
+          echo "Container-Folgearbeit umgesetzt: ${COUNT} Ticket(s) unter #$ISSUE angelegt (keine Phasen-Labels — Routing beim PO)."
+
       - name: Ergebnis zusammenfassen
         if: always() && steps.setup.outputs.configured == 'true'
         env:

@@ -39,6 +39,10 @@ WRAP-UP (both modes):
     Rationale per SKILL.md step 4.
   - Architecture/product/design finding ("a human decides") → for VERDICT: needs-human, fill the
     "## ⏸️ Entscheidungs-Findings" section per the SKILL.md step 5 template.
+  - Decision findings are REAL entries only (#2101, PR #2089): placeholders (`-`, `- -`,
+    `(keine)`) and nits NEVER count as decision findings. A section that holds only
+    placeholders/nits means there is nothing a human must decide → VERDICT: reviewed
+    (nits noted) or needs-fixup, never needs-human.
   - solid (🟢) → NO pseudo-findings, a brief 🟢 confirmation (1-2 sentences), then VERDICT: reviewed
     - (Without a closing issue: also note the "Review ohne Issue" hint in the 🟢 confirmation + collected comment line 2.)
 
