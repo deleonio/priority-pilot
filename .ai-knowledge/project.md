@@ -2,8 +2,8 @@
 
 Werkzeug zur **Aufgaben-Priorisierung** über einen gewichteten Abhängigkeitsgraphen, kombiniert
 mit **Lebensbalance-Säulen**. Ein Task zahlt auf 0..n Säulen ein (n:m über `task_pillars`, je mit
-`share`/`confidence`). Die Säulen sind **nutzerdefiniert** (pro Nutzer mit `userId`, anleg-,
-umbenenn- und löschbar; neue Konten starten mit einem Default-Bestand von fünf Säulen) — mit
+`share`/`confidence`). Die Säulen sind **fünf feste Stammsäulen** (je Nutzer eine eigene Kopie mit `userId`; Anlegen,
+Umbenennen und Löschen sind serverseitig gesperrt, einstellbar ist nur die prozentuale Gewichtung) — mit
 Kurzbeschreibung `description` und prozentualem `weight`. Pro Task werden Wertbeitrag (eigene
 Priorität + gewichtete Werte der abhängigen Tasks, multiplikativ skaliert mit dem aus den anteiligen
 Säulen-Beiträgen gemittelten Säulen-Faktor) und Gesamtaufwand inkl. transitiver Abhängigkeiten

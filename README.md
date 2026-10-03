@@ -11,10 +11,10 @@ Zwei Konzepte bestimmen die Priorität einer Aufgabe (Task):
   **Wertbeitrag** (eigene Priorität plus gewichtete Werte der abhängigen Aufgaben) und einen
   **Gesamtaufwand** inklusive aller (transitiven) Abhängigkeiten.
 - **Lebensbalance-Säulen:** Jede Aufgabe zahlt auf **0..n** ihrer Lebensbalance-Säulen ein. Die
-  Säulen sind **nutzerdefiniert**: Jede:r Nutzer:in legt eigene Säulen an, benennt und gewichtet
-  sie. Neue Konten starten mit einem Default-Bestand von fünf Säulen
-  (_Körper, Beziehungen, Sinn, Mentale Gesundheit, Wirksamkeit_), der frei bearbeitet, ergänzt und
-  gelöscht werden kann. Pro Aufgabe wird der Investitions-Anteil zu 100 % auf ihre Säulen verteilt
+  Säulen sind **fünf feste Stammsäulen**: Jede:r Nutzer:in besitzt eine eigene Kopie und gewichtet
+  sie. Neue Konten starten mit Kopien der fünf Säulen
+  (_Körper, Beziehungen, Sinn, Mentale Gesundheit, Wirksamkeit_); Anlegen, Umbenennen und Löschen
+  sind serverseitig gesperrt. Pro Aufgabe wird der Investitions-Anteil zu 100 % auf ihre Säulen verteilt
   (`share`), je mit einer **Konfidenz** (`confidence`). Die Säulen tragen zusätzlich eine
   prozentuale Gewichtung (Summe 100 %), die den Wertbeitrag der Aufgaben **multiplikativ** skaliert.
   So lässt sich die Priorisierung gezielt auf die Lebensbereiche lenken, die gerade wichtig sind; bei
@@ -90,7 +90,7 @@ Die `backups/`-Dateien werden nicht versioniert (siehe [`.gitignore`](.gitignore
   [`taskPillar.ts`](server/src/models/taskPillar.ts)): `Task` (Titel, Status, Priorität,
   geschätzter/tatsächlicher Aufwand, Beschreibung, Deadline) mit einer `Task↔Task`-Beziehung
   (`weight` pro Abhängigkeit) sowie einer **n:m**-Beziehung zu `Pillar` (den
-  **nutzerdefinierten, pro Nutzer verwalteten** Lebensbalance-Säulen — mit Kurzbeschreibung
+  **fünf festen, je Nutzer als Kopie vorhandenen** Lebensbalance-Säulen — mit Kurzbeschreibung
   `description` und prozentualem `weight`; neue Konten starten mit fünf Default-Säulen) über die
   Join-Tabelle `task_pillars`, die je (Task, Säule)
   `share` (100 %-Verteilung pro Task) und `confidence` trägt.
