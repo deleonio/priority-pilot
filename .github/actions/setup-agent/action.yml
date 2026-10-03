@@ -480,6 +480,54 @@ runs:
     # Am Runner-Namen statt an der Architektur gebunden: ein anderer (Zukunfts-)Runner
     # mit tailscaled bleibt so funktionsfähig.
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # RUNTIME-WEICHE — genau EINE der beiden Actions läuft.
+    # Der übersprungene Step liefert leere Outputs; die `||`-Verknüpfung in den
+    # Action-Outputs oben nimmt deshalb automatisch den Wert der gelaufenen Action.
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    - name: Claude Code einrichten
+      id: claude
+      if: steps.preflight.outputs.configured == 'true' && steps.runtime.outputs.runtime == 'claude'
+      uses: ./.github/actions/setup-claude
+      with:
+        llm-provider: ${{ steps.provider.outputs.llm-provider }}
+        needs-mcp: ${{ inputs.needs-mcp }}
+        browser-mcp: ${{ inputs.browser-mcp }}
+        tools-tier: ${{ inputs.tools-tier }}
+        model: ${{ inputs.model }}
+        subagent-model: ${{ inputs.subagent-model }}
+        effort: ${{ inputs.effort }}
+        compact-tokens: ${{ inputs.compact-tokens }}
+        zai-api-key: ${{ inputs.zai-api-key }}
+        claude-api-key: ${{ inputs.claude-api-key }}
+        openrouter-api-key: ${{ inputs.openrouter-api-key }}
+        zai-settings-json: ${{ inputs.zai-settings-json }}
+        openrouter-settings-json: ${{ inputs.openrouter-settings-json }}
+
+    - name: pi einrichten
+      id: pi
+      if: steps.preflight.outputs.configured == 'true' && steps.runtime.outputs.runtime == 'pi'
+      uses: ./.github/actions/setup-pi
+      with:
+        llm-provider: ${{ steps.provider.outputs.llm-provider }}
+        needs-mcp: ${{ inputs.needs-mcp }}
+        browser-mcp: ${{ inputs.browser-mcp }}
+        tools-tier: ${{ inputs.tools-tier }}
+        model: ${{ inputs.model }}
+        subagent-model: ${{ inputs.subagent-model }}
+        effort: ${{ inputs.effort }}
+        model-aliases-json: ${{ inputs.pi-model-aliases-json }}
+        zai-api-key: ${{ inputs.zai-api-key }}
+        claude-api-key: ${{ inputs.claude-api-key }}
+        openrouter-api-key: ${{ inputs.openrouter-api-key }}
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # NETZWECHSEL ERST NACH DER RUNTIME-WEICHE (#2091): Der erste Runner-Request
+    # nach dem Tailscale/DNS-Wechsel hängte ~110 s im HTTP-Timeout — früher traf das
+    # das actions/cache-Nachladen der Setup-Actions („Getting action download info",
+    # Belege 02.10.). CLI-Install und Auth brauchen den Exit-Node nicht; nur der
+    # LLM-Aufruf selbst muss über Nürnberg laufen.
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     - name: Tailscale-Preflight (Auth-Key ist Pflicht bei aktivem Exit-Node für zai)
       if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai' && runner.name != 'pi5'
       shell: bash
@@ -534,48 +582,6 @@ runs:
           echo "::error::DNS-Auflösung schlägt trotz Resolver-Wechsel fehl — Exit-Node/Forwarding prüfen."
           exit 1
         fi
-
-    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    # RUNTIME-WEICHE — genau EINE der beiden Actions läuft.
-    # Der übersprungene Step liefert leere Outputs; die `||`-Verknüpfung in den
-    # Action-Outputs oben nimmt deshalb automatisch den Wert der gelaufenen Action.
-    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    - name: Claude Code einrichten
-      id: claude
-      if: steps.preflight.outputs.configured == 'true' && steps.runtime.outputs.runtime == 'claude'
-      uses: ./.github/actions/setup-claude
-      with:
-        llm-provider: ${{ steps.provider.outputs.llm-provider }}
-        needs-mcp: ${{ inputs.needs-mcp }}
-        browser-mcp: ${{ inputs.browser-mcp }}
-        tools-tier: ${{ inputs.tools-tier }}
-        model: ${{ inputs.model }}
-        subagent-model: ${{ inputs.subagent-model }}
-        effort: ${{ inputs.effort }}
-        compact-tokens: ${{ inputs.compact-tokens }}
-        zai-api-key: ${{ inputs.zai-api-key }}
-        claude-api-key: ${{ inputs.claude-api-key }}
-        openrouter-api-key: ${{ inputs.openrouter-api-key }}
-        zai-settings-json: ${{ inputs.zai-settings-json }}
-        openrouter-settings-json: ${{ inputs.openrouter-settings-json }}
-
-    - name: pi einrichten
-      id: pi
-      if: steps.preflight.outputs.configured == 'true' && steps.runtime.outputs.runtime == 'pi'
-      uses: ./.github/actions/setup-pi
-      with:
-        llm-provider: ${{ steps.provider.outputs.llm-provider }}
-        needs-mcp: ${{ inputs.needs-mcp }}
-        browser-mcp: ${{ inputs.browser-mcp }}
-        tools-tier: ${{ inputs.tools-tier }}
-        model: ${{ inputs.model }}
-        subagent-model: ${{ inputs.subagent-model }}
-        effort: ${{ inputs.effort }}
-        model-aliases-json: ${{ inputs.pi-model-aliases-json }}
-        zai-api-key: ${{ inputs.zai-api-key }}
-        claude-api-key: ${{ inputs.claude-api-key }}
-        openrouter-api-key: ${{ inputs.openrouter-api-key }}
-
     # Memory-Save findet sich NICHT hier (die Action läuft ausschließlich pre-agent).
     # Phasen (01..06) sichern nach dem Agenten-Step den Issue-Storage über die Composite-
     # Action issue-state-save: Upload der .ai-memory-Notizen als Workflow-Artefakt
