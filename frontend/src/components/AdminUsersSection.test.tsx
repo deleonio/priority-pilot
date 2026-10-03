@@ -42,8 +42,16 @@ vi.mock('@public-ui/react-v19', () => ({
 			<div>{children}</div>
 		</div>
 	),
-	KolButton: ({ _label, _on }: { _label?: string; _on?: { onClick?: (event: MouseEvent) => void } }) => (
-		<button type="button" onClick={(e) => _on?.onClick?.(e.nativeEvent)}>
+	KolButton: ({
+		_label,
+		_disabled,
+		_on,
+	}: {
+		_label?: string;
+		_disabled?: boolean;
+		_on?: { onClick?: (event: MouseEvent) => void };
+	}) => (
+		<button type="button" disabled={_disabled === true} onClick={(e) => _on?.onClick?.(e.nativeEvent)}>
 			{_label}
 		</button>
 	),
@@ -692,6 +700,81 @@ describe('AdminUsersSection — Abo sperren/stornieren (#1959)', () => {
 		fireEvent.click(within(row()).getByRole('button', { name: 'Abo stornieren' }));
 		fireEvent.click(screen.getByRole('button', { name: 'Jetzt stornieren' }));
 		await waitFor(() => expect(mockCancelUserSubscription).toHaveBeenCalledWith({ id: 7 }));
+	});
+});
+
+/**
+ * #2105: Fortschritts-Zustand im Abo-Bestätigungsdialog — während des Requests trägt der
+ * bestätigende Button einen Fortschritts-Text („Sperre …“/„Storniere …“, Muster „Berechne …“
+ * des Reassign-Buttons) und bleibt deaktiviert; endet der Request mit Fehler (Dialog bleibt
+ * offen), steht wieder der statische Label und der Button ist aktiv. Erfolg schließt den
+ * Dialog (Bestandsverhalten #1959, oben getestet) — der Rückkehr-Assert läuft daher über
+ * den Fehlerpfad.
+ */
+describe('AdminUsersSection — Abo-Aktionen: Fortschritts-Zustand (#2105)', () => {
+	const row = (): HTMLElement => screen.getByText('Bernd Beta').closest('li') as HTMLElement;
+
+	/** Kontrollierbarer Request: bleibt pending, bis der Test auflöst — hält den Lauf-Zustand sichtbar. */
+	let resolveAction: () => void = () => undefined;
+	let rejectAction: (reason: unknown) => void = () => undefined;
+	const renderWithPendingAction = (): void => {
+		mockGetAdminUsers.mockResolvedValue([
+			user({ id: 1, displayName: 'Anna Admin' }),
+			user({ id: 7, displayName: 'Bernd Beta', email: 'bernd@example.com', role: 'member', plan: 'pro' }),
+		]);
+		mockLockUserSubscription.mockImplementation(
+			() =>
+				new Promise<void>((resolve, reject) => {
+					resolveAction = resolve;
+					rejectAction = reject;
+				}),
+		);
+		mockCancelUserSubscription.mockImplementation(
+			() =>
+				new Promise<void>((resolve, reject) => {
+					resolveAction = resolve;
+					rejectAction = reject;
+				}),
+		);
+		render(<AdminUsersSection />);
+	};
+
+	it('AK1: während des Sperr-Requests zeigt der bestätigende Button „Sperre …“ und bleibt deaktiviert', async () => {
+		renderWithPendingAction();
+		await waitFor(() => expect(screen.getByText('Bernd Beta')).toBeInTheDocument());
+
+		fireEvent.click(within(row()).getByRole('button', { name: 'Abo sperren' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Jetzt sperren' }));
+
+		expect(screen.getByRole('button', { name: 'Sperre …' })).toBeDisabled();
+
+		resolveAction();
+		await waitFor(() => expect(screen.queryByRole('button', { name: 'Sperre …' })).not.toBeInTheDocument());
+	});
+
+	it('AK1: während des Storno-Requests zeigt der bestätigende Button „Storniere …“ und bleibt deaktiviert', async () => {
+		renderWithPendingAction();
+		await waitFor(() => expect(screen.getByText('Bernd Beta')).toBeInTheDocument());
+
+		fireEvent.click(within(row()).getByRole('button', { name: 'Abo stornieren' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Jetzt stornieren' }));
+
+		expect(screen.getByRole('button', { name: 'Storniere …' })).toBeDisabled();
+
+		resolveAction();
+		await waitFor(() => expect(screen.queryByRole('button', { name: 'Storniere …' })).not.toBeInTheDocument());
+	});
+
+	it('AK1: nach Request-Ende mit Fehler steht wieder der statische Label und der Button ist aktiv', async () => {
+		renderWithPendingAction();
+		await waitFor(() => expect(screen.getByText('Bernd Beta')).toBeInTheDocument());
+
+		fireEvent.click(within(row()).getByRole('button', { name: 'Abo sperren' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Jetzt sperren' }));
+		expect(screen.getByRole('button', { name: 'Sperre …' })).toBeDisabled();
+
+		rejectAction(new Error('Abo wurde bereits gekündigt.'));
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Jetzt sperren' })).toBeEnabled());
 	});
 });
 
