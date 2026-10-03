@@ -21,8 +21,8 @@ genau diesem Punkt; der Zähler, der sie täglich abholte, sieht plötzlich wie 
 
 Das Problem ist nicht der Zähler. Es ist, dass er nimmt. Balamentum, eine Web-App zur
 Aufgabenpriorisierung, führt trotzdem einen Streak — gebaut nach vier Regeln, die ihn zum reinen
-Sammeln machen. Der Unterschied zu einer gängigen Bauart zeigt sich nicht am Auslöser; er zeigt
-sich daran, was der Zähler mit einem leeren Tag macht.
+Sammeln machen. Du kennst die Muster: Kette, Serie, Feuer-Icon — irgendwo bricht jede. Der Unterschied zeigt
+sich nicht am Auslöser, sondern daran, was der Zähler mit einem leeren Tag macht.
 
 ![Streak-Card in Balamentum](images/screenshot-streak-card.png)
 
@@ -33,10 +33,9 @@ wird._
 ## Die vier Regeln
 
 **1. Der laufende Tag zählt noch nicht als Bruch.** Reicht die Folge bis gestern, bleibt sie
-stehen — der Abend gehört dem, der ihn noch hat. Erst eine echte Lücke setzt den Zähler sichtbar
-auf null. Eine gängige Bauart bricht die Kette schon, wenn heute noch nichts abgehakt wurde,
-und verwandelt die Tageszeit in ein Urteil: Wer um 23 Uhr öffnet, hat denselben Tag wie wer um
-9 Uhr öffnet.
+stehen. Erst eine echte Lücke setzt den Zähler sichtbar auf null. Eine gängige Bauart bricht die
+Kette schon, wenn heute noch nichts abgehakt wurde. Innerhalb des Tages ist die Uhrzeit
+gleichgültig; beim Kalenderdatum zählt die Zeitzone (dazu Regel 3).
 
 **2. Die Bestmarke überdauert jede Lücke.** Sie ist ein Rekord, kein Guthaben, das verfällt.
 Eine Lücke kostet die laufende Folge, niemals den Rekord. Dreißig zusammenhängende Tage bleiben
@@ -53,9 +52,37 @@ darf nicht ins Vortages-Datum des Servers rutschen.
 offener Regel ist ein Werkzeug; ein Zähler mit geheimer Regel wirkt wie ein Gegner, der nach
 eigenem Ermessen straft. Transparenz ist die eigentliche Gegenmaßnahme gegen Schuld.
 
-Diese Regeln schützen gegen den Kalender, nicht gegen den Papierkorb: Wer eine Erledigung
-löscht, nimmt den Tag aus der Zählung. Das ist gewollt — die Zählung folgt dem, was steht — aber
+Diese Regeln schützen gegen den Kalender, nicht gegen den Papierkorb: Wer die letzte
+Erledigung eines Tages löscht, nimmt den Tag aus der Zählung. Das ist gewollt — die Zählung folgt dem, was steht — aber
 es gehört zur Ehrlichkeit des Designs dazu.
+
+## Eine Woche mit Loch
+
+Die Regeln am konkreten Kalender. Angenommen, von Montag bis Freitag wird täglich mindestens
+eine Aufgabe erledigt. Am Samstagabend zeigt der Zähler 5 — der Freitag ist gestern, der
+laufende Tag zählt noch nicht als Bruch, egal wie spät es wird. Am Sonntagmorgen fällt die
+laufende Folge auf 0: Der letzte aktive Tag ist zwei Tage zurück. Die Bestmarke bleibt bei 5;
+ein Rekord kennt kein Verfallen. Am Montag beginnt die laufende Folge wieder bei 1 — nichts
+muss wiederaufgebaut und nichts muss eingebüßt werden, der Sonntag kostet genau einen Tag und
+nichts mehr.
+
+Zwei Randfälle stecken in der Rechnung. Erstens: Mehrere Erledigungen am selben Tag zählen als
+ein aktiver Tag — der Streak misst Regelmäßigkeit, nicht Volumen; zehn Aufgaben kaufen keinen
+längeren Streak als eine. Zweitens: Die Abstände rechnen in Kalendertagen, nicht in Stunden.
+Die Nacht auf die Sommerzeit hat 23, ihre Schwester im Herbst 25 — die Kette merkt davon
+nichts, weil zwischen zwei aufeinanderfolgenden Kalendertagen in dieser Rechnung immer genau
+ein Tag liegt.
+
+Eine Grenze bleibt: Fehlt die Zeitzone der Person oder ist sie ungültig, rechnet der Zähler in
+Serverzeit weiter — ein dokumentierter Fallback statt einer Fehlermeldung, und damit ein
+stiller Genauigkeitsverlust genau an dem Tag, an dem die lokale Uhr wichtig gewesen wäre. Der
+Normalweg bleibt die Zeitzone der Person; auch der Fallback gehört zu der Zählregel, die die
+App offenlegt.
+
+Und der Streak beantwortet bewusst nur eine Frage: War diese Woche jemand dran? Ob die
+Aufgaben groß waren, ob sie etwas gebracht haben, ob die Person sich danach erschöpft fühlte —
+das liegt außerhalb der Rechnung, und die App behauptet das Gegenteil auch nicht. Eine
+Anwesenheitsliste, kein Leistungsprotokoll.
 
 ## Rückmeldung, die mit der Balance ruhiger wird
 

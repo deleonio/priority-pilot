@@ -66,3 +66,52 @@ Sprachstil. Maximal 20 Punkte pro Juror und Artikel.
   Übersetzungshilfen in den Bildunterschriften.
 - Die Streak-Demo zeigt 1 Tag/1 Tag (Bestmarke ohne Lücken-Historie); die Captions erklären das
   ehrlich. Ein reicherer Demo-Stand („12 Tage, Bestmarke 34") wäre das nächste Bild-Upgrade.
+
+---
+
+# Zweiter Lauf (03.10., Branch `docs/marketing-artikel-lang`)
+
+Neuauflage nach Nutzer-Vorgabe: **längere Artikel, drei eigenständige Fassungen je Thema ohne
+Cross-Verweise** (Skill entsprechend erweitert: 1200–1800 Wörter, Eigenständigkeits-Regel).
+Alle fünf Artikel neu geschrieben und erneut drei Jury-Runden durchlaufen.
+
+## Runde-3-Scores (verbindlich)
+
+| Artikel               | Skeptiker | Zyniker | Purist | Ø (von 20) |
+| --------------------- | --------- | ------- | ------ | ---------- |
+| Zifferblatt · Medium  | 17,5      | 15      | 17,5   | **16,7**   |
+| Zifferblatt · web.dev | 18,5      | 18      | 17     | **17,8**   |
+| Rückmeldung · Medium  | 17        | 15      | 16     | **16,0**   |
+| Rückmeldung · web.dev | 18        | 16      | 16,5   | **16,8**   |
+| Rückmeldung · dev.to  | 17,5      | 16      | 16,5   | **16,7**   |
+
+Rangfolge: Zifferblatt/web.dev (17,8) · Rückmeldung/web.dev (16,8) · Zifferblatt/Medium und
+Rückmeldung/dev.to (je 16,7) · Rückmeldung/Medium (16,0).
+
+## Erkenntnisse des zweiten Laufs
+
+- **Der schärfste Fund kam wieder aus dem Code:** Die erste lange Fassung erzählte die
+  Zeitzonen-Falle falsch herum (23:30 Berlin = 21:30/22:30 UTC am _selben_ Tag; die echte Falle
+  sitzt kurz _nach_ Mitternacht deutscher Zeit). Ein Artikel über ehrliche Zähler mit einem
+  Rechenfehler im Flaggschiff-Beispiel wäre unfreiwillig komisch gewesen.
+- **Eigenständigkeit braucht mehr als „keine Links“:** Ohne Cross-Verweise blieben geteilte
+  Signaturen („honest by separation“, „care or log“, „nothing in the loop subtracts“) und ein
+  wörtlicher Puls-Satz in beiden Medium-Artikeln — die Juroren lasen das als „dieselbe
+  Pressemitteilung in drei Kostümen“. Fix: jede Fassung formuliert ihre Kernsätze selbst.
+- **Gegenseitige Widerlegung verhindert Überkorrektur:** In Runde 2 wurden drei Kollegen-Angriffe
+  sauber widerlegt („Balamentus“ war längs gefixt, `Math.max` trägt durch die Herleitungs-
+  Begründung, die TelefonSeelsorge-Zeile bleibt wahrheitsgemäß drin). Nur was die Runde-2-Prüfung
+  überlebt hat, floss in die Fixe ein.
+- **Absolutheiten sind die Lieblingswaffe der Juroren:** „never take anything away“ vs.
+  Papierkorb, „every view … all four“, „users define their own pillars“ (falsch — die fünf Säulen
+  sind fest, `pillarData.ts`). Jede Absolutheit braucht ihre Grenze im Text.
+
+## Veröffentlichungshinweise
+
+- Branch `docs/marketing-artikel-lang` (Worktree `/tmp/balamentum-lang/`, Worktree nach Bedarf
+  neu auschecken). Die konkurrierende Linie auf `docs/marketing-artikel` (PR #2056) trägt
+  mittellange Fassungen mit Cross-Link-Regel — vor dem Merge entscheiden, welche Linie gilt.
+- Medium akzeptiert keine SVGs: `zifferblatt-galerie.png` liegt bereit, `farbrampe-en.svg` und
+  `states-en.svg` vor dem Upload rastern.
+- Screenshots zeigen deutsche UI mit Demo-Daten; die englischen Artikel glossieren in den
+  Captions.
