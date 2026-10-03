@@ -147,26 +147,47 @@ describe('distributeWithMinimum', () => {
 });
 
 /**
- * #1962 — Hauptsäulen-Modus: feste Fallback-Regel der Restverteilung. Spiegel zur
- * `suggestMainDistribution` im Frontend (`frontend/src/lib/pillar.ts`) — Hauptsäule 80 %, Rest
- * gleichmäßig, jeder Anteil ≥ SHARE_MIN, Summe exakt SHARE_TOTAL. Wer hier etwas ändert, ändert
- * es auch im Frontend.
+ * #2075 (AK1, Spec docs/spec/issue-2075.md) — Nachfolger von `suggestMainShares`: Rang-Treppe als
+ * Spiegel zur #2074-Frontend-Regel (`frontend/src/lib/pillar.ts`). Angetippte Säulen erhalten in
+ * Tipp-Reihenfolge 50/20/15/10/5, die übrigen teilen den Rest gleichmäßig (Largest-Remainder,
+ * Gleichstand → Säulen-Reihenfolge), ganzzahlig, Summe exakt SHARE_TOTAL, jeder Anteil ≥ SHARE_MIN.
+ * Wer hier etwas ändert, ändert es auch im Frontend.
  *
- * TEST-PFLEGE #1962 (Impl): Der optionale Cast aus der roten Spec ist durch den direkten
- * Named-Import ersetzt — die Funktion existiert jetzt, und knip sieht die Nutzung statisch.
+ * TEST-PFLEGE #2075 (Spec): die 80/5-Blöcke (#1962) sind entfallen — `suggestMainShares` wird
+ * durch die Rang-Treppe ersetzt (kein Produktions-Aufrufer, nur diese Tests).
+ *
+ * Roter Spec-Stand: optionaler Cast, der Nachfolger existiert erst mit der Impl (#1962-Muster).
  */
-const suggestMainShares = pillarSharesModule.suggestMainShares;
+const suggestRankedShares = pillarSharesModule.suggestRankedShares as unknown as
+	((ranks: readonly number[], count: number) => number[]) | undefined;
 
-describe('suggestMainShares — Hauptsäulen-Fallback (#1962, AK3)', () => {
-	it('liefert bei fünf Säulen die Hauptsäule mit 80 %, den Rest je 5 %', () => {
-		assert.deepEqual(suggestMainShares?.(0, 5), [80, 5, 5, 5, 5]);
-		assert.deepEqual(suggestMainShares?.(2, 5), [5, 5, 80, 5, 5]);
-		assert.deepEqual(suggestMainShares?.(4, 5), [5, 5, 5, 5, 80]);
+describe('suggestRankedShares — Rang-Treppe (#2075, AK1)', () => {
+	it('verteilt fünf angetippte Säulen in Tipp-Reihenfolge 50/20/15/10/5', () => {
+		assert.deepEqual(suggestRankedShares?.([0, 1, 2, 3, 4], 5), [50, 20, 15, 10, 5]);
+	});
+
+	it('entscheidet die Tipp-Reihenfolge: [1, 0] dreht die Treppe, der Rest wird gleichmäßig', () => {
+		assert.deepEqual(suggestRankedShares?.([0, 1], 5), [50, 20, 10, 10, 10]);
+		assert.deepEqual(suggestRankedShares?.([1, 0], 5), [20, 50, 10, 10, 10]);
+	});
+
+	it('eine angetippte Säule: 50 % plus 13/13/12/12 über die übrigen (#2074 AK2)', () => {
+		assert.deepEqual(suggestRankedShares?.([0], 5), [50, 13, 13, 12, 12]);
+		assert.deepEqual(suggestRankedShares?.([2], 5), [13, 13, 50, 12, 12]);
+	});
+
+	it('ohne angetippte Säule: Gleichverteilung', () => {
+		assert.deepEqual(suggestRankedShares?.([], 5), [20, 20, 20, 20, 20]);
+	});
+
+	it('degenerierte counts: eine Säule → 100 %, count 0 → leere Liste', () => {
+		assert.deepEqual(suggestRankedShares?.([0], 1), [100]);
+		assert.deepEqual(suggestRankedShares?.([], 0), []);
 	});
 
 	it('hält Summe exakt 100 und jeden Anteil ≥ SHARE_MIN bei ein bis sieben Säulen', () => {
 		for (let count = 1; count <= 7; count += 1) {
-			const shares = suggestMainShares?.(Math.floor(count / 2), count) ?? [];
+			const shares = suggestRankedShares?.([Math.floor(count / 2)], count) ?? [];
 			assert.equal(
 				shares.reduce((acc, share) => acc + share, 0),
 				SHARE_TOTAL,
@@ -177,9 +198,5 @@ describe('suggestMainShares — Hauptsäulen-Fallback (#1962, AK3)', () => {
 				`count=${count}: ${JSON.stringify(shares)}`,
 			);
 		}
-	});
-
-	it('gibt einer einzelnen Säule 100 %', () => {
-		assert.deepEqual(suggestMainShares?.(0, 1), [100]);
 	});
 });
