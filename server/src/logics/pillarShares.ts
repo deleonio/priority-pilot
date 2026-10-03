@@ -81,21 +81,44 @@ export const distributeWithMinimum = (base: readonly number[]): number[] => {
 	}
 };
 
+/** Anteile der Rang-Treppe: die angetippte Säule von Rang n erhält `RANG_ANTEILE[n − 1]` (#2075). */
+const RANG_ANTEILE = [50, 20, 15, 10, 5];
+
 /**
- * Feste Fallback-Regel des Hauptsäulen-Modus (#1962): die Hauptsäule am `mainIndex` bekommt den
- * freien Pool über den Mindestanteilen (`SHARE_TOTAL − (count−1)·SHARE_MIN`, bei fünf Säulen
- * 80 %), jede übrige Säule den Mindestanteil — ganzzahlig, Summe exakt `SHARE_TOTAL`. Spiegel zur
- * `suggestMainDistribution` in `frontend/src/lib/pillar.ts`; wer hier etwas ändert, ändert es auch
- * im Frontend. Unbekannter Index → leere Liste; eine einzige Säule → 100 %.
+ * Rang-Treppe des Hauptsäulen-Modus (#2075): die angetippten Säulen (`ranks` = Indizes in
+ * Tipp-Reihenfolge, Rang 1 zuerst) erhalten 50/20/15/10/5, die übrigen teilen den Rest
+ * gleichmäßig — ganzzahlig (Largest-Remainder, Gleichstand → Säulen-Reihenfolge), Summe exakt
+ * `SHARE_TOTAL`, jeder Anteil ≥ `SHARE_MIN`. Spiegel zur `suggestRankedDistribution` in
+ * `frontend/src/lib/pillar.ts` (#2074); wer hier etwas ändert, ändert es auch im Frontend.
+ * Ohne Säulen → leere Liste; eine einzige Säule → 100 %. Ungültige oder doppelte Indizes in
+ * `ranks` werden ignoriert. Kippt die Restverteilung unter den Mindestanteil (sehr viele
+ * Säulen) → Gleichverteilung.
  */
-export const suggestMainShares = (mainIndex: number, count: number): number[] => {
-	if (count <= 0 || mainIndex < 0 || mainIndex >= count) {
+export const suggestRankedShares = (ranks: readonly number[], count: number): number[] => {
+	if (count <= 0) {
 		return [];
 	}
-	const main = SHARE_TOTAL - (count - 1) * SHARE_MIN;
-	if (main < SHARE_MIN) {
+	if (count === 1) {
+		return [SHARE_TOTAL];
+	}
+	const exact = new Array<number>(count).fill(Number.NaN);
+	let rest = SHARE_TOTAL;
+	ranks.forEach((index, rank) => {
+		if (Number.isInteger(index) && index >= 0 && index < count && Number.isNaN(exact[index])) {
+			const anteil = RANG_ANTEILE[Math.min(rank, RANG_ANTEILE.length - 1)];
+			exact[index] = anteil;
+			rest -= anteil;
+		}
+	});
+	const frei = exact.filter((anteil) => Number.isNaN(anteil)).length;
+	if (frei > 0 && rest / frei < SHARE_MIN) {
 		// Grenzfall sehr vieler Säulen: die Regel kippt unter die Invarianten → Gleichverteilung.
 		return evenShares(count);
 	}
-	return Array.from({ length: count }, (_value, index) => (index === mainIndex ? main : SHARE_MIN));
+	for (let index = 0; index < count; index += 1) {
+		if (Number.isNaN(exact[index])) {
+			exact[index] = rest / frei;
+		}
+	}
+	return roundSharesToTotal(exact);
 };

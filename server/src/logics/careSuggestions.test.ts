@@ -48,6 +48,7 @@ describe('waehleCareVorschlaege (#1791)', () => {
 		const ablehnung = { templateKey: 'koerper-2', abgelehntAm: new Date(JETZT.getTime() - 13 * TAG_MS) };
 		const ergebnis = waehleCareVorschlaege(
 			saeule,
+			SAEULEN_LISTE,
 			[],
 			[vorlage('koerper-1'), vorlage('koerper-2'), vorlage('koerper-3')],
 			[ablehnung],
@@ -64,6 +65,7 @@ describe('waehleCareVorschlaege (#1791)', () => {
 		const ablehnung = { templateKey: 'koerper-2', abgelehntAm: new Date(JETZT.getTime() - 15 * TAG_MS) };
 		const ergebnis = waehleCareVorschlaege(
 			saeule,
+			SAEULEN_LISTE,
 			[],
 			[vorlage('koerper-1'), vorlage('koerper-2'), vorlage('koerper-3')],
 			[ablehnung],
@@ -78,6 +80,7 @@ describe('waehleCareVorschlaege (#1791)', () => {
 	it('Vertrag: eigene offene Aufgabe zuerst, dann Vorlagen, höchstens drei je Säule, Fremd-Säulen-Vorlage gefiltert', () => {
 		const ergebnis = waehleCareVorschlaege(
 			saeule,
+			SAEULEN_LISTE,
 			[aufgabe(7), aufgabe(8)],
 			[vorlage('koerper-1'), vorlage('koerper-2'), vorlage('koerper-3'), vorlage('koerper-4'), vorlage('geist-1', 2)],
 			[],
@@ -202,7 +205,7 @@ describe('waehleCareVorschlaege/waehleErholungsVorschlaege — vollständige Ver
 	it('Task-Vorschläge geben die Aufgaben-Verteilung unverändert durch (kein Umbau)', () => {
 		erweiterteSignatur();
 		const eigenVerteilung = [
-			{ pillarId: 2, share: 60 },
+			{ pillarId: 1, share: 60 },
 			{ pillarId: 3, share: 40 },
 		];
 		const ergebnis = waehleMitSaeulen(saeule, SAEULEN_LISTE, [aufgabe(7, eigenVerteilung)], [], [], JETZT);

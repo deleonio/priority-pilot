@@ -16,6 +16,7 @@ import type { PillarWithContribution } from '../../models/task.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import {
 	PAUSE_VORLAGE_KEY,
+	saeulenBeitraegeFuerZiel,
 	waehleCareVorschlaege,
 	waehleErholungsVorschlaege,
 	type CareAufgabe,
@@ -328,6 +329,7 @@ const createKiVorschlagErmittler = (advisor: ActivityAdvisor) => {
 	const ermittle = async (
 		userId: number,
 		saeule: Pillar,
+		saeulen: Pillar[],
 		aufgaben: CareAufgabe[],
 	): Promise<CareVorschlagDto | undefined> => {
 		const zaehler = await createAiQuotaCounter(userId, false);
@@ -350,7 +352,8 @@ const createKiVorschlagErmittler = (advisor: ActivityAdvisor) => {
 					typ: 'ki',
 					titel: advice.activity,
 					beschreibung: advice.reason,
-					saeulenBeitraege: [{ pillarId: saeule.id, share: 100 }],
+					// #2075 AK4: dieselbe vollständige Verteilung wie Vorlagen- und Regelpfad.
+					saeulenBeitraege: saeulenBeitraegeFuerZiel(saeule.id, saeulen),
 					saeuleId: saeule.id,
 					saeuleName: saeule.name,
 					anlass: 'defizit',
@@ -368,6 +371,7 @@ const createKiVorschlagErmittler = (advisor: ActivityAdvisor) => {
 	return async (
 		userId: number | undefined,
 		saeule: Pillar | undefined,
+		saeulen: Pillar[],
 		aufgaben: CareAufgabe[],
 		jetzt: Date,
 	): Promise<CareVorschlagDto | undefined> => {
@@ -386,7 +390,7 @@ const createKiVorschlagErmittler = (advisor: ActivityAdvisor) => {
 		}
 		// #1873: das laufende Promise ohne `await` dazwischen eintragen — parallele Abrufe teilen
 		// einen Beraterlauf und eine Buchung.
-		const vorschlag = ermittle(userId, saeule, aufgaben);
+		const vorschlag = ermittle(userId, saeule, saeulen, aufgaben);
 		tagesCache.set(key, { tag, vorschlag });
 		// Ein abgelehntes Promise nicht den Tag über cachen — sonst wirft jeder weitere Abruf erneut.
 		vorschlag.catch(() => {
@@ -474,7 +478,7 @@ export const createCareSuggestionsRouter = (advisor: ActivityAdvisor = adviseAct
 				const ueberlasteIds = defizite.filter((defizit) => defizit.ueberlast).map((defizit) => defizit.id);
 				const erholung: CareVorschlagDto[] =
 					ueberlasteIds.length > 0
-						? waehleErholungsVorschlaege(ueberlasteIds, vorlagen, ablehnungenDto, jetzt).map((vorschlag) => ({
+						? waehleErholungsVorschlaege(saeulen, ueberlasteIds, vorlagen, ablehnungenDto, jetzt).map((vorschlag) => ({
 								...vorschlag,
 								saeuleName: saeulen.find((saeule) => saeule.id === vorschlag.saeuleId)?.name ?? '',
 								anlass: 'ueberlast' as const,
@@ -488,7 +492,7 @@ export const createCareSuggestionsRouter = (advisor: ActivityAdvisor = adviseAct
 						const vorlagenDerSaeule = vorlagen.filter(
 							(vorlage) => vorlage.saeuleId === saeule.id && vorlage.key !== PAUSE_VORLAGE_KEY,
 						);
-						return waehleCareVorschlaege(saeule, aufgaben, vorlagenDerSaeule, ablehnungenDto, jetzt).map(
+						return waehleCareVorschlaege(saeule, saeulen, aufgaben, vorlagenDerSaeule, ablehnungenDto, jetzt).map(
 							(vorschlag) => ({
 								...vorschlag,
 								saeuleId: defizit.id,
@@ -501,7 +505,9 @@ export const createCareSuggestionsRouter = (advisor: ActivityAdvisor = adviseAct
 				// #1873: KI vor den Defizit-Vorschlägen (der Hinweis zeigt nur den ersten); bei Überlast steht
 				// Erholung vorn — dann kein Beraterlauf, damit nur gebucht wird, was angezeigt werden kann.
 				const ki =
-					erholung.length > 0 ? undefined : await ermittleKiVorschlag(userId, ersteDefizitSaeule, aufgaben, jetzt);
+					erholung.length > 0
+						? undefined
+						: await ermittleKiVorschlag(userId, ersteDefizitSaeule, saeulen, aufgaben, jetzt);
 				const vorschlaege = [...erholung, ...(ki ? [ki] : []), ...defizitVorschlaege];
 
 				// #1798 AK1: angezeigte Vorlagen anonym zählen (je Nutzer, Vorlage und Woche einmal).
