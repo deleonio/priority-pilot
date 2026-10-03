@@ -1,6 +1,7 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { CARE_VORLAGEN } from '../logics/careSuggestionData.js';
+import { SHARE_MIN, SHARE_TOTAL } from '../logics/pillarShares.js';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 
 /**
@@ -126,10 +127,12 @@ describe('GET /scores/care-suggestions (#1791)', () => {
 		const detailRes = await server.json(`/tasks/${created.id}`, { headers: { Cookie: cookie } });
 		assert.equal(detailRes.status, 200);
 		const task = (await detailRes.json()) as { pillars: { pillarId: number; share: number }[] };
-		assert.ok(
-			task.pillars.some((p) => p.pillarId === saeuleId && p.share === 100),
-			'angelegter Task muss den Säulen-Beitrag der Vorlage tragen',
-		);
+		// #2075 AK3: der angelegte Task trägt exakt die gelieferte Verteilung (fünf gültige Beiträge).
+		const geliefert = [...vorlage.saeulenBeitraege].sort((a, b) => a.pillarId - b.pillarId);
+		const angelegt = task.pillars
+			.map((p) => ({ pillarId: p.pillarId, share: p.share }))
+			.sort((a, b) => a.pillarId - b.pillarId);
+		assert.deepEqual(angelegt, geliefert, 'angelegter Task muss die Vorschlags-Verteilung exakt übernehmen');
 	});
 
 	it('AK4 (API): frisch abgelehnte Vorlage wird unterdrückt', async () => {
@@ -215,5 +218,46 @@ describe('GET /scores/care-suggestions (#1791)', () => {
 			vorschlaege.every((v) => v.anlass === 'defizit'),
 			'ohne Überlast ist jeder Anlass defizit',
 		);
+	});
+
+	it('#2075 AK2: jeder Vorlagen-Vorschlag (Defizit und Erholung) trägt fünf Säulen-Beiträge — Ziel 50, Rest 13/13/12/12', async () => {
+		const cookie = await server.register('care-2075-form@example.com', 'password123');
+		await erledigeAufgabe(cookie, WIRKSAMKEIT);
+
+		const relevante = (await leseVorschlaege(cookie)).filter((v) => v.typ === 'vorlage');
+		assert.ok(
+			relevante.some((v) => v.anlass === 'ueberlast'),
+			'Setup: Erholungspfad muss vertreten sein',
+		);
+		assert.ok(
+			relevante.some((v) => v.anlass === 'defizit'),
+			'Setup: Defizit-Pfad muss vertreten sein',
+		);
+		for (const vorschlag of relevante) {
+			const beitraege = vorschlag.saeulenBeitraege;
+			assert.equal(beitraege.length, 5, `${vorschlag.templateKey}: genau fünf Säulen-Beiträge`);
+			assert.equal(
+				beitraege.find((b) => b.pillarId === vorschlag.saeuleId)?.share,
+				50,
+				`${vorschlag.templateKey}: Ziel-Säule 50 %`,
+			);
+			assert.deepEqual(
+				beitraege
+					.filter((b) => b.pillarId !== vorschlag.saeuleId)
+					.map((b) => b.share)
+					.sort((a, b) => b - a),
+				[13, 13, 12, 12],
+				`${vorschlag.templateKey}: übrige vier gleichmäßig über 50 %`,
+			);
+			assert.equal(
+				beitraege.reduce((acc, b) => acc + b.share, 0),
+				SHARE_TOTAL,
+				`${vorschlag.templateKey}: Summe exakt 100`,
+			);
+			assert.ok(
+				beitraege.every((b) => b.share >= SHARE_MIN),
+				`${vorschlag.templateKey}: jeder Anteil ≥ SHARE_MIN`,
+			);
+		}
 	});
 });

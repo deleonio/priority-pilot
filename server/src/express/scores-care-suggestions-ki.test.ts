@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { AiUsage, Pillar, Task, User } from '../models/index.js';
 import { currentYearMonth } from './aiQuotaMeter.js';
 import type { ActivityAdvisor, AdviseActivitiesInput } from '../llm/llm.js';
+import { SHARE_MIN, SHARE_TOTAL } from '../logics/pillarShares.js';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 
 /**
@@ -31,6 +32,7 @@ interface Vorschlag {
 	saeuleId: number;
 	titel: string;
 	beschreibung: string | null;
+	saeulenBeitraege?: { pillarId: number; share: number }[];
 	anlass?: string;
 }
 
@@ -260,5 +262,31 @@ describe('GET /scores/care-suggestions — KI-Vorschlag Plus/Pro (#1804)', () =>
 		const eingabe = JSON.stringify(aufrufe[0]);
 		assert.ok(eingabe.includes('Aufgabe-A01'), 'neueste Aufgabe enthalten');
 		assert.ok(!eingabe.includes('Aufgabe-A21'), 'älteste Aufgabe (21.) nicht enthalten');
+	});
+
+	it('#2075 AK4: auch der KI-Vorschlag trägt die vollständige Form — fünf Beiträge, Ziel-Säule 50, Rest 13/13/12/12', async () => {
+		const { cookie, saeuleId } = await setup('care-ki-2075-form@example.com', 'plus');
+		const ki = nurKi(await leseVorschlaege(cookie));
+		assert.equal(ki.length, 1, 'Setup: genau ein KI-Vorschlag');
+		const beitraege = ki[0]?.saeulenBeitraege ?? [];
+		assert.equal(beitraege.length, 5, 'genau fünf Säulen-Beiträge');
+		assert.equal(beitraege.find((b) => b.pillarId === saeuleId)?.share, 50, 'Ziel-Säule 50 %');
+		assert.deepEqual(
+			beitraege
+				.filter((b) => b.pillarId !== saeuleId)
+				.map((b) => b.share)
+				.sort((a, b) => b - a),
+			[13, 13, 12, 12],
+			'übrige vier gleichmäßig über 50 %',
+		);
+		assert.equal(
+			beitraege.reduce((acc, b) => acc + b.share, 0),
+			SHARE_TOTAL,
+			'Summe exakt 100',
+		);
+		assert.ok(
+			beitraege.every((b) => b.share >= SHARE_MIN),
+			'jeder Anteil ≥ SHARE_MIN',
+		);
 	});
 });
