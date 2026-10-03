@@ -550,10 +550,10 @@ const fillTitle = async (value: string): Promise<void> => {
 	});
 };
 
-/** Wählt im Anlege-Flow die Hauptsäule (#1962) — Pflicht im Submit-Pfad, sonst bricht das Anlegen ab. */
+/** Tippt die Hauptsäule in der Rangfolge (#2074) — die Tap-Fläche ersetzt die alte Auswahl (#1962). */
 const chooseMainPillar = async (): Promise<void> => {
 	await act(async () => {
-		fireEvent.change(screen.getByLabelText('Hauptsäule'), { target: { value: String(pillarKoerper.id) } });
+		fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${pillarKoerper.name}`) }));
 	});
 };
 
@@ -918,8 +918,9 @@ describe('AK — Säulenzuordnung im Serien-Edit-Modus (#343)', () => {
 /**
  * #440 (AK2) in der Fassung von #1596: Die fünf Säulen sind fest, hinzugefügt oder entfernt wird
  * nichts mehr. Ohne geladene Säulen (`pillars = []` — Abruf läuft noch oder ist fehlgeschlagen)
- * steht statt der Regler ein Hinweis samt Folge; mit Säulen erscheint die Hauptsäulen-Auswahl und
- * mit deren Wahl die Beitragszeile (TEST-PFLEGE #1962 — kein Vorbelegen mehr im Anlege-Flow).
+ * steht statt der Regler ein Hinweis samt Folge; mit Säulen erscheinen die Tap-Zeilen samt
+ * Beitragszeile (TEST-PFLEGE #2074 — Gleichverteilung ohne Wahl, das Hauptsäulen-Select von
+ * #1962 ist entfallen).
  */
 describe('TaskForm — Säulen-Verteilung ohne geladene Säulen (#440/#1596)', () => {
 	it('zeigt den Hinweis samt Folge, wenn pillars leer ist', async () => {
@@ -940,12 +941,9 @@ describe('TaskForm — Säulen-Verteilung ohne geladene Säulen (#440/#1596)', (
 			render(<TaskForm task={null} pillars={[pillarKoerper]} onClose={vi.fn()} onSaved={vi.fn()} />);
 		});
 
-		// TEST-PFLEGE #1962: Der Anlege-Flow belegt keine Säulen mehr vor — die Beitragszeile
-		// erscheint erst mit gewählter Hauptsäule (Auswahlliste „Hauptsäule", Mock → natives select).
-		expect(screen.getByLabelText('Hauptsäule')).toBeInTheDocument();
-		await act(async () => {
-			fireEvent.change(screen.getByLabelText('Hauptsäule'), { target: { value: '1' } });
-		});
+		// TEST-PFLEGE #2074: Der Anlege-Flow startet mit der Gleichverteilung — die Beitragszeile
+		// erscheint mit der Säulenliste, ohne dass eine Hauptsäule gewählt werden muss.
+		expect(screen.getByRole('button', { name: /^Körper/ })).toBeInTheDocument();
 
 		expect(document.querySelectorAll('.pillar-row')).toHaveLength(1);
 		expect(screen.queryByText(/keine säulen geladen/i)).toBeNull();

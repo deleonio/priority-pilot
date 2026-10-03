@@ -147,10 +147,10 @@ describe('distributeWithMinimum', () => {
 });
 
 /**
- * #1962 — Hauptsäulen-Modus: feste Fallback-Regel der Restverteilung. Spiegel zur
- * `suggestMainDistribution` im Frontend (`frontend/src/lib/pillar.ts`) — Hauptsäule 80 %, Rest
- * gleichmäßig, jeder Anteil ≥ SHARE_MIN, Summe exakt SHARE_TOTAL. Wer hier etwas ändert, ändert
- * es auch im Frontend.
+ * #1962 — Hauptsäulen-Modus: feste Fallback-Regel der Restverteilung. Entspricht dem alten
+ * Frontend-Pendant `suggestMainDistribution` (`frontend/src/lib/pillar.ts`, mit #2074 durch die
+ * Rangfolge-Treppe ersetzt) — Hauptsäule 80 %, Rest gleichmäßig, jeder Anteil ≥ SHARE_MIN, Summe
+ * exakt SHARE_TOTAL. Der Server-Spiegel zur neuen Regel entsteht in #2075.
  *
  * TEST-PFLEGE #1962 (Impl): Der optionale Cast aus der roten Spec ist durch den direkten
  * Named-Import ersetzt — die Funktion existiert jetzt, und knip sieht die Nutzung statisch.

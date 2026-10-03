@@ -9,10 +9,11 @@ Zwei Ideen stecken dahinter:
 - **Wertbeitrag statt Bauchgefühl.** Aus der Priorität und den gewichteten
   Abhängigkeiten berechnet Balamentum pro Aufgabe einen Wert. Die wertvollsten
   Aufgaben und die sinnvolle nächste Aufgabe werden dadurch sichtbar.
-- **Lebensbalance-Säulen.** Jede Aufgabe zahlt auf die Lebensbereiche ein: Du wählst eine
-  **Hauptsäule** – die Restverteilung schlägt die App als Vorschlag vor, den du übernehmen oder
-  anpassen kannst. Die fünf Säulen stehen fest. Über die Gewichtung in den Einstellungen steuerst
-  du, welche Bereiche gerade wichtig sind – und siehst, ob deine Zeit dorthin fließt.
+- **Lebensbalance-Säulen.** Jede Aufgabe zahlt auf die Lebensbereiche ein: Du tippst die Säulen
+  in der Reihenfolge ihrer Wichtigkeit an – die App verteilt die Anteile danach (Treppe
+  50/20/15/10/5, der Rest wird gleichmäßig geteilt). Die fünf Säulen stehen fest. Über die
+  Gewichtung in den Einstellungen steuerst du, welche Bereiche gerade wichtig sind – und siehst,
+  ob deine Zeit dorthin fließt.
 
 Dieses Handbuch erklärt alle Funktionen der Anwendung.
 
@@ -273,9 +274,9 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
   Vergleich; du entscheidest, ob du den Vorschlag übernimmst.
 - **Kategorie (optional)** – das Thema, zu dem die Aufgabe gehört (siehe „Kategorien").
   Höchstens eine je Aufgabe; sie ordnet nur, sie verändert die Priorisierung nicht.
-- **Säulen-Verteilung** – wie stark die Aufgabe auf die Lebensbereiche einzahlt. Die **Hauptsäule**
-  ist vorausgewählt und lässt sich ändern; die Restverteilung erscheint als übernehmbarer
-  Vorschlag (siehe „Lebensbalance-Säulen").
+- **Säulen-Verteilung** – wie stark die Aufgabe auf die Lebensbereiche einzahlt. Du tippst die
+  Säulen in der Reihenfolge ihrer Wichtigkeit an; Rang und Anteil stehen an jeder Säule
+  (siehe „Lebensbalance-Säulen").
 - **Empfänger** – für wen die Aufgabe bestimmt ist: dich selbst oder ein Mitglied
   einer deiner Gruppen (siehe „Gruppen"). Das Feld erscheint, solange du Mitglied
   mindestens einer Gruppe bist. Wählst du beim **Bearbeiten** ein fremdes Konto,
@@ -414,12 +415,12 @@ besteht aus einem Namen und einer kurzen Beschreibung.
 
 ### Verteilung je Aufgabe
 
-Im Aufgabenformular wählst du unter **„Säulen-Verteilung"** zuerst die **Hauptsäule** – die
-Aufgabe lässt sich damit allein schon speichern (Anteil 100 %). Daneben schlägt die App die
-**Restverteilung** vor (Regel: Hauptsäule 80 %, Rest gleichmäßig, je mindestens 5 %); **„Vorschlag
-übernehmen"** setzt sie ein, **„Nicht übernehmen"** lässt es bei der Hauptsäule. Übernommen oder nicht:
-Je Säule steht ein Regler – er gehört zum **Expertenmodus** (Einstellungen → Allgemein);
-standardmäßig bleibt es bei Hauptsäule und Vorschlag. Die Regler teilen sich 100 %: Ziehst du
+Im Aufgabenformular tippst du unter **„Säulen-Verteilung"** die Säulen in der Reihenfolge ihrer
+Wichtigkeit an – zuerst die wichtigste. Die angetippten Säulen bekommen die Treppenanteile
+50/20/15/10/5 %, die nicht angetipften teilen den Rest gleichmäßig; Rang und Anteil stehen als
+Text an jeder Säule. Ein erneuter Tipp nimmt den Rang zurück; ein Tipp auf die wichtigste Säule
+genügt zum Speichern. Je Säule steht ein Regler – er gehört zum **Expertenmodus** (Einstellungen
+→ Allgemein); standardmäßig bleibt es bei der Rangfolge. Die Regler teilen sich 100 %: Ziehst du
 einen hoch, geben die anderen ab.
 
 Unter **5 %** fällt keine Säule, sobald sie an der Verteilung teilnimmt. Dahinter steht die

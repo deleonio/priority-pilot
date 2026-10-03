@@ -179,26 +179,45 @@ export const fillContributions = (
 	}));
 };
 
+/** Treppe der Rangfolge (#2074): Rang 1–5 bekommt 50/20/15/10/5 % (Vertrag zum Server-Spiegel #2075). */
+const RANK_STAIRS = [50, 20, 15, 10, 5];
+
 /**
- * Feste Fallback-Regel des Hauptsäulen-Modus (#1962): die gewählte Hauptsäule bekommt den freien
- * Pool über den Mindestanteilen (`SHARE_TOTAL − (n−1)·SHARE_MIN`, bei fünf Säulen 80 %), jede
- * übrige Säule den Mindestanteil — ganzzahlig, Summe exakt `SHARE_TOTAL`, `confidence` 100.
- * Spiegel zur `suggestMainShares` in `server/src/logics/pillarShares.ts`; wer hier etwas ändert,
- * ändert es auch im Server. Unbekannte Hauptsäule → leere Liste; eine einzige Säule → 100 %.
- * Der KI-Vorschlag (`suggestionsToContributions`) hat Vorrang, diese Regel ist der synchrone
- * Fallback, wenn kein KI-Vorschlag vorliegt.
+ * Rangfolge-Treppe (#2074): die Säulen aus `rankedPillarIds` (Tipp-Reihenfolge) bekommen die
+ * Treppe 50/20/15/10/5 %, alle übrigen teilen den Rest gleichmäßig — ganzzahlig per
+ * Largest-Remainder (`roundSharesToTotal`), Gleichstand nach Säulen-Listenordnung. Ergebnis in
+ * Listenordnung über alle Säulen, ganzzahlig, Summe exakt `SHARE_TOTAL`, `confidence` 100.
+ * Ersetzt die 80/5/5/5/5-Regel `suggestMainDistribution` (#1962); der Server-Spiegel entsteht in
+ * #2075. Leere Rangfolge → Gleichverteilung; unbekannte oder mehrfach genannte IDs werden ignoriert.
  */
-export const suggestMainDistribution = (mainPillarId: number, pillars: readonly Pillar[]): TaskPillarContribution[] => {
-	const mainIndex = pillars.findIndex((pillar) => pillar.id === mainPillarId);
-	if (mainIndex < 0 || pillars.length === 0) {
+export const distributionFromRankOrder = (
+	rankedPillarIds: readonly number[],
+	pillars: readonly Pillar[],
+): TaskPillarContribution[] => {
+	if (pillars.length === 0) {
 		return [];
 	}
-	const main = SHARE_TOTAL - (pillars.length - 1) * SHARE_MIN;
-	if (main < SHARE_MIN) {
-		// Grenzfall sehr vieler Säulen: die Regel kippt unter die Invarianten → Gleichverteilung.
-		return fillContributions(pillars, []);
+	const rankById = new Map<number, number>();
+	for (const id of rankedPillarIds) {
+		if (!rankById.has(id) && pillars.some((pillar) => pillar.id === id)) {
+			rankById.set(id, rankById.size);
+		}
 	}
-	const shares = pillars.map((_pillar, index) => (index === mainIndex ? main : SHARE_MIN));
+	const assigned = pillars.map((pillar) => {
+		const rank = rankById.get(pillar.id);
+		return rank !== undefined && rank < RANK_STAIRS.length ? RANK_STAIRS[rank] : null;
+	});
+	const rest = SHARE_TOTAL - assigned.reduce<number>((acc, share) => acc + (share ?? 0), 0);
+	const unranked = assigned.filter((share) => share === null).length;
+	const shares =
+		unranked > 0
+			? roundSharesToTotal(assigned.map((share) => share ?? rest / unranked))
+			: assigned.map((share) => share as number);
+	if (unranked === 0 && rest !== 0) {
+		// Alles gerankt (n ≤ 5): die zuletzt gewählte Säule trägt den Rest — bei fünf Säulen die
+		// Treppenstufe 5 %, bei weniger Säulen hält das die Summe bei 100.
+		shares[shares.length - 1] += rest;
+	}
 	return pillars.map((pillar, index) => ({ pillarId: pillar.id, share: shares[index], confidence: 100 }));
 };
 

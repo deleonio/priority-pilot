@@ -84,9 +84,10 @@ export const distributeWithMinimum = (base: readonly number[]): number[] => {
 /**
  * Feste Fallback-Regel des Hauptsäulen-Modus (#1962): die Hauptsäule am `mainIndex` bekommt den
  * freien Pool über den Mindestanteilen (`SHARE_TOTAL − (count−1)·SHARE_MIN`, bei fünf Säulen
- * 80 %), jede übrige Säule den Mindestanteil — ganzzahlig, Summe exakt `SHARE_TOTAL`. Spiegel zur
- * `suggestMainDistribution` in `frontend/src/lib/pillar.ts`; wer hier etwas ändert, ändert es auch
- * im Frontend. Unbekannter Index → leere Liste; eine einzige Säule → 100 %.
+ * 80 %), jede übrige Säule den Mindestanteil — ganzzahlig, Summe exakt `SHARE_TOTAL`. Das
+ * Frontend-Pendant `suggestMainDistribution` ist mit #2074 durch die Rangfolge-Treppe ersetzt
+ * worden; der Server-Spiegel zieht in #2075 nach. Unbekannter Index → leere Liste; eine einzige
+ * Säule → 100 %.
  */
 export const suggestMainShares = (mainIndex: number, count: number): number[] => {
 	if (count <= 0 || mainIndex < 0 || mainIndex >= count) {
