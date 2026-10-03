@@ -337,6 +337,7 @@ _Enthält v0.5.0 – v0.5.32._
 - feat(frontend): hide paypal purchase in android app plans view by @deleonio in https://github.com/deleonio/priority-pilot/pull/1711
 - feat(frontend): Konto löschen in den Einstellungen mit sequenzieller Bestätigung by @deleonio in https://github.com/deleonio/priority-pilot/pull/1712
 - feat(android): google and magic-link login returns to the app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1713
+- feat(android): google and magic-link login returns to the app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1713
 - feat(android): voice input for quick capture via speech plugin by @deleonio in https://github.com/deleonio/priority-pilot/pull/1714
 - ci(android): build a signed app bundle via workflow_dispatch by @deleonio in https://github.com/deleonio/priority-pilot/pull/1715
 - feat(android): receive push notifications via FCM by @deleonio in https://github.com/deleonio/priority-pilot/pull/1716
