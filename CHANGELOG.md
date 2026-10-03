@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.14 - 2026-10-03
 
-_Enthält v0.14.0 – v0.14.2._
+_Enthält v0.14.0 – v0.14.3._
 
 ### 🎉 New Features
 
@@ -13,6 +13,7 @@ _Enthält v0.14.0 – v0.14.2._
 ### Other Changes
 
 - feat(frontend): onboarding rework from review #2087 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2120
+- feat(frontend): rank pillars by tap order (50/20/15/10/5, full save) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2114
 
 ## v0.13 - 2026-10-03
 
@@ -157,7 +158,6 @@ _Enthält v0.10.0 – v0.10.36._
 
 ### 💥 Breaking Changes
 
-- feat(server): replace visible ai quota with fair-use throttling by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1868
 - feat(server): replace visible ai quota with fair-use throttling by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1868
 
 ### 🎉 New Features
@@ -348,6 +348,7 @@ _Enthält v0.5.0 – v0.5.32._
 - feat(android): google and magic-link login returns to the app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1713
 - feat(android): voice input for quick capture via speech plugin by @deleonio in https://github.com/deleonio/priority-pilot/pull/1714
 - ci(android): build a signed app bundle via workflow_dispatch by @deleonio in https://github.com/deleonio/priority-pilot/pull/1715
+- feat(android): receive push notifications via FCM by @deleonio in https://github.com/deleonio/priority-pilot/pull/1716
 - feat(android): receive push notifications via FCM by @deleonio in https://github.com/deleonio/priority-pilot/pull/1716
 - feat(website): account deletion page for the Play Store listing by @deleonio in https://github.com/deleonio/priority-pilot/pull/1717
 - refactor(server): billing providers behind a shared interface by @deleonio in https://github.com/deleonio/priority-pilot/pull/1718
