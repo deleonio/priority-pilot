@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, fullPillarContributions } from './helpers';
 
 /**
  * Spec-Test für #1465 (C): Aufgabenliste (`TaskTree`) und Serienliste (`SeriesTab`) zeigen an
@@ -15,22 +15,31 @@ test.describe('Balamentum — #1465: Säulen-Badge mobil (375px)', () => {
 		return `E2E #1465 ${label} ${tail}`;
 	};
 
-	/** Erste gewichtete Säule des Kontos — Grundlage für den „mit Beitrag"-Fall. */
-	const firstPillarId = async (page: Page): Promise<number> => {
+	/** Alle Säulen des Kontos — Grundlage für den „mit Beitrag"-Fall (Vollverteilung, #2077). */
+	const accountPillars = async (page: Page): Promise<Array<{ id: number }>> => {
 		const response = await page.request.get('/api/v1/pillars');
 		expect(response.ok()).toBeTruthy();
 		const pillars = (await response.json()) as { id: number }[];
 		expect(pillars.length).toBeGreaterThan(0);
-		return pillars[0].id;
+		return pillars;
 	};
 
 	const createTaskViaApi = async (page: Page, title: string, pillarId: number | null): Promise<number> => {
+		const pillars = pillarId === null ? [] : await accountPillars(page);
 		const response = await page.request.post('/api/v1/tasks', {
 			data: {
 				title,
 				priority: 3,
 				description: 'Bitte Schlüssel mitnehmen',
-				...(pillarId === null ? {} : { pillars: [{ pillarId, share: 100 }] }),
+				// #2077: Vollverteilung mit Schwerpunkt auf der gewählten Säule statt Ein-Säulen-100 %.
+				...(pillarId === null
+					? {}
+					: {
+							pillars: fullPillarContributions(
+								pillars,
+								pillars.findIndex((pillar) => pillar.id === pillarId),
+							),
+						}),
 			},
 		});
 		expect(response.ok()).toBeTruthy();
@@ -38,6 +47,7 @@ test.describe('Balamentum — #1465: Säulen-Badge mobil (375px)', () => {
 	};
 
 	const createSeriesViaApi = async (page: Page, title: string, pillarId: number | null): Promise<number> => {
+		const pillars = pillarId === null ? [] : await accountPillars(page);
 		const response = await page.request.post('/api/v1/series', {
 			data: {
 				title,
@@ -47,7 +57,14 @@ test.describe('Balamentum — #1465: Säulen-Badge mobil (375px)', () => {
 				estimatedEffort: 0.5,
 				active: true,
 				startDate: new Date().toISOString().slice(0, 10),
-				...(pillarId === null ? {} : { pillars: [{ pillarId, share: 100 }] }),
+				...(pillarId === null
+					? {}
+					: {
+							pillars: fullPillarContributions(
+								pillars,
+								pillars.findIndex((pillar) => pillar.id === pillarId),
+							),
+						}),
 			},
 		});
 		expect(response.ok()).toBeTruthy();
@@ -65,7 +82,7 @@ test.describe('Balamentum — #1465: Säulen-Badge mobil (375px)', () => {
 
 	test('Badge nur ohne Säulen-Gewichtung, in beiden Listen, Zeile bleibt innerhalb 375px', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		const pillarId = await firstPillarId(page);
+		const pillarId = (await accountPillars(page))[0].id;
 		const taskWithout = await createTaskViaApi(page, uniqueTitle('Aufgabe ohne Säule'), null);
 		const taskWith = await createTaskViaApi(page, uniqueTitle('Aufgabe mit Säule'), pillarId);
 		const seriesWithout = await createSeriesViaApi(page, uniqueTitle('Serie ohne Säule'), null);

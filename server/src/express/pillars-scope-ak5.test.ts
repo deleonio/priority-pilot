@@ -1,6 +1,6 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { Pillar } from '../models/index.js';
+import { Pillar, TaskPillar } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
 import type { PillarClassifier, ActivityAdvisor, ClassifyPillarsInput, AdviseActivitiesInput } from '../llm/llm.js';
 
@@ -133,7 +133,7 @@ describe('AK5 — Nutzer-Scoping für suggest-pillars, pillar-advisor, scores/by
 			const aliceCookie = await server.login(TEST_EMAIL_ALICE);
 			const bobCookie = await server.login(TEST_EMAIL_BOB);
 
-			// Alice hat Säule A mit einem Task + Score
+			// Alice hat Säule A mit einem Task + Score (Legacy-Insert außerhalb der Schreib-Regel #2077)
 			const alicePillar = await Pillar.create({ name: 'AliceMove', weight: 50, userId: 1 });
 			const aliceTaskRes = await fetch(`${server.baseUrl}/tasks`, {
 				method: 'POST',
@@ -143,18 +143,18 @@ describe('AK5 — Nutzer-Scoping für suggest-pillars, pillar-advisor, scores/by
 					status: 'Open',
 					priority: 3,
 					estimatedEffort: 1,
-					pillars: [{ pillarId: alicePillar.id, share: 100, confidence: 100 }],
 				}),
 			});
 			assert.equal(aliceTaskRes.status, 201, 'Alice kann Task anlegen');
 			const aliceTaskId = (await aliceTaskRes.json()).id as number;
+			await TaskPillar.create({ taskId: aliceTaskId, pillarId: alicePillar.id, share: 100, confidence: 100 });
 			await fetch(`${server.baseUrl}/tasks/${aliceTaskId}`, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json', cookie: aliceCookie },
 				body: JSON.stringify({ status: 'Done' }),
 			});
 
-			// Bob hat Säule B mit einem Task + Score
+			// Bob hat Säule B mit einem Task + Score (Legacy-Insert, s.o.)
 			const bobPillar = await Pillar.create({ name: 'BobFinance', weight: 50, userId: 2 });
 			const bobTaskRes = await fetch(`${server.baseUrl}/tasks`, {
 				method: 'POST',
@@ -165,11 +165,11 @@ describe('AK5 — Nutzer-Scoping für suggest-pillars, pillar-advisor, scores/by
 					priority: 3,
 					estimatedEffort: 1,
 					deadline: '2026-12-31T00:00:00.000Z',
-					pillars: [{ pillarId: bobPillar.id, share: 100, confidence: 100 }],
 				}),
 			});
 			assert.equal(bobTaskRes.status, 201, 'Bob kann Task anlegen');
 			const bobTaskId = (await bobTaskRes.json()).id as number;
+			await TaskPillar.create({ taskId: bobTaskId, pillarId: bobPillar.id, share: 100, confidence: 100 });
 			await fetch(`${server.baseUrl}/tasks/${bobTaskId}`, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json', cookie: bobCookie },

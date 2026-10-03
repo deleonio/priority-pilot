@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { registerOwnSession, waitForStableView } from './helpers';
 
 /**
  * E2E-Spec für Issue #219: Meter auf der Dashboard-Homepage zeigt den Ist-Anteil erledigter Tasks
@@ -69,6 +69,10 @@ test.describe('Dashboard — Meter Ist-Anteil (Issue #219)', () => {
 	test('AK3: Zielwert ist als Meter-Statustext ("Optimal"/"Suboptimal") erkennbar, kein separater Zahlenwert', async ({
 		page,
 	}) => {
+		// #2077-Fixup: eigene Session — das Pass-Through-Konto der Shard-DB sammelt Säulen-Reste
+		// anderer Specs (>20 Säulen); die Gleichverteilung des Anlege-Formulars verletzt dort die
+		// Vollverteilungs-Regel (jeder Anteil 5–80 %), der POST kippt mit 400, der Dialog bleibt offen.
+		await registerOwnSession(page, 'dashboard-meter');
 		await page.goto('/app/');
 		await waitForStableView(page);
 

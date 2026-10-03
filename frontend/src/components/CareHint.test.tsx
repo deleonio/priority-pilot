@@ -40,6 +40,7 @@ vi.mock('@public-ui/react-v19', () => ({
 }));
 
 const getCareSuggestions = vi.fn<() => Promise<{ vorschlaege: Vorschlag[] }>>();
+const listPillars = vi.fn<() => Promise<{ id: number }[]>>();
 const dismissCareSuggestion = vi.fn<(arg: { templateKey: string }) => Promise<void>>();
 const createTask = vi.fn<(arg: { taskCreate: Record<string, unknown> }) => Promise<unknown>>();
 const updateTask = vi.fn<(arg: { id: number; taskUpdate: Record<string, unknown> }) => Promise<unknown>>();
@@ -47,6 +48,7 @@ const updateTask = vi.fn<(arg: { id: number; taskUpdate: Record<string, unknown>
 vi.mock('../api', () => ({
 	api: {
 		getCareSuggestions: () => getCareSuggestions(),
+		listPillars: () => listPillars(),
 		dismissCareSuggestion: (arg: { templateKey: string }) => dismissCareSuggestion(arg),
 		createTask: (arg: { taskCreate: Record<string, unknown> }) => createTask(arg),
 		updateTask: (arg: { id: number; taskUpdate: Record<string, unknown> }) => updateTask(arg),
@@ -85,6 +87,8 @@ const tap = (name: string): void => {
 describe('CareHint (#1793)', () => {
 	beforeEach(() => {
 		window.localStorage.clear();
+		// Konto-Säulen für die Vollverteilungs-Normierung (#2077-Fixup #2132): die fünf Standard-Säulen.
+		listPillars.mockResolvedValue([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }]);
 		createTask.mockResolvedValue({});
 		updateTask.mockResolvedValue({});
 		dismissCareSuggestion.mockResolvedValue(undefined);
@@ -132,7 +136,15 @@ describe('CareHint (#1793)', () => {
 		expect(taskCreate.title).toBe(vorlage.titel);
 		// #2010 AK1: auch die Beschreibung wandert in die neue Aufgabe.
 		expect(taskCreate.description).toBe(vorlage.beschreibung);
-		expect(taskCreate.pillars).toEqual([{ pillarId: 3, share: 100, confidence: 100 }]);
+		// #2077 (Fixup #2132): das Payload ist eine gültige Vollverteilung — die Vorschlags-Säule
+		// (hier 100 % im Fixture) wird über `fillContributions` auf die Konto-Säulen normiert.
+		expect(taskCreate.pillars).toEqual([
+			{ pillarId: 1, share: 5, confidence: 100 },
+			{ pillarId: 2, share: 5, confidence: 100 },
+			{ pillarId: 3, share: 80, confidence: 100 },
+			{ pillarId: 4, share: 5, confidence: 100 },
+			{ pillarId: 5, share: 5, confidence: 100 },
+		]);
 		expect(updateTask).not.toHaveBeenCalled();
 	});
 
@@ -385,7 +397,14 @@ describe('CareHint (#1793)', () => {
 			const { taskCreate } = createTask.mock.calls[0]![0];
 			expect(taskCreate.title).toBe(ki.titel);
 			expect(taskCreate.description).toBe(ki.beschreibung);
-			expect(taskCreate.pillars).toEqual([{ pillarId: 3, share: 100, confidence: 100 }]);
+			// #2077 (Fixup #2132): gültige Vollverteilung über die Konto-Säulen (fillContributions).
+			expect(taskCreate.pillars).toEqual([
+				{ pillarId: 1, share: 5, confidence: 100 },
+				{ pillarId: 2, share: 5, confidence: 100 },
+				{ pillarId: 3, share: 80, confidence: 100 },
+				{ pillarId: 4, share: 5, confidence: 100 },
+				{ pillarId: 5, share: 5, confidence: 100 },
+			]);
 		});
 	});
 });

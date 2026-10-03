@@ -237,15 +237,19 @@ const taskFieldProperties = {
 	pillars: {
 		type: 'array',
 		description:
-			'Pillar assignment of the task: list of { pillarId, share, confidence? }. The share values of all ' +
-			'entries must add up to 100, confidence is between 0 and 100 (default 100). On task_update this ' +
-			'field fully replaces the existing assignment; pillars: [] removes it, if the field is missing ' +
-			'the assignment stays unchanged. pillarId comes from pillar_list.',
+			'Pillar assignment of the task: list of { pillarId, share, confidence? }. The entries must cover ' +
+			'all of the account\'s pillars ("alle Säulen"), every share between 5 and 80, the sum exactly 100; ' +
+			'confidence is between 0 and 100 (default 100). On task_update this field fully replaces the ' +
+			'existing assignment; pillars: [] removes it, if the field is missing the assignment stays ' +
+			'unchanged. pillarId comes from pillar_list.',
 		items: {
 			type: 'object',
 			properties: {
 				pillarId: { type: 'integer', description: 'ID of one of your own pillars (from pillar_list).' },
-				share: { type: 'number', description: 'Share in percent; the sum over all entries must be 100.' },
+				share: {
+					type: 'number',
+					description: 'Share in percent; each share between 5 and 80, the sum over all entries must be 100.',
+				},
 				confidence: { type: 'number', description: 'Confidence 0-100 in this contribution. Defaults to 100.' },
 			},
 		},

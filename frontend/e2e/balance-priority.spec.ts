@@ -1,6 +1,6 @@
 import type { Locator } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, fullPillarContributions, registerOwnSession } from './helpers';
 
 /**
  * E2E-Vertrag für die „Balance-Priorisierung" in der Aufgabenliste (Tab „Aufgaben", #1792).
@@ -15,7 +15,7 @@ import { waitForStableView } from './helpers';
  * gehen keinerlei Schreibzugriffe auf `/api/v1/tasks` raus — die Server-`priority` bleibt
  * unberührt. Szenario wie bisher: der gesamte erledigte Aufwand liegt in Säule B → Säule A ist
  * unterversorgt (Defizit 1). Task X (Original-Prio 1) zahlt in A, Task Y (Original-Prio 5) in B.
- * Im Balance-Modus steht X über Y (virtuelle Badges ~P5/~P1), sonst Y über X.
+ * Im Balance-Modus steht X über Y (virtuelle Badges ~P4/~P2, s. TEST-PFLEGE unten), sonst Y über X.
  *
  * Spec: docs/spec/issue-1792.md. **Test-Pflege:** Der bisherige Test nahm Default **aus** an
  * („Ohne Balance-Modus …") und widerspricht AK2 — umgebaut (siehe PR-Beschreibung).
@@ -36,14 +36,24 @@ test.describe('Balance-Priorisierung in der Aufgabenliste', () => {
 		title: string;
 	}
 
-	/** Legt einen Task über die echte API an (voll in eine Säule einzahlend) und liefert ihn zurück. */
-	const createTask = async (page: Page, title: string, priority: number, pillarId: number | null): Promise<TaskDto> => {
+	/**
+	 * Legt einen Task über die echte API an und liefert ihn zurück. #2077: Vollverteilung mit
+	 * Schwerpunkt auf der Säule am `emphasis` (Höchstanteil 80 %) statt Ein-Säulen-100 % —
+	 * nicht-leere Anteilslisten müssen alle Säulen des Kontos abdecken (Schreib-Regel des Backends).
+	 */
+	const createTask = async (
+		page: Page,
+		title: string,
+		priority: number,
+		pillars: PillarDto[],
+		emphasis: number | null,
+	): Promise<TaskDto> => {
 		const response = await page.request.post('/api/v1/tasks', {
 			data: {
 				title,
 				priority,
 				estimatedEffort: 1,
-				...(pillarId !== null ? { pillars: [{ pillarId, share: 100, confidence: 80 }] } : {}),
+				...(emphasis !== null ? { pillars: fullPillarContributions(pillars, emphasis, 80) } : {}),
 			},
 		});
 		expect(response.ok()).toBeTruthy();
@@ -57,18 +67,23 @@ test.describe('Balance-Priorisierung in der Aufgabenliste', () => {
 
 	/** Zwei gewichtete Säulen (A = unterversorgt, B = versorgt) plus Task X (Prio 1 → A) und Y (Prio 5 → B). */
 	const seedScene = async (page: Page): Promise<{ taskX: TaskDto; taskY: TaskDto }> => {
+		// Eigene Session (#2132-Fixup): der Pass-Through-Account der Shard-DB sammelt Säulen-Reste
+		// anderer Specs (15 statt 5 Säulen) — die Vollverteilungs-Fixtures spreizen dann auf alle,
+		// die Defizite kippen und die Badge-Erwartung (~P4) bricht. Die frische Registrierung säht
+		// GENAU die fünf Standard-Säulen und hält die Rechnung deterministisch.
+		await registerOwnSession(page, 'balance-priority');
 		const pillarsResponse = await page.request.get('/api/v1/pillars');
 		expect(pillarsResponse.ok()).toBeTruthy();
 		const pillars = ((await pillarsResponse.json()) as PillarDto[]).filter((pillar) => pillar.weight > 0);
 		expect(pillars.length).toBeGreaterThanOrEqual(2);
 		const [pillarA, pillarB] = pillars;
 
-		// Gesamter erledigter Aufwand in Säule B → Säule A hat ihr volles Defizit.
-		const doneTask = await createTask(page, uniqueTitle('Versorger'), 3, pillarB.id);
+		// Erledigter Aufwand schwerpunktmäßig in Säule B (80 %) → Säule A bleibt deutlich defizitär.
+		const doneTask = await createTask(page, uniqueTitle('Versorger'), 3, pillars, pillars.indexOf(pillarB));
 		await setDone(page, doneTask.id);
 
-		const taskX = await createTask(page, uniqueTitle('X-Defizit'), 1, pillarA.id);
-		const taskY = await createTask(page, uniqueTitle('Y-Versorgt'), 5, pillarB.id);
+		const taskX = await createTask(page, uniqueTitle('X-Defizit'), 1, pillars, pillars.indexOf(pillarA));
+		const taskY = await createTask(page, uniqueTitle('Y-Versorgt'), 5, pillars, pillars.indexOf(pillarB));
 		return { taskX, taskY };
 	};
 
@@ -127,8 +142,12 @@ test.describe('Balance-Priorisierung in der Aufgabenliste', () => {
 		await expect(item(page, taskX.id)).toBeVisible();
 		await expect(item(page, taskY.id)).toBeVisible();
 		await expect.poll(async () => (await yOf(page, taskX.id)) < (await yOf(page, taskY.id))).toBe(true);
-		await expect(item(page, taskX.id).getByText('~P5')).toBeVisible();
-		await expect(item(page, taskY.id).getByText('~P1')).toBeVisible();
+		// TEST-PFLEGE #2077: Die Vollverteilungs-Pflicht macht Ein-Säulen-100 %-Fixtures unmöglich —
+		// der Balance-Score ist auf 0,8 · Defizit gedeckelt (Schwerpunkt-Säule trägt max. 80 %). Mit
+		// Gleichverteilten Seed-Gewichten (je 20) und 80/5×4-Beiträgen ergibt sich deterministisch
+		// X ≈ 0,71 → ~P4 und Y ≈ 0,15 → ~P2; die Kernaussage (X dringlicher als Y) bleibt erhalten.
+		await expect(item(page, taskX.id).getByText('~P4')).toBeVisible();
+		await expect(item(page, taskY.id).getByText('~P2')).toBeVisible();
 
 		const writes = recordTaskWrites(page);
 

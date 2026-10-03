@@ -1,8 +1,9 @@
 import { KolAlert, KolButton } from '@public-ui/react-v19';
-import type { CareVorschlag, TaskCreate } from 'client';
+import type { CareVorschlag, Pillar, TaskCreate } from 'client';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
+import { fillContributions } from '../lib/pillar';
 
 const TAG_MS = 24 * 60 * 60 * 1000;
 /** Spiegel von `CARE_ABLEHNUNG_TAGE` (`server/src/logics/careSuggestions.ts`) — der Server kennt nur Vorlagen-Ablehnungen. */
@@ -46,6 +47,8 @@ const endeDesTages = (jetzt: Date): number =>
 export const CareHint = () => {
 	const { t } = useTranslation('common');
 	const [vorschlaege, setVorschlaege] = useState<CareVorschlag[] | undefined>(undefined);
+	// Konto-Säulen für die Vollverteilungs-Normierung des Übernahme-Payloads (#2077-Fixup #2132).
+	const [saeulen, setSaeulen] = useState<Pillar[]>([]);
 	const [ausgeblendet, setAusgeblendet] = useState(false);
 	const [fehler, setFehler] = useState(false);
 
@@ -61,6 +64,10 @@ export const CareHint = () => {
 		api
 			.getCareSuggestions({ signal: controller.signal })
 			.then((result) => setVorschlaege(result.vorschlaege))
+			.catch(() => undefined);
+		api
+			.listPillars({ signal: controller.signal })
+			.then((result) => setSaeulen(result))
 			.catch(() => undefined);
 		return () => controller.abort();
 	}, []);
@@ -98,12 +105,16 @@ export const CareHint = () => {
 		if (vorschlag.typ === 'task' && vorschlag.taskId !== undefined) {
 			return api.updateTask({ id: vorschlag.taskId, taskUpdate: { status: 'In process' } });
 		}
+		// #2077: `POST /tasks` nimmt nur gültige Vollverteilungen (alle Konto-Säulen, jeder Anteil
+		// 5–80, Summe 100) — die Vorschlags-Beiträge werden deshalb über `fillContributions` auf die
+		// Konto-Säulen normiert (bereits Gültiges bleibt unverändert); confidence wie bisher 100.
+		const beitraege = vorschlag.saeulenBeitraege.map(({ pillarId, share }) => ({ pillarId, share, confidence: 100 }));
 		const taskCreate: TaskCreate = {
 			title: vorschlag.titel,
 			description: vorschlag.beschreibung,
 			priority: 3,
 			estimatedEffort: 0.5,
-			pillars: vorschlag.saeulenBeitraege.map(({ pillarId, share }) => ({ pillarId, share, confidence: 100 })),
+			pillars: saeulen.length > 0 ? fillContributions(saeulen, beitraege) : beitraege,
 		};
 		return api.createTask({ taskCreate });
 	};

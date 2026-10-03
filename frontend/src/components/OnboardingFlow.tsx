@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readChecked, readString } from '../lib/inputValue';
+import { suggestionsToContributions } from '../lib/pillar';
 import { AiQuotaHint } from './AiQuotaHint';
 import { EXAMPLE_TASKS } from './EmptyState';
 import { PillarWeightsForm } from './PillarWeightsForm';
@@ -155,14 +156,16 @@ export const OnboardingFlow = ({ pillars, onClose, onApplied, onWeightsSaved, ac
 			for (const index of ordered) {
 				if (ids[index] !== undefined) continue;
 				const suggestion = suggestions[index];
-				// `pillars` ist der echte TaskCreate-Vertrag (Share-Modell, Summe 100); `pillarIds` führt
-				// der Spec-Vertrag (#2069) zusätzlich — serverseitig ein inertes additional property,
+				// `pillars` ist der echte TaskCreate-Vertrag (#2077): gültige Vollverteilung über ALLE
+				// Säulen (jeder Anteil 5–80, Summe 100) — die Vorschlags-Säule mit confidence 100, die
+				// übrigen auf Mindestanteil (`suggestionsToContributions` wie im TaskForm). `pillarIds`
+				// führt der Spec-Vertrag (#2069) zusätzlich — serverseitig ein inertes additional property,
 				// das die Validierung verwirft, und nur für den Testvertrag vorhanden.
 				const taskCreate = {
 					title: suggestion.title,
 					priority: 3,
 					estimatedEffort: 0.5,
-					pillars: [{ pillarId: suggestion.pillarId, share: 100, confidence: 100 }],
+					pillars: suggestionsToContributions([{ pillarId: suggestion.pillarId, confidence: 100 }], pillars),
 					pillarIds: [suggestion.pillarId],
 				};
 				const created = await api.createTask({ taskCreate });

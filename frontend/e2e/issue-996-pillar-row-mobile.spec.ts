@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, fullPillarContributions } from './helpers';
 
 /**
  * E2E-Spec für #996 — „Mobile: Säulen-Verteilung im Task-Formular, Slider volle Breite".
@@ -44,13 +44,13 @@ test.describe('#996 Säulen-Verteilung im TaskForm (Mobile-Layout)', () => {
 		const pillars = (await pillarsResponse.json()) as Array<{ id: number }>;
 		expect(pillars.length, 'Es muss mindestens eine Säule existieren').toBeGreaterThan(0);
 
-		// `share`-Summe muss 100 ergeben (validatePillars), sonst lehnt das Backend mit 400 ab.
+		// #2077: Vollverteilung über alle Säulen (Schreib-Regel des Backends), Schwerpunkt erste Säule.
 		const response = await page.request.post('/api/v1/tasks', {
 			data: {
 				title: 'e2e #996 Säulen-Mobil',
 				priority: 3,
 				estimatedEffort: 0.5,
-				pillars: [{ pillarId: pillars[0].id, share: 100, confidence: 80 }],
+				pillars: fullPillarContributions(pillars, 0, 80),
 			},
 		});
 		expect(response.ok(), 'Task-Anlage mit Säulen-Beitrag muss gelingen').toBe(true);

@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
-import { measureHorizontalScroll, taskTitleText, waitForStableView } from './helpers';
+import { measureHorizontalScroll, registerOwnSession, taskTitleText, waitForStableView } from './helpers';
 
 /**
  * Spec-Tests (#228 / #307): die Erledigt-Ansicht — Tabelle NUR mit erledigten Tasks, Punkte je Säule,
@@ -94,6 +94,10 @@ test.describe('Balamentum — Erledigt-Ansicht (#228/#307) gegen das echte Backe
 	};
 
 	test('AK-1: Tab „Erledigte Aufgaben" zeigt nur Done-Tasks — offene Tasks erscheinen dort nicht', async ({ page }) => {
+		// #2077-Fixup: eigene Session — das Pass-Through-Konto der Shard-DB sammelt Säulen-Reste
+		// anderer Specs (>20 Säulen); die Gleichverteilung des Anlege-Formulars verletzt dort die
+		// Vollverteilungs-Regel (jeder Anteil 5–80 %), der POST kippt mit 400, der Dialog bleibt offen.
+		await registerOwnSession(page, 'completed-tasks');
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -116,6 +120,7 @@ test.describe('Balamentum — Erledigt-Ansicht (#228/#307) gegen das echte Backe
 	test('AK-2: Je Zeile Titel + Punkte je Säule, Säulenwerte summieren sich zu den Gesamtpunkten (kein NaN)', async ({
 		page,
 	}) => {
+		await registerOwnSession(page, 'completed-tasks');
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -135,6 +140,7 @@ test.describe('Balamentum — Erledigt-Ansicht (#228/#307) gegen das echte Backe
 	});
 
 	test('AK-3: Ohne Done-Task zeigt der Tab einen klaren Leerhinweis (kein kaputtes Layout)', async ({ page }) => {
+		await registerOwnSession(page, 'completed-tasks');
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -149,6 +155,7 @@ test.describe('Balamentum — Erledigt-Ansicht (#228/#307) gegen das echte Backe
 	});
 
 	test('AK-4: „Wieder öffnen" entfernt den Task aus Erledigten und macht ihn wieder zu „Offen"', async ({ page }) => {
+		await registerOwnSession(page, 'completed-tasks');
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -182,6 +189,7 @@ test.describe('Balamentum — Erledigt-Ansicht (#228/#307) gegen das echte Backe
 	test('AK-1 (#1258): Erledigt-Tabelle bei 375px reduziert auf Titel + Aktion — kein horizontales Scrollen', async ({
 		page,
 	}) => {
+		await registerOwnSession(page, 'completed-tasks');
 		await page.setViewportSize({ width: 375, height: 667 });
 		await page.goto('/app/');
 		await waitForStableView(page);
@@ -269,6 +277,7 @@ test.describe('Balamentum — Erledigt-Ansicht (#228/#307) gegen das echte Backe
 		test('AK2: Titel-Spalte dominiert, Punkte-Spalten bleiben schmal, Kopfzeile einzeilig (1280px)', async ({
 			page,
 		}) => {
+			await registerOwnSession(page, 'completed-tasks');
 			await page.setViewportSize({ width: 1280, height: 800 });
 			await page.goto('/app/');
 			await waitForStableView(page);
@@ -310,6 +319,7 @@ test.describe('Balamentum — Erledigt-Ansicht (#228/#307) gegen das echte Backe
 	 */
 	test.describe('#307 — „Wieder öffnen" als Icon-Button in einer Toolbar', () => {
 		test('AK-307-3: „Wieder öffnen" liegt in einer Toolbar der Zeile', async ({ page }) => {
+			await registerOwnSession(page, 'completed-tasks');
 			await page.goto('/app/');
 			await waitForStableView(page);
 
@@ -329,6 +339,7 @@ test.describe('Balamentum — Erledigt-Ansicht (#228/#307) gegen das echte Backe
 		});
 
 		test('AK-307-5: Icon-Button „Wieder öffnen" liegt auch bei 375px in einer Toolbar', async ({ page }) => {
+			await registerOwnSession(page, 'completed-tasks');
 			await page.setViewportSize({ width: 375, height: 667 });
 			await page.goto('/app/');
 			await waitForStableView(page);

@@ -1,6 +1,6 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { AiUsage, Pillar, Task, User } from '../models/index.js';
+import { AiUsage, Pillar, Task, TaskPillar, User } from '../models/index.js';
 import { currentYearMonth } from './aiQuotaMeter.js';
 import type { ActivityAdvisor, AdviseActivitiesInput } from '../llm/llm.js';
 import { SHARE_MIN, SHARE_TOTAL } from '../logics/pillarShares.js';
@@ -72,9 +72,13 @@ const createTask = async (cookie: string, title: string, pillarId: number): Prom
 	const res = await server.json('/tasks', {
 		method: 'POST',
 		headers: { Cookie: cookie },
-		body: JSON.stringify({ title, priority: 3, estimatedEffort: 0.5, pillars: [{ pillarId, share: 100 }] }),
+		body: JSON.stringify({ title, priority: 3, estimatedEffort: 0.5 }),
 	});
 	assert.equal(res.status, 201, 'Setup: Task-Anlage muss 201 liefern');
+	const { id } = (await res.json()) as { id: number };
+	// Legacy-Insert außerhalb der Schreib-Regel (#2077): der Lesepfad der Vorschläge wertet
+	// Alt-Verteilungen aus — die Schreib-Regel ist für dieses Setup bewusst nicht aktiv.
+	await TaskPillar.create({ taskId: id, pillarId, share: 100, confidence: 100 });
 };
 
 const verbrauch = async (userId: number): Promise<number> =>
@@ -203,10 +207,12 @@ describe('GET /scores/care-suggestions — KI-Vorschlag Plus/Pro (#1804)', () =>
 				title: 'Überlast',
 				priority: 3,
 				estimatedEffort: 1,
-				pillars: [{ pillarId: wirksamkeit.id, share: 100 }],
 			}),
 		});
 		const { id } = (await created.json()) as { id: number };
+		// Legacy-Insert außerhalb der Schreib-Regel (#2077): der Überlast-Lesepfad wertet Alt-
+		// Verteilungen aus, die Schreib-Regel ist für dieses Setup bewusst nicht aktiv.
+		await TaskPillar.create({ taskId: id, pillarId: wirksamkeit.id, share: 100, confidence: 100 });
 		const done = await server.json(`/tasks/${id}`, {
 			method: 'PATCH',
 			headers: { Cookie: cookie },

@@ -48,6 +48,7 @@ describe('Säulen-Eigentum bei Task-/Series-Beiträgen (#1249)', () => {
 		carolId: number;
 		alicePillar: number;
 		bobPillar: number;
+		bobPillar2: number;
 		carolPillar: number;
 	}> => {
 		await server.login(ALICE, { displayName: 'Alice Erstellerin' });
@@ -61,12 +62,16 @@ describe('Säulen-Eigentum bei Task-/Series-Beiträgen (#1249)', () => {
 		const [alicePillar, bobPillar, carolPillar] = await Promise.all(
 			[aliceId, bobId, carolId].map((ownerId) => Pillar.create({ name: 'Körper', weight: 20, userId: ownerId })),
 		);
+		// Zweite Bob-Säule, damit Bobs Konto eine schreibbare Vollverteilung tragen kann (#2077:
+		// jeder Anteil 5–80, Summe 100 — ein Ein-Säulen-Konto könnte 100 % nie zulässig belegen).
+		const bobPillar2 = await Pillar.create({ name: 'Sinn', weight: 20, userId: bobId });
 		return {
 			aliceId,
 			bobId,
 			carolId,
 			alicePillar: alicePillar.id,
 			bobPillar: bobPillar.id,
+			bobPillar2: bobPillar2.id,
 			carolPillar: carolPillar.id,
 		};
 	};
@@ -104,24 +109,31 @@ describe('Säulen-Eigentum bei Task-/Series-Beiträgen (#1249)', () => {
 		assert.equal(await TaskPillar.count({ where: { pillarId: ids.alicePillar } }), 0, 'AK1: keine Verknüpfung');
 	});
 
-	it('POST /tasks mit Empfänger und Säule des Empfängers → 201, verknüpft genau diese Säule (AK2, AK6)', async () => {
+	it('POST /tasks mit Empfänger und Säulen des Empfängers → 201, verknüpft genau diese (AK2, AK6)', async () => {
 		const ids = await seed();
+		// Gültige Vollverteilung über Bobs Konto (#2077): jeder Anteil 5–80, Summe 100.
 		const res = await postTask(await server.login(ALICE), {
 			title: 'Bobs Aufgabe',
 			userId: ids.bobId,
-			pillars: [{ pillarId: ids.bobPillar, share: 100 }],
+			pillars: [
+				{ pillarId: ids.bobPillar, share: 60 },
+				{ pillarId: ids.bobPillar2, share: 40 },
+			],
 		});
-		assert.equal(res.status, 201, 'Säule des Empfänger-Kontos ist zulässig → 201');
+		assert.equal(res.status, 201, 'Säulen des Empfänger-Kontos sind zulässig → 201');
 		const task = await Task.findOne({ where: { title: 'Bobs Aufgabe' } });
 		assert.ok(task, 'Task muss existieren');
 		assert.equal(task.userId, ids.bobId, 'Task gehört dem Empfänger');
 		const links = await TaskPillar.findAll({ where: { taskId: task.id } });
 		assert.deepEqual(
-			links.map((link) => link.pillarId),
-			[ids.bobPillar],
-			'AK6: verknüpft ist die Säule-Id des EMPFÄNGERS, nicht die gleichnamige des Erstellers',
+			links.map((link) => link.pillarId).sort((a, b) => a - b),
+			[ids.bobPillar, ids.bobPillar2].sort((a, b) => a - b),
+			'AK6: verknüpft sind die Säulen-Ids des EMPFÄNGERS, nicht die gleichnamige des Erstellers',
 		);
-		assert.notEqual(links[0]?.pillarId, ids.alicePillar, 'AK6: nicht die Ersteller-Säule trotz gleichem Namen');
+		assert.ok(
+			!links.some((link) => link.pillarId === ids.alicePillar),
+			'AK6: nicht die Ersteller-Säule trotz gleichem Namen',
+		);
 	});
 
 	it('POST /series mit Säule, die weder Aufrufer noch Empfänger gehört → 400 (AK3)', async () => {

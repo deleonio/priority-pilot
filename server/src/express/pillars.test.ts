@@ -368,14 +368,15 @@ describe('Pillars API', () => {
 					status: 'Open',
 					priority: 3,
 					estimatedEffort: 1,
-					pillars: [
-						{ pillarId: victim.id, share: 50, confidence: 100 },
-						{ pillarId: keep.id, share: 50, confidence: 100 },
-					],
 				}),
 			});
 			assert.equal(taskRes.status, 201);
 			const taskId = (await taskRes.json()).id as number;
+			// Legacy-Insert außerhalb der Schreib-Regel (#2077): der Test braucht nur bestehende
+			// TaskPillar-Zeilen für die Sperr-Prüfung, nicht die API-Form.
+			for (const pillar of [victim, keep]) {
+				await TaskPillar.create({ taskId, pillarId: pillar.id, share: 50, confidence: 100 });
+			}
 
 			const res = await del(`/pillars/${victim.id}`, aliceCookie);
 			await assertLocked(res, 'DELETE /pillars/:id');

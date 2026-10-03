@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, fullPillarContributions } from './helpers';
 
 /**
  * E2E-Spec für #1793 (docs/spec/issue-1793.md): Fürsorge-Hinweis auf dem Dashboard gegen das echte
@@ -59,7 +59,8 @@ test.describe('Dashboard — Fürsorge-Hinweis (Issue #1793)', () => {
 				status: 'Open',
 				priority: 3,
 				estimatedEffort: 0.5,
-				pillars: [{ pillarId: pillars[0]!.id, share: 100 }],
+				// #2077: Vollverteilung mit Schwerpunkt erste Säule (Schreib-Regel des Backends).
+				pillars: fullPillarContributions(pillars, 0),
 			},
 		});
 		await openDashboard(page);

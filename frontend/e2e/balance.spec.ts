@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { registerOwnSession, waitForStableView } from './helpers';
 
 /**
  * E2E-Spec für das Dashboard-Widget „Gesamtguthaben" (Gamification-Balance, Issue #184).
@@ -67,6 +67,10 @@ test.describe('Dashboard — Gesamtguthaben (Issue #184)', () => {
 
 	// AK 3 — Leerstand-Text bei 0 erledigten Tasks
 	test('AK 3: zeigt Leerstand-Text im Gesamtguthaben-Widget, wenn keine Tasks erledigt sind', async ({ page }) => {
+		// #2077-Fixup: eigene Session — das Pass-Through-Konto der Shard-DB sammelt Säulen-Reste
+		// anderer Specs (>20 Säulen); die Gleichverteilung des Anlege-Formulars verletzt dort die
+		// Vollverteilungs-Regel (jeder Anteil 5–80 %), der POST kippt mit 400, der Dialog bleibt offen.
+		await registerOwnSession(page, 'balance-184');
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -87,6 +91,7 @@ test.describe('Dashboard — Gesamtguthaben (Issue #184)', () => {
 
 	// AK 1 — Gesamtguthaben > 0 nach Task-Abschluss
 	test('AK 1: zeigt Gesamtguthaben > 0, nachdem mindestens ein Task erledigt wurde', async ({ page }) => {
+		await registerOwnSession(page, 'balance-184');
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -107,6 +112,7 @@ test.describe('Dashboard — Gesamtguthaben (Issue #184)', () => {
 
 	// AK 2 — Säulen-Aufschlüsselung korrekt
 	test('AK 2: zeigt Säulen-Aufschlüsselung mit Punkten und Anteil nach Task-Abschluss', async ({ page }) => {
+		await registerOwnSession(page, 'balance-184');
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -132,6 +138,7 @@ test.describe('Dashboard — Gesamtguthaben (Issue #184)', () => {
 	test('AK 4: Gesamtpunkte-Widget wechselt von Leerstand auf sichtbare Punkte nach Task-Abschluss', async ({
 		page,
 	}) => {
+		await registerOwnSession(page, 'balance-184');
 		await page.goto('/app/');
 		await waitForStableView(page);
 

@@ -1,6 +1,6 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { ScoreEntry } from '../models/index.js';
+import { ScoreEntry, Task, TaskPillar, User } from '../models/index.js';
 import { PILLAR_RHYTHMS } from '../models/pillarData.js';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 
@@ -38,7 +38,12 @@ const createPillar = async (cookie: string, _name: string): Promise<{ id: number
 	return pillars[seedPillarCursor++ % pillars.length]!;
 };
 
-/** Legt einen Task mit Säulenanteilen an und erledigt ihn. */
+/**
+ * Legt einen Task mit Säulenanteilen an und erledigt ihn. #2077: die Beiträge werden direkt in
+ * der DB eingeklagt (Legacy-Bestand außerhalb der API-Schreib-Regel, Muster des AK5-Legacy-Tests)
+ * — die Balance-/Trend-Lesepfade werten Alt-Verteilungen unverfälscht aus; die Schreib-Regel
+ * (Vollverteilungs-Pflicht) ist für diese Lesetests bewusst nicht aktiv.
+ */
 const completeTaskWithShares = async (
 	cookie: string,
 	title: string,
@@ -48,10 +53,13 @@ const completeTaskWithShares = async (
 	const createRes = await server.json('/tasks', {
 		method: 'POST',
 		headers: { Cookie: cookie },
-		body: JSON.stringify({ title, priority: 3, estimatedEffort, pillars }),
+		body: JSON.stringify({ title, priority: 3, estimatedEffort }),
 	});
 	assert.equal(createRes.status, 201, 'Task-Anlage muss 201 liefern');
 	const task = (await createRes.json()) as { id: number };
+	for (const entry of pillars) {
+		await TaskPillar.create({ taskId: task.id, pillarId: entry.pillarId, share: entry.share, confidence: 100 });
+	}
 
 	const doneRes = await server.json(`/tasks/${task.id}`, {
 		method: 'PATCH',
@@ -106,6 +114,34 @@ describe('GET /scores/balance (#1423)', () => {
 		assert.equal(saeuleOhne?.punkte, 0, 'Säule ohne Beitrag muss mit punkte: 0 erscheinen, nicht fehlen');
 		assert.equal(saeuleKoerper?.gewichtung, koerper.weight);
 		assert.equal(body.hatPunkte, true);
+	});
+
+	it('#2077 AK5: Legacy-Einzel-Säule (share 100) bleibt abrufbar und geht unverfälscht in die Balance ein', async () => {
+		const cookie = await server.register('balance-legacy@example.com', 'password123');
+		const pillarsRes = await server.json('/pillars', { headers: { Cookie: cookie } });
+		const pillars = (await pillarsRes.json()) as { id: number }[];
+		const user = await User.findOne({ where: { email: 'balance-legacy@example.com' } });
+		assert.ok(user, 'Setup: Konto muss existieren');
+
+		// Alt-Bestand direkt in der DB (außerhalb der neuen Validierung): einzelne Säule, share 100.
+		const legacy = await Task.create({ title: 'Legacy', priority: 3, estimatedEffort: 1, userId: user.id });
+		await TaskPillar.create({ taskId: legacy.id, pillarId: pillars[0]!.id, share: 100, confidence: 100 });
+		await server.json(`/tasks/${legacy.id}`, {
+			method: 'PATCH',
+			headers: { Cookie: cookie },
+			body: JSON.stringify({ status: 'Done' }),
+		});
+
+		const res = await getBalance(cookie);
+		assert.equal(res.status, 200, 'Legacy-Bestand muss weiter abrufbar sein');
+		const body = (await res.json()) as { saeulen: { id: number; punkte: number }[] };
+		const saeule = body.saeulen.find((entry) => entry.id === pillars[0]!.id);
+		assert.ok(saeule && saeule.punkte > 0, 'die Legacy-Säule muss unverfälscht Punkte tragen');
+
+		// Keine Migration beim Lesen: die Einzel-Form bleibt unverändert bestehen.
+		const rows = await TaskPillar.findAll({ where: { taskId: legacy.id } });
+		assert.equal(rows.length, 1);
+		assert.equal(rows[0]!.share, 100);
 	});
 
 	it('AK5: ohne jede erledigte Aufgabe ist fuellstandProzent 0 und hatPunkte false', async () => {

@@ -10,10 +10,10 @@ import { validatePillars, arePillarsExistent } from './pillarContributions.js';
 
 /**
  * Vertrag für `validatePillars(pillars)` — die reine (DB-freie) Formvalidierung eines Beitrags-
- * Arrays `{ pillarId, share, confidence? }`:
+ * Arrays `{ pillarId, share, confidence? }` (#2077):
  *  - Summe der `share` muss exakt 100 ergeben (Ausnahme: leere Liste ist erlaubt).
  *  - `pillarId` muss eine Ganzzahl ≥ 1 sein und darf nicht doppelt vorkommen.
- *  - `share` und `confidence` liegen im Bereich 0–100 (Grenzwerte inklusive).
+ *  - jeder `share` liegt zwischen 5 und 80 (Grenzwerte inklusive), `confidence` zwischen 0 und 100.
  *  - fehlt `confidence`, defaultet es auf 100.
  *
  * Der Erfolgs-/Fehler-Kanal ist als Rückgabe modelliert: `{ ok: true, pillars }` bei gültiger
@@ -21,8 +21,14 @@ import { validatePillars, arePillarsExistent } from './pillarContributions.js';
  * fixieren nur diese Invariante über `.ok`, nicht die konkrete Fehlermeldung.
  */
 describe('validatePillars', () => {
-	it('gültige Liste mit einem Beitrag (Summe = 100) → ok', () => {
-		const result = validatePillars([{ pillarId: 1, share: 100 }]);
+	it('gültige Liste an den Anteils-Grenzen (80 und je 5) → ok', () => {
+		const result = validatePillars([
+			{ pillarId: 1, share: 80 },
+			{ pillarId: 2, share: 5 },
+			{ pillarId: 3, share: 5 },
+			{ pillarId: 4, share: 5 },
+			{ pillarId: 5, share: 5 },
+		]);
 		assert.equal(result.ok, true);
 	});
 
@@ -56,10 +62,16 @@ describe('validatePillars', () => {
 	});
 
 	it('confidence defaultet auf 100, wenn nicht angegeben', () => {
-		const result = validatePillars([{ pillarId: 1, share: 100 }]);
+		const result = validatePillars([
+			{ pillarId: 1, share: 60 },
+			{ pillarId: 2, share: 40 },
+		]);
 		assert.equal(result.ok, true);
 		assert.ok(result.ok, 'Typ-Narrowing: gültiges Ergebnis trägt die normalisierten pillars');
-		assert.deepEqual(result.pillars, [{ pillarId: 1, share: 100, confidence: 100 }]);
+		assert.deepEqual(result.pillars, [
+			{ pillarId: 1, share: 60, confidence: 100 },
+			{ pillarId: 2, share: 40, confidence: 100 },
+		]);
 	});
 
 	it('pillarId keine Ganzzahl (1.5) → Fehler', () => {
@@ -77,13 +89,13 @@ describe('validatePillars', () => {
 		assert.equal(result.ok, false);
 	});
 
-	it('share = 0 ist ein gültiger Grenzwert', () => {
-		// Summe muss weiterhin 100 ergeben; ein 0-Anteil ist zulässig, der andere trägt 100.
+	it('share = 0 ist kein gültiger Anteil mehr (untere Grenze 5) → Fehler', () => {
+		// #2077: die Anteils-Untergrenze liegt bei 5 — ein 0-Anteil ist nicht mehr zulässig.
 		const result = validatePillars([
 			{ pillarId: 1, share: 0 },
 			{ pillarId: 2, share: 100 },
 		]);
-		assert.equal(result.ok, true);
+		assert.equal(result.ok, false);
 	});
 
 	it('confidence außerhalb 0–100 (120) → Fehler', () => {
@@ -92,9 +104,15 @@ describe('validatePillars', () => {
 	});
 
 	it('confidence = 0 und confidence = 100 sind gültige Grenzwerte', () => {
-		const untergrenze = validatePillars([{ pillarId: 1, share: 100, confidence: 0 }]);
+		const untergrenze = validatePillars([
+			{ pillarId: 1, share: 60, confidence: 0 },
+			{ pillarId: 2, share: 40 },
+		]);
 		assert.equal(untergrenze.ok, true);
-		const obergrenze = validatePillars([{ pillarId: 1, share: 100, confidence: 100 }]);
+		const obergrenze = validatePillars([
+			{ pillarId: 1, share: 60, confidence: 100 },
+			{ pillarId: 2, share: 40 },
+		]);
 		assert.equal(obergrenze.ok, true);
 	});
 
