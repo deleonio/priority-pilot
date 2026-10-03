@@ -4,11 +4,15 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.14 - 2026-10-03
 
-_Enthält v0.14.0 – v0.14.1._
+_Enthält v0.14.0 – v0.14.2._
 
 ### 🎉 New Features
 
 - feat(frontend): add article-create skill and marketing articles by @deleonio in https://github.com/deleonio/priority-pilot/pull/2056
+
+### Other Changes
+
+- feat(frontend): onboarding rework from review #2087 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2120
 
 ## v0.13 - 2026-10-03
 
@@ -154,6 +158,7 @@ _Enthält v0.10.0 – v0.10.36._
 ### 💥 Breaking Changes
 
 - feat(server): replace visible ai quota with fair-use throttling by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1868
+- feat(server): replace visible ai quota with fair-use throttling by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1868
 
 ### 🎉 New Features
 
@@ -201,7 +206,6 @@ _Enthält v0.10.0 – v0.10.36._
 - chore(gate): single source for the local gate chain in AGENTS.md by @deleonio in https://github.com/deleonio/priority-pilot/pull/1839
 - ci(review): rerun red e2e shards once before the review starts by @deleonio in https://github.com/deleonio/priority-pilot/pull/1840
 - feat(server): switch plans to free, plus and pro (#1782) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1864
-- feat(server): remove legacy max/ultimate plans, add migrateLegacyPlans by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1867
 - feat(server): remove legacy max/ultimate plans, add migrateLegacyPlans by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1867
 - test(server): cover mcp plan tiers plus read and pro write by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1870
 - docs(skills): add ticket-coordination skill for epic processing by @deleonio in https://github.com/deleonio/priority-pilot/pull/1862
