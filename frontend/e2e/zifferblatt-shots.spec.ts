@@ -37,40 +37,40 @@ const VARIANTEN = [
 	'zeiger',
 ] as const;
 
-/** Säulen mit gleichem Ziel und ungleichem Ist — die Schieflage, an der man die Bilder liest. */
-const SAEULEN = [
-	{ name: 'Körper', weight: 20, tasks: 6 },
-	{ name: 'Geist', weight: 20, tasks: 3 },
-	{ name: 'Arbeit', weight: 20, tasks: 3 },
-	{ name: 'Familie', weight: 20, tasks: 2 },
-	{ name: 'Freunde', weight: 20, tasks: 1 },
-];
-
 test.describe('Zifferblätter — Bilder fürs Auge', () => {
 	test.skip(!process.env.SHOTS, 'Bildmacher, kein Prüf-Spec — mit SHOTS=1 starten (siehe Kopfkommentar).');
 
+	// Neun Varianten je mit Reload, Auftakt und Wartezeit — der Default-Timeout (30 s) reicht dafür nicht.
+	test.setTimeout(180_000);
+
 	test('legt von jeder Variante einen Screenshot ab', async ({ page }) => {
-		// Echte Session, unabhängig von der lokalen `.env` (siehe Kopfkommentar).
-		const login = await page.request.post('/auth/test-login', {
-			data: { email: 'shots@example.com', displayName: 'Zifferblatt' },
-		});
-		expect(login.ok(), 'test-login muss eine Session liefern').toBeTruthy();
+		/*
+		 * Echtes Konto mit den fünf festen Seed-Säulen: Der Test-Login (`/auth/test-login`) legt
+		 * Konten OHNE Säulen-Saat an — nur die Registrierung säht die fünf Standard-Säulen (#1521).
+		 * Deshalb registrieren + einloggen statt test-login.
+		 */
+		const konto = { email: 'shots@example.com', password: 'shots-1234' };
+		await page.request.post('/auth/register', { data: konto });
+		const login = await page.request.post('/auth/login', { data: konto });
+		expect(login.ok(), 'login muss eine Session liefern').toBeTruthy();
 
 		await page.goto('/app/');
 		await waitForStableView(page);
 
-		// Säulen anlegen und gewichten, dann je Säule erledigte Tasks — daraus entsteht die Verteilung.
-		for (const saeule of SAEULEN) {
-			const created = await page.request.post('/api/v1/pillars', {
-				data: { name: saeule.name, description: '', weight: saeule.weight },
-			});
-			const pillar = (await created.json()) as { id: number };
-			for (let index = 0; index < saeule.tasks; index += 1) {
+		// Die fünf Seed-Säulen sind fest (#1521): angelegt wird nichts mehr. Die Schieflage entsteht
+		// über ungleiche Erledigungs-Zahlen je bestehender Säule — daraus entsteht die Verteilung.
+		const pillars = (await (await page.request.get('/api/v1/pillars')).json()) as {
+			id: number;
+		}[];
+		expect(pillars.length, 'Registrierung muss die fünf Seed-Säulen säen').toBe(5);
+		const erledigtJeSaeule = [6, 3, 3, 2, 1];
+		for (const [index, pillar] of pillars.slice(0, erledigtJeSaeule.length).entries()) {
+			for (let i = 0; i < erledigtJeSaeule[index]; i += 1) {
 				// Punkte je Säule sind der **erledigte geschätzte Aufwand** (`doneEstimatedEffort`,
 				// siehe `Dashboard.tsx`) — ein Task ohne Aufwand oder ohne Status `Done` trägt nichts bei.
 				const task = await page.request.post('/api/v1/tasks', {
 					data: {
-						title: `${saeule.name} ${index + 1}`,
+						title: `Aufgabe ${index + 1}.${i + 1}`,
 						estimatedEffort: 1,
 						pillars: [{ pillarId: pillar.id, share: 100, confidence: 80 }],
 					},
