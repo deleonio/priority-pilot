@@ -1,146 +1,124 @@
 <!--
 Medium-Fachartikel — Fokus-Thema: „Rückmeldungen ohne Druck“
-Titel:      Rückmeldungen ohne Druck
-Untertitel: Wie ein Streak zählt, ohne zu nehmen — und was eine Figur, ein Text und vier Zustände damit zu tun haben
+Titel:      Ein Streak, der nichts nehmen kann
+Untertitel: Wie Balamentum Fortschritt zählt, ohne Schulden zu erzeugen — und was dabei an Grenzen bleibt
 Tags:       Produkt-Design, Gewohnheiten, Psychologie, UX-Design, Motivation
-Bilder:     images/*.svg (SVG, 1200 px breit; vor dem Veröffentlichen bei Medium hochladen und an den
-            Bildmarkern einsetzen). Illustrationen mit Demo-Daten, keine Screenshots.
-Genre:      Fachartikel — das Fachthema steht im Vordergrund; Balamentum tritt als Praxisbeispiel auf.
-Schwesterartikel: webdev.md (englisch, web.dev) und devto.md (englisch, dev.to) — am Ende verlinken.
+Bilder:     images/ (echte App-Screenshots aus der laufenden App mit Demo-Daten; vor dem
+            Veröffentlichen bei Medium hochladen und an den Bildmarkern einsetzen).
+Genre:      Fachartikel — Balamentum tritt als Praxisbeispiel auf, eigenständig ohne
+            Plattform-Verweise.
 -->
 
-# Rückmeldungen ohne Druck
+# Ein Streak, der nichts nehmen kann
 
-_Wie ein Streak zählt, ohne zu nehmen — und was eine Figur, ein Text und vier Zustände damit zu tun haben_
+_Wie Balamentum Fortschritt zählt, ohne Schulden zu erzeugen — und was dabei an Grenzen bleibt_
 
-Sprach-Apps feiern ihre Feuer-Icons, Schrittzähler belohnen Serien, manche Kalender färben sich,
-wenn ein Tag ungenutzt blieb. Diese Rückmeldungen funktionieren, kurzfristig. Wer eine Kette von
-dreiundzwanzig Tagen hält, geht abends noch einmal an die App, um nicht vierundzwanzig zu sagen.
+Kennst du das? Die Kette hält seit drei Wochen, du öffnest die App jeden Abend — und dann
+passiert ein Tag. Krankheit, Überstunden, ein Umzug, was auch immer. Am nächsten Morgen
+zeigt dir dieselbe App einen auf null gefallenen Zähler, und der Grund, warum du die App
+installiert hattest, fühlt sich plötzlich wie eine Schuld an. Manche Menschen deinstallieren an
+genau diesem Punkt; der Zähler, der sie täglich abholte, sieht plötzlich wie ein Gläubiger aus.
 
-Dann passiert das, was Ketten tun: Sie reißen. Und die Rückmeldung, die vorher Antrieb war, wird
-zur Anklage. Der nächste Blick auf die App ist ein Blick auf das, was man verloren hat. Viel zu
-viele solcher Blicke, und die App wird gemieden — gerade von den Leuten, die sie am nötigsten
-bräuchten.
+Das Problem ist nicht der Zähler. Es ist, dass er nimmt. Balamentum, eine Web-App zur
+Aufgabenpriorisierung, führt trotzdem einen Streak — gebaut nach vier Regeln, die ihn zum reinen
+Sammeln machen. Der Unterschied zu einer gängigen Bauart zeigt sich nicht am Auslöser; er zeigt
+sich daran, was der Zähler mit einem leeren Tag macht.
 
-Dieser Artikel fragt, wie Rückmeldung gestaltet sein muss, damit sie informiert, ohne zu drücken:
-ein Zähler, der nichts nimmt, eine Figur, die ruhiger wird, je besser es dem Menschen geht, Texte,
-die sorgen statt zu protokollieren, und Zustände, die niemanden anfahren. Als Praxisbeispiel
-dient Balamentum, eine Web-App zur Aufgabenpriorisierung. Sie führt einen Streak — und ist
-bewusst so gebaut, dass dieser Streak nichts nehmen kann.
+![Streak-Card in Balamentum](images/screenshot-streak-card.png)
 
-## Was eine Kette anrichtet
+_Demo-Stand aus der laufenden App: „1 Tag in Folge erledigt, 1 Tag Bestmarke“ — laufende Folge
+und Bestmarke unterscheiden sich erst, wenn eine Lücke lag; die Card legt offen, wie gezählt
+wird._
 
-Die klassische Streak-Mechanik belohnt Wiederholung, nicht Wirkung. Ein einziger leerer Tag
-stellt den Zähler auf null, gleichgültig ob der Grund Krankheit, Urlaub oder Überlast war. Damit
-wird die Rückmeldung ein Verlustkonto: Jeder Zählerstand ist zugleich die Erinnerung an das, was
-einmal mehr dastand.
+## Die vier Regeln
 
-Die Schleife, die dabei entsteht, hat vier Schritte. Ein Zähler sammelt Tage, ein Tag bleibt
-leer, die Kette bricht und der Zähler fällt auf null, die App wird gemieden. Der Auslöser ist
-derselbe wie in jeder anderen App auch. Der Unterschied liegt im Ausgang — und der liegt daran,
-ob der Zähler etwas nimmt.
+**1. Der laufende Tag zählt noch nicht als Bruch.** Reicht die Folge bis gestern, bleibt sie
+stehen — der Abend gehört dem, der ihn noch hat. Erst eine echte Lücke setzt den Zähler sichtbar
+auf null. Eine gängige Bauart bricht die Kette schon, wenn heute noch nichts abgehakt wurde,
+und verwandelt die Tageszeit in ein Urteil: Wer um 23 Uhr öffnet, hat denselben Tag wie wer um
+9 Uhr öffnet.
 
-![Zwei Schleifen: derselbe Auslöser, zwei Ausgänge](images/schleifen-de.svg)
+**2. Die Bestmarke überdauert jede Lücke.** Sie ist ein Rekord, kein Guthaben, das verfällt.
+Eine Lücke kostet die laufende Folge, niemals den Rekord. Dreißig zusammenhängende Tage bleiben
+dreißig, auch wenn die aktuelle Folge längst neu beginnt — der Bildschirm bewahrt, was du
+geleistet hast.
 
-## Zähler, die nur hinzufügen
+**3. Eine verspätete Erledigung rettet den Fälligkeitstag.** Wird eine Aufgabe nach ihrer
+Fälligkeit abgehakt — egal wie viel später —, zählt auch der vorgesehene Tag als erfüllt.
+Nachreichen löscht keinen Fortschritt. Und der Tag selbst gehört der Person: Der Zähler rechnet
+in ihrer Zeitzone, nicht in der des Servers. Wer kurz nach Mitternacht deutscher Zeit abhakt,
+darf nicht ins Vortages-Datum des Servers rutschen.
 
-Der Streak in Balamentum zählt Kalendertage mit mindestens einer Erledigung. Mehrere Erledigungen
-am selben Tag zählen einmal; es geht um die Frage, ob an diesem Tag überhaupt etwas abgehakt
-wurde. Um diese Frage schuldarm zu beantworten, folgen vier Regeln.
+**4. Die Zählregel steht in der App.** Aufklappbar hinter „So zählt der Streak“. Ein Zähler mit
+offener Regel ist ein Werkzeug; ein Zähler mit geheimer Regel wirkt wie ein Gegner, der nach
+eigenem Ermessen straft. Transparenz ist die eigentliche Gegenmaßnahme gegen Schuld.
 
-Erstens zählt der laufende Tag noch nicht als Bruch. Reicht die Folge bis gestern, bleibt sie
-stehen, auch wenn heute noch nichts erledigt ist. Der Tag ist ja nicht vorbei; erst eine echte
-Lücke setzt den Zähler sichtbar auf null.
+Diese Regeln schützen gegen den Kalender, nicht gegen den Papierkorb: Wer eine Erledigung
+löscht, nimmt den Tag aus der Zählung. Das ist gewollt — die Zählung folgt dem, was steht — aber
+es gehört zur Ehrlichkeit des Designs dazu.
 
-Zweitens überdauert die Bestmarke jede Lücke. Sie ist ein Rekord, kein Guthaben, das verfällt.
-Wer einmal dreißig Tage in Folge erledigt hat, liest diese dreißig auch dann noch, wenn die
-laufende Folge längst neu begonnen hat.
+## Rückmeldung, die mit der Balance ruhiger wird
 
-Drittens rettet eine verspätete Erledigung den Fälligkeitstag. Wird eine Aufgabe einen Tag nach
-ihrer Fälligkeit abgehakt, zählt auch der vorgesehene Tag als erfüllt. Menschliche
-Unpünktlichkeit löscht keinen Fortschritt.
+Neben dem Streak zeigt das Dashboard die Lebensbalance als Herz-Gefäß. Sein Ruhepuls dauert
+zwischen 1,5 und 2,6 Sekunden, und mit vollerem Herzen schlägt es langsamer. Kein Alarm bei
+Schieflage, kein rot blinkendes Symbol.
 
-Viertens steht die Zählregel in der App. Ein aufklappbarer Hinweis „So zählt der Streak“
-erklärt, wie gerechnet wird. Das klingt nach Kleinigkeit, ist aber die wichtigste der vier
-Regeln: Ein Zähler, dessen Regeln niemand kennt, wirkt wie ein Gegner, der auf eigene Faust
-straft. Ein Zähler mit offener Regel ist ein Werkzeug.
+Die Rechnung dahinter kann nicht durch Überarbeitung gewonnen werden: Wer das Soll einer Säule
+übererfüllt, verbessert die Gesamt-Balance dadurch nicht — die Anzeige zeigt die Übererfüllung
+trotzdem deutlich, nur der Gesamtwert zahlt nichts darauf ein. Überlast ist keine Strategie für
+den Zähler.
 
-Dazu kommen Meilensteine für Streak und Punkte, deren erreichte Stufen bleiben, und ein kurzer
-Hinweis „Tag geschafft“, wenn keine Aufgabe mehr offen ist. Erfolg wird hier leise markiert, als
-Anerkennung, nicht als Sirene.
+![Dashboard mit Herz, Statistik und Fürsorge-Hinweis](images/screenshot-dashboard-desktop.png)
 
-## Eine Figur, die ruhiger wird, je besser es steht
+_Demo-Stand: 13 erledigt, 3 offen — und eine Fürsorge-Karte, die auch dann etwas anbietet, wenn
+sie nichts vorzuschlagen hat._
 
-Die zweite Rückmeldung von Balamentum ist kein Zähler, sondern ein Bild: die Balance-Figur auf
-dem Dashboard, eine runde Darstellung mit 100 Strichen und einer Form in der Mitte, die zeigt, wie
-ausgewogen der eigene Aufwand über die Lebensbereiche verteilt ist.
+## Die Prüffrage für jeden Text
 
-Diese Figur pulsiert. Ihr Ruhepuls dauert zwischen 1,5 und 2,6 Sekunden, und die Frequenz ist
-selbst die Rückmeldung: je ausgewogener die Balance steht, desto ruhiger pulsiert die Figur. Es
-gibt keinen Alarm bei Schieflage, kein rot blinkendes Symbol. Der Puls wird höchstens etwas
-dringlicher.
+Jeder Hinweis der App muss eine Frage bestehen: Sorgt der Text, oder protokolliert er nur? Ein
+protokollierender Text stellt fest und klagt an („Du hast deine Körper-Säule vernachlässigt“).
+Ein sorgender Text bietet heute etwas an, klein genug, um es zu tun, und urteilt nicht. Drei
+Situationen decken alles ab: Bei Defizit kommt ein kleiner, heute möglicher Schritt. Bei
+Überlast gibt der Text die Erlaubnis, kürzer zu treten — „dein Kopf darf Auszeit haben“. Bei
+erfülltem Soll anerkennt er, was wirkt.
 
-![Der Ruhepuls der Balance-Figur in zwei Lagen](images/pulse-de.svg)
+Auch die Leere passiert diese Prüfung. Wenn die App nichts vorzuschlagen hat, steht es genau so
+da — und die Krisen-Zeile, die immer mit an Bord ist, gehört zum Ton: sie begleitet, sie
+alarmiert nicht.
 
-Die Rechnung hinter dem Bild trägt außerdem einen Deckel: Wer das Soll einer Säule übererfüllt,
-verbessert die Gesamt-Balance dadurch nicht. Mehr zu leisten, als geplant war, macht die
-Verteilung nicht ausgewogener. Das schließt eine ganze Klasse von Fehlanreizen aus: Die Balance
-lässt sich nicht durch Überarbeitung gewinnen, Überlast zahlt auf die Kennzahl nichts ein, und
-die Figur für die eigene Selbstsorge ist kein Highscore.
+![Fürsorge-Hinweis mit TelefonSeelsorge-Zeile](images/screenshot-care-hint.png)
 
-Wer keine Bewegung mag, stellt sie ab — über einen Schalter in der App oder über die
-Systemeinstellung für reduzierte Bewegung. Wichtig ist, was dann gezeigt wird: dasselbe
-vollständige Bild, nur still. Weniger Bewegung, aber nicht weniger Inhalt.
+_„Gerade gibt es keinen Vorschlag für dich. Mach in deinem Tempo weiter.“ — das Leere-Beispiel
+aus der laufenden App._
 
-## Sorgt der Text oder protokolliert er nur?
-
-Die dritte Rückmeldung sind Texte: Hinweise auf dem Dashboard und Vorschläge, sobald eine Säule
-deutlich unter ihrem Soll liegt. Jeder dieser Texte muss eine Prüffrage bestehen: Sorgt er, oder
-protokolliert er nur?
-
-![Derselbe Befund, zwei Tonalitäten](images/fursorge-de.svg)
-
-„Du hast deine Körper-Säule vernachlässigt“ protokolliert und klagt an. „Dein Körper könnte eine
-Pause gebrauchen. Ein kurzer Spaziergang oder etwas früher ins Bett tut heute schon viel“ sorgt:
-Es bietet heute etwas an, es ist klein genug, um es zu tun, und es urteilt nicht. Ein niedriger
-Stand ist in dieser Tonalität eine Beobachtung, kein Fehlverhalten. Wörter wie „vernachlässigt“,
-„verschlafen“ oder „verpasst“ kommen in solchen Texten nicht vor.
-
-Dasselbe Muster gilt in der Überlast, wo der Text die Erlaubnis gibt, etwas kürzer zu treten, und
-bei erfülltem Soll, wo er anerkennt, was wirkt. Drei Situationen, eine Haltung: Die App begleitet,
-sie predigt nicht.
+Die Wortsperre ist Teil der Prüffrage: „vernachlässigt“, „verschlafen“, „verpasst“ kommen in
+diesen Texten nicht vor. Ein niedriger Stand ist eine Beobachtung, kein Fehlverhalten.
 
 ## Auch die Technik darf nicht drücken
 
-Rückmeldung ohne Druck endet nicht bei Wortwahl und Puls. Sie setzt sich fort in den Zuständen,
-in denen jede Ansicht landen kann. In Balamentum ist dafür eine Regel verankert: Jede Ansicht,
-die Daten lädt, entwirft vier Zustände — Laden, Leer, Fehler, Erfolg.
+Rückmeldung ohne Druck endet nicht bei Wortwahl und Puls. Die Regel für jede Ansicht, die Daten
+lädt: vier gestaltete Zustände — Laden, Leer, Fehler, Erfolg. Der Leerzustand lädt zum Handeln
+ein. Der Fehlerzustand nennt, was passiert ist, und wie es weitergeht, ohne Entschuldigungsläufe
+und ohne nackten Fehlercode. Rückmeldung auf eine Eingabe soll in unter 100 Millisekunden
+kommen, mindestens als Press-Zustand; bei bekannter Struktur gibt es ein Skeleton statt eines
+Spinners. Und nichts blinkt oder pulsiert dauerhaft — die eine dauerhafte Bewegung des
+Dashboards, die Figur, ist die, die sich abbestellen lässt.
 
-Der Leerzustand ist eine Einladung zum Handeln, kein weißes Blatt. Der Fehlerzustand nennt, was
-passiert ist, und wie es weitergeht, ohne Entschuldigungsläufe und ohne nackten Fehlercode.
-Rückmeldung auf eine Eingabe kommt in unter 100 Millisekunden, mindestens als Press-Zustand. Und
-nichts blinkt oder pulsiert dauerhaft — die eine dauerhafte Bewegung des Dashboards, die Figur,
-ist die, die sich abbestellen lässt.
+## Drei Entscheidungen zum Mitnehmen
 
-## Die Methode, auch ohne App
+Diese lassen sich ohne die App nachbauen:
 
-Die Grundsätze lassen sich auf jede App, jeden Tracker und jeden Wochenrückblick übertragen:
+1. Zähle Fortschritt additiv: Beste Folge als Rekord führen, den laufenden Tag nicht vorzeitig
+   als Bruch werten, nachgereichte Erledigungen für ihren geplanten Tag zählen lassen — gerechnet
+   in der Zeitzone der Person.
+2. Miss jede Rückmeldung an einer Frage: Beobachtet sie, oder urteilt sie? Zu jedem Befund gehört
+   ein kleiner, heute möglicher Schritt.
+3. Markiere Erfolg leise und immer abbestellbar — eine Notiz statt einer Sirene.
 
-1. Zähler so bauen, dass sie nur hinzufügen: Beste Folge als Rekord führen, niemals streichen;
-   den laufenden Tag nicht vorzeitig als Bruch werten.
-2. Jede Rückmeldung an der Frage messen: Beobachtet sie, oder urteilt sie?
-3. Zu jedem Befund einen kleinen, heute möglichen Schritt anbieten statt einer Diagnose.
-4. Erfolg leise markieren, Misserfolg gar nicht rufen.
-5. Dauerhafte Bewegung nur dort, wo sie Bedeutung trägt, und immer abbestellbar halten.
+Ob das Verhalten nutzerwirksam ist, dazu habe ich noch keine Zahlen. Belegbar ist der Bau: Die
+laufende Folge darf auf null fallen, die Bestmarke nicht, und keine Rückmeldung ruft den
+Misserfolg.
 
-## Zähler, die Freund bleiben
-
-Rückmeldung ohne Druck ist keine Rückmeldung ohne Wahrheit. Die Anzeige zeigt Rückstand deutlich,
-die leere Säule fällt in der Rechnung auf, die Kennzahl lässt sich nicht schönrechnen. Der
-Unterschied liegt darin, was die Rückmeldung mit dieser Wahrheit tut: Sie bietet an, wo andere
-Appelle senden, und sie sammelt, wo andere streichen.
-
-Balamentum setzt diese Grundsätze als Web-App unter balamentum.modevel.de um, dazu als
-Android-App. Für Web-Teams, die ähnliche Rückmeldungen bauen, zeigt der Schwesterartikel auf
-web.dev die technischen Grundsätze dahinter; auf dev.to gibt es den Umsetzungsfeldbericht mit
-den vier Streak-Regeln im Detail.
+Balamentum läuft als [Web-App](https://balamentum.modevel.de), dazu als Android-App. Wer die
+vier Regeln im Detail nachbauen möchte, findet sie genau so, wie sie hier stehen — inklusive der
+offen einsehbaren Zählregel.

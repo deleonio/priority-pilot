@@ -1,132 +1,131 @@
 <!--
-Medium-Fachartikel — Fokus-Thema: „Lebensbalance sichtbar machen“
-Titel:      Wie ausgewogen ist dein Tag?
-Untertitel: Eine Methode mit fünf Säulen, einer Kennzahl und einer Frage an jeden Text
-Tags:       Selbstmanagement, Psychologie, Produktivität, Achtsamkeit, Work-Life-Balance
-Bilder:     images/*.svg (SVG, 1200 px breit; vor dem Veröffentlichen bei Medium hochladen und
-            an den Bildmarkern einsetzen). Demo-Daten sind als Illustration gekennzeichnet.
-Genre:      Fachartikel — das Fachthema steht im Vordergrund; Balamentum tritt als
-            Praxisbeispiel auf (keine Code- oder Architekturbezüge).
-Schwesterartikel: webdev.md (englisch, technische Grundsätze für web.dev) — am Ende verlinken.
+Medium-Fachartikel — Fokus-Thema: „Das Zifferblatt der Lebensbalance“
+Titel:      Das Bild, das nie selbst rechnet
+Untertitel: Warum deine To-do-Liste die Verteilung deiner Energie nicht zeigt — und ein Bild, das es tut
+Tags:       Selbstmanagement, Produkt-Design, UX-Design, Work-Life-Balance, Gewohnheiten
+Bilder:     images/ (echte App-Screenshots aus der laufenden App mit Demo-Daten; vor dem
+            Veröffentlichen bei Medium hochladen und an den Bildmarkern einsetzen; Galerie liegt
+            als PNG bereit).
+Genre:      Fachartikel — Balamentum tritt als Praxisbeispiel auf, eigenständig ohne
+            Plattform-Verweise.
 -->
 
-# Wie ausgewogen ist dein Tag?
+# Das Bild, das nie selbst rechnet
 
-_Eine Methode mit fünf Säulen, einer Kennzahl und einer Frage an jeden Text_
+_Warum deine To-do-Liste die Verteilung deiner Energie nicht zeigt — und ein Bild, das es tut_
 
-Eine To-do-Liste ist ein Bestandsverzeichnis. Sie sagt, was offen ist, was überfällig ist und was
-sich seit Wochen nicht bewegt hat. Was sie nicht sagt: wo die eigene Energie in dieser Woche
-hingegangen ist. Wer jeden Tag viel erledigt und trotzdem erschöpft ist, liest aus einer Liste
-ohne Inhalt den Grund dafür heraus.
+Wer viel tut und trotzdem unzufrieden ist, hat selten ein Mengenproblem. Er hat ein
+Verteilungsproblem. Die Energie floss diese Woche in zwei Lebensbereiche, während drei andere
+leer ausgingen — und keine einzige To-do-Liste zeigt das. Sie zeigt Bestand: was offen ist, was
+überfällig ist, was sich seit Wochen nicht bewegt hat. Am Sonntagabend schaust du auf eine Liste
+voll erledigter Aufgaben und spürst trotzdem, dass etwas schiefstand. Die Liste sagt dir nur
+nicht, was.
 
-Der Grund liegt meist nicht in der Menge der Aufgaben, sondern in ihrer Verteilung. Genau dort
-setzt der Blick auf Lebensbalance an: Was habe ich für meinen Körper getan, für meinen Kopf, für
-meine Beziehungen, für meine Wirksamkeit, für meinen Sinn? Diese Frage lässt sich methodisch
-beantworten, mit fünf Säulen, einem Zielwert je Säule und einer Kennzahl, die ehrlich bleibt,
-gerade dann, wenn sie unangenehm ist. Balamentum, eine Web-App zur Aufgabenpriorisierung, setzt
-diese Methode um; die Schritte funktionieren aber genauso mit Papier und zehn Minuten
-Wochenrückblick.
+Das ist die Lücke, um die es in diesem Artikel geht: eine Auskunft über die Verteilung der
+eigenen Energie, lesbar in Sekunden. Balamentum, eine Web-App zur Aufgabenpriorisierung, baut
+diese Auskunft als Bild — ein Herz-Gefäß, das sich nach der Lebensbalance füllt. Es ist ein
+lehrreiches Beispiel, weil hinter ihm eine Reihe von Entscheidungen steht, die man auch ohne die
+App anwenden kann.
+
+![Herz-Gefäß mit Säulen-Legende in Balamentum](images/screenshot-herz.png)
+
+_Demo-Daten aus der laufenden App: 23 % aus der Balance. Sinn liegt am kürzesten (7 % statt
+20 %), Körper zieht davon (40 % statt 20 %, also +20 Prozentpunkte über dem Ziel). Die Legende
+nennt Ist, Ziel und Abstand je Säule._
 
 ## Fünf Säulen und ein Zielwert
 
-Balamentum startet mit fünf Säulen, angelehnt an Hilarion Petzolds Konzept der Identität:
-Körper, mentale Gesundheit, Beziehungen, Wirksamkeit und Sinn. Die Säulen sind persönlich:
-Jemand kann sie umbenennen, erweitern oder kürzen. Ein Musiker führt vielleicht eine Säule
-„Proben“, eine Mutter eine Säule „Familienzeit“.
+Die Grundlage ist unspektakulär. Balamentum startet mit fünf Säulen, angelehnt an Hilarion
+Petzolds Konzept der Identität: Körper, mentale Gesundheit, Beziehungen, Wirksamkeit und Sinn.
+Die Säulen gehören der Person, nicht der App — benennen, erweitern und kürzen kann jeder. Ein
+Musiker führt vielleicht eine Säule „Proben“, ein Vater eine Säule „Familienzeit“.
 
-Wichtiger als die Namen ist der zweite Schritt: Für jede Säule ein Zielwert festlegen, in
-Prozent der aufgewandten Zeit oder Aufmerksamkeit. Dieses Soll ist eine Absichtserklärung, keine
-Norm. Wer Arbeit 30 Prozent zumisst und Beziehungen 20, sagt damit etwas über das Leben, das er
-führen will, und nicht über das, das andere für richtig halten.
+Wichtiger als die Namen ist der zweite Schritt: Für jede Säule ein Zielwert festlegen, als
+Anteil der Investition — was eine erledigte Aufgabe laut Schätzung gekostet hat, nicht was die
+Stundenuhr zeigt. Dieses Soll ist eine Absichtserklärung. Wer Arbeit 30 Prozent zumisst und
+Beziehungen 20, sagt damit etwas über das Leben, das er führen will. Von hier an arbeitet die
+App allein: Jede Aufgabe zahlt beim Erledigen auf die Säulen ein, denen sie zugeordnet war, und
+die Investitionen summieren sich von selbst.
 
-## Die Kennzahl: Ist durch Soll
+## Die Kennzahl: Ist durch Ziel, ungedeckelt
 
-Gemessen wird das Verhältnis von geleisteter Investition zu Zielwert. Zehn Prozent Aufwand bei
-einem Soll von 20 ergeben 0,5: halb so viel wie nötig. Genau auf Ziel liegt 1,0. Dreißig Prozent
-bei einem Soll von 20 ergeben 1,5: Die Säule zieht davon.
+Die Kennzahl hinter dem Bild ist das Verhältnis von geleisteter Investition zum Zielwert je
+Säule. Zwölf Prozent Aufwand bei einem Ziel von 20 ergeben 0,6; dreißig Prozent bei 20 ergeben
+1,5. Für die Anzeige wird der Wert bewusst nicht bei 1,0 abgeschnitten: Übererfüllung ist
+genauso eine Aussage wie Rückstand, und die Anzeige soll beide zeigen. Ein Deckel verschiebt die
+Aufmerksamkeit weg von den Bereichen, in denen jemand über dem Ziel wirkt — von dort kommt
+meistens die Überlast.
 
-Der Wert wird bewusst nicht bei 1,0 abgeschnitten. Für die Gesamtrechnung ist ein Deckel
-richtig: Mehr zu leisten, als das Soll verlangt, macht die Verteilung nicht besser. Für die
-Anzeige wäre der Deckel eine Fälschung. Wer sein Beziehungs-Soll um die Hälfte übererfüllt, der
-hat das vermutlich aus einem Grund getan, und die Anzeige soll diesen Grund sichtbar halten.
-Rückstand und Übererfüllung sind beide Aussagen.
+Die Gesamt-Balance rechnet dabei strenger, als die Gewichte es nahelegen. Sie misst doppelt —
+einmal als Abweichung gegen die Zielgewichte, einmal als Abweichung ohne Gewichtung, wobei jede
+Säule mit Ziel einzeln zählt — und der niedrigere Wert zählt. Ein konstruiertes Rechenbeispiel —
+genau für solche Extreme ist die doppelte Messung da: 60/0/10/10/10 auf Säulen mit den
+Gewichten 60/10/10/10/10. Die gewichtete Messung ergibt 0,67 und würde als „gut in Balance“
+durchgehen; die ungewichtete Prüfung zieht denselben Fall auf 0,55, in die leichte Schieflage.
+Eine leere Säule fällt immer auf, egal wie klein ihr Ziel ist.
 
-![Fünf Säulen, Ist gegen Soll](images/ist-soll-de.svg)
+Interessant ist die Umkehrung dieses Deckels: Weil mehr als das Soll die Balance nicht
+verbessert, lässt sich das Bild nicht durch Überarbeitung gewinnen.
 
-Die Gesamt-Balance aus allen Säulen rechnet streng. Sie misst doppelt, einmal gegen die
-Zielgewichte und einmal ohne Gewichtung, und der niedrigere der beiden Werte zählt. Der Grund:
-Eine Säule, die auf null steht, kann sich hinter ihrem kleinen Zielgewicht verstecken. Verteilt
-jemand 60/0/10/10/10 bei den Gewichten 60/10/10/10/10, kommt die gewichtete Rechnung auf 0,67 und
-würde als „gut in Balance“ durchgehen. Die ungewichtete Prüfung zieht denselben Fall auf 0,55, in
-die leichte Schieflage. Eine leere Säule fällt immer auf.
+Überlast zahlt auf die Kennzahl nichts ein.
 
-## Sichtbarkeit braucht Form
+Das Herz füllt sich durch unterschiedliche Arbeit, nicht durch mehr Arbeit.
 
-Eine Zahl pro Säule genügt dem Kopf, dem Bauch nicht. Sichtbarkeit braucht Form, und die Form
-folgt einer einzigen Regel: Die Säule mit dem größten Verhältnis bekommt die größte Form. Beim
-Herz-Gefäß ist das die Füllfläche, bei Blasen der Radius, bei Strahlen die Länge.
+## Neun Zifferblätter, eine Auskunft
 
-Dazu gehört eine Soll-Marke, die Stelle, an der 1,0 läge. Eine Form ohne Bezugsgröße ist
-Dekoration; erst die Marke macht aus dem Bild eine Auskunft. Und die Gesamt-Balance bekommt eine
-gemeinsame Skala, einen Ring aus 100 Strichen, einer je Prozentpunkt, der sich nie bewegt, während
-die Figuren in der Mitte atmen.
+Das Herz ist eine von neun Darstellungen derselben Rechnung: Herz, Blasen, Scheiben, Ringe,
+Strahlen, Blüte, Kristall, Segmente, Zeiger. Alle folgen ein und derselben Regel — die Säule mit
+der größten Kennzahl bekommt die größte Form — und unterscheiden sich nur im Material: Die Blase
+legt ihre Farbe in eine dünne Haut und lässt den Hintergrund durchscheinen, die Scheibe ist eine
+satte Fläche mit harter Kante, der Kristall bricht die Kontur kantig mit hellen Knoten. „Blasen“
+und „Scheiben“ sind derselbe Stapel in zwei Materialien, „Blüte“ und „Kristall“ dieselbe
+Silhouette in zwei Haltungen — weich einmal, kantig einmal.
 
-![Das Zifferblatt „Blasen“ von Balamentum](images/zifferblatt-blasen-de.svg)
+![Die neun Zifferblätter als Galerie](images/zifferblatt-galerie.png)
 
-Balamentum liefert dafür neun Darstellungen, vom sich füllenden Herz über Blasen und Ringe bis zu
-einer Blüte, deren Silhouette aus den Säulenwerten entsteht. Rechnen tun alle dasselbe. Das
-Auswählen ist kein Accessoire, sondern Teil der Methode: Wer sein Gleichgewicht täglich ansieht,
-sollte die Form wählen, die er ohne zu übersetzen liest.
+_Alle neun Varianten aus der laufenden App (Demo-Daten) — dieselbe Auskunft in neun Materialien._
 
-![Das Herz-Gefäß, Füllfläche als Kennzahl](images/zifferblatt-herz-de.svg)
+![Die Bildwahl in den Einstellungen](images/screenshot-bildwahl.png)
 
-## Rückmeldung ohne Druck
+_Der Ort, an dem gewählt wird: neun Optionen, jede mit einer Lesart._
 
-Die Figur bewegt sich. Ihr Ruhepuls dauert zwischen 1,5 und 2,6 Sekunden, und er wird ruhiger, je
-ausgewogener die Balance steht. Die Anzeige atmet mit, sie mahnt nicht. Das ist eine bewusste
-Entscheidung gegen die Streak-Logik vieler Gewohnheits-Apps, die Treppen zählen und beim Auslassen
-mit einem zerbrochenen Ketten-Icon Reue produzieren.
+Das Wählen kann Teil der Methode sein. Wer sein Gleichgewicht täglich ansieht, liest vermutlich
+die Form ohne Übersetzung, die ihm liegt; gespeichert wird die Wahl pro Gerät, das Herz ist die
+Voreinstellung. Wichtig ist die Trennung, die dahintersteht: Das Bild entscheidet nur über die
+Form, nie über die Aussage. Eine Säule, die der Rechnung nach zurückliegt, sieht in allen neun
+Darstellungen zurückliegend aus.
 
-Aus demselben Grund lässt sich die Bewegung abbestellen, über einen Schalter in der App und über
-die Systemeinstellung für reduzierte Bewegung. Wichtig ist, was dann angezeigt wird: dasselbe
-vollständige Bild, nur still. Wer Animationen ablehnt, bekommt weniger Bewegung, aber nicht
-weniger Inhalt.
+## Mobil zuerst, Bewegung abbestellbar
 
-## Sorgt der Text oder protokolliert er nur?
+Das Dashboard ist zuerst für das Handy gebaut; lesbar bleiben die Ansichten bis zu 320 Pixeln,
+die Referenzbreite für Tests liegt bei 375. Die Figur pulsiert mit einem Ruhepuls zwischen 1,5
+und 2,6 Sekunden, dessen Dauer am Füllstand hängt — je voller das Herz, desto ruhiger der Puls.
+Anzeige statt Alarm. Die einzelnen Formen schwingen dazu in eigenen Perioden, jede Säule mit
+einer eigenen Phase, damit selbst der Bestzustand nicht zu einer einzigen Form kollabiert.
 
-Sichtbarkeit allein genügt nicht. Sobald eine Säule deutlich unter ihrem Soll liegt, spricht die
-App den Menschen an, und jeder solche Text steht vor einer Frage: Sorgt er, oder protokolliert er
-nur?
+![Dashboard auf dem Handy](images/screenshot-dashboard-mobil.png)
 
-![Derselbe Befund, zwei Tonalitäten](images/fursorge-de.svg)
+_Der Handy-Bildschirm zeigt einen anderen Demo-Stand (26 %) als das erste Bild — dasselbe Bild,
+nur auf 375 Pixel Breite._
 
-„Du hast deine Körper-Säule vernachlässigt“ ist eine Protokollzeile mit Anklage. „Dein Körper
-könnte eine Pause gebrauchen. Ein kurzer Spaziergang oder etwas früher ins Bett tut heute schon
-viel“ sorgt: Es bietet heute etwas an, es ist klein genug, um es zu tun, und es urteilt nicht.
-Ein niedriger Stand ist eine Beobachtung, kein Fehlverhalten. Dasselbe gilt in der Überlast, wo
-der Text die Erlaubnis gibt, zu kürzen, und bei erfülltem Soll, wo Anerkennung sichtbar macht,
-was wirkt.
+Und wer keine Bewegung mag, stellt sie ab — über einen Schalter in der App oder über die
+Systemeinstellung für reduzierte Bewegung. Wichtig ist, was dann gezeigt wird: dasselbe
+vollständige Bild, nur still.
 
-## Die Methode, auch ohne App
+Auch die Farben gehorchen einer Regel: Sie tragen nie allein Bedeutung. Der Säulenname steht
+immer als Text daneben, und die Palette ist gegen Farbsehschwächen gerechnet statt geraten.
 
-In fünf Schritten lässt sich das Verfahren ohne Werkzeug nachvollziehen:
+## Für das eigene Dashboard
 
-1. Drei bis fünf Säulen festlegen, die Namen wählen, die im eigenen Leben passen.
-2. Für jede Säule ein Soll in Prozent der Zeit oder Aufmerksamkeit setzen, als Absicht, nicht
-   als Anspruch.
-3. Einmal in der Woche das Ist schätzen, grob reicht.
-4. Die Verhältnisse lesen, Rückstand und Übererfüllung gleichermaßen, und die leere Säule
-   ernst nehmen, egal wie klein ihr Soll ist.
-5. Einen kleinen, heute möglichen Schritt für die am weitesten zurückliegende Säule planen.
+Drei der Entscheidungen lassen sich ohne die App nachbauen:
 
-Und über jedem Text, den man sich dabei schreibt, steht dieselbe Prüffrage wie in der App: Sorgt
-dieser Satz, oder protokolliert er nur.
+1. Miss je Lebensbereich das Verhältnis Ist zu Ziel — und lass Übererfüllung sichtbar, statt es
+   bei 100 % zu kappen.
+2. Rechne die Gesamtbilanz doppelt, mit und ohne Gewichtung, und lass den niedrigeren Wert
+   zählen. Eine leere Säule darf sich nicht hinter ihrem kleinen Ziel verstecken.
+3. Wähle eine Anzeigeform, die du täglich in Sekunden liest — das Bild ist nur so viel wert wie
+   die Häufigkeit, mit der du es ansiehst.
 
-## Verteilung statt Menge
-
-Balance entsteht nicht durch besser sortierte Listen, sondern durch den Blick auf die
-Verteilung. Fünf Säulen, ein Zielwert, eine ehrliche Kennzahl und ein Text, der sorgt, reichen
-dafür als Werkzeug. Balamentum rechnet diese Methode täglich, als Web-App unter
-balamentum.modevel.de und als Android-App. Für Web-Teams, die ähnliche Rückmeldungen bauen, zeigt
-der Schwesterartikel auf web.dev die technischen Grundsätze dahinter: Bewegung, die man abbestellt,
-Farbe, die man rechnet, und Kennzahlen, die bei der Wahrheit bleiben.
+Balamentum setzt diese Methode als [Web-App](https://balamentum.modevel.de) um, dazu als
+Android-App. Wer es ausprobieren möchte, hat in den Einstellungen die Wahl zwischen allen neun
+Zifferblättern — und in den Aufgaben einen Ort, von dem die Säulen sich speisen.
