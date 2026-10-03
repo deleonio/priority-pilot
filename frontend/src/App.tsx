@@ -1065,6 +1065,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 								) : null}
 								<div hidden={onboardingDismissed}>
 									<OnboardingFlow
+										active={!onboardingDismissed}
 										pillars={pillars}
 										onClose={() => {
 											setOnboardingDismissed(true);

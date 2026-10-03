@@ -1,6 +1,6 @@
 /**
  * Hilfsfunktionen, um die als `unknown` typisierten Werte der KoliBri-Eingabe-Callbacks
- * (`_on.onInput`/`_on.onChange`) robust in String bzw. Zahl zu überführen.
+ * (`_on.onInput`/`_on.onChange`) robust in String, Zahl bzw. Boolean zu überführen.
  */
 
 /**
@@ -20,6 +20,15 @@ export const readString = (value: unknown): string => {
 		return readString((value as { value: unknown }).value);
 	}
 	return String(value);
+};
+
+/** Liest den von KoliBri gemeldeten Checkbox-Zustand (Boolean oder State-Objekt) als Boolean. */
+export const readChecked = (value: unknown): boolean => {
+	if (typeof value === 'boolean') return value;
+	if (typeof value === 'object' && value !== null && 'checked' in value) {
+		return Boolean((value as { checked?: unknown }).checked);
+	}
+	return false;
 };
 
 /** Liest einen KoliBri-Eventwert als endliche Zahl oder `null`, falls leer/ungültig. */

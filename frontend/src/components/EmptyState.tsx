@@ -1,6 +1,7 @@
 import { KolButton, KolCard, KolInputCheckbox } from '@public-ui/react-v19';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { readChecked } from '../lib/inputValue';
 
 interface EmptyStateProps {
 	/** Öffnet den Dialog zum Anlegen des ersten Tasks. */
@@ -14,15 +15,6 @@ interface EmptyStateProps {
  * sind i18n-Schlüssel (Review #2087); der AK2-Fallback des `OnboardingFlow` nutzt dieselben Schlüssel.
  */
 export const EXAMPLE_TASKS = ['onboarding.beispiel1', 'onboarding.beispiel2', 'onboarding.beispiel3'] as const;
-
-/** Liest den von KoliBri gemeldeten Checkbox-Zustand (Boolean oder State-Objekt) als Boolean. */
-const readChecked = (value: unknown): boolean => {
-	if (typeof value === 'boolean') return value;
-	if (typeof value === 'object' && value !== null && 'checked' in value) {
-		return Boolean((value as { checked?: unknown }).checked);
-	}
-	return false;
-};
 
 /**
  * Onboarding-Ansicht, wenn noch keine Tasks existieren: Wiedereinstieg in den Erststart-Flow
@@ -40,7 +32,8 @@ export const EmptyState = ({ onCreate, onReenter }: EmptyStateProps) => {
 					<KolButton _label={t('onboarding.fortsetzen')} _variant="primary" _on={{ onClick: onReenter }} />
 				)}
 				<p>{t('onboarding.beispiele')}</p>
-				<div className="onboarding-cards">
+				{/* #2110 AK2: per Testing Library auffindbare, programmatisch benannte Gruppe. */}
+				<div className="onboarding-cards" role="group" aria-label={t('onboarding.beispiele')}>
 					{EXAMPLE_TASKS.map((key, index) => (
 						<KolInputCheckbox
 							key={key}
