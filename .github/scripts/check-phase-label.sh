@@ -65,7 +65,7 @@
 #
 # Usage:
 #   bash check-phase-label.sh --repo <owner/repo> --phase <name> --ticket <N> \
-#                             [--trigger-label <label>]
+#                             [--trigger-label <label>] [--defer-on-peak]
 #   --trigger-label: nur für `analyse` relevant (github.event.label.name). Beim
 #                    labeled-Einstieg muss GENAU das gesetzte Label
 #                    (ai:needs-analyse) noch da sein; leer => unlabeled-Re-Triage
@@ -88,12 +88,32 @@ while [ $# -gt 0 ]; do
     --phase) PHASE="$2"; shift 2 ;;
     --ticket) TICKET="$2"; shift 2 ;;
     --trigger-label) TRIGGER_LABEL="$2"; shift 2 ;;
+    --defer-on-peak) DEFER_ON_PEAK="true"; shift ;;
     *) shift ;;
   esac
 done
 [ -n "$REPO" ] || { echo "check-phase-label: --repo required" >&2; exit 2; }
 [ -n "$PHASE" ] || { echo "check-phase-label: --phase required" >&2; exit 2; }
 [ -n "$TICKET" ] || { echo "check-phase-label: --ticket required" >&2; exit 2; }
+
+# ZAI-Peak-Defer (#2100): Mit --defer-on-peak und vars.ZAI_PEAK_MODE=defer startet die
+# Phase im Peak-Fenster (Mo-Fr 14-18 Asia/Singapore, dreifaches Kontingent) nicht:
+# proceed=false, das Trigger-Label bleibt kleben, der Continue-Sweep weckt kurz nach
+# Fensterende (12:05 Europe/Berlin) neu. Neutral (exit 0) - laufende Jobs werden nie
+# abgebrochen, nur neue Starts vertagt; entscheidet VOR der gh-Abfrage (kein API-Call).
+# Bewusst VOR der Phasen-Namen-Validierung: das Defer hängt allein am Startzeitpunkt,
+# nicht am Phasen-Soll - ein unbekannter Ticker vertagt im Fenster still und scheitert
+# erst nach dem Wecken laut (exit 2), statt den Sweep-Aufruf vorzuverurteilen.
+if [ "${DEFER_ON_PEAK:-false}" = "true" ] \
+  && [ "${ZAI_PEAK_MODE:-warn}" = "defer" ] && [ "${LLM_PROVIDER:-}" = "zai" ]; then
+  DOW="$(TZ='Asia/Singapore' date +%u)"
+  HOUR="$(TZ='Asia/Singapore' date +%H)"
+  if [ "$DOW" -ge 1 ] && [ "$DOW" -le 5 ] && [ "$HOUR" -ge 14 ] && [ "$HOUR" -lt 18 ]; then
+    echo "proceed=false"
+    echo "reason=ZAI-Peak-Fenster aktiv (Mo-Fr 14-18 SGT, 3x Kontingent) bei ZAI_PEAK_MODE=defer - Lauf vertagt, Trigger-Label bleibt kleben; Wecken durch den Continue-Sweep nach Fensterende (#2100)"
+    exit 0
+  fi
+fi
 
 # Soll-Werte aus dem Phasen-Namen auflösen. Eine unbekannte Phase ist ein HARTER
 # Fehler (exit 2), kein Fail-open und kein Skip: ein Tippfehler im Workflow
