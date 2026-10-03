@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.13 - 2026-10-03
 
-_Enthält v0.13.0 – v0.13.24._
+_Enthält v0.13.0 – v0.13.25._
 
 ### 🎉 New Features
 
@@ -38,6 +38,7 @@ _Enthält v0.13.0 – v0.13.24._
 - feat(server): rank rule mirror and full care suggestions (#2075) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2106
 - feat(frontend): move geo range sliders and expert scope list behind expert mode (#1984) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2109
 - fix(ci): wait for background gate runs instead of terminating them (#1952) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2112
+- fix(ci): detect session-limit aborts only at the failing claude call by @deleonio in https://github.com/deleonio/priority-pilot/pull/2113
 
 ## v0.12 - 2026-10-02
 
@@ -172,7 +173,6 @@ _Enthält v0.10.0 – v0.10.36._
 - test(e2e): exempt kol-alert from #930 transparency check by @deleonio in https://github.com/deleonio/priority-pilot/pull/1859
 - fix(server): count late completions for their due day in streak by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1856
 - docs(agents): align e2e page.route rule with practice by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1860
-- feat(server): suggest recovery on overload in care hint (#1795) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1861
 - feat(server): suggest recovery on overload in care hint (#1795) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1861
 - docs(adr): ADR 0018 Preismodell Free/Plus/Pro (#1803) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1863
 - feat(ci): swap openrouter haiku model via set-agent-config by @deleonio in https://github.com/deleonio/priority-pilot/pull/1865
@@ -327,6 +327,7 @@ _Enthält v0.5.0 – v0.5.32._
 - feat(server): allow users to delete their account with all personal data by @deleonio in https://github.com/deleonio/priority-pilot/pull/1707
 - feat(native): scaffold android app in remote mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1708
 - docs(adr): ADR 0017 Store-Billing über Google Play by @deleonio in https://github.com/deleonio/priority-pilot/pull/1709
+- feat(server): Benachrichtigungen zusätzlich über FCM versenden by @deleonio in https://github.com/deleonio/priority-pilot/pull/1710
 - feat(server): Benachrichtigungen zusätzlich über FCM versenden by @deleonio in https://github.com/deleonio/priority-pilot/pull/1710
 - feat(frontend): hide paypal purchase in android app plans view by @deleonio in https://github.com/deleonio/priority-pilot/pull/1711
 - feat(frontend): Konto löschen in den Einstellungen mit sequenzieller Bestätigung by @deleonio in https://github.com/deleonio/priority-pilot/pull/1712
