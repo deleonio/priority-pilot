@@ -63,7 +63,9 @@ Labels setzt ausschließlich der Workflow, und am Ende übernimmt der unabhängi
   Die Wahl wird gegen die Kennzahlen aus `.costs/` begründet (s. Kostensteuerung).
 - **Delegation (ADR 0008):** Erzeugt ein Teilschritt viel Rohtext, aber nur ein kurzes Ergebnis,
   gehört er an eine Rolle: Gate-Läufe an `gate-runner`, breite Suchfragen an `recherche` (beide in
-  `.claude/agents/`). **Nie delegiert:** die Codeänderung selbst, Abweichungen vom Test-Vertrag,
+  `.claude/agents/`). Der eigene Lauf endet erst mit dem zurückgegebenen Gate-Ergebnis — nie den
+  Turn schließen, während ein delegiertes Gate noch läuft (#1952: Arbeit geht sonst verloren).
+  **Nie delegiert:** die Codeänderung selbst, Abweichungen vom Test-Vertrag,
   Urteil. Delegation ersetzt Kontext-Beschaffung, nicht Urteilskraft.
 - **Docs-Konsistenz:** Repo-Doku ist Single Source of Truth; stille Abweichungen sind Critical
   Findings.
