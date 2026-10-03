@@ -1,13 +1,12 @@
 ---
 name: article-create
-description: Erstellt veröffentlichungsreife Fachartikel (1200–1800 Wörter, echte Screenshots) rund um Balamentum für Internet-Plattformen (Medium, web.dev, dev.to, eigene Website) — mit vorgelagertem Dialog zum Nutzer, um das passende Fokus-Thema zu ermitteln, und 3× Teufelsadvokaten-Jury mit Optimierungsrunden und Abschluss-Metrik. Verwenden, wann immer der Nutzer einen Artikel, Blog-Post, Internet-Beitrag oder Fachtext über Balamentum schreiben/erstellen will, auch wenn er nur „schreib einen Artikel“ sagt. Immer zusammen mit dem Skill „vermenschlichen“.
+description: Erstellt veröffentlichungsreife Fachartikel (1–2-Seiter mit echten Screenshots) rund um Balamentum für Internet-Plattformen (Medium, web.dev, dev.to, eigene Website) — mit vorgelagertem Dialog zum Nutzer, um das passende Fokus-Thema zu ermitteln, und 3× Teufelsadvokaten-Jury mit Optimierungsrunden und Abschluss-Metrik. Verwenden, wann immer der Nutzer einen Artikel, Blog-Post, Internet-Beitrag oder Fachtext über Balamentum schreiben/erstellen will, auch wenn er nur „schreib einen Artikel“ sagt. Immer zusammen mit dem Skill „vermenschlichen“.
 ---
 
 # Fachartikel über Balamentum schreiben (Fokus-Thema)
 
-Ziel: je Plattform ein veröffentlichungsreifer **Fachartikel** zu **einem** Fokus-Thema —
-ausführlich genug, um das Thema eigenständig zu tragen (1200–1800 Wörter), untermauert mit
-informativen Screenshots aus der echten App, abgelegt unter
+Ziel: ein veröffentlichungsreifer **Fachartikel als 1–2-Seiter** (je Plattform einer) zu **einem**
+Fokus-Thema, untermauert mit informativen Screenshots aus der echten App, abgelegt unter
 `docs/marketing/artikel/<jjjj-mm-tt>-<slug>/`. Danach drei Validierungsrunden durch eine Jury aus
 drei Teufelsadvokaten mit Optimierung nach jeder Runde und einer Abschluss-Metrik.
 
@@ -19,14 +18,8 @@ Muster, keine Repo-Auszüge. Fakten (Zahlen, Verfahren, Namen) dürfen aus dem R
 Herkunft nicht. **Jede Zahl im Artikel muss gegen die Quelle stehen** (Code oder Doku); Zahlen,
 die nur im eigenen Bildgenerator existieren, sind Zirkelbelege.
 
-**Eigenständigkeits-Regel (bindend):** Die Plattform-Artikel zu einem Thema verlinken sich **nicht
-gegensenseitig** und erwähnen sich nicht („der Schwesterartikel …“ entfällt). Jede Fassung ist ein
-vollwertiger, eigenständiger Artikel: eigener Einstieg, eigene Struktur, eigene Beispiele, eigener
-Schluss — dieselbe Auskunft für ein anderes Publikum, nicht ein Auszug mit Verweis. Am Ende steht
-nur der CTA (App-Link), kein Cross-Sell.
-
 Mehrere Plattformen bedeuten mehrere eigenständige Artikel zu demselben Thema — kein
-1:1-Übersetzen, kein wörtliches Recycling von Sätzen zwischen den Fassungen.
+1:1-Übersetzen, kein wörtliches Recycling von Sätzen zwischen den Schwestern.
 
 ## Schritt 1 — Dialog: Thema und Rahmen ermitteln (immer zuerst, vor jeder Recherche)
 
@@ -37,10 +30,6 @@ Mit `AskUserQuestion` klären — eine Frage je Block:
 3. **Sprache je Plattform** (Standard-Muster: Medium deutsch, web.dev englisch; Alternativen:
    alles deutsch / alles englisch)
 4. **CTA** (nur App-Link auf balamentum.modevel.de, Warteliste, bestimmtes Feature, kein CTA)
-
-Bei einem **Neustart für bestehende Artikel** (Überarbeitung eines Sets) entfällt der Dialog:
-Thema, Plattformen, Sprache und CTA stehen in den bestehenden Kopf-Kommentaren; ließ sie und
-arbeite direkt die Schritt 2–6 durch.
 
 Nachfragen nur, wenn das gewählte Thema mehrdeutig ist (z. B. „Balance“: Lebensmethode für
 Leser oder Design-Prinzip für Fachleser?). Danach ohne weitere Rückfragen durcharbeiten.
@@ -73,19 +62,17 @@ Verhaltens-/Wirkungsbehauptungen über Nutzer ohne Daten bleiben bei der Design-
 ehrliche Grenzen („was ich belegen kann und was nicht“) schlagen erfundene Retention.
 Demo-Daten in Bildern ausdrücklich als „Illustration“/„Demo-Stand“ kennzeichnen.
 
-## Schritt 3 — Schreiben (1200–1800 Wörter, eigenständig)
+## Schritt 3 — Schreiben (1–2-Seiter)
 
 **Immer zuerst den Skill `vermenschlichen` laden und anwenden — für jede Sprache und jeden
 Artikel.** Für englische Texte die Muster übertragen (keine KI-Verräter, keine Werbesprache,
 echte Substanz statt Bedeutungsaufladung).
 
-**Umfang: 1200–1800 Wörter** (Medium bzw. web.dev; dev.to 1000–1400), 4–7 Zwischenüberschriften,
-die **benennen** statt anpreisen. Deutsch in Fließtexten mit „du“-Nähe, englisch nach
-Plattform-Ton. Der Umfang trägt Substanz (Verfahren, Beispiele, Grenzen) — keine Dekoration.
+**Umfang: 600–1000 Wörter** (gedruckte 1–2 Seiten), 3–5 Zwischenüberschriften, die **benennen**
+statt anpreisen. Deutsch in Fließtexten mit „du“-Nähe, englisch nach Plattform-Ton.
 
 **Medium:** Fachartikel für praktisch interessierte Leser. Titel mit Leser-Versprechen +
-Untertitel; der Produkt-Pivot kommt nicht vor Absatz 3, und der Hook trägt bis dahin. Vertiefte
-Abschnitte (Rechenbeispiele, Fallen, Material-Unterschiede) statt Listen-Katalog; ein
+Untertitel; der Produkt-Pivot kommt nicht vor Absatz 3, und der Hook trägt bis dahin. Ein
 Anwendungs- oder Mitnahme-Teil („Für das eigene Dashboard“) als nummerierte Liste.
 
 **web.dev:** Fachartikel für Web-Profis. Sentence-case-Überschriften, TL;DR am Anfang, dessen
@@ -97,14 +84,15 @@ Balamentum als Fallbeispiel, keine Werbesprache.
 mit Konkretbeispiel, ehrliche Claim-Grenzen, Engagement-Frage am Ende (Kommentare sind der
 Reichweiten-Hebel).
 
-**Eigenständigkeit:** Jede Fassung trägt ihr Thema komplett — wer nur eine Plattform liest,
-verpasst nichts für das Verständnis. Keine Verweise auf Schwesterartikel, keine geteilten
-Sätze.
+Alle Schwestern verweisen am Ende aufeinander (Platzhalter als HTML-Kommentar im Kopf, falls
+die URL noch nicht feststeht) und führen dieselben Fakten konsistent — widersprüchliche
+Einzeiler über dieselbe Kennzahl (Anzeige ungedeckelt vs. Aggregate gedeckelt) müssen ihre
+Unterscheidung im Lesertext tragen.
 
 ## Schritt 4 — Bilder: echte Screenshots zuerst
 
-**Primär: informative Screenshots aus der laufenden App** (3–5 je Artikel), zweitrangig SVG-
-Diagramme für Konzepte, die kein Screenshot zeigt (0–2 je Artikel).
+**Primär: informative Screenshots aus der laufenden App** (2–4 je Artikel), zweitrangig SVG-
+Diagramme für Konzepte, die kein Screenshot zeigt (0–1 je Artikel).
 
 Screenshots aus der echten App:
 
@@ -128,7 +116,7 @@ Screenshots aus der echten App:
 7. Medium akzeptiert **keine SVG-Uploads** — SVG-Grafiken vor dem Publish als PNG rastern
    (`pnpm --filter frontend exec playwright screenshot file://… --viewport-size "…"`).
 
-SVG-Diagramme (0–2 je Artikel): Generator-Muster `images/gen-bilder.mjs` der Referenzartikel
+SVG-Diagramme (0–1 je Artikel): Generator-Muster `images/gen-bilder.mjs` der Referenzartikel
 kopieren, Farben aus `frontend/src/app.css` (Dark-Tokens). Kein Text im Diagramm, den die
 Markdown-Unterschrift wiederholt — und der Artikeltext sagt nie etwas anderes als das Diagramm.
 
@@ -152,17 +140,13 @@ Teufelsadvokaten-Agents** (parallel, z. B. Explore, read-only):
   Ein-Satz-Fixes.
 
 Jeder Juror bewertet je Artikel vier Dimensionen (1–5): **Stoff & Interesse · Marketing-Wirkung ·
-Gestaltung & Bilder · Sprachstil**. Juror-Prompts enthalten die Plattform-Zuordnung (Medium de /
-web.dev en / dev.to en) und die Genre-Regeln; sie prüfen insbesondere auch die
-**Eigenständigkeit** (keine Cross-Verweise, kein Recycling wörtlicher Sätze zwischen den
-Fassungen).
+Gestaltung & Bilder · Sprachstil**.
 
 ## Schritt 6 — Metrik, Ablage, Selbstcheck
 
-**Metrik:** `docs/marketing/artikel/JURY-METRIK.md` (fortlaufend, alle Artikel-Sets und
-Überarbeitungen): Verfahren, Runde-3-Scores je Juror und Dimension, Mittel, Rangfolge,
-Erkenntnisse über die Runden, Veröffentlichungshinweise (z. B. SVG→PNG für Medium). Muster liegt
-vor — Überarbeitungen hängen als neue Sektion an.
+**Metrik:** `docs/marketing/artikel/JURY-METRIK.md` (fortlaufend, alle Artikel-Sets): Verfahren,
+Runde-3-Scores je Juror und Dimension, Mittel, Rangfolge, Erkenntnisse über die Runden,
+Veröffentlichungshinweise (z. B. SVG→PNG für Medium). Muster liegt vor.
 
 **Ablage:** `docs/marketing/artikel/<jjjj-mm-tt>-<slug>/` mit `<plattform>.md` (z. B.
 `medium.md`, `webdev.md`, `devto.md`) und `images/`. Am Anfang jeder Datei ein HTML-Kommentar
@@ -173,8 +157,6 @@ automatisch committen** (Kernregel) — außer der Nutzer wünscht es ausdrückl
 
 - **Genre:** Kein Dateiname, Repo-Pfad oder Komponentenname im Text oder in den Bildern?
   Balamentum Praxisbeispiel geblieben?
-- **Eigenständigkeit:** Kein Cross-Verweis, kein „Schwesterartikel“, keine wörtlich geteilten
-  Sätze zwischen den Fassungen?
 - **Fakten:** Jede Zahl gegen Code/Doku geprüft; keine erfundenen Quellen; Demo-Daten
   markiert; Wirkungsbehauptungen ohne Daten als Design-Intention formuliert.
 - **Stil:** `vermenschlichen` angewendet (jede Sprache); keine KI-Verräter; Überschriften
