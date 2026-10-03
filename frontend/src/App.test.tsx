@@ -59,6 +59,10 @@ vi.mock('./api', () => ({
 		// #191: `logout` existiert in `api.ts` noch nicht. Der Mock stellt die Funktion bereit, damit
 		// der AK-5-Test das Fehlerverhalten ansteuern kann; rot ist der Test, weil `App.tsx` weder den
 		// Logout-Button rendert noch dessen Fehlerfall (Meldung + erneut aktivierter Button) behandelt.
+		// Test-Pflege #1964: der Verpasst-Bereich lädt `GET /tasks?missed=1` im `reload()` mit.
+		listMissedTasks: vi.fn().mockResolvedValue([]),
+		// #1964: „Archivieren" im Verpasst-Bereich (in den Tests nicht aufgerufen).
+		archiveTask: vi.fn(),
 		logout: vi.fn(),
 		// #1879: `AppShell` meldet die App-Sprache beim Start (fire-and-forget) — Mock, damit der Aufruf nicht wirft.
 		updateCareSprache: vi.fn().mockResolvedValue(undefined),

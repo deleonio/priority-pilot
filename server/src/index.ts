@@ -171,6 +171,7 @@ export const main = async (): Promise<void> => {
 			migrateLoginTokenPurpose,
 			migrateTaskPinnedColumns,
 			migratePillarRecalcColumns,
+			migrateTaskMissedColumns,
 			migrateUserCareColumns,
 			migrateUserTermsColumns,
 		} = await import('./logics/migrate.js');
@@ -293,6 +294,10 @@ export const main = async (): Promise<void> => {
 		await migrateTaskPinnedColumns(sequelize);
 		// Spalten für die fortsetzbare Säulen-Neuberechnung (#1614) — vor sync(), aus demselben Grund.
 		await migratePillarRecalcColumns(sequelize);
+		// Fehlende Verpasst-Bereich-Spalten (postponeCount/archivedAt, #1964) an tasks nachziehen —
+		// vor sync(), damit Verpasst-Auswahl, Verschiebe-Zähler und Archiv-Aktion auf Bestands-DBs
+		// nicht mit `no such column` brechen.
+		await migrateTaskMissedColumns(sequelize);
 
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });

@@ -132,6 +132,9 @@ export const buildTaskForest = async (userId?: number): Promise<TaskTreeNode[]> 
 		await Task.findAll({
 			where: {
 				status: ['Open', 'In process'],
+				// Archiv (#1964): archivierte Aufgaben sind aus der Aufgabenliste herausgenommen — sie
+				// bleiben nur per Direktabruf (`GET /tasks/{id}`) lesbar.
+				archivedAt: null,
 				// Datenisolation (#207, AK5): auf den eingeloggten Nutzer filtern, sofern vorhanden.
 				...(userId !== undefined ? { userId } : {}),
 			},

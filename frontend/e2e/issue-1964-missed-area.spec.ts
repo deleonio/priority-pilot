@@ -67,7 +67,10 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		await waitForStableView(page);
 		const second = page.getByTestId('missed-item').filter({ hasText: 'Nie verschoben' });
 		await expect(second).toHaveCount(1);
-		await expect(second).not.toContainText(/verschoben/);
+		// Test-Pflege #1964 (Umsetzung): geprüft wird das Zähler-Badge, nicht der freie Text — der
+		// Task-Titel „Nie verschoben" enthielt das Wort selbst, die ursprüngliche Assertion
+		// `not.toContainText(/verschoben/)` konnte dadurch nie grün sein.
+		await expect(second).not.toContainText(/\d+× verschoben/);
 	});
 
 	test('AK6 — 375px: Bereich inkl. drei Aktionen ohne horizontalen Scroll, Targets >= 44px', async ({ page }) => {

@@ -23,6 +23,7 @@ import { WeekView } from './components/WeekView';
 import { DayDoneHint } from './components/DayDoneHint';
 import { DeleteTaskDialog } from './components/DeleteTaskDialog';
 import { DependencyModal } from './components/DependencyModal';
+import { MissedTasksSection } from './components/MissedTasksSection';
 import { EmptyState } from './components/EmptyState';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { HelpPage } from './components/HelpPage';
@@ -194,6 +195,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const showMainView = !showHelp && !showSettings;
 	const [tasks, setTasks] = useState<Task[] | null>(null);
 	const [forest, setForest] = useState<TaskTreeNode[]>([]);
+	// Verpasst-Aufgaben (#1964): `GET /tasks?missed=1`, geladen zusammen mit den übrigen Daten in
+	// `reload()` — der Bereich rendert selbst nicht bei leerer Liste.
+	const [missedTasks, setMissedTasks] = useState<Task[]>([]);
 	const [nextTask, setNextTask] = useState<Task | null>(null);
 	const [suggestions, setSuggestions] = useState<Task[]>([]);
 	const [pillars, setPillars] = useState<Pillar[]>([]);
@@ -420,7 +424,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setLoading(true);
 		try {
-			const [loadedTasks, loadedForest, loadedNext, loadedSuggestions, loadedPillars, loadedCategories] =
+			const [loadedTasks, loadedForest, loadedNext, loadedSuggestions, loadedPillars, loadedCategories, loadedMissed] =
 				await Promise.all([
 					api.listTasks({ signal }),
 					api.getForest({ signal }),
@@ -428,6 +432,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					api.getSuggestions({ signal }),
 					api.listPillars({ signal }),
 					api.listCategories({ signal }),
+					api.listMissedTasks({ signal }),
 				]);
 			setTasks(loadedTasks);
 			setForest(loadedForest);
@@ -435,6 +440,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			setSuggestions(loadedSuggestions);
 			setPillars(loadedPillars);
 			setCategories(loadedCategories);
+			setMissedTasks(loadedMissed);
 			setLoadError(null);
 		} catch (reason) {
 			if (signal?.aborted === true) {
@@ -720,6 +726,25 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const openComplete = useCallback((task: Task): void => setDialog({ kind: 'complete', task }), []);
 	const openDependencies = useCallback((task: Task): void => setDialog({ kind: 'dependencies', taskId: task.id }), []);
 	const openAddSubtask = useCallback((task: Task): void => setDialog({ kind: 'create', parentTask: task }), []);
+
+	// #1964: „Archivieren" im Verpasst-Bereich — bewusst einstufig (ohne Bestätigungsdialog, die
+	// Wirkung ist ohne Status-/Score-Folge und der Datensatz bleibt erhalten). Danach globales
+	// Neuladen — die Aufgabe fällt aus Wald und Verpasst-Auswahl.
+	const handleArchiveMissed = useCallback(
+		(task: Task): void => {
+			void (async () => {
+				try {
+					setUpdateError(null);
+					await api.archiveTask({ id: task.id });
+					await reload();
+				} catch (reason) {
+					const apiError = await toApiError(reason);
+					setUpdateError(apiError.message);
+				}
+			})();
+		},
+		[reload],
+	);
 
 	// Binärer Erledigt-Toggle (#315): schaltet die Aufgabe zwischen „Erledigt" und „Offen" um und lädt
 	// die Daten neu. Der Toggle-Guard gegen offene Unteraufgaben sitzt in der Liste (`TaskTree`).
@@ -1080,6 +1105,18 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 									/>
 								</div>
 							</>
+						)}
+
+						{/* #1964: Verpasst-Bereich über der Aufgabenliste — auf Dashboard- UND Aufgaben-Tab sichtbar
+						    (er taucht schon beim Start auf, nicht erst nach dem Tab-Wechsel); Serien/Graph bleiben
+						    frei davon. Rendert selbst nicht bei leerer Verpasst-Liste. */}
+						{tasks !== null && activeTab <= 1 && (
+							<MissedTasksSection
+								tasks={missedTasks}
+								onEdit={openEdit}
+								onArchive={handleArchiveMissed}
+								onDelete={openDelete}
+							/>
 						)}
 
 						{tasks !== null && (

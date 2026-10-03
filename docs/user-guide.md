@@ -128,7 +128,12 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
   (siehe „Erledigte Aufgaben und Punkte").
 - **Verpasste Aufgaben:** zählt, wie viele Aufgaben nach verpasster Deadline automatisch
   gelöscht wurden, und nennt bis zu drei der zuletzt bereinigten Titel (siehe
-  „Automatisches Löschen nach verpasster Deadline").
+  „Automatisches Löschen nach verpasster Deadline“).
+- **Bereich „Verpasst“:** überfällige, offene Aufgaben ohne Auto-Löschen erscheinen gesammelt
+  über der Aufgabenliste — mit Verschiebe-Zähler und den Aktionen „Neu planen“, „Archivieren“
+  und „Löschen“ (auf Dashboard und Aufgaben). Archivierte Aufgaben verschwinden aus Liste und
+  Bereich. Nicht zu verwechseln mit der Card „Verpasste Aufgaben“ oben — die zählt nur das
+  automatische Löschen.
 - **Tag geschafft:** ein kurzer Hinweis, der erscheint, wenn keine Aufgabe mehr offen ist
   und deine letzte Erledigung von heute stammt.
 - **Gesamtguthaben:** dein Punktestand aus erledigten Aufgaben, aufgeschlüsselt je

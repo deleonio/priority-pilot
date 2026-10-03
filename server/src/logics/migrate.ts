@@ -1026,6 +1026,31 @@ export const migratePillarRecalcColumns = async (db: Sequelize): Promise<void> =
 };
 
 /**
+ * Zieht die Verpasst-Bereich-Spalten (#1964) auf einer **bestehenden** `tasks`-Tabelle nach,
+ * BEVOR `sequelize.sync()` läuft — analog `migrateTaskPinnedColumns`. `postponeCount` ist
+ * `NOT NULL DEFAULT 0` (ALTER TABLE ADD COLUMN NOT NULL erfordert einen DEFAULT-Wert;
+ * Bestands-Tasks gelten als nie verschoben), `archivedAt` bleibt nullable (nur beim Archivieren
+ * gesetzt). Idempotent: bereits vorhandene Spalten werden übersprungen; bei frischer DB No-op —
+ * `sync()` legt beide Spalten an.
+ */
+export const migrateTaskMissedColumns = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('tasks')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0) {
+		return;
+	}
+	if (!existing.includes('postponeCount')) {
+		await db.query('ALTER TABLE `tasks` ADD COLUMN `postponeCount` INTEGER NOT NULL DEFAULT 0');
+		console.log('Spalte postponeCount an tasks nachgezogen (#1964).');
+	}
+	if (!existing.includes('archivedAt')) {
+		await db.query('ALTER TABLE `tasks` ADD COLUMN `archivedAt` DATETIME');
+		console.log('Spalte archivedAt an tasks nachgezogen (#1964).');
+	}
+};
+
+/**
  * Zieht die Pending-Plan-Spalten (#1505) und `firstFailureAt` (#1506) auf einer **bestehenden**
  * `subscriptions`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog
  * `migrateTaskPinnedColumns`. Alle ergänzten Spalten sind nullable (kein DEFAULT nötig),

@@ -97,6 +97,7 @@ const EXPECTED: Record<string, FeatureId | null> = {
 	'GET /tasks/:id': null,
 	'PATCH /tasks/:id': null,
 	'DELETE /tasks/:id': null,
+	'POST /tasks/:id/archive': null, // #1964: Archivieren ist paketfrei (Basis-Aktion)
 	'POST /tasks/:id/dependencies': 'graph_write',
 	'DELETE /tasks/:id/dependencies/:depId': 'graph_write',
 };

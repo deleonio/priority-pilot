@@ -14,6 +14,17 @@ paths:
     get:
       summary: Alle Tasks auflisten
       operationId: listTasks
+      parameters:
+        - name: missed
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ['1']
+          description: >-
+            Verpasst-Auswahl (#1964): mit `missed=1` liefert der Endpunkt nur die überfälligen,
+            nicht erledigten Aufgaben ohne Auto-Lösch-Häkchen und ohne Archiv — abgeleitete
+            Ansicht, kein neuer Status.
       responses:
         '200':
           description: Liste aller Tasks
@@ -125,6 +136,25 @@ paths:
       responses:
         '204':
           description: Task wurde gelöscht
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /tasks/{id}/archive:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    post:
+      summary: Einen Task archivieren (#1964)
+      description: >-
+        Nimmt den Task `{id}` aus Aufgabenliste und Verpasst-Bereich heraus, ohne ihn zu
+        löschen und ohne den Status zu ändern (Score/Streak unberührt). Setzt `archivedAt`
+        auf den Zeitpunkt des Aufrufs; der Task bleibt per `GET /tasks/{id}` lesbar.
+      operationId: archiveTask
+      responses:
+        '200':
+          description: Der archivierte Task (mit `archivedAt`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
         '404':
           $ref: '#/components/responses/NotFound'
   /tasks/{id}/dependencies:
@@ -4955,6 +4985,20 @@ components:
           description: >-
             `true`, wenn die Aufgabe bei verpasster Deadline automatisch gelöscht
             werden soll (3 Tage nach Ablauf, nur wenn nicht erledigt, #523).
+        postponeCount:
+          type: integer
+          description: >-
+            Verschiebe-Zähler (#1964): steigt bei jedem PATCH, der die Deadline auf einen
+            streng späteren Zeitpunkt setzt, um genau 1. Rein informativ (Anzeige
+            „N× verschoben"), kein Status-/Score-Einfluss.
+        archivedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: >-
+            Zeitpunkt des Archivierens (#1964), `null` wenn nicht archiviert. Archivierte
+            Aufgaben erscheinen weder in der Standardliste noch in der Verpasst-Auswahl,
+            bleiben aber per Direktabruf (`GET /tasks/{id}`) lesbar.
         seriesId:
           type: integer
           nullable: true
