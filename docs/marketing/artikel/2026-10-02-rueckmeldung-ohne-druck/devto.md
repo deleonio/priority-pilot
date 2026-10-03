@@ -12,8 +12,9 @@ Bilder: images/ (echte App-Screenshots, deutschsprachige UI mit Übersetzungshil
 Streaks have a reputation: the chain breaks, the counter resets, the app becomes the thing you
 avoid. I ship one anyway. Balamentum, my prioritization app, counts calendar days with at least
 one completed task. What makes it work is not the counting — it's four rules that make sure the
-counter can never take anything away. Same trigger as every guilt mechanic; a different outcome
-by construction, because nothing in the loop subtracts.
+counter never takes anything away from what you did — the only removal is a deletion, and that
+one is on you. Same trigger as every guilt mechanic; a different outcome by construction,
+because nothing in the loop subtracts.
 
 The setting in one paragraph: users define life-balance pillars, complete tasks that pay into
 them, and the streak answers one question per calendar day — did anything get done at all?
@@ -45,7 +46,8 @@ still has it.
 The longest chain ever achieved stays achieved. It never shrinks, it never expires.
 
 ```ts
-const best = Math.max(previousBest, current); // records only grow
+// sketch: derive the record from the day set — nothing stored, nothing to forget
+const best = Math.max(...runLengths(daySet));
 ```
 
 Why derive it instead of storing it as a field? Because the day set is the single source of
@@ -82,7 +84,8 @@ authority. A counter with open rules is a tool — you can argue with a tool, yo
 opponent.
 
 One honest limit: my rules protect the count against the calendar, not against the trash can.
-Delete a completion and its day drops out of the set — the count follows what stands. That's
+Delete the last completion of a day and that day drops out of the set — the count follows what
+stands. That's
 intended, and it belongs in the article.
 
 ## Around the counter

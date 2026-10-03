@@ -105,8 +105,8 @@ mixed state — half your palette, half the component's.
 
 ## Small screens, quiet motion
 
-The reference viewport is 375 px; wider layouts are added with `min-width` queries, never the
-reverse. Interactive elements keep 44 px touch targets by default because the accessibility-
+The reference viewport is 375 px; the base styles are built for the narrow screen first and
+wider layouts are added with `min-width` queries. Interactive elements keep 44 px touch targets by default because the accessibility-
 first buttons they use enforce it, and the team's rule asks for an end-to-end test at 375×812
 with every user-visible change, asserting the core content stays readable without horizontal
 overflow. Motion uses two duration tokens (120 and 200 ms) that collapse under

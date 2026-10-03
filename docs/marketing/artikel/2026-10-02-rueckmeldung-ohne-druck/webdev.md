@@ -27,7 +27,7 @@ Every view that loads data is held to the same rule: four designed states — lo
 error, success. An empty state invites action instead of showing a blank rectangle. Feedback on
 input aims for under 100 ms as a general rule — at minimum a pressed state. When the structure
 of incoming content is known, a skeleton beats a bare spinner. And a toast is not the only home
-for an error: anything dismissible by a timer is too easy to miss.
+for an error: whatever a self-dismissing toast hides, the reader may never see.
 
 The error state carries the rule people notice most: name what happened and what to do next,
 without apologies and without bare error codes. "Oops! Something went wrong." logs a failure;
@@ -67,7 +67,8 @@ these texts._
 
 The same rule shapes error copy: name the cause and the next step, skip the apology. The verb
 vocabulary of the care texts — no "neglected", no "missed", no "failed" — is the writing-side
-twin of the state rule: both refuse to turn a status into a verdict.
+twin of the state rule: both refuse to turn a status into a verdict. (The error copy above is
+allowed to say "failed"; the rule covers the care texts.)
 
 ## Let motion carry meaning — and stay declinable
 

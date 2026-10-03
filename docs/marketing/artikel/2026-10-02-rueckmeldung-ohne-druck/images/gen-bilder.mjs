@@ -172,7 +172,7 @@ function states() {
 		`<circle cx="${x + 130}" cy="212" r="17" fill="none" stroke="${GRUEN}" stroke-width="3"/>
 		<path d="M${x + 122},${212} L${x + 128},${219} L${x + 139},203" stroke="${GRUEN}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
 	const body = `
-	<text x="60" y="118" font-family="${FONT}" font-size="${S.label}" fill="${MUTED}">Feedback in under 100 ms · icon and text, never color alone</text>
+	<text x="60" y="118" font-family="${FONT}" font-size="${S.label}" fill="${MUTED}">Feedback aimed at under 100 ms · icon and text, never color alone</text>
 	${card(0, spinner, 'Loading…', 'skeleton over spinner')}
 	${card(1, empty, 'Nothing here yet', 'an invitation to act')}
 	${card(2, error, 'Saving failed', 'cause + next step, no apology')}
