@@ -267,44 +267,107 @@ describe('Tasks API', () => {
 			return [koerper.id, sinn.id];
 		};
 
+		/** Legt n Säulen an (Dev-Pass-Through ohne Session: alle vorhandenen Säulen = Konto-Säulen). */
+		const seedPillars = async (count: number): Promise<number[]> => {
+			const ids: number[] = [];
+			for (let i = 0; i < count; i++) {
+				const pillar = await Pillar.create({ name: `Säule-${i}`, weight: 20 });
+				ids.push(pillar.id);
+			}
+			return ids;
+		};
+
 		it('serializeTask liefert pillars (leere Liste ohne Zuordnung)', async () => {
 			const res = await post('/tasks', { title: 'Ohne Säule', priority: 1, estimatedEffort: 1 });
 			const body = (await res.json()) as Record<string, unknown>;
 			assert.deepEqual(body.pillars, []);
 		});
 
-		it('201 mit gültigen pillars (Summe 100) beim Anlegen', async () => {
-			const [koerper, sinn] = await seedTwoPillars();
+		// ── #2077: Nur vollständige Verteilungen (alle Säulen, je 5–80, Summe 100) oder leer ──
+
+		it('400 bei Teilmenge der Säulen — Fehlermeldung nennt die Regel (#2077 AK1)', async () => {
+			const ids = await seedPillars(3);
 			const res = await post('/tasks', {
-				title: 'Mehrfach',
+				title: 'Teilmenge',
 				priority: 1,
 				estimatedEffort: 1,
 				pillars: [
-					{ pillarId: koerper, share: 60, confidence: 80 },
-					{ pillarId: sinn, share: 40 },
+					{ pillarId: ids[0]!, share: 60 },
+					{ pillarId: ids[1]!, share: 40 },
 				],
 			});
-			assert.equal(res.status, 201);
-			const body = (await res.json()) as { pillars: { pillarId: number; share: number; confidence: number }[] };
-			// Nach pillarId sortiert; confidence defaultet auf 100, wenn nicht angegeben.
-			assert.deepEqual(body.pillars, [
-				{ pillarId: koerper, share: 60, confidence: 80 },
-				{ pillarId: sinn, share: 40, confidence: 100 },
-			]);
+			assert.equal(res.status, 400, 'eine Teilmenge statt aller Säulen muss abgelehnt werden');
+			const body = (await res.json()) as { message?: string };
+			assert.match(body.message ?? '', /alle/, 'Regeltext muss "alle Säulen" nennen');
+			for (const bound of ['5', '80', '100']) {
+				assert.ok((body.message ?? '').includes(bound), `Regeltext muss die Grenze ${bound} nennen`);
+			}
 		});
 
-		it('201 mit genau einer Säule (share 100) — Hauptsäulen-Modus (#1962)', async () => {
-			const [koerper] = await seedTwoPillars();
+		it('400 bei Anteil unter 5 (#2077 AK1)', async () => {
+			const [a, b] = await seedPillars(2);
 			const res = await post('/tasks', {
-				title: 'Hauptsäule',
+				title: 'Zu klein',
 				priority: 1,
 				estimatedEffort: 1,
-				pillars: [{ pillarId: koerper, share: 100 }],
+				pillars: [
+					{ pillarId: a!, share: 4 },
+					{ pillarId: b!, share: 96 },
+				],
 			});
-			assert.equal(res.status, 201);
+			assert.equal(res.status, 400);
+		});
+
+		it('400 bei Anteil über 80 (#2077 AK1)', async () => {
+			const [a, b] = await seedPillars(2);
+			const res = await post('/tasks', {
+				title: 'Zu groß',
+				priority: 1,
+				estimatedEffort: 1,
+				pillars: [
+					{ pillarId: a!, share: 81 },
+					{ pillarId: b!, share: 19 },
+				],
+			});
+			assert.equal(res.status, 400);
+		});
+
+		it('201 mit Vollverteilung über alle Säulen (je 5–80, Summe 100) beim Anlegen (#2077 AK2)', async () => {
+			const ids = await seedPillars(5);
+			const res = await post('/tasks', {
+				title: 'Vollverteilung',
+				priority: 1,
+				estimatedEffort: 1,
+				pillars: [
+					// bewusst unsortiert; confidence teils explizit, teils Default
+					{ pillarId: ids[4]!, share: 20, confidence: 80 },
+					{ pillarId: ids[1]!, share: 20 },
+					{ pillarId: ids[0]!, share: 20 },
+					{ pillarId: ids[3]!, share: 20 },
+					{ pillarId: ids[2]!, share: 20 },
+				],
+			});
+			assert.equal(res.status, 201, 'Vollverteilung über alle Konto-Säulen muss gespeichert werden');
 			const body = (await res.json()) as { pillars: { pillarId: number; share: number; confidence: number }[] };
-			// Genau eine task_pillars-Zeile — die Einzel-Form wird NICHT zur Vollverteilung ergänzt.
-			assert.deepEqual(body.pillars, [{ pillarId: koerper, share: 100, confidence: 100 }]);
+			// Nach pillarId sortiert; confidence defaultet auf 100, wenn nicht angegeben.
+			assert.deepEqual(
+				body.pillars,
+				[...ids].sort((x, y) => x - y).map((id) => ({ pillarId: id, share: 20, confidence: id === ids[4] ? 80 : 100 })),
+			);
+		});
+
+		it('200 ersetzt per PATCH durch eine Vollverteilung über alle Säulen (#2077 AK2)', async () => {
+			const ids = await seedPillars(5);
+			const task = await Task.create({ title: 'T', priority: 1, estimatedEffort: 1 });
+			const res = await patch(`/tasks/${task.id}`, {
+				pillars: ids.map((id, index) => ({ pillarId: id, share: index === 0 ? 40 : 15 })),
+			});
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as { pillars: { pillarId: number; share: number }[] };
+			assert.deepEqual(
+				body.pillars.map((entry) => entry.share).sort((x, y) => x - y),
+				[15, 15, 15, 15, 40],
+			);
 		});
 
 		it('200 ersetzt pillars per PATCH und leert sie mit []', async () => {

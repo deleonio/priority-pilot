@@ -182,4 +182,38 @@ describe('Serien-Übergabe an ein Gruppenmitglied (#1252)', () => {
 			'AK6: nach der Übergabe darf kein Serien-Beitrag auf eine Säule der bisherigen Eigentümerin zeigen',
 		);
 	});
+
+	it('Übergabe füllt die Verteilung beim Serien-Empfänger zu einer gültigen Vollverteilung auf (#2077 AK4)', async () => {
+		// Registrieren statt test-login: nur /auth/register säht die fünf Standard-Säulen je Konto.
+		await server.register(ALICE);
+		await server.register(BOB);
+		await seedSharedGroup();
+		const series = await seedAliceSeries();
+		const aliceId = await userIdOf(ALICE);
+		const bobId = await userIdOf(BOB);
+
+		// Legacy-Teilverteilung in der Vorlage (70/30 auf zwei der fünf Standard-Säulen).
+		const alicePillars = await Pillar.findAll({ where: { userId: aliceId }, order: [['id', 'ASC']] });
+		assert.equal(alicePillars.length, 5, 'Setup: Registrierung säht fünf Standard-Säulen');
+		await SeriesPillar.create({ seriesId: series.id, pillarId: alicePillars[0]!.id, share: 70, confidence: 100 });
+		await SeriesPillar.create({ seriesId: series.id, pillarId: alicePillars[1]!.id, share: 30, confidence: 100 });
+
+		const res = await patchSeries(await server.login(ALICE), series.id, { userId: bobId });
+		assert.equal(res.status, 200);
+
+		const contributions = await SeriesPillar.findAll({ where: { seriesId: series.id } });
+		const bobPillars = await Pillar.findAll({ where: { userId: bobId } });
+		assert.equal(contributions.length, bobPillars.length, 'AK4: jede Säule des Empfängers trägt einen Beitrag');
+		const byPillarId = new Map(contributions.map((entry) => [entry.pillarId, entry]));
+		const sum = contributions.reduce((acc, entry) => acc + entry.share, 0);
+		assert.ok(Math.abs(sum - 100) < 1e-6, `AK4: Summe muss 100 sein (war ${sum})`);
+		for (const pillar of bobPillars) {
+			const entry = byPillarId.get(pillar.id);
+			assert.ok(entry, `AK4: Säule "${pillar.name}" fehlt in der Verteilung`);
+			assert.ok(
+				entry.share >= 5 && entry.share <= 80,
+				`AK4: Anteil von "${pillar.name}" muss zwischen 5 und 80 liegen (war ${entry.share})`,
+			);
+		}
+	});
 });

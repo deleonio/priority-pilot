@@ -535,7 +535,7 @@ describe('Series API', () => {
 			return [koerper.id, sinn.id];
 		};
 
-		it('POST /series mit gültigen pillars → 201, persistiert und nach pillarId sortiert', async () => {
+		it('POST /series mit Vollverteilung über alle Säulen → 201, persistiert und nach pillarId sortiert (#2077 AK2)', async () => {
 			const [koerper, sinn] = await seedTwoPillars();
 			const res = await post('/series', {
 				...validSeries(),
@@ -564,6 +564,23 @@ describe('Series API', () => {
 				{ pillarId: koerper, share: 60, confidence: 80 },
 				{ pillarId: sinn, share: 40, confidence: 100 },
 			]);
+		});
+
+		it('POST /series mit Teilmenge der Säulen → 400 mit Regeltext (#2077 AK1)', async () => {
+			const ids: number[] = [];
+			for (let i = 0; i < 3; i++) {
+				ids.push((await Pillar.create({ name: `Series-Säule-${i}`, weight: 20 })).id);
+			}
+			const res = await post('/series', {
+				...validSeries(),
+				pillars: [
+					{ pillarId: ids[0]!, share: 60 },
+					{ pillarId: ids[1]!, share: 40 },
+				],
+			});
+			assert.equal(res.status, 400, 'eine Teilmenge statt aller Säulen muss abgelehnt werden');
+			const body = (await res.json()) as { message?: string };
+			assert.match(body.message ?? '', /alle/, 'Regeltext muss "alle Säulen" nennen');
 		});
 
 		it('POST /series ohne pillars → 201 mit pillars: [] (Rückwärtskompatibilität)', async () => {

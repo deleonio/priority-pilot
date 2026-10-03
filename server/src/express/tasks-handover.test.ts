@@ -196,6 +196,50 @@ describe('Aufgaben-Übergabe an ein Gruppenmitglied (#1252)', () => {
 		);
 	});
 
+	it('Übergabe füllt die Verteilung beim Empfänger zu einer gültigen Vollverteilung auf (#2077 AK4)', async () => {
+		// Registrieren statt test-login: nur /auth/register säht die fünf Standard-Säulen je Konto.
+		await server.register(ALICE);
+		await server.register(BOB);
+		await seedSharedGroup();
+		const task = await seedAliceTask();
+		const aliceId = await userIdOf(ALICE);
+		const bobId = await userIdOf(BOB);
+
+		// Legacy-Teilverteilung bei Alice (60/40 auf zwei ihrer fünf Standard-Säulen).
+		const alicePillars = await Pillar.findAll({ where: { userId: aliceId }, order: [['id', 'ASC']] });
+		assert.equal(alicePillars.length, 5, 'Setup: Registrierung säht fünf Standard-Säulen');
+		await TaskPillar.create({ taskId: task.id, pillarId: alicePillars[0]!.id, share: 60, confidence: 100 });
+		await TaskPillar.create({ taskId: task.id, pillarId: alicePillars[1]!.id, share: 40, confidence: 100 });
+
+		const res = await patchTask(await server.login(ALICE), task.id, { userId: bobId });
+		assert.equal(res.status, 200);
+
+		// Beim Empfänger: gültige Verteilung über ALLE seine Säulen (Name-Remap behält Anteile,
+		// Säulen ohne Gegenstück werden aufgefüllt).
+		const contributions = await TaskPillar.findAll({ where: { taskId: task.id } });
+		const bobPillars = await Pillar.findAll({ where: { userId: bobId } });
+		assert.equal(contributions.length, bobPillars.length, 'AK4: jede Säule des Empfängers trägt einen Beitrag');
+		const byPillarId = new Map(contributions.map((entry) => [entry.pillarId, entry]));
+		const sum = contributions.reduce((acc, entry) => acc + entry.share, 0);
+		assert.ok(Math.abs(sum - 100) < 1e-6, `AK4: Summe muss 100 sein (war ${sum})`);
+		for (const pillar of bobPillars) {
+			const entry = byPillarId.get(pillar.id);
+			assert.ok(entry, `AK4: Säule "${pillar.name}" fehlt in der Verteilung`);
+			assert.ok(
+				entry.share >= 5 && entry.share <= 80,
+				`AK4: Anteil von "${pillar.name}" muss zwischen 5 und 80 liegen (war ${entry.share})`,
+			);
+		}
+		// Name-Remap: Alices beiden Säulen-Namen tragen ihre Anteile beim Empfänger weiter.
+		const bobByName = new Map(bobPillars.map((pillar) => [pillar.name, pillar]));
+		for (const [index, expectedShare] of [60, 40].entries()) {
+			const bobPillar = bobByName.get(alicePillars[index]!.name);
+			assert.ok(bobPillar, `AK4: Bob braucht eine gleichnamige Säule zu "${alicePillars[index]!.name}"`);
+			const entry = byPillarId.get(bobPillar.id);
+			assert.equal(entry?.share, expectedShare, `AK4: Remap behält den Anteil von "${bobPillar.name}"`);
+		}
+	});
+
 	it('Abhängigkeit zu einer für Bob unsichtbaren Aufgabe → 4xx mit Rollback, keine halbe Übergabe (AK7)', async () => {
 		await seedSharedGroup();
 		const task = await seedAliceTask();

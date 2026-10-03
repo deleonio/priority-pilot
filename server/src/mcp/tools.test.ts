@@ -428,37 +428,78 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 	describe('#1379: pillars über task_create/task_update setzen', () => {
 		type TaskWithPillars = { id: number; pillars: { pillarId: number; share: number; confidence: number }[] };
 
-		it('AK1: task_create mit gültigem pillars-Array übernimmt die Beiträge (confidence-Default 100)', async () => {
+		it('#2077 AK3: task_create/task_update nennen die Verteilungs-Regel in der pillars-Beschreibung', async () => {
 			const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 			const token = await createToken(cookie);
-			const koerper = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
-
-			const created = await mcpCall<TaskWithPillars>(token, 'task_create', {
-				title: 'Mit Säule über MCP',
-				pillars: [{ pillarId: koerper, share: 100 }],
-			});
-			assert.equal(created.error, undefined, 'task_create mit gültigen pillars darf nicht fehlschlagen');
-			assert.deepEqual(created.result?.pillars, [{ pillarId: koerper, share: 100, confidence: 100 }]);
+			const tools = await mcpListTools(token);
+			for (const name of ['task_create', 'task_update']) {
+				const tool = tools.find((entry) => entry.name === name);
+				assert.ok(tool, `${name} muss in tools/list enthalten sein`);
+				const schema = tool.inputSchema as { properties?: { pillars?: { description?: string } } };
+				const description = schema.properties?.pillars?.description ?? '';
+				assert.match(description, /alle/, `${name} muss in der pillars-Beschreibung "alle Säulen" nennen`);
+				for (const bound of ['5', '80', '100']) {
+					assert.ok(description.includes(bound), `${name} muss in der pillars-Beschreibung die Grenze ${bound} nennen`);
+				}
+			}
 		});
 
-		it('AK1: task_create mit zwei Säulen und expliziter confidence übernimmt beide Beiträge', async () => {
+		it('#2077 AK3: task_create lehnt eine Teilmenge der Säulen ab', async () => {
 			const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 			const token = await createToken(cookie);
 			const koerper = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
 			const sinn = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
 
-			const created = await mcpCall<TaskWithPillars>(token, 'task_create', {
-				title: 'Zwei Säulen über MCP',
+			const created = await mcpCall(token, 'task_create', {
+				title: 'Teilmenge über MCP',
 				pillars: [
-					{ pillarId: koerper, share: 60, confidence: 80 },
+					{ pillarId: koerper, share: 60 },
 					{ pillarId: sinn, share: 40 },
 				],
 			});
-			assert.equal(created.error, undefined, 'task_create mit gültigen pillars darf nicht fehlschlagen');
-			assert.deepEqual(created.result?.pillars, [
-				{ pillarId: koerper, share: 60, confidence: 80 },
-				{ pillarId: sinn, share: 40, confidence: 100 },
-			]);
+			assert.ok(created.error, 'task_create mit Teilmenge muss fehlschlagen');
+			assert.match(created.error?.message ?? '', /\(HTTP 400\)/);
+			assert.match(created.error?.message ?? '', /alle/, 'die Ablehnung muss die Regel (alle Säulen) nennen');
+		});
+
+		it('#2077 AK3: task_update lehnt einen Anteil über 80 ab', async () => {
+			const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+			const token = await createToken(cookie);
+			const koerper = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
+			const sinn = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
+			const taskId = await createTaskViaApi(cookie, 'Für Update über MCP');
+
+			const updated = await mcpCall(token, 'task_update', {
+				id: taskId,
+				pillars: [
+					{ pillarId: koerper, share: 81 },
+					{ pillarId: sinn, share: 19 },
+				],
+			});
+			assert.ok(updated.error, 'task_update mit Anteil > 80 muss fehlschlagen');
+			assert.match(updated.error?.message ?? '', /\(HTTP 400\)/);
+		});
+
+		it('#2077 AK2: task_create nimmt eine Vollverteilung über alle fünf Säulen an (confidence-Default 100)', async () => {
+			const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+			const token = await createToken(cookie);
+			const res = await server.json('/pillars', { headers: { Cookie: cookie } });
+			const pillars = (await res.json()) as { id: number }[];
+			assert.equal(pillars.length, 5, 'Setup: Registrierung säht fünf Standard-Säulen');
+
+			const created = await mcpCall<TaskWithPillars>(token, 'task_create', {
+				title: 'Vollverteilung über MCP',
+				pillars: pillars.map((pillar, index) => ({ pillarId: pillar.id, share: index === 0 ? 40 : 15 })),
+			});
+			assert.equal(created.error, undefined, 'Vollverteilung über alle Säulen darf nicht fehlschlagen');
+			assert.deepEqual(
+				created.result?.pillars.map((entry) => entry.share).sort((x, y) => x - y),
+				[15, 15, 15, 15, 40],
+			);
+			assert.ok(
+				created.result?.pillars.every((entry) => entry.confidence === 100),
+				'confidence defaultet auf 100',
+			);
 		});
 
 		it('AK2: task_update ersetzt die Zuordnung vollständig, [] leert sie, fehlendes Feld lässt sie unverändert', async () => {
