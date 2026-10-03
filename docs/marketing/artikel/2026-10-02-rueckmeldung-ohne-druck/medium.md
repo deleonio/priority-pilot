@@ -21,8 +21,8 @@ genau diesem Punkt; der Zähler, der sie täglich abholte, sieht plötzlich wie 
 
 Das Problem ist nicht der Zähler. Es ist, dass er nimmt. Balamentum, eine Web-App zur
 Aufgabenpriorisierung, führt trotzdem einen Streak — gebaut nach vier Regeln, die ihn zum reinen
-Sammeln machen. Der Unterschied zu einer gängigen Bauart zeigt sich nicht am Auslöser; er zeigt
-sich daran, was der Zähler mit einem leeren Tag macht.
+Sammeln machen. Du kennst die Muster: Kette, Serie, Feuer-Icon — irgendwo bricht jede. Der Unterschied zeigt
+sich nicht am Auslöser, sondern daran, was der Zähler mit einem leeren Tag macht.
 
 ![Streak-Card in Balamentum](images/screenshot-streak-card.png)
 
@@ -33,10 +33,9 @@ wird._
 ## Die vier Regeln
 
 **1. Der laufende Tag zählt noch nicht als Bruch.** Reicht die Folge bis gestern, bleibt sie
-stehen — der Abend gehört dem, der ihn noch hat. Erst eine echte Lücke setzt den Zähler sichtbar
-auf null. Eine gängige Bauart bricht die Kette schon, wenn heute noch nichts abgehakt wurde,
-und verwandelt die Tageszeit in ein Urteil: Wer um 23 Uhr öffnet, hat denselben Tag wie wer um
-9 Uhr öffnet.
+stehen. Erst eine echte Lücke setzt den Zähler sichtbar auf null. Eine gängige Bauart bricht die
+Kette schon, wenn heute noch nichts abgehakt wurde. Innerhalb des Tages ist die Uhrzeit
+gleichgültig; beim Kalenderdatum zählt die Zeitzone (dazu Regel 3).
 
 **2. Die Bestmarke überdauert jede Lücke.** Sie ist ein Rekord, kein Guthaben, das verfällt.
 Eine Lücke kostet die laufende Folge, niemals den Rekord. Dreißig zusammenhängende Tage bleiben
@@ -53,8 +52,8 @@ darf nicht ins Vortages-Datum des Servers rutschen.
 offener Regel ist ein Werkzeug; ein Zähler mit geheimer Regel wirkt wie ein Gegner, der nach
 eigenem Ermessen straft. Transparenz ist die eigentliche Gegenmaßnahme gegen Schuld.
 
-Diese Regeln schützen gegen den Kalender, nicht gegen den Papierkorb: Wer eine Erledigung
-löscht, nimmt den Tag aus der Zählung. Das ist gewollt — die Zählung folgt dem, was steht — aber
+Diese Regeln schützen gegen den Kalender, nicht gegen den Papierkorb: Wer die letzte
+Erledigung eines Tages löscht, nimmt den Tag aus der Zählung. Das ist gewollt — die Zählung folgt dem, was steht — aber
 es gehört zur Ehrlichkeit des Designs dazu.
 
 ## Rückmeldung, die mit der Balance ruhiger wird
