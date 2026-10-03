@@ -5322,9 +5322,11 @@ components:
         share:
           type: number
           format: float
-          minimum: 0
-          maximum: 100
-          description: Investitions-Anteil in % (Summe über die Säulen eines Tasks = 100)
+          minimum: 5
+          maximum: 80
+          description: >-
+            Investitions-Anteil in % — jeder Anteil zwischen 5 und 80, Summe 100
+            über alle Säulen des Kontos (#2077)
         confidence:
           type: number
           format: float
@@ -6531,8 +6533,10 @@ components:
           type: array
           description: >-
             Ersetzt die Säulen-Vorlage des Templates vollständig. Eine leere Liste
-            entfernt alle Beiträge; bei mindestens einer Säule muss die Summe aller
-            `share` 100 ergeben. Fehlt das Feld, bleibt die Vorlage unverändert.
+            entfernt alle Beiträge; bei mindestens einer Säule muss die Verteilung
+            alle Säulen des Kontos abdecken, jeder `share` zwischen 5 und 80 liegen
+            und die Summe aller `share` 100 ergeben (#2077). Fehlt das Feld, bleibt
+            die Vorlage unverändert.
           items:
             $ref: '#/components/schemas/TaskPillarContributionInput'
         categoryId:

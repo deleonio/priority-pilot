@@ -326,6 +326,24 @@ export const registerOwnSession = async (page: Page, label: string): Promise<voi
 	expect(response.status(), 'register muss eine Session und die fünf Standard-Säulen liefern').toBe(201);
 };
 
+/**
+ * Vollverteilung über alle Säulen für API-Fixtures (#2077): Nicht-leere `pillars`-Listen müssen
+ * jede Säule des Kontos abdecken, jeder Anteil liegt zwischen 5 und 80, die Summe ist exakt 100.
+ * Die Säule am `emphasisIndex` trägt den Höchstanteil (bei den fünf Standard-Säulen der
+ * Registrierung 80 %), die übrigen je 5 % — ersetzt die früheren Ein-Säulen-100 %-Fixtures.
+ * `confidence` wird nur gesetzt, wenn übergeben (wie bisher je Spec).
+ */
+export const fullPillarContributions = (
+	pillars: ReadonlyArray<{ id: number }>,
+	emphasisIndex: number,
+	confidence?: number,
+): Array<{ pillarId: number; share: number; confidence?: number }> =>
+	pillars.map((pillar, index) => ({
+		pillarId: pillar.id,
+		share: index === emphasisIndex ? 100 - (pillars.length - 1) * 5 : 5,
+		...(confidence === undefined ? {} : { confidence }),
+	}));
+
 export const setEqualPillarWeights = async (page: Page): Promise<void> => {
 	const response = await page.request.get('/api/v1/pillars');
 	const pillars = (await response.json()) as { id: number }[];

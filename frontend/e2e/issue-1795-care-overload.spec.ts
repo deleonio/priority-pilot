@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, fullPillarContributions } from './helpers';
 
 /**
  * E2E-Spec für #1795 (docs/spec/issue-1795.md): Bei Überlast einer Säule zeigt der Fürsorge-Hinweis
@@ -16,9 +16,14 @@ const deleteAllTasks = async (page: Page): Promise<void> => {
 
 const erzeugeUeberlast = async (page: Page): Promise<void> => {
 	const pillars = (await (await page.request.get('/api/v1/pillars')).json()) as { id: number; name: string }[];
-	const wirksamkeit = pillars.find((pillar) => pillar.name === 'Wirksamkeit');
+	const wirksamkeitIndex = pillars.findIndex((pillar) => pillar.name === 'Wirksamkeit');
 	const created = await page.request.post('/api/v1/tasks', {
-		data: { title: 'E2E #1795 Überlast', estimatedEffort: 1, pillars: [{ pillarId: wirksamkeit!.id, share: 100 }] },
+		// #2077: Vollverteilung mit Schwerpunkt Wirksamkeit (80 % > UEBERLAST_ANTEIL 0.5).
+		data: {
+			title: 'E2E #1795 Überlast',
+			estimatedEffort: 1,
+			pillars: fullPillarContributions(pillars, wirksamkeitIndex),
+		},
 	});
 	const { id } = (await created.json()) as { id: number };
 	await page.request.patch(`/api/v1/tasks/${id}`, { data: { status: 'Done' } });

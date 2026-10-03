@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, fullPillarContributions } from './helpers';
 
 /**
  * **Kein Prüf-Spec, sondern ein Bildmacher.** Er fährt das Dashboard mit einer echten Session hoch,
@@ -64,7 +64,7 @@ test.describe('Zifferblätter — Bilder fürs Auge', () => {
 		}[];
 		expect(pillars.length, 'Registrierung muss die fünf Seed-Säulen säen').toBe(5);
 		const erledigtJeSaeule = [6, 3, 3, 2, 1];
-		for (const [index, pillar] of pillars.slice(0, erledigtJeSaeule.length).entries()) {
+		for (const [index] of pillars.slice(0, erledigtJeSaeule.length).entries()) {
 			for (let i = 0; i < erledigtJeSaeule[index]; i += 1) {
 				// Punkte je Säule sind der **erledigte geschätzte Aufwand** (`doneEstimatedEffort`,
 				// siehe `Dashboard.tsx`) — ein Task ohne Aufwand oder ohne Status `Done` trägt nichts bei.
@@ -72,7 +72,7 @@ test.describe('Zifferblätter — Bilder fürs Auge', () => {
 					data: {
 						title: `Aufgabe ${index + 1}.${i + 1}`,
 						estimatedEffort: 1,
-						pillars: [{ pillarId: pillar.id, share: 100, confidence: 80 }],
+						pillars: fullPillarContributions(pillars, index, 80),
 					},
 				});
 				const { id } = (await task.json()) as { id: number };

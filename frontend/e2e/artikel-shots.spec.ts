@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, fullPillarContributions } from './helpers';
 
 /**
  * **Bildmacher für die Marketing-Artikel** (docs/marketing/artikel/), gleiche Mechanik wie
@@ -36,13 +36,13 @@ test.describe('Artikel-Screenshots — Bilder fürs Auge', () => {
 		await waitForStableView(page);
 
 		const pillars = (await (await page.request.get('/api/v1/pillars')).json()) as { id: number }[];
-		for (const [index, pillar] of pillars.slice(0, ERLEDIGT_JE_SAEULE.length).entries()) {
+		for (const [index] of pillars.slice(0, ERLEDIGT_JE_SAEULE.length).entries()) {
 			for (let i = 0; i < ERLEDIGT_JE_SAEULE[index]; i += 1) {
 				const task = await page.request.post('/api/v1/tasks', {
 					data: {
 						title: `Aufgabe ${index + 1}.${i + 1}`,
 						estimatedEffort: 1,
-						pillars: [{ pillarId: pillar.id, share: 100, confidence: 80 }],
+						pillars: fullPillarContributions(pillars, index, 80),
 					},
 				});
 				const { id } = (await task.json()) as { id: number };

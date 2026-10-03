@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { waitForStableView } from './helpers';
+import { waitForStableView, fullPillarContributions } from './helpers';
 
 /**
  * **Kein Prüf-Spec, sondern ein Bildmacher** (Muster: `zifferblatt-shots.spec.ts`). Er legt einen
@@ -56,7 +56,7 @@ const seed = async (page: Page): Promise<void> => {
 				title,
 				estimatedEffort: 0.5,
 				priority: 3,
-				pillars: [{ pillarId: pillars[pillar].id, share: 100, confidence: 80 }],
+				pillars: fullPillarContributions(pillars, pillar, 80),
 				...extra,
 			},
 		});
