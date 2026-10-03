@@ -4,6 +4,7 @@ import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } 
 import {
 	Dependency,
 	FcmToken,
+	MilestoneReached,
 	Group,
 	GroupMember,
 	Pillar,
@@ -157,6 +158,27 @@ describe('Konto löschen (#1671)', () => {
 		await GroupMember.update({ role: 'admin' }, { where: { groupId: group.id, userId: member } });
 		assert.equal((await deleteMe(cookie)).status, 204);
 		assert.equal(await GroupMember.count({ where: { groupId: group.id } }), 1, 'Gruppe bleibt mit dem anderen Admin');
+	});
+
+	it('#1965 AK5: die Kontolöschung entfernt die gespeicherten Meilenstein-Stände', async () => {
+		const cookie = await server.login('meilenstein-weg@example.com');
+		const userId = await idOf(cookie);
+		const task = await Task.create({ title: 'Punkte-Task', priority: 1, estimatedEffort: 1, userId });
+		await ScoreEntry.create({ taskId: task.id, punkte: 300, pünktlich: true, zeitpunkt: new Date() });
+		// Erster Lese-Lauf persistiert den erreichten Stand rückwirkend aus Bestandsdaten (#1362-Muster).
+		const milestones = await server.json('/scores/milestones', { headers: { cookie } });
+		assert.equal(milestones.status, 200);
+		assert.ok(
+			(await MilestoneReached.findAll({ where: { userId } })).length > 0,
+			'Vorbedingung: der erste Lese-Lauf hat den erreichten Stand persistiert',
+		);
+
+		assert.equal((await deleteMe(cookie)).status, 204);
+		assert.equal(
+			await MilestoneReached.count({ where: { userId } }),
+			0,
+			'AK5: gespeicherte Meilenstein-Zeilen sind mit dem Konto gelöscht',
+		);
 	});
 
 	it('verlangt eine Session (401)', async () => {

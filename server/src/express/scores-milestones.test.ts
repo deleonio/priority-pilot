@@ -25,7 +25,7 @@ const getMilestones = (cookie: string, query = ''): Promise<Response> =>
 	server.json(`/scores/milestones${query}`, { headers: { Cookie: cookie } });
 
 /** Legt einen Task an, erledigt ihn heute und setzt `ScoreEntry.punkte` direkt auf `punkte`. */
-const completeTaskWithPunkte = async (cookie: string, title: string, punkte: number): Promise<void> => {
+const completeTaskWithPunkte = async (cookie: string, title: string, punkte: number): Promise<number> => {
 	const createRes = await server.json('/tasks', {
 		method: 'POST',
 		headers: { Cookie: cookie },
@@ -43,6 +43,7 @@ const completeTaskWithPunkte = async (cookie: string, title: string, punkte: num
 
 	const [updated] = await ScoreEntry.update({ punkte }, { where: { taskId: task.id } });
 	assert.equal(updated, 1, 'ScoreEntry für den Task muss existieren, um die Punkte zu setzen');
+	return task.id;
 };
 
 describe('GET /scores/milestones (#1362)', () => {
@@ -112,5 +113,42 @@ describe('GET /scores/milestones (#1362)', () => {
 		assert.equal((await getMilestones(cookie, '?tz=Europe/Berlin')).status, 200);
 		assert.equal((await getMilestones(cookie, '?tz=Kein/Ding')).status, 200);
 		assert.equal((await getMilestones(cookie)).status, 200);
+	});
+
+	// ── #1965 AK1: einmal erreichte Stufe bleibt über ein Reopen hinweg erreicht ────
+
+	it('#1965 AK1: einmal erreichte Punkte-Stufe bleibt erreicht, nachdem die Aufgabe wieder geöffnet wurde', async () => {
+		const cookie = await server.register('milestones-sticky@example.com', 'password123');
+		const taskId = await completeTaskWithPunkte(cookie, 'Sticky-Meilenstein', 300);
+		const vorher = (await (await getMilestones(cookie)).json()) as Stufe[];
+		assert.equal(
+			vorher.find((s) => s.schluessel === 'punkte-250')?.erreicht,
+			true,
+			'Vorbedingung: 300 Punkte erreichen die 250er-Stufe',
+		);
+
+		const reopen = await server.json(`/tasks/${taskId}`, {
+			method: 'PATCH',
+			headers: { Cookie: cookie },
+			body: JSON.stringify({ status: 'Open' }),
+		});
+		assert.equal(reopen.status, 200, 'Reopen muss 200 liefern');
+		const entries = (await (await server.json('/scores', { headers: { Cookie: cookie } })).json()) as {
+			taskId: number;
+		}[];
+		assert.equal(
+			entries.some((entry) => entry.taskId === taskId),
+			false,
+			'Vorbedingung (#228): der ScoreEntry ist nach dem Reopen entfernt',
+		);
+
+		const nachher = (await (await getMilestones(cookie)).json()) as Stufe[];
+		assert.equal(
+			nachher.find((s) => s.schluessel === 'punkte-250')?.erreicht,
+			true,
+			'AK1: einmal erreicht bleibt erreicht — auch ohne zugrunde liegende Punkte',
+		);
+		const nochmal = (await (await getMilestones(cookie)).json()) as Stufe[];
+		assert.deepEqual(nochmal, nachher, 'AK3: ein zweiter Leselauf ändert nichts (idempotente Persistierung)');
 	});
 });

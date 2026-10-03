@@ -11,6 +11,7 @@ import {
 	GroupMember,
 	LlmProvider,
 	LoginToken,
+	MilestoneReached,
 	MissedTask,
 	NotificationLog,
 	Pillar,
@@ -100,6 +101,7 @@ export const deleteAccount = async (
 		await PlaceFavorite.destroy(own);
 		await MissedTask.destroy(own);
 		await NotificationLog.destroy(own);
+		await MilestoneReached.destroy(own);
 		await PushSubscription.destroy(own);
 		await FcmToken.destroy(own);
 		await CarePushToggle.destroy(own);

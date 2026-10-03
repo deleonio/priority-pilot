@@ -330,4 +330,49 @@ describe('GET /scores/balance — Trend und Defizit (#1796)', () => {
 		assert.equal(je(juengerP.id)?.gewichtung, juengerP.weight, 'Bestandsfeld gewichtung bleibt');
 		assert.ok(typeof je(juengerP.id)?.punkte === 'number', 'Bestandsfeld punkte bleibt');
 	});
+
+	// ── #1965 AK3: Balance zeigt einen einmal erreichten Meilenstein nach Reopen weiterhin ──
+
+	it('#1965 AK3: der meilensteine-Filter zeigt die Stufe nach Reopen unverändert (sticky)', async () => {
+		const cookie = await server.register('balance-sticky@example.com', 'password123');
+		const createRes = await server.json('/tasks', {
+			method: 'POST',
+			headers: { Cookie: cookie },
+			body: JSON.stringify({ title: 'Sticky-Balance', priority: 3, estimatedEffort: 1 }),
+		});
+		assert.equal(createRes.status, 201, 'Task-Anlage muss 201 liefern');
+		const task = (await createRes.json()) as { id: number };
+		const doneRes = await server.json(`/tasks/${task.id}`, {
+			method: 'PATCH',
+			headers: { Cookie: cookie },
+			body: JSON.stringify({ status: 'Done' }),
+		});
+		assert.equal(doneRes.status, 200, 'Statuswechsel auf Done muss 200 liefern');
+		await ScoreEntry.update({ punkte: 300 }, { where: { taskId: task.id } });
+
+		const vorReopen = (await (await getBalance(cookie)).json()) as {
+			meilensteine: { schluessel: string }[];
+		};
+		assert.ok(
+			vorReopen.meilensteine.some((m) => m.schluessel === 'punkte-250'),
+			'Vorbedingung: die 250er-Stufe ist erreicht und im Balance-Filter sichtbar',
+		);
+
+		const reopen = await server.json(`/tasks/${task.id}`, {
+			method: 'PATCH',
+			headers: { Cookie: cookie },
+			body: JSON.stringify({ status: 'Open' }),
+		});
+		assert.equal(reopen.status, 200, 'Reopen muss 200 liefern');
+
+		const nachReopen = (await (await getBalance(cookie)).json()) as {
+			meilensteine: { schluessel: string }[];
+		};
+		assert.ok(
+			nachReopen.meilensteine.some((m) => m.schluessel === 'punkte-250'),
+			'AK3: die Balance zeigt die einmal erreichte Stufe trotz Reopen weiterhin',
+		);
+		const nochmal = (await (await getBalance(cookie)).json()) as { meilensteine: { schluessel: string }[] };
+		assert.deepEqual(nochmal.meilensteine, nachReopen.meilensteine, 'AK3: ein zweiter Leselauf ändert nichts');
+	});
 });

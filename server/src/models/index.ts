@@ -24,6 +24,7 @@ import Subscription from './subscription.js';
 import WebhookEvent from './webhookEvent.js';
 import LoginToken from './loginToken.js';
 import AllowedEmail from './allowedEmail.js';
+import MilestoneReached from './milestoneReached.js';
 // Nur Registrierung: `invoices`/`invoice_sequences` werden von `logics/invoices.ts` direkt
 // importiert; hier zählt allein, dass `sequelize.sync()` die Tabellen kennt.
 import './invoice.js';
@@ -105,6 +106,8 @@ Pillar.belongsToMany(Series, { through: SeriesPillar, foreignKey: 'pillarId', ot
 // Issue #1495) stehen ebenfalls für sich: `invoices` ist über `userId`/`subscriptionId` gefiltert,
 // `webhook_events` hat gar keine Nutzer-Bindung (PayPal sendet ohne Session, der Bezug entsteht
 // erst über `externalSubscriptionId`).
+// `milestone_reached` steht für sich (einmal erreichte Meilenstein-Stände, Issue #1965) — pro
+// Nutzer über `userId` gefiltert, ohne Sequelize-Assoziation (Muster `api_tokens`).
 export {
 	Task,
 	Category,
@@ -132,4 +135,5 @@ export {
 	WebhookEvent,
 	LoginToken,
 	AllowedEmail,
+	MilestoneReached,
 };
