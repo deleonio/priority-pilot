@@ -200,3 +200,111 @@ describe('suggestRankedShares — Rang-Treppe (#2075, AK1)', () => {
 		}
 	});
 });
+
+/**
+ * #2076 (AK2, Spec docs/spec/issue-2076.md) — Normalisierung von KI-Anteilen: beliebige Vorgaben
+ * (fehlende Anteile kommen als 0 an) werden auf eine gültige Verteilung gebracht — ganzzahlig,
+ * jeder Anteil ≥ SHARE_MIN, jeder ≤ 80 (sofern mit der Säulenzahl lösbar; eine einzelne Säule
+ * bleibt bei 100), Summe exakt SHARE_TOTAL. Basis sind die bestehenden Rundungsbausteine — keine
+ * zweite Rundungslogik.
+ *
+ * Roter Spec-Stand: der Nachfolger existiert erst mit der Impl (#2075-Muster).
+ */
+const normalizeSuggestedShares = pillarSharesModule.normalizeSuggestedShares as unknown as
+	((base: readonly number[]) => number[]) | undefined;
+
+/** Anteils-Deckelung laut #2076 (AK1/AK2) — bewusst nur für Anteile, nicht für Konfidenzen. */
+const SHARE_MAX = 80;
+
+describe('normalizeSuggestedShares — Anteils-Normalisierung (#2076, AK2)', () => {
+	it('lässt eine bereits gültige Verteilung unverändert', () => {
+		assert.deepEqual(normalizeSuggestedShares?.([40, 25, 15, 12, 8]), [40, 25, 15, 12, 8]);
+	});
+
+	it('bringt ungültige Vorgaben auf ganzzahlig · Summe 100 · min 5 · max 80', () => {
+		for (const base of [
+			[100, 0, 0, 0, 0],
+			[150, 0, 0, 0, 0],
+			[90, 10, 0, 0, 0],
+			[0, 0, 0, 0, 0],
+			[3, 3, 3, 3, 3],
+			[60, 25],
+		]) {
+			const shares = normalizeSuggestedShares?.(base) ?? [];
+			assert.equal(
+				shares.reduce((acc, share) => acc + share, 0),
+				SHARE_TOTAL,
+				`Summe bei base ${JSON.stringify(base)}: ${JSON.stringify(shares)}`,
+			);
+			assert.ok(
+				shares.every((share) => Number.isInteger(share) && share >= SHARE_MIN && share <= SHARE_MAX),
+				`base ${JSON.stringify(base)} → ${JSON.stringify(shares)}`,
+			);
+			assert.equal(shares.length, base.length, `Länge bei base ${JSON.stringify(base)}`);
+		}
+	});
+
+	it('eine Säule bleibt bei 100 %, zwanzig Säulen erzwingen genau 20 × 5', () => {
+		assert.deepEqual(normalizeSuggestedShares?.([0]), [100]);
+		assert.deepEqual(normalizeSuggestedShares?.(new Array<number>(20).fill(0)), new Array<number>(20).fill(SHARE_MIN));
+	});
+
+	it('ohne Säulen: leere Liste', () => {
+		assert.deepEqual(normalizeSuggestedShares?.([]), []);
+	});
+});
+
+/**
+ * #2076 (AK4, Spec docs/spec/issue-2076.md) — trägt der Klassifikator Anteile vor, werden diese
+ * übernommen (nach AK2-Normalisierung), statt sie aus der Konfidenz umzurechnen. Ohne Anteil gilt
+ * die #1601-Konfidenz-Regel — die Paritätstabelle oben deckt den Fallback ab.
+ */
+describe('toContributions — vorgeschlagene Anteile statt Konfidenz-Umrechnung (#2076, AK4)', () => {
+	type SuggestionWithShare = { pillarId: number; confidence: number; share?: number };
+
+	it('übernimmt vorgeschlagene Anteile exakt, wenn sie bereits gültig sind', () => {
+		const suggestions: SuggestionWithShare[] = [
+			{ pillarId: 6, confidence: 70, share: 40 },
+			{ pillarId: 7, confidence: 20, share: 25 },
+			{ pillarId: 8, confidence: 10, share: 15 },
+			{ pillarId: 9, confidence: 30, share: 12 },
+			{ pillarId: 10, confidence: 5, share: 8 },
+		];
+		assert.deepEqual(
+			toContributions(suggestions, IDS).map((entry) => [entry.pillarId, entry.share, entry.confidence]),
+			[
+				[6, 40, 70],
+				[7, 25, 20],
+				[8, 15, 10],
+				[9, 12, 30],
+				[10, 8, 5],
+			],
+		);
+	});
+
+	it('vervollständigt eine Teilmenge über alle Säulen: Summe 100 · min 5 · max 80, Vorschläge führen', () => {
+		const result = toContributions(
+			[
+				{ pillarId: 6, confidence: 90, share: 60 },
+				{ pillarId: 7, confidence: 40, share: 25 },
+			] as SuggestionWithShare[],
+			IDS,
+		);
+		assert.deepEqual(
+			result.map((entry) => entry.pillarId),
+			IDS,
+		);
+		const shares = result.map((entry) => entry.share);
+		assert.equal(
+			shares.reduce((acc, share) => acc + share, 0),
+			SHARE_TOTAL,
+		);
+		assert.ok(shares.every((share) => Number.isInteger(share) && share >= SHARE_MIN && share <= SHARE_MAX));
+		const byId = new Map(result.map((entry) => [entry.pillarId, entry.share]));
+		assert.ok((byId.get(6) ?? 0) > (byId.get(7) ?? 0), 'die 60er-Säule führt vor der 25er-Säule');
+		assert.ok(
+			(byId.get(6) ?? 0) > (byId.get(9) ?? 0) && (byId.get(7) ?? 0) > (byId.get(9) ?? 0),
+			'vorgeschlagene Säulen führen vor den unverlangten',
+		);
+	});
+});

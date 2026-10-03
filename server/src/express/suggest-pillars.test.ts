@@ -78,6 +78,31 @@ describe('POST /tasks/suggest-pillars', () => {
 		);
 	});
 
+	// AK5 (#2076, Spec docs/spec/issue-2076.md): Korrekturen mit Anteil lernen den Anteil, alte
+	// Korrekturen ohne Anteil bleiben gültige Beispiele.
+	it('übergibt gelernte Korrekturen mit Anteil — alte ohne Anteil bleiben gültig (#2076, AK5)', async () => {
+		const pillars = await seedPillars();
+		const neuePillars = [{ pillarId: pillars[0].id, confidence: 95, share: 40 }];
+		await PillarFeedback.create({ title: 'Neue Korrektur mit Anteil', description: null, pillars: neuePillars });
+		await PillarFeedback.create({
+			title: 'Alte Korrektur ohne Anteil',
+			description: null,
+			pillars: [{ pillarId: pillars[1].id, confidence: 80 }],
+		});
+
+		classifierImpl = async () => [{ pillarId: pillars[0].id, confidence: 50 }];
+		const res = await post(server.baseUrl, { title: 'Irgendein Task' });
+		assert.equal(res.status, 200);
+
+		const examples = lastInput?.examples ?? [];
+		assert.equal(examples.length, 2, 'beide Korrekturen bleiben nutzbar');
+		const neu = examples.find((example) => example.title === 'Neue Korrektur mit Anteil');
+		const alt = examples.find((example) => example.title === 'Alte Korrektur ohne Anteil');
+		assert.equal((neu?.pillars[0] as { share?: number }).share, 40, 'Anteil fließt mit');
+		assert.equal(alt?.pillars[0].confidence, 80);
+		assert.equal((alt?.pillars[0] as { share?: number }).share, undefined, 'Altzeile ohne Anteil');
+	});
+
 	it('übergibt die jüngsten Feedback-Korrekturen als gelernte Beispiele an den Klassifikator', async () => {
 		const pillars = await seedPillars();
 		// Zwei gespeicherte Korrekturen — die jüngste zuerst erwartet (createdAt DESC).
@@ -199,6 +224,45 @@ describe('POST /tasks/suggest-pillars', () => {
 		const res = await post(server.baseUrl, { title: 'X' });
 		assert.equal(res.status, 500);
 	});
+
+	// AK3 (#2076, Spec docs/spec/issue-2076.md): Fokus- und Misch-Aufgabe führen über den
+	// gestubbten Klassifikator zu unterschiedlich verteilten Vorschlägen — die Response trägt
+	// je Säule einen ganzzahligen Anteil.
+	it('liefert für Fokus- und Misch-Aufgabe unterschiedlich verteilte Vorschläge (#2076, AK3)', async () => {
+		await seedPillars();
+		const verteilungen: Record<string, number[]> = { Fokus: [80, 5, 5, 5, 5], Misch: [30, 25, 20, 15, 10] };
+		classifierImpl = async (input) =>
+			input.pillars.map((pillar, index) => ({
+				pillarId: pillar.id,
+				confidence: 50,
+				share: verteilungen[input.title][index],
+			})) as PillarSuggestion[];
+
+		const focusRes = await post(server.baseUrl, { title: 'Fokus' });
+		assert.equal(focusRes.status, 200);
+		const focus = (await focusRes.json()) as { suggestions: { pillarId: number; share?: number }[] };
+		const mixedRes = await post(server.baseUrl, { title: 'Misch' });
+		assert.equal(mixedRes.status, 200);
+		const mixed = (await mixedRes.json()) as { suggestions: { pillarId: number; share?: number }[] };
+
+		for (const suggestions of [focus.suggestions, mixed.suggestions]) {
+			assert.equal(suggestions.length, 5, 'Verteilung über alle Säulen');
+			const shares = suggestions.map((entry) => entry.share ?? Number.NaN);
+			assert.ok(
+				shares.every((share) => Number.isInteger(share) && share >= 5 && share <= 80),
+				`Anteile ganzzahlig 5–80: ${JSON.stringify(shares)}`,
+			);
+		}
+		assert.notDeepEqual(
+			focus.suggestions.map((entry) => entry.share),
+			mixed.suggestions.map((entry) => entry.share),
+		);
+		assert.deepEqual(
+			focus.suggestions.map((entry) => entry.share),
+			verteilungen.Fokus,
+			'die Fokus-Verteilung kommt unverändert durch',
+		);
+	});
 });
 
 describe('POST /tasks/suggest-pillars/feedback', () => {
@@ -244,6 +308,28 @@ describe('POST /tasks/suggest-pillars/feedback', () => {
 		await seedPillars();
 		const res = await postFeedback({ title: 'Ohne Säule', pillars: [] });
 		assert.equal(res.status, 201);
+	});
+
+	// AK5 (#2076, Spec docs/spec/issue-2076.md): optionale Anteile — additiv zur Konfidenz.
+	it('201 akzeptiert zusätzlich einen Anteil je Säule und speichert ihn (#2076, AK5)', async () => {
+		const pillars = await seedPillars();
+		const res = await postFeedback({
+			title: 'Joggen gehen',
+			pillars: [{ pillarId: pillars[0].id, confidence: 95, share: 40 }],
+		});
+		assert.equal(res.status, 201);
+		const body = (await res.json()) as { id: number };
+		const stored = await PillarFeedback.findByPk(body.id);
+		assert.deepEqual(stored?.pillars, [{ pillarId: pillars[0].id, confidence: 95, share: 40 }]);
+	});
+
+	it('400 wenn der Anteil keine Zahl ist (#2076, AK5)', async () => {
+		const pillars = await seedPillars();
+		const res = await postFeedback({
+			title: 'X',
+			pillars: [{ pillarId: pillars[0].id, confidence: 50, share: 'viel' }],
+		});
+		assert.equal(res.status, 400);
 	});
 
 	it('400 wenn title fehlt', async () => {
@@ -314,22 +400,40 @@ describe('classifyPillarsWithMistral (Unit, gemockter fetch)', () => {
 		await assert.rejects(() => classifyPillarsWithMistral(input), MissingApiKeyError);
 	});
 
-	it('parst gültige Antwort, filtert unbekannte IDs und sortiert nach pillarId', async () => {
+	// TEST-PFLEGE #2076 (Spec docs/spec/issue-2076.md, AK2): Teilmengen-Antworten werden seit #2076
+	// über ALLE Säulen vervollständigt — die alte Erwartung (nur die vorgeschlagenen Säulen zurück)
+	// widersprach AK2. Unbekannte IDs bleiben gefiltert, sortiert nach pillarId.
+	it('parst gültige Antwort, vervollständigt die Teilmenge über alle Säulen und filtert unbekannte IDs', async () => {
 		await setTestLlmProvider(true);
 		stubFetch(
 			JSON.stringify({
 				pillars: [
-					{ pillarId: 5, confidence: 80 },
-					{ pillarId: 1, confidence: 95 },
-					{ pillarId: 999, confidence: 100 },
+					{ pillarId: 5, confidence: 80, share: 10 },
+					{ pillarId: 1, confidence: 95, share: 40 },
+					{ pillarId: 999, confidence: 100, share: 50 },
 				],
 			}),
 		);
-		const result = await classifyPillarsWithMistral(input);
-		assert.deepEqual(result, [
-			{ pillarId: 1, confidence: 95 },
-			{ pillarId: 5, confidence: 80 },
-		]);
+		const result = (await classifyPillarsWithMistral(input)) as {
+			pillarId: number;
+			confidence: number;
+			share?: number;
+		}[];
+		assert.deepEqual(
+			result.map((entry) => entry.pillarId),
+			[1, 2, 3, 4, 5],
+		);
+		assert.equal(result.find((entry) => entry.pillarId === 1)?.confidence, 95);
+		assert.equal(result.find((entry) => entry.pillarId === 5)?.confidence, 80);
+		const shares = result.map((entry) => entry.share ?? Number.NaN);
+		assert.equal(
+			shares.reduce((acc, share) => acc + share, 0),
+			100,
+		);
+		assert.ok(
+			shares.every((share) => Number.isInteger(share) && share >= 5 && share <= 80),
+			JSON.stringify(shares),
+		);
 	});
 
 	it('deckelt die Konfidenz der schwachen Säulen (Sinn/Mentale Gesundheit) auf 60', async () => {
@@ -541,5 +645,164 @@ describe('classifyPillarsWithMistral (Unit, gemockter fetch)', () => {
 			result.every((s) => s.confidence > 60 || !weakSignalPillarIds(customPillars).has(s.pillarId)),
 			'Custom-Säulen werden nicht von Weak-Signal-Ceiling betroffen',
 		);
+	});
+});
+
+/**
+ * Rote Spec-Tests #2076 (Spec docs/spec/issue-2076.md): Der Klassifikator liefert je Säule einen
+ * Anteil (ganzzahlig 5–80, Summe 100) NEBEN der Konfidenz. Testebene: öffentliche
+ * `classifyPillarsWithMistral` mit gemocktem fetch — die (noch) nicht exportierte
+ * `extractSuggestions` wird über den vollen Pfad geprüft (#1310-Muster in llm.test.ts).
+ */
+describe('classifyPillarsWithMistral — Anteil und Konfidenz je Säule (#2076)', () => {
+	const pillars = [
+		{ id: 1, name: 'Körper' },
+		{ id: 2, name: 'Beziehungen' },
+		{ id: 3, name: 'Sinn' },
+		{ id: 4, name: 'Mentale Gesundheit' },
+		{ id: 5, name: 'Wirksamkeit' },
+	];
+	const input: ClassifyPillarsInput = { title: 'Test', pillars };
+	const originalFetch = globalThis.fetch;
+
+	type SuggestionWithShare = { pillarId: number; confidence: number; share?: number };
+
+	let lastBody: { messages?: { role: string; content: string }[] } | undefined;
+
+	/** Mockt NUR den LLM-API-Call und zeichnet den gesendeten Body auf (Muster llm.test.ts, #1310). */
+	const stubModelResponse = (parsedJson: unknown): void => {
+		globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+			lastBody = init?.body ? (JSON.parse(String(init.body)) as typeof lastBody) : undefined;
+			return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(parsedJson) } }] }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' },
+			});
+		}) as typeof fetch;
+	};
+
+	/** Anteils-Invarianten des Vertrags (AK1/AK2): alle erwarteten Säulen, ganzzahlig 5–80, Summe 100. */
+	const assertValidShares = (suggestions: SuggestionWithShare[], expectedIds: number[]): void => {
+		assert.deepEqual(
+			suggestions.map((entry) => entry.pillarId),
+			expectedIds,
+		);
+		const shares = suggestions.map((entry) => entry.share ?? Number.NaN);
+		assert.ok(
+			shares.every((share) => Number.isInteger(share) && share >= 5 && share <= 80),
+			`Anteile ganzzahlig 5–80: ${JSON.stringify(shares)}`,
+		);
+		assert.equal(
+			shares.reduce((acc, share) => acc + share, 0),
+			100,
+			`Summe exakt 100: ${JSON.stringify(shares)}`,
+		);
+	};
+
+	beforeEach(async () => {
+		await setTestLlmProvider(true);
+		lastBody = undefined;
+	});
+
+	after(() => {
+		globalThis.fetch = originalFetch;
+	});
+
+	// AK1: gültige Modell-Antwort — Anteil je Säule kommt unverändert durch, auch über 60
+	// (Anteile werden — anders als Konfidenzen — nicht auf das Weak-Signal-Ceiling gedeckelt).
+	it('AK1: gibt je Säule Anteil und Konfidenz zurück; Anteile unterliegen nicht dem 60er-Ceiling', async () => {
+		stubModelResponse({
+			pillars: pillars.map((pillar, index) => ({
+				pillarId: pillar.id,
+				confidence: index === 0 ? 95 : 30,
+				share: [5, 5, 70, 15, 5][index],
+			})),
+		});
+		const result = (await classifyPillarsWithMistral(input)) as SuggestionWithShare[];
+		assertValidShares(result, [1, 2, 3, 4, 5]);
+		assert.equal(result.find((entry) => entry.pillarId === 1)?.confidence, 95, 'Konfidenz unverändert');
+		assert.equal(
+			result.find((entry) => entry.pillarId === 3)?.share,
+			70,
+			'Sinn-Anteil 70 bleibt 70 — keine 60er-Deckelung für Anteile',
+		);
+	});
+
+	// AK1: System-Prompt und Antwortformat verlangen den Anteil.
+	it('AK1: der System-Prompt verlangt Anteil 5–80 mit Summe 100 und gibt die „leere Liste“-Regel auf', async () => {
+		stubModelResponse({ pillars: [] });
+		await classifyPillarsWithMistral(input);
+		const system = lastBody?.messages?.find((message) => message.role === 'system')?.content ?? '';
+		assert.match(system, /Anteil/i, 'der Prompt spricht den Anteil an');
+		assert.match(system, /\bshare\b/, 'das Antwortformat führt das share-Feld');
+		assert.match(system, /5\s*[–-]\s*80/, 'die Grenzen 5–80 stehen im Prompt');
+		assert.match(system, /\b100\b/, 'die Sollsumme 100 steht im Prompt');
+		assert.doesNotMatch(system, /leere Liste/, 'die „leere Liste“-Regel ist entfallen');
+	});
+
+	// AK3: die Few-Shot-Beispiele formen den Vorschlag vor — Fokusfall UND Mischfall mit Anteilen.
+	it('AK3: Few-Shot-Beispiele tragen gültige Anteile — mindestens ein Fokus- und ein Mischfall', async () => {
+		stubModelResponse({ pillars: [] });
+		await classifyPillarsWithMistral(input);
+		const fewShot = (lastBody?.messages ?? [])
+			.filter((message) => message.role === 'assistant')
+			.map((message) => JSON.parse(message.content) as { pillars: SuggestionWithShare[] });
+		assert.ok(fewShot.length >= 2, 'mindestens zwei Few-Shot-Beispiele');
+		for (const example of fewShot) {
+			assertValidShares(example.pillars, [1, 2, 3, 4, 5]);
+		}
+		const topShares = fewShot.map((example) => Math.max(...example.pillars.map((entry) => entry.share ?? 0)));
+		assert.ok(
+			topShares.some((top) => top >= 50),
+			'Fokusfall vorhanden (eine Säule dominant)',
+		);
+		assert.ok(
+			topShares.some((top) => top < 50),
+			'Mischfall vorhanden — die Treppenform ist nicht die einzige Form',
+		);
+	});
+
+	// AK2: unvollständige/ungültige Antworten werden über ALLE Säulen auf die Invarianten gebracht.
+	it('AK2: ungültige Antworten werden über alle Säulen auf die Invarianten gebracht', async () => {
+		const fehlerfaelle: { name: string; payload: unknown }[] = [
+			{
+				name: 'Anteile fehlen',
+				payload: { pillars: pillars.map((pillar) => ({ pillarId: pillar.id, confidence: 20 })) },
+			},
+			{
+				name: 'Summe 150',
+				payload: {
+					pillars: pillars.map((pillar, index) => ({
+						pillarId: pillar.id,
+						confidence: 20,
+						share: [80, 20, 15, 20, 15][index],
+					})),
+				},
+			},
+			{
+				name: 'Anteil 90',
+				payload: {
+					pillars: pillars.map((pillar, index) => ({
+						pillarId: pillar.id,
+						confidence: 20,
+						share: [90, 5, 5, 0, 0][index],
+					})),
+				},
+			},
+			{
+				name: 'nur 2 von 5 Säulen',
+				payload: {
+					pillars: [
+						{ pillarId: 1, confidence: 90, share: 60 },
+						{ pillarId: 3, confidence: 30, share: 25 },
+					],
+				},
+			},
+		];
+		for (const fehlerfall of fehlerfaelle) {
+			lastBody = undefined;
+			stubModelResponse(fehlerfall.payload);
+			const result = (await classifyPillarsWithMistral(input)) as SuggestionWithShare[];
+			assertValidShares(result, [1, 2, 3, 4, 5]);
+		}
 	});
 });
