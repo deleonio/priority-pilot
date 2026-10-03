@@ -1,0 +1,48 @@
+name: Warm pi Package Cache
+
+# Schreibt den pi-Paket-Cache (~/.pi/agent), den die setup-pi-Action nur RESTAURIEREN
+# kann: Cache-Writes sind auf Issue-/PR-Triggern gesperrt, deshalb wärmt dieser Lauf
+# (schedule + dispatch) vor — sonst bliebe jeder Phasenlauf ein Miss und die Pakete
+# würden weiterhin in jedem Lauf neu installiert (~40-54 s, Issue #2092).
+#
+# Der Warm nutzt pi-install-packages.sh — dieselbe Quelle wie der Install-Step der
+# Action (Parsing, Pinn-Prüfung, pi list). Key identisch: Hash von .pi/settings.json;
+# ändert sich die Paketliste, schreibt der nächste Lauf einen neuen Key.
+#
+# npm-Quellen sind gepinnt (Renovate hält sie aktuell) — der 2x-tägliche Rhythmus
+# reicht locker für die Seltenheit von Paket-Updates; zwischen Warm und Nutzung
+# verliert ein veralteter Cache nur Zeit, nie Korrektheit (restore-keys bewusst
+# abwesend: bei Key-Miss wird frisch installiert).
+
+on:
+  schedule:
+    - cron: '23 5,17 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: pi-package-cache-warm
+  cancel-in-progress: false
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: pi CLI bereitstellen
+        shell: bash
+        run: |
+          set -uo pipefail
+          npm install -g "@earendil-works/pi-coding-agent@latest"
+          pi --version || { echo "::error::pi CLI nicht lauffähig."; exit 1; }
+
+      - name: pi-Pakete installieren (gemeinsame Quelle mit setup-pi, #2092)
+        shell: bash
+        run: bash .github/scripts/pi-install-packages.sh
+
+      - name: Cache schreiben
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.pi/agent
+          key: pi-agent-packages-${{ runner.os }}-${{ hashFiles('.pi/settings.json') }}
