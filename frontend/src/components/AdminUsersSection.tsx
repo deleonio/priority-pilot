@@ -432,10 +432,11 @@ export const AdminUsersSection = () => {
 				</Modal>
 			)}
 			{/* #1959 AK4: Bestätigung je Abo-Aktion — ein reiner Ja/Nein-Schritt mit den konkreten
-			    Konsequenzen (Sperre wirkt sofort, Storno läuft bis zum Periodenende weiter). Der
-			    bestätigende Button benennt die Aktion („Jetzt sperren“/„Jetzt stornieren“), Abbrechen
-			    setzt keinen Request ab; beim Schließen kehrt der Fokus auf den auslösenden Button
-			    zurück (Modal, verbindliches Pattern). */}
+				    Konsequenzen (Sperre wirkt sofort, Storno läuft bis zum Periodenende weiter). Der
+				    bestätigende Button benennt die Aktion („Jetzt sperren“/„Jetzt stornieren“) und während
+				    des Requests den Fortschritt („Sperre …“/„Storniere …“, Muster „Berechne …“, #2105),
+				    Abbrechen setzt keinen Request ab; beim Schließen kehrt der Fokus auf den auslösenden
+				    Button zurück (Modal, verbindliches Pattern). */}
 			{subConfirm !== null && (
 				<Modal
 					title={subConfirm.kind === 'lock' ? 'Abo sperren' : 'Abo stornieren'}
@@ -454,7 +455,15 @@ export const AdminUsersSection = () => {
 							_on={{ onClick: () => setSubConfirm(null) }}
 						/>
 						<KolButton
-							_label={subConfirm.kind === 'lock' ? 'Jetzt sperren' : 'Jetzt stornieren'}
+							_label={
+								subRunning
+									? subConfirm.kind === 'lock'
+										? 'Sperre …'
+										: 'Storniere …'
+									: subConfirm.kind === 'lock'
+										? 'Jetzt sperren'
+										: 'Jetzt stornieren'
+							}
 							_variant="primary"
 							_disabled={subRunning}
 							_on={{ onClick: () => void handleSubAction() }}
