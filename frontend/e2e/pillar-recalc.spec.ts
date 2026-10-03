@@ -31,16 +31,20 @@ interface FakeServer {
  * mit `processed` und danach das Ergebnis.
  */
 const installFakeServer = async (page: Page, runPath: RegExp, statusPath: RegExp): Promise<FakeServer> => {
-	// Lang genug, dass das Polling (1,5 s) einen Zwischenstand abfängt. Die Ergebnis-Zusammenfassung
-	// erscheint erst mit dem ersten Poll NACH RUN_MS — Assertions darauf warten mit explizitem
-	// 10-s-Timeout (RUN_MS + 2 Poll-Intervalle + CI-Jitter), sonst flackert es unter Last.
-	const RUN_MS = 4000;
+	// Flake-Fix #1953 (Run 36774376659: „element(s) not found"): Früher entschied die Wanduhr
+	// (elapsed < RUN_MS) über `running` — kam der erste Status-Poll unter CI-Last erst nach
+	// RUN_MS durch, lieferte der Mock sofort das Endergebnis und der Live-Zwischenstand
+	// „n / 12" war nie renderbar; expectLiveProgress fand kein Element. Poll-Zähler statt
+	// Uhr: Die ersten beiden Polls nach Laufstart sind IMMER running (mit wachsendem
+	// Zwischenstand), erst der dritte liefert das Ergebnis — dieses Fenster kann Last
+	// nicht schließen. Ergebnis-Assertions warten weiter mit explizitem 10-s-Timeout
+	// (drei Poll-Intervalle à 1,5 s + CI-Jitter).
 	const done = new Set<number>();
 	const failedOnce = new Set<number>();
 	let startedAt: string | null = null;
+	let statusPollsSinceStart = 0;
 	let calls = 0;
 	let run: {
-		startedMs: number;
 		pendingAtStart: number;
 		result: {
 			updated: number;
@@ -52,14 +56,15 @@ const installFakeServer = async (page: Page, runPath: RegExp, statusPath: RegExp
 	} | null = null;
 
 	await page.route(statusPath, (route: Route) => {
+		if (run !== null) {
+			statusPollsSinceStart += 1;
+		}
 		const processed = run === null ? 0 : run.result.updated + run.result.failed;
-		const elapsed = run === null ? RUN_MS : Date.now() - run.startedMs;
+		const live = statusPollsSinceStart <= 2;
+		const shown = live ? Math.max(1, Math.round((statusPollsSinceStart / 3) * processed)) : processed;
 		const body =
-			run !== null && elapsed < RUN_MS
-				? (() => {
-						const shown = Math.max(1, Math.floor((elapsed / RUN_MS) * processed));
-						return { startedAt, total: TOTAL, pending: run.pendingAtStart - shown, running: true, processed: shown };
-					})()
+			run !== null && live
+				? { startedAt, total: TOTAL, pending: run.pendingAtStart - shown, running: true, processed: shown }
 				: {
 						startedAt,
 						total: TOTAL,
@@ -93,7 +98,6 @@ const installFakeServer = async (page: Page, runPath: RegExp, statusPath: RegExp
 			}
 		}
 		run = {
-			startedMs: Date.now(),
 			pendingAtStart: pending.length,
 			result: {
 				updated,
@@ -205,7 +209,7 @@ test.describe('Säulen-Neuberechnung — Hintergrundlauf (#1642)', () => {
 		await expect(page.getByRole('button', { name: /Fortsetzen/ })).toHaveCount(0);
 		await expect(page.getByRole('button', { name: /neu starten/ })).toHaveCount(0);
 
-		await expect(page.getByText('12 Aufgaben neu zugeordnet', { exact: false })).toBeVisible({ timeout: 5000 });
+		await expect(page.getByText(/^12 Aufgaben neu zugeordnet/u)).toBeVisible({ timeout: 5000 });
 	});
 
 	// AK8 (375px, kein horizontaler Überlauf) bekommt bewusst keinen eigenen Test: die Laufanzeige im
@@ -229,12 +233,14 @@ test.describe('Säulen-Neuberechnung (#1614)', () => {
 		await page.getByRole('button', { name: 'Start' }).click();
 		await expectLiveProgress(page);
 
-		await expect(page.getByText('10 Aufgaben neu zugeordnet', { exact: false })).toBeVisible({ timeout: 10_000 });
+		await expect(page.getByText(/^10 Aufgaben neu zugeordnet/u)).toBeVisible({ timeout: 10_000 });
 		await expect(page.getByText('HTTP 429 (Rate-Limit des KI-Anbieters): 2')).toBeVisible();
 		expect(server.calls(), 'ein Start, die Portionen holt der Server selbst').toBe(1);
 
 		await page.getByRole('button', { name: 'Fortsetzen (2 offen)' }).click();
-		await expect(page.getByText('2 Aufgaben neu zugeordnet', { exact: false })).toBeVisible({ timeout: 10_000 });
+		// ^-Anker: „12 Aufgaben …" enthält als Substring auch „2 Aufgaben …" — ohne Anker
+		// bliebe ein kaputtes Fortsetzen (alle statt nur der offenen Aufgaben) grün (#1953 AK2).
+		await expect(page.getByText(/^2 Aufgaben neu zugeordnet/u)).toBeVisible({ timeout: 10_000 });
 		await expect(page.getByRole('button', { name: /Fortsetzen/ })).toHaveCount(0);
 	});
 
@@ -282,13 +288,13 @@ test.describe('Säulen-Neuberechnung (#1614)', () => {
 		await page.getByRole('button', { name: 'Jetzt neu berechnen' }).click();
 		await expectLiveProgress(page);
 
-		await expect(page.getByText('10 Aufgaben neu zugeordnet', { exact: false })).toBeVisible({ timeout: 10_000 });
+		await expect(page.getByText(/^10 Aufgaben neu zugeordnet/u)).toBeVisible({ timeout: 10_000 });
 		await expect(page.getByText('HTTP 429 (Rate-Limit des KI-Anbieters): 2')).toBeVisible();
 		expect(server.calls(), 'ein Start, die Portionen holt der Server selbst').toBe(1);
 
 		await page.getByRole('button', { name: 'Fortsetzen (2 offen)' }).click();
 		await page.getByRole('button', { name: 'Jetzt fortsetzen' }).click();
-		await expect(page.getByText('2 Aufgaben neu zugeordnet', { exact: false })).toBeVisible({ timeout: 10_000 });
+		await expect(page.getByText(/^2 Aufgaben neu zugeordnet/u)).toBeVisible({ timeout: 10_000 });
 		await expect(page.getByRole('button', { name: /Fortsetzen/ })).toHaveCount(0);
 	});
 });

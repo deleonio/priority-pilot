@@ -2578,6 +2578,48 @@ kol-toolbar {
 	--a11y-min-size: 2.75rem;
 }
 
+/* #2104: Rechnungslisten (Einstellungen → Pakete & Abo und Admin → Nutzer) — gleiche
+ * Zeilenkarten-Form wie .admin-user/.admin-allowed-email; bei 375px bricht die Zeile um,
+ * statt horizontal zu scrollen (Muster-Kommentar oben). Betrag (3. Kind) rechtsbündig mit
+ * tabular-nums, Badge mit Mindestbreite, damit die rechte Kante der Beträge trotz der
+ * unterschiedlichen Status-Labels (Bezahlt/Erstattet) innerhalb der Liste fluchtet. */
+
+.billing-invoices__list,
+.admin-invoices__list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-space-3);
+}
+
+.billing-invoices__item,
+.admin-invoices__item {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--pp-space-3) var(--pp-gap-base);
+	padding: var(--pp-space-3) var(--pp-gap-base);
+	border: 1px solid var(--pp-border);
+	border-radius: 0.5rem;
+	background: var(--pp-surface-2);
+	color: var(--pp-ink);
+}
+
+.billing-invoices__item > span:nth-child(3),
+.admin-invoices__item > span:nth-child(3) {
+	margin-left: auto;
+	min-width: 5rem;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+.billing-invoices__item > kol-badge,
+.admin-invoices__item > kol-badge {
+	min-width: 6rem;
+}
+
 /* Batch-Trigger zur Neuberechnung der Säulenverteilung (Admin): Button und Ergebnis unter
    der Nutzerliste, mit Abstand statt direkt angeklebt. */
 .admin-reassign {
@@ -3183,6 +3225,15 @@ kol-toolbar {
 	flex-direction: column;
 	gap: var(--pp-gap-base);
 	min-width: 0;
+}
+
+/* #1984: Liste der Experten-Bereiche im Accordion unter dem Expertenmodus-Schalter —
+ * derselbe 16dp-Rhythmus wie im Panel-Stack. */
+.settings-expert-list {
+	display: grid;
+	gap: var(--pp-gap-tight);
+	margin: 0;
+	padding-left: 1.25rem;
 }
 
 /*

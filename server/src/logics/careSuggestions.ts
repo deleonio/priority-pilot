@@ -7,6 +7,7 @@
  * (`typ: 'ki'`, #1804) ergänzt die Route in derselben Antwortform.
  */
 import { type BalanceSaeule } from './heartBalance.js';
+import { suggestRankedShares } from './pillarShares.js';
 
 /** Wie lange eine abgelehnte Vorlage unterdrückt bleibt (AK4): davor weg, ab exakt so vielen Tagen wieder lieferbar. */
 const CARE_ABLEHNUNG_TAGE = 14;
@@ -46,15 +47,35 @@ export interface CareVorschlag {
 	templateKey?: string;
 }
 
+/**
+ * Vollständige Verteilung über alle Säulen des Nutzers (#2075): die Ziel-Säule bekommt Rang 1 der
+ * Rang-Treppe (50 %), die übrigen teilen den Rest gleichmäßig (13/13/12/12) — Reihenfolge folgt
+ * der Säulenliste. Damit besteht der Payload der strengen Prüfung (#2077) und `POST /tasks`
+ * legt die Aufgabe exakt so an (AK3). Vorlagen- und KI-Pfad teilen sich diese Hilfe.
+ */
+export const saeulenBeitraegeFuerZiel = (
+	zielSaeuleId: number,
+	saeulen: { id: number }[],
+): { pillarId: number; share: number }[] => {
+	const zielIndex = saeulen.findIndex((saeule) => saeule.id === zielSaeuleId);
+	const anteile = suggestRankedShares(zielIndex >= 0 ? [zielIndex] : [], saeulen.length);
+	return saeulen
+		.map((saeule, index) => ({ pillarId: saeule.id, share: anteile[index] ?? 0 }))
+		.filter((beitrag) => beitrag.share > 0);
+};
+
 const istOffen = (status: string): boolean => status === 'Open' || status === 'In process';
 
 /**
  * Wählt bis zu drei Vorschläge für eine Säule: offene Aufgaben (`Open`/`In process`, share > 0 auf
  * genau dieser Säule) zuerst, dann nicht abgelehnte Vorlagen dieser Säule. Ablehnungen jünger als
  * `CARE_ABLEHNUNG_TAGE` unterdrücken ihre Vorlage; Texte stehen bereits in der Zielsprache.
+ * `saeulen` ist die Nutzer-Säulenliste (#2075): Task-Vorschläge geben ihre Aufgaben-Verteilung
+ * 1:1 durch, Vorlagen tragen die vollständige Verteilung (Ziel-Säule 50 %, Rest gleichmäßig).
  */
 export const waehleCareVorschlaege = (
 	saeule: BalanceSaeule,
+	saeulen: BalanceSaeule[],
 	aufgaben: CareAufgabe[],
 	vorlagen: CareVorlage[],
 	ablehnungen: { templateKey: string; abgelehntAm: Date }[],
@@ -86,8 +107,9 @@ export const waehleCareVorschlaege = (
 			typ: 'vorlage' as const,
 			titel: vorlage.texte.titel,
 			beschreibung: vorlage.texte.beschreibung,
-			// Vorlagen zielen voll auf die Säule — so legt `POST /tasks` daraus einen Task derselben Säule an (AK3).
-			saeulenBeitraege: [{ pillarId: saeule.id, share: 100 }],
+			// Vorlage bekommt die vollständige Verteilung (#2075, AK2): Ziel-Säule 50 %, Rest gleichmäßig —
+			// `POST /tasks` legt daraus einen Task mit fünf gültigen Beiträgen an (AK3).
+			saeulenBeitraege: saeulenBeitraegeFuerZiel(saeule.id, saeulen),
 			templateKey: vorlage.key,
 		}));
 
@@ -98,9 +120,11 @@ export const waehleCareVorschlaege = (
  * Erholungsvorschläge bei Überlast (#1795): zuerst die Pause-Vorlage, dann je bis zu zwei nicht
  * abgelehnte Vorlagen aus Körper und Mentale Gesundheit — die überlastete Säule selbst bleibt
  * ausgenommen. Nutzt `waehleCareVorschlaege` für die Ablehnungs-Logik; `saeuleId` kennzeichnet
- * die Säule des Vorschlags (die Route ergänzt den Namen).
+ * die Säule des Vorschlags (die Route ergänzt den Namen). `saeulen` ist die Nutzer-Säulenliste
+ * (#2075) — sie fließt in die vollständige Verteilung der Vorschläge ein.
  */
 export const waehleErholungsVorschlaege = (
+	saeulen: BalanceSaeule[],
 	ueberlasteSaeulenIds: number[],
 	vorlagen: CareVorlage[],
 	ablehnungen: { templateKey: string; abgelehntAm: Date }[],
@@ -109,12 +133,17 @@ export const waehleErholungsVorschlaege = (
 	const pauseVorlagen = vorlagen.filter((vorlage) => vorlage.key === PAUSE_VORLAGE_KEY);
 	const uebrige = vorlagen.filter((vorlage) => vorlage.key !== PAUSE_VORLAGE_KEY);
 	const pause = pauseVorlagen.flatMap((vorlage) =>
-		waehleCareVorschlaege({ id: vorlage.saeuleId, name: '', weight: 0 }, [], [vorlage], ablehnungen, jetzt).map(
-			(vorschlag) => ({ ...vorschlag, saeuleId: vorlage.saeuleId }),
-		),
+		waehleCareVorschlaege(
+			{ id: vorlage.saeuleId, name: '', weight: 0 },
+			saeulen,
+			[],
+			[vorlage],
+			ablehnungen,
+			jetzt,
+		).map((vorschlag) => ({ ...vorschlag, saeuleId: vorlage.saeuleId })),
 	);
 	const ausSaeulen = ERHOLUNGS_SAEULEN_IDS.filter((id) => !ueberlasteSaeulenIds.includes(id)).flatMap((id) =>
-		waehleCareVorschlaege({ id, name: '', weight: 0 }, [], uebrige, ablehnungen, jetzt)
+		waehleCareVorschlaege({ id, name: '', weight: 0 }, saeulen, [], uebrige, ablehnungen, jetzt)
 			.slice(0, 2)
 			.map((vorschlag) => ({ ...vorschlag, saeuleId: id })),
 	);

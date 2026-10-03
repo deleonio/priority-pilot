@@ -394,6 +394,17 @@ runs:
       run: |
         echo "invoke-cmd=claude -p" >> "$GITHUB_OUTPUT"
 
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # HINTERGRUND-WARTE-DECKEL (#1952): claude -p beendet noch laufende
+        # Hintergrund-Tasks 600 s nach dem Ende des Haupt-Turns. Gibt der Agent
+        # das Gate an einen Hintergrund-Subagenten und beendet seinen Turn,
+        # geht diese Arbeit verloren (Soft-Abort ohne Commit/Push; Beleg
+        # 30.09.2026: Laeufe zu #1869/#1941). 0 = unbegrenzt warten; die Deckelung
+        # uebernimmt der Job selbst (timeout-minutes des Phase-Workflows).
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        echo "CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0" >> "$GITHUB_ENV"
+        echo "::notice::CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 gesetzt (claude -p wartet auf Hintergrund-Tasks bis zum Job-Timeout)."
+
         # Phasen-Modell (nur bei gesetztem Alias) als --model an claude weiterreichen.
         # Leerer Wert (kein Phasen-Modell oder Nicht-claude-Provider) -> kein --model,
         # das Modell kommt aus .claude/settings.json (bisheriges Verhalten).

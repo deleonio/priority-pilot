@@ -189,6 +189,10 @@ export const SettingsPage = ({
 	// #1984: Expertenmodus-Schalter (Default aus, pro Gerät über localStorage) — Gate für die
 	// Säulen-Gewichtungs-Karte in diesem Tab und die Regler in TaskForm/DependencyModal.
 	const { expertMode, setExpertMode } = useExpertMode();
+	// #1984: Klappzustand des Accordion „Was umfasst der Expertenmodus?" — folgt dem Schalter
+	// (initial offen bei eingeschaltetem Expertenmodus, sonst zu), manuelles Klappen bleibt
+	// möglich (Muster „Einzelne Animationen").
+	const [expertDetailsOpen, setExpertDetailsOpen] = useState(expertMode);
 	// #1552: Klappzustand des Accordion „Einzelne Animationen" — bewusst app-seitig geführt. Das
 	// Accordion folgt dem Master (AK9), darf sich aber durch Header-Klick auch unabhängig davon
 	// zu-/aufklappen lassen: ein rein gesteuertes `_open={animationsEnabled}` ohne Handler wird vom
@@ -476,21 +480,46 @@ export const SettingsPage = ({
 								/>
 							</div>
 							{/* #1984: Expertenmodus — Säulen-Prozente (Aufgabendialog), Gewichte
-							    (Abhängigkeits-Dialog) und die Säulen-Gewichtungspflege sind Experteninhalt.
-							    Ausblenden ist reine UI-Ausblendung; gespeicherte Werte bleiben. */}
+							    (Abhängigkeits-Dialog), die Säulen-Gewichtungspflege (Tab Säulen) und die
+							    Standort-Regler (Tab Standort) sind Experteninhalt. Ausblenden ist reine
+							    UI-Ausblendung; gespeicherte Werte bleiben. */}
 							<div className="settings-switch-row">
 								<KolInputCheckbox
 									_label="Expertenmodus"
 									_variant="switch"
 									_checked={expertMode}
-									_hint="Zeigt die Fach-Regler: Säulen-Prozente im Aufgabendialog, Gewichte im Abhängigkeits-Dialog und die Säulen-Gewichtungspflege im Tab Säulen. Gilt gerätebezogen und ist standardmäßig aus."
+									_hint="Zeigt die Fach-Regler für Fortgeschrittene — welche Bereiche das sind, listet der Block darunter. Gilt gerätebezogen und ist standardmäßig aus."
 									_on={{
 										onChange: (_event, value) => {
 											setExpertMode(value === true);
+											// Das Inhalts-Accordion folgt dem Schalter (Muster „Einzelne Animationen").
+											setExpertDetailsOpen(value === true);
 										},
 									}}
 								/>
 							</div>
+							{/* #1984: Aufklappbare Liste der Experten-Bereiche — der Nutzer soll verstehen,
+							    was der Schalter einschaltet, bevor er ihn nutzt. Folgt dem Schalterzustand
+							    (`_open`), eigenes Klappen bleibt über den Click-Handler möglich. */}
+							<KolAccordion
+								className="settings-accordion"
+								_label="Was umfasst der Expertenmodus?"
+								_level={3}
+								_open={expertDetailsOpen}
+								_on={{
+									onClick: (_event, open) => setExpertDetailsOpen(open === true),
+								}}
+							>
+								<ul className="settings-expert-list">
+									<li>Säulen-Prozente im Aufgabendialog (Feinverteilung der Anteile)</li>
+									<li>Gewichte (0,1–1) im Abhängigkeits-Dialog</li>
+									<li>Säulen-Gewichtungspflege im Tab „Säulen“</li>
+									<li>
+										Reichweite und Intervall im Tab „Standort“ (Anzeige-Entfernung, Alarm-Entfernung,
+										Aktualisierungsintervall)
+									</li>
+								</ul>
+							</KolAccordion>
 							{/* #971: Switch + zugehörige Alerts je in einer `.settings-switch-row` — mobil volle
 									Breite im Stack-Layout, desktop eine Zeile (Switch links, Alert rechts). */}
 							<div className="settings-switch-row">
@@ -749,8 +778,9 @@ export const SettingsPage = ({
 				</div>
 				{/* #1151: Die Geo-Einstellungen bekommen einen eigenen Tab „Standort" (Index 3, Route
 				        /settings/standort) — der Tab „Allgemein" bleibt frei von Standort-Settings. Reihenfolge
-				        wie bisher: Switch (+ Alerts), Ermitteln-Button, Addressanzeige, drei Slider. Die
-				        Remount-Keys ziehen mit um (KI-UX: der React-Adapter setzt Props erst nach dem Mount). */}
+				        wie bisher: Switch (+ Alerts), Ermitteln-Button, Addressanzeige, drei Slider — letztere
+				        seit #1984 Experteninhalt (siehe unten). Die Remount-Keys ziehen mit um (KI-UX: der
+				        React-Adapter setzt Props erst nach dem Mount). */}
 				<div slot="tab-3" className="settings-geo settings-panel" ref={settingsGeoRef}>
 					<KolCard className="settings-card" _label="Standorterfassung" _level={2}>
 						<div className="settings-card-stack">
@@ -810,7 +840,7 @@ export const SettingsPage = ({
 							)}
 						</div>
 					</KolCard>
-					{geoSupported && (
+					{geoSupported && expertMode && (
 						/* #1098 AK1–AK3: Geo-Regler unterhalb der Standort-Karte, seit dem Master-/
 						   Unter-Settings-Pattern (docs/ux-pattern-master-detail-settings.md) gebündelt in
 						   einer aufklappbaren Gruppe, die synchron mit dem Standort-Switch öffnet/schließt.
@@ -820,6 +850,9 @@ export const SettingsPage = ({
 						   Ermitteln-Button oben einen Remount: der KoliBri-Adapter setzt Props nach dem Mount
 						   als Element-Properties, der `_disabled`-Attributwechsel beim Rerender schlägt sonst
 						   nicht durch (AK3). */
+						/* #1984: Die Reichweiten-/Intervall-Regler sind Experteninhalt — im Standardmodus
+						   bleibt die aufklappbare Gruppe weg (bedingtes Rendern, kein CSS-Hide); gespeicherte
+						   Werte bleiben und wirken weiter (NearbyCard, Push-Hinweis). */
 						<KolAccordion
 							className="settings-accordion"
 							_label="Reichweite und Intervall"

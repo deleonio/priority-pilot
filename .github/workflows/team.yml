@@ -244,6 +244,7 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
           ALREADY_CONTINUED: ${{ steps.continued-before.outputs.already }}
           GUARD_SKIP: ${{ steps.doppel-guard.outputs.skip }}
+          OUTCOME: ${{ steps.claude.outcome }}
         run: |
           verdict=""
           if [ -f /tmp/claude-output.log ]; then
@@ -300,7 +301,9 @@ jobs:
             gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-review" 2>/dev/null || true
             gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-review"
             echo "::notice title=✅ Team-Lauf fertig::Label ai:needs-review an PR #${PR_NR} gesetzt."
-          elif grep -qE "hit your (session|usage|weekly|monthly) limit" /tmp/claude-output.log 2>/dev/null; then
+          elif LIMIT_DETECT="$(bash .github/scripts/llm-limit-detect.sh detect --log /tmp/claude-output.log --outcome "${OUTCOME:-}")" && printf '%s' "$LIMIT_DETECT" | grep -q '^limit=true$'; then
+            # Limit-Abbruch nur am Abbruch des Claude-Aufrufs selbst (#1954): outcome=failure
+            # UND Limit-Zeile als letzte Ausgabe — ein Zitat im Output ist keiner.
             # Konto-Limit ist kein Soft-Abort: Labels unangetastet lassen (Details: llm-fair-usage-check).
             echo "::warning::LLM-Kontingent erreicht – kein Soft-Abort, Labels unverändert"
           elif [ "${ALREADY_CONTINUED:-false}" = "true" ]; then

@@ -187,8 +187,8 @@ const RANK_STAIRS = [50, 20, 15, 10, 5];
  * Treppe 50/20/15/10/5 %, alle übrigen teilen den Rest gleichmäßig — ganzzahlig per
  * Largest-Remainder (`roundSharesToTotal`), Gleichstand nach Säulen-Listenordnung. Ergebnis in
  * Listenordnung über alle Säulen, ganzzahlig, Summe exakt `SHARE_TOTAL`, `confidence` 100.
- * Ersetzt die 80/5/5/5/5-Regel `suggestMainDistribution` (#1962); der Server-Spiegel entsteht in
- * #2075. Leere Rangfolge → Gleichverteilung; unbekannte oder mehrfach genannte IDs werden ignoriert.
+ * Ersetzt die 80/5/5/5/5-Regel `suggestMainDistribution` (#1962); Server-Spiegel `suggestRankedShares`
+ * (#2075). Leere Rangfolge → Gleichverteilung; unbekannte oder mehrfach genannte IDs werden ignoriert.
  */
 export const distributionFromRankOrder = (
 	rankedPillarIds: readonly number[],
