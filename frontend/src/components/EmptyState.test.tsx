@@ -63,4 +63,11 @@ describe('EmptyState — Beispielaufgaben und Wiedereinstieg (#2070, Spec AK3/AK
 		});
 		expect(onReenter).toHaveBeenCalledTimes(1);
 	});
+
+	// Spec issue-2110, AK2: unbenanntes div → benannte Gruppe (role="group" + aria-label).
+	it('fasst die drei Beispielaufgaben als benannte Gruppe „Beispiele zum Ausprobieren“ zusammen (Spec issue-2110, AK2)', () => {
+		const { getByRole } = render(<EmptyState onCreate={vi.fn()} />);
+		const group = getByRole('group', { name: 'Beispiele zum Ausprobieren' });
+		expect(group.querySelectorAll('kol-input-checkbox')).toHaveLength(3);
+	});
 });
