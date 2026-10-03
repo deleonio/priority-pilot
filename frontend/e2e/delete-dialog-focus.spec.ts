@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { taskTitleText, waitForStableView } from './helpers';
+import { registerOwnSession, taskTitleText, waitForStableView } from './helpers';
 
 /**
  * Fokus-Vertrag der Lösch-Bestätigungsdialoge — eine Datei für das gesamte Verhalten.
@@ -129,6 +129,10 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 	test('AK1 — Task-Löschdialog: Initialfokus auf „Abbrechen", kein Sprung auf „Endgültig löschen"', async ({
 		page,
 	}) => {
+		// #2077-Fixup: eigene Session — das Pass-Through-Konto der Shard-DB sammelt Säulen-Reste
+		// anderer Specs (>20 Säulen); die Gleichverteilung des Anlege-Formulars verletzt dort die
+		// Vollverteilungs-Regel (jeder Anteil 5–80 %), der POST kippt mit 400, der Dialog bleibt offen.
+		await registerOwnSession(page, 'delete-dialog');
 		await installDeleteFocusWatcher(page);
 		await page.goto('/app/');
 		await waitForStableView(page);
@@ -209,6 +213,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 	 * Test mit AK1/AK4 über assertTabFreedomInOpenDeleteDialog — Begründung im Helper-Kommentar.
 	 */
 	test('AK4 — Tab bewegt den Fokus weiter (kein Fokus-Gefängnis)', async ({ page }) => {
+		await registerOwnSession(page, 'delete-dialog');
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -219,6 +224,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 	});
 
 	test('AK5 — Abbrechen gibt den Fokus an das auslösende Element zurück', async ({ page }) => {
+		await registerOwnSession(page, 'delete-dialog');
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -240,6 +246,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 	});
 
 	test('AK6 — Nach erfolgreichem Löschen übernimmt das Fallback-Element (nicht document.body)', async ({ page }) => {
+		await registerOwnSession(page, 'delete-dialog');
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -261,6 +268,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 	});
 
 	test('AK7 — Mobile-First 375px: Lösch-Dialog ohne horizontales Scrollen', async ({ page }) => {
+		await registerOwnSession(page, 'delete-dialog');
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/app/');
 		await waitForStableView(page);

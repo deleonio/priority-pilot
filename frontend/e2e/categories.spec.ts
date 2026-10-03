@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { openAccordionSection, waitForStableView } from './helpers';
+import { openAccordionSection, registerOwnSession, waitForStableView } from './helpers';
 
 /**
  * E2E-Spec für die Kategorien (thematische Ordnungsebene neben den Säulen): anlegen, einer Aufgabe
@@ -90,6 +90,10 @@ test.describe('Kategorien — anlegen, zuordnen, filtern (375px)', () => {
 	});
 
 	test('AK2: Kategorie zuordnen — Kennzeichen unter dem Feld, abwählbar, landet am Task', async ({ page }) => {
+		// #2077-Fixup: eigene Session — das Pass-Through-Konto der Shard-DB sammelt Säulen-Reste
+		// anderer Specs (>20 Säulen); die Gleichverteilung des Anlege-Formulars verletzt dort die
+		// Vollverteilungs-Regel (jeder Anteil 5–80 %), der POST kippt mit 400, der Dialog bleibt offen.
+		await registerOwnSession(page, 'categories');
 		const name = uniqueName('Steuer');
 		const title = `E2E-Kat-Erklaerung-${runId}`;
 		const categoryId = await createCategoryViaApi(page, name);

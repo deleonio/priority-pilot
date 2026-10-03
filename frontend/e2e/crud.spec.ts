@@ -68,6 +68,10 @@ test.describe('Balamentum — funktionale CRUD-Specs gegen das echte Backend', (
 	};
 
 	test('Task anlegen: erscheint in der Liste', async ({ page }) => {
+		// #2077-Fixup: eigene Session — das Pass-Through-Konto der Shard-DB sammelt Säulen-Reste
+		// anderer Specs (>20 Säulen); die Gleichverteilung des Anlege-Formulars verletzt dort die
+		// Vollverteilungs-Regel (jeder Anteil 5–80 %), der POST kippt mit 400, der Dialog bleibt offen.
+		await registerOwnSession(page, 'crud');
 		await page.goto('/app/');
 		await waitForStableView(page);
 		// #2069 Test-Pflege: Frisch-Login startet den Erststart-Flow; erst „Später“ zeigt den EmptyState.
@@ -86,6 +90,7 @@ test.describe('Balamentum — funktionale CRUD-Specs gegen das echte Backend', (
 	});
 
 	test('Task bearbeiten: geänderte Priorität bleibt sichtbar', async ({ page }) => {
+		await registerOwnSession(page, 'crud');
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -115,6 +120,7 @@ test.describe('Balamentum — funktionale CRUD-Specs gegen das echte Backend', (
 	});
 
 	test('Task löschen: verschwindet aus der Liste', async ({ page }) => {
+		await registerOwnSession(page, 'crud');
 		await page.goto('/app/');
 		await waitForStableView(page);
 
