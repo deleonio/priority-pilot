@@ -2977,19 +2977,15 @@ describe('Titel-Länge beim Speichern (#1818, AK4)', () => {
 });
 
 /**
- * Rote Spec-Tests für #1962 — Hauptsäulen-Modus (Spec: docs/spec/issue-1962.md).
+ * Rote Spec-Tests für #2074 — Säulen-Rangfolge-Treppe (Spec: docs/spec/issue-2074.md).
  *
- * Vertrag: Der Aufgaben-Dialog bietet eine Auswahlliste „Hauptsäule“; ohne Wahl rendert der
- * Säulen-Editor keine Beitragszeilen (kein erzwungenes Vorbelegen aller fünf Säulen mehr), mit
- * Wahl genau eine (Anteil 100 %) — absendbar mit genau einem Beitrag im Payload (AK2). Ein
- * Vorschlags-Block („Vorschlag übernehmen“ / „Nicht übernehmen“) bietet die Restverteilung an:
- * Übernehmen wendet Hauptsäule 80 % + Rest je 5 % an, Nicht übernehmen behält den Ein-Säulen-Zustand
- * (AK3, KI-UX: Vorschlag nie automatisch anwenden).
- *
- * Diese Specs sind rot, solange TaskForm weder die Hauptsäulen-Auswahl noch den Vorschlags-Block
- * rendert bzw. weiterhin alle fünf Säulen beim Mount vorbefüllt (`fillContributions`).
+ * Bedienvertrag: jede Säule ist eine zeilenhohe Tap-Fläche; die Tipp-Reihenfolge erzeugt die
+ * Rangfolge (Treppe 50/20/15/10/5), ein erneuter Tipp nimmt den Rang zurück. Label-Vertrag:
+ * gerankt `Rang <n> von 5: <Name> — <Anteil> %`, ungerankt `<Name> — <Anteil> %` — Rang und
+ * Anteil stehen als Text an jeder Säule (AK5: nie nur über Farbe). Gespeichert wird immer die
+ * Verteilung über alle fünf Säulen (AK4). Rot, solange die Rangfolge-UI fehlt.
  */
-describe('#1962 — Hauptsäulen-Modus', () => {
+describe('TaskForm — Säulen-Rangfolge-Treppe (#2074)', () => {
 	const fivePillars: Pillar[] = [
 		{ id: 1, name: 'Körper', description: '', weight: 20 },
 		{ id: 2, name: 'Mentale Gesundheit', description: '', weight: 20 },
@@ -2998,93 +2994,141 @@ describe('#1962 — Hauptsäulen-Modus', () => {
 		{ id: 5, name: 'Sinn', description: '', weight: 20 },
 	];
 
-	const chooseMainPillar = async (id: number): Promise<void> => {
+	const storedShares = [
+		{ pillarId: 1, share: 50, confidence: 100 },
+		{ pillarId: 2, share: 20, confidence: 100 },
+		{ pillarId: 3, share: 15, confidence: 100 },
+		{ pillarId: 4, share: 10, confidence: 100 },
+		{ pillarId: 5, share: 5, confidence: 100 },
+	];
+
+	const tapPillar = async (name: RegExp): Promise<void> => {
 		await act(async () => {
-			fireEvent.change(screen.getByLabelText('Hauptsäule'), { target: { value: String(id) } });
+			fireEvent.click(screen.getByRole('button', { name }));
 		});
 	};
 
-	const rowLabels = (): (string | null)[] =>
-		Array.from(document.querySelectorAll('.pillar-row input')).map((input) => input.getAttribute('aria-label'));
+	const assertValidPayload = (pillars: { pillarId: number; share: number }[]): void => {
+		expect(pillars).toHaveLength(5);
+		expect(pillars.reduce((acc, entry) => acc + entry.share, 0)).toBe(100);
+		for (const entry of pillars) {
+			expect(entry.share).toBeGreaterThanOrEqual(5);
+			expect(entry.share).toBeLessThanOrEqual(80);
+		}
+	};
 
-	it('AK2 — Hauptsäule vorausgewählt (erste Säule), Änderung übernimmt genau eine Zeile ins Payload', async () => {
+	it('AK1 — Tipp-Reihenfolge Haupt- und drei Nebensäulen zeigt die Treppe 50/20/15/10/5 mit Rang im Label', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
-		mockCreateTask.mockResolvedValue(minimalNewTask());
+		render(<TaskForm task={null} {...defaultProps} pillars={fivePillars} />);
 
-		await act(async () => {
-			render(<TaskForm task={null} {...defaultProps} pillars={fivePillars} />);
-		});
+		await tapPillar(/^Körper/);
+		await tapPillar(/Mentale Gesundheit/);
+		await tapPillar(/Beziehungen/);
+		await tapPillar(/Wirksamkeit/);
 
-		// Vorbelegung (PO-Entscheidung): erste Säule der Liste mit genau einer Zeile (Anteil 100 %).
-		expect(screen.getByLabelText('Hauptsäule')).toBeInTheDocument();
-		expect(rowLabels()).toEqual(['Körper: 100 %']);
-
-		await chooseMainPillar(2);
-		expect(rowLabels()).toEqual(['Mentale Gesundheit: 100 %']);
-
-		await fillTitle('Hauptsäulen-Task');
-		await clickSave();
-
-		expect(mockCreateTask).toHaveBeenCalledTimes(1);
-		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: { pillars: unknown[] } }];
-		expect(taskCreate.pillars).toEqual([{ pillarId: 2, share: 100, confidence: 100 }]);
+		expect(screen.getByRole('button', { name: /Rang 1 von 5: Körper — 50 %/ })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /Rang 2 von 5: Mentale Gesundheit — 20 %/ })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /Rang 3 von 5: Beziehungen — 15 %/ })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /Rang 4 von 5: Wirksamkeit — 10 %/ })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /^Sinn — 5 %$/ })).toBeInTheDocument();
 	});
 
-	it('AK3 — Regelfallback übernehmen: fünf Zeilen, Hauptsäule 80 %, Rest je 5 %, Payload summiert 100', async () => {
+	it('AK2 — nur Hauptsäule: 50 %, die übrigen vier gleichmäßig 13/13/12/12 (Summe 100)', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
-		mockCreateTask.mockResolvedValue(minimalNewTask());
+		render(<TaskForm task={null} {...defaultProps} pillars={fivePillars} />);
 
-		await act(async () => {
-			render(<TaskForm task={null} {...defaultProps} pillars={fivePillars} />);
-		});
-		await chooseMainPillar(1);
-		await act(async () => {
-			fireEvent.click(screen.getByRole('button', { name: 'Vorschlag übernehmen' }));
-		});
+		await tapPillar(/^Körper/);
 
-		expect(rowLabels()).toEqual([
-			'Körper: 80 %',
-			'Mentale Gesundheit: 5 %',
-			'Beziehungen: 5 %',
-			'Wirksamkeit: 5 %',
-			'Sinn: 5 %',
-		]);
-
-		await fillTitle('Vollverteilt');
-		await clickSave();
-
-		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: { pillars: unknown[] } }];
-		expect(taskCreate.pillars).toEqual([
-			{ pillarId: 1, share: 80, confidence: 100 },
-			{ pillarId: 2, share: 5, confidence: 100 },
-			{ pillarId: 3, share: 5, confidence: 100 },
-			{ pillarId: 4, share: 5, confidence: 100 },
-			{ pillarId: 5, share: 5, confidence: 100 },
-		]);
+		expect(screen.getByRole('button', { name: /Rang 1 von 5: Körper — 50 %/ })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /^Mentale Gesundheit — 13 %$/ })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /^Beziehungen — 13 %$/ })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /^Wirksamkeit — 12 %$/ })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /^Sinn — 12 %$/ })).toBeInTheDocument();
 	});
 
-	it('AK3 — Nicht übernehmen: danach speichert nur die Hauptsäule (keine stillen 20-%-Vorbelegungen)', async () => {
+	it('AK3 — erneuter Tipp nimmt den Rang zurück, verbleibende Ränge rücken auf', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		render(<TaskForm task={null} {...defaultProps} pillars={fivePillars} />);
+
+		await tapPillar(/^Körper/);
+		await tapPillar(/Mentale Gesundheit/);
+		await tapPillar(/Beziehungen/);
+		await tapPillar(/Mentale Gesundheit/); // zweiter Tipp: Rang zurücknehmen
+
+		expect(screen.getByRole('button', { name: /Rang 1 von 5: Körper — 50 %/ })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /Rang 2 von 5: Beziehungen — 20 %/ })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /^Mentale Gesundheit — 10 %$/ })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /^Wirksamkeit — 10 %$/ })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /^Sinn — 10 %$/ })).toBeInTheDocument();
+	});
+
+	it('AK4 — Anlegen (Task und Serie) sendet immer fünf Beiträge je [5, 80] mit Summe 100', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 		mockCreateTask.mockResolvedValue(minimalNewTask());
+		const taskView = render(<TaskForm task={null} {...defaultProps} pillars={fivePillars} />);
 
-		await act(async () => {
-			render(<TaskForm task={null} {...defaultProps} pillars={fivePillars} />);
-		});
-		await chooseMainPillar(1);
-		await act(async () => {
-			fireEvent.click(screen.getByRole('button', { name: 'Vorschlag übernehmen' }));
-		});
-		await act(async () => {
-			fireEvent.click(screen.getByRole('button', { name: 'Nicht übernehmen' }));
-		});
-
-		expect(rowLabels()).toEqual(['Körper: 100 %']);
-
-		await fillTitle('Nur Hauptsäule');
+		await tapPillar(/^Körper/); // ein Tipp auf die Hauptsäule genügt zum Speichern
+		await fillTitle('Rangfolge-Task');
 		await clickSave();
 
-		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: { pillars: unknown[] } }];
-		expect(taskCreate.pillars).toEqual([{ pillarId: 1, share: 100, confidence: 100 }]);
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [
+			{ taskCreate: { pillars: { pillarId: number; share: number }[] } },
+		];
+		expect(taskCreate.pillars.find((entry) => entry.pillarId === 1)?.share).toBe(50);
+		assertValidPayload(taskCreate.pillars);
+		taskView.unmount();
+
+		mockCreateSeries.mockResolvedValue(minimalSeries());
+		const seriesView = render(<TaskForm task={null} initialMode="series" {...defaultProps} pillars={fivePillars} />);
+
+		await tapPillar(/^Körper/);
+		await fillTitle('Rangfolge-Serie');
+		await clickSave();
+
+		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [
+			{ seriesCreate: { pillars: { pillarId: number; share: number }[] } },
+		];
+		assertValidPayload(seriesCreate.pillars);
+		seriesView.unmount();
+	});
+
+	it('AK4 — Bearbeiten (Task und Serie) sendet fünf Beiträge; die Rangfolge startet aus der gespeicherten Verteilung', async () => {
+		mockUpdateTask.mockResolvedValue({ ...minimalNewTask(), pillars: storedShares });
+		const taskView = render(
+			<TaskForm
+				{...defaultProps}
+				pillars={fivePillars}
+				task={{ ...minimalNewTask(), id: 3, title: 'Rang-Task', pillars: storedShares }}
+			/>,
+		);
+
+		// Edit-Flow leitet die Ränge aus der gespeicherten Verteilung ab (Anteile absteigend = Rang 1..n).
+		expect(screen.getByRole('button', { name: /Rang 1 von 5: Körper — 50 %/ })).toBeInTheDocument();
+
+		await clickSaveEdit();
+
+		const [{ taskUpdate }] = mockUpdateTask.mock.calls[0] as [
+			{ taskUpdate: { pillars: { pillarId: number; share: number }[] } },
+		];
+		assertValidPayload(taskUpdate.pillars);
+		taskView.unmount();
+
+		mockUpdateSeries.mockResolvedValue(minimalSeries());
+		const seriesView = render(
+			<SeriesEditForm
+				{...defaultProps}
+				pillars={fivePillars}
+				task={null}
+				series={{ ...minimalSeries(), pillars: storedShares }}
+			/>,
+		);
+		await clickSaveEdit();
+
+		const [{ seriesUpdate }] = mockUpdateSeries.mock.calls[0] as [
+			{ seriesUpdate: { pillars: { pillarId: number; share: number }[] } },
+		];
+		assertValidPayload(seriesUpdate.pillars);
+		seriesView.unmount();
 	});
 });
 
