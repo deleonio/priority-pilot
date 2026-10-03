@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.13 - 2026-10-03
 
-_Enthält v0.13.0 – v0.13.21._
+_Enthält v0.13.0 – v0.13.22._
 
 ### 🎉 New Features
 
@@ -35,6 +35,7 @@ _Enthält v0.13.0 – v0.13.21._
 
 - fix(server): truncate LLM activity advice to task limits (#2010) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2103
 - chore(ci): pull pi CLI unpinned at latest per run and drop the pi cache by @deleonio in https://github.com/deleonio/priority-pilot/pull/2108
+- feat(server): rank rule mirror and full care suggestions (#2075) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2106
 
 ## v0.12 - 2026-10-02
 
@@ -167,6 +168,7 @@ _Enthält v0.10.0 – v0.10.36._
 - chore(deps): update renovatebot/github-action action to v46.3.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1850
 - test(frontend): locate title-limit message by text in e2e spec by @deleonio in https://github.com/deleonio/priority-pilot/pull/1858
 - test(e2e): exempt kol-alert from #930 transparency check by @deleonio in https://github.com/deleonio/priority-pilot/pull/1859
+- fix(server): count late completions for their due day in streak by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1856
 - fix(server): count late completions for their due day in streak by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1856
 - docs(agents): align e2e page.route rule with practice by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1860
 - feat(server): suggest recovery on overload in care hint (#1795) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1861
@@ -319,7 +321,6 @@ _Enthält v0.5.0 – v0.5.32._
 - feat(server): Google-Login der App mit Einmal-Code abschließen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1703
 - fix(push): warn on zero-device test push and resync subscription by @deleonio in https://github.com/deleonio/priority-pilot/pull/1704
 - feat(server): store android app fcm device token by @deleonio in https://github.com/deleonio/priority-pilot/pull/1706
-- fix(ci): LLM phases no longer wait for verify by @deleonio in https://github.com/deleonio/priority-pilot/pull/1705
 - fix(ci): LLM phases no longer wait for verify by @deleonio in https://github.com/deleonio/priority-pilot/pull/1705
 - feat(server): allow users to delete their account with all personal data by @deleonio in https://github.com/deleonio/priority-pilot/pull/1707
 - feat(native): scaffold android app in remote mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1708
