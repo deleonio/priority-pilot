@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.14 - 2026-10-03
 
-_Enthält v0.14.0 – v0.14.11._
+_Enthält v0.14.0 – v0.14.12._
 
 ### 🎉 New Features
 
@@ -22,6 +22,7 @@ _Enthält v0.14.0 – v0.14.11._
 - feat(server): suggest share and confidence per pillar (#2076) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2131
 - feat(ci): auto-merge mechanically solvable PR conflicts (#2099) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2125
 - feat(ci): let container closing analysis act on its result (#2101) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2127
+- fix(ci): fallback documenter no longer pins release:engineering (#2111) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2129
 
 ## v0.13 - 2026-10-03
 
@@ -144,6 +145,7 @@ _Enthält v0.11.0 – v0.11.31._
 ### 🔧 Engineering
 
 - chore(deps): update renovatebot/github-action action to v46.3.6 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1866
+- chore(deps): update renovatebot/github-action action to v46.3.6 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1866
 
 ### Other Changes
 
@@ -218,7 +220,6 @@ _Enthält v0.10.0 – v0.10.36._
 - test(server): cover mcp plan tiers plus read and pro write by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1870
 - docs(skills): add ticket-coordination skill for epic processing by @deleonio in https://github.com/deleonio/priority-pilot/pull/1862
 - feat(frontend): show plan hint at plan limits without dialog (#1787) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1875
-- feat(frontend): show and label ai suggestion in care hint (#1873) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1874
 - feat(frontend): show and label ai suggestion in care hint (#1873) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1874
 
 ## v0.9 - 2026-09-29
