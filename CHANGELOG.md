@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.14 - 2026-10-03
 
-_Enthält v0.14.0 – v0.14.9._
+_Enthält v0.14.0 – v0.14.10._
 
 ### 🎉 New Features
 
@@ -20,6 +20,7 @@ _Enthält v0.14.0 – v0.14.9._
 - docs: describe pillars as five fixed per-user copies (V-10, F-31) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2130
 - docs(marketing): rewrite articles as long standalone platform versions by @deleonio in https://github.com/deleonio/priority-pilot/pull/2117
 - feat(server): suggest share and confidence per pillar (#2076) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2131
+- feat(ci): auto-merge mechanically solvable PR conflicts (#2099) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2125
 
 ## v0.13 - 2026-10-03
 
@@ -216,6 +217,7 @@ _Enthält v0.10.0 – v0.10.36._
 - test(server): cover mcp plan tiers plus read and pro write by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1870
 - docs(skills): add ticket-coordination skill for epic processing by @deleonio in https://github.com/deleonio/priority-pilot/pull/1862
 - feat(frontend): show plan hint at plan limits without dialog (#1787) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1875
+- feat(frontend): show plan hint at plan limits without dialog (#1787) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1875
 - feat(frontend): show and label ai suggestion in care hint (#1873) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1874
 
 ## v0.9 - 2026-09-29
@@ -307,7 +309,6 @@ _Enthält v0.6.0 – v0.6.15._
 
 ### Other Changes
 
-- feat(server): accept google play purchases and unlock the plan by @deleonio in https://github.com/deleonio/priority-pilot/pull/1721
 - feat(server): accept google play purchases and unlock the plan by @deleonio in https://github.com/deleonio/priority-pilot/pull/1721
 - feat(server): securely accept google play subscription events (rtdn) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1722
 - feat(server): google play subscription states drive plan, grace and downgrade by @deleonio in https://github.com/deleonio/priority-pilot/pull/1723
