@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.14 - 2026-10-03
 
-_Enthält v0.14.0 – v0.14.19._
+_Enthält v0.14.0 – v0.14.20._
 
 ### 🎉 New Features
 
@@ -30,6 +30,7 @@ _Enthält v0.14.0 – v0.14.19._
 - ci: make phase label precheck parseable again by @deleonio in https://github.com/deleonio/priority-pilot/pull/2136
 - ci: cache pi packages via scheduled warm-up run (#2092) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2134
 - feat(ci): record runtime and configured model per cost entry (#2090) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2121
+- feat(server): store only complete pillar distributions (5-80%, sum 100) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2132
 
 ## v0.13 - 2026-10-03
 
@@ -125,6 +126,7 @@ _Enthält v0.11.0 – v0.11.31._
 - feat(server): add evening streak reminder push (#1836) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1883
 - feat(server): send care push in the user's app language (#1879) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1880
 - docs(skills): add ticket-import skill for document-to-issue imports by @deleonio in https://github.com/deleonio/priority-pilot/pull/1905
+- docs(skills): add ticket-import skill for document-to-issue imports by @deleonio in https://github.com/deleonio/priority-pilot/pull/1905
 - feat(server): add feedback_send mcp tool for app feedback by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1915
 - feat(frontend): publish terms of use and link them in app help (#1891) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1918
 - feat(server): credit remaining paypal term on upgrade invoice by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1917
@@ -157,6 +159,7 @@ _Enthält v0.11.0 – v0.11.31._
 
 - Säulenbeschreibungen erklären, wie die Balance zustande kommt (#1849) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1884
 - feat(frontend): explain streak counting rule on streak card (#1819) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1885
+- ci(deploy): demo.apk mit Produktionsschlüssel signieren (#1779) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1906
 - ci(deploy): demo.apk mit Produktionsschlüssel signieren (#1779) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1906
 - feat(server): keep paid plan until period end on paypal cancel by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1908
 - feat(frontend): move saved places into their own settings tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1911
@@ -327,7 +330,6 @@ _Enthält v0.6.0 – v0.6.15._
 - chore(deps): update node.js to v26.10.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1655
 - feat(android): buy packages via google play by @deleonio in https://github.com/deleonio/priority-pilot/pull/1726
 - feat(android): Käufe wiederherstellen und fremdverwaltetes Abo anzeigen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1730
-- feat(android): Paket über Google Play wechseln by @deleonio in https://github.com/deleonio/priority-pilot/pull/1731
 - feat(android): Paket über Google Play wechseln by @deleonio in https://github.com/deleonio/priority-pilot/pull/1731
 - chore(deps): update pi (cli + erweiterungen) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1656
 - fix(frontend): keep admin confirm dialog mounted across step change by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1732
