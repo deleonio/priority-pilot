@@ -10,14 +10,15 @@ Bilder: images/ (echte App-Screenshots, deutschsprachige UI mit Übersetzungshil
 # My streak can't take anything away — four rules, one timezone trap
 
 Streaks have a reputation: the chain breaks, the counter resets, the app becomes the thing you
-avoid. I ship one anyway. Balamentum counts calendar days with at least one completed task —
-under four rules that make the counter a pure collector. Same trigger as every guilt mechanic;
-a different outcome by construction, because nothing in the loop subtracts.
+avoid. I ship one anyway. Balamentum, my prioritization app, counts calendar days with at least
+one completed task. What makes it work is not the counting — it's four rules that make sure the
+counter can never take anything away. Same trigger as every guilt mechanic; a different outcome
+by construction, because nothing in the loop subtracts.
 
-Before the rules, the setting: Balamentum users define life-balance pillars and complete tasks
-that pay into them. The streak counts calendar days with at least one completion — multiple
-completions on the same day count once. It answers a single question per day: did anything get
-done at all? Everything below is about making that question safe to answer.
+The setting in one paragraph: users define life-balance pillars, complete tasks that pay into
+them, and the streak answers one question per calendar day — did anything get done at all?
+Multiple completions on the same day count once. Everything below is about making that question
+safe to answer.
 
 ![The streak card: current run, best mark, counting rule disclosed](images/screenshot-streak-card.png)
 
@@ -28,13 +29,16 @@ counted") is part of the card._
 ## Rule 1: today still has hours left
 
 The obvious implementation breaks the chain whenever today has no completion yet. That punishes
-people for the time of day. My version keeps the visible chain standing while it reaches
-yesterday.
+people for the time of day. My version is blunter: the visible chain simply ends at yesterday or
+today — never further back.
 
 ```ts
-// sketch: the chain simply never needs today — it ends at yesterday
-const current = chainEndingAt(yesterday);
+// sketch: the chain runs up to today or yesterday, never further back
+const current = chainEndingAt(latestActiveDayOrYesterday);
 ```
+
+A day in between breaks it; an unfinished today never does. The evening belongs to whoever
+still has it.
 
 ## Rule 2: the best mark is a record, not a balance
 
@@ -56,10 +60,11 @@ day it _was due_ still counts as active. I feed both timestamps, completion and 
 the day set. Being human deletes no progress.
 
 The trap I nearly stepped in lives one level deeper: what counts as "a day"? The server lives in
-UTC; the user lives in Berlin. A completion shortly after midnight German time — 00:30 Berlin is
-22:30 UTC the _previous_ day — would fall on yesterday's UTC date if I counted server-side. The
-hidden midnight sits in every German's early morning, so the day boundary is computed per user
-timezone, not per server:
+UTC; the user lives in Berlin. A completion shortly after midnight German time falls on the
+_previous_ day's UTC date — in summer as in winter, only the hour differs. Count the day
+server-side and the hidden midnight sits in every German's early morning: the task you finished
+at 00:30 belongs to the evening you already said goodnight to. So the day boundary is computed
+per user timezone, not per server:
 
 ```ts
 // sketch: a calendar day is a user-local fact — so is isDayOver

@@ -12,9 +12,9 @@ Bilder: images/ (Screenshots + eine SVG als Diagramm, Generator im Ordner).
 _By Martin Oppitz · Balamentum — all screenshots below run on demo data._
 
 **TL;DR:** Four practices, one per section, taken from the feedback system of Balamentum and
-shown in real screenshots plus one diagram: design every state a view can land in, hold every
-text to the care-or-log question, let ambient motion carry meaning while staying declinable, and
-build counters that only add. A checklist at the end collects them in one place.
+shown in screenshots plus one diagram: design every state a view can land in, hold every text to
+the care-or-log question, let ambient motion carry meaning while staying declinable, and count
+the day where the user lives.
 
 ![The dashboard: balance heart, stats, care card](images/screenshot-dashboard-desktop.png)
 
@@ -91,19 +91,25 @@ transforms, the dial's swing — is switched off.
 }
 ```
 
-## Build counters that only add
+## Count the day where the user lives
 
-The streak beside the balance heart follows four rules: the running day doesn't count as broken,
-the best mark never shrinks, late completions rescue the day they were due, and the counting
-rule is disclosed in the UI. The day boundary is computed in the viewer's timezone, not the
-server's. As long as completions stand, the counter only ever adds — deleting one takes its
-day out of the set, which is the intended behavior and part of the honesty here.
+The most subtle guilt mechanic hides in the calendar, not in the counter. Balamentum's streak
+counts calendar days with at least one completion — and a "day" is a user-local fact. The
+server lives in UTC; the user lives in Berlin. A completion shortly after midnight German time
+falls on the _previous_ day's UTC date, whether the clock says summer or winter time. Counting
+days server-side puts a hidden midnight into every German's early morning: the task you finished
+at 00:30 would be credited to the day you already said goodnight to.
 
-The two layers stay separate, and that is what keeps them honest: the per-pillar display keeps
-the unclamped actual-to-target ratio (overshoot stays visible), while the aggregate balance
-caps at 1.0 — overwork is not a winning strategy for the widget. Success is marked quietly: a
-short note appears on the
-dashboard when the day is done, no siren.
+The streak therefore follows four rules that make it a pure collector: the running day doesn't
+count as broken, the best mark never shrinks, late completions rescue the day they were due, and
+the counting rule is disclosed in the UI. As long as completions stand, the counter only ever
+adds — deleting one takes its day out of the set, which is the intended behavior and part of the
+honesty here.
+
+The math around it stays honest by separation: the per-pillar display keeps the unclamped
+actual-to-target ratio (overshoot stays visible), while the aggregate balance caps at 1.0 —
+overwork is not a winning strategy for the widget. Success is marked quietly: a short note
+appears on the dashboard when the day is done, no siren.
 
 ## Checklist
 
@@ -112,6 +118,6 @@ For your next dashboard, in one place:
 - Four states per data view; empty invites, errors name cause plus next step.
 - One review question per text: does it care, or does it just log?
 - Ambient motion only where it means something — and always with a complete still fallback.
-- Counters add; only the aggregate caps; the day belongs to the user's timezone.
+- Counters add; the day belongs to the user's timezone, and only the aggregate caps.
 
 The app runs at [balamentum.modevel.de](https://balamentum.modevel.de).

@@ -21,7 +21,7 @@ genau diesem Punkt; der Zähler, der sie täglich abholte, sieht plötzlich wie 
 
 Das Problem ist nicht der Zähler. Es ist, dass er nimmt. Balamentum, eine Web-App zur
 Aufgabenpriorisierung, führt trotzdem einen Streak — gebaut nach vier Regeln, die ihn zum reinen
-Sammeln machen. Der Unterschied zu den üblichen Ketten zeigt sich nicht am Auslöser; er zeigt
+Sammeln machen. Der Unterschied zu einer gängigen Bauart zeigt sich nicht am Auslöser; er zeigt
 sich daran, was der Zähler mit einem leeren Tag macht.
 
 ![Streak-Card in Balamentum](images/screenshot-streak-card.png)
@@ -33,10 +33,10 @@ wird._
 ## Die vier Regeln
 
 **1. Der laufende Tag zählt noch nicht als Bruch.** Reicht die Folge bis gestern, bleibt sie
-stehen — der Tag ist ja nicht vorbei. Erst eine echte Lücke setzt den Zähler sichtbar auf null.
-Eine gängige Bauart bricht die Kette schon, wenn heute noch nichts abgehakt wurde, und
-bestraft damit die Tageszeit statt des Verhaltens: Wer um 23 Uhr öffnet, hat noch dieselben
-Möglichkeiten wie wer um 9 Uhr öffnet.
+stehen — der Abend gehört dem, der ihn noch hat. Erst eine echte Lücke setzt den Zähler sichtbar
+auf null. Eine gängige Bauart bricht die Kette schon, wenn heute noch nichts abgehakt wurde,
+und verwandelt die Tageszeit in ein Urteil: Wer um 23 Uhr öffnet, hat denselben Tag wie wer um
+9 Uhr öffnet.
 
 **2. Die Bestmarke überdauert jede Lücke.** Sie ist ein Rekord, kein Guthaben, das verfällt.
 Eine Lücke kostet die laufende Folge, niemals den Rekord. Dreißig zusammenhängende Tage bleiben
@@ -57,11 +57,11 @@ Diese Regeln schützen gegen den Kalender, nicht gegen den Papierkorb: Wer eine 
 löscht, nimmt den Tag aus der Zählung. Das ist gewollt — die Zählung folgt dem, was steht — aber
 es gehört zur Ehrlichkeit des Designs dazu.
 
-## Rückmeldung, die ruhiger wird, je besser es steht
+## Rückmeldung, die mit der Balance ruhiger wird
 
 Neben dem Streak zeigt das Dashboard die Lebensbalance als Herz-Gefäß. Sein Ruhepuls dauert
-zwischen 1,5 und 2,6 Sekunden, und die Dauer hängt am Füllstand: je voller das Herz, desto
-ruhiger der Puls. Kein Alarm bei Schieflage, kein rot blinkendes Symbol.
+zwischen 1,5 und 2,6 Sekunden, und mit vollerem Herzen schlägt es langsamer. Kein Alarm bei
+Schieflage, kein rot blinkendes Symbol.
 
 Die Rechnung dahinter kann nicht durch Überarbeitung gewonnen werden: Wer das Soll einer Säule
 übererfüllt, verbessert die Gesamt-Balance dadurch nicht — die Anzeige zeigt die Übererfüllung
@@ -88,8 +88,11 @@ alarmiert nicht.
 
 ![Fürsorge-Hinweis mit TelefonSeelsorge-Zeile](images/screenshot-care-hint.png)
 
-_„Gerade gibt es keinen Vorschlag für dich. Mach in deinem Tempo weiter.“ Wörter wie
-„vernachlässigt“, „verschlafen“ oder „verpasst“ kommen in diesen Texten nicht vor._
+_„Gerade gibt es keinen Vorschlag für dich. Mach in deinem Tempo weiter.“ — das Leere-Beispiel
+aus der laufenden App._
+
+Die Wortsperre ist Teil der Prüffrage: „vernachlässigt“, „verschlafen“, „verpasst“ kommen in
+diesen Texten nicht vor. Ein niedriger Stand ist eine Beobachtung, kein Fehlverhalten.
 
 ## Auch die Technik darf nicht drücken
 
