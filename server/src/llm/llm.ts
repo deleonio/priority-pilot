@@ -936,9 +936,11 @@ export const buildAdvisorUserMessage = (input: AdviseActivitiesInput): string =>
 /**
  * Liest aus der (bereits geparsten) Modell-Antwort die Berater-Vorschläge defensiv aus: nur Einträge
  * mit nicht-leerer Aktivität und mindestens einer bekannten Säule, `pillarIds` dublettenfrei und
- * sortiert, insgesamt auf {@link MAX_ADVICE_ENTRIES} begrenzt.
+ * sortiert, insgesamt auf {@link MAX_ADVICE_ENTRIES} begrenzt. Aktivität und Begründung werden auf
+ * die Task-Grenzen gekürzt (Titel 65, Beschreibung 3000 Zeichen — #2010), damit das Übernehmen
+ * eines KI-Vorschlags `POST /tasks` nicht mit einem zu langen Titel scheitern lässt.
  */
-const extractActivityAdvice = (parsed: unknown, input: AdviseActivitiesInput): ActivityAdvice[] => {
+export const extractActivityAdvice = (parsed: unknown, input: AdviseActivitiesInput): ActivityAdvice[] => {
 	if (typeof parsed !== 'object' || parsed === null || !Array.isArray((parsed as { advice?: unknown }).advice)) {
 		throw new MistralRequestError('Antwort des Modells hat nicht das erwartete Format ({ advice: [...] }).');
 	}
@@ -962,8 +964,8 @@ const extractActivityAdvice = (parsed: unknown, input: AdviseActivitiesInput): A
 			continue;
 		}
 		advice.push({
-			activity: activity.trim(),
-			reason: typeof reason === 'string' ? reason.trim() : '',
+			activity: activity.trim().slice(0, PARSED_TITLE_MAX_LENGTH),
+			reason: typeof reason === 'string' ? reason.trim().slice(0, PARSED_DESCRIPTION_MAX_LENGTH) : '',
 			pillarIds: ids,
 		});
 		if (advice.length >= MAX_ADVICE_ENTRIES) {

@@ -49,6 +49,39 @@ test.describe('Dashboard — Fürsorge-Hinweis (Issue #1793)', () => {
 			.toBe(vorher + 1);
 	});
 
+	// #2010 AK2 (docs/spec/issue-2010.md): eigener-Aufgabe-Weg gegen das echte Backend — der bislang
+	// nur Unit-gemockte Pfad. Rot, wenn der Klick keine Statusänderung bewirkt oder etwas neu anlegt.
+	test('#2010 AK2: Übernehmen einer eigenen Aufgabe → „In process“, keine neue Aufgabe', async ({ page }) => {
+		const pillars = (await (await page.request.get('/api/v1/pillars')).json()) as { id: number }[];
+		await page.request.post('/api/v1/tasks', {
+			data: {
+				title: 'E2E #2010 Fahrrad reparieren',
+				status: 'Open',
+				priority: 3,
+				estimatedEffort: 0.5,
+				pillars: [{ pillarId: pillars[0]!.id, share: 100 }],
+			},
+		});
+		await openDashboard(page);
+
+		const hint = page.getByTestId('care-hint');
+		await expect(hint).toBeVisible();
+		// Gate: eigene Aufgaben stehen in der Auswahl vor den Vorlagen (careSuggestions.ts) — nur dann
+		// löst der Klick wirklich den Task-Weg (updateTask) statt den Vorlagen-Weg aus.
+		await expect(hint).toContainText('E2E #2010 Fahrrad reparieren');
+		const vorher = ((await (await page.request.get('/api/v1/tasks')).json()) as unknown[]).length;
+
+		await page.getByRole('button', { name: 'Vorschlag übernehmen' }).click();
+
+		await expect(page.getByTestId('care-hint')).toHaveCount(0);
+		const tasks = (await (await page.request.get('/api/v1/tasks')).json()) as {
+			title: string;
+			status: string;
+		}[];
+		expect(tasks).toHaveLength(vorher);
+		expect(tasks.find((task) => task.title === 'E2E #2010 Fahrrad reparieren')?.status).toBe('In process');
+	});
+
 	test('AK3: Ablehnen blendet den Hinweis aus', async ({ page }) => {
 		await openDashboard(page);
 		await expect(page.getByTestId('care-hint')).toBeVisible();

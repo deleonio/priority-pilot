@@ -5,6 +5,7 @@ import {
 	buildUserMessage,
 	weakSignalPillarIds,
 	buildLektoratUserMessage,
+	extractActivityAdvice,
 	extractLektoratOutput,
 	lektoratTextWithMistral,
 	parseTaskTextWithMistral,
@@ -483,5 +484,44 @@ describe('Kategorie-Erkennung beim Parsen (Aufgabe und Suche)', () => {
 		const result = await parseSearchQueryWithMistral('Zahnarzt', undefined, categories);
 
 		assert.deepEqual(result, { text: 'Zahnarzt' }, 'erfundene ID fällt weg, der Text bleibt');
+	});
+});
+
+/**
+ * Vertrag für `extractActivityAdvice` in Bezug auf Längen (#2010): Aktivität und Begründung werden
+ * auf die Task-Grenzen gekürzt (Titel 65, Beschreibung 3000 Zeichen — Spiegel von `Task` und
+ * `parseTaskTextWithMistral`). Ohne Kürzung erzeugt ein geschwätziges Modell KI-Vorschläge, deren
+ * Übernehmen per `POST /tasks` an der DB-Validierung scheitert („Konnte nicht angelegt werden.“).
+ */
+describe('extractActivityAdvice — Längenbegrenzung der Berater-Antwort (#2010)', () => {
+	const pillars = [{ id: 1, name: 'Körper', description: 'Bewegung, Ernährung, Schlaf.' }];
+
+	it('kürzt eine zu lange Aktivität auf die Task-Titel-Grenze (65 Zeichen)', () => {
+		const [advice] = extractActivityAdvice(
+			{ advice: [{ activity: 'X'.repeat(80), reason: 'passt', pillarIds: [1] }] },
+			{ pillars },
+		);
+
+		assert.equal(advice?.activity.length, 65, 'Aktivität wird auf 65 Zeichen gekürzt, nicht verworfen');
+		assert.equal(advice?.reason, 'passt', 'die Begründung bleibt unberührt');
+	});
+
+	it('kürzt eine zu lange Begründung auf die Task-Beschreibungs-Grenze (3000 Zeichen)', () => {
+		const [advice] = extractActivityAdvice(
+			{ advice: [{ activity: 'Spaziergang', reason: 'y'.repeat(3200), pillarIds: [1] }] },
+			{ pillars },
+		);
+
+		assert.equal(advice?.activity, 'Spaziergang', 'die Aktivität bleibt unberührt');
+		assert.equal(advice?.reason.length, 3000, 'Begründung wird auf 3000 Zeichen gekürzt, nicht verworfen');
+	});
+
+	it('lässt passende Vorschläge unverändert durch', () => {
+		const advice = extractActivityAdvice(
+			{ advice: [{ activity: 'Spaziergang', reason: 'Bewegung an der frischen Luft', pillarIds: [1] }] },
+			{ pillars },
+		);
+
+		assert.deepEqual(advice, [{ activity: 'Spaziergang', reason: 'Bewegung an der frischen Luft', pillarIds: [1] }]);
 	});
 });
