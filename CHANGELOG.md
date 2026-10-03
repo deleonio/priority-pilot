@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.14 - 2026-10-03
 
-_Enthält v0.14.0 – v0.14.15._
+_Enthält v0.14.0 – v0.14.16._
 
 ### 🎉 New Features
 
@@ -26,6 +26,7 @@ _Enthält v0.14.0 – v0.14.15._
 - feat(ci): defer pipeline starts in zai peak window via ZAI_PEAK_MODE by @deleonio in https://github.com/deleonio/priority-pilot/pull/2126
 - docs(arc42): sync documentation to implementation state 2026-10-03 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2133
 - chore(ci): connect tailscale exit node via oauth client with authkey fallback by @deleonio in https://github.com/deleonio/priority-pilot/pull/2128
+- ci: documenter falls back to zai when pi openrouter aliases are missing by @deleonio in https://github.com/deleonio/priority-pilot/pull/2135
 
 ## v0.13 - 2026-10-03
 
@@ -151,7 +152,6 @@ _Enthält v0.11.0 – v0.11.31._
 
 ### Other Changes
 
-- Säulenbeschreibungen erklären, wie die Balance zustande kommt (#1849) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1884
 - Säulenbeschreibungen erklären, wie die Balance zustande kommt (#1849) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1884
 - feat(frontend): explain streak counting rule on streak card (#1819) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1885
 - ci(deploy): demo.apk mit Produktionsschlüssel signieren (#1779) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1906
@@ -321,6 +321,7 @@ _Enthält v0.6.0 – v0.6.15._
 - feat(server): at most one active subscription per user across providers by @deleonio in https://github.com/deleonio/priority-pilot/pull/1725
 - chore: publish german privacy policy page at /datenschutz/ (#1672) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1727
 - feat(server): apply pillar weights to cadence balance fill by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1728
+- chore(deps): update node.js to v26.10.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1655
 - chore(deps): update node.js to v26.10.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1655
 - feat(android): buy packages via google play by @deleonio in https://github.com/deleonio/priority-pilot/pull/1726
 - feat(android): Käufe wiederherstellen und fremdverwaltetes Abo anzeigen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1730
