@@ -6,7 +6,6 @@ import {
 	KolInputDate,
 	KolInputRange,
 	KolInputText,
-	KolSelect,
 	KolSingleSelect,
 	KolSpin,
 	KolTextarea,
@@ -42,13 +41,12 @@ import { ConfirmDiscardDialog } from './ConfirmDiscardDialog';
 import { ConfirmSeriesActionModal } from './ConfirmSeriesActionModal';
 import { LektoratDiffModal } from './LektoratDiffModal';
 import {
+	distributionFromRankOrder,
 	fillContributions,
 	redistributeShares,
 	SHARE_MIN,
 	SHARE_STEP,
-	SHARE_TOTAL,
 	shareMax,
-	suggestMainDistribution,
 	suggestionsToContributions,
 } from '../lib/pillar';
 import { deadlineToDateInput, formatNumber, isTaskFormDirty, type TaskFormSnapshot } from '../lib/task';
@@ -336,18 +334,21 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 
 	// Säulen-Verteilung im State (nicht im Ref): Jeder Reglerzug verschiebt alle Anteile und muss neu
 	// rendern. Slider verursachen — anders als Textfelder — kein Cursor-Springen. `share` ist der
-	// Prozentwert (0–100), den auch der Server führt; die Summe bleibt 100 (#1596), seit #1962
-	// umfasst die Verteilung im Anlege-Flow zunächst nur die gewählte Hauptsäule. `confidence`
-	// bleibt 0–100 und wird nicht mehr im Formular
-	// bearbeitet: Bestandswerte bleiben, neue Beiträge bekommen 100 bzw. den Wert des KI-Vorschlags.
-	// #1962: Im Anlege-Flow wird die Hauptsäule vorausgewählt (s. u.) — die Restverteilung ist ein
-	// übernehmbarer Vorschlag. Nur der Edit-Flow übernimmt die gespeicherte Verteilung und
-	// vervollständigt sie auf alle Säulen.
+	// Prozentwert (0–100), den auch der Server führt; die Summe bleibt 100 (#1596). `confidence`
+	// bleibt 0–100 und wird nicht mehr im Formular bearbeitet: Bestandswerte bleiben, neue Beiträge
+	// bekommen 100 bzw. den Wert des KI-Vorschlags. #2074: Der Anlege-Flow startet mit der
+	// Gleichverteilung (s. u.); Rangfolge-Tipps und KI-Vorschlag überschreiben sie. Nur der
+	// Edit-Flow übernimmt zusätzlich die gespeicherte Verteilung und vervollständigt sie auf alle Säulen.
 	const [contributions, setContributions] = useState<TaskPillarContribution[]>(() =>
 		isEdit ? fillContributions(pillars, task?.pillars ?? series?.pillars ?? []) : [],
 	);
-	// Gewählte Hauptsäule im Hauptsäulen-Modus (#1962); `null` = noch keine Wahl im Anlege-Flow.
-	const [mainPillarId, setMainPillarId] = useState<number | null>(null);
+	// #2074: Rangfolge der Säulen in Tipp-Reihenfolge; im Edit-Flow aus der gespeicherten Verteilung
+	// abgeleitet (Anteile absteigend = Rang 1..n, Gleichstand nach Listenordnung).
+	const [rankedPillarIds, setRankedPillarIds] = useState<number[]>(() =>
+		isEdit
+			? [...(task?.pillars ?? series?.pillars ?? [])].sort((a, b) => b.share - a.share).map((entry) => entry.pillarId)
+			: [],
+	);
 
 	// Kategorie im State (nicht im Ref): Die Auswahl muss neu rendern, damit das Badge daneben
 	// mitzieht. `null` = keine Kategorie (Sentinel `NO_CATEGORY` im Auswahlfeld).
@@ -612,31 +613,27 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 		});
 	};
 
-	// #1962: Hauptsäule wählen — die Einzel-Form startet mit genau einer Zeile (Anteil 100 %).
-	// Die Restverteilung bleibt Vorschlag; ein leerer/unbekannter Wert wird ignoriert.
-	const chooseMainPillar = (value: string): void => {
-		const id = Number(value);
-		if (!pillars.some((pillar) => pillar.id === id)) {
-			return;
-		}
-		setMainPillarId(id);
-		setContributions([{ pillarId: id, share: SHARE_TOTAL, confidence: 100 }]);
+	// #2074: Säule an-/abwählen — die Tipp-Reihenfolge erzeugt die Rangfolge (Treppe
+	// 50/20/15/10/5), ein erneuter Tipp nimmt den Rang zurück, die Folgeränge rücken auf; die
+	// Verteilung wird jeweils neu gerechnet.
+	const togglePillarRank = (pillarId: number): void => {
+		const next = rankedPillarIds.includes(pillarId)
+			? rankedPillarIds.filter((id) => id !== pillarId)
+			: [...rankedPillarIds, pillarId];
+		setRankedPillarIds(next);
+		setContributions(distributionFromRankOrder(next, pillars));
 	};
 
-	// #1962: Vorschlags-Block — Übernehmen wendet die feste Regel an (Hauptsäule 80 %, Rest je
-	// Mindestanteil), Nicht übernehmen kehrt zur Ein-Säulen-Form zurück. Kein automatisches Anwenden.
-	const applyRuleSuggestion = (): void => {
-		if (mainPillarId === null) {
-			return;
-		}
-		setContributions(suggestMainDistribution(mainPillarId, pillars));
-	};
-	const discardRuleSuggestion = (): void => {
-		if (mainPillarId === null) {
-			return;
-		}
-		setContributions([{ pillarId: mainPillarId, share: SHARE_TOTAL, confidence: 100 }]);
-	};
+	// #2074: Angezeigte Anteile der Tap-Zeilen — die aktuelle Verteilung, sobald sie alle Säulen
+	// umfasst (nach Tap, KI-Vorschlag, Reglerzug); im Übergang (Säulenliste noch nicht eingefüllt)
+	// die Verteilung aus der Rangfolge.
+	const rankDistribution = distributionFromRankOrder(rankedPillarIds, pillars);
+	const displayedShareById = new Map(
+		(contributions.length === pillars.length ? contributions : rankDistribution).map((entry) => [
+			entry.pillarId,
+			entry.share,
+		]),
+	);
 
 	// #531: Checklisten-Eintrag anlegen (neue UUID, completed = false), entfernen oder abhaken.
 	const addChecklistItem = (): void => {
@@ -674,9 +671,9 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 			}
 			// Der Vorschlag ist eine vollständige Verteilung über alle Säulen (Summe 100 %, #1596).
 			setContributions(next);
-			// #1962: Hauptsäule mitableiten (schwerster Beitrag), sonst zeigt das Auswahl-Feld
-			// trotz übernommener Verteilung leer (#305-Autofill).
-			setMainPillarId(next.reduce((best, entry) => (entry.share > best.share ? entry : best), next[0]).pillarId);
+			// #2074: Rangfolge mitableiten (Anteile absteigend, Gleichstand nach Listenordnung) —
+			// die Tap-Zeilen zeigen den Vorschlag mit Rang, ein folgender Tipp setzt dort fort.
+			setRankedPillarIds([...next].sort((a, b) => b.share - a.share).map((entry) => entry.pillarId));
 			suggestionApplied.current = true;
 		} catch (reason) {
 			const apiError = await toApiError(reason);
@@ -768,20 +765,23 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 		});
 	}, [pillars, isEdit]);
 
-	// #1962 (Fixup): Die Hauptsäule ist im Anlege-Flow vorausgewählt — PO-Entscheidung statt
-	// harter Pflicht, damit Anlegen ohne Zusatzschritt funktioniert. Ein Balance-Defizit liegt
-	// im Formular nicht vor, also die erste Säule der Liste. Der Submit-Guard bleibt als
-	// Sicherheitsnetz für den Fall, dass gar keine Säulen existieren.
+	// #2074: Sobald die Säulenliste eintrifft, startet der Anlege-Flow mit der Gleichverteilung —
+	// ohne Angabe wird keine Säule bevorzugt. (#1596: nur im Anlege-Flow; der Edit-Flow füllt die
+	// gespeicherte Verteilung im Effekt oben auf.)
 	useEffect(() => {
-		if (isEdit || mainPillarId !== null || pillars.length === 0) {
+		if (isEdit || pillars.length === 0) {
 			return;
 		}
-		chooseMainPillar(String(pillars[0].id));
-		// Die Vorbelegung ist Teil des Anfangszustands (#1584) und wird in den Schließen-Snapshot
+		setContributions((prev) => {
+			const matchesPillars =
+				prev.length === pillars.length && prev.every((entry, index) => entry.pillarId === pillars[index].id);
+			return matchesPillars ? prev : distributionFromRankOrder(rankedPillarIds, pillars);
+		});
+		// Die Gleichverteilung ist Teil des Anfangszustands (#1584) und wird in den Schließen-Snapshot
 		// gespiegelt — sonst gilt Schließen ohne Eingriff als „geändert“ und öffnet die Rückfrage.
-		initialSnapshotRef.current.contributions = [{ pillarId: pillars[0].id, share: SHARE_TOTAL, confidence: 100 }];
+		initialSnapshotRef.current.contributions = distributionFromRankOrder(rankedPillarIds, pillars);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [pillars, isEdit, mainPillarId]);
+	}, [pillars]);
 
 	// #1342 (AK1): Einmalig die gespeicherten Orte laden. Ein Ladefehler bleibt stumm — das
 	// Adressfeld funktioniert dann wie bisher, nur ohne Favoritenzeilen.
@@ -908,9 +908,9 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 			setError('Das Startdatum ist kein gültiges Datum.');
 			return;
 		}
-		// #1962: Sicherheitsnetz — die Hauptsäule ist vorausgewählt; der Fehler greift nur, wenn
-		// Säulen existieren, aber keine gewählt wurde (Race beim Nachladen). Konten ohne jede Säule
-		// legen wie vor #1962 ohne Beiträge an — dort fehlt nichts in der Balance-Rechnung (#1222,
+		// #2074: Sicherheitsnetz — die Gleichverteilung ist mit der Säulenliste vorgefüllt; der
+		// Fehler greift nur, wenn Säulen existieren, aber keine Verteilung vorliegt (Race beim
+		// Nachladen). Konten ohne jede Säule legen wie bisher ohne Beiträge an (#1222,
 		// Empfänger-Konto per test-login). Nur im Anlege-Flow; Edits übernehmen die gespeicherte
 		// Verteilung.
 		if (!isEdit && pillars.length > 0 && contributions.length === 0) {
@@ -1355,22 +1355,30 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 											</>
 										)}
 									</div>
-									{/* #1962: Hauptsäule wählen — nur im Anlege-Flow; im Edit-Flow ist die
-									    gespeicherte Verteilung maßgeblich. Der Regel-Vorschlags-Block erscheint
-									    mit der Wahl (Übernehmen wendet an, Nicht übernehmen kehrt zur
-									    Ein-Säulen-Form zurück) und bleibt bis zu einer neuen Wahl stehen. */}
-									{!isEdit && (
-										<div className="pillar-main-row">
-											{/* KolSelect statt KolSingleSelect: es rendert die native `<select>` im
-											    offenen Shadow DOM — bedienbar wie ein Auswahlfeld, auch mobil. */}
-											<KolSelect
-												_label="Hauptsäule"
-												_options={pillars.map((pillar) => ({ label: pillar.name, value: String(pillar.id) }))}
-												_value={mainPillarId === null ? '' : String(mainPillarId)}
-												_on={{ onChange: (_event, value) => chooseMainPillar(String(value)) }}
-											/>
-										</div>
-									)}
+									{/* #2074: Säulen-Rangfolge — antippen in Reihenfolge der Wichtigkeit erzeugt
+									    die Treppe 50/20/15/10/5, ein erneuter Tipp nimmt den Rang zurück
+									    (Anlegen und Bearbeiten gleichermaßen). Rang und Anteil stehen als Text
+									    im Label (nie nur Farbe); Speichern bleibt die eine Primäraktion,
+									    daher secondary. */}
+									<div className="pillar-rank-list">
+										{pillars.map((pillar) => {
+											const rank = rankedPillarIds.indexOf(pillar.id);
+											const share = displayedShareById.get(pillar.id) ?? 0;
+											return (
+												<KolButton
+													key={pillar.id}
+													_label={
+														rank >= 0
+															? `Rang ${rank + 1} von ${pillars.length}: ${pillar.name} — ${formatNumber(share)} %`
+															: `${pillar.name} — ${formatNumber(share)} %`
+													}
+													_variant="secondary"
+													_disabled={saving || suggesting}
+													_on={{ onClick: () => togglePillarRank(pillar.id) }}
+												/>
+											);
+										})}
+									</div>
 									{suggesting && (
 										<div className="pillar-editor-loading">
 											<KolSpin _show _variant="cycle" _label="Säulen-Vorschlag wird geladen" />
@@ -1381,9 +1389,9 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 											{suggestError}
 										</KolAlert>
 									)}
-									{/* #1984: Säulen-Prozentregler nur im Expertenmodus — Hauptsäulen-Wahl und
-									    Regelvorschlag (#1962) bleiben im Standardmodus; gespeicherte Verteilungen
-									    bleiben unangetastet (reine UI-Ausblendung). */}
+									{/* #1984: Säulen-Prozentregler nur im Expertenmodus — die Rangfolge-Tipps
+									    (#2074) bleiben im Standardmodus; gespeicherte Verteilungen bleiben
+									    unangetastet (reine UI-Ausblendung). */}
 									{expertMode &&
 										contributions.map((entry, index) => (
 											<div key={entry.pillarId} className="pillar-row">
@@ -1400,38 +1408,6 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 												/>
 											</div>
 										))}
-									{!isEdit && mainPillarId !== null && (
-										<div aria-live="polite" className="pillar-suggestion">
-											<p className="hint">
-												Regelvorschlag — Hauptsäule schwer, Rest gleichmäßig (je mindestens {SHARE_MIN} %):
-											</p>
-											<ul className="pillar-suggestion-values">
-												{suggestMainDistribution(mainPillarId, pillars).map((entry) => (
-													<li key={entry.pillarId}>
-														{pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`}:{' '}
-														{formatNumber(entry.share)} %
-													</li>
-												))}
-											</ul>
-											<div className="pillar-suggestion-actions">
-												<KolButton
-													_label="Vorschlag übernehmen"
-													_variant="secondary"
-													_disabled={saving || suggesting}
-													_on={{ onClick: applyRuleSuggestion }}
-												/>
-												<KolButton
-													// „Nicht übernehmen“ statt „Verwerfen“ (PO-Entscheidung Fixup): der Vorschlags-Block sitzt im
-													// TaskForm-Dialog, dessen Verwerfen-Rückfrage sonst denselben Text trägt —
-													// und die Aktion verwirft nichts.
-													_label="Nicht übernehmen"
-													_variant="secondary"
-													_disabled={saving || suggesting}
-													_on={{ onClick: discardRuleSuggestion }}
-												/>
-											</div>
-										</div>
-									)}
 									{/* #1596-Fixup: `aria-live` für die gekoppelten Regler — analog zu
 									    `PillarWeightsForm.tsx`, dort gab es nie eine Live-Region für diesen Block. */}
 									<p aria-live="polite" className="visually-hidden">

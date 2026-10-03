@@ -88,7 +88,7 @@ const RANG_ANTEILE = [50, 20, 15, 10, 5];
  * Rang-Treppe des Hauptsäulen-Modus (#2075): die angetippten Säulen (`ranks` = Indizes in
  * Tipp-Reihenfolge, Rang 1 zuerst) erhalten 50/20/15/10/5, die übrigen teilen den Rest
  * gleichmäßig — ganzzahlig (Largest-Remainder, Gleichstand → Säulen-Reihenfolge), Summe exakt
- * `SHARE_TOTAL`, jeder Anteil ≥ `SHARE_MIN`. Spiegel zur `suggestRankedDistribution` in
+ * `SHARE_TOTAL`, jeder Anteil ≥ `SHARE_MIN`. Spiegel zu `distributionFromRankOrder` in
  * `frontend/src/lib/pillar.ts` (#2074); wer hier etwas ändert, ändert es auch im Frontend.
  * Ohne Säulen → leere Liste; eine einzige Säule → 100 %. Ungültige oder doppelte Indizes in
  * `ranks` werden ignoriert. Kippt die Restverteilung unter den Mindestanteil (sehr viele

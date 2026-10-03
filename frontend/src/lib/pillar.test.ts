@@ -13,9 +13,20 @@ import {
 	getTaskPillarPoints,
 	redistributeShares,
 	shareMax,
-	suggestMainDistribution,
 	suggestionsToContributions,
 } from './pillar';
+
+/**
+ * Bewusste Typ-Grenze des TDD-Vertrags (Muster `isDistributionUnbalanced` #1555): Die Funktion
+ * existiert noch nicht — der Cast hält den Typecheck grün, der Laufzeitfehler bleibt rot,
+ * bis #2074 den Export in `lib/pillar.ts` liefert.
+ */
+const { distributionFromRankOrder } = pillarModule as unknown as {
+	distributionFromRankOrder: (
+		rankedPillarIds: readonly number[],
+		pillars: readonly Pillar[],
+	) => TaskPillarContribution[];
+};
 
 const pillar = (id: number, name: string, weight: number): Pillar => ({ id, name, description: '', weight });
 
@@ -663,14 +674,15 @@ describe('isDistributionUnbalanced (#1555)', () => {
 });
 
 /**
- * Rote Spec-Tests für #1962 — Hauptsäulen-Modus (Spec: docs/spec/issue-1962.md).
+ * Rote Spec-Tests für #2074 — Rangfolge-Treppe (Spec: docs/spec/issue-2074.md).
  *
- * Vertrag der Übernahme-Funktion: Hauptsäule 80 %, jede übrige Säule gleichmäßig mit je
- * mindestens 5 % (bei fünf Säulen 5 %), ganzzahlig, Summe exakt 100, `confidence` 100.
- * Unbekannte Hauptsäule → leere Liste; eine einzige Säule → 100 %. Der KI-Vorschlag
- * (`suggestionsToContributions`) hat Vorrang, diese Regel ist der synchrone Fallback.
+ * Vertrag der neuen reinen Funktion: die in Tipp-Reihenfolge gerankten Säulen bekommen die
+ * Treppe 50/20/15/10/5 (Rang 1..5); unangetippte Säulen teilen den Rest gleichmäßig —
+ * ganzzahlig per Largest Remainder, Gleichstand nach Säulen-Listenordnung. Das Ergebnis
+ * umfasst alle Säulen in Listenordnung, ist ganzzahlig, summiert exakt 100 und trägt
+ * `confidence` 100. Ersetzt die 80/5/5/5/5-Regel `suggestMainDistribution` (#1962).
  */
-describe('suggestMainDistribution — Hauptsäulen-Fallback (#1962, AK3)', () => {
+describe('distributionFromRankOrder — Rangfolge-Treppe (#2074, AK1-AK3)', () => {
 	const fivePillars: Pillar[] = [
 		pillar(1, 'Körper', 20),
 		pillar(2, 'Mentale Gesundheit', 20),
@@ -679,40 +691,47 @@ describe('suggestMainDistribution — Hauptsäulen-Fallback (#1962, AK3)', () =>
 		pillar(5, 'Sinn', 20),
 	];
 
-	it('liefert bei fünf Säulen die Hauptsäule mit 80 %, den Rest je 5 %', () => {
-		const result = suggestMainDistribution(1, fivePillars);
-		expect(result.map((entry) => [entry.pillarId, entry.share])).toEqual([
-			[1, 80],
-			[2, 5],
-			[3, 5],
-			[4, 5],
-			[5, 5],
-		]);
-		expect(result.every((entry) => entry.confidence === 100)).toBe(true);
+	const sharesOf = (ranked: number[]): number[] =>
+		distributionFromRankOrder(ranked, fivePillars).map((entry) => entry.share);
+
+	it('AK1: Tipp-Reihenfolge Hauptsäule + drei Nebensäulen ergibt 50/20/15/10/5 in dieser Reihenfolge', () => {
+		expect(sharesOf([1, 2, 3, 4])).toEqual([50, 20, 15, 10, 5]);
 	});
 
-	it('platziert die 80 % am Index der gewählten Hauptsäule', () => {
-		const result = suggestMainDistribution(4, fivePillars);
-		expect(result.find((entry) => entry.pillarId === 4)?.share).toBe(80);
-		expect(result.filter((entry) => entry.pillarId !== 4).every((entry) => entry.share === 5)).toBe(true);
+	it('AK2: nur Hauptsäule — 50 %, Rest gleichmäßig 13/13/12/12 (Largest Remainder nach Listenordnung)', () => {
+		expect(sharesOf([1])).toEqual([50, 13, 13, 12, 12]);
 	});
 
-	it('hält Summe exakt 100 und jeden Anteil ≥ Mindestanteil bei zwei bis sieben Säulen', () => {
-		for (let count = 2; count <= 7; count += 1) {
-			const pillars = Array.from({ length: count }, (_value, index) => pillar(index + 1, `S${index + 1}`, 20));
-			const shares = suggestMainDistribution(1, pillars).map((entry) => entry.share);
+	it('AK2: Haupt- und zweite Säule — 50/20 und dreimal 10', () => {
+		expect(sharesOf([1, 2])).toEqual([50, 20, 10, 10, 10]);
+	});
+
+	it('AK3: Rang zurückgenommen — verbleibende Ränge rücken auf, Anteile rechnen sich neu', () => {
+		// [1,2,3] mit zurückgenommenem Rang 2 → Säule 3 rückt auf Rang 2, Rest gleichmäßig.
+		expect(sharesOf([1, 3])).toEqual([50, 10, 20, 10, 10]);
+	});
+
+	it('ohne Rangfolge: Gleichverteilung (keine Säule bevorzugt)', () => {
+		expect(sharesOf([])).toEqual([20, 20, 20, 20, 20]);
+	});
+
+	it('unbekannte Säulen-IDs werden ignoriert', () => {
+		expect(sharesOf([1, 99])).toEqual([50, 13, 13, 12, 12]);
+	});
+
+	it('Invarianten: Summe exakt 100, ganzzahlig, jeder Anteil im AK4-Bereich [5, 80]', () => {
+		for (const ranked of [[], [1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [1, 2, 3, 4, 5], [5, 4, 3, 2, 1]]) {
+			const shares = sharesOf(ranked);
 			expect(shares.reduce((acc, share) => acc + share, 0)).toBe(SHARE_TOTAL);
+			expect(shares.every(Number.isInteger)).toBe(true);
 			expect(Math.min(...shares)).toBeGreaterThanOrEqual(SHARE_MIN);
+			expect(Math.max(...shares)).toBeLessThanOrEqual(80);
 		}
 	});
 
-	it('gibt einer einzelnen Säule 100 %', () => {
-		expect(suggestMainDistribution(1, [pillar(1, 'Körper', 100)])).toEqual([
-			{ pillarId: 1, share: 100, confidence: 100 },
-		]);
-	});
-
-	it('liefert für eine unbekannte Hauptsäule eine leere Liste', () => {
-		expect(suggestMainDistribution(99, fivePillars)).toEqual([]);
+	it('liefert Beiträge über alle Säulen in Listenordnung mit confidence 100', () => {
+		const result = distributionFromRankOrder([1], fivePillars);
+		expect(result.map((entry) => entry.pillarId)).toEqual([1, 2, 3, 4, 5]);
+		expect(result.every((entry) => entry.confidence === 100)).toBe(true);
 	});
 });

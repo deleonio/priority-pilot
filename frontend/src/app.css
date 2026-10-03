@@ -2711,32 +2711,14 @@ kol-toolbar {
 	min-height: 44px; /* Touch-Ziele (Mobile-First, BITV 9.1.3.3), Muster `.pillar-weight-row` */
 }
 
-/* Hauptsäulen-Modus (#1962): übernehmbarer Vorschlag der Restverteilung — eingesenkte Fläche,
-   Aktionen als volle Breite gestapelt (Touch-Ziele ≥ 44 px, Mobile-First). */
-.pillar-suggestion {
+/* Säulen-Rangfolge (#2074): zeilenhohe Tap-Flächen in voller Breite — Touch-Ziele ≥ 44 px
+   (Mobile-First, BITV 9.1.3.3). */
+.pillar-rank-list {
 	display: grid;
 	gap: 0.5rem;
-	padding: 0.5rem;
-	border: 1px solid var(--pp-border);
-	border-radius: 0.375rem;
 }
 
-.pillar-suggestion .hint {
-	margin: 0;
-}
-
-.pillar-suggestion-values {
-	margin: 0;
-	padding-inline-start: 1.25rem;
-}
-
-.pillar-suggestion-actions {
-	display: flex;
-	flex-direction: column;
-	gap: 0.5rem;
-}
-
-.pillar-suggestion-actions kol-button {
+.pillar-rank-list kol-button {
 	min-height: 44px;
 }
 
