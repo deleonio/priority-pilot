@@ -1707,6 +1707,50 @@ paths:
                 $ref: '#/components/schemas/Error'
         '502':
           $ref: '#/components/responses/BadGateway'
+  /balance-variant:
+    get:
+      summary: Bildwahl der Lebensbalance lesen
+      description: >-
+        Liefert die serverseitig pro User gespeicherte Zifferblatt-Wahl (#2009);
+        für Konten ohne gespeicherte Wahl `herz`. Der Antwort-Header `x-csrf-token`
+        stellt zugleich den CSRF-Token bereit — der Client sendet den späteren PUT
+        als einzelnen Fire-and-forget-Aufruf ohne eigenen Token-Vorab-Fetch.
+      operationId: getBalanceVariant
+      tags: [care]
+      responses:
+        '200':
+          description: Aktuelle Bildwahl (inkl. Default)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceVariant'
+    put:
+      summary: Bildwahl der Lebensbalance speichern
+      description: >-
+        Speichert die Zifferblatt-Wahl am Konto (#2009); sie gilt auf allen
+        angemeldeten Geräten. Schlüssel außerhalb der neun Varianten → HTTP 400
+        ohne Persistenz.
+      operationId: updateBalanceVariant
+      tags: [care]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BalanceVariant'
+      responses:
+        '200':
+          description: Gespeicherte Bildwahl
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceVariant'
+        '400':
+          description: Unbekannter Varianten-Schlüssel
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /geo-config:
     get:
       summary: Geo-Konfiguration des Users lesen
@@ -4115,6 +4159,17 @@ components:
           type: string
           nullable: true
           description: Avatar-URL (null ohne Avatar)
+    BalanceVariant:
+      type: object
+      description: >-
+        Zifferblatt-Auswahl pro User (#2009): welches Bild die Startseite für die
+        Lebensbalance zeichnet — am Konto gespeichert, auf allen Geräten gleich.
+      required: [variant]
+      properties:
+        variant:
+          type: string
+          description: Bild-Schlüssel (Default 'herz')
+          enum: [herz, blasen, scheiben, ringe, strahlen, bluete, kristall, segmente, zeiger]
     GeoConfig:
       type: object
       description: >-

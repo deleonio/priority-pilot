@@ -611,7 +611,8 @@ Allgemein, Säulen, Kategorien, Standort, Orte, KI, Gruppen und **Pakete & Abo**
   Sprache nicht dabei, erscheint die Oberfläche auf Deutsch.
 - **Bild der Lebensbalance** – wähle zwischen **Herz**, **Blasen**, **Scheiben**,
   **Ringe**, **Strahlen**, **Blüte**, **Kristall**, **Segmente** und **Zeiger**. Alle zeigen dieselbe Rechnung, nur anders
-  dargestellt. Die Wahl gilt auf diesem Gerät.
+  dargestellt. Die Wahl wird am Konto gespeichert und gilt auf allen Geräten, auf denen du
+  angemeldet bist.
 - **Animationen** – die Schalter **„Animationen"**, **„Herz animieren"** und
   **„Erledigt animieren"** steuern die Bewegungen des Balance-Bildes auf dem
   Dashboard und den Ablauf beim Erledigen einer Aufgabe. Ohne Bewegung bleibt das

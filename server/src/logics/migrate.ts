@@ -890,6 +890,24 @@ export const migrateUsersSelectedLlmProvider = async (db: Sequelize): Promise<vo
 };
 
 /**
+ * Zieht die `balanceVariant`-Spalte (Zifferblatt-Auswahl, #2009) auf einer **bestehenden**
+ * `users`-Tabelle nach — analog `migrateUsersSelectedLlmProvider`. Bestandskonten starten ohne
+ * Wahl (`NULL` = Default `herz`, die Startseite bleibt wie gewohnt). Idempotent (Spalte
+ * vorhanden → No-op); bei frischer DB ebenso No-op — `sync()` legt Tabelle inkl. Spalte an.
+ */
+export const migrateUsersBalanceVariantColumn = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('users')");
+	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
+
+	if (existing.size === 0 || existing.has('balanceVariant')) {
+		return;
+	}
+
+	await db.query('ALTER TABLE `users` ADD COLUMN `balanceVariant` VARCHAR(255) NULL');
+	console.log('Spalte balanceVariant an users nachgezogen.');
+};
+
+/**
  * Zieht die `scope`-Spalte (Rechtestufe `'read'` | `'readwrite'`, #1356) auf einer **bestehenden**
  * `api_tokens`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog `migrateUsersRoleColumn`.
  * Bestandszeilen erhalten `'read'` (kein stilles Hochstufen bereits vergebener Tokens). Idempotent
