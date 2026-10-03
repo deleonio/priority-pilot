@@ -173,6 +173,9 @@ export const serializeTask = (task: Task, context: TaskSerializeContext = {}): T
 		longitude: task.longitude ?? null,
 		deadline: task.deadline ? task.deadline.toISOString() : null,
 		autoDeleteAfterDeadline: task.autoDeleteAfterDeadline ?? false,
+		// Verschiebe-Zähler + Archiv (#1964).
+		postponeCount: task.postponeCount ?? 0,
+		archivedAt: task.archivedAt ? task.archivedAt.toISOString() : null,
 		checklist: task.checklist ?? [],
 		categoryId: task.categoryId ?? null,
 		seriesId: task.seriesId ?? null,
@@ -603,12 +606,26 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 
 	// GET /tasks — alle Tasks (inkl. Säulen-Beiträge) auflisten
 	tasksRouter.get('/tasks', async (req: Request, res: Response<TaskDto[] | ErrorDto>) => {
+		// Verpasst-Auswahl (#1964, `?missed=1`): abgeleitete Ansicht, kein neuer Status — überfällige,
+		// nicht erledigte Aufgaben ohne Auto-Lösch-Häkchen (die laufen weiter in den 3-Tage-Cron) und
+		// ohne Archiv. Archivierte Aufgaben erscheinen auch in der Standardliste nie mehr.
+		const missedOnly = req.query.missed === '1';
 		try {
 			// #1213: Lese-Scope um selbst angelegte Aufgaben für andere Gruppenmitglieder erweitert
 			// (`createdById`); Schreibzugriffe bleiben an `ownerScope` gebunden (siehe findOwnTask).
 			const requester = await resolveGeoUser(req);
 			const tasks = await Task.findAll({
-				where: await taskReadScope(getUserId(req), requester?.id ?? null),
+				where: {
+					...(await taskReadScope(getUserId(req), requester?.id ?? null)),
+					archivedAt: { [Op.is]: null },
+					...(missedOnly
+						? {
+								deadline: { [Op.lt]: new Date() },
+								status: { [Op.ne]: 'Done' },
+								autoDeleteAfterDeadline: false,
+							}
+						: {}),
+				},
 				include: [Pillar],
 			});
 			res.json(await serializeTasksFor(req, tasks));
@@ -980,8 +997,18 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				remapTargetId !== null && validation.attrs.categoryId === undefined && task.categoryId != null
 					? await remapCategoryForRecipient(task.categoryId, remapTargetId)
 					: undefined;
+			// Verschiebe-Zähler (#1964, AK3): nur ein PATCH, der die Deadline auf einen streng späteren
+			// Zeitpunkt setzt, zählt als Verschiebung — gleichbleibende/frühere Deadlines und Patches
+			// ohne `deadline` nicht (PO-Entscheidung Q3: jede Verschiebung nach hinten zählt, auch an
+			// Serien-Instanzen — der Zähler liegt als Spalte am Task).
+			const verschobDeadline = validation.attrs.deadline;
+			const istVerschoben =
+				verschobDeadline instanceof Date &&
+				task.deadline != null &&
+				verschobDeadline.getTime() > new Date(task.deadline).getTime();
 			const attrs = {
 				...validation.attrs,
+				...(istVerschoben ? { postponeCount: task.postponeCount + 1 } : {}),
 				...(task.seriesId != null ? { isException: true } : {}),
 				...(recipientId !== null ? { userId: recipientId, createdById: requesterId } : {}),
 				// #1521: Claim — der Erlediger wird Eigentümer, `createdById` bleibt beim Anleger.
@@ -1126,6 +1153,29 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			}
 			const dto = serializeTask(withPillars);
 			res.json(accessMailThrottled ? { ...dto, accessMailThrottled } : dto);
+		} catch (error) {
+			handleWriteError(res, error);
+		}
+	});
+
+	// POST /tasks/:id/archive — Aufgabe archivieren (#1964): raus aus Aufgabenliste und
+	// Verpasst-Bereich, ohne sie zu löschen und ohne Statuswechsel (Score/Streak unberührt).
+	tasksRouter.post('/tasks/:id/archive', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
+		const id = parseId(req.params.id);
+		// Fremde Tasks sind nicht auffindbar → 404 (Datenisolation, #207).
+		const task = id === null ? null : await findOwnTask(id, getUserId(req));
+		if (!task) {
+			sendError(res, 404, 'Task nicht gefunden.');
+			return;
+		}
+		try {
+			await task.update({ archivedAt: new Date() });
+			const withPillars = await findTaskWithPillars(task.id);
+			if (!withPillars) {
+				sendError(res, 404, 'Task nicht gefunden.');
+				return;
+			}
+			res.json(serializeTask(withPillars));
 		} catch (error) {
 			handleWriteError(res, error);
 		}

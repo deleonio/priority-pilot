@@ -5346,3 +5346,87 @@ a.plan-badge:focus-visible {
 	padding-block: var(--pp-gap-base);
 	background: var(--pp-surface-0);
 }
+
+/*
+ * #1964: Verpasst-Bereich über der Aufgabenliste. Liste statt Tabelle (KolTableStateful wäre
+ * bei 375px unbedienbar, KI-UX #1964); neutrale Tonalität ohne Warnfarbe (Muster MissedTasksCard).
+ * Aktionen stapeln mobil untereinander in voller Breite (Touch-Targets >= 44px, Muster
+ * .session-dialog-actions #1231), ab 768px kompakt in einer Zeile.
+ */
+.missed-section {
+	margin-bottom: var(--pp-gap-base);
+}
+
+.missed-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.missed-item {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-space-2);
+	padding: var(--pp-space-2) 0;
+	border-bottom: 1px solid var(--pp-border);
+	min-width: 0;
+}
+
+.missed-item:last-child {
+	border-bottom: none;
+}
+
+.missed-item-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.25rem 0.5rem;
+	min-width: 0;
+}
+
+.missed-item-title {
+	font-weight: 600;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.missed-item-deadline {
+	color: var(--pp-text-muted);
+	white-space: nowrap;
+}
+
+/* Text-Badge statt Farbsignal (WCAG 1.4.1) — nur bei N >= 1 gerendert (AK3). */
+.missed-item-badge {
+	font-size: var(--pp-font-size-sm);
+	color: var(--pp-text-muted);
+	border: 1px solid var(--pp-border);
+	border-radius: 999px;
+	padding: 0 var(--pp-space-2);
+	white-space: nowrap;
+}
+
+.missed-item-actions {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: var(--pp-space-3);
+}
+
+.missed-item-actions kol-button {
+	display: block;
+	width: 100%;
+	min-height: 44px;
+}
+
+@media (min-width: 768px) {
+	.missed-item-actions {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.missed-item-actions kol-button {
+		display: inline-block;
+		width: auto;
+		min-height: 0;
+	}
+}

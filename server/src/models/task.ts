@@ -43,6 +43,14 @@ class Task extends Model {
 	// Ablauf der Deadline, wenn sie nicht erledigt ist. Default `false` (kein automatischer Eingriff).
 	public autoDeleteAfterDeadline!: boolean;
 
+	// Verschiebe-Zähler (#1964): steigt bei jedem PATCH, der die Deadline auf einen streng späteren
+	// Zeitpunkt setzt, um genau 1. Rein informativ (Anzeige „N× verschoben") — kein Status-/Score-
+	// Einfluss. Liegt am Task, damit Serien-Instanzen den Zähler je Instanz tragen.
+	public postponeCount!: number;
+	// Archiv (#1964): Zeitpunkt des Archivierens — nimmt die Aufgabe aus Aufgabenliste und
+	// Verpasst-Bereich heraus, ohne sie zu löschen und ohne Statuswechsel. `null` ⇒ nicht archiviert.
+	public archivedAt?: Date | null;
+
 	// Abhakbare Checkliste (Issue #531): JSON-Array aus `{ id, title, completed }`. Default leer;
 	// bestehende Tasks ohne Checkliste liefern `[]` (rückwärtskompatibel).
 	public checklist!: ChecklistItem[];
@@ -189,6 +197,17 @@ Task.init(
 			type: DataTypes.BOOLEAN,
 			allowNull: false,
 			defaultValue: false,
+		},
+		// Verschiebe-Zähler (#1964). Default 0 — Bestandsaufgaben gelten als nie verschoben.
+		postponeCount: {
+			type: DataTypes.INTEGER,
+			allowNull: false,
+			defaultValue: 0,
+		},
+		// Archiv-Zeitpunkt (#1964), nullable — Bestandsaufgaben sind nicht archiviert.
+		archivedAt: {
+			type: DataTypes.DATE,
+			allowNull: true,
 		},
 		// Abhakbare Checkliste (Issue #531): als JSON-Array gespeichert; Default `[]` für
 		// Rückwärtskompatibilität (bestehende Tasks bleiben ohne Einträge).

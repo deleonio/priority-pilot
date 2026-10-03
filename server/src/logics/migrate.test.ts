@@ -16,6 +16,7 @@ import {
 	migrateUsersRoleColumn,
 	migrateCategoryIdColumns,
 	migrateTaskPinnedColumns,
+	migrateTaskMissedColumns,
 	migratePillarRecalcColumns,
 	migrateTaskGroupId,
 	migratePlaceFavoriteDropName,
@@ -138,6 +139,10 @@ describe('migrateSeriesColumns', () => {
 		await migrateTaskChecklist(sequelize);
 		await migrateTaskPinnedColumns(sequelize);
 		await migratePillarRecalcColumns(sequelize);
+		// #1964 (Test-Pflege): postponeCount ist Teil des aktuellen Task-Modells und wird vom
+		// Task.create()-INSERT mitgeschrieben — Migration hier nachziehen, damit der Insert nicht
+		// an der fehlenden Spalte bricht.
+		await migrateTaskMissedColumns(sequelize);
 		await sequelize.sync();
 
 		const occurrence = new Date('2026-01-01T00:00:00.000Z');
@@ -354,6 +359,7 @@ describe('migrateUserIdColumns', () => {
 		await migrateTaskPinnedColumns(sequelize); // #1582: Pin-Spalten, ebenfalls von Task.findAll mitselektiert
 		await migratePillarRecalcColumns(sequelize);
 		await migrateTaskGroupId(sequelize); // #1521: Gruppen-Spalte, ebenfalls von Task.findAll mitselektiert
+		await migrateTaskMissedColumns(sequelize); // #1964 (Test-Pflege): Zähler/Archiv, ebenfalls von Task.findAll mitselektiert
 		await sequelize.sync();
 
 		await assert.doesNotReject(
@@ -671,6 +677,8 @@ describe('migrateTaskAddress', () => {
 		await migrateTaskChecklist(sequelize);
 		await migrateTaskPinnedColumns(sequelize);
 		await migratePillarRecalcColumns(sequelize);
+		// #1964 (Test-Pflege): siehe Serien-Test oben — Modell-Spalten für das INSERT nachziehen.
+		await migrateTaskMissedColumns(sequelize);
 
 		assert.ok(!(await taskColumns()).includes('address'), 'Alt-Schema hat address noch nicht');
 
@@ -710,6 +718,8 @@ describe('migrateCategoryIdColumns', () => {
 		await migrateTaskAddress(sequelize);
 		await migrateTaskPinnedColumns(sequelize);
 		await migratePillarRecalcColumns(sequelize);
+		// #1964 (Test-Pflege): siehe Serien-Test oben — Modell-Spalten für das INSERT nachziehen.
+		await migrateTaskMissedColumns(sequelize);
 
 		assert.ok(!(await taskColumns()).includes('categoryId'), 'Alt-Schema hat categoryId noch nicht');
 
@@ -747,6 +757,8 @@ describe('migrateTaskPinnedColumns', () => {
 		await migrateTaskChecklist(sequelize);
 		await migrateTaskAddress(sequelize);
 		await migrateCategoryIdColumns(sequelize);
+		// #1964 (Test-Pflege): siehe Serien-Test oben — Modell-Spalten für das INSERT nachziehen.
+		await migrateTaskMissedColumns(sequelize);
 
 		const before = await taskColumns();
 		assert.ok(!before.includes('pinned'), 'Alt-Schema hat pinned noch nicht');
@@ -783,6 +795,53 @@ describe('migrateTaskPinnedColumns', () => {
 		const columns = await taskColumns();
 		assert.ok(columns.includes('pinned'), 'frische Tabelle enthält pinned');
 		assert.ok(columns.includes('pinnedAt'), 'frische Tabelle enthält pinnedAt');
+	});
+});
+
+// ── #1964: migrateTaskMissedColumns — postponeCount (NOT NULL DEFAULT 0) + archivedAt (nullable) ──
+describe('migrateTaskMissedColumns', () => {
+	it('zieht auf einem Alt-Schema postponeCount/archivedAt nach, sodass sync() nicht mehr bricht', async () => {
+		await createLegacyTasksTable();
+		await migrateSeriesColumns(sequelize);
+		await migrateTaskChecklist(sequelize);
+		await migrateTaskAddress(sequelize);
+		await migrateCategoryIdColumns(sequelize);
+		await migrateTaskPinnedColumns(sequelize);
+
+		const before = await taskColumns();
+		assert.ok(!before.includes('postponeCount'), 'Alt-Schema hat postponeCount noch nicht');
+		assert.ok(!before.includes('archivedAt'), 'Alt-Schema hat archivedAt noch nicht');
+
+		await migrateTaskMissedColumns(sequelize);
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht mehr ab');
+
+		const after = await taskColumns();
+		assert.ok(after.includes('postponeCount'), 'postponeCount wurde nachgezogen');
+		assert.ok(after.includes('archivedAt'), 'archivedAt wurde nachgezogen');
+
+		const task = await Task.create({ title: 'Ohne Verschiebung' });
+		assert.equal(task.postponeCount, 0, 'Bestands-Tasks gelten als nie verschoben (NOT NULL DEFAULT 0)');
+		assert.equal(task.archivedAt ?? null, null, 'Bestands-Tasks bleiben nicht archiviert (NULL)');
+	});
+
+	it('ist idempotent: erneuter Aufruf wirft nicht und erzeugt keine doppelten Spalten', async () => {
+		await createLegacyTasksTable();
+		await migrateTaskMissedColumns(sequelize);
+		await assert.doesNotReject(() => migrateTaskMissedColumns(sequelize), 'zweiter Lauf bleibt stabil');
+		const columns = await taskColumns();
+		assert.equal(columns.filter((name) => name === 'postponeCount').length, 1, 'postponeCount genau einmal');
+		assert.equal(columns.filter((name) => name === 'archivedAt').length, 1, 'archivedAt genau einmal');
+	});
+
+	it('ist auf einer DB ohne tasks-Tabelle ein No-op und sync() legt sie korrekt an', async () => {
+		assert.deepEqual(await taskColumns(), [], 'Vorbedingung: keine tasks-Tabelle');
+
+		await assert.doesNotReject(() => migrateTaskMissedColumns(sequelize), 'Migration ohne Tabelle ist no-op');
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabelle frisch an');
+
+		const columns = await taskColumns();
+		assert.ok(columns.includes('postponeCount'), 'frische Tabelle enthält postponeCount');
+		assert.ok(columns.includes('archivedAt'), 'frische Tabelle enthält archivedAt');
 	});
 });
 

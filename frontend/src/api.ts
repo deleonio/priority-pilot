@@ -214,6 +214,19 @@ export const api = {
 		return data.map(reviveTask);
 	},
 
+	// Verpasst-Auswahl (#1964): überfällige, nicht erledigte Aufgaben ohne Auto-Lösch-Häkchen und
+	// ohne Archiv (`GET /tasks?missed=1`) — abgeleitete Ansicht, kein neuer Status.
+	async listMissedTasks(init: Init = {}): Promise<Task[]> {
+		const { data, error, response } = await client.GET('/tasks', {
+			params: { query: { missed: '1' } },
+			signal: init.signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data.map(reviveTask);
+	},
+
 	/**
 	 * Paket-Katalog (`GET /plans`, #1456): Feature-Matrix und Preise. Einzige Preisquelle des
 	 * Frontends — im Code stehen weder Preise noch Matrixzeilen (#1458 AK11).
@@ -403,6 +416,16 @@ export const api = {
 		if (!response.ok) {
 			throw new ResponseError(response, error);
 		}
+	},
+
+	// Archivieren (#1964): einstufig, ohne Bestätigungsdialog — nimmt die Aufgabe aus Liste und
+	// Verpasst-Bereich, ohne sie zu löschen und ohne Statuswechsel.
+	async archiveTask({ id }: { id: number }): Promise<Task> {
+		const { data, error, response } = await client.POST('/tasks/{id}/archive', { params: { path: { id } } });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return reviveTask(data);
 	},
 
 	async addDependency({ id, dependencyInput }: { id: number; dependencyInput: DependencyInput }): Promise<Task> {
