@@ -95,14 +95,21 @@ Modellwechsel fielen zeitlich zusammen — ohne diese Felder war der Sprung kein
 einzeln zuzuordnen. `runtime` trennt den Agenten, `configuredModel` hält das geroutete
 Modell fest (das beobachtete `model` ist bei z.ai/openrouter nur der Alias-Durchschuss
 bzw. das Output-Maximum). Passt `provider` nicht zum beobachteten Modell, warnt die
-Kosten-Action in der Job-Summary. Auswertung je Kombination:
+Kosten-Action in der Job-Summary. Auswertung je Kombination (#2096):
 
 ```bash
-# Agent × Provider × Modell × Phase (#2090): Ø Dauer (s), Ø Turns, Ø Wert (USD)
-jq -s '[.[][] | select(.runtime != null)] | group_by(.runtime + " | " + .provider + " | " + .model + " | " + .phase) |
-  .[] | [.[0].runtime, .[0].provider, .[0].model, .[0].phase, length,
-    ((map(.durationSeconds // 0) | add) / length | round),
+# Agent × Provider × Modell × Phase (#2096): Anzahl, Ø Dauer (s), Ø Turns, Ø cost/Ø Wert (USD)
+# Zeitraum: von/bis als ISO-Präfix (Defaults offen; z. B. --arg von 2026-10-01). Einträge
+# ohne runtime laufen als eigene Gruppe "unbekannt" mit — der Bestand wird nie verworfen;
+# Ø Dauer zählt nur Einträge mit durationSeconds (Alt-Einträge haben keins).
+jq -s --arg von "0000-01-01" --arg bis "9999-12-31" '
+  [.[][]
+    | select((.timestamp // "") >= $von and (.timestamp // "") <= $bis)]
+  | group_by((.runtime // "unbekannt") + " | " + (.provider // "?") + " | " + (.model // "?") + " | " + (.phase // "?"))
+  | .[] | [(.[0].runtime // "unbekannt"), (.[0].provider // "?"), (.[0].model // "?"), (.[0].phase // "?"), length,
+    ([.[] | select(.durationSeconds != null)] | if length > 0 then (map(.durationSeconds) | add / length | round) else "-" end),
     ((map(.turns // 0) | add) / length * 10 | round / 10),
+    ((map(.cost // 0) | add) / length * 100 | round / 100),
     ((map(.valueCost // 0) | add) / length * 100 | round / 100)] | @tsv' .costs/*.json | column -t
 ```
 

@@ -178,6 +178,9 @@ runs:
         PROVIDER: ${{ inputs.provider }}
         CONFIGURED_MODEL: ${{ inputs.configured-model }}
         RUNTIME: ${{ inputs.runtime }}
+        # Nur fuer den Config-Drift-Check (#2095): Historie lesen. Reicht contents:read
+        # des Jobs nicht, ueberspringt der Vergleich still (NIE FATAL).
+        GH_TOKEN: ${{ github.token }}
         TOKENS_IN: ${{ steps.collect.outputs.tokensIn }}
         TOKENS_OUT: ${{ steps.collect.outputs.tokensOut }}
         TURNS: ${{ steps.collect.outputs.turns }}
@@ -199,6 +202,19 @@ runs:
             echo "::warning title=Modell/Provider-Mismatch::Provider '${PROVIDER:-?}' mit beobachtetem Modell '${MODEL:-?}' — vermutlich falscher provider-Input oder ein Alias, der zur nativen ID durchschoss (#2090)."
             ;;
         esac
+        # AK3 #2095: Wurde AGENT_RUNTIME/LLM_PROVIDER AUSSERHALB von set-agent-config
+        # geaendert, weicht der Lauf-Wert vom letzten Historie-Eintrag ab. NIE FATAL:
+        # fehlende/lesegeschuetzte Historie ueberspringt den Vergleich still.
+        HIST_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/contents/.costs/agent-config-history.json?ref=main" --jq .content 2>/dev/null | base64 -d 2>/dev/null | jq -c . 2>/dev/null || true)"
+        if [ -n "$HIST_JSON" ] && [ "$HIST_JSON" != "[]" ]; then
+          for pair in "AGENT_RUNTIME:${RUNTIME:-claude}" "LLM_PROVIDER:${PROVIDER:-}"; do
+            var="${pair%%:*}"; cur="${pair#*:}"
+            last="$(printf '%s' "$HIST_JSON" | jq -r --arg v "$var" '[.[] | select(.variable == $v)] | last | .newValue // empty' 2>/dev/null || true)"
+            if [ -n "$last" ] && [ -n "$cur" ] && [ "$last" != "$cur" ]; then
+              echo "::warning title=Config-Drift::$var laut Historie '$last', dieser Lauf lief mit '$cur' — ausserhalb von set-agent-config geaendert? (#2095)"
+            fi
+          done
+        fi
         {
           echo "### 💰 Token & Kosten — Phase ${PHASE} (#${ISSUE})"
           echo ""
