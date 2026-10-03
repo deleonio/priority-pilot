@@ -334,6 +334,7 @@ _Enthält v0.6.0 – v0.6.15._
 - chore(deps): update pi (cli + erweiterungen) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1656
 - fix(frontend): keep admin confirm dialog mounted across step change by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1732
 - chore(deps): lock file maintenance by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1660
+- chore(deps): lock file maintenance by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1660
 - fix(android): prevent crash when enabling push without firebase config by @deleonio in https://github.com/deleonio/priority-pilot/pull/1735
 
 ## v0.5 - 2026-09-25
