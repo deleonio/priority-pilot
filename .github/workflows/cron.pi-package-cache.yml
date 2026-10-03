@@ -5,7 +5,7 @@ name: Warm pi Package Cache
 # (schedule + dispatch) vor — sonst bliebe jeder Phasenlauf ein Miss und die Pakete
 # würden weiterhin in jedem Lauf neu installiert (~40-54 s, Issue #2092).
 #
-# Der Warm nutzt PI-install-packages.sh — dieselbe Quelle wie der Install-Step der
+# Der Warm nutzt pi-install-packages.sh — dieselbe Quelle wie der Install-Step der
 # Action (Parsing, Pinn-Prüfung, pi list). Key identisch: Hash von .pi/settings.json;
 # ändert sich die Paketliste, schreibt der nächste Lauf einen neuen Key.
 #

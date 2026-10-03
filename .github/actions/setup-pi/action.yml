@@ -101,13 +101,16 @@ runs:
         echo "::notice title=📁 pi-Sitzungen::$SESSION_DIR"
 
     - name: pi-Pakete aus Cache wiederherstellen (#2092)
-      # Restore ist auf JEDEM Trigger erlaubt (nur Writes sind auf Issue-/PR-Events
-      # gesperrt) — der Vorwärm-Lauf cron.pi-package-cache.yml schreibt den Cache.
+      # RESTORE-SUBACTION statt actions/cache: Die Vollaktion hängt einen Post-Save an,
+      # der auf Issue-/PR-Triggern (dort ist das Cache-Token nur lesend, MEMORY
+      # 2026-08-19) bei jedem Miss die AK-1-Warnung „Failed to save“ erzeugt. Die
+      # Subaction stellt nur wieder her und schreibt nie; den Cache schreibt allein der
+      # Vorwärm-Lauf cron.pi-package-cache.yml — mit identischem SHA/Key/Path.
       # Key = Hash der Paketliste: aendert sich .pi/settings.json, ist der Cache
       # automatisch Miss und die Neuinstallation laeuft (Issue-AK). Bewusst KEINE
       # restore-keys: ein alter Paketstand waere schlimmer als ~40 s Installation.
       id: pi-packages-cache
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 (Restore-Subaction, ohne Post-Save)
       with:
         path: ~/.pi/agent
         key: pi-agent-packages-${{ runner.os }}-${{ hashFiles('.pi/settings.json') }}
@@ -124,15 +127,24 @@ runs:
 
     - name: pi-Pakete aus Cache prüfen (Nachweis, #2092)
       # Bei Cache-Treffer laeuft die Installation nicht — pi list als Nachweis trotzdem,
-      # derselbe Beleg wie im Install-Pfad (Issue-AK: pi list steht im Log).
+      # derselbe Beleg wie im Install-Pfad (Issue-AK: pi list steht im Log). Schlägt die
+      # Prüfung fehl (beschädigter oder inkompatibler Cache-Inhalt), zieht das
+      # Installationsskript nach (Selbstheilung, Issue-Weg 2) statt den Lauf degradiert
+      # weiterlaufen zu lassen; dessen harte Fehlerprüfung bricht ab, wenn auch das
+      # nicht hilft.
       if: steps.pi-packages-cache.outputs.cache-hit == 'true'
       shell: bash
       run: |
         set -uo pipefail
         echo "::notice title=📦 pi-Pakete aus Cache::~/.pi/agent restauriert (Key ohne restore-keys, Hash der Paketliste) — Installation übersprungen (#2092)."
         echo "::group::pi list"
-        pi list || echo "::warning title=pi list::Auflistung fehlgeschlagen — Cache-Inhalt prüfen."
-        echo "::endgroup::"
+        if pi list; then
+          echo "::endgroup::"
+        else
+          echo "::endgroup::"
+          echo "::warning title=pi list fehlgeschlagen::Cache-Inhalt unbrauchbar — pi-install-packages.sh läuft als Selbstheilung nach (Issue-Weg 2)."
+          bash "${GITHUB_ACTION_PATH}/../../scripts/pi-install-packages.sh"
+        fi
 
     - name: Auth setzen (providerspezifisch)
       shell: bash
