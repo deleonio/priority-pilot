@@ -62,6 +62,9 @@ outputs:
   session-dir:
     description: 'Sitzungsverzeichnis DIESES Laufes — Quelle der Kostenerfassung (cost-from-pi-session.ts)'
     value: ${{ steps.session.outputs.session-dir }}
+  model-alias:
+    description: 'Konfigurierter Modell-Alias vor der Auflösung (#2090)'
+    value: ${{ steps.model.outputs.model-alias }}
 
 runs:
   using: composite
@@ -269,6 +272,9 @@ runs:
           echo "::warning title=Kein Phasen-Modell::Ohne Modell-Alias entscheidet .pi/settings.json (${PROJ_DEF:-pi-Default}) — das kann von LLM_PROVIDER='${LLM_PROVIDER}' abweichen."
         fi
         echo "resolved-model=$RESOLVED_MODEL" >> "$GITHUB_OUTPUT"
+        # Alias VOR der Aufloesung (#2090): Kostensaetze halten das konfigurierte Modell
+        # fest, nicht nur das beobachtete; leer = pi-Default (.pi/settings.json).
+        echo "model-alias=${MODEL_ALIAS}" >> "$GITHUB_OUTPUT"
 
         # ── Subagent-Modell ──────────────────────────────────────────────────────────
         # pi-subagents liest den Settings-Key `subagents.defaultModel`. Er wird in die

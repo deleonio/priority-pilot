@@ -47,22 +47,24 @@ Geschrieben von `.github/scripts/cost-from-transcript.ts` über die Action
 `.github/actions/record-cost`. Ältere Datensätze haben sie nicht — Leser müssen sie
 als optional behandeln.
 
-| Feld                  | Typ    | Bedeutung                                                                                                                                                                 |
-| --------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `phase`               | string | Pipeline-Phase (`analyse`, `ux`, `spec`, `implement`, `mentor`, `review`, `fixup`, `documenter`; `adr-sync` aus `cron.sync-adr.yml` unter Issue `0`, wird nie versiegelt) |
-| `model`               | string | Modell mit dem größten Output-Anteil im Lauf                                                                                                                              |
-| `provider`            | string | Aufgelöster LLM-Provider (`claude`, `zai`, `openrouter`)                                                                                                                  |
-| `cacheCreationTokens` | int    | Anteil an `tokensIn`, der in den Prompt-Cache geschrieben wurde (~1,25x Preis)                                                                                            |
-| `cacheReadTokens`     | int    | Anteil an `tokensIn`, der aus dem Cache gelesen wurde (~0,1x Preis)                                                                                                       |
-| `sidechainTokens`     | int    | Anteil des Verbrauchs, der auf Subagenten entfiel (nur wenn > 0)                                                                                                          |
-| `turns`               | int    | Deduplizierte Assistant-Antworten (= API-Calls) des Laufes, inkl. Subagenten                                                                                              |
-| `durationSeconds`     | int    | Laufzeit des Laufs in ganzen Sekunden (erste bis letzte Antwort im Transkript); pi-Pendant: Spektrum der verbrauchtragenden Einträge. Nur neue Läufe tragen das Feld      |
-| `mcpCalls`            | int    | MCP-Tool-Aufrufe (`mcp__*`-tool_use-Blöcke) im Transkript; pi-Läufe tragen das Feld nicht (Proxy-Tool, nicht vergleichbar). Nur neue Läufe tragen das Feld                |
-| `valueCost`           | float  | Verbrauchsbewertung zu Modellklassen-Preisen (USD), siehe unten                                                                                                           |
-| `effort`              | string | Aufgelöster Effort-Level des Laufes (`low` \| `medium` \| `high` \| `xhigh` \| `max`)                                                                                     |
-| `verdict`             | string | Review-Verdict (`reviewed` \| `needs-fixup` \| `needs-human`) — nur `phase: review`                                                                                       |
-| `findings`            | int    | Inline-Review-Kommentare des Laufes (= Findings, je einer nach SKILL Step 4) — nur review                                                                                 |
-| `nits`                | int    | Nits aus dem „📝 Nits“-Abschnitt des ai-review-Sammelkommentars — nur review                                                                                              |
+| Feld                  | Typ    | Bedeutung                                                                                                                                                                                      |
+| --------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `phase`               | string | Pipeline-Phase (`analyse`, `ux`, `spec`, `implement`, `mentor`, `review`, `fixup`, `documenter`; `adr-sync` aus `cron.sync-adr.yml` unter Issue `0`, wird nie versiegelt)                      |
+| `model`               | string | Modell mit dem größten Output-Anteil im Lauf                                                                                                                                                   |
+| `provider`            | string | Aufgelöster LLM-Provider (`claude`, `zai`, `openrouter`)                                                                                                                                       |
+| `runtime`             | string | Agenten-Laufzeit des Laufs (`claude` \| `pi`), aus `AGENT_RUNTIME`. Nur neue Läufe tragen das Feld (#2090)                                                                                     |
+| `configuredModel`     | string | Konfiguriertes Modell als Alias/Referenz VOR der Auflösung (`fable` \| `opus` \| `sonnet` \| `haiku` bzw. pi-Modellreferenz) — im Unterschied zum beobachteten `model`. Nur neue Läufe (#2090) |
+| `cacheCreationTokens` | int    | Anteil an `tokensIn`, der in den Prompt-Cache geschrieben wurde (~1,25x Preis)                                                                                                                 |
+| `cacheReadTokens`     | int    | Anteil an `tokensIn`, der aus dem Cache gelesen wurde (~0,1x Preis)                                                                                                                            |
+| `sidechainTokens`     | int    | Anteil des Verbrauchs, der auf Subagenten entfiel (nur wenn > 0)                                                                                                                               |
+| `turns`               | int    | Deduplizierte Assistant-Antworten (= API-Calls) des Laufes, inkl. Subagenten                                                                                                                   |
+| `durationSeconds`     | int    | Laufzeit des Laufs in ganzen Sekunden (erste bis letzte Antwort im Transkript); pi-Pendant: Spektrum der verbrauchtragenden Einträge. Nur neue Läufe tragen das Feld                           |
+| `mcpCalls`            | int    | MCP-Tool-Aufrufe (`mcp__*`-tool_use-Blöcke) im Transkript; pi-Läufe tragen das Feld nicht (Proxy-Tool, nicht vergleichbar). Nur neue Läufe tragen das Feld                                     |
+| `valueCost`           | float  | Verbrauchsbewertung zu Modellklassen-Preisen (USD), siehe unten                                                                                                                                |
+| `effort`              | string | Aufgelöster Effort-Level des Laufes (`low` \| `medium` \| `high` \| `xhigh` \| `max`)                                                                                                          |
+| `verdict`             | string | Review-Verdict (`reviewed` \| `needs-fixup` \| `needs-human`) — nur `phase: review`                                                                                                            |
+| `findings`            | int    | Inline-Review-Kommentare des Laufes (= Findings, je einer nach SKILL Step 4) — nur review                                                                                                      |
+| `nits`                | int    | Nits aus dem „📝 Nits“-Abschnitt des ai-review-Sammelkommentars — nur review                                                                                                                   |
 
 **Warum `effort`/`verdict`/`findings`/`nits` (2026-09):** Die Analyse-Routing-Entscheidung
 (ADR 0004) steuert Modell **und** Effort — messbar war nur Modell. Und die Ursache der höheren
@@ -85,6 +87,43 @@ jq -s 'group_by(.issueId) | .[] |
   (if (any(.[]; .phase == "implement") and any(.[]; .phase == "analyse")) then "pipeline" else "extern" end) as $g |
   map(select(.phase == "review" and .findings != null))[] | [$g, (.verdict // "?"), .findings, .nits] | @tsv' .costs/*.json \
   | sort | uniq -c | sort -rn | head -20
+```
+
+**Warum `runtime`/`configuredModel` (2026-10, #2090):** Die Phasen-Laufzeiten hatten sich
+seit dem 01.10. verdoppelt bis verfünffacht, aber Agent-Wechsel (Claude Code → pi) und
+Modellwechsel fielen zeitlich zusammen — ohne diese Felder war der Sprung keiner Ursache
+einzeln zuzuordnen. `runtime` trennt den Agenten, `configuredModel` hält das geroutete
+Modell fest (das beobachtete `model` ist bei z.ai/openrouter nur der Alias-Durchschuss
+bzw. das Output-Maximum). Passt `provider` nicht zum beobachteten Modell, warnt die
+Kosten-Action in der Job-Summary. Auswertung je Kombination (#2096):
+
+```bash
+# Agent × Provider × Modell × Phase (#2096): Anzahl, Ø Dauer (s), Ø Turns, Ø cost/Ø Wert (USD)
+# Zeitraum: von/bis als ISO-Präfix (Defaults offen; z. B. --arg von 2026-10-01). Einträge
+# ohne runtime laufen als eigene Gruppe "unbekannt" mit — der Bestand wird nie verworfen;
+# Ø Dauer zählt nur Einträge mit durationSeconds (Alt-Einträge haben keins).
+jq -s --arg von "0000-01-01" --arg bis "9999-12-31" '
+  [.[][]
+    | select((.timestamp // "") >= $von and (.timestamp // "") <= $bis)]
+  | group_by((.runtime // "unbekannt") + " | " + (.provider // "?") + " | " + (.model // "?") + " | " + (.phase // "?"))
+  | .[] | [(.[0].runtime // "unbekannt"), (.[0].provider // "?"), (.[0].model // "?"), (.[0].phase // "?"), length,
+    ([.[] | select(.durationSeconds != null)] | if length > 0 then (map(.durationSeconds) | add / length | round) else "-" end),
+    ((map(.turns // 0) | add) / length * 10 | round / 10),
+    ((map(.cost // 0) | add) / length * 100 | round / 100),
+    ((map(.valueCost // 0) | add) / length * 100 | round / 100)] | @tsv' .costs/*.json | column -t
+```
+
+## Config-Historie: `.costs/agent-config-history.json`
+
+Jeder Lauf von `set-agent-config` hängt an diese Datei an, was er geändert hat — Zeitpunkt,
+Auslöser, Run und alt→neu je Variable (`AGENT_RUNTIME`, `LLM_PROVIDER`,
+`ANTHROPIC_DEFAULT_HAIKU_MODEL`). Ohne diese Historie wäre der Wechselzeitpunkt nur aus den
+Kostensätzen zu erraten (#2090). Commit über die Contents-API auf main (`[skip ci]`),
+Fehlschläge verwarnen sichtbar, der nächste Dispatch trägt nach.
+
+```bash
+# Wann lief welche Kombination? Historie neben die Kostensätze legen
+jq -r '.[] | [.timestamp, .actor, .variable, "\(.oldValue) → \(.newValue)"] | @tsv' .costs/agent-config-history.json | column -t
 ```
 
 **`tokensIn` enthält die Cache-Token.** Es ist die Summe aus ungecachten Eingabe-Token,

@@ -263,6 +263,12 @@ export function main(argv: readonly string[] = process.argv.slice(2)): number {
 	const provider = flag(argv, 'provider');
 	if (phase) input.phase = phase;
 	if (provider) input.provider = provider;
+	// Agent + konfiguriertes Modell (#2090): unterscheidet den Agenten (claude|pi) vom
+	// beobachteten Modell und haelt den Alias VOR der Aufloesung fest.
+	const runtime = flag(argv, 'runtime');
+	if (runtime) input.runtime = runtime;
+	const configuredModel = flag(argv, 'configured-model');
+	if (configuredModel) input.configuredModel = configuredModel;
 	const effort = flag(argv, 'effort');
 	if (effort) input.effort = effort;
 	const verdict = flag(argv, 'verdict');

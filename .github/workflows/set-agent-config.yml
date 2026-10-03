@@ -187,6 +187,7 @@ jobs:
           fi
 
       - name: OpenRouter-haiku-Modell tauschen
+        id: haiku
         if: inputs.openrouter-haiku-model != ''
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
@@ -211,6 +212,9 @@ jobs:
           v="$(gh variable get CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER -R "${GITHUB_REPOSITORY}" | jq -r '.env.ANTHROPIC_DEFAULT_HAIKU_MODEL')"
           [ "$v" = "$NEW" ] || { echo "::error::CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER nicht übernommen (gelesen: $v)"; exit 1; }
           echo "::notice title=✅ OpenRouter haiku (Claude Code)::$OLD → $NEW"
+          # Für die Config-Historie (#2090): alt/neu hinter der haiku-Modellvariable.
+          echo "old=$OLD" >> "$GITHUB_OUTPUT"
+          echo "new=$NEW" >> "$GITHUB_OUTPUT"
           if [ -n "$PI_JSON" ]; then
             printf '%s' "$PI_JSON" | jq -c --arg n "openrouter/$NEW" '.openrouter.haiku = $n' \
               | gh variable set PI_MODEL_ALIASES -R "${GITHUB_REPOSITORY}"
@@ -239,6 +243,61 @@ jobs:
             [ "$v" = "$IN_PROVIDER" ] || { echo "::error::LLM_PROVIDER nicht übernommen (gelesen: $v)"; rc=1; }
           fi
           exit $rc
+
+      - name: Config-Historie fortschreiben (#2090)
+        # AK5: Zeitpunkt, Auslöser und alt→neu JE Änderung versionieren — ohne Historie ist
+        # der Wechselzeitpunkt nur aus Kostensätzen zu erraten. Commit über die Contents-API
+        # wie der Kosten-Siegel (seal-costs.sh): atomar auf dem main-Tip, Bot-Identität,
+        # kein Push-Rennen. NIE FATAL (wie die Kostenerfassung): ein Fehlschlag verwirnt
+        # sichtbar, der Umschaltlauf bleibt grün — der nächste Dispatch holt nach.
+        if: success()
+        env:
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          ACTOR: ${{ github.actor }}
+          RUN_ID: ${{ github.run_id }}
+          IN_RUNTIME: ${{ inputs.runtime }}
+          IN_PROVIDER: ${{ inputs.provider }}
+          IN_HAIKU: ${{ inputs.openrouter-haiku-model }}
+          PREV_RUNTIME: ${{ steps.resolve.outputs.current-runtime }}
+          PREV_PROVIDER: ${{ steps.resolve.outputs.current-provider }}
+          HAIKU_OLD: ${{ steps.haiku.outputs.old }}
+          HAIKU_NEW: ${{ steps.haiku.outputs.new }}
+        run: |
+          set -uo pipefail
+          entries="[]"
+          add_entry() { # <variable> <old> <new>
+            entries="$(printf '%s' "$entries" | jq -c --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              --arg actor "$ACTOR" --arg run "$RUN_ID" --arg var "$1" --arg old "$2" --arg new "$3" \
+              '. + [{timestamp: $ts, actor: $actor, run: $run, variable: $var, oldValue: $old, newValue: $new}]')"
+          }
+          [ "$IN_RUNTIME" != "unverändert" ] && add_entry AGENT_RUNTIME "${PREV_RUNTIME:-<unset>}" "$IN_RUNTIME"
+          [ "$IN_PROVIDER" != "unverändert" ] && add_entry LLM_PROVIDER "${PREV_PROVIDER:-<unset>}" "$IN_PROVIDER"
+          # Modell-Variable: der haiku-Tausch ändert ANTHROPIC_DEFAULT_HAIKU_MODEL (OpenRouter,
+          # inkl. des pi-Spiegels in PI_MODEL_ALIASES — dieselbe neue ID, ein Eintrag genügt).
+          if [ -n "$IN_HAIKU" ] && [ -n "$HAIKU_NEW" ]; then
+            add_entry ANTHROPIC_DEFAULT_HAIKU_MODEL "${HAIKU_OLD:-?}" "$HAIKU_NEW"
+          fi
+          if [ "$entries" = "[]" ]; then
+            echo "::notice title=Historie::Keine Änderung an Agent/Provider/Modell — kein Eintrag."
+            exit 0
+          fi
+          hist=".costs/agent-config-history.json"
+          sha="$(gh api "repos/${GITHUB_REPOSITORY}/contents/${hist}?ref=main" --jq .sha 2>/dev/null || true)"
+          if [ -n "$sha" ]; then
+            existing="$(gh api "repos/${GITHUB_REPOSITORY}/contents/${hist}?ref=main" --jq .content | base64 -d 2>/dev/null | jq -c . 2>/dev/null || echo '[]')"
+          else
+            existing="[]"
+          fi
+          jq -sc '.[0] + .[1]' <(printf '%s' "$existing") <(printf '%s' "$entries") > /tmp/agent-config-history.json
+          if gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/${hist}" \
+              -f message="chore(costs): Agent-Konfiguration umgestellt [skip ci]" \
+              -f content="$(base64 < /tmp/agent-config-history.json | tr -d '\n')" \
+              $( [ -n "$sha" ] && printf ' -f sha=%s ' "$sha" ) -f branch=main > /dev/null; then
+            echo "::notice title=✅ Historie::${hist} auf main committet ($(printf '%s' "$entries" | jq 'length') Eintrag/Einträge)."
+          else
+            echo "::warning title=Historie fehlgeschlagen::Contents-API lehnte ab — Änderungen sind wirksam, aber nicht versioniert. Nächster Umschalt-Dispatch trägt nach."
+          fi
+          exit 0
 
       - name: Zusammenfassung
         if: always()

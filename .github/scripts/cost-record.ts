@@ -34,6 +34,9 @@ export const COSTS_DIR = '.costs';
  *     nicht unterscheidbar (schwächerer Code vs. strengerer Review ohne Spec-Kontext) —
  *     Inline-Kommentare sind je ein Finding (SKILL Step 4), Nits stehen gesammelt im
  *     ai-review-Kommentar; beide sind ohne LLM deterministisch zählbar.
+ *   - ohne `runtime`/`configuredModel` ist ein Lauf weder dem Agenten (Claude Code vs. pi)
+ *     noch dem gerouteten Modell-Alias zuordenbar — beide Wechsel fielen zeitlich zusammen,
+ *     der Laufzeitsprung seit 01.10. war so keinen Ursachen einzeln zuzuordnen (#2090),
  *   - ohne `durationSeconds`/`mcpCalls` fehlen dem N-Wege-Phasenvergleich Laufzeit und
  *     MCP-Nutzung; erst neue Läufe tragen die Werte (Alt-Einträge ohne Backfill).
  * Alt-Einträge ohne diese Felder bleiben gültig — Leser müssen sie als optional behandeln.
@@ -47,6 +50,10 @@ export type CostEntry = {
 	phase?: string;
 	model?: string;
 	provider?: string;
+	/** Agenten-Laufzeit dieses Laufs: "claude" (Claude Code) oder "pi" (#2090). */
+	runtime?: string;
+	/** Konfiguriertes Modell als Alias/Referenz VOR der Auflösung — anders als das beobachtete `model` (#2090). */
+	configuredModel?: string;
 	cacheCreationTokens?: number;
 	cacheReadTokens?: number;
 	sidechainTokens?: number;
@@ -102,6 +109,8 @@ const toEntry = (issueId: string, input: CostInput): CostEntry => {
 	if (input.phase !== undefined) entry.phase = input.phase;
 	if (input.model !== undefined) entry.model = input.model;
 	if (input.provider !== undefined) entry.provider = input.provider;
+	if (input.runtime !== undefined) entry.runtime = input.runtime;
+	if (input.configuredModel !== undefined) entry.configuredModel = input.configuredModel;
 	if (input.cacheCreationTokens !== undefined) entry.cacheCreationTokens = input.cacheCreationTokens;
 	if (input.cacheReadTokens !== undefined) entry.cacheReadTokens = input.cacheReadTokens;
 	if (input.sidechainTokens !== undefined) entry.sidechainTokens = input.sidechainTokens;

@@ -120,6 +120,9 @@ outputs:
   invoke-args:
     description: 'Invoke-Argumente (Claude-Flags inkl. --allowedTools)'
     value: ${{ steps.resolve-invoke.outputs.invoke-args }}
+  model-alias:
+    description: 'Konfigurierter Modell-Alias vor der Auflösung (#2090)'
+    value: ${{ steps.provider.outputs.model-alias }}
 
 runs:
   using: composite
@@ -331,6 +334,10 @@ runs:
           echo "::notice title=Modell::Kein Phasen-Modell gesetzt — Default aus .claude/settings.json."
           echo "resolved-model=" >> "$GITHUB_OUTPUT"
         fi
+
+        # Konfigurierter Alias VOR der Aufloesung (#2090): Kostensaetze unterscheiden das
+        # geroutete Modell vom beobachteten; leer = kein Phasen-Modell (settings-Default).
+        echo "model-alias=${CLAUDE_MODEL}" >> "$GITHUB_OUTPUT"
 
         # Subagent-Modell: CLAUDE_CODE_SUBAGENT_MODEL ist seit CLI 2.1.251 nur noch der
         # DEFAULT für Subagents ohne eigenes model-Frontmatter — das Rollen-Frontmatter

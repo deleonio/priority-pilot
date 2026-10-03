@@ -434,6 +434,7 @@ jobs:
           phase: mentor
           since-epoch: ${{ steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
+          configured-model: ${{ steps.setup.outputs.model-alias }}
           effort: ${{ steps.setup.outputs.effort }}
           # Laufzeit + Sitzungsverzeichnis entscheiden, WOHER der Verbrauch gelesen wird.
           # session-dir ist nur bei runtime=pi gefüllt; bei claude bleibt es leer und die
@@ -551,6 +552,7 @@ jobs:
           phase: implement
           since-epoch: ${{ steps.mentor.outputs.since_epoch || steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
+          configured-model: ${{ steps.setup.outputs.model-alias }}
           effort: ${{ steps.setup.outputs.effort }}
           runtime: ${{ steps.setup.outputs.runtime }}
           session-dir: ${{ steps.setup.outputs.session-dir }}
@@ -1064,6 +1066,7 @@ jobs:
           phase: mentor
           since-epoch: ${{ steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
+          configured-model: ${{ steps.setup.outputs.model-alias }}
           effort: ${{ steps.setup.outputs.effort }}
           runtime: ${{ steps.setup.outputs.runtime }}
           session-dir: ${{ steps.setup.outputs.session-dir }}
@@ -1187,6 +1190,7 @@ jobs:
           phase: fixup
           since-epoch: ${{ steps.mentor.outputs.since_epoch || steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
+          configured-model: ${{ steps.setup.outputs.model-alias }}
           effort: ${{ steps.setup.outputs.effort }}
           runtime: ${{ steps.setup.outputs.runtime }}
           session-dir: ${{ steps.setup.outputs.session-dir }}
