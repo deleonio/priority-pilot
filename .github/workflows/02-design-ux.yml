@@ -64,6 +64,7 @@ jobs:
         with:
           phase: ux
           ticket: ${{ steps.issue.outputs.number }}
+          defer-on-peak: 'true'
 
       - name: Für workflow_dispatch immer proceed=true
         id: check-dispatch

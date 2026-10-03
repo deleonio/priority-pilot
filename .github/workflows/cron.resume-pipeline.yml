@@ -35,6 +35,9 @@ on:
     - cron: '5 22,6,14 * * *'
     # CET-Feuerungen: 23:05/07:05/15:05 UTC = 00:05/08:05/16:05 Europe/Berlin (Winter)
     - cron: '5 23,7,15 * * *'
+    # ZAI-Peak-Wecken (#2100): 12:05 Europe/Berlin (10:05 UTC CEST / 11:05 UTC CET) -
+    # kurz nach Fensterende (Mo-Fr 08-12 MESZ) weckt der Sweep die vertagten Phasen.
+    - cron: '5 10,11 * * *'
   workflow_dispatch:
     inputs:
       dry-run:
@@ -104,7 +107,7 @@ jobs:
           BERLIN_HOUR="$(TZ='Europe/Berlin' date +%H)"
           echo "Berlin-Uhrzeit: ${BERLIN_HOUR}:xx Europe/Berlin."
           case "$BERLIN_HOUR" in
-            00|08|16)
+            00|08|12|16)
               echo "active=true" >> "$GITHUB_OUTPUT"
               echo "::notice title=🕐 Sweep aktiv::${BERLIN_HOUR}:05 Europe/Berlin — Continue-Sweep läuft."
               ;;

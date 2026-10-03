@@ -79,6 +79,7 @@ jobs:
         with:
           phase: review
           ticket: ${{ github.event.pull_request.number }}
+          defer-on-peak: 'true'
 
       - name: Phasen-Routing aus ai-phase-routing-Tabelle
         # ZUERST: Die Tabelle ist die analysgetriebene Primärsteuerung (ADR-0004),

@@ -54,6 +54,7 @@ jobs:
         with:
           phase: spec
           ticket: ${{ github.event.issue.number }}
+          defer-on-peak: 'true'
 
   spec:
     needs: precheck

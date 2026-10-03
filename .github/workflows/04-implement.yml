@@ -131,6 +131,7 @@ jobs:
         with:
           phase: ${{ steps.route.outputs.phase }}
           ticket: ${{ steps.route.outputs.ticket }}
+          defer-on-peak: 'true'
 
       - name: Phasen-Routing aus ai-phase-routing-Tabelle
         # ZUERST: Die Tabelle ist die analysgetriebene Primärsteuerung (ADR-0004).
