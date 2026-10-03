@@ -2,6 +2,7 @@ import {
 	KolAccordion,
 	KolAlert,
 	KolButton,
+	KolHeading,
 	KolInputCheckbox,
 	KolInputDate,
 	KolInputRange,
@@ -14,6 +15,7 @@ import type {
 	Category,
 	ChecklistItem,
 	Pillar,
+	PillarSuggestion,
 	Series,
 	SeriesCreate,
 	SeriesRhythm,
@@ -53,6 +55,35 @@ import { deadlineToDateInput, formatNumber, isTaskFormDirty, type TaskFormSnapsh
 import type { AddressSuggestion } from '../lib/useAddressSearch';
 import { TITLE_MAX_LENGTH } from '../lib/titleLengthValidation';
 import { DESCRIPTION_MAX_LENGTH } from '../lib/descriptionLengthValidation';
+
+/**
+ * #2078: KI-Anteile für den Vorschlags-Block — trägt die Antwort `share`-Werte (#2076, der Server
+ * füllt sie immer), werden diese exakt übernommen; fehlt `share` (Alt-Antworten) oder nennt die
+ * Antwort eine fremde `pillarId`, liefert der Konfidenz-Fallback (`suggestionsToContributions`)
+ * die Anteile — sonst bekäme eine Säule still 0 %. Beide Wege enden in einer Vollverteilung über
+ * alle Säulen (#2077): jeder Anteil 5–80, Summe exakt 100.
+ */
+const pillarSuggestionToContributions = (
+	suggestions: readonly PillarSuggestion[],
+	pillars: readonly Pillar[],
+): TaskPillarContribution[] => {
+	const known = new Set(pillars.map((pillar) => pillar.id));
+	const sharesComplete =
+		suggestions.length === pillars.length &&
+		suggestions.every((entry) => typeof entry.share === 'number' && known.has(entry.pillarId));
+	if (!sharesComplete) {
+		return suggestionsToContributions(suggestions, pillars);
+	}
+	const byId = new Map(suggestions.map((entry) => [entry.pillarId, entry]));
+	return pillars.map((pillar) => {
+		const entry = byId.get(pillar.id);
+		return {
+			pillarId: pillar.id,
+			share: entry?.share ?? 0,
+			confidence: entry?.confidence ?? 100,
+		};
+	});
+};
 
 /**
  * #553: Vergleicht zwei Säulen-Beitragslisten auf inhaltliche Gleichheit (Reihenfolge-unabhängig).
@@ -535,6 +566,12 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	// nicht stört (und umgekehrt).
 	const [suggesting, setSuggesting] = useState(false);
 	const [suggestError, setSuggestError] = useState<string | null>(null);
+	// #2078: Stehender KI-Vorschlags-Block — der Vorschlag wird nie automatisch angewendet;
+	// „Vorschlag übernehmen“ setzt die Verteilung, „Verwerfen“ wirft den Block weg.
+	const [pillarSuggestion, setPillarSuggestion] = useState<TaskPillarContribution[] | null>(null);
+	// #2078 (AK3): Sichtbare Rückmeldung, wenn nach einer Übernahme erneut getippt wurde und die
+	// Verteilung zur Rangfolge-Treppe zurückkehrte (Hinweis über die aria-live-Region unten).
+	const [rankReturnNotice, setRankReturnNotice] = useState(false);
 	// #680: Lektorat-Loading/Error für Titel- und Beschreibungsfeld.
 	const [lektoratingTitle, setLektoratingTitle] = useState(false);
 	const [lektoratingDescription, setLektoratingDescription] = useState(false);
@@ -557,6 +594,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	const createdTask = useRef<Task | null>(null);
 
 	// Refs für die Lektorat-Trigger-Buttons (für Fokus-Rückkehr nach Abbrechen)
+	const suggestTriggerRef = useRef<HTMLKolButtonElement>(null);
 	const lektoratTitleTriggerRef = useRef<HTMLKolButtonElement>(null);
 	const lektoratDescriptionTriggerRef = useRef<HTMLKolButtonElement>(null);
 
@@ -622,6 +660,11 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 			: [...rankedPillarIds, pillarId];
 		setRankedPillarIds(next);
 		setContributions(distributionFromRankOrder(next, pillars));
+		// #2078 (AK3): Ersetzt der Tipp eine übernommene KI-Verteilung, meldet die Live-Region
+		// die Rückkehr zur Treppe — der Wechsel ist sonst nur aus den Prozentwerten ablesbar.
+		if (suggestionApplied.current) {
+			setRankReturnNotice(true);
+		}
 	};
 
 	// #2074: Angezeigte Anteile der Tap-Zeilen — die aktuelle Verteilung, sobald sie alle Säulen
@@ -648,9 +691,10 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	const toggleChecklistItem = (id: string): void =>
 		setChecklist((prev) => prev.map((item) => (item.id === id ? { ...item, completed: !item.completed } : item)));
 
-	// Holt per KI (Server-Endpoint) einen Säulen-Vorschlag aus Titel/Beschreibung und übernimmt ihn als
-	// editierbare Beiträge. Der Nutzer kann den Vorschlag anschließend über die vorhandenen Slider/
-	// Hinzufügen/Entfernen-Bedienelemente korrigieren, bevor er speichert.
+	// #2078: Holt per KI (Server-Endpoint) einen Säulen-Vorschlag aus Titel/Beschreibung und zeigt
+	// ihn als Block „KI-Vorschlag“ an — bewusst OHNE die Verteilung zu verändern. Erst „Vorschlag
+	// übernehmen“ wendet ihn an, „Verwerfen“ verwirft ihn; sonst korrigiert der Nutzer wie bisher
+	// über die vorhandenen Bedienelemente, bevor er speichert.
 	const suggestPillars = async (): Promise<void> => {
 		const title = form.current.title.trim();
 		if (title === '') {
@@ -664,23 +708,39 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 			const suggestions = await api.suggestPillars({
 				suggestPillarsInput: { title, description: description === '' ? undefined : description },
 			});
-			const next = suggestionsToContributions(suggestions, pillars);
+			const next = pillarSuggestionToContributions(suggestions, pillars);
 			if (next.length === 0) {
 				setSuggestError('Es konnte keine passende Säule vorgeschlagen werden.');
 				return;
 			}
-			// Der Vorschlag ist eine vollständige Verteilung über alle Säulen (Summe 100 %, #1596).
-			setContributions(next);
-			// #2074: Rangfolge mitableiten (Anteile absteigend, Gleichstand nach Listenordnung) —
-			// die Tap-Zeilen zeigen den Vorschlag mit Rang, ein folgender Tipp setzt dort fort.
-			setRankedPillarIds([...next].sort((a, b) => b.share - a.share).map((entry) => entry.pillarId));
-			suggestionApplied.current = true;
+			// Der Vorschlag steht als Block — die Verteilung bleibt bis zur Übernahme unverändert.
+			setPillarSuggestion(next);
 		} catch (reason) {
 			const apiError = await toApiError(reason);
 			setSuggestError(apiError.message);
 		} finally {
 			setSuggesting(false);
 		}
+	};
+
+	// #2078: „Vorschlag übernehmen“ ersetzt die angetippte Rangfolge exakt durch die KI-Anteile;
+	// die Rangfolge wird daraus abgeleitet (Anteile absteigend, Gleichstand nach Listenordnung).
+	const applyPillarSuggestion = (): void => {
+		if (pillarSuggestion === null) {
+			return;
+		}
+		setContributions(pillarSuggestion);
+		setRankedPillarIds([...pillarSuggestion].sort((a, b) => b.share - a.share).map((entry) => entry.pillarId));
+		suggestionApplied.current = true;
+		setRankReturnNotice(false);
+		setPillarSuggestion(null);
+	};
+
+	// #2078: „Verwerfen“ lässt die angetippte Rangfolge und ihre Anteile unverändert stehen;
+	// der Fokus kehrt zum „Säulen vorschlagen“-Auslöser zurück.
+	const discardPillarSuggestion = (): void => {
+		setPillarSuggestion(null);
+		suggestTriggerRef.current?.focus();
 	};
 
 	// #680/#687: Lektorat holt den Vorschlag vom Server und öffnet das Diff-Modal.
@@ -1070,7 +1130,11 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 						pillarFeedbackInput: {
 							title,
 							description: description === '' ? undefined : description,
-							pillars: pillars.map((entry) => ({ pillarId: entry.pillarId, confidence: entry.confidence })),
+							pillars: pillars.map((entry) => ({
+								pillarId: entry.pillarId,
+								confidence: entry.confidence,
+								share: entry.share,
+							})),
 						},
 					})
 					.catch(() => undefined);
@@ -1347,6 +1411,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 										{aiEnabled && (
 											<>
 												<KolButton
+													ref={suggestTriggerRef}
 													_label={suggesting ? 'Säulen werden vorgeschlagen…' : 'Säulen vorschlagen'}
 													_variant="secondary"
 													_disabled={saving || suggesting}
@@ -1379,6 +1444,36 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 											);
 										})}
 									</div>
+									{/* #2078: KI-Vorschlag als eigener Block (Muster #1962: Übernehmen/Verwerfen) —
+									    Herkunft als Überschrift, die fünf Anteile als Liste; die Verteilung
+									    ändert sich erst mit „Vorschlag übernehmen“. */}
+									{pillarSuggestion !== null && (
+										<div className="pillar-suggestion-block">
+											<KolHeading _label="KI-Vorschlag" _level={3} />
+											<ul className="pillar-suggestion-shares">
+												{pillarSuggestion.map((entry) => (
+													<li key={entry.pillarId}>
+														{pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`} —{' '}
+														{formatNumber(entry.share)} %
+													</li>
+												))}
+											</ul>
+											<div className="pillar-suggestion-actions">
+												<KolButton
+													_label="Vorschlag übernehmen"
+													_variant="secondary"
+													_disabled={saving || suggesting}
+													_on={{ onClick: applyPillarSuggestion }}
+												/>
+												<KolButton
+													_label="Verwerfen"
+													_variant="secondary"
+													_disabled={saving || suggesting}
+													_on={{ onClick: discardPillarSuggestion }}
+												/>
+											</div>
+										</div>
+									)}
 									{suggesting && (
 										<div className="pillar-editor-loading">
 											<KolSpin _show _variant="cycle" _label="Säulen-Vorschlag wird geladen" />
@@ -1411,6 +1506,10 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 									{/* #1596-Fixup: `aria-live` für die gekoppelten Regler — analog zu
 									    `PillarWeightsForm.tsx`, dort gab es nie eine Live-Region für diesen Block. */}
 									<p aria-live="polite" className="visually-hidden">
+										{/* #2078: Ankündigung des Blocks (ohne Fokuswechsel) und Rückkehr-Hinweis,
+										    wenn ein Tipp eine übernommene KI-Verteilung zur Treppe zurücksetzt. */}
+										{pillarSuggestion !== null ? 'KI-Vorschlag eingetroffen. ' : ''}
+										{rankReturnNotice ? 'Verteilung zurück zur Rangfolge-Treppe. ' : ''}
 										{contributions
 											.map(
 												(entry) =>

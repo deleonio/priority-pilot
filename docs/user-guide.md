@@ -434,9 +434,11 @@ stärker als bei anderen. Aufgaben aus der Zeit davor, die noch keine oder nur e
 tragen, behalten ihre gespeicherte Form; beim **Bearbeiten** wird die Verteilung im Formular auf
 alle Säulen vervollständigt und so mit dem nächsten Speichern.
 
-Mit **„Säulen vorschlagen"** verteilt eine KI die Anteile aus Titel und Beschreibung. Nach der
-Schnellerfassung mit vorbelegtem Titel passiert das automatisch – den Vorschlag kannst du vor
-dem Speichern anpassen.
+Mit **„Säulen vorschlagen"** schlägt dir eine KI die Anteile aus Titel und Beschreibung vor.
+Der Vorschlag erscheint als eigener Block **„KI-Vorschlag"** und wird nie automatisch
+angewendet – auch nicht nach der Schnellerfassung mit vorbelegtem Titel. Erst
+**„Vorschlag übernehmen"** setzt die Verteilung auf die KI-Anteile; **„Verwerfen"** lässt deine
+bisherige Rangfolge unverändert.
 
 ### Säulen-Gewichtung anpassen
 
