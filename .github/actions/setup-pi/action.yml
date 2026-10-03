@@ -100,70 +100,38 @@ runs:
         echo "session-dir=$SESSION_DIR" >> "$GITHUB_OUTPUT"
         echo "::notice title=📁 pi-Sitzungen::$SESSION_DIR"
 
-    - name: pi-Pakete installieren (aus .pi/settings.json)
+    - name: pi-Pakete aus Cache wiederherstellen (#2092)
+      # Restore ist auf JEDEM Trigger erlaubt (nur Writes sind auf Issue-/PR-Events
+      # gesperrt) — der Vorwärm-Lauf cron.pi-package-cache.yml schreibt den Cache.
+      # Key = Hash der Paketliste: aendert sich .pi/settings.json, ist der Cache
+      # automatisch Miss und die Neuinstallation laeuft (Issue-AK). Bewusst KEINE
+      # restore-keys: ein alter Paketstand waere schlimmer als ~40 s Installation.
+      id: pi-packages-cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.pi/agent
+        key: pi-agent-packages-${{ runner.os }}-${{ hashFiles('.pi/settings.json') }}
+
+    - name: pi-Pakete installieren (aus .pi/settings.json, bei Cache-Miss; #2092)
+      # Logik (Parsing, Pinnung, pi list) lebt EINMAL in pi-install-packages.sh —
+      # derselbe Code wärmt im cron den Cache, hier laeuft er nur bei Miss (~40 s
+      # statt in jedem Lauf, Issue #2092).
+      if: steps.pi-packages-cache.outputs.cache-hit != 'true'
       shell: bash
       run: |
         set -uo pipefail
+        bash "${GITHUB_ACTION_PATH}/../../scripts/pi-install-packages.sh"
 
-        # QUELLE IST DAS EINGECHECKTE PROJEKTFILE, nicht eine CI-eigene Liste: .pi/settings.json
-        # gilt ohnehin für jede pi-Session in diesem Repo (auch lokal). Eine zweite Liste nur
-        # für CI würde genau das erzeugen, was die Pilotphase widerlegen soll — einen Lauf, der
-        # anders arbeitet als der lokale.
-        #
-        # WARUM ÜBERHAUPT INSTALLIEREN, wenn pi Projektpakete beim Start selbst nachzieht:
-        # Die Projekteinträge tragen `autoload: false` und sind damit laut pi-Doku ein DELTA
-        # über dem jeweiligen GLOBALEN Eintrag (Ressourcen-Filter, nicht eigenständige
-        # Installation). Genau so sieht die lokale Maschine des Maintainers aus: global
-        # installiert, projektseitig gefiltert. `pi install` schreibt in die globalen Settings
-        # (~/.pi/agent/settings.json) und stellt diese Ebene im Runner erst her.
-        # Zweiter Grund: Ein Fehlschlag bricht hier laut ab, und `pi list` steht als Nachweis
-        # im Log — statt mitten im Agentenlauf unterzugehen.
-        SETTINGS=".pi/settings.json"
-        if [ ! -f "$SETTINGS" ]; then
-          echo "::error title=pi-Pakete fehlen::$SETTINGS nicht gefunden — ohne die Paketliste läuft pi ohne Subagents und MCP und ist mit einem Claude-Code-Lauf nicht vergleichbar."
-          exit 1
-        fi
-
-        # Objektform (mit Ressourcen-Filtern) ebenso zulassen wie den blossen Quell-String —
-        # die pi-Doku erlaubt beide in `packages`, und das Projektfile nutzt die Objektform.
-        mapfile -t SOURCES < <(jq -r '.packages[]? | if type == "object" then .source else . end' "$SETTINGS")
-        if [ "${#SOURCES[@]}" -eq 0 ]; then
-          echo "::error title=pi-Pakete leer::$SETTINGS enthält keine packages."
-          exit 1
-        fi
-
-        # HART FEHLSCHLAGEN statt weiterlaufen: Ein still fehlender MCP-Adapter oder ein
-        # fehlendes Subagent-Paket ändert das Verhalten des Laufes, ohne dass es im Ergebnis
-        # sofort sichtbar wäre — und macht damit genau den Vergleich kaputt, für den die
-        # Pilotphase existiert.
-        UNPINNED=""
-        for SRC in "${SOURCES[@]}"; do
-          echo "→ pi install $SRC"
-          if ! pi install "$SRC"; then
-            echo "::error title=pi-Paket nicht installierbar::'$SRC' — Lauf abgebrochen."
-            exit 1
-          fi
-          # Versionslose npm-Quelle = die CI zieht bei jedem Lauf die aktuelle Version, und
-          # zwei Läufe basierten dann auf verschiedenen Erweiterungsständen — als
-          # Kostenvergleich wertlos. Alle Einträge sind deshalb gepinnt und werden von einem
-          # Renovate-CustomManager gepflegt (renovate.json5). Die Prüfung bleibt als
-          # Sicherheitsleine: Ein von Hand nachgetragener Eintrag ohne Version soll auffallen,
-          # bevor er die Messbasis verschiebt.
-          case "$SRC" in
-            npm:*@*) ;;
-            npm:*) UNPINNED="${UNPINNED:+$UNPINNED, }$SRC" ;;
-          esac
-        done
-        if [ -n "$UNPINNED" ]; then
-          echo "::warning title=📌 Ungepinnte pi-Pakete::${UNPINNED} — die CI zieht jeweils die aktuelle Version, Läufe werden unvergleichbar. In .pi/settings.json auf eine Version festlegen (npm:paket@x.y.z); Renovate hält sie danach aktuell."
-        fi
-
-        # NACHWEIS im Runner-Log (Akzeptanzkriterium des Tickets): `pi list` zeigt die
-        # installierten Pakete mit Version und Pfad. Bewusst „installiert", nicht „geladen" —
-        # ein headless-Lauf gibt keinen Startkopf aus (--verbose ist im -p-Modus stumm,
-        # nachgemessen mit 0.84.4), also ist das die belastbarste Aussage, die im Log steht.
+    - name: pi-Pakete aus Cache prüfen (Nachweis, #2092)
+      # Bei Cache-Treffer laeuft die Installation nicht — pi list als Nachweis trotzdem,
+      # derselbe Beleg wie im Install-Pfad (Issue-AK: pi list steht im Log).
+      if: steps.pi-packages-cache.outputs.cache-hit == 'true'
+      shell: bash
+      run: |
+        set -uo pipefail
+        echo "::notice title=📦 pi-Pakete aus Cache::~/.pi/agent restauriert (Key ohne restore-keys, Hash der Paketliste) — Installation übersprungen (#2092)."
         echo "::group::pi list"
-        pi list || echo "::warning title=pi list::Auflistung fehlgeschlagen — Installation lief dennoch durch."
+        pi list || echo "::warning title=pi list::Auflistung fehlgeschlagen — Cache-Inhalt prüfen."
         echo "::endgroup::"
 
     - name: Auth setzen (providerspezifisch)
