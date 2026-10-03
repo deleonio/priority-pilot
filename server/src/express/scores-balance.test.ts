@@ -375,4 +375,27 @@ describe('GET /scores/balance — Trend und Defizit (#1796)', () => {
 		const nochmal = (await (await getBalance(cookie)).json()) as { meilensteine: { schluessel: string }[] };
 		assert.deepEqual(nochmal.meilensteine, nachReopen.meilensteine, 'AK3: ein zweiter Leselauf ändert nichts');
 	});
+
+	it('AK1 (#2150, docs/spec/issue-2150.md): ein Balance-Request liest ScoreEntry.findAll genau einmal', async (t) => {
+		const cookie = await server.register('balance-einlesen@example.com', 'password123');
+		const saeule = await createPillar(cookie, `Eins-${idCounter++}`);
+		await completeTaskWithShares(cookie, 'Einlese-Aufgabe', 1, [{ pillarId: saeule.id, share: 100 }]);
+
+		const original = ScoreEntry.findAll;
+		let aufrufe = 0;
+		ScoreEntry.findAll = (async (...args: Parameters<typeof original>) => {
+			aufrufe++;
+			return original.apply(ScoreEntry, args);
+		}) as typeof ScoreEntry.findAll;
+		t.after(() => {
+			ScoreEntry.findAll = original;
+		});
+
+		const res = await getBalance(cookie);
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { streak: { aktuell: number }; meilensteine: unknown[] };
+		assert.ok(body.streak, 'Antwort bleibt unverändert: streak ist vorhanden');
+		assert.ok(Array.isArray(body.meilensteine), 'Antwort bleibt unverändert: meilensteine ist eine Liste');
+		assert.equal(aufrufe, 1, `genau ein ScoreEntry.findAll je Balance-Request ( aktuell: ${aufrufe})`);
+	});
 });
