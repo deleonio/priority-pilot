@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.14 - 2026-10-03
 
-_Enthält v0.14.0 – v0.14.4._
+_Enthält v0.14.0 – v0.14.5._
 
 ### 🎉 New Features
 
@@ -15,6 +15,7 @@ _Enthält v0.14.0 – v0.14.4._
 - feat(frontend): onboarding rework from review #2087 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2120
 - feat(frontend): rank pillars by tap order (50/20/15/10/5, full save) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2114
 - fix(ci): move tailscale/dns network switch behind the runtime setup (#2091) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2122
+- feat(frontend): progress state on subscription confirm buttons (#2105) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2123
 
 ## v0.13 - 2026-10-03
 
@@ -163,7 +164,6 @@ _Enthält v0.10.0 – v0.10.36._
 
 ### 🎉 New Features
 
-- feat(server): add ai care suggestion for plus and pro (#1804) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1871
 - feat(server): add ai care suggestion for plus and pro (#1804) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1871
 
 ### 🚀 Improvements
@@ -352,6 +352,7 @@ _Enthält v0.5.0 – v0.5.32._
 - ci(android): build a signed app bundle via workflow_dispatch by @deleonio in https://github.com/deleonio/priority-pilot/pull/1715
 - feat(android): receive push notifications via FCM by @deleonio in https://github.com/deleonio/priority-pilot/pull/1716
 - feat(website): account deletion page for the Play Store listing by @deleonio in https://github.com/deleonio/priority-pilot/pull/1717
+- refactor(server): billing providers behind a shared interface by @deleonio in https://github.com/deleonio/priority-pilot/pull/1718
 - refactor(server): billing providers behind a shared interface by @deleonio in https://github.com/deleonio/priority-pilot/pull/1718
 - feat(server): map plans to google play subscription products by @deleonio in https://github.com/deleonio/priority-pilot/pull/1719
 - feat(server): verify and acknowledge google play purchases by @deleonio in https://github.com/deleonio/priority-pilot/pull/1720
