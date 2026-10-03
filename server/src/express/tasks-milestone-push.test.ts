@@ -173,4 +173,23 @@ describe('Meilenstein-Push bei Statuswechsel auf Done (#1363)', () => {
 		assert.equal(res.status, 200, 'Wiedereröffnen muss 200 liefern');
 		assert.equal(calls.length, 0, 'die Score-Rücknahme beim Wiedereröffnen löst keinen Versand aus');
 	});
+
+	// ── #1965 AK4: dieselbe Schwelle nach Reopen + erneutem Done höchstens einmal ───
+
+	it('dieselbe Schwelle nach Reopen + erneutem Done feuert höchstens einmal (AK4, #1965)', async () => {
+		const cookie = await server.login(EMAIL, { displayName: 'Meilenstein-Nutzerin' });
+		const userId = await userIdOf(EMAIL);
+		await seedSubscription(userId, 'https://push.example/milestone-sticky');
+		await seedFortyFivePoints(userId);
+		const taskId = await createTask(cookie);
+
+		await patch(cookie, `/tasks/${taskId}`, { status: 'Done' });
+		assert.equal(calls.length, 1, 'Vorbedingung: der erste Done meldet die Schwelle');
+		await patch(cookie, `/tasks/${taskId}`, { status: 'Open' });
+		await patch(cookie, `/tasks/${taskId}`, { status: 'Done' });
+
+		assert.equal(calls.length, 1, 'AK4: Reopen + erneutes Done löst keinen zweiten Versand aus');
+		const logs = await NotificationLog.findAll({ where: { kind: 'milestone' } });
+		assert.equal(logs.length, 1, 'AK4: genau ein NotificationLog-Eintrag je Schwelle');
+	});
 });
