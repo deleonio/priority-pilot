@@ -3203,6 +3203,15 @@ kol-toolbar {
 	min-width: 0;
 }
 
+/* #1984: Liste der Experten-Bereiche im Accordion unter dem Expertenmodus-Schalter —
+ * derselbe 16dp-Rhythmus wie im Panel-Stack. */
+.settings-expert-list {
+	display: grid;
+	gap: var(--pp-gap-tight);
+	margin: 0;
+	padding-left: 1.25rem;
+}
+
 /*
  * Dieselbe Korrektur wie bei den Formular-Sektionen (`.form-section kol-accordion`): Das
  * KoliBri-Default-Theme rückt `.kol-accordion__content` links um 2.25em ein, rechts nur um
