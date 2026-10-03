@@ -1,6 +1,6 @@
 import type { Locator } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView, fullPillarContributions } from './helpers';
+import { waitForStableView, fullPillarContributions, registerOwnSession } from './helpers';
 
 /**
  * E2E-Vertrag für die „Balance-Priorisierung" in der Aufgabenliste (Tab „Aufgaben", #1792).
@@ -67,6 +67,11 @@ test.describe('Balance-Priorisierung in der Aufgabenliste', () => {
 
 	/** Zwei gewichtete Säulen (A = unterversorgt, B = versorgt) plus Task X (Prio 1 → A) und Y (Prio 5 → B). */
 	const seedScene = async (page: Page): Promise<{ taskX: TaskDto; taskY: TaskDto }> => {
+		// Eigene Session (#2132-Fixup): der Pass-Through-Account der Shard-DB sammelt Säulen-Reste
+		// anderer Specs (15 statt 5 Säulen) — die Vollverteilungs-Fixtures spreizen dann auf alle,
+		// die Defizite kippen und die Badge-Erwartung (~P4) bricht. Die frische Registrierung säht
+		// GENAU die fünf Standard-Säulen und hält die Rechnung deterministisch.
+		await registerOwnSession(page, 'balance-priority');
 		const pillarsResponse = await page.request.get('/api/v1/pillars');
 		expect(pillarsResponse.ok()).toBeTruthy();
 		const pillars = ((await pillarsResponse.json()) as PillarDto[]).filter((pillar) => pillar.weight > 0);
