@@ -2012,3 +2012,34 @@ describe('SettingsPage – #1984: Expertenmodus-Schalter im Tab Allgemein', () =
 		expect(expertTab3?.querySelectorAll('.geo-range-field').length, 'drei Geo-Regler im Expertenmodus').toBe(3);
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1972 (Spec docs/spec/issue-1972.md): Beim Aktivieren der Standorterfassung
+ * erklärt ein Warn-Hinweis direkt am Schalter die PWA-Grenze (Nähe-Alarme nur zuverlässig bei
+ * geöffneter App) und empfiehlt die Installation als Text (kein zweiter Install-Button).
+ * Bei deaktivierter Erfassung wird kein Hinweis-Knoten gerendert.
+ */
+describe('SettingsPage – #1972: PWA-Grenzen-Hinweis am Schalter „Standort erfassen“', () => {
+	/** Slot-Container eines Tabs (Muster der #1151-Tests oben). */
+	const panel = (container: HTMLElement, slot: string): HTMLElement | null =>
+		container.querySelector(`[slot="${slot}"]`);
+
+	const hint = (container: HTMLElement): Element | null =>
+		panel(container, 'tab-3')?.querySelector('kol-alert[_label="Nähe-Alarm nur bei geöffneter App"]') ?? null;
+
+	it('AK3: bei aktivierter Standorterfassung ist der Hinweis sichtbar (Grenze + Installationsempfehlung)', () => {
+		geoState.enabled = true;
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		expect(hint(container), 'PWA-Grenzen-Hinweis im Standort-Tab sichtbar').toBeTruthy();
+		expect(hint(container)?.textContent).toMatch(/geöffnet/i);
+		expect(hint(container)?.textContent).toMatch(/installier/i);
+	});
+
+	it('AK3: bei deaktivierter Standorterfassung wird kein Hinweis-Knoten gerendert', () => {
+		geoState.enabled = false;
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		expect(hint(container)).toBeNull();
+	});
+});
