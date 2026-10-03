@@ -51,10 +51,6 @@ inputs:
   openrouter-api-key:
     description: 'API-Key für OpenRouter (secret, secrets.OPENROUTER_API_KEY). Nur bei llm-provider=openrouter erforderlich.'
     required: false
-  pi-version:
-    description: 'Gepinnte pi-Version. BEWUSST GEPINNT statt latest: Zwei Läufe auf verschiedenen CLI-Versionen sind für den A/B-Vergleich mit Claude Code wertlos.'
-    required: false
-    default: '0.87.1' # pi pin — Renovate customManager (renovate.json5) updated diese Version; Marker hält die Regex exakt auf diese Zeile
 
 outputs:
   invoke-cmd:
@@ -70,56 +66,22 @@ outputs:
 runs:
   using: composite
   steps:
-    # pi-CLI cachen — dieselbe Überlegung wie bei Claude Code: `npm install -g` kostet auf
-    # jedem kalten Runner Zeit. Der Key trägt die gepinnte Version, ein Versionswechsel
-    # invalidiert den Cache also von selbst (anders als der statische Claude-Key, der bei
-    # jedem Upgrade von Hand gebustet werden müsste).
-    - name: pi CLI sichern
-      id: cache-pi
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        # GANZES node_modules-Verzeichnis statt nur der Scoped-Package: `npm install -g`
-        # hoisted pi unscopte Runtime-Abhängigkeiten (chalk, undici, …) als Geschwister
-        # neben `@earendil-works` — nur die Scoped-Package + Symlink zu cachen hätte
-        # nie einen nutzbaren Treffer ergeben (Verify-Step reinstalliert trotzdem).
-        # `npm`/`corepack` gehören zum Node des Runner-Images, nicht zu pi — bewusst
-        # ausgeschlossen, damit ein Restore die Runner-eigene npm-Version nicht überschreibt.
-        path: |
-          /usr/local/lib/node_modules
-          !/usr/local/lib/node_modules/npm
-          !/usr/local/lib/node_modules/corepack
-          /usr/local/bin/pi
-        # pi5-Split im Key (wie setup-claude): pi5 (ARM64) trennen von den x64-Hosted-Runnern,
-        # damit kein fremd-plattformiger npm-Global-Stand restored — über den Runner-Namen,
-        # hosted ohne stabilen Namen im Sammel-Slot 'hosted'.
-        key: pi-cli-${{ runner.os }}-${{ runner.name == 'pi5' && 'pi5' || 'hosted' }}-${{ inputs.pi-version }}-v2
-
-    # VERIFIZIEREN STATT VERTRAUEN (übernommen aus setup-claude): Ein Cache-Treffer beweist
-    # nur, dass Dateien da sind — nicht, dass die CLI startet. Und der Abbruch gehört HIER
-    # hin statt in den Phasen-Step: dort liefe erst das komplette Setup, und der Fehler sähe
-    # im Log wie ein Provider-/Modellproblem aus.
+    # OHNE CACHE UND OHNE PIN (bewusste Entscheidung): Jeder Lauf installiert @latest frisch.
+    # Ein Cache könnte "latest" nicht ehrlich abbilden — sein Key hätte keine Version, die
+    # den Refresh auslöst, und der Stand würde beim Seed einfrieren. Die Installationszeit
+    # je Lauf ist der Preis dafür. Die pi-Erweiterungen in .pi/settings.json bleiben
+    # dagegen gepinnt und Renovate-gepflegt (Warnung im Pakete-Step unten).
+    #
+    # Der Abbruch gehört HIER hin statt in den Phasen-Step: dort liefe erst das komplette
+    # Setup, und der Fehler sähe im Log wie ein Provider-/Modellproblem aus.
     - name: pi bereitstellen und prüfen
       shell: bash
-      env:
-        PI_VERSION: ${{ inputs.pi-version }}
-        CACHE_HIT: ${{ steps.cache-pi.outputs.cache-hit }}
       run: |
         set -uo pipefail
 
-        cli_ok() { pi --version >/dev/null 2>&1; }
+        npm install -g "@earendil-works/pi-coding-agent@latest"
 
-        if cli_ok && [ "$(pi --version 2>/dev/null | tr -d '[:space:]')" = "$PI_VERSION" ]; then
-          echo "::notice title=pi CLI::Lauffähig (${PI_VERSION}, aus Cache)."
-          exit 0
-        fi
-
-        if [ "$CACHE_HIT" = "true" ]; then
-          echo "::warning title=pi CLI unvollständig::Cache-Treffer, aber 'pi --version' liefert nicht ${PI_VERSION} — wird neu installiert. Passiert das in JEDEM Lauf, liegen Dateien außerhalb der gecachten Pfade: dann die path-Liste oben erweitern."
-        fi
-
-        npm install -g "@earendil-works/pi-coding-agent@${PI_VERSION}"
-
-        if ! cli_ok; then
+        if ! pi --version >/dev/null 2>&1; then
           echo "::error title=pi CLI nicht lauffähig::'pi --version' startet auch nach Neuinstallation nicht. Der Lauf wird hier beendet, statt später im LLM-Aufruf zu scheitern."
           exit 1
         fi
