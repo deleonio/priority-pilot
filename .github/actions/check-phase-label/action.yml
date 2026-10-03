@@ -70,11 +70,12 @@ runs:
         # Ein unbekannter Phasen-Name lässt das Skript hart scheitern (exit 2) —
         # bewusst kein Fail-open: ein Tippfehler soll laut auffallen, nicht das
         # Gate still aushebeln.
-        PEAK_ARGS=()
-        [ "${DEFER_ON_PEAK:-false}" = "true" ] && PEAK_ARGS+=(--defer-on-peak)
-        OUT="$(bash "${GITHUB_ACTION_PATH}/../../scripts/check-phase-label.sh" \
-          --repo "$REPO" --phase "$PHASE" --ticket "$TICKET" \
-          --trigger-label "$TRIGGER_LABEL" ${PEAK_ARGS[@]+"${PEAK_ARGS[@]}"}")"
+        # Das +-Idiom (${ARR[@]+"${ARR[@]}"}) direkt vor der schließenden Klammer
+        # quotet die ")" — die $()-Substitution schließt sich nie wieder (Parse-Fehler
+        # #2126). Ein immer gefülltes ARGS-Array braucht kein unset-Idiom.
+        ARGS=(--repo "$REPO" --phase "$PHASE" --ticket "$TICKET" --trigger-label "$TRIGGER_LABEL")
+        [ "${DEFER_ON_PEAK:-false}" = "true" ] && ARGS+=(--defer-on-peak)
+        OUT="$(bash "${GITHUB_ACTION_PATH}/../../scripts/check-phase-label.sh" "${ARGS[@]}")"
 
         PROCEED="$(printf '%s' "$OUT" | sed -n 's/^proceed=//p')"
         REASON="$(printf '%s' "$OUT" | sed -n 's/^reason=//p')"
