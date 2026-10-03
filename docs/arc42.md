@@ -503,7 +503,7 @@ dokumentiert.
 
 | Begriff                       | Bedeutung                                                                                                                              |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Säule (Pillar)                | Lebensbereich (fünf feste Stammsäulen oder nutzerdefiniert), auf den Tasks anteilig „einzahlen"; Gewichtung als 100-%-Verteilung       |
+| Säule (Pillar)                | Lebensbereich (fünf feste Stammsäulen als je-Nutzer-Kopie), auf den Tasks anteilig „einzahlen"; Gewichtung als 100-%-Verteilung        |
 | Einzahlung (share/confidence) | Anteil eines Tasks an einer Säule mit Konfidenzwert; n:m über `task_pillars`                                                           |
 | Aufgabenwald (Forest)         | Nach Wertschöpfung sortierter Task-Baum inklusive Abhängigkeiten; `GET /forest`, Aufbau in `server/src/logics/tree.ts`                 |
 | Serie (Habit)                 | Vorlage für wiederkehrende Aufgaben; fällige Instanzen werden idempotent materialisiert                                                |
