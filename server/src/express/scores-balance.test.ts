@@ -38,7 +38,12 @@ const createPillar = async (cookie: string, _name: string): Promise<{ id: number
 	return pillars[seedPillarCursor++ % pillars.length]!;
 };
 
-/** Legt einen Task mit Säulenanteilen an und erledigt ihn. */
+/**
+ * Legt einen Task mit Säulenanteilen an und erledigt ihn. #2077: die Beiträge werden direkt in
+ * der DB eingeklagt (Legacy-Bestand außerhalb der API-Schreib-Regel, Muster des AK5-Legacy-Tests)
+ * — die Balance-/Trend-Lesepfade werten Alt-Verteilungen unverfälscht aus; die Schreib-Regel
+ * (Vollverteilungs-Pflicht) ist für diese Lesetests bewusst nicht aktiv.
+ */
 const completeTaskWithShares = async (
 	cookie: string,
 	title: string,
@@ -48,10 +53,13 @@ const completeTaskWithShares = async (
 	const createRes = await server.json('/tasks', {
 		method: 'POST',
 		headers: { Cookie: cookie },
-		body: JSON.stringify({ title, priority: 3, estimatedEffort, pillars }),
+		body: JSON.stringify({ title, priority: 3, estimatedEffort }),
 	});
 	assert.equal(createRes.status, 201, 'Task-Anlage muss 201 liefern');
 	const task = (await createRes.json()) as { id: number };
+	for (const entry of pillars) {
+		await TaskPillar.create({ taskId: task.id, pillarId: entry.pillarId, share: entry.share, confidence: 100 });
+	}
 
 	const doneRes = await server.json(`/tasks/${task.id}`, {
 		method: 'PATCH',

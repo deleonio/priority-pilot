@@ -8,7 +8,15 @@ import { wouldCreateCycle } from '../../logics/cycle.js';
 import { haversineKm } from '../../logics/geo.js';
 import { selectSeriesRepresentatives } from '../../logics/series.js';
 import { berechneScore } from '../../logics/score.js';
-import { PillarContribution, validatePillars, arePillarsExistent } from '../../logics/pillarContributions.js';
+import {
+	PillarContribution,
+	validatePillars,
+	arePillarsExistent,
+	coversAllAccountPillars,
+	getAccountPillarIds,
+	PILLAR_DISTRIBUTION_RULE,
+} from '../../logics/pillarContributions.js';
+import { distributeWithMinimum } from '../../logics/pillarShares.js';
 import { isCategoryExistent, remapCategoryForRecipient, validateCategoryId } from '../../logics/categoryOwnership.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { requirePlanFeature } from '../planGuard.js';
@@ -505,7 +513,7 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 		}
 		const result = validatePillars(input.pillars);
 		if (!result.ok) {
-			return { ok: false, message: 'Ungültige Säulen-Beiträge.' };
+			return { ok: false, message: `Ungültige Säulen-Beiträge. ${PILLAR_DISTRIBUTION_RULE}` };
 		}
 		pillars = result.pillars;
 	}
@@ -735,6 +743,15 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 				return;
 			}
+			// #2077 (AK1): Vollverteilungs-Pflicht — eine nicht-leere Verteilung muss ALLE Säulen des
+			// Kontos abdecken (Bounds/Summe prüft validateTaskFields); Teilmengen werden abgelehnt.
+			if (validation.pillars !== undefined && validation.pillars.length > 0) {
+				const accountPillarIds = await getAccountPillarIds(recipientId ?? userId ?? null);
+				if (!coversAllAccountPillars(validation.pillars, accountPillarIds)) {
+					sendError(res, 400, PILLAR_DISTRIBUTION_RULE);
+					return;
+				}
+			}
 			// Kategorie gegen dasselbe Konto prüfen wie die Säulen: Bei einer Aufgabe für ein anderes
 			// Gruppenmitglied gehört sie dem Empfänger, dessen Kategorien gelten also.
 			if (
@@ -893,6 +910,14 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 			return;
 		}
+		// #2077 (AK1): Vollverteilungs-Pflicht — siehe POST /tasks.
+		if (validation.pillars !== undefined && validation.pillars.length > 0) {
+			const accountPillarIds = await getAccountPillarIds(recipientId ?? userId ?? null);
+			if (!coversAllAccountPillars(validation.pillars, accountPillarIds)) {
+				sendError(res, 400, PILLAR_DISTRIBUTION_RULE);
+				return;
+			}
+		}
 		// Kategorie gegen dasselbe Konto prüfen wie die Säulen (bei Übergabe das Empfänger-Konto).
 		if (
 			validation.attrs.categoryId !== undefined &&
@@ -994,13 +1019,29 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 						const replacements =
 							names.length > 0 ? await Pillar.findAll({ where: { userId: remapTargetId, name: names } }) : [];
 						const byName = new Map(replacements.map((pillar) => [pillar.name, pillar]));
-						const mapped = contributions.flatMap((entry) => {
-							const source = oldPillars.find((pillar) => pillar.id === entry.pillarId);
-							const target = source ? byName.get(source.name) : undefined;
-							return target
-								? [{ taskId: task.id, pillarId: target.id, share: entry.share, confidence: entry.confidence }]
-								: [];
+						// #2077 (AK4): Die remappten Anteile sind die Vorgabe — aufgefüllt wird zu einer
+						// gültigen Vollverteilung über ALLE Säulen des Empfängers (jeder Anteil 5–80,
+						// Summe 100). Säulen ohne Gegenstück werden nicht mehr verworfen, sondern
+						// auf Mindestanteil gesetzt; ein Empfänger ohne Säulen bekommt keine Beiträge.
+						const remapped = new Map(
+							contributions.flatMap((entry) => {
+								const source = oldPillars.find((pillar) => pillar.id === entry.pillarId);
+								const target = source ? byName.get(source.name) : undefined;
+								return target ? [[target.id, entry] as const] : [];
+							}),
+						);
+						const recipientPillars = await Pillar.findAll({
+							where: { userId: remapTargetId },
+							order: [['id', 'ASC']],
+							transaction,
 						});
+						const shares = distributeWithMinimum(recipientPillars.map((pillar) => remapped.get(pillar.id)?.share ?? 0));
+						const mapped = recipientPillars.map((pillar, index) => ({
+							taskId: task.id,
+							pillarId: pillar.id,
+							share: shares[index] ?? 0,
+							confidence: remapped.get(pillar.id)?.confidence ?? 100,
+						}));
 						await TaskPillar.destroy({ where: { taskId: task.id }, transaction });
 						if (mapped.length > 0) {
 							await TaskPillar.bulkCreate(mapped, { transaction, validate: true });

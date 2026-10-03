@@ -2,6 +2,7 @@ import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { CARE_VORLAGEN } from '../logics/careSuggestionData.js';
 import { SHARE_MIN, SHARE_TOTAL } from '../logics/pillarShares.js';
+import { TaskPillar } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 
 /**
@@ -52,15 +53,17 @@ const ersteSaeule = async (cookie: string): Promise<number> => {
 	return pillars[0]!.id;
 };
 
-/** Legt eine offene Aufgabe mit Säulen-Beitrag an (Setup). */
+/** Legt eine offene Aufgabe mit Säulen-Beitrag an (Setup, Legacy-Insert außerhalb der Schreib-Regel #2077). */
 const createOpenTask = async (cookie: string, titel: string, pillarId: number): Promise<number> => {
 	const res = await server.json('/tasks', {
 		method: 'POST',
 		headers: { Cookie: cookie },
-		body: JSON.stringify({ title: titel, priority: 3, estimatedEffort: 0.5, pillars: [{ pillarId, share: 100 }] }),
+		body: JSON.stringify({ title: titel, priority: 3, estimatedEffort: 0.5 }),
 	});
 	assert.equal(res.status, 201, 'Setup: Task-Anlage muss 201 liefern');
-	return ((await res.json()) as { id: number }).id;
+	const { id } = (await res.json()) as { id: number };
+	await TaskPillar.create({ taskId: id, pillarId, share: 100, confidence: 100 });
+	return id;
 };
 
 describe('GET /scores/care-suggestions (#1791)', () => {
@@ -154,15 +157,16 @@ describe('GET /scores/care-suggestions (#1791)', () => {
 		assert.equal(danach.length, 0, 'abgelehnte Vorlage darf nicht erneut erscheinen');
 	});
 
-	/** Setup: erledigte Aufgabe mit Aufwand in einer Säule (ScoreEntry-Zeitpunkt = jetzt). */
+	/** Setup: erledigte Aufgabe mit Aufwand in einer Säule (ScoreEntry-Zeitpunkt = jetzt, Legacy-Insert #2077). */
 	const erledigeAufgabe = async (cookie: string, pillarId: number): Promise<void> => {
 		const createRes = await server.json('/tasks', {
 			method: 'POST',
 			headers: { Cookie: cookie },
-			body: JSON.stringify({ title: 'Überlast', priority: 3, estimatedEffort: 1, pillars: [{ pillarId, share: 100 }] }),
+			body: JSON.stringify({ title: 'Überlast', priority: 3, estimatedEffort: 1 }),
 		});
 		assert.equal(createRes.status, 201, 'Setup: Task-Anlage muss 201 liefern');
 		const { id } = (await createRes.json()) as { id: number };
+		await TaskPillar.create({ taskId: id, pillarId, share: 100, confidence: 100 });
 		const doneRes = await server.json(`/tasks/${id}`, {
 			method: 'PATCH',
 			headers: { Cookie: cookie },

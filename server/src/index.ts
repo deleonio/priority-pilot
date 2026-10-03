@@ -1,8 +1,9 @@
 // Muss als Erstes stehen: lädt `.env` in process.env, bevor andere Module Variablen lesen.
 import './env.js';
 import sequelize from './database.js';
-import { Pillar, Task, TaskPillar } from './models/index.js';
+import { Pillar, TaskPillar } from './models/index.js';
 import { SEED_PILLARS } from './models/pillarData.js';
+import { seedDemoData } from './logics/demoSeed.js';
 
 // Flag um rekursive Exit-Aufrufe zu verhindern
 let isExiting = false;
@@ -68,49 +69,6 @@ const migrateLegacySinglePillar = async (): Promise<void> => {
 			'SELECT id, pillarId, 100, 100 FROM tasks WHERE pillarId IS NOT NULL',
 	);
 	console.log('Bestehende Einzel-Säulen-Zuordnungen nach task_pillars migriert.');
-};
-
-const seedDemoData = async (): Promise<void> => {
-	const existing = await Task.count();
-	if (existing > 0) {
-		return;
-	}
-
-	const pillarByName = new Map((await Pillar.findAll()).map((pillar) => [pillar.name, pillar]));
-
-	const task1 = await Task.create({
-		title: 'Task 1',
-		status: 'Open',
-		priority: 1,
-		estimatedEffort: 1,
-		deadline: new Date('2025-01-15'),
-	});
-	const task2 = await Task.create({ title: 'Task 2', status: 'In process', priority: 2, estimatedEffort: 0.5 });
-	const task3 = await Task.create({
-		title: 'Task 3',
-		status: 'Open',
-		priority: 3,
-		estimatedEffort: 0.75,
-		deadline: new Date('2025-01-20'),
-	});
-	const task4 = await Task.create({ title: 'Task 4', status: 'Open', priority: 4, estimatedEffort: 1 });
-
-	await task1.addDependency(task2, { through: { weight: 0.5 } });
-	await task1.addDependency(task3, { through: { weight: 0.1 } });
-	await task4.addDependency(task3, { through: { weight: 1.0 } });
-
-	// Beispielhafte Mehrfach-Einzahlung: Task 1 verteilt 70/30 auf zwei Säulen (mit Konfidenz),
-	// Task 3 zahlt voll auf eine Säule ein. Übrige Tasks bleiben ohne Säule (neutral).
-	const wirksamkeit = pillarByName.get('Wirksamkeit');
-	const sinn = pillarByName.get('Sinn');
-	const koerper = pillarByName.get('Körper');
-	if (wirksamkeit && sinn) {
-		await task1.addPillar(wirksamkeit.id, { through: { share: 70, confidence: 90 } });
-		await task1.addPillar(sinn.id, { through: { share: 30, confidence: 60 } });
-	}
-	if (koerper) {
-		await task3.addPillar(koerper.id, { through: { share: 100, confidence: 100 } });
-	}
 };
 
 export const main = async (): Promise<void> => {

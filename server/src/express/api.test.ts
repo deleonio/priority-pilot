@@ -374,18 +374,26 @@ describe('Tasks API', () => {
 			const [koerper, sinn] = await seedTwoPillars();
 			const task = await Task.create({ title: 'T', priority: 1, estimatedEffort: 1 });
 			const assigned = await patch(`/tasks/${task.id}`, {
-				pillars: [{ pillarId: koerper, share: 100, confidence: 100 }],
+				pillars: [
+					{ pillarId: koerper, share: 60, confidence: 100 },
+					{ pillarId: sinn, share: 40, confidence: 100 },
+				],
 			});
 			assert.equal(assigned.status, 200);
 			assert.deepEqual(((await assigned.json()) as Record<string, unknown>).pillars, [
-				{ pillarId: koerper, share: 100, confidence: 100 },
+				{ pillarId: koerper, share: 60, confidence: 100 },
+				{ pillarId: sinn, share: 40, confidence: 100 },
 			]);
-			// Vollständig ersetzen (andere Säule).
+			// Vollständig ersetzen (Verteilung dreht die Anteile).
 			const replaced = await patch(`/tasks/${task.id}`, {
-				pillars: [{ pillarId: sinn, share: 100, confidence: 50 }],
+				pillars: [
+					{ pillarId: koerper, share: 40, confidence: 50 },
+					{ pillarId: sinn, share: 60, confidence: 50 },
+				],
 			});
 			assert.deepEqual(((await replaced.json()) as Record<string, unknown>).pillars, [
-				{ pillarId: sinn, share: 100, confidence: 50 },
+				{ pillarId: koerper, share: 40, confidence: 50 },
+				{ pillarId: sinn, share: 60, confidence: 50 },
 			]);
 			// Leeren.
 			const cleared = await patch(`/tasks/${task.id}`, { pillars: [] });
@@ -394,13 +402,21 @@ describe('Tasks API', () => {
 		});
 
 		it('PATCH ohne pillars-Feld lässt die Beiträge unverändert', async () => {
-			const [koerper] = await seedTwoPillars();
+			const [koerper, sinn] = await seedTwoPillars();
 			const task = await Task.create({ title: 'T', priority: 1, estimatedEffort: 1 });
-			await patch(`/tasks/${task.id}`, { pillars: [{ pillarId: koerper, share: 100 }] });
+			await patch(`/tasks/${task.id}`, {
+				pillars: [
+					{ pillarId: koerper, share: 60 },
+					{ pillarId: sinn, share: 40 },
+				],
+			});
 			const res = await patch(`/tasks/${task.id}`, { priority: 5 });
 			const body = (await res.json()) as Record<string, unknown>;
 			assert.equal(body.priority, 5);
-			assert.deepEqual(body.pillars, [{ pillarId: koerper, share: 100, confidence: 100 }]);
+			assert.deepEqual(body.pillars, [
+				{ pillarId: koerper, share: 60, confidence: 100 },
+				{ pillarId: sinn, share: 40, confidence: 100 },
+			]);
 		});
 
 		it('400 wenn die Summe der share nicht 100 ergibt', async () => {
@@ -431,7 +447,7 @@ describe('Tasks API', () => {
 			assert.equal(res.status, 400);
 		});
 
-		it('400 wenn share außerhalb 0–100', async () => {
+		it('400 wenn share außerhalb der Anteils-Grenzen (5–80)', async () => {
 			const [koerper] = await seedTwoPillars();
 			const res = await post('/tasks', {
 				title: 'T',
@@ -443,12 +459,15 @@ describe('Tasks API', () => {
 		});
 
 		it('400 wenn confidence außerhalb 0–100', async () => {
-			const [koerper] = await seedTwoPillars();
+			const [koerper, sinn] = await seedTwoPillars();
 			const res = await post('/tasks', {
 				title: 'T',
 				priority: 1,
 				estimatedEffort: 1,
-				pillars: [{ pillarId: koerper, share: 100, confidence: 120 }],
+				pillars: [
+					{ pillarId: koerper, share: 60, confidence: 120 },
+					{ pillarId: sinn, share: 40 },
+				],
 			});
 			assert.equal(res.status, 400);
 		});

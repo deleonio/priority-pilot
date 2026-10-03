@@ -1,6 +1,6 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { ScoreEntry } from '../models/index.js';
+import { ScoreEntry, TaskPillar } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 
 /**
@@ -54,10 +54,15 @@ const completeTaskAt = async (
 	const createRes = await server.json('/tasks', {
 		method: 'POST',
 		headers: { Cookie: cookie },
-		body: JSON.stringify({ title, priority: 3, estimatedEffort, pillars }),
+		body: JSON.stringify({ title, priority: 3, estimatedEffort }),
 	});
 	assert.equal(createRes.status, 201, 'Task-Anlage muss 201 liefern');
 	const task = (await createRes.json()) as { id: number };
+	// Legacy-Insert außerhalb der Schreib-Regel (#2077): die Historien-Lesepfade werten Alt-
+	// Verteilungen unverfälscht aus, die Schreib-Regel ist für dieses Setup bewusst nicht aktiv.
+	for (const entry of pillars) {
+		await TaskPillar.create({ taskId: task.id, pillarId: entry.pillarId, share: entry.share, confidence: 100 });
+	}
 
 	const doneRes = await server.json(`/tasks/${task.id}`, {
 		method: 'PATCH',

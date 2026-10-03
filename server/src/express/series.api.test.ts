@@ -633,38 +633,65 @@ describe('Series API', () => {
 		});
 
 		it('GET /series/:id → Response enthält pillars-Array', async () => {
-			const [koerper] = await seedTwoPillars();
+			const [koerper, sinn] = await seedTwoPillars();
 			const created = (await (
-				await post('/series', { ...validSeries(), pillars: [{ pillarId: koerper, share: 100 }] })
+				await post('/series', {
+					...validSeries(),
+					pillars: [
+						{ pillarId: koerper, share: 60 },
+						{ pillarId: sinn, share: 40 },
+					],
+				})
 			).json()) as { id: number };
 			const res = await get(`/series/${created.id}`);
 			assert.equal(res.status, 200);
 			const body = (await res.json()) as Record<string, unknown>;
 			assert.ok('pillars' in body, 'Response enthält das pillars-Feld');
-			assert.deepEqual(body.pillars, [{ pillarId: koerper, share: 100, confidence: 100 }]);
+			assert.deepEqual(body.pillars, [
+				{ pillarId: koerper, share: 60, confidence: 100 },
+				{ pillarId: sinn, share: 40, confidence: 100 },
+			]);
 		});
 
 		it('PATCH /series/:id mit pillars → ersetzt die Vorlage vollständig', async () => {
 			const [koerper, sinn] = await seedTwoPillars();
 			const created = (await (
-				await post('/series', { ...validSeries(), pillars: [{ pillarId: koerper, share: 100 }] })
+				await post('/series', {
+					...validSeries(),
+					pillars: [
+						{ pillarId: koerper, share: 60 },
+						{ pillarId: sinn, share: 40 },
+					],
+				})
 			).json()) as { id: number };
 
 			const res = await patch(`/series/${created.id}`, {
-				pillars: [{ pillarId: sinn, share: 100, confidence: 50 }],
+				pillars: [
+					{ pillarId: koerper, share: 40, confidence: 50 },
+					{ pillarId: sinn, share: 60, confidence: 50 },
+				],
 			});
 			assert.equal(res.status, 200);
 			const body = (await res.json()) as {
 				pillars: { pillarId: number; share: number; confidence: number }[];
 			};
-			// Der alte Beitrag (koerper) ist ersetzt, nicht ergänzt.
-			assert.deepEqual(body.pillars, [{ pillarId: sinn, share: 100, confidence: 50 }]);
+			// Die alte Verteilung ist ersetzt, nicht ergänzt (Anteile gedreht, Konfidenz neu).
+			assert.deepEqual(body.pillars, [
+				{ pillarId: koerper, share: 40, confidence: 50 },
+				{ pillarId: sinn, share: 60, confidence: 50 },
+			]);
 		});
 
 		it('PATCH /series/:id mit pillars: [] → leert die Vorlage', async () => {
-			const [koerper] = await seedTwoPillars();
+			const [koerper, sinn] = await seedTwoPillars();
 			const created = (await (
-				await post('/series', { ...validSeries(), pillars: [{ pillarId: koerper, share: 100 }] })
+				await post('/series', {
+					...validSeries(),
+					pillars: [
+						{ pillarId: koerper, share: 60 },
+						{ pillarId: sinn, share: 40 },
+					],
+				})
 			).json()) as { id: number };
 
 			const res = await patch(`/series/${created.id}`, { pillars: [] });
@@ -674,9 +701,15 @@ describe('Series API', () => {
 		});
 
 		it('PATCH /series/:id ohne pillars → lässt die Vorlage unverändert', async () => {
-			const [koerper] = await seedTwoPillars();
+			const [koerper, sinn] = await seedTwoPillars();
 			const created = (await (
-				await post('/series', { ...validSeries(), pillars: [{ pillarId: koerper, share: 100 }] })
+				await post('/series', {
+					...validSeries(),
+					pillars: [
+						{ pillarId: koerper, share: 60 },
+						{ pillarId: sinn, share: 40 },
+					],
+				})
 			).json()) as { id: number };
 
 			// Ein PATCH, der pillars NICHT enthält, darf die bestehende Vorlage nicht antasten.
@@ -687,7 +720,10 @@ describe('Series API', () => {
 				pillars: { pillarId: number; share: number; confidence: number }[];
 			};
 			assert.equal(body.title, 'Neuer Titel');
-			assert.deepEqual(body.pillars, [{ pillarId: koerper, share: 100, confidence: 100 }]);
+			assert.deepEqual(body.pillars, [
+				{ pillarId: koerper, share: 60, confidence: 100 },
+				{ pillarId: sinn, share: 40, confidence: 100 },
+			]);
 		});
 	});
 });

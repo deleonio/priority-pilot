@@ -230,13 +230,21 @@ describe('Aufgaben-Übergabe an ein Gruppenmitglied (#1252)', () => {
 				`AK4: Anteil von "${pillar.name}" muss zwischen 5 und 80 liegen (war ${entry.share})`,
 			);
 		}
-		// Name-Remap: Alices beiden Säulen-Namen tragen ihre Anteile beim Empfänger weiter.
+		// Name-Remap: Alices beiden Säulen-Namen tragen ihre Anteile beim Empfänger weiter — anteilig
+		// (Test-Pflege #2077: exakte 60/40 sind mit der Auffüll-Pflicht — drei weitere Säulen je ≥ 5,
+		// Summe exakt 100 — mathematisch unerfüllbar; `distributeWithMinimum` skaliert die Remap-
+		// Vorgaben proportional auf den freien Pool). Fixiert wird daher die Rangfolge: die beiden
+		// gleichnamigen Säulen tragen den größten und zweitgrößten Anteil in Reihenfolge.
 		const bobByName = new Map(bobPillars.map((pillar) => [pillar.name, pillar]));
-		for (const [index, expectedShare] of [60, 40].entries()) {
+		const sharesDesc = contributions.map((entry) => entry.share).sort((a, b) => b - a);
+		for (const [index, expectedRankShare] of sharesDesc.entries()) {
+			if (index >= 2) {
+				break;
+			}
 			const bobPillar = bobByName.get(alicePillars[index]!.name);
 			assert.ok(bobPillar, `AK4: Bob braucht eine gleichnamige Säule zu "${alicePillars[index]!.name}"`);
 			const entry = byPillarId.get(bobPillar.id);
-			assert.equal(entry?.share, expectedShare, `AK4: Remap behält den Anteil von "${bobPillar.name}"`);
+			assert.equal(entry?.share, expectedRankShare, `AK4: Remap erhält die Rangfolge von "${bobPillar.name}"`);
 		}
 	});
 

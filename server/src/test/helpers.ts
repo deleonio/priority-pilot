@@ -3,6 +3,7 @@ import type { Server } from 'node:http';
 import sequelize from '../database.js';
 import { createApp, type AppDeps } from '../express/index.js';
 import { createSessionStore, disconnectStore } from '../express/session.js';
+import { distributeWithMinimum } from '../logics/pillarShares.js';
 import type { UserRole } from '../models/user.js';
 // Import models to ensure associations are registered before sync
 import '../models/index.js';
@@ -220,4 +221,28 @@ export const expectError = async (res: Response, expectedStatus: number): Promis
 	assert.ok((body.message as string).trim().length > 0, 'Fehler-Meldung darf nicht leer sein');
 
 	return body as { message: string };
+};
+
+/** Ein Säulen-Beitrag, wie die Task-/Series-Routen ihn erwarten. */
+export type TestPillarContribution = { pillarId: number; share: number; confidence: number };
+
+/**
+ * Vollverteilung über ALLE Säulen eines Kontos (#2077) — der gemeinsame Test-Helfer für Fixtures,
+ * die die Schreib-Regel erfüllen müssen: holt die Konto-Säulen per GET /pillars (aufsteigend nach
+ * Id, wie die Response) und liefert Beiträge mit confidence 100, die jeder Anteil 5–80 und Summe
+ * exakt 100 einhalten. Ohne `weights` wird gleichverteilt; mit `weights` (gleiche Reihenfolge
+ * wie GET /pillars, kürzere Listen werden mit 0 aufgefüllt) normiert `distributeWithMinimum`
+ * die Vorgaben proportional auf die Regel.
+ */
+export const fullDistribution = async (
+	server: TestServer,
+	cookie: string,
+	weights?: number[],
+): Promise<TestPillarContribution[]> => {
+	const res = await server.json('/pillars', { headers: { Cookie: cookie } });
+	assert.equal(res.status, 200, 'Setup: GET /pillars muss 200 liefern');
+	const pillars = (await res.json()) as { id: number }[];
+	const vorgabe = weights ?? pillars.map(() => 100 / pillars.length);
+	const shares = distributeWithMinimum(pillars.map((_pillar, index) => vorgabe[index] ?? 0));
+	return pillars.map((pillar, index) => ({ pillarId: pillar.id, share: shares[index]!, confidence: 100 }));
 };

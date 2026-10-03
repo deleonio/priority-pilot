@@ -3,7 +3,14 @@ import { readFileSync } from 'node:fs';
 import * as toolsModule from './tools.js';
 import { findMcpTool } from './tools.js';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
+import {
+	resetDb,
+	closeDb,
+	startTestServer,
+	applyTestAuthEnv,
+	fullDistribution,
+	type TestServer,
+} from '../test/helpers.js';
 import { CATEGORY_COLORS } from '../models/categoryColors.js';
 import { ScoreEntry } from '../models/index.js';
 
@@ -505,23 +512,26 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		it('AK2: task_update ersetzt die Zuordnung vollständig, [] leert sie, fehlendes Feld lässt sie unverändert', async () => {
 			const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 			const token = await createToken(cookie);
-			const koerper = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
-			const sinn = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
+			await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
+			await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
 			const taskId = await createTaskViaApi(cookie, 'Für Update über MCP');
 
+			// Gültige Vollverteilungen über ALLE Konto-Säulen (#2077) — A dreht die Anteile.
+			const verteilungA = await fullDistribution(server, cookie, [60, 40]);
 			const withA = await mcpCall<TaskWithPillars>(token, 'task_update', {
 				id: taskId,
-				pillars: [{ pillarId: koerper, share: 100 }],
+				pillars: verteilungA,
 			});
-			assert.deepEqual(withA.result?.pillars, [{ pillarId: koerper, share: 100, confidence: 100 }]);
+			assert.deepEqual(withA.result?.pillars, verteilungA);
 
+			const verteilungB = await fullDistribution(server, cookie, [40, 60]);
 			const withB = await mcpCall<TaskWithPillars>(token, 'task_update', {
 				id: taskId,
-				pillars: [{ pillarId: sinn, share: 100 }],
+				pillars: verteilungB,
 			});
 			assert.deepEqual(
 				withB.result?.pillars,
-				[{ pillarId: sinn, share: 100, confidence: 100 }],
+				verteilungB,
 				'task_update muss die bestehende Zuordnung vollständig ersetzen, nicht ergänzen',
 			);
 
@@ -573,11 +583,17 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 			const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
 			const tokenA = await createToken(cookieA);
 			const fremdeSaeule = await createPillarViaApi(cookieB, `Testsäule-${idCounter++}`);
+			const eigeneSaeule = await createPillarViaApi(cookieA, `Testsäule-${idCounter++}`);
 			const taskId = await createTaskViaApi(cookieA, 'Für Fremdsäulen-Test');
 
+			// Gültige Anteile (5–80, Summe 100) — die Ablehnung greift bewusst an der Existenz-/Konto-
+			// Prüfung, nicht an der Anteils-Form (#2077).
 			const updated = await mcpCall(tokenA, 'task_update', {
 				id: taskId,
-				pillars: [{ pillarId: fremdeSaeule, share: 100 }],
+				pillars: [
+					{ pillarId: fremdeSaeule, share: 60 },
+					{ pillarId: eigeneSaeule, share: 40 },
+				],
 			});
 			assert.ok(updated.error, 'task_update mit fremder pillarId muss fehlschlagen');
 			assert.match(updated.error?.message ?? '', /pillars verweist auf eine nicht existierende Säule\..*\(HTTP 400\)/);
@@ -1367,26 +1383,22 @@ describe('MCP-Werkzeug balance_status (#1423)', () => {
 		assert.equal(leer.result?.fuellstandProzent, 0);
 		assert.equal(leer.result?.hatPunkte, false);
 
-		// Bewusst **alle gewichteten** Standard-Säulen gleichmäßig bedienen: `POST /pillars` legt neue
-		// Säulen mit `weight: 0` an (routes/pillars.ts:251-255), und Punkte auf einer Säule ohne Soll
-		// heben den Füllstand definitionsgemäß nicht (AK4, dritter Randfall — heartBalance.test.ts).
-		// Alles auf eine einzige Säule zu werfen ergäbe die größtmögliche Schieflage und damit
-		// Füllstand 0 — das ist der Boden der Skala, nicht ein fehlender Punktestand.
+		// Bewusst **alle gewichteten** Standard-Säulen in EINER gültigen Vollverteilung bedienen
+		// (#2077): `POST /pillars` legt neue Säulen mit `weight: 0` an (routes/pillars.ts:251-255),
+		// und Punkte auf einer Säule ohne Soll heben den Füllstand definitionsgemäß nicht (AK4,
+		// dritter Randfall — heartBalance.test.ts). Die Registrierung säht nur gewichtete Säulen,
+		// die Vollverteilung deckt genau diese.
 		const pillars = await mcpCall<{ id: number; weight: number }[]>(token, 'pillar_list');
 		const gewichtet = pillars.result?.filter((pillar) => pillar.weight > 0) ?? [];
 		assert.ok(gewichtet.length > 0, 'Setup: der Nutzer muss gewichtete Standard-Säulen besitzen');
-		for (const saeule of gewichtet) {
-			await mcpCall(token, 'task_create', {
-				title: `Erledigt für Füllstand ${saeule.id}`,
-				pillars: [{ pillarId: saeule.id, share: 100 }],
-			});
-		}
-		const list = await mcpCall<{ id: number; title: string }[]>(token, 'task_list');
-		for (const saeule of gewichtet) {
-			const taskId = list.result?.find((t) => t.title === `Erledigt für Füllstand ${saeule.id}`)?.id;
-			assert.ok(taskId, 'Setup: Task muss über task_list auffindbar sein');
-			await mcpCall(token, 'task_complete', { id: taskId });
-		}
+		const erstellt = await mcpCall<{ id: number }>(token, 'task_create', {
+			title: 'Erledigt für Füllstand',
+			pillars: await fullDistribution(server, cookie),
+		});
+		assert.equal(erstellt.error, undefined, `task_create mit Vollverteilung muss gelingen: ${erstellt.error?.message}`);
+		const taskId = erstellt.result?.id;
+		assert.ok(taskId, 'Setup: Task muss über task_list auffindbar sein');
+		await mcpCall(token, 'task_complete', { id: taskId });
 
 		const gefuellt = await mcpCall<BalanceResult>(token, 'balance_status');
 		assert.ok(
@@ -2886,16 +2898,16 @@ describe('MCP-Werkzeug care_suggestions (#1796)', () => {
 		return ((await res.json()) as { vorschlaege: Vorschlag[] }).vorschlaege;
 	};
 
-	const ersteSaeule = async (cookie: string): Promise<number> => {
-		const res = await server.json('/pillars', { headers: { Cookie: cookie } });
-		return ((await res.json()) as { id: number }[])[0]!.id;
-	};
-
-	const offeneTask = async (cookie: string, title: string, pillarId: number): Promise<void> => {
+	const offeneTask = async (cookie: string, title: string): Promise<void> => {
 		const res = await server.json('/tasks', {
 			method: 'POST',
 			headers: { Cookie: cookie },
-			body: JSON.stringify({ title, priority: 3, estimatedEffort: 0.5, pillars: [{ pillarId, share: 100 }] }),
+			body: JSON.stringify({
+				title,
+				priority: 3,
+				estimatedEffort: 0.5,
+				pillars: await fullDistribution(server, cookie),
+			}),
 		});
 		assert.equal(res.status, 201, 'Setup: Task-Anlage muss 201 liefern');
 	};
@@ -2918,8 +2930,7 @@ describe('MCP-Werkzeug care_suggestions (#1796)', () => {
 	it('AK2: care_suggestions liefert exakt die vorschlaege der REST-Route (de und en)', async () => {
 		const cookie = await server.register('mcp-care-b@example.com', 'password123');
 		const token = await createToken(cookie);
-		const saeuleId = await ersteSaeule(cookie);
-		await offeneTask(cookie, 'Spaziergang im Park', saeuleId);
+		await offeneTask(cookie, 'Spaziergang im Park');
 
 		const de = await mcpCall<{ vorschlaege: Vorschlag[] }>(token, 'care_suggestions');
 		assert.equal(de.error, undefined, `care_suggestions muss gelingen: ${de.error?.message}`);
@@ -2938,7 +2949,7 @@ describe('MCP-Werkzeug care_suggestions (#1796)', () => {
 		const cookieA = await server.register('mcp-care-c@example.com', 'password123');
 		const cookieB = await server.register('mcp-care-d@example.com', 'password123');
 		const tokenA = await createToken(cookieA);
-		await offeneTask(cookieB, 'Geheime Aufgabe von B', await ersteSaeule(cookieB));
+		await offeneTask(cookieB, 'Geheime Aufgabe von B');
 
 		const result = await mcpCall<{ vorschlaege: Vorschlag[] }>(tokenA, 'care_suggestions');
 		assert.equal(result.error, undefined);

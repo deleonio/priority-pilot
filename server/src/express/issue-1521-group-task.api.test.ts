@@ -189,10 +189,17 @@ describe('Gruppen-Aufgabe: Claim durch ein Mitglied (#1521)', () => {
 		const contributions = await TaskPillar.findAll({ where: { taskId: task.id } });
 		const koerperBob = bobPillars.find((p) => p.name === 'Körper');
 		assert.ok(koerperBob, 'Setup: Bob muss eine "Körper"-Säule besitzen');
+		// #1521 AK5 + #2077 (AK4): Der Remap-Treffer behält seine Konfidenz, die Anteile werden mit
+		// der Auffüllung auf eine gültige Vollverteilung über ALLE Bob-Säulen normiert (distribute
+		// WithMinimum über Vorgabe 100 auf Körper: 80 auf Körper, je 5 für den Rest).
+		const nachPillarId = (liste: { pillarId: number }[]) => [...liste].sort((a, b) => a.pillarId - b.pillarId);
 		assert.deepEqual(
-			contributions.map((c) => ({ pillarId: c.pillarId, share: c.share, confidence: c.confidence })),
-			[{ pillarId: koerperBob.id, share: 100, confidence: 80 }],
-			'AK5: der Beitrag zeigt nach dem Claim auf Bobs gleichnamige Säule, share/confidence unverändert',
+			nachPillarId(contributions.map((c) => ({ pillarId: c.pillarId, share: c.share, confidence: c.confidence }))),
+			nachPillarId([
+				{ pillarId: koerperBob.id, share: 80, confidence: 80 },
+				...bobPillars.filter((p) => p.id !== koerperBob.id).map((p) => ({ pillarId: p.id, share: 5, confidence: 100 })),
+			]),
+			'AK5: der Beitrag zeigt nach dem Claim auf Bobs gleichnamige Säule (#2077: zur gültigen Vollverteilung aufgefüllt)',
 		);
 
 		const alicePillarUnchanged = await Pillar.findByPk(koerperAlice.id);

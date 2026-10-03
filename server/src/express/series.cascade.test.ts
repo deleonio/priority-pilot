@@ -192,9 +192,18 @@ describe('Series API — Kaskade (#553)', () => {
 
 		// 🔴 AK2 (pillars): kaskadierte Säulen-Vorlage wird auf die Instanzen übertragen (TaskPillar).
 		it('kaskadiert pillars als TaskPillar-Beiträge auf alle Instanzen', async () => {
+			// Zwei Säulen, damit die Beiträge eine gültige Vollverteilung tragen (#2077: jeder
+			// Anteil 5–80, Summe 100).
 			const koerper = await Pillar.create({ name: 'Körper', weight: 20 });
+			const sinn = await Pillar.create({ name: 'Sinn', weight: 20 });
 			const created = (await (
-				await post('/series', { ...validSeries(), pillars: [{ pillarId: koerper.id, share: 100 }] })
+				await post('/series', {
+					...validSeries(),
+					pillars: [
+						{ pillarId: koerper.id, share: 60 },
+						{ pillarId: sinn.id, share: 40 },
+					],
+				})
 			).json()) as { id: number };
 			const instances = await seedInstances(created.id, 3);
 
@@ -202,7 +211,10 @@ describe('Series API — Kaskade (#553)', () => {
 			assert.equal((await Task.findByPk(instances[0].id, { include: [Pillar] }))?.Pillars?.length ?? 0, 0);
 
 			await patch(`/series/${created.id}`, {
-				pillars: [{ pillarId: koerper.id, share: 100 }],
+				pillars: [
+					{ pillarId: koerper.id, share: 60 },
+					{ pillarId: sinn.id, share: 40 },
+				],
 				applyToInstances: true,
 			});
 
