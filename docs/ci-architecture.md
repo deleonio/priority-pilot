@@ -714,8 +714,10 @@ liefert nur Inhalte:
 | `pr-doc-render.sh` | **Alle** Schreibzugriffe: Titel-Rename (validiert gegen dieselbe CC-Regex), Body-Sektion zwischen `<!-- ai-documenter-body -->`-Markern (Rest des Bodys bleibt unangetastet), GENAU EIN `<!-- ai-documenter -->`-Kommentar (PATCH statt Duplikat), Labels — `ai:documented` immer ZULETZT (fail-closed-Precheck-Invariante) |
 
 Fällt Claude oder die Validierung aus, rendert der Fallback-Pfad eine Minimal-Dokumentation
-(Minimal-Kommentar + `ai:documented` + `release:engineering`) und hält den Job grün — ein Re-Run
-wäre durch den Precheck blockiert, ein roter Job also eine Sackgasse. Dieselbe Logik gilt für die
+(Minimal-Kommentar + `ai:documented`, seit #2111 ohne `release:*`) und hält den Job grün — ein Re-Run
+wäre durch den Precheck blockiert, ein roter Job also eine Sackgasse. Ein späterer echter Lauf
+ersetzt ein noch vorhandenes `release:engineering` (der erkennbare alte Fallback-Default) durch das
+Label der frischen Klassifikation; jedes andere `release:*` bleibt bewusst unangetastet. Dieselbe Logik gilt für die
 Phasen-Notiz: fehlt sie nach dem Claude-Lauf, schreibt der Workflow selbst einen
 Minimal-Checkpoint und warnt (früher ein Fail-hard — das machte elf vollständig dokumentierte PRs
 unheilbar rot). Nachdokumentieren geht nur über `workflow_dispatch` mit `force: true`: der Input

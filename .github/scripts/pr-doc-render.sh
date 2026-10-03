@@ -112,7 +112,7 @@ HAS_RELEASE="$(printf '%s' "$CUR" | jq -r 'any(.labels[]; (.name | startswith("r
 # Ein anderes release:* am PR ist eine bewusste Entscheidung und bleibt unangetastet;
 # NUR Engineering darf ein späterer echter Lauf durch die Klassifikation ersetzen.
 CUR_ENG="$(printf '%s' "$CUR" | jq -r 'any(.labels[]; .name == "release:engineering")')"
-CUR_REAL="$(printf '%s' "$CUR" | jq -r 'any(.labels[]; (.name | startswith("release:")) and . != "release:engineering")')"
+CUR_REAL="$(printf '%s' "$CUR" | jq -r 'any(.labels[]; (.name | startswith("release:")) and .name != "release:engineering")')"
 
 release_label() {
   case "$1" in
@@ -331,7 +331,7 @@ if [ "$DRY_RUN" != "true" ]; then
   elif [ "$CUR_ENG" = "true" ] && [ "$CUR_REAL" != "true" ] && [ "$(release_label "$CLASSIFICATION")" != "release:engineering" ]; then
     gh_retry gh pr edit "$PR" --repo "$REPO" --remove-label release:engineering \
       && gh_retry gh pr edit "$PR" --repo "$REPO" --add-label "$(release_label "$CLASSIFICATION")" \
-      || echo "::warning title=Fallback-Label-Ersatz fehlgeschlagen::release:engineering blieb stehen (#2111)."
+      || echo "::warning title=Fallback-Label-Ersatz fehlgeschlagen::release:engineering blieb stehen oder Ersatzlabel fehlt — bitte Labels pruefen (#2111)."
   fi
   gh_retry gh pr edit "$PR" --repo "$REPO" --add-label ai:documented || {
     echo "::error title=ai:documented nicht setzbar::Re-Run ist möglich (Precheck greift nicht)."
