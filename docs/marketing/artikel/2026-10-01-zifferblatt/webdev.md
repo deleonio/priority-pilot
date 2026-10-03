@@ -84,9 +84,9 @@ float rise = u_rise; // right: a uniform, passed in by the component
 
 ## Measure every color pair
 
-Each theme defines a ramp of seven neon colors, one per pillar rank — seven ranks, not seven
-pillars: users define their own pillars, and past the last rank the color goes neutral
-instead of cycling. Every pair must stay distinguishable under normal vision and three
+Each theme defines a ramp of seven pillar colors, one per rank. The five fixed pillars map onto
+the first five ranks, and past the last rank the color goes neutral instead of cycling. Every
+pair must stay distinguishable under normal vision and three
 simulated color-vision deficiencies (protanopia, deuteranopia, tritanopia — a mathematical
 simulation, not user testing), so the whole matrix is validated with CIEDE2000 and pinned by a
 test: any pair below a ΔE of 7 fails the build. The ramp ships with its worst pairs measured —
@@ -106,8 +106,8 @@ mixed state — half your palette, half the component's.
 ## Small screens, quiet motion
 
 The reference viewport is 375 px; the base styles are built for the narrow screen first and
-wider layouts are added with `min-width` queries. Interactive elements keep 44 px touch targets by default because the accessibility-
-first buttons they use enforce it, and the team's rule asks for an end-to-end test at 375×812
+wider layouts are added with `min-width` queries. Interactive elements keep 44 px touch targets by default because the buttons they use come
+from an accessibility-first component library that enforces it, and the team's rule asks for an end-to-end test at 375×812
 with every user-visible change, asserting the core content stays readable without horizontal
 overflow. Motion uses two duration tokens (120 and 200 ms) that collapse under
 `prefers-reduced-motion`, and the dial's heartbeat follows the fill level — the slower the

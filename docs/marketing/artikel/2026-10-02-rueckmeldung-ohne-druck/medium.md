@@ -33,10 +33,9 @@ wird._
 ## Die vier Regeln
 
 **1. Der laufende Tag zählt noch nicht als Bruch.** Reicht die Folge bis gestern, bleibt sie
-stehen — der Abend gehört dem, der ihn noch hat. Erst eine echte Lücke setzt den Zähler sichtbar
-auf null. Eine gängige Bauart bricht die Kette schon, wenn heute noch nichts abgehakt wurde.
-Der Abend gehört dem, der ihn noch hat — innerhalb des Tages ist die Uhrzeit gleichgültig; beim
-Kalenderdatum zählt die Zeitzone (dazu Regel 3).
+stehen. Erst eine echte Lücke setzt den Zähler sichtbar auf null. Eine gängige Bauart bricht die
+Kette schon, wenn heute noch nichts abgehakt wurde. Innerhalb des Tages ist die Uhrzeit
+gleichgültig; beim Kalenderdatum zählt die Zeitzone (dazu Regel 3).
 
 **2. Die Bestmarke überdauert jede Lücke.** Sie ist ein Rekord, kein Guthaben, das verfällt.
 Eine Lücke kostet die laufende Folge, niemals den Rekord. Dreißig zusammenhängende Tage bleiben
@@ -53,8 +52,8 @@ darf nicht ins Vortages-Datum des Servers rutschen.
 offener Regel ist ein Werkzeug; ein Zähler mit geheimer Regel wirkt wie ein Gegner, der nach
 eigenem Ermessen straft. Transparenz ist die eigentliche Gegenmaßnahme gegen Schuld.
 
-Diese Regeln schützen gegen den Kalender, nicht gegen den Papierkorb: Wer eine Erledigung
-löscht, nimmt den Tag aus der Zählung. Das ist gewollt — die Zählung folgt dem, was steht — aber
+Diese Regeln schützen gegen den Kalender, nicht gegen den Papierkorb: Wer die letzte
+Erledigung eines Tages löscht, nimmt den Tag aus der Zählung. Das ist gewollt — die Zählung folgt dem, was steht — aber
 es gehört zur Ehrlichkeit des Designs dazu.
 
 ## Rückmeldung, die mit der Balance ruhiger wird

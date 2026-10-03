@@ -121,4 +121,5 @@ For your next dashboard, in one place:
 - Ambient motion only where it means something — and always with a complete still fallback.
 - Counters add; the day belongs to the user's timezone, and only the aggregate caps.
 
-The app runs at [balamentum.modevel.de](https://balamentum.modevel.de).
+Explore the dashboard yourself at [balamentum.modevel.de](https://balamentum.modevel.de)
+(web and Android).

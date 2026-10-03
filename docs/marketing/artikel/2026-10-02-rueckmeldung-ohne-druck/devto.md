@@ -16,8 +16,9 @@ counter never takes anything away from what you did — the only removal is a de
 one is on you. Same trigger as every guilt mechanic; a different outcome by construction,
 because nothing in the loop subtracts.
 
-The setting in one paragraph: users define life-balance pillars, complete tasks that pay into
-them, and the streak answers one question per calendar day — did anything get done at all?
+The setting in one paragraph: Balamentum ships five fixed life-balance pillars; completed tasks
+pay into them; and the streak answers one question per calendar day — did anything get done at
+all?
 Multiple completions on the same day count once. Everything below is about making that question
 safe to answer.
 
