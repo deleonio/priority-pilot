@@ -107,6 +107,50 @@ async function adminCardInnerLeft(page: import('@playwright/test').Page): Promis
 const customRowActionButtons = (page: import('@playwright/test').Page) =>
 	page.locator('.llm-provider-admin__item', { hasText: 'Issue-1037 Provider' }).locator('kol-button');
 
+/**
+ * Misst die Zeilen-Buttons ATOMAR in einem Frame und wartet auf zwei identische Snapshots.
+ *
+ * Drei einzelne `boundingBox()`-Aufrufe sind hier eine Mess-Race (#1970-Fixup R2): Das Aufklappen
+ * von „Erweitert“ stellt das Layout erst über mehrere Frames ein — `useFollowingOpen` öffnet die
+ * inneren `KolDetails` erst im nächsten React-Effekt, KoliBri hebt die Props asynchron in den
+ * Shadow-DOM, und der Auswahl-Bereich wächst, während Inhalte nachladen. Zwischen zwei
+ * Einzelmessungen kann die Seite um ~64 px gewachsen sein; der y-Alignment-Vergleich (AK3/AK4)
+ * las dann zwei verschiedene Layoutzustände (CI 64.25/64.27 px, lokal nur manchmal rot).
+ *
+ * Gemessen wird weiterhin der HOST `kol-button` (Repo-Konvention; `getBoundingClientRect` =
+ * `boundingBox()`-Werte). Alle Boxen kommen aus EINEM `evaluateAll` — derselbe Frame, keine
+ * Verschiebung dazwischen. Aufgenommen wird erst, als stabil gilt, wenn zwei aufeinanderfolgende
+ * Snapshots identisch sind (Muster `helpers.ts` Stabilitäts-Warte, MEMORY 2026-09-14).
+ */
+async function stableRowBoxes(
+	page: import('@playwright/test').Page,
+	rowButtons: ReturnType<typeof customRowActionButtons>,
+): Promise<{ x: number; y: number; width: number; height: number }[]> {
+	interface Box {
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+	}
+	const snapshot = () =>
+		rowButtons.evaluateAll((buttons) =>
+			buttons.map((button) => {
+				const { x, y, width, height } = button.getBoundingClientRect();
+				return { x, y, width, height };
+			}),
+		);
+	let previous = JSON.stringify(await snapshot());
+	for (let attempt = 0; attempt < 50; attempt++) {
+		await page.waitForTimeout(100);
+		const current = JSON.stringify(await snapshot());
+		if (current === previous) {
+			return JSON.parse(current) as Box[];
+		}
+		previous = current;
+	}
+	return JSON.parse(previous) as Box[];
+}
+
 test.describe('#1037 Aktions-Buttons „KI-Provider" responsiv wie „Allgemein"', () => {
 	test.beforeEach(async ({ page }) => {
 		await cleanupCustomProviders(page);
@@ -169,12 +213,7 @@ test.describe('#1037 Aktions-Buttons „KI-Provider" responsiv wie „Allgemein"
 		const count = await rowButtons.count();
 		expect(count).toBeGreaterThanOrEqual(3);
 
-		const boxes = [];
-		for (let i = 0; i < count; i++) {
-			const box = await rowButtons.nth(i).boundingBox();
-			expect(box).toBeTruthy();
-			boxes.push(box!);
-		}
+		const boxes = await stableRowBoxes(page, rowButtons);
 		const rowWidth = Math.max(...boxes.map((b) => b.x + b.width)) - Math.min(...boxes.map((b) => b.x));
 		for (const box of boxes) {
 			expect(box.width).toBeLessThan(0.5 * rowWidth);
