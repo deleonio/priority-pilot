@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
-import { waitForStableView, fullPillarContributions } from './helpers';
+import { waitForStableView, fullPillarContributions, registerOwnSession } from './helpers';
 
 /**
  * E2E-Spec für #1795 (docs/spec/issue-1795.md): Bei Überlast einer Säule zeigt der Fürsorge-Hinweis
@@ -15,19 +15,16 @@ const deleteAllTasks = async (page: Page): Promise<void> => {
 };
 
 const erzeugeUeberlast = async (page: Page): Promise<void> => {
+	// Eigene Session statt Pass-Through: `GET /pillars` und die Vollverteilungs-Pflicht (#2077) gelten
+	// ohne Konto über ALLE Säulen der Shard-DB. Registrierte Nutzer anderer Specs (Gruppen/Admin/Rollen)
+	// brächten es auf 15 Säulen — der Schwerpunkt cappt dann auf 30 % (< UEBERLAST_ANTEIL 0.5), und eine
+	// auf die Stammsäulen gekürzte Liste lehnt `POST /tasks` mit 400 ab (#2188-Fixup, CI e2e (4)).
+	await registerOwnSession(page, 'care-overload-1795');
 	// Setup-Assertions: ein still fehlgeschlagener Aufruf ergäbe einen nicht überlasteten Nutzer
-	// und der Test würde später mit leerem Fürsorge-Hinweis („keinen Vorschlag“) ohne Aussage
-	// scheitern (#2188-Fixup, Shard-4-Reproduktion).
+	// und der Test würde später mit leerem Fürsorge-Hinweis („keinen Vorschlag“) ohne Aussage scheitern.
 	const pillarsResponse = await page.request.get('/api/v1/pillars');
 	expect(pillarsResponse.ok(), 'GET /pillars für die Vollverteilung').toBe(true);
-	const alleSaeulen = (await pillarsResponse.json()) as { id: number; key: string; name: string }[];
-	// Auf die Stammsäulen deduplizieren (erster Satz je key): nutzererzeugende Specs im Shard
-	// (Gruppen/Admin/Rollen) lassen GET /pillars die Säulen-Seed-Sätze weiterer Konten mitliefern —
-	// mit 15 Säulen cappt fullPillarContributions den Schwerpunkt auf 30 % (< UEBERLAST_ANTEIL 0.5),
-	// die Überlast entsteht nie und der Hinweis bleibt leer (#2188-Fixup, CI e2e (4)).
-	const pillars = alleSaeulen.filter(
-		(pillar, index) => alleSaeulen.findIndex((andere) => andere.key === pillar.key) === index,
-	);
+	const pillars = (await pillarsResponse.json()) as { id: number; name: string }[];
 	const wirksamkeitIndex = pillars.findIndex((pillar) => pillar.name === 'Wirksamkeit');
 	expect(wirksamkeitIndex, 'Säule „Wirksamkeit“ muss existieren, sonst entsteht keine Überlast').toBeGreaterThanOrEqual(
 		0,
@@ -40,7 +37,7 @@ const erzeugeUeberlast = async (page: Page): Promise<void> => {
 			pillars: fullPillarContributions(pillars, wirksamkeitIndex),
 		},
 	});
-	expect(created.ok(), 'POST /tasks (Überlast-Aufgabe)').toBe(true);
+	expect(created.ok(), `POST /tasks (Überlast-Aufgabe): ${await created.text()}`).toBe(true);
 	const { id } = (await created.json()) as { id: number };
 	const done = await page.request.patch(`/api/v1/tasks/${id}`, { data: { status: 'Done' } });
 	expect(done.ok(), 'PATCH /tasks/:id → Done').toBe(true);

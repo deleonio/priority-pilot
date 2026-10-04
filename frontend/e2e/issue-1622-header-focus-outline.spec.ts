@@ -28,8 +28,7 @@ const HEADER_POSITION_KEY = 'pp-header-position';
 /**
  * Subpixel-Toleranz an der Viewport-Kante: Outline- und Boxkanten rastet der Browser auf
  * Device-Pixel — ein rein rechnerischer −1px aus fractionalen Werten im Headless-Run ist
- * Rundungsrauschen, kein sichtbarer Abschnitt (CI-Run 37233994408: „Ring-Oberkante −1px“,
- * dieselbe Spec auf main grün).
+ * Rundungsrauschen, kein sichtbarer Abschnitt (CI-Run 37233994408: „Ring-Oberkante −1px“).
  */
 const SUBPIXEL_TOLERANCE_PX = 1;
 
