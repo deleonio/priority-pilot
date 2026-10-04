@@ -7,6 +7,12 @@
 # Idee: Ein Ticket, das schon mal gecrasht ist, braucht mehr Power beim zweiten
 # Versuch, nicht denselben Versuch nochmal.
 #
+# WANN eskaliert wird (Wiederholungs-Signale):
+#   - ai:continued am Issue (Soft-Abort-Fortsetzung, KIND=issue)
+#   - Fixup-Runden (KIND=pr): --rounds N mit N >= 2 — der Review hat denselben PR
+#     schon einmal zurückgeschickt; das Modell aus der Tabelle wird eine Stufe
+#     hochgesetzt (Lücke aus ADR 0004 geschlossen, 04.10.).
+#
 # STEIGERUNG:
 #   Modell: haiku → sonnet → opus (ab opus unverändert — Allowlist-Ende)
 #   Effort:  low → medium → high → xhigh → max
@@ -30,6 +36,7 @@ TICKET=""
 KIND="issue"
 CURRENT_MODEL=""
 CURRENT_EFFORT=""
+ROUNDS=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -38,6 +45,7 @@ while [[ $# -gt 0 ]]; do
     --kind)          KIND="$2";          shift 2 ;;
     --current-model) CURRENT_MODEL="$2"; shift 2 ;;
     --current-effort) CURRENT_EFFORT="$2"; shift 2 ;;
+    --rounds)         ROUNDS="$2";        shift 2 ;;
     *) echo "resolve-escalation: unbekanntes Argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -56,12 +64,18 @@ if [ "$KIND" = "issue" ]; then
     --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
 fi
 
-if [ "$HAS_CONTINUED" != "true" ]; then
+REPEATED="false"
+case "$ROUNDS" in
+  ''|*[!0-9]*) REPEATED="false" ;;  # leer/Garbage = kein Signal (fail-open)
+  *) [ "$ROUNDS" -ge 2 ] && REPEATED="true" ;;
+esac
+
+if [ "$HAS_CONTINUED" != "true" ] && [ "$REPEATED" != "true" ]; then
   # Keine Wiederholung: Originalwerte durchreichen
   echo "model=${CURRENT_MODEL}"   >> "$GITHUB_OUTPUT"
   echo "effort=${CURRENT_EFFORT}" >> "$GITHUB_OUTPUT"
   echo "escalated=false"          >> "$GITHUB_OUTPUT"
-  echo "::notice title=Eskalation::ai:continued nicht gesetzt — Originalwerte beibehalten."
+  echo "::notice title=Eskalation::kein Wiederholungs-Signal (ai:continued/Runden) — Originalwerte beibehalten."
   exit 0
 fi
 
@@ -102,8 +116,10 @@ echo "model=${NEW_MODEL}"   >> "$GITHUB_OUTPUT"
 echo "effort=${NEW_EFFORT}" >> "$GITHUB_OUTPUT"
 echo "escalated=true"       >> "$GITHUB_OUTPUT"
 
+GRUND="ai:continued"
+[ "$REPEATED" = "true" ] && GRUND="Fixup-Runde ${ROUNDS}"
 if [ "$NEW_MODEL" != "$CURRENT_MODEL" ] || [ "$NEW_EFFORT" != "$CURRENT_EFFORT" ]; then
-  echo "::notice title=🔼 Eskalation::ai:continued gesetzt — Modell: ${CURRENT_MODEL:-leer} → ${NEW_MODEL}, Effort: ${CURRENT_EFFORT:-leer} → ${NEW_EFFORT}"
+  echo "::notice title=🔼 Eskalation::${GRUND} — Modell: ${CURRENT_MODEL:-leer} → ${NEW_MODEL}, Effort: ${CURRENT_EFFORT:-leer} → ${NEW_EFFORT}"
 else
-  echo "::notice title=🔼 Eskalation::ai:continued gesetzt, aber bereits Maximum erreicht."
+  echo "::notice title=🔼 Eskalation::${GRUND}, aber bereits Maximum erreicht."
 fi
