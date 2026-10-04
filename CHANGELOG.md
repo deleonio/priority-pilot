@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.15 - 2026-10-04
 
-_Enthält v0.15.0 – v0.15.16._
+_Enthält v0.15.0 – v0.15.17._
 
 ### 🐞 Bug Fixes
 
@@ -29,6 +29,7 @@ _Enthält v0.15.0 – v0.15.16._
 - feat(frontend): import analysis report with duplicate merge (#1988) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2181
 - feat(frontend): monthly balance recap (#1995) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2185
 - chore(ci): remove ai:model label family and label-based model fallback by @deleonio in https://github.com/deleonio/priority-pilot/pull/2182
+- docs(skills): escalation ladder for a stalling pipeline (ticket-coordination) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2189
 
 ## v0.14 - 2026-10-04
 
@@ -146,6 +147,7 @@ _Enthält v0.12.0 – v0.12.26._
 ### Other Changes
 
 - fix(billing): PayPal-Paketwechsel, Kündigung abgebrochener Checkouts, Zeitraum-Persistenz by @deleonio in https://github.com/deleonio/priority-pilot/pull/1998
+- feat(plans): lower pro prices to 8.99/24.27/86.30 eur by @deleonio in https://github.com/deleonio/priority-pilot/pull/2026
 - feat(plans): lower pro prices to 8.99/24.27/86.30 eur by @deleonio in https://github.com/deleonio/priority-pilot/pull/2026
 - docs(adr): add ADR 0019 waitlist launch access model (#1961) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2027
 - docs(skill): ticket-coordination — check-in cadence while issue phases run by @deleonio in https://github.com/deleonio/priority-pilot/pull/2029
