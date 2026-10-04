@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.15 - 2026-10-04
 
-_Enthält v0.15.0 – v0.15.13._
+_Enthält v0.15.0 – v0.15.14._
 
 ### 🐞 Bug Fixes
 
@@ -26,6 +26,7 @@ _Enthält v0.15.0 – v0.15.13._
 - feat(frontend): hide llm provider config behind advanced (#1970) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2178
 - feat(frontend): shareable weekly balance card (#1968) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2179
 - feat(server): anonymous KPI events and admin evaluation (#1989) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2183
+- feat(frontend): import analysis report with duplicate merge (#1988) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2181
 
 ## v0.14 - 2026-10-04
 
@@ -142,7 +143,6 @@ _Enthält v0.12.0 – v0.12.26._
 
 ### Other Changes
 
-- fix(billing): PayPal-Paketwechsel, Kündigung abgebrochener Checkouts, Zeitraum-Persistenz by @deleonio in https://github.com/deleonio/priority-pilot/pull/1998
 - fix(billing): PayPal-Paketwechsel, Kündigung abgebrochener Checkouts, Zeitraum-Persistenz by @deleonio in https://github.com/deleonio/priority-pilot/pull/1998
 - feat(plans): lower pro prices to 8.99/24.27/86.30 eur by @deleonio in https://github.com/deleonio/priority-pilot/pull/2026
 - docs(adr): add ADR 0019 waitlist launch access model (#1961) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2027
@@ -309,6 +309,7 @@ _Enthält v0.8.0 – v0.8.17._
 
 ### 🔧 Engineering
 
+- feat(frontend): restructure login card hierarchy and add website link by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1765
 - feat(frontend): restructure login card hierarchy and add website link by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1765
 
 ### Other Changes
