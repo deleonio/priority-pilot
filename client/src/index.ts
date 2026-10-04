@@ -43,6 +43,8 @@ export type Milestone = Schemas['Milestone'];
 /** #1638: Lebensbalance mit Kadenz-Füllstand — dieselbe Zahl für Dashboard-Herz, Verlauf und MCP. */
 /** #1424: Verlauf der Lebensbalance — ein Eintrag je Kalendertag des Zeitraums. */
 export type BalanceHistoryEntry = Schemas['BalanceHistoryEntry'];
+/** #1995: Monatsrückblick — Säulen-Differenz, Streak zum Monatsende, neue Meilensteine. */
+export type MonthlyRecap = Schemas['MonthlyRecap'];
 export type BalanceStatus = Schemas['BalanceStatus'];
 /** Schnappschuss einer vom Auto-Delete-Cron gelöschten Aufgabe (Bewertungssystem-Sichtbarkeit, rein informativ). */
 export type MissedTask = Schemas['MissedTask'];

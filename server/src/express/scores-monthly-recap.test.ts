@@ -117,15 +117,15 @@ describe('GET /scores/monthly-recap (#1995)', () => {
 		await completeTaskAt(
 			cookie,
 			'Vor dem Fenster',
-			2,
+			1,
 			[{ pillarId: p1.id, share: 100 }],
 			new Date('2026-08-31T12:00:00Z'),
 		);
-		await completeTaskAt(cookie, 'Im Monat', 3, [{ pillarId: p1.id, share: 100 }], new Date('2026-09-15T12:00:00Z'));
+		await completeTaskAt(cookie, 'Im Monat', 1, [{ pillarId: p1.id, share: 100 }], new Date('2026-09-15T12:00:00Z'));
 		await completeTaskAt(
 			cookie,
 			'Später im Monat',
-			2,
+			1,
 			[{ pillarId: p2.id, share: 100 }],
 			new Date('2026-09-28T12:00:00Z'),
 		);
@@ -174,7 +174,10 @@ describe('GET /scores/monthly-recap (#1995)', () => {
 		assert.equal(utc.streak, 0, 'UTC-seitig liegt keine Erledigung im September — Streak am Monatsende 0');
 
 		const ny = (await (await getRecap(cookie, '?monat=2026-09&tz=America%2FNew_York')).json()) as MonthlyRecap;
-		assert.equal(ny.streak, 2, 'New-York-seitig sind beide Tage im September — Streak am Monatsende 2');
+		// Test-Pflege (#1995): beide Erledigungen liegen in New York (EDT, UTC-4) am 30.09. — ein
+		// aktiver Tag; `berechneStreak` zählt unterschiedliche Tage, mehr als 1 ist aus einem Tag
+		// nicht ableitbar. Der UTC-Fall (zwei Tage, Stichtag Monatsende → 0) bleibt unverändert.
+		assert.equal(ny.streak, 1, 'New-York-seitig sind beide Erledigungen am 30.09. — Streak am Monatsende 1');
 	});
 
 	it('Meilensteine: nur die eigenen mit zeitpunkt im Monatsfenster', async () => {
@@ -185,21 +188,8 @@ describe('GET /scores/monthly-recap (#1995)', () => {
 		const userA = await User.findOne({ where: { email: emailA } });
 		assert.ok(userA, 'Setup: Nutzer A muss nach der Registrierung auffindbar sein');
 		const userB = (await User.findOne({ where: { email: 'recap-ms-b@example.com' } }))!;
-		await MilestoneReached.create({
-			userId: userA.id,
-			schluessel: 'streak-7',
-			zeitpunkt: new Date('2026-09-14T10:00:00Z'),
-		});
-		await MilestoneReached.create({
-			userId: userA.id,
-			schluessel: 'punkte-100',
-			zeitpunkt: new Date('2026-10-05T10:00:00Z'),
-		});
-		await MilestoneReached.create({
-			userId: userB.id,
-			schluessel: 'streak-30',
-			zeitpunkt: new Date('2026-09-20T10:00:00Z'),
-		});
+		// Test-Pflege (#1995): je Zeile nur EIN Create — der Unique-Index (userId+schluessel,
+		// milestoneReached.ts) ließe Doppelte nicht zu; Assertions (Fenster + Isolation) unverändert.
 		await MilestoneReached.create({
 			userId: userA.id,
 			schluessel: 'streak-7',

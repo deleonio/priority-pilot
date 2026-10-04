@@ -99,5 +99,15 @@
 		"speichern": "Spara PNG",
 		"erzeuge": "Kortet skapas …",
 		"fehler": "Kortet kunde inte skapas. Försök igen."
+	},
+	"monthlyCard": {
+		"label": "Min månad i fem pelare",
+		"laden": "Läser in månadsöversikten …",
+		"leer": "Inga poäng förra månaden — nästa månad fylls kortet på när du bockar av uppgifter.",
+		"rueckblick": "Översikt",
+		"teilen": "Dela månaden",
+		"speichern": "Spara PNG",
+		"erzeuge": "Kortet skapas …",
+		"fehler": "Kortet kunde inte skapas. Försök igen."
 	}
 }

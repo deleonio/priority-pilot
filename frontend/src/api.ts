@@ -23,6 +23,7 @@ import type {
 	GroupInviteLink,
 	Milestone,
 	MissedTasksSummary,
+	MonthlyRecap,
 	PlaceFavorite,
 	PlaceFavoriteInput,
 	InviteLinkPreview,
@@ -1347,6 +1348,18 @@ export const api = {
 		if (!response.ok || error) {
 			throw new ResponseError(response, error);
 		}
+	},
+
+	// --- Monatsrückblick (#1995): Säulen, Streak und Meilensteine des Vormonats in einer Antwort ---
+	async getMonthlyRecap({ monat, tz, signal }: { monat: string; tz?: string } & Init): Promise<MonthlyRecap> {
+		const { data, error, response } = await client.GET('/scores/monthly-recap', {
+			params: { query: { monat, tz } },
+			signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
 	},
 
 	// --- Fürsorge-Vorschläge gegen ein Balance-Defizit (#1791, Dashboard-Hinweis #1793) ---

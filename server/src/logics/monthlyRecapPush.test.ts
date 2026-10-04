@@ -37,14 +37,18 @@ const seedEmpfaenger = async (email: string) => {
 	return user;
 };
 
+// Test-Pflege (#1995): `PushSender` erhält die Wire-Payload als STRING (web-push-Vertrag,
+// `logics/push.ts`) — doppelt zu kodieren würde das Auswerten der Felder unmöglich machen.
 const okSender =
 	(calls: string[]): PushSender =>
 	(_subscription, payload) => {
-		calls.push(JSON.stringify(payload));
+		calls.push(payload);
 		return Promise.resolve({ statusCode: 201, body: '', headers: {} } as SendResult);
 	};
 
-const failSender: PushSender = () => Promise.resolve({ statusCode: 500, body: '', headers: {} } as SendResult);
+// Test-Pflege (#1995): Fehlschlag heißt WERFEN — `deliver` zählt jeden nicht-wirfenden Aufruf
+// als zugestellt, ein aufgelöstes 500-Ergebnis wäre also ein Erfolg.
+const failSender: PushSender = () => Promise.reject({ statusCode: 500, body: '', headers: {} });
 
 describe('runMonthlyRecapPush (#1995 AK3)', () => {
 	beforeEach(resetDb);

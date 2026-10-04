@@ -99,5 +99,15 @@
 		"speichern": "Guardar PNG",
 		"erzeuge": "A criar o cartão …",
 		"fehler": "Não foi possível criar o cartão. Tenta novamente."
+	},
+	"monthlyCard": {
+		"label": "O meu mês em cinco pilares",
+		"laden": "A carregar o resumo mensal …",
+		"leer": "Sem pontos no mês passado — no próximo mês o cartão vai-se preenchendo à medida que concluis tarefas.",
+		"rueckblick": "Resumo",
+		"teilen": "Partilhar o mês",
+		"speichern": "Guardar PNG",
+		"erzeuge": "A criar o cartão …",
+		"fehler": "Não foi possível criar o cartão. Tenta novamente."
 	}
 }
