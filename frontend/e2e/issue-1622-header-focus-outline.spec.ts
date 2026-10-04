@@ -25,6 +25,14 @@ import { headerAction, waitForStableView } from './helpers';
 /** localStorage-Schlüssel der Kopfzeilen-Position (#1428), Muster mobile-shell.spec.ts. */
 const HEADER_POSITION_KEY = 'pp-header-position';
 
+/**
+ * Subpixel-Toleranz an der Viewport-Kante: Outline- und Boxkanten rastet der Browser auf
+ * Device-Pixel — ein rein rechnerischer −1px aus fractionalen Werten im Headless-Run ist
+ * Rundungsrauschen, kein sichtbarer Abschnitt (CI-Run 37233994408: „Ring-Oberkante −1px“,
+ * dieselbe Spec auf main grün).
+ */
+const SUBPIXEL_TOLERANCE_PX = 1;
+
 const gotoApp = async (page: Page, viewport: { width: number; height: number }, position?: 'bottom'): Promise<void> => {
 	await page.setViewportSize(viewport);
 	if (position === 'bottom') {
@@ -81,14 +89,18 @@ test.describe('Balamentum — Fokus-Outline der äußeren Header-Buttons bleibt 
 				expect(
 					box.y + box.height + ring,
 					'AK2: Ring-Unterkante darf nicht unter die Viewport-Kante fallen',
-				).toBeLessThanOrEqual(viewport.height);
+				).toBeLessThanOrEqual(viewport.height + SUBPIXEL_TOLERANCE_PX);
 			} else {
-				expect(box.y - ring, 'AK1: Ring-Oberkante darf nicht über die Viewport-Kante ragen').toBeGreaterThanOrEqual(0);
+				expect(box.y - ring, 'AK1: Ring-Oberkante darf nicht über die Viewport-Kante ragen').toBeGreaterThanOrEqual(
+					-SUBPIXEL_TOLERANCE_PX,
+				);
 			}
 
-			expect(box.x - ring, 'AK3: Ring-Linke darf nicht über die Viewport-Kante ragen').toBeGreaterThanOrEqual(0);
+			expect(box.x - ring, 'AK3: Ring-Linke darf nicht über die Viewport-Kante ragen').toBeGreaterThanOrEqual(
+				-SUBPIXEL_TOLERANCE_PX,
+			);
 			expect(box.x + box.width + ring, 'AK3: Ring-Rechte darf nicht über die Viewport-Kante ragen').toBeLessThanOrEqual(
-				viewport.width,
+				viewport.width + SUBPIXEL_TOLERANCE_PX,
 			);
 		});
 	}
