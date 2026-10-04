@@ -9,8 +9,8 @@ import i18next from '../i18n/config';
 
 /**
  * Spec-Tests für den Fürsorge-Hinweis (AK1–AK6, AK8, #1793): lädt die Vorschläge selbst über
- * `api.getCareSuggestions`, zeigt den ersten und bietet Übernehmen / Nicht jetzt / Ablehnen.
- * Ablehnen einer eigenen Aufgabe und „Nicht jetzt" wirken nur lokal (localStorage, Remount = Reload).
+ * `api.getCareSuggestions`, zeigt den ersten und bietet Übernehmen / Heute nicht / Diesen Vorschlag nicht mehr.
+ * Ablehnen einer eigenen Aufgabe und „Heute nicht" wirken nur lokal (localStorage, Remount = Reload).
  */
 
 interface Vorschlag {
@@ -161,7 +161,7 @@ describe('CareHint (#1793)', () => {
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
 		render(<CareHint />);
 		await zeigeHinweis();
-		tap('Vorschlag ablehnen');
+		tap('Diesen Vorschlag nicht mehr');
 		await waitFor(() => expect(hint()).toBeNull());
 		expect(dismissCareSuggestion).toHaveBeenCalledTimes(1);
 		expect(dismissCareSuggestion).toHaveBeenCalledWith({ templateKey: 'koerper-spaziergang' });
@@ -173,7 +173,7 @@ describe('CareHint (#1793)', () => {
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [eigene] });
 		const { unmount } = render(<CareHint />);
 		await zeigeHinweis();
-		tap('Vorschlag ablehnen');
+		tap('Diesen Vorschlag nicht mehr');
 		await waitFor(() => expect(hint()).toBeNull());
 		expect(dismissCareSuggestion).not.toHaveBeenCalled();
 		expect(createTask).not.toHaveBeenCalled();
@@ -192,13 +192,13 @@ describe('CareHint (#1793)', () => {
 		await zeigeHinweis();
 	});
 
-	it('AK4: „Nicht jetzt" → kein Server-Call, bis Tagesende ausgeblendet (auch nach Reload), am Folgetag wieder da', async () => {
+	it('AK4: „Heute nicht" → kein Server-Call, bis Tagesende ausgeblendet (auch nach Reload), am Folgetag wieder da', async () => {
 		vi.useFakeTimers({ toFake: ['Date'] });
 		vi.setSystemTime(new Date(2026, 5, 10, 12, 0, 0));
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
 		const { unmount } = render(<CareHint />);
 		await zeigeHinweis();
-		tap('Nicht jetzt');
+		tap('Heute nicht');
 		await waitFor(() => expect(hint()).toBeNull());
 		expect(dismissCareSuggestion).not.toHaveBeenCalled();
 		expect(createTask).not.toHaveBeenCalled();
@@ -231,7 +231,7 @@ describe('CareHint (#1793)', () => {
 		const region = screen.getByRole('status');
 		expect(region.getAttribute('aria-label') ?? '').not.toBe('');
 		const namen = screen.getAllByRole('button').map((b) => b.textContent);
-		expect(namen).toEqual(['Vorschlag übernehmen', 'Nicht jetzt', 'Vorschlag ablehnen']);
+		expect(namen).toEqual(['Vorschlag übernehmen', 'Heute nicht', 'Diesen Vorschlag nicht mehr']);
 	});
 
 	it('AK8: scheitert das Laden, wird nichts gerendert', async () => {
@@ -252,8 +252,8 @@ describe('CareHint (#1793)', () => {
 		expect(el.textContent).not.toContain('zu kurz');
 		expect(el.textContent).toContain('Atme fünf Minuten durch');
 		expect(screen.getByRole('button', { name: 'Vorschlag übernehmen' })).toBeTruthy();
-		expect(screen.getByRole('button', { name: 'Nicht jetzt' })).toBeTruthy();
-		expect(screen.getByRole('button', { name: 'Vorschlag ablehnen' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Heute nicht' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Diesen Vorschlag nicht mehr' })).toBeTruthy();
 	});
 
 	it('#1795 AK4: anlass defizit → bisheriger Satz „kam diese Woche zu kurz"', async () => {
@@ -274,8 +274,8 @@ describe('CareHint (#1793)', () => {
 		expect(document.querySelector('[data-comp="kol-alert"]')?.getAttribute('data-label')).toBe('Care hint');
 		expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
 			'Accept suggestion',
-			'Not now',
-			'Dismiss suggestion',
+			'Not today',
+			'Not this suggestion again',
 		]);
 		expect(el.textContent).not.toContain('TelefonSeelsorge');
 	});
@@ -354,7 +354,7 @@ describe('CareHint (#1793)', () => {
 			getCareSuggestions.mockResolvedValue({ vorschlaege: [ki] });
 			const { unmount } = render(<CareHint />);
 			await zeigeHinweis();
-			tap('Vorschlag ablehnen');
+			tap('Diesen Vorschlag nicht mehr');
 			await waitFor(() => expect(hint()).toBeNull());
 			expect(dismissCareSuggestion).not.toHaveBeenCalled();
 			unmount();

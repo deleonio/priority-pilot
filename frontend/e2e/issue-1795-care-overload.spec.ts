@@ -61,7 +61,7 @@ test.describe('Dashboard — Fürsorge-Hinweis bei Überlast (Issue #1795)', () 
 		const box = await hint.boundingBox();
 		expect(box!.x).toBeGreaterThanOrEqual(0);
 		expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
-		for (const name of ['Vorschlag übernehmen', 'Nicht jetzt', 'Vorschlag ablehnen']) {
+		for (const name of ['Vorschlag übernehmen', 'Heute nicht', 'Diesen Vorschlag nicht mehr']) {
 			const button = await hint.getByRole('button', { name }).boundingBox();
 			expect(button!.height).toBeGreaterThanOrEqual(44);
 			expect(button!.x + button!.width).toBeLessThanOrEqual(375 + 1);

@@ -517,7 +517,7 @@ describe('App — #1361 AK4: Abschluss-Hinweis im Aufgaben-Tab ignoriert aktive 
 		vi.mocked(api.getStreak).mockResolvedValue({
 			aktuell: 1,
 			best: 1,
-			letzterTag: new Date().toISOString().slice(0, 10),
+			letzterTag: new Date().toLocaleDateString('sv-SE'),
 		});
 		// Suchtext ohne Treffer: filteredForest bleibt leer, „Keine Aufgaben gefunden" erscheint —
 		// AK4 verlangt, dass der Abschluss-Hinweis davon unberührt bleibt (hängt an `tasks`, nicht

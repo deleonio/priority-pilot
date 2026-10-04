@@ -43,8 +43,8 @@ test.describe('Dashboard — Fürsorge-Hinweis i18n (Issue #2063)', () => {
 		const hint = page.getByTestId('care-hint');
 		await expect(hint).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Accept suggestion' })).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Not now' })).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Dismiss suggestion' })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Not today' })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Not this suggestion again' })).toBeVisible();
 		await expect(hint).not.toContainText('TelefonSeelsorge');
 		await expect(hint).not.toContainText('Vorschlag übernehmen');
 	});

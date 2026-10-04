@@ -91,14 +91,14 @@ test.describe('Dashboard — Fürsorge-Hinweis (Issue #1793)', () => {
 		// bedient — bisher gewann der Test nur das Rennen gegen diese Antwort (CSRF-Token-Fetch im Weg).
 		await page.route('**/scores/care-suggestions/dismissals', (route) => route.fulfill({ status: 204 }));
 
-		await page.getByRole('button', { name: 'Vorschlag ablehnen' }).click();
+		await page.getByRole('button', { name: 'Diesen Vorschlag nicht mehr' }).click();
 
 		await expect(page.getByTestId('care-hint')).toHaveCount(0);
 	});
 
-	test('AK4: „Nicht jetzt" blendet den Hinweis aus, auch nach Reload', async ({ page }) => {
+	test('AK4: „Heute nicht" blendet den Hinweis aus, auch nach Reload', async ({ page }) => {
 		await openDashboard(page);
-		await page.getByRole('button', { name: 'Nicht jetzt' }).click();
+		await page.getByRole('button', { name: 'Heute nicht' }).click();
 		await expect(page.getByTestId('care-hint')).toHaveCount(0);
 
 		await page.reload();
@@ -115,7 +115,7 @@ test.describe('Dashboard — Fürsorge-Hinweis (Issue #1793)', () => {
 		const box = await hint.boundingBox();
 		expect(box!.x).toBeGreaterThanOrEqual(0);
 		expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
-		for (const name of ['Vorschlag übernehmen', 'Nicht jetzt', 'Vorschlag ablehnen']) {
+		for (const name of ['Vorschlag übernehmen', 'Heute nicht', 'Diesen Vorschlag nicht mehr']) {
 			const button = await hint.getByRole('button', { name }).boundingBox();
 			expect(button!.height).toBeGreaterThanOrEqual(44);
 			expect(button!.x + button!.width).toBeLessThanOrEqual(375 + 1);

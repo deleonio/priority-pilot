@@ -54,8 +54,8 @@
 		"overload": "Du hast zuletzt viel geleistet. Ein Ausgleich darf heute sein: {{beschreibung}}",
 		"error": "Konnte nicht angelegt werden. Versuch es gleich noch einmal.",
 		"accept": "Vorschlag übernehmen",
-		"notNow": "Nicht jetzt",
-		"dismiss": "Vorschlag ablehnen"
+		"notNow": "Hoy no",
+		"dismiss": "No volver a mostrar esta sugerencia"
 	},
 	"onboarding": {
 		"step": "Paso {{step}} de {{total}}",

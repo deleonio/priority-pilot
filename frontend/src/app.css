@@ -1714,7 +1714,7 @@ kol-toolbar {
 }
 
 /* #1793: `.care-hint` (CareHint.tsx) — Abstand wie `.day-done-hint`; Übernehmen volle Breite,
-   „Nicht jetzt" und „Ablehnen" darunter in einer Zeile (bricht bei schmaler Breite/großer Schrift um). */
+   „Heute nicht" und „Diesen Vorschlag nicht mehr" darunter in einer Zeile (bricht bei schmaler Breite/großer Schrift um). */
 .care-hint {
 	margin-top: var(--pp-gap-generous);
 }

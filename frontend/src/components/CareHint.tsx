@@ -23,7 +23,7 @@ const readRejectedTasks = (): Record<string, number> => {
 	}
 };
 
-/** Lokal unterdrückt: „Nicht jetzt" und abgelehnter KI-Vorschlag bis Tagesende, abgelehnte eigene Aufgabe für 14 Tage. */
+/** Lokal unterdrückt: „Heute nicht" und abgelehnter KI-Vorschlag bis Tagesende, abgelehnte eigene Aufgabe für 14 Tage. */
 const istUnterdrueckt = (vorschlag: CareVorschlag, jetzt: number): boolean =>
 	readNumber(SNOOZE_KEY) > jetzt ||
 	(vorschlag.typ === 'ki' && readNumber(KI_ABLEHNUNG_KEY) > jetzt) ||
@@ -35,7 +35,7 @@ const endeDesTages = (jetzt: Date): number =>
 /**
  * Fürsorge-Hinweis auf dem Dashboard (#1793, Ton: `docs/fuersorge-tonalitaet.md`): zeigt höchstens
  * EINEN Vorschlag aus `GET /scores/care-suggestions` (der erste; kein Nachrücken nach einer Aktion)
- * mit Übernehmen / Nicht jetzt / Ablehnen. Bei `anlass: 'ueberlast'` (#1795) rahmt der Hinweis den
+ * mit Übernehmen / Heute nicht / Diesen Vorschlag nicht mehr. Bei `anlass: 'ueberlast'` (#1795) rahmt der Hinweis den
  * Vorschlag als Ausgleich statt als Defizit; ein KI-Vorschlag (`typ: 'ki'`, #1873) trägt die Kennzeichnung
  * „KI-Vorschlag". Lädt selbst (Muster `DayDoneHint`); bis zur Antwort und
  * bei Ladefehler wird nichts gerendert, damit „Nächste Aufgabe" nicht springt.

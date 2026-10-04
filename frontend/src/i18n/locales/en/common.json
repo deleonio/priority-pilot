@@ -54,8 +54,8 @@
 		"overload": "You have given a lot lately. Taking it easier today is allowed: {{beschreibung}}",
 		"error": "Could not be created. Please try again in a moment.",
 		"accept": "Accept suggestion",
-		"notNow": "Not now",
-		"dismiss": "Dismiss suggestion"
+		"notNow": "Not today",
+		"dismiss": "Not this suggestion again"
 	},
 	"onboarding": {
 		"step": "Step {{step}} of {{total}}",
