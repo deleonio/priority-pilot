@@ -2404,6 +2404,42 @@ kol-toolbar {
 	}
 }
 
+/* --- Kategorie-Verwaltung (#2014): Kennzeichen als Chips statt Kartenzeilen --- */
+/*
+ * Kategorien laufen wie die Badges der Aufgabenlisten (`.task-tree-badges`) in EINER umbrechenden
+ * Chip-Zeile; je Chip bleiben Bearbeiten/Löschen als eigene Touch-Ziele (KoliBri-Default
+ * `--a11y-min-size`, 44px). Die Chip-Regeln stehen bewusst NACH dem Säulen-Grid oben: gleiche
+ * Spezifität, spätere Quelle gewinnt — so schaltet `.category-items` das ab 48rem aktive
+ * `.pillar-items`-Grid dauerhaft auf die Flex-Zeile zurück, ohne die geteilten Karten-Styles von
+ * Säulen und Gruppen anzufassen (`li.pillar-item` bleibt deren Locator-Vertrag).
+ */
+.category-items {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+.category-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+	padding: 0 var(--pp-space-2);
+	border-radius: var(--pp-radius-pill);
+	background: var(--pp-surface-2);
+	/* Chips dürfen schrumpfen und innen umbrechen (KI-UX: Umbrechen vor Abschneiden), aber nie
+	   über den Listenrand hinauslaufen. */
+	min-width: 0;
+	max-width: 100%;
+}
+
+.category-chip-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+}
+
 /* --- Gruppen-Verwaltung im Settings-Tab „Gruppen“ (#1211): Karten-Muster analog zu den Säulen --- */
 /*
  * #1211 AK8: KolTabs rendert seine Panels in einem CSS-Grid (`div.kol-tabs` im Shadow-DOM), dessen
