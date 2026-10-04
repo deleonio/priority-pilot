@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.15 - 2026-10-04
 
-_Enthält v0.15.0 – v0.15.6._
+_Enthält v0.15.0 – v0.15.8._
 
 ### 🐞 Bug Fixes
 
@@ -19,6 +19,8 @@ _Enthält v0.15.0 – v0.15.6._
 - docs(spec): sync spec documents to implemented state (2026-10-04) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2169
 - feat(server): enforce share bounds and consolidate handover rows (#2152) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2172
 - chore: document agent setup comparison and split llm concurrency by @deleonio in https://github.com/deleonio/priority-pilot/pull/2171
+- refactor(server): use findCancelledWithRemaining in cancel route (F-35) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2175
+- fix(frontend): e2e helper, rank-return notice, css tokens (#2154) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2176
 
 ## v0.14 - 2026-10-04
 
@@ -584,7 +586,6 @@ _Enthält v0.2.0 – v0.2.134._
 - docs(mobile-ui-rules): align design token statement with ux-design.md by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1606
 - feat(frontend): move pin action to toolbar, show pin state as badge by @deleonio in https://github.com/deleonio/priority-pilot/pull/1609
 - feat(frontend): confirm before discarding unsaved task form changes by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1600
-- feat(frontend)!: require a full pillar distribution with coupled sliders by @deleonio in https://github.com/deleonio/priority-pilot/pull/1604
 - feat(frontend)!: require a full pillar distribution with coupled sliders by @deleonio in https://github.com/deleonio/priority-pilot/pull/1604
 - feat(place-favorites): save by address only, dedupe, and show errors by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1610
 - feat(frontend): randbündige Kopfzeile + design-optimize folgt dem Audit by @deleonio in https://github.com/deleonio/priority-pilot/pull/1611
