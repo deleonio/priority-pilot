@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.15 - 2026-10-04
 
-_Enthält v0.15.0 – v0.15.11._
+_Enthält v0.15.0 – v0.15.13._
 
 ### 🐞 Bug Fixes
 
@@ -24,6 +24,8 @@ _Enthält v0.15.0 – v0.15.11._
 - test(frontend): clean up remaining nits from leaf-review rounds (#2173) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2177
 - feat(server): import tasks from todoist and csv (#1969) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2180
 - feat(frontend): hide llm provider config behind advanced (#1970) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2178
+- feat(frontend): shareable weekly balance card (#1968) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2179
+- feat(server): anonymous KPI events and admin evaluation (#1989) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2183
 
 ## v0.14 - 2026-10-04
 
@@ -204,7 +206,6 @@ _Enthält v0.11.0 – v0.11.31._
 - feat(frontend): require terms and privacy consent after login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1929
 - feat(server): push nearby tasks only on entry, once per 24 h (#1926) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1945
 - fix(ci): skip soft-abort labels on account limit (#1943) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1949
-- refactor(frontend): remove unreachable ai badge and custom provider gate by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1947
 - refactor(frontend): remove unreachable ai badge and custom provider gate by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1947
 
 ## v0.10 - 2026-09-30
