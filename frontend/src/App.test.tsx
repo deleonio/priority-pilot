@@ -409,16 +409,17 @@ describe('App — Rollensystem admin/member: Deep-Link /settings/nutzer', () => 
 	// Test-Pflege #1529/#1894/#1902: „Orte" (Index 4) und „Pakete & Abo" (Index 7) liegen vor den
 	// rollenabhängigen Reitern — „Nutzerverwaltung" liegt damit auf Index 8. Der geprüfte Vertrag
 	// (Admin-Route wählt den Admin-Reiter, Panel existiert) bleibt unverändert.
-	it('Admin: öffnet den letzten Tab „Nutzerverwaltung" (Index 8) mit Panel tab-8', async () => {
+	// Test-Pflege #1969: Der Tab „Import" (Index 8) schiebt die Nutzerverwaltung auf Index 9.
+	it('Admin: öffnet den letzten Tab „Nutzerverwaltung" (Index 9) mit Panel tab-9', async () => {
 		render(<App user={{ ...testUser, role: 'admin' as const }} />);
 
 		await waitFor(() => {
 			expect(tabsElement()).not.toBeNull();
 		});
 		const tabs = tabsElement();
-		expect(tabs?._selected).toBe(8);
+		expect(tabs?._selected).toBe(9);
 		expect(tabs?._tabs?.map((t) => t._label)).toContain('Nutzerverwaltung');
-		expect(document.querySelector('[slot="tab-8"]')).not.toBeNull();
+		expect(document.querySelector('[slot="tab-9"]')).not.toBeNull();
 	});
 });
 

@@ -87,6 +87,7 @@
 		"beispiel1": "Take a 15-minute walk",
 		"beispiel2": "Answer an important email",
 		"beispiel3": "Plan the coming weekend",
-		"erstenTaskAnlegen": "Create your first task"
+		"erstenTaskAnlegen": "Create your first task",
+		"importieren": "Import tasks from Todoist or a CSV file"
 	}
 }

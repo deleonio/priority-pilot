@@ -630,6 +630,63 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /tasks/import/preview:
+    post:
+      summary: CSV-Import-Vorschau ohne Schreibzugriff
+      description: >-
+        Parst eine Todoist-Export-CSV oder eine Allgemein-CSV (#1969) und liefert
+        Zeilenzahlen, bis zu fünf Beispiel-Zeilen, je unlesbarer Zeile Nummer und
+        Grund sowie nicht zuordenbare Kategorie-/Säulenwerte. Ohne `mapping` gilt
+        die Todoist-Auto-Erkennung (Spalten TYPE/CONTENT/PRIORITY/DATE). Legt
+        keine Aufgaben an. Grenzen: CSV größer 10 MB oder mehr als 5000
+        Datenzeilen → 400 mit Meldung (bewusst nicht 413 — der Import-Pfad
+        mountet einen eigenen Body-Parser mit 11-MB-Limit).
+      operationId: previewTaskImport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskImportInput'
+      responses:
+        '200':
+          description: Vorschau der übernehmbaren Zeilen (ohne Schreibzugriff)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskImportPreview'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /tasks/import:
+    post:
+      summary: Aufgaben aus CSV anlegen
+      description: >-
+        Legt die übernehmbaren Zeilen der CSV als Aufgaben des eingeloggten
+        Nutzers an (#1969) — additiv, ohne Bestand zu ändern. Unlesbare Zeilen
+        werden einzeln gemeldet (Nummer + Grund), ohne den Import abzubrechen;
+        Kategorie-/Säulenwerte werden per Name (case-insensitive) gegen den
+        Bestand des Nutzers gematcht, unbekannte bleiben ohne Zuordnung. Ohne
+        übernehmbare Zeile → 400.
+      operationId: importTasks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskImportInput'
+      responses:
+        '200':
+          description: Anzahl angelegter Aufgaben samt Zeilenfehlern
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskImportResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /tasks/suggest-initial:
     post:
       summary: Erststart-Aufgabenvorschläge aus Freitext erzeugen
@@ -5920,6 +5977,156 @@ components:
           type: string
           maxLength: 2000
           description: Freitext, aus dem die Aufgaben-Vorschläge erzeugt werden (nicht leer)
+    TaskImportMapping:
+      type: object
+      description: >-
+        Spaltenzuordnung je Zielfeld (#1969): Name der CSV-Spalte aus der
+        Header-Zeile. Ohne `mapping` gilt die Todoist-Auto-Erkennung.
+      properties:
+        title:
+          type: string
+          description: CSV-Spalte für den Aufgabentitel
+        deadline:
+          type: string
+          description: CSV-Spalte für die Frist (ISO-Datum JJJJ-MM-TT)
+        priority:
+          type: string
+          description: CSV-Spalte für die Priorität
+        category:
+          type: string
+          description: CSV-Spalte für die Kategorie (Name-Match gegen Bestand)
+        pillar:
+          type: string
+          description: CSV-Spalte für die Hauptsäule (Name-Match gegen Bestand)
+    TaskImportInput:
+      type: object
+      description: Eingabe des CSV-Imports — Dateiinhalt als String, clientseitig gelesen (#1969).
+      required:
+        - csv
+      properties:
+        csv:
+          type: string
+          description: Kompletter CSV-Inhalt (RFC 4180, BOM/CRLF-tolerant, max. 10 MB)
+        mapping:
+          $ref: '#/components/schemas/TaskImportMapping'
+    TaskImportSample:
+      type: object
+      description: Beispiel-Zeile der Vorschau (max. 5, je übernehmbarer Zeile).
+      required:
+        - row
+        - title
+        - deadline
+        - priority
+      properties:
+        row:
+          type: integer
+          minimum: 1
+          description: 1-basierte Datenzeilennummer (erste Zeile nach dem Header = 1)
+        title:
+          type: string
+          description: Aufgabentitel der Zeile
+        deadline:
+          type: string
+          format: date-time
+          nullable: true
+          description: Frist als UTC-Mitternacht oder null
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Intern skalierte Priorität (Todoist 4 = höchste → 5)
+    TaskImportRowError:
+      type: object
+      description: Je unlesbarer Zeile Nummer und Grund (Import bricht nicht ab).
+      required:
+        - row
+        - reason
+      properties:
+        row:
+          type: integer
+          minimum: 1
+          description: 1-basierte Datenzeilennummer
+        reason:
+          type: string
+          description: Verständlicher Grund, warum die Zeile nicht übernommen wird
+    TaskImportUnmapped:
+      type: object
+      description: Kategorie-/Säulenwert ohne Bestandstreffer — bleibt ohne Zuordnung.
+      required:
+        - row
+        - field
+        - value
+      properties:
+        row:
+          type: integer
+          minimum: 1
+          description: 1-basierte Datenzeilennummer
+        field:
+          type: string
+          enum:
+            - category
+            - pillar
+          description: Zielfeld, dessen CSV-Wert keinen Bestandstreffer hatte
+        value:
+          type: string
+          description: CSV-Wert ohne Zuordnung
+    TaskImportPreview:
+      type: object
+      description: Ergebnis der Import-Vorschau (#1969) — legt nichts an.
+      required:
+        - total
+        - valid
+        - skippedNonTask
+        - samples
+        - errors
+        - unmapped
+        - columns
+      properties:
+        total:
+          type: integer
+          description: Anzahl aller Datenzeilen
+        valid:
+          type: integer
+          description: Anzahl übernehmbarer Aufgabenzeilen
+        skippedNonTask:
+          type: integer
+          description: Zeilen mit TYPE != task (Todoist-Export)
+        samples:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/TaskImportSample'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskImportRowError'
+        unmapped:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskImportUnmapped'
+        columns:
+          type: array
+          items:
+            type: string
+          description: Spaltennamen der Header-Zeile (Angebot für das Spalten-Mapping)
+    TaskImportResult:
+      type: object
+      description: Ergebnis des Import-Aufrufs (#1969).
+      required:
+        - created
+        - skippedNonTask
+        - errors
+      properties:
+        created:
+          type: integer
+          description: Anzahl angelegter Aufgaben
+        skippedNonTask:
+          type: integer
+          description: Zeilen mit TYPE != task (übersprungen)
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskImportRowError'
     SuggestInitialTaskSuggestion:
       type: object
       description: Ein Aufgaben-Vorschlag für den Erststart mit Säulen-Bezug.

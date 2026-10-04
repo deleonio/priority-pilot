@@ -11,6 +11,7 @@ import { categoriesRouter } from './routes/categories.js';
 import { createSuggestPillarsRouter } from './routes/suggestPillars.js';
 import { createReassignPillarsRouter } from './routes/reassignPillars.js';
 import { createParseTasksRouter } from './routes/parseTasks.js';
+import { createTaskImportRouter, taskImportBodyParser } from './routes/taskImport.js';
 import { createSuggestInitialTasksRouter } from './routes/suggestInitialTasks.js';
 import { createPillarAdvisorRouter } from './routes/pillarAdvisor.js';
 import { createCareSuggestionsRouter, scoresRouter } from './routes/scores.js';
@@ -117,6 +118,13 @@ export const createApp = (deps: AppDeps = {}) => {
 			googleKeys: deps.googleKeys,
 		}),
 	);
+
+	// CSV-Import (#1969): Body-Parser der Import-Endpunkte mit erhöhtem Limit — bewusst VOR dem
+	// globalen `express.json()` (Default 100 KB) und nur auf `/tasks/import` gescoped: body-parser
+	// überspringt bereits geparste Bodies, alle übrigen Requests behalten das knappe Default-Limit.
+	// Übergroße Dateien (>10 MB CSV) meldet damit die Route selbst als 400 mit klarer Meldung,
+	// statt body-parsers 413 (Spec docs/spec/issue-1969.md, AK5).
+	app.use('/tasks/import', taskImportBodyParser);
 
 	// JSON-Body parsen.
 	app.use(express.json());
@@ -340,6 +348,10 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Mistral-gestützte Task-Schnellerfassung: Freitext → strukturierte Felder (siehe routes/parseTasks.ts).
 	app.use(createParseTasksRouter(deps.taskTextParser, deps.searchTextParser));
+
+	// CSV-Import zweistufig (#1969, siehe routes/taskImport.ts): Vorschau + Übernahme — hinter
+	// requireAuth/CSRF; der zugehörige Body-Parser ist bewusst früh separat gemountet (oben).
+	app.use(createTaskImportRouter());
 
 	// Mistral-gestützte Erststart-Vorschläge: Freitext → 5–8 Aufgaben mit Säulen-Bezug (#2068,
 	// siehe routes/suggestInitialTasks.ts).

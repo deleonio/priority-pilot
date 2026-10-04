@@ -708,11 +708,12 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 		expect(container.querySelector('.admin-users')).toBeNull();
 	});
 
-	// Test-Pflege #1902: „Pakete"/„Abo" sind seit #1902 EIN Tab „Pakete & Abo“ — „Nutzerverwaltung"
+	// Test-Pflege #1902: „Pakete"/„Abo" sind seit #1902 EIN Tab „Pakete & Abo" — „Nutzerverwaltung"
 	// rückt von Index 9 auf 8. (Ursprünglich #1529: „Pakete"/„Abo" hängen zwischen „Kategorien" und den rollenabhängigen
 	// Reitern — „Nutzerverwaltung" rückt damit von Index 6 auf 8; #1894 „Orte" schob sie auf 9.) Der geprüfte Vertrag (#1300:
 	// Admin-Reiter am Ende, AdminUsersSection in seinem Panel) bleibt unverändert.
-	it('mit isAdmin erscheint „Nutzerverwaltung" als letzter Tab mit AdminUsersSection im Panel slot="tab-8"', () => {
+	// Test-Pflege #1969: Tab „Import" (Index 8) schiebt die Nutzerverwaltung auf Index 9 / slot tab-9.
+	it('mit isAdmin erscheint „Nutzerverwaltung" als letzter Tab mit AdminUsersSection im Panel slot="tab-9"', () => {
 		const { container } = render(<SettingsPage {...defaultProps} isAdmin />);
 
 		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
@@ -729,11 +730,13 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 			// Test-Pflege #1903 AK1: „KI-Provider" → „KI", der Tab „Access-Token" entfällt (Zugriff liegt im KI-Tab).
 			// Test-Pflege #1894: „Orte" (Index 4) schiebt alle Folge-Tabs um 1 — Nutzerverwaltung liegt
 			// nach dem Zusammenlegen von „Pakete & Abo" (#1902) auf Index 8.
+			// Test-Pflege #1969: „Import" (CSV-Import) hängt vor den rollenabhängigen Tabs an Index 8.
+			'Import',
 			'Nutzerverwaltung',
 		]);
-		const adminPanel = container.querySelector('[slot="tab-8"]');
-		expect(adminPanel, 'Slot tab-8 (Nutzerverwaltung) existiert').not.toBeNull();
-		expect(adminPanel?.querySelector('.admin-users'), 'AdminUsersSection ist im tab-8-Panel').toBeTruthy();
+		const adminPanel = container.querySelector('[slot="tab-9"]');
+		expect(adminPanel, 'Slot tab-9 (Nutzerverwaltung) existiert').not.toBeNull();
+		expect(adminPanel?.querySelector('.admin-users'), 'AdminUsersSection ist im tab-9-Panel').toBeTruthy();
 	});
 });
 
@@ -1664,12 +1667,13 @@ describe('SettingsPage – #1902: Tab „Pakete & Abo"', () => {
 	});
 
 	// Test-Pflege #1903: der Tab „Access-Token" ist im Tab „KI" aufgegangen — „Nutzerverwaltung" ist letzter Tab.
-	it('AK1/AK6: Rollen-Tabs bleiben index-paritätisch — Nutzerverwaltung an Index 8, kein Tab „Access-Token“', () => {
+	// Test-Pflege #1969: „Import" (Index 8) schiebt die rollenabhängige Nutzerverwaltung auf Index 9.
+	it('AK1/AK6: Rollen-Tabs bleiben index-paritätisch — Nutzerverwaltung an Index 9, kein Tab „Access-Token“', () => {
 		const { container } = renderTab(null, { isAdmin: true });
 		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
 		const labels = tabsEl?._tabs?.map((t) => t._label) ?? [];
 		expect(labels.indexOf('Pakete & Abo')).toBe(7);
-		expect(labels.indexOf('Nutzerverwaltung')).toBe(8);
+		expect(labels.indexOf('Nutzerverwaltung')).toBe(9);
 		expect(labels).not.toContain('Access-Token');
 	});
 
@@ -1825,7 +1829,7 @@ describe('SettingsPage – #1904: Tab-Reihenfolge nach Paketstufe', () => {
 			(t) => t._label,
 		);
 
-	it('AK1: Member sehen Allgemein, Säulen, Kategorien, Standort, Orte, KI, Gruppen, Pakete & Abo', () => {
+	it('AK1: Member sehen Allgemein, Säulen, Kategorien, Standort, Orte, KI, Gruppen, Pakete & Abo, Import', () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
 		expect(labels(container)).toEqual([
 			'Allgemein',
@@ -1836,6 +1840,8 @@ describe('SettingsPage – #1904: Tab-Reihenfolge nach Paketstufe', () => {
 			'KI',
 			'Gruppen',
 			'Pakete & Abo',
+			// Test-Pflege #1969: CSV-Import als neuer letzter Member-Tab (Index 8, Route /settings/import).
+			'Import',
 		]);
 	});
 
