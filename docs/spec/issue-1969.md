@@ -27,7 +27,8 @@ additiv — er legt Aufgaben an und ändert/löscht keine bestehenden.
   `total` = Anzahl Datenzeilen, `valid` = übernehmbare Aufgabenzeilen, `skippedNonTask` = Zeilen mit
   `TYPE != task`, `samples` = max. 5 Einträge `{ row, title, deadline, priority }`,
   `errors` = je unlesbarer Zeile `{ row, reason }`, `unmapped` = je nicht zuordenbarem
-  Kategorie-/Säulenwert `{ row, field, value }`.
+  Kategorie-/Säulenwert `{ row, field, value }`, `columns` = Spaltennamen der Header-Zeile
+  (Angebot für das Spalten-Mapping der UI; in der Impl ergänzt, #1969).
 - Import-Antwort: `{ created, skippedNonTask, errors }`; `errors` wie Preview.
 - `row` ist die 1-basierte Datenzeilennummer (erste Zeile nach dem Header = 1).
 - Grenzen (vor jeder Verarbeitung geprüft): `csv` länger als 10 MB oder mehr als 5000 Datenzeilen →
