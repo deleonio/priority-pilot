@@ -88,5 +88,15 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen"
+	},
+	"weeklyCard": {
+		"label": "Моя неделя в пяти столпах",
+		"laden": "Загрузка недельного баланса …",
+		"leer": "На этой неделе пока нет очков — карточка наполняется, когда вы выполняете задачи.",
+		"woche": "Неделя {{kw}} / {{jahr}}",
+		"teilen": "Поделиться неделей",
+		"speichern": "Сохранить PNG",
+		"erzeuge": "Создание карточки …",
+		"fehler": "Не удалось создать карточку. Попробуйте ещё раз."
 	}
 }

@@ -88,5 +88,15 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen"
+	},
+	"weeklyCard": {
+		"label": "A minha semana em cinco pilares",
+		"laden": "A carregar o balanço semanal …",
+		"leer": "Ainda sem pontos esta semana — o cartão vai-se preenchendo à medida que concluis tarefas.",
+		"woche": "Semana {{kw}} / {{jahr}}",
+		"teilen": "Partilhar a semana",
+		"speichern": "Guardar PNG",
+		"erzeuge": "A criar o cartão …",
+		"fehler": "Não foi possível criar o cartão. Tenta novamente."
 	}
 }

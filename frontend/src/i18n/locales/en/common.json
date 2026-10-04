@@ -88,5 +88,15 @@
 		"beispiel2": "Answer an important email",
 		"beispiel3": "Plan the coming weekend",
 		"erstenTaskAnlegen": "Create your first task"
+	},
+	"weeklyCard": {
+		"label": "My week in five pillars",
+		"laden": "Weekly balance is loading …",
+		"leer": "No points yet this week — the card fills up as you complete tasks.",
+		"woche": "Week {{kw}} / {{jahr}}",
+		"teilen": "Share week",
+		"speichern": "Save PNG",
+		"erzeuge": "Creating the card …",
+		"fehler": "The card could not be created. Please try again."
 	}
 }

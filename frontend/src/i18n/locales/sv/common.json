@@ -88,5 +88,15 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen"
+	},
+	"weeklyCard": {
+		"label": "Min vecka i fem pelare",
+		"laden": "Läser in veckobalansen …",
+		"leer": "Inga poäng denna vecka ännu — kortet fylls på när du bockar av uppgifter.",
+		"woche": "Vecka {{kw}} / {{jahr}}",
+		"teilen": "Dela veckan",
+		"speichern": "Spara PNG",
+		"erzeuge": "Kortet skapas …",
+		"fehler": "Kortet kunde inte skapas. Försök igen."
 	}
 }

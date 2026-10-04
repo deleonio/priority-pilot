@@ -3,6 +3,7 @@ import { NearbyCard } from './NearbyCard';
 import { CareHint } from './CareHint';
 import { DayDoneHint } from './DayDoneHint';
 import { StreakCard } from './StreakCard';
+import { WeeklyBalanceCard } from './WeeklyBalanceCard';
 import { MilestoneBadges } from './MilestoneBadges';
 import { MissedTasksCard } from './MissedTasksCard';
 import { HeartBalance } from './HeartBalance';
@@ -483,6 +484,10 @@ export const Dashboard = ({
 			 * lädt selbst (Muster NearbyCard), daher ohne Prop-Kette und ohne Bedingung.
 			 */}
 			<StreakCard />
+			{/* #1968: „Meine Woche in fünf Säulen“ direkt nach dem Streak — beide Karten erzählen
+			 * vom Durchhalten, die Wochenkarte als teilbares Standbild. Lädt selbst (Muster
+			 * StreakCard), daher ohne Prop-Kette; sie erscheint von selbst erst am Sonntag (AK4). */}
+			<WeeklyBalanceCard />
 			{/* #1362: eigener Knoten direkt nach der Streak-Card — beide Stufenlisten (Streak/Punkte)
 			 * bauen auf denselben Kennzahlen auf, die Badges fassen sie zu einer Übersicht zusammen. */}
 			<MilestoneBadges />
