@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView, fullPillarContributions } from './helpers';
+import { fullPillarContributions, registerOwnSession, waitForStableView } from './helpers';
 
 /**
  * E2E-Spec für #1795 (docs/spec/issue-1795.md): Bei Überlast einer Säule zeigt der Fürsorge-Hinweis
@@ -7,13 +7,6 @@ import { waitForStableView, fullPillarContributions } from './helpers';
  * eine einzige erledigte Aufgabe der Säule „Wirksamkeit" (100 % des Aufwands im jüngeren Fenster).
  * ROT, bis Server `anlass` liefert und `CareHint` danach rahmt.
  */
-const deleteAllTasks = async (page: Page): Promise<void> => {
-	const tasks = (await (await page.request.get('/api/v1/tasks')).json()) as { id: number }[];
-	for (const task of tasks) {
-		await page.request.delete(`/api/v1/tasks/${task.id}`);
-	}
-};
-
 const erzeugeUeberlast = async (page: Page): Promise<void> => {
 	const pillars = (await (await page.request.get('/api/v1/pillars')).json()) as { id: number; name: string }[];
 	const wirksamkeitIndex = pillars.findIndex((pillar) => pillar.name === 'Wirksamkeit');
@@ -37,8 +30,11 @@ const openDashboard = async (page: Page): Promise<void> => {
 };
 
 test.describe('Dashboard — Fürsorge-Hinweis bei Überlast (Issue #1795)', () => {
-	test.afterEach(async ({ page }) => {
-		await deleteAllTasks(page);
+	// #1977-Fixup: eigene Session mit genau fünf Säulen — das Pass-Through-Konto der Shard-DB sammelt
+	// Säulen anderer Specs (20+), bei Vollverteilung bekommt Wirksamkeit dann höchstens 5 % → keine
+	// Überlast, der Hinweis zeigt den Leerzustand statt eines Vorschlags.
+	test.beforeEach(async ({ page }) => {
+		await registerOwnSession(page, 'care-overload-1795');
 	});
 
 	test('AK1/AK4: Überlast → Erholungsvorschlag, kein „kam diese Woche zu kurz"', async ({ page }) => {
