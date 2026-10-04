@@ -87,6 +87,8 @@ test.describe('Balamentum — #1526: Access-Token-Reiter und Gating', () => {
 			await waitForStableView(page, 'Allgemein');
 
 			await expect(page.getByRole('tab', { name: 'KI', exact: true })).toBeVisible();
+			// #1970: Die Provider-Controls liegen hinter „Erweitert“ — für die Sperr-Assertions öffnen.
+			await page.getByText('Erweitert', { exact: true }).click();
 			await expect(
 				page
 					.getByRole('switch', { name: /^KI aktivieren$/ })
