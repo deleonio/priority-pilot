@@ -7,6 +7,7 @@ import { waitForStableView } from './helpers';
  * AK2: Aus der Wochenansicht kann man einen Tag anwählen — Kreuzverhör-Entscheidung #5 (Option 5.2,
  *   PR #1620 Runde 2): der Sprung landet im Aufgaben-Tab, gefiltert auf die Deadline des Tages.
  * AK3: Manuell geplante (per Deadline datierte) Aufgaben werden dem richtigen Tag zugeordnet.
+ * Seit #2011 ist der Umschalter eine Radiogruppe („Heute“/„Woche“) — die Klicks wählen die Radio-Option „Woche“.
  */
 
 /** Montag (UTC-Mitternacht, ISO-Datum) der Kalenderwoche, in der `reference` liegt. */
@@ -42,7 +43,7 @@ test.describe('Dashboard — Wochenansicht (#1617)', () => {
 		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: 'Wochenansicht' }).click();
+		await page.getByRole('radio', { name: 'Woche', exact: true }).click();
 
 		const dayCards = page.locator('.week-view-day');
 		await expect(dayCards).toHaveCount(7);
@@ -59,7 +60,7 @@ test.describe('Dashboard — Wochenansicht (#1617)', () => {
 		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: 'Wochenansicht' }).click();
+		await page.getByRole('radio', { name: 'Woche', exact: true }).click();
 		await expect(page.locator('.week-view-day')).toHaveCount(7);
 
 		const overflowsHorizontally = await page.evaluate(
@@ -84,7 +85,7 @@ test.describe('Dashboard — Wochenansicht (#1617)', () => {
 		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: 'Wochenansicht' }).click();
+		await page.getByRole('radio', { name: 'Woche', exact: true }).click();
 		await expect(page.locator('.week-view-grid')).toBeVisible();
 
 		// Die erste Tageskarte ist Montag (Wochenstart, WEEKDAY_LABELS in WeekView.tsx).
@@ -133,7 +134,7 @@ test.describe('Dashboard — Wochenansicht: erledigte Aufgaben (#2012)', () => {
 		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: 'Wochenansicht' }).click();
+		await page.getByRole('radio', { name: 'Woche', exact: true }).click();
 
 		// Erledigte Einträge tragen die Done-Klasse und bleiben in der Karte sichtbar.
 		const doneEntry = page.locator('.week-view-done', { hasText: 'E2E #2012 erledigt' });
