@@ -4,9 +4,11 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.15 - 2026-10-04
 
-_Enthält v0.15.0 – v0.15.1._
+_Enthält v0.15.0 – v0.15.2._
 
-_Keine für Nutzer sichtbaren Änderungen._
+### 🚀 Improvements
+
+- feat(frontend): cards and accordions only on top level (#2015) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2170
 
 ## v0.14 - 2026-10-04
 
@@ -149,7 +151,6 @@ _Enthält v0.11.0 – v0.11.31._
 - feat(server): add feedback_send mcp tool for app feedback by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1915
 - feat(frontend): publish terms of use and link them in app help (#1891) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1918
 - feat(server): credit remaining paypal term on upgrade invoice by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1917
-- feat(server): remove user feedback from vault on account deletion by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1928
 - feat(server): remove user feedback from vault on account deletion by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1928
 
 ### 🐞 Bug Fixes
