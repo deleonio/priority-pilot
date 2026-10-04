@@ -144,8 +144,9 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
 
 Über den Karten schaltest du zwischen **Tagesansicht** und **Wochenansicht** um. Die
 Wochenansicht zeigt die aktuelle Kalenderwoche als sieben Tageskarten (Montag zuerst) mit
-den offenen Aufgaben, die an dem Tag fällig sind; unter Heute stehen zusätzlich die
-empfohlenen Aufgaben und die nächste Aufgabe. Mit **„Tag öffnen"** springst du in den
+den offenen Aufgaben, die an dem Tag fällig sind; erledigte erscheinen durchgestrichen
+darunter. Unter Heute stehen zusätzlich die
+empfohlenen Aufgaben und die nächste Aufgabe. Mit **„Tag öffnen“** springst du in den
 Aufgaben-Tab und siehst dort die Aufgaben dieses Tages.
 
 ---

@@ -863,6 +863,12 @@ kol-toolbar {
 	padding-inline-start: 1.2em;
 }
 
+/* #2012: erledigte Einträge in der Tageskarte — durchgestrichen und abgeschwächt. */
+.week-view-done {
+	text-decoration: line-through;
+	opacity: 0.6;
+}
+
 /* Personalisierte Begrüßung rechts neben dem H2 in der Titelzeile (bricht bei langen Namen
    darunter um, statt eine eigene Zeile zu belegen). */
 .dashboard-heading {

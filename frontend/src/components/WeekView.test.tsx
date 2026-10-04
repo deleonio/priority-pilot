@@ -102,13 +102,59 @@ describe('WeekView — Zuordnung manueller Aufgaben je Tag (#1617 AK3)', () => {
 		expect(within(sonntagCard).getByText('Sonntags-Aufgabe')).toBeInTheDocument();
 	});
 
-	it('zeigt erledigte Aufgaben (Status Done) nicht in der Wochenansicht', () => {
+	// #2012 AK1 (Test-Pflege): flipped von „erledigte Aufgaben werden ausgeblendet" auf „erledigte
+	// Aufgaben erscheinen unter ihrem Deadline-Tag" — der alte Soll-Text sperrte das neue Verhalten.
+	it('zeigt erledigte Aufgaben (Status Done) unter ihrem Deadline-Tag', () => {
 		const erledigt = task(3, 'Erledigte-Aufgabe', TUESDAY, TaskStatus.Done);
 		render(
 			<WeekView tasks={[erledigt]} nextTask={null} suggestions={[]} referenceDate={REFERENCE} onSelectDay={() => {}} />,
 		);
 
-		expect(screen.queryByText('Erledigte-Aufgabe')).toBeNull();
+		// Karte mit nur erledigten Aufgaben ist nicht leer — Titel in genau dieser Karte.
+		const dienstagCard = screen.getByRole('heading', { name: /Dienstag,/i }).closest('.week-view-day') as HTMLElement;
+		const mittwochCard = screen.getByRole('heading', { name: /Mittwoch,/i }).closest('.week-view-day') as HTMLElement;
+		expect(within(dienstagCard).getByText('Erledigte-Aufgabe')).toBeInTheDocument();
+		// Negativ-Kontrolle: nicht am Folgetag.
+		expect(within(mittwochCard).queryByText('Erledigte-Aufgabe')).toBeNull();
+	});
+});
+
+/**
+ * #2012 AK2/AK3: erledigte Einträge sind klar von offenen unterscheidbar (eigene Klasse, unter den
+ * offenen einsortiert); Tage ohne zugeordnete Aufgaben bleiben ohne Listeneinträge.
+ */
+describe('WeekView — erledigte Aufgaben in der Tageskarte (#2012 AK2/AK3)', () => {
+	it('kennzeichnet erledigte Einträge mit week-view-done und ordnet sie unter die offenen ein', () => {
+		const offen = task(4, 'Offene-Aufgabe', TUESDAY);
+		const erledigt = task(5, 'Erledigte-Aufgabe', TUESDAY, TaskStatus.Done);
+		render(
+			<WeekView
+				tasks={[offen, erledigt]}
+				nextTask={null}
+				suggestions={[]}
+				referenceDate={REFERENCE}
+				onSelectDay={() => {}}
+			/>,
+		);
+
+		const dienstagCard = screen.getByRole('heading', { name: /Dienstag,/i }).closest('.week-view-day') as HTMLElement;
+		const lis = Array.from(dienstagCard.querySelectorAll('li'));
+		const openLi = lis.find((li) => li.textContent === 'Offene-Aufgabe');
+		const doneLi = lis.find((li) => li.textContent === 'Erledigte-Aufgabe');
+		expect(doneLi).toHaveClass('week-view-done');
+		expect(openLi).not.toHaveClass('week-view-done');
+		// Done erscheint unter den offenen Einträgen derselben Karte.
+		expect(lis.indexOf(openLi!)).toBeLessThan(lis.indexOf(doneLi!));
+	});
+
+	it('lässt Tage ohne zugeordnete Aufgaben ohne Listeneinträge', () => {
+		const erledigt = task(6, 'Erledigte-Aufgabe', TUESDAY, TaskStatus.Done);
+		render(
+			<WeekView tasks={[erledigt]} nextTask={null} suggestions={[]} referenceDate={REFERENCE} onSelectDay={() => {}} />,
+		);
+
+		const mittwochCard = screen.getByRole('heading', { name: /Mittwoch,/i }).closest('.week-view-day') as HTMLElement;
+		expect(mittwochCard.querySelectorAll('li')).toHaveLength(0);
 	});
 });
 
