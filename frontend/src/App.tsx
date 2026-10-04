@@ -103,6 +103,10 @@ const LEGACY_SETTINGS_SEGMENTS: Record<string, string> = {
 	standort: 'ortung',
 	orte: 'ortung',
 };
+// Hilfe-Tabs (Index = Tab-Index in `HelpPage`): `/hilfe`, `/hilfe/user-guide` und `/hilfe/manual` zeigen das Handbuch.
+const HELP_PATH_SEGMENTS: string[] = ['user-guide', 'feedback', 'impressum', 'changelog'];
+// Weitere Adressen des Handbuchs.
+const HELP_SEGMENT_ALIASES: Record<string, string> = { manual: 'user-guide', handbuch: 'user-guide' };
 // Die Segmentfolge ist rollenabhängig, damit sie index-paritätisch zu `settingsTabs` in
 // `SettingsPage` bleibt (der Admin-Tab „Nutzerverwaltung" hängt als Index 8 an).
 const settingsPathSegments = (isAdmin: boolean): string[] => [
@@ -363,6 +367,11 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			? -1
 			: settingsPathSegments(isAdmin).indexOf(settingsSegment);
 	const settingsTab = settingsTabIndex < 0 ? 1 : settingsTabIndex;
+
+	/** Aktiver Hilfe-Tab: aus `/hilfe/:tab` abgeleitet; ohne Segment oder unbekannt → Handbuch. */
+	const rawHelpSegment = /\/hilfe\/([^/]+)/.exec(location.pathname)?.[1] ?? '';
+	const helpSegment = HELP_SEGMENT_ALIASES[rawHelpSegment] ?? rawHelpSegment;
+	const helpTab = Math.max(0, HELP_PATH_SEGMENTS.indexOf(helpSegment));
 
 	/** Offen/Erledigt umschalten und die Auswahl als `?view=` in die URL spiegeln. */
 	const changeTaskViewMode = useCallback(
@@ -701,6 +710,14 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		}
 		navigate('/settings/general');
 	}, [showSettings, backToMainView, navigate]);
+
+	/** Hilfe-Tab-Wechsel: URL auf `/hilfe/:tab` bringen — der Tab folgt der Route. */
+	const changeHelpTab = useCallback(
+		(selected: number): void => {
+			navigate(`/hilfe/${HELP_PATH_SEGMENTS[selected] ?? 'user-guide'}`);
+		},
+		[navigate],
+	);
 
 	/** Settings-Tab-Wechsel: URL auf `/settings/:tab` bringen — der Tab folgt der Route. */
 	const changeSettingsTab = useCallback(
@@ -1062,7 +1079,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						currentUserId={user.id}
 					/>
 				) : showHelp ? (
-					<HelpPage />
+					<HelpPage tab={helpTab} onTabChange={changeHelpTab} />
 				) : (
 					<>
 						{loadError !== null && (

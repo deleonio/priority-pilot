@@ -697,3 +697,31 @@ describe('App — #1894: Settings-Segmente nach dem Tab „Orte"', () => {
 		expect(tabs?._tabs?.[tabs._selected ?? -1]?._label).toBe(label);
 	});
 });
+
+/** Hilfe-Tabs haben eigene Routen wie die Einstellungen: `/hilfe`, `/hilfe/user-guide` und `/hilfe/manual` = Handbuch, `/hilfe/:tab` für die übrigen. */
+describe('App — Hilfe-Segmente', () => {
+	type TabsElement = { _tabs?: { _label: string }[]; _selected?: number } | null;
+
+	afterEach(() => {
+		window.history.replaceState({}, '', '/');
+	});
+
+	it.each([
+		['/hilfe', 'Handbuch'],
+		['/hilfe/user-guide', 'Handbuch'],
+		['/hilfe/manual', 'Handbuch'],
+		['/hilfe/feedback', 'Feedback'],
+		['/hilfe/impressum', 'Impressum'],
+		['/hilfe/changelog', 'Changelog'],
+		['/hilfe/unbekannt', 'Handbuch'],
+	])('%s wählt den Tab „%s“', async (path, label) => {
+		window.history.replaceState({}, '', path);
+		render(<App user={testUser} />);
+
+		await waitFor(() => {
+			expect(document.querySelector('kol-tabs[_label="Hilfe"]')).not.toBeNull();
+		});
+		const tabs = document.querySelector('kol-tabs[_label="Hilfe"]') as unknown as TabsElement;
+		expect(tabs?._tabs?.[tabs._selected ?? -1]?._label).toBe(label);
+	});
+});
