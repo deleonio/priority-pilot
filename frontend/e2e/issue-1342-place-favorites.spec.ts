@@ -143,7 +143,11 @@ test.describe('Balamentum — #1342: Standort-Favoriten', () => {
 		await waitForStableView(page, 'Orte');
 
 		const rowToDelete = page.getByTestId('place-favorite-row').filter({ hasText: HIT.address });
-		const deleteButton = rowToDelete.getByRole('button', { name: /favorit löschen/i });
+		// TEST-PFLEGE #2013: sichtbar steht nur „Löschen“ — der zugängliche Name der KoliBri-Taste
+		// entsteht aus `_label` UND dem visuell versteckten Anschrift-Slot (echtes Shadow-DOM).
+		const deleteButton = rowToDelete.getByRole('button', {
+			name: new RegExp(`^löschen.*${HIT.address}`, 'i'),
+		});
 		const deleteBox = await deleteButton.boundingBox();
 		expect(deleteBox!.height).toBeGreaterThanOrEqual(44);
 		await deleteButton.click();
@@ -173,6 +177,31 @@ test.describe('Balamentum — #1342: Standort-Favoriten', () => {
 		// Genau der Stern in der Trefferzeile (der Knopf unter dem Feld heißt fast gleich) — er bietet
 		// das Speichern wieder an, ist also nicht mehr „Bereits gespeichert".
 		await expect(page.getByRole('button', { name: `Als Favorit speichern: ${HIT.address}` })).toBeEnabled();
+	});
+
+	// #2013 AK3 (docs/spec/issue-2013.md): 375px — die gekürzte Löschen-Schaltfläche bleibt ein
+	// Touch-Ziel ≥ 44px und die Zeile läuft nicht horizontal aus dem Viewport (Bounding-Box statt
+	// scrollWidth — die App-Shell clippt overflow-x). Rot über den AK2-Locator (`^löschen.*Anschrift`):
+	// solange die Taste `Favorit löschen: …` heißt, schlägt das Auffinden fehl.
+	test('AK3: 375px — Löschen-Schaltfläche ≥ 44px, Zeile bleibt im Viewport', async ({ page }) => {
+		await login(page);
+		const created = await page.request.post('/api/v1/place-favorites', {
+			data: { address: HIT.address, latitude: HIT.lat, longitude: HIT.lon },
+		});
+		expect(created.status(), await created.text()).toBe(201);
+
+		await page.goto('/app/settings/orte');
+		await waitForStableView(page, 'Orte');
+
+		const row = page.getByTestId('place-favorite-row').filter({ hasText: HIT.address });
+		await expect(row).toBeVisible();
+		await expectWithinViewport(page, row);
+
+		const deleteButton = row.getByRole('button', { name: new RegExp(`^löschen.*${HIT.address}`, 'i') });
+		await expect(deleteButton).toBeVisible();
+		const box = await deleteButton.boundingBox();
+		expect(box, 'Löschen-Schaltfläche muss eine Bounding-Box haben').not.toBeNull();
+		expect(box!.height).toBeGreaterThanOrEqual(44);
 	});
 });
 
