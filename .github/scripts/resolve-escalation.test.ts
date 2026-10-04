@@ -32,12 +32,20 @@ printf '%s' "$*" | grep -qE '(issue|pr) view' || { echo "gh: unsupported call" >
 if grep -q 'ai:continued' "$GH_FIXTURE"; then echo true; else echo false; fi
 `;
 
-const esc = (opts: { fixture: string; model?: string; effort?: string; kind?: string; fail?: boolean }) => {
+const esc = (opts: {
+	fixture: string;
+	model?: string;
+	effort?: string;
+	kind?: string;
+	rounds?: string;
+	fail?: boolean;
+}) => {
 	writeFileSync(fixturePath, opts.fixture, 'utf8');
 	writeFileSync(outFile, '', 'utf8');
 	const args = ['--repo', 'o/r', '--ticket', '42', '--kind', opts.kind ?? 'issue'];
 	if (opts.model !== undefined) args.push('--current-model', opts.model);
 	if (opts.effort !== undefined) args.push('--current-effort', opts.effort);
+	if (opts.rounds !== undefined) args.push('--rounds', opts.rounds);
 	const res = spawnSync('bash', [script, ...args], {
 		env: {
 			...process.env,
@@ -127,7 +135,7 @@ describe('resolve-escalation.sh — Eskalation mit ai:continued', () => {
 });
 
 describe('resolve-escalation.sh — PR-Eingang', () => {
-	it('PR-Eingang ist immer Passthrough — ai:continued ist ein Issue-Marker', () => {
+	it('PR-Eingang ohne Runden-Signal ist Passthrough — ai:continued ist ein Issue-Marker', () => {
 		// Selbst mit (manuell) gesetztem Label am PR: kein gh-Call, keine Eskalation —
 		// der Soft-Abort-Continuation-Mechanismus existiert nur am Issue.
 		const { status, out } = esc({ fixture: CONTINUED, kind: 'pr', model: 'sonnet', effort: 'medium' });
@@ -135,6 +143,39 @@ describe('resolve-escalation.sh — PR-Eingang', () => {
 		assert.strictEqual(kv(out, 'model'), 'sonnet');
 		assert.strictEqual(kv(out, 'effort'), 'medium');
 		assert.strictEqual(kv(out, 'escalated'), 'false');
+	});
+});
+
+describe('resolve-escalation.sh — Fixup-Runden (Wiederholungs-Eskalation)', () => {
+	it('stuft ab Runde 2 das Tabellen-Modell eine Stufe hoch (sonnet → opus)', () => {
+		// ADR-0004-Lücke geschlossen: wiederholte Fixups eskalieren jetzt aus der
+		// Tabelle, auch ohne ai:continued (das es am PR nie gibt).
+		const { out } = esc({ fixture: PLAIN, kind: 'pr', model: 'sonnet', effort: 'medium', rounds: '2' });
+		assert.strictEqual(kv(out, 'model'), 'opus');
+		assert.strictEqual(kv(out, 'effort'), 'high');
+		assert.strictEqual(kv(out, 'escalated'), 'true');
+	});
+
+	it('Runde 1 ist Passthrough — der erste Fixup ist der normale Review→Fixup-Zyklus', () => {
+		const { out } = esc({ fixture: PLAIN, kind: 'pr', model: 'sonnet', effort: 'medium', rounds: '1' });
+		assert.strictEqual(kv(out, 'model'), 'sonnet');
+		assert.strictEqual(kv(out, 'escalated'), 'false');
+	});
+
+	it('leere/garbage Runden sind fail-open Passthrough (Zählfehler darf nicht eskalieren)', () => {
+		for (const rounds of ['', 'x']) {
+			const { out } = esc({ fixture: PLAIN, kind: 'pr', model: 'opus', effort: 'high', rounds });
+			assert.strictEqual(kv(out, 'model'), 'opus');
+			assert.strictEqual(kv(out, 'effort'), 'high');
+			assert.strictEqual(kv(out, 'escalated'), 'false');
+		}
+	});
+
+	it('am Allowlist-Ende (opus) bleibt das Modell, nur der Effort steigt', () => {
+		const { out } = esc({ fixture: PLAIN, kind: 'pr', model: 'opus', effort: 'high', rounds: '3' });
+		assert.strictEqual(kv(out, 'model'), 'opus');
+		assert.strictEqual(kv(out, 'effort'), 'xhigh');
+		assert.strictEqual(kv(out, 'escalated'), 'true');
 	});
 });
 

@@ -389,13 +389,17 @@ Harness-Kommentar, Legacy-Fallback Issue-Body; bei PRs über
 das Closing-Issue) und ist fail-open: fehlt sie oder ist eine Zeile ungültig, gelten die
 Defaults unverändert — ein Tippfehler des LLM parkt die Pipeline nie.
 
-**Eskalation bei Wiederholung (`ai:continued`):** Setzt der Soft-Abort der Umsetzung
-`ai:continued` und re-triggert `ai:needs-impl`, stuft der Precheck von 04 das gemergte
-Ergebnis (Tabelle/Label/Default) eine Stufe hoch ([`resolve-escalation.sh`](../.github/scripts/resolve-escalation.sh)):
-Modell `haiku → sonnet → opus` (ab `opus` unverändert — Allowlist-Ende, die Eskalation trägt
-dann allein den Effort), Effort `low → medium → high → xhigh → max`. Wirkt genau einmal —
-der zweite Soft-Abort geht ohnehin an den Menschen (`ai:to-big-issue`). Fail-open: bei
-Fehlern gilt das ungeescalatierte Ergebnis weiter.
+**Eskalation bei Wiederholung (`ai:continued` / Fixup-Runden):** Setzt der Soft-Abort der
+Umsetzung `ai:continued` und re-triggert `ai:needs-impl`, stuft der Precheck von 04 das
+gemergte Ergebnis (Tabelle/Default) eine Stufe hoch
+([`resolve-escalation.sh`](../.github/scripts/resolve-escalation.sh)): Modell
+`haiku → sonnet → opus` (ab `opus` unverändert — Allowlist-Ende, die Eskalation trägt
+dann allein den Effort), Effort `low → medium → high → xhigh → max`. Dasselbe gilt für
+**wiederholte Fixups**: ab Fixup-Runde 2 (Zähler aus `fixup-rounds.sh`) wird das
+Tabellen-Modell ebenfalls eine Stufe hochgesetzt — Runde 1 ist der normale
+Review→Fixup-Zyklus ohne Signal. Wirkt genau einmal pro Lauf — der zweite Soft-Abort geht
+ohnehin an den Menschen (`ai:to-big-issue`), der Fixup-Deckel (MAX_FIXUP_ROUNDS) ebenso.
+Fail-open: bei Fehlern gilt das ungeescalatierte Ergebnis weiter.
 
 ### Delegation und Mentor-Eskalation (ADR 0008)
 

@@ -173,11 +173,13 @@ jobs:
             fi
           fi
 
-      - name: Eskalation bei Wiederholung (ai:continued)
+      - name: Eskalation bei Wiederholung (ai:continued / Fixup-Runden)
         # Fortsetzungs-Lauf nach Soft-Abort: ai:continued am Ticket => Modell+Effort je
         # eine Stufe hoch (resolve-escalation.sh; ab opus nur noch Effort — Allowlist-Ende).
-        # Wirkt auf das gemergte Ergebnis aus Tabelle/Label. Fail-open (|| true): bei
-        # Fehler gilt das gemergte Ergebnis ungeaendert weiter.
+        # Fixup-Eingang (PR): ab Runde 2 eskaliert das Modell aus der Tabelle ebenfalls
+        # eine Stufe (Lücke aus ADR 0004 geschlossen) — der Runden-Zähler kommt aus
+        # fixup-rounds.sh. Fail-open (|| true): bei Fehler gilt das gemergte Ergebnis
+        # ungeaendert weiter.
         if: steps.check.outputs.proceed == 'true'
         id: escalate
         env:
@@ -185,12 +187,19 @@ jobs:
           CURRENT_MODEL: ${{ steps.merge.outputs.model_final }}
           CURRENT_EFFORT: ${{ steps.merge.outputs.effort_final }}
         run: |
+          ROUNDS=""
+          if [ "${{ steps.route.outputs.kind }}" = "pr" ]; then
+            ROUNDS="$(bash .github/scripts/fixup-rounds.sh count \
+              --repo "$GITHUB_REPOSITORY" --pr "${{ steps.route.outputs.ticket }}" \
+              2>/dev/null | sed -n 's/^count=//p' || true)"
+          fi
           bash .github/scripts/resolve-escalation.sh \
             --repo "$GITHUB_REPOSITORY" \
             --ticket "${{ steps.route.outputs.ticket }}" \
             --kind "${{ steps.route.outputs.kind }}" \
             --current-model "$CURRENT_MODEL" \
-            --current-effort "$CURRENT_EFFORT" || true
+            --current-effort "$CURRENT_EFFORT" \
+            --rounds "$ROUNDS" || true
 
   # ---------------------------------------------------------------------------
   # Eingang 1: Issue + ai:needs-impl  →  Erstumsetzung

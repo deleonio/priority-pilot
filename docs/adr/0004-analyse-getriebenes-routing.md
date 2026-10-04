@@ -291,8 +291,10 @@ fail-open), manueller Override (Label setzen statt Body-Edit) und Träger der Au
 (Fixup-Pfad in 04). Lesen tut sie `resolve-phase-routing.sh`; dort auch die Validierungsregeln
 (ungültige Zeile ⇒ ganze Zeile verwerfen, Defaults gelten).
 
-**Bewusste Lücke:** Die Auto-Eskalation (2. Review-Runde ⇒ Stufe hoch) wirkt nur im Label-Pfad.
-Bei Tabellen-Tickets ist die Analyse phasenfein eingestuft; wiederholte Fixups lösen heute KEIN
+**Eskalation bei Wiederholung:** Wiederholte Fixups eskalieren seit 04.10. auch im
+Tabellen-Pfad — `resolve-escalation.sh` stuft ab Fixup-Runde 2 das Tabellen-Modell eine
+Stufe hoch (`--rounds` aus `fixup-rounds.sh count`). Früher galt das als bewusste Lücke
+(„wirkt nur im Label-Pfad"); sie ist geschlossen. Ursprünglicher Text:
 automatisches Hochstufen aus — der Mensch editiert die Tabelle (bestehender Override-Weg).
 Ob die Eskalation in den Tabellen-Pfad zieht, entscheiden wir mit Daten aus den nächsten Läufen.
 
@@ -310,3 +312,10 @@ Ob die Eskalation in den Tabellen-Pfad zieht, entscheiden wir mit Daten aus den 
 > entfällt. Manuelle Overrides: Body-Edit der Tabelle oder `vars.CLAUDE_MODEL_*`.
 > Die Auto-Eskalation (`resolve-escalation.sh`) wirkt unverändert auf das gemergte
 > Ergebnis, auch ohne Tabelle (dann auf dem Default aufbauend).
+>
+> **Nachtrag 2026-10-04b — Wiederholungs-Eskalation:** Neben `ai:continued` (Soft-Abort)
+> eskaliert `resolve-escalation.sh` jetzt auch bei **wiederholten Fixup-Runden**:
+> ab Runde 2 stuft sie Modell und Effort des Tabellen-Modells je eine Stufe hoch
+> (`--rounds` aus `fixup-rounds.sh count`; Runde 1 = normaler Review→Fixup-Zyklus,
+> kein Signal; Zählfehler = fail-open Passthrough). Die dokumentierte „bewusste Lücke"
+> ist damit geschlossen.
