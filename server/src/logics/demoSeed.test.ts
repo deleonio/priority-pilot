@@ -5,11 +5,9 @@ import { SEED_PILLARS } from '../models/pillarData.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 import { seedDemoData } from './demoSeed.js';
 
-// Rote Spec-Tests für #2077 AK6 (docs/spec/issue-2077.md) — der Demo-Seed beim ersten Start legt
-// nur gültige Säulenverteilungen an: Vollverteilung über alle (Demo-)Säulen, jeder Anteil 5–80,
-// Summe 100. `seedDemoData` ist heute ein unexportiertes const in index.ts (sät 70/30 und
-// Einzel-100); das Modul `logics/demoSeed.ts` entsteht mit der Umsetzung — bis dahin ist der
-// Import der legitime erste Rot-Zustand (fehlendes Modul). KEIN Produktivcode.
+// Tests für #2077 AK6 (docs/spec/issue-2077.md): der Demo-Seed (`logics/demoSeed.ts`) legt beim
+// ersten Start nur gültige Säulenverteilungen an — Vollverteilung über alle (Demo-)Säulen, jeder
+// Anteil 5–80, Summe 100.
 
 describe('Demo-Seed (#2077 AK6)', () => {
 	beforeEach(async () => {

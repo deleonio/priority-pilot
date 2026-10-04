@@ -216,14 +216,18 @@ describe('buildHandoverRows', () => {
 	});
 
 	it('füllt zur Vollverteilung auf: kein 0-Anteil, confidence-Default 100 (#2152, AK2)', () => {
+		// Test-Pflege #2152: `distributeWithMinimum` skaliert die Remap-Vorgaben proportional auf den
+		// freien Pool und setzt Säulen ohne Vorgabe auf den Mindestanteil (etablierter #2077-AK4-
+		// Vertrag, den AK3 unverändert lässt) — aus [80, 0] wird [95, 5], nicht [80, 20]. Fixiert
+		// bleibt die Invariante „kein 0-Anteil“.
 		const rows = buildHandoverRows(
 			[{ id: 11 }, { id: 22 }],
 			new Map([[11, { share: 80, confidence: 70 }]]),
 			(pillarId, share, confidence) => ({ pillarId, share, confidence }),
 		);
 		assert.deepEqual(rows, [
-			{ pillarId: 11, share: 80, confidence: 70 },
-			{ pillarId: 22, share: 20, confidence: 100 },
+			{ pillarId: 11, share: 95, confidence: 70 },
+			{ pillarId: 22, share: 5, confidence: 100 },
 		]);
 	});
 });

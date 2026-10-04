@@ -81,8 +81,11 @@ export const distributeWithMinimum = (base: readonly number[]): number[] => {
 	}
 };
 
-/** Anteils-Deckelung des KI-Säulenvorschlags (#2076) — bewusst nur für Anteile, nicht für Konfidenzen. */
-const SHARE_MAX = 80;
+/**
+ * Anteils-Deckelung des KI-Säulenvorschlags (#2076) — bewusst nur für Anteile, nicht für Konfidenzen.
+ * Auch Obergrenze der Feedback-Anteile (#2152, wie openapi.yml und `validatePillars`).
+ */
+export const SHARE_MAX = 80;
 
 /**
  * Bringt KI-Anteilsvorgaben (#2076, AK1/AK2) auf eine gültige Verteilung über ALLE Säulen:

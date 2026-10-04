@@ -12,10 +12,10 @@ import {
 	validatePillars,
 	coversAllAccountPillars,
 	getAccountPillarIds,
+	buildHandoverRows,
 	PILLAR_DISTRIBUTION_RULE,
 	type PillarContribution,
 } from '../../logics/pillarContributions.js';
-import { distributeWithMinimum } from '../../logics/pillarShares.js';
 import { isCategoryExistent, remapCategoryForRecipient, validateCategoryId } from '../../logics/categoryOwnership.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { serializeTask, loadUserNames, loadSharedUserIds, resolveRecipientId } from './tasks.js';
@@ -643,12 +643,11 @@ export const createSeriesRouter = ({ pushSender }: SeriesRouterDeps = {}): Route
 							order: [['id', 'ASC']],
 							transaction,
 						});
-						const shares = distributeWithMinimum(recipientPillars.map((pillar) => remapped.get(pillar.id)?.share ?? 0));
-						const mapped = recipientPillars.map((pillar, index) => ({
+						const mapped = buildHandoverRows(recipientPillars, remapped, (pillarId, share, confidence) => ({
 							seriesId: series.id,
-							pillarId: pillar.id,
-							share: shares[index] ?? 0,
-							confidence: remapped.get(pillar.id)?.confidence ?? 100,
+							pillarId,
+							share,
+							confidence,
 						}));
 						await SeriesPillar.destroy({ where: { seriesId: series.id }, transaction });
 						if (mapped.length > 0) {
