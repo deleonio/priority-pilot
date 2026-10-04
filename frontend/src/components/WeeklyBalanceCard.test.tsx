@@ -52,12 +52,14 @@ vi.mock('@public-ui/react-v19', () => ({
 const getBalanceHistory = vi.fn();
 const getStreak = vi.fn();
 const getBalanceStatus = vi.fn();
+const postWochenkarteShare = vi.fn();
 
 vi.mock('../api', () => ({
 	api: {
 		getBalanceHistory: (...args: unknown[]) => getBalanceHistory(...args),
 		getStreak: (...args: unknown[]) => getStreak(...args),
 		getBalanceStatus: (...args: unknown[]) => getBalanceStatus(...args),
+		postWochenkarteShare: (...args: unknown[]) => postWochenkarteShare(...args),
 	},
 }));
 
@@ -145,6 +147,32 @@ describe('WeeklyBalanceCard (#1968)', () => {
 
 		await waitFor(() => expect(HTMLCanvasElement.prototype.toBlob).toHaveBeenCalled());
 		expect(share).not.toHaveBeenCalled();
+	});
+
+	it('AK4 (#1989): nach erfolgreichem navigator.share feuert der Wochenkarten-Share-Ping', async () => {
+		vi.useFakeTimers({ now: SONNTAG, shouldAdvanceTime: true });
+		stubRasterisierung();
+		const { share } = installShare(true);
+		render(<WeeklyBalanceCard />);
+		await waitFor(() => expect(document.querySelector('[data-testid="weekly-share"]')).not.toBeNull());
+		fireEvent.click(document.querySelector('[data-testid="weekly-share"]') as HTMLElement);
+
+		await waitFor(() => expect(share).toHaveBeenCalledTimes(1));
+		expect(postWochenkarteShare).toHaveBeenCalledTimes(1);
+	});
+
+	it('AK4 (#1989): Download-Fallback ohne Share feuert keinen Wochenkarten-Ping', async () => {
+		vi.useFakeTimers({ now: SONNTAG, shouldAdvanceTime: true });
+		stubRasterisierung();
+		const { share } = installShare(false);
+		Object.defineProperty(URL, 'createObjectURL', { value: () => 'blob:mock', configurable: true });
+		render(<WeeklyBalanceCard />);
+		await waitFor(() => expect(document.querySelector('[data-testid="weekly-download"]')).not.toBeNull());
+		fireEvent.click(document.querySelector('[data-testid="weekly-download"]') as HTMLElement);
+
+		await waitFor(() => expect(HTMLCanvasElement.prototype.toBlob).toHaveBeenCalled());
+		expect(share).not.toHaveBeenCalled();
+		expect(postWochenkarteShare).not.toHaveBeenCalled();
 	});
 
 	it('AK3: Download-Anker mit download-Attribut (KW/Jahr), Blob-URL und Canvas-Rasterisierung', async () => {
