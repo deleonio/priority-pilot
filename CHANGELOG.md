@@ -4,11 +4,15 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.15 - 2026-10-04
 
-_Enthält v0.15.0 – v0.15.2._
+_Enthält v0.15.0 – v0.15.3._
 
 ### 🚀 Improvements
 
 - feat(frontend): cards and accordions only on top level (#2015) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2170
+
+### Other Changes
+
+- docs(spec): sync spec documents to implemented state (2026-10-04) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2169
 
 ## v0.14 - 2026-10-04
 
@@ -330,6 +334,7 @@ _Enthält v0.7.0 – v0.7.13._
 - feat(frontend): pill radius on login input and toolbar gap polish (#1745) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1748
 - feat(frontend): revert #1745 toolbar popover polish to stock kolibri by @deleonio in https://github.com/deleonio/priority-pilot/pull/1749
 - fix(frontend): remove #1623 gap write for stock kol-toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1750
+- feat(website): FAQ-Eintrag zur Demo-APK by @deleonio in https://github.com/deleonio/priority-pilot/pull/1754
 - feat(website): FAQ-Eintrag zur Demo-APK by @deleonio in https://github.com/deleonio/priority-pilot/pull/1754
 - feat(frontend): login card head, website link and german google button by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1756
 - ci: cost report reads main and lists excluded tickets individually by @deleonio in https://github.com/deleonio/priority-pilot/pull/1758
