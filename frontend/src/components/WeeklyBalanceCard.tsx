@@ -29,7 +29,7 @@ import {
 const RASTER_SKALA = 2;
 
 interface WochenDaten {
-	saeulen: { name: string; wert: number }[];
+	saeulen: { id: number; name: string; wert: number }[];
 	streak: number;
 }
 
@@ -92,6 +92,7 @@ export const WeeklyBalanceCard = () => {
 				const tage = Array.isArray(verlauf) ? verlauf : [];
 				const standVorDerWoche = new Map((tage[0]?.saeulen ?? []).map((s) => [s.id, s.punkte]));
 				const saeulen = (tage.at(-1)?.saeulen ?? []).map((s) => ({
+					id: s.id,
 					name: s.name,
 					wert: Math.max(0, Math.round(s.punkte - (standVorDerWoche.get(s.id) ?? 0))),
 				}));
@@ -202,7 +203,7 @@ export const WeeklyBalanceCard = () => {
 						</p>
 						<ul className="dashboard-weekly-liste">
 							{daten.saeulen.map((saeule) => (
-								<li key={saeule.name} className="dashboard-weekly-zeile">
+								<li key={saeule.id} className="dashboard-weekly-zeile">
 									<span>{saeule.name}</span>
 									<span className="dashboard-weekly-punkte">{saeule.wert}</span>
 								</li>
