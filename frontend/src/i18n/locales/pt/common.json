@@ -52,9 +52,6 @@
 		"empty": "Gerade gibt es keinen Vorschlag für dich. Mach in deinem Tempo weiter.",
 		"deficit": "{{saeuleName}} kam diese Woche zu kurz. {{titel}}?",
 		"overload": "Du hast zuletzt viel geleistet. Ein Ausgleich darf heute sein: {{beschreibung}}",
-		"helpBefore": "Kein Ersatz für ärztlichen Rat. In einer Krise erreichst du die",
-		"helpLink": "TelefonSeelsorge: 0800 111 0 111",
-		"helpAfter": "(kostenfrei, rund um die Uhr).",
 		"error": "Konnte nicht angelegt werden. Versuch es gleich noch einmal.",
 		"accept": "Vorschlag übernehmen",
 		"notNow": "Nicht jetzt",
@@ -88,7 +85,9 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
-		"importieren": "Importar tarefas do Todoist ou de um CSV"
+		"importieren": "Importar tarefas do Todoist ou de um CSV",
+		"importHeading": "Trazer as tuas tarefas existentes?",
+		"importHint": "Opcional: traz as tuas tarefas do Todoist ou de um ficheiro CSV. A importação abre as definições e termina este assistente."
 	},
 	"weeklyCard": {
 		"label": "A minha semana em cinco pilares",

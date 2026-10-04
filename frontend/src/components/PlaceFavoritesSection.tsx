@@ -1,11 +1,11 @@
-import { KolAlert, KolButton, KolCard } from '@public-ui/react-v19';
+import { KolAccordion, KolAlert, KolButton, KolDetails } from '@public-ui/react-v19';
 import { useEffect, useState, type ReactNode } from 'react';
 import { api, type PlaceFavoriteView } from '../api';
 import { toApiError } from '../lib/apiError';
+import { useFollowingOpen } from '../lib/useFollowingOpen';
 import { AddressAutocomplete } from './AddressAutocomplete';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { PlanBadge } from './PlanBadge';
-import { PlanHint } from './PlanHint';
 
 /**
  * Aktions-Hülle um einen `KolButton` (Muster `ApiTokensSection.tsx`): der Klick wird am umgebenden
@@ -20,7 +20,7 @@ const ButtonAction = ({ onClick, children }: { onClick: () => void; children: Re
 );
 
 /**
- * Einstellungen → „Orte": gespeicherte Orte („Standort-Favoriten", #1342 AK3). Seit #1595 hat
+ * Einstellungen → „Ortung": gespeicherte Orte („Standort-Favoriten", #1342 AK3). Seit #1595 hat
  * ein Ort NUR eine Adresse: kein Namensfeld, kein Umbenennen. Angelegt wird über dieselbe
  * `AddressAutocomplete` wie im Aufgabenformular (AK5) — die Auswahl übernimmt Adresse UND
  * Koordinaten. Gelöscht wird über `ConfirmDeleteDialog` (AK6,
@@ -30,7 +30,9 @@ const ButtonAction = ({ onClick, children }: { onClick: () => void; children: Re
  * Aufbau wie `ApiTokensSection.tsx`: `KolCard` als Gruppierungsfläche, `ul`/`li` mit
  * Zeilen-Aktionen statt Tabelle (Mobile-Regel 3).
  */
-export const PlaceFavoritesSection = () => {
+export const PlaceFavoritesSection = ({ open = true }: { open?: boolean }) => {
+	const accordion = useFollowingOpen(open);
+	const listDetails = useFollowingOpen(open);
 	const [favorites, setFavorites] = useState<PlaceFavoriteView[]>([]);
 	const [address, setAddress] = useState('');
 	// Koordinaten des zuletzt gewählten Vorschlags (AK5) — Freitext ohne Auswahl bleibt `null`.
@@ -85,11 +87,10 @@ export const PlaceFavoritesSection = () => {
 
 	return (
 		<div className="api-tokens" data-testid="place-favorites-panel">
-			<KolCard className="settings-card" _label="Gespeicherte Orte" _level={2}>
+			<KolAccordion className="settings-card" _label="Gespeicherte Orte" _level={2} {...accordion}>
 				{/* #1484 (T3b AK3): Grenzstelle `location_reminders` — Badge als erstes Element im
 				    Kartenkörper, weil der Titel über die KoliBri-Prop `_label` läuft (KI-UX-Block). */}
 				<PlanBadge feature="location_reminders" />
-				<PlanHint feature="location_reminders" />
 				<div className="api-tokens__create">
 					<p>
 						Hinterlegte Orte stehen im Adressfeld von Aufgabe und Serie oben in der Vorschlagsliste — ein Klick
@@ -124,33 +125,37 @@ export const PlaceFavoritesSection = () => {
 						</KolAlert>
 					)}
 				</div>
-			</KolCard>
-
-			<KolCard className="settings-card" _label="Meine Orte" _level={2}>
-				{favorites.length === 0 ? (
-					<p>Noch kein Ort hinterlegt.</p>
-				) : (
-					<ul className="api-tokens__list">
-						{favorites.map((favorite) => (
-							<li key={favorite.id} className="api-tokens__item" data-testid="place-favorite-row">
-								<span className="api-tokens__name">{favorite.address}</span>
-								{/* `kol-button` hat keine `_ariaLabel`-Prop und liest kein `aria-label`-Attribut vom
+				<KolDetails _label="Meine Orte" _level={3} {...listDetails}>
+					{favorites.length === 0 ? (
+						<p>Noch kein Ort hinterlegt.</p>
+					) : (
+						<ul className="api-tokens__list">
+							{favorites.map((favorite) => (
+								<li key={favorite.id} className="api-tokens__item" data-testid="place-favorite-row">
+									<span className="api-tokens__name">{favorite.address}</span>
+									{/* `kol-button` hat keine `_ariaLabel`-Prop und liest kein `aria-label`-Attribut vom
 								    Host — der zugängliche Name entsteht aus dem Slot-Inhalt im Expert-Slot. Ein
 								    nicht-leeres `_label` blendet den Expert-Slot aus (hidden + aria-hidden in der
 								    kol-span-Verarbeitung), deshalb steht „Löschen“ als sichtbarer Slot-Text und die
 								    Anschrift als `.visually-hidden`-Span daneben (#2013 AK1/AK2). */}
-								<ButtonAction onClick={() => setDeleteTarget(favorite)}>
-									<KolButton _label="" class="settings-action-btn" _variant="danger">
-										<span slot="expert">
-											Löschen<span className="visually-hidden">{` ${favorite.address}`}</span>
-										</span>
-									</KolButton>
-								</ButtonAction>
-							</li>
-						))}
-					</ul>
-				)}
-			</KolCard>
+									<ButtonAction onClick={() => setDeleteTarget(favorite)}>
+										<KolButton
+											_label=""
+											_icons={{ left: { icon: 'fa-solid fa-trash' } }}
+											class="settings-action-btn"
+											_variant="danger"
+										>
+											<span slot="expert">
+												Löschen<span className="visually-hidden">{` ${favorite.address}`}</span>
+											</span>
+										</KolButton>
+									</ButtonAction>
+								</li>
+							))}
+						</ul>
+					)}
+				</KolDetails>
+			</KolAccordion>
 
 			{/* #1595 (AK6): Löschen läuft über den gemeinsamen Bestätigungsdialog — „Abbrechen" lässt
 			    den Ort stehen, die Bestätigung entfernt ihn aus der Liste und damit aus den

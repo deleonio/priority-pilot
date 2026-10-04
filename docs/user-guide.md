@@ -620,7 +620,7 @@ Allgemein, Säulen, Kategorien, Standort, Orte, KI, Gruppen und **Pakete & Abo**
   Bild vollständig, es steht nur still.
 - **Expertenmodus** – ist der Schalter aktiv, zeigt die App die Fach-Regler: Säulen-Prozente im
   Aufgabendialog, Gewichte im Abhängigkeits-Dialog, die Säulen-Gewichtungspflege im Tab
-  **„Säulen"** und Reichweite/Intervall im Tab **„Standort"**. Die Wahl gilt auf diesem Gerät;
+  **„Säulen"** und Reichweite/Intervall im Tab **„Ortung"**. Die Wahl gilt auf diesem Gerät;
   gespeicherte Werte bleiben auch ohne Expertenmodus erhalten.
 - **Sprachaufnahme automatisch starten** – ist der Schalter aktiv, startet das Mikrofon
   der Sprachfelder (Aufgabenformular, Schnellerfassung, Suche), sobald du sie öffnest.

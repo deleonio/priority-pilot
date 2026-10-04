@@ -100,7 +100,7 @@ test.describe('#1984 Expertenmodus', () => {
 		await expect(page.locator('.pillar-weights-grid')).toHaveCount(0);
 
 		// Die Standort-Regler (Reichweite und Intervall) bleiben ebenfalls ausgeblendet.
-		await page.goto('/app/settings/standort');
+		await page.goto('/app/settings/ortung');
 		await waitForStableView(page, 'Balamentum');
 		await expect(page.locator('.geo-range-field')).toHaveCount(0);
 	});

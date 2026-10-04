@@ -1,4 +1,5 @@
-import { User } from '../models/index.js';
+import { Pillar, User } from '../models/index.js';
+import { SEED_PILLARS } from '../models/pillarData.js';
 import type { UserRole } from '../models/user.js';
 import type { Plan } from './plans.js';
 import { resolveRole } from './auth.js';
@@ -46,6 +47,15 @@ export async function upsertOAuthUser({
 			role: resolveRole(email),
 		},
 	});
+
+	// Die fünf Standard-Säulen (je 20 %) gehören zu jedem Konto — die E-Mail/Passwort-Registrierung sät sie,
+	// OAuth/Magic-Link legt Nutzer nur hier an. Ohne Säulen bliebe die Lebensbalance leer (Onboarding,
+	// Dashboard). Heilt auch Bestandskonten ohne Säulen.
+	if ((await Pillar.count({ where: { userId: user.id } })) === 0) {
+		await Pillar.bulkCreate(
+			SEED_PILLARS.map(({ key, name, description, weight }) => ({ key, name, description, weight, userId: user.id })),
+		);
+	}
 
 	// Bestandsnutzer: abweichende Profilfelder nachziehen (Muster des bisherigen avatarUrl-Syncs).
 	// #1256: Ein selbst über PUT /profile gesetzter Name (`displayNameCustom`) wird vom

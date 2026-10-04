@@ -2,20 +2,20 @@ import { expect, test, type Page } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
- * #1787 AK1/AK2/AK4/AK5/AK6: Paket-Hinweis an der Grenzstelle `groups` (Modal „Gruppe anlegen"), Free-Konto
+ * #1787 AK1/AK2/AK4/AK5/AK6: Paket-Hinweis (FeaturePopoverButton) an der Grenzstelle `groups` (Modal „Gruppe anlegen"), Free-Konto
  * gegen das echte Backend (Muster `issue-1484-plan-badges.spec.ts`), 375 px. AK1/AK3/AK5-Details
  * decken die Unit-Tests in `PlanHint.test.tsx`.
  */
 const login = async (page: Page): Promise<void> => {
 	const res = await page.request.post('/auth/test-login', {
-		data: { email: 'plan-hint-1787@example.com', displayName: 'Hint Tester' },
+		data: { email: 'plan-badge-1787@example.com', displayName: 'Hint Tester' },
 	});
 	expect(res.status()).toBe(200);
 	// Der Fixture-Mock von `/auth/me` liefert keine Entitlements — hier die echte Serverantwort.
 	await page.unroute('**/auth/me');
 };
 
-test('#1787: Hinweis im Gruppen-Dialog ist per Tastatur schließbar, Eingabe bleibt, kein Überlauf', async ({
+test('#1787: Hinweis im Gruppen-Dialog öffnet als Popover, ist schließbar, Eingabe bleibt, kein Überlauf', async ({
 	page,
 }) => {
 	await page.setViewportSize({ width: 375, height: 812 });
@@ -24,20 +24,20 @@ test('#1787: Hinweis im Gruppen-Dialog ist per Tastatur schließbar, Eingabe ble
 	await waitForStableView(page, 'Allgemein');
 	await page.getByRole('button', { name: 'Gruppe anlegen' }).click();
 
-	const hint = page.getByTestId('plan-hint-groups');
+	const hint = page.getByTestId('plan-badge-groups');
 	await expect(hint).toBeVisible();
-	await expect(hint).toContainText('Plus');
 	await expect(page.getByRole('dialog')).toHaveCount(1);
+	await page.getByRole('searchbox', { name: 'Name' }).fill('Mein Gruppenname');
 
-	const box = await hint.boundingBox();
+	await hint.getByRole('button').first().click();
+	const card = hint.locator('kol-alert');
+	await expect(card).toContainText('Plus');
+	const box = await card.boundingBox();
 	expect(box).not.toBeNull();
 	expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
 
-	await page.getByRole('searchbox', { name: 'Name' }).fill('Mein Gruppenname');
-	await hint.getByRole('button').first().focus();
-	await page.keyboard.press('Enter');
-
-	await expect(hint).toBeHidden();
+	await card.getByRole('button', { name: /schließen/i }).click();
+	await expect(card).toBeHidden();
 	await expect(page.getByRole('dialog')).toHaveCount(1);
 	await expect(page.getByRole('searchbox', { name: 'Name' })).toHaveValue('Mein Gruppenname');
 });
@@ -55,14 +55,17 @@ test('#1787 AK1: Hinweis an graph_weight (Modal-Link mit App-Basis) und location
 	const item = page.getByTestId(`task-list-item-${id}`);
 	await item.getByRole('button', { name: 'Weitere Aktionen' }).click();
 	await item.getByRole('button', { name: 'Abhängigkeiten' }).click();
-	const modalHint = page.getByTestId('plan-hint-graph_weight');
+	const modalHint = page.getByTestId('plan-badge-graph_weight');
+	await modalHint.getByRole('button').first().click();
 	await expect(modalHint).toBeVisible();
-	await expect(modalHint.getByRole('link', { name: 'Pakete ansehen' })).toHaveAttribute('href', '/app/settings/pakete');
+	const popupPromise = page.waitForEvent('popup');
+	await modalHint.getByRole('button', { name: 'Pakete ansehen' }).click();
+	expect((await popupPromise).url()).toContain('/app/settings/pakete');
 	await page.request.delete(`/api/v1/tasks/${id}`);
 
-	await page.goto('/app/settings/orte');
+	await page.goto('/app/settings/ortung');
 	await waitForStableView(page, 'Allgemein');
-	await expect(page.getByTestId('plan-hint-location_reminders')).toBeVisible();
+	await expect(page.getByTestId('plan-badge-location_reminders')).toBeVisible();
 });
 
 test('#1787 AK4: im Kanal play führt der Hinweis zur Paketansicht mit Play-Kauf', async ({ page }) => {
@@ -70,10 +73,12 @@ test('#1787 AK4: im Kanal play führt der Hinweis zur Paketansicht mit Play-Kauf
 		(window as { __PP_CHANNEL__?: string }).__PP_CHANNEL__ = 'play';
 	});
 	await login(page);
-	await page.goto('/app/settings/orte');
+	await page.goto('/app/settings/ortung');
 	await waitForStableView(page, 'Allgemein');
 
-	await page.getByTestId('plan-hint-location_reminders').getByRole('link', { name: 'Pakete ansehen' }).click();
+	const hint = page.getByTestId('plan-badge-location_reminders');
+	await hint.getByRole('button').first().click();
+	await hint.getByRole('button', { name: 'Pakete ansehen' }).click();
 
 	await expect(page).toHaveURL(/\/app\/settings\/pakete$/);
 	await expect(page.getByTestId('plans-section')).toBeVisible();

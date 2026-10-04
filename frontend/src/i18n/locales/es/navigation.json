@@ -12,6 +12,7 @@
 		"help": "Ayuda",
 		"logout": "Cerrar sesión",
 		"headerActions": "Acciones de cabecera",
+		"skipToContent": "Saltar al contenido",
 		"activeViewDescription": "Vista actual: actívela de nuevo para volver"
 	}
 }

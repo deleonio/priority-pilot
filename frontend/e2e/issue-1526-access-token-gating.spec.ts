@@ -87,8 +87,6 @@ test.describe('Balamentum — #1526: Access-Token-Reiter und Gating', () => {
 			await waitForStableView(page, 'Allgemein');
 
 			await expect(page.getByRole('tab', { name: 'KI', exact: true })).toBeVisible();
-			// #1970: Die Provider-Controls liegen hinter „Erweitert“ — für die Sperr-Assertions öffnen.
-			await page.getByText('Erweitert', { exact: true }).click();
 			await expect(
 				page
 					.getByRole('switch', { name: /^KI aktivieren$/ })
@@ -115,6 +113,7 @@ test.describe('Balamentum — #1526: Access-Token-Reiter und Gating', () => {
 
 		const createButton = page.getByRole('button', { name: 'Token erzeugen' });
 		await expect(createButton).toBeDisabled();
+		await page.getByRole('button', { name: 'Paket erforderlich' }).first().click();
 		const formAlert = page
 			.locator('kol-alert[_type="info"]')
 			.filter({ hasText: 'Token erzeugen ist ab dem Paket Plus' })
@@ -129,6 +128,7 @@ test.describe('Balamentum — #1526: Access-Token-Reiter und Gating', () => {
 
 		const scopeToggle = page.getByTestId('api-token-scope-toggle').first();
 		await expect(scopeToggle).toBeVisible();
+		await page.getByRole('button', { name: 'Paket erforderlich' }).last().click();
 		const scopeAlert = page
 			.locator('kol-alert[_type="info"]')
 			.filter({ hasText: 'Lesen und Schreiben ist ab dem Paket Pro' })

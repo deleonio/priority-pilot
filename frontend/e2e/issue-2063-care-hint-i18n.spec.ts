@@ -34,7 +34,7 @@ test.describe('Dashboard — Fürsorge-Hinweis i18n (Issue #2063)', () => {
 		await deleteAllTasks(page);
 	});
 
-	test('AK2+AK5: Sprache en — Hinweis, Knöpfe und Krisenhinweis englisch', async ({ page }) => {
+	test('AK2+AK5: Sprache en — Hinweis und Knöpfe englisch', async ({ page }) => {
 		await openDashboard(page);
 		await expect(page.getByTestId('care-hint')).toBeVisible();
 		await wechsleAufEnglisch(page);
@@ -45,8 +45,7 @@ test.describe('Dashboard — Fürsorge-Hinweis i18n (Issue #2063)', () => {
 		await expect(page.getByRole('button', { name: 'Accept suggestion' })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Not now' })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Dismiss suggestion' })).toBeVisible();
-		await expect(hint).toContainText('Not a substitute for medical advice');
-		await expect(hint.locator('a[href="tel:08001110111"]')).toHaveText('TelefonSeelsorge: 0800 111 0 111');
+		await expect(hint).not.toContainText('TelefonSeelsorge');
 		await expect(hint).not.toContainText('Vorschlag übernehmen');
 	});
 

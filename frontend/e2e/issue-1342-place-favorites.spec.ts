@@ -102,8 +102,10 @@ test.describe('Balamentum — #1342: Standort-Favoriten', () => {
 
 		// 2) In Einstellungen → Orte ansehen (AK3; Test-Pflege #1894: eigener Tab statt Standort): die Zeile trägt NUR die Adresse — es gibt weder
 		// ein Namensfeld noch einen Umbenennen-Knopf mehr.
-		await page.goto('/app/settings/orte');
-		await waitForStableView(page, 'Orte');
+		await page.goto('/app/settings/ortung');
+		await waitForStableView(page, 'Ortung');
+		// Das Akkordeon folgt „Standort erfassen" (aus = zu) — für die Orte-Prüfung öffnen.
+		await openAccordionSection(page, 'Gespeicherte Orte');
 
 		const favoriteRow = page.getByTestId('place-favorite-row').filter({ hasText: HIT.address });
 		await expect(favoriteRow).toBeVisible();
@@ -139,8 +141,10 @@ test.describe('Balamentum — #1342: Standort-Favoriten', () => {
 
 		// 4) Löschen (AK6) — über den Bestätigungsdialog, nicht mehr inline. Danach bietet der Stern in
 		// der Trefferzeile das Speichern wieder an (AK4: „bereits gespeichert" ist aufgehoben).
-		await page.goto('/app/settings/orte');
-		await waitForStableView(page, 'Orte');
+		await page.goto('/app/settings/ortung');
+		await waitForStableView(page, 'Ortung');
+		// Das Akkordeon folgt „Standort erfassen" (aus = zu) — für die Orte-Prüfung öffnen.
+		await openAccordionSection(page, 'Gespeicherte Orte');
 
 		const rowToDelete = page.getByTestId('place-favorite-row').filter({ hasText: HIT.address });
 		// TEST-PFLEGE #2013: sichtbar steht nur „Löschen“ — der zugängliche Name der KoliBri-Taste
@@ -203,8 +207,10 @@ test.describe('Balamentum — #1342: Standort-Favoriten', () => {
 		});
 		expect(created.status(), await created.text()).toBe(201);
 
-		await page.goto('/app/settings/orte');
-		await waitForStableView(page, 'Orte');
+		await page.goto('/app/settings/ortung');
+		await waitForStableView(page, 'Ortung');
+		// Das Akkordeon folgt „Standort erfassen" (aus = zu) — für die Orte-Prüfung öffnen.
+		await openAccordionSection(page, 'Gespeicherte Orte');
 
 		const row = page.getByTestId('place-favorite-row').filter({ hasText: HIT.address });
 		await expect(row).toBeVisible();
@@ -218,24 +224,23 @@ test.describe('Balamentum — #1342: Standort-Favoriten', () => {
 	});
 });
 
-test.describe('Balamentum — #1894: Tab „Orte"', () => {
+test.describe('Balamentum — #1894: Tab „Ortung“', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 	});
 
-	test('AK1/AK2/AK6: „Orte" ist per Klick erreichbar, zeigt die Orte, Standort nicht mehr (375px)', async ({
-		page,
-	}) => {
+	test('AK1/AK2/AK6: „Ortung“ ist per Klick erreichbar und zeigt Standort und Orte (375px)', async ({ page }) => {
 		await login(page);
-		await page.goto('/app/settings/standort');
-		await waitForStableView(page, 'Standort');
-		await expect(page.getByTestId('place-favorites-panel')).toBeHidden();
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Ortung');
 
-		const ortTab = page.getByRole('tab', { name: 'Orte', exact: true });
+		const ortTab = page.getByRole('tab', { name: 'Ortung', exact: true });
 		await expect(ortTab).toBeVisible();
 		await ortTab.click();
-		await expect(page).toHaveURL(/\/settings\/orte$/);
+		await expect(page).toHaveURL(/\/settings\/ortung$/);
 		await expect(ortTab).toHaveAttribute('aria-selected', 'true');
+		// Das Akkordeon folgt „Standort erfassen" (aus = zu) — für die Orte-Prüfung öffnen.
+		await openAccordionSection(page, 'Gespeicherte Orte');
 
 		const panel = page.getByTestId('place-favorites-panel');
 		await expect(panel).toBeVisible();

@@ -168,7 +168,9 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 
 		const badge = page.getByTestId('plan-badge-groups');
 		await expect(badge).toBeVisible();
-		await badge.click();
+		// Gesperrt ist der Hinweis ein Feature-Popover-Button: erst öffnen, dann der Button zu den Paketen.
+		await badge.getByRole('button').first().click();
+		await badge.getByRole('button', { name: 'Pakete ansehen' }).click();
 
 		await expect(page.getByTestId('plans-section')).toBeVisible();
 		await expect(page.getByRole('dialog').filter({ hasText: /Plus|Pro/ })).toHaveCount(0);
@@ -195,6 +197,7 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 
 		await expect(page.getByTestId('plan-badge-mcp_readwrite')).toHaveCount(0);
 
+		await page.getByRole('button', { name: 'Paket erforderlich' }).last().click();
 		const alert = page
 			.locator('kol-alert[_type="info"]')
 			.filter({ hasText: 'Lesen und Schreiben ist ab dem Paket Pro' })

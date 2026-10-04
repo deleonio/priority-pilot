@@ -37,7 +37,10 @@ import { PlaceFavoritesSection } from './PlaceFavoritesSection';
 import { CategoryList } from './CategoryList';
 import { DeleteAccountButton } from './DeleteAccount';
 import { GroupsSection } from './GroupsSection';
+import { FeaturePopoverButton } from './FeaturePopoverButton';
+import { useFollowingOpen } from '../lib/useFollowingOpen';
 import { LlmSettings } from './LlmSettings';
+import { TaskExportCard } from './TaskExportCard';
 import { OwnPlanCard } from './OwnPlanCard';
 import { PillarList } from './PillarList';
 import { PillarWeightsForm } from './PillarWeightsForm';
@@ -64,26 +67,25 @@ interface SettingsPageProps {
 }
 
 // Die Tab-Leiste der Settings-Seite (#271). Reihenfolge nach Paketstufe (#1904): Allgemein (Index 0), Säulen (Index 1),
-// Kategorien (Index 2), Standort (Index 3, #1151), Orte (Index 4, #1894), KI (Index 5, #1903: Provider und Access-Token),
-// Gruppen (Index 6, #1211), „Pakete & Abo" (Index 7, #1529/#1902), Import (Index 8, #1969) und optional
-// Nutzerverwaltung (Index 9, nur für Admins). Muss index-paritätisch mit
+// Kategorien (Index 2), Ortung (Index 3: Standort #1151 + gespeicherte Orte #1894), KI (Index 4, #1903: Provider und
+// Access-Token), Gruppen (Index 5, #1211), „Pakete & Abo" (Index 6, #1529/#1902), Import (Index 7, #1969) und optional
+// Nutzerverwaltung (Index 8, nur für Admins). Muss index-paritätisch mit
 // `SETTINGS_PATH_SEGMENTS` in `App.tsx` bleiben — die rollenabhängigen Tabs werden deshalb ans Ende
 // angehängt statt eingeschoben, damit sich die Indizes der übrigen Tabs für Member nie verschieben.
 const BASE_SETTINGS_TABS = [
 	{ _label: 'Allgemein' },
 	{ _label: 'Säulen' },
 	{ _label: 'Kategorien' },
-	{ _label: 'Standort' },
-	{ _label: 'Orte' },
+	{ _label: 'Ortung' },
 	{ _label: 'KI' },
 	{ _label: 'Gruppen' },
 	{ _label: 'Pakete & Abo' },
-	{ _label: 'Import' },
+	{ _label: 'Daten' },
 ];
 
 /** Index des Reiters „Pakete & Abo" — unabhängig von der Rolle, weil er vor den rollenabhängigen
  * Reitern liegt. */
-const PLANS_TAB_INDEX = 7;
+const PLANS_TAB_INDEX = 6;
 
 /** Formatiert den Unix-ms-Zeitstempel der letzten Standortermittlung als „HH:MM" (#933 AK4). */
 const formatGeoTimestamp = (updatedAt: number): string => {
@@ -104,10 +106,10 @@ const toKolibriDisabled = (value: DisabledProp | undefined): boolean | undefined
 /**
  * Einstellungen-Seite (#271) mit `KolTabs`-Navigation: „Allgemein" (Konto, Darstellung, Bewegung,
  * Benachrichtigungen), „Säulen" (Verwaltung + Gewichtungs-Editor), „KI" (Schalter, Provider,
- * Access-Token, #1903), „Standort" (Geo-Einstellungen, #1151), „Orte" (#1894), „Gruppen" (#1211) und
+ * Access-Token, #1903), „Ortung" (Standort #1151 + Orte #1894), „Gruppen" (#1211) und
  * optional „Nutzerverwaltung". Der aktive Tab wird beim initialen Laden aus der URL abgeleitet:
- * `/settings/general` → Allgemein (0), `/settings/llm` und `/settings/zugriff` → KI (5), `/settings/standort` →
- * Standort (3), alles andere → Säulen (1).
+ * `/settings/general` → Allgemein (0), `/settings/llm` und `/settings/zugriff` → KI (4), `/settings/ortung` →
+ * Ortung (3), alles andere → Säulen (1).
  *
  * Alle Panels teilen sich ein Layout-Rezept (`.settings-panel`) und dieselben zwei
  * Gruppierungsflächen: `KolCard` für dauerhaft offene Gruppen, `KolAccordion` für aufklappbare.
@@ -210,7 +212,7 @@ export const SettingsPage = ({
 	const prefersReducedMotion = usePrefersReducedMotion();
 	// #1080/#1335: der eine Schalter „KI aktivieren" (#1903). #1525: zusätzlich an die Paket-Freischaltung
 	// gekoppelt — ohne Berechtigung `ai_assist` ist der Schalter gesperrt, seit #1903 auch mit eigenem Provider.
-	const { aiEnabled, setAiEnabled, entitlementAllowed, requiredPlan } = useAiFeaturesEnabled();
+	const { aiEnabled, aiFeaturesEnabled, setAiEnabled, entitlementAllowed, requiredPlan } = useAiFeaturesEnabled();
 	// Gesperrt, solange die Berechtigung nicht explizit vorliegt (auch während des Ladens, AK5) —
 	// unabhängig vom aktuellen Schalterwert selbst, sonst wäre die Sperre zirkulär.
 	const aiSwitchLocked = entitlementAllowed !== true;
@@ -332,6 +334,8 @@ export const SettingsPage = ({
 		alarmDistanceKm: 1,
 		intervalMinutes: 5,
 	});
+	// Entwurf der drei Regler: Änderungen wirken erst über „Speichern", „Zurücksetzen" verwirft sie.
+	const [geoDraft, setGeoDraft] = useState<GeoConfig>(geoConfig);
 
 	// Nutzer-Änderung schlägt den nachlaufenden GET: Löst der Config-Fetch erst nach einer
 	// Regler-Bewegung auf (Test-Umgebung, langsames Netz), darf er die Wahl nicht überschreiben.
@@ -349,6 +353,7 @@ export const SettingsPage = ({
 					typeof config.intervalMinutes === 'number'
 				) {
 					setGeoConfig(config);
+					setGeoDraft(config);
 				}
 			})
 			.catch(() => {
@@ -357,20 +362,33 @@ export const SettingsPage = ({
 	}, []);
 
 	/**
-	 * #1098 AK2: Wert übernehmen und sofort per PUT speichern. Kreuz-Schranken werden als
-	 * dynamische `_min`/`_max` der Regler durchgesetzt (Autoren-Entscheidung: keine Alerts,
-	 * keine Inline-Fehler) — der mitgesendete Payload hält die Invarianten zusätzlich ein,
-	 * damit der Server nie mit 400 antworten muss. Speichern ist Best-Effort.
+	 * #1098 AK2: Regler-Änderung im Entwurf vermerken (gespeichert wird erst über „Speichern"). Kreuz-Schranken
+	 * werden als dynamische `_min`/`_max` der Regler durchgesetzt (Autoren-Entscheidung: keine Alerts,
+	 * keine Inline-Fehler) — der Entwurf hält die Invarianten zusätzlich ein, damit der Server nie mit
+	 * 400 antworten muss.
 	 */
 	const applyGeoValue = (key: keyof GeoConfig, value: number): void => {
 		geoUserEditedRef.current = true;
-		const next = { ...geoConfig, [key]: value };
-		if (key === 'displayDistanceKm' && next.alarmDistanceKm > value) {
-			next.alarmDistanceKm = value;
-		}
-		if (key === 'alarmDistanceKm' && next.displayDistanceKm < value) {
-			next.displayDistanceKm = value;
-		}
+		setGeoDraft((previous) => {
+			const next = { ...previous, [key]: value };
+			if (key === 'displayDistanceKm' && next.alarmDistanceKm > value) {
+				next.alarmDistanceKm = value;
+			}
+			if (key === 'alarmDistanceKm' && next.displayDistanceKm < value) {
+				next.displayDistanceKm = value;
+			}
+			return next;
+		});
+	};
+
+	const geoDraftChanged =
+		geoDraft.displayDistanceKm !== geoConfig.displayDistanceKm ||
+		geoDraft.alarmDistanceKm !== geoConfig.alarmDistanceKm ||
+		geoDraft.intervalMinutes !== geoConfig.intervalMinutes;
+
+	/** Entwurf per PUT speichern; Best-Effort, der Server hält sonst den letzten gültigen Stand. */
+	const saveGeoDraft = (): void => {
+		const next = geoDraft;
 		setGeoConfig(next);
 		api
 			.updateGeoConfig(next)
@@ -404,6 +422,9 @@ export const SettingsPage = ({
 	// (jsdom-Tests sahen es, weil React dort den Attribut-Pfad nimmt). Der String 'true' ist für
 	// KoliBri truthy-deaktiviert und landet wie `_label`/`_hint` als Attribut am Host (E2E-AK3).
 	const geoDisabled = toKolibriDisabled(geoEnabled ? undefined : 'true');
+	// Beide Akkordeons der Ortung folgen „Standort erfassen", bleiben aber von Hand umschaltbar.
+	const geoRangeAccordion = useFollowingOpen(geoEnabled);
+	const geoActionsDisabled = toKolibriDisabled(geoDraftChanged && geoEnabled ? undefined : 'true');
 
 	return (
 		// #1320: Seiteninhalt INNERHALB der App-Shell — kein eigenes `<main>` und keine eigene `<h1>`
@@ -518,7 +539,7 @@ export const SettingsPage = ({
 									<li>Gewichte (0,1–1) im Abhängigkeits-Dialog</li>
 									<li>Säulen-Gewichtungspflege im Tab „Säulen“</li>
 									<li>
-										Reichweite und Intervall im Tab „Standort“ (Anzeige-Entfernung, Alarm-Entfernung,
+										Reichweite und Intervall im Tab „Ortung“ (Anzeige-Entfernung, Alarm-Entfernung,
 										Aktualisierungsintervall)
 									</li>
 								</ul>
@@ -849,94 +870,109 @@ export const SettingsPage = ({
 								</>
 							)}
 						</div>
-						{geoSupported && expertMode && (
-							/* #1098 AK1–AK3: Geo-Regler als `KolDetails` INNERHALB der Karte „Standorterfassung“ (#2015,
-						   Unter-Settings-Pattern (docs/ux-pattern-master-detail-settings.md) gebündelt in
-						   Regel 1 — kein eigenständiges Akkordeon daneben), synchron mit dem Standort-Switch.
+					</KolCard>
+					{geoSupported && expertMode && (
+						/* #1098 AK1–AK3: Geo-Regler als eigenes `KolAccordion` unter der Karte „Standorterfassung“ (Formular ohne
+						   weitere Klappbereiche), synchron mit dem Standort-Switch.
 						   (Master-/Unter-Settings-Pattern, docs/ux-pattern-master-detail-settings.md).
 						   Die Kreuz-Schranken (AK2) wirken als dynamische `_min`/`_max` — kein Fehlerzustand
 						   (Autoren-Entscheidung). Der `key`-Wechsel auf `geoEnabled` erzwingt wie beim
 						   Ermitteln-Button oben einen Remount: der KoliBri-Adapter setzt Props nach dem Mount
 						   als Element-Properties, der `_disabled`-Attributwechsel beim Rerender schlägt sonst
 						   nicht durch (AK3). */
-							/* #1984: Die Reichweiten-/Intervall-Regler sind Experteninhalt — im Standardmodus
+						/* #1984: Die Reichweiten-/Intervall-Regler sind Experteninhalt — im Standardmodus
 						   bleibt der Details-Block weg (bedingtes Rendern, kein CSS-Hide); gespeicherte
 						   Werte bleiben und wirken weiter (NearbyCard, Push-Hinweis). */
-							<KolDetails
-								className="settings-accordion"
-								_label="Reichweite und Intervall"
-								_level={3}
-								_open={geoEnabled}
-							>
-								<div className="settings-card-stack">
-									<div className="geo-range-field">
-										<KolInputRange
-											key={`geo-display-${geoEnabled}`}
-											_label="Anzeige-Entfernung (km)"
-											_hint={`Bis zu dieser Entfernung zeigt die „In der Nähe“-Liste Aufgaben. Aktuell ${geoConfig.displayDistanceKm} km.`}
-											_value={geoConfig.displayDistanceKm}
-											_min={geoConfig.alarmDistanceKm}
-											_max={50}
-											_step={1}
-											_disabled={geoDisabled}
-											_on={{
-												onChange: (_event, value) => {
-													applyGeoValue('displayDistanceKm', Number(value ?? geoConfig.displayDistanceKm));
-												},
-											}}
-										/>
-										{/* Sichtbarer aktueller Wert im Light-DOM (KI-UX Regel 4): Slider
+						<KolAccordion
+							className="settings-accordion"
+							_label="Reichweite und Intervall"
+							_level={2}
+							{...geoRangeAccordion}
+						>
+							<div className="settings-card-stack">
+								<div className="geo-range-field">
+									<KolInputRange
+										key={`geo-display-${geoEnabled}`}
+										_label="Anzeige-Entfernung (km)"
+										_hint={`Bis zu dieser Entfernung zeigt die „In der Nähe“-Liste Aufgaben. Aktuell ${geoDraft.displayDistanceKm} km.`}
+										_value={geoDraft.displayDistanceKm}
+										_min={geoDraft.alarmDistanceKm}
+										_max={50}
+										_step={1}
+										_disabled={geoDisabled}
+										_on={{
+											onChange: (_event, value) => {
+												applyGeoValue('displayDistanceKm', Number(value ?? geoDraft.displayDistanceKm));
+											},
+										}}
+									/>
+									{/* Sichtbarer aktueller Wert im Light-DOM (KI-UX Regel 4): Slider
 									    zeigen den gewählten Wert nicht selbst. */}
-										<span className="geo-range-value">{geoConfig.displayDistanceKm} km</span>
-									</div>
-									<div className="geo-range-field">
-										<KolInputRange
-											key={`geo-alarm-${geoEnabled}`}
-											_label="Alarm-Entfernung (km)"
-											_hint={`Ab dieser Entfernung zur Aufgabe erscheint der Alarm-Hinweis. Aktuell ${geoConfig.alarmDistanceKm} km.`}
-											_value={geoConfig.alarmDistanceKm}
-											_min={1}
-											_max={geoConfig.displayDistanceKm}
-											_step={1}
-											_disabled={geoDisabled}
-											_on={{
-												onChange: (_event, value) => {
-													applyGeoValue('alarmDistanceKm', Number(value ?? geoConfig.alarmDistanceKm));
-												},
-											}}
-										/>
-										<span className="geo-range-value">{geoConfig.alarmDistanceKm} km</span>
-									</div>
-									<div className="geo-range-field">
-										<KolInputRange
-											key={`geo-interval-${geoEnabled}`}
-											_label="Aktualisierungsintervall (Minuten)"
-											_hint={`Wie oft die Position im Hintergrund ermittelt wird. Aktuell ${geoConfig.intervalMinutes} Minuten.`}
-											_value={geoConfig.intervalMinutes}
-											_min={1}
-											_max={60}
-											_step={1}
-											_disabled={geoDisabled}
-											_on={{
-												onChange: (_event, value) => {
-													applyGeoValue('intervalMinutes', Number(value ?? geoConfig.intervalMinutes));
-												},
-											}}
-										/>
-										<span className="geo-range-value">{geoConfig.intervalMinutes} Minuten</span>
-									</div>
+									<span className="geo-range-value">{geoDraft.displayDistanceKm} km</span>
 								</div>
-							</KolDetails>
-						)}
-					</KolCard>
+								<div className="geo-range-field">
+									<KolInputRange
+										key={`geo-alarm-${geoEnabled}`}
+										_label="Alarm-Entfernung (km)"
+										_hint={`Ab dieser Entfernung zur Aufgabe erscheint der Alarm-Hinweis. Aktuell ${geoDraft.alarmDistanceKm} km.`}
+										_value={geoDraft.alarmDistanceKm}
+										_min={1}
+										_max={geoDraft.displayDistanceKm}
+										_step={1}
+										_disabled={geoDisabled}
+										_on={{
+											onChange: (_event, value) => {
+												applyGeoValue('alarmDistanceKm', Number(value ?? geoDraft.alarmDistanceKm));
+											},
+										}}
+									/>
+									<span className="geo-range-value">{geoDraft.alarmDistanceKm} km</span>
+								</div>
+								<div className="geo-range-field">
+									<KolInputRange
+										key={`geo-interval-${geoEnabled}`}
+										_label="Aktualisierungsintervall (Minuten)"
+										_hint={`Wie oft die Position im Hintergrund ermittelt wird. Aktuell ${geoDraft.intervalMinutes} Minuten.`}
+										_value={geoDraft.intervalMinutes}
+										_min={1}
+										_max={60}
+										_step={1}
+										_disabled={geoDisabled}
+										_on={{
+											onChange: (_event, value) => {
+												applyGeoValue('intervalMinutes', Number(value ?? geoDraft.intervalMinutes));
+											},
+										}}
+									/>
+									<span className="geo-range-value">{geoDraft.intervalMinutes} Minuten</span>
+								</div>
+
+								<div className="settings-button-row">
+									<KolButton
+										key={`geo-save-${geoDraftChanged}-${geoEnabled}`}
+										_label="Speichern"
+										class="settings-action-btn"
+										_variant="primary"
+										_disabled={geoActionsDisabled}
+										_on={{ onClick: saveGeoDraft }}
+									/>
+									<KolButton
+										key={`geo-reset-${geoDraftChanged}-${geoEnabled}`}
+										_label="Zurücksetzen"
+										class="settings-action-btn"
+										_variant="secondary"
+										_disabled={geoActionsDisabled}
+										_on={{ onClick: () => setGeoDraft(geoConfig) }}
+									/>
+								</div>
+							</div>
+						</KolAccordion>
+					)}
+					{/* #1894: Gespeicherte Orte (#1342) gehören zur Ortung — unabhängig vom Geo-Schalter; sie erscheinen im
+					    Adressfeld von Aufgabe und Serie. */}
+					<PlaceFavoritesSection open={geoEnabled} />
 				</div>
-				{/* #1894: Gespeicherte Orte (#1342) — eigener Tab „Orte" (Index 4, Route /settings/orte),
-				    unabhängig vom Geo-Schalter. Anlegen, umbenennen, löschen; sie erscheinen im Adressfeld
-				    von Aufgabe und Serie. */}
-				<div slot="tab-4" className="settings-places settings-panel">
-					<PlaceFavoritesSection />
-				</div>
-				<div slot="tab-5" className="settings-llm settings-panel">
+				<div slot="tab-4" className="settings-llm settings-panel">
 					{/* #1080/#1335: der eine Schalter — blendet die KI-Bedienelemente (KI-Anlege-Dialog mit
 							Berater, Lektorate) aus. Der frühere Feinschalter „Schnellerfassung aktiv" samt
 							Accordion „Einzelne KI-Funktionen" ist mit #1335 entfallen: Schnellerfassung und
@@ -949,27 +985,20 @@ export const SettingsPage = ({
 						<div className="settings-card-stack">
 							<div className="settings-llm-switch-row">
 								{showAiPlanAlert && (
-									<KolAlert
-										_type="info"
-										_label={`KI-Features benötigen das Paket „${requiredPlan ? planLabel(requiredPlan) : ''}“`}
+									<FeaturePopoverButton
+										label={`Paket „${requiredPlan ? planLabel(requiredPlan) : ''}“ erforderlich`}
+										onShowPlans={() => tabsCallbacks.onSelect(new Event('select'), PLANS_TAB_INDEX)}
 									>
 										KI-Features (Anlege-Dialog mit Berater, Lektorate) sind Teil des Pakets „
 										{requiredPlan ? planLabel(requiredPlan) : ''}“.
-										<KolButton
-											_label="Zu den Paketen wechseln"
-											_variant="ghost"
-											_on={{
-												onClick: () => tabsCallbacks.onSelect(new Event('select'), PLANS_TAB_INDEX),
-											}}
-										/>
-									</KolAlert>
+									</FeaturePopoverButton>
 								)}
 								<KolInputCheckbox
 									key={aiSwitchLocked ? 'ai-switch-locked' : 'ai-switch-unlocked'}
 									_label="KI aktivieren"
 									_variant="switch"
 									_hint="Bei deaktivierter KI öffnet „Neuen Task anlegen“ direkt das vollständige Formular; die Lektorat-Buttons sind ausgeblendet. Bestehende Access-Token bleiben gültig."
-									_checked={aiEnabled}
+									_checked={aiFeaturesEnabled}
 									_disabled={aiSwitchDisabled}
 									_on={{
 										onChange: (_event, value) => {
@@ -986,18 +1015,18 @@ export const SettingsPage = ({
 							</div>
 						</div>
 					</KolCard>
-					<LlmSettings open={aiEnabled} disabled={showAiPlanAlert} />
-					<ApiTokensSection open={aiEnabled} />
+					<LlmSettings open={aiFeaturesEnabled} disabled={showAiPlanAlert} />
+					<ApiTokensSection open={aiFeaturesEnabled} />
 				</div>
-				{/* #1211: Gruppen-Verwaltung (AK6–AK8) — eigener Tab „Gruppen" (Index 6, Route
+				{/* #1211: Gruppen-Verwaltung (AK6–AK8) — eigener Tab „Gruppen" (Index 5, Route
 				        /settings/gruppen). Liste als Accordions mit Rolle + Mitgliederzahl, Anlegen/Bearbeiten
 				        per Modal, Löschen mit sequenzieller Bestätigung. */}
-				<div slot="tab-6" className="settings-groups settings-panel">
+				<div slot="tab-5" className="settings-groups settings-panel">
 					<GroupsSection />
 				</div>
 				{/* #1902: „Pakete" und „Abo" (#1529) als EIN Reiter mit zwei Karten untereinander — oben das
 				    laufende Abo, unten die buchbaren Pakete (Regel 1: Karten nur oberste Ebene). */}
-				<div slot="tab-7" className="settings-plans settings-panel">
+				<div slot="tab-6" className="settings-plans settings-panel">
 					{/* #1565 AK1: kostenfreier Paket-Selbst-Wechsel in eigener Karte ÜBER dem Abo —
 					        die Bedienaktion vor dem Lesestoff. Gating um die KARTE (nicht den Tab), damit
 					        spätere Rollen sie ohne Tab-Umbau aufnehmen können (AK4): Tester (#1566) sieht
@@ -1010,15 +1039,18 @@ export const SettingsPage = ({
 						<PlansSection />
 					</KolCard>
 				</div>
-				{/* #1969: CSV-Import (Todoist-/Allgemein-CSV) — eigener Tab „Import" (Index 8, Route
-				    /settings/import): Datei wählen → Vorschau mit Spalten-Mapping → Übernehmen. */}
-				<div slot="tab-8" className="settings-import settings-panel">
+				{/* #1969: Tab „Daten" (Index 7, Route /settings/daten): CSV-Import (Datei wählen → Vorschau mit
+				    Spalten-Mapping → Übernehmen) und CSV-Export aller Aufgaben. */}
+				<div slot="tab-7" className="settings-import settings-panel">
 					<KolCard className="settings-card" _label="Import" _level={2}>
 						<TaskImportCard />
 					</KolCard>
+					<KolCard className="settings-card" _label="Export" _level={2}>
+						<TaskExportCard />
+					</KolCard>
 				</div>
 				{isAdmin && (
-					<div slot="tab-9" className="settings-admin-users settings-panel">
+					<div slot="tab-8" className="settings-admin-users settings-panel">
 						<KolCard className="settings-card" _label="Nutzer und Rollen" _level={2}>
 							<AdminUsersSection />
 						</KolCard>

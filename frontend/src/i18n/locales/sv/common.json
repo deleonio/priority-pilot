@@ -52,9 +52,6 @@
 		"empty": "Gerade gibt es keinen Vorschlag für dich. Mach in deinem Tempo weiter.",
 		"deficit": "{{saeuleName}} kam diese Woche zu kurz. {{titel}}?",
 		"overload": "Du hast zuletzt viel geleistet. Ein Ausgleich darf heute sein: {{beschreibung}}",
-		"helpBefore": "Kein Ersatz für ärztlichen Rat. In einer Krise erreichst du die",
-		"helpLink": "TelefonSeelsorge: 0800 111 0 111",
-		"helpAfter": "(kostenfrei, rund um die Uhr).",
 		"error": "Konnte nicht angelegt werden. Versuch es gleich noch einmal.",
 		"accept": "Vorschlag übernehmen",
 		"notNow": "Nicht jetzt",
@@ -88,7 +85,9 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
-		"importieren": "Importera uppgifter från Todoist eller en CSV"
+		"importieren": "Importera uppgifter från Todoist eller en CSV",
+		"importHeading": "Ta med dina befintliga uppgifter?",
+		"importHint": "Valfritt: hämta dina uppgifter från Todoist eller en CSV-fil. Importen öppnar inställningarna och avslutar den här guiden."
 	},
 	"weeklyCard": {
 		"label": "Min vecka i fem pelare",

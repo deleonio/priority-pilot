@@ -12,6 +12,7 @@
 		"help": "Hilfe",
 		"logout": "Abmelden",
 		"headerActions": "Kopf-Aktionen",
+		"skipToContent": "Zum Inhalt springen",
 		"activeViewDescription": "Aktuelle Ansicht — erneut betätigen führt zurück"
 	}
 }

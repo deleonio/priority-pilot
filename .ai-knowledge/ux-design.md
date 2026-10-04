@@ -151,6 +151,17 @@ ist. Gilt für alle Funktionen mit Unter-Einstellungen (Animationen, KI-Funktion
 nur für den Standort. Beispiel: „Reichweite und Intervall" öffnet erst mit „Standort erfassen"
 ([Pattern](../docs/ux-pattern-master-detail-settings.md)).
 
+### Paket- und Feature-Hinweise — `FeaturePopoverButton`
+
+Ein Hinweis, warum eine Funktion gesperrt ist (Paket erforderlich u. Ä.), ist **kein Inline-Alert**,
+sondern ein `FeaturePopoverButton` ([`FeaturePopoverButton.tsx`](../frontend/src/components/FeaturePopoverButton.tsx)):
+Info-Button mit dem Titel „Paket „Plus“ erforderlich“, dessen Popover die Erklärung als **schließbare
+Alert-Card** (`KolAlert _variant="card" _hasCloser`) trägt; Schließen blendet nur das Popover aus. Der
+gesperrte Bedienknopf bleibt sichtbar. Der Button steht im Grid über dem gesperrten Element, nie
+daneben. Titel immer `Paket „<Name>“ erforderlich`. Nur für Paket-/Berechtigungs-Hinweise; Fehler und
+Zustandsmeldungen bleiben `KolAlert`. Neue Grenzstellen nutzen diesen Baustein oder `PlanHint`
+(Server-Entitlement), kein eigenes Alert-Muster.
+
 ## 6. Prüfliste vor „fertig"
 
 Ergänzt die Prüfpunkte der [Mobile-UI-Regeln](../docs/mobile-ui-rules.md) um die visuelle Seite:

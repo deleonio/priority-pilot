@@ -250,7 +250,7 @@ test.describe('#1527 KI-Gate: Säulen-Berater ohne Berechtigung', () => {
 // ── #1903 (AK3): Details folgen dem Schalter, bleiben aber manuell aufklappbar ─────────────────
 
 test.describe('#1903 KI-Tab: Details bei Schalter aus', () => {
-	const LABELS = ['Provider-Auswahl', 'Provider verwalten', 'Access-Token erstellen', 'Vorhandene Access-Token'];
+	const LABELS = ['KI-Provider', 'Access-Token erstellen', 'Vorhandene Access-Token'];
 	const detailsSummary = (page: Page, label: string) =>
 		page.locator('.settings-llm kol-details summary').filter({ hasText: new RegExp(`^${label}$`) });
 	const isOpen = (page: Page, label: string) =>

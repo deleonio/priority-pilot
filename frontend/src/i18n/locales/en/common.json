@@ -52,9 +52,6 @@
 		"empty": "There is no suggestion for you right now. Keep going at your own pace.",
 		"deficit": "{{saeuleName}} could use some care this week. {{titel}}?",
 		"overload": "You have given a lot lately. Taking it easier today is allowed: {{beschreibung}}",
-		"helpBefore": "Not a substitute for medical advice. In a crisis, you can reach the",
-		"helpLink": "TelefonSeelsorge: 0800 111 0 111",
-		"helpAfter": "(free, around the clock).",
 		"error": "Could not be created. Please try again in a moment.",
 		"accept": "Accept suggestion",
 		"notNow": "Not now",
@@ -88,7 +85,9 @@
 		"beispiel2": "Answer an important email",
 		"beispiel3": "Plan the coming weekend",
 		"erstenTaskAnlegen": "Create your first task",
-		"importieren": "Import tasks from Todoist or a CSV file"
+		"importieren": "Import tasks from Todoist or a CSV file",
+		"importHeading": "Bring your existing tasks?",
+		"importHint": "Optional: bring your tasks over from Todoist or a CSV file. The import opens the settings and ends this assistant."
 	},
 	"weeklyCard": {
 		"label": "My week in five pillars",

@@ -43,7 +43,7 @@ test.describe('Dashboard — Wochenansicht (#1617)', () => {
 		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
 		await waitForStableView(page);
 
-		await page.getByRole('radio', { name: 'Woche', exact: true }).click();
+		await page.getByRole('checkbox', { name: 'Wochenansicht' }).click();
 
 		const dayCards = page.locator('.week-view-day');
 		await expect(dayCards).toHaveCount(7);
@@ -60,7 +60,7 @@ test.describe('Dashboard — Wochenansicht (#1617)', () => {
 		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
 		await waitForStableView(page);
 
-		await page.getByRole('radio', { name: 'Woche', exact: true }).click();
+		await page.getByRole('checkbox', { name: 'Wochenansicht' }).click();
 		await expect(page.locator('.week-view-day')).toHaveCount(7);
 
 		const overflowsHorizontally = await page.evaluate(
@@ -85,7 +85,7 @@ test.describe('Dashboard — Wochenansicht (#1617)', () => {
 		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
 		await waitForStableView(page);
 
-		await page.getByRole('radio', { name: 'Woche', exact: true }).click();
+		await page.getByRole('checkbox', { name: 'Wochenansicht' }).click();
 		await expect(page.locator('.week-view-grid')).toBeVisible();
 
 		// Die erste Tageskarte ist Montag (Wochenstart, WEEKDAY_LABELS in WeekView.tsx).
@@ -134,7 +134,7 @@ test.describe('Dashboard — Wochenansicht: erledigte Aufgaben (#2012)', () => {
 		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
 		await waitForStableView(page);
 
-		await page.getByRole('radio', { name: 'Woche', exact: true }).click();
+		await page.getByRole('checkbox', { name: 'Wochenansicht' }).click();
 
 		// Erledigte Einträge tragen die Done-Klasse und bleiben in der Karte sichtbar.
 		const doneEntry = page.locator('.week-view-done', { hasText: 'E2E #2012 erledigt' });

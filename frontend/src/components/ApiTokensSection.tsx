@@ -1,8 +1,8 @@
 import {
+	KolAccordion,
 	KolAlert,
 	KolButton,
-	KolCard,
-	KolDetails,
+	KolHeading,
 	KolInputCheckbox,
 	KolInputText,
 	KolSelect,
@@ -14,6 +14,7 @@ import { toApiError } from '../lib/apiError';
 import { planLabel } from '../lib/planOffers';
 import { useFollowingOpen } from '../lib/useFollowingOpen';
 import { useEntitlement } from '../lib/usePlan';
+import { FeaturePopoverButton } from './FeaturePopoverButton';
 import { CopyButton } from './CopyButton';
 
 /** Vorbelegter Name eines neuen Tokens — ein Klick reicht, der Name bleibt änderbar. */
@@ -99,15 +100,14 @@ const ScopeToggle = ({ token, disabled, onToggle }: { token: ApiToken; disabled:
  * der Server nur noch dessen Hash und die Liste zeigt ausschließlich Metadaten (Name, Erstellung,
  * letzte Nutzung). „Zurückziehen" sperrt den Token ab dem nächsten Aufruf.
  *
- * Aufbau wie `LlmSettings.tsx`: eine `KolCard` mit zwei `KolDetails`, die `open` folgen (Schalter
+ * Aufbau wie `LlmSettings.tsx`: ein `KolAccordion`, das `open` folgt (Schalter
  * „KI aktivieren"; Token bleiben auch bei „aus" gültig), `ul`/`li` mit Zeilen-Aktionen
  * statt Tabelle (Mobile-Regel 3). Der Rückzug läuft über eine zweistufige Bestätigung direkt in
  * der Zeile (Progressive Disclosure, `docs/ux-pattern-sequential-confirmation.md`): kein einzelner
  * Klick löst die irreversible Aktion aus.
  */
 export const ApiTokensSection = ({ open = true }: { open?: boolean }) => {
-	const createDetails = useFollowingOpen(open);
-	const existingDetails = useFollowingOpen(open);
+	const accordion = useFollowingOpen(open);
 	const [tokens, setTokens] = useState<ApiToken[] | null>(null);
 	const [name, setName] = useState(DEFAULT_TOKEN_NAME);
 	// Laufzeit-Auswahl (#1357, AK6) — leer = keine Auswahl getroffen, Pflichtfeld ohne Vorauswahl.
@@ -240,9 +240,10 @@ export const ApiTokensSection = ({ open = true }: { open?: boolean }) => {
 
 	return (
 		<div className="api-tokens" data-testid="api-tokens-panel">
-			<KolCard className="settings-card" _label="Access-Token" _level={2}>
+			<KolAccordion className="settings-card" _label="Access-Token" _level={2} _disabled={!open} {...accordion}>
 				<p>Mit einem Access-Token bindest du KI-Clients wie Claude an Balamentum an.</p>
-				<KolDetails _label="Access-Token erstellen" _level={3} {...createDetails}>
+				<KolHeading _label="Access-Token erstellen" _level={3} />
+				<>
 					<div className="api-tokens__create">
 						<p>
 							Ein Token spricht dieselben Schnittstellen an wie diese Oberfläche — mit deinen Daten und deinen Rechten.
@@ -251,9 +252,9 @@ export const ApiTokensSection = ({ open = true }: { open?: boolean }) => {
 						{/* #1526 AK2: fehlt `mcp_read`, ist das gesamte Erzeugen-Formular gesperrt — der Alert
 						    steht direkt darüber, damit die Sperrung sofort erklärt ist. */}
 						{readEntitlement !== undefined && !readEntitlement.allowed && (
-							<KolAlert _type="info" _label="Paket erforderlich">
+							<FeaturePopoverButton label="Paket erforderlich">
 								Token erzeugen ist ab dem Paket {planLabel(readEntitlement.requiredPlan)} enthalten.
-							</KolAlert>
+							</FeaturePopoverButton>
 						)}
 						<KolInputText
 							_label="Name des Tokens"
@@ -306,8 +307,9 @@ export const ApiTokensSection = ({ open = true }: { open?: boolean }) => {
 							</KolAlert>
 						)}
 					</div>
-				</KolDetails>
-				<KolDetails _label="Vorhandene Access-Token" _level={3} {...existingDetails}>
+				</>
+				<KolHeading _label="Vorhandene Access-Token" _level={3} />
+				<>
 					{/*
 						#1358: Die Herabstufung war vorher nirgends sichtbar — ein Token, das gestern noch
 						schreiben durfte, meldete nach dem Update nur einen Fehler im MCP-Client.
@@ -357,9 +359,9 @@ export const ApiTokensSection = ({ open = true }: { open?: boolean }) => {
 										{/* #1526 AK4/AK6: löst das freischwebende `PlanBadge` ab — die Erklärung steht jetzt
 										    unterhalb der Scope-Zeile, direkt neben dem gesperrten Regler. */}
 										{readwriteEntitlement !== undefined && !readwriteEntitlement.allowed && (
-											<KolAlert _type="info" _label="Paket erforderlich">
+											<FeaturePopoverButton label="Paket erforderlich">
 												Lesen und Schreiben ist ab dem Paket {planLabel(readwriteEntitlement.requiredPlan)} enthalten.
-											</KolAlert>
+											</FeaturePopoverButton>
 										)}
 									</span>
 									{revokeId === token.id ? (
@@ -394,8 +396,8 @@ export const ApiTokensSection = ({ open = true }: { open?: boolean }) => {
 							))}
 						</ul>
 					)}
-				</KolDetails>
-			</KolCard>
+				</>
+			</KolAccordion>
 		</div>
 	);
 };

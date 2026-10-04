@@ -103,18 +103,6 @@ describe('CareHint (#1793)', () => {
 		void i18next.changeLanguage('de');
 	});
 
-	// #1967 AK4: ärztlicher Rat + TelefonSeelsorge als Light-DOM-`a` in beiden Varianten.
-	it.each([
-		['mit Vorschlag', [vorlage]],
-		['ohne Vorschlag', []],
-	])('#1967 AK4: %s zeigt ärztlichen Rat und tel:-Link zur TelefonSeelsorge', async (_name, vorschlaege) => {
-		getCareSuggestions.mockResolvedValue({ vorschlaege });
-		render(<CareHint />);
-		const el = await zeigeHinweis();
-		expect(el.textContent).toContain('ärztlichen Rat');
-		expect(el.querySelector('a[href="tel:08001110111"]')).not.toBeNull();
-	});
-
 	it('AK1: rendert genau EINEN Hinweis mit Säulenname und Titel des ersten Vorschlags', async () => {
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage, zweite] });
 		render(<CareHint />);
@@ -277,7 +265,7 @@ describe('CareHint (#1793)', () => {
 
 	// #2063 AK2/AK5 (Spec docs/spec/issue-2063.md): der Hinweis spricht die App-Sprache —
 	// hier Englisch; Server-Daten (Säulenname, Titel, Beschreibung) bleiben wortgleich.
-	it('#2063 AK2+AK5: Sprache en — Label, Knöpfe und Krisenhinweis englisch', async () => {
+	it('#2063 AK2+AK5: Sprache en — Label und Knöpfe englisch', async () => {
 		await i18next.changeLanguage('en');
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
 		render(<CareHint />);
@@ -289,11 +277,7 @@ describe('CareHint (#1793)', () => {
 			'Not now',
 			'Dismiss suggestion',
 		]);
-		const link = el.querySelector('a[href="tel:08001110111"]');
-		expect(link).not.toBeNull();
-		expect(link!.textContent).toBe('TelefonSeelsorge: 0800 111 0 111');
-		expect(el.textContent).toContain('Not a substitute for medical advice');
-		expect(el.textContent).toContain('(free, around the clock)');
+		expect(el.textContent).not.toContain('TelefonSeelsorge');
 	});
 
 	it('#2063 AK2: Sprache en — beide Rahmungstexte englisch, Server-Daten unübersetzt', async () => {
