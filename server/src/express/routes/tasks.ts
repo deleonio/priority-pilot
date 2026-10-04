@@ -61,7 +61,8 @@ interface TaskAttributes {
 }
 
 type ValidationResult =
-	{ ok: true; attrs: TaskAttributes; pillars: PillarContribution[] | undefined } | { ok: false; message: string };
+	| { ok: true; attrs: TaskAttributes; pillars: PillarContribution[] | undefined; completedAt: Date | undefined }
+	| { ok: false; message: string };
 
 const isTaskStatus = (value: unknown): value is TaskStatus =>
 	typeof value === 'string' && VALID_STATUSES.some((status) => status === value);
@@ -509,6 +510,19 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 		attrs.categoryId = result.categoryId;
 	}
 
+	// Erledigt-Zeitpunkt (nur beim Übergang auf „Done" wirksam, siehe `awardScoreOnDone`): „pünktlich"
+	// nachtragen heißt, die Deadline als Zeitpunkt zu schicken. Keine Task-Spalte, daher nicht in `attrs`.
+	let completedAt: Date | undefined;
+	if (input.completedAt !== undefined) {
+		if (typeof input.completedAt !== 'string' || Number.isNaN(Date.parse(input.completedAt))) {
+			return { ok: false, message: 'completedAt muss ein gültiges ISO-Datum sein.' };
+		}
+		completedAt = new Date(input.completedAt);
+		if (completedAt.getTime() > Date.now()) {
+			return { ok: false, message: 'completedAt darf nicht in der Zukunft liegen.' };
+		}
+	}
+
 	let pillars: PillarContribution[] | undefined;
 	if (input.pillars !== undefined) {
 		if (!Array.isArray(input.pillars)) {
@@ -521,7 +535,7 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 		pillars = result.pillars;
 	}
 
-	return { ok: true, attrs, pillars };
+	return { ok: true, attrs, pillars, completedAt };
 };
 
 /** Schreibt die Säulen-Beiträge eines Tasks neu (ersetzt vorhandene) — innerhalb einer Transaktion. */
@@ -541,11 +555,10 @@ const findTaskWithPillars = (id: number): Promise<Task | null> => Task.findByPk(
 /**
  * Vergibt beim Statuswechsel auf `Done` einen Gamification-`ScoreEntry` (Konzept §4.4) — genau
  * **einmal** je Task (`taskId` unique + `findOrCreate` ⇒ idempotent, erneutes „Done" erzeugt keinen
- * zweiten Eintrag). Basis-Value = `estimatedEffort × priority` (Owner-Vorgabe), pünktlich/verspätet
+ * zweiten Eintrag; `erledigtAm` ist „jetzt" oder der nachgetragene Zeitpunkt, #1964). Basis-Value = `estimatedEffort × priority` (Owner-Vorgabe), pünktlich/verspätet
  * gemäß Deadline (siehe `berechneScore`).
  */
-const awardScoreOnDone = async (task: Task, transaction: Transaction): Promise<void> => {
-	const erledigtAm = new Date();
+const awardScoreOnDone = async (task: Task, transaction: Transaction, erledigtAm: Date = new Date()): Promise<void> => {
 	const basisPunkte = task.estimatedEffort * task.priority;
 	const { punkte, pünktlich } = berechneScore(task.deadline ?? null, erledigtAm, basisPunkte);
 	await ScoreEntry.findOrCreate({
@@ -587,8 +600,11 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 	tasksRouter.get('/tasks', async (req: Request, res: Response<TaskDto[] | ErrorDto>) => {
 		// Verpasst-Auswahl (#1964, `?missed=1`): abgeleitete Ansicht, kein neuer Status — überfällige,
 		// nicht erledigte Aufgaben ohne Auto-Lösch-Häkchen (die laufen weiter in den 3-Tage-Cron) und
-		// ohne Archiv. Archivierte Aufgaben erscheinen auch in der Standardliste nie mehr.
+		// ohne Archiv. Archivierte Aufgaben erscheinen auch in der Standardliste nie mehr — nur
+		// `?archived=1` liefert sie (Archiv-Ansicht).
 		const missedOnly = req.query.missed === '1';
+		// Archiv-Ansicht (`?archived=1`): umgekehrter Filter — nur archivierte Aufgaben.
+		const archivedOnly = req.query.archived === '1';
 		try {
 			// #1213: Lese-Scope um selbst angelegte Aufgaben für andere Gruppenmitglieder erweitert
 			// (`createdById`); Schreibzugriffe bleiben an `ownerScope` gebunden (siehe findOwnTask).
@@ -596,7 +612,7 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			const tasks = await Task.findAll({
 				where: {
 					...(await taskReadScope(getUserId(req), requester?.id ?? null)),
-					archivedAt: { [Op.is]: null },
+					archivedAt: archivedOnly ? { [Op.not]: null } : { [Op.is]: null },
 					...(missedOnly
 						? {
 								deadline: { [Op.lt]: new Date() },
@@ -951,7 +967,9 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 		// Guard die entgegengesetzte Richtung und griff für real angelegte Unteraufgaben daher nie.
 		if (validation.attrs.status === 'Done') {
 			const subtasks = await task.getDependencies();
-			const hasOpenSubtask = subtasks.some((sub) => sub.status !== 'Done');
+			// Archivierte Unteraufgaben sind unsichtbar (Baum/`GET /tasks`, #1964) und dürfen das
+			// Erledigen des Elternteils nicht dauerhaft sperren (#2188 Kreuzverhör).
+			const hasOpenSubtask = subtasks.some((sub) => sub.status !== 'Done' && sub.archivedAt == null);
 			if (hasOpenSubtask) {
 				sendError(
 					res,
@@ -1063,7 +1081,7 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				// Punkte nur beim echten Übergang auf „Done" vergeben (vorher ≠ Done, jetzt Done) — kein
 				// überflüssiges findOrCreate bei weiteren PATCHes eines bereits erledigten Tasks.
 				if (!warVorherDone && task.status === 'Done') {
-					await awardScoreOnDone(task, transaction);
+					await awardScoreOnDone(task, transaction, validation.completedAt);
 				}
 				// #1821: Korrektur an einem erledigten Task — Punkte neu berechnen, wenn Aufwand, Priorität
 				// oder Deadline sich ändern; der Eintrag bleibt erhalten (kein neuer `zeitpunkt`).
@@ -1161,6 +1179,27 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 		}
 		try {
 			await task.update({ archivedAt: new Date() });
+			const withPillars = await findTaskWithPillars(task.id);
+			if (!withPillars) {
+				sendError(res, 404, 'Task nicht gefunden.');
+				return;
+			}
+			res.json(serializeTask(withPillars));
+		} catch (error) {
+			handleWriteError(res, error);
+		}
+	});
+
+	// POST /tasks/:id/unarchive — Aufgabe wiederherstellen: zurück in Liste (und ggf. Verpasst-Bereich).
+	tasksRouter.post('/tasks/:id/unarchive', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
+		const id = parseId(req.params.id);
+		const task = id === null ? null : await findOwnTask(id, getUserId(req));
+		if (!task) {
+			sendError(res, 404, 'Task nicht gefunden.');
+			return;
+		}
+		try {
+			await task.update({ archivedAt: null });
 			const withPillars = await findTaskWithPillars(task.id);
 			if (!withPillars) {
 				sendError(res, 404, 'Task nicht gefunden.');

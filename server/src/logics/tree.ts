@@ -38,11 +38,17 @@ interface TaskTreeNode {
 
 const ACTIVE_STATUSES = ['Open', 'In process'] as const;
 
+/** Aktiv = offen/in Arbeit und nicht archiviert (#1964): Archiviertes fehlt auch in `GET /tasks`. */
+const isActive = (task: Task): boolean =>
+	ACTIVE_STATUSES.includes(task.status as (typeof ACTIVE_STATUSES)[number]) && task.archivedAt == null;
+
 /**
  * Zählt den Fortschritt eines Tasks inkl. seiner selbst und aller transitiven Unteraufgaben
  * (`getDependencies()`), dedupliziert über die Task-ID (schützt vor Zyklen/geteilten Knoten im DAG).
- * Bewusst UNGEFILTERT (auch erledigte Unteraufgaben zählen), damit die Fortschrittsanzeige (#241)
- * korrekt bleibt, obwohl erledigte Unteraufgaben aus dem angezeigten Baum entfernt sind (#392).
+ * Beim Status bewusst UNGEFILTERT (auch erledigte Unteraufgaben zählen), damit die
+ * Fortschrittsanzeige (#241) korrekt bleibt, obwohl erledigte Unteraufgaben aus dem angezeigten
+ * Baum entfernt sind (#392); nur archivierte Unteraufgaben zählen nicht (#1964, #2188) — sie sind
+ * unsichtbar und würden den Eltern-Fortschritt dauerhaft bei „x/y“ festnageln.
  * Liefert `null`, wenn der Task keine direkten Unteraufgaben hat (keine redundante 1/1-Anzeige, AK3).
  * Semantik identisch zum früheren Frontend-`calculateProgress` (Dedup per ID statt Objekt-Identität —
  * bei Diamant-DAGs sogar korrekter, weil `buildTaskTree` pro Aufruf frische Knoten materialisiert).
@@ -66,6 +72,11 @@ const computeProgress = async (task: Task): Promise<{ done: number; total: numbe
 			return;
 		}
 		visited.add(node.id);
+		if (node !== task && node.archivedAt != null) {
+			// Archiv (#1964, #2188): unsichtbare Unteraufgaben zählen weder im Zähler noch im Nenner
+			// (inkl. ihres Teilbaums) — sonst bliebe der Eltern-Fortschritt dauerhaft bei „x/y“ hängen.
+			return;
+		}
 		total += 1;
 		if (node.status === 'Done') {
 			done += 1;
@@ -81,9 +92,7 @@ const computeProgress = async (task: Task): Promise<{ done: number; total: numbe
 
 const getEstimatedEffort = async (task: Task): Promise<number> => {
 	let estimatedEffort = task.estimatedEffort;
-	const dependencies = (await task.getDependencies()).filter((dep) =>
-		ACTIVE_STATUSES.includes(dep.status as (typeof ACTIVE_STATUSES)[number]),
-	);
+	const dependencies = (await task.getDependencies()).filter(isActive);
 	for (const dependency of dependencies) {
 		estimatedEffort += await getEstimatedEffort(dependency);
 	}
@@ -97,9 +106,7 @@ const buildTaskTree = async (task: Task, weight: number | null = null): Promise<
 	// Aufwands-Rollup oben. Damit erscheint die Eltern-Aufgabe über ihren Unteraufgaben (#336, AK4).
 	// Erledigte Unteraufgaben werden ausgeblendet — sie blockieren nicht mehr und müssen nicht
 	// mehr gezeigt werden.
-	const subtasks = (await task.getDependencies()).filter((dep) =>
-		ACTIVE_STATUSES.includes(dep.status as (typeof ACTIVE_STATUSES)[number]),
-	);
+	const subtasks = (await task.getDependencies()).filter(isActive);
 
 	const children: TaskTreeNode[] = [];
 	const totalEstimatedEffort = await getEstimatedEffort(task);
@@ -145,9 +152,7 @@ export const buildTaskForest = async (userId?: number): Promise<TaskTreeNode[]> 
 	// Tasks ohne Dependents (#336, AK4). Ihre Unteraufgaben hängen als `getDependencies()` darunter.
 	const rootTasks: Task[] = [];
 	for (const task of tasks) {
-		const dependents = (await task.getDependents()).filter((dep) =>
-			ACTIVE_STATUSES.includes(dep.status as (typeof ACTIVE_STATUSES)[number]),
-		);
+		const dependents = (await task.getDependents()).filter(isActive);
 		if (dependents.length === 0) {
 			rootTasks.push(task);
 		}

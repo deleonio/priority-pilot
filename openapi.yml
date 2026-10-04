@@ -25,6 +25,15 @@ paths:
             Verpasst-Auswahl (#1964): mit `missed=1` liefert der Endpunkt nur die überfälligen,
             nicht erledigten Aufgaben ohne Auto-Lösch-Häkchen und ohne Archiv — abgeleitete
             Ansicht, kein neuer Status.
+        - name: archived
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ['1']
+          description: >-
+            Archiv-Ansicht: mit `archived=1` liefert der Endpunkt nur die archivierten Aufgaben
+            (ohne den Parameter erscheinen sie nie in der Liste).
       responses:
         '200':
           description: Liste aller Tasks
@@ -151,6 +160,24 @@ paths:
       responses:
         '200':
           description: Der archivierte Task (mit `archivedAt`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /tasks/{id}/unarchive:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    post:
+      summary: Einen archivierten Task wiederherstellen
+      description: >-
+        Setzt `archivedAt` des Tasks `{id}` zurück auf `null`; der Task erscheint wieder in
+        Aufgabenliste (und ggf. Verpasst-Bereich).
+      operationId: unarchiveTask
+      responses:
+        '200':
+          description: Der wiederhergestellte Task (`archivedAt` ist `null`).
           content:
             application/json:
               schema:
@@ -5545,6 +5572,14 @@ components:
             und per Zugangs-Mail benachrichtigt.
         status:
           $ref: '#/components/schemas/TaskStatus'
+        completedAt:
+          type: string
+          format: date-time
+          description: >-
+            Erledigt-Zeitpunkt beim Übergang auf `Done` (Standard: jetzt). Wer eine überfällige
+            Aufgabe pünktlich erledigt hat, schickt hier die Deadline und bekommt die vollen
+            Punkte. Darf nicht in der Zukunft liegen (sonst `400`); ohne Übergang auf `Done`
+            wirkungslos.
         priority:
           type: integer
           minimum: 1

@@ -1,5 +1,6 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { ScoreEntry } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
 
 /**
@@ -137,5 +138,49 @@ describe('Verpasst-Bereich (#1964)', () => {
 		assert.ok(direct.ok, 'archivierte Aufgabe ist nicht gelöscht — GET by id muss liefern');
 		const dto = (await direct.json()) as Record<string, unknown>;
 		assert.ok(dto.archivedAt, 'GET by id liefert archivedAt weiter');
+	});
+
+	it('Archiv-Ansicht: ?archived=1 liefert nur Archiviertes, unarchive bringt die Aufgabe zurück', async () => {
+		const cookie = await auth();
+		const task = await createTask(cookie, { title: 'Archiv-Ansicht' });
+		await createTask(cookie, { title: 'Bleibt in der Liste' });
+		await fetch(`${server.baseUrl}/tasks/${task.id}/archive`, { method: 'POST', headers: { Cookie: cookie } });
+
+		const archived = await list(cookie, '?archived=1');
+		assert.deepEqual(
+			archived.map((t) => t.id),
+			[task.id],
+		);
+
+		const res = await fetch(`${server.baseUrl}/tasks/${task.id}/unarchive`, {
+			method: 'POST',
+			headers: { Cookie: cookie },
+		});
+		assert.ok(res.ok, `POST /tasks/${task.id}/unarchive muss gelingen (ist ${res.status})`);
+		assert.equal(((await res.json()) as { archivedAt: unknown }).archivedAt, null);
+		assert.deepEqual(await list(cookie, '?archived=1'), []);
+		assert.ok(
+			(await list(cookie)).some((t) => t.id === task.id),
+			'wiederhergestellte Aufgabe steht wieder in der Liste',
+		);
+	});
+
+	it('Erledigt mit completedAt = Deadline bucht pünktlich zum Zeitpunkt der Deadline; Zukunft wird abgelehnt', async () => {
+		const cookie = await auth();
+		const deadline = new Date(Date.now() - DAY).toISOString();
+		const task = await createTask(cookie, { title: 'Pünktlich nachgetragen', deadline });
+
+		const future = await fetch(`${server.baseUrl}/tasks/${task.id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({ status: 'Done', completedAt: new Date(Date.now() + DAY).toISOString() }),
+		});
+		assert.equal(future.status, 400, 'ein Erledigt-Zeitpunkt in der Zukunft ist ungültig');
+
+		await patchTask(cookie, task.id, { status: 'Done', completedAt: deadline });
+		const entry = await ScoreEntry.findOne({ where: { taskId: task.id } });
+		assert.ok(entry, 'Erledigen vergibt einen ScoreEntry');
+		assert.equal(entry.pünktlich, true);
+		assert.equal(entry.zeitpunkt.toISOString(), deadline);
 	});
 });
