@@ -1,5 +1,6 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { ScoreEntry } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
 
 /**
@@ -162,5 +163,24 @@ describe('Verpasst-Bereich (#1964)', () => {
 			(await list(cookie)).some((t) => t.id === task.id),
 			'wiederhergestellte Aufgabe steht wieder in der Liste',
 		);
+	});
+
+	it('Erledigt mit completedAt = Deadline bucht pünktlich zum Zeitpunkt der Deadline; Zukunft wird abgelehnt', async () => {
+		const cookie = await auth();
+		const deadline = new Date(Date.now() - DAY).toISOString();
+		const task = await createTask(cookie, { title: 'Pünktlich nachgetragen', deadline });
+
+		const future = await fetch(`${server.baseUrl}/tasks/${task.id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({ status: 'Done', completedAt: new Date(Date.now() + DAY).toISOString() }),
+		});
+		assert.equal(future.status, 400, 'ein Erledigt-Zeitpunkt in der Zukunft ist ungültig');
+
+		await patchTask(cookie, task.id, { status: 'Done', completedAt: deadline });
+		const entry = await ScoreEntry.findOne({ where: { taskId: task.id } });
+		assert.ok(entry, 'Erledigen vergibt einen ScoreEntry');
+		assert.equal(entry.pünktlich, true);
+		assert.equal(entry.zeitpunkt.toISOString(), deadline);
 	});
 });

@@ -130,7 +130,7 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
   gelöscht wurden, und nennt bis zu drei der zuletzt bereinigten Titel (siehe
   „Automatisches Löschen nach verpasster Deadline“).
 - **Bereich „Verpasst“:** überfällige, offene Aufgaben ohne Auto-Löschen erscheinen gesammelt
-  über der Aufgabenliste — mit Verschiebe-Zähler und den Aktionen „Erledigt“, „Neu planen“,
+  über der Aufgabenliste — mit Verschiebe-Zähler und den Aktionen „Erledigt“ (fragt nach: „Aufgabe erst jetzt erledigt?“ – „Ja, jetzt“ zählt als verspätet, „Nein, pünktlich“ bucht die Erledigung zur Deadline), „Neu planen“,
   „Archivieren“ und „Löschen“ (auf Dashboard und Aufgaben). Archivierte Aufgaben verschwinden aus
   Liste und Bereich; du findest sie auf der Seite Aufgaben mit dem Schalter „Archivierte anzeigen“
   und holst sie dort mit „Wiederherstellen“ zurück. Nicht zu verwechseln mit der Card „Verpasste

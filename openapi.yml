@@ -5572,6 +5572,14 @@ components:
             und per Zugangs-Mail benachrichtigt.
         status:
           $ref: '#/components/schemas/TaskStatus'
+        completedAt:
+          type: string
+          format: date-time
+          description: >-
+            Erledigt-Zeitpunkt beim Übergang auf `Done` (Standard: jetzt). Wer eine überfällige
+            Aufgabe pünktlich erledigt hat, schickt hier die Deadline und bekommt die vollen
+            Punkte. Darf nicht in der Zukunft liegen (sonst `400`); ohne Übergang auf `Done`
+            wirkungslos.
         priority:
           type: integer
           minimum: 1

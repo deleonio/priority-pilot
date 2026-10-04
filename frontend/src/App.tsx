@@ -25,6 +25,7 @@ import { DayDoneHint } from './components/DayDoneHint';
 import { DeleteTaskDialog } from './components/DeleteTaskDialog';
 import { DependencyModal } from './components/DependencyModal';
 import { ArchivedTasksList } from './components/ArchivedTasksList';
+import { MissedCompleteDialog } from './components/MissedCompleteDialog';
 import { MissedTasksSection } from './components/MissedTasksSection';
 import { EmptyState } from './components/EmptyState';
 import { OnboardingFlow } from './components/OnboardingFlow';
@@ -68,7 +69,9 @@ type Dialog =
 	| { kind: 'create'; parentTask?: Task }
 	| { kind: 'edit'; task: Task }
 	| { kind: 'delete'; task: Task }
-	| { kind: 'complete'; task: Task }
+	// `completedAt` (ISO): vorgewählter Erledigt-Zeitpunkt aus der Verpasst-Nachfrage (Deadline = pünktlich).
+	| { kind: 'complete'; task: Task; completedAt?: string }
+	| { kind: 'missedComplete'; task: Task }
 	| { kind: 'dependencies'; taskId: number }
 	| { kind: 'search' }
 	| null;
@@ -782,41 +785,8 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		[reload],
 	);
 
-	// „Erledigt" im Verpasst-Bereich: Checkliste offen → Erledigen-Dialog (wie `handleDoneToggle`),
-	// sonst direkt auf Done setzen und neu laden — die Aufgabe fällt aus Verpasst-Bereich und Liste.
-	// Offene Unteraufgaben lehnt der Server ab (Fehlermeldung über `updateError`).
-	const handleCompleteMissed = useCallback(
-		(task: Task): void => {
-			if (hasOpenChecklistItems(task.checklist)) {
-				setDialog({ kind: 'complete', task });
-				return;
-			}
-			void (async () => {
-				try {
-					setUpdateError(null);
-					await api.updateTask({
-						id: task.id,
-						taskUpdate: {
-							title: task.title,
-							description: task.description,
-							status: TaskStatus.Done,
-							priority: task.priority,
-							estimatedEffort: task.estimatedEffort,
-							deadline: task.deadline,
-						},
-					});
-					if (shouldCelebrateDone(task.status, TaskStatus.Done)) {
-						launchConfetti();
-					}
-					await reload();
-				} catch (reason) {
-					const apiError = await toApiError(reason);
-					setUpdateError(apiError.message);
-				}
-			})();
-		},
-		[reload],
-	);
+	// „Erledigt" im Verpasst-Bereich: immer erst die Nachfrage „erst jetzt erledigt?" (Dialog).
+	const handleCompleteMissed = useCallback((task: Task): void => setDialog({ kind: 'missedComplete', task }), []);
 
 	// „Wiederherstellen" im Archiv: einstufig, danach globales Neuladen (Archiv-Liste lädt mit nach).
 	const handleRestoreArchived = useCallback(
@@ -928,7 +898,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// `handleDoneToggle` kein sticky-Pfad (`DONE_REMOVAL_DELAY_MS`): der greift für die Aufgabenliste,
 	// das Panel lädt stattdessen sofort per `reload()` die nächste Aufgabe (`afterMutation`).
 	const completeTask = useCallback(
-		async (task: Task, checklist: ChecklistItem[], allChecked: boolean): Promise<void> => {
+		async (task: Task, checklist: ChecklistItem[], allChecked: boolean, completedAt?: string): Promise<void> => {
 			// #1583 AK5/AK6/AK8: nur bei einer beim Öffnen unvollständigen Checkliste geht der Stand
 			// mit ins Payload; Status wechselt dann nur, wenn beim Speichern alle Einträge abgehakt sind.
 			// Ohne (oder bereits vollständige) Checkliste bleibt das Payload unverändert wie vor #1583.
@@ -939,7 +909,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				taskUpdate: {
 					title: task.title,
 					description: task.description,
-					...(markingDone ? { status: TaskStatus.Done } : {}),
+					...(markingDone ? { status: TaskStatus.Done, ...(completedAt !== undefined ? { completedAt } : {}) } : {}),
 					priority: task.priority,
 					estimatedEffort: task.estimatedEffort,
 					deadline: task.deadline,
@@ -953,6 +923,31 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			}
 		},
 		[],
+	);
+
+	// Antwort der Nachfrage: „pünktlich" schickt die Deadline als Erledigt-Zeitpunkt, „jetzt" nichts.
+	// Offene Checkliste → der bestehende Erledigen-Dialog übernimmt (Antwort reist im Dialog-State mit),
+	// sonst direkt auf Done setzen. Offene Unteraufgaben lehnt der Server ab (Meldung über `updateError`).
+	const answerMissedComplete = useCallback(
+		(task: Task, onTime: boolean): void => {
+			const completedAt = onTime && task.deadline != null ? task.deadline.toISOString() : undefined;
+			if (hasOpenChecklistItems(task.checklist)) {
+				setDialog({ kind: 'complete', task, completedAt });
+				return;
+			}
+			setDialog(null);
+			void (async () => {
+				try {
+					setUpdateError(null);
+					await completeTask(task, task.checklist ?? [], true, completedAt);
+					await reload();
+				} catch (reason) {
+					const apiError = await toApiError(reason);
+					setUpdateError(apiError.message);
+				}
+			})();
+		},
+		[completeTask, reload],
 	);
 
 	// Bei einer Dependency-Änderung bleibt der Dialog offen; nur die Daten werden aktualisiert.
@@ -1558,9 +1553,17 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				{dialog?.kind === 'complete' && (
 					<CompleteTaskDialog
 						task={dialog.task}
-						onConfirm={(checklist, allChecked) => completeTask(dialog.task, checklist, allChecked)}
+						onConfirm={(checklist, allChecked) => completeTask(dialog.task, checklist, allChecked, dialog.completedAt)}
 						onClose={closeDialog}
 						onCompleted={afterMutation}
+						fallbackFocusRef={deleteFallbackRef}
+					/>
+				)}
+				{dialog?.kind === 'missedComplete' && (
+					<MissedCompleteDialog
+						task={dialog.task}
+						onAnswer={(onTime) => answerMissedComplete(dialog.task, onTime)}
+						onClose={closeDialog}
 						fallbackFocusRef={deleteFallbackRef}
 					/>
 				)}

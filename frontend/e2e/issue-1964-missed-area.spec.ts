@@ -106,19 +106,50 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		}
 	});
 
-	test('Erledigt — die Aufgabe verlässt den Verpasst-Bereich und steht unter den erledigten', async ({ page }) => {
+	test('Erledigt — „Ja, jetzt": die Aufgabe verlässt den Verpasst-Bereich und gilt als verspätet', async ({ page }) => {
 		const past = new Date(Date.now() - DAY).toISOString();
-		await createTaskViaApi(page, { title: 'Verpasst und doch erledigt', deadline: past });
+		const id = await createTaskViaApi(page, { title: 'Verpasst und doch erledigt', deadline: past });
 
 		await page.goto('/app/');
 		await waitForStableView(page);
 		const item = page.getByTestId('missed-item').filter({ hasText: 'Verpasst und doch erledigt' });
 		await item.getByRole('button', { name: /^erledigt$/i }).click();
+		await expect(page.getByText(/erst jetzt erledigt\?/i)).toBeVisible();
+		await page.getByRole('button', { name: /^ja, jetzt$/i }).click();
 
 		await expect(page.getByTestId('missed-section')).toHaveCount(0);
+		const scores = (await (await page.request.get('/api/v1/scores')).json()) as {
+			taskId: number;
+			pünktlich: boolean;
+		}[];
+		expect(scores.find((entry) => entry.taskId === id)?.pünktlich).toBe(false);
 		await page.goto('/app/aufgaben?view=done');
 		await waitForStableView(page);
 		await expect(page.getByText('Verpasst und doch erledigt')).toBeVisible();
+	});
+
+	test('Erledigt — „Nein, pünktlich": Erledigung wird zur Deadline gebucht', async ({ page }) => {
+		const past = new Date(Date.now() - DAY).toISOString();
+		const id = await createTaskViaApi(page, { title: 'Pünktlich und nur nicht abgehakt', deadline: past });
+
+		await page.goto('/app/');
+		await waitForStableView(page);
+		await page
+			.getByTestId('missed-item')
+			.filter({ hasText: 'Pünktlich und nur nicht abgehakt' })
+			.getByRole('button', { name: /^erledigt$/i })
+			.click();
+		await page.getByRole('button', { name: /^nein, pünktlich$/i }).click();
+
+		await expect(page.getByTestId('missed-section')).toHaveCount(0);
+		const scores = (await (await page.request.get('/api/v1/scores')).json()) as {
+			taskId: number;
+			pünktlich: boolean;
+			zeitpunkt: string;
+		}[];
+		const entry = scores.find((candidate) => candidate.taskId === id);
+		expect(entry?.pünktlich).toBe(true);
+		expect(new Date(entry!.zeitpunkt).toISOString()).toBe(past);
 	});
 
 	test('Archiv — Switch zeigt archivierte Aufgabe, Wiederherstellen holt sie zurück', async ({ page }) => {
