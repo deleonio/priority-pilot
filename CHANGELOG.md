@@ -4,7 +4,11 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.15 - 2026-10-04
 
-_Enthält v0.15.0 – v0.15.5._
+_Enthält v0.15.0 – v0.15.6._
+
+### 🐞 Bug Fixes
+
+- docs: mark pillar-mode and single-column spec docs as superseded (#2153) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2174
 
 ### 🚀 Improvements
 
@@ -339,7 +343,6 @@ _Enthält v0.7.0 – v0.7.13._
 - feat(website): FAQ-Eintrag zur Demo-APK by @deleonio in https://github.com/deleonio/priority-pilot/pull/1754
 - feat(frontend): login card head, website link and german google button by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1756
 - ci: cost report reads main and lists excluded tickets individually by @deleonio in https://github.com/deleonio/priority-pilot/pull/1758
-- ci: cost report reads main and lists excluded tickets individually by @deleonio in https://github.com/deleonio/priority-pilot/pull/1758
 
 ## v0.6 - 2026-09-26
 
@@ -581,6 +584,7 @@ _Enthält v0.2.0 – v0.2.134._
 - docs(mobile-ui-rules): align design token statement with ux-design.md by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1606
 - feat(frontend): move pin action to toolbar, show pin state as badge by @deleonio in https://github.com/deleonio/priority-pilot/pull/1609
 - feat(frontend): confirm before discarding unsaved task form changes by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1600
+- feat(frontend)!: require a full pillar distribution with coupled sliders by @deleonio in https://github.com/deleonio/priority-pilot/pull/1604
 - feat(frontend)!: require a full pillar distribution with coupled sliders by @deleonio in https://github.com/deleonio/priority-pilot/pull/1604
 - feat(place-favorites): save by address only, dedupe, and show errors by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1610
 - feat(frontend): randbündige Kopfzeile + design-optimize folgt dem Audit by @deleonio in https://github.com/deleonio/priority-pilot/pull/1611
