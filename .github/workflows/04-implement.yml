@@ -40,12 +40,13 @@ on:
     types: [labeled]
 
 concurrency:
-  # Git-Phasen Spec (03), Implement/Fixup (04) und team.yml serialisieren über EINE Gruppe —
-  # die engste Kopplung der Kette (Spec erzeugt, was Implement konsumiert). Cron-/Ad-hoc-Sync
+  # Implement/Fixup (04) und team.yml serialisieren über `llm-impl`; Spec (03) läuft parallel
+  # in eigener Gruppe `llm-spec` — ein Issue implementiert, während das nächste specced wird
+  # (Durchsatz-Analyse 04.10., docs/agent-setup-vergleich-2026-10-04.md). Cron-/Ad-hoc-Sync
   # bleibt außen vor. Details/Rationale: 01-triage.yml. Beide Eingänge dieser Datei
   # (Issue+ai:needs-impl und PR+ai:needs-fixup, ADR-0005) liegen ohnehin in derselben Gruppe —
   # Umsetzung und Nacharbeit dürfen einander nie überholen.
-  group: llm
+  group: llm-impl
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
   # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,
