@@ -3176,6 +3176,79 @@ describe('TaskForm — Standardmodus ohne Säulen-Prozentregler (#1984 AK1)', ()
  * Feedback-Loop (#45), ohne Übernahme wird kein Feedback gesendet. Rot, solange TaskForm den
  * Vorschlag sofort anwendet und es den Block nicht gibt.
  */
+/**
+ * Rote Spec-Tests für #2154 (AK2) — Rank-Return-Hinweis genau einmal und wieder entfernt
+ * (Spec: docs/spec/issue-2154.md).
+ *
+ * Nach der Übernahme meldet der erste Tipp auf eine Säule die Rückkehr zur Rangfolge-Treppe
+ * (#2078, AK3). Der Hinweis darf aber nicht stehen bleiben: ein weiterer Tipp und das Verwerfen
+ * eines neuerlichen Vorschlags entfernen ihn aus der aria-live-Region — sonst meldet die Region
+ * beim nächsten Eintrag einen längst vergangenen Zustand. Rot, solange der Hinweis nach dem
+ * ersten Tipp dauerhaft stehen bleibt (`discardPillarSuggestion` setzt ihn nicht zurück).
+ */
+describe('TaskForm — Rank-Return-Hinweis wieder entfernen (#2154, AK2)', () => {
+	const fivePillars: Pillar[] = [
+		{ id: 1, name: 'Körper', description: '', weight: 20 },
+		{ id: 2, name: 'Mentale Gesundheit', description: '', weight: 20 },
+		{ id: 3, name: 'Beziehungen', description: '', weight: 20 },
+		{ id: 4, name: 'Wirksamkeit', description: '', weight: 20 },
+		{ id: 5, name: 'Sinn', description: '', weight: 20 },
+	];
+
+	const tapPillar = async (name: RegExp): Promise<void> => {
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name }));
+		});
+	};
+
+	const noticeCount = (): number =>
+		(document.querySelector('[aria-live="polite"]')?.textContent ?? '').match(/Rangfolge-Treppe/g)?.length ?? 0;
+
+	/** Mountet mit KI-Gate und Auto-Trigger (#305), übernimmt den Vorschlag, tippt zurück zur Treppe. */
+	const openApplyAndTap = async (): Promise<void> => {
+		mockSuggestPillars.mockResolvedValue([
+			{ pillarId: 1, confidence: 99, share: 40 },
+			{ pillarId: 2, confidence: 10, share: 30 },
+			{ pillarId: 3, confidence: 5, share: 15 },
+			{ pillarId: 4, confidence: 2, share: 10 },
+			{ pillarId: 5, confidence: 1, share: 5 },
+		]);
+		await act(async () => {
+			renderWithAiGateOn(
+				<TaskForm task={null} initialValues={{ title: 'KI-Task' }} {...defaultProps} pillars={fivePillars} />,
+			);
+		});
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Vorschlag übernehmen' }));
+		});
+		await tapPillar(/^Rang 5 von 5: Sinn/);
+	};
+
+	it('AK2 — Hinweis erscheint nach dem Rückkehr-Tipp genau einmal und wird durch einen weiteren Tipp entfernt', async () => {
+		await openApplyAndTap();
+		expect(noticeCount()).toBe(1);
+
+		// Weiterer Tipp (Sinn erneut antippen) erledigt den Hinweis — er darf nicht stehen bleiben.
+		await tapPillar(/^Sinn — 5 %$/);
+		expect(noticeCount()).toBe(0);
+	});
+
+	it('AK2 — Verwerfen eines neuerlichen Vorschlags entfernt den Hinweis', async () => {
+		await openApplyAndTap();
+		expect(noticeCount()).toBe(1);
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Säulen vorschlagen' }));
+		});
+		await act(async () => {}); // Vorschlag-Abruf abwarten
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Verwerfen' }));
+		});
+		expect(screen.queryByRole('heading', { name: 'KI-Vorschlag' })).toBeNull();
+		expect(noticeCount()).toBe(0);
+	});
+});
+
 describe('TaskForm — KI-Vorschlag-Block (#2078)', () => {
 	const fivePillars: Pillar[] = [
 		{ id: 1, name: 'Körper', description: '', weight: 20 },
