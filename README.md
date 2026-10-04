@@ -184,6 +184,14 @@ Der vollständige Vertrag steht in [`openapi.yml`](openapi.yml). Endpunkte: `GET
 `PUT /pillars/weights` (100 %-Gewichtung setzen), `GET /forest` (Aufgabenwald nach Wert) und
 `GET /next` (nächste wichtige Aufgabe). Server und Vertrag laufen unter `http://localhost:3000`.
 
+## MCP-Server
+
+Balamentum stellt einen MCP-Server unter `POST /mcp/v1` bereit (Auth per `Authorization: Bearer <token>`,
+Token in der App unter Einstellungen → „API-Tokens“; Lesen ab Plus, Lesen und Schreiben ab Pro).
+Die öffentliche Anleitung für die Anbindung in Claude und ChatGPT — Ein-Klick-Link, Schritte und
+Beispiel-Prompts — liegt auf der Website unter `/mcp/` (deutsch, `/en/mcp/` englisch),
+Quelltext: [`website/src/mcp-guide.ts`](website/src/mcp-guide.ts).
+
 ## Nutzerhandbuch
 
 Eine vollständige Beschreibung aller Funktionen für Endnutzer:
