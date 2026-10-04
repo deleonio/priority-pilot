@@ -100,6 +100,9 @@ export type TaskImportMapping = Schemas['TaskImportMapping'];
 export type TaskImportInput = Schemas['TaskImportInput'];
 export type TaskImportPreview = Schemas['TaskImportPreview'];
 export type TaskImportResult = Schemas['TaskImportResult'];
+export type TaskImportAnalysis = Schemas['TaskImportAnalysis'];
+export type TaskImportMergeInput = Schemas['TaskImportMergeInput'];
+export type TaskImportMergeResult = Schemas['TaskImportMergeResult'];
 export type ApiError = Schemas['Error'];
 
 // LLM-Provider: Custom-Provider (frei anlegbar) und fixe Built-ins (Mistral/OpenRouter,

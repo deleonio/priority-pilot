@@ -13,11 +13,7 @@ after(closeDb);
 
 const EMAIL = 'spec-1988@example.com';
 
-const CSV = [
-	'TYPE,CONTENT,PRIORITY,DATE',
-	'task,Einkaufen,2,2026-11-02',
-	'task,Sport,4,',
-].join('\r\n');
+const CSV = ['TYPE,CONTENT,PRIORITY,DATE', 'task,Einkaufen,2,2026-11-02', 'task,Sport,4,'].join('\r\n');
 
 /** Legt einen Zusatznutzer über den Register-Endpunkt an (User.create braucht passwordHash). */
 const registerUser = async (srv: TestServer, email: string): Promise<number> => {
@@ -99,7 +95,12 @@ describe('POST /tasks/import/analysis (#1988)', () => {
 		const b = await Task.create({ userId: uid, title: 'Einkaufsliste schreiben' });
 
 		const fake = async () => [
-			{ dependentTaskId: b.id, dependingTaskId: a.id, title: 'Einkaufsliste schreiben', reason: 'Titel verweist auf Einkaufen' },
+			{
+				dependentTaskId: b.id,
+				dependingTaskId: a.id,
+				title: 'Einkaufsliste schreiben',
+				reason: 'Titel verweist auf Einkaufen',
+			},
 		];
 		const injecting = await startTestServer({
 			taskImportAnalyzer: fake,
@@ -168,6 +169,6 @@ describe('POST /tasks/import/merge (#1988 AK6)', () => {
 			duplicateTaskId: foreign.id,
 		});
 		assert.equal(denied.status, 404);
-		assert.equal((await Task.count({ where: { userId: strangerId } })), 1);
+		assert.equal(await Task.count({ where: { userId: strangerId } }), 1);
 	});
 });

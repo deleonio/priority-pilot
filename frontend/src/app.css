@@ -3308,11 +3308,40 @@ kol-toolbar {
  */
 .task-import-card,
 .task-import-card .task-import-preview,
-.task-import-card .task-import-mapping {
+.task-import-card .task-import-mapping,
+.task-import-card .task-import-report {
 	display: flex;
 	flex-direction: column;
 	gap: var(--pp-gap-base);
 	min-width: 0;
+}
+
+/* #1988: Bericht-Listen (ohne Frist, Dubletten, KI-Vorschläge) — einspaltig, lange Titel
+ * umbrechen statt den Card bei 375px aufweiten zu lassen (KI-UX, mobile-ui-rules). */
+.task-import-report-list {
+	display: grid;
+	gap: var(--pp-gap-tight);
+	margin: 0;
+	padding-left: 1.25rem;
+	min-width: 0;
+}
+
+.task-import-report-list .task-import-report-item {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--pp-gap-tight);
+	min-width: 0;
+}
+
+.task-import-report-list .task-import-report-title,
+.task-import-report-list .task-import-report-reason {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.task-import-report-list .task-import-report-reason {
+	color: var(--pp-text-muted, inherit);
 }
 
 /* #1984: Liste der Experten-Bereiche im Accordion unter dem Expertenmodus-Schalter —

@@ -687,6 +687,64 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /tasks/import/analysis:
+    post:
+      summary: Import-Analyse-Bericht erzeugen
+      description: >-
+        Analysiert dieselbe CSV-Eingabe wie der Import und liefert den Bericht
+        für die Import-Karte (#1988): Anzahl übernehmbarer Zeilen, Zeilen ohne
+        Frist und exakte Dubletten (identisch normalisierter Titel, trim +
+        lowercase). Dubletten werden im Bestand des Nutzers gezählt, sodass
+        Kopien innerhalb der CSV und Treffer gegen vorhandene Aufgaben gleichermaßen
+        sichtbar sind. Abhängigkeits-Vermutungen kommen vom aktiven LLM-Provider
+        und degradieren still (Fehler/Erschöpfung → leere Liste); die Grundform
+        braucht weder Plan-Merkmal ai_assist noch Kontingent.
+      operationId: analyzeTaskImport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskImportInput'
+      responses:
+        '200':
+          description: Analyse-Bericht mit Grundform und (ggf. leeren) KI-Vorschlägen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskImportAnalysis'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /tasks/import/merge:
+    post:
+      summary: Exakte Dublette zusammenführen
+      description: >-
+        Entfernt die Dublette und übernimmt fehlende Felder (Frist; Priorität,
+        solange der verbleibende Task den Modell-Default 3 trägt) in den
+        verbleibenden Task (#1988). Genau ein Task bleibt übrig. Beide Tasks
+        müssen dem eingeloggten Nutzer gehören — fremde Tasks → 404.
+      operationId: mergeTaskImportDuplicate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskImportMergeInput'
+      responses:
+        '200':
+          description: Merge abgeschlossen — ID des verbleibenden Tasks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskImportMergeResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /tasks/suggest-initial:
     post:
       summary: Erststart-Aufgabenvorschläge aus Freitext erzeugen
@@ -6127,6 +6185,109 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TaskImportRowError'
+    TaskImportAnalysis:
+      type: object
+      description: >-
+        Bericht der Import-Analyse (#1988): Grundform (Anzahl, Zeilen ohne
+        Frist, exakte Dubletten) läuft ohne KI-Kontingent;
+        Abhängigkeits-Vorschläge kommen vom aktiven LLM-Provider und bleiben
+        bei Fehler/Erschöpfung leer.
+      required:
+        - total
+        - missingDeadlines
+        - duplicates
+        - suggestions
+      properties:
+        total:
+          type: integer
+          description: Anzahl übernehmbarer Zeilen der CSV
+        missingDeadlines:
+          type: array
+          description: Übernommene Aufgaben ohne Frist
+          items:
+            type: object
+            required:
+              - id
+              - title
+            properties:
+              id:
+                type: integer
+                description: ID der angelegten Aufgabe (0 ohne Bestands-Match zum Analyse-Zeitpunkt)
+              title:
+                type: string
+                description: Aufgabentitel
+        duplicates:
+          type: array
+          description: >-
+            Exakte Dubletten (identisch normalisierter Titel, trim + lowercase)
+            mit Beteiligung importierter Titel
+          items:
+            type: object
+            required:
+              - keepTaskId
+              - duplicateTaskId
+              - title
+              - reason
+            properties:
+              keepTaskId:
+                type: integer
+                description: ID des verbleibenden Tasks (ältester der Titel-Gruppe)
+              duplicateTaskId:
+                type: integer
+                description: ID der entfernten Kopie
+              title:
+                type: string
+                description: Titel der Dublette
+              reason:
+                type: string
+                description: Verständliche Begründung des Treffers
+        suggestions:
+          type: array
+          description: Abhängigkeits-Vermutungen (leer bei KI-Fehler/Erschöpfung)
+          items:
+            type: object
+            required:
+              - dependentTaskId
+              - dependingTaskId
+              - title
+              - reason
+            properties:
+              dependentTaskId:
+                type: integer
+                description: ID der übergeordneten Aufgabe (Kante beginnt hier)
+              dependingTaskId:
+                type: integer
+                description: ID des Vorgängers
+              title:
+                type: string
+                description: Titel der übergeordneten Aufgabe
+              reason:
+                type: string
+                description: Begründung der Vermutung
+    TaskImportMergeInput:
+      type: object
+      description: Zusammenführen einer exakten Dublette (#1988).
+      required:
+        - keepTaskId
+        - duplicateTaskId
+      properties:
+        keepTaskId:
+          type: integer
+          minimum: 1
+          description: ID des verbleibenden Tasks
+        duplicateTaskId:
+          type: integer
+          minimum: 1
+          description: ID der entfernten Dublette
+    TaskImportMergeResult:
+      type: object
+      description: Ergebnis des Merges — genau ein Task bleibt übrig.
+      required:
+        - keptTaskId
+      properties:
+        keptTaskId:
+          type: integer
+          description: ID des verbleibenden Tasks
     SuggestInitialTaskSuggestion:
       type: object
       description: Ein Aufgaben-Vorschlag für den Erststart mit Säulen-Bezug.

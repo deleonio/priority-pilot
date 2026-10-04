@@ -2,6 +2,7 @@ import express, { Router } from 'express';
 import type { Request, Response } from 'express';
 import type { components } from '../../api';
 import { parseCsv } from '../../logics/csv.js';
+import { suggestTaskDependenciesWithMistral, type TaskImportAnalyzer } from '../../llm/llm.js';
 import { Category, Pillar, Task, TaskPillar } from '../../models/index.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 
@@ -10,6 +11,9 @@ type ImportInput = components['schemas']['TaskImportInput'];
 type Mapping = NonNullable<ImportInput['mapping']>;
 type PreviewDto = components['schemas']['TaskImportPreview'];
 type ResultDto = components['schemas']['TaskImportResult'];
+type AnalysisDto = components['schemas']['TaskImportAnalysis'];
+type MergeInput = components['schemas']['TaskImportMergeInput'];
+type MergeResultDto = components['schemas']['TaskImportMergeResult'];
 
 /** Grenzen (Spec `docs/spec/issue-1969.md`, AK5): geprüft VOR jeder Verarbeitung/Schreibzugriff. */
 const MAX_CSV_LENGTH = 10 * 1024 * 1024;
@@ -29,6 +33,9 @@ export const taskImportBodyParser = express.json({ limit: '11mb' });
 const TODOIST_PRIORITY: Record<string, number> = { '1': 2, '2': 3, '3': 4, '4': 5 };
 
 const DEFAULT_PRIORITY = 3;
+
+/** Exakte Dubletten-Basis (AK2): Titel normalisiert auf trim + lowercase. */
+const normalizeTitle = (title: string): string => title.trim().toLowerCase();
 
 interface PreparedRow {
 	row: number;
@@ -217,7 +224,9 @@ const analyzeRows = async (
  * (Kategorie-/Säulen-Zuordnung nur gegen Bestand per Name-Match). Der Body-Parser mit erhöhtem
  * Limit wird separat in `express/index.ts` früh gemountet (siehe `taskImportBodyParser`).
  */
-export const createTaskImportRouter = (): Router => {
+export const createTaskImportRouter = (
+	taskImportAnalyzer: TaskImportAnalyzer = suggestTaskDependenciesWithMistral,
+): Router => {
 	const router = Router();
 
 	router.post('/tasks/import/preview', async (req: Request, res: Response<PreviewDto | ErrorDto>) => {
@@ -271,6 +280,166 @@ export const createTaskImportRouter = (): Router => {
 		}
 
 		res.json({ created: prepared.length, skippedNonTask, errors });
+	});
+
+	// POST /tasks/import/analysis — Bericht der Import-Analyse (#1988). Grundform (AK1–AK3)
+	// bewusst OHNE requirePlanFeature('ai_assist')/meterAiQuota; nur der KI-Teil (AK4) läuft
+	// über den injizierbaren Analyzer und degradiert still.
+	router.post('/tasks/import/analysis', async (req: Request, res: Response<AnalysisDto | ErrorDto>) => {
+		const analysis = await analyze(req);
+		if (!analysis.ok) {
+			res.status(400).json({ message: analysis.message });
+			return;
+		}
+		const prepared = analysis.result.prepared;
+		const userId = getUserId(req);
+		const tasks = await Task.findAll({ where: ownerScope(userId), order: [['id', 'ASC']] });
+
+		// Dubletten (AK2): identisch normalisierte Titel (trim + lowercase), nur derselbe Nutzer.
+		// Zwei Sichten, je nach Zeitpunkt: Nach dem Übernehmen liegen die importierten Kopien im
+		// Bestand (DB-Gruppen >= 2 decken importiert/importiert UND importiert/vorhanden zugleich
+		// ab). Vor dem Übernehmen existieren die Kopien nur als CSV-Zeilen — dort ist jede weitere
+		// Zeile desselben Titels die Dublette gegen den Bestand bzw. die frühere Kopie.
+		const titleGroups = new Map<string, Task[]>();
+		const titleToTaskId = new Map<string, number>();
+		for (const task of tasks) {
+			const key = normalizeTitle(task.title);
+			const group = titleGroups.get(key);
+			if (group) group.push(task);
+			else titleGroups.set(key, [task]);
+			if (!titleToTaskId.has(key)) titleToTaskId.set(key, task.id);
+		}
+		const csvRowsByTitle = new Map<string, typeof prepared>();
+		for (const task of prepared) {
+			const key = normalizeTitle(task.title);
+			const rows = csvRowsByTitle.get(key);
+			if (rows) rows.push(task);
+			else csvRowsByTitle.set(key, [task]);
+		}
+		const importedTitles = new Set(csvRowsByTitle.keys());
+
+		// Bestands-ID je CSV-Zeile: erstes noch nicht verbrauchtes Match (nach dem Übernehmen die
+		// tatsächlich angelegte Aufgabe); ohne Match eine synthetische ID > 0 — der Bericht kann
+		// auch VOR dem Übernehmen laufen, merging ist dann natürlich noch nicht möglich.
+		const usedIds = new Set<number>();
+		const rowIds = new Map<number, number>();
+		for (const task of prepared) {
+			const matches = titleGroups.get(normalizeTitle(task.title)) ?? [];
+			const free = matches.find((candidate) => !usedIds.has(candidate.id));
+			rowIds.set(task.row, free ? free.id : 1_000_000 + task.row);
+			if (free) usedIds.add(free.id);
+		}
+
+		const duplicates: AnalysisDto['duplicates'] = [];
+		for (const [key, group] of titleGroups) {
+			if (group.length < 2 || !importedTitles.has(key)) continue;
+			const [keep, ...copies] = group;
+			for (const copy of copies) {
+				duplicates.push({
+					keepTaskId: keep.id,
+					duplicateTaskId: copy.id,
+					title: copy.title,
+					reason: `Identischer Titel wie bestehende Aufgabe „${keep.title.trim()}“`,
+				});
+			}
+		}
+		for (const [key, rows] of csvRowsByTitle) {
+			const existing = titleGroups.get(key) ?? [];
+			if (existing.length >= 2 || rows.length < 2) continue; // deckt die DB-Gruppe bereits ab
+			const earlier: Array<{ id: number; title: string }> = [
+				...existing.map((task) => ({ id: task.id, title: task.title })),
+				{ id: rowIds.get(rows[0].row) ?? 0, title: rows[0].title },
+			];
+			for (let index = 1; index < rows.length; index++) {
+				const duplicateTaskId = rowIds.get(rows[index].row) ?? 0;
+				for (const member of earlier) {
+					if (member.id === duplicateTaskId) continue;
+					duplicates.push({
+						keepTaskId: member.id,
+						duplicateTaskId,
+						title: rows[index].title,
+						reason: `Identischer Titel wie Aufgabe „${member.title.trim()}“`,
+					});
+				}
+			}
+		}
+
+		// Abhängigkeits-Vermutungen (AK4): Output nur auf Form geprüft — die Gültigkeit jeder Kante
+		// (Eigentum, Zyklus) prüft der Dependencies-Endpunkt beim Übernehmen (AK5).
+		let suggestions: AnalysisDto['suggestions'] = [];
+		try {
+			const analyzerTasks = prepared.map((task) => ({
+				id: rowIds.get(task.row) ?? 0,
+				title: task.title,
+				deadline: task.deadline,
+				priority: task.priority,
+			}));
+			const rawSuggestions = await taskImportAnalyzer(analyzerTasks, userId);
+			suggestions = rawSuggestions.filter(
+				(suggestion) =>
+					Number.isInteger(suggestion.dependentTaskId) &&
+					suggestion.dependentTaskId > 0 &&
+					Number.isInteger(suggestion.dependingTaskId) &&
+					suggestion.dependingTaskId > 0 &&
+					typeof suggestion.title === 'string' &&
+					typeof suggestion.reason === 'string' &&
+					suggestion.reason.trim() !== '',
+			);
+		} catch (error) {
+			console.warn('Abhängigkeits-Analyse fehlgeschlagen — Bericht ohne KI-Vorschläge.', error);
+		}
+
+		res.json({
+			total: prepared.length,
+			missingDeadlines: prepared
+				.filter((task) => task.deadline === null)
+				.map((task) => ({ id: titleToTaskId.get(normalizeTitle(task.title)) ?? 0, title: task.title })),
+			duplicates,
+			suggestions,
+		});
+	});
+
+	// POST /tasks/import/merge — exakte Dublette zusammenführen (#1988 AK6): Kopie entfernen,
+	// fehlende Frist/Priorität in den verbleibenden Task übernehmen. Genau ein Task bleibt übrig.
+	router.post('/tasks/import/merge', async (req: Request, res: Response<MergeResultDto | ErrorDto>) => {
+		const body = (req.body ?? {}) as Partial<MergeInput>;
+		const keepTaskId = body.keepTaskId;
+		const duplicateTaskId = body.duplicateTaskId;
+		if (
+			typeof keepTaskId !== 'number' ||
+			!Number.isInteger(keepTaskId) ||
+			keepTaskId < 1 ||
+			typeof duplicateTaskId !== 'number' ||
+			!Number.isInteger(duplicateTaskId) ||
+			duplicateTaskId < 1
+		) {
+			res.status(400).json({ message: 'keepTaskId und duplicateTaskId müssen Ganzzahlen >= 1 sein.' });
+			return;
+		}
+		if (keepTaskId === duplicateTaskId) {
+			res.status(400).json({ message: 'keepTaskId und duplicateTaskId müssen verschieden sein.' });
+			return;
+		}
+		// Beide Enden müssen dem Nutzer gehören (Datenisolation) — fremde Tasks → 404.
+		const userId = getUserId(req);
+		const keep = await Task.findOne({ where: { id: keepTaskId, userId } });
+		if (!keep) {
+			res.status(404).json({ message: 'Task nicht gefunden.' });
+			return;
+		}
+		const duplicate = await Task.findOne({ where: { id: duplicateTaskId, userId } });
+		if (!duplicate) {
+			res.status(404).json({ message: 'Task nicht gefunden.' });
+			return;
+		}
+		// Fehlende Felder der Kopie übernehmen (AK6): Frist nur, wenn der Ziel-Task keine hat;
+		// Priorität nur, solange er den Modell-Default 3 trägt (NOT NULL — „fehlend“ ist daran
+		// erkennbar, siehe PR-Beschreibung).
+		if (keep.deadline === null || keep.deadline === undefined) keep.deadline = duplicate.deadline ?? null;
+		if (keep.priority === DEFAULT_PRIORITY) keep.priority = duplicate.priority;
+		await duplicate.destroy();
+		await keep.save();
+		res.json({ keptTaskId: keep.id });
 	});
 
 	return router;

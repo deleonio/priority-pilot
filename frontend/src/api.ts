@@ -62,6 +62,8 @@ import type {
 	TaskImportMapping,
 	TaskImportPreview,
 	TaskImportResult,
+	TaskImportAnalysis,
+	TaskImportMergeResult,
 	TaskTreeNode,
 	TaskGraph,
 	TaskUpdate,
@@ -419,6 +421,35 @@ export const api = {
 	async importTasks({ csv, mapping }: { csv: string; mapping?: TaskImportMapping }): Promise<TaskImportResult> {
 		const { data, error, response } = await client.POST('/tasks/import', {
 			body: mapping === undefined ? { csv } : { csv, mapping },
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Import-Bericht (#1988): Analyse derselben CSV — Grundform (Anzahl, ohne Frist, Dubletten)
+	// ohne KI-Kontingent; KI-Vorschläge degradiert der Server still (leere Liste).
+	async analyzeTaskImport({ csv, mapping }: { csv: string; mapping?: TaskImportMapping }): Promise<TaskImportAnalysis> {
+		const { data, error, response } = await client.POST('/tasks/import/analysis', {
+			body: mapping === undefined ? { csv } : { csv, mapping },
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Exakte Dublette zusammenführen (#1988): Kopie entfernen, fehlende Frist/Priorität übernehmen.
+	async mergeTaskImportDuplicate({
+		keepTaskId,
+		duplicateTaskId,
+	}: {
+		keepTaskId: number;
+		duplicateTaskId: number;
+	}): Promise<TaskImportMergeResult> {
+		const { data, error, response } = await client.POST('/tasks/import/merge', {
+			body: { keepTaskId, duplicateTaskId },
 		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
