@@ -27,13 +27,16 @@ test.describe('Dashboard — „Nicht jetzt" mit Grund (Issue #1977)', () => {
 
 		await page.getByRole('button', { name: 'Nicht jetzt' }).click();
 
-		const gruppe = page.getByRole('radiogroup');
+		// Test-Pflege #1977 (KoliBri-Realität): KolInputRadio rendert ein `fieldset` im Shadow-DOM
+		// (Implizite Rolle `group`, keine `radiogroup`) — die Auswahl wird über den Host im Hinweis
+		// gescopet, die Optionszeilen sind die Shadow-Labels (44 px Mindesthöhe über --a11y-min-size).
+		const gruppe = hint.locator('kol-input-radio');
 		await expect(gruppe).toBeVisible();
 		const optionen = gruppe.getByRole('radio');
 		await expect(optionen).toHaveCount(5);
-		for (const hoehe of await optionen.evaluateAll((elements) =>
-			elements.map((el) => el.getBoundingClientRect().height),
-		)) {
+		for (const hoehe of await gruppe
+			.locator('label.kol-input-radio')
+			.evaluateAll((elements) => elements.map((el) => el.getBoundingClientRect().height))) {
 			expect(hoehe).toBeGreaterThanOrEqual(44);
 		}
 		const hintBox = await hint.boundingBox();

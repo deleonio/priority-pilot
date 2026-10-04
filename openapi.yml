@@ -1208,6 +1208,55 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /scores/care-suggestions/rejections:
+    get:
+      summary: Ablehnungs-Historie von Fürsorge-Vorschlägen abrufen (#1977)
+      description: >-
+        Liefert die „Nicht jetzt"-Einträge des Nutzers: ohne Filter alle eigenen, mit
+        `?taskId=` nur die einer Aufgabe (aufsteigend). Strenger `ownerScope` — Einträge
+        fremder Nutzer bleiben unsichtbar (leere Liste statt 403/404).
+      operationId: getCareSuggestionRejections
+      parameters:
+        - name: taskId
+          in: query
+          required: false
+          description: >-
+            Filtert auf eine eigene Aufgabe. Fehlt der Wert, werden alle eigenen Einträge
+            geliefert.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Ablehnungs-Historie (leere Liste, wenn nichts vorliegt)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CareSuggestionRejection'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: '„Nicht jetzt" mit Grund erfassen (#1977)'
+      description: >-
+        Erfasst den Grund einer „Nicht jetzt"-Entscheidung je Aufgabe (`taskId`) oder
+        Vorlage (`templateKey`) — genau einer von beiden ist erforderlich. Jede Entscheidung
+        wird als eigener Eintrag erfasst; KI-Vorschläge ohne stabilen Schlüssel erreichen
+        den Endpoint nicht.
+      operationId: createCareSuggestionRejection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CareSuggestionRejectionCreate'
+      responses:
+        '204':
+          description: Grund erfasst
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /series:
     get:
       summary: Alle Serien-Templates auflisten
@@ -6828,6 +6877,43 @@ components:
           type: string
           minLength: 1
           description: Stammdaten-Schlüssel der abzulehnenden Vorlage.
+    CareSuggestionRejectionCreate:
+      type: object
+      description: >-
+        „Nicht jetzt" mit Grund (#1977) — genau ein Bezug (`taskId` oder `templateKey`) ist
+        erforderlich; unbekannter `grund` oder fehlender/ doppelter Bezug antwortet 400.
+      required:
+        - grund
+      properties:
+        grund:
+          type: string
+          enum:
+            - zu-gross
+            - gerade-nicht-moeglich
+            - keine-energie
+            - warte-auf-jemanden
+            - falsche-prioritaet
+          description: Sprachunabhängiger Grund der Ablehnung (Anzeige-Texte aus den Locales).
+        taskId:
+          type: integer
+          description: Eigene Aufgabe, die abgelehnt wird.
+        templateKey:
+          type: string
+          description: Stammdaten-Schlüssel der abgelehnten Vorlage.
+    CareSuggestionRejection:
+      type: object
+      description: Ein Eintrag der Ablehnungs-Historie (#1977).
+      required:
+        - grund
+        - abgelehntAm
+      properties:
+        grund:
+          type: string
+          description: Sprachunabhängiger Grund der Ablehnung.
+        abgelehntAm:
+          type: string
+          format: date-time
+          description: Zeitpunkt der Entscheidung.
     SeriesRhythm:
       type: string
       enum:

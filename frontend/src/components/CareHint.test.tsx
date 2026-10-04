@@ -440,8 +440,23 @@ describe('CareHint (#1793)', () => {
 	});
 });
 
-describe('#1977 „Nicht jetzt" mit Grund (docs/spec/issue-1977.md)', () => {
+describe('#1977 „Nicht jetzt“ mit Grund (docs/spec/issue-1977.md)', () => {
 	const gruppe = (): HTMLElement => screen.getByRole('radiogroup');
+
+	// Test-Pflege #1977 (Isolation, Implementierung): der #1793-Block hat eigene Hooks, dieser
+	// Describe hatte keine — ohne Reset leaken Mock-Calls in `not.toHaveBeenCalled()`-Tests und
+	// der Snooze-aus-vorherigen-Tests bliebe im localStorage. KeinAssertion geändert.
+	beforeEach(() => {
+		window.localStorage.clear();
+		listPillars.mockResolvedValue([{ id: 3 }]);
+		rejectCareSuggestion.mockResolvedValue(undefined);
+	});
+
+	afterEach(() => {
+		cleanup();
+		vi.useRealTimers();
+		vi.clearAllMocks();
+	});
 
 	it('AK1: „Nicht jetzt" ersetzt die Aktionen durch eine Grundauswahl — genau fünf Gründe plus Überspringen/Abbrechen, kein Call vor der Auswahl', async () => {
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });

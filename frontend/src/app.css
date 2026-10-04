@@ -1649,6 +1649,17 @@ kol-toolbar {
 	margin-top: var(--pp-space-3);
 }
 
+/* #1977: Titelzeile über dem Rahmensatz — der Satz trägt die Beschreibung, ohne Titelzeile wären
+   Vorschläge mit gleicher Beschreibung (Nachrücken) ununterscheidbar. */
+.care-hint-titel {
+	margin: 0;
+	font-weight: 600;
+}
+
+.care-hint-grund {
+	margin-top: var(--pp-space-3);
+}
+
 .care-hint-accept {
 	flex: 1 0 100%;
 }
