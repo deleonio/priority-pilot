@@ -231,9 +231,12 @@ nicht pro Bump eine irreführende Job-Summary schreibt. Der Prefix ist Renovates
 
 ## Fortschreibung 2026-10-04 — Label-Familie `ai:model:*` abgeschafft und entfernt
 
-Die drei Labels (`ai:model:haiku|sonnet|opus`) sind von allen Tickets entfernt und aus
-GitHub gelöscht; `ensure-labels.sh` legt sie nicht mehr an, `resolve-model-label.sh` samt
-Action `.github/actions/resolve-model` ist gelöscht.
+Die drei Labels (`ai:model:haiku|sonnet|opus`) sind von allen Tickets entfernt und gelöscht;
+`ensure-labels.sh` legt sie nicht mehr an, `resolve-model-label.sh` samt
+Action `.github/actions/resolve-model` ist gelöscht. Merge-scoped: Bis zum Merge von PR #2182
+kann ein Phasen-Lauf auf altem main die Labels über den dort noch vorhandenen ensure-Block
+temporär neu anlegen (im Review Runde 3 beobachtet) — danach sind sie endgültig weg; nach dem
+Merge einmal gegenprüben (`gh label list | grep ai:model`) und einen Restbestand endgültig löschen.
 
 **Warum:** Die Familie war ein zweites Transport-Medium für dieselbe Information, die die
 `ai-phase-routing`-Tabelle im Harness-Kommentar bereits trägt — und verlor dort jeden
