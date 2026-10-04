@@ -7,7 +7,7 @@ import { fullPillarContributions } from './pillarContributions';
  *
  * Die E2E-Fixture-Verteilung muss seit #2077 server-valide sein: jeder Anteil in [5, 80],
  * Summe exakt 100, die Betonungs-Säule trägt den Höchstanteil. Die reine Logik liegt in
- * `src/lib/pillarContributions.ts` (Vitest excludiert `**/ e2e; /**`, `@playwright/test` crasht
+ * `src/lib/pillarContributions.ts` (Vitest excludiert das e2e-Verzeichnis, `@playwright/test` crasht
  * unter jsdom) und wird aus `e2e/helpers.ts` re-exportiert — Signatur und Exportstelle der
  * neun Importstellen bleiben stabil. Rot, solange das Modul fehlt bzw. die alte Formel
  * (Betonung = 100 − (n−1)·5) für n = 2–4 Anteile > 80 liefert.

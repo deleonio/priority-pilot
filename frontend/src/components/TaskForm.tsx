@@ -572,6 +572,9 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	// #2078 (AK3): Sichtbare Rückmeldung, wenn nach einer Übernahme erneut getippt wurde und die
 	// Verteilung zur Rangfolge-Treppe zurückkehrte (Hinweis über die aria-live-Region unten).
 	const [rankReturnNotice, setRankReturnNotice] = useState(false);
+	// #2154: Merkt sich, dass der Rückkehr-Hinweis für die aktuelle Übernahme schon gemeldet
+	// wurde — ein weiterer Tipp räumt ihn weg, statt ihn erneut zu melden.
+	const rankReturnAnnounced = useRef(false);
 	// #680: Lektorat-Loading/Error für Titel- und Beschreibungsfeld.
 	const [lektoratingTitle, setLektoratingTitle] = useState(false);
 	const [lektoratingDescription, setLektoratingDescription] = useState(false);
@@ -662,8 +665,12 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 		setContributions(distributionFromRankOrder(next, pillars));
 		// #2078 (AK3): Ersetzt der Tipp eine übernommene KI-Verteilung, meldet die Live-Region
 		// die Rückkehr zur Treppe — der Wechsel ist sonst nur aus den Prozentwerten ablesbar.
-		if (suggestionApplied.current) {
+		// #2154 (AK2): genau einmal je Übernahme — der nächste Tipp entfernt den Hinweis wieder.
+		if (suggestionApplied.current && !rankReturnAnnounced.current) {
+			rankReturnAnnounced.current = true;
 			setRankReturnNotice(true);
+		} else {
+			setRankReturnNotice(false);
 		}
 	};
 
@@ -732,6 +739,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 		setContributions(pillarSuggestion);
 		setRankedPillarIds([...pillarSuggestion].sort((a, b) => b.share - a.share).map((entry) => entry.pillarId));
 		suggestionApplied.current = true;
+		rankReturnAnnounced.current = false;
 		setRankReturnNotice(false);
 		setPillarSuggestion(null);
 	};
@@ -740,6 +748,9 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	// der Fokus kehrt zum „Säulen vorschlagen“-Auslöser zurück.
 	const discardPillarSuggestion = (): void => {
 		setPillarSuggestion(null);
+		// #2154 (AK2): Verwerfen eines neuerlichen Vorschlags räumt einen stehenden
+		// Rückkehr-Hinweis mit weg.
+		setRankReturnNotice(false);
 		suggestTriggerRef.current?.focus();
 	};
 

@@ -2768,12 +2768,12 @@ kol-toolbar {
    Button-Paar Übernehmen/Verwerfen; alles voll breit und ohne festes Maß, damit der Block
    bei 375 px ohne horizontales Scrollen umbricht. Touch-Ziele >= 44 px wie die Rangliste. */
 .pillar-suggestion-block {
-	margin-top: 0.5rem;
-	padding: 0.5rem;
+	margin-top: var(--pp-space-2);
+	padding: var(--pp-space-2);
 	border: 1px solid var(--pp-border);
-	border-radius: 0.375rem;
+	border-radius: var(--pp-radius-md);
 	display: grid;
-	gap: 0.5rem;
+	gap: var(--pp-space-2);
 }
 
 .pillar-suggestion-shares {
@@ -2781,7 +2781,7 @@ kol-toolbar {
 	padding: 0;
 	list-style: none;
 	display: grid;
-	gap: 0.25rem;
+	gap: var(--pp-space-1);
 }
 
 .pillar-suggestion-actions {

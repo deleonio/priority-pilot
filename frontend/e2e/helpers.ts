@@ -329,22 +329,13 @@ export const registerOwnSession = async (page: Page, label: string): Promise<voi
 };
 
 /**
- * Vollverteilung über alle Säulen für API-Fixtures (#2077): Nicht-leere `pillars`-Listen müssen
- * jede Säule des Kontos abdecken, jeder Anteil liegt zwischen 5 und 80, die Summe ist exakt 100.
- * Die Säule am `emphasisIndex` trägt den Höchstanteil (bei den fünf Standard-Säulen der
- * Registrierung 80 %), die übrigen je 5 % — ersetzt die früheren Ein-Säulen-100 %-Fixtures.
- * `confidence` wird nur gesetzt, wenn übergeben (wie bisher je Spec).
+ * Vollverteilung über alle Säulen für API-Fixtures (#2077): jeder Anteil in [5, 80], Summe
+ * exakt 100, `emphasisIndex` trägt den Höchstanteil; `confidence` nur bei Übergabe. Die reine
+ * Logik liegt für den Unit-Test in `src/lib/pillarContributions.ts` (#2154: Vitest excludiert
+ * das e2e-Verzeichnis, `@playwright/test` crasht unter jsdom) — hier nur der Re-Export, Signatur und
+ * Exportstelle bleiben für die Specs stabil.
  */
-export const fullPillarContributions = (
-	pillars: ReadonlyArray<{ id: number }>,
-	emphasisIndex: number,
-	confidence?: number,
-): Array<{ pillarId: number; share: number; confidence?: number }> =>
-	pillars.map((pillar, index) => ({
-		pillarId: pillar.id,
-		share: index === emphasisIndex ? 100 - (pillars.length - 1) * 5 : 5,
-		...(confidence === undefined ? {} : { confidence }),
-	}));
+export { fullPillarContributions } from '../src/lib/pillarContributions';
 
 export const setEqualPillarWeights = async (page: Page): Promise<void> => {
 	const response = await page.request.get('/api/v1/pillars');
