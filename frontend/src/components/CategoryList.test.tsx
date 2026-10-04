@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { createElement, type ReactNode } from 'react';
 import type { Category } from 'client';
 import { ResponseError } from 'client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -48,12 +48,11 @@ vi.mock('@public-ui/react-v19', () => ({
 			{_label}
 		</button>
 	),
-	KolCard: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
-		<div>
-			{_label !== undefined && <h3>{_label}</h3>}
-			{children}
-		</div>
-	),
+	KolCard: ({ _label, children }: { _label?: string; children?: ReactNode }) =>
+		// #2015 TF3: wörtliches Element statt neutralem div — nur so kann der Leerzustand-Test die
+		// Kartenfläche selektieren („kein kol-card im Leerzustand“); Label-Überschrift bleibt erhalten.
+		// createElement statt JSX: kol-card ist kein deklariertes Intrinsic-Element.
+		createElement('kol-card', { _label }, _label !== undefined ? <h3>{_label}</h3> : null, children),
 	KolSpin: ({ _label }: { _label?: string }) => <div role="status">{_label}</div>,
 	KolInputText: ({
 		_label,
@@ -125,6 +124,20 @@ describe('CategoryList — Kategorie-Verwaltung', () => {
 			expect(screen.getByText(/noch keine kategorien/i)).toBeInTheDocument();
 		});
 		expect(screen.getAllByRole('button', { name: /neue kategorie anlegen/i })).toHaveLength(1);
+	});
+
+	// Roter Spec-Test für #2015 (TF3/AK2, docs/spec/issue-2015.md): der Leerzustand
+	// „Noch keine Kategorien“ verliert seine Kartenfläche — keine Karte in der Karte
+	// „Kategorien verwalten“ (Regel 1: keine Karte in Karte).
+	it('#2015: im Leerzustand wird keine kol-card gerendert', async () => {
+		vi.mocked(api.listCategories).mockResolvedValue([]);
+
+		const { container } = render(<CategoryList />);
+
+		await waitFor(() => {
+			expect(screen.getByText(/noch keine kategorien/i)).toBeInTheDocument();
+		});
+		expect(container.querySelector('kol-card'), 'Leerzustand ohne Kartenfläche').toBeNull();
 	});
 
 	it('listet vorhandene Kategorien mit Namen und Farbe', async () => {
