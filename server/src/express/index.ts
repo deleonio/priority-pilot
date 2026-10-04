@@ -28,6 +28,7 @@ import { createMailRouter } from './routes/mail.js';
 import { createLlmProvidersRouter } from './routes/llmProviders.js';
 import { geoConfigRouter } from './routes/geoConfig.js';
 import { careConfigRouter } from './routes/careConfig.js';
+import { createBalanceVariantRouter } from './routes/balanceVariant.js';
 import { apiTokensRouter } from './routes/apiTokens.js';
 import { placeFavoritesRouter } from './routes/placeFavorites.js';
 import { profileRouter } from './routes/profile.js';
@@ -303,6 +304,8 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Pro-User Geo-Konfiguration: Anzeige-/Alarm-Entfernung, Intervall (#1098).
 	app.use(geoConfigRouter);
 	app.use(careConfigRouter);
+	// Zifferblatt-Auswahl am Konto (#2009) — der GET stellt den CSRF-Token als Antwort-Header bereit.
+	app.use(createBalanceVariantRouter(csrf));
 
 	// Persönliche API-Tokens für externe Clients (#1352): anlegen, listen, zurückziehen.
 	app.use(apiTokensRouter);

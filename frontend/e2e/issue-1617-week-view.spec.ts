@@ -7,6 +7,7 @@ import { waitForStableView } from './helpers';
  * AK2: Aus der Wochenansicht kann man einen Tag anwählen — Kreuzverhör-Entscheidung #5 (Option 5.2,
  *   PR #1620 Runde 2): der Sprung landet im Aufgaben-Tab, gefiltert auf die Deadline des Tages.
  * AK3: Manuell geplante (per Deadline datierte) Aufgaben werden dem richtigen Tag zugeordnet.
+ * Seit #2011 ist der Umschalter eine Radiogruppe („Heute“/„Woche“) — die Klicks wählen die Radio-Option „Woche“.
  */
 
 /** Montag (UTC-Mitternacht, ISO-Datum) der Kalenderwoche, in der `reference` liegt. */
@@ -42,7 +43,7 @@ test.describe('Dashboard — Wochenansicht (#1617)', () => {
 		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: 'Wochenansicht' }).click();
+		await page.getByRole('radio', { name: 'Woche', exact: true }).click();
 
 		const dayCards = page.locator('.week-view-day');
 		await expect(dayCards).toHaveCount(7);
@@ -59,7 +60,7 @@ test.describe('Dashboard — Wochenansicht (#1617)', () => {
 		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: 'Wochenansicht' }).click();
+		await page.getByRole('radio', { name: 'Woche', exact: true }).click();
 		await expect(page.locator('.week-view-day')).toHaveCount(7);
 
 		const overflowsHorizontally = await page.evaluate(
@@ -84,7 +85,7 @@ test.describe('Dashboard — Wochenansicht (#1617)', () => {
 		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: 'Wochenansicht' }).click();
+		await page.getByRole('radio', { name: 'Woche', exact: true }).click();
 		await expect(page.locator('.week-view-grid')).toBeVisible();
 
 		// Die erste Tageskarte ist Montag (Wochenstart, WEEKDAY_LABELS in WeekView.tsx).
@@ -101,5 +102,47 @@ test.describe('Dashboard — Wochenansicht (#1617)', () => {
 		const taskSection = page.locator('.task-section');
 		await expect(taskSection.getByText('E2E #1617 Montagsaufgabe')).toBeVisible();
 		await expect(taskSection.getByText('E2E #1617 Aufgabe ohne Deadline')).toHaveCount(0);
+	});
+});
+
+test.describe('Dashboard — Wochenansicht: erledigte Aufgaben (#2012)', () => {
+	const deleteAllTasks = async (page: Page): Promise<void> => {
+		const response = await page.request.get('/api/v1/tasks');
+		const tasks = (await response.json()) as { id: number }[];
+		for (const task of tasks) {
+			await page.request.delete(`/api/v1/tasks/${task.id}`);
+		}
+	};
+
+	test.afterEach(async ({ page }) => {
+		await deleteAllTasks(page);
+	});
+
+	test('AK4: erledigte Aufgabe erscheint in ihrer Tageskarte, ohne horizontalen Overflow bei 375px', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		const todayIso = new Date().toISOString().slice(0, 10);
+		const created = await page.request.post('/api/v1/tasks', {
+			data: { title: 'E2E #2012 erledigt', deadline: todayIso },
+		});
+		const { id } = (await created.json()) as { id: number };
+		await page.request.patch(`/api/v1/tasks/${id}`, { data: { status: 'Done' } });
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
+		await waitForStableView(page);
+
+		await page.getByRole('radio', { name: 'Woche', exact: true }).click();
+
+		// Erledigte Einträge tragen die Done-Klasse und bleiben in der Karte sichtbar.
+		const doneEntry = page.locator('.week-view-done', { hasText: 'E2E #2012 erledigt' });
+		await expect(doneEntry).toHaveCount(1);
+		// Bounding-Box statt scrollWidth — die App-Shell clippt overflow-x (Memory 2026-08-24).
+		const box = await doneEntry.boundingBox();
+		expect(box).not.toBeNull();
+		expect(box!.x).toBeGreaterThanOrEqual(0);
+		expect(box!.x + box!.width).toBeLessThanOrEqual(375);
 	});
 });

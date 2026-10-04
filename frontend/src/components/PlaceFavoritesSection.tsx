@@ -135,14 +135,16 @@ export const PlaceFavoritesSection = () => {
 							<li key={favorite.id} className="api-tokens__item" data-testid="place-favorite-row">
 								<span className="api-tokens__name">{favorite.address}</span>
 								{/* `kol-button` hat keine `_ariaLabel`-Prop und liest kein `aria-label`-Attribut vom
-								    Host — die Shadow-DOM-Taste im Browser bekommt ihren Namen ausschließlich aus
-								    `_label` (CI: e2e (4) AK6). Die Adresse steht deshalb direkt im `_label`. */}
+								    Host — der zugängliche Name entsteht aus dem Slot-Inhalt im Expert-Slot. Ein
+								    nicht-leeres `_label` blendet den Expert-Slot aus (hidden + aria-hidden in der
+								    kol-span-Verarbeitung), deshalb steht „Löschen“ als sichtbarer Slot-Text und die
+								    Anschrift als `.visually-hidden`-Span daneben (#2013 AK1/AK2). */}
 								<ButtonAction onClick={() => setDeleteTarget(favorite)}>
-									<KolButton
-										_label={`Favorit löschen: ${favorite.address}`}
-										class="settings-action-btn"
-										_variant="danger"
-									/>
+									<KolButton _label="" class="settings-action-btn" _variant="danger">
+										<span slot="expert">
+											Löschen<span className="visually-hidden">{` ${favorite.address}`}</span>
+										</span>
+									</KolButton>
 								</ButtonAction>
 							</li>
 						))}

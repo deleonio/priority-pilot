@@ -57,19 +57,31 @@ export const berechneMeilensteine = ({
  * befüllt (#1362-Muster), keine Migration. Die Server-Zeitzone dient als Fallback (kein
  * Zeitzonen-Feld am `User`); im Pass-Through-Modus (`userId` `undefined`) bleibt es bei der
  * reinen Berechnung — ohne Besitzer gibt es keinen Stand zum Persistieren (Muster `ownerScope`).
+ * Lesestellen, die die `ScoreEntry`-Liste bereits geladen haben (z. B. /scores/balance, #2150),
+ * reichen sie über `daten.entries` durch — dann entfällt der eigene `findAll`-Leselauf. Reichen
+ * sie außerdem `bestStreak`/`punkteSumme` durch (#2157), entfällt auch die interne Berechnung:
+ * die Streak-Berechnung läuft je Request nur einmal (in der Lesestelle) — übergebene Werte
+ * schlagen die interne Ermittlung, ohne Übergabe bleibt das Rückfallverhalten wie bisher.
  */
-export const meilensteinStandVon = async (userId: number | undefined, zeitZone?: string): Promise<Meilenstein[]> => {
-	const entries = await ScoreEntry.findAll({ include: [{ model: Task, where: ownerScope(userId) }] });
+export const meilensteinStandVon = async (
+	userId: number | undefined,
+	zeitZone?: string,
+	daten?: { entries: ScoreEntry[]; bestStreak?: number; punkteSumme?: number },
+): Promise<Meilenstein[]> => {
+	const entries =
+		daten?.entries ?? (await ScoreEntry.findAll({ include: [{ model: Task, where: ownerScope(userId) }] }));
 	const zone = zeitZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
-	const { best } = berechneStreak(
-		streakZeitpunkte(
-			entries.map((entry) => ({ zeitpunkt: entry.zeitpunkt, deadline: entry.Task?.deadline })),
+	const best =
+		daten?.bestStreak ??
+		berechneStreak(
+			streakZeitpunkte(
+				entries.map((entry) => ({ zeitpunkt: entry.zeitpunkt, deadline: entry.Task?.deadline })),
+				zone,
+			),
+			new Date(),
 			zone,
-		),
-		new Date(),
-		zone,
-	);
-	const punkteSumme = entries.reduce((summe, entry) => summe + entry.punkte, 0);
+		).best;
+	const punkteSumme = daten?.punkteSumme ?? entries.reduce((summe, entry) => summe + entry.punkte, 0);
 	const stand = berechneMeilensteine({ bestStreak: best, punkteSumme });
 	if (userId === undefined) {
 		return stand;

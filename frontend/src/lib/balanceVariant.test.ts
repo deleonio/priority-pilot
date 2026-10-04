@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { BALANCE_VARIANTS, readBalanceVariant, storeBalanceVariant } from './balanceVariant';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { BALANCE_VARIANTS, readBalanceVariant, storeBalanceVariant, useBalanceVariant } from './balanceVariant';
 
 /**
  * Persistenz der Bildwahl. Geprüft wird vor allem der Weg, der schiefgehen kann: Was passiert bei
@@ -42,6 +43,41 @@ describe('balanceVariant', () => {
 		expect(() => storeBalanceVariant('ringe')).not.toThrow();
 	});
 
+	it('AK4 — zieht die serverseitige Wahl beim Laden nach und überschreibt den Spiegel', async () => {
+		// GET /balance-variant liefert die Konto-Wahl — sie gilt auch, wenn das Gerät etwas anderes (oder nichts) gespeichert hat.
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => new Response(JSON.stringify({ variant: 'blasen' }), { status: 200 })),
+		);
+
+		const { result } = renderHook(() => useBalanceVariant());
+		await waitFor(() => expect(result.current.variant).toBe('blasen'), {
+			timeout: 2000,
+		});
+		// Der Spiegel folgt dem Konto, damit der nächste Erst-Paint schon richtig startet.
+		expect(readBalanceVariant()).toBe('blasen');
+	});
+
+	it('AK4 — setVariant sendet die Wahl per PUT und übersteht einen unerreichbaren Server (Best-Effort)', async () => {
+		const fetchMock = vi.fn(() => Promise.reject(new TypeError('fetch failed')));
+		vi.stubGlobal('fetch', fetchMock);
+
+		const { result } = renderHook(() => useBalanceVariant());
+		expect(() => act(() => result.current.setVariant('ringe'))).not.toThrow();
+
+		await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1), {
+			timeout: 2000,
+		});
+		const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		expect(String(url)).toContain('/balance-variant');
+		expect(init.method).toBe('PUT');
+		expect(JSON.parse(String(init.body))).toEqual({ variant: 'ringe' });
+
+		// Best-Effort: trotz gescheitertem PUT bleibt die Wahl aktiv (State + Spiegel).
+		expect(result.current.variant).toBe('ringe');
+		expect(readBalanceVariant()).toBe('ringe');
+	});
+
 	it('führt die Varianten in fester Reihenfolge — das Herz zuerst, die Stapel-Bilder nebeneinander', () => {
 		expect(BALANCE_VARIANTS.map((variant) => variant.value)).toEqual([
 			'herz',
@@ -54,5 +90,9 @@ describe('balanceVariant', () => {
 			'segmente',
 			'zeiger',
 		]);
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
 	});
 });

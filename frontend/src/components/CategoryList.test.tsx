@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { createElement, type ReactNode } from 'react';
 import type { Category } from 'client';
 import { ResponseError } from 'client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -48,12 +48,11 @@ vi.mock('@public-ui/react-v19', () => ({
 			{_label}
 		</button>
 	),
-	KolCard: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
-		<div>
-			{_label !== undefined && <h3>{_label}</h3>}
-			{children}
-		</div>
-	),
+	KolCard: ({ _label, children }: { _label?: string; children?: ReactNode }) =>
+		// #2015 TF3: wörtliches Element statt neutralem div — nur so kann der Leerzustand-Test die
+		// Kartenfläche selektieren („kein kol-card im Leerzustand“); Label-Überschrift bleibt erhalten.
+		// createElement statt JSX: kol-card ist kein deklariertes Intrinsic-Element.
+		createElement('kol-card', { _label }, _label !== undefined ? <h3>{_label}</h3> : null, children),
 	KolSpin: ({ _label }: { _label?: string }) => <div role="status">{_label}</div>,
 	KolInputText: ({
 		_label,
@@ -127,6 +126,20 @@ describe('CategoryList — Kategorie-Verwaltung', () => {
 		expect(screen.getAllByRole('button', { name: /neue kategorie anlegen/i })).toHaveLength(1);
 	});
 
+	// Roter Spec-Test für #2015 (TF3/AK2, docs/spec/issue-2015.md): der Leerzustand
+	// „Noch keine Kategorien“ verliert seine Kartenfläche — keine Karte in der Karte
+	// „Kategorien verwalten“ (Regel 1: keine Karte in Karte).
+	it('#2015: im Leerzustand wird keine kol-card gerendert', async () => {
+		vi.mocked(api.listCategories).mockResolvedValue([]);
+
+		const { container } = render(<CategoryList />);
+
+		await waitFor(() => {
+			expect(screen.getByText(/noch keine kategorien/i)).toBeInTheDocument();
+		});
+		expect(container.querySelector('kol-card'), 'Leerzustand ohne Kartenfläche').toBeNull();
+	});
+
 	it('listet vorhandene Kategorien mit Namen und Farbe', async () => {
 		vi.mocked(api.listCategories).mockResolvedValue([category(1, 'Hausbau', '#b42318')]);
 
@@ -136,6 +149,89 @@ describe('CategoryList — Kategorie-Verwaltung', () => {
 			expect(screen.getByText('Hausbau')).toBeInTheDocument();
 		});
 		expect(screen.getByText('Hausbau')).toHaveAttribute('data-color', '#b42318');
+	});
+
+	// Drei Beispielfarben aus der Kategorie-Palette; irrelevant welche, solange sie je Kategorie
+	// unterscheidbar sind (TF1-B prüft die Vorbelegung über Name UND Farbe).
+	it('rendert alle Kategorien als Chips einer gemeinsamen Liste ohne Karten-DOM (#2014/AK1)', async () => {
+		vi.mocked(api.listCategories).mockResolvedValue([
+			category(1, 'Hausbau', '#b42318'),
+			category(2, 'Steuer', '#1064d0'),
+			category(3, 'Verein', '#6941c6'),
+		]);
+
+		const { container } = render(<CategoryList />);
+
+		await waitFor(() => {
+			expect(container.querySelectorAll('li[data-category-id]')).toHaveLength(3);
+		});
+
+		// EINE gemeinsame Chip-Liste, je Kategorie genau ein Eintrag:
+		const lists = container.querySelectorAll('ul.category-items');
+		expect(lists).toHaveLength(1);
+		expect(lists[0].querySelectorAll(':scope > li[data-category-id]')).toHaveLength(3);
+
+		// Kein Karten-DOM je Kategorie: `.pillar-item` ist der geteilte Kartenvertrag der Säulen und
+		// Gruppen (app.css) — Kategorie-Chips tragen eigene Klassen (#2014, Randbedingung der Analyse).
+		for (const chip of container.querySelectorAll<HTMLElement>('li[data-category-id]')) {
+			expect(chip.className).not.toContain('pillar-item');
+			expect(within(chip).getByRole('button', { name: /bearbeiten/i })).toBeInTheDocument();
+			expect(within(chip).getByRole('button', { name: /löschen/i })).toBeInTheDocument();
+		}
+	});
+
+	it('öffnet je Chip die Bearbeitung mit der richtigen Kategorie vorbelegt (#2014/AK2)', async () => {
+		vi.mocked(api.listCategories).mockResolvedValue([
+			category(1, 'Hausbau', '#b42318'),
+			category(2, 'Steuer', '#1064d0'),
+			category(3, 'Verein', '#6941c6'),
+		]);
+
+		const { container } = render(<CategoryList />);
+
+		await waitFor(() => {
+			expect(container.querySelectorAll('li[data-category-id]')).toHaveLength(3);
+		});
+
+		fireEvent.click(
+			within(container.querySelector('li[data-category-id="2"]')!).getByRole('button', { name: /bearbeiten/i }),
+		);
+
+		// Vorbelegt mit GENAU dieser Kategorie — Name und Farbe, nicht die erste der Liste:
+		expect(screen.getByLabelText('Name')).toHaveValue('Steuer');
+		expect(screen.getByLabelText('Farbe')).toHaveValue('#1064d0');
+	});
+
+	it('öffnet je Chip den Lösch-Dialog mit der richtigen Kategorie (#2014/AK2)', async () => {
+		vi.mocked(api.listCategories).mockResolvedValue([
+			category(1, 'Hausbau', '#b42318'),
+			category(2, 'Steuer', '#1064d0'),
+			category(3, 'Verein', '#6941c6'),
+		]);
+
+		const { container } = render(<CategoryList />);
+
+		await waitFor(() => {
+			expect(container.querySelectorAll('li[data-category-id]')).toHaveLength(3);
+		});
+
+		fireEvent.click(
+			within(container.querySelector('li[data-category-id="3"]')!).getByRole('button', { name: /löschen/i }),
+		);
+
+		// Der Bestätigungstext nennt die Kategorie des GEKLICKTEN Chips (typografische Anführung im
+		// Dialogkörper — das Badge in der Liste trägt den Namen ohne, bleibt also kein Falsch-Treffer):
+		expect(screen.getByText('„Verein“')).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Endgültig löschen' })).toBeInTheDocument();
+	});
+
+	it('hält den Ladezustand ohne Anlege-Aktion (#2014/AK4)', () => {
+		vi.mocked(api.listCategories).mockReturnValue(new Promise(() => {}));
+
+		render(<CategoryList />);
+
+		expect(screen.getByRole('status')).toHaveTextContent('Kategorien werden geladen');
+		expect(screen.queryByRole('button', { name: /neue kategorie anlegen/i })).toBeNull();
 	});
 
 	it('legt eine Kategorie mit Name und Farbe an und lädt die Liste neu', async () => {

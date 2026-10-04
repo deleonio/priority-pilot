@@ -52,8 +52,9 @@ interface WeekViewProps {
  * zugeordneten Aufgaben.
  *
  * Zuordnung je Tag:
- * - **Manuell geplant**: nicht erledigte Aufgaben, deren `deadline` auf den jeweiligen Kalendertag
- *   fällt (dieselbe UTC-Tageskonvention wie die Deadline-Liste im Dashboard).
+ * - **Manuell geplant**: Aufgaben (offen und erledigt, #2012), deren `deadline` auf den jeweiligen
+ *   Kalendertag fällt (dieselbe UTC-Tageskonvention wie die Deadline-Liste im Dashboard); erledigte
+ *   erscheinen unter den offenen, klar abgesetzt (`week-view-done`).
  * - **Systemisch empfohlen**: die `suggestions`-Liste (`GET /suggestions`) gehört ausschließlich zum
  *   heutigen Tag (`referenceDate`) — die Empfehlungs-Engine (`server/src/logics/find.ts`) bewertet
  *   grundsätzlich nur den aktuellen Zeitpunkt (Prioritäts-/Deadline-/Balance-Score gegen den globalen
@@ -64,18 +65,15 @@ export const WeekView = ({ tasks, nextTask, suggestions = [], referenceDate, onS
 	const today = useMemo(() => referenceDate ?? new Date(), [referenceDate]);
 	const weekDates = useMemo(() => weekDatesFor(today), [today]);
 
-	const openTasksWithDeadline = useMemo(
-		() =>
-			tasks.filter(
-				(task): task is Task & { deadline: Date } => task.status !== TaskStatus.Done && task.deadline != null,
-			),
+	const tasksWithDeadline = useMemo(
+		() => tasks.filter((task): task is Task & { deadline: Date } => task.deadline != null),
 		[tasks],
 	);
 
 	/**
 	 * Ein Empfehlungs-Datum gehört unter „heute", wenn es entweder gar keine Deadline hat ODER seine
 	 * Deadline außerhalb der angezeigten Kalenderwoche liegt — liegt sie INNERHALB der Woche, erscheint
-	 * dieselbe Aufgabe bereits (korrekt) unter ihrem eigenen Deadline-Tag über `openTasksWithDeadline`;
+	 * dieselbe Aufgabe bereits (korrekt) unter ihrem eigenen Deadline-Tag über `tasksWithDeadline`;
 	 * eine zweite Anzeige unter „heute" wäre ein Duplikat (Fund Kreuzverhör-Runde 1, PR #1620). Der
 	 * vorherige Guard `deadline == null` blendete Empfehlungen mit einer Deadline VOR/NACH der Woche
 	 * (überfällig, oder weit in der Zukunft) fälschlich komplett aus (Kreuzverhör-Runde 2, Finding #3).
@@ -91,7 +89,10 @@ export const WeekView = ({ tasks, nextTask, suggestions = [], referenceDate, onS
 			<div className="week-view-grid">
 				{weekDates.map((day, index) => {
 					const isToday = sameUtcDay(day, today);
-					const dayTasks = openTasksWithDeadline.filter((task) => sameUtcDay(task.deadline, day));
+					const dayTasks = tasksWithDeadline.filter((task) => sameUtcDay(task.deadline, day));
+					// #2012: erledigte Aufgaben erscheinen unter den offenen — erst offene, dann Done.
+					const openDayTasks = dayTasks.filter((task) => task.status !== TaskStatus.Done);
+					const doneDayTasks = dayTasks.filter((task) => task.status === TaskStatus.Done);
 					const dayRecommendations = isToday
 						? suggestions.filter(
 								(task) => deadlineOutsideWeek(task.deadline) && (nextTask === null || task.id !== nextTask.id),
@@ -106,8 +107,13 @@ export const WeekView = ({ tasks, nextTask, suggestions = [], referenceDate, onS
 							_level={3}
 						>
 							<ul className="week-view-tasks">
-								{dayTasks.map((task) => (
+								{openDayTasks.map((task) => (
 									<li key={`manual-${task.id}`}>{task.title}</li>
+								))}
+								{doneDayTasks.map((task) => (
+									<li key={`manual-${task.id}`} className="week-view-done">
+										{task.title}
+									</li>
 								))}
 								{dayRecommendations.map((task) => (
 									<li key={`empfohlen-${task.id}`}>{task.title} (empfohlen)</li>

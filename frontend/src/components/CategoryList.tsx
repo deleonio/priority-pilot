@@ -1,4 +1,4 @@
-import { KolAlert, KolButton, KolCard, KolSpin } from '@public-ui/react-v19';
+import { KolAlert, KolButton, KolSpin } from '@public-ui/react-v19';
 import type { Category } from 'client';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
@@ -90,20 +90,20 @@ export const CategoryList = ({ onCategoryChanged }: CategoryListProps) => {
 			{loading ? (
 				<KolSpin _show _variant="cycle" _label="Kategorien werden geladen …" />
 			) : categories.length === 0 && error === null ? (
-				/* Leerzustand als Einladung — die Toolbar bleibt aus, damit es genau eine Primäraktion gibt. */
+				/* Leerzustand als Einladung — die Toolbar bleibt aus, damit es genau eine Primäraktion gibt.
+				   #2015: keine Kartenfläche (Regel 1 — die Liste liegt selbst in der Karte „Kategorien verwalten“). */
 				<section className="empty-state">
-					<KolCard _label="Noch keine Kategorien" _level={3}>
-						<p>
-							Lege deine erste Kategorie an, um Aufgaben nach Thema zu bündeln. Ohne Kategorie bleiben Aufgaben einfach
-							ungeordnet — nichts geht verloren.
-						</p>
-						<KolButton
-							_label="Neue Kategorie anlegen"
-							_icons={{ left: { icon: 'fa-solid fa-plus' } }}
-							_variant="primary"
-							_on={{ onClick: () => setFormMode({ kind: 'create' }) }}
-						/>
-					</KolCard>
+					<h3>Noch keine Kategorien</h3>
+					<p>
+						Lege deine erste Kategorie an, um Aufgaben nach Thema zu bündeln. Ohne Kategorie bleiben Aufgaben einfach
+						ungeordnet — nichts geht verloren.
+					</p>
+					<KolButton
+						_label="Neue Kategorie anlegen"
+						_icons={{ left: { icon: 'fa-solid fa-plus' } }}
+						_variant="primary"
+						_on={{ onClick: () => setFormMode({ kind: 'create' }) }}
+					/>
 				</section>
 			) : (
 				<>
@@ -118,18 +118,26 @@ export const CategoryList = ({ onCategoryChanged }: CategoryListProps) => {
 
 					<ul className="pillar-items category-items">
 						{categories.map((category) => (
-							<li key={category.id} className="pillar-item category-item" data-category-id={category.id}>
-								<div className="pillar-info">
-									<CategoryBadge category={category} />
-								</div>
-								<div className="pillar-actions">
+							<li key={category.id} className="category-chip" data-category-id={category.id}>
+								<CategoryBadge category={category} />
+								<span className="category-chip-actions">
+									{/* Icon-only wie die Zeilen-Aktionen der TaskTable (#2014): Die KolIcons-Font kennt
+									    keinen Stift/Papierkorb → Zahnrad/Kreuz; `_hideLabel` hält das Label im A11y-Baum. */}
 									<KolButton
 										_label="Bearbeiten"
+										_icons={{ left: { icon: 'kolicon-cogwheel' } }}
+										_hideLabel
 										_variant="secondary"
 										_on={{ onClick: () => setFormMode({ kind: 'edit', category }) }}
 									/>
-									<KolButton _label="Löschen" _variant="danger" _on={{ onClick: () => setDeleteTarget(category) }} />
-								</div>
+									<KolButton
+										_label="Löschen"
+										_icons={{ left: { icon: 'kolicon-cross' } }}
+										_hideLabel
+										_variant="danger"
+										_on={{ onClick: () => setDeleteTarget(category) }}
+									/>
+								</span>
 							</li>
 						))}
 					</ul>

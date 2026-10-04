@@ -214,6 +214,16 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 			zeitZone,
 		);
 
+		// Die bereits geladene ScoreEntry-Liste an `meilensteinStandVon` durchreichen (#2150):
+		// ein Balance-Request liest ScoreEntries nur einmal (sonst zweiter findAll in der Logik).
+		// Seit #2157 auch die berechneten Werte: die Streak-Berechnung läuft je Request genau einmal.
+		const punkteSumme = entries.reduce((summe, entry) => summe + entry.punkte, 0);
+		const meilensteinStand = await meilensteinStandVon(userId, zeitZone, {
+			entries,
+			bestStreak: best,
+			punkteSumme,
+		});
+
 		res.json({
 			// Eine Dezimalstelle: der Füllstand schwankt mit jeder Erledigung, mehr Stellen wären
 			// Rauschen. Die Säulen-Punkte bleiben roh, damit ein Client selbst weiterrechnen kann.
@@ -227,7 +237,7 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 			streak: { aktuell, best, letzterTag: aktiveTage[aktiveTage.length - 1] ?? null },
 			// Nur die erreichten Stufen: die vollständige Stufenliste liefert /scores/milestones.
 			// Sticky-Stand (#1965): einmal erreichte Stufen bleiben erhalten, der Leselauf persistiert.
-			meilensteine: (await meilensteinStandVon(userId, zeitZone)).filter((meilenstein) => meilenstein.erreicht),
+			meilensteine: meilensteinStand.filter((meilenstein) => meilenstein.erreicht),
 		});
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');

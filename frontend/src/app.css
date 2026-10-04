@@ -863,6 +863,12 @@ kol-toolbar {
 	padding-inline-start: 1.2em;
 }
 
+/* #2012: erledigte Einträge in der Tageskarte — durchgestrichen und abgeschwächt. */
+.week-view-done {
+	text-decoration: line-through;
+	opacity: 0.6;
+}
+
 /* Personalisierte Begrüßung rechts neben dem H2 in der Titelzeile (bricht bei langen Namen
    darunter um, statt eine eigene Zeile zu belegen). */
 .dashboard-heading {
@@ -2398,6 +2404,42 @@ kol-toolbar {
 	}
 }
 
+/* --- Kategorie-Verwaltung (#2014): Kennzeichen als Chips statt Kartenzeilen --- */
+/*
+ * Kategorien laufen wie die Badges der Aufgabenlisten (`.task-tree-badges`) in EINER umbrechenden
+ * Chip-Zeile; je Chip bleiben Bearbeiten/Löschen als eigene Touch-Ziele (KoliBri-Default
+ * `--a11y-min-size`, 44px). Die Chip-Regeln stehen bewusst NACH dem Säulen-Grid oben: gleiche
+ * Spezifität, spätere Quelle gewinnt — so schaltet `.category-items` das ab 48rem aktive
+ * `.pillar-items`-Grid dauerhaft auf die Flex-Zeile zurück, ohne die geteilten Karten-Styles von
+ * Säulen und Gruppen anzufassen (`li.pillar-item` bleibt deren Locator-Vertrag).
+ */
+.category-items {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+.category-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+	padding: 0 var(--pp-space-2);
+	border-radius: var(--pp-radius-pill);
+	background: var(--pp-surface-2);
+	/* Chips dürfen schrumpfen und innen umbrechen (KI-UX: Umbrechen vor Abschneiden), aber nie
+	   über den Listenrand hinauslaufen. */
+	min-width: 0;
+	max-width: 100%;
+}
+
+.category-chip-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+}
+
 /* --- Gruppen-Verwaltung im Settings-Tab „Gruppen“ (#1211): Karten-Muster analog zu den Säulen --- */
 /*
  * #1211 AK8: KolTabs rendert seine Panels in einem CSS-Grid (`div.kol-tabs` im Shadow-DOM), dessen
@@ -2719,6 +2761,36 @@ kol-toolbar {
 }
 
 .pillar-rank-list kol-button {
+	min-height: 44px;
+}
+
+/* #2078: KI-Vorschlags-Block — Herkunft + fünf Anteile als kompakte Liste, darunter das
+   Button-Paar Übernehmen/Verwerfen; alles voll breit und ohne festes Maß, damit der Block
+   bei 375 px ohne horizontales Scrollen umbricht. Touch-Ziele >= 44 px wie die Rangliste. */
+.pillar-suggestion-block {
+	margin-top: 0.5rem;
+	padding: 0.5rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 0.375rem;
+	display: grid;
+	gap: 0.5rem;
+}
+
+.pillar-suggestion-shares {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: 0.25rem;
+}
+
+.pillar-suggestion-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--pp-gap-tight);
+}
+
+.pillar-suggestion-actions kol-button {
 	min-height: 44px;
 }
 
@@ -3210,8 +3282,10 @@ kol-toolbar {
 
 /*
  * Gruppierungsfläche innerhalb eines Panels: `KolCard` für dauerhaft offene Gruppen,
- * `KolAccordion` für aufklappbare. Beide Hosts sind block-level und nehmen die volle
- * Panel-Breite ein (Muster der Dashboard-Karten).
+ * `KolAccordion`/`KolDetails` für aufklappbare. Beide Hosts sind block-level und nehmen die
+ * volle Panel-Breite ein (Muster der Dashboard-Karten). #2015: `kol-details` ist im
+ * KoliBri-Theme `inline-block` — die `display: block`-Regel hier hält Details-Blöcke zweiter
+ * Ebene auf voller Zeilenbreite.
  */
 .settings-card,
 .settings-accordion {
@@ -3239,11 +3313,13 @@ kol-toolbar {
 /*
  * Dieselbe Korrektur wie bei den Formular-Sektionen (`.form-section kol-accordion`): Das
  * KoliBri-Default-Theme rückt `.kol-accordion__content` links um 2.25em ein, rechts nur um
- * 0.5rem. Unkompensiert steht der Inhalt der Settings-Accordions schief in der Spalte und
+ * 0.5rem. Unkompensiert steht der Inhalt des Gruppen-Akkordeons schief in der Spalte und
  * verschenkt bei 375px rund 28px Breite — genau das Gegenteil des Ziels dieses Panels.
  * em-Einheiten skalieren mit der Textvergrößerung mit (WCAG 1.4.10 Reflow).
+ * #2015: Der Settings-Kompensationsteil ist entfallen — die Details-Blöcke zweiter Ebene sind
+ * `KolDetails` mit sauberem Theme-Einzug (`.kol-details__content.indented-text`), dort gibt
+ * es den schießen Akkordeon-Einzug nicht mehr.
  */
-.settings-accordion > .settings-card-stack,
 .groups-accordion > .groups-body {
 	margin-left: calc(-2.25em + var(--pp-space-2));
 }

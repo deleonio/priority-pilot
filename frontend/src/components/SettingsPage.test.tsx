@@ -2012,3 +2012,133 @@ describe('SettingsPage – #1984: Expertenmodus-Schalter im Tab Allgemein', () =
 		expect(expertTab3?.querySelectorAll('.geo-range-field').length, 'drei Geo-Regler im Expertenmodus').toBe(3);
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1972 (Spec docs/spec/issue-1972.md): Beim Aktivieren der Standorterfassung
+ * erklärt ein Warn-Hinweis direkt am Schalter die PWA-Grenze (Nähe-Alarme nur zuverlässig bei
+ * geöffneter App) und empfiehlt die Installation als Text (kein zweiter Install-Button).
+ * Bei deaktivierter Erfassung wird kein Hinweis-Knoten gerendert.
+ */
+describe('SettingsPage – #1972: PWA-Grenzen-Hinweis am Schalter „Standort erfassen“', () => {
+	/** Slot-Container eines Tabs (Muster der #1151-Tests oben). */
+	const panel = (container: HTMLElement, slot: string): HTMLElement | null =>
+		container.querySelector(`[slot="${slot}"]`);
+
+	const hint = (container: HTMLElement): Element | null =>
+		panel(container, 'tab-3')?.querySelector('kol-alert[_label="Nähe-Alarm nur bei geöffneter App"]') ?? null;
+
+	it('AK3: bei aktivierter Standorterfassung ist der Hinweis sichtbar (Grenze + Installationsempfehlung)', () => {
+		geoState.enabled = true;
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		expect(hint(container), 'PWA-Grenzen-Hinweis im Standort-Tab sichtbar').toBeTruthy();
+		expect(hint(container)?.textContent).toMatch(/geöffnet/i);
+		expect(hint(container)?.textContent).toMatch(/installier/i);
+	});
+
+	it('AK3: bei deaktivierter Standorterfassung wird kein Hinweis-Knoten gerendert', () => {
+		geoState.enabled = false;
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		expect(hint(container)).toBeNull();
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2015 — „Einstellungen: zweite Ebene ausschließlich Details-Blöcke“.
+ *
+ * Spec-Bezug: docs/spec/issue-2015.md (AK2–AK4, TF1/TF2). Regel 1 der Cockpit-Design-Sprache
+ * (.ai-knowledge/ux-design.md): Gliederung nur auf oberster Ebene, Details darunter — es gibt
+ * keine Karte in Karte und kein Akkordeon in Karte/Akkordeon; aufklappbare Inhalte zweiter
+ * Ebene sind `KolDetails` als Block über die volle Zeilenbreite. Die Klapp-Syncs bleiben:
+ * „Einzelne Animationen“ ↔ Master „Animationen“ (#1552), „Reichweite und Intervall“ ↔
+ * „Standort erfassen“ (#1098), Experteninhalte nur bei expertMode (#1984).
+ */
+describe('SettingsPage – #2015: zweite Ebene ausschließlich KolDetails (Regel 1)', () => {
+	/** KoliBri-Adapter setzt Props je nach Adapter als Property oder Attribut (Muster dieser Datei). */
+	const bound = (el: Element, name: string): string => {
+		const value = (el as unknown as Record<string, unknown>)[name] ?? el.getAttribute(name);
+		return value === null || value === undefined ? '' : String(value);
+	};
+
+	const DETAILS_SELECTOR =
+		'kol-card kol-card, kol-card kol-accordion, kol-accordion kol-card, kol-accordion kol-accordion';
+
+	it('TF1/AK2: kein Settings-Panel enthält Karte-in-Karte oder Akkordeon in Karte/Akkordeon', () => {
+		// Alle Inhalte an: Expertenmodus (global beforeEach), Standort an, Push an, Animationen an —
+		// sonst wären die Verstoß-Stellen ungerendert und der Test würde grün wisochen (Green-Washing).
+		geoState.enabled = true;
+		pushState.enabled = true;
+		pushState.supported = true;
+		localStorage.setItem('pp-animations-enabled', 'true');
+		const { container } = render(<SettingsPage {...defaultProps} isAdmin />);
+
+		const slots = ['tab-0', 'tab-1', 'tab-2', 'tab-3', 'tab-4', 'tab-5', 'tab-6', 'tab-7', 'tab-8'];
+		for (const slot of slots) {
+			const panel = container.querySelector(`[slot="${slot}"]`);
+			expect(panel, `${slot} existiert`).not.toBeNull();
+			expect(panel!.querySelector(DETAILS_SELECTOR), `${slot}: keine verschachtelte Karte/Akkordeon`).toBeNull();
+		}
+	});
+
+	it('TF2/AK2: „Einzelne Animationen“ ist ein KolDetails und folgt dem Master „Animationen“', async () => {
+		localStorage.setItem('pp-animations-enabled', 'true');
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		const details = container.querySelector('kol-details[_label="Einzelne Animationen"]');
+		expect(details, 'KolDetails „Einzelne Animationen“ (kein KolAccordion mehr)').not.toBeNull();
+		expect(bound(details!, '_open'), 'Animationen an → Details offen (#1552)').toBe('true');
+
+		const toggle = container.querySelector('kol-input-checkbox[_label="Animationen"]');
+		expect(toggle, 'Master-Schalter „Animationen“').not.toBeNull();
+		await act(async () => {
+			(toggle as unknown as { _on: { onChange: (e: unknown, v: boolean) => void } })._on.onChange(
+				{ target: toggle },
+				false,
+			);
+		});
+		expect(bound(details!, '_open'), 'Master aus → Details zu').toBe('false');
+	});
+
+	it('TF2/AK3: „Reichweite und Intervall“ liegt als KolDetails IN der Karte „Standorterfassung“', () => {
+		geoState.enabled = true;
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		const card = container.querySelector('kol-card[_label="Standorterfassung"]');
+		expect(card, 'Standort-Karte existiert').not.toBeNull();
+		expect(
+			card?.querySelector('kol-details[_label="Reichweite und Intervall"]'),
+			'KolDetails innerhalb der Karte (kein eigenständiges Akkordeon daneben)',
+		).not.toBeNull();
+		expect(
+			container.querySelector('kol-accordion[_label="Reichweite und Intervall"]'),
+			'kein eigenständiges Akkordeon mehr',
+		).toBeNull();
+	});
+
+	it('TF2/AK3: der Klappzustand folgt weiter dem Schalter „Standort erfassen“', async () => {
+		geoState.enabled = true;
+		const { container, rerender } = render(<SettingsPage {...defaultProps} />);
+		const details = container.querySelector('kol-details[_label="Reichweite und Intervall"]');
+		expect(bound(details!, '_open'), 'Standort an → Details offen').toBe('true');
+
+		// Switch aus (Hook-State kippt → rerender, inkl. key-Remount wie beim #1098-Muster):
+		geoState.enabled = false;
+		rerender(<SettingsPage {...defaultProps} />);
+		const closed = container.querySelector('kol-details[_label="Reichweite und Intervall"]');
+		expect(closed, 'bei Standort aus bleibt der Block gerendert (#1098, disabled nicht entfernt)').not.toBeNull();
+		expect(bound(closed!, '_open'), 'Standort aus → Details zu').toBe('false');
+	});
+
+	it('TF2/AK3: im Standardmodus bleibt der Block ungerendert (#1984, kein CSS-Hide)', () => {
+		localStorage.removeItem('pp-expert-mode');
+		geoState.enabled = true;
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		expect(
+			container.querySelector('kol-accordion[_label="Reichweite und Intervall"]'),
+			'heute noch Akkordeon — nach dem Umbau darf keine Klapp-Fläche übrig bleiben',
+		).toBeNull();
+		expect(container.querySelector('kol-details[_label="Reichweite und Intervall"]'), 'kein CSS-Hide').toBeNull();
+	});
+});

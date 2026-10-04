@@ -257,6 +257,8 @@ vi.mock('../api', () => ({
 		// (noch nicht existierende) Favoriten-Abfrage nicht mitreißen.
 		listPlaceFavorites: vi.fn().mockResolvedValue([]),
 		createPlaceFavorite: vi.fn(),
+		// #2078: Feedback-Loop — Spy für die Übernahme-Prüfung (AK5).
+		recordPillarFeedback: vi.fn(),
 	},
 }));
 
@@ -276,6 +278,7 @@ vi.mock('./ConfirmSeriesActionModal', () => ({
 import { api } from '../api';
 import { TaskForm, type TaskFormHandle, type TaskFormInitialValues } from './TaskForm';
 import type { EntitlementMap } from '../lib/planOffers';
+import { suggestionsToContributions } from '../lib/pillar';
 import { PlanProvider } from '../lib/usePlan';
 
 const mockSuggestPillars = api.suggestPillars as ReturnType<typeof vi.fn>;
@@ -288,6 +291,7 @@ const mockListGroups = api.listGroups as ReturnType<typeof vi.fn>;
 const mockGetGroupMembers = api.getGroupMembers as ReturnType<typeof vi.fn>;
 const mockListPlaceFavorites = api.listPlaceFavorites as ReturnType<typeof vi.fn>;
 const mockCreatePlaceFavorite = api.createPlaceFavorite as ReturnType<typeof vi.fn>;
+const mockRecordPillarFeedback = api.recordPillarFeedback as ReturnType<typeof vi.fn>;
 
 // --- Fixtures ---
 
@@ -3158,5 +3162,209 @@ describe('TaskForm — Standardmodus ohne Säulen-Prozentregler (#1984 AK1)', ()
 		);
 
 		expect(screen.queryByRole('slider', { name: /Körper/ })).toBeNull();
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2078 — KI-Vorschlag als übernehmbarer Block (Spec: docs/spec/issue-2078.md).
+ *
+ * Vertrag: Der Vorschlag wird nie automatisch angewendet — er erscheint als Block „KI-Vorschlag“
+ * (Herkunft + fünf Anteile als „Säulenname — x %“) mit „Vorschlag übernehmen“/„Verwerfen“.
+ * Übernehmen setzt exakt die Server-`share`-Werte (#2076; Fallback ohne `share`:
+ * `suggestionsToContributions`); ein erneuter Tipp kehrt per aria-live zur Rangfolge-Treppe
+ * zurück (#2074). Speichern nach Übernahme meldet die finale Verteilung samt Anteilen an den
+ * Feedback-Loop (#45), ohne Übernahme wird kein Feedback gesendet. Rot, solange TaskForm den
+ * Vorschlag sofort anwendet und es den Block nicht gibt.
+ */
+describe('TaskForm — KI-Vorschlag-Block (#2078)', () => {
+	const fivePillars: Pillar[] = [
+		{ id: 1, name: 'Körper', description: '', weight: 20 },
+		{ id: 2, name: 'Mentale Gesundheit', description: '', weight: 20 },
+		{ id: 3, name: 'Beziehungen', description: '', weight: 20 },
+		{ id: 4, name: 'Wirksamkeit', description: '', weight: 20 },
+		{ id: 5, name: 'Sinn', description: '', weight: 20 },
+	];
+
+	// Anteile bewusst UNgleich den Konfidenzen — leitet der Code die Anteile aus den Confidences
+	// ab (Status quo), zeigen die gerenderten Werte andere Zahlen (Mutation-Schutz für AK4a).
+	const kiSuggestions = [
+		{ pillarId: 1, confidence: 99, share: 40 },
+		{ pillarId: 2, confidence: 10, share: 30 },
+		{ pillarId: 3, confidence: 5, share: 15 },
+		{ pillarId: 4, confidence: 2, share: 10 },
+		{ pillarId: 5, confidence: 1, share: 5 },
+	];
+
+	const tapPillar = async (name: RegExp): Promise<void> => {
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name }));
+		});
+	};
+
+	/** Rendert mit KI-Gate und vorbelegtem Titel — der Auto-Trigger (#305) holt den Vorschlag. */
+	const openWithSuggestion = async (
+		suggestions: { pillarId: number; confidence: number; share?: number }[] = kiSuggestions,
+	): Promise<void> => {
+		mockSuggestPillars.mockResolvedValue(suggestions);
+		await act(async () => {
+			renderWithAiGateOn(
+				<TaskForm task={null} initialValues={{ title: 'KI-Task' }} {...defaultProps} pillars={fivePillars} />,
+			);
+		});
+	};
+
+	it('AK1 (+AK4a) — Block „KI-Vorschlag“ mit Herkunft und share-Anteilen; kein automatisches Anwenden', async () => {
+		await openWithSuggestion();
+
+		// Block mit Herkunftsangabe und den fünf Anteilen als Liste „Säulenname — x %“.
+		expect(screen.getByRole('heading', { name: 'KI-Vorschlag' })).toBeInTheDocument();
+		expect(screen.getByText('Körper — 40 %')).toBeInTheDocument();
+		expect(screen.getByText('Mentale Gesundheit — 30 %')).toBeInTheDocument();
+		expect(screen.getByText('Beziehungen — 15 %')).toBeInTheDocument();
+		expect(screen.getByText('Wirksamkeit — 10 %')).toBeInTheDocument();
+		expect(screen.getByText('Sinn — 5 %')).toBeInTheDocument();
+
+		// Kein automatisches Anwenden: Rangliste zeigt weiter die Gleichverteilung (20 %), ohne Ränge.
+		expect(screen.getByRole('button', { name: /^Körper — 20 %$/ })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /^Sinn — 20 %$/ })).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: /Rang \d/ })).toBeNull();
+	});
+
+	it('AK2 — „Verwerfen“ entfernt den Block; angetippte Rangfolge und Anteile bleiben unverändert', async () => {
+		mockSuggestPillars.mockResolvedValue(kiSuggestions);
+		renderWithAiGateOn(<TaskForm task={null} {...defaultProps} pillars={fivePillars} />);
+
+		await tapPillar(/^Körper/);
+		await tapPillar(/Mentale Gesundheit/);
+		await fillTitle('Verwerfen-Task');
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Säulen vorschlagen' }));
+		});
+		await act(async () => {}); // Vorschlag-Abruf abwarten
+		expect(screen.getByRole('heading', { name: 'KI-Vorschlag' })).toBeInTheDocument();
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Verwerfen' }));
+		});
+
+		expect(screen.queryByRole('heading', { name: 'KI-Vorschlag' })).toBeNull();
+		expect(screen.getByRole('button', { name: 'Rang 1 von 5: Körper — 50 %' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Rang 2 von 5: Mentale Gesundheit — 20 %' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /^Beziehungen — 10 %$/ })).toBeInTheDocument();
+	});
+
+	it('AK3 — Übernehmen setzt exakt die KI-Anteile (Ränge absteigend); erneuter Tipp kehrt per aria-live zur Treppe zurück', async () => {
+		await openWithSuggestion();
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Vorschlag übernehmen' }));
+		});
+
+		expect(screen.getByRole('button', { name: 'Rang 1 von 5: Körper — 40 %' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Rang 2 von 5: Mentale Gesundheit — 30 %' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Rang 3 von 5: Beziehungen — 15 %' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Rang 4 von 5: Wirksamkeit — 10 %' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Rang 5 von 5: Sinn — 5 %' })).toBeInTheDocument();
+
+		// Erneutes Antippen einer Säule: Treppe ersetzt die KI-Verteilung, Live-Region meldet Rückkehr.
+		// Test-Pflege: nach der Übernahme trägt jede Zeile ihr „Rang N von 5“-Präfix (AK3-Asserts
+		// darüber) — der Tipp zielt auf den gerankten Button, nicht auf den bloßen Namen.
+		await tapPillar(/^Rang 5 von 5: Sinn/);
+		expect(screen.getByRole('button', { name: 'Rang 1 von 5: Körper — 50 %' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Rang 4 von 5: Wirksamkeit — 10 %' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /^Sinn — 5 %$/ })).toBeInTheDocument();
+		const live = document.querySelector('[aria-live="polite"]');
+		expect(live?.textContent ?? '').toContain('Rangfolge');
+	});
+
+	it('AK4b — ohne `share` erzeugt der Fallback (`suggestionsToContributions`) gültige Anteile', async () => {
+		const legacy = [
+			{ pillarId: 1, confidence: 60 },
+			{ pillarId: 2, confidence: 30 },
+			{ pillarId: 3, confidence: 10 },
+		];
+		await openWithSuggestion(legacy);
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Vorschlag übernehmen' }));
+		});
+
+		const expected = suggestionsToContributions(legacy, fivePillars);
+		expect(expected).toHaveLength(5);
+		expect(expected.reduce((acc, entry) => acc + entry.share, 0)).toBe(100);
+		for (const entry of expected) {
+			expect(entry.share).toBeGreaterThanOrEqual(5);
+			expect(entry.share).toBeLessThanOrEqual(80);
+		}
+		// Rangordnung: Anteile absteigend, Gleichstand nach Listenordnung (stabile Sortierung).
+		const ordered = [...expected].sort((a, b) => b.share - a.share);
+		ordered.forEach((entry, index) => {
+			const name = fivePillars.find((pillar) => pillar.id === entry.pillarId)?.name ?? '';
+			expect(
+				screen.getByRole('button', { name: `Rang ${index + 1} von 5: ${name} — ${entry.share} %` }),
+			).toBeInTheDocument();
+		});
+	});
+
+	it('AK4c — fremde pillarId in der Antwort fällt auf den Fallback zurück statt 0 % zu setzen', async () => {
+		// Länge und share-Abdeckung täuschen über eine vollständige Antwort hinweg: Säule 5 fehlt,
+		// stattdessen nennt die Antwort die fremde pillarId 999. Ohne ID-Guard bekäme Säule 5 still
+		// 0 % (byId.get verfehlt) — der Konfidenz-Fallback muss greifen.
+		const foreign = [
+			{ pillarId: 1, confidence: 99, share: 40 },
+			{ pillarId: 2, confidence: 10, share: 30 },
+			{ pillarId: 3, confidence: 5, share: 15 },
+			{ pillarId: 4, confidence: 2, share: 10 },
+			{ pillarId: 999, confidence: 1, share: 5 },
+		];
+		await openWithSuggestion(foreign);
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Vorschlag übernehmen' }));
+		});
+
+		const expected = suggestionsToContributions(foreign, fivePillars);
+		expect(expected).toHaveLength(5);
+		expect(expected.reduce((acc, entry) => acc + entry.share, 0)).toBe(100);
+		for (const entry of expected) {
+			expect(entry.share).toBeGreaterThanOrEqual(5);
+			expect(entry.share).toBeLessThanOrEqual(80);
+		}
+		// Rangordnung: Anteile absteigend, Gleichstand nach Listenordnung (stabile Sortierung).
+		const ordered = [...expected].sort((a, b) => b.share - a.share);
+		ordered.forEach((entry, index) => {
+			const name = fivePillars.find((pillar) => pillar.id === entry.pillarId)?.name ?? '';
+			expect(
+				screen.getByRole('button', { name: `Rang ${index + 1} von 5: ${name} — ${entry.share} %` }),
+			).toBeInTheDocument();
+		});
+	});
+
+	it('AK5a — nach Übernahme sendet Speichern die finale Verteilung samt Anteilen als Feedback', async () => {
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+		await openWithSuggestion();
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Vorschlag übernehmen' }));
+		});
+		await clickSave();
+
+		expect(mockRecordPillarFeedback).toHaveBeenCalledTimes(1);
+		const [{ pillarFeedbackInput }] = mockRecordPillarFeedback.mock.calls[0] as [
+			{ pillarFeedbackInput: { title: string; pillars: { pillarId: number; confidence: number; share: number }[] } },
+		];
+		expect(pillarFeedbackInput.title).toBe('KI-Task');
+		// confidence = KI-Konfidenz, share = finale Anteile (Spec-Entscheidung Feedback-Vertrag).
+		expect(pillarFeedbackInput.pillars).toEqual(kiSuggestions);
+	});
+
+	it('AK5b — ohne Übernahme wird kein Feedback gesendet', async () => {
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+		await openWithSuggestion(); // Block steht, wird NICHT übernommen
+
+		await clickSave();
+
+		expect(mockCreateTask).toHaveBeenCalled();
+		expect(mockRecordPillarFeedback).not.toHaveBeenCalled();
 	});
 });

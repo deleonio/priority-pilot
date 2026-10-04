@@ -20,19 +20,24 @@ vi.mock('@public-ui/react-v19', () => ({
 	KolCard: ({ _label, children }: { _label?: string; children?: React.ReactNode }) => (
 		<section aria-label={_label}>{children}</section>
 	),
+	// TEST-PFLEGE #2013: der Mock rendert jetzt auch die Slot-Kinder — der zugängliche Name der
+	// Shadow-DOM-Taste entsteht aus `_label` UND Slot-Inhalt (docs/spec/issue-2013.md).
 	KolButton: ({
 		_label,
 		_on,
 		_disabled,
+		children,
 		...rest
 	}: {
 		_label?: string;
 		_on?: { onClick?: () => void };
 		_disabled?: boolean;
+		children?: React.ReactNode;
 		'data-testid'?: string;
 	}) => (
 		<button type="button" disabled={_disabled} onClick={() => _on?.onClick?.()} {...rest}>
 			{_label}
+			{children}
 		</button>
 	),
 	// TEST-PFLEGE #1595 (AK5): Das Anlege-Formular nutzt jetzt `AddressAutocomplete` — der Mock muss
@@ -203,7 +208,9 @@ describe('PlaceFavoritesSection (#1342 AK3, #1595)', () => {
 		render(<PlaceFavoritesSection />);
 		await flush();
 
-		fireEvent.click(screen.getByRole('button', { name: /favorit löschen/i }));
+		// TEST-PFLEGE #2013: sichtbar steht nur „Löschen“ — der zugängliche Name enthält zusätzlich
+		// die Anschrift (AK2).
+		fireEvent.click(screen.getByRole('button', { name: /löschen/i }));
 		await flush();
 
 		const dialog = screen.getByTestId('modal');
@@ -221,13 +228,52 @@ describe('PlaceFavoritesSection (#1342 AK3, #1595)', () => {
 		render(<PlaceFavoritesSection />);
 		await flush();
 
-		fireEvent.click(screen.getByRole('button', { name: /favorit löschen/i }));
+		// TEST-PFLEGE #2013: siehe oben — zugänglicher Name ist „Löschen“ + Anschrift.
+		fireEvent.click(screen.getByRole('button', { name: /löschen/i }));
 		await flush();
 		fireEvent.click(within(screen.getByTestId('modal')).getByRole('button', { name: /abbrechen/i }));
 		await flush();
 
 		expect(apiMocks.deletePlaceFavorite).not.toHaveBeenCalled();
 		expect(screen.getByTestId('place-favorite-row')).toBeInTheDocument();
+	});
+
+	// #2013 AK1 (docs/spec/issue-2013.md) — sichtbare Beschriftung ausschließlich „Löschen“.
+	// Rot, solange die Anschrift im sichtbaren Text steht (`_label={`Favorit löschen: …`}`).
+	it('AK1 — die sichtbare Beschriftung der Löschen-Schaltfläche ist ausschließlich „Löschen“', async () => {
+		apiMocks.listPlaceFavorites = vi.fn().mockResolvedValue([FAVORITE]);
+		render(<PlaceFavoritesSection />);
+		await flush();
+
+		const deleteButtons = screen.getAllByRole('button', { name: /löschen/i });
+		expect(deleteButtons.length).toBeGreaterThanOrEqual(1);
+		for (const button of deleteButtons) {
+			// Der zugängliche Name trägt die Anschrift (AK2) über den visuell versteckten Slot —
+			// der SICHTBARE Text der Taste bleibt „Löschen“.
+			const clone = button.cloneNode(true) as HTMLElement;
+			clone.querySelectorAll('.visually-hidden').forEach((hidden) => hidden.remove());
+			expect(clone.textContent?.trim()).toBe('Löschen');
+		}
+	});
+
+	// #2013 AK2 — der zugängliche Name beginnt mit „Löschen“ und enthält die VOLLSTÄNDIGE Anschrift
+	// der eigenen Zeile; bei zwei Orten bleibt je Zeile eindeutig, welcher Ort gelöscht wird.
+	it('AK2 — der zugängliche Name der Löschen-Schaltfläche enthält „Löschen“ und die vollständige Anschrift', async () => {
+		apiMocks.listPlaceFavorites = vi
+			.fn()
+			.mockResolvedValue([FAVORITE, { id: 2, address: 'Marienplatz 8, München', latitude: null, longitude: null }]);
+		render(<PlaceFavoritesSection />);
+		await flush();
+
+		const rows = screen.getAllByTestId('place-favorite-row');
+		expect(rows).toHaveLength(2);
+		for (const row of rows) {
+			const address = row.querySelector('.api-tokens__name')?.textContent ?? '';
+			expect(address).not.toBe('');
+			const deleteButton = within(row).getByRole('button', { name: /löschen/i });
+			expect(deleteButton.textContent).toMatch(/^Löschen/);
+			expect(deleteButton.textContent).toContain(address);
+		}
 	});
 });
 

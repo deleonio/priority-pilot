@@ -142,10 +142,11 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
   Ein farbiges Kennzeichen warnt vor **überfälligen** (rot) und **bald fälligen**
   (orange, heute bis in 3 Tagen) Aufgaben.
 
-Über den Karten schaltest du zwischen **Tagesansicht** und **Wochenansicht** um. Die
+Über den Karten schaltest du zwischen **Heute** und **Woche** um. Die
 Wochenansicht zeigt die aktuelle Kalenderwoche als sieben Tageskarten (Montag zuerst) mit
-den offenen Aufgaben, die an dem Tag fällig sind; unter Heute stehen zusätzlich die
-empfohlenen Aufgaben und die nächste Aufgabe. Mit **„Tag öffnen"** springst du in den
+den offenen Aufgaben, die an dem Tag fällig sind; erledigte erscheinen durchgestrichen
+darunter. Unter Heute stehen zusätzlich die
+empfohlenen Aufgaben und die nächste Aufgabe. Mit **„Tag öffnen“** springst du in den
 Aufgaben-Tab und siehst dort die Aufgaben dieses Tages.
 
 ---
@@ -434,9 +435,11 @@ stärker als bei anderen. Aufgaben aus der Zeit davor, die noch keine oder nur e
 tragen, behalten ihre gespeicherte Form; beim **Bearbeiten** wird die Verteilung im Formular auf
 alle Säulen vervollständigt und so mit dem nächsten Speichern.
 
-Mit **„Säulen vorschlagen"** verteilt eine KI die Anteile aus Titel und Beschreibung. Nach der
-Schnellerfassung mit vorbelegtem Titel passiert das automatisch – den Vorschlag kannst du vor
-dem Speichern anpassen.
+Mit **„Säulen vorschlagen"** schlägt dir eine KI die Anteile aus Titel und Beschreibung vor.
+Der Vorschlag erscheint als eigener Block **„KI-Vorschlag"** und wird nie automatisch
+angewendet – auch nicht nach der Schnellerfassung mit vorbelegtem Titel. Erst
+**„Vorschlag übernehmen"** setzt die Verteilung auf die KI-Anteile; **„Verwerfen"** lässt deine
+bisherige Rangfolge unverändert.
 
 ### Säulen-Gewichtung anpassen
 
@@ -609,7 +612,8 @@ Allgemein, Säulen, Kategorien, Standort, Orte, KI, Gruppen und **Pakete & Abo**
   Sprache nicht dabei, erscheint die Oberfläche auf Deutsch.
 - **Bild der Lebensbalance** – wähle zwischen **Herz**, **Blasen**, **Scheiben**,
   **Ringe**, **Strahlen**, **Blüte**, **Kristall**, **Segmente** und **Zeiger**. Alle zeigen dieselbe Rechnung, nur anders
-  dargestellt. Die Wahl gilt auf diesem Gerät.
+  dargestellt. Die Wahl wird am Konto gespeichert und gilt auf allen Geräten, auf denen du
+  angemeldet bist.
 - **Animationen** – die Schalter **„Animationen"**, **„Herz animieren"** und
   **„Erledigt animieren"** steuern die Bewegungen des Balance-Bildes auf dem
   Dashboard und den Ablauf beim Erledigen einer Aufgabe. Ohne Bewegung bleibt das

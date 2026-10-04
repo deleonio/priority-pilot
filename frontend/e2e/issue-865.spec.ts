@@ -156,6 +156,15 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	 * Spec-Referenz: docs/spec/issue-865.md → UX-Referenz
 	 */
 	test('AK7: Toolbar-Aktionen bleiben über Tab-Fokus erreichbar (Screenreader)', async ({ page }) => {
+		// Vorbedingung härten: Der e2e-Shard teilt sich eine In-Memory-DB und frühere Specs legen
+		// Tasks an; der Erststart-Flow (#2069) erscheint nur bei leerer Task-Liste. Der synthetische
+		// Nutzer (Pass-Through ohne Auth-Kontext) sieht alle Tasks — die Liste wird deshalb vor dem
+		// Start über die echte API geleert, statt auf eine günstige Shard-Position zu hoffen (CI:
+		// „Später“-Timeout auf Shard 5, PR #2149 — die Zusammensetzung verschob sich durch die
+		// neue 2078-Spec).
+		for (const { id } of (await (await page.request.get('/api/v1/tasks')).json()) as { id: number }[]) {
+			await page.request.delete(`/api/v1/tasks/${id}`);
+		}
 		await page.goto('/app/');
 		// Ohne eigene Tasks erscheint seit #2069 der Erststart-Flow und nimmt den ersten Tab-Fokus —
 		// für diesen AK schließen wir ihn wie in smoke.spec.ts mit „Später“. Chromes Sequential-Focus-

@@ -2,7 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 // ROTER Spec-Test (#1362, Spec docs/spec/issue-1362.md): `berechneMeilensteine` existiert noch nicht.
 // Der Import schlägt fehl, bis `server/src/logics/milestones.ts` die Funktion bereitstellt.
-import { berechneMeilensteine } from './milestones.js';
+import { berechneMeilensteine, meilensteinStandVon } from './milestones.js';
+import { ScoreEntry } from '../models/index.js';
 
 /**
  * Vertrag für die Meilenstein-Berechnung (AK2/AK3/AK4/AK6, #1362).
@@ -81,5 +82,63 @@ describe('berechneMeilensteine', () => {
 			result.every((stufe) => stufe.erreicht === false),
 			true,
 		);
+	});
+
+	it('AK2 (#2150, docs/spec/issue-2150.md): mit übergebenen entries identisches Ergebnis ohne erneuten findAll-Leselauf', async (t) => {
+		const original = ScoreEntry.findAll;
+		let aufrufe = 0;
+		ScoreEntry.findAll = (async () => {
+			aufrufe++;
+			return [] as never;
+		}) as typeof ScoreEntry.findAll;
+		t.after(() => {
+			ScoreEntry.findAll = original;
+		});
+
+		// Rückfall (ohne Übergabe): exakt das alte Verhalten — eigener Leselauf.
+		const ohneDaten = await meilensteinStandVon(undefined, 'Europe/Berlin');
+		assert.equal(aufrufe, 1, 'Rückfall: ohne übergebene Daten wird selbst gelesen');
+
+		// Mit vorbereiteten Daten: gleiche Antwort, KEIN erneuter Leselauf. (#2157: ohne Cast —
+		// der `daten`-Parameter ist Teil der Signatur, `{ entries }` ist typsicher.)
+		const mitDaten = await meilensteinStandVon(undefined, 'Europe/Berlin', { entries: [] });
+		assert.deepEqual(mitDaten, ohneDaten, 'übergebene Daten liefern dasselbe Ergebnis wie der Rückfall');
+		assert.equal(aufrufe, 1, 'mit übergebenen Daten darf nicht erneut gelesen werden');
+	});
+
+	it('AK2 (#2157, docs/spec/issue-2157.md): übergebene bestStreak/punkteSumme schlagen die interne Berechnung — Streak läuft je Stand genau einmal', async () => {
+		// Leere Entries: die interne Berechnung liefe auf 0/0 (nichts erreicht). Der Vertrag
+		// verlangt, dass die durchgereichten Werte der Route GEWINNEN — genau daran scheitert der
+		// heutige Stand (meilensteinStandVon rechnet den Streak intern selbst, 2. Aufruf je Request).
+		const daten = { entries: [] as ScoreEntry[], bestStreak: 30, punkteSumme: 250 };
+		const stand = await meilensteinStandVon(undefined, 'UTC', daten);
+
+		const stufe = (typ: string, schwelle: number) =>
+			stand.find((m) => m.typ === typ && m.schwelle === schwelle)?.erreicht;
+		assert.equal(stufe('streak', 30), true, 'übergebene bestStreak=30 muss die 30-Tage-Stufe erreichen');
+		assert.equal(stufe('streak', 14), true, 'übergebene bestStreak=30 muss auch die 14-Tage-Stufe erreichen');
+		assert.equal(stufe('streak', 100), false, 'übergebene bestStreak=30 darf die 100-Tage-Stufe nicht erreichen');
+		assert.equal(stufe('punkte', 250), true, 'übergebene punkteSumme=250 muss die 250-Punkte-Stufe erreichen');
+		assert.equal(stufe('punkte', 1000), false, 'übergebene punkteSumme=250 darf die 1000-Punkte-Stufe nicht erreichen');
+	});
+
+	it('AK3 (#2157, docs/spec/issue-2157.md): entries ohne bestStreak — Streak und Punkte-Summe werden intern aus den Entries berechnet', async () => {
+		// Drei Erledigungen an den letzten drei Tagen (UTC-Mittag, dst-sicher) à 20 Punkte:
+		// intern best=3, punkteSumme=60 → Streak-3 und Punkte-50 erreicht, nichts darüber.
+		const utcTag = (tageZurueck: number): Date => {
+			const jetzt = new Date();
+			return new Date(Date.UTC(jetzt.getUTCFullYear(), jetzt.getUTCMonth(), jetzt.getUTCDate() - tageZurueck, 12));
+		};
+		const entries = [1, 2, 3].map((tageZurueck) =>
+			ScoreEntry.build({ taskId: tageZurueck, punkte: 20, pünktlich: true, zeitpunkt: utcTag(tageZurueck) }),
+		);
+		const stand = await meilensteinStandVon(undefined, 'UTC', { entries });
+
+		const stufe = (typ: string, schwelle: number) =>
+			stand.find((m) => m.typ === typ && m.schwelle === schwelle)?.erreicht;
+		assert.equal(stufe('streak', 3), true, '3 Tage in Folge müssen intern die 3-Tage-Stufe erreichen');
+		assert.equal(stufe('streak', 7), false, 'die interne Bestmarke 3 darf die 7-Tage-Stufe nicht erreichen');
+		assert.equal(stufe('punkte', 50), true, '60 Punkte müssen intern die 50-Punkte-Stufe erreichen');
+		assert.equal(stufe('punkte', 250), false, '60 Punkte dürfen die 250-Punkte-Stufe nicht erreichen');
 	});
 });
