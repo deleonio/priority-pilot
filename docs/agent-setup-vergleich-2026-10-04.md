@@ -3,7 +3,8 @@
 Vier-Tage-Vergleich der vier Setup-Kombinationen aus Agent-Laufzeit (Claude Code, pi)
 und LLM-Provider (Anthropic, z.ai): Kosten, Laufzeiten, Durchsatz und Nacharbeit — plus
 die Erkenntnis, dass der eigentliche Durchsatz-Engpass die Concurrency-Gruppe `llm` ist,
-nicht das Modell.
+nicht das Modell. Die daraus gezogenen Konsequenzen und der aktuelle Stand der Hebel:
+[pipeline-optimierung.md](./pipeline-optimierung.md).
 
 ## Datenbasis
 
