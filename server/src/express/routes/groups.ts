@@ -10,6 +10,7 @@ import { requirePlanFeature } from '../planGuard.js';
 import { allowEmail } from '../../logics/allowedEmails.js';
 import { claimAccessMailSlot, sendAccountAccessMail } from '../../logics/accessMail.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
+import { protokolliereKpiEreignis } from '../../logics/kpiKennzahlen.js';
 
 /**
  * Gruppen-CRUD (#1211, Teil 1 der Gruppen-Epic #952). Der Router hängt hinter dem globalen
@@ -447,6 +448,9 @@ groupsRouter.post(
 				status: 'pending',
 				createdAt: new Date(),
 			});
+			// #1989: je angelegter Einladung ein anonymes KPI-Ereignis — je Paar und Tag einmal;
+			// vor der Antwort abgewartet (Nebenwirkung beobachtbar), ein Fehler ist folgenlos.
+			await protokolliereKpiEreignis(user.id, 'einladung', new Date(), invitedUserId);
 			let accessMailThrottled = false;
 			if (newInviteeEmail !== null) {
 				// #2041: je Nutzer begrenzt — an der Grenze entfällt nur die Mail.

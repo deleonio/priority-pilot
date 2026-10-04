@@ -22,6 +22,7 @@ import {
 import { acquireGlobalRun, releaseGlobalRun } from '../../logics/reassignLock.js';
 import { BACKGROUND_PORTION_SIZE, readBackgroundRun, startBackgroundRun } from '../../logics/reassignBackgroundRun.js';
 import { ladeCareWirkung, type CareWirkung } from '../../logics/careWirkung.js';
+import { ladeKpis, type KpiAuswertung } from '../../logics/kpiKennzahlen.js';
 import { activateTopWaitlist, activateWaitlistEntry, listWaitlistRanked } from '../../logics/waitlist.js';
 import { syncUserPlan } from '../../logics/billing/lifecycle.js';
 import { createPaypalProvider, type PaypalProviderDeps } from '../../logics/billing/paypalProvider.js';
@@ -529,6 +530,25 @@ export const createAdminRouter = (
 		async (_req: Request, res: Response<CareWirkung | ErrorDto>) => {
 			try {
 				res.json(await ladeCareWirkung());
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	// GET /admin/kpis — Markteinführungs-Kennzahlen (#1989): Aktivierung, Day-7-Rückkehr, Share-Rate
+	// und Einladungen je Registrierungsperiode als Quoten (`logics/kpiKennzahlen.ts`).
+	adminRouter.get(
+		'/admin/kpis',
+		requireRole('admin'),
+		async (req: Request, res: Response<KpiAuswertung | ErrorDto>) => {
+			const zeitraum = (req.query as Record<string, unknown>).zeitraum;
+			if (zeitraum !== 'woche' && zeitraum !== 'monat') {
+				sendError(res, 400, 'zeitraum muss woche oder monat sein.');
+				return;
+			}
+			try {
+				res.json(await ladeKpis(zeitraum));
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
 			}

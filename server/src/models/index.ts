@@ -38,6 +38,9 @@ import './carePushToggle.js';
 // Ebenso ohne Assoziationen: Wartelisten-Eintrag des Launch-Zugangs (#1982, ADR 0019) — gelesen
 // und geschrieben ausschließlich über `logics/waitlist.ts`.
 import './waitlistEntry.js';
+// Ebenso ohne Assoziationen: anonyme KPI-Ereignisse der Markteinführung (#1989) — gelesen und
+// geschrieben ausschließlich über `logics/kpiKennzahlen.ts`.
+import './kpiEvent.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',

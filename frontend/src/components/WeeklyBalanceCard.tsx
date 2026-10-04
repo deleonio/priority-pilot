@@ -169,6 +169,9 @@ export const WeeklyBalanceCard = () => {
 		if (navigator.canShare?.({ files: [datei] })) {
 			try {
 				await navigator.share({ files: [datei], title: t('weeklyCard.label'), text: wocheLabel });
+				// #1989: Share-Ping fire-and-forget — nur der System-Share zählt, Abbruch
+				// (AbortError) und Download-Fallback nicht. Ein Ping-Fehler bleibt unsichtbar.
+				void Promise.resolve(api.postWochenkarteShare()).catch(() => {});
 				return;
 			} catch (fehlerBeimTeilen) {
 				// Abbruch des Systemdialogs ist keine Störung (UX-Beratung) — sonst Meldung.
