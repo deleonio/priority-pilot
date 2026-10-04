@@ -89,5 +89,15 @@
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
 		"importieren": "Aufgaben aus Todoist oder CSV importieren"
+	},
+	"weeklyCard": {
+		"label": "Meine Woche in fünf Säulen",
+		"laden": "Wochenbalance wird geladen …",
+		"leer": "Noch keine Punkte in dieser Woche — die Karte füllt sich, sobald du Aufgaben abhakst.",
+		"woche": "KW {{kw}} / {{jahr}}",
+		"teilen": "Woche teilen",
+		"speichern": "PNG speichern",
+		"erzeuge": "Karte wird erzeugt …",
+		"fehler": "Die Karte konnte nicht erzeugt werden. Versuche es bitte noch einmal."
 	}
 }

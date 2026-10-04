@@ -89,5 +89,15 @@
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
 		"importieren": "Importa attività da Todoist o da un CSV"
+	},
+	"weeklyCard": {
+		"label": "La mia settimana in cinque pilastri",
+		"laden": "Caricamento del bilancio settimanale …",
+		"leer": "Ancora nessun punto questa settimana: la scheda si riempie quando completi le attività.",
+		"woche": "Settimana {{kw}} / {{jahr}}",
+		"teilen": "Condividi la settimana",
+		"speichern": "Salva PNG",
+		"erzeuge": "Creazione della scheda …",
+		"fehler": "Impossibile creare la scheda. Riprova."
 	}
 }

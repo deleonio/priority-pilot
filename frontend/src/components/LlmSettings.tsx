@@ -23,6 +23,19 @@ type DialogState =
 	| { kind: 'edit'; provider: LlmProvider }
 	| { kind: 'delete'; provider: LlmProvider };
 
+/** `localStorage`-Schlüssel des „Erweitert"-Klappzustands (#1970, Muster `pp-*`; '1' offen, '0' zu). */
+const ADVANCED_STORAGE_KEY = 'pp-ki-erweitert-open';
+
+/** Liest den gespeicherten Klappzustand; ohne Eintrag oder ohne `localStorage` gilt zu (#1970 AK2). */
+const readAdvancedOpen = (): boolean => {
+	try {
+		return localStorage.getItem(ADVANCED_STORAGE_KEY) === '1';
+	} catch {
+		// localStorage kann durch Browser-Einstellungen werfen — dann gilt der Standard.
+		return false;
+	}
+};
+
 interface LlmSettingsProps {
 	/** Nach Provider-/Modell-Änderungen aufgerufen, damit umliegende UI ggf. neu lädt. */
 	onChanged?: () => void;
@@ -49,6 +62,18 @@ interface LlmSettingsProps {
 export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSettingsProps) => {
 	const selectDetails = useFollowingOpen(open);
 	const manageDetails = useFollowingOpen(open);
+	// „Erweitert" (#1970): Nutzpräferenz, bewusst NICHT an `useFollowingOpen`/den Master-Schalter
+	// gebunden — der Klappzustand persistiert als `pp-*`-Spiegel und bleibt über Remounts erhalten.
+	const [advancedOpen, setAdvancedOpen] = useState(readAdvancedOpen);
+	const toggleAdvanced = useCallback((_event: Event, value?: boolean): void => {
+		const next = value === true;
+		setAdvancedOpen(next);
+		try {
+			localStorage.setItem(ADVANCED_STORAGE_KEY, next ? '1' : '0');
+		} catch {
+			// Persistenz ist Best-Effort; die Wahl gilt zumindest für die laufende Sitzung.
+		}
+	}, []);
 	const [providers, setProviders] = useState<LlmProvider[] | null>(null);
 	const [models, setModels] = useState<LlmModel[] | null>(null);
 	/** True, wenn die Liste nicht live vom Provider kam, sondern aus dem eingebauten Katalog. */
@@ -218,184 +243,188 @@ export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSet
 				</KolAlert>
 			)}
 
-			{/* Provider-Auswahl und Provider-Verwaltung sind je ein `KolDetails` in der Karte (#1903,
-			    Regel 1: in der Karte klappt `KolDetails`). Die Detail-Labels benennen die Gruppe, die
-			    Control-Labels darin die Bedienelemente; kein Label wiederholt den anderen. */}
-			<KolDetails _label="Provider-Auswahl" _level={3} {...selectDetails}>
-				<div className="settings-card-stack">
-					{providers === null ? (
-						<p>Provider werden geladen…</p>
-					) : (
-						<>
-							<KolInputRadio
-								_label="KI-Provider"
-								_orientation={isMobile ? 'vertical' : 'horizontal'}
-								_options={options}
-								_value={radioValue}
-								_hint={
-									activeProvider === null
-										? 'Kein Provider aktiv — es ist kein ENV-Key für Mistral/OpenRouter gesetzt und kein Custom-Provider gewählt.'
-										: 'Wähle den Provider für alle KI-Anfragen. Ohne eigene Wahl übernimmt der Fallback (Mistral vor OpenRouter).'
-								}
-								_disabled={disabled}
-								_on={{ onChange: handleProviderChange }}
-							/>
+			{/* Die Anbieter-Konfiguration steht hinter „Erweitert" (#1970): standardmäßig zu,
+			    unabhängig vom Master-Schalter, Zustand persistiert. Provider-Auswahl und
+			    Provider-Verwaltung bleiben je ein `KolDetails` (#1903, Regel 1: in der Karte
+			    klappt `KolDetails`); die Detail-Labels benennen die Gruppe, die Control-Labels
+			    darin die Bedienelemente; kein Label wiederholt den anderen. */}
+			<KolDetails _label="Erweitert" _level={3} _open={advancedOpen} _on={{ onToggle: toggleAdvanced }}>
+				<KolDetails _label="Provider-Auswahl" _level={4} {...selectDetails}>
+					<div className="settings-card-stack">
+						{providers === null ? (
+							<p>Provider werden geladen…</p>
+						) : (
+							<>
+								<KolInputRadio
+									_label="KI-Provider"
+									_orientation={isMobile ? 'vertical' : 'horizontal'}
+									_options={options}
+									_value={radioValue}
+									_hint={
+										activeProvider === null
+											? 'Kein Provider aktiv — es ist kein ENV-Key für Mistral/OpenRouter gesetzt und kein Custom-Provider gewählt.'
+											: 'Wähle den Provider für alle KI-Anfragen. Ohne eigene Wahl übernimmt der Fallback (Mistral vor OpenRouter).'
+									}
+									_disabled={disabled}
+									_on={{ onChange: handleProviderChange }}
+								/>
 
-							{activeProvider !== null && (
-								<div className="llm-model-select">
-									{models === null && modelsError === null && <p className="hint">Modelle werden geladen…</p>}
-									{modelsError !== null && (
-										<p className="hint" role="alert">
-											Modellliste nicht verfügbar: {modelsError}
-										</p>
-									)}
-									{/* KoliBri-First (ux-design.md): Bedienelemente kommen aus KoliBri — die
+								{activeProvider !== null && (
+									<div className="llm-model-select">
+										{models === null && modelsError === null && <p className="hint">Modelle werden geladen…</p>}
+										{modelsError !== null && (
+											<p className="hint" role="alert">
+												Modellliste nicht verfügbar: {modelsError}
+											</p>
+										)}
+										{/* KoliBri-First (ux-design.md): Bedienelemente kommen aus KoliBri — die
 							    Modellwahl ist ein Auswahl-Element und daher KolSingleSelect (wie in
 							    TaskForm/DependencyModal), kein natives Select im Eigen-Styling. */}
-									{models !== null && (
-										<KolSingleSelect
-											_label={`Modell von ${activeProvider.name}${activeProvider.kind === 'builtin' ? ' (fix)' : ''}`}
-											_options={modelOptions}
-											_value={activeProvider.model}
-											_hint={
-												modelsAreFallback
-													? 'Live-Liste nicht erreichbar — es werden bekannte Standard-Modelle angeboten.'
-													: 'Die Modelle werden live vom gewählten Provider geladen.'
-											}
-											_disabled={disabled}
-											_on={{
-												onChange: (_event, value) => void handleModelChange(readString(value)),
-											}}
-										/>
-									)}
-								</div>
-							)}
+										{models !== null && (
+											<KolSingleSelect
+												_label={`Modell von ${activeProvider.name}${activeProvider.kind === 'builtin' ? ' (fix)' : ''}`}
+												_options={modelOptions}
+												_value={activeProvider.model}
+												_hint={
+													modelsAreFallback
+														? 'Live-Liste nicht erreichbar — es werden bekannte Standard-Modelle angeboten.'
+														: 'Die Modelle werden live vom gewählten Provider geladen.'
+												}
+												_disabled={disabled}
+												_on={{
+													onChange: (_event, value) => void handleModelChange(readString(value)),
+												}}
+											/>
+										)}
+									</div>
+								)}
 
-							{/*
-							 * Bereitschaft der KI-Features — drei Stufen: Konfiguration (aktiv + Key + Modell)
-							 * UND das letzte Test-Ergebnis des aktiven Providers. Ein konfigurierter Provider
-							 * kann trotzdem scheitern (z. B. abgelaufenes Abo → HTTP 402): Ohne diese Stufe
-							 * behauptete der grüne Hinweis „bereit“, während alle KI-Features rot laufen.
-							 */}
-							{(() => {
-								if (activeProvider === null) return null;
-								const configured = activeProvider.model !== '' && activeProvider.hasApiKey;
-								const testResult = testResults[activeProvider.id];
-								if (configured && testResult?.ok) {
+								{/*
+								 * Bereitschaft der KI-Features — drei Stufen: Konfiguration (aktiv + Key + Modell)
+								 * UND das letzte Test-Ergebnis des aktiven Providers. Ein konfigurierter Provider
+								 * kann trotzdem scheitern (z. B. abgelaufenes Abo → HTTP 402): Ohne diese Stufe
+								 * behauptete der grüne Hinweis „bereit“, während alle KI-Features rot laufen.
+								 */}
+								{(() => {
+									if (activeProvider === null) return null;
+									const configured = activeProvider.model !== '' && activeProvider.hasApiKey;
+									const testResult = testResults[activeProvider.id];
+									if (configured && testResult?.ok) {
+										return (
+											<KolAlert _type="success" _label="KI-Features bereit">
+												Alle KI-Features laufen über {activeProvider.name} mit Modell {activeProvider.model} (getestet,{' '}
+												{testResult.latencyMs ?? 0} ms).
+											</KolAlert>
+										);
+									}
+									if (configured && testResult !== undefined && !testResult.ok) {
+										return (
+											<KolAlert _type="error" _label="KI-Features schlagen derzeit fehl">
+												{activeProvider.name} ist aktiv, aber der Test schlug fehl: {testResult.message}
+											</KolAlert>
+										);
+									}
+									if (configured) {
+										return (
+											<KolAlert _type="info" _label="KI-Features bereit (noch ungetestet)">
+												Alle KI-Features laufen über {activeProvider.name} mit Modell {activeProvider.model}. Drücke
+												unten „Testen“, um die Verbindung wirklich zu prüfen.
+											</KolAlert>
+										);
+									}
 									return (
-										<KolAlert _type="success" _label="KI-Features bereit">
-											Alle KI-Features laufen über {activeProvider.name} mit Modell {activeProvider.model} (getestet,{' '}
-											{testResult.latencyMs ?? 0} ms).
+										<KolAlert _type="warning" _label="KI-Features noch nicht nutzbar">
+											{!activeProvider.hasApiKey
+												? activeProvider.kind === 'builtin'
+													? `Für ${activeProvider.name} ist kein API-Key auf dem Server hinterlegt (ENV-Variable fehlt). Wähle einen anderen Provider oder hinterlege den Key serverseitig.`
+													: `Für ${activeProvider.name} ist kein API-Key hinterlegt — bearbeite den Provider und trage den Key ein.`
+												: 'Wähle oben ein Modell, dann sind alle KI-Features nutzbar.'}
 										</KolAlert>
 									);
-								}
-								if (configured && testResult !== undefined && !testResult.ok) {
-									return (
-										<KolAlert _type="error" _label="KI-Features schlagen derzeit fehl">
-											{activeProvider.name} ist aktiv, aber der Test schlug fehl: {testResult.message}
-										</KolAlert>
-									);
-								}
-								if (configured) {
-									return (
-										<KolAlert _type="info" _label="KI-Features bereit (noch ungetestet)">
-											Alle KI-Features laufen über {activeProvider.name} mit Modell {activeProvider.model}. Drücke unten
-											„Testen“, um die Verbindung wirklich zu prüfen.
-										</KolAlert>
-									);
-								}
-								return (
-									<KolAlert _type="warning" _label="KI-Features noch nicht nutzbar">
-										{!activeProvider.hasApiKey
-											? activeProvider.kind === 'builtin'
-												? `Für ${activeProvider.name} ist kein API-Key auf dem Server hinterlegt (ENV-Variable fehlt). Wähle einen anderen Provider oder hinterlege den Key serverseitig.`
-												: `Für ${activeProvider.name} ist kein API-Key hinterlegt — bearbeite den Provider und trage den Key ein.`
-											: 'Wähle oben ein Modell, dann sind alle KI-Features nutzbar.'}
-									</KolAlert>
-								);
-							})()}
-						</>
-					)}
-				</div>
-			</KolDetails>
+								})()}
+							</>
+						)}
+					</div>
+				</KolDetails>
 
-			{/* Verwaltung: Anlegen + je Custom-Provider Bearbeiten/Löschen; Built-ins sind fix.
+				{/* Verwaltung: Anlegen + je Custom-Provider Bearbeiten/Löschen; Built-ins sind fix.
 			    Das frühere `<p class="llm-provider-admin__heading">` war eine als Überschrift
 			    gesetzte Textzeile ohne Überschriften-Semantik — jetzt trägt das Detail-Label
 			    den Namen (Design-Lauf 2026-09). */}
-			<KolDetails _label="Provider verwalten" _level={3} {...manageDetails}>
-				<div className="llm-provider-admin">
-					<KolButton
-						_label="Neuer Provider"
-						class="settings-action-btn"
-						_variant="secondary"
-						_disabled={disabled}
-						_on={{ onClick: () => setDialog({ kind: 'create' }) }}
-					/>
-					{providers !== null && providers.length > 0 && (
-						<ul className="llm-provider-admin__list">
-							{providers.map((provider) => (
-								<li key={provider.id} className="llm-provider-admin__item">
-									<span className="llm-provider-admin__name">
-										{provider.name}
-										{provider.isActive ? ' (aktiv)' : ''}
-										{/* Eigentums-Marker als KolBadge (#1549, Text statt nur Farbe — WCAG 1.4.1):
+				<KolDetails _label="Provider verwalten" _level={4} {...manageDetails}>
+					<div className="llm-provider-admin">
+						<KolButton
+							_label="Neuer Provider"
+							class="settings-action-btn"
+							_variant="secondary"
+							_disabled={disabled}
+							_on={{ onClick: () => setDialog({ kind: 'create' }) }}
+						/>
+						{providers !== null && providers.length > 0 && (
+							<ul className="llm-provider-admin__list">
+								{providers.map((provider) => (
+									<li key={provider.id} className="llm-provider-admin__item">
+										<span className="llm-provider-admin__name">
+											{provider.name}
+											{provider.isActive ? ' (aktiv)' : ''}
+											{/* Eigentums-Marker als KolBadge (#1549, Text statt nur Farbe — WCAG 1.4.1):
 										    „eigen“ = eigene Zeile des Nutzers, „instanzweit“ = Built-in oder geteilt. */}
-										<KolBadge className="llm-provider-admin__badge" _label={provider.own ? 'eigen' : 'instanzweit'} />
-										<span className="llm-provider-admin__meta">
-											{provider.kind === 'builtin' ? ' · fix, Key aus Server-ENV' : ` · ${provider.endpoint}`}
-											{provider.model !== '' ? ` · ${provider.model}` : ' · kein Modell gewählt'}
+											<KolBadge className="llm-provider-admin__badge" _label={provider.own ? 'eigen' : 'instanzweit'} />
+											<span className="llm-provider-admin__meta">
+												{provider.kind === 'builtin' ? ' · fix, Key aus Server-ENV' : ` · ${provider.endpoint}`}
+												{provider.model !== '' ? ` · ${provider.model}` : ' · kein Modell gewählt'}
+											</span>
 										</span>
-									</span>
-									<span className="llm-provider-admin__actions">
-										<KolButton
-											_label={testingId === provider.id ? 'Testen…' : 'Testen'}
-											class="settings-action-btn"
-											_variant="secondary"
-											_disabled={disabled || testingId !== null}
-											_on={{ onClick: () => void handleTest(provider) }}
-										/>
-										{provider.kind === 'custom' && (
-											<>
-												<KolButton
-													_label="Bearbeiten"
-													class="settings-action-btn"
-													_variant="secondary"
-													_disabled={disabled}
-													_on={{ onClick: () => setDialog({ kind: 'edit', provider }) }}
-												/>
-												<KolButton
-													ref={provider.id === providers.at(-1)?.id ? deleteTriggerRef : undefined}
-													_label="Löschen"
-													class="settings-action-btn"
-													_variant="danger"
-													_disabled={disabled}
-													_on={{ onClick: () => setDialog({ kind: 'delete', provider }) }}
-												/>
-											</>
-										)}
-									</span>
-									{(() => {
-										// Test-Ergebnis direkt unter der Zeile: Erfolg mit Latenz/Antwort,
-										// Misserfolg mit der konkreten Ursache (Auth/Modell/Abo/Netzwerk).
-										const result = testResults[provider.id];
-										if (result === undefined) return null;
-										return result.ok ? (
-											<KolAlert _type="success" _label={`Test erfolgreich (${result.latencyMs ?? 0} ms)`}>
-												{provider.name} antwortete über Modell {result.model}
-												{result.sample !== undefined ? `: „${result.sample}“` : '.'}
-											</KolAlert>
-										) : (
-											<KolAlert _type="error" _label="Test fehlgeschlagen">
-												{result.message}
-											</KolAlert>
-										);
-									})()}
-								</li>
-							))}
-						</ul>
-					)}
-				</div>
+										<span className="llm-provider-admin__actions">
+											<KolButton
+												_label={testingId === provider.id ? 'Testen…' : 'Testen'}
+												class="settings-action-btn"
+												_variant="secondary"
+												_disabled={disabled || testingId !== null}
+												_on={{ onClick: () => void handleTest(provider) }}
+											/>
+											{provider.kind === 'custom' && (
+												<>
+													<KolButton
+														_label="Bearbeiten"
+														class="settings-action-btn"
+														_variant="secondary"
+														_disabled={disabled}
+														_on={{ onClick: () => setDialog({ kind: 'edit', provider }) }}
+													/>
+													<KolButton
+														ref={provider.id === providers.at(-1)?.id ? deleteTriggerRef : undefined}
+														_label="Löschen"
+														class="settings-action-btn"
+														_variant="danger"
+														_disabled={disabled}
+														_on={{ onClick: () => setDialog({ kind: 'delete', provider }) }}
+													/>
+												</>
+											)}
+										</span>
+										{(() => {
+											// Test-Ergebnis direkt unter der Zeile: Erfolg mit Latenz/Antwort,
+											// Misserfolg mit der konkreten Ursache (Auth/Modell/Abo/Netzwerk).
+											const result = testResults[provider.id];
+											if (result === undefined) return null;
+											return result.ok ? (
+												<KolAlert _type="success" _label={`Test erfolgreich (${result.latencyMs ?? 0} ms)`}>
+													{provider.name} antwortete über Modell {result.model}
+													{result.sample !== undefined ? `: „${result.sample}“` : '.'}
+												</KolAlert>
+											) : (
+												<KolAlert _type="error" _label="Test fehlgeschlagen">
+													{result.message}
+												</KolAlert>
+											);
+										})()}
+									</li>
+								))}
+							</ul>
+						)}
+					</div>
+				</KolDetails>
 			</KolDetails>
 
 			{dialog.kind === 'create' && (

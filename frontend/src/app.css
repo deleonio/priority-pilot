@@ -1478,6 +1478,75 @@ kol-toolbar {
 }
 
 /*
+ * #1968: „Meine Woche in fünf Säulen“ — die teilbare Wochen-Balance-Karte. Einspaltig wie der
+ * Streak (AK6, kein horizontales Scrollen): Säulenwerte und Streak stehen als Text im Card-DOM —
+ * die Werte sind damit ohne Bild zugänglich und SR-lesbar (UX-Beratung). Beide Aktionen volle
+ * Zeilenbreite und ≥ 44px (Daumen-Zone, AK6) — auch am Desktop, die Karte hat keine Nebenaktion,
+ * die eine Inhaltsbreite bräuchte (Muster .pillar-confirm-actions, bewusst ohne Reset).
+ */
+.dashboard-weekly {
+	display: block;
+	margin-top: var(--pp-gap-generous);
+}
+
+.dashboard-weekly-content {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-space-2);
+}
+
+.dashboard-weekly-hint,
+.dashboard-weekly-woche {
+	margin: 0;
+	font-size: var(--pp-font-size-sm);
+	color: var(--pp-text-muted);
+}
+
+.dashboard-weekly-streak {
+	display: flex;
+	align-items: baseline;
+	gap: var(--pp-space-2);
+	margin: 0;
+}
+
+.dashboard-weekly-streak-wert {
+	font-size: var(--pp-font-size-2xl);
+	font-weight: var(--pp-weight-bold);
+	line-height: var(--pp-line-tight);
+	font-variant-numeric: tabular-nums;
+}
+
+.dashboard-weekly-streak-label {
+	font-size: var(--pp-font-size-sm);
+	color: var(--pp-text-muted);
+}
+
+.dashboard-weekly-liste {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.dashboard-weekly-zeile {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--pp-space-2);
+	font-variant-numeric: tabular-nums;
+}
+
+.dashboard-weekly-punkte {
+	font-weight: var(--pp-weight-bold);
+}
+
+.dashboard-weekly-aktionen kol-button {
+	display: block;
+	width: 100%;
+	min-height: 44px;
+}
+
+/*
  * #1362: Meilenstein-Badges. `flex-wrap` statt einer festen Spaltenzahl, damit die neun Badges
  * (5 Streak + 4 Punkte) bei 375px umbrechen statt die Card horizontal scrollen zu lassen (AK8).
  * Nicht erreichte Badges bleiben im Layout (kein `hidden`) — nur `KolBadge`s `_color` unterscheidet
@@ -3925,6 +3994,9 @@ kol-alert {
 
 	.llm-provider-admin__actions {
 		flex-direction: row;
+		/* Ohne nowrap schrumpft die Actions-Gruppe auf den breitesten Button (min-content)
+		   und bricht die Buttons in zwei Zeilen um (#1970-Fixup, AK3/AK4 1280 px). */
+		flex-wrap: nowrap;
 		flex-shrink: 0;
 	}
 }

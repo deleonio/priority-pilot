@@ -89,5 +89,15 @@
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
 		"importieren": "Importar tareas de Todoist o de un CSV"
+	},
+	"weeklyCard": {
+		"label": "Mi semana en cinco pilares",
+		"laden": "El balance semanal se está cargando …",
+		"leer": "Todavía no hay puntos esta semana: la tarjeta se llena cuando completas tareas.",
+		"woche": "Semana {{kw}} / {{jahr}}",
+		"teilen": "Compartir la semana",
+		"speichern": "Guardar PNG",
+		"erzeuge": "Se está creando la tarjeta …",
+		"fehler": "No se pudo crear la tarjeta. Inténtalo de nuevo."
 	}
 }

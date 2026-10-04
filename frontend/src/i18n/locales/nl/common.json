@@ -89,5 +89,15 @@
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
 		"importieren": "Taken importeren uit Todoist of een CSV"
+	},
+	"weeklyCard": {
+		"label": "Mijn week in vijf pilaren",
+		"laden": "Weekbalans wordt geladen …",
+		"leer": "Nog geen punten deze week — de kaart vult zich terwijl je taken afvinkt.",
+		"woche": "Week {{kw}} / {{jahr}}",
+		"teilen": "Week delen",
+		"speichern": "PNG opslaan",
+		"erzeuge": "Kaart wordt gemaakt …",
+		"fehler": "De kaart kon niet worden gemaakt. Probeer het opnieuw."
 	}
 }

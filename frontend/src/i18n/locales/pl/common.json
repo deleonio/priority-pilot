@@ -89,5 +89,15 @@
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
 		"importieren": "Importuj zadania z Todoist lub z pliku CSV"
+	},
+	"weeklyCard": {
+		"label": "Mój tydzień w pięciu filarach",
+		"laden": "Wczytywanie tygodniowego bilansu …",
+		"leer": "W tym tygodniu nie ma jeszcze punktów — karta wypełnia się, gdy odhaczasz zadania.",
+		"woche": "Tydzień {{kw}} / {{jahr}}",
+		"teilen": "Udostępnij tydzień",
+		"speichern": "Zapisz PNG",
+		"erzeuge": "Tworzenie karty …",
+		"fehler": "Nie udało się utworzyć karty. Spróbuj ponownie."
 	}
 }

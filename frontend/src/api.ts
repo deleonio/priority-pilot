@@ -5,6 +5,7 @@ import type {
 	AdminUser,
 	AllowedEmail,
 	ApiToken,
+	BalanceHistoryEntry,
 	BalanceStatus,
 	Category,
 	CategoryCreate,
@@ -1348,6 +1349,35 @@ export const api = {
 			throw new ResponseError(response, error);
 		}
 		return data;
+	},
+
+	// --- Wochenverlauf der Lebensbalance (#1424) — je Kalendertag des Intervalls ein Eintrag (#1968) ---
+
+	// `von`/`bis` sind Kalendertage (YYYY-MM-DD), `tz` die IANA-Zeitzone des Clients — sie bestimmt
+	// serverseitig die Kalendertagsgrenze (Muster `getStreak`).
+	async getBalanceHistory({
+		von,
+		bis,
+		tz,
+		signal,
+	}: { von: string; bis: string; tz?: string } & Init): Promise<BalanceHistoryEntry[]> {
+		const { data, error, response } = await client.GET('/scores/balance/history', {
+			params: { query: { von, bis, tz } },
+			signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// --- Wochenkarten-Share-Ping (#1989): meldet das Teilen der Karte — je Kalenderwoche einmal,
+	// ohne Karteninhalt. Die Card ruft ihn fire-and-forget nach dem System-Share auf.
+	async postWochenkarteShare(init: Init = {}): Promise<void> {
+		const { error, response } = await client.POST('/kpis/wochenkarte', { signal: init.signal });
+		if (!response.ok || error) {
+			throw new ResponseError(response, error);
+		}
 	},
 
 	// --- Fürsorge-Vorschläge gegen ein Balance-Defizit (#1791, Dashboard-Hinweis #1793) ---

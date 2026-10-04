@@ -30,6 +30,8 @@ const openCreateDialog = async (page: import('@playwright/test').Page) => {
 	await page.goto('/app/settings/llm');
 	await waitForStableView(page, 'Balamentum');
 	await expect(page.getByRole('tab', { name: 'KI', exact: true })).toBeVisible();
+	// #1970: Der Anlege-Dialog liegt hinter „Erweitert“.
+	await page.getByText('Erweitert', { exact: true }).click();
 	await page.getByRole('button', { name: 'Neuer Provider' }).click();
 	const dialog = page.locator('kol-dialog');
 	await expect(dialog.getByRole('heading', { name: 'Neuen Provider anlegen' })).toBeVisible();
