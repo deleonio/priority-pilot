@@ -72,7 +72,8 @@ describe('MCP-Seiten im Build (#1978, AK5)', () => {
 		);
 		expect(readFileSync(deHtml, 'utf8')).toContain('/mcp/v1');
 		const sitemap = readFileSync(join(root, 'dist', 'sitemap.xml'), 'utf8');
-		expect(sitemap).toMatch(/<loc>[^<]*\/mcp\/<\/loc>/);
-		expect(sitemap).toMatch(/<loc>[^<]*\/en\/mcp\/<\/loc>/);
+		const siteUrl = (process.env.SITE_URL ?? '').trim().replace(/\/$/, '');
+		expect(sitemap).toContain(`<loc>${siteUrl}/mcp/</loc>`);
+		expect(sitemap).toContain(`<loc>${siteUrl}/en/mcp/</loc>`);
 	});
 });

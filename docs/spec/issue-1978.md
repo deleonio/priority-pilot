@@ -37,18 +37,20 @@ EN unter `/en/mcp/`, `pathFor` der übrigen Sprachen zeigt auf `/mcp/` (deutsche
 
 ## Manuelle Belege (kein automatisierter Test, Nachweis im PR)
 
-- AK3: Beispiel-Prompts gegen die Produktion getestet (Transkript/Screenshot).
+- AK3: Beispiel-Prompts gegen die Produktion getestet (Transkript/Screenshot) — per Re-Scoping
+  (Review-Entscheid F1.3) in das Folge-Ticket verschoben; außerhalb des PR-Umfangs.
 - AK4: README-MCP-Abschnitt mit Link auf die Anleitungsseite (Markdown-Inhalt — laut ADR 0001
   kein Test).
-- AK6: Einreichung bei mindestens einem MCP-Verzeichnis (PulseMCP/Smithery/Glama) belegt;
-  Live-Schaltung bleibt externe Nacharbeit. Ein-Klick-URL-Formate (AK2) bei Umsetzung gegen
-  aktuelle Anbieter-Doku verifizieren (Beleg im PR).
+- AK6: Einreichung bei mindestens einem MCP-Verzeichnis (PulseMCP/Smithery/Glama) — per
+  Re-Scoping (Review-Entscheid F1.3) in das Folge-Ticket verschoben. Ein-Klick-URL-Formate
+  (AK2) sind gegen aktuelle Anbieter-Doku verifiziert (Beleg im PR-Body).
 
 ## Testabbildung
 
-| Testfall    | AK      | Datei                                                |
-| ----------- | ------- | ---------------------------------------------------- |
-| TF1         | AK1/AK2 | `website/src/mcp-guide.test.ts` (Unit, Vitest)       |
-| TF2         | AK5     | `website/src/mcp-guide.test.ts` (Build-Integration)  |
-| TF3         | AK1/AK7 | `website/e2e/mcp-guide.spec.ts` (Playwright, 375 px) |
-| AK3/AK4/AK6 | —       | manueller Beleg im PR-Body                           |
+| Testfall | AK      | Datei                                                |
+| -------- | ------- | ---------------------------------------------------- |
+| TF1      | AK1/AK2 | `website/src/mcp-guide.test.ts` (Unit, Vitest)       |
+| TF2      | AK5     | `website/src/mcp-guide.test.ts` (Build-Integration)  |
+| TF3      | AK1/AK7 | `website/e2e/mcp-guide.spec.ts` (Playwright, 375 px) |
+| AK3/AK6  | —       | Re-Scoping F1.3: Folge-Ticket                        |
+| AK4      | —       | manueller Beleg im PR-Body                           |
