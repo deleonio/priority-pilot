@@ -252,7 +252,7 @@ jobs:
         # Gate, bei rotem CI NICHT selbst ai:needs-fixup zu setzen (merge-pr.yml).
         #
         # Kosten der Wartezeit: Runner-Minuten, keine Token — und ein Platz in der FIFO-Queue
-        # der Ticket-Pipeline (statische concurrency-Gruppe llm, geteilt mit 01-06). Das Budget ist deshalb
+        # der Ticket-Pipeline (statische concurrency-Gruppe llm-review; jede Phase hat ihre eigene). Das Budget ist deshalb
         # gedeckelt (vars.REVIEW_CI_WAIT_SECONDS, Default 20 min) und fail-open: Läuft es aus,
         # reviewt der Lauf trotzdem — mit dem Hinweis „CI-Ergebnis unbekannt" im Prompt.
         id: ci-wait

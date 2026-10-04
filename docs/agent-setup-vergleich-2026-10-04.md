@@ -55,8 +55,9 @@ Input-Tokens, 45,7 Turns — der Context wird komplett neu gelesen; n=3).
   Analyse und Spec; am 03.10. liefen Spec/Implement als Einer-Kette mit 5,5 h Leerstrecke.
 - Ursache der Serialisierung: die gemeinsame Concurrency-Gruppe `llm` für Spec (03),
   Implement/Fixup (04) und team — strikt ein Run gleichzeitig. Damit liegt die Kapazität
-  dieser Stufe bei ~1,5 h/Issue ≈ **16–20 Issues/Tag**; gemessene 30 PRs/Tag waren nahe am
-  Limit. Details und Barriere-Falle: Kommentar in `01-triage.yml` (CONCURRENCY-Block).
+  dieser Stufe bei ~1,5 h/Issue ≈ **16–20 Issues/Tag**; gemessene 30 PRs/Tag lagen damit am
+  bzw. über dem geschätzten Limit. Details und Barriere-Falle: Kommentar in `01-triage.yml`
+  (CONCURRENCY-Block).
 
 ## Erkenntnisse
 
