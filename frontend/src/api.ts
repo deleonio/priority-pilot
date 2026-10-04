@@ -5,6 +5,7 @@ import type {
 	AdminUser,
 	AllowedEmail,
 	ApiToken,
+	BalanceHistoryEntry,
 	BalanceStatus,
 	Category,
 	CategoryCreate,
@@ -1313,6 +1314,26 @@ export const api = {
 
 	async getBalanceStatus({ tz, signal }: { tz?: string } & Init = {}): Promise<BalanceStatus> {
 		const { data, error, response } = await client.GET('/scores/balance', { params: { query: { tz } }, signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// --- Wochenverlauf der Lebensbalance (#1424) — je Kalendertag des Intervalls ein Eintrag (#1968) ---
+
+	// `von`/`bis` sind Kalendertage (YYYY-MM-DD), `tz` die IANA-Zeitzone des Clients — sie bestimmt
+	// serverseitig die Kalendertagsgrenze (Muster `getStreak`).
+	async getBalanceHistory({
+		von,
+		bis,
+		tz,
+		signal,
+	}: { von: string; bis: string; tz?: string } & Init): Promise<BalanceHistoryEntry[]> {
+		const { data, error, response } = await client.GET('/scores/balance/history', {
+			params: { query: { von, bis, tz } },
+			signal,
+		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}
