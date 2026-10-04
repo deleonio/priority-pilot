@@ -25,6 +25,7 @@ import {
 	renderImprint,
 	renderAssetLinks,
 	renderLanding,
+	renderMcpGuide,
 	renderPrivacy,
 	renderTerms,
 	renderRobots,
@@ -104,6 +105,11 @@ paths.push('/datenschutz/');
 // Nutzungsbedingungen: wie die Datenschutzerklärung eine feste deutsche Seite (#1891).
 write(join('nutzungsbedingungen', 'index.html'), renderTerms({ locale: 'de', messages: de, siteUrl, allMessages }));
 paths.push('/nutzungsbedingungen/');
+
+// MCP-Anleitung (#1978): deutsch an der Wurzel, englische Schwester unter /en/, Footer-Link in allen Sprachen.
+write(join('mcp', 'index.html'), renderMcpGuide({ locale: 'de', messages: de, siteUrl, allMessages }));
+write(join('en', 'mcp', 'index.html'), renderMcpGuide({ locale: 'en', messages: en, siteUrl, allMessages }));
+paths.push('/mcp/', '/en/mcp/');
 
 write('robots.txt', renderRobots(siteUrl));
 if (siteUrl) {

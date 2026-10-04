@@ -241,7 +241,8 @@
 		"accountDeletion": "Удалить аккаунт",
 		"accountDeletionPath": "delete-account/",
 		"privacy": "Конфиденциальность",
-		"terms": "Условия использования"
+		"terms": "Условия использования",
+		"mcpGuide": "Руководство по MCP"
 	},
 	"imprint": {
 		"title": "Выходные данные",
