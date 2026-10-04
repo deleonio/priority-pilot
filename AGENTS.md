@@ -93,6 +93,10 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
   eine Fixup-Schleife.
   Ergebnisse in die PR-Beschreibung. `pnpm knip` bleibt bewusste Zusatzschärfe des
   Implement-Skills, nicht Teil des kanonischen Gates.
+- **Kein Bestandskunden-Ballast:** Balamentum ist nicht produktiv — es gibt keine echten
+  Abonnenten, nur Tester. Abo-/Paket-Logik darf ohne Rücksicht auf Bestandsmigrationen umgebaut
+  werden; Kompatibilitäts- oder Übergangsregeln für alte Abonnements sind nicht nötig und werden
+  nicht gebaut.
 
 ## Memory
 
