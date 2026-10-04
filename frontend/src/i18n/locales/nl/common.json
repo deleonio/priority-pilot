@@ -99,5 +99,15 @@
 		"speichern": "PNG opslaan",
 		"erzeuge": "Kaart wordt gemaakt …",
 		"fehler": "De kaart kon niet worden gemaakt. Probeer het opnieuw."
+	},
+	"monthlyCard": {
+		"label": "Mijn maand in vijf pilaren",
+		"laden": "Maandoverzicht wordt geladen …",
+		"leer": "Vorige maand geen punten — volgende maand vult de kaart zich terwijl je taken afvinkt.",
+		"rueckblick": "Overzicht",
+		"teilen": "Maand delen",
+		"speichern": "PNG opslaan",
+		"erzeuge": "Kaart wordt gemaakt …",
+		"fehler": "De kaart kon niet worden gemaakt. Probeer het opnieuw."
 	}
 }

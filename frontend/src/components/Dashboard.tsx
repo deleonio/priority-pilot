@@ -4,6 +4,7 @@ import { CareHint } from './CareHint';
 import { DayDoneHint } from './DayDoneHint';
 import { StreakCard } from './StreakCard';
 import { WeeklyBalanceCard } from './WeeklyBalanceCard';
+import { MonthlyBalanceCard } from './MonthlyBalanceCard';
 import { MilestoneBadges } from './MilestoneBadges';
 import { MissedTasksCard } from './MissedTasksCard';
 import { HeartBalance } from './HeartBalance';
@@ -488,6 +489,10 @@ export const Dashboard = ({
 			 * vom Durchhalten, die Wochenkarte als teilbares Standbild. Lädt selbst (Muster
 			 * StreakCard), daher ohne Prop-Kette; sie erscheint von selbst erst am Sonntag (AK4). */}
 			<WeeklyBalanceCard />
+			{/* #1995: Rückblick auf den Vormonat — dieselbe Karten-Idee wie die Wochenkarte, deshalb
+			 * direkt daneben. Lädt selbst (Muster WeeklyBalanceCard), daher ohne Prop-Kette; sie
+			 * erscheint von selbst nur im Monatsanfangs-Fenster (Tag 1–7, AK4). */}
+			<MonthlyBalanceCard />
 			{/* #1362: eigener Knoten direkt nach der Streak-Card — beide Stufenlisten (Streak/Punkte)
 			 * bauen auf denselben Kennzahlen auf, die Badges fassen sie zu einer Übersicht zusammen. */}
 			<MilestoneBadges />

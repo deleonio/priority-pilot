@@ -1150,6 +1150,45 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /scores/monthly-recap:
+    get:
+      summary: Monatsrückblick — Säulen, Streak und Meilensteine des Vormonats (#1995)
+      description: >-
+        Liefert den Rückblick auf einen abgeschlossenen Monat in einer Antwort: die Säulen-Punkte
+        als Differenz der kumulativen Verlauf-Stände (Fenster letzter Tag des Vormonats bis
+        letzter Tag des Monats — dieselbe Rechnung wie die Wochenkarte über
+        /scores/balance/history), den Streak-Stand zum Monatsende und die im Monat neu
+        erreichten Meilensteine (MilestoneReached.zeitpunkt). Enthält keine Aufgabeninhalte.
+        Gerechnet wird über Säulen und Tasks des Nutzers (`ownerScope`) — gescopet wie
+        GET /scores/balance.
+      operationId: getMonthlyRecap
+      parameters:
+        - name: monat
+          in: query
+          required: true
+          description: Der zurückliegende Monat (`JJJJ-MM`); muss einen echten Kalendermonat benennen.
+          schema:
+            type: string
+        - name: tz
+          in: query
+          required: false
+          description: >-
+            IANA-Zeitzone (z. B. `Europe/Berlin`), die Monatsgrenzen und den Streak-Stichtag
+            bestimmt. Fehlt der Wert oder ist er keine gültige Zeitzone, wertet der Server in
+            seiner eigenen Zeitzone aus — kein Fehler.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Rückblick auf den angefragten Monat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonthlyRecap'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /scores/care-suggestions:
     get:
       summary: Konkrete Fürsorge-Vorschläge gegen ein Balance-Defizit (#1791)
@@ -6742,6 +6781,60 @@ components:
           description: Punktestand und Gewichtung je Säule zum Ende dieses Tages.
           items:
             $ref: '#/components/schemas/PillarBalance'
+    MonthlyRecap:
+      type: object
+      description: >-
+        Monatsrückblick (#1995): Säulen-Differenz des Monats, Streak zum Monatsende und die im
+        Monat neu erreichten Meilensteine — ohne Aufgabeninhalte.
+      required:
+        - monat
+        - saeulen
+        - streak
+        - meilensteine
+      properties:
+        monat:
+          type: string
+          description: Der angefragte Monat (`JJJJ-MM`).
+        saeulen:
+          type: array
+          description: >-
+            Punkte je Säule im Monatsfenster — Stand am Monatsende minus Stand zum
+            Fenstereintritt (letzter Tag des Vormonats), eine Dezimalstelle.
+          items:
+            type: object
+            required:
+              - id
+              - name
+              - punkte
+            properties:
+              id:
+                type: integer
+                description: ID der Säule.
+              name:
+                type: string
+                description: Anzeigename der Säule.
+              punkte:
+                type: number
+                description: Punkte der Säule im Monat, eine Dezimalstelle.
+        streak:
+          type: integer
+          description: Streak-Stand am Monatsende (Stichtag Monatsende in der Nutzerzeitzone).
+        meilensteine:
+          type: array
+          description: Im Monat neu erreichte Meilensteine, aufsteigend nach Zeitpunkt.
+          items:
+            type: object
+            required:
+              - schluessel
+              - zeitpunkt
+            properties:
+              schluessel:
+                type: string
+                description: Meilenstein-Schlüssel (`streak-<n>` / `punkte-<n>`).
+              zeitpunkt:
+                type: string
+                format: date-time
+                description: Wann die Stufe erreicht wurde (ISO-Zeitstempel).
     CareVorschlag:
       type: object
       description: >-

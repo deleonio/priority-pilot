@@ -6,8 +6,9 @@ import { adviseActivitiesWithMistral, type ActivityAdvisor } from '../../llm/llm
 import { effectivePlan } from '../../logics/plans.js';
 import { createAiQuotaCounter } from '../aiQuotaMeter.js';
 import { aggregierePunkteProSaeule, type PunkteBeitrag } from '../../logics/score.js';
-import { berechneStreak, istGueltigeZeitzone, streakZeitpunkte } from '../../logics/streak.js';
+import { berechneStreak, istGueltigeZeitzone, streakZeitpunkte, tagIn } from '../../logics/streak.js';
 import { meilensteinStandVon } from '../../logics/milestones.js';
+import MilestoneReached from '../../models/milestoneReached.js';
 import { berechneLebensbalanceNachKadenz } from '../../logics/heartBalance.js';
 import { berechneBalanceVerlauf, istGueltigesDatum, zeitraumInTagen } from '../../logics/balanceHistory.js';
 import { resolvePillarDescription } from '../../models/pillarData.js';
@@ -35,6 +36,7 @@ type MilestoneDto = components['schemas']['Milestone'];
 type MissedTasksSummaryDto = components['schemas']['MissedTasksSummary'];
 type BalanceStatusDto = components['schemas']['BalanceStatus'];
 type BalanceHistoryEntryDto = components['schemas']['BalanceHistoryEntry'];
+type MonthlyRecapDto = components['schemas']['MonthlyRecap'];
 type CareVorschlagDto = components['schemas']['CareVorschlag'];
 
 /** Ein Zeitraum darf höchstens so viele Tage umfassen — deckelt die Antwortgröße von `/scores/balance/history`. */
@@ -305,6 +307,121 @@ scoresRouter.get(
 		}
 	},
 );
+
+// GET /scores/monthly-recap — Monatsrückblick (#1995): Säulen-Differenz im Monatsfenster — exakt
+// die Wochenkarten-Rechnung (#1968, Fenster letzter Tag des Vormonats bis letzter Tag des Monats,
+// Spiegel über /scores/balance/history) —, der Streak-Stand zum Monatsende in der Nutzerzeitzone
+// und die im Monat neu erreichten Meilensteine (`MilestoneReached.zeitpunkt` — der sticky Bestand
+// bleibt außen vor, Auswahl strikt über den Zeitpunkt). Eine Antwort statt drei Roundtrips.
+// Gescopet wie /scores/balance strikt mit `ownerScope`.
+const MONAT_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/** Letzter Kalendertag des Monats `JJJJ-MM` als `YYYY-MM-DD`. */
+const letzterTagVon = (monat: string): string => {
+	const [jahr, monatNr] = monat.split('-').map(Number) as [number, number];
+	return new Date(Date.UTC(jahr, monatNr, 0)).toISOString().slice(0, 10);
+};
+
+/** Vormonat eines Monats `JJJJ-MM` als `JJJJ-MM` (Jahreswechsel-sicher). */
+const vormonatVon = (monat: string): string => {
+	const [jahr, monatNr] = monat.split('-').map(Number) as [number, number];
+	return `${jahr + Math.floor((monatNr - 2) / 12)}-${String(((monatNr + 10) % 12) + 1).padStart(2, '0')}`;
+};
+
+/**
+ * UTC-Zeitpunkt 12:00 eines lokalen Kalendertags in `zeitZone` — Streak-Stichtag „Monatsende".
+ * Die Mittagsstunde hält DST-Nähte fern; der Offset wird über `Intl` an genau dieser Naht
+ * zurückgerechnet (ein Anker `Date.UTC(jahr, monat, 0) - 1` läge in Zeitzonen östlich von UTC
+ * schon im Folgemonat).
+ */
+const mittagDesTags = (tag: string, zeitZone: string): Date => {
+	const [jahr, monat, tagImMonat] = tag.split('-').map(Number) as [number, number, number];
+	const naive = Date.UTC(jahr, monat - 1, tagImMonat, 12);
+	const teile = new Intl.DateTimeFormat('en-US', {
+		timeZone: zeitZone,
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit',
+		hourCycle: 'h23',
+	}).formatToParts(new Date(naive));
+	const teil = (typ: Intl.DateTimeFormatPartTypes): number => Number(teile.find((p) => p.type === typ)?.value ?? 0);
+	const alsUtc = Date.UTC(teil('year'), teil('month') - 1, teil('day'), teil('hour'), teil('minute'), teil('second'));
+	return new Date(naive - (alsUtc - naive));
+};
+
+scoresRouter.get('/scores/monthly-recap', async (req: Request, res: Response<MonthlyRecapDto | ErrorDto>) => {
+	try {
+		const monat = typeof req.query.monat === 'string' ? req.query.monat : '';
+		if (!MONAT_REGEX.test(monat)) {
+			sendError(
+				res,
+				400,
+				'"monat" ist ein Pflichtparameter und muss einen echten Kalendermonat im Format JJJJ-MM benennen.',
+			);
+			return;
+		}
+		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+		const zeitZone = istGueltigeZeitzone(angefragteZone)
+			? angefragteZone
+			: Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+		const userId = getUserId(req);
+		const [saeulen, tasks, entries, eigeneMeilensteine] = await Promise.all([
+			Pillar.findAll({ where: ownerScope(userId), order: [['id', 'ASC']] }),
+			Task.findAll({ where: { ...ownerScope(userId), status: 'Done' }, include: [Pillar] }),
+			ScoreEntry.findAll({ include: [{ model: Task, where: ownerScope(userId) }] }),
+			MilestoneReached.findAll({ where: ownerScope(userId), order: [['zeitpunkt', 'ASC']] }),
+		]);
+		const zeitpunktProTask = new Map(entries.map((entry) => [entry.taskId, entry.zeitpunkt]));
+
+		const verlauf = berechneBalanceVerlauf(
+			saeulen.map((saeule) => ({ id: saeule.id, key: saeule.key, name: saeule.name, weight: saeule.weight })),
+			tasks.map((task) => ({
+				status: task.status,
+				estimatedEffort: task.estimatedEffort,
+				pillars: (task.Pillars ?? []).map((pillar: PillarWithContribution) => ({
+					pillarId: pillar.id,
+					share: pillar.TaskPillar.share,
+				})),
+				zeitpunkt: zeitpunktProTask.get(task.id) ?? null,
+			})),
+			letzterTagVon(vormonatVon(monat)),
+			letzterTagVon(monat),
+			zeitZone,
+		);
+		// Wochenkarten-Muster: Differenz aus dem kumulativen Verlauf — Stand am Monatsende minus
+		// Stand zum Fenstereintritt (letzter Tag des Vormonats), eine Dezimalstelle.
+		const standFensterEintritt = new Map((verlauf[0]?.saeulen ?? []).map((s) => [s.id, s.punkte]));
+		const monatsSaeulen = (verlauf[verlauf.length - 1]?.saeulen ?? []).map((s) => ({
+			id: s.id,
+			name: s.name,
+			punkte: Math.round((s.punkte - (standFensterEintritt.get(s.id) ?? 0)) * 10) / 10,
+		}));
+
+		const { aktuell } = berechneStreak(
+			streakZeitpunkte(
+				entries.map((entry) => ({ zeitpunkt: entry.zeitpunkt, deadline: entry.Task?.deadline })),
+				zeitZone,
+			),
+			mittagDesTags(letzterTagVon(monat), zeitZone),
+			zeitZone,
+		);
+
+		res.json({
+			monat,
+			saeulen: monatsSaeulen,
+			streak: aktuell,
+			meilensteine: eigeneMeilensteine
+				.filter((meilenstein) => tagIn(meilenstein.zeitpunkt, zeitZone).slice(0, 7) === monat)
+				.map((meilenstein) => ({ schluessel: meilenstein.schluessel, zeitpunkt: meilenstein.zeitpunkt.toISOString() })),
+		});
+	} catch {
+		sendError(res, 500, 'Interner Serverfehler.');
+	}
+});
 
 /** Obergrenze der bisherigen Aufgaben, die der Berater als Kontext bekommt — hält den Prompt klein. */
 const KI_KONTEXT_AUFGABEN = 20;

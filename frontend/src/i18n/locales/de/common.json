@@ -99,5 +99,15 @@
 		"speichern": "PNG speichern",
 		"erzeuge": "Karte wird erzeugt …",
 		"fehler": "Die Karte konnte nicht erzeugt werden. Versuche es bitte noch einmal."
+	},
+	"monthlyCard": {
+		"label": "Mein Monat in fünf Säulen",
+		"laden": "Monatsrückblick wird geladen …",
+		"leer": "Keine Punkte im Vormonat — der nächste Monat füllt die Karte, sobald du Aufgaben abhakst.",
+		"rueckblick": "Rückblick",
+		"teilen": "Monat teilen",
+		"speichern": "PNG speichern",
+		"erzeuge": "Karte wird erzeugt …",
+		"fehler": "Die Karte konnte nicht erzeugt werden. Versuche es bitte noch einmal."
 	}
 }
