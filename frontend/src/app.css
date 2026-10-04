@@ -3882,6 +3882,9 @@ kol-alert {
 
 	.llm-provider-admin__actions {
 		flex-direction: row;
+		/* Ohne nowrap schrumpft die Actions-Gruppe auf den breitesten Button (min-content)
+		   und bricht die Buttons in zwei Zeilen um (#1970-Fixup, AK3/AK4 1280 px). */
+		flex-wrap: nowrap;
 		flex-shrink: 0;
 	}
 }
