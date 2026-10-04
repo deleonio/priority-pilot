@@ -3301,6 +3301,20 @@ kol-toolbar {
 	min-width: 0;
 }
 
+/*
+ * #1969: Import-Karte im Settings-Tab „Import" — Stapel im 16dp-Rhythmus des Panels (Muster
+ * `.settings-card-stack`). `min-width: 0` hält lange CSV-Werte (Fehlerliste, Beispiele, Mapping)
+ * am Umbrechen statt die Card bei 375px seitlich aus dem Viewport zu schieben (#1211-Muster).
+ */
+.task-import-card,
+.task-import-card .task-import-preview,
+.task-import-card .task-import-mapping {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-base);
+	min-width: 0;
+}
+
 /* #1984: Liste der Experten-Bereiche im Accordion unter dem Expertenmodus-Schalter —
  * derselbe 16dp-Rhythmus wie im Panel-Stack. */
 .settings-expert-list {
