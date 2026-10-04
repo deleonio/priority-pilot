@@ -1,4 +1,4 @@
-import { KolAccordion, KolAlert, KolBadge, KolButton, KolHeading, KolInputText, KolSpin } from '@public-ui/react-v19';
+import { KolDetails, KolAlert, KolBadge, KolButton, KolHeading, KolInputText, KolSpin } from '@public-ui/react-v19';
 import type {
 	GroupInviteLink,
 	GroupInvitation,
@@ -47,7 +47,7 @@ type GroupDetailProps = {
 /**
  * Gruppendetail (#1212 AK11): Das Wesentliche — die Mitgliederliste (Anzeigename + Rollen-Badge)
  * — steht direkt unter dem Kartenkopf; alle weiteren Bereiche (offene Einladungen, füreinander
- * angelegte Aufgaben/Serien, Nutzersuche, Einladungslinks) sind KolAccordion und standardmäßig
+ * angelegte Aufgaben/Serien, Nutzersuche, Einladungslinks) sind KolDetails und standardmäßig
  * zugeklappt (#1257) — so bleibt die aufgeklappte Gruppe bei 375px übersichtlich. Nur Admins
  * sehen die Nutzersuche zum Einladen und die Entfernen-Aktion je Mitglied — die Server-Rolle
  * steuert (403/404 bleiben die eigentliche Absicherung, die UI blendet nur aus).
@@ -283,21 +283,19 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 							</li>
 						))}
 					</ul>
-					{invitations.length > 0 && (
-						<KolAccordion _label="Offene Einladungen" _level={4}>
-							<ul className="group-invitations">
-								{invitations.map((invitation) => (
-									<li key={invitation.id} className="group-invitation">
-										<span className="group-member-name">{invitation.displayName}</span>
-										<KolBadge _label="Ausstehend" />
-									</li>
-								))}
-							</ul>
-						</KolAccordion>
-					)}
+					<KolDetails _label="Offene Einladungen" _level={4}>
+						<ul className="group-invitations">
+							{invitations.map((invitation) => (
+								<li key={invitation.id} className="group-invitation">
+									<span className="group-member-name">{invitation.displayName}</span>
+									<KolBadge _label="Ausstehend" />
+								</li>
+							))}
+						</ul>
+					</KolDetails>
 					{/* #1521 (AK6): Offene Aufgaben, die an die ganze Gruppe gerichtet sind — jedes Mitglied
 					    kann sie erledigen. Abgegrenzt von „Füreinander angelegt" (#1223, Einzel-Empfänger). */}
-					<KolAccordion _label="Offene Gruppen-Aufgaben" _level={4}>
+					<KolDetails _label="Offene Gruppen-Aufgaben" _level={4}>
 						<div data-testid="group-open-tasks">
 							{openGroupTasks === null ? (
 								<KolSpin _show _variant="cycle" _label="Offene Gruppen-Aufgaben werden geladen …" />
@@ -313,8 +311,8 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 								</ul>
 							)}
 						</div>
-					</KolAccordion>
-					<KolAccordion _label="Füreinander angelegt" _level={4}>
+					</KolDetails>
+					<KolDetails _label="Füreinander angelegt" _level={4}>
 						{tasks === null ? (
 							<KolSpin _show _variant="cycle" _label="Gruppen-Aufgaben werden geladen …" />
 						) : tasks.length === 0 ? (
@@ -332,8 +330,8 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 								))}
 							</ul>
 						)}
-					</KolAccordion>
-					<KolAccordion _label="Füreinander angelegte Serien" _level={4}>
+					</KolDetails>
+					<KolDetails _label="Füreinander angelegte Serien" _level={4}>
 						{seriesList === null ? (
 							<KolSpin _show _variant="cycle" _label="Gruppen-Serien werden geladen …" />
 						) : seriesList.length === 0 ? (
@@ -355,11 +353,11 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 								))}
 							</ul>
 						)}
-					</KolAccordion>
+					</KolDetails>
 					{ownRole === 'admin' && (
 						/* Eigenes aufklappbares Element statt unbeschrifteter Sektion (#1257):
 						   standardmäßig zugeklappt, die Überschrift trägt den Zweck. */
-						<KolAccordion _label="Mitglieder einladen" _level={4}>
+						<KolDetails _label="Mitglieder einladen" _level={4}>
 							<KolInputText
 								_label="Konto suchen"
 								_type="search"
@@ -388,12 +386,12 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 										</ul>
 									))}
 							</div>
-						</KolAccordion>
+						</KolDetails>
 					)}
 					{ownRole === 'admin' && (
 						/* Eigenes aufklappbares Element mit eindeutigem Namen (#1257) — „Einladungslinks“
 						   statt „Einladungen“, um es von den offenen Einladungen zu unterscheiden. */
-						<KolAccordion _label="Einladungslinks" _level={4}>
+						<KolDetails _label="Einladungslinks" _level={4}>
 							<section className="group-invite-links">
 								<p className="hint">
 									Über einen Link kann jeder deiner Gruppe ohne persönliche Einladung beitreten. Ein Link ist 7 Tage
@@ -440,7 +438,7 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 									</ul>
 								)}
 							</section>
-						</KolAccordion>
+						</KolDetails>
 					)}
 				</>
 			)}

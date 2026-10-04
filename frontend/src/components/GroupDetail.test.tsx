@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { useState, type ReactNode } from 'react';
+import { createElement, useState, type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -25,6 +25,26 @@ vi.mock('@public-ui/react-v19', () => ({
 				<summary onClick={() => setOpen((current) => !current)}>{_label}</summary>
 				{open ? children : null}
 			</details>
+		);
+	},
+	// #2015 TF2: Spiegel des KolAccordion-Stubs — wörtliches Element (createElement statt JSX:
+	// kol-details ist kein deklariertes Intrinsic-Element), damit die Spec-Tests die kol-details-
+	// Fläche selektieren können; Klick auf den Block klappt um (wie das Summary).
+	KolDetails: ({ _label, _open, children }: { _label?: string; _open?: boolean; children?: ReactNode }) => {
+		const [open, setOpen] = useState(_open === true);
+		return createElement(
+			'kol-details',
+			{
+				_label,
+				_open: open ? 'true' : 'false', // String: Attribut auch bei false im DOM (Spec liest getAttribute)
+				// Nur der Direktklick auf den Block klappt um — Kindklicks (z. B. „Link erzeugen")
+				// bubblen hoch und dürften den Kollapsbereich nicht schließen (wie das Summary).
+				onClick: (event: MouseEvent) => {
+					if (event.target === event.currentTarget) setOpen((current) => !current);
+				},
+			},
+			_label,
+			open ? children : null,
 		);
 	},
 	KolBadge: ({ _label }: { _label?: string }) => <span data-testid="badge">{_label}</span>,
@@ -494,5 +514,51 @@ describe('GroupDetail — Paket-Badge im Kopfbereich (#1484 AK3, #1528)', () => 
 		const badge = await screen.findByTestId('plan-badge-groups');
 		expect(badge.closest('a')).toHaveAttribute('href', '/settings/pakete');
 		expect(screen.queryByTestId('plan-badge-info-groups')).toBeNull();
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2015 — „Einstellungen: zweite Ebene ausschließlich Details-Blöcke“.
+ *
+ * Spec-Bezug: docs/spec/issue-2015.md (AK2, TF2). Die sechs Gruppen-Detail-Bereiche sind
+ * `KolAccordion` in dem aufgeklappten Gruppen-Akkordeon (GroupsSection, Settings-Tab
+ * „Gruppen“) — nach dem Umbau sind sie `KolDetails` und kein Akkordeon bleibt übrig.
+ */
+describe('GroupDetail — zweite Ebene als KolDetails (#2015 AK2)', () => {
+	const DETAILS_LABELS = [
+		'Offene Einladungen',
+		'Offene Gruppen-Aufgaben',
+		'Füreinander angelegt',
+		'Füreinander angelegte Serien',
+		'Mitglieder einladen',
+		'Einladungslinks',
+	];
+
+	const renderGroup = async (): Promise<HTMLElement> => {
+		mockGetGroupMembers.mockResolvedValue([]);
+		mockGetGroupInvitations.mockResolvedValue([]);
+		const { container } = render(<GroupDetail groupId={1} ownRole="admin" />);
+		await waitFor(() => expect(mockGetGroupMembers).toHaveBeenCalled());
+		return container;
+	};
+
+	it('TF2/AK2: alle sechs Detail-Bereiche sind kol-details, kein KolAccordion bleibt übrig', async () => {
+		const container = await renderGroup();
+
+		for (const label of DETAILS_LABELS) {
+			expect(container.querySelector(`kol-details[_label="${label}"]`), label).not.toBeNull();
+		}
+		expect(container.querySelector('kol-accordion'), 'kein Akkordeon in der Gruppendetail-Ansicht').toBeNull();
+	});
+
+	it('TF2/AK2: ein kol-details ist klappbar (Klick klappt auf, _open spiegelt den Zustand)', async () => {
+		const container = await renderGroup();
+
+		const details = container.querySelector('kol-details[_label="Offene Einladungen"]');
+		expect(details).not.toBeNull();
+		expect(details!.getAttribute('_open')).toBe('false');
+
+		fireEvent.click(details!);
+		await waitFor(() => expect(details!.getAttribute('_open')).toBe('true'));
 	});
 });

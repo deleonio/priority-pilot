@@ -120,7 +120,9 @@ const escapeForRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\
  * (Playwright-Standardverhalten) und trifft weiterhin zuverlässig.
  */
 export const accordionTrigger = (page: Page, label: string): Locator =>
-	page.locator('kol-accordion summary').filter({ hasText: new RegExp(`^${escapeForRegExp(label)}$`) });
+	page
+		.locator('kol-accordion summary, kol-details summary')
+		.filter({ hasText: new RegExp(`^${escapeForRegExp(label)}$`) });
 
 /** Auf-/Zugeklappt-Zustand kommt seit `<details>`/`<summary>` nur noch aus der nativen `open`-Eigenschaft. */
 export const isAccordionOpen = (trigger: Locator): Promise<boolean> =>

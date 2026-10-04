@@ -1,4 +1,4 @@
-import { KolAlert, KolButton, KolCard, KolSpin } from '@public-ui/react-v19';
+import { KolAlert, KolButton, KolSpin } from '@public-ui/react-v19';
 import type { Category } from 'client';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
@@ -90,20 +90,20 @@ export const CategoryList = ({ onCategoryChanged }: CategoryListProps) => {
 			{loading ? (
 				<KolSpin _show _variant="cycle" _label="Kategorien werden geladen …" />
 			) : categories.length === 0 && error === null ? (
-				/* Leerzustand als Einladung — die Toolbar bleibt aus, damit es genau eine Primäraktion gibt. */
+				/* Leerzustand als Einladung — die Toolbar bleibt aus, damit es genau eine Primäraktion gibt.
+				   #2015: keine Kartenfläche (Regel 1 — die Liste liegt selbst in der Karte „Kategorien verwalten“). */
 				<section className="empty-state">
-					<KolCard _label="Noch keine Kategorien" _level={3}>
-						<p>
-							Lege deine erste Kategorie an, um Aufgaben nach Thema zu bündeln. Ohne Kategorie bleiben Aufgaben einfach
-							ungeordnet — nichts geht verloren.
-						</p>
-						<KolButton
-							_label="Neue Kategorie anlegen"
-							_icons={{ left: { icon: 'fa-solid fa-plus' } }}
-							_variant="primary"
-							_on={{ onClick: () => setFormMode({ kind: 'create' }) }}
-						/>
-					</KolCard>
+					<h3>Noch keine Kategorien</h3>
+					<p>
+						Lege deine erste Kategorie an, um Aufgaben nach Thema zu bündeln. Ohne Kategorie bleiben Aufgaben einfach
+						ungeordnet — nichts geht verloren.
+					</p>
+					<KolButton
+						_label="Neue Kategorie anlegen"
+						_icons={{ left: { icon: 'fa-solid fa-plus' } }}
+						_variant="primary"
+						_on={{ onClick: () => setFormMode({ kind: 'create' }) }}
+					/>
 				</section>
 			) : (
 				<>
