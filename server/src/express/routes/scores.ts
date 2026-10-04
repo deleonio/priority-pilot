@@ -216,7 +216,13 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 
 		// Die bereits geladene ScoreEntry-Liste an `meilensteinStandVon` durchreichen (#2150):
 		// ein Balance-Request liest ScoreEntries nur einmal (sonst zweiter findAll in der Logik).
-		const meilensteinStand = await meilensteinStandVon(userId, zeitZone, { entries });
+		// Seit #2157 auch die berechneten Werte: die Streak-Berechnung läuft je Request genau einmal.
+		const punkteSumme = entries.reduce((summe, entry) => summe + entry.punkte, 0);
+		const meilensteinStand = await meilensteinStandVon(userId, zeitZone, {
+			entries,
+			bestStreak: best,
+			punkteSumme,
+		});
 
 		res.json({
 			// Eine Dezimalstelle: der Füllstand schwankt mit jeder Erledigung, mehr Stellen wären
