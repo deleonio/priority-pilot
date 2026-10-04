@@ -967,7 +967,9 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 		// Guard die entgegengesetzte Richtung und griff für real angelegte Unteraufgaben daher nie.
 		if (validation.attrs.status === 'Done') {
 			const subtasks = await task.getDependencies();
-			const hasOpenSubtask = subtasks.some((sub) => sub.status !== 'Done');
+			// Archivierte Unteraufgaben sind unsichtbar (Baum/`GET /tasks`, #1964) und dürfen das
+			// Erledigen des Elternteils nicht dauerhaft sperren (#2188 Kreuzverhör).
+			const hasOpenSubtask = subtasks.some((sub) => sub.status !== 'Done' && sub.archivedAt == null);
 			if (hasOpenSubtask) {
 				sendError(
 					res,

@@ -45,8 +45,10 @@ const isActive = (task: Task): boolean =>
 /**
  * Zählt den Fortschritt eines Tasks inkl. seiner selbst und aller transitiven Unteraufgaben
  * (`getDependencies()`), dedupliziert über die Task-ID (schützt vor Zyklen/geteilten Knoten im DAG).
- * Bewusst UNGEFILTERT (auch erledigte Unteraufgaben zählen), damit die Fortschrittsanzeige (#241)
- * korrekt bleibt, obwohl erledigte Unteraufgaben aus dem angezeigten Baum entfernt sind (#392).
+ * Beim Status bewusst UNGEFILTERT (auch erledigte Unteraufgaben zählen), damit die
+ * Fortschrittsanzeige (#241) korrekt bleibt, obwohl erledigte Unteraufgaben aus dem angezeigten
+ * Baum entfernt sind (#392); nur archivierte Unteraufgaben zählen nicht (#1964, #2188) — sie sind
+ * unsichtbar und würden den Eltern-Fortschritt dauerhaft bei „x/y“ festnageln.
  * Liefert `null`, wenn der Task keine direkten Unteraufgaben hat (keine redundante 1/1-Anzeige, AK3).
  * Semantik identisch zum früheren Frontend-`calculateProgress` (Dedup per ID statt Objekt-Identität —
  * bei Diamant-DAGs sogar korrekter, weil `buildTaskTree` pro Aufruf frische Knoten materialisiert).
@@ -70,6 +72,11 @@ const computeProgress = async (task: Task): Promise<{ done: number; total: numbe
 			return;
 		}
 		visited.add(node.id);
+		if (node !== task && node.archivedAt != null) {
+			// Archiv (#1964, #2188): unsichtbare Unteraufgaben zählen weder im Zähler noch im Nenner
+			// (inkl. ihres Teilbaums) — sonst bliebe der Eltern-Fortschritt dauerhaft bei „x/y“ hängen.
+			return;
+		}
 		total += 1;
 		if (node.status === 'Done') {
 			done += 1;

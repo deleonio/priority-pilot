@@ -620,7 +620,16 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		void api
 			.listArchivedTasks({ signal: controller.signal })
 			.then(setArchivedTasks)
-			.catch(() => undefined);
+			.catch((reason: unknown) => {
+				// Abort beim Ansichtswechsel/Neuladen ist normal; echte Fehler sichtbar machen (Muster
+				// `loadError`), statt still eine leere/veraltete Archiv-Liste zu zeigen (#2188 Nit).
+				if (controller.signal.aborted) return;
+				void toApiError(reason).then((apiError) => {
+					if (apiError.status !== 401) {
+						setLoadError(apiError.message);
+					}
+				});
+			});
 		return () => controller.abort();
 	}, [taskViewMode, tasks]);
 
