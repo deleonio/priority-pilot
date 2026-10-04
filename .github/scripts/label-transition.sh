@@ -108,8 +108,8 @@ fi
 #
 # Eine Transition ersetzt den gesamten MANAGED-Bestand in EINEM API-Call: Konfiguration
 # am Ticket (früher `ai:model:*`, abgeschafft 04.10.) gehört deshalb bewusst NICHT in
-# diese Liste — sie hätte sonst die erste Phasen-Transition überlebt, Trigger-Labels
-# aber nicht. Abgesichert in label-transition.test.ts.
+# diese Liste — stünde sie in MANAGED, wische die erste Phasen-Transition sie weg;
+# nur außerhalb der Liste überlebt sie.
 MANAGED=(ai:needs-review ai:needs-fixup ai:reviewed ai:needs-human)
 # Anlege-Definitionen (nur relevant auf frischen Repos; bestehende Labels bleiben
 # unangetastet — gleiche Farben wie bisher in den Workflows gepflegt).

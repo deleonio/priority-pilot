@@ -702,7 +702,6 @@ jobs:
     if: >-
       ${{ always()
           && github.event_name == 'pull_request'
-          && needs.precheck.outputs.model_abort != 'true'
           && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
     runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 60
