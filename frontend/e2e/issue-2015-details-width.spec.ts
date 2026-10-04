@@ -7,7 +7,8 @@ import { waitForStableBox } from './helpers';
  *
  * Ein geöffnetes KolDetails zweiter Ebene („Reichweite und Intervall“ im Tab „Standort“) ist
  * ein Block über die volle Zeilenbreite: bei 375 px entspricht seine Bounding-Box der
- * Panel-Breite. Bounding-Box-Assert statt scrollWidth — die App-Shell clippt
+ * vollen Zeilenbreite der Details-Blöcke. Bounding-Box-Assert statt scrollWidth — die
+ * App-Shell clippt
  * overflow-x:hidden, ein Scroll-Überhang wäre dort unsichtbar.
  *
  * Gegen das echte Backend (Vite-Proxy, Muster issue-1098-geo-settings.spec.ts); Expertenmodus
@@ -23,7 +24,7 @@ test.describe('Balamentum — #2015: Details-Blöcke über die volle Zeilenbreit
 		});
 	});
 
-	test('AK4: geöffnetes „Reichweite und Intervall“ füllt bei 375 px die Panel-Breite', async ({ page }) => {
+	test('AK4: geöffnetes „Reichweite und Intervall“ füllt bei 375 px die volle Zeilenbreite', async ({ page }) => {
 		await page.goto('/app/settings/standort');
 
 		// Rot heute: der Block ist noch ein eigenständiges kol-accordion, kein kol-details.
@@ -36,7 +37,7 @@ test.describe('Balamentum — #2015: Details-Blöcke über die volle Zeilenbreit
 		await waitForStableBox(page, details);
 		const box = (await details.boundingBox())!;
 		// AK3 siedelt den Block IN der Karte „Standorterfassung“ an — deren Theme-Polster (~15px je
-		// Seite) macht „Bounding-Box == Panel-Breite“ strukturell unerreichbar. Zeilenbreite heißt
+		// Seite) macht „Bounding-Box == Zeilenbreite“ strukturell unerreichbar. Zeilenbreite heißt
 		// daher: exakt so breit und so positioniert wie der Nachbar-Stack derselben Karte (ein
 		// Inhaltsbreite-Inline-Block wäre schmaler/versetzt). [Test-Pflege #2015, siehe PR-Body.]
 		const stackBox = (await panel.locator('kol-card > .settings-card-stack').first().boundingBox())!;

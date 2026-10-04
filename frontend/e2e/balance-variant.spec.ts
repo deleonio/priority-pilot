@@ -51,7 +51,7 @@ test.describe('Bild der Lebensbalance – Umschalter im Allgemein-Tab', () => {
 		expect(groupBox!.x).toBeGreaterThanOrEqual(0);
 		expect(groupBox!.x + groupBox!.width).toBeLessThanOrEqual(375);
 
-		// „Blüte“ wählen — Persistenz wie beim Theme: der PUT legt die Wahl am Konto ab (#2156), der localStorage bleibt der Gerät-Spiegel.
+		// „Blüte“ wählen — der PUT legt die Wahl am Konto ab (#2156), der localStorage bleibt der Gerät-Spiegel.
 		await variantOption(page, 'Blüte').click();
 		const stored = await page.evaluate((key) => localStorage.getItem(key), VARIANT_STORAGE_KEY);
 		expect(stored).toBe('bluete');
