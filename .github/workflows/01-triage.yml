@@ -44,6 +44,19 @@ concurrency:
   # trotzdem hintereinander — der Split wirkt nur hosted; und jede Phase setzt das
   # Trigger-Label des Nachfolgers erst kurz vor Lauf-Ende — minimale Überlappung, unkritisch
   # (Issue-Storage vorher gesichert, Precheck+Setup dauern Minuten).
+  # WICHTIG dabei: Die gemeinsame Gruppe `llm` wirkt zusätzlich stillschweigend als
+  # JOB-ENDE-BARRIERE — der Folgelauf desselben Issues startet erst, wenn der
+  # Vorgänger-Job vollständig terminiert ist, denn in derselben Gruppe queue er hinter
+  # ihm. Die Label-Übergabe passiert mitten im Job (Label-Post-Assertion); danach fährt
+  # der Vorgänger noch seine Nachbereitung (Ergebnis-Zusammenfassung, Composite-Post-
+  # Steps wie Memory-Upload). Granularere Keys (z. B. Issue-Nummer) oder getrennte
+  # Gruppen je Phase würden diese Barriere aufheben — die Folgephase könnte starten,
+  # während der Vorgänger noch läuft. Der Gruppe-Split (llm-spec/llm-impl, Durchsatz-
+  # Analyse 04.10.) ist nur sicher mit einer Verschiebung des Folge-Labels auf den
+  # ALLERLETZTEN Job-Step; die Bewertung „minimale Überlappung, unkritisch" gilt dann
+  # neu. Messung: Slots zu 12-35 % belegt, trotzdem serialisiert die `llm`-Gruppe
+  # Spec+Implement auf ~1,5 h/Issue (Limit ~16-20 Issues/Tag) — der Split ist der
+  # größte einzelne Durchsatzhebel, nicht die Modell-/Provider-Wahl.
   group: llm-triage
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
