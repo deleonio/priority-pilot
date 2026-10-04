@@ -2061,7 +2061,7 @@ describe('SettingsPage – #2015: zweite Ebene ausschließlich KolDetails (Regel
 		return value === null || value === undefined ? '' : String(value);
 	};
 
-	const DETAILS_SELECTOR =
+	const FORBIDDEN_NESTING_SELECTOR =
 		'kol-card kol-card, kol-card kol-accordion, kol-accordion kol-card, kol-accordion kol-accordion';
 
 	it('TF1/AK2: kein Settings-Panel enthält Karte-in-Karte oder Akkordeon in Karte/Akkordeon', () => {
@@ -2077,7 +2077,10 @@ describe('SettingsPage – #2015: zweite Ebene ausschließlich KolDetails (Regel
 		for (const slot of slots) {
 			const panel = container.querySelector(`[slot="${slot}"]`);
 			expect(panel, `${slot} existiert`).not.toBeNull();
-			expect(panel!.querySelector(DETAILS_SELECTOR), `${slot}: keine verschachtelte Karte/Akkordeon`).toBeNull();
+			expect(
+				panel!.querySelector(FORBIDDEN_NESTING_SELECTOR),
+				`${slot}: keine verschachtelte Karte/Akkordeon`,
+			).toBeNull();
 		}
 	});
 

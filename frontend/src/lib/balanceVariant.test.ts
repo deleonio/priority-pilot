@@ -68,7 +68,12 @@ describe('balanceVariant', () => {
 		await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1), {
 			timeout: 2000,
 		});
-		const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		// Der Mount-GET kann zuerst feuern — den PUT gezielt über die Methode wählen, nicht über den Index.
+		const putCall = fetchMock.mock.calls.find(
+			(call) => (call as unknown as [string, RequestInit])[1]?.method === 'PUT',
+		);
+		expect(putCall, 'PUT-Call unter den Fetch-Aufrufen').toBeDefined();
+		const [url, init] = putCall as unknown as [string, RequestInit];
 		expect(String(url)).toContain('/balance-variant');
 		expect(init.method).toBe('PUT');
 		expect(JSON.parse(String(init.body))).toEqual({ variant: 'ringe' });
