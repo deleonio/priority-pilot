@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 /**
  * Rote Spec-Tests für #1408 AK1 — `initAiEnabled` in `frontend/e2e/ai-disable.spec.ts` muss ein
  * abwartbares Promise zurückgeben, und alle drei Aufrufer (#1335-AK5, #1525-AK3,
- * #1527-`beforeEach`) müssen es mit `await` abwarten. Heute (docs/spec/issue-1408.md) ist der
+ * #1527-`beforeEach`) müssen es mit `await` abwarten. Heute (#1408) ist der
  * Helfer synchron (`: void`) und gibt das Promise von `page.addInitScript(...)` nicht zurück —
  * ein `page.evaluate`-Assertion-Test dieser Race ist im lokalen Testlauf nicht zuverlässig rot
  * (Timing-abhängig), deshalb prüft dieser Test die Quelle direkt (statischer Vertrag, TF1).

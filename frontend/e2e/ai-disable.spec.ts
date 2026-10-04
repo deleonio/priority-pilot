@@ -90,7 +90,7 @@ test.describe('#1335 KI-Features: ein einziger Schalter', () => {
 		).toHaveCount(0);
 
 		// #1408-AK2: der KI-aus-Zustand muss vor dem Klick tatsächlich gesetzt sein — sonst prüft
-		// dieser Test unbemerkt den KI-an-Pfad (initAiEnabled-Race, siehe docs/spec/issue-1408.md).
+		// dieser Test unbemerkt den KI-an-Pfad (initAiEnabled-Race, siehe #1408).
 		expect(await page.evaluate(() => localStorage.getItem('pp-ai-enabled'))).toBe('false');
 
 		await headerAction(page, 'Neuen Task anlegen').then((button) => button.click());

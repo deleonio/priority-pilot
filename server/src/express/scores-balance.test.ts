@@ -376,7 +376,7 @@ describe('GET /scores/balance — Trend und Defizit (#1796)', () => {
 		assert.deepEqual(nochmal.meilensteine, nachReopen.meilensteine, 'AK3: ein zweiter Leselauf ändert nichts');
 	});
 
-	it('AK1 (#2150, docs/spec/issue-2150.md): ein Balance-Request liest ScoreEntry.findAll genau einmal', async (t) => {
+	it('AK1 (#2150): ein Balance-Request liest ScoreEntry.findAll genau einmal', async (t) => {
 		const cookie = await server.register('balance-einlesen@example.com', 'password123');
 		const saeule = await createPillar(cookie, `Eins-${idCounter++}`);
 		await completeTaskWithShares(cookie, 'Einlese-Aufgabe', 1, [{ pillarId: saeule.id, share: 100 }]);
