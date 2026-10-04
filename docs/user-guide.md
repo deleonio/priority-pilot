@@ -142,7 +142,7 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
   Ein farbiges Kennzeichen warnt vor **überfälligen** (rot) und **bald fälligen**
   (orange, heute bis in 3 Tagen) Aufgaben.
 
-Über den Karten schaltest du zwischen **Tagesansicht** und **Wochenansicht** um. Die
+Über den Karten schaltest du zwischen **Heute** und **Woche** um. Die
 Wochenansicht zeigt die aktuelle Kalenderwoche als sieben Tageskarten (Montag zuerst) mit
 den offenen Aufgaben, die an dem Tag fällig sind; erledigte erscheinen durchgestrichen
 darunter. Unter Heute stehen zusätzlich die

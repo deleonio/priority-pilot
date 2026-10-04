@@ -3,6 +3,7 @@ import {
 	KolAvatar,
 	KolButton,
 	KolInputCheckbox,
+	KolInputRadio,
 	KolInputText,
 	KolSingleSelect,
 	KolSpin,
@@ -133,6 +134,14 @@ const HOME_ICON = { left: { icon: 'fa-solid fa-house' } };
 // die Kopf-Aktionen sind app-weit über ihn adressiert.
 const ACTIVE_VARIANT = 'primary' as const;
 const INACTIVE_VARIANT = 'secondary' as const;
+
+// #2011: Tag/Woche-Umschalter als Radiogruppe — kurze, eindeutige Bezeichnungen (KI-UX-Entscheidung);
+// Options-Objekte mit stabiler Identität (Muster `AppearanceSetting.tsx`), damit die Radiogruppe
+// nicht bei jedem Render eine neue Options-Liste erhält.
+const DASHBOARD_VIEW_OPTIONS = [
+	{ label: 'Heute', value: 'day' },
+	{ label: 'Woche', value: 'week' },
+];
 
 /**
  * Ist-Verteilung für die Balance-Priorisierung — erledigter `estimatedEffort` je Säule, anteilig
@@ -1132,15 +1141,21 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 									{/* #1617: Tag/Woche-Umschalter — reines Anzeigeumschalten, kein eigener Tab (der
 									    Wechsel bleibt Teil desselben Dashboard-Slots, deep-link-fähig über `?planview=`). */}
 									<div className="dashboard-view-switch">
-										<KolButton
-											_label="Tagesansicht"
-											_variant={dashboardView === 'day' ? ACTIVE_VARIANT : INACTIVE_VARIANT}
-											_on={{ onClick: () => changeDashboardView('day') }}
-										/>
-										<KolButton
-											_label="Wochenansicht"
-											_variant={dashboardView === 'week' ? ACTIVE_VARIANT : INACTIVE_VARIANT}
-											_on={{ onClick: () => changeDashboardView('week') }}
+										{/* #2011: Radiogruppe statt zwei Einzelschaltflächen — aktive Ansicht am checked-Zustand
+										    erkennbar (WCAG 1.4.1); Deep-Link-Vertrag `?planview=` bleibt unangetastet. */}
+										<KolInputRadio
+											_label="Ansicht"
+											_hideLabel={true}
+											_orientation="horizontal"
+											_options={DASHBOARD_VIEW_OPTIONS}
+											_value={dashboardView}
+											_on={{
+												onChange: (_event, value) => {
+													if (value === 'day' || value === 'week') {
+														changeDashboardView(value);
+													}
+												},
+											}}
 										/>
 									</div>
 									{dashboardView === 'week' ? (
