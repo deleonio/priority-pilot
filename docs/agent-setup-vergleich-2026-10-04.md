@@ -85,6 +85,28 @@ letzten Job-Step (Job-Ende-Barriere, s. `01-triage.yml`). Danach limitiert der I
 bzw. die Implement-Dauer, nicht mehr die Concurrency. Zusätzlich zu fixen: die mechanischen
 Triage-Fails ([#2138](https://github.com/deleonio/priority-pilot/issues/2138), Container-Step).
 
+## Nachtrag 04.10.: Entkopplung umgesetzt — und eine Korrektur
+
+Die Entkopplung ist umgesetzt: Spec läuft in `llm-spec`, Implement/Fixup + team in
+`llm-impl` (jeweils `queue: max`, `cancel-in-progress: false`). Innerhalb eines Issues
+ketten die Labels weiter; Implement ↔ Fixup desselben Issues serialisieren weiterhin über
+die gemeinsame Gruppe `llm-impl` (ADR 0005). team.yml bewusst nicht in eine dritte Gruppe —
+erst messen, ob `llm-impl` dauerhaft belegt ist.
+
+Dabei eine Korrektur an der eigenen Argumentation: Der Übergang Implement→Review (04→05)
+ist **kein** Beleg dafür, dass Gruppen-Grenzen unkritisch sind — Review wartet als ersten
+Schritt auf CI (bis zu 20 min), hat den Puffer also eingebaut. Spec→Implement hat keinen
+solchen Puffer; deshalb setzt 03 das Folge-Label (`ai:needs-impl` bzw. `ai:needs-spec` beim
+Partial-Retry) jetzt als **allerletzten Job-Step** (`label-final`), nachdem
+Ergebnis-Zusammenfassung und Fair-Usage-Check durch sind. Die Rest-Überlappung schrumpft
+auf Composite-Post-Steps (Sekunden); der Runtime-Precheck von 04 skippt zusätzlich bei
+veraltetem Label-Zustand. Bewusst nicht umgesetzt: issue-granulare Concurrency-Keys (der
+Fixup-Eingang triggert über den PR — die PR→Issue-Normalisierung wäre eine Überhol-Falle).
+
+Zu beobachten nach dem Merge: Besetzung von `llm-impl` (dauerhaft ~1 ⇒ nächster Schritt:
+team raus), Fixup-Quote (drücken zwei parallele Git-Phasen die Qualität?), Merge-Kollisionen
+auf main. Erwartung: Kapazität der Engpass-Stufe von ~16–20 auf ~30–40 Issues/Tag.
+
 ## Confounds (sauber lesen)
 
 Der Vergleich ist kein sauberes A/B: Issue-Mix unterscheidet sich je Tag (P0-Onboarding vs.

@@ -34,29 +34,28 @@ on:
 
 concurrency:
   # Keys folgen der Abarbeitung, nicht dem LLM: eigene Gruppen für Triage/UX (Issue-only),
-  # Review (nur Kommentare/Labels — sein CI-Wait von bis zu 20 min belegt sonst ohne
-  # LLM-Arbeit den Slot) und Documenter (`llm-documenter`, post-merge). Die Git-Phasen Spec
-  # (03), Implement/Fixup (04) und team.yml serialisieren über EINE Gruppe `llm` — die engste
-  # Kopplung der Kette (Spec erzeugt, was Implement konsumiert); Cron-/Ad-hoc-Sync bleibt in
-  # `llm-sync`. Erbe von PR #1301 (dort 6 eigene Gruppen): ein erschöpftes z.ai-Kontingent
-  # trifft wieder mehrere Läufe parallel — bewusst akzeptiert gegen die Fixup-Blockade.
+  # Review (`llm-review`) und Documenter (`llm-documenter`, post-merge). Die Git-Phasen sind
+  # seit der Durchsatz-Analyse (04.10., docs/agent-setup-vergleich-2026-10-04.md) ENTKOPPELT:
+  # Spec in `llm-spec`, Implement/Fixup + team in `llm-impl` — vorher serialisierten alle drei
+  # über EINE Gruppe `llm` und kappten die Pipeline bei ~16-20 Issues/Tag, obwohl die Slots
+  # nur zu 12-35 % belegt waren. Innerhalb eines Issues ketten die Labels; der Überhol-Schutz
+  # Implement↔Fixup (ADR 0005) bleibt über die gemeinsame Gruppe `llm-impl` erhalten.
+  # Cron-/Ad-hoc-Sync bleibt in `llm-sync`. Erbe von PR #1301 (dort 6 eigene Gruppen): ein
+  # erschöpftes z.ai-Kontingent trifft mehrere Läufe parallel — abgefedert durch
+  # llm-limit-detect (#1954) und zai-Peak-Vertagen (#2100), die es damals noch nicht gab.
+  #
+  # JOB-ENDE-BARRIERE (wichtig an jeder Gruppen-Grenze): Jede Phase setzt das Trigger-Label
+  # des Nachfolgers MITTEN IM JOB (Label-Post-Assertion), nicht am Job-Ende — danach fährt
+  # der Vorgänger noch Nachbereitung (Ergebnis-Zusammenfassung, Composite-Post-Steps). Ein
+  # Nachfolger in einer ANDEREN Gruppe startet daher grundsätzlich vor Job-Ende des
+  # Vorgängers. Zwei Muster, wie damit umgegangen wird:
+  #  - 04→05: Der Review-Lauf wartet zuerst auf CI (bis zu 20 min) — der Puffer ist
+  #    eingebaut und absorbiert die Überlappung vollständig.
+  #  - 03→04: Kein solcher Puffer — deshalb setzt 03 das Folge-Label als ALLERLETZTEN
+  #    Job-Step (step `label-final`); die Restlücke schrumpft auf Composite-Post-Steps
+  #    (Sekunden), und der Runtime-Precheck von 04 skippt bei veraltetem Label-Zustand.
   # Grenzen: Auf einem Einzel-Runner (vars.PHASE_RUNNER, z. B. pi5) queuen die Gruppen
-  # trotzdem hintereinander — der Split wirkt nur hosted; und jede Phase setzt das
-  # Trigger-Label des Nachfolgers erst kurz vor Lauf-Ende — minimale Überlappung, unkritisch
-  # (Issue-Storage vorher gesichert, Precheck+Setup dauern Minuten).
-  # WICHTIG dabei: Die gemeinsame Gruppe `llm` wirkt zusätzlich stillschweigend als
-  # JOB-ENDE-BARRIERE — der Folgelauf desselben Issues startet erst, wenn der
-  # Vorgänger-Job vollständig terminiert ist, denn in derselben Gruppe queue er hinter
-  # ihm. Die Label-Übergabe passiert mitten im Job (Label-Post-Assertion); danach fährt
-  # der Vorgänger noch seine Nachbereitung (Ergebnis-Zusammenfassung, Composite-Post-
-  # Steps wie Memory-Upload). Granularere Keys (z. B. Issue-Nummer) oder getrennte
-  # Gruppen je Phase würden diese Barriere aufheben — die Folgephase könnte starten,
-  # während der Vorgänger noch läuft. Der Gruppe-Split (llm-spec/llm-impl, Durchsatz-
-  # Analyse 04.10.) ist nur sicher mit einer Verschiebung des Folge-Labels auf den
-  # ALLERLETZTEN Job-Step; die Bewertung „minimale Überlappung, unkritisch" gilt dann
-  # neu. Messung: Slots zu 12-35 % belegt, trotzdem serialisiert die `llm`-Gruppe
-  # Spec+Implement auf ~1,5 h/Issue (Limit ~16-20 Issues/Tag) — der Split ist der
-  # größte einzelne Durchsatzhebel, nicht die Modell-/Provider-Wahl.
+  # trotzdem hintereinander — der Split wirkt nur hosted.
   group: llm-triage
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
