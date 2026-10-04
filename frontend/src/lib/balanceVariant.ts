@@ -158,7 +158,7 @@ export const useBalanceVariant = (): UseBalanceVariantResult => {
 				body: JSON.stringify({ variant: next }),
 			})
 				.then((response) => {
-					// Verworfener Token (Rotation): der nächste GET primiert neu (Semantik wie `api.ts`).
+					// Verworfener CSRF-Token des PUT (Server-Rotation): der nächste GET zieht die Konto-Wahl neu nach (Semantik wie `api.ts`).
 					if (response.status === 403) csrfToken = null;
 				})
 				.catch(() => {

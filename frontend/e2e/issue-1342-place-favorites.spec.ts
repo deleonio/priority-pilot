@@ -148,6 +148,19 @@ test.describe('Balamentum — #1342: Standort-Favoriten', () => {
 		const deleteButton = rowToDelete.getByRole('button', {
 			name: new RegExp(`^löschen.*${HIT.address}`, 'i'),
 		});
+		// TEST-PFLEGE #2173 (Nit aus dem Review zu #2166): der sichtbare Schalter-Text wird im E2E
+		// mitgeprüft — über den öffentlichen Host (`kol-button`) und sein Light-DOM (die visuell
+		// versteckte Anschrift wird abgezogen), wie im Unit-Test, aber im echten Browser-Rendering.
+		const visibleLabel = await rowToDelete
+			.locator('kol-button')
+			.first()
+			.evaluate((el) => {
+				const clone = el.cloneNode(true) as Element;
+				clone.querySelectorAll('.visually-hidden').forEach((hidden) => hidden.remove());
+				return (clone.textContent ?? '').replace(/\s+/g, ' ').trim();
+			});
+		expect(visibleLabel, 'sichtbarer Schalter-Text im echten Rendering').toBe('Löschen');
+
 		const deleteBox = await deleteButton.boundingBox();
 		expect(deleteBox!.height).toBeGreaterThanOrEqual(44);
 		await deleteButton.click();

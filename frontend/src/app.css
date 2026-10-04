@@ -2168,7 +2168,7 @@ kol-toolbar {
 
 /*
  * Tab „Säulen" (#271): zwei Karten — „Säulen verwalten" (Liste, Anlegen/Bearbeiten/Löschen) und
- * „Säulen-Gewichtung" (Regler). Beide tragen `.settings-card` (Block-Host, volle Panel-Breite);
+ * „Säulen-Gewichtung" (Regler). Beide tragen `.settings-card` (Block-Host, volle Zeilenbreite);
  * der Abstand dazwischen kommt aus dem Panel-Gap von `.settings-panel`.
  */
 
@@ -2446,7 +2446,7 @@ kol-toolbar {
  * Track-Minimum über die min-content-Breite des Panel-Inhalts läuft. Die einzeilig gekappte
  * Beschreibung (`.groups-description`, `white-space: nowrap`) bläht diese min-content-Breite sonst
  * auf die volle Textlänge auf und lässt das Panel aus dem 375px-Viewport laufen (622px gemessen).
- * `minmax(0, 1fr)` koppelt die Panel-Breite vom Inhalt (klassischer Grid-Min-Content-Break) —
+ * `minmax(0, 1fr)` koppelt die Track-Breite vom Inhalt (klassischer Grid-Min-Content-Break) —
  * die Ellipsis der Beschreibung greift dann wie in `.groups-info` (`min-width: 0`).
  */
 
@@ -3283,7 +3283,7 @@ kol-toolbar {
 /*
  * Gruppierungsfläche innerhalb eines Panels: `KolCard` für dauerhaft offene Gruppen,
  * `KolAccordion`/`KolDetails` für aufklappbare. Beide Hosts sind block-level und nehmen die
- * volle Panel-Breite ein (Muster der Dashboard-Karten). #2015: `kol-details` ist im
+ * volle Zeilenbreite ein (Muster der Dashboard-Karten). #2015: `kol-details` ist im
  * KoliBri-Theme `inline-block` — die `display: block`-Regel hier hält Details-Blöcke zweiter
  * Ebene auf voller Zeilenbreite.
  */

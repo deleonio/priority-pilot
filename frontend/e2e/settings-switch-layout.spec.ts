@@ -291,7 +291,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 	 * Design-Lauf 2026-09 hob `KolDetails` zu `KolAccordion`; #2015 kehrt das zurück —
 	 * `KolDetails` in der Karte (Regel 1).
 	 */
-	test('AK8: „Einzelne Animationen" blendet beide Feinschalter im Accordion ein', async ({ page }) => {
+	test('AK8: „Einzelne Animationen" blendet beide Feinschalter im Details-Block ein', async ({ page }) => {
 		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Balamentum');
 

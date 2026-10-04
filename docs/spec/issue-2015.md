@@ -49,7 +49,7 @@ Akkordeon in einer Karte oder in einem Akkordeon; aufklappbare Inhalte zweiter E
 
 5. **Details-Block füllt die Zeilenbreite (AK4, TF4)**
    - Ein geöffnetes `KolDetails` zweiter Ebene ist ein Block über die volle Zeilenbreite;
-     bei 375 px entspricht seine Bounding-Box der Panel-Breite (Bounding-Box-Assert, kein
+     bei 375 px entspricht seine Bounding-Box der vollen Zeilenbreite der Details-Blöcke (Bounding-Box-Assert, kein
      `scrollWidth` — die App-Shell clippt `overflow-x: hidden`)
 
 ### Kein Testgegenstand
@@ -68,6 +68,6 @@ Akkordeon in einer Karte oder in einem Akkordeon; aufklappbare Inhalte zweiter E
 - Alle ehemaligen Akkordeon-Labels zweiter Ebene sind als `kol-details` vorhanden, klappbar und
   behalten ihre Sync-Verträge (TF2)
 - Der Kategorien-Leerzustand kommt ohne Kartenfläche aus (TF3)
-- Geöffnete Details-Blöcke füllen bei 375 px die Panel-Breite (TF4)
+- Geöffnete Details-Blöcke füllen bei 375 px die volle Zeilenbreite (TF4)
 - KoliBri-Eigenheiten bleiben erhalten: key-Remounts und `_disabled`-Logik der Geo-Regler
   (#1098), Experten-Renderung nur bei expertMode (#1984)
