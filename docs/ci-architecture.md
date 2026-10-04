@@ -338,17 +338,23 @@ unten sind damit nicht mehr live.
   Phasenmodelle `glm-5.3[1m]`/`glm-4.7` sind davon nie betroffen gewesen.
   Die `concurrency`-Gruppen folgen der Abarbeitung, nicht dem LLM: Triage (01), UX (02) und
   Review (05) haben je eine eigene statische Gruppe (`llm-triage`, `llm-ux`, `llm-review`);
-  die Git-Phasen Spec (03), Umsetzung/Fixup (04) und team.yml serialisieren über EINE
-  gemeinsame Gruppe `llm` (die engste Kopplung der Kette — Spec erzeugt, was Implement
-  konsumiert). Die Cron-/Ad-hoc-Läufe bleiben
+  die Git-Phasen sind entkoppelt (Durchsatz-Analyse
+  [agent-setup-vergleich-2026-10-04.md](./agent-setup-vergleich-2026-10-04.md)): Spec (03)
+  läuft in `llm-spec`, Umsetzung/Fixup (04) und team.yml in `llm-impl` — ein Issue
+  implementiert, während das nächste specced wird; der Überhol-Schutz der beiden Phase-4-
+  Eingänge (ADR 0005) bleibt über die gemeinsame Gruppe `llm-impl` erhalten. Weil die
+  Label-Übergabe mitten im Job passiert, setzt 03 das Folge-Label als allerletzten Job-Step
+  (Job-Ende-Barriere, Details: `01-triage.yml`); 04→05 puffert der Review-CI-Wait selbst.
+  Die Cron-/Ad-hoc-Läufe bleiben
   in ihrer eigenen gemeinsamen Gruppe `llm-sync` (s. [pipeline-flow.md](./pipeline-flow.md)).
   `06-document` hat eine eigene, statische Gruppe `llm-documenter` — unabhängig vom Provider,
   denn der Documenter läuft nach dem Merge und hat keine Abarbeitungs-Abhängigkeit zu den
   Ticket-Phasen (auch die Notbremse `LLM_PROVIDER_DOCUMENTER` ändert daran nichts; er zieht
   dann parallel vom z.ai-Kontingent, bewusst akzeptiert).
-  Obergrenze: **bis zu 6 gleichzeitige Agent-Läufe** (Triage-, UX-, Git-, Review-, Sync- und
-  Documenter-Slot) — ein erschöpftes Kontingent (z.ai) trifft damit mehrere Ticket-Läufe
-  parallel, bewusst akzeptiert gegen die Fixup-Blockade. Innerhalb einer Gruppe reihen sich
+  Obergrenze: **bis zu 7 gleichzeitige Agent-Läufe** (Triage-, UX-, Spec-, Umsetzung-,
+  Review-, Sync- und Documenter-Slot) — ein erschöpftes Kontingent (z.ai) trifft damit
+  mehrere Ticket-Läufe parallel, bewusst akzeptiert und seit #1954/#2100 abgefedert
+  (Limit-Erkennung, Peak-Vertagen). Innerhalb einer Gruppe reihen sich
   weitere Läufe FIFO ein. Kopplung: steht `vars.PHASE_RUNNER` auf einem Einzel-Runner
   (z. B. pi5), queuen die getrennten Gruppen dort trotzdem hintereinander — der Split wirkt
   nur hosted.
@@ -983,8 +989,9 @@ für dieses Ticket die Phasen 2–4; keine Phase setzt das Label je selbst.
   erneut umgesetzt; der Lauf zieht nur das Review-Label nach.
 - **Zeitfenster:** 120 min Job, Soft-Deadline nach 90 min. Erster Soft-Abort → `ai:continued` +
   `ai:needs-team` neu gesetzt (Folgelauf setzt über die Phasen-Notiz fort, ADR 0010), zweiter →
-  `ai:to-big-issue` (Info-Signal, löst nichts aus). Gemeinsame `llm`-Concurrency-Gruppe: der lange
-  Lauf blockiert die Ticket-Pipeline bewusst, statt parallel dasselbe Kontingent zu ziehen.
+  `ai:to-big-issue` (Info-Signal, löst nichts aus). Gemeinsame `llm-impl`-Concurrency-Gruppe
+  mit Umsetzung/Fixup: der lange Lauf blockiert die Umsetzungs-Stufe bewusst, statt parallel
+  dasselbe Kontingent zu ziehen (Spec läuft in `llm-spec` weiter).
 - **Post-Assertion:** Das **Artefakt** entscheidet — ein fertiger PR mit Commits ergibt
   `ai:needs-review` am PR (Trigger für Phase 5 und damit das Merge-Gate), auch wenn der Lauf
   vorher abbrach. Kein Verdict und kein PR → `phase-crash-park.sh` parkt beim Menschen.
