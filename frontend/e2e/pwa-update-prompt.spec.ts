@@ -1,4 +1,5 @@
 import type { Page, Route } from '@playwright/test';
+import { dismissOnboardingDialog } from './fixtures';
 import { expect, test } from '@playwright/test';
 
 /**
@@ -15,6 +16,7 @@ import { expect, test } from '@playwright/test';
 
 /** Antwortet auf `GET /auth/me` mit 200 + User → die App zeigt die Haupt-App. */
 const mockAuthenticated = async (page: Page): Promise<void> => {
+	await dismissOnboardingDialog(page);
 	await page.route('**/auth/me', (route: Route) =>
 		route.fulfill({
 			status: 200,

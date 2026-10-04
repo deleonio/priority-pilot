@@ -11,6 +11,9 @@ import { expect, test } from './fixtures';
  * spricht über den Proxy das echte Backend an und rendert — mangels Demo-Seed — den leeren
  * Anfangszustand. Er bildet das Fundament für die funktionalen CRUD-Specs (`crud.spec.ts`, #92).
  */
+// Diese Spec schließt den Willkommens-Dialog selbst über „Später“ — das Schließen per Fixture bleibt aus.
+test.use({ dismissOnboarding: false });
+
 test('App lädt gegen das echte Backend und zeigt den leeren Anfangszustand', async ({ page }) => {
 	await page.goto('/app/');
 

@@ -71,6 +71,9 @@ const expectInViewport = async (locator: Locator): Promise<void> => {
 	expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
 };
 
+// Diese Spec testet den Willkommens-Dialog selbst — das Schließen per Fixture bleibt aus.
+test.use({ dismissOnboarding: false });
+
 test.describe('#2069 Erststart-Flow', () => {
 	test('AK1: Flow startet automatisch im Willkommens-Dialog, Schritt 1 nur Freitext, leeres Feld endet ohne Endpunkt-Aufruf', async ({
 		page,

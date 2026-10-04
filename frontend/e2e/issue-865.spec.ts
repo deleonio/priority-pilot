@@ -179,17 +179,19 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 		const toolbar = page.locator('[role="toolbar"]').first();
 		await expect(toolbar).toBeVisible();
 
-		// Erster Tab-Stop ist das Logo (`.logo-btn`, seit #1392 selbst klickbar/fokussierbar), noch
-		// vor der Toolbar. `kol-toolbar` stellt per Roving-Tabindex nur EINEN weiteren Tab-Stop für
-		// die gesamte Toolbar bereit — der zweite Tab muss also in der Toolbar ankommen.
+		// Erster Tab-Stop ist der Sprunglink (`.skip-link`, WCAG 2.4.1), danach das Logo (`.logo-btn`,
+		// seit #1392 selbst klickbar/fokussierbar), noch vor der Toolbar. `kol-toolbar` stellt per
+		// Roving-Tabindex nur EINEN weiteren Tab-Stop für die gesamte Toolbar bereit — der Tab nach dem
+		// Logo muss also in der Toolbar ankommen.
+		await page.keyboard.press('Tab');
 		await page.keyboard.press('Tab');
 		const logoButton = page.locator('.logo-btn:focus');
-		await expect(logoButton, 'Erster Tab muss auf dem Logo-Button liegen').toBeVisible();
+		await expect(logoButton, 'Zweiter Tab muss auf dem Logo-Button liegen').toBeVisible();
 		expect(await logoButton.evaluate((el) => el.tagName)).toBe('BUTTON');
 
 		await page.keyboard.press('Tab');
 		const focusedButton = toolbar.locator('button:focus');
-		await expect(focusedButton, 'Zweiter Tab muss auf einem Toolbar-Button liegen').toBeVisible();
+		await expect(focusedButton, 'Dritter Tab muss auf einem Toolbar-Button liegen').toBeVisible();
 		expect(await focusedButton.evaluate((el) => el.tagName)).toBe('BUTTON');
 	});
 });
