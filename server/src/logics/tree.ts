@@ -38,6 +38,10 @@ interface TaskTreeNode {
 
 const ACTIVE_STATUSES = ['Open', 'In process'] as const;
 
+/** Aktiv = offen/in Arbeit und nicht archiviert (#1964): Archiviertes fehlt auch in `GET /tasks`. */
+const isActive = (task: Task): boolean =>
+	ACTIVE_STATUSES.includes(task.status as (typeof ACTIVE_STATUSES)[number]) && task.archivedAt == null;
+
 /**
  * Zählt den Fortschritt eines Tasks inkl. seiner selbst und aller transitiven Unteraufgaben
  * (`getDependencies()`), dedupliziert über die Task-ID (schützt vor Zyklen/geteilten Knoten im DAG).
@@ -81,9 +85,7 @@ const computeProgress = async (task: Task): Promise<{ done: number; total: numbe
 
 const getEstimatedEffort = async (task: Task): Promise<number> => {
 	let estimatedEffort = task.estimatedEffort;
-	const dependencies = (await task.getDependencies()).filter((dep) =>
-		ACTIVE_STATUSES.includes(dep.status as (typeof ACTIVE_STATUSES)[number]),
-	);
+	const dependencies = (await task.getDependencies()).filter(isActive);
 	for (const dependency of dependencies) {
 		estimatedEffort += await getEstimatedEffort(dependency);
 	}
@@ -97,9 +99,7 @@ const buildTaskTree = async (task: Task, weight: number | null = null): Promise<
 	// Aufwands-Rollup oben. Damit erscheint die Eltern-Aufgabe über ihren Unteraufgaben (#336, AK4).
 	// Erledigte Unteraufgaben werden ausgeblendet — sie blockieren nicht mehr und müssen nicht
 	// mehr gezeigt werden.
-	const subtasks = (await task.getDependencies()).filter((dep) =>
-		ACTIVE_STATUSES.includes(dep.status as (typeof ACTIVE_STATUSES)[number]),
-	);
+	const subtasks = (await task.getDependencies()).filter(isActive);
 
 	const children: TaskTreeNode[] = [];
 	const totalEstimatedEffort = await getEstimatedEffort(task);
@@ -145,9 +145,7 @@ export const buildTaskForest = async (userId?: number): Promise<TaskTreeNode[]> 
 	// Tasks ohne Dependents (#336, AK4). Ihre Unteraufgaben hängen als `getDependencies()` darunter.
 	const rootTasks: Task[] = [];
 	for (const task of tasks) {
-		const dependents = (await task.getDependents()).filter((dep) =>
-			ACTIVE_STATUSES.includes(dep.status as (typeof ACTIVE_STATUSES)[number]),
-		);
+		const dependents = (await task.getDependents()).filter(isActive);
 		if (dependents.length === 0) {
 			rootTasks.push(task);
 		}

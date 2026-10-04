@@ -7,7 +7,7 @@ import { waitForStableView } from './helpers';
  * AK2: die Section „Verpasst“ bietet je Aufgabe „Neu planen“, „Archivieren“ und „Löschen“.
  * AK3 (e2e-Teil): der Verschiebe-Zähler ist als Text-Badge sichtbar („N× verschoben“);
  *   Aufgaben ohne Verschiebung zeigen keinen Zähler.
- * AK6 (Mobile-First): bei 375 px ist der Bereich inkl. aller drei Aktionen ohne horizontalen
+ * AK6 (Mobile-First): bei 375 px ist der Bereich inkl. aller vier Aktionen ohne horizontalen
  *   Scroll vollständig sichtbar (Bounding-Box statt scrollWidth — die App-Shell clippt mit
  *   `overflow-x: hidden`), Touch-Targets ≥ 44 px.
  *
@@ -57,6 +57,7 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		await expect(item).toHaveCount(1);
 		await expect(item).toContainText('Verpasster Zahnarzt');
 		await expect(item).toContainText(/1× verschoben/);
+		await expect(item.getByRole('button', { name: /^erledigt$/i })).toBeVisible();
 		await expect(item.getByRole('button', { name: /neu planen/i })).toBeVisible();
 		await expect(item.getByRole('button', { name: /archivieren/i })).toBeVisible();
 		await expect(item.getByRole('button', { name: /löschen/i })).toBeVisible();
@@ -73,7 +74,7 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		await expect(second).not.toContainText(/\d+× verschoben/);
 	});
 
-	test('AK6 — 375px: Bereich inkl. drei Aktionen ohne horizontalen Scroll, Targets >= 44px', async ({ page }) => {
+	test('AK6 — 375px: Bereich inkl. vier Aktionen ohne horizontalen Scroll, Targets >= 44px', async ({ page }) => {
 		const past = new Date(Date.now() - DAY).toISOString();
 		await createTaskViaApi(page, { title: 'Mobile Verpasst', deadline: past });
 
@@ -89,7 +90,7 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		expect(itemBox!.x).toBeGreaterThanOrEqual(0);
 		expect(itemBox!.x + itemBox!.width).toBeLessThanOrEqual(375);
 
-		for (const name of [/neu planen/i, /archivieren/i, /löschen/i]) {
+		for (const name of [/^erledigt$/i, /neu planen/i, /archivieren/i, /löschen/i]) {
 			const button = item.getByRole('button', { name });
 			await expect(button).toBeVisible();
 			// boundingBox() misst einmalig und wartet nicht nach (Memory 2026-09-14): kurze Schleife
@@ -103,5 +104,44 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 			expect(box!.x + box!.width).toBeLessThanOrEqual(375);
 			expect(box!.height).toBeGreaterThanOrEqual(44);
 		}
+	});
+
+	test('Erledigt — die Aufgabe verlässt den Verpasst-Bereich und steht unter den erledigten', async ({ page }) => {
+		const past = new Date(Date.now() - DAY).toISOString();
+		await createTaskViaApi(page, { title: 'Verpasst und doch erledigt', deadline: past });
+
+		await page.goto('/app/');
+		await waitForStableView(page);
+		const item = page.getByTestId('missed-item').filter({ hasText: 'Verpasst und doch erledigt' });
+		await item.getByRole('button', { name: /^erledigt$/i }).click();
+
+		await expect(page.getByTestId('missed-section')).toHaveCount(0);
+		await page.goto('/app/aufgaben?view=done');
+		await waitForStableView(page);
+		await expect(page.getByText('Verpasst und doch erledigt')).toBeVisible();
+	});
+
+	test('Archiv — Switch zeigt archivierte Aufgabe, Wiederherstellen holt sie zurück', async ({ page }) => {
+		const past = new Date(Date.now() - DAY).toISOString();
+		await createTaskViaApi(page, { title: 'Ins Archiv und zurück', deadline: past });
+
+		await page.goto('/app/');
+		await waitForStableView(page);
+		await page
+			.getByTestId('missed-item')
+			.filter({ hasText: 'Ins Archiv und zurück' })
+			.getByRole('button', { name: /archivieren/i })
+			.click();
+		await expect(page.getByTestId('missed-section')).toHaveCount(0);
+
+		await page.goto('/app/aufgaben');
+		await waitForStableView(page);
+		await page.getByRole('checkbox', { name: /archivierte anzeigen/i }).check();
+		const archived = page.getByTestId('archived-item').filter({ hasText: 'Ins Archiv und zurück' });
+		await expect(archived).toBeVisible();
+
+		await archived.getByRole('button', { name: /wiederherstellen/i }).click();
+		await expect(archived).toHaveCount(0);
+		await expect(page.getByTestId('missed-section')).toBeVisible();
 	});
 });

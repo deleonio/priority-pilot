@@ -24,6 +24,7 @@ import { WeekView } from './components/WeekView';
 import { DayDoneHint } from './components/DayDoneHint';
 import { DeleteTaskDialog } from './components/DeleteTaskDialog';
 import { DependencyModal } from './components/DependencyModal';
+import { ArchivedTasksList } from './components/ArchivedTasksList';
 import { MissedTasksSection } from './components/MissedTasksSection';
 import { EmptyState } from './components/EmptyState';
 import { OnboardingFlow } from './components/OnboardingFlow';
@@ -208,6 +209,8 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// Verpasst-Aufgaben (#1964): `GET /tasks?missed=1`, geladen zusammen mit den übrigen Daten in
 	// `reload()` — der Bereich rendert selbst nicht bei leerer Liste.
 	const [missedTasks, setMissedTasks] = useState<Task[]>([]);
+	// Archivierte Aufgaben: nur im Archiv-Modus des Aufgaben-Tabs (`?view=archived`) geladen.
+	const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
 	const [nextTask, setNextTask] = useState<Task | null>(null);
 	const [suggestions, setSuggestions] = useState<Task[]>([]);
 	const [pillars, setPillars] = useState<Pillar[]>([]);
@@ -228,7 +231,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// Filterzustand wieder her. `searchDraft` bleibt lokaler State: der Eingabe-Entwurf im Suchfeld;
 	// der Filter wird erst per „Filtern"-Button oder Enter übernommen (deferred filter).
 	const taskSearch = searchParams.get('q') ?? '';
-	const taskViewMode: 'open' | 'done' = searchParams.get('view') === 'done' ? 'done' : 'open';
+	const viewParam = searchParams.get('view');
+	const taskViewMode: 'open' | 'done' | 'archived' =
+		viewParam === 'done' || viewParam === 'archived' ? viewParam : 'open';
 	// #1617: Tag/Woche-Umschalter des Dashboards — eigener Query-Parameter (`planview`), damit er
 	// nicht mit `view` (Offen/Erledigt-Umschalter des Aufgaben-Tabs) kollidiert. Deep-Link-fähig wie
 	// die übrigen Filterzustände.
@@ -368,13 +373,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			: settingsPathSegments(isAdmin).indexOf(settingsSegment);
 	const settingsTab = settingsTabIndex < 0 ? 1 : settingsTabIndex;
 
-	/** Offen/Erledigt umschalten und die Auswahl als `?view=` in die URL spiegeln. */
+	/** Erledigt-/Archiv-Ansicht ein-/ausschalten (Offen ist der Rest) und als `?view=` in die URL spiegeln. */
 	const changeTaskViewMode = useCallback(
-		(done: boolean): void => {
+		(mode: 'done' | 'archived', on: boolean): void => {
 			setSearchParams((prev) => {
 				const next = new URLSearchParams(prev);
-				if (done) {
-					next.set('view', 'done');
+				if (on) {
+					next.set('view', mode);
 				} else {
 					next.delete('view');
 				}
@@ -595,6 +600,27 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		);
 	}, [tasks, forestTaskIds, taskSearch, categoryFilter]);
 
+	// Gefilterte archivierte Aufgaben (Titel-Suche + Kategorie), Muster `filteredCompletedTasks`.
+	const filteredArchivedTasks = useMemo(() => {
+		const query = taskSearch.trim().toLowerCase();
+		return archivedTasks.filter(
+			(task) =>
+				(query === '' || task.title.toLowerCase().includes(query)) &&
+				(categoryFilter === null || task.categoryId === categoryFilter),
+		);
+	}, [archivedTasks, taskSearch, categoryFilter]);
+
+	// Archiv nachladen, sobald der Modus aktiv ist und nach jedem `reload()` (`tasks` wechselt dann).
+	useEffect(() => {
+		if (taskViewMode !== 'archived' || tasks === null) return;
+		const controller = new AbortController();
+		void api
+			.listArchivedTasks({ signal: controller.signal })
+			.then(setArchivedTasks)
+			.catch(() => undefined);
+		return () => controller.abort();
+	}, [taskViewMode, tasks]);
+
 	const handleLogout = useCallback(async (): Promise<void> => {
 		setLogoutLoading(true);
 		setLogoutError(null);
@@ -746,6 +772,59 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				try {
 					setUpdateError(null);
 					await api.archiveTask({ id: task.id });
+					await reload();
+				} catch (reason) {
+					const apiError = await toApiError(reason);
+					setUpdateError(apiError.message);
+				}
+			})();
+		},
+		[reload],
+	);
+
+	// „Erledigt" im Verpasst-Bereich: Checkliste offen → Erledigen-Dialog (wie `handleDoneToggle`),
+	// sonst direkt auf Done setzen und neu laden — die Aufgabe fällt aus Verpasst-Bereich und Liste.
+	// Offene Unteraufgaben lehnt der Server ab (Fehlermeldung über `updateError`).
+	const handleCompleteMissed = useCallback(
+		(task: Task): void => {
+			if (hasOpenChecklistItems(task.checklist)) {
+				setDialog({ kind: 'complete', task });
+				return;
+			}
+			void (async () => {
+				try {
+					setUpdateError(null);
+					await api.updateTask({
+						id: task.id,
+						taskUpdate: {
+							title: task.title,
+							description: task.description,
+							status: TaskStatus.Done,
+							priority: task.priority,
+							estimatedEffort: task.estimatedEffort,
+							deadline: task.deadline,
+						},
+					});
+					if (shouldCelebrateDone(task.status, TaskStatus.Done)) {
+						launchConfetti();
+					}
+					await reload();
+				} catch (reason) {
+					const apiError = await toApiError(reason);
+					setUpdateError(apiError.message);
+				}
+			})();
+		},
+		[reload],
+	);
+
+	// „Wiederherstellen" im Archiv: einstufig, danach globales Neuladen (Archiv-Liste lädt mit nach).
+	const handleRestoreArchived = useCallback(
+		(task: Task): void => {
+			void (async () => {
+				try {
+					setUpdateError(null);
+					await api.unarchiveTask({ id: task.id });
 					await reload();
 				} catch (reason) {
 					const apiError = await toApiError(reason);
@@ -1129,6 +1208,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						{tasks !== null && activeTab <= 1 && (
 							<MissedTasksSection
 								tasks={missedTasks}
+								onComplete={handleCompleteMissed}
 								onEdit={openEdit}
 								onArchive={handleArchiveMissed}
 								onDelete={openDelete}
@@ -1209,7 +1289,18 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 													_checked={taskViewMode === 'done'}
 													_on={{
 														onChange: (_event, checked) => {
-															changeTaskViewMode(checked === true);
+															changeTaskViewMode('done', checked === true);
+														},
+													}}
+												/>
+												<KolInputCheckbox
+													className="task-view-switch"
+													_label="Archivierte anzeigen"
+													_variant="switch"
+													_checked={taskViewMode === 'archived'}
+													_on={{
+														onChange: (_event, checked) => {
+															changeTaskViewMode('archived', checked === true);
 														},
 													}}
 												/>
@@ -1345,6 +1436,12 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 													onPinToggle={handlePinToggle}
 												/>
 											)
+										) : taskViewMode === 'archived' ? (
+											<ArchivedTasksList
+												tasks={filteredArchivedTasks}
+												onRestore={handleRestoreArchived}
+												onDelete={openDelete}
+											/>
 										) : filteredCompletedTasks.length === 0 ? (
 											taskSearch.trim() === '' ? (
 												<CompletedTasksTable

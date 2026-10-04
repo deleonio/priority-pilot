@@ -138,4 +138,29 @@ describe('Verpasst-Bereich (#1964)', () => {
 		const dto = (await direct.json()) as Record<string, unknown>;
 		assert.ok(dto.archivedAt, 'GET by id liefert archivedAt weiter');
 	});
+
+	it('Archiv-Ansicht: ?archived=1 liefert nur Archiviertes, unarchive bringt die Aufgabe zurück', async () => {
+		const cookie = await auth();
+		const task = await createTask(cookie, { title: 'Archiv-Ansicht' });
+		await createTask(cookie, { title: 'Bleibt in der Liste' });
+		await fetch(`${server.baseUrl}/tasks/${task.id}/archive`, { method: 'POST', headers: { Cookie: cookie } });
+
+		const archived = await list(cookie, '?archived=1');
+		assert.deepEqual(
+			archived.map((t) => t.id),
+			[task.id],
+		);
+
+		const res = await fetch(`${server.baseUrl}/tasks/${task.id}/unarchive`, {
+			method: 'POST',
+			headers: { Cookie: cookie },
+		});
+		assert.ok(res.ok, `POST /tasks/${task.id}/unarchive muss gelingen (ist ${res.status})`);
+		assert.equal(((await res.json()) as { archivedAt: unknown }).archivedAt, null);
+		assert.deepEqual(await list(cookie, '?archived=1'), []);
+		assert.ok(
+			(await list(cookie)).some((t) => t.id === task.id),
+			'wiederhergestellte Aufgabe steht wieder in der Liste',
+		);
+	});
 });

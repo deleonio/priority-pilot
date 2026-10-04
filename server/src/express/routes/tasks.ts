@@ -587,8 +587,11 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 	tasksRouter.get('/tasks', async (req: Request, res: Response<TaskDto[] | ErrorDto>) => {
 		// Verpasst-Auswahl (#1964, `?missed=1`): abgeleitete Ansicht, kein neuer Status — überfällige,
 		// nicht erledigte Aufgaben ohne Auto-Lösch-Häkchen (die laufen weiter in den 3-Tage-Cron) und
-		// ohne Archiv. Archivierte Aufgaben erscheinen auch in der Standardliste nie mehr.
+		// ohne Archiv. Archivierte Aufgaben erscheinen auch in der Standardliste nie mehr — nur
+		// `?archived=1` liefert sie (Archiv-Ansicht).
 		const missedOnly = req.query.missed === '1';
+		// Archiv-Ansicht (`?archived=1`): umgekehrter Filter — nur archivierte Aufgaben.
+		const archivedOnly = req.query.archived === '1';
 		try {
 			// #1213: Lese-Scope um selbst angelegte Aufgaben für andere Gruppenmitglieder erweitert
 			// (`createdById`); Schreibzugriffe bleiben an `ownerScope` gebunden (siehe findOwnTask).
@@ -596,7 +599,7 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			const tasks = await Task.findAll({
 				where: {
 					...(await taskReadScope(getUserId(req), requester?.id ?? null)),
-					archivedAt: { [Op.is]: null },
+					archivedAt: archivedOnly ? { [Op.not]: null } : { [Op.is]: null },
 					...(missedOnly
 						? {
 								deadline: { [Op.lt]: new Date() },
@@ -1161,6 +1164,27 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 		}
 		try {
 			await task.update({ archivedAt: new Date() });
+			const withPillars = await findTaskWithPillars(task.id);
+			if (!withPillars) {
+				sendError(res, 404, 'Task nicht gefunden.');
+				return;
+			}
+			res.json(serializeTask(withPillars));
+		} catch (error) {
+			handleWriteError(res, error);
+		}
+	});
+
+	// POST /tasks/:id/unarchive — Aufgabe wiederherstellen: zurück in Liste (und ggf. Verpasst-Bereich).
+	tasksRouter.post('/tasks/:id/unarchive', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
+		const id = parseId(req.params.id);
+		const task = id === null ? null : await findOwnTask(id, getUserId(req));
+		if (!task) {
+			sendError(res, 404, 'Task nicht gefunden.');
+			return;
+		}
+		try {
+			await task.update({ archivedAt: null });
 			const withPillars = await findTaskWithPillars(task.id);
 			if (!withPillars) {
 				sendError(res, 404, 'Task nicht gefunden.');

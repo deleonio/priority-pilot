@@ -234,6 +234,18 @@ export const api = {
 		return data.map(reviveTask);
 	},
 
+	// Archiv-Ansicht: nur archivierte Aufgaben (`GET /tasks?archived=1`).
+	async listArchivedTasks(init: Init = {}): Promise<Task[]> {
+		const { data, error, response } = await client.GET('/tasks', {
+			params: { query: { archived: '1' } },
+			signal: init.signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data.map(reviveTask);
+	},
+
 	/**
 	 * Paket-Katalog (`GET /plans`, #1456): Feature-Matrix und Preise. Einzige Preisquelle des
 	 * Frontends — im Code stehen weder Preise noch Matrixzeilen (#1458 AK11).
@@ -482,6 +494,15 @@ export const api = {
 	// Verpasst-Bereich, ohne sie zu löschen und ohne Statuswechsel.
 	async archiveTask({ id }: { id: number }): Promise<Task> {
 		const { data, error, response } = await client.POST('/tasks/{id}/archive', { params: { path: { id } } });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return reviveTask(data);
+	},
+
+	// Wiederherstellen: holt eine archivierte Aufgabe zurück in Liste (und ggf. Verpasst-Bereich).
+	async unarchiveTask({ id }: { id: number }): Promise<Task> {
+		const { data, error, response } = await client.POST('/tasks/{id}/unarchive', { params: { path: { id } } });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}
