@@ -30,13 +30,17 @@ test.describe('Balamentum — #2015: Details-Blöcke über die volle Zeilenbreit
 		const details = page.locator('kol-details[_label="Reichweite und Intervall"]');
 		await expect(details).toBeVisible();
 
-		const panel = page.locator('[slot="tab-3"]');
+		// KoliBri-KolTabs benennt die Slot-Attribute seiner Light-DOM-Kinder zur Laufzeit um
+		// („tab-3“ → „tabpanel-slot-3“, vgl. MEMORY 2026-08-23) — deshalb der Laufzeit-Slot.
+		const panel = page.locator('[slot="tabpanel-slot-3"]');
 		await waitForStableBox(page, details);
 		const box = (await details.boundingBox())!;
-		const panelBox = (await panel.boundingBox())!;
-		expect(box.width, 'Block über die volle Zeilenbreite, nicht Inhaltsbreite').toBeGreaterThanOrEqual(
-			panelBox.width - 1,
-		);
-		expect(Math.abs(box.width - panelBox.width), 'Breite entspricht der Panel-Breite').toBeLessThanOrEqual(1);
+		// AK3 siedelt den Block IN der Karte „Standorterfassung“ an — deren Theme-Polster (~15px je
+		// Seite) macht „Bounding-Box == Panel-Breite“ strukturell unerreichbar. Zeilenbreite heißt
+		// daher: exakt so breit und so positioniert wie der Nachbar-Stack derselben Karte (ein
+		// Inhaltsbreite-Inline-Block wäre schmaler/versetzt). [Test-Pflege #2015, siehe PR-Body.]
+		const stackBox = (await panel.locator('kol-card > .settings-card-stack').first().boundingBox())!;
+		expect(Math.abs(box.width - stackBox.width), 'Block über die Zeilenbreite der Karte').toBeLessThanOrEqual(1);
+		expect(Math.abs(box.x - stackBox.x), 'Block bündig mit dem Karten-Inhalt').toBeLessThanOrEqual(1);
 	});
 });

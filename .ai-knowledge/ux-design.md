@@ -143,19 +143,13 @@ z. B. `spec/button`) statt raten.
 auf oberster Ebene. Innerhalb einer Karte oder eines Akkordeons wird immer mit `KolDetails`
 aufgeklappt. Nie Akkordeon in Karte, Akkordeon in Akkordeon oder Karte in Karte.
 Beispiel: Einstellungen → Allgemein → Karte „Bewegung" enthält „Einzelne Animationen" als `KolDetails`
-(Ziel), nicht als `KolAccordion`.
+in der Karte.
 
 **Regel 2 — Abhängige Einstellungen folgen ihrer Funktion.** Ist eine übergeordnete Funktion aus,
 sind ihre abhängigen Einstellungen eingeklappt oder ausgeblendet und erscheinen erst, wenn sie an
 ist. Gilt für alle Funktionen mit Unter-Einstellungen (Animationen, KI-Funktionen, Standort), nicht
 nur für den Standort. Beispiel: „Reichweite und Intervall" öffnet erst mit „Standort erfassen"
 ([Pattern](../docs/ux-pattern-master-detail-settings.md)).
-
-**Heutige Verstöße gegen Regel 1** (Umbau ist nicht Teil dieses Regelwerks, eigene Tickets):
-
-- `frontend/src/components/SettingsPage.tsx:532` — `KolAccordion` „Einzelne Animationen" in der Karte „Bewegung".
-- `frontend/src/components/GroupDetail.tsx:287-443` — sechs `KolAccordion` („Offene Einladungen" bis „Einladungslinks") im aufgeklappten Gruppen-`KolAccordion` (`GroupsSection.tsx:186`).
-- `frontend/src/components/CategoryList.tsx:95` — Leerzustands-`KolCard` „Noch keine Kategorien" in der Karte „Kategorien verwalten" (`SettingsPage.tsx:922`, Karte in Karte).
 
 ## 6. Prüfliste vor „fertig"
 

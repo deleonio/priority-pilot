@@ -21,13 +21,12 @@ sichtbar unter ihrem Master in einem `KolDetails` innerhalb der Karte des Master
 Vorhandene Umsetzungen dieses Patterns:
 
 - **„Einzelne Animationen"** — Feinschalter „Herz animieren"/„Erledigt animieren" unter dem Master
-  „Animationen" (`SettingsPage.tsx`, Tab „Allgemein"). **Noch ein Akkordeon in der Karte „Bewegung"
-  — verstößt gegen Regel 1, Umstellung auf `KolDetails` offen.**
+  „Animationen" (`SettingsPage.tsx`, Tab „Allgemein") als `KolDetails` in der Karte „Bewegung".
 - **„Einzelne KI-Funktionen"** — Feinschalter „Schnellerfassung aktiv" unter dem Master
   „KI-Features aktiv" (`SettingsPage.tsx`, Tab „KI-Provider").
 - **„Reichweite und Intervall"** — die drei Geo-Regler (Anzeige-/Alarm-Entfernung,
   Aktualisierungsintervall) unter dem Master „Standort erfassen" (`SettingsPage.tsx`, Tab
-  „Standort"). **Noch ein eigenständiges `KolAccordion` neben der Standort-Karte (`SettingsPage.tsx:842`) — weicht von der Umsetzungsregel oben ab, Umstellung auf `KolDetails` in der Karte offen.**
+  „Standort") als `KolDetails` innerhalb der Karte „Standorterfassung".
 
 ---
 

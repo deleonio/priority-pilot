@@ -34,7 +34,15 @@ vi.mock('@public-ui/react-v19', () => ({
 		const [open, setOpen] = useState(_open === true);
 		return createElement(
 			'kol-details',
-			{ _label, _open: open, onClick: () => setOpen((current) => !current) },
+			{
+				_label,
+				_open: open ? 'true' : 'false', // String: Attribut auch bei false im DOM (Spec liest getAttribute)
+				// Nur der Direktklick auf den Block klappt um — Kindklicks (z. B. „Link erzeugen")
+				// bubblen hoch und dürften den Kollapsbereich nicht schließen (wie das Summary).
+				onClick: (event: MouseEvent) => {
+					if (event.target === event.currentTarget) setOpen((current) => !current);
+				},
+			},
 			_label,
 			open ? children : null,
 		);

@@ -3282,8 +3282,10 @@ kol-toolbar {
 
 /*
  * Gruppierungsfläche innerhalb eines Panels: `KolCard` für dauerhaft offene Gruppen,
- * `KolAccordion` für aufklappbare. Beide Hosts sind block-level und nehmen die volle
- * Panel-Breite ein (Muster der Dashboard-Karten).
+ * `KolAccordion`/`KolDetails` für aufklappbare. Beide Hosts sind block-level und nehmen die
+ * volle Panel-Breite ein (Muster der Dashboard-Karten). #2015: `kol-details` ist im
+ * KoliBri-Theme `inline-block` — die `display: block`-Regel hier hält Details-Blöcke zweiter
+ * Ebene auf voller Zeilenbreite.
  */
 .settings-card,
 .settings-accordion {
@@ -3311,11 +3313,13 @@ kol-toolbar {
 /*
  * Dieselbe Korrektur wie bei den Formular-Sektionen (`.form-section kol-accordion`): Das
  * KoliBri-Default-Theme rückt `.kol-accordion__content` links um 2.25em ein, rechts nur um
- * 0.5rem. Unkompensiert steht der Inhalt der Settings-Accordions schief in der Spalte und
+ * 0.5rem. Unkompensiert steht der Inhalt des Gruppen-Akkordeons schief in der Spalte und
  * verschenkt bei 375px rund 28px Breite — genau das Gegenteil des Ziels dieses Panels.
  * em-Einheiten skalieren mit der Textvergrößerung mit (WCAG 1.4.10 Reflow).
+ * #2015: Der Settings-Kompensationsteil ist entfallen — die Details-Blöcke zweiter Ebene sind
+ * `KolDetails` mit sauberem Theme-Einzug (`.kol-details__content.indented-text`), dort gibt
+ * es den schießen Akkordeon-Einzug nicht mehr.
  */
-.settings-accordion > .settings-card-stack,
 .groups-accordion > .groups-body {
 	margin-left: calc(-2.25em + var(--pp-space-2));
 }

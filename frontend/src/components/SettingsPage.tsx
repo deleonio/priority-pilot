@@ -3,6 +3,7 @@ import {
 	KolAlert,
 	KolButton,
 	KolCard,
+	KolDetails,
 	KolInputCheckbox,
 	KolInputRange,
 	KolInputText,
@@ -500,8 +501,8 @@ export const SettingsPage = ({
 							</div>
 							{/* #1984: Aufklappbare Liste der Experten-Bereiche — der Nutzer soll verstehen,
 							    was der Schalter einschaltet, bevor er ihn nutzt. Folgt dem Schalterzustand
-							    (`_open`), eigenes Klappen bleibt über den Click-Handler möglich. */}
-							<KolAccordion
+							    (`_open`), eigenes Klappen bleibt über den Click-Handler möglich. #2015: `KolDetails`, weil der Block in der Karte liegt (Regel 1). */}
+							<KolDetails
 								className="settings-accordion"
 								_label="Was umfasst der Expertenmodus?"
 								_level={3}
@@ -519,7 +520,7 @@ export const SettingsPage = ({
 										Aktualisierungsintervall)
 									</li>
 								</ul>
-							</KolAccordion>
+							</KolDetails>
 							{/* #971: Switch + zugehörige Alerts je in einer `.settings-switch-row` — mobil volle
 									Breite im Stack-Layout, desktop eine Zeile (Switch links, Alert rechts). */}
 							<div className="settings-switch-row">
@@ -573,11 +574,11 @@ export const SettingsPage = ({
 									</KolAlert>
 								)}
 							</div>
-							{/* Feinschalter unter dem Master-Schalter: ein `KolAccordion` wie überall sonst auf
-									dieser Seite (vorher `KolDetails` — zwei Klapp-Primitive für dieselbe Interaktion).
-									Öffnet synchron mit dem Master, ausgegraut solange der Master zu ist bzw. das OS
-									Bewegung reduziert (docs/ux-pattern-master-detail-settings.md). */}
-							<KolAccordion
+							{/* Feinschalter unter dem Master-Schalter: ein `KolDetails` in der Karte (Regel 1 —
+									davor `KolAccordion`, davor eigene Zeilen). Öffnet synchron mit dem Master,
+									ausgegraut solange der Master zu ist bzw. das OS Bewegung reduziert
+									(docs/ux-pattern-master-detail-settings.md). */}
+							<KolDetails
 								className="settings-accordion"
 								_label="Einzelne Animationen"
 								_level={3}
@@ -616,7 +617,7 @@ export const SettingsPage = ({
 										/>
 									</div>
 								</div>
-							</KolAccordion>
+							</KolDetails>
 						</div>
 					</KolCard>
 
@@ -846,86 +847,86 @@ export const SettingsPage = ({
 								</>
 							)}
 						</div>
-					</KolCard>
-					{geoSupported && expertMode && (
-						/* #1098 AK1–AK3: Geo-Regler unterhalb der Standort-Karte, seit dem Master-/
+						{geoSupported && expertMode && (
+							/* #1098 AK1–AK3: Geo-Regler als `KolDetails` INNERHALB der Karte „Standorterfassung“ (#2015,
 						   Unter-Settings-Pattern (docs/ux-pattern-master-detail-settings.md) gebündelt in
-						   einer aufklappbaren Gruppe, die synchron mit dem Standort-Switch öffnet/schließt.
-						   Jetzt `KolAccordion` statt `KolDetails` — eine Klapp-Primitive für die ganze Seite.
+						   Regel 1 — kein eigenständiges Akkordeon daneben), synchron mit dem Standort-Switch.
+						   (Master-/Unter-Settings-Pattern, docs/ux-pattern-master-detail-settings.md).
 						   Die Kreuz-Schranken (AK2) wirken als dynamische `_min`/`_max` — kein Fehlerzustand
 						   (Autoren-Entscheidung). Der `key`-Wechsel auf `geoEnabled` erzwingt wie beim
 						   Ermitteln-Button oben einen Remount: der KoliBri-Adapter setzt Props nach dem Mount
 						   als Element-Properties, der `_disabled`-Attributwechsel beim Rerender schlägt sonst
 						   nicht durch (AK3). */
-						/* #1984: Die Reichweiten-/Intervall-Regler sind Experteninhalt — im Standardmodus
-						   bleibt die aufklappbare Gruppe weg (bedingtes Rendern, kein CSS-Hide); gespeicherte
+							/* #1984: Die Reichweiten-/Intervall-Regler sind Experteninhalt — im Standardmodus
+						   bleibt der Details-Block weg (bedingtes Rendern, kein CSS-Hide); gespeicherte
 						   Werte bleiben und wirken weiter (NearbyCard, Push-Hinweis). */
-						<KolAccordion
-							className="settings-accordion"
-							_label="Reichweite und Intervall"
-							_level={2}
-							_open={geoEnabled}
-						>
-							<div className="settings-card-stack">
-								<div className="geo-range-field">
-									<KolInputRange
-										key={`geo-display-${geoEnabled}`}
-										_label="Anzeige-Entfernung (km)"
-										_hint={`Bis zu dieser Entfernung zeigt die „In der Nähe“-Liste Aufgaben. Aktuell ${geoConfig.displayDistanceKm} km.`}
-										_value={geoConfig.displayDistanceKm}
-										_min={geoConfig.alarmDistanceKm}
-										_max={50}
-										_step={1}
-										_disabled={geoDisabled}
-										_on={{
-											onChange: (_event, value) => {
-												applyGeoValue('displayDistanceKm', Number(value ?? geoConfig.displayDistanceKm));
-											},
-										}}
-									/>
-									{/* Sichtbarer aktueller Wert im Light-DOM (KI-UX Regel 4): Slider
+							<KolDetails
+								className="settings-accordion"
+								_label="Reichweite und Intervall"
+								_level={3}
+								_open={geoEnabled}
+							>
+								<div className="settings-card-stack">
+									<div className="geo-range-field">
+										<KolInputRange
+											key={`geo-display-${geoEnabled}`}
+											_label="Anzeige-Entfernung (km)"
+											_hint={`Bis zu dieser Entfernung zeigt die „In der Nähe“-Liste Aufgaben. Aktuell ${geoConfig.displayDistanceKm} km.`}
+											_value={geoConfig.displayDistanceKm}
+											_min={geoConfig.alarmDistanceKm}
+											_max={50}
+											_step={1}
+											_disabled={geoDisabled}
+											_on={{
+												onChange: (_event, value) => {
+													applyGeoValue('displayDistanceKm', Number(value ?? geoConfig.displayDistanceKm));
+												},
+											}}
+										/>
+										{/* Sichtbarer aktueller Wert im Light-DOM (KI-UX Regel 4): Slider
 									    zeigen den gewählten Wert nicht selbst. */}
-									<span className="geo-range-value">{geoConfig.displayDistanceKm} km</span>
+										<span className="geo-range-value">{geoConfig.displayDistanceKm} km</span>
+									</div>
+									<div className="geo-range-field">
+										<KolInputRange
+											key={`geo-alarm-${geoEnabled}`}
+											_label="Alarm-Entfernung (km)"
+											_hint={`Ab dieser Entfernung zur Aufgabe erscheint der Alarm-Hinweis. Aktuell ${geoConfig.alarmDistanceKm} km.`}
+											_value={geoConfig.alarmDistanceKm}
+											_min={1}
+											_max={geoConfig.displayDistanceKm}
+											_step={1}
+											_disabled={geoDisabled}
+											_on={{
+												onChange: (_event, value) => {
+													applyGeoValue('alarmDistanceKm', Number(value ?? geoConfig.alarmDistanceKm));
+												},
+											}}
+										/>
+										<span className="geo-range-value">{geoConfig.alarmDistanceKm} km</span>
+									</div>
+									<div className="geo-range-field">
+										<KolInputRange
+											key={`geo-interval-${geoEnabled}`}
+											_label="Aktualisierungsintervall (Minuten)"
+											_hint={`Wie oft die Position im Hintergrund ermittelt wird. Aktuell ${geoConfig.intervalMinutes} Minuten.`}
+											_value={geoConfig.intervalMinutes}
+											_min={1}
+											_max={60}
+											_step={1}
+											_disabled={geoDisabled}
+											_on={{
+												onChange: (_event, value) => {
+													applyGeoValue('intervalMinutes', Number(value ?? geoConfig.intervalMinutes));
+												},
+											}}
+										/>
+										<span className="geo-range-value">{geoConfig.intervalMinutes} Minuten</span>
+									</div>
 								</div>
-								<div className="geo-range-field">
-									<KolInputRange
-										key={`geo-alarm-${geoEnabled}`}
-										_label="Alarm-Entfernung (km)"
-										_hint={`Ab dieser Entfernung zur Aufgabe erscheint der Alarm-Hinweis. Aktuell ${geoConfig.alarmDistanceKm} km.`}
-										_value={geoConfig.alarmDistanceKm}
-										_min={1}
-										_max={geoConfig.displayDistanceKm}
-										_step={1}
-										_disabled={geoDisabled}
-										_on={{
-											onChange: (_event, value) => {
-												applyGeoValue('alarmDistanceKm', Number(value ?? geoConfig.alarmDistanceKm));
-											},
-										}}
-									/>
-									<span className="geo-range-value">{geoConfig.alarmDistanceKm} km</span>
-								</div>
-								<div className="geo-range-field">
-									<KolInputRange
-										key={`geo-interval-${geoEnabled}`}
-										_label="Aktualisierungsintervall (Minuten)"
-										_hint={`Wie oft die Position im Hintergrund ermittelt wird. Aktuell ${geoConfig.intervalMinutes} Minuten.`}
-										_value={geoConfig.intervalMinutes}
-										_min={1}
-										_max={60}
-										_step={1}
-										_disabled={geoDisabled}
-										_on={{
-											onChange: (_event, value) => {
-												applyGeoValue('intervalMinutes', Number(value ?? geoConfig.intervalMinutes));
-											},
-										}}
-									/>
-									<span className="geo-range-value">{geoConfig.intervalMinutes} Minuten</span>
-								</div>
-							</div>
-						</KolAccordion>
-					)}
+							</KolDetails>
+						)}
+					</KolCard>
 				</div>
 				{/* #1894: Gespeicherte Orte (#1342) — eigener Tab „Orte" (Index 4, Route /settings/orte),
 				    unabhängig vom Geo-Schalter. Anlegen, umbenennen, löschen; sie erscheinen im Adressfeld

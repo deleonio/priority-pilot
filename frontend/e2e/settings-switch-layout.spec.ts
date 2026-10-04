@@ -86,15 +86,14 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 			expect(geometry.row).toBeGreaterThanOrEqual(geometry.stack * 0.95);
 		}
 
-		// Sub-Zeilen (im Accordion): durch dessen Innenabstand gegenüber den Hauptzeilen versetzt
+		// Sub-Zeilen (im Details-Block): durch dessen Innenabstand gegenüber den Hauptzeilen versetzt
 		// (Hierarchie unter dem Master sichtbar) — die x-Position bleibt auch bei kollabiertem
-		// Accordion gesetzt (nur die Höhe kollabiert).
-		// Design-Lauf 2026-09: Der Kollapsbereich ist ein `KolAccordion` (vorher `KolDetails`), dessen
-		// schiefen Theme-Innenabstand `.settings-accordion > .settings-card-stack` auf
-		// `--pp-gap-tight` (8px) zurückholt — der Versatz ist damit kleiner als der frühere, aber
-		// weiterhin gesetzt. Geprüft wird deshalb der Versatz an sich (≥8px), nicht sein alter Wert.
+		// Block gesetzt (nur die Höhe kollabiert).
+		// #2015: Der Kollapsbereich ist ein `KolDetails` (Theme `.kol-details__content.indented-text`
+		// rückt den Inhalt um ~18px ein) — der Versatz ist kleiner als der frühere, aber weiterhin
+		// gesetzt. Geprüft wird deshalb der Versatz an sich (≥8px), nicht sein alter Wert.
 		const firstMainBox = await mainRows.first().boundingBox();
-		const subRows = page.locator('.settings-general kol-accordion .settings-switch-row');
+		const subRows = page.locator('.settings-general kol-details .settings-switch-row');
 		for (let i = 0; i < (await subRows.count()); i++) {
 			const subBox = await subRows.nth(i).boundingBox();
 			expect(subBox).toBeTruthy();
@@ -289,14 +288,14 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 	 * Kollapsbereich statt eigener Zeilen unter dem Master-Schalter „Animationen" — Platzersparnis
 	 * in der Breite bei gleicher Bedienbarkeit. Der Klick auf „Einzelne Animationen" blendet
 	 * beide Feinschalter ein; sie bleiben über den Master-Schalter koppelbar.
-	 * Design-Lauf 2026-09: `KolAccordion` „Einzelne Animationen" statt `KolDetails`
-	 * „Animations-Details" — eine Klapp-Primitive für die ganze Seite.
+	 * Design-Lauf 2026-09 hob `KolDetails` zu `KolAccordion`; #2015 kehrt das zurück —
+	 * `KolDetails` in der Karte (Regel 1).
 	 */
 	test('AK8: „Einzelne Animationen" blendet beide Feinschalter im Accordion ein', async ({ page }) => {
 		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Balamentum');
 
-		// Vor dem Öffnen sind die Feinschalter zwar im DOM (das Accordion kollabiert nur die Höhe),
+		// Vor dem Öffnen sind die Feinschalter zwar im DOM (der Details-Block kollabiert nur die Höhe),
 		// aber nicht sichtbar/bedienbar.
 		await expect(switchControl(page, /Herz animieren/i)).toBeHidden();
 		await expect(switchControl(page, /Erledigt animieren/i)).toBeHidden();
