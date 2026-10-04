@@ -22,6 +22,8 @@ interface OnboardingFlowProps {
 	onWeightsSaved?: () => void;
 	/** Sichtbarkeits-Spiegel des verdeckt gemounteten Flows (#2110 AK3): nur bei `true` fokussiert die Schritt-Überschrift. */
 	active?: boolean;
+	/** #1969 AK7: Verweis auf den CSV-Import in Schritt 1 — die App navigiert damit in die Einstellungen. */
+	onImport?: () => void;
 }
 
 /**
@@ -47,7 +49,14 @@ interface OnboardingFlowProps {
 /** Gesamtzahl der Flow-Schritte (#2070): Freitext, Vorschläge, Startgewichtung, Übernehmen. */
 const TOTAL_STEPS = 4;
 
-export const OnboardingFlow = ({ pillars, onClose, onApplied, onWeightsSaved, active = true }: OnboardingFlowProps) => {
+export const OnboardingFlow = ({
+	pillars,
+	onClose,
+	onApplied,
+	onWeightsSaved,
+	active = true,
+	onImport,
+}: OnboardingFlowProps) => {
 	const { t } = useTranslation('common');
 	const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 	const [goal, setGoal] = useState('');
@@ -266,6 +275,14 @@ export const OnboardingFlow = ({ pillars, onClose, onApplied, onWeightsSaved, ac
 								setGoal(readString(value));
 							},
 						}}
+					/>
+					{/* #1969 AK7: optionaler Import-Einstieg — kein Pflichtschritt, kein eigener Screen; der
+					    Verweis führt in die Einstellungen (Tab „Import"), der Flow wird dabei beendet. */}
+					<KolButton
+						className="onboarding-import-entry"
+						_label={t('onboarding.importieren')}
+						_variant="secondary"
+						_on={{ onClick: () => onImport?.() }}
 					/>
 				</>
 			)}

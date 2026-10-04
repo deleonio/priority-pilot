@@ -92,6 +92,7 @@ const BASE_SETTINGS_PATH_SEGMENTS: string[] = [
 	'llm',
 	'gruppen',
 	'pakete',
+	'import',
 ];
 /**
  * Frühere Tab-Adressen, die in einem anderen Tab aufgegangen sind: #1902 „Abo" → „Pakete & Abo",
@@ -99,7 +100,7 @@ const BASE_SETTINGS_PATH_SEGMENTS: string[] = [
  */
 const LEGACY_SETTINGS_SEGMENTS: Record<string, string> = { abo: 'pakete', zugriff: 'llm' };
 // Die Segmentfolge ist rollenabhängig, damit sie index-paritätisch zu `settingsTabs` in
-// `SettingsPage` bleibt (der Admin-Tab „Nutzerverwaltung" hängt als Index 8 an).
+// `SettingsPage` bleibt (der Admin-Tab „Nutzerverwaltung" hängt als Index 9 an).
 const settingsPathSegments = (isAdmin: boolean): string[] => [
 	...BASE_SETTINGS_PATH_SEGMENTS,
 	...(isAdmin ? ['nutzer'] : []),
@@ -353,7 +354,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const activeTab = Math.max(0, ROUTE_PATHS.indexOf(location.pathname));
 
 	/** Aktiver Settings-Tab: aus `/settings/:tab` abgeleitet; unbekannter Pfad → Säulen (bisheriges Default).
-	 * Rollensystem admin/member: Das Segment `nutzer` (Index 8) existiert nur für Admins — für Member
+	 * Rollensystem admin/member: Das Segment `nutzer` (Index 9) existiert nur für Admins — für Member
 	 * gilt es als unbekannt, sonst zeigte `KolTabs` mit `_selected=8` bei acht Tabs ein leeres Panel. */
 	const isAdmin = user.role === 'admin';
 	// #1566: Tester arbeitet wie ein Admin, sieht aber die Nutzerverwaltung nicht — das Tab-Gating
@@ -1110,6 +1111,12 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 											// Die neuen Aufgaben zeigen (AK3): der Aufgaben-Tab listet sie — die
 											// Dashboard-Karten (Nächste Aufgabe/Wichtigste) tragen eigene Titel-Klassen.
 											navigate({ pathname: ROUTE_PATHS[1], search: searchParams.toString() });
+										}}
+										onImport={() => {
+											// #1969 AK7: Import-Verweis — Flow beenden und in den Import-Tab der
+											// Einstellungen führen (kein Pflichtschritt des Onboardings).
+											setOnboardingDismissed(true);
+											navigate('/settings/import');
 										}}
 									/>
 								</div>

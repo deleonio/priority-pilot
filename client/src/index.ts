@@ -97,6 +97,11 @@ export type ParseTaskInput = Schemas['ParseTaskInput'];
 export type ParsedTask = Schemas['ParsedTask'];
 /** Zerlegte Suchanfrage (`POST /tasks/parse-search`): Suchbegriff plus gemeinte Kategorie. */
 export type ParsedSearch = Schemas['ParsedSearch'];
+// CSV-Import (#1969): Spalten-Mapping, Vorschau- und Übernahme-Ergebnis.
+export type TaskImportMapping = Schemas['TaskImportMapping'];
+export type TaskImportInput = Schemas['TaskImportInput'];
+export type TaskImportPreview = Schemas['TaskImportPreview'];
+export type TaskImportResult = Schemas['TaskImportResult'];
 export type ApiError = Schemas['Error'];
 
 // LLM-Provider: Custom-Provider (frei anlegbar) und fixe Built-ins (Mistral/OpenRouter,

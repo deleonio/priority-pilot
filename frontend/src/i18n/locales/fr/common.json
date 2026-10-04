@@ -87,7 +87,8 @@
 		"beispiel1": "15 Minuten spazieren gehen",
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
-		"erstenTaskAnlegen": "Ersten Task anlegen"
+		"erstenTaskAnlegen": "Ersten Task anlegen",
+		"importieren": "Importer des tâches depuis Todoist ou un CSV"
 	},
 	"weeklyCard": {
 		"label": "Ma semaine en cinq piliers",

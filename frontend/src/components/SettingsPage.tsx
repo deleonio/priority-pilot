@@ -44,6 +44,7 @@ import { PillarWeightsForm } from './PillarWeightsForm';
 import { RecalcPillarModal } from './RecalcPillarModal';
 import { PlansSection } from './PlansSection';
 import { SubscriptionSection } from './SubscriptionSection';
+import { TaskImportCard } from './TaskImportCard';
 
 interface SettingsPageProps {
 	pillars: Pillar[];
@@ -64,10 +65,10 @@ interface SettingsPageProps {
 
 // Die Tab-Leiste der Settings-Seite (#271). Reihenfolge nach Paketstufe (#1904): Allgemein (Index 0), Säulen (Index 1),
 // Kategorien (Index 2), Standort (Index 3, #1151), Orte (Index 4, #1894), KI (Index 5, #1903: Provider und Access-Token),
-// Gruppen (Index 6, #1211), „Pakete & Abo" (Index 7, #1529/#1902) und optional Nutzerverwaltung
-// (Index 8, nur für Admins). Muss index-paritätisch mit
-// `SETTINGS_PATH_SEGMENTS` in `App.tsx` bleiben — der Admin-Tab wird deshalb ans Ende angehängt
-// statt eingeschoben, damit sich die Indizes der übrigen Tabs für Member nie verschieben.
+// Gruppen (Index 6, #1211), „Pakete & Abo" (Index 7, #1529/#1902), Import (Index 8, #1969) und optional
+// Nutzerverwaltung (Index 9, nur für Admins). Muss index-paritätisch mit
+// `SETTINGS_PATH_SEGMENTS` in `App.tsx` bleiben — die rollenabhängigen Tabs werden deshalb ans Ende
+// angehängt statt eingeschoben, damit sich die Indizes der übrigen Tabs für Member nie verschieben.
 const BASE_SETTINGS_TABS = [
 	{ _label: 'Allgemein' },
 	{ _label: 'Säulen' },
@@ -77,6 +78,7 @@ const BASE_SETTINGS_TABS = [
 	{ _label: 'KI' },
 	{ _label: 'Gruppen' },
 	{ _label: 'Pakete & Abo' },
+	{ _label: 'Import' },
 ];
 
 /** Index des Reiters „Pakete & Abo" — unabhängig von der Rolle, weil er vor den rollenabhängigen
@@ -1008,8 +1010,15 @@ export const SettingsPage = ({
 						<PlansSection />
 					</KolCard>
 				</div>
+				{/* #1969: CSV-Import (Todoist-/Allgemein-CSV) — eigener Tab „Import" (Index 8, Route
+				    /settings/import): Datei wählen → Vorschau mit Spalten-Mapping → Übernehmen. */}
+				<div slot="tab-8" className="settings-import settings-panel">
+					<KolCard className="settings-card" _label="Import" _level={2}>
+						<TaskImportCard />
+					</KolCard>
+				</div>
 				{isAdmin && (
-					<div slot="tab-8" className="settings-admin-users settings-panel">
+					<div slot="tab-9" className="settings-admin-users settings-panel">
 						<KolCard className="settings-card" _label="Nutzer und Rollen" _level={2}>
 							<AdminUsersSection />
 						</KolCard>

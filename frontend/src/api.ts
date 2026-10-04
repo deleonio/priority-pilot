@@ -60,6 +60,9 @@ import type {
 	SuggestPillarsInput,
 	Task,
 	TaskCreate,
+	TaskImportMapping,
+	TaskImportPreview,
+	TaskImportResult,
 	TaskTreeNode,
 	TaskGraph,
 	TaskUpdate,
@@ -397,6 +400,30 @@ export const api = {
 	// Retry-Verhalten wie `parseText` — derselbe LLM-Upstream.
 	async parseSearch({ text }: { text: string }): Promise<ParsedSearch> {
 		const { data } = await withRetry(() => client.POST('/tasks/parse-search', { body: { text } }));
+		return data;
+	},
+
+	// CSV-Import (#1969): Vorschau ohne Schreibzugriff — Datei clientseitig gelesen und als String
+	// gesendet. Ohne `mapping` gilt die Todoist-Auto-Erkennung (TYPE/CONTENT/PRIORITY/DATE).
+	async previewTaskImport({ csv, mapping }: { csv: string; mapping?: TaskImportMapping }): Promise<TaskImportPreview> {
+		const { data, error, response } = await client.POST('/tasks/import/preview', {
+			body: mapping === undefined ? { csv } : { csv, mapping },
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// CSV-Import (#1969): legt die übernehmbaren Zeilen als Aufgaben an; `errors` nennt die
+	// übersprungenen Zeilen einzeln (Nummer + Grund), ohne den Import abzubrechen.
+	async importTasks({ csv, mapping }: { csv: string; mapping?: TaskImportMapping }): Promise<TaskImportResult> {
+		const { data, error, response } = await client.POST('/tasks/import', {
+			body: mapping === undefined ? { csv } : { csv, mapping },
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
 		return data;
 	},
 
