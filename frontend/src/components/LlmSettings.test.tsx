@@ -66,10 +66,21 @@ vi.mock('@public-ui/react-v19', () => ({
 			{children}
 		</section>
 	),
-	// #1903: Unterbereiche der Karte „KI-Provider" — `_label` ist die Summary.
-	KolDetails: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
-		<details open>
-			<summary>{_label}</summary>
+	// #1903: Unterbereiche der Karte „KI-Provider" — `_label` ist die Summary. Seit #1970
+	// `_open`-abhängig, damit sich der geschlossene Klappbereich „Erweitert" testen lässt.
+	KolDetails: ({
+		_label,
+		_open,
+		_on,
+		children,
+	}: {
+		_label?: string;
+		_open?: boolean;
+		_on?: { onToggle?: (event: unknown, value?: boolean) => void };
+		children?: ReactNode;
+	}) => (
+		<details open={_open !== false}>
+			<summary onClick={() => _on?.onToggle?.(null, _open !== true)}>{_label}</summary>
 			{children}
 		</details>
 	),
@@ -151,9 +162,15 @@ afterEach(() => {
 	vi.clearAllMocks();
 });
 
+/** Öffnet „Erweitert" (#1970) — die Provider-Bedienelemente liegen seit #1970 dahinter. */
+const openAdvanced = (): void => {
+	fireEvent.click(screen.getByText('Erweitert'));
+};
+
 describe('LlmSettings — Built-ins sind fix', () => {
 	it('rendert Mistral/OpenRouter ohne Bearbeiten/Löschen, Custom-Provider mit beiden', async () => {
 		render(<LlmSettings />);
+		openAdvanced();
 
 		await waitFor(() => expect(screen.getByText('Provider verwalten')).toBeInTheDocument());
 
@@ -167,6 +184,7 @@ describe('LlmSettings — Built-ins sind fix', () => {
 describe('LlmSettings — Modellwahl des aktiven Providers', () => {
 	it('lädt die Modelle des aktiven Providers und speichert die Wahl über PUT', async () => {
 		render(<LlmSettings />);
+		openAdvanced();
 
 		await waitFor(() => expect(document.querySelector('#llm-active-model')).not.toBeNull());
 		const select = document.querySelector<HTMLSelectElement>('#llm-active-model');
@@ -187,12 +205,14 @@ describe('LlmSettings — Modellwahl des aktiven Providers', () => {
 
 	it('zeigt den Bereitschafts-Hinweis, wenn Key UND Modell vorhanden sind', async () => {
 		render(<LlmSettings />);
+		openAdvanced();
 		await waitFor(() => expect(screen.getByText(/KI-Features bereit/)).toBeInTheDocument());
 	});
 
 	it('readiness: konfiguriert + Test ok → grün mit „getestet“', async () => {
 		testMock.mockResolvedValue({ ok: true, model: 'mistral-medium-latest', latencyMs: 210, sample: '{"ok": true}' });
 		render(<LlmSettings />);
+		openAdvanced();
 		await waitFor(() => expect(screen.getByText('Provider verwalten')).toBeInTheDocument());
 
 		fireEvent.click(screen.getAllByRole('button', { name: 'Testen' })[0]);
@@ -202,6 +222,7 @@ describe('LlmSettings — Modellwahl des aktiven Providers', () => {
 	it('readiness: konfiguriert, aber Test schlägt fehl → roter Hinweis mit Ursache', async () => {
 		testMock.mockResolvedValue({ ok: false, message: 'Mistral antwortete mit HTTP 402: Check your subscription' });
 		render(<LlmSettings />);
+		openAdvanced();
 		await waitFor(() => expect(screen.getByText('Provider verwalten')).toBeInTheDocument());
 
 		fireEvent.click(screen.getAllByRole('button', { name: 'Testen' })[0]);
@@ -212,6 +233,7 @@ describe('LlmSettings — Modellwahl des aktiven Providers', () => {
 
 	it('readiness: konfiguriert, noch ungetestet → blauer Hinweis mit Testen-Hinweis', async () => {
 		render(<LlmSettings />);
+		openAdvanced();
 		await waitFor(() => expect(screen.getByText(/KI-Features bereit \(noch ungetestet\)/)).toBeInTheDocument());
 	});
 
@@ -219,6 +241,7 @@ describe('LlmSettings — Modellwahl des aktiven Providers', () => {
 		listMock.mockResolvedValue([{ ...mistral, isActive: true, hasApiKey: false }]);
 
 		render(<LlmSettings />);
+		openAdvanced();
 		await waitFor(() => expect(screen.getByText(/kein API-Key auf dem Server hinterlegt/)).toBeInTheDocument());
 	});
 });
@@ -227,6 +250,7 @@ describe('LlmSettings — Test-Prompt je Provider', () => {
 	it('Testen-Button je Provider-Zeile: Erfolg zeigt Latenz-Alert mit Antwort-Auszug', async () => {
 		testMock.mockResolvedValue({ ok: true, model: 'mistral-medium-latest', latencyMs: 321, sample: '{"ok": true}' });
 		render(<LlmSettings />);
+		openAdvanced();
 		await waitFor(() => expect(screen.getByText('Provider verwalten')).toBeInTheDocument());
 
 		// Ein Testen-Button je Provider (2 Built-ins + 1 Custom).
@@ -244,11 +268,67 @@ describe('LlmSettings — Test-Prompt je Provider', () => {
 			message: 'Mistral antwortete mit HTTP 402: Check your subscription on https://admin.mistral.ai/subscription',
 		});
 		render(<LlmSettings />);
+		openAdvanced();
 		await waitFor(() => expect(screen.getByText('Provider verwalten')).toBeInTheDocument());
 
 		fireEvent.click(screen.getAllByRole('button', { name: 'Testen' })[0]);
 
 		await waitFor(() => expect(screen.getAllByText(/Test fehlgeschlagen/).length).toBeGreaterThanOrEqual(1));
 		await waitFor(() => expect(screen.getAllByText(/Check your subscription/).length).toBeGreaterThanOrEqual(1));
+	});
+});
+
+describe('LlmSettings — „Erweitert" (#1970)', () => {
+	it('TF1/AK1: standardmäßig zu — keine Provider-Bedienelemente erreichbar; nach dem Öffnen schon', async () => {
+		render(<LlmSettings />);
+
+		// Discoverability (KI-UX): der Klappbereich selbst ist sichtbar, sein Inhalt nicht.
+		expect(screen.getByText('Erweitert')).toBeInTheDocument();
+		expect(screen.queryByRole('group', { name: 'KI-Provider' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Neuer Provider' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Testen' })).toBeNull();
+		expect(document.querySelector('#llm-active-model')).toBeNull();
+
+		fireEvent.click(screen.getByText('Erweitert'));
+
+		await waitFor(() => expect(screen.getByRole('group', { name: 'KI-Provider' })).toBeInTheDocument());
+		expect(screen.getByRole('button', { name: 'Neuer Provider' })).toBeInTheDocument();
+		expect(screen.getAllByRole('button', { name: 'Testen' })).toHaveLength(3);
+	});
+
+	it('TF2/AK2: Öffnen persistiert unter pp-ki-erweitert-open; Remount stellt den Zustand wieder her', async () => {
+		render(<LlmSettings />);
+		await waitFor(() => expect(screen.getByText('Erweitert')).toBeInTheDocument());
+
+		// Standard ohne Eintrag: zu, kein Eintrag geschrieben.
+		expect(localStorage.getItem('pp-ki-erweitert-open')).toBeNull();
+
+		fireEvent.click(screen.getByText('Erweitert'));
+		expect(localStorage.getItem('pp-ki-erweitert-open')).toBe('1');
+
+		cleanup();
+		render(<LlmSettings />);
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Neuer Provider' })).toBeInTheDocument());
+
+		fireEvent.click(screen.getByText('Erweitert'));
+		expect(localStorage.getItem('pp-ki-erweitert-open')).toBe('0');
+
+		cleanup();
+		render(<LlmSettings />);
+		await waitFor(() => expect(screen.getByText('Erweitert')).toBeInTheDocument());
+		expect(screen.queryByRole('button', { name: 'Neuer Provider' })).toBeNull();
+	});
+
+	it('KI-UX: „Erweitert" folgt nicht dem Master-Schalter, die inneren Details schon (#1903)', async () => {
+		localStorage.setItem('pp-ki-erweitert-open', '1');
+		render(<LlmSettings open={false} />);
+		await waitFor(() => expect(screen.getByText('Erweitert')).toBeInTheDocument());
+
+		// Der Klappbereich bleibt offen (Nutzpräferenz, nicht an useFollowingOpen gebunden) …
+		const details = screen.getByText('Erweitert').closest('details');
+		expect(details).not.toBeNull();
+		expect(details!.open).toBe(true);
+		// … während die inneren Details dem Master folgen und zu sind.
+		expect(screen.queryByRole('group', { name: 'KI-Provider' })).toBeNull();
 	});
 });

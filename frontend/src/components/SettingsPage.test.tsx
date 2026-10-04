@@ -2084,6 +2084,30 @@ describe('SettingsPage – #2015: zweite Ebene ausschließlich KolDetails (Regel
 		}
 	});
 
+	it('#1970: „Erweitert“ umschließt in der KI-Provider-Karte ausschließlich die beiden #1903-Details (V1, Level 3→4)', () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		const outer = container.querySelector('kol-details[_label="Erweitert"]');
+		expect(outer, 'KolDetails „Erweitert“ vorhanden (V1, kein Akkordeon)').not.toBeNull();
+		expect(outer!.closest('kol-card'), '„Erweitert“ liegt IN der Karte „KI-Provider“ (Regel 1)').not.toBeNull();
+		expect(bound(outer!, '_level'), '„Erweitert“ auf Level 3 (KI-UX)').toBe('3');
+
+		const nested = Array.from(container.querySelectorAll('kol-details kol-details'));
+		expect(nested.length, 'genau die beiden #1903-Details sind verschachtelt').toBe(2);
+		expect(nested.map((el) => bound(el, '_label')).sort(), 'nur die beabsichtigte Verschachtelung entsteht').toEqual([
+			'Provider verwalten',
+			'Provider-Auswahl',
+		]);
+		for (const inner of nested) {
+			expect(outer!.contains(inner), 'verschachtelte Details liegen unter „Erweitert“').toBe(true);
+			expect(bound(inner, '_level'), 'innere Details auf Level 4 (KI-UX)').toBe('4');
+		}
+		expect(
+			container.querySelector('kol-card kol-accordion, kol-accordion kol-card, kol-accordion kol-details'),
+			'kein Akkordeon im Spiel (Regel 1)',
+		).toBeNull();
+	});
+
 	it('TF2/AK2: „Einzelne Animationen“ ist ein KolDetails und folgt dem Master „Animationen“', async () => {
 		localStorage.setItem('pp-animations-enabled', 'true');
 		const { container } = render(<SettingsPage {...defaultProps} />);
