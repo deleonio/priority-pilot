@@ -14,9 +14,9 @@ import {
 	arePillarsExistent,
 	coversAllAccountPillars,
 	getAccountPillarIds,
+	buildHandoverRows,
 	PILLAR_DISTRIBUTION_RULE,
 } from '../../logics/pillarContributions.js';
-import { distributeWithMinimum } from '../../logics/pillarShares.js';
 import { isCategoryExistent, remapCategoryForRecipient, validateCategoryId } from '../../logics/categoryOwnership.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { requirePlanFeature } from '../planGuard.js';
@@ -1040,12 +1040,11 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 							order: [['id', 'ASC']],
 							transaction,
 						});
-						const shares = distributeWithMinimum(recipientPillars.map((pillar) => remapped.get(pillar.id)?.share ?? 0));
-						const mapped = recipientPillars.map((pillar, index) => ({
+						const mapped = buildHandoverRows(recipientPillars, remapped, (pillarId, share, confidence) => ({
 							taskId: task.id,
-							pillarId: pillar.id,
-							share: shares[index] ?? 0,
-							confidence: remapped.get(pillar.id)?.confidence ?? 100,
+							pillarId,
+							share,
+							confidence,
 						}));
 						await TaskPillar.destroy({ where: { taskId: task.id }, transaction });
 						if (mapped.length > 0) {

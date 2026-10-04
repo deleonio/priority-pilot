@@ -1,8 +1,5 @@
 import { Pillar } from '../models/index.js';
-import { SHARE_MIN, SHARE_TOTAL } from './pillarShares.js';
-
-/** Höchstanteil einer einzelnen Säule in Prozent (#2077) — keine Säule dominiert die Verteilung. */
-const SHARE_MAX = 80;
+import { SHARE_MIN, SHARE_MAX, SHARE_TOTAL, distributeWithMinimum } from './pillarShares.js';
 /** Float-Toleranz für den Summenvergleich (z. B. 33,33 + 33,33 + 33,34). */
 const SHARE_SUM_EPSILON = 1e-6;
 /** Default-Konfidenz (volle Sicherheit), wenn ein Beitrag keine `confidence` mitschickt. */
@@ -117,4 +114,29 @@ export const arePillarsExistent = async (pillarIds: number[], userId: number | n
 	const scope = userId === null ? {} : { userId };
 	const count = await Pillar.count({ where: { id: pillarIds, ...scope } });
 	return count === pillarIds.length;
+};
+
+/**
+ * Gemeinsamer Handover-Auffüll-Helfer für Task- und Series-Übergabe (#2152 AK2/AK3): Basisanteile
+ * aus `remapped` (fehlend → 0), aufgefüllt zur Vollverteilung über die Empfänger-Säulen (Default:
+ * `distributeWithMinimum`, als Parameter injizierbar — genau dieser Seam macht den Kürzungsfall
+ * testbar). Der Zeilenaufbau bleibt via `buildRow` bei der Route (TaskPillar vs. SeriesPillar).
+ * Ist die gelieferte Verteilung KÜRZER als die Empfänger-Säulen, wirft der Helfer laut, statt
+ * stille Zeilen mit Anteil 0 zu schreiben (früher `shares[index] ?? 0`).
+ */
+export const buildHandoverRows = <Row>(
+	recipients: readonly { id: number }[],
+	remapped: ReadonlyMap<number, Pick<PillarContribution, 'share' | 'confidence'>>,
+	buildRow: (pillarId: number, share: number, confidence: number) => Row,
+	distribute: (bases: readonly number[]) => readonly number[] = distributeWithMinimum,
+): Row[] => {
+	const shares = distribute(recipients.map((pillar) => remapped.get(pillar.id)?.share ?? 0));
+	if (shares.length < recipients.length) {
+		throw new Error(
+			`Die Verteilung deckt nicht alle Säulen ab (${shares.length} von ${recipients.length}) — Übergabe abgebrochen, statt Zeilen mit Anteil 0 zu schreiben.`,
+		);
+	}
+	return recipients.map((pillar, index) =>
+		buildRow(pillar.id, shares[index], remapped.get(pillar.id)?.confidence ?? DEFAULT_CONFIDENCE),
+	);
 };

@@ -5,6 +5,7 @@ import { Pillar, PillarFeedback } from '../../models/index.js';
 import { classifyPillarsWithMistral, type FeedbackExample, type PillarClassifier } from '../../llm/llm.js';
 import { resolvePillarDescription } from '../../models/pillarData.js';
 import { loadFeedbackExamples } from '../../logics/pillarFeedbackExamples.js';
+import { SHARE_MIN, SHARE_MAX } from '../../logics/pillarShares.js';
 import { sendLlmError, validateProviderQuery } from '../llmProviderQuery.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { requirePlanFeature } from '../planGuard.js';
@@ -76,6 +77,9 @@ const validateFeedbackBody = (
 		}
 		if (share !== undefined && (typeof share !== 'number' || !Number.isFinite(share))) {
 			return { ok: false, message: 'share muss eine Zahl sein.' };
+		}
+		if (share !== undefined && (share < SHARE_MIN || share > SHARE_MAX)) {
+			return { ok: false, message: `share muss zwischen ${SHARE_MIN} und ${SHARE_MAX} liegen.` };
 		}
 		seen.add(pillarId);
 		validated.push(share === undefined ? { pillarId, confidence } : { pillarId, confidence, share });

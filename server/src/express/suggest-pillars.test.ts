@@ -332,6 +332,44 @@ describe('POST /tasks/suggest-pillars/feedback', () => {
 		assert.equal(res.status, 400);
 	});
 
+	// AK1 (#2152, Spec docs/spec/issue-2152.md): Anteils-Grenzen 5–80 auch im Feedback —
+	// außerhalb → 400, Grenzen inklusive gültig (konsistent mit openapi.yml und validatePillars).
+	it('400 wenn der Anteil unterhalb der Untergrenze liegt (share 4) (#2152, AK1)', async () => {
+		const pillars = await seedPillars();
+		const res = await postFeedback({
+			title: 'X',
+			pillars: [{ pillarId: pillars[0].id, confidence: 50, share: 4 }],
+		});
+		assert.equal(res.status, 400);
+	});
+
+	it('400 wenn der Anteil oberhalb der Obergrenze liegt (share 81) (#2152, AK1)', async () => {
+		const pillars = await seedPillars();
+		const res = await postFeedback({
+			title: 'X',
+			pillars: [{ pillarId: pillars[0].id, confidence: 50, share: 81 }],
+		});
+		assert.equal(res.status, 400);
+	});
+
+	it('201 an der Untergrenze (share 5) (#2152, AK1)', async () => {
+		const pillars = await seedPillars();
+		const res = await postFeedback({
+			title: 'X',
+			pillars: [{ pillarId: pillars[0].id, confidence: 50, share: 5 }],
+		});
+		assert.equal(res.status, 201);
+	});
+
+	it('201 an der Obergrenze (share 80) (#2152, AK1)', async () => {
+		const pillars = await seedPillars();
+		const res = await postFeedback({
+			title: 'X',
+			pillars: [{ pillarId: pillars[0].id, confidence: 50, share: 80 }],
+		});
+		assert.equal(res.status, 201);
+	});
+
 	it('400 wenn title fehlt', async () => {
 		await seedPillars();
 		assert.equal((await postFeedback({ pillars: [] })).status, 400);
