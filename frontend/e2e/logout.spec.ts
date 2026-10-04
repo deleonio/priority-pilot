@@ -1,5 +1,5 @@
 import type { Page, Route } from '@playwright/test';
-import { expect, test } from '@playwright/test';
+import { baseTest as test, expect } from './fixtures';
 import { waitForStableView } from './helpers';
 
 const DISPLAY_NAME = 'Peter';

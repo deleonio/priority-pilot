@@ -1,5 +1,5 @@
 import type { Page, Route } from '@playwright/test';
-import { expect, test } from '@playwright/test';
+import { baseTest as test, expect } from './fixtures';
 
 /**
  * Rote Spec-Tests Warteliste mit Referral-Rang (#1982, Spec docs/spec/issue-1982.md).

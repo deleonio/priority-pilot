@@ -5,7 +5,7 @@
  * Spec: docs/spec/issue-865.md
  */
 
-import { test, expect, type Page } from '@playwright/test';
+import { baseTest as test, expect, type Page } from './fixtures';
 
 test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	/**

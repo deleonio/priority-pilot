@@ -19,8 +19,8 @@ import { test as base } from '@playwright/test';
  * **Vorrang spec-eigener Mocks:** Playwright wertet Route-Handler in umgekehrter Registrierungsreihen-
  * folge aus (zuletzt registriert = zuerst geprüft). Da diese Fixture ihren `/auth/me`-Handler **vor**
  * Übergabe der Page registriert, gewinnt jeder spätere `page.route('**\/auth/me', ...)` aus einem Spec
- * (z. B. `login.spec.ts`, das gezielt 401/200 steuert). `login.spec.ts` importiert daher weiterhin
- * direkt aus `@playwright/test` und braucht diese Fixture nicht.
+ * (z. B. `login.spec.ts`, das gezielt 401/200 steuert). `login.spec.ts` nutzt daher `baseTest` ohne
+ * diesen Mock.
  */
 
 // #1525: `entitlements` ist optional im Client-Typ (`AuthUser`, `auth.ts:17`), aber ohne sie bleibt
@@ -62,9 +62,37 @@ const seedPlanMirror = async (page: Page): Promise<void> => {
 	);
 };
 
-export const test = base.extend({
+const DAY_MS = 86_400_000;
+
+/**
+ * #2186: Die Wochen-Balance-Karte erscheint nur sonntags (`WeeklyBalanceCard.tsx`) und verschiebt
+ * dann das Dashboard-Layout. Fällt der Lauf in der Browser-Zeitzone auf einen Sonntag, stellt die
+ * Fixture die Browser-Uhr einen Tag zurück auf Samstag (gleiche ISO-Woche, die Uhr läuft weiter).
+ * Bewusst kein festes Datum: Specs legen Deadlines relativ zur echten Zeit an (#1617, #1964), und das
+ * echte Backend rechnet ebenfalls mit ihr. Specs, die den Sonntag brauchen, setzen ihre Uhr selbst
+ * (`issue-1968-weekly-card.spec.ts`).
+ */
+const avoidSunday = async (page: Page, timeZone: string | undefined): Promise<void> => {
+	const now = Date.now();
+	if (new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone }).format(now) === 'Sun') {
+		await page.clock.install({ time: now - DAY_MS });
+	}
+};
+
+/**
+ * Basis ohne `/auth/me`-Mock für Specs mit echter Session oder eigenem Auth-Mock (`login.spec.ts`,
+ * Admin-Specs) — nur mit der Wochentags-Uhr (#2186).
+ */
+export const baseTest = base.extend({
 	// Zweiter Parameter ist die Playwright-Fixture-Übergabe (`use`); bewusst `runTest` benannt, damit
 	// die `react-hooks/rules-of-hooks`-Heuristik den Aufruf nicht als React-Hook fehldeutet.
+	page: async ({ page, timezoneId }, runTest) => {
+		await avoidSunday(page, timezoneId);
+		await runTest(page);
+	},
+});
+
+export const test = baseTest.extend({
 	page: async ({ page }, runTest) => {
 		await page.route('**/auth/me', (route: Route) =>
 			route.fulfill({

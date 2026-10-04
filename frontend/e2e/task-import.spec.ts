@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { baseTest as test, expect, type Page } from './fixtures';
 
 /**
  * Rote Spec-E2E für #1969 (Spec `docs/spec/issue-1969.md`, AK6): Der Import ist als eigene

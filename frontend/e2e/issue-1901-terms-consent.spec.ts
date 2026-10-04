@@ -1,5 +1,5 @@
 import type { Page, Route } from '@playwright/test';
-import { expect, test } from '@playwright/test';
+import { baseTest as test, expect } from './fixtures';
 
 /**
  * Zustimmungsschritt nach dem Login (#1901, docs/spec/issue-1901.md). Gemockt sind nur `/auth/me`

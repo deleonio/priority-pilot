@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { baseTest as test, expect, type Page } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
