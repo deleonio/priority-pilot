@@ -55,6 +55,7 @@ import type {
 	ParseSearchParser,
 	ActivityAdvisor,
 	InitialTaskSuggester,
+	TaskImportAnalyzer,
 } from '../llm/llm.js';
 import type { PushSender } from '../logics/push.js';
 import type { MailSender } from '../logics/mail.js';
@@ -82,6 +83,8 @@ export interface AppDeps {
 	suggestInitialTasksParser?: InitialTaskSuggester;
 	/** Parser für `POST /tasks/parse-search` (Suchanfrage → Suchbegriff + Kategorie). */
 	searchTextParser?: ParseSearchParser;
+	/** Abhängigkeits-Vermutungen für den Import-Bericht (#1988) — Tests injizieren hieran einen Fake. */
+	taskImportAnalyzer?: TaskImportAnalyzer;
 	activityAdvisor?: ActivityAdvisor;
 	sessionStore?: Store;
 	pushSender?: PushSender;
@@ -354,7 +357,8 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// CSV-Import zweistufig (#1969, siehe routes/taskImport.ts): Vorschau + Übernahme — hinter
 	// requireAuth/CSRF; der zugehörige Body-Parser ist bewusst früh separat gemountet (oben).
-	app.use(createTaskImportRouter());
+	// #1988: Analyze-/Merge-Routen im selben Router, Analyzer injizierbar (still degradierend).
+	app.use(createTaskImportRouter(deps.taskImportAnalyzer));
 
 	// Mistral-gestützte Erststart-Vorschläge: Freitext → 5–8 Aufgaben mit Säulen-Bezug (#2068,
 	// siehe routes/suggestInitialTasks.ts).

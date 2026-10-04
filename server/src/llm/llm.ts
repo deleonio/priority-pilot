@@ -1113,3 +1113,87 @@ export const adviseActivitiesWithMistral: ActivityAdvisor = async (input, provid
 	);
 	return extractActivityAdvice(parsed, input);
 };
+
+/** Eine Abhängigkeits-Vermutung des Import-Berichts (#1988): Kante plus Begründung. */
+export interface TaskImportSuggestion {
+	dependentTaskId: number;
+	dependingTaskId: number;
+	title: string;
+	reason: string;
+}
+
+/** Eingabe des Import-Analyzers: übernehmbare Zeile mit aufgelöster Bestands-ID (0 = ohne Match). */
+export interface TaskImportAnalyzerInput {
+	id: number;
+	title: string;
+	deadline: Date | null;
+	priority: number;
+}
+
+/**
+ * Funktionssignatur des Import-Analyzers (#1988) — injizierbar, damit Tests ohne echten API-Call
+ * laufen. Fehler (Quota, Upstream, Format) wirft der Default-Aufruf; die Route degradiert still
+ * auf die Grundform des Berichts.
+ */
+export type TaskImportAnalyzer = (tasks: TaskImportAnalyzerInput[], userId?: number) => Promise<TaskImportSuggestion[]>;
+
+/** Obergrenze der Vorschläge je Analyse — begrenzt Prompt- und Antwortgröße bei 5000-Zeilen-Imports. */
+const MAX_IMPORT_SUGGESTIONS = 20;
+
+const buildImportAnalyzerSystemPrompt = (): string =>
+	[
+		'Du erkennst Abhängigkeiten zwischen importierten Aufgaben (Vorgänger-Verhältnisse).',
+		'Du bekommst Aufgaben als Liste mit id, title, deadline und priority.',
+		'Schlage nur Kanten vor, deren beide IDs in der Liste stehen, und nur wenn Titel oder Frist das Verhältnis nahelegen.',
+		'',
+		'Antworte ausschließlich mit einem JSON-Array (keine Erklärung, kein Markdown), maximal 20 Einträge:',
+		'[{ "dependentTaskId": <ID der übergeordneten Aufgabe>, "dependingTaskId": <ID des Vorgängers>, "reason": <kurze Begründung> }]',
+		'Ohne plausible Kanten: []',
+	].join('\n');
+
+/** Realer Import-Analyzer (Muster {@link parseTaskTextWithMistral}): Vermutungen aus Titeln/Fristen. */
+export const suggestTaskDependenciesWithMistral: TaskImportAnalyzer = async (tasks, userId) => {
+	const known = tasks.filter((task) => task.id > 0);
+	if (known.length < 2) return [];
+	const parsed = await requestModelJson(
+		[
+			{ role: 'system', content: buildImportAnalyzerSystemPrompt() },
+			{
+				role: 'user',
+				content: known
+					.map((task) => `- id=${task.id} title="${task.title}" deadline=${task.deadline?.toISOString() ?? '-'}`)
+					.join('\n'),
+			},
+		],
+		undefined,
+		userId,
+	);
+	if (!Array.isArray(parsed)) return [];
+	const titleById = new Map(known.map((task) => [task.id, task.title]));
+	const suggestions: TaskImportSuggestion[] = [];
+	for (const raw of parsed) {
+		if (typeof raw !== 'object' || raw === null) continue;
+		const entry = raw as Record<string, unknown>;
+		const dependentTaskId = entry.dependentTaskId;
+		const dependingTaskId = entry.dependingTaskId;
+		if (
+			typeof dependentTaskId !== 'number' ||
+			typeof dependingTaskId !== 'number' ||
+			dependentTaskId === dependingTaskId ||
+			!titleById.has(dependentTaskId) ||
+			!titleById.has(dependingTaskId) ||
+			typeof entry.reason !== 'string' ||
+			entry.reason.trim() === ''
+		) {
+			continue;
+		}
+		suggestions.push({
+			dependentTaskId,
+			dependingTaskId,
+			title: titleById.get(dependentTaskId) ?? '',
+			reason: entry.reason.trim(),
+		});
+		if (suggestions.length >= MAX_IMPORT_SUGGESTIONS) break;
+	}
+	return suggestions;
+};

@@ -5,6 +5,10 @@ vi.mock('../api', () => ({
 	api: {
 		previewTaskImport: vi.fn(),
 		importTasks: vi.fn(),
+		// #1988: Analyse-Bericht + Dubletten-Merge. Default-Grundform, damit Bestands-Tests
+		// nach der Impl nicht an undefined scheitern.
+		analyzeTaskImport: vi.fn(async () => ({ total: 3, missingDeadlines: [], duplicates: [], suggestions: [] })),
+		mergeTaskImportDuplicate: vi.fn(async () => ({})),
 	},
 }));
 
@@ -24,7 +28,10 @@ beforeEach(() => {
 	vi.clearAllMocks();
 });
 
-const apiMock = api as unknown as Record<'previewTaskImport' | 'importTasks', ReturnType<typeof vi.fn>>;
+const apiMock = api as unknown as Record<
+	'previewTaskImport' | 'importTasks' | 'analyzeTaskImport' | 'mergeTaskImportDuplicate',
+	ReturnType<typeof vi.fn>
+>;
 
 const PREVIEW = {
 	total: 4,
@@ -105,5 +112,48 @@ describe('TaskImportCard (Spec #1969 AK6)', () => {
 			expect(alert?.getAttribute('_type')).toBe('success');
 			expect(alert?.textContent ?? '').toContain('3');
 		});
+	});
+});
+
+// Rote Spec-Tests #1988 (Spec docs/spec/issue-1988.md, AK1/AK5/AK6-UI): Nach dem Übernehmen
+// zeigt die Karte den Analyse-Bericht (Anzahl, Aufgaben ohne Frist, exakte Dubletten mit
+// Begründung); je Dublette eine Merge-Aktion mit Objekt im accessible name.
+const ANALYSIS_1988 = {
+	total: 3,
+	missingDeadlines: [{ id: 11, title: 'Steuererklärung' }],
+	duplicates: [
+		{
+			keepTaskId: 11,
+			duplicateTaskId: 12,
+			title: 'Einkaufen',
+			reason: 'Identischer Titel wie bestehende Aufgabe „Einkaufen“',
+		},
+	],
+	suggestions: [],
+};
+
+describe('TaskImportCard (Spec #1988 AK1/AK6)', () => {
+	it('zeigt nach dem Import den Bericht mit Anzahl, ohne-Frist-Liste und Dubletten mit Begründung; Merge-Aktion trägt das Objekt im Namen', async () => {
+		apiMock.importTasks.mockResolvedValue(IMPORT_RESULT);
+		apiMock.analyzeTaskImport.mockResolvedValue(ANALYSIS_1988);
+		render(<TaskImportCard />);
+
+		await chooseFile();
+		await waitFor(() => expect(kolButton(/3 Aufgaben übernehmen/)).toBeDefined());
+		fireEvent.click(kolButton(/3 Aufgaben übernehmen/)!);
+
+		// Bericht statt nackter Erfolgsmeldung (AK1): Zahlen mit Kontext, Listen mit Inhalt.
+		await waitFor(() => expect(document.body.textContent).toContain('3 Aufgaben übernommen'));
+		expect(document.body.textContent).toContain('Steuererklärung');
+		expect(document.body.textContent).toContain('Identischer Titel');
+		expect(apiMock.analyzeTaskImport).toHaveBeenCalledTimes(1);
+
+		// Dubletten-Merge (AK6): Aktion benennt das Objekt, ruft den Merge-Endpunkt auf.
+		const mergeBtn = kolButton(/Dublette ‚Einkaufen‘ zusammenführen/);
+		expect(mergeBtn, 'Merge-Button mit Objektname fehlt').toBeDefined();
+		fireEvent.click(mergeBtn!);
+		await waitFor(() =>
+			expect(apiMock.mergeTaskImportDuplicate).toHaveBeenCalledWith({ keepTaskId: 11, duplicateTaskId: 12 }),
+		);
 	});
 });
