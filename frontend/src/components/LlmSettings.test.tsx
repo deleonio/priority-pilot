@@ -68,6 +68,8 @@ vi.mock('@public-ui/react-v19', () => ({
 	),
 	// #1903: Unterbereiche der Karte „KI-Provider" — `_label` ist die Summary. Seit #1970
 	// `_open`-abhängig, damit sich der geschlossene Klappbereich „Erweitert" testen lässt.
+	// Kinder rendern nur bei offen — jsdom wendet das UA-Verstecken von `closed details`-
+	// Kindern nicht an, Role-Queries würden sie sonst trotzdem finden (Test-Pflege #1970).
 	KolDetails: ({
 		_label,
 		_open,
@@ -81,7 +83,7 @@ vi.mock('@public-ui/react-v19', () => ({
 	}) => (
 		<details open={_open !== false}>
 			<summary onClick={() => _on?.onToggle?.(null, _open !== true)}>{_label}</summary>
-			{children}
+			{_open !== false && children}
 		</details>
 	),
 	KolInputRadio: ({ _label }: { _label?: string }) => <fieldset aria-label={_label} />,
@@ -160,6 +162,9 @@ beforeEach(() => {
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+	// Test-Pflege #1970: „Erweitert" persistiert je Klick unter `pp-ki-erweitert-open` — ohne
+	// Reset läuft der Klappzustand aus früheren Tests in die Folge-Tests (geteilte jsdom-Env).
+	localStorage.clear();
 });
 
 /** Öffnet „Erweitert" (#1970) — die Provider-Bedienelemente liegen seit #1970 dahinter. */

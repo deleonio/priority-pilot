@@ -32,6 +32,8 @@ const openLlmTab = async (page: import('@playwright/test').Page): Promise<void> 
 	await page.goto('/app/settings/llm');
 	await waitForStableView(page, 'Balamentum');
 	await expect(page.getByRole('tab', { name: 'KI', exact: true })).toBeVisible();
+	// #1970: Die Aktions-Buttons liegen hinter „Erweitert“.
+	await page.getByText('Erweitert', { exact: true }).click();
 };
 
 /** Räumt alle Custom-Provider ab (Builtins bleiben — sie sind nicht löschbar). */
