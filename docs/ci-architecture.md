@@ -381,11 +381,13 @@ unberührt; Marken `<!-- ai-phase-routing:START/END -->`): je Phase ux/spec/impl
 Run (ja/nein), Modell (haiku/sonnet/opus) und Effort (low/medium/high). `impl` und `review`
 laufen immer; die Run-Spalte dokumentiert dieselbe Entscheidung wie die Label-Kette.
 
-**Vorrang:** Tabelle > `ai:model:*`-Label > Workflow-Default (`vars.CLAUDE_MODEL_*` bleibt
-manueller Not-Override). `resolve-phase-routing.sh` liest die Tabelle (am Issue aus dem
+**Vorrang:** Tabelle > Workflow-Default (`vars.CLAUDE_MODEL_*` bleibt manueller
+Not-Override). Die frühere Label-Familie `ai:model:*` ist abgeschafft und entfernt
+(04.10.) — die Tabelle ist die einzige Modellquelle; Details: ADR 0004.
+`resolve-phase-routing.sh` liest die Tabelle (am Issue aus dem
 Harness-Kommentar, Legacy-Fallback Issue-Body; bei PRs über
-das Closing-Issue) und ist fail-open: fehlt sie oder ist eine Zeile ungültig, gelten Label bzw.
-Defaults unverändert — ein Tippfehler des LLM parkt die Pipeline nie. Details: ADR 0004.
+das Closing-Issue) und ist fail-open: fehlt sie oder ist eine Zeile ungültig, gelten die
+Defaults unverändert — ein Tippfehler des LLM parkt die Pipeline nie.
 
 **Eskalation bei Wiederholung (`ai:continued`):** Setzt der Soft-Abort der Umsetzung
 `ai:continued` und re-triggert `ai:needs-impl`, stuft der Precheck von 04 das gemergte
@@ -453,26 +455,24 @@ teurer ist als ein Mentor-Lauf.
 
 ### Modell-Allowlist & Freigabe neuer Modelle
 
-Pipeline-Phasen laufen nur mit erprobten Modell-Aliassen. Ein `ai:model:<alias>`-Label
-mit unbekanntem Alias bricht im **Precheck** ab (04/05: `resolve-model-label.sh`, nur noch
-Fallback-Pfad ohne Routing-Tabelle) statt halb erfüllte Prompt-Verträge im Lauf zu
-hinterlassen — die Lektion aus PR #903, wo ein Free-Modell nur die `VERDICT:`-Zeile lieferte
-und die Begründungs-Kommentare übersprang. Dieselbe Allowlist gilt für die
-Modell-Spalte der Routing-Tabelle.
+Pipeline-Phasen laufen nur mit erprobten Modell-Aliassen. Ein unbekannter Alias in der
+Modell-Spalte der Routing-Tabelle wird im Precheck ignoriert (fail-open, die Zeile liefert
+leer — die früheren `ai:model:*`-Labels mit hartem Precheck-Abbruch sind abgeschafft,
+04.10.) statt halb erfüllte Prompt-Verträge im Lauf zu hinterlassen — die Lektion aus
+PR #903, wo ein Free-Modell nur die `VERDICT:`-Zeile lieferte und die
+Begründungs-Kommentare übersprang.
 
 **Geltende Allowlist:** `fable | opus | sonnet | haiku`
 
 **Stellen, die bei einem neuen Alias synchron zu pflegen sind:**
 
-| #   | Datei                                         | Stelle                                                                                                               |
-| --- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| 1   | `.github/scripts/resolve-model-label.sh`      | case-Filter + Abbruch-Meldung (~Zeile 167)                                                                           |
-| 2   | `.github/actions/setup-claude/action.yml`     | Phasen-Modell-Auflösung: case + `::error`-Meldung                                                                    |
-| 3   | `.github/actions/setup-claude/action.yml`     | Subagent-Alias: case + `::error`-Meldung                                                                             |
-| 3b  | `.github/actions/setup-pi/action.yml`         | Alias-Filter im Step „Modell + Subagent-Modell auflösen“ + `.github/pi/model-aliases.json` je Provider               |
-| 4   | `.github/scripts/resolve-model-label.test.ts` | neuer Fall „bekannter Alias → durch“ + alter Abbruch-Fall bleibt grün                                                |
-| 5   | `.github/workflows/04-claude-implement.yml`   | Mentor-Modell-Auflösung (2 Steps, implement- + fixup-Job): case `MENTOR_MODEL` mit Restore-trap auf den Phasen-Alias |
-| 6   | `.claude/agents/*.md`                         | Rollen-Frontmatter `model:` (dieselben Aliase; schlägt seit CLI 2.1.251 den Subagent-Default, gilt lokal wie in CI)  |
+| #   | Datei                                       | Stelle                                                                                                               |
+| --- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 2   | `.github/actions/setup-claude/action.yml`   | Phasen-Modell-Auflösung: case + `::error`-Meldung                                                                    |
+| 3   | `.github/actions/setup-claude/action.yml`   | Subagent-Alias: case + `::error`-Meldung                                                                             |
+| 3b  | `.github/actions/setup-pi/action.yml`       | Alias-Filter im Step „Modell + Subagent-Modell auflösen“ + `.github/pi/model-aliases.json` je Provider               |
+| 5   | `.github/workflows/04-claude-implement.yml` | Mentor-Modell-Auflösung (2 Steps, implement- + fixup-Job): case `MENTOR_MODEL` mit Restore-trap auf den Phasen-Alias |
+| 6   | `.claude/agents/*.md`                       | Rollen-Frontmatter `model:` (dieselben Aliase; schlägt seit CLI 2.1.251 den Subagent-Default, gilt lokal wie in CI)  |
 
 **Modellwechsel innerhalb eines Alias** (z. B. `opus` → Claude Opus 5.5): Die native Modell-ID
 steht genau einmal in `.github/model-ids.json`; `setup-claude` (Phasen- und Subagent-Modell) und
@@ -481,10 +481,10 @@ der Mentor-Schritt in `04-implement.yml` lesen sie dort. Mitzuziehen sind nur di
 (`cost-from-transcript.ts`) — `model-ids.test.ts` bricht ab, wenn eins davon fehlt. Opus-Läufe ohne
 `effort`-Input bekommen in `setup-claude` ausdrücklich `high`, weil Opus 5.5 sonst auf `medium` läuft.
 
-**Freigabe-Prozess:** Alias in allen vier Stellen eintragen, das Resolve-Ziel je Provider ergänzen
+**Freigabe-Prozess:** Alias in allen Stellen eintragen, das Resolve-Ziel je Provider ergänzen
 (`claude` nativ via `--model`; `zai`/`openrouter` über die `ANTHROPIC_DEFAULT_*_MODEL`-Einträge der
 GitHub Variables `CLAUDE_CODE_SETTINGS_LOCAL_*` — deren JSON ist dort Source of Truth und wird hier
-nicht gespiegelt), `pnpm test:scripts` grün, dann erst das Label im Betrieb nutzen. Die
+nicht gespiegelt), `pnpm test:scripts` grün, dann erst in der Routing-Tabelle nutzen. Die
 `vars.CLAUDE_MODEL_*` tragen nur Phasen-**Defaults** — sie erweitern die Allowlist nicht.
 
 **`unrecognized_model`-Warnung (Issue #962):** Die CLI loggt bei nicht-nativ bekannten Modell-IDs

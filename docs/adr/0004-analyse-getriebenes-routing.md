@@ -301,3 +301,12 @@ Ob die Eskalation in den Tabellen-Pfad zieht, entscheiden wir mit Daten aus den 
 > stuft bei `ai:continued`-Fortsetzungsläufen (Soft-Abort) Modell und Effort hoch — auf das
 > gemergte Ergebnis und damit auch im Tabellen-Pfad. Für Blockaden, die keine Soft-Aborts
 > sind, entscheidet [ADR 0008](0008-delegation-und-mentor-eskalation.md) den Mentor-Vorlauf.
+
+> **Nachtrag 2026-10-04:** Die Label-Familie `ai:model:*` ist abgeschafft und entfernt
+> (ADR 0003, Fortschreibung) — die Routing-Tabelle ist die **einzige** Modellquelle;
+> der Vorrang vereinfacht sich zu **Tabelle > Workflow-Default**. Der Fallback-Pfad
+> (Alttickets ohne Tabelle, PRs ohne Closing-Issue) fällt fail-open auf den
+> Phasen-Default statt abzubrechen; der harte Precheck-Abbruch bei fehlendem Label
+> entfällt. Manuelle Overrides: Body-Edit der Tabelle oder `vars.CLAUDE_MODEL_*`.
+> Die Auto-Eskalation (`resolve-escalation.sh`) wirkt unverändert auf das gemergte
+> Ergebnis, auch ohne Tabelle (dann auf dem Default aufbauend).

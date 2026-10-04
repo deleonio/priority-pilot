@@ -74,8 +74,8 @@ phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
 
 Label write rules:
 
-- An issue update replaces the **whole** label set. Always carry `ai:analysed` and `ai:model:*`
-  along; drop only the consumed trigger (`ai:needs-po-review`).
+- An issue update replaces the **whole** label set. Always carry `ai:analysed` along; drop
+  only the consumed trigger (`ai:needs-po-review`).
 - Never remove `ai:analysed` — removing it starts a re-triage.
 - Re-arming a trigger that is still attached needs two writes: first without it, then with it.
   Adding an already present label fires no event.

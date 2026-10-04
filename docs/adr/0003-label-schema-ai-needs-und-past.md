@@ -1,6 +1,6 @@
 # ADR 0003: Label-Schema `ai:needs-*` (Trigger) + `ai:<Vergangenheitsform>` (Done)
 
-- **Status:** akzeptiert (2026-08-18, Issue #851); Done-Marker verschlankt (2026-08-18, Issue #873); Re-Triage zusätzlich via unlabeled (2026-08-18, s. Fortschreibung unten); `issues.opened` als Einstieg gestrichen (2026-08-18, s. Fortschreibung 2026-08-18b); Label-Familie `ai:model:*` ergänzt (2026-08-19, s. Fortschreibung 2026-08-19)
+- **Status:** akzeptiert (2026-08-18, Issue #851); Done-Marker verschlankt (2026-08-18, Issue #873); Re-Triage zusätzlich via unlabeled (2026-08-18, s. Fortschreibung unten); `issues.opened` als Einstieg gestrichen (2026-08-18, s. Fortschreibung 2026-08-18b); Label-Familie `ai:model:*` ergänzt (2026-08-19, s. Fortschreibung 2026-08-19); Label-Familie `ai:model:*` abgeschafft und entfernt (2026-10-04, s. Fortschreibung unten)
 - **Kontext:** [docs/pipeline-flow.md](../pipeline-flow.md), [ADR 0002](0002-pipeline-7-phasen-ux-vor-spec.md)
 
 ## Kontext und Problem
@@ -228,3 +228,25 @@ bleibt erlaubt, sonst wäre ein versehentlich gesetztes Label nicht mehr abräum
 nicht pro Bump eine irreführende Job-Summary schreibt. Der Prefix ist Renovates
 `branchPrefix`-Default; `renovate.json5` überschreibt ihn nicht. Abgesichert in
 `label-transition.test.ts` (inkl. Prefix-Treue: `fix/renovate-…` bleibt ein Pipeline-PR).
+
+## Fortschreibung 2026-10-04 — Label-Familie `ai:model:*` abgeschafft und entfernt
+
+Die drei Labels (`ai:model:haiku|sonnet|opus`) sind von allen Tickets entfernt und aus
+GitHub gelöscht; `ensure-labels.sh` legt sie nicht mehr an, `resolve-model-label.sh` samt
+Action `.github/actions/resolve-model` ist gelöscht.
+
+**Warum:** Die Familie war ein zweites Transport-Medium für dieselbe Information, die die
+`ai-phase-routing`-Tabelle im Harness-Kommentar bereits trägt — und verlor dort jeden
+Vergleich: Der Vorrang „Tabelle > Label" bewirkte, dass ein manuell gesetztes Label in
+implement/fixup **wirkungslos** blieb, sobald die Tabelle eine impl-Zeile hatte (immer der
+Fall bei analysierten Tickets). Zwei Tickets haben das im Betrieb demonstriert: Ein
+manuelles `ai:model:opus`-Upgrade (#1970/#1968) änderte nichts — die Läufe fuhren mit
+`sonnet` aus der Tabelle. Konfiguration, die ohne Warnung ignoriert wird, ist schlimmer als
+keine.
+
+**Neue Modellwahl:** Ausschließlich die `ai-phase-routing`-Tabelle (ADR 0004);
+`resolve-phase-routing.sh` ist die eine Lese-Stelle. Ohne Tabelle (Alttickets, PRs ohne
+Closing-Issue) gilt der Phasen-Default aus dem `model:`-Ausdruck. Der harte
+Precheck-Abbruch bei fehlendem Label entfällt mit der Familie — ein fehlendes Modell
+parkt nicht mehr, sondern fällt fail-open auf den Default zurück. Manuelle Overrides
+weiterhin über Body-Edit der Tabelle oder `vars.CLAUDE_MODEL_*`.

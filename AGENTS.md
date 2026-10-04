@@ -142,7 +142,7 @@ Provider, Modelle, Soft-Abort, MCP-Integration (KoliBri-MCP in allen Phasen auß
 Playwright-MCP in Umsetzung und Fixup): [CI-Architektur](docs/ci-architecture.md).
 
 **Jede Phase liest nur ihren eigenen Phase-Skill** (siehe [Wissensbasis](#wissensbasis)) plus
-das Issue/PR — kein domänenübergreifendes Lesen. Routing (Modell-Label `ai:model:*`, Spec-Skip)
+das Issue/PR — kein domänenübergreifendes Lesen. Routing (Modell je Phase über die `ai-phase-routing`-Tabelle, Spec-Skip)
 entscheidet die Triage je Subtask im `KI-ANALYSE`-Abschnitt des Harness-Kommentars
 (ADR 0009) — Details:
 [ADR 0004](docs/adr/0004-analyse-getriebenes-routing.md), [Triage-Skill](.claude/skills/ticket-triage/SKILL.md).

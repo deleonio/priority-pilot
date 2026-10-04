@@ -63,8 +63,6 @@ jobs:
       issues: read # ai-phase-routing-Tabelle wird am closing-Issue gelesen
     outputs:
       proceed: ${{ steps.check.outputs.proceed }}
-      model: ${{ steps.model.outputs.model }}
-      model_abort: ${{ steps.model.outputs.abort }}
       # Tabelle > Label gemergtes Ergebnis
       model_final: ${{ steps.merge.outputs.model_final }}
       effort_final: ${{ steps.merge.outputs.effort_final }}
@@ -98,18 +96,13 @@ jobs:
             --kind pr \
             --phase review || true
 
-      - name: Modellwahl aus ai:model:*-Label (nur ohne Routing-Tabelle)
-        # Fallback-Pfad: Alttickets ohne Tabelle, PRs ohne Closing-Issue, invalid
-        # geschriebene Tabelle. Bewusst mit vollem Guard (abort + ai:needs-human bei
-        # fehlendem/mehrdeutigem Label) — hier ist das Label die EINE Quelle.
-        if: steps.check.outputs.proceed == 'true' && steps.routing.outputs.source != 'table'
-        id: model
-        uses: ./.github/actions/resolve-model
-        with:
-          ticket: ${{ github.event.pull_request.number }}
-          kind: pr
-
-      - name: Modellzusammenfuehrung (Tabelle gewinnt, Label Fallback)
+      - name: Modellwahl (Tabelle gewinnt, sonst Literal-Default)
+        # Die ai-phase-routing-Tabelle im Harness-Kommentar ist die einzige Quelle
+        # (ADR 0004). Ohne Tabelle (Alttickets, PRs ohne Closing-Issue, invalid
+        # geschriebene Tabelle) bleibt model_final leer — der model:-Ausdruck fällt
+        # auf den Literal-Default. Die früheren ai:model:*-Labels sind abgeschafft
+        # (04.10.). Policy unverändert: PR ohne Closing-Issue läuft OHNE
+        # Analyse-Kontext und braucht mindestens opus.
         if: steps.check.outputs.proceed == 'true'
         id: merge
         env:
@@ -121,32 +114,14 @@ jobs:
             echo "model_final=${{ steps.routing.outputs.model }}"   >> "$GITHUB_OUTPUT"
             echo "effort_final=${{ steps.routing.outputs.effort }}" >> "$GITHUB_OUTPUT"
           else
-            # Label-Pfad: Effort bleibt Phasen-Default (Setup-Fallback 'high' — Policy
-            # "min. medium" damit immer erfuellt). Auto-Eskalation sitzt nicht
-            # hier, sondern im Fixup-Pfad von 04 (dort escalate=true, Runden-Zaehlung
-            # am PR — s. resolve-model-label.sh).
-            model="${{ steps.model.outputs.model }}"
-
-            # POLICY — PR ohne Closing-Issue: Der Kreuzverhors laeuft hier OHNE
-            # Analyse-Kontext (keine AKs, kein Spec, kein Routing) — das ist der
-            # anspruchsvollste Review-Fall und braucht mindestens opus. Ein
-            # haiku/sonnet-Label (Hand-Markierung oder falsch geerbt) oder ein leerer
-            # Label-Fund wird deshalb hochgesetzt; opus/fable bleiben unangetastet.
-            # Effort: Fallback 'high' >= medium, nichts anzuheben. Der manuelle
-            # Not-Override vars.CLAUDE_MODEL_PR_REVIEW bleibt bewusst ueber allem
-            # (bewusstes menschliches Handeln, z. B. Provider-Zwangsumleitung).
             linked="$(gh pr view "$PR" --repo "$REPO" --json closingIssuesReferences \
               --jq '[.closingIssuesReferences[].number] | first' 2>/dev/null || true)"
             if [ -z "$linked" ] || [ "$linked" = "null" ]; then
-              case "$model" in
-                haiku|sonnet|"")
-                  echo "::notice title=U0001F53D::Modell-Policy::PR ohne Closing-Issue — Modell '${model:-leer}' auf opus angehoben (Kreuzverhoer ohne Analyse-Kontext, min. opus/medium; Effort-Fallback 'high')."
-                  model="opus"
-                  ;;
-              esac
+              echo "::notice title=U+1F53D::Modell-Policy::PR ohne Closing-Issue — Modell opus (Kreuzverhoer ohne Analyse-Kontext, min. opus; Effort-Fallback 'high')."
+              echo "model_final=opus" >> "$GITHUB_OUTPUT"
+            else
+              echo "model_final=" >> "$GITHUB_OUTPUT"
             fi
-
-            echo "model_final=$model" >> "$GITHUB_OUTPUT"
             echo "effort_final=" >> "$GITHUB_OUTPUT"
           fi
 
@@ -160,7 +135,6 @@ jobs:
     # der Fork-Guard aus dem precheck-if wirkt dadurch weiterhin auch für den Hauptjob.
     if: >-
       ${{ always()
-          && needs.precheck.outputs.model_abort != 'true'
           && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
     runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     # 60 statt 30 min: der Lauf wartet seit dem CI-Warte-Gate (s. u.) zuerst auf den Abschluss
@@ -205,11 +179,10 @@ jobs:
           runtime: ${{ vars.AGENT_RUNTIME }}
           pi-model-aliases-json: ${{ vars.PI_MODEL_ALIASES }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
-          # Modellwahl kommt aus dem ai:model:*-Label (precheck), NICHT mehr statisch:
-          # der PR erbt sie vom verknüpften Issue, ein Label am PR selbst gewinnt.
+          # Modellwahl: ai-phase-routing-Tabelle des verknüpften Issues > Literal;
           # vars.CLAUDE_MODEL_PR_REVIEW bleibt als manueller Not-Override wirksam.
-          # Dritter Fallback ist der frühere Phasen-Default und KEIN Schmuck: Läuft ein PR
-          # ohne Analyse-Herkunft, liefert der Resolver bewusst ein leeres Modell. Leer
+          # Der Literal-Default ist KEIN Schmuck: Läuft ein PR ohne Analyse-Herkunft,
+          # bleibt model_final leer. Leer
           # bedeutet in setup-claude aber „kein Alias auflösen" — bei zai/openrouter bleibt
           # dann das Modell aus settings.local.json stehen, das der Provider als
           # `unrecognized_model` ablehnen kann (beobachtet an PR #916). Der Literal-Default

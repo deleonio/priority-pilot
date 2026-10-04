@@ -21,7 +21,7 @@
 # Entscheidung, die auch die Label-Kette trifft (ai:needs-ux-ui, Spec-Skip nach ADR-0004)
 # — Labels bleiben der Trigger, die Tabelle die sichtbare Quelle.
 #
-# VORRANG: Tabelle > bestehende Mechanik (ai:model:*-Label, Workflow-Defaults).
+# VORRANG: Tabelle > Workflow-Defaults (Literal im model:-Ausdruck der Workflows).
 # Fehlt die Tabelle (alle Tickets vor diesem Umbau) oder ist eine Zeile ungueltig,
 # liefert das Skript LEER zurueck (source=none) und der Aufrufer nutzt seine bisherige
 # Logik unverändert — bewusst FAIL-OPEN: Ein Tippfehler des LLM darf die Pipeline nicht
@@ -29,14 +29,14 @@
 #
 # Warum Markdown-Tabelle im Body statt Label: Ein Label traegt EINE Aufwandsklasse fuer
 # alle Phasen; vier Phasen-spezifische Label-Systeme wuerden explodieren. Die Tabelle ist
-# fuer Menschen sichtbar und per Body-Edit manuell ueberschreibbar — derselbe Override-
-# Weg, den das ai:model:*-Label heute bietet.
+# fuer Menschen sichtbar und per Body-Edit manuell ueberschreibbar (die frueheren
+# ai:model:*-Labels sind abgeschafft, 04.10.).
 #
 # Usage:
 #   bash resolve-phase-routing.sh --repo <owner/repo> --ticket <N> --kind <issue|pr> --phase <ux|spec|impl|review>
 #
 # --kind pr: Die Tabelle wird am verknuepften Issue gesucht (closingIssuesReferences,
-# erste Issue - dieselbe Quelle wie resolve-model-label.sh): Fixup/Review laufen auf
+# erste Issue): Fixup/Review laufen auf
 # PRs, die Tabelle lebt aber am Issue(-Kommentar), weil die Triage sie dorthin schreibt.
 # --issue N bleibt als Abkuerzung fuer --ticket N --kind issue.
 #

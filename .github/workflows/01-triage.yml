@@ -343,24 +343,6 @@ jobs:
             fi
             echo "UI-Bezug aus Analyse: '${UI_BEZUG:-nicht gefunden}'"
 
-            # Aufwandsklasse = Modell der impl-Zeile aus der ai-phase-routing-Tabelle
-            # (die EINE analysgetriebene Steuerung, ADR-0004; resolve-model-label.sh
-            # liest das daraus gesetzte ai:model:*-Label).
-            # Parselogik deckungsgleich mit resolve-phase-routing.sh (Feld $4 der
-            # Markdown-Zeile, Whitespace entfernt) — ANALYSIS (Harness-Kommentar)
-            # liegt hier bereits vor, deshalb inline statt Script-Call (kein zweiter
-            # API-Roundtrip).
-            KLASSE="$(printf '%s' "$ANALYSIS" | sed -n '/ai-phase-routing:START/,/ai-phase-routing:END/p' \
-              | awk -F'|' '/^\|[[:space:]]*impl[[:space:]]*\|/ { m=$4; gsub(/[ \t]/, "", m); print m; exit }')"
-            case "$KLASSE" in
-              haiku|sonnet|opus) ;;
-              # Kein stiller Fallback: eine geratene Klasse wäre genau das Verhalten,
-              # gegen das die Modellwahl antritt. Leer lassen — die Folgephase bricht
-              # dann ab und parkt mit Begründung beim Menschen (resolve-model).
-              *) [ -n "$KLASSE" ] && echo "::warning title=Aufwandsklasse::Unbekannter Wert '${KLASSE}' aus Routing-Tabelle — ignoriert."; KLASSE="" ;;
-            esac
-            echo "Aufwandsklasse aus Routing-Tabelle (impl-Zeile): '${KLASSE:-nicht gefunden}'"
-
             # Spec nötig? Entscheidung liegt in resolve-spec-skip.sh (dort getestet), nicht
             # hier inline: Sie prüft die Selbstauskunft der Analyse gegen die deklarierten
             # Dateien und fällt bei jeder Unsicherheit auf „Spec läuft" zurück.
@@ -585,21 +567,12 @@ jobs:
 
           bash .github/scripts/ensure-labels.sh
 
-          # Aufwandsklasse als ai:model:*-Label setzen. Genau EINES: die anderen erst
-          # entfernen (Re-Triage kann neu einstufen), dann das aktuelle setzen — zwei
-          # Labels ließen resolve-model-label.sh bewusst abbrechen.
-          # `ai:model:*` ist KEIN Pipeline-Trigger und steht deshalb nicht in der
-          # MANAGED-Liste von label-transition.sh — es überlebt alle Phasen-Transitions.
-          if [ -n "$KLASSE" ]; then
-            for m in haiku sonnet opus; do
-              [ "$m" = "$KLASSE" ] && continue
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:model:$m" 2>/dev/null || true
-            done
-            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:model:$KLASSE"
-            echo "::notice title=🎚️ Modell::Aufwandsklasse '$KLASSE' als ai:model:$KLASSE gesetzt."
-          else
-            echo "::warning title=Aufwandsklasse fehlt::Kein ai:model:*-Label gesetzt — die Umsetzung wird abbrechen und beim Menschen parken."
-          fi
+          # Modellwahl der Folgephasen liest ausschliesslich die ai-phase-routing-Tabelle
+          # im Harness-Kommentar (ADR 0004). Die frueheren ai:model:*-Labels sind
+          # abgeschafft und entfernt (04.10.): zweites Transport-Medium fuer dieselbe
+          # Information, von der Tabelle ueberstimmt, und ein manuelles Label am Issue
+          # wirkte deshalb in implement/fixup nicht — die Verwirrung ist der Grund der
+          # Abschaffung.
 
           # Trigger konsumieren (ai:needs-analyse bei Re-Triage) und stale Folge-Trigger
           # abräumen — Remove-vor-Add (#536), damit kein alter Trigger kleben bleibt.

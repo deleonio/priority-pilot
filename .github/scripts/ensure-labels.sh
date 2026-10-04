@@ -22,6 +22,3 @@ gh label create "ai:needs-impl" --color FBCA04 2>/dev/null || true
 # es muss trotzdem existieren, bevor es jemand in der Oberfläche auswählen kann.
 gh label create "ai:needs-team" --color FBCA04 --description "Ticket komplett an das Dev-Team uebergeben" 2>/dev/null || true
 
-for m in haiku sonnet opus; do
-  gh label create "ai:model:$m" --color C5DEF5 --description "Modell der Folgephasen" 2>/dev/null || true
-done

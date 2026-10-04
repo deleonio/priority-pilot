@@ -74,13 +74,11 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read # lokale Action + Skript auschecken
-      issues: write # Abbruchfall der Modellwahl setzt ai:needs-human + Begründung (Issue-Zweig)
+      issues: write # Phasen-Übergaben setzen Labels am Issue
       pull-requests: write # dito am PR (Fixup-Zweig)
     outputs:
       proceed: ${{ steps.check.outputs.proceed }}
-      model: ${{ steps.model.outputs.model }}
-      model_abort: ${{ steps.model.outputs.abort }}
-      # Tabelle > Label gemergtes Ergebnis (implement- UND fixup-Job, ADR-0005: eine Zeile),
+      # Tabelle > Literal gemergtes Ergebnis (implement- UND fixup-Job, ADR-0005: eine Zeile),
       # danach ggf. Eskalationsstufe (ai:continued) — escalate mit Fallback auf merge.
       model_final: ${{ steps.escalate.outputs.model || steps.merge.outputs.model_final }}
       effort_final: ${{ steps.escalate.outputs.effort || steps.merge.outputs.effort_final }}
@@ -137,9 +135,9 @@ jobs:
           llm-provider: ${{ vars.LLM_PROVIDER }}
 
       - name: Phasen-Routing aus ai-phase-routing-Tabelle
-        # ZUERST: Die Tabelle ist die analysgetriebene Primärsteuerung (ADR-0004).
-        # Liefert sie ein Modell, wird das Label nicht mal gelesen — ein fehlendes
-        # Label darf dann auch nicht abbrechen (resolve-model bleibt bedingt).
+        # Die Tabelle ist die einzige analysgetriebene Steuerung (ADR-0004). Liefert
+        # sie kein Modell, bleibt model_final leer und der Job fällt auf den
+        # Literal-Default zurück.
         if: steps.check.outputs.proceed == 'true'
         id: routing
         env:
@@ -151,20 +149,13 @@ jobs:
             --kind "${{ steps.route.outputs.kind }}" \
             --phase impl || true
 
-      - name: Modellwahl aus ai:model:*-Label (nur ohne Routing-Tabelle)
-        # Fallback-Pfad: Alttickets ohne Tabelle, PRs ohne Closing-Issue, invalid
-        # geschriebene Tabelle. Bewusst mit vollem Guard (abort + ai:needs-human bei
-        # fehlendem/mehrdeutigem Label) — hier ist das Label die EINE Quelle.
-        # Auto-Eskalation (--auto-escalate) bleibt an diesen Pfad gebunden.
-        if: steps.check.outputs.proceed == 'true' && steps.routing.outputs.source != 'table'
-        id: model
-        uses: ./.github/actions/resolve-model
-        with:
-          ticket: ${{ steps.route.outputs.ticket }}
-          kind: ${{ steps.route.outputs.kind }}
-          auto-escalate: ${{ steps.route.outputs.escalate }}
-
-      - name: Modellzusammenfuehrung (Tabelle gewinnt, Label Fallback)
+      - name: Modellwahl (Tabelle gewinnt, sonst Literal-Default)
+        # Die ai-phase-routing-Tabelle im Harness-Kommentar ist die einzige Quelle
+        # (ADR 0004). Ohne Tabelle (Alttickets, PRs ohne Closing-Issue, invalid
+        # geschriebene Tabelle) bleibt model_final leer — der model:-Ausdruck der
+        # Jobs fällt dann auf den Literal-Default. Die früheren ai:model:*-Labels
+        # sind abgeschafft (04.10.) — Auto-Eskalation (steps.route.outputs.escalate)
+        # bleibt über resolve-escalation.sh an den escalate-Step gebunden.
         if: steps.check.outputs.proceed == 'true'
         id: merge
         run: |
@@ -172,9 +163,9 @@ jobs:
             echo "model_final=${{ steps.routing.outputs.model }}"   >> "$GITHUB_OUTPUT"
             echo "effort_final=${{ steps.routing.outputs.effort }}" >> "$GITHUB_OUTPUT"
           else
-            # Label-Pfad: Effort-Default nach Eingang (implement=high, fixup=medium) —
+            # Effort-Default nach Eingang (implement=high, fixup=medium) —
             # bewusst nicht pauschal high, sonst stiege der Fixup-Default still auf high.
-            echo "model_final=${{ steps.model.outputs.model }}" >> "$GITHUB_OUTPUT"
+            echo "model_final=" >> "$GITHUB_OUTPUT"
             if [ "${{ steps.route.outputs.kind }}" = "pr" ]; then
               echo "effort_final=medium" >> "$GITHUB_OUTPUT"
             else
@@ -211,14 +202,10 @@ jobs:
     # Runner-Ausfall) würde den Hauptjob sonst stumm überspringen — Trigger konsumiert, niemand
     # arbeitet, nichts re-armt. Ein übersprungener precheck (result == 'skipped', No-op-Trigger)
     # erfüllt keine der beiden Klauseln und lässt den Hauptjob korrekt entfallen.
-    # `model_abort == 'true'` stoppt zusätzlich hart: Ohne gesicherte Modellwahl liefe der
-    # Lauf auf dem settings.json-Default, also potenziell auf dem teuersten Modell. Das
-    # Ticket trägt dann bereits ai:needs-human samt Begründung (s. resolve-model).
     # `github.event_name` trennt die beiden Eingänge — der precheck ist für beide derselbe.
     if: >-
       ${{ always()
           && github.event_name == 'issues'
-          && needs.precheck.outputs.model_abort != 'true'
           && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
     runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 60
@@ -258,9 +245,9 @@ jobs:
           runtime: ${{ vars.AGENT_RUNTIME }}
           pi-model-aliases-json: ${{ vars.PI_MODEL_ALIASES }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
-          # Modellwahl: ai-phase-routing-Tabelle (impl-Zeile) > ai:model:*-Label > Literal
-          # (precheck merget), vars.CLAUDE_MODEL_IMPLEMENT bleibt manueller Not-Override.
-          # Der Literal-Default ist KEIN Schmuck: Ohne Analyse-Herkunft liefert der Resolver
+          # Modellwahl: ai-phase-routing-Tabelle (impl-Zeile) > Literal,
+          # vars.CLAUDE_MODEL_IMPLEMENT bleibt manueller Not-Override.
+          # Der Literal-Default ist KEIN Schmuck: Ohne Tabelle bleibt model_final
           # leer, und leer bedeutet in setup-claude „kein Alias auflösen" — bei
           # zai/openrouter bliebe dann das settings.local.json-Modell stehen, das als
           # `unrecognized_model` abgelehnt werden kann (beobachtet an PR #916).
@@ -756,9 +743,9 @@ jobs:
           pi-model-aliases-json: ${{ vars.PI_MODEL_ALIASES }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
           # Modellwahl: ai-phase-routing-Tabelle (impl-Zeile, gilt auch fuer Fixup —
-          # ADR-0005) > ai:model:*-Label > Literal (precheck merget).
-          # vars.CLAUDE_MODEL_FIXUP bleibt als manueller Not-Override wirksam.
-          # Der Literal-Default ist KEIN Schmuck: Ohne Analyse-Herkunft liefert der Resolver
+          # ADR-0005) > Literal; vars.CLAUDE_MODEL_FIXUP bleibt als manueller
+          # Not-Override wirksam. Die früheren ai:model:*-Labels sind abgeschafft.
+          # Der Literal-Default ist KEIN Schmuck: Ohne Tabelle bleibt model_final
           # leer, und leer bedeutet in setup-claude „kein Alias auflösen" — bei
           # zai/openrouter bliebe dann das settings.local.json-Modell stehen, das als
           # `unrecognized_model` abgelehnt werden kann (beobachtet an PR #916).
