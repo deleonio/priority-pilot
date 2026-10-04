@@ -371,3 +371,15 @@ describe('OnboardingFlow — Startgewichtung, Abschluss-Karte, dynamische Schrit
 		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
 	});
 });
+
+// Roter Spec-Test für #1969 (Spec `docs/spec/issue-1969.md`, AK7): Schritt 1 bietet einen
+// optionalen Verweis auf den Import an (kein Pflichtschritt, kein eigener Screen).
+describe('OnboardingFlow — Import-Einstieg (Spec #1969 AK7)', () => {
+	it('bietet in Schritt 1 einen Verweis auf den Import an', () => {
+		renderFlow();
+		const entry = [...document.body.querySelectorAll('.onboarding-flow kol-button')].find((el) =>
+			(el.getAttribute('_label') ?? '').includes('importieren'),
+		);
+		expect(entry, 'Schritt 1 muss einen Import-Verweis anbieten').toBeDefined();
+	});
+});
