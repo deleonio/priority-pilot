@@ -241,7 +241,8 @@
 		"accountDeletion": "Konto löschen",
 		"accountDeletionPath": "konto-loeschen/",
 		"privacy": "Datenschutz",
-		"terms": "Nutzungsbedingungen"
+		"terms": "Nutzungsbedingungen",
+		"mcpGuide": "MCP-Anleitung"
 	},
 	"imprint": {
 		"title": "Impressum",

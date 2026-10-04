@@ -110,5 +110,15 @@
 		"speichern": "Guardar PNG",
 		"erzeuge": "Se está creando la tarjeta …",
 		"fehler": "No se pudo crear la tarjeta. Inténtalo de nuevo."
+	},
+	"monthlyCard": {
+		"label": "Mi mes en cinco pilares",
+		"laden": "El resumen mensual se está cargando …",
+		"leer": "Sin puntos el mes pasado: el próximo mes la tarjeta se llena cuando completas tareas.",
+		"rueckblick": "Resumen",
+		"teilen": "Compartir el mes",
+		"speichern": "Guardar PNG",
+		"erzeuge": "Se está creando la tarjeta …",
+		"fehler": "No se pudo crear la tarjeta. Inténtalo de nuevo."
 	}
 }

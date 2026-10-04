@@ -110,5 +110,15 @@
 		"speichern": "Save PNG",
 		"erzeuge": "Creating the card …",
 		"fehler": "The card could not be created. Please try again."
+	},
+	"monthlyCard": {
+		"label": "My month in five pillars",
+		"laden": "Your monthly recap is loading …",
+		"leer": "No points last month — next month the card fills up as you complete tasks.",
+		"rueckblick": "Recap",
+		"teilen": "Share month",
+		"speichern": "Save PNG",
+		"erzeuge": "Creating the card …",
+		"fehler": "The card could not be created. Please try again."
 	}
 }

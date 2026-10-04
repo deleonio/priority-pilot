@@ -110,5 +110,15 @@
 		"speichern": "Salva PNG",
 		"erzeuge": "Creazione della scheda …",
 		"fehler": "Impossibile creare la scheda. Riprova."
+	},
+	"monthlyCard": {
+		"label": "Il mio mese in cinque pilastri",
+		"laden": "Caricamento del riepilogo mensile …",
+		"leer": "Nessun punto il mese scorso: il prossimo mese la scheda si riempie quando completi le attività.",
+		"rueckblick": "Riepilogo",
+		"teilen": "Condividi il mese",
+		"speichern": "Salva PNG",
+		"erzeuge": "Creazione della scheda …",
+		"fehler": "Impossibile creare la scheda. Riprova."
 	}
 }

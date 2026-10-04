@@ -110,5 +110,15 @@
 		"speichern": "Enregistrer le PNG",
 		"erzeuge": "Création de la carte …",
 		"fehler": "La carte n'a pas pu être créée. Merci de réessayer."
+	},
+	"monthlyCard": {
+		"label": "Mon mois en cinq piliers",
+		"laden": "Chargement du récapitulatif mensuel …",
+		"leer": "Pas encore de points le mois dernier — la carte se remplit le mois prochain quand tu accomplis des tâches.",
+		"rueckblick": "Récap",
+		"teilen": "Partager le mois",
+		"speichern": "Enregistrer le PNG",
+		"erzeuge": "Création de la carte …",
+		"fehler": "La carte n'a pas pu être créée. Merci de réessayer."
 	}
 }

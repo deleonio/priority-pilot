@@ -110,5 +110,15 @@
 		"speichern": "Zapisz PNG",
 		"erzeuge": "Tworzenie karty …",
 		"fehler": "Nie udało się utworzyć karty. Spróbuj ponownie."
+	},
+	"monthlyCard": {
+		"label": "Mój miesiąc w pięciu filarach",
+		"laden": "Wczytywanie miesięcznego podsumowania …",
+		"leer": "W zeszłym miesiącu nie ma punktów — w następnym karta wypełni się, gdy odhaczasz zadania.",
+		"rueckblick": "Podsumowanie",
+		"teilen": "Udostępnij miesiąc",
+		"speichern": "Zapisz PNG",
+		"erzeuge": "Tworzenie karty …",
+		"fehler": "Nie udało się utworzyć karty. Spróbuj ponownie."
 	}
 }

@@ -16,10 +16,10 @@ export const KARTE_BREITE = 640;
 export const KARTE_HOEHE = 400;
 
 /** Säulen-Rampe in der Reihenfolge der fünf Lebensbalance-Säulen, auf dunklen Grund hell gerechnet. */
-const RAMPE = ['#f0210f', '#e7f831', '#5af2a6', '#8b7cf8', '#c22aef'] as const;
-const GRUND = '#101828';
-const TINTE = '#f2f4f7';
-const GEDAEMPFT = '#98a2b3';
+export const RAMPE = ['#f0210f', '#e7f831', '#5af2a6', '#8b7cf8', '#c22aef'] as const;
+export const GRUND = '#101828';
+export const TINTE = '#f2f4f7';
+export const GEDAEMPFT = '#98a2b3';
 
 const XML_ESCAPES: Record<string, string> = {
 	'<': '&lt;',
@@ -30,7 +30,7 @@ const XML_ESCAPES: Record<string, string> = {
 };
 
 /** Namen stammen aus Nutzereingaben — bevor sie ins SVG gehen, werden sie XML-sicher gemacht. */
-const xml = (text: string): string => text.replace(/[<>&"']/g, (zeichen) => XML_ESCAPES[zeichen] ?? zeichen);
+export const xml = (text: string): string => text.replace(/[<>&"']/g, (zeichen) => XML_ESCAPES[zeichen] ?? zeichen);
 
 export interface WochenKarteDaten {
 	/** Name und Wert je Säule — bewusst nur das: Aufgabentitel/-inhalte dürfen nie ankommen (AK1). */
