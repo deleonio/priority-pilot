@@ -3,6 +3,9 @@
 **Stand:** 2026-09-29 (Spec-Phase)
 **Quellen:** Harness-Kommentar (KI-ANALYSE stand=2026-09-29T03:51:21Z, KI-UX), `docs/fuersorge-tonalitaet.md`, `docs/mobile-ui-rules.md`, Server-Vertrag #1791 (`GET /scores/care-suggestions`, `POST /scores/care-suggestions/dismissals`).
 
+> **Ablöst:** Die Säulen-Beiträge dieser Spec (Ein-Säulen-Form, share 100) sind mit #2077 durch
+> die Vollverteilung ersetzt — siehe `docs/spec/issue-2077.md`.
+
 ## Ziel
 
 Ist eine Säule defizitär, zeigt das Dashboard oberhalb der Card „Nächste Aufgabe" genau einen Fürsorge-Hinweis mit drei Ein-Tap-Aktionen. Nur Frontend; kein Server-Umbau.

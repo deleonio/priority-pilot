@@ -1,5 +1,8 @@
 # Spec: Fürsorge-Vorschlag lässt sich nicht übernehmen (#2010)
 
+> **Ablöst:** Die hier gepinnte Ein-Säulen-Form (`{pillarId, share: 100}`) ist mit #2077 durch
+> die Vollverteilung ersetzt — siehe `docs/spec/issue-2077.md`.
+
 ## Ziel
 
 „Vorschlag übernehmen" im Fürsorge-Hinweis wirkt zuverlässig für alle drei Vorschlagstypen —

@@ -1,5 +1,8 @@
 # Spec: Hauptsäulen-Modus für die Säulenverteilung (#1962)
 
+> **Ablöst:** Der hier beschriebene Hauptsäulen-Modus (Einzelsäule mit share 100) ist mit #2077
+> durch die Vollverteilung ersetzt (je 5–80 %, Summe 100) — siehe `docs/spec/issue-2077.md`.
+
 ## Ziel
 
 Eine Aufgabe ist mit genau einer gewählten Hauptsäule speicherbar (Anteil 100 %). Die Verteilung

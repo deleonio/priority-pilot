@@ -3,6 +3,10 @@
 **Stand:** 2026-09-28 (Spec-Phase)
 **Quellen:** Harness-Kommentar (KI-ANALYSE, stand=2026-09-28T08:13:54Z), `docs/fuersorge-tonalitaet.md` (#1797), `server/src/logics/careDeficit.ts` (#1790).
 
+> **Ablöst:** Die Vorschlags-Verträge dieser Spec beruhen auf dem Hauptsäulen-Modus bzw. der
+> Ein-Säulen-Form — beides ist mit #2077 durch die Vollverteilung ersetzt, siehe
+> `docs/spec/issue-2077.md`.
+
 ## Ziel
 
 Bei einem Pflege-Defizit in einer Säule liefert der Server bis zu drei konkrete Vorschläge:
