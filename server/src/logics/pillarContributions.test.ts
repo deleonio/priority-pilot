@@ -6,7 +6,7 @@ import { resetDb, closeDb } from '../test/helpers.js';
 // Import schlägt fehl, bis `server/src/logics/pillarContributions.ts` die hier eingeklagte
 // Schnittstelle bereitstellt. Ziel ist EINE Validierung, die sich Series-Vorlage und Task-Beiträge
 // teilen (keine Duplizierung). KEIN Produktivcode.
-import { validatePillars, arePillarsExistent } from './pillarContributions.js';
+import { validatePillars, arePillarsExistent, buildHandoverRows } from './pillarContributions.js';
 
 /**
  * Vertrag für `validatePillars(pillars)` — die reine (DB-freie) Formvalidierung eines Beitrags-
@@ -185,5 +185,45 @@ describe('arePillarsExistent', () => {
 	it('ohne Konto (null) bleibt eine unbekannte pillarId → false', async () => {
 		const { ids } = await seedTwoPillars();
 		assert.equal(await arePillarsExistent([ids[0], 99999], null), false);
+	});
+});
+
+/**
+ * Vertrag für `buildHandoverRows(pillars, remapped, buildRow, distribute?)` (#2152 AK2/AK3) — der
+ * gemeinsame Handover-Auffüll-Helfer für Task- und Series-Übergabe: Basisanteile aus `remapped`
+ * (fehlend → 0), Auffüllung zur Vollverteilung über die Empfänger-Säulen (Default:
+ * `distributeWithMinimum`, als Parameter injizierbar — genau dieser Seam macht den Kürzungsfall
+ * testbar). Der Zeilenaufbau bleibt via `buildRow` bei der Route (TaskPillar vs. SeriesPillar).
+ * Ist die gelieferte Verteilung KÜRZER als die Empfänger-Säulen, wirft der Helfer einen lautenden
+ * Fehler, statt stille Zeilen mit Anteil 0 zu schreiben (früher `shares[index] ?? 0`). Wie bei
+ * `validatePillars` wird nur die Invariante fixiert, nicht der exakte Fehlertext.
+ */
+describe('buildHandoverRows', () => {
+	it('gekürzte Verteilung → wirft laut, statt still share-0-Zeilen zu schreiben (#2152, AK2)', () => {
+		const rows: unknown[] = [];
+		assert.throws(() =>
+			buildHandoverRows(
+				[{ id: 11 }, { id: 22 }, { id: 33 }],
+				new Map(),
+				(pillarId, share) => {
+					rows.push({ pillarId, share });
+					return { pillarId, share };
+				},
+				() => [100],
+			),
+		);
+		assert.equal(rows.length, 0, 'vor dem Fehler darf keine Zeile gebaut worden sein');
+	});
+
+	it('füllt zur Vollverteilung auf: kein 0-Anteil, confidence-Default 100 (#2152, AK2)', () => {
+		const rows = buildHandoverRows(
+			[{ id: 11 }, { id: 22 }],
+			new Map([[11, { share: 80, confidence: 70 }]]),
+			(pillarId, share, confidence) => ({ pillarId, share, confidence }),
+		);
+		assert.deepEqual(rows, [
+			{ pillarId: 11, share: 80, confidence: 70 },
+			{ pillarId: 22, share: 20, confidence: 100 },
+		]);
 	});
 });
