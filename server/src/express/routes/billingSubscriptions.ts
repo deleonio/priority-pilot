@@ -173,10 +173,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			});
 			if (!subscription) {
 				// Gekündigt mit laufendem Zeitraum ist kein fehlendes Abo — verständlicher 409 statt 404 (#2048).
-				const cancelled = await Subscription.findOne({
-					where: { userId, status: 'cancelled', currentPeriodEnd: { [Op.gt]: new Date() } },
-					order: ACTIVE_FIRST,
-				});
+				const cancelled = await findCancelledWithRemaining(userId);
 				if (cancelled) {
 					sendError(res, 409, 'Das Abo ist bereits gekündigt.');
 					return;
