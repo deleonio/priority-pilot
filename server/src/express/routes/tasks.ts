@@ -31,6 +31,7 @@ import { meilensteinStandVon } from '../../logics/milestones.js';
 import type { PushSender } from '../../logics/push.js';
 import type { ChecklistItem } from '../../models/task.js';
 import { protokolliereCareReaktion } from '../../logics/careWirkung.js';
+import { protokolliereErledigung } from '../../logics/kpiKennzahlen.js';
 import type { components } from '../../api';
 
 type TaskDto = components['schemas']['Task'];
@@ -1080,6 +1081,19 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 					await ScoreEntry.destroy({ where: { taskId: task.id }, transaction });
 				}
 			});
+			// #1989: KPI-Protokollierung der Erledigung — am Registrierungstag `aktivierung`, sonst
+			// Tages-`aktivitaet`; Nutzer = Task-Eigentümer nach Claim (#1521). Erst nach dem Commit,
+			// und ein Fehler bleibt folgenlos für den PATCH (Muster #1224/#1363).
+			if (istDoneUebergang && task.userId != null) {
+				try {
+					const eigentuemer = await User.findByPk(task.userId, { attributes: ['id', 'createdAt'] });
+					if (eigentuemer) {
+						await protokolliereErledigung(eigentuemer.id, eigentuemer.createdAt);
+					}
+				} catch (error) {
+					console.warn('KPI-Erledigung nicht protokolliert:', error);
+				}
+			}
 			// #1983 (AK5): Zugangs-Mail an die externe Adresse — nach dem Commit und vor der Antwort
 			// abgewartet; ein Versandfehler lässt die Übergabe unberührt (Muster #1224/#1363).
 			const accessMailThrottled = patchNewRecipientEmail !== null && !claimAccessMailSlot(getUserId(req) ?? 0);

@@ -2027,6 +2027,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /kpis/wochenkarte:
+    post:
+      summary: Geteilte Wochen-Karte melden (#1989)
+      description: >-
+        Protokolliert das Teilen der Wochen-Karte als anonyme Ereigniszeile — je Konto und
+        Kalenderwoche höchstens einmal (HMAC-Dedup, `logics/kpiKennzahlen.ts`), ohne
+        Karteninhalte und ohne Nutzerbezug. Antwort immer 204; ein Protokollierfehler
+        bleibt für den Share folgenlos.
+      operationId: postWochenkarteShare
+      tags: [kpi]
+      responses:
+        '204':
+          description: Ereignis verarbeitet (auch bei Dedup)
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /groups:
     get:
       summary: Gruppen des angemeldeten Nutzers auflisten
@@ -2639,6 +2658,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CareWirkung'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /admin/kpis:
+    get:
+      summary: Markteinführungs-Kennzahlen auswerten (#1989)
+      description: >-
+        Nur für Admins (403 sonst). Liefert je Registrierungsperiode (Kalenderwoche bzw. Monat,
+        aufsteigend) die Zahl neuer Konten (ohne Admin-Konten) sowie Aktivierung (Erledigung am
+        Registrierungstag), Day-7-Rückkehr (Erledigung am siebten Tag; nur Konten mit vergangenem
+        Tag 7), geteilte Wochen-Karten und versandte Einladungen als Quoten. Nur Summen, keine
+        Nutzer-IDs; Zellen mit weniger als 5 Nutzern werden als `unterdrueckt` ausgegeben.
+      operationId: getKpis
+      tags: [admin]
+      parameters:
+        - name: zeitraum
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [woche, monat]
+      responses:
+        '200':
+          description: Auswertung
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KpiAuswertung'
+        '400':
+          description: zeitraum fehlt oder ist weder woche noch monat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '403':
           description: Angemeldeter Nutzer ist kein Admin
           content:
@@ -4391,6 +4449,53 @@ components:
             nutzer:
               type: integer
             aktiv:
+              type: integer
+            quote:
+              type: number
+        - type: string
+          enum: [unterdrueckt]
+    KpiAuswertung:
+      type: object
+      description: Markteinführungs-Kennzahlen je Registrierungsperiode (#1989), nur Summen.
+      required: [zeitraum, zeilen]
+      properties:
+        zeitraum:
+          type: string
+          enum: [woche, monat]
+        zeilen:
+          type: array
+          items:
+            $ref: '#/components/schemas/KpiZeile'
+    KpiZeile:
+      type: object
+      description: Eine Registrierungsperiode (Kalenderwoche bzw. Monat, UTC).
+      required: [periode, neueNutzer, aktivierung, tag7, wochenkarte, einladungen]
+      properties:
+        periode:
+          type: string
+          description: Montag der Woche (YYYY-MM-DD) bzw. Monat (YYYY-MM) der Registrierungen.
+        neueNutzer:
+          type: integer
+          description: Neue Konten der Periode (ohne Admin-Konten).
+        aktivierung:
+          $ref: '#/components/schemas/KpiZelle'
+        tag7:
+          $ref: '#/components/schemas/KpiZelle'
+        wochenkarte:
+          $ref: '#/components/schemas/KpiZelle'
+        einladungen:
+          $ref: '#/components/schemas/KpiZelle'
+    KpiZelle:
+      description: >-
+        Zähler und Nenner einer Quote (Aktivierung/Tag 7: Kohorte; Wochenkarte/Einladungen:
+        Ereignisse je neuem Konto); bei weniger als 5 Nutzern der String `unterdrueckt`.
+      oneOf:
+        - type: object
+          required: [zaehler, nenner, quote]
+          properties:
+            zaehler:
+              type: integer
+            nenner:
               type: integer
             quote:
               type: number

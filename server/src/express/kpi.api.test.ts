@@ -58,7 +58,12 @@ describe('KPI-Protokollierung und Admin-Auswertung (#1989)', () => {
 		const cookie = await server.register('kpi-spaeter@example.com', 'password123');
 		const user = await User.findOne({ where: { email: 'kpi-spaeter@example.com' } });
 		assert.ok(user, 'Setup: Nutzer erwartet');
-		await user.update({ createdAt: new Date(Date.now() - 2 * 86_400_000) });
+		// Statisches Update — `instance.update` verwirft Änderungen an Auto-Timestamps still
+		// (Test-Pflege der Umsetzungsphase #1989, im PR-Body dokumentiert).
+		await User.update(
+			{ createdAt: new Date(Date.now() - 2 * 86_400_000) },
+			{ where: { email: 'kpi-spaeter@example.com' } },
+		);
 		await erledigeTask(cookie, 'Zweiter Tag');
 		assert.equal(await zaehle('aktivierung'), 0);
 		assert.equal(await zaehle('aktivitaet'), 1);

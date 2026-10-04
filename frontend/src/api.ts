@@ -1340,6 +1340,15 @@ export const api = {
 		return data;
 	},
 
+	// --- Wochenkarten-Share-Ping (#1989): meldet das Teilen der Karte — je Kalenderwoche einmal,
+	// ohne Karteninhalt. Die Card ruft ihn fire-and-forget nach dem System-Share auf.
+	async postWochenkarteShare(init: Init = {}): Promise<void> {
+		const { error, response } = await client.POST('/kpis/wochenkarte', { signal: init.signal });
+		if (!response.ok || error) {
+			throw new ResponseError(response, error);
+		}
+	},
+
 	// --- Fürsorge-Vorschläge gegen ein Balance-Defizit (#1791, Dashboard-Hinweis #1793) ---
 
 	async getCareSuggestions({ sprache, signal }: { sprache?: string } & Init = {}): Promise<{

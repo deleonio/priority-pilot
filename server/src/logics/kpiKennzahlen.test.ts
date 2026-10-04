@@ -1,4 +1,4 @@
-import { describe, it, before, after } from 'node:test';
+import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb } from '../test/helpers.js';
 import KpiEvent from '../models/kpiEvent.js';
@@ -12,6 +12,12 @@ import { berechneKpis, protokolliereErledigung, protokolliereKpiEreignis, type K
  */
 describe('kpiKennzahlen (#1989)', () => {
 	before(async () => {
+		await resetDb();
+	});
+	// Jeder Testfall startet mit leerer Tabelle — sonst zählen die Global-Counts (`KpiEvent.count()`)
+	// die Zeilen der Vorgänger-Tests mit (Test-Pflege der Umsetzungsphase #1989, Muster
+	// `kpi.api.test.ts` beforeEach; im PR-Body dokumentiert).
+	beforeEach(async () => {
 		await resetDb();
 	});
 	after(async () => {
