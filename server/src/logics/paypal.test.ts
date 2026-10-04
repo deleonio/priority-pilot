@@ -71,7 +71,7 @@ describe('paypal.ts — isGracePeriodExpired (#1506 AK5)', () => {
 	});
 });
 
-// #1471 AK1 (Spec docs/spec/issue-1471.md): revise() bei HTTP 200 mit unlesbarem Body —
+// #1471 AK1: revise() bei HTTP 200 mit unlesbarem Body —
 // kontrollierter {}/approvalUrl-Fallback bleibt, aber der Parse-Fehler wird genau 1× per
 // console.warn protokolliert (statt still geschluckt, Muster PR #1480).
 describe('paypal.ts — createPaypalClient().revise (#1471 AK1)', () => {

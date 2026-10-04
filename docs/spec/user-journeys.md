@@ -40,7 +40,7 @@ Neue Aufgabe in das System aufnehmen, mit allen relevanten Metadaten (Priorität
    - **Geschätzter Aufwand**: Schieberegler auf **0,5** Tage (0,1–1)
    - **Deadline** (optional): _2026-08-15_ wählen
    - **Beschreibung** (optional): _„Finanzkennzahlen und Prognose für Q3"_
-   - **Säulen** (optional, Expertenmodus): Säule „Wirksamkeit“ mit **Anteil 100 %** (Prozentregler, Mindestanteil 5 %, Schrittweite 1; die Anteile aller Säulen summieren sich auf 100 %) und **Konfidenz 80 %** (0–100 %) zuordnen
+   - **Säulen** (optional, Expertenmodus): Säule „Wirksamkeit" mit **Anteil 100 %** (Prozentregler, Mindestanteil 5 %, Schrittweite 1; die Anteile aller Säulen summieren sich auf 100 %); die Konfidenz wird automatisch gesetzt (Bestandswerte bleiben, neue Beiträge erhalten 100 % bzw. den Wert des KI-Vorschlags)
 
 5. **Aufgabe speichern**
    - Klick auf **„Anlegen"**

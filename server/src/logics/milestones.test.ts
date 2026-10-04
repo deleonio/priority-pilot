@@ -84,7 +84,7 @@ describe('berechneMeilensteine', () => {
 		);
 	});
 
-	it('AK2 (#2150, docs/spec/issue-2150.md): mit übergebenen entries identisches Ergebnis ohne erneuten findAll-Leselauf', async (t) => {
+	it('AK2 (#2150): mit übergebenen entries identisches Ergebnis ohne erneuten findAll-Leselauf', async (t) => {
 		const original = ScoreEntry.findAll;
 		let aufrufe = 0;
 		ScoreEntry.findAll = (async () => {
@@ -106,7 +106,7 @@ describe('berechneMeilensteine', () => {
 		assert.equal(aufrufe, 1, 'mit übergebenen Daten darf nicht erneut gelesen werden');
 	});
 
-	it('AK2 (#2157, docs/spec/issue-2157.md): übergebene bestStreak/punkteSumme schlagen die interne Berechnung — Streak läuft je Stand genau einmal', async () => {
+	it('AK2 (#2157): übergebene bestStreak/punkteSumme schlagen die interne Berechnung — Streak läuft je Stand genau einmal', async () => {
 		// Leere Entries: die interne Berechnung liefe auf 0/0 (nichts erreicht). Der Vertrag
 		// verlangt, dass die durchgereichten Werte der Route GEWINNEN — genau daran scheitert der
 		// heutige Stand (meilensteinStandVon rechnet den Streak intern selbst, 2. Aufruf je Request).
@@ -122,7 +122,7 @@ describe('berechneMeilensteine', () => {
 		assert.equal(stufe('punkte', 1000), false, 'übergebene punkteSumme=250 darf die 1000-Punkte-Stufe nicht erreichen');
 	});
 
-	it('AK3 (#2157, docs/spec/issue-2157.md): entries ohne bestStreak — Streak und Punkte-Summe werden intern aus den Entries berechnet', async () => {
+	it('AK3 (#2157): entries ohne bestStreak — Streak und Punkte-Summe werden intern aus den Entries berechnet', async () => {
 		// Drei Erledigungen an den letzten drei Tagen (UTC-Mittag, dst-sicher) à 20 Punkte:
 		// intern best=3, punkteSumme=60 → Streak-3 und Punkte-50 erreicht, nichts darüber.
 		const utcTag = (tageZurueck: number): Date => {
