@@ -188,6 +188,7 @@ export const TaskImportCard = () => {
 			const message = (await toApiError(reason)).message;
 			setItemErrors((prev) => ({ ...prev, [key]: message }));
 		} finally {
+			actionBusyRef.current = false;
 			setBusyKey(null);
 		}
 	};
