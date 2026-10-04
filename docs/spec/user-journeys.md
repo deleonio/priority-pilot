@@ -1,6 +1,6 @@
 # User Journeys – Balamentum
 
-**Stand:** 2026-08-30  
+**Stand:** 2026-10-04  
 **Ziel:** Reale Nutzerabläufe als Spezifikation des Ist-Zustands.
 
 Diese Journeys beschreiben **von außen sichtbares Verhalten** der laufenden Balamentum App. Sie sind die referenzierbare Quelle für neue Tests, implementierungsagnostisch und auf reale Abläufe fokussiert.
@@ -40,7 +40,7 @@ Neue Aufgabe in das System aufnehmen, mit allen relevanten Metadaten (Priorität
    - **Geschätzter Aufwand**: Schieberegler auf **0,5** Tage (0,1–1)
    - **Deadline** (optional): _2026-08-15_ wählen
    - **Beschreibung** (optional): _„Finanzkennzahlen und Prognose für Q3"_
-   - **Säulen** (optional): Säule „Wirksamkeit" mit **Anteil 1** (Schieberegler 0–1, Schritt 0,1) und **Konfidenz 80 %** (0–100 %) zuordnen
+   - **Säulen** (optional, Expertenmodus): Säule „Wirksamkeit“ mit **Anteil 100 %** (Prozentregler, Mindestanteil 5 %, Schrittweite 1; die Anteile aller Säulen summieren sich auf 100 %) und **Konfidenz 80 %** (0–100 %) zuordnen
 
 5. **Aufgabe speichern**
    - Klick auf **„Anlegen"**
@@ -92,7 +92,7 @@ Zwei Aufgaben so verknüpfen, dass eine Aufgabe vom Erledigen der anderen abhän
 
 - Abhängigkeit ist persistent gespeichert
 - Vorgänger-Aufgabe erscheint in der Liste der aktuellen Vorgänger
-- Im Tab „Wald" ist der Vorgänger (die Unteraufgabe) eingerückt unter der abhängigen (Eltern-)Aufgabe sichtbar
+- Im Tab „Wald“ (Aufgabengraph) ist die Abhängigkeit als gewichtete Kante sichtbar; der Vorgänger (die Unteraufgabe) steht oberhalb der abhängigen Aufgabe, die Kante zeigt auf sie
 - Die abhängige Aufgabe lässt sich erst erledigen, wenn der Vorgänger „Done" ist
 - Zyklische Abhängigkeiten werden mit einem Hinweis abgelehnt (z. B. A → B → A)
 - Die Liste „Aktuelle Vorgänger" im Abhängigkeits-Dialog basiert auf dem Aufgabenwald und zeigt nur Vorgänger mit Status „Offen"/„In Bearbeitung"; ist ein Vorgänger bereits „Done", verschwindet er aus dieser Liste (die Abhängigkeit selbst bleibt gespeichert)
@@ -148,8 +148,8 @@ Die automatische Priorisierungsberechnung auslösen, die den Wertbeitrag und die
 ### Schritte
 
 1. **Aufgabenwald anzeigen**
-   - Tab **„Wald"** auswählen
-   - Der Aufgabenwald zeigt die Aufgaben als Baumstruktur, sortiert nach Wert
+   - Tab **„Wald“** auswählen
+   - Der Aufgabenwald zeigt die Aufgaben als gerichteten, gewichteten Graphen, absteigend sortiert nach Wert (Details: `task-graph.md`)
 
 2. **Wertberechnung beobachten**
    - Jede Aufgabe zeigt **Priorität**, **Wert** und **Gesamtaufwand** (inklusive aller Abhängigkeiten)
