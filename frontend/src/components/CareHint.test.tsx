@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // ROTER Spec-Test (#1793, Spec docs/spec/issue-1793.md): `CareHint` existiert noch nicht.
@@ -37,11 +37,35 @@ vi.mock('@public-ui/react-v19', () => ({
 			{_label}
 		</button>
 	),
+	// #1977: Radio-Gruppe der Grundauswahl — `_options`-basiert (KoliBri-4.x-Spec), onChange-Ruf (event, value).
+	KolInputRadio: ({
+		_label,
+		_options,
+		_on,
+	}: {
+		_label?: string;
+		_options?: { label: string; value: string }[];
+		_on?: { onChange?: (event: Event, value: unknown) => void };
+	}) => (
+		<div role="radiogroup" aria-label={_label}>
+			{(_options ?? []).map((option) => (
+				<label key={option.value}>
+					<input
+						type="radio"
+						value={option.value}
+						onChange={() => _on?.onChange?.(new Event('change'), option.value)}
+					/>
+					{option.label}
+				</label>
+			))}
+		</div>
+	),
 }));
 
 const getCareSuggestions = vi.fn<() => Promise<{ vorschlaege: Vorschlag[] }>>();
 const listPillars = vi.fn<() => Promise<{ id: number }[]>>();
 const dismissCareSuggestion = vi.fn<(arg: { templateKey: string }) => Promise<void>>();
+const rejectCareSuggestion = vi.fn<(arg: { grund: string; taskId?: number; templateKey?: string }) => Promise<void>>();
 const createTask = vi.fn<(arg: { taskCreate: Record<string, unknown> }) => Promise<unknown>>();
 const updateTask = vi.fn<(arg: { id: number; taskUpdate: Record<string, unknown> }) => Promise<unknown>>();
 
@@ -50,6 +74,7 @@ vi.mock('../api', () => ({
 		getCareSuggestions: () => getCareSuggestions(),
 		listPillars: () => listPillars(),
 		dismissCareSuggestion: (arg: { templateKey: string }) => dismissCareSuggestion(arg),
+		rejectCareSuggestion: (arg: { grund: string; taskId?: number; templateKey?: string }) => rejectCareSuggestion(arg),
 		createTask: (arg: { taskCreate: Record<string, unknown> }) => createTask(arg),
 		updateTask: (arg: { id: number; taskUpdate: Record<string, unknown> }) => updateTask(arg),
 	},
@@ -92,6 +117,7 @@ describe('CareHint (#1793)', () => {
 		createTask.mockResolvedValue({});
 		updateTask.mockResolvedValue({});
 		dismissCareSuggestion.mockResolvedValue(undefined);
+		rejectCareSuggestion.mockResolvedValue(undefined);
 	});
 
 	afterEach(() => {
@@ -204,28 +230,33 @@ describe('CareHint (#1793)', () => {
 		await zeigeHinweis();
 	});
 
-	it('AK4: „Nicht jetzt" → kein Server-Call, bis Tagesende ausgeblendet (auch nach Reload), am Folgetag wieder da', async () => {
+	// Test-Pflege #1977 (docs/spec/issue-1977.md): der frühere #1793-AK4-Vertrag (Global-Snooze)
+	// wird durch den Snooze je Vorschlag ersetzt — „Nicht jetzt" öffnet heute die Grundauswahl.
+	it('#1977 AK3/Test-Pflege: „Nicht jetzt" ohne Grund snoozed nur diesen Vorschlag bis Tagesende — nächster rückt nach, am Folgetag ist der erste zurück', async () => {
 		vi.useFakeTimers({ toFake: ['Date'] });
 		vi.setSystemTime(new Date(2026, 5, 10, 12, 0, 0));
-		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage, zweite] });
 		const { unmount } = render(<CareHint />);
 		await zeigeHinweis();
 		tap('Nicht jetzt');
-		await waitFor(() => expect(hint()).toBeNull());
+		tap('Ohne Grund überspringen');
+		await waitFor(() => expect(hint()?.textContent).toContain('Dehnen'));
 		expect(dismissCareSuggestion).not.toHaveBeenCalled();
-		expect(createTask).not.toHaveBeenCalled();
+		expect(rejectCareSuggestion).not.toHaveBeenCalled();
 		unmount();
 
 		vi.setSystemTime(new Date(2026, 5, 10, 23, 0, 0)); // gleicher Tag, „Reload"
 		render(<CareHint />);
 		await waitFor(() => expect(getCareSuggestions).toHaveBeenCalledTimes(2));
 		await new Promise((resolve) => setTimeout(resolve, 0));
-		expect(hint()).toBeNull();
+		expect(hint()?.textContent).toContain('Dehnen');
+		expect(hint()?.textContent).not.toContain('frische Luft');
 		cleanup();
 
 		vi.setSystemTime(new Date(2026, 5, 11, 1, 0, 0)); // Folgetag
 		render(<CareHint />);
 		await zeigeHinweis();
+		expect(hint()?.textContent).toContain('Ein kurzer Spaziergang an der frischen Luft');
 	});
 
 	it('AK5: leere Liste → positive Rückmeldung ohne Aktionsbuttons', async () => {
@@ -406,5 +437,89 @@ describe('CareHint (#1793)', () => {
 				{ pillarId: 5, share: 5, confidence: 100 },
 			]);
 		});
+	});
+});
+
+describe('#1977 „Nicht jetzt" mit Grund (docs/spec/issue-1977.md)', () => {
+	const gruppe = (): HTMLElement => screen.getByRole('radiogroup');
+
+	it('AK1: „Nicht jetzt" ersetzt die Aktionen durch eine Grundauswahl — genau fünf Gründe plus Überspringen/Abbrechen, kein Call vor der Auswahl', async () => {
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
+		render(<CareHint />);
+		await zeigeHinweis();
+		tap('Nicht jetzt');
+
+		await waitFor(() => expect(gruppe()).toBeTruthy());
+		expect(within(gruppe()).getAllByRole('radio')).toHaveLength(5);
+		expect(gruppe().getAttribute('aria-label')).toContain('Warum nicht jetzt');
+		for (const grund of [
+			'Die Aufgabe ist mir gerade zu groß',
+			'Das passt gerade nicht',
+			'Dafür fehlt mir gerade die Energie',
+			'Ich warte noch auf jemanden',
+			'Das ist gerade nicht meine Priorität',
+		]) {
+			expect(within(gruppe()).getByRole('radio', { name: grund })).toBeTruthy();
+		}
+		expect(screen.getByRole('button', { name: 'Ohne Grund überspringen' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Abbrechen' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Grund speichern' })).toBeTruthy();
+		// UX: die Auswahl ersetzt die Aktionsreihe (ein Screen, eine Aufgabe)
+		expect(screen.queryByRole('button', { name: 'Nicht jetzt' })).toBeNull();
+		expect(rejectCareSuggestion).not.toHaveBeenCalled();
+	});
+
+	it('AK2: Grund gewählt + speichern → genau ein Call mit grund und templateKey, ohne Reload rückt der nächste Vorschlag nach', async () => {
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage, zweite] });
+		render(<CareHint />);
+		await zeigeHinweis();
+		tap('Nicht jetzt');
+		fireEvent.click(within(gruppe()).getByRole('radio', { name: 'Dafür fehlt mir gerade die Energie' }));
+		tap('Grund speichern');
+
+		await waitFor(() => expect(rejectCareSuggestion).toHaveBeenCalledTimes(1));
+		expect(rejectCareSuggestion).toHaveBeenCalledWith({ grund: 'keine-energie', templateKey: 'koerper-spaziergang' });
+		await waitFor(() => expect(hint()?.textContent).toContain('Dehnen'));
+	});
+
+	it('AK2: eigene Aufgabe → Call mit taskId statt templateKey', async () => {
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [eigene] });
+		render(<CareHint />);
+		await zeigeHinweis();
+		tap('Nicht jetzt');
+		fireEvent.click(within(gruppe()).getByRole('radio', { name: 'Die Aufgabe ist mir gerade zu groß' }));
+		tap('Grund speichern');
+
+		await waitFor(() => expect(rejectCareSuggestion).toHaveBeenCalledWith({ grund: 'zu-gross', taskId: 42 }));
+	});
+
+	it('AK3: „Ohne Grund überspringen" → kein Server-Call, nächster Vorschlag; leere Liste → Leerzustand', async () => {
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage, zweite] });
+		render(<CareHint />);
+		await zeigeHinweis();
+		tap('Nicht jetzt');
+		tap('Ohne Grund überspringen');
+		await waitFor(() => expect(hint()?.textContent).toContain('Dehnen'));
+		expect(rejectCareSuggestion).not.toHaveBeenCalled();
+		cleanup();
+
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
+		render(<CareHint />);
+		await zeigeHinweis();
+		tap('Nicht jetzt');
+		tap('Ohne Grund überspringen');
+		await waitFor(() => expect(hint()?.textContent).toContain('Gerade gibt es keinen Vorschlag für dich.'));
+	});
+
+	it('AK2: KI-Vorschlag ohne stabilen Schlüssel behält den lokalen Snooze — kein Grundprompt, kein Call', async () => {
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(new Date(2026, 5, 10, 12, 0, 0));
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [{ ...vorlage, typ: 'ki', templateKey: undefined }] });
+		render(<CareHint />);
+		await zeigeHinweis();
+		tap('Nicht jetzt');
+		await waitFor(() => expect(hint()).toBeNull());
+		expect(screen.queryByRole('radiogroup')).toBeNull();
+		expect(rejectCareSuggestion).not.toHaveBeenCalled();
 	});
 });

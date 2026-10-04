@@ -265,3 +265,82 @@ describe('GET /scores/care-suggestions (#1791)', () => {
 		}
 	});
 });
+
+// Rote Spec-Tests #1977 (docs/spec/issue-1977.md) — POST/GET /scores/care-suggestions/rejections.
+// Rot, bis Endpunkt und Modell existieren (heute: SPA-Fallback). KEIN Produktivcode.
+describe('POST/GET /scores/care-suggestions/rejections (#1977)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+
+	beforeEach(async () => {
+		await resetDb();
+	});
+
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const legeAnkerTaskAn = async (cookie: string): Promise<number> => {
+		const res = await server.json('/tasks', {
+			method: 'POST',
+			headers: { Cookie: cookie },
+			body: JSON.stringify({ title: 'Rejection-Anker', priority: 3, estimatedEffort: 0.5 }),
+		});
+		assert.equal(res.status, 201, 'Setup: Task-Anlage muss 201 liefern');
+		return ((await res.json()) as { id: number }).id;
+	};
+
+	const rejeziere = (cookie: string, body: Record<string, unknown>): Promise<Response> =>
+		server.json('/scores/care-suggestions/rejections', {
+			method: 'POST',
+			headers: { Cookie: cookie },
+			body: JSON.stringify(body),
+		});
+
+	it('AK2: POST persistiert Grund je taskId und je templateKey (via GET abrufbar)', async () => {
+		const cookie = await server.register('care-reject-1977@example.com', 'password123');
+		const taskId = await legeAnkerTaskAn(cookie);
+
+		const mitTask = await rejeziere(cookie, { grund: 'keine-energie', taskId });
+		assert.equal(mitTask.status, 204, 'Rejection mit taskId muss 204 liefern');
+		const mitVorlage = await rejeziere(cookie, { grund: 'zu-gross', templateKey: 'koerper-spaziergang' });
+		assert.equal(mitVorlage.status, 204, 'Rejection mit templateKey muss 204 liefern');
+
+		const historie = await server.json(`/scores/care-suggestions/rejections?taskId=${taskId}`, {
+			headers: { Cookie: cookie },
+		});
+		assert.equal(historie.status, 200);
+		const eintraege = (await historie.json()) as { grund: string; abgelehntAm: string }[];
+		assert.equal(eintraege.length, 1, 'Historie je Aufgabe enthält genau den einen Eintrag');
+		assert.equal(eintraege[0]?.grund, 'keine-energie');
+		assert.ok(eintraege[0]?.abgelehntAm, 'Eintrag trägt abgelehntAm');
+
+		const alle = await server.json('/scores/care-suggestions/rejections', { headers: { Cookie: cookie } });
+		assert.equal(((await alle.json()) as unknown[]).length, 2, 'ohne Filter alle eigenen Einträge');
+	});
+
+	it('AK2: ungültige Payloads → 400 (ohne grund, ohne Bezug, mit unbekanntem grund)', async () => {
+		const cookie = await server.register('care-reject-invalid@example.com', 'password123');
+		for (const body of [{}, { taskId: 1 }, { grund: 'keine-energie' }, { grund: 'gaib', taskId: 1 }]) {
+			const res = await rejeziere(cookie, body);
+			assert.equal(res.status, 400, `Payload ${JSON.stringify(body)} muss 400 liefern`);
+		}
+	});
+
+	it('AK4: GET liefert nur eigene Einträge — fremde taskId bleibt leer', async () => {
+		const alice = await server.register('care-reject-alice@example.com', 'password123');
+		const taskId = await legeAnkerTaskAn(alice);
+		assert.equal((await rejeziere(alice, { grund: 'zu-gross', taskId })).status, 204);
+
+		const bob = await server.register('care-reject-bob@example.com', 'password123');
+		const fremd = await server.json(`/scores/care-suggestions/rejections?taskId=${taskId}`, {
+			headers: { Cookie: bob },
+		});
+		assert.equal(fremd.status, 200);
+		assert.equal(((await fremd.json()) as unknown[]).length, 0, 'fremde Aufgabe bleibt unsichtbar');
+		const alleVonBob = await server.json('/scores/care-suggestions/rejections', { headers: { Cookie: bob } });
+		assert.equal(((await alleVonBob.json()) as unknown[]).length, 0, 'ohne Filter nur eigene Einträge');
+	});
+});
