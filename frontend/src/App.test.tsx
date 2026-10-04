@@ -677,6 +677,7 @@ describe('App — #1894: Settings-Segmente nach dem Tab „Orte"', () => {
 		// Alte Adressen: „Standort" und „Orte" sind in „Ortung" aufgegangen.
 		['standort', 'Ortung', false],
 		['orte', 'Ortung', false],
+		['import', 'Daten', false],
 		['gruppen', 'Gruppen', false],
 		['kategorien', 'Kategorien', false],
 		// Test-Pflege #1902: „Pakete" und „Abo" sind ein Reiter; die alte Adresse /settings/abo öffnet ihn.

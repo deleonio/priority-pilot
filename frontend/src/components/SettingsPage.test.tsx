@@ -1861,7 +1861,7 @@ describe('SettingsPage – #1904: Tab-Reihenfolge nach Paketstufe', () => {
 			'KI',
 			'Gruppen',
 			'Pakete & Abo',
-			// Test-Pflege #1969: CSV-Import als neuer letzter Member-Tab (Index 8, Route /settings/import).
+			// Test-Pflege #1969: CSV-Import als neuer letzter Member-Tab (Index 8, Route /settings/daten).
 			'Daten',
 		]);
 	});

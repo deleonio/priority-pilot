@@ -302,7 +302,7 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 		await waitForStableView(page, 'Balamentum');
 
 		await page.getByRole('tab', { name: 'Ortung', exact: true }).click();
-		await expect(page).toHaveURL(/\/settings\/standort$/);
+		await expect(page).toHaveURL(/\/settings\/ortung$/);
 		await expect(page.getByRole('tab', { name: 'Ortung', exact: true })).toHaveAttribute('aria-selected', 'true');
 
 		await page.getByRole('tab', { name: 'KI', exact: true }).click();

@@ -95,13 +95,14 @@ const BASE_SETTINGS_PATH_SEGMENTS: string[] = [
 ];
 /**
  * Frühere Tab-Adressen, die in einem anderen Tab aufgegangen sind: #1902 „Abo" → „Pakete & Abo",
- * #1903 „Access-Token" (`zugriff`) → „KI" (`llm`), „Standort"/„Orte" → „Ortung".
+ * #1903 „Access-Token" (`zugriff`) → „KI" (`llm`), „Standort"/„Orte" → „Ortung", „Import" → „Daten".
  */
 const LEGACY_SETTINGS_SEGMENTS: Record<string, string> = {
 	abo: 'pakete',
 	zugriff: 'llm',
 	standort: 'ortung',
 	orte: 'ortung',
+	import: 'daten',
 };
 // Hilfe-Tabs (Index = Tab-Index in `HelpPage`): `/hilfe`, `/hilfe/user-guide` und `/hilfe/manual` zeigen das Handbuch.
 const HELP_PATH_SEGMENTS: string[] = ['user-guide', 'feedback', 'impressum', 'changelog'];
