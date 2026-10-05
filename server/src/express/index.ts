@@ -35,6 +35,7 @@ import { createBalanceVariantRouter } from './routes/balanceVariant.js';
 import { apiTokensRouter } from './routes/apiTokens.js';
 import { placeFavoritesRouter } from './routes/placeFavorites.js';
 import { journalRouter } from './routes/journal.js';
+import { calendarRouter } from './routes/calendar.js';
 import { profileRouter } from './routes/profile.js';
 import { mcpRouter } from '../mcp/server.js';
 import type { FetchProviderModels, RunProviderTest } from './routes/llmProviders.js';
@@ -337,6 +338,9 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Journal-Einträge (#2212): anlegen, listen, bearbeiten, löschen.
 	app.use(journalRouter);
+
+	// Kalenderquellen per ICS-Adresse (#2209): lesend abrufen, Termine speichern.
+	app.use(calendarRouter);
 
 	// MCP-Werkzeuge v1 (#1353): POST /mcp/v1. Bewusst HINTER `requireAuth` — ohne gültigen
 	// (Bearer-)Token gibt es 401 und damit keinen Werkzeugaufruf.

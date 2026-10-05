@@ -4,6 +4,7 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 import { User } from '../models/index.js';
+import { runCalendarSync } from '../logics/calendar-ics.js';
 
 /**
  * Rote Spec-Tests für #2209 (Spec docs/spec/issue-2209.md): Kalenderquellen per ICS-Adresse.
@@ -94,6 +95,17 @@ describe('Kalenderquellen per ICS (#2209)', () => {
 		assert.deepEqual(
 			(await events(cookie)).map((e) => e.title),
 			['innen'],
+		);
+	});
+
+	it('AK2: erneuter Abruf ersetzt den Bestand der Quelle (keine Dubletten)', async () => {
+		const cookie = await server.register('cal-ak2b@example.com', 'password123');
+		await post(cookie, { url: icsUrl });
+		setEvents(vevent('neu', 3));
+		await runCalendarSync();
+		assert.deepEqual(
+			(await events(cookie)).map((e) => e.title),
+			['neu'],
 		);
 	});
 

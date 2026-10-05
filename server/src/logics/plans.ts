@@ -43,6 +43,9 @@ export const FEATURE_IDS: readonly FeatureId[] = [
  */
 export const AI_ASSIST_MONTHLY_QUOTA: Record<Plan, number> = { free: 0, plus: 150, pro: 400 };
 
+/** Höchstzahl verbundener Kalender je Paket (#2209, PO-Entscheidung). */
+export const CALENDAR_SOURCE_LIMIT: Record<Plan, number> = { free: 1, plus: 5, pro: 5 };
+
 /** Über dem Budget höchstens eine KI-Anfrage je so viele Sekunden (#1783). */
 export const AI_FAIR_USE_INTERVAL_SECONDS = 30;
 

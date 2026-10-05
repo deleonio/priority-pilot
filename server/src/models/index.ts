@@ -21,6 +21,8 @@ import GroupChallenge from './groupChallenge.js';
 import ApiToken from './apiToken.js';
 import PlaceFavorite from './placeFavorite.js';
 import JournalEntry from './journalEntry.js';
+import CalendarSource from './calendarSource.js';
+import CalendarEvent from './calendarEvent.js';
 import AiUsage from './aiUsage.js';
 import Subscription from './subscription.js';
 import WebhookEvent from './webhookEvent.js';
@@ -120,6 +122,9 @@ Pillar.belongsToMany(Series, { through: SeriesPillar, foreignKey: 'pillarId', ot
 // mit `pillarId = null` bestehen (ON DELETE SET NULL).
 JournalEntry.belongsTo(Pillar, { foreignKey: 'pillarId', onDelete: 'SET NULL' });
 
+// `calendar_sources`/`calendar_events` (#2209) stehen für sich — pro Nutzer über `userId` gefiltert,
+// die Termine einer Quelle löscht die Route über `sourceId` mit.
+
 // `group_challenges` (#1992) steht für sich — über `groupId` gefiltert, Mitgliedschaft prüft die Route.
 export {
 	Task,
@@ -145,6 +150,8 @@ export {
 	ApiToken,
 	PlaceFavorite,
 	JournalEntry,
+	CalendarSource,
+	CalendarEvent,
 	AiUsage,
 	Subscription,
 	WebhookEvent,
