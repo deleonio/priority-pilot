@@ -1,5 +1,6 @@
 import type { MailSender } from '../mail.js';
 import { issueInvoiceForPeriod } from '../invoices.js';
+import { getPlansCatalog, type Plan } from '../plans.js';
 import {
 	applyPaymentEvent,
 	applyPlanChange,
@@ -12,7 +13,15 @@ import {
 	type PaypalVerifier,
 	type PaypalWebhookEvent,
 } from '../paypal.js';
+import type Subscription from '../../models/subscription.js';
 import type { BillingProvider, WebCheckout } from './provider.js';
+
+/** Ob die Bestätigung des Abos sofort abbucht: nur ein Upgrade-Abo (#1912), dessen Guthaben den ersten Zyklus nicht deckt. */
+const chargesOnActivation = (subscription: Subscription): boolean => {
+	const creditCents = subscription.get('creditCents') as number;
+	const price = getPlansCatalog().prices[subscription.get('plan') as Plan];
+	return creditCents > 0 && price[subscription.get('period') as keyof typeof price] > creditCents;
+};
 
 /** Injizierbare Teile; ohne Angabe gelten die echten PayPal-Aufrufe. */
 export interface PaypalProviderDeps {
@@ -45,8 +54,14 @@ export const createPaypalProvider = (deps: PaypalProviderDeps = {}): BillingProv
 		applyEvent: async (subscription, event, now) => {
 			const paypalEvent = event.payload as PaypalWebhookEvent;
 			await applyPlanChange(subscription, paypalEvent, now);
-			// Bestätigung eines Upgrade-Abos: erst jetzt das alte kündigen, sonst entsteht eine Lücke (#1912).
-			if (paypalEvent.event_type === 'BILLING.SUBSCRIPTION.ACTIVATED') {
+			// Das alte Abo erst mit der Bestätigung des neuen kündigen, sonst entsteht eine Lücke (#1912).
+			// Bucht die Bestätigung ab, zählt erst der Zahlungseingang (#2140); ohne Abbuchung (Startaufschub
+			// #2049, Guthaben deckt den ersten Zyklus) gilt schon ACTIVATED.
+			const type = paypalEvent.event_type;
+			if (
+				type === 'PAYMENT.SALE.COMPLETED' ||
+				(type === 'BILLING.SUBSCRIPTION.ACTIVATED' && !chargesOnActivation(subscription))
+			) {
 				await replacePredecessors(subscription, client);
 			}
 			await applyPaymentEvent(subscription, paypalEvent, now, {

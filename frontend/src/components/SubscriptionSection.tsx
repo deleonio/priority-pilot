@@ -145,7 +145,7 @@ export const SubscriptionSection = () => {
 								Wechsel zu {planLabel(subscription.pendingPlan)}
 								{subscription.pendingPlanEffectiveAt !== null
 									? ` ab ${formatDate(subscription.pendingPlanEffectiveAt)}`
-									: ''}
+									: ', aktiv mit Zahlungseingang'}
 							</p>
 						)}
 						{subscription.graceUntil !== null && (

@@ -473,7 +473,8 @@ describe('Billing/Webhook-API (#1495)', () => {
 		);
 
 		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-RETRY' } });
-		assert.equal(sub?.get('plan'), 'pro', 'Das nachträglich verifizierte Ereignis muss wirksam werden');
+		// #2140 (Test-Pflege): ein Upgrade wirkt erst mit dem Zahlungseingang, das Ereignis merkt es vor.
+		assert.equal(sub?.get('pendingPlan'), 'pro', 'Das nachträglich verifizierte Ereignis muss wirksam werden');
 		const stored = await WebhookEvent.findOne({ where: { externalEventId: 'WH-RETRY-1' } });
 		assert.equal(stored?.get('verified'), true, 'Die Zeile darf nicht dauerhaft unverifiziert bleiben');
 		assert.notEqual(stored?.get('processedAt'), null, 'Die Verarbeitung muss vermerkt sein');
