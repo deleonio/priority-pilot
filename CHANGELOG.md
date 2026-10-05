@@ -310,6 +310,7 @@ _Enthält v0.9.0 – v0.9.18._
 ### 🔧 Engineering
 
 - feat(frontend): demote delete account in settings (#1802) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1809
+- feat(frontend): demote delete account in settings (#1802) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1809
 - feat(server): suggest concrete tasks for a balance deficit (#1791) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1810
 
 ### Other Changes
