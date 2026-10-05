@@ -123,4 +123,18 @@ describe('usePaypalPurchase — Warteverhalten nach dem Wechsel', () => {
 
 		await waitFor(() => expect(createBillingSubscription).toHaveBeenCalledWith({ plan: 'pro', period: 'monthly' }));
 	});
+
+	// #2235 AK6: das Zielpaket eines offenen Checkouts ist kein „Aktuelles Paket", sondern buchbar.
+	it('#2235 AK6: approval_pending im Zielpaket zeigt „Buchen" statt „Aktuelles Paket"', () => {
+		subscriptionState.subscription = {
+			plan: 'plus',
+			period: 'monthly',
+			status: 'approval_pending',
+			currentPeriodEnd: '2027-01-15T00:00:00.000Z',
+		};
+		render(<Harness targetPlan="plus" />);
+
+		expect(screen.queryByText('Aktuelles Paket')).toBeNull();
+		expect(screen.getByRole('button', { name: /buchen/i })).toBeTruthy();
+	});
 });
