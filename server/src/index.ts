@@ -141,10 +141,12 @@ export const main = async (): Promise<void> => {
 		const { runCarePush } = await import('./logics/carePush.js');
 		const { runStreakReminder } = await import('./logics/streakReminder.js');
 		const { runMonthlyRecapPush } = await import('./logics/monthlyRecapPush.js');
+		const { runCalendarSync, CALENDAR_SYNC_INTERVAL_MS } = await import('./logics/calendar-ics.js');
 		const { cleanupOrphanedGroupInvitations } = await import('./logics/groupInvitationCleanup.js');
 		const { sendStartupStatusMail } = await import('./logics/startupStatusMail.js');
 		const { launchServer } = await import('./express/index.js');
-		const { startScheduler, startDeadlineAutoDeleteScheduler } = await import('./scheduler/index.js');
+		const { startScheduler, startDeadlineAutoDeleteScheduler, startCalendarSyncScheduler } =
+			await import('./scheduler/index.js');
 
 		// Fehlende Serien-Spalten auf einer Bestands-DB nachziehen, BEVOR sync() den Unique-Index
 		// auf (seriesId, seriesOccurrence) anlegt (sonst SQLITE_ERROR: no such column, siehe #146).
@@ -294,6 +296,9 @@ export const main = async (): Promise<void> => {
 		// das fachliche Opt-in ist das pro-Task-Feld `autoDeleteAfterDeadline`, nicht Web-Push. Default-on,
 		// abschaltbar via `AUTO_DELETE_AFTER_DEADLINE_ENABLED=false`.
 		startDeadlineAutoDeleteScheduler([runDeadlineAutoDelete]);
+
+		// Kalender-Abruf per ICS (#2209) — alle 30 Minuten, unabhängig von Push.
+		startCalendarSyncScheduler(runCalendarSync, CALENDAR_SYNC_INTERVAL_MS);
 
 		// Status-Mail an alle Admin-Nutzer — nur in Produktion mit konfiguriertem SMTP (siehe
 		// logics/startupStatusMail.ts); fire-and-forget, der Start wartet nicht auf den SMTP-Versand.

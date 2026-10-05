@@ -4059,6 +4059,86 @@ paths:
           description: Journal-Eintrag gelöscht
         '404':
           $ref: '#/components/responses/NotFound'
+  /calendar-sources:
+    get:
+      summary: Kalenderquellen auflisten
+      description: >-
+        Liefert die Kalenderquellen des angemeldeten Nutzers (#2209), älteste zuerst — ohne
+        ICS-Adresse, die bleibt geheim.
+      operationId: listCalendarSources
+      tags: [calendar]
+      responses:
+        '200':
+          description: Liste der eigenen Kalenderquellen
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalendarSource'
+    post:
+      summary: Kalenderquelle anlegen
+      description: >-
+        Legt eine Kalenderquelle per ICS-Adresse an (#2209), ruft sie sofort per GET ab und speichert
+        die Termine mit Start von heute bis +14 Tage (nur Start, Ende, Titel, ganztägig). Danach
+        ruft der Server alle 30 Minuten erneut ab und ersetzt den Bestand. Free erlaubt eine Quelle,
+        Plus und Pro fünf; darüber 403 `plan_required`.
+      operationId: createCalendarSource
+      tags: [calendar]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarSourceInput'
+      responses:
+        '201':
+          description: Angelegte Kalenderquelle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarSource'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/PlanRequired'
+  /calendar-sources/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Id der Kalenderquelle
+    delete:
+      summary: Kalenderquelle löschen
+      description: >-
+        Entfernt eine eigene Kalenderquelle samt ihrer Termine (#2209). Fremde oder unbekannte
+        Quellen liefern 404.
+      operationId: deleteCalendarSource
+      tags: [calendar]
+      responses:
+        '204':
+          description: Kalenderquelle und Termine gelöscht
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /calendar-events:
+    get:
+      summary: Kalendertermine auflisten
+      description: >-
+        Liefert die gespeicherten Termine aller eigenen Kalenderquellen (#2209), nach Start
+        sortiert.
+      operationId: listCalendarEvents
+      tags: [calendar]
+      responses:
+        '200':
+          description: Liste der eigenen Termine
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalendarEvent'
   /auth/me:
     get:
       summary: Angemeldeten Nutzer lesen
@@ -5603,6 +5683,45 @@ components:
         pillarId:
           type: integer
           nullable: true
+    CalendarSource:
+      type: object
+      description: Kalenderquelle eines Nutzers (#2209), ohne die geheime ICS-Adresse.
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    CalendarSourceInput:
+      type: object
+      description: Eingabe zum Anlegen einer Kalenderquelle (#2209).
+      required: [url]
+      properties:
+        url:
+          type: string
+          maxLength: 2048
+          description: ICS-Adresse (http oder https), z. B. die geheime iCal-Adresse aus Google Kalender
+        name:
+          type: string
+          maxLength: 100
+          description: Anzeigename; ohne Angabe „Kalender"
+    CalendarEvent:
+      type: object
+      description: Gespeicherter Termin einer Kalenderquelle (#2209).
+      required: [sourceId, start, end, title, allDay]
+      properties:
+        sourceId:
+          type: integer
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+        title:
+          type: string
+        allDay:
+          type: boolean
     Health:
       type: object
       required:

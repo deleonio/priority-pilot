@@ -130,3 +130,15 @@ export const startDeadlineAutoDeleteScheduler = (
 	}
 	return wireTicker(triggers, options, AUTO_DELETE_HOUR, 'Deadline-Auto-Lösch-Tick');
 };
+
+/**
+ * Startet den Kalender-Abruf (#2209) im festen Intervall — push-unabhängig und ohne Tagesstunde,
+ * anders als {@link wireTicker}. Ein fehlschlagender Lauf wird protokolliert, der Timer läuft weiter.
+ */
+export const startCalendarSyncScheduler = (trigger: SchedulerTrigger, intervalMs: number): SchedulerHandle => {
+	const interval = setInterval(() => {
+		trigger(new Date()).catch((error) => console.error('Kalender-Abruf fehlgeschlagen:', error));
+	}, intervalMs);
+	interval.unref();
+	return { stop: () => clearInterval(interval) };
+};
