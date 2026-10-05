@@ -1,6 +1,6 @@
 ---
 name: ticket-coordination
-description: "Ticket coordination - agree focus and implementation order with the author in a start dialog, then drive the issues of an epic through the label pipeline (independent ones in parallel, dependent ones after their blocker): start analysis, act as PO after triage (set ux/spec/impl), watch PRs, unblock stuck phases, keep main green, start the next issue after merge; can hand issue watching and diagnosis to subagents. Use for 'koordiniere Epic #N', 'arbeite Epic #N ab', 'manage die Abarbeitung' (German: coordinate the processing of issues)."
+description: "Ticket coordination with one mission: make the app ready for market (stability, payment, invoices, onboarding; no unnecessary features) - agree focus and implementation order with the author in a start dialog, then drive the issues of an epic through the label pipeline (independent ones in parallel, dependent ones after their blocker): start analysis, act as PO after triage (set ux/spec/impl), watch PRs, unblock stuck phases, keep main green, start the next issue after merge; can hand issue watching and diagnosis to subagents. Use for 'koordiniere Epic #N', 'arbeite Epic #N ab', 'manage die Abarbeitung' (German: coordinate the processing of issues)."
 argument-hint: "[Epic-/Issue-Nummern oder Themen; leer = Startdialog klaert den Fokus]"
 ---
 
@@ -19,6 +19,28 @@ running or queued — triage and UX included — not PRs the author drives thems
 containers in their closing analysis and not items parked on the author. Starting a new issue
 needs a free slot even when its phase has its own queue.
 
+## Mission: ready for market
+
+Above every single ticket stands one goal: make the app ready for live and for the market. A
+rounded, stable product beats more features. Every decision on order, scope and new tickets is
+measured against it:
+
+- **In focus:** stability (main green, no data loss, no silent errors), payment and plans
+  (subscribe, upgrade, downgrade, cancel, refunds), clean invoices, sign-up and onboarding
+  (first start, empty states, legal texts and consent), and market fitness: what a paying
+  stranger needs to trust and use the app.
+- **Out of focus:** new features that are not needed to bring the app to market. They wait
+  until after go-live; say so when ordering, do not drop them silently. The author can pull one
+  forward explicitly — then it is in focus.
+- **Proactive gap checks:** do not wait for tickets to exist. When a focus area has no open
+  tickets or the author doubts it works, run an audit through a subagent (flows walked end to
+  end in code, existing tests run, suspected bugs proven with a throwaway test that is never
+  committed; nothing pushed), show
+  the ranked findings and the product decisions they need, and create tickets only after the
+  author's release.
+- **Ticket test:** for each issue ask "is the app worse at market launch without it?" Yes →
+  focus order; no → after go-live.
+
 Note: this file's prose is English; everything addressed to the author (chat, issue comments)
 stays German and follows the [vermenschlichen](../vermenschlichen/SKILL.md) rules. Label chain and
 phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
@@ -27,10 +49,10 @@ phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
 
 Never start labelling right after the call. First agree on focus and order with the author:
 
-1. **Focus.** Ask which epics, issues or themes are in focus. "All open issues" is rarely
-   useful: when the call names nothing or "alles", propose a focused set instead — the top-ranked
-   open epic or two, nearly finished containers (section 1, item 6), anything repairing main —
-   and let the author pick. Name what stays out and why.
+1. **Focus.** Confirm the epics, issues or themes the call names; ask only when it names nothing
+   or "alles" — then propose a focused set from the mission's focus areas — open issues mapped to
+   them, nearly finished containers (section 1, item 6), anything repairing main — and let the
+   author pick. Name what stays out (features after go-live) and why.
 2. **Frame.** Ask once for the parallel limit, tickets not to touch (manual, the author's own,
    pipeline or workflow tickets), and how often to report. Offer defaults so one answer suffices.
 3. **Order proposal.** Build the order per section 1 and show it as a table: position, issue
@@ -86,7 +108,7 @@ Never start labelling right after the call. First agree on focus and order with 
 | Next issue is free (all blockers closed) | set `ai:needs-analyse` |
 | `ai:needs-po-review` present, or a fresh KI-ANALYSE without it (sub-issues of a split carry only `ai:analysed`) | read KI-ANALYSE (Ampel, Offene Fragen) and the `ai-phase-routing` table; set the **first** phase with Run = ja: ux → `ai:needs-ux-ui`, else spec → `ai:needs-spec`, else `ai:needs-impl` |
 | Analysis has open questions or 🟡/🔴 | put the question to the author with the options from the analysis; do not route. Parser false alarms (constraints listed as questions) you clear yourself with a comment. A `<!-- ai-triage-decision -->` comment with `ai:needs-human` is the same case before any analysis: after the answer post it as a PO comment, then set `ai:analysed` + `ai:needs-analyse` without `ai:needs-human` |
-| `ai:needs-human` after a phase | read the run log first (section 4, item 3); only a real open question goes to the author — at once, in the same turn, as multiple choice (section 2a). A phase that could not write its block leaves its questions only in the run log's final output; take them from there |
+| `ai:needs-human` after a phase | read the run log first (section 4, item 3); only a real open question goes to the author — at once, in the same turn, as multiple choice (section 2a) |
 | `ai:continued` on the issue | soft abort at the time limit, the next run resumes — wait. A second run without push ends the attempt: section 7, rung 3 |
 | PR of the issue appears | subscribe to its activity immediately |
 | `ai:needs-human` on the PR | read the stop comment; fix small causes yourself (base merge, re-review), otherwise ask the author |
@@ -167,14 +189,23 @@ wall of text — offer a decision round and go through the parked issues one by 
    signature in a ticket, never send the PR into fixup for it. A new UI element (an extra
    select, a second dialog) that breaks a foreign e2e locator is the PR's own fault, not a flake:
    post the CI cause as an inline thread on the touched file so the fixup reads it.
-3. **Phase ended without a usable result.** Three forms:
+3. **Phase ended without a usable result.** Four forms:
    - No verdict, no branch, no PR, trigger still attached → re-arm the trigger once (remove,
      add). A second failure goes to the author with the cause from the run log.
    - `ai:needs-human` although the work is done: the agent could not write its result (blocked
      tool or file access), wrote a wrong verdict token (e.g. `URTEIL:` instead of the expected
      one) or the label step itself crashed, so no reason comment exists. Read the
      agent's final output in the run log; if it has no real open question, post its result as an
-     issue comment and set the next phase.
+     issue comment and set the next phase. If it has open questions, they exist only there:
+     take them from the log and ask the author.
+   - A phase reports success but its block is missing (seen with UX: the block write was
+     denied, the verdict still passed and the next phase started without the input). After
+     every UX run check that its block is in the harness comment. Spec and implementation read
+     the UX result only from there, a plain PO comment does not reach them. If it is missing:
+     take the next phase's trigger off (only while that phase has not started), write the run
+     log's final output as the block between the UX markers of the harness comment, then set
+     the trigger again. If the next phase already ran, check the PR against the UX result and
+     post every gap as an inline review thread, so the fixup picks it up.
    - Triage finds the ticket already fulfilled (typical after the blocker's PR covered it): it
      posts the evidence as a plain comment, the run ends red and `ai:needs-analyse` stays. Check
      the evidence (file:line, tests), close the issue as completed with a short PO comment, drop
