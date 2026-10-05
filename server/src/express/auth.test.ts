@@ -274,7 +274,7 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			assert.equal(body.subscription?.plan, 'pro', 'Während der Frist bleibt das Paket unverändert');
 		});
 
-		it('#1506 AK6/AK7 — nach Ablauf der Kulanzfrist wird status grace_expired gesetzt, graceUntil ist wieder null und plan bleibt unverändert', async () => {
+		it('#1506 AK6/AK7 — nach Ablauf der Kulanzfrist wird status grace_expired gesetzt, graceUntil ist wieder null und plan fällt auf free (#2234 AK4)', async () => {
 			const cookie = await testLogin();
 			const dbUser = await User.findOne({ where: { email: ALLOWED_EMAIL } });
 			assert.ok(dbUser, 'Setup: Session-User muss existieren');
@@ -299,7 +299,7 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			};
 			assert.equal(body.subscription?.status, 'grace_expired', 'Nach Fristablauf muss der Status grace_expired sein');
 			assert.equal(body.subscription?.graceUntil, null, 'Nach Fristablauf muss graceUntil wieder null sein');
-			assert.equal(body.subscription?.plan, 'pro', 'Der Downgrade selbst ist nicht Teil dieses Issues (T7, #1462)');
+			assert.equal(body.subscription?.plan, 'free', 'Nach Fristablauf wird das Paket entzogen (#2234 AK4)');
 		});
 
 		it('#1506 AK7 — ohne Zahlungsausfall bleibt graceUntil null', async () => {
