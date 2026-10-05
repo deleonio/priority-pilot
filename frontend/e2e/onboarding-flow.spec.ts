@@ -50,6 +50,16 @@ const mockSuggestions = async (page: Page, pillarId: number, delayMs = 0): Promi
 const startFreshUser = async (page: Page): Promise<number> => {
 	await registerOwnSession(page, 'onboarding-2069');
 	await page.unroute('**/auth/me');
+	// Ein frisch registriertes Konto hat das Free-Paket: ohne `ai_assist` zeigt der Flow nur den Import.
+	// Die echte Antwort bleibt Basis, nur die KI-Berechtigung wird freigeschaltet (Freitext-Pfad).
+	await page.route('**/auth/me', async (route: Route) => {
+		const response = await route.fetch();
+		const user = (await response.json()) as { entitlements?: Record<string, unknown> };
+		await route.fulfill({
+			response,
+			json: { ...user, entitlements: { ...user.entitlements, ai_assist: { allowed: true, requiredPlan: 'pro' } } },
+		});
+	});
 	await page.goto('/app/');
 	await waitForStableView(page);
 	const pillars = (await (await page.request.get('/api/v1/pillars')).json()) as { id: number }[];
@@ -71,15 +81,18 @@ const expectInViewport = async (locator: Locator): Promise<void> => {
 	expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
 };
 
+// Diese Spec testet den Willkommens-Dialog selbst — das Schließen per Fixture bleibt aus.
+test.use({ dismissOnboarding: false });
+
 test.describe('#2069 Erststart-Flow', () => {
-	test('AK1: Flow startet automatisch als Fläche (kein Dialog), Schritt 1 nur Freitext, leeres Feld endet ohne Endpunkt-Aufruf', async ({
+	test('AK1: Flow startet automatisch im Willkommens-Dialog, Schritt 1 nur Freitext, leeres Feld endet ohne Endpunkt-Aufruf', async ({
 		page,
 	}) => {
 		await startFreshUser(page);
 
-		// Der Flow ersetzt den EmptyState — als Vollbild-Fläche, nicht als Dialog.
+		// Der Flow ersetzt den EmptyState und läuft in einem Dialog.
 		await expect(flow(page)).toBeVisible();
-		await expect(page.getByRole('dialog')).toHaveCount(0);
+		await expect(page.getByRole('dialog')).toHaveCount(1);
 		await expect(flow(page).locator('kol-textarea')).toBeVisible();
 		await expect(flow(page).locator('kol-input-checkbox')).toHaveCount(0);
 
@@ -90,7 +103,7 @@ test.describe('#2069 Erststart-Flow', () => {
 			return route.continue();
 		});
 		await flow(page).getByRole('button', { name: 'Weiter' }).click();
-		// #2070 Test-Pflege: Der Flow bleibt verdeckt gemountet (Wiedereinstieg, AK4) — hidden statt entfernt.
+		// #2070 Test-Pflege: Der Flow bleibt im geschlossenen Dialog gemountet (Wiedereinstieg, AK4).
 		await expect(flow(page)).toBeHidden();
 		await expect(page.locator('.empty-state')).toBeVisible();
 		expect(suggestionCalls, 'leeres Feld darf den Suggester nicht aufrufen').toBe(0);
@@ -148,10 +161,10 @@ test.describe('#2069 Erststart-Flow', () => {
 		const dependencyCall = page.waitForRequest(
 			(request) => request.method() === 'POST' && /\/api\/v1\/tasks\/\d+\/dependencies$/.test(request.url()),
 		);
-		// #2070 Test-Pflege: Der Gewichtungsschritt liegt zwischen Auswahl und Übernehmen.
 		await flow(page).getByRole('button', { name: 'Weiter' }).click();
-		await flow(page).getByRole('button', { name: 'Speichern' }).click();
 		await flow(page).getByRole('button', { name: 'Übernehmen' }).click();
+		// Schritt 4 (Import, optional) liegt vor der Abschluss-Karte.
+		await flow(page).getByRole('button', { name: 'Weiter' }).click();
 
 		// Der Vorgänger entsteht zuerst und mit der Säule aus dem Vorschlag.
 		const created = JSON.parse((await firstCreate).postData()!) as { title: string; pillarIds: number[] };
@@ -186,6 +199,7 @@ test.describe('#2069 Erststart-Flow', () => {
 			await mockSuggestions(page, pillarId);
 
 			// Schritt 1: Fläche, Eingabe und „Weiter“ bleiben im Viewport.
+			await expect(flow(page)).toBeVisible();
 			await expectInViewport(flow(page));
 			await fillFreitext(page);
 			const weiter = flow(page).getByRole('button', { name: 'Weiter' });
@@ -203,14 +217,7 @@ test.describe('#2069 Erststart-Flow', () => {
 			await expectInViewport(weiter);
 			await weiter.click();
 
-			// #2070 Test-Pflege: Gewichtungsschritt („Speichern“) liegt zwischen Schritt 2 und Übernehmen.
-			const speichern = flow(page).getByRole('button', { name: 'Speichern' });
-			await expect(speichern).toBeVisible();
-			await waitForStableBox(page, speichern);
-			await expectInViewport(speichern);
-			await speichern.click();
-
-			// Schritt 4: „Übernehmen“ bleibt im Viewport.
+			// Schritt 3: „Übernehmen“ bleibt im Viewport.
 			const uebernehmen = flow(page).getByRole('button', { name: 'Übernehmen' });
 			await expect(uebernehmen).toBeVisible();
 			await waitForStableBox(page, uebernehmen);
@@ -220,7 +227,7 @@ test.describe('#2069 Erststart-Flow', () => {
 });
 
 test.describe('#2070 Abschluss: Startgewichtung, Abschluss-Karte, Beispielaufgaben, Wiedereinstieg', () => {
-	test('AK1: ohne Gewichtungsschritt nicht abschliessbar, mit „Speichern“ schon', async ({ page }) => {
+	test('AK1: nach den Vorschlägen folgt direkt „Übernehmen“ — keine Startgewichtung', async ({ page }) => {
 		const pillarId = await startFreshUser(page);
 		await mockSuggestions(page, pillarId);
 		await fillFreitext(page);
@@ -230,10 +237,7 @@ test.describe('#2070 Abschluss: Startgewichtung, Abschluss-Karte, Beispielaufgab
 		await cards.nth(0).click();
 		await flow(page).getByRole('button', { name: 'Weiter' }).click();
 
-		// Schritt 3 = Startgewichtung: kein „Übernehmen“ hier — erst nach „Speichern“.
-		await expect(flow(page).getByRole('button', { name: 'Speichern' })).toBeVisible();
-		await expect(flow(page).getByRole('button', { name: 'Übernehmen' })).toHaveCount(0);
-		await flow(page).getByRole('button', { name: 'Speichern' }).click();
+		await expect(flow(page).getByRole('button', { name: 'Speichern' })).toHaveCount(0);
 		await expect(flow(page).getByRole('button', { name: 'Übernehmen' })).toBeVisible();
 	});
 
@@ -246,8 +250,9 @@ test.describe('#2070 Abschluss: Startgewichtung, Abschluss-Karte, Beispielaufgab
 		await expect(cards).toHaveCount(5);
 		await cards.nth(0).click();
 		await flow(page).getByRole('button', { name: 'Weiter' }).click();
-		await flow(page).getByRole('button', { name: 'Speichern' }).click();
 		await flow(page).getByRole('button', { name: 'Übernehmen' }).click();
+		// Schritt 4 (Import, optional) liegt vor der Abschluss-Karte.
+		await flow(page).getByRole('button', { name: 'Weiter' }).click();
 
 		// Die Karte bleibt offen (kein sofortiger Tab-Wechsel), die Aufgabe ist direkt abhakbar.
 		await expect(flow(page).getByRole('button', { name: 'Fertig' })).toBeVisible();
@@ -353,8 +358,9 @@ test.describe('#2070 Abschluss: Startgewichtung, Abschluss-Karte, Beispielaufgab
 			await expect(cards).toHaveCount(5);
 			await cards.nth(0).click();
 			await flow(page).getByRole('button', { name: 'Weiter' }).click();
-			await flow(page).getByRole('button', { name: 'Speichern' }).click();
 			await flow(page).getByRole('button', { name: 'Übernehmen' }).click();
+			// Schritt 4 (Import, optional) liegt vor der Abschluss-Karte.
+			await flow(page).getByRole('button', { name: 'Weiter' }).click();
 			await expect(flow(page).getByRole('button', { name: 'Fertig' })).toBeVisible();
 			const finishTask = flow(page).locator('kol-input-checkbox').first();
 			await waitForStableBox(page, finishTask);

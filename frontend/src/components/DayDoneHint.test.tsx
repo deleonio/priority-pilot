@@ -55,7 +55,7 @@ describe('DayDoneHint (#1361)', () => {
 	});
 
 	it('AK1: keine offenen Aufgaben + letzterTag = heute → Hinweis erscheint', async () => {
-		const today = new Date().toISOString().slice(0, 10);
+		const today = new Date().toLocaleDateString('sv-SE');
 		getStreak.mockResolvedValue({ aktuell: 1, best: 1, letzterTag: today });
 		render(<DayDoneHint tasks={[doneTask(1)]} />);
 
@@ -63,7 +63,7 @@ describe('DayDoneHint (#1361)', () => {
 	});
 
 	it('AK2: eine offene Aufgabe + letzterTag = heute → kein Hinweis', async () => {
-		const today = new Date().toISOString().slice(0, 10);
+		const today = new Date().toLocaleDateString('sv-SE');
 		getStreak.mockResolvedValue({ aktuell: 1, best: 1, letzterTag: today });
 		render(<DayDoneHint tasks={[doneTask(1), openTask(2)]} />);
 
@@ -88,7 +88,7 @@ describe('DayDoneHint (#1361)', () => {
 	});
 
 	it('AK5: eine neu hinzugekommene offene Aufgabe entfernt den Hinweis ohne Reload', async () => {
-		const today = new Date().toISOString().slice(0, 10);
+		const today = new Date().toLocaleDateString('sv-SE');
 		getStreak.mockResolvedValue({ aktuell: 1, best: 1, letzterTag: today });
 		const { rerender } = render(<DayDoneHint tasks={[doneTask(1)]} />);
 
@@ -100,7 +100,7 @@ describe('DayDoneHint (#1361)', () => {
 	});
 
 	it('AK6: lädt die Tages-Erkennung ausschließlich über api.getStreak (genau ein Aufruf je Mount)', async () => {
-		const today = new Date().toISOString().slice(0, 10);
+		const today = new Date().toLocaleDateString('sv-SE');
 		getStreak.mockResolvedValue({ aktuell: 1, best: 1, letzterTag: today });
 		render(<DayDoneHint tasks={[doneTask(1)]} />);
 

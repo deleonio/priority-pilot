@@ -1,4 +1,4 @@
-import { expect, test, type Page } from './fixtures';
+import { dismissOnboardingDialog, expect, test, type Page } from './fixtures';
 import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
@@ -118,14 +118,17 @@ test.describe('Serie für ein Gruppenmitglied (#1222)', () => {
 		const recipientContext = await page.context().browser()!.newContext();
 		await recipientContext.addCookies([{ name: cookieName.trim(), value: cookieValue.trim(), url: baseURL }]);
 		const recipientPage = await recipientContext.newPage();
+		await dismissOnboardingDialog(recipientPage);
 
 		await openGroupsTab(page);
-		await createGroupAndInvite(page, GROUP_NAME);
+		// Eindeutiger Name: Gruppen früherer Tests derselben Shard-DB würden den Accordion-Trigger mehrdeutig machen.
+		const groupName = `${GROUP_NAME} ${Date.now()}`;
+		await createGroupAndInvite(page, groupName);
 		const invitations = (await (await recipientPage.request.get('/api/v1/invitations')).json()) as {
 			id: number;
 			groupName: string;
 		}[];
-		const invitation = invitations.find((candidate) => candidate.groupName === GROUP_NAME);
+		const invitation = invitations.find((candidate) => candidate.groupName === groupName);
 		expect(invitation, 'Einladung muss beim Empfänger anliegen').toBeTruthy();
 		expect((await recipientPage.request.post(`/api/v1/invitations/${invitation!.id}/accept`)).status()).toBe(200);
 

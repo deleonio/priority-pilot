@@ -133,9 +133,15 @@ type ChangelogState =
 	| { status: 'error' }
 	| { status: 'loaded'; releases: GithubRelease[]; nextUrl: string | null };
 
-export const HelpPage = () => {
+interface HelpPageProps {
+	/** Aktiver Tab (Index in `HELP_TABS`), von der Route `/hilfe/:tab` vorgegeben. */
+	tab: number;
+	/** Tab-Wechsel — die App schreibt ihn in die URL. */
+	onTabChange: (selected: number) => void;
+}
+
+export const HelpPage = ({ tab: activeTab, onTabChange }: HelpPageProps) => {
 	const [content, setContent] = useState<string | null>(null);
-	const [activeTab, setActiveTab] = useState(0);
 	const [changelog, setChangelog] = useState<ChangelogState>({ status: 'idle' });
 	const [limit, setLimit] = useState<ChangelogLimit>('30');
 
@@ -207,19 +213,23 @@ export const HelpPage = () => {
 	// geladen; nach einem Ladefehler startet ein erneutes Anwählen einen neuen Versuch
 	// (KI-UX Recovery-Pfad), nach erfolgreichem Laden wird nicht neu geladen.
 	const tabsCallbacks = useMemo(
-		() => ({
-			onSelect: (_event: Event, selected: number): void => {
-				setActiveTab(selected);
-				if (selected === 3 && (changelog.status === 'idle' || changelog.status === 'error')) {
-					setChangelog({ status: 'loading' });
-					void fetchReleasesPage(RELEASES_URL)
-						.then(({ releases, nextUrl }) => setChangelog({ status: 'loaded', releases, nextUrl }))
-						.catch(() => setChangelog({ status: 'error' }));
-				}
-			},
-		}),
-		[changelog.status],
+		() => ({ onSelect: (_event: Event, selected: number) => onTabChange(selected) }),
+		[onTabChange],
 	);
+
+	// Der Changelog lädt beim ersten Aktivieren (auch per Deep-Link `/hilfe/changelog`); nach einem
+	// Ladefehler startet erneutes Anwählen einen neuen Versuch (KI-UX Recovery-Pfad).
+	useEffect(() => {
+		if (activeTab === 3 && (changelog.status === 'idle' || changelog.status === 'error')) {
+			setChangelog({ status: 'loading' });
+			void fetchReleasesPage(RELEASES_URL)
+				.then(({ releases, nextUrl }) => setChangelog({ status: 'loaded', releases, nextUrl }))
+				.catch(() => setChangelog({ status: 'error' }));
+		}
+		// Nur der Tab-Wechsel löst einen Versuch aus; `changelog.status` ist bewusst keine Abhängigkeit
+		// (sonst liefe nach einem Fehler sofort eine Endlosschleife).
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [activeTab]);
 
 	// Wechsel der Anzeige-Menge lädt nur nach, wenn die gewählte Menge über die bereits geladenen
 	// Releases hinausgeht UND noch nicht die volle Historie geladen ist (Finding #1, PR #1432):

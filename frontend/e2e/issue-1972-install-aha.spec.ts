@@ -36,7 +36,7 @@ test.describe('Balamentum — #1972: Install-Aha-Gate + PWA-Grenzen-Hinweis', ()
 	}) => {
 		await page.setViewportSize({ width: 375, height: 667 });
 		await page.addInitScript(GEO_MOCK);
-		await page.goto('/app/settings/standort');
+		await page.goto('/app/settings/ortung');
 		await expect(geoSwitch(page)).toBeVisible();
 
 		await geoSwitch(page).click();
@@ -52,7 +52,7 @@ test.describe('Balamentum — #1972: Install-Aha-Gate + PWA-Grenzen-Hinweis', ()
 	test('AK4 — 320px: derselbe Check bei schmalen Geräten (KI-UX-Ergänzung)', async ({ page }) => {
 		await page.setViewportSize({ width: 320, height: 568 });
 		await page.addInitScript(GEO_MOCK);
-		await page.goto('/app/settings/standort');
+		await page.goto('/app/settings/ortung');
 		await expect(geoSwitch(page)).toBeVisible();
 
 		await geoSwitch(page).click();

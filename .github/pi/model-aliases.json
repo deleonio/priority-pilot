@@ -8,8 +8,13 @@
 	"zai": {
 		"fable": "zai/glm-5.3",
 		"opus": "zai/glm-5.3",
-		"sonnet": "zai/glm-5-turbo",
-		"haiku": "zai/glm-4.7"
+		"sonnet": "zai/glm-5.3-flash",
+		"haiku": "zai/glm-5.3-flash"
 	},
-	"openrouter": {}
+	"openrouter": {
+		"fable": "nvidia/nemotron-3-ultra-550b-a55b:free",
+		"opus": "nvidia/nemotron-3-ultra-550b-a55b:free",
+		"sonnet": "poolside/laguna-s-2.1:free",
+		"haiku": "poolside/laguna-s-2.1:free"
+	}
 }

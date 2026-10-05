@@ -7,7 +7,6 @@ import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readString } from '../lib/inputValue';
 import { Modal } from './Modal';
 import { PlanBadge } from './PlanBadge';
-import { PlanHint } from './PlanHint';
 
 /** Art der Gruppe (#1991): „Duo" = genau zwei Personen, die nur Streak und Säulenwerte teilen. */
 const KIND_OPTIONS = [
@@ -114,7 +113,6 @@ export const GroupFormDialog = ({ group, onClose, onSaved }: GroupFormDialogProp
 		<Modal title={isEdit ? 'Gruppe bearbeiten' : 'Gruppe anlegen'} onClose={onClose}>
 			{/* #1484 (T3b AK3): Grenzstelle `groups` — Badge als erstes Element unter dem Modal-Titel. */}
 			<PlanBadge feature="groups" inModal />
-			<PlanHint feature="groups" inModal />
 			{error !== null && (
 				<KolAlert _type="error" _label={isEdit ? 'Speichern fehlgeschlagen' : 'Anlegen fehlgeschlagen'}>
 					{error}

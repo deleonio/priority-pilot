@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { User } from '../models/index.js';
+import { Pillar, User } from '../models/index.js';
 import {
 	resetDb,
 	closeDb,
@@ -165,5 +165,21 @@ describe('#1238 upsertOAuthUser — OAuth-Profil-Sync', () => {
 		);
 		assert.equal(row.displayName, 'Eigener Name', 'AK4: Name bleibt trotzdem geschützt');
 		assert.equal(result.avatarUrl, row.avatarUrl, 'Rueckgabe == DB-Zeile');
+	});
+
+	it('legt für neue und für Bestandskonten ohne Säulen die fünf Standard-Säulen mit je 20 % an', async () => {
+		const created = await upsertOAuthUser({ email: 'neu@example.com' });
+		const pillars = await Pillar.findAll({ where: { userId: created.id } });
+		assert.equal(pillars.length, 5);
+		assert.ok(pillars.every((pillar) => pillar.weight === 20));
+
+		// idempotent: ein zweiter Login sät nicht erneut
+		await upsertOAuthUser({ email: 'neu@example.com' });
+		assert.equal(await Pillar.count({ where: { userId: created.id } }), 5);
+
+		// Bestandskonto ohne Säulen wird beim nächsten Login geheilt
+		const legacy = await User.create({ email: 'ohne@example.com', passwordHash: '__oauth__', displayName: 'Ohne' });
+		await upsertOAuthUser({ email: 'ohne@example.com' });
+		assert.equal(await Pillar.count({ where: { userId: legacy.id } }), 5);
 	});
 });

@@ -17,8 +17,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  */
 
 vi.mock('@public-ui/react-v19', () => ({
-	KolCard: ({ _label, children }: { _label?: string; children?: React.ReactNode }) => (
+	KolPopoverButton: ({ children, ...rest }: { children?: React.ReactNode }) => (
+		<div data-testid={(rest as Record<string, string>)['data-testid']}>{children}</div>
+	),
+	KolAccordion: ({ _label, children }: { _label?: string; children?: React.ReactNode }) => (
 		<section aria-label={_label}>{children}</section>
+	),
+	KolDetails: ({ _label, children }: { _label?: string; children?: React.ReactNode }) => (
+		<details open>
+			<summary>{_label}</summary>
+			{children}
+		</details>
 	),
 	// TEST-PFLEGE #2013: der Mock rendert jetzt auch die Slot-Kinder — der zugängliche Name der
 	// Shadow-DOM-Taste entsteht aus `_label` UND Slot-Inhalt (docs/spec/issue-2013.md).
@@ -103,7 +112,7 @@ import { PlanProvider } from '../lib/usePlan';
 // Test-Pflege (#1528 AK3): das nicht-enthaltene Badge ist außerhalb von Modalen ein Router-Link
 // (`<a href="/settings/pakete">` + useNavigate). Diese Suite rendert die Host-Komponente ohne
 // Router — der Hook wird deshalb auf einen Stub geleitet; das Klick-Verhalten deckt PlanBadge.test.
-vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
+vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn(), useInRouterContext: () => true }));
 
 // TEST-PFLEGE #1595 (AK3): Ein gespeicherter Ort hat nur noch eine Adresse — `name` ist aus Modell,
 // DTO und UI entfallen.

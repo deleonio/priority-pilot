@@ -12,6 +12,7 @@
 		"help": "Справка",
 		"logout": "Выход",
 		"headerActions": "Действия в шапке",
+		"skipToContent": "Перейти к содержимому",
 		"activeViewDescription": "Текущий вид — нажмите ещё раз, чтобы вернуться"
 	}
 }

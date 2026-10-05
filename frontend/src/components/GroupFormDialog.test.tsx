@@ -12,6 +12,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
  */
 
 vi.mock('@public-ui/react-v19', () => ({
+	KolPopoverButton: ({ children, ...rest }: { children?: React.ReactNode }) => (
+		<div data-testid={(rest as Record<string, string>)['data-testid']}>{children}</div>
+	),
 	KolAlert: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
 		<div role="alert">
 			{_label}

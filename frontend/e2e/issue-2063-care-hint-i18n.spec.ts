@@ -3,7 +3,7 @@ import { waitForStableView } from './helpers';
 
 /**
  * E2E-Spec für #2063 (docs/spec/issue-2063.md): Fürsorge-Hinweis in der App-Sprache Englisch —
- * Knöpfe, Krisenhinweis (Nummer + tel:-Link wortgleich) und 375-px-Layout. Der Testnutzer hat
+ * Knöpfe und 375-px-Layout. Der Testnutzer hat
  * gesäte Säulen ohne erledigte Aufgaben — der Server liefert Vorschläge (Muster #1793). ROT,
  * bis `CareHint` seine Texte aus i18n zieht (heute hardcoded deutsch).
  */
@@ -34,7 +34,7 @@ test.describe('Dashboard — Fürsorge-Hinweis i18n (Issue #2063)', () => {
 		await deleteAllTasks(page);
 	});
 
-	test('AK2+AK5: Sprache en — Hinweis, Knöpfe und Krisenhinweis englisch', async ({ page }) => {
+	test('AK2+AK5: Sprache en — Hinweis und Knöpfe englisch', async ({ page }) => {
 		await openDashboard(page);
 		await expect(page.getByTestId('care-hint')).toBeVisible();
 		await wechsleAufEnglisch(page);
@@ -43,10 +43,9 @@ test.describe('Dashboard — Fürsorge-Hinweis i18n (Issue #2063)', () => {
 		const hint = page.getByTestId('care-hint');
 		await expect(hint).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Accept suggestion' })).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Not now' })).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Dismiss suggestion' })).toBeVisible();
-		await expect(hint).toContainText('Not a substitute for medical advice');
-		await expect(hint.locator('a[href="tel:08001110111"]')).toHaveText('TelefonSeelsorge: 0800 111 0 111');
+		await expect(page.getByRole('button', { name: 'Not today' })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Not this suggestion again' })).toBeVisible();
+		await expect(hint).not.toContainText('TelefonSeelsorge');
 		await expect(hint).not.toContainText('Vorschlag übernehmen');
 	});
 

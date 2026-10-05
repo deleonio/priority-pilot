@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -17,18 +17,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const badgeColors = vi.hoisted(() => [] as string[]);
 
 vi.mock('@public-ui/react-v19', () => ({
+	KolPopoverButton: ({ children, ...rest }: { children?: React.ReactNode }) => (
+		<div data-testid={(rest as Record<string, string>)['data-testid']}>{children}</div>
+	),
+	KolAlert: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
 	KolBadge: ({ _label, _color }: { _label?: string; _color?: string }) => {
 		badgeColors.push(_color ?? '(ohne _color)');
 		return createElement('span', { 'data-testid': 'badge' }, _label);
 	},
-	KolButton: ({ _label }: { _label?: string }) => createElement('button', null, _label),
+	KolButton: ({ _label, _on }: { _label?: string; _on?: { onClick?: () => void } }) =>
+		createElement('button', { onClick: () => _on?.onClick?.() }, _label),
 }));
 
 const getPlansCatalog = vi.fn();
 vi.mock('../api', () => ({ api: { getPlansCatalog: () => getPlansCatalog() } }));
 
 const navigate = vi.fn();
-vi.mock('react-router-dom', () => ({ useNavigate: () => navigate }));
+vi.mock('react-router-dom', () => ({ useNavigate: () => navigate, useInRouterContext: () => true }));
 
 import type { EntitlementMap, Plan } from '../lib/planOffers';
 import { featureOffer, planLabel } from '../lib/planOffers';
@@ -84,8 +89,6 @@ describe('PlanBadge Beschriftung (#1528 AK2, Spec issue-1528.md)', () => {
 		expect(badge.textContent).toContain(featureOffer('groups').title);
 		expect(badge.textContent).toContain(planLabel('pro'));
 		expect(screen.queryByTestId('plan-badge-info-groups')).toBeNull();
-		// #1564 F2: Verweis-Badge in der neutralen Status-Farbe (Hex statt var)
-		expect(badgeColors).toContain('#3f4a5c');
 	});
 
 	it('ohne Entitlement rendert das Badge nichts (kein falscher Zustand vor der Antwort)', () => {
@@ -95,8 +98,8 @@ describe('PlanBadge Beschriftung (#1528 AK2, Spec issue-1528.md)', () => {
 	});
 });
 
-describe('PlanBadge Klick-Verhalten (#1528 AK3, Entscheidung B)', () => {
-	it('außerhalb von Modalen: Klick navigiert auf den Pakete-Reiter', () => {
+describe('PlanBadge gesperrt = Feature-Popover-Button', () => {
+	it('außerhalb von Modalen: Button im Popover navigiert auf den Pakete-Reiter', () => {
 		render(
 			withPlan(
 				'free',
@@ -105,12 +108,13 @@ describe('PlanBadge Klick-Verhalten (#1528 AK3, Entscheidung B)', () => {
 			),
 		);
 
-		fireEvent.click(screen.getByTestId('plan-badge-groups'));
+		fireEvent.click(within(screen.getByTestId('plan-badge-groups')).getByRole('button', { name: 'Pakete ansehen' }));
 
 		expect(navigate).toHaveBeenCalledWith('/settings/pakete');
 	});
 
-	it('in Modal-Kontext (inModal): kein Klickziel — Klick navigiert nicht', () => {
+	it('in Modal-Kontext (inModal): Button öffnet neuen Tab, navigiert nicht', () => {
+		const open = vi.spyOn(window, 'open').mockReturnValue(null);
 		render(
 			withPlan(
 				'free',
@@ -119,8 +123,10 @@ describe('PlanBadge Klick-Verhalten (#1528 AK3, Entscheidung B)', () => {
 			),
 		);
 
-		fireEvent.click(screen.getByTestId('plan-badge-groups'));
+		fireEvent.click(within(screen.getByTestId('plan-badge-groups')).getByRole('button', { name: 'Pakete ansehen' }));
 
+		expect(open).toHaveBeenCalledWith(expect.stringContaining('settings/pakete'), '_blank', 'noopener,noreferrer');
 		expect(navigate).not.toHaveBeenCalled();
+		open.mockRestore();
 	});
 });

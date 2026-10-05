@@ -10,6 +10,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
  */
 
 vi.mock('@public-ui/react-v19', () => ({
+	KolPopoverButton: ({ children, ...rest }: { children?: React.ReactNode }) => (
+		<div data-testid={(rest as Record<string, string>)['data-testid']}>{children}</div>
+	),
 	KolAlert: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
 		<div role="alert">
 			{_label}
@@ -77,6 +80,8 @@ vi.mock('../api', () => ({
 		removeGroupMember: vi.fn(),
 		updateGroupMemberRole: vi.fn(),
 		createGroupInviteLink: vi.fn(),
+		// Test-Pflege #1992: GroupChallengeCard lädt selbst — `undefined` läuft auf „noch keine Challenge“.
+		getGroupChallenge: vi.fn(),
 	},
 }));
 
@@ -88,7 +93,7 @@ import { GroupDetail } from './GroupDetail';
 // Test-Pflege (#1528 AK3): das nicht-enthaltene Badge ist außerhalb von Modalen ein Router-Link
 // (`<a href="/settings/pakete">` + useNavigate). Diese Suite rendert die Host-Komponente ohne
 // Router — der Hook wird deshalb auf einen Stub geleitet; das Klick-Verhalten deckt PlanBadge.test.
-vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
+vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn(), useInRouterContext: () => true }));
 
 const mockGetGroupMembers = api.getGroupMembers as ReturnType<typeof vi.fn>;
 const mockGetGroupInvitations = api.getGroupInvitations as ReturnType<typeof vi.fn>;
@@ -508,11 +513,11 @@ describe('GroupDetail — Paket-Badge im Kopfbereich (#1484 AK3, #1528)', () => 
 		expect(await screen.findByTestId('plan-badge-groups')).toBeInTheDocument();
 	});
 
-	it('allowed=false → Badge ist ein Link auf den Pakete-Reiter, kein (i)-Schalter (#1528 AK3)', async () => {
+	it('allowed=false → Popover enthält den Button zum Pakete-Reiter, kein (i)-Schalter (#1528 AK3)', async () => {
 		renderWithEntitlement(false);
 
 		const badge = await screen.findByTestId('plan-badge-groups');
-		expect(badge.closest('a')).toHaveAttribute('href', '/settings/pakete');
+		expect(within(badge).getByRole('button', { name: 'Pakete ansehen' })).toBeInTheDocument();
 		expect(screen.queryByTestId('plan-badge-info-groups')).toBeNull();
 	});
 });

@@ -303,6 +303,39 @@ describe('SettingsPage – #1098: Geo-Einstellungen (Anzeige-/Alarm-Entfernung, 
 		expect(container.textContent ?? '').not.toContain('muss kleiner als die Anzeige-Entfernung');
 	});
 
+	it('Regler-Änderungen wirken erst über „Speichern“; „Zurücksetzen“ verwirft sie', async () => {
+		geoState.enabled = true;
+		apiMocks.updateGeoConfig ??= vi.fn().mockResolvedValue(undefined);
+		const { container } = render(<SettingsPage {...defaultProps} />);
+		const display = field(container, LABELS.display)!;
+		const btn = (label: string) =>
+			container.querySelector(
+				`kol-accordion[_label="Reichweite und Intervall"] kol-button[_label="${label}"]`,
+			) as HTMLElement;
+		const change = async (value: number) =>
+			act(async () => {
+				(display as unknown as { _on: { onChange: (e: unknown, v: number) => void } })._on.onChange(
+					{ target: display },
+					value,
+				);
+			});
+
+		await change(20);
+		expect(apiMocks.updateGeoConfig).not.toHaveBeenCalled();
+
+		await act(async () => {
+			(btn('Zurücksetzen') as unknown as { _on: { onClick: () => void } })._on.onClick();
+		});
+		expect(bound(field(container, LABELS.alarm)!, '_max'), 'Entwurf verworfen').toBe('5');
+		expect(apiMocks.updateGeoConfig).not.toHaveBeenCalled();
+
+		await change(20);
+		await act(async () => {
+			(btn('Speichern') as unknown as { _on: { onClick: () => void } })._on.onClick();
+		});
+		expect(apiMocks.updateGeoConfig).toHaveBeenCalledWith(expect.objectContaining({ displayDistanceKm: 20 }));
+	});
+
 	it('AK3: Standort aus → alle drei Felder _disabled, Werte bleiben sichtbar; Wechsel wirkt nach dem Mount', () => {
 		geoState.enabled = true;
 		const { container, rerender } = render(<SettingsPage {...defaultProps} />);
@@ -694,7 +727,7 @@ describe('SettingsPage – Remount-Key PillarWeightsForm (Review #1306 Finding 2
  * admin/member). Ohne `isAdmin` taucht der Tab weder in der Tab-Liste noch als Panel auf (#1080-
  * Muster: nicht nur ausgeblendet, sondern gar nicht erst aufgenommen); mit `isAdmin` erscheint er
  * als letzter Tab (Index 8 seit #1902, ans Ende angehängt) mit `AdminUsersSection` im Panel
- * `slot="tab-8"`.
+ * `slot="tab-7"`.
  */
 describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwaltung"', () => {
 	// Test-Pflege #1352: Seit dem Tab „Zugriff" (letzter Tab) ist der letzte Slot ohne Admin-Rolle vom
@@ -712,8 +745,8 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 	// rückt von Index 9 auf 8. (Ursprünglich #1529: „Pakete"/„Abo" hängen zwischen „Kategorien" und den rollenabhängigen
 	// Reitern — „Nutzerverwaltung" rückt damit von Index 6 auf 8; #1894 „Orte" schob sie auf 9.) Der geprüfte Vertrag (#1300:
 	// Admin-Reiter am Ende, AdminUsersSection in seinem Panel) bleibt unverändert.
-	// Test-Pflege #1969: Tab „Import" (Index 8) schiebt die Nutzerverwaltung auf Index 9 / slot tab-9.
-	it('mit isAdmin erscheint „Nutzerverwaltung" als letzter Tab mit AdminUsersSection im Panel slot="tab-9"', () => {
+	// Test-Pflege #1969: Tab „Import" (Index 8) schiebt die Nutzerverwaltung auf Index 9 / slot tab-8.
+	it('mit isAdmin erscheint „Nutzerverwaltung" als letzter Tab mit AdminUsersSection im Panel slot="tab-8"', () => {
 		const { container } = render(<SettingsPage {...defaultProps} isAdmin />);
 
 		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
@@ -721,8 +754,7 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 			'Allgemein',
 			'Säulen',
 			'Kategorien',
-			'Standort',
-			'Orte',
+			'Ortung',
 			'KI',
 			'Gruppen',
 			'Pakete & Abo',
@@ -731,12 +763,12 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 			// Test-Pflege #1894: „Orte" (Index 4) schiebt alle Folge-Tabs um 1 — Nutzerverwaltung liegt
 			// nach dem Zusammenlegen von „Pakete & Abo" (#1902) auf Index 8.
 			// Test-Pflege #1969: „Import" (CSV-Import) hängt vor den rollenabhängigen Tabs an Index 8.
-			'Import',
+			'Daten',
 			'Nutzerverwaltung',
 		]);
-		const adminPanel = container.querySelector('[slot="tab-9"]');
-		expect(adminPanel, 'Slot tab-9 (Nutzerverwaltung) existiert').not.toBeNull();
-		expect(adminPanel?.querySelector('.admin-users'), 'AdminUsersSection ist im tab-9-Panel').toBeTruthy();
+		const adminPanel = container.querySelector('[slot="tab-8"]');
+		expect(adminPanel, 'Slot tab-8 (Nutzerverwaltung) existiert').not.toBeNull();
+		expect(adminPanel?.querySelector('.admin-users'), 'AdminUsersSection ist im tab-8-Panel').toBeTruthy();
 	});
 });
 
@@ -746,8 +778,8 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
  *
  * Panel bleibt gemountet unabhängig vom aktiven Tab (siehe Kommentar SettingsPage.tsx:531) — Zugriff
  * per `container.querySelector`, kein `tab`-Prop nötig. Ohne `isAdmin` liegt „Zugriff" auf
- * `slot="tab-8"` (letzter Tab; Test-Pflege #1529/#1894/#1902: vorher `tab-6`, verschoben durch
- * „Orte" und „Pakete & Abo"). Test-Pflege #1903: die Tokens liegen jetzt im Tab „KI" (`slot="tab-2"`, seit #1904 `tab-5`).
+ * `slot="tab-7"` (letzter Tab; Test-Pflege #1529/#1894/#1902: vorher `tab-5`, verschoben durch
+ * „Orte" und „Pakete & Abo"). Test-Pflege #1903: die Tokens liegen jetzt im Tab „KI" (`slot="tab-2"`, seit #1904 `tab-4`).
  */
 describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
 	beforeEach(() => {
@@ -756,7 +788,7 @@ describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
 		delete apiMocks.deleteApiToken;
 	});
 
-	const panel = (container: HTMLElement) => container.querySelector('[slot="tab-5"] [data-testid="api-tokens-panel"]');
+	const panel = (container: HTMLElement) => container.querySelector('[slot="tab-4"] [data-testid="api-tokens-panel"]');
 
 	it('AK8: „Token erzeugen" zeigt den Klartext genau einmal an', async () => {
 		apiMocks.listApiTokens = vi.fn().mockResolvedValue([]);
@@ -769,7 +801,7 @@ describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
 		});
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
-		expect(panel(container), 'Token-Panel im Tab „KI" (tab-5) fehlt').not.toBeNull();
+		expect(panel(container), 'Token-Panel im Tab „KI" (tab-4) fehlt').not.toBeNull();
 
 		const createButton = container.querySelector(
 			'[data-testid="api-tokens-panel"] kol-button[_label="Token erzeugen"]',
@@ -860,7 +892,7 @@ describe('SettingsPage – #1458 AK11: Bereich „Pakete"', () => {
 
 	/*
 	 * Test-Pflege #1902 (Spec docs/spec/issue-1902.md AK4): die Sektion liegt im Reiter „Pakete & Abo"
-	 * (`slot="tab-7"`) in der Karte „Pakete" und ist keine `KolTableStateful`-Matrix mehr, sondern eine
+	 * (`slot="tab-6"`) in der Karte „Pakete" und ist keine `KolTableStateful`-Matrix mehr, sondern eine
 	 * Liste (JSDOM hydriert KoliBri nicht — Preise stehen als Text im DOM). Der geprüfte
 	 * #1458-AK11-Vertrag bleibt derselbe: Preise und Funktionen kommen ausschließlich aus `GET /plans`.
 	 */
@@ -869,7 +901,7 @@ describe('SettingsPage – #1458 AK11: Bereich „Pakete"', () => {
 
 		await waitFor(() => expect(container.querySelector('[data-testid="plans-section"]')).not.toBeNull());
 
-		expect(container.querySelector('[slot="tab-7"] [data-testid="plans-section"]')).not.toBeNull();
+		expect(container.querySelector('[slot="tab-6"] [data-testid="plans-section"]')).not.toBeNull();
 		expect(container.querySelector('kol-card[_label="Pakete"]')).not.toBeNull();
 		expect(apiMocks.getPlansCatalog).toHaveBeenCalled();
 		expect(container.querySelector('kol-table-stateful')).toBeNull();
@@ -949,7 +981,7 @@ describe('SettingsPage – #1525: KI-Schalter Paket-Sperre (AK1/AK2)', () => {
 		await act(async () => {
 			(cta as unknown as { _on: { onClick: (e: unknown) => void } })._on.onClick({});
 		});
-		expect(onTabChange).toHaveBeenCalledWith(7);
+		expect(onTabChange).toHaveBeenCalledWith(6);
 	});
 
 	it('AK2: allowed=true → Schalter bedienbar, kein Paket-Alert, Umlegen persistiert weiterhin', async () => {
@@ -1273,26 +1305,26 @@ describe('SettingsPage – #1574: Bestätigungs-Modal vor dem Speichern unausgew
  * Strukturvertrag ( dieselbe Technik wie der #1151-Block): KoliBri-Elemente werden als
  * Custom-Elements mit Attributen gerendert und über Attribut-Selektoren geprüft. Die
  * Verhaltens-Tests der Karte (updateUserPlan + refresh) liegen in OwnPlanCard.test.tsx —
- * hier nur: die Karte lebt im Panel tab-7 („Pakete") und nur für Admins.
+ * hier nur: die Karte lebt im Panel tab-6 („Pakete") und nur für Admins.
  */
 describe('SettingsPage – #1565: eigene Paket-Karte im Tab Pakete', () => {
 	/** Slot-Container eines Tabs (KolTabs-Panel-Host), Muster #1151-Block. */
 	const panel = (container: HTMLElement, slot: string): HTMLElement | null =>
 		container.querySelector(`[slot="${slot}"]`);
 
-	it('AK1: mit Admin-Rolle rendert die Auswahl-Karte „Eigenes Paket" im Panel tab-7 (Pakete)', () => {
+	it('AK1: mit Admin-Rolle rendert die Auswahl-Karte „Eigenes Paket" im Panel tab-6 (Pakete)', () => {
 		const { container } = render(<SettingsPage {...defaultProps} isAdmin currentUserId={7} />);
 
-		const tab7 = panel(container, 'tab-7');
+		const tab7 = panel(container, 'tab-6');
 		expect(tab7, 'Pakete-Panel existiert').not.toBeNull();
 		// Komponentenagnostisch: KI-UX empfiehlt KolSingleSelect, toleriert das native KolSelect.
 		const ownSelection = tab7?.querySelector(
 			'kol-single-select[_label="Eigenes Paket wechseln"], kol-select[_label="Eigenes Paket wechseln"]',
 		);
-		expect(ownSelection, 'Auswahl „Eigenes Paket wechseln" lebt im tab-7-Panel').toBeTruthy();
+		expect(ownSelection, 'Auswahl „Eigenes Paket wechseln" lebt im tab-6-Panel').toBeTruthy();
 
 		// Nicht auch in der Nutzerverwaltung (dort ist das Paket nur noch Badge, AK2).
-		const tab8 = panel(container, 'tab-8');
+		const tab8 = panel(container, 'tab-7');
 		expect(
 			tab8?.querySelector('kol-single-select, kol-select'),
 			'Nutzerverwaltung hat keine Auswahl-Komponente mehr',
@@ -1302,7 +1334,7 @@ describe('SettingsPage – #1565: eigene Paket-Karte im Tab Pakete', () => {
 	it('AK4: ohne Admin-Rolle rendert das Pakete-Panel keine Auswahl-Karte', () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
-		const tab7 = panel(container, 'tab-7');
+		const tab7 = panel(container, 'tab-6');
 		expect(tab7, 'Pakete-Panel existiert auch für Mitglieder (Matrix bleibt, AK4)').not.toBeNull();
 		expect(
 			tab7?.querySelector(
@@ -1319,7 +1351,7 @@ describe('SettingsPage – #1565: eigene Paket-Karte im Tab Pakete', () => {
  *
  * Seam: `SettingsPage` bekommt analog zu `isAdmin` ein optionales Prop `isTester` (App:
  * `user.role === 'tester'`); das OwnPlanCard-Gate (SettingsPage.tsx:823) öffnet sich für
- * `isAdmin || isTester`, Tab „Nutzerverwaltung"/Panel tab-8 bleiben ausschließlich an
+ * `isAdmin || isTester`, Tab „Nutzerverwaltung"/Panel tab-7 bleiben ausschließlich an
  * `isAdmin` gebunden. Das Prop existiert noch nicht (rote Spec-Phase) — der Cast hält tsc
  * in beiden Zuständen grün (Intersection-Muster MEMORY 2026-08-23 / mail.test.ts).
  */
@@ -1338,7 +1370,7 @@ describe('SettingsPage – #1566: Tester sieht die Paket-Karte, aber nicht die N
 	it('AK3: mit isTester rendert das Pakete-Panel die Auswahl-Karte „Eigenes Paket"', () => {
 		const { container } = render(<SettingsPageWithTester {...defaultProps} isTester currentUserId={7} />);
 
-		const tab7 = panel(container, 'tab-7');
+		const tab7 = panel(container, 'tab-6');
 		expect(tab7, 'Pakete-Panel existiert auch für Tester').not.toBeNull();
 		const ownSelection = tab7?.querySelector(
 			'kol-single-select[_label="Eigenes Paket wechseln"], kol-select[_label="Eigenes Paket wechseln"]',
@@ -1622,7 +1654,7 @@ describe('SettingsPage – #1794: Fürsorge-Schalter (AK7)', () => {
 
 /**
  * Rote Spec-Tests für #1902 (Spec docs/spec/issue-1902.md AK1/AK2/AK3/AK4/AK7) — „Pakete" und „Abo"
- * sind EIN Tab „Pakete & Abo" (Panel `tab-7`, seit #1894 „Orte" um eins verschoben) mit zwei Karten. Die Panels bleiben gemountet (siehe
+ * sind EIN Tab „Pakete & Abo" (Panel `tab-6`, seit #1894 „Orte" um eins verschoben) mit zwei Karten. Die Panels bleiben gemountet (siehe
  * `beforeEach`); KoliBri hydriert in JSDOM nicht, Struktur wird über die Custom-Element-Hosts geprüft.
  * AK5 liegt in `billing.spec.ts`, AK6/AK8 in `issue-1902-plans-subscription-tab.spec.ts`.
  */
@@ -1653,7 +1685,7 @@ describe('SettingsPage – #1902: Tab „Pakete & Abo"', () => {
 				<SettingsPage {...defaultProps} {...props} />
 			</PlanProvider>,
 		);
-		const panel = utils.container.querySelector('[slot="tab-7"]') as HTMLElement;
+		const panel = utils.container.querySelector('[slot="tab-6"]') as HTMLElement;
 		return { ...utils, panel };
 	};
 
@@ -1668,12 +1700,12 @@ describe('SettingsPage – #1902: Tab „Pakete & Abo"', () => {
 
 	// Test-Pflege #1903: der Tab „Access-Token" ist im Tab „KI" aufgegangen — „Nutzerverwaltung" ist letzter Tab.
 	// Test-Pflege #1969: „Import" (Index 8) schiebt die rollenabhängige Nutzerverwaltung auf Index 9.
-	it('AK1/AK6: Rollen-Tabs bleiben index-paritätisch — Nutzerverwaltung an Index 9, kein Tab „Access-Token“', () => {
+	it('AK1/AK6: Rollen-Tabs bleiben index-paritätisch — Nutzerverwaltung an Index 8, kein Tab „Access-Token“', () => {
 		const { container } = renderTab(null, { isAdmin: true });
 		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
 		const labels = tabsEl?._tabs?.map((t) => t._label) ?? [];
-		expect(labels.indexOf('Pakete & Abo')).toBe(7);
-		expect(labels.indexOf('Nutzerverwaltung')).toBe(9);
+		expect(labels.indexOf('Pakete & Abo')).toBe(6);
+		expect(labels.indexOf('Nutzerverwaltung')).toBe(8);
 		expect(labels).not.toContain('Access-Token');
 	});
 
@@ -1732,36 +1764,33 @@ describe('SettingsPage – #1902: Tab „Pakete & Abo"', () => {
  * `/settings/orte`) sitzt hinter „Standort"; `PlaceFavoritesSection` wandert aus dem Standort-Panel
  * (`tab-3`) dorthin und hängt nicht am Geo-Schalter. Die Route-/Index-Parität prüft `App.test.tsx`.
  */
-describe('SettingsPage – #1894: Tab „Orte"', () => {
+describe('SettingsPage – #1894: Tab „Ortung“ (Standort + gespeicherte Orte)', () => {
 	const panel = (container: HTMLElement, slot: string): HTMLElement | null =>
 		container.querySelector(`[slot="${slot}"]`);
 
-	it('AK1: die Tab-Liste enthält „Orte" direkt hinter „Standort"', () => {
+	it('AK1: es gibt den Tab „Ortung“ und keine getrennten Tabs „Standort“/„Orte“', () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
 		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
 		const labels = tabsEl?._tabs?.map((t) => t._label) ?? [];
-		expect(labels.indexOf('Orte')).toBe(labels.indexOf('Standort') + 1);
+		expect(labels).toContain('Ortung');
+		expect(labels).not.toContain('Standort');
+		expect(labels).not.toContain('Orte');
 	});
 
-	it('AK1: das Orte-Panel (tab-4) rendert PlaceFavoritesSection', () => {
+	it('AK2: das Ortung-Panel (tab-3) enthält Standort-Switch und gespeicherte Orte', () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
-		expect(panel(container, 'tab-4')?.querySelector('[data-testid="place-favorites-panel"]')).not.toBeNull();
+		const tab3 = panel(container, 'tab-3');
+		expect(tab3?.querySelector('kol-input-checkbox[_label="Standort erfassen"]')).not.toBeNull();
+		expect(tab3?.querySelector('[data-testid="place-favorites-panel"]')).not.toBeNull();
 	});
 
-	it('AK2: das Standort-Panel (tab-3) enthält keine gespeicherten Orte mehr', () => {
-		const { container } = render(<SettingsPage {...defaultProps} />);
-
-		expect(panel(container, 'tab-3')).not.toBeNull();
-		expect(panel(container, 'tab-3')?.querySelector('[data-testid="place-favorites-panel"]')).toBeNull();
-	});
-
-	it('AK3: das Orte-Panel bleibt bei ausgeschaltetem Standort gerendert', () => {
+	it('AK3: die gespeicherten Orte bleiben bei ausgeschaltetem Standort gerendert', () => {
 		geoState.enabled = false;
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
-		expect(panel(container, 'tab-4')?.querySelector('[data-testid="place-favorites-panel"]')).not.toBeNull();
+		expect(panel(container, 'tab-3')?.querySelector('[data-testid="place-favorites-panel"]')).not.toBeNull();
 	});
 });
 
@@ -1794,28 +1823,21 @@ describe('SettingsPage – #1903: Tab „KI" (Schalter + Access-Token-Karte)', (
 		expect(container.querySelector('kol-input-checkbox[_label="KI-Features aktiv"]')).toBeNull();
 	});
 
-	it('AK4: Schalter an → Karte „Access-Token" mit Details „Access-Token erstellen" und „Vorhandene Access-Token", offen', async () => {
+	it('AK4: Schalter an → Akkordeon „Access-Token“ mit Überschriften „Access-Token erstellen“ und „Vorhandene Access-Token“, offen', async () => {
 		localStorage.setItem('pp-ai-enabled', 'true');
 		const { container } = renderKi();
-		await waitFor(() => expect(container.querySelector('kol-card[_label="Access-Token"]')).not.toBeNull());
-		const card = container.querySelector('kol-card[_label="Access-Token"]')!;
-		const create = card.querySelector('kol-details[_label="Access-Token erstellen"]');
-		const existing = card.querySelector('kol-details[_label="Vorhandene Access-Token"]');
-		expect(create, 'Detail „Access-Token erstellen" fehlt').not.toBeNull();
-		expect(existing, 'Detail „Vorhandene Access-Token" fehlt').not.toBeNull();
-		expect(bound(create!, '_open')).toBe('true');
+		await waitFor(() => expect(container.querySelector('kol-accordion[_label="Access-Token"]')).not.toBeNull());
+		const accordion = container.querySelector('kol-accordion[_label="Access-Token"]')!;
+		expect(accordion.querySelector('kol-heading[_label="Access-Token erstellen"]')).not.toBeNull();
+		expect(accordion.querySelector('kol-heading[_label="Vorhandene Access-Token"]')).not.toBeNull();
+		expect(bound(accordion, '_open')).toBe('true');
 	});
 
-	it('AK3: Schalter aus → Details im DOM, aber eingeklappt', async () => {
+	it('AK3: Schalter aus → Akkordeon „Access-Token“ im DOM, aber eingeklappt', async () => {
 		localStorage.setItem('pp-ai-enabled', 'false');
 		const { container } = renderKi();
-		await waitFor(() => expect(container.querySelector('kol-card[_label="Access-Token"]')).not.toBeNull());
-		const card = container.querySelector('kol-card[_label="Access-Token"]')!;
-		for (const label of ['Access-Token erstellen', 'Vorhandene Access-Token']) {
-			const details = card.querySelector(`kol-details[_label="${label}"]`);
-			expect(details, `${label} muss im DOM bleiben`).not.toBeNull();
-			expect(bound(details!, '_open')).not.toBe('true');
-		}
+		await waitFor(() => expect(container.querySelector('kol-accordion[_label="Access-Token"]')).not.toBeNull());
+		expect(bound(container.querySelector('kol-accordion[_label="Access-Token"]')!, '_open')).not.toBe('true');
 	});
 });
 
@@ -1829,27 +1851,26 @@ describe('SettingsPage – #1904: Tab-Reihenfolge nach Paketstufe', () => {
 			(t) => t._label,
 		);
 
-	it('AK1: Member sehen Allgemein, Säulen, Kategorien, Standort, Orte, KI, Gruppen, Pakete & Abo, Import', () => {
+	it('AK1: Member sehen Allgemein, Säulen, Kategorien, Ortung, KI, Gruppen, Pakete & Abo, Import', () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
 		expect(labels(container)).toEqual([
 			'Allgemein',
 			'Säulen',
 			'Kategorien',
-			'Standort',
-			'Orte',
+			'Ortung',
 			'KI',
 			'Gruppen',
 			'Pakete & Abo',
-			// Test-Pflege #1969: CSV-Import als neuer letzter Member-Tab (Index 8, Route /settings/import).
-			'Import',
+			// Test-Pflege #1969: CSV-Import als neuer letzter Member-Tab (Index 8, Route /settings/daten).
+			'Daten',
 		]);
 	});
 
-	it('AK1: Panel-Slots folgen der Tab-Reihenfolge (Kategorien tab-2, KI tab-5, Gruppen tab-6)', () => {
+	it('AK1: Panel-Slots folgen der Tab-Reihenfolge (Kategorien tab-2, KI tab-4, Gruppen tab-5)', () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
 		expect(container.querySelector('[slot="tab-2"].settings-categories')).not.toBeNull();
-		expect(container.querySelector('[slot="tab-5"].settings-llm')).not.toBeNull();
-		expect(container.querySelector('[slot="tab-6"].settings-groups')).not.toBeNull();
+		expect(container.querySelector('[slot="tab-4"].settings-llm')).not.toBeNull();
+		expect(container.querySelector('[slot="tab-5"].settings-groups')).not.toBeNull();
 	});
 });
 
@@ -1893,7 +1914,7 @@ describe('SettingsPage – #1940: Rechnungen ohne aktives Abo', () => {
 				<SettingsPage {...defaultProps} />
 			</PlanProvider>,
 		);
-		return utils.container.querySelector('[slot="tab-7"]') as HTMLElement;
+		return utils.container.querySelector('[slot="tab-6"]') as HTMLElement;
 	};
 
 	it('AK1: kein Abo + Rechnung → Hinweis UND Rechnungsliste im KolDetails', async () => {
@@ -2090,28 +2111,14 @@ describe('SettingsPage – #2015: zweite Ebene ausschließlich KolDetails (Regel
 		}
 	});
 
-	it('#1970: „Erweitert“ umschließt in der KI-Provider-Karte ausschließlich die beiden #1903-Details (V1, Level 3→4)', () => {
+	it('KI-Provider ist ein einzelnes KolAccordion (Level 2) ohne verschachtelte Klappbereiche', () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
-		const outer = container.querySelector('kol-details[_label="Erweitert"]');
-		expect(outer, 'KolDetails „Erweitert“ vorhanden (V1, kein Akkordeon)').not.toBeNull();
-		expect(outer!.closest('kol-card'), '„Erweitert“ liegt IN der Karte „KI-Provider“ (Regel 1)').not.toBeNull();
-		expect(bound(outer!, '_level'), '„Erweitert“ auf Level 3 (KI-UX)').toBe('3');
-
-		const nested = Array.from(container.querySelectorAll('kol-details kol-details'));
-		expect(nested.length, 'genau die beiden #1903-Details sind verschachtelt').toBe(2);
-		expect(nested.map((el) => bound(el, '_label')).sort(), 'nur die beabsichtigte Verschachtelung entsteht').toEqual([
-			'Provider verwalten',
-			'Provider-Auswahl',
-		]);
-		for (const inner of nested) {
-			expect(outer!.contains(inner), 'verschachtelte Details liegen unter „Erweitert“').toBe(true);
-			expect(bound(inner, '_level'), 'innere Details auf Level 4 (KI-UX)').toBe('4');
-		}
-		expect(
-			container.querySelector('kol-card kol-accordion, kol-accordion kol-card, kol-accordion kol-details'),
-			'kein Akkordeon im Spiel (Regel 1)',
-		).toBeNull();
+		const accordion = container.querySelector('kol-accordion[_label="KI-Provider"]');
+		expect(accordion, 'KolAccordion „KI-Provider“ vorhanden').not.toBeNull();
+		expect(bound(accordion!, '_level')).toBe('2');
+		expect(accordion!.querySelector('kol-details, kol-accordion'), 'keine weiteren Klappbereiche darin').toBeNull();
+		expect(container.querySelector('kol-details[_label="Erweitert"]')).toBeNull();
 	});
 
 	it('TF2/AK2: „Einzelne Animationen“ ist ein KolDetails und folgt dem Master „Animationen“', async () => {
@@ -2133,34 +2140,28 @@ describe('SettingsPage – #2015: zweite Ebene ausschließlich KolDetails (Regel
 		expect(bound(details!, '_open'), 'Master aus → Details zu').toBe('false');
 	});
 
-	it('TF2/AK3: „Reichweite und Intervall“ liegt als KolDetails IN der Karte „Standorterfassung“', () => {
-		geoState.enabled = true;
+	it('„Reichweite und Intervall“ ist ein eigenes KolAccordion unter der Karte „Standorterfassung“, ohne KolDetails', () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
-		const card = container.querySelector('kol-card[_label="Standorterfassung"]');
-		expect(card, 'Standort-Karte existiert').not.toBeNull();
-		expect(
-			card?.querySelector('kol-details[_label="Reichweite und Intervall"]'),
-			'KolDetails innerhalb der Karte (kein eigenständiges Akkordeon daneben)',
-		).not.toBeNull();
-		expect(
-			container.querySelector('kol-accordion[_label="Reichweite und Intervall"]'),
-			'kein eigenständiges Akkordeon mehr',
-		).toBeNull();
+		const accordion = container.querySelector('kol-accordion[_label="Reichweite und Intervall"]');
+		expect(accordion, 'KolAccordion vorhanden').not.toBeNull();
+		expect(accordion!.closest('kol-card'), 'nicht in der Karte (Akkordeon nur oberste Ebene)').toBeNull();
+		expect(container.querySelector('kol-details[_label="Reichweite und Intervall"]')).toBeNull();
+		expect(accordion!.querySelector('kol-details')).toBeNull();
 	});
 
 	it('TF2/AK3: der Klappzustand folgt weiter dem Schalter „Standort erfassen“', async () => {
 		geoState.enabled = true;
 		const { container, rerender } = render(<SettingsPage {...defaultProps} />);
-		const details = container.querySelector('kol-details[_label="Reichweite und Intervall"]');
-		expect(bound(details!, '_open'), 'Standort an → Details offen').toBe('true');
+		const accordion = container.querySelector('kol-accordion[_label="Reichweite und Intervall"]');
+		expect(bound(accordion!, '_open'), 'Standort an → offen').toBe('true');
 
 		// Switch aus (Hook-State kippt → rerender, inkl. key-Remount wie beim #1098-Muster):
 		geoState.enabled = false;
 		rerender(<SettingsPage {...defaultProps} />);
-		const closed = container.querySelector('kol-details[_label="Reichweite und Intervall"]');
+		const closed = container.querySelector('kol-accordion[_label="Reichweite und Intervall"]');
 		expect(closed, 'bei Standort aus bleibt der Block gerendert (#1098, disabled nicht entfernt)').not.toBeNull();
-		expect(bound(closed!, '_open'), 'Standort aus → Details zu').toBe('false');
+		expect(bound(closed!, '_open'), 'Standort aus → zu').toBe('false');
 	});
 
 	it('TF2/AK3: im Standardmodus bleibt der Block ungerendert (#1984, kein CSS-Hide)', () => {
@@ -2170,7 +2171,7 @@ describe('SettingsPage – #2015: zweite Ebene ausschließlich KolDetails (Regel
 
 		expect(
 			container.querySelector('kol-accordion[_label="Reichweite und Intervall"]'),
-			'heute noch Akkordeon — nach dem Umbau darf keine Klapp-Fläche übrig bleiben',
+			'im Standardmodus keine Klapp-Fläche',
 		).toBeNull();
 		expect(container.querySelector('kol-details[_label="Reichweite und Intervall"]'), 'kein CSS-Hide').toBeNull();
 	});

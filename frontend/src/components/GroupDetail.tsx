@@ -16,6 +16,7 @@ import { Modal } from './Modal';
 import { CopyButton } from './CopyButton';
 import { DuoCard } from './DuoCard';
 import { PlanBadge } from './PlanBadge';
+import { GroupChallengeCard } from './GroupChallengeCard';
 
 /** Rollen-Text je serverseitiger Rolle — Rolle immer als Text, nie nur als Farbe (KI-UX #1211). */
 const roleLabel = (role: GroupMember['role']): string => (role === 'admin' ? 'Admin' : 'Mitglied');
@@ -269,6 +270,8 @@ export const GroupDetail = ({ groupId, ownRole, kind = 'group', refreshKey = 0, 
 					    unnötig nach unten. */}
 					{/* #1484 (T3b AK3): Grenzstelle `groups` — das Badge beschriftet nur, gesperrt wird nichts. */}
 					<PlanBadge feature="groups" />
+					{/* #1992: Challenge oberhalb der Mitglieder — die häufige Aktion bleibt im Daumenbereich. */}
+					<GroupChallengeCard groupId={groupId} />
 					{/* Duo (#1991): die Karte ersetzt Mitgliederliste und Aufgabenbereiche; `key` lädt sie beim
 					    „Daten auffrischen" neu. */}
 					{isDuo && <DuoCard key={refreshKey} groupId={groupId} />}

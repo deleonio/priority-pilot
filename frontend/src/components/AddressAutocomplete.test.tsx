@@ -19,6 +19,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
  */
 
 vi.mock('@public-ui/react-v19', () => ({
+	KolPopoverButton: ({ children, ...rest }: { children?: React.ReactNode }) => (
+		<div data-testid={(rest as Record<string, string>)['data-testid']}>{children}</div>
+	),
 	KolInputText: ({
 		_label,
 		_value,
@@ -74,7 +77,7 @@ import { AddressAutocomplete } from './AddressAutocomplete';
 // Test-Pflege (#1528 AK3): das nicht-enthaltene Badge ist außerhalb von Modalen ein Router-Link
 // (`<a href="/settings/pakete">` + useNavigate). Diese Suite rendert die Host-Komponente ohne
 // Router — der Hook wird deshalb auf einen Stub geleitet; das Klick-Verhalten deckt PlanBadge.test.
-vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
+vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn(), useInRouterContext: () => true }));
 
 import type { AddressSuggestion } from '../lib/useAddressSearch';
 import type { EntitlementMap } from '../lib/planOffers';

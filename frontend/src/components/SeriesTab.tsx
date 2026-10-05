@@ -244,7 +244,7 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 														type: 'button',
 														_label: 'Löschen',
 														_hideLabel: true,
-														_icons: { left: { icon: 'kolicon-cross' } },
+														_icons: { left: { icon: 'fa-solid fa-trash' } },
 														_variant: 'danger',
 														_on: { onClick: () => setDeleteTarget(entry) },
 													},

@@ -233,6 +233,7 @@ export const GroupsSection = () => {
 														/>
 														<KolButton
 															_label="Löschen"
+															_icons={{ left: { icon: 'fa-solid fa-trash' } }}
 															_variant="danger"
 															_on={{ onClick: () => setDialog({ kind: 'delete', group }) }}
 														/>

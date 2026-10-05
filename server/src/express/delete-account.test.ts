@@ -6,6 +6,7 @@ import {
 	FcmToken,
 	MilestoneReached,
 	Group,
+	GroupChallenge,
 	GroupMember,
 	Pillar,
 	ScoreEntry,
@@ -82,6 +83,11 @@ describe('Konto löschen (#1671)', () => {
 			taxNote: 'Gemäß §19 UStG wird keine Umsatzsteuer ausgewiesen.',
 		});
 		const soleGroup = await groupWith([[userId, 'admin']]);
+		await GroupChallenge.create({
+			groupId: soleGroup.id,
+			startsAt: new Date(),
+			endsAt: new Date(Date.now() + 86_400_000),
+		});
 
 		const res = await deleteMe(cookie);
 		assert.equal(res.status, 204);
@@ -92,6 +98,7 @@ describe('Konto löschen (#1671)', () => {
 		assert.equal(await Pillar.count({ where: { userId } }), 0);
 		assert.equal(await FcmToken.count(), 0);
 		assert.equal(await Group.count({ where: { id: soleGroup.id } }), 0);
+		assert.equal(await GroupChallenge.count({ where: { groupId: soleGroup.id } }), 0);
 		assert.equal(await Invoice.count({ where: { userId } }), 1, 'Rechnung bleibt erhalten');
 		const kept = await Task.findByPk(forOther.id);
 		assert.ok(kept, 'Aufgabe für eine andere Person bleibt');

@@ -5,6 +5,7 @@ import { Op, Transaction } from 'sequelize';
 import { sendError, type ErrorDto } from '../http-error.js';
 import {
 	Group,
+	GroupChallenge,
 	GroupInvitation,
 	GroupInviteLink,
 	GroupMember,
@@ -24,6 +25,13 @@ import { protokolliereKpiEreignis } from '../../logics/kpiKennzahlen.js';
 import { berechneDuoStreak } from '../../logics/duoStreak.js';
 import { istGueltigeZeitzone, streakZeitpunkte } from '../../logics/streak.js';
 import { berechneLebensbalanceNachKadenz } from '../../logics/heartBalance.js';
+import {
+	berechneRangfolge,
+	challengeStatus,
+	CHALLENGE_DAUER_MS,
+	type ChallengeStatus,
+	type RangEintrag,
+} from '../../logics/groupChallenge.js';
 import { ownerScope } from '../requireAuth.js';
 import type { PillarWithContribution } from '../../models/task.js';
 
@@ -296,6 +304,7 @@ groupsRouter.delete('/groups/:id', requirePlanFeature('groups'), async (req: Req
 			await restCrossMemberSeries(memberIds, memberIds, transaction);
 			await GroupMember.destroy({ where: { groupId: found.group.id }, transaction });
 			await GroupInvitation.destroy({ where: { groupId: found.group.id }, transaction });
+			await GroupChallenge.destroy({ where: { groupId: found.group.id }, transaction });
 			await Group.destroy({ where: { id: found.group.id }, transaction });
 		});
 		res.status(204).send();
@@ -1019,6 +1028,127 @@ groupsRouter.get('/groups/:id/duo', async (req: Request, res: Response<DuoDto | 
 			streak: { aktuell, best },
 			members: stands.map(({ userId, name, saeulen }) => ({ userId, name, saeulen })),
 		});
+	} catch {
+		sendError(res, 500, 'Interner Serverfehler.');
+	}
+});
+
+type GroupChallengeDto = {
+	gruppe: string;
+	status: ChallengeStatus;
+	startsAt: string;
+	endsAt: string;
+	rangfolge: RangEintrag[];
+};
+
+/**
+ * Challenge-Stand (#1992): Rangfolge nach Balance über die im Zeitraum erledigten Tasks je Mitglied
+ * (strikt `ownerScope`, Muster Duo). Die Tasks fließen nur in die Rechnung — die Antwort trägt je
+ * Mitglied Name, Rang und Wert (AK4).
+ */
+const challengeDto = async (group: Group, challenge: GroupChallenge): Promise<GroupChallengeDto> => {
+	const jetzt = new Date();
+	const memberIds = (await GroupMember.findAll({ where: { groupId: group.id } })).map((m) => m.userId);
+	const users = await User.findAll({ where: { id: memberIds } });
+	const bis = jetzt < challenge.endsAt ? jetzt : challenge.endsAt;
+	const mitglieder = await Promise.all(
+		memberIds.map(async (memberId) => {
+			const [saeulen, entries] = await Promise.all([
+				Pillar.findAll({ where: ownerScope(memberId), order: [['id', 'ASC']] }),
+				ScoreEntry.findAll({
+					where: { zeitpunkt: { [Op.gte]: challenge.startsAt, [Op.lt]: bis } },
+					include: [{ model: Task, where: ownerScope(memberId), include: [Pillar] }],
+				}),
+			]);
+			return {
+				name: displayNameOf(users.find((candidate) => candidate.id === memberId) ?? null),
+				saeulen: saeulen.map((saeule) => ({ id: saeule.id, name: saeule.name, weight: saeule.weight })),
+				tasks: entries.flatMap(({ Task: task }) =>
+					task
+						? [
+								{
+									status: task.status,
+									estimatedEffort: task.estimatedEffort,
+									pillars: (task.Pillars ?? []).map((pillar: PillarWithContribution) => ({
+										pillarId: pillar.id,
+										share: pillar.TaskPillar.share,
+									})),
+								},
+							]
+						: [],
+				),
+			};
+		}),
+	);
+	return {
+		gruppe: group.name,
+		status: challengeStatus(challenge.endsAt, jetzt),
+		startsAt: challenge.startsAt.toISOString(),
+		endsAt: challenge.endsAt.toISOString(),
+		rangfolge: berechneRangfolge(mitglieder),
+	};
+};
+
+// POST /groups/:id/challenge — jedes Mitglied startet eine 7-Tage-Challenge (#1992 AK1);
+// läuft schon eine → 409, Nicht-Mitglied → 404.
+groupsRouter.post(
+	'/groups/:id/challenge',
+	requirePlanFeature('groups'),
+	async (req: Request, res: Response<GroupChallengeDto | ErrorDto>) => {
+		try {
+			const user = await resolveGeoUser(req);
+			if (!user) {
+				sendError(res, 401, 'Anmeldung erforderlich.');
+				return;
+			}
+			const found = await findMembership(user.id, Number(req.params.id));
+			if (!found) {
+				sendError(res, 404, 'Gruppe nicht gefunden.');
+				return;
+			}
+			const startsAt = new Date();
+			const laufend = await GroupChallenge.findOne({
+				where: { groupId: found.group.id, endsAt: { [Op.gt]: startsAt } },
+			});
+			if (laufend) {
+				sendError(res, 409, 'Es läuft bereits eine Challenge.');
+				return;
+			}
+			const challenge = await GroupChallenge.create({
+				groupId: found.group.id,
+				startsAt,
+				endsAt: new Date(startsAt.getTime() + CHALLENGE_DAUER_MS),
+			});
+			res.status(201).json(await challengeDto(found.group, challenge));
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+		}
+	},
+);
+
+// GET /groups/:id/challenge — jüngste Challenge der Gruppe mit Status aus `endsAt` (AK2); noch
+// keine → 204, Nicht-Mitglied → 404.
+groupsRouter.get('/groups/:id/challenge', async (req: Request, res: Response<GroupChallengeDto | ErrorDto>) => {
+	try {
+		const user = await resolveGeoUser(req);
+		if (!user) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const found = await findMembership(user.id, Number(req.params.id));
+		if (!found) {
+			sendError(res, 404, 'Gruppe nicht gefunden.');
+			return;
+		}
+		const challenge = await GroupChallenge.findOne({
+			where: { groupId: found.group.id },
+			order: [['startsAt', 'DESC']],
+		});
+		if (!challenge) {
+			res.status(204).send();
+			return;
+		}
+		res.json(await challengeDto(found.group, challenge));
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');
 	}

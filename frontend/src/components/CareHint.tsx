@@ -92,13 +92,6 @@ export const CareHint = () => {
 	// mit nur unterdrückten Vorschlägen bleibt unsichtbar (bestehender #1793-Vertrag).
 	const [leerzustand, setLeerzustand] = useState(false);
 
-	/* #1967: Zweckbestimmung + Krisenhinweis; Light-DOM-`a` statt KolLink (sonst im Shadow-DOM, #1873). */
-	const hilfe = (
-		<p className="care-hint-help">
-			{t('care.helpBefore')} <a href="tel:08001110111">{t('care.helpLink')}</a> {t('care.helpAfter')}
-		</p>
-	);
-
 	useEffect(() => {
 		const controller = new AbortController();
 		api
@@ -121,7 +114,6 @@ export const CareHint = () => {
 			<div className="care-hint" data-testid="care-hint" role="status" aria-label={t('care.label')}>
 				<KolAlert _type="info" _variant="card" _label={t('care.label')}>
 					<p>{t('care.empty')}</p>
-					{hilfe}
 				</KolAlert>
 			</div>
 		);
@@ -262,7 +254,6 @@ export const CareHint = () => {
 						{t('care.deficit', { saeuleName: vorschlag.saeuleName, titel: vorschlag.beschreibung ?? vorschlag.titel })}
 					</p>
 				)}
-				{hilfe}
 				{fehler && <p role="alert">{t('care.error')}</p>}
 				{grundOffen ? (
 					/* #1977: Grundauswahl ersetzt die Aktionsreihe (ein Screen, eine Aufgabe); Radio-Gruppe
