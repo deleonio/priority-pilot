@@ -3,6 +3,7 @@ import Subscription from '../models/subscription.js';
 import Invoice from '../models/invoice.js';
 import { rankOf, syncUserPlan, applyDuePendingPlan } from './billing/lifecycle.js';
 import { PAYPAL_PLAN_IDS, type Plan } from './plans.js';
+import type { ChargedAmount } from './invoices.js';
 
 export { applyDuePendingPlan, isGracePeriodExpired } from './billing/lifecycle.js';
 
@@ -249,8 +250,14 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 export interface PaypalWebhookEvent {
 	id?: string;
 	event_type?: string;
-	/** `billing_agreement_id` trägt die Abo-Referenz bei Zahlungsereignissen (#1506), `sale_id` die Sale-Referenz des Erstattungs-Vorgangs (#2086). */
-	resource?: { id?: string; plan_id?: string; billing_agreement_id?: string; sale_id?: string };
+	/** `billing_agreement_id` trägt die Abo-Referenz bei Zahlungsereignissen (#1506), `sale_id` die Sale-Referenz des Erstattungs-Vorgangs (#2086), `amount` den abgebuchten Betrag der Sale-Ressource (#2232). */
+	resource?: {
+		id?: string;
+		plan_id?: string;
+		billing_agreement_id?: string;
+		sale_id?: string;
+		amount?: { total?: string; currency?: string };
+	};
 }
 
 /** Monate je Abrechnungszeitraum — Muster `invoices.ts` `PERIOD_MONTHS` (#1506 AK1). */
@@ -398,8 +405,13 @@ export const replacePredecessors = async (
 
 /** Injizierbare Abhängigkeiten von {@link applyPaymentEvent} (Muster `deps` in `billing.ts`). */
 export interface ApplyPaymentEventDeps {
-	/** `saleId`: Sale-Referenz der Abbuchung (`resource.id`, #2086). */
-	issueInvoice?: (subscription: Subscription, now: Date, saleId?: string | null) => Promise<unknown>;
+	/** `saleId`: Sale-Referenz der Abbuchung (`resource.id`, #2086); `charged`: abgebuchter Betrag (`resource.amount`, #2232). */
+	issueInvoice?: (
+		subscription: Subscription,
+		now: Date,
+		saleId?: string | null,
+		charged?: ChargedAmount,
+	) => Promise<unknown>;
 }
 
 /**
@@ -472,7 +484,13 @@ export const applyPaymentEvent = async (
 		}
 		currentPeriodEnd.setUTCMonth(currentPeriodEnd.getUTCMonth() + months);
 		await subscription.update({ currentPeriodEnd, status: 'active', firstFailureAt: null });
-		await deps.issueInvoice?.(subscription, now, event.resource?.id ?? null);
+		const amount = event.resource?.amount;
+		const total = Number(amount?.total);
+		const charged =
+			amount?.total && amount.currency && Number.isFinite(total)
+				? { amountCents: Math.round(total * 100), currency: amount.currency }
+				: undefined;
+		await deps.issueInvoice?.(subscription, now, event.resource?.id ?? null, charged);
 		return;
 	}
 

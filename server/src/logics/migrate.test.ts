@@ -26,6 +26,7 @@ import {
 	migrateInvoiceLineItemsColumn,
 	migrateInvoicePdfBytesColumn,
 	migrateInvoicePaymentStatusColumn,
+	migrateInvoiceCurrencyColumn,
 	migrateGroupKind,
 } from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
@@ -1626,6 +1627,8 @@ describe('migrateInvoiceLineItemsColumn (#1912)', () => {
 		// #2086: `paymentStatus`/`saleId` gehören inzwischen ebenfalls zur index.ts-Reihenfolge
 		// (Test-Pflege — der Modell-Zugriff selectiert die neuen Spalten mit).
 		await migrateInvoicePaymentStatusColumn(sequelize);
+		// #2232: ebenso `currency` (Test-Pflege, gleicher Grund).
+		await migrateInvoiceCurrencyColumn(sequelize);
 		await assert.doesNotReject(() => migrateInvoiceLineItemsColumn(sequelize), 'zweiter Lauf bleibt stabil');
 
 		const { default: Invoice } = await import('../models/invoice.js');
@@ -1744,6 +1747,8 @@ describe('migrateInvoicePaymentStatusColumn (#2086)', () => {
 		// Nachzieh-Reihenfolge wie in index.ts: die älteren Spalten müssen vor dem Modell-Zugriff da sein.
 		await migrateInvoiceLineItemsColumn(sequelize);
 		await migrateInvoicePdfBytesColumn(sequelize);
+		// #2232: `currency` gehört ebenfalls zur index.ts-Reihenfolge (Test-Pflege).
+		await migrateInvoiceCurrencyColumn(sequelize);
 		await assert.doesNotReject(() => migrateInvoicePaymentStatusColumn!(sequelize), 'zweiter Lauf bleibt stabil');
 
 		const [columns] = await sequelize.query("PRAGMA table_info('invoices')");

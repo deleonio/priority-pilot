@@ -1173,6 +1173,20 @@ export const migrateInvoicePaymentStatusColumn = async (db: Sequelize): Promise<
 };
 
 /**
+ * Zieht `currency` (#2232) auf einer **bestehenden** `invoices`-Tabelle nach, BEVOR `sequelize.sync()`
+ * läuft — Muster {@link migrateInvoicePdfBytesColumn}. Default `EUR`: der Bestand wurde in Euro
+ * abgerechnet. Idempotent; ohne Tabelle ein No-op.
+ */
+export const migrateInvoiceCurrencyColumn = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('invoices')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+	if (existing.length > 0 && !existing.includes('currency')) {
+		await db.query("ALTER TABLE `invoices` ADD COLUMN `currency` VARCHAR(255) NOT NULL DEFAULT 'EUR'");
+		console.log('Spalte currency an invoices nachgezogen.');
+	}
+};
+
+/**
  * Stellt die Altpakete des Vier-Paket-Modells um (#1785): `max` wird `plus`, `ultimate` wird `pro` in
  * `users.plan`, `subscriptions.plan` und `subscriptions.pendingPlan`. Idempotent; fehlende Tabellen
  * oder Spalten sind ein No-op.

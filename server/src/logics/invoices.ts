@@ -32,6 +32,12 @@ const PERIOD_DISPLAY: Record<string, string> = {
 const displayLabel = (plan: Plan, period: string): string =>
 	`${plan.charAt(0).toUpperCase()}${plan.slice(1)} (${PERIOD_DISPLAY[period] ?? period})`;
 
+/** Tatsächlich abgebuchter Betrag aus dem Zahlungsereignis (#2232). */
+export interface ChargedAmount {
+	amountCents: number;
+	currency: string;
+}
+
 /**
  * Nächste Rechnungsnummer im Format `INV-<Jahr>-<6-stellig>`, lückenlos aufsteigend je
  * Kalenderjahr und eindeutig auch bei parallelen Aufrufen.
@@ -71,6 +77,7 @@ const deliverInvoice = async (
 	const periodEnd = invoice.get('periodEnd') as Date;
 	const lineItems = invoice.get('lineItems') as { label: string; amountCents: number }[];
 	const amountCents = invoice.get('amountCents') as number;
+	const currency = invoice.get('currency') as string;
 	const sent = await sendMailToUser(
 		user,
 		{
@@ -79,8 +86,8 @@ const deliverInvoice = async (
 				`Rechnung ${number}`,
 				`Zeitraum: ${periodStart.toISOString().slice(0, 10)} bis ${periodEnd.toISOString().slice(0, 10)}`,
 				`Paket: ${label}`,
-				...lineItems.map((item) => `${item.label}: ${(item.amountCents / 100).toFixed(2)} EUR`),
-				`Betrag: ${(amountCents / 100).toFixed(2)} EUR`,
+				...lineItems.map((item) => `${item.label}: ${(item.amountCents / 100).toFixed(2)} ${currency}`),
+				`Betrag: ${(amountCents / 100).toFixed(2)} ${currency}`,
 				TAX_NOTE,
 			].join('\n'),
 			attachments: [{ filename: `${number}.pdf`, contentType: 'application/pdf', content: pdf }],
@@ -101,19 +108,25 @@ const deliverInvoice = async (
  *
  * @param mailSend injizierbarer Versand (Default: `sendMailToUser`s nodemailer-Transport).
  * @param saleId Sale-Referenz des auslösenden Zahlungsereignisses (#2086) — Anker für spätere Erstattungen.
+ * @param charged abgebuchter Betrag und Währung (#2232); ohne gilt der Katalogpreis in EUR.
  */
 export const issueInvoiceForPeriod = async (
 	subscription: Subscription,
 	now: Date,
 	mailSend?: MailSender,
 	saleId?: string | null,
+	charged?: ChargedAmount,
 ): Promise<Invoice> => {
 	const subscriptionId = subscription.get('id') as number;
 	const periodEnd = subscription.get('currentPeriodEnd') as Date;
 	const period = String(subscription.get('period'));
 	const plan = String(subscription.get('plan')) as Plan;
+	const prices = getPlansCatalog().prices[plan];
+	const priceCents = prices ? prices[period as keyof typeof prices] : 0;
 
-	const label = displayLabel(plan, period);
+	// #2232: ein abgelöstes Abo (#1912) steht auf `free` — eine Abbuchung darauf ist kein „Free“-Beleg.
+	const label =
+		charged && priceCents === 0 ? `Abbuchung (${PERIOD_DISPLAY[period] ?? period})` : displayLabel(plan, period);
 	const user = await User.findByPk(subscription.get('userId') as number);
 	// #2030: Nachholversand unzugestellter Rechnungen (Mailfehler schluckt `sendMailToUser`).
 	const redeliverPending = async (exceptId?: number): Promise<void> => {
@@ -135,18 +148,20 @@ export const issueInvoiceForPeriod = async (
 	const periodStart = new Date(periodEnd);
 	periodStart.setUTCMonth(periodStart.getUTCMonth() - (PERIOD_MONTHS[period] ?? 1));
 
-	const prices = getPlansCatalog().prices[plan];
-	const priceCents = prices ? prices[period as keyof typeof prices] : 0;
 	// #1912: Guthaben aus einem Upgrade wird einmalig als eigene Position verrechnet.
 	const creditCents = Math.min(Number(subscription.get('creditCents') ?? 0), priceCents);
+	// #2232: der abgebuchte Betrag gilt; seine Abweichung zum Katalogpreis wird eigene Position.
+	const amountCents = charged ? charged.amountCents : priceCents - creditCents;
 	const lineItems =
-		creditCents > 0
+		priceCents > 0 && amountCents !== priceCents
 			? [
 					{ label: `Paket ${label}`, amountCents: priceCents },
-					{ label: 'Verrechnung Restlaufzeit', amountCents: -creditCents },
+					{
+						label: creditCents > 0 ? 'Verrechnung Restlaufzeit' : 'Abweichung vom Paketpreis',
+						amountCents: amountCents - priceCents,
+					},
 				]
 			: [];
-	const amountCents = priceCents - creditCents;
 
 	const invoice = await Invoice.create({
 		userId: subscription.get('userId') as number,
@@ -155,6 +170,7 @@ export const issueInvoiceForPeriod = async (
 		periodStart,
 		periodEnd,
 		amountCents,
+		currency: charged?.currency ?? 'EUR',
 		taxNote: TAX_NOTE,
 		lineItems,
 		saleId: saleId ?? null,
