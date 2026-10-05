@@ -1,4 +1,5 @@
-import { Op } from 'sequelize';
+import { Op, type Transaction } from 'sequelize';
+import sequelize from '../database.js';
 import Subscription from '../models/subscription.js';
 import Invoice from '../models/invoice.js';
 import { rankOf, syncUserPlan, applyDuePendingPlan, type GracePeriodDeps } from './billing/lifecycle.js';
@@ -414,12 +415,16 @@ export const replacePredecessors = async (
 
 /** Injizierbare Abhängigkeiten von {@link applyPaymentEvent} (Muster `deps` in `billing.ts`). */
 export interface ApplyPaymentEventDeps {
-	/** `saleId`: Sale-Referenz der Abbuchung (`resource.id`, #2086); `charged`: abgebuchter Betrag (`resource.amount`, #2232). */
+	/**
+	 * `saleId`: Sale-Referenz der Abbuchung (`resource.id`, #2086); `charged`: abgebuchter Betrag (`resource.amount`, #2232);
+	 * `transaction`: die Transaktion der Abbuchung (#2233) — Rechnung und Verlängerung gelingen nur gemeinsam.
+	 */
 	issueInvoice?: (
 		subscription: Subscription,
 		now: Date,
 		saleId?: string | null,
 		charged?: ChargedAmount,
+		transaction?: Transaction,
 	) => Promise<unknown>;
 }
 
@@ -429,7 +434,9 @@ export interface ApplyPaymentEventDeps {
  * - Erfolgreiche Abbuchung (`PAYMENT.SALE.COMPLETED`) → zunächst eine fällige Downgrade-Vormerkung
  *   und die zahlungsgebundene Vormerkung (#2140) anwenden (Paket und Zeitraum des NEUEN Zyklus), dann
  *   Periode um einen Zeitraum verschieben — die erste Abbuchung ab `max(currentPeriodEnd, now)`
- *   (#2230) —, `status: 'active'`, `firstFailureAt` löschen, danach `deps.issueInvoice` aufrufen.
+ *   (#2230) —, `status: 'active'`, `firstFailureAt` löschen, danach `deps.issueInvoice` aufrufen. Alles in
+ *   einer Transaktion (#2233): wirft die Rechnung, bleibt das Abo unverändert und die Wiederholung
+ *   des Ereignisses verlängert genau einmal.
  * - Aktivierung (`BILLING.SUBSCRIPTION.ACTIVATED`) ist keine Abbuchung → nur `status: 'active'`,
  *   weder Verlängerung noch Rechnung (#2230).
  * - Fehlgeschlagener Einzug (`BILLING.SUBSCRIPTION.PAYMENT.FAILED`) → nur beim ersten Mal
@@ -454,52 +461,57 @@ export const applyPaymentEvent = async (
 	}
 
 	if (eventType === 'PAYMENT.SALE.COMPLETED') {
-		// Eine fällige Downgrade-Vormerkung (Paket+Zeitraum) wird VOR der Verlängerung angewendet:
-		// Die Abbuchung startet den neuen Zyklus, Verlängerung und Rechnung müssen daher mit dem
-		// neuen Paket×Zeitraum rechnen — das `applyDuePendingPlan` beim nächsten `/auth/me` käme
-		// zu spät (Verlängerung um die alte Periode, Rechnung zum alten Preis).
-		await applyDuePendingPlan(subscription, now);
-		// Zahlungsgebundene Vormerkung (#2140): erst die Abbuchung schaltet Upgrade bzw. Zeitraumwechsel
-		// frei — ebenfalls VOR der Verlängerung.
-		const pendingPlan = subscription.get('pendingPlan') as Plan | null;
-		if (pendingPlan && !subscription.get('pendingPlanEffectiveAt')) {
-			await subscription.update({
-				plan: pendingPlan,
-				period: subscription.get('pendingPeriod') ?? subscription.get('period'),
-				pendingPlan: null,
-				pendingPeriod: null,
-			});
-			await syncUserPlan(subscription, pendingPlan);
-		}
-		// Erstabschluss (#2231): der Checkout legt das Abo schon mit dem Zielpaket an, `User.plan` bleibt
-		// bis zum Zahlungseingang `free`. Gesperrte und abgelöste Abos (#1912) schalten nichts frei.
-		const status = String(subscription.get('status'));
-		if (status !== 'locked' && status !== 'cancelled') {
-			await syncUserPlan(subscription, subscription.get('plan') as Plan);
-		}
-		const months = PERIOD_MONTHS[String(subscription.get('period'))] ?? 1;
-		const currentPeriodEnd = new Date(subscription.get('currentPeriodEnd') as Date);
-		const nextPeriodEnd = new Date(currentPeriodEnd);
-		nextPeriodEnd.setUTCMonth(nextPeriodEnd.getUTCMonth() + months);
-		// Die Zustimmung kann Stunden nach dem Checkout liegen: die erste Abbuchung (noch keine Rechnung, Start
-		// innerhalb der letzten Periode) rechnet ab jetzt; Folgeabbuchungen ab dem Periodenende — kein Drift
-		// gegen PayPals Abrechnungsplan bei verspätetem Einzug (#2230).
-		if (
-			currentPeriodEnd < now &&
-			now < nextPeriodEnd &&
-			(await Invoice.count({ where: { subscriptionId: subscription.get('id') as number } })) === 0
-		) {
-			currentPeriodEnd.setTime(now.getTime());
-		}
-		currentPeriodEnd.setUTCMonth(currentPeriodEnd.getUTCMonth() + months);
-		await subscription.update({ currentPeriodEnd, status: 'active', firstFailureAt: null });
-		const amount = event.resource?.amount;
-		const total = Number(amount?.total);
-		const charged =
-			amount?.total && amount.currency && Number.isFinite(total)
-				? { amountCents: Math.round(total * 100), currency: amount.currency }
-				: undefined;
-		await deps.issueInvoice?.(subscription, now, event.resource?.id ?? null, charged);
+		await sequelize.transaction(async (transaction) => {
+			// Eine fällige Downgrade-Vormerkung (Paket+Zeitraum) wird VOR der Verlängerung angewendet:
+			// Die Abbuchung startet den neuen Zyklus, Verlängerung und Rechnung müssen daher mit dem
+			// neuen Paket×Zeitraum rechnen — das `applyDuePendingPlan` beim nächsten `/auth/me` käme
+			// zu spät (Verlängerung um die alte Periode, Rechnung zum alten Preis).
+			await applyDuePendingPlan(subscription, now, transaction);
+			// Zahlungsgebundene Vormerkung (#2140): erst die Abbuchung schaltet Upgrade bzw. Zeitraumwechsel
+			// frei — ebenfalls VOR der Verlängerung.
+			const pendingPlan = subscription.get('pendingPlan') as Plan | null;
+			if (pendingPlan && !subscription.get('pendingPlanEffectiveAt')) {
+				await subscription.update(
+					{
+						plan: pendingPlan,
+						period: subscription.get('pendingPeriod') ?? subscription.get('period'),
+						pendingPlan: null,
+						pendingPeriod: null,
+					},
+					{ transaction },
+				);
+				await syncUserPlan(subscription, pendingPlan, transaction);
+			}
+			// Erstabschluss (#2231): der Checkout legt das Abo schon mit dem Zielpaket an, `User.plan` bleibt
+			// bis zum Zahlungseingang `free`. Gesperrte und abgelöste Abos (#1912) schalten nichts frei.
+			const status = String(subscription.get('status'));
+			if (status !== 'locked' && status !== 'cancelled') {
+				await syncUserPlan(subscription, subscription.get('plan') as Plan, transaction);
+			}
+			const months = PERIOD_MONTHS[String(subscription.get('period'))] ?? 1;
+			const currentPeriodEnd = new Date(subscription.get('currentPeriodEnd') as Date);
+			const nextPeriodEnd = new Date(currentPeriodEnd);
+			nextPeriodEnd.setUTCMonth(nextPeriodEnd.getUTCMonth() + months);
+			// Die Zustimmung kann Stunden nach dem Checkout liegen: die erste Abbuchung (noch keine Rechnung, Start
+			// innerhalb der letzten Periode) rechnet ab jetzt; Folgeabbuchungen ab dem Periodenende — kein Drift
+			// gegen PayPals Abrechnungsplan bei verspätetem Einzug (#2230).
+			if (
+				currentPeriodEnd < now &&
+				now < nextPeriodEnd &&
+				(await Invoice.count({ where: { subscriptionId: subscription.get('id') as number }, transaction })) === 0
+			) {
+				currentPeriodEnd.setTime(now.getTime());
+			}
+			currentPeriodEnd.setUTCMonth(currentPeriodEnd.getUTCMonth() + months);
+			await subscription.update({ currentPeriodEnd, status: 'active', firstFailureAt: null }, { transaction });
+			const amount = event.resource?.amount;
+			const total = Number(amount?.total);
+			const charged =
+				amount?.total && amount.currency && Number.isFinite(total)
+					? { amountCents: Math.round(total * 100), currency: amount.currency }
+					: undefined;
+			await deps.issueInvoice?.(subscription, now, event.resource?.id ?? null, charged, transaction);
+		});
 		return;
 	}
 

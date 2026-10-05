@@ -14,11 +14,13 @@
 		"test:coverage": "NODE_ENV=test DATABASE_STORAGE=:memory: node --import tsx --test --experimental-test-coverage --test-coverage-include='src/logics/**' --test-coverage-lines=90 --test-coverage-branches=85 --test-coverage-functions=85 \"src/**/*.test.ts\""
 	},
 	"dependencies": {
+		"@pdf-lib/fontkit": "1.1.1",
 		"bcryptjs": "3.0.3",
 		"connect-redis": "10.0.0",
 		"connect-sqlite3": "0.9.18",
 		"cookie-parser": "1.4.7",
 		"csrf-csrf": "4.0.3",
+		"dejavu-fonts-ttf": "2.37.3",
 		"express": "5.2.1",
 		"express-rate-limit": "8.7.0",
 		"express-session": "1.19.0",

@@ -1,4 +1,4 @@
-import { Op } from 'sequelize';
+import { Op, type Transaction } from 'sequelize';
 import Subscription from '../../models/subscription.js';
 import User from '../../models/user.js';
 import { PLAN_VALUES, type Plan } from '../plans.js';
@@ -24,12 +24,16 @@ export const rankOf = (plan: string): number => PLAN_VALUES.indexOf(plan as Plan
  * Bewusst nur ein Spaltenwechsel: es wird kein Datensatz gelöscht, gesperrt wird allein der
  * Schreibzugriff.
  */
-export const syncUserPlan = async (subscription: Subscription, plan: Plan): Promise<void> => {
+export const syncUserPlan = async (
+	subscription: Subscription,
+	plan: Plan,
+	transaction?: Transaction,
+): Promise<void> => {
 	const userId = subscription.get('userId') as number | null | undefined;
 	if (!userId) {
 		return;
 	}
-	await User.update({ plan }, { where: { id: userId } });
+	await User.update({ plan }, { where: { id: userId }, transaction });
 };
 
 /**
@@ -41,21 +45,28 @@ export const syncUserPlan = async (subscription: Subscription, plan: Plan): Prom
  * Wechsel wirkt genau dann, wenn der Zustand gebraucht wird, und hängt nicht daran, dass der Anbieter
  * zufällig ein weiteres Ereignis schickt. Ohne fällige Vormerkung ist der Aufruf ein No-Op.
  */
-export const applyDuePendingPlan = async (subscription: Subscription, now: Date): Promise<boolean> => {
+export const applyDuePendingPlan = async (
+	subscription: Subscription,
+	now: Date,
+	transaction?: Transaction,
+): Promise<boolean> => {
 	const pendingPlan = subscription.get('pendingPlan') as string | null | undefined;
 	const pendingPeriod = subscription.get('pendingPeriod') as string | null | undefined;
 	const effectiveAt = subscription.get('pendingPlanEffectiveAt') as Date | string | null | undefined;
 	if (!pendingPlan || !effectiveAt || new Date(effectiveAt).getTime() > now.getTime()) {
 		return false;
 	}
-	await subscription.update({
-		plan: pendingPlan,
-		...(pendingPeriod ? { period: pendingPeriod } : {}),
-		pendingPlan: null,
-		pendingPeriod: null,
-		pendingPlanEffectiveAt: null,
-	});
-	await syncUserPlan(subscription, pendingPlan as Plan);
+	await subscription.update(
+		{
+			plan: pendingPlan,
+			...(pendingPeriod ? { period: pendingPeriod } : {}),
+			pendingPlan: null,
+			pendingPeriod: null,
+			pendingPlanEffectiveAt: null,
+		},
+		{ transaction },
+	);
+	await syncUserPlan(subscription, pendingPlan as Plan, transaction);
 	return true;
 };
 

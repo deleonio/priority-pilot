@@ -179,12 +179,24 @@ describe('invoices.ts — issueInvoiceForPeriod (#1495 AK8)', () => {
 		});
 		const invoice = await issueInvoiceForPeriod(subscription, now, async () => {});
 		const pdf = Buffer.from((invoice.get({ plain: true }) as { pdfBytes: Uint8Array }).pdfBytes);
-		// Content-Stream ist Flate-komprimiert (pdf-lib), der Text steht als Hex- oder Literal-String.
-		const start = pdf.indexOf('stream\n') + 7;
-		const text = zlib.inflateSync(pdf.subarray(start, pdf.indexOf('endstream'))).toString('latin1');
-		const label = 'Leistung: Paket Plus (monatlich)';
-		const hex = Buffer.from(label, 'latin1').toString('hex').toUpperCase();
-		const literal = label.replaceAll('(', '\\(').replaceAll(')', '\\)');
-		assert.ok(text.includes(hex) || text.includes(literal), 'Die PDF-Leistungszeile muss das deutsche Label tragen');
+		// Streams sind Flate-komprimiert (pdf-lib). Die eingebettete Unicode-Schrift (#2233) schreibt
+		// Glyph-IDs statt Zeichen — das Label wird über die ToUnicode-CMap in Glyph-IDs übersetzt.
+		const streams: string[] = [];
+		for (let i = pdf.indexOf('stream\n'); i !== -1; i = pdf.indexOf('>>\nstream\n', i + 1)) {
+			const start = pdf.indexOf('stream\n', i) + 7;
+			streams.push(zlib.inflateSync(pdf.subarray(start, pdf.indexOf('endstream', start))).toString('latin1'));
+		}
+		const cmap = streams.find((stream) => stream.includes('beginbfchar')) ?? '';
+		const glyphIds = new Map(
+			[...cmap.matchAll(/<([0-9A-F]{4})> <([0-9A-F]{4})>/g)].map(([, gid, code]) => [
+				String.fromCharCode(parseInt(code, 16)),
+				gid,
+			]),
+		);
+		const hex = Array.from('Leistung: Paket Plus (monatlich)', (char) => glyphIds.get(char) ?? '?').join('');
+		assert.ok(
+			streams.some((stream) => stream.includes(`<${hex}>`)),
+			'Die PDF-Leistungszeile muss das deutsche Label tragen',
+		);
 	});
 });

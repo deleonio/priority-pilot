@@ -8,5 +8,6 @@
 		"src/llm/llm.ts",
 	],
 	// tsx wird als devDependency benötigt (test:node mit tsx) — keine false positive
-	"ignoreDependencies": ["tsx"],
+	// dejavu-fonts-ttf liefert die PDF-Schrift (#2233), aufgelöst per require.resolve-String — kein Import
+	"ignoreDependencies": ["tsx", "dejavu-fonts-ttf"],
 }
