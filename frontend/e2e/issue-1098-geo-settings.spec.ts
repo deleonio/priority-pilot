@@ -100,8 +100,8 @@ test.describe('Balamentum — #1098: Geo-Einstellungen', () => {
 	test('AK1/AK3 — 375px: „Standort-Details" folgt dem Switch, geöffnet ≥ 44px Touch-Ziel', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.addInitScript(GEO_INIT(false));
-		// #1151: Die Geo-Einstellungen leben jetzt im Tab „Standort" (/settings/standort).
-		await page.goto('/app/settings/standort');
+		// #1151: Die Geo-Einstellungen leben jetzt im Tab „Standort" (/settings/ortung).
+		await page.goto('/app/settings/ortung');
 		await waitForStableView(page, 'Allgemein');
 
 		const labels = ['Anzeige-Entfernung (km)', 'Alarm-Entfernung (km)', 'Aktualisierungsintervall (Minuten)'];
@@ -138,8 +138,8 @@ test.describe('Balamentum — #1098: Geo-Einstellungen', () => {
 
 	test('AK7 — geänderter Anzeige-Wert überlebt den Reload (serverseitig gespeichert)', async ({ page }) => {
 		await page.addInitScript(GEO_INIT(true));
-		// #1151: Die Geo-Einstellungen leben jetzt im Tab „Standort" (/settings/standort).
-		await page.goto('/app/settings/standort');
+		// #1151: Die Geo-Einstellungen leben jetzt im Tab „Standort" (/settings/ortung).
+		await page.goto('/app/settings/ortung');
 		await waitForStableView(page, 'Allgemein');
 
 		const input = rangeInput(page, 'Anzeige-Entfernung (km)');
@@ -149,8 +149,11 @@ test.describe('Balamentum — #1098: Geo-Einstellungen', () => {
 		await input.press('ArrowRight');
 		const afterChange = await input.inputValue();
 		expect(Number(afterChange)).toBeGreaterThan(5);
+		// Erst „Speichern" schreibt zum Server; „Zurücksetzen" daneben verwirft den Entwurf.
+		await expect(page.getByRole('button', { name: 'Zurücksetzen' })).toBeEnabled();
+		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
 
-		// Das PUT je Änderung ist Best-Effort und async: Ein sofortiger Reload bricht die
+		// Das PUT beim Speichern ist Best-Effort und async: Ein sofortiger Reload bricht die
 		// in-flight-Request ab und der Wert geht verloren (CI-Flake, lokal meist schnell genug).
 		// Erst warten, bis der Server den neuen Wert zurückmeldet — dann ist der Reload ein
 		// echter Persistenz-Beweis (AK7: serverseitig, kein localStorage).

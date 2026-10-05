@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NearbyCard } from './NearbyCard';
@@ -9,7 +9,7 @@ import { PlanProvider } from '../lib/usePlan';
 // Test-Pflege (#1528 AK3): das nicht-enthaltene Badge ist außerhalb von Modalen ein Router-Link
 // (`<a href="/settings/pakete">` + useNavigate). Diese Suite rendert die Host-Komponente ohne
 // Router — der Hook wird deshalb auf einen Stub geleitet; das Klick-Verhalten deckt PlanBadge.test.
-vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
+vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn(), useInRouterContext: () => true }));
 
 /**
  * Spec-Tests (#1110, Spec docs/spec/issue-1110.md) — Card-Titel mit Anzeige-Entfernung.
@@ -37,6 +37,10 @@ vi.mock('../lib/useGeolocation', () => ({
 }));
 
 vi.mock('@public-ui/react-v19', () => ({
+	KolPopoverButton: ({ children, ...rest }: { children?: React.ReactNode }) => (
+		<div data-testid={(rest as Record<string, string>)['data-testid']}>{children}</div>
+	),
+	KolAlert: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
 	KolCard: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
 		<div data-comp="kol-card" data-label={_label}>
 			{children}
@@ -169,11 +173,11 @@ describe('NearbyCard — Paket-Badge im Kartenkopf (#1484 AK3/AK4)', () => {
 	});
 
 	// Test-Pflege (#1528 AK2/AK3): (i)-Schalter entfallen — außerhalb des Modals ist das Badge der Link.
-	it('allowed=false → Paket-Badge als Link, keine eigene Paketlogik in NearbyCard (#1528)', async () => {
+	it('allowed=false → Paket-Hinweis mit Button, keine eigene Paketlogik in NearbyCard (#1528)', async () => {
 		renderWithEntitlement(false);
 
 		const badge = await screen.findByTestId('plan-badge-location_reminders');
-		expect(badge.closest('a')).toHaveAttribute('href', '/settings/pakete');
+		expect(within(badge).getByRole('button', { name: 'Pakete ansehen' })).toBeInTheDocument();
 		expect(screen.queryByTestId('plan-badge-info-location_reminders')).toBeNull();
 	});
 });

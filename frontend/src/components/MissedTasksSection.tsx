@@ -50,7 +50,12 @@ export const MissedTasksSection = ({ tasks, onComplete, onEdit, onArchive, onDel
 							<KolButton _label="Erledigt" _variant="primary" _on={{ onClick: () => onComplete(task) }} />
 							<KolButton _label="Neu planen" _variant="secondary" _on={{ onClick: () => onEdit(task) }} />
 							<KolButton _label="Archivieren" _variant="secondary" _on={{ onClick: () => onArchive(task) }} />
-							<KolButton _label="Löschen" _variant="danger" _on={{ onClick: () => onDelete(task) }} />
+							<KolButton
+								_label="Löschen"
+								_icons={{ left: { icon: 'fa-solid fa-trash' } }}
+								_variant="danger"
+								_on={{ onClick: () => onDelete(task) }}
+							/>
 						</div>
 					</li>
 				))}

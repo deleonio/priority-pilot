@@ -413,16 +413,16 @@ describe('App — Rollensystem admin/member: Deep-Link /settings/nutzer', () => 
 	// rollenabhängigen Reitern — „Nutzerverwaltung" liegt damit auf Index 8. Der geprüfte Vertrag
 	// (Admin-Route wählt den Admin-Reiter, Panel existiert) bleibt unverändert.
 	// Test-Pflege #1969: Der Tab „Import" (Index 8) schiebt die Nutzerverwaltung auf Index 9.
-	it('Admin: öffnet den letzten Tab „Nutzerverwaltung" (Index 9) mit Panel tab-9', async () => {
+	it('Admin: öffnet den letzten Tab „Nutzerverwaltung" (Index 8) mit Panel tab-8', async () => {
 		render(<App user={{ ...testUser, role: 'admin' as const }} />);
 
 		await waitFor(() => {
 			expect(tabsElement()).not.toBeNull();
 		});
 		const tabs = tabsElement();
-		expect(tabs?._selected).toBe(9);
+		expect(tabs?._selected).toBe(8);
 		expect(tabs?._tabs?.map((t) => t._label)).toContain('Nutzerverwaltung');
-		expect(document.querySelector('[slot="tab-9"]')).not.toBeNull();
+		expect(document.querySelector('[slot="tab-8"]')).not.toBeNull();
 	});
 });
 
@@ -520,7 +520,7 @@ describe('App — #1361 AK4: Abschluss-Hinweis im Aufgaben-Tab ignoriert aktive 
 		vi.mocked(api.getStreak).mockResolvedValue({
 			aktuell: 1,
 			best: 1,
-			letzterTag: new Date().toISOString().slice(0, 10),
+			letzterTag: new Date().toLocaleDateString('sv-SE'),
 		});
 		// Suchtext ohne Treffer: filteredForest bleibt leer, „Keine Aufgaben gefunden" erscheint —
 		// AK4 verlangt, dass der Abschluss-Hinweis davon unberührt bleibt (hängt an `tasks`, nicht
@@ -676,8 +676,11 @@ describe('App — #1894: Settings-Segmente nach dem Tab „Orte"', () => {
 	});
 
 	it.each([
-		['standort', 'Standort', false],
-		['orte', 'Orte', false],
+		['ortung', 'Ortung', false],
+		// Alte Adressen: „Standort" und „Orte" sind in „Ortung" aufgegangen.
+		['standort', 'Ortung', false],
+		['orte', 'Ortung', false],
+		['import', 'Daten', false],
 		['gruppen', 'Gruppen', false],
 		['kategorien', 'Kategorien', false],
 		// Test-Pflege #1902: „Pakete" und „Abo" sind ein Reiter; die alte Adresse /settings/abo öffnet ihn.
@@ -695,6 +698,34 @@ describe('App — #1894: Settings-Segmente nach dem Tab „Orte"', () => {
 			expect(tabsElement()).not.toBeNull();
 		});
 		const tabs = tabsElement();
+		expect(tabs?._tabs?.[tabs._selected ?? -1]?._label).toBe(label);
+	});
+});
+
+/** Hilfe-Tabs haben eigene Routen wie die Einstellungen: `/hilfe`, `/hilfe/user-guide` und `/hilfe/manual` = Handbuch, `/hilfe/:tab` für die übrigen. */
+describe('App — Hilfe-Segmente', () => {
+	type TabsElement = { _tabs?: { _label: string }[]; _selected?: number } | null;
+
+	afterEach(() => {
+		window.history.replaceState({}, '', '/');
+	});
+
+	it.each([
+		['/hilfe', 'Handbuch'],
+		['/hilfe/user-guide', 'Handbuch'],
+		['/hilfe/manual', 'Handbuch'],
+		['/hilfe/feedback', 'Feedback'],
+		['/hilfe/impressum', 'Impressum'],
+		['/hilfe/changelog', 'Changelog'],
+		['/hilfe/unbekannt', 'Handbuch'],
+	])('%s wählt den Tab „%s“', async (path, label) => {
+		window.history.replaceState({}, '', path);
+		render(<App user={testUser} />);
+
+		await waitFor(() => {
+			expect(document.querySelector('kol-tabs[_label="Hilfe"]')).not.toBeNull();
+		});
+		const tabs = document.querySelector('kol-tabs[_label="Hilfe"]') as unknown as TabsElement;
 		expect(tabs?._tabs?.[tabs._selected ?? -1]?._label).toBe(label);
 	});
 });

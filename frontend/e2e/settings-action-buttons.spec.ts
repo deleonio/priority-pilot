@@ -11,7 +11,7 @@ import { waitForStableView } from './helpers';
  * mobil (<768px) füllen sie die Container-Innenbreite je in eigener Zeile, desktop (≥768px)
  * sind sie inhaltsbreit linksbündig.
  *
- * #1151: „Standort ermitteln" ist in den eigenen Tab „Standort" (`/settings/standort`, Panel
+ * #1151: „Standort ermitteln" ist in den eigenen Tab „Standort" (`/settings/ortung`, Panel
  * `.settings-geo`) umgezogen; „Push testen" bleibt im Tab „Allgemein" (`.settings-general`).
  * Die gemeinsame Zwei-Buttons-Szene existiert damit nicht mehr — jede Messung läuft im Tab des
  * jeweiligen Buttons (Split nach Tab), die AKs werden je Button geprüft.
@@ -113,9 +113,9 @@ async function openGeneral(page: import('@playwright/test').Page): Promise<void>
 /** Öffnet den Tab „Standort" (#1151) mit sichtbarem Geo-Button und verifiziert die Szene. */
 async function openStandort(page: import('@playwright/test').Page): Promise<void> {
 	await fakeActionButtonsScene(page);
-	await page.goto('/app/settings/standort');
+	await page.goto('/app/settings/ortung');
 	await waitForStableView(page, 'Balamentum');
-	await expect(page.getByRole('tab', { name: 'Standort', exact: true })).toHaveAttribute('aria-selected', 'true');
+	await expect(page.getByRole('tab', { name: 'Ortung', exact: true })).toHaveAttribute('aria-selected', 'true');
 	await expect(page.getByRole('button', { name: 'Standort ermitteln' })).toBeVisible();
 }
 

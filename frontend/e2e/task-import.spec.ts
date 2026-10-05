@@ -30,8 +30,8 @@ const session = async (page: Page): Promise<void> => {
 test.describe('#1969 Import aus Todoist und CSV', () => {
 	test('AK6: Import-Tab in den Einstellungen, Vorschau und Übernahme erzeugen Aufgaben', async ({ page }) => {
 		await session(page);
-		await page.goto('/app/settings/import');
-		await expect(page.getByRole('tab', { name: 'Import', exact: true })).toBeVisible();
+		await page.goto('/app/settings/daten');
+		await expect(page.getByRole('tab', { name: 'Daten', exact: true })).toBeVisible();
 
 		await page.locator('.task-import-card input[type="file"]').setInputFiles({
 			name: 'todoist.csv',
@@ -50,7 +50,7 @@ test.describe('#1969 Import aus Todoist und CSV', () => {
 	}) => {
 		await session(page);
 		await page.setViewportSize(MOBILE);
-		await page.goto('/app/settings/import');
+		await page.goto('/app/settings/daten');
 		const card = page.locator('.task-import-card');
 		await expect(card).toBeVisible();
 		const box = await card.boundingBox();

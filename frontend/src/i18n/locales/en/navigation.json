@@ -12,6 +12,7 @@
 		"help": "Help",
 		"logout": "Logout",
 		"headerActions": "Header actions",
+		"skipToContent": "Skip to content",
 		"activeViewDescription": "Current view — activate again to go back"
 	}
 }

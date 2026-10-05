@@ -17,6 +17,7 @@ import Group from './group.js';
 import GroupMember from './groupMember.js';
 import GroupInvitation from './groupInvitation.js';
 import GroupInviteLink from './groupInviteLink.js';
+import GroupChallenge from './groupChallenge.js';
 import ApiToken from './apiToken.js';
 import PlaceFavorite from './placeFavorite.js';
 import AiUsage from './aiUsage.js';
@@ -114,6 +115,7 @@ Pillar.belongsToMany(Series, { through: SeriesPillar, foreignKey: 'pillarId', ot
 // erst über `externalSubscriptionId`).
 // `milestone_reached` steht für sich (einmal erreichte Meilenstein-Stände, Issue #1965) — pro
 // Nutzer über `userId` gefiltert, ohne Sequelize-Assoziation (Muster `api_tokens`).
+// `group_challenges` (#1992) steht für sich — über `groupId` gefiltert, Mitgliedschaft prüft die Route.
 export {
 	Task,
 	Category,
@@ -134,6 +136,7 @@ export {
 	GroupMember,
 	GroupInvitation,
 	GroupInviteLink,
+	GroupChallenge,
 	ApiToken,
 	PlaceFavorite,
 	AiUsage,

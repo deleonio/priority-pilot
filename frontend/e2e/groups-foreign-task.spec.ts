@@ -1,4 +1,4 @@
-import { expect, test, type Page } from './fixtures';
+import { dismissOnboardingDialog, expect, test, type Page } from './fixtures';
 import { accordionTrigger, avoidSunday, openAccordionSection, taskTitleText, waitForStableView } from './helpers';
 
 /**
@@ -114,6 +114,7 @@ test.describe('Aufgabe für ein Gruppenmitglied (#1213)', () => {
 		await inviteeContext.addCookies([{ name: cookieName.trim(), value: cookieValue.trim(), url: baseURL! }]);
 		const inviteePage = await inviteeContext.newPage();
 		await avoidSunday(inviteePage);
+		await dismissOnboardingDialog(inviteePage);
 
 		try {
 			await openGroupsTab(page);
@@ -169,6 +170,7 @@ test.describe('Aufgabe für ein Gruppenmitglied (#1213)', () => {
 		await inviteeContext.addCookies([{ name: cookieName.trim(), value: cookieValue.trim(), url: baseURL! }]);
 		const inviteePage = await inviteeContext.newPage();
 		await avoidSunday(inviteePage);
+		await dismissOnboardingDialog(inviteePage);
 
 		try {
 			await openGroupsTab(page);

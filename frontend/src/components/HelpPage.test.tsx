@@ -1,7 +1,14 @@
+import { useState } from 'react';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HelpPage } from './HelpPage';
+
+/** Hält den Tab-Zustand wie die Route in `App` (die URL gibt ihn dort vor). */
+const HelpHarness = () => {
+	const [tab, setTab] = useState(0);
+	return <HelpPage tab={tab} onTabChange={setTab} />;
+};
 
 /**
  * Rote Spec-Tests für #1190 — „Changelog-Tab neben dem Handbuch" (Spec docs/spec/issue-1190.md).
@@ -102,7 +109,7 @@ describe('HelpPage – #1190: Changelog-Tab neben dem Handbuch', () => {
 	});
 
 	it('AK1: KolTabs mit Labels [Handbuch, Feedback, Impressum, Changelog]; Handbuch bleibt nach Tab-Wechsel erhalten', async () => {
-		const { container } = render(<HelpPage />);
+		const { container } = render(<HelpHarness />);
 
 		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
 		expect(
@@ -129,7 +136,7 @@ describe('HelpPage – #1190: Changelog-Tab neben dem Handbuch', () => {
 	});
 
 	it('AK2: Changelog lädt lazy (kein API-Call bei Mount), paginiert (100 je Seite), neueste zuerst mit Version + de-DE-Datum', async () => {
-		const { container } = render(<HelpPage />);
+		const { container } = render(<HelpHarness />);
 
 		// Lazy: vor dem ersten Aktivieren des Changelog-Tabs passiert kein GitHub-Call.
 		await waitFor(() => {
@@ -155,7 +162,7 @@ describe('HelpPage – #1190: Changelog-Tab neben dem Handbuch', () => {
 	});
 
 	it('AK3: Release-Body wird gerendert — Kategorie-Abschnitte als Überschrift, Items als li', async () => {
-		const { container } = render(<HelpPage />);
+		const { container } = render(<HelpHarness />);
 
 		selectTab(container, 3);
 
@@ -178,7 +185,7 @@ describe('HelpPage – #1190: Changelog-Tab neben dem Handbuch', () => {
 		});
 		vi.stubGlobal('fetch', fetchMock);
 
-		const { container } = render(<HelpPage />);
+		const { container } = render(<HelpHarness />);
 		await waitFor(() => {
 			expect(panel(container, 'tab-0')?.querySelector(GUIDE_HEADING)).toBeTruthy();
 		});
@@ -204,7 +211,7 @@ describe('HelpPage – Impressum-Tab (§ 5 DDG)', () => {
 	// Impressum ist statisch (kein Fetch); jsdom lässt alle Panels im DOM, daher über den
 	// Tab-Wechsel prüfbar wie die anderen Panels.
 	it('dritter Reiter „Impressum" rendert die Pflichtangaben-Struktur', async () => {
-		const { container } = render(<HelpPage />);
+		const { container } = render(<HelpHarness />);
 
 		selectTab(container, 2);
 
@@ -222,7 +229,7 @@ describe('HelpPage – #1891: Links zu Nutzungsbedingungen und Datenschutz', () 
 		['Nutzungsbedingungen', '/nutzungsbedingungen/'],
 		['Datenschutz', '/datenschutz/'],
 	])('Impressum-Tab verlinkt „%s“ extern in neuem Tab', (label, path) => {
-		const { container } = render(<HelpPage />);
+		const { container } = render(<HelpHarness />);
 
 		selectTab(container, 2);
 
@@ -282,7 +289,7 @@ describe('HelpPage – #1206: Kategorien-Aggregation und klickbare Links', () =>
 		Array.from(panel(container, 'tab-3')?.querySelectorAll('h2, h3') ?? []).map((h) => h.textContent ?? '');
 
 	it('AK1: Markdown-Links zu Fremdseiten werden zu <a href>, Repo-Verlinkungen im Changelog werden entfernt', async () => {
-		const { container } = render(<HelpPage />);
+		const { container } = render(<HelpHarness />);
 
 		selectTab(container, 3);
 
@@ -314,7 +321,7 @@ describe('HelpPage – #1206: Kategorien-Aggregation und klickbare Links', () =>
 	});
 
 	it('AK2: Je Kategorie genau eine Überschrift, feste Reihenfolge, leere Kategorien entfallen; Bullets aller Versionen unter derselben Kategorie', async () => {
-		const { container } = render(<HelpPage />);
+		const { container } = render(<HelpHarness />);
 
 		selectTab(container, 3);
 
@@ -370,7 +377,7 @@ describe('HelpPage – #1206: Kategorien-Aggregation und klickbare Links', () =>
 	});
 
 	it('AK3: Kein Eintrag geht verloren — li-Gesamtzahl = Bullet-Summe; Ursprungs-Version je Bullet sichtbar', async () => {
-		const { container } = render(<HelpPage />);
+		const { container } = render(<HelpHarness />);
 
 		selectTab(container, 3);
 
@@ -441,7 +448,7 @@ describe('HelpPage – Pagination und Auswahl der Anzeige-Menge (30/100/alle)', 
 	// die Fixture mit exakt 30 Einträgen bereits ab) statt eagerly die volle Historie; erst „Alle"
 	// löst das Nachladen der Folgeseite über den Link-Header aus.
 	it('lädt initial nur Seite 1; „Alle" lädt die Folgeseite nach, „Letzte 100" braucht danach keinen weiteren Fetch', async () => {
-		const { container } = render(<HelpPage />);
+		const { container } = render(<HelpHarness />);
 
 		selectTab(container, 3);
 		await waitFor(() => {
@@ -491,7 +498,7 @@ describe('HelpPage – Inhaltsverzeichnis in der Sidebar (Handbuch + Changelog)'
 	});
 
 	it('Handbuch: TOC listet ##/###-Abschnitte, jeder Link trifft eine vorhandene Anker-Id (Duplikate suffigen)', async () => {
-		const { container } = render(<HelpPage />);
+		const { container } = render(<HelpHarness />);
 
 		await waitFor(() => {
 			expect(panel(container, 'tab-0')?.querySelector(GUIDE_HEADING)).toBeTruthy();
@@ -521,7 +528,7 @@ describe('HelpPage – Inhaltsverzeichnis in der Sidebar (Handbuch + Changelog)'
 	it('Handbuch: TOC-Links treffen auch unter <StrictMode> ein vorhandenes Anker-Ziel', async () => {
 		const { container } = render(
 			<StrictMode>
-				<HelpPage />
+				<HelpHarness />
 			</StrictMode>,
 		);
 
@@ -542,7 +549,7 @@ describe('HelpPage – Inhaltsverzeichnis in der Sidebar (Handbuch + Changelog)'
 	});
 
 	it('Changelog: TOC listet die Kategorien, Links treffen die Kategorie-Sektionen; Select bleibt in der Sidebar', async () => {
-		const { container } = render(<HelpPage />);
+		const { container } = render(<HelpHarness />);
 
 		selectTab(container, 3);
 		await waitFor(() => {

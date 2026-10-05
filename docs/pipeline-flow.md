@@ -321,29 +321,17 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
     Lauf deterministisch mit `::error::` ab — kein stiller Skip (AGENTS.md: „bewusstes Opt-in"). Bei
     triage/retriage/spec/implement wird zusätzlich `ai:to-big-issue` gesetzt (Issue-Signal); bei
     review/fixup (die kein `ai:to-big-issue` vergeben, s. u.) stattdessen ein PR-Kommentar.
-  - **Phasen-Label-Pre-Check** (alle 7 Phasen): Die Concurrency-Gruppen folgen der Abarbeitung,
-    nicht dem LLM: Triage (01), UX (02) und Review (05) haben je eine eigene statische Gruppe
-    (`llm-triage`, `llm-ux`, `llm-review` — das Review-CI-Wait von bis zu 20 min belegt sonst
-    ohne LLM-Arbeit den Slot). Die Git-Phasen sind entkoppelt (Durchsatz-Analyse
-    [agent-setup-vergleich-2026-10-04.md](./agent-setup-vergleich-2026-10-04.md)): Spec (03)
-    läuft in `llm-spec`, Umsetzung/Fixup (04) und team.yml in `llm-impl` — ein Issue
-    implementiert, während das nächste specced wird; der Überhol-Schutz der beiden Phase-4-
-    Eingänge ([ADR 0005](./adr/0005-fixup-und-umsetzung-sind-eine-phase.md)) bleibt über die
-    gemeinsame Gruppe `llm-impl` erhalten. Weil die Label-Übergabe mitten im Job passiert,
-    setzt 03 das Folge-Label als allerletzten Job-Step (Job-Ende-Barriere, Details:
-    `01-triage.yml`); 04→05 puffert der Review-CI-Wait selbst.
-    Die übrigen LLM-Workflows
-    (Doku-/Spec-Syncs, Prompt-Audit, Architektur- und Design-Optimierung) teilen sich weiterhin
-    EINE eigene, davon getrennte Gruppe `llm-sync`. Der Documenter (06) läuft NACH dem Merge —
-    keine Abarbeitungs-Abhängigkeit zu den Ticket-Phasen — und hat deshalb eine eigene, statische
-    Gruppe `llm-documenter` unabhängig vom Provider (auch die Notbremse `LLM_PROVIDER_DOCUMENTER`
-    ändert daran nichts; er zieht dann parallel vom z.ai-Kontingent, bewusst akzeptiert). Die
-    strukturelle Obergrenze liegt damit bei **7** gleichzeitigen Agent-Läufen (Triage-, UX-,
-    Spec-, Umsetzung-, Review-, Sync- und Documenter-Slot). Ein erschöpftes Kontingent (z.ai)
-    trifft damit mehrere Ticket-Läufe parallel — Erbe von PR #1301 (dort sechs eigene Gruppen):
-    bewusst akzeptiert und seit #1954/#2100 abgefedert (Limit-Erkennung, Peak-Vertagen), gegen
-    die Kehrseite des EINEN-Slots, dass eine lange Fixup-Schleife kurzzeitig Triage/Review
-    blockierte, auch wenn sie verschiedene Tickets bediente.
+  - **Phasen-Label-Pre-Check** (alle 7 Phasen): Die Concurrency-Keys sind PRO TICKET
+    (05.10., pro-Ticket-Lanes): Lane A `harness-<Issue-Nr.>` serialisiert die Issue-Kette
+    (Triage/UX/Spec/Implement), Lane B `harness-pr-<Head-Branch>` (Pipeline-PRs: `ai/harness/<Nr.>`;
+    lokale PRs ohne Issue: Feature-Branch) serialisiert Review↔Fixup am PR — verschiedene Tickets laufen voll parallel, der
+    Koordinator steuert den Durchsatz über den Zulauf. Der Documenter (06) bleibt bewusst
+    statisch (`llm-documenter`): Er versiegelt `.costs` auf main und konkurriert sonst um
+    den Push. Die übrigen LLM-Workflows (Doku-/Spec-Syncs, Prompt-Audit, Architektur- und
+    Design-Optimierung) teilen sich weiterhin die statische Gruppe `llm-sync`.
+    Der A→B-Übergang ist gepuffert (Review-CI-Wait); ein erschöpftes z.ai-Kontingent trifft
+    mehrere Ticket-Lanes parallel — abgefedert durch llm-limit-detect (#1954) und das
+    Peak-Vertagen (#2100). Details/Rationale: Kommentar in `01-triage.yml`.
     Das Stapeln leistet **`queue: max`**: Ohne diesen Schlüssel hält GitHub pro Gruppe nur EINEN
     wartenden Lauf und verwirft ihn still, sobald ein neuer eintrifft (`queue: single` ist der
     Default, und `cancel-in-progress: false` schützt nur den _laufenden_). Mit `max` warten bis

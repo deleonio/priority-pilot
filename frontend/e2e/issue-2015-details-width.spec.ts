@@ -5,7 +5,7 @@ import { waitForStableBox } from './helpers';
  * Rote Spec-e2e für #2015 — „Einstellungen: zweite Ebene ausschließlich Details-Blöcke“
  * (Spec docs/spec/issue-2015.md, AK4/TF4).
  *
- * Ein geöffnetes KolDetails zweiter Ebene („Reichweite und Intervall“ im Tab „Standort“) ist
+ * Ein geöffnetes KolAccordion („Reichweite und Intervall“ im Tab „Ortung“) ist
  * ein Block über die volle Zeilenbreite: bei 375 px entspricht seine Bounding-Box der
  * vollen Zeilenbreite der Details-Blöcke. Bounding-Box-Assert statt scrollWidth — die
  * App-Shell clippt
@@ -25,10 +25,9 @@ test.describe('Balamentum — #2015: Details-Blöcke über die volle Zeilenbreit
 	});
 
 	test('AK4: geöffnetes „Reichweite und Intervall“ füllt bei 375 px die volle Zeilenbreite', async ({ page }) => {
-		await page.goto('/app/settings/standort');
+		await page.goto('/app/settings/ortung');
 
-		// Rot heute: der Block ist noch ein eigenständiges kol-accordion, kein kol-details.
-		const details = page.locator('kol-details[_label="Reichweite und Intervall"]');
+		const details = page.locator('kol-accordion[_label="Reichweite und Intervall"]');
 		await expect(details).toBeVisible();
 
 		// KoliBri-KolTabs benennt die Slot-Attribute seiner Light-DOM-Kinder zur Laufzeit um
@@ -36,12 +35,9 @@ test.describe('Balamentum — #2015: Details-Blöcke über die volle Zeilenbreit
 		const panel = page.locator('[slot="tabpanel-slot-3"]');
 		await waitForStableBox(page, details);
 		const box = (await details.boundingBox())!;
-		// AK3 siedelt den Block IN der Karte „Standorterfassung“ an — deren Theme-Polster (~15px je
-		// Seite) macht „Bounding-Box == Zeilenbreite“ strukturell unerreichbar. Zeilenbreite heißt
-		// daher: exakt so breit und so positioniert wie der Nachbar-Stack derselben Karte (ein
-		// Inhaltsbreite-Inline-Block wäre schmaler/versetzt). [Test-Pflege #2015, siehe PR-Body.]
-		const stackBox = (await panel.locator('kol-card > .settings-card-stack').first().boundingBox())!;
-		expect(Math.abs(box.width - stackBox.width), 'Block über die Zeilenbreite der Karte').toBeLessThanOrEqual(1);
-		expect(Math.abs(box.x - stackBox.x), 'Block bündig mit dem Karten-Inhalt').toBeLessThanOrEqual(1);
+		// Das Akkordeon liegt als Geschwister unter der Karte „Standorterfassung“: gleiche Breite und Kante.
+		const cardBox = (await panel.locator('kol-card').first().boundingBox())!;
+		expect(Math.abs(box.width - cardBox.width), 'Akkordeon so breit wie die Karte').toBeLessThanOrEqual(1);
+		expect(Math.abs(box.x - cardBox.x), 'Akkordeon bündig mit der Karte').toBeLessThanOrEqual(1);
 	});
 });

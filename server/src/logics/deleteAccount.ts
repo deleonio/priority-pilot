@@ -6,6 +6,7 @@ import {
 	Category,
 	FcmToken,
 	Group,
+	GroupChallenge,
 	GroupInvitation,
 	GroupInviteLink,
 	GroupMember,
@@ -82,6 +83,7 @@ export const deleteAccount = async (
 			await Task.destroy({ where: { groupId: soleGroupIds, userId: null }, transaction });
 			await GroupInvitation.destroy({ where: { groupId: soleGroupIds }, transaction });
 			await GroupInviteLink.destroy({ where: { groupId: soleGroupIds }, transaction });
+			await GroupChallenge.destroy({ where: { groupId: soleGroupIds }, transaction });
 			await Group.destroy({ where: { id: soleGroupIds }, transaction });
 		}
 		// Für andere angelegte Aufgaben und Serien bleiben bei diesen; fremde Serien ruhen.

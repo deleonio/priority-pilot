@@ -24,7 +24,7 @@ const session = async (page: Page, email: string): Promise<void> => {
 
 const importCsv = async (page: Page, email: string): Promise<void> => {
 	await session(page, email);
-	await page.goto('/app/settings/import');
+	await page.goto('/app/settings/daten');
 	await page.locator('.task-import-card input[type="file"]').setInputFiles({
 		name: 'todoist.csv',
 		mimeType: 'text/csv',
