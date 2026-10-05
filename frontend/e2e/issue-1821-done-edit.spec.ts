@@ -22,9 +22,8 @@ const deleteAllTasks = async (page: Page): Promise<void> => {
 };
 
 const editDoneTask = async (page: Page): Promise<void> => {
-	// Eigene Session statt Pass-Through: `ownerScope(undefined)` filtert `GET /pillars` nicht nach
-	// Nutzer, im Shard lägen alle Säulen der geteilten DB darunter und die Formular-Vollverteilung
-	// käme unters 5-%-Minimum → PATCH 400, Dialog bleibt offen (#2188-Muster, #2235-Fixup).
+	// Eigene Session: ohne Konto gilt `GET /pillars` über alle Säulen der Shard-DB; je nach Shard-Lage
+	// verteilt das Formular dann unter 5 % je Säule und `PATCH /tasks` antwortet 400 (#2235/#2229).
 	await registerOwnSession(page, 'done-edit-1821');
 	const created = await page.request.post('/api/v1/tasks', {
 		data: { title: OLD_TITLE, priority: 3, estimatedEffort: 1 },
@@ -34,10 +33,8 @@ const editDoneTask = async (page: Page): Promise<void> => {
 	await page.goto('/app/');
 	await waitForStableView(page);
 	await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
-	// Auf die eigene Zeile beschränkt: Im Shard liegen Aufgaben früherer Specs davor (#2235-Fixup).
-	const item = page.getByTestId(`task-list-item-${id}`);
-	await item.getByRole('button', { name: 'Weitere Aktionen' }).click();
-	await item.getByRole('button', { name: 'Bearbeiten' }).click();
+	await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
+	await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
 	await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
 	await waitForStableView(page);
 

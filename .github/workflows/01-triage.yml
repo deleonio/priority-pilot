@@ -687,10 +687,10 @@ jobs:
             printf '%s' "$PAYLOAD" | jq -r ".tickets[$i].body" > "/tmp/container-ticket-${i}.md"
             NR="$(gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body-file "/tmp/container-ticket-${i}.md" 2>/dev/null | grep -oE '[0-9]+$' || true)"
             if [ -z "$NR" ]; then
-              echo "::warning title=Ticket-Anlage fehlgeschlagen::'${TITLE:0:60]}…' nicht angelegt (Draft steht im Entscheidungs-Kommentar der Analyse)."
+              echo "::warning title=Ticket-Anlage fehlgeschlagen::'${TITLE:0:60}…' nicht angelegt (Draft steht im Entscheidungs-Kommentar der Analyse)."
               i=$((i+1)); continue
             fi
-            echo "::notice title=Sub-Issue angelegt::#${NR} — ${TITLE:0:60]}"
+            echo "::notice title=Sub-Issue angelegt::#${NR} — ${TITLE:0:60}"
             CHILD_NODE="$(gh issue view "$NR" --repo "$GITHUB_REPOSITORY" --json id --jq .id)"
             gh api graphql -f query='mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,subIssueId:$c}){clientMutationId}}' \
               -f p="$PARENT_NODE" -f c="$CHILD_NODE" >/dev/null 2>&1 \

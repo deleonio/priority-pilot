@@ -1,6 +1,7 @@
 import {
 	KolAlert,
 	KolButton,
+	KolDetails,
 	KolHeading,
 	KolInputDate,
 	KolSingleSelect,
@@ -12,34 +13,12 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { DESCRIPTION_MAX_LENGTH } from '../lib/descriptionLengthValidation';
+import { formatDate, readDate, toDateValue, today } from '../lib/journalDate';
 import { readString } from '../lib/inputValue';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
+import { JournalStats } from './JournalStats';
 
 type Draft = { text: string; date: string; pillarId: string };
-
-/** Heutiger Kalendertag des Nutzers als `YYYY-MM-DD` (Vorbelegung des Datumsfelds). */
-const today = (): string => {
-	const now = new Date();
-	return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-};
-
-/** `KolInputDate` liefert je nach Ereignis ein `Date` (UTC-Mitternacht) oder den Rohstring. */
-const readDate = (value: unknown): string =>
-	value instanceof Date ? value.toISOString().slice(0, 10) : readString(value);
-
-/** Für `KolInputDate._value` nur ein valides `Date` (UTC) oder `undefined` (Muster `TaskForm.tsx`). */
-const toDateValue = (date: string): Date | undefined => {
-	const parsed = new Date(`${date}T00:00:00Z`);
-	return date === '' || Number.isNaN(parsed.getTime()) ? undefined : parsed;
-};
-
-const formatDate = (date: string): string =>
-	new Date(`${date}T00:00:00Z`).toLocaleDateString('de-DE', {
-		day: 'numeric',
-		month: 'long',
-		year: 'numeric',
-		timeZone: 'UTC',
-	});
 
 /**
  * Erfassungs- und Bearbeitungsformular eines Eintrags: Freitext (Pflicht, Zähler bis 3000), Datum,
@@ -248,6 +227,10 @@ export const JournalTab = ({ pillars }: { pillars: Pillar[] }) => {
 					})}
 				</ul>
 			)}
+
+			<KolDetails _label="Statistik">
+				<JournalStats pillars={pillars} />
+			</KolDetails>
 
 			{deleteTarget !== null && (
 				<ConfirmDeleteDialog

@@ -28,15 +28,13 @@ import {
  */
 // #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
 // Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+// Eigenes Konto (#1573-Muster): ohne Session sieht der Pass-Through-Nutzer die Säulen aller im Shard
+// registrierten Konten — ab 25 Säulen ist die Gleichverteilung kein gültiger Anteil mehr (< 5 %).
 test.beforeEach(async ({ page }) => {
 	await page.addInitScript(() => {
 		localStorage.setItem('pp-expert-mode', 'true');
 	});
-	// Eigene Session statt Pass-Through: `ownerScope(undefined)` filtert `GET /pillars` nicht nach
-	// Nutzer, im Shard lägen alle Säulen der geteilten DB darunter und die Formular-Vollverteilung
-	// käme unters 5-%-Minimum → Speichern mit 400 abgewiesen, Dialog bleibt offen (#2188-Muster,
-	// #2235-Fixup).
-	await registerOwnSession(page, 'keyboard-shortcuts-243');
+	await registerOwnSession(page, 'keyboard-shortcuts');
 });
 
 test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
