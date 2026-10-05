@@ -1,6 +1,12 @@
 import type { Route } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { openAccordionSection, setEqualPillarWeights, taskTitleText, waitForStableView } from './helpers';
+import {
+	openAccordionSection,
+	registerOwnSession,
+	setEqualPillarWeights,
+	taskTitleText,
+	waitForStableView,
+} from './helpers';
 
 /**
  * Rote Spec-e2e für #243 — „CTA Buttons sollen immer mit Strg+Enter abgesendet werden".
@@ -22,10 +28,13 @@ import { openAccordionSection, setEqualPillarWeights, taskTitleText, waitForStab
  */
 // #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
 // Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+// Eigenes Konto (#1573-Muster): ohne Session sieht der Pass-Through-Nutzer die Säulen aller im Shard
+// registrierten Konten — ab 25 Säulen ist die Gleichverteilung kein gültiger Anteil mehr (< 5 %).
 test.beforeEach(async ({ page }) => {
 	await page.addInitScript(() => {
 		localStorage.setItem('pp-expert-mode', 'true');
 	});
+	await registerOwnSession(page, 'keyboard-shortcuts');
 });
 
 test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
