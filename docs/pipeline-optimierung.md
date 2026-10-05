@@ -88,6 +88,12 @@ laufen voll parallel; der Koordinator steuert den Durchsatz allein über den Zul
 an der A→B-Grenze: Review-CI-Wait. Residual-Risiko B→A (Re-Triage während Review/Fixup)
 ist dokumentiert (01-triage.yml); der Documenter bleibt bewusst statisch (.costs-Seals).
 
+**05.10. (Nacht) — Runtime-Schalter zurück auf Claude Code + Anthropic.** Der
+Koordinator hat `AGENT_RUNTIME=claude` und `LLM_PROVIDER=claude` gesetzt: Die Messreihe
+läuft aktuell auf CC+Anthropic (Opus/Sonnet 5.5 nativ). Beachte beim Lesen der laufenden
+`.costs`-Sätze: Die ZAI/pi-Erkenntnisse (Aliase, Eskalation, Lanes) bleiben dokumentiert
+und wirken, sobald zurückgeschaltet wird — der Alias-Fix #2198 wirkt erst wieder unter pi.
+
 ## Offene Hebel und KPIs (Stand 05.10.)
 
 1. **PI v1 KPIs** (sonst Rückwechsel auf CC+ZAI per `gh variable set`): Review-Fail < 10 %,
