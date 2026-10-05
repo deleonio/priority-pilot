@@ -101,6 +101,20 @@ const upgradeProration = (subscription: Subscription, plan: Plan, period: Period
 	});
 };
 
+// Sofort wirksamer Wechsel mit Verrechnung (#2142): höheres Paket oder Zeitraumwechsel im gleichen Paket.
+const isImmediateChange = (subscription: Subscription, plan: Plan, period: Period) => {
+	const currentPlan = subscription.get('plan') as Plan;
+	return rankOf(plan) > rankOf(currentPlan) || (plan === currentPlan && period !== subscription.get('period'));
+};
+
+// Abo aus einem Upgrade/Zeitraumwechsel, dessen erste Abbuchung noch aussteht (#2142): Periode endet ≤ jetzt, Guthaben gesetzt.
+const awaitsFirstCharge = (subscription: Subscription) =>
+	subscription.get('status') === 'active' &&
+	(subscription.get('creditCents') as number) > 0 &&
+	(subscription.get('currentPeriodEnd') as Date).getTime() <= Date.now();
+
+const AWAITS_FIRST_CHARGE_MESSAGE = 'Der letzte Wechsel wird gerade abgerechnet — bitte später erneut versuchen.';
+
 export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps = {}): Router => {
 	const router = Router();
 	// Kauf im Web gibt es nur bei PayPal (ADR 0013); Store-Kanäle blockt `rejectStoreChannel`.
@@ -240,6 +254,10 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 404, 'Kein Abo gefunden.');
 			return;
 		}
+		if (awaitsFirstCharge(subscription)) {
+			sendError(res, 409, AWAITS_FIRST_CHARGE_MESSAGE);
+			return;
+		}
 		try {
 			const currentPlan = subscription.get('plan') as Plan;
 			// Gekündigtes Abo, Ziel nicht höher (#2049): `revise` liefe ins Leere (bei PayPal bereits
@@ -259,7 +277,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 				res.status(200).json({ approvalUrl });
 				return;
 			}
-			if (subscription.get('provider') === provider.id && rankOf(body.plan) > rankOf(currentPlan)) {
+			if (subscription.get('provider') === provider.id && isImmediateChange(subscription, body.plan, body.period)) {
 				const now = new Date();
 				const { creditCents, firstCycleCents } = upgradeProration(subscription, body.plan, body.period, now);
 				const { approvalUrl, externalSubscriptionId } = await checkout.create(body.plan, body.period, firstCycleCents);
@@ -312,7 +330,11 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 404, 'Kein Abo gefunden.');
 			return;
 		}
-		if (subscription.get('provider') === provider.id && rankOf(body.plan) > rankOf(subscription.get('plan') as Plan)) {
+		if (awaitsFirstCharge(subscription)) {
+			sendError(res, 409, AWAITS_FIRST_CHARGE_MESSAGE);
+			return;
+		}
+		if (subscription.get('provider') === provider.id && isImmediateChange(subscription, body.plan, body.period)) {
 			const now = new Date();
 			const { creditCents, firstCycleCents } = upgradeProration(subscription, body.plan, body.period, now);
 			res.status(200).json({ creditCents, dueCents: firstCycleCents, immediate: true, startsAt: now.toISOString() });
