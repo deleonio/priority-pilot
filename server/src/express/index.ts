@@ -34,6 +34,7 @@ import { kpisRouter } from './routes/kpis.js';
 import { createBalanceVariantRouter } from './routes/balanceVariant.js';
 import { apiTokensRouter } from './routes/apiTokens.js';
 import { placeFavoritesRouter } from './routes/placeFavorites.js';
+import { journalRouter } from './routes/journal.js';
 import { profileRouter } from './routes/profile.js';
 import { mcpRouter } from '../mcp/server.js';
 import type { FetchProviderModels, RunProviderTest } from './routes/llmProviders.js';
@@ -333,6 +334,9 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Gespeicherte Orte (#1342): pro Nutzer benannte Adressen für das Adressfeld von Aufgabe/Serie.
 	app.use(placeFavoritesRouter);
+
+	// Journal-Einträge (#2212): anlegen, listen, bearbeiten, löschen.
+	app.use(journalRouter);
 
 	// MCP-Werkzeuge v1 (#1353): POST /mcp/v1. Bewusst HINTER `requireAuth` — ohne gültigen
 	// (Bearer-)Token gibt es 401 und damit keinen Werkzeugaufruf.

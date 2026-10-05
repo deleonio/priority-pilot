@@ -37,6 +37,7 @@ import { PushToast } from './components/PushToast';
 import { SearchModal } from './components/SearchModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesTab } from './components/SeriesTab';
+import { JournalTab } from './components/JournalTab';
 import { SettingsPage } from './components/SettingsPage';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
@@ -84,7 +85,7 @@ const TaskGraphPanel = lazy(() =>
 
 // #1105: Pfad zu jedem Haupt-Tab (Index = Tab-Index) und Pfad-Segment je Settings-Tab. Der aktive
 // Tab ist damit eine reine Funktion der URL (Routen-Tabelle in `docs/spec/issue-1105.md`).
-const ROUTE_PATHS: string[] = ['/', '/aufgaben', '/serien', '/graph'];
+const ROUTE_PATHS: string[] = ['/', '/aufgaben', '/serien', '/graph', '/journal'];
 // #1529/#1902: „Pakete & Abo" (Index 6) steht nach „Gruppen" und VOR den rollenabhängigen
 // Segmenten — so bleiben die Indizes 0–7 für Member stabil.
 const BASE_SETTINGS_PATH_SEGMENTS: string[] = [
@@ -197,6 +198,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			{ _label: t('tabs.tasks') },
 			{ _label: t('tabs.series') },
 			{ _label: t('tabs.forest') },
+			{ _label: t('tabs.journal') },
 		],
 		[t],
 	);
@@ -1503,6 +1505,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 											<TaskGraphPanel tasks={tasks} onEditDependencies={openDependencies} />
 										</Suspense>
 									)}
+								</div>
+								<div slot="tab-4">
+									{/* Journal (#2212): nur bei aktivem Tab mounten, lädt seine Einträge erst dann. */}
+									{activeTab === 4 && <JournalTab pillars={pillars} />}
 								</div>
 							</KolTabs>
 						)}

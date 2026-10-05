@@ -18,6 +18,7 @@ import {
 	Pillar,
 	PillarFeedback,
 	PlaceFavorite,
+	JournalEntry,
 	PushSubscription,
 	Series,
 	Subscription,
@@ -101,6 +102,7 @@ export const deleteAccount = async (
 		await ApiToken.destroy(own);
 		await AiUsage.destroy(own);
 		await PlaceFavorite.destroy(own);
+		await JournalEntry.destroy(own);
 		await MissedTask.destroy(own);
 		await NotificationLog.destroy(own);
 		await MilestoneReached.destroy(own);

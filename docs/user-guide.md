@@ -56,13 +56,15 @@ Rechts daneben siehst du dein Profilbild.
 
 Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle Icon-Buttons stehen direkt in der Leiste – ein zusätzliches Menü gibt es nicht. Beim Scrollen bleibt die Leiste sichtbar; mit etwas Abstand zum Inhalt, damit beides getrennt lesbar bleibt.
 
-Darunter wechselst du über eine **Tab-Leiste** zwischen den vier Hauptansichten:
+Darunter wechselst du über eine **Tab-Leiste** zwischen den fünf Hauptansichten:
 
 1. **Dashboard** – Überblick und Empfehlungen
 2. **Aufgaben** – deine Aufgaben anlegen und pflegen; ein Umschalter wechselt hier
    zwischen **offenen** und **erledigten** Aufgaben
 3. **Serien** – wiederkehrende Aufgaben
 4. **Graph** – die Aufgaben als Graph mit gewichteten Abhängigkeiten
+5. **Journal** – kurze Einträge mit Datum und optional einer Säule festhalten, bearbeiten
+   und löschen
 
 ---
 
