@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createSign, generateKeyPairSync } from 'node:crypto';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
 import { Subscription, WebhookEvent } from '../models/index.js';
-import type { GooglePlayClient } from '../logics/googlePlay.js';
+import type { GooglePlayClient, PlaySubscription } from '../logics/googlePlay.js';
 
 /**
  * #1689: `POST /billing/google/rtdn` nimmt Real-time Developer Notifications per Pub/Sub-Push an.
@@ -47,6 +47,8 @@ let server: TestServer;
 let lookups: string[];
 /** Lässt den nächsten Play-Abruf scheitern, etwa weil Google nicht erreichbar ist. */
 let failNext = false;
+/** Abweichungen des nächsten Play-Abrufs vom bestätigten Pro-Monatsabo (#2140). */
+let playOverride: Partial<PlaySubscription> = {};
 
 const fakePlay: GooglePlayClient = {
 	getSubscription: async (purchaseToken) => {
@@ -61,6 +63,7 @@ const fakePlay: GooglePlayClient = {
 			expiresAt: new Date('2026-11-24T10:00:00Z'),
 			state: 'ACTIVE',
 			acknowledged: true,
+			...playOverride,
 		};
 	},
 	acknowledge: async () => {},
@@ -78,6 +81,7 @@ describe('RTDN von Google Play (#1689)', () => {
 		await resetDb();
 		lookups = [];
 		failNext = false;
+		playOverride = {};
 		server ??= await startTestServer({ googlePlayClient: fakePlay, googleKeys });
 		await Subscription.create({
 			userId: 1,
@@ -104,6 +108,25 @@ describe('RTDN von Google Play (#1689)', () => {
 		assert.ok(stored?.get('processedAt'));
 		const subscription = await Subscription.findOne({ where: { externalSubscriptionId: 'token-1' } });
 		assert.deepEqual(subscription?.get('currentPeriodEnd'), new Date('2026-11-24T10:00:00Z'));
+	});
+
+	// #2140 AK7: ein Paketwechsel, dessen Zahlung bei Google noch aussteht (`PENDING`), ändert das Abo
+	// nicht — erst der bestätigte Stand (`ACTIVE`) setzt das Zielpaket.
+	it('Stand PENDING ändert das Abo nicht, erst ACTIVE setzt das Zielpaket (#2140)', async () => {
+		const authorization = `Bearer ${token(validClaims())}`;
+		playOverride = { state: 'PENDING', productId: 'plus' };
+
+		assert.equal((await send(push('m-pending', 'token-1'), authorization)).status, 200);
+
+		let subscription = await Subscription.findOne({ where: { externalSubscriptionId: 'token-1' } });
+		assert.equal(subscription?.get('plan'), 'pro');
+		assert.deepEqual(subscription?.get('currentPeriodEnd'), new Date('2026-10-24T10:00:00Z'));
+
+		playOverride = { state: 'ACTIVE', productId: 'plus' };
+		assert.equal((await send(push('m-active', 'token-1'), authorization)).status, 200);
+
+		subscription = await Subscription.findOne({ where: { externalSubscriptionId: 'token-1' } });
+		assert.equal(subscription?.get('plan'), 'plus');
 	});
 
 	it('lehnt fehlendes, fremdes oder abgelaufenes Token mit 401 ab und speichert nichts', async () => {

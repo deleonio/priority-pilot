@@ -107,8 +107,10 @@ describe('Billing/Webhook-API (#1495)', () => {
 		assert.equal(stored.length, 1, 'Ein zweifach zugestelltes Ereignis darf nur einmal persistiert/verarbeitet werden');
 	});
 
-	it('AK4: ein Upgrade wirkt sofort auf den Plan', async () => {
-		server = await startTestServer(withVerifier('verified'));
+	// #2140 AK1 (Test-Pflege): ein Upgrade wirkt nicht mehr mit dem Webhook, sondern erst mit dem
+	// Zahlungseingang (Spec docs/spec/issue-2140.md) — bis dahin nur vorgemerkt.
+	it('AK4/#2140: ein Upgrade wird mit dem Webhook nur vorgemerkt und wirkt erst mit PAYMENT.SALE.COMPLETED', async () => {
+		server = await startTestServer(withVerifierAndMail('verified'));
 		await Subscription.create({
 			userId: 2,
 			provider: 'paypal',
@@ -128,8 +130,23 @@ describe('Billing/Webhook-API (#1495)', () => {
 			{ 'paypal-transmission-sig': 'ok' },
 		);
 
-		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-UPGRADE' } });
-		assert.equal(sub?.get('plan'), 'pro', 'Ein Upgrade muss sofort wirken');
+		let sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-UPGRADE' } });
+		assert.equal(sub?.get('plan'), 'plus', 'Ohne Zahlungseingang bleibt das bisherige Paket');
+		assert.equal(sub?.get('pendingPlan'), 'pro');
+
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-UPGRADE-2',
+				event_type: 'PAYMENT.SALE.COMPLETED',
+				resource: { id: 'SALE-UPGRADE', billing_agreement_id: 'I-UPGRADE' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-UPGRADE' } });
+		assert.equal(sub?.get('plan'), 'pro', 'Mit dem Zahlungseingang wirkt das Upgrade');
+		assert.equal(sub?.get('pendingPlan'), null);
 	});
 
 	it('AK4: ein Downgrade wirkt erst zum currentPeriodEnd, nicht sofort', async () => {
@@ -215,58 +232,6 @@ describe('Billing/Webhook-API (#1495)', () => {
 		assert.equal(sub?.get('plan'), 'free');
 	});
 
-	it('ein gleichrangiger Zeitraumwechsel (plan_id mit neuer Periode) trägt die Periode sofort in die Zeile', async () => {
-		server = await startTestServer(withVerifier('verified'));
-		await Subscription.create({
-			userId: 13,
-			provider: 'paypal',
-			externalSubscriptionId: 'I-PERIOD-SAME',
-			plan: 'plus',
-			period: 'monthly',
-			status: 'active',
-			currentPeriodEnd: new Date('2026-12-01'),
-		});
-		await rawPost(
-			'/webhooks/paypal',
-			JSON.stringify({
-				id: 'WH-PERIOD-SAME-1',
-				event_type: 'BILLING.SUBSCRIPTION.UPDATED',
-				resource: { id: 'I-PERIOD-SAME', plan_id: 'PAYPAL_PLAN_ID_PLUS_YEARLY' },
-			}),
-			{ 'paypal-transmission-sig': 'ok' },
-		);
-
-		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-PERIOD-SAME' } });
-		assert.equal(sub?.get('plan'), 'plus');
-		assert.equal(sub?.get('period'), 'yearly', 'Der Zeitraumwechsel muss in der Zeile ankommen');
-	});
-
-	it('ein Upgrade über eine plan_id mit anderem Zeitraum schreibt Plan und Periode sofort', async () => {
-		server = await startTestServer(withVerifier('verified'));
-		await Subscription.create({
-			userId: 15,
-			provider: 'paypal',
-			externalSubscriptionId: 'I-UP-PERIOD',
-			plan: 'plus',
-			period: 'monthly',
-			status: 'active',
-			currentPeriodEnd: new Date('2026-12-01'),
-		});
-		await rawPost(
-			'/webhooks/paypal',
-			JSON.stringify({
-				id: 'WH-UP-PERIOD-1',
-				event_type: 'BILLING.SUBSCRIPTION.UPDATED',
-				resource: { id: 'I-UP-PERIOD', plan_id: 'PAYPAL_PLAN_ID_PRO_YEARLY' },
-			}),
-			{ 'paypal-transmission-sig': 'ok' },
-		);
-
-		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-UP-PERIOD' } });
-		assert.equal(sub?.get('plan'), 'pro', 'Upgrade wirkt sofort');
-		assert.equal(sub?.get('period'), 'yearly', 'Die Periode des Ziel-Plans muss übernommen werden');
-	});
-
 	it('ein Downgrade mit Zeitraumwechsel merkt Paket UND Periode vor und wendet beide zum Periodenende an', async () => {
 		server = await startTestServer(withVerifier('verified'));
 		const periodEnd = new Date('2026-12-01');
@@ -304,8 +269,9 @@ describe('Billing/Webhook-API (#1495)', () => {
 	// Review #1998 (Blocker): Ein gleichrangiger Zeitraumwechsel ist eine erneute Entscheidung für
 	// das aktuelle Paket — eine ältere Downgrade-Vormerkung muss damit entfallen, sonst fiele der
 	// Nutzer zum Periodenende still auf das niedrigere Paket, obwohl er zuletzt das höhere
-	// gewählt hat (und PayPal fortan das höhere abrechnet).
-	it('ein gleichrangiger Zeitraumwechsel verwirft eine ältere Downgrade-Vormerkung', async () => {
+	// gewählt hat. #2140 (Test-Pflege): der Wechsel selbst ist jetzt zahlungsgebunden vorgemerkt
+	// statt sofort geschrieben und ersetzt die Downgrade-Vormerkung.
+	it('ein gleichrangiger Zeitraumwechsel ersetzt eine ältere Downgrade-Vormerkung durch die zahlungsgebundene', async () => {
 		server = await startTestServer(withVerifier('verified'));
 		await Subscription.create({
 			userId: 16,
@@ -330,9 +296,9 @@ describe('Billing/Webhook-API (#1495)', () => {
 		);
 
 		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-PERIOD-DROP' } });
-		assert.equal(sub?.get('period'), 'yearly', 'Der Zeitraumwechsel wirkt');
-		assert.equal(sub?.get('pendingPlan'), null, 'Die Downgrade-Vormerkung ist entfallen');
-		assert.equal(sub?.get('pendingPeriod'), null);
+		assert.equal(sub?.get('period'), 'monthly', 'Der Zeitraumwechsel wartet auf die Abbuchung');
+		assert.equal(sub?.get('pendingPlan'), 'pro', 'Die Downgrade-Vormerkung ist durch den Wechsel ersetzt');
+		assert.equal(sub?.get('pendingPeriod'), 'yearly');
 		assert.equal(sub?.get('pendingPlanEffectiveAt'), null);
 		assert.equal(
 			await applyDuePendingPlan(sub!, new Date('2026-12-01T00:00:01Z')),
