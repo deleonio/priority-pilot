@@ -43,8 +43,10 @@
 	"streak": {
 		"help": {
 			"label": "Cómo cuenta la racha",
-			"text": "Un día cuenta si completas al menos una tarea ese día. Lo hecho con retraso cuenta para la fecha de vencimiento. La racha es la secuencia ininterrumpida de esos días hasta hoy o ayer. Si falta un día hasta ayer, baja a 0; tu mejor marca se mantiene."
-		}
+			"text": "Un día cuenta si completas al menos una tarea ese día. Lo hecho con retraso cuenta para la fecha de vencimiento. La racha es la secuencia de esos días hasta hoy; un día de descanso por semana natural (lun–dom) la mantiene sin contar. Si falta un segundo día en la misma semana, baja a 0; tu mejor marca se mantiene. Una semana es equilibrada si cada uno de tus tres pilares más importantes tiene al menos una tarea completada."
+		},
+		"weeksBalanced_one": "{{count}} semana equilibrada",
+		"weeksBalanced_other": "{{count}} semanas equilibradas"
 	},
 	"care": {
 		"label": "Fürsorge-Hinweis",

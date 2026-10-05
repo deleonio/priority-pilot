@@ -43,8 +43,10 @@
 	"streak": {
 		"help": {
 			"label": "Så räknas serien",
-			"text": "En dag räknas om du bockar av minst en uppgift den dagen. Sent avklarat räknas för förfallodagen. Serien är den obrutna följden av sådana dagar till idag eller igår. Saknas en dag till igår faller den till 0 — ditt rekord finns kvar."
-		}
+			"text": "En dag räknas om du bockar av minst en uppgift den dagen. Sent avklarat räknas för förfallodagen. Serien är följden av sådana dagar till idag; en vilodag per kalendervecka (mån–sön) håller den vid liv utan att räknas. Saknas en andra dag i samma vecka faller den till 0 — ditt rekord finns kvar. En vecka är balanserad när var och en av dina tre viktigaste pelare har minst en avklarad uppgift."
+		},
+		"weeksBalanced_one": "{{count}} vecka balanserad",
+		"weeksBalanced_other": "{{count}} veckor balanserade"
 	},
 	"care": {
 		"label": "Fürsorge-Hinweis",

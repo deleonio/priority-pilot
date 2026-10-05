@@ -43,8 +43,10 @@
 	"streak": {
 		"help": {
 			"label": "Comment la série est comptée",
-			"text": "Un jour compte si tu termines au moins une tâche ce jour-là. Ce qui est fait en retard compte pour la date d'échéance. La série est la suite ininterrompue de ces jours jusqu'à aujourd'hui ou hier. S'il manque un jour jusqu'à hier, elle retombe à 0 ; ton record est conservé."
-		}
+			"text": "Un jour compte si tu termines au moins une tâche ce jour-là. Ce qui est fait en retard compte pour la date d'échéance. La série est la suite de ces jours jusqu'à aujourd'hui ; un jour de repos par semaine civile (lun–dim) la maintient sans compter. S'il manque un deuxième jour dans la même semaine, elle retombe à 0 ; ton record est conservé. Une semaine est équilibrée si chacun de tes trois piliers les plus importants a au moins une tâche terminée."
+		},
+		"weeksBalanced_one": "{{count}} semaine équilibrée",
+		"weeksBalanced_other": "{{count}} semaines équilibrées"
 	},
 	"care": {
 		"label": "Fürsorge-Hinweis",

@@ -1081,9 +1081,10 @@ paths:
       summary: Streak — Kalendertage in Folge mit mindestens einer Erledigung
       description: >-
         Wertet die Erledigungszeitpunkte der Tasks des eingeloggten Nutzers aus
-        (#1360): `aktuell` ist die ununterbrochene Tagesfolge, die auf heute oder
-        gestern endet, `best` die persönliche Bestmarke. Mehrere Erledigungen am
-        selben Kalendertag zählen als ein Tag.
+        (#1360): `aktuell` ist die Tagesfolge bis heute, `best` die persönliche
+        Bestmarke. Mehrere Erledigungen am selben Kalendertag zählen als ein Tag; ein
+        Ruhetag je Kalenderwoche hält die Folge (#1971). `wochenAusgewogen` zählt die
+        ausgewogenen Wochen in Folge.
       operationId: getStreak
       parameters:
         - name: tz
@@ -6961,12 +6962,14 @@ components:
         - aktuell
         - best
         - letzterTag
+        - wochenAusgewogen
       properties:
         aktuell:
           type: integer
           description: >-
-            Kalendertage in Folge mit mindestens einer Erledigung, endend auf heute
-            oder gestern. `0`, sobald der Streak gerissen ist.
+            Kalendertage in Folge mit mindestens einer Erledigung bis heute (heute darf noch offen
+            sein). Ein Ruhetag je Kalenderwoche (Mo–So) hält die Folge, zählt aber nicht mit (#1971).
+            `0`, sobald der Streak gerissen ist.
         best:
           type: integer
           description: Längste je erreichte Tagesfolge (persönliche Bestmarke).
@@ -6974,6 +6977,12 @@ components:
           type: string
           nullable: true
           description: Jüngster Kalendertag mit einer Erledigung (`YYYY-MM-DD`), oder `null`.
+        wochenAusgewogen:
+          type: integer
+          description: >-
+            Kalenderwochen (Mo–So) in Folge, in denen jede der drei höchstgewichteten Säulen
+            mindestens eine Erledigung hat (#1971). Die laufende Woche zählt, sobald sie ausgewogen
+            ist, bricht die Folge aber nicht, solange sie offen ist.
     Milestone:
       type: object
       required:

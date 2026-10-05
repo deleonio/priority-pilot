@@ -43,8 +43,10 @@
 	"streak": {
 		"help": {
 			"label": "Zo telt de reeks",
-			"text": "Een dag telt als je op die dag minstens één taak afvinkt. Te laat afgeronde taken tellen mee voor de vervaldatum. De reeks is de ononderbroken rij van zulke dagen tot vandaag of gisteren. Ontbreekt er een dag tot gisteren, dan valt de reeks terug naar 0; je besttijd blijft behouden."
-		}
+			"text": "Een dag telt als je op die dag minstens één taak afvinkt. Te laat afgeronde taken tellen mee voor de vervaldatum. De reeks is de rij van zulke dagen tot vandaag; één rustdag per kalenderweek (ma–zo) houdt hem in stand zonder mee te tellen. Ontbreekt er een tweede dag in dezelfde week, dan valt de reeks terug naar 0; je besttijd blijft behouden. Een week is in balans als elk van je drie belangrijkste pijlers minstens één afgeronde taak heeft."
+		},
+		"weeksBalanced_one": "{{count}} week in balans",
+		"weeksBalanced_other": "{{count}} weken in balans"
 	},
 	"care": {
 		"label": "Fürsorge-Hinweis",

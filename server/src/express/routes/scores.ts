@@ -6,7 +6,13 @@ import { adviseActivitiesWithMistral, type ActivityAdvisor } from '../../llm/llm
 import { effectivePlan } from '../../logics/plans.js';
 import { createAiQuotaCounter } from '../aiQuotaMeter.js';
 import { aggregierePunkteProSaeule, type PunkteBeitrag } from '../../logics/score.js';
-import { berechneStreak, istGueltigeZeitzone, streakZeitpunkte, tagIn } from '../../logics/streak.js';
+import {
+	berechneStreak,
+	berechneWochenAusgewogen,
+	istGueltigeZeitzone,
+	streakZeitpunkte,
+	tagIn,
+} from '../../logics/streak.js';
 import { meilensteinStandVon } from '../../logics/milestones.js';
 import MilestoneReached from '../../models/milestoneReached.js';
 import { berechneLebensbalanceNachKadenz } from '../../logics/heartBalance.js';
@@ -95,13 +101,19 @@ scoresRouter.get('/scores/by-pillar', async (req: Request, res: Response<PillarS
 	}
 });
 
+/** Säulen einer erledigten Aufgabe, die für „Wochen ausgewogen" zählen (#1971): Anteil > 0. */
+const saeulenIdsVon = (pillars: PillarWithContribution[] | undefined): number[] =>
+	(pillars ?? []).filter((pillar) => pillar.TaskPillar.share > 0).map((pillar) => pillar.id);
+
 // GET /scores/streak — Kalendertage in Folge mit mindestens einer Erledigung plus Bestmarke (#1360).
 // Nur Tasks des eingeloggten Nutzers (`ownerScope`, Muster /scores/by-pillar).
 scoresRouter.get('/scores/streak', async (req: Request, res: Response<StreakDto | ErrorDto>) => {
 	try {
-		const entries = await ScoreEntry.findAll({
-			include: [{ model: Task, where: ownerScope(getUserId(req)) }],
-		});
+		const userId = getUserId(req);
+		const [entries, saeulen] = await Promise.all([
+			ScoreEntry.findAll({ include: [{ model: Task, where: ownerScope(userId), include: [Pillar] }] }),
+			Pillar.findAll({ where: ownerScope(userId) }),
+		]);
 		// Der Client schickt seine IANA-Zeitzone mit (`?tz=`); ohne oder mit unbekanntem Wert wertet
 		// der Server in seiner eigenen Zeitzone aus — die Anzeige verschiebt sich, es gibt keinen Fehler.
 		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
@@ -117,7 +129,13 @@ scoresRouter.get('/scores/streak', async (req: Request, res: Response<StreakDto 
 			new Date(),
 			zeitZone,
 		);
-		res.json({ aktuell, best, letzterTag: aktiveTage[aktiveTage.length - 1] ?? null });
+		const wochenAusgewogen = berechneWochenAusgewogen(
+			entries.map((entry) => ({ zeitpunkt: entry.zeitpunkt, saeulenIds: saeulenIdsVon(entry.Task?.Pillars) })),
+			saeulen,
+			new Date(),
+			zeitZone,
+		);
+		res.json({ aktuell, best, letzterTag: aktiveTage[aktiveTage.length - 1] ?? null, wochenAusgewogen });
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');
 	}
@@ -218,6 +236,15 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 			zeitZone,
 		);
 
+		// Säulen je Erledigung aus der schon geladenen Task-Liste — kein weiterer findAll (#2157).
+		const saeulenIdsProTask = new Map(tasks.map((task) => [task.id, saeulenIdsVon(task.Pillars)]));
+		const wochenAusgewogen = berechneWochenAusgewogen(
+			entries.map((entry) => ({ zeitpunkt: entry.zeitpunkt, saeulenIds: saeulenIdsProTask.get(entry.taskId) ?? [] })),
+			saeulen,
+			new Date(),
+			zeitZone,
+		);
+
 		// Die bereits geladene ScoreEntry-Liste an `meilensteinStandVon` durchreichen (#2150):
 		// ein Balance-Request liest ScoreEntries nur einmal (sonst zweiter findAll in der Logik).
 		// Seit #2157 auch die berechneten Werte: die Streak-Berechnung läuft je Request genau einmal.
@@ -238,7 +265,7 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 				const bewertung = defizite.find((defizit) => defizit.id === saeule.id);
 				return { ...saeule, trend: bewertung?.trend ?? 'stabil', defizitaer: bewertung?.defizitaer ?? false };
 			}),
-			streak: { aktuell, best, letzterTag: aktiveTage[aktiveTage.length - 1] ?? null },
+			streak: { aktuell, best, letzterTag: aktiveTage[aktiveTage.length - 1] ?? null, wochenAusgewogen },
 			// Nur die erreichten Stufen: die vollständige Stufenliste liefert /scores/milestones.
 			// Sticky-Stand (#1965): einmal erreichte Stufen bleiben erhalten, der Leselauf persistiert.
 			meilensteine: meilensteinStand.filter((meilenstein) => meilenstein.erreicht),

@@ -43,8 +43,10 @@
 	"streak": {
 		"help": {
 			"label": "Jak liczy się seria",
-			"text": "Dzień się liczy, jeśli tego dnia odhaczysz co najmniej jedno zadanie. Zadania wykonane z opóźnieniem liczą się do dnia terminu. Seria to nieprzerwany ciąg takich dni do dziś lub do wczoraj. Jeśli brakuje dnia do wczoraj, spada do 0 — rekord zostaje."
-		}
+			"text": "Dzień się liczy, jeśli tego dnia odhaczysz co najmniej jedno zadanie. Zadania wykonane z opóźnieniem liczą się do dnia terminu. Seria to ciąg takich dni do dziś; jeden dzień odpoczynku w tygodniu kalendarzowym (pn–nd) ją podtrzymuje, ale się nie liczy. Jeśli brakuje drugiego dnia w tym samym tygodniu, spada do 0 — rekord zostaje. Tydzień jest zrównoważony, gdy każdy z trzech najważniejszych filarów ma co najmniej jedno wykonane zadanie."
+		},
+		"weeksBalanced_one": "{{count}} tydzień zrównoważony",
+		"weeksBalanced_other": "{{count}} tygodni zrównoważonych"
 	},
 	"care": {
 		"label": "Fürsorge-Hinweis",

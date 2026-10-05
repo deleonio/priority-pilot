@@ -521,6 +521,7 @@ describe('App — #1361 AK4: Abschluss-Hinweis im Aufgaben-Tab ignoriert aktive 
 			aktuell: 1,
 			best: 1,
 			letzterTag: new Date().toLocaleDateString('sv-SE'),
+			wochenAusgewogen: 0,
 		});
 		// Suchtext ohne Treffer: filteredForest bleibt leer, „Keine Aufgaben gefunden" erscheint —
 		// AK4 verlangt, dass der Abschluss-Hinweis davon unberührt bleibt (hängt an `tasks`, nicht
@@ -544,6 +545,7 @@ describe('App — #1361 AK4: Abschluss-Hinweis im Aufgaben-Tab ignoriert aktive 
 			aktuell: 0,
 			best: 0,
 			letzterTag: null,
+			wochenAusgewogen: 0,
 		});
 		window.history.replaceState({}, '', '/aufgaben?q=zzz-kein-treffer');
 

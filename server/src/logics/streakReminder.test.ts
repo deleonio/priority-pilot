@@ -57,8 +57,11 @@ const okSender =
 		return Promise.resolve({ statusCode: 201, body: '', headers: {} } as SendResult);
 	};
 
-/** Streak 3, letzter aktiver Tag gestern (06.07.), heute noch nichts. */
-const DREI_TAGE = ['2026-07-04', '2026-07-05', '2026-07-06'];
+/**
+ * Streak 3 (Fr–So), Mo 06.07. war der Ruhetag der laufenden Woche (verbraucht), heute (Di) noch
+ * nichts. Test-Pflege #1971: vorher Sa–Mo (Ruhetag der Woche noch frei ⇒ heute kein Push mehr).
+ */
+const DREI_TAGE = ['2026-07-03', '2026-07-04', '2026-07-05'];
 
 describe('logics/streakReminder — Streak-Erinnerung (Issue #1836)', () => {
 	beforeEach(async () => {
@@ -195,5 +198,17 @@ describe('logics/streakReminder — Streak-Erinnerung (Issue #1836)', () => {
 			assert.match(`${titel} ${text}`, /47/, `${sprache}: Streak-Länge fehlt`);
 			assert.doesNotMatch(`${titel} ${text}`, /[{}]|\bundefined\b/, `${sprache}: Platzhalter nicht ersetzt`);
 		}
+	});
+
+	it('#1971 AK6: heute zählt als Ruhetag der Woche (noch kein freier Tag davor) → kein Push, kein Log', async () => {
+		// Sa–Mo erledigt: Mo war aktiv, heute (Di) ist der erste freie Tag der laufenden Woche.
+		await seedUser('streak-1971@example.com', ['2026-07-04', '2026-07-05', '2026-07-06']);
+		const calls: string[] = [];
+
+		const result = await runStreakReminder(NOW, okSender(calls));
+
+		assert.equal(result.usersNotified, 0);
+		assert.equal(calls.length, 0);
+		assert.equal(await NotificationLog.count({ where: { kind: 'streak-reminder' } }), 0);
 	});
 });

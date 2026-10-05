@@ -9,7 +9,7 @@ import { api } from '../api';
  * Aufgabe abgehakt wurde, und die persönliche Bestmarke (`GET /scores/streak`).
  *
  * Lesereihenfolge ist Absicht: der aktuelle Streak zuerst — das ist die Frage, die der Nutzer
- * stellt —, die Bestmarke danach als Bezugsgröße. Die Card lädt selbst (Muster `NearbyCard`),
+ * stellt —, darunter die ausgewogenen Wochen (#1971, erst ab einer), die Bestmarke zuletzt als Bezugsgröße. Die Card lädt selbst (Muster `NearbyCard`),
  * damit `Dashboard.tsx` keine weitere Prop-Kette bekommt.
  *
  * Drei gestaltete Textzustände, keiner davon ein Fehlerzustand (mobile-ui-rules Regel 7):
@@ -71,6 +71,11 @@ export const StreakCard = () => {
 						<p className="dashboard-streak-current">
 							<span className="dashboard-streak-value">{tage(streak.aktuell)}</span>
 							<span className="dashboard-streak-label">in Folge erledigt</span>
+						</p>
+					)}
+					{(streak.wochenAusgewogen ?? 0) >= 1 && (
+						<p className="dashboard-streak-weeks" data-testid="streak-weeks-balanced">
+							{t('streak.weeksBalanced', { count: streak.wochenAusgewogen })}
 						</p>
 					)}
 					<p className="dashboard-streak-best" data-testid="streak-best">

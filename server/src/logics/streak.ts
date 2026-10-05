@@ -50,13 +50,23 @@ const alsZeitstempel = (tag: string): number => {
 	return Date.UTC(jahr, monat - 1, tagImMonat);
 };
 
-/** Der Kalendertag vor `tag` (Zivilrechnung, unabhängig von Sommerzeit-Sprüngen). */
-const vortag = (tag: string): string => new Date(alsZeitstempel(tag) - TAG_MS).toISOString().slice(0, 10);
+/** Der Kalendertag nach `tag` (Zivilrechnung, unabhängig von Sommerzeit-Sprüngen). */
+const folgetag = (tag: string): string => new Date(alsZeitstempel(tag) + TAG_MS).toISOString().slice(0, 10);
+
+/** Montag der Vorwoche zu einem Wochen-Montag. */
+const vorwoche = (montag: string): string => new Date(alsZeitstempel(montag) - 7 * TAG_MS).toISOString().slice(0, 10);
+
+/** Montag (`YYYY-MM-DD`) der Kalenderwoche Mo–So, in der `tag` liegt — Schlüssel für die Ruhetag-Regel (#1971). */
+const wochenStart = (tag: string): string => {
+	const zeitstempel = alsZeitstempel(tag);
+	const tageSeitMontag = (new Date(zeitstempel).getUTCDay() + 6) % 7;
+	return new Date(zeitstempel - tageSeitMontag * TAG_MS).toISOString().slice(0, 10);
+};
 
 export interface StreakErgebnis {
-	/** Länge der ununterbrochenen Tagesfolge, die auf „heute" oder „gestern" endet; sonst 0. */
+	/** Aktive Tage der Kette, die bis „heute" reicht (heute selbst darf noch offen sein); sonst 0. */
 	aktuell: number;
-	/** Länge der längsten ununterbrochenen Tagesfolge über alle Daten. */
+	/** Aktive Tage der längsten Kette über alle Daten. */
 	best: number;
 	/** Aufsteigend sortierte, duplikatfreie Kalendertage (`YYYY-MM-DD`) mit mindestens einer Erledigung. */
 	aktiveTage: string[];
@@ -75,10 +85,10 @@ export const streakZeitpunkte = (eintraege: { zeitpunkt: Date; deadline?: Date |
 /**
  * Streak-Kennzahlen aus den Erledigungszeitpunkten.
  *
- * Mehrere Erledigungen am selben Kalendertag zählen als ein aktiver Tag. `aktuell` bleibt auch dann
- * stehen, wenn heute noch nichts erledigt wurde, die Folge aber bis gestern reicht — der Tag ist ja
- * noch nicht vorbei; erst eine Lücke bis gestern bricht den Streak sichtbar auf 0. `best` überdauert
- * einen Bruch und bleibt die persönliche Bestmarke.
+ * Mehrere Erledigungen am selben Kalendertag zählen als ein aktiver Tag. Ein Ruhetag je
+ * Kalenderwoche (Mo–So, #1971) hält die Kette, zählt aber nicht mit; ein zweiter freier Tag derselben
+ * Woche bricht sie, ungenutzte Ruhetage verfallen mit der Woche. Heute ist noch offen und nie eine
+ * Lücke. `best` überdauert einen Bruch und bleibt die persönliche Bestmarke.
  */
 export const berechneStreak = (erledigungsZeitpunkte: Date[], heute: Date, zeitZone: string): StreakErgebnis => {
 	const aktiveTage = [...new Set(erledigungsZeitpunkte.map((zeitpunkt) => tagIn(zeitpunkt, zeitZone)))].sort();
@@ -88,16 +98,81 @@ export const berechneStreak = (erledigungsZeitpunkte: Date[], heute: Date, zeitZ
 
 	let best = 1;
 	let laufend = 1;
+	// Woche, deren Ruhetag die laufende Kette schon verbraucht hat — freie Tage kommen chronologisch.
+	let ruhetagWoche: string | null = null;
+	/** Ob die freien Tage von `ab` bis vor `bis` die Kette halten; verbraucht dabei die Ruhetage. */
+	const haeltLuecke = (ab: string, bis: string): boolean => {
+		for (let tag = ab; tag < bis; tag = folgetag(tag)) {
+			const woche = wochenStart(tag);
+			if (woche === ruhetagWoche) return false;
+			ruhetagWoche = woche;
+		}
+		return true;
+	};
 	// Länge der Folge, die am letzten aktiven Tag endet — sie entscheidet über `aktuell`.
 	for (let i = 1; i < aktiveTage.length; i++) {
-		const luecke = alsZeitstempel(aktiveTage[i]) - alsZeitstempel(aktiveTage[i - 1]);
-		laufend = luecke === TAG_MS ? laufend + 1 : 1;
+		if (haeltLuecke(folgetag(aktiveTage[i - 1]), aktiveTage[i])) {
+			laufend++;
+		} else {
+			laufend = 1;
+			ruhetagWoche = null;
+		}
 		best = Math.max(best, laufend);
 	}
 
 	const heuteTag = tagIn(heute, zeitZone);
 	const letzterTag = aktiveTage[aktiveTage.length - 1];
-	const aktuell = letzterTag === heuteTag || letzterTag === vortag(heuteTag) ? laufend : 0;
+	const aktuell =
+		letzterTag === heuteTag || (letzterTag < heuteTag && haeltLuecke(folgetag(letzterTag), heuteTag)) ? laufend : 0;
 
 	return { aktuell, best, aktiveTage };
+};
+
+/**
+ * Ob heute als Ruhetag der laufenden Woche zählt (#1971): heute noch nichts erledigt und Montag bis
+ * gestern lückenlos aktiv. Die Streak-Erinnerung schweigt dann.
+ */
+export const istHeuteRuhetag = (aktiveTage: string[], heute: Date, zeitZone: string): boolean => {
+	const heuteTag = tagIn(heute, zeitZone);
+	const aktiv = new Set(aktiveTage);
+	if (aktiv.has(heuteTag)) return false;
+	for (let tag = wochenStart(heuteTag); tag < heuteTag; tag = folgetag(tag)) {
+		if (!aktiv.has(tag)) return false;
+	}
+	return true;
+};
+
+/**
+ * Anzahl aufeinanderfolgender ausgewogener Kalenderwochen (#1971): jede der drei Säulen mit dem
+ * höchsten `weight` (Gleichstand: kleinere id; weniger als drei: alle) hat eine Erledigung. Die
+ * laufende Woche zählt, sobald sie ausgewogen ist, bricht die Folge aber nicht, solange sie offen ist.
+ *
+ * @param eintraege Erledigungen mit den Säulen (`share` > 0) ihrer Aufgabe.
+ */
+export const berechneWochenAusgewogen = (
+	eintraege: { zeitpunkt: Date; saeulenIds: number[] }[],
+	saeulen: { id: number; weight: number }[],
+	heute: Date,
+	zeitZone: string,
+): number => {
+	if (saeulen.length === 0) return 0;
+	const topSaeulen = [...saeulen]
+		.sort((a, b) => b.weight - a.weight || a.id - b.id)
+		.slice(0, 3)
+		.map(({ id }) => id);
+	const saeulenJeWoche = new Map<string, Set<number>>();
+	for (const { zeitpunkt, saeulenIds } of eintraege) {
+		const woche = wochenStart(tagIn(zeitpunkt, zeitZone));
+		const erledigt = saeulenJeWoche.get(woche) ?? new Set<number>();
+		saeulenIds.forEach((id) => erledigt.add(id));
+		saeulenJeWoche.set(woche, erledigt);
+	}
+	const ausgewogen = (woche: string): boolean => topSaeulen.every((id) => saeulenJeWoche.get(woche)?.has(id));
+
+	const laufendeWoche = wochenStart(tagIn(heute, zeitZone));
+	let anzahl = ausgewogen(laufendeWoche) ? 1 : 0;
+	for (let woche = vorwoche(laufendeWoche); ausgewogen(woche); woche = vorwoche(woche)) {
+		anzahl++;
+	}
+	return anzahl;
 };

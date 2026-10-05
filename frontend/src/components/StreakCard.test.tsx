@@ -13,7 +13,7 @@ import { StreakCard } from './StreakCard';
  * KoliBri und `api` werden modulweit gemockt (Muster `NearbyCard.test.tsx`).
  */
 
-type Streak = { aktuell: number; best: number; letzterTag: string | null };
+type Streak = { aktuell: number; best: number; letzterTag: string | null; wochenAusgewogen?: number };
 
 vi.mock('@public-ui/react-v19', () => ({
 	KolCard: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
@@ -109,6 +109,65 @@ describe('StreakCard Hilfetext (#1819)', () => {
 			const help = module.default.streak?.help;
 			expect(typeof help?.label === 'string' && help.label.trim() !== '', `${path} streak.help.label`).toBe(true);
 			expect(typeof help?.text === 'string' && help.text.trim() !== '', `${path} streak.help.text`).toBe(true);
+		}
+	});
+});
+
+/**
+ * Spec-Tests #1971 (docs/spec/issue-1971.md, AK7): „x Wochen ausgewogen" neben der Tageskette, nur
+ * bei x ≥ 1; Plural-Schlüssel `streak.weeksBalanced_one/_other` in allen 10 Locales; der Hilfetext
+ * erklärt den Ruhetag.
+ */
+const weeksModules = import.meta.glob<{ default: { streak?: Record<string, unknown> } }>(
+	'../i18n/locales/*/common.json',
+	{ eager: true },
+);
+
+describe('StreakCard ausgewogene Wochen (#1971 AK7)', () => {
+	afterEach(() => {
+		cleanup();
+		vi.clearAllMocks();
+	});
+
+	it('zeigt streak-weeks-balanced mit Wert und Plural ab 1 Woche', async () => {
+		getStreak.mockResolvedValue({ aktuell: 3, best: 7, letzterTag: '2026-09-11', wochenAusgewogen: 3 });
+		render(<StreakCard />);
+
+		await waitFor(() => expect(card().querySelector('[data-testid="streak-weeks-balanced"]')).not.toBeNull());
+		expect(card().querySelector('[data-testid="streak-weeks-balanced"]')?.textContent).toMatch(/3 Wochen ausgewogen/);
+	});
+
+	it('Singular bei genau einer Woche', async () => {
+		getStreak.mockResolvedValue({ aktuell: 1, best: 1, letzterTag: '2026-09-11', wochenAusgewogen: 1 });
+		render(<StreakCard />);
+
+		await waitFor(() => expect(card().querySelector('[data-testid="streak-weeks-balanced"]')).not.toBeNull());
+		expect(card().querySelector('[data-testid="streak-weeks-balanced"]')?.textContent).toMatch(/1 Woche ausgewogen/);
+	});
+
+	it('keine Anzeige bei 0 ausgewogenen Wochen (kein „0 Wochen")', async () => {
+		getStreak.mockResolvedValue({ aktuell: 2, best: 2, letzterTag: '2026-09-11', wochenAusgewogen: 0 });
+		render(<StreakCard />);
+
+		await waitFor(() => expect(card().querySelector('[data-testid="streak-best"]')).not.toBeNull());
+		expect(card().querySelector('[data-testid="streak-weeks-balanced"]')).toBeNull();
+	});
+
+	it('der Hilfetext nennt den Ruhetag', async () => {
+		getStreak.mockResolvedValue({ aktuell: 3, best: 7, letzterTag: '2026-09-11', wochenAusgewogen: 2 });
+		render(<StreakCard />);
+
+		await waitFor(() => expect(card().querySelector('[data-testid="streak-help"]')).not.toBeNull());
+		expect(card().querySelector('[data-testid="streak-help"]')?.textContent).toMatch(/Ruhetag/);
+	});
+
+	it('Plural-Schlüssel sind in allen 10 Sprachen nicht leer', () => {
+		expect(Object.keys(weeksModules)).toHaveLength(10);
+		for (const [path, module] of Object.entries(weeksModules)) {
+			for (const key of ['weeksBalanced_one', 'weeksBalanced_other']) {
+				const value = module.default.streak?.[key];
+				expect(typeof value === 'string' && value.trim() !== '', `${path} streak.${key}`).toBe(true);
+			}
 		}
 	});
 });

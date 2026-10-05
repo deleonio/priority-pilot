@@ -1,6 +1,6 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { ScoreEntry, Task } from '../models/index.js';
+import { ScoreEntry, Task, TaskPillar } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 
 /**
@@ -65,7 +65,7 @@ describe('GET /scores/streak (#1360)', () => {
 		const cookie = await server.register('streak-empty@example.com', 'password123');
 		const res = await getStreak(cookie);
 		assert.equal(res.status, 200);
-		assert.deepEqual(await res.json(), { aktuell: 0, best: 0, letzterTag: null });
+		assert.deepEqual(await res.json(), { aktuell: 0, best: 0, letzterTag: null, wochenAusgewogen: 0 });
 	});
 
 	it('AK3: drei zusammenhängende Erledigungstage bis heute ergeben aktuell=3, letzterTag=heute', async () => {
@@ -98,7 +98,7 @@ describe('GET /scores/streak (#1360)', () => {
 		assert.equal(resB.status, 200);
 		assert.deepEqual(
 			await resB.json(),
-			{ aktuell: 0, best: 0, letzterTag: null },
+			{ aktuell: 0, best: 0, letzterTag: null, wochenAusgewogen: 0 },
 			'B darf die Erledigungen von A nicht sehen',
 		);
 
@@ -146,5 +146,50 @@ describe('GET /scores/streak (#1360)', () => {
 		const body = (await res.json()) as { aktuell: number; best: number };
 		assert.equal(body.aktuell, 3);
 		assert.equal(body.best, 3);
+	});
+
+	/** Erledigt einen Task heute und ordnet ihn den Säulen zu (direkt in der DB, Muster scores-balance.test.ts). */
+	const completeToday = async (cookie: string, title: string, pillarIds: number[]): Promise<void> => {
+		await completeTaskAt(cookie, title, new Date());
+		const [entry] = await ScoreEntry.findAll({ order: [['id', 'DESC']], limit: 1 });
+		for (const pillarId of pillarIds) {
+			await TaskPillar.create({ taskId: entry.taskId, pillarId, share: 100, confidence: 100 });
+		}
+	};
+	const pillarIdsOf = async (cookie: string): Promise<number[]> => {
+		const res = await server.json('/pillars', { headers: { Cookie: cookie } });
+		return ((await res.json()) as { id: number }[]).map((p) => p.id).sort((a, b) => a - b);
+	};
+
+	it('#1971 AK5: wochenAusgewogen in /scores/streak und /scores/balance — heute alle drei Top-Säulen ⇒ 1', async () => {
+		const cookie = await server.register('streak-weeks@example.com', 'password123');
+		const [a, b, c, d] = await pillarIdsOf(cookie);
+		// Alle Standard-Säulen haben Gewicht 20 ⇒ Gleichstand, Top-3 = die drei kleinsten ids.
+		await completeToday(cookie, 'Säule A', [a]);
+		await completeToday(cookie, 'Säule B', [b]);
+		await completeToday(cookie, 'Säule D', [d]);
+
+		const offen = (await (await getStreak(cookie, '?tz=UTC')).json()) as { wochenAusgewogen: number };
+		assert.equal(offen.wochenAusgewogen, 0, 'Top-Säule C fehlt noch');
+
+		await completeToday(cookie, 'Säule C', [c]);
+
+		const streak = (await (await getStreak(cookie, '?tz=UTC')).json()) as { wochenAusgewogen: number };
+		assert.equal(streak.wochenAusgewogen, 1);
+		const balance = (await (await server.json('/scores/balance?tz=UTC', { headers: { Cookie: cookie } })).json()) as {
+			streak: { wochenAusgewogen: number };
+		};
+		assert.equal(balance.streak.wochenAusgewogen, 1);
+	});
+
+	it('#1971 AK5: Datenisolation — Säulen-Erledigungen eines anderen Nutzers zählen nicht', async () => {
+		const cookieA = await server.register('streak-weeks-a@example.com', 'password123');
+		const cookieB = await server.register('streak-weeks-b@example.com', 'password123');
+		for (const [i, pillarId] of (await pillarIdsOf(cookieA)).slice(0, 3).entries()) {
+			await completeToday(cookieA, `A ${i}`, [pillarId]);
+		}
+
+		const bodyB = (await (await getStreak(cookieB, '?tz=UTC')).json()) as { wochenAusgewogen: number };
+		assert.equal(bodyB.wochenAusgewogen, 0);
 	});
 });

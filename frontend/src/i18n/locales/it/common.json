@@ -43,8 +43,10 @@
 	"streak": {
 		"help": {
 			"label": "Come si conta la serie",
-			"text": "Un giorno conta se completi almeno un'attività in quel giorno. Ciò che è completato in ritardo conta per la data di scadenza. La serie è la sequenza ininterrotta di questi giorni fino a oggi o a ieri. Se manca un giorno fino a ieri, scende a 0; il tuo record resta."
-		}
+			"text": "Un giorno conta se completi almeno un'attività in quel giorno. Ciò che è completato in ritardo conta per la data di scadenza. La serie è la sequenza di questi giorni fino a oggi; un giorno di riposo per settimana (lun–dom) la mantiene senza contare. Se manca un secondo giorno nella stessa settimana, scende a 0; il tuo record resta. Una settimana è equilibrata se ognuno dei tuoi tre pilastri più importanti ha almeno un'attività completata."
+		},
+		"weeksBalanced_one": "{{count}} settimana equilibrata",
+		"weeksBalanced_other": "{{count}} settimane equilibrate"
 	},
 	"care": {
 		"label": "Fürsorge-Hinweis",
