@@ -166,6 +166,25 @@ paths:
                 $ref: '#/components/schemas/Task'
         '404':
           $ref: '#/components/responses/NotFound'
+  /tasks/{id}/snooze:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    post:
+      summary: Einen Task kurz zurückstellen (#2244)
+      description: >-
+        Blendet den Task `{id}` für 3 Stunden aus `GET /next` und `GET /suggestions` aus
+        (Server setzt `snoozedUntil`, der Client sendet keine Zeit). Kein Verschieben:
+        `postponeCount` und Bewertung bleiben unverändert.
+      operationId: snoozeTask
+      responses:
+        '200':
+          description: Der zurückgestellte Task.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /tasks/{id}/unarchive:
     parameters:
       - $ref: '#/components/parameters/TaskId'

@@ -1015,7 +1015,9 @@ kol-toolbar {
    44px-Touch-Fläche aus dem KoliBri-Default `--a11y-min-size`. */
 .dashboard-next-task-actions {
 	display: flex;
-	align-items: center;
+	/* #2244: mit drei Knöpfen bricht „Erledigen“ bei 320 px auf zwei Zeilen — oben bündig statt mittig,
+	   damit die Knopfreihe einzeilig (gleiche Oberkante) bleibt. */
+	align-items: flex-start;
 	gap: var(--pp-gap-tight);
 	align-self: stretch;
 }
@@ -1288,9 +1290,11 @@ kol-toolbar {
 	}
 
 	/* #1042/#1465: Ab Tablet-Grid wird die Aktionszeile wieder inhaltsbreit linksbündig — beide
-	   Buttons behalten dabei ihre Inhaltsbreite. */
+	   Buttons behalten dabei ihre Inhaltsbreite. #2244: Reicht die schmale Seitenspalte nicht für
+	   drei Knöpfe, rücken die Icon-Knöpfe in die nächste Zeile statt die Seite zu verbreitern. */
 	.dashboard-next-task-actions {
 		align-self: flex-start;
+		flex-wrap: wrap;
 	}
 
 	.dashboard-next-task-actions > kol-button:first-child {

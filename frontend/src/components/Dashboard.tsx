@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { KolBadge, KolButton, KolCard, KolMeter } from '@public-ui/react-v19';
 import { NearbyCard } from './NearbyCard';
 import { CareHint } from './CareHint';
@@ -11,7 +12,7 @@ import { MissedTasksCard } from './MissedTasksCard';
 import { HeartBalance } from './HeartBalance';
 import type { components, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { useGeolocation } from '../lib/useGeolocation';
 import { collectTaskValues } from '../lib/forest';
@@ -107,6 +108,8 @@ interface DashboardProps {
 	onCompleteTask?: (task: Task) => void;
 	/** Öffnet den Bearbeiten-Dialog für die nächste Aufgabe („Bearbeiten" im Signal-Panel, #1447). */
 	onEditTask?: (task: Task) => void;
+	/** Stellt die nächste Aufgabe kurz zurück (Uhr-Button im Signal-Panel, #2244). */
+	onSnoozeTask?: (task: Task) => void;
 	/**
 	 * #1361: KolTabs hält inaktive Panels per `hidden` im DOM statt sie zu entfernen — ohne diesen
 	 * Schalter würde der Abschluss-Hinweis hier UND im Aufgaben-Tab gleichzeitig mounten und
@@ -156,8 +159,10 @@ export const Dashboard = ({
 	displayName = '',
 	onCompleteTask,
 	onEditTask,
+	onSnoozeTask,
 	showDayDoneHint = true,
 }: DashboardProps) => {
+	const { t } = useTranslation('common');
 	const greeting = displayName.trim();
 	// #1098 AK4: eigene Hook-Instanz (wie Footer/SettingsPage) — entscheidet, ob die
 	// NearbyCard überhaupt gerendert wird. Bei Verweigerung durch den Browser bleibt sie
@@ -246,6 +251,16 @@ export const Dashboard = ({
 		[tasks],
 	);
 
+	// #2244: Verschwindet die Karte samt Knopf (Aufgabe erledigt/zurückgestellt, keine neue in Sicht),
+	// geht der Tastaturfokus sonst verloren — er wandert dann auf den Leerzustand.
+	const emptyRef = useRef<HTMLParagraphElement>(null);
+	const hadNextTask = useRef(nextTask !== null);
+	useEffect(() => {
+		if (nextTask === null && hadNextTask.current) {
+			emptyRef.current?.focus();
+		}
+		hadNextTask.current = nextTask !== null;
+	}, [nextTask]);
 	// P2-1: Vorschläge, die die bereits angezeigte Nächste-Aufgabe ausschließen — sonst wiederholt
 	// "Was ist jetzt dran?" dieselbe Hauptaussage (#443).
 	const suggestionsFiltered = useMemo(
@@ -309,7 +324,7 @@ export const Dashboard = ({
 						_level={3}
 					>
 						{nextTask === null ? (
-							<p className="dashboard-next-task-empty">
+							<p ref={emptyRef} tabIndex={-1} className="dashboard-next-task-empty">
 								Aktuell steht keine Aufgabe an (alle erledigt oder durch offene Vorgänger blockiert).
 							</p>
 						) : (
@@ -332,7 +347,7 @@ export const Dashboard = ({
 								    Hauptaussage vorbehalten (ux-design.md §1), Icon-only wie der Präzedenzfall
 								    in `TaskTree.tsx:212-223`. Der Breiten-Vertrag aus #1042 gilt jetzt für die
 								    Zeile: sie füllt mobil die Innenbreite, ab Tablet ist sie inhaltsbreit. */}
-								{(onCompleteTask !== undefined || onEditTask !== undefined) && (
+								{(onCompleteTask !== undefined || onEditTask !== undefined || onSnoozeTask !== undefined) && (
 									<div className="dashboard-next-task-actions">
 										{onCompleteTask !== undefined && (
 											<KolButton
@@ -349,6 +364,16 @@ export const Dashboard = ({
 												_variant="secondary"
 												_icons={{ left: { icon: 'fa-solid fa-pen' } }}
 												_on={{ onClick: () => onEditTask(nextTask) }}
+											/>
+										)}
+										{/* #2244: Uhr-Button wie „Bearbeiten“ — sekundär, icon-only, nach den anderen Aktionen. */}
+										{onSnoozeTask !== undefined && (
+											<KolButton
+												_label={t('actions.snooze')}
+												_hideLabel
+												_variant="secondary"
+												_icons={{ left: { icon: 'fa-regular fa-clock' } }}
+												_on={{ onClick: () => onSnoozeTask(nextTask) }}
 											/>
 										)}
 									</div>

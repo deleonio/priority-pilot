@@ -51,6 +51,10 @@ class Task extends Model {
 	// Verpasst-Bereich heraus, ohne sie zu löschen und ohne Statuswechsel. `null` ⇒ nicht archiviert.
 	public archivedAt?: Date | null;
 
+	// Kurz zurückstellen (#2244): bis zu diesem Zeitpunkt blendet `ladeFreieTasks` die Aufgabe aus
+	// /next und /suggestions aus. Kein Verschieben — `postponeCount` und Score bleiben unberührt.
+	public snoozedUntil?: Date | null;
+
 	// Abhakbare Checkliste (Issue #531): JSON-Array aus `{ id, title, completed }`. Default leer;
 	// bestehende Tasks ohne Checkliste liefern `[]` (rückwärtskompatibel).
 	public checklist!: ChecklistItem[];
@@ -238,6 +242,10 @@ Task.init(
 			defaultValue: false,
 		},
 		pinnedAt: {
+			type: DataTypes.DATE,
+			allowNull: true,
+		},
+		snoozedUntil: {
 			type: DataTypes.DATE,
 			allowNull: true,
 		},

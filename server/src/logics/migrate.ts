@@ -1086,6 +1086,21 @@ export const migrateTaskMissedColumns = async (db: Sequelize): Promise<void> => 
 };
 
 /**
+ * Zieht `snoozedUntil` (#2244, „Kurz zurückstellen") auf einer **bestehenden** `tasks`-Tabelle nach,
+ * BEVOR `sequelize.sync()` läuft — analog `migrateTaskMissedColumns`. Nullable (kein DEFAULT nötig).
+ * Idempotent; bei frischer DB No-op — `sync()` legt die Spalte an.
+ */
+export const migrateTaskSnoozeColumn = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('tasks')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length > 0 && !existing.includes('snoozedUntil')) {
+		await db.query('ALTER TABLE `tasks` ADD COLUMN `snoozedUntil` DATETIME');
+		console.log('Spalte snoozedUntil an tasks nachgezogen (#2244).');
+	}
+};
+
+/**
  * Zieht die Pending-Plan-Spalten (#1505) und `firstFailureAt` (#1506) auf einer **bestehenden**
  * `subscriptions`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog
  * `migrateTaskPinnedColumns`. Alle ergänzten Spalten sind nullable (kein DEFAULT nötig),

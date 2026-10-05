@@ -27,7 +27,9 @@
 		"add": "Adicionar",
 		"remove": "Remover",
 		"select": "Selecionar",
-		"back": "Voltar"
+		"back": "Voltar",
+		"snooze": "Pôr de lado por um tempo",
+		"snoozed": "Tarefa posta de lado. Voltará mais tarde."
 	},
 	"status": {
 		"open": "Aberto",

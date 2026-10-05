@@ -506,6 +506,15 @@ export const api = {
 		return reviveTask(data);
 	},
 
+	// Kurz zurückstellen (#2244): blendet die Aufgabe serverseitig 3 h aus /next und /suggestions aus.
+	async snoozeTask({ id }: { id: number }): Promise<Task> {
+		const { data, error, response } = await client.POST('/tasks/{id}/snooze', { params: { path: { id } } });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return reviveTask(data);
+	},
+
 	// Wiederherstellen: holt eine archivierte Aufgabe zurück in Liste (und ggf. Verpasst-Bereich).
 	async unarchiveTask({ id }: { id: number }): Promise<Task> {
 		const { data, error, response } = await client.POST('/tasks/{id}/unarchive', { params: { path: { id } } });

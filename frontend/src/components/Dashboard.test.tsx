@@ -807,3 +807,46 @@ describe('Dashboard — Begründungssätze der „Nächste Aufgabe“-Karte (#19
 		expect(liste).toHaveLength(0);
 	});
 });
+
+/**
+ * ROTE Spec-Tests für #2244 (AK6 — docs/spec/issue-2244.md): Uhr-Button „Kurz zurückstellen" in
+ * „Nächste Aufgabe". Rot, bis `Dashboard.tsx` die Prop `onSnoozeTask` und den Icon-only-Button rendert.
+ */
+describe('Dashboard — „Kurz zurückstellen"-Button im Signal-Panel (Issue #2244)', () => {
+	// `onSnoozeTask` existiert noch nicht auf `DashboardProps` — Cast hält den Spec-Commit tsc-sauber.
+	const renderWithSnooze = (props: ComponentProps<typeof Dashboard> & { onSnoozeTask?: (task: Task) => void }) =>
+		render(<Dashboard {...(props as ComponentProps<typeof Dashboard>)} />);
+	const snoozeButton = (container: HTMLElement) =>
+		[...container.querySelectorAll('.dashboard-next-task-content kol-button')].find(
+			(b) => b.getAttribute('_label') === 'Kurz zurückstellen',
+		);
+
+	it('AK6: rendert mit nextTask + onSnoozeTask einen Icon-only-Button, Klick ruft onSnoozeTask mit nextTask', () => {
+		const nextTask = task(42, [], 2, TaskStatus.Open);
+		const calls: Task[] = [];
+		const { container } = renderWithSnooze({
+			tasks: [nextTask],
+			forest: [] as TaskTreeNode[],
+			nextTask,
+			pillars: [],
+			onCompleteTask: () => undefined,
+			onSnoozeTask: (t: Task) => calls.push(t),
+		});
+
+		const button = snoozeButton(container);
+		expect(button, 'Button mit _label="Kurz zurückstellen" fehlt').toBeDefined();
+		expect(button?.getAttribute('_hide-label')).not.toBeNull();
+
+		(button as unknown as { _on: { onClick: (event: Event) => void } })._on.onClick(new Event('click'));
+		expect(calls).toHaveLength(1);
+		expect(calls[0]?.id).toBe(42);
+	});
+
+	it('AK6: ohne onSnoozeTask kein Snooze-Button', () => {
+		const nextTask = task(42, [], 2, TaskStatus.Open);
+		const { container } = render(
+			<Dashboard tasks={[nextTask]} forest={[] as TaskTreeNode[]} nextTask={nextTask} pillars={[]} />,
+		);
+		expect(snoozeButton(container)).toBeUndefined();
+	});
+});

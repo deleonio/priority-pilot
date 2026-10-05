@@ -3,6 +3,9 @@ import { aggregierePunkteProSaeule, type PunkteBeitrag } from './score.js';
 import { selectSeriesRepresentatives, filterVorlauf } from './series.js';
 import type { PillarWithContribution } from '../models/task.js';
 
+/** Dauer des „Kurz zurückstellen" (#2244) in Stunden — Vorschlagskarte „Nächste Aufgabe". */
+export const ZURUECKSTELLEN_STUNDEN = 3;
+
 /**
  * Lädt alle offenen Tasks (inkl. Säulen-Beiträge) und filtert die mit noch offener Abhängigkeit
  * heraus — gemeinsame Vorstufe der Bewertung `bewerteKandidaten` (Grundlage von `/next` und `/suggestions`).
@@ -21,7 +24,10 @@ const ladeFreieTasks = async (userId?: number, now: Date = new Date()): Promise<
 		}),
 	);
 	// #1641: Aufgaben mit Datum mehr als VORLAUF_TAGE Kalendertage in der Zukunft zurückhalten.
-	const tasks = filterVorlauf(representatives, now);
+	// #2244: kurz zurückgestellte Aufgaben bis zum Ablauf ausblenden (gilt für /next, /suggestions, MCP).
+	const tasks = filterVorlauf(representatives, now).filter(
+		(task) => task.snoozedUntil == null || task.snoozedUntil.getTime() <= now.getTime(),
+	);
 
 	const independentTasks: Task[] = [];
 	for (const task of tasks) {

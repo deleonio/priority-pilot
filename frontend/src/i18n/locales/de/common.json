@@ -27,7 +27,9 @@
 		"add": "Hinzufügen",
 		"remove": "Entfernen",
 		"select": "Auswählen",
-		"back": "Zurück"
+		"back": "Zurück",
+		"snooze": "Kurz zurückstellen",
+		"snoozed": "Aufgabe zurückgestellt. Sie kommt später wieder."
 	},
 	"status": {
 		"open": "Offen",

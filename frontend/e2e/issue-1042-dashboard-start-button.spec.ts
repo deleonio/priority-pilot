@@ -72,6 +72,8 @@ async function containerMetrics(page: Page): Promise<{ innerLeft: number; innerW
 const actionsRow = (page: Page) => page.locator('.dashboard-next-task-actions');
 const startButtonHost = (page: Page) => page.locator('.dashboard-next-task-actions > kol-button').first();
 const editButtonHost = (page: Page) => page.locator('.dashboard-next-task-actions > kol-button').nth(1);
+// #2244 (Test-Pflege): der Uhr-Knopf steht jetzt als dritter in der Zeile und schließt rechts ab.
+const lastButtonHost = (page: Page) => page.locator('.dashboard-next-task-actions > kol-button').last();
 
 test.describe('#1042 „Jetzt starten"-Button responsiv', () => {
 	test.afterEach(async ({ page }) => {
@@ -88,20 +90,22 @@ test.describe('#1042 „Jetzt starten"-Button responsiv', () => {
 		await openDashboardWithStartButton(page);
 
 		const { innerWidth } = await containerMetrics(page);
-		const [rowBox, doneBox, editBox] = await Promise.all([
+		const [rowBox, doneBox, editBox, lastBox] = await Promise.all([
 			actionsRow(page).boundingBox(),
 			startButtonHost(page).boundingBox(),
 			editButtonHost(page).boundingBox(),
+			lastButtonHost(page).boundingBox(),
 		]);
 		expect(rowBox).toBeTruthy();
 		expect(doneBox).toBeTruthy();
 		expect(editBox).toBeTruthy();
+		expect(lastBox).toBeTruthy();
 
 		expect(Math.abs(rowBox!.width - innerWidth)).toBeLessThanOrEqual(2);
-		// „Erledigen" beginnt links in der Zeile und endet vor dem Stift, der rechts abschließt.
+		// „Erledigen" beginnt links in der Zeile und endet vor dem Stift; der letzte Knopf schließt rechts ab.
 		expect(Math.abs(doneBox!.x - rowBox!.x)).toBeLessThanOrEqual(2);
 		expect(doneBox!.x + doneBox!.width).toBeLessThanOrEqual(editBox!.x + 1);
-		expect(Math.abs(editBox!.x + editBox!.width - (rowBox!.x + rowBox!.width))).toBeLessThanOrEqual(2);
+		expect(Math.abs(lastBox!.x + lastBox!.width - (rowBox!.x + rowBox!.width))).toBeLessThanOrEqual(2);
 	});
 
 	/**

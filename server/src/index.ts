@@ -132,6 +132,7 @@ export const main = async (): Promise<void> => {
 			migrateTaskPinnedColumns,
 			migratePillarRecalcColumns,
 			migrateTaskMissedColumns,
+			migrateTaskSnoozeColumn,
 			migrateUserCareColumns,
 			migrateUserTermsColumns,
 			migrateUsersBalanceVariantColumn,
@@ -268,6 +269,8 @@ export const main = async (): Promise<void> => {
 		// vor sync(), damit Verpasst-Auswahl, Verschiebe-Zähler und Archiv-Aktion auf Bestands-DBs
 		// nicht mit `no such column` brechen.
 		await migrateTaskMissedColumns(sequelize);
+		// Fehlende snoozedUntil-Spalte (#2244) an tasks nachziehen — vor sync(), aus demselben Grund.
+		await migrateTaskSnoozeColumn(sequelize);
 
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });
