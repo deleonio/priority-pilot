@@ -1,4 +1,4 @@
-import { Op } from 'sequelize';
+import { Op, type Transaction } from 'sequelize';
 import Invoice from '../models/invoice.js';
 import InvoiceSequence from '../models/invoiceSequence.js';
 import type Subscription from '../models/subscription.js';
@@ -44,14 +44,16 @@ export interface ChargedAmount {
  *
  * Die Nummer entsteht aus einer reservierten Zeile in `invoice_sequences`: Der INSERT ist atomar,
  * die laufende Nummer ist die Anzahl der Reservierungen desselben Jahres bis einschließlich der
- * eigenen ID. Bewusst KEIN `count() + 1` und keine Transaktion — beides vergibt unter parallelen
+ * eigenen ID. Bewusst KEIN `count() + 1` und keine eigene Transaktion — beides vergibt unter parallelen
  * Aufrufen dieselbe Nummer bzw. bricht auf der In-Memory-SQLite-Verbindung (`pool.max = 1`) ab.
+ * Läuft sie in der Transaktion der Rechnung (#2233), verbraucht ein Rollback keine Nummer.
  */
-export const nextInvoiceNumber = async (now: Date): Promise<string> => {
+export const nextInvoiceNumber = async (now: Date, transaction?: Transaction): Promise<string> => {
 	const year = now.getUTCFullYear();
-	const reservation = await InvoiceSequence.create({ year });
+	const reservation = await InvoiceSequence.create({ year }, { transaction });
 	const ordinal = await InvoiceSequence.count({
 		where: { year, id: { [Op.lte]: reservation.get('id') as number } },
+		transaction,
 	});
 	return `INV-${year}-${String(ordinal).padStart(6, '0')}`;
 };
@@ -109,6 +111,7 @@ const deliverInvoice = async (
  * @param mailSend injizierbarer Versand (Default: `sendMailToUser`s nodemailer-Transport).
  * @param saleId Sale-Referenz des auslösenden Zahlungsereignisses (#2086) — Anker für spätere Erstattungen.
  * @param charged abgebuchter Betrag und Währung (#2232); ohne gilt der Katalogpreis in EUR.
+ * @param transaction Transaktion des Zahlungsereignisses (#2233); der Mailversand folgt erst nach dem Commit.
  */
 export const issueInvoiceForPeriod = async (
 	subscription: Subscription,
@@ -116,6 +119,7 @@ export const issueInvoiceForPeriod = async (
 	mailSend?: MailSender,
 	saleId?: string | null,
 	charged?: ChargedAmount,
+	transaction?: Transaction,
 ): Promise<Invoice> => {
 	const subscriptionId = subscription.get('id') as number;
 	const periodEnd = subscription.get('currentPeriodEnd') as Date;
@@ -127,7 +131,7 @@ export const issueInvoiceForPeriod = async (
 	// #2232: ein abgelöstes Abo (#1912) steht auf `free` — eine Abbuchung darauf ist kein „Free“-Beleg.
 	const label =
 		charged && priceCents === 0 ? `Abbuchung (${PERIOD_DISPLAY[period] ?? period})` : displayLabel(plan, period);
-	const user = await User.findByPk(subscription.get('userId') as number);
+	const user = await User.findByPk(subscription.get('userId') as number, { transaction });
 	// #2030: Nachholversand unzugestellter Rechnungen (Mailfehler schluckt `sendMailToUser`).
 	const redeliverPending = async (exceptId?: number): Promise<void> => {
 		const pending = await Invoice.findAll({
@@ -138,11 +142,14 @@ export const issueInvoiceForPeriod = async (
 			await deliverInvoice(old, user, label, now, mailSend);
 		}
 	};
+	// Mail nie aus einer Transaktion heraus, die noch zurückrollen kann (#2233).
+	const afterCommit = async (deliver: () => Promise<void>): Promise<void> =>
+		transaction ? transaction.afterCommit(deliver) : deliver();
 
-	const existing = await Invoice.findOne({ where: { subscriptionId, periodEnd } });
+	const existing = await Invoice.findOne({ where: { subscriptionId, periodEnd }, transaction });
 	if (existing) {
-		await redeliverPending();
-		return existing.reload();
+		await afterCommit(() => redeliverPending());
+		return existing.reload({ transaction });
 	}
 
 	const periodStart = new Date(periodEnd);
@@ -163,18 +170,21 @@ export const issueInvoiceForPeriod = async (
 				]
 			: [];
 
-	const invoice = await Invoice.create({
-		userId: subscription.get('userId') as number,
-		subscriptionId,
-		number: await nextInvoiceNumber(now),
-		periodStart,
-		periodEnd,
-		amountCents,
-		currency: charged?.currency ?? 'EUR',
-		taxNote: TAX_NOTE,
-		lineItems,
-		saleId: saleId ?? null,
-	});
+	const invoice = await Invoice.create(
+		{
+			userId: subscription.get('userId') as number,
+			subscriptionId,
+			number: await nextInvoiceNumber(now, transaction),
+			periodStart,
+			periodEnd,
+			amountCents,
+			currency: charged?.currency ?? 'EUR',
+			taxNote: TAX_NOTE,
+			lineItems,
+			saleId: saleId ?? null,
+		},
+		{ transaction },
+	);
 
 	// PDF zum Erzeugungszeitpunkt bauen und speichern (#1955 AK3) — Anhang und späterer Download
 	// teilen dieselben Bytes (byte-identisch). Wirft der Bau, bleibt keine halbe Rechnung stehen:
@@ -193,15 +203,17 @@ export const issueInvoiceForPeriod = async (
 			`Paket ${label}`,
 		);
 	} catch (error) {
-		await invoice.destroy();
+		await invoice.destroy({ transaction });
 		throw error;
 	}
-	await invoice.update({ pdfBytes: Buffer.from(pdfBytes) });
+	await invoice.update({ pdfBytes: Buffer.from(pdfBytes) }, { transaction });
 	if (creditCents > 0) {
-		await subscription.update({ creditCents: 0 });
+		await subscription.update({ creditCents: 0 }, { transaction });
 	}
-	await deliverInvoice(invoice, user, label, now, mailSend);
-	await redeliverPending(invoice.get('id') as number);
+	await afterCommit(async () => {
+		await deliverInvoice(invoice, user, label, now, mailSend);
+		await redeliverPending(invoice.get('id') as number);
+	});
 
 	return invoice;
 };

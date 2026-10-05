@@ -1,4 +1,7 @@
-import { PDFDocument, StandardFonts } from 'pdf-lib';
+import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import fontkit from '@pdf-lib/fontkit';
+import { PDFDocument } from 'pdf-lib';
 import Invoice from '../models/invoice.js';
 
 /**
@@ -60,8 +63,19 @@ export const invoicePdfLines = (
 ];
 
 /**
- * Zeichnet {@link invoicePdfLines} in ein echtes PDF (A4, Standard-Font) und liefert die Bytes —
- * dieselben, die als Anhang der Rechnungsmail versendet und an der Rechnung gespeichert werden.
+ * Unicode-Schrift für Namen in allen App-Sprachen (#2233) — die Standard-Helvetica kann nur WinAnsi.
+ * Aufgelöst über das Paket statt über einen Pfad im Quellbaum: `tsc` kopiert keine TTF nach `dist`.
+ */
+const FONT_PATH = createRequire(import.meta.url).resolve('dejavu-fonts-ttf/ttf/DejaVuSans.ttf');
+let fontBytes: Promise<Buffer> | undefined;
+
+/** Ersetzt Zeichen ohne Glyphe (z. B. Emoji) durch `?`, statt den PDF-Bau scheitern zu lassen. */
+const printable = (text: string, font: fontkit.Font): string =>
+	Array.from(text, (char) => (font.hasGlyphForCodePoint(char.codePointAt(0)!) ? char : '?')).join('');
+
+/**
+ * Zeichnet {@link invoicePdfLines} in ein echtes PDF (A4, eingebettete Unicode-Schrift) und liefert die
+ * Bytes — dieselben, die als Anhang der Rechnungsmail versendet und an der Rechnung gespeichert werden.
  */
 export const buildInvoicePdf = async (
 	invoice: Invoice,
@@ -69,10 +83,15 @@ export const buildInvoicePdf = async (
 	recipient: InvoiceRecipient,
 	service: string,
 ): Promise<Uint8Array> => {
+	fontBytes ??= readFile(FONT_PATH);
+	const bytes = await fontBytes;
+	const glyphs = fontkit.create(bytes);
 	const doc = await PDFDocument.create();
-	const font = await doc.embedFont(StandardFonts.Helvetica);
+	doc.registerFontkit(fontkit);
+	const font = await doc.embedFont(bytes, { subset: true });
 	const page = doc.addPage([595, 842]);
-	page.drawText(invoicePdfLines(invoice, operator, recipient, service).join('\n'), {
+	const lines = invoicePdfLines(invoice, operator, recipient, service).map((line) => printable(line, glyphs));
+	page.drawText(lines.join('\n'), {
 		x: 48,
 		y: 794,
 		size: 11,
