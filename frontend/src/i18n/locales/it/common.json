@@ -96,7 +96,9 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
-		"importieren": "Importa attività da Todoist o da un CSV"
+		"importieren": "Importa attività da Todoist o da un CSV",
+		"importHeading": "Portare le tue attività esistenti?",
+		"importHint": "Facoltativo: porta le tue attività da Todoist o da un file CSV. L'importazione apre le impostazioni e termina questa procedura guidata."
 	},
 	"weeklyCard": {
 		"label": "La mia settimana in cinque pilastri",

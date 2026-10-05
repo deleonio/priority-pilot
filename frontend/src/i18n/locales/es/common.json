@@ -96,7 +96,9 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
-		"importieren": "Importar tareas de Todoist o de un CSV"
+		"importieren": "Importar tareas de Todoist o de un CSV",
+		"importHeading": "¿Traer tus tareas existentes?",
+		"importHint": "Opcional: trae tus tareas desde Todoist o un archivo CSV. La importación abre los ajustes y termina este asistente."
 	},
 	"weeklyCard": {
 		"label": "Mi semana en cinco pilares",

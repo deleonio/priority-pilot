@@ -1015,8 +1015,8 @@ export const SettingsPage = ({
 							</div>
 						</div>
 					</KolCard>
-					<LlmSettings open={aiFeaturesEnabled} disabled={showAiPlanAlert} />
-					<ApiTokensSection open={aiFeaturesEnabled} />
+					<LlmSettings open={aiEnabled} disabled={showAiPlanAlert} />
+					<ApiTokensSection open={aiEnabled} />
 				</div>
 				{/* #1211: Gruppen-Verwaltung (AK6–AK8) — eigener Tab „Gruppen" (Index 5, Route
 				        /settings/gruppen). Liste als Accordions mit Rolle + Mitgliederzahl, Anlegen/Bearbeiten

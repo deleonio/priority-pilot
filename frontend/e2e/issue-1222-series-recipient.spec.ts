@@ -1,4 +1,4 @@
-import { expect, test, type Page } from './fixtures';
+import { dismissOnboardingDialog, expect, test, type Page } from './fixtures';
 import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
@@ -118,6 +118,8 @@ test.describe('Serie für ein Gruppenmitglied (#1222)', () => {
 		const recipientContext = await page.context().browser()!.newContext();
 		await recipientContext.addCookies([{ name: cookieName.trim(), value: cookieValue.trim(), url: baseURL }]);
 		const recipientPage = await recipientContext.newPage();
+		// Eigener Context ohne die Fixture-Page: den Willkommens-Dialog (leere Task-Liste) selbst wegräumen.
+		await dismissOnboardingDialog(recipientPage);
 
 		await openGroupsTab(page);
 		await createGroupAndInvite(page, GROUP_NAME);

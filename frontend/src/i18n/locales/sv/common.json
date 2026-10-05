@@ -96,7 +96,9 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
-		"importieren": "Importera uppgifter från Todoist eller en CSV"
+		"importieren": "Importera uppgifter från Todoist eller en CSV",
+		"importHeading": "Ta med dina befintliga uppgifter?",
+		"importHint": "Valfritt: hämta dina uppgifter från Todoist eller en CSV-fil. Importen öppnar inställningarna och avslutar den här guiden."
 	},
 	"weeklyCard": {
 		"label": "Min vecka i fem pelare",

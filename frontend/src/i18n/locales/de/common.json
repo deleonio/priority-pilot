@@ -96,7 +96,9 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
-		"importieren": "Aufgaben aus Todoist oder CSV importieren"
+		"importieren": "Aufgaben aus Todoist oder CSV importieren",
+		"importHeading": "Bestehende Aufgaben mitbringen?",
+		"importHint": "Optional: Hol deine Aufgaben aus Todoist oder einer CSV-Datei hierher. Der Import öffnet die Einstellungen und beendet diesen Assistenten."
 	},
 	"weeklyCard": {
 		"label": "Meine Woche in fünf Säulen",

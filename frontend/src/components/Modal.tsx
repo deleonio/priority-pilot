@@ -98,6 +98,13 @@ export const Modal = forwardRef<ModalHandle, ModalProps>(function Modal(
 	// Überdauert den StrictMode-Re-Mount (Refs bleiben dabei erhalten): genau EIN `showModal()` pro
 	// Dialog-Instanz. Ein zweites würfe `InvalidStateError` auf dem bereits offenen nativen Dialog.
 	const openedRef = useRef(false);
+	// Aktueller `open`-Wert für die asynchrone Öffnen-Logik beim Mount (ein bereits geschlossen gemountetes
+	// Modal darf nicht von selbst aufgehen, z. B. nach Remount des Eigentümers).
+	const openPropRef = useRef(open);
+	openPropRef.current = open;
+	// Zuletzt verarbeiteter `open`-Wert: nur ein echter Wechsel löst den Umschalt-Effekt aus (der erste Lauf
+	// und der StrictMode-Doppellauf sind keine Wechsel).
+	const prevOpenRef = useRef(open);
 
 	useEffect(() => {
 		const dialog = ref.current;
@@ -118,7 +125,7 @@ export const Modal = forwardRef<ModalHandle, ModalProps>(function Modal(
 		let active = true;
 		void Promise.all([customElements.whenDefined('kol-dialog'), customElements.whenDefined('kol-button')]).then(
 			async () => {
-				if (!active || openedRef.current) {
+				if (!active || openedRef.current || !openPropRef.current) {
 					return;
 				}
 				openedRef.current = true;
@@ -176,7 +183,16 @@ export const Modal = forwardRef<ModalHandle, ModalProps>(function Modal(
 	// Späteres Umschalten von `open` (nach dem ersten Öffnen): schließen bzw. wieder öffnen.
 	useEffect(() => {
 		const dialog = ref.current;
-		if (dialog === null || !openedRef.current) {
+		if (dialog === null || prevOpenRef.current === open) {
+			return;
+		}
+		prevOpenRef.current = open;
+		if (!openedRef.current) {
+			// Erstes Öffnen eines zunächst geschlossen gemounteten Dialogs.
+			if (open) {
+				openedRef.current = true;
+				void dialog.showModal();
+			}
 			return;
 		}
 		void (open ? dialog.showModal() : dialog.close());
@@ -196,6 +212,8 @@ export const Modal = forwardRef<ModalHandle, ModalProps>(function Modal(
 			_level={2}
 			_variant="card"
 			_width={width}
+			// Geschlossen aber gemountet (`open={false}`): nicht fokussierbar, keine Tab-Stopps im toten Dialog.
+			inert={open ? undefined : true}
 			_on={{ onClose: () => onCloseRef.current() }}
 		>
 			<div className="modal-body">{children}</div>

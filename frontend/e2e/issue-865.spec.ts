@@ -171,6 +171,8 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 		// Starting-Point bleibt danach an der Position des entfernten Buttons, deshalb Fokus-Reset auf
 		// body, damit der Tab wieder vom Dokumentanfang startet.
 		await page.getByRole('button', { name: 'Später' }).click();
+		// Das Schließen des Dialogs ist asynchron — erst weiter, wenn er wirklich zu ist (sonst fängt er den Tab ab).
+		await expect(page.getByRole('dialog')).toHaveCount(0);
 		await page.evaluate(() => {
 			document.body.setAttribute('tabindex', '-1');
 			(document.body as HTMLElement).focus();

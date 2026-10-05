@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * #1787 AK1/AK2/AK4/AK5/AK6: Paket-Hinweis (FeaturePopoverButton) an der Grenzstelle `groups` (Modal „Gruppe anlegen"), Free-Konto
@@ -24,12 +24,13 @@ test('#1787: Hinweis im Gruppen-Dialog öffnet als Popover, ist schließbar, Ein
 	await waitForStableView(page, 'Allgemein');
 	await page.getByRole('button', { name: 'Gruppe anlegen' }).click();
 
-	const hint = page.getByTestId('plan-badge-groups');
+	const hint = page.locator('kol-dialog').getByTestId('plan-badge-groups');
 	await expect(hint).toBeVisible();
 	await expect(page.getByRole('dialog')).toHaveCount(1);
 	await page.getByRole('searchbox', { name: 'Name' }).fill('Mein Gruppenname');
 
-	await hint.getByRole('button').first().click();
+	// Host statt innerem Button klicken: Playwrights Hit-Test löst Shadow-Buttons im Modal-Dialog falsch auf.
+	await hint.click();
 	const card = hint.locator('kol-alert');
 	await expect(card).toContainText('Plus');
 	const box = await card.boundingBox();
@@ -56,7 +57,7 @@ test('#1787 AK1: Hinweis an graph_weight (Modal-Link mit App-Basis) und location
 	await item.getByRole('button', { name: 'Weitere Aktionen' }).click();
 	await item.getByRole('button', { name: 'Abhängigkeiten' }).click();
 	const modalHint = page.getByTestId('plan-badge-graph_weight');
-	await modalHint.getByRole('button').first().click();
+	await modalHint.click();
 	await expect(modalHint).toBeVisible();
 	const popupPromise = page.waitForEvent('popup');
 	await modalHint.getByRole('button', { name: 'Pakete ansehen' }).click();
@@ -65,6 +66,8 @@ test('#1787 AK1: Hinweis an graph_weight (Modal-Link mit App-Basis) und location
 
 	await page.goto('/app/settings/ortung');
 	await waitForStableView(page, 'Allgemein');
+	// Das Akkordeon folgt „Standort erfassen" (aus = zu) — für den Hinweis öffnen.
+	await openAccordionSection(page, 'Gespeicherte Orte');
 	await expect(page.getByTestId('plan-badge-location_reminders')).toBeVisible();
 });
 
@@ -75,6 +78,8 @@ test('#1787 AK4: im Kanal play führt der Hinweis zur Paketansicht mit Play-Kauf
 	await login(page);
 	await page.goto('/app/settings/ortung');
 	await waitForStableView(page, 'Allgemein');
+	// Das Akkordeon folgt „Standort erfassen" (aus = zu) — für den Hinweis öffnen.
+	await openAccordionSection(page, 'Gespeicherte Orte');
 
 	const hint = page.getByTestId('plan-badge-location_reminders');
 	await hint.getByRole('button').first().click();

@@ -96,7 +96,13 @@ test.describe('Dashboard — drei Statuskacheln (Issue #390)', () => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/app/');
 		await waitForStableView(page);
-		await page.request.post('/api/v1/tasks', { data: { title: 'E2E #1985 Begründung', priority: 2 } });
+		await page.request.post('/api/v1/tasks', {
+			data: {
+				title: 'E2E #1985 Begründung',
+				priority: 2,
+				deadline: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+			},
+		});
 		await page.reload();
 		await waitForStableView(page);
 		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
@@ -105,7 +111,7 @@ test.describe('Dashboard — drei Statuskacheln (Issue #390)', () => {
 		const karte = page.locator('.dashboard-next-task');
 		await expect(karte).toBeVisible();
 
-		// Begründungskette Ende-zu-Ende: der Task (Prio 2) bekommt mindestens einen Satz.
+		// Begründungskette Ende-zu-Ende: der Task (Prio 2, Frist in zwei Tagen) bekommt mindestens einen Satz — die Priorität steht in der Meta-Zeile.
 		const begruendungsSaetze = page.locator('.dashboard-next-task-reasons li');
 		await expect(begruendungsSaetze.first()).toBeVisible();
 

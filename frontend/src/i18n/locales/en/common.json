@@ -96,7 +96,9 @@
 		"beispiel2": "Answer an important email",
 		"beispiel3": "Plan the coming weekend",
 		"erstenTaskAnlegen": "Create your first task",
-		"importieren": "Import tasks from Todoist or a CSV file"
+		"importieren": "Import tasks from Todoist or a CSV file",
+		"importHeading": "Bring your existing tasks?",
+		"importHint": "Optional: bring your tasks over from Todoist or a CSV file. The import opens the settings and ends this assistant."
 	},
 	"weeklyCard": {
 		"label": "My week in five pillars",

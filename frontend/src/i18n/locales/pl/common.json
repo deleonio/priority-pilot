@@ -96,7 +96,9 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
-		"importieren": "Importuj zadania z Todoist lub z pliku CSV"
+		"importieren": "Importuj zadania z Todoist lub z pliku CSV",
+		"importHeading": "Przenieść istniejące zadania?",
+		"importHint": "Opcjonalnie: przenieś zadania z Todoist lub pliku CSV. Import otwiera ustawienia i kończy tego asystenta."
 	},
 	"weeklyCard": {
 		"label": "Mój tydzień w pięciu filarach",

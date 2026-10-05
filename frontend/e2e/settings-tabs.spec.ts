@@ -451,7 +451,7 @@ test.describe('#1903 Tab „KI"', () => {
 		const targets = [
 			page.getByRole('tab', { name: 'KI', exact: true }),
 			page.getByRole('switch', { name: 'KI aktivieren' }).or(page.getByRole('checkbox', { name: 'KI aktivieren' })),
-			page.locator('kol-card[_label="Access-Token"]'),
+			page.locator('kol-accordion[_label="Access-Token"]'),
 		];
 		for (const target of targets) {
 			await expect(target.first()).toBeVisible();

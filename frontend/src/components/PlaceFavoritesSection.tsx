@@ -32,7 +32,7 @@ const ButtonAction = ({ onClick, children }: { onClick: () => void; children: Re
  */
 export const PlaceFavoritesSection = ({ open = true }: { open?: boolean }) => {
 	const accordion = useFollowingOpen(open);
-	const listDetails = useFollowingOpen(open);
+	const listDetails = useFollowingOpen(true);
 	const [favorites, setFavorites] = useState<PlaceFavoriteView[]>([]);
 	const [address, setAddress] = useState('');
 	// Koordinaten des zuletzt gewählten Vorschlags (AK5) — Freitext ohne Auswahl bleibt `null`.

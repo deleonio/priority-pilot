@@ -249,16 +249,14 @@ test.describe('#1527 KI-Gate: Säulen-Berater ohne Berechtigung', () => {
 
 // ── #1903 (AK3): Details folgen dem Schalter, bleiben aber manuell aufklappbar ─────────────────
 
-test.describe('#1903 KI-Tab: Details bei Schalter aus', () => {
-	const LABELS = ['KI-Provider', 'Access-Token erstellen', 'Vorhandene Access-Token'];
+test.describe('#1903 KI-Tab: Akkordeons bei Schalter aus', () => {
+	const LABELS = ['KI-Provider', 'Access-Token'];
 	const detailsSummary = (page: Page, label: string) =>
-		page.locator('.settings-llm kol-details summary').filter({ hasText: new RegExp(`^${label}$`) });
+		page.locator('.settings-llm kol-accordion summary').filter({ hasText: new RegExp(`^${label}$`) });
 	const isOpen = (page: Page, label: string) =>
 		detailsSummary(page, label).evaluate((el) => el.closest('details')?.open === true);
 
-	test('AK3: Schalter aus → alle zu; manuell aufgeklappt bleibt offen nach Re-Render; Schalter an → alle offen', async ({
-		page,
-	}) => {
+	test('AK3: Schalter aus → beide Akkordeons zu und gesperrt; Schalter an → beide offen', async ({ page }) => {
 		await openLlmTab(page);
 		const aiSwitch = switchControl(page, /^KI aktivieren$/);
 
@@ -266,12 +264,10 @@ test.describe('#1903 KI-Tab: Details bei Schalter aus', () => {
 		await expect(aiSwitch).not.toBeChecked();
 		for (const label of LABELS) await expect.poll(() => isOpen(page, label)).toBe(false);
 
-		await detailsSummary(page, 'Access-Token erstellen').click();
-		await expect.poll(() => isOpen(page, 'Access-Token erstellen')).toBe(true);
-		// Re-Render auslösen (State in ApiTokensSection) — das Detail darf nicht zurückklappen.
-		await page.getByRole('searchbox', { name: /Name des Tokens/ }).fill('Re-Render');
+		// Gesperrt: ein Klick auf die Überschrift klappt nichts auf.
+		await detailsSummary(page, 'Access-Token').click({ force: true });
 		await page.waitForTimeout(300);
-		expect(await isOpen(page, 'Access-Token erstellen')).toBe(true);
+		expect(await isOpen(page, 'Access-Token')).toBe(false);
 
 		await aiSwitch.click();
 		await expect(aiSwitch).toBeChecked();

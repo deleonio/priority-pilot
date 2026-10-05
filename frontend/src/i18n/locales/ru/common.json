@@ -96,7 +96,9 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
-		"importieren": "Импортировать задачи из Todoist или CSV"
+		"importieren": "Импортировать задачи из Todoist или CSV",
+		"importHeading": "Перенести существующие задачи?",
+		"importHint": "По желанию: перенеси задачи из Todoist или CSV-файла. Импорт откроет настройки и завершит этот мастер."
 	},
 	"weeklyCard": {
 		"label": "Моя неделя в пяти столпах",

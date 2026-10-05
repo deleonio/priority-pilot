@@ -2,7 +2,7 @@ import { expect, test, type Page } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
- * E2E-Spec für #1977 (docs/spec/issue-1977.md): „Nicht jetzt" öffnet eine Inline-Grundauswahl
+ * E2E-Spec für #1977 (docs/spec/issue-1977.md): „Heute nicht" öffnet eine Inline-Grundauswahl
  * (fünf Gründe), nach dem Speichern rückt die nächste Empfehlung nach. ROT, bis CareHint die
  * Grundauswahl anbietet. Der Rejections-POST wird wie bei #1793 (AK3) per `page.route` bedient —
  * das E2E-Backend läuft im Pass-Through-Modus ohne Sitzung (CSRF-Token-Fetch im Weg).
@@ -14,7 +14,7 @@ const openDashboard = async (page: Page): Promise<void> => {
 	await waitForStableView(page);
 };
 
-test.describe('Dashboard — „Nicht jetzt" mit Grund (Issue #1977)', () => {
+test.describe('Dashboard — „Heute nicht" mit Grund (Issue #1977)', () => {
 	test('AK5: bei 375 px Grundauswahl bedienbar ohne Überlauf — danach rückt die nächste Empfehlung nach', async ({
 		page,
 	}) => {
@@ -25,7 +25,7 @@ test.describe('Dashboard — „Nicht jetzt" mit Grund (Issue #1977)', () => {
 		await expect(hint).toBeVisible();
 		const vorschlagVorher = await hint.locator('p').first().textContent();
 
-		await page.getByRole('button', { name: 'Nicht jetzt' }).click();
+		await page.getByRole('button', { name: 'Heute nicht' }).click();
 
 		// Test-Pflege #1977 (KoliBri-Realität): KolInputRadio rendert ein `fieldset` im Shadow-DOM
 		// (Implizite Rolle `group`, keine `radiogroup`) — die Auswahl wird über den Host im Hinweis
