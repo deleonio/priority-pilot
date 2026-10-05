@@ -890,9 +890,11 @@ describe('Billing/Webhook-API (#2086 — Zahlungsstatus)', () => {
 		);
 	});
 
-	it('AK2: BILLING.SUBSCRIPTION.ACTIVATED erzeugt die Rechnung mit paymentStatus "paid", aber ohne Sale-Referenz', async () => {
+	it('#2230 AK3: BILLING.SUBSCRIPTION.ACTIVATED erzeugt keine Rechnung und verlängert nicht, setzt aber den Status active', async () => {
 		server = await startTestServer(withVerifierAndMail('verified'));
 		await createSubscription('I-2086-ACT');
+		const before = await Subscription.findOne({ where: { externalSubscriptionId: 'I-2086-ACT' } });
+		await before!.update({ status: 'approval_pending' });
 
 		await rawPost(
 			'/webhooks/paypal',
@@ -906,12 +908,12 @@ describe('Billing/Webhook-API (#2086 — Zahlungsstatus)', () => {
 
 		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-2086-ACT' } });
 		const invoices = await Invoice.findAll({ where: { subscriptionId: sub?.get('id') as number } });
-		assert.equal(invoices.length, 1, 'Genau eine Rechnung muss entstehen');
-		assert.equal(invoices[0]?.get('paymentStatus'), 'paid', 'Die bestätigte Aktivierung muss die Rechnung paid setzen');
+		assert.equal(invoices.length, 0, 'ACTIVATED ist keine Abbuchung — keine Rechnung');
+		assert.equal(sub?.get('status'), 'active');
 		assert.equal(
-			invoices[0]?.get('saleId'),
-			null,
-			'ACTIVATED trägt keine Sale-Id — eine falsche Erstattungs-Referenz darf nicht entstehen',
+			(sub?.get('currentPeriodEnd') as Date).toISOString(),
+			'2026-02-01T00:00:00.000Z',
+			'ACTIVATED verlängert die Periode nicht',
 		);
 	});
 
