@@ -657,6 +657,57 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /templates/{slug}/preview:
+    get:
+      summary: Vorschau einer Vorlage
+      description: >-
+        Nennt Anzahl der Aufgaben und Abhängigkeiten sowie die Schritt-Struktur
+        einer Vorlage aus der Bibliothek (#1993) — schreibt nichts.
+      operationId: previewTemplate
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: Kennung der Vorlage (z. B. `hausbau`)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Zählwerte und Struktur der Vorlage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplatePreview'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /templates/{slug}/apply:
+    post:
+      summary: Vorlage als Aufgabenpaket übernehmen
+      description: >-
+        Legt in einer Transaktion je Schritt eine Aufgabe, je Vorgänger-Kante
+        eine Abhängigkeit und die Kategorie (Name = Vorlagentitel, vorhandene
+        Kategorie des Nutzers wird wiederverwendet) an (#1993). Bei einem Fehler
+        bleibt nichts zurück. Erneutes Übernehmen erzeugt eine zweite vollständige
+        Kopie.
+      operationId: applyTemplate
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: Kennung der Vorlage (z. B. `hausbau`)
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Neu angelegte Aufgaben
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateApplyResult'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /tasks/import/preview:
     post:
       summary: CSV-Import-Vorschau ohne Schreibzugriff
@@ -6434,6 +6485,47 @@ components:
         value:
           type: string
           description: CSV-Wert ohne Zuordnung
+    TemplatePreview:
+      type: object
+      description: Vorschau einer Vorlage (#1993) — legt nichts an.
+      required: [slug, title, taskCount, dependencyCount, steps]
+      properties:
+        slug:
+          type: string
+        title:
+          type: string
+        taskCount:
+          type: integer
+          description: Anzahl der Aufgaben, die die Übernahme anlegt
+        dependencyCount:
+          type: integer
+          description: Anzahl der Abhängigkeiten, die die Übernahme anlegt
+        steps:
+          type: array
+          items:
+            type: object
+            required: [id, title, after]
+            properties:
+              id:
+                type: string
+                description: Stabile Kennung innerhalb der Vorlage
+              title:
+                type: string
+              after:
+                type: array
+                description: Kennungen der Vorgänger-Schritte
+                items:
+                  type: string
+    TemplateApplyResult:
+      type: object
+      description: Ergebnis der Vorlagen-Übernahme (#1993).
+      required: [taskIds]
+      properties:
+        taskIds:
+          type: array
+          description: IDs der neu angelegten Aufgaben in Schritt-Reihenfolge
+          items:
+            type: integer
     TaskImportPreview:
       type: object
       description: Ergebnis der Import-Vorschau (#1969) — legt nichts an.
