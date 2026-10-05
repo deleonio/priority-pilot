@@ -4,7 +4,16 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.16 - 2026-10-05
 
-_Keine für Nutzer sichtbaren Änderungen._
+_Enthält v0.16.0 – v0.16.2._
+
+### 🎉 New Features
+
+- feat(server): import templates as task packages (#1993) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2197
+
+### Other Changes
+
+- feat(frontend): dashboard and settings ux rework, oauth pillar seeding by @deleonio in https://github.com/deleonio/priority-pilot/pull/2192
+- chore: key pipeline concurrency per ticket with issue and pr lanes by @deleonio in https://github.com/deleonio/priority-pilot/pull/2199
 
 ## v0.15 - 2026-10-05
 
@@ -163,6 +172,8 @@ _Enthält v0.12.0 – v0.12.26._
 - docs(adr): add ADR 0019 waitlist launch access model (#1961) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2027
 - docs(skill): ticket-coordination — check-in cadence while issue phases run by @deleonio in https://github.com/deleonio/priority-pilot/pull/2029
 - feat(server,frontend): waitlist with referral rank (#1982) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2034
+- chore: extend goal tracking in the cost report by @deleonio in https://github.com/deleonio/priority-pilot/pull/2037
+- docs(skill): ticket-coordination conflict, quota and self-fix rules by @deleonio in https://github.com/deleonio/priority-pilot/pull/2039
 - chore: extend goal tracking in the cost report by @deleonio in https://github.com/deleonio/priority-pilot/pull/2037
 - docs(skill): ticket-coordination conflict, quota and self-fix rules by @deleonio in https://github.com/deleonio/priority-pilot/pull/2039
 - feat(server): auto-provision unknown invitee and delegation recipients by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2035
