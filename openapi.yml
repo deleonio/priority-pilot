@@ -8033,7 +8033,7 @@ components:
     Me:
       type: object
       description: Antwort von `GET /auth/me` (Issue #206/#1456/#1494/#1901) — Session, Paket, Entitlements, Abo, Zustimmung.
-      required: [email, displayName, avatarUrl, plan, entitlements, subscription, termsAccepted]
+      required: [email, displayName, avatarUrl, plan, entitlements, subscription, termsAccepted, launchBanner]
       properties:
         id:
           type: integer
@@ -8066,6 +8066,11 @@ components:
           description: >-
             `true`, wenn das Konto der aktuellen Fassung der Nutzungsbedingungen zugestimmt
             hat (#1901); im lokalen Pass-Through-Modus immer `true`.
+        launchBanner:
+          type: boolean
+          description: >-
+            `true`, wenn der Einladungs-Banner der Einführungsphase aktiv ist (#2229);
+            Server-Schalter `LAUNCH_BANNER_ENABLED=true`, Default `false`.
         playAccountId:
           type: string
           description: >-

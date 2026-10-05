@@ -390,6 +390,7 @@ authRouter.get('/auth/me', async (req, res) => {
 			subscription: null,
 			// #1901 (AK8): ohne Auth-Kontext gibt es nichts zu bestätigen.
 			termsAccepted: true,
+			launchBanner: process.env.LAUNCH_BANNER_ENABLED === 'true',
 		});
 		return;
 	}
@@ -508,6 +509,8 @@ authRouter.get('/auth/me', async (req, res) => {
 		entitlements: getEntitlements(plan),
 		subscription,
 		termsAccepted,
+		// #2229: Server-Schalter des Einführungs-Banners, je Anfrage gelesen (Wechsel ohne Release).
+		launchBanner: process.env.LAUNCH_BANNER_ENABLED === 'true',
 		...(user.id !== undefined ? { playAccountId: playAccountIdFor(user.id) } : {}),
 	});
 });

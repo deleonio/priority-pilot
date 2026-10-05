@@ -136,5 +136,11 @@
 		"streak": "Najdłuższa seria",
 		"projekte": "Ukończone projekty",
 		"saeule": "Najsilniejszy filar"
+	},
+	"launchBanner": {
+		"title": "Balamentum jest zupełnie nowe",
+		"text": "Jesteś jedną z pierwszych osób. To, co zauważysz, nam pomaga – daj nam znać.",
+		"feedback": "Podziel się opinią",
+		"dismiss": "Zamknij"
 	}
 }
