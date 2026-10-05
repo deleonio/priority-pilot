@@ -119,5 +119,20 @@
 		"speichern": "Salva PNG",
 		"erzeuge": "Creazione della scheda …",
 		"fehler": "Impossibile creare la scheda. Riprova."
+	},
+	"yearlyCard": {
+		"label": "Il mio anno in cifre",
+		"laden": "Caricamento del riepilogo annuale …",
+		"leer": "Nessuna attività completata l'anno scorso: la scheda si riempie appena spunti attività quest'anno.",
+		"rueckblick": "Riepilogo",
+		"teilen": "Condividi l'anno",
+		"speichern": "Salva PNG",
+		"erzeuge": "Creazione della scheda …",
+		"fehler": "Impossibile creare la scheda. Riprova.",
+		"aufgaben": "Attività completate",
+		"stunden": "Ore investite",
+		"streak": "Serie più lunga",
+		"projekte": "Progetti completati",
+		"saeule": "Pilastro più forte"
 	}
 }

@@ -1549,7 +1549,8 @@ kol-toolbar {
 }
 
 .dashboard-weekly-aktionen,
-.dashboard-monthly-aktionen {
+.dashboard-monthly-aktionen,
+.dashboard-yearly-aktionen {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
 	gap: var(--pp-gap-tight);
@@ -1559,7 +1560,8 @@ kol-toolbar {
 /* Desktop: Teilen und Speichern nebeneinander, mobil gestapelt. */
 @media (min-width: 48rem) {
 	.dashboard-weekly-aktionen,
-	.dashboard-monthly-aktionen {
+	.dashboard-monthly-aktionen,
+	.dashboard-yearly-aktionen {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 }
@@ -1631,10 +1633,63 @@ kol-toolbar {
 	font-weight: var(--pp-weight-bold);
 }
 
-.dashboard-monthly-aktionen kol-button {
+.dashboard-monthly-aktionen kol-button,
+.dashboard-yearly-aktionen kol-button {
 	display: block;
 	width: 100%;
 	min-height: 44px;
+}
+
+/*
+ * #1997: Jahresrückblick-Card — Spiegel der Monatskarte (Kennzahlen als Label/Wert-Liste,
+ * zeilenfüllende Touch-Targets ab 44px, mobile-ui-rules Regel 2).
+ */
+.dashboard-yearly {
+	display: block;
+	margin-top: var(--pp-gap-generous);
+}
+
+.dashboard-yearly-content {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-space-2);
+}
+
+.dashboard-yearly-hint,
+.dashboard-yearly-jahr {
+	margin: 0;
+	font-size: var(--pp-font-size-sm);
+	color: var(--pp-text-muted);
+}
+
+.dashboard-yearly-liste {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-space-2);
+	margin: 0;
+}
+
+.dashboard-yearly-zeile {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: var(--pp-space-2);
+	font-variant-numeric: tabular-nums;
+}
+
+.dashboard-yearly-zeile dt {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.dashboard-yearly-zeile dd {
+	margin: 0;
+	min-width: 0;
+	overflow-wrap: anywhere;
+	text-align: end;
+	font-size: var(--pp-font-size-2xl);
+	font-weight: var(--pp-weight-bold);
+	line-height: var(--pp-line-tight);
 }
 
 /*

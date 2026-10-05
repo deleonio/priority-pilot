@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { sendError } from '../http-error.js';
-import { Pillar, ScoreEntry, Task, MissedTask, User } from '../../models/index.js';
+import { Dependency, Pillar, ScoreEntry, Task, MissedTask, User } from '../../models/index.js';
 import { adviseActivitiesWithMistral, type ActivityAdvisor } from '../../llm/llm.js';
 import { effectivePlan } from '../../logics/plans.js';
 import { createAiQuotaCounter } from '../aiQuotaMeter.js';
@@ -44,6 +44,7 @@ type MissedTasksSummaryDto = components['schemas']['MissedTasksSummary'];
 type BalanceStatusDto = components['schemas']['BalanceStatus'];
 type BalanceHistoryEntryDto = components['schemas']['BalanceHistoryEntry'];
 type MonthlyRecapDto = components['schemas']['MonthlyRecap'];
+type YearlyRecapDto = components['schemas']['YearlyRecap'];
 type CareVorschlagDto = components['schemas']['CareVorschlag'];
 type CareRejectionDto = components['schemas']['CareSuggestionRejection'];
 
@@ -446,6 +447,96 @@ scoresRouter.get('/scores/monthly-recap', async (req: Request, res: Response<Mon
 			meilensteine: eigeneMeilensteine
 				.filter((meilenstein) => tagIn(meilenstein.zeitpunkt, zeitZone).slice(0, 7) === monat)
 				.map((meilenstein) => ({ schluessel: meilenstein.schluessel, zeitpunkt: meilenstein.zeitpunkt.toISOString() })),
+		});
+	} catch {
+		sendError(res, 500, 'Interner Serverfehler.');
+	}
+});
+
+// GET /scores/yearly-recap — Jahresrückblick (#1997, Balamentum Wrapped): fünf Kennzahlen des
+// Kalenderjahres in der Nutzerzeitzone, Erledigt-Zeitpunkt = `ScoreEntry.zeitpunkt`. Stunden =
+// `actualEffort ?? estimatedEffort`; Projekt = im Jahr erledigte Oberaufgabe mit mindestens einer
+// Unteraufgabe (`Dependency`); stärkste Säule = größte Differenz des kumulativen Verlaufs
+// (Wochen-/Monatskarten-Rechnung). Enthält keine Aufgabeninhalte; gescopet mit `ownerScope`.
+const JAHR_REGEX = /^\d{4}$/;
+
+scoresRouter.get('/scores/yearly-recap', async (req: Request, res: Response<YearlyRecapDto | ErrorDto>) => {
+	try {
+		const jahrText = typeof req.query.jahr === 'string' ? req.query.jahr : '';
+		if (!JAHR_REGEX.test(jahrText)) {
+			sendError(res, 400, '"jahr" ist ein Pflichtparameter und muss ein vierstelliges Jahr (JJJJ) benennen.');
+			return;
+		}
+		const jahr = Number(jahrText);
+		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+		const zeitZone = istGueltigeZeitzone(angefragteZone)
+			? angefragteZone
+			: Intl.DateTimeFormat().resolvedOptions().timeZone;
+		const imJahr = (zeitpunkt: Date): boolean => tagIn(zeitpunkt, zeitZone).slice(0, 4) === jahrText;
+
+		const userId = getUserId(req);
+		const [saeulen, tasks, entries] = await Promise.all([
+			Pillar.findAll({ where: ownerScope(userId), order: [['id', 'ASC']] }),
+			Task.findAll({ where: { ...ownerScope(userId), status: 'Done' }, include: [Pillar] }),
+			ScoreEntry.findAll({ include: [{ model: Task, where: ownerScope(userId) }] }),
+		]);
+		const zeitpunktProTask = new Map(entries.map((entry) => [entry.taskId, entry.zeitpunkt]));
+		const erledigtImJahr = tasks.filter((task) => {
+			const zeitpunkt = zeitpunktProTask.get(task.id);
+			return zeitpunkt !== undefined && imJahr(zeitpunkt);
+		});
+
+		const stunden = erledigtImJahr.reduce((summe, task) => summe + (task.actualEffort ?? task.estimatedEffort), 0);
+		const eltern = await Dependency.findAll({
+			where: { dependentTaskId: erledigtImJahr.map((task) => task.id) },
+			attributes: ['dependentTaskId'],
+		});
+
+		const verlauf = berechneBalanceVerlauf(
+			saeulen.map((saeule) => ({ id: saeule.id, key: saeule.key, name: saeule.name, weight: saeule.weight })),
+			tasks.map((task) => ({
+				status: task.status,
+				estimatedEffort: task.estimatedEffort,
+				pillars: (task.Pillars ?? []).map((pillar: PillarWithContribution) => ({
+					pillarId: pillar.id,
+					share: pillar.TaskPillar.share,
+				})),
+				zeitpunkt: zeitpunktProTask.get(task.id) ?? null,
+			})),
+			`${jahr - 1}-12-31`,
+			`${jahr}-12-31`,
+			zeitZone,
+		);
+		const standVorjahr = new Map((verlauf[0]?.saeulen ?? []).map((s) => [s.id, s.punkte]));
+		const saeulenDifferenz = (verlauf[verlauf.length - 1]?.saeulen ?? []).map((s) => ({
+			id: s.id,
+			name: s.name,
+			punkte: Math.round((s.punkte - (standVorjahr.get(s.id) ?? 0)) * 10) / 10,
+		}));
+		// Ohne Punkte oder ohne Unterschied (z. B. nur nicht zugeordnete Aufgaben, die nach Gewicht
+		// gleich verteilt werden) gibt es keine stärkste Säule.
+		const staerkste = saeulenDifferenz.reduce<(typeof saeulenDifferenz)[number] | null>(
+			(beste, saeule) => (saeule.punkte > (beste?.punkte ?? 0) ? saeule : beste),
+			null,
+		);
+		const alleGleich = saeulenDifferenz.every((saeule) => saeule.punkte === saeulenDifferenz[0]?.punkte);
+
+		const { best } = berechneStreak(
+			streakZeitpunkte(
+				entries.map((entry) => ({ zeitpunkt: entry.zeitpunkt, deadline: entry.Task?.deadline })),
+				zeitZone,
+			).filter(imJahr),
+			mittagDesTags(`${jahr}-12-31`, zeitZone),
+			zeitZone,
+		);
+
+		res.json({
+			jahr,
+			erledigteAufgaben: erledigtImJahr.length,
+			stunden: Math.round(stunden * 10) / 10,
+			laengsterStreak: best,
+			staerksteSaeule: alleGleich ? null : staerkste,
+			abgeschlosseneProjekte: new Set(eltern.map((e) => e.get('dependentTaskId'))).size,
 		});
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');

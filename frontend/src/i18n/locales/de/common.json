@@ -119,5 +119,20 @@
 		"speichern": "PNG speichern",
 		"erzeuge": "Karte wird erzeugt …",
 		"fehler": "Die Karte konnte nicht erzeugt werden. Versuche es bitte noch einmal."
+	},
+	"yearlyCard": {
+		"label": "Mein Jahr in Zahlen",
+		"laden": "Jahresrückblick wird geladen …",
+		"leer": "Keine erledigten Aufgaben im Vorjahr — im neuen Jahr füllt sich die Karte, sobald du Aufgaben abhakst.",
+		"rueckblick": "Rückblick",
+		"teilen": "Jahr teilen",
+		"speichern": "PNG speichern",
+		"erzeuge": "Karte wird erzeugt …",
+		"fehler": "Die Karte konnte nicht erzeugt werden. Versuche es bitte noch einmal.",
+		"aufgaben": "Erledigte Aufgaben",
+		"stunden": "Investierte Stunden",
+		"streak": "Längster Streak",
+		"projekte": "Abgeschlossene Projekte",
+		"saeule": "Stärkste Säule"
 	}
 }

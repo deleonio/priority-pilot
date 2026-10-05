@@ -5,6 +5,7 @@ import { DayDoneHint } from './DayDoneHint';
 import { StreakCard } from './StreakCard';
 import { WeeklyBalanceCard } from './WeeklyBalanceCard';
 import { MonthlyBalanceCard } from './MonthlyBalanceCard';
+import { YearlyRecapCard } from './YearlyRecapCard';
 import { MilestoneBadges } from './MilestoneBadges';
 import { MissedTasksCard } from './MissedTasksCard';
 import { HeartBalance } from './HeartBalance';
@@ -488,6 +489,10 @@ export const Dashboard = ({
 			{/* #1995: Rückblick auf den Vormonat — dieselbe Karten-Idee wie die Wochenkarte, deshalb
 			 * direkt daneben. Lädt selbst (Muster WeeklyBalanceCard), daher ohne Prop-Kette; sie
 			 * erscheint von selbst nur im Monatsanfangs-Fenster (Tag 1–7, AK4). */}
+			{/* #1997: Jahresrückblick aufs Vorjahr (Balamentum Wrapped) — das größere Ereignis steht in
+			 * den ersten Januartagen vor der Monatskarte. Lädt selbst (Muster MonthlyBalanceCard) und
+			 * erscheint von selbst nur im Januar (AK5). */}
+			<YearlyRecapCard />
 			<MonthlyBalanceCard />
 			{/* #1362: eigener Knoten direkt nach der Streak-Card — beide Stufenlisten (Streak/Punkte)
 			 * bauen auf denselben Kennzahlen auf, die Badges fassen sie zu einer Übersicht zusammen. */}

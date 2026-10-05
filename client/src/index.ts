@@ -48,6 +48,7 @@ export type Milestone = Schemas['Milestone'];
 export type BalanceHistoryEntry = Schemas['BalanceHistoryEntry'];
 /** #1995: Monatsrückblick — Säulen-Differenz, Streak zum Monatsende, neue Meilensteine. */
 export type MonthlyRecap = Schemas['MonthlyRecap'];
+export type YearlyRecap = Schemas['YearlyRecap'];
 export type BalanceStatus = Schemas['BalanceStatus'];
 /** Schnappschuss einer vom Auto-Delete-Cron gelöschten Aufgabe (Bewertungssystem-Sichtbarkeit, rein informativ). */
 export type MissedTask = Schemas['MissedTask'];

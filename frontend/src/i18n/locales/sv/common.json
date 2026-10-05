@@ -119,5 +119,20 @@
 		"speichern": "Spara PNG",
 		"erzeuge": "Kortet skapas …",
 		"fehler": "Kortet kunde inte skapas. Försök igen."
+	},
+	"yearlyCard": {
+		"label": "Mitt år i siffror",
+		"laden": "Årssammanfattningen laddas …",
+		"leer": "Inga slutförda uppgifter förra året — kortet fylls när du bockar av uppgifter i år.",
+		"rueckblick": "Tillbakablick",
+		"teilen": "Dela året",
+		"speichern": "Spara PNG",
+		"erzeuge": "Kortet skapas …",
+		"fehler": "Kortet kunde inte skapas. Försök igen.",
+		"aufgaben": "Slutförda uppgifter",
+		"stunden": "Investerade timmar",
+		"streak": "Längsta streak",
+		"projekte": "Avslutade projekt",
+		"saeule": "Starkaste pelare"
 	}
 }

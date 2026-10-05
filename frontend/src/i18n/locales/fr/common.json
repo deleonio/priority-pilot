@@ -119,5 +119,20 @@
 		"speichern": "Enregistrer le PNG",
 		"erzeuge": "Création de la carte …",
 		"fehler": "La carte n'a pas pu être créée. Merci de réessayer."
+	},
+	"yearlyCard": {
+		"label": "Mon année en chiffres",
+		"laden": "Chargement du bilan de l'année …",
+		"leer": "Aucune tâche terminée l'an dernier — la carte se remplit dès que tu coches des tâches cette année.",
+		"rueckblick": "Bilan",
+		"teilen": "Partager l'année",
+		"speichern": "Enregistrer en PNG",
+		"erzeuge": "Création de la carte …",
+		"fehler": "La carte n'a pas pu être créée. Réessaie, s'il te plaît.",
+		"aufgaben": "Tâches terminées",
+		"stunden": "Heures investies",
+		"streak": "Plus longue série",
+		"projekte": "Projets terminés",
+		"saeule": "Pilier le plus fort"
 	}
 }
