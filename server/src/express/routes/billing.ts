@@ -4,7 +4,7 @@ import { UniqueConstraintError } from 'sequelize';
 import Subscription from '../../models/subscription.js';
 import WebhookEvent from '../../models/webhookEvent.js';
 import { createGooglePlayProvider } from '../../logics/billing/googlePlayProvider.js';
-import { createPaypalProvider } from '../../logics/billing/paypalProvider.js';
+import { createPaypalProvider, type PaypalProviderDeps } from '../../logics/billing/paypalProvider.js';
 import type { GoogleKeysSource } from '../../logics/googleOidc.js';
 import type { GooglePlayClient } from '../../logics/googlePlay.js';
 import type { BillingProvider } from '../../logics/billing/provider.js';
@@ -33,6 +33,8 @@ export interface BillingDeps {
 	googlePlayClient?: GooglePlayClient;
 	/** Googles Signaturschlüssel für das Pub/Sub-Token (#1689) — Tests reichen eigene herein. */
 	googleKeys?: GoogleKeysSource;
+	/** Abo-Client für die Vorgänger-Kündigung im Webhook (#1912) — Tests injizieren einen Fake. */
+	paypalClient?: PaypalProviderDeps['client'];
 }
 
 /** Header-Kopie mit kleingeschriebenen Namen (Express liefert sie bereits so, der Typ nicht). */
@@ -127,7 +129,11 @@ const receiveProviderEvent = (provider: BillingProvider) => async (req: Request,
 
 export const createBillingRouter = (deps: BillingDeps = {}): Router => {
 	const router = Router();
-	const paypal = createPaypalProvider({ verifier: deps.paypalVerifier, mailSender: deps.mailSender });
+	const paypal = createPaypalProvider({
+		client: deps.paypalClient,
+		verifier: deps.paypalVerifier,
+		mailSender: deps.mailSender,
+	});
 
 	router.post('/webhooks/paypal', express.raw({ type: 'application/json' }), receiveProviderEvent(paypal));
 
