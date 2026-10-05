@@ -53,15 +53,6 @@ inputs:
   openrouter-api-key:
     description: 'API-Key für OpenRouter (secret, secrets.OPENROUTER_API_KEY). Nur bei llm-provider=openrouter erforderlich.'
     required: false
-  # Settings-JSON direkt als Input (aus GitHub Variables) – vermeidet gh CLI Auth-Probleme
-  zai-settings-json:
-    description: 'settings.local.json für zai als JSON-String (aus vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI)'
-    required: false
-    default: ''
-  openrouter-settings-json:
-    description: 'settings.local.json für openrouter als JSON-String (aus vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER)'
-    required: false
-    default: ''
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   # KONTEXT-Compaction: --autocompact an Claude Code CLI übergeben.
   #
@@ -218,8 +209,6 @@ runs:
         ZAI_API_KEY: ${{ inputs.zai-api-key }}
         CLAUDE_API_KEY: ${{ inputs.claude-api-key }}
         OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
-        ZAI_SETTINGS_JSON: ${{ inputs.zai-settings-json }}
-        OPENROUTER_SETTINGS_JSON: ${{ inputs.openrouter-settings-json }}
         CLAUDE_MODEL: ${{ inputs.model }}
         SUBAGENT_MODEL: ${{ inputs.subagent-model }}
       run: |
@@ -261,13 +250,9 @@ runs:
               echo "::error title=Auth fehlt::vars.LLM_PROVIDER=zai, aber Secret ZAI_API_KEY ist leer."
               exit 1
             fi
-            # settings.local.json aus Input bauen
-            if [ -n "$ZAI_SETTINGS_JSON" ]; then
-              echo "$ZAI_SETTINGS_JSON" > .claude/settings.local.json
-              echo "::notice::settings.local.json aus Input zai-settings-json geschrieben."
-            else
-              echo "::warning::Input zai-settings-json leer – keine settings.local.json für zai."
-            fi
+            # settings.local.json aus .github/model-settings.json bauen (EINZIGE Quelle,
+            # 05.10. — die früheren Vars CLAUDE_CODE_SETTINGS_LOCAL_* sind eingestellt).
+            build_settings_local zai
             # Auth Token setzen (z.ai nutzt ANTHROPIC_AUTH_TOKEN als Bearer)
             echo "ANTHROPIC_AUTH_TOKEN=$ZAI_API_KEY" >> "$GITHUB_ENV"
             ;;
@@ -276,13 +261,7 @@ runs:
               echo "::error title=Auth fehlt::vars.LLM_PROVIDER=openrouter, aber Secret OPENROUTER_API_KEY ist leer."
               exit 1
             fi
-            # settings.local.json aus Input bauen
-            if [ -n "$OPENROUTER_SETTINGS_JSON" ]; then
-              echo "$OPENROUTER_SETTINGS_JSON" > .claude/settings.local.json
-              echo "::notice::settings.local.json aus Input openrouter-settings-json geschrieben."
-            else
-              echo "::warning::Input openrouter-settings-json leer – keine settings.local.json für openrouter."
-            fi
+            build_settings_local openrouter
             # Auth Token setzen (OpenRouter nutzt ANTHROPIC_AUTH_TOKEN als Bearer)
             echo "ANTHROPIC_AUTH_TOKEN=$OPENROUTER_API_KEY" >> "$GITHUB_ENV"
             # Unbekannte Modelle erlauben (CI-Cache kann ältere CLI-Version haben als lokal)
@@ -291,13 +270,30 @@ runs:
             ;;
         esac
 
+        # settings.local.json aus .github/model-settings.json bauen (EINZIGE Quelle
+        # für BEIDE Runtimes, 05.10.): Endpoint + 4 Alias-IDs (cc-Form) + Subagent
+        # (haiku). Die früheren Vars CLAUDE_CODE_SETTINGS_LOCAL_* sind damit eingestellt
+        # — Modellwechsel = eine Zeile in der Datei.
+        build_settings_local() {
+          local provider="$1"
+          local file=".github/model-settings.json"
+          jq -n --arg url "$(jq -r --arg p "$provider" '.endpoints[$p]' "$file")" \
+                --arg haiku "$(jq -r --arg p "$provider" '.providers[$p].haiku.cc' "$file")" \
+                --arg sonnet "$(jq -r --arg p "$provider" '.providers[$p].sonnet.cc' "$file")" \
+                --arg opus "$(jq -r --arg p "$provider" '.providers[$p].opus.cc' "$file")" \
+                --arg fable "$(jq -r --arg p "$provider" '.providers[$p].fable.cc' "$file")" \
+                --arg sub "$(jq -r --arg p "$provider" '.providers[$p].haiku.cc' "$file")" \
+                '{env: {ANTHROPIC_BASE_URL: $url, ANTHROPIC_DEFAULT_HAIKU_MODEL: $haiku, ANTHROPIC_DEFAULT_SONNET_MODEL: $sonnet, ANTHROPIC_DEFAULT_OPUS_MODEL: $opus, ANTHROPIC_DEFAULT_FABLE_MODEL: $fable, CLAUDE_CODE_SUBAGENT_MODEL: $sub}}' > .claude/settings.local.json
+          echo "::notice::settings.local.json aus .github/model-settings.json gebaut (Provider: $provider)."
+        }
+
         # Phasen-Modell (#511): Alias fable|opus|sonnet|haiku providerspezifisch aufloesen.
         # claude (nativ) erhaelt die konkrete Modell-ID via --model (resolve-invoke); zai/
         # openrouter loesen den Alias im settings.local.json-Kontext auf (Modell-Feld setzen).
-        # Alias → Modell-ID steht EINMAL in .github/model-ids.json (Modellwechsel = eine Zeile).
-        model_id() { jq -er --arg a "$1" '.[$a]' .github/model-ids.json; }
+        # Alias → Modell-ID steht EINMAL in .github/model-settings.json (cc-Form, eine Zeile).
+        model_id() { jq -er --arg a "$1" '.providers.claude[$a].cc' .github/model-settings.json; }
         case "$CLAUDE_MODEL" in
-          fable|opus|sonnet|haiku) RESOLVED_MODEL_ID="$(model_id "$CLAUDE_MODEL")" || { echo "::error title=Modell-ID fehlt::Alias '$CLAUDE_MODEL' fehlt in .github/model-ids.json."; exit 1; } ;;
+          fable|opus|sonnet|haiku) RESOLVED_MODEL_ID="$(model_id "$CLAUDE_MODEL")" || { echo "::error title=Modell-ID fehlt::Alias '$CLAUDE_MODEL' fehlt in .github/model-settings.json (providers.claude)."; exit 1; } ;;
           "")
             RESOLVED_MODEL_ID=""
             ;;
@@ -313,8 +309,8 @@ runs:
               # WICHTIG: Hier den ALIAS ($CLAUDE_MODEL, z.B. "opus") schreiben, NICHT die
               # aufgeloeste native Anthropic-Modell-ID ($RESOLVED_MODEL_ID, z.B. "claude-opus-5").
               # Die native ID existiert bei zai/openrouter nicht ("model not found") — der Alias
-              # greift stattdessen ueber den bereits aus vars.CLAUDE_CODE_SETTINGS_LOCAL_{ZAI,
-              # OPENROUTER} geladenen ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU,FABLE}_MODEL-Mechanismus
+              # greift stattdessen ueber die aus .github/model-settings.json gebaute
+              # settings.local.json (ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU,FABLE}_MODEL)
               # (exakt wie das checked-in .claude/settings.json es fuer den Default-Fall tut).
               if [ -f .claude/settings.local.json ]; then
                 tmp_model=$(mktemp)
@@ -352,7 +348,7 @@ runs:
           fable|opus|sonnet|haiku)
             case "$PROVIDER" in
               claude)
-                SUB_ID="$(model_id "$SUBAGENT_MODEL")" || { echo "::error title=Modell-ID fehlt::Alias '$SUBAGENT_MODEL' fehlt in .github/model-ids.json."; exit 1; }
+                SUB_ID="$(model_id "$SUBAGENT_MODEL")" || { echo "::error title=Modell-ID fehlt::Alias '$SUBAGENT_MODEL' fehlt in .github/model-settings.json (providers.claude)."; exit 1; }
                 echo "CLAUDE_CODE_SUBAGENT_MODEL=$SUB_ID" >> "$GITHUB_ENV"
                 echo "::notice title=Subagent-Modell::$SUB_ID (Alias '$SUBAGENT_MODEL') für alle Subagents."
                 ;;

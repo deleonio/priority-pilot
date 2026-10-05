@@ -14,16 +14,16 @@ Coding-Agent in CI — seit #1184 mit **pi** als zweiter, über eine Variable w�
 Das **Backend** ist über die Repo-Variable **`vars.LLM_PROVIDER`** umschaltbar; aufgelöst wird
 sie zentral in [`.github/actions/setup-agent`](../.github/actions/setup-agent/action.yml).
 
-| `vars.LLM_PROVIDER` | Endpoint                                                                                          | Secret               | Auth-Variable                                   | Modell (`"model": "opus"`)                                           |
-| ------------------- | ------------------------------------------------------------------------------------------------- | -------------------- | ----------------------------------------------- | -------------------------------------------------------------------- |
-| `claude` (Default)  | Anthropic-Default (kein `ANTHROPIC_BASE_URL`)                                                     | `CLAUDE_API_KEY`     | `ANTHROPIC_API_KEY` / `CLAUDE_CODE_OAUTH_TOKEN` | Claude Opus (nativ)                                                  |
-| `zai`               | `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic`                                               | `ZAI_API_KEY`        | `ANTHROPIC_AUTH_TOKEN` (Bearer)                 | `glm-5.3[1m]`                                                        |
-| `openrouter`        | `ANTHROPIC_BASE_URL=https://openrouter.ai/api` (aus `vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER`) | `OPENROUTER_API_KEY` | `ANTHROPIC_AUTH_TOKEN` (Bearer)                 | Auflösung über `ANTHROPIC_DEFAULT_*_MODEL` in derselben Settings-Var |
+| `vars.LLM_PROVIDER` | Endpoint                                                                                | Secret               | Auth-Variable                                   | Modell (`"model": "opus"`)                                                       |
+| ------------------- | --------------------------------------------------------------------------------------- | -------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------- |
+| `claude` (Default)  | Anthropic-Default (kein `ANTHROPIC_BASE_URL`)                                           | `CLAUDE_API_KEY`     | `ANTHROPIC_API_KEY` / `CLAUDE_CODE_OAUTH_TOKEN` | Claude Opus (nativ)                                                              |
+| `zai`               | `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic` (aus `.github/model-settings.json`) | `ZAI_API_KEY`        | `ANTHROPIC_AUTH_TOKEN` (Bearer)                 | `glm-5.3[1m]` (cc-Form aus derselben Datei)                                      |
+| `openrouter`        | `ANTHROPIC_BASE_URL=https://openrouter.ai/api` (aus `.github/model-settings.json`)      | `OPENROUTER_API_KEY` | `ANTHROPIC_AUTH_TOKEN` (Bearer)                 | Auflösung über `ANTHROPIC_DEFAULT_*_MODEL` in der gebauten `settings.local.json` |
 
 Ausnahme: Der **Documenter (06)** umgeht `vars.LLM_PROVIDER` und läuft per Default immer über
 `openrouter` mit einem `:free`-Model (Default `haiku`-Alias → `poolside/laguna-s-2.1:free`,
-aufgelöst über `vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER`); Notbremse ist die Repo-Var
-`LLM_PROVIDER_DOCUMENTER`, die den Wert überschreibt.
+aus `.github/model-settings.json`); Notbremse ist die Repo-Var `LLM_PROVIDER_DOCUMENTER`,
+die den Wert überschreibt.
 
 **Notbetrieb (OpenRouter gestört):** Schlägt der Documenter-Run auf `main` fehl (Setup- oder
 Claude-Step, z. B. 4xx/402/Timeout), ist nur die Post-Merge-Doku betroffen — es gibt bewusst
@@ -35,13 +35,9 @@ gh variable delete LLM_PROVIDER_DOCUMENTER           # → zurück auf den openr
 ```
 
 Die Free-Liste von OpenRouter ändert sich wöchentlich. Ist das eingetragene `:free`-Modell weg
-(`400 This model is unavailable for free`), die ID per Actions → „Set Agent Config“ →
-`openrouter-haiku-model` tauschen. Der Lauf ersetzt sie in `CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER`
-und `PI_MODEL_ALIASES` — die Modell-IDs stehen nur dort, nicht im Repo:
-
-```bash
-gh workflow run set-agent-config.yml -f openrouter-haiku-model=<anbieter>/<modell>:free
-```
+(`400 This model is unavailable for free`), die `cc`/`pi`-ID des haiku-Alias direkt in
+`.github/model-settings.json` tauschen (PR-Änderung, eine Zeile) — die Modell-IDs stehen
+ausschließlich dort, nicht mehr in GitHub-Vars.
 
 Auswahl: ein Free-Modell mit Tool-Calling (Liste unter `openrouter.ai/models?max_price=0`). Der
 Router `openrouter/free` übersteht jede Rotation, wählt aber je Lauf ein anderes Modell — nur als
@@ -93,13 +89,13 @@ Kill-Switch und Fail-closed-Verhalten: siehe [`tailscale-exit-node.md`](tailscal
 Seit #1184 ist die **Laufzeit** genauso eine Variable wie der Provider. Beide Achsen sind
 unabhängig:
 
-| `vars.AGENT_RUNTIME` | `vars.LLM_PROVIDER`   | Was läuft                                                      |
-| -------------------- | --------------------- | -------------------------------------------------------------- |
-| leer / `claude`      | `claude`              | Claude Code gegen Anthropic (Default)                          |
-| leer / `claude`      | `zai` \| `openrouter` | Claude Code gegen das jeweilige Backend                        |
-| `pi`                 | `claude`              | pi gegen Anthropic (nativ, `ANTHROPIC_API_KEY`)                |
-| `pi`                 | `zai`                 | pi gegen z.ai (nativ, `ZAI_API_KEY`)                           |
-| `pi`                 | `openrouter`          | pi gegen OpenRouter (nativ; Modell-IDs aus `PI_MODEL_ALIASES`) |
+| `vars.AGENT_RUNTIME` | `vars.LLM_PROVIDER`   | Was läuft                                                                   |
+| -------------------- | --------------------- | --------------------------------------------------------------------------- |
+| leer / `claude`      | `claude`              | Claude Code gegen Anthropic (Default)                                       |
+| leer / `claude`      | `zai` \| `openrouter` | Claude Code gegen das jeweilige Backend                                     |
+| `pi`                 | `claude`              | **bricht laut ab** — das Anthropic-Abo ist an Claude Code gebunden (05.10.) |
+| `pi`                 | `zai`                 | pi gegen z.ai (nativ, `ZAI_API_KEY`)                                        |
+| `pi`                 | `openrouter`          | pi gegen OpenRouter (nativ; Modell-IDs aus `.github/model-settings.json`)   |
 
 Ein unbekannter Wert bricht den Lauf ab — kein stiller Fallback, sonst liefe ein als pi-Test
 gemeinter Lauf unbemerkt auf Claude Code und die Messung wäre wertlos.
@@ -110,9 +106,9 @@ gemeinter Lauf unbemerkt auf Claude Code und die Messung wäre wertlos.
 
 **Warum beide in EINEM Workflow** (er ersetzt das frühere `set-provider.yml`): Laufzeit und
 Provider sind keine unabhängigen Schalter, sondern eine 2×3-Matrix. Manche Kombinationen
-scheitern erst zur Laufzeit — `pi` + `openrouter` ohne Einträge in `PI_MODEL_ALIASES`, oder `pi` +
-ein Anthropic-**OAuth**-Token (`sk-ant-oat…`), das pi nicht als API-Key verwerten kann. Der
-Workflow prüft genau diese Fälle **vor** dem Setzen (fail-closed, ohne den Secret-Wert zu loggen).
+scheitern erst zur Laufzeit — `pi` + `claude` (Abo an Claude Code gebunden, hart abgebrochen)
+oder `pi` + `openrouter`/`zai` ohne `pi`-Einträge in `.github/model-settings.json`. Der
+Workflow prüft genau diese Fälle **vor** dem Setzen (fail-closed).
 Getrennte Workflows bräuchten zwei Dispatches für einen Wechsel und hätten keine Stelle, an der
 die Kombination geprüft wird — der Fehler fiele erst im nächsten Triage-Lauf auf, dort mit
 konsumiertem Trigger-Label.
@@ -173,10 +169,9 @@ Gruppe „pi-Erweiterungen", ohne Automerge) gepflegt: ungepinnt wären zwei Lä
 vergleichbar, nur gepinnt würden die Pakete veralten. `setup-pi` warnt, falls ein Eintrag ohne
 Version nachgetragen wird. Details in [`.github/pi/README.md`](../.github/pi/README.md).
 
-Modelle: `.github/pi/model-aliases.json` bildet `fable|opus|sonnet|haiku` je Provider auf
-pi-Modellreferenzen ab (`anthropic/claude-opus-5-5`, `zai/glm-5.3`, …); `vars.PI_MODEL_ALIASES` legt
-sich darüber (der Weg für OpenRouter, dessen Modell-IDs bewusst nicht im Repo stehen). Fehlt ein
-Alias in beiden Quellen, bricht `setup-pi` ab.
+Modelle: `.github/model-settings.json` (eine Quelle für beide Runtimes, 05.10.) bildet
+`fable|opus|sonnet|haiku` je Provider auf die runtime-spezifischen IDs ab (`cc`- und
+`pi`-Form); pi liest die `pi`-Formen. Fehlt eine, bricht `setup-pi` ab.
 
 Eine eigene `models.json` gibt es bewusst **nicht**: pi kennt `anthropic`, `zai` und `openrouter`
 eingebaut, und eine handgeschriebene z.ai-Zeile würde das eingebaute 1M-Kontextfenster von
@@ -320,7 +315,7 @@ Was diese Wahl an einem realen Ticket gekostet hat, steht in der [Kosten-Baselin
 
 Das Abo (GLM Coding Plan) umfasst nur **`glm-4.7`, `glm-5-turbo` und `glm-5.3`** — die Modelle aus dem
 ursprünglichen #893-Vergleich (`glm-5.1`, `glm-5.2`, `glm-4.7-flash`, `glm-4.5-air`) sind nicht gebucht.
-Die z.ai-Spalte oben zeigt die aktuelle Auflösung aus `vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI`.
+Die z.ai-Spalte oben zeigt die aktuelle Auflösung aus `.github/model-settings.json` (cc-Form).
 Stand 28.09.2026 mappt diese Variable den `haiku`-Alias (und `CLAUDE_CODE_SUBAGENT_MODEL`)
 auf `glm-5.3-flash[1m]`, nicht auf `glm-4.7` — die `glm-4.7`-Nennungen im Abo-Realität-Abschnitt
 unten sind damit nicht mehr live.
@@ -366,7 +361,7 @@ unten sind damit nicht mehr live.
 
 **Fazit (Abo-Realität):** `glm-5.3[1m]` trägt alle Phasen-Aliase außer `haiku` (→ `glm-4.7`) —
 1× Kontingent, keine Sperrzeit. `CLAUDE_CODE_SUBAGENT_MODEL` steht in
-`vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI` ebenfalls auf `glm-4.7` (Ad-hoc-Fan-outs ohne
+die `haiku.cc`-Zeile in `.github/model-settings.json` ebenfalls auf `glm-4.7` (Ad-hoc-Fan-outs ohne
 Rollen-Frontmatter): 1× Kontingent, keine Sperrzeit, unbeschränkte Parallelität —
 `glm-5-turbo` (2×/3×-Tarif, Parallelität 1) ist damit aus der Konfiguration entfernt und der
 Zeitfenster-Check nur noch Warnung. Achtung: Die Alias-Auflösung hängt an dieser GitHub-Variable,
@@ -466,6 +461,17 @@ leer — die früheren `ai:model:*`-Labels mit hartem Precheck-Abbruch sind abge
 PR #903, wo ein Free-Modell nur die `VERDICT:`-Zeile lieferte und die
 Begründungs-Kommentare übersprang.
 
+**Eine Settings-Quelle für beide Runtimes (05.10.):**
+[`.github/model-settings.json`](../.github/model-settings.json) hält je Provider und Alias
+die runtime-spezifische Modell-ID (`cc`-Form für Claude Code inkl. `[1m]`-Suffix am
+Anthropic-kompatiblen Endpoint, `pi`-Form als `provider/id`-Referenz) plus die Endpunkte.
+Claude Code läuft gegen alle 3 Provider, **pi nur gegen zai|openrouter** — das
+Anthropic-Abo ist an Claude Code gebunden; `runtime=pi` + `provider=claude` bricht laut
+(setup-agent-Guard, set-agent-config prüft vor dem Setzen). Die frühere Drift zwischen
+`model-ids.json`, `pi/model-aliases.json` und den Vars `CLAUDE_CODE_SETTINGS_LOCAL_*` /
+`PI_MODEL_ALIASES` (glm-5-turbo lief wochenlang statt glm-5.3-flash) ist damit
+strukturell ausgeschlossen; die drei Vars können gelöscht werden.
+
 **Geltende Allowlist:** `fable | opus | sonnet | haiku`
 
 **Stellen, die bei einem neuen Alias synchron zu pflegen sind:**
@@ -474,21 +480,22 @@ Begründungs-Kommentare übersprang.
 | --- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | 2   | `.github/actions/setup-claude/action.yml`   | Phasen-Modell-Auflösung: case + `::error`-Meldung                                                                    |
 | 3   | `.github/actions/setup-claude/action.yml`   | Subagent-Alias: case + `::error`-Meldung                                                                             |
-| 3b  | `.github/actions/setup-pi/action.yml`       | Alias-Filter im Step „Modell + Subagent-Modell auflösen“ + `.github/pi/model-aliases.json` je Provider               |
+| 3b  | `.github/actions/setup-pi/action.yml`       | Alias-Filter im Step „Modell + Subagent-Modell auflösen“ (Quelle: `.github/model-settings.json`, pi-Form)            |
 | 5   | `.github/workflows/04-claude-implement.yml` | Mentor-Modell-Auflösung (2 Steps, implement- + fixup-Job): case `MENTOR_MODEL` mit Restore-trap auf den Phasen-Alias |
 | 6   | `.claude/agents/*.md`                       | Rollen-Frontmatter `model:` (dieselben Aliase; schlägt seit CLI 2.1.251 den Subagent-Default, gilt lokal wie in CI)  |
 
-**Modellwechsel innerhalb eines Alias** (z. B. `opus` → Claude Opus 5.5): Die native Modell-ID
-steht genau einmal in `.github/model-ids.json`; `setup-claude` (Phasen- und Subagent-Modell) und
-der Mentor-Schritt in `04-implement.yml` lesen sie dort. Mitzuziehen sind nur die `claude`-Zeile in
-`.github/pi/model-aliases.json` und bei neuem Preis eine Zeile in `PRICES_USD_PER_MTOK`
-(`cost-from-transcript.ts`) — `model-ids.test.ts` bricht ab, wenn eins davon fehlt. Opus-Läufe ohne
-`effort`-Input bekommen in `setup-claude` ausdrücklich `high`, weil Opus 5.5 sonst auf `medium` läuft.
+**Modellwechsel innerhalb eines Alias** (z. B. `opus` → Claude Opus 5.5): Die Modell-ID
+steht genau einmal in `.github/model-settings.json` (`cc`-Form, `pi`-Form nach Bedarf);
+`setup-claude` (Phasen-, Subagent- und settings.local-Bau), `setup-pi` und der
+Mentor-Schritt in `04-implement.yml` lesen sie dort. Bei neuem Preis kommt eine Zeile in
+`PRICES_USD_PER_MTOK` dazu (`cost-from-transcript.ts`) — `model-settings.test.ts` bricht
+ab, wenn die Strukturbrüche fehlen. Opus-Läufe ohne `effort`-Input bekommen in
+`setup-claude` ausdrücklich `high`, weil Opus 5.5 sonst auf `medium` läuft.
 
-**Freigabe-Prozess:** Alias in allen Stellen eintragen, das Resolve-Ziel je Provider ergänzen
+**Freigabe-Prozess:** Alias in `model-settings.json` (cc/pi-Form) eintragen, das Resolve-Ziel je Provider ergänzen
 (`claude` nativ via `--model`; `zai`/`openrouter` über die `ANTHROPIC_DEFAULT_*_MODEL`-Einträge der
-GitHub Variables `CLAUDE_CODE_SETTINGS_LOCAL_*` — deren JSON ist dort Source of Truth und wird hier
-nicht gespiegelt), `pnpm test:scripts` grün, dann erst in der Routing-Tabelle nutzen. Die
+Resolve-Ziel der zai/openrouter-Endpoints kommt aus derselben Datei — `endpoints` +
+`cc`-Formen), `pnpm test:scripts` grün, dann erst in der Routing-Tabelle nutzen. Die
 `vars.CLAUDE_MODEL_*` tragen nur Phasen-**Defaults** — sie erweitern die Allowlist nicht.
 
 **`unrecognized_model`-Warnung (Issue #962):** Die CLI loggt bei nicht-nativ bekannten Modell-IDs

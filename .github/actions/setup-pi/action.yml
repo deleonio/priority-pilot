@@ -27,7 +27,7 @@ inputs:
     required: false
     default: 'full'
   model:
-    description: 'Modell für diesen Lauf als Alias (fable|opus|sonnet|haiku); leer = kein --model (pi-Default). Aufgelöst über .github/pi/model-aliases.json + vars.PI_MODEL_ALIASES; ein unbekannter Alias bricht laut ab.'
+    description: 'Modell für diesen Lauf als Alias (fable|opus|sonnet|haiku); leer = kein --model (pi-Default). Aufgelöst über .github/model-settings.json (die pi-Form je Alias); ein unbekannter Alias bricht laut ab.'
     required: false
     default: ''
   subagent-model:
@@ -36,10 +36,6 @@ inputs:
     default: 'inherit'
   effort:
     description: 'Effort-Level für diesen Lauf: low | medium | high | xhigh | max. Wird 1:1 als --thinking durchgereicht (pi kennt exakt diese Stufen). Leer = kein Flag.'
-    required: false
-    default: ''
-  model-aliases-json:
-    description: 'Optionale Alias-Tabelle als JSON-String (aus vars.PI_MODEL_ALIASES), gleiche Struktur wie .github/pi/model-aliases.json. Wird ÜBER die eingecheckte Tabelle gelegt — der Weg für Provider, deren Modell-IDs bewusst nicht im Repo stehen (openrouter).'
     required: false
     default: ''
   zai-api-key:
@@ -222,28 +218,19 @@ runs:
         LLM_PROVIDER: ${{ inputs.llm-provider }}
         MODEL_ALIAS: ${{ inputs.model }}
         SUBAGENT_ALIAS: ${{ inputs.subagent-model }}
-        ALIASES_JSON: ${{ inputs.model-aliases-json }}
         SESSION_DIR: ${{ steps.session.outputs.session-dir }}
       run: |
         set -uo pipefail
 
-        # Alias-Tabelle: eingecheckte Datei als Basis, vars.PI_MODEL_ALIASES als Overlay.
-        # Grund fürs Overlay: Die OpenRouter-Modell-IDs stehen bewusst nicht im Repo (Source
-        # of Truth ist die GitHub-Variable, wie bei CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER).
-        TABLE="$(mktemp)"
-        if [ -n "$ALIASES_JSON" ]; then
-          if ! printf '%s' "$ALIASES_JSON" | jq -e . >/dev/null 2>&1; then
-            echo "::error title=PI_MODEL_ALIASES ungültig::Der Inhalt von vars.PI_MODEL_ALIASES ist kein gültiges JSON."
-            exit 1
-          fi
-          printf '%s' "$ALIASES_JSON" | jq -s '.[0] * .[1]' .github/pi/model-aliases.json - > "$TABLE"
-        else
-          cp .github/pi/model-aliases.json "$TABLE"
-        fi
+        # Alias-Tabelle: .github/model-settings.json ist die EINZIGE Quelle (beide
+        # Runtimes); pi liest die 'pi'-Form je Alias. Provider 'claude' hat keine
+        # pi-Einträge — pi + Anthropic ist guarded (setup-agent, Abo an Claude Code
+        # gebunden).
+        TABLE=".github/model-settings.json"
 
         resolve_alias() {
           local alias="$1"
-          jq -r --arg p "$LLM_PROVIDER" --arg a "$alias" '.[$p][$a] // ""' "$TABLE"
+          jq -r --arg p "$LLM_PROVIDER" --arg a "$alias" '.providers[$p][$a].pi // ""' "$TABLE"
         }
 
         RESOLVED_MODEL=""
@@ -259,7 +246,7 @@ runs:
           if [ -z "$RESOLVED_MODEL" ]; then
             # KEIN stiller Fallback auf den pi-Default: Ein geratenes Modell ist genau der
             # Fehlgriff, gegen den die Modell-Allowlist antritt (s. docs/ci-architecture.md).
-            echo "::error title=Kein pi-Modell für diesen Alias::Alias '$MODEL_ALIAS' hat für Provider '$LLM_PROVIDER' keinen Eintrag — weder in .github/pi/model-aliases.json noch in vars.PI_MODEL_ALIASES. Eintrag ergänzen (s. .github/pi/README.md)."
+            echo "::error title=Kein pi-Modell für diesen Alias::Alias '$MODEL_ALIAS' hat für Provider '$LLM_PROVIDER' keinen 'pi'-Eintrag in .github/model-settings.json. Eintrag ergänzen (s. .github/pi/README.md)."
             exit 1
           fi
           echo "::notice title=Modell::$RESOLVED_MODEL (Alias '$MODEL_ALIAS', Provider $LLM_PROVIDER)."

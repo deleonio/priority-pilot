@@ -7,16 +7,14 @@ name: Set Agent Config
 # Nutzt GitHub-App-Token (wie die Pipeline-Workflows), damit variables:write funktioniert.
 #
 # WARUM EIN WORKFLOW FÜR BEIDE (#1184, vorher zwei getrennte Achsen in set-provider.yml):
-# Laufzeit und Provider sind keine unabhängigen Schalter, sondern eine 2x3-Matrix — `pi` + `zai`
-# verhält sich anders als `claude` + `zai`, und manche Kombinationen scheitern erst zur Laufzeit
-# (pi + openrouter ohne PI_MODEL_ALIASES — auch über den Documenter, der unabhängig von
-# LLM_PROVIDER auf openrouter läuft; pi + ein Anthropic-OAuth-Token). Getrennt bräuchte ein
+# Laufzeit und Provider sind keine unabhängigen Schalter, sondern eine 2x3-Matrix. Manche
+# Kombinationen sind unzulässig und werden hier VOR dem Setzen abgebrochen: `pi` + `claude`
+# (das Anthropic-Abo ist an Claude Code gebunden, 05.10.) und `pi` + `openrouter`/`zai` ohne
+# `pi`-Einträge in `.github/model-settings.json` (auch über den Documenter, der unabhängig
+# von LLM_PROVIDER auf openrouter läuft). Getrennt bräuchte ein
 # Wechsel zwei Dispatches, und KEINE Stelle prüfte die Kombination. Hier laufen beide Werte durch
 # denselben Vorab-Check, bevor irgendetwas gesetzt wird.
 #
-# Dritte Stellgröße `openrouter-haiku-model`: tauscht die OpenRouter-ID hinter dem haiku-Alias
-# (Documenter-Default) in CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER und PI_MODEL_ALIASES. Die
-# Free-Liste rotiert wöchentlich; so bleibt der Wechsel ein Dispatch statt JSON-Handarbeit.
 #
 # `unverändert` als Default beider Inputs: Ein Lauf, der nur die Laufzeit umstellen soll, darf den
 # Provider nicht versehentlich auf einen Default zurückziehen.
@@ -43,11 +41,6 @@ on:
           - claude
           - openrouter
           - zai
-      openrouter-haiku-model:
-        description: 'OpenRouter-Modell-ID hinter dem haiku-Alias, z. B. poolside/laguna-s-2.1:free (leer = unverändert)'
-        type: string
-        required: false
-        default: ''
 
 jobs:
   set-agent-config:
@@ -117,9 +110,7 @@ jobs:
         env:
           RUNTIME: ${{ steps.resolve.outputs.runtime }}
           PROVIDER: ${{ steps.resolve.outputs.provider }}
-          PI_MODEL_ALIASES: ${{ vars.PI_MODEL_ALIASES }}
           DOC_PROVIDER: ${{ vars.LLM_PROVIDER_DOCUMENTER || 'openrouter' }}
-          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
         run: |
           set -uo pipefail
 
@@ -132,39 +123,27 @@ jobs:
             *) echo "::error::Ungültiger Provider '$PROVIDER' — erlaubt: claude, openrouter, zai"; exit 1 ;;
           esac
 
+          # PROVIDER-MATRIX (05.10.): pi + Anthropic ist ununterstützbar — das Abo ist an
+          # Claude Code gebunden (dieselbe Regel wie der Guard in setup-agent, nur hier
+          # VOR dem Setzen der Variablen, damit die Kombination gar nicht erst live geht).
+          if [ "$RUNTIME" = "pi" ] && [ "$PROVIDER" = "claude" ]; then
+            echo "::error title=pi + Anthropic ist nicht unterstützbar::Das Anthropic-Abo ist an Claude Code gebunden; pi läuft nur gegen zai|openrouter. LLM_PROVIDER=zai oder openrouter setzen (oder AGENT_RUNTIME=claude)."
+            exit 1
+          fi
           [ "$RUNTIME" = "pi" ] || exit 0
 
-          # pi + openrouter: Die Modell-IDs stehen bewusst nicht im Repo (Source of Truth ist
-          # die Variable). Ohne Einträge bräche setup-pi beim Modell-Alias ab. Der Documenter
-          # (06-document.yml) nutzt LLM_PROVIDER_DOCUMENTER (Default openrouter) statt
-          # LLM_PROVIDER — er braucht die Einträge also auch bei LLM_PROVIDER=claude|zai.
-          if [ "$PROVIDER" = "openrouter" ] || [ "$DOC_PROVIDER" = "openrouter" ]; then
-            count=0
-            if [ -n "$PI_MODEL_ALIASES" ]; then
-              count="$(printf '%s' "$PI_MODEL_ALIASES" | jq -r '(.openrouter // {}) | length' 2>/dev/null || echo 0)"
-            fi
+          # pi + openrouter/zai: Die pi-Einträge müssen in .github/model-settings.json
+          # stehen (EINZIGE Quelle). Der Documenter (06-document.yml) nutzt
+          # LLM_PROVIDER_DOCUMENTER (Default openrouter) statt LLM_PROVIDER — er braucht
+          # die Einträge also auch bei LLM_PROVIDER=claude.
+          for P in "$PROVIDER" "$DOC_PROVIDER"; do
+            count="$(jq -r --arg p "$P" '[.providers[$p][] | select(.pi != null and .pi != "")] | length' .github/model-settings.json 2>/dev/null || echo 0)"
             if [ "${count:-0}" -eq 0 ]; then
-              echo "::error title=pi + openrouter unvollständig::vars.PI_MODEL_ALIASES enthält keine openrouter-Einträge (gebraucht von LLM_PROVIDER=${PROVIDER}/Documenter=${DOC_PROVIDER}). setup-pi bräche beim Modell-Alias ab. Erst setzen, z. B.: gh variable set PI_MODEL_ALIASES --body '{\"openrouter\":{\"opus\":\"openrouter/<id>\",\"sonnet\":\"…\",\"haiku\":\"…\",\"fable\":\"…\"}}' (s. .github/pi/README.md)."
+              echo "::error title=pi + $P unvollständig::.github/model-settings.json hat keine 'pi'-Einträge für $P (gebraucht von LLM_PROVIDER=${PROVIDER}/Documenter=${DOC_PROVIDER}). setup-pi bräche beim Modell-Alias ab. Erst Einträge ergänzen (s. .github/pi/README.md)."
               exit 1
             fi
-            echo "::notice::pi + openrouter: ${count} Alias-Einträge in PI_MODEL_ALIASES gefunden."
-          fi
-
-          # pi + claude: Anthropic kennt zwei Token-Typen. Das OAuth-Token aus
-          # `claude setup-token` ist KEIN API-Key; pi hat dafür kein Gegenstück und
-          # scheiterte mit "Invalid API key". Nur das Präfix wird geprüft, nie der Wert geloggt.
-          if [ "$PROVIDER" = "claude" ]; then
-            case "$(printf '%s' "$CLAUDE_API_KEY" | tr -d '[:space:]')" in
-              sk-ant-oat*)
-                echo "::error title=Token-Typ passt nicht zu pi::secrets.CLAUDE_API_KEY ist ein OAuth-Token (sk-ant-oat…). Die pi-Laufzeit braucht einen API-Key (sk-ant-api…) aus der Anthropic Console — sonst scheitert jeder Lauf mit 'Invalid API key'."
-                exit 1
-                ;;
-              '')
-                echo "::error title=Auth fehlt::secrets.CLAUDE_API_KEY ist leer."
-                exit 1
-                ;;
-            esac
-          fi
+            echo "::notice::pi + $P: ${count} Alias-Einträge in model-settings.json gefunden."
+          done
 
       - name: Variablen setzen (nur die geänderten)
         env:
@@ -184,43 +163,6 @@ jobs:
             echo "::notice title=✅ Variable gesetzt::LLM_PROVIDER=$IN_PROVIDER"
           else
             echo "LLM_PROVIDER bleibt unverändert."
-          fi
-
-      - name: OpenRouter-haiku-Modell tauschen
-        id: haiku
-        if: inputs.openrouter-haiku-model != ''
-        env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
-          NEW: ${{ inputs.openrouter-haiku-model }}
-          CC_JSON: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
-          PI_JSON: ${{ vars.PI_MODEL_ALIASES }}
-        run: |
-          set -euo pipefail
-          case "$NEW" in
-            */*) ;;
-            *) echo "::error::openrouter-haiku-model '$NEW' — erwartet <anbieter>/<modell>, z. B. poolside/laguna-s-2.1:free"; exit 1 ;;
-          esac
-          OLD="$(printf '%s' "$CC_JSON" | jq -r '.env.ANTHROPIC_DEFAULT_HAIKU_MODEL // empty')"
-          if [ -z "$OLD" ]; then
-            echo "::error::CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER hat kein env.ANTHROPIC_DEFAULT_HAIKU_MODEL."
-            exit 1
-          fi
-          # Jedes Vorkommen der alten ID ersetzen, nicht nur den HAIKU-Key: dieselbe ID kann
-          # auch unter ANTHROPIC_SMALL_FAST_MODEL oder `model` stehen.
-          printf '%s' "$CC_JSON" | jq -c --arg o "$OLD" --arg n "$NEW" 'walk(if . == $o then $n else . end)' \
-            | gh variable set CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER -R "${GITHUB_REPOSITORY}"
-          v="$(gh variable get CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER -R "${GITHUB_REPOSITORY}" | jq -r '.env.ANTHROPIC_DEFAULT_HAIKU_MODEL')"
-          [ "$v" = "$NEW" ] || { echo "::error::CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER nicht übernommen (gelesen: $v)"; exit 1; }
-          echo "::notice title=✅ OpenRouter haiku (Claude Code)::$OLD → $NEW"
-          # Für die Config-Historie (#2090): alt/neu hinter der haiku-Modellvariable.
-          echo "old=$OLD" >> "$GITHUB_OUTPUT"
-          echo "new=$NEW" >> "$GITHUB_OUTPUT"
-          if [ -n "$PI_JSON" ]; then
-            printf '%s' "$PI_JSON" | jq -c --arg n "openrouter/$NEW" '.openrouter.haiku = $n' \
-              | gh variable set PI_MODEL_ALIASES -R "${GITHUB_REPOSITORY}"
-            echo "::notice title=✅ OpenRouter haiku (pi)::openrouter/$NEW"
-          else
-            echo "PI_MODEL_ALIASES nicht gesetzt — pi-Seite übersprungen."
           fi
 
       - name: Verifizieren
@@ -257,11 +199,8 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           IN_RUNTIME: ${{ inputs.runtime }}
           IN_PROVIDER: ${{ inputs.provider }}
-          IN_HAIKU: ${{ inputs.openrouter-haiku-model }}
           PREV_RUNTIME: ${{ steps.resolve.outputs.current-runtime }}
           PREV_PROVIDER: ${{ steps.resolve.outputs.current-provider }}
-          HAIKU_OLD: ${{ steps.haiku.outputs.old }}
-          HAIKU_NEW: ${{ steps.haiku.outputs.new }}
         run: |
           set -uo pipefail
           entries="[]"
@@ -272,11 +211,6 @@ jobs:
           }
           [ "$IN_RUNTIME" != "unverändert" ] && add_entry AGENT_RUNTIME "${PREV_RUNTIME:-<unset>}" "$IN_RUNTIME"
           [ "$IN_PROVIDER" != "unverändert" ] && add_entry LLM_PROVIDER "${PREV_PROVIDER:-<unset>}" "$IN_PROVIDER"
-          # Modell-Variable: der haiku-Tausch ändert ANTHROPIC_DEFAULT_HAIKU_MODEL (OpenRouter,
-          # inkl. des pi-Spiegels in PI_MODEL_ALIASES — dieselbe neue ID, ein Eintrag genügt).
-          if [ -n "$IN_HAIKU" ] && [ -n "$HAIKU_NEW" ]; then
-            add_entry ANTHROPIC_DEFAULT_HAIKU_MODEL "${HAIKU_OLD:-?}" "$HAIKU_NEW"
-          fi
           if [ "$entries" = "[]" ]; then
             echo "::notice title=Historie::Keine Änderung an Agent/Provider/Modell — kein Eintrag."
             exit 0
@@ -304,7 +238,6 @@ jobs:
         env:
           IN_RUNTIME: ${{ inputs.runtime }}
           IN_PROVIDER: ${{ inputs.provider }}
-          IN_HAIKU: ${{ inputs.openrouter-haiku-model }}
           PREV_RUNTIME: ${{ steps.resolve.outputs.current-runtime }}
           PREV_PROVIDER: ${{ steps.resolve.outputs.current-provider }}
           EFF_RUNTIME: ${{ steps.resolve.outputs.runtime }}
@@ -317,7 +250,6 @@ jobs:
             echo "| --- | --- | --- | --- |"
             echo "| \`AGENT_RUNTIME\` | ${PREV_RUNTIME:-?} | ${IN_RUNTIME} | ${EFF_RUNTIME:-?} |"
             echo "| \`LLM_PROVIDER\` | ${PREV_PROVIDER:-?} | ${IN_PROVIDER} | ${EFF_PROVIDER:-?} |"
-            echo "| OpenRouter haiku | – | ${IN_HAIKU:-unverändert} | ${IN_HAIKU:-unverändert} |"
             echo ""
             echo "- **Status:** ${{ job.status }}"
             echo "- \`AGENT_RUNTIME\` wirkt aktuell nur auf Phase 01 (Pilot, #1184)."

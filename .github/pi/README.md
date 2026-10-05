@@ -1,7 +1,10 @@
 # pi-Konfiguration der CI
 
-`model-aliases.json` gehört zu `.github/actions/setup-pi` und wird **nur im CI-Lauf**
-ausgewertet. Die Paketliste des Projekts steht woanders: [`.pi/settings.json`](../../.pi/settings.json).
+Die Modell-Settings von pi kommen aus **[`.github/model-settings.json`](../model-settings.json)**
+(die `'pi'`-Form je Alias) — dieselbe Datei, aus der auch Claude Code seine `cc`-Formen liest.
+Einheitliche Quelle seit 05.10.; die frühere `model-aliases.json` und die Variable
+`PI_MODEL_ALIASES` sind eingestellt. Die Paketliste des Projekts steht woanders:
+[`.pi/settings.json`](../../.pi/settings.json).
 
 JSON kennt keine Kommentare — deshalb steht die Begründung hier.
 
@@ -17,28 +20,17 @@ Mit `pi --list-models` nachgemessen liefert der eingebaute Eintrag für `glm-5.3
 **1M-Kontextfenster bei 131K max. Tokens**; eine handgeschriebene Zeile hätte daraus 200K/32K
 gemacht und damit genau das `[1m]`-Fenster gekappt, auf das die Pipeline baut.
 
-## `model-aliases.json` — Alias → Modell-ID je Provider
+## Provider-Matrix: pi nur gegen zai | openrouter
 
-Dieselben vier Aliase wie unter Claude Code (`fable | opus | sonnet | haiku`, siehe
-Modell-Allowlist in `docs/ci-architecture.md`), aber als pi-Modellreferenzen der Form
-`provider/id`.
+Claude Code läuft gegen alle drei Provider (claude/zai/openrouter); **pi nur gegen zai und
+openrouter** — das Anthropic-Abo ist an Claude Code gebunden, pi kann es nicht nutzen.
+`setup-agent` bricht bei `runtime=pi` + `provider=claude` laut ab, `set-agent-config`
+prüft die Kombination schon VOR dem Setzen der Variablen. Deshalb hat `claude` in
+`model-settings.json` keine `pi`-Formen.
 
-**`openrouter` ist absichtlich leer.** Die OpenRouter-Modell-IDs sind unter Claude Code
-bewusst nicht im Repo gespiegelt — Source of Truth ist die GitHub-Variable
-`CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER`. Für pi gilt dasselbe Prinzip: Die Zuordnung kommt aus
-der Variable **`PI_MODEL_ALIASES`** (JSON in derselben Struktur wie diese Datei) und wird über
-die Einträge hier gelegt. Fehlt für den gewählten Provider ein Alias in beiden Quellen, bricht
-`setup-pi` laut ab — ein geratenes Modell wäre genau der stille Fehlgriff, gegen den die
-Modell-Allowlist antritt.
-
-Beispiel:
-
-```bash
-gh variable set PI_MODEL_ALIASES --body '{"openrouter":{"opus":"openrouter/moonshotai/kimi-k2.6","sonnet":"openrouter/deepseek/deepseek-v3.2","haiku":"openrouter/poolside/laguna-s-2.1:free","fable":"openrouter/moonshotai/kimi-k2.6"}}'
-```
-
-Beim Freigeben eines neuen Alias ist diese Datei die pi-Seite der Synchronisierungsliste in
-`docs/ci-architecture.md` → „Modell-Allowlist & Freigabe neuer Modelle".
+Beim Freigeben eines neuen Alias ist `model-settings.json` die eine Stelle der
+Synchronisierungsliste in `docs/ci-architecture.md` → „Modell-Allowlist & Freigabe neuer
+Modelle" — pi-Form und cc-Form stehen dort je Alias nebeneinander.
 
 ## Pakete: keine CI-eigene Liste
 
