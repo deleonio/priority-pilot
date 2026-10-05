@@ -3,4 +3,4 @@
  * gespeicherte `termsVersion` ab, fragt die App beim nächsten Öffnen erneut nach der Zustimmung;
  * bei jeder inhaltlichen Änderung von `/nutzungsbedingungen/` hochsetzen.
  */
-export const TERMS_VERSION = '2026-09-30';
+export const TERMS_VERSION = '2026-10-05';

@@ -45,6 +45,8 @@ export const TERMS: { intro: string; description: string; sections: TermsSection
 			heading: 'Haftung',
 			paragraphs: [
 				'Balamentum dient der Lebensbalance und Selbstfürsorge. Es ist kein Medizinprodukt und ersetzt keinen ärztlichen Rat; bei seelischen Krisen erreichst du die TelefonSeelsorge kostenfrei unter 0800 111 0 111.',
+				'Balamentum bildet nur die Tätigkeiten ab, die du selbst erfasst. Es leistet keine Lebensrettung, keine Krisenintervention und keine medizinische Betreuung.',
+				'Die KI-generierten Vorschläge der App (etwa Fürsorge- und Aufgabenvorschläge) sind eine Hilfe ohne Gewähr. Dafür haften wir nicht; deine eigene Bewertung und Entscheidung zählt.',
 				'Balamentum ist ein Werkzeug zur persönlichen Planung. Für Folgen verpasster oder falsch eingetragener Aufgaben und Termine haften wir nicht; Erinnerungen und Hinweise sind eine Hilfe, keine Gewähr.',
 				'Wir bemühen uns um einen störungsfreien Betrieb, eine ständige Verfügbarkeit können wir nicht zusagen.',
 				'Unbeschränkt haften wir bei Vorsatz und grober Fahrlässigkeit sowie für Schäden aus der Verletzung von Leben, Körper oder Gesundheit. Bei leichter Fahrlässigkeit haften wir nur für die Verletzung wesentlicher Vertragspflichten und begrenzt auf den vorhersehbaren, typischen Schaden.',
