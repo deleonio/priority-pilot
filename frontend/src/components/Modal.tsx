@@ -198,7 +198,11 @@ export const Modal = forwardRef<ModalHandle, ModalProps>(function Modal(
 			_width={width}
 			_on={{ onClose: () => onCloseRef.current() }}
 		>
-			<div className="modal-body">{children}</div>
+			{/* `hidden` folgt `open` im selben Render: KoliBris `close()` ist async — ohne das stünde der Inhalt
+			    kurz doppelt neben dem, was der Aufrufer statt des Dialogs zeigt (Onboarding-Überschrift, #2070). */}
+			<div className="modal-body" hidden={!open}>
+				{children}
+			</div>
 		</KolDialog>,
 		document.body,
 	);
