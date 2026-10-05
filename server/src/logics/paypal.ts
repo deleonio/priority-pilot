@@ -174,6 +174,13 @@ const getAccessToken = async (fetchImpl: typeof fetch): Promise<string> => {
 	return ((await res.json()) as { access_token?: string }).access_token ?? '';
 };
 
+/** Setzt den `billing`-Parameter der Rückkehr-URL (Default-`cancel_url`, #2235). */
+const withBillingParam = (url: string, value: string): string => {
+	const target = new URL(url);
+	target.searchParams.set('billing', value);
+	return target.toString();
+};
+
 /** Genehmigungslink aus der PayPal-Antwort (`links[].rel === 'approve'`). */
 const approveLinkOf = (body: { links?: { rel?: string; href?: string }[] }): string | undefined =>
 	body.links?.find((link) => link.rel === 'approve')?.href;
@@ -188,7 +195,8 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 	async createSubscription(planId, override) {
 		const token = await getAccessToken(fetchImpl);
 		const returnUrl = process.env.PAYPAL_RETURN_URL?.trim() || 'https://app.example/settings?billing=returned';
-		const cancelUrl = process.env.PAYPAL_CANCEL_URL?.trim() || returnUrl;
+		// Eigene Abbruch-Rückkehr (#2235): die Einstellungen verwerfen bei `billing=cancelled` den offenen Checkout.
+		const cancelUrl = process.env.PAYPAL_CANCEL_URL?.trim() || withBillingParam(returnUrl, 'cancelled');
 		const res = await fetchImpl(`${apiBase()}/v1/billing/subscriptions`, {
 			method: 'POST',
 			headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },

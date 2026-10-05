@@ -57,7 +57,9 @@ export const usePaypalPurchase = (): PurchaseUi => {
 		if (subscription === undefined) {
 			return { text: '', node: null };
 		}
-		if (subscription !== null && subscription.plan === targetPlan && subscription.period === period) {
+		// Ein offener Checkout ist kein Paket (#2235): es gilt das bezahlte bzw. „Buchen".
+		const paid = subscription?.status === 'approval_pending' ? null : subscription;
+		if (paid !== null && paid.plan === targetPlan && paid.period === period) {
 			if (resumable) {
 				const key = `${targetPlan}-${period}`;
 				return {
@@ -79,7 +81,7 @@ export const usePaypalPurchase = (): PurchaseUi => {
 			}
 			return { text: 'Aktuelles Paket', node: <span>Aktuelles Paket</span> };
 		}
-		if (subscription === null) {
+		if (paid === null) {
 			return {
 				text: 'Buchen',
 				node: (

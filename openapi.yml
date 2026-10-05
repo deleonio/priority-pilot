@@ -4370,7 +4370,8 @@ paths:
         `Subscription`-Datensatz mit Status `approval_pending` und liefert die
         Zustimmungs-URL (Issue #1505, T6d, AK1). Wirksam wird das Abo erst über das
         verifizierte Webhook-Ereignis (ADR 0013). Besteht für den Nutzer bereits ein
-        laufendes oder ausstehendes Abo, antwortet die Route mit 409 (AK2). Anfragen
+        laufendes Abo, antwortet die Route mit 409 (AK2); ein offener, nie bestätigter
+        Checkout wird vorher über den PayPal-Kündigungsruf verworfen (#2235). Anfragen
         aus den Store-Apps (`X-Client-Channel: play` oder `appstore`) lehnt sie
         ebenfalls mit 409 ab, dort wird nie über PayPal gekauft (ADR 0016, #1668).
       operationId: createBillingSubscription
@@ -4397,7 +4398,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '409':
-          description: Es besteht bereits ein laufendes oder ausstehendes Abo, oder die Anfrage kommt aus einer Store-App
+          description: Es besteht bereits ein laufendes Abo, oder die Anfrage kommt aus einer Store-App
           content:
             application/json:
               schema:

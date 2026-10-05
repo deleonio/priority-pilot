@@ -105,6 +105,9 @@ export const SubscriptionSection = () => {
 		new Date(subscription.currentPeriodEnd).getTime() > Date.now() &&
 		(subscription.status === 'cancelled' || locallyCancelled);
 
+	// Ein offener Checkout ist kein aktuelles Paket (#2235) — er erscheint wie „kein Abo".
+	const current = subscription?.status === 'approval_pending' ? null : subscription;
+
 	// Ehemalige Abonnenten (`subscription === null`) sehen ihre Rechnungen weiter, aber keine leere Gruppe (#1940).
 	const showInvoices = subscription != null || (subscription === null && invoices !== null && invoices.length > 0);
 
@@ -133,37 +136,37 @@ export const SubscriptionSection = () => {
 
 	return (
 		<div className="subscription-section" data-testid="subscription-section">
-			{subscription != null ? (
+			{current != null ? (
 				<>
 					<section className="subscription-status" data-testid="subscription-status">
 						<p>
-							Aktuelles Paket: <strong>{planLabel(subscription.plan)}</strong> ({PERIOD_LABELS[subscription.period]})
+							Aktuelles Paket: <strong>{planLabel(current.plan)}</strong> ({PERIOD_LABELS[current.period]})
 						</p>
-						<p>Periodenende: {formatDate(subscription.currentPeriodEnd)}</p>
-						{subscription.pendingPlan !== null && (
+						<p>Periodenende: {formatDate(current.currentPeriodEnd)}</p>
+						{current.pendingPlan !== null && (
 							<p data-testid="subscription-pending-plan">
-								Wechsel zu {planLabel(subscription.pendingPlan)}
-								{subscription.pendingPlanEffectiveAt !== null
-									? ` ab ${formatDate(subscription.pendingPlanEffectiveAt)}`
+								Wechsel zu {planLabel(current.pendingPlan)}
+								{current.pendingPlanEffectiveAt !== null
+									? ` ab ${formatDate(current.pendingPlanEffectiveAt)}`
 									: ', aktiv mit Zahlungseingang'}
 							</p>
 						)}
-						{subscription.graceUntil !== null && (
-							<p data-testid="subscription-grace-until">Kulanzfrist bis {formatDate(subscription.graceUntil)}</p>
+						{current.graceUntil !== null && (
+							<p data-testid="subscription-grace-until">Kulanzfrist bis {formatDate(current.graceUntil)}</p>
 						)}
 						{isCancelled && (
 							<p data-testid="subscription-cancelled" aria-live="polite">
-								Gekündigt, läuft bis {formatDate(subscription.currentPeriodEnd)}, danach Free
+								Gekündigt, läuft bis {formatDate(current.currentPeriodEnd)}, danach Free
 							</p>
 						)}
 						{/* Kündigen über die eigene Route gibt es nur für PayPal im Web; sonst verwaltet der Anbieter (#1695). */}
-						{!isPaypalWeb && <ManagedBy provider={subscription.provider} />}
+						{!isPaypalWeb && <ManagedBy provider={current.provider} />}
 					</section>
 				</>
 			) : (
 				// `undefined` heißt „Abo-Status noch nicht geladen" — dann steht hier nichts, statt
 				// fälschlich „kein Abo" zu behaupten (Muster `actionCell` in `PaypalPurchase`).
-				subscription === null && (
+				current === null && (
 					<section className="subscription-empty" data-testid="subscription-empty">
 						<p>
 							Für dieses Konto läuft derzeit kein Abo. Die Pakete darunter zeigen, was die kostenpflichtigen Stufen
