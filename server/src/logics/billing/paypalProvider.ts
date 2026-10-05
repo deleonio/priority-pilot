@@ -65,7 +65,7 @@ export const createPaypalProvider = (deps: PaypalProviderDeps = {}): BillingProv
 				await replacePredecessors(subscription, client);
 			}
 			await applyPaymentEvent(subscription, paypalEvent, now, {
-				issueInvoice: (s, n, saleId) => issueInvoiceForPeriod(s, n, deps.mailSender, saleId),
+				issueInvoice: (s, n, saleId, charged) => issueInvoiceForPeriod(s, n, deps.mailSender, saleId, charged),
 			});
 		},
 		checkout: {

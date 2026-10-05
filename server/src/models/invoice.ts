@@ -19,6 +19,8 @@ class Invoice extends Model {
 	public periodStart!: Date;
 	public periodEnd!: Date;
 	public amountCents!: number;
+	/** Währung der Abbuchung (#2232) — Altrechnungen tragen `EUR`. */
+	public currency!: string;
 	public taxNote!: string;
 	public deliveredAt?: Date | null;
 	/** Positionen (#1912) — nur bei Verrechnung befüllt; Altrechnungen tragen `[]`. */
@@ -65,6 +67,11 @@ Invoice.init(
 		amountCents: {
 			type: DataTypes.INTEGER,
 			allowNull: false,
+		},
+		currency: {
+			type: DataTypes.STRING,
+			allowNull: false,
+			defaultValue: 'EUR',
 		},
 		taxNote: {
 			type: DataTypes.STRING,

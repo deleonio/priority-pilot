@@ -54,7 +54,7 @@ export const invoicePdfLines = (
 	'',
 	`Leistung: ${service}`,
 	`Leistungszeitraum: ${isoDate(invoice.get('periodStart') as Date)} bis ${isoDate(invoice.get('periodEnd') as Date)}`,
-	`Betrag: ${formatEuro(invoice.get('amountCents') as number)} EUR`,
+	`Betrag: ${formatEuro(invoice.get('amountCents') as number)} ${invoice.get('currency') as string}`,
 	'',
 	invoice.get('taxNote') as string,
 ];
