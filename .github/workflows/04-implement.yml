@@ -53,9 +53,8 @@ concurrency:
   group: ${{ github.event_name == 'issues' && format('harness-{0}', github.event.issue.number) || format('harness-pr-{0}', github.event.pull_request.head.ref) }}
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
-  # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,
-  # ticket-unabhängigem Key hätte ein Label-Burst über mehrere Tickets die
-  # wartenden Läufe still verworfen — Trigger-Label klebt, kein Lauf, kein Notice.
+  # Run cancelt den wartenden (`queue: single` ist der Default). Mit pro-Ticket-Key
+  # verwirft ein Label-Burst am selben Ticket die wartenden Läufe still — Trigger-Label klebt, kein Lauf, kein Notice.
   # `max` = bis zu 100 pending, FIFO. Unvereinbar mit cancel-in-progress: true.
   queue: max
 

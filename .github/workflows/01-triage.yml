@@ -39,7 +39,7 @@ concurrency:
   # aus dem Event-Payload ableitbar ist (workflow-level concurrency kennt keine Step-Outputs):
   #  - Lane A `harness-<Issue-Nr.>` — Triage/UX/Spec/Implement (Issues-Events): serialisiert
   #    die ganze Issue-Kette eines Tickets.
-  #  - Lane B `harness-<Head-Branch>` (= `harness-ai/harness/<Nr.>`) — Review/Fixup
+  #  - Lane B `harness-pr-<Head-Branch>` (= `harness-pr-ai/harness/<Nr.>`) — Review/Fixup
   #    (PR-Events; der Fixup-PR trägt immer den Harness-Branch des Tickets): serialisiert
   #    die Review↔Fixup-Zyklen eines Tickets.
   # Der A→B-Übergang ist gepuffert: Der Review-Lauf wartet als ersten Schritt auf CI

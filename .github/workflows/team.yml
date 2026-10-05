@@ -10,8 +10,8 @@ name: Team
 # Triage `ai:needs-team` nie selbst. Klebt zusätzlich ein Ketten-Trigger, gewinnt die Kette und
 # dieser Lauf skippt (Doppel-Armung, s. check-phase-label.sh Phase `team`).
 #
-# CONCURRENCY: Dieselbe statische Gruppe `llm-impl` wie Implement/Fixup (04) — die Git-Phasen
-# serialisieren gemeinsam (FIFO). Der Lauf ist mit bis zu 120 Minuten der längste im Repo
+# CONCURRENCY: Concurrency wie Implement (04): Lane A `harness-<Nr.>` bzw. Lane B
+# `harness-pr-<Branch>` je Ticket (s. 01-triage.yml). Der Lauf ist mit bis zu 120 Minuten der längste im Repo
 # und blockiert die Queue
 # entsprechend lange — bewusst: zwei Agenten gleichzeitig auf demselben Repo ziehen dasselbe
 # LLM-Kontingent und kollidieren auf den Ports der Playwright-Läufe.

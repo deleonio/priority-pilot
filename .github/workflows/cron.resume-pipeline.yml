@@ -157,9 +157,8 @@ jobs:
           for ENTRY in $(printf '%s\n' "${!PHASES[@]}" | sort); do
             IFS='|' read -r WF LABEL KIND <<< "${PHASES[$ENTRY]}"
 
-            # 1) Ruht die Phase? Jede Phase läuft in ihrer eigenen statischen concurrency-Gruppe
-            #    (`llm-triage` … `llm-documenter`, queue: max) — die Abfrage bleibt pro Workflow
-            #    ($WF) und damit pro Gruppe: ist ein Run DIESER Phase
+            # 1) Ruht die Phase? Läufe gruppieren pro Ticket (`harness-<Nr.>` /
+            #    `harness-pr-<Branch>`, queue: max); die Abfrage bleibt pro Workflow ($WF): ist ein Run DIESER Phase
             #    queued/in_progress, kann kein Kandidat der Phase "in Arbeit" sein, ohne dass die
             #    Phase Runs hat. Dann skip (konservativ): Der nächste 6h-Zyklus findet den Kleber,
             #    sobald die Phase wieder ruht. Läufe anderer Phasen sind irrelevant für DIESE

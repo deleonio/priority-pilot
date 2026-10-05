@@ -22,9 +22,8 @@ concurrency:
   group: harness-${{ github.event.issue.number }}
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
-  # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,
-  # ticket-unabhängigem Key hätte ein Label-Burst über mehrere Tickets die
-  # wartenden Läufe still verworfen — Trigger-Label klebt, kein Lauf, kein Notice.
+  # Run cancelt den wartenden (`queue: single` ist der Default). Mit pro-Ticket-Key
+  # verwirft ein Label-Burst am selben Ticket die wartenden Läufe still — Trigger-Label klebt, kein Lauf, kein Notice.
   # `max` = bis zu 100 pending, FIFO. Unvereinbar mit cancel-in-progress: true.
   queue: max
 
@@ -452,9 +451,8 @@ jobs:
         uses: ./.github/actions/llm-fair-usage-check
 
       - name: Folge-Label setzen (Job-Ende)
-        # ALLERLETZTER Step des Jobs: Da Spec (llm-spec) nicht mehr mit Implement (llm-impl)
-        # in einer Gruppe serialisiert, fehlt die stille Job-Ende-Barriere der alten
-        # gemeinsamen Gruppe — der Nachfolger-Trigger darf erst feuern, wenn die komplette
+        # ALLERLETZTER Step des Jobs: Da Spec (Lane A) und Review/Fixup (Lane B) nicht mehr gemeinsam
+        # serialisieren, fehlt die stille Job-Ende-Barriere der alten gemeinsamen Gruppe — der Nachfolger-Trigger darf erst feuern, wenn die komplette
         # Nachbereitung durch ist (Ergebnis-Zusammenfassung, Fair-Usage-Check). Das
         # Add-over-Remove-Muster erzeugt genau ein labeled-Event (der alte Trigger wurde im
         # Assertion-Step konsumiert). Leerer Output = Assertion hat fehlerfrei abgebrochen

@@ -985,9 +985,8 @@ für dieses Ticket die Phasen 2–4; keine Phase setzt das Label je selbst.
   erneut umgesetzt; der Lauf zieht nur das Review-Label nach.
 - **Zeitfenster:** 120 min Job, Soft-Deadline nach 90 min. Erster Soft-Abort → `ai:continued` +
   `ai:needs-team` neu gesetzt (Folgelauf setzt über die Phasen-Notiz fort, ADR 0010), zweiter →
-  `ai:to-big-issue` (Info-Signal, löst nichts aus). Gemeinsame `llm-impl`-Concurrency-Gruppe
-  mit Umsetzung/Fixup: der lange Lauf blockiert die Umsetzungs-Stufe bewusst, statt parallel
-  dasselbe Kontingent zu ziehen (Spec läuft in `llm-spec` weiter).
+  `ai:to-big-issue` (Info-Signal, löst nichts aus). Concurrency je Ticket wie Umsetzung
+  (Lane A `harness-<Nr.>`); andere Tickets laufen parallel weiter.
 - **Post-Assertion:** Das **Artefakt** entscheidet — ein fertiger PR mit Commits ergibt
   `ai:needs-review` am PR (Trigger für Phase 5 und damit das Merge-Gate), auch wenn der Lauf
   vorher abbrach. Kein Verdict und kein PR → `phase-crash-park.sh` parkt beim Menschen.
