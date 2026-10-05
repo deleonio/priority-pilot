@@ -16,6 +16,8 @@ import { PRIVACY } from './privacy.ts';
 import { TERMS } from './terms.ts';
 import { MCP_GUIDE } from './mcp-guide.ts';
 import { TEMPLATES } from './templates.ts';
+import { CLIENT_SCRIPT, QUESTIONS, SCALE_LABELS } from './assessment.ts';
+import { SEED_PILLARS } from '../../server/src/models/pillarData.ts';
 import type { LifeTemplate } from './templates.ts';
 import type de from './i18n/de.json';
 
@@ -192,6 +194,7 @@ ${body}
 				<a class="kern-link" href="/nutzungsbedingungen/" hreflang="de">${t(messages.footer.terms)}</a>
 				<a class="kern-link" href="${locale === 'en' ? '/en/mcp/' : '/mcp/'}" hreflang="${locale === 'en' ? 'en' : 'de'}">${t(messages.footer.mcpGuide)}</a>
 				<a class="kern-link" href="/vorlagen/" hreflang="de">Vorlagen</a>
+				<a class="kern-link" href="/balance-check/" hreflang="de">Balance-Check</a>
 			</div>
 			<nav class="container" aria-label="${t(messages.meta.language)}">
 				<ul class="site-footer__languages">
@@ -663,3 +666,43 @@ export const renderSitemap = (siteUrl: string, paths: readonly string[]): string
 	`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${paths
 		.map((path) => `\t<url><loc>${siteUrl}${path}</loc></url>`)
 		.join('\n')}\n</urlset>\n`;
+
+/** Balance-Check (#1979): nur Deutsch, `pathFor` aller Sprachen zeigt auf die deutsche Seite (Muster {@link templatePage}). */
+export const renderAssessment = (context: PageContext & { allMessages: Record<Locale, Messages> }): string =>
+	templatePage(
+		context,
+		'/balance-check/',
+		'Balance-Check',
+		'Fünf Fragen ohne Konto: eine erste Einordnung, wohin deine Aufmerksamkeit zuletzt geflossen ist.',
+		`						<h1 class="kern-heading-large">Balance-Check</h1>
+						<p class="kern-body kern-body--large">Fünf Fragen, keine Anmeldung. Denk an die letzten Wochen und antworte aus dem Bauch.</p>
+						<form data-form>
+${SEED_PILLARS.map(
+	(pillar, index) => `							<fieldset class="scale">
+								<legend class="kern-body">${t(pillar.name)}: ${t(QUESTIONS[index])}</legend>
+${SCALE_LABELS.map(
+	(label, value) =>
+		`								<label class="scale__option"><input type="radio" name="q${index}" value="${value}"><span>${t(label)}</span></label>`,
+).join('\n')}
+							</fieldset>`,
+).join('\n')}
+						</form>
+						<p class="kern-body kern-body--small" data-progress aria-live="polite">0 von ${SEED_PILLARS.length} beantwortet</p>
+						<section data-result hidden class="result" aria-labelledby="result-title">
+							<h2 class="kern-title" id="result-title">Dein Ergebnis</h2>
+							<p class="kern-body" data-summary aria-live="polite"></p>
+							<ul class="result__list" data-list>
+${SEED_PILLARS.map(
+	(pillar) => `								<li data-row data-name="${t(pillar.name)}">
+									<span>${t(pillar.name)}: <span data-percent></span></span>
+									<span class="bar" aria-hidden="true"><span class="bar__fill" data-fill></span></span>
+								</li>`,
+).join('\n')}
+							</ul>
+							<p><a class="kern-btn kern-btn--primary" href="${APP_PATH}"><span class="kern-label">Kostenlos starten</span></a></p>
+							<p><button type="button" class="kern-btn kern-btn--secondary" data-share><span class="kern-label">Ergebnis teilen</span></button></p>
+							<p class="kern-body kern-body--small" data-status role="status"></p>
+							<p class="kern-body kern-body--small">Wird nirgends gespeichert. Der Link enthält deine Antworten – teile ihn nur, wenn du magst.</p>
+						</section>
+						<script>${CLIENT_SCRIPT}</script>`,
+	);

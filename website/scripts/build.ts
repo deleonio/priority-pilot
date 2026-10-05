@@ -23,6 +23,7 @@ import {
 	homePath,
 	renderAccountDeletion,
 	renderImprint,
+	renderAssessment,
 	renderAssetLinks,
 	renderLanding,
 	renderMcpGuide,
@@ -124,6 +125,10 @@ for (const template of TEMPLATES) {
 	);
 	paths.push(`/vorlagen/${template.slug}/`);
 }
+
+// Balance-Check (#1979): feste deutsche Seite ohne Sprachvarianten.
+write(join('balance-check', 'index.html'), renderAssessment({ locale: 'de', messages: de, siteUrl, allMessages }));
+paths.push('/balance-check/');
 
 write('robots.txt', renderRobots(siteUrl));
 if (siteUrl) {
