@@ -242,7 +242,8 @@
 		"accountDeletionPath": "elimina-account/",
 		"privacy": "Privacy",
 		"terms": "Termini di utilizzo",
-		"mcpGuide": "Guida MCP"
+		"mcpGuide": "Guida MCP",
+		"templates": "Modelli"
 	},
 	"imprint": {
 		"title": "Note legali",

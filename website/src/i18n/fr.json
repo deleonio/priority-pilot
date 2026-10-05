@@ -245,7 +245,8 @@
 		"accountDeletionPath": "supprimer-compte/",
 		"privacy": "Confidentialité",
 		"terms": "Conditions d’utilisation",
-		"mcpGuide": "Guide MCP"
+		"mcpGuide": "Guide MCP",
+		"templates": "Modèles"
 	},
 	"imprint": {
 		"title": "Mentions légales",
