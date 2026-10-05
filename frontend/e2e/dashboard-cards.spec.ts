@@ -96,7 +96,11 @@ test.describe('Dashboard — drei Statuskacheln (Issue #390)', () => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/app/');
 		await waitForStableView(page);
-		await page.request.post('/api/v1/tasks', { data: { title: 'E2E #1985 Begründung', priority: 2 } });
+		// Ohne Frist und Anteile nennt die Karte keine Begründung (Priorität steht schon in der Meta-Zeile) —
+		// die Frist liefert den Satz „Fällig am …“.
+		// Heute fällig: weiter entfernte Fristen hält der Vorlauf (#1641) aus „Nächste Aufgabe“ heraus.
+		const deadline = new Date().toISOString().slice(0, 10);
+		await page.request.post('/api/v1/tasks', { data: { title: 'E2E #1985 Begründung', priority: 2, deadline } });
 		await page.reload();
 		await waitForStableView(page);
 		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
@@ -105,7 +109,7 @@ test.describe('Dashboard — drei Statuskacheln (Issue #390)', () => {
 		const karte = page.locator('.dashboard-next-task');
 		await expect(karte).toBeVisible();
 
-		// Begründungskette Ende-zu-Ende: der Task (Prio 2) bekommt mindestens einen Satz.
+		// Begründungskette Ende-zu-Ende: der Task (Prio 2, mit Frist) bekommt mindestens einen Satz.
 		const begruendungsSaetze = page.locator('.dashboard-next-task-reasons li');
 		await expect(begruendungsSaetze.first()).toBeVisible();
 

@@ -3,7 +3,6 @@ import {
 	KolAvatar,
 	KolButton,
 	KolInputCheckbox,
-	KolInputRadio,
 	KolInputText,
 	KolSingleSelect,
 	KolSpin,
@@ -28,6 +27,7 @@ import { ArchivedTasksList } from './components/ArchivedTasksList';
 import { MissedCompleteDialog } from './components/MissedCompleteDialog';
 import { MissedTasksSection } from './components/MissedTasksSection';
 import { EmptyState } from './components/EmptyState';
+import { Modal } from './components/Modal';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
@@ -85,26 +85,35 @@ const TaskGraphPanel = lazy(() =>
 // #1105: Pfad zu jedem Haupt-Tab (Index = Tab-Index) und Pfad-Segment je Settings-Tab. Der aktive
 // Tab ist damit eine reine Funktion der URL (Routen-Tabelle in `docs/spec/issue-1105.md`).
 const ROUTE_PATHS: string[] = ['/', '/aufgaben', '/serien', '/graph'];
-// #1529/#1902: „Pakete & Abo" (Index 7) steht nach „Gruppen" und VOR den rollenabhängigen
+// #1529/#1902: „Pakete & Abo" (Index 6) steht nach „Gruppen" und VOR den rollenabhängigen
 // Segmenten — so bleiben die Indizes 0–7 für Member stabil.
 const BASE_SETTINGS_PATH_SEGMENTS: string[] = [
 	'general',
 	'pillars',
 	'kategorien',
-	'standort',
-	'orte',
+	'ortung',
 	'llm',
 	'gruppen',
 	'pakete',
-	'import',
+	'daten',
 ];
 /**
  * Frühere Tab-Adressen, die in einem anderen Tab aufgegangen sind: #1902 „Abo" → „Pakete & Abo",
- * #1903 „Access-Token" (`zugriff`) → „KI" (`llm`).
+ * #1903 „Access-Token" (`zugriff`) → „KI" (`llm`), „Standort"/„Orte" → „Ortung", „Import" → „Daten".
  */
-const LEGACY_SETTINGS_SEGMENTS: Record<string, string> = { abo: 'pakete', zugriff: 'llm' };
+const LEGACY_SETTINGS_SEGMENTS: Record<string, string> = {
+	abo: 'pakete',
+	zugriff: 'llm',
+	standort: 'ortung',
+	orte: 'ortung',
+	import: 'daten',
+};
+// Hilfe-Tabs (Index = Tab-Index in `HelpPage`): `/hilfe`, `/hilfe/user-guide` und `/hilfe/manual` zeigen das Handbuch.
+const HELP_PATH_SEGMENTS: string[] = ['user-guide', 'feedback', 'impressum', 'changelog'];
+// Weitere Adressen des Handbuchs.
+const HELP_SEGMENT_ALIASES: Record<string, string> = { manual: 'user-guide', handbuch: 'user-guide' };
 // Die Segmentfolge ist rollenabhängig, damit sie index-paritätisch zu `settingsTabs` in
-// `SettingsPage` bleibt (der Admin-Tab „Nutzerverwaltung" hängt als Index 9 an).
+// `SettingsPage` bleibt (der Admin-Tab „Nutzerverwaltung" hängt als Index 8 an).
 const settingsPathSegments = (isAdmin: boolean): string[] => [
 	...BASE_SETTINGS_PATH_SEGMENTS,
 	...(isAdmin ? ['nutzer'] : []),
@@ -139,14 +148,6 @@ const HOME_ICON = { left: { icon: 'fa-solid fa-house' } };
 // die Kopf-Aktionen sind app-weit über ihn adressiert.
 const ACTIVE_VARIANT = 'primary' as const;
 const INACTIVE_VARIANT = 'secondary' as const;
-
-// #2011: Tag/Woche-Umschalter als Radiogruppe — kurze, eindeutige Bezeichnungen (KI-UX-Entscheidung);
-// Options-Objekte mit stabiler Identität (Muster `AppearanceSetting.tsx`), damit die Radiogruppe
-// nicht bei jedem Render eine neue Options-Liste erhält.
-const DASHBOARD_VIEW_OPTIONS = [
-	{ label: 'Heute', value: 'day' },
-	{ label: 'Woche', value: 'week' },
-];
 
 /**
  * Ist-Verteilung für die Balance-Priorisierung — erledigter `estimatedEffort` je Säule, anteilig
@@ -375,6 +376,11 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			? -1
 			: settingsPathSegments(isAdmin).indexOf(settingsSegment);
 	const settingsTab = settingsTabIndex < 0 ? 1 : settingsTabIndex;
+
+	/** Aktiver Hilfe-Tab: aus `/hilfe/:tab` abgeleitet; ohne Segment oder unbekannt → Handbuch. */
+	const rawHelpSegment = /\/hilfe\/([^/]+)/.exec(location.pathname)?.[1] ?? '';
+	const helpSegment = HELP_SEGMENT_ALIASES[rawHelpSegment] ?? rawHelpSegment;
+	const helpTab = Math.max(0, HELP_PATH_SEGMENTS.indexOf(helpSegment));
 
 	/** Erledigt-/Archiv-Ansicht ein-/ausschalten (Offen ist der Rest) und als `?view=` in die URL spiegeln. */
 	const changeTaskViewMode = useCallback(
@@ -744,6 +750,14 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		navigate('/settings/general');
 	}, [showSettings, backToMainView, navigate]);
 
+	/** Hilfe-Tab-Wechsel: URL auf `/hilfe/:tab` bringen — der Tab folgt der Route. */
+	const changeHelpTab = useCallback(
+		(selected: number): void => {
+			navigate(`/hilfe/${HELP_PATH_SEGMENTS[selected] ?? 'user-guide'}`);
+		},
+		[navigate],
+	);
+
 	/** Settings-Tab-Wechsel: URL auf `/settings/:tab` bringen — der Tab folgt der Route. */
 	const changeSettingsTab = useCallback(
 		(selected: number): void => {
@@ -1084,6 +1098,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			tabIndex={-1}
 			data-focus-fallback
 		>
+			{/* WCAG 2.4.1: Sprunglink am Seitenanfang, sichtbar nur bei Tastaturfokus (.skip-link). */}
+			<a className="skip-link" href="#main-content">
+				{t('menu.skipToContent')}
+			</a>
 			<header ref={headerRef} role="banner" className="app-header">
 				{/* Die sichtbare Leiste trägt `.app-header__bar` — der Header selbst ist der am Viewport
 				    fixierte Rahmen mit Abstandsschild (siehe `.app-header` in app.css): Die Leiste schließt
@@ -1118,7 +1136,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					</div>
 				</div>
 			</header>
-			<main>
+			<main id="main-content" tabIndex={-1}>
 				{/* #1320: Die eine `<h1>` je Ansicht benennt die geöffnete Seite (AK7) — vorher stand hier
 			    fest „Dashboard", während `SettingsPage`/`HelpPage` ihre eigene Überschrift mitbrachten. */}
 				<h1 className="visually-hidden">{pageTitle}</h1>
@@ -1145,7 +1163,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						currentUserId={user.id}
 					/>
 				) : showHelp ? (
-					<HelpPage />
+					<HelpPage tab={helpTab} onTabChange={changeHelpTab} />
 				) : (
 					<>
 						{loadError !== null && (
@@ -1174,14 +1192,18 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						{tasks !== null && tasks.length === 0 && activeTab === 0 && (
 							<>
 								{/* #2070: Nach „Später“/Abschluss zeigt der EmptyState den Wiedereinstieg; der Flow bleibt
-									    verdeckt gemountet, damit Freitext und Auswahl den Wiedereinstieg überleben (AK4). */}
+									    im geschlossenen Dialog gemountet, damit Freitext und Auswahl den Wiedereinstieg überleben (AK4). */}
 								{onboardingDismissed ? (
 									<EmptyState
 										onCreate={() => setDialog({ kind: 'create' })}
 										onReenter={() => setOnboardingDismissed(false)}
 									/>
 								) : null}
-								<div hidden={onboardingDismissed}>
+								<Modal
+									title="Willkommen bei Balamentum"
+									open={!onboardingDismissed}
+									onClose={() => setOnboardingDismissed(true)}
+								>
 									<OnboardingFlow
 										active={!onboardingDismissed}
 										pillars={pillars}
@@ -1189,7 +1211,6 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 											setOnboardingDismissed(true);
 											void reload();
 										}}
-										onWeightsSaved={() => void reload()}
 										onApplied={() => {
 											// Die neuen Aufgaben zeigen (AK3): der Aufgaben-Tab listet sie — die
 											// Dashboard-Karten (Nächste Aufgabe/Wichtigste) tragen eigene Titel-Klassen.
@@ -1199,24 +1220,11 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 											// #1969 AK7: Import-Verweis — Flow beenden und in den Import-Tab der
 											// Einstellungen führen (kein Pflichtschritt des Onboardings).
 											setOnboardingDismissed(true);
-											navigate('/settings/import');
+											navigate('/settings/daten');
 										}}
 									/>
-								</div>
+								</Modal>
 							</>
-						)}
-
-						{/* #1964: Verpasst-Bereich über der Aufgabenliste — auf Dashboard- UND Aufgaben-Tab sichtbar
-						    (er taucht schon beim Start auf, nicht erst nach dem Tab-Wechsel); Serien/Graph bleiben
-						    frei davon. Rendert selbst nicht bei leerer Verpasst-Liste. */}
-						{tasks !== null && activeTab <= 1 && (
-							<MissedTasksSection
-								tasks={missedTasks}
-								onComplete={handleCompleteMissed}
-								onEdit={openEdit}
-								onArchive={handleArchiveMissed}
-								onDelete={openDelete}
-							/>
 						)}
 
 						{tasks !== null && (
@@ -1232,21 +1240,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 									{/* #1617: Tag/Woche-Umschalter — reines Anzeigeumschalten, kein eigener Tab (der
 									    Wechsel bleibt Teil desselben Dashboard-Slots, deep-link-fähig über `?planview=`). */}
 									<div className="dashboard-view-switch">
-										{/* #2011: Radiogruppe statt zwei Einzelschaltflächen — aktive Ansicht am checked-Zustand
-										    erkennbar (WCAG 1.4.1); Deep-Link-Vertrag `?planview=` bleibt unangetastet. */}
-										<KolInputRadio
-											_label="Ansicht"
-											_hideLabel={true}
-											_orientation="horizontal"
-											_options={DASHBOARD_VIEW_OPTIONS}
-											_value={dashboardView}
-											_on={{
-												onChange: (_event, value) => {
-													if (value === 'day' || value === 'week') {
-														changeDashboardView(value);
-													}
-												},
-											}}
+										{/* Schalter statt Radiogruppe: sichtbar beschriftet, Zustand am checked-Wert erkennbar
+										    (WCAG 1.4.1); Deep-Link-Vertrag `?planview=` bleibt unangetastet. */}
+										<KolInputCheckbox
+											_label="Wochenansicht"
+											_variant="switch"
+											_checked={dashboardView === 'week'}
+											_on={{ onChange: (_event, value) => changeDashboardView(value === true ? 'week' : 'day') }}
 										/>
 									</div>
 									{dashboardView === 'week' ? (
@@ -1264,8 +1264,30 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 											showDayDoneHint={activeTab === 0}
 										/>
 									)}
+									{/* #1964: Verpasst-Bereich — Dashboard-Tab: unter dem Inhalt (nicht als erstes), Aufgaben-Tab: über der Liste.
+								    Nur im aktiven Tab gerendert (KolTabs hält inaktive Panels im DOM, sonst doppelte Test-IDs). */}
+									{tasks !== null && activeTab === 0 && (
+										<MissedTasksSection
+											tasks={missedTasks}
+											onComplete={handleCompleteMissed}
+											onEdit={openEdit}
+											onArchive={handleArchiveMissed}
+											onDelete={openDelete}
+										/>
+									)}
 								</div>
 								<div slot="tab-1">
+									{/* #1964: Verpasst-Bereich — Dashboard-Tab: unter dem Inhalt (nicht als erstes), Aufgaben-Tab: über der Liste.
+								    Nur im aktiven Tab gerendert (KolTabs hält inaktive Panels im DOM, sonst doppelte Test-IDs). */}
+									{tasks !== null && activeTab === 1 && (
+										<MissedTasksSection
+											tasks={missedTasks}
+											onComplete={handleCompleteMissed}
+											onEdit={openEdit}
+											onArchive={handleArchiveMissed}
+											onDelete={openDelete}
+										/>
+									)}
 									<section className="task-section">
 										{/* Deadline-Filter aus der Wochenansicht (#1617 Kreuzverhör-Entscheidung #5, Option
 									    5.2) — nur sichtbar, solange `?deadline=` gesetzt ist; „Filter entfernen" räumt

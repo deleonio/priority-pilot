@@ -268,7 +268,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 	 * Dieser Test stellt sicher, dass er dort vorhanden ist und korrekt funktioniert.
 	 */
 	test('AK7: Standort-Switch ist im Standort-Tab vorhanden und funktionsfähig', async ({ page }) => {
-		await page.goto('/app/settings/standort');
+		await page.goto('/app/settings/ortung');
 		await waitForStableView(page, 'Balamentum');
 
 		// Der Standort-Switch sollte im Standort-Tab sichtbar sein.

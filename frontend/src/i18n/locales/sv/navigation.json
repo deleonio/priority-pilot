@@ -12,6 +12,7 @@
 		"help": "Hjälp",
 		"logout": "Logga ut",
 		"headerActions": "Sidhuvudsåtgärder",
+		"skipToContent": "Hoppa till innehåll",
 		"activeViewDescription": "Aktuell vy — aktivera igen för att gå tillbaka"
 	}
 }

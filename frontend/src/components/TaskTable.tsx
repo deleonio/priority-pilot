@@ -180,7 +180,7 @@ export const TaskTable = memo((props: TaskTableProps) => {
 										type: 'button',
 										_label: 'Löschen',
 										_hideLabel: true,
-										_icons: { left: { icon: 'kolicon-cross' } },
+										_icons: { left: { icon: 'fa-solid fa-trash' } },
 										_variant: 'danger',
 										_on: { onClick: () => onDelete(task) },
 									},

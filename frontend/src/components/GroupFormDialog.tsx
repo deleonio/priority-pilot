@@ -7,7 +7,6 @@ import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readString } from '../lib/inputValue';
 import { Modal } from './Modal';
 import { PlanBadge } from './PlanBadge';
-import { PlanHint } from './PlanHint';
 
 /** #1211: Gruppenname ist Pflicht und auf 60 Zeichen begrenzt (Server-Validierung, AK4). */
 const GROUP_NAME_MAX_LENGTH = 60;
@@ -106,7 +105,6 @@ export const GroupFormDialog = ({ group, onClose, onSaved }: GroupFormDialogProp
 		<Modal title={isEdit ? 'Gruppe bearbeiten' : 'Gruppe anlegen'} onClose={onClose}>
 			{/* #1484 (T3b AK3): Grenzstelle `groups` — Badge als erstes Element unter dem Modal-Titel. */}
 			<PlanBadge feature="groups" inModal />
-			<PlanHint feature="groups" inModal />
 			{error !== null && (
 				<KolAlert _type="error" _label={isEdit ? 'Speichern fehlgeschlagen' : 'Anlegen fehlgeschlagen'}>
 					{error}

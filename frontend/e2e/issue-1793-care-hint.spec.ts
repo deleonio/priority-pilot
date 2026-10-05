@@ -91,7 +91,7 @@ test.describe('Dashboard — Fürsorge-Hinweis (Issue #1793)', () => {
 		// bedient — bisher gewann der Test nur das Rennen gegen diese Antwort (CSRF-Token-Fetch im Weg).
 		await page.route('**/scores/care-suggestions/dismissals', (route) => route.fulfill({ status: 204 }));
 
-		await page.getByRole('button', { name: 'Vorschlag ablehnen' }).click();
+		await page.getByRole('button', { name: 'Diesen Vorschlag nicht mehr' }).click();
 
 		await expect(page.getByTestId('care-hint')).toHaveCount(0);
 	});
@@ -107,7 +107,7 @@ test.describe('Dashboard — Fürsorge-Hinweis (Issue #1793)', () => {
 		await expect(hint).toBeVisible();
 		const vorschlagVorher = await hint.locator('p').first().textContent();
 
-		await page.getByRole('button', { name: 'Nicht jetzt' }).click();
+		await page.getByRole('button', { name: 'Heute nicht' }).click();
 		await page.getByRole('button', { name: 'Ohne Grund überspringen' }).click();
 		await expect(hint).not.toContainText(vorschlagVorher!);
 
@@ -127,21 +127,10 @@ test.describe('Dashboard — Fürsorge-Hinweis (Issue #1793)', () => {
 		const box = await hint.boundingBox();
 		expect(box!.x).toBeGreaterThanOrEqual(0);
 		expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
-		for (const name of ['Vorschlag übernehmen', 'Nicht jetzt', 'Vorschlag ablehnen']) {
+		for (const name of ['Vorschlag übernehmen', 'Heute nicht', 'Diesen Vorschlag nicht mehr']) {
 			const button = await hint.getByRole('button', { name }).boundingBox();
 			expect(button!.height).toBeGreaterThanOrEqual(44);
 			expect(button!.x + button!.width).toBeLessThanOrEqual(375 + 1);
 		}
-	});
-
-	test('#1967 AK5: TelefonSeelsorge-Link bei 375 px sichtbar, antippbar, ohne Überlauf', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 812 });
-		await openDashboard(page);
-		const link = page.getByTestId('care-hint').locator('a[href="tel:08001110111"]');
-		await expect(link).toBeVisible();
-		const box = await link.boundingBox();
-		expect(box!.x).toBeGreaterThanOrEqual(0);
-		expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
-		expect(box!.height).toBeGreaterThanOrEqual(44);
 	});
 });

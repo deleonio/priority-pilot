@@ -79,6 +79,7 @@ export const GroupDeleteDialog = ({ group, onClose, onDeleted, fallbackFocusRef 
 						/>
 						<KolButton
 							_label="Löschen"
+							_icons={{ left: { icon: 'fa-solid fa-trash' } }}
 							_variant="danger"
 							_disabled={deleting}
 							_on={{ onClick: () => setStep('scope') }}
@@ -101,6 +102,7 @@ export const GroupDeleteDialog = ({ group, onClose, onDeleted, fallbackFocusRef 
 						<KolButton
 							ref={confirmRef}
 							_label="Endgültig löschen"
+							_icons={{ left: { icon: 'fa-solid fa-trash' } }}
 							_variant="danger"
 							_disabled={deleting}
 							_on={{ onClick: () => void deleteGroup() }}

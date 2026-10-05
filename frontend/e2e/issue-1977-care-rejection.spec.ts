@@ -25,7 +25,7 @@ test.describe('Dashboard — „Nicht jetzt" mit Grund (Issue #1977)', () => {
 		await expect(hint).toBeVisible();
 		const vorschlagVorher = await hint.locator('p').first().textContent();
 
-		await page.getByRole('button', { name: 'Nicht jetzt' }).click();
+		await page.getByRole('button', { name: 'Heute nicht' }).click();
 
 		// Test-Pflege #1977 (KoliBri-Realität): KolInputRadio rendert ein `fieldset` im Shadow-DOM
 		// (Implizite Rolle `group`, keine `radiogroup`) — die Auswahl wird über den Host im Hinweis
