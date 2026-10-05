@@ -1791,3 +1791,28 @@ describe('migrateGroupKind (#1974)', () => {
 		assert.equal((rows as { kind: string }[])[0].kind, 'group');
 	});
 });
+
+// ── #2244: migrateTaskSnoozeColumn — snoozedUntil (nullable) ──────────────────────────────────────
+// Die Funktion existiert noch nicht (rote Spec-Tests): Zugriff über den Namespace + Cast hält tsc grün.
+describe('migrateTaskSnoozeColumn (#2244 AK8)', () => {
+	const migrateTaskSnoozeColumn = (migrateModule as unknown as Record<string, (s: typeof sequelize) => Promise<void>>)
+		.migrateTaskSnoozeColumn;
+
+	it('zieht auf einem Alt-Schema snoozedUntil nach; zweiter Lauf ist ein No-op', async () => {
+		await createLegacyTasksTable();
+		assert.ok(!(await taskColumns()).includes('snoozedUntil'), 'Alt-Schema hat snoozedUntil noch nicht');
+
+		assert.equal(typeof migrateTaskSnoozeColumn, 'function', 'migrateTaskSnoozeColumn ist exportiert');
+		await migrateTaskSnoozeColumn(sequelize);
+		await assert.doesNotReject(() => migrateTaskSnoozeColumn(sequelize), 'zweiter Lauf bleibt stabil');
+
+		const columns = await taskColumns();
+		assert.equal(columns.filter((name) => name === 'snoozedUntil').length, 1, 'snoozedUntil genau einmal');
+	});
+
+	it('ist auf einer DB ohne tasks-Tabelle ein No-op', async () => {
+		assert.deepEqual(await taskColumns(), [], 'Vorbedingung: keine tasks-Tabelle');
+		assert.equal(typeof migrateTaskSnoozeColumn, 'function', 'migrateTaskSnoozeColumn ist exportiert');
+		await assert.doesNotReject(() => migrateTaskSnoozeColumn(sequelize));
+	});
+});
