@@ -33,7 +33,7 @@ const formatEuro = (amountCents: number): string => (amountCents / 100).toFixed(
 /**
  * Die Textzeilen des Rechnungs-PDFs (AK2): Nummer, Datum, beide Parteien, Leistungsbeschreibung
  * (`service`, z. B. `Paket plus (monthly)`), Leistungszeitraum, Betrag und der `taxNote`
- * (§19 UStG, kein Steuerausweis). Die USt-IdNr.-Zeile erscheint nur bei gesetztem
+ * (§19 UStG, kein Steuerausweis); vorhandene `lineItems` (#2142) stehen als Positionen vor dem Betrag. Die USt-IdNr.-Zeile erscheint nur bei gesetztem
  * `operator.ustId`.
  */
 export const invoicePdfLines = (
@@ -57,6 +57,7 @@ export const invoicePdfLines = (
 	'',
 	`Leistung: ${service}`,
 	`Leistungszeitraum: ${isoDate(invoice.get('periodStart') as Date)} bis ${isoDate(invoice.get('periodEnd') as Date)}`,
+	...(invoice.lineItems ?? []).map((item) => `${item.label}: ${formatEuro(item.amountCents)}`),
 	`Betrag: ${formatEuro(invoice.get('amountCents') as number)} ${invoice.get('currency') as string}`,
 	'',
 	invoice.get('taxNote') as string,

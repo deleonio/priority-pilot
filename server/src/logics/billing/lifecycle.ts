@@ -1,5 +1,5 @@
-import type { Transaction } from 'sequelize';
-import type Subscription from '../../models/subscription.js';
+import { Op, type Transaction } from 'sequelize';
+import Subscription from '../../models/subscription.js';
 import User from '../../models/user.js';
 import { PLAN_VALUES, type Plan } from '../plans.js';
 
@@ -77,19 +77,50 @@ export const applyDuePendingPlan = async (
 export const isGracePeriodExpired = (firstFailureAt: Date, now: Date): boolean =>
 	now.getTime() - firstFailureAt.getTime() > GRACE_PERIOD_DAYS * DAY_MS;
 
+/** Abhängigkeiten der Kulanzfrist: Kündigung beim Anbieter (nur PayPal), in Tests ein Fake. */
+export interface GracePeriodDeps {
+	cancel?: (externalSubscriptionId: string) => Promise<void>;
+}
+
 /**
- * Wendet eine fällige Kulanzfrist an (AK6, T6e/#1506): ist `firstFailureAt` gesetzt und
- * {@link isGracePeriodExpired}, wird `status: 'grace_expired'` gesetzt und `firstFailureAt`
- * zurückgesetzt — `plan` bleibt unverändert (der Downgrade selbst ist T7, #1462).
+ * Wendet eine fällige Kulanzfrist an (AK6, T6e/#1506; Entzug #2234): ist `firstFailureAt` gesetzt und
+ * {@link isGracePeriodExpired}, wird ein PayPal-Abo gekündigt (damit keine späte Abbuchung kommt),
+ * `User.plan` und `Subscription.plan` fallen auf `free`, `status: 'grace_expired'` gesetzt und `firstFailureAt` zurückgesetzt.
+ * Ein fehlschlagender Kündigungsaufruf verhindert den Entzug nicht (Warnung im Log). Nutzerdaten
+ * bleiben unangetastet (siehe {@link syncUserPlan}).
  *
- * Bewusst beim Lesen des Abos aufgerufen (Muster `applyDuePendingPlan`). Ohne fällige Frist ein
- * No-Op.
+ * Beim Lesen des Abos (Muster `applyDuePendingPlan`) und im täglichen Sweep
+ * ({@link applyDueGracePeriods}). Ohne fällige Frist ein No-Op.
  */
-export const applyDueGracePeriod = async (subscription: Subscription, now: Date): Promise<boolean> => {
+export const applyDueGracePeriod = async (
+	subscription: Subscription,
+	now: Date,
+	deps: GracePeriodDeps = {},
+): Promise<boolean> => {
 	const firstFailureAt = subscription.get('firstFailureAt') as Date | string | null | undefined;
 	if (!firstFailureAt || !isGracePeriodExpired(new Date(firstFailureAt), now)) {
 		return false;
 	}
-	await subscription.update({ status: 'grace_expired', firstFailureAt: null });
+	if (subscription.get('provider') === 'paypal' && deps.cancel) {
+		try {
+			await deps.cancel(subscription.get('externalSubscriptionId') as string);
+		} catch (error) {
+			console.warn('PayPal-Abo konnte nach Ablauf der Kulanzfrist nicht gekündigt werden.', error);
+		}
+	}
+	await subscription.update({ plan: 'free', status: 'grace_expired', firstFailureAt: null });
+	await syncUserPlan(subscription, 'free');
 	return true;
+};
+
+/** Täglicher Sweep (#2234): wendet {@link applyDueGracePeriod} auf alle Abos mit gesetztem `firstFailureAt` an. */
+export const applyDueGracePeriods = async (now: Date, deps: GracePeriodDeps = {}): Promise<number> => {
+	const subscriptions = await Subscription.findAll({ where: { firstFailureAt: { [Op.ne]: null } } });
+	let applied = 0;
+	for (const subscription of subscriptions) {
+		if (await applyDueGracePeriod(subscription, now, deps)) {
+			applied += 1;
+		}
+	}
+	return applied;
 };

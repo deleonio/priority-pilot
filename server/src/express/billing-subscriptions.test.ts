@@ -681,13 +681,9 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 				immediate: false,
 				startsAt: down.currentPeriodEnd.toISOString(),
 			});
+			// Test-Pflege (#2142 AK1, PO-Entscheidung): ein Zeitraumwechsel im gleichen Paket wirkt jetzt
+			// sofort mit Verrechnung wie ein Upgrade — siehe die #2142-Tests am Dateiende.
 			assert.equal(sameRes.status, 200);
-			assert.deepEqual(await sameRes.json(), {
-				creditCents: 0,
-				dueCents: prices.plus.yearly,
-				immediate: false,
-				startsAt: same.currentPeriodEnd.toISOString(),
-			});
 		});
 
 		// Sofort-/Periodenende-Semantik (ADR 0013): nur der Rangsprung nach oben wirkt sofort — die
@@ -1014,5 +1010,103 @@ describe('Rechnungs-PDF-Download (#1955 AK4)', () => {
 			assert.ok(typeof downBody.startsAt === 'string', 'Downgrade-Vorschau nennt den Startzeitpunkt');
 			assert.equal(new Date(downBody.startsAt as string).toISOString(), down.periodEnd.toISOString());
 		});
+	});
+});
+
+describe('Zeitraumwechsel sofort + Wechsel-Lücke (#2142, Spec docs/spec/issue-2142.md)', () => {
+	const DAY_MS = 24 * 60 * 60 * 1000;
+	const PREVIEW = '/billing/subscriptions/change/preview';
+
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		await server?.close();
+		await closeDb();
+	});
+
+	const seed = async (
+		email: string,
+		attrs: { plan: 'plus' | 'pro'; period: 'monthly' | 'yearly'; currentPeriodEnd: Date; creditCents?: number },
+	) => {
+		const cookie = await login(email);
+		const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
+		await Subscription.create({
+			userId: me.id,
+			provider: 'paypal',
+			externalSubscriptionId: `I-${email}`,
+			status: 'active',
+			...attrs,
+		});
+		return { cookie, userId: me.id };
+	};
+
+	it('AK1: Zeitraumwechsel im gleichen Paket wirkt sofort — Vorschau und /change verrechnen wie ein Upgrade (kein revise)', async () => {
+		const created: { firstCycleCents?: number }[] = [];
+		let revised = false;
+		server = await startTestServer(
+			withClient({
+				createSubscription: (async (_planId: string, override?: { firstCycleCents?: number }) => {
+					created.push({ firstCycleCents: override?.firstCycleCents });
+					return { approvalUrl: 'https://paypal.example/period', externalSubscriptionId: 'I-NEW' };
+				}) as FakePaypalClient['createSubscription'],
+				revise: async () => {
+					revised = true;
+					return {};
+				},
+			}),
+		);
+		const { prices } = getPlansCatalog();
+		const currentPeriodEnd = new Date(Date.now() + 15 * DAY_MS);
+		const { cookie, userId } = await seed('ak1-2142@example.com', { plan: 'pro', period: 'monthly', currentPeriodEnd });
+
+		const res = await post(PREVIEW, cookie, { plan: 'pro', period: 'yearly' });
+
+		assert.equal(res.status, 200);
+		const preview = (await res.json()) as { creditCents: number; dueCents: number; immediate: boolean };
+		assert.equal(preview.immediate, true, 'Zeitraumwechsel wirkt sofort');
+		assert.ok(
+			preview.creditCents > 0 && preview.creditCents < prices.pro.monthly,
+			`anteiliges Guthaben, war ${preview.creditCents}`,
+		);
+		assert.equal(preview.dueCents, prices.pro.yearly - preview.creditCents, 'due = Listenpreis neu - Guthaben');
+
+		const change = await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'yearly' });
+		assert.equal(change.status, 200);
+		assert.equal(revised, false, 'kein revise zum Periodenende');
+		assert.equal(created.length, 1, 'neues Abo mit reduziertem ersten Zyklus');
+		assert.equal(created[0].firstCycleCents, preview.dueCents, 'Vorschau == erster Zyklus');
+		const pending = await Subscription.findOne({ where: { userId, status: 'approval_pending' } });
+		assert.equal(pending?.get('creditCents'), preview.creditCents);
+	});
+
+	it('AK3: Wechsel auf ein Abo, das auf seine erste Abbuchung wartet, wird in Vorschau UND /change mit 409 abgelehnt', async () => {
+		let paypalCalls = 0;
+		server = await startTestServer(
+			withClient({
+				createSubscription: (async () => {
+					paypalCalls += 1;
+					return { approvalUrl: 'x', externalSubscriptionId: 'I-X' };
+				}) as FakePaypalClient['createSubscription'],
+				revise: async () => {
+					paypalCalls += 1;
+					return {};
+				},
+			}),
+		);
+		// Frisches Upgrade-Abo: ACTIVATED lief, SALE.COMPLETED fehlt — Periode endet noch jetzt (#2230), Guthaben gesetzt.
+		const { cookie } = await seed('ak3-2142@example.com', {
+			plan: 'pro',
+			period: 'monthly',
+			currentPeriodEnd: new Date(Date.now() - 1000),
+			creditCents: 400,
+		});
+
+		const preview = await post(PREVIEW, cookie, { plan: 'pro', period: 'yearly' });
+		const change = await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'yearly' });
+
+		assert.equal(preview.status, 409, 'Vorschau lehnt ab');
+		assert.equal(change.status, 409, '/change lehnt ab');
+		assert.equal(paypalCalls, 0, 'kein PayPal-Aufruf');
 	});
 });
