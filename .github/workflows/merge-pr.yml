@@ -241,7 +241,10 @@ jobs:
             # arbeitet; (2) has_review waere schon durch den precheck erfuellt und die
             # Retry-Schleife braeche ab, bevor der echte Review-Check sichtbar ist.
             allow="$(echo "$checks" | jq '[.[] | select(.workflow == "Verify" or (.workflow == "05 Review" and .name != "precheck"))]')"
-            has_ci="$(echo "$allow" | jq -r 'any(.[]; .workflow == "Verify")')"
+            # has_ci = ein ECHTES Verify-Ergebnis auf dem Head: Job `verify` mit pass/fail/pending.
+            # `skipping` (Draft-Race: Verify sah im Event-Payload noch draft == true, #2254),
+            # `cancel` oder fehlend zaehlt NICHT — sonst merged das Gate Code ohne Tests/Build.
+            has_ci="$(echo "$allow" | jq -r 'any(.[]; .workflow == "Verify" and .name == "verify" and (.bucket == "pass" or .bucket == "fail" or .bucket == "pending"))')"
             has_review="$(echo "$allow" | jq -r 'any(.[]; .workflow == "05 Review")')"
             # Review-Check-Bestimmung: Wenn Reviews alle "skipping" sind, gilt ai:reviewed als OK.
             # Fix fuer PRs mit ai:reviewed, deren Review-Workflow bereits gelaufen ist (Jobs
@@ -300,6 +303,9 @@ jobs:
           fi
           if [ "$has_ci" != "true" ] || [ "$has_review" != "true" ]; then
             echo "Nach 5 Versuchen weiterhin nicht beide Allowlist-Checks sichtbar (CI=$has_ci, Reviewer=$has_review) — warte auf naechstes Event (No-op)."
+            if [ "$has_ci" != "true" ]; then
+              echo "Kein Verify-Check \`verify\` mit Ergebnis (pass/fail/pending) auf dem Head — skipped/cancelled/fehlend zaehlt nicht als gruen, kein Merge." | tee -a "$GITHUB_STEP_SUMMARY"
+            fi
             exit 0
           fi
 

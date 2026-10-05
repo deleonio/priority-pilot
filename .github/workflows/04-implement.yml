@@ -637,6 +637,30 @@ jobs:
             gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-review"
             echo "::notice::Label gesetzt: ai:needs-review an PR #${PR_NR}"
 
+            # Verify-Absicherung (#2254): Auf dem Head-SHA muss ein echter (nicht uebersprungener)
+            # Verify-Lauf existieren. Fehlt er (Draft-Race: `gh pr ready` vor dem letzten Push ->
+            # pull_request-Lauf sah draft == true und ueberspringt alle Jobs), per workflow_dispatch
+            # nachholen — `gh run rerun` wuerde denselben Draft-Payload wiederholen, kein Leer-Commit.
+            head_json="$(gh pr view "$PR_NR" --repo "$GITHUB_REPOSITORY" --json headRefOid,headRefName 2>/dev/null || echo '{}')"
+            head_sha="$(echo "$head_json" | jq -r '.headRefOid // empty')"
+            head_ref="$(echo "$head_json" | jq -r '.headRefName // empty')"
+            if [ -n "$head_sha" ] && [ -n "$head_ref" ]; then
+              real_run="false"
+              for attempt in 1 2 3; do
+                real_run="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow verify.yml --commit "$head_sha" --json status,conclusion \
+                  --jq 'any(.[]; .status != "completed" or (.conclusion != "skipped" and .conclusion != "cancelled"))' 2>/dev/null || echo false)"
+                [ "$real_run" = "true" ] && break
+                [ "$attempt" -lt 3 ] && sleep 10
+              done
+              if [ "$real_run" != "true" ]; then
+                if gh workflow run verify.yml --repo "$GITHUB_REPOSITORY" --ref "$head_ref"; then
+                  echo "::notice::Kein echter Verify-Lauf auf Head ${head_sha:0:7} — per workflow_dispatch auf ${head_ref} nachgeholt."
+                else
+                  echo "::warning::Kein echter Verify-Lauf auf Head ${head_sha:0:7} und workflow_dispatch fehlgeschlagen — Gate merged ohne Verify nicht; Verify manuell anstossen."
+                fi
+              fi
+            fi
+
           else
             # Limit-Abbruch nur am Abbruch des Claude-Aufrufs selbst (#1954): outcome=failure
             # UND Limit-Zeile als letzte Ausgabe — ein Zitat im Output ist keiner.

@@ -18,6 +18,11 @@ on:
   # macht. Ohne diesen Typ liefe CI erst beim naechsten Push nach dem Ready-Schalten an.
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  # Nachhol-Weg (#2254): Sah der pull_request-Lauf im Event-Payload noch draft == true (Race
+  # zwischen `gh pr ready` und dem letzten Push), wurden alle Jobs uebersprungen; `gh run rerun`
+  # wiederholt denselben Payload. Ein Dispatch auf den PR-Branch laeuft ohne pull_request-Objekt
+  # (Draft-Bedingung greift nicht) und haengt als Check am Head-SHA. Ausgeloest vom Implement-Workflow.
+  workflow_dispatch:
 
 # Least-Privilege (CodeQL actions/missing-workflow-permissions): CI braucht nur Lesen — der
 # GITHUB_TOKEN darf standardmaessig nichts schreiben (Check-/Artifact-Uploads brauchen das nicht).

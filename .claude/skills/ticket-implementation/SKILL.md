@@ -75,7 +75,7 @@ Note: this file's prose is English; PR/comment text written to GitHub stays Germ
 ## Step 4 — Create & link the PR (ready to review)
 
 - Commit the changes (reference the issue in the message).
-- Push the branch.
+- Push the branch — **all commits first, only then `gh pr ready`** (a push after the ready switch races with the Verify run, which still sees the draft state and skips every job).
 - **Make the PR review-ready:**
   - **Spec mode:** take the existing **draft PR** from the spec stage out of draft (`gh pr ready <pr>`) and extend its description with the implementation summary.
   - **Fallback mode:** create a normal PR: `gh pr create --assignee @me --title "<title> (#<nr>)" --body "… Closes #<nr> …"`.
