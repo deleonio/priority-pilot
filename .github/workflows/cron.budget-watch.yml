@@ -1,0 +1,84 @@
+name: Budget Watch Claude
+
+# Budget-Wachhund (05.10.): Summiert den valueCost-Verbrauch der Claude-Läufe der
+# letzten 7 Tage aus den versiegelten .costs-Sätzen und warnt ab Schwellen —
+# Anlass: 25 % des Claude-Wochenbudgets verbrannten in 8 h Pipeline-Betrieb,
+# ohne dass es irgendwo sichtbar war („Abo-Flat"-Illusion; das Budget ist knapp).
+#
+# valueCost ist eine ATTRIBUTION (Token × Listenpreis), nicht die Kasse — aber
+# der Budget-Verbrauch des Abos skaliert mit Token, nicht mit Dollar. Der
+# Wachhund meldet deshalb BEIDE Größen: Token (Input inkl. Cache-Reads, Out)
+# und valueCost. Schwellen (einstellbar via Repo-Var, Prozent des
+# Wochenbudgets): 50 % ::warning, 80 % ::error + roter Run.
+#
+# Quelle sind die VERSIEGELTEN Sätze (documenter-committed) — laufende PRs
+# fehlen bis zum Seal; der Wachhund ist Tages-Rückblick, kein Live-Zähler.
+# cron: täglich 06:11 UTC = 08:11 MESZ (nach dem Documenter-Nachtlauf).
+
+on:
+  schedule:
+    - cron: '11 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  budget-watch:
+    name: Claude-Budget der letzten 7 Tage
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout (nur .costs)
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb59014afe # v5.0.0
+        with:
+          sparse-checkout: .costs
+          fetch-depth: 1
+
+      - name: Verbrauch summieren und schwellen
+        shell: bash
+        env:
+          # Wochenbudget in valueCost-Dollar als Referenzgröße für die Schwellen.
+          # Bewusst eine Repo-Var (nicht hardcodiert): Budget-Plan ändert sich,
+          # ohne dass dieser Workflow angefasst werden muss. Leer = nur Bericht.
+          WEEKLY_BUDGET_USD: ${{ vars.CLAUDE_WEEKLY_BUDGET_USD }}
+        run: |
+          set -euo pipefail
+
+          SINCE="$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)"
+          ROWS="$(jq -s --arg since "$SINCE" '
+            [ .[][] | select(.provider == "claude" and .timestamp >= $since) ]
+            | { n: length,
+                tin: (map(.tokensIn // 0) | add // 0),
+                tout: (map(.tokensOut // 0) | add // 0),
+                cost: (map(.valueCost // 0) | add // 0) }' .costs/*.json)"
+
+          N="$(jq -r .n <<<"$ROWS")"; TIN="$(jq -r .tin <<<"$ROWS")"
+          TOUT="$(jq -r .tout <<<"$ROWS")"; COST="$(jq -r .cost <<<"$ROWS")"
+
+          {
+            echo "## Claude-Budget-Watch (letzte 7 Tage, versiegelte Sätze)"
+            echo ""
+            echo "- Läufe: ${N}"
+            echo "- Input (inkl. Cache-Reads): $(jq -r ".tin / 1e6" <<<"$ROWS" | xargs printf %.1f) M"
+            echo "- Output: $(jq -r ".tout / 1e3" <<<"$ROWS" | xargs printf %.0f) k"
+            echo "- valueCost (Attribution): \$$(printf %.2f "$COST")"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -n "$WEEKLY_BUDGET_USD" ] && [ "$(jq -r 'type == "number"' <<<"$WEEKLY_BUDGET_USD" || echo false)" = "true" ] && [ "$(jq -n "$WEEKLY_BUDGET_USD > 0")" = "true" ]; then
+            PCT="$(jq -r "100 * $COST / $WEEKLY_BUDGET_USD" <<<"$ROWS" | xargs printf %.0f)"
+            echo "- Anteil am Wochenbudget (CLAUDE_WEEKLY_BUDGET_USD=\$${WEEKLY_BUDGET_USD}): **${PCT} %**" >> "$GITHUB_STEP_SUMMARY"
+            echo "Claude-7-Tage-Verbrauch: ${PCT}% des Wochenbudgets (valueCost \$$(printf %.2f "$COST") / \$${WEEKLY_BUDGET_USD})."
+            if [ "$PCT" -ge 80 ]; then
+              echo "::error title=Claude-Budget kritisch::${PCT}% des Wochenbudgets in 7 Tagen verbraucht — Pipeline auf ZAI/OpenRouter umschalten (set-agent-config) oder Zulauf drosseln."
+              exit 1
+            elif [ "$PCT" -ge 50 ]; then
+              echo "::warning title=Claude-Budget über der Hälfte::${PCT}% des Wochenbudgets in 7 Tagen verbraucht."
+            fi
+          else
+            echo "::notice::CLAUDE_WEEKLY_BUDGET_USD nicht gesetzt — nur Bericht, keine Schwellen. Setzen für Warnungen: gh variable set CLAUDE_WEEKLY_BUDGET_USD --body '<valueCost-Dollar je Woche>'."
+          fi

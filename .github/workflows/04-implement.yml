@@ -135,7 +135,7 @@ jobs:
           ticket: ${{ steps.route.outputs.ticket }}
           defer-on-peak: 'true'
           zai-peak-mode: ${{ vars.ZAI_PEAK_MODE }}
-          llm-provider: ${{ vars.LLM_PROVIDER }}
+          llm-provider: ${{ vars.LLM_PROVIDER_IMPL || vars.LLM_PROVIDER }}
 
       - name: Phasen-Routing aus ai-phase-routing-Tabelle
         # Die Tabelle ist die einzige analysgetriebene Steuerung (ADR-0004). Liefert
@@ -254,8 +254,12 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           # Laufzeit-Rollout (Folge-Ticket des #1184-Pilots): pi|claude wie 01-triage.
+          # LLM_PROVIDER_IMPL (05.10.): Phasen-Override für die Budget-Killer-Phasen
+          # (Implement+Fixup = 56 % des Claude-Budget-Burns) — leer = vars.LLM_PROVIDER.
+          # Modell-Auflösung, Kosten-Satz (provider-Feld) und der pi+claude-Guard folgen
+          # automatisch dem wirksamen Provider.
           runtime: ${{ vars.AGENT_RUNTIME }}
-          llm-provider: ${{ vars.LLM_PROVIDER }}
+          llm-provider: ${{ vars.LLM_PROVIDER_IMPL || vars.LLM_PROVIDER }}
           # Modellwahl: ai-phase-routing-Tabelle (impl-Zeile) > Literal,
           # vars.CLAUDE_MODEL_IMPLEMENT bleibt manueller Not-Override.
           # Der Literal-Default ist KEIN Schmuck: Ohne Tabelle bleibt model_final
@@ -747,8 +751,12 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           # Laufzeit-Rollout (Folge-Ticket des #1184-Pilots): pi|claude wie 01-triage.
+          # LLM_PROVIDER_IMPL (05.10.): Phasen-Override für die Budget-Killer-Phasen
+          # (Implement+Fixup = 56 % des Claude-Budget-Burns) — leer = vars.LLM_PROVIDER.
+          # Modell-Auflösung, Kosten-Satz (provider-Feld) und der pi+claude-Guard folgen
+          # automatisch dem wirksamen Provider.
           runtime: ${{ vars.AGENT_RUNTIME }}
-          llm-provider: ${{ vars.LLM_PROVIDER }}
+          llm-provider: ${{ vars.LLM_PROVIDER_IMPL || vars.LLM_PROVIDER }}
           # Modellwahl: ai-phase-routing-Tabelle (impl-Zeile, gilt auch fuer Fixup —
           # ADR-0005) > Literal; vars.CLAUDE_MODEL_FIXUP bleibt als manueller
           # Not-Override wirksam. Die früheren ai:model:*-Labels sind abgeschafft.

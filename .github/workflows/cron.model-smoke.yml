@@ -1,0 +1,69 @@
+name: Model Adapter Smoke
+
+# Adapter-Smoke (05.10.): model-adapter.sh + .github/models.json sind seit #2203
+# eine kritische Einzelstelle — jeder Phasenlauf löst sein Modell darüber auf.
+# Ein Tippfehler in models.json würde JEDE Phase gleichzeitig lahmlegen. Dieser
+# Smoke probiert jede Kombination durch (Provider × Alias × Runtime, dazu
+# settings-local und has-pi) und schlägt rot an, bevor der nächste Ticket-Lauf
+# drauf trifft. cron: stündlich; ein Lauf dauert Sekunden (kein LLM-Call, nur
+# jq-Validierung).
+
+on:
+  schedule:
+    - cron: '23 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Alle Provider × Alias × Runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb59014afe # v5.0.0
+        with:
+          sparse-checkout: .github
+          fetch-depth: 1
+
+      - name: resolve-Matrix durchprobieren
+        shell: bash
+        run: |
+          set -euo pipefail
+          fails=0
+          for provider in zai openrouter; do
+            for alias in fable opus sonnet haiku; do
+              for runtime in cc pi; do
+                if ! out="$(bash .github/scripts/model-adapter.sh resolve \
+                    --runtime "$runtime" --provider "$provider" --alias "$alias" 2>&1)"; then
+                  echo "::error title=Adapter defekt::resolve $runtime/$provider/$alias: $out"
+                  fails=$((fails + 1))
+                fi
+              done
+            done
+            # settings-local nur für die Anthropic-kompatiblen Provider
+            if ! out="$(bash .github/scripts/model-adapter.sh settings-local --provider "$provider" 2>&1 | jq -e .env.ANTHROPIC_BASE_URL >/dev/null)"; then
+              echo "::error title=Adapter defekt::settings-local $provider liefert kein gültiges JSON mit Endpoint"
+              fails=$((fails + 1))
+            fi
+          done
+          # claude cc (nativ) + has-pi je Provider
+          bash .github/scripts/model-adapter.sh resolve --runtime cc --provider claude --alias opus >/dev/null \
+            || { echo "::error title=Adapter defekt::resolve cc/claude/opus"; fails=$((fails + 1)); }
+          for provider in claude zai openrouter; do
+            bash .github/scripts/model-adapter.sh has-pi --provider "$provider" >/dev/null \
+              || { echo "::error title=Adapter defekt::has-pi $provider"; fails=$((fails + 1)); }
+          done
+          # Gegenproben: verbotene Kombinationen MÜSSEN scheitern (pi+claude, unsinnige Alias)
+          if bash .github/scripts/model-adapter.sh resolve --runtime pi --provider claude --alias opus >/dev/null 2>&1; then
+            echo "::error title=Guard regiert nicht::pi+claude hätte abgewiesen werden müssen"
+            fails=$((fails + 1))
+          fi
+          echo "Geprüft: 16 resolve-Kombinationen + 2 settings-local + 1 cc/claude + 3 has-pi + 2 Guard-Gegenproben. Fehler: $fails"
+          [ "$fails" -eq 0 ]

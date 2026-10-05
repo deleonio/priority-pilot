@@ -25,6 +25,24 @@ Ausnahme: Der **Documenter (06)** umgeht `vars.LLM_PROVIDER` und läuft per Defa
 aus `.github/model-settings.json`); Notbremse ist die Repo-Var `LLM_PROVIDER_DOCUMENTER`,
 die den Wert überschreibt.
 
+**Phasen-Override `LLM_PROVIDER_IMPL` (05.10.):** Implement und Fixup (beide Jobs in 04)
+lesen ihren Provider aus `vars.LLM_PROVIDER_IMPL || vars.LLM_PROVIDER` — leer = Haupt-Provider.
+Anlass: Diese zwei Phasen verbrannten 56 % des Claude-Wochenbudgets in einer Nacht
+(25 % in 8 h). Mit dem Override laufen sie z. B. auf zai, während Triage/Spec/Review auf
+Claude bleiben. Modell-Auflösung (models.json-Tiers des wirksamen Providers), Kosten-Sätze
+(`provider`-Feld) und der pi+claude-Guard folgen automatisch.
+
+**Budget-Wachhund ([`cron.budget-watch.yml`](../.github/workflows/cron.budget-watch.yml)):**
+Täglich 06:11 UTC summiert er den Claude-valueCost der letzten 7 Tage aus den versiegelten
+`.costs`-Sätzen und warnt ab Schwellen (`vars.CLAUDE_WEEKLY_BUDGET_USD` als Referenz;
+50 % ::warning, 80 % roter Run). Der Abo-Budget-Verbrauch skaliert mit Token — die
+Attribution ist der beste verfügbare Proxy, auch wenn sie nicht die Kasse ist.
+
+**Adapter-Smoke ([`cron.model-smoke.yml`](../.github/workflows/cron.model-smoke.yml)):**
+Stündlich probiert er jede Provider×Alias×Runtime-Kombination durch `model-adapter.sh`
+(+ `settings-local`, `has-pi`, Guard-Gegenproben) — ein models.json-Defekt wird rot
+angezeigt, bevor der nächste Ticket-Lauf trifft.
+
 **Notbetrieb (OpenRouter gestört):** Schlägt der Documenter-Run auf `main` fehl (Setup- oder
 Claude-Step, z. B. 4xx/402/Timeout), ist nur die Post-Merge-Doku betroffen — es gibt bewusst
 keinen stillen Fallback. Umleitung per Repo-Var, Rückweg durch Löschen der Var:
