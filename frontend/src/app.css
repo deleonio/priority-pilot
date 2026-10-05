@@ -1290,9 +1290,11 @@ kol-toolbar {
 	}
 
 	/* #1042/#1465: Ab Tablet-Grid wird die Aktionszeile wieder inhaltsbreit linksbündig — beide
-	   Buttons behalten dabei ihre Inhaltsbreite. */
+	   Buttons behalten dabei ihre Inhaltsbreite. #2244: Reicht die schmale Seitenspalte nicht für
+	   drei Knöpfe, rücken die Icon-Knöpfe in die nächste Zeile statt die Seite zu verbreitern. */
 	.dashboard-next-task-actions {
 		align-self: flex-start;
+		flex-wrap: wrap;
 	}
 
 	.dashboard-next-task-actions > kol-button:first-child {
