@@ -17,6 +17,7 @@ import { createPillarAdvisorRouter } from './routes/pillarAdvisor.js';
 import { createCareSuggestionsRouter, scoresRouter } from './routes/scores.js';
 import { createSeriesRouter } from './routes/series.js';
 import { groupsRouter } from './routes/groups.js';
+import { templatesRouter } from './routes/templates.js';
 import { inviteLinksPublicRouter } from './routes/inviteLinks.js';
 import { plansPublicRouter } from './routes/plans.js';
 import { usersRouter } from './routes/users.js';
@@ -359,6 +360,9 @@ export const createApp = (deps: AppDeps = {}) => {
 	// requireAuth/CSRF; der zugehörige Body-Parser ist bewusst früh separat gemountet (oben).
 	// #1988: Analyze-/Merge-Routen im selben Router, Analyzer injizierbar (still degradierend).
 	app.use(createTaskImportRouter(deps.taskImportAnalyzer));
+
+	// Vorlagen-Bibliothek als Aufgabenpaket (#1993, siehe routes/templates.ts): Vorschau + Übernahme.
+	app.use(templatesRouter);
 
 	// Mistral-gestützte Erststart-Vorschläge: Freitext → 5–8 Aufgaben mit Säulen-Bezug (#2068,
 	// siehe routes/suggestInitialTasks.ts).
