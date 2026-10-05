@@ -81,13 +81,21 @@ describe('model-settings.json — pi-Formen (nur zai|openrouter)', () => {
 });
 
 describe('model-settings.json — ZAI-Tier-Übersetzung (Eskalationsleiter)', () => {
-	it('mappt opus/fable auf glm-5.3 und sonnet/haiku auf glm-5.3-flash (beide Runtimes konsistent)', () => {
-		for (const runtime of ['cc', 'pi'] as const) {
-			assert.match(settings.providers.zai.opus[runtime]!, /glm-5\.3/);
-			assert.match(settings.providers.zai.fable[runtime]!, /glm-5\.3/);
-			assert.match(settings.providers.zai.sonnet[runtime]!, /glm-5\.3-flash/);
-			assert.match(settings.providers.zai.haiku[runtime]!, /glm-5\.3-flash/);
-		}
+	it('cc: opus/fable auf glm-5.3[1m], sonnet/haiku auf glm-5.3-flash[1m]', () => {
+		assert.match(settings.providers.zai.opus.cc!, /glm-5\.3\[1m\]/);
+		assert.match(settings.providers.zai.fable.cc!, /glm-5\.3\[1m\]/);
+		assert.match(settings.providers.zai.sonnet.cc!, /glm-5\.3-flash\[1m\]/);
+		assert.match(settings.providers.zai.haiku.cc!, /glm-5\.3-flash\[1m\]/);
+	});
+
+	it('pi: nur die drei eingebauten zai-Modelle (glm-5.3 | glm-5-turbo | glm-4.7) — alles andere fällt still auf den pi-Default zurück', () => {
+		// Beobachtet 04.10.: pi-Form 'zai/glm-5.3-flash' wurde ignoriert, 35 Läufe liefen
+		// weiter auf glm-5-turbo (pi-Default), ohne Fehler. Die pi-Formen dürfen daher
+		// NUR IDs aus pi --list-models tragen.
+		assert.equal(settings.providers.zai.opus.pi, 'zai/glm-5.3');
+		assert.equal(settings.providers.zai.fable.pi, 'zai/glm-5.3');
+		assert.equal(settings.providers.zai.sonnet.pi, 'zai/glm-5-turbo');
+		assert.equal(settings.providers.zai.haiku.pi, 'zai/glm-4.7');
 	});
 
 	it('nutzt die 1M-Kontext-Variante nur im cc-Pfad ([1m]-Suffix ist Anthropic-kompatibel-spezifisch)', () => {

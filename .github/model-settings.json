@@ -1,21 +1,41 @@
 {
-	"$comment": "EINZIGE Quelle der Modell-Settings für beide Agent-Runtimes (05.10.). Jeder Alias (fable|opus|sonnet|haiku) trägt pro Provider die runtime-spezifische Modell-ID: 'cc' = Claude Code, 'pi' = pi (fehlt pi, ist die Kombination verboten — Guard in setup-agent bricht bei pi+claude laut ab, das Anthropic-Abo ist an Claude Code gebunden). 'endpoints' = Anthropic-kompatible Base-URLs für settings.local.json (nur Claude Code). Modellwechsel = eine Zeile hier; docs/ci-architecture.md → 'Modell-Allowlist'.",
+	"$comment": "EINZIGE Quelle der Modell-Settings für beide Agent-Runtimes (05.10.). Jeder Alias (fable|opus|sonnet|haiku) trägt pro Provider die runtime-spezifische Modell-ID: 'cc' = Claude Code, 'pi' = pi (fehlt pi, ist die Kombination verboten — Guard in setup-agent bricht bei pi+claude laut ab, das Anthropic-Abo ist an Claude Code gebunden). 'endpoints' = Anthropic-kompatible Base-URLs für settings.local.json (nur Claude Code). Modellwechsel = eine Zeile hier; docs/ci-architecture.md → 'Modell-Allowlist'. WICHTIG: pi kennt nur die drei eingebauten zai-Modelle glm-5.3, glm-5-turbo, glm-4.7 (pi --list-models) — eine pi-Form 'zai/glm-5.3-flash' ist UNGUELTIG und faellt still auf den pi-Default zurueck (beobachtet 04.10.: 35 Laeufe auf turbo trotz Datei-Eintrag flash). Der glm-5.3-flash-Wunsch wirkt deshalb nur in der cc-Form.",
 	"endpoints": {
 		"zai": "https://api.z.ai/api/anthropic",
 		"openrouter": "https://openrouter.ai/api"
 	},
 	"providers": {
 		"claude": {
-			"fable": { "cc": "claude-fable-5-1" },
-			"opus": { "cc": "claude-opus-5-5" },
-			"sonnet": { "cc": "claude-sonnet-5-5" },
-			"haiku": { "cc": "claude-haiku-4-5" }
+			"fable": {
+				"cc": "claude-fable-5-1"
+			},
+			"opus": {
+				"cc": "claude-opus-5-5"
+			},
+			"sonnet": {
+				"cc": "claude-sonnet-5-5"
+			},
+			"haiku": {
+				"cc": "claude-haiku-4-5"
+			}
 		},
 		"zai": {
-			"fable": { "cc": "glm-5.3[1m]", "pi": "zai/glm-5.3" },
-			"opus": { "cc": "glm-5.3[1m]", "pi": "zai/glm-5.3" },
-			"sonnet": { "cc": "glm-5.3-flash[1m]", "pi": "zai/glm-5.3-flash" },
-			"haiku": { "cc": "glm-5.3-flash[1m]", "pi": "zai/glm-5.3-flash" }
+			"fable": {
+				"cc": "glm-5.3[1m]",
+				"pi": "zai/glm-5.3"
+			},
+			"opus": {
+				"cc": "glm-5.3[1m]",
+				"pi": "zai/glm-5.3"
+			},
+			"sonnet": {
+				"cc": "glm-5.3-flash[1m]",
+				"pi": "zai/glm-5-turbo"
+			},
+			"haiku": {
+				"cc": "glm-5.3-flash[1m]",
+				"pi": "zai/glm-4.7"
+			}
 		},
 		"openrouter": {
 			"fable": {
@@ -26,8 +46,14 @@
 				"cc": "nvidia/nemotron-3-ultra-550b-a55b:free",
 				"pi": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free"
 			},
-			"sonnet": { "cc": "poolside/laguna-s-2.1:free", "pi": "openrouter/poolside/laguna-s-2.1:free" },
-			"haiku": { "cc": "poolside/laguna-s-2.1:free", "pi": "openrouter/poolside/laguna-s-2.1:free" }
+			"sonnet": {
+				"cc": "poolside/laguna-s-2.1:free",
+				"pi": "openrouter/poolside/laguna-s-2.1:free"
+			},
+			"haiku": {
+				"cc": "poolside/laguna-s-2.1:free",
+				"pi": "openrouter/poolside/laguna-s-2.1:free"
+			}
 		}
 	}
 }
