@@ -114,6 +114,21 @@ describe('Rechnung und Verlängerung nur bei SALE.COMPLETED (#2230)', () => {
 		assert.equal(cancelled.end.getTime(), second.end.getTime(), 'AK6: Kündigung endet zum tatsächlichen Periodenende');
 	});
 
+	it('Regel 4: verspätete Zustimmung — die erste Abbuchung rechnet ab der Abbuchung, nicht ab dem Checkout', async () => {
+		const id = 'I-2230-LATE';
+		server = await startTestServer(deps(id));
+		const cookie = await server.login('late-2230@example.com');
+		assert.equal((await post('/billing/subscriptions', cookie, { plan: 'plus', period: 'monthly' })).status, 201);
+		await Subscription.update(
+			{ currentPeriodEnd: new Date(Date.now() - 3 * 60 * 60 * 1000) },
+			{ where: { externalSubscriptionId: id } },
+		);
+
+		const chargedAt = new Date();
+		await webhook('PAYMENT.SALE.COMPLETED', id, 'PAYID-2230-L');
+		assert.ok(near((await load(id)).end, plusMonth(chargedAt)), 'Ende = Abbuchung + 1 Periode');
+	});
+
 	it('AK4: Weiterführen mit Startaufschub — ACTIVATED ohne Rechnung, SALE.COMPLETED zum Start → Ende = Start + 1 Periode', async () => {
 		const id = 'I-2230-DEFER';
 		server = await startTestServer(deps(id));

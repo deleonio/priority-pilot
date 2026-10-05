@@ -398,18 +398,19 @@ export const replacePredecessors = async (
 
 /** Injizierbare Abhängigkeiten von {@link applyPaymentEvent} (Muster `deps` in `billing.ts`). */
 export interface ApplyPaymentEventDeps {
-	/** `saleId`: Sale-Referenz des Ereignisses (`resource.id` bei COMPLETED, `null` bei ACTIVATED, #2086). */
+	/** `saleId`: Sale-Referenz der Abbuchung (`resource.id`, #2086). */
 	issueInvoice?: (subscription: Subscription, now: Date, saleId?: string | null) => Promise<unknown>;
 }
 
 /**
  * Wendet ein verifiziertes Zahlungsereignis auf das Abo an (AK1/AK3/AK4, T6e/#1506):
  *
- * - Erfolgreiche Abbuchung (`PAYMENT.SALE.COMPLETED`, ersatzweise
- *   `BILLING.SUBSCRIPTION.ACTIVATED`) → zunächst eine fällige Downgrade-Vormerkung bzw. — nur bei
- *   `PAYMENT.SALE.COMPLETED` — die zahlungsgebundene Vormerkung (#2140) anwenden (Paket und Zeitraum
- *   des NEUEN Zyklus), dann Periode um einen Zeitraum verschieben,
- *   `status: 'active'`, `firstFailureAt` löschen, danach `deps.issueInvoice` aufrufen.
+ * - Erfolgreiche Abbuchung (`PAYMENT.SALE.COMPLETED`) → zunächst eine fällige Downgrade-Vormerkung
+ *   und die zahlungsgebundene Vormerkung (#2140) anwenden (Paket und Zeitraum des NEUEN Zyklus), dann
+ *   Periode um einen Zeitraum verschieben — die erste Abbuchung ab `max(currentPeriodEnd, now)`
+ *   (#2230) —, `status: 'active'`, `firstFailureAt` löschen, danach `deps.issueInvoice` aufrufen.
+ * - Aktivierung (`BILLING.SUBSCRIPTION.ACTIVATED`) ist keine Abbuchung → nur `status: 'active'`,
+ *   weder Verlängerung noch Rechnung (#2230).
  * - Fehlgeschlagener Einzug (`BILLING.SUBSCRIPTION.PAYMENT.FAILED`) → nur beim ersten Mal
  *   `firstFailureAt` setzen und `status: 'past_due'`; ein weiterer Fehlschlag verlängert die
  *   bereits laufende Frist nicht.
@@ -425,16 +426,22 @@ export const applyPaymentEvent = async (
 ): Promise<void> => {
 	const eventType = event.event_type ?? '';
 
-	if (eventType === 'PAYMENT.SALE.COMPLETED' || eventType === 'BILLING.SUBSCRIPTION.ACTIVATED') {
+	if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED') {
+		// Die Zustimmung bucht nichts ab: die erste Periode beginnt erst mit der ersten Abbuchung (#2230).
+		await subscription.update({ status: 'active' });
+		return;
+	}
+
+	if (eventType === 'PAYMENT.SALE.COMPLETED') {
 		// Eine fällige Downgrade-Vormerkung (Paket+Zeitraum) wird VOR der Verlängerung angewendet:
 		// Die Abbuchung startet den neuen Zyklus, Verlängerung und Rechnung müssen daher mit dem
 		// neuen Paket×Zeitraum rechnen — das `applyDuePendingPlan` beim nächsten `/auth/me` käme
 		// zu spät (Verlängerung um die alte Periode, Rechnung zum alten Preis).
 		await applyDuePendingPlan(subscription, now);
 		// Zahlungsgebundene Vormerkung (#2140): erst die Abbuchung schaltet Upgrade bzw. Zeitraumwechsel
-		// frei — ebenfalls VOR der Verlängerung. ACTIVATED ist keine Abbuchung und schaltet nichts frei.
+		// frei — ebenfalls VOR der Verlängerung.
 		const pendingPlan = subscription.get('pendingPlan') as Plan | null;
-		if (eventType === 'PAYMENT.SALE.COMPLETED' && pendingPlan && !subscription.get('pendingPlanEffectiveAt')) {
+		if (pendingPlan && !subscription.get('pendingPlanEffectiveAt')) {
 			await subscription.update({
 				plan: pendingPlan,
 				period: subscription.get('pendingPeriod') ?? subscription.get('period'),
@@ -443,17 +450,23 @@ export const applyPaymentEvent = async (
 			});
 			await syncUserPlan(subscription, pendingPlan);
 		}
-		const period = String(subscription.get('period'));
+		const months = PERIOD_MONTHS[String(subscription.get('period'))] ?? 1;
 		const currentPeriodEnd = new Date(subscription.get('currentPeriodEnd') as Date);
-		currentPeriodEnd.setUTCMonth(currentPeriodEnd.getUTCMonth() + (PERIOD_MONTHS[period] ?? 1));
+		const nextPeriodEnd = new Date(currentPeriodEnd);
+		nextPeriodEnd.setUTCMonth(nextPeriodEnd.getUTCMonth() + months);
+		// Die Zustimmung kann Stunden nach dem Checkout liegen: die erste Abbuchung (noch keine Rechnung, Start
+		// innerhalb der letzten Periode) rechnet ab jetzt; Folgeabbuchungen ab dem Periodenende — kein Drift
+		// gegen PayPals Abrechnungsplan bei verspätetem Einzug (#2230).
+		if (
+			currentPeriodEnd < now &&
+			now < nextPeriodEnd &&
+			(await Invoice.count({ where: { subscriptionId: subscription.get('id') as number } })) === 0
+		) {
+			currentPeriodEnd.setTime(now.getTime());
+		}
+		currentPeriodEnd.setUTCMonth(currentPeriodEnd.getUTCMonth() + months);
 		await subscription.update({ currentPeriodEnd, status: 'active', firstFailureAt: null });
-		// Sale-Referenz nur bei COMPLETED — ACTIVATED trägt kein Sale-Objekt, damit keine falsche
-		// Erstattungs-Referenz entsteht (#2086, Spec docs/spec/issue-2086.md).
-		await deps.issueInvoice?.(
-			subscription,
-			now,
-			eventType === 'PAYMENT.SALE.COMPLETED' ? (event.resource?.id ?? null) : null,
-		);
+		await deps.issueInvoice?.(subscription, now, event.resource?.id ?? null);
 		return;
 	}
 

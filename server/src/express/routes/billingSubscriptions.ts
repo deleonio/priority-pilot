@@ -147,7 +147,8 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 				plan: body.plan,
 				period: body.period,
 				status: 'approval_pending',
-				currentPeriodEnd: new Date(start.getTime() + PERIOD_MS[body.period]),
+				// Die erste Periode beginnt mit der ersten Abbuchung (#2230).
+				currentPeriodEnd: start,
 			});
 			res.status(201).json({ approvalUrl });
 		} catch {
@@ -253,7 +254,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 					plan: body.plan,
 					period: body.period,
 					status: 'approval_pending',
-					currentPeriodEnd: new Date(start.getTime() + PERIOD_MS[body.period]),
+					currentPeriodEnd: start,
 				});
 				res.status(200).json({ approvalUrl });
 				return;
@@ -273,7 +274,8 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 					plan: body.plan,
 					period: body.period,
 					status: 'approval_pending',
-					currentPeriodEnd: new Date(now.getTime() + PERIOD_MS[body.period]),
+					// Deckt das Guthaben den ersten Zyklus, gibt es keine Abbuchung — die Periode läuft ab dem Upgrade (#2230).
+					currentPeriodEnd: firstCycleCents === 0 ? new Date(now.getTime() + PERIOD_MS[body.period]) : now,
 					creditCents,
 				});
 				res.status(200).json({ approvalUrl });

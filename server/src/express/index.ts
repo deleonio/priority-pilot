@@ -120,6 +120,7 @@ export const createApp = (deps: AppDeps = {}) => {
 	app.use(
 		createBillingRouter({
 			paypalVerifier: deps.paypalVerifier,
+			paypalClient: deps.paypalClient,
 			mailSender: deps.mailSender,
 			googlePlayClient: deps.googlePlayClient,
 			googleKeys: deps.googleKeys,
