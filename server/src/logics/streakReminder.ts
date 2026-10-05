@@ -2,7 +2,7 @@ import { NotificationLog, ScoreEntry, Task, User } from '../models/index.js';
 import { uhrzeitIn } from './carePush.js';
 import type { CareSprache } from './careSuggestionData.js';
 import { sendPushToUser, type PushSender } from './push.js';
-import { berechneStreak, istGueltigeZeitzone, streakZeitpunkte, tagIn } from './streak.js';
+import { berechneStreak, istGueltigeZeitzone, istHeuteRuhetag, streakZeitpunkte, tagIn } from './streak.js';
 
 /**
  * Fachlicher Push-Trigger „Streak-Erinnerung“ (#1836): höchstens **ein** Push je Nutzer und lokalem
@@ -95,7 +95,8 @@ export const runStreakReminder = async (
 			now,
 			zeitzone,
 		);
-		if (aktuell < 1 || aktiveTage[aktiveTage.length - 1] === heute) {
+		// Am freien Ruhetag der Woche (#1971) hält die Kette ohnehin — keine Erinnerung.
+		if (aktuell < 1 || aktiveTage[aktiveTage.length - 1] === heute || istHeuteRuhetag(aktiveTage, now, zeitzone)) {
 			continue;
 		}
 		const text = streakReminderText(PUSH_SPRACHE, aktuell);

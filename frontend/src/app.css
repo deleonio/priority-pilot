@@ -1477,6 +1477,14 @@ kol-toolbar {
 	color: var(--pp-text-muted);
 }
 
+/* Ausgewogene Wochen (#1971): ein übersetzter Satz mit Zahl, Bezugsgröße wie die Bestmarke. */
+.dashboard-streak-weeks {
+	margin: 0;
+	font-size: var(--pp-font-size-sm);
+	color: var(--pp-text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
 /*
  * #1968: „Meine Woche in fünf Säulen“ — die teilbare Wochen-Balance-Karte. Einspaltig wie der
  * Streak (AK6, kein horizontales Scrollen): Säulenwerte und Streak stehen als Text im Card-DOM —

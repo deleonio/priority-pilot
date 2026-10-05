@@ -43,8 +43,10 @@
 	"streak": {
 		"help": {
 			"label": "So zählt der Streak",
-			"text": "Ein Tag zählt, wenn du an ihm mindestens eine Aufgabe abhakst. Verspätet Erledigtes zählt für den Fälligkeitstag. Der Streak ist die ununterbrochene Folge solcher Tage bis heute oder gestern. Fehlt ein Tag bis gestern, fällt er auf 0 — die Bestmarke bleibt."
-		}
+			"text": "Ein Tag zählt, wenn du an ihm mindestens eine Aufgabe abhakst. Verspätet Erledigtes zählt für den Fälligkeitstag. Der Streak ist die Folge solcher Tage bis heute oder gestern; ein Ruhetag je Kalenderwoche (Mo–So) hält ihn, ohne mitzuzählen. Fehlt ein zweiter Tag in derselben Woche, fällt er auf 0 — die Bestmarke bleibt. Eine Woche ist ausgewogen, wenn jede deiner drei wichtigsten Säulen mindestens eine Erledigung hat."
+		},
+		"weeksBalanced_one": "{{count}} Woche ausgewogen",
+		"weeksBalanced_other": "{{count}} Wochen ausgewogen"
 	},
 	"care": {
 		"label": "Fürsorge-Hinweis",

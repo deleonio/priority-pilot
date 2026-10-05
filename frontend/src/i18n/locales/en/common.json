@@ -43,8 +43,10 @@
 	"streak": {
 		"help": {
 			"label": "How the streak counts",
-			"text": "A day counts when you complete at least one task on it. Late completions count for the due date. The streak is the unbroken run of such days up to today or yesterday. If a day is missed up to yesterday, it drops to 0 — your best mark stays."
-		}
+			"text": "A day counts when you complete at least one task on it. Late completions count for the due date. The streak is the run of such days up to today; one rest day per calendar week (Mon–Sun) keeps it going without counting. If a second day is missed in the same week, it drops to 0 — your best mark stays. A week is balanced when each of your three most important pillars has at least one completion."
+		},
+		"weeksBalanced_one": "{{count}} week balanced",
+		"weeksBalanced_other": "{{count}} weeks balanced"
 	},
 	"care": {
 		"label": "Care hint",

@@ -43,8 +43,10 @@
 	"streak": {
 		"help": {
 			"label": "Como a sequência conta",
-			"text": "Um dia conta se concluíres pelo menos uma tarefa nesse dia. O que é feito com atraso conta para a data de vencimento. A sequência é a série ininterrupta desses dias até hoje ou ontem. Se faltar um dia até ontem, volta a 0; o teu recorde mantém-se."
-		}
+			"text": "Um dia conta se concluíres pelo menos uma tarefa nesse dia. O que é feito com atraso conta para a data de vencimento. A sequência é a série desses dias até hoje; um dia de descanso por semana (seg–dom) mantém-na sem contar. Se faltar um segundo dia na mesma semana, volta a 0; o teu recorde mantém-se. Uma semana é equilibrada quando cada um dos teus três pilares mais importantes tem pelo menos uma tarefa concluída."
+		},
+		"weeksBalanced_one": "{{count}} semana equilibrada",
+		"weeksBalanced_other": "{{count}} semanas equilibradas"
 	},
 	"care": {
 		"label": "Fürsorge-Hinweis",
