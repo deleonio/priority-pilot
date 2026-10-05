@@ -1,7 +1,7 @@
 import { Op } from 'sequelize';
 import Subscription from '../models/subscription.js';
 import Invoice from '../models/invoice.js';
-import { rankOf, syncUserPlan, applyDuePendingPlan } from './billing/lifecycle.js';
+import { rankOf, syncUserPlan, applyDuePendingPlan, type GracePeriodDeps } from './billing/lifecycle.js';
 import { PAYPAL_PLAN_IDS, type Plan } from './plans.js';
 import type { ChargedAmount } from './invoices.js';
 
@@ -259,6 +259,15 @@ export interface PaypalWebhookEvent {
 		amount?: { total?: string; currency?: string };
 	};
 }
+
+/**
+ * Kündigungs-Abhängigkeit für die Kulanzfrist (#2234): nur mit konfigurierten PayPal-Zugangsdaten,
+ * sonst leer — ohne Konfiguration entsteht kein Netzaufruf.
+ */
+export const paypalGraceDeps = (): GracePeriodDeps =>
+	process.env.PAYPAL_CLIENT_ID?.trim() && process.env.PAYPAL_CLIENT_SECRET?.trim()
+		? { cancel: (id) => createPaypalClient().cancel(id) }
+		: {};
 
 /** Monate je Abrechnungszeitraum — Muster `invoices.ts` `PERIOD_MONTHS` (#1506 AK1). */
 export const PERIOD_MONTHS: Record<string, number> = { monthly: 1, quarterly: 3, yearly: 12 };

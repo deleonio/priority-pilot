@@ -12,6 +12,7 @@ import { hashPassword, verifyPassword, resolveRole } from '../../logics/auth.js'
 import { getEntitlements, type Plan } from '../../logics/plans.js';
 import { TERMS_VERSION } from '../../logics/legal.js';
 import { applyDuePendingPlan, applyDueGracePeriod, GRACE_PERIOD_DAYS } from '../../logics/billing/lifecycle.js';
+import { paypalGraceDeps } from '../../logics/paypal.js';
 import { sanitizeReturnPath } from '../../logics/silentReturnPath.js';
 import { consumeLoginToken, createNativeLoginCode, nativeLoginToken } from '../../logics/magicLink.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
@@ -470,8 +471,12 @@ authRouter.get('/auth/me', async (req, res) => {
 				plan = ((await User.findByPk(user.id as number))?.plan ?? plan) as Plan;
 				user.plan = plan;
 			}
-			// #1506 (AK6): eine abgelaufene Kulanzfrist wird beim Lesen wirksam (Muster oben).
-			await applyDueGracePeriod(dbSubscription, now);
+			// #1506 (AK6): eine abgelaufene Kulanzfrist wird beim Lesen wirksam (Muster oben); #2234: sie
+			// entzieht das Paket, die Antwort trägt es wie oben.
+			if (await applyDueGracePeriod(dbSubscription, now, paypalGraceDeps())) {
+				plan = ((await User.findByPk(user.id as number))?.plan ?? plan) as Plan;
+				user.plan = plan;
+			}
 			const firstFailureAt = dbSubscription.get('firstFailureAt') as Date | null;
 			subscription = {
 				provider: dbSubscription.provider,
