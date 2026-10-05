@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.16 - 2026-10-05
 
-_Enthält v0.16.0 – v0.16.28._
+_Enthält v0.16.0 – v0.16.29._
 
 ### 🎉 New Features
 
@@ -50,6 +50,7 @@ _Enthält v0.16.0 – v0.16.28._
 - fix(ci): pin valid actions/checkout sha in model-smoke and budget-watch by @deleonio in https://github.com/deleonio/priority-pilot/pull/2252
 - fix(ci): Container-Ergebnis-Step robust (#2138) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2253
 - fix(server): apply billing period change immediately with proration by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2256
+- fix(billing): unicode invoice pdf font and atomic payment events by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2251
 
 ## v0.15 - 2026-10-05
 
@@ -290,7 +291,10 @@ _Enthält v0.10.0 – v0.10.36._
 
 - fix(ci): give documenter its own openrouter concurrency group by @deleonio in https://github.com/deleonio/priority-pilot/pull/1835
 - feat(server): expose care suggestions via mcp (#1796) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1842
-- feat(server): expose care suggestions via mcp (#1796) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1842
+- feat(frontend): fit dashboard balance card into short viewports by @deleonio in https://github.com/deleonio/priority-pilot/pull/1844
+- ci: add weekly nit digest cron workflow by @deleonio in https://github.com/deleonio/priority-pilot/pull/1845
+- ci(triage): park issues with open analysis questions as needs-human by @deleonio in https://github.com/deleonio/priority-pilot/pull/1846
+- feat(frontend): show care hint with suggestion on the dashboard (#1793) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1843
 - feat(frontend): fit dashboard balance card into short viewports by @deleonio in https://github.com/deleonio/priority-pilot/pull/1844
 - ci: add weekly nit digest cron workflow by @deleonio in https://github.com/deleonio/priority-pilot/pull/1845
 - ci(triage): park issues with open analysis questions as needs-human by @deleonio in https://github.com/deleonio/priority-pilot/pull/1846
