@@ -241,7 +241,8 @@
 		"accountDeletion": "Radera konto",
 		"accountDeletionPath": "radera-konto/",
 		"privacy": "Integritetspolicy",
-		"terms": "Användarvillkor"
+		"terms": "Användarvillkor",
+		"mcpGuide": "MCP-guide"
 	},
 	"imprint": {
 		"title": "Impressum",

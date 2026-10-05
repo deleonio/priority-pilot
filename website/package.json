@@ -7,7 +7,7 @@
 		"build": "tsx scripts/build.ts",
 		"lint": "tsc --noEmit",
 		"serve": "tsx scripts/serve.ts",
-		"test": "vitest run",
+		"test": "SITE_URL=https://balamentum.example vitest run",
 		"test:e2e": "playwright test"
 	},
 	"devDependencies": {

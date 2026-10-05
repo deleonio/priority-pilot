@@ -14,6 +14,9 @@ import {
 import type { OPERATOR } from '../../frontend/src/lib/operator.ts';
 import { PRIVACY } from './privacy.ts';
 import { TERMS } from './terms.ts';
+import { MCP_GUIDE } from './mcp-guide.ts';
+import { TEMPLATES } from './templates.ts';
+import type { LifeTemplate } from './templates.ts';
 import type de from './i18n/de.json';
 
 export type Messages = typeof de;
@@ -187,6 +190,8 @@ ${body}
 				<a class="kern-link" href="${homePath(locale)}${messages.footer.accountDeletionPath}">${t(messages.footer.accountDeletion)}</a>
 				<a class="kern-link" href="/datenschutz/">${t(messages.footer.privacy)}</a>
 				<a class="kern-link" href="/nutzungsbedingungen/" hreflang="de">${t(messages.footer.terms)}</a>
+				<a class="kern-link" href="${locale === 'en' ? '/en/mcp/' : '/mcp/'}" hreflang="${locale === 'en' ? 'en' : 'de'}">${t(messages.footer.mcpGuide)}</a>
+				<a class="kern-link" href="/vorlagen/" hreflang="de">Vorlagen</a>
 			</div>
 			<nav class="container" aria-label="${t(messages.meta.language)}">
 				<ul class="site-footer__languages">
@@ -527,6 +532,113 @@ ${priceList.join('\n')}
 		pathFor,
 		body,
 	});
+};
+
+/**
+ * MCP-Anleitung (#1978): Deutsch unter `/mcp/`, Englisch unter `/en/mcp/`, `pathFor` der übrigen
+ * Sprachen zeigt auf die deutsche Seite (deutsches x-default wie bei der Startseite). Muster
+ * {@link renderPrivacy}. Der Claude-Ein-Klick-Link trägt die kodierte Endpunkt-URL
+ * (claude.com/docs/connectors/building/directory-vs-custom).
+ */
+export const renderMcpGuide = (context: PageContext & { allMessages: Record<Locale, Messages> }): string => {
+	const { locale, siteUrl } = context;
+	const pathFor = (target: Locale): string => (target === 'en' ? '/en/mcp/' : '/mcp/');
+	const d = MCP_GUIDE[locale === 'en' ? 'en' : 'de'];
+	const endpoint = `${siteUrl}/mcp/v1`;
+	const fillEndpoint = (value: string): string => t(fill(value, { endpoint }));
+	const claudeLink = `https://claude.ai/customize/connectors?modal=add-custom-connector&amp;connectorName=Balamentum&amp;connectorUrl=${encodeURIComponent(endpoint)}`;
+	const body = `			<section class="section">
+					<div class="container container--narrow imprint">
+						<h1 class="kern-heading-large">${t(d.title)}</h1>
+						<p class="kern-body kern-body--large">${fillEndpoint(d.intro)}</p>
+${d.sections
+	.flatMap((section) => [
+		`						<h2 class="kern-title">${t(section.heading)}</h2>`,
+		...section.paragraphs.map((paragraph) => `						<p class="kern-body">${fillEndpoint(paragraph)}</p>`),
+		...(section.code ? [`						<pre><code>${fillEndpoint(section.code)}</code></pre>`] : []),
+		...(section.claudeCta
+			? [`						<p><a class="kern-btn kern-btn--primary" href="${claudeLink}" rel="noopener">${t(section.claudeCta)}</a></p>`]
+			: []),
+		...(section.items
+			? [`						<ul class="kern-body">`, ...section.items.map((item) => `							<li>${fillEndpoint(item)}</li>`), `						</ul>`]
+			: []),
+	])
+	.join('\n')}						<p><a class="kern-link" href="${homePath(locale)}">${t(d.back)}</a></p>
+					</div>
+			</section>`;
+	return shell(context, {
+		title: `${d.title} – Balamentum`,
+		description: d.description,
+		path: pathFor(locale),
+		pathFor,
+		body,
+	});
+};
+
+/** Vorlagen-Seiten (#1976): nur Deutsch, `pathFor` aller Sprachen zeigt auf die deutsche Seite (Muster {@link renderPrivacy}). */
+const templatePage = (
+	context: PageContext,
+	path: string,
+	title: string,
+	description: string,
+	content: string,
+): string =>
+	shell(context, {
+		title: `${title} – Balamentum`,
+		description,
+		path,
+		pathFor: () => path,
+		body: `			<section class="section">
+					<div class="container container--narrow imprint">
+${content}
+					</div>
+			</section>`,
+	});
+
+const templateCta = (label: string): string =>
+	`						<p><a class="kern-btn kern-btn--primary" href="${APP_PATH}"><span class="kern-label">${t(label)}</span></a></p>`;
+
+export const renderTemplateIndex = (context: PageContext & { allMessages: Record<Locale, Messages> }): string =>
+	templatePage(
+		context,
+		'/vorlagen/',
+		'Vorlagen für Lebensprojekte',
+		'Checklisten für Hausbau, Umzug, Steuererklärung und weitere Lebensprojekte in sinnvoller Reihenfolge.',
+		`						<h1 class="kern-heading-large">Vorlagen für Lebensprojekte</h1>
+						<p class="kern-body kern-body--large">Checklisten in Abhängigkeitsreihenfolge – jeder Schritt steht nach dem, was davor erledigt sein muss.</p>
+						<ul class="kern-body">
+${TEMPLATES.map(
+	(template) =>
+		`							<li><a class="kern-link" href="/vorlagen/${template.slug}/">${t(template.title)}</a> – ${t(template.description)} (${template.steps.length} Schritte)</li>`,
+).join('\n')}
+						</ul>
+${templateCta('In der App starten')}`,
+	);
+
+export const renderTemplatePage = (context: PageContext & { template: LifeTemplate }): string => {
+	const { template } = context;
+	const titleOf = (id: string): string => template.steps.find((step) => step.id === id)?.title ?? id;
+	const cta = templateCta('In der App starten');
+	return templatePage(
+		context,
+		`/vorlagen/${template.slug}/`,
+		`${template.title}-Checkliste`,
+		template.description,
+		`						<h1 class="kern-heading-large">${t(template.title)}-Checkliste</h1>
+						<p class="kern-body kern-body--large">${t(template.description)}</p>
+${cta}
+						<h2 class="kern-title">Checkliste</h2>
+						<ol class="kern-body">
+${template.steps
+	.map(
+		(step) =>
+			`							<li>${t(step.title)}${step.after.length ? `<br><small>nach: ${step.after.map((id) => t(titleOf(id))).join(', ')}</small>` : ''}</li>`,
+	)
+	.join('\n')}
+						</ol>
+${cta}
+						<p><a class="kern-link" href="/vorlagen/">Alle Vorlagen</a></p>`,
+	);
 };
 
 /** robots.txt; die Sitemap wird nur mit bekannter Basis-URL verlinkt (sie braucht absolute URLs). */

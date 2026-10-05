@@ -25,6 +25,15 @@ paths:
             Verpasst-Auswahl (#1964): mit `missed=1` liefert der Endpunkt nur die überfälligen,
             nicht erledigten Aufgaben ohne Auto-Lösch-Häkchen und ohne Archiv — abgeleitete
             Ansicht, kein neuer Status.
+        - name: archived
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ['1']
+          description: >-
+            Archiv-Ansicht: mit `archived=1` liefert der Endpunkt nur die archivierten Aufgaben
+            (ohne den Parameter erscheinen sie nie in der Liste).
       responses:
         '200':
           description: Liste aller Tasks
@@ -151,6 +160,24 @@ paths:
       responses:
         '200':
           description: Der archivierte Task (mit `archivedAt`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /tasks/{id}/unarchive:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    post:
+      summary: Einen archivierten Task wiederherstellen
+      description: >-
+        Setzt `archivedAt` des Tasks `{id}` zurück auf `null`; der Task erscheint wieder in
+        Aufgabenliste (und ggf. Verpasst-Bereich).
+      operationId: unarchiveTask
+      responses:
+        '200':
+          description: Der wiederhergestellte Task (`archivedAt` ist `null`).
           content:
             application/json:
               schema:
@@ -1243,6 +1270,55 @@ paths:
       responses:
         '204':
           description: Ablehnung gespeichert
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /scores/care-suggestions/rejections:
+    get:
+      summary: Ablehnungs-Historie von Fürsorge-Vorschlägen abrufen (#1977)
+      description: >-
+        Liefert die „Nicht jetzt"-Einträge des Nutzers: ohne Filter alle eigenen, mit
+        `?taskId=` nur die einer Aufgabe (aufsteigend). Strenger `ownerScope` — Einträge
+        fremder Nutzer bleiben unsichtbar (leere Liste statt 403/404).
+      operationId: getCareSuggestionRejections
+      parameters:
+        - name: taskId
+          in: query
+          required: false
+          description: >-
+            Filtert auf eine eigene Aufgabe. Fehlt der Wert, werden alle eigenen Einträge
+            geliefert.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Ablehnungs-Historie (leere Liste, wenn nichts vorliegt)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CareSuggestionRejection'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: '„Nicht jetzt" mit Grund erfassen (#1977)'
+      description: >-
+        Erfasst den Grund einer „Nicht jetzt"-Entscheidung je Aufgabe (`taskId`) oder
+        Vorlage (`templateKey`) — genau einer von beiden ist erforderlich. Jede Entscheidung
+        wird als eigener Eintrag erfasst; KI-Vorschläge ohne stabilen Schlüssel erreichen
+        den Endpoint nicht.
+      operationId: createCareSuggestionRejection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CareSuggestionRejectionCreate'
+      responses:
+        '204':
+          description: Grund erfasst
         '400':
           $ref: '#/components/responses/ValidationError'
         '500':
@@ -3220,6 +3296,41 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /groups/{id}/duo:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Duos
+        schema:
+          type: integer
+      - name: tz
+        in: query
+        required: false
+        description: IANA-Zeitzone für die Tagesgrenze (Muster /scores/streak)
+        schema:
+          type: string
+    get:
+      summary: Gemeinsamer Streak und Säulenwerte eines Duos
+      description: >-
+        Streak nur aus Tagen, an denen beide Mitglieder etwas erledigt haben
+        (#1974). Je Mitglied nur Säulenwerte, keine Aufgabenfelder. Nicht-Mitglied
+        oder Gruppe ohne `kind=duo` 404.
+      operationId: getGroupDuo
+      tags: [groups]
+      responses:
+        '200':
+          description: Duo-Stand
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Duo'
+        '404':
+          description: Duo unbekannt oder kein Mitglied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /groups/{id}/invitations:
     parameters:
       - name: id
@@ -4449,6 +4560,10 @@ components:
           description: >-
             https-Bildadresse des Gruppenbilds (#1225); null = kein Bild
             (Initialen aus dem Namen)
+        kind:
+          type: string
+          enum: [group, duo]
+          description: Art der Gruppe (#1974); `duo` = genau zwei Mitglieder
         role:
           type: string
           enum: [admin, member]
@@ -4469,6 +4584,10 @@ components:
         description:
           type: string
           description: Optionale Beschreibung der Gruppe
+        kind:
+          type: string
+          enum: [group, duo]
+          description: Art der Gruppe (#1974); ohne Angabe `group`, sonst HTTP 400
     GroupUpdate:
       type: object
       description: Payload zum Bearbeiten einer Gruppe — alle Felder optional.
@@ -4910,6 +5029,41 @@ components:
         creatorName:
           type: string
           description: Anzeigename des Erstellers (Fallback E-Mail)
+    Duo:
+      type: object
+      description: Stand eines Duos (#1974) — gemeinsamer Streak und Säulenwerte je Mitglied.
+      required: [streak, members]
+      properties:
+        streak:
+          type: object
+          required: [aktuell, best]
+          properties:
+            aktuell:
+              type: integer
+            best:
+              type: integer
+        members:
+          type: array
+          items:
+            type: object
+            required: [userId, name, saeulen]
+            properties:
+              userId:
+                type: integer
+              name:
+                type: string
+              saeulen:
+                type: array
+                items:
+                  type: object
+                  required: [pillarId, name, wert]
+                  properties:
+                    pillarId:
+                      type: integer
+                    name:
+                      type: string
+                    wert:
+                      type: number
     GroupSeries:
       type: object
       description: >-
@@ -5545,6 +5699,14 @@ components:
             und per Zugangs-Mail benachrichtigt.
         status:
           $ref: '#/components/schemas/TaskStatus'
+        completedAt:
+          type: string
+          format: date-time
+          description: >-
+            Erledigt-Zeitpunkt beim Übergang auf `Done` (Standard: jetzt). Wer eine überfällige
+            Aufgabe pünktlich erledigt hat, schickt hier die Deadline und bekommt die vollen
+            Punkte. Darf nicht in der Zukunft liegen (sonst `400`); ohne Übergang auf `Done`
+            wirkungslos.
         priority:
           type: integer
           minimum: 1
@@ -6921,6 +7083,43 @@ components:
           type: string
           minLength: 1
           description: Stammdaten-Schlüssel der abzulehnenden Vorlage.
+    CareSuggestionRejectionCreate:
+      type: object
+      description: >-
+        „Nicht jetzt" mit Grund (#1977) — genau ein Bezug (`taskId` oder `templateKey`) ist
+        erforderlich; unbekannter `grund` oder fehlender/ doppelter Bezug antwortet 400.
+      required:
+        - grund
+      properties:
+        grund:
+          type: string
+          enum:
+            - zu-gross
+            - gerade-nicht-moeglich
+            - keine-energie
+            - warte-auf-jemanden
+            - falsche-prioritaet
+          description: Sprachunabhängiger Grund der Ablehnung (Anzeige-Texte aus den Locales).
+        taskId:
+          type: integer
+          description: Eigene Aufgabe, die abgelehnt wird.
+        templateKey:
+          type: string
+          description: Stammdaten-Schlüssel der abgelehnten Vorlage.
+    CareSuggestionRejection:
+      type: object
+      description: Ein Eintrag der Ablehnungs-Historie (#1977).
+      required:
+        - grund
+        - abgelehntAm
+      properties:
+        grund:
+          type: string
+          description: Sprachunabhängiger Grund der Ablehnung.
+        abgelehntAm:
+          type: string
+          format: date-time
+          description: Zeitpunkt der Entscheidung.
     SeriesRhythm:
       type: string
       enum:

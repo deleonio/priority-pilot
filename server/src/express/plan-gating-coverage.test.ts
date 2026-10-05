@@ -74,6 +74,7 @@ const EXPECTED: Record<string, FeatureId | null> = {
 	'DELETE /groups/:id/members/:userId': 'groups',
 	'GET /groups/:id/tasks': null,
 	'GET /groups/:id/series': null,
+	'GET /groups/:id/duo': null,
 	'POST /groups/:id/invite-links': 'groups',
 	'DELETE /invite-links/:id': 'groups',
 	// inviteLinks.ts
@@ -98,6 +99,7 @@ const EXPECTED: Record<string, FeatureId | null> = {
 	'PATCH /tasks/:id': null,
 	'DELETE /tasks/:id': null,
 	'POST /tasks/:id/archive': null, // #1964: Archivieren ist paketfrei (Basis-Aktion)
+	'POST /tasks/:id/unarchive': null, // Wiederherstellen ist paketfrei wie Archivieren
 	'POST /tasks/:id/dependencies': 'graph_write',
 	'DELETE /tasks/:id/dependencies/:depId': 'graph_write',
 };

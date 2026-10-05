@@ -25,6 +25,9 @@ import {
 	renderImprint,
 	renderAssetLinks,
 	renderLanding,
+	renderMcpGuide,
+	renderTemplateIndex,
+	renderTemplatePage,
 	renderPrivacy,
 	renderTerms,
 	renderRobots,
@@ -32,6 +35,7 @@ import {
 	type Locale,
 	type Messages,
 } from '../src/render.ts';
+import { TEMPLATES } from '../src/templates.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
@@ -104,6 +108,22 @@ paths.push('/datenschutz/');
 // Nutzungsbedingungen: wie die Datenschutzerklärung eine feste deutsche Seite (#1891).
 write(join('nutzungsbedingungen', 'index.html'), renderTerms({ locale: 'de', messages: de, siteUrl, allMessages }));
 paths.push('/nutzungsbedingungen/');
+
+// MCP-Anleitung (#1978): deutsch an der Wurzel, englische Schwester unter /en/, Footer-Link in allen Sprachen.
+write(join('mcp', 'index.html'), renderMcpGuide({ locale: 'de', messages: de, siteUrl, allMessages }));
+write(join('en', 'mcp', 'index.html'), renderMcpGuide({ locale: 'en', messages: en, siteUrl, allMessages }));
+paths.push('/mcp/', '/en/mcp/');
+
+// Vorlagen-Bibliothek (#1976): deutsche Übersicht und je Vorlage eine Seite.
+write(join('vorlagen', 'index.html'), renderTemplateIndex({ locale: 'de', messages: de, siteUrl, allMessages }));
+paths.push('/vorlagen/');
+for (const template of TEMPLATES) {
+	write(
+		join('vorlagen', template.slug, 'index.html'),
+		renderTemplatePage({ locale: 'de', messages: de, siteUrl, template }),
+	);
+	paths.push(`/vorlagen/${template.slug}/`);
+}
 
 write('robots.txt', renderRobots(siteUrl));
 if (siteUrl) {

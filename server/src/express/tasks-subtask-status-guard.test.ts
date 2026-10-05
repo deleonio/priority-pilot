@@ -111,6 +111,22 @@ describe('PATCH /tasks/:id — Unteraufgaben-Done-Guard (#246, AK5)', () => {
 		assert.notEqual(parent.dataValues.status, 'Done');
 	});
 
+	it('Archivierte offene Unteraufgabe sperrt nicht mehr (#2188 Kreuzverhör) → 200', async () => {
+		// Archiv (#1964): archivierte Kinder sind unsichtbar (Baum/`GET /tasks`) — der Done-Guard
+		// darf das Elternteil nicht dauerhaft mit 409 blockieren.
+		const parent = await Task.create({ title: 'Parent', priority: 3, estimatedEffort: 1 });
+		const child = await Task.create({ title: 'Child', priority: 3, estimatedEffort: 1, status: 'Open' });
+		await addSubtask(parent.id, child.id);
+		const archRes = await post(`/tasks/${child.id}/archive`, {});
+		assert.equal(archRes.status, 200);
+
+		const res = await patch(`/tasks/${parent.id}`, { status: 'Done' });
+
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as Record<string, unknown>;
+		assert.equal(body.status, 'Done');
+	});
+
 	it('AK5 Guard: „In process"-Unteraufgabe blockiert Done → 409', async () => {
 		const parent = await Task.create({ title: 'Parent', priority: 3, estimatedEffort: 1 });
 		const child = await Task.create({ title: 'Child', priority: 3, estimatedEffort: 1, status: 'In process' });

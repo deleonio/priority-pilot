@@ -14,6 +14,8 @@ class Group extends Model {
 	public description!: string | null;
 	/** Gruppenbild als https-Bildadresse (#1225) — null = kein Bild. */
 	public imageUrl!: string | null;
+	/** Art der Gruppe (#1974): `duo` = genau zwei Mitglieder mit gemeinsamem Streak, ohne Aufgaben-Freigabe. */
+	public kind!: 'group' | 'duo';
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -37,6 +39,11 @@ Group.init(
 		imageUrl: {
 			type: DataTypes.STRING,
 			allowNull: true,
+		},
+		kind: {
+			type: DataTypes.STRING,
+			allowNull: false,
+			defaultValue: 'group',
 		},
 	},
 	{
