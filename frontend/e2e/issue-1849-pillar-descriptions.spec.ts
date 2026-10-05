@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { registerOwnSession, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-e2e für #1849 (Spec: docs/spec/issue-1849.md, AK4) — im Tab „Säulen“ erklärt jede der
@@ -17,6 +17,9 @@ test.beforeEach(async ({ page }) => {
 test.describe('#1849 Säulenbeschreibungen mit Wochen-Soll (375 px)', () => {
 	test('AK4: fünf Beschreibungen nennen „pro Woche“ und laufen nicht aus dem Viewport', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
+		// Eigene Session statt Pass-Through: ohne Konto liefert `GET /pillars` alle Säulen der Shard-DB,
+		// registrierte Nutzer anderer Specs brächten es auf mehr als fünf (Muster #1795).
+		await registerOwnSession(page, 'pillar-descriptions-1849');
 		await page.goto('/app/settings/pillars');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
 		await waitForStableView(page, 'Balamentum');
