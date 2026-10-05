@@ -741,6 +741,11 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 					sendError(res, 403, 'Du bist kein Mitglied dieser Gruppe.');
 					return;
 				}
+				// #1974: ein Duo teilt nur Streak und Säulenwerte, keine Aufgaben.
+				if ((await Group.findByPk(groupInput))?.kind === 'duo') {
+					sendError(res, 400, 'Aufgaben lassen sich nicht an ein Duo freigeben.');
+					return;
+				}
 				groupTargetId = groupInput;
 			}
 			// #1249: Säulen gegen das Konto prüfen, dem die Aufgabe gehören wird — bei einem Empfänger

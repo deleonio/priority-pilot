@@ -6,6 +6,7 @@ import { Group, GroupInviteLink, GroupMember, User } from '../../models/index.js
 import sequelize from '../../database.js';
 import { resolveGeoUser } from './geoConfig.js';
 import { requirePlanFeature } from '../planGuard.js';
+import { isDuoFull } from './groups.js';
 
 /**
  * Einladungslink-Preisgabe (#1226). Dieser Router ist der ÖFFENTLICHE Teil: Er hängt bewusst
@@ -72,6 +73,7 @@ inviteLinksPublicRouter.post(
 				return;
 			}
 			let alreadyMember = false;
+			let duoFull = false;
 			await sequelize.transaction(async (transaction) => {
 				// Membership-Check IN der Transaktion (Kreuzverhör #1246): Zwischen Prüfen und Einfügen
 				// kann ein gleichzeitiger Zweit-Redeem liegen — der Composite-PK (groupId, userId)
@@ -85,6 +87,11 @@ inviteLinksPublicRouter.post(
 					alreadyMember = true;
 					return;
 				}
+				const group = await Group.findByPk(link.groupId, { transaction });
+				if (group && (await isDuoFull(group, transaction))) {
+					duoFull = true;
+					return;
+				}
 				await GroupMember.create(
 					{ groupId: link.groupId, userId: user.id, role: 'member', joinedAt: new Date() },
 					{ transaction },
@@ -92,6 +99,10 @@ inviteLinksPublicRouter.post(
 			});
 			if (alreadyMember) {
 				sendError(res, 409, 'Du bist bereits Mitglied dieser Gruppe.');
+				return;
+			}
+			if (duoFull) {
+				sendError(res, 409, 'Ein Duo hat höchstens zwei Mitglieder.');
 				return;
 			}
 			res.json({ groupId: link.groupId });
