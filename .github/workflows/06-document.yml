@@ -155,23 +155,19 @@ jobs:
         env:
           DOC_PROVIDER: ${{ vars.LLM_PROVIDER_DOCUMENTER || 'openrouter' }}
           RUNTIME: ${{ vars.AGENT_RUNTIME || 'claude' }}
-          PI_ALIASES_JSON: ${{ vars.PI_MODEL_ALIASES }}
         run: |
           set -uo pipefail
           EFF="$DOC_PROVIDER"
-          alias_count() { # <provider> — Alias-Eintrage aus Var + eingecheckter Tabelle
-            local var file
-            var="$(printf '%s' "${PI_ALIASES_JSON:-}" | jq -r --arg p "$1" '.[$p] // {} | length' 2>/dev/null || echo 0)"
-            file="$(jq -r --arg p "$1" '.[$p] // {} | length' .github/pi/model-aliases.json 2>/dev/null || echo 0)"
-            echo $(( var + file ))
+          alias_count() { # <provider> — gültige pi-Formen laut Modell-Adapter (models.json)
+            bash .github/scripts/model-adapter.sh has-pi --provider "$1" 2>/dev/null | sed -n 's/^count=//p'
           }
           if [ "$RUNTIME" = "pi" ] && [ "$DOC_PROVIDER" = "openrouter" ] && [ "$(alias_count openrouter)" -eq 0 ]; then
             if [ "$(alias_count zai)" -gt 0 ]; then
               EFF="zai"
-              echo "::warning title=Documenter-Provider-Ausweich::Keine openrouter-Aliase fuer pi (vars.PI_MODEL_ALIASES + model-aliases.json leer) — Documenter laeuft stattdessen ueber zai (#2098, Issue-Weg 2). Fix: openrouter-Aliase setzen oder LLM_PROVIDER_DOCUMENTER=zai stellen."
+              echo "::warning title=Documenter-Provider-Ausweich::Keine gueltigen openrouter-pi-Formen laut model-adapter (models.json) — Documenter laeuft stattdessen ueber zai (#2098, Issue-Weg 2). Fix: pi-Formen in .github/models.json ergaenzen oder LLM_PROVIDER_DOCUMENTER=zai stellen."
               echo "- ⚠️ Documenter-Provider: openrouter → **zai** (keine openrouter-pi-Aliase, #2098-Ausweich)" >> "$GITHUB_STEP_SUMMARY"
             else
-              echo "::error title=Documenter ohne pi-Aliase::Weder openrouter noch zai haben pi-Alias-Eintraege (vars.PI_MODEL_ALIASES) — der Lauf wuerde im Modell-Step scheitern. vars.PI_MODEL_ALIASES setzen (s. .github/pi/README.md) oder LLM_PROVIDER_DOCUMENTER auf einen Alias-faehigen Provider stellen."
+              echo "::error title=Documenter ohne pi-Aliase::Weder openrouter noch zai haben gueltige pi-Formen laut model-adapter (models.json) — der Lauf wuerde im Modell-Step scheitern. pi-Formen in .github/models.json ergaenzen (s. .github/pi/README.md) oder LLM_PROVIDER_DOCUMENTER auf einen Alias-faehigen Provider stellen."
               exit 1
             fi
           fi
@@ -190,17 +186,14 @@ jobs:
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           # Laufzeit-Rollout (Folge-Ticket des #1184-Pilots): pi|claude wie 01-triage.
           runtime: ${{ vars.AGENT_RUNTIME }}
-          pi-model-aliases-json: ${{ vars.PI_MODEL_ALIASES }}
-          # Documenter läuft per Default über OpenRouter (Free-Model über den haiku-Alias via
-          # vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER); Notbremse: Repo-Var LLM_PROVIDER_DOCUMENTER.
+          # Documenter läuft per Default über OpenRouter (Free-Model über den haiku-Alias aus
+          # .github/models.json via Modell-Adapter); Notbremse: Repo-Var LLM_PROVIDER_DOCUMENTER.
           llm-provider: ${{ steps.doc-provider.outputs.provider }}
           model: ${{ vars.CLAUDE_MODEL_DOCUMENTATION || 'haiku' }}
           effort: 'low'
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
           claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
-          zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
-          openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
           tailscale-oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
           tailscale-oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
           tailscale-authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}

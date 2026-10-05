@@ -66,19 +66,6 @@ inputs:
   openrouter-api-key:
     description: 'API-Key für OpenRouter (secret, secrets.OPENROUTER_API_KEY). Nur bei llm-provider=openrouter erforderlich.'
     required: false
-  # Settings-JSON direkt als Input (aus GitHub Variables) – vermeidet gh CLI Auth-Probleme
-  zai-settings-json:
-    description: 'settings.local.json für zai als JSON-String (aus vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI). Nur für runtime=claude relevant.'
-    required: false
-    default: ''
-  openrouter-settings-json:
-    description: 'settings.local.json für openrouter als JSON-String (aus vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER). Nur für runtime=claude relevant.'
-    required: false
-    default: ''
-  pi-model-aliases-json:
-    description: 'Alias→Modell-Tabelle für pi als JSON-String (aus vars.PI_MODEL_ALIASES), gelegt über die eingecheckte .github/pi/model-aliases.json. Nur für runtime=pi relevant; der Weg für Provider, deren Modell-IDs bewusst nicht im Repo stehen (openrouter).'
-    required: false
-    default: ''
   compact-tokens:
     description: 'Auto-compact threshold für Claude Code (z.B. "80k", "100k", "auto"). Leer = Default aus .claude/settings.json. Unter pi wirkungslos: pi konfiguriert Compaction über .pi/settings.json, nicht über ein CLI-Flag.'
     required: false
@@ -210,6 +197,7 @@ runs:
       shell: bash
       env:
         RUNTIME: ${{ inputs.runtime }}
+        PROVIDER_INPUT: ${{ inputs.llm-provider }}
       run: |
         RT="${RUNTIME:-claude}"
         case "$RT" in
@@ -219,8 +207,17 @@ runs:
             exit 1
             ;;
         esac
+        # PROVIDER-MATRIX (05.10.): Claude Code läuft gegen alle 3 Provider, pi nur gegen
+        # zai|openrouter — das Anthropic-Abo ist an Claude Code gebunden; ein pi+claude-Lauf
+        # könnte es nicht nutzen und würde still scheitern/per-use abrechnen wollen. Laut
+        # hier brechen statt später im Modell-Schritt.
+        PROV="${PROVIDER_INPUT:-claude}"
+        if [ "$RT" = "pi" ] && [ "$PROV" != "zai" ] && [ "$PROV" != "openrouter" ]; then
+          echo "::error title=pi + Anthropic ist nicht unterstützbar::runtime=pi mit provider='${PROV:-claude}' — das Anthropic-Abo ist an Claude Code gebunden. Setze LLM_PROVIDER=zai oder openrouter (oder AGENT_RUNTIME=claude)."
+          exit 1
+        fi
         echo "runtime=$RT" >> "$GITHUB_OUTPUT"
-        echo "::notice title=🤖 Laufzeit::$RT"
+        echo "::notice title=🤖 Laufzeit::$RT (Provider: ${PROV:-claude})"
 
     - name: GitHub-App-token erzeugen
       id: app-token
@@ -515,8 +512,6 @@ runs:
         zai-api-key: ${{ inputs.zai-api-key }}
         claude-api-key: ${{ inputs.claude-api-key }}
         openrouter-api-key: ${{ inputs.openrouter-api-key }}
-        zai-settings-json: ${{ inputs.zai-settings-json }}
-        openrouter-settings-json: ${{ inputs.openrouter-settings-json }}
 
     - name: pi einrichten
       id: pi
@@ -530,7 +525,6 @@ runs:
         model: ${{ inputs.model }}
         subagent-model: ${{ inputs.subagent-model }}
         effort: ${{ inputs.effort }}
-        model-aliases-json: ${{ inputs.pi-model-aliases-json }}
         zai-api-key: ${{ inputs.zai-api-key }}
         claude-api-key: ${{ inputs.claude-api-key }}
         openrouter-api-key: ${{ inputs.openrouter-api-key }}

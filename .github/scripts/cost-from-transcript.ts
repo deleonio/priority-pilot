@@ -20,40 +20,44 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { appendCostRecord, type CostInput } from './cost-record.ts';
 
 /** Standard-Ablage der Claude-Code-Transkripte. */
 export const TRANSCRIPT_ROOT = join(homedir(), '.claude', 'projects');
 
 /**
- * z.ai-Listenpreise in EUR je 1 Mio. Token (in/out), Stand 2026-08.
+ * Modell-Preise stammen aus der KANONISCHEN Modell-Definition
+ * [`.github/models.json`](../models.json) (05.10.) — derselben Quelle, die auch der
+ * Modell-Adapter für die Runtime-Auflösung liest. Modell-Identität und Preis können
+ * damit nicht mehr auseinanderlaufen (glm-5-turbo/flash-Fehlpreis-Fund,
+ * docs/pipeline-optimierung.md).
  *
- * Bewusst in EUR notiert — so bleiben die Zeilen direkt gegen die z.ai-Preisliste prüfbar,
- * statt als schon umgerechnete Zahlen ohne Herkunft dazustehen. Umgerechnet wird an genau
- * EINER Stelle (`EUR_TO_USD`), weil `cost`, `valueCost` und der gesamte Report in USD
- * rechnen: In einer Report-Summe stehen claude-, zai- und openrouter-Läufe nebeneinander,
- * eine gemischte Währungssumme wäre still falsch.
+ * Die model-Keys wirken wie bisher als PRÄFIXE (längster gewinnt): das Transkript meldet
+ * je nach Provider `glm-5.3[1m]`, Datums-Suffixe oder Vendor-Formen. z.ai-Preise stehen in
+ * EUR in der Datei (direkt gegen die z.ai-Preisliste prüfbar) und werden an genau EINER
+ * Stelle (`EUR_TO_USD`) umgerechnet — `cost`/`valueCost`/Reports rechnen USD, eine
+ * gemischte Währungssumme wäre still falsch. Modelle OHNE Preisfeld (openrouter free)
+ * bleiben wie bisher den Fremdtarif-Weg gegangen (cost=0, Bewertung über MODEL_CLASSES).
  */
-export const PRICES_EUR_PER_MTOK_ZAI: ReadonlyArray<readonly [string, number, number]> = [
-	// [Modell-Präfix, Input, Output]
-	// glm-5.3-flash ist ein EIGENES, deutlich billigeres Modell (docs/ci-architecture.md:
-	// „nicht gebucht"), fiel aber über den Präfix-Match still auf den glm-5.3-Tarif — 223
-	// versiegelte Läufe waren damit ~9x überbewertet. Der Coding-Plan-Preis ist nicht
-	// belegt; die Zeile ist aus dem Verhältnis der öffentlichen API-Preise abgeleitet
-	// (Flash 0,15/0,50 zu 5.3 1,40/4,40 USD je Mio., docs.z.ai Stand 2026-09) und auf den
-	// hier notierten glm-5.3-Coding-Plan-Preis angewandt. Längster Präfix gewinnt.
-	['glm-5.3-flash', 0.32, 1.14],
-	['glm-5.3', 3.0, 10.0],
-	['glm-5-turbo', 1.2, 4.0],
-	['glm-4.7', 0.6, 1.2],
-];
+
+/** Kanonische Modell-Definitionen (einmalig gelesen). */
+const MODELS_FILE = join(fileURLToPath(new URL('.', import.meta.url)), '..', 'models.json');
+const MODELS = JSON.parse(readFileSync(MODELS_FILE, 'utf8')) as {
+	models: Record<string, { provider: string; price?: { currency: 'EUR' | 'USD'; in: number; out: number } }>;
+};
+
+/** z.ai-Preiszeilen in EUR (wie notiert — Herkunft bleibt gegen die Preisliste prüfbar). */
+export const PRICES_EUR_PER_MTOK_ZAI: ReadonlyArray<readonly [string, number, number]> = Object.entries(MODELS.models)
+	.filter(([, def]) => def.provider === 'zai' && def.price?.currency === 'EUR')
+	.map(([id, def]) => [id, def.price!.in, def.price!.out] as const);
 
 /**
  * Umrechnungskurs EUR→USD (Stand 2026-08).
  *
  * BEWUSST FEST, nicht tagesaktuell: Baseline und Nachher-Messung müssen mit demselben Kurs
  * gerechnet werden, sonst vergleicht der A/B-Test Wechselkurse statt Pipeline-Änderungen —
- * dieselbe Begründung wie bei den festen Listenpreisen unten. Wer den Kurs
+ * dieselbe Begründung wie bei den festen Listenpreisen. Wer den Kurs
  * ändert, rechnet die Altdaten mit `cost-backfill-zai.ts` neu, sonst mischt der Trend zwei
  * Kurse. Wer absolute Rechnungsbeträge braucht, nimmt die Abrechnung — hier zählt die Relation.
  */
@@ -63,36 +67,14 @@ export const EUR_TO_USD = 1.08;
 const eurRowToUsd = ([prefix, inEur, outEur]: readonly [string, number, number]) =>
 	[prefix, inEur * EUR_TO_USD, outEur * EUR_TO_USD] as const;
 
-/**
- * Listenpreise in USD je 1 Mio. Token (Stand 2026-09) — Anthropic nativ, z.ai umgerechnet.
- *
- * Schlüssel sind PRÄFIXE: die Pipeline löst `haiku` auf `claude-haiku-4-5` auf
- * (setup-claude/action.yml), das Transkript meldet je nach Modell mit oder ohne
- * Datums-Suffix; z.ai meldet `glm-5.3[1m]` für den Präfix `glm-5.3`. Längster passender
- * Präfix gewinnt.
- *
- * Sonnet 5 rechnet mit $2/$10: das Einführungspreisfenster (bis 2026-08-31) ist der Dauerpreis
- * geworden, die Erhöhung auf $3/$15 entfällt (Anthropic-Preisseite, Stand 2026-09). Läufe vor
- * dem 2026-09-29 sind in `.costs/` noch mit $3/$15 gerechnet — ein Trendvergleich über diese
- * Grenze mischt beide Sätze.
- *
- * Nicht gelistet bleiben openrouter-Modelle: dort gilt weiter der Fremdtarif-Weg (cost=0),
- * bewertet wird ihr Verbrauch über `MODEL_CLASSES`/`valueCost`.
- */
-export const PRICES_USD_PER_MTOK: ReadonlyArray<readonly [string, number, number]> = [
-	// [Modell-Präfix, Input, Output]
-	['claude-fable-5', 10.0, 50.0],
-	['claude-mythos-5', 10.0, 50.0],
-	['claude-opus-5-5', 4.0, 20.0],
-	['claude-opus-5', 5.0, 25.0],
-	['claude-opus-4', 5.0, 25.0],
-	['claude-sonnet-5-5', 2.0, 10.0],
-	['claude-sonnet-5', 2.0, 10.0],
-	['claude-sonnet-4', 3.0, 15.0],
-	['claude-haiku-4-5', 1.0, 5.0],
-	['claude-haiku-4', 1.0, 5.0],
-	...PRICES_EUR_PER_MTOK_ZAI.map(eurRowToUsd),
-];
+/** Listenpreise in USD je 1 Mio. Token (Stand 2026-09) — aus models.json abgeleitet, EUR-Zeilen umgerechnet. */
+export const PRICES_USD_PER_MTOK: ReadonlyArray<readonly [string, number, number]> = Object.entries(MODELS.models)
+	.filter(([, def]) => def.price)
+	.map(([id, def]) =>
+		def.price!.currency === 'EUR'
+			? eurRowToUsd([id, def.price!.in, def.price!.out] as const)
+			: ([id, def.price!.in, def.price!.out] as const),
+	);
 
 /** Cache-Write kostet ~1,25x, Cache-Read ~0,1x des Input-Preises. */
 export const CACHE_WRITE_FACTOR = 1.25;
