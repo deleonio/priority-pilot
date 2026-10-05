@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, after } from 'node:test';
+import { describe, it, beforeEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
 import { Subscription, User, WebhookEvent } from '../models/index.js';
@@ -507,6 +507,47 @@ describe('Billing/Webhook-API (#1495)', () => {
 			1,
 			'Dedup über (provider, externalEventId) bleibt bestehen',
 		);
+	});
+
+	it('#2233 AK5: Rechnungsfehler → 503 ohne Verlängerung; gleiche event.id danach → 200, eine Verlängerung, eine Rechnung', async () => {
+		server = await startTestServer(withVerifierAndMail('verified'));
+		const periodEnd = new Date('2026-12-01T00:00:00Z');
+		await Subscription.create({
+			userId: 6,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-ATOMIC',
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: periodEnd,
+		});
+		const body = JSON.stringify({
+			id: 'WH-ATOMIC-1',
+			event_type: 'PAYMENT.SALE.COMPLETED',
+			resource: { id: 'SALE-ATOMIC', billing_agreement_id: 'I-ATOMIC' },
+		});
+		const failing = mock.method(Invoice, 'create', async () => {
+			throw new Error('Rechnungsbau erzwungen fehlgeschlagen');
+		});
+		let first: Response;
+		try {
+			first = await rawPost('/webhooks/paypal', body, { 'paypal-transmission-sig': 'ok' });
+		} finally {
+			failing.mock.restore();
+		}
+		assert.equal(first.status, 503);
+		const afterFailure = await Subscription.findOne({ where: { externalSubscriptionId: 'I-ATOMIC' } });
+		assert.equal(afterFailure?.get('currentPeriodEnd')?.toString(), periodEnd.toString(), 'keine Verlängerung');
+		assert.equal(await Invoice.count(), 0);
+
+		const second = await rawPost('/webhooks/paypal', body, { 'paypal-transmission-sig': 'ok' });
+
+		assert.equal(second.status, 200);
+		const renewed = await Subscription.findOne({ where: { externalSubscriptionId: 'I-ATOMIC' } });
+		const expected = new Date(periodEnd);
+		expected.setUTCMonth(expected.getUTCMonth() + 1);
+		assert.equal((renewed?.get('currentPeriodEnd') as Date).toISOString(), expected.toISOString(), 'genau einmal');
+		assert.equal(await Invoice.count(), 1);
 	});
 
 	// AK4: der vorgemerkte Downgrade wird beim Lesen des Abos (`/auth/me`) fällig angewendet —

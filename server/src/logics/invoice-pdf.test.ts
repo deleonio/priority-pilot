@@ -101,6 +101,19 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 		assert.ok(bytes.length > 0, 'PDF-Bytes dürfen nicht leer sein');
 		assert.equal(Buffer.from(bytes).subarray(0, 5).toString(), '%PDF-', 'PDF muss mit der %PDF-Magic beginnen');
 	});
+
+	// #2233 AK1: WinAnsi-only Helvetica wirft bei Kyrillisch/Polnisch/Emoji — Unicode-Schrift gefordert.
+	for (const displayName of ['Иван Петров', 'Łukasz Żółć Ślęzak', 'Anna 🎉']) {
+		it(`#2233 AK1: buildInvoicePdf baut ein gültiges PDF für „${displayName}"`, async () => {
+			const bytes = await buildInvoicePdf(
+				await invoice(),
+				OPERATOR,
+				{ displayName, email: 'x@example.com' },
+				'Paket plus (monthly)',
+			);
+			assert.equal(Buffer.from(bytes).subarray(0, 5).toString(), '%PDF-');
+		});
+	}
 });
 
 describe('invoices.ts — PDF-Erzeugung und -Aufbewahrung (#1955 AK1/AK3)', () => {
@@ -147,5 +160,16 @@ describe('invoices.ts — PDF-Erzeugung und -Aufbewahrung (#1955 AK1/AK3)', () =
 
 		assert.equal(sent.length, 1, 'Ein Wiederholungslauf darf keine zweite Mail versenden');
 		assert.equal(second.get('id'), first.get('id'), 'Der Zweitlauf muss dieselbe Rechnung zurückgeben');
+	});
+
+	it('#2233 AK2: Nutzer mit kyrillischem Anzeigenamen bekommt eine Rechnung mit gespeicherten pdfBytes', async () => {
+		const { user, subscription } = await setup();
+		await user.update({ displayName: 'Иван Петров' });
+
+		const invoice = await issueInvoiceForPeriod(subscription, new Date('2026-03-01T10:00:00Z'), async () => {});
+
+		await invoice.reload();
+		const stored = (invoice.get({ plain: true }) as { pdfBytes?: Uint8Array }).pdfBytes;
+		assert.ok(stored && Buffer.from(stored).subarray(0, 5).toString() === '%PDF-');
 	});
 });
