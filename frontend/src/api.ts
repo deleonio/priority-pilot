@@ -31,6 +31,7 @@ import type {
 	JournalEntry,
 	JournalEntryInput,
 	JournalEntryUpdate,
+	JournalStats,
 	InviteLinkPreview,
 	InviteLinkRedeemResult,
 	ReceivedInvitation,
@@ -1677,6 +1678,14 @@ export const api = {
 		if (!response.ok) {
 			throw new ResponseError(response, error);
 		}
+	},
+
+	async getJournalStats(query: { von: string; bis: string; granularitaet: 'tag' | 'woche' }): Promise<JournalStats> {
+		const { data, error, response } = await client.GET('/journal/stats', { params: { query } });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
 	},
 
 	// Meldet die aktuelle Position (#1101): der Server prüft Aufgaben im Alarmabstand und pusht ggf.

@@ -36,6 +36,8 @@ export type PlaceFavoriteInput = Schemas['PlaceFavoriteInput'];
 export type JournalEntry = Schemas['JournalEntry'];
 export type JournalEntryInput = Schemas['JournalEntryInput'];
 export type JournalEntryUpdate = Schemas['JournalEntryUpdate'];
+/** Journal-Statistik (#2213): Eintragszählung je Fenster neben dem Balance-Verlauf. */
+export type JournalStats = Schemas['JournalStats'];
 export type Profile = Schemas['Profile'];
 export type DependencyInput = Schemas['DependencyInput'];
 export type Pillar = Schemas['Pillar'];
