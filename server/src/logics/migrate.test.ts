@@ -26,6 +26,7 @@ import {
 	migrateInvoiceLineItemsColumn,
 	migrateInvoicePdfBytesColumn,
 	migrateInvoicePaymentStatusColumn,
+	migrateGroupKind,
 } from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
 // #1225: `migrateGroupImageUrl` existiert noch nicht (rote Spec-Tests) — Zugriff über den
@@ -1771,5 +1772,22 @@ describe('migrateInvoicePaymentStatusColumn (#2086)', () => {
 		await sequelize.getQueryInterface().dropAllTables();
 
 		await assert.doesNotReject(() => migrateInvoicePaymentStatusColumn!(sequelize));
+	});
+});
+
+// ── #1974: migrateGroupKind — `kind`-Spalte an groups nachziehen, Bestand wird 'group' ────
+describe('migrateGroupKind (#1974)', () => {
+	it('zieht kind auf einem Alt-Schema nach (Bestand = group) und ist idempotent', async () => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `groups` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `name` VARCHAR(60) NOT NULL, `description` TEXT)',
+		);
+		await sequelize.query("INSERT INTO `groups` (`name`) VALUES ('Familie')");
+
+		await migrateGroupKind(sequelize);
+		await assert.doesNotReject(() => migrateGroupKind(sequelize), 'zweiter Lauf bleibt stabil');
+
+		const [rows] = await sequelize.query('SELECT kind FROM `groups`');
+		assert.equal((rows as { kind: string }[])[0].kind, 'group');
 	});
 });

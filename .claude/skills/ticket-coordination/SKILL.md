@@ -64,7 +64,7 @@ phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
 | `ai:needs-po-review` present, or a fresh KI-ANALYSE without it (sub-issues of a split carry only `ai:analysed`) | read KI-ANALYSE (Ampel, Offene Fragen) and the `ai-phase-routing` table; set the **first** phase with Run = ja: ux → `ai:needs-ux-ui`, else spec → `ai:needs-spec`, else `ai:needs-impl` |
 | Analysis has open questions or 🟡/🔴 | put the question to the author with the options from the analysis; do not route. Parser false alarms (constraints listed as questions) you clear yourself with a comment. A `<!-- ai-triage-decision -->` comment with `ai:needs-human` is the same case before any analysis: after the answer post it as a PO comment, then set `ai:analysed` + `ai:needs-analyse` without `ai:needs-human` |
 | `ai:needs-human` after a phase | read the run log first (section 4, item 3); only a real open question goes to the author |
-| `ai:continued` on the issue | soft abort at the time limit, the next run resumes — wait. A second run without push is a finding |
+| `ai:continued` on the issue | soft abort at the time limit, the next run resumes — wait. A second run without push ends the attempt: section 7, rung 3 |
 | PR of the issue appears | subscribe to its activity immediately |
 | `ai:needs-human` on the PR | read the stop comment; fix small causes yourself (base merge, re-review), otherwise ask the author |
 | PR has a merge conflict (`mergeable_state: dirty`) | check every open PR of the epic at each check-in and after each merge to main. No phase **running** on the branch → hand the resolution to a subagent at once (section 6, one per PR, in parallel), even if a fixup is merely queued or crashed — waiting for the queue costs hours when phases stall. Phase running → wait for its end; the fixup run merges main before it starts and resolves the markers itself, so give it the resolution rule as an inline review comment on the conflicting file (it reads review threads, not plain PR comments). After the subagent's push: if the PR already had a green verdict, re-arm `ai:needs-review`; an attached `ai:needs-fixup` stays (its findings are still open). A conflict that needs a product decision goes to the author |
@@ -95,8 +95,8 @@ pipeline and later readers see it.
   session; without a scheduled wake-up the whole coordination stalls until the answer.
 - The check-in message carries **state only**; the rules live here. Template:
   `Check-in ticket-coordination (Skill). Epics: … Stand <UTC>: <je Issue: [Stufe/Aufwand]-Kürzel aus dem Titel, Phase, PR, Run-ID, was als Nächstes zu prüfen ist>. Offen beim Autor: … Reihenfolge danach (mit Rang): … Nicht anfassen: …`
-- Spec, implementation and fixup share one serialized queue; more than two issues in parallel
-  add no throughput there, only triage, UX and review run side by side.
+- Spec, implementation and fixup share one serialized queue; only triage, UX and review run
+  side by side — order the queue per section 7, rung 1.
 - Report only on change (phase switch, merge, blocker, question). A quiet check-in stays quiet.
 - Notifications can arrive late, twice, or after the fact. Verify the current state before
   acting on one.
@@ -240,3 +240,34 @@ file:line), proposed action (exact label set or comment text), and whether the a
 Fits: diagnosing a red CI or an `ai:needs-human` stop while another issue is being routed;
 checking all PRs of an epic for follow-up work before its closing analysis; a test merge
 against main; resolving a merge conflict (exception above). Does not fit: anything that only needs one label read — do that directly.
+
+## 7. When the pipeline stalls — the way out
+
+Re-arming what just failed is not coordination. Try each rung once; a second failure on the same
+rung moves one rung up — never re-arm the same trigger a third time.
+
+1. **Order the shared queue.** Spec, implementation and fixup share one queue, so parallel slots
+   there are an illusion: keep at most one issue in that queue, the others work in triage, UX or
+   review. Priority: repairs main → fixups (short, end in a merge) → continuations → new
+   implementations. To reorder, take the trigger off the waiting issue (its queued run then
+   skips) and put it back once the queue is free; never cancel a running phase.
+2. **Spot a slow provider early.** Signs: a small (S) issue without push after a full run,
+   several soft aborts the same day, crashes without verdict, triage at its time limit. Then
+   start no new implementations; tell the author once with the evidence (run IDs, durations)
+   and offer the provider switch — their decision.
+3. **Two runs without push → stop.** A second soft abort, crash or infrastructure failure on
+   the same issue ends the pipeline attempt (a repeated soft abort is marked
+   `ai:to-big-issue`). By size:
+   - small and clear (S, test or config, no product decision): ask the author to release it for
+     a local implementation — a subagent in its own worktree, canonical gate, PR with
+     `Closes #N`, no labels. Once the PR exists, drop the stop labels from the issue and set
+     `ai:needs-review` on the PR.
+   - medium or unclear: propose a split (pitfall 23).
+   - waiting on a decision: ask the author.
+4. **Infrastructure failures** (environment setup timeout, installer exit, runner loss): re-arm
+   once and note the signature; a second one the same day goes to the author as an
+   infrastructure finding, not into more re-arms.
+5. **Report throughput, not only state.** When the queue holds more than two runs or no merge
+   landed for two hours, tell the author once — cause, queue, the rungs above with a
+   recommendation — before the next re-arm. While only long runs are in flight, schedule the
+   check-in at their time limit instead of every few minutes.

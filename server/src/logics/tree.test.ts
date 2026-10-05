@@ -57,6 +57,27 @@ describe('buildTaskForest', () => {
 		assert.deepEqual(forest[0].dependents, []);
 	});
 
+	it('Archivierte Unteraufgabe verschwindet aus dem Baum (#1964)', async () => {
+		const child = await Task.create({ title: 'Kind', priority: 3, estimatedEffort: 1 });
+		const parent = await Task.create({ title: 'Eltern', priority: 3, estimatedEffort: 1 });
+		await parent.addDependency(child);
+		await child.update({ archivedAt: new Date() });
+		const forest = await buildTaskForest();
+		assert.equal(forest.length, 1);
+		assert.equal(forest[0].id, parent.id);
+		assert.deepEqual(forest[0].dependents, []);
+	});
+
+	it('Aktive Unteraufgabe eines archivierten Elternteils bleibt Wurzel (#1964)', async () => {
+		const child = await Task.create({ title: 'Kind', priority: 3, estimatedEffort: 1 });
+		const parent = await Task.create({ title: 'Eltern', priority: 3, estimatedEffort: 1 });
+		await parent.addDependency(child);
+		await parent.update({ archivedAt: new Date() });
+		const forest = await buildTaskForest();
+		assert.equal(forest.length, 1);
+		assert.equal(forest[0].id, child.id);
+	});
+
 	it('Fortschritt zählt erledigte Unteraufgaben weiter, obwohl sie ausgeblendet sind (#392 ∩ #241)', async () => {
 		// Regression-Schutz für den Konflikt #392 (erledigte Unteraufgaben aus dem Baum entfernt) vs.
 		// #241 (Fortschritt „erledigt/gesamt"): `progress` wird über die UNGEFILTERTE Kette gezählt,
@@ -70,6 +91,19 @@ describe('buildTaskForest', () => {
 		assert.deepEqual(forest[0].dependents, []);
 		// … aber der Fortschritt zählt es weiter: Eltern + Kind = 2 gesamt, 1 erledigt.
 		assert.deepEqual(forest[0].progress, { done: 1, total: 2 });
+	});
+
+	it('Fortschritt ignoriert archivierte Unteraufgabe — weder Zähler noch Nenner (#2188)', async () => {
+		// Archiv (#1964): das archivierte Kind ist unsichtbar; ohne Filter bliebe der Eltern-Fortschritt
+		// dauerhaft bei „x/y“ hängen, obwohl das Kind nirgends mehr erscheint.
+		const child = await Task.create({ title: 'Kind', priority: 3, estimatedEffort: 1 });
+		const parent = await Task.create({ title: 'Eltern', priority: 3, estimatedEffort: 1 });
+		await parent.addDependency(child);
+		await child.update({ archivedAt: new Date() });
+		const forest = await buildTaskForest();
+		assert.deepEqual(forest[0].dependents, []);
+		// Nur der sichtbare Elternknoten zählt — kein dauerhaftes „0/2“.
+		assert.deepEqual(forest[0].progress, { done: 0, total: 1 });
 	});
 
 	it('Fortschritt ist null für einen Task ohne Unteraufgaben (#241)', async () => {

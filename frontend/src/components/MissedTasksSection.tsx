@@ -5,6 +5,8 @@ import { formatDeadline } from '../lib/task';
 interface MissedTasksSectionProps {
 	/** Verpasste Aufgaben (`GET /tasks?missed=1`, geladen in `App.reload`). */
 	tasks: Task[];
+	/** „Erledigt" — setzt die Aufgabe auf Done (offene Checkliste: über den Erledigen-Dialog). */
+	onComplete: (task: Task) => void;
 	/** „Neu planen" — öffnet die bestehende Task-Bearbeitung (spätere Deadline zählt den Zähler). */
 	onEdit: (task: Task) => void;
 	/** „Archivieren" — einstufig, ohne Bestätigungsdialog (#1964). */
@@ -15,13 +17,13 @@ interface MissedTasksSectionProps {
 
 /**
  * Bereich „Verpasst" (#1964): überfällige, nicht erledigte Aufgaben ohne Auto-Lösch-Häkchen —
- * abgeleitete Ansicht über `GET /tasks?missed=1`, kein neuer Status. Je Aufgabe die drei
- * Aktionen „Neu planen" / „Archivieren" / „Löschen" und der Verschiebe-Zähler als Text-Badge
+ * abgeleitete Ansicht über `GET /tasks?missed=1`, kein neuer Status. Je Aufgabe die vier
+ * Aktionen „Erledigt" / „Neu planen" / „Archivieren" / „Löschen" und der Verschiebe-Zähler als Text-Badge
  * („N× verschoben", nur bei N ≥ 1 — AK3; Status nie allein über Farbe, WCAG 1.4.1). Bewusst
  * neutrale Tonalität ohne Warnfarbe (Muster `MissedTasksCard`). Liste statt Tabelle —
  * `KolTableStateful` wäre bei 375px unbedienbar (KI-UX #1964).
  */
-export const MissedTasksSection = ({ tasks, onEdit, onArchive, onDelete }: MissedTasksSectionProps) => {
+export const MissedTasksSection = ({ tasks, onComplete, onEdit, onArchive, onDelete }: MissedTasksSectionProps) => {
 	if (tasks.length === 0) {
 		return null;
 	}
@@ -45,6 +47,7 @@ export const MissedTasksSection = ({ tasks, onEdit, onArchive, onDelete }: Misse
 							)}
 						</div>
 						<div className="missed-item-actions">
+							<KolButton _label="Erledigt" _variant="primary" _on={{ onClick: () => onComplete(task) }} />
 							<KolButton _label="Neu planen" _variant="secondary" _on={{ onClick: () => onEdit(task) }} />
 							<KolButton _label="Archivieren" _variant="secondary" _on={{ onClick: () => onArchive(task) }} />
 							<KolButton

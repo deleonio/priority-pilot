@@ -55,7 +55,18 @@
 		"error": "Konnte nicht angelegt werden. Versuch es gleich noch einmal.",
 		"accept": "Vorschlag übernehmen",
 		"notNow": "Inte idag",
-		"dismiss": "Visa inte detta förslag igen"
+		"dismiss": "Visa inte detta förslag igen",
+		"reasonLegend": "Warum nicht jetzt?",
+		"reason": {
+			"tooBig": "Die Aufgabe ist mir gerade zu groß",
+			"notPossible": "Das passt gerade nicht",
+			"noEnergy": "Dafür fehlt mir gerade die Energie",
+			"waitingFor": "Ich warte noch auf jemanden",
+			"wrongPriority": "Das ist gerade nicht meine Priorität"
+		},
+		"skip": "Ohne Grund überspringen",
+		"cancel": "Abbrechen",
+		"saveReason": "Grund speichern"
 	},
 	"onboarding": {
 		"step": "Steg {{step}} av {{total}}",
@@ -85,9 +96,7 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
-		"importieren": "Importera uppgifter från Todoist eller en CSV",
-		"importHeading": "Ta med dina befintliga uppgifter?",
-		"importHint": "Valfritt: hämta dina uppgifter från Todoist eller en CSV-fil. Importen öppnar inställningarna och avslutar den här guiden."
+		"importieren": "Importera uppgifter från Todoist eller en CSV"
 	},
 	"weeklyCard": {
 		"label": "Min vecka i fem pelare",

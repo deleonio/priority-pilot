@@ -13,6 +13,7 @@ import { berechneLebensbalanceNachKadenz } from '../../logics/heartBalance.js';
 import { berechneBalanceVerlauf, istGueltigesDatum, zeitraumInTagen } from '../../logics/balanceHistory.js';
 import { resolvePillarDescription } from '../../models/pillarData.js';
 import CareSuggestionDismissal from '../../models/careSuggestionDismissal.js';
+import CareSuggestionRejection from '../../models/careSuggestionRejection.js';
 import type { PillarWithContribution } from '../../models/task.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import {
@@ -38,6 +39,7 @@ type BalanceStatusDto = components['schemas']['BalanceStatus'];
 type BalanceHistoryEntryDto = components['schemas']['BalanceHistoryEntry'];
 type MonthlyRecapDto = components['schemas']['MonthlyRecap'];
 type CareVorschlagDto = components['schemas']['CareVorschlag'];
+type CareRejectionDto = components['schemas']['CareSuggestionRejection'];
 
 /** Ein Zeitraum darf höchstens so viele Tage umfassen — deckelt die Antwortgröße von `/scores/balance/history`. */
 const MAX_BALANCE_HISTORY_TAGE = 366;
@@ -660,6 +662,84 @@ scoresRouter.post(
 			}
 			await protokolliereCareReaktion(userId, 'abgelehnt', [templateKey], abgelehntAm);
 			res.status(204).send();
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+		}
+	},
+);
+
+// Gründe der Grundauswahl „Nicht jetzt" (#1977) — sprachunabhängige Werte wie `templateKey`,
+// Anzeige-Texte kommen aus den Locales (`care.reason.*`).
+const REJECTION_GRUENDE = [
+	'zu-gross',
+	'gerade-nicht-moeglich',
+	'keine-energie',
+	'warte-auf-jemanden',
+	'falsche-prioritaet',
+] as const;
+
+// POST /scores/care-suggestions/rejections — „Nicht jetzt" mit Grund erfassen (#1977, AK2): jede
+// Entscheidung wird als eigener Eintrag mit sprachunabhängigem `grund` und genau einem Bezug
+// (`taskId` oder `templateKey`) erfasst; KI-Vorschläge ohne stabilen Schlüssel erreichen den
+// Endpoint nicht. Ungültige Payloads antworten 400, Historie je Aufgabe über GET abrufbar.
+scoresRouter.post(
+	'/scores/care-suggestions/rejections',
+	async (req: Request, res: Response<Record<string, never> | ErrorDto>) => {
+		try {
+			const grund = typeof req.body?.grund === 'string' ? req.body.grund : '';
+			if (!(REJECTION_GRUENDE as readonly string[]).includes(grund)) {
+				sendError(
+					res,
+					400,
+					'"grund" ist erforderlich (zu-gross, gerade-nicht-moeglich, keine-energie, warte-auf-jemanden, falsche-prioritaet).',
+				);
+				return;
+			}
+			const taskId =
+				typeof req.body?.taskId === 'number' && Number.isInteger(req.body.taskId) ? req.body.taskId : undefined;
+			const templateKey = typeof req.body?.templateKey === 'string' ? req.body.templateKey.trim() : '';
+			if ((taskId === undefined) === (templateKey === '')) {
+				sendError(res, 400, 'Genau ein Bezug ist erforderlich: "taskId" oder "templateKey".');
+				return;
+			}
+			const userId = getUserId(req);
+			const abgelehntAm = new Date();
+			await CareSuggestionRejection.create({
+				userId,
+				grund,
+				taskId: taskId ?? null,
+				templateKey: templateKey || null,
+				abgelehntAm,
+			});
+			// Wirkungsmessung (#1798) zählt nur Vorlagen-Schlüssel — Aufgaben-Ablehnungen bleiben ungezählt.
+			if (templateKey) {
+				await protokolliereCareReaktion(userId, 'abgelehnt', [templateKey], abgelehntAm);
+			}
+			res.status(204).send();
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+		}
+	},
+);
+
+// GET /scores/care-suggestions/rejections — Ablehnungs-Historie (#1977, AK4): ohne Filter alle
+// eigenen Einträge, mit `?taskId=` nur die einer Aufgabe (aufsteigend). Strenger `ownerScope` —
+// Einträge fremder Nutzer bleiben unsichtbar (leere Liste statt 403/404).
+scoresRouter.get(
+	'/scores/care-suggestions/rejections',
+	async (req: Request, res: Response<CareRejectionDto[] | ErrorDto>) => {
+		try {
+			const userId = getUserId(req);
+			const taskId =
+				typeof req.query.taskId === 'string' && req.query.taskId !== '' ? Number(req.query.taskId) : undefined;
+			const eintraege = await CareSuggestionRejection.findAll({
+				where: { ...ownerScope(userId), ...(Number.isInteger(taskId) ? { taskId } : {}) },
+				order: [
+					['abgelehntAm', 'ASC'],
+					['id', 'ASC'],
+				],
+			});
+			res.json(eintraege.map((eintrag) => ({ grund: eintrag.grund, abgelehntAm: eintrag.abgelehntAm.toISOString() })));
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}

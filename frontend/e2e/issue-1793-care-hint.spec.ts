@@ -96,14 +96,26 @@ test.describe('Dashboard — Fürsorge-Hinweis (Issue #1793)', () => {
 		await expect(page.getByTestId('care-hint')).toHaveCount(0);
 	});
 
-	test('AK4: „Heute nicht" blendet den Hinweis aus, auch nach Reload', async ({ page }) => {
+	// Test-Pflege #1977 (docs/spec/issue-1977.md): „Nicht jetzt“ öffnet heute die Grundauswahl
+	// und snoozed nur diesen Vorschlag bis Tagesende — der Hinweis verschwindet nicht mehr global,
+	// der gesnoozte Vorschlag bleibt auch nach Reload weg.
+	test('AK4: „Nicht jetzt“ ohne Grund snoozed nur diesen Vorschlag bis Tagesende, auch nach Reload', async ({
+		page,
+	}) => {
 		await openDashboard(page);
+		const hint = page.getByTestId('care-hint');
+		await expect(hint).toBeVisible();
+		const vorschlagVorher = await hint.locator('p').first().textContent();
+
 		await page.getByRole('button', { name: 'Heute nicht' }).click();
-		await expect(page.getByTestId('care-hint')).toHaveCount(0);
+		await page.getByRole('button', { name: 'Ohne Grund überspringen' }).click();
+		await expect(hint).not.toContainText(vorschlagVorher!);
 
 		await page.reload();
 		await waitForStableView(page);
-		await expect(page.getByTestId('care-hint')).toHaveCount(0);
+		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
+		await waitForStableView(page);
+		await expect(hint).not.toContainText(vorschlagVorher!);
 	});
 
 	test('AK7: bei 375 px passt der Hinweis ohne Überlauf, Aktionen ≥ 44 px hoch', async ({ page }) => {

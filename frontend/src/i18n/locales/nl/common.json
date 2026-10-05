@@ -55,7 +55,18 @@
 		"error": "Konnte nicht angelegt werden. Versuch es gleich noch einmal.",
 		"accept": "Vorschlag übernehmen",
 		"notNow": "Vandaag niet",
-		"dismiss": "Dit voorstel niet meer"
+		"dismiss": "Dit voorstel niet meer",
+		"reasonLegend": "Warum nicht jetzt?",
+		"reason": {
+			"tooBig": "Die Aufgabe ist mir gerade zu groß",
+			"notPossible": "Das passt gerade nicht",
+			"noEnergy": "Dafür fehlt mir gerade die Energie",
+			"waitingFor": "Ich warte noch auf jemanden",
+			"wrongPriority": "Das ist gerade nicht meine Priorität"
+		},
+		"skip": "Ohne Grund überspringen",
+		"cancel": "Abbrechen",
+		"saveReason": "Grund speichern"
 	},
 	"onboarding": {
 		"step": "Stap {{step}} van {{total}}",
@@ -85,9 +96,7 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
-		"importieren": "Taken importeren uit Todoist of een CSV",
-		"importHeading": "Bestaande taken meenemen?",
-		"importHint": "Optioneel: haal je taken uit Todoist of een CSV-bestand. De import opent de instellingen en beëindigt deze assistent."
+		"importieren": "Taken importeren uit Todoist of een CSV"
 	},
 	"weeklyCard": {
 		"label": "Mijn week in vijf pilaren",

@@ -55,7 +55,18 @@
 		"error": "Konnte nicht angelegt werden. Versuch es gleich noch einmal.",
 		"accept": "Vorschlag übernehmen",
 		"notNow": "Heute nicht",
-		"dismiss": "Diesen Vorschlag nicht mehr"
+		"dismiss": "Diesen Vorschlag nicht mehr",
+		"reasonLegend": "Warum nicht jetzt?",
+		"reason": {
+			"tooBig": "Die Aufgabe ist mir gerade zu groß",
+			"notPossible": "Das passt gerade nicht",
+			"noEnergy": "Dafür fehlt mir gerade die Energie",
+			"waitingFor": "Ich warte noch auf jemanden",
+			"wrongPriority": "Das ist gerade nicht meine Priorität"
+		},
+		"skip": "Ohne Grund überspringen",
+		"cancel": "Abbrechen",
+		"saveReason": "Grund speichern"
 	},
 	"onboarding": {
 		"step": "Schritt {{step}} von {{total}}",
@@ -85,9 +96,7 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
-		"importieren": "Aufgaben aus Todoist oder CSV importieren",
-		"importHeading": "Bestehende Aufgaben mitbringen?",
-		"importHint": "Optional: Hol deine Aufgaben aus Todoist oder einer CSV-Datei hierher. Der Import öffnet die Einstellungen und beendet diesen Assistenten."
+		"importieren": "Aufgaben aus Todoist oder CSV importieren"
 	},
 	"weeklyCard": {
 		"label": "Meine Woche in fünf Säulen",

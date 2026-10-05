@@ -55,7 +55,18 @@
 		"error": "Konnte nicht angelegt werden. Versuch es gleich noch einmal.",
 		"accept": "Vorschlag übernehmen",
 		"notNow": "Hoje não",
-		"dismiss": "Não mostrar mais esta sugestão"
+		"dismiss": "Não mostrar mais esta sugestão",
+		"reasonLegend": "Warum nicht jetzt?",
+		"reason": {
+			"tooBig": "Die Aufgabe ist mir gerade zu groß",
+			"notPossible": "Das passt gerade nicht",
+			"noEnergy": "Dafür fehlt mir gerade die Energie",
+			"waitingFor": "Ich warte noch auf jemanden",
+			"wrongPriority": "Das ist gerade nicht meine Priorität"
+		},
+		"skip": "Ohne Grund überspringen",
+		"cancel": "Abbrechen",
+		"saveReason": "Grund speichern"
 	},
 	"onboarding": {
 		"step": "Passo {{step}} de {{total}}",
@@ -85,9 +96,7 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
-		"importieren": "Importar tarefas do Todoist ou de um CSV",
-		"importHeading": "Trazer as tuas tarefas existentes?",
-		"importHint": "Opcional: traz as tuas tarefas do Todoist ou de um ficheiro CSV. A importação abre as definições e termina este assistente."
+		"importieren": "Importar tarefas do Todoist ou de um CSV"
 	},
 	"weeklyCard": {
 		"label": "A minha semana em cinco pilares",

@@ -2,9 +2,14 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.15 - 2026-10-04
+## v0.15 - 2026-10-05
 
-_Enthält v0.15.0 – v0.15.15._
+_Enthält v0.15.0 – v0.15.21._
+
+### 🎉 New Features
+
+- feat(frontend): capture reason for "not now" care hint (#1977) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2187
+- feat(server): add balance duo with shared streak for two (#1974) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2193
 
 ### 🐞 Bug Fixes
 
@@ -28,6 +33,10 @@ _Enthält v0.15.0 – v0.15.15._
 - feat(server): anonymous KPI events and admin evaluation (#1989) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2183
 - feat(frontend): import analysis report with duplicate merge (#1988) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2181
 - feat(frontend): monthly balance recap (#1995) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2185
+- chore(ci): remove ai:model label family and label-based model fallback by @deleonio in https://github.com/deleonio/priority-pilot/pull/2182
+- docs(skills): escalation ladder for a stalling pipeline (ticket-coordination) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2189
+- docs: add MCP guide page and README section (#1978) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2184
+- feat(frontend): done action for missed tasks, archive view, forest fix by @deleonio in https://github.com/deleonio/priority-pilot/pull/2188
 
 ## v0.14 - 2026-10-04
 
@@ -137,7 +146,6 @@ _Enthält v0.12.0 – v0.12.26._
 ### 🔧 Engineering
 
 - docs(skill): ticket-coordination theme scope and stale ai:needs-human by @deleonio in https://github.com/deleonio/priority-pilot/pull/2023
-- docs(adr): store prices set to web prices (#1800) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2024
 - docs(adr): store prices set to web prices (#1800) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2024
 - docs(skill): ticket-coordination pitfall triage finds ticket already fulfilled by @deleonio in https://github.com/deleonio/priority-pilot/pull/2028
 - docs(skill): pitfall for shared building block across two tickets by @deleonio in https://github.com/deleonio/priority-pilot/pull/2036
@@ -326,6 +334,7 @@ _Enthält v0.8.0 – v0.8.17._
 - feat(native): show wordmark splash with mark above and name below by @deleonio in https://github.com/deleonio/priority-pilot/pull/1773
 - feat(frontend): restructure login card and add website link by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1772
 - feat(frontend): login card hierarchy, german texts, website back link by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1775
+- Revert "feat(frontend): login card hierarchy, german texts, website back link" by @deleonio in https://github.com/deleonio/priority-pilot/pull/1776
 - Revert "feat(frontend): login card hierarchy, german texts, website back link" by @deleonio in https://github.com/deleonio/priority-pilot/pull/1776
 - feat(frontend): restructure login card hierarchy and labels (#1769) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1777
 

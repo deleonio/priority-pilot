@@ -3,7 +3,7 @@ import { waitForStableView } from './helpers';
 
 /**
  * E2E-Spec für #2063 (docs/spec/issue-2063.md): Fürsorge-Hinweis in der App-Sprache Englisch —
- * Knöpfe, Krisenhinweis (Nummer + tel:-Link wortgleich) und 375-px-Layout. Der Testnutzer hat
+ * Knöpfe und 375-px-Layout. Der Testnutzer hat
  * gesäte Säulen ohne erledigte Aufgaben — der Server liefert Vorschläge (Muster #1793). ROT,
  * bis `CareHint` seine Texte aus i18n zieht (heute hardcoded deutsch).
  */

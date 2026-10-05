@@ -55,7 +55,18 @@
 		"error": "Konnte nicht angelegt werden. Versuch es gleich noch einmal.",
 		"accept": "Vorschlag übernehmen",
 		"notNow": "Не сегодня",
-		"dismiss": "Больше не предлагать это"
+		"dismiss": "Больше не предлагать это",
+		"reasonLegend": "Warum nicht jetzt?",
+		"reason": {
+			"tooBig": "Die Aufgabe ist mir gerade zu groß",
+			"notPossible": "Das passt gerade nicht",
+			"noEnergy": "Dafür fehlt mir gerade die Energie",
+			"waitingFor": "Ich warte noch auf jemanden",
+			"wrongPriority": "Das ist gerade nicht meine Priorität"
+		},
+		"skip": "Ohne Grund überspringen",
+		"cancel": "Abbrechen",
+		"saveReason": "Grund speichern"
 	},
 	"onboarding": {
 		"step": "Шаг {{step}} из {{total}}",
@@ -85,9 +96,7 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
-		"importieren": "Импортировать задачи из Todoist или CSV",
-		"importHeading": "Перенести существующие задачи?",
-		"importHint": "По желанию: перенеси задачи из Todoist или CSV-файла. Импорт откроет настройки и завершит этот мастер."
+		"importieren": "Импортировать задачи из Todoist или CSV"
 	},
 	"weeklyCard": {
 		"label": "Моя неделя в пяти столпах",
