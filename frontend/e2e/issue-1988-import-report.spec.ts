@@ -1,4 +1,4 @@
-import { baseTest as test, expect, type Page } from './fixtures';
+import { expect, test, type Page } from '@playwright/test';
 
 /**
  * E2E für #1988 (Spec `docs/spec/issue-1988.md`, TF7): Nach dem Übernehmen zeigt die

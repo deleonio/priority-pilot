@@ -1,5 +1,4 @@
-import type { Route } from '@playwright/test';
-import { baseTest as test, expect, type Page } from './fixtures';
+import { expect, test, type Page, type Route } from '@playwright/test';
 import { openAccordionSection } from './helpers';
 
 /**

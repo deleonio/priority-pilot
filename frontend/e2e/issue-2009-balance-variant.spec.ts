@@ -1,5 +1,4 @@
-import type { BrowserContext } from '@playwright/test';
-import { baseTest as test, expect, type Locator, type Page } from './fixtures';
+import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import { waitForStableView } from './helpers';
 
 /**

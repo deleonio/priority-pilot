@@ -1,5 +1,5 @@
 import type { Locator, Page, Route } from '@playwright/test';
-import { baseTest as test, expect } from './fixtures';
+import { expect, test } from '@playwright/test';
 
 /**
  * Rote Spec-Tests (#190) für die Login-Page/Maske (Frontend-UI für Google OAuth).

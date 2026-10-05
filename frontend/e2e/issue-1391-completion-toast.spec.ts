@@ -1,5 +1,5 @@
 import type { Page, Route } from '@playwright/test';
-import { baseTest as test, expect } from './fixtures';
+import { expect, test } from '@playwright/test';
 
 /**
  * E2E-Smoke-Test (#1391, docs/spec/issue-1391.md AK6) für den In-App-Hinweis auf eine erledigte,
