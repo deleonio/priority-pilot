@@ -86,7 +86,7 @@ Never start labelling right after the call. First agree on focus and order with 
 | Next issue is free (all blockers closed) | set `ai:needs-analyse` |
 | `ai:needs-po-review` present, or a fresh KI-ANALYSE without it (sub-issues of a split carry only `ai:analysed`) | read KI-ANALYSE (Ampel, Offene Fragen) and the `ai-phase-routing` table; set the **first** phase with Run = ja: ux → `ai:needs-ux-ui`, else spec → `ai:needs-spec`, else `ai:needs-impl` |
 | Analysis has open questions or 🟡/🔴 | put the question to the author with the options from the analysis; do not route. Parser false alarms (constraints listed as questions) you clear yourself with a comment. A `<!-- ai-triage-decision -->` comment with `ai:needs-human` is the same case before any analysis: after the answer post it as a PO comment, then set `ai:analysed` + `ai:needs-analyse` without `ai:needs-human` |
-| `ai:needs-human` after a phase | read the run log first (section 4, item 3); only a real open question goes to the author |
+| `ai:needs-human` after a phase | read the run log first (section 4, item 3); only a real open question goes to the author — at once, in the same turn, as multiple choice (section 2a). A phase that could not write its block leaves its questions only in the run log's final output; take them from there |
 | `ai:continued` on the issue | soft abort at the time limit, the next run resumes — wait. A second run without push ends the attempt: section 7, rung 3 |
 | PR of the issue appears | subscribe to its activity immediately |
 | `ai:needs-human` on the PR | read the stop comment; fix small causes yourself (base merge, re-review), otherwise ask the author |
