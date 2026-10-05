@@ -25,7 +25,7 @@ test.describe('#2212 Journal', () => {
 		await expect(page.getByText('Erster Gedanke')).toBeVisible();
 
 		await page.getByRole('button', { name: /^Eintrag vom .* bearbeiten$/ }).click();
-		const editField = page.getByRole('textbox', { name: /Eintrag/ }).filter({ hasText: 'Erster Gedanke' });
+		const editField = page.getByRole('textbox', { name: /^Eintrag vom / });
 		await editField.fill('Geänderter Gedanke');
 		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
 		await expect(page.getByText('Geänderter Gedanke')).toBeVisible();

@@ -5854,3 +5854,43 @@ a.plan-badge:focus-visible {
 		min-height: 0;
 	}
 }
+
+/* Journal-Tab (#2212): eine Spalte, Formular über der Liste, Einträge als Zeilen mit Trennlinie. */
+.journal,
+.journal-form {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-space-4);
+}
+
+.journal-form__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--pp-space-3);
+}
+
+.journal__list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.journal__item {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-space-3);
+	padding: var(--pp-space-4) 0;
+	border-bottom: 1px solid var(--pp-border);
+}
+
+.journal__meta {
+	margin: 0;
+	font-size: var(--pp-font-size-sm);
+	color: var(--pp-ink-muted);
+}
+
+.journal__text {
+	margin: 0;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}

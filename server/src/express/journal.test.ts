@@ -2,6 +2,7 @@ import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer, registerOn, applyTestAuthEnv } from '../test/helpers.js';
 import { journalRouter } from './routes/journal.js';
+import { Pillar } from '../models/index.js';
 
 /**
  * Vertrag der Journal-API (#2212, docs/spec/issue-2212.md): pro Nutzer isolierte Einträge mit
@@ -127,8 +128,8 @@ describe('Journal API (#2212)', () => {
 		const cookie = await register('pillar-delete@example.com');
 		const pillarId = await firstPillarId(cookie);
 		await call(cookie, 'POST', '/journal', { text: 'bleibt', pillarId });
-		const del = await call(cookie, 'DELETE', `/pillars/${pillarId}`);
-		assert.ok(del.status < 300, `Säule löschen muss gelingen (war ${del.status})`);
+		// DELETE /pillars/:id ist seit #1573 gesperrt (403) — die Säule verschwindet nur serverseitig.
+		await Pillar.destroy({ where: { id: pillarId } });
 		const entries = await list(cookie);
 		assert.equal(entries.length, 1);
 		assert.equal(entries[0]!.pillarId, null);

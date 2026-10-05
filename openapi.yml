@@ -3937,6 +3937,89 @@ paths:
           $ref: '#/components/responses/PlanRequired'
         '404':
           $ref: '#/components/responses/NotFound'
+  /journal:
+    get:
+      summary: Journal-Einträge auflisten
+      description: >-
+        Liefert die Journal-Einträge des angemeldeten Nutzers (#2212), neuestes Datum zuerst —
+        ausschließlich die eigenen.
+      operationId: listJournalEntries
+      tags: [journal]
+      responses:
+        '200':
+          description: Liste der eigenen Journal-Einträge
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JournalEntry'
+    post:
+      summary: Journal-Eintrag anlegen
+      description: >-
+        Legt einen Journal-Eintrag an (#2212). Ohne `date` gilt der heutige Tag (UTC), ohne
+        `pillarId` bleibt der Eintrag ohne Säule. Kein Paket-Limit.
+      operationId: createJournalEntry
+      tags: [journal]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JournalEntryInput'
+      responses:
+        '201':
+          description: Angelegter Journal-Eintrag
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JournalEntry'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /journal/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Id des Journal-Eintrags
+    patch:
+      summary: Journal-Eintrag bearbeiten
+      description: >-
+        Ändert die mitgeschickten Felder eines eigenen Journal-Eintrags (#2212), gleiche
+        Prüfung wie beim Anlegen. Fremde oder unbekannte Einträge liefern 404.
+      operationId: updateJournalEntry
+      tags: [journal]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JournalEntryUpdate'
+      responses:
+        '200':
+          description: Geänderter Journal-Eintrag
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JournalEntry'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Journal-Eintrag löschen
+      description: >-
+        Entfernt einen eigenen Journal-Eintrag endgültig (#2212). Fremde oder unbekannte
+        Einträge liefern 404.
+      operationId: deleteJournalEntry
+      tags: [journal]
+      responses:
+        '204':
+          description: Journal-Eintrag gelöscht
+        '404':
+          $ref: '#/components/responses/NotFound'
   /auth/me:
     get:
       summary: Angemeldeten Nutzer lesen
@@ -5433,6 +5516,53 @@ components:
         longitude:
           type: number
           format: float
+          nullable: true
+    JournalEntry:
+      type: object
+      description: >-
+        Journal-Eintrag eines Nutzers (#2212). Verschwindet die Säule, wird `pillarId` zu null.
+      required: [id, text, date, pillarId]
+      properties:
+        id:
+          type: integer
+        text:
+          type: string
+        date:
+          type: string
+          format: date
+        pillarId:
+          type: integer
+          nullable: true
+    JournalEntryInput:
+      type: object
+      description: Eingabe zum Anlegen eines Journal-Eintrags (#2212).
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 3000
+        date:
+          type: string
+          format: date
+          description: Kalendertag; ohne Angabe der heutige Tag (UTC)
+        pillarId:
+          type: integer
+          nullable: true
+          description: Eigene Säule; null oder fehlend = keine Säule
+    JournalEntryUpdate:
+      type: object
+      description: Teiländerung eines Journal-Eintrags (#2212); nur mitgeschickte Felder ändern sich.
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 3000
+        date:
+          type: string
+          format: date
+        pillarId:
+          type: integer
           nullable: true
     Health:
       type: object

@@ -20,6 +20,7 @@ import GroupInviteLink from './groupInviteLink.js';
 import GroupChallenge from './groupChallenge.js';
 import ApiToken from './apiToken.js';
 import PlaceFavorite from './placeFavorite.js';
+import JournalEntry from './journalEntry.js';
 import AiUsage from './aiUsage.js';
 import Subscription from './subscription.js';
 import WebhookEvent from './webhookEvent.js';
@@ -115,6 +116,10 @@ Pillar.belongsToMany(Series, { through: SeriesPillar, foreignKey: 'pillarId', ot
 // erst über `externalSubscriptionId`).
 // `milestone_reached` steht für sich (einmal erreichte Meilenstein-Stände, Issue #1965) — pro
 // Nutzer über `userId` gefiltert, ohne Sequelize-Assoziation (Muster `api_tokens`).
+// Ein Journal-Eintrag (#2212) trägt höchstens EINE eigene Säule; verschwindet sie, bleibt der Eintrag
+// mit `pillarId = null` bestehen (ON DELETE SET NULL).
+JournalEntry.belongsTo(Pillar, { foreignKey: 'pillarId', onDelete: 'SET NULL' });
+
 // `group_challenges` (#1992) steht für sich — über `groupId` gefiltert, Mitgliedschaft prüft die Route.
 export {
 	Task,
@@ -139,6 +144,7 @@ export {
 	GroupChallenge,
 	ApiToken,
 	PlaceFavorite,
+	JournalEntry,
 	AiUsage,
 	Subscription,
 	WebhookEvent,

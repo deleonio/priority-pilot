@@ -28,6 +28,9 @@ import type {
 	MonthlyRecap,
 	PlaceFavorite,
 	PlaceFavoriteInput,
+	JournalEntry,
+	JournalEntryInput,
+	JournalEntryUpdate,
 	InviteLinkPreview,
 	InviteLinkRedeemResult,
 	ReceivedInvitation,
@@ -1615,6 +1618,40 @@ export const api = {
 	// Entfernt einen eigenen gespeicherten Ort endgültig.
 	async deletePlaceFavorite({ id }: { id: number }): Promise<void> {
 		const { error, response } = await client.DELETE('/place-favorites/{id}', { params: { path: { id } } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
+	// --- Journal (#2212) ---
+
+	// Eigene Journal-Einträge, neuestes Datum zuerst.
+	async listJournalEntries(init: Init = {}): Promise<JournalEntry[]> {
+		const { data, error, response } = await client.GET('/journal', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async createJournalEntry(entry: JournalEntryInput): Promise<JournalEntry> {
+		const { data, error, response } = await client.POST('/journal', { body: entry });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async updateJournalEntry(id: number, update: JournalEntryUpdate): Promise<JournalEntry> {
+		const { data, error, response } = await client.PATCH('/journal/{id}', { params: { path: { id } }, body: update });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async deleteJournalEntry({ id }: { id: number }): Promise<void> {
+		const { error, response } = await client.DELETE('/journal/{id}', { params: { path: { id } } });
 		if (!response.ok) {
 			throw new ResponseError(response, error);
 		}
