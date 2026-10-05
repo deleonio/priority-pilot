@@ -37,7 +37,7 @@ gh variable delete LLM_PROVIDER_DOCUMENTER           # → zurück auf den openr
 Die Free-Liste von OpenRouter ändert sich wöchentlich. Ist das eingetragene `:free`-Modell weg
 (`400 This model is unavailable for free`), die ID per Actions → „Set Agent Config“ →
 `openrouter-haiku-model` tauschen. Der Lauf ersetzt sie in `CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER`
-und `PI_MODEL_ALIASES` — die Modell-IDs stehen nur dort, nicht im Repo:
+und `PI_MODEL_ALIASES` (Override über den Repo-Defaults in `.github/pi/model-aliases.json`):
 
 ```bash
 gh workflow run set-agent-config.yml -f openrouter-haiku-model=<anbieter>/<modell>:free
@@ -93,13 +93,13 @@ Kill-Switch und Fail-closed-Verhalten: siehe [`tailscale-exit-node.md`](tailscal
 Seit #1184 ist die **Laufzeit** genauso eine Variable wie der Provider. Beide Achsen sind
 unabhängig:
 
-| `vars.AGENT_RUNTIME` | `vars.LLM_PROVIDER`   | Was läuft                                                      |
-| -------------------- | --------------------- | -------------------------------------------------------------- |
-| leer / `claude`      | `claude`              | Claude Code gegen Anthropic (Default)                          |
-| leer / `claude`      | `zai` \| `openrouter` | Claude Code gegen das jeweilige Backend                        |
-| `pi`                 | `claude`              | pi gegen Anthropic (nativ, `ANTHROPIC_API_KEY`)                |
-| `pi`                 | `zai`                 | pi gegen z.ai (nativ, `ZAI_API_KEY`)                           |
-| `pi`                 | `openrouter`          | pi gegen OpenRouter (nativ; Modell-IDs aus `PI_MODEL_ALIASES`) |
+| `vars.AGENT_RUNTIME` | `vars.LLM_PROVIDER`   | Was läuft                                                                                 |
+| -------------------- | --------------------- | ----------------------------------------------------------------------------------------- |
+| leer / `claude`      | `claude`              | Claude Code gegen Anthropic (Default)                                                     |
+| leer / `claude`      | `zai` \| `openrouter` | Claude Code gegen das jeweilige Backend                                                   |
+| `pi`                 | `claude`              | pi gegen Anthropic (nativ, `ANTHROPIC_API_KEY`)                                           |
+| `pi`                 | `zai`                 | pi gegen z.ai (nativ, `ZAI_API_KEY`)                                                      |
+| `pi`                 | `openrouter`          | pi gegen OpenRouter (nativ; Free-Modelle als Repo-Default, `PI_MODEL_ALIASES` = Override) |
 
 Ein unbekannter Wert bricht den Lauf ab — kein stiller Fallback, sonst liefe ein als pi-Test
 gemeinter Lauf unbemerkt auf Claude Code und die Messung wäre wertlos.
@@ -110,7 +110,7 @@ gemeinter Lauf unbemerkt auf Claude Code und die Messung wäre wertlos.
 
 **Warum beide in EINEM Workflow** (er ersetzt das frühere `set-provider.yml`): Laufzeit und
 Provider sind keine unabhängigen Schalter, sondern eine 2×3-Matrix. Manche Kombinationen
-scheitern erst zur Laufzeit — `pi` + `openrouter` ohne Einträge in `PI_MODEL_ALIASES`, oder `pi` +
+scheitern erst zur Laufzeit — `pi` + `openrouter` ohne openrouter-Einträge in Repo-Tabelle und `PI_MODEL_ALIASES`, oder `pi` +
 ein Anthropic-**OAuth**-Token (`sk-ant-oat…`), das pi nicht als API-Key verwerten kann. Der
 Workflow prüft genau diese Fälle **vor** dem Setzen (fail-closed, ohne den Secret-Wert zu loggen).
 Getrennte Workflows bräuchten zwei Dispatches für einen Wechsel und hätten keine Stelle, an der
@@ -175,7 +175,7 @@ Version nachgetragen wird. Details in [`.github/pi/README.md`](../.github/pi/REA
 
 Modelle: `.github/pi/model-aliases.json` bildet `fable|opus|sonnet|haiku` je Provider auf
 pi-Modellreferenzen ab (`anthropic/claude-opus-5-5`, `zai/glm-5.3`, …); `vars.PI_MODEL_ALIASES` legt
-sich darüber (der Weg für OpenRouter, dessen Modell-IDs bewusst nicht im Repo stehen). Fehlt ein
+sich darüber (Repo = Default, Variable = Override; der Weg, die OpenRouter-Free-Modelle zu tauschen). Fehlt ein
 Alias in beiden Quellen, bricht `setup-pi` ab.
 
 Eine eigene `models.json` gibt es bewusst **nicht**: pi kennt `anthropic`, `zai` und `openrouter`

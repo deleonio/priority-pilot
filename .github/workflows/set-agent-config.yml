@@ -134,20 +134,20 @@ jobs:
 
           [ "$RUNTIME" = "pi" ] || exit 0
 
-          # pi + openrouter: Die Modell-IDs stehen bewusst nicht im Repo (Source of Truth ist
-          # die Variable). Ohne Einträge bräche setup-pi beim Modell-Alias ab. Der Documenter
-          # (06-document.yml) nutzt LLM_PROVIDER_DOCUMENTER (Default openrouter) statt
-          # LLM_PROVIDER — er braucht die Einträge also auch bei LLM_PROVIDER=claude|zai.
+          # pi + openrouter: Die gemergte Alias-Tabelle (Repo-Default + PI_MODEL_ALIASES-Override,
+          # wie setup-pi) muss openrouter-Einträge haben, sonst bräche setup-pi beim Modell-Alias
+          # ab. Der Documenter (06-document.yml) nutzt LLM_PROVIDER_DOCUMENTER (Default
+          # openrouter) statt LLM_PROVIDER — er braucht die Einträge also auch bei
+          # LLM_PROVIDER=claude|zai.
           if [ "$PROVIDER" = "openrouter" ] || [ "$DOC_PROVIDER" = "openrouter" ]; then
-            count=0
-            if [ -n "$PI_MODEL_ALIASES" ]; then
-              count="$(printf '%s' "$PI_MODEL_ALIASES" | jq -r '(.openrouter // {}) | length' 2>/dev/null || echo 0)"
-            fi
+            overlay='{}'
+            [ -n "$PI_MODEL_ALIASES" ] && overlay="$PI_MODEL_ALIASES"
+            count="$(printf '%s' "$overlay" | jq -s '.[0] * .[1] | (.openrouter // {}) | length' .github/pi/model-aliases.json - 2>/dev/null || echo 0)"
             if [ "${count:-0}" -eq 0 ]; then
-              echo "::error title=pi + openrouter unvollständig::vars.PI_MODEL_ALIASES enthält keine openrouter-Einträge (gebraucht von LLM_PROVIDER=${PROVIDER}/Documenter=${DOC_PROVIDER}). setup-pi bräche beim Modell-Alias ab. Erst setzen, z. B.: gh variable set PI_MODEL_ALIASES --body '{\"openrouter\":{\"opus\":\"openrouter/<id>\",\"sonnet\":\"…\",\"haiku\":\"…\",\"fable\":\"…\"}}' (s. .github/pi/README.md)."
+              echo "::error title=pi + openrouter unvollständig::Weder .github/pi/model-aliases.json noch vars.PI_MODEL_ALIASES enthalten openrouter-Einträge (gebraucht von LLM_PROVIDER=${PROVIDER}/Documenter=${DOC_PROVIDER}). setup-pi bräche beim Modell-Alias ab (s. .github/pi/README.md)."
               exit 1
             fi
-            echo "::notice::pi + openrouter: ${count} Alias-Einträge in PI_MODEL_ALIASES gefunden."
+            echo "::notice::pi + openrouter: ${count} openrouter-Alias-Einträge (Repo + PI_MODEL_ALIASES) gefunden."
           fi
 
           # pi + claude: Anthropic kennt zwei Token-Typen. Das OAuth-Token aus

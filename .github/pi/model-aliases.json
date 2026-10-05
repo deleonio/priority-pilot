@@ -12,9 +12,9 @@
 		"haiku": "zai/glm-5.3-flash"
 	},
 	"openrouter": {
-		"fable": "nvidia/nemotron-3-ultra-550b-a55b:free",
-		"opus": "nvidia/nemotron-3-ultra-550b-a55b:free",
-		"sonnet": "poolside/laguna-s-2.1:free",
-		"haiku": "poolside/laguna-s-2.1:free"
+		"fable": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+		"opus": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+		"sonnet": "openrouter/poolside/laguna-s-2.1:free",
+		"haiku": "openrouter/poolside/laguna-s-2.1:free"
 	}
 }

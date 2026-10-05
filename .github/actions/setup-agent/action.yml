@@ -76,7 +76,7 @@ inputs:
     required: false
     default: ''
   pi-model-aliases-json:
-    description: 'Alias→Modell-Tabelle für pi als JSON-String (aus vars.PI_MODEL_ALIASES), gelegt über die eingecheckte .github/pi/model-aliases.json. Nur für runtime=pi relevant; der Weg für Provider, deren Modell-IDs bewusst nicht im Repo stehen (openrouter).'
+    description: 'Alias→Modell-Tabelle für pi als JSON-String (aus vars.PI_MODEL_ALIASES), gelegt über die eingecheckte .github/pi/model-aliases.json. Nur für runtime=pi relevant; Repo = Default, Variable = Override (z.B. andere openrouter-Modelle).'
     required: false
     default: ''
   compact-tokens:

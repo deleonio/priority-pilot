@@ -228,8 +228,7 @@ runs:
         set -uo pipefail
 
         # Alias-Tabelle: eingecheckte Datei als Basis, vars.PI_MODEL_ALIASES als Overlay.
-        # Grund fürs Overlay: Die OpenRouter-Modell-IDs stehen bewusst nicht im Repo (Source
-        # of Truth ist die GitHub-Variable, wie bei CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER).
+        # Repo = Default, vars.PI_MODEL_ALIASES = Override (z.B. andere OpenRouter-Modelle).
         TABLE="$(mktemp)"
         if [ -n "$ALIASES_JSON" ]; then
           if ! printf '%s' "$ALIASES_JSON" | jq -e . >/dev/null 2>&1; then

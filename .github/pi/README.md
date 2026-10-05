@@ -9,8 +9,8 @@ JSON kennt keine Kommentare — deshalb steht die Begründung hier.
 
 Alle drei Provider der Pipeline sind in pi **eingebaut**: `anthropic` (`ANTHROPIC_API_KEY`),
 `openrouter` (`OPENROUTER_API_KEY`) und — anders als bei Claude Code, wo z.ai über
-`ANTHROPIC_BASE_URL` umgebogen werden muss — auch `zai` (`ZAI_API_KEY`), inklusive der drei
-gebuchten Modelle `glm-5.3`, `glm-5-turbo` und `glm-4.7`. `setup-pi` setzt deshalb nur den Key.
+`ANTHROPIC_BASE_URL` umgebogen werden muss — auch `zai` (`ZAI_API_KEY`), inklusive der
+gebuchten Modelle `glm-5.3` und `glm-5.3-flash`. `setup-pi` setzt deshalb nur den Key.
 
 Ein eigener Custom-Provider in `models.json` wäre nicht bloß überflüssig, sondern schädlich:
 Mit `pi --list-models` nachgemessen liefert der eingebaute Eintrag für `glm-5.3` ein
