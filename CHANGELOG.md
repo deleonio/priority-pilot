@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.16 - 2026-10-05
 
-_Enthält v0.16.0 – v0.16.16._
+_Enthält v0.16.0 – v0.16.17._
 
 ### 🎉 New Features
 
@@ -16,6 +16,10 @@ _Enthält v0.16.0 – v0.16.16._
 ### 🐞 Bug Fixes
 
 - fix(website): translate footer templates label, drop unused field by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2204
+
+### 🚀 Improvements
+
+- feat(server): apply plan changes only after payment confirmation by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2220
 
 ### 🔧 Engineering
 
@@ -123,6 +127,7 @@ _Enthält v0.13.0 – v0.13.27._
 
 ### 🎉 New Features
 
+- feat(pillars): add main pillar mode for pillar distribution (#1962) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2053
 - feat(pillars): add main pillar mode for pillar distribution (#1962) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2053
 
 ### 🔧 Engineering
