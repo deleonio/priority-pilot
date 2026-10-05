@@ -30,8 +30,10 @@ const editDoneTask = async (page: Page): Promise<void> => {
 	await page.goto('/app/');
 	await waitForStableView(page);
 	await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
-	await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
-	await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
+	// Auf die eigene Zeile beschränkt: Im Shard liegen Aufgaben früherer Specs davor (#2235-Fixup).
+	const item = page.getByTestId(`task-list-item-${id}`);
+	await item.getByRole('button', { name: 'Weitere Aktionen' }).click();
+	await item.getByRole('button', { name: 'Bearbeiten' }).click();
 	await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
 	await waitForStableView(page);
 
