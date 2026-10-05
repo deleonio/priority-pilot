@@ -1,5 +1,6 @@
 import { KolDetails, KolAlert, KolBadge, KolButton, KolHeading, KolInputText, KolSpin } from '@public-ui/react-v19';
 import type {
+	Group,
 	GroupInviteLink,
 	GroupInvitation,
 	GroupMember,
@@ -13,6 +14,7 @@ import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { Modal } from './Modal';
 import { CopyButton } from './CopyButton';
+import { DuoCard } from './DuoCard';
 import { PlanBadge } from './PlanBadge';
 import { GroupChallengeCard } from './GroupChallengeCard';
 
@@ -39,6 +41,8 @@ const formatExpiry = (expiresAt: string): string =>
 type GroupDetailProps = {
 	groupId: number;
 	ownRole: GroupMember['role'];
+	/** Art der Gruppe (#1991): `duo` zeigt die Duo-Karte statt Mitglieder- und Aufgabenbereichen. */
+	kind?: Group['kind'];
 	/** Wechsel stößt ein Neuladen der Daten an (Klick auf die bereits aufgeklappte Gruppenkarte). */
 	refreshKey?: number;
 	/** DOM-Id des Detail-Containers — Ziel von `aria-controls` am Karten-Toggle (#1257). */
@@ -56,8 +60,11 @@ type GroupDetailProps = {
  * Die Suche ist bewusst KolInputText + eigene Ergebnisliste statt KolCombobox: @public-ui 4.3.0
  * hat keinen Filter-Hook für serverseitige Treffer (#1083).
  */
-export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetailProps) => {
+export const GroupDetail = ({ groupId, ownRole, kind = 'group', refreshKey = 0, id }: GroupDetailProps) => {
+	const isDuo = kind === 'duo';
 	const [members, setMembers] = useState<GroupMember[] | null>(null);
+	// Einladen nur für Admins; ein volles Duo (2 Mitglieder) lässt keine weitere Person zu (#1991, AK3).
+	const canInvite = ownRole === 'admin' && (!isDuo || (members?.length ?? 0) < 2);
 	const [invitations, setInvitations] = useState<GroupInvitation[]>([]);
 	// Füreinander angelegte Aufgaben (#1223): reine Lese-Ansicht, keine Aktionen je Eintrag.
 	// `null` = erster Ladevorgang — sonst blitzt der Leerzustand-Hinweis vor den ersten Daten auf.
@@ -93,11 +100,12 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 
 	const load = useCallback(async (): Promise<void> => {
 		try {
+			// Duo (#1991, AK2): keine Aufgaben- und Serienabfragen — nur Mitglieder und Einladungen.
 			const [loadedMembers, loadedInvitations, loadedTasks, loadedSeries] = await Promise.all([
 				api.getGroupMembers({ id: groupId }),
 				ownRole === 'admin' ? api.getGroupInvitations({ id: groupId }) : Promise.resolve([]),
-				api.getGroupTasks({ id: groupId }),
-				api.getGroupSeries({ id: groupId }),
+				isDuo ? Promise.resolve([]) : api.getGroupTasks({ id: groupId }),
+				isDuo ? Promise.resolve([]) : api.getGroupSeries({ id: groupId }),
 			]);
 			setMembers(Array.isArray(loadedMembers) ? loadedMembers : []);
 			setInvitations(Array.isArray(loadedInvitations) ? loadedInvitations : []);
@@ -107,6 +115,9 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 		} catch (reason) {
 			const apiError = await toApiError(reason);
 			setError(apiError.message);
+		}
+		if (isDuo) {
+			return;
 		}
 		// #1521 (AK6): Offene Gruppen-Aufgaben aus der normalen Aufgabenliste filtern — bewusst
 		// außerhalb des Haupt-Ladevorgangs: dieser Abschnitt ist Zusatzinformation und darf die
@@ -121,7 +132,7 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 		} catch {
 			setOpenGroupTasks([]);
 		}
-	}, [groupId, ownRole]);
+	}, [groupId, ownRole, isDuo]);
 
 	useEffect(() => {
 		void load();
@@ -261,9 +272,12 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 					<PlanBadge feature="groups" />
 					{/* #1992: Challenge oberhalb der Mitglieder — die häufige Aktion bleibt im Daumenbereich. */}
 					<GroupChallengeCard groupId={groupId} />
-					<KolHeading _label="Mitglieder" _level={4} />
+					{/* Duo (#1991): die Karte ersetzt Mitgliederliste und Aufgabenbereiche; `key` lädt sie beim
+					    „Daten auffrischen" neu. */}
+					{isDuo && <DuoCard key={refreshKey} groupId={groupId} />}
+					{!isDuo && <KolHeading _label="Mitglieder" _level={4} />}
 					<ul className="group-members">
-						{members.map((member) => (
+						{(isDuo ? [] : members).map((member) => (
 							<li key={member.userId} className="group-member">
 								<span className="group-member-name">{member.displayName}</span>
 								<KolBadge _label={roleLabel(member.role)} />
@@ -296,68 +310,72 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 							))}
 						</ul>
 					</KolDetails>
-					{/* #1521 (AK6): Offene Aufgaben, die an die ganze Gruppe gerichtet sind — jedes Mitglied
+					{!isDuo && (
+						<>
+							{/* #1521 (AK6): Offene Aufgaben, die an die ganze Gruppe gerichtet sind — jedes Mitglied
 					    kann sie erledigen. Abgegrenzt von „Füreinander angelegt" (#1223, Einzel-Empfänger). */}
-					<KolDetails _label="Offene Gruppen-Aufgaben" _level={4}>
-						<div data-testid="group-open-tasks">
-							{openGroupTasks === null ? (
-								<KolSpin _show _variant="cycle" _label="Offene Gruppen-Aufgaben werden geladen …" />
-							) : openGroupTasks.length === 0 ? (
-								<p className="hint">Für diese Gruppe ist gerade keine Aufgabe offen.</p>
-							) : (
-								<ul className="group-tasks">
-									{openGroupTasks.map((task) => (
-										<li key={task.id} className="group-task">
-											<div className="group-task-title">{task.title}</div>
-										</li>
-									))}
-								</ul>
-							)}
-						</div>
-					</KolDetails>
-					<KolDetails _label="Füreinander angelegt" _level={4}>
-						{tasks === null ? (
-							<KolSpin _show _variant="cycle" _label="Gruppen-Aufgaben werden geladen …" />
-						) : tasks.length === 0 ? (
-							<p className="hint">Noch hat niemand eine Aufgabe für ein anderes Mitglied angelegt.</p>
-						) : (
-							<ul className="group-tasks">
-								{tasks.map((task) => (
-									<li key={task.id} className="group-task">
-										{/* Je eigene Zeile (KI-UX #1223): Empfänger als Haupteintrag, Titel und Ersteller
+							<KolDetails _label="Offene Gruppen-Aufgaben" _level={4}>
+								<div data-testid="group-open-tasks">
+									{openGroupTasks === null ? (
+										<KolSpin _show _variant="cycle" _label="Offene Gruppen-Aufgaben werden geladen …" />
+									) : openGroupTasks.length === 0 ? (
+										<p className="hint">Für diese Gruppe ist gerade keine Aufgabe offen.</p>
+									) : (
+										<ul className="group-tasks">
+											{openGroupTasks.map((task) => (
+												<li key={task.id} className="group-task">
+													<div className="group-task-title">{task.title}</div>
+												</li>
+											))}
+										</ul>
+									)}
+								</div>
+							</KolDetails>
+							<KolDetails _label="Füreinander angelegt" _level={4}>
+								{tasks === null ? (
+									<KolSpin _show _variant="cycle" _label="Gruppen-Aufgaben werden geladen …" />
+								) : tasks.length === 0 ? (
+									<p className="hint">Noch hat niemand eine Aufgabe für ein anderes Mitglied angelegt.</p>
+								) : (
+									<ul className="group-tasks">
+										{tasks.map((task) => (
+											<li key={task.id} className="group-task">
+												{/* Je eigene Zeile (KI-UX #1223): Empfänger als Haupteintrag, Titel und Ersteller
 										    als Sekundärzeilen — Block-Elemente, damit lange Namen umbrechen (AK8). */}
-										<div className="group-task-recipient">{task.recipientName}</div>
-										<div className="group-task-title">{task.title}</div>
-										<div className="group-task-creator">{`von ${task.creatorName}`}</div>
-									</li>
-								))}
-							</ul>
-						)}
-					</KolDetails>
-					<KolDetails _label="Füreinander angelegte Serien" _level={4}>
-						{seriesList === null ? (
-							<KolSpin _show _variant="cycle" _label="Gruppen-Serien werden geladen …" />
-						) : seriesList.length === 0 ? (
-							<p className="hint">Noch hat niemand eine Serie für ein anderes Mitglied angelegt.</p>
-						) : (
-							<ul className="group-series">
-								{seriesList.map((series) => (
-									<li key={series.id} className="group-series-entry">
-										{/* Je eigene Zeile (KI-UX #1254): Eigentümer als Haupteintrag, Titel darunter,
+												<div className="group-task-recipient">{task.recipientName}</div>
+												<div className="group-task-title">{task.title}</div>
+												<div className="group-task-creator">{`von ${task.creatorName}`}</div>
+											</li>
+										))}
+									</ul>
+								)}
+							</KolDetails>
+							<KolDetails _label="Füreinander angelegte Serien" _level={4}>
+								{seriesList === null ? (
+									<KolSpin _show _variant="cycle" _label="Gruppen-Serien werden geladen …" />
+								) : seriesList.length === 0 ? (
+									<p className="hint">Noch hat niemand eine Serie für ein anderes Mitglied angelegt.</p>
+								) : (
+									<ul className="group-series">
+										{seriesList.map((series) => (
+											<li key={series.id} className="group-series-entry">
+												{/* Je eigene Zeile (KI-UX #1254): Eigentümer als Haupteintrag, Titel darunter,
 										    Rhythmus und Ersteller als Sekundärzeile — Block-Elemente, damit lange
 										    Namen bei 375 px umbrechen statt überlaufen (AK7). */}
-										<div className="group-series-owner">{series.ownerName}</div>
-										<div className="group-series-title">{series.title}</div>
-										<div className="group-series-meta">
-											{`${series.rhythm} · von ${series.creatorName}`}
-											{!series.active && <KolBadge _label="Ruhend" />}
-										</div>
-									</li>
-								))}
-							</ul>
-						)}
-					</KolDetails>
-					{ownRole === 'admin' && (
+												<div className="group-series-owner">{series.ownerName}</div>
+												<div className="group-series-title">{series.title}</div>
+												<div className="group-series-meta">
+													{`${series.rhythm} · von ${series.creatorName}`}
+													{!series.active && <KolBadge _label="Ruhend" />}
+												</div>
+											</li>
+										))}
+									</ul>
+								)}
+							</KolDetails>
+						</>
+					)}
+					{canInvite && (
 						/* Eigenes aufklappbares Element statt unbeschrifteter Sektion (#1257):
 						   standardmäßig zugeklappt, die Überschrift trägt den Zweck. */
 						<KolDetails _label="Mitglieder einladen" _level={4}>
@@ -391,7 +409,7 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 							</div>
 						</KolDetails>
 					)}
-					{ownRole === 'admin' && (
+					{canInvite && (
 						/* Eigenes aufklappbares Element mit eindeutigem Namen (#1257) — „Einladungslinks“
 						   statt „Einladungen“, um es von den offenen Einladungen zu unterscheiden. */
 						<KolDetails _label="Einladungslinks" _level={4}>
