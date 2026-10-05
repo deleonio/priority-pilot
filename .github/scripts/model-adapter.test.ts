@@ -118,7 +118,7 @@ describe('model-adapter.sh — resolve pi', () => {
 			const r = run(['resolve', '--runtime', 'pi', '--provider', 'zai', '--alias', alias]);
 			assert.equal(kv(r.stdout, 'resolved'), `zai/${ersatz}`);
 			assert.equal(kv(r.stdout, 'substituted'), 'true');
-			assert.match(r.stdout + r.stderr, new RegExp(`pi-Ersatzmodell.*${ersatz}`), 'Notice erklärt den Ersatz');
+			assert.match(r.stderr, new RegExp(`pi-Ersatzmodell.*${ersatz}`), 'Notice erklärt den Ersatz');
 		}
 	});
 

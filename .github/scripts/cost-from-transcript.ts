@@ -72,7 +72,7 @@ export const PRICES_USD_PER_MTOK: ReadonlyArray<readonly [string, number, number
 	.filter(([, def]) => def.price)
 	.map(([id, def]) =>
 		def.price!.currency === 'EUR'
-			? (eurRowToUsd([id, def.price!.in, def.price!.out] as const) as const)
+			? eurRowToUsd([id, def.price!.in, def.price!.out] as const)
 			: ([id, def.price!.in, def.price!.out] as const),
 	);
 

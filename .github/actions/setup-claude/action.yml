@@ -221,6 +221,15 @@ runs:
         ZAI_API_KEY="$(printf '%s' "$ZAI_API_KEY" | tr -d '[:space:]')"
         OPENROUTER_API_KEY="$(printf '%s' "$OPENROUTER_API_KEY" | tr -d '[:space:]')"
 
+        # settings.local.json über den Modell-Adapter bauen (05.10.): kanonische Quelle
+        # .github/models.json + Formatierung im Adapter — dieselbe Stelle wie unter pi.
+        # Die früheren Vars CLAUDE_CODE_SETTINGS_LOCAL_* sind eingestellt; Modellwechsel
+        # = eine Zeile in models.json.
+        build_settings_local() {
+          bash .github/scripts/model-adapter.sh settings-local --provider "$1" > .claude/settings.local.json
+          echo "::notice::settings.local.json via model-adapter aus .github/models.json gebaut (Provider: $1)."
+        }
+
         case "$PROVIDER" in
           claude)
             if [ -z "$CLAUDE_API_KEY" ]; then
@@ -269,15 +278,6 @@ runs:
             echo "::notice::OpenRouter: CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1 gesetzt (unbekannte Modelle erlaubt)."
             ;;
         esac
-
-        # settings.local.json über den Modell-Adapter bauen (05.10.): kanonische Quelle
-        # .github/models.json + Formatierung im Adapter — dieselbe Stelle wie unter pi.
-        # Die früheren Vars CLAUDE_CODE_SETTINGS_LOCAL_* sind eingestellt; Modellwechsel
-        # = eine Zeile in models.json.
-        build_settings_local() {
-          bash .github/scripts/model-adapter.sh settings-local --provider "$1" > .claude/settings.local.json
-          echo "::notice::settings.local.json via model-adapter aus .github/models.json gebaut (Provider: $1)."
-        }
 
         # Phasen-Modell (#511): Alias fable|opus|sonnet|haiku providerspezifisch aufloesen.
         # claude (nativ) erhaelt die konkrete Modell-ID via --model (resolve-invoke); zai/

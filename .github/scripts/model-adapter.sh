@@ -90,7 +90,7 @@ case "$CMD" in
       RESOLVED="$PROVIDER/$TARGET"
       pi_catalog_ok "$RESOLVED" \
         || die_conf "pi-Katalog-Verstoß: '$RESOLVED' ist in pi nicht eingebaut (pi --list-models) — pi würde STILL auf seinen Default zurückfallen. tiers.pi auf ein eingebautes Modell setzen (s. .github/pi/README.md)."
-      [ "$SUBSTITUTED" = "true" ] && echo "::notice title=pi-Ersatzmodell::Alias '$ALIAS' läuft unter pi als '$TARGET' (statt '$CANONICAL' — pi kennt es nicht; deklariert in models.json tiers)."
+      [ "$SUBSTITUTED" = "true" ] && echo "::notice title=pi-Ersatzmodell::Alias '$ALIAS' läuft unter pi als '$TARGET' (statt '$CANONICAL' — pi kennt es nicht; deklariert in models.json tiers)." >&2
       echo "canonical=$TARGET"
       echo "resolved=$RESOLVED"
       echo "substituted=$SUBSTITUTED"
