@@ -7,6 +7,7 @@ import { Group, GroupMember, Pillar, ScoreEntry, Task, TaskPillar, User } from '
 import { wouldCreateCycle } from '../../logics/cycle.js';
 import { haversineKm } from '../../logics/geo.js';
 import { selectSeriesRepresentatives } from '../../logics/series.js';
+import { ZURUECKSTELLEN_STUNDEN } from '../../logics/find.js';
 import { berechneScore } from '../../logics/score.js';
 import {
 	PillarContribution,
@@ -1184,6 +1185,28 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 		}
 		try {
 			await task.update({ archivedAt: new Date() });
+			const withPillars = await findTaskWithPillars(task.id);
+			if (!withPillars) {
+				sendError(res, 404, 'Task nicht gefunden.');
+				return;
+			}
+			res.json(serializeTask(withPillars));
+		} catch (error) {
+			handleWriteError(res, error);
+		}
+	});
+
+	// POST /tasks/:id/snooze — Aufgabe kurz zurückstellen (#2244): der Server setzt `snoozedUntil`, kein
+	// Verschieben (`postponeCount` bleibt unberührt, deshalb kein PUT).
+	tasksRouter.post('/tasks/:id/snooze', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
+		const id = parseId(req.params.id);
+		const task = id === null ? null : await findOwnTask(id, getUserId(req));
+		if (!task) {
+			sendError(res, 404, 'Task nicht gefunden.');
+			return;
+		}
+		try {
+			await task.update({ snoozedUntil: new Date(Date.now() + ZURUECKSTELLEN_STUNDEN * 3_600_000) });
 			const withPillars = await findTaskWithPillars(task.id);
 			if (!withPillars) {
 				sendError(res, 404, 'Task nicht gefunden.');

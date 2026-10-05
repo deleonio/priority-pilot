@@ -62,7 +62,7 @@ test.describe('#2244 „Kurz zurückstellen" in „Nächste Aufgabe"', () => {
 		expect(snoozeBox!.width).toBeGreaterThanOrEqual(44);
 		expect(snoozeBox!.height).toBeGreaterThanOrEqual(44);
 		expect(snoozeBox!.x + snoozeBox!.width).toBeLessThanOrEqual(375);
-		expect(Math.abs(snoozeBox!.y - doneBox!.y)).toBeLessThan(doneBox!.height, 'einzeilig neben „Erledigen"');
+		expect(Math.abs(snoozeBox!.y - doneBox!.y), 'einzeilig neben „Erledigen"').toBeLessThan(doneBox!.height);
 
 		await snooze.focus();
 		await page.keyboard.press('Enter');

@@ -17,6 +17,7 @@ import {
 	migrateCategoryIdColumns,
 	migrateTaskPinnedColumns,
 	migrateTaskMissedColumns,
+	migrateTaskSnoozeColumn,
 	migratePillarRecalcColumns,
 	migrateTaskGroupId,
 	migratePlaceFavoriteDropName,
@@ -361,6 +362,7 @@ describe('migrateUserIdColumns', () => {
 		await migratePillarRecalcColumns(sequelize);
 		await migrateTaskGroupId(sequelize); // #1521: Gruppen-Spalte, ebenfalls von Task.findAll mitselektiert
 		await migrateTaskMissedColumns(sequelize); // #1964 (Test-Pflege): Zähler/Archiv, ebenfalls von Task.findAll mitselektiert
+		await migrateTaskSnoozeColumn(sequelize); // #2244 (Test-Pflege): snoozedUntil, ebenfalls von Task.findAll mitselektiert
 		await sequelize.sync();
 
 		await assert.doesNotReject(

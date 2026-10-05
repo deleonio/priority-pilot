@@ -27,7 +27,9 @@
 		"add": "Toevoegen",
 		"remove": "Verwijderen",
 		"select": "Selecteren",
-		"back": "Terug"
+		"back": "Terug",
+		"snooze": "Even uitstellen",
+		"snoozed": "Taak even uitgesteld. Ze komt later terug."
 	},
 	"status": {
 		"open": "Open",

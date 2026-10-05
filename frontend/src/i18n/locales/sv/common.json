@@ -27,7 +27,9 @@
 		"add": "Lägg till",
 		"remove": "Ta bort",
 		"select": "Välj",
-		"back": "Tillbaka"
+		"back": "Tillbaka",
+		"snooze": "Lägg undan en stund",
+		"snoozed": "Uppgiften är undanlagd. Den kommer tillbaka senare."
 	},
 	"status": {
 		"open": "Öppen",

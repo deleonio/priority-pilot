@@ -27,7 +27,9 @@
 		"add": "Aggiungi",
 		"remove": "Rimuovi",
 		"select": "Seleziona",
-		"back": "Indietro"
+		"back": "Indietro",
+		"snooze": "Metti da parte per un po’",
+		"snoozed": "Attività messa da parte. Tornerà più tardi."
 	},
 	"status": {
 		"open": "Aperto",

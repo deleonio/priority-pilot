@@ -810,6 +810,34 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		[reload],
 	);
 
+	// „Kurz zurückstellen" (#2244): Server blendet die Aufgabe 3 h aus /next und /suggestions aus; danach
+	// laden beide neu. Der Doppelklick-Schutz wird in jedem `finally` zurückgesetzt, die Ansage geht an
+	// eine Screenreader-Region (die Karte wechselt sonst still).
+	const snoozing = useRef(false);
+	const [snoozeNotice, setSnoozeNotice] = useState('');
+	const handleSnoozeTask = useCallback(
+		(task: Task): void => {
+			if (snoozing.current) {
+				return;
+			}
+			snoozing.current = true;
+			void (async () => {
+				try {
+					setUpdateError(null);
+					await api.snoozeTask({ id: task.id });
+					await reload();
+					setSnoozeNotice(t('common:actions.snoozed'));
+				} catch (reason) {
+					const apiError = await toApiError(reason);
+					setUpdateError(apiError.message);
+				} finally {
+					snoozing.current = false;
+				}
+			})();
+		},
+		[reload, t],
+	);
+
 	// „Erledigt" im Verpasst-Bereich: immer erst die Nachfrage „erst jetzt erledigt?" (Dialog).
 	const handleCompleteMissed = useCallback((task: Task): void => setDialog({ kind: 'missedComplete', task }), []);
 
@@ -1254,17 +1282,23 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 									{dashboardView === 'week' ? (
 										<WeekView tasks={tasks} nextTask={nextTask} suggestions={suggestions} onSelectDay={selectWeekDay} />
 									) : (
-										<Dashboard
-											tasks={tasks}
-											forest={forest}
-											nextTask={nextTask}
-											suggestions={suggestions}
-											pillars={pillars}
-											displayName={user.displayName}
-											onCompleteTask={openComplete}
-											onEditTask={openEdit}
-											showDayDoneHint={activeTab === 0}
-										/>
+										<>
+											<Dashboard
+												tasks={tasks}
+												forest={forest}
+												nextTask={nextTask}
+												suggestions={suggestions}
+												pillars={pillars}
+												displayName={user.displayName}
+												onCompleteTask={openComplete}
+												onEditTask={openEdit}
+												onSnoozeTask={handleSnoozeTask}
+												showDayDoneHint={activeTab === 0}
+											/>
+											<p aria-live="polite" className="visually-hidden">
+												{snoozeNotice}
+											</p>
+										</>
 									)}
 									{/* #1964: Verpasst-Bereich — Dashboard-Tab: unter dem Inhalt (nicht als erstes), Aufgaben-Tab: über der Liste.
 								    Nur im aktiven Tab gerendert (KolTabs hält inaktive Panels im DOM, sonst doppelte Test-IDs). */}

@@ -27,7 +27,9 @@
 		"add": "Add",
 		"remove": "Remove",
 		"select": "Select",
-		"back": "Back"
+		"back": "Back",
+		"snooze": "Snooze for a while",
+		"snoozed": "Task snoozed. It will come back later."
 	},
 	"status": {
 		"open": "Open",
