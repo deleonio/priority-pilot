@@ -84,17 +84,17 @@ For an oversized issue:
 **Container closing analysis (epic or group):** A container whose sub-issues are all closed gets a final analysis. Read its
 body (goals, rank table), its comments (PO notes on follow-up work) and the closed sub-issues
 with their PRs, and compare them with the codebase. Goals or follow-up work no ticket covers
-become new sub-issues under the container (procedure above; the recursion guard applies to them). Put the result as a machine-readable marker block into the harness comment, inside the KI-ANALYSE block (the pipeline's post step reads it from there and only applies it if the comment was updated in this run; it turns it into
+become new sub-issues under the container (procedure above; the recursion guard applies to them). Output the result as a machine-readable marker block (the pipeline's post step turns it into
 real issues/links/closes with the App token — #2101; before that, the coordinator did it by hand):
 
     <!-- ai-container-result:START -->
     ```json
-    {"result":"followup","tickets":[{"title":"[P2/M] …","body":"### Was ist das Problem?\n…","blockedBy":[1234]}],"existing":[1300]}
+    {"result":"followup","tickets":[{"title":"[P2/M] …","body":"### Was ist das Problem?\n…","blockedBy":[1234]}]}
     ```
     <!-- ai-container-result:END -->
 
 Follow-up tickets: title with priority prefix, template-conformant body (the four sections,
-`\n` for line breaks), `blockedBy` = array of existing issue numbers (may be empty). Before drafting a new ticket, match the open issues (as ticket-import does); a fitting open issue goes into `existing` (numbers, attached as sub-issues under the container) instead of a duplicate — `tickets` may then be empty. Fulfilled
+`\n` for line breaks), `blockedBy` = array of existing issue numbers (may be empty). Fulfilled
 container: `{"result":"closed","reason":"one line with the closed sub-issues/PRs as evidence"}`.
 Omit the marker entirely for normal tickets. If this run may not create issues, post each one
 as a complete, template-conformant draft (title with priority prefix, body) in the decision
