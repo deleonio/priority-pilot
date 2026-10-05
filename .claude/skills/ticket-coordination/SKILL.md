@@ -33,8 +33,9 @@ measured against it:
   until after go-live; say so when ordering, do not drop them silently. The author can pull one
   forward explicitly — then it is in focus.
 - **Proactive gap checks:** do not wait for tickets to exist. When a focus area has no open
-  tickets or the author doubts it works, run a read-only audit through a subagent (flows walked
-  end to end in code, existing tests run, suspected bugs proven with a throwaway test), show
+  tickets or the author doubts it works, run an audit through a subagent (flows walked end to
+  end in code, existing tests run, suspected bugs proven with a throwaway test that is never
+  committed; nothing pushed), show
   the ranked findings and the product decisions they need, and create tickets only after the
   author's release.
 - **Ticket test:** for each issue ask "is the app worse at market launch without it?" Yes →
@@ -49,7 +50,7 @@ phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
 Never start labelling right after the call. First agree on focus and order with the author:
 
 1. **Focus.** Confirm the epics, issues or themes the call names; ask only when it names nothing
-   or "alles". Then propose a focused set from the mission's focus areas — open issues mapped to
+   or "alles" — then propose a focused set from the mission's focus areas — open issues mapped to
    them, nearly finished containers (section 1, item 6), anything repairing main — and let the
    author pick. Name what stays out (features after go-live) and why.
 2. **Frame.** Ask once for the parallel limit, tickets not to touch (manual, the author's own,
@@ -188,7 +189,7 @@ wall of text — offer a decision round and go through the parked issues one by 
    signature in a ticket, never send the PR into fixup for it. A new UI element (an extra
    select, a second dialog) that breaks a foreign e2e locator is the PR's own fault, not a flake:
    post the CI cause as an inline thread on the touched file so the fixup reads it.
-3. **Phase ended without a usable result.** Three forms:
+3. **Phase ended without a usable result.** Four forms:
    - No verdict, no branch, no PR, trigger still attached → re-arm the trigger once (remove,
      add). A second failure goes to the author with the cause from the run log.
    - `ai:needs-human` although the work is done: the agent could not write its result (blocked
@@ -199,8 +200,12 @@ wall of text — offer a decision round and go through the parked issues one by 
      take them from the log and ask the author.
    - A phase reports success but its block is missing (seen with UX: the block write was
      denied, the verdict still passed and the next phase started without the input). After
-     every UX run check that its block is in the harness comment; if not, post the run log's
-     final output as a PO comment before spec and implementation read the issue.
+     every UX run check that its block is in the harness comment. Spec and implementation read
+     the UX result only from there, a plain PO comment does not reach them. If it is missing:
+     take the next phase's trigger off (only while that phase has not started), write the run
+     log's final output as the block between the UX markers of the harness comment, then set
+     the trigger again. If the next phase already ran, check the PR against the UX result and
+     post every gap as an inline review thread, so the fixup picks it up.
    - Triage finds the ticket already fulfilled (typical after the blocker's PR covered it): it
      posts the evidence as a plain comment, the run ends red and `ai:needs-analyse` stays. Check
      the evidence (file:line, tests), close the issue as completed with a short PO comment, drop
