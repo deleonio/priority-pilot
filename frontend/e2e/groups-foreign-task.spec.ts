@@ -199,7 +199,11 @@ test.describe('Aufgabe für ein Gruppenmitglied (#1213)', () => {
 			await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 			await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 
-			// Hinweis „Für: …" in der Liste bleibt im Viewport.
+			// Hinweis „Für: …" in der Liste bleibt im Viewport. Neu laden wie issue-1222-series-recipient:
+			// Nach dem Schließen kehrt der Fokus auf „Neuen Task anlegen" zurück, dessen Tooltip bei 375 px
+			// den Tab „Aufgaben" überdeckt und den Klick abfängt.
+			await page.reload();
+			await waitForStableView(page);
 			await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 			await expectWithinViewport(page, 'Für-Hinweis', page.getByText(/Für: /));
 
