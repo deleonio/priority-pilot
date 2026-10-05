@@ -8,12 +8,23 @@ Mechanik im Detail steht in [ci-architecture.md](./ci-architecture.md) und
 
 ## Die vier Hebel
 
-| Hebel               | Stellschraube                                                                              | Wirkt auf                            | Entscheidung folgt                      |
-| ------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------ | --------------------------------------- |
-| Provider/Modell     | `vars.LLM_PROVIDER`, `ai-phase-routing`-Tabelle (Harness-Kommentar), `vars.CLAUDE_MODEL_*` | Kosten/Lauf, Qualität                | `[agent-setup-vergleich]` + Kosten-KPIs |
-| Agent-Runtime       | `vars.AGENT_RUNTIME` (claude\|pi)                                                          | Kosten/Lauf, Fail-Quoten, Laufzeiten | `[agent-setup-vergleich]`               |
-| Concurrency         | Gruppen in `01`–`06` + `team.yml` (jeweils `group:`, `queue: max`)                         | Durchsatz (Issues/Tag)               | Slot-Auslastung, Warte-Lücken           |
-| Wiederholungs-Logik | `resolve-escalation.sh`, `fixup-rounds.sh`, `fixup-verdict.sh`, `MAX_FIXUP_ROUNDS`         | Kosten der Nacharbeit, Eskalation    | Fixup-Quote, Runden-Zähler              |
+| Hebel               | Stellschraube                                                                              | Wirkt auf                            | Entscheidung folgt                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------ | --------------------------------------------------------------------------- |
+| Provider/Modell     | `vars.LLM_PROVIDER`, `ai-phase-routing`-Tabelle (Harness-Kommentar), `vars.CLAUDE_MODEL_*` | Kosten/Lauf, Qualität                | `[agent-setup-vergleich]` + Kosten-KPIs — Abrechnungsmodell beachten, s. u. |
+| Agent-Runtime       | `vars.AGENT_RUNTIME` (claude\|pi)                                                          | Kosten/Lauf, Fail-Quoten, Laufzeiten | `[agent-setup-vergleich]`                                                   |
+| Concurrency         | Gruppen in `01`–`06` + `team.yml` (jeweils `group:`, `queue: max`)                         | Durchsatz (Issues/Tag)               | Slot-Auslastung, Warte-Lücken                                               |
+| Wiederholungs-Logik | `resolve-escalation.sh`, `fixup-rounds.sh`, `fixup-verdict.sh`, `MAX_FIXUP_ROUNDS`         | Kosten der Nacharbeit, Eskalation    | Fixup-Quote, Runden-Zähler                                                  |
+
+## Abrechnungsmodell — valueCost ist nicht Kasse
+
+Der Anthropic-Zugang läuft über ein **Abo** (Flat), nicht per-Use-Token; ZAI und OpenRouter
+sind echte Pay-per-Use-APIs. `cost`/`valueCost` in `.costs/` ist deshalb eine
+**Vergleichswährung** (Token-Attribution zu Listenpreisen), die alle Setups vergleichbar
+macht — echtes Geld kostet nur, was über ZAI/OpenRouter läuft. Unter Abo-Betrachtung ist
+CC+Anthropic der reale Kostensieger, begrenzt durch das **Abo-Limit** (Rate-Limits/
+Usage-Fenster) statt durch den Tokenpreis — `llm-limit-detect` (#1954) ist dafür der
+Sensor, ZAI dient als Overflow. Beim Lesen der Auswertungen immer trennen: valueCost =
+Verbrauch vergleichend, Kasse = nur Pay-per-Use-Provider.
 
 Es gibt genau **eine Quelle je Information**: Modellwahl = Routing-Tabelle (Label-Familie
 `ai:model:*` wurde 04.10. abgeschafft, s. u.), Phasen-Trigger = Label-Kette, Durchsatz-Signal =
@@ -52,12 +63,47 @@ Modellquelle; ohne Tabelle fail-open der Phasen-Default (statt Abbruch + Parken)
 `resolve-model-label.sh` + Action gelöscht; manuelle Overrides über Body-Edit der Tabelle
 oder `vars.CLAUDE_MODEL_*`.
 
+**04./05.10. — ZAI-Aliase: pi kennt glm-5.3-flash nicht (Korrektur,
+[#2198](https://github.com/deleonio/priority-pilot/pull/2198)).**
+`pi` mappte `sonnet` seit dem Pilot (#1184) auf **glm-5-turbo** — belegt durch 192 der
+289 pi+zai-Läufe in den `.costs` (die sauberen `glm-5.3-flash`-Einträge stammen aus der
+CC+ZAI-Ära am 02.10.-Morgen). Der manuelle Datei-Edit auf `glm-5.3-flash` (04.10.) wirkte
+**nicht**: pi kennt nur die drei eingebauten zai-Modelle (`glm-5.3`, `glm-5-turbo`,
+`glm-4.7`, s. `pi --list-models`) und fiel bei der unbekannten ID **still** auf den
+Default zurück — 35 weitere turbo-Läufe bis zum Runtime-Wechsel, kein Fehler, kein Log.
+Lehren: (1) pi-Formen in `model-settings.json` dürfen nur IDs aus `pi --list-models`
+tragen; (2) der glm-5.3-flash-Wunsch wirkt nur in der cc-Form (Claude Code); (3) ein
+stiller Fallback ist schlimmer als ein lauter Abbruch — pi bricht bei unbekannter ID
+noch nicht laut (Kandidat für einen Folge-Guard in setup-pi). openrouter zeigt auf die
+Free-Models-Collection.
+
 **04.10. — Wiederholungs-Eskalation.** Die alte Auto-Eskalation hing am Label-Pfad und fiel
 mit der Abschaffung weg — sie zieht in den Tabellen-Pfad: ab **Fixup-Runde 2** stuft
 `resolve-escalation.sh` (`--rounds` aus `fixup-rounds.sh count`) Modell und Effort des
 Tabellen-Modells je eine Stufe hoch (`sonnet→opus`, `medium→high`; ab `opus` nur Effort).
 Runde 1 = normaler Review→Fixup-Zyklus ohne Signal; Zählfehler fail-open. `ai:continued`
 (Soft-Abort) bleibt das zweite Signal. Die in ADR 0004 dokumentierte Lücke ist geschlossen.
+
+**05.10. — Concurrency pro Ticket ([#2199](https://github.com/deleonio/priority-pilot/pull/2199)).**
+Nach dem Phasen-Split (#2171) der zweite Schritt: Der Key ist das Ticket, nicht die Phase —
+Lane A `harness-<Issue-Nr.>` (Triage/UX/Spec/Implement), Lane B `harness-pr-<Head-Branch>`
+(Review/Fixup; lokale PRs ohne Issue laufen über ihren Feature-Branch). Beliebig viele
+Tickets laufen voll parallel; der Koordinator steuert den Durchsatz allein über den Zulauf.
+Puffer an der A→B-Grenze: Review-CI-Wait. Residual-Risiko B→A (Re-Triage während Review/
+Fixup) dokumentiert in `01-triage.yml`; der Documenter bleibt statisch (.costs-Seals).
+
+**05.10. — Eine Modell-Settings-Quelle + pi ohne Anthropic
+([#2203](https://github.com/deleonio/priority-pilot/pull/2203)).** Die drei bisherigen
+Quellen (`.github/model-ids.json`, `.github/pi/model-aliases.json`, Vars
+`CLAUDE_CODE_SETTINGS_LOCAL_*` / `PI_MODEL_ALIASES`) sind in
+**`.github/model-settings.json`** aufgegangen: je Provider und Alias eine `cc`-Form und
+eine `pi`-Form. Matrix: **Claude Code ↔ alle 3 Provider, pi ↔ nur zai|openrouter**;
+`runtime=pi` + `provider=claude` bricht laut (setup-agent-Guard, set-agent-config prüft
+vorab). Die drei alten Vars können gelöscht werden.
+
+**05.10. (Nacht) — Runtime-Schalter auf Claude Code + Anthropic.** Der Koordinator hat
+`AGENT_RUNTIME=claude` und `LLM_PROVIDER=claude` gesetzt (Abo-Flat statt ZAI per-use). Die
+ZAI/pi-Erkenntnisse bleiben dokumentiert und wirken bei Rückkehr von pi.
 
 ## Wie messen (Reproduktion)
 
@@ -74,12 +120,14 @@ Runde 1 = normaler Review→Fixup-Zyklus ohne Signal; Zählfehler fail-open. `ai
 - **Wiederholungen:** `fixup-rounds.sh count --repo … --pr …` (count = aktuelle Runde);
   Review-Fail-Quote aus den `05-review`-Run-Conclusionen.
 
-## Offene Hebel und KPIs (Stand 04.10.)
+## Offene Hebel und KPIs (Stand 05.10.)
 
 1. **PI v1 KPIs** (sonst Rückwechsel auf CC+ZAI per `gh variable set`): Review-Fail < 10 %,
    Implement-Median < 40 min, Turns/Lauf < 25, Fixup < $0,70.
-2. **`llm-impl`-Besetzung** nach der Entkopplung beobachten: dauerhaft ~1 ⇒ nächster Schritt
-   (team in eigene Gruppe oder Spec-Kopplung prüfen).
+2. **Slot-Grenzen hosted:** Die pro-Ticket-Lanes heben die künstliche Obergrenze, aber das
+   GitHub-Hosted-Job-Limit (Free: 20 parallel) und das z.ai-Kontingent werden zur neuen
+   Decke — llm-limit-detect (#1954) und Peak-Vertagen (#2100) sind jetzt die wirksamen
+   Bremsen.
 3. **Fixup-Budget vs. Workbench-Setup:** Playwright-Browser (~180 MB) und Builds werden je
    Lauf frisch aufgebaut und fraßen das Fixup-Budget — Auslöser: #1970 starb an der harten
    Frist (`exit 143` = SIGTERM). Hebel: Warm-Cache nach dem #2092/#2134-Muster (schedule-
