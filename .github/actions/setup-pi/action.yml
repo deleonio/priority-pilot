@@ -39,7 +39,7 @@ inputs:
     required: false
     default: ''
   model-aliases-json:
-    description: 'Optionale Alias-Tabelle als JSON-String (aus vars.PI_MODEL_ALIASES), gleiche Struktur wie .github/pi/model-aliases.json. Wird ÜBER die eingecheckte Tabelle gelegt — der Weg für Provider, deren Modell-IDs bewusst nicht im Repo stehen (openrouter).'
+    description: 'Optionale Alias-Tabelle als JSON-String (aus vars.PI_MODEL_ALIASES), gleiche Struktur wie .github/pi/model-aliases.json. Wird ÜBER die eingecheckte Tabelle gelegt (Repo = Default, Variable = Override) — der Weg, um z.B. die openrouter-Free-Modelle zu ersetzen.'
     required: false
     default: ''
   zai-api-key:

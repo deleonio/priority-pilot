@@ -23,13 +23,12 @@ Dieselben vier Aliase wie unter Claude Code (`fable | opus | sonnet | haiku`, si
 Modell-Allowlist in `docs/ci-architecture.md`), aber als pi-Modellreferenzen der Form
 `provider/id`.
 
-**`openrouter` ist absichtlich leer.** Die OpenRouter-Modell-IDs sind unter Claude Code
-bewusst nicht im Repo gespiegelt — Source of Truth ist die GitHub-Variable
-`CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER`. Für pi gilt dasselbe Prinzip: Die Zuordnung kommt aus
-der Variable **`PI_MODEL_ALIASES`** (JSON in derselben Struktur wie diese Datei) und wird über
-die Einträge hier gelegt. Fehlt für den gewählten Provider ein Alias in beiden Quellen, bricht
-`setup-pi` laut ab — ein geratenes Modell wäre genau der stille Fehlgriff, gegen den die
-Modell-Allowlist antritt.
+**Repo = Default, `PI_MODEL_ALIASES` = Override.** Die `openrouter`-Einträge hier sind
+kostenlose Free-Modelle (`:free`) als Standard, damit ein Lauf ohne Variable nicht abbricht.
+Die GitHub-Variable **`PI_MODEL_ALIASES`** (JSON in derselben Struktur wie diese Datei) wird
+über die Einträge hier gelegt und gewinnt. Fehlt für den gewählten Provider ein Alias in
+beiden Quellen, bricht `setup-pi` laut ab — ein geratenes Modell wäre genau der stille
+Fehlgriff, gegen den die Modell-Allowlist antritt.
 
 Beispiel:
 
