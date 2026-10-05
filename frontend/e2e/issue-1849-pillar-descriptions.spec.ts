@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { registerOwnSession, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-e2e für #1849 (Spec: docs/spec/issue-1849.md, AK4) — im Tab „Säulen“ erklärt jede der
@@ -8,7 +8,9 @@ import { waitForStableView } from './helpers';
  */
 // #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
 // Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+// Eigene Session: ohne sie sieht die Spec die Säulen aller Nutzer der Shard-DB (Muster #2074/#2078).
 test.beforeEach(async ({ page }) => {
+	await registerOwnSession(page, 'pillar-descriptions-1849');
 	await page.addInitScript(() => {
 		localStorage.setItem('pp-expert-mode', 'true');
 	});
