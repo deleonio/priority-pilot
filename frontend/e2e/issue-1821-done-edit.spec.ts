@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { registerOwnSession, waitForStableView } from './helpers';
 
 /**
  * ROTER Spec-Test für #1821 AK6 (Spec: docs/spec/issue-1821.md) — eine erledigte Aufgabe lässt sich
@@ -22,6 +22,10 @@ const deleteAllTasks = async (page: Page): Promise<void> => {
 };
 
 const editDoneTask = async (page: Page): Promise<void> => {
+	// Eigene Session statt Pass-Through: `ownerScope(undefined)` filtert `GET /pillars` nicht nach
+	// Nutzer, im Shard lägen alle Säulen der geteilten DB darunter und die Formular-Vollverteilung
+	// käme unters 5-%-Minimum → PATCH 400, Dialog bleibt offen (#2188-Muster, #2235-Fixup).
+	await registerOwnSession(page, 'done-edit-1821');
 	const created = await page.request.post('/api/v1/tasks', {
 		data: { title: OLD_TITLE, priority: 3, estimatedEffort: 1 },
 	});
