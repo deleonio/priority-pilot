@@ -101,7 +101,8 @@ Tier-Bindung. Die Formatierung je Runtime liegt im Adapter **`model-adapter.sh`*
 — der stille-Fallback-Vorfall ist damit strukturell geschlossen). `cost-from-transcript.ts`
 liest die Preise aus derselben Datei — Identität und Preis können nicht mehr driften.
 Matrix: **Claude Code ↔ alle 3 Provider, pi ↔ nur zai|openrouter** (Guards in setup-agent,
-set-agent-config und Adapter). Die drei alten Vars können gelöscht werden.
+set-agent-config und Adapter). Die drei alten Vars (`CLAUDE_CODE_SETTINGS_LOCAL_ZAI`/`_OPENROUTER`, `PI_MODEL_ALIASES`)
+sind am 05.10. gelöscht — models.json ist die einzige Instanz.
 
 **05.10. (Nacht) — Runtime-Schalter auf Claude Code + Anthropic.** Der Koordinator hat
 `AGENT_RUNTIME=claude` und `LLM_PROVIDER=claude` gesetzt (Abo-Flat statt ZAI per-use). Die
@@ -121,14 +122,6 @@ ZAI/pi-Erkenntnisse bleiben dokumentiert und wirken bei Rückkehr von pi.
   echte Parallelität ist aus den Run-Feldern allein **nicht** beweisbar (Job-Logs nötig).
 - **Wiederholungen:** `fixup-rounds.sh count --repo … --pr …` (count = aktuelle Runde);
   Review-Fail-Quote aus den `05-review`-Run-Conclusionen.
-
-**05.10. — Concurrency pro Ticket.** Nach dem Phasen-Split (#2171) der zweite Schritt:
-Der Key ist jetzt das Ticket, nicht die Phase — Lane A `harness-<Issue-Nr.>` (Triage/UX/
-Spec/Implement), Lane B `harness-pr-<Head-Branch>` (Review/Fixup; lokale PRs ohne Issue
-laufen über ihren Feature-Branch). Beliebig viele Tickets laufen voll parallel; der
-Koordinator steuert den Durchsatz allein über den Zulauf. Puffer an der A→B-Grenze:
-Review-CI-Wait. Residual-Risiko B→A (Re-Triage während Review/Fixup) ist dokumentiert
-(01-triage.yml); der Documenter bleibt bewusst statisch (.costs-Seals).
 
 **05.10. (Nacht) — Runtime-Schalter zurück auf Claude Code + Anthropic.** Der
 Koordinator hat `AGENT_RUNTIME=claude` und `LLM_PROVIDER=claude` gesetzt: Die Messreihe
