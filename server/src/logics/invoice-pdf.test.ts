@@ -83,6 +83,30 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 		assert.ok(text.includes(TAX_NOTE), '§19-UStG-Hinweis muss drinstehen');
 	});
 
+	it('#2142 AK5: lineItems erscheinen mit Bezeichnung und Betrag vor der Betrag-Zeile, ohne lineItems bleibt das PDF unverändert', async () => {
+		const plain = await invoice('INV-2026-100010');
+		const withItems = await invoice('INV-2026-100011');
+		await withItems.update({
+			lineItems: [
+				{ label: 'Paket pro (yearly)', amountCents: 9900 },
+				{ label: 'Verrechnung Restwert', amountCents: -400 },
+			],
+		});
+
+		const lines = invoicePdfLines(withItems, OPERATOR, RECIPIENT, 'Paket pro (yearly)');
+		const betrag = lines.findIndex((l) => l.startsWith('Betrag:'));
+		const paket = lines.findIndex((l) => l.includes('Paket pro (yearly)') && l.includes('99,00'));
+		const verrechnung = lines.findIndex((l) => l.includes('Verrechnung Restwert') && l.includes('-4,00'));
+
+		assert.ok(paket >= 0 && paket < betrag, 'Paketposition vor der Betrag-Zeile');
+		assert.ok(verrechnung >= 0 && verrechnung < betrag, 'Verrechnungsposition vor der Betrag-Zeile');
+		assert.equal(
+			invoicePdfLines(plain, OPERATOR, RECIPIENT, 'Paket plus (monthly)').filter((l) => l.includes('Verrechnung'))
+				.length,
+			0,
+		);
+	});
+
 	it('ohne ustId keine USt-IdNr.-Zeile, mit ustId erscheint sie', async () => {
 		const base = invoicePdfLines(await invoice(), OPERATOR, RECIPIENT, 'Paket plus (monthly)').join('\n');
 		assert.ok(!base.includes('USt-IdNr'), 'Ohne ustId darf keine USt-IdNr.-Zeile erscheinen');
