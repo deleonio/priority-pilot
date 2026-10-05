@@ -83,4 +83,37 @@ test.describe('Balamentum — #1360: Streak-Anzeige', () => {
 		expect(helpBox!.x).toBeGreaterThanOrEqual(cardBox!.x);
 		expect(helpBox!.x + helpBox!.width).toBeLessThanOrEqual(cardBox!.x + cardBox!.width + 1);
 	});
+
+	test('#1971 AK7/AK8 — ausgewogene Woche: „x Wochen ausgewogen" bleibt bei 375px in der Card', async ({ page }) => {
+		const pillars = (await (await page.request.get('/api/v1/pillars')).json()) as { id: number }[];
+		const share = 100 / pillars.length;
+		// Drei Aufgaben heute decken alle Säulen ab ⇒ die laufende Woche ist ausgewogen.
+		for (const title of ['E2E 1971 a', 'E2E 1971 b', 'E2E 1971 c']) {
+			const createRes = await page.request.post('/api/v1/tasks', {
+				data: {
+					title,
+					priority: 3,
+					estimatedEffort: 1,
+					pillars: pillars.map(({ id }) => ({ pillarId: id, share, confidence: 100 })),
+				},
+			});
+			expect(createRes.ok()).toBeTruthy();
+			const task = (await createRes.json()) as { id: number };
+			expect((await page.request.patch(`/api/v1/tasks/${task.id}`, { data: { status: 'Done' } })).ok()).toBeTruthy();
+		}
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/app/');
+		await waitForStableView(page);
+
+		const streakCard = page.getByTestId('streak-card');
+		const weeks = streakCard.getByTestId('streak-weeks-balanced');
+		await expect(weeks).toBeVisible();
+		await expect(weeks).toContainText('Woche ausgewogen');
+		const cardBox = await streakCard.boundingBox();
+		const weeksBox = await weeks.boundingBox();
+		expect(cardBox).not.toBeNull();
+		expect(weeksBox).not.toBeNull();
+		expect(weeksBox!.x).toBeGreaterThanOrEqual(cardBox!.x);
+		expect(weeksBox!.x + weeksBox!.width).toBeLessThanOrEqual(cardBox!.x + cardBox!.width + 1);
+	});
 });
