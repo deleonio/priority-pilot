@@ -1,7 +1,7 @@
 ---
 name: ticket-coordination
-description: "Ticket coordination - drive the issues of an epic through the label pipeline (independent ones in parallel, dependent ones after their blocker): start analysis, act as PO after triage (set ux/spec/impl), watch PRs, unblock stuck phases, keep main green, start the next issue after merge; can hand issue watching and diagnosis to subagents. Use for 'koordiniere Epic #N', 'arbeite Epic #N ab', 'manage die Abarbeitung' (German: coordinate the processing of issues)."
-argument-hint: "<Epic-Nummer(n) in Reihenfolge, z. B. #1789 #1780>"
+description: "Ticket coordination - agree focus and implementation order with the author in a start dialog, then drive the issues of an epic through the label pipeline (independent ones in parallel, dependent ones after their blocker): start analysis, act as PO after triage (set ux/spec/impl), watch PRs, unblock stuck phases, keep main green, start the next issue after merge; can hand issue watching and diagnosis to subagents. Use for 'koordiniere Epic #N', 'arbeite Epic #N ab', 'manage die Abarbeitung' (German: coordinate the processing of issues)."
+argument-hint: "[Epic-/Issue-Nummern oder Themen; leer = Startdialog klaert den Fokus]"
 ---
 
 # Workflow: Ticket coordination
@@ -10,8 +10,8 @@ Auftrag: $ARGUMENTS
 
 The coordinator does not write product code. It moves issues through the pipeline by setting
 labels, reads the phase outputs, decides as PO where the pipeline asks for it, and removes
-blockers. Scope is **exactly** the epics named by the author, in the given order — nothing else
-from the backlog. When the author names themes instead of epics (e.g. "payment, onboarding,
+blockers. Scope is **exactly** what the start dialog (section 0) agreed with the author — nothing
+else from the backlog. When the author names themes instead of epics (e.g. "payment, onboarding,
 store"), map each theme to its leaf issues across all epics (titles carry `[P-Stufe/Aufwand]`,
 epics carry rank tables), order by theme first, then rank, and list the mapping in the first
 report so the author can correct it. A "max. N parallel" limit counts every issue with a phase
@@ -22,6 +22,27 @@ needs a free slot even when its phase has its own queue.
 Note: this file's prose is English; everything addressed to the author (chat, issue comments)
 stays German and follows the [vermenschlichen](../vermenschlichen/SKILL.md) rules. Label chain and
 phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
+
+## 0. Start dialog
+
+Never start labelling right after the call. First agree on focus and order with the author:
+
+1. **Focus.** Ask which epics, issues or themes are in focus. "All open issues" is rarely
+   useful: when the call names nothing or "alles", propose a focused set instead — the top-ranked
+   open epic or two, nearly finished containers (section 1, item 6), anything repairing main —
+   and let the author pick. Name what stays out and why.
+2. **Frame.** Ask once for the parallel limit, tickets not to touch (manual, the author's own,
+   pipeline or workflow tickets), and how often to report. Offer defaults so one answer suffices.
+3. **Order proposal.** Build the order per section 1 and show it as a table: position, issue
+   with `[stage/effort]` title prefix, blocker, first phase (analysis, UX, spec, implementation),
+   open questions. Put parked questions in a separate list and offer a decision round
+   (section 2a) before the start, so the queue does not stall on them.
+4. **Fine-tune.** Let the author move, drop or add issues and repeat the table until they
+   confirm. Only then set the first trigger.
+5. **Record.** Post the agreed focus, order and limits as a PO comment on the epic (or the first
+   issue) and carry them in every check-in message.
+6. **Re-tune.** When the author changes priorities or limits mid-run, show the updated table
+   once and continue only after confirmation; running phases keep running.
 
 ## 1. Plan the order
 
@@ -83,7 +104,7 @@ Label write rules:
   Adding an already present label fires no event.
 - Label names are exact (`ai:needs-ux-ui`, not `ai:needs-ux`). A write with an unknown name
   silently creates that label and starts nothing. After every trigger write check within a
-  minute that the phase run did not end `skipped` (precheck job skipped = wrong label name).
+  minute that the phase run did not end `skipped` (a `skipped` run means a wrong label name).
 
 Record every PO decision as a comment on the epic or issue (with the attribution footer), so the
 pipeline and later readers see it.
@@ -95,10 +116,10 @@ wall of text — offer a decision round and go through the parked issues one by 
 
 1. Order by leverage: an answer that frees other issues (blocked sub-issues) first, then rank.
 2. Per issue put the triage questions as multiple choice (at most four per round), the
-   analysis' recommendation first; split longer lists into two rounds.
+   analysis' recommendation first; split longer lists into at most two rounds.
 3. Post the answers as a `PO-Entscheidung (Autor)` comment that restates each decision as a full
    sentence (the next phase reads only the comment), then set `ai:analysed` + `ai:needs-analyse`
-   without `ai:needs-human`. A question that did not fit the round is decided by the
+   without `ai:needs-human`. Whatever is still open after two rounds is decided by the
    analysis' recommendation and named as such in the chat.
 4. An answer that rejects the ticket's premise is not a rejected option: offer close
    (`not_planned`, reason as comment), reshape or park. Reshape means rewriting the body
@@ -109,7 +130,8 @@ wall of text — offer a decision round and go through the parked issues one by 
    relation; fix the body line instead of asking.
 6. A follow-up question that the analysis itself marks as not blocking, with a stated
    assumption: confirm the assumption with the author, comment on the container and the affected
-   sub-issue, drop `ai:needs-human` — no re-analysis.
+   sub-issue, drop `ai:needs-human` — no re-analysis; then route like after triage (UX, spec or
+   implementation).
 
 ## 3. Cadence
 
