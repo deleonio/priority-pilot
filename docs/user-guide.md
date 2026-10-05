@@ -740,6 +740,12 @@ In _Einstellungen → Gruppen_ organisierst du zusammen mit anderen Nutzern Aufg
   **„Empfänger"**, für wen die Aufgabe bestimmt ist. In den Listen erkennst du
   fremde Aufgaben an den Hinweisen **„Für: {Name}"** und **„Erstellt von: {Name}"**;
   bearbeiten lassen sie sich nur beim Empfänger.
+- **7-Tage-Challenge:** jedes Mitglied startet in der Gruppe über
+  **„7-Tage-Challenge starten"** eine Woche, in der es um Ausgewogenheit geht. Die
+  Rangfolge misst die Balance der in dieser Woche erledigten Aufgaben, nicht ihre Anzahl;
+  wer noch nichts erledigt hat, steht mit „Noch kein Wert" am Ende. Nach sieben Tagen
+  endet die Challenge von selbst, und **„Teilen"** erzeugt eine Abschluss-Karte mit
+  Gruppenname, Zeitraum und Rangfolge – ohne Aufgabeninhalte.
 
 ---
 

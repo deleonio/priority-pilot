@@ -5022,6 +5022,70 @@ kol-alert {
 	font-size: var(--pp-font-size-sm);
 }
 
+/* --- Gruppen-Challenge (#1992): eine Spalte, Rangliste als Zeilen (Rang · Name · Wert). Namen
+   kürzen per Ellipsis statt die Zeile zu verbreitern (AK7, 375px). --- */
+.group-challenge {
+	display: grid;
+	gap: var(--pp-gap-tight);
+	padding: var(--pp-space-3);
+	border: 1px solid var(--pp-border);
+	border-radius: 0.5rem;
+	background: var(--pp-surface-1);
+	min-width: 0;
+}
+
+.group-challenge-zeit {
+	margin: 0;
+	color: var(--pp-signal-ink);
+	font-weight: var(--pp-weight-bold);
+}
+
+.group-challenge-rangliste {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: var(--pp-space-2);
+}
+
+.group-challenge-zeile {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	align-items: baseline;
+	gap: var(--pp-space-2);
+	font-variant-numeric: tabular-nums;
+}
+
+.group-challenge-rang,
+.group-challenge-wert {
+	color: var(--pp-ink-muted);
+	white-space: nowrap;
+}
+
+.group-challenge-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--pp-ink);
+}
+
+.group-challenge-aktionen,
+.group-challenge-bestaetigung {
+	display: grid;
+	gap: var(--pp-space-2);
+}
+
+.group-challenge-bestaetigung p {
+	margin: 0;
+}
+
+.group-challenge kol-button {
+	display: block;
+	width: 100%;
+	min-height: 44px;
+}
+
 /* --- Persönliche API-Tokens (#1352, Einstellungen → „Zugriff") --- */
 /* Aufbau wie die LLM-Provider-Verwaltung: gestapelte Zeilen auf Mobile, ab 48rem Zeilen mit
    rechtsbündigen Aktionen. Der Klartext-Token bricht um statt zu scrollen (AK9: kein
