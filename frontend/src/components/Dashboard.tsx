@@ -12,7 +12,7 @@ import { MissedTasksCard } from './MissedTasksCard';
 import { HeartBalance } from './HeartBalance';
 import type { components, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { useGeolocation } from '../lib/useGeolocation';
 import { collectTaskValues } from '../lib/forest';
@@ -251,6 +251,16 @@ export const Dashboard = ({
 		[tasks],
 	);
 
+	// #2244: Verschwindet die Karte samt Knopf (Aufgabe erledigt/zurückgestellt, keine neue in Sicht),
+	// geht der Tastaturfokus sonst verloren — er wandert dann auf den Leerzustand.
+	const emptyRef = useRef<HTMLParagraphElement>(null);
+	const hadNextTask = useRef(nextTask !== null);
+	useEffect(() => {
+		if (nextTask === null && hadNextTask.current) {
+			emptyRef.current?.focus();
+		}
+		hadNextTask.current = nextTask !== null;
+	}, [nextTask]);
 	// P2-1: Vorschläge, die die bereits angezeigte Nächste-Aufgabe ausschließen — sonst wiederholt
 	// "Was ist jetzt dran?" dieselbe Hauptaussage (#443).
 	const suggestionsFiltered = useMemo(
@@ -314,7 +324,7 @@ export const Dashboard = ({
 						_level={3}
 					>
 						{nextTask === null ? (
-							<p className="dashboard-next-task-empty">
+							<p ref={emptyRef} tabIndex={-1} className="dashboard-next-task-empty">
 								Aktuell steht keine Aufgabe an (alle erledigt oder durch offene Vorgänger blockiert).
 							</p>
 						) : (

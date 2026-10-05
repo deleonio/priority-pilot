@@ -1,15 +1,10 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { registerOwnSession, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #2244 „Kurz zurückstellen" (docs/spec/issue-2244.md) — AK1, AK4, AK6, AK7.
  * Rot, bis der Uhr-Button in „Nächste Aufgabe" samt `POST /tasks/:id/snooze` existiert.
  */
-
-const deleteAllTasks = async (page: Page): Promise<void> => {
-	const tasks = (await (await page.request.get('/api/v1/tasks')).json()) as { id: number }[];
-	for (const task of tasks) await page.request.delete(`/api/v1/tasks/${task.id}`);
-};
 
 const createTask = async (page: Page, title: string, priority: number): Promise<void> => {
 	await page.request.post('/api/v1/tasks', { data: { title, priority } });
@@ -25,8 +20,10 @@ const openDashboard = async (page: Page): Promise<void> => {
 };
 
 test.describe('#2244 „Kurz zurückstellen" in „Nächste Aufgabe"', () => {
-	test.afterEach(async ({ page }) => {
-		await deleteAllTasks(page);
+	// Eigener Nutzer statt Pass-Through: Aufgaben anderer Specs derselben Shard würden sonst die Karte
+	// belegen (Muster #1849).
+	test.beforeEach(async ({ page }) => {
+		await registerOwnSession(page, 'snooze-2244');
 	});
 
 	test('AK1/AK4/AK6: Klick zeigt die andere Aufgabe, danach den Leerzustand', async ({ page }) => {
@@ -43,6 +40,7 @@ test.describe('#2244 „Kurz zurückstellen" in „Nächste Aufgabe"', () => {
 
 		await card.getByRole('button', { name: 'Kurz zurückstellen' }).click();
 		await expect(page.locator('.dashboard-next-task-empty')).toBeVisible();
+		await expect(page.locator('.dashboard-next-task-empty')).toBeFocused();
 	});
 
 	test('AK7: bei 375 px ≥ 44×44 px, per Tastatur auslösbar, Aktionszeile einzeilig ohne Überlauf', async ({ page }) => {
