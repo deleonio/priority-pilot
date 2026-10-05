@@ -18,7 +18,9 @@ import type {
 	GroupInvitation,
 	GroupMember,
 	GroupTask,
+	Duo,
 	GroupSeries,
+	GroupChallenge,
 	GroupUpdate,
 	GroupInviteLink,
 	Milestone,
@@ -602,6 +604,18 @@ export const api = {
 		return data;
 	},
 
+	// `tz` bestimmt serverseitig die Kalendertagsgrenze des gemeinsamen Streaks (Muster `getStreak`).
+	async getGroupDuo({ id, tz, signal }: { id: number; tz?: string } & Init): Promise<Duo> {
+		const { data, error, response } = await client.GET('/groups/{id}/duo', {
+			params: { path: { id }, query: { tz } },
+			signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
 	async updateGroup({ id, groupUpdate }: { id: number; groupUpdate: GroupUpdate }): Promise<Group> {
 		const { data, error, response } = await client.PATCH('/groups/{id}', {
 			params: { path: { id } },
@@ -904,6 +918,26 @@ export const api = {
 	// ── Einladungslinks (#1226) ───────────────────────────────────────────────────────
 	// `getInviteLink` und `redeemInviteLink` sprechen den ÖFFENTLICH gemounteten Teil-Router an
 	// (express/index.ts vor requireAuth); redeem prüft die Session selbst (401).
+
+	/** Jüngste Challenge der Gruppe (#1992) — `null`, solange die Gruppe noch keine hatte (204). */
+	async getGroupChallenge({ id, ...init }: { id: number } & Init): Promise<GroupChallenge | null> {
+		const { data, error, response } = await client.GET('/groups/{id}/challenge', {
+			params: { path: { id } },
+			signal: init.signal,
+		});
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+		return data ?? null;
+	},
+
+	async startGroupChallenge({ id }: { id: number }): Promise<GroupChallenge> {
+		const { data, error, response } = await client.POST('/groups/{id}/challenge', { params: { path: { id } } });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
 
 	async createGroupInviteLink({ id }: { id: number }): Promise<GroupInviteLink> {
 		const { data, error, response } = await client.POST('/groups/{id}/invite-links', { params: { path: { id } } });

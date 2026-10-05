@@ -132,7 +132,7 @@ export const CategoryList = ({ onCategoryChanged }: CategoryListProps) => {
 									/>
 									<KolButton
 										_label="Löschen"
-										_icons={{ left: { icon: 'kolicon-cross' } }}
+										_icons={{ left: { icon: 'fa-solid fa-trash' } }}
 										_hideLabel
 										_variant="danger"
 										_on={{ onClick: () => setDeleteTarget(category) }}

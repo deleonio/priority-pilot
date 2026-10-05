@@ -27,16 +27,19 @@ on:
     types: [labeled]
 
 concurrency:
-  # Eigene Gruppe — sein CI-Wait (bis zu 20 min, vars.REVIEW_CI_WAIT_SECONDS) belegt sonst
-  # ohne LLM-Arbeit den Slot und blockiert andere Ticket-Läufe (Keys folgen der Abarbeitung;
-  # Details/Rationale: 01-triage.yml). Die Doppel-Armung mit dem Fixup (beide Trigger-Labels
-  # kleben) deckt keine Gruppe ab — das erledigt `ABSENT=(ai:needs-fixup)` im Pre-Check.
-  group: llm-review
+  # Lane B des Tickets (`harness-pr-<Head-Branch>`; Pipeline-PRs tragen `ai/harness/<Nr.>`,
+  # lokale PRs ohne verknüpftes Issue ihren Feature-Branch — beides deterministisch je PR): Review und
+  # Fixup desselben PRs serialisieren in derselben Lane, verschiedene Tickets laufen voll
+  # parallel (pro-Ticket-Lanes, Details/Rationale: 01-triage.yml). Der CI-Wait (bis zu
+  # 20 min, vars.REVIEW_CI_WAIT_SECONDS) bleibt der Puffer zum Implement-Job der Lane A —
+  # er absorbiert dessen Rest-Nachbereitung (Job-Ende-Barriere). Die Doppel-Armung mit dem
+  # Fixup (beide Trigger-Labels kleben) deckt keine Gruppe ab — das erledigt
+  # `ABSENT=(ai:needs-fixup)` im Pre-Check.
+  group: harness-pr-${{ github.event.pull_request.head.ref }}
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
-  # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,
-  # ticket-unabhängigem Key hätte ein Label-Burst über mehrere Tickets die
-  # wartenden Läufe still verworfen — Trigger-Label klebt, kein Lauf, kein Notice.
+  # Run cancelt den wartenden (`queue: single` ist der Default). Mit pro-Ticket-Key
+  # verwirft ein Label-Burst am selben Ticket die wartenden Läufe still — Trigger-Label klebt, kein Lauf, kein Notice.
   # `max` = bis zu 100 pending, FIFO. Unvereinbar mit cancel-in-progress: true.
   queue: max
 
@@ -222,7 +225,7 @@ jobs:
         # Gate, bei rotem CI NICHT selbst ai:needs-fixup zu setzen (merge-pr.yml).
         #
         # Kosten der Wartezeit: Runner-Minuten, keine Token — und ein Platz in der FIFO-Queue
-        # der Ticket-Pipeline (statische concurrency-Gruppe llm-review; jede Phase hat ihre eigene). Das Budget ist deshalb
+        # der Ticket-Pipeline (Lane B `harness-pr-<Branch>`, FIFO je Ticket). Das Budget ist deshalb
         # gedeckelt (vars.REVIEW_CI_WAIT_SECONDS, Default 20 min) und fail-open: Läuft es aus,
         # reviewt der Lauf trotzdem — mit dem Hinweis „CI-Ergebnis unbekannt" im Prompt.
         id: ci-wait

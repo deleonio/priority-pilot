@@ -71,11 +71,10 @@ CC+ZAI-Ära am 02.10.-Morgen). Der manuelle Datei-Edit auf `glm-5.3-flash` (04.1
 **nicht**: pi kennt nur die drei eingebauten zai-Modelle (`glm-5.3`, `glm-5-turbo`,
 `glm-4.7`, s. `pi --list-models`) und fiel bei der unbekannten ID **still** auf den
 Default zurück — 35 weitere turbo-Läufe bis zum Runtime-Wechsel, kein Fehler, kein Log.
-Lehren: (1) pi-Formen in `model-settings.json` dürfen nur IDs aus `pi --list-models`
-tragen; (2) der glm-5.3-flash-Wunsch wirkt nur in der cc-Form (Claude Code); (3) ein
-stiller Fallback ist schlimmer als ein lauter Abbruch — pi bricht bei unbekannter ID
-noch nicht laut (Kandidat für einen Folge-Guard in setup-pi). openrouter zeigt auf die
-Free-Models-Collection.
+Lehren: (1) pi-Ziele in `models.json` dürfen nur IDs aus `pi --list-models` tragen;
+(2) der glm-5.3-flash-Wunsch wirkt nur in der cc-Form (Claude Code); (3) ein stiller
+Fallback ist schlimmer als ein lauter Abbruch — der Katalog-Guard im `model-adapter.sh`
+setzt das inzwischen durch. openrouter zeigt auf die Free-Models-Collection.
 
 **04.10. — Wiederholungs-Eskalation.** Die alte Auto-Eskalation hing am Label-Pfad und fiel
 mit der Abschaffung weg — sie zieht in den Tabellen-Pfad: ab **Fixup-Runde 2** stuft
@@ -123,11 +122,25 @@ ZAI/pi-Erkenntnisse bleiben dokumentiert und wirken bei Rückkehr von pi.
 - **Wiederholungen:** `fixup-rounds.sh count --repo … --pr …` (count = aktuelle Runde);
   Review-Fail-Quote aus den `05-review`-Run-Conclusionen.
 
+**05.10. — Concurrency pro Ticket.** Nach dem Phasen-Split (#2171) der zweite Schritt:
+Der Key ist jetzt das Ticket, nicht die Phase — Lane A `harness-<Issue-Nr.>` (Triage/UX/
+Spec/Implement), Lane B `harness-pr-<Head-Branch>` (Review/Fixup; lokale PRs ohne Issue
+laufen über ihren Feature-Branch). Beliebig viele Tickets laufen voll parallel; der
+Koordinator steuert den Durchsatz allein über den Zulauf. Puffer an der A→B-Grenze:
+Review-CI-Wait. Residual-Risiko B→A (Re-Triage während Review/Fixup) ist dokumentiert
+(01-triage.yml); der Documenter bleibt bewusst statisch (.costs-Seals).
+
+**05.10. (Nacht) — Runtime-Schalter zurück auf Claude Code + Anthropic.** Der
+Koordinator hat `AGENT_RUNTIME=claude` und `LLM_PROVIDER=claude` gesetzt: Die Messreihe
+läuft aktuell auf CC+Anthropic (Opus/Sonnet 5.5 nativ). Beachte beim Lesen der laufenden
+`.costs`-Sätze: Die ZAI/pi-Erkenntnisse (Aliase, Eskalation, Lanes) bleiben dokumentiert
+und wirken, sobald zurückgeschaltet wird — der Alias-Fix #2198 wirkt erst wieder unter pi.
+
 ## Offene Hebel und KPIs (Stand 05.10.)
 
 1. **PI v1 KPIs** (sonst Rückwechsel auf CC+ZAI per `gh variable set`): Review-Fail < 10 %,
    Implement-Median < 40 min, Turns/Lauf < 25, Fixup < $0,70.
-2. **Slot-Grenzen hosted:** Die pro-Ticket-Lanes heben die künstliche Obergrenze, aber das
+2. **Slot-Grenzen hosted:** Pro-Ticket-Lanes heben die künstliche Obergrenze, aber der
    GitHub-Hosted-Job-Limit (Free: 20 parallel) und das z.ai-Kontingent werden zur neuen
    Decke — llm-limit-detect (#1954) und Peak-Vertagen (#2100) sind jetzt die wirksamen
    Bremsen.
@@ -143,7 +156,11 @@ ZAI/pi-Erkenntnisse bleiben dokumentiert und wirken bei Rückkehr von pi.
 ## Fallstricke (aus dieser Optimierungswelle)
 
 - **Job-Ende-Barriere:** Jede Gruppen-Grenze braucht einen Puffer (CI-Wait) oder Label-am-Ende.
-  Neuer Phase-Split ohne einen der beiden Mechanismen reißt die Barriere still auf.
+  Neuer Split ohne einen der beiden Mechanismen reißt die Barriere still auf — die
+  pro-Ticket-Lanes nutzen den Review-CI-Wait als Puffer zur Lane A.
+- **Re-Triage während Review/Fixup (Lane B→A):** kann seit den pro-Ticket-Lanes überholen,
+  wo früher die globale Gruppe blockierte — Re-Armierung in laufenden Review/Fixup-Phasen
+  ist Koordinator-Disziplin; der fixup-verdict-HEAD-Guard erkennt Fremd-Commits.
 - **Zweit-Medien vermeiden:** Wo dieselbe Information zwei Kanäle hat (Tabelle + Label),
   gewinnt einer stumm — Overrides wirken dann nicht. Eine Quelle pro Information.
 - **Queued-Runs verfälschen Zeitstempel** (s. o. Messmethoden) — Parallelläufe nie aus

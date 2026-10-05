@@ -5,11 +5,12 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { readAiPreferences } from '../lib/aiPreferences';
 import { readChecked, readString } from '../lib/inputValue';
+import { useEntitlement } from '../lib/usePlan';
 import { suggestionsToContributions } from '../lib/pillar';
 import { AiQuotaHint } from './AiQuotaHint';
 import { EXAMPLE_TASKS } from './EmptyState';
-import { PillarWeightsForm } from './PillarWeightsForm';
 
 interface OnboardingFlowProps {
 	/** Verfügbare Lebensbalance-Säulen des Nutzers — Quelle für die Säulen-Angabe je Vorschlags-Karte. */
@@ -18,8 +19,6 @@ interface OnboardingFlowProps {
 	onClose: () => void;
 	/** Nach erfolgreichem Übernehmen VOR onClose — die App wechselt damit z. B. auf den Aufgaben-Tab. */
 	onApplied?: () => void;
-	/** Nach erfolgreichem Speichern der Startgewichtung — die App lädt die Säulen neu (#2070). */
-	onWeightsSaved?: () => void;
 	/** Sichtbarkeits-Spiegel des verdeckt gemounteten Flows (#2110 AK3): nur bei `true` fokussiert die Schritt-Überschrift. */
 	active?: boolean;
 	/** #1969 AK7: Verweis auf den CSV-Import in Schritt 1 — die App navigiert damit in die Einstellungen. */
@@ -34,10 +33,10 @@ interface OnboardingFlowProps {
  * 2. **Vorschläge** — `POST /tasks/suggest-initial` (#2068) liefert 5–8 Karten (`KolInputCheckbox`,
  *    startend ABGEWÄHLT) mit Säulen-Angabe und „nach: …“ bei Abhängigkeit; Ladezustand in einer
  *    `aria-live`-Region. 403/429 laufen als Quota-Hinweis (#1783-Muster), übrige Fehler als Alert.
- * 3. **Startgewichtung** (#2070) — das eingebettete `PillarWeightsForm` (Settings-Muster, ohne
- *    Abbrechen); „Speichern" schließt den Schritt ab, ohne ihn ist der Flow nicht abschließbar.
- * 4. **Übernehmen** — legt genau die Auswahl als echte Aufgaben an: Vorgänger zuerst (Reihenfolge
- *    der bereinigten Liste), je `dependsOn` die Abhängigkeits-Kante am Nachfolger.
+ * 3. **Übernehmen** — legt genau die Auswahl als echte Aufgaben an: Vorgänger zuerst (Reihenfolge
+ *    der bereinigten Liste), je `dependsOn` die Abhängigkeits-Kante am Nachfolger. Eine Startgewichtung
+ *    entfällt: Alle Konten starten mit denselben fünf Säulen zu je 20 %.
+ * 4. **Import** (optional) — Verweis auf den Todoist-/CSV-Import; ohne KI ist das der einzige Schritt.
  *
  * Nach dem Übernehmen zeigt der Flow die Abschluss-Karte (#2070 AK2): die nächste Aufgabe als
  * eine Primäraktion, direkt abhakbar, daneben der Balance-Hinweis; „Fertig" beendet den Flow.
@@ -46,19 +45,19 @@ interface OnboardingFlowProps {
  * der Fokus liegt je Schritt auf der Überschrift. „Später“ beendet jeden Schritt ohne
  * Bestätigungsdialog und ohne Datenverlust.
  */
-/** Gesamtzahl der Flow-Schritte (#2070): Freitext, Vorschläge, Startgewichtung, Übernehmen. */
+/** Gesamtzahl der Flow-Schritte: Freitext, Vorschläge, Übernehmen, Import (optional). */
 const TOTAL_STEPS = 4;
 
-export const OnboardingFlow = ({
-	pillars,
-	onClose,
-	onApplied,
-	onWeightsSaved,
-	active = true,
-	onImport,
-}: OnboardingFlowProps) => {
+export const OnboardingFlow = ({ pillars, onClose, onApplied, active = true, onImport }: OnboardingFlowProps) => {
 	const { t } = useTranslation('common');
-	const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+	const [rawStep, setStep] = useState<1 | 2 | 3 | 4>(1);
+	// Ohne KI (Paket ohne `ai_assist` oder KI ausgeschaltet) sind Freitext und Vorschläge sinnlos: der
+	// Flow besteht dann nur noch aus dem Import. Solange das Entitlement
+	// unbekannt ist, gilt KI als verfügbar (der Server lehnt sonst weiter mit 403 ab → Quota-Hinweis).
+	const aiAvailable = useEntitlement('ai_assist')?.allowed !== false && readAiPreferences().aiEnabled;
+	const step = aiAvailable ? rawStep : 4;
+	const totalSteps = aiAvailable ? TOTAL_STEPS : 1;
+	const shownStep = aiAvailable ? step : 1;
 	const [goal, setGoal] = useState('');
 	const [loading, setLoading] = useState(false);
 	const [suggestions, setSuggestions] = useState<SuggestInitialTaskSuggestion[] | null>(null);
@@ -198,8 +197,9 @@ export const OnboardingFlow = ({
 					});
 				}
 			}
-			// #2070: Die Abschluss-Karte bleibt im Flow offen — „Fertig" löst onApplied + onClose aus.
-			setFinished(true);
+			// Schritt 5 (Import, optional) liegt vor der Abschluss-Karte; sie bleibt im Flow offen —
+			// „Fertig" löst onApplied + onClose aus (#2070).
+			setStep(4);
 		} catch (reason) {
 			const apiError = await toApiError(reason);
 			// Der Fehler-Alert nennt, wie viele Aufgaben schon angelegt sind — der Retry vervollständigt.
@@ -259,7 +259,7 @@ export const OnboardingFlow = ({
 		<section className="onboarding-flow">
 			{!finished && (
 				<p className="onboarding-step-indicator">
-					{t('onboarding.step', { step: String(step), total: String(TOTAL_STEPS) })}
+					{t('onboarding.step', { step: String(shownStep), total: String(totalSteps) })}
 				</p>
 			)}
 			{step === 1 && (
@@ -275,14 +275,6 @@ export const OnboardingFlow = ({
 								setGoal(readString(value));
 							},
 						}}
-					/>
-					{/* #1969 AK7: optionaler Import-Einstieg — kein Pflichtschritt, kein eigener Screen; der
-					    Verweis führt in die Einstellungen (Tab „Import"), der Flow wird dabei beendet. */}
-					<KolButton
-						className="onboarding-import-entry"
-						_label={t('onboarding.importieren')}
-						_variant="secondary"
-						_on={{ onClick: () => onImport?.() }}
 					/>
 				</>
 			)}
@@ -326,21 +318,7 @@ export const OnboardingFlow = ({
 					</div>
 				</>
 			)}
-			{step === 3 && (
-				<>
-					{heading(t('onboarding.headingWeights'))}
-					{/* #2070: Die fertige Gewichts-Logik (Settings-Muster) eingebettet — ohne Modal-Rahmen
-					    und ohne Abbrechen; „Speichern" schließt den Schritt ab (#1574-Gate bleibt). */}
-					<PillarWeightsForm
-						pillars={pillars}
-						onSaved={() => {
-							onWeightsSaved?.();
-							setStep(4);
-						}}
-					/>
-				</>
-			)}
-			{step === 4 && suggestions !== null && (
+			{step === 3 && suggestions !== null && (
 				<>
 					{heading(t('onboarding.heading3'))}
 					{applyError !== null && (
@@ -354,6 +332,20 @@ export const OnboardingFlow = ({
 							total: String(suggestions.length),
 						})}
 					</p>
+				</>
+			)}
+			{step === 4 && !finished && (
+				<>
+					{heading(t('onboarding.importHeading'))}
+					{/* #1969 AK7: optionaler Import-Einstieg — erst am Ende, weil der Verweis in die Einstellungen
+					    den Flow beendet; die Aufgaben aus Schritt 4 sind dann schon angelegt. */}
+					<p>{t('onboarding.importHint')}</p>
+					<KolButton
+						className="onboarding-import-entry"
+						_label={t('onboarding.importieren')}
+						_variant="secondary"
+						_on={{ onClick: () => onImport?.() }}
+					/>
 				</>
 			)}
 			{finished && (
@@ -427,12 +419,19 @@ export const OnboardingFlow = ({
 							_on={{ onClick: () => setStep(3) }}
 						/>
 					)}
-					{step === 4 && (
+					{step === 3 && (
 						<KolButton
 							_label={t('onboarding.uebernehmen')}
 							_variant="primary"
 							_disabled={applying}
 							_on={{ onClick: () => void apply() }}
+						/>
+					)}
+					{step === 4 && (
+						<KolButton
+							_label={t('onboarding.weiter')}
+							_variant="primary"
+							_on={{ onClick: aiAvailable ? () => setFinished(true) : onClose }}
 						/>
 					)}
 					<KolButton

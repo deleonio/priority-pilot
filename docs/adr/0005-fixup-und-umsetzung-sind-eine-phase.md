@@ -1,6 +1,6 @@
 # ADR 0005 — Fixup und Umsetzung sind eine Phase (Pipeline auf 6 Phasen)
 
-- **Status:** Accepted (2026-08-20)
+- **Status:** Accepted (2026-08-20), Gruppen-Invariante teilweise abgelöst (Nachtrag 2026-10-05)
 - **Datum:** 2026-08-20
 - **Kontext:** [ADR 0002](0002-pipeline-7-phasen-ux-vor-spec.md) (Phasenzahl), [ADR 0004](0004-analyse-getriebenes-routing.md) (führte diesen Punkt als _explizit nicht entschieden_), [ADR 0001](0001-github-workflows-bleiben-ungetestet.md) (Testbarkeit von Workflows)
 - **Supersedes:** die Phasenzahl aus ADR 0002 (7 → 6). Die dortige Begründung für die _strikte
@@ -131,3 +131,13 @@ Review in einer eigenen Concurrency-Gruppe läuft und die gemeinsame Gruppe ihn 
   > neue Phasenname und die ausgelagerte Arbeitsumgebung sind damit produktiv belegt.
   > Unverändert **nicht** belegt sind die selteneren Pfade: Fork-Guard, Stop-Guard,
   > Crash-Parken und der Merge-Konflikt-Zweig.
+
+## Nachtrag 2026-10-05 — pro-Ticket-Lanes
+
+Die Festlegung auf EINE `concurrency`-Gruppe entfällt. Seit den pro-Ticket-Lanes (Lane A
+`harness-<Nr.>` für Issue-Events, Lane B `harness-pr-<Head-Branch>` für PR-Events, siehe
+`01-triage.yml`) liegen Umsetzung (Issue-Eingang) und Fixup (PR-Eingang) in verschiedenen
+Gruppen; die Invariante „kein zweiter Schreiber am selben Ticket" ist wieder ein Guard:
+Label-Kette + HEAD-Fortschritts-Guard des fixup-verdict. Residual-Risiko B→A: Re-Triage oder
+manuelles `ai:needs-impl` während laufendem Review/Fixup überholt diese — Koordinator-Disziplin.
+Die Zusammenlegung zu EINER Phase mit zwei Eingängen bleibt unberührt.

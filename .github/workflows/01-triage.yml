@@ -33,36 +33,36 @@ on:
     types: [labeled, unlabeled]
 
 concurrency:
-  # Keys folgen der Abarbeitung, nicht dem LLM: eigene Gruppen für Triage/UX (Issue-only),
-  # Review (`llm-review`) und Documenter (`llm-documenter`, post-merge). Die Git-Phasen sind
-  # seit der Durchsatz-Analyse (04.10., docs/agent-setup-vergleich-2026-10-04.md) ENTKOPPELT:
-  # Spec in `llm-spec`, Implement/Fixup + team in `llm-impl` — vorher serialisierten alle drei
-  # über EINE Gruppe `llm` und kappten die Pipeline bei ~16-20 Issues/Tag, obwohl die Slots
-  # nur zu 12-35 % belegt waren. Innerhalb eines Issues ketten die Labels; der Überhol-Schutz
-  # Implement↔Fixup (ADR 0005) bleibt über die gemeinsame Gruppe `llm-impl` erhalten.
-  # Cron-/Ad-hoc-Sync bleibt in `llm-sync`. Erbe von PR #1301 (dort 6 eigene Gruppen): ein
-  # erschöpftes z.ai-Kontingent trifft mehrere Läufe parallel — abgefedert durch
-  # llm-limit-detect (#1954) und zai-Peak-Vertagen (#2100), die es damals noch nicht gab.
-  #
-  # JOB-ENDE-BARRIERE (wichtig an jeder Gruppen-Grenze): Jede Phase setzt das Trigger-Label
-  # des Nachfolgers MITTEN IM JOB (Label-Post-Assertion), nicht am Job-Ende — danach fährt
-  # der Vorgänger noch Nachbereitung (Ergebnis-Zusammenfassung, Composite-Post-Steps). Ein
-  # Nachfolger in einer ANDEREN Gruppe startet daher grundsätzlich vor Job-Ende des
-  # Vorgängers. Zwei Muster, wie damit umgegangen wird:
-  #  - 04→05: Der Review-Lauf wartet zuerst auf CI (bis zu 20 min) — der Puffer ist
-  #    eingebaut und absorbiert die Überlappung vollständig.
-  #  - 03→04: Kein solcher Puffer — deshalb setzt 03 das Folge-Label als ALLERLETZTEN
-  #    Job-Step (step `label-final`); die Restlücke schrumpft auf Composite-Post-Steps
-  #    (Sekunden), und der Runtime-Precheck von 04 skippt bei veraltetem Label-Zustand.
-  # Grenzen: Auf einem Einzel-Runner (vars.PHASE_RUNNER, z. B. pi5) queuen die Gruppen
-  # trotzdem hintereinander — der Split wirkt nur hosted.
-  group: llm-triage
+  # PRO-TICKET-LANES (05.10.): Der Key ist das Ticket, nicht die Phase — beliebig viele
+  # Tickets laufen voll parallel, der Koordinator steuert den Durchsatz allein über den
+  # Zulauf (Labels setzen). Je Ticket zwei Lanes, damit der Key in BEIDEN Event-Kontexten
+  # aus dem Event-Payload ableitbar ist (workflow-level concurrency kennt keine Step-Outputs):
+  #  - Lane A `harness-<Issue-Nr.>` — Triage/UX/Spec/Implement (Issues-Events): serialisiert
+  #    die ganze Issue-Kette eines Tickets.
+  #  - Lane B `harness-pr-<Head-Branch>` (= `harness-pr-ai/harness/<Nr.>`) — Review/Fixup
+  #    (PR-Events; der Fixup-PR trägt immer den Harness-Branch des Tickets): serialisiert
+  #    die Review↔Fixup-Zyklen eines Tickets.
+  # Der A→B-Übergang ist gepuffert: Der Review-Lauf wartet als ersten Schritt auf CI
+  # (bis zu 20 min) und absorbiert damit die Rest-Nachbereitung des Implement-Jobs
+  # (Label-Übergabe passiert mitten im Job — Job-Ende-Barriere). 03→04 liegt GANZ in
+  # Lane A; 03 setzt sein Folge-Label zusätzlich als ALLERLETZTEN Job-Step (`label-final`).
+  # Residual-Risiko B→A: Re-Triage/manuelles ai:needs-impl, während Review/Fixup laufen,
+  # überholt diese jetzt (früher fing das die globale `llm`-Gruppe ab). Gegenriffs-Schutz:
+  # fixup-verdict bewertet den HEAD-Fortschritt, Re-Armierung während laufender
+  # Review/Fixup-Phasen ist Koordinator-Disziplin. Der Documenter bleibt bewusst statisch
+  # (`llm-documenter`): Er versiegelt .costs auf main — parallele Seals würden sich um den
+  # Push-Zugriff konkurrieren. Cron-/Ad-hoc-Sync bleibt in `llm-sync`. Erbe von PR #1301:
+  # ein erschöpftes z.ai-Kontingent trifft mehrere Läufe parallel — abgefedert durch
+  # llm-limit-detect (#1954) und zai-Peak-Vertagen (#2100).
+  # Grenzen: Auf einem Einzel-Runner (vars.PHASE_RUNNER, z. B. pi5) queuen alle Lanes
+  # trotzdem hintereinander — pro-Ticket-Parallelität wirkt nur hosted.
+  group: harness-${{ github.event.issue.number }}
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
-  # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,
-  # ticket-unabhängigem Key hätte ein Label-Burst über mehrere Tickets die
-  # wartenden Läufe still verworfen — Trigger-Label klebt, kein Lauf, kein Notice.
-  # `max` = bis zu 100 pending, FIFO. Unvereinbar mit cancel-in-progress: true.
+  # Run cancelt den wartenden (`queue: single` ist der Default). Mit pro-Ticket-Key
+  # fängt jede Lane genau ihre eigenen Folgeläufe — ein Label-Burst über Tickets reicht
+  # je Lane selten an 100 heran; `max` bleibt als Sicherheitsnetz. Unvereinbar mit
+  # cancel-in-progress: true.
   queue: max
 
 jobs:

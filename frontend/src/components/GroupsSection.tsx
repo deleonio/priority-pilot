@@ -211,6 +211,7 @@ export const GroupsSection = () => {
 													{/* Metazeile: Rolle als Text-Badge (nie nur Farbe) + Mitgliederzahl (AK6). */}
 													<div className="groups-meta">
 														<KolBadge _label={roleLabel(group.role)} />
+														{group.kind === 'duo' && <KolBadge _label="Duo" />}
 														<span>{memberCountLabel(group.memberCount)}</span>
 													</div>
 												</div>
@@ -232,6 +233,7 @@ export const GroupsSection = () => {
 														/>
 														<KolButton
 															_label="Löschen"
+															_icons={{ left: { icon: 'fa-solid fa-trash' } }}
 															_variant="danger"
 															_on={{ onClick: () => setDialog({ kind: 'delete', group }) }}
 														/>
@@ -243,6 +245,7 @@ export const GroupsSection = () => {
 													id={`group-detail-${group.id}`}
 													groupId={group.id}
 													ownRole={group.role}
+													kind={group.kind}
 													refreshKey={detailRefreshTick}
 												/>
 											)}

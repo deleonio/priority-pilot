@@ -1,4 +1,4 @@
-import { KolAlert, KolButton, KolInputText, KolTextarea } from '@public-ui/react-v19';
+import { KolAlert, KolButton, KolInputRadio, KolInputText, KolTextarea } from '@public-ui/react-v19';
 import type { Group } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
@@ -7,7 +7,12 @@ import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readString } from '../lib/inputValue';
 import { Modal } from './Modal';
 import { PlanBadge } from './PlanBadge';
-import { PlanHint } from './PlanHint';
+
+/** Art der Gruppe (#1991): „Duo" = genau zwei Personen, die nur Streak und Säulenwerte teilen. */
+const KIND_OPTIONS = [
+	{ label: 'Gruppe', value: 'group' },
+	{ label: 'Duo', value: 'duo' },
+];
 
 /** #1211: Gruppenname ist Pflicht und auf 60 Zeichen begrenzt (Server-Validierung, AK4). */
 const GROUP_NAME_MAX_LENGTH = 60;
@@ -40,6 +45,8 @@ export const GroupFormDialog = ({ group, onClose, onSaved }: GroupFormDialogProp
 	const [descriptionState, setDescriptionState] = useState(form.current.description);
 	const [imageUrlState, setImageUrlState] = useState(form.current.imageUrl);
 
+	// Art (#1991): nur beim Anlegen wählbar, danach fest (im Bearbeiten-Modus nur angezeigt).
+	const [kind, setKind] = useState<'group' | 'duo'>(group?.kind ?? 'group');
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
 
@@ -89,7 +96,7 @@ export const GroupFormDialog = ({ group, onClose, onSaved }: GroupFormDialogProp
 					await api.updateGroup({ id: group.id, groupUpdate });
 				}
 			} else {
-				await api.createGroup({ groupInput: description !== '' ? { name, description } : { name } });
+				await api.createGroup({ groupInput: { name, kind, ...(description !== '' && { description }) } });
 			}
 			onSaved();
 		} catch (reason) {
@@ -106,7 +113,6 @@ export const GroupFormDialog = ({ group, onClose, onSaved }: GroupFormDialogProp
 		<Modal title={isEdit ? 'Gruppe bearbeiten' : 'Gruppe anlegen'} onClose={onClose}>
 			{/* #1484 (T3b AK3): Grenzstelle `groups` — Badge als erstes Element unter dem Modal-Titel. */}
 			<PlanBadge feature="groups" inModal />
-			<PlanHint feature="groups" inModal />
 			{error !== null && (
 				<KolAlert _type="error" _label={isEdit ? 'Speichern fehlgeschlagen' : 'Anlegen fehlgeschlagen'}>
 					{error}
@@ -129,6 +135,21 @@ export const GroupFormDialog = ({ group, onClose, onSaved }: GroupFormDialogProp
 							const next = readString(value);
 							form.current.name = next;
 							setNameState(next);
+						},
+					}}
+				/>
+				<KolInputRadio
+					_label="Art"
+					_orientation="horizontal"
+					_options={KIND_OPTIONS}
+					_value={kind}
+					_disabled={isEdit}
+					_hint="Ein Duo sind zwei Personen: Ihr seht gemeinsam einen Streak und die Säulenwerte, aber keine Aufgaben."
+					_on={{
+						onChange: (_event, value) => {
+							if (value === 'group' || value === 'duo') {
+								setKind(value);
+							}
 						},
 					}}
 				/>

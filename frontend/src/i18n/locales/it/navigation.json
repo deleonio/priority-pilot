@@ -12,6 +12,7 @@
 		"help": "Aiuto",
 		"logout": "Esci",
 		"headerActions": "Azioni dell'intestazione",
+		"skipToContent": "Vai al contenuto",
 		"activeViewDescription": "Vista corrente — premi di nuovo per tornare indietro"
 	}
 }

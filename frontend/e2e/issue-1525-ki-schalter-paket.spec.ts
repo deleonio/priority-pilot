@@ -61,13 +61,15 @@ test.describe('Balamentum — #1525: KI-Schalter Paket-Sperre (375px)', () => {
 		await expect(aiSwitch).toBeVisible();
 		await expect(aiSwitch).toBeDisabled();
 
+		// Der Paket-Hinweis liegt im Popover eines Info-Buttons (FeaturePopoverButton).
+		await page.locator('.settings-llm-switch-row kol-popover-button').getByRole('button').first().click();
 		const planAlert = page.locator('.settings-llm-switch-row kol-alert');
 		await expect(planAlert).toBeVisible();
 		// Test-Pflege #1903: der Satz zum eigenen LLM-„Pro“vider entfällt (Q2=B) — er trug bisher den
 		// Treffer; `ai_assist` verlangt das Paket „Plus“ (Paketname aus dem Entitlement).
 		await expect(planAlert).toContainText('Plus');
 
-		await planAlert.getByRole('button').click();
+		await planAlert.getByRole('button', { name: 'Pakete ansehen' }).click();
 		await expect(page.getByRole('heading', { name: 'Pakete', exact: true })).toBeVisible();
 	});
 
@@ -81,7 +83,8 @@ test.describe('Balamentum — #1525: KI-Schalter Paket-Sperre (375px)', () => {
 		const aiSwitch = page
 			.getByRole('switch', { name: /^KI aktivieren$/ })
 			.or(page.getByRole('checkbox', { name: /^KI aktivieren$/ }));
-		const planAlert = page.locator('.settings-llm-switch-row kol-alert');
+		// Der Hinweis ist ein Info-Button über dem Schalter; seine Erklärung öffnet als Popover.
+		const planAlert = page.locator('.settings-llm-switch-row kol-popover-button');
 
 		const alertBox = await boundingBoxWhenLaidOut(planAlert);
 		const switchBox = await boundingBoxWhenLaidOut(aiSwitch);

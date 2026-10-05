@@ -168,4 +168,4 @@ Balamentum dient der **Lebensbalance und Selbstfürsorge**. Es ist **kein Medizi
 | „kann guttun“, „darf heute sein“                        | Stressabbau, „hilft gegen …“, Heil- oder Wirkversprechen    |
 | „kein Medizinprodukt, kein Ersatz für ärztlichen Rat“   | Aussagen zu Krankheit, Symptomen oder Genesung              |
 
-Der Fürsorge-Hinweis nennt bei Krisen die TelefonSeelsorge: 0800 111 0 111 (kostenfrei, rund um die Uhr).
+Die TelefonSeelsorge (0800 111 0 111) steht ausschließlich in den Nutzungsbedingungen (Abschnitt Haftung), nicht im Fürsorge-Hinweis: Balamentum ist ein Aufgabenmanager, der Aufgaben zurück in die Balance vorschlägt, kein Beratungsangebot.

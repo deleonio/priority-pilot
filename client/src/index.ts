@@ -57,12 +57,15 @@ export type CategoryUpdate = Schemas['CategoryUpdate'];
 /** #1211: Gruppen (Name Pflicht ≤ 60 Zeichen, Beschreibung optional) mit eigener Rolle. */
 export type Group = Schemas['Group'];
 export type GroupInput = Schemas['GroupInput'];
+/** #1974: Stand eines Duos — gemeinsamer Streak und Säulenwerte je Mitglied. */
+export type Duo = Schemas['Duo'];
 export type GroupUpdate = Schemas['GroupUpdate'];
 export type GroupMember = Schemas['GroupMember'];
 /** #1223: füreinander angelegte Aufgabe einer Gruppe (reduzierter Feldsatz). */
 export type GroupTask = Schemas['GroupTask'];
 /** #1254: füreinander angelegte Serie einer Gruppe (reduzierter Feldsatz). */
 export type GroupSeries = Schemas['GroupSeries'];
+export type GroupChallenge = Schemas['GroupChallenge'];
 export type GroupInvitation = Schemas['GroupInvitation'];
 export type GroupInvitationInput = Schemas['GroupInvitationInput'];
 export type ReceivedInvitation = Schemas['ReceivedInvitation'];

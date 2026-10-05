@@ -62,10 +62,36 @@ const seedPlanMirror = async (page: Page): Promise<void> => {
 	);
 };
 
-export const test = base.extend({
+/**
+ * Der Willkommens-Dialog (`App.tsx`, Modal „Willkommen bei Balamentum") öffnet sich bei jedem Start ohne
+ * Aufgaben und sperrt als Modal alle Klicks und Tastatur-Navigation dahinter. Ein Init-Skript schließt
+ * ihn, sobald er offen ist — `close()` löst `onClose` aus, die App merkt sich „Später" und zeigt den
+ * EmptyState. Nur `onboarding-flow.spec.ts` testet den Dialog selbst und schaltet das per
+ * `test.use({ dismissOnboarding: false })` ab; Specs mit eigener Basis rufen
+ * `dismissOnboardingDialog(page)` selbst auf.
+ */
+export const dismissOnboardingDialog = async (page: Page): Promise<void> => {
+	await page.addInitScript(() => {
+		setInterval(() => {
+			const host = document.querySelector('kol-dialog[_label="Willkommen bei Balamentum"]') as
+				(HTMLElement & { close?: () => void }) | null;
+			// eslint-disable-next-line no-restricted-syntax -- Testinfrastruktur: ohne `open`-Prüfung liefe `close()` vor `showModal()` ins Leere
+			if (host?.shadowRoot?.querySelector('dialog')?.open) {
+				host.close?.();
+				// Sequential-Focus-Starting-Point: sonst startet der nächste Tab an der Stelle des
+				// entfernten Dialogs statt am Dokumentanfang.
+				document.body.tabIndex = -1;
+				document.body.focus();
+			}
+		}, 50);
+	});
+};
+
+export const test = base.extend<{ dismissOnboarding: boolean }>({
+	dismissOnboarding: [true, { option: true }],
 	// Zweiter Parameter ist die Playwright-Fixture-Übergabe (`use`); bewusst `runTest` benannt, damit
 	// die `react-hooks/rules-of-hooks`-Heuristik den Aufruf nicht als React-Hook fehldeutet.
-	page: async ({ page }, runTest) => {
+	page: async ({ page, dismissOnboarding }, runTest) => {
 		await page.route('**/auth/me', (route: Route) =>
 			route.fulfill({
 				status: 200,
@@ -74,6 +100,9 @@ export const test = base.extend({
 			}),
 		);
 		await seedPlanMirror(page);
+		if (dismissOnboarding) {
+			await dismissOnboardingDialog(page);
+		}
 		await runTest(page);
 	},
 });

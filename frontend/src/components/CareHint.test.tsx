@@ -9,8 +9,8 @@ import i18next from '../i18n/config';
 
 /**
  * Spec-Tests für den Fürsorge-Hinweis (AK1–AK6, AK8, #1793): lädt die Vorschläge selbst über
- * `api.getCareSuggestions`, zeigt den ersten und bietet Übernehmen / Nicht jetzt / Ablehnen.
- * Ablehnen einer eigenen Aufgabe und „Nicht jetzt" wirken nur lokal (localStorage, Remount = Reload).
+ * `api.getCareSuggestions`, zeigt den ersten und bietet Übernehmen / Heute nicht / Diesen Vorschlag nicht mehr.
+ * Ablehnen einer eigenen Aufgabe und „Heute nicht" wirken nur lokal (localStorage, Remount = Reload).
  */
 
 interface Vorschlag {
@@ -129,18 +129,6 @@ describe('CareHint (#1793)', () => {
 		void i18next.changeLanguage('de');
 	});
 
-	// #1967 AK4: ärztlicher Rat + TelefonSeelsorge als Light-DOM-`a` in beiden Varianten.
-	it.each([
-		['mit Vorschlag', [vorlage]],
-		['ohne Vorschlag', []],
-	])('#1967 AK4: %s zeigt ärztlichen Rat und tel:-Link zur TelefonSeelsorge', async (_name, vorschlaege) => {
-		getCareSuggestions.mockResolvedValue({ vorschlaege });
-		render(<CareHint />);
-		const el = await zeigeHinweis();
-		expect(el.textContent).toContain('ärztlichen Rat');
-		expect(el.querySelector('a[href="tel:08001110111"]')).not.toBeNull();
-	});
-
 	it('AK1: rendert genau EINEN Hinweis mit Säulenname und Titel des ersten Vorschlags', async () => {
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage, zweite] });
 		render(<CareHint />);
@@ -199,7 +187,7 @@ describe('CareHint (#1793)', () => {
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
 		render(<CareHint />);
 		await zeigeHinweis();
-		tap('Vorschlag ablehnen');
+		tap('Diesen Vorschlag nicht mehr');
 		await waitFor(() => expect(hint()).toBeNull());
 		expect(dismissCareSuggestion).toHaveBeenCalledTimes(1);
 		expect(dismissCareSuggestion).toHaveBeenCalledWith({ templateKey: 'koerper-spaziergang' });
@@ -211,7 +199,7 @@ describe('CareHint (#1793)', () => {
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [eigene] });
 		const { unmount } = render(<CareHint />);
 		await zeigeHinweis();
-		tap('Vorschlag ablehnen');
+		tap('Diesen Vorschlag nicht mehr');
 		await waitFor(() => expect(hint()).toBeNull());
 		expect(dismissCareSuggestion).not.toHaveBeenCalled();
 		expect(createTask).not.toHaveBeenCalled();
@@ -231,14 +219,14 @@ describe('CareHint (#1793)', () => {
 	});
 
 	// Test-Pflege #1977 (docs/spec/issue-1977.md): der frühere #1793-AK4-Vertrag (Global-Snooze)
-	// wird durch den Snooze je Vorschlag ersetzt — „Nicht jetzt" öffnet heute die Grundauswahl.
-	it('#1977 AK3/Test-Pflege: „Nicht jetzt" ohne Grund snoozed nur diesen Vorschlag bis Tagesende — nächster rückt nach, am Folgetag ist der erste zurück', async () => {
+	// wird durch den Snooze je Vorschlag ersetzt — „Heute nicht" öffnet heute die Grundauswahl.
+	it('#1977 AK3/Test-Pflege: „Heute nicht" ohne Grund snoozed nur diesen Vorschlag bis Tagesende — nächster rückt nach, am Folgetag ist der erste zurück', async () => {
 		vi.useFakeTimers({ toFake: ['Date'] });
 		vi.setSystemTime(new Date(2026, 5, 10, 12, 0, 0));
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage, zweite] });
 		const { unmount } = render(<CareHint />);
 		await zeigeHinweis();
-		tap('Nicht jetzt');
+		tap('Heute nicht');
 		tap('Ohne Grund überspringen');
 		await waitFor(() => expect(hint()?.textContent).toContain('Dehnen'));
 		expect(dismissCareSuggestion).not.toHaveBeenCalled();
@@ -274,7 +262,7 @@ describe('CareHint (#1793)', () => {
 		const region = screen.getByRole('status');
 		expect(region.getAttribute('aria-label') ?? '').not.toBe('');
 		const namen = screen.getAllByRole('button').map((b) => b.textContent);
-		expect(namen).toEqual(['Vorschlag übernehmen', 'Nicht jetzt', 'Vorschlag ablehnen']);
+		expect(namen).toEqual(['Vorschlag übernehmen', 'Heute nicht', 'Diesen Vorschlag nicht mehr']);
 	});
 
 	it('AK8: scheitert das Laden, wird nichts gerendert', async () => {
@@ -295,8 +283,8 @@ describe('CareHint (#1793)', () => {
 		expect(el.textContent).not.toContain('zu kurz');
 		expect(el.textContent).toContain('Atme fünf Minuten durch');
 		expect(screen.getByRole('button', { name: 'Vorschlag übernehmen' })).toBeTruthy();
-		expect(screen.getByRole('button', { name: 'Nicht jetzt' })).toBeTruthy();
-		expect(screen.getByRole('button', { name: 'Vorschlag ablehnen' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Heute nicht' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Diesen Vorschlag nicht mehr' })).toBeTruthy();
 	});
 
 	it('#1795 AK4: anlass defizit → bisheriger Satz „kam diese Woche zu kurz"', async () => {
@@ -308,7 +296,7 @@ describe('CareHint (#1793)', () => {
 
 	// #2063 AK2/AK5 (Spec docs/spec/issue-2063.md): der Hinweis spricht die App-Sprache —
 	// hier Englisch; Server-Daten (Säulenname, Titel, Beschreibung) bleiben wortgleich.
-	it('#2063 AK2+AK5: Sprache en — Label, Knöpfe und Krisenhinweis englisch', async () => {
+	it('#2063 AK2+AK5: Sprache en — Label und Knöpfe englisch', async () => {
 		await i18next.changeLanguage('en');
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
 		render(<CareHint />);
@@ -317,14 +305,10 @@ describe('CareHint (#1793)', () => {
 		expect(document.querySelector('[data-comp="kol-alert"]')?.getAttribute('data-label')).toBe('Care hint');
 		expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
 			'Accept suggestion',
-			'Not now',
-			'Dismiss suggestion',
+			'Not today',
+			'Not this suggestion again',
 		]);
-		const link = el.querySelector('a[href="tel:08001110111"]');
-		expect(link).not.toBeNull();
-		expect(link!.textContent).toBe('TelefonSeelsorge: 0800 111 0 111');
-		expect(el.textContent).toContain('Not a substitute for medical advice');
-		expect(el.textContent).toContain('(free, around the clock)');
+		expect(el.textContent).not.toContain('TelefonSeelsorge');
 	});
 
 	it('#2063 AK2: Sprache en — beide Rahmungstexte englisch, Server-Daten unübersetzt', async () => {
@@ -401,7 +385,7 @@ describe('CareHint (#1793)', () => {
 			getCareSuggestions.mockResolvedValue({ vorschlaege: [ki] });
 			const { unmount } = render(<CareHint />);
 			await zeigeHinweis();
-			tap('Vorschlag ablehnen');
+			tap('Diesen Vorschlag nicht mehr');
 			await waitFor(() => expect(hint()).toBeNull());
 			expect(dismissCareSuggestion).not.toHaveBeenCalled();
 			unmount();
@@ -458,11 +442,11 @@ describe('#1977 „Nicht jetzt“ mit Grund (docs/spec/issue-1977.md)', () => {
 		vi.clearAllMocks();
 	});
 
-	it('AK1: „Nicht jetzt" ersetzt die Aktionen durch eine Grundauswahl — genau fünf Gründe plus Überspringen/Abbrechen, kein Call vor der Auswahl', async () => {
+	it('AK1: „Heute nicht" ersetzt die Aktionen durch eine Grundauswahl — genau fünf Gründe plus Überspringen/Abbrechen, kein Call vor der Auswahl', async () => {
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
 		render(<CareHint />);
 		await zeigeHinweis();
-		tap('Nicht jetzt');
+		tap('Heute nicht');
 
 		await waitFor(() => expect(gruppe()).toBeTruthy());
 		expect(within(gruppe()).getAllByRole('radio')).toHaveLength(5);
@@ -480,7 +464,7 @@ describe('#1977 „Nicht jetzt“ mit Grund (docs/spec/issue-1977.md)', () => {
 		expect(screen.getByRole('button', { name: 'Abbrechen' })).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'Grund speichern' })).toBeTruthy();
 		// UX: die Auswahl ersetzt die Aktionsreihe (ein Screen, eine Aufgabe)
-		expect(screen.queryByRole('button', { name: 'Nicht jetzt' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Heute nicht' })).toBeNull();
 		expect(rejectCareSuggestion).not.toHaveBeenCalled();
 	});
 
@@ -488,7 +472,7 @@ describe('#1977 „Nicht jetzt“ mit Grund (docs/spec/issue-1977.md)', () => {
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage, zweite] });
 		render(<CareHint />);
 		await zeigeHinweis();
-		tap('Nicht jetzt');
+		tap('Heute nicht');
 		fireEvent.click(within(gruppe()).getByRole('radio', { name: 'Dafür fehlt mir gerade die Energie' }));
 		tap('Grund speichern');
 
@@ -501,7 +485,7 @@ describe('#1977 „Nicht jetzt“ mit Grund (docs/spec/issue-1977.md)', () => {
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [eigene] });
 		render(<CareHint />);
 		await zeigeHinweis();
-		tap('Nicht jetzt');
+		tap('Heute nicht');
 		fireEvent.click(within(gruppe()).getByRole('radio', { name: 'Die Aufgabe ist mir gerade zu groß' }));
 		tap('Grund speichern');
 
@@ -512,7 +496,7 @@ describe('#1977 „Nicht jetzt“ mit Grund (docs/spec/issue-1977.md)', () => {
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage, zweite] });
 		render(<CareHint />);
 		await zeigeHinweis();
-		tap('Nicht jetzt');
+		tap('Heute nicht');
 		tap('Ohne Grund überspringen');
 		await waitFor(() => expect(hint()?.textContent).toContain('Dehnen'));
 		expect(rejectCareSuggestion).not.toHaveBeenCalled();
@@ -521,7 +505,7 @@ describe('#1977 „Nicht jetzt“ mit Grund (docs/spec/issue-1977.md)', () => {
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
 		render(<CareHint />);
 		await zeigeHinweis();
-		tap('Nicht jetzt');
+		tap('Heute nicht');
 		tap('Ohne Grund überspringen');
 		await waitFor(() => expect(hint()?.textContent).toContain('Gerade gibt es keinen Vorschlag für dich.'));
 	});
@@ -532,7 +516,7 @@ describe('#1977 „Nicht jetzt“ mit Grund (docs/spec/issue-1977.md)', () => {
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [{ ...vorlage, typ: 'ki', templateKey: undefined }] });
 		render(<CareHint />);
 		await zeigeHinweis();
-		tap('Nicht jetzt');
+		tap('Heute nicht');
 		await waitFor(() => expect(hint()).toBeNull());
 		expect(screen.queryByRole('radiogroup')).toBeNull();
 		expect(rejectCareSuggestion).not.toHaveBeenCalled();

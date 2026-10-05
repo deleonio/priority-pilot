@@ -117,9 +117,6 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 		await toggleCard('Erststart A', true);
 		await toggleCard('Erststart B', true);
 		await clickButton('Weiter');
-		// #2070 Test-Pflege: Gewichtungsschritt dazwischen — „Speichern" schließt Schritt 3 ab.
-		apiMock.setPillarWeights.mockResolvedValue(pillars);
-		await clickButton('Speichern');
 		// IDs für den Abhängigkeits-Mock (Test-Infrastruktur, Kreuzverhör #2081 Finding 1).
 		apiMock.createTask.mockResolvedValueOnce({ id: 101 }).mockResolvedValueOnce({ id: 102 });
 		await clickButton('Übernehmen');
@@ -141,11 +138,11 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 		await gotoSuggestions();
 
 		await toggleCard('Erststart B', true);
-		// #2070 Test-Pflege: Navigationspfad Weiter → Speichern → Übernehmen (Gewichtungsschritt).
 		await clickButton('Weiter');
-		apiMock.setPillarWeights.mockResolvedValue(pillars);
-		await clickButton('Speichern');
 		await clickButton('Übernehmen');
+		// Schritt 4 (Import, optional) liegt vor der Abschluss-Karte.
+		await waitFor(() => expect(button('Weiter')).toBeDefined());
+		await clickButton('Weiter');
 
 		await waitFor(() => expect(apiMock.createTask).toHaveBeenCalledTimes(2));
 		expect(apiMock.createTask).toHaveBeenNthCalledWith(1, {
@@ -167,15 +164,12 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 		await toggleCard('Erststart B', true); // Kaskade: A + B
 		await toggleCard('Erststart A', false); // Kaskade: B fällt mit weg
 		await clickButton('Weiter');
-		// #2070 Test-Pflege: Gewichtungsschritt — „Speichern" führt zur Zusammenfassung (Schritt 4).
-		apiMock.setPillarWeights.mockResolvedValue(pillars);
-		await clickButton('Speichern');
 
 		// Schritt 3 zeigt Auswahl 0 — ohne Kaskade stünde hier eine verwaiste Karte mit still
 		// übersprungener „nach: …“-Zusage.
 		await waitFor(() => {
 			const counter = [...document.body.querySelectorAll('.onboarding-flow p')].find((el) =>
-				el.textContent?.includes('von 5'),
+				el.textContent?.includes('Vorschlägen'),
 			);
 			expect(counter?.textContent).toContain('0 von 5');
 		});
@@ -196,10 +190,7 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 		await toggleCard('Erststart B', true);
 		await toggleCard('Erststart C', true);
 		// Der applyError-Alert lebt im Zusammenfassungs-Schritt — zuerst dorthin navigieren
-		// (#2070 Test-Pflege: Gewichtungsschritt dazwischen).
 		await clickButton('Weiter');
-		apiMock.setPillarWeights.mockResolvedValue(pillars);
-		await clickButton('Speichern');
 		await clickButton('Übernehmen');
 
 		// Teilfehler bei C: A und B liegen an (IDs gemerkt), der Alert nennt den Stand.
@@ -214,6 +205,9 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 		// Retry: nur C wird angelegt (103), die Kante läuft mit den gemerkten IDs — keine Duplikate.
 		apiMock.createTask.mockResolvedValueOnce({ id: 103 });
 		await clickButton('Übernehmen');
+		// Schritt 4 (Import, optional) liegt vor der Abschluss-Karte.
+		await waitFor(() => expect(button('Weiter')).toBeDefined());
+		await clickButton('Weiter');
 
 		// #2070: Apply endet auf der Abschluss-Karte — „Fertig" schließt (Test-Pflege).
 		await waitFor(() => expect(button('Fertig')).toBeDefined());
@@ -302,37 +296,31 @@ describe('OnboardingFlow — Schrittfolge, Abbruch, Fehler- und Quota-Zustand (#
 });
 
 describe('OnboardingFlow — Startgewichtung, Abschluss-Karte, dynamische Schritt-Anzeige (#2070, Spec AK1/AK2)', () => {
-	it('fuehrt die Startgewichtung als Schritt 3 von 4 ein — ohne sie ist der Flow nicht abschliessbar', async () => {
+	it('zeigt die Schritt-Anzeige mit 4 Schritten und keine Startgewichtung (alle Konten starten mit 5 × 20 %)', async () => {
 		renderFlow();
-
-		// Dynamische Schritt-Anzeige: Gesamtschrittzahl 4, nicht die hart codierte 3.
-		const indicator = document.body.querySelector('.onboarding-step-indicator');
-		expect(indicator?.textContent).toContain('von 4');
+		const indicator = () => document.body.querySelector('.onboarding-step-indicator')?.textContent ?? '';
+		expect(indicator()).toContain('Schritt 1 von 4');
 
 		await gotoSuggestions();
 		await toggleCard('Erststart A', true);
-		await toggleCard('Erststart B', true);
 		await clickButton('Weiter');
 
-		// Schritt 3 ist die eingebettete Startgewichtung (Speichern), nicht die Zusammenfassung.
-		await waitFor(() => expect(button('Speichern'), 'Gewichtungsschritt mit "Speichern" fehlt').toBeDefined());
-		const step3 = document.body.querySelector('.onboarding-step-indicator');
-		expect(step3?.textContent).toContain('Schritt 3 von 4');
-		// Ohne gespeicherte Gewichtung kein Übernehmen — der Button liegt erst auf Schritt 4.
-		expect(button('Übernehmen'), '"Übernehmen" vor Abschluss-Schritt sichtbar').toBeUndefined();
+		// Direkt nach den Vorschlägen folgt „Übernehmen“ als Schritt 3 — kein Gewichtungsschritt.
+		await waitFor(() => expect(button('Übernehmen')).toBeDefined());
+		expect(indicator()).toContain('Schritt 3 von 4');
+		expect(button('Speichern')).toBeUndefined();
 	});
 
 	it('oeffnet nach dem Übernehmen die Abschluss-Karte (nächste Aufgabe abhakbar, Balance-Hinweis, "Fertig")', async () => {
 		const { onClose } = renderFlow();
-		apiMock.setPillarWeights.mockResolvedValue(pillars);
 		await gotoSuggestions();
 		await toggleCard('Erststart A', true);
 		await toggleCard('Erststart B', true);
 		await clickButton('Weiter');
-		await waitFor(() => expect(button('Speichern')).toBeDefined());
-		await clickButton('Speichern');
-		await waitFor(() => expect(apiMock.setPillarWeights).toHaveBeenCalledTimes(1));
 		await clickButton('Übernehmen');
+		// Schritt 4 (Import, optional) liegt vor der Abschluss-Karte.
+		await waitFor(() => expect(button('Weiter')).toBeDefined());
+		await clickButton('Weiter');
 		await waitFor(() => expect(apiMock.createTask).toHaveBeenCalledTimes(2));
 
 		// Abschluss-Karte statt sofortigem onClose: Flow bleibt offen, nächste Aufgabe direkt abhakbar.
@@ -350,13 +338,13 @@ describe('OnboardingFlow — Startgewichtung, Abschluss-Karte, dynamische Schrit
 
 	it('zeigt ohne eigene Auswahl in der Abschluss-Karte die erste Beispielaufgabe — rein lokal, ohne Task-Call (AK2)', async () => {
 		const { onClose } = renderFlow();
-		apiMock.setPillarWeights.mockResolvedValue(pillars);
 		await gotoSuggestions();
 		// Keine Karte ausgewählt — Schritt 2 führt trotzdem weiter, die Auswahl ist zulässig leer.
 		await clickButton('Weiter');
-		await waitFor(() => expect(button('Speichern')).toBeDefined());
-		await clickButton('Speichern');
 		await clickButton('Übernehmen');
+		// Schritt 4 (Import, optional) liegt vor der Abschluss-Karte.
+		await waitFor(() => expect(button('Weiter')).toBeDefined());
+		await clickButton('Weiter');
 		await waitFor(() => expect(button('Fertig'), 'Abschluss-Karte ohne "Fertig"').toBeDefined());
 
 		// Fallback statt leerer Karte: erste Beispielaufgabe, rein lokal — kein createTask.
@@ -372,14 +360,42 @@ describe('OnboardingFlow — Startgewichtung, Abschluss-Karte, dynamische Schrit
 	});
 });
 
-// Roter Spec-Test für #1969 (Spec `docs/spec/issue-1969.md`, AK7): Schritt 1 bietet einen
-// optionalen Verweis auf den Import an (kein Pflichtschritt, kein eigener Screen).
+// #1969 AK7: optionaler Verweis auf den Import — liegt in Schritt 5 (nach dem Übernehmen), damit er den
+// Assistenten nicht mitten im Ablauf abbricht.
 describe('OnboardingFlow — Import-Einstieg (Spec #1969 AK7)', () => {
-	it('bietet in Schritt 1 einen Verweis auf den Import an', () => {
+	it('bietet den Import-Verweis nicht in Schritt 1, sondern in Schritt 4 an', async () => {
+		const entry = () =>
+			[...document.body.querySelectorAll('.onboarding-flow kol-button')].find((el) =>
+				(el.getAttribute('_label') ?? '').includes('importieren'),
+			);
 		renderFlow();
-		const entry = [...document.body.querySelectorAll('.onboarding-flow kol-button')].find((el) =>
-			(el.getAttribute('_label') ?? '').includes('importieren'),
+		expect(entry(), 'Schritt 1 ohne Import-Verweis').toBeUndefined();
+
+		await gotoSuggestions();
+		await toggleCard('Erststart A', true);
+		await clickButton('Weiter');
+		apiMock.createTask.mockResolvedValueOnce({ id: 101 });
+		await clickButton('Übernehmen');
+		await waitFor(() => expect(entry(), 'Schritt 4 bietet den Import-Verweis an').toBeDefined());
+	});
+});
+
+describe('OnboardingFlow — ohne KI-Paket', () => {
+	it('überspringt Freitext und Vorschläge: nur der Import bleibt', async () => {
+		const onClose = vi.fn();
+		render(
+			<PlanProvider
+				value={{
+					plan: 'free',
+					entitlements: { ai_assist: { allowed: false, requiredPlan: 'plus' } } as unknown as EntitlementMap,
+				}}
+			>
+				<OnboardingFlow pillars={pillars} onClose={onClose} />
+			</PlanProvider>,
 		);
-		expect(entry, 'Schritt 1 muss einen Import-Verweis anbieten').toBeDefined();
+
+		expect(document.body.querySelector('.onboarding-step-indicator')?.textContent).toContain('Schritt 1 von 1');
+		expect(document.body.querySelector('.onboarding-flow kol-textarea')).toBeNull();
+		await waitFor(() => expect(button('Aufgaben aus Todoist oder CSV importieren')).toBeDefined());
 	});
 });

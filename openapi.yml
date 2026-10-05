@@ -3382,6 +3382,71 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /groups/{id}/challenge:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID der Gruppe
+        schema:
+          type: integer
+    get:
+      summary: Jüngste Challenge einer Gruppe mit Rangfolge nach Balance
+      description: >-
+        Status wird beim Lesen aus `endsAt` abgeleitet (#1992) — die Challenge
+        endet ohne Job. Je Mitglied nur Name, Rang und Balance-Wert, keine
+        Aufgabenfelder. Noch keine Challenge 204, Nicht-Mitglied 404.
+      operationId: getGroupChallenge
+      tags: [groups]
+      responses:
+        '200':
+          description: Challenge-Stand
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupChallenge'
+        '204':
+          description: Die Gruppe hatte noch keine Challenge
+        '404':
+          description: Gruppe unbekannt oder kein Mitglied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Sieben-Tage-Challenge starten
+      description: >-
+        Jedes Mitglied darf starten (#1992); `endsAt` liegt sieben Tage nach
+        `startsAt`. Höchstens eine laufende Challenge je Gruppe (sonst 409).
+      operationId: startGroupChallenge
+      tags: [groups]
+      responses:
+        '201':
+          description: Gestartete Challenge
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupChallenge'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          $ref: '#/components/responses/PlanRequired'
+        '404':
+          description: Gruppe unbekannt oder kein Mitglied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Es läuft bereits eine Challenge
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /groups/{id}/invitations:
     parameters:
       - name: id
@@ -5115,6 +5180,39 @@ components:
                       type: string
                     wert:
                       type: number
+    GroupChallenge:
+      type: object
+      description: >-
+        Gruppen-Challenge (#1992) — Zeitraum, aus `endsAt` abgeleiteter Status
+        und Rangfolge nach Balance (nicht nach Menge).
+      required: [gruppe, status, startsAt, endsAt, rangfolge]
+      properties:
+        gruppe:
+          type: string
+          description: Gruppenname (für die teilbare Abschluss-Karte)
+        status:
+          type: string
+          enum: [laufend, beendet]
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        rangfolge:
+          type: array
+          items:
+            type: object
+            required: [name, rang, balance]
+            properties:
+              name:
+                type: string
+              rang:
+                type: integer
+              balance:
+                type: number
+                nullable: true
+                description: Füllstand 0–1; `null` ohne Punkte im Zeitraum
     GroupSeries:
       type: object
       description: >-

@@ -116,6 +116,7 @@ export const ConfirmDeleteDialog = ({
 				)}
 				<KolButton
 					_label={deleting ? 'Löschen…' : confirmLabel}
+					_icons={{ left: { icon: 'fa-solid fa-trash' } }}
 					_variant="danger"
 					_disabled={deleting}
 					_on={{ onClick: () => void run(onConfirm) }}

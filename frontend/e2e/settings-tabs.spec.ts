@@ -223,7 +223,7 @@ test.describe('#323 Settings-Tab bleibt nach Toggle-Interaktion stabil', () => {
  * ROTE Spec-Tests für #1151 „Eigener Settings-Tab ‚Standort'" (Spec: docs/spec/issue-1151.md).
  *
  * Der komplette Geo-Block wandert aus dem Tab „Allgemein" in einen neuen vierten Tab
- * „Standort" (Index 3, Route `/settings/standort`). Diese Tests sind rot, bis
+ * „Standort" (Index 3, Route `/settings/ortung`). Diese Tests sind rot, bis
  * `SETTINGS_TABS`/`SETTINGS_PATH_SEGMENTS` erweitert sind und der Geo-Block im neuen Slot lebt.
  */
 const geoSwitch = (page: Page) =>
@@ -235,27 +235,27 @@ const GEO_SLIDER_LABELS = ['Anzeige-Entfernung (km)', 'Alarm-Entfernung (km)', '
 
 test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 	/**
-	 * AK1 — Vierter Tab vorhanden und per Route wählbar: Direktaufruf `/settings/standort`
+	 * AK1 — Vierter Tab vorhanden und per Route wählbar: Direktaufruf `/settings/ortung`
 	 * aktiviert den Tab „Standort"; alle vier Tabs sind in der Tablist vorhanden.
 	 */
-	test('AK1: /settings/standort zeigt vier Tabs und aktiviert „Standort"', async ({ page }) => {
-		await page.goto('/app/settings/standort');
+	test('AK1: /settings/ortung zeigt vier Tabs und aktiviert „Ortung"', async ({ page }) => {
+		await page.goto('/app/settings/ortung');
 		await waitForStableView(page, 'Balamentum');
 
-		for (const label of ['Allgemein', 'Säulen', 'KI', 'Standort']) {
+		for (const label of ['Allgemein', 'Säulen', 'KI', 'Ortung']) {
 			await expect(page.getByRole('tab', { name: label, exact: true })).toBeVisible();
 		}
-		await expect(page.getByRole('tab', { name: 'Standort', exact: true })).toHaveAttribute('aria-selected', 'true');
+		await expect(page.getByRole('tab', { name: 'Ortung', exact: true })).toHaveAttribute('aria-selected', 'true');
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'false');
 	});
 
 	/**
-	 * AK2 — Geo-Settings nur im Standort-Tab: `/settings/standort` zeigt den
+	 * AK2 — Geo-Settings nur im Standort-Tab: `/settings/ortung` zeigt den
 	 * „Standort erfassen"-Schalter und die drei Slider; auf `/settings/general` ist kein
 	 * Geo-Element mehr sichtbar.
 	 */
 	test('AK2: Geo-Switch und Slider im Standort-Tab sichtbar, im Allgemein-Tab nicht mehr', async ({ page }) => {
-		await page.goto('/app/settings/standort');
+		await page.goto('/app/settings/ortung');
 		await waitForStableView(page, 'Balamentum');
 		await expect(geoSwitch(page)).toBeVisible();
 		await page.goto('/app/settings/general');
@@ -283,7 +283,7 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 			});
 			localStorage.setItem('pp-geolocation-enabled', 'true');
 		});
-		await page.goto('/app/settings/standort');
+		await page.goto('/app/settings/ortung');
 		await waitForStableView(page, 'Balamentum');
 
 		await expect(geoSwitch(page)).toBeVisible();
@@ -293,7 +293,7 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 	});
 
 	/**
-	 * AK4 — URL bleibt die Quelle: Tab-Klick auf „Standort" schreibt `/settings/standort`,
+	 * AK4 — URL bleibt die Quelle: Tab-Klick auf „Standort" schreibt `/settings/ortung`,
 	 * Klick zurück auf „Allgemein" `/settings/general`; Browsers-Zurückkehren stellt den
 	 * Standort-Tab wieder her.
 	 */
@@ -301,9 +301,9 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Balamentum');
 
-		await page.getByRole('tab', { name: 'Standort', exact: true }).click();
-		await expect(page).toHaveURL(/\/settings\/standort$/);
-		await expect(page.getByRole('tab', { name: 'Standort', exact: true })).toHaveAttribute('aria-selected', 'true');
+		await page.getByRole('tab', { name: 'Ortung', exact: true }).click();
+		await expect(page).toHaveURL(/\/settings\/ortung$/);
+		await expect(page.getByRole('tab', { name: 'Ortung', exact: true })).toHaveAttribute('aria-selected', 'true');
 
 		await page.getByRole('tab', { name: 'KI', exact: true }).click();
 		await expect(page).toHaveURL(/\/settings\/llm$/);
@@ -347,10 +347,10 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 			});
 			localStorage.setItem('pp-geolocation-enabled', 'true');
 		});
-		await page.goto('/app/settings/standort');
+		await page.goto('/app/settings/ortung');
 		await waitForStableView(page, 'Balamentum');
 
-		for (const label of ['Allgemein', 'Säulen', 'KI', 'Standort']) {
+		for (const label of ['Allgemein', 'Säulen', 'KI', 'Ortung']) {
 			const box = await page.getByRole('tab', { name: label, exact: true }).boundingBox();
 			expect(box, `Tab „${label}" rendert messbar`).not.toBeNull();
 			expect(box!.x, `Tab „${label}" beginnt im Viewport`).toBeGreaterThanOrEqual(-1);
@@ -402,12 +402,12 @@ test.describe('#1320 Settings-Seite: Browser-Zurück und Deep-Links bleiben erha
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
 	});
 
-	test('AK6: Deep-Link /settings/standort zeigt den Standort-Tab mit sichtbarem Banner', async ({ page }) => {
-		await page.goto('/app/settings/standort');
+	test('AK6: Deep-Link /settings/ortung zeigt den Ortung-Tab mit sichtbarem Banner', async ({ page }) => {
+		await page.goto('/app/settings/ortung');
 		await waitForStableView(page, 'Balamentum');
 
 		await expect(page.getByRole('banner')).toBeVisible();
-		await expect(page.getByRole('tab', { name: 'Standort', exact: true })).toHaveAttribute('aria-selected', 'true');
+		await expect(page.getByRole('tab', { name: 'Ortung', exact: true })).toHaveAttribute('aria-selected', 'true');
 	});
 });
 
@@ -434,14 +434,14 @@ test.describe('#1903 Tab „KI"', () => {
 		});
 	}
 
-	test('AK8: /settings/standort öffnet weiterhin den Tab „Standort"', async ({ page }) => {
-		await page.goto('/app/settings/standort');
+	test('AK8: /settings/ortung öffnet den Tab „Ortung"', async ({ page }) => {
+		await page.goto('/app/settings/ortung');
 		await waitForStableView(page, 'Balamentum');
 
-		await expect(page.getByRole('tab', { name: 'Standort', exact: true })).toHaveAttribute('aria-selected', 'true');
+		await expect(page.getByRole('tab', { name: 'Ortung', exact: true })).toHaveAttribute('aria-selected', 'true');
 	});
 
-	test('AK9: bei 375 px ragen Tab-Leiste, Schalter und Karte „Access-Token" nicht über den Viewport', async ({
+	test('AK9: bei 375 px ragen Tab-Leiste, Schalter und Akkordeon „Access-Token" nicht über den Viewport', async ({
 		page,
 	}) => {
 		await page.setViewportSize({ width: 375, height: 812 });
@@ -451,7 +451,7 @@ test.describe('#1903 Tab „KI"', () => {
 		const targets = [
 			page.getByRole('tab', { name: 'KI', exact: true }),
 			page.getByRole('switch', { name: 'KI aktivieren' }).or(page.getByRole('checkbox', { name: 'KI aktivieren' })),
-			page.locator('kol-card[_label="Access-Token"]'),
+			page.locator('kol-accordion summary').filter({ hasText: /^Access-Token$/ }),
 		];
 		for (const target of targets) {
 			await expect(target.first()).toBeVisible();
@@ -472,13 +472,16 @@ test.describe('#1904 Settings-Tabs nach Paketstufe sortiert', () => {
 		await waitForStableView(page, 'Balamentum');
 
 		const names = await page.getByRole('tab').allInnerTexts();
-		const order = ['Allgemein', 'Säulen', 'Kategorien', 'Standort', 'Orte', 'KI', 'Gruppen', 'Pakete & Abo'];
+		const order = ['Allgemein', 'Säulen', 'Kategorien', 'Ortung', 'KI', 'Gruppen', 'Pakete & Abo'];
 		expect(names.map((n) => n.trim()).filter((n) => order.includes(n))).toEqual(order);
 	});
 
 	const SEGMENTS: [string, string, string][] = [
 		['kategorien', 'Kategorien', '.settings-categories'],
-		['orte', 'Orte', '.settings-places'],
+		['ortung', 'Ortung', '.settings-geo'],
+		// Alte Adressen: „Standort" und „Orte" sind in „Ortung" aufgegangen.
+		['standort', 'Ortung', '.settings-geo'],
+		['orte', 'Ortung', '.settings-geo'],
 		['llm', 'KI', '.settings-llm'],
 		['gruppen', 'Gruppen', '.settings-groups'],
 		['pakete', 'Pakete & Abo', '.settings-plans'],

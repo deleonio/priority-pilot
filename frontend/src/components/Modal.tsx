@@ -42,6 +42,11 @@ interface ModalProps {
 	 * am JSX-Element hält und keine manuelle Fokus-Logik pflegt.
 	 */
 	initialFocusRef?: RefObject<HTMLElement | null>;
+	/**
+	 * Sichtbarkeit bei dauerhaft gemountetem Inhalt (Default `true`): `false` schließt den Dialog, ohne den
+	 * Inhalt zu unmounten — dessen State überlebt das Wiedereröffnen (Onboarding-Dialog, #2070 AK4).
+	 */
+	open?: boolean;
 	children: ReactNode;
 }
 
@@ -56,7 +61,15 @@ interface ModalProps {
  * liefe beim simulierten Re-Mount ein zweites `showModal()` auf den bereits offenen Dialog.
  */
 export const Modal = forwardRef<ModalHandle, ModalProps>(function Modal(
-	{ title, onClose, width = 'var(--pp-modal-width-desktop)', fallbackFocusRef, initialFocusRef, children }: ModalProps,
+	{
+		title,
+		onClose,
+		width = 'var(--pp-modal-width-desktop)',
+		fallbackFocusRef,
+		initialFocusRef,
+		open = true,
+		children,
+	}: ModalProps,
 	forwardedRef,
 ) {
 	const ref = useRef<HTMLKolDialogElement>(null);
@@ -159,6 +172,15 @@ export const Modal = forwardRef<ModalHandle, ModalProps>(function Modal(
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
+
+	// Späteres Umschalten von `open` (nach dem ersten Öffnen): schließen bzw. wieder öffnen.
+	useEffect(() => {
+		const dialog = ref.current;
+		if (dialog === null || !openedRef.current) {
+			return;
+		}
+		void (open ? dialog.showModal() : dialog.close());
+	}, [open]);
 
 	// Portal auf `document.body` (#1613-Folgefund): `KolDialog` rendert seit KoliBri 4.5.0-rc.0 ein
 	// natives `<dialog>` und öffnet per `showModal()`. Bleibt das Element ein DOM-Nachfahre eines

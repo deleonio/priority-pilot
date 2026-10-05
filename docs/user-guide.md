@@ -624,7 +624,7 @@ Allgemein, Säulen, Kategorien, Standort, Orte, KI, Gruppen und **Pakete & Abo**
   Bild vollständig, es steht nur still.
 - **Expertenmodus** – ist der Schalter aktiv, zeigt die App die Fach-Regler: Säulen-Prozente im
   Aufgabendialog, Gewichte im Abhängigkeits-Dialog, die Säulen-Gewichtungspflege im Tab
-  **„Säulen"** und Reichweite/Intervall im Tab **„Standort"**. Die Wahl gilt auf diesem Gerät;
+  **„Säulen"** und Reichweite/Intervall im Tab **„Ortung"**. Die Wahl gilt auf diesem Gerät;
   gespeicherte Werte bleiben auch ohne Expertenmodus erhalten.
 - **Sprachaufnahme automatisch starten** – ist der Schalter aktiv, startet das Mikrofon
   der Sprachfelder (Aufgabenformular, Schnellerfassung, Suche), sobald du sie öffnest.
@@ -734,12 +734,21 @@ In _Einstellungen → Gruppen_ organisierst du zusammen mit anderen Nutzern Aufg
   Einladungs-Link. Wer ihn öffnet – auch ohne Anmeldung –, landet auf einer Seite mit
   **„Gruppe beitreten"**. Unter **„Offene Einladungen"** kannst du Links kopieren oder
   für ungültig erklären (**„Ungültig machen"**).
+- **Duo:** beim Anlegen wählst du unter **„Art"** die Option **„Duo"** – zwei Personen,
+  die gemeinsam einen Streak und ihre Säulenwerte sehen, aber keine Aufgaben des anderen.
+  Den Partner holst du über **„Link erzeugen"**; ist das Duo voll, entfällt das Einladen.
 - **Einladungen** (Karte in der Gruppen-Übersicht, nicht zu verwechseln mit
   „Offene Einladungen"): eingeladene Konten können annehmen oder ablehnen.
 - **Aufgaben für andere anlegen:** im Aufgaben- und Serien-Formular wählst du im Feld
   **„Empfänger"**, für wen die Aufgabe bestimmt ist. In den Listen erkennst du
   fremde Aufgaben an den Hinweisen **„Für: {Name}"** und **„Erstellt von: {Name}"**;
   bearbeiten lassen sie sich nur beim Empfänger.
+- **7-Tage-Challenge:** jedes Mitglied startet in der Gruppe über
+  **„7-Tage-Challenge starten"** eine Woche, in der es um Ausgewogenheit geht. Die
+  Rangfolge misst die Balance der in dieser Woche erledigten Aufgaben, nicht ihre Anzahl;
+  wer noch nichts erledigt hat, steht mit „Noch kein Wert" am Ende. Nach sieben Tagen
+  endet die Challenge von selbst, und **„Teilen"** erzeugt eine Abschluss-Karte mit
+  Gruppenname, Zeitraum und Rangfolge – ohne Aufgabeninhalte.
 
 ---
 
