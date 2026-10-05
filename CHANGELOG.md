@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.16 - 2026-10-05
 
-_Enthält v0.16.0 – v0.16.18._
+_Enthält v0.16.0 – v0.16.19._
 
 ### 🎉 New Features
 
@@ -40,6 +40,7 @@ _Enthält v0.16.0 – v0.16.18._
 - docs: dedupe decision log and note removal of dead model vars by @deleonio in https://github.com/deleonio/priority-pilot/pull/2207
 - feat(server): fetch and store calendar events from ICS address by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2218
 - docs(website): clarify liability and AI suggestions in terms of use by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2228
+- fix(server): invoice and renew only on PAYMENT.SALE.COMPLETED by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2245
 
 ## v0.15 - 2026-10-05
 
@@ -343,7 +344,7 @@ _Enthält v0.9.0 – v0.9.18._
 - chore(ci): route all phase jobs via PHASE_RUNNER, split cache by pi5 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1825
 - fix(ci): pass PI_MODEL_ALIASES to all pi-capable workflows by @deleonio in https://github.com/deleonio/priority-pilot/pull/1828
 - fix(ci): stop review retrigger loop for already-reviewed head (#1824) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1830
-- fix(ci): stop review retrigger loop for already-reviewed head (#1824) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1830
+- fix(server): scope scores to owner and block ssrf on llm endpoints by @deleonio in https://github.com/deleonio/priority-pilot/pull/1827
 - fix(server): scope scores to owner and block ssrf on llm endpoints by @deleonio in https://github.com/deleonio/priority-pilot/pull/1827
 
 ## v0.8 - 2026-09-27
