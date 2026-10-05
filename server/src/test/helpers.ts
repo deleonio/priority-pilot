@@ -8,6 +8,9 @@ import type { UserRole } from '../models/user.js';
 // Import models to ensure associations are registered before sync
 import '../models/index.js';
 
+// Die ICS-Tests (#2209) liefern Kalender von einem Loopback-Stub; die SSRF-Sperre in `fetchIcs` ließe das nicht zu.
+process.env.ICS_ALLOW_INTERNAL_HOSTS = '1';
+
 export const resetDb = async (): Promise<void> => {
 	await sequelize.sync({ force: true });
 };

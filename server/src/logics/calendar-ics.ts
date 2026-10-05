@@ -1,5 +1,6 @@
 import type { Transaction } from 'sequelize';
 import sequelize from '../database.js';
+import { isPublicEndpoint } from '../llm/endpointGuard.js';
 import { CalendarEvent, CalendarSource } from '../models/index.js';
 
 /**
@@ -15,6 +16,7 @@ export const CALENDAR_SYNC_INTERVAL_MS = 30 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WINDOW_DAYS = 14;
 const FETCH_TIMEOUT_MS = 15_000;
+const MAX_ICS_BYTES = 5 * 1024 * 1024;
 
 export interface ParsedEvent {
 	start: Date;
@@ -108,11 +110,39 @@ export const parseIcsEvents = (ics: string, now: Date): ParsedEvent[] => {
 	return events;
 };
 
-/** Lädt die ICS-Datei — ausschließlich per GET, nie schreibend (AK6). */
+/** Liest den Antwort-Body, bricht aber über `MAX_ICS_BYTES` ab — die Adresse ist nutzerdefiniert. */
+const readLimited = async (response: Response): Promise<string> => {
+	if (Number(response.headers.get('content-length')) > MAX_ICS_BYTES) throw new Error('Kalender-Datei zu groß');
+	const chunks: Uint8Array[] = [];
+	let size = 0;
+	const reader = response.body?.getReader();
+	for (let chunk = await reader?.read(); chunk && !chunk.done; chunk = await reader?.read()) {
+		size += chunk.value.byteLength;
+		if (size > MAX_ICS_BYTES) {
+			await reader?.cancel();
+			throw new Error('Kalender-Datei zu groß');
+		}
+		chunks.push(chunk.value);
+	}
+	return new TextDecoder().decode(Buffer.concat(chunks));
+};
+
+/**
+ * Lädt die ICS-Datei — ausschließlich per GET, nie schreibend (AK6). SSRF-Sperre wie bei
+ * LLM-Endpoints (F-2): keine internen Ziele, keine Redirects. `ICS_ALLOW_INTERNAL_HOSTS=1` hebt die
+ * Sperre nur für die Tests mit Loopback-Stub auf (`test/helpers.ts`).
+ */
 export const fetchIcs = async (url: string, fetchImpl: typeof fetch = fetch): Promise<string> => {
-	const response = await fetchImpl(url, { method: 'GET', signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+	if (process.env.ICS_ALLOW_INTERNAL_HOSTS !== '1' && !(await isPublicEndpoint(url))) {
+		throw new Error('Kalender-Adresse zeigt auf eine interne Adresse.');
+	}
+	const response = await fetchImpl(url, {
+		method: 'GET',
+		redirect: 'error',
+		signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+	});
 	if (!response.ok) throw new Error(`Kalender-Abruf mit Status ${response.status}`);
-	return response.text();
+	return readLimited(response);
 };
 
 /** Ersetzt die gespeicherten Termine der Quelle (AK2: keine Dubletten bei erneutem Abruf). */
