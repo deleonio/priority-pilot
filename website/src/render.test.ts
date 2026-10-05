@@ -298,6 +298,15 @@ describe('renderPrivacy (#1672)', () => {
 		}
 	});
 
+	it('übersetzt das Footer-Label der Vorlagen in allen zehn Sprachen, Ziel bleibt /vorlagen/ (#2202 AK1/AK2)', () => {
+		for (const [locale, messages] of Object.entries(allMessages)) {
+			const label = (messages.footer as { templates?: string }).templates;
+			expect(label, `${locale}: i18n-Key footer.templates fehlt`).toBeTruthy();
+			expect(landing(locale as Locale), locale).toContain(`href="/vorlagen/" hreflang="de">${label}</a>`);
+		}
+		expect(landing('en'), 'en: Label darf nicht deutsch sein').not.toContain('hreflang="de">Vorlagen</a>');
+	});
+
 	it('baut /datenschutz/ vor und nimmt die URL in die Sitemap auf (AK3)', { timeout: 120_000 }, () => {
 		const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 		execFileSync('pnpm', ['build'], {
