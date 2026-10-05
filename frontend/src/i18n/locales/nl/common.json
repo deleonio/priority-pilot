@@ -119,5 +119,20 @@
 		"speichern": "PNG opslaan",
 		"erzeuge": "Kaart wordt gemaakt …",
 		"fehler": "De kaart kon niet worden gemaakt. Probeer het opnieuw."
+	},
+	"yearlyCard": {
+		"label": "Mijn jaar in cijfers",
+		"laden": "Jaaroverzicht wordt geladen …",
+		"leer": "Vorig jaar geen taken afgerond — de kaart vult zich zodra je dit jaar taken afvinkt.",
+		"rueckblick": "Terugblik",
+		"teilen": "Jaar delen",
+		"speichern": "PNG opslaan",
+		"erzeuge": "Kaart wordt gemaakt …",
+		"fehler": "De kaart kon niet worden gemaakt. Probeer het opnieuw.",
+		"aufgaben": "Afgeronde taken",
+		"stunden": "Bestede uren",
+		"streak": "Langste streak",
+		"projekte": "Afgeronde projecten",
+		"saeule": "Sterkste pijler"
 	}
 }

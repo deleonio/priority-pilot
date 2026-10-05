@@ -119,5 +119,20 @@
 		"speichern": "Save PNG",
 		"erzeuge": "Creating the card …",
 		"fehler": "The card could not be created. Please try again."
+	},
+	"yearlyCard": {
+		"label": "My year in numbers",
+		"laden": "Loading your yearly recap …",
+		"leer": "No completed tasks last year — the card fills up once you tick off tasks this year.",
+		"rueckblick": "Recap",
+		"teilen": "Share year",
+		"speichern": "Save PNG",
+		"erzeuge": "Creating the card …",
+		"fehler": "The card could not be created. Please try again.",
+		"aufgaben": "Completed tasks",
+		"stunden": "Hours invested",
+		"streak": "Longest streak",
+		"projekte": "Completed projects",
+		"saeule": "Strongest pillar"
 	}
 }

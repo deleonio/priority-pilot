@@ -119,5 +119,20 @@
 		"speichern": "Guardar PNG",
 		"erzeuge": "A criar o cartão …",
 		"fehler": "Não foi possível criar o cartão. Tenta novamente."
+	},
+	"yearlyCard": {
+		"label": "O meu ano em números",
+		"laden": "A carregar o resumo do ano …",
+		"leer": "Nenhuma tarefa concluída no ano passado — o cartão enche-se assim que concluíres tarefas este ano.",
+		"rueckblick": "Resumo",
+		"teilen": "Partilhar ano",
+		"speichern": "Guardar PNG",
+		"erzeuge": "A criar o cartão …",
+		"fehler": "Não foi possível criar o cartão. Tenta novamente.",
+		"aufgaben": "Tarefas concluídas",
+		"stunden": "Horas investidas",
+		"streak": "Maior sequência",
+		"projekte": "Projetos concluídos",
+		"saeule": "Pilar mais forte"
 	}
 }

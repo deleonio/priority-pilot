@@ -74,6 +74,7 @@ import type {
 	TaskTreeNode,
 	TaskGraph,
 	TaskUpdate,
+	YearlyRecap,
 } from 'client';
 import createClient from 'openapi-fetch';
 import { planRequiredDetail } from './lib/apiError';
@@ -1443,6 +1444,18 @@ export const api = {
 	async getMonthlyRecap({ monat, tz, signal }: { monat: string; tz?: string } & Init): Promise<MonthlyRecap> {
 		const { data, error, response } = await client.GET('/scores/monthly-recap', {
 			params: { query: { monat, tz } },
+			signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// --- Jahresrückblick (#1997): fünf Kennzahlen des Kalenderjahres in einer Antwort ---
+	async getYearlyRecap({ jahr, tz, signal }: { jahr: number; tz?: string } & Init): Promise<YearlyRecap> {
+		const { data, error, response } = await client.GET('/scores/yearly-recap', {
+			params: { query: { jahr: String(jahr), tz } },
 			signal,
 		});
 		if (!response.ok || data === undefined) {

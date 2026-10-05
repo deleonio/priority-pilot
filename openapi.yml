@@ -1268,6 +1268,44 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /scores/yearly-recap:
+    get:
+      summary: Jahresrückblick — fünf Kennzahlen des Kalenderjahres (#1997)
+      description: >-
+        Liefert den Rückblick auf ein Kalenderjahr in einer Antwort: erledigte Aufgaben, investierte
+        Stunden (actualEffort, sonst estimatedEffort), längster Streak im Jahr, stärkste Säule
+        (größte Punkte-Differenz des kumulativen Verlaufs, 31.12. Vorjahr bis 31.12.) und
+        abgeschlossene Projekte (im Jahr erledigte Oberaufgaben mit mindestens einer Unteraufgabe).
+        Enthält keine Aufgabeninhalte. Gerechnet wird über Säulen und Tasks des Nutzers
+        (`ownerScope`) — gescopet wie GET /scores/monthly-recap.
+      operationId: getYearlyRecap
+      parameters:
+        - name: jahr
+          in: query
+          required: true
+          description: Das Kalenderjahr (`JJJJ`, vierstellig).
+          schema:
+            type: string
+        - name: tz
+          in: query
+          required: false
+          description: >-
+            IANA-Zeitzone (z. B. `Europe/Berlin`), die Jahresgrenzen und Streak-Tage bestimmt.
+            Fehlt der Wert oder ist er keine gültige Zeitzone, wertet der Server in seiner eigenen
+            Zeitzone aus — kein Fehler.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Rückblick auf das angefragte Jahr
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YearlyRecap'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /scores/care-suggestions:
     get:
       summary: Konkrete Fürsorge-Vorschläge gegen ein Balance-Defizit (#1791)
@@ -7326,6 +7364,51 @@ components:
                 type: string
                 format: date-time
                 description: Wann die Stufe erreicht wurde (ISO-Zeitstempel).
+    YearlyRecap:
+      type: object
+      description: >-
+        Jahresrückblick (#1997): fünf Kennzahlen des Kalenderjahres — ohne Aufgabeninhalte.
+      required:
+        - jahr
+        - erledigteAufgaben
+        - stunden
+        - laengsterStreak
+        - staerksteSaeule
+        - abgeschlosseneProjekte
+      properties:
+        jahr:
+          type: integer
+          description: Das angefragte Jahr.
+        erledigteAufgaben:
+          type: integer
+          description: Im Jahr erledigte Aufgaben.
+        stunden:
+          type: number
+          description: Summe von actualEffort (sonst estimatedEffort) der im Jahr erledigten Aufgaben, eine Dezimalstelle.
+        laengsterStreak:
+          type: integer
+          description: Längste Tageskette, nur aus Erledigungen im Jahr.
+        staerksteSaeule:
+          type: object
+          nullable: true
+          description: Säule mit der größten Punkte-Differenz im Jahr; null ohne Punkte oder wenn alle Säulen gleich viele haben.
+          required:
+            - id
+            - name
+            - punkte
+          properties:
+            id:
+              type: integer
+              description: ID der Säule.
+            name:
+              type: string
+              description: Anzeigename der Säule.
+            punkte:
+              type: number
+              description: Punkte der Säule im Jahr, eine Dezimalstelle.
+        abgeschlosseneProjekte:
+          type: integer
+          description: Im Jahr erledigte Oberaufgaben mit mindestens einer Unteraufgabe.
     CareVorschlag:
       type: object
       description: >-
