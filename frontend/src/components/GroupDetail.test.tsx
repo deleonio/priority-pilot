@@ -80,6 +80,8 @@ vi.mock('../api', () => ({
 		removeGroupMember: vi.fn(),
 		updateGroupMemberRole: vi.fn(),
 		createGroupInviteLink: vi.fn(),
+		// Test-Pflege #1992: GroupChallengeCard lädt selbst — `undefined` läuft auf „noch keine Challenge“.
+		getGroupChallenge: vi.fn(),
 	},
 }));
 
