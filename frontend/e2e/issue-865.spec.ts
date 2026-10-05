@@ -6,6 +6,7 @@
  */
 
 import { test, expect, type Page } from '@playwright/test';
+import { dismissOnboardingDialog } from './fixtures';
 
 test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	/**
@@ -165,12 +166,14 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 		for (const { id } of (await (await page.request.get('/api/v1/tasks')).json()) as { id: number }[]) {
 			await page.request.delete(`/api/v1/tasks/${id}`);
 		}
+		// Ohne eigene Tasks öffnet sich der Willkommens-Dialog und nimmt als Modal den ersten Tab-Fokus —
+		// das Init-Skript schließt ihn (`fixtures.ts`). Chromes Sequential-Focus-Starting-Point bleibt
+		// danach an der Position des entfernten Dialogs, deshalb Fokus-Reset auf body, damit der Tab
+		// wieder vom Dokumentanfang startet.
+		await dismissOnboardingDialog(page);
 		await page.goto('/app/');
-		// Ohne eigene Tasks erscheint seit #2069 der Erststart-Flow und nimmt den ersten Tab-Fokus —
-		// für diesen AK schließen wir ihn wie in smoke.spec.ts mit „Später“. Chromes Sequential-Focus-
-		// Starting-Point bleibt danach an der Position des entfernten Buttons, deshalb Fokus-Reset auf
-		// body, damit der Tab wieder vom Dokumentanfang startet.
-		await page.getByRole('button', { name: 'Später' }).click();
+		// Der EmptyState erscheint erst nach dem Schließen des Dialogs — erst dann ist der Fokus-Reset sicher.
+		await expect(page.locator('.empty-state')).toBeVisible();
 		await page.evaluate(() => {
 			document.body.setAttribute('tabindex', '-1');
 			(document.body as HTMLElement).focus();

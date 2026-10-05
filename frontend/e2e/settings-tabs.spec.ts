@@ -441,7 +441,7 @@ test.describe('#1903 Tab „KI"', () => {
 		await expect(page.getByRole('tab', { name: 'Ortung', exact: true })).toHaveAttribute('aria-selected', 'true');
 	});
 
-	test('AK9: bei 375 px ragen Tab-Leiste, Schalter und Karte „Access-Token" nicht über den Viewport', async ({
+	test('AK9: bei 375 px ragen Tab-Leiste, Schalter und Akkordeon „Access-Token" nicht über den Viewport', async ({
 		page,
 	}) => {
 		await page.setViewportSize({ width: 375, height: 812 });
@@ -451,7 +451,7 @@ test.describe('#1903 Tab „KI"', () => {
 		const targets = [
 			page.getByRole('tab', { name: 'KI', exact: true }),
 			page.getByRole('switch', { name: 'KI aktivieren' }).or(page.getByRole('checkbox', { name: 'KI aktivieren' })),
-			page.locator('kol-card[_label="Access-Token"]'),
+			page.locator('kol-accordion summary').filter({ hasText: /^Access-Token$/ }),
 		];
 		for (const target of targets) {
 			await expect(target.first()).toBeVisible();

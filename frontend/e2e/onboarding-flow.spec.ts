@@ -50,6 +50,16 @@ const mockSuggestions = async (page: Page, pillarId: number, delayMs = 0): Promi
 const startFreshUser = async (page: Page): Promise<number> => {
 	await registerOwnSession(page, 'onboarding-2069');
 	await page.unroute('**/auth/me');
+	// Ein frisch registriertes Konto hat das Free-Paket: ohne `ai_assist` zeigt der Flow nur den Import.
+	// Die echte Antwort bleibt Basis, nur die KI-Berechtigung wird freigeschaltet (Freitext-Pfad).
+	await page.route('**/auth/me', async (route: Route) => {
+		const response = await route.fetch();
+		const user = (await response.json()) as { entitlements?: Record<string, unknown> };
+		await route.fulfill({
+			response,
+			json: { ...user, entitlements: { ...user.entitlements, ai_assist: { allowed: true, requiredPlan: 'pro' } } },
+		});
+	});
 	await page.goto('/app/');
 	await waitForStableView(page);
 	const pillars = (await (await page.request.get('/api/v1/pillars')).json()) as { id: number }[];
@@ -189,6 +199,7 @@ test.describe('#2069 Erststart-Flow', () => {
 			await mockSuggestions(page, pillarId);
 
 			// Schritt 1: Fläche, Eingabe und „Weiter“ bleiben im Viewport.
+			await expect(flow(page)).toBeVisible();
 			await expectInViewport(flow(page));
 			await fillFreitext(page);
 			const weiter = flow(page).getByRole('button', { name: 'Weiter' });

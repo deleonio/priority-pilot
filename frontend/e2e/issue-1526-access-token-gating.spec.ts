@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { accordionTrigger, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #1526 (Spec docs/spec/issue-1526.md) — AK1 Tab-Beschriftung „Access-Token" und
@@ -92,18 +92,19 @@ test.describe('Balamentum — #1526: Access-Token-Reiter und Gating', () => {
 					.getByRole('switch', { name: /^KI aktivieren$/ })
 					.or(page.getByRole('checkbox', { name: /^KI aktivieren$/ })),
 			).toBeDisabled();
-			await expect(page.locator('kol-input-radio[_label="KI-Provider"]').getByRole('radio').first()).toBeDisabled();
-			await expect(page.getByRole('button', { name: 'Neuer Provider' })).toBeDisabled();
-			const customRow = page.locator('.llm-provider-admin__item', { hasText: 'Gating-Provider-1903' });
-			await expect(customRow.getByRole('button', { name: 'Bearbeiten' })).toBeDisabled();
-			await expect(customRow.getByRole('button', { name: 'Löschen' })).toBeDisabled();
-			await expect(page.getByRole('button', { name: 'Token erzeugen' })).toBeDisabled();
+			// Test-Pflege: Provider und Token liegen in KolAccordions, die bei gesperrter KI zu UND gesperrt
+			// sind (`_disabled`, `SettingsPage.tsx:1018-1019`) — ihr Inhalt ist nicht erreichbar, der Kopf trägt
+			// `aria-disabled`.
+			await expect(accordionTrigger(page, 'KI-Provider')).toHaveAttribute('aria-disabled', 'true');
+			await expect(accordionTrigger(page, 'Access-Token')).toHaveAttribute('aria-disabled', 'true');
 		} finally {
 			await page.request.delete(`/api/v1/llm-providers/${id}`);
 		}
 	});
 
-	test('AK8: beide Gating-Alerts liegen bei 375px ohne horizontales Scrollen im Sichtbereich der gesperrten Elemente', async ({
+	// Test-Pflege: Die Gating-Alerts im Access-Token-Akkordeon sind bei gesperrter KI nicht erreichbar
+	// (Akkordeon zu und gesperrt) — geprüft wird der gesperrte Kopf im Viewport.
+	test('AK8: gesperrtes Access-Token-Akkordeon liegt bei 375px ohne horizontales Scrollen im Sichtbereich', async ({
 		page,
 	}) => {
 		await seedApiToken(page);
@@ -111,35 +112,11 @@ test.describe('Balamentum — #1526: Access-Token-Reiter und Gating', () => {
 		await page.goto('/app/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
 
-		const createButton = page.getByRole('button', { name: 'Token erzeugen' });
-		await expect(createButton).toBeDisabled();
-		await page.getByRole('button', { name: 'Paket erforderlich' }).first().click();
-		const formAlert = page
-			.locator('kol-alert[_type="info"]')
-			.filter({ hasText: 'Token erzeugen ist ab dem Paket Plus' })
-			.first();
-		await expect(formAlert).toBeVisible();
-		const formAlertBox = await boundingBoxWhenLaidOut(formAlert);
-		const createButtonBox = await boundingBoxWhenLaidOut(createButton);
-		expect(formAlertBox, 'Formular-Alert muss Layout haben').not.toBeNull();
-		expect(createButtonBox, 'Erzeugen-Button muss Layout haben').not.toBeNull();
-		expect(formAlertBox!.x + formAlertBox!.width).toBeLessThanOrEqual(375 + 1);
-		expect(createButtonBox!.x + createButtonBox!.width).toBeLessThanOrEqual(375 + 1);
-
-		const scopeToggle = page.getByTestId('api-token-scope-toggle').first();
-		await expect(scopeToggle).toBeVisible();
-		await page.getByRole('button', { name: 'Paket erforderlich' }).last().click();
-		const scopeAlert = page
-			.locator('kol-alert[_type="info"]')
-			.filter({ hasText: 'Lesen und Schreiben ist ab dem Paket Pro' })
-			.first();
-		await expect(scopeAlert).toBeVisible();
-		const scopeToggleBox = await boundingBoxWhenLaidOut(scopeToggle);
-		const scopeAlertBox = await boundingBoxWhenLaidOut(scopeAlert);
-		expect(scopeToggleBox, 'Rechte-Regler muss Layout haben').not.toBeNull();
-		expect(scopeAlertBox, 'Regler-Alert muss Layout haben').not.toBeNull();
-		expect(scopeToggleBox!.x + scopeToggleBox!.width).toBeLessThanOrEqual(375 + 1);
-		expect(scopeAlertBox!.x + scopeAlertBox!.width).toBeLessThanOrEqual(375 + 1);
+		const trigger = accordionTrigger(page, 'Access-Token');
+		await expect(trigger).toHaveAttribute('aria-disabled', 'true');
+		const box = await boundingBoxWhenLaidOut(trigger);
+		expect(box, 'Akkordeon-Kopf muss Layout haben').not.toBeNull();
+		expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
 
 		const scrollWidth = await page.evaluate(() => document.scrollingElement?.scrollWidth ?? 0);
 		const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);

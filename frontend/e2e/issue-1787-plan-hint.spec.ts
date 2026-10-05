@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * #1787 AK1/AK2/AK4/AK5/AK6: Paket-Hinweis (FeaturePopoverButton) an der Grenzstelle `groups` (Modal „Gruppe anlegen"), Free-Konto
@@ -24,7 +24,8 @@ test('#1787: Hinweis im Gruppen-Dialog öffnet als Popover, ist schließbar, Ein
 	await waitForStableView(page, 'Allgemein');
 	await page.getByRole('button', { name: 'Gruppe anlegen' }).click();
 
-	const hint = page.getByTestId('plan-badge-groups');
+	// Test-Pflege: Der Gruppen-Tab zeigt den Hinweis zusätzlich außerhalb des Dialogs — auf den Dialog scopen.
+	const hint = page.locator('kol-dialog').getByTestId('plan-badge-groups');
 	await expect(hint).toBeVisible();
 	await expect(page.getByRole('dialog')).toHaveCount(1);
 	await page.getByRole('searchbox', { name: 'Name' }).fill('Mein Gruppenname');
@@ -65,6 +66,8 @@ test('#1787 AK1: Hinweis an graph_weight (Modal-Link mit App-Basis) und location
 
 	await page.goto('/app/settings/ortung');
 	await waitForStableView(page, 'Allgemein');
+	// Der Hinweis liegt im Akkordeon „Gespeicherte Orte“, das bei ausgeschaltetem Standort zu ist.
+	await openAccordionSection(page, 'Gespeicherte Orte');
 	await expect(page.getByTestId('plan-badge-location_reminders')).toBeVisible();
 });
 
@@ -75,6 +78,7 @@ test('#1787 AK4: im Kanal play führt der Hinweis zur Paketansicht mit Play-Kauf
 	await login(page);
 	await page.goto('/app/settings/ortung');
 	await waitForStableView(page, 'Allgemein');
+	await openAccordionSection(page, 'Gespeicherte Orte');
 
 	const hint = page.getByTestId('plan-badge-location_reminders');
 	await hint.getByRole('button').first().click();

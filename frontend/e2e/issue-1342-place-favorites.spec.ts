@@ -106,6 +106,7 @@ test.describe('Balamentum — #1342: Standort-Favoriten', () => {
 		await waitForStableView(page, 'Ortung');
 		// Das Akkordeon folgt „Standort erfassen" (aus = zu) — für die Orte-Prüfung öffnen.
 		await openAccordionSection(page, 'Gespeicherte Orte');
+		await openAccordionSection(page, 'Meine Orte');
 
 		const favoriteRow = page.getByTestId('place-favorite-row').filter({ hasText: HIT.address });
 		await expect(favoriteRow).toBeVisible();
@@ -145,6 +146,7 @@ test.describe('Balamentum — #1342: Standort-Favoriten', () => {
 		await waitForStableView(page, 'Ortung');
 		// Das Akkordeon folgt „Standort erfassen" (aus = zu) — für die Orte-Prüfung öffnen.
 		await openAccordionSection(page, 'Gespeicherte Orte');
+		await openAccordionSection(page, 'Meine Orte');
 
 		const rowToDelete = page.getByTestId('place-favorite-row').filter({ hasText: HIT.address });
 		// TEST-PFLEGE #2013: sichtbar steht nur „Löschen“ — der zugängliche Name der KoliBri-Taste
@@ -211,6 +213,7 @@ test.describe('Balamentum — #1342: Standort-Favoriten', () => {
 		await waitForStableView(page, 'Ortung');
 		// Das Akkordeon folgt „Standort erfassen" (aus = zu) — für die Orte-Prüfung öffnen.
 		await openAccordionSection(page, 'Gespeicherte Orte');
+		await openAccordionSection(page, 'Meine Orte');
 
 		const row = page.getByTestId('place-favorite-row').filter({ hasText: HIT.address });
 		await expect(row).toBeVisible();

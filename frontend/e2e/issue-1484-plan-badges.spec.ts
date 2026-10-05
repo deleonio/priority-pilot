@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { accordionTrigger, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #1484 (T3b, Spec docs/spec/issue-1484.md AK8/AK9) — Paket-Badges an den
@@ -197,13 +197,11 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 
 		await expect(page.getByTestId('plan-badge-mcp_readwrite')).toHaveCount(0);
 
-		await page.getByRole('button', { name: 'Paket erforderlich' }).last().click();
-		const alert = page
-			.locator('kol-alert[_type="info"]')
-			.filter({ hasText: 'Lesen und Schreiben ist ab dem Paket Pro' })
-			.first();
-		await expect(alert).toBeVisible();
-		await expectWithinViewport(alert);
+		// Test-Pflege: Der Pro-Alert liegt im Access-Token-Akkordeon, das bei Free (KI gesperrt) zu und
+		// gesperrt ist (`SettingsPage.tsx:1019`) — geprüft wird der gesperrte Kopf im Viewport.
+		const trigger = accordionTrigger(page, 'Access-Token');
+		await expect(trigger).toHaveAttribute('aria-disabled', 'true');
+		await expectWithinViewport(trigger);
 	});
 
 	test('AK9: außerhalb des Angebots-Dialogs erscheint kein Preis-/Werbetext', async ({ page }) => {
