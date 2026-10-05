@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.16 - 2026-10-05
 
-_Enthält v0.16.0 – v0.16.10._
+_Enthält v0.16.0 – v0.16.11._
 
 ### 🎉 New Features
 
@@ -19,6 +19,7 @@ _Enthält v0.16.0 – v0.16.10._
 - feat(frontend): make E2E suite weekday-independent by @deleonio in https://github.com/deleonio/priority-pilot/pull/2190
 - feat(ci): add canonical models.json with cc/pi model adapter by @deleonio in https://github.com/deleonio/priority-pilot/pull/2203
 - feat(ci): add impl provider override, budget watchdog and adapter smoke by @deleonio in https://github.com/deleonio/priority-pilot/pull/2208
+- docs(skills): ticket-coordination learnings and ADR 0018 addendum by @deleonio in https://github.com/deleonio/priority-pilot/pull/2214
 
 ### Other Changes
 
@@ -164,6 +165,7 @@ _Enthält v0.12.0 – v0.12.26._
 
 ### 🐞 Bug Fixes
 
+- docs(tailscale): document exit-node gating for zai on hosted runners by @deleonio in https://github.com/deleonio/priority-pilot/pull/2051
 - docs(tailscale): document exit-node gating for zai on hosted runners by @deleonio in https://github.com/deleonio/priority-pilot/pull/2051
 
 ### 🚀 Improvements
