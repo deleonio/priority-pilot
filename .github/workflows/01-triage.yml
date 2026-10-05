@@ -643,10 +643,10 @@ jobs:
 
       - name: Container-Ergebnis umsetzen (#2101)
         # Die Container-Abschluss-Analyse (SKILL: "Container closing analysis") gibt ihr
-        # Ergebnis als ai-container-result-Marker im Agenten-Output aus; dieser Step setzt
+        # Ergebnis als ai-container-result-Marker im Harness-Kommentar aus (#2138); dieser Step setzt
         # es mit App-Token um — vorher machte das der Koordinator von Hand (#1789/#1999):
         #   followup: Tickets anlegen (Template-Body), als Sub-Issue unter den Container
-        #             haengen (GraphQL addSubIssue), nativ blocked-by setzen (REST),
+        #             haengen (REST sub_issues), vorhandene Issues (existing) ebenso, nativ blocked-by setzen (REST),
         #   closed:   Container mit Begruendung schliessen.
         # KEINE Phasen-Labels — das Routing bleibt beim PO (Issue-Weg 3). NIE FATAL:
         # Ein Fehlschlag vermerkt sichtbar, der Marker bleibt im Log und der naive
@@ -657,12 +657,15 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
         run: |
           set -uo pipefail
-          LOG=/tmp/claude-output.log
-          [ -f "$LOG" ] || exit 0
-          PAYLOAD="$(awk '/ai-container-result:START/{f=1;next} /ai-container-result:END/{f=0} f' "$LOG" \
-            | awk '/^```json/{f=1;next} f && /^```/{exit} f' | tr -d '\r' | grep -v '^[[:space:]]*$' \
+          # Marker aus dem juengsten Harness-Kommentar (laufunabhaengig von der Runtime, #2138);
+          # nur wenn er in DIESEM Lauf aktualisiert wurde (sonst Dubletten bei Re-Triage).
+          STARTED="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --jq .run_started_at 2>/dev/null || true)"
+          BODY="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${ISSUE}/comments?per_page=100" 2>/dev/null \
+            | jq -rs --arg s "$STARTED" '[.[][] | select(.body | startswith("<!-- ai-harness -->"))] | last | select(. != null and .updated_at >= $s) | .body' 2>/dev/null || true)"
+          PAYLOAD="$(printf '%s\n' "$BODY" | awk '/ai-container-result:START/{f=1;next} /ai-container-result:END/{f=0} f' \
+            | awk '/^```json/{f=1;next} f && /^```/{exit} f' | tr -d '\r' | { grep -v '^[[:space:]]*$' || :; } \
             | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
-          [ -n "$PAYLOAD" ] || { echo "Kein Container-Ergebnis-Marker im Output — nichts umzusetzen."; exit 0; }
+          [ -n "$PAYLOAD" ] || { echo "Kein Container-Ergebnis-Marker im Harness-Kommentar — nichts umzusetzen."; exit 0; }
           RESULT="$(printf '%s' "$PAYLOAD" | jq -r '.result // empty' 2>/dev/null || true)"
           echo "Container-Ergebnis: ${RESULT:-unlesbar}"
 
@@ -679,7 +682,14 @@ jobs:
             exit 0
           fi
 
-          PARENT_NODE="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json id --jq .id)"
+          link_sub() { # $1 = Issue-Nummer; REST mit numerischer ID
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${ISSUE}/sub_issues" \
+              -F sub_issue_id="$(gh api "repos/${GITHUB_REPOSITORY}/issues/$1" --jq .id)" >/dev/null 2>&1 \
+              || echo "::warning title=Sub-Issue-Link fehlgeschlagen::#$1 nicht unter #$ISSUE verknuepft — von Hand nachziehen."
+          }
+          for EXISTING in $(printf '%s' "$PAYLOAD" | jq -r '.existing[]?' 2>/dev/null); do
+            link_sub "$EXISTING"
+          done
           COUNT="$(printf '%s' "$PAYLOAD" | jq '.tickets // [] | length')"
           i=0
           while [ "$i" -lt "$COUNT" ]; do
@@ -687,14 +697,11 @@ jobs:
             printf '%s' "$PAYLOAD" | jq -r ".tickets[$i].body" > "/tmp/container-ticket-${i}.md"
             NR="$(gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body-file "/tmp/container-ticket-${i}.md" 2>/dev/null | grep -oE '[0-9]+$' || true)"
             if [ -z "$NR" ]; then
-              echo "::warning title=Ticket-Anlage fehlgeschlagen::'${TITLE:0:60]}…' nicht angelegt (Draft steht im Entscheidungs-Kommentar der Analyse)."
+              echo "::warning title=Ticket-Anlage fehlgeschlagen::'${TITLE:0:60}…' nicht angelegt (Draft steht im Entscheidungs-Kommentar der Analyse)."
               i=$((i+1)); continue
             fi
-            echo "::notice title=Sub-Issue angelegt::#${NR} — ${TITLE:0:60]}"
-            CHILD_NODE="$(gh issue view "$NR" --repo "$GITHUB_REPOSITORY" --json id --jq .id)"
-            gh api graphql -f query='mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,subIssueId:$c}){clientMutationId}}' \
-              -f p="$PARENT_NODE" -f c="$CHILD_NODE" >/dev/null 2>&1 \
-              || echo "::warning title=Sub-Issue-Link fehlgeschlagen::#${NR} angelegt, aber nicht unter #$ISSUE verknuepft — von Hand nachziehen."
+            echo "::notice title=Sub-Issue angelegt::#${NR} — ${TITLE:0:60}"
+            link_sub "$NR"
             for BLOCKER in $(printf '%s' "$PAYLOAD" | jq -r ".tickets[$i].blockedBy[]?"); do
               gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${NR}/dependencies/blocked_by" \
                 -F issue_id="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${BLOCKER}" --jq .id)" >/dev/null 2>&1 \
@@ -702,7 +709,7 @@ jobs:
             done
             i=$((i+1))
           done
-          echo "Container-Folgearbeit umgesetzt: ${COUNT} Ticket(s) unter #$ISSUE angelegt (keine Phasen-Labels — Routing beim PO)."
+          echo "Container-Folgearbeit umgesetzt: ${COUNT} Ticket(s) angelegt, unter #$ISSUE angelegt (keine Phasen-Labels — Routing beim PO)."
 
       - name: Ergebnis zusammenfassen
         if: always() && steps.setup.outputs.configured == 'true'
