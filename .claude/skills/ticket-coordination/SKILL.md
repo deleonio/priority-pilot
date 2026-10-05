@@ -14,8 +14,10 @@ blockers. Scope is **exactly** the epics named by the author, in the given order
 from the backlog. When the author names themes instead of epics (e.g. "payment, onboarding,
 store"), map each theme to its leaf issues across all epics (titles carry `[P-Stufe/Aufwand]`,
 epics carry rank tables), order by theme first, then rank, and list the mapping in the first
-report so the author can correct it. A "max. N parallel" limit counts issues in a phase, not PRs
-the author drives themselves.
+report so the author can correct it. A "max. N parallel" limit counts every issue with a phase
+running or queued — triage and UX included — not PRs the author drives themselves, not
+containers in their closing analysis and not items parked on the author. Starting a new issue
+needs a free slot even when its phase has its own queue.
 
 Note: this file's prose is English; everything addressed to the author (chat, issue comments)
 stays German and follows the [vermenschlichen](../vermenschlichen/SKILL.md) rules. Label chain and
@@ -79,9 +81,35 @@ Label write rules:
 - Never remove `ai:analysed` — removing it starts a re-triage.
 - Re-arming a trigger that is still attached needs two writes: first without it, then with it.
   Adding an already present label fires no event.
+- Label names are exact (`ai:needs-ux-ui`, not `ai:needs-ux`). A write with an unknown name
+  silently creates that label and starts nothing. After every trigger write check within a
+  minute that the phase run did not end `skipped` (precheck job skipped = wrong label name).
 
 Record every PO decision as a comment on the epic or issue (with the attribution footer), so the
 pipeline and later readers see it.
+
+## 2a. Decision round with the author
+
+When everything startable waits on the author, do not idle and do not list the questions in one
+wall of text — offer a decision round and go through the parked issues one by one:
+
+1. Order by leverage: an answer that frees other issues (blocked sub-issues) first, then rank.
+2. Per issue put the triage questions as multiple choice (at most four per round), the
+   analysis' recommendation first; split longer lists into two rounds.
+3. Post the answers as a `PO-Entscheidung (Autor)` comment that restates each decision as a full
+   sentence (the next phase reads only the comment), then set `ai:analysed` + `ai:needs-analyse`
+   without `ai:needs-human`. A question that did not fit the round is decided by the
+   analysis' recommendation and named as such in the chat.
+4. An answer that rejects the ticket's premise is not a rejected option: offer close
+   (`not_planned`, reason as comment), reshape or park. Reshape means rewriting the body
+   ("Wie soll es sein?", measures) and the title, plus a PO comment with the reason; a
+   product principle behind it (e.g. "no plan on time without consent") goes into the matching
+   ADR and is checked against sibling tickets at once.
+5. A blocker placeholder in the body (`#BLOCKER_…`) is resolved from the native `blocked-by`
+   relation; fix the body line instead of asking.
+6. A follow-up question that the analysis itself marks as not blocking, with a stated
+   assumption: confirm the assumption with the author, comment on the container and the affected
+   sub-issue, drop `ai:needs-human` — no re-analysis.
 
 ## 3. Cadence
 
@@ -199,6 +227,12 @@ pipeline and later readers see it.
     `ai:continued`, the trigger still attached. After the second such run on the same issue do
     not re-arm: propose a split to the author (two or three leaves with a `blocked-by` chain,
     the issue becomes their container, its draft PR is closed).
+
+24. **Fixup round cap without open findings.** The cap comment lists only fixed findings and the
+    last review was green: the `ai:needs-fixup` came from the conflict detector, not from the
+    review. Resolve the conflict (section 2), then decide option F.1 yourself — swap
+    `ai:needs-human` for `ai:needs-review` with a short PO comment. A cap with open findings
+    stays with the author.
 
 ## 5. Tool notes
 

@@ -53,3 +53,7 @@ Alles andere aus ADR 0014 gilt weiter, vor allem: kein Angebots-Dialog (Punkt 3)
 - Das Stufenmodell verliert Max und Ultimate; Bestandskunden wechseln ohne Preiserhöhung.
 - Die Hinweis-Regel schafft einen Wiedereinstieg für Entdeckbarkeit, ohne die Fehler des Dialogs (Textverlust, Modal in Modal) zu wiederholen.
 - Zahlungswege bleiben: Web über PayPal, Android über Google Play (ADR 0017). Stripe ist zurückgestellt.
+
+## Nachtrag 2026-10-05: Keine Pakete auf Zeit ohne Zustimmung
+
+Plus oder Pro werden nie automatisch auf Zeit vergeben, weder als Einladungsprämie noch als Start-Testphase. Was später wegfällt, erleben Nutzer als Verlust. Eine Pro-Testphase gibt es nur auf eigenen Wunsch: einmal je Konto, frühestens eine Woche nach der Registrierung (#1987). Die Einladungsprämie „ein Monat Plus“ (#1975) ist deshalb verworfen.
