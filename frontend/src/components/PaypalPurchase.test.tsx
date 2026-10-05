@@ -123,4 +123,20 @@ describe('usePaypalPurchase — Warteverhalten nach dem Wechsel', () => {
 
 		await waitFor(() => expect(createBillingSubscription).toHaveBeenCalledWith({ plan: 'pro', period: 'monthly' }));
 	});
+
+	// #2235: ein nie bestätigter Checkout ist kein „Aktuelles Paket“ — die Zeile des Zielpakets
+	// zeigt die offene Buchung, bis die PayPal-Bestätigung das Abo wirksam macht.
+	it('#2235: approval_pending zeigt in der Zielpaket-Zeile „Buchung offen“ statt „Aktuelles Paket“', () => {
+		subscriptionState.subscription = {
+			plan: 'plus',
+			period: 'monthly',
+			status: 'approval_pending',
+			currentPeriodEnd: '2027-01-15T00:00:00.000Z',
+		};
+		render(<Harness targetPlan="plus" />);
+
+		expect(screen.getByText('Buchung offen')).toBeTruthy();
+		expect(screen.queryByText('Aktuelles Paket')).toBeNull();
+		expect(screen.queryByRole('button', { name: /buchen/i })).toBeNull();
+	});
 });

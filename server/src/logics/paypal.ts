@@ -186,7 +186,9 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 	async createSubscription(planId, override) {
 		const token = await getAccessToken(fetchImpl);
 		const returnUrl = process.env.PAYPAL_RETURN_URL?.trim() || 'https://app.example/settings?billing=returned';
-		const cancelUrl = process.env.PAYPAL_CANCEL_URL?.trim() || returnUrl;
+		// Eigene Cancel-URL (#2235): der Abbruch bei PayPal darf nicht wie eine Rückkehr aussehen —
+		// die Einstellungen räumen über sie die ausstehende Buchung auf, sonst bleibt sie stehen.
+		const cancelUrl = process.env.PAYPAL_CANCEL_URL?.trim() || 'https://app.example/settings?billing=cancelled';
 		const res = await fetchImpl(`${apiBase()}/v1/billing/subscriptions`, {
 			method: 'POST',
 			headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },

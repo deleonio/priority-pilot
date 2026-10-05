@@ -84,14 +84,29 @@ const findCancelledWithRemaining = (userId: number) =>
 		order: ACTIVE_FIRST,
 	});
 
+// Frist für nie bestätigte Checkouts (#2235): PayPal-Zustimmungen erfolgen in derselben Sitzung —
+// wer nach einem Tag nicht zugestimmt hat, kommt nicht wieder. Die Zeile wird verworfen, bevor sie
+// eine Neubuchung blockiert (409). Ein später ACTIVATED-Webhook für die gelöschte Zeile ist ein
+// No-op (billing.ts: unbekannte `externalSubscriptionId` wird ignoriert).
+const PENDING_TTL_MS = 24 * 60 * 60 * 1000;
+const destroyStalePending = (userId: number): Promise<number> =>
+	Subscription.destroy({
+		where: { userId, status: 'approval_pending', createdAt: { [Op.lt]: new Date(Date.now() - PENDING_TTL_MS) } },
+	});
+
 // Guthaben und erster Zyklus eines Upgrades — gemeinsame Eingabe-Ermittlung für Wechsel und Vorschau.
 const upgradeProration = (subscription: Subscription, plan: Plan, period: Period, now: Date) => {
 	const currentPlan = subscription.get('plan') as Plan;
 	const currentPeriod = subscription.get('period') as Period;
+	const { prices } = getPlansCatalog();
+	// Nie bestätigter Checkout (#2235): aus einem Abo ohne Zahlung entsteht kein Guthaben — der
+	// erste Zyklus des Zielpakets kostet den vollen Preis.
+	if (subscription.get('status') === 'approval_pending') {
+		return { creditCents: 0, firstCycleCents: prices[plan][period] };
+	}
 	const periodEnd = subscription.get('currentPeriodEnd') as Date;
 	const periodStart = new Date(periodEnd);
 	periodStart.setUTCMonth(periodStart.getUTCMonth() - PERIOD_MONTHS[currentPeriod]);
-	const { prices } = getPlansCatalog();
 	return prorateUpgrade({
 		oldPriceCents: prices[currentPlan][currentPeriod],
 		newPriceCents: prices[plan][period],
@@ -123,6 +138,9 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 400, 'plan muss plus oder pro sein, period monthly, quarterly oder yearly.');
 			return;
 		}
+		// Abgelaufene Checkouts (#2235) räumen sich hier weg, sonst blockierte die alte Zeile jede
+		// Neubuchung mit 409.
+		await destroyStalePending(userId);
 		const existing = await Subscription.findOne({ where: { userId, status: OPEN_SUBSCRIPTION_STATUSES } });
 		if (existing) {
 			sendError(res, 409, 'Es besteht bereits ein laufendes oder ausstehendes Abo.');
@@ -231,6 +249,8 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 400, 'plan muss plus oder pro sein, period monthly, quarterly oder yearly.');
 			return;
 		}
+		// Abgelaufene Checkouts (#2235) gelten hier nicht als Ausgangspaket — vorab verwerfen.
+		await destroyStalePending(userId);
 		const subscription =
 			(await Subscription.findOne({ where: { userId, status: OPEN_SUBSCRIPTION_STATUSES }, order: ACTIVE_FIRST })) ??
 			// Gekündigt mit Restlaufzeit gilt als laufendes Abo (#2049) — 404 nur ohne jedes.
@@ -262,10 +282,9 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 				const now = new Date();
 				const { creditCents, firstCycleCents } = upgradeProration(subscription, body.plan, body.period, now);
 				const { approvalUrl, externalSubscriptionId } = await checkout.create(body.plan, body.period, firstCycleCents);
-				// Ein abgebrochener früherer Upgrade-Anlauf bliebe sonst als offenes Abo liegen.
-				await Subscription.destroy({
-					where: { userId, status: 'approval_pending', id: { [Op.ne]: subscription.get('id') } },
-				});
+				// Ausstehende Zeilen (#2235) gehören vor dem neuen Abo verworfen — auch die, von der
+				// der Wechsel ausging, sonst bliebe ein nie bestätigter Checkout stehen.
+				await Subscription.destroy({ where: { userId, status: 'approval_pending' } });
 				await Subscription.create({
 					userId,
 					provider: provider.id,

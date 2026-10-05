@@ -77,6 +77,11 @@ export const usePaypalPurchase = (): PurchaseUi => {
 					),
 				};
 			}
+			// Offener Checkout (#2235): das Zielpaket ist noch nicht bezahlt — nicht „Aktuelles Paket"
+			// behaupten; die Buchung läuft erst mit der PayPal-Bestätigung.
+			if (subscription.status === 'approval_pending') {
+				return { text: 'Buchung offen', node: <span>Buchung offen</span> };
+			}
 			return { text: 'Aktuelles Paket', node: <span>Aktuelles Paket</span> };
 		}
 		if (subscription === null) {

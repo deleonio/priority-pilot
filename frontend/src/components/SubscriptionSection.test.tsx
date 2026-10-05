@@ -56,7 +56,7 @@ vi.mock('../api', () => ({
 	},
 }));
 
-const subscriptionState = { subscription: null as unknown };
+const subscriptionState = { subscription: null as unknown, plan: null as unknown };
 vi.mock('../lib/usePlan', () => ({
 	usePlan: () => subscriptionState,
 }));
@@ -213,5 +213,30 @@ describe('SubscriptionSection (#2048)', () => {
 		expect(paidEntry, 'Die bezahlte Rechnung zeigt das Badge „Bezahlt“').toHaveTextContent('Bezahlt');
 		const refundedEntry = screen.getByText('INV-2026-000012').closest('li') as HTMLElement;
 		expect(refundedEntry, 'Die erstattete Rechnung zeigt das Badge „Erstattet“').toHaveTextContent('Erstattet');
+	});
+
+	// #2235 — offener Checkout: das Zielpaket ist noch nicht bezahlt. Die Zeile zeigt weiter das
+	// bezahlte Paket bzw. keinen „Aktuelles Paket“-Anspruch, sondern die ausstehende Buchung.
+	it('#2235: approval_pending zeigt die offene Buchung statt „Aktuelles Paket“', () => {
+		subscriptionState.subscription = { ...baseSubscription, status: 'approval_pending', plan: 'plus' };
+		subscriptionState.plan = 'pro';
+		render(<SubscriptionSection />);
+
+		const hint = screen.getByTestId('subscription-pending-checkout');
+		expect(hint).toHaveTextContent(/Buchung offen/);
+		expect(hint).toHaveTextContent(/Plus wartet auf die Bestätigung durch PayPal/);
+		expect(hint).toHaveTextContent(/Bezahlt ist weiter Pro/);
+		expect(screen.queryByText(/Aktuelles Paket:/)).not.toBeInTheDocument();
+		expect(screen.queryByText(/Periodenende:/)).not.toBeInTheDocument();
+	});
+
+	it('#2235: approval_pending ohne bezahltes Paket nennt kein „Bezahlt ist weiter“', () => {
+		subscriptionState.subscription = { ...baseSubscription, status: 'approval_pending', plan: 'plus' };
+		subscriptionState.plan = 'free';
+		render(<SubscriptionSection />);
+
+		const hint = screen.getByTestId('subscription-pending-checkout');
+		expect(hint).toHaveTextContent(/Buchung offen/);
+		expect(hint).not.toHaveTextContent(/Bezahlt ist weiter/);
 	});
 });

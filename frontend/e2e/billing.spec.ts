@@ -379,4 +379,46 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 			})
 			.toBeLessThanOrEqual(375);
 	});
+
+	// #2235: ein nie bestätigter Checkout (approval_pending) zeigt weiter das bezahlte Paket —
+	// die Abo-Karte nennt die offene Buchung, die Paket-Matrix behauptet kein „Aktuelles Paket“.
+	test('#2235: offener Checkout zeigt in der Abo-Karte die offene Buchung, nicht das Zielpaket', async ({ page }) => {
+		await mockCatalog(page);
+		await mockAuthMe(page, {
+			...USER_NO_SUBSCRIPTION,
+			plan: 'free',
+			subscription: activeSubscription({ plan: 'plus', status: 'approval_pending' }),
+		});
+		await mockEmptyInvoices(page);
+
+		await gotoAbo(page);
+		const status = page.getByTestId('subscription-status');
+		await expect(status.getByTestId('subscription-pending-checkout')).toContainText('Buchung offen');
+		await expect(status).not.toContainText('Aktuelles Paket');
+	});
+
+	// #2235: die Abbruch-Rückkehr von PayPal räumt die ausstehende Buchung über die
+	// Kündigungs-Route auf und zeigt einen Hinweis — direkt danach ist Neubuchen möglich.
+	test('#2235: ?billing=cancelled räumt die ausstehende Buchung auf und zeigt den Abbruch-Hinweis', async ({
+		page,
+	}) => {
+		await mockCatalog(page);
+		await mockAuthMe(page, {
+			...USER_NO_SUBSCRIPTION,
+			plan: 'free',
+			subscription: activeSubscription({ plan: 'plus', status: 'approval_pending' }),
+		});
+		await mockEmptyInvoices(page);
+
+		let cancelCalled = false;
+		await page.route('**/api/v1/billing/subscriptions/cancel', (route: Route) => {
+			cancelCalled = true;
+			return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+		});
+
+		await page.goto('/app/settings/abo?billing=cancelled');
+		await expect(page.getByTestId('billing-cancelled-notice')).toContainText('Buchung abgebrochen');
+		await expect.poll(() => cancelCalled, { message: 'Der Abbruch muss die Kündigungs-Route rufen' }).toBe(true);
+		await expect(page).not.toHaveURL(/billing=cancelled/);
+	});
 });

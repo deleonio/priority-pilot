@@ -47,6 +47,7 @@ import { PillarWeightsForm } from './PillarWeightsForm';
 import { RecalcPillarModal } from './RecalcPillarModal';
 import { PlansSection } from './PlansSection';
 import { SubscriptionSection } from './SubscriptionSection';
+import { BillingReturnNotice } from './BillingReturnNotice';
 import { TaskImportCard } from './TaskImportCard';
 
 interface SettingsPageProps {
@@ -1027,6 +1028,8 @@ export const SettingsPage = ({
 				{/* #1902: „Pakete" und „Abo" (#1529) als EIN Reiter mit zwei Karten untereinander — oben das
 				    laufende Abo, unten die buchbaren Pakete (Regel 1: Karten nur oberste Ebene). */}
 				<div slot="tab-6" className="settings-plans settings-panel">
+					{/* #2235: Rückkehr von PayPal — Abbruch bei PayPal räumt die ausstehende Buchung auf. */}
+					<BillingReturnNotice />
 					{/* #1565 AK1: kostenfreier Paket-Selbst-Wechsel in eigener Karte ÜBER dem Abo —
 					        die Bedienaktion vor dem Lesestoff. Gating um die KARTE (nicht den Tab), damit
 					        spätere Rollen sie ohne Tab-Umbau aufnehmen können (AK4): Tester (#1566) sieht

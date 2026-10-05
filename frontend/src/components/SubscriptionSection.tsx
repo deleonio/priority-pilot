@@ -85,7 +85,7 @@ const CancelDialog = ({ onClose, onCancelled }: CancelDialogProps) => {
  * Ohne Abo ein Hinweis, die Rechnungen nur, wenn es welche gibt (UX-Beratung zu #1902: kein „Pakete ansehen", die Pakete liegen darunter; AK3 von #1902 seit #1940 geändert).
  */
 export const SubscriptionSection = () => {
-	const { subscription } = usePlan();
+	const { subscription, plan } = usePlan();
 	const [invoices, setInvoices] = useState<Invoice[] | null>(null);
 	const [invoicesError, setInvoicesError] = useState<string | null>(null);
 	const [cancelOpen, setCancelOpen] = useState(false);
@@ -136,10 +136,25 @@ export const SubscriptionSection = () => {
 			{subscription != null ? (
 				<>
 					<section className="subscription-status" data-testid="subscription-status">
-						<p>
-							Aktuelles Paket: <strong>{planLabel(subscription.plan)}</strong> ({PERIOD_LABELS[subscription.period]})
-						</p>
-						<p>Periodenende: {formatDate(subscription.currentPeriodEnd)}</p>
+						{subscription.status === 'approval_pending' ? (
+							// Offener Checkout (#2235): das Zielpaket ist noch nicht bezahlt — weiter das
+							// bezahlte Paket zeigen, das Zielpaket nur als ausstehende Buchung.
+							<p data-testid="subscription-pending-checkout">
+								Buchung offen: {planLabel(subscription.plan)} wartet auf die Bestätigung durch PayPal.
+								{plan != null &&
+									plan !== 'free' &&
+									plan !== subscription.plan &&
+									` Bezahlt ist weiter ${planLabel(plan)}.`}
+							</p>
+						) : (
+							<>
+								<p>
+									Aktuelles Paket: <strong>{planLabel(subscription.plan)}</strong> ({PERIOD_LABELS[subscription.period]}
+									)
+								</p>
+								<p>Periodenende: {formatDate(subscription.currentPeriodEnd)}</p>
+							</>
+						)}
 						{subscription.pendingPlan !== null && (
 							<p data-testid="subscription-pending-plan">
 								Wechsel zu {planLabel(subscription.pendingPlan)}

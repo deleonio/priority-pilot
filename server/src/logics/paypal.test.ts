@@ -127,3 +127,31 @@ describe('paypal.ts — createPaypalClient().revise (#1471 AK1)', () => {
 		}
 	});
 });
+
+// #2235: der Abbruch bei PayPal braucht eine eigene cancel_url — sonst landet der Abbruch wie eine
+// Rückkehr auf `?billing=returned` und die ausstehende Buchung wird nie aufgeräumt.
+describe('paypal.ts — createPaypalClient().createSubscription (#2235)', () => {
+	it('setzt eine eigene cancel_url, die nicht der return_url entspricht', async () => {
+		const bodies: unknown[] = [];
+		const fetchMock = (async (input: RequestInfo | URL, init?: RequestInit) => {
+			const url = String(input);
+			if (url.endsWith('/v1/oauth2/token')) {
+				return new Response(JSON.stringify({ access_token: 'test-token' }), { status: 200 });
+			}
+			if (url.endsWith('/v1/billing/subscriptions')) {
+				bodies.push(JSON.parse(String(init?.body)));
+				return new Response(
+					JSON.stringify({ id: 'I-1', links: [{ rel: 'approve', href: 'https://paypal.approve/x' }] }),
+					{ status: 200, headers: { 'Content-Type': 'application/json' } },
+				);
+			}
+			throw new Error(`unerwarteter fetch: ${url}`);
+		}) as unknown as typeof fetch;
+
+		await createPaypalClient(fetchMock).createSubscription('PLAN-X');
+
+		const body = bodies[0] as { application_context: { return_url: string; cancel_url: string } };
+		assert.notEqual(body.application_context.cancel_url, body.application_context.return_url);
+		assert.match(body.application_context.cancel_url, /billing=cancelled/);
+	});
+});
