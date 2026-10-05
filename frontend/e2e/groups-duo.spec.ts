@@ -40,8 +40,7 @@ test.describe('Duo (#1991)', () => {
 		await page.getByRole('button', { name: 'Link erzeugen' }).click();
 		const groups = (await (await page.request.get('/api/v1/groups')).json()) as { id: number; name: string }[];
 		const groupId = groups.find((entry) => entry.name === 'E2E Duo')!.id;
-		const links = (await (await page.request.get(`/api/v1/groups/${groupId}/invite-links`)).json()) as unknown[];
-		expect(links.length, 'Link muss über die UI erzeugt worden sein').toBeGreaterThan(0);
+		await expect(page.getByText(/beitreten\?token=/)).toBeVisible();
 
 		// Partner: Link per API (Admin-Kontext) erzeugen und mit zweitem Context einlösen.
 		const token = (
