@@ -338,8 +338,8 @@ unten sind damit nicht mehr live.
   Phasenmodelle `glm-5.3[1m]`/`glm-4.7` sind davon nie betroffen gewesen.
   Die `concurrency`-Keys sind PRO TICKET (05.10., pro-Ticket-Lanes): Lane A
   `harness-<Issue-Nr.>` (Triage/UX/Spec/Implement, Issues-Events), Lane B
-  `harness-<Head-Branch>` = `harness-ai/harness/<Nr.>` (Review/Fixup, PR-Events — der
-  Fixup-PR trägt immer den Harness-Branch des Tickets). Je Ticket serialisieren die Lanes
+  `harness-pr-<Head-Branch>` (Review/Fixup, PR-Events; Pipeline-PRs tragen
+  `ai/harness/<Nr.>`, lokale PRs ohne Issue ihren Feature-Branch). Je Ticket serialisieren die Lanes
   ihre Kette; verschiedene Tickets laufen voll parallel — der Durchsatz wird allein über
   den Zulauf gesteuert (Koordinator). Der A→B-Übergang ist über den Review-CI-Wait
   gepuffert; das Re-Triage-Residual-Risiko B→A ist in `01-triage.yml` dokumentiert.

@@ -83,7 +83,7 @@ Runde 1 = normaler Review→Fixup-Zyklus ohne Signal; Zählfehler fail-open. `ai
 
 **05.10. — Concurrency pro Ticket.** Nach dem Phasen-Split (#2171) der zweite Schritt:
 Der Key ist jetzt das Ticket, nicht die Phase — Lane A `harness-<Issue-Nr.>` (Triage/UX/
-Spec/Implement), Lane B `harness-<Head-Branch>` (Review/Fixup). Beliebig viele Tickets
+Spec/Implement), Lane B `harness-pr-<Head-Branch>` (Review/Fixup; lokale PRs ohne Issue laufen über ihren Feature-Branch). Beliebig viele Tickets
 laufen voll parallel; der Koordinator steuert den Durchsatz allein über den Zulauf. Puffer
 an der A→B-Grenze: Review-CI-Wait. Residual-Risiko B→A (Re-Triage während Review/Fixup)
 ist dokumentiert (01-triage.yml); der Documenter bleibt bewusst statisch (.costs-Seals).

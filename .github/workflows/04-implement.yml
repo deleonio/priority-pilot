@@ -41,14 +41,16 @@ on:
 
 concurrency:
   # Beide Eingänge dieser Datei in der Lane DES TICKETS: Issue+ai:needs-impl → Lane A
-  # (`harness-<Issue-Nr.>`), PR+ai:needs-fixup → Lane B (`harness-<Head-Branch>` =
-  # `harness-ai/harness/<Nr.>`, der Fixup-PR trägt immer den Harness-Branch). Innerhalb
+  # (`harness-<Issue-Nr.>`), PR+ai:needs-fixup → Lane B (`harness-pr-<Head-Branch>`; Pipeline-PRs tragen
+  # `ai/harness/<Nr.>`, lokale PRs ohne Issue ihren Feature-Branch — beides
+  # deterministisch je PR, der `pr-`-Prefix hält Branch-Namen aus dem Nummernraum
+  # der Lane A fern). Innerhalb
   # jeder Lane serialisiert das Ticket mit sich selbst; verschiedene Tickets laufen voll
   # parallel (pro-Ticket-Lanes, Details/Rationale: 01-triage.yml). Der Überhol-Schutz
   # Implement↔Fixup (ADR-0005) greift über die Label-Kette + den HEAD-Fortschritts-Guard
   # des fixup-verdict — der alte globale Gruppen-Schutz ist seit den pro-Ticket-Lanes
   # (05.10.) ein Re-Triage-Residual-Risiko (dokumentiert in 01-triage.yml).
-  group: ${{ github.event_name == 'issues' && format('harness-{0}', github.event.issue.number) || format('harness-{0}', github.event.pull_request.head.ref) }}
+  group: ${{ github.event_name == 'issues' && format('harness-{0}', github.event.issue.number) || format('harness-pr-{0}', github.event.pull_request.head.ref) }}
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
   # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,

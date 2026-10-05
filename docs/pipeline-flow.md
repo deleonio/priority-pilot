@@ -323,8 +323,8 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
     review/fixup (die kein `ai:to-big-issue` vergeben, s. u.) stattdessen ein PR-Kommentar.
   - **Phasen-Label-Pre-Check** (alle 7 Phasen): Die Concurrency-Keys sind PRO TICKET
     (05.10., pro-Ticket-Lanes): Lane A `harness-<Issue-Nr.>` serialisiert die Issue-Kette
-    (Triage/UX/Spec/Implement), Lane B `harness-<Head-Branch>` = `harness-ai/harness/<Nr.>`
-    serialisiert Review↔Fixup am PR — verschiedene Tickets laufen voll parallel, der
+    (Triage/UX/Spec/Implement), Lane B `harness-pr-<Head-Branch>` (Pipeline-PRs: `ai/harness/<Nr.>`;
+    lokale PRs ohne Issue: Feature-Branch) serialisiert Review↔Fixup am PR — verschiedene Tickets laufen voll parallel, der
     Koordinator steuert den Durchsatz über den Zulauf. Der Documenter (06) bleibt bewusst
     statisch (`llm-documenter`): Er versiegelt `.costs` auf main und konkurriert sonst um
     den Push. Die übrigen LLM-Workflows (Doku-/Spec-Syncs, Prompt-Audit, Architektur- und
