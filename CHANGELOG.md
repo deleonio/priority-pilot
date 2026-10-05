@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.16 - 2026-10-05
 
-_Enthält v0.16.0 – v0.16.13._
+_Enthält v0.16.0 – v0.16.14._
 
 ### 🎉 New Features
 
@@ -22,6 +22,7 @@ _Enthält v0.16.0 – v0.16.13._
 - feat(ci): add canonical models.json with cc/pi model adapter by @deleonio in https://github.com/deleonio/priority-pilot/pull/2203
 - feat(ci): add impl provider override, budget watchdog and adapter smoke by @deleonio in https://github.com/deleonio/priority-pilot/pull/2208
 - docs(skills): ticket-coordination learnings and ADR 0018 addendum by @deleonio in https://github.com/deleonio/priority-pilot/pull/2214
+- docs(skills): add start dialog and instant questions to coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2217
 
 ### Other Changes
 
@@ -173,6 +174,7 @@ _Enthält v0.12.0 – v0.12.26._
 
 - feat(server): shared five-factor scoring for /next and /suggestions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2045
 - feat(frontend): login waitlist as own card with a11y and perf polish by @deleonio in https://github.com/deleonio/priority-pilot/pull/2055
+- feat(billing): upgrade and resume a cancelled subscription by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2057
 - feat(billing): upgrade and resume a cancelled subscription by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2057
 
 ### 🔧 Engineering
@@ -330,7 +332,6 @@ _Enthält v0.9.0 – v0.9.18._
 - chore: add n-way phase comparison charts to the focus report by @deleonio in https://github.com/deleonio/priority-pilot/pull/1811
 - feat(frontend): enable balance sorting by default (#1792) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1812
 - fix(report): render phase comparison bars side by side with average bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1813
-- chore(ci): switch phase runners via vars.PHASE_RUNNER (pi5 rollout) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1817
 - chore(ci): switch phase runners via vars.PHASE_RUNNER (pi5 rollout) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1817
 - fix(report): render phase comparison bars side by side with average bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1815
 - chore(ci): route all phase jobs via PHASE_RUNNER, split cache by pi5 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1825
