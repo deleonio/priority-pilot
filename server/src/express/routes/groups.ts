@@ -3,7 +3,17 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { Op, Transaction } from 'sequelize';
 import { sendError, type ErrorDto } from '../http-error.js';
-import { Group, GroupInvitation, GroupInviteLink, GroupMember, Series, Task, User } from '../../models/index.js';
+import {
+	Group,
+	GroupInvitation,
+	GroupInviteLink,
+	GroupMember,
+	Pillar,
+	ScoreEntry,
+	Series,
+	Task,
+	User,
+} from '../../models/index.js';
 import sequelize from '../../database.js';
 import { resolveGeoUser } from './geoConfig.js';
 import { requirePlanFeature } from '../planGuard.js';
@@ -11,6 +21,11 @@ import { allowEmail } from '../../logics/allowedEmails.js';
 import { claimAccessMailSlot, sendAccountAccessMail } from '../../logics/accessMail.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
 import { protokolliereKpiEreignis } from '../../logics/kpiKennzahlen.js';
+import { berechneDuoStreak } from '../../logics/duoStreak.js';
+import { istGueltigeZeitzone, streakZeitpunkte } from '../../logics/streak.js';
+import { berechneLebensbalanceNachKadenz } from '../../logics/heartBalance.js';
+import { ownerScope } from '../requireAuth.js';
+import type { PillarWithContribution } from '../../models/task.js';
 
 /**
  * Gruppen-CRUD (#1211, Teil 1 der Gruppen-Epic #952). Der Router hängt hinter dem globalen
@@ -32,11 +47,19 @@ type GroupDto = {
 	name: string;
 	description: string | null;
 	imageUrl: string | null;
+	kind: 'group' | 'duo';
 	role: GroupRole;
 	memberCount: number;
 };
 
 const NAME_MAX_LENGTH = 60;
+/** Ein Duo (#1974) hat höchstens zwei Mitglieder. */
+const DUO_MAX_MEMBERS = 2;
+const DUO_FULL_MESSAGE = 'Ein Duo hat höchstens zwei Mitglieder.';
+
+/** Ob ein Duo bereits voll besetzt ist (Normalgruppen sind nie voll). */
+export const isDuoFull = async (group: Group, transaction?: Transaction): Promise<boolean> =>
+	group.kind === 'duo' && (await GroupMember.count({ where: { groupId: group.id }, transaction })) >= DUO_MAX_MEMBERS;
 
 /** Name validieren (AK4): nach Trim nicht leer und ≤ 60 Zeichen, sonst null. */
 const validateName = (name: unknown): string | null => {
@@ -63,6 +86,7 @@ const toDto = async (group: Group, role: GroupRole): Promise<GroupDto> => ({
 	name: group.name,
 	description: group.description ?? null,
 	imageUrl: group.imageUrl ?? null,
+	kind: group.kind,
 	role,
 	memberCount: await GroupMember.count({ where: { groupId: group.id } }),
 });
@@ -91,7 +115,12 @@ groupsRouter.post('/groups', requirePlanFeature('groups'), async (req: Request, 
 			sendError(res, 401, 'Anmeldung erforderlich.');
 			return;
 		}
-		const body = (req.body ?? {}) as { name?: unknown; description?: unknown };
+		const body = (req.body ?? {}) as { name?: unknown; description?: unknown; kind?: unknown };
+		if (body.kind !== undefined && body.kind !== 'group' && body.kind !== 'duo') {
+			sendError(res, 400, "Die Art der Gruppe muss 'group' oder 'duo' sein.");
+			return;
+		}
+		const kind = body.kind ?? 'group';
 		const name = validateName(body.name);
 		if (name === null) {
 			sendError(res, 400, `Der Gruppenname ist Pflicht und darf ${NAME_MAX_LENGTH} Zeichen nicht überschreiten.`);
@@ -101,7 +130,7 @@ groupsRouter.post('/groups', requirePlanFeature('groups'), async (req: Request, 
 			typeof body.description === 'string' && body.description.trim().length > 0 ? body.description.trim() : null;
 
 		const created = await sequelize.transaction(async (transaction) => {
-			const group = await Group.create({ name, description }, { transaction });
+			const group = await Group.create({ name, description, kind }, { transaction });
 			await GroupMember.create(
 				{ groupId: group.id, userId: user.id, role: 'admin', joinedAt: new Date() },
 				{ transaction },
@@ -434,6 +463,10 @@ groupsRouter.post(
 				sendError(res, 409, 'Das Konto ist bereits Mitglied dieser Gruppe.');
 				return;
 			}
+			if (await isDuoFull(found.group)) {
+				sendError(res, 409, DUO_FULL_MESSAGE);
+				return;
+			}
 			const existingInvitation = await GroupInvitation.findOne({
 				where: { groupId: found.group.id, invitedUserId, status: 'pending' },
 			});
@@ -530,12 +563,18 @@ groupsRouter.post(
 				sendError(res, 404, 'Einladung nicht gefunden.');
 				return;
 			}
+			let duoFull = false;
 			await sequelize.transaction(async (transaction) => {
 				const existing = await GroupMember.findOne({
 					where: { groupId: invitation.groupId, userId: user.id },
 					transaction,
 				});
 				if (!existing) {
+					const group = await Group.findByPk(invitation.groupId, { transaction });
+					if (group && (await isDuoFull(group, transaction))) {
+						duoFull = true;
+						return;
+					}
 					await GroupMember.create(
 						{ groupId: invitation.groupId, userId: user.id, role: 'member', joinedAt: new Date() },
 						{ transaction },
@@ -543,6 +582,10 @@ groupsRouter.post(
 				}
 				await invitation.update({ status: 'accepted' }, { transaction });
 			});
+			if (duoFull) {
+				sendError(res, 409, DUO_FULL_MESSAGE);
+				return;
+			}
 			res.json({ groupId: invitation.groupId });
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
@@ -711,6 +754,10 @@ groupsRouter.get('/groups/:id/tasks', async (req: Request, res: Response<GroupTa
 			sendError(res, 404, 'Gruppe nicht gefunden.');
 			return;
 		}
+		if (found.group.kind === 'duo') {
+			res.json([]);
+			return;
+		}
 		const members = await GroupMember.findAll({ where: { groupId: found.group.id } });
 		const memberIds = members.map((member) => member.userId);
 		const memberIdSet = new Set(memberIds);
@@ -781,6 +828,10 @@ groupsRouter.get('/groups/:id/series', async (req: Request, res: Response<GroupS
 		const found = await findMembership(user.id, Number(req.params.id));
 		if (!found) {
 			sendError(res, 404, 'Gruppe nicht gefunden.');
+			return;
+		}
+		if (found.group.kind === 'duo') {
+			res.json([]);
 			return;
 		}
 		const members = await GroupMember.findAll({ where: { groupId: found.group.id } });
@@ -897,3 +948,78 @@ groupsRouter.delete(
 		}
 	},
 );
+
+type DuoDto = {
+	streak: { aktuell: number; best: number };
+	members: { userId: number; name: string; saeulen: { pillarId: number; name: string; wert: number }[] }[];
+};
+
+// GET /groups/:id/duo — gemeinsamer Streak (nur Tage, an denen beide Mitglieder etwas erledigt haben)
+// und je Mitglied nur Säulenwerte, keine Aufgabenfelder (#1974). Nicht-Mitglied und `kind='group'` → 404.
+groupsRouter.get('/groups/:id/duo', async (req: Request, res: Response<DuoDto | ErrorDto>) => {
+	try {
+		const user = await resolveGeoUser(req);
+		if (!user) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const found = await findMembership(user.id, Number(req.params.id));
+		if (!found || found.group.kind !== 'duo') {
+			sendError(res, 404, 'Duo nicht gefunden.');
+			return;
+		}
+		const memberIds = (await GroupMember.findAll({ where: { groupId: found.group.id } })).map((m) => m.userId);
+		const users = await User.findAll({ where: { id: memberIds } });
+		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+		const zeitZone = istGueltigeZeitzone(angefragteZone)
+			? angefragteZone
+			: Intl.DateTimeFormat().resolvedOptions().timeZone;
+		const jetzt = new Date();
+
+		// Je Mitglied strikt mit `ownerScope` (Muster GET /scores/balance): Säulenwerte und Zeitpunkte.
+		const stands = await Promise.all(
+			memberIds.map(async (memberId) => {
+				const [saeulen, tasks, entries] = await Promise.all([
+					Pillar.findAll({ where: ownerScope(memberId), order: [['id', 'ASC']] }),
+					Task.findAll({ where: ownerScope(memberId), include: [Pillar] }),
+					ScoreEntry.findAll({ include: [{ model: Task, where: ownerScope(memberId) }] }),
+				]);
+				const zeitpunktProTask = new Map(entries.map((entry) => [entry.taskId, entry.zeitpunkt]));
+				const balance = berechneLebensbalanceNachKadenz(
+					saeulen.map((saeule) => ({ id: saeule.id, key: saeule.key, name: saeule.name, weight: saeule.weight })),
+					tasks.map((task) => ({
+						status: task.status,
+						estimatedEffort: task.estimatedEffort,
+						pillars: (task.Pillars ?? []).map((pillar: PillarWithContribution) => ({
+							pillarId: pillar.id,
+							share: pillar.TaskPillar.share,
+						})),
+						erledigtAm: zeitpunktProTask.get(task.id) ?? null,
+					})),
+					jetzt,
+				);
+				return {
+					userId: memberId,
+					name: displayNameOf(users.find((candidate) => candidate.id === memberId) ?? null),
+					saeulen: balance.saeulen.map((saeule) => ({
+						pillarId: saeule.id,
+						name: saeule.name,
+						wert: Math.round(saeule.punkte * 10) / 10,
+					})),
+					zeitpunkte: streakZeitpunkte(
+						entries.map((entry) => ({ zeitpunkt: entry.zeitpunkt, deadline: entry.Task?.deadline })),
+						zeitZone,
+					),
+				};
+			}),
+		);
+		const [a, b] = stands;
+		const { aktuell, best } = berechneDuoStreak(a?.zeitpunkte ?? [], b?.zeitpunkte ?? [], jetzt, zeitZone);
+		res.json({
+			streak: { aktuell, best },
+			members: stands.map(({ userId, name, saeulen }) => ({ userId, name, saeulen })),
+		});
+	} catch {
+		sendError(res, 500, 'Interner Serverfehler.');
+	}
+});

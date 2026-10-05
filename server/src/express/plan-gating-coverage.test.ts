@@ -74,6 +74,7 @@ const EXPECTED: Record<string, FeatureId | null> = {
 	'DELETE /groups/:id/members/:userId': 'groups',
 	'GET /groups/:id/tasks': null,
 	'GET /groups/:id/series': null,
+	'GET /groups/:id/duo': null,
 	'POST /groups/:id/invite-links': 'groups',
 	'DELETE /invite-links/:id': 'groups',
 	// inviteLinks.ts

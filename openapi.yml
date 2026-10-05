@@ -3296,6 +3296,41 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /groups/{id}/duo:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Duos
+        schema:
+          type: integer
+      - name: tz
+        in: query
+        required: false
+        description: IANA-Zeitzone für die Tagesgrenze (Muster /scores/streak)
+        schema:
+          type: string
+    get:
+      summary: Gemeinsamer Streak und Säulenwerte eines Duos
+      description: >-
+        Streak nur aus Tagen, an denen beide Mitglieder etwas erledigt haben
+        (#1974). Je Mitglied nur Säulenwerte, keine Aufgabenfelder. Nicht-Mitglied
+        oder Gruppe ohne `kind=duo` 404.
+      operationId: getGroupDuo
+      tags: [groups]
+      responses:
+        '200':
+          description: Duo-Stand
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Duo'
+        '404':
+          description: Duo unbekannt oder kein Mitglied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /groups/{id}/invitations:
     parameters:
       - name: id
@@ -4525,6 +4560,10 @@ components:
           description: >-
             https-Bildadresse des Gruppenbilds (#1225); null = kein Bild
             (Initialen aus dem Namen)
+        kind:
+          type: string
+          enum: [group, duo]
+          description: Art der Gruppe (#1974); `duo` = genau zwei Mitglieder
         role:
           type: string
           enum: [admin, member]
@@ -4545,6 +4584,10 @@ components:
         description:
           type: string
           description: Optionale Beschreibung der Gruppe
+        kind:
+          type: string
+          enum: [group, duo]
+          description: Art der Gruppe (#1974); ohne Angabe `group`, sonst HTTP 400
     GroupUpdate:
       type: object
       description: Payload zum Bearbeiten einer Gruppe — alle Felder optional.
@@ -4986,6 +5029,41 @@ components:
         creatorName:
           type: string
           description: Anzeigename des Erstellers (Fallback E-Mail)
+    Duo:
+      type: object
+      description: Stand eines Duos (#1974) — gemeinsamer Streak und Säulenwerte je Mitglied.
+      required: [streak, members]
+      properties:
+        streak:
+          type: object
+          required: [aktuell, best]
+          properties:
+            aktuell:
+              type: integer
+            best:
+              type: integer
+        members:
+          type: array
+          items:
+            type: object
+            required: [userId, name, saeulen]
+            properties:
+              userId:
+                type: integer
+              name:
+                type: string
+              saeulen:
+                type: array
+                items:
+                  type: object
+                  required: [pillarId, name, wert]
+                  properties:
+                    pillarId:
+                      type: integer
+                    name:
+                      type: string
+                    wert:
+                      type: number
     GroupSeries:
       type: object
       description: >-
