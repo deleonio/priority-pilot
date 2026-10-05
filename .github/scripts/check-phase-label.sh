@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # Prüft, ob der Trigger einer Pipeline-Phase zur LAUFZEIT noch gültig ist.
 #
-# WARUM: Die Phasen-Workflows (01–06) serialisieren je Phase über statische
-# concurrency-Gruppen (`llm-triage` … `llm-documenter`) — Läufe derselben Phase
-# stapeln sich (FIFO). Zwischen Trigger und
-# Job-Start können Minuten liegen, in denen ein anderer Lauf das Trigger-Label
+# WARUM: Die Phasen-Workflows (01–06) serialisieren je Ticket über pro-Ticket-Lanes
+# (`harness-<Nr.>` / `harness-pr-<Branch>`) — Läufe desselben Tickets
+# stapeln sich (FIFO). Zwischen Trigger und Job-Start können Minuten liegen, in denen ein anderer Lauf das Trigger-Label
 # längst konsumiert hat. Das `job-if` sieht nur den Event-Payload vom TRIGGER-
 # Zeitpunkt und würde die Phase falsch wiederholen. Dieses Skript fragt den
 # IST-Zustand ab; passt er nicht zum Soll der Phase, endet der Job ohne Fehler.
