@@ -1,6 +1,12 @@
 import type { Route } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { openAccordionSection, setEqualPillarWeights, taskTitleText, waitForStableView } from './helpers';
+import {
+	openAccordionSection,
+	registerOwnSession,
+	setEqualPillarWeights,
+	taskTitleText,
+	waitForStableView,
+} from './helpers';
 
 /**
  * Rote Spec-e2e für #243 — „CTA Buttons sollen immer mit Strg+Enter abgesendet werden".
@@ -26,6 +32,11 @@ test.beforeEach(async ({ page }) => {
 	await page.addInitScript(() => {
 		localStorage.setItem('pp-expert-mode', 'true');
 	});
+	// Eigene Session statt Pass-Through: `ownerScope(undefined)` filtert `GET /pillars` nicht nach
+	// Nutzer, im Shard lägen alle Säulen der geteilten DB darunter und die Formular-Vollverteilung
+	// käme unters 5-%-Minimum → Speichern mit 400 abgewiesen, Dialog bleibt offen (#2188-Muster,
+	// #2235-Fixup).
+	await registerOwnSession(page, 'keyboard-shortcuts-243');
 });
 
 test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
