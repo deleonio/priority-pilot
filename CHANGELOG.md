@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.16 - 2026-10-05
 
-_Enthält v0.16.0 – v0.16.30._
+_Enthält v0.16.0 – v0.16.31._
 
 ### 🎉 New Features
 
@@ -52,6 +52,7 @@ _Enthält v0.16.0 – v0.16.30._
 - fix(ci): Container-Ergebnis-Step robust (#2138) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2253
 - fix(server): apply billing period change immediately with proration by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2256
 - fix(billing): unicode invoice pdf font and atomic payment events by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2251
+- chore: revert container result step from #2253 by @deleonio in https://github.com/deleonio/priority-pilot/pull/2258
 
 ## v0.15 - 2026-10-05
 
@@ -157,7 +158,7 @@ _Enthält v0.13.0 – v0.13.27._
 - feat(server): suggest initial tasks from free text (#2068) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2079
 - feat(frontend): german labels and unique download buttons (#2031) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2080
 - feat(frontend): first-run flow steps 1-3 (free text, suggestions, apply) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2081
-- feat(frontend): first-run flow steps 1-3 (free text, suggestions, apply) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2081
+- feat(frontend): admin invoice list and download (#1958) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2084
 - feat(frontend): admin invoice list and download (#1958) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2084
 - feat(admin): lock and cancel user subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2085
 - feat(server): invoice payment status replaces fixed label (#2086) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2088
