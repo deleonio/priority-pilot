@@ -9,7 +9,7 @@ name: Budget Watch Claude
 # der Budget-Verbrauch des Abos skaliert mit Token, nicht mit Dollar. Der
 # Wachhund meldet deshalb BEIDE Größen: Token (Input inkl. Cache-Reads, Out)
 # und valueCost. Schwellen (einstellbar via Repo-Var, Prozent des
-# Wochenbudgets): 50 % ::warning, 80 % ::warning + roter Run.
+# Wochenbudgets): 50 % ::warning, 80 % ::error + roter Run.
 #
 # Quelle sind die VERSIEGELTEN Sätze (documenter-committed) — laufende PRs
 # fehlen bis zum Seal; der Wachhund ist Tages-Rückblick, kein Live-Zähler.
@@ -24,7 +24,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: llm-sync
+  group: ${{ github.workflow }}
   cancel-in-progress: false
 
 jobs:
@@ -55,8 +55,7 @@ jobs:
             | { n: length,
                 tin: (map(.tokensIn // 0) | add // 0),
                 tout: (map(.tokensOut // 0) | add // 0),
-                treads: (map(.turns // 0) | add // 0),
-                cost: (map(.cost // 0) | add // 0) }' .costs/*.json)"
+                cost: (map(.valueCost // 0) | add // 0) }' .costs/*.json)"
 
           N="$(jq -r .n <<<"$ROWS")"; TIN="$(jq -r .tin <<<"$ROWS")"
           TOUT="$(jq -r .tout <<<"$ROWS")"; COST="$(jq -r .cost <<<"$ROWS")"
@@ -70,7 +69,7 @@ jobs:
             echo "- valueCost (Attribution): \$$(printf %.2f "$COST")"
           } >> "$GITHUB_STEP_SUMMARY"
 
-          if [ -n "$WEEKLY_BUDGET_USD" ] && [ "$(jq -r 'type == "number"' <<<"$WEEKLY_BUDGET_USD" || echo false)" = "true" ]; then
+          if [ -n "$WEEKLY_BUDGET_USD" ] && [ "$(jq -r 'type == "number"' <<<"$WEEKLY_BUDGET_USD" || echo false)" = "true" ] && [ "$(jq -n "$WEEKLY_BUDGET_USD > 0")" = "true" ]; then
             PCT="$(jq -r "100 * $COST / $WEEKLY_BUDGET_USD" <<<"$ROWS" | xargs printf %.0f)"
             echo "- Anteil am Wochenbudget (CLAUDE_WEEKLY_BUDGET_USD=\$${WEEKLY_BUDGET_USD}): **${PCT} %**" >> "$GITHUB_STEP_SUMMARY"
             echo "Claude-7-Tage-Verbrauch: ${PCT}% des Wochenbudgets (valueCost \$$(printf %.2f "$COST") / \$${WEEKLY_BUDGET_USD})."
