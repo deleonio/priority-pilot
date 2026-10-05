@@ -1436,6 +1436,24 @@ export const api = {
 		}
 	},
 
+	// "Nicht jetzt" mit Grund (#1977): der Bezug ist genau eins von taskId/templateKey.
+	async rejectCareSuggestion({
+		grund,
+		taskId,
+		templateKey,
+	}: {
+		grund: components['schemas']['CareSuggestionRejectionCreate']['grund'];
+		taskId?: number;
+		templateKey?: string;
+	}): Promise<void> {
+		const { error, response } = await client.POST('/scores/care-suggestions/rejections', {
+			body: { grund, taskId, templateKey },
+		});
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
 	// --- Verpasste Aufgaben: vom Auto-Delete-Cron gelöschte Aufgaben (Bewertungssystem-Sichtbarkeit) ---
 
 	async getMissedTasks(init: Init = {}): Promise<MissedTasksSummary> {

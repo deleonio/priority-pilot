@@ -58,7 +58,18 @@
 		"error": "Could not be created. Please try again in a moment.",
 		"accept": "Accept suggestion",
 		"notNow": "Not now",
-		"dismiss": "Dismiss suggestion"
+		"dismiss": "Dismiss suggestion",
+		"reasonLegend": "Why not now?",
+		"reason": {
+			"tooBig": "The task feels too big right now",
+			"notPossible": "This isn't the right time for it",
+			"noEnergy": "I don't have the energy for it right now",
+			"waitingFor": "I'm still waiting on someone",
+			"wrongPriority": "It's not my priority right now"
+		},
+		"skip": "Skip without a reason",
+		"cancel": "Cancel",
+		"saveReason": "Save reason"
 	},
 	"onboarding": {
 		"step": "Step {{step}} of {{total}}",

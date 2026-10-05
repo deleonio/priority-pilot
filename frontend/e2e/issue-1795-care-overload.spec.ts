@@ -7,13 +7,6 @@ import { waitForStableView, fullPillarContributions, registerOwnSession } from '
  * eine einzige erledigte Aufgabe der Säule „Wirksamkeit" (100 % des Aufwands im jüngeren Fenster).
  * ROT, bis Server `anlass` liefert und `CareHint` danach rahmt.
  */
-const deleteAllTasks = async (page: Page): Promise<void> => {
-	const tasks = (await (await page.request.get('/api/v1/tasks')).json()) as { id: number }[];
-	for (const task of tasks) {
-		await page.request.delete(`/api/v1/tasks/${task.id}`);
-	}
-};
-
 const erzeugeUeberlast = async (page: Page): Promise<void> => {
 	// Eigene Session statt Pass-Through: `GET /pillars` und die Vollverteilungs-Pflicht (#2077) gelten
 	// ohne Konto über ALLE Säulen der Shard-DB. Registrierte Nutzer anderer Specs (Gruppen/Admin/Rollen)
@@ -70,10 +63,6 @@ const stableBox = async (locator: Locator): Promise<{ x: number; y: number; widt
 };
 
 test.describe('Dashboard — Fürsorge-Hinweis bei Überlast (Issue #1795)', () => {
-	test.afterEach(async ({ page }) => {
-		await deleteAllTasks(page);
-	});
-
 	test('AK1/AK4: Überlast → Erholungsvorschlag, kein „kam diese Woche zu kurz"', async ({ page }) => {
 		await erzeugeUeberlast(page);
 		await openDashboard(page);
