@@ -4,11 +4,12 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.16 - 2026-10-05
 
-_Enthält v0.16.0 – v0.16.11._
+_Enthält v0.16.0 – v0.16.12._
 
 ### 🎉 New Features
 
 - feat(server): import templates as task packages (#1993) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2197
+- feat(frontend): streak rest day and balanced weeks (#1971) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2215
 
 ### 🐞 Bug Fixes
 
@@ -161,11 +162,11 @@ _Enthält v0.12.0 – v0.12.26._
 - feat(server): generate compliant PDF invoices and email them (#1955) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2025
 - feat(server): limit access mails per user to 10 per 24h by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2046
 - feat(billing): show cancelled subscription and reject re-cancel (#2048) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2052
+- feat(billing): show cancelled subscription and reject re-cancel (#2048) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2052
 - feat(frontend): show why-now reasons on the recommended task card by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2054
 
 ### 🐞 Bug Fixes
 
-- docs(tailscale): document exit-node gating for zai on hosted runners by @deleonio in https://github.com/deleonio/priority-pilot/pull/2051
 - docs(tailscale): document exit-node gating for zai on hosted runners by @deleonio in https://github.com/deleonio/priority-pilot/pull/2051
 
 ### 🚀 Improvements
