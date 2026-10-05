@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.16 - 2026-10-05
 
-_Enthält v0.16.0 – v0.16.27._
+_Enthält v0.16.0 – v0.16.28._
 
 ### 🎉 New Features
 
@@ -49,6 +49,7 @@ _Enthält v0.16.0 – v0.16.27._
 - feat(server): withdraw plan and cancel paypal sub after grace expiry by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2250
 - fix(ci): pin valid actions/checkout sha in model-smoke and budget-watch by @deleonio in https://github.com/deleonio/priority-pilot/pull/2252
 - fix(ci): Container-Ergebnis-Step robust (#2138) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2253
+- fix(server): apply billing period change immediately with proration by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2256
 
 ## v0.15 - 2026-10-05
 
@@ -150,7 +151,6 @@ _Enthält v0.13.0 – v0.13.27._
 - docs(skills): epic closing analysis may post drafts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2066
 - docs(skills): containers first in ticket coordination by @deleonio in https://github.com/deleonio/priority-pilot/pull/2067
 - docs(skills): close fulfilled containers, split after job timeouts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2072
-- feat(frontend): localized care hint texts for de and en (#2063) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2071
 - feat(frontend): localized care hint texts for de and en (#2063) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2071
 - feat(server): suggest initial tasks from free text (#2068) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2079
 - feat(frontend): german labels and unique download buttons (#2031) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2080
@@ -289,6 +289,7 @@ _Enthält v0.10.0 – v0.10.36._
 ### 🔧 Engineering
 
 - fix(ci): give documenter its own openrouter concurrency group by @deleonio in https://github.com/deleonio/priority-pilot/pull/1835
+- feat(server): expose care suggestions via mcp (#1796) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1842
 - feat(server): expose care suggestions via mcp (#1796) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1842
 - feat(frontend): fit dashboard balance card into short viewports by @deleonio in https://github.com/deleonio/priority-pilot/pull/1844
 - ci: add weekly nit digest cron workflow by @deleonio in https://github.com/deleonio/priority-pilot/pull/1845
