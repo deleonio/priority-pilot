@@ -130,10 +130,11 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
   gelöscht wurden, und nennt bis zu drei der zuletzt bereinigten Titel (siehe
   „Automatisches Löschen nach verpasster Deadline“).
 - **Bereich „Verpasst“:** überfällige, offene Aufgaben ohne Auto-Löschen erscheinen gesammelt
-  über der Aufgabenliste — mit Verschiebe-Zähler und den Aktionen „Neu planen“, „Archivieren“
-  und „Löschen“ (auf Dashboard und Aufgaben). Archivierte Aufgaben verschwinden aus Liste und
-  Bereich. Nicht zu verwechseln mit der Card „Verpasste Aufgaben“ oben — die zählt nur das
-  automatische Löschen.
+  über der Aufgabenliste — mit Verschiebe-Zähler und den Aktionen „Erledigt“ (fragt nach: „Aufgabe erst jetzt erledigt?“ – „Ja, jetzt“ zählt als verspätet, „Nein, pünktlich“ bucht die Erledigung zur Deadline), „Neu planen“,
+  „Archivieren“ und „Löschen“ (auf Dashboard und Aufgaben). Archivierte Aufgaben verschwinden aus
+  Liste und Bereich; du findest sie auf der Seite Aufgaben mit dem Schalter „Archivierte anzeigen“
+  und holst sie dort mit „Wiederherstellen“ zurück. Nicht zu verwechseln mit der Card „Verpasste
+  Aufgaben“ oben — die zählt nur das automatische Löschen.
 - **Tag geschafft:** ein kurzer Hinweis, der erscheint, wenn keine Aufgabe mehr offen ist
   und deine letzte Erledigung von heute stammt.
 - **Gesamtguthaben:** dein Punktestand aus erledigten Aufgaben, aufgeschlüsselt je
@@ -158,10 +159,13 @@ Das sind genau die Aufgaben, die **keine Unteraufgaben** haben – die Aufgaben,
 die du jetzt tatsächlich erledigen kannst, ohne dass noch etwas davor erledigt werden muss.
 Den Überblick über alle Abhängigkeiten findest du im Tab **Graph**.
 
-Oben im Tab findest du drei Schalter und darunter die Filterzeile:
+Oben im Tab findest du vier Schalter und darunter die Filterzeile:
 
 - einen **Umschalter „Erledigte Aufgaben anzeigen"**, der zwischen der Liste der offenen
   Aufgaben und der Tabelle der erledigten Aufgaben wechselt,
+- einen **Umschalter „Archivierte anzeigen"**, der die archivierten Aufgaben zeigt – je Eintrag
+  mit „Wiederherstellen" und „Löschen" (schaltet sich gegenseitig mit „Erledigte Aufgaben
+  anzeigen" aus),
 - einen **Schalter „Balance-Priorisierung"** – sortiert die offene Liste so um, dass Aufgaben
   nach oben rücken, die auf deine bislang vernachlässigten Säulen einzahlen. Das Prioritäts-
   Kennzeichen zeigt dann eine abgeleitete Stufe mit Tilde (`~P1` bis `~P5`) statt der eigentlichen

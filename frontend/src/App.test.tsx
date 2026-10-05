@@ -63,6 +63,9 @@ vi.mock('./api', () => ({
 		listMissedTasks: vi.fn().mockResolvedValue([]),
 		// #1964: „Archivieren" im Verpasst-Bereich (in den Tests nicht aufgerufen).
 		archiveTask: vi.fn(),
+		// Archiv-Ansicht: wird nur im Modus `?view=archived` geladen (in den Tests nicht aufgerufen).
+		listArchivedTasks: vi.fn().mockResolvedValue([]),
+		unarchiveTask: vi.fn(),
 		logout: vi.fn(),
 		// #1879: `AppShell` meldet die App-Sprache beim Start (fire-and-forget) — Mock, damit der Aufruf nicht wirft.
 		updateCareSprache: vi.fn().mockResolvedValue(undefined),

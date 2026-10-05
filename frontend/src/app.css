@@ -3802,17 +3802,27 @@ kol-toolbar {
 	min-width: 0;
 }
 
-/* Die beiden Ansichtsschalter sind keine Filter — sie bleiben als eigene Gruppe über der
-   Filterzeile, auch auf dem Desktop, und brechen untereinander um, wenn der Platz nicht reicht. */
+/* Die Ansichtsschalter sind keine Filter — sie bleiben als eigene Gruppe über der Filterzeile,
+   auch auf dem Desktop. Mobil stehen sie zweispaltig, damit vier Schalter nicht vier Zeilen
+   füllen und die vierte Aufgabenzeile aus dem 812px-Viewport drücken (#1258 AK2, #2188);
+   ab Tablet reihen sie sich flexibel und brechen untereinander um, wenn der Platz nicht reicht. */
 .task-filter-switches {
-	display: flex;
-	flex-wrap: wrap;
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
 	align-items: center;
 	gap: var(--pp-gap-base);
 }
 
+@media (min-width: 48rem) {
+	.task-filter-switches {
+		display: flex;
+		flex-wrap: wrap;
+	}
+}
+
 .task-filter-switches .task-view-switch {
 	flex-shrink: 0;
+	min-width: 0;
 }
 
 .task-filter-search__field {
