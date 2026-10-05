@@ -191,7 +191,7 @@ ${body}
 				<a class="kern-link" href="/datenschutz/">${t(messages.footer.privacy)}</a>
 				<a class="kern-link" href="/nutzungsbedingungen/" hreflang="de">${t(messages.footer.terms)}</a>
 				<a class="kern-link" href="${locale === 'en' ? '/en/mcp/' : '/mcp/'}" hreflang="${locale === 'en' ? 'en' : 'de'}">${t(messages.footer.mcpGuide)}</a>
-				<a class="kern-link" href="/vorlagen/" hreflang="de">Vorlagen</a>
+				<a class="kern-link" href="/vorlagen/" hreflang="de">${t(messages.footer.templates)}</a>
 			</div>
 			<nav class="container" aria-label="${t(messages.meta.language)}">
 				<ul class="site-footer__languages">
@@ -598,7 +598,7 @@ ${content}
 const templateCta = (label: string): string =>
 	`						<p><a class="kern-btn kern-btn--primary" href="${APP_PATH}"><span class="kern-label">${t(label)}</span></a></p>`;
 
-export const renderTemplateIndex = (context: PageContext & { allMessages: Record<Locale, Messages> }): string =>
+export const renderTemplateIndex = (context: PageContext): string =>
 	templatePage(
 		context,
 		'/vorlagen/',

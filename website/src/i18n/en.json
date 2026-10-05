@@ -239,7 +239,8 @@
 		"accountDeletionPath": "delete-account/",
 		"privacy": "Privacy policy",
 		"terms": "Terms of use",
-		"mcpGuide": "MCP guide"
+		"mcpGuide": "MCP guide",
+		"templates": "Templates"
 	},
 	"imprint": {
 		"title": "Imprint",

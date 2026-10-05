@@ -245,7 +245,8 @@
 		"accountDeletionPath": "usun-konto/",
 		"privacy": "Prywatność",
 		"terms": "Regulamin",
-		"mcpGuide": "Przewodnik MCP"
+		"mcpGuide": "Przewodnik MCP",
+		"templates": "Szablony"
 	},
 	"imprint": {
 		"title": "Nota prawna",

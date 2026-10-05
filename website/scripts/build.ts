@@ -115,7 +115,7 @@ write(join('en', 'mcp', 'index.html'), renderMcpGuide({ locale: 'en', messages: 
 paths.push('/mcp/', '/en/mcp/');
 
 // Vorlagen-Bibliothek (#1976): deutsche Übersicht und je Vorlage eine Seite.
-write(join('vorlagen', 'index.html'), renderTemplateIndex({ locale: 'de', messages: de, siteUrl, allMessages }));
+write(join('vorlagen', 'index.html'), renderTemplateIndex({ locale: 'de', messages: de, siteUrl }));
 paths.push('/vorlagen/');
 for (const template of TEMPLATES) {
 	write(

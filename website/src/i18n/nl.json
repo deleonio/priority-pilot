@@ -242,7 +242,8 @@
 		"accountDeletionPath": "account-verwijderen/",
 		"privacy": "Privacyverklaring",
 		"terms": "Gebruiksvoorwaarden",
-		"mcpGuide": "MCP-handleiding"
+		"mcpGuide": "MCP-handleiding",
+		"templates": "Sjablonen"
 	},
 	"imprint": {
 		"title": "Colofon",

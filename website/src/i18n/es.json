@@ -245,7 +245,8 @@
 		"accountDeletionPath": "eliminar-cuenta/",
 		"privacy": "Privacidad",
 		"terms": "Condiciones de uso",
-		"mcpGuide": "Guía de MCP"
+		"mcpGuide": "Guía de MCP",
+		"templates": "Plantillas"
 	},
 	"imprint": {
 		"title": "Aviso legal",
