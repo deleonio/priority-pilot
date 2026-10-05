@@ -214,4 +214,22 @@ describe('SubscriptionSection (#2048)', () => {
 		const refundedEntry = screen.getByText('INV-2026-000012').closest('li') as HTMLElement;
 		expect(refundedEntry, 'Die erstattete Rechnung zeigt das Badge „Erstattet“').toHaveTextContent('Erstattet');
 	});
+
+	// #2140 AK8: ein zahlungsgebundener Wechsel hat keinen Zeitpunkt (`pendingPlanEffectiveAt: null`) —
+	// die Anzeige nennt den Grund statt eines Wechsels ohne Zeitangabe; das aktuelle Paket bleibt das alte.
+	it('#2140 AK8: Vormerkung ohne Zeitpunkt zeigt „aktiv mit Zahlungseingang", das aktuelle Paket bleibt das alte', () => {
+		subscriptionState.subscription = {
+			...baseSubscription,
+			plan: 'plus',
+			status: 'active',
+			pendingPlan: 'pro',
+			pendingPlanEffectiveAt: null,
+		};
+		render(<SubscriptionSection />);
+
+		expect(screen.getByTestId('subscription-pending-plan')).toHaveTextContent(
+			/Wechsel zu Pro, aktiv mit Zahlungseingang/,
+		);
+		expect(screen.getByTestId('subscription-status')).toHaveTextContent(/Aktuelles Paket:\s*Plus/);
+	});
 });

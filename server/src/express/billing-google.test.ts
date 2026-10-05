@@ -134,6 +134,24 @@ describe('Play-Kauf freischalten (#1687)', () => {
 		assert.deepEqual(acknowledged, ['token-alt', 'token-neu']);
 	});
 
+	// #2140 AK7: ein Kauf, dessen Zahlung noch aussteht (`PENDING`), schaltet nichts frei — das alte
+	// Abo und Paket bleiben, bis Google den Kauf als `ACTIVE` bestätigt.
+	it('Upgrade im Stand PENDING wird mit 409 abgelehnt: Abo und Paket bleiben beim alten (#2140)', async () => {
+		const cookie = await server.login('pending@example.com');
+		accountIdOfBuyer = (await me(cookie)).playAccountId;
+		await purchase(cookie, 'token-alt');
+		purchases['token-neu'] = { productId: 'pro', linkedPurchaseToken: 'token-alt', state: 'PENDING' };
+
+		assert.equal((await purchase(cookie, 'token-neu')).status, 409);
+
+		const subs = await Subscription.findAll();
+		assert.equal(subs.length, 1);
+		assert.equal(subs[0].get('externalSubscriptionId'), 'token-alt');
+		assert.equal(subs[0].get('plan'), 'plus');
+		assert.equal((await me(cookie)).plan, 'plus');
+		assert.deepEqual(acknowledged, ['token-alt']);
+	});
+
 	it('Downgrade: der neue Kauf merkt das kleinere Paket zum Periodenende vor (#1696)', async () => {
 		const cookie = await server.login('downgrade@example.com');
 		accountIdOfBuyer = (await me(cookie)).playAccountId;

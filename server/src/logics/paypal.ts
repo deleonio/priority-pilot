@@ -262,11 +262,12 @@ export const PERIOD_MONTHS: Record<string, number> = { monthly: 1, quarterly: 3,
  * - Kündigung (`BILLING.SUBSCRIPTION.CANCELLED`) → Status `cancelled`, das bezahlte Paket läuft bis
  *   `currentPeriodEnd` weiter, der Fall auf `free` steht in `pendingPlan` (Muster Google Play `CANCELED`, #1896).
  * - Ablauf (`BILLING.SUBSCRIPTION.EXPIRED`) → Paket sofort zurück auf `free`, Status `cancelled`.
- * - Höheres Paket → wirkt **sofort** (inklusive Zeitraum des Ziel-Plans), damit der Nutzer das
- *   Bezahlte umgehend nutzen kann.
+ * - Höheres Paket oder gleichrangiges mit anderem Zeitraum → löst eine Abbuchung aus und wirkt erst
+ *   mit deren Bestätigung (#2140): Paket und Zeitraum stehen in `pendingPlan`/`pendingPeriod`,
+ *   `pendingPlanEffectiveAt` bleibt `null` (zahlungsgebunden), angewendet von {@link applyPaymentEvent}.
  * - Niedrigeres Paket → wirkt erst ab `currentPeriodEnd`; bis dahin bleibt das bezahlte Paket
  *   aktiv und Paket und Zeitraum stehen in `pendingPlan`/`pendingPeriod`/`pendingPlanEffectiveAt`.
- * - Gleichrangiges Paket mit anderem Zeitraum → Zeitraumwechsel, Zeile folgt sofort dem Ziel.
+ * - Gleiches Paket, gleicher Zeitraum → keine Abbuchung, eine ältere Vormerkung entfällt.
  *
  * Wie PayPal den Restzeitraum abrechnet, ist für diese Entscheidung ohne Belang — maßgeblich ist
  * allein die eigene Freischaltung.
@@ -339,18 +340,6 @@ export const applyPlanChange = async (
 
 	const currentPeriodEnd = subscription.get('currentPeriodEnd') as Date;
 	const current = String(subscription.get('plan'));
-	if (rankOf(target.plan) > rankOf(current)) {
-		await subscription.update({
-			plan: target.plan,
-			period: target.period,
-			status: 'active',
-			pendingPlan: null,
-			pendingPeriod: null,
-			pendingPlanEffectiveAt: null,
-		});
-		await syncUserPlan(subscription, target.plan);
-		return;
-	}
 	if (rankOf(target.plan) < rankOf(current)) {
 		// Downgrade: Paket bleibt bis zum Periodenende unverändert, Paket und Zeitraum werden nur
 		// vorgemerkt — die Anzeige („Aktuelles Paket") schlägt bis dahin auf die alte Kombination.
@@ -361,21 +350,19 @@ export const applyPlanChange = async (
 		});
 		return;
 	}
-	// Gleichrangig: reiner Zeitraumwechsel, Plan und Periode der Zeile folgen sofort dem Ziel
-	// (Abrechnung zum nächsten Zyklus). Der Wechsel ist eine erneute Entscheidung für das aktuelle
-	// Paket — eine ältere Downgrade-Vormerkung ist damit hinfällig (Review #1998), sonst fiele der
-	// Nutzer zum Periodenende still zurück, obwohl PayPal fortan das höhere Paket abrechnet.
+	// Der Wechsel ist eine erneute Entscheidung — eine ältere Downgrade-Vormerkung ist damit hinfällig
+	// (Review #1998), sonst fiele der Nutzer zum Periodenende still zurück. Upgrade und Zeitraumwechsel
+	// warten auf den Zahlungseingang (#2140), ohne Zeitpunkt wendet `applyDuePendingPlan` sie nie an.
+	const unchanged = target.plan === current && target.period === subscription.get('period');
 	await subscription.update({
-		plan: target.plan,
-		period: target.period,
-		pendingPlan: null,
-		pendingPeriod: null,
+		pendingPlan: unchanged ? null : target.plan,
+		pendingPeriod: unchanged ? null : target.period,
 		pendingPlanEffectiveAt: null,
 	});
 };
 
 /**
- * Löst nach Bestätigung eines neuen Abos das bisherige ab (#1912/#2049): jedes andere aktive PayPal-Abo
+ * Löst nach Bestätigung eines neuen Abos das bisherige ab (#1912/#2049, Bestätigung siehe `paypalProvider.ts`): jedes andere aktive PayPal-Abo
  * desselben Nutzers wird bei PayPal gekündigt und lokal beendet, das neue Paket gilt sofort. Ein
  * gekündigtes Abo mit Restlaufzeit (#2049) ist bei PayPal bereits beendet — dort entfällt nur der
  * geplante Fall auf `free`, damit `applyDuePendingPlan` den Nutzer nicht neben dem Nachfolge-Abo
@@ -419,8 +406,9 @@ export interface ApplyPaymentEventDeps {
  * Wendet ein verifiziertes Zahlungsereignis auf das Abo an (AK1/AK3/AK4, T6e/#1506):
  *
  * - Erfolgreiche Abbuchung (`PAYMENT.SALE.COMPLETED`, ersatzweise
- *   `BILLING.SUBSCRIPTION.ACTIVATED`) → zunächst eine fällige Downgrade-Vormerkung anwenden
- *   (Paket und Zeitraum des NEUEN Zyklus), dann Periode um einen Zeitraum verschieben,
+ *   `BILLING.SUBSCRIPTION.ACTIVATED`) → zunächst eine fällige Downgrade-Vormerkung bzw. — nur bei
+ *   `PAYMENT.SALE.COMPLETED` — die zahlungsgebundene Vormerkung (#2140) anwenden (Paket und Zeitraum
+ *   des NEUEN Zyklus), dann Periode um einen Zeitraum verschieben,
  *   `status: 'active'`, `firstFailureAt` löschen, danach `deps.issueInvoice` aufrufen.
  * - Fehlgeschlagener Einzug (`BILLING.SUBSCRIPTION.PAYMENT.FAILED`) → nur beim ersten Mal
  *   `firstFailureAt` setzen und `status: 'past_due'`; ein weiterer Fehlschlag verlängert die
@@ -443,6 +431,18 @@ export const applyPaymentEvent = async (
 		// neuen Paket×Zeitraum rechnen — das `applyDuePendingPlan` beim nächsten `/auth/me` käme
 		// zu spät (Verlängerung um die alte Periode, Rechnung zum alten Preis).
 		await applyDuePendingPlan(subscription, now);
+		// Zahlungsgebundene Vormerkung (#2140): erst die Abbuchung schaltet Upgrade bzw. Zeitraumwechsel
+		// frei — ebenfalls VOR der Verlängerung. ACTIVATED ist keine Abbuchung und schaltet nichts frei.
+		const pendingPlan = subscription.get('pendingPlan') as Plan | null;
+		if (eventType === 'PAYMENT.SALE.COMPLETED' && pendingPlan && !subscription.get('pendingPlanEffectiveAt')) {
+			await subscription.update({
+				plan: pendingPlan,
+				period: subscription.get('pendingPeriod') ?? subscription.get('period'),
+				pendingPlan: null,
+				pendingPeriod: null,
+			});
+			await syncUserPlan(subscription, pendingPlan);
+		}
 		const period = String(subscription.get('period'));
 		const currentPeriodEnd = new Date(subscription.get('currentPeriodEnd') as Date);
 		currentPeriodEnd.setUTCMonth(currentPeriodEnd.getUTCMonth() + (PERIOD_MONTHS[period] ?? 1));
