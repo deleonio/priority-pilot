@@ -1,5 +1,5 @@
 import { dismissOnboardingDialog, expect, test, type Page } from './fixtures';
-import { accordionTrigger, openAccordionSection, taskTitleText, waitForStableView } from './helpers';
+import { accordionTrigger, avoidSunday, openAccordionSection, taskTitleText, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-Tests für #1213 (AK8, docs/spec/issue-1213.md) — Aufgabe für ein anderes
@@ -79,6 +79,9 @@ const expectWithinViewport = async (page: Page, name: string, locator: ReturnTyp
 };
 
 test.describe('Aufgabe für ein Gruppenmitglied (#1213)', () => {
+	// #2186: Die sonntags nachladende Wochenkarte baut das Dashboard sonst unter den Klicks um.
+	test.beforeEach(({ page }) => avoidSunday(page));
+
 	test.afterEach(async ({ page }) => {
 		// Aufräumen über die echte API, damit nachfolgende Tests leer starten (crud.spec.ts-Muster).
 		const tasks = (await (await page.request.get('/api/v1/tasks')).json()) as { id: number }[];
@@ -110,6 +113,7 @@ test.describe('Aufgabe für ein Gruppenmitglied (#1213)', () => {
 		const inviteeContext = await page.context().browser()!.newContext();
 		await inviteeContext.addCookies([{ name: cookieName.trim(), value: cookieValue.trim(), url: baseURL! }]);
 		const inviteePage = await inviteeContext.newPage();
+		await avoidSunday(inviteePage);
 		await dismissOnboardingDialog(inviteePage);
 
 		try {
@@ -165,6 +169,7 @@ test.describe('Aufgabe für ein Gruppenmitglied (#1213)', () => {
 		const inviteeContext = await page.context().browser()!.newContext();
 		await inviteeContext.addCookies([{ name: cookieName.trim(), value: cookieValue.trim(), url: baseURL! }]);
 		const inviteePage = await inviteeContext.newPage();
+		await avoidSunday(inviteePage);
 		await dismissOnboardingDialog(inviteePage);
 
 		try {
