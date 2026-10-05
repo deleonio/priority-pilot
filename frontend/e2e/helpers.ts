@@ -347,3 +347,18 @@ export const setEqualPillarWeights = async (page: Page): Promise<void> => {
 		data: { weights: pillars.map((pillar) => ({ id: pillar.id, weight: 100 / pillars.length })) },
 	});
 };
+
+/**
+ * #2186: Die Wochen-Balance-Karte erscheint nur sonntags (`WeeklyBalanceCard.tsx`) und baut beim
+ * Nachladen das Dashboard-Layout um. Fällt der Lauf in der Zeitzone der Page auf einen Sonntag, stellt
+ * der Helfer ihre Uhr einen Tag zurück auf Samstag (gleiche ISO-Woche, die Uhr läuft weiter). Vor
+ * `page.goto` aufrufen. Bewusst nur in Specs, die sonntags am Layout brechen, nicht global in der
+ * Fixture: Das echte Backend bleibt auf Sonntag, Specs mit „heute“-Logik (`issue-1361-day-done`)
+ * liefen sonst mit dem Browser auseinander.
+ */
+export const avoidSunday = async (page: Page): Promise<void> => {
+	const now = Date.now();
+	if (await page.evaluate((time) => new Date(time).getDay() === 0, now)) {
+		await page.clock.install({ time: now - 86_400_000 });
+	}
+};

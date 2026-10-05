@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
-import { headerAction, waitForStableView } from './helpers';
+import { avoidSunday, headerAction, waitForStableView } from './helpers';
 
 /**
  * E2E-Vertrag für die sichtbare Fokus-Outline der äußeren Header-Buttons (#1622,
@@ -62,6 +62,9 @@ const outlineGeometry = async (button: Locator): Promise<{ width: number; offset
 	});
 
 test.describe('Balamentum — Fokus-Outline der äußeren Header-Buttons bleibt im Viewport (#1622)', () => {
+	// #2186: Die sonntags nachladende Wochenkarte verschiebt sonst das Layout.
+	test.beforeEach(({ page }) => avoidSunday(page));
+
 	const cases: Array<{
 		label: string;
 		viewport: { width: number; height: number };
