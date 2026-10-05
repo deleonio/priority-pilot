@@ -450,6 +450,12 @@ export const applyPaymentEvent = async (
 			});
 			await syncUserPlan(subscription, pendingPlan);
 		}
+		// Erstabschluss (#2231): der Checkout legt das Abo schon mit dem Zielpaket an, `User.plan` bleibt
+		// bis zum Zahlungseingang `free`. Gesperrte und abgelöste Abos (#1912) schalten nichts frei.
+		const status = String(subscription.get('status'));
+		if (status !== 'locked' && status !== 'cancelled') {
+			await syncUserPlan(subscription, subscription.get('plan') as Plan);
+		}
 		const months = PERIOD_MONTHS[String(subscription.get('period'))] ?? 1;
 		const currentPeriodEnd = new Date(subscription.get('currentPeriodEnd') as Date);
 		const nextPeriodEnd = new Date(currentPeriodEnd);

@@ -127,3 +127,42 @@ describe('Paketwechsel erst nach Zahlungsbestätigung (#2140, PayPal)', () => {
 		assert.equal(subscription.get('pendingPlanEffectiveAt'), null);
 	});
 });
+
+/**
+ * #2231 (Spec docs/spec/issue-2231.md) — AK3/AK4: Die Freischaltung mit der ersten Abbuchung darf
+ * weder eine Admin-Sperre aufheben noch ein abgelöstes Abo den Nachfolger herabstufen lassen.
+ */
+describe('Freischaltung mit PAYMENT.SALE.COMPLETED — Schutzfälle (#2231)', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+
+	it('AK3: PAYMENT.SALE.COMPLETED für ein gesperrtes Abo lässt User.plan auf free', async () => {
+		const { user, subscription } = await seed('plus', 'monthly');
+		await user.update({ plan: 'free' });
+		await subscription.update({ status: 'locked' });
+
+		await applyPaymentEvent(subscription, sale, NOW);
+
+		assert.equal(await userPlan(user.id), 'free');
+	});
+
+	it('AK4: spätes PAYMENT.SALE.COMPLETED eines abgelösten Abos ändert User.plan des Nachfolgers nicht', async () => {
+		const { user, subscription } = await seed('plus', 'monthly');
+		await subscription.update({ status: 'cancelled', plan: 'free' });
+		await user.update({ plan: 'pro' });
+		await Subscription.create({
+			userId: user.id,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-2231-NEXT',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: PERIOD_END,
+		});
+
+		await applyPaymentEvent(subscription, sale, NOW);
+
+		assert.equal(await userPlan(user.id), 'pro');
+	});
+});
