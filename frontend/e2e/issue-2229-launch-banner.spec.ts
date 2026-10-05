@@ -20,6 +20,11 @@ test.describe('Balamentum — #2229: Einladungs-Banner', () => {
 		await enableBanner(page);
 	});
 
+	test.afterEach(async ({ page }) => {
+		// Laufende `route.fetch`-Callbacks beim Testende nicht als Fehler werten.
+		await page.unrouteAll({ behavior: 'ignoreErrors' });
+	});
+
 	test('AK3: Feedback-Knopf führt zum Feedback-Formular', async ({ page }) => {
 		await page.goto('/app/');
 		await expect(page.getByTestId('launch-banner')).toBeVisible();
