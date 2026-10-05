@@ -45,9 +45,11 @@ Journal-CRUD-Routen und -Tests bleiben unverändert.
    separater Button.
 3. Gestaltete Zustände: Laden → `KolSpin`, Fehler → `KolAlert` mit Wiederhol-Hinweis, kein
    Eintrag im Zeitraum → Leerzustand-Text als Einladung.
-4. Je Fenster ein Block (aufsteigend): Label (Datum bzw. „Woche vom <Datum>"), `Gesamt: n`,
-   `Ohne Säule: n`, je Säule `<Name>: n Eintrag/Einträge · <Füllstand> %` — der Füllstand ist
-   der Wert aus `balanceVerlauf` zum Fensterende (Tag = `fenster.bis`). Säulennamen als Text
+4. Je Fenster mit Einträgen ein Block (aufsteigend; Fenster ohne Einträge werden nicht als
+   leere Blöcke wiederholt — der API-Vertrag liefert sie trotzdem mit 0): Label (Datum bzw.
+   „Woche vom <Datum>"), `Gesamt: n`, `Ohne Säule: n`, je Säule mit Einträgen
+   `<Name>: n Eintrag/Einträge · <punkte> Punkte`, Balance-Zeile `Füllstand: <p> %` — Punkte und
+   Füllstand aus `balanceVerlauf` zum Fensterende (Tag = `fenster.bis`). Säulennamen als Text
    neben dem Wert (Relief-Regel der Säulen-Rampe), Zahlen mit `tabular-nums`.
 5. 375 px: kein horizontaler Überlauf (Bounding-Box-Assertion, App-Shell clippt), Bedienelemente
    ≥ 44 px hoch.

@@ -4078,6 +4078,53 @@ paths:
           description: Journal-Eintrag gelöscht
         '404':
           $ref: '#/components/responses/NotFound'
+  /journal/stats:
+    get:
+      summary: Journal-Statistik über einen Zeitraum (#2213)
+      description: >-
+        Zählt die Journal-Einträge des angemeldeten Nutzers je Säule, ohne Säule und gesamt über
+        Tages- bzw. Wochenfenster (Montag-Beginn, auf den Zeitraum geschnitten) und liefert den
+        Balance-Verlauf (#1424) für denselben Zeitraum als zweite Reihe — Werte identisch zu
+        `GET /scores/balance/history`. Kein Paket-Limit.
+      operationId: getJournalStats
+      tags: [journal]
+      parameters:
+        - name: von
+          in: query
+          required: true
+          description: Erster Tag des Zeitraums (`YYYY-MM-DD`, inklusive).
+          schema:
+            type: string
+        - name: bis
+          in: query
+          required: true
+          description: Letzter Tag des Zeitraums (`YYYY-MM-DD`, inklusive, höchstens 366 Tage nach `von`).
+          schema:
+            type: string
+        - name: granularitaet
+          in: query
+          required: false
+          description: Fensterauflösung — `tag` (Default) oder `woche`.
+          schema:
+            type: string
+            enum: [tag, woche]
+        - name: tz
+          in: query
+          required: false
+          description: >-
+            IANA-Zeitzone (z. B. `Europe/Berlin`), die die Kalendertagsgrenze des Balance-Verlaufs
+            bestimmt; ohne Angabe gilt die Serverzeit.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Journal-Statistik mit Balance-Verlauf
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JournalStats'
+        '400':
+          $ref: '#/components/responses/ValidationError'
   /calendar-sources:
     get:
       summary: Kalenderquellen auflisten
@@ -5703,6 +5750,54 @@ components:
         pillarId:
           type: integer
           nullable: true
+    JournalStats:
+      type: object
+      description: >-
+        Journal-Statistik (#2213): Eintragsanzahl je Zeitfenster neben dem Balance-Verlauf
+        (#1424) für denselben Zeitraum.
+      required: [fenster, balanceVerlauf]
+      properties:
+        fenster:
+          type: array
+          description: >-
+            Zählfenster aufsteigend — je Kalendertag (`granularitaet=tag`) bzw. Kalenderwoche mit
+            Montag-Beginn (`woche`), Randwochen auf den Zeitraum geschnitten; Fenster ohne
+            Einträge mit 0.
+          items:
+            $ref: '#/components/schemas/JournalStatsFenster'
+        balanceVerlauf:
+          type: array
+          description: Balance-Verlauf je Kalendertag — identisch zu `GET /scores/balance/history`.
+          items:
+            $ref: '#/components/schemas/BalanceHistoryEntry'
+    JournalStatsFenster:
+      type: object
+      description: Eintragszählung eines Fensters.
+      required: [von, bis, proSaeule, ohneSaeule, gesamt]
+      properties:
+        von:
+          type: string
+          description: Erster Tag des Fensters (`YYYY-MM-DD`).
+        bis:
+          type: string
+          description: Letzter Tag des Fensters (`YYYY-MM-DD`).
+        proSaeule:
+          type: array
+          description: Eintragsanzahl je Säule des Nutzers — alle Säulen, auch mit 0.
+          items:
+            type: object
+            required: [pillarId, anzahl]
+            properties:
+              pillarId:
+                type: integer
+              anzahl:
+                type: integer
+        ohneSaeule:
+          type: integer
+          description: Anzahl Einträge ohne Säule im Fenster.
+        gesamt:
+          type: integer
+          description: Summe aller Einträge im Fenster.
     CalendarSource:
       type: object
       description: Kalenderquelle eines Nutzers (#2209), ohne die geheime ICS-Adresse.
