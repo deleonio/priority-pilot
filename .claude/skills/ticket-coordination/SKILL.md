@@ -14,8 +14,10 @@ blockers. Scope is **exactly** the epics named by the author, in the given order
 from the backlog. When the author names themes instead of epics (e.g. "payment, onboarding,
 store"), map each theme to its leaf issues across all epics (titles carry `[P-Stufe/Aufwand]`,
 epics carry rank tables), order by theme first, then rank, and list the mapping in the first
-report so the author can correct it. A "max. N parallel" limit counts issues in a phase, not PRs
-the author drives themselves.
+report so the author can correct it. A "max. N parallel" limit counts every issue with a phase
+running or queued — triage and UX included — not PRs the author drives themselves, not
+containers in their closing analysis and not items parked on the author. Starting a new issue
+needs a free slot even when its phase has its own queue.
 
 Note: this file's prose is English; everything addressed to the author (chat, issue comments)
 stays German and follows the [vermenschlichen](../vermenschlichen/SKILL.md) rules. Label chain and
@@ -67,7 +69,7 @@ phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
 | `ai:continued` on the issue | soft abort at the time limit, the next run resumes — wait. A second run without push ends the attempt: section 7, rung 3 |
 | PR of the issue appears | subscribe to its activity immediately |
 | `ai:needs-human` on the PR | read the stop comment; fix small causes yourself (base merge, re-review), otherwise ask the author |
-| PR has a merge conflict (`mergeable_state: dirty`) | check every open PR of the epic at each check-in and after each merge to main. No phase **running** on the branch → hand the resolution to a subagent at once (section 6, one per PR, in parallel), even if a fixup is merely queued or crashed — waiting for the queue costs hours when phases stall. Phase running → wait for its end; the fixup run merges main before it starts and resolves the markers itself, so give it the resolution rule as an inline review comment on the conflicting file (it reads review threads, not plain PR comments). After the subagent's push: if the PR already had a green verdict, re-arm `ai:needs-review`; an attached `ai:needs-fixup` stays (its findings are still open). A conflict that needs a product decision goes to the author |
+| PR has a merge conflict (`mergeable_state: dirty`) | check every open PR of the epic at each check-in and after each merge to main. No phase **running** on the branch → hand the resolution to a subagent at once (section 6, one per PR, in parallel), even if a fixup is merely queued or crashed — waiting for the queue costs hours when phases stall. Never re-arm `ai:needs-fixup` on a conflicting PR: GitHub starts no `pull_request` workflow while the PR conflicts, and every re-set counts toward the fixup round cap. Phase running → wait for its end; the fixup run merges main before it starts and resolves the markers itself, so give it the resolution rule as an inline review comment on the conflicting file (it reads review threads, not plain PR comments). After the subagent's push: if the PR already had a green verdict, re-arm `ai:needs-review`; an attached `ai:needs-fixup` stays (its findings are still open). A conflict that needs a product decision goes to the author |
 | Author comments as PO on a PR or issue | apply at once (ticket body, ADR, labels), adjust dependent tickets |
 | PR merged, issue closed | check main CI, start the next issue in the same turn |
 | All sub-issues of a container (epic or group) closed | a container always gets at least one closing analysis — something new may have come up. Check the merged PRs for named follow-up work that no ticket covers and post it as a PO comment on the container, then set `ai:analysed` + `ai:needs-analyse` on it — at once, in the same turn the last sub-issue closes, outside the parallel-ticket limit: new important issues surface early, a finished container leaves the work chain fast. The analysis emits its result as the `ai-container-result` marker and the workflow acts on it itself: the post-step creates the new sub-issues from it (title with priority prefix, template body, native `blockedBy`), links them under the container, or closes the container with the analysis' reason — drive new sub-issues like any other; when they close, the container gets its next closing analysis. Manually only as reserve, when the run could not act (no marker or failed post-step — the run log warns; the analysis' draft comment is the template): create the drafts with their priority prefix, link them under the container (`POST repos/{owner}/{repo}/issues/<container>/sub_issues` with the issue's numeric id — not its number — as `sub_issue_id`), start them like any other leaf, or close the container with the analysis' evidence. A remaining `ai:needs-human` on the container is a real stop — read the run log, never drop it. Never close a container on your own judgement |
@@ -79,9 +81,35 @@ Label write rules:
 - Never remove `ai:analysed` — removing it starts a re-triage.
 - Re-arming a trigger that is still attached needs two writes: first without it, then with it.
   Adding an already present label fires no event.
+- Label names are exact (`ai:needs-ux-ui`, not `ai:needs-ux`). A write with an unknown name
+  silently creates that label and starts nothing. After every trigger write check within a
+  minute that the phase run did not end `skipped` (precheck job skipped = wrong label name).
 
 Record every PO decision as a comment on the epic or issue (with the attribution footer), so the
 pipeline and later readers see it.
+
+## 2a. Decision round with the author
+
+When everything startable waits on the author, do not idle and do not list the questions in one
+wall of text — offer a decision round and go through the parked issues one by one:
+
+1. Order by leverage: an answer that frees other issues (blocked sub-issues) first, then rank.
+2. Per issue put the triage questions as multiple choice (at most four per round), the
+   analysis' recommendation first; split longer lists into two rounds.
+3. Post the answers as a `PO-Entscheidung (Autor)` comment that restates each decision as a full
+   sentence (the next phase reads only the comment), then set `ai:analysed` + `ai:needs-analyse`
+   without `ai:needs-human`. A question that did not fit the round is decided by the
+   analysis' recommendation and named as such in the chat.
+4. An answer that rejects the ticket's premise is not a rejected option: offer close
+   (`not_planned`, reason as comment), reshape or park. Reshape means rewriting the body
+   ("Wie soll es sein?", measures) and the title, plus a PO comment with the reason; a
+   product principle behind it (e.g. "no plan on time without consent") goes into the matching
+   ADR and is checked against sibling tickets at once.
+5. A blocker placeholder in the body (`#BLOCKER_…`) is resolved from the native `blocked-by`
+   relation; fix the body line instead of asking.
+6. A follow-up question that the analysis itself marks as not blocking, with a stated
+   assumption: confirm the assumption with the author, comment on the container and the affected
+   sub-issue, drop `ai:needs-human` — no re-analysis.
 
 ## 3. Cadence
 
@@ -200,6 +228,12 @@ pipeline and later readers see it.
     not re-arm: propose a split to the author (two or three leaves with a `blocked-by` chain,
     the issue becomes their container, its draft PR is closed).
 
+24. **Fixup round cap without open findings.** The cap comment lists only fixed findings and the
+    last review was green: the `ai:needs-fixup` came from the conflict detector, not from the
+    review. Resolve the conflict (section 2), then decide option F.1 yourself — swap
+    `ai:needs-human` for `ai:needs-review` with a short PO comment. A cap with open findings
+    stays with the author.
+
 ## 5. Tool notes
 
 - PR labels come from the PR read; the issue read does not resolve PR numbers.
@@ -267,7 +301,12 @@ rung moves one rung up — never re-arm the same trigger a third time.
 4. **Infrastructure failures** (environment setup timeout, installer exit, runner loss): re-arm
    once and note the signature; a second one the same day goes to the author as an
    infrastructure finding, not into more re-arms.
-5. **Report throughput, not only state.** When the queue holds more than two runs or no merge
+5. **Park what will not move.** When rungs 3 and 4 are spent and the next step is neither a
+   split nor a local implementation, set `ai:needs-human` with one sentence on the cause and
+   the decision needed (as a comment on the issue or PR), list it in the report and take it off
+   the slot count — the slot goes to the next startable issue. Do not touch parked items again
+   until the author answers.
+6. **Report throughput, not only state.** When the queue holds more than two runs or no merge
    landed for two hours, tell the author once — cause, queue, the rungs above with a
    recommendation — before the next re-arm. While only long runs are in flight, schedule the
    check-in at their time limit instead of every few minutes.
