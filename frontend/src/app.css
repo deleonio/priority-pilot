@@ -4985,6 +4985,49 @@ kol-alert {
 	color: var(--pp-ink);
 }
 
+/* --- Duo-Karte in der Gruppendetail-Ansicht (#1991) --- */
+.duo-content {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-space-3);
+}
+
+.duo-streak,
+.duo-streak-best {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+/* Eine Spalte bei 375 px, nebeneinander erst wenn zwei Spalten ≥ 12rem Platz haben. */
+.duo-members {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+	gap: var(--pp-space-3);
+}
+
+.duo-member {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.duo-member-name {
+	margin: 0 0 var(--pp-space-2);
+}
+
+.duo-pillars {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: var(--pp-space-2);
+}
+
+.duo-member-empty {
+	margin: 0;
+}
+
 /* --- Einladungslinks in der Gruppendetail-Verwaltung (#1226) --- */
 .group-invite-links {
 	display: grid;

@@ -22,6 +22,7 @@ vi.mock('@public-ui/react-v19', () => ({
 		<button onClick={(e) => _on?.onClick?.(e.nativeEvent)}>{_label}</button>
 	),
 	KolBadge: ({ _label }: { _label?: string }) => <span data-testid="badge">{_label}</span>,
+	KolInputRadio: () => <div />,
 	KolInputText: ({
 		_label,
 		_value,

@@ -18,6 +18,7 @@ import type {
 	GroupInvitation,
 	GroupMember,
 	GroupTask,
+	Duo,
 	GroupSeries,
 	GroupUpdate,
 	GroupInviteLink,
@@ -596,6 +597,18 @@ export const api = {
 
 	async createGroup({ groupInput }: { groupInput: GroupInput }): Promise<Group> {
 		const { data, error, response } = await client.POST('/groups', { body: groupInput });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// `tz` bestimmt serverseitig die Kalendertagsgrenze des gemeinsamen Streaks (Muster `getStreak`).
+	async getGroupDuo({ id, tz, signal }: { id: number; tz?: string } & Init): Promise<Duo> {
+		const { data, error, response } = await client.GET('/groups/{id}/duo', {
+			params: { path: { id }, query: { tz } },
+			signal,
+		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}

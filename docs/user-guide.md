@@ -734,6 +734,9 @@ In _Einstellungen → Gruppen_ organisierst du zusammen mit anderen Nutzern Aufg
   Einladungs-Link. Wer ihn öffnet – auch ohne Anmeldung –, landet auf einer Seite mit
   **„Gruppe beitreten"**. Unter **„Offene Einladungen"** kannst du Links kopieren oder
   für ungültig erklären (**„Ungültig machen"**).
+- **Duo:** beim Anlegen wählst du unter **„Art"** die Option **„Duo"** – zwei Personen,
+  die gemeinsam einen Streak und ihre Säulenwerte sehen, aber keine Aufgaben des anderen.
+  Den Partner holst du über **„Link erzeugen"**; ist das Duo voll, entfällt das Einladen.
 - **Einladungen** (Karte in der Gruppen-Übersicht, nicht zu verwechseln mit
   „Offene Einladungen"): eingeladene Konten können annehmen oder ablehnen.
 - **Aufgaben für andere anlegen:** im Aufgaben- und Serien-Formular wählst du im Feld
