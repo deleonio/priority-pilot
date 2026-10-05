@@ -20,11 +20,11 @@ on:
         type: string
 
 concurrency:
-  # Eigene Gruppe — Issue-only, im Label-Fluss gestartet durch die Triage-Entscheidung
-  # `ai:needs-ux-ui` (workflow_dispatch bleibt als manueller Nachlauf möglich).
-  # Keys folgen der Abarbeitung; Details/Rationale: 01-triage.yml. Cron-/Ad-hoc-Sync bleibt
-  # außen vor.
-  group: llm-ux
+  # Lane A des Tickets (`harness-<Issue-Nr.>`) — Issue-only, im Label-Fluss gestartet
+  # durch die Triage-Entscheidung `ai:needs-ux-ui`; workflow_dispatch (manueller Nachlauf)
+  # nimmt die Issue-Nummer aus dem Input. Details/Rationale: 01-triage.yml. Cron-/Ad-hoc-Sync
+  # bleibt außen vor.
+  group: harness-${{ github.event.issue.number || inputs.issue_number }}
   cancel-in-progress: false
   queue: max
 

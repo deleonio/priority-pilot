@@ -336,25 +336,17 @@ unten sind damit nicht mehr live.
 - **Parallelität:** `glm-5-turbo` erlaubt nur **1 gleichzeitigen Call**; es war als Subagent-Modell
   im Spiel und ist seit der Umstellung auf `glm-4.7` (2026-09) nicht mehr konfiguriert. Die
   Phasenmodelle `glm-5.3[1m]`/`glm-4.7` sind davon nie betroffen gewesen.
-  Die `concurrency`-Gruppen folgen der Abarbeitung, nicht dem LLM: Triage (01), UX (02) und
-  Review (05) haben je eine eigene statische Gruppe (`llm-triage`, `llm-ux`, `llm-review`);
-  die Git-Phasen sind entkoppelt (Durchsatz-Analyse
-  [agent-setup-vergleich-2026-10-04.md](./agent-setup-vergleich-2026-10-04.md)): Spec (03)
-  läuft in `llm-spec`, Umsetzung/Fixup (04) und team.yml in `llm-impl` — ein Issue
-  implementiert, während das nächste specced wird; der Überhol-Schutz der beiden Phase-4-
-  Eingänge (ADR 0005) bleibt über die gemeinsame Gruppe `llm-impl` erhalten. Weil die
-  Label-Übergabe mitten im Job passiert, setzt 03 das Folge-Label als allerletzten Job-Step
-  (Job-Ende-Barriere, Details: `01-triage.yml`); 04→05 puffert der Review-CI-Wait selbst.
-  Die Cron-/Ad-hoc-Läufe bleiben
-  in ihrer eigenen gemeinsamen Gruppe `llm-sync` (s. [pipeline-flow.md](./pipeline-flow.md)).
-  `06-document` hat eine eigene, statische Gruppe `llm-documenter` — unabhängig vom Provider,
-  denn der Documenter läuft nach dem Merge und hat keine Abarbeitungs-Abhängigkeit zu den
-  Ticket-Phasen (auch die Notbremse `LLM_PROVIDER_DOCUMENTER` ändert daran nichts; er zieht
-  dann parallel vom z.ai-Kontingent, bewusst akzeptiert).
-  Obergrenze: **bis zu 7 gleichzeitige Agent-Läufe** (Triage-, UX-, Spec-, Umsetzung-,
-  Review-, Sync- und Documenter-Slot) — ein erschöpftes Kontingent (z.ai) trifft damit
-  mehrere Ticket-Läufe parallel, bewusst akzeptiert und seit #1954/#2100 abgefedert
-  (Limit-Erkennung, Peak-Vertagen). Innerhalb einer Gruppe reihen sich
+  Die `concurrency`-Keys sind PRO TICKET (05.10., pro-Ticket-Lanes): Lane A
+  `harness-<Issue-Nr.>` (Triage/UX/Spec/Implement, Issues-Events), Lane B
+  `harness-<Head-Branch>` = `harness-ai/harness/<Nr.>` (Review/Fixup, PR-Events — der
+  Fixup-PR trägt immer den Harness-Branch des Tickets). Je Ticket serialisieren die Lanes
+  ihre Kette; verschiedene Tickets laufen voll parallel — der Durchsatz wird allein über
+  den Zulauf gesteuert (Koordinator). Der A→B-Übergang ist über den Review-CI-Wait
+  gepuffert; das Re-Triage-Residual-Risiko B→A ist in `01-triage.yml` dokumentiert.
+  Der Documenter bleibt statisch (`llm-documenter`, .costs-Seals auf main); Cron-/Ad-hoc-Sync
+  bleibt in `llm-sync` (s. [pipeline-flow.md](./pipeline-flow.md)). Ein erschöpftes
+  z.ai-Kontingent trifft mehrere Ticket-Lanes parallel — abgefedert durch
+  llm-limit-detect (#1954) und zai-Peak-Vertagen (#2100). Innerhalb einer Gruppe reihen sich
   weitere Läufe FIFO ein. Kopplung: steht `vars.PHASE_RUNNER` auf einem Einzel-Runner
   (z. B. pi5), queuen die getrennten Gruppen dort trotzdem hintereinander — der Split wirkt
   nur hosted.

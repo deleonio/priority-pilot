@@ -24,9 +24,10 @@ on:
     types: [labeled]
 
 concurrency:
-  # Gemeinsame Gruppe mit Implement/Fixup (Git-Phasen; Spec läuft parallel in `llm-spec`,
-  # Details/Rationale: 01-triage.yml).
-  group: llm-impl
+  # Lane A des Tickets (`harness-<Issue-Nr.>` — Issue-only, pro Ticket eine Lane,
+  # Details/Rationale: 01-triage.yml): das Team läuft mit der Implement-Kette seines
+  # Tickets serialisiert, verschiedene Tickets voll parallel.
+  group: harness-${{ github.event.issue.number }}
   cancel-in-progress: false
   # queue: max — sonst hält GitHub pro Gruppe nur EINEN pending-Run und verwirft wartende
   # still (Begründung ausführlich in 03-define-spec.yml).

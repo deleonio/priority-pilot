@@ -27,11 +27,14 @@ on:
     types: [labeled]
 
 concurrency:
-  # Eigene Gruppe — sein CI-Wait (bis zu 20 min, vars.REVIEW_CI_WAIT_SECONDS) belegt sonst
-  # ohne LLM-Arbeit den Slot und blockiert andere Ticket-Läufe (Keys folgen der Abarbeitung;
-  # Details/Rationale: 01-triage.yml). Die Doppel-Armung mit dem Fixup (beide Trigger-Labels
-  # kleben) deckt keine Gruppe ab — das erledigt `ABSENT=(ai:needs-fixup)` im Pre-Check.
-  group: llm-review
+  # Lane B des Tickets (`harness-<Head-Branch>` = `harness-ai/harness/<Nr.>`): Review und
+  # Fixup desselben PRs serialisieren in derselben Lane, verschiedene Tickets laufen voll
+  # parallel (pro-Ticket-Lanes, Details/Rationale: 01-triage.yml). Der CI-Wait (bis zu
+  # 20 min, vars.REVIEW_CI_WAIT_SECONDS) bleibt der Puffer zum Implement-Job der Lane A —
+  # er absorbiert dessen Rest-Nachbereitung (Job-Ende-Barriere). Die Doppel-Armung mit dem
+  # Fixup (beide Trigger-Labels kleben) deckt keine Gruppe ab — das erledigt
+  # `ABSENT=(ai:needs-fixup)` im Pre-Check.
+  group: harness-${{ github.event.pull_request.head.ref }}
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
   # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,

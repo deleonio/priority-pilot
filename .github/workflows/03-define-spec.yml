@@ -14,15 +14,12 @@ on:
     types: [labeled]
 
 concurrency:
-  # Git-Phasen sind seit der Durchsatz-Analyse (04.10., docs/agent-setup-vergleich-2026-10-04.md)
-  # ENTKOPPELT: Spec läuft in eigener Gruppe `llm-spec`, Implement/Fixup (04) und team.yml in
-  # `llm-impl` — ein Issue implementiert, während das nächste specced wird. Innerhalb eines
-  # Issues ketten die Labels (ai:needs-impl erst nach Spec-Abschluss); der Überhol-Schutz
-  # Implement↔Fixup (ADR 0005) bleibt über die gemeinsame Gruppe `llm-impl` erhalten. Der
-  # Folge-Trigger wird deshalb als ALLERLETZTER Job-Step gesetzt (Job-Ende-Barriere, Details:
-  # 01-triage.yml). Triage/UX/Review/Documenter haben eigene Gruppen; Cron-/Ad-hoc-Sync bleibt
-  # außen vor.
-  group: llm-spec
+  # Lane A des Tickets (`harness-<Issue-Nr.>`, pro Ticket eine Lane — Details/Rationale:
+  # 01-triage.yml). Innerhalb der Lane serialisiert die ganze Issue-Kette (Triage→UX→Spec→
+  # Implement), verschiedene Tickets laufen voll parallel. Der Folge-Trigger wird als
+  # ALLERLETZTER Job-Step gesetzt (Job-Ende-Barriere, Details: 01-triage.yml).
+  # Cron-/Ad-hoc-Sync bleibt außen vor.
+  group: harness-${{ github.event.issue.number }}
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
   # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,
