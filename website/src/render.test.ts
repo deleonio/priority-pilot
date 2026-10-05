@@ -342,6 +342,20 @@ describe('renderTerms (#1891)', () => {
 		}
 	});
 
+	it('Haftung: nur selbst Erfasstes, keine Lebensrettung, KI-Haftungsausschluss, TelefonSeelsorge (#2083 AK1-AK3)', () => {
+		const html = terms();
+		const section = html.split(/<h2[^>]*>\s*Haftung\s*<\/h2>/)[1]?.split(/<h2/)[0] ?? '';
+		expect(section, 'Abschnitt Haftung fehlt').not.toBe('');
+		for (const term of ['selbst erfasst', 'Lebensrettung', 'Krisenintervention', 'medizinische Betreuung']) {
+			expect(section, `Begriff „${term}“ fehlt im Abschnitt Haftung`).toContain(term);
+		}
+		const kiParagraph = section.split(/<\/p>/).find((p) => p.includes('KI') && p.includes('Vorschläge'));
+		expect(kiParagraph, 'Absatz zu KI-Vorschlägen fehlt').toBeDefined();
+		expect(kiParagraph).toMatch(/keine Haftung|haften wir nicht/);
+		expect(kiParagraph).toContain('Gewähr');
+		expect(html).toContain('0800 111 0 111');
+	});
+
 	it('nennt Laufzeit, Upgrade, Downgrade, Kündigung, PayPal und Google Play (AK3)', () => {
 		const html = terms();
 		for (const term of ['Laufzeit', 'Upgrade', 'Downgrade', 'Kündigung', 'PayPal', 'Google Play']) {
