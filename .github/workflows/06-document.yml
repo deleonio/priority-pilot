@@ -158,16 +158,16 @@ jobs:
         run: |
           set -uo pipefail
           EFF="$DOC_PROVIDER"
-          alias_count() { # <provider> — pi-Formen in .github/model-settings.json
-            jq -r --arg p "$1" '[.providers[$p][] | select(.pi != null and .pi != "")] | length' .github/model-settings.json 2>/dev/null || echo 0
+          alias_count() { # <provider> — gültige pi-Formen laut Modell-Adapter (models.json)
+            bash .github/scripts/model-adapter.sh has-pi --provider "$1" 2>/dev/null | sed -n 's/^count=//p'
           }
           if [ "$RUNTIME" = "pi" ] && [ "$DOC_PROVIDER" = "openrouter" ] && [ "$(alias_count openrouter)" -eq 0 ]; then
             if [ "$(alias_count zai)" -gt 0 ]; then
               EFF="zai"
-              echo "::warning title=Documenter-Provider-Ausweich::Keine openrouter-pi-Eintraege in .github/model-settings.json — Documenter laeuft stattdessen ueber zai (#2098, Issue-Weg 2). Fix: pi-Eintraege in der Datei ergaenzen oder LLM_PROVIDER_DOCUMENTER=zai stellen."
+              echo "::warning title=Documenter-Provider-Ausweich::Keine gueltigen openrouter-pi-Formen laut model-adapter (models.json) — Documenter laeuft stattdessen ueber zai (#2098, Issue-Weg 2). Fix: pi-Formen in .github/models.json ergaenzen oder LLM_PROVIDER_DOCUMENTER=zai stellen."
               echo "- ⚠️ Documenter-Provider: openrouter → **zai** (keine openrouter-pi-Aliase, #2098-Ausweich)" >> "$GITHUB_STEP_SUMMARY"
             else
-              echo "::error title=Documenter ohne pi-Aliase::Weder openrouter noch zai haben pi-Eintraege in .github/model-settings.json — der Lauf wuerde im Modell-Step scheitern. pi-Eintraege in der Datei ergaenzen (s. .github/pi/README.md) oder LLM_PROVIDER_DOCUMENTER auf einen Alias-faehigen Provider stellen."
+              echo "::error title=Documenter ohne pi-Aliase::Weder openrouter noch zai haben gueltige pi-Formen laut model-adapter (models.json) — der Lauf wuerde im Modell-Step scheitern. pi-Formen in .github/models.json ergaenzen (s. .github/pi/README.md) oder LLM_PROVIDER_DOCUMENTER auf einen Alias-faehigen Provider stellen."
               exit 1
             fi
           fi
@@ -187,7 +187,7 @@ jobs:
           # Laufzeit-Rollout (Folge-Ticket des #1184-Pilots): pi|claude wie 01-triage.
           runtime: ${{ vars.AGENT_RUNTIME }}
           # Documenter läuft per Default über OpenRouter (Free-Model über den haiku-Alias aus
-          # .github/model-settings.json); Notbremse: Repo-Var LLM_PROVIDER_DOCUMENTER.
+          # .github/models.json via Modell-Adapter); Notbremse: Repo-Var LLM_PROVIDER_DOCUMENTER.
           llm-provider: ${{ steps.doc-provider.outputs.provider }}
           model: ${{ vars.CLAUDE_MODEL_DOCUMENTATION || 'haiku' }}
           effort: 'low'

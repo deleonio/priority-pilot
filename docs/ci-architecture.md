@@ -169,9 +169,9 @@ Gruppe „pi-Erweiterungen", ohne Automerge) gepflegt: ungepinnt wären zwei Lä
 vergleichbar, nur gepinnt würden die Pakete veralten. `setup-pi` warnt, falls ein Eintrag ohne
 Version nachgetragen wird. Details in [`.github/pi/README.md`](../.github/pi/README.md).
 
-Modelle: `.github/model-settings.json` (eine Quelle für beide Runtimes, 05.10.) bildet
-`fable|opus|sonnet|haiku` je Provider auf die runtime-spezifischen IDs ab (`cc`- und
-`pi`-Form); pi liest die `pi`-Formen. Fehlt eine, bricht `setup-pi` ab.
+Modelle: `.github/models.json` (kanonisch, 05.10.) + `model-adapter.sh` bilden
+`fable|opus|sonnet|haiku` je Provider auf die Runtime-Form ab; der Adapter validiert
+gegen pis eingebauten Katalog. Fehlt/verstößt eine Form, bricht der Lauf LAUT ab.
 
 Eine eigene `models.json` gibt es bewusst **nicht**: pi kennt `anthropic`, `zai` und `openrouter`
 eingebaut, und eine handgeschriebene z.ai-Zeile würde das eingebaute 1M-Kontextfenster von
@@ -461,16 +461,21 @@ leer — die früheren `ai:model:*`-Labels mit hartem Precheck-Abbruch sind abge
 PR #903, wo ein Free-Modell nur die `VERDICT:`-Zeile lieferte und die
 Begründungs-Kommentare übersprang.
 
-**Eine Settings-Quelle für beide Runtimes (05.10.):**
-[`.github/model-settings.json`](../.github/model-settings.json) hält je Provider und Alias
-die runtime-spezifische Modell-ID (`cc`-Form für Claude Code inkl. `[1m]`-Suffix am
-Anthropic-kompatiblen Endpoint, `pi`-Form als `provider/id`-Referenz) plus die Endpunkte.
-Claude Code läuft gegen alle 3 Provider, **pi nur gegen zai|openrouter** — das
-Anthropic-Abo ist an Claude Code gebunden; `runtime=pi` + `provider=claude` bricht laut
-(setup-agent-Guard, set-agent-config prüft vor dem Setzen). Die frühere Drift zwischen
-`model-ids.json`, `pi/model-aliases.json` und den Vars `CLAUDE_CODE_SETTINGS_LOCAL_*` /
-`PI_MODEL_ALIASES` (glm-5-turbo lief wochenlang statt glm-5.3-flash) ist damit
-strukturell ausgeschlossen; die drei Vars können gelöscht werden.
+**Eine Quelle + Adapter für beide Runtimes (05.10.):**
+[`.github/models.json`](../.github/models.json) ist die kanonische Definition — Modell-Identität,
+Kontext, **Preis** (EUR/USD in Listwährung), Tier-Bindung (Alias→Modell je Provider) und
+Endpunkte, komplett runtime-frei. Die Formatierung je Runtime übernimmt EIN Adapter,
+[`model-adapter.sh`](../.github/scripts/model-adapter.sh): `resolve` (cc-Form inkl.
+`[1m]`-Suffix am zai-Endpoint, pi-Form als `provider/id` mit deklarierten Ersatz-Modellen
+und **Katalog-Guard** — pi fällt bei unbekannten IDs sonst STILL auf seinen Default),
+`settings-local` (baut Claude Codes settings.local.json) und `has-pi` (Matrix-Zählung).
+Bewusste Runtime-Abweichungen (pi kennt glm-5.3-flash nicht → sonnet läuft als glm-5-turbo)
+stehen als `{model, pi}`-Ersatz im Tier — sichtbar, nicht versteckt. Claude Code läuft
+gegen alle 3 Provider, **pi nur gegen zai|openrouter** (Abo an Claude Code gebunden;
+Guard in setup-agent, set-agent-config und Adapter). Die frühere Drift zwischen
+`model-ids.json`, `pi/model-aliases.json` und den Vars (glm-5-turbo statt glm-5.3-flash)
+ist strukturell ausgeschlossen; Preis- und Identitäts-Drift ebenso, weil
+`cost-from-transcript.ts` dieselbe Datei liest.
 
 **Geltende Allowlist:** `fable | opus | sonnet | haiku`
 
@@ -484,15 +489,14 @@ strukturell ausgeschlossen; die drei Vars können gelöscht werden.
 | 5   | `.github/workflows/04-claude-implement.yml` | Mentor-Modell-Auflösung (2 Steps, implement- + fixup-Job): case `MENTOR_MODEL` mit Restore-trap auf den Phasen-Alias |
 | 6   | `.claude/agents/*.md`                       | Rollen-Frontmatter `model:` (dieselben Aliase; schlägt seit CLI 2.1.251 den Subagent-Default, gilt lokal wie in CI)  |
 
-**Modellwechsel innerhalb eines Alias** (z. B. `opus` → Claude Opus 5.5): Die Modell-ID
-steht genau einmal in `.github/model-settings.json` (`cc`-Form, `pi`-Form nach Bedarf);
-`setup-claude` (Phasen-, Subagent- und settings.local-Bau), `setup-pi` und der
-Mentor-Schritt in `04-implement.yml` lesen sie dort. Bei neuem Preis kommt eine Zeile in
-`PRICES_USD_PER_MTOK` dazu (`cost-from-transcript.ts`) — `model-settings.test.ts` bricht
-ab, wenn die Strukturbrüche fehlen. Opus-Läufe ohne `effort`-Input bekommen in
-`setup-claude` ausdrücklich `high`, weil Opus 5.5 sonst auf `medium` läuft.
+**Modellwechsel innerhalb eines Alias** (z. B. `opus` → Claude Opus 5.5): Eine Zeile in
+`.github/models.json` — alle Konsumenten (setup-claude, setup-pi, Mentor-Schritt in 04,
+Preislogik in `cost-from-transcript.ts`) lesen über den Adapter bzw. direkt dieselbe
+Datei. `model-adapter.test.ts` sichert Struktur und Verhalten (Katalog-Guard, Ersatz,
+Preis-Konsistenz). Opus-Läufe ohne `effort`-Input bekommen in `setup-claude` ausdrücklich
+`high`, weil Opus 5.5 sonst auf `medium` läuft.
 
-**Freigabe-Prozess:** Alias in `model-settings.json` (cc/pi-Form) eintragen, das Resolve-Ziel je Provider ergänzen
+**Freigabe-Prozess:** Modell in `models.json` eintragen (Kontext/Preis), Tier-Bindung je Provider ergänzen
 (`claude` nativ via `--model`; `zai`/`openrouter` über die `ANTHROPIC_DEFAULT_*_MODEL`-Einträge der
 Resolve-Ziel der zai/openrouter-Endpoints kommt aus derselben Datei — `endpoints` +
 `cc`-Formen), `pnpm test:scripts` grün, dann erst in der Routing-Tabelle nutzen. Die

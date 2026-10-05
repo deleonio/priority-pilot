@@ -250,7 +250,7 @@ runs:
               echo "::error title=Auth fehlt::vars.LLM_PROVIDER=zai, aber Secret ZAI_API_KEY ist leer."
               exit 1
             fi
-            # settings.local.json aus .github/model-settings.json bauen (EINZIGE Quelle,
+            # settings.local.json via Modell-Adapter bauen (EINZIGE Quelle,
             # 05.10. — die früheren Vars CLAUDE_CODE_SETTINGS_LOCAL_* sind eingestellt).
             build_settings_local zai
             # Auth Token setzen (z.ai nutzt ANTHROPIC_AUTH_TOKEN als Bearer)
@@ -270,30 +270,22 @@ runs:
             ;;
         esac
 
-        # settings.local.json aus .github/model-settings.json bauen (EINZIGE Quelle
-        # für BEIDE Runtimes, 05.10.): Endpoint + 4 Alias-IDs (cc-Form) + Subagent
-        # (haiku). Die früheren Vars CLAUDE_CODE_SETTINGS_LOCAL_* sind damit eingestellt
-        # — Modellwechsel = eine Zeile in der Datei.
+        # settings.local.json über den Modell-Adapter bauen (05.10.): kanonische Quelle
+        # .github/models.json + Formatierung im Adapter — dieselbe Stelle wie unter pi.
+        # Die früheren Vars CLAUDE_CODE_SETTINGS_LOCAL_* sind eingestellt; Modellwechsel
+        # = eine Zeile in models.json.
         build_settings_local() {
-          local provider="$1"
-          local file=".github/model-settings.json"
-          jq -n --arg url "$(jq -r --arg p "$provider" '.endpoints[$p]' "$file")" \
-                --arg haiku "$(jq -r --arg p "$provider" '.providers[$p].haiku.cc' "$file")" \
-                --arg sonnet "$(jq -r --arg p "$provider" '.providers[$p].sonnet.cc' "$file")" \
-                --arg opus "$(jq -r --arg p "$provider" '.providers[$p].opus.cc' "$file")" \
-                --arg fable "$(jq -r --arg p "$provider" '.providers[$p].fable.cc' "$file")" \
-                --arg sub "$(jq -r --arg p "$provider" '.providers[$p].haiku.cc' "$file")" \
-                '{env: {ANTHROPIC_BASE_URL: $url, ANTHROPIC_DEFAULT_HAIKU_MODEL: $haiku, ANTHROPIC_DEFAULT_SONNET_MODEL: $sonnet, ANTHROPIC_DEFAULT_OPUS_MODEL: $opus, ANTHROPIC_DEFAULT_FABLE_MODEL: $fable, CLAUDE_CODE_SUBAGENT_MODEL: $sub}}' > .claude/settings.local.json
-          echo "::notice::settings.local.json aus .github/model-settings.json gebaut (Provider: $provider)."
+          bash .github/scripts/model-adapter.sh settings-local --provider "$1" > .claude/settings.local.json
+          echo "::notice::settings.local.json via model-adapter aus .github/models.json gebaut (Provider: $1)."
         }
 
         # Phasen-Modell (#511): Alias fable|opus|sonnet|haiku providerspezifisch aufloesen.
         # claude (nativ) erhaelt die konkrete Modell-ID via --model (resolve-invoke); zai/
         # openrouter loesen den Alias im settings.local.json-Kontext auf (Modell-Feld setzen).
-        # Alias → Modell-ID steht EINMAL in .github/model-settings.json (cc-Form, eine Zeile).
-        model_id() { jq -er --arg a "$1" '.providers.claude[$a].cc' .github/model-settings.json; }
+        # Alias → Modell-ID über den Modell-Adapter (cc-Form aus .github/models.json).
+        model_id() { bash .github/scripts/model-adapter.sh resolve --runtime cc --provider claude --alias "$1" | sed -n 's/^resolved=//p'; }
         case "$CLAUDE_MODEL" in
-          fable|opus|sonnet|haiku) RESOLVED_MODEL_ID="$(model_id "$CLAUDE_MODEL")" || { echo "::error title=Modell-ID fehlt::Alias '$CLAUDE_MODEL' fehlt in .github/model-settings.json (providers.claude)."; exit 1; } ;;
+          fable|opus|sonnet|haiku) RESOLVED_MODEL_ID="$(model_id "$CLAUDE_MODEL")" || { echo "::error title=Modell-ID fehlt::Alias '$CLAUDE_MODEL' fehlt im Modell-Adapter (claude-Tier in .github/models.json)."; exit 1; } ;;
           "")
             RESOLVED_MODEL_ID=""
             ;;
@@ -309,7 +301,7 @@ runs:
               # WICHTIG: Hier den ALIAS ($CLAUDE_MODEL, z.B. "opus") schreiben, NICHT die
               # aufgeloeste native Anthropic-Modell-ID ($RESOLVED_MODEL_ID, z.B. "claude-opus-5").
               # Die native ID existiert bei zai/openrouter nicht ("model not found") — der Alias
-              # greift stattdessen ueber die aus .github/model-settings.json gebaute
+              # greift stattdessen ueber die vom Modell-Adapter gebaute
               # settings.local.json (ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU,FABLE}_MODEL)
               # (exakt wie das checked-in .claude/settings.json es fuer den Default-Fall tut).
               if [ -f .claude/settings.local.json ]; then
@@ -348,7 +340,7 @@ runs:
           fable|opus|sonnet|haiku)
             case "$PROVIDER" in
               claude)
-                SUB_ID="$(model_id "$SUBAGENT_MODEL")" || { echo "::error title=Modell-ID fehlt::Alias '$SUBAGENT_MODEL' fehlt in .github/model-settings.json (providers.claude)."; exit 1; }
+                SUB_ID="$(model_id "$SUBAGENT_MODEL")" || { echo "::error title=Modell-ID fehlt::Alias '$SUBAGENT_MODEL' fehlt im Modell-Adapter (claude-Tier in .github/models.json)."; exit 1; }
                 echo "CLAUDE_CODE_SUBAGENT_MODEL=$SUB_ID" >> "$GITHUB_ENV"
                 echo "::notice title=Subagent-Modell::$SUB_ID (Alias '$SUBAGENT_MODEL') für alle Subagents."
                 ;;

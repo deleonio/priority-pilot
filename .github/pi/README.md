@@ -1,9 +1,11 @@
 # pi-Konfiguration der CI
 
-Die Modell-Settings von pi kommen aus **[`.github/model-settings.json`](../model-settings.json)**
-(die `'pi'`-Form je Alias) — dieselbe Datei, aus der auch Claude Code seine `cc`-Formen liest.
-Einheitliche Quelle seit 05.10.; die frühere `model-aliases.json` und die Variable
-`PI_MODEL_ALIASES` sind eingestellt. Die Paketliste des Projekts steht woanders:
+Die Modell-Settings von pi kommen aus der kanonischen Quelle **[`.github/models.json`](../models.json)**
+über den Adapter **[`model-adapter.sh`](../scripts/model-adapter.sh)** (Subcommand
+`resolve --runtime pi …`) — dieselbe Datei, aus der auch Claude Code (cc-Formen) und die
+Kosten-Preislogik (`cost-from-transcript.ts`) lesen. Quelle + Adapter seit 05.10.; die
+frühere `model-aliases.json`, die Variable `PI_MODEL_ALIASES` und die Zwischendatei
+`model-settings.json` sind eingestellt. Die Paketliste des Projekts steht woanders:
 [`.pi/settings.json`](../../.pi/settings.json).
 
 JSON kennt keine Kommentare — deshalb steht die Begründung hier.
@@ -24,9 +26,13 @@ gemacht und damit genau das `[1m]`-Fenster gekappt, auf das die Pipeline baut.
 
 Claude Code läuft gegen alle drei Provider (claude/zai/openrouter); **pi nur gegen zai und
 openrouter** — das Anthropic-Abo ist an Claude Code gebunden, pi kann es nicht nutzen.
-`setup-agent` bricht bei `runtime=pi` + `provider=claude` laut ab, `set-agent-config`
-prüft die Kombination schon VOR dem Setzen der Variablen. Deshalb hat `claude` in
-`model-settings.json` keine `pi`-Formen.
+`setup-agent`, `set-agent-config` UND der Adapter selbst brechen bei
+`runtime=pi` + `provider=claude` laut ab. Der Adapter validiert jede pi-Ziel-ID gegen pis
+eingebauten Katalog (`glm-5.3 | glm-5-turbo | glm-4.7` für zai, vendor/id-Form für
+openrouter) — eine ungültige ID würde pi sonst STILL auf seinen Default zurückfallen
+lassen (Vorfall 04.10.). Modell-Ids, die pi nicht kennt (glm-5.3-flash), werden als
+`{model, pi}`-Ersatz im Tier deklariert (z. B. sonnet → glm-5-turbo unter pi) — der
+Adapter meldet den Ersatz mit einer Notice.
 
 Beim Freigeben eines neuen Alias ist `model-settings.json` die eine Stelle der
 Synchronisierungsliste in `docs/ci-architecture.md` → „Modell-Allowlist & Freigabe neuer

@@ -390,7 +390,7 @@ jobs:
             claude)
               case "$MENTOR_MODEL" in
                 fable|opus|sonnet|haiku)
-                  MODEL_FLAG="--model $(jq -r --arg a "$MENTOR_MODEL" '.providers.claude[$a].cc' .github/model-settings.json)" ;;
+                  MODEL_FLAG="--model $(bash .github/scripts/model-adapter.sh resolve --runtime cc --provider claude --alias "$MENTOR_MODEL" | sed -n 's/^resolved=//p')" ;;
                 *)
                   echo "::error title=Mentor-Modell::Unbekannter Alias '$MENTOR_MODEL' (vars.CLAUDE_MODEL_MENTOR) — erlaubt: fable | opus | sonnet | haiku. Mentor übersprungen (fail-open)."
                   exit 1
@@ -1019,7 +1019,7 @@ jobs:
             claude)
               case "$MENTOR_MODEL" in
                 fable|opus|sonnet|haiku)
-                  MODEL_FLAG="--model $(jq -r --arg a "$MENTOR_MODEL" '.providers.claude[$a].cc' .github/model-settings.json)" ;;
+                  MODEL_FLAG="--model $(bash .github/scripts/model-adapter.sh resolve --runtime cc --provider claude --alias "$MENTOR_MODEL" | sed -n 's/^resolved=//p')" ;;
                 *)
                   echo "::error title=Mentor-Modell::Unbekannter Alias '$MENTOR_MODEL' (vars.CLAUDE_MODEL_MENTOR) — erlaubt: fable | opus | sonnet | haiku. Mentor übersprungen (fail-open)."
                   exit 1

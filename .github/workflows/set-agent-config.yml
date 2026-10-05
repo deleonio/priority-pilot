@@ -10,7 +10,7 @@ name: Set Agent Config
 # Laufzeit und Provider sind keine unabhängigen Schalter, sondern eine 2x3-Matrix. Manche
 # Kombinationen sind unzulässig und werden hier VOR dem Setzen abgebrochen: `pi` + `claude`
 # (das Anthropic-Abo ist an Claude Code gebunden, 05.10.) und `pi` + `openrouter`/`zai` ohne
-# `pi`-Einträge in `.github/model-settings.json` (auch über den Documenter, der unabhängig
+# gültige pi-Formen in `.github/models.json` (auch über den Documenter, der unabhängig
 # von LLM_PROVIDER auf openrouter läuft). Getrennt bräuchte ein
 # Wechsel zwei Dispatches, und KEINE Stelle prüfte die Kombination. Hier laufen beide Werte durch
 # denselben Vorab-Check, bevor irgendetwas gesetzt wird.
@@ -132,17 +132,17 @@ jobs:
           fi
           [ "$RUNTIME" = "pi" ] || exit 0
 
-          # pi + openrouter/zai: Die pi-Einträge müssen in .github/model-settings.json
-          # stehen (EINZIGE Quelle). Der Documenter (06-document.yml) nutzt
+          # pi + openrouter/zai: Die pi-Formen müssen in .github/models.json gültig sein
+          # (Modell-Adapter). Der Documenter (06-document.yml) nutzt
           # LLM_PROVIDER_DOCUMENTER (Default openrouter) statt LLM_PROVIDER — er braucht
           # die Einträge also auch bei LLM_PROVIDER=claude.
           for P in "$PROVIDER" "$DOC_PROVIDER"; do
-            count="$(jq -r --arg p "$P" '[.providers[$p][] | select(.pi != null and .pi != "")] | length' .github/model-settings.json 2>/dev/null || echo 0)"
+            count="$(bash .github/scripts/model-adapter.sh has-pi --provider "$P" 2>/dev/null | sed -n 's/^count=//p')"
             if [ "${count:-0}" -eq 0 ]; then
-              echo "::error title=pi + $P unvollständig::.github/model-settings.json hat keine 'pi'-Einträge für $P (gebraucht von LLM_PROVIDER=${PROVIDER}/Documenter=${DOC_PROVIDER}). setup-pi bräche beim Modell-Alias ab. Erst Einträge ergänzen (s. .github/pi/README.md)."
+              echo "::error title=pi + $P unvollständig::Modell-Adapter meldet keine gültigen pi-Formen für $P (gebraucht von LLM_PROVIDER=${PROVIDER}/Documenter). setup-pi bräche beim Modell-Alias ab. Erst pi-Formen in .github/models.json ergänzen (s. .github/pi/README.md)."
               exit 1
             fi
-            echo "::notice::pi + $P: ${count} Alias-Einträge in model-settings.json gefunden."
+            echo "::notice::pi + $P: ${count} gültige pi-Formen laut model-adapter (models.json)."
           done
 
       - name: Variablen setzen (nur die geänderten)

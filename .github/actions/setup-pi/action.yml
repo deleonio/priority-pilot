@@ -27,7 +27,7 @@ inputs:
     required: false
     default: 'full'
   model:
-    description: 'Modell für diesen Lauf als Alias (fable|opus|sonnet|haiku); leer = kein --model (pi-Default). Aufgelöst über .github/model-settings.json (die pi-Form je Alias); ein unbekannter Alias bricht laut ab.'
+    description: 'Modell für diesen Lauf als Alias (fable|opus|sonnet|haiku); leer = kein --model (pi-Default). Aufgelöst über den Modell-Adapter (.github/models.json, pi-Form je Alias); ein unbekannter Alias bricht laut ab.'
     required: false
     default: ''
   subagent-model:
@@ -222,15 +222,14 @@ runs:
       run: |
         set -uo pipefail
 
-        # Alias-Tabelle: .github/model-settings.json ist die EINZIGE Quelle (beide
-        # Runtimes); pi liest die 'pi'-Form je Alias. Provider 'claude' hat keine
-        # pi-Einträge — pi + Anthropic ist guarded (setup-agent, Abo an Claude Code
-        # gebunden).
-        TABLE=".github/model-settings.json"
-
+        # Alias-Auflösung über den Modell-Adapter (05.10.): kanonische Quelle
+        # .github/models.json, pi-Form (provider/id) + Katalog-Guard + deklarierte
+        # Ersatz-Modelle im Adapter. Provider 'claude' wird dort abgewiesen — pi +
+        # Anthropic ist guarded (Abo an Claude Code gebunden).
         resolve_alias() {
           local alias="$1"
-          jq -r --arg p "$LLM_PROVIDER" --arg a "$alias" '.providers[$p][$a].pi // ""' "$TABLE"
+          bash .github/scripts/model-adapter.sh resolve --runtime pi --provider "$LLM_PROVIDER" --alias "$alias" \
+            | sed -n 's/^resolved=//p'
         }
 
         RESOLVED_MODEL=""
@@ -246,7 +245,7 @@ runs:
           if [ -z "$RESOLVED_MODEL" ]; then
             # KEIN stiller Fallback auf den pi-Default: Ein geratenes Modell ist genau der
             # Fehlgriff, gegen den die Modell-Allowlist antritt (s. docs/ci-architecture.md).
-            echo "::error title=Kein pi-Modell für diesen Alias::Alias '$MODEL_ALIAS' hat für Provider '$LLM_PROVIDER' keinen 'pi'-Eintrag in .github/model-settings.json. Eintrag ergänzen (s. .github/pi/README.md)."
+            echo "::error title=Kein pi-Modell für diesen Alias::Modell-Adapter lieferte keine pi-Form für Alias '$MODEL_ALIAS' / Provider '$LLM_PROVIDER' (s. .github/models.json + model-adapter.sh)."
             exit 1
           fi
           echo "::notice title=Modell::$RESOLVED_MODEL (Alias '$MODEL_ALIAS', Provider $LLM_PROVIDER)."

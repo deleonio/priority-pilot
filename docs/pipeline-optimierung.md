@@ -92,14 +92,17 @@ Tickets laufen voll parallel; der Koordinator steuert den Durchsatz allein über
 Puffer an der A→B-Grenze: Review-CI-Wait. Residual-Risiko B→A (Re-Triage während Review/
 Fixup) dokumentiert in `01-triage.yml`; der Documenter bleibt statisch (.costs-Seals).
 
-**05.10. — Eine Modell-Settings-Quelle + pi ohne Anthropic
+**05.10. — Eine kanonische Modell-Definition + Adapter + pi ohne Anthropic
 ([#2203](https://github.com/deleonio/priority-pilot/pull/2203)).** Die drei bisherigen
 Quellen (`.github/model-ids.json`, `.github/pi/model-aliases.json`, Vars
-`CLAUDE_CODE_SETTINGS_LOCAL_*` / `PI_MODEL_ALIASES`) sind in
-**`.github/model-settings.json`** aufgegangen: je Provider und Alias eine `cc`-Form und
-eine `pi`-Form. Matrix: **Claude Code ↔ alle 3 Provider, pi ↔ nur zai|openrouter**;
-`runtime=pi` + `provider=claude` bricht laut (setup-agent-Guard, set-agent-config prüft
-vorab). Die drei alten Vars können gelöscht werden.
+`CLAUDE_CODE_SETTINGS_LOCAL_*` / `PI_MODEL_ALIASES`) sind in **`.github/models.json`**
+aufgegangen — runtime-FREI: Modell-Identität, Kontext, **Preis** (EUR/USD) und
+Tier-Bindung. Die Formatierung je Runtime liegt im Adapter **`model-adapter.sh`**
+(cc-`[1m]`-Regel, pi-`provider/id`-Präfix, deklarierte Ersatz-Modelle, **pi-Katalog-Guard**
+— der stille-Fallback-Vorfall ist damit strukturell geschlossen). `cost-from-transcript.ts`
+liest die Preise aus derselben Datei — Identität und Preis können nicht mehr driften.
+Matrix: **Claude Code ↔ alle 3 Provider, pi ↔ nur zai|openrouter** (Guards in setup-agent,
+set-agent-config und Adapter). Die drei alten Vars können gelöscht werden.
 
 **05.10. (Nacht) — Runtime-Schalter auf Claude Code + Anthropic.** Der Koordinator hat
 `AGENT_RUNTIME=claude` und `LLM_PROVIDER=claude` gesetzt (Abo-Flat statt ZAI per-use). Die
