@@ -91,12 +91,12 @@ export const SubscriptionSection = () => {
 	const [cancelOpen, setCancelOpen] = useState(false);
 	// Merker nach erfolgreicher Kündigung: der Webhook stellt den Status erst verzögert um (#2048).
 	const [locallyCancelled, setLocallyCancelled] = useState(false);
-	// Kündigen gibt es nur für PayPal im Web und nur, solange das Abo aktiv und noch nicht
-	// (auch lokal) gekündigt ist (#2048).
+	// Kündigen gibt es nur für PayPal im Web und nur, solange das Abo läuft (auch mit
+	// Zahlungsrückstand, #2240) und noch nicht (auch lokal) gekündigt ist (#2048).
 	const canCancel =
 		subscription?.provider === 'paypal' &&
 		CHANNEL_PROVIDER[getChannel()] === 'paypal' &&
-		subscription.status === 'active' &&
+		['active', 'past_due', 'suspended'].includes(subscription.status) &&
 		!locallyCancelled;
 	const isPaypalWeb = subscription?.provider === 'paypal' && CHANNEL_PROVIDER[getChannel()] === 'paypal';
 	// Gekündigt mit laufendem Zeitraum: serverseitiger Status ODER lokaler Merker (#2048).

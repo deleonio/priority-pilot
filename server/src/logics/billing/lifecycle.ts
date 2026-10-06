@@ -1,5 +1,5 @@
 import { Op, type Transaction } from 'sequelize';
-import Subscription from '../../models/subscription.js';
+import Subscription, { OPEN_SUBSCRIPTION_STATUSES } from '../../models/subscription.js';
 import User from '../../models/user.js';
 import { PLAN_VALUES, type Plan } from '../plans.js';
 
@@ -22,7 +22,8 @@ export const rankOf = (plan: string): number => PLAN_VALUES.indexOf(plan as Plan
  * lesen `User.plan` (`express/planGuard.ts`, `express/apiTokenAuth.ts`, `routes/auth.ts`), nicht
  * `Subscription.plan` — ohne diesen Abgleich bliebe eine Kündigung für die Durchsetzung wirkungslos.
  * Bewusst nur ein Spaltenwechsel: es wird kein Datensatz gelöscht, gesperrt wird allein der
- * Schreibzugriff.
+ * Schreibzugriff. Ein Downgrade auf `free` unterbleibt, solange ein bezahltes offenes Abo eines
+ * anderen Anbieters besteht (#2240).
  */
 export const syncUserPlan = async (
 	subscription: Subscription,
@@ -31,6 +32,19 @@ export const syncUserPlan = async (
 ): Promise<void> => {
 	const userId = subscription.get('userId') as number | null | undefined;
 	if (!userId) {
+		return;
+	}
+	if (
+		plan === 'free' &&
+		(await Subscription.count({
+			where: {
+				userId,
+				provider: { [Op.ne]: subscription.get('provider') },
+				status: OPEN_SUBSCRIPTION_STATUSES.filter((status) => status !== 'approval_pending'),
+			},
+			transaction,
+		}))
+	) {
 		return;
 	}
 	await User.update({ plan }, { where: { id: userId }, transaction });

@@ -1,4 +1,4 @@
-import { DataTypes, Model } from 'sequelize';
+import { DataTypes, Model, literal, type OrderItem } from 'sequelize';
 import sequelize from '../database.js';
 
 /**
@@ -106,6 +106,12 @@ Subscription.init(
 );
 
 /** Status eines laufenden oder ausstehenden Abos: blockt einen zweiten Abschluss und das Löschen des Kontos. */
-export const OPEN_SUBSCRIPTION_STATUSES = ['active', 'approval_pending'];
+export const OPEN_SUBSCRIPTION_STATUSES = ['active', 'approval_pending', 'past_due', 'suspended'];
+
+/** Zahlungsrückstand (#2240): das Abo läuft beim Anbieter weiter und zählt als offen. */
+export const OVERDUE_SUBSCRIPTION_STATUSES = ['past_due', 'suspended'];
+
+/** Reihenfolge offener Abos: bezahlte vor einem nie bestätigten Checkout (#2235, #2240). */
+export const PAID_FIRST: OrderItem = [literal("status = 'approval_pending'"), 'ASC'];
 
 export default Subscription;

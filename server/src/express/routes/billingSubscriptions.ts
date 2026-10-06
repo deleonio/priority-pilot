@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { Op, type Order } from 'sequelize';
 import { Subscription } from '../../models/index.js';
-import { OPEN_SUBSCRIPTION_STATUSES } from '../../models/subscription.js';
+import { OPEN_SUBSCRIPTION_STATUSES, PAID_FIRST } from '../../models/subscription.js';
 import Invoice from '../../models/invoice.js';
 import { getUserId } from '../requireAuth.js';
 import { sendError, parseId, type ErrorDto } from '../http-error.js';
@@ -166,7 +166,9 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 400, 'plan muss plus oder pro sein, period monthly, quarterly oder yearly.');
 			return;
 		}
-		if (await Subscription.findOne({ where: { userId, status: 'active' } })) {
+		// Ein Abo mit Zahlungsrückstand läuft weiter und blockt ebenso (#2240).
+		const running = OPEN_SUBSCRIPTION_STATUSES.filter((status) => status !== 'approval_pending');
+		if (await Subscription.findOne({ where: { userId, status: running } })) {
 			sendError(res, 409, 'Es besteht bereits ein laufendes Abo.');
 			return;
 		}
@@ -218,7 +220,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			}
 			const subscription = await Subscription.findOne({
 				where: { userId, status: OPEN_SUBSCRIPTION_STATUSES },
-				order: ACTIVE_FIRST,
+				order: [PAID_FIRST],
 			});
 			if (!subscription) {
 				// Gekündigt mit laufendem Zeitraum ist kein fehlendes Abo — verständlicher 409 statt 404 (#2048).

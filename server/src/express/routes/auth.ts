@@ -6,7 +6,7 @@ import { isDbEmailAllowed, isEmailAllowed } from '../../logics/allowedEmails.js'
 import sequelize from '../../database.js';
 import { Pillar, Subscription, User } from '../../models/index.js';
 import type { UserRole } from '../../models/user.js';
-import { OPEN_SUBSCRIPTION_STATUSES } from '../../models/subscription.js';
+import { OPEN_SUBSCRIPTION_STATUSES, PAID_FIRST } from '../../models/subscription.js';
 import { SEED_PILLARS } from '../../models/pillarData.js';
 import { hashPassword, verifyPassword, resolveRole } from '../../logics/auth.js';
 import { getEntitlements, type Plan } from '../../logics/plans.js';
@@ -444,15 +444,12 @@ authRouter.get('/auth/me', async (req, res) => {
 	} | null = null;
 	try {
 		// #1690: das laufende Abo zuerst; sonst das zuletzt angelegte (gekündigt oder abgelaufen). Ein
-		// bezahltes `active` geht einem offenen Checkout vor (#2235, `status` ASC).
+		// bezahltes Abo (auch mit Zahlungsrückstand) geht einem offenen Checkout vor (#2235, #2240).
 		const dbSubscription =
 			typeof user.id === 'number'
 				? ((await Subscription.findOne({
 						where: { userId: user.id, status: OPEN_SUBSCRIPTION_STATUSES },
-						order: [
-							['status', 'ASC'],
-							['createdAt', 'DESC'],
-						],
+						order: [PAID_FIRST, ['createdAt', 'DESC']],
 					})) ?? (await Subscription.findOne({ where: { userId: user.id }, order: [['createdAt', 'DESC']] })))
 				: null;
 		if (dbSubscription) {
@@ -528,7 +525,14 @@ authRouter.delete('/auth/me', async (req, res) => {
 		sendError(res, 401, 'Anmeldung erforderlich.');
 		return;
 	}
-	const result = await deleteAccount(userId);
+	let result: Awaited<ReturnType<typeof deleteAccount>>;
+	try {
+		result = await deleteAccount(userId);
+	} catch {
+		// Die Kündigung eines Abos mit Zahlungsrückstand scheiterte (#2240) — das Konto bleibt.
+		sendError(res, 502, 'PayPal war nicht erreichbar.');
+		return;
+	}
 	// `code` lässt die App den Grund in der Sprache des Nutzers erklären; `message` bleibt für API-Clients.
 	if (result === 'subscription_active') {
 		res

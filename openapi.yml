@@ -4236,7 +4236,9 @@ paths:
         Session (#1671). Gruppen, in denen der Nutzer allein ist, entfallen mit.
         Rechnungen und Abo-Datensätze bleiben wegen der Aufbewahrungspflicht erhalten.
         409 bei laufendem oder ausstehendem Abo und als letzter Admin einer Gruppe
-        mit weiteren Mitgliedern.
+        mit weiteren Mitgliedern. Ein PayPal-Abo mit Zahlungsrückstand (past_due,
+        suspended) wird vorher bei PayPal gekündigt; scheitert das, 502 und das Konto
+        bleibt (#2240).
       operationId: deleteMe
       tags: [auth]
       responses:
@@ -4250,6 +4252,12 @@ paths:
                 $ref: '#/components/schemas/Error'
         '409':
           description: Laufendes Abo oder letzter Admin einer Gruppe mit weiteren Mitgliedern
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: PayPal-Kündigung eines Abos mit Zahlungsrückstand gescheitert (#2240)
           content:
             application/json:
               schema:

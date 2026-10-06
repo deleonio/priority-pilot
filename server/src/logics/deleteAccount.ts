@@ -27,7 +27,8 @@ import {
 	Task,
 	User,
 } from '../models/index.js';
-import { OPEN_SUBSCRIPTION_STATUSES } from '../models/subscription.js';
+import { OPEN_SUBSCRIPTION_STATUSES, OVERDUE_SUBSCRIPTION_STATUSES } from '../models/subscription.js';
+import { createPaypalClient, type PaypalClient } from './paypal.js';
 import { feedbackVaultConfig, githubObsidianClient, type ObsidianGithubClient } from './obsidianFeedback.js';
 import CarePushToggle from '../models/carePushToggle.js';
 
@@ -49,7 +50,9 @@ const purgeUserFeedback = async (email: string, client: ObsidianGithubClient): P
 /**
  * Löscht ein Konto samt persönlichen Daten (#1671, Play-Pflicht „Account deletion“). Abgelehnt wird,
  * solange ein Abo läuft oder aussteht (sonst bucht der Anbieter weiter ab) oder das Konto der letzte
- * Admin einer Gruppe mit weiteren Mitgliedern ist (Regel wie beim Austritt, `groups.ts`).
+ * Admin einer Gruppe mit weiteren Mitgliedern ist (Regel wie beim Austritt, `groups.ts`). Ein
+ * PayPal-Abo mit Zahlungsrückstand wird vorher bei PayPal gekündigt (#2240); scheitert das, wirft
+ * die Funktion und das Konto bleibt.
  *
  * Gruppen, in denen das Konto allein ist, entfallen mit ihm. Aufgaben und Serien, die es für andere
  * angelegt hat, bleiben bei diesen; die Ersteller-Bindung wird gelöst, fremde Serien ruhen wie nach
@@ -60,11 +63,18 @@ const purgeUserFeedback = async (email: string, client: ObsidianGithubClient): P
  */
 export const deleteAccount = async (
 	userId: number,
-	{ feedbackClient = githubObsidianClient }: { feedbackClient?: ObsidianGithubClient } = {},
+	{
+		feedbackClient = githubObsidianClient,
+		paypalClient = createPaypalClient(),
+	}: { feedbackClient?: ObsidianGithubClient; paypalClient?: PaypalClient } = {},
 ): Promise<DeleteAccountResult> => {
 	const user = await User.findByPk(userId);
 	if (!user) return 'not_found';
-	if (await Subscription.count({ where: { userId, status: OPEN_SUBSCRIPTION_STATUSES } })) {
+	const open = await Subscription.findAll({ where: { userId, status: OPEN_SUBSCRIPTION_STATUSES } });
+	const overdue = open.filter(
+		(s) => s.get('provider') === 'paypal' && OVERDUE_SUBSCRIPTION_STATUSES.includes(s.get('status') as string),
+	);
+	if (overdue.length < open.length) {
 		return 'subscription_active';
 	}
 
@@ -77,6 +87,10 @@ export const deleteAccount = async (
 		} else if (membership.role === 'admin' && !members.some((m) => m.userId !== userId && m.role === 'admin')) {
 			return 'last_group_admin';
 		}
+	}
+
+	for (const subscription of overdue) {
+		await paypalClient.cancel(subscription.get('externalSubscriptionId') as string);
 	}
 
 	await sequelize.transaction(async (transaction) => {
