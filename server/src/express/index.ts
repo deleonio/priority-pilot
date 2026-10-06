@@ -47,6 +47,7 @@ import { geocodeSearchRouter } from './routes/geocodeSearch.js';
 import { geocodeRateLimiter } from './routes/geocodeRateLimit.js';
 import { createBillingRouter } from './routes/billing.js';
 import { createBillingSubscriptionsRouter } from './routes/billingSubscriptions.js';
+import { createPublicCancellationRouter } from './routes/publicCancellation.js';
 import { createBillingGoogleRouter } from './routes/billingGoogle.js';
 import type { PaypalVerifier, PaypalClient } from '../logics/paypal.js';
 import type { GooglePlayClient } from '../logics/googlePlay.js';
@@ -136,6 +137,9 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// JSON-Body parsen.
 	app.use(express.json());
+
+	// Kündigung ohne Login (#2317): öffentlich, ohne Session und deshalb vor CSRF-Prüfung und `requireAuth`.
+	app.use(createPublicCancellationRouter({ paypalClient: deps.paypalClient, mailSender: deps.mailSender }));
 
 	// Session-Middleware (Store via AppDeps oder MemoryStore als Fallback).
 	const sessionSecret = process.env.SESSION_SECRET;

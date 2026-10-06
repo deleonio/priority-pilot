@@ -30,7 +30,8 @@ const purgeExpiredTokens = (now: Date): Promise<number> =>
  * Öffentliche Basis-URL für den Link in der Mail. Bewusst eine eigene Umgebungsvariable statt des
  * `Host`-Headers: Ein gefälschter Host würde sonst Links mit echtem Token auf fremde Domains erzeugen.
  */
-const publicBaseUrl = (): string | undefined => process.env.PUBLIC_BASE_URL?.trim().replace(/\/+$/, '') || undefined;
+export const publicBaseUrl = (): string | undefined =>
+	process.env.PUBLIC_BASE_URL?.trim().replace(/\/+$/, '') || undefined;
 
 /** Magic Link ist nutzbar, sobald SMTP und `PUBLIC_BASE_URL` konfiguriert sind. */
 export const isMagicLinkEnabled = (): boolean => isMailConfigured() && !!publicBaseUrl();

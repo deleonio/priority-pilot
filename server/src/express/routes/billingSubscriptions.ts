@@ -164,6 +164,27 @@ const awaitsApprovedUpgrade = async (userId: number) =>
 
 const AWAITS_FIRST_CHARGE_MESSAGE = 'Der letzte Wechsel wird gerade abgerechnet — bitte später erneut versuchen.';
 
+/**
+ * Speichert die Angaben einer bei PayPal ausgelösten Kündigung am Abo und meldet eine
+ * außerordentliche den Betreibern — gemeinsam für den App-Weg (#2308) und die Kündigung ohne Login (#2317).
+ */
+export const recordCancellation = async (
+	subscription: Subscription,
+	request: { kind: 'ordinary' | 'extraordinary'; reason: string; email: string },
+	send?: MailSender,
+): Promise<void> => {
+	await subscription.update({
+		cancellationKind: request.kind,
+		cancellationReason: request.kind === 'extraordinary' ? request.reason : null,
+		cancellationEmail: request.email,
+		cancellationRequestedAt: new Date(),
+	});
+	if (request.kind === 'extraordinary') {
+		const user = await User.findByPk(subscription.get('userId') as number);
+		await notifyAdminsOfExtraordinaryCancellation(subscription, user?.email ?? null, send);
+	}
+};
+
 export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps = {}): Router => {
 	const router = Router();
 	// Kauf im Web gibt es nur bei PayPal (ADR 0013); Store-Kanäle blockt `rejectStoreChannel`.
@@ -305,16 +326,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 				sendError(res, 502, 'PayPal war nicht erreichbar.');
 				return;
 			}
-			await subscription.update({
-				cancellationKind: kind,
-				cancellationReason: kind === 'extraordinary' ? reason : null,
-				cancellationEmail: email,
-				cancellationRequestedAt: new Date(),
-			});
-			if (kind === 'extraordinary') {
-				const user = await User.findByPk(userId);
-				await notifyAdminsOfExtraordinaryCancellation(subscription, user?.email ?? null, deps.mailSender);
-			}
+			await recordCancellation(subscription, { kind, reason, email }, deps.mailSender);
 			res.status(200).json({});
 		},
 	);

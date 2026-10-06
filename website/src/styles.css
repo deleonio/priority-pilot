@@ -740,6 +740,29 @@ img {
 	background: var(--pp-brand);
 }
 
+/* Kündigung ohne Login (#2317): eine Spalte, Felder und Knopf volle Breite, Ziele >= 44 px. */
+.cancel-form {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-space-1);
+}
+
+.cancel-form__field {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 44px;
+	margin-bottom: var(--pp-space-2);
+	padding: 0.5rem 0.75rem;
+	font: inherit;
+	border: 1px solid var(--pp-border-subtle);
+	border-radius: var(--pp-radius);
+}
+
+.cancel-form__submit {
+	width: 100%;
+	min-height: 44px;
+}
+
 @media (min-width: 48rem) {
 	.scale {
 		display: flex;

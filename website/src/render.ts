@@ -18,6 +18,7 @@ import { WITHDRAWAL } from './withdrawal.ts';
 import { MCP_GUIDE } from './mcp-guide.ts';
 import { TEMPLATES } from './templates.ts';
 import { CLIENT_SCRIPT, QUESTIONS, SCALE_LABELS } from './assessment.ts';
+import { CONFIRM_SCRIPT, REQUEST_SCRIPT } from './cancellation.ts';
 import { SEED_PILLARS } from '../../server/src/models/pillarData.ts';
 import type { LifeTemplate } from './templates.ts';
 import type de from './i18n/de.json';
@@ -194,6 +195,7 @@ ${body}
 				<a class="kern-link" href="/datenschutz/" hreflang="de">${t(messages.footer.privacy)}</a>
 				<a class="kern-link" href="/nutzungsbedingungen/" hreflang="de">${t(messages.footer.terms)}</a>
 				<a class="kern-link" href="/widerruf/" hreflang="de">${t(messages.footer.withdrawal)}</a>
+				<a class="kern-link" href="/kuendigen/" hreflang="de">${t(messages.footer.cancellation)}</a>
 				<a class="kern-link" href="${locale === 'en' ? '/en/mcp/' : '/mcp/'}" hreflang="${locale === 'en' ? 'en' : 'de'}">${t(messages.footer.mcpGuide)}</a>
 				<a class="kern-link" href="/vorlagen/" hreflang="de">${t(messages.footer.templates)}</a>
 				<a class="kern-link" href="/balance-check/" hreflang="de">Balance-Check</a>
@@ -735,4 +737,70 @@ ${SEED_PILLARS.map(
 							<p class="kern-body kern-body--small">Wird nirgends gespeichert. Der Link enthält deine Antworten – teile ihn nur, wenn du magst.</p>
 						</section>
 						<script>${CLIENT_SCRIPT}</script>`,
+	);
+
+const PERIOD_LABELS = { monthly: 'monatlich', quarterly: 'vierteljährlich', yearly: 'jährlich' } as const;
+
+/**
+ * Kündigung ohne Login (#2317, § 312k BGB): nur Deutsch unter `/kuendigen/`, Muster
+ * {@link renderAssessment}. Der Vertrag ist nur Angabe — der Server ermittelt das Abo über die Adresse.
+ */
+export const renderCancellation = (context: PageContext & { allMessages: Record<Locale, Messages> }): string =>
+	templatePage(
+		context,
+		'/kuendigen/',
+		'Vertrag kündigen',
+		'Kündige dein Balamentum-Abo ohne Anmeldung: Formular ausfüllen und per E-Mail-Link bestätigen.',
+		`						<h1 class="kern-heading-large">Vertrag kündigen</h1>
+						<p class="kern-body kern-body--large">Ohne Anmeldung: Wir schicken dir einen Bestätigungslink an die Adresse deines Kontos.</p>
+						<form data-cancel-form class="cancel-form">
+							<label class="kern-body" for="cancel-email">E-Mail-Adresse deines Kontos (Pflichtfeld)</label>
+							<input class="cancel-form__field" id="cancel-email" name="email" type="email" autocomplete="email" inputmode="email" required>
+							<label class="kern-body" for="cancel-contract">Vertrag (Pflichtfeld)</label>
+							<select class="cancel-form__field" id="cancel-contract" name="contract" required>
+${PLAN_VALUES.filter((plan) => plan !== 'free')
+	.flatMap((plan) =>
+		Object.entries(PERIOD_LABELS).map(
+			([period, label]) =>
+				`								<option value="${plan}-${period}">${t(`${plan.charAt(0).toUpperCase()}${plan.slice(1)} (${label})`)}</option>`,
+		),
+	)
+	.join('\n')}
+							</select>
+							<fieldset class="scale">
+								<legend class="kern-body">Art der Kündigung</legend>
+								<label class="scale__option"><input type="radio" name="kind" value="ordinary" checked><span>Ordentlich</span></label>
+								<label class="scale__option"><input type="radio" name="kind" value="extraordinary"><span>Außerordentlich</span></label>
+							</fieldset>
+							<div data-reason hidden>
+								<label class="kern-body" for="cancel-reason">Grund der außerordentlichen Kündigung (Pflichtfeld)</label>
+								<textarea class="cancel-form__field" id="cancel-reason" name="reason" rows="3"></textarea>
+							</div>
+							<fieldset class="scale">
+								<legend class="kern-body">Zeitpunkt</legend>
+								<label class="scale__option"><input type="radio" name="when" value="next" checked><span>Zum nächstmöglichen Zeitpunkt</span></label>
+								<label class="scale__option"><input type="radio" name="when" value="date"><span>Zum Wunschdatum</span></label>
+							</fieldset>
+							<label class="kern-body" for="cancel-date">Wunschdatum</label>
+							<input class="cancel-form__field" id="cancel-date" name="date" type="date">
+							<button type="submit" class="kern-btn kern-btn--primary cancel-form__submit">Jetzt kündigen</button>
+						</form>
+						<p class="kern-body" data-status role="status"></p>
+						<p class="kern-body" data-error role="alert"></p>
+						<script>${REQUEST_SCRIPT}</script>`,
+	);
+
+/** Bestätigungsseite des Mail-Links (#2317): GET zeigt nur an, erst der Knopf kündigt per POST. */
+export const renderCancellationConfirm = (context: PageContext): string =>
+	templatePage(
+		context,
+		'/kuendigen/bestaetigen/',
+		'Kündigung bestätigen',
+		'Bestätige die Kündigung deines Balamentum-Abos.',
+		`						<h1 class="kern-heading-large" tabindex="-1">Kündigung bestätigen</h1>
+						<p class="kern-body" data-summary></p>
+						<p><button type="button" class="kern-btn kern-btn--primary" data-confirm hidden><span class="kern-label">Kündigung jetzt bestätigen</span></button></p>
+						<p class="kern-body" data-status role="status"></p>
+						<p class="kern-body" data-invalid role="alert" hidden>Link ungültig oder abgelaufen. <a class="kern-link" href="/kuendigen/">Kündigung neu anfordern</a></p>
+						<script>${CONFIRM_SCRIPT}</script>`,
 	);
