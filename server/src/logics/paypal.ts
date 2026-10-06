@@ -270,6 +270,28 @@ export interface PaypalWebhookEvent {
 }
 
 /**
+ * Startprüfung (#2302): In Produktion und mit gesetzten PayPal-Zugangsdaten (Client-ID oder Secret)
+ * müssen alle nötigen Variablen gesetzt sein — sonst gälten die Dev-Fallbacks (Fremd-Domain als
+ * Return-URL, Variablenname als Plan-ID, unverifizierte Webhooks). Wirft mit den fehlenden
+ * Variablennamen, nie mit Werten. Ohne Zugangsdaten (PayPal aus) oder außerhalb von Produktion no-op.
+ */
+export const assertPaypalConfig = (env: NodeJS.ProcessEnv = process.env): void => {
+	if (env.NODE_ENV !== 'production') return;
+	if (!env.PAYPAL_CLIENT_ID?.trim() && !env.PAYPAL_CLIENT_SECRET?.trim()) return;
+	const required = [
+		'PAYPAL_CLIENT_ID',
+		'PAYPAL_CLIENT_SECRET',
+		'PAYPAL_WEBHOOK_ID',
+		'PAYPAL_RETURN_URL',
+		...Object.values(PAYPAL_PLAN_IDS).flatMap((periods) => Object.values(periods).map((entry) => entry.envVar)),
+	];
+	const missing = required.filter((name) => !env[name]?.trim());
+	if (missing.length > 0) {
+		throw new Error(`PayPal-Konfiguration unvollständig, es fehlen: ${missing.join(', ')}`);
+	}
+};
+
+/**
  * Kündigungs-Abhängigkeit für die Kulanzfrist (#2234): nur mit konfigurierten PayPal-Zugangsdaten,
  * sonst leer — ohne Konfiguration entsteht kein Netzaufruf.
  */

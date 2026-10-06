@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { verifyWebhookSignature, isGracePeriodExpired, createPaypalClient } from './paypal.js';
+import { verifyWebhookSignature, isGracePeriodExpired, createPaypalClient, assertPaypalConfig } from './paypal.js';
+import { PAYPAL_PLAN_IDS } from './plans.js';
 
 /**
  * Rote Spec-Tests für #1495 (Spec docs/spec/issue-1495.md) — Webhook-Signaturprüfung (AK2) und
@@ -174,5 +175,58 @@ describe('paypal.ts — createPaypalClient().createSubscription mit Gebühr und 
 
 		assert.equal(sent.start_time, startTime.toISOString());
 		assert.equal(sent.plan?.payment_preferences?.setup_fee?.value, '16.69');
+	});
+});
+
+describe('paypal.ts — assertPaypalConfig (#2302)', () => {
+	const planVars = Object.values(PAYPAL_PLAN_IDS).flatMap((p) => Object.values(p).map((e) => e.envVar));
+	const full = (): NodeJS.ProcessEnv => ({
+		NODE_ENV: 'production',
+		PAYPAL_CLIENT_ID: 'id',
+		PAYPAL_CLIENT_SECRET: 'secret',
+		PAYPAL_WEBHOOK_ID: 'wh',
+		PAYPAL_RETURN_URL: 'https://x.test/app/settings',
+		...Object.fromEntries(planVars.map((v) => [v, 'P-1'])),
+	});
+
+	for (const name of [
+		'PAYPAL_CLIENT_ID',
+		'PAYPAL_CLIENT_SECRET',
+		'PAYPAL_WEBHOOK_ID',
+		'PAYPAL_RETURN_URL',
+		...planVars,
+	]) {
+		it(`wirft in Produktion, wenn ${name} fehlt`, () => {
+			const env = full();
+			// Whitespace zählt als fehlend; mindestens ein Zugangsdatum bleibt gesetzt (PayPal aktiv).
+			env[name] = '  ';
+			if (name === 'PAYPAL_CLIENT_ID') env.PAYPAL_CLIENT_SECRET = 'secret';
+			assert.throws(() => assertPaypalConfig(env), new RegExp(name));
+		});
+	}
+
+	it('nennt alle fehlenden Variablen und keine Werte', () => {
+		const env = { NODE_ENV: 'production', PAYPAL_CLIENT_ID: 'geheim-id' };
+		assert.throws(
+			() => assertPaypalConfig(env),
+			(e: Error) =>
+				/PAYPAL_WEBHOOK_ID/.test(e.message) &&
+				/PAYPAL_PLAN_ID_PRO_YEARLY/.test(e.message) &&
+				!/geheim-id/.test(e.message),
+		);
+	});
+
+	it('wirft bei vollständiger Konfiguration nicht', () => {
+		assert.doesNotThrow(() => assertPaypalConfig(full()));
+	});
+
+	it('wirft ohne Zugangsdaten (PayPal aus) auch in Produktion nicht', () => {
+		assert.doesNotThrow(() => assertPaypalConfig({ NODE_ENV: 'production' }));
+	});
+
+	it('wirft außerhalb von Produktion nie', () => {
+		for (const NODE_ENV of ['test', 'development', '']) {
+			assert.doesNotThrow(() => assertPaypalConfig({ NODE_ENV, PAYPAL_CLIENT_ID: 'id' }));
+		}
 	});
 });
