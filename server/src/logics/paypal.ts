@@ -14,7 +14,6 @@ import type { MailSender } from './mail.js';
 import { PAYPAL_PLAN_IDS, getPlansCatalog, type Plan } from './plans.js';
 import type { ChargedAmount } from './invoices.js';
 import { sendCancellationConfirmation } from './cancellationMail.js';
-import type { MailSender } from './mail.js';
 
 export { applyDuePendingPlan, isGracePeriodExpired } from './billing/lifecycle.js';
 
