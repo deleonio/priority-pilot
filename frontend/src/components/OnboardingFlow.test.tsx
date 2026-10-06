@@ -440,6 +440,7 @@ describe('OnboardingFlow — Import-Schritt erklärt fehlende KI (Spec #2225)', 
 	it('AK4: Paket erlaubt, KI per Einstellung aus → kein Paket-Hinweis', () => {
 		localStorage.setItem(AI_ENABLED_STORAGE_KEY, 'false');
 		renderWith(true);
+		expect(hint()).toBeNull();
 		expect(badge()).toBeNull();
 	});
 });
