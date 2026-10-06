@@ -1260,7 +1260,7 @@ describe('Billing/Webhook-API (#2237 — Gutschrift und Paketentzug)', () => {
 /**
  * Rote Spec-Tests für #2243 (Spec docs/spec/issue-2243.md) — eine späte Abbuchung
  * (`PAYMENT.SALE.COMPLETED`) auf einer `cancelled`-Zeile belebt das Abo nicht wieder auf: weder
- * Status, Periode noch `User.plan` ändern sich, es entsteht keine Rechnung, der Fall wird protokolliert.
+ * Status, Periode noch `User.plan` ändern sich, die Rechnung über den abgebuchten Betrag entsteht trotzdem (#2232 AK3), der Fall wird protokolliert.
  * Heute setzt der Zweig die Zeile auf `active`, verlängert und stellt eine Rechnung aus. KEIN Produktivcode.
  */
 describe('Billing/Webhook-API (#2243 — späte Abbuchung auf gekündigtem Abo)', () => {
@@ -1282,12 +1282,12 @@ describe('Billing/Webhook-API (#2243 — späte Abbuchung auf gekündigtem Abo)'
 			JSON.stringify({
 				id: eventId,
 				event_type: 'PAYMENT.SALE.COMPLETED',
-				resource: { id: saleId, billing_agreement_id: externalId },
+				resource: { id: saleId, billing_agreement_id: externalId, amount: { total: '8.99', currency: 'EUR' } },
 			}),
 			{ 'paypal-transmission-sig': 'ok' },
 		);
 
-	it('AK1+AK2: gekündigte Zeile mit laufender Periode bleibt unverändert, ohne Rechnung — Warnung mit Abo- und Sale-ID, 200', async () => {
+	it('AK1+AK2: gekündigte Zeile mit laufender Periode bleibt unverändert, mit Rechnung über den abgebuchten Betrag — Warnung mit Abo- und Sale-ID, 200', async () => {
 		const warnSpy = mock.method(console, 'warn', () => {});
 		try {
 			server = await startTestServer(withVerifierMail());
@@ -1313,7 +1313,9 @@ describe('Billing/Webhook-API (#2243 — späte Abbuchung auf gekündigtem Abo)'
 			assert.equal(reloaded!.get('plan'), 'plus');
 			assert.equal((reloaded!.get('currentPeriodEnd') as Date).toISOString(), periodEnd.toISOString());
 			assert.equal((await User.findByPk(me.id))?.get('plan'), 'plus', 'User.plan bleibt unverändert');
-			assert.equal(await Invoice.count({ where: { subscriptionId: sub.get('id') as number } }), 0);
+			const invoices = await Invoice.findAll({ where: { subscriptionId: sub.get('id') as number } });
+			assert.equal(invoices.length, 1, 'Der abgebuchte Betrag bekommt seinen Beleg');
+			assert.equal(invoices[0].get('amountCents'), 899);
 			assert.ok(
 				warnSpy.mock.calls.some((call) => {
 					const message = call.arguments.map(String).join(' ');
@@ -1327,7 +1329,7 @@ describe('Billing/Webhook-API (#2243 — späte Abbuchung auf gekündigtem Abo)'
 		}
 	});
 
-	it('AK1: abgelöste Zeile (free) neben aktiver Zeile desselben Nutzers — späte Abbuchung ändert keine Zeile und nicht User.plan', async () => {
+	it('AK1: abgelöste Zeile (free) neben aktiver Zeile desselben Nutzers — späte Abbuchung ändert keine Zeile und nicht User.plan, stellt aber den Beleg aus', async () => {
 		const warnSpy = mock.method(console, 'warn', () => {});
 		try {
 			server = await startTestServer(withVerifierMail());
@@ -1355,7 +1357,9 @@ describe('Billing/Webhook-API (#2243 — späte Abbuchung auf gekündigtem Abo)'
 				currentPeriodEnd: newPeriodEnd,
 			});
 
-			await postSale('WH-2243-2', 'PAYID-2243-2', 'I-2243-OLD');
+			const res = await postSale('WH-2243-2', 'PAYID-2243-2', 'I-2243-OLD');
+
+			assert.equal(res.status, 200);
 
 			const oldAfter = await Subscription.findByPk(old.get('id') as number);
 			assert.equal(oldAfter!.get('status'), 'cancelled');
@@ -1365,7 +1369,8 @@ describe('Billing/Webhook-API (#2243 — späte Abbuchung auf gekündigtem Abo)'
 			assert.equal(currentAfter!.get('status'), 'active');
 			assert.equal((currentAfter!.get('currentPeriodEnd') as Date).toISOString(), newPeriodEnd.toISOString());
 			assert.equal((await User.findByPk(me.id))?.get('plan'), 'pro', 'User.plan bleibt unverändert');
-			assert.equal(await Invoice.count(), 0, 'Keine Rechnung für die abgelöste Zeile');
+			assert.equal(await Invoice.count({ where: { subscriptionId: old.get('id') as number } }), 1);
+			assert.equal(await Invoice.count({ where: { subscriptionId: current.get('id') as number } }), 0);
 		} finally {
 			warnSpy.mock.restore();
 		}

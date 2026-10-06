@@ -503,12 +503,22 @@ export const applyPaymentEvent = async (
 	}
 
 	if (eventType === 'PAYMENT.SALE.COMPLETED') {
-		// Späte Abbuchung auf gekündigter oder abgelöster Zeile (#2243): nicht beleben, keine Rechnung —
-		// protokolliert, die Erstattung ist manuell zu prüfen. Das Ereignis gilt als verarbeitet (200).
+		const amount = event.resource?.amount;
+		const total = Number(amount?.total);
+		const charged =
+			amount?.total && amount.currency && Number.isFinite(total)
+				? { amountCents: Math.round(total * 100), currency: amount.currency }
+				: undefined;
+		// Späte Abbuchung auf gekündigter oder abgelöster Zeile (#2243): nicht beleben (kein Statuswechsel,
+		// keine Verlängerung, keine Vormerkung, kein `syncUserPlan`), aber der eingezogene Betrag bekommt
+		// seinen Beleg (#2232 AK3). Protokolliert, die Erstattung ist manuell zu prüfen; 200 (verarbeitet).
 		if (subscription.get('status') === 'cancelled') {
 			console.warn(
-				`PayPal-Abbuchung auf beendetem Abo ${String(subscription.get('externalSubscriptionId'))} ignoriert (Sale ${event.resource?.id ?? '?'}) — Erstattung prüfen`,
+				`PayPal-Abbuchung auf beendetem Abo ${String(subscription.get('externalSubscriptionId'))} nicht belebt (Sale ${event.resource?.id ?? '?'}) — Erstattung prüfen`,
 			);
+			await sequelize.transaction(async (transaction) => {
+				await deps.issueInvoice?.(subscription, now, event.resource?.id ?? null, charged, transaction);
+			});
 			return;
 		}
 		await sequelize.transaction(async (transaction) => {
@@ -560,12 +570,6 @@ export const applyPaymentEvent = async (
 				{ currentPeriodEnd, status: status === 'locked' ? 'locked' : 'active', firstFailureAt: null },
 				{ transaction },
 			);
-			const amount = event.resource?.amount;
-			const total = Number(amount?.total);
-			const charged =
-				amount?.total && amount.currency && Number.isFinite(total)
-					? { amountCents: Math.round(total * 100), currency: amount.currency }
-					: undefined;
 			await deps.issueInvoice?.(subscription, now, event.resource?.id ?? null, charged, transaction);
 		});
 		return;
