@@ -98,3 +98,52 @@ describe('monthlyShareCard — reine SVG-Erzeugung (#1995 AK2)', () => {
 		expect(monatsDateiname('2026-09')).toBe('balamentum-monat-2026-09.png');
 	});
 });
+
+describe('monthlyShareCard — Marken-Fußzeile (#2255, docs/spec/issue-2255.md)', () => {
+	const daten = {
+		saeulen: SAEULEN,
+		streak: 12,
+		meilensteine: MEILENSTEINE,
+		monat: 'Rückblick September 2026',
+	};
+
+	/** Neue Signatur (#2255): optionale übersetzte Logo-Bezeichnungen — `marken` ist optional, kein Cast nötig. */
+	const mitMarken = (marken: { balamentum: string; play: string; pwa: string }): string =>
+		erzeugeMonatsKarteSvg({ ...daten, marken });
+
+	it('AK1: bettet Balamentum-, Google-Play- und PWA-Logo inline ein — ohne externe URL oder Dateipfad', () => {
+		const svg = erzeugeMonatsKarteSvg(daten);
+		for (const id of ['brand-balamentum', 'brand-google-play', 'brand-pwa']) {
+			expect(svg).toContain(`id="${id}"`);
+		}
+		// Rasterung lädt nur data-URLs: externe Referenzen blieben im PNG leer — verboten.
+		const referenzen = [...svg.matchAll(/(?:href|src)="([^"]+)"/g)].map((m) => m[1]);
+		for (const referenz of referenzen) {
+			expect(referenz === 'https://balamentum.app' || referenz.startsWith('data:')).toBe(true);
+		}
+	});
+
+	it('AK2: Domain als sichtbarer Text; einzige http(s)-URL ist https://balamentum.app', () => {
+		const svg = erzeugeMonatsKarteSvg(daten);
+		expect(svgText(svg)).toContain('balamentum.app');
+		const urls = [...svg.matchAll(/https?:\/\/(?!www\.w3\.org)[^"'\s<>]+/g)].map((m) => m[0]);
+		expect(urls.length, 'der Domain-Link erwartet').toBeGreaterThan(0);
+		for (const url of urls) {
+			expect(url, `unerwartete URL ${url}`).toBe('https://balamentum.app');
+		}
+		expect(svg).not.toContain('play.google.com');
+	});
+
+	it('AK3: Play- und PWA-Logo tragen die übergebenen, übersetzbaren Bezeichnungen', () => {
+		const svg = mitMarken({ balamentum: 'Balamentum', play: 'Get it on Google Play', pwa: 'Installable PWA' });
+		expect(svg).toContain('<title>Get it on Google Play</title>');
+		expect(svg).toContain('<title>Installable PWA</title>');
+	});
+
+	it('AK3: ohne Parameter gelten die deutschen Default-Bezeichnungen', () => {
+		const svg = erzeugeMonatsKarteSvg(daten);
+		expect(svg).toContain('<title>Balamentum</title>');
+		expect(svg).toContain('<title>Erhältlich bei Google Play</title>');
+		expect(svg).toContain('<title>Als App installierbar (PWA)</title>');
+	});
+});

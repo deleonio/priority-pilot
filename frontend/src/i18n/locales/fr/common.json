@@ -120,7 +120,12 @@
 		"teilen": "Partager le mois",
 		"speichern": "Enregistrer le PNG",
 		"erzeuge": "Création de la carte …",
-		"fehler": "La carte n'a pas pu être créée. Merci de réessayer."
+		"fehler": "La carte n'a pas pu être créée. Merci de réessayer.",
+		"marken": {
+			"balamentum": "Balamentum",
+			"play": "Disponible sur Google Play",
+			"pwa": "Installable en application (PWA)"
+		}
 	},
 	"yearlyCard": {
 		"label": "Mon année en chiffres",
