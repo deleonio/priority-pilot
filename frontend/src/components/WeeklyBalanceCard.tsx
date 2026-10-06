@@ -2,14 +2,8 @@ import { KolAlert, KolButton, KolCard, KolSpin } from '@public-ui/react-v19';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
-import {
-	KARTE_BREITE,
-	KARTE_HOEHE,
-	erzeugeWochenKarteSvg,
-	kalenderWoche,
-	kartenDateiname,
-	montagDerWoche,
-} from '../lib/weeklyShareCard';
+import { rasterisiere } from '../lib/karteRasterisieren';
+import { erzeugeWochenKarteSvg, kalenderWoche, kartenDateiname, montagDerWoche } from '../lib/weeklyShareCard';
 
 /**
  * Dashboard-Card „Meine Woche in fünf Säulen" (#1968): die Wochenbalance als teilbares Standbild —
@@ -25,34 +19,10 @@ import {
  * (ux-design §4). Abbruch des Systemdialogs (`AbortError`) ist kein Fehlerzustand.
  */
 
-/** Rasterungs-Skalierung: 2× aus dem SVG, damit das PNG auf Retina nicht matscht (UX-Beratung). */
-const RASTER_SKALA = 2;
-
 interface WochenDaten {
 	saeulen: { id: number; name: string; wert: number }[];
 	streak: number;
 }
-
-/** SVG→PNG ohne neue npm-Abhängigkeit: data-URL ins `Image`, auf 2×-Canvas gemalt, als Blob. */
-const rasterisiere = (svg: string): Promise<Blob> =>
-	new Promise((resolve, reject) => {
-		const bild = new Image();
-		bild.onload = () => {
-			const canvas = document.createElement('canvas');
-			canvas.width = KARTE_BREITE * RASTER_SKALA;
-			canvas.height = KARTE_HOEHE * RASTER_SKALA;
-			const kontext = canvas.getContext('2d');
-			// Optional call: ohne zeichenfähigen 2D-Kontext (jsdom, blockiertes Canvas) bleibt das
-			// Bild leer, statt die Erzeugung crashen zu lassen.
-			kontext?.drawImage?.(bild, 0, 0, canvas.width, canvas.height);
-			canvas.toBlob(
-				(blob) => (blob ? resolve(blob) : reject(new Error('Rasterisierung lieferte kein PNG'))),
-				'image/png',
-			);
-		};
-		bild.onerror = () => reject(new Error('SVG ließ sich nicht laden'));
-		bild.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-	});
 
 export const WeeklyBalanceCard = () => {
 	const { t } = useTranslation('common');

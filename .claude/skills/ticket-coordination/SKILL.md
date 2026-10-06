@@ -170,6 +170,12 @@ wall of text — offer a decision round and go through the parked issues one by 
 - Spec, implementation and fixup share one serialized queue; only triage, UX and review run
   side by side — order the queue per section 7, rung 1.
 - Report only on change (phase switch, merge, blocker, question). A quiet check-in stays quiet.
+- **Progress report on a fixed cadence** (default every 3 hours, author may change it): a
+  recurring schedule, set up once at the start, delivers a report without being asked, even when
+  nothing changed. Query the state fresh, never from memory. Contents: overall progress
+  (done / running / open), a table per block of the agreed order, what finished since the last
+  report, what runs now (phase, PR link), next steps in order, open decisions with the author.
+  The report run also acts (route, start the next issue) like a check-in.
 - Notifications can arrive late, twice, or after the fact. Verify the current state before
   acting on one.
 - A question the author dismissed is not asked again. It stays under "Offen beim Autor" in the

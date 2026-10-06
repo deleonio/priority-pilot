@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
-import { Subscription } from '../models/index.js';
+import { Subscription, User } from '../models/index.js';
 import Invoice from '../models/invoice.js';
 import type { AppDeps } from './index.js';
 
@@ -210,5 +210,49 @@ describe('Rechnung und Verlängerung nur bei SALE.COMPLETED (#2230)', () => {
 		assert.equal(sub.get('status'), 'active', 'Vorbedingung: ACTIVATED wurde verarbeitet');
 		assert.equal(invoices.length, 0, 'ohne Abbuchung keine Rechnung');
 		assert.ok(near(end, plusMonth(upgradedAt), 2 * DAY_MS), 'Paket endet nicht sofort: Ende ≈ Upgrade + 1 Periode');
+	});
+});
+
+describe('Paketübernahme bei Startaufschub erst mit der ersten Abbuchung (#2239)', () => {
+	// Roter Spec-Test zu docs/spec/issue-2239.md (TF2/AK2): die Paket-Dimension (User.plan), die
+	// die #2230-Tests (oben) nicht abdecken — End-to-End über Checkout-Route und Webhook.
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const planOf = async (userId: number) => (await User.findByPk(userId))?.get('plan');
+
+	it('AK2: POST /billing/subscriptions auf ein höheres Paket schaltet erst mit der ersten Abbuchung frei', async () => {
+		const id = 'I-2239-NEW';
+		server = await startTestServer(deps(id));
+		const cookie = await server.login('defer-2239@example.com');
+		const me = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
+			id: number;
+		};
+		const restEnd = new Date(Date.now() + 10 * DAY_MS);
+		await Subscription.create({
+			userId: me.id,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-2239-OLD',
+			plan: 'plus',
+			period: 'monthly',
+			status: 'cancelled',
+			currentPeriodEnd: restEnd,
+			pendingPlan: 'free',
+			pendingPlanEffectiveAt: restEnd,
+		});
+		// Gekündigter, bezahlter Stand (#1959): der Abgleich hält User.plan in Sync mit dem Abo.
+		await User.update({ plan: 'plus' }, { where: { id: me.id } });
+		assert.equal((await post('/billing/subscriptions', cookie, { plan: 'pro', period: 'monthly' })).status, 201);
+
+		await webhook('BILLING.SUBSCRIPTION.ACTIVATED', id);
+		assert.equal(await planOf(me.id), 'plus', 'ACTIVATED ohne Abbuchung schaltet das höhere Paket nicht frei');
+
+		await webhook('PAYMENT.SALE.COMPLETED', id, 'PAYID-2239-1');
+		assert.equal(await planOf(me.id), 'pro', 'erst die erste Abbuchung übernimmt das Zielpaket');
 	});
 });

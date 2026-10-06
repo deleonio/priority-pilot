@@ -425,7 +425,7 @@ export const replacePredecessors = async (
  * Ob die Bestätigung des Abos sofort abbucht: nur ein Upgrade-Abo (#1912), dessen Guthaben den
  * ersten Zyklus nicht deckt (#2238) — bis zum Zahlungseingang bleibt es ausstehend.
  */
-export const chargesOnActivation = (subscription: Subscription): boolean => {
+const chargesOnActivation = (subscription: Subscription): boolean => {
 	const creditCents = subscription.get('creditCents') as number;
 	const price = getPlansCatalog().prices[subscription.get('plan') as Plan];
 	return creditCents > 0 && price[subscription.get('period') as keyof typeof price] > creditCents;

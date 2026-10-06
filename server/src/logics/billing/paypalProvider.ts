@@ -1,9 +1,9 @@
 import type { MailSender } from '../mail.js';
 import { issueCreditNote, issueInvoiceForPeriod } from '../invoices.js';
+import { getPlansCatalog, type Plan } from '../plans.js';
 import {
 	applyPaymentEvent,
 	applyPlanChange,
-	chargesOnActivation,
 	createPaypalClient,
 	paypalPlanIdFor,
 	PERIOD_MONTHS,
@@ -13,7 +13,15 @@ import {
 	type PaypalVerifier,
 	type PaypalWebhookEvent,
 } from '../paypal.js';
+import type Subscription from '../../models/subscription.js';
 import type { BillingProvider, WebCheckout } from './provider.js';
+
+/** Ob das Guthaben den ersten Zyklus ganz deckt (#2230): Dann gilt ACTIVATED bereits als Zahlung. */
+const coversFirstCycle = (subscription: Subscription): boolean => {
+	const creditCents = subscription.get('creditCents') as number;
+	const price = getPlansCatalog().prices[subscription.get('plan') as Plan];
+	return creditCents >= price[subscription.get('period') as keyof typeof price];
+};
 
 /** Injizierbare Teile; ohne Angabe gelten die echten PayPal-Aufrufe. */
 export interface PaypalProviderDeps {
@@ -47,12 +55,13 @@ export const createPaypalProvider = (deps: PaypalProviderDeps = {}): BillingProv
 			const paypalEvent = event.payload as PaypalWebhookEvent;
 			await applyPlanChange(subscription, paypalEvent, now);
 			// Das alte Abo erst mit der Bestätigung des neuen kündigen, sonst entsteht eine Lücke (#1912).
-			// Bucht die Bestätigung ab, zählt erst der Zahlungseingang (#2140); ohne Abbuchung (Startaufschub
-			// #2049, Guthaben deckt den ersten Zyklus) gilt schon ACTIVATED.
+			// Ersetzt wird nur gegen eine Zahlung: die erste Abbuchung (#2140) oder ganz deckendes Guthaben
+			// (#2230) — ein Upgrade mit Restschuld (#2238) und ein Startaufschub ohne Guthaben (#2049) warten
+			// auf ihre erste Abbuchung (#2239).
 			const type = paypalEvent.event_type;
 			if (
 				type === 'PAYMENT.SALE.COMPLETED' ||
-				(type === 'BILLING.SUBSCRIPTION.ACTIVATED' && !chargesOnActivation(subscription))
+				(type === 'BILLING.SUBSCRIPTION.ACTIVATED' && coversFirstCycle(subscription))
 			) {
 				await replacePredecessors(subscription, client);
 			}

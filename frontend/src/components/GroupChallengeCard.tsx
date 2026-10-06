@@ -3,11 +3,8 @@ import type { GroupChallenge } from 'client';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
-import { KARTE_BREITE, KARTE_HOEHE } from '../lib/weeklyShareCard';
+import { rasterisiere } from '../lib/karteRasterisieren';
 import { balanceText, challengeDateiname, erzeugeChallengeKarteSvg } from '../lib/challengeShareCard';
-
-/** Rasterungs-Skalierung: 2× aus dem SVG, damit das PNG auf Retina nicht matscht (Muster Wochenkarte). */
-const RASTER_SKALA = 2;
 
 const TAG_MS = 24 * 60 * 60 * 1000;
 const CHALLENGE_TAGE = 7;
@@ -15,24 +12,6 @@ const CHALLENGE_TAGE = 7;
 /** Datum kurz und deutsch („12.10.“) — Zeitraum-Angaben der Karte. */
 const kurzDatum = (iso: string): string =>
 	new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
-
-/** SVG→PNG ohne neue npm-Abhängigkeit (Muster `MonthlyBalanceCard`). */
-const rasterisiere = (svg: string): Promise<Blob> =>
-	new Promise((resolve, reject) => {
-		const bild = new Image();
-		bild.onload = () => {
-			const canvas = document.createElement('canvas');
-			canvas.width = KARTE_BREITE * RASTER_SKALA;
-			canvas.height = KARTE_HOEHE * RASTER_SKALA;
-			canvas.getContext('2d')?.drawImage?.(bild, 0, 0, canvas.width, canvas.height);
-			canvas.toBlob(
-				(blob) => (blob ? resolve(blob) : reject(new Error('Rasterisierung lieferte kein PNG'))),
-				'image/png',
-			);
-		};
-		bild.onerror = () => reject(new Error('SVG ließ sich nicht laden'));
-		bild.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-	});
 
 /**
  * Gruppen-Challenge (#1992) in der Gruppenansicht: ohne Challenge eine Einladung mit Start-Aktion,

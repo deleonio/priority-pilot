@@ -4,7 +4,14 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.17 - 2026-10-06
 
-_Keine für Nutzer sichtbaren Änderungen._
+_Enthält v0.17.0 – v0.17.4._
+
+### Other Changes
+
+- feat(server): refund and chargeback credit and cancel package (#2237) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2266
+- feat(frontend): brand footer with logos on monthly card (#2255) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2269
+- fix(server): defer plan takeover for delayed-start subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2271
+- docs(skills): add proactive 3-hour progress report to coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2272
 
 ## v0.16 - 2026-10-06
 
@@ -185,6 +192,7 @@ _Enthält v0.13.0 – v0.13.27._
 - fix(ci): wait for background gate runs instead of terminating them (#1952) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2112
 - fix(ci): detect session-limit aborts only at the failing claude call by @deleonio in https://github.com/deleonio/priority-pilot/pull/2113
 - test(frontend): stabilize pillar-recalc live-progress against CI load (#1953) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2115
+- test(frontend): stabilize pillar-recalc live-progress against CI load (#1953) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2115
 - feat(frontend): align invoice amounts and style invoice lists (#2104) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2116
 
 ## v0.12 - 2026-10-02
@@ -317,7 +325,6 @@ _Enthält v0.10.0 – v0.10.36._
 - fix(server): show clear message for too-long task title (#1818) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1854
 - chore(deps): update renovatebot/github-action action to v46.3.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1850
 - test(frontend): locate title-limit message by text in e2e spec by @deleonio in https://github.com/deleonio/priority-pilot/pull/1858
-- test(e2e): exempt kol-alert from #930 transparency check by @deleonio in https://github.com/deleonio/priority-pilot/pull/1859
 - test(e2e): exempt kol-alert from #930 transparency check by @deleonio in https://github.com/deleonio/priority-pilot/pull/1859
 - fix(server): count late completions for their due day in streak by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1856
 - docs(agents): align e2e page.route rule with practice by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1860
