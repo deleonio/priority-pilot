@@ -47,6 +47,40 @@ vi.mock('@public-ui/react-v19', () => ({
 	// Label-Assertions gegen den Anzeigenamen laufen.
 	KolBadge: ({ _label }: { _label: string }) => <span>{_label}</span>,
 	KolSpin: () => <div />,
+	// #2308: Felder des Kündigungsdialogs (KI-UX-Block: KolInputRadio, KolTextarea, KolInputEmail) als native Ersatzelemente.
+	KolInputRadio: (props: {
+		_label: string;
+		_options: { label: string; value: string }[];
+		_value?: string;
+		_on?: { onChange?: (e: unknown, v: string) => void };
+	}) => (
+		<fieldset>
+			<legend>{props._label}</legend>
+			{props._options.map((option) => (
+				<label key={option.value}>
+					<input
+						type="radio"
+						name="kind"
+						checked={props._value === option.value}
+						onChange={() => props._on?.onChange?.(new Event('change'), option.value)}
+					/>
+					{option.label}
+				</label>
+			))}
+		</fieldset>
+	),
+	KolTextarea: (props: { _label: string; _value?: string; _on?: { onInput?: (e: unknown, v: string) => void } }) => (
+		<label>
+			{props._label}
+			<textarea value={props._value ?? ''} onChange={(e) => props._on?.onInput?.(e, e.target.value)} />
+		</label>
+	),
+	KolInputEmail: (props: { _label: string; _value?: string; _on?: { onInput?: (e: unknown, v: string) => void } }) => (
+		<label>
+			{props._label}
+			<input type="email" value={props._value ?? ''} onChange={(e) => props._on?.onInput?.(e, e.target.value)} />
+		</label>
+	),
 }));
 
 vi.mock('../api', () => ({
@@ -111,7 +145,8 @@ describe('SubscriptionSection (#2048)', () => {
 		render(<SubscriptionSection />);
 
 		fireEvent.click(screen.getByTestId('cancel-subscription'));
-		fireEvent.click(screen.getByRole('button', { name: 'Kündigen' }));
+		fireEvent.change(screen.getByLabelText(/E-Mail/), { target: { value: 'kunde@example.com' } });
+		fireEvent.click(screen.getByRole('button', { name: 'Jetzt kündigen' }));
 
 		await waitFor(() => {
 			expect(api.cancelBillingSubscription).toHaveBeenCalledTimes(1);
@@ -135,7 +170,8 @@ describe('SubscriptionSection (#2048)', () => {
 
 		// Lokal kündigen: der Merker zeigt den Hinweis, obwohl /auth/me weiter „active" liefert.
 		fireEvent.click(screen.getByTestId('cancel-subscription'));
-		fireEvent.click(screen.getByRole('button', { name: 'Kündigen' }));
+		fireEvent.change(screen.getByLabelText(/E-Mail/), { target: { value: 'kunde@example.com' } });
+		fireEvent.click(screen.getByRole('button', { name: 'Jetzt kündigen' }));
 		await waitFor(() => {
 			expect(api.cancelBillingSubscription).toHaveBeenCalledTimes(1);
 		});
@@ -250,4 +286,86 @@ describe('SubscriptionSection (#2048)', () => {
 			expect(screen.getByTestId('cancel-subscription')).toBeInTheDocument();
 		},
 	);
+});
+
+describe('SubscriptionSection — Kündigungsbutton und Bestätigungsschritt (#2308)', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		subscriptionState.subscription = { ...baseSubscription, status: 'active' };
+	});
+
+	it('AK1: „Verträge hier kündigen" ist bei kündbarem Abo ohne Aufklappen sichtbar, bei gekündigtem fehlt er', () => {
+		const { unmount } = render(<SubscriptionSection />);
+		expect(screen.getByRole('button', { name: 'Verträge hier kündigen' })).toBeInTheDocument();
+		unmount();
+
+		subscriptionState.subscription = { ...baseSubscription, status: 'cancelled' };
+		render(<SubscriptionSection />);
+		expect(screen.queryByRole('button', { name: 'Verträge hier kündigen' })).not.toBeInTheDocument();
+	});
+
+	it('AK2: Dialog zeigt Paket, Laufzeitende, Art (Default ordentlich) und E-Mail-Feld, noch ohne Grund', () => {
+		render(<SubscriptionSection />);
+		fireEvent.click(screen.getByRole('button', { name: 'Verträge hier kündigen' }));
+
+		const dialog = screen.getByRole('dialog');
+		expect(dialog).toHaveTextContent(/Pro/);
+		expect(dialog).toHaveTextContent(/monatlich/);
+		expect(dialog).toHaveTextContent(/zum Ende der Laufzeit/);
+		expect(dialog).toHaveTextContent(/15\.1?\.2027/);
+		expect(screen.getByLabelText('Ordentlich')).toBeChecked();
+		expect(screen.getByLabelText('Außerordentlich')).not.toBeChecked();
+		expect(screen.getByLabelText(/E-Mail/)).toBeInTheDocument();
+		expect(screen.queryByLabelText(/Grund/)).not.toBeInTheDocument();
+	});
+
+	it('AK3: außerordentlich verlangt einen Grund, ungültige E-Mail blockiert — kein Aufruf', async () => {
+		const { api } = (await import('../api')) as typeof import('../api');
+		render(<SubscriptionSection />);
+		fireEvent.click(screen.getByRole('button', { name: 'Verträge hier kündigen' }));
+		fireEvent.change(screen.getByLabelText(/E-Mail/), { target: { value: 'kunde@example.com' } });
+		fireEvent.click(screen.getByLabelText('Außerordentlich'));
+		expect(screen.getByLabelText(/Grund/)).toBeInTheDocument();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Jetzt kündigen' }));
+		expect(api.cancelBillingSubscription).not.toHaveBeenCalled();
+
+		fireEvent.change(screen.getByLabelText(/Grund/), { target: { value: 'Preiserhöhung' } });
+		fireEvent.change(screen.getByLabelText(/E-Mail/), { target: { value: 'kein-email' } });
+		fireEvent.click(screen.getByRole('button', { name: 'Jetzt kündigen' }));
+		expect(api.cancelBillingSubscription).not.toHaveBeenCalled();
+	});
+
+	it('AK4: Bestätigen sendet Art, Grund und E-Mail; danach Gekündigt-Zustand', async () => {
+		const { api } = (await import('../api')) as typeof import('../api');
+		render(<SubscriptionSection />);
+		fireEvent.click(screen.getByRole('button', { name: 'Verträge hier kündigen' }));
+		fireEvent.click(screen.getByLabelText('Außerordentlich'));
+		fireEvent.change(screen.getByLabelText(/Grund/), { target: { value: 'Preiserhöhung' } });
+		fireEvent.change(screen.getByLabelText(/E-Mail/), { target: { value: 'kunde@example.com' } });
+		fireEvent.click(screen.getByRole('button', { name: 'Jetzt kündigen' }));
+
+		await waitFor(() => {
+			expect(api.cancelBillingSubscription).toHaveBeenCalledWith({
+				kind: 'extraordinary',
+				reason: 'Preiserhöhung',
+				email: 'kunde@example.com',
+			});
+		});
+		await waitFor(() => {
+			expect(screen.getByTestId('subscription-cancelled')).toBeInTheDocument();
+		});
+	});
+
+	it('AK4: ordentliche Kündigung sendet keinen Grund', async () => {
+		const { api } = (await import('../api')) as typeof import('../api');
+		render(<SubscriptionSection />);
+		fireEvent.click(screen.getByRole('button', { name: 'Verträge hier kündigen' }));
+		fireEvent.change(screen.getByLabelText(/E-Mail/), { target: { value: 'kunde@example.com' } });
+		fireEvent.click(screen.getByRole('button', { name: 'Jetzt kündigen' }));
+
+		await waitFor(() => {
+			expect(api.cancelBillingSubscription).toHaveBeenCalledWith({ kind: 'ordinary', email: 'kunde@example.com' });
+		});
+	});
 });

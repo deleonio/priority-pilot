@@ -24,4 +24,10 @@ describe('#2048 OpenAPI: Cancel-Route dokumentiert 409', () => {
 		assert.ok(block.length > 0, '/billing/subscriptions/cancel muss im Vertrag existieren');
 		assert.match(block, /'409':/, 'Die Cancel-Route muss 409 (bereits gekündigt) definieren');
 	});
+
+	it('#2308 AK4: POST /billing/subscriptions/cancel definiert einen Request-Body und 400', () => {
+		const block = cancelBlock();
+		assert.match(block, /requestBody:/, 'Die Cancel-Route muss den Body { kind, reason, email } beschreiben');
+		assert.match(block, /'400':/, 'Die Cancel-Route muss 400 (ungültiger Body) definieren');
+	});
 });

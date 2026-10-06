@@ -1718,10 +1718,9 @@ describe('SettingsPage – #1902: Tab „Pakete & Abo"', () => {
 			panel.querySelector('kol-details [data-testid="billing-invoices"]'),
 			'Rechnungen im KolDetails',
 		).not.toBeNull();
-		expect(
-			panel.querySelector('kol-details [data-testid="cancel-subscription"]'),
-			'Kündigen im KolDetails',
-		).not.toBeNull();
+		// #2308 AK1: der Kündigungsbutton liegt außerhalb des zugeklappten KolDetails.
+		expect(panel.querySelector('kol-details [data-testid="cancel-subscription"]')).toBeNull();
+		expect(panel.querySelector('[data-testid="cancel-subscription"]')).not.toBeNull();
 		expect(panel.querySelector('[data-testid="subscription-status"]')?.textContent).toContain('Pro');
 	});
 
@@ -1957,12 +1956,12 @@ describe('SettingsPage – #1940: Rechnungen ohne aktives Abo', () => {
 		}
 	});
 
-	it('AK4: Label „Rechnungen und Kündigung“ bei PayPal-Abo im Web', async () => {
+	it('AK4 (#2308): Label „Rechnungen“ bei PayPal-Abo im Web', async () => {
 		const panel = renderTab(sub('paypal'));
 		await waitFor(() => expect(panel.querySelector('[data-testid="billing-invoices"]')).not.toBeNull());
 
 		expect(panel.querySelector('[data-testid="subscription-section"] kol-details')?.getAttribute('_label')).toBe(
-			'Rechnungen und Kündigung',
+			'Rechnungen',
 		);
 	});
 });
