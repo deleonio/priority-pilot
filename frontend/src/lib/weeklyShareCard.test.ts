@@ -44,4 +44,11 @@ describe('weeklyShareCard — reine SVG-Erzeugung (#1968 AK1)', () => {
 		expect(svg).not.toContain('Zahnarzt');
 		expect(svg).not.toContain('Oma anrufen');
 	});
+
+	it('#2275 AK5: Domain balamentum.modevel.de als Link-Ziel und Text, nie balamentum.app', () => {
+		const svg = erzeugeWochenKarteSvg({ saeulen: SAEULEN, streak: 12, woche: 'KW 41 / 2026' });
+		expect(svg).toContain('href="https://balamentum.modevel.de"');
+		expect(svgText(svg)).toContain('balamentum.modevel.de');
+		expect(svg).not.toContain('balamentum.app');
+	});
 });

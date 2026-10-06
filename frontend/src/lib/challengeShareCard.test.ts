@@ -29,4 +29,11 @@ describe('challengeShareCard — reine SVG-Erzeugung (#1992 AK6)', () => {
 		expect(svg).not.toContain('Geheimprojekt');
 		expect(svg).not.toContain('Zahnarzt');
 	});
+
+	it('#2275 AK5: Domain balamentum.modevel.de als Link-Ziel und Text, nie balamentum.app', () => {
+		const svg = erzeugeChallengeKarteSvg(DATEN);
+		expect(svg).toContain('href="https://balamentum.modevel.de"');
+		expect(svgText(svg)).toContain('balamentum.modevel.de');
+		expect(svg).not.toContain('balamentum.app');
+	});
 });
