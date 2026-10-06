@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.17 - 2026-10-06
 
-_Enthält v0.17.0 – v0.17.30._
+_Enthält v0.17.0 – v0.17.31._
 
 ### 🎉 New Features
 
@@ -50,6 +50,7 @@ _Enthält v0.17.0 – v0.17.30._
 - feat(server): reconcile paypal subscriptions daily (#2300) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2313
 - fix(server): one invoice per PayPal charge, idempotent via sale id by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2316
 - feat(frontend): add withdrawal notice and order button to checkout by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2315
+- [P2/M] Rechnung: Gutschrift als PDF speichern und zustellen (#2303) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2318
 
 ## v0.16 - 2026-10-06
 
@@ -161,6 +162,7 @@ _Enthält v0.14.0 – v0.14.31._
 
 ### 🚀 Improvements
 
+- perf(server): single ScoreEntry read per balance request (#2150) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2155
 - perf(server): single ScoreEntry read per balance request (#2150) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2155
 - feat(frontend): show categories as inline chips instead of card rows by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2161
 - feat(frontend): clarify dashboard day/week view switcher labels (#2011) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2165
@@ -319,7 +321,6 @@ _Enthält v0.11.0 – v0.11.31._
 - Säulenbeschreibungen erklären, wie die Balance zustande kommt (#1849) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1884
 - feat(frontend): explain streak counting rule on streak card (#1819) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1885
 - ci(deploy): demo.apk mit Produktionsschlüssel signieren (#1779) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1906
-- feat(server): keep paid plan until period end on paypal cancel by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1908
 - feat(server): keep paid plan until period end on paypal cancel by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1908
 - feat(frontend): move saved places into their own settings tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1911
 - feat(frontend): show monthly equivalent of yearly price by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1914
