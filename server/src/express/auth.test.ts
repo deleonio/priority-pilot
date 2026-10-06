@@ -4,6 +4,7 @@ import passport from 'passport';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
 import { User } from '../models/index.js';
 import sequelize from '../database.js';
+import type { AppDeps } from './index.js';
 
 // Auth-Kontext muss vor dem Server-Start feststehen: createApp() liest diese
 // Werte beim Aufbau der Session-/Passport-Middleware.
@@ -615,5 +616,102 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			const meRes = await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } });
 			assert.equal(meRes.status, 401, 'Session nach Logout muss ungültig sein');
 		});
+	});
+});
+
+/**
+ * #2238 (Spec docs/spec/issue-2238.md) — AK3: Zwischen Upgrade-Bestätigung und Zahlungseingang
+ * zeigt /auth/me das bisherige Paket und trägt den bevorstehenden Wechsel als zahlungsgebundene
+ * Vormerkung (pendingPlan gesetzt, pendingPlanEffectiveAt null).
+ */
+describe('#2238 — /auth/me während ausstehender Upgrade-Zahlung', () => {
+	const DAY_MS = 24 * 60 * 60 * 1000;
+	let srv: TestServer;
+
+	const login = async (email: string): Promise<string> => {
+		const res = await fetch(`${srv.baseUrl}/auth/test-login`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ email, displayName: 'Upgrade User' }),
+		});
+		assert.equal(res.status, 200, 'Test-Login sollte 200 liefern');
+		return (res.headers.get('set-cookie') as string).split(';')[0];
+	};
+
+	before(async () => {
+		srv = await startTestServer({
+			paypalClient: {
+				createSubscription: async () => ({ approvalUrl: 'u', externalSubscriptionId: 'I-UP-2238' }),
+				cancel: async () => {},
+				revise: async () => ({}),
+			},
+			paypalVerifier: async () => 'verified',
+		} as unknown as AppDeps);
+	});
+
+	after(async () => {
+		await srv.close();
+	});
+
+	it('AK3: liefert plan = bisheriges Paket und den Wechsel als zahlungsgebundene Vormerkung', async () => {
+		await resetDb();
+		const cookie = await login('upgrade-2238@example.com');
+		const { default: Subscription } = await import('../models/subscription.js');
+		const dbUser = await User.findOne({ where: { email: 'upgrade-2238@example.com' } });
+		assert.ok(dbUser, 'Setup: Session-User muss existieren');
+		await dbUser.update({ plan: 'plus' });
+		const userId = (dbUser as unknown as { id: number }).id;
+		// Laufendes, bezahltes Abo …
+		await Subscription.create({
+			userId,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-RUNNING-2238',
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date(Date.now() + 15 * DAY_MS),
+		});
+		// … und das ausstehende Upgrade (Zustand nach /change, #1912): Zielpaket + Restschuld.
+		await Subscription.create({
+			userId,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-UP-2238',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'approval_pending',
+			creditCents: 400,
+			currentPeriodEnd: new Date(Date.now() - 1000),
+		});
+		await fetch(`${srv.baseUrl}/webhooks/paypal`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', 'paypal-transmission-sig': 'ok' },
+			body: JSON.stringify({
+				id: 'WH-2238-ACT',
+				event_type: 'BILLING.SUBSCRIPTION.ACTIVATED',
+				resource: { id: 'I-UP-2238', billing_agreement_id: 'I-UP-2238' },
+			}),
+		});
+
+		const meRes = await fetch(`${srv.baseUrl}/auth/me`, { headers: { Cookie: cookie } });
+		assert.equal(meRes.status, 200);
+		const body = (await meRes.json()) as {
+			plan?: string;
+			subscription?: {
+				plan?: string;
+				status?: string;
+				pendingPlan?: string | null;
+				pendingPlanEffectiveAt?: string | null;
+			} | null;
+		};
+		assert.equal(body.plan, 'plus', 'User.plan trägt weiter das bisherige Paket');
+		assert.ok(body.subscription, 'das laufende Abo wird angezeigt');
+		assert.equal(body.subscription?.plan, 'plus', 'angezeigt wird das laufende (bezahlte) Abo');
+		assert.equal(body.subscription?.status, 'active');
+		assert.equal(body.subscription?.pendingPlan, 'pro', 'der bevorstehende Wechsel ist als Vormerkung sichtbar');
+		assert.equal(
+			body.subscription?.pendingPlanEffectiveAt ?? null,
+			null,
+			'null = zahlungsgebunden, Frontend-Hinweis aktiv mit Zahlungseingang',
+		);
 	});
 });

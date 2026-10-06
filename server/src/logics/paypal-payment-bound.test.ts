@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { Subscription, User } from '../models/index.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 import { applyDuePendingPlan, applyPaymentEvent, applyPlanChange } from './paypal.js';
+import { getPlansCatalog } from './plans.js';
 
 /**
  * #2140 (Spec docs/spec/issue-2140.md) — AK1/AK2/AK3/AK5: Ein Paketwechsel, der eine Abbuchung
@@ -125,6 +126,39 @@ describe('Paketwechsel erst nach Zahlungsbestätigung (#2140, PayPal)', () => {
 		await subscription.reload();
 		assert.equal(subscription.get('pendingPlan'), null);
 		assert.equal(subscription.get('pendingPlanEffectiveAt'), null);
+	});
+});
+
+/**
+ * #2238 (Spec docs/spec/issue-2238.md) — AK1: Die Bestätigung (ACTIVATED) eines Upgrades mit
+ * ausstehender Restschuld (Guthaben deckt den ersten Zyklus nicht, Muster `chargesOnActivation`)
+ * aktiviert das Abo nicht — erst der Zahlungseingang (#2140) tut das. Ohne Restschuld gilt das
+ * bisherige Verhalten weiter.
+ */
+describe('Upgrade-Aktivierung erst mit Zahlungseingang (#2238)', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+
+	it('AK1: ACTIVATED auf einer Upgrade-Zeile mit ausstehender Restschuld ändert den Status nicht', async () => {
+		const { subscription } = await seed('plus', 'monthly');
+		const restCharge = getPlansCatalog().prices.pro.monthly - 100;
+		await subscription.update({ plan: 'pro', status: 'approval_pending', creditCents: restCharge });
+
+		await applyPaymentEvent(subscription, change('BILLING.SUBSCRIPTION.ACTIVATED', PLAN_IDS.proMonthly), NOW);
+
+		await subscription.reload();
+		assert.equal(subscription.get('status'), 'approval_pending', 'ohne Zahlungseingang bleibt das Upgrade-Abo ausstehend');
+	});
+
+	it('AK1: ACTIVATED ohne Restschuld (Guthaben deckt den Zyklus) aktiviert weiterhin', async () => {
+		const { subscription } = await seed('plus', 'monthly');
+		await subscription.update({ plan: 'pro', status: 'approval_pending', creditCents: 0 });
+
+		await applyPaymentEvent(subscription, change('BILLING.SUBSCRIPTION.ACTIVATED', PLAN_IDS.proMonthly), NOW);
+
+		await subscription.reload();
+		assert.equal(subscription.get('status'), 'active');
 	});
 });
 
