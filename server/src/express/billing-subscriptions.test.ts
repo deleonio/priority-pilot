@@ -6,7 +6,7 @@ import { Subscription } from '../models/index.js';
 // (Muster models/invoice.test.ts), um diese Testdatei nicht an einer fremden Produktivlücke
 // scheitern zu lassen (SKILL.md: Import-/Syntaxfehler ist kein legitimes Rot).
 import Invoice from '../models/invoice.js';
-import { issueInvoiceForPeriod } from '../logics/invoices.js';
+import { issueCreditNote, issueInvoiceForPeriod } from '../logics/invoices.js';
 import type { AppDeps } from './index.js';
 import { getPlansCatalog } from '../logics/plans.js';
 import { PaypalHttpError, replacePredecessors } from '../logics/paypal.js';
@@ -813,6 +813,19 @@ describe('Rechnungs-PDF-Download (#1955 AK4)', () => {
 		const res = await get(`/billing/invoices/${invoice.get('id')}/pdf`, cookieA);
 
 		assert.equal(res.status, 404, 'Fremde PDFs dürfen weder inhaltlich noch über den Status verraten werden');
+	});
+
+	// #2303 AK1 (Spec docs/spec/issue-2303.md): die Gutschrift hat ein gespeichertes PDF, der Download liefert 200.
+	it('#2303 AK1: GET /billing/invoices/{id}/pdf einer Gutschrift liefert 200, application/pdf und GS-Dateinamen', async () => {
+		server = await startTestServer(withClient({}));
+		const { cookie, invoice } = await issueFor('pdf-credit@example.com');
+		const credit = await issueCreditNote(invoice, new Date('2026-11-02T10:00:00Z'), undefined, async () => {});
+
+		const res = await get(`/billing/invoices/${credit.get('id')}/pdf`, cookie);
+
+		assert.equal(res.status, 200, 'Die Gutschrift braucht gespeicherte PDF-Bytes');
+		assert.ok((res.headers.get('content-type') ?? '').includes('application/pdf'));
+		assert.ok((res.headers.get('content-disposition') ?? '').includes(`${credit.get('number')}.pdf`));
 	});
 
 	// #2049 (Spec docs/spec/issue-2049.md): ein gekündigtes Abo mit Restlaufzeit

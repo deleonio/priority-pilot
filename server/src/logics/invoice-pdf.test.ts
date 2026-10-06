@@ -138,6 +138,29 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 			assert.equal(Buffer.from(bytes).subarray(0, 5).toString(), '%PDF-');
 		});
 	}
+
+	// #2303 AK2 (Spec docs/spec/issue-2303.md): Gutschrift-Titel statt „Rechnung“, Bezug aufs Original.
+	it('#2303 AK2: Gutschrift trägt Titel „Gutschrift“, Bezug auf die Originalrechnung und kein „Rechnung GS-“', async () => {
+		const credit = await Invoice.create({
+			userId: 1,
+			subscriptionId: 1,
+			number: 'GS-2026-000001',
+			periodStart: new Date('2026-02-01T00:00:00Z'),
+			periodEnd: new Date('2026-03-01T00:00:00Z'),
+			amountCents: -799,
+			taxNote: TAX_NOTE,
+			paymentStatus: 'refunded',
+			creditForInvoiceId: 1,
+		});
+
+		const lines = invoicePdfLines(credit, OPERATOR, RECIPIENT, 'Zur Rechnung INV-2026-000001');
+
+		assert.equal(lines[0], 'Gutschrift GS-2026-000001', 'Erste Zeile ist der Gutschrift-Titel');
+		const text = lines.join('\n');
+		assert.ok(text.includes('INV-2026-000001'), 'Die Nummer der Originalrechnung muss im PDF stehen');
+		assert.ok(!text.includes('Rechnung GS-'), 'Eine Gutschrift darf nicht als „Rechnung“ betitelt sein');
+		assert.ok(!text.includes('Rechnungsdatum'), 'Datumszeile heißt bei Gutschriften „Gutschriftdatum“');
+	});
 });
 
 describe('invoices.ts — PDF-Erzeugung und -Aufbewahrung (#1955 AK1/AK3)', () => {
