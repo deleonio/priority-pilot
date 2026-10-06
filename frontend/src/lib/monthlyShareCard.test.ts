@@ -107,9 +107,9 @@ describe('monthlyShareCard — Marken-Fußzeile (#2255, docs/spec/issue-2255.md)
 		monat: 'Rückblick September 2026',
 	};
 
-	/** Neue Signatur (#2255): optionale übersetzte Logo-Bezeichnungen — Produktiv-Typ unangetastet, im Test gecastet. */
+	/** Neue Signatur (#2255): optionale übersetzte Logo-Bezeichnungen — `marken` ist optional, kein Cast nötig. */
 	const mitMarken = (marken: { balamentum: string; play: string; pwa: string }): string =>
-		erzeugeMonatsKarteSvg({ ...daten, marken } as Parameters<typeof erzeugeMonatsKarteSvg>[0]);
+		erzeugeMonatsKarteSvg({ ...daten, marken });
 
 	it('AK1: bettet Balamentum-, Google-Play- und PWA-Logo inline ein — ohne externe URL oder Dateipfad', () => {
 		const svg = erzeugeMonatsKarteSvg(daten);
