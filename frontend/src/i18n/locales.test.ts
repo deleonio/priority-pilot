@@ -51,3 +51,13 @@ describe('Übersetzungsdateien', () => {
 		}
 	});
 });
+
+// #2225 AK5: Der Satz im Import-Schritt ohne KI-Paket existiert in jeder Sprache und ist nicht leer
+// (der Gleichstand-Test oben prüft nur Schlüsselnamen, nicht den Wert).
+describe('onboarding.importAiHint (#2225)', () => {
+	it.each([REFERENCE_LANGUAGE, ...otherLanguages])('%s hat einen nicht-leeren Text', (language) => {
+		const common = modules[`./locales/${language}/common.json`].default as { onboarding?: { importAiHint?: unknown } };
+		const value = common.onboarding?.importAiHint;
+		expect(typeof value === 'string' && value.trim().length > 0).toBe(true);
+	});
+});

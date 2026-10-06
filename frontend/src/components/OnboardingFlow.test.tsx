@@ -12,6 +12,8 @@ vi.mock('../api', () => ({
 	},
 }));
 
+import i18next from 'i18next';
+import { AI_ENABLED_STORAGE_KEY } from '../lib/aiPreferences';
 import { PlanProvider } from '../lib/usePlan';
 import { api } from '../api';
 import { OnboardingFlow } from './OnboardingFlow';
@@ -397,5 +399,47 @@ describe('OnboardingFlow — ohne KI-Paket', () => {
 		expect(document.body.querySelector('.onboarding-step-indicator')?.textContent).toContain('Schritt 1 von 1');
 		expect(document.body.querySelector('.onboarding-flow kol-textarea')).toBeNull();
 		await waitFor(() => expect(button('Aufgaben aus Todoist oder CSV importieren')).toBeDefined());
+	});
+});
+
+// #2225: Free-Konto (ohne `ai_assist`) sieht im Import-Schritt einen erklärenden Satz und den Paket-Hinweis.
+// Spec: docs/spec/issue-2225.md (Schlüssel `onboarding.importAiHint`, Test-ID `onboarding-import-ai-hint`).
+describe('OnboardingFlow — Import-Schritt erklärt fehlende KI (Spec #2225)', () => {
+	afterEach(() => localStorage.removeItem(AI_ENABLED_STORAGE_KEY));
+
+	const renderWith = (allowed: boolean): void => {
+		render(
+			<PlanProvider
+				value={{
+					plan: allowed ? 'pro' : 'free',
+					entitlements: { ai_assist: { allowed, requiredPlan: 'plus' } } as unknown as EntitlementMap,
+				}}
+			>
+				<OnboardingFlow pillars={pillars} onClose={vi.fn()} />
+			</PlanProvider>,
+		);
+	};
+	const hint = () => document.body.querySelector('[data-testid="onboarding-import-ai-hint"]');
+	const badge = () => document.body.querySelector('[data-testid="plan-badge-ai_assist"]');
+
+	it('AK1/AK2: ohne ai_assist erscheinen Satz (neuer i18n-Schlüssel) und Paket-Hinweis, kein Dialog', async () => {
+		renderWith(false);
+		const expected = i18next.t('onboarding.importAiHint', { ns: 'common' });
+		expect(expected, 'Schlüssel onboarding.importAiHint fehlt in common.json').not.toBe('onboarding.importAiHint');
+		expect(hint()?.textContent).toBe(expected);
+		expect(badge()).not.toBeNull();
+		expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+	});
+
+	it('AK3: mit ai_assist und eingeschalteter KI weder Satz noch Paket-Hinweis', () => {
+		renderWith(true);
+		expect(hint()).toBeNull();
+		expect(badge()).toBeNull();
+	});
+
+	it('AK4: Paket erlaubt, KI per Einstellung aus → kein Paket-Hinweis', () => {
+		localStorage.setItem(AI_ENABLED_STORAGE_KEY, 'false');
+		renderWith(true);
+		expect(badge()).toBeNull();
 	});
 });
