@@ -4,11 +4,12 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.17 - 2026-10-06
 
-_Enthält v0.17.0 – v0.17.14._
+_Enthält v0.17.0 – v0.17.15._
 
 ### 🎉 New Features
 
 - feat(server): carry upgrade credit over to following cycles (#2241) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2280
+- feat(frontend): add welcome steps card to dashboard after onboarding by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2284
 
 ### 🔧 Engineering
 
@@ -153,7 +154,7 @@ _Enthält v0.14.0 – v0.14.31._
 - feat(ci): hard deadline around agent call keeps soft-abort alive by @deleonio in https://github.com/deleonio/priority-pilot/pull/2124
 - docs: describe pillars as five fixed per-user copies (V-10, F-31) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2130
 - docs(marketing): rewrite articles as long standalone platform versions by @deleonio in https://github.com/deleonio/priority-pilot/pull/2117
-- docs(marketing): rewrite articles as long standalone platform versions by @deleonio in https://github.com/deleonio/priority-pilot/pull/2117
+- feat(server): suggest share and confidence per pillar (#2076) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2131
 - feat(server): suggest share and confidence per pillar (#2076) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2131
 - feat(ci): auto-merge mechanically solvable PR conflicts (#2099) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2125
 - feat(ci): let container closing analysis act on its result (#2101) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2127
