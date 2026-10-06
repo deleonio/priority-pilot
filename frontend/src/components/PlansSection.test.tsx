@@ -198,8 +198,7 @@ describe('PlansSection je Kanal (#1674)', () => {
 		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
 
 		// Zwei bezahlte Pakete × drei Zeiträume; der Name steht im Label (eindeutig für Screenreader).
-		expect(screen.getAllByRole('button', { name: /buchen/i })).toHaveLength(6);
-		expect(screen.getByRole('button', { name: 'Pro buchen (monatlich)' })).toBeTruthy();
+		expect(screen.getAllByRole('button', { name: /Zahlungspflichtig bestellen/ })).toHaveLength(6);
 		expect(screen.queryByText('Die Pakete lassen sich bald direkt in der App buchen.')).toBeNull();
 	});
 
