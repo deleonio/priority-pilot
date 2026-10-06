@@ -4,7 +4,11 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.17 - 2026-10-06
 
-_Enthält v0.17.0 – v0.17.10._
+_Enthält v0.17.0 – v0.17.11._
+
+### 🎉 New Features
+
+- feat(server): carry upgrade credit over to following cycles (#2241) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2280
 
 ### 🔧 Engineering
 
@@ -311,6 +315,7 @@ _Enthält v0.10.0 – v0.10.36._
 ### 🎉 New Features
 
 - feat(server): add ai care suggestion for plus and pro (#1804) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1871
+- feat(server): add ai care suggestion for plus and pro (#1804) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1871
 
 ### 🚀 Improvements
 
@@ -355,7 +360,6 @@ _Enthält v0.10.0 – v0.10.36._
 - ci(review): rerun red e2e shards once before the review starts by @deleonio in https://github.com/deleonio/priority-pilot/pull/1840
 - feat(server): switch plans to free, plus and pro (#1782) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1864
 - feat(server): remove legacy max/ultimate plans, add migrateLegacyPlans by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1867
-- test(server): cover mcp plan tiers plus read and pro write by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1870
 - test(server): cover mcp plan tiers plus read and pro write by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1870
 - docs(skills): add ticket-coordination skill for epic processing by @deleonio in https://github.com/deleonio/priority-pilot/pull/1862
 - feat(frontend): show plan hint at plan limits without dialog (#1787) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1875
