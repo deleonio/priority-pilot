@@ -2,6 +2,7 @@ import { Op, type Transaction } from 'sequelize';
 import Subscription, { OPEN_SUBSCRIPTION_STATUSES } from '../../models/subscription.js';
 import User from '../../models/user.js';
 import { PLAN_VALUES, type Plan } from '../plans.js';
+import type { PaypalSubscriptionReader } from '../paypal.js';
 
 /**
  * Anbieterneutraler Lebenszyklus eines Abos: vorgemerkter Paketwechsel, Kulanzfrist nach einem
@@ -137,4 +138,68 @@ export const applyDueGracePeriods = async (now: Date, deps: GracePeriodDeps = {}
 		}
 	}
 	return applied;
+};
+
+/** Toleranz nach `currentPeriodEnd`, bevor der Abgleich ein aktives PayPal-Abo bei PayPal erfragt (#2300). */
+const RECONCILE_PERIOD_TOLERANCE_DAYS = 3;
+/** Alter, ab dem ein nie bestätigter Checkout (`approval_pending`) bei PayPal erfragt wird (#2300). */
+const RECONCILE_PENDING_AGE_MS = 60 * 60 * 1000;
+
+/**
+ * Täglicher Abgleich mit PayPal (#2300): zieht verpasste Webhooks nach. Abgefragt werden aktive
+ * PayPal-Abos, deren `currentPeriodEnd` mehr als 3 Tage zurückliegt, und `approval_pending`-Checkouts
+ * älter als eine Stunde. Beendete Abos werden gekündigt und `User.plan` neu berechnet, aktive
+ * erhalten den Abrechnungstermin aus PayPal, abgebrochene Checkouts werden verworfen. Jede Korrektur
+ * steht als `[paypal-reconcile]`-Zeile im Log; ein Fehler bei einem Abo lässt die übrigen laufen.
+ * Idempotent. Gibt die Anzahl der Korrekturen zurück.
+ */
+export const reconcilePaypalSubscriptions = async (
+	now: Date,
+	deps: { getSubscription: PaypalSubscriptionReader['getSubscription'] },
+): Promise<number> => {
+	const candidates = await Subscription.findAll({
+		where: {
+			provider: 'paypal',
+			[Op.or]: [
+				{
+					status: 'active',
+					currentPeriodEnd: { [Op.lt]: new Date(now.getTime() - RECONCILE_PERIOD_TOLERANCE_DAYS * DAY_MS) },
+				},
+				{ status: 'approval_pending', createdAt: { [Op.lt]: new Date(now.getTime() - RECONCILE_PENDING_AGE_MS) } },
+			],
+		},
+	});
+	let corrected = 0;
+	for (const subscription of candidates) {
+		const id = subscription.get('externalSubscriptionId') as string;
+		const oldStatus = subscription.get('status') as string;
+		let remote: { status: string; nextBillingTime?: string } | null;
+		try {
+			remote = await deps.getSubscription(id);
+		} catch (error) {
+			if ((error as { status?: number }).status !== 404) {
+				console.warn(`[paypal-reconcile] Abruf von ${id} fehlgeschlagen.`, error);
+				continue;
+			}
+			remote = null;
+		}
+		if (oldStatus === 'approval_pending') {
+			if (remote && ['ACTIVE', 'APPROVED'].includes(remote.status)) continue;
+			await subscription.destroy();
+			console.info(`[paypal-reconcile] ${id}: approval_pending -> verworfen (PayPal: ${remote?.status ?? '404'})`);
+		} else if (remote && ['CANCELLED', 'EXPIRED', 'SUSPENDED'].includes(remote.status)) {
+			await subscription.update({ status: 'cancelled', plan: 'free' });
+			await syncUserPlan(subscription, 'free');
+			console.info(`[paypal-reconcile] ${id}: active -> cancelled (PayPal: ${remote.status})`);
+		} else if (remote?.status === 'ACTIVE' && remote.nextBillingTime) {
+			const oldEnd = new Date(subscription.get('currentPeriodEnd') as Date | string).toISOString();
+			const newEnd = new Date(remote.nextBillingTime);
+			await subscription.update({ currentPeriodEnd: newEnd });
+			console.info(`[paypal-reconcile] ${id}: currentPeriodEnd ${oldEnd} -> ${newEnd.toISOString()}`);
+		} else {
+			continue;
+		}
+		corrected += 1;
+	}
+	return corrected;
 };

@@ -230,3 +230,32 @@ describe('paypal.ts — assertPaypalConfig (#2302)', () => {
 		}
 	});
 });
+
+describe('paypal.ts — createPaypalClient().getSubscription (#2300)', () => {
+	const fetchWith = (res: Response, seen: string[]): typeof fetch =>
+		(async (input: RequestInfo | URL) => {
+			const url = String(input);
+			if (url.endsWith('/v1/oauth2/token')) {
+				return new Response(JSON.stringify({ access_token: 'test-token' }), { status: 200 });
+			}
+			seen.push(url);
+			return res;
+		}) as unknown as typeof fetch;
+
+	it('GET /v1/billing/subscriptions/{id}: mappt status und billing_info.next_billing_time', async () => {
+		const seen: string[] = [];
+		const body = { status: 'ACTIVE', billing_info: { next_billing_time: '2026-11-20T00:00:00Z' } };
+		const result = await createPaypalClient(
+			fetchWith(new Response(JSON.stringify(body), { status: 200 }), seen),
+		).getSubscription('I-1');
+		assert.ok(seen[0]!.endsWith('/v1/billing/subscriptions/I-1'));
+		assert.deepEqual(result, { status: 'ACTIVE', nextBillingTime: '2026-11-20T00:00:00Z' });
+	});
+
+	it('404 wirft PaypalHttpError mit status 404', async () => {
+		await assert.rejects(
+			createPaypalClient(fetchWith(new Response('{}', { status: 404 }), [])).getSubscription('I-X'),
+			(e: unknown) => (e as { status?: number }).status === 404,
+		);
+	});
+});
