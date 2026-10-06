@@ -108,7 +108,8 @@
 		"beispiel2": "Answer an important email",
 		"beispiel3": "Plan the coming weekend",
 		"erstenTaskAnlegen": "Create your first task",
-		"importieren": "Import tasks from Todoist or a CSV file"
+		"importieren": "Import tasks from Todoist or a CSV file",
+		"importAiHint": "Without the AI plan, import is the only step here: bring your tasks from Todoist or a CSV, then start right away on the dashboard."
 	},
 	"weeklyCard": {
 		"label": "My week in five pillars",

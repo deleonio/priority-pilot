@@ -108,7 +108,8 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
-		"importieren": "Aufgaben aus Todoist oder CSV importieren"
+		"importieren": "Aufgaben aus Todoist oder CSV importieren",
+		"importAiHint": "Ohne KI-Paket bleibt hier der Import: Deine Aufgaben kommen aus Todoist oder CSV, danach legst du im Dashboard direkt los."
 	},
 	"weeklyCard": {
 		"label": "Meine Woche in fünf Säulen",

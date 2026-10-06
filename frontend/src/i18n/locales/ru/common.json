@@ -108,7 +108,8 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
-		"importieren": "Импортировать задачи из Todoist или CSV"
+		"importieren": "Импортировать задачи из Todoist или CSV",
+		"importAiHint": "Без пакета ИИ здесь остаётся только импорт: перенесите задачи из Todoist или CSV и сразу начните работу на панели."
 	},
 	"weeklyCard": {
 		"label": "Моя неделя в пяти столпах",

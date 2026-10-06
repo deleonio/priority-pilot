@@ -10,6 +10,7 @@ import { readChecked, readString } from '../lib/inputValue';
 import { useEntitlement } from '../lib/usePlan';
 import { suggestionsToContributions } from '../lib/pillar';
 import { AiQuotaHint } from './AiQuotaHint';
+import { PlanHint } from './PlanHint';
 import { EXAMPLE_TASKS } from './EmptyState';
 
 interface OnboardingFlowProps {
@@ -54,7 +55,8 @@ export const OnboardingFlow = ({ pillars, onClose, onApplied, active = true, onI
 	// Ohne KI (Paket ohne `ai_assist` oder KI ausgeschaltet) sind Freitext und Vorschläge sinnlos: der
 	// Flow besteht dann nur noch aus dem Import. Solange das Entitlement
 	// unbekannt ist, gilt KI als verfügbar (der Server lehnt sonst weiter mit 403 ab → Quota-Hinweis).
-	const aiAvailable = useEntitlement('ai_assist')?.allowed !== false && readAiPreferences().aiEnabled;
+	const aiPlanAllowed = useEntitlement('ai_assist')?.allowed !== false;
+	const aiAvailable = aiPlanAllowed && readAiPreferences().aiEnabled;
 	const step = aiAvailable ? rawStep : 4;
 	const totalSteps = aiAvailable ? TOTAL_STEPS : 1;
 	const shownStep = aiAvailable ? step : 1;
@@ -340,6 +342,13 @@ export const OnboardingFlow = ({ pillars, onClose, onApplied, active = true, onI
 					{/* #1969 AK7: optionaler Import-Einstieg — erst am Ende, weil der Verweis in die Einstellungen
 					    den Flow beendet; die Aufgaben aus Schritt 4 sind dann schon angelegt. */}
 					<p>{t('onboarding.importHint')}</p>
+					{/* #2225: Free-Pfad ohne KI — ein Satz zur Einordnung, Paketgrenze als Hinweis (ADR 0018). */}
+					{!aiPlanAllowed && (
+						<>
+							<p data-testid="onboarding-import-ai-hint">{t('onboarding.importAiHint')}</p>
+							<PlanHint feature="ai_assist" />
+						</>
+					)}
 					<KolButton
 						className="onboarding-import-entry"
 						_label={t('onboarding.importieren')}

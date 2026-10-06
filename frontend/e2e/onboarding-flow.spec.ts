@@ -387,3 +387,23 @@ test.describe('#2070 Abschluss: Startgewichtung, Abschluss-Karte, Beispielaufgab
 		});
 	});
 });
+
+// #2225 AK6: Free-Konto (echte Entitlements, kein `ai_assist`-Override) — der Import-Schritt erklärt
+// die fehlende KI und bleibt bei 375 px bedienbar. Spec: docs/spec/issue-2225.md.
+test.describe('#2225 Import-Schritt ohne KI-Paket', () => {
+	test.use({ viewport: { width: 375, height: 812 } });
+
+	test('AK6: Satz und Import-Button liegen im 375-px-Viewport', async ({ page }) => {
+		await registerOwnSession(page, 'onboarding-2225');
+		await page.unroute('**/auth/me');
+		await page.goto('/app/');
+		await waitForStableView(page);
+
+		await expect(flow(page)).toBeVisible();
+		await expect(flow(page).locator('kol-textarea')).toHaveCount(0);
+		const hint = flow(page).getByTestId('onboarding-import-ai-hint');
+		await expect(hint).toBeVisible();
+		await expectInViewport(hint);
+		await expectInViewport(flow(page).locator('.onboarding-import-entry'));
+	});
+});
