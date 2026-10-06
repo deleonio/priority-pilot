@@ -77,8 +77,12 @@ export const createPaypalProvider = (deps: PaypalProviderDeps = {}): BillingProv
 			create: (plan, period, firstCycleCents, startTime) => {
 				// Aufgeschobener Start (#2049): Weiterführen/Downgrade nach Kündigung buchen erst ab
 				// `startTime` ab — ohne Einrichtungsgebühr (`firstCycleCents` bleibt ungesetzt).
+				// Guthaben-Übertrag (#2241): Gebühr und Start kommen gemeinsam, eine Gebühr von 0 entfällt.
 				if (startTime !== undefined) {
-					return client.createSubscription(paypalPlanIdFor(plan, period), { startTime });
+					return client.createSubscription(paypalPlanIdFor(plan, period), {
+						...(firstCycleCents && { firstCycleCents }),
+						startTime,
+					});
 				}
 				if (firstCycleCents === undefined) {
 					return client.createSubscription(paypalPlanIdFor(plan, period));

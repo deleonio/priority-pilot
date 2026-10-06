@@ -37,7 +37,10 @@ const USER = {
 
 const json = (body: unknown) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
 
-const openChangeDialog = async (page: Page, preview: { creditCents: number; dueCents: number; immediate: boolean }) => {
+const openChangeDialog = async (
+	page: Page,
+	preview: { creditCents: number; dueCents: number; immediate: boolean; creditCoversUntil?: string },
+) => {
 	await page.route('**/api/v1/plans', (route: Route) => route.fulfill(json(CATALOG)));
 	await page.route('**/auth/me', (route: Route) => route.fulfill(json(USER)));
 	await page.route('**/api/v1/billing/invoices', (route: Route) => route.fulfill(json([])));
@@ -64,6 +67,24 @@ test.describe('Balamentum — #1913: Betragsvorschau im Wechsel-Dialog', () => {
 		await expect(dialog).toContainText('6,50 €');
 
 		for (const text of ['6,50 €', '2,49 €']) {
+			const box = await dialog.getByText(text).first().boundingBox();
+			expect(box, `${text} muss gerendert sein`).not.toBeNull();
+			expect(box!.x).toBeGreaterThanOrEqual(0);
+			expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+		}
+	});
+
+	test('#2241 AK6: bei 375 px liegt das Datum „Guthaben reicht bis“ vollständig im Viewport', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		const dialog = await openChangeDialog(page, {
+			creditCents: 4330,
+			dueCents: 0,
+			immediate: true,
+			creditCoversUntil: '2027-02-06T00:00:00.000Z',
+		});
+		await expect(dialog).toContainText('Guthaben reicht bis');
+
+		for (const text of ['Guthaben reicht bis', '6.2.2027']) {
 			const box = await dialog.getByText(text).first().boundingBox();
 			expect(box, `${text} muss gerendert sein`).not.toBeNull();
 			expect(box!.x).toBeGreaterThanOrEqual(0);

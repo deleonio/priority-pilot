@@ -59,6 +59,7 @@ export const ChangeDialog = ({ targetPlan, targetPeriod, onClose, onChanged }: C
 		dueCents: number;
 		immediate: boolean;
 		startsAt?: string;
+		creditCoversUntil?: string;
 	} | null>(null);
 	const [previewFailed, setPreviewFailed] = useState(false);
 	const cancelRef = useRef<HTMLKolButtonElement>(null);
@@ -124,6 +125,12 @@ export const ChangeDialog = ({ targetPlan, targetPeriod, onClose, onChanged }: C
 								<strong>{formatEuro(preview.dueCents)}</strong>
 							</dd>
 						</div>
+						{preview.creditCoversUntil != null && (
+							<div>
+								<dt>Guthaben reicht bis</dt>
+								<dd>{formatDate(preview.creditCoversUntil)}</dd>
+							</div>
+						)}
 						{preview.startsAt != null && (
 							<div>
 								<dt>Wirksam ab</dt>

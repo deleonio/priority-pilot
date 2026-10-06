@@ -8223,6 +8223,7 @@ components:
         (ADR 0013) — die Oberfläche trägt bewusst keine eigene Paket-Rangfolge.
         `startsAt` nennt den Startzeitpunkt (#2049): sofort beim Upgrade, sonst das
         Periodenende (Weiterführen/Downgrade auch nach Kündigung).
+        `creditCoversUntil` nennt bei einem Guthaben ab dem neuen Preis, bis wann es reicht (#2241).
       required: [creditCents, dueCents, immediate]
       properties:
         creditCents:
@@ -8234,6 +8235,9 @@ components:
         immediate:
           type: boolean
         startsAt:
+          type: string
+          format: date-time
+        creditCoversUntil:
           type: string
           format: date-time
     Invoice:
