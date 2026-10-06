@@ -1,6 +1,13 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
+import {
+	resetDb,
+	closeDb,
+	startTestServer,
+	applyTestAuthEnv,
+	testLoginResponse,
+	type TestServer,
+} from '../test/helpers.js';
 // Rote Spec-Tests für #1983 (AK2/AK3/AK5/AK6) — Vertrag: docs/spec/issue-1983.md.
 // AK2/AK5: Einladung bzw. Aufgaben-Übergabe an eine UNBEKANNTE E-Mail-Adresse schaltet die
 // Adresse mit Herkunft frei (heute 404/400). AK3: Magic-Link-Verify akzeptiert die
@@ -51,6 +58,31 @@ describe('Zulassung unbekannter Adressen durch Einladung/Delegation (#1983)', ()
 
 		const { isDbEmailAllowed } = await import('../logics/allowedEmails.js');
 		assert.equal(await isDbEmailAllowed('neu@beispiel.de'), true, 'Adresse muss freigeschaltet sein');
+	});
+
+	it('Allowlist aktiv: Adresse ohne Einladung bekommt keinen Zugang, nach Einladung schon (#2223)', async () => {
+		const unknown = 'ohne-einladung@beispiel.de';
+		const denied = await testLoginResponse(server, unknown);
+		assert.equal(denied.status, 401, 'ohne Einladung kein Login');
+		const protectedRes = await fetch(`${server.baseUrl}/tasks`);
+		assert.equal(protectedRes.status, 401, 'geschützte Route ohne Sitzung');
+
+		const aliceCookie = await server.login(TEST_EMAIL_ALICE, { displayName: 'Alice Admin', role: 'admin' });
+		const groupRes = await fetch(`${server.baseUrl}/groups`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', cookie: aliceCookie },
+			body: JSON.stringify({ name: 'Familie' }),
+		});
+		const group = (await groupRes.json()) as { id: number };
+		const inviteRes = await fetch(`${server.baseUrl}/groups/${group.id}/invitations`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', cookie: aliceCookie },
+			body: JSON.stringify({ email: unknown }),
+		});
+		assert.equal(inviteRes.status, 201);
+
+		const granted = await testLoginResponse(server, unknown);
+		assert.equal(granted.status, 200, 'nach Einladung Login möglich');
 	});
 
 	// ── AK3: Magic-Link-Zugang für freigeschaltete Adresse ──────────────────────────
