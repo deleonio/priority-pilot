@@ -13,7 +13,7 @@ interface MailAttachment {
 	content: Uint8Array;
 }
 
-interface MailPayload {
+export interface MailPayload {
 	to: string;
 	subject: string;
 	text: string;

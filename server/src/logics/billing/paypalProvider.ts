@@ -73,6 +73,7 @@ export const createPaypalProvider = (deps: PaypalProviderDeps = {}): BillingProv
 				issueCreditNote: (original, n, transaction) => issueCreditNote(original, n, transaction, deps.mailSender),
 				// Paketentzug (#2237) kündigt auch das PayPal-Abo — der Client ist hier im Scope.
 				cancelPaypal: () => client.cancel(subscription.get('externalSubscriptionId') as string),
+				mailSend: deps.mailSender,
 			});
 		},
 		checkout: {
