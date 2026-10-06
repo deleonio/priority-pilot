@@ -2,9 +2,9 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.16 - 2026-10-05
+## v0.16 - 2026-10-06
 
-_Enthält v0.16.0 – v0.16.34._
+_Enthält v0.16.0 – v0.16.35._
 
 ### 🎉 New Features
 
@@ -12,6 +12,7 @@ _Enthält v0.16.0 – v0.16.34._
 - feat(frontend): streak rest day and balanced weeks (#1971) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2215
 - feat(frontend): add journal entries with optional pillar by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2216
 - feat(frontend): add balamentum wrapped yearly recap card by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2219
+- feat(frontend): add launch-phase feedback invitation banner (#2229) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2261
 
 ### 🐞 Bug Fixes
 
@@ -56,6 +57,7 @@ _Enthält v0.16.0 – v0.16.34._
 - fix(ci): fix substring typo in container result step by @deleonio in https://github.com/deleonio/priority-pilot/pull/2259
 - feat(frontend): journal statistics with entry counts and balance history by @deleonio in https://github.com/deleonio/priority-pilot/pull/2263
 - test(frontend): give #1821 and keyboard-shortcuts specs own sessions by @deleonio in https://github.com/deleonio/priority-pilot/pull/2264
+- fix(billing): discard open paypal checkout, no unpaid credit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2260
 
 ## v0.15 - 2026-10-05
 
@@ -164,7 +166,6 @@ _Enthält v0.13.0 – v0.13.27._
 - feat(frontend): admin invoice list and download (#1958) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2084
 - feat(admin): lock and cancel user subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2085
 - feat(server): invoice payment status replaces fixed label (#2086) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2088
-- feat(frontend): onboarding completion flow (weights, summary, examples) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2087
 - feat(frontend): onboarding completion flow (weights, summary, examples) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2087
 - docs: align historic price notes and test mocks with pro plan (#2033) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2089
 
