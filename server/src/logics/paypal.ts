@@ -492,8 +492,10 @@ export const applyPaymentEvent = async (
 	if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED') {
 		// Die Zustimmung bucht nichts ab: die erste Periode beginnt erst mit der ersten Abbuchung (#2230).
 		// Upgrade mit ausstehender Restschuld (#2238): aktiv wird es erst mit dem Zahlungseingang —
-		// sonst entstünden zwei aktive Zeilen und Kündigung/Anzeige würden mehrdeutig.
+		// sonst entstünden zwei aktive Zeilen und Kündigung/Anzeige würden mehrdeutig. Die Zustimmung
+		// wird vermerkt: ein weiterer Wechsel würde das genehmigte PayPal-Abo verwaisen lassen.
 		if (chargesOnActivation(subscription)) {
+			await subscription.update({ approvedAt: now });
 			return;
 		}
 		await subscription.update({ status: 'active' });

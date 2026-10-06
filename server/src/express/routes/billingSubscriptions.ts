@@ -126,6 +126,11 @@ const awaitsFirstCharge = (subscription: Subscription) =>
 	(subscription.get('creditCents') as number) > 0 &&
 	(subscription.get('currentPeriodEnd') as Date).getTime() <= Date.now();
 
+// Genehmigtes Upgrade (#2238): bei PayPal zugestimmt, aber noch nicht bezahlt — ein Wechsel ließe sein Abo verwaisen.
+const awaitsApprovedUpgrade = async (userId: number) =>
+	(await Subscription.findOne({ where: { userId, status: 'approval_pending', approvedAt: { [Op.ne]: null } } })) !==
+	null;
+
 const AWAITS_FIRST_CHARGE_MESSAGE = 'Der letzte Wechsel wird gerade abgerechnet — bitte später erneut versuchen.';
 
 export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps = {}): Router => {
@@ -276,7 +281,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 404, 'Kein Abo gefunden.');
 			return;
 		}
-		if (awaitsFirstCharge(subscription)) {
+		if (awaitsFirstCharge(subscription) || (await awaitsApprovedUpgrade(userId))) {
 			sendError(res, 409, AWAITS_FIRST_CHARGE_MESSAGE);
 			return;
 		}
@@ -350,7 +355,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 404, 'Kein Abo gefunden.');
 			return;
 		}
-		if (awaitsFirstCharge(subscription)) {
+		if (awaitsFirstCharge(subscription) || (await awaitsApprovedUpgrade(userId))) {
 			sendError(res, 409, AWAITS_FIRST_CHARGE_MESSAGE);
 			return;
 		}

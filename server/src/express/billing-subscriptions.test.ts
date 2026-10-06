@@ -1197,4 +1197,39 @@ describe('Upgrade-Aktivierung erst mit Zahlungseingang (#2238)', () => {
 		const upgrade = await Subscription.findOne({ where: { externalSubscriptionId: 'I-UPGRADE-2238' } });
 		assert.ok(upgrade, 'die ausstehende Upgrade-Zeile bleibt bestehen');
 	});
+
+	it('Review #1: zweites /change nach ACTIVATED, vor SALE.COMPLETED → 409, Zeile und PayPal-Abo unangetastet', async () => {
+		const paypalCalls: string[] = [];
+		const { cookie, userId } = await seedUpgradeJourney('review1-2238@example.com', {
+			createSubscription: async () => {
+				paypalCalls.push('create');
+				return { approvalUrl: 'https://paypal.example/2238', externalSubscriptionId: 'I-UPGRADE-2238' };
+			},
+			cancel: async () => {
+				paypalCalls.push('cancel');
+			},
+			revise: async () => {
+				paypalCalls.push('revise');
+				return {};
+			},
+		});
+		await webhook('BILLING.SUBSCRIPTION.ACTIVATED');
+		paypalCalls.length = 0;
+
+		const res = await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'yearly' });
+
+		assert.equal(res.status, 409);
+		assert.deepEqual(paypalCalls, [], 'kein PayPal-Aufruf');
+		const pending = await Subscription.findAll({ where: { userId, status: 'approval_pending' } });
+		assert.equal(pending.length, 1, 'die genehmigte Upgrade-Zeile bleibt bestehen');
+		assert.equal(pending[0]?.get('externalSubscriptionId'), 'I-UPGRADE-2238');
+	});
+
+	it('Review #1: ein nie bestätigtes Upgrade (kein ACTIVATED) bleibt per /change ersetzbar', async () => {
+		const { cookie } = await seedUpgradeJourney('review1b-2238@example.com');
+
+		const res = await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'yearly' });
+
+		assert.equal(res.status, 200);
+	});
 });
