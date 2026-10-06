@@ -120,7 +120,12 @@ export const ChangeDialog = ({ targetPlan, targetPeriod, onClose, onChanged }: C
 							</div>
 						)}
 						<div>
-							<dt>Fällig beim ersten Zyklus</dt>
+							<dt>
+								{/* #2241: bei einem Guthaben über dem Preis zieht PayPal den Rest als Gebühr bei der Zustimmung ein. */}
+								{preview.creditCoversUntil != null && preview.dueCents > 0
+									? 'Fällig bei Zustimmung'
+									: 'Fällig beim ersten Zyklus'}
+							</dt>
 							<dd>
 								<strong>{formatEuro(preview.dueCents)}</strong>
 							</dd>

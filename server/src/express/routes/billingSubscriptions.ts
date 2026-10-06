@@ -397,15 +397,14 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			const now = new Date();
 			const { creditCents, firstCycleCents } = upgradeProration(subscription, body.plan, body.period, now);
 			const price = getPlansCatalog().prices[body.plan][body.period];
+			// #2241: deckt das Guthaben volle Zyklen, nennt die Vorschau, bis wann — und die Gebühr P − r, die bei der Zustimmung fällig wird.
+			const carry = creditCents >= price ? creditCarryover(creditCents, price, body.period, now) : undefined;
 			res.status(200).json({
 				creditCents,
-				dueCents: firstCycleCents,
+				dueCents: carry?.feeCents ?? firstCycleCents,
 				immediate: true,
 				startsAt: now.toISOString(),
-				// #2241: deckt das Guthaben volle Zyklen, nennt die Vorschau, bis wann.
-				...(creditCents >= price && {
-					creditCoversUntil: creditCarryover(creditCents, price, body.period, now).periodEnd.toISOString(),
-				}),
+				...(carry && { creditCoversUntil: carry.periodEnd.toISOString() }),
 			});
 			return;
 		}

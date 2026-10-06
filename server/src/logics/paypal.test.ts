@@ -157,3 +157,22 @@ describe('paypal.ts — createPaypalClient().createSubscription (#2235 AK1)', ()
 		assert.match(ctx.cancel_url, /billing=cancelled/);
 	});
 });
+
+describe('paypal.ts — createPaypalClient().createSubscription mit Gebühr und Start (#2241)', () => {
+	it('sendet setup_fee und start_time gemeinsam im Plan-Override', async () => {
+		let sent: { start_time?: string; plan?: { payment_preferences?: { setup_fee?: { value?: string } } } } = {};
+		const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+			if (String(input).endsWith('/v1/oauth2/token')) {
+				return new Response(JSON.stringify({ access_token: 'test-token' }), { status: 200 });
+			}
+			sent = JSON.parse(String(init?.body));
+			return new Response(JSON.stringify({ id: 'I-2241', links: [] }), { status: 201 });
+		}) as unknown as typeof fetch;
+		const startTime = new Date('2027-03-06T00:00:00.000Z');
+
+		await createPaypalClient(fakeFetch).createSubscription('PLAN-X', { firstCycleCents: 1669, startTime });
+
+		assert.equal(sent.start_time, startTime.toISOString());
+		assert.equal(sent.plan?.payment_preferences?.setup_fee?.value, '16.69');
+	});
+});

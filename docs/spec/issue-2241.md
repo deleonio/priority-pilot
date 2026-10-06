@@ -4,9 +4,9 @@ G = Guthaben (`creditCents`), P = Preis des neuen Pakets, k = floor(G / P), r = 
 
 ## Upgrade mit G ≥ P
 
-- Vorschau: `dueCents` 0, zusätzlich `creditCoversUntil` (ISO-Datum): Upgrade + k Perioden. Bei G < P fehlt das Feld, alles andere unverändert.
+- Vorschau: `dueCents` = P − r (Gebühr, fällig bei der Zustimmung), zusätzlich `creditCoversUntil` (ISO-Datum): Upgrade + k Perioden. Bei G < P fehlt das Feld, alles andere unverändert.
 - `/change`: neues Abo `approval_pending` mit `currentPeriodEnd` = Upgrade + k Perioden und `creditCents` = r. Keine Rechnung, auch keine über 0 €.
-- PayPal-Override: `startTime` ≥ Upgrade + k Perioden (keine Abbuchung für gedeckte Zyklen); der Folgezyklus zieht P − r ein (Mechanismus: Umsetzungsentscheidung, nicht Teil der Tests).
+- PayPal-Override: `startTime` ≥ Upgrade + k Perioden (keine Abbuchung für gedeckte Zyklen); P − r zieht PayPal als Einrichtungsgebühr (`setup_fee`) bei der Zustimmung ein (PO-Entscheid PR #2280, Option 1.1).
 
 ## Erste echte Abbuchung (SALE.COMPLETED)
 
@@ -15,4 +15,4 @@ G = Guthaben (`creditCents`), P = Preis des neuen Pakets, k = floor(G / P), r = 
 
 ## Dialog (AK6)
 
-Zeigt `creditCoversUntil`; 375 px ohne Überlauf (E2E/Vitest in der Umsetzungsphase, siehe PR „Offene Fragen“).
+Zeigt `creditCoversUntil` und bei einer Gebühr die Zeile „Fällig bei Zustimmung“ statt „Fällig beim ersten Zyklus“; 375 px ohne Überlauf (E2E/Vitest in der Umsetzungsphase, siehe PR „Offene Fragen“).

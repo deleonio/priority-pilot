@@ -20,12 +20,12 @@ const post = (path: string, cookie: string, body: unknown = {}) =>
 		body: JSON.stringify(body),
 	});
 
-const startsAfterPaypal: { startTime?: Date }[] = [];
+const startsAfterPaypal: { firstCycleCents?: number; startTime?: Date }[] = [];
 const deps = (): AppDeps =>
 	({
 		paypalClient: {
-			createSubscription: async (_planId: string, override?: { startTime?: Date }) => {
-				startsAfterPaypal.push({ startTime: override?.startTime });
+			createSubscription: async (_planId: string, override?: { firstCycleCents?: number; startTime?: Date }) => {
+				startsAfterPaypal.push({ firstCycleCents: override?.firstCycleCents, startTime: override?.startTime });
 				return { approvalUrl: 'https://paypal.example/upgrade', externalSubscriptionId: 'I-NEW-2241' };
 			},
 			cancel: async () => {},
@@ -68,7 +68,7 @@ describe('Guthaben-Übertrag beim Upgrade (#2241)', () => {
 		const k = Math.floor(preview.creditCents / price);
 		const r = preview.creditCents - k * price;
 		assert.ok(k >= 1, `Vorbedingung: Guthaben deckt mindestens einen Zyklus, war ${preview.creditCents}`);
-		assert.equal(preview.dueCents, 0);
+		assert.equal(preview.dueCents, price - r, 'AK2: Vorschau nennt die Gebühr P − r, fällig bei Zustimmung');
 		assert.ok(preview.creditCoversUntil, 'AK5: Vorschau nennt, bis wann das Guthaben reicht');
 		const covers = new Date(preview.creditCoversUntil as string).getTime();
 		assert.ok(covers >= Date.now() + k * 28 * DAY_MS && covers <= Date.now() + (k * 31 + 1) * DAY_MS);
@@ -82,6 +82,7 @@ describe('Guthaben-Übertrag beim Upgrade (#2241)', () => {
 		assert.ok(end >= Date.now() + k * 28 * DAY_MS && end <= Date.now() + (k * 31 + 1) * DAY_MS, 'AK1: k Perioden');
 		const start = startsAfterPaypal[0]?.startTime?.getTime() ?? 0;
 		assert.ok(start >= Date.now() + k * 28 * DAY_MS, 'AK2: PayPal bucht die gedeckten Zyklen nicht ab');
+		assert.equal(startsAfterPaypal[0]?.firstCycleCents, price - r, 'AK2: Gebühr P − r bei Zustimmung');
 	});
 
 	it('AK4: erste echte Abbuchung nach einem Guthaben-Upgrade verlängert ab altem currentPeriodEnd, nicht ab jetzt', async () => {

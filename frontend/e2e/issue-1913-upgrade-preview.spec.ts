@@ -78,13 +78,13 @@ test.describe('Balamentum — #1913: Betragsvorschau im Wechsel-Dialog', () => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		const dialog = await openChangeDialog(page, {
 			creditCents: 4330,
-			dueCents: 0,
+			dueCents: 1669,
 			immediate: true,
 			creditCoversUntil: '2027-02-06T00:00:00.000Z',
 		});
 		await expect(dialog).toContainText('Guthaben reicht bis');
 
-		for (const text of ['Guthaben reicht bis', '6.2.2027']) {
+		for (const text of ['Fällig bei Zustimmung', 'Guthaben reicht bis', '6.2.2027']) {
 			const box = await dialog.getByText(text).first().boundingBox();
 			expect(box, `${text} muss gerendert sein`).not.toBeNull();
 			expect(box!.x).toBeGreaterThanOrEqual(0);

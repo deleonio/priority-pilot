@@ -8223,7 +8223,8 @@ components:
         (ADR 0013) — die Oberfläche trägt bewusst keine eigene Paket-Rangfolge.
         `startsAt` nennt den Startzeitpunkt (#2049): sofort beim Upgrade, sonst das
         Periodenende (Weiterführen/Downgrade auch nach Kündigung).
-        `creditCoversUntil` nennt bei einem Guthaben ab dem neuen Preis, bis wann es reicht (#2241).
+        `creditCoversUntil` nennt bei einem Guthaben ab dem neuen Preis, bis wann es reicht (#2241);
+        `dueCents` ist dann die Gebühr für den Rest, fällig bei der Zustimmung.
       required: [creditCents, dueCents, immediate]
       properties:
         creditCents:
