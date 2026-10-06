@@ -28,11 +28,12 @@ import {
 	User,
 } from '../models/index.js';
 import { OPEN_SUBSCRIPTION_STATUSES, OVERDUE_SUBSCRIPTION_STATUSES } from '../models/subscription.js';
-import { createPaypalClient, type PaypalClient } from './paypal.js';
+import { createPaypalClient, PaypalHttpError, type PaypalClient } from './paypal.js';
 import { feedbackVaultConfig, githubObsidianClient, type ObsidianGithubClient } from './obsidianFeedback.js';
 import CarePushToggle from '../models/carePushToggle.js';
 
-export type DeleteAccountResult = 'deleted' | 'not_found' | 'subscription_active' | 'last_group_admin';
+export type DeleteAccountResult =
+	'deleted' | 'not_found' | 'subscription_active' | 'last_group_admin' | 'paypal_unavailable';
 
 /**
  * Entfernt die Feedback-Dateien des Kontos (#1922) aus dem Vault; Treffer nur über die exakte
@@ -90,7 +91,13 @@ export const deleteAccount = async (
 	}
 
 	for (const subscription of overdue) {
-		await paypalClient.cancel(subscription.get('externalSubscriptionId') as string);
+		try {
+			await paypalClient.cancel(subscription.get('externalSubscriptionId') as string);
+		} catch (error) {
+			// 404/422 = bei PayPal bereits gekündigt (Webhook ging verloren); alles andere (401/403/429/5xx/Netzfehler) → Konto bleibt (#2240).
+			if (!(error instanceof PaypalHttpError && (error.status === 404 || error.status === 422)))
+				return 'paypal_unavailable';
+		}
 	}
 
 	await sequelize.transaction(async (transaction) => {
