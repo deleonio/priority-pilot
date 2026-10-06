@@ -279,3 +279,11 @@ Konflikte, die er verhindern soll.
 - 2026-10-05 · KoliBri/e2e — echtes `kol-input-radio` rendert ein Shadow-`fieldset` (implizite Rolle `group`, KEINE `radiogroup`), Inputs selbst nur ~26px, Optionszeilen = `label.kol-input-radio` (~44px) → e2e-Locators auf den Host scopen (`hint.locator('kol-input-radio').getByRole('radio')`), Höhen-Asserts gegen die Labels, nicht die Inputs (#1977).
 - 2026-10-05 · Server-Tests/E2E lokal — zwei Server-Testdateien in einem `npx tsx --test a.ts b.ts`-Call kontaminieren sich gegenseitig (geteilte DB, falsch-rote Assertionen; jede Datei allein grün), und mehrere Playwright-Spec-Dateien in EINEM lokalen Lauf behindern sich über den geteilten Backend-State trotz workers:1 → zweifelhafte lokale Rots immer pro Datei einzeln verifizieren bzw. den GATE-Script-Lauf (`pnpm --filter server test`) als Wahrheit nehmen.
 - 2026-10-05 · CI/E2E-Sharding — jede neue Spec verschiebt die Test-Count-Shard-Zuteilung: Pass-Through-Specs (ohne registerOwnSession) rutschen dadurch in andere Shards, treffen dort auf die angesammelte Säulen-DB und werden rot (PATCH 400 „Ungültige Säulen-Beiträge“, Dialog-Timeouts) — ohne eigene Code-Änderung (PR #2260, Runden 2+3) → Specs mit API-Zugriff/Dialog-Speichern immer mit eigener Session fahren (#2188/#1795-Muster).
+- 2026-10-06 · Sequelize/SQLite · verschachtelte Transaktion — ein `BEGIN`-Versuch innerhalb einer aktiven
+  fremden Transaktion (geteilte Verbindung, `pool.max=1`) scheitert nicht nur: Sequelize killt danach die
+  Verbindung ("undetermined state") und das äußere COMMIT bricht mit "cannot commit - no transaction is
+  active" — ein Catch-und-weiter-Fallback um den inneren BEGIN ist damit strukturillos tot. → Verschachtelung
+  von vornherein vermeiden: Aufrufer innerhalb einer Transaktion müssen diese durchreichen (vertraglich
+  dokumentieren); Test-Injektionen von `applyPaymentEvent` das 5. Argument (transaction) nicht unterschlagen
+  (#2236). Parallele managed Transaktionen kollidieren auf derselben einen Verbindung ebenfalls →
+  In-Prozess-Warteschlange (Muster `enqueueCreation`, invoices.ts).

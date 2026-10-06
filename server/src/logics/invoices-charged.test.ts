@@ -49,7 +49,7 @@ describe('Rechnungsbetrag aus dem Zahlungsereignis (#2232)', () => {
 		const mails: string[] = [];
 		const charged: unknown[] = [];
 		await applyPaymentEvent(sub, saleEvent(amount), NOW, {
-			issueInvoice: (s, n, saleId, c) => {
+			issueInvoice: (s, n, saleId, c, transaction) => {
 				charged.push(c);
 				return issueInvoiceForPeriod(
 					s,
@@ -59,6 +59,7 @@ describe('Rechnungsbetrag aus dem Zahlungsereignis (#2232)', () => {
 					},
 					saleId,
 					c,
+					transaction,
 				);
 			},
 		});
