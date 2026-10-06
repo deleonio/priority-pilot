@@ -107,6 +107,7 @@ export const main = async (): Promise<void> => {
 			migrateInvoicePdfBytesColumn,
 			migrateInvoicePaymentStatusColumn,
 			migrateInvoiceCurrencyColumn,
+			migrateInvoiceCreditForColumn,
 			migrateLegacyPlans,
 			migrateUserIdColumns,
 			migratePillarDescription,
@@ -189,6 +190,8 @@ export const main = async (): Promise<void> => {
 		await migrateInvoicePaymentStatusColumn(sequelize);
 		// Rechnungswährung nachziehen (#2232) — vor sync().
 		await migrateInvoiceCurrencyColumn(sequelize);
+		// Originalbezug für Gutschriften nachziehen (#2237) — vor sync().
+		await migrateInvoiceCreditForColumn(sequelize);
 		// Altpakete max/ultimate auf plus/pro umstellen (#1785) — nach den Spalten-Migrationen.
 		await migrateLegacyPlans(sequelize);
 		// Fehlende userId-Spalte (Datenisolation #207) an tasks nachziehen, BEVOR sync() läuft.
