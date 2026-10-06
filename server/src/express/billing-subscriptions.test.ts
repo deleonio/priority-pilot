@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, after } from 'node:test';
+import { describe, it, beforeEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
 import { Subscription } from '../models/index.js';
@@ -1304,17 +1304,24 @@ describe('Anteilige Verrechnung beim Upgrade (#2143, Spec docs/spec/issue-2143.m
 		assert.equal(preview.dueCents, first[0]);
 	});
 
-	it('AK3/TF3: Upgrade am Periodenbeginn rechnet das volle Guthaben an', async () => {
-		const first: number[] = [];
-		const end = new Date();
-		end.setUTCMonth(end.getUTCMonth() + 1);
-		const { cookie, userId } = await seed('ak3-2143@example.com', end, first);
+	for (const day of ['2027-01-31', '2028-02-29', '2026-10-31']) {
+		it(`AK3/TF3: Upgrade am Periodenbeginn rechnet das volle Guthaben an (${day})`, async () => {
+			mock.timers.enable({ apis: ['Date'], now: new Date(`${day}T12:00:00.000Z`) });
+			try {
+				const first: number[] = [];
+				const end = new Date();
+				end.setUTCMonth(end.getUTCMonth() + 1);
+				const { cookie, userId } = await seed('ak3-2143@example.com', end, first);
 
-		const res = await post(CHANGE, cookie, { plan: 'pro', period: 'monthly' });
+				const res = await post(CHANGE, cookie, { plan: 'pro', period: 'monthly' });
 
-		assert.equal(res.status, 200);
-		const pending = await Subscription.findOne({ where: { userId, status: 'approval_pending' } });
-		assert.equal(pending?.get('creditCents'), plus());
-		assert.equal(first[0], pro() - plus());
-	});
+				assert.equal(res.status, 200);
+				const pending = await Subscription.findOne({ where: { userId, status: 'approval_pending' } });
+				assert.equal(pending?.get('creditCents'), plus());
+				assert.equal(first[0], pro() - plus());
+			} finally {
+				mock.timers.reset();
+			}
+		});
+	}
 });
