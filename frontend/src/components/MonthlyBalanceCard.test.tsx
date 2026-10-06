@@ -45,6 +45,8 @@ vi.mock('@public-ui/react-v19', () => ({
 		</button>
 	),
 	KolSpin: ({ _label }: { _label?: string }) => <div data-comp="kol-spin">{_label}</div>,
+	// #2255: Domain-Link in der Marken-Fußzeile (KoliBri-First) — als natives <a> gerendert.
+	KolLink: ({ _href, _label }: { _href?: string; _label?: string }) => <a href={_href}>{_label}</a>,
 	KolAlert: ({ _type, children }: { _type?: string; children?: ReactNode }) => (
 		<div data-comp="kol-alert" data-type={_type}>
 			{children}
@@ -160,5 +162,24 @@ describe('MonthlyBalanceCard (#1995)', () => {
 		expect(anker.download).toBe('balamentum-monat-2026-09.png');
 		expect(anker.href).toMatch(/^blob:/);
 		expect(HTMLCanvasElement.prototype.toBlob).toHaveBeenCalled();
+	});
+
+	it('AK4 (#2255): Marken-Fußzeile — drei Logos mit Alt-Text, Domain als einziger Link, kein Store-Link', async () => {
+		vi.useFakeTimers({ now: MONATSANFANG, shouldAdvanceTime: true });
+		render(<MonthlyBalanceCard />);
+		await waitFor(() => expect(cardEl()).not.toBeNull());
+
+		// Drei Logos (Balamentum, Google Play, PWA) — jedes mit Alt-Text (Botschaft, nicht Objektbeschreibung).
+		const logos = [...document.querySelectorAll('[data-testid="monthly-balance-card"] img')];
+		expect(logos.length, 'drei Marken-Logos erwartet').toBe(3);
+		for (const logo of logos) {
+			expect(logo.getAttribute('alt'), 'Alt-Text fehlt').toBeTruthy();
+		}
+
+		// Domain-Link: der einzige Link der Karte — kein play.google.com, kein Install-Button.
+		const links = [...document.querySelectorAll('[data-testid="monthly-balance-card"] a')];
+		expect(links.length, 'genau der Domain-Link erwartet').toBe(1);
+		expect(links[0].getAttribute('href')).toBe('https://balamentum.app');
+		expect(document.querySelector('[data-testid="monthly-balance-card"]')?.innerHTML).not.toContain('play.google.com');
 	});
 });
