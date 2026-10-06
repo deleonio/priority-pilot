@@ -16,11 +16,11 @@ import {
 import type Subscription from '../../models/subscription.js';
 import type { BillingProvider, WebCheckout } from './provider.js';
 
-/** Ob die Bestätigung des Abos sofort abbucht: nur ein Upgrade-Abo (#1912), dessen Guthaben den ersten Zyklus nicht deckt. */
-const chargesOnActivation = (subscription: Subscription): boolean => {
+/** Ob das Guthaben den ersten Zyklus ganz deckt (#2230): Dann gilt ACTIVATED bereits als Zahlung. */
+const coversFirstCycle = (subscription: Subscription): boolean => {
 	const creditCents = subscription.get('creditCents') as number;
 	const price = getPlansCatalog().prices[subscription.get('plan') as Plan];
-	return creditCents > 0 && price[subscription.get('period') as keyof typeof price] > creditCents;
+	return creditCents >= price[subscription.get('period') as keyof typeof price];
 };
 
 /** Injizierbare Teile; ohne Angabe gelten die echten PayPal-Aufrufe. */
@@ -55,12 +55,12 @@ export const createPaypalProvider = (deps: PaypalProviderDeps = {}): BillingProv
 			const paypalEvent = event.payload as PaypalWebhookEvent;
 			await applyPlanChange(subscription, paypalEvent, now);
 			// Das alte Abo erst mit der Bestätigung des neuen kündigen, sonst entsteht eine Lücke (#1912).
-			// Bucht die Bestätigung ab, zählt erst der Zahlungseingang (#2140); ohne Abbuchung (Startaufschub
-			// #2049, Guthaben deckt den ersten Zyklus) gilt schon ACTIVATED.
+			// Ersetzt wird nur gegen eine Zahlung: die erste Abbuchung (#2140) oder ganz deckendes Guthaben
+			// (#2230) — ein Startaufschub ohne Guthaben (#2049) wartet auf seine erste Abbuchung (#2239).
 			const type = paypalEvent.event_type;
 			if (
 				type === 'PAYMENT.SALE.COMPLETED' ||
-				(type === 'BILLING.SUBSCRIPTION.ACTIVATED' && !chargesOnActivation(subscription))
+				(type === 'BILLING.SUBSCRIPTION.ACTIVATED' && coversFirstCycle(subscription))
 			) {
 				await replacePredecessors(subscription, client);
 			}
