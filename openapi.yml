@@ -2991,6 +2991,8 @@ paths:
         Setzt den Status auf `activated` (idempotent, #1982 AK3) und legt die
         DB-Zulassung (AllowedEmail, origin 'warteliste') an. Danach nimmt der
         bestehende Login-Flow die Adresse an (isDbEmailAllowed prüft die Freischaltung).
+        Verschickt dazu eine Mail mit Login-Link (#2305); bei `failed` erneuter Versand
+        über eine weitere Freischaltung, bei `sent` kein Zweitversand.
       operationId: activateAdminWaitlistEntry
       tags: [admin]
       responses:
@@ -3000,11 +3002,15 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [status]
+                required: [status, accessMailStatus]
                 properties:
                   status:
                     type: string
                     enum: [activated]
+                  accessMailStatus:
+                    type: string
+                    enum: [sent, failed]
+                    description: Ergebnis der Freischalt-Mail mit Login-Link (#2305).
         '400':
           description: Ungültige Eintrags-Id
           content:
@@ -3029,7 +3035,8 @@ paths:
       description: >-
         Schaltet die N höchstplatzierten Einträge nach Position auf einmal frei (#1982 AK4).
         Bereits freigeschaltete belegen ihren Platz in den Top N, werden aber nicht erneut
-        gezählt — `activatedCount` meldet nur die neu freigeschalteten Einträge.
+        gezählt — `activatedCount` meldet nur die neu freigeschalteten Einträge. Je neu
+        freigeschaltetem Eintrag geht eine Mail mit Login-Link raus (#2305).
       operationId: activateAdminWaitlistTop
       tags: [admin]
       requestBody:
@@ -5317,7 +5324,7 @@ components:
     AdminWaitlistEntry:
       type: object
       description: Eintrag der Warteliste im Referral-Rang (#1982, ADR 0019).
-      required: [id, email, status, position, referralCount, createdAt]
+      required: [id, email, status, position, referralCount, accessMailStatus, createdAt]
       properties:
         id:
           type: integer
@@ -5338,6 +5345,11 @@ components:
           type: integer
           minimum: 0
           description: Anzahl geworbener Anmeldungen über den persönlichen Empfehlungs-Code.
+        accessMailStatus:
+          type: string
+          nullable: true
+          enum: [sent, failed, null]
+          description: Ergebnis der Freischalt-Mail (#2305); null = nie versucht.
         createdAt:
           type: string
           format: date-time

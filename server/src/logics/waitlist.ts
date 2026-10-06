@@ -1,5 +1,7 @@
 import { UniqueConstraintError } from 'sequelize';
 import { allowEmail } from './allowedEmails.js';
+import { sendAccountAccessMail } from './accessMail.js';
+import type { MailSender } from './mail.js';
 import WaitlistEntry, { newReferralCode } from '../models/waitlistEntry.js';
 
 /**
@@ -29,6 +31,7 @@ export type WaitlistRankedEntry = {
 	status: 'waiting' | 'activated';
 	position: number;
 	referralCount: number;
+	accessMailStatus: 'sent' | 'failed' | null;
 	createdAt: string;
 };
 
@@ -103,17 +106,43 @@ const createEntry = async (email: string, referredByCode: string | null): Promis
 
 /** Admin-Sicht: komplette Warteliste im Rang (List-DTO, #1982 AK3/AK4). */
 export const listWaitlistRanked = async (): Promise<WaitlistRankedEntry[]> =>
-	(await rankedEntries()).map(({ id, email, status, position, referralCount, createdAt }) => ({
+	(await rankedEntries()).map(({ id, email, status, position, referralCount, accessMailStatus, createdAt }) => ({
 		id,
 		email,
 		status,
 		position,
 		referralCount,
+		accessMailStatus,
 		createdAt: createdAt.toISOString(),
 	}));
 
-/** Schaltet einen einzelnen Eintrag frei (idempotent); `null`, wenn die Id unbekannt ist. */
-export const activateWaitlistEntry = async (id: number): Promise<'activated' | null> => {
+/**
+ * Verschickt die Freischalt-Mail mit Login-Link (#2305) und hält das Ergebnis am Eintrag fest.
+ * Das Tageskontingent `claimAccessMailSlot` gilt hier bewusst nicht; ein Fehlschlag (Transport
+ * oder fehlendes Magic-Link-Setup) lässt die Freischaltung wirksam.
+ */
+const sendActivationMail = async (entry: WaitlistEntry, send?: MailSender): Promise<'sent' | 'failed'> => {
+	const sent = await sendAccountAccessMail(
+		entry.email,
+		{
+			subject: 'Balamentum: Du bist freigeschaltet',
+			lines: ['du bist von der Warteliste freigeschaltet — du kannst Balamentum jetzt nutzen.'],
+		},
+		send,
+	);
+	const accessMailStatus = sent ? 'sent' : 'failed';
+	await entry.update({ accessMailStatus });
+	return accessMailStatus;
+};
+
+/**
+ * Schaltet einen einzelnen Eintrag frei (idempotent) und verschickt die Freischalt-Mail; bei
+ * bereits versendeter Mail (`sent`) kein Zweitversand. `null`, wenn die Id unbekannt ist.
+ */
+export const activateWaitlistEntry = async (
+	id: number,
+	send?: MailSender,
+): Promise<{ status: 'activated'; accessMailStatus: 'sent' | 'failed' } | null> => {
 	const entry = await WaitlistEntry.findByPk(id);
 	if (entry === null) {
 		return null;
@@ -122,7 +151,8 @@ export const activateWaitlistEntry = async (id: number): Promise<'activated' | n
 		await entry.update({ status: 'activated' });
 	}
 	await allowEmail(entry.email, 'warteliste');
-	return 'activated';
+	const accessMailStatus = entry.accessMailStatus === 'sent' ? 'sent' : await sendActivationMail(entry, send);
+	return { status: 'activated', accessMailStatus };
 };
 
 /**
@@ -130,7 +160,7 @@ export const activateWaitlistEntry = async (id: number): Promise<'activated' | n
  * ihren Platz in den Top N weiterhin (die Welle rückt nicht nach), zählen aber nicht erneut —
  * `activatedCount` meldet nur die neu freigeschalteten Einträge.
  */
-export const activateTopWaitlist = async (count: number): Promise<number> => {
+export const activateTopWaitlist = async (count: number, send?: MailSender): Promise<number> => {
 	const top = (await rankedEntries()).slice(0, count);
 	const waiting = top.filter((entry) => entry.status === 'waiting');
 	if (waiting.length === 0) {
@@ -144,6 +174,7 @@ export const activateTopWaitlist = async (count: number): Promise<number> => {
 	// laufen auf einer einzigen In-Memory-SQLite-Verbindung (Muster wie admin.ts-Subquery-Hinweis).
 	for (const entry of waiting) {
 		await allowEmail(entry.email, 'warteliste');
+		await sendActivationMail(entry, send);
 	}
 	return affected;
 };

@@ -195,3 +195,152 @@ describe('Warteliste — Admin-Freischaltung (#1982, AK3/AK4)', () => {
 		);
 	});
 });
+
+// ── #2305: Mail mit Login-Link bei Freischaltung (Spec docs/spec/issue-2305.md) ──────────────────
+// Der Versand läuft über den injizierbaren `mailSender` (AppDeps) und den Baustein
+// `sendAccountAccessMail`; der Versandstatus steht als `accessMailStatus` am Eintrag.
+type MailMode = 'ok' | 'fail';
+type AccessStatus = 'sent' | 'failed' | null;
+
+describe('Warteliste — Freischalt-Mail (#2305)', () => {
+	const ENV_KEYS = ['SMTP_HOST', 'MAIL_FROM', 'PUBLIC_BASE_URL'] as const;
+	const envBackup: Record<string, string | undefined> = {};
+	let mails: { to: string; subject: string; text: string }[] = [];
+	let mode: MailMode = 'ok';
+	let adminCookie: string;
+
+	before(async () => {
+		for (const key of ENV_KEYS) envBackup[key] = process.env[key];
+		server = await startTestServer({
+			mailSender: async (payload) => {
+				if (mode === 'fail') {
+					throw new Error('smtp down');
+				}
+				mails.push({ to: payload.to, subject: payload.subject, text: payload.text });
+			},
+		});
+	});
+	beforeEach(async () => {
+		await resetDb();
+		process.env.SMTP_HOST = 'smtp.test';
+		process.env.MAIL_FROM = 'test@balamentum.de';
+		process.env.PUBLIC_BASE_URL = 'https://test';
+		mails = [];
+		mode = 'ok';
+		adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
+	});
+	after(async () => {
+		for (const key of ENV_KEYS) {
+			if (envBackup[key] === undefined) delete process.env[key];
+			else process.env[key] = envBackup[key];
+		}
+		if (server) {
+			await server.close();
+		}
+		await closeDb();
+	});
+
+	type StatusDto = WaitlistDto & { accessMailStatus?: AccessStatus };
+
+	const entryOf = async (email: string): Promise<StatusDto> => {
+		const found = ((await waitlist(adminCookie)) as StatusDto[]).find((e) => e.email === email);
+		assert.ok(found, `Setup: ${email} muss gelistet sein`);
+		return found;
+	};
+
+	const activate = async (email: string): Promise<{ status: number; body: { accessMailStatus?: AccessStatus } }> => {
+		const { id } = await entryOf(email);
+		const res = await fetch(`${server.baseUrl}/admin/waitlist/${id}/activate`, {
+			method: 'POST',
+			headers: { cookie: adminCookie },
+		});
+		return { status: res.status, body: (await res.json()) as { accessMailStatus?: AccessStatus } };
+	};
+
+	it('AK1/AK3/AK4: Einzel-Freischaltung verschickt genau eine deutsche Mail mit Magic-Link, Status sent', async () => {
+		await join('anna@example.com');
+		assert.equal((await entryOf('anna@example.com')).accessMailStatus, null, 'vor der Freischaltung nie versucht');
+
+		const res = await activate('anna@example.com');
+
+		assert.equal(res.status, 200);
+		assert.equal(mails.length, 1, 'genau eine Mail');
+		assert.equal(mails[0].to, 'anna@example.com');
+		assert.match(mails[0].text, /https:\/\/test\/app\/\?magic=/, 'Text enthält den Magic-Link');
+		assert.match(mails[0].subject, /freigeschaltet/i, 'Betreff deutsch (Freischaltung)');
+		assert.match(mails[0].text, /^Hallo,/, 'Text deutsch (Anrede des Mailbausteins)');
+		assert.match(mails[0].text, /freigeschaltet/i, 'Anlass-Zeile nennt die Freischaltung auf Deutsch');
+		assert.equal(res.body.accessMailStatus, 'sent', 'Antwort der Einzel-Freischaltung trägt den Status');
+		assert.equal((await entryOf('anna@example.com')).accessMailStatus, 'sent', 'List-DTO trägt den Status');
+	});
+
+	it('AK2: Top-N verschickt je NEU freigeschaltetem Eintrag eine Mail, bereits freigeschaltete erhalten keine', async () => {
+		await join('anna@example.com');
+		await tick();
+		await join('ben@example.com');
+		await tick();
+		await join('carl@example.com');
+		await activate('anna@example.com');
+		mails = [];
+
+		const res = await fetch(`${server.baseUrl}/admin/waitlist/activate-top`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', cookie: adminCookie },
+			body: JSON.stringify({ count: 2 }),
+		});
+
+		assert.equal(res.status, 200);
+		assert.equal(((await res.json()) as { activatedCount?: number }).activatedCount, 1, 'nur Ben ist neu');
+		assert.deepEqual(
+			mails.map((m) => m.to),
+			['ben@example.com'],
+			'genau eine Mail, an Ben (Anna war schon frei, Carl liegt außerhalb der Top 2)',
+		);
+		assert.equal((await entryOf('ben@example.com')).accessMailStatus, 'sent');
+	});
+
+	it('AK5: Transportfehler — Freischaltung bleibt wirksam, Status failed', async () => {
+		await join('anna@example.com');
+		mode = 'fail';
+
+		const res = await activate('anna@example.com');
+
+		assert.equal(res.status, 200, 'Mailfehler lässt die Freischaltung nicht scheitern');
+		assert.equal(res.body.accessMailStatus, 'failed');
+		const entry = await entryOf('anna@example.com');
+		assert.equal(entry.status, 'activated');
+		assert.equal(entry.accessMailStatus, 'failed');
+		assert.equal(await testLogin('anna@example.com'), 200, 'Adresse steht trotzdem in der Allowlist');
+	});
+
+	it('AK5: Magic-Link nicht konfiguriert — Freischaltung wirksam, Status failed, keine Mail', async () => {
+		await join('anna@example.com');
+		delete process.env.PUBLIC_BASE_URL;
+
+		const res = await activate('anna@example.com');
+
+		assert.equal(res.status, 200);
+		assert.equal(mails.length, 0, 'ohne Magic-Link-Setup geht keine Mail raus');
+		const entry = await entryOf('anna@example.com');
+		assert.equal(entry.status, 'activated');
+		assert.equal(entry.accessMailStatus, 'failed');
+		assert.equal(await testLogin('anna@example.com'), 200);
+	});
+
+	it('AK6: erneute Einzel-Freischaltung versendet bei failed erneut, bei sent nicht', async () => {
+		await join('anna@example.com');
+		mode = 'fail';
+		await activate('anna@example.com');
+		assert.equal(mails.length, 0, 'Setup: erster Versand schlug fehl');
+		mode = 'ok';
+
+		const retry = await activate('anna@example.com');
+
+		assert.equal(mails.length, 1, 'Wiederholung versendet erneut');
+		assert.equal(retry.body.accessMailStatus, 'sent', 'Status aktualisiert');
+		assert.equal((await entryOf('anna@example.com')).accessMailStatus, 'sent');
+
+		await activate('anna@example.com');
+		assert.equal(mails.length, 1, 'bei sent kein Zweitversand');
+	});
+});

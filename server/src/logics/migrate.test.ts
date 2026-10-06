@@ -1862,3 +1862,51 @@ describe('migrateInvoiceCreditForColumn (#2237)', () => {
 		await assert.doesNotReject(() => migrateInvoiceCreditForColumn(sequelize));
 	});
 });
+
+// ── #2305: migrateWaitlistAccessMailStatusColumn — accessMailStatus (nullable) ───────────────────
+// Die Funktion existiert noch nicht (rote Spec-Tests): Zugriff über den Namespace + Cast hält tsc grün.
+describe('migrateWaitlistAccessMailStatusColumn (#2305 AK7)', () => {
+	const migrateWaitlistAccessMailStatusColumn = (
+		migrateModule as unknown as Record<string, (s: typeof sequelize) => Promise<void>>
+	).migrateWaitlistAccessMailStatusColumn;
+
+	const waitlistColumns = async (): Promise<string[]> => {
+		const [rows] = await sequelize.query("PRAGMA table_info('waitlist_entries')");
+		return (rows as { name: string }[]).map((row) => row.name);
+	};
+
+	it('zieht auf einem Alt-Schema accessMailStatus nach, Bestandszeilen bleiben (null); zweiter Lauf ist ein No-op', async () => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `waitlist_entries` (' +
+				'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+				'`email` VARCHAR(255) NOT NULL UNIQUE, ' +
+				'`referralCode` VARCHAR(255) NOT NULL UNIQUE, ' +
+				'`referredByCode` VARCHAR(255), ' +
+				"`status` VARCHAR(255) NOT NULL DEFAULT 'waiting', " +
+				'`createdAt` DATETIME NOT NULL' +
+				')',
+		);
+		await sequelize.query(
+			"INSERT INTO waitlist_entries (email, referralCode, createdAt) VALUES ('alt@local', 'code1', '2026-01-01 00:00:00')",
+		);
+		assert.ok(!(await waitlistColumns()).includes('accessMailStatus'), 'Alt-Schema hat die Spalte noch nicht');
+
+		assert.equal(
+			typeof migrateWaitlistAccessMailStatusColumn,
+			'function',
+			'migrateWaitlistAccessMailStatusColumn ist exportiert',
+		);
+		await migrateWaitlistAccessMailStatusColumn(sequelize);
+		await assert.doesNotReject(() => migrateWaitlistAccessMailStatusColumn(sequelize), 'zweiter Lauf bleibt stabil');
+
+		const columns = await waitlistColumns();
+		assert.equal(columns.filter((name) => name === 'accessMailStatus').length, 1, 'Spalte genau einmal');
+		const [rows] = await sequelize.query("SELECT accessMailStatus FROM waitlist_entries WHERE email = 'alt@local'");
+		assert.equal(
+			(rows as { accessMailStatus: string | null }[])[0].accessMailStatus,
+			null,
+			'Bestandszeile bleibt null',
+		);
+	});
+});
