@@ -1376,3 +1376,74 @@ describe('Billing/Webhook-API (#2243 — späte Abbuchung auf gekündigtem Abo)'
 		}
 	});
 });
+
+/**
+ * Rote Spec-Tests für #2301 (Spec docs/spec/issue-2301.md) — eine späte Abbuchung auf einem gekündigten
+ * Abo mit vorhandener Periodenrechnung bekommt eine eigene Rechnung mit ihrer Sale-ID; die Erstattung
+ * dieser Sale-ID erzeugt die Gutschrift zu genau dieser Rechnung. KEIN Produktivcode.
+ */
+describe('Billing/Webhook-API (#2301 — ein Beleg je Abbuchung)', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const post = (eventId: string, eventType: string, resource: Record<string, unknown>): Promise<Response> =>
+		rawPost('/webhooks/paypal', JSON.stringify({ id: eventId, event_type: eventType, resource }), {
+			'paypal-transmission-sig': 'ok',
+		});
+
+	it('AK3: späte Abbuchung (Sale B) auf gekündigtem Abo mit Periodenrechnung (Sale A) → eigene Rechnung B; Erstattung von B → Gutschrift zu B', async () => {
+		const warnSpy = mock.method(console, 'warn', () => {});
+		try {
+			server = await startTestServer({
+				paypalVerifier: async () => 'verified',
+				mailSender: async () => {},
+				paypalClient: { cancel: async () => {} } as unknown as PaypalClient,
+			} as unknown as AppDeps);
+			const sub = await Subscription.create({
+				userId: 101,
+				provider: 'paypal',
+				externalSubscriptionId: 'I-2301-AK3',
+				plan: 'plus',
+				period: 'monthly',
+				status: 'active',
+				currentPeriodEnd: new Date('2099-01-01T00:00:00.000Z'),
+			});
+			const subId = sub.get('id') as number;
+			const sale = (id: string) => ({
+				id,
+				billing_agreement_id: 'I-2301-AK3',
+				amount: { total: '8.99', currency: 'EUR' },
+			});
+
+			await post('WH-2301-A', 'PAYMENT.SALE.COMPLETED', sale('PAYID-2301-A'));
+			await sub.reload();
+			await sub.update({ status: 'cancelled' });
+			await post('WH-2301-B', 'PAYMENT.SALE.COMPLETED', sale('PAYID-2301-B'));
+
+			const invoices = await Invoice.findAll({ where: { subscriptionId: subId } });
+			assert.equal(invoices.length, 2, 'Jede Abbuchung hat genau einen Beleg');
+			const invoiceB = invoices.find((invoice) => invoice.get('saleId') === 'PAYID-2301-B');
+			assert.ok(invoiceB, 'Die späte Abbuchung trägt ihre Sale-ID auf einer eigenen Rechnung');
+
+			await post('WH-2301-REFUND', 'PAYMENT.SALE.REFUNDED', {
+				id: 'REFUND-2301',
+				sale_id: 'PAYID-2301-B',
+				billing_agreement_id: 'I-2301-AK3',
+			});
+
+			const all = await Invoice.findAll({ where: { subscriptionId: subId } });
+			const creditNote = all.find((invoice) => /^GS-\d{4}-\d{6}$/.test(String(invoice.get('number'))));
+			assert.ok(creditNote, 'Die Erstattung erzeugt eine Gutschrift');
+			const raw = creditNote.get({ plain: true }) as unknown as Record<string, unknown>;
+			assert.equal(raw.creditForInvoiceId, invoiceB.get('id'), 'Die Gutschrift verweist auf Rechnung B');
+		} finally {
+			warnSpy.mock.restore();
+		}
+	});
+});
