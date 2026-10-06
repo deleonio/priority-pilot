@@ -120,7 +120,12 @@
 		"teilen": "Maand delen",
 		"speichern": "PNG opslaan",
 		"erzeuge": "Kaart wordt gemaakt …",
-		"fehler": "De kaart kon niet worden gemaakt. Probeer het opnieuw."
+		"fehler": "De kaart kon niet worden gemaakt. Probeer het opnieuw.",
+		"marken": {
+			"balamentum": "Balamentum",
+			"play": "Verkrijgbaar op Google Play",
+			"pwa": "Installeerbaar als app (PWA)"
+		}
 	},
 	"yearlyCard": {
 		"label": "Mijn jaar in cijfers",

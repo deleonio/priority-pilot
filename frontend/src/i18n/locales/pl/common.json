@@ -120,7 +120,12 @@
 		"teilen": "Udostępnij miesiąc",
 		"speichern": "Zapisz PNG",
 		"erzeuge": "Tworzenie karty …",
-		"fehler": "Nie udało się utworzyć karty. Spróbuj ponownie."
+		"fehler": "Nie udało się utworzyć karty. Spróbuj ponownie.",
+		"marken": {
+			"balamentum": "Balamentum",
+			"play": "Dostępne w Google Play",
+			"pwa": "Można zainstalować jako aplikację (PWA)"
+		}
 	},
 	"yearlyCard": {
 		"label": "Mój rok w liczbach",
