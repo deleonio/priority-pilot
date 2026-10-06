@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { usePaypalPurchase } from './PaypalPurchase';
@@ -18,11 +18,41 @@ vi.mock('@public-ui/react-v19', () => ({
 		</div>
 	),
 	KolSpin: ({ _label }: { _label: string }) => <div role="status">{_label}</div>,
-	KolButton: ({ _label, _disabled, _on }: { _label: string; _disabled?: boolean; _on?: { onClick?: () => void } }) => (
+	KolButton: ({
+		_label,
+		_disabled,
+		_on,
+		children,
+	}: {
+		_label: string;
+		_disabled?: boolean;
+		_on?: { onClick?: () => void };
+		children?: ReactNode;
+	}) => (
 		<button type="button" disabled={_disabled} onClick={() => _on?.onClick?.()}>
 			{_label}
+			{children}
 		</button>
 	),
+	KolInputCheckbox: ({
+		_label,
+		_checked,
+		_on,
+	}: {
+		_label: string;
+		_checked?: boolean;
+		_on?: { onChange?: (event: Event, value: unknown) => void };
+	}) => (
+		<label>
+			<input
+				type="checkbox"
+				checked={_checked === true}
+				onChange={(event) => _on?.onChange?.(event.nativeEvent, event.target.checked)}
+			/>
+			{_label}
+		</label>
+	),
+	KolLink: ({ _href, _label }: { _href: string; _label: string }) => <a href={_href}>{_label}</a>,
 }));
 
 vi.mock('./Modal', () => ({
@@ -135,6 +165,73 @@ describe('usePaypalPurchase — Warteverhalten nach dem Wechsel', () => {
 		render(<Harness targetPlan="plus" />);
 
 		expect(screen.queryByText('Aktuelles Paket')).toBeNull();
-		expect(screen.getByRole('button', { name: /buchen/i })).toBeTruthy();
+		// Test-Pflege #2307: der Buchen-Knopf heißt jetzt „Zahlungspflichtig bestellen".
+		expect(screen.getByRole('button', { name: /Zahlungspflichtig bestellen/ })).toBeTruthy();
+	});
+});
+
+/**
+ * #2307 (Vertrag: `docs/spec/issue-2307.md`) — Erstkauf „Zahlungspflichtig bestellen": eine
+ * gemeinsame Zustimmungs-Checkbox im Hinweisbereich schaltet den Buchen-Knopf frei;
+ * „Weiterführen" und „Wechseln" bleiben unverändert (AK1, AK2, AK3, AK6).
+ */
+describe('usePaypalPurchase — Widerrufsbelehrung vor dem Erstkauf (#2307)', () => {
+	beforeEach(() => {
+		createBillingSubscription.mockReset();
+		createBillingSubscription.mockResolvedValue({});
+		subscriptionState.subscription = null;
+	});
+	afterEach(cleanup);
+
+	const bookButton = () => screen.getByRole('button', { name: /Zahlungspflichtig bestellen/ });
+
+	it('AK1: der Buchen-Knopf trägt „Zahlungspflichtig bestellen" statt Paket und Laufzeit', () => {
+		render(<Harness />);
+		expect(bookButton()).toBeTruthy();
+		expect(screen.queryByRole('button', { name: /buchen \(/ })).toBeNull();
+	});
+
+	it('AK3: Hinweis verlinkt /widerruf/ und eine Checkbox steht (nicht vorbelegt) vor dem Knopf', () => {
+		const { container } = render(<Harness />);
+		expect(container.querySelector('a[href="/widerruf/"]')).not.toBeNull();
+		const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
+		expect(checkbox.checked).toBe(false);
+	});
+
+	it('AK2: ohne Checkbox ist der Knopf deaktiviert und löst keinen Checkout aus', () => {
+		render(<Harness />);
+		const button = bookButton() as HTMLButtonElement;
+		expect(button.disabled).toBe(true);
+		fireEvent.click(button);
+		expect(createBillingSubscription).not.toHaveBeenCalled();
+	});
+
+	it('AK2: mit gesetzter Checkbox startet der Klick den bisherigen Checkout', async () => {
+		render(<Harness />);
+		fireEvent.click(screen.getByRole('checkbox'));
+		const button = bookButton() as HTMLButtonElement;
+		expect(button.disabled).toBe(false);
+		fireEvent.click(button);
+		await waitFor(() => expect(createBillingSubscription).toHaveBeenCalledWith({ plan: 'plus', period: 'monthly' }));
+	});
+
+	it('AK6: „Wechseln" bleibt ohne Checkbox und mit altem Label', () => {
+		subscriptionState.subscription = { plan: 'pro', period: 'monthly', status: 'active' };
+		render(<Harness targetPlan="plus" />);
+		expect(screen.getByRole('button', { name: 'Plus wechseln (monatlich)' })).toBeTruthy();
+		expect(screen.queryByRole('checkbox')).toBeNull();
+		expect(screen.queryByRole('button', { name: /Zahlungspflichtig bestellen/ })).toBeNull();
+	});
+
+	it('AK6: „Weiterführen" bleibt ohne Checkbox und mit altem Label', () => {
+		subscriptionState.subscription = {
+			plan: 'plus',
+			period: 'monthly',
+			status: 'cancelled',
+			currentPeriodEnd: '2099-01-15T00:00:00.000Z',
+		};
+		render(<Harness targetPlan="plus" />);
+		expect(screen.getByRole('button', { name: /Plus weiterführen ab/ })).toBeTruthy();
+		expect(screen.queryByRole('checkbox')).toBeNull();
 	});
 });

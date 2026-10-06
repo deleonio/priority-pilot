@@ -58,6 +58,12 @@
 	"billing": {
 		"managedBy": "Abonnement actif, géré via {{provider}}",
 		"yearlyPerMonth": "ou {{price}}/mois avec paiement annuel",
+		"withdrawal": {
+			"hint": "Vous disposez d’un droit de rétractation de 14 jours.",
+			"link": "Informations sur la rétractation et formulaire type de rétractation",
+			"consent": "Je souhaite que le service commence immédiatement et je confirme que mon droit de rétractation s’éteint de ce fait.",
+			"order": "Commander avec obligation de paiement"
+		},
 		"manageInPlay": "Gérer dans Google Play",
 		"restore": {
 			"action": "Restaurer les achats",

@@ -5497,6 +5497,18 @@ a.plan-badge:focus-visible {
 	gap: var(--pp-gap-tight);
 }
 
+/* #2307: Widerrufshinweis und Zustimmung über der Paketliste; Text bricht auf 375px um. */
+.withdrawal-consent {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-tight);
+	margin-bottom: var(--pp-gap-base);
+}
+
+.withdrawal-consent p {
+	margin: 0;
+}
+
 /* #1898: Monatsäquivalent der Jahreszahlung als zweite Zeile unter dem Monatspreis. */
 .plans-list__per-month {
 	display: block;

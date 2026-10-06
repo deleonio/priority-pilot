@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { PRIVACY } from './privacy.ts';
 import { TERMS } from './terms.ts';
+import { WITHDRAWAL } from './withdrawal.ts';
 
 // #1967 AK2: Spiegel der Liste „zu meiden“ aus docs/fuersorge-tonalitaet.md (Zweckbestimmung und Begriffsliste).
 const VERBOTEN =
@@ -17,8 +18,9 @@ describe('website — Zweckbestimmung ohne Heilversprechen (#1967)', () => {
 		});
 	}
 
-	it('terms.ts und privacy.ts enthalten keinen Begriff der Zu-meiden-Liste', () => {
+	it('terms.ts, privacy.ts und withdrawal.ts enthalten keinen Begriff der Zu-meiden-Liste', () => {
 		expect(JSON.stringify(TERMS)).not.toMatch(VERBOTEN);
 		expect(JSON.stringify(PRIVACY)).not.toMatch(VERBOTEN);
+		expect(JSON.stringify(WITHDRAWAL)).not.toMatch(VERBOTEN);
 	});
 });

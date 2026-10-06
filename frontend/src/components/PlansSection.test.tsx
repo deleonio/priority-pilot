@@ -15,7 +15,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@public-ui/react-v19', () => ({
 	KolAlert: ({ children }: { children?: ReactNode }) => createElement('div', { role: 'alert' }, children),
 	KolBadge: ({ _label }: { _label?: string }) => createElement('span', null, _label),
-	KolButton: ({ _label }: { _label?: string }) => createElement('button', null, _label),
+	// Test-Pflege #2307: der Buchen-Knopf trägt seinen Namen im Expert-Slot (Kinder); Checkbox und Link der Widerrufsbelehrung.
+	KolButton: ({ _label, children }: { _label?: string; children?: ReactNode }) =>
+		createElement('button', null, _label, children),
+	KolInputCheckbox: ({ _label }: { _label?: string }) =>
+		createElement('input', { type: 'checkbox', 'aria-label': _label }),
+	KolLink: ({ _href, _label }: { _href?: string; _label?: string }) => createElement('a', { href: _href }, _label),
 	KolDetails: ({ _label, children }: { _label?: string; children?: ReactNode }) =>
 		createElement('div', { 'data-details-label': _label }, children),
 	KolSpin: () => createElement('div', { 'data-testid': 'spin' }),
@@ -198,8 +203,7 @@ describe('PlansSection je Kanal (#1674)', () => {
 		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
 
 		// Zwei bezahlte Pakete × drei Zeiträume; der Name steht im Label (eindeutig für Screenreader).
-		expect(screen.getAllByRole('button', { name: /buchen/i })).toHaveLength(6);
-		expect(screen.getByRole('button', { name: 'Pro buchen (monatlich)' })).toBeTruthy();
+		expect(screen.getAllByRole('button', { name: /Zahlungspflichtig bestellen/ })).toHaveLength(6);
 		expect(screen.queryByText('Die Pakete lassen sich bald direkt in der App buchen.')).toBeNull();
 	});
 

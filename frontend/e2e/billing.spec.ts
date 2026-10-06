@@ -105,6 +105,8 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 		);
 
 		await gotoPakete(page);
+		// #2307: Erstkauf erst nach der Zustimmung zum sofortigen Leistungsbeginn.
+		await page.getByRole('checkbox').check();
 		await page.getByTestId('book-pro-monthly').click();
 
 		await expect

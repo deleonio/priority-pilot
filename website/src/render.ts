@@ -11,9 +11,10 @@ import {
 	type Plan,
 	type PlansCatalog,
 } from '../../server/src/logics/plans.ts';
-import type { OPERATOR } from '../../frontend/src/lib/operator.ts';
+import { OPERATOR } from '../../frontend/src/lib/operator.ts';
 import { PRIVACY } from './privacy.ts';
 import { TERMS } from './terms.ts';
+import { WITHDRAWAL } from './withdrawal.ts';
 import { MCP_GUIDE } from './mcp-guide.ts';
 import { TEMPLATES } from './templates.ts';
 import { CLIENT_SCRIPT, QUESTIONS, SCALE_LABELS } from './assessment.ts';
@@ -192,6 +193,7 @@ ${body}
 				<a class="kern-link" href="${homePath(locale)}${messages.footer.accountDeletionPath}">${t(messages.footer.accountDeletion)}</a>
 				<a class="kern-link" href="/datenschutz/" hreflang="de">${t(messages.footer.privacy)}</a>
 				<a class="kern-link" href="/nutzungsbedingungen/" hreflang="de">${t(messages.footer.terms)}</a>
+				<a class="kern-link" href="/widerruf/" hreflang="de">${t(messages.footer.withdrawal)}</a>
 				<a class="kern-link" href="${locale === 'en' ? '/en/mcp/' : '/mcp/'}" hreflang="${locale === 'en' ? 'en' : 'de'}">${t(messages.footer.mcpGuide)}</a>
 				<a class="kern-link" href="/vorlagen/" hreflang="de">${t(messages.footer.templates)}</a>
 				<a class="kern-link" href="/balance-check/" hreflang="de">Balance-Check</a>
@@ -532,6 +534,33 @@ ${priceList.join('\n')}
 	return shell(context, {
 		title: 'Nutzungsbedingungen – Balamentum',
 		description: TERMS.description,
+		path: pathFor(),
+		pathFor,
+		body,
+	});
+};
+
+/**
+ * Widerrufsbelehrung mit Muster-Widerrufsformular (#2307): nur Deutsch unter der festen URL
+ * `/widerruf/`, Muster {@link renderTerms}. Die Betreiberangaben stammen aus `OPERATOR`.
+ */
+export const renderWithdrawal = (context: PageContext & { allMessages: Record<Locale, Messages> }): string => {
+	const pathFor = (): string => '/widerruf/';
+	const anbieter = `${OPERATOR.name}, ${OPERATOR.address.join(', ')}, E-Mail: ${OPERATOR.email}`;
+	const body = `			<section class="section">
+					<div class="container container--narrow imprint">
+						<h1 class="kern-heading-large">Widerrufsbelehrung</h1>
+						<p class="kern-body kern-body--large">${t(WITHDRAWAL.intro)}</p>
+${WITHDRAWAL.sections
+	.flatMap((section) => [
+		`					<h2 class="kern-title">${t(section.heading)}</h2>`,
+		...section.paragraphs.map((paragraph) => `					<p class="kern-body">${t(fill(paragraph, { anbieter }))}</p>`),
+	])
+	.join('\n')}				</div>
+			</section>`;
+	return shell(context, {
+		title: 'Widerrufsbelehrung – Balamentum',
+		description: WITHDRAWAL.description,
 		path: pathFor(),
 		pathFor,
 		body,

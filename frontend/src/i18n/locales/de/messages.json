@@ -58,6 +58,12 @@
 	"billing": {
 		"managedBy": "Abo aktiv, verwaltet über {{provider}}",
 		"yearlyPerMonth": "oder {{price}}/Monat bei Jahreszahlung",
+		"withdrawal": {
+			"hint": "Du hast ein Widerrufsrecht von 14 Tagen.",
+			"link": "Widerrufsbelehrung und Muster-Widerrufsformular",
+			"consent": "Ich möchte, dass die Leistung sofort beginnt, und bestätige, dass mein Widerrufsrecht damit erlischt.",
+			"order": "Zahlungspflichtig bestellen"
+		},
 		"manageInPlay": "In Google Play verwalten",
 		"restore": {
 			"action": "Käufe wiederherstellen",

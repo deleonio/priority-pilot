@@ -134,6 +134,7 @@ test.describe('Öffentliche Website', () => {
 			'/konto-loeschen/',
 			'/datenschutz/',
 			'/nutzungsbedingungen/',
+			'/widerruf/',
 			'/ru/delete-account/',
 		]) {
 			await page.goto(path);

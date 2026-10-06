@@ -324,6 +324,35 @@ describe('renderPrivacy (#1672)', () => {
 	});
 });
 
+// #2307: `renderWithdrawal` existiert als Export noch nicht (roter Spec-Zustand) — deshalb optional getippt.
+const renderWithdrawal = (
+	renderModule as {
+		renderWithdrawal?: (context: PageContext & { allMessages: Record<Locale, Messages> }) => string;
+	}
+).renderWithdrawal;
+
+/**
+ * #2307 (Vertrag: `docs/spec/issue-2307.md`) — Widerrufsbelehrung und Muster-Widerrufsformular als
+ * feste deutsche Seite unter `/widerruf/`, Footer-Link in allen zehn Sprachen.
+ */
+describe('renderWithdrawal (#2307)', () => {
+	it('rendert lang="de" mit Widerrufsbelehrung und Muster-Widerrufsformular (AK4)', () => {
+		expect(renderWithdrawal, 'renderWithdrawal existiert noch nicht (Export in render.ts)').toBeTypeOf('function');
+		const html = renderWithdrawal!({ locale: 'de', messages: de, siteUrl: '', allMessages });
+		expect(html).toContain('<html lang="de"');
+		expect(html).toContain('Widerrufsbelehrung');
+		expect(html).toContain('Muster-Widerrufsformular');
+	});
+
+	it('verlinkt /widerruf/ aus dem Footer aller zehn Sprachen (AK4)', () => {
+		for (const [locale, messages] of Object.entries(allMessages)) {
+			const label = (messages.footer as { withdrawal?: string }).withdrawal;
+			expect(label, `${locale}: i18n-Key footer.withdrawal fehlt`).toBeTruthy();
+			expect(landing(locale as Locale), locale).toMatch(new RegExp(`href="/widerruf/"[^>]*>${label}</a>`));
+		}
+	});
+});
+
 /**
  * #1891 (Vertrag: `docs/spec/issue-1891.md`) — Nutzungsbedingungen als feste deutsche Seite unter
  * `/nutzungsbedingungen/`, Preise aus `plans.ts`, Footer-Link in allen zehn Sprachen, Sitemap.

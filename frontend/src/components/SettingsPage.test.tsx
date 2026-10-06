@@ -1741,10 +1741,9 @@ describe('SettingsPage – #1902: Tab „Pakete & Abo"', () => {
 		await waitFor(() => expect(panel.querySelector('[data-testid="plans-section"]')).not.toBeNull());
 
 		expect(panel.querySelector('kol-table-stateful, table')).toBeNull();
-		const bookButtons = Array.from(panel.querySelectorAll('kol-button')).filter((b) =>
-			/^Pro.*buchen/i.test(b.getAttribute('_label') ?? ''),
-		);
-		expect(bookButtons.length, 'Buchen-Aktion für „Pro“ (Name + Handlung im Label)').toBeGreaterThan(0);
+		// Test-Pflege #2307: der Buchen-Knopf trägt „Zahlungspflichtig bestellen" im Expert-Slot, nicht mehr im `_label`.
+		const bookButtons = panel.querySelectorAll('kol-button[data-testid^="book-pro-"]');
+		expect(bookButtons.length, 'Buchen-Aktion für „Pro“ (test-id je Zeitraum)').toBeGreaterThan(0);
 	});
 
 	it('AK7: zwei Karten auf oberster Ebene, keine Karte in Karte, kein Accordion in Karte/Accordion', async () => {
