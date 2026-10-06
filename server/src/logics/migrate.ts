@@ -1202,6 +1202,21 @@ export const migrateInvoiceCurrencyColumn = async (db: Sequelize): Promise<void>
 };
 
 /**
+ * Zieht `creditForInvoiceId` (#2237) auf einer **bestehenden** `invoices`-Tabelle nach, BEVOR
+ * `sequelize.sync()` läuft — Muster {@link migrateInvoiceCurrencyColumn}. Nullable, daher kein
+ * Default nötig: Bestandsrechnungen bleiben `NULL`, nur Gutschriften tragen den Originalbezug.
+ * Idempotent; ohne Tabelle ein No-op.
+ */
+export const migrateInvoiceCreditForColumn = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('invoices')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+	if (existing.length > 0 && !existing.includes('creditForInvoiceId')) {
+		await db.query('ALTER TABLE `invoices` ADD COLUMN `creditForInvoiceId` INTEGER');
+		console.log('Spalte creditForInvoiceId an invoices nachgezogen.');
+	}
+};
+
+/**
  * Stellt die Altpakete des Vier-Paket-Modells um (#1785): `max` wird `plus`, `ultimate` wird `pro` in
  * `users.plan`, `subscriptions.plan` und `subscriptions.pendingPlan`. Idempotent; fehlende Tabellen
  * oder Spalten sind ein No-op.

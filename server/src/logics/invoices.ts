@@ -1,6 +1,7 @@
 import { Op, type Transaction } from 'sequelize';
 import Invoice from '../models/invoice.js';
 import InvoiceSequence from '../models/invoiceSequence.js';
+import CreditSequence from '../models/creditSequence.js';
 import type Subscription from '../models/subscription.js';
 import User from '../models/user.js';
 import { getPlansCatalog, type Plan } from './plans.js';
@@ -56,6 +57,50 @@ export const nextInvoiceNumber = async (now: Date, transaction?: Transaction): P
 		transaction,
 	});
 	return `INV-${year}-${String(ordinal).padStart(6, '0')}`;
+};
+
+/**
+ * Nächste Gutschriftnummer im Format `GS-<Jahr>-<6-stellig>` (#2237) — eigener Kreis neben den
+ * Rechnungsnummern, atomar über INSERTs in `credit_sequences` (Muster {@link nextInvoiceNumber};
+ * In-Memory-SQLite `pool.max = 1`: nie `count() + 1`). Bewusst nicht exportiert: nur
+ * {@link issueCreditNote} reserviert Nummern.
+ */
+const nextCreditNoteNumber = async (now: Date, transaction?: Transaction): Promise<string> => {
+	const year = now.getUTCFullYear();
+	const reservation = await CreditSequence.create({ year }, { transaction });
+	const ordinal = await CreditSequence.count({
+		where: { year, id: { [Op.lte]: reservation.get('id') as number } },
+		transaction,
+	});
+	return `GS-${year}-${String(ordinal).padStart(6, '0')}`;
+};
+
+/**
+ * Stellt eine Gutschrift zur Originalrechnung aus (#2237): eigene Zeile in `invoices` mit eigener
+ * Nummer, dem negativen Originalbetrag und dem Bezug aufs Original (`creditForInvoiceId`) — das
+ * Original selbst bleibt unverändert (`paymentStatus 'paid'`). Läuft in der Transaktion des
+ * Paketentzugs (#2233-Muster): wirft sie, bleibt auch das Abo unverändert und die Wiederholung des
+ * Ereignisses erzeugt genau eine Gutschrift (die Nummernreservierung rollt mit zurück).
+ */
+export const issueCreditNote = async (original: Invoice, now: Date, transaction?: Transaction): Promise<Invoice> => {
+	const amountCents = -(original.get('amountCents') as number);
+	return Invoice.create(
+		{
+			userId: original.get('userId') as number,
+			subscriptionId: original.get('subscriptionId') as number,
+			number: await nextCreditNoteNumber(now, transaction),
+			periodStart: original.get('periodStart') as Date,
+			periodEnd: original.get('periodEnd') as Date,
+			amountCents,
+			currency: original.get('currency') as string,
+			taxNote: TAX_NOTE,
+			lineItems: [{ label: `Gutschrift zu Rechnung ${original.get('number')}`, amountCents }],
+			paymentStatus: 'refunded',
+			saleId: (original.get('saleId') as string | null) ?? null,
+			creditForInvoiceId: original.get('id') as number,
+		},
+		{ transaction },
+	);
 };
 
 /**

@@ -121,6 +121,10 @@ const receiveProviderEvent = (provider: BillingProvider) => async (req: Request,
 			sendError(res, 503, 'Ereignis konnte nicht verarbeitet werden.');
 			return;
 		}
+	} else {
+		// Kein Abo-Match (#2237): trotzdem ablegen und mit 200 quittieren (eine 503 würde PayPal
+		// endlos wiederholen), aber sichtbar protokollieren statt still als processed abzulegen.
+		console.warn(`Ereignis ${event.id} von ${provider.id} konnte keinem Abo zugeordnet werden.`);
 	}
 	await stored.update({ processedAt: new Date() });
 

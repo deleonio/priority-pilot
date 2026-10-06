@@ -434,6 +434,17 @@ export interface ApplyPaymentEventDeps {
 		charged?: ChargedAmount,
 		transaction?: Transaction,
 	) => Promise<unknown>;
+	/**
+	 * Gutschrift zur Originalrechnung (#2237): eigener Beleg statt `refunded` am Original — läuft in
+	 * derselben Transaktion wie der Paketentzug (#2233); wirft sie, bleibt das Paket bestehen.
+	 */
+	issueCreditNote?: (original: Invoice, now: Date, transaction?: Transaction) => Promise<unknown>;
+	/**
+	 * PayPal-Kündigung nach Erstattung/Rückbuchung (#2237) — läuft bewusst AUSSERHALB der
+	 * Transaktion (externer Aufruf, Muster `replacePredecessors`); ein Fehler kassiert die
+	 * Gutschrift nicht.
+	 */
+	cancelPaypal?: () => Promise<void>;
 }
 
 /**
@@ -447,7 +458,12 @@ export interface ApplyPaymentEventDeps {
  *   des Ereignisses verlängert genau einmal.
  * - Aktivierung (`BILLING.SUBSCRIPTION.ACTIVATED`) ist keine Abbuchung → nur `status: 'active'`,
  *   weder Verlängerung noch Rechnung (#2230).
- * - Fehlgeschlagener Einzug (`BILLING.SUBSCRIPTION.PAYMENT.FAILED`) → nur beim ersten Mal
+ * - Erstattung/Rückbuchung (`PAYMENT.SALE.REFUNDED`/`PAYMENT.SALE.REVERSED`, #2237) → Gutschrift
+ *   zur Originalrechnung (Sale-Referenz, sonst neueste Rechnung des Abos) und sofortiger
+ *   Paketentzug in EINER Transaktion (#2233), danach die PayPal-Kündigung außerhalb — die
+ *   Originalrechnung selbst bleibt unverändert (`paid`, #2086 bewusst umgekehrt).
+ * - Fehlgeschlagener Einzug (`BILLING.SUBSCRIPTION.PAYMENT.FAILED`, ebenso der abgelehnte
+ *   Einzelzahlungseinzug `PAYMENT.SALE.DENIED`, #2237) → nur beim ersten Mal
  *   `firstFailureAt` setzen und `status: 'past_due'`; ein weiterer Fehlschlag verlängert die
  *   bereits laufende Frist nicht.
  * - `BILLING.SUBSCRIPTION.SUSPENDED` → `status: 'suspended'`, `firstFailureAt` unverändert — die
@@ -523,22 +539,45 @@ export const applyPaymentEvent = async (
 		return;
 	}
 
-	if (eventType === 'PAYMENT.SALE.REFUNDED') {
-		// Erstattung (#2086): die Rechnung mit passender Sale-Referenz wird `refunded`; trägt keine
-		// Rechnung die Referenz (Altrechnung vor der Spalte), trifft der Fallback die neueste
-		// Rechnung des Abos — eine Erstattung darf nie still verloren gehen.
+	if (eventType === 'PAYMENT.SALE.REFUNDED' || eventType === 'PAYMENT.SALE.REVERSED') {
+		// Erstattung/Rückbuchung (#2237): statt die Originalrechnung auf `refunded` zu setzen
+		// (#2086, bewusst umgekehrt), entsteht ein eigener Gutschriftsbeleg — und das Paket wird
+		// sofort entzogen. Die Originalrechnung findet sich über die Sale-Referenz, sonst — wie
+		// bisher — als neueste Rechnung des Abos; ohne irgendeine Rechnung entfällt nur der Beleg.
 		const subscriptionId = subscription.get('id') as number;
 		const saleId = event.resource?.sale_id ?? null;
-		const invoice =
+		const original =
 			(saleId ? await Invoice.findOne({ where: { subscriptionId, saleId } }) : null) ??
 			(await Invoice.findOne({ where: { subscriptionId }, order: [['periodEnd', 'DESC']] }));
-		if (invoice) {
-			await invoice.update({ paymentStatus: 'refunded' });
+		// Gutschrift und Paketentzug in EINER Transaktion (#2233): wirft die Gutschrift, bleibt das
+		// Paket bestehen und die Wiederholung des Ereignisses versucht es erneut.
+		await sequelize.transaction(async (transaction) => {
+			if (original) {
+				await deps.issueCreditNote?.(original, now, transaction);
+			}
+			await subscription.update(
+				{
+					plan: 'free',
+					status: 'cancelled',
+					pendingPlan: null,
+					pendingPeriod: null,
+					pendingPlanEffectiveAt: null,
+				},
+				{ transaction },
+			);
+			await syncUserPlan(subscription, 'free', transaction);
+		});
+		// Die Kündigung bei PayPal gehört nicht in die Transaktion (externer Aufruf, Muster
+		// `replacePredecessors`); schlägt sie fehl, bleibt die Gutschrift erhalten (nur loggen).
+		try {
+			await deps.cancelPaypal?.();
+		} catch (error) {
+			console.warn('PayPal-Abo konnte nach Erstattung nicht gekündigt werden:', error);
 		}
 		return;
 	}
 
-	if (eventType === 'BILLING.SUBSCRIPTION.PAYMENT.FAILED') {
+	if (eventType === 'BILLING.SUBSCRIPTION.PAYMENT.FAILED' || eventType === 'PAYMENT.SALE.DENIED') {
 		if (!subscription.get('firstFailureAt')) {
 			await subscription.update({ firstFailureAt: now, status: 'past_due' });
 		}
