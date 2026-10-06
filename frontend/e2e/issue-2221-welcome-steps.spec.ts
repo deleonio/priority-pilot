@@ -29,6 +29,11 @@ const finishOnboarding = async (page: Page): Promise<void> => {
 // Test-Pflege (#2221): die Fixture schliesst den Willkommens-Dialog sonst vor dem „Später“-Klick (siehe onboarding-flow.spec.ts).
 test.use({ dismissOnboarding: false });
 
+// Ein noch laufender `route.fetch` aus `finishOnboarding` darf nach Testende nicht als Fehler zählen.
+test.afterEach(async ({ page }) => {
+	await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
 test.describe('#2221 Einstieg Erste Schritte', () => {
 	test('AK1+AK3: nach dem Onboarding sichtbar, nach Schließen und Reload nicht mehr', async ({ page }) => {
 		await finishOnboarding(page);
