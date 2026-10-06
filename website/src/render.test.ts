@@ -353,6 +353,40 @@ describe('renderWithdrawal (#2307)', () => {
 	});
 });
 
+// #2317: `renderCancellation` existiert als Export noch nicht (roter Spec-Zustand) — deshalb optional getippt.
+const renderCancellation = (
+	renderModule as unknown as {
+		renderCancellation?: (context: PageContext & { allMessages: Record<Locale, Messages> }) => string;
+	}
+).renderCancellation;
+
+/**
+ * #2317 (Vertrag: `docs/spec/issue-2317.md`) — Kündigung ohne Login: feste deutsche Seite unter
+ * `/kuendigen/` mit Formular, Footer-Link in allen zehn Sprachen. Die Sitemap-Aufnahme (AK1) ist baugesteuert (Muster `/widerruf/`) und hier nicht separat getestet.
+ */
+describe('renderCancellation (#2317)', () => {
+	it('rendert lang="de" mit allen Feldern und dem Knopf „Jetzt kündigen“ (AK1, AK2)', () => {
+		expect(renderCancellation, 'renderCancellation existiert noch nicht (Export in render.ts)').toBeTypeOf('function');
+		const html = renderCancellation!({ locale: 'de', messages: de, siteUrl: '', allMessages });
+		expect(html).toContain('<html lang="de"');
+		expect(html).toMatch(/<input[^>]*type="email"/);
+		expect(html).toMatch(/<select/);
+		expect(html).toMatch(/type="radio"[^>]*value="ordinary"/);
+		expect(html).toMatch(/type="radio"[^>]*value="extraordinary"/);
+		expect(html).toMatch(/<textarea|name="reason"/);
+		expect(html).toMatch(/type="date"/);
+		expect(html).toMatch(/<button[^>]*>\s*Jetzt kündigen\s*<\/button>/);
+	});
+
+	it('verlinkt /kuendigen/ aus dem Footer aller zehn Sprachen (AK1)', () => {
+		for (const [locale, messages] of Object.entries(allMessages)) {
+			const label = (messages.footer as { cancellation?: string }).cancellation;
+			expect(label, `${locale}: i18n-Key footer.cancellation fehlt`).toBeTruthy();
+			expect(landing(locale as Locale), locale).toMatch(new RegExp(`href="/kuendigen/"[^>]*>${label}</a>`));
+		}
+	});
+});
+
 /**
  * #1891 (Vertrag: `docs/spec/issue-1891.md`) — Nutzungsbedingungen als feste deutsche Seite unter
  * `/nutzungsbedingungen/`, Preise aus `plans.ts`, Footer-Link in allen zehn Sprachen, Sitemap.
