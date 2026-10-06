@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createElement, useState, type ReactNode } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '../i18n/locales/en/messages.json';
 
 /**
@@ -9,6 +10,39 @@ import en from '../i18n/locales/en/messages.json';
  */
 
 vi.mock('../api', () => ({ api: { acceptTerms: vi.fn() } }));
+
+// KolDetails-Stub (Memory 2026-10-05): Kinder nur bei geöffnetem Zustand; Label ist der Schalter
+// und meldet wie KoliBri `onToggle(event, open)`. Das Label liegt bewusst außerhalb eines <label>.
+vi.mock('@public-ui/react-v19', () => ({
+	KolDetails: ({
+		_label,
+		_open,
+		_on,
+		children,
+	}: {
+		_label?: string;
+		_open?: boolean;
+		_on?: { onToggle?: (event: Event, open: boolean) => void };
+		children?: ReactNode;
+	}) => {
+		const [open, setOpen] = useState(_open === true);
+		return createElement(
+			'div',
+			null,
+			createElement(
+				'span',
+				{
+					onClick: (event: MouseEvent) => {
+						_on?.onToggle?.(event as unknown as Event, !open);
+						setOpen(!open);
+					},
+				},
+				_label,
+			),
+			open ? children : null,
+		);
+	},
+}));
 
 import { api } from '../api';
 import { ConsentStep } from './ConsentStep';
@@ -55,15 +89,90 @@ describe('ConsentStep (#1901)', () => {
 		expect(onAccepted).not.toHaveBeenCalled();
 		boxes.forEach((box) => expect((box as HTMLInputElement).checked).toBe(true));
 	});
+});
 
-	it('AK5: Links zeigen auf Nutzungsbedingungen und Datenschutzerklärung (neuer Tab)', () => {
+/**
+ * Rechtstexte im Schritt lesen (#2227, docs/spec/issue-1901.md „Rechtstexte im Schritt lesen"):
+ * statt Links in neuem Tab je ein Aufklapp-Bereich, der die Website-Seite same-origin lädt.
+ */
+describe('ConsentStep — Rechtstexte lesen (#2227)', () => {
+	const PAGE = (body: string): string =>
+		`<html><body><header>Website-Kopf</header><main id="main"><h1>Titel</h1>${body}</main><footer>Website-Fuss</footer></body></html>`;
+
+	const fetchMock = vi.fn();
+
+	const respond = (html: string): void => {
+		fetchMock.mockImplementation(() => Promise.resolve(new Response(html, { status: 200 })));
+	};
+
+	beforeEach(() => {
+		vi.stubGlobal('fetch', fetchMock);
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		fetchMock.mockReset();
+		vi.clearAllMocks();
+	});
+
+	const open = (label: RegExp): void => {
+		fireEvent.click(screen.getByText(label));
+	};
+	const fetchedUrls = (): string[] => fetchMock.mock.calls.map((call) => String(call[0]));
+
+	it('AK1/AK2: Aufklappen lädt die Website-Seite und zeigt nur den Inhalt von main#main', async () => {
+		respond(PAGE('<p>Konto-Text</p>'));
+		const { container } = render(<ConsentStep onAccepted={vi.fn()} />);
+		expect(fetchMock).not.toHaveBeenCalled();
+		open(/Nutzungsbedingungen lesen/);
+		expect(await screen.findByText('Konto-Text')).toBeTruthy();
+		expect(fetchedUrls()).toEqual(['/nutzungsbedingungen/']);
+		expect(screen.queryByText('Website-Kopf')).toBeNull();
+		expect(screen.queryByText('Website-Fuss')).toBeNull();
+		expect(container.querySelector('a[target="_blank"]')).toBeNull();
+		expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+	});
+
+	it('AK2: Datenschutzerklärung lädt /datenschutz/; erneutes Aufklappen lädt nicht neu', async () => {
+		respond(PAGE('<p>Daten-Text</p>'));
 		render(<ConsentStep onAccepted={vi.fn()} />);
-		const terms = screen.getByRole('link', { name: /Nutzungsbedingungen/ });
-		const privacy = screen.getByRole('link', { name: /Datenschutzerklärung/ });
-		expect(terms.getAttribute('href')).toBe('/nutzungsbedingungen/');
-		expect(privacy.getAttribute('href')).toBe('/datenschutz/');
-		expect(terms.getAttribute('target')).toBe('_blank');
-		expect(privacy.getAttribute('target')).toBe('_blank');
+		open(/Datenschutzerklärung lesen/);
+		expect(await screen.findByText('Daten-Text')).toBeTruthy();
+		open(/Datenschutzerklärung lesen/);
+		open(/Datenschutzerklärung lesen/);
+		expect(await screen.findByText('Daten-Text')).toBeTruthy();
+		expect(fetchedUrls()).toEqual(['/datenschutz/']);
+	});
+
+	it.each([
+		['Netzfehler', () => Promise.reject(new Error('offline'))],
+		['Status 404', () => Promise.resolve(new Response('nope', { status: 404 }))],
+	])('AK3: %s zeigt Hinweis mit Ausweichlink, Haken bleiben bedienbar', async (_name, impl) => {
+		fetchMock.mockImplementation(impl);
+		render(<ConsentStep onAccepted={vi.fn()} />);
+		open(/Nutzungsbedingungen lesen/);
+		const alert = await screen.findByRole('alert');
+		const fallback = within(alert).getByRole('link');
+		expect(fallback.getAttribute('href')).toBe('/nutzungsbedingungen/');
+		expect(fallback.getAttribute('target')).toBe('_blank');
+		const [terms] = screen.getAllByRole('checkbox') as HTMLInputElement[];
+		fireEvent.click(terms);
+		expect(terms.checked).toBe(true);
+	});
+
+	it('AK4: Öffnen und Schließen ändert weder Haken noch „Weiter“', async () => {
+		respond(PAGE('<p>Konto-Text</p>'));
+		render(<ConsentStep onAccepted={vi.fn()} />);
+		const boxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+		open(/Nutzungsbedingungen lesen/);
+		await screen.findByText('Konto-Text');
+		expect(boxes.map((box) => box.checked)).toEqual([false, false]);
+		boxes.forEach((box) => fireEvent.click(box));
+		expect(weiter().disabled).toBe(false);
+		open(/Nutzungsbedingungen lesen/);
+		open(/Datenschutzerklärung lesen/);
+		expect(boxes.map((box) => box.checked)).toEqual([true, true]);
+		expect(weiter().disabled).toBe(false);
 	});
 });
 
@@ -75,14 +184,20 @@ describe('ConsentStep Rechtstext-Hinweis (#2226)', () => {
 		await i18next.changeLanguage('de');
 	});
 
-	it('AK3: Nicht-Deutsch zeigt den Hinweis, Links tragen hreflang="de" bei deutschen Zielen', async () => {
+	it('AK3: Nicht-Deutsch zeigt den Hinweis, der Ausweichlink trägt hreflang="de"', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(() => Promise.reject(new Error('offline'))),
+		);
 		await i18next.changeLanguage('en');
 		expect(hint, 'Key legal.germanOnly fehlt in en/messages.json').toBeTruthy();
 		render(<ConsentStep onAccepted={vi.fn()} />);
 		expect(screen.getByText(hint!)).toBeTruthy();
-		const links = screen.getAllByRole('link');
-		expect(links.map((a) => a.getAttribute('href')).sort()).toEqual(['/datenschutz/', '/nutzungsbedingungen/']);
-		for (const a of links) expect(a.getAttribute('hreflang')).toBe('de');
+		fireEvent.click(screen.getByText(en.consent.readTerms));
+		const fallback = within(await screen.findByRole('alert')).getByRole('link');
+		expect(fallback.getAttribute('href')).toBe('/nutzungsbedingungen/');
+		expect(fallback.getAttribute('hreflang')).toBe('de');
+		vi.unstubAllGlobals();
 	});
 
 	it('AK3: Deutsch zeigt keinen Hinweis', () => {
