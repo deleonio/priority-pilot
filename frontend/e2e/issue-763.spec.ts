@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { registerOwnSession, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #763 „Säulen-Gewichtung Layout-Optimierung".
@@ -16,6 +16,8 @@ import { waitForStableView } from './helpers';
 // #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
 // Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
 test.beforeEach(async ({ page }) => {
+	// Eigene Session: ohne Konto gilt `GET /pillars` über alle Säulen der Shard-DB (Slider-Index 37+).
+	await registerOwnSession(page, 'pillar-layout-763');
 	await page.addInitScript(() => {
 		localStorage.setItem('pp-expert-mode', 'true');
 	});
