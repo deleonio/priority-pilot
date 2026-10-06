@@ -60,6 +60,9 @@ export const ConsentStep = ({ onAccepted }: { onAccepted: () => void }) => {
 	const [saving, setSaving] = useState(false);
 	const [failed, setFailed] = useState(false);
 	const [texts, setTexts] = useState<Partial<Record<LegalKey, LegalText>>>({});
+	// Klappzustand app-seitig (Muster `SettingsPage`): ein festes `_open={false}` klappte den Text beim
+	// Re-Render durch das Laden sofort wieder zu.
+	const [open, setOpen] = useState<Partial<Record<LegalKey, boolean>>>({});
 	const headingRef = useRef<HTMLHeadingElement>(null);
 
 	useEffect(() => {
@@ -152,7 +155,16 @@ export const ConsentStep = ({ onAccepted }: { onAccepted: () => void }) => {
 				<input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
 				{label}
 			</label>
-			<KolDetails _label={read} _open={false} _on={{ onToggle: (_event, open) => open && loadText(key) }}>
+			<KolDetails
+				_label={read}
+				_open={open[key] === true}
+				_on={{
+					onToggle: (_event, value) => {
+						setOpen((current) => ({ ...current, [key]: value === true }));
+						if (value === true) loadText(key);
+					},
+				}}
+			>
 				{text(key, link)}
 			</KolDetails>
 		</div>
