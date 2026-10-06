@@ -53,6 +53,8 @@
 #         (--set <label[,label…]> | --set-none) \
 #         [--expect <label[,label…]|none|any>]   # default: any (kein Guard)
 #         [--forbid <label[,label…]>]            # verwirft, wenn eins davon bereits klebt
+#         [--tolerate <label[,label…]>]          # ignoriert diese Labels im --expect-Vergleich
+#                                                # (ai:needs-human wird nie toleriert, Guard 3)
 #         [--dry-run]
 #
 # Ausgabe (stdout, key=value):
@@ -82,6 +84,7 @@ SET=""
 SET_NONE="false"
 EXPECT="any"
 FORBID=""
+TOLERATE=""
 DRY_RUN="false"
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -91,6 +94,7 @@ while [ $# -gt 0 ]; do
     --set-none) SET_NONE="true"; shift ;;
     --expect) EXPECT="$2"; shift 2 ;;
     --forbid) FORBID="$2"; shift 2 ;;
+    --tolerate) TOLERATE="$2"; shift 2 ;;
     --dry-run) DRY_RUN="true"; shift ;;
     *) echo "label-transition: unbekannte Option '$1'" >&2; exit 2 ;;
   esac
@@ -168,6 +172,19 @@ while IFS= read -r l; do
 done <<EOF
 $(split_list "$FORBID")
 EOF
+TOLERATE_LIST=()
+while IFS= read -r l; do
+  [ -n "$l" ] || continue
+  if ! in_list "$l" ${MANAGED[@]+"${MANAGED[@]}"}; then
+    echo "label-transition: --tolerate-Label '$l' ist kein Pipeline-Label" >&2; exit 2
+  fi
+  if [ "$l" = "ai:needs-human" ]; then
+    echo "label-transition: --tolerate darf ai:needs-human nicht aushebeln" >&2; exit 2
+  fi
+  TOLERATE_LIST+=("$l")
+done <<EOF
+$(split_list "$TOLERATE")
+EOF
 EXPECT_LIST=()
 if [ "$EXPECT" != "any" ] && [ "$EXPECT" != "none" ]; then
   while IFS= read -r l; do
@@ -243,7 +260,11 @@ done
 # Guard 2 — --expect: exakter Soll-Ist-Vergleich des Managed-Bestands.
 if [ "$EXPECT" != "any" ]; then
   want="$(norm ${EXPECT_LIST[@]+"${EXPECT_LIST[@]}"})"
-  is="$(norm ${CURRENT_MANAGED[@]+"${CURRENT_MANAGED[@]}"})"
+  COMPARE=()
+  for l in ${CURRENT_MANAGED[@]+"${CURRENT_MANAGED[@]}"}; do
+    in_list "$l" ${TOLERATE_LIST[@]+"${TOLERATE_LIST[@]}"} || COMPARE+=("$l")
+  done
+  is="$(norm ${COMPARE[@]+"${COMPARE[@]}"})"
   if [ "$want" != "$is" ]; then
     out false ok "Pre-State geändert: erwartet '${want:-leer}', Ist '${is:-leer}' — neuere Entscheidung regiert, kein Write"
     exit 0

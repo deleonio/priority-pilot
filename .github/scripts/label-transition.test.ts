@@ -183,3 +183,30 @@ describe('label-transition.sh — Guard 0 (Renovate-PRs tragen nie ein Phasen-La
 		assert.ok(putLogContents().includes('ai:needs-review'));
 	});
 });
+
+describe('label-transition.sh — --tolerate (#2286, AK4/AK5)', () => {
+	it('AK4: --tolerate ai:reviewed neben dem erwarteten Trigger gilt als Pre-State-Treffer', () => {
+		// Nach needs-human-Review: ai:needs-fixup + ai:reviewed. Der Start-Konsum darf nicht verwerfen.
+		writeFileSync(fixturePath, fixture('ai:needs-fixup', 'ai:reviewed'));
+		const r = runTransition(['--set-none', '--expect', 'ai:needs-fixup', '--tolerate', 'ai:reviewed']);
+		assert.equal(r.applied, 'true', 'tolerierter Bestand muss durchgehen');
+		assert.equal(r.labels, '', 'Zielbestand enthaelt weder needs-fixup noch reviewed');
+		const log = putLogContents();
+		assert.ok(!log.includes('ai:needs-fixup'), 'ai:needs-fixup muss verschwinden');
+		assert.ok(!log.includes('ai:reviewed'), 'ai:reviewed wird mit abgeraeumt');
+	});
+
+	it('AK5: needs-human im Bestand bleibt Parker, auch mit --tolerate', () => {
+		writeFileSync(fixturePath, fixture('ai:needs-fixup', 'ai:reviewed', 'ai:needs-human'));
+		const r = runTransition(['--set-none', '--expect', 'ai:needs-fixup', '--tolerate', 'ai:reviewed']);
+		assert.equal(r.applied, 'false', 'needs-human darf nicht ausgehebelt werden');
+		assert.equal(putLogContents(), '', 'KEIN PUT');
+	});
+
+	it('AK5: --tolerate toleriert nur das Genannte — fremdes Label bleibt Mismatch', () => {
+		writeFileSync(fixturePath, fixture('ai:needs-fixup', 'ai:needs-review'));
+		const r = runTransition(['--set-none', '--expect', 'ai:needs-fixup', '--tolerate', 'ai:reviewed']);
+		assert.equal(r.applied, 'false');
+		assert.match(r.reason, /Pre-State/);
+	});
+});
