@@ -4,12 +4,13 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.17 - 2026-10-06
 
-_Enthält v0.17.0 – v0.17.20._
+_Enthält v0.17.0 – v0.17.21._
 
 ### 🎉 New Features
 
 - feat(server): carry upgrade credit over to following cycles (#2241) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2280
 - feat(frontend): add welcome steps card to dashboard after onboarding by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2284
+- feat(admin): delete user subscriptions and invoices completely (#2295) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2296
 
 ### 🔧 Engineering
 
@@ -34,6 +35,7 @@ _Enthält v0.17.0 – v0.17.20._
 - test(frontend): isolate issue-763 e2e spec with its own session by @deleonio in https://github.com/deleonio/priority-pilot/pull/2291
 - feat(frontend): explain free path without ai in onboarding import by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2289
 - feat(frontend): show legal texts inline in consent step by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2293
+- [P2/M] Website: Rechtstexte für die anderen Sprachen (#2226) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2294
 
 ## v0.16 - 2026-10-06
 
@@ -164,7 +166,6 @@ _Enthält v0.14.0 – v0.14.31._
 - feat(ci): let container closing analysis act on its result (#2101) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2127
 - fix(ci): fallback documenter no longer pins release:engineering (#2111) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2129
 - feat(ci): defer pipeline starts in zai peak window via ZAI_PEAK_MODE by @deleonio in https://github.com/deleonio/priority-pilot/pull/2126
-- docs(arc42): sync documentation to implementation state 2026-10-03 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2133
 - docs(arc42): sync documentation to implementation state 2026-10-03 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2133
 - chore(ci): connect tailscale exit node via oauth client with authkey fallback by @deleonio in https://github.com/deleonio/priority-pilot/pull/2128
 - ci: documenter falls back to zai when pi openrouter aliases are missing by @deleonio in https://github.com/deleonio/priority-pilot/pull/2135
