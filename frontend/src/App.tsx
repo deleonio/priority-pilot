@@ -30,6 +30,7 @@ import { EmptyState } from './components/EmptyState';
 import { Modal } from './components/Modal';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { startWelcomeSteps } from './components/WelcomeSteps';
+import { isOnboardingDismissed, storeOnboardingDismissed } from './lib/onboardingPreferences';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
 import { LaunchBanner } from './components/LaunchBanner';
@@ -226,9 +227,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [dialog, setDialog] = useState<Dialog>(null);
-	// Erststart-Flow (#2069): „Später“ bzw. erfolgreiches Übernehmen schließt den Flow für die
-	// Session — die App landet beim EmptyState, statt den Flow erneut zu starten.
-	const [onboardingDismissed, setOnboardingDismissed] = useState(false);
+	// Erststart-Flow (#2069): „Später“ bzw. erfolgreiches Übernehmen schließt den Flow — die App
+	// landet beim EmptyState, statt den Flow erneut zu starten. Der Merker überlebt Reloads (#2222).
+	const [onboardingDismissed, setOnboardingDismissedState] = useState(() => isOnboardingDismissed(user.id));
+	const setOnboardingDismissed = (dismissed: boolean) => {
+		setOnboardingDismissedState(dismissed);
+		storeOnboardingDismissed(user.id, dismissed);
+	};
 	const [logoutLoading, setLogoutLoading] = useState(false);
 	const [logoutError, setLogoutError] = useState<string | null>(null);
 	const [updateError, setUpdateError] = useState<string | null>(null);
