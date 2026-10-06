@@ -398,6 +398,21 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 	// Diese Tests werden grün, sobald POST /auth/register und POST /auth/login existieren.
 
 	describe('AK 1 — POST /auth/register', () => {
+		it('antwortet außerhalb von NODE_ENV=test mit 404 und legt keinen Nutzer an (#2299)', async () => {
+			process.env.NODE_ENV = 'production';
+			try {
+				const res = await fetch(`${server.baseUrl}/auth/register`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ email: 'victim@example.com', password: 'password123' }),
+				});
+				assert.equal(res.status, 404);
+			} finally {
+				process.env.NODE_ENV = 'test';
+			}
+			assert.equal(await User.count({ where: { email: 'victim@example.com' } }), 0);
+		});
+
 		it('neue E-Mail + Passwort → 201 + httpOnly Session-Cookie', async () => {
 			const res = await fetch(`${server.baseUrl}/auth/register`, {
 				method: 'POST',
