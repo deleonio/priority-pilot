@@ -164,8 +164,8 @@ const enqueueCreation = <T>(run: () => Promise<T>): Promise<T> => {
 
 /**
  * Stellt die Rechnung für den laufenden Abrechnungszeitraum des Abos aus und schickt sie dem
- * Nutzer per Mail. Idempotent je Zeitraum: existiert bereits eine Rechnung mit demselben
- * `subscriptionId` + `periodEnd`, wird keine zweite angelegt (ein wiederholter Hintergrundlauf
+ * Nutzer per Mail. Idempotent je Abbuchung (#2301): mit `saleId` existiert höchstens eine Rechnung je
+ * Sale-ID, ohne `saleId` je `subscriptionId` + `periodEnd` (ein wiederholter Hintergrundlauf
  * erzeugt keine zweite Rechnung). Ist deren Mail noch nicht zugestellt (`deliveredAt` leer),
  * wird sie erneut versendet; ebenso alle älteren unzugestellten Rechnungen desselben Abos (#2030).
  *
@@ -210,7 +210,28 @@ export const issueInvoiceForPeriod = async (
 	const afterCommit = async (deliver: () => Promise<void>): Promise<void> =>
 		transaction ? transaction.afterCommit(deliver) : deliver();
 
-	const existing = await Invoice.findOne({ where: { subscriptionId, periodEnd }, transaction });
+	// #2301: ein Beleg je Abbuchung — mit Sale-ID zählt die Sale-ID, sonst die Periode. Eine
+	// Periodenrechnung ohne Sale-ID wird übernommen (Sale-ID nachgetragen), eine mit anderer nicht.
+	// Gutschriften übernehmen `periodEnd` und sind nie „vorhandene Rechnung“.
+	const findExisting = async (): Promise<Invoice | null> => {
+		if (!saleId) {
+			return Invoice.findOne({ where: { subscriptionId, periodEnd, creditForInvoiceId: null }, transaction });
+		}
+		const bySale = await Invoice.findOne({
+			where: { subscriptionId, saleId, creditForInvoiceId: null },
+			transaction,
+		});
+		if (bySale) {
+			return bySale;
+		}
+		const byPeriod = await Invoice.findOne({
+			where: { subscriptionId, periodEnd, saleId: null, creditForInvoiceId: null },
+			transaction,
+		});
+		await byPeriod?.update({ saleId }, { transaction });
+		return byPeriod;
+	};
+	const existing = await findExisting();
 	if (existing) {
 		await afterCommit(() => redeliverPending());
 		return existing.reload({ transaction });
