@@ -503,6 +503,14 @@ export const applyPaymentEvent = async (
 	}
 
 	if (eventType === 'PAYMENT.SALE.COMPLETED') {
+		// Späte Abbuchung auf gekündigter oder abgelöster Zeile (#2243): nicht beleben, keine Rechnung —
+		// protokolliert, die Erstattung ist manuell zu prüfen. Das Ereignis gilt als verarbeitet (200).
+		if (subscription.get('status') === 'cancelled') {
+			console.warn(
+				`PayPal-Abbuchung auf beendetem Abo ${String(subscription.get('externalSubscriptionId'))} ignoriert (Sale ${event.resource?.id ?? '?'}) — Erstattung prüfen`,
+			);
+			return;
+		}
 		await sequelize.transaction(async (transaction) => {
 			// Eine fällige Downgrade-Vormerkung (Paket+Zeitraum) wird VOR der Verlängerung angewendet:
 			// Die Abbuchung startet den neuen Zyklus, Verlängerung und Rechnung müssen daher mit dem
