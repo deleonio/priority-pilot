@@ -34,7 +34,7 @@ describe('weeklyShareCard — reine SVG-Erzeugung (#1968 AK1)', () => {
 
 	it('trägt die Marke und einen dezenten Link', () => {
 		const svg = erzeugeWochenKarteSvg({ saeulen: SAEULEN, streak: 1, woche: 'KW 41 / 2026' });
-		expect(svg).toContain('Balamentum');
+		expect(svg).toContain('balamentum.modevel.de');
 		expect(svg).toContain('href=');
 	});
 

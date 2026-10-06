@@ -49,7 +49,7 @@ export const erzeugeChallengeKarteSvg = ({ gruppe, zeitraum, rangfolge }: Challe
 		`<text x="48" y="112" font-size="13" fill="${GEDAEMPFT}">Rangfolge nach Ausgewogenheit</text>`,
 		zeilen,
 		rest,
-		`<a href="https://balamentum.app"><text x="${KARTE_BREITE - 48}" y="372" text-anchor="end" font-size="14" fill="${GEDAEMPFT}">Balamentum</text></a>`,
+		`<a href="https://balamentum.modevel.de"><text x="${KARTE_BREITE - 48}" y="372" text-anchor="end" font-size="14" fill="${GEDAEMPFT}">balamentum.modevel.de</text></a>`,
 		'</svg>',
 	].join('');
 };
