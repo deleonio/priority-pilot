@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.17 - 2026-10-06
 
-_Enthält v0.17.0 – v0.17.5._
+_Enthält v0.17.0 – v0.17.6._
 
 ### 🔧 Engineering
 
@@ -16,6 +16,7 @@ _Enthält v0.17.0 – v0.17.5._
 - feat(frontend): brand footer with logos on monthly card (#2255) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2269
 - fix(server): defer plan takeover for delayed-start subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2271
 - docs(skills): add proactive 3-hour progress report to coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2272
+- fix(billing): treat subscriptions with overdue payment as open by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2274
 
 ## v0.16 - 2026-10-06
 
@@ -197,7 +198,6 @@ _Enthält v0.13.0 – v0.13.27._
 - fix(ci): detect session-limit aborts only at the failing claude call by @deleonio in https://github.com/deleonio/priority-pilot/pull/2113
 - test(frontend): stabilize pillar-recalc live-progress against CI load (#1953) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2115
 - feat(frontend): align invoice amounts and style invoice lists (#2104) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2116
-- feat(frontend): align invoice amounts and style invoice lists (#2104) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2116
 
 ## v0.12 - 2026-10-02
 
@@ -349,6 +349,7 @@ _Enthält v0.10.0 – v0.10.36._
 - chore(skills): pre-push checks for doc drift and stale pr description by @deleonio in https://github.com/deleonio/priority-pilot/pull/1838
 - chore(gate): single source for the local gate chain in AGENTS.md by @deleonio in https://github.com/deleonio/priority-pilot/pull/1839
 - ci(review): rerun red e2e shards once before the review starts by @deleonio in https://github.com/deleonio/priority-pilot/pull/1840
+- feat(server): switch plans to free, plus and pro (#1782) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1864
 - feat(server): switch plans to free, plus and pro (#1782) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1864
 - feat(server): remove legacy max/ultimate plans, add migrateLegacyPlans by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1867
 - test(server): cover mcp plan tiers plus read and pro write by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1870
