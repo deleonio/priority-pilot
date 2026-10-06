@@ -1188,6 +1188,48 @@ describe('Billing/Webhook-API (#2237 — Gutschrift und Paketentzug)', () => {
 		assert.equal(creditNotes.length, 1, 'Der Dedup über den Unique-Index verhindert die zweite Gutschrift');
 	});
 
+	it('AK1: zweites Ereignis derselben Sale (REFUNDED dann REVERSED) erzeugt erneut eine negative Gutschrift aufs Original — kein Gutschrift-auf-Gutschrift', async () => {
+		server = await startTestServer(withVerifierMailClient(mock.fn(async (_id: string) => {})));
+		await createSubscription('I-2237-SEQ');
+		await postEvent('WH-2237-7', 'PAYMENT.SALE.COMPLETED', {
+			id: 'PAYID-2237-SEQ',
+			billing_agreement_id: 'I-2237-SEQ',
+		});
+
+		await postEvent('WH-2237-REFUND-SEQ', 'PAYMENT.SALE.REFUNDED', {
+			id: 'REFUND-2237-SEQ',
+			sale_id: 'PAYID-2237-SEQ',
+			billing_agreement_id: 'I-2237-SEQ',
+		});
+		await postEvent('WH-2237-REVERSED-SEQ', 'PAYMENT.SALE.REVERSED', {
+			id: 'REVERSAL-2237-SEQ',
+			sale_id: 'PAYID-2237-SEQ',
+			billing_agreement_id: 'I-2237-SEQ',
+		});
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-2237-SEQ' } });
+		const creditNotes = await creditNotesOf(sub!.get('id') as number);
+		assert.equal(creditNotes.length, 2, 'Jedes verifizierte Ereignis erzeugt genau eine eigene Gutschrift');
+		const invoices = await Invoice.findAll({ where: { subscriptionId: sub!.get('id') as number } });
+		const original = invoices.find((invoice) => invoice.get('saleId') === 'PAYID-2237-SEQ');
+		assert.ok(original, 'Die Originalrechnung muss existieren');
+		for (const creditNote of creditNotes) {
+			const creditRaw = creditNote.get({ plain: true }) as unknown as Record<string, unknown>;
+			assert.equal(
+				creditRaw.creditForInvoiceId,
+				original.get('id'),
+				'Beide Gutschriften verweisen auf die Originalrechnung, nie auf eine Gutschrift',
+			);
+			assert.equal(
+				creditNote.get('amountCents'),
+				-Number(original.get('amountCents')),
+				'Beide Gutschriften tragen den negativen Originalbetrag — keine positive Folge-Gutschrift',
+			);
+			assert.equal(creditNote.get('saleId'), null, 'Die Gutschrift trägt selbst keine Sale-Referenz');
+		}
+		assert.equal(original.get('paymentStatus'), 'paid', 'Das Original bleibt unverändert paid');
+	});
+
 	it('AK6: DENIED setzt beim ersten Auftreten firstFailureAt und past_due — ein weiterer Fehlschlag verlängert die Frist nicht', async () => {
 		server = await startTestServer(withVerifierMailClient(mock.fn(async (_id: string) => {})));
 		await createSubscription('I-2237-AK6');

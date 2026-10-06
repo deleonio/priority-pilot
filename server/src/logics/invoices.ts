@@ -96,7 +96,8 @@ export const issueCreditNote = async (original: Invoice, now: Date, transaction?
 			taxNote: TAX_NOTE,
 			lineItems: [{ label: `Gutschrift zu Rechnung ${original.get('number')}`, amountCents }],
 			paymentStatus: 'refunded',
-			saleId: (original.get('saleId') as string | null) ?? null,
+			// Kein `saleId`: die Gutschrift darf nie Ziel künftiger Sale-Lookups sein (sonst
+			// „Gutschrift auf Gutschrift" bei einem zweiten Ereignis derselben Sale).
 			creditForInvoiceId: original.get('id') as number,
 		},
 		{ transaction },

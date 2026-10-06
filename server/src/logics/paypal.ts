@@ -544,11 +544,17 @@ export const applyPaymentEvent = async (
 		// (#2086, bewusst umgekehrt), entsteht ein eigener Gutschriftsbeleg — und das Paket wird
 		// sofort entzogen. Die Originalrechnung findet sich über die Sale-Referenz, sonst — wie
 		// bisher — als neueste Rechnung des Abos; ohne irgendeine Rechnung entfällt nur der Beleg.
+		// Gutschriften bleiben in beiden Lookups außen vor (`creditForInvoiceId: null`): träfe der
+		// Lookup bei einem zweiten Ereignis derselben Sale (z. B. REVERSED nach REFUNDED) die
+		// Gutschrift selbst, entstünde eine „Gutschrift auf Gutschrift" mit positivem Betrag.
 		const subscriptionId = subscription.get('id') as number;
 		const saleId = event.resource?.sale_id ?? null;
 		const original =
-			(saleId ? await Invoice.findOne({ where: { subscriptionId, saleId } }) : null) ??
-			(await Invoice.findOne({ where: { subscriptionId }, order: [['periodEnd', 'DESC']] }));
+			(saleId ? await Invoice.findOne({ where: { subscriptionId, saleId, creditForInvoiceId: null } }) : null) ??
+			(await Invoice.findOne({
+				where: { subscriptionId, creditForInvoiceId: null },
+				order: [['periodEnd', 'DESC']],
+			}));
 		// Gutschrift und Paketentzug in EINER Transaktion (#2233): wirft die Gutschrift, bleibt das
 		// Paket bestehen und die Wiederholung des Ereignisses versucht es erneut.
 		await sequelize.transaction(async (transaction) => {
