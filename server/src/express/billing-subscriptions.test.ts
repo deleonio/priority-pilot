@@ -1099,3 +1099,88 @@ describe('Zeitraumwechsel sofort + Wechsel-Lücke (#2142, Spec docs/spec/issue-2
 		assert.equal(paypalCalls, 0, 'kein PayPal-Aufruf');
 	});
 });
+
+describe('Anteilige Verrechnung beim Upgrade (#2143, Spec docs/spec/issue-2143.md)', () => {
+	const CHANGE = '/billing/subscriptions/change';
+	const PREVIEW = '/billing/subscriptions/change/preview';
+	const dayMs = 24 * 60 * 60 * 1000;
+	const plus = () => getPlansCatalog().prices.plus.monthly;
+	const pro = () => getPlansCatalog().prices.pro.monthly;
+
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		await server?.close();
+	});
+
+	const seed = async (email: string, currentPeriodEnd: Date, firstCycle: number[]) => {
+		await server?.close();
+		server = await startTestServer(
+			withClient({
+				createSubscription: (async (_planId: string, override?: { firstCycleCents?: number }) => {
+					firstCycle.push(override?.firstCycleCents as number);
+					return { approvalUrl: 'https://paypal.example/upgrade', externalSubscriptionId: 'I-NEW' };
+				}) as FakePaypalClient['createSubscription'],
+			}),
+		);
+		const cookie = await login(email);
+		const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
+		await Subscription.create({
+			userId: me.id,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-OLD',
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd,
+		});
+		return { cookie, userId: me.id };
+	};
+
+	it('AK1/TF1: Upgrade zur Halbzeit rechnet etwa die Hälfte als Guthaben an', async () => {
+		const first: number[] = [];
+		const { cookie, userId } = await seed('ak1-2143@example.com', new Date(Date.now() + 15 * dayMs), first);
+
+		const res = await post(CHANGE, cookie, { plan: 'pro', period: 'monthly' });
+
+		assert.equal(res.status, 200);
+		const pending = await Subscription.findOne({ where: { userId, status: 'approval_pending' } });
+		const credit = pending?.get('creditCents') as number;
+		assert.ok(
+			credit >= Math.floor((plus() * 14) / 31) && credit <= Math.floor((plus() * 16) / 28) && credit < plus(),
+			`Guthaben etwa halb, war ${credit}`,
+		);
+		assert.equal(first[0], pro() - credit, 'firstCycleCents = Preis neu - Guthaben');
+	});
+
+	it('AK2/TF2: Vorschau liefert dasselbe creditCents/dueCents wie der Wechsel', async () => {
+		const first: number[] = [];
+		const { cookie, userId } = await seed('ak2-2143@example.com', new Date(Date.now() + 15 * dayMs), first);
+
+		const preview = (await (await post(PREVIEW, cookie, { plan: 'pro', period: 'monthly' })).json()) as {
+			creditCents: number;
+			dueCents: number;
+		};
+		await post(CHANGE, cookie, { plan: 'pro', period: 'monthly' });
+		const pending = await Subscription.findOne({ where: { userId, status: 'approval_pending' } });
+
+		assert.ok(preview.creditCents > 0 && preview.creditCents < plus(), `Halbzeit-Guthaben, war ${preview.creditCents}`);
+		assert.equal(preview.creditCents, pending?.get('creditCents'));
+		assert.equal(preview.dueCents, first[0]);
+	});
+
+	it('AK3/TF3: Upgrade am Periodenbeginn rechnet das volle Guthaben an', async () => {
+		const first: number[] = [];
+		const end = new Date();
+		end.setUTCMonth(end.getUTCMonth() + 1);
+		const { cookie, userId } = await seed('ak3-2143@example.com', end, first);
+
+		const res = await post(CHANGE, cookie, { plan: 'pro', period: 'monthly' });
+
+		assert.equal(res.status, 200);
+		const pending = await Subscription.findOne({ where: { userId, status: 'approval_pending' } });
+		assert.equal(pending?.get('creditCents'), plus());
+		assert.equal(first[0], pro() - plus());
+	});
+});
