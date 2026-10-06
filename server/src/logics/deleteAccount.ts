@@ -52,7 +52,8 @@ const purgeUserFeedback = async (email: string, client: ObsidianGithubClient): P
  * Löscht ein Konto samt persönlichen Daten (#1671, Play-Pflicht „Account deletion“). Abgelehnt wird,
  * solange ein Abo läuft oder aussteht (sonst bucht der Anbieter weiter ab) oder das Konto der letzte
  * Admin einer Gruppe mit weiteren Mitgliedern ist (Regel wie beim Austritt, `groups.ts`). Ein
- * PayPal-Abo mit Zahlungsrückstand wird vorher bei PayPal gekündigt (#2240); scheitert das, wirft
+ * PayPal-Abo mit Zahlungsrückstand oder nie bestätigtem Checkout (`approval_pending`, #2304) wird vorher
+ * bei PayPal gekündigt (#2240), der Checkout danach verworfen; scheitert das, wirft
  * die Funktion und das Konto bleibt.
  *
  * Gruppen, in denen das Konto allein ist, entfallen mit ihm. Aufgaben und Serien, die es für andere
@@ -72,10 +73,12 @@ export const deleteAccount = async (
 	const user = await User.findByPk(userId);
 	if (!user) return 'not_found';
 	const open = await Subscription.findAll({ where: { userId, status: OPEN_SUBSCRIPTION_STATUSES } });
-	const overdue = open.filter(
-		(s) => s.get('provider') === 'paypal' && OVERDUE_SUBSCRIPTION_STATUSES.includes(s.get('status') as string),
+	const cancellable = open.filter(
+		(s) =>
+			s.get('provider') === 'paypal' &&
+			[...OVERDUE_SUBSCRIPTION_STATUSES, 'approval_pending'].includes(s.get('status') as string),
 	);
-	if (overdue.length < open.length) {
+	if (cancellable.length < open.length) {
 		return 'subscription_active';
 	}
 
@@ -90,7 +93,7 @@ export const deleteAccount = async (
 		}
 	}
 
-	for (const subscription of overdue) {
+	for (const subscription of cancellable) {
 		try {
 			await paypalClient.cancel(subscription.get('externalSubscriptionId') as string);
 		} catch (error) {
@@ -102,6 +105,8 @@ export const deleteAccount = async (
 
 	await sequelize.transaction(async (transaction) => {
 		const own = { where: { userId }, transaction };
+		// Nie bestätigter Checkout: kein Abo, nichts aufzubewahren.
+		await Subscription.destroy({ where: { userId, status: 'approval_pending' }, transaction });
 		// Gruppen, in denen das Konto allein ist, samt offener Gruppenaufgaben.
 		if (soleGroupIds.length > 0) {
 			await Task.destroy({ where: { groupId: soleGroupIds, userId: null }, transaction });
