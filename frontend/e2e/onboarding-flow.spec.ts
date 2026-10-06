@@ -336,6 +336,24 @@ test.describe('#2070 Abschluss: Startgewichtung, Abschluss-Karte, Beispielaufgab
 		);
 	});
 
+	// #2222 AK1/AK3: „Später“ überlebt einen Reload (Spec docs/spec/issue-2222.md).
+	test('AK1+AK3 (#2222): nach „Später“ und Reload bleibt der Dialog zu, „Flow fortsetzen“ startet Schritt 1', async ({
+		page,
+	}) => {
+		await startFreshUser(page);
+		await flow(page).getByRole('button', { name: 'Später' }).click();
+		await expect(page.locator('.empty-state')).toBeVisible();
+
+		await page.reload();
+		await waitForStableView(page);
+		await expect(page.locator('.empty-state')).toBeVisible();
+		await expect(flow(page)).toBeHidden();
+
+		await page.getByRole('button', { name: 'Flow fortsetzen' }).click();
+		await expect(flow(page)).toBeVisible();
+		await expect(flow(page).locator('kol-textarea').getByRole('textbox')).toBeVisible();
+	});
+
 	test.describe('375px (AK5)', () => {
 		test.use({ viewport: { width: 375, height: 812 } });
 
