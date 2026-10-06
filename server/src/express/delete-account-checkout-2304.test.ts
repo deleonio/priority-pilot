@@ -98,7 +98,7 @@ describe('Kontolöschung mit approval_pending-PayPal-Abo (#2304)', () => {
 
 	it('AK5: letzter Gruppen-Admin → last_group_admin, kein cancel-Ruf, Zeile bleibt', async () => {
 		const { userId } = await setup('ak5@example.com');
-		const other = (await User.create({ email: 'ak5-member@example.com' })).id;
+		const other = (await User.create({ email: 'ak5-member@example.com', passwordHash: 'x' })).id;
 		const group = await Group.create({ name: 'Familie', description: null });
 		await GroupMember.create({ groupId: group.id, userId, role: 'admin', joinedAt: new Date() });
 		await GroupMember.create({ groupId: group.id, userId: other, role: 'member', joinedAt: new Date() });
