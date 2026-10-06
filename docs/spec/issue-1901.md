@@ -14,10 +14,20 @@ Nach dem Login sieht ein Konto ohne Zustimmung zur aktuellen Fassung einen Schri
 ## Frontend
 
 1. Nach dem Login lädt `Root` den Nutzer. Ist `termsAccepted === false`, rendert `Root` statt der App die Komponente `ConsentStep` (fehlt das Feld, gilt der Nutzer als zugestimmt).
-2. `ConsentStep` zeigt eine Überschrift (Ebene 1), zwei Haken („Ich akzeptiere die Nutzungsbedingungen", „Ich habe die Datenschutzerklärung zur Kenntnis genommen"), Links „Nutzungsbedingungen" (`/nutzungsbedingungen/`) und „Datenschutzerklärung" (`/datenschutz/`) in neuem Tab (`target=_blank`) und den Knopf „Weiter".
+2. `ConsentStep` zeigt eine Überschrift (Ebene 1), zwei Haken („Ich akzeptiere die Nutzungsbedingungen", „Ich habe die Datenschutzerklärung zur Kenntnis genommen"), je Haken einen Aufklapp-Bereich „Nutzungsbedingungen lesen" bzw. „Datenschutzerklärung lesen" (siehe „Rechtstexte im Schritt lesen (#2227)") und den Knopf „Weiter".
 3. „Weiter" ist bis zu beiden Haken deaktiviert. Danach ruft ein Klick `POST /auth/terms` auf; bei Erfolg folgt das Dashboard, bei Fehler bleibt der Schritt mit Fehlermeldung und gesetzten Haken.
 4. Nach Neuladen kommt der Schritt nicht wieder (Server meldet `termsAccepted: true`).
 5. Bei 375 px sind beide Haken und „Weiter" ohne Scrollen sichtbar; Bedienung per Tab und Leertaste/Enter.
+
+## Rechtstexte im Schritt lesen (#2227)
+
+Ersetzt die Links in neuem Tab. Je Rechtstext ein `KolDetails` (nicht im `<label>` des Hakens) mit Label „Nutzungsbedingungen lesen" / „Datenschutzerklärung lesen".
+
+1. Erstes Aufklappen lädt same-origin `fetch('/nutzungsbedingungen/')` bzw. `fetch('/datenschutz/')`; Ergebnis wird gehalten, erneutes Aufklappen lädt nicht neu. Vorher kein Abruf. Beide Texte dürfen gleichzeitig offen sein.
+2. Übernommen wird nur der Inhalt von `main#main` (Website-Kopf/-Fuß nicht); Überschriften werden um zwei Ebenen verschoben (h1 wird h3), damit der Schritt genau eine `<h1>` behält. Keine Kopie der Texte im Frontend.
+3. Im Normalweg gibt es keinen Link mit `target="_blank"`. Ladefehler (Netzfehler oder Status ungleich 2xx): Hinweis mit `role="alert"` und Ausweichlink auf die Website-Seite in neuem Tab; der Schritt bleibt bedienbar.
+4. Aufklappen/Zuklappen ändert weder Haken noch den Zustand von „Weiter"; Klick auf das Aufklapp-Label togglet keinen Haken. Speichern (`POST /auth/terms`) und Abmelden unverändert.
+5. Bei 375 px: kein horizontaler Überlauf (lange Wörter umbrechen, Tabellen scrollen nur im eigenen Wrapper); Haken und „Weiter" bleiben erreichbar.
 
 ## Erwartetes Ergebnis
 

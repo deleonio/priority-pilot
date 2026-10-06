@@ -28,6 +28,16 @@ const mockConsent = async (page: Page): Promise<{ saves: () => number }> => {
 	return { saves: () => saves };
 };
 
+/** Website-Seite der Rechtstexte; im E2E-Setup wird sie nicht ausgeliefert (statischer Inhalt, kein App-Endpunkt). */
+const mockLegalPage = (page: Page, pattern: string, body: string): Promise<unknown> =>
+	page.route(pattern, (route: Route) =>
+		route.fulfill({
+			status: 200,
+			contentType: 'text/html',
+			body: `<html><body><header>Website-Kopf</header><main id="main"><h1>Titel</h1>${body}</main></body></html>`,
+		}),
+	);
+
 test.describe('#1901 — Zustimmungsschritt', () => {
 	test('AK4/AK6: Schritt vor dem Dashboard, „Weiter“ erst mit beiden Haken, danach nie wieder', async ({ page }) => {
 		const mock = await mockConsent(page);
@@ -53,14 +63,29 @@ test.describe('#1901 — Zustimmungsschritt', () => {
 		await expect(page.getByRole('button', { name: 'Weiter' })).toBeHidden();
 	});
 
-	test('AK5: Links führen zu /nutzungsbedingungen/ und /datenschutz/', async ({ page }) => {
-		await mockConsent(page);
+	test('#2227 AK1/AK4: Rechtstext im Schritt lesen, ohne neuen Tab, Einwilligung wie bisher', async ({
+		page,
+		context,
+	}) => {
+		const mock = await mockConsent(page);
+		await mockLegalPage(page, '**/nutzungsbedingungen/', '<p>Konto-Text der Nutzungsbedingungen</p>');
+		let newPages = 0;
+		context.on('page', () => (newPages += 1));
 		await page.goto('/app/');
-		await expect(page.getByRole('link', { name: /Nutzungsbedingungen/ })).toHaveAttribute(
-			'href',
-			'/nutzungsbedingungen/',
-		);
-		await expect(page.getByRole('link', { name: /Datenschutzerklärung/ })).toHaveAttribute('href', '/datenschutz/');
+
+		await page.getByText('Nutzungsbedingungen lesen').click();
+		await expect(page.getByText('Konto-Text der Nutzungsbedingungen')).toBeVisible();
+		expect(newPages).toBe(0);
+		await expect(page.locator('a[target="_blank"]')).toHaveCount(0);
+
+		await page.getByRole('checkbox').nth(0).check();
+		await page.getByRole('checkbox').nth(1).check();
+		await page.getByText('Nutzungsbedingungen lesen').click();
+		await expect(page.getByRole('checkbox').nth(0)).toBeChecked();
+		await page.getByRole('button', { name: 'Weiter' }).click();
+		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
+		expect(mock.saves()).toBe(1);
+		expect(newPages).toBe(0);
 	});
 
 	test('AK7: bei 375 px ohne Scrollen sichtbar und per Tastatur bedienbar', async ({ page }) => {
@@ -89,5 +114,37 @@ test.describe('#1901 — Zustimmungsschritt', () => {
 		await weiter.focus();
 		await page.keyboard.press('Enter');
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
+	});
+
+	test('#2227 AK5: bei 375 px kein horizontaler Überlauf, „Weiter“ erreichbar', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await mockConsent(page);
+		const long = 'Gesamtbetragsfeststellungsverordnungsdurchführungsbestimmung'.repeat(3);
+		await mockLegalPage(
+			page,
+			'**/nutzungsbedingungen/',
+			`<p>${long}</p><table><tr><th>Paket</th><th>Preis</th><th>Laufzeit</th><th>Kuendigung</th><th>Hinweis</th><th>Extra</th></tr><tr><td>Plus monatlich</td><td>4,99 EUR</td><td>1 Monat</td><td>jederzeit</td><td>inklusive Steuern</td><td>keine</td></tr></table>`,
+		);
+		await page.goto('/app/');
+		await page.getByText('Nutzungsbedingungen lesen').click();
+
+		const word = page.getByText(long);
+		await expect(word).toBeVisible();
+		const inside = async (locator: ReturnType<Page['locator']>): Promise<void> => {
+			const box = await locator.boundingBox();
+			expect(box, 'Element muss ein Layout haben').not.toBeNull();
+			expect(box!.x).toBeGreaterThanOrEqual(0);
+			expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+		};
+		await inside(word);
+		await inside(page.locator('table').locator('..'));
+
+		const weiter = page.getByRole('button', { name: 'Weiter' });
+		await weiter.scrollIntoViewIfNeeded();
+		await inside(weiter);
+		await inside(page.getByRole('checkbox').nth(0));
+		await page.getByRole('checkbox').nth(0).check();
+		await page.getByRole('checkbox').nth(1).check();
+		await expect(weiter).toBeEnabled();
 	});
 });
