@@ -90,4 +90,18 @@ test.describe('#1901 — Zustimmungsschritt', () => {
 		await page.keyboard.press('Enter');
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
 	});
+
+	test('#2226 AK3/AK6: englische Sprache zeigt den Rechtstext-Hinweis bei 375 px ohne Überlauf', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await mockConsent(page);
+		await page.addInitScript(() => localStorage.setItem('i18nextLng', 'en'));
+		await page.goto('/app/');
+		const hint = page.getByText(/only (available )?in German|German version/i).first();
+		await expect(hint).toBeVisible();
+		const box = await hint.boundingBox();
+		expect(box).not.toBeNull();
+		expect(box!.x).toBeGreaterThanOrEqual(0);
+		expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+		for (const link of await page.getByRole('link').all()) await expect(link).toHaveAttribute('hreflang', 'de');
+	});
 });

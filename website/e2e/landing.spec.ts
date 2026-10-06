@@ -161,4 +161,24 @@ test.describe('Angemeldete Nutzer', () => {
 		await page.goto('/?web');
 		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Woran solltest du als Nächstes arbeiten?');
 	});
+
+	test('Rechtstext-Hinweis im Footer nur in Nicht-Deutsch, ohne Überlauf, Links hreflang="de" (#2226)', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/en/');
+		const footer = page.locator('footer');
+		const hint = footer.getByText(/German|binding/i).first();
+		await hint.scrollIntoViewIfNeeded();
+		await expect(hint).toBeVisible();
+		const box = await hint.boundingBox();
+		expect(box).not.toBeNull();
+		expect(box!.x).toBeGreaterThanOrEqual(0);
+		expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+		await expect(footer.locator('a[href="/datenschutz/"]')).toHaveAttribute('hreflang', 'de');
+		await expect(footer.locator('a[href="/nutzungsbedingungen/"]')).toHaveAttribute('hreflang', 'de');
+
+		await page.goto('/');
+		await expect(page.locator('footer').getByText(/Rechtstexte nur auf Deutsch|verbindlich/i)).toHaveCount(0);
+	});
 });
