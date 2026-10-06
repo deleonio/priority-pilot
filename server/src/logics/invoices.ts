@@ -1,4 +1,5 @@
 import { Op, type Transaction } from 'sequelize';
+import sequelize from '../database.js';
 import Invoice from '../models/invoice.js';
 import InvoiceSequence from '../models/invoiceSequence.js';
 import type Subscription from '../models/subscription.js';
@@ -102,6 +103,20 @@ const deliverInvoice = async (
 };
 
 /**
+ * Serialisiert transaktionslose Erzeugungsläufe (#2236): SQLite fährt mit EINER Verbindung
+ * (`pool.max = 1`) — überlappende Transaktionen überlagern sich auf derselben Verbindung
+ * („cannot start a transaction within a transaction“). Der nächste Lauf startet erst nach
+ * Commit bzw. Rollback des vorherigen; Aufrufe mit eigener äußerer Transaktion (#2233)
+ * durchlaufen die Warteschlange nicht.
+ */
+let creationQueue: Promise<unknown> = Promise.resolve();
+const enqueueCreation = <T>(run: () => Promise<T>): Promise<T> => {
+	const result = creationQueue.then(run, run);
+	creationQueue = result.catch(() => undefined);
+	return result;
+};
+
+/**
  * Stellt die Rechnung für den laufenden Abrechnungszeitraum des Abos aus und schickt sie dem
  * Nutzer per Mail. Idempotent je Zeitraum: existiert bereits eine Rechnung mit demselben
  * `subscriptionId` + `periodEnd`, wird keine zweite angelegt (ein wiederholter Hintergrundlauf
@@ -112,6 +127,8 @@ const deliverInvoice = async (
  * @param saleId Sale-Referenz des auslösenden Zahlungsereignisses (#2086) — Anker für spätere Erstattungen.
  * @param charged abgebuchter Betrag und Währung (#2232); ohne gilt der Katalogpreis in EUR.
  * @param transaction Transaktion des Zahlungsereignisses (#2233); der Mailversand folgt erst nach dem Commit.
+ *  Ohne sie läuft der Erzeugungsblock in einer eigenen Transaktion (#2236).
+ * @param pdfBuild injizierbarer PDF-Bau (Default: `buildInvoicePdf`) — Test-Seam wie `mailSend` (#2236).
  */
 export const issueInvoiceForPeriod = async (
 	subscription: Subscription,
@@ -120,6 +137,7 @@ export const issueInvoiceForPeriod = async (
 	saleId?: string | null,
 	charged?: ChargedAmount,
 	transaction?: Transaction,
+	pdfBuild: typeof buildInvoicePdf = buildInvoicePdf,
 ): Promise<Invoice> => {
 	const subscriptionId = subscription.get('id') as number;
 	const periodEnd = subscription.get('currentPeriodEnd') as Date;
@@ -152,48 +170,50 @@ export const issueInvoiceForPeriod = async (
 		return existing.reload({ transaction });
 	}
 
-	const periodStart = new Date(periodEnd);
-	periodStart.setUTCMonth(periodStart.getUTCMonth() - (PERIOD_MONTHS[period] ?? 1));
+	// #2236: Nummern-Reservierung, Rechnung und PDF-Bau sind ein atomarer Schritt. Ohne äußere
+	// Transaktion (#2233) läuft der Erzeugungsblock in einer eigenen — wirft der PDF-Bau, rollt
+	// sie zurück und verbrennt weder Rechnung noch Nummer. Schachteln ist verboten: die
+	// In-Memory-SQLite (`pool.max = 1`) bricht bei verschachtelten Transaktionen ab.
+	const createInvoice = async (tx?: Transaction): Promise<Invoice> => {
+		const periodStart = new Date(periodEnd);
+		periodStart.setUTCMonth(periodStart.getUTCMonth() - (PERIOD_MONTHS[period] ?? 1));
 
-	// #1912: Guthaben aus einem Upgrade wird einmalig als eigene Position verrechnet.
-	const creditCents = Math.min(Number(subscription.get('creditCents') ?? 0), priceCents);
-	// #2232: der abgebuchte Betrag gilt; seine Abweichung zum Katalogpreis wird eigene Position.
-	const amountCents = charged ? charged.amountCents : priceCents - creditCents;
-	const lineItems =
-		priceCents > 0 && amountCents !== priceCents
-			? [
-					{ label: `Paket ${label}`, amountCents: priceCents },
-					{
-						label: creditCents > 0 ? 'Verrechnung Restlaufzeit' : 'Abweichung vom Paketpreis',
-						amountCents: amountCents - priceCents,
-					},
-				]
-			: [];
+		// #1912: Guthaben aus einem Upgrade wird einmalig als eigene Position verrechnet.
+		const creditCents = Math.min(Number(subscription.get('creditCents') ?? 0), priceCents);
+		// #2232: der abgebuchte Betrag gilt; seine Abweichung zum Katalogpreis wird eigene Position.
+		const amountCents = charged ? charged.amountCents : priceCents - creditCents;
+		const lineItems =
+			priceCents > 0 && amountCents !== priceCents
+				? [
+						{ label: `Paket ${label}`, amountCents: priceCents },
+						{
+							label: creditCents > 0 ? 'Verrechnung Restlaufzeit' : 'Abweichung vom Paketpreis',
+							amountCents: amountCents - priceCents,
+						},
+					]
+				: [];
 
-	const invoice = await Invoice.create(
-		{
-			userId: subscription.get('userId') as number,
-			subscriptionId,
-			number: await nextInvoiceNumber(now, transaction),
-			periodStart,
-			periodEnd,
-			amountCents,
-			currency: charged?.currency ?? 'EUR',
-			taxNote: TAX_NOTE,
-			lineItems,
-			saleId: saleId ?? null,
-		},
-		{ transaction },
-	);
+		const invoice = await Invoice.create(
+			{
+				userId: subscription.get('userId') as number,
+				subscriptionId,
+				number: await nextInvoiceNumber(now, tx),
+				periodStart,
+				periodEnd,
+				amountCents,
+				currency: charged?.currency ?? 'EUR',
+				taxNote: TAX_NOTE,
+				lineItems,
+				saleId: saleId ?? null,
+			},
+			{ transaction: tx },
+		);
 
-	// PDF zum Erzeugungszeitpunkt bauen und speichern (#1955 AK3) — Anhang und späterer Download
-	// teilen dieselben Bytes (byte-identisch). Wirft der Bau, bleibt keine halbe Rechnung stehen:
-	// Der Idempotenz-Guard oben liefert sonst bei jedem Retry die unvollständige Rechnung ohne
-	// PDF — also zerstören und hochreichen, der Retry erzeugt sie komplett neu (inkl. Guthaben,
-	// das erst nach gelungenem PDF-Bau verrechnet wird).
-	let pdfBytes: Uint8Array;
-	try {
-		pdfBytes = await buildInvoicePdf(
+		// PDF zum Erzeugungszeitpunkt bauen und speichern (#1955 AK3) — Anhang und späterer Download
+		// teilen dieselben Bytes (byte-identisch). Wirft der Bau, rollt die umgebende Transaktion
+		// zurück — es bleibt weder eine halbe Rechnung noch eine verbrannte Nummer stehen; der
+		// Retry erzeugt sie komplett neu (inkl. Guthaben, das erst nach gelungenem PDF-Bau verrechnet wird).
+		const pdfBytes = await pdfBuild(
 			invoice,
 			OPERATOR,
 			{
@@ -202,18 +222,22 @@ export const issueInvoiceForPeriod = async (
 			},
 			`Paket ${label}`,
 		);
-	} catch (error) {
-		await invoice.destroy({ transaction });
-		throw error;
-	}
-	await invoice.update({ pdfBytes: Buffer.from(pdfBytes) }, { transaction });
-	if (creditCents > 0) {
-		await subscription.update({ creditCents: 0 }, { transaction });
-	}
-	await afterCommit(async () => {
-		await deliverInvoice(invoice, user, label, now, mailSend);
-		await redeliverPending(invoice.get('id') as number);
-	});
+		await invoice.update({ pdfBytes: Buffer.from(pdfBytes) }, { transaction: tx });
+		if (creditCents > 0) {
+			await subscription.update({ creditCents: 0 }, { transaction: tx });
+		}
+		// Mail erst nach dem Commit der umgebenden Transaktion (#2233).
+		const deliverAll = async (): Promise<void> => {
+			await deliverInvoice(invoice, user, label, now, mailSend);
+			await redeliverPending(invoice.get('id') as number);
+		};
+		await (tx ? tx.afterCommit(deliverAll) : afterCommit(deliverAll));
 
-	return invoice;
+		return invoice;
+	};
+
+	if (transaction) {
+		return createInvoice(transaction);
+	}
+	return enqueueCreation(() => sequelize.transaction(createInvoice));
 };
