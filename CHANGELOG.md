@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.17 - 2026-10-06
 
-_Enthält v0.17.0 – v0.17.23._
+_Enthält v0.17.0 – v0.17.24._
 
 ### 🎉 New Features
 
@@ -38,6 +38,7 @@ _Enthält v0.17.0 – v0.17.23._
 - feat(frontend): show legal texts inline in consent step by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2293
 - [P2/M] Website: Rechtstexte für die anderen Sprachen (#2226) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2294
 - fix(ci): use latest verify run in gate, tolerate ai:reviewed on fixup by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2292
+- chore(deps): update dependency @modelcontextprotocol/sdk to v1.31.0 [security] by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2298
 
 ## v0.16 - 2026-10-06
 
@@ -172,7 +173,6 @@ _Enthält v0.14.0 – v0.14.31._
 - chore(ci): connect tailscale exit node via oauth client with authkey fallback by @deleonio in https://github.com/deleonio/priority-pilot/pull/2128
 - ci: documenter falls back to zai when pi openrouter aliases are missing by @deleonio in https://github.com/deleonio/priority-pilot/pull/2135
 - ci: make phase label precheck parseable again by @deleonio in https://github.com/deleonio/priority-pilot/pull/2136
-- ci: make phase label precheck parseable again by @deleonio in https://github.com/deleonio/priority-pilot/pull/2136
 - ci: cache pi packages via scheduled warm-up run (#2092) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2134
 - feat(ci): record runtime and configured model per cost entry (#2090) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2121
 - feat(server): store only complete pillar distributions (5-80%, sum 100) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2132
@@ -273,6 +273,7 @@ _Enthält v0.11.0 – v0.11.31._
 
 - feat(server): add pacing hint to MCP tool descriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1881
 - feat(server): add evening streak reminder push (#1836) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1883
+- feat(server): send care push in the user's app language (#1879) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1880
 - feat(server): send care push in the user's app language (#1879) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1880
 - docs(skills): add ticket-import skill for document-to-issue imports by @deleonio in https://github.com/deleonio/priority-pilot/pull/1905
 - feat(server): add feedback_send mcp tool for app feedback by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1915
