@@ -148,8 +148,8 @@ export const main = async (): Promise<void> => {
 		const { runStreakReminder } = await import('./logics/streakReminder.js');
 		const { runMonthlyRecapPush } = await import('./logics/monthlyRecapPush.js');
 		const { runCalendarSync, CALENDAR_SYNC_INTERVAL_MS } = await import('./logics/calendar-ics.js');
-		const { applyDueGracePeriods } = await import('./logics/billing/lifecycle.js');
-		const { paypalGraceDeps } = await import('./logics/paypal.js');
+		const { applyDueGracePeriods, reconcilePaypalSubscriptions } = await import('./logics/billing/lifecycle.js');
+		const { paypalGraceDeps, paypalReconcileDeps } = await import('./logics/paypal.js');
 		const { cleanupOrphanedGroupInvitations } = await import('./logics/groupInvitationCleanup.js');
 		const { sendStartupStatusMail } = await import('./logics/startupStatusMail.js');
 		const { launchServer } = await import('./express/index.js');
@@ -317,6 +317,15 @@ export const main = async (): Promise<void> => {
 		// Kulanzfrist-Ablauf (#2234) — entzieht das Paket und kündigt das PayPal-Abo auch ohne Login;
 		// push-unabhängig, idempotent (stündlich).
 		startCalendarSyncScheduler((now) => applyDueGracePeriods(now, paypalGraceDeps()), 60 * 60 * 1000);
+
+		// Täglicher Abgleich der PayPal-Abos (#2300) — zieht verpasste Webhooks nach; nur mit PayPal-Zugangsdaten, idempotent.
+		startCalendarSyncScheduler(
+			async (now) => {
+				const deps = paypalReconcileDeps();
+				return deps && reconcilePaypalSubscriptions(now, deps);
+			},
+			24 * 60 * 60 * 1000,
+		);
 
 		// Status-Mail an alle Admin-Nutzer — nur in Produktion mit konfiguriertem SMTP (siehe
 		// logics/startupStatusMail.ts); fire-and-forget, der Start wartet nicht auf den SMTP-Versand.

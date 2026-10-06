@@ -39,6 +39,11 @@ export interface PaypalClient {
 	revise(externalSubscriptionId: string, targetPlanId: string): Promise<{ approvalUrl?: string }>;
 }
 
+/** Abo-Abruf für den täglichen Abgleich (#2300): PayPal-Status und nächster Abrechnungstermin. */
+export interface PaypalSubscriptionReader {
+	getSubscription(externalSubscriptionId: string): Promise<{ status: string; nextBillingTime?: string }>;
+}
+
 /**
  * Start-Override eines neuen Abos (#1912/#2049). Der Plan-Override von PayPal kann keinen
  * zusätzlichen Zyklus einfügen — deshalb wird beim Upgrade der erste Zyklus als Einrichtungsgebühr
@@ -191,7 +196,7 @@ const approveLinkOf = (body: { links?: { rel?: string; href?: string }[] }): str
  * `verifyWebhookSignature`/`paypalVerifier`. `returnUrl`/`cancelUrl` zeigen auf eine
  * Frontend-Route der Einstellungen (T6c, #1496), nicht auf `GET /billing/return`.
  */
-export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClient => ({
+export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClient & PaypalSubscriptionReader => ({
 	async createSubscription(planId, override) {
 		const token = await getAccessToken(fetchImpl);
 		const returnUrl = process.env.PAYPAL_RETURN_URL?.trim() || 'https://app.example/settings?billing=returned';
@@ -233,6 +238,17 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 		if (!res.ok) {
 			throw new PaypalHttpError('PayPal-Abo konnte nicht gekündigt werden.', res.status);
 		}
+	},
+	async getSubscription(externalSubscriptionId) {
+		const token = await getAccessToken(fetchImpl);
+		const res = await fetchImpl(`${apiBase()}/v1/billing/subscriptions/${externalSubscriptionId}`, {
+			headers: { Authorization: `Bearer ${token}` },
+		});
+		if (!res.ok) {
+			throw new PaypalHttpError('PayPal-Abo konnte nicht abgerufen werden.', res.status);
+		}
+		const body = (await res.json()) as { status?: string; billing_info?: { next_billing_time?: string } };
+		return { status: body.status ?? '', nextBillingTime: body.billing_info?.next_billing_time };
 	},
 	async revise(externalSubscriptionId, targetPlanId) {
 		const token = await getAccessToken(fetchImpl);
@@ -299,6 +315,10 @@ export const paypalGraceDeps = (): GracePeriodDeps =>
 	process.env.PAYPAL_CLIENT_ID?.trim() && process.env.PAYPAL_CLIENT_SECRET?.trim()
 		? { cancel: (id) => createPaypalClient().cancel(id) }
 		: {};
+
+/** Abruf-Abhängigkeit des täglichen Abgleichs (#2300): nur mit PayPal-Zugangsdaten, sonst `null` (kein Netzaufruf). */
+export const paypalReconcileDeps = (): PaypalSubscriptionReader | null =>
+	process.env.PAYPAL_CLIENT_ID?.trim() && process.env.PAYPAL_CLIENT_SECRET?.trim() ? createPaypalClient() : null;
 
 /** Monate je Abrechnungszeitraum — Muster `invoices.ts` `PERIOD_MONTHS` (#1506 AK1). */
 export const PERIOD_MONTHS: Record<string, number> = { monthly: 1, quarterly: 3, yearly: 12 };
