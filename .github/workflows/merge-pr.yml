@@ -163,14 +163,14 @@ jobs:
               echo "Kein PR im labeled-/dispatch-Event — nichts zu tun (No-op)."
               exit 0
             fi
-            pr_json="$(gh pr view "$pr" --repo "$REPO" --json number,isDraft,labels,state)"
+            pr_json="$(gh pr view "$pr" --repo "$REPO" --json number,isDraft,labels,state,headRefOid)"
             if [ "$(echo "$pr_json" | jq -r '.state')" != "OPEN" ]; then
               echo "PR #$pr ist nicht offen — nichts zu tun (No-op)."
               exit 0
             fi
           else
             list_json="$(gh pr list --repo "$REPO" --state open --head "$HEAD_BRANCH" \
-              --json number,isDraft,labels)"
+              --json number,isDraft,labels,headRefOid)"
             pr_count="$(echo "$list_json" | jq 'length')"
             if [ "$pr_count" -eq 0 ]; then
               echo "Kein offener PR fuer Branch '$HEAD_BRANCH' — nichts zu tun (No-op)."
@@ -228,6 +228,25 @@ jobs:
           #    etwas auf stderr) — ein echter API-/Auth-Fehler landet dadurch sichtbar im Step-Log,
           #    statt lautlos in einem geleerten `checks` zu verschwinden und ununterscheidbar von
           #    "Check noch nicht gepostet" zu sein.
+          # Verify-Eintrag des Heads (#2286): `gh pr checks` liefert bei zwei Check-Runs `verify`
+          # (skipped aus pull_request, success aus workflow_dispatch) nicht verlaessig den neuesten.
+          # Daher alle `verify`-Jobs des Heads ueber die Actions-API lesen, skipped/cancelled
+          # verwerfen und den neuesten auf bucket pass/fail/pending abbilden. Kein Ergebnis oder
+          # Lesefehler -> leer (fail-closed: has_ci=false, kein Merge, #2254).
+          latest_verify() {
+            local rid jobs=''
+            for rid in $(gh run list --repo "$REPO" --commit "$1" --workflow verify.yml --limit 20 \
+              --json databaseId --jq '.[].databaseId'); do
+              jobs="$jobs$(gh api "repos/$REPO/actions/runs/$rid/jobs" \
+                --jq '[.jobs[] | select(.name == "verify") | {status, conclusion, t: (.started_at // .created_at)}]')" || return 1
+            done
+            [ -n "$jobs" ] || return 0
+            echo "$jobs" | jq -s 'add | map(select(.conclusion != "skipped" and .conclusion != "cancelled")) | sort_by(.t) | last
+              | if . == null then empty else {name: "verify", workflow: "Verify",
+                  bucket: (if .status != "completed" then "pending" elif .conclusion == "success" then "pass"
+                           elif (.conclusion == "failure" or .conclusion == "timed_out") then "fail" else "other" end)} end'
+          }
+          head_sha="$(echo "$pr_json" | jq -r '.headRefOid')"
           allow='[]'
           delays=(2 3 5 8)
           for attempt in 1 2 3 4 5; do
@@ -244,6 +263,8 @@ jobs:
             # has_ci = ein ECHTES Verify-Ergebnis auf dem Head: Job `verify` mit pass/fail/pending.
             # `skipping` (Draft-Race: Verify sah im Event-Payload noch draft == true, #2254),
             # `cancel` oder fehlend zaehlt NICHT — sonst merged das Gate Code ohne Tests/Build.
+            verify_entry="$(latest_verify "$head_sha")" || verify_entry=""
+            allow="$(echo "$allow" | jq --argjson v "${verify_entry:-null}" '[.[] | select(.workflow != "Verify")] + (if $v == null then [] else [$v] end)')"
             has_ci="$(echo "$allow" | jq -r 'any(.[]; .workflow == "Verify" and .name == "verify" and (.bucket == "pass" or .bucket == "fail" or .bucket == "pending"))')"
             has_review="$(echo "$allow" | jq -r 'any(.[]; .workflow == "05 Review")')"
             # Review-Check-Bestimmung: Wenn Reviews alle "skipping" sind, gilt ai:reviewed als OK.

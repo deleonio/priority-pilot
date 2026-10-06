@@ -879,7 +879,7 @@ jobs:
           OUT=""
           if ! OUT="$(bash .github/scripts/label-transition.sh \
             --repo "$GITHUB_REPOSITORY" --pr "$PR" \
-            --set-none --expect ai:needs-fixup)"; then
+            --set-none --expect ai:needs-fixup --tolerate ai:reviewed)"; then
             # Script-Exit != 0: PUT endgültig fehlgeschlagen (Diagnose via stderr im
             # Job-Log). Bewusst ROT enden statt fail-open — analog 05: Trigger bleibt
             # bewaffnet, ein Re-Push re-triggert.
