@@ -1137,6 +1137,11 @@ export const migrateSubscriptionPendingPlanColumns = async (db: Sequelize): Prom
 		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `creditCents` INTEGER NOT NULL DEFAULT 0');
 		console.log('Spalte creditCents an subscriptions nachgezogen.');
 	}
+	// Zustimmungszeitpunkt eines ausstehenden Upgrades (#2238); nullable, Bestandsabos bleiben ohne.
+	if (!existing.includes('approvedAt')) {
+		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `approvedAt` DATETIME');
+		console.log('Spalte approvedAt an subscriptions nachgezogen.');
+	}
 };
 
 /**
