@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.16 - 2026-10-06
 
-_Enthält v0.16.0 – v0.16.35._
+_Enthält v0.16.0 – v0.16.36._
 
 ### 🎉 New Features
 
@@ -31,6 +31,7 @@ _Enthält v0.16.0 – v0.16.35._
 - docs(skills): ticket-coordination learnings and ADR 0018 addendum by @deleonio in https://github.com/deleonio/priority-pilot/pull/2214
 - docs(skills): add start dialog and instant questions to coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2217
 - docs(skills): add ready-for-market mission to ticket-coordination by @deleonio in https://github.com/deleonio/priority-pilot/pull/2247
+- chore: remove budget watchdog, budget control moves to coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2267
 
 ### Other Changes
 
@@ -58,6 +59,7 @@ _Enthält v0.16.0 – v0.16.35._
 - feat(frontend): journal statistics with entry counts and balance history by @deleonio in https://github.com/deleonio/priority-pilot/pull/2263
 - test(frontend): give #1821 and keyboard-shortcuts specs own sessions by @deleonio in https://github.com/deleonio/priority-pilot/pull/2264
 - fix(billing): discard open paypal checkout, no unpaid credit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2260
+- fix(ci): keep container-result step from aborting on empty payload by @deleonio in https://github.com/deleonio/priority-pilot/pull/2268
 
 ## v0.15 - 2026-10-05
 
@@ -167,7 +169,6 @@ _Enthält v0.13.0 – v0.13.27._
 - feat(admin): lock and cancel user subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2085
 - feat(server): invoice payment status replaces fixed label (#2086) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2088
 - feat(frontend): onboarding completion flow (weights, summary, examples) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2087
-- docs: align historic price notes and test mocks with pro plan (#2033) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2089
 - docs: align historic price notes and test mocks with pro plan (#2033) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2089
 
 ### Other Changes
