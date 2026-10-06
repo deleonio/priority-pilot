@@ -83,6 +83,9 @@ export const main = async (): Promise<void> => {
 			throw new Error('DATABASE_STORAGE ist leer (Required-Env-Var fehlt)');
 		}
 
+		// PayPal-Pflichtvariablen in Produktion (#2302); paypal.js zieht die DB, daher erst hier geladen
+		(await import('./logics/paypal.js')).assertPaypalConfig();
+
 		// Verbindung herstellen
 		await sequelize.authenticate();
 		console.log('Datenbankverbindung erfolgreich.');
