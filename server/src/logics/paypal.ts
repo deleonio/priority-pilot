@@ -545,7 +545,11 @@ export const applyPaymentEvent = async (
 				currentPeriodEnd.setTime(now.getTime());
 			}
 			currentPeriodEnd.setUTCMonth(currentPeriodEnd.getUTCMonth() + months);
-			await subscription.update({ currentPeriodEnd, status: 'active', firstFailureAt: null }, { transaction });
+			// Eine späte Abbuchung hebt die Admin-Sperre nicht auf (#2242).
+			await subscription.update(
+				{ currentPeriodEnd, status: status === 'locked' ? 'locked' : 'active', firstFailureAt: null },
+				{ transaction },
+			);
 			const amount = event.resource?.amount;
 			const total = Number(amount?.total);
 			const charged =

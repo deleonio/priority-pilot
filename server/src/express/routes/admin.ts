@@ -256,8 +256,9 @@ export const createAdminRouter = (
 
 	// POST /admin/users/:id/subscription/lock — sperrt das Abo eines Nutzers (#1959, AK1): der
 	// Zugriff auf das bezahlte Paket stoppt sofort, weil ALLE Guards `User.plan` lesen — daher der
-	// Abgleich über `syncUserPlan`. Rein lokale Aktion (kein Provider-Aufruf); die Sperre blockiert
-	// keinen neuen Abschluss (`locked` ist kein offenes Abo — „bezahlt = Zugang"), eine
+	// Abgleich über `syncUserPlan`. Danach wird das PayPal-Abo gekündigt (#2242), damit nicht weiter
+	// abgebucht wird; scheitert das, bleibt die lokale Sperre und ein erneutes Sperren wiederholt die
+	// Kündigung. Die Sperre blockiert keinen neuen Abschluss (`locked` ist kein offenes Abo — „bezahlt = Zugang"), eine
 	// Entsperrung ist nicht vorgesehen.
 	adminRouter.post(
 		'/admin/users/:id/subscription/lock',
@@ -291,6 +292,17 @@ export const createAdminRouter = (
 				await subscription.update({ status: 'locked' });
 				await syncUserPlan(subscription, 'free');
 				await target.reload();
+				if (subscription.get('provider') !== 'google') {
+					try {
+						await checkout.cancel(subscription.get('externalSubscriptionId') as string);
+					} catch (error) {
+						// 404/422: bereits gekündigt (Muster #2276) — alles andere heißt: PayPal bucht evtl. weiter.
+						if (!(error instanceof PaypalHttpError && (error.status === 404 || error.status === 422))) {
+							sendError(res, 502, 'PayPal war nicht erreichbar.');
+							return;
+						}
+					}
+				}
 				res.json({ ...toDto(target), subscriptionStatus: 'locked' });
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
