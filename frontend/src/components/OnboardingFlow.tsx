@@ -10,6 +10,7 @@ import { readChecked, readString } from '../lib/inputValue';
 import { useEntitlement } from '../lib/usePlan';
 import { suggestionsToContributions } from '../lib/pillar';
 import { AiQuotaHint } from './AiQuotaHint';
+import { PlanHint } from './PlanHint';
 import { EXAMPLE_TASKS } from './EmptyState';
 
 interface OnboardingFlowProps {
@@ -340,6 +341,13 @@ export const OnboardingFlow = ({ pillars, onClose, onApplied, active = true, onI
 					{/* #1969 AK7: optionaler Import-Einstieg — erst am Ende, weil der Verweis in die Einstellungen
 					    den Flow beendet; die Aufgaben aus Schritt 4 sind dann schon angelegt. */}
 					<p>{t('onboarding.importHint')}</p>
+					{/* #2225: Free-Pfad ohne KI — ein Satz zur Einordnung, Paketgrenze als Hinweis (ADR 0018). */}
+					{!aiAvailable && (
+						<>
+							<p data-testid="onboarding-import-ai-hint">{t('onboarding.importAiHint')}</p>
+							<PlanHint feature="ai_assist" />
+						</>
+					)}
 					<KolButton
 						className="onboarding-import-entry"
 						_label={t('onboarding.importieren')}

@@ -108,7 +108,8 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
-		"importieren": "Importer des tâches depuis Todoist ou un CSV"
+		"importieren": "Importer des tâches depuis Todoist ou un CSV",
+		"importAiHint": "Sans le forfait IA, seul l'import reste ici : apporte tes tâches depuis Todoist ou un CSV, puis commence directement sur le tableau de bord."
 	},
 	"weeklyCard": {
 		"label": "Ma semaine en cinq piliers",

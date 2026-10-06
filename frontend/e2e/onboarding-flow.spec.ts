@@ -395,6 +395,7 @@ test.describe('#2225 Import-Schritt ohne KI-Paket', () => {
 
 	test('AK6: Satz und Import-Button liegen im 375-px-Viewport', async ({ page }) => {
 		await registerOwnSession(page, 'onboarding-2225');
+		await page.unroute('**/auth/me');
 		await page.goto('/app/');
 		await waitForStableView(page);
 

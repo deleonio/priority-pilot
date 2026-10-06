@@ -108,7 +108,8 @@
 		"beispiel2": "Wichtige E-Mail beantworten",
 		"beispiel3": "Das kommende Wochenende planen",
 		"erstenTaskAnlegen": "Ersten Task anlegen",
-		"importieren": "Taken importeren uit Todoist of een CSV"
+		"importieren": "Taken importeren uit Todoist of een CSV",
+		"importAiHint": "Zonder AI-pakket blijft hier alleen de import over: haal je taken uit Todoist of een CSV en begin daarna meteen op het dashboard."
 	},
 	"weeklyCard": {
 		"label": "Mijn week in vijf pilaren",
