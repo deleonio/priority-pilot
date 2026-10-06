@@ -3,6 +3,8 @@ import Subscription, { OPEN_SUBSCRIPTION_STATUSES } from '../../models/subscript
 import User from '../../models/user.js';
 import { PLAN_VALUES, type Plan } from '../plans.js';
 import type { PaypalSubscriptionReader } from '../paypal.js';
+import type { MailSender } from '../mail.js';
+import { sendSubscriptionEndedMail } from './paymentMail.js';
 
 /**
  * Anbieterneutraler Lebenszyklus eines Abos: vorgemerkter Paketwechsel, Kulanzfrist nach einem
@@ -95,6 +97,8 @@ export const isGracePeriodExpired = (firstFailureAt: Date, now: Date): boolean =
 /** Abhängigkeiten der Kulanzfrist: Kündigung beim Anbieter (nur PayPal), in Tests ein Fake. */
 export interface GracePeriodDeps {
 	cancel?: (externalSubscriptionId: string) => Promise<void>;
+	/** Versand der Entzugs-Mail (#2306); ohne Angabe der SMTP-Standardversand. */
+	mailSend?: MailSender;
 }
 
 /**
@@ -102,7 +106,7 @@ export interface GracePeriodDeps {
  * {@link isGracePeriodExpired}, wird ein PayPal-Abo gekündigt (damit keine späte Abbuchung kommt),
  * `User.plan` und `Subscription.plan` fallen auf `free`, `status: 'grace_expired'` gesetzt und `firstFailureAt` zurückgesetzt.
  * Ein fehlschlagender Kündigungsaufruf verhindert den Entzug nicht (Warnung im Log). Nutzerdaten
- * bleiben unangetastet (siehe {@link syncUserPlan}).
+ * bleiben unangetastet (siehe {@link syncUserPlan}). Danach geht eine Mail an den Nutzer (#2306).
  *
  * Beim Lesen des Abos (Muster `applyDuePendingPlan`) und im täglichen Sweep
  * ({@link applyDueGracePeriods}). Ohne fällige Frist ein No-Op.
@@ -125,6 +129,7 @@ export const applyDueGracePeriod = async (
 	}
 	await subscription.update({ plan: 'free', status: 'grace_expired', firstFailureAt: null });
 	await syncUserPlan(subscription, 'free');
+	await sendSubscriptionEndedMail(subscription, deps.mailSend);
 	return true;
 };
 

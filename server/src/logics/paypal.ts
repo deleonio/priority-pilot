@@ -2,7 +2,15 @@ import { Op, type Transaction } from 'sequelize';
 import sequelize from '../database.js';
 import Subscription from '../models/subscription.js';
 import Invoice from '../models/invoice.js';
-import { rankOf, syncUserPlan, applyDuePendingPlan, type GracePeriodDeps } from './billing/lifecycle.js';
+import {
+	rankOf,
+	syncUserPlan,
+	applyDuePendingPlan,
+	GRACE_PERIOD_DAYS,
+	type GracePeriodDeps,
+} from './billing/lifecycle.js';
+import { sendPaymentFailedMail } from './billing/paymentMail.js';
+import type { MailSender } from './mail.js';
 import { PAYPAL_PLAN_IDS, getPlansCatalog, type Plan } from './plans.js';
 import type { ChargedAmount } from './invoices.js';
 
@@ -497,6 +505,8 @@ export interface ApplyPaymentEventDeps {
 	 * Gutschrift nicht.
 	 */
 	cancelPaypal?: () => Promise<void>;
+	/** Versand der Ausfall-Mail beim ersten Fehlschlag (#2306); ohne Angabe der SMTP-Standardversand. */
+	mailSend?: MailSender;
 }
 
 /**
@@ -664,6 +674,11 @@ export const applyPaymentEvent = async (
 	if (eventType === 'BILLING.SUBSCRIPTION.PAYMENT.FAILED' || eventType === 'PAYMENT.SALE.DENIED') {
 		if (!subscription.get('firstFailureAt')) {
 			await subscription.update({ firstFailureAt: now, status: 'past_due' });
+			await sendPaymentFailedMail(
+				subscription,
+				new Date(now.getTime() + GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000),
+				deps.mailSend,
+			);
 		}
 		return;
 	}
