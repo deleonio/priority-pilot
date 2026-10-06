@@ -660,7 +660,7 @@ jobs:
           LOG=/tmp/claude-output.log
           [ -f "$LOG" ] || exit 0
           PAYLOAD="$(awk '/ai-container-result:START/{f=1;next} /ai-container-result:END/{f=0} f' "$LOG" \
-            | awk '/^```json/{f=1;next} f && /^```/{exit} f' | tr -d '\r' | grep -v '^[[:space:]]*$' \
+            | awk '/^```json/{f=1;next} f && /^```/{exit} f' | tr -d '\r' | awk 'NF' \
             | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
           [ -n "$PAYLOAD" ] || { echo "Kein Container-Ergebnis-Marker im Output — nichts umzusetzen."; exit 0; }
           RESULT="$(printf '%s' "$PAYLOAD" | jq -r '.result // empty' 2>/dev/null || true)"
