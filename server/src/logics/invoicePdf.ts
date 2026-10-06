@@ -42,8 +42,9 @@ export const invoicePdfLines = (
 	recipient: InvoiceRecipient,
 	service: string,
 ): string[] => [
-	`Rechnung ${invoice.get('number') as string}`,
-	`Rechnungsdatum: ${isoDate(invoice.createdAt)}`,
+	// Gutschrift (#2303): eigener Titel und Datumsbezeichnung; der Bezug aufs Original steht in `service`.
+	`${invoice.get('creditForInvoiceId') != null ? 'Gutschrift' : 'Rechnung'} ${invoice.get('number') as string}`,
+	`${invoice.get('creditForInvoiceId') != null ? 'Gutschriftdatum' : 'Rechnungsdatum'}: ${isoDate(invoice.createdAt)}`,
 	'',
 	'Leistungserbringer:',
 	operator.name,

@@ -70,7 +70,7 @@ export const createPaypalProvider = (deps: PaypalProviderDeps = {}): BillingProv
 			await applyPaymentEvent(subscription, paypalEvent, now, {
 				issueInvoice: (s, n, saleId, charged, transaction) =>
 					issueInvoiceForPeriod(s, n, deps.mailSender, saleId, charged, transaction),
-				issueCreditNote: (original, n, transaction) => issueCreditNote(original, n, transaction),
+				issueCreditNote: (original, n, transaction) => issueCreditNote(original, n, transaction, deps.mailSender),
 				// Paketentzug (#2237) kündigt auch das PayPal-Abo — der Client ist hier im Scope.
 				cancelPaypal: () => client.cancel(subscription.get('externalSubscriptionId') as string),
 			});

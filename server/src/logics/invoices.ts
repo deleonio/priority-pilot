@@ -82,10 +82,23 @@ const nextCreditNoteNumber = async (now: Date, transaction?: Transaction): Promi
  * Original selbst bleibt unverändert (`paymentStatus 'paid'`). Läuft in der Transaktion des
  * Paketentzugs (#2233-Muster): wirft sie, bleibt auch das Abo unverändert und die Wiederholung des
  * Ereignisses erzeugt genau eine Gutschrift (die Nummernreservierung rollt mit zurück).
+ *
+ * Das PDF entsteht in derselben Transaktion und wird gespeichert (#2303); wirft der Bau, rollt alles
+ * zurück. Die Mail folgt erst nach dem Commit, ein Fehlversand holt `redeliverPending` nach (#2030).
+ * Kein eigenes `BEGIN`: die Transaktion des Aufrufers wird durchgereicht.
+ *
+ * @param mailSend injizierbarer Versand (Default: `sendMailToUser`s nodemailer-Transport).
+ * @param pdfBuild injizierbarer PDF-Bau (Default: `buildInvoicePdf`) — Test-Seam wie `mailSend`.
  */
-export const issueCreditNote = async (original: Invoice, now: Date, transaction?: Transaction): Promise<Invoice> => {
+export const issueCreditNote = async (
+	original: Invoice,
+	now: Date,
+	transaction?: Transaction,
+	mailSend?: MailSender,
+	pdfBuild: typeof buildInvoicePdf = buildInvoicePdf,
+): Promise<Invoice> => {
 	const amountCents = -(original.get('amountCents') as number);
-	return Invoice.create(
+	const credit = await Invoice.create(
 		{
 			userId: original.get('userId') as number,
 			subscriptionId: original.get('subscriptionId') as number,
@@ -103,6 +116,17 @@ export const issueCreditNote = async (original: Invoice, now: Date, transaction?
 		},
 		{ transaction },
 	);
+	const user = await User.findByPk(original.get('userId') as number, { transaction });
+	const pdfBytes = await pdfBuild(
+		credit,
+		OPERATOR,
+		{ displayName: String(user?.get('displayName') ?? ''), email: String(user?.get('email') ?? '') },
+		`Zur Rechnung ${original.get('number')}`,
+	);
+	await credit.update({ pdfBytes: Buffer.from(pdfBytes) }, { transaction });
+	const deliver = (): Promise<void> => deliverInvoice(credit, user, '', now, mailSend);
+	await (transaction ? transaction.afterCommit(deliver) : deliver());
+	return credit;
 };
 
 /**
@@ -127,14 +151,17 @@ const deliverInvoice = async (
 	const lineItems = invoice.get('lineItems') as { label: string; amountCents: number }[];
 	const amountCents = invoice.get('amountCents') as number;
 	const currency = invoice.get('currency') as string;
+	// Gutschrift (#2303): eigener Betreff/Text; der Bezug aufs Original steht in der Position.
+	const isCredit = invoice.get('creditForInvoiceId') != null;
+	const kind = isCredit ? 'Gutschrift' : 'Rechnung';
 	const sent = await sendMailToUser(
 		user,
 		{
-			subject: `Ihre Rechnung ${number}`,
+			subject: `Ihre ${kind} ${number}`,
 			text: [
-				`Rechnung ${number}`,
+				`${kind} ${number}`,
 				`Zeitraum: ${periodStart.toISOString().slice(0, 10)} bis ${periodEnd.toISOString().slice(0, 10)}`,
-				`Paket: ${label}`,
+				...(isCredit ? [] : [`Paket: ${label}`]),
 				...lineItems.map((item) => `${item.label}: ${(item.amountCents / 100).toFixed(2)} ${currency}`),
 				`Betrag: ${(amountCents / 100).toFixed(2)} ${currency}`,
 				TAX_NOTE,
