@@ -98,6 +98,11 @@ export const Modal = forwardRef<ModalHandle, ModalProps>(function Modal(
 	// Überdauert den StrictMode-Re-Mount (Refs bleiben dabei erhalten): genau EIN `showModal()` pro
 	// Dialog-Instanz. Ein zweites würfe `InvalidStateError` auf dem bereits offenen nativen Dialog.
 	const openedRef = useRef(false);
+	// Aktueller `open`-Wert für den Mount-Effekt: startet der Dialog geschlossen (#2222: Onboarding nach
+	// Reload), darf er nicht öffnen — das spätere Umschalten übernimmt der `open`-Effekt unten.
+	const openRef = useRef(open);
+	openRef.current = open;
+	const startedClosedRef = useRef(false);
 
 	useEffect(() => {
 		const dialog = ref.current;
@@ -119,6 +124,10 @@ export const Modal = forwardRef<ModalHandle, ModalProps>(function Modal(
 		void Promise.all([customElements.whenDefined('kol-dialog'), customElements.whenDefined('kol-button')]).then(
 			async () => {
 				if (!active || openedRef.current) {
+					return;
+				}
+				if (!openRef.current) {
+					startedClosedRef.current = true;
 					return;
 				}
 				openedRef.current = true;
@@ -176,7 +185,15 @@ export const Modal = forwardRef<ModalHandle, ModalProps>(function Modal(
 	// Späteres Umschalten von `open` (nach dem ersten Öffnen): schließen bzw. wieder öffnen.
 	useEffect(() => {
 		const dialog = ref.current;
-		if (dialog === null || !openedRef.current) {
+		if (dialog === null) {
+			return;
+		}
+		if (!openedRef.current) {
+			// Erstes Öffnen eines anfangs geschlossenen Dialogs (#2222).
+			if (open && startedClosedRef.current) {
+				openedRef.current = true;
+				void dialog.showModal();
+			}
 			return;
 		}
 		void (open ? dialog.showModal() : dialog.close());
