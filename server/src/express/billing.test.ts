@@ -1256,3 +1256,118 @@ describe('Billing/Webhook-API (#2237 — Gutschrift und Paketentzug)', () => {
 		assert.equal(sub!.get('status'), 'past_due');
 	});
 });
+
+/**
+ * Rote Spec-Tests für #2243 (Spec docs/spec/issue-2243.md) — eine späte Abbuchung
+ * (`PAYMENT.SALE.COMPLETED`) auf einer `cancelled`-Zeile belebt das Abo nicht wieder auf: weder
+ * Status, Periode noch `User.plan` ändern sich, es entsteht keine Rechnung, der Fall wird protokolliert.
+ * Heute setzt der Zweig die Zeile auf `active`, verlängert und stellt eine Rechnung aus. KEIN Produktivcode.
+ */
+describe('Billing/Webhook-API (#2243 — späte Abbuchung auf gekündigtem Abo)', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const withVerifierMail = (): AppDeps =>
+		({ paypalVerifier: async () => 'verified', mailSender: async () => {} }) as unknown as AppDeps;
+
+	const postSale = (eventId: string, saleId: string, externalId: string): Promise<Response> =>
+		rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: eventId,
+				event_type: 'PAYMENT.SALE.COMPLETED',
+				resource: { id: saleId, billing_agreement_id: externalId },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+	it('AK1+AK2: gekündigte Zeile mit laufender Periode bleibt unverändert, ohne Rechnung — Warnung mit Abo- und Sale-ID, 200', async () => {
+		const warnSpy = mock.method(console, 'warn', () => {});
+		try {
+			server = await startTestServer(withVerifierMail());
+			const cookie = await server.login('ak1-2243@example.com');
+			const me = (await (await server.json('/auth/me', { headers: { cookie } })).json()) as { id: number };
+			await User.update({ plan: 'plus' }, { where: { id: me.id } });
+			const periodEnd = new Date('2099-01-01T00:00:00.000Z');
+			const sub = await Subscription.create({
+				userId: me.id,
+				provider: 'paypal',
+				externalSubscriptionId: 'I-2243-AK1',
+				plan: 'plus',
+				period: 'monthly',
+				status: 'cancelled',
+				currentPeriodEnd: periodEnd,
+			});
+
+			const res = await postSale('WH-2243-1', 'PAYID-2243-1', 'I-2243-AK1');
+
+			assert.equal(res.status, 200, 'Der Webhook wird quittiert — sonst wiederholt PayPal endlos');
+			const reloaded = await Subscription.findByPk(sub.get('id') as number);
+			assert.equal(reloaded!.get('status'), 'cancelled', 'Ein gekündigtes Abo darf nicht reaktiviert werden');
+			assert.equal(reloaded!.get('plan'), 'plus');
+			assert.equal((reloaded!.get('currentPeriodEnd') as Date).toISOString(), periodEnd.toISOString());
+			assert.equal((await User.findByPk(me.id))?.get('plan'), 'plus', 'User.plan bleibt unverändert');
+			assert.equal(await Invoice.count({ where: { subscriptionId: sub.get('id') as number } }), 0);
+			assert.ok(
+				warnSpy.mock.calls.some((call) => {
+					const message = call.arguments.map(String).join(' ');
+					return message.includes('I-2243-AK1') && message.includes('PAYID-2243-1');
+				}),
+				'Der Fall muss mit externer Abo-ID und Sale-ID protokolliert werden',
+			);
+			assert.equal(await WebhookEvent.count({ where: { externalEventId: 'WH-2243-1' } }), 1);
+		} finally {
+			warnSpy.mock.restore();
+		}
+	});
+
+	it('AK1: abgelöste Zeile (free) neben aktiver Zeile desselben Nutzers — späte Abbuchung ändert keine Zeile und nicht User.plan', async () => {
+		const warnSpy = mock.method(console, 'warn', () => {});
+		try {
+			server = await startTestServer(withVerifierMail());
+			const cookie = await server.login('ak2-2243@example.com');
+			const me = (await (await server.json('/auth/me', { headers: { cookie } })).json()) as { id: number };
+			await User.update({ plan: 'pro' }, { where: { id: me.id } });
+			const oldPeriodEnd = new Date('2026-12-01T00:00:00.000Z');
+			const newPeriodEnd = new Date('2099-01-01T00:00:00.000Z');
+			const old = await Subscription.create({
+				userId: me.id,
+				provider: 'paypal',
+				externalSubscriptionId: 'I-2243-OLD',
+				plan: 'free',
+				period: 'monthly',
+				status: 'cancelled',
+				currentPeriodEnd: oldPeriodEnd,
+			});
+			const current = await Subscription.create({
+				userId: me.id,
+				provider: 'paypal',
+				externalSubscriptionId: 'I-2243-NEW',
+				plan: 'pro',
+				period: 'monthly',
+				status: 'active',
+				currentPeriodEnd: newPeriodEnd,
+			});
+
+			await postSale('WH-2243-2', 'PAYID-2243-2', 'I-2243-OLD');
+
+			const oldAfter = await Subscription.findByPk(old.get('id') as number);
+			assert.equal(oldAfter!.get('status'), 'cancelled');
+			assert.equal(oldAfter!.get('plan'), 'free');
+			assert.equal((oldAfter!.get('currentPeriodEnd') as Date).toISOString(), oldPeriodEnd.toISOString());
+			const currentAfter = await Subscription.findByPk(current.get('id') as number);
+			assert.equal(currentAfter!.get('status'), 'active');
+			assert.equal((currentAfter!.get('currentPeriodEnd') as Date).toISOString(), newPeriodEnd.toISOString());
+			assert.equal((await User.findByPk(me.id))?.get('plan'), 'pro', 'User.plan bleibt unverändert');
+			assert.equal(await Invoice.count(), 0, 'Keine Rechnung für die abgelöste Zeile');
+		} finally {
+			warnSpy.mock.restore();
+		}
+	});
+});
