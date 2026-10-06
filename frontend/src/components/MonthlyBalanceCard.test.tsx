@@ -164,22 +164,14 @@ describe('MonthlyBalanceCard (#1995)', () => {
 		expect(HTMLCanvasElement.prototype.toBlob).toHaveBeenCalled();
 	});
 
-	it('AK4 (#2255): Marken-Fußzeile — drei Logos mit Alt-Text, Domain als einziger Link, kein Store-Link', async () => {
+	it('AK4 (#2275): keine Marken-Fußzeile auf der Dashboard-Karte — keine Logos, kein Balamentum-Link', async () => {
 		vi.useFakeTimers({ now: MONATSANFANG, shouldAdvanceTime: true });
 		render(<MonthlyBalanceCard />);
 		await waitFor(() => expect(cardEl()).not.toBeNull());
 
-		// Drei Logos (Balamentum, Google Play, PWA) — jedes mit Alt-Text (Botschaft, nicht Objektbeschreibung).
-		const logos = [...document.querySelectorAll('[data-testid="monthly-balance-card"] img')];
-		expect(logos.length, 'drei Marken-Logos erwartet').toBe(3);
-		for (const logo of logos) {
-			expect(logo.getAttribute('alt'), 'Alt-Text fehlt').toBeTruthy();
-		}
-
-		// Domain-Link: der einzige Link der Karte — kein play.google.com, kein Install-Button.
-		const links = [...document.querySelectorAll('[data-testid="monthly-balance-card"] a')];
-		expect(links.length, 'genau der Domain-Link erwartet').toBe(1);
-		expect(links[0].getAttribute('href')).toBe('https://balamentum.app');
-		expect(document.querySelector('[data-testid="monthly-balance-card"]')?.innerHTML).not.toContain('play.google.com');
+		const karte = document.querySelector('[data-testid="monthly-balance-card"]')!;
+		expect(karte.querySelectorAll('img').length, 'keine Marken-Logos erwartet').toBe(0);
+		expect(karte.querySelectorAll('a[href*="balamentum"]').length, 'kein Link auf eine Balamentum-Domain').toBe(0);
+		expect(karte.innerHTML).not.toContain('play.google.com');
 	});
 });

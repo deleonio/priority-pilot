@@ -65,7 +65,7 @@ export const erzeugeWochenKarteSvg = ({ saeulen, streak, woche }: WochenKarteDat
 		`<text x="48" y="48" font-size="16" font-weight="600" fill="${TINTE}">${xml(woche)}</text>`,
 		spalten,
 		`<text x="48" y="362" font-size="15"><tspan fill="${GEDAEMPFT}">Streak </tspan><tspan font-weight="700" fill="${TINTE}">${streak}</tspan></text>`,
-		`<a href="https://balamentum.app"><text x="${KARTE_BREITE - 48}" y="362" text-anchor="end" font-size="14" fill="${GEDAEMPFT}">Balamentum</text></a>`,
+		`<a href="https://balamentum.modevel.de"><text x="${KARTE_BREITE - 48}" y="362" text-anchor="end" font-size="14" fill="${GEDAEMPFT}">balamentum.modevel.de</text></a>`,
 		'</svg>',
 	].join('');
 };

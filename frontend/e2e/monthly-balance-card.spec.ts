@@ -64,32 +64,15 @@ test.describe('Rückblick-Card (#1995)', () => {
 			expect(shareBox.height, 'Teilen-Button zu klein für die Daumen-Zone').toBeGreaterThanOrEqual(44);
 		});
 
-		test('#2255 AK6: Marken-Fußzeile bleibt in der Karte, Domain-Link ≥ 44px hoch', async ({ page }) => {
+		test('#2275 AK4: Dashboard-Karte ohne Marken-Fußzeile (keine Logos, kein Balamentum-Link)', async ({ page }) => {
 			await page.clock.setFixedTime(IM_FENSTER);
 			await page.goto('/app/');
 			await waitForStableView(page);
 
 			const card = page.getByTestId('monthly-balance-card');
 			await expect(card).toBeVisible();
-			const cardBox = (await card.boundingBox())!;
-
-			// Touch-Target: ganze Zeilenhöhe klickbar, nicht nur die Textkachel.
-			const link = card.locator('a[href="https://balamentum.app"]');
-			await expect(link).toBeVisible();
-			const linkBox = (await link.boundingBox())!;
-			expect(linkBox.height, 'Domain-Link zu klein für die Daumen-Zone').toBeGreaterThanOrEqual(44);
-
-			// Logos + Domain innerhalb der Karte (Bounding-Box gegen die Karte, nicht scrollWidth — Shell clippt).
-			const logotypes = card.locator('img[alt], a[href="https://balamentum.app"]');
-			const anzahl = await logotypes.count();
-			expect(anzahl, 'Logos und Domain-Link erwartet').toBeGreaterThanOrEqual(3);
-			for (let i = 0; i < anzahl; i++) {
-				const box = (await logotypes.nth(i).boundingBox())!;
-				expect(box.x, `Element ${i} ragt links aus der Karte`).toBeGreaterThanOrEqual(cardBox.x - 0.5);
-				expect(box.x + box.width, `Element ${i} ragt rechts aus der Karte`).toBeLessThanOrEqual(
-					cardBox.x + cardBox.width + 0.5,
-				);
-			}
+			await expect(card.locator('img')).toHaveCount(0);
+			await expect(card.locator('a[href*="balamentum"]')).toHaveCount(0);
 			await expect(card).not.toContainText('play.google.com');
 		});
 	});

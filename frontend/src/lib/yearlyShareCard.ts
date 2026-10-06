@@ -73,7 +73,7 @@ export const erzeugeJahresKarteSvg = ({
 		`<rect width="${KARTE_BREITE}" height="${KARTE_HOEHE}" fill="${GRUND}"></rect>`,
 		`<text x="48" y="48" font-size="16" font-weight="600" fill="${TINTE}">${xml(label)}</text>`,
 		zeilenSvg,
-		`<a href="https://balamentum.app"><text x="${KARTE_BREITE - 48}" y="372" text-anchor="end" font-size="14" fill="${GEDAEMPFT}">Balamentum</text></a>`,
+		`<a href="https://balamentum.modevel.de"><text x="${KARTE_BREITE - 48}" y="372" text-anchor="end" font-size="14" fill="${GEDAEMPFT}">balamentum.modevel.de</text></a>`,
 		'</svg>',
 	].join('');
 };

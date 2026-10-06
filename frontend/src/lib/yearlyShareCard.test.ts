@@ -58,4 +58,11 @@ describe('yearlyShareCard — reine SVG-Erzeugung (#1997 AK6)', () => {
 	it('jahresDateiname baut den sprachneutralen Namen mit Jahr', () => {
 		expect(jahresDateiname(2025)).toBe('balamentum-jahr-2025.png');
 	});
+
+	it('#2275 AK5: Domain balamentum.modevel.de als Link-Ziel und Text, nie balamentum.app', () => {
+		const svg = erzeugeJahresKarteSvg(DATEN);
+		expect(svg).toContain('href="https://balamentum.modevel.de"');
+		expect(svgText(svg)).toContain('balamentum.modevel.de');
+		expect(svg).not.toContain('balamentum.app');
+	});
 });

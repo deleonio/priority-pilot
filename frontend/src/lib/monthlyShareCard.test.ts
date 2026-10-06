@@ -119,18 +119,19 @@ describe('monthlyShareCard — Marken-Fußzeile (#2255, docs/spec/issue-2255.md)
 		// Rasterung lädt nur data-URLs: externe Referenzen blieben im PNG leer — verboten.
 		const referenzen = [...svg.matchAll(/(?:href|src)="([^"]+)"/g)].map((m) => m[1]);
 		for (const referenz of referenzen) {
-			expect(referenz === 'https://balamentum.app' || referenz.startsWith('data:')).toBe(true);
+			expect(referenz === 'https://balamentum.modevel.de' || referenz.startsWith('data:')).toBe(true);
 		}
 	});
 
-	it('AK2: Domain als sichtbarer Text; einzige http(s)-URL ist https://balamentum.app', () => {
+	it('AK2/AK3 (#2275): Domain als sichtbarer Text; einzige http(s)-URL ist https://balamentum.modevel.de', () => {
 		const svg = erzeugeMonatsKarteSvg(daten);
-		expect(svgText(svg)).toContain('balamentum.app');
+		expect(svgText(svg)).toContain('balamentum.modevel.de');
 		const urls = [...svg.matchAll(/https?:\/\/(?!www\.w3\.org)[^"'\s<>]+/g)].map((m) => m[0]);
 		expect(urls.length, 'der Domain-Link erwartet').toBeGreaterThan(0);
 		for (const url of urls) {
-			expect(url, `unerwartete URL ${url}`).toBe('https://balamentum.app');
+			expect(url, `unerwartete URL ${url}`).toBe('https://balamentum.modevel.de');
 		}
+		expect(svg).not.toContain('balamentum.app');
 		expect(svg).not.toContain('play.google.com');
 	});
 
@@ -145,5 +146,17 @@ describe('monthlyShareCard — Marken-Fußzeile (#2255, docs/spec/issue-2255.md)
 		expect(svg).toContain('<title>Balamentum</title>');
 		expect(svg).toContain('<title>Erhältlich bei Google Play</title>');
 		expect(svg).toContain('<title>Als App installierbar (PWA)</title>');
+	});
+
+	it('AK1 (#2275): echtes Logo statt Kreis-Platzhalter, oberhalb des Balkendiagramms', () => {
+		const svg = erzeugeMonatsKarteSvg(daten);
+		const logo = svg.match(/<g id="brand-balamentum" transform="translate\(([\d.]+),([\d.]+)\)">([\s\S]*?)<\/g>/);
+		expect(logo, 'Logo-Gruppe erwartet').not.toBeNull();
+		expect(logo![3], 'Kreis-Platzhalter nicht mehr erlaubt').not.toContain('<circle');
+		const logoY = Number(logo![2]);
+		// Balken = Rechtecke mit Eckenradius; Hintergrund-Rechteck hat keinen.
+		const balkenY = [...svg.matchAll(/<rect [^>]*\by="([\d.]+)"[^>]*\brx=/g)].map((m) => Number(m[1]));
+		expect(balkenY.length, 'Balken erwartet').toBeGreaterThan(0);
+		expect(logoY, 'Logo muss oberhalb der Balken stehen').toBeLessThan(Math.min(...balkenY));
 	});
 });
