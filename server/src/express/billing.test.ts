@@ -4,7 +4,7 @@ import { resetDb, closeDb, startTestServer, type TestServer } from '../test/help
 import { Subscription, User, WebhookEvent } from '../models/index.js';
 import Invoice from '../models/invoice.js';
 import type { AppDeps } from './index.js';
-import { applyDuePendingPlan, type PaypalVerificationResult } from '../logics/paypal.js';
+import { applyDuePendingPlan, type PaypalClient, type PaypalVerificationResult } from '../logics/paypal.js';
 import { getPlansCatalog } from '../logics/plans.js';
 
 /**
@@ -879,10 +879,10 @@ describe('Billing/Webhook-API (#1506 — Zahlungsereignisse)', () => {
 /**
  * Rote Spec-Tests für #2086 (Spec docs/spec/issue-2086.md, AK2/AK3) — echter Zahlungsstatus je
  * Rechnung: Rechnungen entstehen mit `paymentStatus 'paid'` (plus Sale-Referenz aus
- * `resource.id`), und `PAYMENT.SALE.REFUNDED` setzt genau die zugehörige Rechnung auf
- * `refunded`. Bis zur Impl-Phase trägt das Invoice-Modell weder `paymentStatus` noch `saleId`
- * und der REFUNDED-Zweig ist ein No-op — die Status-Assertion scheitert an `undefined`
- * (legitimer Erst-Zustand). KEIN Produktivcode.
+ * `resource.id`). Die REFUNDED-Tests dieses Blocks sind mit #2237 entfernt: eine Erstattung
+ * erzeugt künftig eine Gutschrift mit eigener Nummer, statt die Originalrechnung auf `refunded`
+ * zu setzen (PO-Entscheid 2026-10-05, Test-Pflege — Verträge leben in #2237 weiter).
+ * KEIN Produktivcode.
  */
 describe('Billing/Webhook-API (#2086 — Zahlungsstatus)', () => {
 	beforeEach(async () => {
@@ -957,76 +957,260 @@ describe('Billing/Webhook-API (#2086 — Zahlungsstatus)', () => {
 			'ACTIVATED verlängert die Periode nicht',
 		);
 	});
+});
 
-	it('AK3: PAYMENT.SALE.REFUNDED setzt genau die Rechnung mit passender sale_id auf refunded, andere bleiben paid', async () => {
-		server = await startTestServer(withVerifierAndMail('verified'));
-		await createSubscription('I-2086-REF');
-		const postCompleted = (saleId: string): Promise<Response> =>
-			rawPost(
-				'/webhooks/paypal',
-				JSON.stringify({
-					id: `WH-2086-${saleId}`,
-					event_type: 'PAYMENT.SALE.COMPLETED',
-					resource: { id: saleId, billing_agreement_id: 'I-2086-REF' },
-				}),
-				{ 'paypal-transmission-sig': 'ok' },
-			);
-		// Zwei Perioden: zwei echte Rechnungen (der Rechnungslauf keyed auf subscriptionId + periodEnd).
-		await postCompleted('PAYID-2086-OLD');
-		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-2086-REF' } });
-		await sub!.update({ currentPeriodEnd: new Date('2026-03-01T00:00:00.000Z') });
-		await postCompleted('PAYID-2086-NEW');
-
-		await rawPost(
-			'/webhooks/paypal',
-			JSON.stringify({
-				id: 'WH-2086-REFUND',
-				event_type: 'PAYMENT.SALE.REFUNDED',
-				resource: { id: 'REFUND-2086', sale_id: 'PAYID-2086-OLD', billing_agreement_id: 'I-2086-REF' },
-			}),
-			{ 'paypal-transmission-sig': 'ok' },
-		);
-
-		const invoices = await Invoice.findAll({ where: { subscriptionId: sub!.get('id') as number } });
-		assert.equal(invoices.length, 2, 'Vorbedingung: zwei Rechnungen müssen existieren');
-		const oldInvoice = invoices.find((invoice) => invoice.get('saleId') === 'PAYID-2086-OLD');
-		const newInvoice = invoices.find((invoice) => invoice.get('saleId') === 'PAYID-2086-NEW');
-		assert.ok(oldInvoice && newInvoice, 'Beide Rechnungen müssen ihre Sale-Referenz tragen');
-		assert.equal(oldInvoice.get('paymentStatus'), 'refunded', 'Genau die betroffene Rechnung wird refunded');
-		assert.equal(newInvoice.get('paymentStatus'), 'paid', 'Andere Rechnungen bleiben unberührt');
+/**
+ * Rote Spec-Tests für #2237 (Spec docs/spec/issue-2237.md) — Erstattung/Rückbuchung erzeugen eine
+ * Gutschrift und entziehen das Paket: REFUNDED/REVERSED legen je genau einen Gutschriftsbeleg an
+ * (eigene Nummer `GS-<Jahr>-<6-stellig>`, Bezug auf die Originalrechnung via `creditForInvoiceId`),
+ * statt die Originalrechnung auf `refunded` zu setzen (#2086 bewusst umgekehrt, PO-Entscheid
+ * 2026-10-05). Das Konto fällt sofort auf `free` und das PayPal-Abo wird gekündigt; nicht
+ * zuordenbare Ereignisse werden sichtbar protokolliert, DENIED wirkt wie ein fehlgeschlagener
+ * Einzug. Die Gutschrift-Behandlung existiert noch nicht — die Tests scheitern an den neuen
+ * Erwartungen (legitimer Erst-Zustand). KEIN Produktivcode.
+ */
+describe('Billing/Webhook-API (#2237 — Gutschrift und Paketentzug)', () => {
+	beforeEach(async () => {
+		await resetDb();
 	});
 
-	it('AK3: PAYMENT.SALE.REFUNDED ohne passende sale_id trifft die neueste Rechnung des Abos (Fallback, Erstattung geht nicht still verloren)', async () => {
-		server = await startTestServer(withVerifierAndMail('verified'));
-		await createSubscription('I-2086-FB');
-		await rawPost(
-			'/webhooks/paypal',
-			JSON.stringify({
-				id: 'WH-2086-3',
-				event_type: 'PAYMENT.SALE.COMPLETED',
-				resource: { id: 'PAYID-2086-FB', billing_agreement_id: 'I-2086-FB' },
-			}),
-			{ 'paypal-transmission-sig': 'ok' },
-		);
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
 
-		await rawPost(
-			'/webhooks/paypal',
-			JSON.stringify({
-				id: 'WH-2086-REFUND-FB',
-				event_type: 'PAYMENT.SALE.REFUNDED',
-				// sale_id passt zu keiner Rechnung (Altrechnung vor der Spalte) — Fallback neueste Rechnung.
-				resource: { id: 'REFUND-2086-FB', sale_id: 'PAYID-UNBEKANNT', billing_agreement_id: 'I-2086-FB' },
-			}),
-			{ 'paypal-transmission-sig': 'ok' },
-		);
+	/** Verifier 'verified', Fake-Mailversand und ein Fake-PayPal-Client mit beobachtbarem `cancel`. */
+	const withVerifierMailClient = (cancel: (externalSubscriptionId: string) => Promise<void>): AppDeps =>
+		({
+			paypalVerifier: async () => 'verified',
+			mailSender: async () => {},
+			paypalClient: { cancel } as unknown as PaypalClient,
+		}) as unknown as AppDeps;
 
-		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-2086-FB' } });
-		const invoices = await Invoice.findAll({ where: { subscriptionId: sub?.get('id') as number } });
-		assert.equal(invoices.length, 1, 'Vorbedingung: genau eine Rechnung muss existieren');
+	const createSubscription = async (externalId: string, userId = 101): Promise<Subscription> =>
+		Subscription.create({
+			userId,
+			provider: 'paypal',
+			externalSubscriptionId: externalId,
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date('2026-02-01T00:00:00.000Z'),
+		});
+
+	const postEvent = (id: string, eventType: string, resource: Record<string, unknown>): Promise<Response> =>
+		rawPost('/webhooks/paypal', JSON.stringify({ id, event_type: eventType, resource }), {
+			'paypal-transmission-sig': 'ok',
+		});
+
+	const creditNotesOf = async (subscriptionId: number): Promise<Invoice[]> => {
+		const invoices = await Invoice.findAll({ where: { subscriptionId } });
+		return invoices.filter((invoice) => /^GS-\d{4}-\d{6}$/.test(String(invoice.get('number'))));
+	};
+
+	it('AK1: REFUNDED erzeugt genau eine Gutschrift mit eigener Nummer und Bezug auf die Originalrechnung — das Original bleibt paid', async () => {
+		server = await startTestServer(withVerifierMailClient(mock.fn(async (_id: string) => {})));
+		await createSubscription('I-2237-AK1');
+		await postEvent('WH-2237-1', 'PAYMENT.SALE.COMPLETED', {
+			id: 'PAYID-2237-OLD',
+			billing_agreement_id: 'I-2237-AK1',
+		});
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-2237-AK1' } });
+		await sub!.update({ currentPeriodEnd: new Date('2026-03-01T00:00:00.000Z') });
+		await postEvent('WH-2237-2', 'PAYMENT.SALE.COMPLETED', {
+			id: 'PAYID-2237-NEW',
+			billing_agreement_id: 'I-2237-AK1',
+		});
+
+		await postEvent('WH-2237-REFUND', 'PAYMENT.SALE.REFUNDED', {
+			id: 'REFUND-2237',
+			sale_id: 'PAYID-2237-OLD',
+			billing_agreement_id: 'I-2237-AK1',
+		});
+
+		const invoices = await Invoice.findAll({ where: { subscriptionId: sub!.get('id') as number } });
+		assert.equal(invoices.length, 3, 'Zwei Originalrechnungen plus genau eine Gutschrift');
+		const original = invoices.find((invoice) => invoice.get('saleId') === 'PAYID-2237-OLD');
+		const creditNote = invoices.find((invoice) => /^GS-\d{4}-\d{6}$/.test(String(invoice.get('number'))));
+		assert.ok(original && creditNote, 'Originalrechnung (saleId) und Gutschrift (GS-Nummer) müssen existieren');
+		const creditRaw = creditNote.get({ plain: true }) as unknown as Record<string, unknown>;
 		assert.equal(
-			invoices[0]?.get('paymentStatus'),
-			'refunded',
-			'Ohne Referenz-Treffer muss der Fallback die neueste Rechnung des Abos treffen',
+			creditRaw.creditForInvoiceId,
+			original.get('id'),
+			'Die Gutschrift muss auf die Originalrechnung verweisen',
 		);
+		assert.equal(creditNote.get('paymentStatus'), 'refunded', 'Die Gutschrift dokumentiert die Erstattung');
+		assert.equal(
+			creditNote.get('amountCents'),
+			-Number(original.get('amountCents')),
+			'Die Gutschrift trägt den negativen Betrag der Originalrechnung',
+		);
+		assert.equal(
+			original.get('paymentStatus'),
+			'paid',
+			'Die Originalrechnung bleibt unverändert paid (PO-Entscheid 2026-10-05)',
+		);
+		assert.match(String(original.get('number')), /^INV-\d{4}-\d{6}$/, 'Nummer des Originals bleibt unangetastet');
+	});
+
+	it('AK1: REFUNDED ohne passende sale_id verweist auf die neueste Rechnung des Abos (Fallback)', async () => {
+		server = await startTestServer(withVerifierMailClient(mock.fn(async (_id: string) => {})));
+		await createSubscription('I-2237-FB');
+		await postEvent('WH-2237-3', 'PAYMENT.SALE.COMPLETED', {
+			id: 'PAYID-2237-FB',
+			billing_agreement_id: 'I-2237-FB',
+		});
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-2237-FB' } });
+
+		await postEvent('WH-2237-REFUND-FB', 'PAYMENT.SALE.REFUNDED', {
+			id: 'REFUND-2237-FB',
+			sale_id: 'PAYID-UNBEKANNT',
+			billing_agreement_id: 'I-2237-FB',
+		});
+
+		const invoices = await Invoice.findAll({ where: { subscriptionId: sub!.get('id') as number } });
+		assert.equal(invoices.length, 2, 'Originalrechnung plus genau eine Gutschrift');
+		const original = invoices.find((invoice) => invoice.get('saleId') === 'PAYID-2237-FB');
+		const creditNote = invoices.find((invoice) => /^GS-\d{4}-\d{6}$/.test(String(invoice.get('number'))));
+		assert.ok(original && creditNote, 'Original und Gutschrift müssen existieren');
+		const creditRaw = creditNote.get({ plain: true }) as unknown as Record<string, unknown>;
+		assert.equal(creditRaw.creditForInvoiceId, original.get('id'), 'Der Fallback trifft die neueste Rechnung des Abos');
+		assert.equal(original.get('paymentStatus'), 'paid', 'Auch ohne Referenz-Treffer bleibt das Original paid');
+	});
+
+	it('AK2: REVERSED wird wie REFUNDED behandelt — Gutschrift und Abo-Ende', async () => {
+		server = await startTestServer(withVerifierMailClient(mock.fn(async (_id: string) => {})));
+		await createSubscription('I-2237-AK2');
+		await postEvent('WH-2237-4', 'PAYMENT.SALE.COMPLETED', {
+			id: 'PAYID-2237-RV',
+			billing_agreement_id: 'I-2237-AK2',
+		});
+
+		await postEvent('WH-2237-REVERSED', 'PAYMENT.SALE.REVERSED', {
+			id: 'REVERSAL-2237',
+			sale_id: 'PAYID-2237-RV',
+			billing_agreement_id: 'I-2237-AK2',
+		});
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-2237-AK2' } });
+		const creditNotes = await creditNotesOf(sub!.get('id') as number);
+		assert.equal(creditNotes.length, 1, 'REVERSED erzeugt genau eine Gutschrift');
+		const invoices = await Invoice.findAll({ where: { subscriptionId: sub!.get('id') as number } });
+		const original = invoices.find((invoice) => invoice.get('saleId') === 'PAYID-2237-RV');
+		assert.ok(original, 'Die Originalrechnung muss existieren');
+		const creditRaw = creditNotes[0]!.get({ plain: true }) as unknown as Record<string, unknown>;
+		assert.equal(
+			creditRaw.creditForInvoiceId,
+			original.get('id'),
+			'Auch die REVERSED-Gutschrift verweist auf das Original',
+		);
+		assert.equal(sub!.get('plan'), 'free', 'REVERSED entzieht das Paket');
+		assert.equal(sub!.get('status'), 'cancelled', 'REVERSED beendet das Abo');
+	});
+
+	it('AK3: nach REFUNDED steht der Nutzer sofort auf free, das Abo auf free/cancelled ohne Vormerkungen — PayPal-Abo gekündigt', async () => {
+		const cancel = mock.fn(async (_id: string) => {});
+		server = await startTestServer(withVerifierMailClient(cancel));
+		const cookie = await server.login('ak3-2237@example.com');
+		const me = (await (await server.json('/auth/me', { headers: { cookie } })).json()) as { id: number };
+		await User.update({ plan: 'plus' }, { where: { id: me.id } });
+		const sub = await createSubscription('I-2237-AK3', me.id);
+		await sub.update({
+			pendingPlan: 'pro',
+			pendingPeriod: 'yearly',
+			pendingPlanEffectiveAt: new Date('2027-06-01T00:00:00.000Z'),
+		});
+		await postEvent('WH-2237-5', 'PAYMENT.SALE.COMPLETED', {
+			id: 'PAYID-2237-AK3',
+			billing_agreement_id: 'I-2237-AK3',
+		});
+
+		await postEvent('WH-2237-REFUND-AK3', 'PAYMENT.SALE.REFUNDED', {
+			id: 'REFUND-2237-AK3',
+			sale_id: 'PAYID-2237-AK3',
+			billing_agreement_id: 'I-2237-AK3',
+		});
+
+		const user = await User.findByPk(me.id);
+		assert.equal(user?.get('plan'), 'free', 'User.plan fällt sofort auf free');
+		const reloaded = await Subscription.findByPk(sub.get('id') as number);
+		assert.equal(reloaded!.get('plan'), 'free', 'Das Abo fällt auf free');
+		assert.equal(reloaded!.get('status'), 'cancelled', 'Das Abo wird beendet');
+		assert.equal(reloaded!.get('pendingPlan'), null, 'Die Paket-Vormerkung ist geleert');
+		assert.equal(reloaded!.get('pendingPeriod'), null, 'Die Zeitraum-Vormerkung ist geleert');
+		assert.equal(reloaded!.get('pendingPlanEffectiveAt'), null, 'Der Vormerkungs-Zeitpunkt ist geleert');
+		assert.equal(cancel.mock.calls.length, 1, 'Das PayPal-Abo wird genau einmal gekündigt');
+		assert.equal(cancel.mock.calls[0]?.arguments[0], 'I-2237-AK3');
+	});
+
+	it('AK4: verifiziertes Ereignis ohne zuordnbares Abo wird sichtbar mit Anbieter und Event-ID protokolliert', async () => {
+		const warnSpy = mock.method(console, 'warn', () => {});
+		try {
+			server = await startTestServer(withVerifierMailClient(mock.fn(async (_id: string) => {})));
+			const res = await postEvent('WH-2237-NOMATCH', 'PAYMENT.SALE.REFUNDED', {
+				id: 'REFUND-2237-NM',
+				sale_id: 'PAYID-2237-NM',
+				billing_agreement_id: 'I-2237-UNBEKANNT',
+			});
+			assert.equal(res.status, 200, 'Ohne Abo-Match wird trotzdem 200 quittiert — sonst wiederholt PayPal endlos');
+			assert.ok(
+				warnSpy.mock.calls.some((call) => {
+					const message = call.arguments.map(String).join(' ');
+					return message.includes('WH-2237-NOMATCH') && message.includes('paypal');
+				}),
+				'Das Ereignis muss mit Anbieter und Event-ID protokolliert werden statt still verarbeitet zu werden',
+			);
+		} finally {
+			warnSpy.mock.restore();
+		}
+	});
+
+	it('AK5: dieselbe Event-ID zweimal zugestellt erzeugt genau eine Gutschrift', async () => {
+		server = await startTestServer(withVerifierMailClient(mock.fn(async (_id: string) => {})));
+		await createSubscription('I-2237-AK5');
+		await postEvent('WH-2237-6', 'PAYMENT.SALE.COMPLETED', {
+			id: 'PAYID-2237-DUP',
+			billing_agreement_id: 'I-2237-AK5',
+		});
+
+		const refundResource = {
+			id: 'REFUND-2237-DUP',
+			sale_id: 'PAYID-2237-DUP',
+			billing_agreement_id: 'I-2237-AK5',
+		};
+		const first = await postEvent('WH-2237-DUP', 'PAYMENT.SALE.REFUNDED', refundResource);
+		const second = await postEvent('WH-2237-DUP', 'PAYMENT.SALE.REFUNDED', refundResource);
+		assert.equal(first.status, 200);
+		assert.equal(second.status, 200, 'Ein Duplikat wird ohne Wirkung quittiert');
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-2237-AK5' } });
+		const creditNotes = await creditNotesOf(sub!.get('id') as number);
+		assert.equal(creditNotes.length, 1, 'Der Dedup über den Unique-Index verhindert die zweite Gutschrift');
+	});
+
+	it('AK6: DENIED setzt beim ersten Auftreten firstFailureAt und past_due — ein weiterer Fehlschlag verlängert die Frist nicht', async () => {
+		server = await startTestServer(withVerifierMailClient(mock.fn(async (_id: string) => {})));
+		await createSubscription('I-2237-AK6');
+
+		await postEvent('WH-2237-DENIED-1', 'PAYMENT.SALE.DENIED', {
+			id: 'PAYID-2237-D1',
+			billing_agreement_id: 'I-2237-AK6',
+		});
+		let sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-2237-AK6' } });
+		const firstFailureAt = sub!.get('firstFailureAt');
+		assert.ok(firstFailureAt, 'Der erste DENIED muss firstFailureAt setzen');
+		assert.equal(sub!.get('status'), 'past_due', 'Der erste DENIED stellt das Abo auf past_due');
+
+		await postEvent('WH-2237-DENIED-2', 'PAYMENT.SALE.DENIED', {
+			id: 'PAYID-2237-D2',
+			billing_agreement_id: 'I-2237-AK6',
+		});
+		sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-2237-AK6' } });
+		assert.equal(
+			(sub!.get('firstFailureAt') as Date).toISOString(),
+			(firstFailureAt as Date).toISOString(),
+			'Ein weiterer Fehlschlag verlängert die Frist nicht',
+		);
+		assert.equal(sub!.get('status'), 'past_due');
 	});
 });
