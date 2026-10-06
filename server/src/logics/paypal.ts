@@ -3,7 +3,7 @@ import sequelize from '../database.js';
 import Subscription from '../models/subscription.js';
 import Invoice from '../models/invoice.js';
 import { rankOf, syncUserPlan, applyDuePendingPlan, type GracePeriodDeps } from './billing/lifecycle.js';
-import { PAYPAL_PLAN_IDS, type Plan } from './plans.js';
+import { PAYPAL_PLAN_IDS, getPlansCatalog, type Plan } from './plans.js';
 import type { ChargedAmount } from './invoices.js';
 
 export { applyDuePendingPlan, isGracePeriodExpired } from './billing/lifecycle.js';
@@ -421,6 +421,16 @@ export const replacePredecessors = async (
 	await syncUserPlan(subscription, subscription.get('plan') as Plan);
 };
 
+/**
+ * Ob die Bestätigung des Abos sofort abbucht: nur ein Upgrade-Abo (#1912), dessen Guthaben den
+ * ersten Zyklus nicht deckt (#2238) — bis zum Zahlungseingang bleibt es ausstehend.
+ */
+const chargesOnActivation = (subscription: Subscription): boolean => {
+	const creditCents = subscription.get('creditCents') as number;
+	const price = getPlansCatalog().prices[subscription.get('plan') as Plan];
+	return creditCents > 0 && price[subscription.get('period') as keyof typeof price] > creditCents;
+};
+
 /** Injizierbare Abhängigkeiten von {@link applyPaymentEvent} (Muster `deps` in `billing.ts`). */
 export interface ApplyPaymentEventDeps {
 	/**
@@ -457,7 +467,8 @@ export interface ApplyPaymentEventDeps {
  *   einer Transaktion (#2233): wirft die Rechnung, bleibt das Abo unverändert und die Wiederholung
  *   des Ereignisses verlängert genau einmal.
  * - Aktivierung (`BILLING.SUBSCRIPTION.ACTIVATED`) ist keine Abbuchung → nur `status: 'active'`,
- *   weder Verlängerung noch Rechnung (#2230).
+ *   weder Verlängerung noch Rechnung (#2230); ein Upgrade mit ausstehender Restschuld (#2238)
+ *   bleibt dagegen ausstehend und wird erst vom Zahlungseingang aktiviert.
  * - Erstattung/Rückbuchung (`PAYMENT.SALE.REFUNDED`/`PAYMENT.SALE.REVERSED`, #2237) → Gutschrift
  *   zur Originalrechnung (Sale-Referenz, sonst neueste Rechnung des Abos) und sofortiger
  *   Paketentzug in EINER Transaktion (#2233), danach die PayPal-Kündigung außerhalb — die
@@ -480,6 +491,13 @@ export const applyPaymentEvent = async (
 
 	if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED') {
 		// Die Zustimmung bucht nichts ab: die erste Periode beginnt erst mit der ersten Abbuchung (#2230).
+		// Upgrade mit ausstehender Restschuld (#2238): aktiv wird es erst mit dem Zahlungseingang —
+		// sonst entstünden zwei aktive Zeilen und Kündigung/Anzeige würden mehrdeutig. Die Zustimmung
+		// wird vermerkt: ein weiterer Wechsel würde das genehmigte PayPal-Abo verwaisen lassen.
+		if (chargesOnActivation(subscription)) {
+			await subscription.update({ approvedAt: now });
+			return;
+		}
 		await subscription.update({ status: 'active' });
 		return;
 	}

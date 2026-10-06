@@ -56,7 +56,8 @@ export const createPaypalProvider = (deps: PaypalProviderDeps = {}): BillingProv
 			await applyPlanChange(subscription, paypalEvent, now);
 			// Das alte Abo erst mit der Bestätigung des neuen kündigen, sonst entsteht eine Lücke (#1912).
 			// Ersetzt wird nur gegen eine Zahlung: die erste Abbuchung (#2140) oder ganz deckendes Guthaben
-			// (#2230) — ein Startaufschub ohne Guthaben (#2049) wartet auf seine erste Abbuchung (#2239).
+			// (#2230) — ein Upgrade mit Restschuld (#2238) und ein Startaufschub ohne Guthaben (#2049) warten
+			// auf ihre erste Abbuchung (#2239).
 			const type = paypalEvent.event_type;
 			if (
 				type === 'PAYMENT.SALE.COMPLETED' ||

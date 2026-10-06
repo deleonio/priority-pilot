@@ -29,6 +29,8 @@ class Subscription extends Model {
 	public firstFailureAt?: Date | null;
 	/** Guthaben aus dem abgelösten Abo (#1912), einmalig auf der ersten Rechnung verrechnet. */
 	public creditCents!: number;
+	/** Zeitpunkt der PayPal-Zustimmung (ACTIVATED) eines Upgrades, das bis zum Zahlungseingang ausstehend bleibt (#2238). */
+	public approvedAt?: Date | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -93,6 +95,10 @@ Subscription.init(
 			type: DataTypes.INTEGER,
 			allowNull: false,
 			defaultValue: 0,
+		},
+		approvedAt: {
+			type: DataTypes.DATE,
+			allowNull: true,
 		},
 	},
 	{
