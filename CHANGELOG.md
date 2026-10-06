@@ -311,6 +311,7 @@ _Enthält v0.10.0 – v0.10.36._
 - Säulen-Mindestanteil von 5 % auf allen Wegen erzwingen (#1822) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1853
 - fix(server): show clear message for too-long task title (#1818) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1854
 - chore(deps): update renovatebot/github-action action to v46.3.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1850
+- chore(deps): update renovatebot/github-action action to v46.3.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1850
 - test(frontend): locate title-limit message by text in e2e spec by @deleonio in https://github.com/deleonio/priority-pilot/pull/1858
 - test(e2e): exempt kol-alert from #930 transparency check by @deleonio in https://github.com/deleonio/priority-pilot/pull/1859
 - fix(server): count late completions for their due day in streak by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1856
