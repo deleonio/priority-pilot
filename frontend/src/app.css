@@ -5962,6 +5962,36 @@ a.plan-badge:focus-visible {
 	overflow-wrap: anywhere;
 }
 
+/* Einführungs-Banner (#2229): im Seitenfluss, nicht fixiert — verdeckt so keine Bedienelemente.
+   Mobile-First: Knöpfe gestapelt (volle Breite, ≥ 44px), ab 48rem nebeneinander. */
+.launch-banner {
+	margin: var(--pp-space-3) var(--pp-space-3) 0;
+}
+
+.launch-banner__actions {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-space-2);
+}
+
+.launch-banner__actions kol-button,
+.launch-banner__actions kol-button span[data-testid] {
+	display: block;
+	width: 100%;
+	min-height: 44px;
+}
+
+@media (min-width: 48rem) {
+	.launch-banner__actions {
+		flex-direction: row;
+	}
+
+	.launch-banner__actions kol-button,
+	.launch-banner__actions kol-button span[data-testid] {
+		width: auto;
+	}
+}
+
 /* Journal-Statistik (#2213): Auswahl oben, je Fenster ein Block mit Zähl- und Balance-Reihe. */
 .journal-stats {
 	display: flex;

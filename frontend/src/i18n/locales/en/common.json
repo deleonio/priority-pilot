@@ -136,5 +136,11 @@
 		"streak": "Longest streak",
 		"projekte": "Completed projects",
 		"saeule": "Strongest pillar"
+	},
+	"launchBanner": {
+		"title": "Balamentum is brand new",
+		"text": "You are among the first. Whatever you notice helps us – feel free to tell us.",
+		"feedback": "Give feedback",
+		"dismiss": "Close"
 	}
 }

@@ -136,5 +136,11 @@
 		"streak": "Längster Streak",
 		"projekte": "Abgeschlossene Projekte",
 		"saeule": "Stärkste Säule"
+	},
+	"launchBanner": {
+		"title": "Balamentum ist ganz neu",
+		"text": "Du gehörst zu den Ersten. Was dir auffällt, hilft uns – sag es uns gern.",
+		"feedback": "Feedback geben",
+		"dismiss": "Schließen"
 	}
 }

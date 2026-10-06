@@ -19,6 +19,8 @@ export type AuthUser = {
 	subscription?: Subscription | null;
 	/** Zustimmung zur aktuellen Fassung der Nutzungsbedingungen (#1901); fehlt das Feld, gilt sie als erteilt. */
 	termsAccepted?: boolean;
+	/** Server-Schalter des Einführungs-Banners (#2229); fehlt das Feld, bleibt der Banner aus. */
+	launchBanner?: boolean;
 	/** Kontokennung für Käufe über Google Play (#1687); fehlt im Pass-Through-Modus. */
 	playAccountId?: string;
 };

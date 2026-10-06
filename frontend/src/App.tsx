@@ -31,6 +31,7 @@ import { Modal } from './components/Modal';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
+import { LaunchBanner } from './components/LaunchBanner';
 import { SessionExpiredDialog } from './components/SessionExpiredDialog';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { PushToast } from './components/PushToast';
@@ -1170,6 +1171,8 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				{/* #1320: Die eine `<h1>` je Ansicht benennt die geöffnete Seite (AK7) — vorher stand hier
 			    fest „Dashboard", während `SettingsPage`/`HelpPage` ihre eigene Überschrift mitbrachten. */}
 				<h1 className="visually-hidden">{pageTitle}</h1>
+
+				<LaunchBanner enabled={user.launchBanner === true} onFeedback={() => navigate('/hilfe/feedback')} />
 
 				{/* Der Logout läuft über die Kopf-Aktionen und ist damit auf allen drei Ansichten
 			    auslösbar — seine Fehlermeldung steht deshalb außerhalb der Inhalts-Verzweigung. */}
