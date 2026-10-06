@@ -17,6 +17,8 @@ class WaitlistEntry extends Model {
 	public referralCode!: string;
 	public referredByCode!: string | null;
 	public status!: 'waiting' | 'activated';
+	/** Ergebnis des Freischalt-Mailversands (#2305); `null` = nie versucht. */
+	public accessMailStatus!: 'sent' | 'failed' | null;
 	public createdAt!: Date;
 }
 
@@ -49,6 +51,11 @@ WaitlistEntry.init(
 			type: DataTypes.STRING,
 			allowNull: false,
 			defaultValue: 'waiting',
+		},
+		accessMailStatus: {
+			type: DataTypes.STRING,
+			allowNull: true,
+			defaultValue: null,
 		},
 		createdAt: {
 			type: DataTypes.DATE,

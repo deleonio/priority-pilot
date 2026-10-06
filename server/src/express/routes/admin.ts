@@ -27,6 +27,7 @@ import { activateTopWaitlist, activateWaitlistEntry, listWaitlistRanked } from '
 import { syncUserPlan } from '../../logics/billing/lifecycle.js';
 import { createPaypalProvider, type PaypalProviderDeps } from '../../logics/billing/paypalProvider.js';
 import { PaypalHttpError } from '../../logics/paypal.js';
+import type { MailSender } from '../../logics/mail.js';
 
 /**
  * Nutzerverwaltung für Admins (Rollensystem admin/member/tester) plus Batch-Endpunkt zur
@@ -84,6 +85,7 @@ type AdminWaitlistEntryDto = {
 	status: 'waiting' | 'activated';
 	position: number;
 	referralCount: number;
+	accessMailStatus: 'sent' | 'failed' | null;
 	createdAt: string;
 };
 
@@ -125,7 +127,7 @@ const demoteUnlessLastAdmin = async (id: number, targetRole: Exclude<UserRole, '
  */
 export const createAdminRouter = (
 	pillarClassifier: PillarClassifier = classifyPillarsWithMistral,
-	deps: { paypalClient?: PaypalProviderDeps['client'] } = {},
+	deps: { paypalClient?: PaypalProviderDeps['client']; mailSender?: MailSender } = {},
 ): Router => {
 	const adminRouter = Router();
 	// Admin-Storno (#1959) nutzt denselben injizierbaren PayPal-Client wie die Selbstkündigung
@@ -721,23 +723,23 @@ export const createAdminRouter = (
 
 	// POST /admin/waitlist/:id/activate — schaltet einen einzelnen Eintrag frei (idempotent);
 	// danach nimmt der bestehende Login-Flow die Adresse an (`isDbEmailAllowed`/`AllowedEmail`,
-	// #1982 AK3).
+	// #1982 AK3). Verschickt die Freischalt-Mail mit Login-Link (#2305).
 	adminRouter.post(
 		'/admin/waitlist/:id/activate',
 		requireRole('admin'),
-		async (req: Request, res: Response<{ status: 'activated' } | ErrorDto>) => {
+		async (req: Request, res: Response<{ status: 'activated'; accessMailStatus: 'sent' | 'failed' } | ErrorDto>) => {
 			const id = Number(req.params.id);
 			if (!Number.isInteger(id) || id <= 0) {
 				sendError(res, 400, 'Ungültige Eintrags-Id.');
 				return;
 			}
 			try {
-				const status = await activateWaitlistEntry(id);
-				if (status === null) {
+				const result = await activateWaitlistEntry(id, deps.mailSender);
+				if (result === null) {
 					sendError(res, 404, 'Wartelisten-Eintrag nicht gefunden.');
 					return;
 				}
-				res.json({ status });
+				res.json(result);
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
 			}
@@ -756,7 +758,7 @@ export const createAdminRouter = (
 				return;
 			}
 			try {
-				res.json({ activatedCount: await activateTopWaitlist(count) });
+				res.json({ activatedCount: await activateTopWaitlist(count, deps.mailSender) });
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
 			}
