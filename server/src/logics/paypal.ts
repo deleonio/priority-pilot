@@ -5,6 +5,8 @@ import Invoice from '../models/invoice.js';
 import { rankOf, syncUserPlan, applyDuePendingPlan, type GracePeriodDeps } from './billing/lifecycle.js';
 import { PAYPAL_PLAN_IDS, getPlansCatalog, type Plan } from './plans.js';
 import type { ChargedAmount } from './invoices.js';
+import { sendCancellationConfirmation } from './cancellationMail.js';
+import type { MailSender } from './mail.js';
 
 export { applyDuePendingPlan, isGracePeriodExpired } from './billing/lifecycle.js';
 
@@ -338,11 +340,14 @@ export const PERIOD_MONTHS: Record<string, number> = { monthly: 1, quarterly: 3,
  *
  * Wie PayPal den Restzeitraum abrechnet, ist für diese Entscheidung ohne Belang — maßgeblich ist
  * allein die eigene Freischaltung.
+ *
+ * @param send injizierbarer Versand der Kündigungsbestätigung (#2308); geht nur bei der Kündigung eines laufenden Abos raus.
  */
 export const applyPlanChange = async (
 	subscription: Subscription,
 	event: PaypalWebhookEvent,
 	now: Date,
+	send?: MailSender,
 ): Promise<void> => {
 	const eventType = event.event_type ?? '';
 
@@ -363,6 +368,8 @@ export const applyPlanChange = async (
 		// Abo-Stand. Gesperrte Abos (Admin-Sperre, `locked`) bleiben gesperrt: die Sperre wirkt
 		// über `User.plan = free` und wird durch das Webhook-Ereignis nicht aufgehoben.
 		const wasLocked = subscription.get('status') === 'locked';
+		// Bestätigung nur für ein laufendes Abo — ein wiederholtes CANCELLED bleibt still (#2308 AK7).
+		const wasRunning = ['active', 'past_due', 'suspended'].includes(String(subscription.get('status')));
 		await subscription.update({
 			status: 'cancelled',
 			pendingPlan: 'free',
@@ -371,6 +378,9 @@ export const applyPlanChange = async (
 		});
 		if (!wasLocked) {
 			await syncUserPlan(subscription, subscription.get('plan') as Plan);
+		}
+		if (wasRunning) {
+			await sendCancellationConfirmation(subscription, now, send);
 		}
 		return;
 	}

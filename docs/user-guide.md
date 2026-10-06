@@ -720,7 +720,7 @@ wurde und kein Paket gebucht hat, hat **Pro** und damit alle Funktionen.
 
 ## Abo
 
-In der oberen Karte des Bereichs **Pakete & Abo** siehst du deinen aktuellen Abonnement-Status; Rechnungen (und, wenn möglich, die Kündigung) findest du aufklappbar darunter; auch nach einem beendeten Abo bleiben alte Rechnungen dort sichtbar. Jede Rechnung steht dort als PDF-Download bereit und wurde beim Zahlungseingang zusätzlich als Anhang per E-Mail zugestellt.
+In der oberen Karte des Bereichs **Pakete & Abo** siehst du deinen aktuellen Abonnement-Status. Läuft ein PayPal-Abo, steht dort direkt der Button **Verträge hier kündigen**: Im folgenden Schritt wählst du ordentlich oder außerordentlich (mit Grund) und die E-Mail-Adresse für die Bestätigung, dann bestätigst du mit **Jetzt kündigen**. Das Paket läuft bis zum Ende der Laufzeit weiter; die Kündigungsbestätigung mit Datum und Vertragsende kommt per Mail, sobald PayPal die Kündigung gemeldet hat. Rechnungen findest du aufklappbar darunter; auch nach einem beendeten Abo bleiben alte Rechnungen dort sichtbar. Jede Rechnung steht dort als PDF-Download bereit und wurde beim Zahlungseingang zusätzlich als Anhang per E-Mail zugestellt.
 
 ---
 

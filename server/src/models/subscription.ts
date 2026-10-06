@@ -31,6 +31,11 @@ class Subscription extends Model {
 	public creditCents!: number;
 	/** Zeitpunkt der PayPal-Zustimmung (ACTIVATED) eines Upgrades, das bis zum Zahlungseingang ausstehend bleibt (#2238). */
 	public approvedAt?: Date | null;
+	/** Angaben aus dem Kündigungsdialog (#2308): Art, Grund (nur außerordentlich), Bestätigungsadresse, Eingang. */
+	public cancellationKind?: 'ordinary' | 'extraordinary' | null;
+	public cancellationReason?: string | null;
+	public cancellationEmail?: string | null;
+	public cancellationRequestedAt?: Date | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -97,6 +102,22 @@ Subscription.init(
 			defaultValue: 0,
 		},
 		approvedAt: {
+			type: DataTypes.DATE,
+			allowNull: true,
+		},
+		cancellationKind: {
+			type: DataTypes.STRING,
+			allowNull: true,
+		},
+		cancellationReason: {
+			type: DataTypes.TEXT,
+			allowNull: true,
+		},
+		cancellationEmail: {
+			type: DataTypes.STRING,
+			allowNull: true,
+		},
+		cancellationRequestedAt: {
 			type: DataTypes.DATE,
 			allowNull: true,
 		},

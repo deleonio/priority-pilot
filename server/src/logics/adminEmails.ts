@@ -40,10 +40,12 @@ const parseEmails = (raw: string): string[] => {
 	return parts.map(normalize).filter((email) => email !== '');
 };
 
+/** Normalisierte Adressen aus ADMIN_EMAILS (leer, wenn nicht konfiguriert) — auch Empfänger der Betreiber-Mails (#2308). */
+export const adminEmails = (): string[] => parseEmails(process.env.ADMIN_EMAILS?.trim() ?? '');
+
 /** Prüft, ob die übergebene E-Mail in ADMIN_EMAILS enthalten ist (false, wenn nicht konfiguriert). */
 export const isAdminEmail = (email: string): boolean => {
-	const raw = process.env.ADMIN_EMAILS?.trim() ?? '';
-	const emails = parseEmails(raw);
+	const emails = adminEmails();
 	if (emails.length === 0) {
 		return false;
 	}

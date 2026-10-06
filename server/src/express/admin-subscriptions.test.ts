@@ -358,10 +358,11 @@ describe('Admin-Abo-Routen #1959 (Spec docs/spec/issue-1959.md)', () => {
 			assert.equal(cancelRes.status, 403);
 		}
 
+		// Test-Pflege #2308: die Kündigung eines laufenden Abos verlangt { kind, email }.
 		const selfCancel = await fetch(`${server.baseUrl}/billing/subscriptions/cancel`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Cookie: member.cookie },
-			body: '{}',
+			body: JSON.stringify({ kind: 'ordinary', email: 'k@example.com' }),
 		});
 		assert.equal(selfCancel.status, 200, 'die eigene Selbstkündigung bleibt unverändert nutzbar');
 	});

@@ -35,7 +35,7 @@ export type WaitlistRankedEntry = {
 	createdAt: string;
 };
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 
