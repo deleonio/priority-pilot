@@ -4,13 +4,14 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.17 - 2026-10-06
 
-_Enthält v0.17.0 – v0.17.25._
+_Enthält v0.17.0 – v0.17.26._
 
 ### 🎉 New Features
 
 - feat(server): carry upgrade credit over to following cycles (#2241) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2280
 - feat(frontend): add welcome steps card to dashboard after onboarding by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2284
 - feat(admin): delete user subscriptions and invoices completely (#2295) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2296
+- feat(server): send waitlist activation mail with login link by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2310
 
 ### 🐞 Bug Fixes
 
@@ -180,7 +181,7 @@ _Enthält v0.14.0 – v0.14.31._
 - ci: make phase label precheck parseable again by @deleonio in https://github.com/deleonio/priority-pilot/pull/2136
 - ci: cache pi packages via scheduled warm-up run (#2092) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2134
 - feat(ci): record runtime and configured model per cost entry (#2090) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2121
-- feat(ci): record runtime and configured model per cost entry (#2090) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2121
+- feat(server): store only complete pillar distributions (5-80%, sum 100) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2132
 - feat(server): store only complete pillar distributions (5-80%, sum 100) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2132
 - feat(tasks): missed area, postpone counter, archive (#1964) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2139
 - feat(frontend): ai model distribution as adoptable suggestion (#2078) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2149
