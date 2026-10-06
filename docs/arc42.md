@@ -33,15 +33,15 @@ Menschliche Autorinnen und Autoren nutzen denselben PR-Weg; `main` ist der einzi
 
 ### 1.2 Qualitätsziele
 
-| Priorität | Qualitätsziel | Szenario-Motiv                                                                                                                                                                                         |
-| --------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| hoch      | #flexible     | Entkopplung, Wartbarkeit, Änderbarkeit: Bausteine mit klarer Abhängigkeitsrichtung, ein Muster je Problem, jede Zeile Wartungslast                                                                     |
-| hoch      | #secure       | Fachliche Endpunkte verlangen eine Session; OAuth-, Magic-Link- und Native-Login prüfen die Freischaltung (Warteliste/Allowlist, `OPEN_SIGNUP` als Off-Schalter), die Passwort-Registrierung ist offen |
-| hoch      | #usable       | Bedienung mobil-first über zugängliche KoliBri-Komponenten                                                                                                                                             |
-| hoch      | #suitable     | Kernfachlichkeit: Tasks, Säulen, Serien, Gruppen bilden die vollständige Domäne ab (Server-Routen + `openapi.yml`)                                                                                     |
-| mittel    | #efficient    | Skalierbarkeit: Antwortzeiten und Ressourcen wachsen mit Nutzern und Daten kontrolliert, nicht sprunghaft                                                                                              |
-| mittel    | #reliable     | Server bricht bei unbehebbaren Fehlern kontrolliert ab statt in undefiniertem Zustand weiterzulaufen                                                                                                   |
-| mittel    | #operable     | Release ist ein reproduzierbarer Merge-Build mit `rsync` und `pm2 reload`                                                                                                                              |
+| Priorität | Qualitätsziel | Szenario-Motiv                                                                                                                                                                                                            |
+| --------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| hoch      | #flexible     | Entkopplung, Wartbarkeit, Änderbarkeit: Bausteine mit klarer Abhängigkeitsrichtung, ein Muster je Problem, jede Zeile Wartungslast                                                                                        |
+| hoch      | #secure       | Fachliche Endpunkte verlangen eine Session; OAuth-, Magic-Link- und Native-Login prüfen die Freischaltung (Warteliste/Allowlist, `OPEN_SIGNUP` als Off-Schalter), `POST /auth/register` existiert nur mit `NODE_ENV=test` |
+| hoch      | #usable       | Bedienung mobil-first über zugängliche KoliBri-Komponenten                                                                                                                                                                |
+| hoch      | #suitable     | Kernfachlichkeit: Tasks, Säulen, Serien, Gruppen bilden die vollständige Domäne ab (Server-Routen + `openapi.yml`)                                                                                                        |
+| mittel    | #efficient    | Skalierbarkeit: Antwortzeiten und Ressourcen wachsen mit Nutzern und Daten kontrolliert, nicht sprunghaft                                                                                                                 |
+| mittel    | #reliable     | Server bricht bei unbehebbaren Fehlern kontrolliert ab statt in undefiniertem Zustand weiterzulaufen                                                                                                                      |
+| mittel    | #operable     | Release ist ein reproduzierbarer Merge-Build mit `rsync` und `pm2 reload`                                                                                                                                                 |
 
 Diese Tabelle ist der Maßstab, nach dem das tägliche Code-Review-Team
 ([`code-review-team`](../.claude/skills/code-review-team/SKILL.md)) den Wert seiner Findings gewichtet;
@@ -139,7 +139,7 @@ graph LR
   Einmal-Code gegen eine Session (`POST /auth/native/exchange`). Zugang: Warteliste mit
   Empfehlungs-Rang und Admin-Freischaltung (ADR 0019) oder E-Mail-Allowlist (Env
   `GOOGLE_ALLOWED_EMAILS`, DB-Zulassungen über `/admin/allowed-emails`) oder offene
-  Registrierung (`OPEN_SIGNUP`); die Passwort-Registrierung prüft die Freischaltung nicht.
+  Registrierung (`OPEN_SIGNUP`); `POST /auth/register` ist nur mit `NODE_ENV=test` registriert (sonst 404).
   Session-Cookies (`httpOnly`, `SameSite=lax`, `Secure` in Produktion), Merk-Cookie
   `bm_signed_in` für den Redirect der statischen Website, CSRF-Schutz für schreibende Endpunkte
   in Produktion (`server/src/express/csrf.ts`), Rate-Limits für Auth- und Geocode-Routen,
@@ -275,7 +275,7 @@ jede syntaktisch gültige Adresse mit 15 Minuten gültigem Einmal-Link per E-Mai
 zugelassene Adressen nicht verraten); das Einlösen baut über `establishSession` dieselbe Session
 auf (`server/src/express/routes/magicLink.ts`).
 
-Der dritte Weg ist klassisch: `POST /auth/register` legt das Konto mit gehashtem Passwort und den
+Der dritte Weg ist klassisch (`POST /auth/register` nur mit `NODE_ENV=test` erreichbar, in Produktion 404, `server/src/express/routes/auth.ts`): `POST /auth/register` legt das Konto mit gehashtem Passwort und den
 fünf persönlichen Säulen an und meldet direkt an, `POST /auth/login` prüft das Passwort mit
 timing-normalisiertem Fehlerverhalten (401 ohne Unterschied zwischen unbekannter Adresse und
 falschem Passwort). Die Android-App empfängt nach dem Google-Login einen Einmal-Code und tauscht
@@ -485,7 +485,7 @@ dokumentiert.
   `/admin/waitlist/:id/activate`), auf der Env-Allowlist steht oder unter `OPEN_SIGNUP` arbeitet.
   Ohne konfigurierte Allowlist startet der Server in Produktion nicht, außer `OPEN_SIGNUP`
   öffnet die Registrierung (`logics/allowedEmails.ts`, Startgate `server/src/express/index.ts`).
-  Die Passwort-Registrierung (`POST /auth/register`) ist ohne Freischaltungsprüfung offen.
+  Behoben (#2299): `POST /auth/register` ist nur mit `NODE_ENV=test` registriert, in Produktion 404.
 
 ### QS-05 — kontrollierter Abbruch
 

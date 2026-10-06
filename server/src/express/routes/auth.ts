@@ -49,10 +49,16 @@ const authLimiter = rateLimit({
 // kostet 14, ein Löschen weitere 7, entsprechend kam kurz nach dem Löschen auf alles ein 429.
 authRouter.use('/auth', authLimiter);
 
-// POST /auth/register — E-Mail-/Passwort-Registrierung (Issue #206, AK 1).
+// POST /auth/register — E-Mail-/Passwort-Registrierung (Issue #206, AK 1), nur NODE_ENV=test (#2299).
 // Legt einen neuen User an (409 bei bereits vergebener E-Mail), meldet ihn direkt
 // per frisch regenerierter Session an und antwortet mit 201.
 authRouter.post('/auth/register', async (req, res) => {
+	// Nur in der Testumgebung (E2E `registerOwnSession`): in Produktion ginge sonst ein Passwortkonto
+	// ohne Allowlist/E-Mail-Bestätigung auf eine fremde Adresse durch (Kontoübernahme, #2299).
+	if (process.env.NODE_ENV !== 'test') {
+		res.status(404).json({ message: 'Nicht gefunden.' });
+		return;
+	}
 	const { email, password } = req.body as { email?: string; password?: string };
 	if (!email || !password || !password.trim()) {
 		res.status(400).json({ message: 'E-Mail und Passwort sind erforderlich.' });
