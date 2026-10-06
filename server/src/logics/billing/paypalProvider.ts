@@ -59,8 +59,10 @@ export const createPaypalProvider = (deps: PaypalProviderDeps = {}): BillingProv
 			// (#2230) — ein Upgrade mit Restschuld (#2238) und ein Startaufschub ohne Guthaben (#2049) warten
 			// auf ihre erste Abbuchung (#2239).
 			const type = paypalEvent.event_type;
+			// Eine späte Abbuchung auf einer beendeten Zeile (#2243) löst keinen Nachfolger ab — sonst
+			// würde das aktuelle Abo des Nutzers gekündigt.
 			if (
-				type === 'PAYMENT.SALE.COMPLETED' ||
+				(type === 'PAYMENT.SALE.COMPLETED' && subscription.get('status') !== 'cancelled') ||
 				(type === 'BILLING.SUBSCRIPTION.ACTIVATED' && coversFirstCycle(subscription))
 			) {
 				await replacePredecessors(subscription, client);
