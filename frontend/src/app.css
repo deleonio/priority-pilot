@@ -6029,3 +6029,36 @@ a.plan-badge:focus-visible {
 	padding: 0;
 	font-variant-numeric: tabular-nums;
 }
+
+/* #2221: `.welcome-steps` (WelcomeSteps.tsx) — Einstieg im Dashboard, eine Spalte; Schritt-Buttons und
+   Schließen ≥44px (docs/mobile-ui-rules.md). */
+.welcome-steps {
+	margin-top: var(--pp-gap-generous);
+}
+
+.welcome-steps-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-space-2);
+	margin: 0 0 var(--pp-space-3);
+	padding: 0;
+	list-style: none;
+}
+
+.welcome-steps-list li {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--pp-space-2);
+	min-height: 44px;
+}
+
+.welcome-steps-done {
+	color: var(--pp-success);
+	font-weight: 600;
+}
+
+.welcome-steps kol-button {
+	display: block;
+	min-height: 44px;
+}

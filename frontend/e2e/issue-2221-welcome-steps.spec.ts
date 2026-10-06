@@ -26,6 +26,9 @@ const finishOnboarding = async (page: Page): Promise<void> => {
 	await page.locator('.onboarding-flow').getByRole('button', { name: 'Später' }).click();
 };
 
+// Test-Pflege (#2221): die Fixture schliesst den Willkommens-Dialog sonst vor dem „Später“-Klick (siehe onboarding-flow.spec.ts).
+test.use({ dismissOnboarding: false });
+
 test.describe('#2221 Einstieg Erste Schritte', () => {
 	test('AK1+AK3: nach dem Onboarding sichtbar, nach Schließen und Reload nicht mehr', async ({ page }) => {
 		await finishOnboarding(page);

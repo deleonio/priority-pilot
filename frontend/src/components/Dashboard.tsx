@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { KolBadge, KolButton, KolCard, KolMeter } from '@public-ui/react-v19';
 import { NearbyCard } from './NearbyCard';
 import { CareHint } from './CareHint';
+import { WelcomeSteps } from './WelcomeSteps';
 import { DayDoneHint } from './DayDoneHint';
 import { StreakCard } from './StreakCard';
 import { WeeklyBalanceCard } from './WeeklyBalanceCard';
@@ -116,6 +117,8 @@ interface DashboardProps {
 	 * `data-testid="day-done"` doppeln. Default `true` (eigenständige Nutzung ohne Tab-Kontext).
 	 */
 	showDayDoneHint?: boolean;
+	/** Öffnet die Säulen-Einstellungen (Schritt „Säulen gewichten“ im Einstieg, #2221); ohne Callback kein Einstieg. */
+	onOpenPillars?: () => void;
 }
 
 interface StatCard {
@@ -161,6 +164,7 @@ export const Dashboard = ({
 	onEditTask,
 	onSnoozeTask,
 	showDayDoneHint = true,
+	onOpenPillars,
 }: DashboardProps) => {
 	const { t } = useTranslation('common');
 	const greeting = displayName.trim();
@@ -315,6 +319,15 @@ export const Dashboard = ({
 					{/* #1118: Die Card selbst ist das Widget — die alte Außen-<section> ist entfernt,
 					    die Sektionsklasse sitzt am Card-Host. Card-Label = Sektionsüberschrift;
 					    die Region-Semantik der Hauptaussage zieht mit auf den Host um. */}
+					{onOpenPillars !== undefined && (
+						<WelcomeSteps
+							tasks={tasks}
+							onOpenPillars={onOpenPillars}
+							onOpenSuggestion={() =>
+								document.querySelector('[data-testid="care-hint"]')?.scrollIntoView({ block: 'center' })
+							}
+						/>
+					)}
 					<CareHint />
 					<KolCard
 						className="dashboard-next-task"

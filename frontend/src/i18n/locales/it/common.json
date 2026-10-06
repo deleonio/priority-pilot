@@ -50,6 +50,14 @@
 		"weeksBalanced_one": "{{count}} settimana equilibrata",
 		"weeksBalanced_other": "{{count}} settimane equilibrate"
 	},
+	"welcome": {
+		"label": "Primi passi",
+		"task": "Crea la tua prima attività",
+		"pillars": "Pesa i tuoi pilastri",
+		"suggestion": "Guarda un suggerimento",
+		"done": "fatto",
+		"close": "Chiudi i primi passi"
+	},
 	"care": {
 		"label": "Fürsorge-Hinweis",
 		"kiBadge": "KI-Vorschlag",

@@ -50,6 +50,14 @@
 		"weeksBalanced_one": "{{count}} vecka balanserad",
 		"weeksBalanced_other": "{{count}} veckor balanserade"
 	},
+	"welcome": {
+		"label": "Första stegen",
+		"task": "Skapa din första uppgift",
+		"pillars": "Vikta dina pelare",
+		"suggestion": "Se ett förslag",
+		"done": "klart",
+		"close": "Stäng första stegen"
+	},
 	"care": {
 		"label": "Fürsorge-Hinweis",
 		"kiBadge": "KI-Vorschlag",

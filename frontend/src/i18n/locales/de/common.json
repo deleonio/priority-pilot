@@ -50,6 +50,14 @@
 		"weeksBalanced_one": "{{count}} Woche ausgewogen",
 		"weeksBalanced_other": "{{count}} Wochen ausgewogen"
 	},
+	"welcome": {
+		"label": "Erste Schritte",
+		"task": "Erste Aufgabe anlegen",
+		"pillars": "Säulen gewichten",
+		"suggestion": "Vorschlag ansehen",
+		"done": "erledigt",
+		"close": "Einstieg schließen"
+	},
 	"care": {
 		"label": "Fürsorge-Hinweis",
 		"kiBadge": "KI-Vorschlag",

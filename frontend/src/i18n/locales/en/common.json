@@ -50,6 +50,14 @@
 		"weeksBalanced_one": "{{count}} week balanced",
 		"weeksBalanced_other": "{{count}} weeks balanced"
 	},
+	"welcome": {
+		"label": "First steps",
+		"task": "Create your first task",
+		"pillars": "Weight your pillars",
+		"suggestion": "View a suggestion",
+		"done": "done",
+		"close": "Close first steps"
+	},
 	"care": {
 		"label": "Care hint",
 		"kiBadge": "AI suggestion",
