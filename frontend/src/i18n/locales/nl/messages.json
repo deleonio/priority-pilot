@@ -58,6 +58,12 @@
 	"billing": {
 		"managedBy": "Abonnement actief, beheerd via {{provider}}",
 		"yearlyPerMonth": "of {{price}}/maand bij jaarbetaling",
+		"withdrawal": {
+			"hint": "Je hebt een herroepingsrecht van 14 dagen.",
+			"link": "Herroepingsinformatie en modelformulier voor herroeping",
+			"consent": "Ik wil dat de dienst direct begint en bevestig dat mijn herroepingsrecht daardoor vervalt.",
+			"order": "Bestellen met betalingsverplichting"
+		},
 		"manageInPlay": "Beheren in Google Play",
 		"restore": {
 			"action": "Aankopen herstellen",

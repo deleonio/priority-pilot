@@ -58,6 +58,12 @@
 	"billing": {
 		"managedBy": "Subscrição ativa, gerida através de {{provider}}",
 		"yearlyPerMonth": "ou {{price}}/mês com pagamento anual",
+		"withdrawal": {
+			"hint": "Tem um direito de livre resolução de 14 dias.",
+			"link": "Informações sobre a livre resolução e modelo de formulário de livre resolução",
+			"consent": "Pretendo que o serviço comece de imediato e confirmo que, com isso, o meu direito de livre resolução se extingue.",
+			"order": "Encomendar com obrigação de pagamento"
+		},
 		"manageInPlay": "Gerir no Google Play",
 		"restore": {
 			"action": "Restaurar compras",

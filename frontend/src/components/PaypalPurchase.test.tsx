@@ -165,7 +165,8 @@ describe('usePaypalPurchase — Warteverhalten nach dem Wechsel', () => {
 		render(<Harness targetPlan="plus" />);
 
 		expect(screen.queryByText('Aktuelles Paket')).toBeNull();
-		expect(screen.getByRole('button', { name: /buchen/i })).toBeTruthy();
+		// Test-Pflege #2307: der Buchen-Knopf heißt jetzt „Zahlungspflichtig bestellen".
+		expect(screen.getByRole('button', { name: /Zahlungspflichtig bestellen/ })).toBeTruthy();
 	});
 });
 

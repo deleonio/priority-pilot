@@ -58,6 +58,12 @@
 	"billing": {
 		"managedBy": "Subskrypcja aktywna, zarządzana przez {{provider}}",
 		"yearlyPerMonth": "lub {{price}}/miesiąc przy płatności rocznej",
+		"withdrawal": {
+			"hint": "Przysługuje Ci prawo odstąpienia od umowy w ciągu 14 dni.",
+			"link": "Pouczenie o odstąpieniu i wzór formularza odstąpienia",
+			"consent": "Chcę, aby usługa rozpoczęła się natychmiast, i potwierdzam, że tym samym wygasa moje prawo odstąpienia od umowy.",
+			"order": "Zamawiam z obowiązkiem zapłaty"
+		},
 		"manageInPlay": "Zarządzaj w Google Play",
 		"restore": {
 			"action": "Przywróć zakupy",

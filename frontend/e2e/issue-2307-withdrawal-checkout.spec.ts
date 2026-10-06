@@ -58,7 +58,9 @@ test('AK2/AK3/AK5: Hinweis, Checkbox und Knopf bei 375 px sichtbar; Knopf erst n
 	await expect(link).toBeVisible();
 	await expect(checkbox).toBeVisible();
 	await expect(book).toContainText('Zahlungspflichtig bestellen');
-	await expect(book).toBeDisabled();
+	// Test-Pflege #2307: `disabled` trägt der innere Button im Shadow-DOM, nicht der kol-button-Host.
+	const bookButton = book.getByRole('button');
+	await expect(bookButton).toBeDisabled();
 
 	// Bounding-Box statt scrollWidth: die App-Shell clippt overflow-x.
 	for (const element of [link, checkbox, book]) {
@@ -73,7 +75,7 @@ test('AK2/AK3/AK5: Hinweis, Checkbox und Knopf bei 375 px sichtbar; Knopf erst n
 	expect(checkoutCalls, 'ohne Zustimmung kein Checkout').toBe(0);
 
 	await checkbox.check();
-	await expect(book).toBeEnabled();
+	await expect(bookButton).toBeEnabled();
 	await book.click();
 	await expect.poll(() => checkoutCalls).toBe(1);
 	await expect(page).toHaveURL(/paypal\.example\/approve\/abc/);

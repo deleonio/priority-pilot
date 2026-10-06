@@ -58,6 +58,12 @@
 	"billing": {
 		"managedBy": "Suscripción activa, gestionada a través de {{provider}}",
 		"yearlyPerMonth": "o {{price}}/mes con pago anual",
+		"withdrawal": {
+			"hint": "Tienes un derecho de desistimiento de 14 días.",
+			"link": "Información sobre el desistimiento y formulario modelo de desistimiento",
+			"consent": "Quiero que el servicio comience de inmediato y confirmo que, con ello, mi derecho de desistimiento se extingue.",
+			"order": "Pedido con obligación de pago"
+		},
 		"manageInPlay": "Gestionar en Google Play",
 		"restore": {
 			"action": "Restaurar compras",

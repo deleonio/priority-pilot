@@ -58,6 +58,12 @@
 	"billing": {
 		"managedBy": "Subscription active, managed via {{provider}}",
 		"yearlyPerMonth": "or {{price}}/month when paid yearly",
+		"withdrawal": {
+			"hint": "You have a 14-day right of withdrawal.",
+			"link": "Withdrawal information and model withdrawal form",
+			"consent": "I want the service to start immediately and confirm that my right of withdrawal expires as a result.",
+			"order": "Order with obligation to pay"
+		},
 		"manageInPlay": "Manage in Google Play",
 		"restore": {
 			"action": "Restore purchases",

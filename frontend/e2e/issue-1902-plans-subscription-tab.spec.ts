@@ -75,7 +75,7 @@ test.describe('Balamentum — #1902: Reiter „Pakete & Abo“', () => {
 		await expect(page.getByTestId('plans-section')).toBeVisible();
 		await expect(page.locator('kol-table-stateful')).toHaveCount(0);
 
-		const book = page.getByRole('button', { name: /Pro.*buchen/i }).first();
+		const book = page.getByRole('button', { name: /Zahlungspflichtig bestellen/ }).first();
 		await expect(book).toBeVisible();
 		// Bounding-Box statt scrollWidth: die App-Shell clippt overflow-x (Memory 2026-08-24).
 		const box = await book.boundingBox();

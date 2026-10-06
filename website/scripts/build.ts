@@ -31,6 +31,7 @@ import {
 	renderTemplatePage,
 	renderPrivacy,
 	renderTerms,
+	renderWithdrawal,
 	renderRobots,
 	renderSitemap,
 	type Locale,
@@ -109,6 +110,10 @@ paths.push('/datenschutz/');
 // Nutzungsbedingungen: wie die Datenschutzerklärung eine feste deutsche Seite (#1891).
 write(join('nutzungsbedingungen', 'index.html'), renderTerms({ locale: 'de', messages: de, siteUrl, allMessages }));
 paths.push('/nutzungsbedingungen/');
+
+// Widerrufsbelehrung und Muster-Widerrufsformular: feste deutsche Seite (#2307).
+write(join('widerruf', 'index.html'), renderWithdrawal({ locale: 'de', messages: de, siteUrl, allMessages }));
+paths.push('/widerruf/');
 
 // MCP-Anleitung (#1978): deutsch an der Wurzel, englische Schwester unter /en/, Footer-Link in allen Sprachen.
 write(join('mcp', 'index.html'), renderMcpGuide({ locale: 'de', messages: de, siteUrl, allMessages }));

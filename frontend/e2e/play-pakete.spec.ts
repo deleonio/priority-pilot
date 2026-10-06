@@ -54,10 +54,12 @@ const openPlans = async (page: Page, channel?: 'play'): Promise<void> => {
 };
 
 test.describe('Balamentum — #1674/#1692: Paketansicht im Kanal play', () => {
-	test('Web-Gegenprobe: ohne Abo bietet die Paketliste „Buchen" zu den Katalogpreisen an', async ({ page }) => {
+	test('Web-Gegenprobe: ohne Abo bietet die Paketliste „Zahlungspflichtig bestellen" zu den Katalogpreisen an', async ({
+		page,
+	}) => {
 		await openPlans(page);
 
-		await expect(page.getByRole('button', { name: 'Buchen' }).first()).toBeVisible();
+		await expect(page.getByRole('button', { name: /Zahlungspflichtig bestellen/ }).first()).toBeVisible();
 		await expect(page.getByText('4,99 €', { exact: true })).toBeVisible();
 	});
 

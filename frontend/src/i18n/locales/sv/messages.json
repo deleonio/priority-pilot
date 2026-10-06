@@ -58,6 +58,12 @@
 	"billing": {
 		"managedBy": "Prenumeration aktiv, hanteras via {{provider}}",
 		"yearlyPerMonth": "eller {{price}}/månad vid årsbetalning",
+		"withdrawal": {
+			"hint": "Du har 14 dagars ångerrätt.",
+			"link": "Information om ångerrätt och standardformulär för ångerrätt",
+			"consent": "Jag vill att tjänsten startar direkt och bekräftar att min ångerrätt därmed upphör.",
+			"order": "Beställ med betalningsskyldighet"
+		},
 		"manageInPlay": "Hantera i Google Play",
 		"restore": {
 			"action": "Återställ köp",

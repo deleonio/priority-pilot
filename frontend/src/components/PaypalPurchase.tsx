@@ -1,5 +1,6 @@
-import { KolAlert, KolButton } from '@public-ui/react-v19';
+import { KolAlert, KolButton, KolInputCheckbox, KolLink } from '@public-ui/react-v19';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { PERIOD_LABELS, planLabel, type Period, type Plan } from '../lib/planOffers';
@@ -15,7 +16,11 @@ const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de
  * angezeigte Plan ändert sich erst, wenn `/auth/me` ihn liefert (#1496 AK3/AK4).
  */
 export const usePaypalPurchase = (): PurchaseUi => {
+	const { t } = useTranslation('messages');
 	const { plan, subscription, refresh } = usePlan();
+	// Zustimmung zum sofortigen Leistungsbeginn (#2307): eine gemeinsame, nicht vorbelegte Checkbox
+	// schaltet alle Buchen-Knöpfe frei.
+	const [withdrawalConsent, setWithdrawalConsent] = useState(false);
 	const [bookingKey, setBookingKey] = useState<string | null>(null);
 	const [actionError, setActionError] = useState<string | null>(null);
 	const [changeTarget, setChangeTarget] = useState<{ plan: Exclude<Plan, 'free'>; period: Period } | null>(null);
@@ -84,14 +89,22 @@ export const usePaypalPurchase = (): PurchaseUi => {
 		if (paid === null) {
 			return {
 				text: 'Buchen',
+				// Sichtbar steht nur die gesetzliche Beschriftung (§ 312j Abs. 3 BGB); Paket und Laufzeit
+				// hängen als `.visually-hidden` im Expert-Slot (Muster `PlaceFavoritesSection.tsx`), denn ein
+				// nicht-leeres `_label` blendet den Slot aus.
 				node: (
 					<KolButton
 						data-testid={`book-${targetPlan}-${period}`}
-						_label={`${planLabel(targetPlan)} buchen (${PERIOD_LABELS[period]})`}
+						_label=""
 						_variant="primary"
-						_disabled={bookingKey === `${targetPlan}-${period}`}
+						_disabled={!withdrawalConsent || bookingKey === `${targetPlan}-${period}`}
 						_on={{ onClick: () => void handleBook(targetPlan, period) }}
-					/>
+					>
+						<span slot="expert">
+							{t('billing.withdrawal.order')}
+							<span className="visually-hidden">{` ${planLabel(targetPlan)} (${PERIOD_LABELS[period]})`}</span>
+						</span>
+					</KolButton>
 				),
 			};
 		}
@@ -108,8 +121,25 @@ export const usePaypalPurchase = (): PurchaseUi => {
 		};
 	};
 
+	// Der Hinweisblock steht nur, solange mindestens ein Buchen-Knopf sichtbar ist.
+	const showWithdrawal =
+		subscription !== undefined && (subscription === null || subscription.status === 'approval_pending');
+
 	const notice = (
 		<>
+			{showWithdrawal && (
+				<div className="withdrawal-consent" data-testid="withdrawal-consent">
+					<p>
+						{t('billing.withdrawal.hint')}{' '}
+						<KolLink _href="/widerruf/" _label={t('billing.withdrawal.link')} _target="_blank" />
+					</p>
+					<KolInputCheckbox
+						_label={t('billing.withdrawal.consent')}
+						_checked={withdrawalConsent}
+						_on={{ onChange: () => setWithdrawalConsent((value) => !value) }}
+					/>
+				</div>
+			)}
 			{actionError !== null && (
 				<KolAlert _type="error" _label="Buchung fehlgeschlagen">
 					{actionError}
