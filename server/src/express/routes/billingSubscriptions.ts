@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { Op, type Order } from 'sequelize';
-import { Subscription } from '../../models/index.js';
+import { Subscription, User } from '../../models/index.js';
 import { OPEN_SUBSCRIPTION_STATUSES, PAID_FIRST } from '../../models/subscription.js';
 import Invoice from '../../models/invoice.js';
 import { getUserId } from '../requireAuth.js';
@@ -11,6 +11,9 @@ import { rankOf } from '../../logics/billing/lifecycle.js';
 import { PaypalHttpError, PERIOD_MONTHS } from '../../logics/paypal.js';
 import { getPlansCatalog, PLAN_VALUES, type Plan } from '../../logics/plans.js';
 import { prorateUpgrade } from '../../logics/proration.js';
+import { notifyAdminsOfExtraordinaryCancellation } from '../../logics/cancellationMail.js';
+import type { MailSender } from '../../logics/mail.js';
+import { EMAIL_RE } from '../../logics/waitlist.js';
 
 /**
  * Abo-Verwaltung für den angemeldeten Nutzer (Issue #1505, T6d): Anlegen, Kündigen, Wechseln und
@@ -25,6 +28,8 @@ import { prorateUpgrade } from '../../logics/proration.js';
 export interface BillingSubscriptionsDeps {
 	/** Injizierbarer Abo-Client — Tests injizieren einen Fake (Muster `paypalVerifier`). */
 	paypalClient?: PaypalProviderDeps['client'];
+	/** Versand der Betreiber-Mail bei außerordentlicher Kündigung (#2308); Default nodemailer. */
+	mailSender?: MailSender;
 }
 
 const PAID_PLANS = PLAN_VALUES.filter((plan): plan is Exclude<Plan, 'free'> => plan !== 'free');
@@ -240,7 +245,8 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 	// POST /billing/subscriptions/cancel — löst die Kündigung bei PayPal aus (AK3). `plan` bleibt
 	// unverändert; wirksam wird die Kündigung erst über `BILLING.SUBSCRIPTION.CANCELLED`. Ein nie
 	// bestätigter Checkout (`approval_pending`) blockiert sonst jede Neubuchung (409). Ein bereits
-	// gekündigtes Abo antwortet ebenfalls 409 (#2048).
+	// gekündigtes Abo antwortet ebenfalls 409 (#2048). Der Body `{ kind, reason?, email }` aus dem
+	// Bestätigungsschritt (#2308) wird vor dem PayPal-Aufruf geprüft und danach am Abo gespeichert.
 	router.post(
 		'/billing/subscriptions/cancel',
 		async (req: Request, res: Response<Record<string, never> | ErrorDto>) => {
@@ -271,9 +277,24 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 				res.status(200).json({});
 				return;
 			}
+			const body = req.body as { kind?: unknown; reason?: unknown; email?: unknown } | undefined;
+			const kind = body?.kind;
+			const reason = typeof body?.reason === 'string' ? body.reason.trim() : '';
+			const email = typeof body?.email === 'string' ? body.email.trim() : '';
+			if (kind !== 'ordinary' && kind !== 'extraordinary') {
+				sendError(res, 400, 'kind muss ordinary oder extraordinary sein.');
+				return;
+			}
+			if (kind === 'extraordinary' && reason === '') {
+				sendError(res, 400, 'Bitte einen Grund angeben.');
+				return;
+			}
+			if (!EMAIL_RE.test(email)) {
+				sendError(res, 400, 'Bitte eine gültige E-Mail-Adresse angeben.');
+				return;
+			}
 			try {
 				await checkout.cancel(subscription.get('externalSubscriptionId') as string);
-				res.status(200).json({});
 			} catch (error) {
 				// 4xx heißt: PayPal lehnt ab (bereits gekündigt, 422 SUBSCRIPTION_STATUS_INVALID) —
 				// verständlicher 409 statt 502 (#2048). 5xx/Netzfehler bleiben 502.
@@ -282,7 +303,19 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 					return;
 				}
 				sendError(res, 502, 'PayPal war nicht erreichbar.');
+				return;
 			}
+			await subscription.update({
+				cancellationKind: kind,
+				cancellationReason: kind === 'extraordinary' ? reason : null,
+				cancellationEmail: email,
+				cancellationRequestedAt: new Date(),
+			});
+			if (kind === 'extraordinary') {
+				const user = await User.findByPk(userId);
+				await notifyAdminsOfExtraordinaryCancellation(subscription, user?.email ?? null, deps.mailSender);
+			}
+			res.status(200).json({});
 		},
 	);
 

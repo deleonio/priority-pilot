@@ -1142,6 +1142,18 @@ export const migrateSubscriptionPendingPlanColumns = async (db: Sequelize): Prom
 		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `approvedAt` DATETIME');
 		console.log('Spalte approvedAt an subscriptions nachgezogen.');
 	}
+	// Angaben aus dem Kündigungsdialog (#2308); nullable, Bestandsabos bleiben ohne.
+	for (const [name, type] of [
+		['cancellationKind', 'VARCHAR(255)'],
+		['cancellationReason', 'TEXT'],
+		['cancellationEmail', 'VARCHAR(255)'],
+		['cancellationRequestedAt', 'DATETIME'],
+	]) {
+		if (!existing.includes(name)) {
+			await db.query(`ALTER TABLE \`subscriptions\` ADD COLUMN \`${name}\` ${type}`);
+			console.log(`Spalte ${name} an subscriptions nachgezogen.`);
+		}
+	}
 };
 
 /**

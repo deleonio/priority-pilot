@@ -31,7 +31,7 @@ const PERIOD_DISPLAY: Record<string, string> = {
 };
 
 /** Anzeigename „Plus (monatlich)“: Paket großgeschrieben, Zeitraum deutsch (#2031). */
-const displayLabel = (plan: Plan, period: string): string =>
+export const displayLabel = (plan: Plan, period: string): string =>
 	`${plan.charAt(0).toUpperCase()}${plan.slice(1)} (${PERIOD_DISPLAY[period] ?? period})`;
 
 /** Tatsächlich abgebuchter Betrag aus dem Zahlungsereignis (#2232). */

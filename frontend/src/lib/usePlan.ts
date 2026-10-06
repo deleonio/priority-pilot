@@ -23,6 +23,8 @@ export interface PlanState {
 	 * gültig bleiben.
 	 */
 	subscription?: Subscription | null;
+	/** Konto-Adresse aus `/auth/me` — Vorbelegung der Kündigungsbestätigung (#2308); nicht im Spiegel. */
+	email?: string;
 	/**
 	 * Erneuter `/auth/me`-Abruf, der Zustand + Spiegel aktualisiert (#1496 AK4) — die EINZIGE
 	 * Stelle, die den Spiegel schreibt. Optional, weil Test-Provider ohne echten Kontext oft keinen
@@ -93,6 +95,7 @@ export const usePlanState = (userId: number): PlanState => {
 	// Abo-Status wird bewusst NICHT im Spiegel gehalten (#1496 AK6) — er ist nur für die laufende
 	// Sitzung relevant und ändert sich ausschließlich über das Webhook-Ereignis auf dem Server.
 	const [subscription, setSubscription] = useState<Subscription | null | undefined>(undefined);
+	const [email, setEmail] = useState<string | undefined>(undefined);
 
 	const refresh = useCallback(async (): Promise<void> => {
 		try {
@@ -104,6 +107,7 @@ export const usePlanState = (userId: number): PlanState => {
 			setState(next);
 			storePlanMirror(userId, next);
 			setSubscription(user.subscription ?? null);
+			setEmail(user.email);
 		} catch {
 			// Netzwerkfehler ändern den Zustand nicht — der Spiegel bleibt stehen.
 		}
@@ -117,7 +121,7 @@ export const usePlanState = (userId: number): PlanState => {
 		return () => window.removeEventListener('focus', onFocus);
 	}, [userId, refresh]);
 
-	return { ...state, subscription, refresh };
+	return { ...state, subscription, email, refresh };
 };
 
 /** Zustand des Rückkehr-Pollings (#1496 AK4). */

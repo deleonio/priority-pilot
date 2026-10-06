@@ -4,6 +4,7 @@ import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } 
 import { Subscription } from '../models/index.js';
 import type { AppDeps } from './index.js';
 import { PaypalHttpError } from '../logics/paypal.js';
+import type { MailSender } from '../logics/mail.js';
 
 /**
  * Rote Spec-Tests für #2048 (Spec docs/spec/issue-2048.md) — AK4–AK6 auf
@@ -16,6 +17,8 @@ import { PaypalHttpError } from '../logics/paypal.js';
 applyTestAuthEnv('test-secret-issue-2048');
 
 let server: TestServer;
+
+const ORDINARY = { kind: 'ordinary', email: 'kunde@example.com' };
 
 const withCancel = (cancel: (externalSubscriptionId: string) => Promise<void>): AppDeps =>
 	({
@@ -68,7 +71,7 @@ describe('Cancel-Route #2048', () => {
 		const res = await fetch(`${server.baseUrl}/billing/subscriptions/cancel`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Cookie: cookie },
-			body: '{}',
+			body: JSON.stringify(ORDINARY),
 		});
 
 		assert.equal(res.status, 409);
@@ -88,7 +91,7 @@ describe('Cancel-Route #2048', () => {
 		const res = await fetch(`${server.baseUrl}/billing/subscriptions/cancel`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Cookie: cookie },
-			body: '{}',
+			body: JSON.stringify(ORDINARY),
 		});
 
 		assert.equal(res.status, 409);
@@ -107,7 +110,7 @@ describe('Cancel-Route #2048', () => {
 		const res = await fetch(`${server.baseUrl}/billing/subscriptions/cancel`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Cookie: cookie },
-			body: '{}',
+			body: JSON.stringify(ORDINARY),
 		});
 
 		assert.equal(res.status, 502);
@@ -121,7 +124,7 @@ describe('Cancel-Route #2048', () => {
 		const resExpired = await fetch(`${server.baseUrl}/billing/subscriptions/cancel`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Cookie: expired.cookie },
-			body: '{}',
+			body: JSON.stringify(ORDINARY),
 		});
 		assert.equal(resExpired.status, 404);
 		assert.equal(((await resExpired.json()) as { message?: string }).message, 'Kein Abo gefunden.');
@@ -130,9 +133,120 @@ describe('Cancel-Route #2048', () => {
 		const resNone = await fetch(`${server.baseUrl}/billing/subscriptions/cancel`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Cookie: none.cookie },
-			body: '{}',
+			body: JSON.stringify(ORDINARY),
 		});
 		assert.equal(resNone.status, 404);
 		assert.equal(((await resNone.json()) as { message?: string }).message, 'Kein Abo gefunden.');
+	});
+});
+
+/**
+ * #2308 (Spec docs/spec/issue-2308.md) — AK4/AK5: Die Route nimmt `{ kind, reason?, email }` an,
+ * validiert vor dem PayPal-Aufruf, speichert die Angaben am Abo und meldet eine außerordentliche
+ * Kündigung per Mail an `ADMIN_EMAILS`. KEIN Kundenversand hier (Bestätigung kommt per Webhook, AK6).
+ */
+describe('Cancel-Route #2308', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const setup = async (email: string, mails: Parameters<MailSender>[0][] = [], calls: string[] = []) => {
+		const mailSender: MailSender = async (payload) => {
+			mails.push(payload);
+		};
+		server = await startTestServer({
+			...withCancel(async (id) => {
+				calls.push(id);
+			}),
+			mailSender,
+		});
+		const cookie = await server.login(email);
+		const me = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
+			id: number;
+		};
+		const subscription = await Subscription.create({
+			userId: me.id,
+			provider: 'paypal',
+			externalSubscriptionId: `I-2308-${me.id}`,
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date('2027-06-01'),
+		});
+		const post = (body: unknown) =>
+			fetch(`${server.baseUrl}/billing/subscriptions/cancel`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', Cookie: cookie },
+				body: JSON.stringify(body),
+			});
+		return { post, subscription };
+	};
+
+	for (const [name, body] of [
+		['außerordentlich ohne Grund', { kind: 'extraordinary', email: 'k@example.com' }],
+		['außerordentlich mit leerem Grund', { kind: 'extraordinary', reason: '  ', email: 'k@example.com' }],
+		['ungültige E-Mail', { kind: 'ordinary', email: 'kein-email' }],
+		['fehlende E-Mail', { kind: 'ordinary' }],
+		['unbekannte Art', { kind: 'sofort', email: 'k@example.com' }],
+	] as const) {
+		it(`AK4: ${name} → 400, kein PayPal-Cancel, nichts gespeichert`, async () => {
+			const calls: string[] = [];
+			const { post, subscription } = await setup(`ak4-${calls.length}-${name.length}@example.com`, [], calls);
+
+			const res = await post(body);
+
+			assert.equal(res.status, 400);
+			assert.equal(calls.length, 0, 'PayPal darf bei ungültigem Body nicht aufgerufen werden');
+			await subscription.reload();
+			assert.equal(subscription.get('cancellationKind') ?? null, null);
+		});
+	}
+
+	it('AK4: außerordentlich mit Grund → 200, PayPal-Cancel, Art/Grund/E-Mail/Eingangszeitpunkt am Abo', async () => {
+		const calls: string[] = [];
+		const { post, subscription } = await setup('ak4-ok@example.com', [], calls);
+		const before = Date.now();
+
+		const res = await post({ kind: 'extraordinary', reason: 'Preiserhöhung', email: 'k@example.com' });
+
+		assert.equal(res.status, 200);
+		assert.equal(calls.length, 1);
+		await subscription.reload();
+		assert.equal(subscription.get('cancellationKind'), 'extraordinary');
+		assert.equal(subscription.get('cancellationReason'), 'Preiserhöhung');
+		assert.equal(subscription.get('cancellationEmail'), 'k@example.com');
+		const at = (subscription.get('cancellationRequestedAt') as Date).getTime();
+		assert.ok(at >= before - 1000 && at <= Date.now() + 1000, 'Eingangszeitpunkt = jetzt');
+	});
+
+	it('AK5: außerordentlich → genau eine Mail je ADMIN_EMAILS-Adresse mit Grund; ordentlich → keine', async () => {
+		const previous = process.env.ADMIN_EMAILS;
+		process.env.ADMIN_EMAILS = 'ops1@example.com,ops2@example.com';
+		try {
+			const mails: Parameters<MailSender>[0][] = [];
+			const { post } = await setup('ak5-extra@example.com', mails);
+			assert.equal(
+				(await post({ kind: 'extraordinary', reason: 'Preiserhöhung', email: 'k@example.com' })).status,
+				200,
+			);
+			assert.deepEqual(mails.map((m) => m.to).sort(), ['ops1@example.com', 'ops2@example.com']);
+			for (const mail of mails) {
+				assert.match(mail.text, /Preiserhöhung/);
+			}
+
+			await resetDb();
+			const ordinaryMails: Parameters<MailSender>[0][] = [];
+			const ordinary = await setup('ak5-ord@example.com', ordinaryMails);
+			assert.equal((await ordinary.post({ kind: 'ordinary', email: 'k@example.com' })).status, 200);
+			assert.equal(ordinaryMails.length, 0, 'ordentliche Kündigung meldet nichts an den Betreiber');
+		} finally {
+			if (previous === undefined) delete process.env.ADMIN_EMAILS;
+			else process.env.ADMIN_EMAILS = previous;
+		}
 	});
 });

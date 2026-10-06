@@ -4624,11 +4624,23 @@ paths:
         Ruft bei PayPal die Kündigung des eigenen Abos auf (Issue #1505, T6d, AK3).
         `plan` am Datensatz bleibt unverändert — wirksam wird die Kündigung erst
         über das Webhook-Ereignis `BILLING.SUBSCRIPTION.CANCELLED` (ADR 0013).
+        Art, Grund und Bestätigungsadresse aus dem Bestätigungsschritt (#2308) werden
+        am Abo gespeichert; die Bestätigungsmail an den Kunden geht erst mit dem Webhook
+        raus, eine außerordentliche Kündigung meldet den Grund an `ADMIN_EMAILS`. Ein nie
+        bestätigter Checkout wird ohne Body verworfen.
       operationId: cancelBillingSubscription
       tags: [billing]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BillingCancelInput'
       responses:
         '200':
           description: Kündigung bei PayPal ausgelöst
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           description: Anmeldung erforderlich
           content:
@@ -8384,6 +8396,21 @@ components:
         period:
           type: string
           enum: [monthly, quarterly, yearly]
+    BillingCancelInput:
+      type: object
+      description: Angaben aus dem Bestätigungsschritt der Kündigung (#2308, § 312k BGB).
+      required: [kind, email]
+      properties:
+        kind:
+          type: string
+          enum: [ordinary, extraordinary]
+        reason:
+          type: string
+          description: Pflicht bei `extraordinary`, sonst ignoriert.
+        email:
+          type: string
+          format: email
+          description: Adresse für die Kündigungsbestätigung.
     BillingApproval:
       type: object
       description: >-

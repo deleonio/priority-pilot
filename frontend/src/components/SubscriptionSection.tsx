@@ -1,9 +1,20 @@
-import { KolAlert, KolBadge, KolButton, KolDetails, KolSpin } from '@public-ui/react-v19';
+import {
+	KolAlert,
+	KolBadge,
+	KolButton,
+	KolDetails,
+	KolInputEmail,
+	KolInputRadio,
+	KolSpin,
+	KolTextarea,
+} from '@public-ui/react-v19';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import type { components } from 'client';
 import { toApiError } from '../lib/apiError';
+import type { Subscription } from '../lib/auth';
 import { formatEuro, paymentStatusLabel } from '../lib/format';
+import { readString } from '../lib/inputValue';
 import { planLabel } from '../lib/planOffers';
 import { getChannel } from '../lib/platform';
 import { usePlan } from '../lib/usePlan';
@@ -28,37 +39,108 @@ const downloadInvoicePdf = (invoice: Invoice): void => {
 	link.remove();
 };
 
+type CancellationKind = 'ordinary' | 'extraordinary';
+
+const KIND_OPTIONS: { label: string; value: CancellationKind }[] = [
+	{ label: 'Ordentlich', value: 'ordinary' },
+	{ label: 'Außerordentlich', value: 'extraordinary' },
+];
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 interface CancelDialogProps {
+	subscription: Subscription;
+	/** Konto-Adresse als Vorbelegung der Bestätigungsadresse. */
+	accountEmail: string;
 	onClose: () => void;
-	onCancelled: () => void;
+	onCancelled: (email: string) => void;
 }
 
-/** Bestätigungsdialog vor der Kündigung (#1496 AK3) — Kündigen-Button trägt `data-variant="danger"`. */
-const CancelDialog = ({ onClose, onCancelled }: CancelDialogProps) => {
+/**
+ * Bestätigungsschritt vor der Kündigung (#1496 AK3, § 312k Abs. 2 BGB seit #2308): Vertrag und Zeitpunkt
+ * nur lesend, Art, Grund (Pflicht bei außerordentlich) und Bestätigungsadresse. Fehlende Angaben
+ * erscheinen nach dem Klick am Feld, statt den Button stumm zu sperren (KI-UX). Der Ref-Guard fängt
+ * den Doppel-Klick, bevor `busy` gerendert ist.
+ */
+const CancelDialog = ({ subscription, accountEmail, onClose, onCancelled }: CancelDialogProps) => {
+	const [kind, setKind] = useState<CancellationKind>('ordinary');
+	const [reason, setReason] = useState('');
+	const [email, setEmail] = useState(accountEmail);
+	const [touched, setTouched] = useState(false);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const busyRef = useRef(false);
 	const cancelRef = useRef<HTMLKolButtonElement>(null);
 
+	const reasonMissing = kind === 'extraordinary' && reason.trim() === '';
+	const emailInvalid = !EMAIL_RE.test(email.trim());
+
 	const confirm = async (): Promise<void> => {
+		setTouched(true);
+		if (reasonMissing || emailInvalid || busyRef.current) {
+			return;
+		}
+		busyRef.current = true;
 		setError(null);
 		setBusy(true);
 		try {
-			await api.cancelBillingSubscription();
-			onCancelled();
-		} catch (reason) {
-			setError((await toApiError(reason)).message);
+			await api.cancelBillingSubscription(
+				kind === 'extraordinary' ? { kind, reason: reason.trim(), email: email.trim() } : { kind, email: email.trim() },
+			);
+			onCancelled(email.trim());
+		} catch (failure) {
+			setError((await toApiError(failure)).message);
 			setBusy(false);
+		} finally {
+			busyRef.current = false;
 		}
 	};
 
 	return (
-		<Modal title="Abo kündigen" onClose={onClose} initialFocusRef={cancelRef as RefObject<HTMLElement | null>}>
+		<Modal title="Verträge kündigen" onClose={onClose} initialFocusRef={cancelRef as RefObject<HTMLElement | null>}>
 			{error !== null && (
 				<KolAlert _type="error" _label="Kündigung fehlgeschlagen">
 					{error}
 				</KolAlert>
 			)}
-			<p>Soll das laufende Abo wirklich gekündigt werden? Es bleibt bis zum Ende der laufenden Periode aktiv.</p>
+			<p>
+				Vertrag: <strong>{planLabel(subscription.plan)}</strong> ({PERIOD_LABELS[subscription.period]})
+			</p>
+			<KolInputRadio
+				_label="Art der Kündigung"
+				_orientation="vertical"
+				_options={KIND_OPTIONS}
+				_value={kind}
+				_on={{
+					onChange: (_event, value) => {
+						if (value === 'ordinary' || value === 'extraordinary') {
+							setKind(value);
+						}
+					},
+				}}
+			/>
+			{kind === 'extraordinary' && (
+				<KolTextarea
+					_label="Grund"
+					_required
+					_rows={3}
+					_value={reason}
+					_touched={touched}
+					_msg={reasonMissing ? { _type: 'error', _description: 'Bitte einen Grund angeben.' } : undefined}
+					_on={{ onInput: (_event, value) => setReason(readString(value)) }}
+				/>
+			)}
+			<p>Zeitpunkt: zum Ende der Laufzeit am {formatDate(subscription.currentPeriodEnd)}</p>
+			<KolInputEmail
+				_label="E-Mail für die Bestätigung"
+				_required
+				_autoComplete="email"
+				_hint="Hierhin schicken wir die Bestätigung."
+				_value={email}
+				_touched={touched}
+				_msg={emailInvalid ? { _type: 'error', _description: 'Bitte eine gültige E-Mail-Adresse angeben.' } : undefined}
+				_on={{ onInput: (_event, value) => setEmail(readString(value)) }}
+			/>
 			<div className="modal-actions">
 				<KolButton
 					ref={cancelRef}
@@ -69,7 +151,7 @@ const CancelDialog = ({ onClose, onCancelled }: CancelDialogProps) => {
 				/>
 				<KolButton
 					data-variant="danger"
-					_label={busy ? 'Wird gekündigt…' : 'Kündigen'}
+					_label={busy ? 'Wird gekündigt…' : 'Jetzt kündigen'}
 					_variant="danger"
 					_disabled={busy}
 					_on={{ onClick: () => void confirm() }}
@@ -81,16 +163,18 @@ const CancelDialog = ({ onClose, onCancelled }: CancelDialogProps) => {
 
 /**
  * Obere Karte des Reiters „Pakete & Abo" (#1529, seit #1902 gemeinsam mit den Paketen) — laufendes
- * Abo, anstehender Wechsel und Kulanzfrist sichtbar; Rechnungen (und Kündigung, wenn möglich) in einem `KolDetails`.
+ * Abo, anstehender Wechsel und Kulanzfrist sichtbar; „Verträge hier kündigen" ohne Aufklappen (§ 312k BGB, #2308), Rechnungen in einem `KolDetails`.
  * Ohne Abo ein Hinweis, die Rechnungen nur, wenn es welche gibt (UX-Beratung zu #1902: kein „Pakete ansehen", die Pakete liegen darunter; AK3 von #1902 seit #1940 geändert).
  */
 export const SubscriptionSection = () => {
-	const { subscription } = usePlan();
+	const { subscription, email } = usePlan();
 	const [invoices, setInvoices] = useState<Invoice[] | null>(null);
 	const [invoicesError, setInvoicesError] = useState<string | null>(null);
 	const [cancelOpen, setCancelOpen] = useState(false);
 	// Merker nach erfolgreicher Kündigung: der Webhook stellt den Status erst verzögert um (#2048).
 	const [locallyCancelled, setLocallyCancelled] = useState(false);
+	// Bestätigungsadresse der lokalen Kündigung — die Mail kommt erst mit dem Webhook (KI-UX #2308).
+	const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
 	// Kündigen gibt es nur für PayPal im Web und nur, solange das Abo läuft (auch mit
 	// Zahlungsrückstand, #2240) und noch nicht (auch lokal) gekündigt ist (#2048).
 	const canCancel =
@@ -159,6 +243,15 @@ export const SubscriptionSection = () => {
 								Gekündigt, läuft bis {formatDate(current.currentPeriodEnd)}, danach Free
 							</p>
 						)}
+						{isCancelled && confirmationEmail !== null && <p>Die Bestätigung geht per Mail an {confirmationEmail}.</p>}
+						{canCancel && (
+							<KolButton
+								data-testid="cancel-subscription"
+								_label="Verträge hier kündigen"
+								_variant="danger"
+								_on={{ onClick: () => setCancelOpen(true) }}
+							/>
+						)}
 						{/* Kündigen über die eigene Route gibt es nur für PayPal im Web; sonst verwaltet der Anbieter (#1695). */}
 						{!isPaypalWeb && <ManagedBy provider={current.provider} />}
 					</section>
@@ -177,18 +270,11 @@ export const SubscriptionSection = () => {
 			)}
 
 			{showInvoices && (
-				<KolDetails _label={canCancel ? 'Rechnungen und Kündigung' : 'Rechnungen'} _level={3}>
-					{canCancel && (
-						<KolButton
-							data-testid="cancel-subscription"
-							_label="Abo kündigen"
-							_variant="danger"
-							_on={{ onClick: () => setCancelOpen(true) }}
-						/>
-					)}
+				<KolDetails _label="Rechnungen" _level={3}>
 					<section className="billing-invoices" data-testid="billing-invoices">
 						{invoicesError !== null ? (
-							<KolAlert _type="error" _label="Rechnungen">
+							// Eigener Titel: „Rechnungen" trägt seit #2308 immer das KolDetails-Label.
+							<KolAlert _type="error" _label="Ladefehler">
 								{invoicesError}
 							</KolAlert>
 						) : invoices === null ? (
@@ -223,10 +309,13 @@ export const SubscriptionSection = () => {
 				</KolDetails>
 			)}
 
-			{cancelOpen && (
+			{cancelOpen && current != null && (
 				<CancelDialog
+					subscription={current}
+					accountEmail={email ?? ''}
 					onClose={() => setCancelOpen(false)}
-					onCancelled={() => {
+					onCancelled={(confirmedTo) => {
+						setConfirmationEmail(confirmedTo);
 						setLocallyCancelled(true);
 						setCancelOpen(false);
 					}}

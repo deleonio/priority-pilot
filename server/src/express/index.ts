@@ -330,7 +330,7 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Abo-Verwaltung: Anlegen, Kündigen, Wechseln und Rechnungsabruf (#1505, T6d). Bewusst HINTER
 	// `requireAuth` — anders als der öffentliche `createBillingRouter` (Webhook + Rückkehr-URL, #1495).
-	app.use(createBillingSubscriptionsRouter({ paypalClient: deps.paypalClient }));
+	app.use(createBillingSubscriptionsRouter({ paypalClient: deps.paypalClient, mailSender: deps.mailSender }));
 	// Kauf in der Android-App (#1687, ADR 0017), ebenfalls hinter Session und CSRF.
 	app.use(createBillingGoogleRouter({ googlePlayClient: deps.googlePlayClient }));
 

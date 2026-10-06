@@ -90,7 +90,8 @@ describe('Abo mit Zahlungsrückstand ist offen (#2240)', () => {
 			const { cookie, userId } = await login(`ak1-${status}@example.com`.replace(/_/g, '-'));
 			const s = await sub(userId, status);
 
-			const res = await post(cookie, '/billing/subscriptions/cancel', {});
+			// Test-Pflege #2308: die Kündigung eines laufenden Abos verlangt { kind, email }.
+			const res = await post(cookie, '/billing/subscriptions/cancel', { kind: 'ordinary', email: 'k@example.com' });
 
 			assert.equal(res.status, 200);
 			assert.deepEqual(cancelled, [s.get('externalSubscriptionId')]);

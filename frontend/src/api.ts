@@ -316,9 +316,9 @@ export const api = {
 		return data;
 	},
 
-	/** Kündigt das laufende Abo (AK3); wirksam wird sie erst über das Webhook-Ereignis. */
-	async cancelBillingSubscription(): Promise<void> {
-		const { error, response } = await client.POST('/billing/subscriptions/cancel', {});
+	/** Kündigt das laufende Abo (AK3) mit den Angaben des Bestätigungsschritts (#2308); ohne `input` verwirft sie nur einen offenen Checkout. Wirksam wird sie erst über das Webhook-Ereignis. */
+	async cancelBillingSubscription(input?: components['schemas']['BillingCancelInput']): Promise<void> {
+		const { error, response } = await client.POST('/billing/subscriptions/cancel', { body: input });
 		if (!response.ok) {
 			throw new ResponseError(response, error);
 		}

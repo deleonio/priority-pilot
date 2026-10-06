@@ -62,7 +62,7 @@ const mockPlans = async (page: Page, user: Record<string, unknown>): Promise<voi
 const openInvoices = async (page: Page): Promise<void> => {
 	await page.goto('/app/settings/abo');
 	await expect(page.getByTestId('subscription-section')).toBeVisible();
-	await page.getByText('Rechnungen und Kündigung', { exact: true }).click();
+	await page.getByText('Rechnungen', { exact: true }).click();
 	await expect(page.getByTestId('billing-invoices')).toBeVisible();
 };
 

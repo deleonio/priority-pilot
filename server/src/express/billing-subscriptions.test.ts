@@ -120,7 +120,8 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			currentPeriodEnd: new Date('2026-12-01'),
 		});
 
-		const res = await post('/billing/subscriptions/cancel', cookie);
+		// Test-Pflege #2308: die Kündigung eines laufenden Abos verlangt { kind, email }.
+		const res = await post('/billing/subscriptions/cancel', cookie, { kind: 'ordinary', email: 'k@example.com' });
 
 		assert.equal(res.status, 200);
 		assert.equal(calledWith, 'I-CANCEL-ME', 'Der Client muss mit der externen Abo-ID aufgerufen werden');
@@ -1203,7 +1204,8 @@ describe('Upgrade-Aktivierung erst mit Zahlungseingang (#2238)', () => {
 		});
 		await webhook('BILLING.SUBSCRIPTION.ACTIVATED');
 
-		const res = await post('/billing/subscriptions/cancel', cookie);
+		// Test-Pflege #2308: die Kündigung eines laufenden Abos verlangt { kind, email }.
+		const res = await post('/billing/subscriptions/cancel', cookie, { kind: 'ordinary', email: 'k@example.com' });
 
 		assert.equal(res.status, 200);
 		assert.equal(calledWith, 'I-RUNNING-2238', 'PayPal-Kündigung muss das laufende Abo treffen');

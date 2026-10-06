@@ -78,7 +78,7 @@ const gotoAbo = async (page: Page): Promise<void> => {
 };
 
 const openBilling = async (page: Page): Promise<void> => {
-	await page.getByText('Rechnungen und Kündigung', { exact: true }).click();
+	await page.getByText('Rechnungen', { exact: true }).click();
 	await expect(page.getByTestId('billing-invoices')).toBeVisible();
 };
 
@@ -176,7 +176,7 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 		});
 
 		await gotoAbo(page);
-		await openBilling(page);
+		// #2308: der Button liegt ohne Aufklappen im Abo-Bereich; der Dialog verlangt die E-Mail-Adresse.
 		await page.getByTestId('cancel-subscription').click();
 
 		await expect(page.getByRole('dialog')).toBeVisible();
@@ -186,7 +186,7 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 		const dialogHost = page.locator('kol-dialog');
 		const dangerHost = dialogHost.locator('kol-button[data-variant="danger"]');
 		await expect(dangerHost).toHaveAttribute('data-variant', 'danger');
-		await dialogHost.getByRole('button', { name: /kündigen/i }).click();
+		await dialogHost.getByRole('button', { name: 'Jetzt kündigen' }).click();
 
 		await expect.poll(() => cancelCalled).toBe(true);
 	});
@@ -370,7 +370,7 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 		await page.getByText('Rechnungen', { exact: true }).click();
 		const items = page.locator('.billing-invoices__item');
 		await expect(items.first()).toBeVisible();
-		await expect(page.getByText('Rechnungen und Kündigung')).toHaveCount(0);
+
 		await expect(page.getByTestId('cancel-subscription')).toHaveCount(0);
 
 		// App-Shell clippt overflow-x: Bounding-Boxen statt scrollWidth (MEMORY 2026-09-14).
