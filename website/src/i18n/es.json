@@ -246,7 +246,8 @@
 		"privacy": "Privacidad",
 		"terms": "Condiciones de uso",
 		"mcpGuide": "Guía de MCP",
-		"templates": "Plantillas"
+		"templates": "Plantillas",
+		"legalGermanOnly": "Los textos legales solo están disponibles en alemán; la versión alemana es la vinculante."
 	},
 	"imprint": {
 		"title": "Aviso legal",

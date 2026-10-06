@@ -240,7 +240,8 @@
 		"privacy": "Privacy policy",
 		"terms": "Terms of use",
 		"mcpGuide": "MCP guide",
-		"templates": "Templates"
+		"templates": "Templates",
+		"legalGermanOnly": "Legal texts are only available in German; the German version is binding."
 	},
 	"imprint": {
 		"title": "Imprint",

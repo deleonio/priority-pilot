@@ -243,7 +243,8 @@
 		"privacy": "Integritetspolicy",
 		"terms": "Användarvillkor",
 		"mcpGuide": "MCP-guide",
-		"templates": "Mallar"
+		"templates": "Mallar",
+		"legalGermanOnly": "De juridiska texterna finns bara på tyska; den tyska versionen är bindande."
 	},
 	"imprint": {
 		"title": "Impressum",

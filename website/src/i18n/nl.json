@@ -243,7 +243,8 @@
 		"privacy": "Privacyverklaring",
 		"terms": "Gebruiksvoorwaarden",
 		"mcpGuide": "MCP-handleiding",
-		"templates": "Sjablonen"
+		"templates": "Sjablonen",
+		"legalGermanOnly": "De juridische teksten zijn alleen in het Duits beschikbaar; de Duitse versie is bindend."
 	},
 	"imprint": {
 		"title": "Colofon",

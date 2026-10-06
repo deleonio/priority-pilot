@@ -246,7 +246,8 @@
 		"privacy": "Prywatność",
 		"terms": "Regulamin",
 		"mcpGuide": "Przewodnik MCP",
-		"templates": "Szablony"
+		"templates": "Szablony",
+		"legalGermanOnly": "Teksty prawne są dostępne tylko po niemiecku; wiążąca jest wersja niemiecka."
 	},
 	"imprint": {
 		"title": "Nota prawna",

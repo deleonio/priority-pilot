@@ -71,6 +71,7 @@
 		"heading": "Juridiskt",
 		"terms": "Användarvillkor",
 		"privacy": "Integritetspolicy",
-		"newTab": "Båda länkarna öppnar webbplatsen i en ny flik."
+		"newTab": "Båda länkarna öppnar webbplatsen i en ny flik.",
+		"germanOnly": "De juridiska texterna finns bara på tyska; den tyska versionen är bindande."
 	}
 }

@@ -294,7 +294,7 @@ describe('renderPrivacy (#1672)', () => {
 		for (const [locale, messages] of Object.entries(allMessages)) {
 			const label = (messages.footer as { privacy?: string }).privacy;
 			expect(label, `${locale}: i18n-Key footer.privacy fehlt`).toBeTruthy();
-			expect(landing(locale as Locale), locale).toContain(`href="/datenschutz/">${label}</a>`);
+			expect(landing(locale as Locale), locale).toContain(`href="/datenschutz/" hreflang="de">${label}</a>`);
 		}
 	});
 
@@ -585,5 +585,28 @@ describe('Zweckbestimmung (#1967)', () => {
 		expect(renderTerms, 'renderTerms fehlt').toBeTypeOf('function');
 		const html = renderTerms!({ locale: 'de', messages: de, siteUrl: '', allMessages });
 		expect(html).toMatch(/<p[^>]*>[^<]*kein Medizinprodukt[^<]*<\/p>/u);
+	});
+});
+
+describe('Rechtstexte nur auf Deutsch (#2226)', () => {
+	const hint = (messages: Messages): string | undefined =>
+		(messages.footer as { legalGermanOnly?: string }).legalGermanOnly;
+	const footerOf = (html: string) => html.slice(html.indexOf('<footer'));
+
+	it('AK1/AK5: Hinweis im Footer aller neun Nicht-Deutsch-Sprachen, in de nicht', () => {
+		for (const [locale, messages] of Object.entries(allMessages)) {
+			expect(hint(messages), `${locale}: i18n-Key footer.legalGermanOnly fehlt`).toBeTruthy();
+			const footer = footerOf(landing(locale as Locale));
+			if (locale === 'de') expect(footer, 'de').not.toContain(hint(messages)!);
+			else expect(footer, locale).toContain(hint(messages)!);
+		}
+	});
+
+	it('AK2: Datenschutz- und Nutzungsbedingungen-Link tragen hreflang="de" bei unverändertem Ziel', () => {
+		for (const locale of Object.keys(allMessages)) {
+			const html = landing(locale as Locale);
+			expect(html, locale).toContain('href="/datenschutz/" hreflang="de">');
+			expect(html, locale).toContain('href="/nutzungsbedingungen/" hreflang="de">');
+		}
 	});
 });

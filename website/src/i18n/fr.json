@@ -246,7 +246,8 @@
 		"privacy": "Confidentialité",
 		"terms": "Conditions d’utilisation",
 		"mcpGuide": "Guide MCP",
-		"templates": "Modèles"
+		"templates": "Modèles",
+		"legalGermanOnly": "Les textes juridiques sont uniquement disponibles en allemand ; la version allemande fait foi."
 	},
 	"imprint": {
 		"title": "Mentions légales",

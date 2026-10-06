@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import i18next from 'i18next';
 import { createElement, useState, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import en from '../i18n/locales/en/messages.json';
 
 /**
  * Zustimmungsschritt nach dem Login (#1901, docs/spec/issue-1901.md): „Weiter“ erst bei beiden
@@ -171,5 +173,36 @@ describe('ConsentStep — Rechtstexte lesen (#2227)', () => {
 		open(/Datenschutzerklärung lesen/);
 		expect(boxes.map((box) => box.checked)).toEqual([true, true]);
 		expect(weiter().disabled).toBe(false);
+	});
+});
+
+describe('ConsentStep Rechtstext-Hinweis (#2226)', () => {
+	const hint = (en.legal as { germanOnly?: string }).germanOnly;
+
+	afterEach(async () => {
+		localStorage.removeItem('i18nextLng');
+		await i18next.changeLanguage('de');
+	});
+
+	it('AK3: Nicht-Deutsch zeigt den Hinweis, der Ausweichlink trägt hreflang="de"', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(() => Promise.reject(new Error('offline'))),
+		);
+		await i18next.changeLanguage('en');
+		expect(hint, 'Key legal.germanOnly fehlt in en/messages.json').toBeTruthy();
+		render(<ConsentStep onAccepted={vi.fn()} />);
+		expect(screen.getByText(hint!)).toBeTruthy();
+		fireEvent.click(screen.getByText(en.consent.readTerms));
+		const fallback = within(await screen.findByRole('alert')).getByRole('link');
+		expect(fallback.getAttribute('href')).toBe('/nutzungsbedingungen/');
+		expect(fallback.getAttribute('hreflang')).toBe('de');
+		vi.unstubAllGlobals();
+	});
+
+	it('AK3: Deutsch zeigt keinen Hinweis', () => {
+		expect(hint, 'Key legal.germanOnly fehlt in en/messages.json').toBeTruthy();
+		render(<ConsentStep onAccepted={vi.fn()} />);
+		expect(screen.queryByText(hint!)).toBeNull();
 	});
 });

@@ -54,7 +54,7 @@ const extractLegalHtml = (page: string, path: string): string => {
  * Wer nicht zustimmen will, meldet sich ab.
  */
 export const ConsentStep = ({ onAccepted }: { onAccepted: () => void }) => {
-	const { t } = useTranslation('messages');
+	const { t, i18n } = useTranslation('messages');
 	const [terms, setTerms] = useState(false);
 	const [privacy, setPrivacy] = useState(false);
 	const [saving, setSaving] = useState(false);
@@ -113,7 +113,13 @@ export const ConsentStep = ({ onAccepted }: { onAccepted: () => void }) => {
 			return (
 				<div role="alert" className="login-page__alert">
 					{t('consent.loadFailed')}{' '}
-					<a className="consent-step__link" href={LEGAL_LINKS[key]} target="_blank" rel="noopener noreferrer">
+					<a
+						className="consent-step__link"
+						href={LEGAL_LINKS[key]}
+						target="_blank"
+						rel="noopener noreferrer"
+						hrefLang="de"
+					>
 						{link} {t('consent.newTab')}
 					</a>
 				</div>
@@ -172,6 +178,9 @@ export const ConsentStep = ({ onAccepted }: { onAccepted: () => void }) => {
 							t('consent.privacyLink'),
 						)}
 					</fieldset>
+					{(i18n.resolvedLanguage ?? i18n.language) !== 'de' && (
+						<p className="consent-step__hint">{t('legal.germanOnly')}</p>
+					)}
 					{failed && (
 						<div role="alert" className="login-page__alert">
 							{t('consent.error')}

@@ -14,7 +14,7 @@ const OperatorEmail = () => <a href={`mailto:${OPERATOR.email}`}>{OPERATOR.email
  * (ADR 0015) — daher `origin` statt `BASE_URL` (#1891).
  */
 const LegalLinks = () => {
-	const { t } = useTranslation('messages');
+	const { t, i18n } = useTranslation('messages');
 	const links = [
 		{ path: '/nutzungsbedingungen/', label: t('legal.terms') },
 		{ path: '/datenschutz/', label: t('legal.privacy') },
@@ -23,6 +23,7 @@ const LegalLinks = () => {
 		<>
 			<h3>{t('legal.heading')}</h3>
 			<p id="legal-links-hint">{t('legal.newTab')}</p>
+			{(i18n.resolvedLanguage ?? i18n.language) !== 'de' && <p>{t('legal.germanOnly')}</p>}
 			<ul className="help-legal-links">
 				{links.map(({ path, label }) => (
 					<li key={path}>
@@ -30,6 +31,7 @@ const LegalLinks = () => {
 							href={`${window.location.origin}${path}`}
 							target="_blank"
 							rel="noopener noreferrer"
+							hrefLang="de"
 							aria-describedby="legal-links-hint"
 						>
 							{label}

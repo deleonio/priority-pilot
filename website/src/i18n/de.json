@@ -243,7 +243,8 @@
 		"privacy": "Datenschutz",
 		"terms": "Nutzungsbedingungen",
 		"mcpGuide": "MCP-Anleitung",
-		"templates": "Vorlagen"
+		"templates": "Vorlagen",
+		"legalGermanOnly": "Rechtstexte nur auf Deutsch, verbindlich ist die deutsche Fassung."
 	},
 	"imprint": {
 		"title": "Impressum",
