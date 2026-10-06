@@ -539,7 +539,12 @@ authRouter.delete('/auth/me', async (req, res) => {
 	let result: Awaited<ReturnType<typeof deleteAccount>>;
 	try {
 		result = await deleteAccount(userId);
-	} catch {
+	} catch (error) {
+		console.error('Kontolöschung fehlgeschlagen:', error);
+		sendError(res, 500, 'Das Konto konnte nicht gelöscht werden.');
+		return;
+	}
+	if (result === 'paypal_unavailable') {
 		// Die Kündigung eines Abos mit Zahlungsrückstand scheiterte (#2240) — das Konto bleibt.
 		sendError(res, 502, 'PayPal war nicht erreichbar.');
 		return;
