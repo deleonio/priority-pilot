@@ -240,4 +240,14 @@ describe('SubscriptionSection (#2048)', () => {
 
 		expect(screen.getByTestId('subscription-section')).not.toHaveTextContent(/Aktuelles Paket/);
 	});
+
+	it.each(['past_due', 'suspended'])(
+		'#2240 AK6: PayPal-Abo mit Status %s zeigt den Schalter „Abo kündigen"',
+		(status) => {
+			subscriptionState.subscription = { ...baseSubscription, status };
+			render(<SubscriptionSection />);
+
+			expect(screen.getByTestId('cancel-subscription')).toBeInTheDocument();
+		},
+	);
 });

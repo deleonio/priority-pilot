@@ -635,7 +635,8 @@ Allgemein, Säulen, Kategorien, Standort, Orte, KI, Gruppen und **Pakete & Abo**
   zweistufigen Rückfrage endgültig, mitsamt aller Aufgaben, Serien, Säulen, Kategorien
   und Einstellungen; Aufgaben und Serien, die du für Gruppenmitglieder angelegt hast,
   bleiben für sie bestehen. Auch dein abgeschicktes Feedback wird dabei entfernt. Solange ein Abo läuft oder du der letzte Admin einer Gruppe bist,
-  verweigert die App das Löschen.
+  verweigert die App das Löschen. Ein PayPal-Abo mit offener Zahlung kündigt die App
+  dabei mit.
 - **Push-Nachrichten aktivieren** – siehe „Benachrichtigungen".
 
 ### Säulen
