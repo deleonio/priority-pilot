@@ -190,11 +190,12 @@ ${body}
 				<span>© ${new Date().getFullYear()} Balamentum</span>
 				<a class="kern-link" href="${homePath(locale)}${messages.footer.imprintPath}">${t(messages.footer.imprint)}</a>
 				<a class="kern-link" href="${homePath(locale)}${messages.footer.accountDeletionPath}">${t(messages.footer.accountDeletion)}</a>
-				<a class="kern-link" href="/datenschutz/">${t(messages.footer.privacy)}</a>
+				<a class="kern-link" href="/datenschutz/" hreflang="de">${t(messages.footer.privacy)}</a>
 				<a class="kern-link" href="/nutzungsbedingungen/" hreflang="de">${t(messages.footer.terms)}</a>
 				<a class="kern-link" href="${locale === 'en' ? '/en/mcp/' : '/mcp/'}" hreflang="${locale === 'en' ? 'en' : 'de'}">${t(messages.footer.mcpGuide)}</a>
 				<a class="kern-link" href="/vorlagen/" hreflang="de">${t(messages.footer.templates)}</a>
 				<a class="kern-link" href="/balance-check/" hreflang="de">Balance-Check</a>
+				${locale === 'de' ? '' : `<span class="site-footer__legal-note">${t(messages.footer.legalGermanOnly)}</span>`}
 			</div>
 			<nav class="container" aria-label="${t(messages.meta.language)}">
 				<ul class="site-footer__languages">

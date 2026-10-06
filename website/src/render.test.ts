@@ -294,7 +294,7 @@ describe('renderPrivacy (#1672)', () => {
 		for (const [locale, messages] of Object.entries(allMessages)) {
 			const label = (messages.footer as { privacy?: string }).privacy;
 			expect(label, `${locale}: i18n-Key footer.privacy fehlt`).toBeTruthy();
-			expect(landing(locale as Locale), locale).toContain(`href="/datenschutz/">${label}</a>`);
+			expect(landing(locale as Locale), locale).toContain(`href="/datenschutz/" hreflang="de">${label}</a>`);
 		}
 	});
 

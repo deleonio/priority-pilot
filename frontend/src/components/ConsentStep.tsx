@@ -12,7 +12,7 @@ const LEGAL_LINKS = { terms: '/nutzungsbedingungen/', privacy: '/datenschutz/' }
  * Wer nicht zustimmen will, meldet sich ab.
  */
 export const ConsentStep = ({ onAccepted }: { onAccepted: () => void }) => {
-	const { t } = useTranslation('messages');
+	const { t, i18n } = useTranslation('messages');
 	const [terms, setTerms] = useState(false);
 	const [privacy, setPrivacy] = useState(false);
 	const [saving, setSaving] = useState(false);
@@ -54,7 +54,7 @@ export const ConsentStep = ({ onAccepted }: { onAccepted: () => void }) => {
 				<input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
 				{label}
 			</label>
-			<a className="consent-step__link" href={href} target="_blank" rel="noopener noreferrer">
+			<a className="consent-step__link" href={href} target="_blank" rel="noopener noreferrer" hrefLang="de">
 				{link}
 				<span className="visually-hidden"> {t('consent.newTab')}</span>
 			</a>
@@ -74,6 +74,9 @@ export const ConsentStep = ({ onAccepted }: { onAccepted: () => void }) => {
 						{item(terms, setTerms, t('consent.acceptTerms'), LEGAL_LINKS.terms, t('consent.termsLink'))}
 						{item(privacy, setPrivacy, t('consent.acceptPrivacy'), LEGAL_LINKS.privacy, t('consent.privacyLink'))}
 					</fieldset>
+					{(i18n.resolvedLanguage ?? i18n.language) !== 'de' && (
+						<p className="consent-step__hint">{t('legal.germanOnly')}</p>
+					)}
 					{failed && (
 						<div role="alert" className="login-page__alert">
 							{t('consent.error')}

@@ -156,6 +156,10 @@ img {
 	gap: var(--pp-space-2);
 }
 
+.site-footer__legal-note {
+	flex-basis: 100%;
+}
+
 /* Trefffläche der Textlinks auf 44 px Höhe bringen (WCAG 2.5.8 / Mobile-Regel). */
 .site-footer a {
 	display: inline-flex;
