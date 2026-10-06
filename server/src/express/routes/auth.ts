@@ -482,6 +482,16 @@ authRouter.get('/auth/me', async (req, res) => {
 				plan = ((await User.findByPk(user.id as number))?.plan ?? plan) as Plan;
 				user.plan = plan;
 			}
+			// #2238: neben dem laufenden Abo kann ein ausstehendes Upgrade liegen (zweite Zeile,
+			// `approval_pending`) — in der Anzeige als zahlungsgebundene Vormerkung führen, bis der
+			// Zahlungseingang sie aktiviert (`pendingPlanEffectiveAt` null → „aktiv mit Zahlungseingang“).
+			const pendingUpgrade =
+				dbSubscription.status === 'active'
+					? await Subscription.findOne({
+							where: { userId: user.id, status: 'approval_pending' },
+							order: [['createdAt', 'DESC']],
+						})
+					: null;
 			const firstFailureAt = dbSubscription.get('firstFailureAt') as Date | null;
 			subscription = {
 				provider: dbSubscription.provider,
@@ -490,7 +500,8 @@ authRouter.get('/auth/me', async (req, res) => {
 				status: dbSubscription.status,
 				currentPeriodEnd: dbSubscription.currentPeriodEnd,
 				// #1505 (AK6): vorgemerkter Wechsel bleibt nach dem etwaigen Anwenden oben `null`.
-				pendingPlan: dbSubscription.pendingPlan ?? null,
+				// #2238: ein ausstehendes Upgrade (zweite Zeile) erscheint als zahlungsgebundene Vormerkung.
+				pendingPlan: dbSubscription.pendingPlan ?? pendingUpgrade?.plan ?? null,
 				pendingPlanEffectiveAt: dbSubscription.pendingPlanEffectiveAt ?? null,
 				// #1506 (AK7): während laufender Kulanzfrist firstFailureAt + Frist, sonst null.
 				graceUntil: firstFailureAt ? new Date(firstFailureAt.getTime() + GRACE_PERIOD_DAYS * DAY_MS) : null,

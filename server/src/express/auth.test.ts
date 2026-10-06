@@ -655,9 +655,11 @@ describe('#2238 — /auth/me während ausstehender Upgrade-Zahlung', () => {
 
 	it('AK3: liefert plan = bisheriges Paket und den Wechsel als zahlungsgebundene Vormerkung', async () => {
 		await resetDb();
-		const cookie = await login('upgrade-2238@example.com');
+		// Test-Pflege (#2238): die Datei setzt in Zeile 14 eine Allowlist (GOOGLE_ALLOWED_EMAIL) —
+		// jede andere Adresse erhält am /auth/test-login ein 401, bevor AK3 geprüft wird.
+		const cookie = await login(ALLOWED_EMAIL);
 		const { default: Subscription } = await import('../models/subscription.js');
-		const dbUser = await User.findOne({ where: { email: 'upgrade-2238@example.com' } });
+		const dbUser = await User.findOne({ where: { email: ALLOWED_EMAIL } });
 		assert.ok(dbUser, 'Setup: Session-User muss existieren');
 		await dbUser.update({ plan: 'plus' });
 		const userId = (dbUser as unknown as { id: number }).id;

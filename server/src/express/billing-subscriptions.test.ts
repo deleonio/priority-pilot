@@ -1129,21 +1129,19 @@ describe('Upgrade-Aktivierung erst mit Zahlungseingang (#2238)', () => {
 
 	/** Laufendes Plus-Abo + Upgrade per /change (Zustand vor der Bestätigung). */
 	const seedUpgradeJourney = async (email: string, paypalClient: Partial<FakePaypalClient> = {}) => {
-		server = await startTestServer(
-			({
-				paypalClient: {
-					createSubscription: async () => ({
-						approvalUrl: 'https://paypal.example/2238',
-						externalSubscriptionId: 'I-UPGRADE-2238',
-					}),
-					cancel: async () => {},
-					revise: async () => ({}),
-					...paypalClient,
-				},
-				paypalVerifier: async () => 'verified',
-				mailSender: async () => {},
-			}) as unknown as AppDeps,
-		);
+		server = await startTestServer({
+			paypalClient: {
+				createSubscription: async () => ({
+					approvalUrl: 'https://paypal.example/2238',
+					externalSubscriptionId: 'I-UPGRADE-2238',
+				}),
+				cancel: async () => {},
+				revise: async () => ({}),
+				...paypalClient,
+			},
+			paypalVerifier: async () => 'verified',
+			mailSender: async () => {},
+		} as unknown as AppDeps);
 		const cookie = await login(email);
 		const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
 		await Subscription.create({

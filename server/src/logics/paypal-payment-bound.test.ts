@@ -148,7 +148,11 @@ describe('Upgrade-Aktivierung erst mit Zahlungseingang (#2238)', () => {
 		await applyPaymentEvent(subscription, change('BILLING.SUBSCRIPTION.ACTIVATED', PLAN_IDS.proMonthly), NOW);
 
 		await subscription.reload();
-		assert.equal(subscription.get('status'), 'approval_pending', 'ohne Zahlungseingang bleibt das Upgrade-Abo ausstehend');
+		assert.equal(
+			subscription.get('status'),
+			'approval_pending',
+			'ohne Zahlungseingang bleibt das Upgrade-Abo ausstehend',
+		);
 	});
 
 	it('AK1: ACTIVATED ohne Restschuld (Guthaben deckt den Zyklus) aktiviert weiterhin', async () => {

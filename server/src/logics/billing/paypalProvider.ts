@@ -1,9 +1,9 @@
 import type { MailSender } from '../mail.js';
 import { issueInvoiceForPeriod } from '../invoices.js';
-import { getPlansCatalog, type Plan } from '../plans.js';
 import {
 	applyPaymentEvent,
 	applyPlanChange,
+	chargesOnActivation,
 	createPaypalClient,
 	paypalPlanIdFor,
 	PERIOD_MONTHS,
@@ -13,15 +13,7 @@ import {
 	type PaypalVerifier,
 	type PaypalWebhookEvent,
 } from '../paypal.js';
-import type Subscription from '../../models/subscription.js';
 import type { BillingProvider, WebCheckout } from './provider.js';
-
-/** Ob die Bestätigung des Abos sofort abbucht: nur ein Upgrade-Abo (#1912), dessen Guthaben den ersten Zyklus nicht deckt. */
-const chargesOnActivation = (subscription: Subscription): boolean => {
-	const creditCents = subscription.get('creditCents') as number;
-	const price = getPlansCatalog().prices[subscription.get('plan') as Plan];
-	return creditCents > 0 && price[subscription.get('period') as keyof typeof price] > creditCents;
-};
 
 /** Injizierbare Teile; ohne Angabe gelten die echten PayPal-Aufrufe. */
 export interface PaypalProviderDeps {

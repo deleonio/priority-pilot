@@ -27,12 +27,12 @@ laufende Abo.
 
 ## Ablauf (Upgrade Plus → Pro mit Restschuld)
 
-| Schritt             | Erwartung                                                                     |
-| ------------------- | ----------------------------------------------------------------------------- |
-| `/change`           | zweite Zeile `approval_pending`, Zielplan, `creditCents` gesetzt              |
-| ACTIVATED           | Upgrade-Zeile bleibt ausstehend; genau eine aktive Zeile (das Plus-Abo)       |
-| `/auth/me`          | `plan = plus`, `subscription.plan = plus`, `pendingPlan = pro`, Effektiv `null` |
-| `/cancel`           | PayPal-Kündigung trifft die Plus-Zeile; Upgrade-Zeile bleibt                  |
-| SALE.COMPLETED      | Pro-Zeile `active`, Plus-Zeile `cancelled`, genau eine aktive Zeile           |
+| Schritt        | Erwartung                                                                       |
+| -------------- | ------------------------------------------------------------------------------- |
+| `/change`      | zweite Zeile `approval_pending`, Zielplan, `creditCents` gesetzt                |
+| ACTIVATED      | Upgrade-Zeile bleibt ausstehend; genau eine aktive Zeile (das Plus-Abo)         |
+| `/auth/me`     | `plan = plus`, `subscription.plan = plus`, `pendingPlan = pro`, Effektiv `null` |
+| `/cancel`      | PayPal-Kündigung trifft die Plus-Zeile; Upgrade-Zeile bleibt                    |
+| SALE.COMPLETED | Pro-Zeile `active`, Plus-Zeile `cancelled`, genau eine aktive Zeile             |
 
 Tests: `server/src/logics/paypal-payment-bound.test.ts` (Regel 1), `server/src/express/billing-subscriptions.test.ts` (Regel 2/4), `server/src/express/auth.test.ts` (Regel 3).
