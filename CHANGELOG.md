@@ -140,6 +140,7 @@ _Enthält v0.14.0 – v0.14.31._
 
 - feat(frontend): onboarding rework from review #2087 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2120
 - feat(frontend): rank pillars by tap order (50/20/15/10/5, full save) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2114
+- feat(frontend): rank pillars by tap order (50/20/15/10/5, full save) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2114
 - fix(ci): move tailscale/dns network switch behind the runtime setup (#2091) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2122
 - feat(frontend): progress state on subscription confirm buttons (#2105) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2123
 - feat(ci): hard deadline around agent call keeps soft-abort alive by @deleonio in https://github.com/deleonio/priority-pilot/pull/2124
