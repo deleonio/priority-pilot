@@ -264,7 +264,7 @@ jobs:
             # `skipping` (Draft-Race: Verify sah im Event-Payload noch draft == true, #2254),
             # `cancel` oder fehlend zaehlt NICHT — sonst merged das Gate Code ohne Tests/Build.
             verify_entry="$(latest_verify "$head_sha")" || verify_entry=""
-            allow="$(echo "$allow" | jq --argjson v "${verify_entry:-null}" '[.[] | select(.workflow != "Verify")] + (if $v == null then [] else [$v] end)')"
+            allow="$(echo "$allow" | jq --argjson v "${verify_entry:-null}" '[.[] | select(.workflow != "Verify" or .name != "verify")] + (if $v == null then [] else [$v] end)')"
             has_ci="$(echo "$allow" | jq -r 'any(.[]; .workflow == "Verify" and .name == "verify" and (.bucket == "pass" or .bucket == "fail" or .bucket == "pending"))')"
             has_review="$(echo "$allow" | jq -r 'any(.[]; .workflow == "05 Review")')"
             # Review-Check-Bestimmung: Wenn Reviews alle "skipping" sind, gilt ai:reviewed als OK.
