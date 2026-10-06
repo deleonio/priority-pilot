@@ -32,6 +32,8 @@ import {
 	renderPrivacy,
 	renderTerms,
 	renderWithdrawal,
+	renderCancellation,
+	renderCancellationConfirm,
 	renderRobots,
 	renderSitemap,
 	type Locale,
@@ -114,6 +116,14 @@ paths.push('/nutzungsbedingungen/');
 // Widerrufsbelehrung und Muster-Widerrufsformular: feste deutsche Seite (#2307).
 write(join('widerruf', 'index.html'), renderWithdrawal({ locale: 'de', messages: de, siteUrl, allMessages }));
 paths.push('/widerruf/');
+
+// Kündigung ohne Login (#2317): feste deutsche Seite; die Bestätigungsseite des Mail-Links bleibt aus der Sitemap.
+write(join('kuendigen', 'index.html'), renderCancellation({ locale: 'de', messages: de, siteUrl, allMessages }));
+write(
+	join('kuendigen', 'bestaetigen', 'index.html'),
+	renderCancellationConfirm({ locale: 'de', messages: de, siteUrl }),
+);
+paths.push('/kuendigen/');
 
 // MCP-Anleitung (#1978): deutsch an der Wurzel, englische Schwester unter /en/, Footer-Link in allen Sprachen.
 write(join('mcp', 'index.html'), renderMcpGuide({ locale: 'de', messages: de, siteUrl, allMessages }));

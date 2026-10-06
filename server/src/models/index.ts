@@ -36,6 +36,8 @@ import './invoiceSequence.js';
 // Nur Registrierung: `CareSuggestionDismissal` hat keine Assoziationen; hier zählt allein, dass
 // `sequelize.sync()` die Tabelle kennt (#1791).
 import './careSuggestionDismissal.js';
+// Ebenso ohne Assoziationen: Einmal-Token der Kündigung ohne Login (#2317), nur `routes/publicCancellation.ts`.
+import './cancellationToken.js';
 // Ebenso ohne Assoziationen: „Nicht jetzt" mit Grund (#1977) — reine Historie über die
 // `rejections`-Endpoints, gelesen und geschrieben ausschließlich in `routes/scores.ts`.
 import './careSuggestionRejection.js';
