@@ -11,7 +11,7 @@ vi.mock('../api', () => ({ api: { acceptTerms: vi.fn() } }));
 
 // KolDetails-Stub (Memory 2026-10-05): Kinder nur bei geöffnetem Zustand; Label ist der Schalter
 // und meldet wie KoliBri `onToggle(event, open)`. Das Label liegt bewusst außerhalb eines <label>.
-vi.mock('@public-ui/react', () => ({
+vi.mock('@public-ui/react-v19', () => ({
 	KolDetails: ({
 		_label,
 		_open,

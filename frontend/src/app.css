@@ -5741,7 +5741,7 @@ a.plan-badge:focus-visible {
 	text-underline-offset: 2px;
 }
 
-/* Zustimmungsschritt nach dem Login (#1901) — im .login-page-Rahmen, Haken mit Link darunter */
+/* Zustimmungsschritt nach dem Login (#1901) — im .login-page-Rahmen, Haken mit aufklappbarem Rechtstext (#2227) darunter */
 .consent-step__group {
 	display: flex;
 	flex-direction: column;
@@ -5767,12 +5767,33 @@ a.plan-badge:focus-visible {
 	accent-color: var(--pp-brand);
 }
 
+.consent-step__item {
+	min-width: 0;
+}
+
 .consent-step__link {
-	display: inline-flex;
-	align-items: center;
-	min-height: 44px;
-	padding-inline-start: calc(1.25rem + var(--pp-gap-tight));
-	color: var(--pp-brand);
+	color: inherit;
+	text-decoration: underline;
+}
+
+/* Geladener Rechtstext: begrenzte Höhe mit Eigenscroll, lange Wörter brechen um, nur Tabellen-Wrapper scrollt seitlich */
+.consent-step__text {
+	max-height: 60dvh;
+	overflow-y: auto;
+	overflow-wrap: anywhere;
+	padding: var(--pp-gap-tight);
+	border: 1px solid var(--pp-border);
+	border-radius: var(--pp-radius-sm);
+	background: var(--pp-bg-muted);
+	font-size: var(--pp-font-size-base);
+}
+
+.consent-step__text img {
+	max-width: 100%;
+}
+
+.consent-step__scroll {
+	overflow-x: auto;
 }
 
 .consent-step__check input:focus-visible,
