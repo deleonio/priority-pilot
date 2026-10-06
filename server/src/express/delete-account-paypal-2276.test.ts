@@ -74,19 +74,21 @@ describe('Kontolöschung mit past_due-PayPal-Abo (#2276)', () => {
 			assert.equal(await User.findByPk(userId), null);
 		});
 
-		it(`AK1: DELETE /auth/me bei PayPal-${status} → 200, User gelöscht`, async () => {
+		it(`AK1: DELETE /auth/me bei PayPal-${status} → 204, User gelöscht`, async () => {
 			const { cookie, userId } = await setup(`ak1api-${status}@example.com`);
 			stubPaypal(() => new Response('{}', { status }));
 
 			const res = await deleteMe(cookie);
 
-			assert.equal(res.status, 200);
+			assert.equal(res.status, 204);
 			assert.equal(await User.findByPk(userId), null);
 		});
 	}
 
 	for (const [label, error] of [
 		['PaypalHttpError 503', new PaypalHttpError('down', 503)],
+		['PaypalHttpError 429', new PaypalHttpError('limit', 429)],
+		['PaypalHttpError 401', new PaypalHttpError('auth', 401)],
 		['Netzfehler', new TypeError('fetch failed')],
 	] as const) {
 		it(`AK2: cancel wirft ${label} → 'paypal_unavailable', Konto bleibt`, async () => {

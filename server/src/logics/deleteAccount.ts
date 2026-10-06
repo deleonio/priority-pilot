@@ -94,8 +94,9 @@ export const deleteAccount = async (
 		try {
 			await paypalClient.cancel(subscription.get('externalSubscriptionId') as string);
 		} catch (error) {
-			// 4xx = bei PayPal bereits gekündigt (Webhook ging verloren); 5xx/Netzfehler → Konto bleibt (#2240).
-			if (!(error instanceof PaypalHttpError && error.status < 500)) return 'paypal_unavailable';
+			// 404/422 = bei PayPal bereits gekündigt (Webhook ging verloren); alles andere (401/403/429/5xx/Netzfehler) → Konto bleibt (#2240).
+			if (!(error instanceof PaypalHttpError && (error.status === 404 || error.status === 422)))
+				return 'paypal_unavailable';
 		}
 	}
 
