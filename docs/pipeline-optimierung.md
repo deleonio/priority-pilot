@@ -129,12 +129,14 @@ läuft aktuell auf CC+Anthropic (Opus/Sonnet 5.5 nativ). Beachte beim Lesen der 
 `.costs`-Sätze: Die ZAI/pi-Erkenntnisse (Aliase, Eskalation, Lanes) bleiben dokumentiert
 und wirken, sobald zurückgeschaltet wird — der Alias-Fix #2198 wirkt erst wieder unter pi.
 
-**05.10. (Morgen) — Budget-Schock & Gegenmaßnahmen.** CC+Anthropic verbrannte 25 % des
-Claude-Wochenbudgets in 8 h (10 M Input-Tok./h; Fixup+Implement = 56 %). Lehre: „Abo-Flat"
-heißt nicht unbegrenzt — das Wochenbudget ist der echte Constraint, valueCost ist sein
-bester Proxy. Gegenmaßnahmen: **`LLM_PROVIDER_IMPL`** (Phasen-Override für Implement/Fixup),
-**Budget-Wachhund** (tägl. Schwellen-Warnung aus `.costs`, `CLAUDE_WEEKLY_BUDGET_USD`),
-**Adapter-Smoke** (stündlich, models.json-Defekte rot vor dem nächsten Lauf).
+**05.10. (Morgen) — Budget-Schock & Verantwortungs-Schärfung.** CC+Anthropic verbrannte
+25 % des Claude-Wochenbudgets in 8 h (10 M Input-Tok./h; Fixup+Implement = 56 %). Lehre:
+„Abo-Flat" heißt nicht unbegrenzt — das Wochenbudget ist der echte Constraint, valueCost
+ist sein bester Proxy. Entscheidungen: **`LLM_PROVIDER_IMPL`** (Phasen-Provider-Override
+für Implement/Fixup) und **Adapter-Smoke** blieben; eine automatische **Budget-Überwachung
+wurde bewusst wieder entfernt** (05.10.): Budgets aufrechnen und prüfen ist Aufgabe des
+Koordinator-Skills, nicht der Pipeline — die Pipeline liefert nur die passiven Kostendaten
+(`.costs`, tokens-report), aus denen der Koordinator selbst schlussfolgert und steuert.
 
 ## Offene Hebel und KPIs (Stand 05.10.)
 

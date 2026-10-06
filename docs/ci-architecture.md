@@ -32,12 +32,6 @@ Anlass: Diese zwei Phasen verbrannten 56 % des Claude-Wochenbudgets in einer Nac
 Claude bleiben. Modell-Auflösung (models.json-Tiers des wirksamen Providers), Kosten-Sätze
 (`provider`-Feld) und der pi+claude-Guard folgen automatisch.
 
-**Budget-Wachhund ([`cron.budget-watch.yml`](../.github/workflows/cron.budget-watch.yml)):**
-Täglich 06:11 UTC summiert er den Claude-valueCost der letzten 7 Tage aus den versiegelten
-`.costs`-Sätzen und warnt ab Schwellen (`vars.CLAUDE_WEEKLY_BUDGET_USD` als Referenz;
-50 % ::warning, 80 % roter Run). Der Abo-Budget-Verbrauch skaliert mit Token — die
-Attribution ist der beste verfügbare Proxy, auch wenn sie nicht die Kasse ist.
-
 **Adapter-Smoke ([`cron.model-smoke.yml`](../.github/workflows/cron.model-smoke.yml)):**
 Stündlich probiert er jede Provider×Alias×Runtime-Kombination durch `model-adapter.sh`
 (+ `settings-local`, `has-pi`, Guard-Gegenproben) — ein models.json-Defekt wird rot
