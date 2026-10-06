@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.17 - 2026-10-06
 
-_Enthält v0.17.0 – v0.17.29._
+_Enthält v0.17.0 – v0.17.30._
 
 ### 🎉 New Features
 
@@ -49,6 +49,7 @@ _Enthält v0.17.0 – v0.17.29._
 - fix(auth): Passwort-Registrierung außerhalb der Tests sperren (#2299) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2312
 - feat(server): reconcile paypal subscriptions daily (#2300) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2313
 - fix(server): one invoice per PayPal charge, idempotent via sale id by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2316
+- feat(frontend): add withdrawal notice and order button to checkout by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2315
 
 ## v0.16 - 2026-10-06
 
@@ -188,7 +189,6 @@ _Enthält v0.14.0 – v0.14.31._
 - feat(server): store only complete pillar distributions (5-80%, sum 100) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2132
 - feat(tasks): missed area, postpone counter, archive (#1964) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2139
 - feat(frontend): ai model distribution as adoptable suggestion (#2078) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2149
-- feat(frontend): ai model distribution as adoptable suggestion (#2078) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2149
 - feat(frontend): show install prompt after aha moment, explain PWA limits by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2151
 - perf(server): compute streak once per balance request (#2157) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2160
 
@@ -319,6 +319,7 @@ _Enthält v0.11.0 – v0.11.31._
 - Säulenbeschreibungen erklären, wie die Balance zustande kommt (#1849) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1884
 - feat(frontend): explain streak counting rule on streak card (#1819) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1885
 - ci(deploy): demo.apk mit Produktionsschlüssel signieren (#1779) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1906
+- feat(server): keep paid plan until period end on paypal cancel by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1908
 - feat(server): keep paid plan until period end on paypal cancel by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1908
 - feat(frontend): move saved places into their own settings tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1911
 - feat(frontend): show monthly equivalent of yearly price by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1914
