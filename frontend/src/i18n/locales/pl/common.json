@@ -50,6 +50,14 @@
 		"weeksBalanced_one": "{{count}} tydzień zrównoważony",
 		"weeksBalanced_other": "{{count}} tygodni zrównoważonych"
 	},
+	"welcome": {
+		"label": "Pierwsze kroki",
+		"task": "Dodaj pierwsze zadanie",
+		"pillars": "Ustaw wagi filarów",
+		"suggestion": "Zobacz propozycję",
+		"done": "gotowe",
+		"close": "Zamknij pierwsze kroki"
+	},
 	"care": {
 		"label": "Fürsorge-Hinweis",
 		"kiBadge": "KI-Vorschlag",

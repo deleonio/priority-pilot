@@ -50,6 +50,14 @@
 		"weeksBalanced_one": "{{count}} week in balans",
 		"weeksBalanced_other": "{{count}} weken in balans"
 	},
+	"welcome": {
+		"label": "Eerste stappen",
+		"task": "Maak je eerste taak",
+		"pillars": "Weeg je pijlers",
+		"suggestion": "Bekijk een suggestie",
+		"done": "klaar",
+		"close": "Eerste stappen sluiten"
+	},
 	"care": {
 		"label": "Fürsorge-Hinweis",
 		"kiBadge": "KI-Vorschlag",

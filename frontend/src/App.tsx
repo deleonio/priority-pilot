@@ -29,6 +29,7 @@ import { MissedTasksSection } from './components/MissedTasksSection';
 import { EmptyState } from './components/EmptyState';
 import { Modal } from './components/Modal';
 import { OnboardingFlow } from './components/OnboardingFlow';
+import { startWelcomeSteps } from './components/WelcomeSteps';
 import { isOnboardingDismissed, storeOnboardingDismissed } from './lib/onboardingPreferences';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
@@ -1246,6 +1247,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										active={!onboardingDismissed}
 										pillars={pillars}
 										onClose={() => {
+											startWelcomeSteps();
 											setOnboardingDismissed(true);
 											void reload();
 										}}
@@ -1257,6 +1259,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										onImport={() => {
 											// #1969 AK7: Import-Verweis — Flow beenden und in den Import-Tab der
 											// Einstellungen führen (kein Pflichtschritt des Onboardings).
+											startWelcomeSteps();
 											setOnboardingDismissed(true);
 											navigate('/settings/daten');
 										}}
@@ -1302,6 +1305,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 												onEditTask={openEdit}
 												onSnoozeTask={handleSnoozeTask}
 												showDayDoneHint={activeTab === 0}
+												onOpenPillars={() => navigate('/settings/pillars')}
 											/>
 											<p aria-live="polite" className="visually-hidden">
 												{snoozeNotice}

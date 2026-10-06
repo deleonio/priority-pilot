@@ -50,6 +50,14 @@
 		"weeksBalanced_one": "{{count}} сбалансированная неделя",
 		"weeksBalanced_other": "{{count}} сбалансированных недель"
 	},
+	"welcome": {
+		"label": "Первые шаги",
+		"task": "Создайте первую задачу",
+		"pillars": "Расставьте веса опор",
+		"suggestion": "Посмотрите предложение",
+		"done": "готово",
+		"close": "Закрыть первые шаги"
+	},
 	"care": {
 		"label": "Fürsorge-Hinweis",
 		"kiBadge": "KI-Vorschlag",
