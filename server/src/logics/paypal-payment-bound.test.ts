@@ -204,3 +204,41 @@ describe('Freischaltung mit PAYMENT.SALE.COMPLETED — Schutzfälle (#2231)', ()
 		assert.equal(await userPlan(user.id), 'pro');
 	});
 });
+
+/**
+ * #2242 (Spec docs/spec/issue-2242.md) — AK4/AK5: Eine späte Abbuchung hebt die Admin-Sperre nicht
+ * auf; die Rechnung für das eingegangene Geld entsteht trotzdem.
+ */
+describe('PAYMENT.SALE.COMPLETED auf gesperrtes Abo (#2242)', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+
+	it('AK4: Status bleibt locked, User.plan free — auch beim zweiten SALE.COMPLETED; Rechnung entsteht', async () => {
+		const { user, subscription } = await seed('plus', 'monthly');
+		await user.update({ plan: 'free' });
+		await subscription.update({ status: 'locked' });
+		let invoices = 0;
+		const deps = {
+			issueInvoice: async () => {
+				invoices += 1;
+			},
+		};
+
+		await applyPaymentEvent(subscription, sale, NOW, deps as never);
+		await subscription.reload();
+		assert.equal(subscription.get('status'), 'locked');
+		assert.equal(await userPlan(user.id), 'free');
+
+		await applyPaymentEvent(
+			subscription,
+			{ ...sale, resource: { ...sale.resource, id: 'SALE-2' } },
+			NOW,
+			deps as never,
+		);
+		await subscription.reload();
+		assert.equal(subscription.get('status'), 'locked');
+		assert.equal(await userPlan(user.id), 'free');
+		assert.equal(invoices, 2, 'Beleg für jede tatsächlich eingegangene Zahlung');
+	});
+});

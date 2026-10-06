@@ -71,9 +71,9 @@ describe('Admin-Abo-Routen #1959 (Spec docs/spec/issue-1959.md)', () => {
 			...overrides,
 		});
 
-	it('AK1: Admin sperrt → 200, Subscription.status = locked, User.plan = free, kein PayPal-Aufruf; ohne Abo → 404', async () => {
-		let paypalCalls = 0;
-		server = await startTestServer(withPaypal(async () => (paypalCalls += 1)));
+	it('AK1: Admin sperrt → 200, Subscription.status = locked, User.plan = free, genau ein PayPal-cancel (#2242); ohne Abo → 404', async () => {
+		const cancelled: string[] = [];
+		server = await startTestServer(withPaypal(async (id) => void cancelled.push(id)));
 		const admin = await login(ADMIN_EMAIL, 'admin');
 		const member = await login(MEMBER_EMAIL, 'member');
 		await createSub(member.userId);
@@ -92,7 +92,7 @@ describe('Admin-Abo-Routen #1959 (Spec docs/spec/issue-1959.md)', () => {
 		assert.equal(sub.get('status'), 'locked');
 		const user = (await User.findByPk(member.userId))!;
 		assert.equal(user.get('plan'), 'free');
-		assert.equal(paypalCalls, 0, 'Sperren ist eine lokale Aktion — kein Provider-Aufruf');
+		assert.deepEqual(cancelled, [`I-1959-${member.userId}`], 'Sperre kündigt das PayPal-Abo (#2242 AK1)');
 
 		// Nutzer ohne Abo → 404 (Spec: „Kein Abo gefunden.")
 		const resNone = await fetch(`${server.baseUrl}/admin/users/${admin.userId}/subscription/lock`, {
@@ -364,5 +364,95 @@ describe('Admin-Abo-Routen #1959 (Spec docs/spec/issue-1959.md)', () => {
 			body: '{}',
 		});
 		assert.equal(selfCancel.status, 200, 'die eigene Selbstkündigung bleibt unverändert nutzbar');
+	});
+});
+
+describe('Admin-Sperre kündigt das PayPal-Abo (#2242, Spec docs/spec/issue-2242.md)', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const setup = async (
+		cancel: (id: string) => Promise<void>,
+		overrides: Partial<{ provider: string; externalSubscriptionId: string }> = {},
+	) => {
+		server = await startTestServer(withPaypal(cancel));
+		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
+		const memberCookie = await server.login(MEMBER_EMAIL, { role: 'member' });
+		const me = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: memberCookie } })).json()) as {
+			id: number;
+		};
+		await Subscription.create({
+			userId: me.id,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-2242',
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date(Date.now() + 30 * 24 * 3600 * 1000),
+			...overrides,
+		});
+		await User.update({ plan: 'plus' }, { where: { id: me.id } });
+		const lock = () =>
+			fetch(`${server.baseUrl}/admin/users/${me.id}/subscription/lock`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
+				body: '{}',
+			});
+		return { lock, userId: me.id };
+	};
+
+	const assertLocked = async (userId: number) => {
+		const sub = (await Subscription.findOne({ where: { userId } }))!;
+		assert.equal(sub.get('status'), 'locked');
+		assert.equal((await User.findByPk(userId))!.get('plan'), 'free');
+	};
+
+	for (const status of [404, 422]) {
+		it(`AK2: PayPal ${status} (bereits gekündigt) → Sperre antwortet trotzdem 200`, async () => {
+			const { lock, userId } = await setup(async () => {
+				throw new PaypalHttpError('bereits gekündigt', status);
+			});
+			const res = await lock();
+			assert.equal(res.status, 200);
+			assert.equal(((await res.json()) as { subscriptionStatus: string }).subscriptionStatus, 'locked');
+			await assertLocked(userId);
+		});
+	}
+
+	for (const status of [503, 401, 403, 429]) {
+		it(`AK2: PayPal ${status} → 502, lokale Sperre bleibt bestehen`, async () => {
+			const { lock, userId } = await setup(async () => {
+				throw new PaypalHttpError('PayPal-Fehler', status);
+			});
+			assert.equal((await lock()).status, 502);
+			await assertLocked(userId);
+		});
+	}
+
+	it('AK2: Netzfehler (kein PaypalHttpError) → 502, lokale Sperre bleibt bestehen', async () => {
+		const { lock, userId } = await setup(async () => {
+			throw new Error('ECONNRESET');
+		});
+		assert.equal((await lock()).status, 502);
+		await assertLocked(userId);
+	});
+
+	it('AK3: Google-Play-Abo wird gesperrt, ohne dass cancel aufgerufen wird', async () => {
+		let calls = 0;
+		const { lock, userId } = await setup(
+			async () => {
+				calls += 1;
+			},
+			{ provider: 'google', externalSubscriptionId: 'gpa-2242' },
+		);
+		assert.equal((await lock()).status, 200);
+		assert.equal(calls, 0);
+		await assertLocked(userId);
 	});
 });
