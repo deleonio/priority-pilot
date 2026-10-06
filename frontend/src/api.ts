@@ -737,6 +737,37 @@ export const api = {
 		return data;
 	},
 
+	/** #2295: Abos eines Nutzers — Admin-Sicht, Grundlage der Lösch-Aktionen. */
+	async getAdminUserSubscriptions({ id }: { id: number }): Promise<components['schemas']['AdminSubscription'][]> {
+		const { data, error, response } = await client.GET('/admin/users/{id}/subscriptions', {
+			params: { path: { id } },
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	/** #2295: ein Abo restlos löschen (PayPal-Kündigung, Abo + Rechnungen) — `subscriptionId` fehlt = alle Abos. */
+	async deleteAdminUserSubscriptions({
+		id,
+		subscriptionId,
+	}: {
+		id: number;
+		subscriptionId?: number;
+	}): Promise<AdminUser> {
+		const { data, error, response } =
+			subscriptionId === undefined
+				? await client.DELETE('/admin/users/{id}/subscriptions', { params: { path: { id } } })
+				: await client.DELETE('/admin/users/{id}/subscriptions/{subscriptionId}', {
+						params: { path: { id, subscriptionId } },
+					});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
 	/**
 	 * Batch: Säulenverteilung aller Aufgaben (inkl. erledigter) neu berechnen — Admin-Trigger.
 	 * Fortsetzbar (#1614): `restart: true` beginnt den Lauf für alle Konten neu, sonst werden nur

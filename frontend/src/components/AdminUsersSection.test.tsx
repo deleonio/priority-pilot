@@ -104,6 +104,9 @@ vi.mock('../api', () => ({
 		// #1958 (AK3): Rechnungen je Nutzer — die Methode entsteht in der Impl-Phase (Spec-Vertrag
 		// `docs/spec/issue-1958.md`), der Mock hält den roten Lauf frei von Importfehlern.
 		getAdminUserInvoices: vi.fn(),
+		// #2295: Abos je Nutzer + Löschen.
+		getAdminUserSubscriptions: vi.fn(),
+		deleteAdminUserSubscriptions: vi.fn(),
 		reassignTaskPillars: vi.fn(),
 		getReassignPillarsStatus: vi.fn(),
 	},
@@ -883,5 +886,72 @@ describe('#1958 Admin-Rechnungsansicht (AK3)', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Rechnungen von Anna Admin' }));
 
 		await waitFor(() => expect(screen.getByText('Noch keine Rechnungen vorhanden.')).toBeInTheDocument());
+	});
+});
+
+/**
+ * #2295 (AK6): Abos je Nutzer mit „Löschen“ je Abo und „Alle Abos dieses Nutzers löschen“ —
+ * Bestätigungsdialog vor jedem Request, Abbrechen sendet nichts, Bestätigen löscht und lädt neu,
+ * ein PayPal-Fehler erscheint als Meldung.
+ */
+describe('#2295 Admin: Abos löschen (AK6)', () => {
+	const mockGetSubs = api.getAdminUserSubscriptions as ReturnType<typeof vi.fn>;
+	const mockDeleteSubs = api.deleteAdminUserSubscriptions as ReturnType<typeof vi.fn>;
+	const SUB = {
+		id: 41,
+		provider: 'paypal',
+		plan: 'pro',
+		status: 'active',
+		currentPeriodEnd: null,
+		createdAt: '2026-10-01T00:00:00Z',
+	};
+
+	const openSubscriptions = async (): Promise<void> => {
+		mockGetAdminUsers.mockResolvedValue([
+			user({ id: 7, displayName: 'Bernd Beta', role: 'member', plan: 'pro', subscriptionStatus: 'active' }),
+		]);
+		mockGetSubs.mockResolvedValue([SUB]);
+		render(<AdminUsersSection />);
+		fireEvent.click(await screen.findByRole('button', { name: 'Abos von Bernd Beta' }));
+		await screen.findByRole('button', { name: 'Abo #41 löschen' });
+	};
+
+	it('zeigt je Abo „Löschen“ und „Alle Abos dieses Nutzers löschen“; Abbrechen sendet keinen Request', async () => {
+		await openSubscriptions();
+		expect(mockGetSubs).toHaveBeenCalledWith({ id: 7 });
+
+		fireEvent.click(screen.getByRole('button', { name: 'Alle Abos dieses Nutzers löschen' }));
+		expect(screen.getByRole('button', { name: 'Jetzt löschen' })).toBeInTheDocument();
+		fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
+
+		expect(screen.queryByRole('button', { name: 'Jetzt löschen' })).not.toBeInTheDocument();
+		expect(mockDeleteSubs).not.toHaveBeenCalled();
+	});
+
+	it('Bestätigen löscht das Abo und lädt Nutzerliste und Abos neu', async () => {
+		await openSubscriptions();
+		mockDeleteSubs.mockResolvedValue({});
+		mockGetSubs.mockResolvedValue([]);
+		const usersCalls = mockGetAdminUsers.mock.calls.length;
+
+		fireEvent.click(screen.getByRole('button', { name: 'Abo #41 löschen' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Jetzt löschen' }));
+
+		await waitFor(() => expect(mockDeleteSubs).toHaveBeenCalledWith({ id: 7, subscriptionId: 41 }));
+		await waitFor(() => expect(screen.getByText('Keine Abos vorhanden.')).toBeInTheDocument());
+		expect(mockGetAdminUsers.mock.calls.length).toBeGreaterThan(usersCalls);
+	});
+
+	it('„Alle löschen“ ruft DELETE ohne Abo-Id; ein PayPal-Fehler erscheint als Meldung', async () => {
+		await openSubscriptions();
+		mockDeleteSubs.mockRejectedValue(new Error('PayPal nicht erreichbar'));
+
+		fireEvent.click(screen.getByRole('button', { name: 'Alle Abos dieses Nutzers löschen' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Jetzt löschen' }));
+
+		await waitFor(() => expect(mockDeleteSubs).toHaveBeenCalledWith({ id: 7, subscriptionId: undefined }));
+		const alert = await screen.findByRole('alert');
+		expect(alert.getAttribute('data-kol-type')).toBe('error');
+		expect(screen.getByRole('button', { name: 'Abo #41 löschen' })).toBeInTheDocument();
 	});
 });

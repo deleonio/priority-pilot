@@ -2851,7 +2851,8 @@ kol-toolbar {
  * unterschiedlichen Status-Labels (Bezahlt/Erstattet) innerhalb der Liste fluchtet. */
 
 .billing-invoices__list,
-.admin-invoices__list {
+.admin-invoices__list,
+.admin-subscriptions__list {
 	list-style: none;
 	padding: 0;
 	margin: 0;
@@ -2861,7 +2862,8 @@ kol-toolbar {
 }
 
 .billing-invoices__item,
-.admin-invoices__item {
+.admin-invoices__item,
+.admin-subscriptions__item {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -2882,7 +2884,8 @@ kol-toolbar {
 }
 
 .billing-invoices__item > kol-badge,
-.admin-invoices__item > kol-badge {
+.admin-invoices__item > kol-badge,
+.admin-subscriptions__item > kol-badge {
 	min-width: 6rem;
 }
 

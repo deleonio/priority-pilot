@@ -774,6 +774,12 @@ eine Gruppe verwaltet, ist deshalb noch kein Admin der App.
   Zahlungsdienstleister – das bezahlte Paket läuft dann bis zum Ende des
   gebuchten Zeitraums weiter. Beide Aktionen verlangen eine Bestätigung;
   Google-Play-Abos lassen sich nicht stornieren, aber sperren.
+- **Abos löschen:** Unter „Abos von …“ löschst du ein einzelnes Abo oder über
+  „Alle Abos dieses Nutzers löschen“ alle Abos einer Person – nach einer
+  Bestätigung. Das Abo wird beim Zahlungsdienstleister gekündigt und samt seinen
+  Rechnungen restlos entfernt; die Person behält nur das Paket eines noch
+  laufenden Abos, sonst Free. Zahlungen werden nicht erstattet. Gedacht für das
+  Aufräumen von Testkäufen vor dem Livebetrieb.
 - **Mindestens ein Admin:** Den letzten verbleibenden Admin kann niemand
   zurückstufen – ernenne zuerst eine andere Person.
 - **Mitglieder** sehen den Bereich nicht; ein direkter Aufruf von `/settings/nutzer` öffnet bei

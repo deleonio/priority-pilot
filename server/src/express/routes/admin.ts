@@ -51,6 +51,18 @@ type AdminUserDto = {
 	subscriptionStatus?: string | null;
 };
 
+/** Abo-Eintrag der Nutzerverwaltung (#2295) — Grundlage der Lösch-Aktionen je Abo. */
+type AdminSubscriptionDto = components['schemas']['AdminSubscription'];
+
+const toSubscriptionDto = (sub: Subscription): AdminSubscriptionDto => ({
+	id: sub.get('id') as number,
+	provider: sub.get('provider') as AdminSubscriptionDto['provider'],
+	plan: sub.get('plan') as Plan,
+	status: sub.status,
+	currentPeriodEnd: (sub.get('currentPeriodEnd') as Date | null)?.toISOString() ?? null,
+	createdAt: (sub.get('createdAt') as Date).toISOString(),
+});
+
 /** Zugelassene Adresse mit Herkunft (#1983, AK6) — auch ohne bestehendes Konto. */
 type AllowedEmailDto = components['schemas']['AllowedEmail'];
 
@@ -385,6 +397,132 @@ export const createAdminRouter = (
 					}
 					sendError(res, 502, 'PayPal war nicht erreichbar.');
 				}
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	// GET /admin/users/:id/subscriptions — Abos eines Nutzers (#2295, nur Admins), neueste zuerst;
+	// Grundlage der Lösch-Aktionen je Abo in der Nutzerverwaltung.
+	adminRouter.get(
+		'/admin/users/:id/subscriptions',
+		requireRole('admin'),
+		async (req: Request, res: Response<AdminSubscriptionDto[] | ErrorDto>) => {
+			const id = parseId(req.params.id);
+			if (id === null) {
+				sendError(res, 400, 'Ungültige Nutzer-Id.');
+				return;
+			}
+			try {
+				const subscriptions = await Subscription.findAll({ where: { userId: id }, order: [['id', 'DESC']] });
+				res.json(subscriptions.map(toSubscriptionDto));
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	/**
+	 * Löscht Abos samt Rechnungen restlos (#2295) — nur vor dem Go-live vertretbar, im Livebetrieb
+	 * bräuchte es eine Storno-Gutschrift. Erst kündigt PayPal jedes Abo (404/422 = bereits gekündigt,
+	 * jeder andere Fehler bricht ab, BEVOR etwas gelöscht ist), dann entfernt EINE Transaktion Abos,
+	 * ihre Rechnungen und die darauf verweisenden Gutschriften und berechnet `users.plan` neu.
+	 */
+	const deleteSubscriptions = async (
+		res: Response<AdminUserDto | ErrorDto>,
+		target: User,
+		subscriptions: Subscription[],
+	): Promise<void> => {
+		if (
+			subscriptions.some((sub) => sub.get('provider') === 'google' && OPEN_SUBSCRIPTION_STATUSES.includes(sub.status))
+		) {
+			sendError(
+				res,
+				409,
+				'Google-Play-Abos können serverseitig nicht gekündigt werden — das Abo lässt sich aber sperren.',
+			);
+			return;
+		}
+		for (const sub of subscriptions) {
+			if (sub.get('provider') === 'google') continue;
+			try {
+				await checkout.cancel(sub.get('externalSubscriptionId') as string);
+			} catch (error) {
+				if (!(error instanceof PaypalHttpError && (error.status === 404 || error.status === 422))) {
+					sendError(res, 502, 'PayPal hat die Kündigung abgelehnt oder war nicht erreichbar — nichts wurde gelöscht.');
+					return;
+				}
+			}
+		}
+		const subscriptionIds = subscriptions.map((sub) => sub.get('id') as number);
+		await sequelize.transaction(async (transaction) => {
+			const invoiceIds = (
+				await Invoice.findAll({ where: { subscriptionId: subscriptionIds }, attributes: ['id'], transaction })
+			).map((invoice) => invoice.get('id') as number);
+			await Invoice.destroy({ where: { creditForInvoiceId: invoiceIds }, transaction });
+			await Invoice.destroy({ where: { id: invoiceIds }, transaction });
+			await Subscription.destroy({ where: { id: subscriptionIds }, transaction });
+			// Paket des jüngsten noch laufenden Abos (offen oder gekündigt mit Restlaufzeit), sonst free.
+			const running = await Subscription.findOne({
+				where: {
+					userId: target.id,
+					[Op.or]: [
+						{ status: OPEN_SUBSCRIPTION_STATUSES.filter((status) => status !== 'approval_pending') },
+						{ status: 'cancelled', currentPeriodEnd: { [Op.gt]: new Date() } },
+					],
+				},
+				order: [['id', 'DESC']],
+				transaction,
+			});
+			await target.update({ plan: (running?.get('plan') as Plan | undefined) ?? 'free' }, { transaction });
+		});
+		res.json(toDto(target));
+	};
+
+	// DELETE /admin/users/:id/subscriptions/:subscriptionId — ein Abo restlos löschen (#2295 AK1/AK2).
+	adminRouter.delete(
+		'/admin/users/:id/subscriptions/:subscriptionId',
+		requireRole('admin'),
+		async (req: Request, res: Response<AdminUserDto | ErrorDto>) => {
+			const id = parseId(req.params.id);
+			const subscriptionId = parseId(req.params.subscriptionId);
+			if (id === null || subscriptionId === null) {
+				sendError(res, 400, 'Ungültige Id.');
+				return;
+			}
+			try {
+				const target = await User.findByPk(id);
+				// Fremde Abo-Id = unbekannt (404), damit fremde Daten unberührt bleiben (AK5).
+				const subscription = target && (await Subscription.findOne({ where: { id: subscriptionId, userId: id } }));
+				if (!target || !subscription) {
+					sendError(res, 404, target ? 'Abo nicht gefunden.' : 'Nutzer nicht gefunden.');
+					return;
+				}
+				await deleteSubscriptions(res, target, [subscription]);
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	// DELETE /admin/users/:id/subscriptions — alle Abos eines Nutzers restlos löschen (#2295 AK3).
+	adminRouter.delete(
+		'/admin/users/:id/subscriptions',
+		requireRole('admin'),
+		async (req: Request, res: Response<AdminUserDto | ErrorDto>) => {
+			const id = parseId(req.params.id);
+			if (id === null) {
+				sendError(res, 400, 'Ungültige Nutzer-Id.');
+				return;
+			}
+			try {
+				const target = await User.findByPk(id);
+				if (!target) {
+					sendError(res, 404, 'Nutzer nicht gefunden.');
+					return;
+				}
+				await deleteSubscriptions(res, target, await Subscription.findAll({ where: { userId: id } }));
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
 			}

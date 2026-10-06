@@ -154,7 +154,7 @@ describe('Admin-Abo-Löschen #2295 (Spec docs/spec/issue-2295.md)', () => {
 		it(`AK4: PayPal ${status} → trotzdem gelöscht (200)`, async () => {
 			server = await startTestServer(
 				withPaypal(async () => {
-					throw new PaypalHttpError(status, 'x');
+					throw new PaypalHttpError('x', status);
 				}),
 			);
 			const admin = await login('admin@example.com', 'admin');
@@ -172,7 +172,7 @@ describe('Admin-Abo-Löschen #2295 (Spec docs/spec/issue-2295.md)', () => {
 		it(`AK4: PayPal ${status} → nichts gelöscht, Fehlerstatus mit Meldung (Einzel und Alle)`, async () => {
 			server = await startTestServer(
 				withPaypal(async () => {
-					throw new PaypalHttpError(status, 'x');
+					throw new PaypalHttpError('x', status);
 				}),
 			);
 			const admin = await login('admin@example.com', 'admin');
@@ -183,7 +183,7 @@ describe('Admin-Abo-Löschen #2295 (Spec docs/spec/issue-2295.md)', () => {
 			for (const path of [`/subscriptions/${sub}`, '/subscriptions']) {
 				const res = await del(`/admin/users/${member.userId}${path}`, admin.cookie);
 				assert.ok(res.status >= 400 && res.status !== 404 && res.status !== 403, `Status ${res.status}`);
-				assert.equal(typeof ((await res.json()) as { error?: string }).error, 'string');
+				assert.equal(typeof ((await res.json()) as { message?: string }).message, 'string');
 			}
 			assert.ok(await Subscription.findByPk(sub));
 			assert.equal(await Invoice.count({ where: { userId: member.userId } }), 1);

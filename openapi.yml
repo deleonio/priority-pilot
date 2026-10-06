@@ -2700,6 +2700,152 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /admin/users/{id}/subscriptions:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Nutzers
+        schema:
+          type: integer
+    get:
+      summary: Abos eines Nutzers auflisten
+      description: >-
+        #2295: nur für Admins (403 sonst). Alle Abos des Nutzers, neueste zuerst.
+      operationId: listAdminUserSubscriptions
+      tags: [admin]
+      responses:
+        '200':
+          description: Abos des Nutzers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminSubscription'
+        '400':
+          description: Ungültige Nutzer-Id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Alle Abos eines Nutzers löschen
+      description: >-
+        #2295: nur für Admins (403 sonst). Kündigt das PayPal-Abo (404/422 von
+        PayPal gilt als bereits gekündigt) und entfernt danach in einer
+        Transaktion Abo, Rechnungen (inkl. PDF) und darauf verweisende
+        Gutschriften; `plan` des Nutzers fällt auf das Paket eines noch
+        laufenden Abos, sonst `free`. Keine Erstattung. Lehnt PayPal anders ab
+        oder ist nicht erreichbar, wird nichts gelöscht (502). Gilt für alle Abos
+        des Nutzers — scheitert eine Kündigung, wird keines gelöscht.
+      operationId: deleteAllAdminUserSubscriptions
+      tags: [admin]
+      responses:
+        '200':
+          description: Nutzer mit neu berechnetem Paket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '400':
+          description: Ungültige Id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Nutzer oder Abo nicht gefunden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Laufendes Google-Play-Abo (serverseitig nicht kündbar)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: PayPal lehnt die Kündigung ab oder ist nicht erreichbar — nichts gelöscht
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /admin/users/{id}/subscriptions/{subscriptionId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Nutzers
+        schema:
+          type: integer
+      - name: subscriptionId
+        in: path
+        required: true
+        description: Id des Abos
+        schema:
+          type: integer
+    delete:
+      summary: Ein Abo eines Nutzers löschen
+      description: >-
+        #2295: nur für Admins (403 sonst). Kündigt das PayPal-Abo (404/422 von
+        PayPal gilt als bereits gekündigt) und entfernt danach in einer
+        Transaktion Abo, Rechnungen (inkl. PDF) und darauf verweisende
+        Gutschriften; `plan` des Nutzers fällt auf das Paket eines noch
+        laufenden Abos, sonst `free`. Keine Erstattung. Lehnt PayPal anders ab
+        oder ist nicht erreichbar, wird nichts gelöscht (502).
+      operationId: deleteAdminUserSubscription
+      tags: [admin]
+      responses:
+        '200':
+          description: Nutzer mit neu berechnetem Paket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '400':
+          description: Ungültige Id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Nutzer oder Abo nicht gefunden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Laufendes Google-Play-Abo (serverseitig nicht kündbar)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: PayPal lehnt die Kündigung ab oder ist nicht erreichbar — nichts gelöscht
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /admin/users/{id}/invoices:
     parameters:
       - name: id
@@ -5147,6 +5293,27 @@ components:
             Status des Zahlungsabos (#1959) — `null` ohne Abo; `locked` markiert die
             Admin-Sperre (Zugriff aufs bezahlte Paket gestoppt, ein neuer Abschluss
             ist nicht blockiert).
+    AdminSubscription:
+      type: object
+      description: Abo eines Nutzers in der Admin-Nutzerverwaltung (#2295).
+      required: [id, provider, plan, status, currentPeriodEnd, createdAt]
+      properties:
+        id:
+          type: integer
+        provider:
+          type: string
+          enum: [paypal, google]
+        plan:
+          $ref: '#/components/schemas/Plan'
+        status:
+          type: string
+        currentPeriodEnd:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
     AdminWaitlistEntry:
       type: object
       description: Eintrag der Warteliste im Referral-Rang (#1982, ADR 0019).

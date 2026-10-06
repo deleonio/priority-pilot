@@ -111,6 +111,136 @@ const UserInvoices = ({ userId, displayName }: { userId: number; displayName: st
 	);
 };
 
+/** Abo-Eintrag der Nutzerverwaltung (#2295). */
+type AdminSubscription = components['schemas']['AdminSubscription'];
+
+/** Abo-Status als Text — unbekannte Status bleiben roh sichtbar statt zu verschwinden. */
+const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
+	active: 'Aktiv',
+	approval_pending: 'Zahlung ausstehend',
+	past_due: 'Zahlung überfällig',
+	suspended: 'Pausiert',
+	cancelled: 'Gekündigt',
+	expired: 'Abgelaufen',
+	locked: 'Gesperrt',
+};
+
+/**
+ * Abos je Nutzer mit Lösch-Aktionen (#2295) — Lazy-Load wie {@link UserInvoices}. Löschen kündigt
+ * bei PayPal und entfernt Abo samt Rechnungen restlos, daher erst nach einem Ja/Nein-Dialog (Muster
+ * „Sequenzielle Bestätigung“); `onDeleted` lässt die Nutzerzeile (Paket) und Rechnungen neu laden.
+ */
+const UserSubscriptions = ({ user, onDeleted }: { user: AdminUser; onDeleted: () => void }) => {
+	const [subscriptions, setSubscriptions] = useState<AdminSubscription[] | null>(null);
+	const [error, setError] = useState<string | null>(null);
+	const openedRef = useRef(false);
+	// `null` = kein Dialog offen, `'all'` = alle Abos des Nutzers, sonst das eine Abo.
+	const [confirm, setConfirm] = useState<AdminSubscription | 'all' | null>(null);
+	const [running, setRunning] = useState(false);
+	const load = useCallback(async (): Promise<void> => {
+		try {
+			const loaded = await api.getAdminUserSubscriptions({ id: user.id });
+			setSubscriptions(Array.isArray(loaded) ? loaded : []);
+			setError(null);
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			setError(apiError.message);
+			openedRef.current = false;
+		}
+	}, [user.id]);
+	const handleDelete = async (): Promise<void> => {
+		if (confirm === null) return;
+		setRunning(true);
+		try {
+			await api.deleteAdminUserSubscriptions({
+				id: user.id,
+				subscriptionId: confirm === 'all' ? undefined : confirm.id,
+			});
+			setConfirm(null);
+			await load();
+			onDeleted();
+		} catch (reason) {
+			// PayPal-Fehler (502): nichts gelöscht — Meldung bleibt im Abo-Bereich stehen.
+			const apiError = await toApiError(reason);
+			setConfirm(null);
+			setError(apiError.message);
+		} finally {
+			setRunning(false);
+		}
+	};
+	return (
+		<KolDetails
+			_label={`Abos von ${user.displayName}`}
+			_on={{
+				onClick: () => {
+					if (openedRef.current) return;
+					openedRef.current = true;
+					void load();
+				},
+			}}
+		>
+			{error !== null && (
+				<KolAlert _type="error" _label="Abos">
+					{error}
+				</KolAlert>
+			)}
+			{subscriptions === null ? (
+				error === null && <KolSpin _show _variant="cycle" _label="Abos werden geladen …" />
+			) : subscriptions.length === 0 ? (
+				<p>Keine Abos vorhanden.</p>
+			) : (
+				<>
+					<ul className="admin-subscriptions__list">
+						{subscriptions.map((sub) => (
+							<li key={sub.id} className="admin-subscriptions__item">
+								<span>{`#${sub.id} ${planLabel(sub.plan)}`}</span>
+								<span>seit {formatDate(sub.createdAt)}</span>
+								<KolBadge _label={SUBSCRIPTION_STATUS_LABELS[sub.status] ?? sub.status} />
+								<KolButton
+									_label={`Abo #${sub.id} löschen`}
+									_variant="secondary"
+									_disabled={running}
+									_on={{ onClick: () => setConfirm(sub) }}
+								/>
+							</li>
+						))}
+					</ul>
+					<KolButton
+						_label="Alle Abos dieses Nutzers löschen"
+						_variant="secondary"
+						_disabled={running}
+						_on={{ onClick: () => setConfirm('all') }}
+					/>
+				</>
+			)}
+			{confirm !== null && (
+				<Modal title={confirm === 'all' ? 'Alle Abos löschen' : 'Abo löschen'} onClose={() => setConfirm(null)}>
+					<p>
+						{confirm === 'all'
+							? `Alle Abos von ${user.displayName} beim Zahlungsdienstleister kündigen und samt Rechnungen restlos löschen? Danach steht ${user.displayName} auf Free.`
+							: `Abo #${confirm.id} (${planLabel(confirm.plan)}) von ${user.displayName} beim Zahlungsdienstleister kündigen und samt Rechnungen restlos löschen?`}{' '}
+						Zahlungen werden nicht erstattet.
+					</p>
+					<div className="modal-actions">
+						<KolButton
+							_label="Abbrechen"
+							_variant="secondary"
+							_disabled={running}
+							_on={{ onClick: () => setConfirm(null) }}
+						/>
+						<KolButton
+							_label={running ? 'Lösche …' : 'Jetzt löschen'}
+							_variant="danger"
+							_disabled={running}
+							_on={{ onClick: () => void handleDelete() }}
+						/>
+					</div>
+				</Modal>
+			)}
+		</KolDetails>
+	);
+};
+
 /** Optionen der Rollen-Radiogruppe je Zeile — stabile Objektidentität wie in `AppearanceSetting.tsx`. */
 const ROLE_OPTIONS: { label: string; value: AdminUser['role'] }[] = [
 	{ label: 'Admin', value: 'admin' },
@@ -178,6 +308,8 @@ export const AdminUsersSection = () => {
 	const [subConfirm, setSubConfirm] = useState<{ user: AdminUser; kind: 'lock' | 'cancel' } | null>(null);
 	// Läuft gerade eine Abo-Aktion — Dialog-Buttons sind dann disabled (Doppel-Submit-Schutz).
 	const [subRunning, setSubRunning] = useState(false);
+	// #2295: Zähler zum Neuaufbau der Rechnungsansichten nach dem Löschen von Abos (Lazy-Cache leeren).
+	const [invoicesVersion, setInvoicesVersion] = useState(0);
 
 	// Portionierter Lauf, Fortschritt und Fortsetzen: gemeinsam mit dem Nutzer-Modal in
 	// `useReassignRun`, damit beide Einstiege nicht wieder auseinanderlaufen.
@@ -294,7 +426,17 @@ export const AdminUsersSection = () => {
 									</div>
 								)}
 								{/* #1958 AK3: Rechnungsansicht je Nutzer — aufklappbar, Lazy-Load beim ersten Aufklappen. */}
-								<UserInvoices userId={user.id} displayName={user.displayName} />
+								{/* #2295: Abos je Nutzer mit Lösch-Aktionen — nur bei vorhandenem Abo. */}
+								{user.subscriptionStatus !== null && (
+									<UserSubscriptions
+										user={user}
+										onDeleted={() => {
+											setInvoicesVersion((version) => version + 1);
+											void load();
+										}}
+									/>
+								)}
+								<UserInvoices key={`${user.id}-${invoicesVersion}`} userId={user.id} displayName={user.displayName} />
 							</li>
 						))}
 					</ul>
