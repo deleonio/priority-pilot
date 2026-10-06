@@ -4,7 +4,11 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.17 - 2026-10-06
 
-_Keine für Nutzer sichtbaren Änderungen._
+_Enthält v0.17.0 – v0.17.1._
+
+### Other Changes
+
+- feat(server): refund and chargeback credit and cancel package (#2237) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2266
 
 ## v0.16 - 2026-10-06
 
@@ -182,6 +186,7 @@ _Enthält v0.13.0 – v0.13.27._
 - chore(ci): pull pi CLI unpinned at latest per run and drop the pi cache by @deleonio in https://github.com/deleonio/priority-pilot/pull/2108
 - feat(server): rank rule mirror and full care suggestions (#2075) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2106
 - feat(frontend): move geo range sliders and expert scope list behind expert mode (#1984) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2109
+- feat(frontend): move geo range sliders and expert scope list behind expert mode (#1984) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2109
 - fix(ci): wait for background gate runs instead of terminating them (#1952) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2112
 - fix(ci): detect session-limit aborts only at the failing claude call by @deleonio in https://github.com/deleonio/priority-pilot/pull/2113
 - test(frontend): stabilize pillar-recalc live-progress against CI load (#1953) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2115
@@ -317,7 +322,6 @@ _Enthält v0.10.0 – v0.10.36._
 - fix(server): show clear message for too-long task title (#1818) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1854
 - chore(deps): update renovatebot/github-action action to v46.3.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1850
 - test(frontend): locate title-limit message by text in e2e spec by @deleonio in https://github.com/deleonio/priority-pilot/pull/1858
-- test(e2e): exempt kol-alert from #930 transparency check by @deleonio in https://github.com/deleonio/priority-pilot/pull/1859
 - test(e2e): exempt kol-alert from #930 transparency check by @deleonio in https://github.com/deleonio/priority-pilot/pull/1859
 - fix(server): count late completions for their due day in streak by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1856
 - docs(agents): align e2e page.route rule with practice by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1860
