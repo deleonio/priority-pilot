@@ -120,7 +120,12 @@
 		"teilen": "Compartir el mes",
 		"speichern": "Guardar PNG",
 		"erzeuge": "Se está creando la tarjeta …",
-		"fehler": "No se pudo crear la tarjeta. Inténtalo de nuevo."
+		"fehler": "No se pudo crear la tarjeta. Inténtalo de nuevo.",
+		"marken": {
+			"balamentum": "Balamentum",
+			"play": "Disponible en Google Play",
+			"pwa": "Instalable como app (PWA)"
+		}
 	},
 	"yearlyCard": {
 		"label": "Mi año en cifras",

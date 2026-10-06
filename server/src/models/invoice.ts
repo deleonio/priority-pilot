@@ -31,6 +31,8 @@ class Invoice extends Model {
 	public paymentStatus!: 'paid' | 'refunded';
 	/** PayPal-Sale-Referenz (#2086) — Anker für spätere Erstattungen; Altrechnungen tragen `null`. */
 	public saleId?: string | null;
+	/** Originalbezug einer Gutschrift (#2237) — nur auf Gutschriften gesetzt; Rechnungen tragen `null`. */
+	public creditForInvoiceId?: number | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -97,6 +99,10 @@ Invoice.init(
 		},
 		saleId: {
 			type: DataTypes.STRING,
+			allowNull: true,
+		},
+		creditForInvoiceId: {
+			type: DataTypes.INTEGER,
 			allowNull: true,
 		},
 	},

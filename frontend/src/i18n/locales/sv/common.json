@@ -120,7 +120,12 @@
 		"teilen": "Dela månaden",
 		"speichern": "Spara PNG",
 		"erzeuge": "Kortet skapas …",
-		"fehler": "Kortet kunde inte skapas. Försök igen."
+		"fehler": "Kortet kunde inte skapas. Försök igen.",
+		"marken": {
+			"balamentum": "Balamentum",
+			"play": "Tillgänglig på Google Play",
+			"pwa": "Kan installeras som app (PWA)"
+		}
 	},
 	"yearlyCard": {
 		"label": "Mitt år i siffror",

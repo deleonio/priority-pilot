@@ -28,6 +28,7 @@ import {
 	migrateInvoicePdfBytesColumn,
 	migrateInvoicePaymentStatusColumn,
 	migrateInvoiceCurrencyColumn,
+	migrateInvoiceCreditForColumn,
 	migrateGroupKind,
 } from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
@@ -1631,6 +1632,8 @@ describe('migrateInvoiceLineItemsColumn (#1912)', () => {
 		await migrateInvoicePaymentStatusColumn(sequelize);
 		// #2232: ebenso `currency` (Test-Pflege, gleicher Grund).
 		await migrateInvoiceCurrencyColumn(sequelize);
+		// #2237: ebenso `creditForInvoiceId` (Test-Pflege, gleicher Grund).
+		await migrateInvoiceCreditForColumn(sequelize);
 		await assert.doesNotReject(() => migrateInvoiceLineItemsColumn(sequelize), 'zweiter Lauf bleibt stabil');
 
 		const { default: Invoice } = await import('../models/invoice.js');
@@ -1751,6 +1754,8 @@ describe('migrateInvoicePaymentStatusColumn (#2086)', () => {
 		await migrateInvoicePdfBytesColumn(sequelize);
 		// #2232: `currency` gehört ebenfalls zur index.ts-Reihenfolge (Test-Pflege).
 		await migrateInvoiceCurrencyColumn(sequelize);
+		// #2237: ebenso `creditForInvoiceId` (Test-Pflege, gleicher Grund).
+		await migrateInvoiceCreditForColumn(sequelize);
 		await assert.doesNotReject(() => migrateInvoicePaymentStatusColumn!(sequelize), 'zweiter Lauf bleibt stabil');
 
 		const [columns] = await sequelize.query("PRAGMA table_info('invoices')");
@@ -1821,5 +1826,39 @@ describe('migrateTaskSnoozeColumn (#2244 AK8)', () => {
 		assert.deepEqual(await taskColumns(), [], 'Vorbedingung: keine tasks-Tabelle');
 		assert.equal(typeof migrateTaskSnoozeColumn, 'function', 'migrateTaskSnoozeColumn ist exportiert');
 		await assert.doesNotReject(() => migrateTaskSnoozeColumn(sequelize));
+	});
+});
+
+// ── #2237: migrateInvoiceCreditForColumn — Originalbezug für Gutschriften ────────────────────
+describe('migrateInvoiceCreditForColumn (#2237)', () => {
+	const createLegacyInvoices = async (): Promise<void> => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `invoices` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `userId` INTEGER NOT NULL, ' +
+				'`subscriptionId` INTEGER NOT NULL, `number` VARCHAR(255) NOT NULL UNIQUE, `periodStart` DATETIME NOT NULL, ' +
+				'`periodEnd` DATETIME NOT NULL, `amountCents` INTEGER NOT NULL, `taxNote` VARCHAR(255) NOT NULL, ' +
+				'`deliveredAt` DATETIME, `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL)',
+		);
+	};
+
+	after(async () => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.sync();
+	});
+
+	it('zieht creditForInvoiceId (nullable) nach; zweiter Lauf ist ein No-op', async () => {
+		await createLegacyInvoices();
+
+		await migrateInvoiceCreditForColumn(sequelize);
+		await assert.doesNotReject(() => migrateInvoiceCreditForColumn(sequelize), 'zweiter Lauf bleibt stabil');
+
+		const [columns] = await sequelize.query("PRAGMA table_info('invoices')");
+		const names = (columns as { name: string }[]).map((column) => column.name);
+		assert.equal(names.filter((name) => name === 'creditForInvoiceId').length, 1, 'genau einmal nachgezogen');
+	});
+
+	it('ist auf einer DB ohne invoices-Tabelle ein No-op', async () => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await assert.doesNotReject(() => migrateInvoiceCreditForColumn(sequelize));
 	});
 });

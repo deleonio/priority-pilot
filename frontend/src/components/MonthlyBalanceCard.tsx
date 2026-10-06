@@ -1,9 +1,9 @@
-import { KolAlert, KolButton, KolCard, KolSpin } from '@public-ui/react-v19';
+import { KolAlert, KolButton, KolCard, KolLink, KolSpin } from '@public-ui/react-v19';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { KARTE_BREITE, KARTE_HOEHE } from '../lib/weeklyShareCard';
-import { erzeugeMonatsKarteSvg, monatsDateiname, vormonat } from '../lib/monthlyShareCard';
+import { erzeugeMonatsKarteSvg, monatsDateiname, playLogoSvg, pwaLogoSvg, vormonat } from '../lib/monthlyShareCard';
 
 /**
  * Dashboard-Card „Mein Monat in fünf Säulen" (#1995): der Rückblick auf den Vormonat als
@@ -58,6 +58,9 @@ const meilensteinText = (schluessel: string): string => {
 	const wert = schluessel.slice(trenn + 1);
 	return art === 'streak' ? `Streak ${wert}` : `${wert} Punkte`;
 };
+
+/** SVG-Schnipsel als data-URL-Bild — Rasterung wie DOM laden keine externen Referenzen (#2255). */
+const alsBild = (svg: string): string => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 
 export const MonthlyBalanceCard = () => {
 	const { t, i18n } = useTranslation('common');
@@ -116,6 +119,11 @@ export const MonthlyBalanceCard = () => {
 					streak: daten?.streak ?? 0,
 					meilensteine: (daten?.meilensteine ?? []).map((m) => meilensteinText(m.schluessel)),
 					monat: monatsLabel,
+					marken: {
+						balamentum: t('monthlyCard.marken.balamentum'),
+						play: t('monthlyCard.marken.play'),
+						pwa: t('monthlyCard.marken.pwa'),
+					},
 				}),
 			);
 			return { blob, dateiname: monatsDateiname(monat) };
@@ -217,6 +225,32 @@ export const MonthlyBalanceCard = () => {
 						data-testid="monthly-download"
 						_label={t('monthlyCard.speichern')}
 						_on={{ onClick: () => void speichern() }}
+					/>
+				</div>
+				{/* Marken-Fußzeile (#2255): Logo → Domain (einziger Link, KoliBri) → Play/PWA-Logos ohne URL.
+				    Wortmarke je Theme als eigenes <img> (erbt weder currentColor noch Web-Fonts, Muster LoginPage);
+				    Play/PWA als Inline-SVG-data-URL — es gibt keine Grafikdatei dafür im Repo. */}
+				<div className="dashboard-monthly-marke">
+					<img
+						className="dashboard-monthly-marke-wortmarke"
+						src={`${import.meta.env.BASE_URL}logo/logo-with-name.horizontal${
+							document.documentElement.dataset.theme === 'dark' ? '.dark' : ''
+						}.svg`}
+						alt={t('monthlyCard.marken.balamentum')}
+						height={22}
+					/>
+					<KolLink _href="https://balamentum.app" _label="balamentum.app" _variant="standalone" />
+					<img
+						className="dashboard-monthly-marke-logo"
+						src={alsBild(playLogoSvg(t('monthlyCard.marken.play')))}
+						alt={t('monthlyCard.marken.play')}
+						height={22}
+					/>
+					<img
+						className="dashboard-monthly-marke-logo"
+						src={alsBild(pwaLogoSvg(t('monthlyCard.marken.pwa')))}
+						alt={t('monthlyCard.marken.pwa')}
+						height={22}
 					/>
 				</div>
 			</div>

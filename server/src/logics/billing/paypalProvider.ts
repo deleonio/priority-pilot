@@ -1,5 +1,5 @@
 import type { MailSender } from '../mail.js';
-import { issueInvoiceForPeriod } from '../invoices.js';
+import { issueCreditNote, issueInvoiceForPeriod } from '../invoices.js';
 import {
 	applyPaymentEvent,
 	applyPlanChange,
@@ -59,6 +59,9 @@ export const createPaypalProvider = (deps: PaypalProviderDeps = {}): BillingProv
 			await applyPaymentEvent(subscription, paypalEvent, now, {
 				issueInvoice: (s, n, saleId, charged, transaction) =>
 					issueInvoiceForPeriod(s, n, deps.mailSender, saleId, charged, transaction),
+				issueCreditNote: (original, n, transaction) => issueCreditNote(original, n, transaction),
+				// Paketentzug (#2237) kündigt auch das PayPal-Abo — der Client ist hier im Scope.
+				cancelPaypal: () => client.cancel(subscription.get('externalSubscriptionId') as string),
 			});
 		},
 		checkout: {

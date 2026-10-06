@@ -120,7 +120,12 @@
 		"teilen": "Condividi il mese",
 		"speichern": "Salva PNG",
 		"erzeuge": "Creazione della scheda …",
-		"fehler": "Impossibile creare la scheda. Riprova."
+		"fehler": "Impossibile creare la scheda. Riprova.",
+		"marken": {
+			"balamentum": "Balamentum",
+			"play": "Disponibile su Google Play",
+			"pwa": "Installabile come app (PWA)"
+		}
 	},
 	"yearlyCard": {
 		"label": "Il mio anno in cifre",
