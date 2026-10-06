@@ -123,14 +123,20 @@ const expectLiveProgress = async (page: Page): Promise<void> => {
 
 /**
  * #1642: Serverseitiger Hintergrundlauf — EIN POST startet, `.../status` liefert danach `running`
- * mit Fortschritt (`processed`) bzw. nach Ende das Ergebnis in `result`. Bewusst simuliert der Mock
- * eine kurze, aber messbare Laufzeit (mehrere Sekunden), damit der Test den Zwischenstand sicher
- * abfangen kann, bevor er auf `running: false` wartet.
+ * mit Fortschritt (`processed`) bzw. nach Ende das Ergebnis in `result`.
+ *
+ * Flake-Fix: Früher endete der Lauf nach Wanduhr (1,5 s ab POST, davon 0,8 s POST-Verzögerung) —
+ * unter Last kam die Status-Abfrage beim Wiedereinstieg erst danach, der Mock meldete
+ * `running: false` und das Modal stand ohne Laufanzeige auf „Start“. Jetzt meldet der Mock
+ * `running`, bis der Test `finish()` ruft; erst die nächste Abfrage liefert das Ergebnis.
  */
-const installBackgroundFakeServer = async (page: Page, runPath: RegExp, statusPath: RegExp): Promise<void> => {
-	const RUN_MS = 1500;
+const installBackgroundFakeServer = async (
+	page: Page,
+	runPath: RegExp,
+	statusPath: RegExp,
+): Promise<{ finish: () => void }> => {
 	let startedAt: string | null = null;
-	let runStartedAtMs = 0;
+	let finished = false;
 
 	await page.route(statusPath, (route: Route) => {
 		if (startedAt === null) {
@@ -140,9 +146,8 @@ const installBackgroundFakeServer = async (page: Page, runPath: RegExp, statusPa
 				body: JSON.stringify({ startedAt: null, total: 0, pending: 0, running: false }),
 			});
 		}
-		const elapsed = Date.now() - runStartedAtMs;
-		const running = elapsed < RUN_MS;
-		const processed = Math.min(TOTAL, Math.floor((elapsed / RUN_MS) * TOTAL));
+		const running = !finished;
+		const processed = TOTAL / 2;
 		return route.fulfill({
 			status: 200,
 			contentType: 'application/json',
@@ -164,7 +169,6 @@ const installBackgroundFakeServer = async (page: Page, runPath: RegExp, statusPa
 			return route.fallback();
 		}
 		startedAt = new Date().toISOString();
-		runStartedAtMs = Date.now();
 		// Kurze Verzögerung: gibt einem noch nicht umgestellten, synchronen Client ein Zeitfenster,
 		// in dem „Abbrechen" während `run.phase === 'processing'` überhaupt klickbar ist. Die
 		// Legacy-Felder (`updated`/`remaining: 0`) lassen dessen alte Portionsschleife nach genau
@@ -183,11 +187,16 @@ const installBackgroundFakeServer = async (page: Page, runPath: RegExp, statusPa
 			}),
 		});
 	});
+	return {
+		finish: () => {
+			finished = true;
+		},
+	};
 };
 
 test.describe('Säulen-Neuberechnung — Hintergrundlauf (#1642)', () => {
 	test('Modal schließen und wieder öffnen zeigt den Lauf ohne Klick; kein Start während running', async ({ page }) => {
-		await installBackgroundFakeServer(
+		const server = await installBackgroundFakeServer(
 			page,
 			/\/api\/v1\/tasks\/reassign-pillars(\?[^/]*)?$/,
 			/\/api\/v1\/tasks\/reassign-pillars\/status/,
@@ -209,6 +218,7 @@ test.describe('Säulen-Neuberechnung — Hintergrundlauf (#1642)', () => {
 		await expect(page.getByRole('button', { name: /Fortsetzen/ })).toHaveCount(0);
 		await expect(page.getByRole('button', { name: /neu starten/ })).toHaveCount(0);
 
+		server.finish();
 		await expect(page.getByText(/^12 Aufgaben neu zugeordnet/u)).toBeVisible({ timeout: 5000 });
 	});
 
