@@ -49,4 +49,21 @@ describe('invoices.ts — Verrechnung beim Upgrade (#1912 AK5)', () => {
 		const items = (invoice.get('lineItems') ?? []) as { amountCents: number }[];
 		assert.ok(items.every((i) => i.amountCents > 0));
 	});
+
+	it('AK3: Guthaben über dem Preis wird nur um den verrechneten Betrag gemindert, der Rest bleibt', async () => {
+		const user = await User.create({ email: 'carry@example.com', displayName: 'U', passwordHash: 'x' });
+		const sub = await Subscription.create({
+			userId: user.get('id') as number,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-carry',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: now,
+			creditCents: 1500,
+		});
+		await issueInvoiceForPeriod(sub, now, async () => {});
+		const reloaded = await Subscription.findByPk(sub.get('id') as number);
+		assert.equal(reloaded?.get('creditCents'), 1500 - 899, 'Rest = Guthaben − Paketpreis');
+	});
 });

@@ -207,9 +207,10 @@ describe('Rechnung und Verlängerung nur bei SALE.COMPLETED (#2230)', () => {
 
 		await webhook('BILLING.SUBSCRIPTION.ACTIVATED', id);
 		const { sub, invoices, end } = await load(id);
-		assert.equal(sub.get('status'), 'active', 'Vorbedingung: ACTIVATED wurde verarbeitet');
+		// #2241: das Guthaben deckt mehrere Zyklen, der Rest wird als Gebühr bei der Zustimmung eingezogen.
+		assert.ok(sub.get('approvedAt'), 'Vorbedingung: ACTIVATED wurde verarbeitet');
 		assert.equal(invoices.length, 0, 'ohne Abbuchung keine Rechnung');
-		assert.ok(near(end, plusMonth(upgradedAt), 2 * DAY_MS), 'Paket endet nicht sofort: Ende ≈ Upgrade + 1 Periode');
+		assert.ok(end.getTime() >= plusMonth(upgradedAt).getTime() - 2 * DAY_MS, 'Paket endet nicht sofort');
 	});
 });
 

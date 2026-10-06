@@ -15,6 +15,7 @@ interface Preview {
 	dueCents: number;
 	immediate: boolean;
 	startsAt?: string;
+	creditCoversUntil?: string;
 }
 
 vi.mock('@public-ui/react-v19', () => ({
@@ -160,5 +161,21 @@ describe('ChangeDialog — Vorschau des fälligen Betrags (#1913)', () => {
 		expect(await screen.findByText(/6,50 €/)).toBeTruthy();
 		expect(screen.getByText('Wirksam ab')).toBeTruthy();
 		expect(screen.getByText('sofort')).toBeTruthy();
+	});
+
+	it('#2241 AK6: nennt das Datum, bis zu dem das Guthaben reicht, und die Gebühr bei Zustimmung', async () => {
+		previewBillingChange.mockResolvedValue({
+			creditCents: 4330,
+			dueCents: 1669,
+			immediate: true,
+			startsAt: new Date().toISOString(),
+			creditCoversUntil: '2027-02-06T00:00:00.000Z',
+		});
+
+		renderDialog();
+
+		expect(await screen.findByText('Guthaben reicht bis')).toBeTruthy();
+		expect(screen.getByText(/6\.2\.2027/)).toBeTruthy();
+		expect(screen.getByText('Fällig bei Zustimmung')).toBeTruthy();
 	});
 });

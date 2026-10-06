@@ -30,11 +30,6 @@ export interface BillingSubscriptionsDeps {
 const PAID_PLANS = PLAN_VALUES.filter((plan): plan is Exclude<Plan, 'free'> => plan !== 'free');
 const PERIODS = ['monthly', 'quarterly', 'yearly'] as const;
 type Period = (typeof PERIODS)[number];
-const PERIOD_MS: Record<Period, number> = {
-	monthly: 30 * 24 * 60 * 60 * 1000,
-	quarterly: 91 * 24 * 60 * 60 * 1000,
-	yearly: 365 * 24 * 60 * 60 * 1000,
-};
 
 const isPaidPlan = (value: unknown): value is Exclude<Plan, 'free'> =>
 	PAID_PLANS.includes(value as Exclude<Plan, 'free'>);
@@ -52,7 +47,13 @@ const rejectStoreChannel = (req: Request, res: Response<ErrorDto>): boolean => {
 
 type ApprovalDto = { approvalUrl: string };
 /** `immediate`: wirkt der Wechsel sofort (Upgrade) oder erst zum Periodenende (ADR 0013) — die Oberfläche hat keine eigene Rangfolge. `startsAt` nennt den Startzeitpunkt (#2049). */
-type PreviewDto = { creditCents: number; dueCents: number; immediate: boolean; startsAt?: string };
+type PreviewDto = {
+	creditCents: number;
+	dueCents: number;
+	immediate: boolean;
+	startsAt?: string;
+	creditCoversUntil?: string;
+};
 type ReviseDto = { approvalUrl?: string };
 export type InvoiceDto = {
 	id: number;
@@ -106,6 +107,31 @@ const upgradeProration = (subscription: Subscription, plan: Plan, period: Period
 		periodEnd,
 		now,
 	});
+};
+
+/**
+ * Übertrag eines Guthabens über dem neuen Preis (#2241): k volle Zyklen deckt das Guthaben, der Rest r
+ * mindert den Folgezyklus. PayPal kann keinen einzelnen späteren Zyklus mindern — P − r wird wie beim
+ * Upgrade (#1912) als Einrichtungsgebühr bei der Zustimmung eingezogen, die Abrechnung beginnt nach
+ * k + 1 Zyklen. Ein Guthaben, das genau aufgeht, bleibt als r = P stehen (keine Gebühr, #2230).
+ */
+const creditCarryover = (creditCents: number, priceCents: number, period: Period, now: Date) => {
+	const coveredCycles = priceCents > 0 ? Math.max(0, Math.ceil(creditCents / priceCents) - 1) : 0;
+	const restCents = creditCents - coveredCycles * priceCents;
+	const after = (cycles: number) => {
+		const date = new Date(now);
+		date.setUTCMonth(date.getUTCMonth() + cycles * PERIOD_MONTHS[period]);
+		return date;
+	};
+	const feeCents = Math.max(0, priceCents - restCents);
+	return {
+		coveredCycles,
+		restCents,
+		feeCents,
+		// Ohne Gebühr gibt es keine Abbuchung bei der Zustimmung — die Periode deckt dann auch Zyklus k + 1.
+		periodEnd: after(feeCents === 0 ? coveredCycles + 1 : coveredCycles),
+		startTime: after(coveredCycles + 1),
+	};
 };
 
 // Sofort wirksamer Wechsel mit Verrechnung (#2142): höheres Paket oder Zeitraumwechsel im gleichen Paket.
@@ -308,8 +334,14 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			}
 			if (isCreditedChange(subscription, provider.id, body.plan, body.period)) {
 				const now = new Date();
-				const { creditCents, firstCycleCents } = upgradeProration(subscription, body.plan, body.period, now);
-				const { approvalUrl, externalSubscriptionId } = await checkout.create(body.plan, body.period, firstCycleCents);
+				const { creditCents } = upgradeProration(subscription, body.plan, body.period, now);
+				const carry = creditCarryover(creditCents, getPlansCatalog().prices[body.plan][body.period], body.period, now);
+				const { approvalUrl, externalSubscriptionId } = await checkout.create(
+					body.plan,
+					body.period,
+					carry.feeCents,
+					carry.startTime,
+				);
 				// Ein abgebrochener früherer Upgrade-Anlauf bliebe sonst als offenes Abo liegen.
 				await Subscription.destroy({
 					where: { userId, status: 'approval_pending', id: { [Op.ne]: subscription.get('id') } },
@@ -321,9 +353,9 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 					plan: body.plan,
 					period: body.period,
 					status: 'approval_pending',
-					// Deckt das Guthaben den ersten Zyklus, gibt es keine Abbuchung — die Periode läuft ab dem Upgrade (#2230).
-					currentPeriodEnd: firstCycleCents === 0 ? new Date(now.getTime() + PERIOD_MS[body.period]) : now,
-					creditCents,
+					// Gedeckte Zyklen laufen ab dem Upgrade (#2230, #2241); der Rest mindert die erste Abbuchung.
+					currentPeriodEnd: carry.periodEnd,
+					creditCents: carry.restCents,
 				});
 				res.status(200).json({ approvalUrl });
 				return;
@@ -364,7 +396,16 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 		if (isCreditedChange(subscription, provider.id, body.plan, body.period)) {
 			const now = new Date();
 			const { creditCents, firstCycleCents } = upgradeProration(subscription, body.plan, body.period, now);
-			res.status(200).json({ creditCents, dueCents: firstCycleCents, immediate: true, startsAt: now.toISOString() });
+			const price = getPlansCatalog().prices[body.plan][body.period];
+			// #2241: deckt das Guthaben volle Zyklen, nennt die Vorschau, bis wann — und die Gebühr P − r, die bei der Zustimmung fällig wird.
+			const carry = creditCents >= price ? creditCarryover(creditCents, price, body.period, now) : undefined;
+			res.status(200).json({
+				creditCents,
+				dueCents: carry?.feeCents ?? firstCycleCents,
+				immediate: true,
+				startsAt: now.toISOString(),
+				...(carry && { creditCoversUntil: carry.periodEnd.toISOString() }),
+			});
 			return;
 		}
 		res.status(200).json({

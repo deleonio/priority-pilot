@@ -59,6 +59,7 @@ export const ChangeDialog = ({ targetPlan, targetPeriod, onClose, onChanged }: C
 		dueCents: number;
 		immediate: boolean;
 		startsAt?: string;
+		creditCoversUntil?: string;
 	} | null>(null);
 	const [previewFailed, setPreviewFailed] = useState(false);
 	const cancelRef = useRef<HTMLKolButtonElement>(null);
@@ -119,11 +120,22 @@ export const ChangeDialog = ({ targetPlan, targetPeriod, onClose, onChanged }: C
 							</div>
 						)}
 						<div>
-							<dt>Fällig beim ersten Zyklus</dt>
+							<dt>
+								{/* #2241: bei einem Guthaben über dem Preis zieht PayPal den Rest als Gebühr bei der Zustimmung ein. */}
+								{preview.creditCoversUntil != null && preview.dueCents > 0
+									? 'Fällig bei Zustimmung'
+									: 'Fällig beim ersten Zyklus'}
+							</dt>
 							<dd>
 								<strong>{formatEuro(preview.dueCents)}</strong>
 							</dd>
 						</div>
+						{preview.creditCoversUntil != null && (
+							<div>
+								<dt>Guthaben reicht bis</dt>
+								<dd>{formatDate(preview.creditCoversUntil)}</dd>
+							</div>
+						)}
 						{preview.startsAt != null && (
 							<div>
 								<dt>Wirksam ab</dt>

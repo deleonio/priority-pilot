@@ -225,7 +225,8 @@ export const issueInvoiceForPeriod = async (
 		periodStart.setUTCMonth(periodStart.getUTCMonth() - (PERIOD_MONTHS[period] ?? 1));
 
 		// #1912: Guthaben aus einem Upgrade wird einmalig als eigene Position verrechnet.
-		const creditCents = Math.min(Number(subscription.get('creditCents') ?? 0), priceCents);
+		const availableCents = Number(subscription.get('creditCents') ?? 0);
+		const creditCents = Math.min(availableCents, priceCents);
 		// #2232: der abgebuchte Betrag gilt; seine Abweichung zum Katalogpreis wird eigene Position.
 		const amountCents = charged ? charged.amountCents : priceCents - creditCents;
 		const lineItems =
@@ -270,7 +271,8 @@ export const issueInvoiceForPeriod = async (
 		);
 		await invoice.update({ pdfBytes: Buffer.from(pdfBytes) }, { transaction: tx });
 		if (creditCents > 0) {
-			await subscription.update({ creditCents: 0 }, { transaction: tx });
+			// #2241: nur der verrechnete Betrag wird verbraucht, ein Überschuss bleibt für Folgezyklen.
+			await subscription.update({ creditCents: availableCents - creditCents }, { transaction: tx });
 		}
 		// Mail erst nach dem Commit der umgebenden Transaktion (#2233).
 		const deliverAll = async (): Promise<void> => {

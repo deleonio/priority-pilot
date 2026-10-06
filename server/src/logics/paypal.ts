@@ -537,9 +537,11 @@ export const applyPaymentEvent = async (
 			// Die Zustimmung kann Stunden nach dem Checkout liegen: die erste Abbuchung (noch keine Rechnung, Start
 			// innerhalb der letzten Periode) rechnet ab jetzt; Folgeabbuchungen ab dem Periodenende — kein Drift
 			// gegen PayPals Abrechnungsplan bei verspätetem Einzug (#2230).
+			// Ein Guthaben-Upgrade (#2241) startet nach den gedeckten Zyklen — dort gilt das Periodenende.
 			if (
 				currentPeriodEnd < now &&
 				now < nextPeriodEnd &&
+				!(Number(subscription.get('creditCents')) > 0) &&
 				(await Invoice.count({ where: { subscriptionId: subscription.get('id') as number }, transaction })) === 0
 			) {
 				currentPeriodEnd.setTime(now.getTime());
