@@ -84,6 +84,13 @@ const findCancelledWithRemaining = (userId: number) =>
 		order: ACTIVE_FIRST,
 	});
 
+// Basis eines Wechsels: das bezahlte Abo zuerst (laufend, sonst gekündigt mit Restlaufzeit, #2049), ein
+// offener Checkout nur ohne beides — er ist nie bezahlt und bringt kein Guthaben ein (#2235).
+const findChangeBasis = async (userId: number) =>
+	(await Subscription.findOne({ where: { userId, status: 'active' } })) ??
+	(await findCancelledWithRemaining(userId)) ??
+	(await Subscription.findOne({ where: { userId, status: 'approval_pending' } }));
+
 // Guthaben und erster Zyklus eines Upgrades — gemeinsame Eingabe-Ermittlung für Wechsel und Vorschau.
 const upgradeProration = (subscription: Subscription, plan: Plan, period: Period, now: Date) => {
 	const currentPlan = subscription.get('plan') as Plan;
@@ -107,6 +114,12 @@ const isImmediateChange = (subscription: Subscription, plan: Plan, period: Perio
 	return rankOf(plan) > rankOf(currentPlan) || (plan === currentPlan && period !== subscription.get('period'));
 };
 
+// Sofortwechsel mit Verrechnung nur aus einem bezahlten Abo derselben Zahlungsart (#2142, #2235).
+const isCreditedChange = (subscription: Subscription, providerId: string, plan: Plan, period: Period) =>
+	subscription.get('status') !== 'approval_pending' &&
+	subscription.get('provider') === providerId &&
+	isImmediateChange(subscription, plan, period);
+
 // Abo aus einem Upgrade/Zeitraumwechsel, dessen erste Abbuchung noch aussteht (#2142): Periode endet ≤ jetzt, Guthaben gesetzt.
 const awaitsFirstCharge = (subscription: Subscription) =>
 	subscription.get('status') === 'active' &&
@@ -121,8 +134,24 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 	const provider = createPaypalProvider({ client: deps.paypalClient });
 	const { checkout } = provider;
 
+	// Verwirft einen nie bestätigten Checkout (`approval_pending`). Enges Fenster (Review #1998): Die
+	// Zustimmung kann bei PayPal bereits eingegangen sein, bevor ACTIVATED verarbeitet ist. Der
+	// Kündigungs-Ruf klärt das: Erfolg oder 4xx (nie zugestimmt/nicht mehr kündbar) räumt die Zeile
+	// lokal auf — bei Zustimmung kündigt derselbe Ruf das echte Abo dort. 5xx/Netzfehler ⇒ `false`,
+	// die Zeile bleibt für einen neuen Anlauf.
+	const discardPendingCheckout = async (subscription: Subscription): Promise<boolean> => {
+		try {
+			await checkout.cancel(subscription.get('externalSubscriptionId') as string);
+		} catch (error) {
+			if (!(error instanceof PaypalHttpError) || error.status >= 500) return false;
+		}
+		await subscription.destroy();
+		return true;
+	};
+
 	// POST /billing/subscriptions — legt ein Abo an und liefert die Zustimmungs-URL (AK1). Ein
-	// laufendes oder ausstehendes Abo desselben Nutzers blockt einen zweiten Anlauf (AK2). Bei einem
+	// laufendes Abo desselben Nutzers blockt einen zweiten Anlauf (AK2); ein offener Checkout wird
+	// vorher verworfen, auch wenn der Nutzer nach einem Abbruch nie zurückkehrte (#2235). Bei einem
 	// gekündigten Abo mit Restlaufzeit kanalisiert diese Route jeden Buchungsweg auf den Start zum
 	// Periodenende (#2049 AK3).
 	router.post('/billing/subscriptions', async (req: Request, res: Response<ApprovalDto | ErrorDto>) => {
@@ -137,10 +166,15 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 400, 'plan muss plus oder pro sein, period monthly, quarterly oder yearly.');
 			return;
 		}
-		const existing = await Subscription.findOne({ where: { userId, status: OPEN_SUBSCRIPTION_STATUSES } });
-		if (existing) {
-			sendError(res, 409, 'Es besteht bereits ein laufendes oder ausstehendes Abo.');
+		if (await Subscription.findOne({ where: { userId, status: 'active' } })) {
+			sendError(res, 409, 'Es besteht bereits ein laufendes Abo.');
 			return;
+		}
+		for (const pending of await Subscription.findAll({ where: { userId, status: 'approval_pending' } })) {
+			if (!(await discardPendingCheckout(pending))) {
+				sendError(res, 502, 'PayPal war nicht erreichbar.');
+				return;
+			}
 		}
 		try {
 			// Bei einem gekündigten Abo mit Restlaufzeit startet das neue Abo erst zum Periodenende
@@ -197,20 +231,10 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 				return;
 			}
 			if (subscription.get('status') === 'approval_pending') {
-				// Enges Fenster (Review #1998): Die Zustimmung kann bei PayPal bereits eingegangen
-				// sein, bevor ACTIVATED verarbeitet ist. Der Kündigungs-Ruf klärt das: Erfolg oder
-				// 4xx (nie zugestimmt/nicht mehr kündbar) räumt die Zeile lokal auf — bei
-				// Zustimmung kündigt derselbe Ruf das echte Abo dort. 5xx/Netzfehler ⇒ 502, die
-				// Zeile bleibt für einen neuen Anlauf.
-				try {
-					await checkout.cancel(subscription.get('externalSubscriptionId') as string);
-				} catch (error) {
-					if (!(error instanceof PaypalHttpError) || error.status >= 500) {
-						sendError(res, 502, 'PayPal war nicht erreichbar.');
-						return;
-					}
+				if (!(await discardPendingCheckout(subscription))) {
+					sendError(res, 502, 'PayPal war nicht erreichbar.');
+					return;
 				}
-				await subscription.destroy();
 				res.status(200).json({});
 				return;
 			}
@@ -246,10 +270,8 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 400, 'plan muss plus oder pro sein, period monthly, quarterly oder yearly.');
 			return;
 		}
-		const subscription =
-			(await Subscription.findOne({ where: { userId, status: OPEN_SUBSCRIPTION_STATUSES }, order: ACTIVE_FIRST })) ??
-			// Gekündigt mit Restlaufzeit gilt als laufendes Abo (#2049) — 404 nur ohne jedes.
-			(await findCancelledWithRemaining(userId));
+		// Gekündigt mit Restlaufzeit gilt als laufendes Abo (#2049) — 404 nur ohne jedes.
+		const subscription = await findChangeBasis(userId);
 		if (!subscription) {
 			sendError(res, 404, 'Kein Abo gefunden.');
 			return;
@@ -277,7 +299,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 				res.status(200).json({ approvalUrl });
 				return;
 			}
-			if (subscription.get('provider') === provider.id && isImmediateChange(subscription, body.plan, body.period)) {
+			if (isCreditedChange(subscription, provider.id, body.plan, body.period)) {
 				const now = new Date();
 				const { creditCents, firstCycleCents } = upgradeProration(subscription, body.plan, body.period, now);
 				const { approvalUrl, externalSubscriptionId } = await checkout.create(body.plan, body.period, firstCycleCents);
@@ -323,9 +345,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 400, 'plan muss plus oder pro sein, period monthly, quarterly oder yearly.');
 			return;
 		}
-		const subscription =
-			(await Subscription.findOne({ where: { userId, status: OPEN_SUBSCRIPTION_STATUSES }, order: ACTIVE_FIRST })) ??
-			(await findCancelledWithRemaining(userId));
+		const subscription = await findChangeBasis(userId);
 		if (!subscription) {
 			sendError(res, 404, 'Kein Abo gefunden.');
 			return;
@@ -334,7 +354,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 409, AWAITS_FIRST_CHARGE_MESSAGE);
 			return;
 		}
-		if (subscription.get('provider') === provider.id && isImmediateChange(subscription, body.plan, body.period)) {
+		if (isCreditedChange(subscription, provider.id, body.plan, body.period)) {
 			const now = new Date();
 			const { creditCents, firstCycleCents } = upgradeProration(subscription, body.plan, body.period, now);
 			res.status(200).json({ creditCents, dueCents: firstCycleCents, immediate: true, startsAt: now.toISOString() });

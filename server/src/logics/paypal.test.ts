@@ -127,3 +127,33 @@ describe('paypal.ts — createPaypalClient().revise (#1471 AK1)', () => {
 		}
 	});
 });
+
+describe('paypal.ts — createPaypalClient().createSubscription (#2235 AK1)', () => {
+	it('sendet ohne PAYPAL_CANCEL_URL eine cancel_url, die von return_url abweicht und billing=cancelled trägt', async () => {
+		const saved = { cancel: process.env.PAYPAL_CANCEL_URL, ret: process.env.PAYPAL_RETURN_URL };
+		delete process.env.PAYPAL_CANCEL_URL;
+		delete process.env.PAYPAL_RETURN_URL;
+		let sent: { application_context?: { return_url?: string; cancel_url?: string } } = {};
+		const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+			const url = String(input);
+			if (url.endsWith('/v1/oauth2/token')) {
+				return new Response(JSON.stringify({ access_token: 'test-token' }), { status: 200 });
+			}
+			sent = JSON.parse(String(init?.body));
+			return new Response(
+				JSON.stringify({ id: 'I-1', links: [{ rel: 'approve', href: 'https://paypal.example/approve' }] }),
+				{ status: 201 },
+			);
+		}) as unknown as typeof fetch;
+		try {
+			await createPaypalClient(fakeFetch).createSubscription('PLAN-X');
+		} finally {
+			if (saved.cancel !== undefined) process.env.PAYPAL_CANCEL_URL = saved.cancel;
+			if (saved.ret !== undefined) process.env.PAYPAL_RETURN_URL = saved.ret;
+		}
+		const ctx = sent.application_context;
+		assert.ok(ctx?.cancel_url && ctx.return_url, 'return_url und cancel_url müssen gesetzt sein');
+		assert.notEqual(ctx.cancel_url, ctx.return_url);
+		assert.match(ctx.cancel_url, /billing=cancelled/);
+	});
+});

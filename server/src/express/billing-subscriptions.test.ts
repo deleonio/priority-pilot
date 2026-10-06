@@ -81,17 +81,6 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		assert.equal(sub?.get('status'), 'approval_pending');
 	});
 
-	it('AK2: ein zweiter POST /billing/subscriptions für denselben Nutzer mit laufendem Abo antwortet 409', async () => {
-		server = await startTestServer(withClient({}));
-		const cookie = await login('ak2@example.com');
-
-		const first = await post('/billing/subscriptions', cookie, { plan: 'plus', period: 'monthly' });
-		assert.equal(first.status, 201, 'Vorbedingung: erstes Abo muss angelegt werden können');
-
-		const second = await post('/billing/subscriptions', cookie, { plan: 'pro', period: 'monthly' });
-		assert.equal(second.status, 409, 'Ein zweites Abo bei laufendem/ausstehendem Abo muss abgelehnt werden');
-	});
-
 	it('AK2: ein Nutzer mit bereits aktivem Abo bekommt bei erneutem Anlegen 409', async () => {
 		server = await startTestServer(withClient({}));
 		const cookie = await login('ak2-active@example.com');

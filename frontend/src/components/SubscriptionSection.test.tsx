@@ -232,4 +232,12 @@ describe('SubscriptionSection (#2048)', () => {
 		);
 		expect(screen.getByTestId('subscription-status')).toHaveTextContent(/Aktuelles Paket:\s*Plus/);
 	});
+
+	// #2235 AK6 (Spec docs/spec/issue-2235.md): ein offener Checkout ist kein aktuelles Paket.
+	it('#2235 AK6: approval_pending zeigt nicht „Aktuelles Paket: <Zielpaket>"', () => {
+		subscriptionState.subscription = { ...baseSubscription, status: 'approval_pending' };
+		render(<SubscriptionSection />);
+
+		expect(screen.getByTestId('subscription-section')).not.toHaveTextContent(/Aktuelles Paket/);
+	});
 });

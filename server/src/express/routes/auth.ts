@@ -443,12 +443,16 @@ authRouter.get('/auth/me', async (req, res) => {
 		graceUntil: Date | null;
 	} | null = null;
 	try {
-		// #1690: das laufende Abo zuerst; sonst das zuletzt angelegte (gekündigt oder abgelaufen).
+		// #1690: das laufende Abo zuerst; sonst das zuletzt angelegte (gekündigt oder abgelaufen). Ein
+		// bezahltes `active` geht einem offenen Checkout vor (#2235, `status` ASC).
 		const dbSubscription =
 			typeof user.id === 'number'
 				? ((await Subscription.findOne({
 						where: { userId: user.id, status: OPEN_SUBSCRIPTION_STATUSES },
-						order: [['createdAt', 'DESC']],
+						order: [
+							['status', 'ASC'],
+							['createdAt', 'DESC'],
+						],
 					})) ?? (await Subscription.findOne({ where: { userId: user.id }, order: [['createdAt', 'DESC']] })))
 				: null;
 		if (dbSubscription) {

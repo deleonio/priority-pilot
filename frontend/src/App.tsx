@@ -58,7 +58,7 @@ import { collectOpenParents, collectTaskValues } from './lib/forest';
 import { buildPillarSummaries } from './lib/pillar';
 import { useMeasuredHeaderHeight } from './lib/headerHeight';
 import { useHeaderPosition } from './lib/headerPosition';
-import { clearPlanMirror, PlanProvider, usePlanState } from './lib/usePlan';
+import { clearPlanMirror, PlanProvider, usePlan, usePlanState } from './lib/usePlan';
 import { notifyTasksChanged } from './lib/tasksChanged';
 import { APP_VERSION } from './lib/version';
 import { useAiFeaturesGate } from './lib/aiPreferences';
@@ -1676,9 +1676,40 @@ const AppWithPlan = ({ user }: { user: AuthUser }) => {
 	const planState = usePlanState(user.id);
 	return (
 		<PlanProvider value={planState}>
+			<BillingCancelReturn />
 			<MemoAppShell user={user} />
 		</PlanProvider>
 	);
+};
+
+/**
+ * Rückkehr vom abgebrochenen PayPal-Checkout (#2235, `cancel_url` mit `?billing=cancelled`): verwirft
+ * den offenen Checkout genau einmal und entfernt den Parameter. Nur bei `approval_pending` — die
+ * Kündigungs-Route gilt sonst dem laufenden, bezahlten Abo. Eigene Komponente, damit `AppShell`
+ * nicht am Paket-Kontext hängt (siehe `MemoAppShell`).
+ */
+const BillingCancelReturn = () => {
+	const [searchParams, setSearchParams] = useSearchParams();
+	const { subscription, refresh } = usePlan();
+	const handled = useRef(false);
+	useEffect(() => {
+		if (handled.current || searchParams.get('billing') !== 'cancelled' || subscription === undefined) return;
+		handled.current = true;
+		setSearchParams(
+			(params) => {
+				params.delete('billing');
+				return params;
+			},
+			{ replace: true },
+		);
+		if (subscription?.status !== 'approval_pending') return;
+		// Scheitert das Verwerfen, räumt die nächste Buchung den Checkout ab (POST /billing/subscriptions).
+		void api
+			.cancelBillingSubscription()
+			.catch(() => undefined)
+			.then(() => refresh?.());
+	}, [searchParams, setSearchParams, subscription, refresh]);
+	return null;
 };
 
 /**
