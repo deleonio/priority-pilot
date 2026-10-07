@@ -2,9 +2,9 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.17 - 2026-10-06
+## v0.17 - 2026-10-07
 
-_Enthält v0.17.0 – v0.17.35._
+_Enthält v0.17.0 – v0.17.36._
 
 ### 🎉 New Features
 
@@ -20,6 +20,10 @@ _Enthält v0.17.0 – v0.17.35._
 - fix(frontend): keep legal text details open in consent step by @deleonio in https://github.com/deleonio/priority-pilot/pull/2314
 - fix(server): remove duplicate MailSender import in paypal.ts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2322
 - test(e2e): finish pillar recalc fake run on demand instead of wall clock by @deleonio in https://github.com/deleonio/priority-pilot/pull/2323
+
+### 🚀 Improvements
+
+- feat(frontend): show price and downgrade-at-period-end in change dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2326
 
 ### 🔧 Engineering
 
@@ -56,6 +60,7 @@ _Enthält v0.17.0 – v0.17.35._
 - [P2/M] Rechnung: Gutschrift als PDF speichern und zustellen (#2303) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2318
 - feat(server): add 312k BGB cancellation button and confirmation mail by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2319
 - feat(server): add cancellation without login via website by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2321
+- fix(frontend): import dark wordmark from src instead of public by @deleonio in https://github.com/deleonio/priority-pilot/pull/2325
 
 ## v0.16 - 2026-10-06
 
@@ -168,7 +173,6 @@ _Enthält v0.14.0 – v0.14.31._
 ### 🚀 Improvements
 
 - perf(server): single ScoreEntry read per balance request (#2150) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2155
-- feat(frontend): show categories as inline chips instead of card rows by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2161
 - feat(frontend): show categories as inline chips instead of card rows by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2161
 - feat(frontend): clarify dashboard day/week view switcher labels (#2011) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2165
 - feat(frontend): shorten delete button label for saved places (#2013) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2166
