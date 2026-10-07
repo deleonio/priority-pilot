@@ -3,15 +3,16 @@ import assert from 'node:assert/strict';
 import { Subscription, User } from '../models/index.js';
 import Invoice from '../models/invoice.js';
 import { resetDb, closeDb } from '../test/helpers.js';
+import { pdfContains } from '../test/pdf.js';
 import { issueInvoiceForPeriod } from './invoices.js';
 // Neues Modul aus Spec docs/spec/issue-1955.md — fehlender Export ist der legitime Erst-Zustand.
-import { buildInvoicePdf, invoicePdfLines } from './invoicePdf.js';
+import { buildInvoicePdf } from './invoicePdf.js';
 
 /**
  * Rote Spec-Tests für #1955 AK1-AK3 (Spec docs/spec/issue-1955.md): Der Rechnungslauf erzeugt ein
  * PDF, speichert die Bytes an der Rechnung (Blob, AK3) und versendet sie als Anhang der
  * Rechnungsmail (AK1); der Idempotenz-Guard bleibt (kein Doppeltversand). Der PDF-Inhalt (AK2) wird
- * über `invoicePdfLines` geprüft — die Zeilen, aus denen das PDF gezeichnet wird. KEIN Produktivcode.
+ * am echten PDF geprüft (`pdfContains`). KEIN Produktivcode.
  */
 
 const TAX_NOTE = 'Gemäß §19 UStG wird keine Umsatzsteuer ausgewiesen.';
@@ -58,32 +59,27 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 			taxNote: TAX_NOTE,
 		});
 
-	it('enthält Nummer, Datum, beide Parteien, Leistung, Zeitraum, Betrag und §19-Hinweis', async () => {
-		const text = invoicePdfLines(await invoice(), OPERATOR, RECIPIENT, 'Paket plus (monthly)').join('\n');
+	const pdf = (invoiceRow: Invoice, service = 'Paket plus (monthly)', operator = OPERATOR) =>
+		buildInvoicePdf(invoiceRow, operator, RECIPIENT, service);
 
-		assert.ok(text.includes('INV-2026-100001'), 'Rechnungsnummer muss im PDF stehen');
+	it('enthält Nummer, Datum, beide Parteien, Leistung, Zeitraum, Betrag und §19-Hinweis', async () => {
+		const bytes = await pdf(await invoice());
+		const has = (text: string) => pdfContains(bytes, text);
+
+		assert.ok(has('INV-2026-100001'), 'Rechnungsnummer muss im PDF stehen');
+		assert.ok(has('Paket plus (monthly)'), 'Leistungsbeschreibung (Paket/Periode, AK2) muss drinstehen');
+		assert.ok(has('Leistungszeitraum: 2026-02-01 bis 2026-03-01'), 'Leistungszeitraum muss als ISO-Datum drinstehen');
 		assert.ok(
-			text.includes('Leistung: Paket plus (monthly)'),
-			'Leistungsbeschreibung (Paket/Periode, AK2) muss drinstehen',
-		);
-		assert.ok(
-			text.includes('2026-02-01') && text.includes('2026-03-01'),
-			'Leistungszeitraum muss als ISO-Datum drinstehen',
-		);
-		assert.ok(
-			text.includes(OPERATOR.name) && text.includes('Weg 1') && text.includes('12345 Ort'),
+			has(OPERATOR.name) && has('Weg 1') && has('12345 Ort'),
 			'Betreiberangaben (Name, Anschrift) müssen drinstehen',
 		);
-		assert.ok(text.includes(OPERATOR.email), 'Betreiber-Kontakt muss drinstehen');
-		assert.ok(
-			text.includes(RECIPIENT.displayName) && text.includes(RECIPIENT.email),
-			'Empfänger (Name, E-Mail) muss drinstehen',
-		);
-		assert.ok(text.includes('7,99'), 'Betrag muss in Euro mit Komma drinstehen');
-		assert.ok(text.includes(TAX_NOTE), '§19-UStG-Hinweis muss drinstehen');
+		assert.ok(has(OPERATOR.email), 'Betreiber-Kontakt muss drinstehen');
+		assert.ok(has(RECIPIENT.displayName) && has(RECIPIENT.email), 'Empfänger (Name, E-Mail) muss drinstehen');
+		assert.ok(has('7,99 €'), 'Betrag muss in Euro mit Komma drinstehen');
+		assert.ok(has(TAX_NOTE), '§19-UStG-Hinweis muss drinstehen');
 	});
 
-	it('#2142 AK5: lineItems erscheinen mit Bezeichnung und Betrag vor der Betrag-Zeile, ohne lineItems bleibt das PDF unverändert', async () => {
+	it('#2142 AK5: lineItems erscheinen mit Bezeichnung und Betrag, ohne lineItems bleibt das PDF unverändert', async () => {
 		const plain = await invoice('INV-2026-100010');
 		const withItems = await invoice('INV-2026-100011');
 		await withItems.update({
@@ -93,31 +89,23 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 			],
 		});
 
-		const lines = invoicePdfLines(withItems, OPERATOR, RECIPIENT, 'Paket pro (yearly)');
-		const betrag = lines.findIndex((l) => l.startsWith('Betrag:'));
-		const paket = lines.findIndex((l) => l.includes('Paket pro (yearly)') && l.includes('99,00'));
-		const verrechnung = lines.findIndex((l) => l.includes('Verrechnung Restwert') && l.includes('-4,00'));
-
-		assert.ok(paket >= 0 && paket < betrag, 'Paketposition vor der Betrag-Zeile');
-		assert.ok(verrechnung >= 0 && verrechnung < betrag, 'Verrechnungsposition vor der Betrag-Zeile');
-		assert.equal(
-			invoicePdfLines(plain, OPERATOR, RECIPIENT, 'Paket plus (monthly)').filter((l) => l.includes('Verrechnung'))
-				.length,
-			0,
-		);
+		const bytes = await pdf(withItems, 'Paket pro (yearly)');
+		assert.ok(pdfContains(bytes, 'Paket pro (yearly)') && pdfContains(bytes, '99,00 €'), 'Paketposition');
+		assert.ok(pdfContains(bytes, 'Verrechnung Restwert') && pdfContains(bytes, '-4,00 €'), 'Verrechnungsposition');
+		assert.ok(!pdfContains(await pdf(plain), 'Verrechnung'));
 	});
 
 	it('ohne ustId keine USt-IdNr.-Zeile, mit ustId erscheint sie', async () => {
-		const base = invoicePdfLines(await invoice(), OPERATOR, RECIPIENT, 'Paket plus (monthly)').join('\n');
-		assert.ok(!base.includes('USt-IdNr'), 'Ohne ustId darf keine USt-IdNr.-Zeile erscheinen');
+		assert.ok(!pdfContains(await pdf(await invoice()), 'USt-IdNr'), 'Ohne ustId darf keine USt-IdNr.-Zeile erscheinen');
 
-		const withId = invoicePdfLines(
-			await invoice('INV-2026-100002'),
-			{ ...OPERATOR, ustId: 'DE123456789' },
-			RECIPIENT,
-			'Paket plus (monthly)',
-		).join('\n');
-		assert.ok(withId.includes('DE123456789'), 'Bei gesetzter ustId muss die USt-IdNr. im PDF stehen');
+		const withId = await pdf(await invoice('INV-2026-100002'), undefined, { ...OPERATOR, ustId: 'DE123456789' });
+		assert.ok(pdfContains(withId, 'DE123456789'), 'Bei gesetzter ustId muss die USt-IdNr. im PDF stehen');
+	});
+
+	it('Grußzeile trägt den Betreibernamen statt eines festen Personennamens', async () => {
+		const bytes = await pdf(await invoice(), undefined, { ...OPERATOR, name: 'Signatur Testname' });
+		assert.ok(pdfContains(bytes, 'Signatur Testname'));
+		assert.ok(!pdfContains(bytes, 'Martin Oppitz'));
 	});
 
 	it('buildInvoicePdf liefert ein echtes PDF (%PDF-Magic)', async () => {
@@ -153,13 +141,12 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 			creditForInvoiceId: 1,
 		});
 
-		const lines = invoicePdfLines(credit, OPERATOR, RECIPIENT, 'Zur Rechnung INV-2026-000001');
+		const bytes = await pdf(credit, 'Zur Rechnung INV-2026-000001');
 
-		assert.equal(lines[0], 'Gutschrift GS-2026-000001', 'Erste Zeile ist der Gutschrift-Titel');
-		const text = lines.join('\n');
-		assert.ok(text.includes('INV-2026-000001'), 'Die Nummer der Originalrechnung muss im PDF stehen');
-		assert.ok(!text.includes('Rechnung GS-'), 'Eine Gutschrift darf nicht als „Rechnung“ betitelt sein');
-		assert.ok(!text.includes('Rechnungsdatum'), 'Datumszeile heißt bei Gutschriften „Gutschriftdatum“');
+		assert.ok(pdfContains(bytes, 'Gutschrift GS-2026-000001'), 'Titel ist der Gutschrift-Titel');
+		assert.ok(pdfContains(bytes, 'INV-2026-000001'), 'Die Nummer der Originalrechnung muss im PDF stehen');
+		assert.ok(!pdfContains(bytes, 'Rechnung GS-'), 'Eine Gutschrift darf nicht als „Rechnung“ betitelt sein');
+		assert.ok(pdfContains(bytes, 'Gutschriftdatum'), 'Datumszeile heißt bei Gutschriften „Gutschriftdatum“');
 	});
 });
 

@@ -1,10 +1,10 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import zlib from 'node:zlib';
 import sequelize from '../database.js';
 import Invoice from '../models/invoice.js';
 import Subscription from '../models/subscription.js';
 import User from '../models/user.js';
+import { pdfContains } from '../test/pdf.js';
 import { issueCreditNote, issueInvoiceForPeriod } from './invoices.js';
 
 /**
@@ -33,24 +33,9 @@ const makeSub = async (consentAt: Date | null) => {
 	} as never);
 };
 
-/** Wahr, wenn eine PDF-Textzeile `text` enthält (Glyph-IDs über die ToUnicode-CMap, Muster invoices-issue.test.ts). */
-const pdfHas = (invoice: Invoice, text: string): boolean => {
-	const pdf = Buffer.from((invoice.get({ plain: true }) as { pdfBytes: Uint8Array }).pdfBytes);
-	const streams: string[] = [];
-	for (let i = pdf.indexOf('stream\n'); i !== -1; i = pdf.indexOf('>>\nstream\n', i + 1)) {
-		const start = pdf.indexOf('stream\n', i) + 7;
-		streams.push(zlib.inflateSync(pdf.subarray(start, pdf.indexOf('endstream', start))).toString('latin1'));
-	}
-	const cmap = streams.find((stream) => stream.includes('beginbfchar')) ?? '';
-	const glyphIds = new Map(
-		[...cmap.matchAll(/<([0-9A-F]{4})> <([0-9A-F]{4})>/g)].map(([, gid, code]) => [
-			String.fromCharCode(parseInt(code, 16)),
-			gid,
-		]),
-	);
-	const hex = Array.from(text, (char) => glyphIds.get(char) ?? '?').join('');
-	return !hex.includes('?') && streams.some((stream) => stream.includes(hex));
-};
+/** Wahr, wenn das gespeicherte PDF der Rechnung `text` enthält. */
+const pdfHas = (invoice: Invoice, text: string): boolean =>
+	pdfContains((invoice.get({ plain: true }) as { pdfBytes: Uint8Array }).pdfBytes, text);
 
 describe('Vertragsbestätigung auf der ersten Rechnung (#2329)', () => {
 	before(async () => {
