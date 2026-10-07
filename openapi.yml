@@ -4649,7 +4649,7 @@ paths:
               $ref: '#/components/schemas/BillingSubscriptionInput'
       responses:
         '201':
-          description: Angelegtes Abo — Zustimmungs-URL
+          description: Angelegtes Abo — Zustimmungs-URL; der Zustimmungszeitpunkt ist am Abo gespeichert (#2329)
           content:
             application/json:
               schema:
@@ -8447,6 +8447,9 @@ components:
         period:
           type: string
           enum: [monthly, quarterly, yearly]
+        withdrawalConsent:
+          type: boolean
+          description: Zustimmung zum sofortigen Leistungsbeginn mit Kenntnisnahme vom Erlöschen des Widerrufsrechts (#2329, § 312f BGB). Pflicht (`true`) nur bei `POST /billing/subscriptions`, bei Wechseln ignoriert.
     BillingCancelInput:
       type: object
       description: Angaben aus dem Bestätigungsschritt der Kündigung (#2308, § 312k BGB).

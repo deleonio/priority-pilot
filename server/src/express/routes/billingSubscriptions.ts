@@ -221,9 +221,14 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			return;
 		}
 		if (rejectStoreChannel(req, res)) return;
-		const body = req.body as { plan?: unknown; period?: unknown } | undefined;
+		const body = req.body as { plan?: unknown; period?: unknown; withdrawalConsent?: unknown } | undefined;
 		if (!isPaidPlan(body?.plan) || !isPeriod(body?.period)) {
 			sendError(res, 400, 'plan muss plus oder pro sein, period monthly, quarterly oder yearly.');
+			return;
+		}
+		// Zustimmung zum sofortigen Leistungsbeginn (#2329, § 312f BGB) — ohne sie kein Abo.
+		if (body.withdrawalConsent !== true) {
+			sendError(res, 400, 'withdrawalConsent muss true sein (Zustimmung zum sofortigen Leistungsbeginn).');
 			return;
 		}
 		// Ein Abo mit Zahlungsrückstand läuft weiter und blockt ebenso (#2240).
@@ -259,6 +264,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 				status: 'approval_pending',
 				// Die erste Periode beginnt mit der ersten Abbuchung (#2230).
 				currentPeriodEnd: start,
+				withdrawalConsentAt: new Date(),
 			});
 			res.status(201).json({ approvalUrl });
 		} catch {

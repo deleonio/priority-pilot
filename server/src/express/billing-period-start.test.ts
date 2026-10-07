@@ -78,7 +78,11 @@ describe('Rechnung und Verlängerung nur bei SALE.COMPLETED (#2230)', () => {
 		const id = 'I-2230-FLOW';
 		server = await startTestServer(deps(id));
 		const cookie = await server.login('flow-2230@example.com');
-		assert.equal((await post('/billing/subscriptions', cookie, { plan: 'plus', period: 'monthly' })).status, 201);
+		assert.equal(
+			(await post('/billing/subscriptions', cookie, { plan: 'plus', period: 'monthly', withdrawalConsent: true }))
+				.status,
+			201,
+		);
 		const afterCheckout = await load(id);
 
 		await webhook('BILLING.SUBSCRIPTION.ACTIVATED', id);
@@ -118,7 +122,11 @@ describe('Rechnung und Verlängerung nur bei SALE.COMPLETED (#2230)', () => {
 		const id = 'I-2230-LATE';
 		server = await startTestServer(deps(id));
 		const cookie = await server.login('late-2230@example.com');
-		assert.equal((await post('/billing/subscriptions', cookie, { plan: 'plus', period: 'monthly' })).status, 201);
+		assert.equal(
+			(await post('/billing/subscriptions', cookie, { plan: 'plus', period: 'monthly', withdrawalConsent: true }))
+				.status,
+			201,
+		);
 		await Subscription.update(
 			{ currentPeriodEnd: new Date(Date.now() - 3 * 60 * 60 * 1000) },
 			{ where: { externalSubscriptionId: id } },
@@ -146,7 +154,11 @@ describe('Rechnung und Verlängerung nur bei SALE.COMPLETED (#2230)', () => {
 			status: 'cancelled',
 			currentPeriodEnd: start,
 		});
-		assert.equal((await post('/billing/subscriptions', cookie, { plan: 'plus', period: 'monthly' })).status, 201);
+		assert.equal(
+			(await post('/billing/subscriptions', cookie, { plan: 'plus', period: 'monthly', withdrawalConsent: true }))
+				.status,
+			201,
+		);
 
 		await webhook('BILLING.SUBSCRIPTION.ACTIVATED', id);
 		assert.equal((await load(id)).invoices.length, 0, 'ohne Abbuchung keine Rechnung');
@@ -248,7 +260,11 @@ describe('Paketübernahme bei Startaufschub erst mit der ersten Abbuchung (#2239
 		});
 		// Gekündigter, bezahlter Stand (#1959): der Abgleich hält User.plan in Sync mit dem Abo.
 		await User.update({ plan: 'plus' }, { where: { id: me.id } });
-		assert.equal((await post('/billing/subscriptions', cookie, { plan: 'pro', period: 'monthly' })).status, 201);
+		assert.equal(
+			(await post('/billing/subscriptions', cookie, { plan: 'pro', period: 'monthly', withdrawalConsent: true }))
+				.status,
+			201,
+		);
 
 		await webhook('BILLING.SUBSCRIPTION.ACTIVATED', id);
 		assert.equal(await planOf(me.id), 'plus', 'ACTIVATED ohne Abbuchung schaltet das höhere Paket nicht frei');

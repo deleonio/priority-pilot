@@ -1154,6 +1154,11 @@ export const migrateSubscriptionPendingPlanColumns = async (db: Sequelize): Prom
 			console.log(`Spalte ${name} an subscriptions nachgezogen.`);
 		}
 	}
+	// Zustimmung zum sofortigen Leistungsbeginn (#2329); nullable, Bestandsabos bleiben ohne.
+	if (!existing.includes('withdrawalConsentAt')) {
+		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `withdrawalConsentAt` DATETIME');
+		console.log('Spalte withdrawalConsentAt an subscriptions nachgezogen.');
+	}
 };
 
 /**
