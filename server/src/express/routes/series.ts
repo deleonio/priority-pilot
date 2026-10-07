@@ -511,7 +511,13 @@ export const createSeriesRouter = ({ pushSender }: SeriesRouterDeps = {}): Route
 			// #2404: erste Instanzen sofort anlegen (wie `POST /series/:id/generate`); `autoCreate: false` erzeugt nichts.
 			const until = new Date();
 			until.setUTCDate(until.getUTCDate() + GENERATE_HORIZON_DAYS);
-			await generateDueInstances(created, { until, pushSender });
+			// Schlägt die Erzeugung fehl, bleibt die Serie bestehen (201): ein 500 würde beim Retry eine Dublette
+			// anlegen — die Instanzen holt `POST /series/generate-all` bzw. der tägliche Job nach.
+			try {
+				await generateDueInstances(created, { until, pushSender });
+			} catch (error) {
+				console.error(`Serie ${created.id}: erste Instanzen konnten nicht angelegt werden:`, error);
+			}
 			// #1222: Angelegt-Objekt ohne Owner-Scope nachladen — bei einer Empfänger-Serie ist der
 			// Ersteller nicht Eigentümer und fände sie über `findSeriesWithPillars` nicht wieder (500).
 			const withPillars = await Series.findOne({ where: { id: created.id }, include: [Pillar] });

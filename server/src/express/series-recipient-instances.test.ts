@@ -82,7 +82,7 @@ describe('Empfänger-Serie: Instanz-Eigentümer und Schreib-Isolation (#1222)', 
 		const seriesId = await createSeriesForBob();
 		const bobId = await userIdOf(BOB);
 
-		// #2404: POST erzeugt sofort Instanzen mit der korrektenuserid
+		// #2404: POST erzeugt sofort Instanzen mit der korrekten userId
 		const bobTasks = await tasksOf(await server.login(BOB));
 		const instances = bobTasks.filter((task) => task.seriesId === seriesId);
 		assert.ok(instances.length > 0, 'POST erzeugt Instanzen sofort');

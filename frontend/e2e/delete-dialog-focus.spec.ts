@@ -161,6 +161,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 				priority: 3,
 				estimatedEffort: 0.5,
 				active: true,
+				autoCreate: false,
 				startDate: '2026-09-07T00:00:00.000Z',
 			},
 		});
@@ -336,6 +337,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 				priority: 3,
 				estimatedEffort: 0.5,
 				active: true,
+				autoCreate: false,
 				startDate: '2026-09-07T00:00:00.000Z',
 			},
 		});

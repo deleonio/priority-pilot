@@ -163,15 +163,27 @@ describe('Series API', () => {
 	describe('POST /series/:id/generate', () => {
 		it('materialisiert Instanzen als Tasks mit seriesId', async () => {
 			const created = (await (await post('/series', validSeries())).json()) as { id: number };
-			// #2404: POST erzeugt sofort Instanzen (sie sollten jetzt in /tasks sichtbar sein)
+			// #2404: POST legt bis zur Fünfer-Grenze sofort Instanzen an (wöchentlich ab morgen: 5 in 30 Tagen).
 			const tasks = (await (await get('/tasks')).json()) as Array<{ id: number; seriesId: number }>;
-			const instances = tasks.filter((t) => t.seriesId === created.id);
-			assert.ok(instances.length > 0, 'POST erzeugt Instanzen sofort');
+			assert.equal(tasks.filter((t) => t.seriesId === created.id).length, 5);
 
-			// Alle Instanzen haben die korrekte seriesId
-			for (const inst of instances) {
-				assert.equal(inst.seriesId, created.id);
-			}
+			// Voll belegt → /generate legt nichts nach; erledigt eine Instanz, füllt es genau eine nach.
+			const full = await post(`/series/${created.id}/generate`, { until: futureDate(60) });
+			assert.equal(full.status, 201);
+			assert.deepEqual(await full.json(), []);
+			assert.equal((await patch(`/tasks/${tasks[0].id}`, { status: 'Done' })).status, 200);
+
+			const res = await post(`/series/${created.id}/generate`, { until: futureDate(60) });
+			assert.equal(res.status, 201);
+			const instances = (await res.json()) as Array<Record<string, unknown>>;
+			assert.equal(instances.length, 1);
+			assert.equal(instances[0].seriesId, created.id);
+			assert.equal(instances[0].isException, false);
+			assert.ok(instances[0].deadline);
+
+			// Die Instanzen erscheinen auch in der regulären Task-Liste (5 + 1 nachgefüllte).
+			const after = (await (await get('/tasks')).json()) as unknown[];
+			assert.equal(after.length, 6);
 		});
 	});
 
@@ -245,21 +257,14 @@ describe('Series API', () => {
 			const noAnchor = (await (await post('/series', { ...validSeries(), autoCreate: false })).json()) as {
 				id: number;
 			};
-			const anchored = (await (await post('/series', validSeries())).json()) as { id: number };
+			await post('/series', validSeries());
 			// #2404: POST mit autoCreate:true erzeugt sofort Instanzen; we add manual tasks to test the forest logic
 			await Task.create({ title: 'Ohne 1', seriesId: noAnchor.id, deadline: new Date(futureDate(1)) });
 			await Task.create({ title: 'Ohne 2', seriesId: noAnchor.id, deadline: new Date(futureDate(2)) });
-			// Get the automatically-created anchored instances
-			const allTasks = (await (await get('/tasks')).json()) as Array<{ title: string; seriesId: number }>;
-			const anchoredInstances = allTasks.filter((t) => t.seriesId === anchored.id);
-
-			// Nur `/forest` kollabiert Serien auf einen Repräsentanten (`GET /tasks` liefert alle Instanzen).
+			// Nur `/forest` kollabiert Serien auf einen Repräsentanten (`GET /tasks` liefert alle Instanzen);
+			// die verankerte Serie hat durch POST (#2404) fünf Instanzen, erscheint aber genau einmal.
 			const forest = (await (await get('/forest')).json()) as Array<{ title: string }>;
-			const titles = forest.map((task) => task.title).sort();
-			// With autoCreate:true, anchored series has generated instances; expect at least one of them plus the two manual ones
-			assert.ok(titles.includes('Ohne 1'), 'Ohne 1 appears in forest');
-			assert.ok(titles.includes('Ohne 2'), 'Ohne 2 appears in forest');
-			assert.ok(anchoredInstances.length > 0, 'anchored series has generated instances');
+			assert.deepEqual(forest.map((task) => task.title).sort(), ['Ohne 1', 'Ohne 2', 'Wöchentlich kochen']);
 		});
 	});
 
