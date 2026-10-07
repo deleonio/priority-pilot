@@ -139,6 +139,7 @@ _Enthält v0.16.0 – v0.16.37._
 ### 🔧 Engineering
 
 - feat(frontend): make E2E suite weekday-independent by @deleonio in https://github.com/deleonio/priority-pilot/pull/2190
+- feat(frontend): make E2E suite weekday-independent by @deleonio in https://github.com/deleonio/priority-pilot/pull/2190
 - feat(ci): add canonical models.json with cc/pi model adapter by @deleonio in https://github.com/deleonio/priority-pilot/pull/2203
 - feat(ci): add impl provider override, budget watchdog and adapter smoke by @deleonio in https://github.com/deleonio/priority-pilot/pull/2208
 - docs(skills): ticket-coordination learnings and ADR 0018 addendum by @deleonio in https://github.com/deleonio/priority-pilot/pull/2214
