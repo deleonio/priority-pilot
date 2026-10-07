@@ -5,7 +5,7 @@ import { Op, Transaction, type WhereOptions } from 'sequelize';
 import sequelize from '../../database.js';
 import { Group, GroupMember, Pillar, ScoreEntry, Task, TaskPillar, User } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
-import { haversineKm } from '../../logics/geo.js';
+import { roundedDistanceKm } from '../../logics/geo.js';
 import { classifyLlmSuitability } from '../../logics/llmSuitability.js';
 import { shouldBlockFeature } from '../../logics/plans.js';
 import { selectSeriesRepresentatives } from '../../logics/series.js';
@@ -677,7 +677,7 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 					.map((task) => ({
 						id: task.id,
 						title: task.title,
-						distanceKm: Math.round(haversineKm(lat, lon, task.latitude as number, task.longitude as number) * 10) / 10,
+						distanceKm: roundedDistanceKm(lat, lon, task.latitude as number, task.longitude as number),
 					}))
 					.sort((a, b) => a.distanceKm - b.distanceKm)
 					.filter((item) => item.distanceKm <= maxDisplayKm)
