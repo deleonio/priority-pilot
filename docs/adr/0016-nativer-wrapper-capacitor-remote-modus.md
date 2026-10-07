@@ -1,6 +1,6 @@
 # ADR 0016 — Nativer Wrapper: Capacitor im Remote-Modus
 
-- **Status:** Accepted (2026-09-24)
+- **Status:** Accepted (2026-09-24) — Entscheidung 1 ersetzt (2026-10-07) durch [ADR 0021](0021-android-app-spa-ohne-service-worker.md); Entscheidungen 2–4 und folgende gelten unverändert
 - **Datum:** 2026-09-24
 - **Kontext:** [Plan native Apps](../plan-native-apps.md) (PO-Entscheidungen vom 23./24.09.2026), [ADR 0013](0013-zahlungsweg-paypal-abos.md) (Store-Billing bis zu einem nativen Wrapper vertagt), [ADR 0015](0015-oeffentliche-website-und-app-unter-app.md) (App unter `/app/`), [Epic #1664](https://github.com/deleonio/priority-pilot/issues/1664)
 
@@ -16,7 +16,7 @@ Drei Eigenheiten des heutigen Codes bestimmen die Entscheidung mit:
 
 ## Entscheidung
 
-**1. Capacitor im Remote-Modus.** Ein pnpm-Paket `native/` enthält das Capacitor-Projekt für beide Plattformen. `server.url` zeigt auf die gehostete `/app/` (aus `SITE_URL`), Assets werden nicht gebündelt. Die App lädt damit immer den aktuellen Web-Stand, Änderungen am Frontend brauchen kein Store-Release. `allowNavigation` erlaubt nur die eigene Domain. Ist der Server nicht erreichbar, zeigt die App eine lokale Fehlerseite.
+**1. Capacitor im Remote-Modus.** _Ersetzt durch [ADR 0021](0021-android-app-spa-ohne-service-worker.md): Die App bündelt die Web-App als SPA ohne Service Worker._ Ein pnpm-Paket `native/` enthält das Capacitor-Projekt für beide Plattformen. `server.url` zeigt auf die gehostete `/app/` (aus `SITE_URL`), Assets werden nicht gebündelt. Die App lädt damit immer den aktuellen Web-Stand, Änderungen am Frontend brauchen kein Store-Release. `allowNavigation` erlaubt nur die eigene Domain. Ist der Server nicht erreichbar, zeigt die App eine lokale Fehlerseite.
 
 **2. Package-ID `balamentum.app`** für Android und später iOS.
 
