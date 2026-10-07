@@ -1,8 +1,8 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { CARE_VORLAGEN } from '../logics/careSuggestionData.js';
+import { CARE_SPRACHEN, CARE_VORLAGEN } from '../logics/careSuggestionData.js';
 import { SHARE_MIN, SHARE_TOTAL } from '../logics/pillarShares.js';
-import { TaskPillar } from '../models/index.js';
+import { Pillar, TaskPillar } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 
 /**
@@ -342,5 +342,192 @@ describe('POST/GET /scores/care-suggestions/rejections (#1977)', () => {
 		assert.equal(((await fremd.json()) as unknown[]).length, 0, 'fremde Aufgabe bleibt unsichtbar');
 		const alleVonBob = await server.json('/scores/care-suggestions/rejections', { headers: { Cookie: bob } });
 		assert.equal(((await alleVonBob.json()) as unknown[]).length, 0, 'ohne Filter nur eigene Einträge');
+	});
+});
+
+// Rote Spec-Tests #2146 (docs/spec/issue-2146.md) — Vorlagen pro Nutzer über den Säulen-Key
+// zuordnen, eigene Säulen bekommen einen generischen Vorschlag. Rot, bis die Zuordnung über
+// `Pillar.key` läuft (heute: `vorlage.saeuleId === saeule.id`). KEIN Produktivcode.
+describe('GET /scores/care-suggestions — Säulen pro Nutzer (#2146)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+
+	beforeEach(async () => {
+		await resetDb();
+	});
+
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	interface SaeuleDto {
+		id: number;
+		name: string;
+		key?: string | null;
+	}
+
+	const leseSaeulen = async (cookie: string): Promise<SaeuleDto[]> => {
+		const res = await server.json('/pillars', { headers: { Cookie: cookie } });
+		assert.equal(res.status, 200, 'Setup: Säulen müssen lesbar sein');
+		return (await res.json()) as SaeuleDto[];
+	};
+
+	/** Zweiter Nutzer ohne DB-Reset dazwischen: seine Standard-Säulen haben NICHT die ids 1–5. */
+	const registriereZweitenNutzer = async (): Promise<{ cookie: string; saeulen: SaeuleDto[] }> => {
+		await server.register('care-2146-first@example.com', 'password123');
+		const cookie = await server.register('care-2146-second@example.com', 'password123');
+		const saeulen = await leseSaeulen(cookie);
+		assert.ok(
+			saeulen.every((saeule) => saeule.id > 5),
+			'Setup: Säulen des zweiten Nutzers haben ids > 5',
+		);
+		return { cookie, saeulen };
+	};
+
+	/** Eigene Säule direkt anlegen (POST /pillars ist gesperrt, #1573). */
+	const legeEigeneSaeuleAn = async (cookie: string, name: string, key: string | null): Promise<number> => {
+		const userId = ((await (await server.json('/auth/me', { headers: { Cookie: cookie } })).json()) as { id: number })
+			.id;
+		return (await Pillar.create({ name, key, userId })).id;
+	};
+
+	const offeneAufgabe = async (cookie: string, titel: string, pillarId: number): Promise<number> => {
+		const res = await server.json('/tasks', {
+			method: 'POST',
+			headers: { Cookie: cookie },
+			body: JSON.stringify({ title: titel, priority: 3, estimatedEffort: 0.5 }),
+		});
+		assert.equal(res.status, 201, 'Setup: Task-Anlage muss 201 liefern');
+		const { id } = (await res.json()) as { id: number };
+		await TaskPillar.create({ taskId: id, pillarId, share: 100, confidence: 100 });
+		return id;
+	};
+
+	it('AK1: zweiter Nutzer bekommt für eine defizitäre Standard-Säule eine Vorlage mit seiner saeuleId', async () => {
+		const { cookie, saeulen } = await registriereZweitenNutzer();
+		const vorschlaege = await leseVorschlaege(cookie);
+		for (const saeule of saeulen) {
+			const vorlagen = vorschlaege.filter((v) => v.saeuleId === saeule.id && v.typ === 'vorlage');
+			assert.ok(vorlagen.length > 0, `Säule ${saeule.name} (${saeule.id}) braucht mindestens eine Vorlage`);
+		}
+	});
+
+	it('AK2: zweiter Nutzer bekommt bei Überlast Erholungsvorschläge mit den ids SEINER Säulen', async () => {
+		const { cookie, saeulen } = await registriereZweitenNutzer();
+		const wirksamkeit = saeulen[3]!;
+		const createRes = await server.json('/tasks', {
+			method: 'POST',
+			headers: { Cookie: cookie },
+			body: JSON.stringify({ title: 'Überlast', priority: 3, estimatedEffort: 1 }),
+		});
+		const { id } = (await createRes.json()) as { id: number };
+		await TaskPillar.create({ taskId: id, pillarId: wirksamkeit.id, share: 100, confidence: 100 });
+		const doneRes = await server.json(`/tasks/${id}`, {
+			method: 'PATCH',
+			headers: { Cookie: cookie },
+			body: JSON.stringify({ status: 'Done' }),
+		});
+		assert.equal(doneRes.status, 200, 'Setup: Statuswechsel auf Done muss 200 liefern');
+
+		const erholung = (await leseVorschlaege(cookie)).filter((v) => v.anlass === 'ueberlast');
+		assert.ok(erholung.length > 0, 'Überlast liefert Erholungsvorschläge');
+		const eigeneIds = saeulen.map((saeule) => saeule.id);
+		for (const vorschlag of erholung) {
+			assert.ok(eigeneIds.includes(vorschlag.saeuleId), `saeuleId ${vorschlag.saeuleId} gehört zum Nutzer`);
+		}
+		assert.ok(
+			erholung.some((v) => v.saeuleId === saeulen[0]!.id),
+			'Körper-Vorschlag mit der eigenen Körper-Säulen-id',
+		);
+	});
+
+	it('AK3: eigene Säule (key null und unbekannter key) bekommt genau einen generischen Vorschlag mit Namen', async () => {
+		const cookie = await server.register('care-2146-custom@example.com', 'password123');
+		const garten = await legeEigeneSaeuleAn(cookie, 'Gartenarbeit', null);
+		const musik = await legeEigeneSaeuleAn(cookie, 'Musikmachen', 'eigene-musik');
+
+		const vorschlaege = await leseVorschlaege(cookie);
+		for (const [id, name] of [
+			[garten, 'Gartenarbeit'],
+			[musik, 'Musikmachen'],
+		] as const) {
+			const treffer = vorschlaege.filter((v) => v.saeuleId === id);
+			assert.equal(treffer.length, 1, `${name}: genau ein generischer Vorschlag`);
+			const vorschlag = treffer[0]!;
+			assert.equal(vorschlag.typ, 'vorlage');
+			assert.ok(vorschlag.templateKey, `${name}: templateKey gesetzt`);
+			assert.ok(`${vorschlag.titel} ${vorschlag.beschreibung ?? ''}`.includes(name), `${name}: Säulenname im Text`);
+			assert.equal(vorschlag.saeulenBeitraege.find((b) => b.pillarId === id)?.share, 50, `${name}: Ziel-Säule 50 %`);
+		}
+		const keys = vorschlaege.filter((v) => [garten, musik].includes(v.saeuleId)).map((v) => v.templateKey);
+		assert.equal(new Set(keys).size, 2, 'templateKey unterscheidet die Säulen');
+	});
+
+	it('AK4: generischer Text kommt in allen zehn Sprachen mit Säulenname; de und en unterscheiden sich', async () => {
+		const cookie = await server.register('care-2146-lang@example.com', 'password123');
+		const garten = await legeEigeneSaeuleAn(cookie, 'Gartenarbeit', null);
+		const texte = new Map<string, string>();
+		for (const sprache of CARE_SPRACHEN) {
+			const vorschlag = (await leseVorschlaege(cookie, `?sprache=${sprache}`)).find((v) => v.saeuleId === garten);
+			assert.ok(vorschlag, `${sprache}: generischer Vorschlag vorhanden`);
+			const text = `${vorschlag.titel} ${vorschlag.beschreibung ?? ''}`;
+			assert.ok(vorschlag.titel.trim().length > 0, `${sprache}: Titel nicht leer`);
+			assert.ok(text.includes('Gartenarbeit'), `${sprache}: Säulenname eingesetzt`);
+			texte.set(sprache, vorschlag.titel);
+		}
+		assert.notEqual(texte.get('de'), texte.get('en'), 'de und en sind unterschiedlich übersetzt');
+	});
+
+	it('AK5: offene Aufgabe der eigenen Säule steht vor dem generischen Vorschlag', async () => {
+		const cookie = await server.register('care-2146-task@example.com', 'password123');
+		const garten = await legeEigeneSaeuleAn(cookie, 'Gartenarbeit', null);
+		const taskId = await offeneAufgabe(cookie, 'Beet umgraben', garten);
+
+		const treffer = (await leseVorschlaege(cookie)).filter((v) => v.saeuleId === garten);
+		assert.equal(treffer[0]?.typ, 'task');
+		assert.equal(treffer[0]?.taskId, taskId);
+	});
+
+	it('AK6: Ablehnung gilt pro eigener Säule — die andere eigene Säule behält ihren Vorschlag', async () => {
+		const cookie = await server.register('care-2146-dismiss@example.com', 'password123');
+		const garten = await legeEigeneSaeuleAn(cookie, 'Gartenarbeit', null);
+		const musik = await legeEigeneSaeuleAn(cookie, 'Musikmachen', null);
+		const gartenKey = (await leseVorschlaege(cookie)).find((v) => v.saeuleId === garten)?.templateKey;
+		assert.ok(gartenKey, 'Setup: generischer Vorschlag mit templateKey');
+
+		const res = await server.json('/scores/care-suggestions/dismissals', {
+			method: 'POST',
+			headers: { Cookie: cookie },
+			body: JSON.stringify({ templateKey: gartenKey }),
+		});
+		assert.equal(res.status, 204);
+
+		const danach = await leseVorschlaege(cookie);
+		assert.equal(danach.filter((v) => v.saeuleId === garten).length, 0, 'abgelehnter Vorschlag verschwindet');
+		assert.equal(danach.filter((v) => v.saeuleId === musik).length, 1, 'andere eigene Säule bleibt sichtbar');
+	});
+
+	it('AK7: generischer Vorschlag ist per POST /tasks übernehmbar und erscheint in GET /tasks', async () => {
+		const cookie = await server.register('care-2146-adopt@example.com', 'password123');
+		const garten = await legeEigeneSaeuleAn(cookie, 'Gartenarbeit', null);
+		const vorschlag = (await leseVorschlaege(cookie)).find((v) => v.saeuleId === garten);
+		assert.ok(vorschlag, 'Setup: generischer Vorschlag');
+
+		const createRes = await server.json('/tasks', {
+			method: 'POST',
+			headers: { Cookie: cookie },
+			body: JSON.stringify({ title: vorschlag.titel, pillars: vorschlag.saeulenBeitraege }),
+		});
+		assert.equal(createRes.status, 201, 'generischer Vorschlag muss per POST /tasks anlegbar sein');
+		const { id } = (await createRes.json()) as { id: number };
+
+		const liste = await server.json('/tasks', { headers: { Cookie: cookie } });
+		const tasks = (await liste.json()) as { id: number }[];
+		assert.ok(
+			tasks.some((task) => task.id === id),
+			'übernommene Aufgabe erscheint in GET /tasks',
+		);
 	});
 });
