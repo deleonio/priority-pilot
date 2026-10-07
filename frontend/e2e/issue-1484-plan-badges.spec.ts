@@ -236,7 +236,7 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 	 * „Zeile ohne `columnheader`-Zelle" von der Kopfzeile abgegrenzt, die erwartete Feature-
 	 * Zeilenanzahl ergibt sich als Gesamtzahl der Datenzeilen minus dieser 6 konstanten Zeilen.
 	 */
-	test('#1524 AK9: die erweiterte Paket-Tabelle (9 Feature-Zeilen, #1782: graph_weight, #1927: feedback) bleibt ohne horizontalen Overflow', async ({
+	test('#1524 AK9: die erweiterte Paket-Tabelle (10 Feature-Zeilen, #1782: graph_weight, #1927: feedback, #2397: sync) bleibt ohne horizontalen Overflow', async ({
 		page,
 	}) => {
 		await page.goto('/app/settings/pakete');
@@ -247,7 +247,7 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 
 		const PRICE_AND_ACTION_ROWS = 3 + 3;
 		const bodyRows = host.getByRole('row').filter({ hasNot: page.getByRole('columnheader') });
-		await expect(bodyRows).toHaveCount(PRICE_AND_ACTION_ROWS + 9);
+		await expect(bodyRows).toHaveCount(PRICE_AND_ACTION_ROWS + 10);
 
 		// Geprüft wird „kein Seitenüberlauf", nicht „jede Zeile passt in den Viewport": die Matrix
 		// scrollt bewusst seitlich IM Tabellen-Host (ADR 0014 Entscheidung 6).

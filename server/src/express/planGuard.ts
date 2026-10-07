@@ -26,6 +26,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
 	mcp_readwrite: 'Schreibzugriff über MCP',
 	mcp_read: 'Lesezugriff über MCP',
 	feedback: 'Feedback und App-Support',
+	sync: 'Synchronisation über alle Geräte',
 };
 
 /**

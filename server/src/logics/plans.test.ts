@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import type { FeatureId } from './plans.js';
 import {
 	PLAN_VALUES,
@@ -46,11 +47,12 @@ const EXPECTED_FEATURES = [
 	'mcp_readwrite',
 	'mcp_read',
 	'feedback',
+	'sync',
 ];
 
 describe('plans.ts — Feature-Katalog (#1456 AK2/AK10, #1524 AK3)', () => {
-	it('FEATURE_IDS deckt alle neun stabilen Identifier ab, inklusive mcp_read, graph_weight und feedback (#1524 AK3, #1782, #1927)', () => {
-		assert.deepEqual([...FEATURE_IDS].sort(), [...EXPECTED_FEATURES].sort(), 'genau die neun Identifier');
+	it('FEATURE_IDS deckt alle zehn stabilen Identifier ab, inklusive mcp_read, graph_weight, feedback und sync (#1524 AK3, #1782, #1927, #2397)', () => {
+		assert.deepEqual([...FEATURE_IDS].sort(), [...EXPECTED_FEATURES].sort(), 'genau die zehn Identifier');
 	});
 
 	it('getPlansCatalog() liefert für jedes Feature einen Katalog-Eintrag', () => {
@@ -83,6 +85,19 @@ describe('plans.ts — feedback für alle Pakete (#1927 AK1/AK2)', () => {
 				plan,
 			);
 		}
+	});
+});
+
+describe('plans.ts — sync für alle Pakete (#2397 AK1)', () => {
+	it('Katalog führt sync für free, plus und pro', () => {
+		const entry = getPlansCatalog().features.find((f) => (f.feature as string) === 'sync');
+		assert.deepEqual(entry?.allowedPlans, ['free', 'plus', 'pro']);
+	});
+
+	it('openapi.yml: Enum FeatureCatalogEntry.feature enthält sync (Spiegel zu FEATURE_IDS)', () => {
+		const yml = readFileSync(new URL('../../../openapi.yml', import.meta.url), 'utf8');
+		const enumBlock = yml.split('FeatureCatalogEntry:')[1]?.split('allowedPlans:')[0] ?? '';
+		for (const id of EXPECTED_FEATURES) assert.match(enumBlock, new RegExp(`\\b${id}\\b`), id);
 	});
 });
 

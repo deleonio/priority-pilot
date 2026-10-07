@@ -5850,6 +5850,7 @@ components:
               mcp_readwrite,
               mcp_read,
               feedback,
+              sync,
             ]
         allowedPlans:
           type: array
