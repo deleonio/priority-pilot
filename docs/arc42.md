@@ -238,10 +238,10 @@ mit `basename` in `App.tsx`).
 
 ### 5.4 Website und nativer Wrapper (Whitebox `website`, `native`)
 
-| Baustein   | Verantwortung                                                                                                                                                                                          | Wichtige Dateien                                 |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------ |
-| `website/` | Statisch vorgerenderte Landingpage in zehn Sprachen (Deutsch an `/`, neun weitere unter `/<sprache>/`); Preise kommen zur Build-Zeit aus `server/src/logics/plans.ts`                                  | `scripts/build.ts`, `src/render.ts`, `src/i18n/` |
-| `native/`  | Android-App als Capacitor-Wrapper im Remote-Modus: `server.url` lädt die SPA von `${SITE_URL}/app/`, gebündelt ist nur eine Fehlerseite; Push-Registrierung über `@capacitor/push-notifications` (FCM) | `capacitor.config.ts`, `android/`                |
+| Baustein   | Verantwortung                                                                                                                                                               | Wichtige Dateien                                 |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `website/` | Statisch vorgerenderte Landingpage in zehn Sprachen (Deutsch an `/`, neun weitere unter `/<sprache>/`); Preise kommen zur Build-Zeit aus `server/src/logics/plans.ts`       | `scripts/build.ts`, `src/render.ts`, `src/i18n/` |
+| `native/`  | Android-App als Capacitor-Wrapper im Remote-Modus: die SPA (`frontend/dist-android`, ADR 0021) ist gebündelt; Push-Registrierung über `@capacitor/push-notifications` (FCM) | `capacitor.config.ts`, `android/`                |
 
 ## 6. Laufzeitsicht
 

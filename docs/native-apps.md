@@ -1,15 +1,15 @@
 # Native Apps (Android)
 
-Die Android-App ist ein Capacitor-Wrapper im Remote-Modus ([ADR 0016](adr/0016-nativer-wrapper-capacitor-remote-modus.md)):
-Sie lädt die gehostete App unter `SITE_URL/app/`, gebündelt ist nur eine Fehlerseite für den Fall
-ohne Server. Umsetzung und Reihenfolge: [Plan native Apps](plan-native-apps.md), Epic #1664.
+Die Android-App ist ein Capacitor-Wrapper mit gebündelter Web-App ([ADR 0021](adr/0021-android-app-spa-ohne-service-worker.md),
+Wrapper: [ADR 0016](adr/0016-nativer-wrapper-capacitor-remote-modus.md)): Das App-Bundle enthält den Android-Build des
+Frontends (`pnpm --filter frontend build:android`, Ausgabe `frontend/dist-android`) derselben Version und startet
+auch ohne Netz. Das Website-Deployment (`frontend/dist` nach `/app/`) bleibt davon unberührt. Umsetzung und Reihenfolge: [Plan native Apps](plan-native-apps.md), Epic #1664.
 
 ## Aufbau
 
 | Pfad                               | Inhalt                                                                                                      |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `native/capacitor.config.ts`       | App-ID `balamentum.app`, `server.url` aus `SITE_URL`, nur eigene Domain                                     |
-| `native/www/error.html`            | Fehlerseite ohne Verbindung, „Neu laden" springt zurück auf `server.url`                                    |
+| `native/capacitor.config.ts`       | App-ID `balamentum.app`, `webDir` = `frontend/dist-android`, nur eigene Domain (`SITE_URL`) navigierbar     |
 | `native/android/`                  | von `cap add android` erzeugtes Projekt, eingecheckt; Manifest mit Standort-/Mikrofon-Rechten und App Links |
 | `native/android/app/src/main/res/` | Icons aus `frontend/public/logo/logo.png`, Splash aus der Wortmarke (siehe unten)                           |
 
@@ -22,7 +22,9 @@ Voraussetzungen: JDK 21 und ein Android SDK mit `platforms;android-36`, `build-t
 `platform-tools` (`ANDROID_HOME` zeigt darauf).
 
 ```bash
-SITE_URL=https://example.org pnpm --filter native sync   # Konfiguration und Plugins ins Android-Projekt
+export SITE_URL=https://example.org
+pnpm --filter frontend build:android                     # Web-App für die Android-App → frontend/dist-android
+pnpm --filter native sync                                # Web-App, Konfiguration und Plugins ins Android-Projekt
 cd native/android && ./gradlew assembleDebug             # → app/build/outputs/apk/debug/app-debug.apk
 ```
 
@@ -30,7 +32,7 @@ Push über FCM braucht die `google-services.json` aus der Firebase-Konsole in `n
 (gitignored, nicht einchecken). Ohne sie erzeugt der Gradle-Build eine Platzhalter-Konfiguration:
 Firebase initialisiert, das Token-Holen scheitert asynchron — der Push-Schalter meldet dann einen
 Fehler, statt dass die App abstürzt.
-Ohne `SITE_URL` bricht `sync` mit einer Meldung ab. Für den Emulator: `npx cap run android` im Ordner
+Ohne `SITE_URL` bricht der Build bzw. `sync` mit einer Meldung ab; `sync` braucht außerdem `frontend/dist-android`. Für den Emulator: `npx cap run android` im Ordner
 `native/` oder das APK per `adb install` einspielen.
 
 ## Signiertes App-Bundle (CI)
@@ -105,7 +107,7 @@ im System-Browser (`frontend/src/lib/nativeAuth.ts`). Nach dem Login leitet der 
 gemerkten `state` über `POST /auth/native/exchange` ein. Magic-Links auf `/app/` öffnen auf demselben
 Weg die App. Mit `X-Client-Channel: play` antworten Code-Tausch und Magic-Link-Einlösung mit einem
 App-Token statt eines Session-Cookies; die App schickt es als `Authorization: Bearer`, `POST /auth/logout`
-zieht es zurück (#2377). Der Intent-Filter im Manifest nimmt die Domain aus `server.url` (Gradle liest sie aus der
+zieht es zurück (#2377). Der Intent-Filter im Manifest nimmt die Domain aus `server.allowNavigation` (Gradle liest sie aus der
 von `sync` erzeugten `capacitor.config.json`), verifiziert wird sie über `/.well-known/assetlinks.json`
 der Website. Prüfen auf dem Gerät: `adb shell pm get-app-links balamentum.app` muss die Domain als
 `verified` zeigen.
