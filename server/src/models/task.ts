@@ -55,6 +55,9 @@ class Task extends Model {
 	// /next und /suggestions aus. Kein Verschieben — `postponeCount` und Score bleiben unberührt.
 	public snoozedUntil?: Date | null;
 
+	// KI-Entwurf (#2350): Ergebnis der Entwurfs-Aktion, getrennt von `description`. `null` ⇒ kein Entwurf.
+	public aiDraft?: string | null;
+
 	// Abhakbare Checkliste (Issue #531): JSON-Array aus `{ id, title, completed }`. Default leer;
 	// bestehende Tasks ohne Checkliste liefern `[]` (rückwärtskompatibel).
 	public checklist!: ChecklistItem[];
@@ -247,6 +250,10 @@ Task.init(
 		},
 		snoozedUntil: {
 			type: DataTypes.DATE,
+			allowNull: true,
+		},
+		aiDraft: {
+			type: DataTypes.TEXT,
 			allowNull: true,
 		},
 		// Säulen-Neuberechnung (#1614), siehe Feld-Kommentar oben.

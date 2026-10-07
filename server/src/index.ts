@@ -138,6 +138,7 @@ export const main = async (): Promise<void> => {
 			migratePillarRecalcColumns,
 			migrateTaskMissedColumns,
 			migrateTaskSnoozeColumn,
+			migrateTaskAiDraftColumn,
 			migrateUserCareColumns,
 			migrateUserTermsColumns,
 			migrateUsersBalanceVariantColumn,
@@ -288,6 +289,8 @@ export const main = async (): Promise<void> => {
 		await migrateTaskMissedColumns(sequelize);
 		// Fehlende snoozedUntil-Spalte (#2244) an tasks nachziehen — vor sync(), aus demselben Grund.
 		await migrateTaskSnoozeColumn(sequelize);
+		// Fehlende aiDraft-Spalte (#2350) an tasks nachziehen — vor sync(), aus demselben Grund.
+		await migrateTaskAiDraftColumn(sequelize);
 
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });

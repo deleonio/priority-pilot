@@ -205,6 +205,55 @@ paths:
                 $ref: '#/components/schemas/Task'
         '404':
           $ref: '#/components/responses/NotFound'
+  /tasks/{id}/ai-draft:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    post:
+      summary: KI-Entwurf zu einem Task erstellen (#2350)
+      description: >-
+        Ruft das LLM genau einmal mit dem Auftrag der serverseitig ermittelten KI-Eignung
+        (`aiSuitability`: Entwurf, Zusammenfassung oder Recherche) auf und speichert das Ergebnis
+        in `aiDraft`; `description` bleibt unverändert. Ein vorhandener Entwurf wird überschrieben.
+        Aufgaben ohne Eignung antworten mit 400 ohne LLM-Aufruf. Zählt zum KI-Kontingent.
+      operationId: createTaskAiDraft
+      parameters:
+        - name: provider
+          in: query
+          required: false
+          description: >-
+            Optionaler Provider-Pinning (#749/#951): Name eines konfigurierten
+            Providers — überschreibt den aktiven Provider für diesen EINEN Aufruf.
+          schema:
+            type: string
+            maxLength: 64
+      responses:
+        '200':
+          description: Der gespeicherte Entwurf.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskAiDraft'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/PlanRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/QuotaExhausted'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    delete:
+      summary: KI-Entwurf eines Tasks verwerfen (#2350)
+      description: Setzt `aiDraft` auf `null`; `description` bleibt unverändert.
+      operationId: deleteTaskAiDraft
+      responses:
+        '204':
+          description: Entwurf wurde verworfen
+        '404':
+          $ref: '#/components/responses/NotFound'
   /tasks/{id}/unarchive:
     parameters:
       - $ref: '#/components/parameters/TaskId'
@@ -6473,6 +6522,12 @@ components:
             (kein LLM, nicht gespeichert): Entwurf, Zusammenfassung oder Recherche. Nur in
             Listen-Antworten und nur für Nutzer mit Paketmerkmal `ai_assist`; sonst fehlt das Feld.
             `null` = keine Eignung.
+        aiDraft:
+          type: string
+          nullable: true
+          description: >-
+            KI-Entwurf (#2350) aus `POST /tasks/{id}/ai-draft`, getrennt von `description`;
+            `null` = kein Entwurf.
         pillars:
           type: array
           description: >-
@@ -7242,6 +7297,21 @@ components:
         text:
           type: string
           description: Der lektorierte (und bei gesetztem `maxLength` gekürzte) Text
+        fairUse:
+          type: string
+          enum: [throttled]
+          description: >-
+            Nur gesetzt, wenn die Anfrage über dem internen Monatsbudget lag (#1783, Fair Use):
+            die nächste KI-Anfrage ist erst nach dem Drossel-Intervall möglich.
+    TaskAiDraft:
+      type: object
+      description: Ergebnis des KI-Entwurfs (#2350).
+      required:
+        - aiDraft
+      properties:
+        aiDraft:
+          type: string
+          description: Der gespeicherte Entwurf.
         fairUse:
           type: string
           enum: [throttled]

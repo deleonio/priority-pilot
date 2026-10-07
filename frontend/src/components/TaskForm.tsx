@@ -42,6 +42,7 @@ import { notifyTasksChanged } from '../lib/tasksChanged';
 import { ConfirmDiscardDialog } from './ConfirmDiscardDialog';
 import { ConfirmSeriesActionModal } from './ConfirmSeriesActionModal';
 import { LektoratDiffModal } from './LektoratDiffModal';
+import { TaskAiDraft } from './TaskAiDraft';
 import {
 	distributionFromRankOrder,
 	fillContributions,
@@ -246,6 +247,8 @@ interface TaskFormProps {
 	 * wirkungslos für diesen Teil.
 	 */
 	reopenModal?: () => void;
+	/** Nach Datenänderungen ohne Speichern (KI-Entwurf, #2350): Liste nachladen, Dialog bleibt offen. */
+	onChanged?: () => void;
 }
 
 /**
@@ -312,6 +315,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 		onSaved,
 		onModeChange,
 		reopenModal,
+		onChanged,
 	}: TaskFormProps,
 	ref,
 ) {
@@ -1907,6 +1911,8 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 					</div>
 				</KolAccordion>
 			</section>
+			{/* #2350: KI-Entwurf außerhalb des zugeklappten Optional-Bereichs — die Aktion ist ohne Aufklappen sichtbar. */}
+			{task !== null && <TaskAiDraft task={task} onChanged={onChanged} />}
 			<div className="modal-actions" data-testid="task-actions">
 				<KolButton
 					_label={saving ? (isEdit ? 'Bearbeiten…' : 'Anlegen…') : isEdit ? 'Bearbeiten' : 'Anlegen'}

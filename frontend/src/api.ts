@@ -521,6 +521,22 @@ export const api = {
 		return reviveTask(data);
 	},
 
+	// KI-Entwurf (#2350): erst dieser Aufruf startet das LLM; das Ergebnis liegt danach in `aiDraft`.
+	async createTaskAiDraft({ id }: { id: number }): Promise<string> {
+		const { data, error, response } = await client.POST('/tasks/{id}/ai-draft', { params: { path: { id } } });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data.aiDraft;
+	},
+
+	async deleteTaskAiDraft({ id }: { id: number }): Promise<void> {
+		const { error, response } = await client.DELETE('/tasks/{id}/ai-draft', { params: { path: { id } } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
 	// Wiederherstellen: holt eine archivierte Aufgabe zurück in Liste (und ggf. Verpasst-Bereich).
 	async unarchiveTask({ id }: { id: number }): Promise<Task> {
 		const { data, error, response } = await client.POST('/tasks/{id}/unarchive', { params: { path: { id } } });

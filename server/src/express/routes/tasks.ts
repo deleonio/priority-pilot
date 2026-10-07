@@ -202,6 +202,7 @@ export const serializeTask = (task: Task, context: TaskSerializeContext = {}): T
 		groupName: task.groupId != null ? (context.groupNames?.get(task.groupId) ?? null) : null,
 		// #2349: KI-Eignung beim Lesen berechnet (Heuristik, kein LLM), nur mit Paketmerkmal ai_assist.
 		...(context.aiAssist ? { aiSuitability: classifyLlmSuitability(task.title, task.description) } : {}),
+		aiDraft: task.aiDraft ?? null,
 		pillars: (task.Pillars ?? [])
 			.map((pillar) => ({
 				pillarId: pillar.id,

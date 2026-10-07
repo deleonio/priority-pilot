@@ -290,6 +290,9 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
 - **Lektorat** – über einen Button neben Titel und Beschreibung kannst du die KI bitten,
   den Text zu verbessern (Kürzung, Smoothing, Rechtschreibung). Ein Diff-Dialog zeigt den
   Vergleich; du entscheidest, ob du den Vorschlag übernimmst.
+- **KI-Entwurf** – ist eine Aufgabe als KI-geeignet gekennzeichnet (Entwerfen, Zusammenfassen,
+  Recherchieren), bietet „Aufgabe bearbeiten" unten eine passende Aktion an. Erst dein Klick lässt
+  die KI einen Entwurf erstellen; er steht getrennt von der Beschreibung und lässt sich löschen.
 - **Kategorie (optional)** – das Thema, zu dem die Aufgabe gehört (siehe „Kategorien").
   Höchstens eine je Aufgabe; sie ordnet nur, sie verändert die Priorisierung nicht.
 - **Säulen-Verteilung** – wie stark die Aufgabe auf die Lebensbereiche einzahlt. Du tippst die
@@ -874,6 +877,6 @@ aktiv, steht dort zusätzlich deine zuletzt ermittelte Position.
 
 - Alle Daten werden **serverseitig** gespeichert; Änderungen sind sofort persistent
   und auf all deinen Geräten verfügbar.
-- Die KI-Funktionen (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater, Lektorat) benötigen
+- Die KI-Funktionen (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater, Lektorat, KI-Entwurf) benötigen
   einen serverseitig konfigurierten Zugang. Ist er nicht eingerichtet, bleiben die
   übrigen Funktionen uneingeschränkt nutzbar.

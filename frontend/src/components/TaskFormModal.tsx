@@ -26,6 +26,8 @@ interface TaskFormModalProps {
 	onClose: () => void;
 	/** Nach erfolgreichem Speichern aufgerufen (Liste neu laden + Dialog schließen). */
 	onSaved: () => void;
+	/** Siehe `TaskForm.onChanged` (#2350). */
+	onChanged?: () => void;
 }
 
 /**
@@ -42,6 +44,7 @@ export const TaskFormModal = ({
 	fallbackFocusRef,
 	onClose,
 	onSaved,
+	onChanged,
 }: TaskFormModalProps) => {
 	// #1584: X/Escape/Backdrop laufen über `Modal.onClose` — `TaskForm.requestClose()` fragt bei
 	// geänderten Werten selbst nach (AK1-AK5), statt sofort zu schließen. Der explizite
@@ -73,6 +76,7 @@ export const TaskFormModal = ({
 				initialValues={initialValues}
 				onClose={onClose}
 				onSaved={onSaved}
+				onChanged={onChanged}
 				reopenModal={() => modalRef.current?.reopen()}
 			/>
 		</Modal>
