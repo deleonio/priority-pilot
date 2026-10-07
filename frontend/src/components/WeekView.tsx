@@ -1,5 +1,5 @@
 import { KolButton, KolCard } from '@public-ui/react-v19';
-import type { Task } from 'client';
+import type { CalendarEvent, Task } from 'client';
 import { TaskStatus } from 'client';
 import { useMemo } from 'react';
 import { formatDeadline } from '../lib/task';
@@ -27,6 +27,25 @@ const weekDatesFor = (reference: Date): Date[] => {
 /** Prüft, ob zwei Daten denselben UTC-Kalendertag treffen. */
 const sameUtcDay = (a: Date, b: Date): boolean => utcDay(a) === utcDay(b);
 
+/**
+ * Gehört ein Termin zur Tageskarte `day` (UTC-Mitternacht)? Termine mit Uhrzeit zählen nach LOKALEM
+ * Starttag (23:30 Ortszeit bleibt am eigenen Tag, #2210); ganztägige Termine sind reine Daten
+ * (`DATE` = UTC-Mitternacht, `server/src/logics/calendar-ics.ts`) und zählen nach dem UTC-Tag.
+ */
+const eventOnDay = (event: CalendarEvent, day: Date): boolean => {
+	const start = new Date(event.start);
+	return event.allDay
+		? utcDay(start) === utcDay(day)
+		: Date.UTC(start.getFullYear(), start.getMonth(), start.getDate()) === utcDay(day);
+};
+
+const pad = (value: number): string => String(value).padStart(2, '0');
+const clock = (date: Date): string => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+
+/** Zeitblock `HH:MM–HH:MM` in Ortszeit, ganztägig als Text. */
+const eventTime = (event: CalendarEvent): string =>
+	event.allDay ? 'ganztägig' : `${clock(new Date(event.start))}–${clock(new Date(event.end))}`;
+
 interface WeekViewProps {
 	/** Alle Aufgaben des Nutzers (wie im Dashboard, `GET /tasks`). */
 	tasks: Task[];
@@ -45,6 +64,8 @@ interface WeekViewProps {
 	 * Sprung in den Aufgaben-Tab, gefiltert auf die Deadline dieses Tages).
 	 */
 	onSelectDay: (day: Date) => void;
+	/** Kalendertermine aus verbundenen ICS-Kalendern (`GET /calendar-events`, #2210) — stehen vor den Aufgaben ihres Starttags. */
+	calendarEvents?: CalendarEvent[];
 }
 
 /**
@@ -61,7 +82,14 @@ interface WeekViewProps {
  *   Punktestand); eine Simulation dieses Scores für andere Wochentage ist bewusst nicht Teil dieses
  *   Tickets (dokumentierte Vereinfachung, PR-Body).
  */
-export const WeekView = ({ tasks, nextTask, suggestions = [], referenceDate, onSelectDay }: WeekViewProps) => {
+export const WeekView = ({
+	tasks,
+	nextTask,
+	suggestions = [],
+	referenceDate,
+	onSelectDay,
+	calendarEvents = [],
+}: WeekViewProps) => {
 	const today = useMemo(() => referenceDate ?? new Date(), [referenceDate]);
 	const weekDates = useMemo(() => weekDatesFor(today), [today]);
 
@@ -93,6 +121,10 @@ export const WeekView = ({ tasks, nextTask, suggestions = [], referenceDate, onS
 					// #2012: erledigte Aufgaben erscheinen unter den offenen — erst offene, dann Done.
 					const openDayTasks = dayTasks.filter((task) => task.status !== TaskStatus.Done);
 					const doneDayTasks = dayTasks.filter((task) => task.status === TaskStatus.Done);
+					// Ganztägige Termine zuerst, sonst in der Reihenfolge der API (nach Start sortiert).
+					const dayEvents = calendarEvents
+						.filter((event) => eventOnDay(event, day))
+						.sort((a, b) => Number(b.allDay) - Number(a.allDay));
 					const dayRecommendations = isToday
 						? suggestions.filter(
 								(task) => deadlineOutsideWeek(task.deadline) && (nextTask === null || task.id !== nextTask.id),
@@ -107,6 +139,11 @@ export const WeekView = ({ tasks, nextTask, suggestions = [], referenceDate, onS
 							_level={3}
 						>
 							<ul className="week-view-tasks">
+								{dayEvents.map((event, eventIndex) => (
+									<li key={`event-${event.sourceId}-${event.start}-${eventIndex}`} className="week-view-event">
+										<span className="week-view-event__time">{eventTime(event)}</span> {event.title}
+									</li>
+								))}
 								{openDayTasks.map((task) => (
 									<li key={`manual-${task.id}`}>{task.title}</li>
 								))}

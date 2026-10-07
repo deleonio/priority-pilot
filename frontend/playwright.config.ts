@@ -76,6 +76,9 @@ export default defineConfig({
 				// sonst den Built-in-Fallback aktivieren und Modelllisten-Fetches gegen echte Provider
 				// auslösen. Leere Strings gewinnen über `.env` und sind für die Key-Checks falsy — LLM-
 				// Aufrufe bleiben ohne aktiven Custom-Provider 503, Modelle werden nie real geladen.
+				// ICS-Abruf (#2209/#2210): die Specs liefern die Kalenderdatei von einem lokalen Stub aus;
+				// ohne die Freigabe sperrt die SSRF-Prüfung 127.0.0.1.
+				ICS_ALLOW_INTERNAL_HOSTS: '1',
 				MISTRAL_API_KEY: '',
 				OPENROUTER_API_KEY: '',
 				MISTRAL_MODEL: '',

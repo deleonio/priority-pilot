@@ -7,6 +7,9 @@ import type {
 	ApiToken,
 	BalanceHistoryEntry,
 	BalanceStatus,
+	CalendarEvent,
+	CalendarSource,
+	CalendarSourceInput,
 	Category,
 	CategoryCreate,
 	CategoryUpdate,
@@ -1683,6 +1686,43 @@ export const api = {
 		if (!response.ok) {
 			throw new ResponseError(response, error);
 		}
+	},
+
+	// --- Kalender (ICS, #2209/#2210) ---
+
+	// Eigene Kalenderquellen (ohne ICS-Adresse).
+	async listCalendarSources(init: Init = {}): Promise<CalendarSource[]> {
+		const { data, error, response } = await client.GET('/calendar-sources', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Verbindet eine Kalenderquelle; der Server ruft die Adresse sofort ab (400 bei Ablehnung, 403 bei Paketgrenze).
+	async createCalendarSource(source: CalendarSourceInput): Promise<CalendarSource> {
+		const { data, error, response } = await client.POST('/calendar-sources', { body: source });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Entfernt eine Kalenderquelle samt ihrer Termine.
+	async deleteCalendarSource({ id }: { id: number }): Promise<void> {
+		const { error, response } = await client.DELETE('/calendar-sources/{id}', { params: { path: { id } } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
+	// Gespeicherte Termine aller eigenen Kalenderquellen, nach Start sortiert (`start`/`end` ISO-UTC).
+	async listCalendarEvents(init: Init = {}): Promise<CalendarEvent[]> {
+		const { data, error, response } = await client.GET('/calendar-events', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
 	},
 
 	// --- Journal (#2212) ---

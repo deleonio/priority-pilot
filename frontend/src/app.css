@@ -863,6 +863,17 @@ kol-toolbar {
 	padding-inline-start: 1.2em;
 }
 
+/* #2210: Kalendertermine — Zeitblock gedämpft und tabellarisch, Titel darf umbrechen. */
+.week-view-event {
+	overflow-wrap: anywhere;
+}
+
+.week-view-event__time {
+	color: var(--pp-ink-muted);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
 /* #2012: erledigte Einträge in der Tageskarte — durchgestrichen und abgeschwächt. */
 .week-view-done {
 	text-decoration: line-through;
