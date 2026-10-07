@@ -76,6 +76,10 @@ const FEATURE_OFFERS: Record<FeatureId, { title: string; benefit: string }> = {
 		title: 'Feedback und App-Support',
 		benefit: 'Rückmeldungen und Support-Anfragen direkt aus der App senden — in jedem Paket.',
 	},
+	sync: {
+		title: 'Synchronisation über alle Geräte',
+		benefit: 'Aufgaben auf allen deinen Geräten stets auf dem gleichen Stand — in jedem Paket.',
+	},
 };
 
 /** Angebotstext zu einem Feature; unbekannte Identifier bekommen einen neutralen Text. */
