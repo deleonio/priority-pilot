@@ -3023,3 +3023,100 @@ describe('MCP-Staffelungs-Hinweis (#1823)', () => {
 		assert.ok(row.includes(hint), 'IF-07 muss den Text von MCP_PACING_HINT enthalten');
 	});
 });
+
+/**
+ * #2144: task_list listet standardmäßig nur offene Aufgaben (docs/spec/issue-2144.md).
+ *
+ * AK1: ohne Argumente keine erledigten, `Open` und `In process` enthalten.
+ * AK2: includeDone: true liefert offene und erledigte.
+ * AK3/AK4: query filtert offene per Titel-Teilstring (case-insensitiv), Fallback auf erledigte, sonst [].
+ * AK5: Nicht-boolesches includeDone / Nicht-String query wird abgelehnt.
+ * AK6: inputSchema-Properties genau includeDone und query; Beschreibung nennt Default und Fallback.
+ *
+ * Rot, weil task_list heute keine Argumente kennt und alles aus GET /tasks durchreicht.
+ */
+describe('MCP-Werkzeug task_list: nur offene Aufgaben, Fallback auf erledigte (#2144)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => resetDb());
+	after(async () => {
+		await server.close();
+		await closeDb();
+	});
+
+	type ListedTask = { id: number; title: string; status: string };
+
+	const setup = async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		await createTaskViaApi(cookie, 'Zahnarzt anrufen');
+		const inProcessId = await createTaskViaApi(cookie, 'Steuer vorbereiten');
+		const doneId = await createTaskViaApi(cookie, 'Zahnarzt Rechnung ablegen');
+		const doneOnlyId = await createTaskViaApi(cookie, 'Gartenhaus streichen');
+		const patched = await server.json(`/tasks/${inProcessId}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({ status: 'In process' }),
+		});
+		assert.equal(patched.status, 200, 'Setup: Status In process muss setzbar sein');
+		for (const id of [doneId, doneOnlyId]) {
+			const completed = await mcpCall<{ status: string }>(token, 'task_complete', { id });
+			assert.equal(completed.result?.status, 'Done', 'Setup: Aufgabe muss erledigt sein');
+		}
+		return { token };
+	};
+
+	const titles = (tasks: ListedTask[] | undefined): string[] => (tasks ?? []).map((t) => t.title).sort();
+
+	it('AK1: ohne Argumente keine erledigten, offene und In-process-Aufgaben sind enthalten', async () => {
+		const { token } = await setup();
+		const list = await mcpCall<ListedTask[]>(token, 'task_list');
+		assert.equal(list.error, undefined);
+		assert.deepEqual(titles(list.result), ['Steuer vorbereiten', 'Zahnarzt anrufen']);
+	});
+
+	it('AK2: includeDone: true liefert offene und erledigte Aufgaben', async () => {
+		const { token } = await setup();
+		const list = await mcpCall<ListedTask[]>(token, 'task_list', { includeDone: true });
+		assert.equal(list.error, undefined);
+		assert.equal(list.result?.length, 4);
+		assert.equal(list.result?.filter((t) => t.status === 'Done').length, 2);
+	});
+
+	it('AK3: query liefert nur offene Treffer (ohne Groß-/Kleinschreibung), solange es einen gibt', async () => {
+		const { token } = await setup();
+		const list = await mcpCall<ListedTask[]>(token, 'task_list', { query: 'ZAHNARZT' });
+		assert.equal(list.error, undefined);
+		assert.deepEqual(titles(list.result), ['Zahnarzt anrufen']);
+	});
+
+	it('AK4: ohne offenen Treffer liefert query die erledigten Treffer, ohne jeden Treffer []', async () => {
+		const { token } = await setup();
+		const fallback = await mcpCall<ListedTask[]>(token, 'task_list', { query: 'gartenhaus' });
+		assert.equal(fallback.error, undefined);
+		assert.deepEqual(titles(fallback.result), ['Gartenhaus streichen']);
+		assert.equal(fallback.result?.[0]?.status, 'Done');
+
+		const none = await mcpCall<ListedTask[]>(token, 'task_list', { query: 'gibt-es-nicht' });
+		assert.equal(none.error, undefined);
+		assert.deepEqual(none.result, []);
+	});
+
+	it('AK5: nicht-boolesches includeDone und Nicht-String als query werden abgelehnt', async () => {
+		const { token } = await setup();
+		const badFlag = await mcpCall(token, 'task_list', { includeDone: 'ja' });
+		assert.ok(badFlag.error, 'includeDone: "ja" muss abgelehnt werden');
+		const badQuery = await mcpCall(token, 'task_list', { query: 42 });
+		assert.ok(badQuery.error, 'query: 42 muss abgelehnt werden');
+	});
+
+	it('AK6: inputSchema hat genau includeDone und query, Beschreibung nennt Default und Fallback', () => {
+		const tool = findMcpTool('task_list');
+		assert.ok(tool, 'task_list muss im Katalog stehen');
+		const schema = tool.inputSchema as { properties?: Record<string, unknown> };
+		assert.deepEqual(Object.keys(schema.properties ?? {}).sort(), ['includeDone', 'query']);
+		assert.match(tool.description, /open/i, 'Beschreibung muss den Default "nur offene" nennen');
+		assert.match(tool.description, /fall ?back/i, 'Beschreibung muss den Fallback nennen');
+	});
+});
