@@ -5,7 +5,12 @@ import { Op, Transaction, type WhereOptions } from 'sequelize';
 import sequelize from '../../database.js';
 import { Pillar, Series, SeriesPillar, Task, TaskPillar } from '../../models/index.js';
 import type { SeriesRhythm } from '../../models/series.js';
-import { createOnDemandInstance, generateDueInstances, materializeDueSeries } from '../../logics/series.js';
+import {
+	GENERATE_HORIZON_DAYS,
+	createOnDemandInstance,
+	generateDueInstances,
+	materializeDueSeries,
+} from '../../logics/series.js';
 import type { PushSender } from '../../logics/push.js';
 import {
 	arePillarsExistent,
@@ -60,14 +65,6 @@ const RHYTHM_WEEKDAY: ReadonlyMap<SeriesRhythm, number> = new Map([
 	['fri', 5],
 	['sat', 6],
 ]);
-
-/**
- * Produktpolicy: maximale Vorlauf-Horizont in Tagen, den `/series/generate-all`
- * materialisiert. Verhindert, dass bei jedem Cron-Lauf ein unbegrenztes Fenster
- * erzeugt wird — es wird nur bis "heute + N Tage" vorlaufend angelegt. Zusätzlich hält die
- * Generierung je Serie höchstens fünf offene Instanzen vor (#1518, `logics/series.ts`).
- */
-const GENERATE_HORIZON_DAYS = 30;
 
 /** Validierte Template-Attribute, wie sie an das Sequelize-Modell übergeben werden. */
 interface SeriesAttributes {

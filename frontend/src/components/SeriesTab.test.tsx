@@ -73,11 +73,10 @@ vi.mock('./TaskForm', () => ({
 	TaskForm: () => <div data-testid="task-form" />,
 }));
 
-// API-Mock: `listSeries` liefert die Fixtures; `generateAllSeries` wird nicht benötigt.
+// API-Mock: `listSeries` liefert die Fixtures.
 vi.mock('../api', () => ({
 	api: {
 		listSeries: vi.fn(),
-		generateAllSeries: vi.fn(),
 	},
 }));
 
@@ -85,7 +84,6 @@ import { api } from '../api';
 import { SeriesTab } from './SeriesTab';
 
 const mockListSeries = api.listSeries as ReturnType<typeof vi.fn>;
-const mockGenerateAllSeries = api.generateAllSeries as ReturnType<typeof vi.fn>;
 
 const pillarKoerper: Pillar = { id: 1, name: 'Körper', description: 'Gesundheit', weight: 100 };
 
@@ -288,74 +286,17 @@ describe('SeriesTab — Säulen-Badge für Serien ohne Säulen-Gewichtung (#1465
 });
 
 /**
- * Doppel-POST-Schutz (#1259-Fixup, Review-Nit Runde 1): `generateAll` sichert sich über
- * `isGeneratingRef` SYNCHRON vor dem ersten `await` ab — ein zweiter Aufruf im selben Tick
- * (Doppelklick, State `_disabled` wäre noch nicht geflippt) darf keinen zweiten POST senden.
+ * #2356 AK6: Instanzen entstehen automatisch per Server-Job — der Serien-Tab bietet keinen
+ * Button „Fällige Instanzen generieren“ mehr (Vertrag: docs/spec/issue-2356.md).
  */
-describe('SeriesTab — Doppel-POST-Schutz bei generateAll (isGeneratingRef-Guard)', () => {
-	it('zwei synchrone Auslösungen rufen generateAllSeries genau 1× auf', async () => {
-		let resolveGenerate: (value: { created: number }) => void = () => {};
-		mockListSeries.mockResolvedValue([]);
-		mockGenerateAllSeries.mockImplementation(
-			() =>
-				new Promise<{ created: number }>((resolve) => {
-					resolveGenerate = resolve;
-				}),
-		);
+describe('SeriesTab — kein manueller Generier-Button (#2356 AK6)', () => {
+	it('zeigt keinen Button „Fällige Instanzen generieren“', async () => {
+		mockListSeries.mockResolvedValue([makeSeries('weekly', 'Wochenputz')]);
 
 		await act(async () => {
 			render(<SeriesTab pillars={[pillarKoerper]} />);
 		});
 
-		const generateButton = screen.getByRole('button', { name: 'Fällige Instanzen generieren' });
-		fireEvent.click(generateButton); // 1. Aufruf: Guard setzt isGeneratingRef vor dem await
-		fireEvent.click(generateButton); // 2. Aufruf im selben Tick: Guard blockt
-
-		expect(mockGenerateAllSeries).toHaveBeenCalledTimes(1);
-
-		// Hängendes Promise auflösen, damit die setState-Follow-ups innerhalb von act laufen.
-		await act(async () => {
-			resolveGenerate({ created: 0 });
-		});
-	});
-});
-
-/**
- * Nach dem Generieren muss der Serien-Tab der App melden, dass sich der Aufgabenbestand geändert
- * hat. Ohne dieses Signal bleiben `tasks`/`forest` in `App` auf dem Stand des Seitenaufrufs stehen
- * (der Tab-Wechsel lädt nicht nach), die frisch materialisierten Instanzen fehlen im Aufgaben-Tab
- * und lassen sich dort bis zum nächsten Seiten-Reload nicht abhaken.
- */
-describe('SeriesTab — Signal an die App nach dem Generieren', () => {
-	it('meldet den geänderten Aufgabenbestand, wenn Instanzen erzeugt wurden', async () => {
-		mockListSeries.mockResolvedValue([]);
-		mockGenerateAllSeries.mockResolvedValue({ created: 3 });
-		const onTasksChanged = vi.fn();
-
-		await act(async () => {
-			render(<SeriesTab pillars={[pillarKoerper]} onTasksChanged={onTasksChanged} />);
-		});
-
-		await act(async () => {
-			fireEvent.click(screen.getByRole('button', { name: 'Fällige Instanzen generieren' }));
-		});
-
-		expect(onTasksChanged).toHaveBeenCalledTimes(1);
-	});
-
-	it('meldet nichts, wenn der Lauf keine neue Instanz erzeugt hat', async () => {
-		mockListSeries.mockResolvedValue([]);
-		mockGenerateAllSeries.mockResolvedValue({ created: 0 });
-		const onTasksChanged = vi.fn();
-
-		await act(async () => {
-			render(<SeriesTab pillars={[pillarKoerper]} onTasksChanged={onTasksChanged} />);
-		});
-
-		await act(async () => {
-			fireEvent.click(screen.getByRole('button', { name: 'Fällige Instanzen generieren' }));
-		});
-
-		expect(onTasksChanged).not.toHaveBeenCalled();
+		expect(screen.queryAllByRole('button', { name: 'Fällige Instanzen generieren' })).toHaveLength(0);
 	});
 });

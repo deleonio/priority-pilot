@@ -505,9 +505,6 @@ erzeugt Balamentum regelmäßig neue Aufgaben-Instanzen.
   eigenständig)"**: Mit **Ja** werden die offenen Instanzen mitgelöscht, mit **Nein**
   bleiben alle Aufgaben als eigenständige Aufgaben bestehen. Bereits erledigte
   Instanzen bleiben in beiden Fällen als eigenständige Aufgaben erhalten.
-- **Fällige Instanzen generieren:** der gleichnamige Button erzeugt die anstehenden
-  Aufgaben aus allen Serien – alle Termine von heute bis 30 Tage im Voraus, je Serie
-  bleiben höchstens fünf offene Instanzen übrig.
 
 Aus einer Serie entstandene Aufgaben tragen im Aufgabenbaum das Kennzeichen **Serie**;
 weichst du eine Instanz individuell ab, kommt **geändert** hinzu.

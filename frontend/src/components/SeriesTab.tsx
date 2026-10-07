@@ -1,4 +1,4 @@
-import { KolAlert, KolBadge, KolButton, KolSpin, KolToolbar } from '@public-ui/react-v19';
+import { KolAlert, KolBadge, KolSpin, KolToolbar } from '@public-ui/react-v19';
 import type { Category, Pillar, Series } from 'client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
@@ -50,36 +50,20 @@ const RHYTHM_LABEL: Record<Series['rhythm'], string> = {
  * über den Header-Button „Serien verwalten") ab. Analog zum `TaskTree` listet der Tab alle Serien-
  * Templates (`GET /series`) im Baum-Stil (`series-tree` als Wurzelcontainer, `series-tree-item-<id>` je
  * Serie) mit Titel, Rhythmus-Badge und einer Aktions-Toolbar (Bearbeiten/Löschen). „Bearbeiten" öffnet
- * `TaskForm` im Serie-Modus (#297) in einem Modal; „Löschen" entfernt die Serie. „Fällige Instanzen
- * generieren" (#244) stößt die serverseitige Materialisierung an. Das Anlegen neuer Serien läuft über
- * den vereinheitlichten Einstieg „Neuen Task anlegen" (QuickCapture, #330).
+ * `TaskForm` im Serie-Modus (#297) in einem Modal; „Löschen" entfernt die Serie. Die fälligen
+ * Instanzen legt der tägliche Server-Job an (#2356). Das Anlegen neuer Serien läuft über den
+ * vereinheitlichten Einstieg „Neuen Task anlegen" (QuickCapture, #330).
  */
 export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTabProps) => {
 	const [series, setSeries] = useState<Series[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
-	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [editDialog, setEditDialog] = useState<EditDialog>(null);
-	const [isGenerating, setIsGenerating] = useState(false);
-	// Doppelklick-Schutz über Ref statt State: Zwei schnelle Klicks laufen in denselben Render-Zyklus,
-	// der State-Guard (`_disabled`) verliert das Race (harden-Verifikation: 2 POSTs). Der Ref ist
-	// synchron und verhindert den zweiten POST zuverlässig.
-	const isGeneratingRef = useRef(false);
 	// Zu löschende Serie (Öffnet den `DeleteSeriesDialog`, #472). `null` = kein Lösch-Dialog offen.
 	const [deleteTarget, setDeleteTarget] = useState<Series | null>(null);
 	// Fallback-Fokusziel nach erfolgreicher Serien-Löschung (#182, #472): Nach dem Löschen fällt die
 	// Toolbar-Zeile der Serie aus dem DOM, sodass der Trigger-Button kein Fokus-Ziel mehr ist. Analog
 	// zu App.tsx / PillarList.tsx (`deleteFallbackRef`) halten wir einen stabilen Container bereit.
 	const deleteFallbackRef = useRef<HTMLElement>(null);
-	// Handle des Erfolgs-Toast-Timers (`generateAll`): wird vor dem Neusetzen und beim Unmount
-	// geräumt, damit kein setState nach dem Unmount überlebt (Muster `doneRemovalTimers`, App.tsx).
-	const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-	useEffect(
-		() => () => {
-			if (successTimerRef.current !== null) clearTimeout(successTimerRef.current);
-		},
-		[],
-	);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		try {
@@ -110,33 +94,6 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 		onTasksChanged?.();
 	}, [reload, onTasksChanged]);
 
-	// Stößt die serverseitige Materialisierung aller fälligen Serien-Instanzen an (#244, AK7).
-	const generateAll = useCallback(async (): Promise<void> => {
-		if (isGeneratingRef.current) return;
-		isGeneratingRef.current = true;
-		setIsGenerating(true);
-		setSuccessMessage(null);
-		try {
-			const { created } = await api.generateAllSeries();
-			setError(null);
-			const msg = created > 0 ? `${created} Instanz(en) generiert` : 'Bereits aktuell';
-			setSuccessMessage(msg);
-			// Die neuen Instanzen sind eigenständige Tasks: ohne dieses Signal stünden sie erst nach
-			// einem Seiten-Reload im Aufgaben-Tab und wären bis dahin nicht abhakbar.
-			if (created > 0) {
-				onTasksChanged?.();
-			}
-			if (successTimerRef.current !== null) clearTimeout(successTimerRef.current);
-			successTimerRef.current = setTimeout(() => setSuccessMessage(null), 5000);
-		} catch (reason) {
-			const apiError = await toApiError(reason);
-			setError(apiError.message);
-		} finally {
-			isGeneratingRef.current = false;
-			setIsGenerating(false);
-		}
-	}, [onTasksChanged]);
-
 	const handleDeleted = useCallback((): void => {
 		setDeleteTarget(null);
 		void reload();
@@ -152,21 +109,6 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 					{error}
 				</KolAlert>
 			)}
-
-			{successMessage !== null && (
-				<KolAlert _type="info" _label="Ergebnis">
-					{successMessage}
-				</KolAlert>
-			)}
-
-			<div className="series-actions">
-				<KolButton
-					_label="Fällige Instanzen generieren"
-					_variant="secondary"
-					_disabled={isGenerating}
-					_on={{ onClick: () => void generateAll() }}
-				/>
-			</div>
 
 			{series === null && (
 				<div className="loading">

@@ -326,6 +326,11 @@ export const main = async (): Promise<void> => {
 		// Kalender-Abruf per ICS (#2209) — alle 30 Minuten, unabhängig von Push.
 		startCalendarSyncScheduler(runCalendarSync, CALENDAR_SYNC_INTERVAL_MS);
 
+		// Serien automatisch anlegen (#2356) — einmal beim Start, danach täglich; push-unabhängig, idempotent.
+		const { runSeriesAutoCreate } = await import('./logics/seriesAutoCreate.js');
+		void runSeriesAutoCreate(new Date()).catch((error) => console.error('Serien-Automatik fehlgeschlagen.', error));
+		startCalendarSyncScheduler(runSeriesAutoCreate, 24 * 60 * 60 * 1000);
+
 		// Kulanzfrist-Ablauf (#2234) — entzieht das Paket und kündigt das PayPal-Abo auch ohne Login;
 		// push-unabhängig, idempotent (stündlich).
 		startCalendarSyncScheduler((now) => applyDueGracePeriods(now, paypalGraceDeps()), 60 * 60 * 1000);

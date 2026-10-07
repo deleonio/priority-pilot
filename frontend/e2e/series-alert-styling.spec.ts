@@ -2,12 +2,10 @@ import { test, expect } from './fixtures';
 
 /**
  * E2E-Verhaltens-Spec für #692 — Serien-Alert Layout-Verbesserung
- * (mit PR #693 umgesetzt: `margin-top` auf `.series-actions`, `font-weight: 600` bei
- * `.series-tree-title` entfernt).
+ * (mit PR #693 umgesetzt: `font-weight: 600` bei `.series-tree-title` entfernt;
+ * der Alert-Abstand entfiel mit dem Button, #2356).
  *
- * Akzeptanzkriterien (aus Issue-Body):
- * 1. Alert-Abstand zum Button vergrößert (CSS margin/padding)
- * 2. Serien-Titel nicht fett (font-weight: normal)
+ * Akzeptanzkriterium: Serien-Titel nicht fett (font-weight: normal)
  *
  * Spec: docs/spec/issue-692.md
  */
@@ -42,23 +40,7 @@ test.describe('Balamentum — #692: Serien-Alert Layout-Verbesserung', () => {
 		}
 	});
 
-	test('AK1 — Serien-Actions hat mindestens 8px margin-top', async ({ page }) => {
-		// series-actions Container finden
-		const seriesActions = page.locator('.series-actions').first();
-
-		// Prüfen, dass Container sichtbar ist
-		await expect(seriesActions).toBeVisible();
-
-		// CSS-Prüfung: margin-top ≥ 8px (0.5rem = 8px bei 16px Basis)
-		const marginTop = await seriesActions.evaluate((el) => {
-			const styles = window.getComputedStyle(el);
-			return parseInt(styles.marginTop) || 0;
-		});
-
-		expect(marginTop).toBeGreaterThanOrEqual(8);
-	});
-
-	test('AK2 — Serien-Titel haben font-weight: normal (nicht bold)', async ({ page }) => {
+	test('Serien-Titel haben font-weight: normal (nicht bold)', async ({ page }) => {
 		// Serien-Titel in der Liste finden
 		const seriesTitle = page.locator('.series-tree-title').first();
 
