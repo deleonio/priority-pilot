@@ -181,6 +181,7 @@ _Enthält v0.16.0 – v0.16.37._
 - fix(server): invoice and renew only on PAYMENT.SALE.COMPLETED by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2245
 - fix(server): unlock booked plan on first payment (#2231) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2248
 - feat(server): invoice the charged PayPal amount and currency by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2249
+- feat(server): invoice the charged PayPal amount and currency by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2249
 - feat(frontend): snooze next-task suggestion for three hours by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2246
 - fix(deps): update dependency nodemailer to v10 [security] by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1829
 - feat(server): withdraw plan and cancel paypal sub after grace expiry by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2250
