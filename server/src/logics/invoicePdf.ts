@@ -1,14 +1,13 @@
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import fontkit from '@pdf-lib/fontkit';
-import { PDFDocument, rgb, type PDFFont, type PDFImage, type PDFPage } from 'pdf-lib';
+import { PDFDocument, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import Invoice from '../models/invoice.js';
 import { LOGO_PNG_BASE64 } from './invoiceLogo.js';
 
 /**
- * Rechnungs-PDF (#1955). Der Inhalt entsteht als reine Textzeilen ({@link invoicePdfLines}) und
- * wird 1:1 ins PDF gezeichnet ({@link buildInvoicePdf}) — der Test prüft den Inhalt über den
- * Zeilen-Seam, pdf-lib selbst kann keinen Text zurücklesen (Streams sind gezippt).
+ * Rechnungs-PDF (#1955) als Brief ({@link buildInvoicePdf}). Die Tests prüfen den Inhalt am echten PDF
+ * (Glyph-Helper `pdfContains` in `test/pdf.ts`), pdf-lib selbst kann keinen Text zurücklesen.
  */
 
 /** Betreiberangaben (Spiegel `frontend/src/lib/operator.ts`, serverseitig nötig für den PDF-Kopf). */
@@ -47,42 +46,6 @@ export const contractConfirmationLines = (label: string, priceCents: number, con
 ];
 
 /**
- * Die Textzeilen des Rechnungs-PDFs (AK2): Nummer, Datum, beide Parteien, Leistungsbeschreibung
- * (`service`, z. B. `Paket plus (monthly)`), Leistungszeitraum, Betrag und der `taxNote`
- * (§19 UStG, kein Steuerausweis); vorhandene `lineItems` (#2142) stehen als Positionen vor dem Betrag. Die USt-IdNr.-Zeile erscheint nur bei gesetztem
- * `operator.ustId`. Die `confirmation` (#2329) folgt nach dem Steuerhinweis.
- */
-export const invoicePdfLines = (
-	invoice: Invoice,
-	operator: InvoiceOperator,
-	recipient: InvoiceRecipient,
-	service: string,
-	confirmation: string[] = [],
-): string[] => [
-	// Gutschrift (#2303): eigener Titel und Datumsbezeichnung; der Bezug aufs Original steht in `service`.
-	`${invoice.get('creditForInvoiceId') != null ? 'Gutschrift' : 'Rechnung'} ${invoice.get('number') as string}`,
-	`${invoice.get('creditForInvoiceId') != null ? 'Gutschriftdatum' : 'Rechnungsdatum'}: ${isoDate(invoice.createdAt)}`,
-	'',
-	'Leistungserbringer:',
-	operator.name,
-	...operator.address,
-	operator.email,
-	...(operator.ustId ? [`USt-IdNr.: ${operator.ustId}`] : []),
-	'',
-	'Rechnungsempfänger:',
-	recipient.displayName,
-	recipient.email,
-	'',
-	`Leistung: ${service}`,
-	`Leistungszeitraum: ${isoDate(invoice.get('periodStart') as Date)} bis ${isoDate(invoice.get('periodEnd') as Date)}`,
-	...(invoice.lineItems ?? []).map((item) => `${item.label}: ${formatEuro(item.amountCents)}`),
-	`Betrag: ${formatEuro(invoice.get('amountCents') as number)} ${invoice.get('currency') as string}`,
-	'',
-	invoice.get('taxNote') as string,
-	...(confirmation.length > 0 ? ['', ...confirmation] : []),
-];
-
-/**
  * Unicode-Schrift für Namen in allen App-Sprachen (#2233) — die Standard-Helvetica kann nur WinAnsi.
  * Aufgelöst über das Paket statt über einen Pfad im Quellbaum: `tsc` kopiert keine TTF nach `dist`.
  */
@@ -116,11 +79,11 @@ const invoiceRows = (invoice: Invoice, service: string): { label: string; amount
 		: [{ label: service, amountCents: invoice.get('amountCents') as number }];
 
 /**
- * Zeichnet {@link invoicePdfLines} als Brief (A4, eingebettete Unicode-Schrift): Logo und
+ * Zeichnet die Rechnung als Brief (A4, eingebettete Unicode-Schrift): Logo und
  * Absenderblock oben rechts, Empfänger links, Titel mit Datum, Positionstabelle, Gesamtsumme mit
  * §19-Hinweis, Vertragsbestätigung, Fußzeile mit Seitenzahl. Liefert die Bytes, die als Anhang der
- * Rechnungsmail versendet und an der Rechnung gespeichert werden. Der Inhalt stammt aus denselben
- * Daten wie {@link invoicePdfLines} (Test-Seam); hier wird nur angeordnet.
+ * Rechnungsmail versendet und an der Rechnung gespeichert werden. Die USt-IdNr. erscheint nur bei
+ * gesetztem `operator.ustId`; die `confirmation` (#2329) folgt nach dem Steuerhinweis.
  */
 export const buildInvoicePdf = async (
 	invoice: Invoice,
@@ -175,20 +138,25 @@ export const buildInvoicePdf = async (
 		for (const word of printable(value, glyphs).split(' ')) {
 			const next = line ? `${line} ${word}` : word;
 			if (line && font.widthOfTextAtSize(next, size) > maxWidth) {
+				ensure(lead);
 				text(line, x, y, { size, font });
 				y -= lead;
 				line = word;
 			} else line = next;
 		}
+		ensure(lead);
 		text(line, x, y, { size, font });
 		y -= lead;
 	};
+	/** Wiederholt den Tabellenkopf nach einem Seitenumbruch; nur während der Tabelle gesetzt. */
+	let tableHeader: (() => void) | undefined;
 	/** Neue Seite, wenn `need` Punkte über der Fußzeile nicht mehr frei sind. */
 	const ensure = (need: number): void => {
 		if (y - need > FOOTER_TOP) return;
 		page = doc.addPage([PAGE.width, PAGE.height]);
 		pages.push(page);
 		y = PAGE.height - 72;
+		tableHeader?.();
 	};
 
 	// Kopf: Logo oben rechts, darunter Absenderblock (Name fett, Kontakt grau).
@@ -227,7 +195,7 @@ export const buildInvoicePdf = async (
 	paragraph(
 		isCredit
 			? 'hiermit erhalten Sie die folgende Gutschrift.'
-			: 'vielen Dank für Ihre Bestellung. Hiermit stelle ich Ihnen die folgende Leistung in Rechnung.',
+			: 'vielen Dank für Ihre Bestellung. Hiermit stellen wir Ihnen die folgende Leistung in Rechnung.',
 		LEFT,
 		RIGHT - LEFT,
 		10.5,
@@ -244,12 +212,12 @@ export const buildInvoicePdf = async (
 		y -= 18;
 	};
 	header();
+	tableHeader = header;
 	invoiceRows(invoice, service).forEach((row, index) => {
-		ensure(40);
+		ensure(60);
 		text(`${index + 1}.`, COLUMNS.pos + 14, y, { right: true });
 		const rowTop = y;
 		const labelWidth = COLUMNS.qty - 50 - COLUMNS.label;
-		y = rowTop;
 		paragraph(row.label, COLUMNS.label, labelWidth, 9, bold, 12);
 		text('1', COLUMNS.qty, rowTop, { right: true });
 		text(money(row.amountCents, currency), COLUMNS.unit, rowTop, { right: true });
@@ -257,6 +225,7 @@ export const buildInvoicePdf = async (
 		rule((y += 3) - 8, 0.3);
 		y -= 22;
 	});
+	tableHeader = undefined;
 
 	// Summe fett; statt MwSt-Zeile der §19-Hinweis.
 	ensure(90);
@@ -284,14 +253,14 @@ export const buildInvoicePdf = async (
 	ensure(70);
 	paragraph('Mit freundlichen Grüßen', LEFT, RIGHT - LEFT, 10.5);
 	y -= 14;
-	paragraph('Martin Oppitz', LEFT, RIGHT - LEFT, 10.5);
+	paragraph(operator.name, LEFT, RIGHT - LEFT, 10.5);
 
 	// Fußzeile je Seite: Logo klein, Kontaktspalten, Seitenzahl.
 	pages.forEach((p, index) => {
 		page = p;
 		rule(FOOTER_TOP - 18);
 		const small = 20;
-		page.drawImage(logo as PDFImage, {
+		page.drawImage(logo, {
 			x: LEFT,
 			y: FOOTER_TOP - 18 + 8,
 			width: (small * logo.width) / logo.height,
