@@ -256,6 +256,21 @@ describe('PlansSection (#1529 AK3: KolTableStateful-Matrix mit gesetzten Spalten
 		);
 	});
 
+	it('zeigt die Zeile „Synchronisation über alle Geräte“ für alle Pakete (#2397 AK3)', async () => {
+		getPlansCatalog.mockResolvedValue({
+			features: [{ feature: 'sync', allowedPlans: ['free', 'plus', 'pro'] }],
+			prices: CATALOG_CENTS.prices,
+		});
+		render(createElement(PlansSection));
+
+		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
+
+		const titles = Array.from(document.querySelectorAll('tbody tr[data-row-kind="feature"] th')).map(
+			(cell) => cell.textContent,
+		);
+		expect(titles).toEqual(['Synchronisation über alle Geräte']);
+	});
+
 	it('markiert die Spalte des eigenen Pakets', async () => {
 		getPlansCatalog.mockResolvedValue(CATALOG_CENTS);
 		render(createElement(PlansSection));
