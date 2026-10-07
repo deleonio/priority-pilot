@@ -75,7 +75,7 @@ describe('googlePlay (#1685)', () => {
 		});
 		assert.equal(
 			calls[0].url,
-			'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/de.balamentum.app/purchases/subscriptionsv2/tokens/token-1',
+			'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/balamentum.app/purchases/subscriptionsv2/tokens/token-1',
 		);
 	});
 
@@ -129,7 +129,7 @@ describe('googlePlay (#1685)', () => {
 
 		assert.deepEqual(calls, [
 			{
-				url: 'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/de.balamentum.app/purchases/subscriptions/pro/tokens/token-1:acknowledge',
+				url: 'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/balamentum.app/purchases/subscriptions/pro/tokens/token-1:acknowledge',
 				method: 'POST',
 			},
 		]);

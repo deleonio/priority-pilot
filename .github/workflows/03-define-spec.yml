@@ -341,6 +341,7 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
           GUARD_SKIP: ${{ steps.doppel-guard.outputs.skip }}
         run: |
+          ALREADY_CONTINUED="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
           verdict=""
           if [ -f /tmp/claude-output.log ]; then
             # Erster bekannter Token gewinnt, längstes zuerst (spec-partial/spec-ready vor ready) —
@@ -363,6 +364,7 @@ jobs:
             --issue "$ISSUE" --draft any --out first)"
           ARTIFACTS_OK="false"
           if [ -n "$SPEC_PR" ] && [ "$SPEC_PR" != "null" ]; then
+            bash .github/scripts/pr-ensure-closes.sh --repo "$GITHUB_REPOSITORY" --pr "$SPEC_PR" --issue "$ISSUE"
             # Prinzip: Tests nur für Anwendungscode (ADR 0001 + spec.md-NICHT-ANWENDUNGSCODE-Carve-out).
             # Spec-PR gilt als artefakt-OK, wenn er einen App-Test enthält ODER gar keinen
             # Anwendungscode berührt (reine Doku/Workflow/Config → keine Test-Pflicht). Ein
@@ -393,6 +395,9 @@ jobs:
           else
             if [ "$ARTIFACTS_OK" = "true" ]; then
               final="ready"
+            elif [ "${HARD_DEADLINE_HIT:-false}" = "true" ]; then
+              # Frist-Abbruch (#2097) mit gesichertem WIP-Stand = Soft-Abort wie in 04-implement (#2162).
+              final="soft-abort"
             else
               echo "::error title=❌ Spec fehlgeschlagen::Kein VERDICT und keine Artefakte."
               exit 1
@@ -410,7 +415,20 @@ jobs:
           # (`label-final`): Spec serialisiert nicht mehr mit Implement in einer Gruppe, die
           # Folgephase darf erst nach abgeschlossener Nachbereitung getriggert werden.
           if [ "$final" = "ready" ]; then
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:continued" 2>/dev/null || true
             echo "final-label=ai:needs-impl" >> "$GITHUB_OUTPUT"
+          elif [ "$final" = "soft-abort" ]; then
+            if [ "$ALREADY_CONTINUED" = "true" ]; then
+              # Obergrenze (2. Soft-Abort): reines Info-Signal an den Menschen, keine Neu-Armierung.
+              gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" --color B60205 2>/dev/null || true
+              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue" 2>/dev/null || true
+              echo "::warning::Obergrenze erreicht (2. Soft-Abort) – ai:to-big-issue gesetzt"
+            else
+              gh label create "ai:continued" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
+              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:continued"
+              echo "final-label=ai:needs-spec" >> "$GITHUB_OUTPUT"
+              echo "::notice::Soft-Abort – ai:continued gesetzt, ai:needs-spec retriggert"
+            fi
           else
             echo "final-label=ai:needs-spec" >> "$GITHUB_OUTPUT"
           fi

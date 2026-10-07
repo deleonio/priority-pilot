@@ -123,4 +123,14 @@ describe('Issue #1136 — Root-Auth-Gate', () => {
 		expect(window.location.pathname).toBe('/');
 		expect(window.location.search).toBe('?error=access_denied');
 	});
+	it('AC-2335-1 (AK1): /bahn rendert keinen Routenplaner mehr, sondern den regulären Einstieg (#2335)', async () => {
+		// /auth/me antwortet nie — der reguläre Einstieg zeigt dann den Lade-Spinner des Auth-Gates.
+		global.fetch = vi.fn(() => new Promise(() => {})) as unknown as typeof fetch;
+		window.history.replaceState(null, '', '/bahn');
+
+		render(<Root />);
+
+		expect(screen.queryByRole('heading', { name: /Bahn-Routenplaner/i })).toBeNull();
+		expect(await screen.findByTestId('kol-spin')).toBeTruthy();
+	});
 });

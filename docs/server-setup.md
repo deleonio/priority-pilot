@@ -240,9 +240,6 @@ priority-pilot.example.de {
         uri strip_prefix /api/v1
         reverse_proxy localhost:3000
     }
-    handle /api/transit/* {
-        reverse_proxy localhost:3000
-    }
 
     # Auth-Routen: ohne Präfix-Strip ans Backend weiterleiten (OAuth-Login-Flow).
     handle /auth/* {
@@ -269,7 +266,7 @@ priority-pilot.example.de {
 
     # Alte App-Pfade von vor dem Umzug nach /app/ (Lesezeichen, Einladungslinks,
     # PAYPAL_RETURN_URL) dauerhaft auf die App umleiten.
-    @legacyApp path /settings /settings/* /aufgaben /serien /wald /hilfe /login /bahn /gruppen/* /tasks/*
+    @legacyApp path /settings /settings/* /aufgaben /serien /wald /hilfe /login /gruppen/* /tasks/*
     handle @legacyApp {
         redir * /app{uri} 308
     }

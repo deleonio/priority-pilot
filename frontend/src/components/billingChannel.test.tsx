@@ -64,7 +64,7 @@ describe('Abo über einen anderen Anbieter (#1695)', () => {
 		expect(screen.getByRole('alert')).toHaveTextContent('Abo aktiv, verwaltet über Google Play');
 		expect(screen.getByRole('link', { name: 'In Google Play verwalten' })).toHaveAttribute(
 			'href',
-			'https://play.google.com/store/account/subscriptions?package=de.balamentum.app',
+			'https://play.google.com/store/account/subscriptions?package=balamentum.app',
 		);
 	});
 

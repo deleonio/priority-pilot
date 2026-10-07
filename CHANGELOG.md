@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.17 - 2026-10-07
 
-_Enthält v0.17.0 – v0.17.38._
+_Enthält v0.17.0 – v0.17.42._
 
 ### 🎉 New Features
 
@@ -14,6 +14,7 @@ _Enthält v0.17.0 – v0.17.38._
 - feat(server): send waitlist activation mail with login link by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2310
 - feat(server): send emails for payment failure and subscription end by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2320
 - feat(ci): add ai:hold-merge label to block auto-merge by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2333
+- feat(admin): delete foreign user account from admin user list by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2331
 
 ### 🐞 Bug Fixes
 
@@ -33,6 +34,8 @@ _Enthält v0.17.0 – v0.17.38._
 - test(e2e): fix shard isolation in #2221 and #763 specs by @deleonio in https://github.com/deleonio/priority-pilot/pull/2290
 - test: cover invitation auto-allow of unknown emails (#2223) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2288
 - test(server): freeze time in #2143 proration AK3 test (#2279) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2297
+- fix(ci): arm spec-phase soft-abort on hard deadline by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2337
+- chore(native): rename android package id to balamentum.app by @deleonio in https://github.com/deleonio/priority-pilot/pull/2334
 
 ### Other Changes
 
@@ -63,6 +66,8 @@ _Enthält v0.17.0 – v0.17.38._
 - feat(server): add 312k BGB cancellation button and confirmation mail by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2319
 - feat(server): add cancellation without login via website by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2321
 - fix(frontend): import dark wordmark from src instead of public by @deleonio in https://github.com/deleonio/priority-pilot/pull/2325
+- feat(frontend): remove rail planner page and transit proxy by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2339
+- fix(ci): PR ohne Closing-Keyword finden und Closes ergänzen (#2163) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2343
 
 ## v0.16 - 2026-10-06
 
@@ -316,7 +321,6 @@ _Enthält v0.11.0 – v0.11.31._
 
 - feat(server): allow editing completed tasks and recalculate score (#1821) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1886
 - docs(ux): add rules for collapsible sections and nesting (#1893) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1907
-- chore: rewrite website privacy policy per processing (#1892) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1916
 - chore: rewrite website privacy policy per processing (#1892) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1916
 - feat(frontend): show amount due before confirming plan change by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1925
 - feat(frontend): merge access token tab into ai settings tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1921

@@ -7,7 +7,8 @@
 # (PR #585: Spec-Crash "VERDICT ready, aber kein Spec-PR mit Tests").
 #
 # Strategie: primär closingIssuesReferences; fällt die leer aus, wird im PR-Body nach
-# einem CLOSING-KEYWORD samt Nummer gesucht ("Closes 123", Raute optional).
+# einem CLOSING-KEYWORD samt Nummer gesucht ("Closes 123", Raute optional); zuletzt
+# über den exakten Harness-Branch "ai/harness/<N>" (#2163).
 #
 # ⚠️ NICHT nach der blossen Nummer suchen. Der frühere Fallback nutzte
 # `gh pr list --search "NNN in:body"` — eine Volltextsuche, die jeden offenen PR traf,
@@ -69,7 +70,7 @@ FMT="${FMT/DSEL/$DSEL}"
 # am 2026-08-20, eine Sekunde auseinander, mitsamt Review-Stand). Nebenbei entfällt die
 # Abhängigkeit vom Suchindex, der dem Ist-Zustand um Sekunden hinterherhängt.
 ALL="$(gh pr list --repo "$REPO" --state open --limit 100 \
-  --json number,isDraft,body,closingIssuesReferences 2>/dev/null || echo '[]')"
+  --json number,isDraft,body,headRefName,closingIssuesReferences 2>/dev/null || echo '[]')"
 [ -n "$ALL" ] || ALL='[]'
 
 pick() {
@@ -95,6 +96,18 @@ fi
 if [ "$trigger" = "1" ]; then
   # (?i) = Groß-/Kleinschreibung egal; (?![0-9]) verhindert, dass 912 auch 9123 trifft.
   res="$(pick 'select((.body // "") | test("(?i)(clos(e|es|ed)|fix(es|ed)?|resolv(e|es|ed))\\s*:?\\s*#?" + $n + "(?![0-9])"))')"
+fi
+
+# 3) Fallback: Harness-Branch. Spec-/Implement-Agent lassen das Closing-Keyword manchmal
+#    ganz weg (#2014, PR #2161) — der PR heisst dann trotzdem exakt "ai/harness/<N>"
+#    (03-define-spec.yml). Exakter Branchvergleich, NIE Nummernsuche (PR #921/#924).
+if [ "$OUT" = "count" ]; then
+  { [ -z "$res" ] || [ "$res" = "0" ]; } && trigger=1 || trigger=0
+else
+  [ -z "$res" ] && trigger=1 || trigger=0
+fi
+if [ "$trigger" = "1" ]; then
+  res="$(pick 'select(.headRefName == ("ai/harness/" + $n))')"
 fi
 
 # count → 0 statt leer (sonst crasht [ -gt 0 ] im Caller)

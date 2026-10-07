@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { KolSpin } from '@public-ui/react-v19';
 import { App } from './App';
-import { BahnPage } from './components/BahnPage';
 import { ConsentStep } from './components/ConsentStep';
 import { GroupJoinPage } from './components/GroupJoinPage';
 import { LoginPage } from './components/LoginPage';
@@ -64,7 +63,7 @@ const consumeMagicLink = async (): Promise<void> => {
 
 /**
  * Authentifizierter Einstieg: prüft die Session und rendert je nach Zustand Login, App oder einen
- * Lade-/Fehlerhinweis. Bewusst als eigene Komponente ausgelagert, damit die öffentliche `/bahn`-Route
+ * Lade-/Fehlerhinweis. Bewusst als eigene Komponente ausgelagert, damit die öffentliche Beitrittsroute
  * (siehe `Root`) den kompletten Auth-Flow inklusive seiner Hooks umgeht — ohne bedingte Hook-Aufrufe.
  *
  * Issue #396 PR B — Stiller Google-Login: Ist keine App-Session vorhanden, wird EINMALIG versucht, den
@@ -174,17 +173,13 @@ const AuthenticatedApp = () => {
 };
 
 /**
- * Wurzel-Komponente mit der URL-Weiche für öffentliche Routen. Der öffentliche Bahn-Routenplaner
- * unter `/bahn` (#225) und die Beitrittsseite für Einladungslinks unter `/gruppen/beitreten` (#1226)
- * werden VOR jedem Auth-Check gerendert — ohne Login-Flow und ohne Redirect. Alle übrigen Pfade
+ * Wurzel-Komponente mit der URL-Weiche für öffentliche Routen. Die Beitrittsseite für
+ * Einladungslinks unter `/gruppen/beitreten` (#1226) wird VOR jedem Auth-Check gerendert — ohne Login-Flow und ohne Redirect. Alle übrigen Pfade
  * laufen durch den authentifizierten Einstieg (`AuthenticatedApp`).
  */
 export const Root = () => {
 	// Die App liegt unter `/app/` (ADR 0015) — die öffentlichen Routen relativ zur Basis prüfen.
 	const path = window.location.pathname.slice(import.meta.env.BASE_URL.length - 1);
-	if (path === '/bahn') {
-		return <BahnPage />;
-	}
 	if (path === '/gruppen/beitreten') {
 		return <GroupJoinPage />;
 	}

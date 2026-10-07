@@ -34,7 +34,6 @@ Die Kombination ist der Unterschied: Priorität als **berechneter Wertbeitrag au
 - Zwei Betriebsarten: Cloud (dedizierter Linux-Server, Caddy TLS, PM2, Deploy via GitHub Actions) und Local (Entwicklung/Selbsthosting); nightly SQLite-Backup via `maintenance.sh`.
 - UI durchgehend Deutsch, Du-Form.
 - Mobile Einhandbedienung ist der Leitfall: Referenz-Viewport 375px.
-- `/bahn`: öffentlicher Bahnroutenplaner ohne Login (#225) — eigenständiges Mini-Tool auf derselben Domain, kein Teil der Priorisierungs-Workflows.
 
 ## Capabilities and Constraints
 

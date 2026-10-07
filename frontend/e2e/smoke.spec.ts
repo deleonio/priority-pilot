@@ -27,3 +27,11 @@ test('App lädt gegen das echte Backend und zeigt den leeren Anfangszustand', as
 	await expect(page.getByRole('heading', { name: 'Was beschäftigt dich gerade?' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Ersten Task anlegen' })).toBeVisible();
 });
+
+// #2335 AK2: Der entfernte Bahn-Planer unter /app/bahn führt auf das Dashboard (kein Routenplaner, kein Fehler).
+test('/app/bahn führt auf das Dashboard statt auf einen Routenplaner (#2335)', async ({ page }) => {
+	await page.goto('/app/bahn');
+
+	await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Bahn-Routenplaner' })).toHaveCount(0);
+});

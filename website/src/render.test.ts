@@ -483,13 +483,13 @@ describe('robots und sitemap', () => {
 
 describe('asset links', () => {
 	it('enthält Package-ID und alle Fingerprints', () => {
-		const json = renderAssetLinks('de.balamentum.app', 'AA:01, BB:02\nCC:03');
+		const json = renderAssetLinks('balamentum.app', 'AA:01, BB:02\nCC:03');
 		expect(JSON.parse(json ?? '')).toEqual([
 			{
 				relation: ['delegate_permission/common.handle_all_urls'],
 				target: {
 					namespace: 'android_app',
-					package_name: 'de.balamentum.app',
+					package_name: 'balamentum.app',
 					sha256_cert_fingerprints: ['AA:01', 'BB:02', 'CC:03'],
 				},
 			},
@@ -498,7 +498,7 @@ describe('asset links', () => {
 
 	it('entfällt ohne Package-ID oder Fingerprint', () => {
 		expect(renderAssetLinks('', 'AA:01')).toBeNull();
-		expect(renderAssetLinks('de.balamentum.app', ' ')).toBeNull();
+		expect(renderAssetLinks('balamentum.app', ' ')).toBeNull();
 	});
 });
 

@@ -65,7 +65,7 @@ export const readBearerToken = (req: Request): string | null => {
  * Ein ungültiger oder zurückgezogener Token verwirft die mitgeschickte Cookie-Session (ein kaputter
  * Token darf nicht still als fremder Nutzer weiterlaufen), lässt den Request aber weiterlaufen: die
  * Middleware hängt global vor **allen** Routen, auch vor den bewusst öffentlichen (`/health`,
- * `/auth/*`, `/api/transit`, Invite-Links) — ein sofortiges 401 machte die allein wegen eines
+ * `/auth/*`, Invite-Links) — ein sofortiges 401 machte die allein wegen eines
  * kaputten Headers unerreichbar. Geschützte Routen fallen über `requireAuth` ohnehin auf 401 (AK7).
  * Ohne Bearer-Header bleibt der bestehende Session-Weg unangetastet.
  */
