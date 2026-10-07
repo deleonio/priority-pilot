@@ -42,7 +42,9 @@ Folgephase (der Motor der Kette) plus ein Done-Label, wo Logik es liest: `ai:ana
 
 **Info-Labels ohne Trigger:** `ai:needs-human` (KI stoppt; PR/Issue-Kommentar mit **Warum** und
 **was der Mensch konkret beitragen/entscheiden soll**), `ai:to-big-issue` (Aufgabe zu groß — reines
-Signal, löst bewusst nichts automatisch aus), `ai:continued` (Soft-Abort-Marker).
+Signal, löst bewusst nichts automatisch aus), `ai:continued` (Soft-Abort-Marker), `ai:hold-merge`
+(Mensch setzt es am Issue oder PR; nur das Merge-Gate liest es und merged nicht, bis es entfernt ist;
+nicht in `MANAGED`, keine Phase räumt es ab).
 
 **Entfallen:** `ai:spec-ready`, `ux:ready`, `ai:ready`, `ai:needs-changes`, `ai:ready-to-merge`,
 `ai:analyzed` (US-Schreibweise), `ux:failed` (aufgegangen in `ai:needs-human`).
