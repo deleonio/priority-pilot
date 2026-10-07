@@ -3506,7 +3506,7 @@ describe('MCP-Werkzeuge series_list/series_instantiate (#2360)', () => {
 		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
 		const tokenA = await createToken(cookieA);
 		const tokenB = await createToken(cookieB);
-		const foreign = await createSeriesViaApi(cookieB, 'Fremde Serie', true);
+		const foreign = await createSeriesViaApi(cookieB, 'Fremde Serie', false);
 
 		const foreignCall = await mcpCall<TaskRow>(tokenA, 'series_instantiate', { id: foreign.id });
 		assert.ok(foreignCall.error, 'fremde Serie muss abgelehnt werden');
