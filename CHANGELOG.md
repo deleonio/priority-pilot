@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.17 - 2026-10-07
 
-_Enthält v0.17.0 – v0.17.40._
+_Enthält v0.17.0 – v0.17.41._
 
 ### 🎉 New Features
 
@@ -35,6 +35,7 @@ _Enthält v0.17.0 – v0.17.40._
 - test: cover invitation auto-allow of unknown emails (#2223) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2288
 - test(server): freeze time in #2143 proration AK3 test (#2279) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2297
 - fix(ci): arm spec-phase soft-abort on hard deadline by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2337
+- chore(native): rename android package id to balamentum.app by @deleonio in https://github.com/deleonio/priority-pilot/pull/2334
 
 ### Other Changes
 
@@ -65,6 +66,7 @@ _Enthält v0.17.0 – v0.17.40._
 - feat(server): add 312k BGB cancellation button and confirmation mail by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2319
 - feat(server): add cancellation without login via website by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2321
 - fix(frontend): import dark wordmark from src instead of public by @deleonio in https://github.com/deleonio/priority-pilot/pull/2325
+- feat(frontend): remove rail planner page and transit proxy by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2339
 
 ## v0.16 - 2026-10-06
 
