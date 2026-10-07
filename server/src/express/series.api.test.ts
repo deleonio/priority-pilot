@@ -267,8 +267,9 @@ describe('Series API', () => {
 				seriesOccurrence: new Date(futureDate(2)),
 			});
 
-			const tasks = (await (await get('/tasks')).json()) as Array<{ title: string }>;
-			const titles = tasks.map((task) => task.title).sort();
+			// Nur `/forest` kollabiert Serien auf einen Repräsentanten (`GET /tasks` liefert alle Instanzen).
+			const forest = (await (await get('/forest')).json()) as Array<{ title: string }>;
+			const titles = forest.map((task) => task.title).sort();
 			assert.deepEqual(titles, ['Mit 1', 'Ohne 1', 'Ohne 2']);
 		});
 	});
