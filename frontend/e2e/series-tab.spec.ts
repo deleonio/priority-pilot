@@ -46,6 +46,7 @@ test.describe('Balamentum — #335: Serien-Verwaltung als eigener Tab', () => {
 				priority: 3,
 				estimatedEffort: 0.5,
 				active: true,
+				autoCreate: false,
 				...payload,
 			},
 		});

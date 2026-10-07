@@ -288,3 +288,4 @@ Konflikte, die er verhindern soll.
   (#2236). Parallele managed Transaktionen kollidieren auf derselben einen Verbindung ebenfalls →
   In-Prozess-Warteschlange (Muster `enqueueCreation`, invoices.ts).
 - 2026-10-07 · Vitest 4 — `beforeEach(() => fn.mockReset())` (Ausdrucks-Body) gibt den Mock zurück; Vitest 4 ruft eine aus beforeEach zurückgegebene Funktion als Teardown auf → der Mock läuft nach dem Test erneut, ein `mockRejectedValue` lässt den Test mit dem Mock-Fehler scheitern, obwohl Komponente und Assertions korrekt sind (#1990) → Hooks mit Block-Body schreiben (`beforeEach(() => { fn.mockReset(); })`).
+- 2026-10-07 · Git/Shallow-Runner — der Fixup-Worktree ist shallow (depth 1): `git fetch origin main` holt nur den Tip, `git merge-base` schlägt fehl (sieht aus wie "unrelated histories"), Merge von main in den Harness-Branch wird verweigert → vor dem Merge `git fetch origin main --deepen=300`, dann funktioniert merge-base und der Merge sauber.

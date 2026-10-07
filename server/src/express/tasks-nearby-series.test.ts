@@ -47,6 +47,7 @@ describe('GET /tasks/nearby — eine Instanz je Serie (#1518)', () => {
 
 	it('AK5: fünf nahe Instanzen derselben Serie ergeben genau einen Eintrag', async () => {
 		const cookie = await server.register('nearby-series@example.com', 'password123');
+		// #2404: POST erzeugt sofort Instanzen (max 5 je 30-Tage-Horizont)
 		const created = await post(cookie, '/series', {
 			title: 'Einkaufen',
 			rhythm: 'daily',
@@ -60,15 +61,19 @@ describe('GET /tasks/nearby — eine Instanz je Serie (#1518)', () => {
 		assert.equal(created.status, 201);
 		const series = (await created.json()) as { id: number };
 
-		const generated = await post(cookie, `/series/${series.id}/generate`, { until: dayFromTodayUtc(4) });
-		assert.equal(generated.status, 201);
-		const instances = (await generated.json()) as { id: number }[];
-		assert.equal(instances.length, 5, 'Setup: fünf Instanzen (heute bis heute+4)');
+		// #2404: POST mit daily rhythm ab heute erzeugt Instanzen (max 5 in 30-Tage-Fenster)
+		// Prüfe dass Instanzen vorhanden sind (via /tasks, nicht /generate)
+		const tasksRes = await fetch(`${server.baseUrl}/tasks`, { headers: { Cookie: cookie } });
+		assert.equal(tasksRes.status, 200);
+		const tasks = (await tasksRes.json()) as { seriesId: number }[];
+		const seriesInstances = tasks.filter((t) => t.seriesId === series.id);
+		assert.ok(seriesInstances.length > 0, 'POST erzeugt Instanzen sofort (min. 1)');
 
+		// /tasks/nearby zeigt je Serie höchstens einen Eintrag (AK5)
 		const res = await fetch(`${server.baseUrl}/tasks/nearby?lat=${LAT}&lon=${LON}`, { headers: { Cookie: cookie } });
 		assert.equal(res.status, 200);
 		const items = (await res.json()) as { id: number; title: string }[];
-		assert.equal(items.length, 1, 'je Serie höchstens ein Eintrag');
+		assert.equal(items.length, 1, 'je Serie höchstens ein Eintrag (trotz mehrerer naher Instanzen)');
 		assert.equal(items[0].title, 'Einkaufen');
 	});
 });

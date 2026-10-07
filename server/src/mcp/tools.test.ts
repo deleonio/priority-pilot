@@ -3176,6 +3176,36 @@ describe('MCP-Werkzeug task_create/task_update: Serien (#1938)', () => {
 		assert.ok(instances.length >= 1, 'die fälligen Instanzen müssen mit der seriesId der Serie erzeugt werden');
 	});
 
+	it('#2404 AK4: task_create mit series ohne Priorität/Aufwand setzt genau einen /series-Aufruf ab und legt Serie samt Instanzen an', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const originalFetch = globalThis.fetch;
+		const seriesCalls: string[] = [];
+		globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+			const url = String(input instanceof Request ? input.url : input);
+			if (new URL(url).pathname.startsWith('/series')) {
+				seriesCalls.push(`${init?.method ?? 'GET'} ${new URL(url).pathname}`);
+			}
+			return originalFetch(input, init);
+		}) as typeof fetch;
+		try {
+			const created = await mcpCall(token, 'task_create', {
+				title: 'Täglich gießen',
+				series: { rhythm: 'daily', startDate: today() },
+			});
+			assert.equal(created.error, undefined, `task_create mit series sollte gelingen: ${created.error?.message}`);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+
+		assert.deepEqual(seriesCalls, ['POST /series'], 'genau ein Aufruf, kein /series/:id/generate');
+		const series = await listSeries(cookie);
+		assert.equal(series.length, 1);
+		const instances = (await listTasks(token)).filter((t) => t.seriesId === series[0].id);
+		assert.ok(instances.length >= 1, 'die Instanzen entstehen weiterhin');
+	});
+
 	it('AK2: task_create ohne series legt eine Einzelaufgabe ohne seriesId an, keine Serie', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
@@ -3476,7 +3506,7 @@ describe('MCP-Werkzeuge series_list/series_instantiate (#2360)', () => {
 		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
 		const tokenA = await createToken(cookieA);
 		const tokenB = await createToken(cookieB);
-		const foreign = await createSeriesViaApi(cookieB, 'Fremde Serie', true);
+		const foreign = await createSeriesViaApi(cookieB, 'Fremde Serie', false);
 
 		const foreignCall = await mcpCall<TaskRow>(tokenA, 'series_instantiate', { id: foreign.id });
 		assert.ok(foreignCall.error, 'fremde Serie muss abgelehnt werden');

@@ -204,15 +204,23 @@ describe('Gruppenauflösung räumt Einladungen ab und stillagt Cross-Member-Seri
 		const bobId = await userIdOf(BOB);
 		const seriesId = await createCrossSeries(await server.login(ALICE), BOB, 'Bestands-Routine');
 
-		const createdBefore = await generateAll(await server.login(BOB));
-		assert.ok(createdBefore > 0, 'Setup: vor der Entfernung muss die Serie Instanzen erzeugen');
+		// #2404: POST erzeugt sofort Instanzen; check dass sie vorhanden sind
+		let tasksRes = await fetch(`${server.baseUrl}/tasks`, { headers: { Cookie: await server.login(BOB) } });
+		assert.equal(tasksRes.status, 200);
+		let tasks = (await tasksRes.json()) as { seriesId: number | null }[];
+		assert.ok(
+			tasks.some((task) => task.seriesId === seriesId),
+			'Setup: POST erzeugt Instanzen sofort',
+		);
+		const tasksBeforeRemoval = tasks.length;
 
 		const res = await removeMember(await server.login(ALICE), groupId, bobId);
 		assert.equal(res.status, 204, 'Setup: Entfernung muss 204 liefern');
 
-		const tasksRes = await fetch(`${server.baseUrl}/tasks`, { headers: { Cookie: await server.login(BOB) } });
+		tasksRes = await fetch(`${server.baseUrl}/tasks`, { headers: { Cookie: await server.login(BOB) } });
 		assert.equal(tasksRes.status, 200);
-		const tasks = (await tasksRes.json()) as { seriesId: number | null }[];
+		tasks = (await tasksRes.json()) as { seriesId: number | null }[];
+		assert.equal(tasks.length, tasksBeforeRemoval, 'AK4: Bestands-Aufgaben bleiben unverändert');
 		assert.ok(
 			tasks.some((task) => task.seriesId === seriesId),
 			'AK4: Bestands-Aufgabe bleibt unverändert Eigentum des Empfängers',
