@@ -38,9 +38,9 @@ Ohne `SITE_URL` bricht `sync` mit einer Meldung ab. Für den Emulator: `npx cap 
 Der Workflow `Android App-Bundle` (`.github/workflows/android.yml`) baut
 `app-release.aab`, signiert mit dem Upload-Schlüssel, und legt es als Artefakt `balamentum-aab` ab.
 Nach jedem täglichen Minor-Release startet `Daily Version` ihn auf dem neuen Tag `vX.Y.0`; dann lädt er
-das AAB zusätzlich als Entwurf mit dem Release-Namen `vX.Y.0` in den internen Track der Play Console.
-Ausgerollt wird nichts automatisch: Entwurf in der Console prüfen und veröffentlichen oder das Bundle
-beim Release eines anderen Tracks über „Aus Bibliothek hinzufügen“ wählen. Manuell gestartet von
+das AAB zusätzlich mit dem Release-Namen `vX.Y.0` in den internen Test-Track der Play Console und
+rollt es dort an die internen Tester aus. Geschlossener Test und Produktion bleiben Handarbeit: das
+Release in der Console hochstufen oder das Bundle über „Aus Bibliothek hinzufügen“ wählen. Manuell gestartet von
 `main` lädt der Workflow nichts hoch, auf einem Tag schon.
 Zusätzlich legt er die mit demselben Upload-Schlüssel signierte APK als Artefakt `balamentum-apk` ab
 (`adb install app-release.apk`). Da der Fingerabdruck des Upload-Schlüssels in `ANDROID_CERT_SHA256`
@@ -72,8 +72,10 @@ Fingerabdruck des Upload-Schlüssels für selbst installierte Builds, durch Komm
 
 Für den Play-Upload einmalig: in Google Cloud einen Service-Account mit JSON-Schlüssel anlegen
 (Inhalt → `PLAY_SERVICE_ACCOUNT_JSON`), ihn in der Play Console unter „Nutzer und Berechtigungen“
-für `balamentum.app` mit dem Recht „Releases verwalten“ einladen. Das allererste AAB muss Google
-zufolge per Hand hochgeladen werden; erst danach nimmt die API Uploads an.
+für `balamentum.app` mit den Rechten „Apps in Test-Tracks veröffentlichen“ und „App-Entwürfe
+bearbeiten und löschen“ einladen. Solange die App ein App-Entwurf ist (noch nie ein Release
+ausgerollt), nimmt die API nur Entwürfe an („Only releases with status draft may be created on draft
+app“): das erste interne Release einmal von Hand ausrollen.
 
 ## Anmeldung in der App
 

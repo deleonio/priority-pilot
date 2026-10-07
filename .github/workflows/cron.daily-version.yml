@@ -29,7 +29,7 @@ name: Daily Version
 # push aus. Die neue Version steckt aber erst nach einem Build im Frontend-Bundle
 # (Footer, __APP_VERSION__) — daher stoesst der letzte Schritt deploy.yml per
 # workflow_dispatch an (Redeploy ohne erneuten Patch-Bump). Danach baut android.yml auf dem
-# neuen Tag das AAB und legt es als Entwurf in den internen Track der Play Console.
+# neuen Tag das AAB und rollt es im internen Test-Track der Play Console aus.
 
 on:
   schedule:
