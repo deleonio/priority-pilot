@@ -30,7 +30,7 @@ describe('findFreeSlots (#1990 AK1)', () => {
 	it('Lücke genau mindestens minMinutes zählt, eine Minute weniger nicht', () => {
 		const events = [ev(at(9, 30), at(21, 30))];
 		assert.deepEqual(range(findFreeSlots({ events, now, minMinutes: 30 })), ['9:00-9:30', '21:30-22:00']);
-		assert.deepEqual(range(findFreeSlots({ events: [ev(at(9, 31), at(21, 29))], now, minMinutes: 30 })), []);
+		assert.deepEqual(range(findFreeSlots({ events: [ev(at(9, 29), at(21, 31))], now, minMinutes: 30 })), []);
 	});
 
 	it('ganztägige Termine blockieren nicht', () => {
@@ -66,7 +66,7 @@ describe('fitTasksToSlots (#1990 AK2)', () => {
 	const t = (id: number, estimatedEffort: number) => ({ id, title: `T${id}`, estimatedEffort });
 
 	it('nimmt nur Aufgaben, die in die Lücke passen, und behält die Score-Reihenfolge', () => {
-		const out = fitTasksToSlots([slot(at(10), at(11))], [t(1, 1), t(2, 0.55), t(3, 0.1), t(4, 0.3)]);
+		const out = fitTasksToSlots([slot(at(10), at(11, 10))], [t(1, 1), t(2, 0.55), t(3, 0.1), t(4, 0.3)]);
 		assert.deepEqual(
 			out[0].tasks.map((x) => x.id),
 			[2, 3, 4],

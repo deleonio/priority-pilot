@@ -37,6 +37,8 @@ class User extends Model {
 	public sprache!: string | null;
 	/** Zifferblatt-Auswahl (#2009) — serverseitig am Konto statt nur im Gerät; `null` = Default `herz`. */
 	public balanceVariant!: string | null;
+	/** Mindestdauer freier Kalender-Lücken in Minuten (#1990, Default 30). */
+	public freeSlotMinMinutes!: number;
 	/** Systemweite Rolle (Rollensystem admin/member/tester) — steuert Admin-Views und -API-Endpunkte. */
 	public role!: UserRole;
 	/**
@@ -134,6 +136,11 @@ User.init(
 			type: DataTypes.STRING,
 			allowNull: true,
 			defaultValue: null,
+		},
+		freeSlotMinMinutes: {
+			type: DataTypes.INTEGER,
+			allowNull: false,
+			defaultValue: 30,
 		},
 		role: {
 			type: DataTypes.STRING,

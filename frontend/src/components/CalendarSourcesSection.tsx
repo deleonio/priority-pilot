@@ -1,4 +1,4 @@
-import { KolAccordion, KolAlert, KolButton, KolInputText, KolSpin } from '@public-ui/react-v19';
+import { KolAccordion, KolAlert, KolButton, KolInputRange, KolInputText, KolSpin } from '@public-ui/react-v19';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -16,6 +16,8 @@ interface CalendarSourceView {
  * Oberfläche — die API liefert sie nicht zurück. Entfernen löscht die Termine mit und läuft deshalb
  * über `ConfirmDeleteDialog` (`docs/ux-pattern-sequential-confirmation.md`). Paketgrenze (403) und
  * abgelehnte Adresse (400) erscheinen als Fehlermeldung aus `toApiError`, die Liste bleibt unverändert.
+ * Mit verbundenem Kalender erscheint der Regler „Mindestdauer freier Lücken" (#1990, Karte „Freie Zeit");
+ * die Änderung wird sofort gespeichert.
  */
 export const CalendarSourcesSection = ({ open = true }: { open?: boolean }) => {
 	const accordion = useFollowingOpen(open);
@@ -26,6 +28,7 @@ export const CalendarSourcesSection = ({ open = true }: { open?: boolean }) => {
 	const [error, setError] = useState<string | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<CalendarSourceView | null>(null);
 	const [removed, setRemoved] = useState(false);
+	const [freeSlotMinMinutes, setFreeSlotMinMinutes] = useState(30);
 
 	useEffect(() => {
 		let active = true;
@@ -37,10 +40,25 @@ export const CalendarSourcesSection = ({ open = true }: { open?: boolean }) => {
 			.catch(() => {
 				if (active) setError('Die verbundenen Kalender konnten nicht geladen werden.');
 			});
+		api
+			.getFreeSlotConfig()
+			.then((config) => {
+				if (active && config) setFreeSlotMinMinutes(config.freeSlotMinMinutes);
+			})
+			.catch(() => {
+				// Default bleibt stehen, der Regler bleibt bedienbar.
+			});
 		return () => {
 			active = false;
 		};
 	}, []);
+
+	const applyFreeSlotMin = (value: number): void => {
+		setFreeSlotMinMinutes(value);
+		api.updateFreeSlotConfig({ freeSlotMinMinutes: value }).catch(() => {
+			// Best-Effort: der Server hält sonst den letzten gültigen Stand.
+		});
+	};
 
 	const handleConnect = async (): Promise<void> => {
 		const trimmedUrl = url.trim();
@@ -133,6 +151,21 @@ export const CalendarSourcesSection = ({ open = true }: { open?: boolean }) => {
 							</li>
 						))}
 					</ul>
+				)}
+				{sources.length > 0 && (
+					<div className="geo-range-field">
+						<KolInputRange
+							_label="Mindestdauer freier Lücken (Minuten)"
+							_hint="Ab dieser Länge schlägt die Karte „Freie Zeit“ passende Aufgaben vor (10–240 Minuten)."
+							_value={freeSlotMinMinutes}
+							_min={10}
+							_max={240}
+							_step={5}
+							_on={{ onChange: (_event, value) => applyFreeSlotMin(Number(value ?? freeSlotMinMinutes)) }}
+						/>
+						{/* Sichtbarer Wert im Light-DOM: der Regler zeigt ihn nicht selbst (Muster Geo-Regler). */}
+						<span className="geo-range-value">{freeSlotMinMinutes} Minuten</span>
+					</div>
 				)}
 			</KolAccordion>
 

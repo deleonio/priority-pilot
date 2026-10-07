@@ -925,6 +925,22 @@ export const migrateUsersBalanceVariantColumn = async (db: Sequelize): Promise<v
 };
 
 /**
+ * Zieht die `freeSlotMinMinutes`-Spalte (Mindestdauer freier Lücken, #1990) auf einer **bestehenden**
+ * `users`-Tabelle nach — analog `migrateUsersBalanceVariantColumn`, Default 30 wie im Modell.
+ */
+export const migrateUsersFreeSlotMinMinutesColumn = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('users')");
+	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
+
+	if (existing.size === 0 || existing.has('freeSlotMinMinutes')) {
+		return;
+	}
+
+	await db.query('ALTER TABLE `users` ADD COLUMN `freeSlotMinMinutes` INTEGER NOT NULL DEFAULT 30');
+	console.log('Spalte freeSlotMinMinutes an users nachgezogen.');
+};
+
+/**
  * Zieht die `scope`-Spalte (Rechtestufe `'read'` | `'readwrite'`, #1356) auf einer **bestehenden**
  * `api_tokens`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog `migrateUsersRoleColumn`.
  * Bestandszeilen erhalten `'read'` (kein stilles Hochstufen bereits vergebener Tokens). Idempotent

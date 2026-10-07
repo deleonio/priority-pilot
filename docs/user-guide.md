@@ -112,6 +112,9 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
 - **Was ist jetzt dran?** Eine nummerierte Vorschlagsliste (serverseitig begrenzt auf
   höchstens fünf Einträge, davon maximal zwei je Säule). Die bereits als „Nächste
   Aufgabe" angezeigte Aufgabe taucht hier nicht erneut auf.
+- **Freie Zeit:** nur mit verbundenem Kalender – die freien Lücken von jetzt bis 22 Uhr
+  mit bis zu drei offenen Aufgaben, deren Aufwand hineinpasst (geringer Aufwand ≈ 15 Minuten,
+  höchster ≈ 2 Stunden). Ohne passende Lücke erscheint die Karte nicht.
 - **In der Nähe:** offene Aufgaben mit Ortsbezug, aufsteigend nach Entfernung zu
   deiner aktuellen Position (serverseitig begrenzt auf höchstens zehn Einträge).
   Jeder Eintrag nennt Titel und Entfernung in Kilometern; im Kartentitel steht die
@@ -622,6 +625,8 @@ Allgemein, Säulen, Kategorien, Standort, Orte, KI, Gruppen und **Pakete & Abo**
   nächsten 14 Tage erscheinen in der Wochenansicht; die Adresse bleibt geheim und wird nirgends
   angezeigt. Das Paket legt fest, wie viele Kalender möglich sind (Free: einer, Plus und Pro: fünf).
   **„Entfernen“** löscht den Kalender samt seiner Termine.
+  Mit verbundenem Kalender legt **„Mindestdauer freier Lücken“** (10–240 Minuten, Standard 30)
+  fest, ab welcher Länge eine Lücke in der Karte „Freie Zeit“ erscheint.
 - **Bild der Lebensbalance** – wähle zwischen **Herz**, **Blasen**, **Scheiben**,
   **Ringe**, **Strahlen**, **Blüte**, **Kristall**, **Segmente** und **Zeiger**. Alle zeigen dieselbe Rechnung, nur anders
   dargestellt. Die Wahl wird am Konto gespeichert und gilt auf allen Geräten, auf denen du

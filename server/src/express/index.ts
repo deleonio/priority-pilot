@@ -35,6 +35,7 @@ import { apiTokensRouter } from './routes/apiTokens.js';
 import { placeFavoritesRouter } from './routes/placeFavorites.js';
 import { journalRouter } from './routes/journal.js';
 import { calendarRouter } from './routes/calendar.js';
+import { freeSlotsRouter } from './routes/freeSlots.js';
 import { profileRouter } from './routes/profile.js';
 import { mcpRouter } from '../mcp/server.js';
 import type { FetchProviderModels, RunProviderTest } from './routes/llmProviders.js';
@@ -315,6 +316,8 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Task-CRUD- & Dependency-Routen (siehe routes/tasks.ts) — PushSender injiziert für die
 	// Benachrichtigung bei fremd angelegten Aufgaben (#1224, Vorbild createPushRouter).
+	// Freie Zeit (#1990): VOR dem Task-Router, sonst fängt `/tasks/:id` den Pfad `/tasks/free-slots` ab.
+	app.use(freeSlotsRouter);
 	app.use(createTasksRouter({ pushSender: deps.pushSender }));
 
 	// Pro-User Geo-Konfiguration: Anzeige-/Alarm-Entfernung, Intervall (#1098).

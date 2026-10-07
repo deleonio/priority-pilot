@@ -29,7 +29,10 @@ const slot = (): Slot => ({
 });
 
 describe('FreeTimeCard (#1990 AK4/AK5)', () => {
-	beforeEach(() => listFreeSlots.mockReset());
+	// Test-Pflege #1990: Block-Body — Vitest 4 ruft eine aus beforeEach zurückgegebene Funktion (hier der Mock) als Teardown auf.
+	beforeEach(() => {
+		listFreeSlots.mockReset();
+	});
 	afterEach(cleanup);
 
 	it('AK5: zeigt Karte „Freie Zeit" mit Zeitraum und Aufgabentitel', async () => {

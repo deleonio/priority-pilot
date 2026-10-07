@@ -966,6 +966,7 @@ kol-toolbar {
  * und würde außerhalb des Grids (mobil, einspaltig) zerfließen.
  */
 .dashboard-nearby,
+.dashboard-free-time,
 .dashboard-next-task,
 .dashboard-streak,
 .dashboard-milestones,
@@ -1170,6 +1171,36 @@ kol-toolbar {
 .dashboard-nearby-distance {
 	color: var(--pp-text-muted);
 	white-space: nowrap;
+}
+
+/* #1990: „Freie Zeit" — Zeitraum fett, darunter die passenden Aufgaben; reine Information. */
+.dashboard-free-time {
+	margin-top: var(--pp-gap-generous);
+}
+
+.dashboard-free-time-list,
+.dashboard-free-time-tasks {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.dashboard-free-time-slot {
+	padding: var(--pp-space-2) 0;
+	border-bottom: 1px solid var(--pp-border);
+}
+
+.dashboard-free-time-slot:last-child {
+	border-bottom: none;
+}
+
+.dashboard-free-time-range {
+	font-weight: var(--pp-weight-bold);
+	font-variant-numeric: tabular-nums;
+}
+
+.dashboard-free-time-tasks {
+	overflow-wrap: anywhere;
 }
 
 .dashboard-suggestion-meta {

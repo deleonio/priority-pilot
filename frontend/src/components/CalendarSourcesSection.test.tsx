@@ -63,6 +63,8 @@ vi.mock('@public-ui/react-v19', () => ({
 		</div>
 	),
 	KolBadge: ({ _label }: { _label?: string }) => <span data-testid="badge">{_label}</span>,
+	// Test-Pflege #1990: Regler „Mindestdauer freier Lücken" erscheint bei verbundenem Kalender.
+	KolInputRange: ({ _label }: { _label?: string }) => <input type="range" aria-label={_label} />,
 }));
 
 vi.mock('./Modal', () => ({

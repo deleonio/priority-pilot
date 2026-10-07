@@ -47,6 +47,8 @@ import type {
 	LlmProviderUpdate,
 	NearbyTask,
 	GeoConfig,
+	FreeSlot,
+	FreeSlotConfig,
 	CareConfig,
 	CareVorschlag,
 	Profile,
@@ -1580,6 +1582,35 @@ export const api = {
 	// Speichert die Geo-Konfiguration; Schranken-Verstöße werden serverseitig mit 400 abgelehnt.
 	async updateGeoConfig(config: GeoConfig, init: Init = {}): Promise<GeoConfig> {
 		const { data, error, response } = await client.PUT('/geo-config', { body: config, signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// --- Freie Zeit (#1990) ---
+
+	// Heutige Kalender-Lücken mit passenden Aufgaben; ohne Kalender eine leere Liste.
+	async listFreeSlots(init: Init = {}): Promise<FreeSlot[]> {
+		const { data, error, response } = await client.GET('/tasks/free-slots', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Mindestdauer freier Lücken (serverseitig gespeichert, Default 30 Minuten).
+	async getFreeSlotConfig(init: Init = {}): Promise<FreeSlotConfig> {
+		const { data, error, response } = await client.GET('/free-slot-config', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Speichert die Mindestdauer; Werte außerhalb 10–240 lehnt der Server mit 400 ab.
+	async updateFreeSlotConfig(config: FreeSlotConfig): Promise<FreeSlotConfig> {
+		const { data, error, response } = await client.PUT('/free-slot-config', { body: config });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}

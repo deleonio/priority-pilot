@@ -141,6 +141,7 @@ export const main = async (): Promise<void> => {
 			migrateUserCareColumns,
 			migrateUserTermsColumns,
 			migrateUsersBalanceVariantColumn,
+			migrateUsersFreeSlotMinMinutesColumn,
 		} = await import('./logics/migrate.js');
 		const { runDueTaskReminders } = await import('./logics/dueTaskReminders.js');
 		const { runDeadlineAutoDelete } = await import('./logics/autoDeleteAfterDeadline.js');
@@ -236,6 +237,8 @@ export const main = async (): Promise<void> => {
 		await migrateUserTermsColumns(sequelize);
 		// Zifferblatt-Auswahl am User (#2009) — wie oben: sync() ergänzt Bestands-Tabellen nicht.
 		await migrateUsersBalanceVariantColumn(sequelize);
+		// Mindestdauer freier Lücken am User (#1990) — wie oben.
+		await migrateUsersFreeSlotMinMinutesColumn(sequelize);
 		// Fehlende displayNameCustom-Flag-Spalte an users nachziehen (#1256 — Eigen-Speicherung
 		// schützt den Anzeigenamen vor dem OAuth-Sync) — vor sync(), damit User-Zugriffe auf
 		// Bestands-DBs nicht mit `no such column` brechen.

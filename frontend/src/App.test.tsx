@@ -82,6 +82,9 @@ vi.mock('./api', () => ({
 		// Test-Pflege #1342: der Tab „Standort“ lädt beim Mount die gespeicherten Orte.
 		listPlaceFavorites: vi.fn().mockResolvedValue([]),
 		listCalendarSources: vi.fn().mockResolvedValue([]),
+		// Test-Pflege #1990: Karte „Freie Zeit" (Dashboard) und Mindestdauer-Regler (Kalender-Einstellungen).
+		listFreeSlots: vi.fn().mockResolvedValue([]),
+		getFreeSlotConfig: vi.fn().mockResolvedValue(undefined),
 		listCalendarEvents: vi.fn().mockResolvedValue([]),
 		// Test-Pflege #1360: die neue Dashboard-Card „Streak“ lädt ihre Werte beim Mount selbst.
 		getStreak: vi.fn().mockResolvedValue({ aktuell: 0, best: 0, letzterTag: null }),
