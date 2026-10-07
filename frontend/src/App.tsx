@@ -64,6 +64,7 @@ import { clearPlanMirror, PlanProvider, usePlan, usePlanState } from './lib/useP
 import { notifyTasksChanged } from './lib/tasksChanged';
 import { APP_VERSION } from './lib/version';
 import { useAiFeaturesGate } from './lib/aiPreferences';
+import { pullAccountPreferences } from './lib/accountPreferences';
 import { launchConfetti, shouldCelebrateDone } from './lib/confetti';
 import { setupTabsFocusRing } from './lib/tabsFocusRing';
 import { formatDeadline } from './lib/task';
@@ -180,6 +181,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		i18n.on('languageChanged', report);
 		return () => i18n.off('languageChanged', report);
 	}, [i18n]);
+	// #2398: inhaltliche Präferenzen vom Konto nachziehen (das Konto gewinnt gegen den Gerätespiegel),
+	// danach einmal neu rendern, damit die Pro-Render-Gates (KI, Expertenmodus) den Kontostand zeigen.
+	const [, setAccountPreferencesPulled] = useState(false);
+	useEffect(() => {
+		// Der Pass-Through-Nutzer (`/auth/me` ohne Session) trägt keine `id` und hat kein Konto.
+		void pullAccountPreferences(user.id !== undefined).then(() => setAccountPreferencesPulled(true));
+	}, [user.id]);
 	// #1428: Kopfzeilen-Position — die Verschiebung passiert rein per Layout (`.app.header-bottom`),
 	// die DOM-Reihenfolge (banner bleibt first) bleibt unverändert.
 	const { position: headerPosition } = useHeaderPosition();

@@ -942,6 +942,28 @@ export const migrateUsersBalanceVariantColumn = async (db: Sequelize): Promise<v
 	console.log('Spalte balanceVariant an users nachgezogen.');
 };
 
+/** Inhaltliche Präferenzen am User (#2398) — anfangs leer, `NULL` = bisheriger Frontend-Default. */
+const USER_ACCOUNT_PREFERENCE_COLUMNS = ['aiEnabled', 'balancePriority', 'expertMode', 'geolocationEnabled'] as const;
+
+/**
+ * Zieht die Präferenz-Spalten auf einer bestehenden `users`-Tabelle nach (#2398) — idempotent,
+ * Muster {@link migrateUserCareColumns}; ohne Tabelle ein No-op.
+ */
+export const migrateUserAccountPreferenceColumns = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('users')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0) {
+		return;
+	}
+	for (const column of USER_ACCOUNT_PREFERENCE_COLUMNS) {
+		if (!existing.includes(column)) {
+			await db.query(`ALTER TABLE \`users\` ADD COLUMN \`${column}\` BOOLEAN NULL`);
+			console.log(`Spalte ${column} an users nachgezogen.`);
+		}
+	}
+};
+
 /**
  * Zieht die `freeSlotMinMinutes`-Spalte (Mindestdauer freier Lücken, #1990) auf einer **bestehenden**
  * `users`-Tabelle nach — analog `migrateUsersBalanceVariantColumn`, Default 30 wie im Modell.

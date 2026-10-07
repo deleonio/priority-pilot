@@ -33,6 +33,7 @@ import { careConfigRouter } from './routes/careConfig.js';
 import { splitHintConfigRouter } from './routes/splitHintConfig.js';
 import { kpisRouter } from './routes/kpis.js';
 import { createBalanceVariantRouter } from './routes/balanceVariant.js';
+import { createAccountPreferencesRouter } from './routes/accountPreferences.js';
 import { apiTokensRouter } from './routes/apiTokens.js';
 import { placeFavoritesRouter } from './routes/placeFavorites.js';
 import { knowledgeEntriesRouter } from './routes/knowledgeEntries.js';
@@ -348,6 +349,8 @@ export const createApp = (deps: AppDeps = {}) => {
 	app.use(kpisRouter);
 	// Zifferblatt-Auswahl am Konto (#2009) — der GET stellt den CSRF-Token als Antwort-Header bereit.
 	app.use(createBalanceVariantRouter(csrf));
+	// Inhaltliche Präferenzen am Konto (#2398) — Muster wie die Zifferblatt-Auswahl.
+	app.use(createAccountPreferencesRouter(csrf));
 
 	// Persönliche API-Tokens für externe Clients (#1352): anlegen, listen, zurückziehen.
 	app.use(apiTokensRouter);

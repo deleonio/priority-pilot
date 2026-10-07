@@ -39,6 +39,11 @@ class User extends Model {
 	public sprache!: string | null;
 	/** Zifferblatt-Auswahl (#2009) — serverseitig am Konto statt nur im Gerät; `null` = Default `herz`. */
 	public balanceVariant!: string | null;
+	/** Inhaltliche Präferenzen am Konto (#2398) — `null` = bisheriger Frontend-Default. */
+	public aiEnabled!: boolean | null;
+	public balancePriority!: boolean | null;
+	public expertMode!: boolean | null;
+	public geolocationEnabled!: boolean | null;
 	/** Mindestdauer freier Kalender-Lücken in Minuten (#1990, Default 30). */
 	public freeSlotMinMinutes!: number;
 	/** Systemweite Rolle (Rollensystem admin/member/tester) — steuert Admin-Views und -API-Endpunkte. */
@@ -143,6 +148,26 @@ User.init(
 		},
 		balanceVariant: {
 			type: DataTypes.STRING,
+			allowNull: true,
+			defaultValue: null,
+		},
+		aiEnabled: {
+			type: DataTypes.BOOLEAN,
+			allowNull: true,
+			defaultValue: null,
+		},
+		balancePriority: {
+			type: DataTypes.BOOLEAN,
+			allowNull: true,
+			defaultValue: null,
+		},
+		expertMode: {
+			type: DataTypes.BOOLEAN,
+			allowNull: true,
+			defaultValue: null,
+		},
+		geolocationEnabled: {
+			type: DataTypes.BOOLEAN,
 			allowNull: true,
 			defaultValue: null,
 		},

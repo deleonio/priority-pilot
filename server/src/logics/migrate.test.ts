@@ -635,6 +635,11 @@ describe('migrateUserGeoConfigColumns', () => {
 				'`sprache` VARCHAR(255), ' +
 				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
 				'`balanceVariant` VARCHAR(255), ' +
+				// Test-Pflege #2398: Präferenz-Spalten ergänzt (Konvention wie oben).
+				'`aiEnabled` TINYINT, ' +
+				'`balancePriority` TINYINT, ' +
+				'`expertMode` TINYINT, ' +
+				'`geolocationEnabled` TINYINT, ' +
 				// Test-Pflege #1990: `freeSlotMinMinutes` ergänzt (Konvention wie oben).
 				'`freeSlotMinMinutes` INTEGER NOT NULL DEFAULT 30, ' +
 				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
@@ -982,6 +987,11 @@ describe('migrateUsersRoleColumn (Rollensystem admin/member)', () => {
 				'`sprache` VARCHAR(255), ' +
 				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
 				'`balanceVariant` VARCHAR(255), ' +
+				// Test-Pflege #2398: Präferenz-Spalten ergänzt (Konvention wie oben).
+				'`aiEnabled` TINYINT, ' +
+				'`balancePriority` TINYINT, ' +
+				'`expertMode` TINYINT, ' +
+				'`geolocationEnabled` TINYINT, ' +
 				// Test-Pflege #1990: `freeSlotMinMinutes` ergänzt (Konvention wie oben).
 				'`freeSlotMinMinutes` INTEGER NOT NULL DEFAULT 30, ' +
 				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
@@ -1074,6 +1084,11 @@ describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
 				'`sprache` VARCHAR(255), ' +
 				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
 				'`balanceVariant` VARCHAR(255), ' +
+				// Test-Pflege #2398: Präferenz-Spalten ergänzt (Konvention wie oben).
+				'`aiEnabled` TINYINT, ' +
+				'`balancePriority` TINYINT, ' +
+				'`expertMode` TINYINT, ' +
+				'`geolocationEnabled` TINYINT, ' +
 				// Test-Pflege #1990: `freeSlotMinMinutes` ergänzt (Konvention wie oben).
 				'`freeSlotMinMinutes` INTEGER NOT NULL DEFAULT 30, ' +
 				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
@@ -1250,6 +1265,11 @@ describe('migrateUsersPlanColumn (#1456 AK1)', () => {
 				'`sprache` VARCHAR(255), ' +
 				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
 				'`balanceVariant` VARCHAR(255), ' +
+				// Test-Pflege #2398: Präferenz-Spalten ergänzt (Konvention wie oben).
+				'`aiEnabled` TINYINT, ' +
+				'`balancePriority` TINYINT, ' +
+				'`expertMode` TINYINT, ' +
+				'`geolocationEnabled` TINYINT, ' +
 				// Test-Pflege #1990: `freeSlotMinMinutes` ergänzt (Konvention wie oben).
 				'`freeSlotMinMinutes` INTEGER NOT NULL DEFAULT 30, ' +
 				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
