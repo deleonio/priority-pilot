@@ -29,7 +29,7 @@ test.describe('Balamentum — #692: Serien-Alert Layout-Verbesserung', () => {
 
 		// Serien-Tab öffnen
 		await page.goto('/app/');
-		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true }).click();
 	});
 
 	// Die In-Memory-DB lebt über alle Specs des Backend-Prozesses weiter (ein Worker, kein Neustart

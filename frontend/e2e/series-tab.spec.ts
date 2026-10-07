@@ -88,7 +88,7 @@ test.describe('Balamentum — #335: Serien-Verwaltung als eigener Tab', () => {
 	 * Öffnet den Serien-Tab (löst das alte Modal ab). Rot, solange der Tab „Serien" noch nicht existiert.
 	 */
 	const openSeriesTab = async (page: Page): Promise<void> => {
-		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true }).click();
 		await expect(page.getByTestId('series-tree')).toBeVisible();
 	};
 
@@ -107,7 +107,7 @@ test.describe('Balamentum — #335: Serien-Verwaltung als eigener Tab', () => {
 		await waitForStableView(page);
 
 		// Der Tab „Serien" existiert und ist klickbar.
-		const seriesTab = page.getByRole('tab', { name: 'Serien', exact: true });
+		const seriesTab = page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true });
 		await expect(seriesTab).toBeVisible();
 		await seriesTab.click();
 
@@ -256,7 +256,7 @@ test.describe('Balamentum — #335: Serien-Verwaltung als eigener Tab', () => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
-		const seriesTab = page.getByRole('tab', { name: 'Serien', exact: true });
+		const seriesTab = page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true });
 		await expect(seriesTab).toBeVisible();
 		await seriesTab.click();
 

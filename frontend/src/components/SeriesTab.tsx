@@ -204,11 +204,15 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 										{/* Rhythmus als KolBadge (Muster „Serie“-Badge im TaskTree, #1258) statt roher Span:
 										    alle Badges einer Zeile stammen aus einem System (KoliBri-first, DESIGN.md) —
 										    gleiche Höhe, gleicher Radius, Kontrast rechnet KoliBri selbst (_color). */}
-										<KolBadge _label={RHYTHM_LABEL[entry.rhythm]} _color="#005b99" className="series-tree-badge" />
+										{entry.rhythm !== 'none' && (
+											<KolBadge _label={RHYTHM_LABEL[entry.rhythm]} _color="#005b99" className="series-tree-badge" />
+										)}
 										<CategoryBadge category={categories.find((category) => category.id === entry.categoryId)} />
 										{/* #1251 (AK6): Stillgelegte Serie (active:false, entsteht durch Gruppenaustritt/
 										    -löschung) — Text-Badge statt nur Farbe (KI-UX, WCAG 1.4.1). Kein Toggle:
 										    Reaktivieren wäre ein eigenes Ticket; die Toolbar bleibt (nicht sperren). */}
+										{/* #2358 (AK6): Serie ohne Automatik = Vorlage — Text-Badge, analog „Ruhend". */}
+										{entry.autoCreate === false && <KolBadge _label="Vorlage" className="series-tree-badge" />}
 										{entry.active === false && <KolBadge _label="Ruhend" className="series-tree-badge" />}
 										{/* #1465: Säulen-Badge am Serien-Eintrag, analog TaskTree — die Vorlage zahlt auf
 										    keine Säule ein, also tun es auch ihre Instanzen nicht. Löst das

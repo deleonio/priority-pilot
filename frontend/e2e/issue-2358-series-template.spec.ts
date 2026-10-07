@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * Rote End-to-End-Spec für #2358 — Serien als Vorlage (AK5, AK6, AK8).
@@ -69,14 +69,18 @@ test.describe('Balamentum — Serie als Vorlage (#2358)', () => {
 		const item = page.getByTestId(`series-tree-item-${templateId}`);
 		await item.getByRole('toolbar').getByRole('button', { name: 'Bearbeiten' }).click();
 
-		const toggle = page.getByRole('switch', { name: 'Automatisch anlegen' });
+		// Test-Pflege: Rhythmus und Schalter liegen im zugeklappten „Termin & Ort"-Akkordeon (#1260).
+		await openAccordionSection(page, 'Termin & Ort');
+		// Test-Pflege: KoliBri rendert den Switch im echten DOM als `checkbox` (Muster helpers/Nachbar-Specs).
+		const toggle = page.getByRole('checkbox', { name: 'Automatisch anlegen' });
 		await expect(toggle).toBeVisible();
 		await expect(toggle).not.toBeChecked();
 
 		// AK8: Touch-Höhe per Bounding-Box (die App-Shell clippt, daher kein scrollWidth).
-		const switchBox = await toggle.boundingBox();
+		// Test-Pflege: am Host-Element messen (Muster issue-1794-care-switch.spec.ts) — der Rollen-Locator trifft das verkleinerte native `<input>`.
+		const switchBox = await page.locator('kol-input-checkbox[_label="Automatisch anlegen"]').boundingBox();
 		expect(switchBox?.height ?? 0, 'Schalter ≥ 44 px').toBeGreaterThanOrEqual(44);
-		const rhythmBox = await page.getByLabel('Rhythmus').boundingBox();
+		const rhythmBox = await page.locator('kol-single-select[_label="Rhythmus"]').boundingBox();
 		expect(rhythmBox?.height ?? 0, 'Rhythmus-Auswahl ≥ 44 px').toBeGreaterThanOrEqual(44);
 
 		// AK8: per Tastatur bedienbar.
@@ -86,7 +90,13 @@ test.describe('Balamentum — Serie als Vorlage (#2358)', () => {
 
 		await page.getByRole('button', { name: 'Bearbeiten', exact: true }).last().click();
 		const confirm = page.getByRole('button', { name: 'Ja', exact: true });
-		if (await confirm.isVisible().catch(() => false)) {
+		// Test-Pflege: Kaskade-Modal (#553) rendert asynchron — erst abwarten, dann bestätigen.
+		if (
+			await confirm.waitFor({ state: 'visible', timeout: 3000 }).then(
+				() => true,
+				() => false,
+			)
+		) {
 			await confirm.click();
 		}
 

@@ -112,7 +112,7 @@ test.describe('Balamentum — Serien-Frontend gegen das echte Backend (#142)', (
 	 * Header-Button + Modal); der Serien-Baum (`series-tree`) ist danach sichtbar.
 	 */
 	const openSeriesManagement = async (page: Page): Promise<void> => {
-		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true }).click();
 		await expect(page.getByTestId('series-tree')).toBeVisible();
 		await waitForStableView(page);
 	};
@@ -357,7 +357,7 @@ test.describe('Balamentum — #297: Altes Serien-Formular durch TaskForm ersetze
 
 	// Nach #335: Serien-Verwaltung im eigenen Tab „Serien" statt Header-Button + Modal.
 	const openSeriesManagement = async (page: Page): Promise<void> => {
-		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true }).click();
 		await expect(page.getByTestId('series-tree')).toBeVisible();
 		await waitForStableView(page);
 	};
@@ -493,7 +493,7 @@ test.describe('Balamentum — #330: Vereinheitlichter Anlege-Einstieg (SeriesMan
 
 	// Nach #335: Serien-Verwaltung im eigenen Tab „Serien" statt Header-Button + Modal.
 	const openSeriesManagement = async (page: Page): Promise<void> => {
-		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true }).click();
 		await expect(page.getByTestId('series-tree')).toBeVisible();
 		await waitForStableView(page);
 	};
@@ -590,7 +590,7 @@ test.describe('Balamentum — Serien behalten die Säulenzuordnung (#343)', () =
 
 	/** Öffnet die Serien-Verwaltung (Tab „Serien"), wartet auf den Serien-Baum. */
 	const openSeriesManagement = async (page: Page): Promise<void> => {
-		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true }).click();
 		await expect(page.getByTestId('series-tree')).toBeVisible();
 		await waitForStableView(page);
 	};

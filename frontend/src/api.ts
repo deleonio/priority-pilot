@@ -1157,7 +1157,7 @@ export const api = {
 	async createSeries({ seriesCreate }: { seriesCreate: SeriesCreate }): Promise<Series> {
 		const { startDate, ...rest } = seriesCreate;
 		const { data, error, response } = await client.POST('/series', {
-			body: { ...rest, startDate: startDate.toISOString() },
+			body: startDate === undefined ? rest : { ...rest, startDate: startDate.toISOString() },
 		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);

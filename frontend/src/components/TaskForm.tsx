@@ -163,8 +163,11 @@ const RHYTHM_OPTIONS: { label: string; value: SeriesRhythm }[] = [
 	{ label: 'Sonntags', value: 'sun' },
 ];
 
+/** „Ohne Rhythmus" (#2358): nur bei ausgeschaltetem „Automatisch anlegen" wählbar (Server: sonst 400, #2355). */
+const NO_RHYTHM_OPTION: { label: string; value: SeriesRhythm } = { label: 'Ohne Rhythmus', value: 'none' };
+
 /** Alle gültigen `SeriesRhythm`-Werte — onChange-Guard ohne hartcodierten Drei-Werte-Filter. */
-const VALID_RHYTHMS = new Set<string>(RHYTHM_OPTIONS.map((option) => option.value));
+const VALID_RHYTHMS = new Set<string>([...RHYTHM_OPTIONS.map((option) => option.value), 'none']);
 const isSeriesRhythm = (value: string): value is SeriesRhythm => VALID_RHYTHMS.has(value);
 
 /**
@@ -354,6 +357,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 		deadline: string;
 		startDate: string;
 		rhythm: SeriesRhythm;
+		autoCreate: boolean;
 	}>({
 		title: task?.title ?? series?.title ?? initialValues?.title ?? '',
 		priority: task?.priority ?? series?.priority ?? initialValues?.priority ?? 3,
@@ -365,6 +369,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 		deadline: task !== null ? deadlineToDateInput(task.deadline) : isoToDateInput(initialValues?.deadline),
 		startDate: series != null ? startDateToInput(series.startDate) : '',
 		rhythm: series?.rhythm ?? 'weekly',
+		autoCreate: series?.autoCreate ?? true,
 	});
 
 	// Säulen-Verteilung im State (nicht im Ref): Jeder Reglerzug verschiebt alle Anteile und muss neu
@@ -520,6 +525,8 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	// Re-Render aus). `startDateInput` ist der rohe `YYYY-MM-DD`-String aus dem Datumsfeld.
 	const [rhythm, setRhythm] = useState<SeriesRhythm>(form.current.rhythm);
 	const [startDateInput, setStartDateInput] = useState(form.current.startDate);
+	// #2358: Schalter „Automatisch anlegen" (State-Mirror — steuert Rhythmus-Optionen und Startdatum-Feld).
+	const [autoCreate, setAutoCreate] = useState(form.current.autoCreate);
 	// #523/#534: Auto-Löschung bei verpasster Deadline. State (nicht Ref), damit der Info-Hinweis beim
 	// Aktivieren der Checkbox reaktiv eingeblendet wird. Im Edit aus dem vorhandenen Task bzw. der Serie
 	// vorbelegt (#534: Auto-Löschen ist nun auch auf Serien anwendbar).
@@ -1024,6 +1031,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 					...(isHandover ? {} : { pillars }),
 					startDate: form.current.startDate.trim() === '' ? undefined : startDate,
 					rhythm: form.current.rhythm,
+					autoCreate: form.current.autoCreate,
 					autoDeleteAfterDeadline: autoDelete,
 					// Bei einer Übergabe die Kategorie weglassen (Muster `pillars`): Sie gehört dem
 					// bisherigen Eigentümer — der Server hängt sie per Namensgleichheit um.
@@ -1055,8 +1063,10 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 					// lehnt sonst mit 400 ab, #1249). Ohne das Feld startet die Serie beim Empfänger ohne
 					// Verteilung; der Empfänger trägt sie selbst nach.
 					...(isHandover ? {} : { pillars }),
-					startDate,
+					// #2358: Ohne Rhythmus gibt es kein Startdatum — der Server setzt es selbst.
+					startDate: form.current.rhythm === 'none' ? undefined : startDate,
 					rhythm: form.current.rhythm,
+					autoCreate: form.current.autoCreate,
 					active: true,
 					autoDeleteAfterDeadline: autoDelete,
 					// Kategorie wie `pillars` bei einer Übergabe weglassen (siehe Kommentar oben) — sie
@@ -1557,26 +1567,47 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 								{isSeriesMode ? (
 									<>
 										{/* Serie-Modus (#316): Startdatum (Anker der Serie) + Rhythmus statt Deadline. */}
-										<KolInputDate
-											_label="Startdatum"
-											_type="date"
-											_value={startDateValue}
+										{rhythm !== 'none' && (
+											<KolInputDate
+												_label="Startdatum"
+												_type="date"
+												_value={startDateValue}
+												_on={{
+													onChange: (_event, value) => {
+														const next = value instanceof Date ? startDateToInput(value) : readString(value);
+														form.current.startDate = next;
+														setStartDateInput(next);
+													},
+													onInput: (_event, value) => {
+														const next = value instanceof Date ? startDateToInput(value) : readString(value);
+														form.current.startDate = next;
+														setStartDateInput(next);
+													},
+												}}
+											/>
+										)}
+										{/* #2358: Schalter vor dem Rhythmus — er bestimmt dessen Optionen. Aus = Vorlage ohne Automatik. */}
+										<KolInputCheckbox
+											_label="Automatisch anlegen"
+											_checked={autoCreate}
+											_variant="switch"
 											_on={{
-												onChange: (_event, value) => {
-													const next = value instanceof Date ? startDateToInput(value) : readString(value);
-													form.current.startDate = next;
-													setStartDateInput(next);
-												},
-												onInput: (_event, value) => {
-													const next = value instanceof Date ? startDateToInput(value) : readString(value);
-													form.current.startDate = next;
-													setStartDateInput(next);
+												onChange: (_event, checked) => {
+													const next = checked === true;
+													form.current.autoCreate = next;
+													setAutoCreate(next);
+													// „Ohne Rhythmus" gibt es nur ohne Automatik — sonst 400 vom Server.
+													if (next && form.current.rhythm === 'none') {
+														form.current.rhythm = 'weekly';
+														setRhythm('weekly');
+													}
 												},
 											}}
 										/>
 										<KolSingleSelect
+											key={`rhythm-${autoCreate}`}
 											_label="Rhythmus"
-											_options={RHYTHM_OPTIONS}
+											_options={autoCreate ? RHYTHM_OPTIONS : [...RHYTHM_OPTIONS, NO_RHYTHM_OPTION]}
 											_value={form.current.rhythm}
 											_on={{
 												onChange: (_event, value) => {

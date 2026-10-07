@@ -146,7 +146,7 @@ type WithDateStartDate<T> = Omit<T, 'startDate'> & { startDate: Date };
 
 export type SeriesRhythm = Schemas['SeriesRhythm'];
 export type Series = WithDateStartDate<Schemas['Series']>;
-export type SeriesCreate = WithDateStartDate<Schemas['SeriesCreate']>;
+export type SeriesCreate = Omit<Schemas['SeriesCreate'], 'startDate'> & { startDate?: Date };
 export type SeriesUpdate = Omit<Schemas['SeriesUpdate'], 'startDate'> & { startDate?: Date };
 export type SeriesGenerateInput = Omit<Schemas['SeriesGenerateInput'], 'until'> & { until: Date };
 
