@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { Category, Group, GroupMember, Pillar, Series, SeriesRhythm, Task } from 'client';
 import { ResponseError, TaskStatus } from 'client';
-import { createRef, type ReactNode } from 'react';
+import { createRef, type ReactNode, type Ref } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -3577,5 +3577,181 @@ describe('TaskForm — Serie als Vorlage: Schalter „Automatisch anlegen" (#235
 		expect(mockUpdateSeries).toHaveBeenCalledTimes(1);
 		const [arg] = mockUpdateSeries.mock.calls[0] as [{ seriesUpdate?: Record<string, unknown> }];
 		expect(arg.seriesUpdate?.['autoCreate']).toBe(false);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2361 — Aufgabe als Vorlage speichern.
+ *
+ * Vertrag: docs/spec/issue-2361.md. Die Aktion öffnet das Serien-Formular im Anlage-Modus
+ * (`task = null`, `initialMode = 'series'`) und belegt es aus der Aufgabe vor — über die
+ * (noch nicht existierenden) erweiterten `TaskFormInitialValues`-Felder `latitude`, `longitude`,
+ * `pillars`, `autoCreate` und `rhythm`. Speichern läuft über das bestehende `POST /series`
+ * (#2358: `autoCreate: false` + `rhythm: 'none'` ohne `startDate`); die Ausgangsaufgabe bleibt
+ * unberührt (`updateTask`/`createTask` nie).
+ *
+ * `TemplateSeriesForm` nutzt denselben bewussten Cast wie `SeriesEditForm`: Er hält den Typecheck
+ * grün, bis die Umsetzung die Felder an der Schnittstelle ergänzt; zur Laufzeit sind die Tests
+ * rot, solange TaskForm die Vorbelegung ignoriert.
+ */
+describe('TaskForm — Aufgabe als Vorlage speichern (#2361)', () => {
+	const pillarGeist: Pillar = { id: 2, name: 'Geist', description: 'Geist', weight: 100 };
+	const sportKategorie: Category = { id: 5, name: 'Sport', color: '#1064d0' };
+
+	type TemplateInitialValues = {
+		title: string;
+		description: string;
+		priority: number;
+		estimatedEffort: number;
+		address: string;
+		latitude: number;
+		longitude: number;
+		categoryId: number;
+		pillars: { pillarId: number; share: number; confidence: number }[];
+		autoCreate: boolean;
+		rhythm: SeriesRhythm;
+	};
+
+	const templateValues = (): TemplateInitialValues => ({
+		title: 'Wöchentliches Yoga',
+		description: 'Yoga für Anfänger',
+		priority: 4,
+		estimatedEffort: 0.75,
+		address: 'Brandenburger Tor, Berlin',
+		latitude: 52.5163,
+		longitude: 13.3777,
+		categoryId: sportKategorie.id,
+		pillars: [
+			{ pillarId: pillarKoerper.id, share: 60, confidence: 100 },
+			{ pillarId: pillarGeist.id, share: 40, confidence: 100 },
+		],
+		autoCreate: false,
+		rhythm: 'none',
+	});
+
+	const TemplateSeriesForm = TaskForm as unknown as (
+		props: typeof defaultProps & {
+			task: null;
+			categories: Category[];
+			initialMode: 'series';
+			initialValues: TemplateInitialValues;
+			lockMode: boolean;
+			/** Für den Dirty-Check (#1584): `requestClose` über den Handle auslösen. */
+			ref?: Ref<TaskFormHandle>;
+		},
+	) => ReactNode;
+
+	const renderTemplateForm = async (): Promise<void> => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockListPlaceFavorites.mockResolvedValue([]);
+		await act(async () => {
+			render(
+				<TemplateSeriesForm
+					task={null}
+					{...defaultProps}
+					pillars={[pillarKoerper, pillarGeist]}
+					categories={[sportKategorie]}
+					initialMode="series"
+					initialValues={templateValues()}
+					lockMode
+				/>,
+			);
+		});
+	};
+
+	it('AK1 — öffnet im Serien-Modus mit der kompletten Vorbelegung der Aufgabe', async () => {
+		await renderTemplateForm();
+
+		// Textfelder: Titel, Beschreibung, Adresse.
+		expect((screen.getByRole('textbox', { name: /titel/i }) as HTMLInputElement).value).toBe('Wöchentliches Yoga');
+		expect((screen.getByRole('textbox', { name: /beschreibung/i }) as HTMLInputElement).value).toBe(
+			'Yoga für Anfänger',
+		);
+		expect((screen.getByRole('textbox', { name: /adresse/i }) as HTMLInputElement).value).toBe(
+			'Brandenburger Tor, Berlin',
+		);
+		// Kategorie der Aufgabe im Auswahlfeld.
+		expect((screen.getByTestId('select-Kategorie (optional)') as HTMLSelectElement).value).toBe('5');
+
+		// Säulen-Verteilung: beide Säulen der Aufgabe mit ihren Anteilen 60/40
+		// (Slider-Aria-Label „<Name>: <Anteil> %", nicht die Gleichverteilung 50/50 des Anlage-Flows).
+		expect(document.querySelectorAll('.pillar-row')).toHaveLength(2);
+		expect(screen.getByLabelText('Körper: 60 %')).toBeInTheDocument();
+		expect(screen.getByLabelText('Geist: 40 %')).toBeInTheDocument();
+
+		// Koordinaten der Aufgabe im Koordinaten-Kasten (toFixed(6), Muster TaskForm.tsx).
+		expect(screen.getByText('52.516300')).toBeInTheDocument();
+		expect(screen.getByText('13.377700')).toBeInTheDocument();
+
+		// Serien-Einstellungen: „Automatisch anlegen" aus, „Ohne Rhythmus", kein Startdatum-Feld.
+		expect(screen.getByRole('switch', { name: 'Automatisch anlegen' })).not.toBeChecked();
+		expect((screen.getByTestId('select-Rhythmus') as HTMLSelectElement).value).toBe('none');
+		expect(screen.queryByLabelText('Startdatum')).toBeNull();
+
+		// UX-Sperre: Der Modus-Umschalter ist im Vorlage-Flow gesperrt (Wechsel auf „Aufgabe" würde
+		// eine Duplikat-Aufgabe erzeugen).
+		const modeSwitch = within(screen.getByTestId('mode-switch')).getByRole('switch');
+		expect(modeSwitch).toBeDisabled();
+	});
+
+	it('AK1/#1584 — Vorbelegung ist die Dirty-Baseline: sofortiges Schließen fragt nicht nach', async () => {
+		const onClose = vi.fn();
+		const ref = createRef<TaskFormHandle>();
+		mockSuggestPillars.mockResolvedValue([]);
+		mockListPlaceFavorites.mockResolvedValue([]);
+		await act(async () => {
+			render(
+				<TemplateSeriesForm
+					ref={ref}
+					task={null}
+					{...defaultProps}
+					pillars={[pillarKoerper, pillarGeist]}
+					categories={[sportKategorie]}
+					initialMode="series"
+					initialValues={templateValues()}
+					lockMode
+					onClose={onClose}
+				/>,
+			);
+		});
+
+		await act(async () => {
+			ref.current?.requestClose();
+		});
+
+		expect(onClose).toHaveBeenCalledTimes(1);
+		expect(screen.queryByTestId('confirm-series-modal')).toBeNull();
+	});
+
+	it('AK2/AK3 — Speichern: genau ein createSeries mit den vorbelegten Werten, nie updateTask', async () => {
+		mockCreateSeries.mockResolvedValue(minimalSeries());
+		await renderTemplateForm();
+
+		await clickSave();
+
+		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
+		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: Record<string, unknown> }];
+		expect(seriesCreate).toMatchObject({
+			title: 'Wöchentliches Yoga',
+			priority: 4,
+			estimatedEffort: 0.75,
+			description: 'Yoga für Anfänger',
+			address: 'Brandenburger Tor, Berlin',
+			latitude: 52.5163,
+			longitude: 13.3777,
+			categoryId: 5,
+			autoCreate: false,
+			rhythm: 'none',
+		});
+		// „Ohne Rhythmus" ohne Startdatum (#2358): kein `startDate` in der Payload.
+		expect(seriesCreate['startDate']).toBeUndefined();
+		// Säulen-Verteilung 1:1 aus der Aufgabe (60/40, nicht Gleichverteilung).
+		expect(seriesCreate['pillars']).toEqual([
+			{ pillarId: 1, share: 60, confidence: 100 },
+			{ pillarId: 2, share: 40, confidence: 100 },
+		]);
+		// Die Ausgangsaufgabe bleibt unberührt (AK3).
+		expect(mockUpdateTask).not.toHaveBeenCalled();
+		expect(mockCreateTask).not.toHaveBeenCalled();
 	});
 });
