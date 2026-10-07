@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import { Pillar, ScoreEntry, Task } from '../models/index.js';
 import { aggregierePunkteProSaeule, type PunkteBeitrag } from './score.js';
 import { selectSeriesRepresentatives, filterVorlauf } from './series.js';
@@ -183,7 +184,42 @@ export interface TaskReasons {
 	unlock?: { openCount: number };
 	deadline?: { date: string; daysUntil: number };
 	priority?: { priority: number };
+	/** Aufteilen-Hinweis (#1994): Verschiebe-Zähler der empfohlenen Aufgabe, nur bei erkanntem Muster. */
+	split?: { postponeCount: number };
 }
+
+/** Aufteilen-Hinweis (#1994): ab diesem Aufwands-Bruchteil gilt eine Aufgabe als groß. */
+const SPLIT_MIN_EFFORT = 0.6;
+/** Aufteilen-Hinweis (#1994): ab so vielen Verschiebungen gilt eine Aufgabe als wiederholt verschoben. */
+const SPLIT_MIN_POSTPONES = 2;
+/** Aufteilen-Hinweis (#1994): Muster erkannt ab so vielen großen, wiederholt verschobenen offenen Aufgaben. */
+const SPLIT_MIN_TASKS = 3;
+
+/**
+ * Aufteilen-Hinweis (#1994): `{ postponeCount }` für die empfohlene Aufgabe, wenn der Nutzer
+ * mindestens `SPLIT_MIN_TASKS` offene Aufgaben mit Aufwand ≥ `SPLIT_MIN_EFFORT` und
+ * `postponeCount` ≥ `SPLIT_MIN_POSTPONES` hat und diese Aufgabe selbst dazugehört; sonst `undefined`.
+ * Ändert die Bewertung nicht — reine Zusatzbegründung.
+ */
+export const erkenneAufteilenHinweis = async (
+	task: Task,
+	userId?: number,
+): Promise<TaskReasons['split'] | undefined> => {
+	const gehoert = task.estimatedEffort >= SPLIT_MIN_EFFORT && task.postponeCount >= SPLIT_MIN_POSTPONES;
+	if (!gehoert) {
+		return undefined;
+	}
+	const anzahl = await Task.count({
+		where: {
+			// Wie bei `/next` ohne Anmeldung (Dev): alle Tasks, sonst Datenisolation auf den Nutzer.
+			...(userId !== undefined ? { userId } : {}),
+			status: ['Open', 'In process'],
+			estimatedEffort: { [Op.gte]: SPLIT_MIN_EFFORT },
+			postponeCount: { [Op.gte]: SPLIT_MIN_POSTPONES },
+		},
+	});
+	return anzahl >= SPLIT_MIN_TASKS ? { postponeCount: task.postponeCount } : undefined;
+};
 
 /**
  * Gemeinsame Fünf-Faktor-Bewertung (#2043) der freien Tasks, vor dem Post-Filter, nach Score

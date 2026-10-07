@@ -31,6 +31,7 @@ export type FreeSlotConfig = Schemas['FreeSlotConfig'];
 export type FreeSlot = Schemas['FreeSlot'];
 /** #1794: Fürsorge-Push-Schalter + Nutzer-Zeitzone (Ruhezeit/Kalendertag). */
 export type CareConfig = Schemas['CareConfig'];
+export type SplitHintConfig = Schemas['SplitHintConfig'];
 export type CareVorschlag = Schemas['CareVorschlag'];
 // Persönliche API-Tokens für externe Clients (#1352) — Liste ohne Klartext, Anlege-Antwort mit.
 export type ApiToken = Schemas['ApiToken'];

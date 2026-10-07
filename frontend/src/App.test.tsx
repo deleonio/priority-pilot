@@ -76,6 +76,8 @@ vi.mock('./api', () => ({
 		getMcpInstructions: vi.fn().mockResolvedValue(undefined),
 		// Test-Pflege #1794: die Karte „Benachrichtigungen“ lädt beim Mount den Fürsorge-Schalter.
 		getCareConfig: vi.fn().mockResolvedValue(undefined),
+		// Test-Pflege #1994: dieselbe Karte lädt den Aufteilen-Hinweis-Schalter.
+		getSplitHintConfig: vi.fn().mockResolvedValue(undefined),
 		// Rollensystem admin/member (Deep-Link-Test unten): die Settings-Seite lädt beim Mount ihre
 		// Sektionen — leere Antworten reichen, geprüft wird nur der aktive Tab.
 		listLlmProviders: vi.fn().mockResolvedValue([]),

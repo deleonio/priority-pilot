@@ -156,5 +156,8 @@
 		"text": "You are among the first. Whatever you notice helps us – feel free to tell us.",
 		"feedback": "Give feedback",
 		"dismiss": "Close"
+	},
+	"splitHint": {
+		"reason": "Big tasks are often easier to tackle when you split them into smaller steps."
 	}
 }

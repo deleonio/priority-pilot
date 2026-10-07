@@ -32,6 +32,8 @@ class User extends Model {
 	public lastGeoLongitude!: number | null;
 	/** Fürsorge-Push (#1794) — eigener Schalter (Default ein), unabhängig vom Push-Hauptschalter. */
 	public carePushEnabled!: boolean;
+	/** Hinweis zum Aufteilen großer, mehrfach verschobener Aufgaben (#1994) — Default ein. */
+	public splitHintEnabled!: boolean;
 	/** IANA-Zeitzone des Nutzers (#1794) — Ruhezeit + Kalendertag-Dedup; `null` = UTC-Fallback. */
 	public zeitzone!: string | null;
 	public sprache!: string | null;
@@ -120,6 +122,11 @@ User.init(
 			defaultValue: null,
 		},
 		carePushEnabled: {
+			type: DataTypes.BOOLEAN,
+			allowNull: false,
+			defaultValue: true,
+		},
+		splitHintEnabled: {
 			type: DataTypes.BOOLEAN,
 			allowNull: false,
 			defaultValue: true,

@@ -156,5 +156,8 @@
 		"text": "Du är bland de första. Det du märker hjälper oss – berätta gärna.",
 		"feedback": "Ge feedback",
 		"dismiss": "Stäng"
+	},
+	"splitHint": {
+		"reason": "Stora uppgifter blir ofta lättare att ta tag i när du delar upp dem i mindre steg."
 	}
 }

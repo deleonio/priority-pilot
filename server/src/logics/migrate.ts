@@ -775,12 +775,13 @@ export const migrateUserGeoConfigColumns = async (db: Sequelize): Promise<void> 
 };
 
 /**
- * Fürsorge-Push-Spalten am User (#1794: Schalter `carePushEnabled`, IANA-Zeitzone `zeitzone`, #1879: App-Sprache `sprache`)
+ * Fürsorge-Push-Spalten am User (#1794: Schalter `carePushEnabled`, IANA-Zeitzone `zeitzone`, #1879: App-Sprache `sprache`, #1994: Aufteilen-Hinweis `splitHintEnabled`)
  * mit denselben Defaults wie das Modell (`server/src/models/user.ts`) bzw. `CARE_CONFIG_DEFAULTS`
  * der Route — gleiches ALTER-Tabellen-Muster wie {@link migrateUserGeoConfigColumns}.
  */
 const USER_CARE_COLUMNS = [
 	{ column: 'carePushEnabled', definition: 'BOOLEAN NOT NULL DEFAULT 1' },
+	{ column: 'splitHintEnabled', definition: 'BOOLEAN NOT NULL DEFAULT 1' },
 	{ column: 'zeitzone', definition: 'STRING' },
 	{ column: 'sprache', definition: 'STRING' },
 ] as const;
