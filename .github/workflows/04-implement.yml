@@ -638,6 +638,13 @@ jobs:
             gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-review"
             echo "::notice::Label gesetzt: ai:needs-review an PR #${PR_NR}"
 
+            # ai:hold-merge (Merge-Sperre, nur von merge-pr.yml gelesen) vom Issue auf den PR uebertragen.
+            if [ "$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:hold-merge")' 2>/dev/null || echo false)" = "true" ]; then
+              gh label create "ai:hold-merge" --repo "$GITHUB_REPOSITORY" --color FBCA04 --description "Merge angehalten bis zur manuellen Freigabe (Label entfernen)" 2>/dev/null || true
+              gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --add-label "ai:hold-merge"
+              echo "::notice::ai:hold-merge vom Issue #${ISSUE} auf PR #${PR_NR} uebertragen"
+            fi
+
             # Verify-Absicherung (#2254): Auf dem Head-SHA muss ein echter (nicht uebersprungener)
             # Verify-Lauf existieren. Fehlt er (Draft-Race: `gh pr ready` vor dem letzten Push ->
             # pull_request-Lauf sah draft == true und ueberspringt alle Jobs), per workflow_dispatch

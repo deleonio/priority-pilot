@@ -57,7 +57,11 @@ on:
   pull_request:
     # ai:reviewed wird gesetzt (CI evtl. schon gruen). Auf den Label-Namen wird im job-if
     # gefiltert, damit nicht jedes Label den Lauf startet.
-    types: [labeled]
+    types: [labeled, unlabeled]
+  issues:
+    # Entfernen von ai:hold-merge am Issue weckt das Gate (kein Sweep-Workflow mehr). Auf den
+    # Label-Namen wird im job-if gefiltert; den PR loest der Step ueber ai/harness/<N> auf.
+    types: [unlabeled]
   workflow_dispatch:
     # Manueller Re-Check eines PRs bzw. Trigger durch den Gate-Sweep (cron.pr-gate-sweep.yml):
     # heilt PRs, deren letztes Gate-Event in ein No-op fiel (z. B. mergeable=UNKNOWN direkt nach
@@ -71,7 +75,7 @@ concurrency:
   # Pro PR serialisieren (head_branch identifiziert den PR ueber workflow_run hinweg; beim
   # labeled-/dispatch-Event die PR-Nummer), damit zwei kurz nacheinander eintreffende Events
   # nicht doppelt labeln/mergen.
-  group: claude-pr-gatemerge-${{ github.event.workflow_run.head_branch || github.event.pull_request.number || github.event.inputs.pr }}
+  group: claude-pr-gatemerge-${{ github.event.workflow_run.head_branch || github.event.pull_request.number || (github.event.issue.number && format('ai/harness/{0}', github.event.issue.number)) || github.event.inputs.pr }}
   cancel-in-progress: false
 
 jobs:
@@ -86,8 +90,11 @@ jobs:
             && github.event.workflow_run.head_repository.full_name == github.repository
             && github.event.workflow_run.head_branch != 'main')
           || (github.event_name == 'pull_request'
-            && github.event.label.name == 'ai:reviewed'
+            && (github.event.action == 'labeled' && github.event.label.name == 'ai:reviewed'
+                || github.event.action == 'unlabeled' && github.event.label.name == 'ai:hold-merge')
             && github.event.pull_request.head.repo.full_name == github.repository)
+          || (github.event_name == 'issues'
+            && github.event.label.name == 'ai:hold-merge')
           || github.event_name == 'workflow_dispatch' }}
     runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
@@ -145,7 +152,7 @@ jobs:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }} # App-Token → loest Folge aus (Fallback: GITHUB_TOKEN)
           REPO: ${{ github.repository }}
           EVENT_NAME: ${{ github.event_name }}
-          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch || (github.event.issue.number && format('ai/harness/{0}', github.event.issue.number)) || '' }}
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr }}
         run: |
           set -euo pipefail
@@ -451,8 +458,31 @@ jobs:
           # NICHT ai:needs-fixup / ai:needs-review (Fixup oder Re-Review ausstehend), und der PR
           # sauber mergebar ist. Sonst No-op (Review vergibt das terminale ai:reviewed).
           # ====================================================================================
+          # ai:hold-merge (PR ODER verknuepftes Issue) sperrt nur den Merge; Phasen laufen normal.
+          # Frisch lesen (kein $labels-Stand vom Job-Start, Race #2319). Issue ueber
+          # closingIssuesReferences + Head-Branch ai/harness/<N>. Gibt "PR" bzw. "Issue #n" aus.
+          find_hold() {
+            local v n
+            v="$(gh pr view "$pr" --repo "$REPO" --json labels,closingIssuesReferences,headRefName)"
+            if [ "$(echo "$v" | jq -r 'any(.labels[]?; .name == "ai:hold-merge")')" = "true" ]; then
+              echo "PR"
+              return 0
+            fi
+            for n in $(echo "$v" | jq -r '[(.closingIssuesReferences[]?.number | tostring), (.headRefName | capture("^ai/harness/(?<n>[0-9]+)$")?.n // empty)] | unique[]'); do
+              if [ "$(gh issue view "$n" --repo "$REPO" --json labels --jq 'any(.labels[]; .name == "ai:hold-merge")')" = "true" ]; then
+                echo "Issue #$n"
+                return 0
+              fi
+            done
+          }
+          gh label create "ai:hold-merge" --repo "$REPO" --color FBCA04 --description "Merge angehalten bis zur manuellen Freigabe (Label entfernen)" 2>/dev/null || true
+
           if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-human")')" = "true" ]; then
             echo "PR #$pr traegt ai:needs-human — wartet auf menschliche Entscheidung, kein Auto-Merge (No-op)."
+            exit 0
+          fi
+          if hold_src="$(find_hold)" && [ -n "$hold_src" ]; then
+            echo "PR #$pr traegt ai:hold-merge ($hold_src) — wartet auf Freigabe, kein Auto-Merge (No-op)."
             exit 0
           fi
           if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:reviewed")')" != "true" ]; then
@@ -525,6 +555,10 @@ jobs:
           # workflow_run zur Expression-Zeit unbekannt, eine gemeinsame Gruppe daher nicht moeglich)
           # und koennen sich ueberlappen. Direkt vor dem Merge erneut pruefen, ob der PR noch offen
           # ist; sonst hat der Parallel-Lauf bereits gemergt -> sauberer No-op statt rotem Abbruch.
+          if hold_src="$(find_hold)" && [ -n "$hold_src" ]; then
+            echo "PR #$pr traegt ai:hold-merge ($hold_src) — wartet auf Freigabe, kein Auto-Merge (No-op)."
+            exit 0
+          fi
           state_now="$(gh pr view "$pr" --repo "$REPO" --json state,title)"
           if [ "$(echo "$state_now" | jq -r '.state')" != "OPEN" ]; then
             echo "PR #$pr ist nicht mehr offen (state=$(echo "$state_now" | jq -r '.state')) — bereits gemergt/geschlossen (No-op)."
