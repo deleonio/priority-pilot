@@ -48,11 +48,12 @@ const EXPECTED_FEATURES = [
 	'mcp_read',
 	'feedback',
 	'sync',
+	'knowledge_entries',
 ];
 
 describe('plans.ts — Feature-Katalog (#1456 AK2/AK10, #1524 AK3)', () => {
-	it('FEATURE_IDS deckt alle zehn stabilen Identifier ab, inklusive mcp_read, graph_weight, feedback und sync (#1524 AK3, #1782, #1927, #2397)', () => {
-		assert.deepEqual([...FEATURE_IDS].sort(), [...EXPECTED_FEATURES].sort(), 'genau die zehn Identifier');
+	it('FEATURE_IDS deckt alle elf stabilen Identifier ab, inklusive mcp_read, graph_weight, feedback, sync und knowledge_entries (#1524 AK3, #1782, #1927, #2397, #1936)', () => {
+		assert.deepEqual([...FEATURE_IDS].sort(), [...EXPECTED_FEATURES].sort(), 'genau die elf Identifier');
 	});
 
 	it('getPlansCatalog() liefert für jedes Feature einen Katalog-Eintrag', () => {
@@ -82,6 +83,21 @@ describe('plans.ts — feedback für alle Pakete (#1927 AK1/AK2)', () => {
 			assert.deepEqual(
 				(getEntitlements(plan) as Record<string, unknown>).feedback,
 				{ allowed: true, requiredPlan: 'free' },
+				plan,
+			);
+		}
+	});
+});
+
+// #1936 AK2: Wissens-Einträge sind nur im Paket Pro enthalten.
+describe('plans.ts — knowledge_entries nur Pro (#1936 AK2)', () => {
+	it('Katalog führt knowledge_entries nur für pro, Entitlements je Paket', () => {
+		const entry = getPlansCatalog().features.find((f) => (f.feature as string) === 'knowledge_entries');
+		assert.deepEqual(entry?.allowedPlans, ['pro']);
+		for (const plan of PLAN_VALUES) {
+			assert.deepEqual(
+				(getEntitlements(plan) as Record<string, unknown>).knowledge_entries,
+				{ allowed: plan === 'pro', requiredPlan: 'pro' },
 				plan,
 			);
 		}

@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { Pillar, PillarFeedback } from '../models/index.js';
+import { KnowledgeEntry, Pillar, PillarFeedback, User } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer, setTestLlmProvider } from '../test/helpers.js';
 
 // Die DB ist ein Singleton, das von allen describe-Blöcken geteilt wird. Daher genau
@@ -858,5 +858,113 @@ describe('classifyPillarsWithMistral — Anteil und Konfidenz je Säule (#2076)'
 			const result = (await classifyPillarsWithMistral(input)) as SuggestionWithShare[];
 			assertValidShares(result, [1, 2, 3, 4, 5]);
 		}
+	});
+});
+
+/**
+ * #1936 AK4/AK5 (Spec docs/spec/issue-1936.md): relevante Wissens-Einträge eines Pro-Nutzers gehen als
+ * `knowledge` an den Klassifikator, die Antwort nennt sie in `knowledgeEntryIds`. Ohne Einträge, ohne
+ * passende Einträge oder ohne Pro-Paket bleibt die Eingabe wie heute (kein `knowledge`).
+ */
+describe('POST /tasks/suggest-pillars — Wissens-Einträge (#1936)', () => {
+	let server: TestServer;
+	let lastInput: ClassifyPillarsInput | undefined;
+
+	const classifier: PillarClassifier = async (input) => {
+		lastInput = input;
+		return [];
+	};
+
+	const ask = (cookie: string) =>
+		fetch(`${server.baseUrl}/tasks/suggest-pillars`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({ title: 'Training planen' }),
+		});
+
+	const setup = async (email: string, plan: 'plus' | 'pro', texts: string[]) => {
+		const cookie = await server.register(email, 'password123');
+		await User.update({ plan }, { where: { email } });
+		const user = (await User.findOne({ where: { email } }))!;
+		const entries = [];
+		for (const text of texts) entries.push(await KnowledgeEntry.create({ userId: user.id, text }));
+		return { cookie, entries };
+	};
+
+	const knowledgeOf = (input?: ClassifyPillarsInput): unknown =>
+		(input as { knowledge?: unknown } | undefined)?.knowledge;
+
+	beforeEach(async () => {
+		await resetDb();
+		lastInput = undefined;
+		process.env.MONETIZATION_ENFORCED = 'true';
+		server ??= await startTestServer({ pillarClassifier: classifier });
+	});
+
+	after(async () => {
+		delete process.env.MONETIZATION_ENFORCED;
+		if (server) await server.close();
+	});
+
+	it('AK4 — Pro: genau die relevanten Einträge gehen an den Klassifikator, IDs stehen in der Antwort', async () => {
+		const { cookie, entries } = await setup('pro-wissen@example.com', 'pro', [
+			'Ich trainiere dienstags im Verein.',
+			'Ich esse gern Pasta.',
+		]);
+		const res = await ask(cookie);
+		assert.equal(res.status, 200);
+		assert.deepEqual(
+			(knowledgeOf(lastInput) as { id: number }[]).map((e) => e.id),
+			[entries[0]!.id],
+		);
+		assert.deepEqual(((await res.json()) as { knowledgeEntryIds?: number[] }).knowledgeEntryIds, [entries[0]!.id]);
+	});
+
+	it('AK5 — Pro ohne passende Einträge: keine Einträge im Klassifikator, knowledgeEntryIds fehlt oder ist leer', async () => {
+		const { cookie } = await setup('pro-ohne@example.com', 'pro', ['Ich esse gern Pasta.']);
+		const body = (await (await ask(cookie)).json()) as { knowledgeEntryIds?: number[] };
+		assert.ok(!knowledgeOf(lastInput) || (knowledgeOf(lastInput) as unknown[]).length === 0);
+		assert.ok(!body.knowledgeEntryIds || body.knowledgeEntryIds.length === 0);
+	});
+
+	it('AK5 — Plus mit gespeicherten Einträgen (nach Downgrade): keine Einträge, kein knowledgeEntryIds', async () => {
+		const { cookie } = await setup('plus-wissen@example.com', 'plus', ['Ich trainiere dienstags im Verein.']);
+		const body = (await (await ask(cookie)).json()) as { knowledgeEntryIds?: number[] };
+		assert.ok(!knowledgeOf(lastInput) || (knowledgeOf(lastInput) as unknown[]).length === 0);
+		assert.ok(!body.knowledgeEntryIds || body.knowledgeEntryIds.length === 0);
+	});
+});
+
+describe('classifyPillarsWithMistral — Wissens-Einträge im Prompt (#1936 AK4/AK5)', () => {
+	const originalFetch = globalThis.fetch;
+	const pillars = [{ id: 1, name: 'Körper' }];
+
+	const capture = async (extra: Record<string, unknown>): Promise<unknown> => {
+		await setTestLlmProvider(true);
+		let messages: unknown;
+		globalThis.fetch = (async (_url: unknown, init?: { body?: string }) => {
+			messages = (JSON.parse(init?.body ?? '{}') as { messages?: unknown }).messages;
+			return new Response(JSON.stringify({ choices: [{ message: { content: '{"pillars":[]}' } }] }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' },
+			});
+		}) as typeof fetch;
+		await classifyPillarsWithMistral({ title: 'Training planen', pillars, ...extra } as ClassifyPillarsInput);
+		return messages;
+	};
+
+	after(() => {
+		globalThis.fetch = originalFetch;
+	});
+
+	it('AK4 — die übergebenen Einträge erscheinen im Prompt', async () => {
+		const messages = await capture({ knowledge: [{ id: 7, text: 'Ich trainiere dienstags im Verein.' }] });
+		assert.match(JSON.stringify(messages), /Ich trainiere dienstags im Verein\./);
+	});
+
+	it('AK5 — ohne Einträge (fehlend oder leer) ist die Nachrichtenfolge identisch', async () => {
+		const baseline = await capture({});
+		assert.deepEqual(await capture({ knowledge: [] }), baseline);
+		assert.doesNotMatch(JSON.stringify(baseline), /Wissen/i, 'kein leerer Wissens-Abschnitt im Prompt');
 	});
 });
