@@ -8,6 +8,9 @@ import { getPublicOrigin } from '../lib/siteOrigin';
 const LEGAL_LINKS = { terms: '/nutzungsbedingungen/', privacy: '/datenschutz/' } as const;
 
 type LegalKey = keyof typeof LEGAL_LINKS;
+
+/** Absolute Adresse der Rechtsseite: `SITE_URL` im Android-Build (ADR 0021), sonst die eigene Origin. */
+const legalUrl = (key: LegalKey): string => `${getPublicOrigin()}${LEGAL_LINKS[key]}`;
 type LegalText = { status: 'loading' | 'error' } | { status: 'ready'; html: string };
 
 /**
@@ -99,7 +102,7 @@ export const ConsentStep = ({ onAccepted }: { onAccepted: () => void }) => {
 	const loadText = (key: LegalKey): void => {
 		if (texts[key]?.status === 'ready' || texts[key]?.status === 'loading') return;
 		setTexts((current) => ({ ...current, [key]: { status: 'loading' } }));
-		fetch(LEGAL_LINKS[key])
+		fetch(legalUrl(key))
 			.then((response) => (response.ok ? response.text() : Promise.reject(new Error(String(response.status)))))
 			.then((page) =>
 				setTexts((current) => ({
@@ -119,7 +122,7 @@ export const ConsentStep = ({ onAccepted }: { onAccepted: () => void }) => {
 					{t('consent.loadFailed')}{' '}
 					<a
 						className="consent-step__link"
-						href={LEGAL_LINKS[key]}
+						href={legalUrl(key)}
 						target="_blank"
 						rel="noopener noreferrer"
 						hrefLang="de"
