@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.18 - 2026-10-07
 
-_Enthält v0.18.0 – v0.18.24._
+_Enthält v0.18.0 – v0.18.25._
 
 ### 🎉 New Features
 
@@ -49,6 +49,7 @@ _Enthält v0.18.0 – v0.18.24._
 - feat(frontend): add android build without pwa and fixed site url by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2388
 - feat(frontend): add create-task dialog to series and templates by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2390
 - feat(server): list only open tasks in mcp task_list by default (#2144) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2393
+- [P2/M] Server: Inventar der Fachlogik (REST/MCP/Jobs) und Konvention für ihren Ort (#1934) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2403
 
 ## v0.17 - 2026-10-07
 
