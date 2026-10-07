@@ -311,8 +311,11 @@ push-unabhängig im zweiten Ticker und ist standardmäßig aktiv; sie lässt sic
 `AUTO_DELETE_AFTER_DEADLINE_ENABLED=false` abschalten. Der Nearby-Push ist kein Scheduler-Job:
 Die App meldet ihre Position im Geo-Intervall, der Server verschickt dann je Nutzer eine
 gebündelte Nachricht für offene Aufgaben im Alarmabstand, Feuer-und-vergessen
-(`logics/geo-background-job.ts`). Serien-Instanzen materialisieren über
-`POST /series/generate-all` (idempotent) statt über einen Scheduler.
+(`logics/geo-background-job.ts`). Serien-Instanzen legt ein täglicher Server-Job an,
+und zwar für Serien mit dem Schalter „Automatisch anlegen"; Serien mit ausgeschaltetem
+Schalter sind Vorlagen, deren Aufgaben nur auf Abruf entstehen
+([ADR 0020](adr/0020-serien-automatisch-anlegen-vorlage.md), Umsetzung in #2353). Der Job
+nutzt die idempotente Logik hinter `POST /series/generate-all`.
 
 ## 7. Verteilungssicht
 
