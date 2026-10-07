@@ -620,8 +620,11 @@ Allgemein, Säulen, Kategorien, Standort, Orte, KI, Gruppen und **Pakete & Abo**
 - **Kalender** – verbinde die ICS-Adresse deines Kalenders (bei Google Kalender die
   „geheime Adresse im iCal-Format“), optional mit Namen, über **„Verbinden“**. Die Termine der
   nächsten 14 Tage erscheinen in der Wochenansicht; die Adresse bleibt geheim und wird nirgends
-  angezeigt. Das Paket legt fest, wie viele Kalender möglich sind (Free: einer, Plus und Pro: fünf).
-  **„Entfernen“** löscht den Kalender samt seiner Termine.
+  angezeigt. Kalender, die nur per CalDAV erreichbar sind, verbindest du mit **„CalDAV“**, der
+  Kalender-Adresse, deinem Benutzernamen und einem App-Passwort; der Abruf ist nur lesend, das
+  Passwort wird verschlüsselt gespeichert und nie angezeigt. Das Paket legt fest, wie viele Kalender
+  möglich sind (Free: einer, Plus und Pro: fünf).
+  **„Entfernen“** löscht den Kalender samt seiner Termine und Zugangsdaten.
 - **Bild der Lebensbalance** – wähle zwischen **Herz**, **Blasen**, **Scheiben**,
   **Ringe**, **Strahlen**, **Blüte**, **Kristall**, **Segmente** und **Zeiger**. Alle zeigen dieselbe Rechnung, nur anders
   dargestellt. Die Wahl wird am Konto gespeichert und gilt auf allen Geräten, auf denen du

@@ -4334,7 +4334,7 @@ paths:
       summary: Kalenderquellen auflisten
       description: >-
         Liefert die Kalenderquellen des angemeldeten Nutzers (#2209), älteste zuerst — ohne
-        ICS-Adresse, die bleibt geheim.
+        Adresse und ohne CalDAV-Zugangsdaten (#2211), die bleiben geheim.
       operationId: listCalendarSources
       tags: [calendar]
       responses:
@@ -4352,7 +4352,9 @@ paths:
         Legt eine Kalenderquelle per ICS-Adresse an (#2209), ruft sie sofort per GET ab und speichert
         die Termine mit Start von heute bis +14 Tage (nur Start, Ende, Titel, ganztägig). Danach
         ruft der Server alle 30 Minuten erneut ab und ersetzt den Bestand. Free erlaubt eine Quelle,
-        Plus und Pro fünf; darüber 403 `plan_required`.
+        Plus und Pro fünf; darüber 403 `plan_required`. Mit `type: caldav` (#2211) ruft der Server die
+        Termine nur lesend per `REPORT` mit Benutzername und App-Passwort ab und speichert das Passwort
+        verschlüsselt; ohne Server-Schlüssel `CALDAV_ENCRYPTION_KEY` 400.
       operationId: createCalendarSource
       tags: [calendar]
       requestBody:
@@ -4383,7 +4385,7 @@ paths:
     delete:
       summary: Kalenderquelle löschen
       description: >-
-        Entfernt eine eigene Kalenderquelle samt ihrer Termine (#2209). Fremde oder unbekannte
+        Entfernt eine eigene Kalenderquelle samt Zugangsdaten und Terminen (#2209, #2211). Fremde oder unbekannte
         Quellen liefern 404.
       operationId: deleteCalendarSource
       tags: [calendar]
@@ -6057,13 +6059,17 @@ components:
           description: Summe aller Einträge im Fenster.
     CalendarSource:
       type: object
-      description: Kalenderquelle eines Nutzers (#2209), ohne die geheime ICS-Adresse.
-      required: [id, name]
+      description: Kalenderquelle eines Nutzers (#2209), ohne die geheime Adresse und ohne Zugangsdaten.
+      required: [id, name, type]
       properties:
         id:
           type: integer
         name:
           type: string
+        type:
+          type: string
+          enum: [ics, caldav]
+          description: Art der Quelle (#2211)
     CalendarSourceInput:
       type: object
       description: Eingabe zum Anlegen einer Kalenderquelle (#2209).
@@ -6072,11 +6078,23 @@ components:
         url:
           type: string
           maxLength: 2048
-          description: ICS-Adresse (http oder https), z. B. die geheime iCal-Adresse aus Google Kalender
+          description: ICS- oder CalDAV-Adresse (http oder https), z. B. die geheime iCal-Adresse aus Google Kalender
         name:
           type: string
           maxLength: 100
           description: Anzeigename; ohne Angabe „Kalender"
+        type:
+          type: string
+          enum: [ics, caldav]
+          description: Art der Quelle (#2211); ohne Angabe `ics`
+        username:
+          type: string
+          maxLength: 1024
+          description: CalDAV-Benutzername, Pflicht bei `caldav`
+        password:
+          type: string
+          maxLength: 1024
+          description: CalDAV-App-Passwort, Pflicht bei `caldav`; wird verschlüsselt gespeichert und nie ausgegeben
     CalendarEvent:
       type: object
       description: Gespeicherter Termin einer Kalenderquelle (#2209).
