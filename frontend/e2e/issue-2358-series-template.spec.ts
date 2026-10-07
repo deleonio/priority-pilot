@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { openAccordionSection, waitForStableView } from './helpers';
+import { openAccordionSection, registerOwnSession, waitForStableView } from './helpers';
 
 /**
  * Rote End-to-End-Spec für #2358 — Serien als Vorlage (AK5, AK6, AK8).
@@ -63,6 +63,10 @@ test.describe('Balamentum — Serie als Vorlage (#2358)', () => {
 	test('AK5/AK8 — Schalter beim Bearbeiten: gespeicherter Wert, Umstellen persistiert, Touch-Höhe ≥ 44 px', async ({
 		page,
 	}) => {
+		// Test-Pflege: eigener Nutzer mit den fünf Standard-Säulen — in der geteilten Shard-DB liefert
+		// `GET /pillars` sonst beliebig viele Säulen, die vorbelegte Verteilung wird serverseitig
+		// abgelehnt („pillars ist ungültig") und nichts wird gespeichert (CI e2e (5)).
+		await registerOwnSession(page, 'series-template');
 		const templateId = await createSeries(page, uniqueTitle('Edit'), false);
 		await openSeriesTab(page);
 
