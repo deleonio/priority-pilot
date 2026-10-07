@@ -364,6 +364,7 @@ jobs:
             --issue "$ISSUE" --draft any --out first)"
           ARTIFACTS_OK="false"
           if [ -n "$SPEC_PR" ] && [ "$SPEC_PR" != "null" ]; then
+            bash .github/scripts/pr-ensure-closes.sh --repo "$GITHUB_REPOSITORY" --pr "$SPEC_PR" --issue "$ISSUE"
             # Prinzip: Tests nur für Anwendungscode (ADR 0001 + spec.md-NICHT-ANWENDUNGSCODE-Carve-out).
             # Spec-PR gilt als artefakt-OK, wenn er einen App-Test enthält ODER gar keinen
             # Anwendungscode berührt (reine Doku/Workflow/Config → keine Test-Pflicht). Ein
