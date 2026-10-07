@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { Task, TaskGraph, TaskGraphEdge, TaskGraphNode } from 'client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
@@ -54,9 +54,19 @@ vi.mock('@public-ui/react-v19', () => ({
 			{children}
 		</section>
 	),
-	KolDetails: ({ _label, children }: { _label?: string; children?: React.ReactNode }) => (
-		<details>
-			<summary>{_label}</summary>
+	KolDetails: ({
+		_label,
+		_open,
+		_on,
+		children,
+	}: {
+		_label?: string;
+		_open?: boolean;
+		_on?: { onToggle?: (event: Event, value: boolean) => void };
+		children?: React.ReactNode;
+	}) => (
+		<details data-open={String(_open === true)}>
+			<summary onClick={() => _on?.onToggle?.(new Event('toggle'), _open !== true)}>{_label}</summary>
 			{children}
 		</details>
 	),
@@ -176,5 +186,27 @@ describe('TaskGraphPanel', () => {
 		await waitFor(() => expect(screen.getByTestId('graph-list-item-2')).toBeTruthy());
 		screen.getByRole('button', { name: /Abhängigkeiten bearbeiten: T2/ }).click();
 		expect(onEditDependencies).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }));
+	});
+});
+
+describe('TaskGraphPanel Aufklappbereiche (#2328 AK4/AK5)', () => {
+	it('Legende und Graph als Liste bleiben nach dem Neuzeichnen offen und schließen per Klick', async () => {
+		getGraph.mockResolvedValue(graph([node(1), node(2)], [edge(1, 2)]));
+		const { rerender } = render(<TaskGraphPanel tasks={[]} onEditDependencies={vi.fn()} />);
+		await waitFor(() => expect(screen.getByText('Legende')).toBeTruthy());
+		const open = (label: string): string | undefined =>
+			(screen.getByText(label).closest('details') as HTMLElement).dataset.open;
+
+		fireEvent.click(screen.getByText('Legende'));
+		fireEvent.click(screen.getByText('Graph als Liste'));
+		expect([open('Legende'), open('Graph als Liste')]).toEqual(['true', 'true']);
+
+		rerender(<TaskGraphPanel tasks={[task(1)]} onEditDependencies={vi.fn()} />);
+		expect([open('Legende'), open('Graph als Liste')]).toEqual(['true', 'true']);
+
+		fireEvent.click(screen.getByText('Legende'));
+		expect([open('Legende'), open('Graph als Liste')]).toEqual(['false', 'true']);
+		fireEvent.click(screen.getByText('Graph als Liste'));
+		expect(open('Graph als Liste')).toBe('false');
 	});
 });

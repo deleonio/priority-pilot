@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 // ROTER Spec-Test (#1991, docs/spec/issue-1991.md): `DuoCard` existiert noch nicht — der Import
@@ -13,9 +13,19 @@ vi.mock('@public-ui/react-v19', () => ({
 			{children}
 		</div>
 	),
-	KolDetails: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
-		<details>
-			<summary>{_label}</summary>
+	KolDetails: ({
+		_label,
+		_open,
+		_on,
+		children,
+	}: {
+		_label?: string;
+		_open?: boolean;
+		_on?: { onToggle?: (event: Event, value: boolean) => void };
+		children?: ReactNode;
+	}) => (
+		<details data-open={String(_open === true)}>
+			<summary onClick={() => _on?.onToggle?.(new Event('toggle'), _open !== true)}>{_label}</summary>
 			{children}
 		</details>
 	),
@@ -94,5 +104,23 @@ describe('DuoCard (#1991 AK1/AK4)', () => {
 
 		await screen.findByText(/Noch niemand dabei/);
 		expect(screen.getAllByTestId('duo-member')).toHaveLength(1);
+	});
+});
+
+describe('DuoCard Aufklappbereich (#2328 AK3/AK5)', () => {
+	it('bleibt nach dem Neuzeichnen offen und schließt per erneutem Klick', async () => {
+		getGroupDuo.mockResolvedValue(duo(3));
+		const { rerender } = render(<DuoCard groupId={5} />);
+		await waitFor(() => expect(screen.getAllByTestId('duo-member')).toHaveLength(2));
+		const details = (): HTMLElement => document.querySelector('details') as HTMLElement;
+		const summary = (): HTMLElement => details().querySelector('summary') as HTMLElement;
+
+		fireEvent.click(summary());
+		expect(details().dataset.open).toBe('true');
+		rerender(<DuoCard groupId={5} />);
+		expect(details().dataset.open).toBe('true');
+
+		fireEvent.click(summary());
+		expect(details().dataset.open).toBe('false');
 	});
 });
