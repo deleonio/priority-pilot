@@ -1,6 +1,8 @@
 import { Router, type Request, type Response } from 'express';
 import { findMcpTool, mcpTools, type McpToolContext } from './tools.js';
 import { readBearerToken } from '../express/apiTokenAuth.js';
+import { getUserId } from '../express/requireAuth.js';
+import { User } from '../models/index.js';
 
 /**
  * MCP-Endpunkt v1 (#1353): JSON-RPC 2.0 über HTTP unter `POST /mcp/v1`.
@@ -63,10 +65,14 @@ mcpRouter.post(MCP_PATH, async (req: Request, res: Response) => {
 	}
 
 	if (body.method === 'initialize') {
+		// Dialog-Vorgaben (#1935): `instructions` aus der MCP-Spec nur, wenn der Nutzer welche gespeichert hat.
+		const userId = getUserId(req);
+		const user = userId === undefined ? null : await User.findByPk(userId, { attributes: ['mcpInstructions'] });
 		sendResult(res, id, {
 			protocolVersion: PROTOCOL_VERSION,
 			capabilities: { tools: {} },
 			serverInfo: { name: 'priority-pilot-mcp-v1', version: '1' },
+			...(user?.mcpInstructions ? { instructions: user.mcpInstructions } : {}),
 		});
 		return;
 	}

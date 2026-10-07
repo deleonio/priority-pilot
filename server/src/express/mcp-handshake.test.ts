@@ -209,7 +209,9 @@ describe('MCP-Endpunkt /mcp/v1 — Dialog-Vorgaben (#1935)', () => {
 		await closeDb();
 	});
 
-	const rpc = async (token: string, method: string, params: unknown = {}): Promise<Record<string, any>> => {
+	// Test-Pflege #1935: `Record<string, any>` → `RpcBody` (Lint `no-explicit-any`, Verhalten unverändert).
+	type RpcBody = { result: Record<string, unknown>; error?: { message?: string } };
+	const rpc = async (token: string, method: string, params: unknown = {}): Promise<RpcBody> => {
 		const res = await fetch(`${server.baseUrl}/mcp/v1`, {
 			method: 'POST',
 			headers: {
@@ -219,7 +221,7 @@ describe('MCP-Endpunkt /mcp/v1 — Dialog-Vorgaben (#1935)', () => {
 			},
 			body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
 		});
-		return (await res.json()) as Record<string, any>;
+		return (await res.json()) as RpcBody;
 	};
 
 	const setInstructions = async (cookie: string, instructions: string): Promise<void> => {

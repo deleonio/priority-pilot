@@ -32,6 +32,7 @@ import { HeaderPositionSetting } from './HeaderPositionSetting';
 import { BalanceVariantSetting } from './BalanceVariantSetting';
 import { LanguageSetting } from './LanguageSetting';
 import { AdminUsersSection } from './AdminUsersSection';
+import { McpInstructionsSection } from './McpInstructionsSection';
 import { ApiTokensSection } from './ApiTokensSection';
 import { CalendarSourcesSection } from './CalendarSourcesSection';
 import { PlaceFavoritesSection } from './PlaceFavoritesSection';
@@ -1021,6 +1022,7 @@ export const SettingsPage = ({
 					</KolCard>
 					<LlmSettings open={aiFeaturesEnabled} disabled={showAiPlanAlert} />
 					<ApiTokensSection open={aiFeaturesEnabled} />
+					<McpInstructionsSection open={aiFeaturesEnabled} />
 				</div>
 				{/* #1211: Gruppen-Verwaltung (AK6–AK8) — eigener Tab „Gruppen" (Index 5, Route
 				        /settings/gruppen). Liste als Accordions mit Rolle + Mitgliederzahl, Anlegen/Bearbeiten

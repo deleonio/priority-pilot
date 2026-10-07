@@ -28,6 +28,7 @@ import { createPushRouter } from './routes/push.js';
 import { createMailRouter } from './routes/mail.js';
 import { createLlmProvidersRouter } from './routes/llmProviders.js';
 import { geoConfigRouter } from './routes/geoConfig.js';
+import { mcpInstructionsRouter } from './routes/mcpInstructions.js';
 import { careConfigRouter } from './routes/careConfig.js';
 import { kpisRouter } from './routes/kpis.js';
 import { createBalanceVariantRouter } from './routes/balanceVariant.js';
@@ -331,6 +332,8 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Pro-User Geo-Konfiguration: Anzeige-/Alarm-Entfernung, Intervall (#1098).
 	app.use(geoConfigRouter);
 	app.use(careConfigRouter);
+	// Dialog-Vorgaben für die per MCP verbundene KI (#1935).
+	app.use(mcpInstructionsRouter);
 	// KPI-Share-Ping der Wochenkarte (#1989) — bewusst HINTER `requireAuth` (401 anonym).
 	app.use(kpisRouter);
 	// Zifferblatt-Auswahl am Konto (#2009) — der GET stellt den CSRF-Token als Antwort-Header bereit.

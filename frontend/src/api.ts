@@ -47,6 +47,7 @@ import type {
 	LlmProviderUpdate,
 	NearbyTask,
 	GeoConfig,
+	McpInstructions,
 	FreeSlot,
 	FreeSlotConfig,
 	CareConfig,
@@ -1625,6 +1626,29 @@ export const api = {
 	// Speichert die Geo-Konfiguration; Schranken-Verstöße werden serverseitig mit 400 abgelehnt.
 	async updateGeoConfig(config: GeoConfig, init: Init = {}): Promise<GeoConfig> {
 		const { data, error, response } = await client.PUT('/geo-config', { body: config, signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// --- Dialog-Vorgaben für die MCP-KI (#1935) ---
+
+	// Pro Nutzer gespeicherter Freitext, der im MCP-`initialize`-Handshake ausgeliefert wird.
+	async getMcpInstructions(init: Init = {}): Promise<McpInstructions> {
+		const { data, error, response } = await client.GET('/mcp-instructions', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Speichert die Vorgaben getrimmt (leer löscht); zu lang oder kein String → 400.
+	async updateMcpInstructions(instructions: string, init: Init = {}): Promise<McpInstructions> {
+		const { data, error, response } = await client.PUT('/mcp-instructions', {
+			body: { instructions },
+			signal: init.signal,
+		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}
