@@ -1,22 +1,53 @@
-import { KolAlert, KolBadge, KolDetails, KolSpin } from '@public-ui/react-v19';
-import { useEffect, useState } from 'react';
+import type { KoliBriTableDataType, KoliBriTableHeaderCellWithLogic } from '@public-ui/components';
+import { KolAlert, KolSpin, KolTableStateful } from '@public-ui/react-v19';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import type { components } from 'client';
 import { formatEuro } from '../lib/format';
-import { featureOffer, PERIOD_LABELS, PERIODS, planLabel, yearlyMonthlyEquivalent, type Plan } from '../lib/planOffers';
+import {
+	featureOffer,
+	PERIOD_LABELS,
+	PERIODS,
+	planLabel,
+	yearlyMonthlyEquivalent,
+	type Period,
+	type Plan,
+} from '../lib/planOffers';
 import { getChannel } from '../lib/platform';
+import { renderIntoCell } from '../lib/reactCellRoot';
 import { usePlan } from '../lib/usePlan';
 import { purchaseHookFor } from './billingChannel';
 
 type PlansCatalog = components['schemas']['PlansCatalog'];
 
+/** Spaltenschlüssel der Zeilenbezeichnung („Funktion") — erste, beim Scrollen stehende Spalte. */
+const LABEL_KEY = 'label';
+/** Feste Spaltenbreiten (AK3): die Matrix behält ihre Breite und scrollt in sich selbst (ADR 0014,
+ * Entscheidung 6). Die Werte sind so bemessen, dass keine Kopfzelle auf mehr als zwei Zeilen
+ * umbricht (AK6) — „Plus (dein Paket)" ist der längste Kopftext. */
+const LABEL_COLUMN_WIDTH = 170;
+const PLAN_COLUMN_WIDTH = 150;
+
+/** Zeilenarten der Matrix: Preis-, Buchen- und Feature-Zeilen liegen gemeinsam im Tabellenkörper. */
+type RowKind = 'price' | 'action' | 'feature';
+
 /**
- * Buchbare Pakete im Reiter „Pakete & Abo" (#1458 AK11, #1496 T6c, #1529; seit #1902 als Liste statt
- * Matrix). Preise und Funktionen kommen vollständig aus `GET /plans`; Buchen und Wechseln liefert
- * der Kaufweg des Kanals (`billingChannel.tsx`), die Ansicht kennt keinen Anbieter. Je Paket eine
- * Zeile mit Preisen samt Aktion und den enthaltenen Funktionen in einem `KolDetails` (Regel 1,
- * `ux-design.md`: keine Karte je Paket). Abo-Status, Kündigung und Rechnungen: `SubscriptionSection`.
+ * Eine Zeile der Paket-Matrix: Zeilenbezeichnung (`label`) plus je Paket eine Spalte. `_kind` ist ein
+ * privates, nicht als Spalte gerendertes Feld (Muster `_task` in `CompletedTasksTable`-Zeilen) — es
+ * unterscheidet die drei Zeilenarten im gemeinsamen Körper.
+ */
+interface PlanRow extends KoliBriTableDataType {
+	label: string;
+	_kind: RowKind;
+	[key: string]: unknown;
+}
+
+/**
+ * Paket-Matrix im Reiter „Pakete & Abo" (#1458 AK11, #1496 T6c, #1529; nach #1902 wieder als
+ * Matrix). Feature-Matrix und Preise kommen vollständig aus `GET /plans`; Buchen und Wechseln
+ * liefert der Kaufweg des Kanals (`billingChannel.tsx`), die Ansicht kennt keinen Anbieter.
+ * Abo-Status, Kündigung und Rechnungen: `SubscriptionSection`.
  */
 export const PlansSection = () => {
 	const { plan } = usePlan();
@@ -24,6 +55,16 @@ export const PlansSection = () => {
 	const usePurchase = purchaseHookFor(getChannel());
 	const { t } = useTranslation('messages');
 	const purchase = usePurchase();
+	const matrixRef = useRef<HTMLDivElement>(null);
+	/**
+	 * #1529 AK5: `KolTableStateful` entscheidet EINMAL beim Laden (`componentDidLoad`), ob die
+	 * fixierten Spalten stehen bleiben — und schaltet sie ab, sobald ihre Summenbreite die
+	 * Containerbreite erreicht. In einem noch nicht sichtbaren Tab-Panel ist diese Breite 0, die
+	 * Funktionsspalte bliebe also dauerhaft ungefixt (die Korrektur per ResizeObserver kommt nur
+	 * verzögert). Die Tabelle wird deshalb erst gemountet, wenn ihr Platz tatsächlich vermessen ist.
+	 * Ohne `ResizeObserver` (JSDOM in den Unit-Tests) entfällt das Messen — dort gibt es kein Layout.
+	 */
+	const [matrixReady, setMatrixReady] = useState(typeof ResizeObserver === 'undefined');
 	const [catalog, setCatalog] = useState<PlansCatalog | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
@@ -53,6 +94,24 @@ export const PlansSection = () => {
 		return () => controller.abort();
 	}, []);
 
+	useEffect(() => {
+		const node = matrixRef.current;
+		if (node === null || typeof ResizeObserver === 'undefined') {
+			return;
+		}
+		const check = (): void => {
+			if (node.clientWidth > 0) {
+				setMatrixReady(true);
+			}
+		};
+		check();
+		const observer = new ResizeObserver(check);
+		observer.observe(node);
+		return () => observer.disconnect();
+		// `catalog` in den Abhängigkeiten: der Messcontainer existiert erst, wenn der Katalog geladen
+		// ist (davor stehen Ladefehler bzw. Spinner an seiner Stelle).
+	}, [catalog]);
+
 	if (error !== null) {
 		return (
 			<KolAlert _type="error" _label="Pakete">
@@ -68,56 +127,99 @@ export const PlansSection = () => {
 	const plans = Object.keys(catalog.prices);
 
 	const { actionCell } = purchase;
+	// Funktionen nach dem kleinsten Paket, das sie enthält (Spaltenreihenfolge aus `GET /plans`):
+	// was erst ein höheres Paket bringt, steht weiter unten. Innerhalb einer Stufe gilt die Katalog-Reihenfolge.
+	const lowestPlan = (entry: PlansCatalog['features'][number]): number => {
+		const index = plans.findIndex((key) => entry.allowedPlans.includes(key as never));
+		return index === -1 ? plans.length : index;
+	};
+	const features = [...catalog.features].sort((a, b) => lowestPlan(a) - lowestPlan(b));
+
+	// #1529 AK3: Preis-, Buchen- UND Feature-Zeilen liegen gemeinsam im Tabellenkörper (`_data`) —
+	// vor #1529 hingen Preis- und Buchen-Zeilen im `<thead>`, was sie für die Tabellen-Komponente
+	// unzugänglich machte.
+	const rows: PlanRow[] = [
+		...PERIODS.map((period) => {
+			const row: PlanRow = { label: `Preis ${PERIOD_LABELS[period]}`, _kind: 'price' };
+			for (const key of plans) {
+				const storePrice = key === 'free' ? undefined : purchase.price?.(key as Exclude<Plan, 'free'>, period);
+				row[key] = storePrice ?? formatEuro(catalog.prices[key][period]);
+				// #1898: Monatsäquivalent der Jahreszahlung als zweite Zeile der Monatszelle; im Store-Modus entfällt es.
+				const perMonth = yearlyMonthlyEquivalent(catalog.prices[key].yearly);
+				if (period === 'monthly' && storePrice === undefined && perMonth !== null) {
+					row[key] += `\n${t('billing.yearlyPerMonth', { price: formatEuro(perMonth) })}`;
+				}
+			}
+			return row;
+		}),
+		...(actionCell === undefined
+			? []
+			: PERIODS.map((period) => {
+					const row: PlanRow = { label: `Buchen ${PERIOD_LABELS[period]}`, _kind: 'action', _period: period };
+					for (const key of plans) {
+						row[key] = key === 'free' ? '—' : actionCell(key as Exclude<Plan, 'free'>, period).text;
+					}
+					return row;
+				})),
+		...features.map((entry) => {
+			const row: PlanRow = { label: featureOffer(entry.feature).title, _kind: 'feature' };
+			for (const key of plans) {
+				row[key] = entry.allowedPlans.includes(key as never) ? 'enthalten' : '—';
+			}
+			return row;
+		}),
+	];
+
+	const headers: { horizontal: KoliBriTableHeaderCellWithLogic[][] } = {
+		horizontal: [
+			[
+				{ key: LABEL_KEY, label: 'Funktion', width: LABEL_COLUMN_WIDTH },
+				...plans.map((key) => ({
+					key,
+					label: `${planLabel(key)}${key === plan ? ' (dein Paket)' : ''}`,
+					width: PLAN_COLUMN_WIDTH,
+					// Buchen-Zellen tragen eine Web Component (KolButton); sie passt nicht deklarativ in
+					// eine KoliBri-Zelle und wird wie in `CompletedTasksTable` über `render` in eine pro
+					// Zelle gecachte React-Root gemountet. Preis- und Feature-Zellen bleiben Text — der
+					// Datenwert der Zeile ist bereits die fertige Anzeige.
+					render: (domNode: HTMLElement, _cell: unknown, tupel: unknown) => {
+						const row = tupel as PlanRow;
+						if (row._kind !== 'action') {
+							renderIntoCell(domNode, <span style={{ whiteSpace: 'pre-line' }}>{String(row[key] ?? '')}</span>);
+							return;
+						}
+						renderIntoCell(
+							domNode,
+							key === 'free' ? <span>—</span> : actionCell?.(key as Exclude<Plan, 'free'>, row._period as Period).node,
+						);
+					},
+				})),
+			],
+		],
+	};
 
 	return (
 		<div className="plans-section" data-testid="plans-section">
 			{purchase.notice}
 
-			<ul className="plans-list">
-				{plans.map((key) => {
-					const included = catalog.features.filter((entry) => entry.allowedPlans.includes(key as never));
-					return (
-						<li key={key} className="plans-list__item" data-testid={`plan-item-${key}`}>
-							<p className="plans-list__name">
-								<strong>{planLabel(key)}</strong>
-								{key === plan && <KolBadge _label="Aktuell" />}
-							</p>
-							<ul className="plans-list__periods">
-								{PERIODS.map((period) => {
-									const storePrice =
-										key === 'free' ? undefined : purchase.price?.(key as Exclude<Plan, 'free'>, period);
-									const action = key === 'free' ? undefined : actionCell?.(key as Exclude<Plan, 'free'>, period);
-									// #1898: Monatsäquivalent der Jahreszahlung unter dem Monatspreis; im Store-Modus entfällt es.
-									const perMonth = yearlyMonthlyEquivalent(catalog.prices[key].yearly);
-									const showPerMonth = period === 'monthly' && storePrice === undefined && perMonth !== null;
-									return (
-										<li key={period} className="plans-list__period">
-											<span>
-												{PERIOD_LABELS[period]}: <span>{storePrice ?? formatEuro(catalog.prices[key][period])}</span>
-												{showPerMonth && (
-													<span className="plans-list__per-month">
-														{t('billing.yearlyPerMonth', { price: formatEuro(perMonth) })}
-													</span>
-												)}
-											</span>
-											{action?.node}
-										</li>
-									);
-								})}
-							</ul>
-							{included.length > 0 && (
-								<KolDetails _label="Enthaltene Funktionen" _level={3}>
-									<ul>
-										{included.map((entry) => (
-											<li key={entry.feature}>{featureOffer(entry.feature).title}</li>
-										))}
-									</ul>
-								</KolDetails>
-							)}
-						</li>
-					);
-				})}
-			</ul>
+			{/*
+			 * #1529 AK3-AK6 (ADR 0014, Entscheidung 6): Die Preis-Matrix bleibt bewusst eine Tabelle und
+			 * wird NICHT nach Mobile-Regel 3 auf 375px in Karten zerlegt — der Vergleich mehrerer Pakete
+			 * lebt vom Nebeneinander. Stattdessen feste Spaltenbreiten plus seitliches Scrollen innerhalb
+			 * der Tabelle. `_fixedCols` ist hier — anders als im Vorbild `CompletedTasksTable` — auch
+			 * mobil gesetzt, damit die Funktionsspalte beim Scrollen stehen bleibt (AK5).
+			 *
+			 * `[1, 0]` (nur die erste Spalte) statt des `[1, 1]` aus `CompletedTasksTable`: KoliBri
+			 * schaltet die Sticky-Spalten komplett ab, sobald ihre Summenbreite die Containerbreite
+			 * erreicht (`checkAndUpdateStickyState`, kol-table-stateless). Bei 375px wären
+			 * 170 + 150 px breiter als der Container — mit `[1, 1]` bliebe die Funktionsspalte also
+			 * ausgerechnet dort NICHT stehen, wo AK5 sie braucht.
+			 */}
+			<div className="plans-matrix" ref={matrixRef}>
+				{matrixReady && (
+					<KolTableStateful _label="Pakete im Vergleich" _data={rows} _headers={headers} _fixedCols={[1, 0]} />
+				)}
+			</div>
 
 			{purchase.dialog}
 		</div>

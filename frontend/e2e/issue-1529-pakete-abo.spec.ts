@@ -70,7 +70,7 @@ test.describe('Balamentum — #1529: Pakete/Abo als eigene Settings-Reiter', () 
 		await expect(page.getByRole('tab', { name: 'KI', exact: true })).toHaveAttribute('aria-selected', 'true');
 	});
 
-	test('#1898 AK6: bei 375px ist das Monatsäquivalent in der Paketliste sichtbar, die Seite läuft nicht über', async ({
+	test('#1898 AK6: bei 375px ist das Monatsäquivalent in der Matrix sichtbar, die Seite läuft nicht über', async ({
 		page,
 	}) => {
 		await page.setViewportSize({ width: 375, height: 812 });

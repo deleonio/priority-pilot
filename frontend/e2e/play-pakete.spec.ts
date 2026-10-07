@@ -54,19 +54,19 @@ const openPlans = async (page: Page, channel?: 'play'): Promise<void> => {
 };
 
 test.describe('Balamentum — #1674/#1692: Paketansicht im Kanal play', () => {
-	test('Web-Gegenprobe: ohne Abo bietet die Paketliste „Zahlungspflichtig bestellen" zu den Katalogpreisen an', async ({
+	test('Web-Gegenprobe: ohne Abo bietet die Matrix „Zahlungspflichtig bestellen" zu den Katalogpreisen an', async ({
 		page,
 	}) => {
 		await openPlans(page);
 
 		await expect(page.getByRole('button', { name: /Zahlungspflichtig bestellen/ }).first()).toBeVisible();
-		await expect(page.getByText('4,99 €', { exact: true })).toBeVisible();
+		await expect(page.getByRole('cell', { name: /^4,99 €/ })).toBeVisible();
 	});
 
 	test('play ohne Store-Plugin: Pakete sichtbar, kein Kauf-Button, Hinweis', async ({ page }) => {
 		await openPlans(page, 'play');
 
-		await expect(page.getByText('4,99 €', { exact: true })).toBeVisible();
+		await expect(page.getByRole('cell', { name: /^4,99 €/ })).toBeVisible();
 		await expect(page.getByText('Google Play nicht erreichbar')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Buchen' })).toHaveCount(0);
 	});
@@ -75,8 +75,8 @@ test.describe('Balamentum — #1674/#1692: Paketansicht im Kanal play', () => {
 		await mockPlayStore(page);
 		await openPlans(page, 'play');
 
-		await expect(page.getByText('9,49 €', { exact: true }).first()).toBeVisible();
-		await expect(page.getByText('4,99 €', { exact: true })).toHaveCount(0);
+		await expect(page.getByRole('cell', { name: /^9,49 €/ }).first()).toBeVisible();
+		await expect(page.getByRole('cell', { name: /^4,99 €/ })).toHaveCount(0);
 		const buy = page.getByRole('button', { name: 'Buchen' }).first();
 		await expect(buy).toBeVisible();
 		expect((await buy.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
