@@ -296,4 +296,31 @@ describe('Series API — Kaskade (#553)', () => {
 			after.forEach((t, i) => assert.equal(t.title, titlesBefore[i], 'Instanz behält ihren Wert'));
 		});
 	});
+
+	// #2357 AK6: Aufgaben, die auf Abruf entstanden sind (POST /series/:id/instances), werden von
+	// Kaskade und Löschen wie normale Instanzen erfasst.
+	describe('Abruf-Aufgaben (#2357)', () => {
+		it('PATCH applyToInstances=true ändert eine offene Abruf-Aufgabe mit', async () => {
+			const created = (await (await post('/series', validSeries())).json()) as { id: number };
+			const onDemand = await post(`/series/${created.id}/instances`, {});
+			assert.equal(onDemand.status, 201, 'Setup: Abruf-Aufgabe angelegt');
+			const task = (await onDemand.json()) as { id: number };
+
+			const res = await patch(`/series/${created.id}`, { title: 'Neuer Serientitel', applyToInstances: true });
+			assert.equal(res.status, 200);
+
+			const reloaded = await Task.findByPk(task.id);
+			assert.equal(reloaded?.title, 'Neuer Serientitel');
+		});
+
+		it('DELETE ?cascade=true löscht die Abruf-Aufgabe', async () => {
+			const created = (await (await post('/series', validSeries())).json()) as { id: number };
+			const onDemand = await post(`/series/${created.id}/instances`, {});
+			assert.equal(onDemand.status, 201, 'Setup: Abruf-Aufgabe angelegt');
+			const task = (await onDemand.json()) as { id: number };
+
+			assert.equal((await del(`/series/${created.id}?cascade=true`)).status, 204);
+			assert.equal(await Task.findByPk(task.id), null);
+		});
+	});
 });

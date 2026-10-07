@@ -1643,6 +1643,41 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /series/{id}/instances:
+    parameters:
+      - $ref: '#/components/parameters/SeriesId'
+    post:
+      summary: Eine Aufgabe aus der Serie auf Abruf anlegen
+      description: >-
+        Legt genau eine Aufgabe aus der Serie an, egal ob `autoCreate` an oder aus ist
+        (#2357). Optional lassen sich `title`, `priority`, `estimatedEffort`, `description`
+        und `deadline` mitgeben, alles andere (Säulen als Snapshot) übernimmt die Aufgabe
+        von der Serie. Sie bleibt über `seriesId`/`originSeriesId` verknüpft und hat keinen
+        Termin-Anker. Weicht ein mitgegebener Wert (außer `deadline`) von der Serie ab,
+        gilt sie als `isException`. Die Fünfer-Grenze gilt nicht. Eine ruhende Serie
+        antwortet 409.
+      operationId: createSeriesInstance
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesInstanceInput'
+      responses:
+        '201':
+          description: Angelegte Aufgabe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /push/vapid-public-key:
     get:
       summary: Öffentlichen VAPID-Schlüssel für Web-Push abrufen
@@ -8544,6 +8579,25 @@ components:
           type: string
           format: date-time
           description: Letzter zu materialisierender Zeitpunkt (inklusive).
+    SeriesInstanceInput:
+      type: object
+      properties:
+        title:
+          type: string
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 5
+        estimatedEffort:
+          type: number
+          minimum: 0.1
+          maximum: 1
+        description:
+          type: string
+          nullable: true
+        deadline:
+          type: string
+          format: date-time
     SeriesGenerateAllResult:
       type: object
       required:
