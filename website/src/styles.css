@@ -784,7 +784,7 @@ img {
 .film__video {
 	display: block;
 	width: 100%;
-	max-width: 60rem;
+	max-width: 48rem;
 	margin: var(--pp-space-4) auto 0;
 	aspect-ratio: 16 / 9;
 	border-radius: 24px;
