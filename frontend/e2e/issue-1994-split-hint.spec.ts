@@ -11,6 +11,9 @@ const switchLocator = (page: Page) =>
 		.getByRole('checkbox', { name: /hinweis zum aufteilen/i })
 		.or(page.getByRole('switch', { name: /hinweis zum aufteilen/i }));
 
+// Fristen innerhalb des Vorlaufs (#1641, 3 Tage), sonst hält `GET /next` die Aufgaben zurück.
+const inTagen = (tage: number): string => new Date(Date.now() + tage * 24 * 60 * 60 * 1000).toISOString();
+
 const deleteAllTasks = async (page: Page): Promise<void> => {
 	const tasks = (await (await page.request.get('/api/v1/tasks')).json()) as { id: number }[];
 	for (const task of tasks) await page.request.delete(`/api/v1/tasks/${task.id}`);
@@ -27,12 +30,12 @@ test.describe('Balamentum — #1994: Aufteilen-Hinweis', () => {
 		await deleteAllTasks(page);
 		for (const i of [1, 2, 3]) {
 			const created = await page.request.post('/api/v1/tasks', {
-				data: { title: `Große Aufgabe ${i}`, priority: 3, estimatedEffort: 0.8, deadline: '2030-01-01T00:00:00.000Z' },
+				data: { title: `Große Aufgabe ${i}`, priority: 3, estimatedEffort: 0.8, deadline: inTagen(0) },
 			});
 			expect(created.ok()).toBeTruthy();
 			const { id } = (await created.json()) as { id: number };
 			// Frist zweimal nach hinten setzen ⇒ postponeCount 2 (#1964, echte Route, kein Mock).
-			for (const deadline of ['2030-02-01T00:00:00.000Z', '2030-03-01T00:00:00.000Z']) {
+			for (const deadline of [inTagen(1), inTagen(2)]) {
 				await page.request.patch(`/api/v1/tasks/${id}`, { data: { deadline } });
 			}
 		}
