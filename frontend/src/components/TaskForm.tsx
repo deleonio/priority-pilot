@@ -163,9 +163,6 @@ const RHYTHM_OPTIONS: { label: string; value: SeriesRhythm }[] = [
 	{ label: 'Sonntags', value: 'sun' },
 ];
 
-/** „Ohne Rhythmus" (#2358): nur bei ausgeschaltetem „Automatisch anlegen" wählbar (Server: sonst 400, #2355). */
-const NO_RHYTHM_OPTION: { label: string; value: SeriesRhythm } = { label: 'Ohne Rhythmus', value: 'none' };
-
 /** Alle gültigen `SeriesRhythm`-Werte — onChange-Guard ohne hartcodierten Drei-Werte-Filter. */
 const VALID_RHYTHMS = new Set<string>([...RHYTHM_OPTIONS.map((option) => option.value), 'none']);
 const isSeriesRhythm = (value: string): value is SeriesRhythm => VALID_RHYTHMS.has(value);
@@ -527,6 +524,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	const [startDateInput, setStartDateInput] = useState(form.current.startDate);
 	// #2358: Schalter „Automatisch anlegen" (State-Mirror — steuert Rhythmus-Optionen und Startdatum-Feld).
 	const [autoCreate, setAutoCreate] = useState(form.current.autoCreate);
+	const stashedRef = useRef<{ rhythm: SeriesRhythm; autoDelete: boolean } | null>(null);
 	// #523/#534: Auto-Löschung bei verpasster Deadline. State (nicht Ref), damit der Info-Hinweis beim
 	// Aktivieren der Checkbox reaktiv eingeblendet wird. Im Edit aus dem vorhandenen Task bzw. der Serie
 	// vorbelegt (#534: Auto-Löschen ist nun auch auf Serien anwendbar).
@@ -1032,7 +1030,8 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 					startDate: form.current.startDate.trim() === '' ? undefined : startDate,
 					rhythm: form.current.rhythm,
 					autoCreate: form.current.autoCreate,
-					autoDeleteAfterDeadline: autoDelete,
+					// #2414: Feld ausgeblendet (keine Automatik) → hängendes true nie speichern.
+					autoDeleteAfterDeadline: autoCreate ? autoDelete : false,
 					// Bei einer Übergabe die Kategorie weglassen (Muster `pillars`): Sie gehört dem
 					// bisherigen Eigentümer — der Server hängt sie per Namensgleichheit um.
 					...(isHandover ? {} : { categoryId }),
@@ -1068,7 +1067,8 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 					rhythm: form.current.rhythm,
 					autoCreate: form.current.autoCreate,
 					active: true,
-					autoDeleteAfterDeadline: autoDelete,
+					// #2414: Feld ausgeblendet (keine Automatik) → hängendes true nie speichern.
+					autoDeleteAfterDeadline: autoCreate ? autoDelete : false,
 					// Kategorie wie `pillars` bei einer Übergabe weglassen (siehe Kommentar oben) — sie
 					// gehört zum eigenen Konto.
 					...(isHandover ? {} : { categoryId }),
@@ -1596,29 +1596,38 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 													const next = checked === true;
 													form.current.autoCreate = next;
 													setAutoCreate(next);
-													// „Ohne Rhythmus" gibt es nur ohne Automatik — sonst 400 vom Server.
-													if (next && form.current.rhythm === 'none') {
-														form.current.rhythm = 'weekly';
-														setRhythm('weekly');
+													// #2414: Aus = Vorlage ohne Rhythmus/Auto-Löschen; Werte merken und beim Wiedereinschalten zurückgeben.
+													if (!next) {
+														stashedRef.current = { rhythm: form.current.rhythm, autoDelete };
+														form.current.rhythm = 'none';
+														setRhythm('none');
+														setAutoDelete(false);
+													} else {
+														const restored = stashedRef.current ?? { rhythm: 'weekly' as SeriesRhythm, autoDelete };
+														stashedRef.current = null;
+														form.current.rhythm = restored.rhythm === 'none' ? 'weekly' : restored.rhythm;
+														setRhythm(form.current.rhythm);
+														setAutoDelete(restored.autoDelete);
 													}
 												},
 											}}
 										/>
-										<KolSingleSelect
-											key={`rhythm-${autoCreate}`}
-											_label="Rhythmus"
-											_options={autoCreate ? RHYTHM_OPTIONS : [...RHYTHM_OPTIONS, NO_RHYTHM_OPTION]}
-											_value={form.current.rhythm}
-											_on={{
-												onChange: (_event, value) => {
-													const next = readString(value);
-													if (isSeriesRhythm(next)) {
-														form.current.rhythm = next;
-														setRhythm(next);
-													}
-												},
-											}}
-										/>
+										{autoCreate && (
+											<KolSingleSelect
+												_label="Rhythmus"
+												_options={RHYTHM_OPTIONS}
+												_value={form.current.rhythm}
+												_on={{
+													onChange: (_event, value) => {
+														const next = readString(value);
+														if (isSeriesRhythm(next)) {
+															form.current.rhythm = next;
+															setRhythm(next);
+														}
+													},
+												}}
+											/>
+										)}
 										{weekdayMismatch !== null && (
 											<KolAlert
 												_type="warning"
@@ -1649,18 +1658,20 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 					    gekoppelt (deaktiviert ohne Deadline, #534 Anforderung 2); bei Serien stets frei anwählbar,
 					    da das Startdatum als Deadline gilt (#534 Anforderung 1). #546: Statt nativer Checkbox wird
 					    KolInputCheckbox verwendet; der Hinweis im aktivierten Zustand wird als KolAlert gezeigt. */}
-								<KolInputCheckbox
-									className="auto-delete-toggle"
-									_label="Automatisch löschen nach 3 Tagen bei verpasster Deadline"
-									_checked={autoDelete}
-									_disabled={autoDeleteDisabled}
-									_on={{
-										// #534: Ohne Deadline darf der Schalter nicht aktivierbar sein — der `_disabled`-Prop
-										// reicht im Test-jsdom allein nicht aus (rohes dispatchEvent umgeht ihn), daher zusätzlich
-										// die Wertzurückweisung im onChange-Handler.
-										onChange: (_event, checked) => setAutoDelete(autoDeleteDisabled ? false : checked === true),
-									}}
-								/>
+								{(!isSeriesMode || autoCreate) && (
+									<KolInputCheckbox
+										className="auto-delete-toggle"
+										_label="Automatisch löschen nach 3 Tagen bei verpasster Deadline"
+										_checked={autoDelete}
+										_disabled={autoDeleteDisabled}
+										_on={{
+											// #534: Ohne Deadline darf der Schalter nicht aktivierbar sein — der `_disabled`-Prop
+											// reicht im Test-jsdom allein nicht aus (rohes dispatchEvent umgeht ihn), daher zusätzlich
+											// die Wertzurückweisung im onChange-Handler.
+											onChange: (_event, checked) => setAutoDelete(autoDeleteDisabled ? false : checked === true),
+										}}
+									/>
+								)}
 								{autoDelete && (
 									<KolAlert
 										_type="info"
