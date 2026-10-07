@@ -27,10 +27,11 @@ import {
 	saeulenBeitraegeFuerZiel,
 	waehleCareVorschlaege,
 	waehleErholungsVorschlaege,
+	loeseVorlagenAuf,
 	type CareAufgabe,
 	type CareVorlage,
 } from '../../logics/careSuggestions.js';
-import { CARE_SPRACHEN, CARE_VORLAGEN, type CareSprache } from '../../logics/careSuggestionData.js';
+import { CARE_SPRACHEN, type CareSprache } from '../../logics/careSuggestionData.js';
 import { bewerteCareDefizit } from '../../logics/careDeficit.js';
 import { protokolliereCareReaktion } from '../../logics/careWirkung.js';
 import type { components } from '../../api';
@@ -682,11 +683,10 @@ export const createCareSuggestionsRouter = (advisor: ActivityAdvisor = adviseAct
 					})),
 				}));
 				// Texte bereits in Zielsprache auflösen — die Auswahl-Logik bleibt text- und DB-frei.
-				const vorlagen: CareVorlage[] = CARE_VORLAGEN.map((vorlage) => ({
-					key: vorlage.key,
-					saeuleId: vorlage.saeuleId,
-					texte: vorlage.texte[sprache],
-				}));
+				const vorlagen: CareVorlage[] = loeseVorlagenAuf(saeulen, sprache);
+				const erholungsSaeuleIds = saeulen
+					.filter((saeule) => saeule.key === 'koerper' || saeule.key === 'mental')
+					.map((saeule) => saeule.id);
 
 				const defizite = bewerteCareDefizit(
 					saeulen.map((saeule) => ({ id: saeule.id, key: saeule.key, name: saeule.name, weight: saeule.weight })),
@@ -710,7 +710,14 @@ export const createCareSuggestionsRouter = (advisor: ActivityAdvisor = adviseAct
 				const ueberlasteIds = defizite.filter((defizit) => defizit.ueberlast).map((defizit) => defizit.id);
 				const erholung: CareVorschlagDto[] =
 					ueberlasteIds.length > 0
-						? waehleErholungsVorschlaege(saeulen, ueberlasteIds, vorlagen, ablehnungenDto, jetzt).map((vorschlag) => ({
+						? waehleErholungsVorschlaege(
+								saeulen,
+								ueberlasteIds,
+								vorlagen,
+								ablehnungenDto,
+								jetzt,
+								erholungsSaeuleIds,
+							).map((vorschlag) => ({
 								...vorschlag,
 								saeuleName: saeulen.find((saeule) => saeule.id === vorschlag.saeuleId)?.name ?? '',
 								anlass: 'ueberlast' as const,
