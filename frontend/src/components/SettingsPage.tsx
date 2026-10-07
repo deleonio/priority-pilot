@@ -33,6 +33,7 @@ import { BalanceVariantSetting } from './BalanceVariantSetting';
 import { LanguageSetting } from './LanguageSetting';
 import { AdminUsersSection } from './AdminUsersSection';
 import { ApiTokensSection } from './ApiTokensSection';
+import { CalendarSourcesSection } from './CalendarSourcesSection';
 import { PlaceFavoritesSection } from './PlaceFavoritesSection';
 import { CategoryList } from './CategoryList';
 import { DeleteAccountButton } from './DeleteAccount';
@@ -730,6 +731,9 @@ export const SettingsPage = ({
 							)}
 						</div>
 					</KolCard>
+
+					{/* #2210: ICS-Kalender verbinden — die Termine erscheinen in der Wochenansicht. */}
+					<CalendarSourcesSection />
 
 					{/* #1802: „Konto löschen“ gehört zu den folgereichen, selten genutzten Aktionen — der
 					    Auslöser sitzt deshalb zugeklappt am Ende des Allgemein-Tabs, damit das Durchsehen

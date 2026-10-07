@@ -9,7 +9,7 @@ import {
 	KolTabs,
 	KolToolbar,
 } from '@public-ui/react-v19';
-import type { Category, ChecklistItem, Pillar, Task, TaskTreeNode } from 'client';
+import type { CalendarEvent, Category, ChecklistItem, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -222,6 +222,8 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
 	const [nextTask, setNextTask] = useState<Task | null>(null);
 	const [suggestions, setSuggestions] = useState<Task[]>([]);
+	const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+	const [calendarEventsFailed, setCalendarEventsFailed] = useState(false);
 	const [pillars, setPillars] = useState<Pillar[]>([]);
 	const [categories, setCategories] = useState<Category[]>([]);
 	const [loadError, setLoadError] = useState<string | null>(null);
@@ -453,6 +455,23 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			dismissBalanceHint();
 		}
 	}, []);
+
+	// Kalendertermine (#2210) nur für die Wochenansicht; ein Ausfall lässt die Aufgaben nutzbar und
+	// erscheint als Warnung, damit leere Tage nicht als „keine Termine" gelesen werden.
+	useEffect(() => {
+		if (dashboardView !== 'week') return;
+		const controller = new AbortController();
+		api
+			.listCalendarEvents({ signal: controller.signal })
+			.then((events) => {
+				setCalendarEvents(events);
+				setCalendarEventsFailed(false);
+			})
+			.catch(() => {
+				if (!controller.signal.aborted) setCalendarEventsFailed(true);
+			});
+		return () => controller.abort();
+	}, [dashboardView]);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setLoading(true);
@@ -1291,7 +1310,18 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										/>
 									</div>
 									{dashboardView === 'week' ? (
-										<WeekView tasks={tasks} nextTask={nextTask} suggestions={suggestions} onSelectDay={selectWeekDay} />
+										<>
+											{calendarEventsFailed && (
+												<KolAlert _type="warning" _label="Termine konnten nicht geladen werden" />
+											)}
+											<WeekView
+												tasks={tasks}
+												nextTask={nextTask}
+												suggestions={suggestions}
+												onSelectDay={selectWeekDay}
+												calendarEvents={calendarEvents}
+											/>
+										</>
 									) : (
 										<>
 											<Dashboard

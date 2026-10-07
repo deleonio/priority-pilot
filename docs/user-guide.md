@@ -148,7 +148,8 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
 Über den Karten schaltest du zwischen **Heute** und **Woche** um. Die
 Wochenansicht zeigt die aktuelle Kalenderwoche als sieben Tageskarten (Montag zuerst) mit
 den offenen Aufgaben, die an dem Tag fällig sind; erledigte erscheinen durchgestrichen
-darunter. Unter Heute stehen zusätzlich die
+darunter. Termine aus einem verbundenen Kalender (siehe „Kalender“ unter Einstellungen → Allgemein)
+stehen über den Aufgaben ihres Tages, mit Uhrzeit oder als „ganztägig“. Unter Heute stehen zusätzlich die
 empfohlenen Aufgaben und die nächste Aufgabe. Mit **„Tag öffnen“** springst du in den
 Aufgaben-Tab und siehst dort die Aufgaben dieses Tages.
 
@@ -616,6 +617,11 @@ Allgemein, Säulen, Kategorien, Standort, Orte, KI, Gruppen und **Pakete & Abo**
   Die Wahl wirkt sofort und bleibt auf diesem Gerät gespeichert. Ohne eigene Wahl
   richtet sich die App nach der Spracheinstellung deines Browsers; ist deren
   Sprache nicht dabei, erscheint die Oberfläche auf Deutsch.
+- **Kalender** – verbinde die ICS-Adresse deines Kalenders (bei Google Kalender die
+  „geheime Adresse im iCal-Format“), optional mit Namen, über **„Verbinden“**. Die Termine der
+  nächsten 14 Tage erscheinen in der Wochenansicht; die Adresse bleibt geheim und wird nirgends
+  angezeigt. Das Paket legt fest, wie viele Kalender möglich sind (Free: einer, Plus und Pro: fünf).
+  **„Entfernen“** löscht den Kalender samt seiner Termine.
 - **Bild der Lebensbalance** – wähle zwischen **Herz**, **Blasen**, **Scheiben**,
   **Ringe**, **Strahlen**, **Blüte**, **Kristall**, **Segmente** und **Zeiger**. Alle zeigen dieselbe Rechnung, nur anders
   dargestellt. Die Wahl wird am Konto gespeichert und gilt auf allen Geräten, auf denen du
