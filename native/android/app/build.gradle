@@ -11,7 +11,10 @@ android {
         // Formel-Spiegel: native/src/version-code.ts
         def rootVersion = new groovy.json.JsonSlurper().parseText(file('../../../package.json').text).version
         def (major, minor, patch) = rootVersion.tokenize('.').collect { it.toInteger() }
-        versionCode major * 10000 + minor * 100 + patch
+        if (major > 209 || minor > 999 || patch > 9999) {
+            throw new GradleException("Version ausserhalb der versionCode-Grenzen (major<=209, minor<=999, patch<=9999): ${rootVersion}")
+        }
+        versionCode major * 10000000 + minor * 10000 + patch
         versionName rootVersion
         // App-Link-Domain aus server.url, das `cap sync` aus SITE_URL in die Assets schreibt (AndroidManifest.xml)
         def capacitorConfig = file('src/main/assets/capacitor.config.json')
