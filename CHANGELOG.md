@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.18 - 2026-10-07
 
-_Enthält v0.18.0 – v0.18.18._
+_Enthält v0.18.0 – v0.18.19._
 
 ### 🎉 New Features
 
@@ -12,6 +12,7 @@ _Enthält v0.18.0 – v0.18.18._
 - feat(free-time): suggest tasks for free calendar gaps by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2348
 - feat(server): add series autoCreate switch and rhythm none by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2373
 - feat(server): add on-demand series instance endpoint by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2382
+- feat(server): issue app tokens and CORS for the Android app by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2389
 
 ### 🐞 Bug Fixes
 
@@ -148,7 +149,7 @@ _Enthält v0.16.0 – v0.16.37._
 - feat(frontend): dashboard and settings ux rework, oauth pillar seeding by @deleonio in https://github.com/deleonio/priority-pilot/pull/2192
 - chore: key pipeline concurrency per ticket with issue and pr lanes by @deleonio in https://github.com/deleonio/priority-pilot/pull/2199
 - feat(groups): add balance-ranked group challenge with share card by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2196
-- feat(groups): add balance-ranked group challenge with share card by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2196
+- feat(frontend): add balance duo card and invite flow (#1991) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2195
 - feat(frontend): add balance duo card and invite flow (#1991) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2195
 - fix(frontend): hide closed modal body in sync, stabilize e2e tab click by @deleonio in https://github.com/deleonio/priority-pilot/pull/2206
 - feat(website): add account-free balance check (#1979) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2205
