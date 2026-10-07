@@ -251,3 +251,78 @@ describe('WeekView — Tag anwählen führt zur Tagesansicht (#1617 AK2)', () =>
 		expect(onSelectDay).toHaveBeenCalledWith(MONDAY);
 	});
 });
+
+/**
+ * #2210 AK3 (docs/spec/issue-2210.md): Kalendertermine stehen in der Tageskarte ihres LOKALEN Starttags
+ * mit Zeitblock `HH:MM–HH:MM`; ganztägige mit Text „ganztägig". Ohne Prop bleibt die Ansicht unverändert.
+ */
+describe('WeekView — Kalendertermine (#2210 AK3)', () => {
+	const local = (day: number, hour: number, minute = 0): string => new Date(2026, 8, day, hour, minute).toISOString();
+	const event = (title: string, start: string, end: string, allDay = false) => ({
+		sourceId: 1,
+		start,
+		end,
+		title,
+		allDay,
+	});
+	const renderWith = (calendarEvents: ReturnType<typeof event>[]) =>
+		render(
+			<WeekView
+				tasks={[]}
+				nextTask={null}
+				suggestions={[]}
+				referenceDate={REFERENCE}
+				onSelectDay={() => {}}
+				calendarEvents={calendarEvents}
+			/>,
+		);
+	const cardOf = (weekday: RegExp) => screen.getByRole('heading', { name: weekday }).parentElement as HTMLElement;
+
+	it('zeigt Titel und Zeitblock in der Karte des Starttags — und nur dort', () => {
+		renderWith([event('Zahnarzt', local(23, 9), local(23, 10, 30))]);
+
+		const wednesday = cardOf(/Mittwoch/);
+		expect(within(wednesday).getByText(/Zahnarzt/)).toBeInTheDocument();
+		expect(wednesday.textContent).toContain('09:00–10:30');
+		expect(within(cardOf(/Dienstag/)).queryByText(/Zahnarzt/)).toBeNull();
+	});
+
+	it('ordnet den Termin dem lokalen Tag zu, nicht dem UTC-Tag (23:30 Ortszeit)', () => {
+		renderWith([event('Spättermin', local(22, 23, 30), local(23, 0, 30))]);
+
+		expect(within(cardOf(/Dienstag/)).getByText(/Spättermin/)).toBeInTheDocument();
+		expect(within(cardOf(/Mittwoch/)).queryByText(/Spättermin/)).toBeNull();
+	});
+
+	it('ganztägige Termine zeigen „ganztägig" statt einer Uhrzeit', () => {
+		renderWith([event('Urlaub', local(24, 0), local(25, 0), true)]);
+
+		const thursday = cardOf(/Donnerstag/);
+		expect(within(thursday).getByText(/Urlaub/)).toBeInTheDocument();
+		expect(thursday.textContent).toMatch(/ganztägig/i);
+		expect(thursday.textContent).not.toMatch(/\d{2}:\d{2}/);
+	});
+
+	it('mehrtägige Termine stehen nur am Starttag', () => {
+		renderWith([event('Dienstreise', local(24, 8), local(25, 17))]);
+
+		expect(within(cardOf(/Donnerstag/)).getByText(/Dienstreise/)).toBeInTheDocument();
+		expect(within(cardOf(/Freitag/)).queryByText(/Dienstreise/)).toBeNull();
+	});
+
+	it('Termine stehen vor den Aufgaben des Tages', () => {
+		render(
+			<WeekView
+				tasks={[task(1, 'Aufgabe am Mittwoch', REFERENCE)]}
+				nextTask={null}
+				referenceDate={REFERENCE}
+				onSelectDay={() => {}}
+				calendarEvents={[event('Zahnarzt', local(23, 9), local(23, 10))]}
+			/>,
+		);
+
+		const text = cardOf(/Mittwoch/).textContent ?? '';
+		expect(text.indexOf('Zahnarzt')).toBeGreaterThanOrEqual(0);
+		expect(text.indexOf('Zahnarzt')).toBeLessThan(text.indexOf('Aufgabe am Mittwoch'));
+	});
+});
