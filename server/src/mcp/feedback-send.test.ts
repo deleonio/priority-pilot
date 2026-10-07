@@ -5,7 +5,7 @@
  * AK2/AK3: gültiger Aufruf legt denselben Eintrag wie das Formular an (`quelle: mcp`), Admin-Mail 1×.
  * AK4/AK5: Validierungs-/503-Fehler werden zum Tool-Fehler, ohne Eintrag und ohne Mail.
  * AK6: Nur-lese-Token darf `POST /feedback` und `feedback_send`, aber weiterhin nicht `POST /tasks`.
- * Der Katalog-Zähler 33 steht in tools.test.ts / mcp-handshake.test.ts.
+ * Der Katalog-Zähler 35 steht in tools.test.ts / mcp-handshake.test.ts.
  */
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
