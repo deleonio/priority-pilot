@@ -7,7 +7,7 @@ Balamentum ist eine PWA unter `/app/` (React/Vite, vite-plugin-pwa). Sie soll in
 **Entscheidungen des PO (2026-09-23/24):**
 
 - **Wrapper: Capacitor im Remote-Modus.** `server.url` zeigt auf die gehostete `/app/`, es werden keine Assets gebündelt. Die Web-App aktualisiert sich damit wie bisher ohne Store-Release.
-- **Package-ID `de.balamentum.app`**, gilt für Android und später iOS.
+- **Package-ID `balamentum.app`**, gilt für Android und später iOS.
 - **Genau ein Zahlungsweg pro Kanal.** Web/PWA: PayPal. Android-App: Google Play Billing. iOS-App: Apple In-App-Purchase. In den Store-Apps ist PayPal ausgeblendet und nicht erreichbar.
 - **Freigeschaltet wird serverseitig, egal wo gekauft wurde.** Nach dem Login entscheidet überall der Abo-Status (Entitlement-Map in `/auth/me`) über die Funktionen.
 - **CI baut und lädt hoch** (Internal-Testing-Track).
@@ -43,7 +43,7 @@ So wird die Regel durchgesetzt:
 
 ```
 native/                       pnpm-Paket "native" (Capacitor-Projekt, eins für beide Plattformen)
-  capacitor.config.ts         appId de.balamentum.app, server.url = ${SITE_URL}/app/
+  capacitor.config.ts         appId balamentum.app, server.url = ${SITE_URL}/app/
   android/                    von `cap add android` erzeugt, eingecheckt
   ios/                        später: `cap add ios`
   scripts/                    Host aus SITE_URL einsetzen, versionCode ableiten
@@ -97,7 +97,7 @@ server/src/logics/billing/…         Provider hinter einer Schnittstelle (paypa
    - `pnpm lint:actions` muss grün bleiben.
 9. **Doku:** `docs/native-apps.md` (Setup, Keystore, Firebase, Play Console, App-Link-Prüfung, Release), Abschnitt `## Native Apps` in `AGENTS.md`, `.ai-knowledge/project.md`, `docs/arc42.md` (Bausteine, Verteilung).
 10. **Manuelle Schritte für dich**
-    - Play-Developer-Konto anlegen, App `de.balamentum.app` registrieren, Play App Signing einrichten und den SHA-256 in die Vars eintragen.
+    - Play-Developer-Konto anlegen, App `balamentum.app` registrieren, Play App Signing einrichten und den SHA-256 in die Vars eintragen.
     - Firebase-Projekt anlegen, Service-Account für den Upload anlegen, Store-Eintrag und Data-Safety-Formular ausfüllen, Datenschutzerklärung um FCM ergänzen.
     - Das allererste AAB muss manuell hochgeladen werden.
     - Bei privatem Konto: Closed Test mit 12 Testern über 14 Tage.
@@ -189,7 +189,7 @@ Umgesetzt wird über das Epic [#1664](https://github.com/deleonio/priority-pilot
 - **Auf dem Gerät:**
   - Installieren mit `pnpm --filter native sync && npx cap run android` oder per `adb install`.
   - Prüfen:
-    - App Links mit `adb shell pm get-app-links de.balamentum.app`
+    - App Links mit `adb shell pm get-app-links balamentum.app`
     - Google-Login und Magic-Link, jeweils mit Rücksprung in die App
     - FCM-Push inklusive Klick auf die Benachrichtigung
     - Standort, Spracheingabe, Offline-Seite

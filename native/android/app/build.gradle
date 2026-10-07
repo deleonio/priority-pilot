@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "de.balamentum.app"
+    namespace = "balamentum.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "de.balamentum.app"
+        applicationId "balamentum.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // Monotoner versionCode aus der Root-package.json (docs/plan-native-apps.md, Stufe 1),
@@ -87,7 +87,7 @@ if (!servicesJSON.exists() || !servicesJSON.text) {
     {
       "client_info": {
         "mobilesdk_app_id": "1:0:android:0000000000000000000000000000000000000000",
-        "android_client_info": { "package_name": "de.balamentum.app" }
+        "android_client_info": { "package_name": "balamentum.app" }
       },
       "oauth_client": [],
       "api_key": [{ "current_key": "AIzaSyA-PLACEHOLDER-00000000000000000000000" }],

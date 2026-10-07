@@ -195,7 +195,7 @@ die neue Version auch im ausgelieferten Bundle ankommt.
 `DEPLOY_USER`, `DEPLOY_WEB_DIR`, `DEPLOY_APP_DIR`. `SITE_URL` (z. B.
 `https://priority-pilot.example.de`) ist Pflicht — fehlt sie, bricht der Deploy mit Fehler ab:
 Der Capacitor-Sync des APK-Builds und der Website-Build brauchen sie (absolute canonical- und
-hreflang-Links, `sitemap.xml`). Optional `ANDROID_PACKAGE_ID` (`de.balamentum.app`) und
+hreflang-Links, `sitemap.xml`). Optional `ANDROID_PACKAGE_ID` (`balamentum.app`) und
 `ANDROID_CERT_SHA256` (SHA-256-Fingerprints von App-Signing- und Upload-Key, durch Komma getrennt):
 Damit erzeugt der Website-Build `/.well-known/assetlinks.json` für die App Links der Android-App
 ([ADR 0016](adr/0016-nativer-wrapper-capacitor-remote-modus.md)). Secret

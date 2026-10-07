@@ -1,4 +1,4 @@
-package de.balamentum.app;
+package balamentum.app;
 
 import android.webkit.CookieManager;
 import com.getcapacitor.BridgeActivity;

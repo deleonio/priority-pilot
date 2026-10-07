@@ -7,7 +7,7 @@ type Provider = Subscription['provider'];
 const PROVIDER_LABELS: Record<Provider, string> = { paypal: 'PayPal', google_play: 'Google Play' };
 
 /** Abo-Verwaltung von Google Play: Kündigen und Zahlungsdaten laufen dort (ADR 0017). */
-const PLAY_SUBSCRIPTIONS_URL = 'https://play.google.com/store/account/subscriptions?package=de.balamentum.app';
+const PLAY_SUBSCRIPTIONS_URL = 'https://play.google.com/store/account/subscriptions?package=balamentum.app';
 
 /**
  * Hinweis, über welchen Anbieter das Abo läuft (#1695). Steht statt der Kauf- und Kündigen-Knöpfe,

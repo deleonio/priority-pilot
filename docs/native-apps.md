@@ -8,7 +8,7 @@ ohne Server. Umsetzung und Reihenfolge: [Plan native Apps](plan-native-apps.md),
 
 | Pfad                               | Inhalt                                                                                                      |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `native/capacitor.config.ts`       | App-ID `de.balamentum.app`, `server.url` aus `SITE_URL`, nur eigene Domain                                  |
+| `native/capacitor.config.ts`       | App-ID `balamentum.app`, `server.url` aus `SITE_URL`, nur eigene Domain                                     |
 | `native/www/error.html`            | Fehlerseite ohne Verbindung, „Neu laden" springt zurück auf `server.url`                                    |
 | `native/android/`                  | von `cap add android` erzeugtes Projekt, eingecheckt; Manifest mit Standort-/Mikrofon-Rechten und App Links |
 | `native/android/app/src/main/res/` | Icons aus `frontend/public/logo/logo.png`, Splash aus der Wortmarke (siehe unten)                           |
@@ -72,7 +72,7 @@ im System-Browser (`frontend/src/lib/nativeAuth.ts`). Nach dem Login leitet der 
 gemerkten `state` über `POST /auth/native/exchange` ein. Magic-Links auf `/app/` öffnen auf demselben
 Weg die App. Der Intent-Filter im Manifest nimmt die Domain aus `server.url` (Gradle liest sie aus der
 von `sync` erzeugten `capacitor.config.json`), verifiziert wird sie über `/.well-known/assetlinks.json`
-der Website. Prüfen auf dem Gerät: `adb shell pm get-app-links de.balamentum.app` muss die Domain als
+der Website. Prüfen auf dem Gerät: `adb shell pm get-app-links balamentum.app` muss die Domain als
 `verified` zeigen.
 
 Die Sitzung bleibt über App-Neustarts erhalten: `MainActivity.onPause()` ruft `CookieManager.flush()` auf,

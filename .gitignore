@@ -52,3 +52,7 @@ frontend/e2e/__shots__/
 
 # Splash-Quellen des Wortmarken-Generators, nur waehrend des Icon-Rezepts (docs/native-apps.md)
 native/assets/
+
+
+.DS_Store
+upload.jks
