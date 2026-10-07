@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.18 - 2026-10-07
 
-_Enthält v0.18.0 – v0.18.20._
+_Enthält v0.18.0 – v0.18.21._
 
 ### 🎉 New Features
 
@@ -13,6 +13,7 @@ _Enthält v0.18.0 – v0.18.20._
 - feat(server): add series autoCreate switch and rhythm none by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2373
 - feat(server): add on-demand series instance endpoint by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2382
 - feat(server): issue app tokens and CORS for the Android app by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2389
+- feat(frontend): app token auth and push in embedded android app by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2391
 
 ### 🐞 Bug Fixes
 
@@ -138,7 +139,6 @@ _Enthält v0.16.0 – v0.16.37._
 
 ### 🔧 Engineering
 
-- feat(frontend): make E2E suite weekday-independent by @deleonio in https://github.com/deleonio/priority-pilot/pull/2190
 - feat(frontend): make E2E suite weekday-independent by @deleonio in https://github.com/deleonio/priority-pilot/pull/2190
 - feat(ci): add canonical models.json with cc/pi model adapter by @deleonio in https://github.com/deleonio/priority-pilot/pull/2203
 - feat(ci): add impl provider override, budget watchdog and adapter smoke by @deleonio in https://github.com/deleonio/priority-pilot/pull/2208
@@ -337,6 +337,7 @@ _Enthält v0.12.0 – v0.12.26._
 - docs(skill): ticket-coordination conflict, quota and self-fix rules by @deleonio in https://github.com/deleonio/priority-pilot/pull/2039
 - feat(server): auto-provision unknown invitee and delegation recipients by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2035
 - fix(server): redeliver undelivered invoice mails (#2030) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2040
+- feat(website,frontend): add medical-device disclaimer and crisis hotline hint by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2042
 - feat(website,frontend): add medical-device disclaimer and crisis hotline hint by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2042
 - docs(skill): add coordination pitfalls for split subs and re-triage by @deleonio in https://github.com/deleonio/priority-pilot/pull/2047
 - feat(server): add score breakdown to /next, /suggestions and next_task by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2050
