@@ -17,6 +17,7 @@ const tage = (anzahl: number): string => `${anzahl} ${anzahl === 1 ? 'Tag' : 'Ta
  */
 export const DuoCard = ({ groupId }: { groupId: number }) => {
 	const [duo, setDuo] = useState<Duo | null>(null);
+	const [helpOpen, setHelpOpen] = useState(false);
 	const [failed, setFailed] = useState(false);
 
 	useEffect(() => {
@@ -66,7 +67,11 @@ export const DuoCard = ({ groupId }: { groupId: number }) => {
 						<span className="dashboard-streak-best-value">{tage(duo.streak.best)}</span>
 						<span className="dashboard-streak-label">Bestmarke</span>
 					</p>
-					<KolDetails _label="Wann zählt der gemeinsame Streak?" _open={false}>
+					<KolDetails
+						_label="Wann zählt der gemeinsame Streak?"
+						_open={helpOpen}
+						_on={{ onToggle: (_event, value) => setHelpOpen(value === true) }}
+					>
 						<p>
 							Ein Tag zählt, wenn ihr beide an diesem Tag etwas erledigt habt. Aufgaben des anderen bleiben unsichtbar.
 						</p>

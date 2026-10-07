@@ -46,6 +46,8 @@ export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProp
 	const [error, setError] = useState<string | null>(null);
 	const [selectedId, setSelectedId] = useState<number | null>(null);
 	const [treeIndex, setTreeIndex] = useState(0);
+	const [legendOpen, setLegendOpen] = useState(false);
+	const [listOpen, setListOpen] = useState(false);
 	const detailRef = useRef<HTMLDivElement | null>(null);
 	const prefersReducedMotion = usePrefersReducedMotion();
 
@@ -254,7 +256,11 @@ export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProp
 					</div>
 
 					<div className="task-graph-aside">
-						<KolDetails _label="Legende" _open={false}>
+						<KolDetails
+							_label="Legende"
+							_open={legendOpen}
+							_on={{ onToggle: (_event, value) => setLegendOpen(value === true) }}
+						>
 							<ul className="task-graph-legend">
 								<li>Ein Pfeil zeigt von der Unteraufgabe nach unten auf die Aufgabe, die sie ermöglicht.</li>
 								<li>Je dicker die Linie, desto stärker das Gewicht — die Zahl steht an der Linie.</li>
@@ -262,7 +268,11 @@ export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProp
 							</ul>
 						</KolDetails>
 
-						<KolDetails _label="Graph als Liste" _open={false}>
+						<KolDetails
+							_label="Graph als Liste"
+							_open={listOpen}
+							_on={{ onToggle: (_event, value) => setListOpen(value === true) }}
+						>
 							<TaskGraphList nodes={visible.nodes} edges={visible.edges} onEditDependencies={editDependencies} />
 						</KolDetails>
 					</div>
