@@ -81,7 +81,7 @@ describe('Vertragsbestätigung auf der ersten Rechnung (#2329)', () => {
 		const text = sent[0].text;
 		assert.match(text, /Vertragsbestätigung/);
 		assert.match(text, /Plus \(monatlich\)/, 'Paket und Laufzeit');
-		assert.match(text, /7,99|7\.99/, 'Preis');
+		assert.match(text, /4[,.]99/, 'Preis (plus monatlich = 499 Cent, plans.ts)');
 		assert.match(text, /2026-03-15/, 'Datum der Zustimmung');
 		assert.match(text, /\/widerruf\//, 'Link auf /widerruf/');
 	});
