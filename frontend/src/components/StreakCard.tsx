@@ -27,6 +27,7 @@ const tage = (anzahl: number): string => `${anzahl} ${anzahl === 1 ? 'Tag' : 'Ta
 export const StreakCard = () => {
 	const { t } = useTranslation('common');
 	const [streak, setStreak] = useState<Streak | null>(null);
+	const [helpOpen, setHelpOpen] = useState(false);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -82,7 +83,11 @@ export const StreakCard = () => {
 						<span className="dashboard-streak-best-value">{tage(streak.best)}</span>
 						<span className="dashboard-streak-label">Bestmarke</span>
 					</p>
-					<KolDetails _label={t('streak.help.label')} _open={false}>
+					<KolDetails
+						_label={t('streak.help.label')}
+						_open={helpOpen}
+						_on={{ onToggle: (_event, value) => setHelpOpen(value === true) }}
+					>
 						<p data-testid="streak-help">{t('streak.help.text')}</p>
 					</KolDetails>
 				</div>

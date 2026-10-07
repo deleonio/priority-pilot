@@ -1,4 +1,4 @@
-import { cleanup, render, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 // ROTER Spec-Test (#1360, Spec docs/spec/issue-1360.md): `StreakCard` existiert noch nicht.
@@ -21,9 +21,19 @@ vi.mock('@public-ui/react-v19', () => ({
 			{children}
 		</div>
 	),
-	KolDetails: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
-		<details>
-			<summary>{_label}</summary>
+	KolDetails: ({
+		_label,
+		_open,
+		_on,
+		children,
+	}: {
+		_label?: string;
+		_open?: boolean;
+		_on?: { onToggle?: (event: Event, value: boolean) => void };
+		children?: ReactNode;
+	}) => (
+		<details data-open={String(_open === true)}>
+			<summary onClick={() => _on?.onToggle?.(new Event('toggle'), _open !== true)}>{_label}</summary>
 			{children}
 		</details>
 	),
@@ -169,5 +179,23 @@ describe('StreakCard ausgewogene Wochen (#1971 AK7)', () => {
 				expect(typeof value === 'string' && value.trim() !== '', `${path} streak.${key}`).toBe(true);
 			}
 		}
+	});
+});
+
+describe('StreakCard Aufklappbereich (#2328 AK2/AK5)', () => {
+	it('bleibt nach dem Neuzeichnen offen und schließt per erneutem Klick', async () => {
+		getStreak.mockResolvedValue({ aktuell: 3, best: 7, letzterTag: '2026-09-11' });
+		const { rerender } = render(<StreakCard />);
+		await waitFor(() => expect(document.querySelector('details')).not.toBeNull());
+		const details = (): HTMLElement => document.querySelector('details') as HTMLElement;
+		const summary = (): HTMLElement => details().querySelector('summary') as HTMLElement;
+
+		fireEvent.click(summary());
+		expect(details().dataset.open).toBe('true');
+		rerender(<StreakCard />);
+		expect(details().dataset.open).toBe('true');
+
+		fireEvent.click(summary());
+		expect(details().dataset.open).toBe('false');
 	});
 });
