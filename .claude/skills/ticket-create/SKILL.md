@@ -103,7 +103,7 @@ Never ask:
 ## Step 4 — Draft
 
 Title: short, content-true, names the goal not the solution (same bar as triage's title
-check). Show the full body before creating anything:
+check), with the `[<Stufe>/<Aufwand>]` prefix per [ticket-tree](../ticket-tree/SKILL.md) Step 4. Ask the author for priority (P0-P3) and effort (S/M/L) or propose both with a reason, and add the line `Priorität: <Stufe>. Aufwand: <S|M|L>.` to the body. Show the full body before creating anything:
 
 ```markdown
 ### Was ist das Problem?

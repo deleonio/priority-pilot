@@ -93,7 +93,7 @@ real issues/links/closes with the App token — #2101; before that, the coordina
     ```
     <!-- ai-container-result:END -->
 
-Follow-up tickets: title with priority prefix, template-conformant body (the four sections,
+Follow-up tickets: title with `[<Stufe>/<Aufwand>]` prefix per [ticket-tree](../ticket-tree/SKILL.md) Step 4, template-conformant body (the four sections,
 `\n` for line breaks), `blockedBy` = array of existing issue numbers (may be empty). Fulfilled
 container: `{"result":"closed","reason":"one line with the closed sub-issues/PRs as evidence"}`.
 Omit the marker entirely for normal tickets. If this run may not create issues, post each one
