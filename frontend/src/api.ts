@@ -142,6 +142,7 @@ client.use({
 
 type RawTask = components['schemas']['Task'];
 type RawSeries = components['schemas']['Series'];
+type SeriesInstanceInput = components['schemas']['SeriesInstanceInput'];
 type GeocodeSearchResultDto = components['schemas']['GeocodeSearchResult'];
 
 // Serien-`startDate` (im Vertrag ISO-String) zu einem echten `Date` revivieren — analog zu `reviveTask`.
@@ -1176,6 +1177,24 @@ export const api = {
 			throw new ResponseError(response, error);
 		}
 		return reviveSeries(data);
+	},
+
+	// Legt genau eine Aufgabe aus einer Serie/Vorlage an (#2357/#2359); `deadline` als ISO-String.
+	async createSeriesInstance({
+		id,
+		seriesInstanceInput,
+	}: {
+		id: number;
+		seriesInstanceInput: SeriesInstanceInput;
+	}): Promise<Task> {
+		const { data, error, response } = await client.POST('/series/{id}/instances', {
+			params: { path: { id } },
+			body: seriesInstanceInput,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return reviveTask(data);
 	},
 
 	async deleteSeries({ id, cascade }: { id: number; cascade?: boolean }): Promise<void> {

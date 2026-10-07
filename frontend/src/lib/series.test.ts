@@ -56,3 +56,28 @@ describe('seriesBadge', () => {
 		expect(badge?.variant).toBe('instance');
 	});
 });
+
+/** #2359 (AK4): Aufgaben aus einer Vorlage (`autoCreate === false`) tragen „Vorlage“ statt „Serie“. */
+describe('seriesBadge — Vorlage (#2359, AK4)', () => {
+	const byId = new Map([
+		[1, { autoCreate: false }],
+		[2, { autoCreate: true }],
+	]);
+
+	it('kennzeichnet eine Aufgabe aus einer Vorlage als „Vorlage“', () => {
+		expect(seriesBadge({ seriesId: 1, isException: false }, byId)?.label).toBe('Vorlage');
+	});
+
+	it('kennzeichnet eine geänderte Vorlagen-Aufgabe als „Vorlage (geändert)“', () => {
+		expect(seriesBadge({ seriesId: 1, isException: true }, byId)?.label).toBe('Vorlage (geändert)');
+	});
+
+	it('lässt Automatik-Serien bei „Serie“/„Serie (geändert)“', () => {
+		expect(seriesBadge({ seriesId: 2, isException: false }, byId)?.label).toBe('Serie');
+		expect(seriesBadge({ seriesId: 2, isException: true }, byId)?.label).toBe('Serie (geändert)');
+	});
+
+	it('fällt ohne Serieneintrag auf „Serie“ zurück', () => {
+		expect(seriesBadge({ seriesId: 99, isException: false }, byId)?.label).toBe('Serie');
+	});
+});

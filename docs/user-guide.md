@@ -503,6 +503,9 @@ erzeugt Balamentum regelmäßig neue Aufgaben-Instanzen.
   legt die Serie keine Aufgaben von selbst an und gilt als **Vorlage**; zusätzlich
   gibt es den Rhythmus **Ohne Rhythmus** (dann entfällt das Startdatum). Im Tab
   trägt eine solche Serie das Kennzeichen **Vorlage**.
+- **Aufgabe anlegen:** im Tab **Serien & Vorlagen** legt die Aktion **Aufgabe anlegen** (Plus-Symbol) eine
+  einzelne Aufgabe aus einer Serie oder Vorlage an. Der Dialog ist mit Titel, Priorität, Aufwand und
+  Beschreibung der Serie vorbefüllt, die Fälligkeit ist optional. Bei einer ruhenden Serie fehlt die Aktion.
 - **Verwalten:** im Tab **Serien & Vorlagen** siehst du alle Serien mit ihrem Rhythmus. Dort
   kannst du sie **bearbeiten** oder **löschen**. Beim Löschen entscheidest du zwischen
   **„Ja (Serie + alle Aufgaben)"** und **„Nein (nur Serie, Aufgaben bleiben
@@ -511,7 +514,8 @@ erzeugt Balamentum regelmäßig neue Aufgaben-Instanzen.
   Instanzen bleiben in beiden Fällen als eigenständige Aufgaben erhalten.
 
 Aus einer Serie entstandene Aufgaben tragen im Aufgabenbaum das Kennzeichen **Serie**;
-weichst du eine Instanz individuell ab, kommt **geändert** hinzu.
+weichst du eine Instanz individuell ab, kommt **geändert** hinzu. Aufgaben aus einer Vorlage tragen
+**Vorlage** bzw. **Vorlage (geändert)**.
 
 Hat jemand aus einer Gruppe eine Serie für dich angelegt und endet die gemeinsame
 Mitgliedschaft – weil jemand die Gruppe verlässt oder die Gruppe gelöscht wird –,
