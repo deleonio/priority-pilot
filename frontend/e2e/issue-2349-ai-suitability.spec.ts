@@ -28,6 +28,7 @@ test('#2349: nur die geeignete Aufgabe trägt das Kategorie-Badge, bei 375 px oh
 	const otherId = await createTask(page, 'Fenster putzen');
 	await page.goto('/app/');
 	await waitForStableView(page, 'Dashboard');
+	await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 
 	const suitableRow = page.getByTestId(`task-list-item-${suitableId}`);
 	const badge = suitableRow.getByTestId('ai-suitability-badge');
