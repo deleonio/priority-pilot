@@ -178,6 +178,14 @@ try {
 		});
 		writeFileSync(resolve(dir, name), svg);
 
+		// Importierbare Fassung unter src/ (nur die dunkle, die die Monatskarte einbettet):
+		// Vite-Dev erlaubt keine ?raw-Importe aus public/ — Dateien, die JS importiert, liegen
+		// unter src/ (Muster wie i18n/config.ts).
+		if (theme === 'dark') {
+			mkdirSync(resolve(dir, '../../src/assets'), { recursive: true });
+			writeFileSync(resolve(dir, '../../src/assets', name), svg);
+		}
+
 		// AK2-Nachweis: SVG als <img> (wie LoginPage) auf surface-0 des Themes
 		writeFileSync(
 			tmp,
