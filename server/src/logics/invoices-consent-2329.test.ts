@@ -41,15 +41,20 @@ const pdfHas = (invoice: Invoice, text: string): boolean => {
 		const start = pdf.indexOf('stream\n', i) + 7;
 		streams.push(zlib.inflateSync(pdf.subarray(start, pdf.indexOf('endstream', start))).toString('latin1'));
 	}
-	const cmap = streams.find((stream) => stream.includes('beginbfchar')) ?? '';
-	const glyphIds = new Map(
-		[...cmap.matchAll(/<([0-9A-F]{4})> <([0-9A-F]{4})>/g)].map(([, gid, code]) => [
-			String.fromCharCode(parseInt(code, 16)),
-			gid,
-		]),
-	);
-	const hex = Array.from(text, (char) => glyphIds.get(char) ?? '?').join('');
-	return !hex.includes('?') && streams.some((stream) => stream.includes(hex));
+	// Regular und Fett sind getrennte Schriften mit eigener CMap — jede Variante prüfen.
+	const hexes = streams
+		.filter((stream) => stream.includes('beginbfchar'))
+		.map((cmap) => {
+			const glyphIds = new Map(
+				[...cmap.matchAll(/<([0-9A-F]{4})> <([0-9A-F]{4})>/g)].map(([, gid, code]) => [
+					String.fromCharCode(parseInt(code, 16)),
+					gid,
+				]),
+			);
+			return Array.from(text, (char) => glyphIds.get(char) ?? '?').join('');
+		})
+		.filter((hex) => !hex.includes('?'));
+	return hexes.some((hex) => streams.some((stream) => stream.includes(hex)));
 };
 
 describe('Vertragsbestätigung auf der ersten Rechnung (#2329)', () => {

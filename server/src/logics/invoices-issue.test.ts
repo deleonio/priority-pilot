@@ -166,7 +166,7 @@ describe('invoices.ts — issueInvoiceForPeriod (#1495 AK8)', () => {
 		}
 	});
 
-	it('#2031 AK1: gespeichertes PDF trägt das deutsche Label in der Leistungszeile', async () => {
+	it('#2031 AK1: gespeichertes PDF trägt das deutsche Label in der Leistungsposition', async () => {
 		const user = await User.create({ email: 'label-pdf@example.com', displayName: 'Label', passwordHash: 'x' });
 		const subscription = await Subscription.create({
 			userId: user.get('id') as number,
@@ -186,16 +186,20 @@ describe('invoices.ts — issueInvoiceForPeriod (#1495 AK8)', () => {
 			const start = pdf.indexOf('stream\n', i) + 7;
 			streams.push(zlib.inflateSync(pdf.subarray(start, pdf.indexOf('endstream', start))).toString('latin1'));
 		}
-		const cmap = streams.find((stream) => stream.includes('beginbfchar')) ?? '';
-		const glyphIds = new Map(
-			[...cmap.matchAll(/<([0-9A-F]{4})> <([0-9A-F]{4})>/g)].map(([, gid, code]) => [
-				String.fromCharCode(parseInt(code, 16)),
-				gid,
-			]),
-		);
-		const hex = Array.from('Leistung: Paket Plus (monatlich)', (char) => glyphIds.get(char) ?? '?').join('');
+		// Regular und Fett sind getrennte Schriften mit eigener CMap — jede Variante prüfen.
+		const hexes = streams
+			.filter((stream) => stream.includes('beginbfchar'))
+			.map((cmap) => {
+				const glyphIds = new Map(
+					[...cmap.matchAll(/<([0-9A-F]{4})> <([0-9A-F]{4})>/g)].map(([, gid, code]) => [
+						String.fromCharCode(parseInt(code, 16)),
+						gid,
+					]),
+				);
+				return Array.from('Paket Plus (monatlich)', (char) => glyphIds.get(char) ?? '?').join('');
+			});
 		assert.ok(
-			streams.some((stream) => stream.includes(`<${hex}>`)),
+			hexes.some((hex) => streams.some((stream) => stream.includes(`<${hex}>`))),
 			'Die PDF-Leistungszeile muss das deutsche Label tragen',
 		);
 	});
