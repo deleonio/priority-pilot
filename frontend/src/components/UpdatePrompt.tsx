@@ -1,13 +1,33 @@
 import { KolButton, KolCard } from '@public-ui/react-v19';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { isNativeChannel } from '../lib/platform';
 
 /**
- * In der nativen App (ADR 0016) entfällt der Hinweis samt Service-Worker-Registrierung: Im
- * Remote-Modus lädt der WebView die App bei jedem Start frisch vom Server.
+ * In der nativen App (ADR 0016) entfällt der Hinweis samt Service-Worker-Registrierung. Ein früher
+ * registrierter Service Worker liefert dort aber weiter seinen alten Stand aus; er wird deshalb
+ * abgemeldet und die App einmal frisch vom Server geladen.
  */
-export const UpdatePrompt = () => (isNativeChannel() ? null : <PwaUpdatePrompt />);
+export const UpdatePrompt = () => (isNativeChannel() ? <NativeServiceWorkerCleanup /> : <PwaUpdatePrompt />);
+
+const NativeServiceWorkerCleanup = () => {
+	useEffect(() => {
+		if (!('serviceWorker' in navigator)) {
+			return;
+		}
+		navigator.serviceWorker
+			.getRegistrations()
+			.then(async (registrations) => {
+				if (registrations.length === 0) {
+					return;
+				}
+				await Promise.all(registrations.map((registration) => registration.unregister()));
+				location.reload();
+			})
+			.catch(() => {});
+	}, []);
+	return null;
+};
 
 /**
  * PWA-Update-/Offline-Hinweis (#373). Am unteren Viewport-Rand fixiert (`.update-prompt` in
