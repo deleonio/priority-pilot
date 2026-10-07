@@ -4,13 +4,14 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.18 - 2026-10-07
 
-_Enthält v0.18.0 – v0.18.12._
+_Enthält v0.18.0 – v0.18.13._
 
 ### 🎉 New Features
 
 - feat(server): add read-only CalDAV calendar sources (#2211) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2347
 - feat(free-time): suggest tasks for free calendar gaps by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2348
 - feat(server): add series autoCreate switch and rhythm none by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2373
+- feat(server): add on-demand series instance endpoint by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2382
 
 ### 🐞 Bug Fixes
 
@@ -173,7 +174,6 @@ _Enthält v0.15.0 – v0.15.22._
 ### 🎉 New Features
 
 - feat(frontend): capture reason for "not now" care hint (#1977) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2187
-- feat(frontend): capture reason for "not now" care hint (#1977) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2187
 - feat(server): add balance duo with shared streak for two (#1974) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2193
 
 ### 🐞 Bug Fixes
@@ -313,6 +313,7 @@ _Enthält v0.12.0 – v0.12.26._
 
 - docs(skill): ticket-coordination theme scope and stale ai:needs-human by @deleonio in https://github.com/deleonio/priority-pilot/pull/2023
 - docs(adr): store prices set to web prices (#1800) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2024
+- docs(skill): ticket-coordination pitfall triage finds ticket already fulfilled by @deleonio in https://github.com/deleonio/priority-pilot/pull/2028
 - docs(skill): ticket-coordination pitfall triage finds ticket already fulfilled by @deleonio in https://github.com/deleonio/priority-pilot/pull/2028
 - docs(skill): pitfall for shared building block across two tickets by @deleonio in https://github.com/deleonio/priority-pilot/pull/2036
 - docs(skill): ticket-coordination — leave conflicts to a queued fixup by @deleonio in https://github.com/deleonio/priority-pilot/pull/2038
