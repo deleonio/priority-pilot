@@ -4,7 +4,11 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.18 - 2026-10-07
 
-_Enthält v0.18.0 – v0.18.2._
+_Enthält v0.18.0 – v0.18.3._
+
+### 🎉 New Features
+
+- feat(server): add read-only CalDAV calendar sources (#2211) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2347
 
 ### 🐞 Bug Fixes
 
@@ -171,6 +175,7 @@ _Enthält v0.15.0 – v0.15.22._
 - fix(frontend): e2e helper, rank-return notice, css tokens (#2154) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2176
 - test(frontend): clean up remaining nits from leaf-review rounds (#2173) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2177
 - feat(server): import tasks from todoist and csv (#1969) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2180
+- feat(frontend): hide llm provider config behind advanced (#1970) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2178
 - feat(frontend): hide llm provider config behind advanced (#1970) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2178
 - feat(frontend): shareable weekly balance card (#1968) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2179
 - feat(server): anonymous KPI events and admin evaluation (#1989) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2183
@@ -342,7 +347,6 @@ _Enthält v0.11.0 – v0.11.31._
 - feat(frontend): merge access token tab into ai settings tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1921
 - feat(frontend): order settings tabs by plan tier by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1930
 - feat(frontend): show invoices to former subscribers by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1948
-- feat(server): anchor feedback as plan-independent feature (#1927) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1946
 - feat(server): anchor feedback as plan-independent feature (#1927) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1946
 
 ### 🔧 Engineering
