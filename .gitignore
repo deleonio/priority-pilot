@@ -53,6 +53,6 @@ frontend/e2e/__shots__/
 # Splash-Quellen des Wortmarken-Generators, nur waehrend des Icon-Rezepts (docs/native-apps.md)
 native/assets/
 
-
+# lokale Artefakte: macOS-Metadaten, Upload-Keystore der Play-Signatur (docs/native-apps.md)
 .DS_Store
 upload.jks
