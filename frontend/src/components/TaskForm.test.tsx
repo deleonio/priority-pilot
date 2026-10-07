@@ -3478,25 +3478,25 @@ describe('TaskForm — Serie als Vorlage: Schalter „Automatisch anlegen" (#235
 		expect(screen.queryByRole('switch', { name: 'Automatisch anlegen' })).toBeNull();
 	});
 
-	it('AK2 — „Ohne Rhythmus" fehlt bei Schalter an, ist bei Schalter aus wählbar', async () => {
+	// Test-Pflege #2414: AK2/AK3 (#2358) wählten „Ohne Rhythmus" im Select — die Option ist nie mehr sichtbar,
+	// „keine Automatik" ergibt sich allein aus dem ausgeschalteten Schalter (Vertrag: docs/spec/issue-2414.md).
+	it('AK2 (#2414) — „Ohne Rhythmus" ist weder bei Schalter an noch aus wählbar', async () => {
 		await renderCreateSeries();
 		expect(rhythmValues()).not.toContain('none');
 
 		await toggleAutoCreate();
 
-		expect(rhythmValues()).toContain('none');
-		const select = screen.getByLabelText('Rhythmus') as HTMLSelectElement;
-		expect(Array.from(select.options).map((o) => o.textContent)).toContain('Ohne Rhythmus');
+		expect(screen.queryByLabelText('Rhythmus')).toBeNull();
 	});
 
-	it('AK3 — „Ohne Rhythmus": Startdatum ausgeblendet, Payload autoCreate:false, rhythm:none, kein startDate', async () => {
+	it('AK3 (#2414) — Schalter aus: Payload autoCreate:false, rhythm:none, autoDeleteAfterDeadline:false, kein startDate', async () => {
 		mockCreateSeries.mockResolvedValue(minimalSeries());
 		await renderCreateSeries();
 		await fillTitle('Vorlage ohne Rhythmus');
-		await toggleAutoCreate();
 		await act(async () => {
-			fireEvent.change(screen.getByLabelText('Rhythmus'), { target: { value: 'none' } });
+			fireEvent.click(screen.getByLabelText(/Automatisch löschen nach 3 Tagen/i));
 		});
+		await toggleAutoCreate();
 
 		expect(screen.queryByLabelText('Startdatum')).toBeNull();
 
@@ -3507,6 +3507,7 @@ describe('TaskForm — Serie als Vorlage: Schalter „Automatisch anlegen" (#235
 		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: Record<string, unknown> }];
 		expect(seriesCreate['autoCreate']).toBe(false);
 		expect(seriesCreate['rhythm']).toBe('none');
+		expect(seriesCreate['autoDeleteAfterDeadline']).toBe(false);
 		expect(seriesCreate['startDate']).toBeUndefined();
 	});
 
@@ -3521,19 +3522,22 @@ describe('TaskForm — Serie als Vorlage: Schalter „Automatisch anlegen" (#235
 		expect(seriesCreate['autoCreate']).toBe(true);
 	});
 
-	it('AK4 — Schalter wieder an bei „Ohne Rhythmus": Rhythmus springt auf gültigen Wert, Startdatum wieder da', async () => {
+	it('AK4 (#2414) — aus → an im selben Dialog stellt Rhythmus monthly und Auto-Löschen wieder her', async () => {
 		mockCreateSeries.mockResolvedValue(minimalSeries());
 		await renderCreateSeries();
 		await fillTitle('Zurückgeschaltet');
-		await toggleAutoCreate();
 		await act(async () => {
-			fireEvent.change(screen.getByLabelText('Rhythmus'), { target: { value: 'none' } });
+			fireEvent.change(screen.getByLabelText('Rhythmus'), { target: { value: 'monthly' } });
+		});
+		await act(async () => {
+			fireEvent.click(screen.getByLabelText(/Automatisch löschen nach 3 Tagen/i));
 		});
 		await toggleAutoCreate();
+		expect(screen.queryByLabelText('Rhythmus')).toBeNull();
+		await toggleAutoCreate();
 
-		const select = screen.getByLabelText('Rhythmus') as HTMLSelectElement;
-		expect(select.value).not.toBe('none');
-		expect(rhythmValues()).toContain(select.value);
+		expect((screen.getByLabelText('Rhythmus') as HTMLSelectElement).value).toBe('monthly');
+		expect(screen.getByLabelText(/Automatisch löschen nach 3 Tagen/i)).toBeChecked();
 		expect(screen.getByLabelText('Startdatum')).toBeInTheDocument();
 
 		await chooseMainPillar();
@@ -3541,7 +3545,8 @@ describe('TaskForm — Serie als Vorlage: Schalter „Automatisch anlegen" (#235
 
 		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: Record<string, unknown> }];
 		expect(seriesCreate['autoCreate']).toBe(true);
-		expect(seriesCreate['rhythm']).not.toBe('none');
+		expect(seriesCreate['rhythm']).toBe('monthly');
+		expect(seriesCreate['autoDeleteAfterDeadline']).toBe(true);
 	});
 
 	it('AK5 — Bearbeiten: Schalter zeigt gespeicherten Wert (autoCreate:false → aus)', async () => {
@@ -3577,5 +3582,56 @@ describe('TaskForm — Serie als Vorlage: Schalter „Automatisch anlegen" (#235
 		expect(mockUpdateSeries).toHaveBeenCalledTimes(1);
 		const [arg] = mockUpdateSeries.mock.calls[0] as [{ seriesUpdate?: Record<string, unknown> }];
 		expect(arg.seriesUpdate?.['autoCreate']).toBe(false);
+	});
+	it('AK2/AK1 (#2414) — Bearbeiten: Schalter aus blendet Felder aus, PATCH sendet rhythm:none und autoDeleteAfterDeadline:false', async () => {
+		mockUpdateSeries.mockResolvedValue({ ...minimalSeries(), autoCreate: false });
+		await act(async () => {
+			render(
+				<SeriesEditForm task={null} series={{ ...minimalSeries(), autoDeleteAfterDeadline: true }} {...defaultProps} />,
+			);
+		});
+		await toggleAutoCreate();
+
+		expect(screen.queryByLabelText('Rhythmus')).toBeNull();
+		expect(screen.queryByLabelText(/Automatisch löschen nach 3 Tagen/i)).toBeNull();
+
+		await clickSaveEdit();
+		const confirm = screen.queryByRole('button', { name: 'Ja' });
+		if (confirm !== null) {
+			await act(async () => {
+				fireEvent.click(confirm);
+			});
+		}
+
+		const [arg] = mockUpdateSeries.mock.calls[0] as [{ seriesUpdate?: Record<string, unknown> }];
+		expect(arg.seriesUpdate?.['autoCreate']).toBe(false);
+		expect(arg.seriesUpdate?.['rhythm']).toBe('none');
+		expect(arg.seriesUpdate?.['autoDeleteAfterDeadline']).toBe(false);
+	});
+
+	it('AK5 (#2414) — gespeicherte Vorlage (none): Schalter an liefert Rhythmus weekly und Startdatum', async () => {
+		await act(async () => {
+			render(
+				<SeriesEditForm
+					task={null}
+					series={{ ...minimalSeries(), autoCreate: false, rhythm: 'none' as Series['rhythm'] }}
+					{...defaultProps}
+				/>,
+			);
+		});
+		expect(screen.queryByLabelText('Rhythmus')).toBeNull();
+
+		await toggleAutoCreate();
+
+		expect((screen.getByLabelText('Rhythmus') as HTMLSelectElement).value).toBe('weekly');
+		expect(screen.getByLabelText('Startdatum')).toBeInTheDocument();
+	});
+
+	it('AK6 (#2414) — Aufgaben-Modus: Auto-Löschen sichtbar, ohne Deadline deaktiviert', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		expect(screen.getByLabelText(/Automatisch löschen nach 3 Tagen/i)).toBeDisabled();
 	});
 });
