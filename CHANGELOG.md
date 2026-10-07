@@ -2,9 +2,13 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.18 - 2026-10-07
+
+_Keine für Nutzer sichtbaren Änderungen._
+
 ## v0.17 - 2026-10-07
 
-_Enthält v0.17.0 – v0.17.44._
+_Enthält v0.17.0 – v0.17.45._
 
 ### 🎉 New Features
 
@@ -71,6 +75,7 @@ _Enthält v0.17.0 – v0.17.44._
 - fix(ci): PR ohne Closing-Keyword finden und Closes ergänzen (#2163) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2343
 - feat(frontend): connect ICS calendars and show events in week view by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2338
 - feat(website): add image film to landing page by @deleonio in https://github.com/deleonio/priority-pilot/pull/2344
+- docs(native): add upload key fingerprint to asset links by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2345
 
 ## v0.16 - 2026-10-06
 
@@ -346,7 +351,6 @@ _Enthält v0.11.0 – v0.11.31._
 - docs(skills): ticket-coordination resolves merge conflicts via subagent by @deleonio in https://github.com/deleonio/priority-pilot/pull/1920
 - feat(frontend): merge plans and subscription into one settings tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1919
 - feat(frontend): require terms and privacy consent after login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1929
-- feat(server): push nearby tasks only on entry, once per 24 h (#1926) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1945
 - feat(server): push nearby tasks only on entry, once per 24 h (#1926) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1945
 - fix(ci): skip soft-abort labels on account limit (#1943) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1949
 - refactor(frontend): remove unreachable ai badge and custom provider gate by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1947
