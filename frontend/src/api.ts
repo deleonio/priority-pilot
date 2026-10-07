@@ -31,6 +31,8 @@ import type {
 	MonthlyRecap,
 	PlaceFavorite,
 	PlaceFavoriteInput,
+	KnowledgeEntry,
+	KnowledgeEntryInput,
 	JournalEntry,
 	JournalEntryInput,
 	JournalEntryUpdate,
@@ -1781,6 +1783,43 @@ export const api = {
 	// Entfernt einen eigenen gespeicherten Ort endgültig.
 	async deletePlaceFavorite({ id }: { id: number }): Promise<void> {
 		const { error, response } = await client.DELETE('/place-favorites/{id}', { params: { path: { id } } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
+	// --- Wissens-Einträge (#1936, Pro) ---
+
+	// Eigene Wissens-Einträge, älteste zuerst.
+	async listKnowledgeEntries(init: Init = {}): Promise<KnowledgeEntry[]> {
+		const { data, error, response } = await client.GET('/knowledge-entries', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async createKnowledgeEntry(entry: KnowledgeEntryInput): Promise<KnowledgeEntry> {
+		const { data, error, response } = await client.POST('/knowledge-entries', { body: entry });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async updateKnowledgeEntry(id: number, entry: KnowledgeEntryInput): Promise<KnowledgeEntry> {
+		const { data, error, response } = await client.PATCH('/knowledge-entries/{id}', {
+			params: { path: { id } },
+			body: entry,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async deleteKnowledgeEntry(id: number): Promise<void> {
+		const { error, response } = await client.DELETE('/knowledge-entries/{id}', { params: { path: { id } } });
 		if (!response.ok) {
 			throw new ResponseError(response, error);
 		}

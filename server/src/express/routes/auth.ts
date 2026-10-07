@@ -9,7 +9,7 @@ import type { UserRole } from '../../models/user.js';
 import { OPEN_SUBSCRIPTION_STATUSES, PAID_FIRST } from '../../models/subscription.js';
 import { SEED_PILLARS } from '../../models/pillarData.js';
 import { hashPassword, verifyPassword, resolveRole } from '../../logics/auth.js';
-import { getEntitlements, type Plan } from '../../logics/plans.js';
+import { getEntitlements, PLAN_VALUES, type Plan } from '../../logics/plans.js';
 import { TERMS_VERSION } from '../../logics/legal.js';
 import { applyDuePendingPlan, applyDueGracePeriod, GRACE_PERIOD_DAYS } from '../../logics/billing/lifecycle.js';
 import { paypalGraceDeps } from '../../logics/paypal.js';
@@ -616,12 +616,14 @@ authRouter.post('/auth/logout', async (req, res) => {
 // bei versehentlichem Deploy einer test-Konfiguration.
 if (process.env.NODE_ENV === 'test') {
 	authRouter.post('/auth/test-login', async (req, res) => {
-		const { email, displayName, avatarUrl, role } = req.body as {
+		const { email, displayName, avatarUrl, role, plan } = req.body as {
 			email?: string;
 			displayName?: string;
 			avatarUrl?: string | null;
 			/** Rollensystem admin/member: Tests dürfen die Rolle direkt setzen (nur NODE_ENV=test). */
 			role?: UserRole;
+			/** Paket direkt setzen, z. B. Pro für e2e-Specs paketgebundener Funktionen (#1936). */
+			plan?: Plan;
 		};
 
 		// Multi-User-Gate (Issue #193, AK-8): nicht-erlaubte E-Mail → 401.
@@ -642,6 +644,9 @@ if (process.env.NODE_ENV === 'test') {
 		const effectiveRole = role ?? resolveRole(email, dbUser.role);
 		if (effectiveRole !== dbUser.role) {
 			await dbUser.update({ role: effectiveRole });
+		}
+		if (plan !== undefined && PLAN_VALUES.includes(plan) && plan !== dbUser.plan) {
+			await dbUser.update({ plan });
 		}
 
 		// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.

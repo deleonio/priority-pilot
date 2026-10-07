@@ -39,12 +39,12 @@ test.describe('Balamentum — #1936: Wissens-Einträge', () => {
 	test('AK7/AK8: anlegen, ändern, löschen bei 375px ohne Überlauf, Touch-Ziele ≥ 44px', async ({ page }) => {
 		await login(page);
 		await page.goto('/app/settings/llm');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Allgemein');
 
 		const input = page.getByLabel(/eintrag/i).first();
 		await expect(input).toBeVisible();
 		await input.fill(TEXT);
-		const create = page.getByRole('button', { name: /anlegen|hinzufügen/i });
+		const create = page.getByRole('button', { name: /^(anlegen|hinzufügen)$/i });
 		const createBox = await create.boundingBox();
 		expect(createBox!.height).toBeGreaterThanOrEqual(44);
 		expect(createBox!.x + createBox!.width).toBeLessThanOrEqual(376);

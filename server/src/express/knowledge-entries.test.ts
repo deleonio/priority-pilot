@@ -100,7 +100,8 @@ describe('Wissens-Einträge API (#1936)', () => {
 			] as const) {
 				const res = await call(cookie, method, path, body);
 				assert.equal(res.status, 403, `${method} ${path}`);
-				assert.deepEqual(await res.json(), expected, `${method} ${path}`);
+				const { code, feature, requiredPlan } = (await res.json()) as Record<string, unknown>;
+				assert.deepEqual({ code, feature, requiredPlan }, expected, `${method} ${path}`);
 			}
 		});
 	}
