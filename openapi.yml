@@ -8431,8 +8431,14 @@ components:
         Periodenende (Weiterführen/Downgrade auch nach Kündigung).
         `creditCoversUntil` nennt bei einem Guthaben ab dem neuen Preis, bis wann es reicht (#2241);
         `dueCents` ist dann die Gebühr für den Rest, fällig bei der Zustimmung.
-      required: [creditCents, dueCents, immediate]
+        `priceCents` ist der reguläre Katalogpreis des Ziels je Laufzeit (#2324); beim Wechsel
+        zum Periodenende ist `dueCents` 0 und `currentPlan`/`currentPeriod` nennen das Paket,
+        das bis dahin weiterläuft.
+      required: [priceCents, creditCents, dueCents, immediate]
       properties:
+        priceCents:
+          type: integer
+          minimum: 0
         creditCents:
           type: integer
           minimum: 0
@@ -8447,6 +8453,11 @@ components:
         creditCoversUntil:
           type: string
           format: date-time
+        currentPlan:
+          $ref: '#/components/schemas/Plan'
+        currentPeriod:
+          type: string
+          enum: [monthly, quarterly, yearly]
     Invoice:
       type: object
       description: >-

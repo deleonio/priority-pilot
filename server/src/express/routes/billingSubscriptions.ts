@@ -51,13 +51,16 @@ const rejectStoreChannel = (req: Request, res: Response<ErrorDto>): boolean => {
 };
 
 type ApprovalDto = { approvalUrl: string };
-/** `immediate`: wirkt der Wechsel sofort (Upgrade) oder erst zum Periodenende (ADR 0013) — die Oberfläche hat keine eigene Rangfolge. `startsAt` nennt den Startzeitpunkt (#2049). */
+/** `immediate`: wirkt der Wechsel sofort (Upgrade) oder erst zum Periodenende (ADR 0013) — die Oberfläche hat keine eigene Rangfolge. `startsAt` nennt den Startzeitpunkt (#2049). `priceCents` ist der Katalogpreis des Ziels (#2324), `currentPlan`/`currentPeriod` das laufende Paket beim Wechsel zum Periodenende. */
 type PreviewDto = {
+	priceCents: number;
 	creditCents: number;
 	dueCents: number;
 	immediate: boolean;
 	startsAt?: string;
 	creditCoversUntil?: string;
+	currentPlan?: Plan;
+	currentPeriod?: Period;
 };
 type ReviseDto = { approvalUrl?: string };
 export type InvoiceDto = {
@@ -445,6 +448,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			// #2241: deckt das Guthaben volle Zyklen, nennt die Vorschau, bis wann — und die Gebühr P − r, die bei der Zustimmung fällig wird.
 			const carry = creditCents >= price ? creditCarryover(creditCents, price, body.period, now) : undefined;
 			res.status(200).json({
+				priceCents: price,
 				creditCents,
 				dueCents: carry?.feeCents ?? firstCycleCents,
 				immediate: true,
@@ -453,14 +457,25 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			});
 			return;
 		}
-		res.status(200).json({
-			creditCents: 0,
-			dueCents: getPlansCatalog().prices[body.plan][body.period],
-			immediate: false,
-			// Startzeitpunkt des Wechsels (#2049): beim laufenden Abo die nächste Abrechnung, bei
-			// Kündigung mit Restlaufzeit das Periodenende — die Oberfläche zeigt beides.
-			startsAt: (subscription.get('currentPeriodEnd') as Date).toISOString(),
-		});
+		const price = getPlansCatalog().prices[body.plan][body.period];
+		const currentPlan = subscription.get('plan') as Plan;
+		// Startzeitpunkt des Wechsels (#2049): beim laufenden Abo die nächste Abrechnung, bei
+		// Kündigung mit Restlaufzeit das Periodenende — die Oberfläche zeigt beides.
+		const startsAt = (subscription.get('currentPeriodEnd') as Date).toISOString();
+		// #2324: Downgrade — das laufende Paket läuft bis zum Periodenende weiter, jetzt wird nichts abgebucht.
+		if (rankOf(body.plan) < rankOf(currentPlan)) {
+			res.status(200).json({
+				priceCents: price,
+				creditCents: 0,
+				dueCents: 0,
+				immediate: false,
+				startsAt,
+				currentPlan,
+				currentPeriod: subscription.get('period') as Period,
+			});
+			return;
+		}
+		res.status(200).json({ priceCents: price, creditCents: 0, dueCents: price, immediate: false, startsAt });
 	});
 
 	// GET /billing/invoices — eigene Rechnungen des angemeldeten Nutzers (AK5).

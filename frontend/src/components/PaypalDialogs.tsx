@@ -39,6 +39,8 @@ export const BillingReturnWait = ({
 	);
 };
 
+const PERIOD_UNITS: Record<Period, string> = { monthly: 'Monat', quarterly: 'Quartal', yearly: 'Jahr' };
+
 /** Zeitpunkte der Vorschau als „TT.MM.JJJJ" (Muster `SubscriptionSection.tsx`). */
 const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de-DE');
 
@@ -55,11 +57,13 @@ export const ChangeDialog = ({ targetPlan, targetPeriod, onClose, onChanged }: C
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [preview, setPreview] = useState<{
+		priceCents: number;
 		creditCents: number;
 		dueCents: number;
 		immediate: boolean;
 		startsAt?: string;
 		creditCoversUntil?: string;
+		currentPlan?: Plan;
 	} | null>(null);
 	const [previewFailed, setPreviewFailed] = useState(false);
 	const cancelRef = useRef<HTMLKolButtonElement>(null);
@@ -113,18 +117,43 @@ export const ChangeDialog = ({ targetPlan, targetPeriod, onClose, onChanged }: C
 			<div aria-live="polite">
 				{preview !== null && (
 					<dl className="change-preview">
-						{preview.creditCents > 0 && (
-							<div>
-								<dt>Guthaben aus dem laufenden Abo</dt>
-								<dd>{formatEuro(preview.creditCents)}</dd>
-							</div>
-						)}
+						{preview.currentPlan != null && preview.startsAt != null ? (
+							<>
+								<div>
+									<dt>Aktuelles Paket bis</dt>
+									<dd>{formatDate(preview.startsAt)}</dd>
+								</div>
+								<div>
+									<dt>
+										Ab {formatDate(preview.startsAt)}: {planLabel(targetPlan)} für {formatEuro(preview.priceCents)} je{' '}
+										{PERIOD_UNITS[targetPeriod]}
+									</dt>
+								</div>
+							</>
+						) : preview.immediate ? (
+							<>
+								<div>
+									<dt>
+										Preis {planLabel(targetPlan)} ({PERIOD_LABELS[targetPeriod]})
+									</dt>
+									<dd>{formatEuro(preview.priceCents)}</dd>
+								</div>
+								{preview.creditCents > 0 && (
+									<div>
+										<dt>Guthaben aus dem laufenden Abo</dt>
+										<dd>−{formatEuro(preview.creditCents)}</dd>
+									</div>
+								)}
+							</>
+						) : null}
 						<div>
 							<dt>
 								{/* #2241: bei einem Guthaben über dem Preis zieht PayPal den Rest als Gebühr bei der Zustimmung ein. */}
-								{preview.creditCoversUntil != null && preview.dueCents > 0
-									? 'Fällig bei Zustimmung'
-									: 'Fällig beim ersten Zyklus'}
+								{preview.currentPlan != null
+									? 'Jetzt fällig'
+									: preview.creditCoversUntil != null && preview.dueCents > 0
+										? 'Fällig bei Zustimmung'
+										: 'Fällig beim ersten Zyklus'}
 							</dt>
 							<dd>
 								<strong>{formatEuro(preview.dueCents)}</strong>
@@ -136,7 +165,7 @@ export const ChangeDialog = ({ targetPlan, targetPeriod, onClose, onChanged }: C
 								<dd>{formatDate(preview.creditCoversUntil)}</dd>
 							</div>
 						)}
-						{preview.startsAt != null && (
+						{preview.currentPlan == null && preview.startsAt != null && (
 							<div>
 								<dt>Wirksam ab</dt>
 								<dd>{preview.immediate ? 'sofort' : formatDate(preview.startsAt)}</dd>
