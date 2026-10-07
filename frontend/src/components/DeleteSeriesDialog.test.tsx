@@ -66,6 +66,7 @@ const sampleSeries = (): Series => ({
 	estimatedEffort: 0.5,
 	active: true,
 	startDate: new Date('2026-09-07T00:00:00.000Z'),
+	autoCreate: true,
 	pillars: [],
 });
 

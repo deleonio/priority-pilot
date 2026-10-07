@@ -42,6 +42,7 @@ const RHYTHM_LABEL: Record<Series['rhythm'], string> = {
 	fri: 'Freitags',
 	sat: 'Samstags',
 	sun: 'Sonntags',
+	none: 'Ohne Rhythmus',
 };
 
 /**

@@ -24,6 +24,7 @@ const MAX_OPEN_INSTANCES = 5;
 /** Minimalvertrag der Auswahlregel — passt auf `Task`-Modelle wie auf serialisierte DTOs. */
 interface SeriesCandidate {
 	seriesId?: number | null;
+	seriesOccurrence?: Date | string | null;
 	deadline?: Date | string | null;
 	status?: string;
 }
@@ -31,7 +32,8 @@ interface SeriesCandidate {
 /**
  * Auswahlregel #1518: je `seriesId` genau EINE Instanz — die früheste offene mit Deadline ab heute
  * (UTC-Kalendertag von `now`), sonst die jüngste vergangene offene. Erledigte Instanzen sind nie
- * Repräsentant; Aufgaben ohne `seriesId` (auch abgekoppelte mit `originSeriesId`) bleiben unverändert.
+ * Repräsentant; Aufgaben ohne `seriesId` (auch abgekoppelte mit `originSeriesId`) und Instanzen ohne
+ * Termin-Anker (`seriesOccurrence` leer, #2355) bleiben unverändert.
  * Die Eingabereihenfolge bleibt erhalten — nur nicht gewählte Instanzen fallen weg. Zentrale Funktion
  * für Wald, `/next`, `/suggestions`, `/tasks/nearby` und die drei Push-Collector.
  */
@@ -51,9 +53,12 @@ export const selectSeriesRepresentatives = <T extends SeriesCandidate>(tasks: T[
 		return time >= todayTime ? time - todayTime : Number.MAX_SAFE_INTEGER / 2 + (todayTime - time);
 	};
 
+	// Nur ein ausdrückliches `null` heißt „ohne Anker“; fehlt das Feld ganz (reduzierte Kandidaten), gilt die Instanz als verankert.
+	const isAnchored = (task: T): boolean => task.seriesOccurrence !== null;
+
 	const chosen = new Map<number, T>();
 	for (const task of tasks) {
-		if (task.seriesId == null || task.status === 'Done') {
+		if (task.seriesId == null || task.status === 'Done' || !isAnchored(task)) {
 			continue;
 		}
 		const current = chosen.get(task.seriesId);
@@ -61,7 +66,7 @@ export const selectSeriesRepresentatives = <T extends SeriesCandidate>(tasks: T[
 			chosen.set(task.seriesId, task);
 		}
 	}
-	return tasks.filter((task) => task.seriesId == null || chosen.get(task.seriesId) === task);
+	return tasks.filter((task) => task.seriesId == null || !isAnchored(task) || chosen.get(task.seriesId) === task);
 };
 
 /** Vorlauf (Issue #1641): Aufgaben mit `deadline` mehr als so viele Kalendertage in der Zukunft werden zurückgehalten. */
@@ -167,7 +172,8 @@ export const nextOccurrence = (date: Date, rhythm: SeriesRhythm, anchorDay: numb
  * später wieder aktiviert wurde).
  */
 export const generateDueInstances = async (series: Series, options: GenerateOptions): Promise<Task[]> => {
-	if (!series.active) {
+	// #2355: `autoCreate: false` = reine Vorlage, Instanzen entstehen nur auf Abruf.
+	if (!series.active || !series.autoCreate) {
 		return [];
 	}
 
