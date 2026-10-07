@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.18 - 2026-10-07
 
-_Enthält v0.18.0 – v0.18.16._
+_Enthält v0.18.0 – v0.18.17._
 
 ### 🎉 New Features
 
@@ -38,6 +38,7 @@ _Enthält v0.18.0 – v0.18.16._
 - feat(server): render invoice pdf as letter with logo, table and footer by @deleonio in https://github.com/deleonio/priority-pilot/pull/2369
 - fix(native): widen android versionCode digits with hard limits by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2371
 - feat(server): create due series automatically every day by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2384
+- docs(adr): ADR 0021 Android-App als SPA ohne Service Worker by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2387
 
 ## v0.17 - 2026-10-07
 
@@ -117,7 +118,6 @@ _Enthält v0.16.0 – v0.16.37._
 ### 🎉 New Features
 
 - feat(server): import templates as task packages (#1993) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2197
-- feat(server): import templates as task packages (#1993) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2197
 - feat(frontend): streak rest day and balanced weeks (#1971) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2215
 - feat(frontend): add journal entries with optional pillar by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2216
 - feat(frontend): add balamentum wrapped yearly recap card by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2219
@@ -144,6 +144,8 @@ _Enthält v0.16.0 – v0.16.37._
 
 ### Other Changes
 
+- feat(frontend): dashboard and settings ux rework, oauth pillar seeding by @deleonio in https://github.com/deleonio/priority-pilot/pull/2192
+- chore: key pipeline concurrency per ticket with issue and pr lanes by @deleonio in https://github.com/deleonio/priority-pilot/pull/2199
 - feat(frontend): dashboard and settings ux rework, oauth pillar seeding by @deleonio in https://github.com/deleonio/priority-pilot/pull/2192
 - chore: key pipeline concurrency per ticket with issue and pr lanes by @deleonio in https://github.com/deleonio/priority-pilot/pull/2199
 - feat(groups): add balance-ranked group challenge with share card by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2196
