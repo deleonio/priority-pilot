@@ -271,10 +271,42 @@ const catalog: McpTool[] = [
 	{
 		name: 'task_list',
 		description:
-			"Lists the token owner's tasks including their IDs. These IDs identify a task in all other " +
-			'tools (task_update, task_complete, task_link, task_unlink, task_links).',
-		inputSchema: { type: 'object', properties: {} },
-		run: (ctx) => callApi(ctx, '/tasks'),
+			"Lists the token owner's open tasks (every status except Done) including their IDs. These IDs identify a task in all other " +
+			'tools (task_update, task_complete, task_link, task_unlink, task_links). ' +
+			'Completed tasks are only included with includeDone=true, or as a fallback: if query matches no open ' +
+			'task, the completed tasks matching query are returned instead (check each status).',
+		inputSchema: {
+			type: 'object',
+			properties: {
+				includeDone: {
+					type: 'boolean',
+					description: 'If true, completed tasks are listed in addition to the open ones. Default: false.',
+				},
+				query: {
+					type: 'string',
+					description:
+						'Case-insensitive title substring. Only open tasks are returned; without an open match the ' +
+						'completed matches are returned (fallback).',
+				},
+			},
+		},
+		run: async (ctx, args) => {
+			if (args.includeDone !== undefined && typeof args.includeDone !== 'boolean') {
+				throw new Error('includeDone must be a boolean.');
+			}
+			if (args.query !== undefined && typeof args.query !== 'string') {
+				throw new Error('query must be a string.');
+			}
+			const needle = args.query?.toLowerCase();
+			const tasks = ((await callApi(ctx, '/tasks')) as { title: string; status: string }[]).filter(
+				(task) => needle === undefined || task.title.toLowerCase().includes(needle),
+			);
+			const open = tasks.filter((task) => task.status !== 'Done');
+			if (args.includeDone === true) {
+				return tasks;
+			}
+			return open.length > 0 || needle === undefined ? open : tasks;
+		},
 	},
 	{
 		name: 'task_create',
