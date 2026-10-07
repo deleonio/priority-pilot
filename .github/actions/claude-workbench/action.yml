@@ -43,7 +43,12 @@ runs:
 
     - name: Chromium installieren (Playwright)
       shell: bash
-      run: pnpm --filter frontend exec playwright install --with-deps chromium
+      # apt hing am 2026-10-07 eine Stunde lang bis zum Job-Timeout. Frist 10 min, danach
+      # ohne Systempakete (der Runner bringt die Chromium-Abhängigkeiten in aller Regel mit).
+      run: |
+        timeout 10m pnpm --filter frontend exec playwright install --with-deps chromium \
+          || { echo "::warning::playwright install --with-deps abgebrochen, installiere ohne Systempakete"; \
+               pnpm --filter frontend exec playwright install chromium; }
 
     - name: Server bauen (für Inspect no-watch)
       shell: bash
