@@ -16,16 +16,16 @@ android {
         }
         versionCode major * 10000000 + minor * 10000 + patch
         versionName rootVersion
-        // App-Link-Domain aus server.url, das `cap sync` aus SITE_URL in die Assets schreibt (AndroidManifest.xml)
+        // App-Link-Domain aus server.allowNavigation[0], das `cap sync` aus SITE_URL in die Assets schreibt (AndroidManifest.xml)
         def capacitorConfig = file('src/main/assets/capacitor.config.json')
         if (!capacitorConfig.exists()) {
             throw new GradleException('capacitor.config.json fehlt: zuerst SITE_URL=https://… pnpm --filter native sync')
         }
-        def serverUrl = new groovy.json.JsonSlurper().parse(capacitorConfig)?.server?.url
-        if (!serverUrl) {
-            throw new GradleException('capacitor.config.json ohne server.url: SITE_URL=https://… pnpm --filter native sync erneut ausführen')
+        def appLinkHost = new groovy.json.JsonSlurper().parse(capacitorConfig)?.server?.allowNavigation?.getAt(0)
+        if (!appLinkHost) {
+            throw new GradleException('capacitor.config.json ohne server.allowNavigation: SITE_URL=https://… pnpm --filter native sync erneut ausführen')
         }
-        manifestPlaceholders = [appLinkHost: new URL(serverUrl).host]
+        manifestPlaceholders = [appLinkHost: appLinkHost]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

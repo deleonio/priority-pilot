@@ -1,8 +1,9 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 /**
- * Nativer Wrapper im Remote-Modus (ADR 0016): Die App lädt die gehostete `/app/` aus `SITE_URL`;
- * gebündelt ist nur die Fehlerseite für den Fall, dass der Server nicht erreichbar ist.
+ * Nativer Wrapper mit gebündelter Web-App (ADR 0021): `webDir` ist der Android-Build des Frontends
+ * (`pnpm --filter frontend build:android`), die App läuft auf `https://localhost` und startet auch ohne Netz.
+ * `SITE_URL` liefert nur die Domain für App Links und die erlaubte Navigation.
  */
 const siteUrl = process.env.SITE_URL?.trim().replace(/\/$/, '');
 if (!siteUrl) {
@@ -12,12 +13,10 @@ if (!siteUrl) {
 const config: CapacitorConfig = {
 	appId: 'balamentum.app',
 	appName: 'Balamentum',
-	webDir: 'www',
+	webDir: '../frontend/dist-android',
 	server: {
-		url: `${siteUrl}/app/`,
 		// Nur die eigene Domain im WebView; fremde Links öffnet Capacitor im System-Browser.
 		allowNavigation: [new URL(siteUrl).host],
-		errorPath: 'error.html',
 	},
 	plugins: {
 		SplashScreen: { backgroundColor: '#ffffff', launchShowDuration: 1000 },

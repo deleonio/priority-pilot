@@ -1,6 +1,6 @@
 name: Android App-Bundle
 
-# Baut das signierte Android-App-Bundle (AAB) der Capacitor-App im Remote-Modus (ADR 0016) und legt
+# Baut das signierte Android-App-Bundle (AAB) der Capacitor-App mit gebündelter Web-App (ADR 0021) und legt
 # es als Artefakt ab. Läuft auf einem Tag (Daily-Version stößt ihn je Minor-Release an), lädt er das
 # AAB zusätzlich in den internen Test-Track der Play Console und rollt es dort aus; ein Lauf von main lädt nichts hoch.
 # Secrets und Keystore-Erzeugung: docs/native-apps.md. Workflows bleiben ungetestet (ADR 0001).
@@ -27,6 +27,14 @@ jobs:
       - name: Android SDK 36
         # Das Runner-Image bringt SDK und cmdline-tools mit; installiert wird nur, was fehlt.
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" > /dev/null
+
+      - name: Web-App für die Android-App bauen
+        # Gebündelte SPA (ADR 0021) derselben Version; `cap sync` kopiert sie nach webDir. Direkt über
+        # vite statt `pnpm --filter` (Auto-Install-Falle, s. Capacitor sync).
+        working-directory: frontend
+        run: ./node_modules/.bin/vite build --mode android
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
 
       - name: Capacitor sync
         # Direkt aus native/node_modules — der gefilterte pnpm-Skriptlauf triggert einen
