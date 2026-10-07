@@ -59,12 +59,6 @@ test.describe('Balamentum — Serien-Frontend gegen das echte Backend (#142)', (
 		return series.id;
 	};
 
-	/** Materialisiert die fälligen Instanzen einer Serie bis `until` über die echte API. */
-	const generateInstancesViaApi = async (page: Page, seriesId: number, until: string): Promise<void> => {
-		const response = await page.request.post(`/api/v1/series/${seriesId}/generate`, { data: { until } });
-		expect(response.ok()).toBeTruthy();
-	};
-
 	/**
 	 * Datums-Anker relativ zu heute (00:00 UTC, `days` = 0 → heute). Die Instanz-Generierung beginnt
 	 * erst am aktuellen Datum (`server/src/logics/series.ts`, „Nur zukünftige Termine“) — hartkodierte
@@ -162,7 +156,7 @@ test.describe('Balamentum — Serien-Frontend gegen das echte Backend (#142)', (
 
 		// In der UI gelistet: der Serien-Titel erscheint in der Serien-Verwaltung.
 		await openSeriesManagement(page);
-		await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
+		await expect(page.getByTestId('series-tree').getByText(title, { exact: true }).first()).toBeVisible();
 
 		// Persistenz gegenprüfen: die Serie liegt tatsächlich über `/api/v1/series` im Backend.
 		const series = (await (await page.request.get('/api/v1/series')).json()) as { title: string }[];
@@ -177,7 +171,6 @@ test.describe('Balamentum — Serien-Frontend gegen das echte Backend (#142)', (
 		const title = uniqueTitle('Kennzeichnung');
 		// Wöchentliche Serie, zwei fällige Termine (heute + in 7 Tagen) materialisieren — dynamischer Anker, siehe dayFromTodayUtc.
 		const seriesId = await createSeriesViaApi(page, { title, rhythm: 'weekly', startDate: dayFromTodayUtc(0) });
-		await generateInstancesViaApi(page, seriesId, dayFromTodayUtc(7));
 
 		// Die früheste Instanz individuell ändern → das Backend markiert sie als `isException`.
 		// Test-Pflege #1518: Die Liste zeigt je Serie nur die früheste offene Instanz ab heute; damit die
@@ -186,7 +179,7 @@ test.describe('Balamentum — Serien-Frontend gegen das echte Backend (#142)', (
 		const instances = (await listTasksViaApi(page))
 			.filter((task) => task.seriesId === seriesId)
 			.sort((a, b) => (a.deadline ?? '').localeCompare(b.deadline ?? ''));
-		expect(instances.length).toBe(2);
+		expect(instances.length).toBeGreaterThanOrEqual(2);
 		const exceptionResponse = await page.request.patch(`/api/v1/tasks/${instances[0].id}`, {
 			data: { deadline: dayFromTodayUtc(3) },
 		});
@@ -214,10 +207,9 @@ test.describe('Balamentum — Serien-Frontend gegen das echte Backend (#142)', (
 	test('AK3 — eine Instanz einzeln verschieben wirkt nicht auf Template und Geschwister', async ({ page }) => {
 		const title = uniqueTitle('Verschieben');
 		const seriesId = await createSeriesViaApi(page, { title, rhythm: 'weekly', startDate: dayFromTodayUtc(0) });
-		await generateInstancesViaApi(page, seriesId, dayFromTodayUtc(7));
 
 		const before = (await listTasksViaApi(page)).filter((task) => task.seriesId === seriesId);
-		expect(before.length).toBe(2);
+		expect(before.length).toBeGreaterThanOrEqual(2);
 		// Instanzen nach Deadline sortieren: A = heute (wird verschoben), B = heute + 7 Tage (bleibt unberührt).
 		const sorted = [...before].sort((a, b) => (a.deadline ?? '').localeCompare(b.deadline ?? ''));
 		const moved = sorted[0];
@@ -276,10 +268,12 @@ test.describe('Balamentum — Serien-Frontend gegen das echte Backend (#142)', (
 		await openSeriesManagement(page);
 		await expect(page.getByRole('button', { name: /Fällige Instanzen generieren/i })).toHaveCount(0);
 
-		expect((await listTasksViaApi(page)).length).toBe(0);
+		// #2404: POST /series legt die fälligen Instanzen sofort an; generate-all bleibt idempotent.
+		const before = (await listTasksViaApi(page)).length;
+		expect(before).toBeGreaterThan(0);
 		const response = await page.request.post('/api/v1/series/generate-all');
 		expect(response.ok()).toBe(true);
-		expect((await listTasksViaApi(page)).length).toBeGreaterThan(0);
+		expect((await listTasksViaApi(page)).length).toBe(before);
 	});
 });
 
@@ -307,7 +301,7 @@ test.describe('Balamentum — #297: Altes Serien-Formular durch TaskForm ersetze
 
 	const createSeriesViaApi = async (page: Page, payload: SeriesPayload): Promise<number> => {
 		const response = await page.request.post('/api/v1/series', {
-			data: { rhythm: 'weekly', priority: 3, estimatedEffort: 0.5, active: true, ...payload },
+			data: { rhythm: 'weekly', priority: 3, estimatedEffort: 0.5, active: true, autoCreate: false, ...payload },
 		});
 		expect(response.ok()).toBeTruthy();
 		return ((await response.json()) as { id: number }).id;
@@ -443,7 +437,7 @@ test.describe('Balamentum — #330: Vereinheitlichter Anlege-Einstieg (SeriesMan
 
 	const createSeriesViaApi = async (page: Page, payload: SeriesPayload): Promise<number> => {
 		const response = await page.request.post('/api/v1/series', {
-			data: { rhythm: 'weekly', priority: 3, estimatedEffort: 0.5, active: true, ...payload },
+			data: { rhythm: 'weekly', priority: 3, estimatedEffort: 0.5, active: true, autoCreate: false, ...payload },
 		});
 		expect(response.ok()).toBeTruthy();
 		return ((await response.json()) as { id: number }).id;
@@ -585,6 +579,7 @@ test.describe('Balamentum — Serien behalten die Säulenzuordnung (#343)', () =
 				priority: 3,
 				estimatedEffort: 0.5,
 				active: true,
+				autoCreate: false,
 				startDate: '2026-09-07T00:00:00.000Z',
 				pillars: pillars.map((entry, index) => ({ pillarId: entry.id, share: evenShares[index], confidence: 80 })),
 			},

@@ -12,7 +12,6 @@
  * LLM-Clients, während die Weboberfläche und die durchgereichten Route-Fehlertexte deutsch bleiben.
  */
 
-import { GENERATE_HORIZON_DAYS } from '../logics/series.js';
 import type { SeriesRhythm } from '../models/series.js';
 
 /** Aufrufkontext eines Werkzeugs: Basis-URL des eigenen Servers + Bearer-Token des Aufrufers. */
@@ -391,18 +390,10 @@ const catalog: McpTool[] = [
 			if (args.series === undefined) {
 				return callApi(ctx, '/tasks', { method: 'POST', body: { ...task, userId: args.userId } });
 			}
-			// Die Serien-Route verlangt priority/estimatedEffort; die Task-Defaults von `POST /tasks` gelten hier mit.
-			const created = (await callApi(ctx, '/series', {
+			return callApi(ctx, '/series', {
 				method: 'POST',
-				body: { priority: 3, estimatedEffort: 0.5, ...task, ...pickSeriesFields(args.series), userId: args.userId },
-			})) as { id: number };
-			const until = new Date();
-			until.setUTCDate(until.getUTCDate() + GENERATE_HORIZON_DAYS);
-			const instances = await callApi(ctx, `/series/${created.id}/generate`, {
-				method: 'POST',
-				body: { until: until.toISOString() },
+				body: { ...task, ...pickSeriesFields(args.series), userId: args.userId },
 			});
-			return { series: created, instances };
 		},
 	},
 	{

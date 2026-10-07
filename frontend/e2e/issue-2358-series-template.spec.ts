@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { openAccordionSection, registerOwnSession, waitForStableView } from './helpers';
+import { openAccordionSection, registerOwnSession, waitForStableView, waitForStableBox } from './helpers';
 
 /**
  * Rote End-to-End-Spec für #2358 — Serien als Vorlage (AK5, AK6, AK8).
@@ -84,13 +84,19 @@ test.describe('Balamentum — Serie als Vorlage (#2358)', () => {
 		// Test-Pflege: am Host-Element messen (Muster issue-1794-care-switch.spec.ts) — der Rollen-Locator trifft das verkleinerte native `<input>`.
 		const switchBox = await page.locator('kol-input-checkbox[_label="Automatisch anlegen"]').boundingBox();
 		expect(switchBox?.height ?? 0, 'Schalter ≥ 44 px').toBeGreaterThanOrEqual(44);
-		const rhythmBox = await page.locator('kol-single-select[_label="Rhythmus"]').boundingBox();
-		expect(rhythmBox?.height ?? 0, 'Rhythmus-Auswahl ≥ 44 px').toBeGreaterThanOrEqual(44);
 
 		// AK8: per Tastatur bedienbar.
 		await toggle.focus();
 		await page.keyboard.press('Space');
 		await expect(toggle).toBeChecked();
+
+		// Test-Pflege (#2414): der Rhythmus ist bei „Automatisch anlegen" aus ausgeblendet — Touch-Höhe
+		// erst im eingeschalteten Zustand messen, sonst läuft boundingBox in den Test-Timeout. Der
+		// Select mountet erst mit dem Toggle — waitForStableBox schluckt den Re-Render (Muster #1051).
+		const rhythmSelect = page.locator('kol-single-select[_label="Rhythmus"]');
+		await waitForStableBox(page, rhythmSelect);
+		const rhythmBox = await rhythmSelect.boundingBox();
+		expect(rhythmBox?.height ?? 0, 'Rhythmus-Auswahl ≥ 44 px').toBeGreaterThanOrEqual(44);
 
 		await page.getByRole('button', { name: 'Bearbeiten', exact: true }).last().click();
 		const confirm = page.getByRole('button', { name: 'Ja', exact: true });

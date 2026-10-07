@@ -8736,8 +8736,6 @@ components:
       type: object
       required:
         - title
-        - priority
-        - estimatedEffort
       properties:
         title:
           type: string
