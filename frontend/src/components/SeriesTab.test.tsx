@@ -359,3 +359,37 @@ describe('SeriesTab — Signal an die App nach dem Generieren', () => {
 		expect(onTasksChanged).not.toHaveBeenCalled();
 	});
 });
+
+/**
+ * Rote Spec-Tests für #2358 AK6 (Vertrag: `docs/spec/issue-2358.md`): Serien ohne Automatik
+ * (`autoCreate === false`) tragen im Serien-Tab das Text-Badge „Vorlage" (nie nur Farbe);
+ * bei Rhythmus `none` entfällt das Rhythmus-Badge (KI-UX: „Ohne Rhythmus" neben „Vorlage" wäre redundant).
+ */
+describe('SeriesTab — Badge „Vorlage" (#2358, AK6)', () => {
+	it('autoCreate:false zeigt „Vorlage", autoCreate:true nicht', async () => {
+		mockListSeries.mockResolvedValue([
+			{ ...makeSeries('weekly', 'Meine Vorlage'), autoCreate: false },
+			makeSeries('weekly', 'Meine Automatik'),
+		]);
+
+		await act(async () => {
+			render(<SeriesTab pillars={[pillarKoerper]} />);
+		});
+
+		expect(screen.getAllByText('Vorlage')).toHaveLength(1);
+	});
+
+	it('Vorlage mit Rhythmus none: Badge „Vorlage", kein Rhythmus-Badge', async () => {
+		mockListSeries.mockResolvedValue([
+			{ ...makeSeries('none' as Series['rhythm'], 'Vorlage ohne Rhythmus'), autoCreate: false },
+		]);
+
+		await act(async () => {
+			render(<SeriesTab pillars={[pillarKoerper]} />);
+		});
+
+		expect(screen.getByText('Vorlage')).toBeInTheDocument();
+		expect(screen.queryByText('Ohne Rhythmus')).toBeNull();
+		expect(screen.queryByText('undefined')).toBeNull();
+	});
+});
