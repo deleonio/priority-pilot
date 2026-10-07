@@ -114,6 +114,17 @@ export const JournalTab = ({ pillars }: { pillars: Pillar[] }) => {
 	const [deleteTarget, setDeleteTarget] = useState<JournalEntry | null>(null);
 	const listHeadingRef = useRef<HTMLDivElement>(null);
 
+	// #2399: Hochzählen lädt die Liste neu (Rückkehr in den Vordergrund).
+	const [refreshKey, setRefreshKey] = useState(0);
+
+	useEffect(() => {
+		const onVisibility = () => {
+			if (document.visibilityState === 'visible') setRefreshKey((key) => key + 1);
+		};
+		document.addEventListener('visibilitychange', onVisibility);
+		return () => document.removeEventListener('visibilitychange', onVisibility);
+	}, []);
+
 	useEffect(() => {
 		let active = true;
 		api
@@ -127,7 +138,7 @@ export const JournalTab = ({ pillars }: { pillars: Pillar[] }) => {
 		return () => {
 			active = false;
 		};
-	}, []);
+	}, [refreshKey]);
 
 	/** Neueste zuerst, wie `GET /journal` (Datum absteigend, bei Gleichstand jüngere Id zuerst). */
 	const sorted = (list: JournalEntry[]): JournalEntry[] =>
