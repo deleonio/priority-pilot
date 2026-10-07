@@ -737,6 +737,14 @@ export const api = {
 		return data;
 	},
 
+	/** #2327: fremdes Konto löschen (dieselben Regeln wie die Selbstlöschung). */
+	async deleteAdminUser({ id }: { id: number }): Promise<void> {
+		const { error, response } = await client.DELETE('/admin/users/{id}', { params: { path: { id } } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
 	/** #2295: Abos eines Nutzers — Admin-Sicht, Grundlage der Lösch-Aktionen. */
 	async getAdminUserSubscriptions({ id }: { id: number }): Promise<components['schemas']['AdminSubscription'][]> {
 		const { data, error, response } = await client.GET('/admin/users/{id}/subscriptions', {

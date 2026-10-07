@@ -2700,6 +2700,57 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /admin/users/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Nutzers
+        schema:
+          type: integer
+    delete:
+      summary: Fremdes Nutzerkonto löschen
+      description: >-
+        #2327: nur für Admins (403 sonst). Löscht das Konto mit denselben Regeln wie die
+        Selbstlöschung (`DELETE /auth/me`): persönliche Daten weg, Rechnungen und
+        Abo-Datensätze bleiben. Das eigene Konto des Admins wird abgelehnt (400). Bei
+        Ablehnung (409 `subscription_active`/`last_group_admin`, 502 `paypal_unavailable`)
+        bleibt das Konto bestehen.
+      operationId: deleteAdminUser
+      tags: [admin]
+      responses:
+        '204':
+          description: Konto gelöscht
+        '400':
+          description: Ungültige Id oder eigenes Konto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Nutzer nicht gefunden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Laufendes Abo oder letzter Admin einer Gruppe mit weiteren Mitgliedern (`code` im Body)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: PayPal-Kündigung scheitert (Body-Code paypal_unavailable)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /admin/users/{id}/subscriptions:
     parameters:
       - name: id
@@ -8498,10 +8549,12 @@ components:
           description: Fehlerbeschreibung
         code:
           type: string
-          enum: [plan_required, quota_exhausted, ai_throttled, subscription_active, last_group_admin]
+          enum:
+            [plan_required, quota_exhausted, ai_throttled, subscription_active, last_group_admin, paypal_unavailable]
           description: >-
             Maschinenlesbarer Grund bei paketbedingten Ablehnungen (#1456) und bei
-            der abgelehnten Konto-Löschung (`DELETE /auth/me`, 409).
+            der abgelehnten Konto-Löschung (`DELETE /auth/me`, 409; Admin-Variante
+            `DELETE /admin/users/{id}`, zusätzlich 502 `paypal_unavailable`).
             `plan_required` (403) heißt „Feature nicht im Paket",
             `quota_exhausted` (429) „Monatskontingent aufgebraucht" (seit #1783 ungenutzt),
             `ai_throttled` (429) „Fair-Use-Drossel, später erneut versuchen",

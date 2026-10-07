@@ -1,5 +1,5 @@
 import { KolAlert, KolBadge, KolButton, KolDetails, KolInputRadio, KolSpin } from '@public-ui/react-v19';
-import type { AdminUser, AllowedEmail, ReassignStatusFilter, components } from 'client';
+import { ResponseError, type AdminUser, type AllowedEmail, type ReassignStatusFilter, type components } from 'client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -241,6 +241,16 @@ const UserSubscriptions = ({ user, onDeleted }: { user: AdminUser; onDeleted: ()
 	);
 };
 
+/** Meldung je Ablehnungsgrund der Konto-Löschung (#2327) — feste Texte statt Server-Meldung, mit nächstem Schritt. */
+const DELETE_REFUSALS: Record<string, string> = {
+	subscription_active:
+		'Das Konto hat ein laufendes Abo. Erst „Alle Abos dieses Nutzers löschen“ ausführen, dann erneut versuchen.',
+	last_group_admin:
+		'Das Konto ist letzter Admin einer Gruppe mit weiteren Mitgliedern. Erst einen anderen Admin bestimmen.',
+	paypal_unavailable: 'PayPal ist gerade nicht erreichbar. Später erneut versuchen.',
+};
+const DELETE_FALLBACK = 'Das Konto konnte nicht gelöscht werden. Bitte erneut versuchen.';
+
 /** Optionen der Rollen-Radiogruppe je Zeile — stabile Objektidentität wie in `AppearanceSetting.tsx`. */
 const ROLE_OPTIONS: { label: string; value: AdminUser['role'] }[] = [
 	{ label: 'Admin', value: 'admin' },
@@ -259,7 +269,7 @@ const ROLE_OPTIONS: { label: string; value: AdminUser['role'] }[] = [
  * seit #1565 in die eigene Karte im Tab Pakete gezogen (`OwnPlanCard`) — die Server-Route bleibt
  * universell (manuelle Vergabe bis T7, #1456 AK6), das UI hier ist rein lesend.
  */
-export const AdminUsersSection = () => {
+export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number }) => {
 	const [users, setUsers] = useState<AdminUser[] | null>(null);
 	const [allowedEmails, setAllowedEmails] = useState<AllowedEmail[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -310,6 +320,13 @@ export const AdminUsersSection = () => {
 	const [subRunning, setSubRunning] = useState(false);
 	// #2295: Zähler zum Neuaufbau der Rechnungsansichten nach dem Löschen von Abos (Lazy-Cache leeren).
 	const [invoicesVersion, setInvoicesVersion] = useState(0);
+
+	// #2327: Konto-Löschung je Nutzerzeile — zwei Ja/Nein-Schritte (Muster #1729), `null` = kein Dialog.
+	const [deleteTarget, setDeleteTarget] = useState<{ user: AdminUser; step: 'intent' | 'scope' } | null>(null);
+	const [deleteError, setDeleteError] = useState<string | null>(null);
+	const [deleting, setDeleting] = useState(false);
+	// Ref-Guard: reale Klicks feuern `_on.onClick` UND Host-`onClick` (Doppel-Submit trotz `_disabled`).
+	const deletingRef = useRef(false);
 
 	// Portionierter Lauf, Fortschritt und Fortsetzen: gemeinsam mit dem Nutzer-Modal in
 	// `useReassignRun`, damit beide Einstiege nicht wieder auseinanderlaufen.
@@ -367,6 +384,33 @@ export const AdminUsersSection = () => {
 		}
 	};
 
+	const closeDelete = (): void => {
+		setDeleteTarget(null);
+		setDeleteError(null);
+	};
+
+	// #2327: bestätigte Löschung — Erfolg schließt den Dialog und lädt die Liste neu, 409/502 bleiben
+	// als KolAlert im offenen Dialog stehen (Konto bleibt).
+	const handleDeleteUser = async (): Promise<void> => {
+		if (deleteTarget === null || deletingRef.current) {
+			return;
+		}
+		deletingRef.current = true;
+		setDeleting(true);
+		setDeleteError(null);
+		try {
+			await api.deleteAdminUser({ id: deleteTarget.user.id });
+			closeDelete();
+			await load();
+		} catch (reason) {
+			const code = reason instanceof ResponseError ? (reason.body as { code?: unknown } | undefined)?.code : undefined;
+			setDeleteError((typeof code === 'string' && DELETE_REFUSALS[code]) || DELETE_FALLBACK);
+		} finally {
+			deletingRef.current = false;
+			setDeleting(false);
+		}
+	};
+
 	return (
 		<div className="admin-users">
 			{error !== null && (
@@ -406,23 +450,36 @@ export const AdminUsersSection = () => {
 										},
 									}}
 								/>
-								{user.subscriptionStatus !== null && (
+								{(user.subscriptionStatus !== null || user.id !== currentUserId) && (
 									<div className="admin-user-actions">
 										{/* #1959 AK4: Einstieg je Aktion — die Bestätigung folgt im Dialog
 										    (Muster „Sequenzielle Bestätigung“); _variant="secondary", die
 										    Primary-Fläche bleibt dem bestätigenden Button vorbehalten. */}
-										<KolButton
-											_label="Abo sperren"
-											_variant="secondary"
-											_disabled={subRunning}
-											_on={{ onClick: () => setSubConfirm({ user, kind: 'lock' }) }}
-										/>
-										<KolButton
-											_label="Abo stornieren"
-											_variant="secondary"
-											_disabled={subRunning}
-											_on={{ onClick: () => setSubConfirm({ user, kind: 'cancel' }) }}
-										/>
+										{user.subscriptionStatus !== null && (
+											<>
+												<KolButton
+													_label="Abo sperren"
+													_variant="secondary"
+													_disabled={subRunning}
+													_on={{ onClick: () => setSubConfirm({ user, kind: 'lock' }) }}
+												/>
+												<KolButton
+													_label="Abo stornieren"
+													_variant="secondary"
+													_disabled={subRunning}
+													_on={{ onClick: () => setSubConfirm({ user, kind: 'cancel' }) }}
+												/>
+											</>
+										)}
+										{/* #2327: Konto löschen — nicht beim eigenen Eintrag, am Ende der Gruppe (Slip-Schutz);
+										    Bestätigung zweistufig im Dialog unten. */}
+										{user.id !== currentUserId && (
+											<KolButton
+												_label="Konto löschen"
+												_variant="secondary"
+												_on={{ onClick: () => setDeleteTarget({ user, step: 'intent' }) }}
+											/>
+										)}
 									</div>
 								)}
 								{/* #1958 AK3: Rechnungsansicht je Nutzer — aufklappbar, Lazy-Load beim ersten Aufklappen. */}
@@ -611,6 +668,53 @@ export const AdminUsersSection = () => {
 							_on={{ onClick: () => void handleSubAction() }}
 						/>
 					</div>
+				</Modal>
+			)}
+			{/* #2327: EINE persistente Modal-Instanz über beide Schritte (Muster #1729). */}
+			{deleteTarget !== null && (
+				<Modal title="Konto löschen" onClose={closeDelete}>
+					{deleteError !== null && (
+						<KolAlert _type="error" _label="Löschen nicht möglich">
+							{deleteError}
+						</KolAlert>
+					)}
+					{deleteTarget.step === 'intent' ? (
+						<>
+							<p className="admin-delete-text">
+								Konto von <strong>{deleteTarget.user.displayName}</strong> (<strong>{deleteTarget.user.email}</strong>)
+								wirklich löschen?
+							</p>
+							<div className="modal-actions">
+								<KolButton _label="Abbrechen" _variant="secondary" _on={{ onClick: closeDelete }} />
+								<KolButton
+									_label="Weiter"
+									_variant="primary"
+									_on={{ onClick: () => setDeleteTarget({ user: deleteTarget.user, step: 'scope' }) }}
+								/>
+							</div>
+						</>
+					) : (
+						<>
+							<p>
+								Persönliche Daten und Feedback werden entfernt. Rechnungen und Abo-Datensätze bleiben wegen der
+								Aufbewahrungspflicht. Das lässt sich nicht rückgängig machen.
+							</p>
+							<div className="modal-actions">
+								<KolButton
+									_label="Abbrechen"
+									_variant="secondary"
+									_disabled={deleting}
+									_on={{ onClick: closeDelete }}
+								/>
+								<KolButton
+									_label={deleting ? 'Wird gelöscht …' : 'Konto endgültig löschen'}
+									_variant="danger"
+									_disabled={deleting}
+									_on={{ onClick: () => void handleDeleteUser() }}
+								/>
+							</div>
+						</>
+					)}
 				</Modal>
 			)}
 		</div>

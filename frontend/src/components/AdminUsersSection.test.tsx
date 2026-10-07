@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ResponseError } from 'client';
 import { planLabel } from '../lib/planOffers';
 
 /**
@@ -107,6 +108,8 @@ vi.mock('../api', () => ({
 		// #2295: Abos je Nutzer + Löschen.
 		getAdminUserSubscriptions: vi.fn(),
 		deleteAdminUserSubscriptions: vi.fn(),
+		// #2327: Konto löschen (Cast über Record beim Zugriff — die Methode entsteht in der Impl-Phase).
+		deleteAdminUser: vi.fn(),
 		reassignTaskPillars: vi.fn(),
 		getReassignPillarsStatus: vi.fn(),
 	},
@@ -953,5 +956,81 @@ describe('#2295 Admin: Abos löschen (AK6)', () => {
 		const alert = await screen.findByRole('alert');
 		expect(alert.getAttribute('data-kol-type')).toBe('error');
 		expect(screen.getByRole('button', { name: 'Abo #41 löschen' })).toBeInTheDocument();
+	});
+});
+
+/**
+ * #2327 (Spec `docs/spec/issue-2327.md`, AK5/AK6): „Konto löschen“ je fremdem Nutzer, zweistufige
+ * Bestätigung (Weiter → Konto endgültig löschen), Fehlertext je Code aus fester Map.
+ * `api.deleteAdminUser` entsteht in der Impl-Phase.
+ */
+describe('#2327 Admin: Konto löschen (AK5/AK6)', () => {
+	const mockDeleteUser = (api as unknown as Record<string, ReturnType<typeof vi.fn>>).deleteAdminUser;
+	const row = (name: string): HTMLElement => screen.getByText(name, { exact: true }).closest('li') as HTMLElement;
+	const refused = (status: number, code: string): ResponseError =>
+		new ResponseError({ status } as Response, { message: 'Server-Text', code });
+
+	const renderUsers = async (): Promise<void> => {
+		mockGetAdminUsers.mockResolvedValue([
+			user({ id: 1, displayName: 'Anna Admin' }),
+			user({ id: 7, displayName: 'Bernd Beta', email: 'bernd@example.com', role: 'member' }),
+		]);
+		render(<SectionWithOwnId currentUserId={1} />);
+		await screen.findByText('Bernd Beta');
+	};
+
+	it('AK5: „Konto löschen“ steht bei fremden Nutzern, nicht beim eigenen Eintrag', async () => {
+		await renderUsers();
+		expect(within(row('Bernd Beta')).getByRole('button', { name: 'Konto löschen' })).toBeInTheDocument();
+		expect(within(row('Anna Admin')).queryByRole('button', { name: 'Konto löschen' })).not.toBeInTheDocument();
+	});
+
+	it('AK5: Abbrechen (Schritt 1 und 2) löscht nichts', async () => {
+		await renderUsers();
+		fireEvent.click(within(row('Bernd Beta')).getByRole('button', { name: 'Konto löschen' }));
+		expect(screen.getByText(/Bernd Beta/, { selector: 'p, div, span' })).toBeInTheDocument();
+		fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
+		expect(screen.queryByRole('button', { name: 'Weiter' })).not.toBeInTheDocument();
+
+		fireEvent.click(within(row('Bernd Beta')).getByRole('button', { name: 'Konto löschen' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Weiter' }));
+		expect(screen.getByRole('button', { name: 'Konto endgültig löschen' })).toBeInTheDocument();
+		fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
+
+		expect(mockDeleteUser).not.toHaveBeenCalled();
+	});
+
+	it('AK5: Bestätigen ruft deleteAdminUser; der Nutzer verschwindet aus der Liste', async () => {
+		await renderUsers();
+		mockDeleteUser.mockResolvedValue(undefined);
+		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
+
+		fireEvent.click(within(row('Bernd Beta')).getByRole('button', { name: 'Konto löschen' }));
+		expect(mockDeleteUser).not.toHaveBeenCalled();
+		fireEvent.click(screen.getByRole('button', { name: 'Weiter' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Konto endgültig löschen' }));
+
+		await waitFor(() => expect(mockDeleteUser).toHaveBeenCalledWith({ id: 7 }));
+		await waitFor(() => expect(screen.queryByText('Bernd Beta')).not.toBeInTheDocument());
+	});
+
+	it.each([
+		[409, 'subscription_active', /Alle Abos dieses Nutzers löschen/],
+		[409, 'last_group_admin', /letzter Admin/],
+		[502, 'paypal_unavailable', /PayPal/],
+	])('AK6: %i %s → Meldung aus fester Map, Dialog offen, Nutzer bleibt', async (status, code, text) => {
+		await renderUsers();
+		mockDeleteUser.mockRejectedValue(refused(status, code));
+
+		fireEvent.click(within(row('Bernd Beta')).getByRole('button', { name: 'Konto löschen' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Weiter' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Konto endgültig löschen' }));
+
+		const alert = await screen.findByRole('alert');
+		expect(alert.getAttribute('data-kol-type')).toBe('error');
+		expect(alert).toHaveTextContent(text);
+		expect(alert).not.toHaveTextContent('Server-Text');
+		expect(screen.getByRole('button', { name: 'Abbrechen' })).toBeInTheDocument();
+		expect(screen.getByText('Bernd Beta', { exact: true })).toBeInTheDocument();
 	});
 });

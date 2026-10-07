@@ -2844,6 +2844,11 @@ kol-toolbar {
 	--a11y-min-size: 2.75rem;
 }
 
+/* #2327: lange E-Mail-Adressen im Lösch-Dialog umbrechen (kein Überlauf bei 375px). */
+.admin-delete-text {
+	overflow-wrap: anywhere;
+}
+
 /* #2104: Rechnungslisten (Einstellungen → Pakete & Abo und Admin → Nutzer) — gleiche
  * Zeilenkarten-Form wie .admin-user/.admin-allowed-email; bei 375px bricht die Zeile um,
  * statt horizontal zu scrollen (Muster-Kommentar oben). Betrag (3. Kind) rechtsbündig mit
