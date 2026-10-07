@@ -8,7 +8,7 @@
  * Die Karte enthält bewusst keine Aufgabeninhalte (AK2) und nennt Meilensteine nur, wenn es
  * welche gibt — keine „0 Meilensteine“-Zeile (Fürsorge-Tonalität: sorgt, nicht protokolliert).
  */
-import logoDunkel from '../../public/logo/logo-with-name.horizontal.dark.svg?raw';
+import logoDunkel from '../assets/logo-with-name.horizontal.dark.svg?raw';
 import { GEDAEMPFT, GRUND, KARTE_BREITE, KARTE_HOEHE, RAMPE, TINTE, xml } from './weeklyShareCard';
 
 export interface MonatsKarteDaten {
