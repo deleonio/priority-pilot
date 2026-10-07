@@ -29,7 +29,8 @@
 		"select": "Välj",
 		"back": "Tillbaka",
 		"snooze": "Lägg undan en stund",
-		"snoozed": "Uppgiften är undanlagd. Den kommer tillbaka senare."
+		"snoozed": "Uppgiften är undanlagd. Den kommer tillbaka senare.",
+		"saveAsTemplate": "Spara som mall"
 	},
 	"status": {
 		"open": "Öppen",

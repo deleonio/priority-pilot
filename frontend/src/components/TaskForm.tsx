@@ -138,6 +138,15 @@ export interface TaskFormInitialValues {
 	checklist?: string[];
 	/** Vom Freitext-Parsing erkannte Kategorie (ID einer Kategorie des Nutzers). */
 	categoryId?: number;
+	/** #2361: Koordinaten der Ausgangsaufgabe — erscheinen im Koordinaten-Kasten und gehen ins Payload. */
+	latitude?: number;
+	longitude?: number;
+	/** #2361: Säulen-Verteilung der Ausgangsaufgabe (Anteile inkl. `confidence` 1:1 übernommen). */
+	pillars?: TaskPillarContribution[];
+	/** #2361: Serien-Schalter „Automatisch anlegen" — im Vorlage-Flow bewusst `false`. */
+	autoCreate?: boolean;
+	/** #2361: Serien-Rhythmus — im Vorlage-Flow bewusst `'none'` („Ohne Rhythmus", kein Startdatum). */
+	rhythm?: SeriesRhythm;
 }
 
 /**
@@ -235,6 +244,12 @@ interface TaskFormProps {
 	 * per LLM (#236). Greift nur, wenn `task` selbst keinen Wert liefert.
 	 */
 	initialValues?: TaskFormInitialValues;
+	/**
+	 * #2361: Sperrt den Modus-Umschalter (Aufgabe/Serie) im Anlege-Modus — im Vorlage-Flow würde ein
+	 * Wechsel auf „Aufgabe" eine Duplikat-Aufgabe erzeugen. Öffnet zugleich das Akkordeon „Termin &
+	 * Ort", damit die Serien-Vorbelegung ohne Antippen sichtbar ist.
+	 */
+	lockMode?: boolean;
 	/** Schließt den Dialog (Abbrechen-Button); wird vom Modal-Container bereitgestellt. */
 	onClose: () => void;
 	/** Nach erfolgreichem Speichern aufgerufen (Liste neu laden + Dialog schließen). */
@@ -314,6 +329,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 		pillars,
 		categories = [],
 		initialValues,
+		lockMode = false,
 		onClose,
 		onSaved,
 		onModeChange,
@@ -364,12 +380,12 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 		estimatedEffort: task?.estimatedEffort ?? series?.estimatedEffort ?? initialValues?.estimatedEffort ?? 0.5,
 		description: task?.description ?? series?.description ?? initialValues?.description ?? '',
 		address: task?.address ?? series?.address ?? initialValues?.address ?? '',
-		latitude: task?.latitude ?? series?.latitude ?? null,
-		longitude: task?.longitude ?? series?.longitude ?? null,
+		latitude: task?.latitude ?? series?.latitude ?? initialValues?.latitude ?? null,
+		longitude: task?.longitude ?? series?.longitude ?? initialValues?.longitude ?? null,
 		deadline: task !== null ? deadlineToDateInput(task.deadline) : isoToDateInput(initialValues?.deadline),
 		startDate: series != null ? startDateToInput(series.startDate) : '',
-		rhythm: series?.rhythm ?? 'weekly',
-		autoCreate: series?.autoCreate ?? true,
+		rhythm: series?.rhythm ?? initialValues?.rhythm ?? 'weekly',
+		autoCreate: series?.autoCreate ?? initialValues?.autoCreate ?? true,
 	});
 
 	// Säulen-Verteilung im State (nicht im Ref): Jeder Reglerzug verschiebt alle Anteile und muss neu
@@ -380,7 +396,13 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	// Gleichverteilung (s. u.); Rangfolge-Tipps und KI-Vorschlag überschreiben sie. Nur der
 	// Edit-Flow übernimmt zusätzlich die gespeicherte Verteilung und vervollständigt sie auf alle Säulen.
 	const [contributions, setContributions] = useState<TaskPillarContribution[]>(() =>
-		isEdit ? fillContributions(pillars, task?.pillars ?? series?.pillars ?? []) : [],
+		isEdit
+			? fillContributions(pillars, task?.pillars ?? series?.pillars ?? [])
+			: // #2361: Vorlage-Flow — die gespeicherte Verteilung der Ausgangsaufgabe 1:1 übernehmen
+				// (auf alle Säulen vervollständigt, gleiches Muster wie der Edit-Fall).
+				initialValues?.pillars != null
+				? fillContributions(pillars, initialValues.pillars)
+				: [],
 	);
 	// #2074: Rangfolge der Säulen in Tipp-Reihenfolge; im Edit-Flow aus der gespeicherten Verteilung
 	// abgeleitet (Anteile absteigend = Rang 1..n, Gleichstand nach Listenordnung).
@@ -554,7 +576,9 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	// #1285: Klappzustände der beiden Opt-in-Sektionen (KolAccordion, kontrolliert) — beim Öffnen
 	// immer zugeklappt, einheitlich für Anlegen und Bearbeiten (die #1260-Vorbelegung „Edit mit
 	// gefüllten Werten startet offen“ ist bewusst ersetzt). Kein Auf-/Zuklappen während der Eingabe.
-	const [scheduleOpen, setScheduleOpen] = useState(false);
+	// #2361: Im Vorlage-Flow (`lockMode`) startet „Termin & Ort" aufgeklappt — die tragende
+	// Vorbelegung (Schalter aus, „Ohne Rhythmus") ist sonst ohne Antippen unsichtbar.
+	const [scheduleOpen, setScheduleOpen] = useState(lockMode);
 	const [optionalOpen, setOptionalOpen] = useState(false);
 
 	// #1213 (AK7): Empfängerauswahl — nur im Anlege-Modus, nur wenn der Nutzer in mindestens einer
@@ -857,11 +881,17 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 		setContributions((prev) => {
 			const matchesPillars =
 				prev.length === pillars.length && prev.every((entry, index) => entry.pillarId === pillars[index].id);
-			return matchesPillars ? prev : distributionFromRankOrder(rankedPillarIds, pillars);
+			if (matchesPillars) {
+				return prev;
+			}
+			const next = distributionFromRankOrder(rankedPillarIds, pillars);
+			// #2361: Der Spiegel darf nur bei echter Ersetzung laufen — die im Vorlage-Flow vorbelegte
+			// Verteilung ist selbst Teil des Anfangszustands und bleibt Dirty-Baseline (#1584).
+			initialSnapshotRef.current.contributions = next;
+			return next;
 		});
 		// Die Gleichverteilung ist Teil des Anfangszustands (#1584) und wird in den Schließen-Snapshot
 		// gespiegelt — sonst gilt Schließen ohne Eingriff als „geändert“ und öffnet die Rückfrage.
-		initialSnapshotRef.current.contributions = distributionFromRankOrder(rankedPillarIds, pillars);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [pillars]);
 
@@ -1249,6 +1279,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 						_label="Serie"
 						_checked={isSeriesMode}
 						_variant="switch"
+						_disabled={lockMode}
 						_on={{
 							onChange: (_e, checked) => {
 								const newMode = checked === true ? 'series' : 'task';
