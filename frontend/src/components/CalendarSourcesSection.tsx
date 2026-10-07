@@ -67,8 +67,14 @@ export const CalendarSourcesSection = ({ open = true }: { open?: boolean }) => {
 	};
 
 	return (
-		<div className="api-tokens" data-testid="calendar-sources-panel">
-			<KolAccordion className="settings-card" _label="Kalender" _level={2} {...accordion}>
+		<>
+			<KolAccordion
+				className="settings-card"
+				data-testid="calendar-sources-panel"
+				_label="Kalender"
+				_level={2}
+				{...accordion}
+			>
 				<div className="api-tokens__create">
 					<p>
 						Verbinde die ICS-Adresse deines Kalenders — die Termine der nächsten Tage erscheinen in der Wochenansicht.
@@ -144,6 +150,6 @@ export const CalendarSourcesSection = ({ open = true }: { open?: boolean }) => {
 					}}
 				/>
 			)}
-		</div>
+		</>
 	);
 };
