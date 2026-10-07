@@ -25,7 +25,7 @@ const script = join(fileURLToPath(new URL('.', import.meta.url)), 'pr-for-issue.
 let stubDir: string;
 let fixturePath: string;
 
-type PR = { number: number; isDraft: boolean; body: string; closes?: number[] };
+type PR = { number: number; isDraft: boolean; body: string; closes?: number[]; branch?: string };
 
 const fixture = (prs: PR[]) =>
 	JSON.stringify(
@@ -33,6 +33,7 @@ const fixture = (prs: PR[]) =>
 			number: p.number,
 			isDraft: p.isDraft,
 			body: p.body,
+			headRefName: p.branch ?? 'feature/x',
 			closingIssuesReferences: (p.closes ?? []).map((number) => ({ number })),
 		})),
 	);
@@ -125,5 +126,18 @@ describe('pr-for-issue.sh — Draft-Filter und Ausgabeformen', () => {
 
 	it('liefert bei count immer eine Zahl, nie leer', () => {
 		assert.equal(run([], ['--issue', '912', '--out', 'count']), '0');
+	});
+});
+
+describe('pr-for-issue.sh — Branch-Fallback ai/harness/<N> (#2163)', () => {
+	it('findet PR ohne Closing-Keyword über den Harness-Branch', () => {
+		const prs = [{ number: 7, isDraft: false, body: 'ohne Keyword', branch: 'ai/harness/42' }];
+		assert.equal(run(prs, ['--issue', '42', '--draft', 'no']), '7');
+		assert.equal(run(prs, ['--issue', '42', '--out', 'count']), '1');
+	});
+
+	it('vergleicht den Branch exakt (421 trifft nicht 42)', () => {
+		const prs = [{ number: 7, isDraft: false, body: 'x', branch: 'ai/harness/421' }];
+		assert.equal(run(prs, ['--issue', '42']), '');
 	});
 });

@@ -266,6 +266,7 @@ jobs:
             --issue "$ISSUE" --draft no --out first)"
           ARTIFACTS_OK="false"
           if [ -n "$PR_NR" ] && [ "$PR_NR" != "null" ]; then
+            bash .github/scripts/pr-ensure-closes.sh --repo "$GITHUB_REPOSITORY" --pr "$PR_NR" --issue "$ISSUE"
             PR_DRAFT="$(gh pr view "$PR_NR" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft' 2>/dev/null || echo "true")"
             PR_COMMITS="$(gh pr view "$PR_NR" --repo "$GITHUB_REPOSITORY" --json commits --jq '.commits | length' 2>/dev/null || echo "0")"
             if [ "$PR_DRAFT" != "true" ] && [ "${PR_COMMITS:-0}" -gt 0 ]; then
