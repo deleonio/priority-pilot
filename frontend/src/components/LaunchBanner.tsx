@@ -23,7 +23,7 @@ export const LaunchBanner = ({ enabled, onFeedback }: { enabled: boolean; onFeed
 	return (
 		<div className="launch-banner" role="region" aria-label={t('launchBanner.title')} data-testid="launch-banner">
 			<div className="launch-banner__body">
-				<strong className="launch-banner__title">{t('launchBanner.title')}</strong>
+				<strong>{t('launchBanner.title')}</strong>
 				<p className="launch-banner__text">{t('launchBanner.text')}</p>
 			</div>
 			<div className="launch-banner__actions">

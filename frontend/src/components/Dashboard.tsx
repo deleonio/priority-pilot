@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { KolBadge, KolButton, KolCard, KolMeter } from '@public-ui/react-v19';
+import { KolBadge, KolButton, KolCard, KolMeter, KolPagination } from '@public-ui/react-v19';
 import { FreeTimeCard } from './FreeTimeCard';
 import { NearbyCard } from './NearbyCard';
 import { CareHint } from './CareHint';
@@ -265,10 +265,10 @@ export const Dashboard = ({
 
 	// Seite klemmen, falls die Liste schrumpft (Erledigen/Archivieren) und die Seite leer fallen würde.
 	const deadlinePageCount = Math.max(1, Math.ceil(upcomingDeadlines.length / DEADLINES_PAGE_SIZE));
-	const aktiveDeadlinePage = Math.min(deadlinePage, deadlinePageCount - 1);
+	const activeDeadlinePage = Math.min(deadlinePage, deadlinePageCount - 1);
 	const visibleDeadlines = upcomingDeadlines.slice(
-		aktiveDeadlinePage * DEADLINES_PAGE_SIZE,
-		(aktiveDeadlinePage + 1) * DEADLINES_PAGE_SIZE,
+		activeDeadlinePage * DEADLINES_PAGE_SIZE,
+		(activeDeadlinePage + 1) * DEADLINES_PAGE_SIZE,
 	);
 
 	// #2244: Verschwindet die Karte samt Knopf (Aufgabe erledigt/zurückgestellt, keine neue in Sicht),
@@ -607,27 +607,15 @@ export const Dashboard = ({
 							})}
 						</ul>
 						{upcomingDeadlines.length > DEADLINES_PAGE_SIZE && (
-							<div className="dashboard-deadlines-pager">
-								<KolButton
-									_label="Zurück"
-									_variant="secondary"
-									_icons={{ left: { icon: 'fa-solid fa-chevron-left' } }}
-									_disabled={aktiveDeadlinePage === 0}
-									_on={{ onClick: () => setDeadlinePage(aktiveDeadlinePage - 1) }}
-								/>
-								<span className="dashboard-deadlines-pager-status" aria-live="polite">
-									{aktiveDeadlinePage * DEADLINES_PAGE_SIZE + 1}–
-									{Math.min((aktiveDeadlinePage + 1) * DEADLINES_PAGE_SIZE, upcomingDeadlines.length)} von{' '}
-									{upcomingDeadlines.length}
-								</span>
-								<KolButton
-									_label="Weiter"
-									_variant="secondary"
-									_icons={{ right: { icon: 'fa-solid fa-chevron-right' } }}
-									_disabled={aktiveDeadlinePage === deadlinePageCount - 1}
-									_on={{ onClick: () => setDeadlinePage(aktiveDeadlinePage + 1) }}
-								/>
-							</div>
+							<KolPagination
+								_label="Deadlines"
+								_max={upcomingDeadlines.length}
+								_page={activeDeadlinePage + 1}
+								_pageSize={DEADLINES_PAGE_SIZE}
+								_hasButtons={{ first: false, last: false, previous: true, next: true }}
+								_siblingCount={0}
+								_on={{ onChangePage: (_event, page) => setDeadlinePage(page - 1) }}
+							/>
 						)}
 					</>
 				)}

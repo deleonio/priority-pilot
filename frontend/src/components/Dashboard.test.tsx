@@ -3,8 +3,28 @@ import type { ComponentProps } from 'react';
 import type { BalanceStatus, Pillar, Task, TaskPillarContribution, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act } from '@testing-library/react';
 import { Dashboard } from './Dashboard';
 import { api } from '../api';
+
+// KoliBri-Komponenten sind in jsdom nicht registriert; KolPagination wird zum Klick-Stub, damit
+// `_on.onChangePage` auslösbar ist. Alles andere bleibt echt.
+vi.mock('@public-ui/react-v19', async (importOriginal) => ({
+	...(await importOriginal<typeof import('@public-ui/react-v19')>()),
+	KolPagination: (props: {
+		_page: number;
+		_max: number;
+		_pageSize: number;
+		_on: { onChangePage: (e: Event, p: number) => void };
+	}) => (
+		<button
+			data-testid="pager"
+			data-page={props._page}
+			data-max={props._max}
+			onClick={() => props._on.onChangePage(new Event('click'), props._page + 1)}
+		/>
+	),
+}));
 
 afterEach(() => {
 	cleanup();
@@ -848,5 +868,38 @@ describe('Dashboard — „Kurz zurückstellen"-Button im Signal-Panel (Issue #2
 			<Dashboard tasks={[nextTask]} forest={[] as TaskTreeNode[]} nextTask={nextTask} pillars={[]} />,
 		);
 		expect(snoozeButton(container)).toBeUndefined();
+	});
+});
+
+describe('Dashboard — Deadlines-Pagination (8 je Seite)', () => {
+	const mitDeadlines = (n: number) =>
+		Array.from({ length: n }, (_, i) => {
+			const t = task(i + 1, [], 1, TaskStatus.Open);
+			t.deadline = new Date(Date.UTC(2026, 9, 12 + i));
+			return t;
+		});
+	const renderDeadlines = (n: number) =>
+		render(<Dashboard tasks={mitDeadlines(n)} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />);
+
+	it('10 Deadlines: Seite 1 zeigt 8, Weiter zeigt die restlichen 2', () => {
+		const { container } = renderDeadlines(10);
+		expect(container.querySelectorAll('.dashboard-deadline')).toHaveLength(8);
+		expect(screen.getByTestId('pager').dataset.max).toBe('10');
+		act(() => screen.getByTestId('pager').click());
+		expect(container.querySelectorAll('.dashboard-deadline')).toHaveLength(2);
+		expect(screen.getByTestId('pager').dataset.page).toBe('2');
+	});
+
+	it('bis 8 Deadlines: kein Pager', () => {
+		renderDeadlines(8);
+		expect(screen.queryByTestId('pager')).toBeNull();
+	});
+
+	it('schrumpft die Liste auf Seite 2, klemmt die Seite und blendet den Pager aus', () => {
+		const { container, rerender } = renderDeadlines(10);
+		act(() => screen.getByTestId('pager').click());
+		rerender(<Dashboard tasks={mitDeadlines(3)} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />);
+		expect(container.querySelectorAll('.dashboard-deadline')).toHaveLength(3);
+		expect(screen.queryByTestId('pager')).toBeNull();
 	});
 });
