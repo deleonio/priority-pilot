@@ -819,4 +819,58 @@ describe('Series API', () => {
 			]);
 		});
 	});
+
+	// #2404 — Serien-Anlage zentral (Spec docs/spec/issue-2404.md)
+	describe('#2404 POST /series: Defaults und sofortige Instanzen', () => {
+		const withoutPriorityAndEffort = () => {
+			const { priority: _p, estimatedEffort: _e, ...rest } = validSeries();
+			return rest;
+		};
+		const tasksOf = async (seriesId: number) =>
+			((await (await get('/tasks')).json()) as Array<{ seriesId: number | null }>).filter(
+				(task) => task.seriesId === seriesId,
+			);
+
+		// AK1
+		it('AK1: ohne priority/estimatedEffort → 201 mit priority 3 und estimatedEffort 0.5', async () => {
+			const res = await post('/series', withoutPriorityAndEffort());
+			assert.equal(res.status, 201);
+			const body = (await res.json()) as { priority: number; estimatedEffort: number };
+			assert.equal(body.priority, 3);
+			assert.equal(body.estimatedEffort, 0.5);
+		});
+
+		// AK2
+		it('AK2: autoCreate true legt die fälligen Instanzen sofort an', async () => {
+			const created = (await (await post('/series', { ...validSeries(), rhythm: 'daily' })).json()) as {
+				id: number;
+			};
+			assert.ok((await tasksOf(created.id)).length >= 1, 'Instanzen müssen direkt nach POST existieren');
+		});
+
+		it('AK2: autoCreate false legt keine Instanzen an', async () => {
+			const created = (await (
+				await post('/series', { ...validSeries(), rhythm: 'daily', autoCreate: false })
+			).json()) as { id: number };
+			assert.equal((await tasksOf(created.id)).length, 0);
+		});
+
+		// AK3
+		it('AK3: ein anschließender generate erzeugt keine Dubletten', async () => {
+			const created = (await (await post('/series', { ...validSeries(), rhythm: 'daily' })).json()) as {
+				id: number;
+			};
+			const before = (await tasksOf(created.id)).length;
+			assert.ok(before >= 1, 'Setup: POST muss Instanzen angelegt haben');
+			const res = await post(`/series/${created.id}/generate`, { until: futureDate(30) });
+			assert.equal(res.status, 201);
+			assert.equal((await tasksOf(created.id)).length, before);
+		});
+
+		// AK6
+		it('AK6: priority 0 und estimatedEffort 2 werden weiter mit 400 abgelehnt', async () => {
+			assert.equal((await post('/series', { ...validSeries(), priority: 0 })).status, 400);
+			assert.equal((await post('/series', { ...validSeries(), estimatedEffort: 2 })).status, 400);
+		});
+	});
 });
