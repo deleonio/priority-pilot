@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.18 - 2026-10-07
 
-_Enthält v0.18.0 – v0.18.33._
+_Enthält v0.18.0 – v0.18.34._
 
 ### 🎉 New Features
 
@@ -60,6 +60,7 @@ _Enthält v0.18.0 – v0.18.33._
 - [P2/M] Server: Inventar der Fachlogik (REST/MCP/Jobs) und Konvention für ihren Ort (#1934) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2403
 - [P1/S] Paketübersicht: Synchronisation in allen Paketen ausweisen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2402
 - docs: evaluate Open-Meteo vs DWD weather APIs (#1931) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2411
+- refactor(server): gerundete Entfernung zentral in logics/geo.ts (#2406) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2419
 
 ## v0.17 - 2026-10-07
 
@@ -174,7 +175,6 @@ _Enthält v0.16.0 – v0.16.37._
 - docs: dedupe decision log and note removal of dead model vars by @deleonio in https://github.com/deleonio/priority-pilot/pull/2207
 - feat(server): fetch and store calendar events from ICS address by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2218
 - docs(website): clarify liability and AI suggestions in terms of use by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2228
-- docs(website): clarify liability and AI suggestions in terms of use by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2228
 - fix(server): invoice and renew only on PAYMENT.SALE.COMPLETED by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2245
 - fix(server): unlock booked plan on first payment (#2231) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2248
 - feat(server): invoice the charged PayPal amount and currency by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2249
@@ -284,6 +284,7 @@ _Enthält v0.13.0 – v0.13.27._
 
 ### 🔧 Engineering
 
+- docs(skills): coordination pitfalls, -F body=@file for comment bodies by @deleonio in https://github.com/deleonio/priority-pilot/pull/2059
 - docs(skills): coordination pitfalls, -F body=@file for comment bodies by @deleonio in https://github.com/deleonio/priority-pilot/pull/2059
 - feat(i18n): restrict app languages to de and en (#1966) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2058
 - docs(skills): closing analysis for finished epics by @deleonio in https://github.com/deleonio/priority-pilot/pull/2061
