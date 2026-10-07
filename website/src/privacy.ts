@@ -72,7 +72,7 @@ export const PRIVACY: { intro: string; description: string; sections: PrivacySec
 				legalBasis: 'Art. 6 Abs. 1 lit. a DSGVO (Einwilligung durch Einschalten der Funktion).',
 				retention: `Gespeicherte Orte, Adressen an Aufgaben und deine Entfernungs-Einstellungen ${ACCOUNT_LIFETIME}`,
 				recipients:
-					'Photon (komoot) und Nominatim (OpenStreetMap Foundation) für Adresssuche und Umwandlung von Koordinaten in Adressen; Transitous für die Suche nach ÖPNV-Verbindungen.',
+					'Photon (komoot) und Nominatim (OpenStreetMap Foundation) für Adresssuche und Umwandlung von Koordinaten in Adressen.',
 			},
 		},
 		{

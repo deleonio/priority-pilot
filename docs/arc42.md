@@ -10,8 +10,7 @@ Balamentum ist eine Web-Anwendung zur persönlichen Aufgabenorganisation: Aufgab
 mit Abhängigkeiten, Deadlines und Prioritäten, Lebensbalance-Säulen mit Gewichtung und
 Punkte-Konto (Gamification, inklusive Streak und Meilensteinen), wiederkehrende Aufgaben
 (Serien), Gruppen mit geteilten Tasks und Serien, Kategorien als thematische Ordnungsebene,
-ortsbezogene Aufgaben („Nearby") mit Push beim Betreten des Alarmabstands, ÖPNV-Verbindungen
-(Bahn-Seite), KI-Unterstützung (Säulen-Klassifikation, Freitext-Parsing, Aktivitäten-Berater,
+ortsbezogene Aufgaben („Nearby") mit Push beim Betreten des Alarmabstands, KI-Unterstützung (Säulen-Klassifikation, Freitext-Parsing, Aktivitäten-Berater,
 Lektorat), Fürsorge-Hinweise gegen Balance-Defizite sowie ein Paketmodell (Free/Plus/Pro,
 ADR 0018) mit PayPal-Abos; in der Android-App läuft das Abo über Google Play Billing
 (ADR 0017). Erinnerungen gehen als Web-Push oder E-Mail raus; der Zugang zum Launch läuft über
@@ -60,7 +59,6 @@ Messbare Schwellen aus dem Code (Testabdeckung, Rate-Limits) sind in Abschnitt 1
   [mobile-ui-rules.md](mobile-ui-rules.md).
 - **Externe Verträge:** Google-OAuth-Credentials (ENV), Nominatim-Nutzungsbedingungen
   (Rate-Limit 1 req/s, geteilter Limiter in `server/src/express/routes/geocodeRateLimit.ts`),
-  Transitous/MOTIS-API (CORS erzwingt den Server-Proxy, `server/src/express/routes/transit.ts`),
   Web-Push mit eigenen VAPID-Keys, SMTP-Versand (`SMTP_*`/`MAIL_FROM`, versendet auch
   Magic-Link-Anmeldelinks), PayPal-API für Abos
   und Webhooks (`PAYPAL_*`), GitHub-Contents-API für Feedback-Ablage
@@ -85,7 +83,6 @@ graph LR
     API -->|IF-02 OAuth| Google[Google]
     API -->|IF-03 Chat-Completions| LLM[Mistral / OpenRouter]
     API -->|IF-04 Geocoding| Nominatim[Nominatim]
-    API -->|IF-05 Fahrplandaten| Transitous[Transitous / MOTIS]
     API -->|IF-06 Web-Push| Push[Push-Dienst des Browsers]
     API -->|IF-08 Subscriptions + Webhooks| PayPal[PayPal]
     API -->|IF-09 SMTP| Mail[Mailserver]
@@ -101,7 +98,6 @@ graph LR
 | IF-02 | Google OAuth 2.0         | Server ↔ Google               | `passport-google-oauth20`, Login und stiller Login (`/auth/google`, `/auth/google/silent`)                                                                                                                                                                            |
 | IF-03 | LLM-Chat-Completions     | Server ↔ Mistral / OpenRouter | `server/src/llm/llm.ts`; Provider in der DB (`llm_providers`, instanzweit oder je Nutzer, Auswahl je User), Fix-Provider Mistral über `MISTRAL_API_KEY`                                                                                                               |
 | IF-04 | Geocoding                | Server ↔ Nominatim            | Forward- und Reverse-Geocoding, `server/src/logics/nominatim.ts`                                                                                                                                                                                                      |
-| IF-05 | Fahrplandaten            | Server ↔ Transitous           | reiner CORS-Proxy unter `/api/transit/*`, ohne Auth                                                                                                                                                                                                                   |
 | IF-06 | Web-Push                 | Server ↔ Browser-Push-Dienst  | `web-push` mit VAPID-Keys, Subscriptions in `push_subscriptions`                                                                                                                                                                                                      |
 | IF-07 | MCP (Streamable HTTP)    | Externer Client ↔ Server      | `POST /mcp/v1`, handgerollte Teilmenge ohne SDK (`server/src/mcp/`), Auth per persönlichem API-Token; die `initialize`-Antwort weist auf das Pacing hin (`mcp/tools.ts`): Pacing: at most 1 call per second; space out repeated or bulk calls (pause between writes). |
 | IF-08 | PayPal-Subscriptions     | Server ↔ PayPal               | Abo-Anlage/-Wechsel/-Storno und Rechnungen (`routes/billingSubscriptions.ts`); signierter Webhook `POST /webhooks/paypal` (`routes/billing.ts`, `logics/paypal.ts`)                                                                                                   |
@@ -125,8 +121,7 @@ graph LR
   `react-router-dom` in `frontend/src/App.tsx`); der App-State lebt in React-Hooks, ohne globales
   State-Framework.
 - **UI über KoliBri:** `frontend/src/main.tsx` registriert `@public-ui/components` mit den Themes
-  Default und KERN-V2. Die öffentliche Bahn-Seite nutzt bewusst native
-  HTML-Elemente (`frontend/src/components/BahnPage.tsx`).
+  Default und KERN-V2.
 - **Öffentliche Website statisch vorgerendert:** `website/` rendert zur Build-Zeit HTML aus
   i18n-JSON (`website/scripts/build.ts`, `src/render.ts`); die Preise importiert das Skript
   direkt aus `server/src/logics/plans.ts` — eine Quelle, keine Kopie. Der Android-Wrapper
@@ -209,7 +204,7 @@ graph TB
 
 Die Route-Mounts stehen in `server/src/express/index.ts`: öffentliche Routen (`/auth/*` mit
 Passwort- und Magic-Link-Login, Warteliste-Eintrag und Native-Code-Austausch, `/health`,
-`/api/transit/*`, `/invite-links/*` samt `/redeem`, `/plans`, `/billing/return` und die Webhooks
+`/invite-links/*` samt `/redeem`, `/plans`, `/billing/return` und die Webhooks
 `/webhooks/paypal` und `/billing/google/rtdn`) liegen vor
 `requireAuth`, alle fachlichen Endpunkte danach hinter der Session-
 oder Bearer-Token-Pflicht. Der globale `apiTokenScopeGuard` hängt hinter `requireAuth`, sperrt die
@@ -228,14 +223,14 @@ Top-Aktivierung (`/admin/waitlist*`), Abo-Sperre und -Storno je Nutzer
 
 ### 5.3 Frontend (Whitebox `frontend`)
 
-| Baustein      | Verantwortung                                                                                                                                                                                                                                      | Wichtige Dateien                                                                   |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Einstieg      | KoliBri-Registrierung, Theme, Auth-Gate mit stillem Google-Login                                                                                                                                                                                   | `main.tsx`, `Root.tsx`                                                             |
-| `App.tsx`     | App-Shell, Tab- und Routensteuerung (`react-router-dom`)                                                                                                                                                                                           | `App.tsx`                                                                          |
-| `components/` | Seiten- und Dialogkomponenten (Dashboard, WeekView, TaskTable, TaskTree, TaskGraph-Panel, GroupsSection, SeriesTab, Settings inkl. Paket-/Abo- und LLM-Einstellungen, Admin-/Token-Verwaltung, Nearby, Lektorat, LoginPage, HelpPage, BahnPage, …) | `frontend/src/components/`                                                         |
-| `lib/`        | Fachliche Utilities und Hooks (Score, Forest, Balance/Heart, Graph-Layout, Plan/Entitlements, Push, Geolocation, Theme, Voice-Input, Native-Plattform inkl. Play-Store, AI-Präferenzen)                                                            | `frontend/src/lib/`                                                                |
-| `api.ts`      | Typsicherer API-Client auf `openapi-fetch`                                                                                                                                                                                                         | `frontend/src/api.ts`                                                              |
-| PWA           | Service Worker, Install-/Update-Prompts                                                                                                                                                                                                            | `public/push-sw.js`, `components/InstallPrompt.tsx`, `components/UpdatePrompt.tsx` |
+| Baustein      | Verantwortung                                                                                                                                                                                                                            | Wichtige Dateien                                                                   |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Einstieg      | KoliBri-Registrierung, Theme, Auth-Gate mit stillem Google-Login                                                                                                                                                                         | `main.tsx`, `Root.tsx`                                                             |
+| `App.tsx`     | App-Shell, Tab- und Routensteuerung (`react-router-dom`)                                                                                                                                                                                 | `App.tsx`                                                                          |
+| `components/` | Seiten- und Dialogkomponenten (Dashboard, WeekView, TaskTable, TaskTree, TaskGraph-Panel, GroupsSection, SeriesTab, Settings inkl. Paket-/Abo- und LLM-Einstellungen, Admin-/Token-Verwaltung, Nearby, Lektorat, LoginPage, HelpPage, …) | `frontend/src/components/`                                                         |
+| `lib/`        | Fachliche Utilities und Hooks (Score, Forest, Balance/Heart, Graph-Layout, Plan/Entitlements, Push, Geolocation, Theme, Voice-Input, Native-Plattform inkl. Play-Store, AI-Präferenzen)                                                  | `frontend/src/lib/`                                                                |
+| `api.ts`      | Typsicherer API-Client auf `openapi-fetch`                                                                                                                                                                                               | `frontend/src/api.ts`                                                              |
+| PWA           | Service Worker, Install-/Update-Prompts                                                                                                                                                                                                  | `public/push-sw.js`, `components/InstallPrompt.tsx`, `components/UpdatePrompt.tsx` |
 
 Die SPA liegt unter der Basis `/app/` (`base` in `frontend/vite.config.ts`, `BrowserRouter`
 mit `basename` in `App.tsx`).
@@ -324,7 +319,7 @@ gebündelte Nachricht für offene Aufgaben im Alarmabstand, Feuer-und-vergessen
 ### 7.1 Entwicklung
 
 `pnpm dev` startet Frontend und Server parallel: der Vite-Dev-Server bedient die SPA unter
-`/app/` (`base: '/app/'`) und leitet (`/api/v1`, `/api/transit`, `/auth` →
+`/app/` (`base: '/app/'`) und leitet (`/api/v1`, `/auth` →
 `http://localhost:3000`, `frontend/vite.config.ts`) an den Express auf Port 3000 mit SQLite
 unter `server/database.sqlite` (`DATABASE_STORAGE`). Die Typen aus `openapi.yml` erzeugt der
 `prepare`-Schritt bei der Installation und jeder Build. Tests: `pnpm --filter server test`
@@ -454,7 +449,7 @@ dokumentiert.
   Geo, LLM-Funktionen, Pakete, Abos, Rechnungen, Token- und Nutzerverwaltung) ist als Pfad in
   `openapi.yml` erfasst und über generierte Typen ansprechbar. Infrastruktur-Endpunkte ohne
   vertragliche DTOs liegen bewusst außerhalb: die OAuth- und Session-Routen (`/auth/google*`,
-  `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/csrf`), `/api/transit`, der
+  `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/csrf`), der
   PayPal-Webhook samt `/billing/return` und der MCP-Transport. Fachliche Routen wie `/auth/me`,
   `/auth/waitlist`, Magic-Link, die gesamte Admin-API und das Play-Billing sind dagegen
   vertraglich erfasst.
@@ -547,7 +542,6 @@ dokumentiert.
 | Balance                       | Aggregierte Punkte je Säule über `GET /scores/by-pillar`                                                                                                                              |
 | Gamification-Score            | Punkte beim Erledigen eines Tasks; pünktlich volle Punkte, verspätet mit Faktor 0,5 (`server/src/logics/score.ts`)                                                                    |
 | Lektorat                      | KI-gestützte Textprüfung über `POST /lektorat` (bezahlte LLM-Kaskade)                                                                                                                 |
-| Bahn-Seite                    | Öffentliche Verbindungs-Auskunft unter `/bahn` über den Transitous-Proxy                                                                                                              |
 | Harness-Kommentar             | Von der CI-Pipeline geführter Issue-Kommentar, in dem jede Phase ihre Ausgaben ablegt (ADR 0009)                                                                                      |
 | Silent Login                  | Stiller Google-OAuth-Versuch mit `prompt=none` beim App-Start (`frontend/src/Root.tsx`)                                                                                               |
 | VAPID                         | Schlüsselpaar für Web-Push; öffentlicher Teil über `GET /push/vapid-public-key`                                                                                                       |

@@ -24,7 +24,6 @@ import { usersRouter } from './routes/users.js';
 import { createAdminRouter } from './routes/admin.js';
 import { authRouter } from './routes/auth.js';
 import { createMagicLinkRouter } from './routes/magicLink.js';
-import { transitRouter } from './routes/transit.js';
 import { createPushRouter } from './routes/push.js';
 import { createMailRouter } from './routes/mail.js';
 import { createLlmProvidersRouter } from './routes/llmProviders.js';
@@ -288,9 +287,6 @@ export const createApp = (deps: AppDeps = {}) => {
 	app.get('/health', (_req, res: express.Response<HealthDto>) => {
 		res.json({ status: 'ok' });
 	});
-
-	// Öffentlicher CORS-Proxy für Transitous/MOTIS (Issue #224) — bewusst ohne requireAuth.
-	app.use('/api/transit', transitRouter);
 
 	// Öffentliche Einladungslink-Preisgabe (#1226): GET + redeem unter /invite-links — bewusst
 	// VOR requireAuth, damit ein Link ohne Session geöffnet werden kann (redeem prüft die
