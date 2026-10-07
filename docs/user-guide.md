@@ -699,6 +699,11 @@ Name, Rechtestufe, Ablauf und die letzte Nutzung. Je Token schaltest du zwischen
 lesend** und **Lesen und Schreiben** um. **„Zurückziehen"** sperrt einen Token ab dem
 nächsten Aufruf.
 
+In der Karte **Dialog-Vorgaben für die KI** hinterlegst du einen Freitext (bis 2000
+Zeichen, z. B. „Antworte kurz und knapp."). KI-Clients, die sich per Access-Token
+verbinden, erhalten ihn beim Verbindungsaufbau. **„Speichern"** übernimmt den Text; ein
+leeres Feld löscht die Vorgaben. Werkzeuge und Rechte der Tokens ändern sich dadurch nicht.
+
 ### Standort
 
 - **Standort erfassen** – ermittelt im Hintergrund regelmäßig deine aktuelle

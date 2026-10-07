@@ -830,6 +830,21 @@ export const migrateUserTermsColumns = async (db: Sequelize): Promise<void> => {
 };
 
 /**
+ * Zieht die `mcpInstructions`-Spalte auf einer bestehenden `users`-Tabelle nach (#1935) —
+ * idempotent, No-op bei frischer DB (Muster {@link migrateUserCareColumns}).
+ */
+export const migrateUserMcpInstructionsColumn = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('users')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0 || existing.includes('mcpInstructions')) {
+		return;
+	}
+	await db.query('ALTER TABLE `users` ADD COLUMN `mcpInstructions` TEXT');
+	console.log('Spalte mcpInstructions an users nachgezogen.');
+};
+
+/**
  * Zieht die `displayNameCustom`-Flag-Spalte auf einer **bestehenden** `users`-Tabelle nach
  * (#1256) — analog `migrateUsersAvatarUrl`, aber NOT NULL mit Default 0: die Flag markiert,
  * dass der Nutzer seinen Anzeigenamen selbst gesetzt hat, und schützt ihn so vor dem

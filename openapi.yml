@@ -2240,6 +2240,49 @@ paths:
                 $ref: '#/components/schemas/Error'
         '403':
           $ref: '#/components/responses/PlanRequired'
+  /mcp-instructions:
+    get:
+      summary: Dialog-Vorgaben für die MCP-KI lesen
+      description: >-
+        Liefert die pro User gespeicherten Dialog-Vorgaben (#1935), die der
+        MCP-Endpunkt im `initialize`-Handshake (`instructions`) an die KI
+        übermittelt. Ohne Vorgaben ein leerer Text.
+      operationId: getMcpInstructions
+      tags: [mcp]
+      responses:
+        '200':
+          description: Aktuelle Dialog-Vorgaben
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpInstructions'
+    put:
+      summary: Dialog-Vorgaben für die MCP-KI speichern
+      description: >-
+        Speichert den Freitext getrimmt (#1935); leer oder nur Whitespace
+        löscht die Vorgaben. Mehr als 2000 Zeichen oder ein Nicht-String →
+        HTTP 400 ohne Persistenz.
+      operationId: updateMcpInstructions
+      tags: [mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/McpInstructions'
+      responses:
+        '200':
+          description: Gespeicherte Dialog-Vorgaben (getrimmt)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpInstructions'
+        '400':
+          description: Ungültige Vorgaben (kein String oder länger als 2000 Zeichen)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /free-slot-config:
     get:
       summary: Mindestdauer freier Lücken lesen
@@ -5294,6 +5337,15 @@ components:
           minimum: 1
           maximum: 60
           description: Aktualisierungsintervall in Minuten (Default 5)
+    McpInstructions:
+      type: object
+      description: Dialog-Vorgaben pro User für die per MCP verbundene KI (#1935).
+      required: [instructions]
+      properties:
+        instructions:
+          type: string
+          maxLength: 2000
+          description: Freitext (getrimmt, höchstens 2000 Zeichen); leer = keine Vorgaben
     FreeSlotConfig:
       type: object
       description: Mindestdauer freier Kalender-Lücken pro User (#1990).

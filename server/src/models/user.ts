@@ -57,6 +57,8 @@ class User extends Model {
 	/** Zustimmung zu den Nutzungsbedingungen (#1901): Fassung (`TERMS_VERSION`) und Zeitpunkt; `null` = noch nie. */
 	public termsVersion!: string | null;
 	public termsAcceptedAt!: Date | null;
+	/** Dialog-Vorgaben für die per MCP verbundene KI (#1935) — getrimmter Freitext; `null` = keine. */
+	public mcpInstructions!: string | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -169,6 +171,11 @@ User.init(
 		},
 		termsAcceptedAt: {
 			type: DataTypes.DATE,
+			allowNull: true,
+			defaultValue: null,
+		},
+		mcpInstructions: {
+			type: DataTypes.TEXT,
 			allowNull: true,
 			defaultValue: null,
 		},

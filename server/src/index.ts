@@ -142,6 +142,7 @@ export const main = async (): Promise<void> => {
 			migrateTaskAiDraftColumn,
 			migrateUserCareColumns,
 			migrateUserTermsColumns,
+			migrateUserMcpInstructionsColumn,
 			migrateUsersBalanceVariantColumn,
 			migrateUsersFreeSlotMinMinutesColumn,
 			migrateCalendarSourceCaldavColumns,
@@ -238,6 +239,8 @@ export const main = async (): Promise<void> => {
 		await migrateUserCareColumns(sequelize);
 		// Zustimmungs-Spalten am User (#1901) — wie oben.
 		await migrateUserTermsColumns(sequelize);
+		// Dialog-Vorgaben-Spalte am User (#1935) — wie oben.
+		await migrateUserMcpInstructionsColumn(sequelize);
 		// Zifferblatt-Auswahl am User (#2009) — wie oben: sync() ergänzt Bestands-Tabellen nicht.
 		await migrateUsersBalanceVariantColumn(sequelize);
 		// Mindestdauer freier Lücken am User (#1990) — wie oben.

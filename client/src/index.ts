@@ -25,6 +25,8 @@ export type TaskGraphNode = Schemas['TaskGraphNode'];
 export type TaskGraphEdge = Schemas['TaskGraphEdge'];
 export type NearbyTask = Schemas['NearbyTask'];
 export type GeoConfig = Schemas['GeoConfig'];
+/** #1935: Dialog-Vorgaben pro Nutzer für die per MCP verbundene KI. */
+export type McpInstructions = Schemas['McpInstructions'];
 export type FreeSlotConfig = Schemas['FreeSlotConfig'];
 export type FreeSlot = Schemas['FreeSlot'];
 /** #1794: Fürsorge-Push-Schalter + Nutzer-Zeitzone (Ruhezeit/Kalendertag). */

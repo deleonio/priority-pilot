@@ -71,7 +71,7 @@ const MCP_URL = `${getPublicOrigin()}/api/v1/mcp/v1`;
  * Leere. Der Klick des internen Buttons ist `composed` und verlässt den Shadow-Root — im Browser
  * wie im Test landet er damit genau einmal hier.
  */
-const ButtonAction = ({ onClick, children }: { onClick: () => void; children: ReactNode }) => (
+export const ButtonAction = ({ onClick, children }: { onClick: () => void; children: ReactNode }) => (
 	<span className="api-tokens__action" onClick={onClick}>
 		{children}
 	</span>

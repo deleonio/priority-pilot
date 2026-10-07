@@ -638,6 +638,8 @@ describe('migrateUserGeoConfigColumns', () => {
 				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
 				'`termsVersion` VARCHAR(255), ' +
 				'`termsAcceptedAt` DATETIME, ' +
+				// Test-Pflege #1935: `mcpInstructions` ergänzt (gleiche Begründung wie oben).
+				'`mcpInstructions` TEXT, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -981,6 +983,8 @@ describe('migrateUsersRoleColumn (Rollensystem admin/member)', () => {
 				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
 				'`termsVersion` VARCHAR(255), ' +
 				'`termsAcceptedAt` DATETIME, ' +
+				// Test-Pflege #1935: `mcpInstructions` ergänzt (gleiche Begründung wie oben).
+				'`mcpInstructions` TEXT, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -1069,6 +1073,8 @@ describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
 				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
 				'`termsVersion` VARCHAR(255), ' +
 				'`termsAcceptedAt` DATETIME, ' +
+				// Test-Pflege #1935: `mcpInstructions` ergänzt (gleiche Begründung wie oben).
+				'`mcpInstructions` TEXT, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -1241,6 +1247,8 @@ describe('migrateUsersPlanColumn (#1456 AK1)', () => {
 				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
 				'`termsVersion` VARCHAR(255), ' +
 				'`termsAcceptedAt` DATETIME, ' +
+				// Test-Pflege #1935: `mcpInstructions` ergänzt (gleiche Begründung wie oben).
+				'`mcpInstructions` TEXT, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
