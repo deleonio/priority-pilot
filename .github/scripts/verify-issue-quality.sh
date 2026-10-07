@@ -195,4 +195,7 @@ if [ -n "$COMPLEXITY" ]; then
   fi
 fi
 
-emit true "Issue-Struktur ok — Analyse kann starten." ""
+# 6. Titelpraefix [P0-3/S|M|L] (ticket-tree Step 4): nur Hinweis, blockiert nicht.
+NOTE=""
+printf '%s' "$TITLE" | grep -qE '^\[P[0-3](/[SML])?\]' || NOTE="Hinweis: Der Titel hat kein Praefix \`[<Stufe>/<Aufwand>]\` (z. B. \`[P2/S] Server: …\`). Das Praefix macht Prioritaet und Aufwand in jeder Listenansicht sichtbar — die Analyse startet trotzdem."
+emit true "Issue-Struktur ok — Analyse kann starten." "$NOTE"

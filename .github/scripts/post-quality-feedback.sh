@@ -51,7 +51,7 @@ $HINT}"
   gh issue edit "$ISSUE" --repo "$REPO" --add-label "$LABEL" 2>/dev/null || true
 else
   BODY="${MARKER}
-✅ Struktur ist in Ordnung — bereit für die Analyse (Label \`ai:needs-analyse\` setzen)."
+✅ Struktur ist in Ordnung — bereit für die Analyse (Label \`ai:needs-analyse\` setzen).$( [ -n "$DETAILS_FILE" ] && [ -s "$DETAILS_FILE" ] && [ -n "$(tr -d '[:space:]' < "$DETAILS_FILE")" ] && printf '\n\n%s' "$(cat "$DETAILS_FILE")" )"
   gh issue edit "$ISSUE" --repo "$REPO" --remove-label "$LABEL" 2>/dev/null || true
 fi
 

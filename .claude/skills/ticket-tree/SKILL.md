@@ -115,7 +115,7 @@ Priorität: <Stufe> · Rang <r> von <n>. Aufwand: <S|M|L> (<bis eine Woche | zwe
 Plan: <Plan-Dokument/Abschnitt, falls vorhanden>
 ```
 
-Title: `[<Stufe>/<Aufwand>]` before the area prefix — e.g. `[P0/S] Server: …` — so priority and
+Title (the single binding rule — create, import and triage link here; containers keep their own `[P1] Gruppe: …` pattern): `[<Stufe>/<Aufwand>]` before the area prefix — e.g. `[P0/S] Server: …` — so priority and
 effort survive every list view, search result and external tool; the rank is too long for
 titles and stays in body and epic. The area prefix names the goal, not the solution:
 `ADR NNNN:`, `Server:`, `Frontend:`, `Website:`, `CI:`, `Manuell:`, or the product surface

@@ -1,6 +1,7 @@
 name: 🎫 Ticket
 description: Aufgabe oder Fehler — strukturiert, damit die KI-Pipeline direkt arbeiten kann
 labels: []
+title: '[P?/?] Bereich: '
 body:
   - type: markdown
     attributes:
