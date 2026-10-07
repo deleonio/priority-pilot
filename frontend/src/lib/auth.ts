@@ -1,5 +1,6 @@
 import type { components } from 'client';
 import type { EntitlementMap, Plan } from './planOffers';
+import { appTokenHeaders } from './appToken';
 import { getApiBase } from './siteOrigin';
 
 /** Abo-Status laut Serververtrag (`openapi.yml` → `MeSubscription`, #1496 AK6). */
@@ -38,7 +39,10 @@ export async function checkAuth(): Promise<AuthUser | null> {
 	// Issue #1136: Der Auth-Check braucht eine Zeitgrenze — ohne Abort bliebe Root beim hängenden
 	// /auth/me-Request dauerhaft im Lade-Spinner. Nur dieser Request wird abgebrochen; die
 	// Google-Top-Level-Navigation selbst ist clientseitig nicht abbrechbar.
-	const response = await fetch(`${getApiBase()}/auth/me`, { signal: AbortSignal.timeout(30_000) });
+	const response = await fetch(`${getApiBase()}/auth/me`, {
+		signal: AbortSignal.timeout(30_000),
+		headers: appTokenHeaders(),
+	});
 	if (response.status === 401) {
 		return null;
 	}

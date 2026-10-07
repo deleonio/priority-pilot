@@ -12,9 +12,13 @@ vi.mock('openapi-fetch', () => ({ default: vi.fn(() => ({ GET: vi.fn(), POST: mo
 import { api } from './api';
 import { clearAppToken, getAppToken, setAppToken } from './lib/appToken';
 
+// Einmal beim Import registriert — vor dem ersten `clearAllMocks` festhalten.
+const middleware = mockUse.mock.calls[0][0] as {
+	onRequest: (c: { request: { method: string; headers: Headers } }) => Promise<void>;
+};
+
 const onRequest = async (method: string): Promise<Headers> => {
 	const request = { method, headers: new Headers() };
-	const middleware = mockUse.mock.calls[0][0] as { onRequest: (c: { request: typeof request }) => Promise<void> };
 	await middleware.onRequest({ request });
 	return request.headers;
 };

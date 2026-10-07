@@ -84,6 +84,7 @@ import type {
 } from 'client';
 import createClient from 'openapi-fetch';
 import { planRequiredDetail } from './lib/apiError';
+import { appTokenHeaders, clearAppToken, getAppToken, setAppToken } from './lib/appToken';
 import { sortCategoriesByName } from './lib/categories';
 import { getChannel } from './lib/platform';
 import { getApiBase } from './lib/siteOrigin';
@@ -114,6 +115,11 @@ client.use({
 	onRequest: async ({ request }) => {
 		// Kanal für die serverseitige Kanal-Regel (ADR 0016), z. B. keine PayPal-Kasse in der Android-App.
 		request.headers.set('X-Client-Channel', getChannel());
+		// App-Token der Android-App (#2379); ohne Token bleibt die Website bei der Cookie-Session.
+		const appToken = getAppToken();
+		if (appToken !== null) {
+			request.headers.set('Authorization', `Bearer ${appToken}`);
+		}
 		if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
 			request.headers.set('x-csrf-token', await ensureCsrfToken());
 		}
@@ -300,15 +306,24 @@ export const api = {
 		return data;
 	},
 
-	/** Löst den Token aus dem Anmeldelink ein; `false` bei abgelaufenem oder benutztem Link. */
+	/**
+	 * Löst den Token aus dem Anmeldelink ein; `false` bei abgelaufenem oder benutztem Link. In der
+	 * Android-App kommt statt des Cookies ein App-Token zurück (#2379), das gespeichert wird.
+	 */
 	async verifyMagicLink(token: string): Promise<boolean> {
-		const { response } = await client.POST('/auth/magic-link/verify', { body: { token } });
+		const { data, response } = await client.POST('/auth/magic-link/verify', { body: { token } });
+		if (response.ok && data?.token) {
+			setAppToken(data.token);
+		}
 		return response.ok;
 	},
 
-	/** Löst den Einmal-Code aus dem App-Login mit dem `state` der App ein (#1678); danach steht die Session. */
+	/** Löst den Einmal-Code aus dem App-Login mit dem `state` der App ein (#1678) und speichert das App-Token (#2379). */
 	async exchangeNativeLoginCode(code: string, state: string): Promise<boolean> {
-		const { response } = await client.POST('/auth/native/exchange', { body: { code, state } });
+		const { data, response } = await client.POST('/auth/native/exchange', { body: { code, state } });
+		if (response.ok && data?.token) {
+			setAppToken(data.token);
+		}
 		return response.ok;
 	},
 
@@ -1105,7 +1120,7 @@ export const api = {
 	async lektorat({ text, maxLength, signal }: { text: string; maxLength?: number } & Init): Promise<{ text: string }> {
 		const response = await fetch(`${baseUrl}/lektorat`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json', 'x-csrf-token': await ensureCsrfToken() },
+			headers: { 'Content-Type': 'application/json', 'x-csrf-token': await ensureCsrfToken(), ...appTokenHeaders() },
 			body: JSON.stringify({ text, maxLength }),
 			signal,
 		});
@@ -1128,7 +1143,7 @@ export const api = {
 	}: { category: string; title: string; description: string } & Init): Promise<void> {
 		const response = await fetch(`${baseUrl}/feedback`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json', 'x-csrf-token': await ensureCsrfToken() },
+			headers: { 'Content-Type': 'application/json', 'x-csrf-token': await ensureCsrfToken(), ...appTokenHeaders() },
 			body: JSON.stringify({ category, title, description }),
 			signal,
 		});
@@ -1236,13 +1251,15 @@ export const api = {
 	async logout(): Promise<void> {
 		const response = await fetch(`${getApiBase()}/auth/logout`, {
 			method: 'POST',
-			headers: { 'x-csrf-token': await ensureCsrfToken() },
+			headers: { 'x-csrf-token': await ensureCsrfToken(), ...appTokenHeaders() },
 		});
 		if (!response.ok) {
 			throw new Error(`Logout fehlgeschlagen (${response.status})`);
 		}
-		// Session ist serverseitig zerstört — den (an die alte Session gebundenen) Token verwerfen.
+		// Session ist serverseitig zerstört — den (an die alte Session gebundenen) Token verwerfen;
+		// ein App-Token hat der Server mit dem Aufruf widerrufen (#2379).
 		csrfToken = null;
+		clearAppToken();
 	},
 
 	// Materialisiert die bis `until` (inklusive) fälligen Instanzen einer Serie als eigenständige Tasks.

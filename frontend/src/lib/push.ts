@@ -67,15 +67,15 @@ const disableNativePush = async (): Promise<void> => {
 
 /**
  * Ein Tipp auf eine Benachrichtigung öffnet ihr Ziel in der App, wie `notificationclick` in
- * `push-sw.js`: App-Pfade (`/`, `/tasks/42`) gelten ab der App-Wurzel.
+ * `push-sw.js`: App-Pfade (`/`, `/tasks/42`) gelten ab der App-Wurzel. Ohne Reload (#2379): der
+ * Verlaufseintrag plus `popstate` lässt den Router das Ziel zeigen.
  */
 export const listenForNativePushTaps = async (): Promise<void> => {
 	const { PushNotifications } = await loadPushPlugin();
 	await PushNotifications.addListener('pushNotificationActionPerformed', ({ notification }) => {
 		const url = String((notification.data as { url?: unknown } | undefined)?.url ?? '/');
-		window.location.assign(
-			new URL(url.replace(/^\//, ''), `${window.location.origin}${import.meta.env.BASE_URL}`).href,
-		);
+		window.history.pushState({}, '', `${import.meta.env.BASE_URL}${url.replace(/^\//, '')}`);
+		window.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
 	});
 };
 
