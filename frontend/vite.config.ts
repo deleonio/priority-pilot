@@ -60,141 +60,161 @@ const apiProxy = {
 	},
 };
 
-export default defineConfig({
-	base: APP_BASE,
-	plugins: [
-		react(),
-		{
-			name: 'serve-docs-user-guide',
-			configureServer(server) {
-				server.middlewares.use(`${APP_BASE}user-guide.md`, async (req, res) => {
-					const fs = await import('node:fs/promises');
-					const path = await import('node:path');
-					const filePath = path.resolve(__dirname, '../docs/user-guide.md');
-					try {
-						const content = await fs.readFile(filePath, 'utf-8');
-						res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
-						return res.end(content);
-					} catch {
-						res.statusCode = 404;
-						return res.end('Handbuch nicht gefunden');
+// Android-Build (#2378, ADR 0021): SPA für den Capacitor-Wrapper unter https://localhost/ — Basis `/`,
+// kein Service Worker, kein Manifest, eigener Ausgabeordner; Server und Links über `SITE_URL`.
+export default defineConfig(({ mode }) => {
+	const android = mode === 'android';
+	const siteUrl = (process.env.SITE_URL ?? '').trim().replace(/\/+$/, '');
+	if (android && !siteUrl) {
+		throw new Error('SITE_URL fehlt, z. B. SITE_URL=https://example.org pnpm --filter frontend build:android');
+	}
+	const outDir = android ? 'dist-android' : 'dist';
+	return {
+		base: android ? '/' : APP_BASE,
+		build: { outDir },
+		plugins: [
+			react(),
+			{
+				name: 'serve-docs-user-guide',
+				configureServer(server) {
+					server.middlewares.use(`${APP_BASE}user-guide.md`, async (req, res) => {
+						const fs = await import('node:fs/promises');
+						const path = await import('node:path');
+						const filePath = path.resolve(__dirname, '../docs/user-guide.md');
+						try {
+							const content = await fs.readFile(filePath, 'utf-8');
+							res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+							return res.end(content);
+						} catch {
+							res.statusCode = 404;
+							return res.end('Handbuch nicht gefunden');
+						}
+					});
+				},
+				apply: 'serve',
+			},
+			{
+				name: 'copy-docs-user-guide',
+				apply: 'build',
+				generateBundle() {
+					const source = resolve(__dirname, '../docs/user-guide.md');
+					const destDir = resolve(__dirname, outDir);
+					if (!existsSync(destDir)) {
+						mkdirSync(destDir, { recursive: true });
 					}
-				});
+					copyFileSync(source, resolve(destDir, 'user-guide.md'));
+				},
 			},
-			apply: 'serve',
-		},
-		{
-			name: 'copy-docs-user-guide',
-			apply: 'build',
-			generateBundle() {
-				const source = resolve(__dirname, '../docs/user-guide.md');
-				const destDir = resolve(__dirname, 'dist');
-				if (!existsSync(destDir)) {
-					mkdirSync(destDir, { recursive: true });
-				}
-				copyFileSync(source, resolve(destDir, 'user-guide.md'));
+			{
+				name: 'precompress-dist',
+				apply: 'build',
+				// Nach allen anderen closeBundle-Hooks, damit auch der von VitePWA erzeugte sw.js erfasst wird.
+				closeBundle: {
+					order: 'post',
+					sequential: true,
+					handler: () => precompress(resolve(__dirname, outDir)),
+				},
 			},
-		},
-		{
-			name: 'precompress-dist',
-			apply: 'build',
-			// Nach allen anderen closeBundle-Hooks, damit auch der von VitePWA erzeugte sw.js erfasst wird.
-			closeBundle: {
-				order: 'post',
-				sequential: true,
-				handler: () => precompress(resolve(__dirname, 'dist')),
-			},
-		},
-		VitePWA({
-			registerType: 'prompt',
-			workbox: {
-				// Explizit gesetzt (statt der Standardabdeckung js|css|html|Icons), damit die
-				// selbst gehosteten Archivo-Schriftdateien (#1513) in den Precache gelangen und
-				// die App auch offline in der richtigen Schriftart rendert.
-				globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-				cleanupOutdatedCaches: true,
-				clientsClaim: true,
-				skipWaiting: false,
-				// Push-Handler (push/notificationclick) aus public/push-sw.js in den generierten
-				// Workbox-SW einbinden (Issue #355). Die Datei liegt in public/ und landet neben dem SW
-				// unter /app/ — relativ angegeben, damit sie vom SW-Standort aus aufgelöst wird.
-				importScripts: ['push-sw.js'],
-				// KoliBri registriert seine Web-Components gebündelt; der resultierende Chunk
-				// überschreitet das Workbox-Standardlimit von 2 MiB für den Precache.
-				maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
-				// Ohne Denylist beantwortet der Service Worker JEDE Navigation mit der
-				// gecachten index.html (navigateFallback) – auch /auth/google und den
-				// Google-Callback. Der OAuth-Flow erreicht dann nie den Server (Symptom:
-				// installierte PWA/Android-Chrome bleibt auf der Login-URL hängen).
-				// API- und Auth-Pfade müssen daher immer ans Netzwerk durchgereicht werden.
-				navigateFallbackDenylist: [/^\/api\//, /^\/auth\//],
-			},
-			manifest: {
-				name: 'Balamentum',
-				short_name: 'Balamentum',
-				description: 'Aufgaben-Priorisierung über einen gewichteten Abhängigkeitsgraphen und Lebensbalance-Säulen.',
-				theme_color: '#1a1a1a',
-				background_color: '#ffffff',
-				display: 'standalone',
-				// `id` bleibt '/' (die frühere start_url), damit bestehende Installationen dieselbe App
-				// bleiben; neue Starts öffnen direkt die App unter /app/ statt der Website (ADR 0015).
-				id: '/',
-				start_url: APP_BASE,
-				scope: APP_BASE,
-				icons: [
-					{
-						src: 'icons/icon-192x192.png',
-						sizes: '192x192',
-						type: 'image/png',
-						purpose: 'any',
-					},
-					{
-						src: 'icons/icon-512x512.png',
-						sizes: '512x512',
-						type: 'image/png',
-						purpose: 'any',
-					},
-					{
-						src: 'icons/icon-192x192-maskable.png',
-						sizes: '192x192',
-						type: 'image/png',
-						purpose: 'maskable',
-					},
-					{
-						src: 'icons/icon-512x512-maskable.png',
-						sizes: '512x512',
-						type: 'image/png',
-						purpose: 'maskable',
-					},
-				],
-				shortcuts: [
-					{
-						name: 'Dashboard',
-						url: APP_BASE,
-						icons: [
-							{
-								src: 'icons/icon-192x192.png',
-								sizes: '192x192',
-								purpose: 'any',
+			...(android
+				? []
+				: [
+						VitePWA({
+							registerType: 'prompt',
+							workbox: {
+								// Explizit gesetzt (statt der Standardabdeckung js|css|html|Icons), damit die
+								// selbst gehosteten Archivo-Schriftdateien (#1513) in den Precache gelangen und
+								// die App auch offline in der richtigen Schriftart rendert.
+								globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+								cleanupOutdatedCaches: true,
+								clientsClaim: true,
+								skipWaiting: false,
+								// Push-Handler (push/notificationclick) aus public/push-sw.js in den generierten
+								// Workbox-SW einbinden (Issue #355). Die Datei liegt in public/ und landet neben dem SW
+								// unter /app/ — relativ angegeben, damit sie vom SW-Standort aus aufgelöst wird.
+								importScripts: ['push-sw.js'],
+								// KoliBri registriert seine Web-Components gebündelt; der resultierende Chunk
+								// überschreitet das Workbox-Standardlimit von 2 MiB für den Precache.
+								maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
+								// Ohne Denylist beantwortet der Service Worker JEDE Navigation mit der
+								// gecachten index.html (navigateFallback) – auch /auth/google und den
+								// Google-Callback. Der OAuth-Flow erreicht dann nie den Server (Symptom:
+								// installierte PWA/Android-Chrome bleibt auf der Login-URL hängen).
+								// API- und Auth-Pfade müssen daher immer ans Netzwerk durchgereicht werden.
+								navigateFallbackDenylist: [/^\/api\//, /^\/auth\//],
 							},
-						],
-					},
-				],
-			},
-		}),
-	],
-	server: {
-		proxy: apiProxy,
-	},
-	preview: {
-		proxy: apiProxy,
-	},
-	define: {
-		__APP_VERSION__: JSON.stringify(rootPkg.version),
-	},
-	optimizeDeps: {
-		// Der generierte Client liegt als TypeScript-Quelle im Workspace vor; Vite transpiliert ihn
-		// direkt, statt ihn als externe Dependency vorzubündeln.
-		exclude: ['client'],
-	},
+							manifest: {
+								name: 'Balamentum',
+								short_name: 'Balamentum',
+								description:
+									'Aufgaben-Priorisierung über einen gewichteten Abhängigkeitsgraphen und Lebensbalance-Säulen.',
+								theme_color: '#1a1a1a',
+								background_color: '#ffffff',
+								display: 'standalone',
+								// `id` bleibt '/' (die frühere start_url), damit bestehende Installationen dieselbe App
+								// bleiben; neue Starts öffnen direkt die App unter /app/ statt der Website (ADR 0015).
+								id: '/',
+								start_url: APP_BASE,
+								scope: APP_BASE,
+								icons: [
+									{
+										src: 'icons/icon-192x192.png',
+										sizes: '192x192',
+										type: 'image/png',
+										purpose: 'any',
+									},
+									{
+										src: 'icons/icon-512x512.png',
+										sizes: '512x512',
+										type: 'image/png',
+										purpose: 'any',
+									},
+									{
+										src: 'icons/icon-192x192-maskable.png',
+										sizes: '192x192',
+										type: 'image/png',
+										purpose: 'maskable',
+									},
+									{
+										src: 'icons/icon-512x512-maskable.png',
+										sizes: '512x512',
+										type: 'image/png',
+										purpose: 'maskable',
+									},
+								],
+								shortcuts: [
+									{
+										name: 'Dashboard',
+										url: APP_BASE,
+										icons: [
+											{
+												src: 'icons/icon-192x192.png',
+												sizes: '192x192',
+												purpose: 'any',
+											},
+										],
+									},
+								],
+							},
+						}),
+					]),
+		],
+		server: {
+			proxy: apiProxy,
+		},
+		preview: {
+			proxy: apiProxy,
+		},
+		define: {
+			__APP_VERSION__: JSON.stringify(rootPkg.version),
+			'import.meta.env.VITE_SITE_URL': JSON.stringify(android ? siteUrl : ''),
+		},
+		resolve: android
+			? { alias: { 'virtual:pwa-register/react': resolve(__dirname, 'src/lib/pwaRegisterStub.ts') } }
+			: {},
+		optimizeDeps: {
+			// Der generierte Client liegt als TypeScript-Quelle im Workspace vor; Vite transpiliert ihn
+			// direkt, statt ihn als externe Dependency vorzubündeln.
+			exclude: ['client'],
+		},
+	};
 });

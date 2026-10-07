@@ -6,6 +6,7 @@ import { toApiError } from '../lib/apiError';
 import { formatEuro, paymentStatusLabel } from '../lib/format';
 import { planLabel } from '../lib/planOffers';
 import { useReassignRun, type ReassignPortionArgs } from '../lib/useReassignRun';
+import { getApiBase } from '../lib/siteOrigin';
 import { Modal } from './Modal';
 import { ReassignFailureList, ReassignProgressView, ReassignStatusText } from './ReassignRunViews';
 
@@ -37,7 +38,7 @@ const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de
 /** PDF-Download über die Admin-Route (#1958 AK2) — Anker-Muster `SubscriptionSection.tsx` (`downloadInvoicePdf`). */
 const downloadAdminInvoicePdf = (userId: number, invoice: AdminInvoice): void => {
 	const link = document.createElement('a');
-	link.href = `/api/v1/admin/users/${userId}/invoices/${invoice.id}/pdf`;
+	link.href = `${getApiBase()}/admin/users/${userId}/invoices/${invoice.id}/pdf`;
 	link.download = `${invoice.number}.pdf`;
 	document.body.appendChild(link);
 	link.click();

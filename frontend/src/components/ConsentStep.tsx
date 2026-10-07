@@ -2,11 +2,15 @@ import { KolDetails } from '@public-ui/react-v19';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
+import { getPublicOrigin } from '../lib/siteOrigin';
 
 /** Rechtsseiten der öffentlichen Website (#1891, #1892) — einzige Textquelle, same-origin geladen (#2227). */
 const LEGAL_LINKS = { terms: '/nutzungsbedingungen/', privacy: '/datenschutz/' } as const;
 
 type LegalKey = keyof typeof LEGAL_LINKS;
+
+/** Absolute Adresse der Rechtsseite: `SITE_URL` im Android-Build (ADR 0021), sonst die eigene Origin. */
+const legalUrl = (key: LegalKey): string => `${getPublicOrigin()}${LEGAL_LINKS[key]}`;
 type LegalText = { status: 'loading' | 'error' } | { status: 'ready'; html: string };
 
 /**
@@ -29,7 +33,7 @@ const extractLegalHtml = (page: string, path: string): string => {
 		heading.replaceWith(shifted);
 	});
 	main.querySelectorAll('a[href]').forEach((link) => {
-		const href = new URL(link.getAttribute('href') ?? '', `${window.location.origin}${path}`);
+		const href = new URL(link.getAttribute('href') ?? '', `${getPublicOrigin()}${path}`);
 		if (href.protocol === 'http:' || href.protocol === 'https:') {
 			link.setAttribute('href', href.href);
 			link.setAttribute('target', '_blank');
@@ -98,7 +102,7 @@ export const ConsentStep = ({ onAccepted }: { onAccepted: () => void }) => {
 	const loadText = (key: LegalKey): void => {
 		if (texts[key]?.status === 'ready' || texts[key]?.status === 'loading') return;
 		setTexts((current) => ({ ...current, [key]: { status: 'loading' } }));
-		fetch(LEGAL_LINKS[key])
+		fetch(legalUrl(key))
 			.then((response) => (response.ok ? response.text() : Promise.reject(new Error(String(response.status)))))
 			.then((page) =>
 				setTexts((current) => ({
@@ -118,7 +122,7 @@ export const ConsentStep = ({ onAccepted }: { onAccepted: () => void }) => {
 					{t('consent.loadFailed')}{' '}
 					<a
 						className="consent-step__link"
-						href={LEGAL_LINKS[key]}
+						href={legalUrl(key)}
 						target="_blank"
 						rel="noopener noreferrer"
 						hrefLang="de"

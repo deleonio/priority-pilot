@@ -86,11 +86,12 @@ import createClient from 'openapi-fetch';
 import { planRequiredDetail } from './lib/apiError';
 import { sortCategoriesByName } from './lib/categories';
 import { getChannel } from './lib/platform';
+import { getApiBase } from './lib/siteOrigin';
 
 // Im Dev-Betrieb leitet der Vite-Proxy (siehe vite.config.ts) /api/v1/*-Anfragen an
 // http://localhost:3000 weiter und streift das Präfix ab. In Prod übernimmt Caddy denselben
 // Rewrite. Über VITE_API_BASE_URL lässt sich die Basis-URL bei Bedarf überschreiben.
-const baseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
+const baseUrl = import.meta.env.VITE_API_BASE_URL ?? getApiBase();
 const client = createClient<paths>({ baseUrl });
 
 // CSRF-Schutz (Server: server/src/express/csrf.ts): Vor dem ersten schreibenden Aufruf holt der
@@ -1214,7 +1215,7 @@ export const api = {
 	// der Aufrufer. Eigener fetch statt openapi-fetch, da /auth/* nicht in der OpenAPI-Spec steht —
 	// aber wie alle anderen Endpunkte unter dem proxied `/api/v1`-Präfix (s. checkAuth() in lib/auth.ts).
 	async logout(): Promise<void> {
-		const response = await fetch('/api/v1/auth/logout', {
+		const response = await fetch(`${getApiBase()}/auth/logout`, {
 			method: 'POST',
 			headers: { 'x-csrf-token': await ensureCsrfToken() },
 		});
