@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.18 - 2026-10-07
 
-_Enthält v0.18.0 – v0.18.31._
+_Enthält v0.18.0 – v0.18.32._
 
 ### 🎉 New Features
 
@@ -39,6 +39,7 @@ _Enthält v0.18.0 – v0.18.31._
 - ci(android): upload daily release aab as draft to internal play track by @deleonio in https://github.com/deleonio/priority-pilot/pull/2352
 - chore: roll out daily android release to internal test track by @deleonio in https://github.com/deleonio/priority-pilot/pull/2370
 - docs(skill): add fixed status block to ticket-coordination rounds by @deleonio in https://github.com/deleonio/priority-pilot/pull/2386
+- docs(skill): add coordinator learnings from 2026-10-07 by @deleonio in https://github.com/deleonio/priority-pilot/pull/2417
 
 ### Other Changes
 
@@ -150,6 +151,7 @@ _Enthält v0.16.0 – v0.16.37._
 ### 🚀 Improvements
 
 - feat(server): apply plan changes only after payment confirmation by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2220
+- feat(server): apply plan changes only after payment confirmation by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2220
 
 ### 🔧 Engineering
 
@@ -170,7 +172,6 @@ _Enthält v0.16.0 – v0.16.37._
 - fix(frontend): hide closed modal body in sync, stabilize e2e tab click by @deleonio in https://github.com/deleonio/priority-pilot/pull/2206
 - feat(website): add account-free balance check (#1979) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2205
 - docs: dedupe decision log and note removal of dead model vars by @deleonio in https://github.com/deleonio/priority-pilot/pull/2207
-- feat(server): fetch and store calendar events from ICS address by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2218
 - feat(server): fetch and store calendar events from ICS address by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2218
 - docs(website): clarify liability and AI suggestions in terms of use by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2228
 - fix(server): invoice and renew only on PAYMENT.SALE.COMPLETED by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2245
