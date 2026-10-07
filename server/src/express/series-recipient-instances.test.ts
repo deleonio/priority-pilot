@@ -82,7 +82,15 @@ describe('Empfänger-Serie: Instanz-Eigentümer und Schreib-Isolation (#1222)', 
 		const seriesId = await createSeriesForBob();
 		const bobId = await userIdOf(BOB);
 
-		// Empfänger stößt den Sammel-Lauf an (er ist Eigentümer der Serie).
+		// #2404: POST erzeugt sofort Instanzen mit der korrekten userId
+		const bobTasks = await tasksOf(await server.login(BOB));
+		const instances = bobTasks.filter((task) => task.seriesId === seriesId);
+		assert.ok(instances.length > 0, 'POST erzeugt Instanzen sofort');
+		for (const instance of instances) {
+			assert.equal(instance.userId, bobId, 'Instanz-`userId` muss der Serien-Eigentümer sein (nicht null)');
+		}
+
+		// generate-all ist idempotent
 		const genRes = await fetch(`${server.baseUrl}/series/generate-all`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Cookie: await server.login(BOB) },
@@ -90,14 +98,7 @@ describe('Empfänger-Serie: Instanz-Eigentümer und Schreib-Isolation (#1222)', 
 		});
 		assert.equal(genRes.status, 200, 'generate-all muss 200 liefern');
 		const { created } = (await genRes.json()) as { created: number };
-		assert.ok(created > 0, 'die fällige Empfänger-Serie muss Instanzen erzeugen');
-
-		const bobTasks = await tasksOf(await server.login(BOB));
-		const instances = bobTasks.filter((task) => task.seriesId === seriesId);
-		assert.ok(instances.length > 0, 'der Empfänger sieht die erzeugten Instanzen');
-		for (const instance of instances) {
-			assert.equal(instance.userId, bobId, 'Instanz-`userId` muss der Serien-Eigentümer sein (nicht null)');
-		}
+		assert.equal(created, 0, 'generate-all findet keine neuen Instanzen (idempotent)');
 	});
 
 	it('/series/:id/generate: Instanzen tragen dieselbe userId wie die Serie (AK4, TF4)', async () => {

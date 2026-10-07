@@ -503,8 +503,9 @@ erzeugt Balamentum regelmäßig neue Aufgaben-Instanzen.
   Priorität, Aufwand, Beschreibung und Säulen werden als Vorlage für
   jede Instanz übernommen.
 - **Automatisch anlegen:** der Schalter ist beim Anlegen an. Schaltest du ihn aus,
-  legt die Serie keine Aufgaben von selbst an und gilt als **Vorlage**; zusätzlich
-  gibt es den Rhythmus **Ohne Rhythmus** (dann entfällt das Startdatum). Im Tab
+  legt die Serie keine Aufgaben von selbst an und gilt als **Vorlage**; Rhythmus,
+  Startdatum und **Automatisch löschen** entfallen dann (bei erneutem Einschalten sind deine
+  Werte wieder da). Im Tab
   trägt eine solche Serie das Kennzeichen **Vorlage**.
 - **Aufgabe anlegen:** im Tab **Serien & Vorlagen** legt die Aktion **Aufgabe anlegen** (Plus-Symbol) eine
   einzelne Aufgabe aus einer Serie oder Vorlage an. Der Dialog ist mit Titel, Priorität, Aufwand und
