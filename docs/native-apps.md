@@ -61,8 +61,8 @@ base64 -w0 upload.jks   # Inhalt → Secret ANDROID_UPLOAD_KEYSTORE_B64
 | `SITE_URL`                         | Variable | Domain der gehosteten App, wie beim Deploy                         |
 
 Mit Play App Signing signiert Google die ausgelieferte App mit dem eigenen App-Signaturschlüssel.
-Dessen SHA-256 aus der Play Console gehört in `ANDROID_CERT_SHA256` (Asset Links), nicht der
-Fingerabdruck des Upload-Schlüssels.
+Dessen SHA-256 aus der Play Console gehört in `ANDROID_CERT_SHA256` (Asset Links), dazu der
+Fingerabdruck des Upload-Schlüssels für selbst installierte Builds, durch Komma getrennt.
 
 ## Anmeldung in der App
 
