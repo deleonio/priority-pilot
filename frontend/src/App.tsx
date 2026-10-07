@@ -226,6 +226,8 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const [calendarEventsFailed, setCalendarEventsFailed] = useState(false);
 	const [pillars, setPillars] = useState<Pillar[]>([]);
 	const [categories, setCategories] = useState<Category[]>([]);
+	// #2359: Serien je ID — die Aufgabenliste kennzeichnet Aufgaben aus Vorlagen (`autoCreate === false`).
+	const [seriesById, setSeriesById] = useState<ReadonlyMap<number, { autoCreate?: boolean }>>(new Map());
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [dialog, setDialog] = useState<Dialog>(null);
@@ -494,6 +496,15 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			setCategories(loadedCategories);
 			setMissedTasks(loadedMissed);
 			setLoadError(null);
+			// Nur Zusatzinfo fürs Badge: ein Fehler hier darf den Aufgabenbestand nicht als Ladefehler melden.
+			void (async () => {
+				try {
+					const loadedSeries = await api.listSeries({ signal });
+					setSeriesById(new Map(loadedSeries.map((entry) => [entry.id, { autoCreate: entry.autoCreate }])));
+				} catch {
+					// Badge fällt auf „Serie" zurück.
+				}
+			})();
 		} catch (reason) {
 			if (signal?.aborted === true) {
 				return;
@@ -1510,6 +1521,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 														userId={user.id}
 														categories={categories}
 														pillars={pillars}
+														seriesById={seriesById}
 														balancePriorities={balancePriorities}
 														onEdit={openEdit}
 														onDelete={openDelete}
@@ -1531,6 +1543,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 													userId={user.id}
 													categories={categories}
 													pillars={pillars}
+													seriesById={seriesById}
 													balancePriorities={balancePriorities}
 													onEdit={openEdit}
 													onDelete={openDelete}

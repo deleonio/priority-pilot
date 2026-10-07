@@ -49,13 +49,15 @@ test.describe('Balamentum — Aufgabe aus Vorlage anlegen (#2359)', () => {
 		expect(dialogBox!.x).toBeGreaterThanOrEqual(0);
 		expect(dialogBox!.x + dialogBox!.width).toBeLessThanOrEqual(375);
 
-		await dialog.getByLabel('Titel').fill(`${title} heute`);
-		await dialog.getByRole('button', { name: 'Aufgabe anlegen' }).click();
+		await page.locator('kol-dialog').getByRole('textbox', { name: 'Titel' }).fill(`${title} heute`);
+		await page.locator('kol-dialog').getByRole('button', { name: 'Aufgabe anlegen' }).click();
 		await expect(page.getByText(`Aufgabe angelegt: ${title} heute`)).toBeVisible();
 
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
-		const row = page.getByText(`${title} heute`).first();
+		// Über die Aufgabenzeile eingegrenzt: das inaktive Serien-Panel bleibt gemountet (hidden) und trägt
+		// die Erfolgsmeldung mit demselben Titel.
+		const row = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: `${title} heute` }) });
 		await expect(row).toBeVisible();
-		await expect(page.getByText('Vorlage (geändert)').first()).toBeVisible();
+		await expect(row.getByText('Vorlage (geändert)')).toBeVisible();
 	});
 });

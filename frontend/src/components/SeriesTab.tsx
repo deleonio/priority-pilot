@@ -1,5 +1,5 @@
 import { KolAlert, KolBadge, KolSpin, KolToolbar } from '@public-ui/react-v19';
-import type { Category, Pillar, Series } from 'client';
+import type { Category, Pillar, Series, Task } from 'client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -8,6 +8,7 @@ import { DeleteSeriesDialog } from './DeleteSeriesDialog';
 import { GeoBadge } from './GeoBadge';
 import { Modal } from './Modal';
 import { PillarMissingBadge } from './PillarMissingBadge';
+import { SeriesInstanceDialog } from './SeriesInstanceDialog';
 import { TaskForm } from './TaskForm';
 
 interface SeriesTabProps {
@@ -64,6 +65,9 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 	// Toolbar-Zeile der Serie aus dem DOM, sodass der Trigger-Button kein Fokus-Ziel mehr ist. Analog
 	// zu App.tsx / PillarList.tsx (`deleteFallbackRef`) halten wir einen stabilen Container bereit.
 	const deleteFallbackRef = useRef<HTMLElement>(null);
+	// #2359: Serie, aus der gerade eine Aufgabe angelegt wird (Dialog offen), und die Erfolgsrückmeldung.
+	const [instanceTarget, setInstanceTarget] = useState<Series | null>(null);
+	const [createdTitle, setCreatedTitle] = useState<string | null>(null);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		try {
@@ -94,6 +98,16 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 		onTasksChanged?.();
 	}, [reload, onTasksChanged]);
 
+	const handleCreated = useCallback(
+		(task: Task): void => {
+			setInstanceTarget(null);
+			setCreatedTitle(task.title);
+			// Die neue Aufgabe steht sofort in der Aufgabenliste der App.
+			onTasksChanged?.();
+		},
+		[onTasksChanged],
+	);
+
 	const handleDeleted = useCallback((): void => {
 		setDeleteTarget(null);
 		void reload();
@@ -109,6 +123,8 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 					{error}
 				</KolAlert>
 			)}
+
+			{createdTitle !== null && <KolAlert _type="success" _alert _label={`Aufgabe angelegt: ${createdTitle}`} />}
 
 			{series === null && (
 				<div className="loading">
@@ -179,6 +195,25 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 												_label={`Aktionen für ${entry.title}`}
 												_orientation="horizontal"
 												_items={[
+													// #2359: Aufgabe aus Serie/Vorlage anlegen — bei ruhender Serie weggelassen (das „Ruhend"-Badge
+													// erklärt den Zustand; der Server lehnt sie mit 409 ab).
+													...(entry.active === false
+														? []
+														: [
+																{
+																	type: 'button' as const,
+																	_label: 'Aufgabe anlegen',
+																	_hideLabel: true,
+																	_icons: { left: { icon: 'fa-solid fa-plus' } },
+																	_variant: 'secondary' as const,
+																	_on: {
+																		onClick: () => {
+																			setCreatedTitle(null);
+																			setInstanceTarget(entry);
+																		},
+																	},
+																},
+															]),
 													{
 														type: 'button',
 														_label: 'Bearbeiten',
@@ -218,6 +253,14 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 						onSaved={afterSaved}
 					/>
 				</Modal>
+			)}
+
+			{instanceTarget !== null && (
+				<SeriesInstanceDialog
+					series={instanceTarget}
+					onClose={() => setInstanceTarget(null)}
+					onCreated={handleCreated}
+				/>
 			)}
 
 			{deleteTarget !== null && (

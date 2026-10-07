@@ -17,15 +17,21 @@ interface SeriesBadge {
  * - Einzelaufgabe (`seriesId` null/undefined) → kein Badge (`null`).
  * - Reguläre Serien-Instanz (`isException` false/fehlt) → Badge `variant: 'instance'`.
  * - Individuell geänderte Instanz (`isException` true) → Badge `variant: 'exception'`.
+ * - Stammt die Aufgabe aus einer Vorlage (`seriesById` liefert `autoCreate === false`, #2359), lautet das
+ *   Label „Vorlage“ bzw. „Vorlage (geändert)“; ohne Eintrag bleibt es bei „Serie“.
  *
  * Bewusst eine reine Funktion (kein DOM): die Tabelle konsumiert nur das Ergebnis fürs Rendern.
  */
-export const seriesBadge = (task: Partial<Pick<Task, 'seriesId' | 'isException'>>): SeriesBadge | null => {
+export const seriesBadge = (
+	task: Partial<Pick<Task, 'seriesId' | 'isException'>>,
+	seriesById?: ReadonlyMap<number, { autoCreate?: boolean }>,
+): SeriesBadge | null => {
 	if (task.seriesId === null || task.seriesId === undefined) {
 		return null;
 	}
+	const noun = seriesById?.get(task.seriesId)?.autoCreate === false ? 'Vorlage' : 'Serie';
 	if (task.isException === true) {
-		return { variant: 'exception', label: 'Serie (geändert)' };
+		return { variant: 'exception', label: `${noun} (geändert)` };
 	}
-	return { variant: 'instance', label: 'Serie' };
+	return { variant: 'instance', label: noun };
 };
