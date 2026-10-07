@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.18 - 2026-10-07
 
-_Enthält v0.18.0 – v0.18.25._
+_Enthält v0.18.0 – v0.18.26._
 
 ### 🎉 New Features
 
@@ -21,6 +21,7 @@ _Enthält v0.18.0 – v0.18.25._
 
 - fix(website): shrink image film section to 48rem by @deleonio in https://github.com/deleonio/priority-pilot/pull/2346
 - fix(native): alte Service Worker in der Android-App abmelden by @deleonio in https://github.com/deleonio/priority-pilot/pull/2385
+- feat(server): suggest care actions for every deficit pillar by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2401
 
 ### 🚀 Improvements
 
@@ -50,6 +51,7 @@ _Enthält v0.18.0 – v0.18.25._
 - feat(frontend): add create-task dialog to series and templates by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2390
 - feat(server): list only open tasks in mcp task_list by default (#2144) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2393
 - [P2/M] Server: Inventar der Fachlogik (REST/MCP/Jobs) und Konvention für ihren Ort (#1934) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2403
+- [P1/S] Paketübersicht: Synchronisation in allen Paketen ausweisen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2402
 
 ## v0.17 - 2026-10-07
 
@@ -345,7 +347,6 @@ _Enthält v0.12.0 – v0.12.26._
 - fix(server): redeliver undelivered invoice mails (#2030) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2040
 - feat(website,frontend): add medical-device disclaimer and crisis hotline hint by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2042
 - docs(skill): add coordination pitfalls for split subs and re-triage by @deleonio in https://github.com/deleonio/priority-pilot/pull/2047
-- feat(server): add score breakdown to /next, /suggestions and next_task by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2050
 - feat(server): add score breakdown to /next, /suggestions and next_task by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2050
 
 ## v0.11 - 2026-09-30
