@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.18 - 2026-10-07
 
-_Enthält v0.18.0 – v0.18.26._
+_Enthält v0.18.0 – v0.18.27._
 
 ### 🎉 New Features
 
@@ -22,6 +22,7 @@ _Enthält v0.18.0 – v0.18.26._
 - fix(website): shrink image film section to 48rem by @deleonio in https://github.com/deleonio/priority-pilot/pull/2346
 - fix(native): alte Service Worker in der Android-App abmelden by @deleonio in https://github.com/deleonio/priority-pilot/pull/2385
 - feat(server): suggest care actions for every deficit pillar by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2401
+- ci(workbench): time-box playwright deps install, fall back without apt by @deleonio in https://github.com/deleonio/priority-pilot/pull/2410
 
 ### 🚀 Improvements
 
@@ -132,6 +133,7 @@ _Enthält v0.16.0 – v0.16.37._
 
 - feat(server): import templates as task packages (#1993) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2197
 - feat(frontend): streak rest day and balanced weeks (#1971) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2215
+- feat(frontend): streak rest day and balanced weeks (#1971) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2215
 - feat(frontend): add journal entries with optional pillar by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2216
 - feat(frontend): add balamentum wrapped yearly recap card by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2219
 - feat(frontend): add launch-phase feedback invitation banner (#2229) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2261
@@ -150,7 +152,6 @@ _Enthält v0.16.0 – v0.16.37._
 - feat(frontend): make E2E suite weekday-independent by @deleonio in https://github.com/deleonio/priority-pilot/pull/2190
 - feat(ci): add canonical models.json with cc/pi model adapter by @deleonio in https://github.com/deleonio/priority-pilot/pull/2203
 - feat(ci): add impl provider override, budget watchdog and adapter smoke by @deleonio in https://github.com/deleonio/priority-pilot/pull/2208
-- docs(skills): ticket-coordination learnings and ADR 0018 addendum by @deleonio in https://github.com/deleonio/priority-pilot/pull/2214
 - docs(skills): ticket-coordination learnings and ADR 0018 addendum by @deleonio in https://github.com/deleonio/priority-pilot/pull/2214
 - docs(skills): add start dialog and instant questions to coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2217
 - docs(skills): add ready-for-market mission to ticket-coordination by @deleonio in https://github.com/deleonio/priority-pilot/pull/2247
