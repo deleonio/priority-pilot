@@ -23,6 +23,11 @@
 		"secondary": "Masz już konto? Otwórz aplikację",
 		"screenshotAlt": "Pulpit Balamentum z następnym zadaniem i równowagą życiową"
 	},
+	"film": {
+		"title": "Balamentum w filmie",
+		"lead": "Prawie cztery minuty pokazujące, jak pełna lista zadań staje się właściwym następnym zadaniem.",
+		"fallback": "Twoja przeglądarka nie odtwarza filmów. Wypróbuj Balamentum bezpośrednio."
+	},
 	"usp": {
 		"title": "Co daje ci Balamentum",
 		"items": [

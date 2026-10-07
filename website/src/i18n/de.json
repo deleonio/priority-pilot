@@ -23,6 +23,11 @@
 		"secondary": "Schon dabei? App öffnen",
 		"screenshotAlt": "Dashboard von Balamentum mit der nächsten Aufgabe und der Lebensbalance"
 	},
+	"film": {
+		"title": "Balamentum im Film",
+		"lead": "Knapp vier Minuten, die zeigen, wie aus einer vollen To-do-Liste die richtige nächste Aufgabe wird.",
+		"fallback": "Dein Browser kann keine Videos abspielen. Probiere Balamentum direkt aus."
+	},
 	"usp": {
 		"title": "Das bringt dir Balamentum",
 		"items": [

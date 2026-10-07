@@ -321,6 +321,16 @@ export const renderLanding = (context: LandingContext): string => {
 					</div>
 ${shots.has('dashboard') ? `					${shotImage('dashboard', m.hero.screenshotAlt, 'shot hero__shot', false)}\n` : ''}				</div>
 			</section>
+			<section class="section film" id="film" aria-labelledby="film-title">
+				<div class="container">
+					<h2 id="film-title" class="kern-heading-large">${t(m.film.title)}</h2>
+					<p class="kern-body kern-body--large">${t(m.film.lead)}</p>
+					<video class="film__video" controls preload="metadata" playsinline poster="/imagefilm-poster.jpg">
+						<source src="/imagefilm.mp4" type="video/mp4" />
+						<p class="kern-body">${t(m.film.fallback)}</p>
+					</video>
+				</div>
+			</section>
 			<section class="usp" aria-labelledby="usp-title">
 				<div class="container">
 					<h2 id="usp-title" class="visually-hidden">${t(m.usp.title)}</h2>

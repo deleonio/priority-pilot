@@ -23,6 +23,11 @@
 		"secondary": "Al aan de slag? App openen",
 		"screenshotAlt": "Dashboard van Balamentum met de volgende taak en de levensbalans"
 	},
+	"film": {
+		"title": "Balamentum in film",
+		"lead": "Bijna vier minuten die laten zien hoe een volle to-do-lijst de juiste volgende taak wordt.",
+		"fallback": "Je browser kan geen video's afspelen. Probeer Balamentum direct uit."
+	},
 	"usp": {
 		"title": "Dit heb je aan Balamentum",
 		"items": [

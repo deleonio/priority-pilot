@@ -779,3 +779,15 @@ img {
 		margin-bottom: 0;
 	}
 }
+
+/* Imagefilm auf der Startseite: 16:9, wie die Screenshots gerahmt. */
+.film__video {
+	display: block;
+	width: 100%;
+	max-width: 60rem;
+	margin: var(--pp-space-4) auto 0;
+	aspect-ratio: 16 / 9;
+	border-radius: 24px;
+	box-shadow: 0 1rem 3rem rgb(var(--pp-shadow-color) / 0.18);
+	background: var(--pp-surface-2);
+}

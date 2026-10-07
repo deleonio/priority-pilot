@@ -23,6 +23,11 @@
 		"secondary": "Déjà inscrit ? Ouvrir l’app",
 		"screenshotAlt": "Tableau de bord de Balamentum avec la prochaine tâche et l’équilibre de vie"
 	},
+	"film": {
+		"title": "Balamentum en film",
+		"lead": "Presque quatre minutes qui montrent comment une liste bien remplie devient la bonne tâche suivante.",
+		"fallback": "Votre navigateur ne peut pas lire de vidéos. Essayez Balamentum directement."
+	},
 	"usp": {
 		"title": "Ce que Balamentum t’apporte",
 		"items": [
