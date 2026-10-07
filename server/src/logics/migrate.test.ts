@@ -30,6 +30,7 @@ import {
 	migrateInvoiceCurrencyColumn,
 	migrateInvoiceCreditForColumn,
 	migrateGroupKind,
+	migrateCalendarSourceCaldavColumns,
 } from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
 // #1225: `migrateGroupImageUrl` existiert noch nicht (rote Spec-Tests) — Zugriff über den
@@ -1908,5 +1909,27 @@ describe('migrateWaitlistAccessMailStatusColumn (#2305 AK7)', () => {
 			null,
 			'Bestandszeile bleibt null',
 		);
+	});
+});
+
+// ── #2211: migrateCalendarSourceCaldavColumns — CalDAV-Spalten an calendar_sources ────────────
+describe('migrateCalendarSourceCaldavColumns (#2211)', () => {
+	it('zieht type/username/passwordEncrypted nach, Bestandsquellen bleiben ICS; zweiter Lauf ist stabil', async () => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `calendar_sources` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `userId` INTEGER NOT NULL, ' +
+				'`name` VARCHAR(255) NOT NULL, `url` TEXT NOT NULL, `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL)',
+		);
+		await sequelize.query(
+			"INSERT INTO `calendar_sources` (`userId`, `name`, `url`, `createdAt`, `updatedAt`) VALUES (1, 'Alt', 'https://x', '2026-01-01', '2026-01-01')",
+		);
+
+		await migrateCalendarSourceCaldavColumns(sequelize);
+		await assert.doesNotReject(() => migrateCalendarSourceCaldavColumns(sequelize), 'zweiter Lauf bleibt stabil');
+
+		const { default: CalendarSource } = await import('../models/calendarSource.js');
+		const source = await CalendarSource.findOne();
+		assert.equal(source?.type, 'ics');
+		assert.equal(source?.passwordEncrypted, null);
 	});
 });

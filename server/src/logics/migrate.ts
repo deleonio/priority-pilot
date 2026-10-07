@@ -925,6 +925,27 @@ export const migrateUsersBalanceVariantColumn = async (db: Sequelize): Promise<v
 };
 
 /**
+ * Zieht die CalDAV-Spalten (`type`, `username`, `passwordEncrypted`, #2211) auf einer **bestehenden**
+ * `calendar_sources`-Tabelle nach, BEVOR `sequelize.sync()` läuft — Muster
+ * {@link migrateInvoicePaymentStatusColumn}. Bestandsquellen sind ICS (Default `ics`). Idempotent;
+ * ohne Tabelle ein No-op.
+ */
+export const migrateCalendarSourceCaldavColumns = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('calendar_sources')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+	if (existing.length === 0) return;
+	for (const [name, definition] of [
+		['type', "VARCHAR(255) NOT NULL DEFAULT 'ics'"],
+		['username', 'VARCHAR(255)'],
+		['passwordEncrypted', 'TEXT'],
+	]) {
+		if (existing.includes(name)) continue;
+		await db.query(`ALTER TABLE \`calendar_sources\` ADD COLUMN \`${name}\` ${definition}`);
+		console.log(`Spalte ${name} an calendar_sources nachgezogen.`);
+	}
+};
+
+/**
  * Zieht die `scope`-Spalte (Rechtestufe `'read'` | `'readwrite'`, #1356) auf einer **bestehenden**
  * `api_tokens`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog `migrateUsersRoleColumn`.
  * Bestandszeilen erhalten `'read'` (kein stilles Hochstufen bereits vergebener Tokens). Idempotent
