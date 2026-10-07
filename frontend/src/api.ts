@@ -51,6 +51,7 @@ import type {
 	FreeSlot,
 	FreeSlotConfig,
 	CareConfig,
+	SplitHintConfig,
 	CareVorschlag,
 	Profile,
 	ParsedSearch,
@@ -1698,6 +1699,26 @@ export const api = {
 	// Speichert die Care-Konfiguration; ungültige Zeitzonen werden serverseitig mit 400 abgelehnt.
 	async updateCareConfig(config: CareConfig, init: Init = {}): Promise<CareConfig> {
 		const { data, error, response } = await client.PUT('/care-config', { body: config, signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// --- Aufteilen-Hinweis pro User (#1994) ---
+
+	// Schalter „Hinweis zum Aufteilen großer Aufgaben“ (serverseitig gespeichert, Default ein).
+	async getSplitHintConfig(init: Init = {}): Promise<SplitHintConfig> {
+		const { data, error, response } = await client.GET('/split-hint-config', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Speichert den Schalter; Nicht-Boolean lehnt der Server mit 400 ab.
+	async updateSplitHintConfig(config: SplitHintConfig, init: Init = {}): Promise<SplitHintConfig> {
+		const { data, error, response } = await client.PUT('/split-hint-config', { body: config, signal: init.signal });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}

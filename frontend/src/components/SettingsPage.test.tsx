@@ -2178,3 +2178,44 @@ describe('SettingsPage – #2015: zweite Ebene ausschließlich KolDetails (Regel
 		expect(container.querySelector('kol-details[_label="Reichweite und Intervall"]'), 'kein CSS-Hide').toBeNull();
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1994 (AK6, docs/spec/issue-1994.md) — Schalter „Hinweis zum Aufteilen großer
+ * Aufgaben" (Muster #1794): Zustand aus `getSplitHintConfig`, Umschalten ruft `updateSplitHintConfig`.
+ */
+describe('SettingsPage – #1994: Aufteilen-Hinweis-Schalter (AK6)', () => {
+	const querySwitch = (container: HTMLElement) =>
+		container.querySelector('kol-input-checkbox[_label="Hinweis zum Aufteilen großer Aufgaben"]');
+
+	it('AK6: Switch in .settings-switch-row, _checked folgt GET /split-hint-config', async () => {
+		apiMocks.getSplitHintConfig = vi.fn().mockResolvedValue({ splitHintEnabled: false });
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		await waitFor(() => {
+			const toggle = querySwitch(container);
+			expect(toggle, 'Aufteilen-Schalter fehlt').not.toBeNull();
+			const checked = (toggle as unknown as Record<string, unknown>)._checked ?? toggle!.getAttribute('_checked');
+			expect(String(checked)).toBe('false');
+		});
+		expect(querySwitch(container)!.closest('.settings-switch-row')).not.toBeNull();
+	});
+
+	it('AK6: Toggle ruft updateSplitHintConfig mit dem neuen Zustand auf', async () => {
+		apiMocks.getSplitHintConfig = vi.fn().mockResolvedValue({ splitHintEnabled: true });
+		apiMocks.updateSplitHintConfig = vi.fn().mockResolvedValue({ splitHintEnabled: false });
+		const { container } = render(<SettingsPage {...defaultProps} />);
+		await waitFor(() => {
+			expect(querySwitch(container), 'Aufteilen-Schalter fehlt').not.toBeNull();
+		});
+
+		await act(async () => {
+			const toggle = querySwitch(container)!;
+			(toggle as unknown as { _on: { onChange: (e: unknown, v: boolean) => void } })._on.onChange(
+				{ target: toggle },
+				false,
+			);
+		});
+
+		expect(apiMocks.updateSplitHintConfig).toHaveBeenCalledWith({ splitHintEnabled: false });
+	});
+});

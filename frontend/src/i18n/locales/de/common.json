@@ -156,5 +156,8 @@
 		"text": "Du gehörst zu den Ersten. Was dir auffällt, hilft uns – sag es uns gern.",
 		"feedback": "Feedback geben",
 		"dismiss": "Schließen"
+	},
+	"splitHint": {
+		"reason": "Große Aufgaben lassen sich oft leichter angehen, wenn du sie in kleinere Schritte teilst."
 	}
 }

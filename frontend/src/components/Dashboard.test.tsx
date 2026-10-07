@@ -850,3 +850,33 @@ describe('Dashboard — „Kurz zurückstellen"-Button im Signal-Panel (Issue #2
 		expect(snoozeButton(container)).toBeUndefined();
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1994 (AK5, docs/spec/issue-1994.md): `reasons.split` aus `GET /next` ergibt
+ * einen Begründungssatz zum Aufteilen in kleinere Schritte — ohne Zahl, ohne Aktion; ohne
+ * `reasons.split` erscheint er nicht.
+ */
+describe('Dashboard — Aufteilen-Hinweis an der „Nächste Aufgabe“-Karte (#1994)', () => {
+	const renderKarte = (reasons: object): HTMLElement => {
+		const nextTask = {
+			...task(42, [], 2, TaskStatus.Open),
+			scoreBreakdown: { total: 1, priority: 0.5 },
+			reasons,
+		} as unknown as Task;
+		return render(<Dashboard tasks={[nextTask]} forest={[] as TaskTreeNode[]} nextTask={nextTask} pillars={[]} />)
+			.container;
+	};
+
+	it('AK5: Satz zum Aufteilen sichtbar, ohne Zahl, ohne zusätzliche Schaltfläche', () => {
+		const container = renderKarte({ priority: { priority: 2 }, split: { postponeCount: 7 } });
+		const liste = container.querySelector('.dashboard-next-task-reasons');
+		expect(liste?.textContent).toMatch(/kleinere Schritte/i);
+		expect(liste?.textContent, 'der Zähler wird nicht genannt (Fürsorge-Ton)').not.toMatch(/7/);
+		expect(liste?.querySelector('button, kol-button, a'), 'keine Aktion im Hinweis').toBeNull();
+	});
+
+	it('AK5: ohne reasons.split kein Aufteilen-Satz', () => {
+		const container = renderKarte({ priority: { priority: 2 } });
+		expect(container.textContent).not.toMatch(/kleinere Schritte/i);
+	});
+});

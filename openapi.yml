@@ -2363,6 +2363,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /split-hint-config:
+    get:
+      summary: Schalter „Hinweis zum Aufteilen“ lesen
+      description: >-
+        Liefert den serverseitig pro User gespeicherten Schalter für den Aufteilen-Hinweis
+        an der Next-Task-Karte (#1994, Default: ein).
+      operationId: getSplitHintConfig
+      tags: [care]
+      responses:
+        '200':
+          description: Aktueller Schalter (inkl. Default)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SplitHintConfig'
+    put:
+      summary: Schalter „Hinweis zum Aufteilen“ speichern
+      description: Speichert den Schalter (#1994); Nicht-Boolean → HTTP 400 ohne Persistenz.
+      operationId: updateSplitHintConfig
+      tags: [care]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SplitHintConfig'
+      responses:
+        '200':
+          description: Gespeicherter Schalter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SplitHintConfig'
+        '400':
+          description: Ungültiger Wert (kein Boolean)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /care-config/sprache:
     put:
       summary: App-Sprache für den Fürsorge-Push speichern
@@ -5392,6 +5431,15 @@ components:
         zeitzone:
           type: string
           description: IANA-Zeitzonenname (Default 'UTC')
+    SplitHintConfig:
+      type: object
+      description: >-
+        Schalter pro User für den Aufteilen-Hinweis an der Next-Task-Karte (#1994).
+      required: [splitHintEnabled]
+      properties:
+        splitHintEnabled:
+          type: boolean
+          description: Hinweis aktiv (Default true)
     CareSprache:
       type: object
       description: App-Sprache des Users für den Fürsorge-Push (#1879).
@@ -6440,6 +6488,16 @@ components:
           required: [priority]
           properties:
             priority:
+              type: integer
+        split:
+          type: object
+          description: >-
+            Aufteilen-Hinweis (#1994): Verschiebe-Zähler der empfohlenen Aufgabe; nur bei erkanntem
+            Muster (mindestens 3 offene Aufgaben mit Aufwand >= 0.6 und mindestens 2 Verschiebungen)
+            und eingeschaltetem Schalter. Ändert den Score nicht.
+          required: [postponeCount]
+          properties:
+            postponeCount:
               type: integer
     TaskRecommendation:
       allOf:
