@@ -40,8 +40,14 @@ test.describe('Balamentum — Aus Vorlage erfassen im Schnellerfassen (#2363)', 
 		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
-		const dialog = page.getByRole('dialog');
-		await expect(dialog).toBeVisible();
+		// Dialog-Handle = `kol-dialog`-Host (Muster #2359/categories/1574/1577): `getByRole('dialog')` matcht
+		// den nativen Shadow-`<dialog>`, dessen geslottete Light-DOM-Buttons keine DOM-Nachfahren sind —
+		// gescopete Interaktionen darunter finden nichts. Der Onboarding-Dialog bleibt nach dem Dismiss
+		// dauerhaft gemountet (#2070) — deshalb per :not ausgeschlossen. Bounding-Box (AK5) bleibt am
+		// nativen Dialog.
+		const dialog = page.locator('kol-dialog:not([_label="Willkommen bei Balamentum"])');
+		// Sichtbarkeit am nativen Dialog geprüft (Host-Custom-Element hat keine eigene Box).
+		await expect(page.getByRole('dialog')).toBeVisible();
 		return dialog;
 	};
 
@@ -69,13 +75,14 @@ test.describe('Balamentum — Aus Vorlage erfassen im Schnellerfassen (#2363)', 
 		await entry.click();
 		await expect(dialog).toContainText(`Aufgabe anlegen: ${title}`);
 		await expect(dialog.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
-		await inBox(dialog);
+		await inBox(page.getByRole('dialog'));
 
 		await dialog.getByRole('button', { name: 'Aufgabe anlegen' }).click();
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 		const row = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: title }) });
 		await expect(row).toBeVisible();
-		await expect(row.getByText('Vorlage')).toBeVisible();
+		// exact: Der Titel selbst enthält „Vorlage" — substring-Match träfe auch die Heading (Strict-Mode).
+		await expect(row.getByText('Vorlage', { exact: true })).toBeVisible();
 	});
 
 	test('AK4/AK5 — Tastaturpfad Button → Auswahl → Eintrag → Dialog, Escape schließt', async ({ page }) => {
@@ -92,7 +99,7 @@ test.describe('Balamentum — Aus Vorlage erfassen im Schnellerfassen (#2363)', 
 		await page.keyboard.press('Enter');
 		const entry = page.getByRole('button', { name: title });
 		await expect(entry).toBeVisible();
-		await inBox(dialog); // AK5
+		await inBox(page.getByRole('dialog')); // AK5
 
 		// AK4: Escape schließt die Auswahl zurück in den Capture-Schritt.
 		await page.keyboard.press('Escape');
@@ -106,7 +113,7 @@ test.describe('Balamentum — Aus Vorlage erfassen im Schnellerfassen (#2363)', 
 		await entry.focus();
 		await page.keyboard.press('Enter');
 		await expect(dialog).toContainText(`Aufgabe anlegen: ${title}`);
-		await inBox(dialog); // AK5
+		await inBox(page.getByRole('dialog')); // AK5
 
 		// AK4: Escape im Dialog schließt ihn.
 		await page.keyboard.press('Escape');
