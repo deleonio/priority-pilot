@@ -77,6 +77,26 @@ bearbeiten und löschen“ einladen. Solange die App ein App-Entwurf ist (noch n
 ausgerollt), nimmt die API nur Entwürfe an („Only releases with status draft may be created on draft
 app“): das erste interne Release einmal von Hand ausrollen.
 
+## Käufe serverseitig prüfen (Play-Dienstkonto)
+
+Der Server prüft Play-Käufe bei Google (`server/src/logics/googlePlay.ts`, ADR 0017). Ohne
+Einrichtung endet jeder Kauf mit `not_configured`, ebenso bei 401/403 von Google. Einmalig:
+
+1. **Dienstkonto:** das Konto aus dem Play-Upload (`PLAY_SERVICE_ACCOUNT_JSON`) mitnutzen oder in
+   Google Cloud ein neues anlegen; die Android Publisher API muss im Cloud-Projekt aktiviert sein.
+2. **Rechte:** in der Play Console unter „Nutzer und Berechtigungen“ das Dienstkonto einladen, mit
+   „Finanzdaten ansehen“ und „Bestellungen und Abos verwalten“ (App `balamentum.app`). Die Rechte
+   greifen erst nach einigen Stunden.
+3. **Schlüsseldatei:** den JSON-Schlüssel auf dem Server ablegen, z. B.
+   `/var/www/gh-deploy/priority-pilot/secrets/play-service-account.json` (Modus `600`, nicht im Repo).
+4. **Env-Variable:** in der Env-Datei `GOOGLE_PLAY_SERVICE_ACCOUNT_FILE=<Pfad>` einkommentieren, dann
+   `pm2 reload priority-pilot --update-env`.
+5. **Prüfen:** Testkauf über den internen Track; im Log darf weder `not_configured` noch 401/403
+   stehen, das Paket ist danach im Konto aktiv.
+
+Für die Benachrichtigungen bei Verlängerung und Kündigung zusätzlich `GOOGLE_RTDN_AUDIENCE` setzen
+(Push-Endpunkt der Pub/Sub-Subscription, Beispiel in `docs/deployment.md`).
+
 ## Anmeldung in der App
 
 Google blockiert OAuth im WebView. „Mit Google anmelden“ öffnet deshalb `/auth/google?client=app&state=…`
