@@ -3023,3 +3023,85 @@ describe('MCP-Staffelungs-Hinweis (#1823)', () => {
 		assert.ok(row.includes(hint), 'IF-07 muss den Text von MCP_PACING_HINT enthalten');
 	});
 });
+
+/**
+ * #2145: task_update setzt `pinned` (docs/spec/issue-2145.md).
+ *
+ * AK1: tools/list deklariert `pinned` bei task_update als optionales boolean-Feld.
+ * AK2/AK3: true pinnt (pinnedAt gesetzt), false löst (pinnedAt null), auch in task_list.
+ * AK4: ein Update ohne `pinned` lässt den Pin unverändert.
+ * AK5: ein nicht-boolescher Wert endet mit Fehler, der Pin-Zustand bleibt.
+ *
+ * Rot, weil Schema und pickTaskFields `pinned` noch nicht kennen. KEIN Produktivcode.
+ */
+describe('#2145: pinned über task_update setzen', () => {
+	type Pin = { id: number; pinned: boolean; pinnedAt: string | null };
+
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => resetDb());
+	after(async () => {
+		await server.close();
+		closeDb();
+	});
+
+	const pinInList = async (token: string, id: number) =>
+		(await mcpCall<Pin[]>(token, 'task_list')).result?.find((t) => t.id === id);
+
+	it('AK1: tools/list deklariert pinned als optionales boolean-Feld von task_update', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const tool = (await mcpListTools(token)).find((t) => t.name === 'task_update');
+		const schema = tool?.inputSchema as
+			{ properties?: Record<string, { type?: string }>; required?: string[] } | undefined;
+		assert.equal(schema?.properties?.pinned?.type, 'boolean');
+		assert.ok(!schema?.required?.includes('pinned'), 'pinned darf nicht in required stehen');
+	});
+
+	it('AK2/AK3: pinned true pinnt, pinned false löst — in Antwort und task_list', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const taskId = await createTaskViaApi(cookie, 'Pin über MCP');
+
+		const pinned = await mcpCall<Pin>(token, 'task_update', { id: taskId, pinned: true });
+		assert.equal(pinned.error, undefined);
+		assert.equal(pinned.result?.pinned, true);
+		assert.ok(pinned.result?.pinnedAt, 'pinnedAt muss gesetzt sein');
+		const listed = await pinInList(token, taskId);
+		assert.equal(listed?.pinned, true);
+		assert.ok(listed?.pinnedAt);
+
+		const unpinned = await mcpCall<Pin>(token, 'task_update', { id: taskId, pinned: false });
+		assert.equal(unpinned.error, undefined);
+		assert.equal(unpinned.result?.pinned, false);
+		assert.equal(unpinned.result?.pinnedAt, null);
+		const relisted = await pinInList(token, taskId);
+		assert.equal(relisted?.pinned, false);
+		assert.equal(relisted?.pinnedAt, null);
+	});
+
+	it('AK4: ein Update ohne pinned lässt den Pin unverändert', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const taskId = await createTaskViaApi(cookie, 'Pin bleibt');
+
+		await mcpCall(token, 'task_update', { id: taskId, pinned: true });
+		const renamed = await mcpCall<Pin>(token, 'task_update', { id: taskId, title: 'Umbenannt' });
+		assert.equal(renamed.error, undefined);
+		assert.equal(renamed.result?.pinned, true, 'Pin muss nach Update ohne pinned erhalten bleiben');
+	});
+
+	it('AK5: ein nicht-boolescher Wert wird abgelehnt, der Pin-Zustand bleibt', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const taskId = await createTaskViaApi(cookie, 'Pin ungültig');
+
+		await mcpCall(token, 'task_update', { id: taskId, pinned: true });
+		const bad = await mcpCall(token, 'task_update', { id: taskId, pinned: 'yes' });
+		assert.ok(bad.error, 'pinned: "yes" muss fehlschlagen');
+		assert.match(bad.error?.message ?? '', /pinned muss ein Boolean sein\..*\(HTTP 400\)/);
+		assert.equal((await pinInList(token, taskId))?.pinned, true);
+	});
+});
