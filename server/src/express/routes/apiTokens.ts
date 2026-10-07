@@ -50,7 +50,7 @@ const serializeApiToken = (token: ApiToken): ApiTokenDto => ({
 
 export const apiTokensRouter = Router();
 
-// GET /api-tokens — eigene, nicht zurückgezogene Tokens (nur Metadaten).
+// GET /api-tokens — eigene, nicht zurückgezogene Tokens (nur Metadaten); App-Tokens (#2377) bleiben außen vor.
 apiTokensRouter.get('/api-tokens', async (req: Request, res: Response<ApiTokenDto[] | ErrorDto>) => {
 	const userId = getUserId(req);
 	if (userId === undefined) {
@@ -58,7 +58,10 @@ apiTokensRouter.get('/api-tokens', async (req: Request, res: Response<ApiTokenDt
 		return;
 	}
 	try {
-		const tokens = await ApiToken.findAll({ where: { userId, revokedAt: null }, order: [['createdAt', 'ASC']] });
+		const tokens = await ApiToken.findAll({
+			where: { userId, revokedAt: null, kind: 'api' },
+			order: [['createdAt', 'ASC']],
+		});
 		res.json(tokens.map(serializeApiToken));
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');
@@ -112,7 +115,7 @@ apiTokensRouter.delete('/api-tokens/:id', async (req: Request, res: Response<Err
 		return;
 	}
 	try {
-		const token = await ApiToken.findOne({ where: { id, userId, revokedAt: null } });
+		const token = await ApiToken.findOne({ where: { id, userId, revokedAt: null, kind: 'api' } });
 		if (!token) {
 			sendError(res, 404, 'Token nicht gefunden.');
 			return;
@@ -142,7 +145,7 @@ apiTokensRouter.patch('/api-tokens/:id', async (req: Request, res: Response<ApiT
 		return;
 	}
 	try {
-		const token = await ApiToken.findOne({ where: { id, userId, revokedAt: null } });
+		const token = await ApiToken.findOne({ where: { id, userId, revokedAt: null, kind: 'api' } });
 		if (!token) {
 			sendError(res, 404, 'Token nicht gefunden.');
 			return;

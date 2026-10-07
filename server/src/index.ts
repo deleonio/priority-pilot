@@ -133,6 +133,7 @@ export const main = async (): Promise<void> => {
 			migrateCategoryIdColumns,
 			migrateApiTokenScope,
 			migrateApiTokenExpiresAt,
+			migrateApiTokenKind,
 			migrateLoginTokenPurpose,
 			migrateTaskPinnedColumns,
 			migratePillarRecalcColumns,
@@ -276,6 +277,8 @@ export const main = async (): Promise<void> => {
 		// (#1357) — vor sync(), damit Token-Zugriffe auf Bestands-DBs nicht mit `no such column`
 		// brechen.
 		await migrateApiTokenExpiresAt(sequelize);
+		// Fehlende kind-Spalte (API- vs. App-Token) an api_tokens nachziehen (#2377) — vor sync(), aus demselben Grund.
+		await migrateApiTokenKind(sequelize);
 		// Fehlende purpose-Spalte an login_tokens nachziehen (#1669) — vor sync(), aus demselben Grund.
 		await migrateLoginTokenPurpose(sequelize);
 		// Fehlende pinned/pinnedAt-Spalten an tasks nachziehen (#1582) — vor sync(), damit

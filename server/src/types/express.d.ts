@@ -21,6 +21,11 @@ declare global {
 			 * Nur-lese-Token, damit nur die paketbedingte Ablehnung den Pakethinweis trägt.
 			 */
 			apiTokenPlanCapped?: boolean;
+			/**
+			 * Issue #2377: Art des Tokens — `'app'` (Anmeldung der Android-App) ist sessiongleich und
+			 * passiert `apiTokenScopeGuard` ohne Einschränkung.
+			 */
+			apiTokenKind?: 'api' | 'app';
 		}
 	}
 }

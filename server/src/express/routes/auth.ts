@@ -21,6 +21,8 @@ import { deleteAccount } from '../../logics/deleteAccount.js';
 import { sendError } from '../http-error.js';
 import { hasGoogleOAuth, isAuthActive } from '../requireAuth.js';
 import { establishSession } from '../establishSession.js';
+import { issueAppToken } from '../apiTokenAuth.js';
+import { ApiToken } from '../../models/index.js';
 import { THROTTLED_MESSAGE } from './rateLimit.js';
 import { playAccountIdFor } from '../../logics/googlePlay.js';
 
@@ -333,7 +335,7 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 
 // POST /auth/native/exchange — löst den Einmal-Code aus dem App-Login zusammen mit dem `state` der App
 // ein und meldet den WebView der App an (#1669, ADR 0016). Die Allowlist wird erneut geprüft, wie beim
-// Magic Link.
+// Magic Link. Im Kanal `play` antwortet sie statt mit Session-Cookie mit einem App-Token (#2377).
 authRouter.post('/auth/native/exchange', async (req, res) => {
 	const { code, state } = (req.body ?? {}) as { code?: unknown; state?: unknown };
 	const email =
@@ -345,6 +347,10 @@ authRouter.post('/auth/native/exchange', async (req, res) => {
 		return;
 	}
 	const user = await upsertOAuthUser({ email });
+	if (req.get('X-Client-Channel') === 'play') {
+		res.json({ token: await issueAppToken(user.id) });
+		return;
+	}
 	establishSession(req, user, (sessionErr) => {
 		if (sessionErr) {
 			sendError(res, 500, 'Session-Fehler.');
@@ -593,8 +599,11 @@ authRouter.post('/auth/terms', async (req, res) => {
 	res.status(204).end();
 });
 
-// POST /auth/logout — Session beenden
-authRouter.post('/auth/logout', (req, res) => {
+// POST /auth/logout — Session beenden; ein mitgeschicktes App-Token wird zurückgezogen (#2377).
+authRouter.post('/auth/logout', async (req, res) => {
+	if (req.apiTokenKind === 'app') {
+		await ApiToken.update({ revokedAt: new Date() }, { where: { id: req.apiTokenId } });
+	}
 	req.session.destroy(() => {
 		res.clearCookie(SIGNED_IN_COOKIE, signedInCookieOptions);
 		res.json({ message: 'Ausgeloggt.' });

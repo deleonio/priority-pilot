@@ -27,8 +27,11 @@ class ApiToken extends Model {
 	// Default 'read' — ein neu angelegter Token startet nie mit Schreibrechten (AK2).
 	public scope!: 'read' | 'readwrite';
 	// Ablaufdatum (#1357) — Pflicht beim Anlegen, `null` ausschließlich für Bestandstokens ohne
-	// Migration (kein rückwirkendes Entwerten).
+	// Migration (kein rückwirkendes Entwerten) und für App-Tokens (#2377, enden mit dem Logout).
 	public expiresAt?: Date | null;
+	// Art (#2377): 'api' = persönlicher Token aus der Token-Verwaltung, 'app' = Anmeldung der
+	// Android-App (sessiongleich, nicht in der Token-Verwaltung sichtbar).
+	public kind!: 'api' | 'app';
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -69,6 +72,11 @@ ApiToken.init(
 		expiresAt: {
 			type: DataTypes.DATE,
 			allowNull: true,
+		},
+		kind: {
+			type: DataTypes.STRING,
+			allowNull: false,
+			defaultValue: 'api',
 		},
 	},
 	{

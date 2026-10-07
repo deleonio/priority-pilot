@@ -103,7 +103,9 @@ Google blockiert OAuth im WebView. „Mit Google anmelden“ öffnet deshalb `/a
 im System-Browser (`frontend/src/lib/nativeAuth.ts`). Nach dem Login leitet der Server auf
 `/app/auth/native?code=…` um. Android gibt diesen App Link an die App, der WebView löst den Code mit dem
 gemerkten `state` über `POST /auth/native/exchange` ein. Magic-Links auf `/app/` öffnen auf demselben
-Weg die App. Der Intent-Filter im Manifest nimmt die Domain aus `server.url` (Gradle liest sie aus der
+Weg die App. Mit `X-Client-Channel: play` antworten Code-Tausch und Magic-Link-Einlösung mit einem
+App-Token statt eines Session-Cookies; die App schickt es als `Authorization: Bearer`, `POST /auth/logout`
+zieht es zurück (#2377). Der Intent-Filter im Manifest nimmt die Domain aus `server.url` (Gradle liest sie aus der
 von `sync` erzeugten `capacitor.config.json`), verifiziert wird sie über `/.well-known/assetlinks.json`
 der Website. Prüfen auf dem Gerät: `adb shell pm get-app-links balamentum.app` muss die Domain als
 `verified` zeigen.
