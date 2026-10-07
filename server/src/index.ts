@@ -144,6 +144,7 @@ export const main = async (): Promise<void> => {
 			migrateUserTermsColumns,
 			migrateUserMcpInstructionsColumn,
 			migrateUsersBalanceVariantColumn,
+			migrateUserAccountPreferenceColumns,
 			migrateUsersFreeSlotMinMinutesColumn,
 			migrateCalendarSourceCaldavColumns,
 		} = await import('./logics/migrate.js');
@@ -243,6 +244,8 @@ export const main = async (): Promise<void> => {
 		await migrateUserMcpInstructionsColumn(sequelize);
 		// Zifferblatt-Auswahl am User (#2009) — wie oben: sync() ergänzt Bestands-Tabellen nicht.
 		await migrateUsersBalanceVariantColumn(sequelize);
+		// Inhaltliche Präferenzen am User (#2398) — wie oben.
+		await migrateUserAccountPreferenceColumns(sequelize);
 		// Mindestdauer freier Lücken am User (#1990) — wie oben.
 		await migrateUsersFreeSlotMinMinutesColumn(sequelize);
 		// CalDAV-Spalten an calendar_sources (#2211) — wie oben: sync() ergänzt Bestands-Tabellen nicht.

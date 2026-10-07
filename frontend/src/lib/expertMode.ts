@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { ACCOUNT_PREFERENCE_KEYS, sendAccountPreferences } from './accountPreferences';
 
 /**
  * Persistenz des Expertenmodus (#1984): Schalter „Expertenmodus" in den Einstellungen.
@@ -13,7 +14,7 @@ import { useCallback, useState } from 'react';
  */
 
 /** `localStorage`-Schlüssel des Expertenmodus (muss mit den e2e-Tests übereinstimmen). */
-export const EXPERT_MODE_STORAGE_KEY = 'pp-expert-mode';
+export const EXPERT_MODE_STORAGE_KEY = ACCOUNT_PREFERENCE_KEYS.expertMode;
 
 interface ExpertMode {
 	/** Expertenbedienelemente (Regler, Gewichte) sichtbar? Default `false`. */
@@ -33,13 +34,14 @@ export const readExpertMode = (): ExpertMode => {
 	}
 };
 
-/** Speichert die Präferenz (Best-Effort); Fehler (z. B. voller/gesperrter Storage) werden ignoriert. */
+/** Speichert die Präferenz im Spiegel und am Konto (#2398, Best-Effort); Fehler werden ignoriert. */
 export const storeExpertMode = (preferences: ExpertMode): void => {
 	try {
 		localStorage.setItem(EXPERT_MODE_STORAGE_KEY, String(preferences.expertMode));
 	} catch {
 		// Persistenz ist Best-Effort; die Wahl gilt zumindest für die laufende Sitzung.
 	}
+	sendAccountPreferences({ expertMode: preferences.expertMode });
 };
 
 interface UseExpertModeResult extends ExpertMode {

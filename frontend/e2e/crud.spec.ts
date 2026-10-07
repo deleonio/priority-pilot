@@ -1,5 +1,11 @@
 import { expect, test, type Page } from './fixtures';
-import { registerOwnSession, setEqualPillarWeights, taskTitleText, waitForStableView } from './helpers';
+import {
+	registerOwnSession,
+	seedAccountPreferences,
+	setEqualPillarWeights,
+	taskTitleText,
+	waitForStableView,
+} from './helpers';
 
 /**
  * Funktionale End-to-End-CRUD-Specs (#92) gegen das **echte** Backend (#91). Anders als die früheren,
@@ -72,6 +78,8 @@ test.describe('Balamentum — funktionale CRUD-Specs gegen das echte Backend', (
 		// anderer Specs (>20 Säulen); die Gleichverteilung des Anlege-Formulars verletzt dort die
 		// Vollverteilungs-Regel (jeder Anteil 5–80 %), der POST kippt mit 400, der Dialog bleibt offen.
 		await registerOwnSession(page, 'crud');
+		// Test-Pflege #2398: Expertenmodus liegt am Konto — der App-Start überschreibt den localStorage-Seed.
+		await seedAccountPreferences(page, { expertMode: true });
 		await page.goto('/app/');
 		await waitForStableView(page);
 		// #2069 Test-Pflege: Frisch-Login öffnet den Erststart-Dialog; die Fixture schließt ihn („Später“),
@@ -91,6 +99,8 @@ test.describe('Balamentum — funktionale CRUD-Specs gegen das echte Backend', (
 
 	test('Task bearbeiten: geänderte Priorität bleibt sichtbar', async ({ page }) => {
 		await registerOwnSession(page, 'crud');
+		// Test-Pflege #2398: Expertenmodus liegt am Konto — der App-Start überschreibt den localStorage-Seed.
+		await seedAccountPreferences(page, { expertMode: true });
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -121,6 +131,8 @@ test.describe('Balamentum — funktionale CRUD-Specs gegen das echte Backend', (
 
 	test('Task löschen: verschwindet aus der Liste', async ({ page }) => {
 		await registerOwnSession(page, 'crud');
+		// Test-Pflege #2398: Expertenmodus liegt am Konto — der App-Start überschreibt den localStorage-Seed.
+		await seedAccountPreferences(page, { expertMode: true });
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -149,6 +161,8 @@ test.describe('Balamentum — funktionale CRUD-Specs gegen das echte Backend', (
 		// plus 4 × 5 %). Ohne eigene Session sieht die Spec den ganzen Säulen-Bestand der
 		// Shard-DB — Begründung siehe `registerOwnSession`.
 		await registerOwnSession(page, 'crud');
+		// Test-Pflege #2398: Expertenmodus liegt am Konto — der App-Start überschreibt den localStorage-Seed.
+		await seedAccountPreferences(page, { expertMode: true });
 
 		// #1574: Regler-Flow geht von 5 × 20 % aus — Gleichverteilung aktiv
 		// herstellen, parallele Specs im Shard können eine andere Verteilung hinterlassen haben.

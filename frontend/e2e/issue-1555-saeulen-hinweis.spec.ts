@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { registerOwnSession, setEqualPillarWeights, waitForStableView } from './helpers';
+import { registerOwnSession, seedAccountPreferences, setEqualPillarWeights, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #1555 — „Hinweis bei stark unausgewogener Säulen-Gewichtung"
@@ -32,6 +32,8 @@ test.describe('#1555 Säulen-Gewichtung: Hinweis bei Unaustariertheit', () => {
 	// `GET /pillars` den ganzen Säulen-Bestand der Shard-DB — Begründung siehe `registerOwnSession`.
 	test.beforeEach(async ({ page }) => {
 		await registerOwnSession(page, '1555');
+		// Test-Pflege #2398: Expertenmodus liegt am Konto — der App-Start überschreibt den localStorage-Seed.
+		await seedAccountPreferences(page, { expertMode: true });
 	});
 
 	/**

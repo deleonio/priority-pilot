@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { ACCOUNT_PREFERENCE_KEYS, sendAccountPreferences } from './accountPreferences';
 import { useEntitlement } from './usePlan';
 import type { Plan } from './planOffers';
 
@@ -22,7 +23,7 @@ import type { Plan } from './planOffers';
  */
 
 /** `localStorage`-Schlüssel der KI-Präferenz (muss mit den e2e-Tests übereinstimmen). */
-export const AI_ENABLED_STORAGE_KEY = 'pp-ai-enabled';
+export const AI_ENABLED_STORAGE_KEY = ACCOUNT_PREFERENCE_KEYS.aiEnabled;
 
 interface AiPreferences {
 	/** KI-Features (Anlege-Dialog mit Berater, Lektorate) sichtbar? Default `true`. */
@@ -48,13 +49,14 @@ export const readAiPreferences = (): AiPreferences => {
 	};
 };
 
-/** Speichert die Präferenz (Best-Effort); Fehler (z. B. voller/gesperrter Storage) werden ignoriert. */
+/** Speichert die Präferenz im Spiegel und am Konto (#2398, Best-Effort); Fehler werden ignoriert. */
 export const storeAiPreferences = (preferences: AiPreferences): void => {
 	try {
 		localStorage.setItem(AI_ENABLED_STORAGE_KEY, String(preferences.aiEnabled));
 	} catch {
 		// Persistenz ist Best-Effort; die Wahl gilt zumindest für die laufende Sitzung.
 	}
+	sendAccountPreferences({ aiEnabled: preferences.aiEnabled });
 };
 
 interface UseAiPreferencesResult extends AiPreferences {

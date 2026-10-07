@@ -329,6 +329,16 @@ export const registerOwnSession = async (page: Page, label: string): Promise<voi
 };
 
 /**
+ * Setzt Konto-Präferenzen der eigenen Session (#2398). Mit Session zieht die App beim Start den
+ * Kontostand nach und überschreibt den `localStorage`-Spiegel — ein reiner `addInitScript`-Seed
+ * (z. B. `pp-expert-mode`) hält dann nur bis zum ersten Abgleich.
+ */
+export const seedAccountPreferences = async (page: Page, preferences: Record<string, boolean>): Promise<void> => {
+	const response = await page.request.put('/api/v1/account-preferences', { data: preferences });
+	expect(response.status(), 'Konto-Präferenzen müssen gespeichert werden').toBe(200);
+};
+
+/**
  * Vollverteilung über alle Säulen für API-Fixtures (#2077): jeder Anteil in [5, 80], Summe
  * exakt 100, `emphasisIndex` trägt den Höchstanteil; `confidence` nur bei Übergabe. Die reine
  * Logik liegt für den Unit-Test in `src/lib/pillarContributions.ts` (#2154: Vitest excludiert

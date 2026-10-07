@@ -9,8 +9,10 @@
  * crashen → alle Zugriffe sind Best-Effort.
  */
 
+import { ACCOUNT_PREFERENCE_KEYS, sendAccountPreferences } from './accountPreferences';
+
 /** `localStorage`-Schlüssel der Balance-Präferenz (muss mit den e2e-Tests übereinstimmen). */
-export const BALANCE_PRIORITY_STORAGE_KEY = 'pp-balance-priority';
+export const BALANCE_PRIORITY_STORAGE_KEY = ACCOUNT_PREFERENCE_KEYS.balancePriority;
 
 /** `localStorage`-Schlüssel des Einmal-Hinweis-Dismiss (#1792 AK4). */
 export const BALANCE_HINT_DISMISS_KEY = 'pp-balance-hint-dismissed';
@@ -39,13 +41,14 @@ export const readBalancePreferences = (): BalancePreferences => ({
 	balancePriority: readStoredFlag(BALANCE_PRIORITY_STORAGE_KEY) ?? true,
 });
 
-/** Speichert die Präferenz (Best-Effort); Fehler (z. B. voller/gesperrter Storage) werden ignoriert. */
+/** Speichert die Präferenz im Spiegel und am Konto (#2398, Best-Effort); Fehler werden ignoriert. */
 export const storeBalancePreferences = (preferences: BalancePreferences): void => {
 	try {
 		localStorage.setItem(BALANCE_PRIORITY_STORAGE_KEY, String(preferences.balancePriority));
 	} catch {
 		// Persistenz ist Best-Effort; die Wahl gilt zumindest für die laufende Sitzung.
 	}
+	sendAccountPreferences({ balancePriority: preferences.balancePriority });
 };
 
 /**

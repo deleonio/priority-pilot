@@ -2194,6 +2194,62 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /account-preferences:
+    get:
+      summary: Inhaltliche Präferenzen des Kontos lesen
+      description: >-
+        Liefert KI-, Balance-Priorität-, Expertenmodus- und Geo-Schalter des
+        angemeldeten Kontos (#2398); nicht gespeicherte Werte mit dem bisherigen
+        Frontend-Default. Ohne Session 401 (kein Dev-Pass-Through-Nutzer). Der
+        Antwort-Header `x-csrf-token` stellt den CSRF-Token für den späteren PUT bereit.
+      operationId: getAccountPreferences
+      tags: [care]
+      responses:
+        '200':
+          description: Aktuelle Präferenzen (inkl. Defaults)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountPreferences'
+        '401':
+          description: Nicht angemeldet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Inhaltliche Präferenzen des Kontos speichern
+      description: >-
+        Speichert eine Teilmenge der vier Schalter am Konto (#2398); nicht gesendete
+        Felder bleiben unverändert. Kein bekanntes Feld oder ein Wert, der kein
+        boolean ist → HTTP 400 ohne Persistenz.
+      operationId: updateAccountPreferences
+      tags: [care]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountPreferencesInput'
+      responses:
+        '200':
+          description: Vollständiger gespeicherter Stand
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountPreferences'
+        '400':
+          description: Ungültige Präferenzen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Nicht angemeldet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /geo-config:
     get:
       summary: Geo-Konfiguration des Users lesen
@@ -5302,6 +5358,43 @@ components:
           type: string
           nullable: true
           description: Avatar-URL (null ohne Avatar)
+    AccountPreferences:
+      type: object
+      description: >-
+        Inhaltliche Präferenzen am Konto (#2398) — gelten auf allen angemeldeten
+        Geräten; Theme, Kopfzeile, Animationen, Sprach-Autostart und Hinweis-Banner
+        bleiben gerätelokal.
+      required: [aiEnabled, balancePriority, expertMode, geolocationEnabled]
+      properties:
+        aiEnabled:
+          type: boolean
+          description: KI-Bedienelemente sichtbar (Default true)
+        balancePriority:
+          type: boolean
+          description: Aufgabenliste nach Balance sortieren (Default true)
+        expertMode:
+          type: boolean
+          description: Fach-Regler sichtbar (Default false)
+        geolocationEnabled:
+          type: boolean
+          description: Standort-Erfassung aktiv (Default false)
+    AccountPreferencesInput:
+      type: object
+      description: Teilmenge der Präferenzen (#2398), mindestens ein Feld.
+      minProperties: 1
+      properties:
+        aiEnabled:
+          type: boolean
+          description: KI-Bedienelemente sichtbar (Default true)
+        balancePriority:
+          type: boolean
+          description: Aufgabenliste nach Balance sortieren (Default true)
+        expertMode:
+          type: boolean
+          description: Fach-Regler sichtbar (Default false)
+        geolocationEnabled:
+          type: boolean
+          description: Standort-Erfassung aktiv (Default false)
     BalanceVariant:
       type: object
       description: >-

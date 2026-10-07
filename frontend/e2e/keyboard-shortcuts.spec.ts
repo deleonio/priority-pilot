@@ -3,6 +3,7 @@ import { expect, test, type Page } from './fixtures';
 import {
 	openAccordionSection,
 	registerOwnSession,
+	seedAccountPreferences,
 	setEqualPillarWeights,
 	taskTitleText,
 	waitForStableView,
@@ -35,6 +36,8 @@ test.beforeEach(async ({ page }) => {
 		localStorage.setItem('pp-expert-mode', 'true');
 	});
 	await registerOwnSession(page, 'keyboard-shortcuts');
+	// Test-Pflege #2398: Expertenmodus liegt am Konto — der App-Start überschreibt den localStorage-Seed.
+	await seedAccountPreferences(page, { expertMode: true });
 });
 
 test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
