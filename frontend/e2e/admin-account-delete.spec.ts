@@ -10,7 +10,8 @@ import { waitForStableView } from './helpers';
  */
 
 const MOBILE = { width: 375, height: 812 } as const;
-const ADMIN = { email: 'admin-2327@example.com', displayName: 'Anna Admin' };
+// Eigener Anzeigename: alle Specs teilen ein Backend — weitere „Anna Admin“ hätten Konto-löschen-Buttons.
+const ADMIN = { email: 'admin-2327@example.com', displayName: 'Arne Admin' };
 
 const setup = async (page: Page, request: APIRequestContext, target: { email: string; displayName: string }) => {
 	const created = await request.post('/auth/test-login', { data: { ...target, role: 'member' } });

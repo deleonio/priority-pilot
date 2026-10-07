@@ -76,15 +76,15 @@ test.describe('#1958 Nutzerverwaltung — Rechnungsansicht je Nutzer', () => {
 		await waitForStableView(page, 'Balamentum');
 
 		// AK3: Ansicht je Nutzer, eindeutiges Label, Aufklappen lädt die Rechnungen nach.
-		await page.getByText('Rechnungen von Anna Admin').click();
+		// Zeile über die E-Mail: andere Specs legen im geteilten Backend weitere „Anna Admin“ an.
+		const row = page.locator('.admin-user', { hasText: ADMIN.email });
+		await row.getByText('Rechnungen von Anna Admin').click();
 
-		const entry = page.locator('.admin-user', { hasText: 'Anna Admin' }).locator('li', { hasText: 'INV-2026-000002' });
+		const entry = row.locator('li', { hasText: 'INV-2026-000002' });
 		await expect(entry).toBeVisible();
 		// #2086 AK6 (Test-Pflege): dynamischer Zahlungsstatus statt des festen „Ausgestellt“.
 		await expect(entry.getByText('Erstattet')).toBeVisible();
-		const paidEntry = page
-			.locator('.admin-user', { hasText: 'Anna Admin' })
-			.locator('li', { hasText: 'INV-2026-000001' });
+		const paidEntry = row.locator('li', { hasText: 'INV-2026-000001' });
 		await expect(paidEntry.getByText('Bezahlt')).toBeVisible();
 		await expect(page.getByText('Ausgestellt')).toHaveCount(0);
 		// AK3: Download-Zugriff je Rechnung — der zugängliche Name nennt die Rechnungsnummer.
