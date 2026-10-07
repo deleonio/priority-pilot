@@ -31,16 +31,32 @@ const isoDate = (date: Date): string => date.toISOString().slice(0, 10);
 const formatEuro = (amountCents: number): string => (amountCents / 100).toFixed(2).replace('.', ',');
 
 /**
+ * Vertragsbestätigung auf dem dauerhaften Datenträger (#2329, § 312f Abs. 2 BGB): Paket, Laufzeit,
+ * Preis, Zustimmung zum sofortigen Leistungsbeginn mit Kenntnisnahme vom Erlöschen des Widerrufsrechts,
+ * Zustimmungsdatum und Link auf /widerruf/. Gemeinsame Quelle für PDF und Mail; die Texte gibt der
+ * Autor vor dem Go-live frei.
+ */
+export const contractConfirmationLines = (label: string, priceCents: number, consentAt: Date): string[] => [
+	'Vertragsbestätigung',
+	`Paket und Laufzeit: ${label}`,
+	`Preis: ${formatEuro(priceCents)} EUR`,
+	`Sie haben am ${isoDate(consentAt)} ausdrücklich zugestimmt, dass wir sofort mit der`,
+	'Leistung beginnen, und zur Kenntnis genommen, dass Ihr Widerrufsrecht damit erlischt.',
+	'Widerrufsbelehrung: https://balamentum.modevel.de/widerruf/',
+];
+
+/**
  * Die Textzeilen des Rechnungs-PDFs (AK2): Nummer, Datum, beide Parteien, Leistungsbeschreibung
  * (`service`, z. B. `Paket plus (monthly)`), Leistungszeitraum, Betrag und der `taxNote`
  * (§19 UStG, kein Steuerausweis); vorhandene `lineItems` (#2142) stehen als Positionen vor dem Betrag. Die USt-IdNr.-Zeile erscheint nur bei gesetztem
- * `operator.ustId`.
+ * `operator.ustId`. Die `confirmation` (#2329) folgt nach dem Steuerhinweis.
  */
 export const invoicePdfLines = (
 	invoice: Invoice,
 	operator: InvoiceOperator,
 	recipient: InvoiceRecipient,
 	service: string,
+	confirmation: string[] = [],
 ): string[] => [
 	// Gutschrift (#2303): eigener Titel und Datumsbezeichnung; der Bezug aufs Original steht in `service`.
 	`${invoice.get('creditForInvoiceId') != null ? 'Gutschrift' : 'Rechnung'} ${invoice.get('number') as string}`,
@@ -62,6 +78,7 @@ export const invoicePdfLines = (
 	`Betrag: ${formatEuro(invoice.get('amountCents') as number)} ${invoice.get('currency') as string}`,
 	'',
 	invoice.get('taxNote') as string,
+	...(confirmation.length > 0 ? ['', ...confirmation] : []),
 ];
 
 /**
@@ -84,6 +101,7 @@ export const buildInvoicePdf = async (
 	operator: InvoiceOperator,
 	recipient: InvoiceRecipient,
 	service: string,
+	confirmation: string[] = [],
 ): Promise<Uint8Array> => {
 	fontBytes ??= readFile(FONT_PATH);
 	const bytes = await fontBytes;
@@ -92,7 +110,9 @@ export const buildInvoicePdf = async (
 	doc.registerFontkit(fontkit);
 	const font = await doc.embedFont(bytes, { subset: true });
 	const page = doc.addPage([595, 842]);
-	const lines = invoicePdfLines(invoice, operator, recipient, service).map((line) => printable(line, glyphs));
+	const lines = invoicePdfLines(invoice, operator, recipient, service, confirmation).map((line) =>
+		printable(line, glyphs),
+	);
 	page.drawText(lines.join('\n'), {
 		x: 48,
 		y: 794,

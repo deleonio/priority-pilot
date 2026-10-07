@@ -4,7 +4,15 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.18 - 2026-10-07
 
-_Keine für Nutzer sichtbaren Änderungen._
+_Enthält v0.18.0 – v0.18.2._
+
+### 🐞 Bug Fixes
+
+- fix(website): shrink image film section to 48rem by @deleonio in https://github.com/deleonio/priority-pilot/pull/2346
+
+### Other Changes
+
+- feat(server): confirm withdrawal consent on first invoice (#2329) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2336
 
 ## v0.17 - 2026-10-07
 
@@ -335,6 +343,7 @@ _Enthält v0.11.0 – v0.11.31._
 - feat(frontend): order settings tabs by plan tier by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1930
 - feat(frontend): show invoices to former subscribers by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1948
 - feat(server): anchor feedback as plan-independent feature (#1927) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1946
+- feat(server): anchor feedback as plan-independent feature (#1927) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1946
 
 ### 🔧 Engineering
 
@@ -352,7 +361,6 @@ _Enthält v0.11.0 – v0.11.31._
 - feat(frontend): merge plans and subscription into one settings tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1919
 - feat(frontend): require terms and privacy consent after login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1929
 - feat(server): push nearby tasks only on entry, once per 24 h (#1926) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1945
-- fix(ci): skip soft-abort labels on account limit (#1943) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1949
 - fix(ci): skip soft-abort labels on account limit (#1943) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1949
 - refactor(frontend): remove unreachable ai badge and custom provider gate by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1947
 

@@ -210,7 +210,7 @@ describe('Admin-Abo-Routen #1959 (Spec docs/spec/issue-1959.md)', () => {
 		const res = await fetch(`${server.baseUrl}/billing/subscriptions`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Cookie: member.cookie },
-			body: JSON.stringify({ plan: 'pro', period: 'monthly' }),
+			body: JSON.stringify({ plan: 'pro', period: 'monthly', withdrawalConsent: true }),
 		});
 		assert.equal(
 			res.status,

@@ -2,6 +2,8 @@ import type { Transaction } from 'sequelize';
 import sequelize from '../database.js';
 import { isPublicEndpoint } from '../llm/endpointGuard.js';
 import { CalendarEvent, CalendarSource } from '../models/index.js';
+import { fetchCaldavEvents } from './calendar-caldav.js';
+import { decryptSecret } from './secret-crypto.js';
 
 /**
  * Lesender Kalender-Abruf per ICS-Adresse (#2209, Spec `docs/spec/issue-2209.md`): holt die Datei
@@ -82,10 +84,15 @@ const toEvent = (props: Map<string, IcsProperty>): ParsedEvent | null => {
 	};
 };
 
-/** Termine mit Start im Fenster `[heute 00:00 UTC, now + 14 Tage]` (AK1/AK2). */
+/** Abruf-Fenster `[heute 00:00 UTC, now + 14 Tage]` in ms (AK1/AK2). */
+export const syncWindow = (now: Date): { from: number; to: number } => ({
+	from: Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+	to: now.getTime() + WINDOW_DAYS * DAY_MS,
+});
+
+/** Termine mit Start im {@link syncWindow} (AK1/AK2). */
 export const parseIcsEvents = (ics: string, now: Date): ParsedEvent[] => {
-	const from = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-	const to = now.getTime() + WINDOW_DAYS * DAY_MS;
+	const { from, to } = syncWindow(now);
 	const events: ParsedEvent[] = [];
 	let props: Map<string, IcsProperty> | null = null;
 	// Verschachtelte Komponenten (VALARM) tragen eigene SUMMARY/DESCRIPTION — die zählen nicht.
@@ -128,16 +135,21 @@ const readLimited = async (response: Response): Promise<string> => {
 };
 
 /**
- * Lädt die ICS-Datei — ausschließlich per GET, nie schreibend (AK6). SSRF-Sperre wie bei
- * LLM-Endpoints (F-2): keine internen Ziele, keine Redirects. `ICS_ALLOW_INTERNAL_HOSTS=1` hebt die
- * Sperre nur für die Tests mit Loopback-Stub auf (`test/helpers.ts`).
+ * Lädt die ICS-Datei — per GET, nie schreibend (AK6); `request` setzt nur der CalDAV-Abruf (#2211,
+ * lesendes `REPORT`). SSRF-Sperre wie bei LLM-Endpoints (F-2): keine internen Ziele, keine
+ * Redirects. `ICS_ALLOW_INTERNAL_HOSTS=1` hebt die Sperre nur für die Tests mit Loopback-Stub auf
+ * (`test/helpers.ts`).
  */
-export const fetchIcs = async (url: string, fetchImpl: typeof fetch = fetch): Promise<string> => {
+export const fetchIcs = async (
+	url: string,
+	fetchImpl: typeof fetch = fetch,
+	request: Pick<RequestInit, 'method' | 'headers' | 'body'> = { method: 'GET' },
+): Promise<string> => {
 	if (process.env.ICS_ALLOW_INTERNAL_HOSTS !== '1' && !(await isPublicEndpoint(url))) {
 		throw new Error('Kalender-Adresse zeigt auf eine interne Adresse.');
 	}
 	const response = await fetchImpl(url, {
-		method: 'GET',
+		...request,
 		redirect: 'error',
 		signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
 	});
@@ -158,11 +170,23 @@ export const replaceCalendarEvents = async (
 	);
 };
 
-/** Scheduler-Job (AK6): ruft jede Quelle ab; eine fehlerhafte Quelle hält die übrigen nicht auf. */
+/**
+ * Scheduler-Job (AK6): ruft jede Quelle ab, CalDAV-Quellen mit entschlüsseltem Passwort (#2211);
+ * eine fehlerhafte Quelle hält die übrigen nicht auf.
+ */
 export const runCalendarSync = async (now: Date = new Date(), fetchImpl: typeof fetch = fetch): Promise<void> => {
 	for (const source of await CalendarSource.findAll()) {
 		try {
-			const events = parseIcsEvents(await fetchIcs(source.url, fetchImpl), now);
+			const events =
+				source.type === 'caldav'
+					? await fetchCaldavEvents(
+							source.url,
+							source.username ?? '',
+							decryptSecret(source.passwordEncrypted ?? ''),
+							now,
+							fetchImpl,
+						)
+					: parseIcsEvents(await fetchIcs(source.url, fetchImpl), now);
 			await sequelize.transaction(async (transaction) => {
 				// Während des Abrufs gelöschte Quelle: keine verwaisten Termine anlegen.
 				if (await CalendarSource.findByPk(source.id, { transaction })) {

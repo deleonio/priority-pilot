@@ -55,6 +55,70 @@ vi.mock('@public-ui/react-v19', () => ({
 			{...(rest as Record<string, unknown>)}
 		/>
 	),
+	KolInputPassword: ({
+		_label,
+		_value,
+		_on,
+	}: {
+		_label?: string;
+		_value?: string;
+		_on?: { onInput?: (_e: unknown, v: string) => void };
+	}) => (
+		<input
+			type="password"
+			aria-label={_label}
+			value={_value ?? ''}
+			onChange={(e) => _on?.onInput?.(e.nativeEvent, e.target.value)}
+		/>
+	),
+	KolInputRadio: ({
+		_label,
+		_options,
+		_value,
+		_on,
+	}: {
+		_label?: string;
+		_options?: { label: string; value: string }[];
+		_value?: string;
+		_on?: { onChange?: (_e: unknown, v: string) => void };
+	}) => (
+		<div role="radiogroup" aria-label={_label}>
+			{(_options ?? []).map((option) => (
+				<label key={option.value}>
+					<input
+						type="radio"
+						name="source-type"
+						checked={_value === option.value}
+						onChange={(e) => _on?.onChange?.(e.nativeEvent, option.value)}
+					/>
+					{option.label}
+				</label>
+			))}
+		</div>
+	),
+	KolSingleSelect: ({
+		_label,
+		_options,
+		_value,
+		_on,
+	}: {
+		_label?: string;
+		_options?: { label: string; value: string }[];
+		_value?: string[] | string;
+		_on?: { onChange?: (_e: unknown, v: unknown) => void };
+	}) => (
+		<select
+			aria-label={_label}
+			value={Array.isArray(_value) ? (_value[0] ?? '') : (_value ?? '')}
+			onChange={(e) => _on?.onChange?.(e.nativeEvent, [e.target.value])}
+		>
+			{(_options ?? []).map((option) => (
+				<option key={option.value} value={option.value}>
+					{option.label}
+				</option>
+			))}
+		</select>
+	),
 	KolSpin: ({ _label }: { _label?: string }) => <span role="status">{_label ?? 'wird geladen'}</span>,
 	KolAlert: ({ _label, children }: { _label?: string; children?: React.ReactNode }) => (
 		<div role="alert">
@@ -187,5 +251,58 @@ describe('CalendarSourcesSection (#2210)', () => {
 
 		expect(apiMocks.deleteCalendarSource).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
 		expect(screen.queryByText('Arbeit')).toBeNull();
+	});
+
+	describe('CalDAV (#2211, AK7)', () => {
+		// Typ-Wahl als Radio („CalDAV") oder Select mit Option „CalDAV" — beides erlaubt.
+		const chooseCalDav = () => {
+			const radio = screen.queryByRole('radio', { name: /caldav/i });
+			if (radio !== null) fireEvent.click(radio);
+			else fireEvent.change(screen.getByRole('combobox'), { target: { value: 'caldav' } });
+		};
+
+		it('ICS bleibt Standard: keine Felder für Benutzername und Passwort', async () => {
+			apiMocks.listCalendarSources = vi.fn().mockResolvedValue([]);
+			render(<CalendarSourcesSection />);
+			await flush();
+
+			expect(screen.queryByLabelText(/benutzername/i)).toBeNull();
+			expect(screen.queryByLabelText(/passwort/i)).toBeNull();
+		});
+
+		it('CalDAV zeigt Benutzername und maskiertes Passwort; Verbinden sendet alle Felder, das Passwort wird danach geleert', async () => {
+			apiMocks.listCalendarSources = vi.fn().mockResolvedValue([]);
+			apiMocks.createCalendarSource = vi.fn().mockResolvedValue({ id: 3, name: 'Dienst', type: 'caldav' });
+			const { container } = render(<CalendarSourcesSection />);
+			await flush();
+
+			chooseCalDav();
+			const password = screen.getByLabelText(/passwort/i) as HTMLInputElement;
+			expect(password.type).toBe('password');
+			fireEvent.change(screen.getByLabelText(/benutzername/i), { target: { value: 'max@example.org' } });
+			fireEvent.change(password, { target: { value: 'app-pw-2211' } });
+			await fillAndConnect(ICS_URL, 'Dienst');
+
+			expect(apiMocks.createCalendarSource).toHaveBeenCalledWith({
+				type: 'caldav',
+				url: ICS_URL,
+				username: 'max@example.org',
+				password: 'app-pw-2211',
+				name: 'Dienst',
+			});
+			expect((screen.getByLabelText(/passwort/i) as HTMLInputElement).value).toBe('');
+			expect(container.innerHTML).not.toContain('app-pw-2211');
+			expect(container.innerHTML).not.toContain('geheim-token');
+		});
+
+		it('eine CalDAV-Quelle in der Liste trägt den Hinweis „CalDAV", ohne Adresse', async () => {
+			apiMocks.listCalendarSources = vi.fn().mockResolvedValue([{ id: 2, name: 'Dienst', type: 'caldav' }]);
+			const { container } = render(<CalendarSourcesSection />);
+			await flush();
+
+			const row = screen.getByTestId('calendar-source-row');
+			expect(row.textContent).toMatch(/caldav/i);
+			expect(container.innerHTML).not.toMatch(/https?:\/\//);
+		});
 	});
 });

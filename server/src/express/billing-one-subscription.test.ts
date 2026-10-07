@@ -92,7 +92,11 @@ describe('Ein Abo über alle Anbieter (#1690)', () => {
 		const cookie = await server.login('play-zuerst@example.com');
 		await subscribe((await me(cookie)).id, 'google_play', 'active');
 
-		const res = await post(cookie, '/billing/subscriptions', { plan: 'plus', period: 'monthly' });
+		const res = await post(cookie, '/billing/subscriptions', {
+			plan: 'plus',
+			period: 'monthly',
+			withdrawalConsent: true,
+		});
 
 		assert.equal(res.status, 409);
 		assert.equal(await Subscription.count(), 1);

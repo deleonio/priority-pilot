@@ -36,6 +36,8 @@ class Subscription extends Model {
 	public cancellationReason?: string | null;
 	public cancellationEmail?: string | null;
 	public cancellationRequestedAt?: Date | null;
+	/** Zustimmung zum sofortigen Leistungsbeginn beim Erstkauf (#2329, § 312f BGB) — Serverzeit des Checkout-Starts. */
+	public withdrawalConsentAt?: Date | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -118,6 +120,10 @@ Subscription.init(
 			allowNull: true,
 		},
 		cancellationRequestedAt: {
+			type: DataTypes.DATE,
+			allowNull: true,
+		},
+		withdrawalConsentAt: {
 			type: DataTypes.DATE,
 			allowNull: true,
 		},

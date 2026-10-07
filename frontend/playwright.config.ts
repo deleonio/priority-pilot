@@ -79,6 +79,8 @@ export default defineConfig({
 				// ICS-Abruf (#2209/#2210): die Specs liefern die Kalenderdatei von einem lokalen Stub aus;
 				// ohne die Freigabe sperrt die SSRF-Prüfung 127.0.0.1.
 				ICS_ALLOW_INTERNAL_HOSTS: '1',
+				// CalDAV (#2211): ohne Schlüssel lehnt der Server CalDAV-Quellen ab (AK5).
+				CALDAV_ENCRYPTION_KEY: 'e2e-caldav-key',
 				MISTRAL_API_KEY: '',
 				OPENROUTER_API_KEY: '',
 				MISTRAL_MODEL: '',
