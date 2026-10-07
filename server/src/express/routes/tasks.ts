@@ -6,6 +6,8 @@ import sequelize from '../../database.js';
 import { Group, GroupMember, Pillar, ScoreEntry, Task, TaskPillar, User } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
 import { haversineKm } from '../../logics/geo.js';
+import { classifyLlmSuitability } from '../../logics/llmSuitability.js';
+import { shouldBlockFeature } from '../../logics/plans.js';
 import { selectSeriesRepresentatives } from '../../logics/series.js';
 import { ZURUECKSTELLEN_STUNDEN } from '../../logics/find.js';
 import { berechneScore } from '../../logics/score.js';
@@ -119,6 +121,8 @@ export interface TaskSerializeContext {
 	names?: Map<number, string>;
 	/** Gruppennamen zu den referenzierten `groupId`s (#1521) — ein Sammel-Query statt je Task. */
 	groupNames?: Map<number, string>;
+	/** Paket des Requesters enthält `ai_assist` (#2349) — nur dann wird `aiSuitability` berechnet. */
+	aiAssist?: boolean;
 }
 
 /**
@@ -196,6 +200,8 @@ export const serializeTask = (task: Task, context: TaskSerializeContext = {}): T
 		// jedes Mitglied eine Gruppen-Aufgabe.
 		groupId: task.groupId ?? null,
 		groupName: task.groupId != null ? (context.groupNames?.get(task.groupId) ?? null) : null,
+		// #2349: KI-Eignung beim Lesen berechnet (Heuristik, kein LLM), nur mit Paketmerkmal ai_assist.
+		...(context.aiAssist ? { aiSuitability: classifyLlmSuitability(task.title, task.description) } : {}),
 		pillars: (task.Pillars ?? [])
 			.map((pillar) => ({
 				pillarId: pillar.id,
@@ -330,7 +336,9 @@ const serializeTasksFor = async (req: Request, tasks: Task[]): Promise<TaskDto[]
 	const requester = await resolveGeoUser(req);
 	const names = await loadUserNames(tasks.flatMap((task) => [task.createdById ?? 0, task.userId ?? 0]));
 	const groupNames = await loadGroupNames(tasks.map((task) => task.groupId ?? 0));
-	return tasks.map((task) => serializeTask(task, { requesterId: requester?.id ?? null, names, groupNames }));
+	// Plan unbekannt (Pass-Through ohne Nutzer) blockt wie `requirePlanFeature` nie.
+	const aiAssist = requester?.plan === undefined || !shouldBlockFeature(requester.plan, 'ai_assist');
+	return tasks.map((task) => serializeTask(task, { requesterId: requester?.id ?? null, names, groupNames, aiAssist }));
 };
 
 /**

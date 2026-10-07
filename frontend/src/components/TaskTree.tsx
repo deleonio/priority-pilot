@@ -12,6 +12,9 @@ import { isDoneBlockedBySubtasks, priorityBadge, sortPinnedFirst } from '../lib/
 import { sortTasksByBalance, virtualPriorityLabel, type BalancePriority } from '../lib/balancePriority';
 import { setupPopoverAlignment } from '../lib/popoverAlign';
 
+/** Anzeigename der KI-Eignungs-Kategorie (#2349). */
+const AI_SUITABILITY_LABEL = { draft: 'Entwurf', summary: 'Zusammenfassung', research: 'Recherche' } as const;
+
 interface TaskTreeProps {
 	/** Aufgabenwald (`GET /forest`), ggf. bereits gefiltert (`filterForest`): Wurzeln und ihre `dependents` (Unteraufgaben). */
 	forest: TaskTreeNode[];
@@ -173,6 +176,16 @@ const LeafItem = ({
 								data-testid="group-task-badge"
 								className="task-tree-badge task-tree-badge--provenance task-tree-badge-anchor"
 							>{`Für: ${task.groupName}`}</span>
+						)}
+						{/* #2349: KI-Eignung (Heuristik, nur mit ai_assist) als nicht-interaktives Text-Badge; Light-DOM-Span
+						    wie das Gruppen-Badge (Test-Anker + messbare Box), ohne Upsell-Hinweis (ADR 0014). */}
+						{task?.aiSuitability != null && (
+							<span
+								data-testid="ai-suitability-badge"
+								className="task-tree-badge task-tree-badge--provenance task-tree-badge-anchor"
+							>
+								{AI_SUITABILITY_LABEL[task.aiSuitability]}
+							</span>
 						)}
 						{task !== null && task.forUserName == null && task.createdByName != null && task.createdById !== userId && (
 							<KolBadge

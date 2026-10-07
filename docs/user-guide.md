@@ -199,6 +199,8 @@ Rechts an jeder Zeile können **Kennzeichen** stehen:
 - **Für: {Name}** bzw. **Erstellt von: {Name}** – bei Aufgaben, die du für ein
   Gruppenmitglied angelegt hast oder die jemand für dich angelegt hat (siehe „Gruppen").
 - **Kategorie** – das farbige Kennzeichen mit dem Namen der Kategorie (siehe „Kategorien").
+- **Entwurf / Zusammenfassung / Recherche** – dort könnte die KI vorarbeiten; die App erkennt das am Titel und der
+  Beschreibung, ohne dass etwas an die KI geschickt wird. Nur mit KI-Paketmerkmal sichtbar.
 - **Serie** (Wiederholen-Symbol) – die Aufgabe stammt aus einer Serie.
 - **geändert** – eine Serien-Instanz, die du abweichend bearbeitet hast.
 - **Fortschritt** als `erledigt/gesamt` – nur bei Aufgaben mit Unteraufgaben; zählt
