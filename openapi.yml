@@ -99,6 +99,26 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '403':
           $ref: '#/components/responses/PlanRequired'
+  /tasks/free-slots:
+    get:
+      summary: Freie Zeit — Kalender-Lücken mit passenden Aufgaben (#1990)
+      description: >-
+        Liefert die Lücken im verbundenen Kalender von jetzt bis 22:00 (Serverzeit), die
+        mindestens `freeSlotMinMinutes` lang sind, je Lücke höchstens drei offene Aufgaben,
+        deren Aufwand (0.1 → 15 min … 1.0 → 120 min) hineinpasst, in Empfehlungs-Reihenfolge.
+        Höchstens drei Lücken. Ohne Kalenderquelle oder bei Fehlern eine leere Liste.
+      operationId: listFreeSlots
+      tags: [tasks]
+      responses:
+        '200':
+          description: Lücken mit passenden Aufgaben (ggf. leer).
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 3
+                items:
+                  $ref: '#/components/schemas/FreeSlot'
   /tasks/{id}:
     parameters:
       - $ref: '#/components/parameters/TaskId'
@@ -2136,6 +2156,45 @@ paths:
                 $ref: '#/components/schemas/Error'
         '403':
           $ref: '#/components/responses/PlanRequired'
+  /free-slot-config:
+    get:
+      summary: Mindestdauer freier Lücken lesen
+      description: >-
+        Liefert die pro User gespeicherte Mindestdauer freier Kalender-Lücken (#1990), Default 30 Minuten.
+      operationId: getFreeSlotConfig
+      tags: [tasks]
+      responses:
+        '200':
+          description: Aktuelle Mindestdauer (inkl. Default)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FreeSlotConfig'
+    put:
+      summary: Mindestdauer freier Lücken speichern
+      description: >-
+        Speichert die Mindestdauer (#1990): ganze Zahl in [10, 240]. Verstöße → HTTP 400 ohne Persistenz.
+      operationId: updateFreeSlotConfig
+      tags: [tasks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FreeSlotConfig'
+      responses:
+        '200':
+          description: Gespeicherte Mindestdauer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FreeSlotConfig'
+        '400':
+          description: Ungültiger Wert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /care-config:
     get:
       summary: Care-Konfiguration des Users lesen
@@ -5135,6 +5194,38 @@ components:
           minimum: 1
           maximum: 60
           description: Aktualisierungsintervall in Minuten (Default 5)
+    FreeSlotConfig:
+      type: object
+      description: Mindestdauer freier Kalender-Lücken pro User (#1990).
+      required: [freeSlotMinMinutes]
+      properties:
+        freeSlotMinMinutes:
+          type: integer
+          minimum: 10
+          maximum: 240
+          description: Mindestdauer in Minuten (Default 30)
+    FreeSlot:
+      type: object
+      description: Eine freie Kalender-Lücke mit passenden offenen Aufgaben (#1990).
+      required: [start, end, tasks]
+      properties:
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+        tasks:
+          type: array
+          maxItems: 3
+          items:
+            type: object
+            required: [id, title]
+            properties:
+              id:
+                type: integer
+              title:
+                type: string
     CareConfig:
       type: object
       description: >-

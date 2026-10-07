@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { KolBadge, KolButton, KolCard, KolMeter } from '@public-ui/react-v19';
+import { FreeTimeCard } from './FreeTimeCard';
 import { NearbyCard } from './NearbyCard';
 import { CareHint } from './CareHint';
 import { WelcomeSteps } from './WelcomeSteps';
@@ -429,6 +430,8 @@ export const Dashboard = ({
 			{/* #1098 AK4: „In der Nähe" nur rendern, wenn die Standorterfassung an ist —
 			    ausgeschaltet verschwindet die Card komplett (keine Hinweis-Card mehr).
 			    Bei Browser-Verweigerung (#1066 AK4) bleibt sie für den Ablehn-Hinweis stehen. */}
+			{/* #1990: „Freie Zeit" vor „In der Nähe" — erscheint nur mit Kalender und passender Lücke. */}
+			<FreeTimeCard />
 			{(geoEnabled || geoDenied) && <NearbyCard />}
 			<KolCard className="dashboard-top-tasks" _label="Wichtigste Tasks" _level={3}>
 				{topTasks.length === 0 ? (

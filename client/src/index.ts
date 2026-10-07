@@ -25,6 +25,8 @@ export type TaskGraphNode = Schemas['TaskGraphNode'];
 export type TaskGraphEdge = Schemas['TaskGraphEdge'];
 export type NearbyTask = Schemas['NearbyTask'];
 export type GeoConfig = Schemas['GeoConfig'];
+export type FreeSlotConfig = Schemas['FreeSlotConfig'];
+export type FreeSlot = Schemas['FreeSlot'];
 /** #1794: Fürsorge-Push-Schalter + Nutzer-Zeitzone (Ruhezeit/Kalendertag). */
 export type CareConfig = Schemas['CareConfig'];
 export type CareVorschlag = Schemas['CareVorschlag'];

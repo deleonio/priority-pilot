@@ -925,6 +925,22 @@ export const migrateUsersBalanceVariantColumn = async (db: Sequelize): Promise<v
 };
 
 /**
+ * Zieht die `freeSlotMinMinutes`-Spalte (Mindestdauer freier Lücken, #1990) auf einer **bestehenden**
+ * `users`-Tabelle nach — analog `migrateUsersBalanceVariantColumn`, Default 30 wie im Modell.
+ */
+export const migrateUsersFreeSlotMinMinutesColumn = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('users')");
+	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
+
+	if (existing.size === 0 || existing.has('freeSlotMinMinutes')) {
+		return;
+	}
+
+	await db.query('ALTER TABLE `users` ADD COLUMN `freeSlotMinMinutes` INTEGER NOT NULL DEFAULT 30');
+	console.log('Spalte freeSlotMinMinutes an users nachgezogen.');
+};
+
+/**
  * Zieht die CalDAV-Spalten (`type`, `username`, `passwordEncrypted`, #2211) auf einer **bestehenden**
  * `calendar_sources`-Tabelle nach, BEVOR `sequelize.sync()` läuft — Muster
  * {@link migrateInvoicePaymentStatusColumn}. Bestandsquellen sind ICS (Default `ics`). Idempotent;
