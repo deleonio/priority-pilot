@@ -4698,6 +4698,8 @@ paths:
         zur E-Mail noch kein Konto, wird es angelegt (Verknüpfung über die E-Mail wie
         beim Google-Login). Ein Token gilt genau einmal. Bewusst POST statt GET:
         Mail-Scanner rufen Links vorab auf und würden den Token sonst verbrauchen.
+        Mit `X-Client-Channel: play` (Android-App) antwortet die Route statt mit
+        Session-Cookie mit einem App-Token (#2377).
       operationId: verifyMagicLink
       tags: [auth]
       requestBody:
@@ -4707,6 +4709,12 @@ paths:
             schema:
               $ref: '#/components/schemas/MagicLinkVerifyRequest'
       responses:
+        '200':
+          description: Angemeldet im Kanal `play` — App-Token statt Session-Cookie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppToken'
         '204':
           description: Angemeldet, Session-Cookie gesetzt
         '400':
@@ -4755,6 +4763,8 @@ paths:
         Google-Login auf den App Link `/app/auth/native?code=…` weiterleitet, und meldet
         den WebView der nativen App an (ADR 0016, #1669). Ein Code gilt 60 Sekunden,
         genau einmal und nur zusammen mit dem `state`, mit dem die App den Login gestartet hat.
+        Mit `X-Client-Channel: play` antwortet die Route statt mit Session-Cookie mit einem
+        App-Token (#2377).
       operationId: exchangeNativeLoginCode
       tags: [auth]
       requestBody:
@@ -4764,6 +4774,12 @@ paths:
             schema:
               $ref: '#/components/schemas/NativeLoginExchangeRequest'
       responses:
+        '200':
+          description: Angemeldet im Kanal `play` — App-Token statt Session-Cookie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppToken'
         '204':
           description: Angemeldet, Session-Cookie gesetzt
         '400':
@@ -8976,6 +8992,16 @@ components:
         acceptPrivacy:
           type: boolean
           enum: [true]
+    AppToken:
+      type: object
+      description: >-
+        App-Token der Android-App (#2377). Authentifiziert jede Anfrage per
+        `Authorization: Bearer`, sessiongleich und ohne CSRF; `POST /auth/logout` zieht es zurück.
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: Klartext-Token (`pp_<32 Hex>`); nur in dieser Antwort enthalten
     NativeLoginExchangeRequest:
       type: object
       required:

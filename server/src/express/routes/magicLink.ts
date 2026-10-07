@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { sendError, type ErrorDto } from '../http-error.js';
 import { hasGoogleOAuth } from '../requireAuth.js';
 import { establishSession } from '../establishSession.js';
+import { issueAppToken } from '../apiTokenAuth.js';
 import { isDbEmailAllowed, isEmailAllowed, isOpenSignup } from '../../logics/allowedEmails.js';
 import { sendMailToUser, type MailSender } from '../../logics/mail.js';
 import { buildMagicLinkUrl, consumeLoginToken, createLoginToken, isMagicLinkEnabled } from '../../logics/magicLink.js';
@@ -13,6 +14,7 @@ import type { components } from '../../api';
 type AuthProvidersDto = components['schemas']['AuthProviders'];
 type MagicLinkRequestDto = components['schemas']['MagicLinkRequest'];
 type MagicLinkVerifyRequestDto = components['schemas']['MagicLinkVerifyRequest'];
+type AppTokenDto = components['schemas']['AppToken'];
 
 const NOT_CONFIGURED = 'Anmeldung per E-Mail-Link ist nicht konfiguriert (SMTP/PUBLIC_BASE_URL fehlen).';
 
@@ -81,8 +83,9 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 	});
 
 	// POST /auth/magic-link/verify — Token einlösen und anmelden. Bewusst POST: Mail-Scanner rufen
-	// Links per GET vorab auf und würden den Token sonst entwerten.
-	router.post('/auth/magic-link/verify', async (req: Request, res: Response<ErrorDto>) => {
+	// Links per GET vorab auf und würden den Token sonst entwerten. Im Kanal `play` antwortet die Route
+	// statt mit Session-Cookie mit einem App-Token (#2377).
+	router.post('/auth/magic-link/verify', async (req: Request, res: Response<AppTokenDto | ErrorDto>) => {
 		if (!isMagicLinkEnabled()) {
 			sendError(res, 503, NOT_CONFIGURED);
 			return;
@@ -97,6 +100,10 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 
 		// Ohne Profildaten: Name und Avatar eines Bestandsnutzers (z. B. aus Google) bleiben stehen.
 		const user = await upsertOAuthUser({ email });
+		if (req.get('X-Client-Channel') === 'play') {
+			res.json({ token: await issueAppToken(user.id) });
+			return;
+		}
 		establishSession(req, user, (sessionErr) => {
 			if (sessionErr) {
 				sendError(res, 500, 'Session-Fehler.');

@@ -16,6 +16,22 @@ export const generateApiToken = (): string => `${TOKEN_PREFIX}${randomBytes(16).
 export const hashApiToken = (token: string): string => createHash('sha256').update(token).digest('hex');
 
 /**
+ * Legt das App-Token der Android-App an (#2377) und liefert den Klartext. Sessiongleich: `readwrite`,
+ * ohne Ablaufdatum — es endet mit `POST /auth/logout`.
+ */
+export const issueAppToken = async (userId: number): Promise<string> => {
+	const token = generateApiToken();
+	await ApiToken.create({
+		userId,
+		name: 'Android-App',
+		tokenHash: hashApiToken(token),
+		scope: 'readwrite',
+		kind: 'app',
+	});
+	return token;
+};
+
+/**
  * Neutralisiert das Speichern der Session für diesen Request. Bearer-Requests sind zustandslos: der
  * synthetisierte (bzw. verworfene) Nutzer darf nicht im Session-Store landen — sonst wüchse er mit
  * jedem Request eines externen Clients, und ein kaputter Bearer-Header löschte die Browser-Session
@@ -94,8 +110,11 @@ export const apiTokenAuth = async (req: Request, res: Response, next: NextFuncti
 		// Plan-Deckel (#1460): ein in der DB auf readwrite stehender Token schreibt nur noch, wenn
 		// das aktuelle Paket des Besitzers mcp_readwrite enthält. Der Spaltenwert bleibt unverändert
 		// (ein Upgrade wirkt sofort wieder) — nur der für diesen Request wirksame Scope wird herabgestuft.
-		const planCapped = record.scope === 'readwrite' && shouldBlockFeature(user.plan, 'mcp_readwrite');
+		// App-Tokens (#2377) sind sessiongleich und unterliegen keinem Plan-Deckel.
+		const planCapped =
+			record.kind === 'api' && record.scope === 'readwrite' && shouldBlockFeature(user.plan, 'mcp_readwrite');
 		req.apiTokenId = record.id;
+		req.apiTokenKind = record.kind;
 		req.apiTokenScope = planCapped ? 'read' : record.scope;
 		req.apiTokenPlanCapped = planCapped;
 		req.session.user = {
@@ -150,9 +169,10 @@ const normalizePath = (path: string): string => (path.length > 1 ? path.replace(
  *   (`mcp/tools.ts`, `callApi`) laufen mit demselben Bearer-Header ein zweites Mal durch diesen
  *   Guard und übersetzen den `plan_required`-Fehlerkörper generisch in einen JSON-RPC-Fehler —
  *   `mcp/server.ts`/`mcp/tools.ts` brauchen dafür keine eigene Änderung.
+ * - App-Tokens (#2377) sind sessiongleich und passieren den Guard wie eine Browser-Session.
  */
 export const apiTokenScopeGuard = (req: Request, res: Response, next: NextFunction): void => {
-	if (!isApiTokenRequest(req)) {
+	if (!isApiTokenRequest(req) || req.apiTokenKind === 'app') {
 		next();
 		return;
 	}

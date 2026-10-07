@@ -70,6 +70,7 @@ import { findNextBewertung, findSuggestedBewertungen, toReasons, toScoreBreakdow
 import { isDbEmailAllowed, isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
 import { requireAuth, getUserId, hasGoogleOAuth } from './requireAuth.js';
 import { apiTokenAuth, isApiTokenRequest, apiTokenScopeGuard } from './apiTokenAuth.js';
+import { nativeCors } from './nativeCors.js';
 import { createCsrfUtilities } from './csrf.js';
 import { upsertOAuthUser } from '../logics/oauthUser.js';
 import { sendError } from './http-error.js';
@@ -114,6 +115,9 @@ export interface AppDeps {
 export const createApp = (deps: AppDeps = {}) => {
 	const app = express();
 	app.set('trust proxy', 1);
+
+	// CORS für die Android-App (#2377): ganz vorn, damit Preflights vor Session, CSRF und Auth enden.
+	app.use(nativeCors);
 
 	// Zahlungsanbieter-Schnittstelle (#1495): bewusst VOR `express.json()`, der CSRF-Prüfung und
 	// `requireAuth` gemountet — die Webhook-Route braucht den unveränderten Rohbody für die

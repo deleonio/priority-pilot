@@ -208,7 +208,8 @@ Passwort- und Magic-Link-Login, Warteliste-Eintrag und Native-Code-Austausch, `/
 `/webhooks/paypal` und `/billing/google/rtdn`) liegen vor
 `requireAuth`, alle fachlichen Endpunkte danach hinter der Session-
 oder Bearer-Token-Pflicht. Der globale `apiTokenScopeGuard` hängt hinter `requireAuth`, sperrt die
-Token-Verwaltung (`/api-tokens`) für Bearer-Zugriffe komplett und nimmt den MCP-Endpunkt
+Token-Verwaltung (`/api-tokens`) für Bearer-Zugriffe komplett (App-Tokens der Android-App, #2377,
+passieren ihn wie eine Session) und nimmt den MCP-Endpunkt
 (`/mcp/v1`) ausdrücklich aus — die Scope-Sperre für MCP-Werkzeuge greift stattdessen eine Ebene
 tiefer, am Loopback-Request von `mcp/tools.ts` gegen die Fachroute selbst. Nutzer tragen eine Rolle
 `admin`/`member`/`tester`: Nutzerliste und Rollenvergabe unter `/admin/users*` verlangen
@@ -274,7 +275,9 @@ Der dritte Weg ist klassisch (`POST /auth/register` nur mit `NODE_ENV=test` erre
 fünf persönlichen Säulen an und meldet direkt an, `POST /auth/login` prüft das Passwort mit
 timing-normalisiertem Fehlerverhalten (401 ohne Unterschied zwischen unbekannter Adresse und
 falschem Passwort). Die Android-App empfängt nach dem Google-Login einen Einmal-Code und tauscht
-ihn über `POST /auth/native/exchange` gegen eine Session (`LoginToken`, Zweck `native`).
+ihn über `POST /auth/native/exchange` gegen eine Session (`LoginToken`, Zweck `native`); mit
+`X-Client-Channel: play` erhält sie stattdessen ein App-Token (`ApiToken`, Art `app`), das sie per
+Bearer mitschickt. CORS gibt nur den WebView-Ursprung `https://localhost` frei (#2377).
 
 ### 6.2 Task mit KI-Säulen-Klassifikation anlegen
 

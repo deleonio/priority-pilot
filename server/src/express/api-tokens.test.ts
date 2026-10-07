@@ -4,6 +4,7 @@ import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } 
 import sequelize from '../database.js';
 import { User } from '../models/index.js';
 import { createNativeLoginCode } from '../logics/magicLink.js';
+import { allowEmail } from '../logics/allowedEmails.js';
 
 /**
  * Rote Spec-Tests für #1352 (Spec docs/spec/issue-1352.md) — persönliche API-Tokens.
@@ -438,6 +439,8 @@ describe('App-Tokens in der Token-Verwaltung (#2377 AK4, Spec docs/spec/issue-23
 	it('AK4: GET /api-tokens per Session listet keine App-Tokens, wohl aber die persoenlichen', async () => {
 		const email = 'app-list@example.com';
 		const cookie = await server.register(email, 'password123');
+		// Test-Pflege #2377: der Code-Tausch prueft die Allowlist erneut, diese Datei setzt keine.
+		await allowEmail(email, 'admin');
 		const state = 'app-state-0123456789';
 		const exchange = await server.json('/auth/native/exchange', {
 			method: 'POST',

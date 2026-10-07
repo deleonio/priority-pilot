@@ -1001,6 +1001,23 @@ export const migrateApiTokenExpiresAt = async (db: Sequelize): Promise<void> => 
 };
 
 /**
+ * Zieht die `kind`-Spalte (`'api'` | `'app'`, #2377) auf einer **bestehenden** `api_tokens`-Tabelle nach,
+ * BEVOR `sequelize.sync()` läuft — analog `migrateApiTokenScope`. Bestandszeilen bleiben persönliche
+ * API-Tokens (`'api'`). Idempotent; bei frischer DB No-op — `sync()` legt die Spalte an.
+ */
+export const migrateApiTokenKind = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('api_tokens')");
+	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
+
+	if (existing.size === 0 || existing.has('kind')) {
+		return;
+	}
+
+	await db.query("ALTER TABLE `api_tokens` ADD COLUMN `kind` VARCHAR(255) NOT NULL DEFAULT 'api'");
+	console.log('Spalte kind an api_tokens nachgezogen.');
+};
+
+/**
  * Zieht die `purpose`-Spalte (#1669) auf einer **bestehenden** `login_tokens`-Tabelle nach, bevor
  * `sequelize.sync()` läuft. Bestehende Zeilen sind Magic-Link-Tokens (`magic`). Idempotent
  * (Spalte vorhanden → No-op); bei frischer DB ebenso No-op — `sync()` legt die Spalte an.
