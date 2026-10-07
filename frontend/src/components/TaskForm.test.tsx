@@ -3771,9 +3771,11 @@ describe('TaskForm — Aufgabe als Vorlage speichern (#2361)', () => {
 		expect(screen.getByText('52.516300')).toBeInTheDocument();
 		expect(screen.getByText('13.377700')).toBeInTheDocument();
 
-		// Serien-Einstellungen: „Automatisch anlegen" aus, „Ohne Rhythmus", kein Startdatum-Feld.
+		// Serien-Einstellungen: „Automatisch anlegen" aus. Rhythmus-Auswahl und Startdatum-Feld
+		// rendert TaskForm bei ausgeschaltetem Auto-Anlegen gar nicht (#2414) — rhythm:'none' der
+		// Payload sichert AK2.
 		expect(screen.getByRole('switch', { name: 'Automatisch anlegen' })).not.toBeChecked();
-		expect((screen.getByTestId('select-Rhythmus') as HTMLSelectElement).value).toBe('none');
+		expect(screen.queryByTestId('select-Rhythmus')).toBeNull();
 		expect(screen.queryByLabelText('Startdatum')).toBeNull();
 
 		// UX-Sperre: Der Modus-Umschalter ist im Vorlage-Flow gesperrt (Wechsel auf „Aufgabe" würde
