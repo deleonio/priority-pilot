@@ -665,11 +665,16 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			assert.equal(downRes.status, 200);
 			// Test-Pflege (#2049 AK6): die Vorschau nennt zusätzlich den Startzeitpunkt (hier das
 			// Periodenende des aktiven Abos) — deepEqual führt das neue Feld mit.
+			// Test-Pflege (#2324 AK1): Downgrade ist jetzt „jetzt fällig 0“; der Katalogpreis steht in
+			// `priceCents`, das laufende Paket in `currentPlan`/`currentPeriod`.
 			assert.deepEqual(await downRes.json(), {
 				creditCents: 0,
-				dueCents: prices.plus.monthly,
+				dueCents: 0,
+				priceCents: prices.plus.monthly,
 				immediate: false,
 				startsAt: down.currentPeriodEnd.toISOString(),
+				currentPlan: 'pro',
+				currentPeriod: 'monthly',
 			});
 			// Test-Pflege (#2142 AK1, PO-Entscheidung): ein Zeitraumwechsel im gleichen Paket wirkt jetzt
 			// sofort mit Verrechnung wie ein Upgrade — siehe die #2142-Tests am Dateiende.
@@ -687,6 +692,21 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			assert.equal(res.status, 200);
 			const preview = (await res.json()) as { immediate?: boolean };
 			assert.equal(preview.immediate, true, 'Ein Upgrade wirkt sofort');
+		});
+
+		// #2324 (Spec docs/spec/issue-2324.md) AK1: die Vorschau nennt den Katalogpreis des Ziels,
+		// damit der Dialog „Preis − Guthaben = fällig“ zeigen kann.
+		it('#2324 AK1: Upgrade-Vorschau nennt priceCents = Katalogpreis Ziel × Laufzeit; fällig = Preis − Guthaben', async () => {
+			server = await startTestServer(withClient({}));
+			const { prices } = getPlansCatalog();
+			const up = await seedActive('ak1-up-2324@example.com', 'plus');
+
+			const res = await post(PREVIEW, up.cookie, { plan: 'pro', period: 'quarterly' });
+
+			assert.equal(res.status, 200);
+			const preview = (await res.json()) as { priceCents?: number; creditCents: number; dueCents: number };
+			assert.equal(preview.priceCents, prices.pro.quarterly);
+			assert.equal(preview.dueCents, prices.pro.quarterly - preview.creditCents);
 		});
 
 		it('AK3: ungültiges plan/period → 400', async () => {

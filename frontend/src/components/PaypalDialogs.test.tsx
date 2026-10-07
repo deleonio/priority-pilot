@@ -16,6 +16,9 @@ interface Preview {
 	immediate: boolean;
 	startsAt?: string;
 	creditCoversUntil?: string;
+	priceCents?: number;
+	currentPlan?: string;
+	currentPeriod?: string;
 }
 
 vi.mock('@public-ui/react-v19', () => ({
@@ -177,5 +180,55 @@ describe('ChangeDialog — Vorschau des fälligen Betrags (#1913)', () => {
 		expect(await screen.findByText('Guthaben reicht bis')).toBeTruthy();
 		expect(screen.getByText(/6\.2\.2027/)).toBeTruthy();
 		expect(screen.getByText('Fällig bei Zustimmung')).toBeTruthy();
+	});
+
+	// #2324 (Spec docs/spec/issue-2324.md): Upgrade zeigt Preis − Guthaben = fällig, Downgrade zeigt
+	// Laufzeitende, Folgepreis und „Jetzt fällig 0,00 €“.
+	const terms = (container: HTMLElement) => Array.from(container.querySelectorAll('dt')).map((dt) => dt.textContent);
+
+	it('#2324 AK2: Upgrade zeigt Preis, Guthaben als Abzug mit Minus und fälligen Betrag in dieser Reihenfolge', async () => {
+		previewBillingChange.mockResolvedValue({
+			priceCents: 1347,
+			creditCents: 499,
+			dueCents: 848,
+			immediate: true,
+			startsAt: new Date().toISOString(),
+		});
+
+		const { container } = render(
+			<ChangeDialog targetPlan="plus" targetPeriod="quarterly" onClose={() => {}} onChanged={() => {}} />,
+		);
+
+		expect(await screen.findByText('Preis Plus (quartalsweise)')).toBeTruthy();
+		expect(screen.getByText(/13,47 €/)).toBeTruthy();
+		expect(screen.getByText(/−\s?4,99 €/)).toBeTruthy();
+		expect(screen.getByText(/8,48 €/)).toBeTruthy();
+		expect(terms(container).slice(0, 3)).toEqual([
+			'Preis Plus (quartalsweise)',
+			'Guthaben aus dem laufenden Abo',
+			'Fällig beim ersten Zyklus',
+		]);
+	});
+
+	it('#2324 AK3: Downgrade zeigt aktuelles Paket bis Laufzeitende, Folgepreis und „Jetzt fällig“ 0,00 € ohne Guthaben-Zeile', async () => {
+		previewBillingChange.mockResolvedValue({
+			priceCents: 499,
+			creditCents: 0,
+			dueCents: 0,
+			immediate: false,
+			startsAt: '2026-10-15T00:00:00.000Z',
+			currentPlan: 'pro',
+			currentPeriod: 'monthly',
+		});
+
+		renderDialog('plus');
+
+		expect(await screen.findByText('Aktuelles Paket bis')).toBeTruthy();
+		expect(screen.getAllByText(/15\.10\.2026/).length).toBeGreaterThan(0);
+		expect(screen.getByText(/Ab 15\.10\.2026: Plus für 4,99 € je/)).toBeTruthy();
+		expect(screen.getByText('Jetzt fällig')).toBeTruthy();
+		expect(screen.getByText(/0,00 €/)).toBeTruthy();
+		expect(screen.queryByText(/Guthaben aus dem laufenden Abo/)).toBeNull();
+		expect(screen.queryByText('Wirksam ab'), 'das Datum steht nicht doppelt').toBeNull();
 	});
 });
