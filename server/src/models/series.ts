@@ -5,7 +5,19 @@ import type SeriesPillar from './seriesPillar.js';
 
 /** Wiederholungsrhythmus eines Serien-Templates (striktes RRULE-Subset, siehe #120). */
 export type SeriesRhythm =
-	'daily' | 'weekly' | 'monthly' | 'weekdays' | 'weekend' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+	| 'daily'
+	| 'weekly'
+	| 'monthly'
+	| 'weekdays'
+	| 'weekend'
+	| 'mon'
+	| 'tue'
+	| 'wed'
+	| 'thu'
+	| 'fri'
+	| 'sat'
+	| 'sun'
+	| 'none';
 
 /** Eine Säule samt der zugehörigen Join-Zeile (`share`/`confidence`) der Serien-Vorlage (#302). */
 type SeriesPillarWithContribution = Pillar & { SeriesPillar: SeriesPillar };
@@ -24,6 +36,10 @@ class Series extends Model {
 	public estimatedEffort!: number;
 	public active!: boolean;
 	public startDate!: Date;
+
+	// Automatische Erzeugung (#2355): bei `false` ist die Serie eine reine Vorlage, Instanzen entstehen
+	// nur auf Abruf; nur dann ist der Rhythmus `none` erlaubt. Default `true`.
+	public autoCreate!: boolean;
 
 	// Freitext-Beschreibung des Templates (Issue #301, AK-A2.1). Nullable/optional: Bestände ohne
 	// Beschreibung bleiben lesbar; ohne Angabe angelegte Serien tragen `description === null`.
@@ -92,6 +108,7 @@ Series.init(
 				'fri',
 				'sat',
 				'sun',
+				'none',
 			),
 			allowNull: false,
 			defaultValue: 'weekly',
@@ -122,6 +139,11 @@ Series.init(
 		startDate: {
 			type: DataTypes.DATE,
 			allowNull: false,
+		},
+		autoCreate: {
+			type: DataTypes.BOOLEAN,
+			allowNull: false,
+			defaultValue: true,
 		},
 		// Eigentümer-Bindung (Issue #244, AK1). `null` erlaubt (Abwärtskompatibilität, s. o.).
 		// `defaultValue: null` stellt sicher, dass eine ohne Angabe angelegte Serie `userId === null`

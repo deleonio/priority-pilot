@@ -8226,12 +8226,14 @@ components:
         - fri
         - sat
         - sun
+        - none
       default: weekly
       description: >-
         Wiederholungsrhythmus eines Serien-Templates (striktes RRULE-Subset, #120).
         Wochentag-basierte Rhythmen (#467): `weekdays` (Mo–Fr), `weekend` (Sa+So),
         `mon`…`sun` (jeweils genau dieser Wochentag) erzeugen mehrere Termine pro Woche.
         Bei `mon`…`sun` muss `startDate` auf dem benannten Wochentag liegen, sonst 400.
+        `none` (#2355, ohne Rhythmus) ist nur bei `autoCreate: false` erlaubt, sonst 400.
     Series:
       type: object
       description: >-
@@ -8245,6 +8247,7 @@ components:
         - estimatedEffort
         - active
         - startDate
+        - autoCreate
         - pillars
       properties:
         id:
@@ -8308,6 +8311,11 @@ components:
           description: >-
             Wenn `true`, erben künftig generierte Instanzen diese Option und
             werden bei verpasster Deadline automatisch gelöscht (#523).
+        autoCreate:
+          type: boolean
+          description: >-
+            Wenn `false`, legen `POST /series/generate-all` und `POST /series/{id}/generate`
+            keine Aufgaben an; die Serie ist eine reine Vorlage (#2355). Standard `true`.
         userId:
           type: integer
           nullable: true
@@ -8356,7 +8364,6 @@ components:
         - title
         - priority
         - estimatedEffort
-        - startDate
       properties:
         title:
           type: string
@@ -8386,6 +8393,8 @@ components:
         startDate:
           type: string
           format: date-time
+          description: >-
+            Pflicht, außer bei `rhythm: none` (#2355): dann setzt der Server heute (UTC-Mitternacht) ein.
         description:
           type: string
           nullable: true
@@ -8416,6 +8425,11 @@ components:
           description: >-
             Wenn `true`, erben künftig generierte Instanzen diese Option und
             werden bei verpasster Deadline automatisch gelöscht (#523).
+        autoCreate:
+          type: boolean
+          description: >-
+            Wenn `false`, legen `POST /series/generate-all` und `POST /series/{id}/generate`
+            keine Aufgaben an; die Serie ist eine reine Vorlage (#2355). Standard `true`.
         pillars:
           type: array
           description: >-
@@ -8492,6 +8506,11 @@ components:
           description: >-
             Wenn `true`, erben künftig generierte Instanzen diese Option und
             werden bei verpasster Deadline automatisch gelöscht (#523).
+        autoCreate:
+          type: boolean
+          description: >-
+            Wenn `false`, legen `POST /series/generate-all` und `POST /series/{id}/generate`
+            keine Aufgaben an; die Serie ist eine reine Vorlage (#2355). Standard `true`.
         pillars:
           type: array
           description: >-

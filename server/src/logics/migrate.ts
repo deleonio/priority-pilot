@@ -70,6 +70,8 @@ const SERIES_TABLE_COLUMNS = [
 	{ name: 'estimatedEffort', definition: 'FLOAT NOT NULL DEFAULT 0.5' },
 	{ name: 'active', definition: 'INTEGER NOT NULL DEFAULT 1' },
 	{ name: 'startDate', definition: 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP' },
+	// Automatische Erzeugung (#2355): NOT NULL DEFAULT 1 — Bestandsserien erzeugen weiter automatisch.
+	{ name: 'autoCreate', definition: 'INTEGER NOT NULL DEFAULT 1' },
 	// Eigentümer-Bindung (#244, AK1): nullable, daher kein DEFAULT nötig.
 	{ name: 'userId', definition: 'INTEGER' },
 	// Ersteller-Konto (#1222, analog `Task.createdById` #1213): nullable, daher kein DEFAULT nötig;

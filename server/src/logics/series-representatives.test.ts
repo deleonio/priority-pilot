@@ -20,6 +20,7 @@ interface Candidate {
 	seriesId: number | null;
 	originSeriesId?: number | null;
 	deadline: Date | null;
+	seriesOccurrence?: Date | null;
 	status: 'Open' | 'In process' | 'Done';
 }
 
@@ -90,6 +91,29 @@ describe('selectSeriesRepresentatives (#1518)', () => {
 		assert.deepEqual(
 			result.map((task) => task.id),
 			[2],
+		);
+	});
+
+	// #2355 AK4 — Instanzen ohne Termin-Anker (Serie auf Abruf) klappen nicht zusammen.
+	it('#2355 AK4: Instanzen mit seriesId ohne seriesOccurrence bleiben alle erhalten', () => {
+		const tasks = [1, 2, 3].map((id) => ({ ...instance(id, 7, day(id)), seriesOccurrence: null }));
+		const result = selectSeriesRepresentatives(tasks, NOW);
+		assert.deepEqual(
+			result.map((task) => task.id),
+			[1, 2, 3],
+		);
+	});
+
+	it('#2355 AK4: Instanzen mit Anker klappen weiter auf eine zusammen, ankerlose derselben Serie bleiben', () => {
+		const tasks = [
+			{ ...instance(1, 7, day(1)), seriesOccurrence: day(1) },
+			{ ...instance(2, 7, day(2)), seriesOccurrence: day(2) },
+			{ ...instance(3, 7, day(3)), seriesOccurrence: null },
+		];
+		const result = selectSeriesRepresentatives(tasks, NOW);
+		assert.deepEqual(
+			result.map((task) => task.id),
+			[1, 3],
 		);
 	});
 });

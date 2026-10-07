@@ -40,6 +40,7 @@ const VALID_RHYTHMS: readonly SeriesRhythm[] = [
 	'fri',
 	'sat',
 	'sun',
+	'none',
 ];
 
 /**
@@ -76,6 +77,7 @@ interface SeriesAttributes {
 	estimatedEffort?: number;
 	active?: boolean;
 	startDate?: Date;
+	autoCreate?: boolean;
 	description?: string | null;
 	address?: string | null;
 	latitude?: number | null;
@@ -126,6 +128,7 @@ const serializeSeries = (series: Series, context: SeriesSerializeContext = {}): 
 		estimatedEffort: series.estimatedEffort,
 		active: series.active,
 		startDate: series.startDate.toISOString(),
+		autoCreate: series.autoCreate ?? true,
 		description: series.description ?? null,
 		address: series.address ?? null,
 		latitude: series.latitude ?? null,
@@ -194,7 +197,7 @@ const seriesReadScope = async (userId: number | undefined, requesterId: number |
 const validateSeriesFields = (
 	body: unknown,
 	isPost: boolean,
-	existing?: Pick<Series, 'rhythm' | 'startDate'>,
+	existing?: Pick<Series, 'rhythm' | 'startDate' | 'autoCreate'>,
 ): ValidationResult => {
 	if (typeof body !== 'object' || body === null) {
 		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
@@ -217,7 +220,7 @@ const validateSeriesFields = (
 			return {
 				ok: false,
 				message:
-					'rhythm muss "daily", "weekly", "monthly", "weekdays", "weekend", "mon", "tue", "wed", "thu", "fri", "sat" oder "sun" sein.',
+					'rhythm muss "daily", "weekly", "monthly", "weekdays", "weekend", "mon", "tue", "wed", "thu", "fri", "sat", "sun" oder "none" sein.',
 			};
 		}
 		attrs.rhythm = input.rhythm;
@@ -266,8 +269,24 @@ const validateSeriesFields = (
 		}
 		attrs.startDate = new Date(input.startDate);
 	}
+	if (input.autoCreate !== undefined) {
+		if (typeof input.autoCreate !== 'boolean') {
+			return { ok: false, message: 'autoCreate muss ein Boolean sein.' };
+		}
+		attrs.autoCreate = input.autoCreate;
+	}
+	// #2355: `none` (ohne Rhythmus) nur bei ausgeschalteter automatischer Erzeugung; die Prüfung nutzt
+	// die effektiven Werte, damit auch ein Teil-PATCH (nur `autoCreate: true`) die Regel nicht umgeht.
+	const effAutoCreate = attrs.autoCreate ?? existing?.autoCreate ?? true;
+	if ((attrs.rhythm ?? existing?.rhythm) === 'none' && effAutoCreate) {
+		return { ok: false, message: 'rhythm "none" ist nur bei autoCreate false erlaubt.' };
+	}
 	if (isPost && attrs.startDate === undefined) {
-		return { ok: false, message: 'startDate ist erforderlich.' };
+		if (attrs.rhythm !== 'none') {
+			return { ok: false, message: 'startDate ist erforderlich.' };
+		}
+		attrs.startDate = new Date();
+		attrs.startDate.setUTCHours(0, 0, 0, 0);
 	}
 
 	if (input.description !== undefined) {

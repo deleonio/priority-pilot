@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
-import { Pillar } from '../models/index.js';
+import { Pillar, Task } from '../models/index.js';
 
 let server: TestServer;
 
@@ -178,6 +178,99 @@ describe('Series API', () => {
 			// Die Instanzen erscheinen auch in der regulären Task-Liste.
 			const tasks = (await (await get('/tasks')).json()) as unknown[];
 			assert.equal(tasks.length, 3);
+		});
+	});
+
+	// #2355 — Schalter `autoCreate` (Spec docs/spec/issue-2355.md)
+	describe('#2355 autoCreate', () => {
+		const today = (): string => {
+			const date = new Date();
+			date.setUTCHours(0, 0, 0, 0);
+			return date.toISOString();
+		};
+
+		// AK1
+		it('AK1: neue Serie ohne Angabe hat autoCreate true; PATCH setzt false, GET liefert es', async () => {
+			const created = (await (await post('/series', validSeries())).json()) as { id: number; autoCreate: boolean };
+			assert.equal(created.autoCreate, true);
+			const res = await patch(`/series/${created.id}`, { autoCreate: false });
+			assert.equal(res.status, 200);
+			const list = (await (await get('/series')).json()) as Array<{ id: number; autoCreate: boolean }>;
+			assert.equal(list.find((item) => item.id === created.id)?.autoCreate, false);
+		});
+
+		it('AK1: POST mit autoCreate false wird übernommen', async () => {
+			const res = await post('/series', { ...validSeries(), autoCreate: false });
+			assert.equal(res.status, 201);
+			assert.equal(((await res.json()) as { autoCreate: boolean }).autoCreate, false);
+		});
+
+		// AK2
+		it('AK2: rhythm none mit autoCreate true oder ohne Angabe → 400', async () => {
+			const { startDate: _omit, ...base } = validSeries();
+			assert.equal((await post('/series', { ...base, rhythm: 'none', autoCreate: true })).status, 400);
+			assert.equal((await post('/series', { ...base, rhythm: 'none' })).status, 400);
+		});
+
+		it('AK2: rhythm none mit autoCreate false ohne startDate → 201, startDate = heute', async () => {
+			const { startDate: _omit, ...base } = validSeries();
+			const res = await post('/series', { ...base, rhythm: 'none', autoCreate: false });
+			assert.equal(res.status, 201);
+			const body = (await res.json()) as { rhythm: string; startDate: string };
+			assert.equal(body.rhythm, 'none');
+			assert.equal(body.startDate.slice(0, 10), today().slice(0, 10));
+		});
+
+		it('AK2: PATCH autoCreate true auf einer none-Serie → 400', async () => {
+			const { startDate: _omit, ...base } = validSeries();
+			const created = (await (await post('/series', { ...base, rhythm: 'none', autoCreate: false })).json()) as {
+				id: number;
+			};
+			assert.equal((await patch(`/series/${created.id}`, { autoCreate: true })).status, 400);
+		});
+
+		// AK3
+		it('AK3: generate-all und /:id/generate legen für autoCreate false nichts an', async () => {
+			const created = (await (
+				await post('/series', { ...validSeries(), rhythm: 'daily', autoCreate: false, startDate: futureDate(-3) })
+			).json()) as { id: number };
+
+			const all = await post('/series/generate-all', {});
+			assert.equal(all.status, 200);
+			assert.equal(((await all.json()) as { created: number }).created, 0);
+
+			const one = await post(`/series/${created.id}/generate`, { until: futureDate(10) });
+			assert.equal(one.status, 201);
+			assert.deepEqual(await one.json(), []);
+
+			assert.deepEqual(await (await get('/tasks')).json(), []);
+		});
+
+		// AK4
+		it('AK4: Instanzen ohne seriesOccurrence erscheinen einzeln, mit Anker nur als eine', async () => {
+			const noAnchor = (await (await post('/series', { ...validSeries(), autoCreate: false })).json()) as {
+				id: number;
+			};
+			const anchored = (await (await post('/series', validSeries())).json()) as { id: number };
+			await Task.create({ title: 'Ohne 1', seriesId: noAnchor.id, deadline: new Date(futureDate(1)) });
+			await Task.create({ title: 'Ohne 2', seriesId: noAnchor.id, deadline: new Date(futureDate(2)) });
+			await Task.create({
+				title: 'Mit 1',
+				seriesId: anchored.id,
+				deadline: new Date(futureDate(1)),
+				seriesOccurrence: new Date(futureDate(1)),
+			});
+			await Task.create({
+				title: 'Mit 2',
+				seriesId: anchored.id,
+				deadline: new Date(futureDate(2)),
+				seriesOccurrence: new Date(futureDate(2)),
+			});
+
+			// Nur `/forest` kollabiert Serien auf einen Repräsentanten (`GET /tasks` liefert alle Instanzen).
+			const forest = (await (await get('/forest')).json()) as Array<{ title: string }>;
+			const titles = forest.map((task) => task.title).sort();
+			assert.deepEqual(titles, ['Mit 1', 'Ohne 1', 'Ohne 2']);
 		});
 	});
 

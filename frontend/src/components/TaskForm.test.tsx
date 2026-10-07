@@ -337,6 +337,7 @@ const minimalSeries = (): Series => ({
 	estimatedEffort: 0.5,
 	active: true,
 	startDate: new Date('2026-09-07T00:00:00.000Z'),
+	autoCreate: true,
 	// TEST-PFLEGE #1596: vollständige Säulen-Verteilung (hier die eine Säule aus `defaultProps` mit
 	// 100 %). Eine Vorlage ohne Beiträge würde beim Öffnen vervollständigt — das ist dann eine echte
 	// Änderung am Template und löst zu Recht die Kaskade-Rückfrage aus.
