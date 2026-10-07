@@ -780,6 +780,12 @@ eine Gruppe verwaltet, ist deshalb noch kein Admin der App.
   Rechnungen restlos entfernt; die Person behält nur das Paket eines noch
   laufenden Abos, sonst Free. Zahlungen werden nicht erstattet. Gedacht für das
   Aufräumen von Testkäufen vor dem Livebetrieb.
+- **Konto löschen:** Bei jeder anderen Person steht „Konto löschen“ – nach zwei
+  Bestätigungsschritten wie bei der Selbstlöschung: persönliche Daten und Feedback
+  werden entfernt, Rechnungen und Abo-Datensätze bleiben. Läuft noch ein Abo oder ist
+  die Person letzter Admin einer Gruppe mit weiteren Mitgliedern, bleibt das Konto
+  bestehen und der Dialog nennt den nächsten Schritt. Das eigene Konto löschst du in den
+  Einstellungen.
 - **Mindestens ein Admin:** Den letzten verbleibenden Admin kann niemand
   zurückstufen – ernenne zuerst eine andere Person.
 - **Mitglieder** sehen den Bereich nicht; ein direkter Aufruf von `/settings/nutzer` öffnet bei

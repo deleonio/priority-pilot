@@ -24,6 +24,7 @@ import { BACKGROUND_PORTION_SIZE, readBackgroundRun, startBackgroundRun } from '
 import { ladeCareWirkung, type CareWirkung } from '../../logics/careWirkung.js';
 import { ladeKpis, type KpiAuswertung } from '../../logics/kpiKennzahlen.js';
 import { activateTopWaitlist, activateWaitlistEntry, listWaitlistRanked } from '../../logics/waitlist.js';
+import { deleteAccount } from '../../logics/deleteAccount.js';
 import { syncUserPlan } from '../../logics/billing/lifecycle.js';
 import { createPaypalProvider, type PaypalProviderDeps } from '../../logics/billing/paypalProvider.js';
 import { PaypalHttpError } from '../../logics/paypal.js';
@@ -530,6 +531,38 @@ export const createAdminRouter = (
 			}
 		},
 	);
+
+	// DELETE /admin/users/:id — fremdes Konto auf Wunsch des Nutzers löschen (#2327). Dieselbe Funktion
+	// und Regeln wie die Selbstlöschung (`DELETE /auth/me`); die Session des Admins bleibt bestehen.
+	adminRouter.delete('/admin/users/:id', requireRole('admin'), async (req: Request, res: Response<ErrorDto>) => {
+		const id = parseId(req.params.id);
+		if (id === null) {
+			sendError(res, 400, 'Ungültige Nutzer-Id.');
+			return;
+		}
+		if (id === req.session?.user?.id) {
+			sendError(res, 400, 'Das eigene Konto löschst du in den Einstellungen.');
+			return;
+		}
+		try {
+			const result = await deleteAccount(id, { paypalClient: deps.paypalClient });
+			if (result === 'not_found') {
+				sendError(res, 404, 'Nutzer nicht gefunden.');
+			} else if (result === 'paypal_unavailable') {
+				res.status(502).json({ message: 'PayPal war nicht erreichbar.', code: result });
+			} else if (result === 'subscription_active') {
+				res.status(409).json({ message: 'Das Konto hat ein laufendes Abo.', code: result });
+			} else if (result === 'last_group_admin') {
+				res
+					.status(409)
+					.json({ message: 'Das Konto ist letzter Admin einer Gruppe mit weiteren Mitgliedern.', code: result });
+			} else {
+				res.status(204).end();
+			}
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+		}
+	});
 
 	// GET /admin/users/:id/invoices/:invoiceId/pdf — gespeichertes Rechnungs-PDF eines Nutzers
 	// (#1958 AK2, nur Admins), byte-identisch zum Eigentümer-Download. Die Rechnung muss zum

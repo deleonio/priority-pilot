@@ -1052,7 +1052,7 @@ export const SettingsPage = ({
 				{isAdmin && (
 					<div slot="tab-8" className="settings-admin-users settings-panel">
 						<KolCard className="settings-card" _label="Nutzer und Rollen" _level={2}>
-							<AdminUsersSection />
+							<AdminUsersSection currentUserId={currentUserId} />
 						</KolCard>
 					</div>
 				)}
