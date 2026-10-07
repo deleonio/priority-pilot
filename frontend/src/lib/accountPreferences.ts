@@ -43,8 +43,17 @@ const API_URL = `${getApiBase()}/account-preferences`;
 /** CSRF-Token aus dem GET-Antwort-Header; der PUT sendet ihn mit, wenn er bekannt ist. */
 let csrfToken: string | null = null;
 
-/** Holt den Kontostand und schreibt ihn in die Spiegel; ohne Konto/Netz bleibt der Gerätewert. */
-export const pullAccountPreferences = async (): Promise<void> => {
+/** Ohne Konto (Dev-Pass-Through, Nutzer ohne `id`) kein GET/PUT — der Server antwortet dort bewusst 401. */
+let accountBound = true;
+
+/**
+ * Holt den Kontostand und schreibt ihn in die Spiegel; ohne Konto/Netz bleibt der Gerätewert.
+ * Ein Konto ohne gespeicherten Wert liefert den Default — er überschreibt einen abweichenden
+ * Spiegel, ohne dass dieser ans Konto geht (kein Bestandskunden-Ballast).
+ */
+export const pullAccountPreferences = async (hasAccount = true): Promise<void> => {
+	accountBound = hasAccount;
+	if (!hasAccount) return;
 	try {
 		const response = await fetch(API_URL);
 		if (!response.ok) return;
@@ -64,6 +73,7 @@ export const pullAccountPreferences = async (): Promise<void> => {
 
 /** Sendet geänderte Felder ans Konto — ein einzelner Aufruf, Fehler werden geschluckt. */
 export const sendAccountPreferences = (changes: Partial<AccountPreferences>): void => {
+	if (!accountBound) return;
 	try {
 		void fetch(API_URL, {
 			method: 'PUT',

@@ -185,8 +185,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// danach einmal neu rendern, damit die Pro-Render-Gates (KI, Expertenmodus) den Kontostand zeigen.
 	const [, setAccountPreferencesPulled] = useState(false);
 	useEffect(() => {
-		void pullAccountPreferences().then(() => setAccountPreferencesPulled(true));
-	}, []);
+		// Der Pass-Through-Nutzer (`/auth/me` ohne Session) trägt keine `id` und hat kein Konto.
+		void pullAccountPreferences(user.id !== undefined).then(() => setAccountPreferencesPulled(true));
+	}, [user.id]);
 	// #1428: Kopfzeilen-Position — die Verschiebung passiert rein per Layout (`.app.header-bottom`),
 	// die DOM-Reihenfolge (banner bleibt first) bleibt unverändert.
 	const { position: headerPosition } = useHeaderPosition();
