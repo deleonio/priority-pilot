@@ -91,20 +91,25 @@ describe('Push in der Android-App (#1679)', () => {
 		expect(result.current.enabled).toBe(true);
 	});
 
-	// Tapp-Navigation (#1679): App-Pfade gelten ab der App-Wurzel, wie `notificationclick` in
-	// `push-sw.js`. `window.location` per stubGlobal (jsdom-Präzedenz `nativeAuth.test.ts`).
-	it('play: Tapp öffnet App-Pfad, Wurzel-Pfad und fehlende URL ab der App-Wurzel', async () => {
+	// Tapp-Navigation (#1679, #2379 AK8): App-Pfade gelten ab der App-Wurzel; die App navigiert
+	// in-App (History + popstate für den Router), ohne Seiten-Reload.
+	it('play: Tapp navigiert in der App ohne location.assign (AK8)', async () => {
 		const assign = vi.fn();
 		vi.stubGlobal('location', { origin: window.location.origin, assign });
+		const pushState = vi.spyOn(window.history, 'pushState');
+		const onPop = vi.fn();
+		window.addEventListener('popstate', onPop);
 		await listenForNativePushTaps();
 		const tap = plugin.listeners.get('pushNotificationActionPerformed') as (data: unknown) => void;
 
 		tap({ notification: { data: { url: '/tasks/42' } } });
-		tap({ notification: { data: { url: '/' } } });
 		tap({ notification: {} });
 
-		expect(assign).toHaveBeenNthCalledWith(1, `${window.location.origin}/tasks/42`);
-		expect(assign).toHaveBeenNthCalledWith(2, `${window.location.origin}/`);
-		expect(assign).toHaveBeenNthCalledWith(3, `${window.location.origin}/`);
+		window.removeEventListener('popstate', onPop);
+		expect(assign).not.toHaveBeenCalled();
+		expect(pushState).toHaveBeenNthCalledWith(1, expect.anything(), '', `${import.meta.env.BASE_URL}tasks/42`);
+		expect(pushState).toHaveBeenNthCalledWith(2, expect.anything(), '', import.meta.env.BASE_URL);
+		expect(onPop).toHaveBeenCalledTimes(2);
+		pushState.mockRestore();
 	});
 });
