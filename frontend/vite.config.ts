@@ -21,10 +21,10 @@ const apiTarget = process.env.API_PROXY_TARGET ?? 'http://localhost:3000';
 // API- und Auth-Pfade bleiben an der Wurzel (/api/v1, /auth) und sind vom Präfix nicht betroffen.
 const APP_BASE = '/app/';
 
-// Der Dev-Proxy leitet alle /api/v1/*-, /api/transit/*- und /auth/*-Anfragen an den
+// Der Dev-Proxy leitet alle /api/v1/*- und /auth/*-Anfragen an den
 // Express-Server (http://localhost:3000) weiter. CORS wird damit im Browser ohne
 // Server-Änderung gelöst. /api/v1/* streift das Präfix ab (Server-Routen liegen direkt
-// unter /); /api/transit/* und /auth/* werden unverändert durchgereicht – Letzteres
+// unter /); /auth/* wird unverändert durchgereicht –
 // spiegelt den Caddy-handle-Block für den OAuth-Login-Flow (siehe docs/server-setup.md § 7).
 // Vorkomprimierte Varianten (.br/.zst) neben jede Text-Datei legen; Caddy liefert sie per
 // `file_server { precompressed zstd br }` direkt aus, statt bei jedem Request neu zu komprimieren.
@@ -53,10 +53,6 @@ const apiProxy = {
 		target: apiTarget,
 		changeOrigin: true,
 		rewrite: (path: string) => path.replace(/^\/api\/v1/, ''),
-	},
-	'/api/transit': {
-		target: apiTarget,
-		changeOrigin: true,
 	},
 	'/auth': {
 		target: apiTarget,

@@ -33,7 +33,7 @@ const DUMMY_HASH = await hashPassword('__dummy__');
 const authRouter = Router();
 
 // Rate-Limit gegen Brute-Force auf Login/Register/OAuth (CodeQL js/missing-rate-limiting), nach
-// dem Muster des Transit-Limiters. Nur in Produktion aktiv — Dev/E2E wären sonst gedrosselt.
+// dem Muster der übrigen Limiter. Nur in Produktion aktiv — Dev/E2E wären sonst gedrosselt.
 const authLimiter = rateLimit({
 	windowMs: 60_000,
 	max: 30,

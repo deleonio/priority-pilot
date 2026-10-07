@@ -17,7 +17,7 @@ test.describe('Feedback direkt in Obsidian (#1435)', () => {
 	 * Die Status-Meldung wird im Alert des Formulars geprüft, nicht seitenweit: „Fehler" steht auch
 	 * in der Einleitung und als Kategorie-Option (die `selectOption({ label: 'Fehler melden' })` oben
 	 * braucht), „gesendet" im Button-Label während des Sendens — ein seitenweites `getByText`
-	 * verletzt deshalb zwangsläufig den Strict Mode. Muster: `bahn.spec.ts:176`.
+	 * verletzt deshalb zwangsläufig den Strict Mode.
 	 */
 	const statusAlert = (page: import('@playwright/test').Page) => page.locator('.feedback-form kol-alert');
 

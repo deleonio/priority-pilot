@@ -36,10 +36,6 @@ erneut ausführen, um den Score-Fortschritt zu sehen.
       Schwarz, sind es ≈5,5:1. Im Browser/e2e messen statt raten:
       `dark-mode-contrast.spec.ts` um Badge-Case erweitern. Betroffen: `TaskTable.tsx:54`,
       `TaskTree.tsx:103`, `ForestPanel.tsx:37`. → `/impeccable audit` (Verifikation), dann Fix
-- [ ] **BahnPage-Hardcode-Insel** — komplette Eigenfarben (`#1a4fd8`, `#b00020`, `#0a7d28`,
-      `#e8eefa`) ohne Theme-Anbindung; Kontraste einzeln ok (6,41/5,26/7,33:1). Entscheidung:
-      bewusstes eigenes öffentliches Universum (dokumentieren) oder `--pp-*`-Tokens.
-      → `/impeccable document` bzw. `polish`
 - [ ] **Dashboard-Redundanz** — „Gesamt"-Kachel = Offen + Erledigt (rechenbar); zwei ähnliche
       Ranglisten („Was ist jetzt dran?" vs. „Wichtigste Tasks"); drei Sichten der Säulen-Wahrheit
       (Herz-Legende, „Meine Themen", „Gesamtguthaben"). Kacheln zu Statuszeile verdichten, eine

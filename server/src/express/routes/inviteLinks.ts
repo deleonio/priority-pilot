@@ -10,7 +10,7 @@ import { isDuoFull } from './groups.js';
 
 /**
  * Einladungslink-Preisgabe (#1226). Dieser Router ist der ÖFFENTLICHE Teil: Er hängt bewusst
- * VOR dem globalen `requireAuth` (siehe express/index.ts, Muster `/api/transit`), damit ein
+ * VOR dem globalen `requireAuth` (siehe express/index.ts), damit ein
  * Link auch ohne Session geöffnet werden kann. Feldminimierung: geliefert werden nur
  * Gruppenname und Anzeigename des Einladenden — nie Mitglieder, nie E-Mails.
  *

@@ -844,21 +844,6 @@ aktiv, steht dort zusätzlich deine zuletzt ermittelte Position.
 
 ---
 
-## Bahn-Routenplaner (öffentlich)
-
-Unter der Adresse **`/bahn`** gibt es einen eigenständigen, **öffentlich** (ohne
-Anmeldung) erreichbaren **Bahn-Routenplaner**:
-
-- **Start-** und **Zielbahnhof** eingeben (mit Vorschlagsliste), dazu **Datum** und
-  **Uhrzeit**.
-- **„Verbindungen suchen"** zeigt Verbindungen mit Abfahrt, Ankunft, Dauer und
-  Umstiegen; je Verbindung zusätzlich, ob sie pünktlich ist oder wie viele Minuten
-  Verspätung angekündigt sind.
-
-Dieser Planer ist ein eigenständiges Extra und unabhängig von deinen Aufgaben.
-
----
-
 ## Tastaturkürzel
 
 - **Strg + Enter** (bzw. **⌘ + Enter**) – löst in Dialogen die primäre Aktion aus
