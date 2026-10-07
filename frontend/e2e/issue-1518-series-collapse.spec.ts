@@ -83,7 +83,7 @@ test.describe('Balamentum — #1518: eine Instanz je Serie in der Aufgabenliste 
 		expect(graph.nodes.filter((node) => node.title === title).length).toBe(5);
 
 		// AK13: der Serien-Tab zeigt die Serie unverändert.
-		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true }).click();
 		await expect(page.getByTestId(`series-tree-item-${seriesId}`)).toBeVisible();
 	});
 });

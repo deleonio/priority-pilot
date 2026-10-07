@@ -368,7 +368,7 @@ test.describe('#335 Header — „Serien verwalten"-Button entfernt (AK6)', () =
 		await page.goto('/app/');
 		await waitForStableView(page);
 
-		await expect(page.getByRole('tab', { name: 'Serien', exact: true })).toBeVisible();
+		await expect(page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true })).toBeVisible();
 	});
 });
 

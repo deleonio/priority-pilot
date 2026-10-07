@@ -69,7 +69,7 @@ test.describe('Balamentum — #1063: Geo-Badge in Serien-, Erledigt- und Aufgabe
 	});
 
 	const openSeriesTab = async (page: Page): Promise<void> => {
-		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true }).click();
 		await expect(page.getByTestId('series-tree')).toBeVisible();
 	};
 

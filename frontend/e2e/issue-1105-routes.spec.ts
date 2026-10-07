@@ -29,7 +29,7 @@ test.describe('#1105 App-Routes für alle Menüs', () => {
 	 */
 	for (const [route, tabName] of [
 		['/aufgaben', 'Aufgaben'],
-		['/serien', 'Serien'],
+		['/serien', 'Serien & Vorlagen'],
 		['/graph', 'Graph'],
 	] as const) {
 		test(`AK1: Deep-Link ${route} öffnet die Ansicht „${tabName}“`, async ({ page }) => {
@@ -38,7 +38,7 @@ test.describe('#1105 App-Routes für alle Menüs', () => {
 
 			await expect(mainTab(page, tabName)).toHaveAttribute('aria-selected', 'true');
 			// Die anderen Haupt-Tabs sind nicht aktiv (kein stiller Fallback auf das Dashboard).
-			for (const other of ['Dashboard', 'Aufgaben', 'Serien', 'Graph'].filter((n) => n !== tabName)) {
+			for (const other of ['Dashboard', 'Aufgaben', 'Serien & Vorlagen', 'Graph'].filter((n) => n !== tabName)) {
 				await expect(mainTab(page, other)).toHaveAttribute('aria-selected', 'false');
 			}
 		});
@@ -59,19 +59,19 @@ test.describe('#1105 App-Routes für alle Menüs', () => {
 		await expect(page).toHaveURL(/\/aufgaben$/);
 		await expect(mainTab(page, 'Aufgaben')).toHaveAttribute('aria-selected', 'true');
 
-		await mainTab(page, 'Serien').click();
+		await mainTab(page, 'Serien & Vorlagen').click();
 		await expect(page).toHaveURL(/\/serien$/);
 
 		// Back: vorherige Ansicht (Aufgaben) inkl. URL — ohne Reload.
 		await page.goBack();
 		await expect(page).toHaveURL(/\/aufgaben$/);
 		await expect(mainTab(page, 'Aufgaben')).toHaveAttribute('aria-selected', 'true');
-		await expect(mainTab(page, 'Serien')).toHaveAttribute('aria-selected', 'false');
+		await expect(mainTab(page, 'Serien & Vorlagen')).toHaveAttribute('aria-selected', 'false');
 
 		// Forward: wieder Serien.
 		await page.goForward();
 		await expect(page).toHaveURL(/\/serien$/);
-		await expect(mainTab(page, 'Serien')).toHaveAttribute('aria-selected', 'true');
+		await expect(mainTab(page, 'Serien & Vorlagen')).toHaveAttribute('aria-selected', 'true');
 	});
 
 	/**

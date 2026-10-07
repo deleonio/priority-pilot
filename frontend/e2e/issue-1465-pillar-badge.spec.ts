@@ -103,8 +103,8 @@ test.describe('Balamentum — #1465: Säulen-Badge mobil (375px)', () => {
 		expect(taskBox).not.toBeNull();
 		expect(taskBox!.x + taskBox!.width, 'Aufgabenzeile bleibt in der 375px-Breite').toBeLessThanOrEqual(375 + 1);
 
-		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
-		await waitForStableView(page, 'Serien');
+		await page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true }).click();
+		await waitForStableView(page, 'Serien & Vorlagen');
 
 		const seriesRow = page.getByTestId(`series-tree-item-${seriesWithout}`);
 		await expect(seriesRow.getByTestId('pillar-missing-badge')).toBeVisible();

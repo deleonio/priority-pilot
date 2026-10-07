@@ -502,13 +502,13 @@ describe('App — #1339: Sprachwechsel erhält die Tab-Auswahl', () => {
 			expect(appTabs()).not.toBeNull();
 		});
 		expect(appTabs()?._selected).toBe(2);
-		expect(appTabs()?._tabs?.map((tab) => tab._label)).toContain('Serien');
+		expect(appTabs()?._tabs?.map((tab) => tab._label)).toContain('Serien & Vorlagen');
 
 		await act(async () => {
 			await i18next.changeLanguage('en');
 		});
 
-		expect(appTabs()?._tabs?.map((tab) => tab._label)).toContain('Series');
+		expect(appTabs()?._tabs?.map((tab) => tab._label)).toContain('Series & templates');
 		expect(appTabs()?._selected).toBe(2);
 	});
 });

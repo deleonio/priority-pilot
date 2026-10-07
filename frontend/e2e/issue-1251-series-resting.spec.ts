@@ -73,7 +73,7 @@ test.describe('Balamentum — Ruh-Hinweis für stillgelegte Serien (#1251)', () 
 
 		await page.goto('/app/');
 		await waitForStableView(page);
-		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true }).click();
 		await expect(page.getByTestId('series-tree')).toBeVisible();
 
 		// Text-Badge „Ruhend" am Eintrag der ruhenden Serie (nie nur Farbe — WCAG 1.4.1).
@@ -96,7 +96,7 @@ test.describe('Balamentum — Ruh-Hinweis für stillgelegte Serien (#1251)', () 
 
 		await page.goto('/app/');
 		await waitForStableView(page);
-		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true }).click();
 		await expect(page.getByTestId('series-tree')).toBeVisible();
 
 		// KI-UX: kein Sperren, kein „Reaktivieren"-Button — nur das Anzeige-Badge.

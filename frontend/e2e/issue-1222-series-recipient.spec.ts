@@ -82,7 +82,7 @@ const createSeriesForRecipientViaUi = async (page: Page, title: string): Promise
 
 /** Öffnet den Serien-Tab (Muster series-tab.spec.ts). */
 const openSeriesTab = async (page: Page): Promise<void> => {
-	await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+	await page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true }).click();
 	await expect(page.getByTestId('series-tree')).toBeVisible();
 };
 

@@ -61,7 +61,7 @@ Darunter wechselst du über eine **Tab-Leiste** zwischen den fünf Hauptansichte
 1. **Dashboard** – Überblick und Empfehlungen
 2. **Aufgaben** – deine Aufgaben anlegen und pflegen; ein Umschalter wechselt hier
    zwischen **offenen** und **erledigten** Aufgaben
-3. **Serien** – wiederkehrende Aufgaben
+3. **Serien & Vorlagen** – wiederkehrende Aufgaben und Vorlagen
 4. **Graph** – die Aufgaben als Graph mit gewichteten Abhängigkeiten
 5. **Journal** – kurze Einträge mit Datum und optional einer Säule festhalten, bearbeiten
    und löschen
@@ -499,7 +499,11 @@ erzeugt Balamentum regelmäßig neue Aufgaben-Instanzen.
   Wochentag fallen – sonst zeigt dir die App vor dem Speichern einen Hinweis.
   Priorität, Aufwand, Beschreibung und Säulen werden als Vorlage für
   jede Instanz übernommen.
-- **Verwalten:** im Tab **Serien** siehst du alle Serien mit ihrem Rhythmus. Dort
+- **Automatisch anlegen:** der Schalter ist beim Anlegen an. Schaltest du ihn aus,
+  legt die Serie keine Aufgaben von selbst an und gilt als **Vorlage**; zusätzlich
+  gibt es den Rhythmus **Ohne Rhythmus** (dann entfällt das Startdatum). Im Tab
+  trägt eine solche Serie das Kennzeichen **Vorlage**.
+- **Verwalten:** im Tab **Serien & Vorlagen** siehst du alle Serien mit ihrem Rhythmus. Dort
   kannst du sie **bearbeiten** oder **löschen**. Beim Löschen entscheidest du zwischen
   **„Ja (Serie + alle Aufgaben)"** und **„Nein (nur Serie, Aufgaben bleiben
   eigenständig)"**: Mit **Ja** werden die offenen Instanzen mitgelöscht, mit **Nein**

@@ -3442,3 +3442,140 @@ describe('TaskForm — KI-Vorschlag-Block (#2078)', () => {
 		expect(mockRecordPillarFeedback).not.toHaveBeenCalled();
 	});
 });
+
+/**
+ * Rote Spec-Tests für #2358 AK1-AK5 (Vertrag: `docs/spec/issue-2358.md`): Schalter „Automatisch
+ * anlegen" im Serien-Modus; Rhythmus „Ohne Rhythmus" (`none`) nur bei ausgeschaltetem Schalter,
+ * dann ohne Startdatum. Der KoliBri-Mock rendert `KolInputCheckbox` als `role="switch"`.
+ */
+describe('TaskForm — Serie als Vorlage: Schalter „Automatisch anlegen" (#2358)', () => {
+	const autoCreateSwitch = (): HTMLInputElement =>
+		screen.getByRole('switch', { name: 'Automatisch anlegen' }) as HTMLInputElement;
+	const rhythmValues = (): string[] =>
+		Array.from((screen.getByLabelText('Rhythmus') as HTMLSelectElement).options).map((o) => o.value);
+	const toggleAutoCreate = async (): Promise<void> => {
+		await act(async () => {
+			fireEvent.click(autoCreateSwitch());
+		});
+	};
+	const renderCreateSeries = async (): Promise<void> => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<TaskForm task={null} initialMode="series" {...defaultProps} />);
+		});
+	};
+
+	it('AK1 — Serie anlegen: Schalter vorhanden und an', async () => {
+		await renderCreateSeries();
+		expect(autoCreateSwitch().checked).toBe(true);
+	});
+
+	it('AK1 — Aufgabe-Modus zeigt den Schalter nicht', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		expect(screen.queryByRole('switch', { name: 'Automatisch anlegen' })).toBeNull();
+	});
+
+	it('AK2 — „Ohne Rhythmus" fehlt bei Schalter an, ist bei Schalter aus wählbar', async () => {
+		await renderCreateSeries();
+		expect(rhythmValues()).not.toContain('none');
+
+		await toggleAutoCreate();
+
+		expect(rhythmValues()).toContain('none');
+		const select = screen.getByLabelText('Rhythmus') as HTMLSelectElement;
+		expect(Array.from(select.options).map((o) => o.textContent)).toContain('Ohne Rhythmus');
+	});
+
+	it('AK3 — „Ohne Rhythmus": Startdatum ausgeblendet, Payload autoCreate:false, rhythm:none, kein startDate', async () => {
+		mockCreateSeries.mockResolvedValue(minimalSeries());
+		await renderCreateSeries();
+		await fillTitle('Vorlage ohne Rhythmus');
+		await toggleAutoCreate();
+		await act(async () => {
+			fireEvent.change(screen.getByLabelText('Rhythmus'), { target: { value: 'none' } });
+		});
+
+		expect(screen.queryByLabelText('Startdatum')).toBeNull();
+
+		await chooseMainPillar();
+		await clickSave();
+
+		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
+		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: Record<string, unknown> }];
+		expect(seriesCreate['autoCreate']).toBe(false);
+		expect(seriesCreate['rhythm']).toBe('none');
+		expect(seriesCreate['startDate']).toBeUndefined();
+	});
+
+	it('AK3 — Standard (Schalter an): Payload autoCreate:true', async () => {
+		mockCreateSeries.mockResolvedValue(minimalSeries());
+		await renderCreateSeries();
+		await fillTitle('Automatische Serie');
+		await chooseMainPillar();
+		await clickSave();
+
+		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: Record<string, unknown> }];
+		expect(seriesCreate['autoCreate']).toBe(true);
+	});
+
+	it('AK4 — Schalter wieder an bei „Ohne Rhythmus": Rhythmus springt auf gültigen Wert, Startdatum wieder da', async () => {
+		mockCreateSeries.mockResolvedValue(minimalSeries());
+		await renderCreateSeries();
+		await fillTitle('Zurückgeschaltet');
+		await toggleAutoCreate();
+		await act(async () => {
+			fireEvent.change(screen.getByLabelText('Rhythmus'), { target: { value: 'none' } });
+		});
+		await toggleAutoCreate();
+
+		const select = screen.getByLabelText('Rhythmus') as HTMLSelectElement;
+		expect(select.value).not.toBe('none');
+		expect(rhythmValues()).toContain(select.value);
+		expect(screen.getByLabelText('Startdatum')).toBeInTheDocument();
+
+		await chooseMainPillar();
+		await clickSave();
+
+		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: Record<string, unknown> }];
+		expect(seriesCreate['autoCreate']).toBe(true);
+		expect(seriesCreate['rhythm']).not.toBe('none');
+	});
+
+	it('AK5 — Bearbeiten: Schalter zeigt gespeicherten Wert (autoCreate:false → aus)', async () => {
+		await act(async () => {
+			render(
+				<SeriesEditForm
+					task={null}
+					series={{ ...minimalSeries(), autoCreate: false, rhythm: 'none' as Series['rhythm'] }}
+					{...defaultProps}
+				/>,
+			);
+		});
+		expect(autoCreateSwitch().checked).toBe(false);
+		expect(screen.queryByLabelText('Startdatum')).toBeNull();
+	});
+
+	it('AK5 — Bearbeiten: Umschalten sendet autoCreate im PATCH', async () => {
+		mockUpdateSeries.mockResolvedValue({ ...minimalSeries(), autoCreate: false });
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={minimalSeries()} {...defaultProps} />);
+		});
+		expect(autoCreateSwitch().checked).toBe(true);
+
+		await toggleAutoCreate();
+		await clickSaveEdit();
+		const confirm = screen.queryByRole('button', { name: 'Ja' });
+		if (confirm !== null) {
+			await act(async () => {
+				fireEvent.click(confirm);
+			});
+		}
+
+		expect(mockUpdateSeries).toHaveBeenCalledTimes(1);
+		const [arg] = mockUpdateSeries.mock.calls[0] as [{ seriesUpdate?: Record<string, unknown> }];
+		expect(arg.seriesUpdate?.['autoCreate']).toBe(false);
+	});
+});
