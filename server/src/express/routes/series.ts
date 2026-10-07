@@ -6,9 +6,9 @@ import sequelize from '../../database.js';
 import { Pillar, Series, SeriesPillar, Task, TaskPillar } from '../../models/index.js';
 import type { SeriesRhythm } from '../../models/series.js';
 import {
-	GENERATE_HORIZON_DAYS,
 	createOnDemandInstance,
 	generateDueInstances,
+	generateHorizonUntil,
 	materializeDueSeries,
 } from '../../logics/series.js';
 import type { PushSender } from '../../logics/push.js';
@@ -509,8 +509,7 @@ export const createSeriesRouter = ({ pushSender }: SeriesRouterDeps = {}): Route
 				return series;
 			});
 			// #2404: erste Instanzen sofort anlegen (wie `POST /series/:id/generate`); `autoCreate: false` erzeugt nichts.
-			const until = new Date();
-			until.setUTCDate(until.getUTCDate() + GENERATE_HORIZON_DAYS);
+			const until = generateHorizonUntil(new Date());
 			// Schlägt die Erzeugung fehl, bleibt die Serie bestehen (201): ein 500 würde beim Retry eine Dublette
 			// anlegen — die Instanzen holt `POST /series/generate-all` bzw. der tägliche Job nach.
 			try {
@@ -539,8 +538,7 @@ export const createSeriesRouter = ({ pushSender }: SeriesRouterDeps = {}): Route
 		async (req: Request, res: Response<SeriesGenerateAllResultDto | ErrorDto>) => {
 			const userId = getUserId(req);
 			try {
-				const until = new Date();
-				until.setUTCDate(until.getUTCDate() + GENERATE_HORIZON_DAYS);
+				const until = generateHorizonUntil(new Date());
 				const created = await materializeDueSeries(userId, until, pushSender);
 				res.json({ created: created.length });
 			} catch (error) {
