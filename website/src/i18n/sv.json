@@ -23,6 +23,11 @@
 		"secondary": "Redan med? Öppna appen",
 		"screenshotAlt": "Balamentums instrumentbräda med nästa uppgift och livsbalansen"
 	},
+	"film": {
+		"title": "Balamentum i film",
+		"lead": "Nästan fyra minuter som visar hur en full att göra-lista blir rätt nästa uppgift.",
+		"fallback": "Din webbläsare kan inte spela upp video. Prova Balamentum direkt."
+	},
 	"usp": {
 		"title": "Det här får du med Balamentum",
 		"items": [

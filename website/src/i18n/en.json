@@ -23,6 +23,11 @@
 		"secondary": "Already in? Open the app",
 		"screenshotAlt": "Balamentum dashboard showing the next task and the life balance"
 	},
+	"film": {
+		"title": "Balamentum on film",
+		"lead": "Nearly four minutes showing how a full to-do list becomes the right next task.",
+		"fallback": "Your browser can't play videos. Try Balamentum directly."
+	},
 	"usp": {
 		"title": "What you get",
 		"items": [

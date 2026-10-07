@@ -23,6 +23,11 @@
 		"secondary": "¿Ya tienes cuenta? Abrir la app",
 		"screenshotAlt": "Panel de Balamentum con la próxima tarea y el equilibrio vital"
 	},
+	"film": {
+		"title": "Balamentum en vídeo",
+		"lead": "Casi cuatro minutos que muestran cómo una lista llena se convierte en la siguiente tarea correcta.",
+		"fallback": "Tu navegador no puede reproducir vídeos. Prueba Balamentum directamente."
+	},
 	"usp": {
 		"title": "Lo que te aporta Balamentum",
 		"items": [
