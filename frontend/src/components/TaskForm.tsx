@@ -1030,7 +1030,8 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 					startDate: form.current.startDate.trim() === '' ? undefined : startDate,
 					rhythm: form.current.rhythm,
 					autoCreate: form.current.autoCreate,
-					autoDeleteAfterDeadline: autoDelete,
+					// #2414: Feld ausgeblendet (keine Automatik) → hängendes true nie speichern.
+					autoDeleteAfterDeadline: autoCreate ? autoDelete : false,
 					// Bei einer Übergabe die Kategorie weglassen (Muster `pillars`): Sie gehört dem
 					// bisherigen Eigentümer — der Server hängt sie per Namensgleichheit um.
 					...(isHandover ? {} : { categoryId }),
@@ -1066,7 +1067,8 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 					rhythm: form.current.rhythm,
 					autoCreate: form.current.autoCreate,
 					active: true,
-					autoDeleteAfterDeadline: autoDelete,
+					// #2414: Feld ausgeblendet (keine Automatik) → hängendes true nie speichern.
+					autoDeleteAfterDeadline: autoCreate ? autoDelete : false,
 					// Kategorie wie `pillars` bei einer Übergabe weglassen (siehe Kommentar oben) — sie
 					// gehört zum eigenen Konto.
 					...(isHandover ? {} : { categoryId }),

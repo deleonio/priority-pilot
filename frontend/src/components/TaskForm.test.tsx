@@ -3609,6 +3609,38 @@ describe('TaskForm — Serie als Vorlage: Schalter „Automatisch anlegen" (#235
 		expect(arg.seriesUpdate?.['autoDeleteAfterDeadline']).toBe(false);
 	});
 
+	it('AK2 (#2414) — gespeicherte Vorlage ohne Automatik: hängendes autoDeleteAfterDeadline wird beim Speichern normalisiert', async () => {
+		mockUpdateSeries.mockResolvedValue({ ...minimalSeries(), autoCreate: false });
+		await act(async () => {
+			render(
+				<SeriesEditForm
+					task={null}
+					series={{
+						...minimalSeries(),
+						autoCreate: false,
+						rhythm: 'none' as Series['rhythm'],
+						autoDeleteAfterDeadline: true,
+					}}
+					{...defaultProps}
+				/>,
+			);
+		});
+		// Der Toggle-Handler läuft nie — das Feld ist ausgeblendet, das alte true darf nicht hängen bleiben.
+		expect(screen.queryByLabelText(/Automatisch löschen nach 3 Tagen/i)).toBeNull();
+
+		await clickSaveEdit();
+		const confirm = screen.queryByRole('button', { name: 'Ja' });
+		if (confirm !== null) {
+			await act(async () => {
+				fireEvent.click(confirm);
+			});
+		}
+
+		const [arg] = mockUpdateSeries.mock.calls[0] as [{ seriesUpdate?: Record<string, unknown> }];
+		expect(arg.seriesUpdate?.['autoCreate']).toBe(false);
+		expect(arg.seriesUpdate?.['autoDeleteAfterDeadline']).toBe(false);
+	});
+
 	it('AK5 (#2414) — gespeicherte Vorlage (none): Schalter an liefert Rhythmus weekly und Startdatum', async () => {
 		await act(async () => {
 			render(
