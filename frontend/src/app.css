@@ -210,6 +210,17 @@
 	margin-top: var(--pp-space-6);
 }
 
+/* KI-Entwurf (#2350): langer Freitext bricht um statt seitlich überzulaufen. */
+.ai-draft__section {
+	display: grid;
+	gap: var(--pp-space-2);
+}
+
+.ai-draft__text {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
 /*
  * Dunkelmodus ist gewählt, nicht gespiegelt: jede Rolle trägt einen eigenen, gegen die dunkle
  * Fläche (#161b22) gerechneten Wert. Die Säulen-Rampe ist dieselbe Hue-Folge in dunkler Stufung.

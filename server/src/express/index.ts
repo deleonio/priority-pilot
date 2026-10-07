@@ -40,6 +40,7 @@ import { profileRouter } from './routes/profile.js';
 import { mcpRouter } from '../mcp/server.js';
 import type { FetchProviderModels, RunProviderTest } from './routes/llmProviders.js';
 import { lektoratRouter } from './routes/lektorat.js';
+import { taskAiDraftRouter } from './routes/taskAiDraft.js';
 import { createFeedbackRouter } from './routes/feedback.js';
 import type { ObsidianGithubClient } from '../logics/obsidianFeedback.js';
 import { reverseGeocodeRouter } from './routes/reverseGeocode.js';
@@ -309,6 +310,9 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Lektorat-Endpunkt (Issue #680) — triggert die bezahlte LLM-Kaskade, daher Session-Pflicht
 	// (Mensch-Entscheidung im Review von PR #682: kein öffentlicher DOS-/Kostenhebel).
 	app.use(lektoratRouter());
+
+	// KI-Entwurf einer Aufgabe (#2350) — LLM-Aufruf erst auf Klick, daher wie das Lektorat hinter der Session.
+	app.use(taskAiDraftRouter());
 
 	// App-Feedback nach Obsidian (Issue #1435) — bewusst HINTER `requireAuth`: der Endpunkt
 	// schreibt in ein fremdes Repo und ist kein anonymer Hebel (AK7).

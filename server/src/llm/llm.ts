@@ -10,6 +10,7 @@ import { normalizeSuggestedShares } from '../logics/pillarShares.js';
 import { fetchProviderEndpoint } from './endpointGuard.js';
 import { upstreamErrorDetail } from './upstreamError.js';
 import type { LlmProvider as LlmProviderRow } from '../models/index.js';
+import type { LlmSuitability } from '../logics/llmSuitability.js';
 
 /**
  * Eine vorgeschlagene Säulen-Einzahlung: Säulen-ID plus Konfidenz in Prozent (0–100) und — seit
@@ -446,12 +447,18 @@ const extractSuggestions = (parsed: unknown, input: ClassifyPillarsInput): Pilla
 		.sort((a, b) => a.pillarId - b.pillarId);
 };
 
-/** Extrahiert den JSON-String aus der Chat-Completion-Antwort und parst ihn defensiv. */
-const parseModelContent = (payload: unknown): unknown => {
+/** Extrahiert den Text der Chat-Completion-Antwort. */
+const modelText = (payload: unknown): string => {
 	const content = (payload as { choices?: { message?: { content?: unknown } }[] })?.choices?.[0]?.message?.content;
 	if (typeof content !== 'string') {
 		throw new MistralRequestError('Antwort des Modells enthielt keinen Text.');
 	}
+	return content;
+};
+
+/** Extrahiert den JSON-String aus der Chat-Completion-Antwort und parst ihn defensiv. */
+const parseModelContent = (payload: unknown): unknown => {
+	const content = modelText(payload);
 	try {
 		return JSON.parse(content);
 	} catch {
@@ -461,12 +468,14 @@ const parseModelContent = (payload: unknown): unknown => {
 
 /**
  * Einzelner API-Call an einen Provider: schickt die Nachrichten an die Chat-Completions-API
- * (JSON-Mode, Temperatur 0, Timeout) und liefert den geparsten JSON-Inhalt der Modell-Antwort.
+ * (JSON-Mode, Temperatur 0, Timeout) und liefert den geparsten JSON-Inhalt der Modell-Antwort —
+ * mit `json = false` ohne JSON-Mode den Freitext (#2350).
  * Wirft {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
  */
 const callProvider = async (
 	config: ProviderConfig,
 	messages: { role: string; content: string }[],
+	json = true,
 ): Promise<unknown> => {
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -483,7 +492,7 @@ const callProvider = async (
 				body: JSON.stringify({
 					model: config.model,
 					temperature: 0,
-					response_format: { type: 'json_object' },
+					...(json ? { response_format: { type: 'json_object' } } : {}),
 					messages,
 				}),
 				signal: controller.signal,
@@ -513,7 +522,7 @@ const callProvider = async (
 		throw new MistralRequestError(`${config.label}-Antwort konnte nicht als JSON gelesen werden.`);
 	}
 
-	return parseModelContent(payload);
+	return json ? parseModelContent(payload) : modelText(payload);
 };
 
 /** ProviderConfig aus einer `llm_providers`-Zeile — Built-ins lösen ENV-Werte auf (llmProviders.ts). */
@@ -548,10 +557,12 @@ const resolveProvider = async (pinned?: LlmProvider, userId?: number): Promise<L
 	}
 };
 
+/** Genau ein Provider-Aufruf; `json = false` liefert den Freitext statt geparstem JSON (#2350). */
 const requestModelJson = async (
 	messages: { role: string; content: string }[],
 	provider?: LlmProvider,
 	userId?: number,
+	json = true,
 ): Promise<unknown> => {
 	// GENAU EIN Call an den aufgelösten Provider — keine Kaskade, kein Provider-Fallback.
 	// Mit userId (#1548) gewinnt die eigene Provider-Auswahl des Nutzers.
@@ -572,7 +583,7 @@ const requestModelJson = async (
 			`${resolved.name}: kein Modell gewählt — Modell in den Einstellungen (KI-Provider) festlegen.`,
 		);
 	}
-	return callProvider(toDynamicProviderConfig(resolved), messages);
+	return callProvider(toDynamicProviderConfig(resolved), messages, json);
 };
 
 /**
@@ -1112,6 +1123,49 @@ export const adviseActivitiesWithMistral: ActivityAdvisor = async (input, provid
 		userId,
 	);
 	return extractActivityAdvice(parsed, input);
+};
+
+/** Arbeitsauftrag des KI-Entwurfs (#2350) je KI-Eignung der Aufgabe (#2349). */
+const TASK_DRAFT_INSTRUCTIONS: Record<LlmSuitability, string> = {
+	draft:
+		'Schreibe einen versandfertigen Entwurf des Textes, den die Aufgabe verlangt (z. B. E-Mail, Brief, Antrag). Fehlende Angaben setzt du als Platzhalter in eckige Klammern.',
+	summary:
+		'Die Aufgabe verlangt eine Zusammenfassung. Fasse zusammen, was Titel und Beschreibung hergeben, und gliedere die Punkte, die die Zusammenfassung abdecken sollte.',
+	research:
+		'Die Aufgabe verlangt eine Recherche. Erstelle einen knappen Recherche-Plan mit Leitfragen, geeigneten Quellen und Vergleichskriterien. Erfinde keine Fakten.',
+};
+
+/**
+ * KI-Entwurf zu einer Aufgabe (#2350): genau ein Aufruf des aktiven Providers mit dem Arbeitsauftrag
+ * der Kategorie; liefert den getrimmten Freitext. Wirft {@link MissingApiKeyError} ohne Provider und
+ * {@link MistralRequestError} bei Upstream-/Format-Problemen oder leerer Antwort.
+ */
+export const draftTaskWithMistral = async (
+	input: { category: LlmSuitability; title: string; description?: string | null },
+	provider?: LlmProvider,
+	userId?: number,
+): Promise<string> => {
+	const system = [
+		'Du erledigst die Vorarbeit für eine Aufgabe aus einer persönlichen Aufgabenliste.',
+		TASK_DRAFT_INSTRUCTIONS[input.category],
+		'Antworte in der Sprache der Aufgabe, nur mit dem Ergebnis, ohne Vorbemerkung.',
+	].join('\n');
+	const user = [`Aufgabe: ${input.title}`, ...(input.description ? [`Beschreibung: ${input.description}`] : [])].join(
+		'\n',
+	);
+	const text = (await requestModelJson(
+		[
+			{ role: 'system', content: system },
+			{ role: 'user', content: user },
+		],
+		provider,
+		userId,
+		false,
+	)) as string;
+	if (text.trim() === '') {
+		throw new MistralRequestError('Antwort des Modells enthielt keinen Entwurf.');
+	}
+	return text.trim();
 };
 
 /** Eine Abhängigkeits-Vermutung des Import-Berichts (#1988): Kante plus Begründung. */

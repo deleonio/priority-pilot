@@ -1653,6 +1653,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						categories={categories}
 						onClose={closeDialog}
 						onSaved={afterMutation}
+						onChanged={refreshKeepingDialog}
 					/>
 				)}
 				{dialog?.kind === 'delete' && (

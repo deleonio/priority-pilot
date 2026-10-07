@@ -12,6 +12,7 @@ import { createSuggestPillarsRouter } from './routes/suggestPillars.js';
 import { createPillarAdvisorRouter } from './routes/pillarAdvisor.js';
 import { lektoratRouter } from './routes/lektorat.js';
 import { createReassignPillarsRouter } from './routes/reassignPillars.js';
+import { taskAiDraftRouter } from './routes/taskAiDraft.js';
 
 /** Minimale Sicht auf den Express-Router-Stack (Express 5) — nur was der Test liest. */
 interface RouteLayer {
@@ -54,6 +55,9 @@ const EXPECTED: Record<string, boolean> = {
 	'POST /tasks/reassign-pillars': true,
 	// Liest nur den Stand des letzten Laufs — kein Provider-Aufruf, daher ungezählt.
 	'GET /tasks/reassign-pillars/status': false,
+	// #2350: KI-Entwurf zählt; das Verwerfen ruft keinen Provider auf.
+	'POST /tasks/:id/ai-draft': true,
+	'DELETE /tasks/:id/ai-draft': false,
 };
 
 describe('KI-Kontingent-Metering: Abdeckung aller fünf LLM-Routen (#1459, AK5)', () => {
@@ -63,6 +67,7 @@ describe('KI-Kontingent-Metering: Abdeckung aller fünf LLM-Routen (#1459, AK5)'
 		...meteringOf(createPillarAdvisorRouter()),
 		...meteringOf(lektoratRouter()),
 		...meteringOf(createReassignPillarsRouter()),
+		...meteringOf(taskAiDraftRouter()),
 	};
 
 	it('jede Route der vier LLM-Routendateien trägt (oder trägt bewusst nicht) die Zähler-Middleware', () => {

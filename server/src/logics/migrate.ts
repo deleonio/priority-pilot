@@ -1138,6 +1138,20 @@ export const migrateTaskSnoozeColumn = async (db: Sequelize): Promise<void> => {
 };
 
 /**
+ * Zieht `aiDraft` (#2350, KI-Entwurf) auf einer **bestehenden** `tasks`-Tabelle nach, BEVOR
+ * `sequelize.sync()` läuft — analog `migrateTaskSnoozeColumn`. Nullable; idempotent, bei frischer DB No-op.
+ */
+export const migrateTaskAiDraftColumn = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('tasks')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length > 0 && !existing.includes('aiDraft')) {
+		await db.query('ALTER TABLE `tasks` ADD COLUMN `aiDraft` TEXT');
+		console.log('Spalte aiDraft an tasks nachgezogen (#2350).');
+	}
+};
+
+/**
  * Zieht die Pending-Plan-Spalten (#1505) und `firstFailureAt` (#1506) auf einer **bestehenden**
  * `subscriptions`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog
  * `migrateTaskPinnedColumns`. Alle ergänzten Spalten sind nullable (kein DEFAULT nötig),
