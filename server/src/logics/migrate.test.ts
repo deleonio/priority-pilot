@@ -268,6 +268,23 @@ describe('migrateSeriesTable', () => {
 	});
 });
 
+describe('migrateSeriesTable #2355 autoCreate', () => {
+	it('zieht autoCreate nach (NOT NULL, Default true) und ist idempotent', async () => {
+		await createLegacySeriesTable();
+
+		await migrateSeriesTable(sequelize);
+		await migrateSeriesTable(sequelize);
+
+		const [rows] = await sequelize.query("PRAGMA table_info('series')");
+		const column = (rows as { name: string; notnull: number; dflt_value: string | null }[]).filter(
+			(row) => row.name === 'autoCreate',
+		);
+		assert.equal(column.length, 1, 'genau eine autoCreate-Spalte');
+		assert.equal(column[0].notnull, 1);
+		assert.equal(column[0].dflt_value, '1', 'Bestand und neue Zeilen starten mit true');
+	});
+});
+
 // ── Rote Spec-Tests für #207 — fehlende Schema-Migration für die `userId`-Spalten ───────────────────
 //
 // Root Cause: Die Datenisolation (#207, AK5) ergab `userId` an `pillars` und `tasks` sowie den
