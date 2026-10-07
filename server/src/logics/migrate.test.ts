@@ -1960,3 +1960,49 @@ describe('migrateCalendarSourceCaldavColumns (#2211)', () => {
 		assert.equal(source?.passwordEncrypted, null);
 	});
 });
+
+// #2377 AK-Migration (docs/spec/issue-2377.md), Muster migrateApiTokenScope: `api_tokens.kind`
+// ('api' | 'app', Default 'api') unterscheidet persoenliche API-Tokens von App-Tokens.
+describe('migrateApiTokenKind (#2377)', () => {
+	// #2377: `migrateApiTokenKind` existiert noch nicht (rote Spec-Tests) — Zugriff ueber Namespace + Cast.
+	const migrateApiTokenKind = (
+		migrateModule as unknown as { migrateApiTokenKind?: (db: typeof sequelize) => Promise<void> }
+	).migrateApiTokenKind;
+
+	const apiTokenColumns = async (): Promise<string[]> => {
+		const [rows] = await sequelize.query("PRAGMA table_info('api_tokens')");
+		return (rows as { name: string }[]).map((row) => row.name);
+	};
+
+	const createLegacyApiTokensTable = async (): Promise<void> => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `api_tokens` (' +
+				'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+				'`userId` INTEGER NOT NULL, ' +
+				'`name` VARCHAR(255) NOT NULL, ' +
+				'`tokenHash` VARCHAR(255) NOT NULL UNIQUE, ' +
+				'`createdAt` DATETIME NOT NULL, ' +
+				'`updatedAt` DATETIME NOT NULL' +
+				')',
+		);
+	};
+
+	it("zieht kind mit Default 'api' nach — Bestandszeilen bleiben persoenliche Tokens, zweiter Lauf wirft nicht", async () => {
+		assert.ok(migrateApiTokenKind, 'migrateApiTokenKind muss in migrate.ts exportiert werden');
+		await createLegacyApiTokensTable();
+		await sequelize.query(
+			'INSERT INTO api_tokens (userId, name, tokenHash, createdAt, updatedAt) ' +
+				"VALUES (1, 'Alt-Token', 'hash-alt', '2026-01-01 00:00:00', '2026-01-01 00:00:00')",
+		);
+
+		await migrateApiTokenKind!(sequelize);
+		await assert.doesNotReject(() => migrateApiTokenKind!(sequelize), 'idempotent');
+
+		assert.equal((await apiTokenColumns()).filter((name) => name === 'kind').length, 1, 'kind genau einmal');
+		const [rows] = await sequelize.query('SELECT name, kind FROM api_tokens');
+		const row = (rows as { name: string; kind: string }[])[0];
+		assert.equal(row?.name, 'Alt-Token');
+		assert.equal(row?.kind, 'api', 'Bestandszeile bleibt ein persoenlicher API-Token');
+	});
+});

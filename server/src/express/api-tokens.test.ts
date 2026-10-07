@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 import sequelize from '../database.js';
 import { User } from '../models/index.js';
+import { createNativeLoginCode } from '../logics/magicLink.js';
 
 /**
  * Rote Spec-Tests für #1352 (Spec docs/spec/issue-1352.md) — persönliche API-Tokens.
@@ -419,5 +420,37 @@ describe('Persönliche API-Tokens — Plan-Deckel fürs Anlegen (#1524 AK6)', ()
 		const res = await createToken(cookie, 'CLI');
 
 		assert.equal(res.status, 201, 'ohne MONETIZATION_ENFORCED bleibt das Verhalten wie heute');
+	});
+});
+
+describe('App-Tokens in der Token-Verwaltung (#2377 AK4, Spec docs/spec/issue-2377.md)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	it('AK4: GET /api-tokens per Session listet keine App-Tokens, wohl aber die persoenlichen', async () => {
+		const email = 'app-list@example.com';
+		const cookie = await server.register(email, 'password123');
+		const state = 'app-state-0123456789';
+		const exchange = await server.json('/auth/native/exchange', {
+			method: 'POST',
+			headers: { 'X-Client-Channel': 'play' },
+			body: JSON.stringify({ code: await createNativeLoginCode(email, state), state }),
+		});
+		assert.equal(exchange.status, 200, 'Setup: App-Token muss ausstellbar sein');
+		assert.equal((await createToken(cookie, 'CLI')).status, 201);
+
+		const list = (await (await listTokens(cookie)).json()) as ListedToken[];
+		assert.deepEqual(
+			list.map((t) => t.name),
+			['CLI'],
+		);
 	});
 });
