@@ -535,6 +535,22 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		return () => controller.abort();
 	}, [reload]);
 
+	// #2399: Rückkehr in den Vordergrund lädt über `reload()` neu (kein Live-Push); ein noch laufender Refetch wird abgebrochen.
+	useEffect(() => {
+		let controller: AbortController | null = null;
+		const onVisibility = () => {
+			if (document.visibilityState !== 'visible') return;
+			controller?.abort();
+			controller = new AbortController();
+			void reload(controller.signal);
+		};
+		document.addEventListener('visibilitychange', onVisibility);
+		return () => {
+			document.removeEventListener('visibilitychange', onVisibility);
+			controller?.abort();
+		};
+	}, [reload]);
+
 	useEffect(() => {
 		const timers = doneRemovalTimers.current;
 		return () => {

@@ -37,6 +37,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [Mobile-UI-Regeln](docs/mobile-ui-rules.md) — Daumen-Zonen, Touch-Targets, async Zustände, Anti-Patterns (Schwesterdatei: Cockpit-Design)
 - [Design-Optimierungsplan](docs/design-optimierungsplan.md) — offene Findings aus Impeccable-Audit + Dashboard-Critique, Arbeitsliste mit Kommandos
 - [Fachlogik-Inventar](docs/fachlogik-inventar.md) — Fachlogik mit Mehrfachnutzung (REST/MCP/Jobs), Befund, Zielpfad und Folge-Ticket-Vorschläge
+- [Wetter-API-Evaluierung](docs/wetter-api-evaluierung.md) — Open-Meteo vs. DWD Open Data: Kriterienvergleich, Empfehlung, Integrationskonzept (#1931)
 - [E2E-Verschlüsselung](docs/e2e-verschluesselung-konzept.md) — Opt-in-Konzept zu ADR 0022: Lösungswege, Funktionstabelle, Wiederherstellung, Migration, Issue-Schnitt
 
 ## Kernregeln
