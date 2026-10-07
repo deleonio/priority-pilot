@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.18 - 2026-10-07
 
-_Enthält v0.18.0 – v0.18.7._
+_Enthält v0.18.0 – v0.18.8._
 
 ### 🎉 New Features
 
@@ -27,6 +27,7 @@ _Enthält v0.18.0 – v0.18.7._
 
 - feat(server): confirm withdrawal consent on first invoice (#2329) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2336
 - feat(server): flag task llm suitability via keyword heuristic by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2351
+- feat(server): add ai draft action for llm-suitable tasks by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2367
 
 ## v0.17 - 2026-10-07
 
@@ -191,6 +192,7 @@ _Enthält v0.15.0 – v0.15.22._
 - feat(frontend): import analysis report with duplicate merge (#1988) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2181
 - feat(frontend): monthly balance recap (#1995) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2185
 - chore(ci): remove ai:model label family and label-based model fallback by @deleonio in https://github.com/deleonio/priority-pilot/pull/2182
+- chore(ci): remove ai:model label family and label-based model fallback by @deleonio in https://github.com/deleonio/priority-pilot/pull/2182
 - docs(skills): escalation ladder for a stalling pipeline (ticket-coordination) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2189
 - docs: add MCP guide page and README section (#1978) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2184
 - feat(frontend): done action for missed tasks, archive view, forest fix by @deleonio in https://github.com/deleonio/priority-pilot/pull/2188
@@ -303,7 +305,6 @@ _Enthält v0.12.0 – v0.12.26._
 
 ### 🔧 Engineering
 
-- docs(skill): ticket-coordination theme scope and stale ai:needs-human by @deleonio in https://github.com/deleonio/priority-pilot/pull/2023
 - docs(skill): ticket-coordination theme scope and stale ai:needs-human by @deleonio in https://github.com/deleonio/priority-pilot/pull/2023
 - docs(adr): store prices set to web prices (#1800) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2024
 - docs(skill): ticket-coordination pitfall triage finds ticket already fulfilled by @deleonio in https://github.com/deleonio/priority-pilot/pull/2028
