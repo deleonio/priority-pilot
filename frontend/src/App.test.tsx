@@ -751,6 +751,13 @@ describe('App — #2399: Refetch bei Rückkehr in den Vordergrund', () => {
 		Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
 		document.dispatchEvent(new Event('visibilitychange'));
 	};
+	// Erstladen abwarten: `reload()` und der SeriesTab-Mount rufen `listSeries` je einmal — Zähler danach relativ lesen.
+	const settleInitialLoad = async (): Promise<void> => {
+		await waitFor(() => expect(api.listSeries).toHaveBeenCalled());
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+		});
+	};
 
 	beforeEach(() => {
 		vi.mocked(api.listSeries).mockClear();
@@ -762,18 +769,19 @@ describe('App — #2399: Refetch bei Rückkehr in den Vordergrund', () => {
 
 	it('AK1: visible lädt Aufgaben und Serien erneut', async () => {
 		render(<App user={testUser} />);
-		await waitFor(() => expect(api.listSeries).toHaveBeenCalledTimes(1));
+		await settleInitialLoad();
 		const tasksBefore = vi.mocked(api.listTasks).mock.calls.length;
+		const seriesBefore = vi.mocked(api.listSeries).mock.calls.length;
 
 		act(() => setVisibility('visible'));
 
 		await waitFor(() => expect(api.listTasks).toHaveBeenCalledTimes(tasksBefore + 1));
-		await waitFor(() => expect(api.listSeries).toHaveBeenCalledTimes(2));
+		await waitFor(() => expect(api.listSeries).toHaveBeenCalledTimes(seriesBefore + 1));
 	});
 
 	it('AK2: hidden löst keinen Ladevorgang aus', async () => {
 		render(<App user={testUser} />);
-		await waitFor(() => expect(api.listSeries).toHaveBeenCalledTimes(1));
+		await settleInitialLoad();
 		const tasksBefore = vi.mocked(api.listTasks).mock.calls.length;
 
 		act(() => setVisibility('hidden'));
@@ -786,7 +794,7 @@ describe('App — #2399: Refetch bei Rückkehr in den Vordergrund', () => {
 
 	it('AK2: zwei schnelle visible-Wechsel brechen den ersten Ladevorgang ab', async () => {
 		render(<App user={testUser} />);
-		await waitFor(() => expect(api.listSeries).toHaveBeenCalledTimes(1));
+		await settleInitialLoad();
 		const tasksBefore = vi.mocked(api.listTasks).mock.calls.length;
 		// Folgeladungen bleiben offen, damit der erste Refetch beim zweiten Wechsel noch läuft.
 		vi.mocked(api.listTasks).mockImplementation(() => new Promise(() => undefined));
