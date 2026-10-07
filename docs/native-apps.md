@@ -46,7 +46,7 @@ Zusätzlich legt er die mit demselben Upload-Schlüssel signierte APK als Artefa
 (`adb install app-release.apk`). Da der Fingerabdruck des Upload-Schlüssels in `ANDROID_CERT_SHA256`
 steht, bleibt die App-Link-Verifikation erhalten — Übergang bis zum internen Test-Track nach dem
 Store-Start (#1688).
-Den `versionCode` leitet Gradle aus der Root-Version ab (`major*10000 + minor*100 + patch`,
+Den `versionCode` leitet Gradle aus der Root-Version ab (`major*10000000 + minor*10000 + patch`,
 `native/src/version-code.ts`).
 
 Upload-Schlüssel einmalig erzeugen und sicher aufbewahren (für PKCS12 gilt ein Passwort für

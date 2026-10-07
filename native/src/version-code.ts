@@ -10,7 +10,10 @@ export function versionCodeFrom(version: string): number {
 		throw new Error(`Ungueltiges Versionsschema: ${version}`);
 	}
 	const [major, minor, patch] = parts;
-	return major * 10000 + minor * 100 + patch;
+	if (major > 209 || minor > 999 || patch > 9999) {
+		throw new Error(`Version ausserhalb der versionCode-Grenzen (major<=209, minor<=999, patch<=9999): ${version}`);
+	}
+	return major * 10000000 + minor * 10000 + patch;
 }
 
 /** Aktuelle Version der Root-package.json — dieselbe Quelle, die Gradle beim Build liest. */
