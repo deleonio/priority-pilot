@@ -65,6 +65,8 @@ vi.mock('./api', () => ({
 		archiveTask: vi.fn(),
 		// Archiv-Ansicht: wird nur im Modus `?view=archived` geladen (in den Tests nicht aufgerufen).
 		listArchivedTasks: vi.fn().mockResolvedValue([]),
+		// Test-Pflege #2399: `reload()` lädt die Serien als Nachzügler mit (Refetch bei Rückkehr in den Vordergrund).
+		listSeries: vi.fn().mockResolvedValue([]),
 		unarchiveTask: vi.fn(),
 		logout: vi.fn(),
 		// #1879: `AppShell` meldet die App-Sprache beim Start (fire-and-forget) — Mock, damit der Aufruf nicht wirft.
@@ -736,5 +738,70 @@ describe('App — Hilfe-Segmente', () => {
 		});
 		const tabs = document.querySelector('kol-tabs[_label="Hilfe"]') as unknown as TabsElement;
 		expect(tabs?._tabs?.[tabs._selected ?? -1]?._label).toBe(label);
+	});
+});
+
+/**
+ * #2399 AK1/AK2: Rückkehr in den Vordergrund (`visibilitychange` → `visible`) lädt Aufgaben und Serien
+ * über `reload()` neu; ein noch laufender Ladevorgang wird abgebrochen, `hidden` löst nichts aus
+ * (Spec docs/spec/issue-2399.md). Das Erstladen beim Mount zählt nicht als Refetch.
+ */
+describe('App — #2399: Refetch bei Rückkehr in den Vordergrund', () => {
+	const setVisibility = (state: 'visible' | 'hidden'): void => {
+		Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+		document.dispatchEvent(new Event('visibilitychange'));
+	};
+
+	beforeEach(() => {
+		vi.mocked(api.listSeries).mockClear();
+	});
+
+	afterEach(() => {
+		delete (document as { visibilityState?: unknown }).visibilityState;
+	});
+
+	it('AK1: visible lädt Aufgaben und Serien erneut', async () => {
+		render(<App user={testUser} />);
+		await waitFor(() => expect(api.listSeries).toHaveBeenCalledTimes(1));
+		const tasksBefore = vi.mocked(api.listTasks).mock.calls.length;
+
+		act(() => setVisibility('visible'));
+
+		await waitFor(() => expect(api.listTasks).toHaveBeenCalledTimes(tasksBefore + 1));
+		await waitFor(() => expect(api.listSeries).toHaveBeenCalledTimes(2));
+	});
+
+	it('AK2: hidden löst keinen Ladevorgang aus', async () => {
+		render(<App user={testUser} />);
+		await waitFor(() => expect(api.listSeries).toHaveBeenCalledTimes(1));
+		const tasksBefore = vi.mocked(api.listTasks).mock.calls.length;
+
+		act(() => setVisibility('hidden'));
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+		});
+
+		expect(api.listTasks).toHaveBeenCalledTimes(tasksBefore);
+	});
+
+	it('AK2: zwei schnelle visible-Wechsel brechen den ersten Ladevorgang ab', async () => {
+		render(<App user={testUser} />);
+		await waitFor(() => expect(api.listSeries).toHaveBeenCalledTimes(1));
+		const tasksBefore = vi.mocked(api.listTasks).mock.calls.length;
+		// Folgeladungen bleiben offen, damit der erste Refetch beim zweiten Wechsel noch läuft.
+		vi.mocked(api.listTasks).mockImplementation(() => new Promise(() => undefined));
+
+		act(() => {
+			setVisibility('visible');
+			setVisibility('visible');
+		});
+
+		await waitFor(() => expect(api.listTasks).toHaveBeenCalledTimes(tasksBefore + 2));
+		const signals = vi
+			.mocked(api.listTasks)
+			.mock.calls.slice(tasksBefore)
+			.map(([init]) => init?.signal);
+		expect(signals[0]?.aborted).toBe(true);
+		expect(signals[1]?.aborted).toBe(false);
 	});
 });
