@@ -76,7 +76,7 @@ test.describe('#1958 Nutzerverwaltung — Rechnungsansicht je Nutzer', () => {
 		await waitForStableView(page, 'Balamentum');
 
 		// AK3: Ansicht je Nutzer, eindeutiges Label, Aufklappen lädt die Rechnungen nach.
-		await page.getByText('Rechnungen von Anna Admin').click();
+		await page.getByText('Rechnungen von Anna Admin').first().click();
 
 		const entry = page.locator('.admin-user', { hasText: 'Anna Admin' }).locator('li', { hasText: 'INV-2026-000002' });
 		await expect(entry).toBeVisible();

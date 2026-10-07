@@ -18,7 +18,7 @@ Drei Eigenheiten des heutigen Codes bestimmen die Entscheidung mit:
 
 **1. Capacitor im Remote-Modus.** Ein pnpm-Paket `native/` enthält das Capacitor-Projekt für beide Plattformen. `server.url` zeigt auf die gehostete `/app/` (aus `SITE_URL`), Assets werden nicht gebündelt. Die App lädt damit immer den aktuellen Web-Stand, Änderungen am Frontend brauchen kein Store-Release. `allowNavigation` erlaubt nur die eigene Domain. Ist der Server nicht erreichbar, zeigt die App eine lokale Fehlerseite.
 
-**2. Package-ID `de.balamentum.app`** für Android und später iOS.
+**2. Package-ID `balamentum.app`** für Android und später iOS.
 
 **3. Kanal statt Plattform-Weichen im Code.** Das Frontend ermittelt einen Kanal und verzweigt nur über ihn. Jede API-Anfrage trägt ihn im Header `X-Client-Channel`.
 

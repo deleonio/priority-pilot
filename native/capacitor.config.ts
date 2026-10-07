@@ -10,7 +10,7 @@ if (!siteUrl) {
 }
 
 const config: CapacitorConfig = {
-	appId: 'de.balamentum.app',
+	appId: 'balamentum.app',
 	appName: 'Balamentum',
 	webDir: 'www',
 	server: {

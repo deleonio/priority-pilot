@@ -8,7 +8,7 @@ import { createAccessTokenSource, readServiceAccount } from './googleAuth.js';
  * App hat. Ohne Konfiguration startet der Server normal; erst ein Aufruf meldet `not_configured`.
  */
 
-const PACKAGE_NAME = 'de.balamentum.app';
+const PACKAGE_NAME = 'balamentum.app';
 const SCOPE = 'https://www.googleapis.com/auth/androidpublisher';
 const API = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PACKAGE_NAME}/purchases`;
 
