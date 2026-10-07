@@ -54,13 +54,14 @@ describe('Series API — Kaskade schont erledigte Instanzen (#555)', () => {
 		return result.toISOString().replace(/\.\d{3}Z$/, '.000Z');
 	};
 
-	const validSeries = () => ({
+	const validSeries = (autoCreate = false) => ({
 		title: 'Wöchentlich kochen',
 		rhythm: 'weekly',
 		priority: 4,
 		estimatedEffort: 0.5,
 		active: true,
 		startDate: futureDate(1),
+		autoCreate, // #2404: default false for tests that manually seed instances
 	});
 
 	/**

@@ -234,8 +234,9 @@ const validateSeriesFields = (
 		}
 		attrs.priority = input.priority;
 	}
+	// #2404: Task-Defaults wie `POST /tasks` (Modell `task.ts`), wenn beim Anlegen nichts übergeben wird.
 	if (isPost && attrs.priority === undefined) {
-		return { ok: false, message: 'priority ist erforderlich.' };
+		attrs.priority = 3;
 	}
 
 	if (input.estimatedEffort !== undefined) {
@@ -250,7 +251,7 @@ const validateSeriesFields = (
 		attrs.estimatedEffort = input.estimatedEffort;
 	}
 	if (isPost && attrs.estimatedEffort === undefined) {
-		return { ok: false, message: 'estimatedEffort ist erforderlich.' };
+		attrs.estimatedEffort = 0.5;
 	}
 
 	if (input.active !== undefined) {
@@ -507,6 +508,10 @@ export const createSeriesRouter = ({ pushSender }: SeriesRouterDeps = {}): Route
 				}
 				return series;
 			});
+			// #2404: erste Instanzen sofort anlegen (wie `POST /series/:id/generate`); `autoCreate: false` erzeugt nichts.
+			const until = new Date();
+			until.setUTCDate(until.getUTCDate() + GENERATE_HORIZON_DAYS);
+			await generateDueInstances(created, { until, pushSender });
 			// #1222: Angelegt-Objekt ohne Owner-Scope nachladen — bei einer Empfänger-Serie ist der
 			// Ersteller nicht Eigentümer und fände sie über `findSeriesWithPillars` nicht wieder (500).
 			const withPillars = await Series.findOne({ where: { id: created.id }, include: [Pillar] });
