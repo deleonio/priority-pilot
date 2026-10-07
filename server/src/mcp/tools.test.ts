@@ -3023,3 +3023,142 @@ describe('MCP-Staffelungs-Hinweis (#1823)', () => {
 		assert.ok(row.includes(hint), 'IF-07 muss den Text von MCP_PACING_HINT enthalten');
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1938 (Spec docs/spec/issue-1938.md) — Serien über task_create/task_update.
+ *
+ * AK1: task_create mit series legt eine Serie samt Instanzen an.
+ * AK2: ohne series bleibt task_create eine Einzelaufgabe.
+ * AK3: task_update mit series ändert den Rhythmus der Serie einer Instanz.
+ * AK4: ungültiger rhythm / series an Einzelaufgabe → Fehler, Bestand unverändert.
+ * AK5: Schemas führen series; der Katalog-Zähler (33) ist bereits oben abgedeckt.
+ *
+ * Rot, weil beide Werkzeuge `series` heute ignorieren (`tools.ts` task_create/task_update).
+ * KEIN Produktivcode.
+ */
+describe('MCP-Werkzeug task_create/task_update: Serien (#1938)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => resetDb());
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	type SeriesRow = { id: number; rhythm: string };
+	type TaskRow = { id: number; title: string; seriesId: number | null };
+
+	const today = (): string => {
+		const d = new Date();
+		d.setUTCHours(0, 0, 0, 0);
+		return d.toISOString();
+	};
+	const listSeries = async (cookie: string): Promise<SeriesRow[]> =>
+		(await (await server.json('/series', { headers: { Cookie: cookie } })).json()) as SeriesRow[];
+	const listTasks = async (token: string): Promise<TaskRow[]> =>
+		(await mcpCall<TaskRow[]>(token, 'task_list')).result ?? [];
+
+	it('AK1: task_create mit series legt genau eine Serie und deren Instanzen an', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const created = await mcpCall(token, 'task_create', {
+			title: 'Täglich gießen',
+			series: { rhythm: 'daily', startDate: today() },
+		});
+		assert.equal(created.error, undefined, `task_create mit series sollte gelingen: ${created.error?.message}`);
+
+		const series = await listSeries(cookie);
+		assert.equal(series.length, 1, 'genau eine Serie muss entstehen');
+		assert.equal(series[0].rhythm, 'daily');
+		const instances = (await listTasks(token)).filter((t) => t.seriesId === series[0].id);
+		assert.ok(instances.length >= 1, 'die fälligen Instanzen müssen mit der seriesId der Serie erzeugt werden');
+	});
+
+	it('AK2: task_create ohne series legt eine Einzelaufgabe ohne seriesId an, keine Serie', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const created = await mcpCall(token, 'task_create', { title: 'Einmalig' });
+		assert.equal(created.error, undefined);
+
+		const tasks = await listTasks(token);
+		assert.equal(tasks.length, 1);
+		assert.equal(tasks[0].seriesId ?? null, null, 'Einzelaufgabe darf keine seriesId tragen');
+		assert.equal((await listSeries(cookie)).length, 0, 'es darf keine Serie entstehen');
+	});
+
+	it('AK3: task_update mit series ändert den Rhythmus der Serie einer Instanz', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		await mcpCall(token, 'task_create', { title: 'Täglich', series: { rhythm: 'daily', startDate: today() } });
+		const [serie] = await listSeries(cookie);
+		const instance = (await listTasks(token)).find((t) => t.seriesId === serie?.id);
+		assert.ok(instance, 'Setup: AK1-Pfad muss eine Instanz liefern');
+
+		const updated = await mcpCall(token, 'task_update', { id: instance.id, series: { rhythm: 'weekly' } });
+		assert.equal(updated.error, undefined, `task_update mit series sollte gelingen: ${updated.error?.message}`);
+
+		const res = await server.json(`/series/${serie.id}`, { headers: { Cookie: cookie } });
+		assert.equal(((await res.json()) as SeriesRow).rhythm, 'weekly');
+	});
+
+	it('AK4: unbekannter rhythm wird abgelehnt, es entsteht keine Serie und keine Aufgabe', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const failed = await mcpCall(token, 'task_create', {
+			title: 'Kaputt',
+			series: { rhythm: 'hourly', startDate: today() },
+		});
+		assert.ok(failed.error, 'unbekannter rhythm muss als Werkzeugfehler ankommen');
+		assert.equal((await listSeries(cookie)).length, 0);
+		assert.equal((await listTasks(token)).length, 0);
+	});
+
+	it('AK4: task_update mit series an einer Aufgabe ohne seriesId wird abgelehnt, die Aufgabe bleibt unverändert', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const id = await createTaskViaApi(cookie, 'Einzeln');
+
+		const failed = await mcpCall(token, 'task_update', { id, title: 'Umbenannt', series: { rhythm: 'weekly' } });
+		assert.ok(failed.error, 'Einzelaufgabe lässt sich nicht in eine Serie umwandeln');
+		assert.equal((await listSeries(cookie)).length, 0);
+		assert.equal((await listTasks(token)).find((t) => t.id === id)?.title, 'Einzeln');
+	});
+
+	it('AK5: inputSchema von task_create und task_update führt series mit rhythm-Enum, startDate, autoCreate', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const tools = await mcpListTools(await createToken(cookie));
+		const rhythms = [
+			'daily',
+			'weekly',
+			'monthly',
+			'weekdays',
+			'weekend',
+			'mon',
+			'tue',
+			'wed',
+			'thu',
+			'fri',
+			'sat',
+			'sun',
+			'none',
+		];
+		for (const name of ['task_create', 'task_update']) {
+			const tool = tools.find((t) => t.name === name) as { description?: string; inputSchema?: unknown } | undefined;
+			assert.ok(tool, `${name} muss im Katalog stehen`);
+			const series = (
+				tool.inputSchema as {
+					properties?: Record<string, { properties?: Record<string, { enum?: string[] }> }>;
+				}
+			).properties?.series;
+			assert.ok(series, `${name}.inputSchema.properties.series fehlt`);
+			assert.deepEqual([...(series.properties?.rhythm?.enum ?? [])].sort(), [...rhythms].sort());
+			assert.ok(series.properties?.startDate, `${name}: series.startDate fehlt`);
+			assert.ok(series.properties?.autoCreate, `${name}: series.autoCreate fehlt`);
+			assert.match(tool.description ?? '', /series/i, `${name}: Beschreibung muss Serien erwähnen`);
+		}
+	});
+});
