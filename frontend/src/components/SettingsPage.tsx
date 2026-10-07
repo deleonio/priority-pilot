@@ -36,6 +36,7 @@ import { McpInstructionsSection } from './McpInstructionsSection';
 import { ApiTokensSection } from './ApiTokensSection';
 import { CalendarSourcesSection } from './CalendarSourcesSection';
 import { PlaceFavoritesSection } from './PlaceFavoritesSection';
+import { KnowledgeEntriesSection } from './KnowledgeEntriesSection';
 import { CategoryList } from './CategoryList';
 import { DeleteAccountButton } from './DeleteAccount';
 import { GroupsSection } from './GroupsSection';
@@ -1068,6 +1069,7 @@ export const SettingsPage = ({
 					</KolCard>
 					<LlmSettings open={aiFeaturesEnabled} disabled={showAiPlanAlert} />
 					<ApiTokensSection open={aiFeaturesEnabled} />
+					<KnowledgeEntriesSection />
 					<McpInstructionsSection open={aiFeaturesEnabled} />
 				</div>
 				{/* #1211: Gruppen-Verwaltung (AK6–AK8) — eigener Tab „Gruppen" (Index 5, Route

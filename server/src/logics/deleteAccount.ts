@@ -18,6 +18,7 @@ import {
 	Pillar,
 	PillarFeedback,
 	PlaceFavorite,
+	KnowledgeEntry,
 	JournalEntry,
 	CalendarSource,
 	CalendarEvent,
@@ -130,6 +131,7 @@ export const deleteAccount = async (
 		await ApiToken.destroy(own);
 		await AiUsage.destroy(own);
 		await PlaceFavorite.destroy(own);
+		await KnowledgeEntry.destroy(own);
 		await JournalEntry.destroy(own);
 		await CalendarEvent.destroy(own);
 		await CalendarSource.destroy(own);

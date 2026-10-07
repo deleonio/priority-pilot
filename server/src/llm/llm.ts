@@ -47,6 +47,8 @@ export interface ClassifyPillarsInput {
 	 * Säulen-IDs werden übernommen.
 	 */
 	examples?: FeedbackExample[];
+	/** Zur Aufgabe passende Wissens-Einträge des Nutzers (#1936); nur in der finalen Nutzer-Nachricht. */
+	knowledge?: { id: number; text: string }[];
 }
 
 /** Funktionssignatur des Klassifikators — injizierbar, damit Tests ohne echten API-Call laufen. */
@@ -315,6 +317,11 @@ export const buildUserMessage = (input: ClassifyPillarsInput): string => {
 	}
 	if (input.context) {
 		lines.push(`- Kontext (abhängige Aufgaben): ${input.context}`);
+	}
+	// #1936: ohne Einträge kein Abschnitt — die Nachricht bleibt dann exakt wie zuvor (AK5).
+	if (input.knowledge?.length) {
+		lines.push('', 'Persönliche Hinweise des Nutzers (bei der Zuordnung berücksichtigen):');
+		lines.push(...input.knowledge.map((entry) => `- ${entry.text}`));
 	}
 	return lines.join('\n');
 };

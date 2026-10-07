@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { sendError } from '../http-error.js';
-import { Pillar, PillarFeedback } from '../../models/index.js';
+import { KnowledgeEntry, Pillar, PillarFeedback, User } from '../../models/index.js';
 import { classifyPillarsWithMistral, type FeedbackExample, type PillarClassifier } from '../../llm/llm.js';
 import { resolvePillarDescription } from '../../models/pillarData.js';
 import { loadFeedbackExamples } from '../../logics/pillarFeedbackExamples.js';
@@ -9,6 +9,8 @@ import { SHARE_MIN, SHARE_MAX } from '../../logics/pillarShares.js';
 import { sendLlmError, validateProviderQuery } from '../llmProviderQuery.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { requirePlanFeature } from '../planGuard.js';
+import { shouldBlockFeature } from '../../logics/plans.js';
+import { selectRelevantKnowledge } from '../../logics/knowledgeEntries.js';
 import { meterAiQuota } from '../aiQuotaMeter.js';
 import type { components } from '../../api';
 
@@ -98,6 +100,24 @@ const validateFeedbackBody = (
  * Erstellt den Router für `POST /tasks/suggest-pillars`. Der Klassifikator ist injizierbar
  * (Default: realer Mistral-Aufruf), damit Tests ohne echten API-Call laufen.
  */
+/**
+ * Zur Aufgabe passende Wissens-Einträge (#1936 AK4/AK5) — nur für Nutzer, deren Paket
+ * `knowledge_entries` enthält; ohne Anmeldung, ohne Pro oder ohne Treffer eine leere Liste.
+ */
+const loadRelevantKnowledge = async (
+	userId: number | undefined,
+	task: Parameters<typeof selectRelevantKnowledge>[1],
+): Promise<{ id: number; text: string }[]> => {
+	if (userId === undefined) return [];
+	const user = await User.findByPk(userId);
+	if (!user || shouldBlockFeature(user.plan, 'knowledge_entries')) return [];
+	const entries = await KnowledgeEntry.findAll({ where: { userId }, order: [['id', 'ASC']] });
+	return selectRelevantKnowledge(
+		entries.map(({ id, text }) => ({ id, text })),
+		task,
+	);
+};
+
 export const createSuggestPillarsRouter = (classifier: PillarClassifier = classifyPillarsWithMistral): Router => {
 	const router = Router();
 
@@ -106,7 +126,10 @@ export const createSuggestPillarsRouter = (classifier: PillarClassifier = classi
 		'/tasks/suggest-pillars',
 		requirePlanFeature('ai_assist'),
 		meterAiQuota(),
-		async (req: Request, res: Response<{ suggestions: PillarSuggestionDto[] } | ErrorDto>) => {
+		async (
+			req: Request,
+			res: Response<{ suggestions: PillarSuggestionDto[]; knowledgeEntryIds?: number[] } | ErrorDto>,
+		) => {
 			// Provider-Query-Parameter validieren (#749)
 			const providerValidation = await validateProviderQuery(req.query as Record<string, unknown>);
 			if (!providerValidation.ok) {
@@ -145,23 +168,27 @@ export const createSuggestPillarsRouter = (classifier: PillarClassifier = classi
 				console.warn('Feedback-Beispiele konnten nicht geladen werden — klassifiziere ohne sie.', error);
 			}
 
+			const task = {
+				title: validation.value.title,
+				description: validation.value.description ?? undefined,
+				context: validation.value.context ?? undefined,
+				pillars: pillars.map((pillar) => ({
+					id: pillar.id,
+					name: pillar.name,
+					description: resolvePillarDescription(pillar) || undefined,
+				})),
+			};
+
 			try {
+				const knowledge = await loadRelevantKnowledge(getUserId(req), task);
 				const suggestions = await classifier(
-					{
-						title: validation.value.title,
-						description: validation.value.description ?? undefined,
-						context: validation.value.context ?? undefined,
-						pillars: pillars.map((pillar) => ({
-							id: pillar.id,
-							name: pillar.name,
-							description: resolvePillarDescription(pillar) || undefined,
-						})),
-						examples,
-					},
+					knowledge.length > 0 ? { ...task, examples, knowledge } : { ...task, examples },
 					provider,
 					getUserId(req),
 				);
-				res.json({ suggestions });
+				res.json(
+					knowledge.length > 0 ? { suggestions, knowledgeEntryIds: knowledge.map((e) => e.id) } : { suggestions },
+				);
 			} catch (error) {
 				sendLlmError(res, error);
 			}

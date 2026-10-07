@@ -194,6 +194,7 @@
 			"voice_input": "Röstinmatning",
 			"feedback": "Feedback och appsupport",
 			"sync": "Synkronisering över alla enheter",
+			"knowledge_entries": "Personliga anteckningar för AI:n",
 			"ai_assist": "AI-hjälp: pelarrådgivare och språkgranskning",
 			"graph_write": "Beroenden mellan uppgifter",
 			"graph_weight": "Redigera viktade beroenden",

@@ -85,6 +85,7 @@ vi.mock('./api', () => ({
 		listApiTokens: vi.fn().mockResolvedValue([]),
 		// Test-Pflege #1342: der Tab „Standort“ lädt beim Mount die gespeicherten Orte.
 		listPlaceFavorites: vi.fn().mockResolvedValue([]),
+		listKnowledgeEntries: vi.fn().mockResolvedValue([]),
 		listCalendarSources: vi.fn().mockResolvedValue([]),
 		// Test-Pflege #1990: Karte „Freie Zeit" (Dashboard) und Mindestdauer-Regler (Kalender-Einstellungen).
 		listFreeSlots: vi.fn().mockResolvedValue([]),

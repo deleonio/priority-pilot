@@ -8,6 +8,7 @@ import {
 	Group,
 	GroupChallenge,
 	GroupMember,
+	KnowledgeEntry,
 	Pillar,
 	ScoreEntry,
 	Series,
@@ -184,6 +185,19 @@ describe('Konto löschen (#1671)', () => {
 			0,
 			'AK5: gespeicherte Meilenstein-Zeilen sind mit dem Konto gelöscht',
 		);
+	});
+
+	it('#1936 AK6: die Kontolöschung entfernt alle Wissens-Einträge des Nutzers', async () => {
+		const cookie = await server.login('wissen-weg@example.com');
+		const userId = await idOf(cookie);
+		const other = await idOf(await server.login('wissen-bleibt@example.com'));
+		await KnowledgeEntry.create({ userId, text: 'Ich trainiere dienstags.' });
+		await KnowledgeEntry.create({ userId: other, text: 'Bleibt erhalten.' });
+
+		assert.equal((await deleteMe(cookie)).status, 204);
+
+		assert.equal(await KnowledgeEntry.count({ where: { userId } }), 0);
+		assert.equal(await KnowledgeEntry.count({ where: { userId: other } }), 1);
 	});
 
 	it('verlangt eine Session (401)', async () => {

@@ -19,6 +19,7 @@ const MATRIX: Record<string, readonly string[]> = {
 	mcp_readwrite: ['pro'],
 	feedback: ['free', 'plus', 'pro'],
 	sync: ['free', 'plus', 'pro'],
+	knowledge_entries: ['pro'],
 };
 
 describe('plans.ts — Pakete free/plus/pro (#1782)', () => {
@@ -29,7 +30,7 @@ describe('plans.ts — Pakete free/plus/pro (#1782)', () => {
 	it('AK1/AK2: Entitlements und requiredPlan folgen der Matrix je Paket und Feature', () => {
 		for (const plan of ['free', 'plus', 'pro'] as const) {
 			const map = getEntitlements(plan) as Record<string, { allowed: boolean; requiredPlan: string }>;
-			assert.deepEqual(Object.keys(map).sort(), Object.keys(MATRIX).sort(), 'genau die zehn Features');
+			assert.deepEqual(Object.keys(map).sort(), Object.keys(MATRIX).sort(), 'genau die elf Features');
 			for (const [feature, plans] of Object.entries(MATRIX)) {
 				assert.equal(map[feature]?.allowed, plans.includes(plan), `${plan} × ${feature}`);
 				assert.equal(map[feature]?.requiredPlan, plans[0], `requiredPlan von ${feature}`);

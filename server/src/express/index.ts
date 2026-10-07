@@ -35,6 +35,7 @@ import { kpisRouter } from './routes/kpis.js';
 import { createBalanceVariantRouter } from './routes/balanceVariant.js';
 import { apiTokensRouter } from './routes/apiTokens.js';
 import { placeFavoritesRouter } from './routes/placeFavorites.js';
+import { knowledgeEntriesRouter } from './routes/knowledgeEntries.js';
 import { journalRouter } from './routes/journal.js';
 import { calendarRouter } from './routes/calendar.js';
 import { freeSlotsRouter } from './routes/freeSlots.js';
@@ -359,6 +360,9 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Gespeicherte Orte (#1342): pro Nutzer benannte Adressen für das Adressfeld von Aufgabe/Serie.
 	app.use(placeFavoritesRouter);
+
+	// Wissens-Einträge (#1936): persönliche Hinweise für die Säulenzuordnung, nur Pro.
+	app.use(knowledgeEntriesRouter);
 
 	// Journal-Einträge (#2212): anlegen, listen, bearbeiten, löschen.
 	app.use(journalRouter);

@@ -20,6 +20,7 @@ import GroupInviteLink from './groupInviteLink.js';
 import GroupChallenge from './groupChallenge.js';
 import ApiToken from './apiToken.js';
 import PlaceFavorite from './placeFavorite.js';
+import KnowledgeEntry from './knowledgeEntry.js';
 import JournalEntry from './journalEntry.js';
 import CalendarSource from './calendarSource.js';
 import CalendarEvent from './calendarEvent.js';
@@ -151,6 +152,7 @@ export {
 	GroupChallenge,
 	ApiToken,
 	PlaceFavorite,
+	KnowledgeEntry,
 	JournalEntry,
 	CalendarSource,
 	CalendarEvent,

@@ -4424,6 +4424,100 @@ paths:
           $ref: '#/components/responses/PlanRequired'
         '404':
           $ref: '#/components/responses/NotFound'
+  /knowledge-entries:
+    get:
+      summary: Wissens-Einträge auflisten
+      description: >-
+        Liefert die Wissens-Einträge des angemeldeten Nutzers (#1936), älteste zuerst —
+        ausschließlich die eigenen. Pro-Funktion `knowledge_entries`.
+      operationId: listKnowledgeEntries
+      tags: [knowledge-entries]
+      responses:
+        '200':
+          description: Liste der eigenen Wissens-Einträge
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/KnowledgeEntry'
+        '403':
+          $ref: '#/components/responses/PlanRequired'
+    post:
+      summary: Wissens-Eintrag anlegen
+      description: >-
+        Legt einen Wissens-Eintrag an (#1936): Text 1–500 Zeichen, höchstens 50 Einträge je
+        Nutzer. Passende Einträge fließen in die Säulenzuordnung ein.
+      operationId: createKnowledgeEntry
+      tags: [knowledge-entries]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KnowledgeEntryInput'
+      responses:
+        '201':
+          description: Angelegter Wissens-Eintrag
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeEntry'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/PlanRequired'
+  /knowledge-entries/{id}:
+    patch:
+      summary: Wissens-Eintrag ändern
+      description: Ändert den Text eines eigenen Wissens-Eintrags (#1936); fremde oder unbekannte liefern 404.
+      operationId: updateKnowledgeEntry
+      tags: [knowledge-entries]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Id des Wissens-Eintrags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KnowledgeEntryInput'
+      responses:
+        '200':
+          description: Geänderter Wissens-Eintrag
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeEntry'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/PlanRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Wissens-Eintrag löschen
+      description: Entfernt einen eigenen Wissens-Eintrag endgültig (#1936); fremde oder unbekannte liefern 404.
+      operationId: deleteKnowledgeEntry
+      tags: [knowledge-entries]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Id des Wissens-Eintrags
+      responses:
+        '204':
+          description: Wissens-Eintrag gelöscht
+        '403':
+          $ref: '#/components/responses/PlanRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /journal:
     get:
       summary: Journal-Einträge auflisten
@@ -5899,6 +5993,7 @@ components:
               mcp_read,
               feedback,
               sync,
+              knowledge_entries,
             ]
         allowedPlans:
           type: array
@@ -6213,6 +6308,23 @@ components:
             token:
               type: string
               description: Klartext-Token (`pp_<32 Hex>`); nur in dieser Antwort enthalten
+    KnowledgeEntry:
+      type: object
+      description: Persönlicher Wissens-Eintrag eines Nutzers für die Säulenzuordnung (#1936).
+      required: [id, text]
+      properties:
+        id:
+          type: integer
+        text:
+          type: string
+    KnowledgeEntryInput:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
     PlaceFavorite:
       type: object
       description: >-
@@ -7431,6 +7543,13 @@ components:
           description: Vorgeschlagene Säulen-Einzahlungen, nach pillarId sortiert
           items:
             $ref: '#/components/schemas/PillarSuggestion'
+        knowledgeEntryIds:
+          type: array
+          description: >-
+            IDs der Wissens-Einträge, die in die Zuordnung eingeflossen sind (#1936, nur Pro);
+            fehlt ohne passende Einträge.
+          items:
+            type: integer
         fairUse:
           type: string
           enum: [throttled]
