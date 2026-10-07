@@ -6373,6 +6373,15 @@ components:
           type: string
           nullable: true
           description: Name der adressierten Gruppe (#1521); synchron zu `groupId`.
+        aiSuitability:
+          type: string
+          nullable: true
+          enum: [draft, summary, research]
+          description: >-
+            KI-Eignung der Aufgabe (#2349), per Schlüsselwort-Heuristik beim Lesen berechnet
+            (kein LLM, nicht gespeichert): Entwurf, Zusammenfassung oder Recherche. Nur in
+            Listen-Antworten und nur für Nutzer mit Paketmerkmal `ai_assist`; sonst fehlt das Feld.
+            `null` = keine Eignung.
         pillars:
           type: array
           description: >-
