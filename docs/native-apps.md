@@ -35,8 +35,13 @@ Ohne `SITE_URL` bricht `sync` mit einer Meldung ab. Für den Emulator: `npx cap 
 
 ## Signiertes App-Bundle (CI)
 
-Der Workflow `Android App-Bundle` (`.github/workflows/android.yml`, nur manuell) baut
+Der Workflow `Android App-Bundle` (`.github/workflows/android.yml`) baut
 `app-release.aab`, signiert mit dem Upload-Schlüssel, und legt es als Artefakt `balamentum-aab` ab.
+Nach jedem täglichen Minor-Release startet `Daily Version` ihn auf dem neuen Tag `vX.Y.0`; dann lädt er
+das AAB zusätzlich als Entwurf mit dem Release-Namen `vX.Y.0` in den internen Track der Play Console.
+Ausgerollt wird nichts automatisch: Entwurf in der Console prüfen und veröffentlichen oder das Bundle
+beim Release eines anderen Tracks über „Aus Bibliothek hinzufügen“ wählen. Manuell gestartet von
+`main` lädt der Workflow nichts hoch, auf einem Tag schon.
 Zusätzlich legt er die mit demselben Upload-Schlüssel signierte APK als Artefakt `balamentum-apk` ab
 (`adb install app-release.apk`). Da der Fingerabdruck des Upload-Schlüssels in `ANDROID_CERT_SHA256`
 steht, bleibt die App-Link-Verifikation erhalten — Übergang bis zum internen Test-Track nach dem
@@ -58,11 +63,17 @@ base64 -w0 upload.jks   # Inhalt → Secret ANDROID_UPLOAD_KEYSTORE_B64
 | `ANDROID_UPLOAD_KEYSTORE_PASSWORD` | Secret   | Passwort von Keystore und Schlüssel                                |
 | `ANDROID_UPLOAD_KEY_ALIAS`         | Secret   | Alias des Schlüssels, z. B. `upload`                               |
 | `ANDROID_GOOGLE_SERVICES_JSON`     | Secret   | Inhalt der `google-services.json` aus Firebase; fehlt er: ohne FCM |
+| `PLAY_SERVICE_ACCOUNT_JSON`        | Secret   | JSON-Schlüssel des Service-Accounts für den Play-Upload            |
 | `SITE_URL`                         | Variable | Domain der gehosteten App, wie beim Deploy                         |
 
 Mit Play App Signing signiert Google die ausgelieferte App mit dem eigenen App-Signaturschlüssel.
 Dessen SHA-256 aus der Play Console gehört in `ANDROID_CERT_SHA256` (Asset Links), dazu der
 Fingerabdruck des Upload-Schlüssels für selbst installierte Builds, durch Komma getrennt.
+
+Für den Play-Upload einmalig: in Google Cloud einen Service-Account mit JSON-Schlüssel anlegen
+(Inhalt → `PLAY_SERVICE_ACCOUNT_JSON`), ihn in der Play Console unter „Nutzer und Berechtigungen“
+für `balamentum.app` mit dem Recht „Releases verwalten“ einladen. Das allererste AAB muss Google
+zufolge per Hand hochgeladen werden; erst danach nimmt die API Uploads an.
 
 ## Anmeldung in der App
 

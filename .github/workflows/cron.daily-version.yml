@@ -28,7 +28,8 @@ name: Daily Version
 # wie deploy.yml). Der Bump-Commit traegt [skip ci], loest deploy.yml also nicht per
 # push aus. Die neue Version steckt aber erst nach einem Build im Frontend-Bundle
 # (Footer, __APP_VERSION__) — daher stoesst der letzte Schritt deploy.yml per
-# workflow_dispatch an (Redeploy ohne erneuten Patch-Bump).
+# workflow_dispatch an (Redeploy ohne erneuten Patch-Bump). Danach baut android.yml auf dem
+# neuen Tag das AAB und legt es als Entwurf in den internen Track der Play Console.
 
 on:
   schedule:
@@ -42,7 +43,7 @@ concurrency:
 
 permissions:
   contents: write
-  actions: write # workflow_dispatch fuer den Redeploy (deploy.yml)
+  actions: write # workflow_dispatch fuer Redeploy (deploy.yml) und App-Bundle (android.yml)
 
 jobs:
   daily-version:
@@ -192,3 +193,12 @@ jobs:
         run: |
           gh workflow run deploy.yml --repo "${{ github.repository }}" --ref main \
             || echo "::warning title=Redeploy nicht angestoßen::deploy.yml manuell per workflow_dispatch starten, sonst zeigt die App die neue Version erst nach dem nächsten Merge."
+
+      - name: App-Bundle für Play Console anstoßen (best-effort)
+        if: steps.mergecheck.outputs.has_merges == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v$(node -p "require('./package.json').version")"
+          gh workflow run android.yml --repo "${{ github.repository }}" --ref "$TAG" \
+            || echo "::warning title=App-Bundle nicht angestoßen::android.yml manuell per workflow_dispatch auf ${TAG} starten."
