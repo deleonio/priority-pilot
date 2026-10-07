@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.18 - 2026-10-07
 
-_Enthält v0.18.0 – v0.18.34._
+_Enthält v0.18.0 – v0.18.35._
 
 ### 🎉 New Features
 
@@ -61,6 +61,7 @@ _Enthält v0.18.0 – v0.18.34._
 - [P1/S] Paketübersicht: Synchronisation in allen Paketen ausweisen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2402
 - docs: evaluate Open-Meteo vs DWD weather APIs (#1931) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2411
 - refactor(server): gerundete Entfernung zentral in logics/geo.ts (#2406) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2419
+- docs(tickets): require priority/effort prefix in titles by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2421
 
 ## v0.17 - 2026-10-07
 
@@ -285,7 +286,7 @@ _Enthält v0.13.0 – v0.13.27._
 ### 🔧 Engineering
 
 - docs(skills): coordination pitfalls, -F body=@file for comment bodies by @deleonio in https://github.com/deleonio/priority-pilot/pull/2059
-- docs(skills): coordination pitfalls, -F body=@file for comment bodies by @deleonio in https://github.com/deleonio/priority-pilot/pull/2059
+- feat(i18n): restrict app languages to de and en (#1966) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2058
 - feat(i18n): restrict app languages to de and en (#1966) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2058
 - docs(skills): closing analysis for finished epics by @deleonio in https://github.com/deleonio/priority-pilot/pull/2061
 - docs(skills): start epic closing analysis at once by @deleonio in https://github.com/deleonio/priority-pilot/pull/2062
