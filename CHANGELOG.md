@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.17 - 2026-10-06
 
-_Enthält v0.17.0 – v0.17.34._
+_Enthält v0.17.0 – v0.17.35._
 
 ### 🎉 New Features
 
@@ -19,6 +19,7 @@ _Enthält v0.17.0 – v0.17.34._
 - fix(server): allow account deletion with abandoned paypal checkout by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2309
 - fix(frontend): keep legal text details open in consent step by @deleonio in https://github.com/deleonio/priority-pilot/pull/2314
 - fix(server): remove duplicate MailSender import in paypal.ts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2322
+- test(e2e): finish pillar recalc fake run on demand instead of wall clock by @deleonio in https://github.com/deleonio/priority-pilot/pull/2323
 
 ### 🔧 Engineering
 
@@ -167,6 +168,7 @@ _Enthält v0.14.0 – v0.14.31._
 ### 🚀 Improvements
 
 - perf(server): single ScoreEntry read per balance request (#2150) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2155
+- feat(frontend): show categories as inline chips instead of card rows by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2161
 - feat(frontend): show categories as inline chips instead of card rows by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2161
 - feat(frontend): clarify dashboard day/week view switcher labels (#2011) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2165
 - feat(frontend): shorten delete button label for saved places (#2013) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2166
@@ -327,7 +329,6 @@ _Enthält v0.11.0 – v0.11.31._
 - feat(server): keep paid plan until period end on paypal cancel by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1908
 - feat(frontend): move saved places into their own settings tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1911
 - feat(frontend): show monthly equivalent of yearly price by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1914
-- docs(skills): ticket-coordination resolves merge conflicts via subagent by @deleonio in https://github.com/deleonio/priority-pilot/pull/1920
 - docs(skills): ticket-coordination resolves merge conflicts via subagent by @deleonio in https://github.com/deleonio/priority-pilot/pull/1920
 - feat(frontend): merge plans and subscription into one settings tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1919
 - feat(frontend): require terms and privacy consent after login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1929
