@@ -132,6 +132,9 @@ interface StatCard {
 /** Anzahl der im Widget „Wichtigste Tasks" angezeigten Einträge. */
 const TOP_TASKS_LIMIT = 5;
 
+/** Einträge je Seite in der Deadlines-Liste (Client-Pagination, siehe `deadlinePage`). */
+const DEADLINES_PAGE_SIZE = 8;
+
 /** Eine Aufgabe mit gesetzter, gültiger Deadline (für die Deadline-Liste). */
 type TaskWithDeadline = Task & { deadline: Date };
 
@@ -190,6 +193,10 @@ export const Dashboard = ({
 
 	// Einmal pro Mount bestimmter Bezugszeitpunkt für die Deadline-Dringlichkeit (stabil je Ansicht).
 	const now = useMemo(() => new Date(), []);
+
+	// Pagination der Deadlines-Liste: Client-seitig, 8 Einträge je Seite — die Liste wächst mit
+	// den offenen Aufgaben unbegrenzt, die Card soll das Dashboard nicht in die Länge ziehen.
+	const [deadlinePage, setDeadlinePage] = useState(0);
 
 	const topTasks = useMemo(() => forest.slice(0, TOP_TASKS_LIMIT), [forest]);
 
@@ -254,6 +261,14 @@ export const Dashboard = ({
 				.filter((task): task is TaskWithDeadline => task.status !== TaskStatus.Done && hasDeadline(task))
 				.sort((a, b) => a.deadline.getTime() - b.deadline.getTime()),
 		[tasks],
+	);
+
+	// Seite klemmen, falls die Liste schrumpft (Erledigen/Archivieren) und die Seite leer fallen würde.
+	const deadlinePageCount = Math.max(1, Math.ceil(upcomingDeadlines.length / DEADLINES_PAGE_SIZE));
+	const aktiveDeadlinePage = Math.min(deadlinePage, deadlinePageCount - 1);
+	const visibleDeadlines = upcomingDeadlines.slice(
+		aktiveDeadlinePage * DEADLINES_PAGE_SIZE,
+		(aktiveDeadlinePage + 1) * DEADLINES_PAGE_SIZE,
 	);
 
 	// #2244: Verschwindet die Karte samt Knopf (Aufgabe erledigt/zurückgestellt, keine neue in Sicht),
@@ -574,22 +589,47 @@ export const Dashboard = ({
 				{upcomingDeadlines.length === 0 ? (
 					<p className="dashboard-empty">Keine anstehenden Deadlines.</p>
 				) : (
-					<ul className="dashboard-deadlines-list">
-						{upcomingDeadlines.map((task) => {
-							const urgency = deadlineUrgency(task.deadline, now);
-							return (
-								<li key={task.id} className="dashboard-deadline">
-									<span className="dashboard-deadline-title">{task.title}</span>
-									<span className="dashboard-deadline-aside">
-										{urgency !== 'later' && (
-											<KolBadge _label={formatRelativeDeadline(task.deadline, now)} _color={URGENCY_COLOR[urgency]} />
-										)}
-										<span className="dashboard-deadline-date">{formatDeadline(task.deadline)}</span>
-									</span>
-								</li>
-							);
-						})}
-					</ul>
+					<>
+						<ul className="dashboard-deadlines-list">
+							{visibleDeadlines.map((task) => {
+								const urgency = deadlineUrgency(task.deadline, now);
+								return (
+									<li key={task.id} className="dashboard-deadline">
+										<span className="dashboard-deadline-title">{task.title}</span>
+										<span className="dashboard-deadline-aside">
+											{urgency !== 'later' && (
+												<KolBadge _label={formatRelativeDeadline(task.deadline, now)} _color={URGENCY_COLOR[urgency]} />
+											)}
+											<span className="dashboard-deadline-date">{formatDeadline(task.deadline)}</span>
+										</span>
+									</li>
+								);
+							})}
+						</ul>
+						{upcomingDeadlines.length > DEADLINES_PAGE_SIZE && (
+							<div className="dashboard-deadlines-pager">
+								<KolButton
+									_label="Zurück"
+									_variant="secondary"
+									_icons={{ left: { icon: 'fa-solid fa-chevron-left' } }}
+									_disabled={aktiveDeadlinePage === 0}
+									_on={{ onClick: () => setDeadlinePage(aktiveDeadlinePage - 1) }}
+								/>
+								<span className="dashboard-deadlines-pager-status" aria-live="polite">
+									{aktiveDeadlinePage * DEADLINES_PAGE_SIZE + 1}–
+									{Math.min((aktiveDeadlinePage + 1) * DEADLINES_PAGE_SIZE, upcomingDeadlines.length)} von{' '}
+									{upcomingDeadlines.length}
+								</span>
+								<KolButton
+									_label="Weiter"
+									_variant="secondary"
+									_icons={{ right: { icon: 'fa-solid fa-chevron-right' } }}
+									_disabled={aktiveDeadlinePage === deadlinePageCount - 1}
+									_on={{ onClick: () => setDeadlinePage(aktiveDeadlinePage + 1) }}
+								/>
+							</div>
+						)}
+					</>
 				)}
 			</KolCard>
 		</section>
