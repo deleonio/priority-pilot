@@ -3,11 +3,11 @@ import sequelize from '../database.js';
 import Invoice from '../models/invoice.js';
 import InvoiceSequence from '../models/invoiceSequence.js';
 import CreditSequence from '../models/creditSequence.js';
-import type Subscription from '../models/subscription.js';
+import Subscription from '../models/subscription.js';
 import User from '../models/user.js';
 import { getPlansCatalog, type Plan } from './plans.js';
 import { sendMailToUser, type MailSender } from './mail.js';
-import { buildInvoicePdf } from './invoicePdf.js';
+import { buildInvoicePdf, contractConfirmationLines } from './invoicePdf.js';
 import { OPERATOR } from './operator.js';
 
 /**
@@ -130,6 +130,39 @@ export const issueCreditNote = async (
 };
 
 /**
+ * Vertragsbestätigung (#2329, § 312f BGB) — nur für die erste Nicht-Gutschrift-Rechnung (frühester
+ * `periodEnd`) eines Abos mit gespeicherter Zustimmung; sonst leer. Gemeinsame Quelle für PDF-Erstbau
+ * und Mail (auch Nachholversand).
+ */
+const confirmationFor = async (invoice: Invoice, transaction?: Transaction): Promise<string[]> => {
+	if (invoice.get('creditForInvoiceId') != null) {
+		return [];
+	}
+	const subscriptionId = invoice.get('subscriptionId') as number;
+	const subscription = await Subscription.findByPk(subscriptionId, { transaction });
+	const consentAt = subscription?.get('withdrawalConsentAt') as Date | null | undefined;
+	if (!subscription || !consentAt) {
+		return [];
+	}
+	const first = await Invoice.findOne({
+		where: { subscriptionId, creditForInvoiceId: null },
+		order: [
+			['periodEnd', 'ASC'],
+			['id', 'ASC'],
+		],
+		transaction,
+	});
+	if (first?.get('id') !== invoice.get('id')) {
+		return [];
+	}
+	const plan = String(subscription.get('plan')) as Plan;
+	const period = String(subscription.get('period'));
+	const prices = getPlansCatalog().prices[plan];
+	const priceCents = prices ? prices[period as keyof typeof prices] : 0;
+	return contractConfirmationLines(displayLabel(plan, period), priceCents, consentAt);
+};
+
+/**
  * Stellt eine bereits angelegte Rechnung per Mail zu und setzt bei Erfolg `deliveredAt` (#2030).
  * Nutzt die gespeicherten `pdfBytes` — das PDF wird nie neu gebaut, Nummer und Anhang bleiben
  * byte-identisch. Ohne gespeichertes PDF oder Empfänger passiert nichts.
@@ -154,6 +187,7 @@ const deliverInvoice = async (
 	// Gutschrift (#2303): eigener Betreff/Text; der Bezug aufs Original steht in der Position.
 	const isCredit = invoice.get('creditForInvoiceId') != null;
 	const kind = isCredit ? 'Gutschrift' : 'Rechnung';
+	const confirmation = await confirmationFor(invoice);
 	const sent = await sendMailToUser(
 		user,
 		{
@@ -165,6 +199,7 @@ const deliverInvoice = async (
 				...lineItems.map((item) => `${item.label}: ${(item.amountCents / 100).toFixed(2)} ${currency}`),
 				`Betrag: ${(amountCents / 100).toFixed(2)} ${currency}`,
 				TAX_NOTE,
+				...(confirmation.length > 0 ? ['', ...confirmation] : []),
 			].join('\n'),
 			attachments: [{ filename: `${number}.pdf`, contentType: 'application/pdf', content: pdf }],
 		},
@@ -316,6 +351,7 @@ export const issueInvoiceForPeriod = async (
 				email: String(user?.get('email') ?? ''),
 			},
 			`Paket ${label}`,
+			await confirmationFor(invoice, tx),
 		);
 		await invoice.update({ pdfBytes: Buffer.from(pdfBytes) }, { transaction: tx });
 		if (creditCents > 0) {

@@ -151,7 +151,13 @@ describe('usePaypalPurchase — Warteverhalten nach dem Wechsel', () => {
 		expect(resume).toHaveTextContent(/15\.1\.2027/);
 		resume.click();
 
-		await waitFor(() => expect(createBillingSubscription).toHaveBeenCalledWith({ plan: 'pro', period: 'monthly' }));
+		await waitFor(() =>
+			expect(createBillingSubscription).toHaveBeenCalledWith({
+				plan: 'pro',
+				period: 'monthly',
+				withdrawalConsent: true,
+			}),
+		);
 	});
 
 	// #2235 AK6: das Zielpaket eines offenen Checkouts ist kein „Aktuelles Paket", sondern buchbar.
@@ -212,7 +218,13 @@ describe('usePaypalPurchase — Widerrufsbelehrung vor dem Erstkauf (#2307)', ()
 		const button = bookButton() as HTMLButtonElement;
 		expect(button.disabled).toBe(false);
 		fireEvent.click(button);
-		await waitFor(() => expect(createBillingSubscription).toHaveBeenCalledWith({ plan: 'plus', period: 'monthly' }));
+		await waitFor(() =>
+			expect(createBillingSubscription).toHaveBeenCalledWith({
+				plan: 'plus',
+				period: 'monthly',
+				withdrawalConsent: true,
+			}),
+		);
 	});
 
 	it('AK6: „Wechseln" bleibt ohne Checkbox und mit altem Label', () => {

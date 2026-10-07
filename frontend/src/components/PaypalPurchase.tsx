@@ -43,7 +43,11 @@ export const usePaypalPurchase = (): PurchaseUi => {
 		setActionError(null);
 		setBookingKey(key);
 		try {
-			const { approvalUrl } = await api.createBillingSubscription({ plan: targetPlan, period });
+			const { approvalUrl } = await api.createBillingSubscription({
+				plan: targetPlan,
+				period,
+				withdrawalConsent: true,
+			});
 			if (approvalUrl !== undefined) {
 				window.location.href = approvalUrl;
 				return;

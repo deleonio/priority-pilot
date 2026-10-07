@@ -58,7 +58,7 @@ describe('Erstabschluss schaltet das gebuchte Paket frei (#2231)', () => {
 		const checkout = await fetch(`${server.baseUrl}/billing/subscriptions`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Cookie: cookie },
-			body: JSON.stringify({ plan: 'plus', period: 'monthly' }),
+			body: JSON.stringify({ plan: 'plus', period: 'monthly', withdrawalConsent: true }),
 		});
 		assert.equal(checkout.status, 201);
 

@@ -101,7 +101,11 @@ describe('Abo mit Zahlungsrückstand ist offen (#2240)', () => {
 			const { cookie, userId } = await login(`ak2-${status}@example.com`.replace(/_/g, '-'));
 			await sub(userId, status);
 
-			const res = await post(cookie, '/billing/subscriptions', { plan: 'plus', period: 'monthly' });
+			const res = await post(cookie, '/billing/subscriptions', {
+				plan: 'plus',
+				period: 'monthly',
+				withdrawalConsent: true,
+			});
 
 			assert.equal(res.status, 409);
 			assert.equal(createCalls, 0);

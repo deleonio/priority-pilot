@@ -67,7 +67,11 @@ describe('Abgebrochener Checkout (#2235)', () => {
 		server = await startTestServer(clientWith(async (id) => void cancelled.push(id)));
 		const { cookie, userId } = await seedPending('ak2-2235@example.com');
 
-		const res = await post('/billing/subscriptions', cookie, { plan: 'pro', period: 'monthly' });
+		const res = await post('/billing/subscriptions', cookie, {
+			plan: 'pro',
+			period: 'monthly',
+			withdrawalConsent: true,
+		});
 
 		assert.equal(res.status, 201);
 		assert.deepEqual(cancelled, ['I-OLD']);
@@ -87,7 +91,11 @@ describe('Abgebrochener Checkout (#2235)', () => {
 		);
 		const { cookie, userId } = await seedPending('ak2-5xx-2235@example.com');
 
-		const res = await post('/billing/subscriptions', cookie, { plan: 'pro', period: 'monthly' });
+		const res = await post('/billing/subscriptions', cookie, {
+			plan: 'pro',
+			period: 'monthly',
+			withdrawalConsent: true,
+		});
 
 		assert.equal(res.status, 502);
 		assert.equal(created, 0, 'ohne erfolgreiches Verwerfen darf kein neues Abo angelegt werden');

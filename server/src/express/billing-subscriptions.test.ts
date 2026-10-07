@@ -69,7 +69,11 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		server = await startTestServer(withClient({}));
 		const cookie = await login('ak1@example.com');
 
-		const res = await post('/billing/subscriptions', cookie, { plan: 'plus', period: 'monthly' });
+		const res = await post('/billing/subscriptions', cookie, {
+			plan: 'plus',
+			period: 'monthly',
+			withdrawalConsent: true,
+		});
 
 		assert.equal(res.status, 201);
 		const body = (await res.json()) as { approvalUrl?: string };
@@ -95,7 +99,11 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			currentPeriodEnd: new Date('2026-12-01'),
 		});
 
-		const res = await post('/billing/subscriptions', cookie, { plan: 'pro', period: 'monthly' });
+		const res = await post('/billing/subscriptions', cookie, {
+			plan: 'pro',
+			period: 'monthly',
+			withdrawalConsent: true,
+		});
 		assert.equal(res.status, 409);
 	});
 
@@ -596,7 +604,7 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		const web = await fetch(`${server.baseUrl}/billing/subscriptions`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Cookie: cookie, 'X-Client-Channel': 'web' },
-			body: JSON.stringify({ plan: 'plus', period: 'monthly' }),
+			body: JSON.stringify({ plan: 'plus', period: 'monthly', withdrawalConsent: true }),
 		});
 		assert.equal(web.status, 201);
 	});
@@ -933,7 +941,11 @@ describe('Rechnungs-PDF-Download (#1955 AK4)', () => {
 			server = await startTestServer(client);
 			const { cookie, periodEnd } = await seedCancelled('tf3-2049@example.com', 'plus');
 
-			const res = await post('/billing/subscriptions', cookie, { plan: 'plus', period: 'monthly' });
+			const res = await post('/billing/subscriptions', cookie, {
+				plan: 'plus',
+				period: 'monthly',
+				withdrawalConsent: true,
+			});
 
 			assert.equal(res.status, 201);
 			assert.ok(calls[0]?.startTime, 'Anlage muss mit Startzeitpunkt-Override laufen');

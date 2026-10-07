@@ -111,7 +111,7 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 
 		await expect
 			.poll(() => capturedBody, { message: 'POST /billing/subscriptions muss plan+period senden' })
-			.toEqual({ plan: 'pro', period: 'monthly' });
+			.toEqual({ plan: 'pro', period: 'monthly', withdrawalConsent: true });
 		await expect(page).toHaveURL(/paypal\.example\/approve\/abc/);
 	});
 
@@ -340,7 +340,7 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 
 		await expect
 			.poll(() => capturedBody, { message: 'Weiterführen muss plan+period des eigenen Pakets senden' })
-			.toEqual({ plan: 'pro', period: 'monthly' });
+			.toEqual({ plan: 'pro', period: 'monthly', withdrawalConsent: true });
 		await expect(page).toHaveURL(/paypal\.example\/approve\/resume/);
 	});
 

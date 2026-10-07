@@ -1549,7 +1549,7 @@ describe('migrateSubscriptionPendingPlanColumns (#1742)', () => {
 		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht mehr ab');
 
 		const after = await subscriptionColumns();
-		for (const column of ['pendingPlan', 'pendingPlanEffectiveAt', 'firstFailureAt']) {
+		for (const column of ['pendingPlan', 'pendingPlanEffectiveAt', 'firstFailureAt', 'withdrawalConsentAt']) {
 			assert.ok(after.includes(column), `${column} wurde nachgezogen`);
 		}
 
