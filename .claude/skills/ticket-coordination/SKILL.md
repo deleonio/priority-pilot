@@ -96,6 +96,8 @@ Never start labelling right after the call. First agree on focus and order with 
    those leaves to the front of the order, so the container leaves the work chain. Scan all
    containers in scope for both at each check-in and after each merge. Issues
    without dependencies on each other run in parallel; the queues serialise what has to wait.
+   Tickets the author files during the run go to the front of the order, right after
+   containers, unless the author ranks them otherwise.
    Only dependent issues wait for their blocker's merge. A run shown as "pending" is queued, not
    stuck — never re-arm it. Name stage and effort (title prefix) whenever a check-in or decision
    reports what was started or what comes next — the author thinks in „wie wichtig, wie viel
@@ -125,8 +127,9 @@ Label write rules:
 - Re-arming a trigger that is still attached needs two writes: first without it, then with it.
   Adding an already present label fires no event.
 - Label names are exact (`ai:needs-ux-ui`, not `ai:needs-ux`). A write with an unknown name
-  silently creates that label and starts nothing. After every trigger write check within a
-  minute that the phase run did not end `skipped` (a `skipped` run means a wrong label name).
+  silently creates that label and starts nothing. Before every trigger write check the name
+  (`GET repos/{owner}/{repo}/labels/<name>`, 404 = wrong name); after it check within a minute
+  that the phase run did not end `skipped`.
 
 Record every PO decision as a comment on the epic or issue (with the attribution footer), so the
 pipeline and later readers see it.
@@ -167,7 +170,9 @@ wall of text — offer a decision round and go through the parked issues one by 
   session; without a scheduled wake-up the whole coordination stalls until the answer.
 - The check-in message carries **state only**; the rules live here. Template:
   `Check-in ticket-coordination (Skill). Epics: … Stand <UTC>: <je Issue: [Stufe/Aufwand]-Kürzel aus dem Titel, Phase, PR, Run-ID, was als Nächstes zu prüfen ist>. Erledigt-Basis (<Anzahl>): <Issue-Nummern>. Offen beim Autor: … Reihenfolge danach (mit Rang): … Nicht anfassen: …`
-  The done baseline makes counts and deltas reproducible across context resets.
+  The done baseline makes counts and deltas reproducible across context resets. A later run
+  reads the check-in as its instruction: write a finished container as „Abschluss-Analyse
+  starten", never as „schließen" (section 2).
 - Spec, implementation and fixup share one serialized queue; only triage, UX and review run
   side by side — order the queue per section 7, rung 1.
 - **Every round ends with the status block**, quiet rounds included — the author wants to see at
@@ -372,7 +377,12 @@ rung moves one rung up — never re-arm the same trigger a third time.
    - waiting on a decision: ask the author.
 4. **Infrastructure failures** (environment setup timeout, installer exit, runner loss): re-arm
    once and note the signature; a second one the same day goes to the author as an
-   infrastructure finding, not into more re-arms.
+   infrastructure finding, not into more re-arms. A run past twice its usual duration without a
+   push is diagnosed, not waited out: the job's steps (`GET …/actions/runs/<id>/jobs`, the step
+   `in_progress`) and, if needed, its log (`GET …/actions/jobs/<job-id>/logs`) show where it
+   hangs. A setup step (package install, browser download) that hangs runs into the job timeout
+   without any LLM call — treat it as an infrastructure failure at once, re-arm after the run
+   ends and report the signature.
 5. **Park what will not move.** When rungs 3 and 4 are spent and the next step is neither a
    split nor a local implementation, set `ai:needs-human` with one sentence on the cause and
    the decision needed (as a comment on the issue or PR), list it in the report and take it off

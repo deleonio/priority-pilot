@@ -1,6 +1,6 @@
 import { Op } from 'sequelize';
 import { Task, User, NotificationLog } from '../models/index.js';
-import { haversineKm } from './geo.js';
+import { roundedDistanceKm } from './geo.js';
 import { sendPushToUser, type PushSender } from './push.js';
 import { shouldBlockFeature } from './plans.js';
 import { selectSeriesRepresentatives } from './series.js';
@@ -85,7 +85,7 @@ export const collectGeoPushGroups = async (positions: GeoPosition[], now: Date):
 			now,
 		);
 		const distanceKm = (lat: number, lon: number, task: Task): number =>
-			Math.round(haversineKm(lat, lon, task.latitude as number, task.longitude as number) * 10) / 10;
+			roundedDistanceKm(lat, lon, task.latitude as number, task.longitude as number);
 		// Flanke (#1926): Aufgaben, die schon an der letzten Position im Alarmabstand lagen, sind kein Eintritt.
 		const nearby = candidates
 			.filter((task) => distanceKm(position.lat, position.lon, task) <= alarmDistanceKm)

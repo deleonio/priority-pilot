@@ -536,6 +536,36 @@ const catalog: McpTool[] = [
 		run: (ctx) => callApi(ctx, '/pillars'),
 	},
 	{
+		name: 'series_list',
+		description:
+			"Lists the token owner's series and templates, including the autoCreate flag (false = template without automatic instances).",
+		inputSchema: { type: 'object', properties: {} },
+		run: (ctx) => callApi(ctx, '/series'),
+	},
+	{
+		name: 'series_instantiate',
+		description:
+			'Creates one task from one of your series or templates (id from series_list), linked to the series. ' +
+			'Optional fields override the series defaults for this task.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				id: { type: 'integer', description: 'ID of the series (from series_list).' },
+				title: taskFieldProperties.title,
+				description: taskFieldProperties.description,
+				priority: taskFieldProperties.priority,
+				estimatedEffort: taskFieldProperties.estimatedEffort,
+				deadline: taskFieldProperties.deadline,
+			},
+			required: ['id'],
+		},
+		run: (ctx, args) => {
+			const { id: _id, ...fields } = args;
+			return callApi(ctx, `/series/${requireIntegerId(args, 'id')}/instances`, { method: 'POST', body: fields });
+		},
+	},
+	{
 		name: 'balance_status',
 		description:
 			"Returns the token owner's current life-balance status in one call: the overall fill level of " +

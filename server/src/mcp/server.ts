@@ -103,7 +103,7 @@ mcpRouter.post(MCP_PATH, async (req: Request, res: Response) => {
 		// Plan-Deckel (#1460): eine paketbedingte Herabstufung nennt das benötigte Paket statt des
 		// generischen Nur-lese-Texts — ein echter read-Token bekommt weiterhin die alte Meldung.
 		const message = req.apiTokenPlanCapped
-			? `The tool "${tool.name}" writes data, but your plan does not include MCP write access. Upgrade to "pro" to use it.`
+			? `The tool "${tool.name}" writes data, but your plan does not include MCP write access (mcp_readwrite). Upgrade to "pro" to use it.`
 			: `The tool "${tool.name}" writes data, but this token allows read access only. ` +
 				'In the settings under "Zugriff" (Access) you can switch the token to "Lesen und Schreiben" (read and write).';
 		sendRpcError(res, id, JSONRPC_INVALID_PARAMS, message);

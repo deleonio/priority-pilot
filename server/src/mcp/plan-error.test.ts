@@ -249,3 +249,58 @@ describe('MCP-Loopback — task_create je Paket (#1784 AK2/AK3)', () => {
 		assert.equal(await listTaskCount(cookie), 1);
 	});
 });
+
+/**
+ * #2360 AK4 (Spec docs/spec/issue-2360.md) — `series_instantiate` ist ein Schreibwerkzeug: ein
+ * readwrite-Token eines plus-Nutzers wird mit dem Paket-Fehler (`mcp_readwrite`, `pro`) abgewiesen,
+ * es entsteht keine Aufgabe. Rot, bis das Werkzeug existiert ("Unknown tool" nennt kein Paket).
+ */
+describe('MCP-Loopback — series_instantiate braucht das Paket mit mcp_readwrite (#2360 AK4)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+		delete process.env.MONETIZATION_ENFORCED;
+	});
+	after(async () => {
+		delete process.env.MONETIZATION_ENFORCED;
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	it('plus-Nutzer: Fehlertext nennt mcp_readwrite und pro, keine Aufgabe entsteht', async () => {
+		const email = 'mcp-plan-series@example.com';
+		const cookie = await server.register(email);
+		const token = await createToken(cookie);
+		const start = new Date();
+		start.setUTCDate(start.getUTCDate() + 7);
+		start.setUTCHours(0, 0, 0, 0);
+		const created = await fetch(`${server.baseUrl}/series`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({
+				title: 'Vorlage',
+				rhythm: 'weekly',
+				priority: 3,
+				estimatedEffort: 0.5,
+				active: true,
+				startDate: start.toISOString(),
+				autoCreate: false,
+			}),
+		});
+		assert.equal(created.status, 201, 'Setup: Serie muss anlegbar sein');
+		const seriesId = ((await created.json()) as { id: number }).id;
+		await setPlan(email, 'plus');
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		const { error } = await mcpCall(token, 'series_instantiate', { id: seriesId });
+
+		assert.ok(error, 'series_instantiate muss einen JSON-RPC-Fehler liefern');
+		assert.match(error.message, /mcp_readwrite/);
+		assert.match(error.message, /pro/);
+		const tasks = await fetch(`${server.baseUrl}/tasks`, { headers: { Cookie: cookie } });
+		const rows = (await tasks.json()) as { seriesId?: number | null }[];
+		assert.equal(rows.filter((t) => t.seriesId === seriesId).length, 0, 'keine Aufgabe darf entstehen');
+	});
+});
