@@ -891,12 +891,11 @@ describe('SettingsPage – #1458 AK11: Bereich „Pakete"', () => {
 	});
 
 	/*
-	 * Test-Pflege #1902 (Spec docs/spec/issue-1902.md AK4): die Sektion liegt im Reiter „Pakete & Abo"
-	 * (`slot="tab-6"`) in der Karte „Pakete" und ist keine `KolTableStateful`-Matrix mehr, sondern eine
-	 * Liste (JSDOM hydriert KoliBri nicht — Preise stehen als Text im DOM). Der geprüfte
-	 * #1458-AK11-Vertrag bleibt derselbe: Preise und Funktionen kommen ausschließlich aus `GET /plans`.
+	 * Test-Pflege #1902: die Sektion liegt im Reiter „Pakete & Abo" (`slot="tab-6"`) in der Karte
+	 * „Pakete". Der geprüfte #1458-AK11-Vertrag: Preise und Feature-Zeilen kommen ausschließlich aus
+	 * `GET /plans`.
 	 */
-	it('rendert die Karte „Pakete" mit Paketliste und Preisen aus GET /plans', async () => {
+	it('rendert die Karte „Pakete" mit Matrix und Preisen aus GET /plans', async () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
 		await waitFor(() => expect(container.querySelector('[data-testid="plans-section"]')).not.toBeNull());
@@ -904,16 +903,21 @@ describe('SettingsPage – #1458 AK11: Bereich „Pakete"', () => {
 		expect(container.querySelector('[slot="tab-6"] [data-testid="plans-section"]')).not.toBeNull();
 		expect(container.querySelector('kol-card[_label="Pakete"]')).not.toBeNull();
 		expect(apiMocks.getPlansCatalog).toHaveBeenCalled();
-		expect(container.querySelector('kol-table-stateful')).toBeNull();
 
+		const matrix = container.querySelector('kol-table-stateful') as unknown as {
+			_data?: (Record<string, unknown> & { _kind?: string })[];
+		} | null;
+		expect(matrix).not.toBeNull();
+		const rows = matrix?._data ?? [];
 		// Preise: exakt die Server-Werte, keine im Frontend hinterlegte Liste.
-		const freeItem = container.querySelector('[data-testid="plan-item-free"]');
-		const proItem = container.querySelector('[data-testid="plan-item-pro"]');
-		expect(freeItem?.textContent).toContain('monatlich: 0,00 €');
-		expect(proItem?.textContent).toContain('monatlich: 0,04 €');
-		// Funktionen: je Feature ein Eintrag im `KolDetails` der enthaltenen Pakete.
-		expect(proItem?.querySelectorAll('kol-details li')).toHaveLength(1);
-		expect(freeItem?.querySelector('kol-details')).toBeNull();
+		const monthlyPrices = rows.find((row) => row._kind === 'price' && row.label === 'Preis monatlich');
+		expect(monthlyPrices?.free).toBe('0,00 €');
+		expect(monthlyPrices?.pro).toMatch(/^0,04 €/);
+		// Matrixzeilen: je Feature eine Zeile mit „enthalten"/„—" je Paket.
+		const featureRows = rows.filter((row) => row._kind === 'feature');
+		expect(featureRows).toHaveLength(2);
+		expect(featureRows[0]?.pro).toBe('enthalten');
+		expect(featureRows[0]?.free).toBe('—');
 	});
 
 	it('zeigt den Ladefehler, wenn GET /plans scheitert — statt halber Daten', async () => {
@@ -1735,14 +1739,14 @@ describe('SettingsPage – #1902: Tab „Pakete & Abo"', () => {
 		expect(panel.querySelector('kol-button[_label="Pakete ansehen"]')).toBeNull();
 	});
 
-	it('AK4: die Pakete stehen als Liste mit Buchen-Aktion je Paket, ohne Tabelle', async () => {
+	// Nach #1902 wieder als Matrix (ADR 0014 Entscheidung 6): Buchen-Zeilen liegen im Tabellenkörper.
+	it('AK4: die Pakete stehen als Matrix mit Buchen-Zeilen', async () => {
 		const { panel } = renderTab(null);
 		await waitFor(() => expect(panel.querySelector('[data-testid="plans-section"]')).not.toBeNull());
 
-		expect(panel.querySelector('kol-table-stateful, table')).toBeNull();
-		// Test-Pflege #2307: der Buchen-Knopf trägt „Zahlungspflichtig bestellen" im Expert-Slot, nicht mehr im `_label`.
-		const bookButtons = panel.querySelectorAll('kol-button[data-testid^="book-pro-"]');
-		expect(bookButtons.length, 'Buchen-Aktion für „Pro“ (test-id je Zeitraum)').toBeGreaterThan(0);
+		const matrix = panel.querySelector('kol-table-stateful') as unknown as { _data?: { _kind?: string }[] } | null;
+		expect(matrix).not.toBeNull();
+		expect(matrix?._data?.filter((row) => row._kind === 'action')).toHaveLength(3);
 	});
 
 	it('AK7: zwei Karten auf oberster Ebene, keine Karte in Karte, kein Accordion in Karte/Accordion', async () => {

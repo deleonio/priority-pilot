@@ -64,7 +64,8 @@ test.describe('Balamentum — #1902: Reiter „Pakete & Abo“', () => {
 		await expect(page.getByRole('tab', { name: 'KI', exact: true })).toHaveAttribute('aria-selected', 'true');
 	});
 
-	test('AK4/AK8: bei 375 px listet der Reiter die Pakete ohne Tabelle, ohne Seiten-Scroll, Buchen bedienbar', async ({
+	// AK4/AK8 nach #1902 angepasst: wieder Matrix, die seitlich IN der Tabelle scrollt (ADR 0014 Entscheidung 6).
+	test('AK4/AK8: bei 375 px zeigt der Reiter die Paket-Matrix ohne Seiten-Scroll, Buchen bedienbar', async ({
 		page,
 	}) => {
 		await page.setViewportSize({ width: 375, height: 812 });
@@ -73,15 +74,18 @@ test.describe('Balamentum — #1902: Reiter „Pakete & Abo“', () => {
 		await waitForStableView(page, 'Allgemein');
 
 		await expect(page.getByTestId('plans-section')).toBeVisible();
-		await expect(page.locator('kol-table-stateful')).toHaveCount(0);
+		const matrix = page.getByTestId('plans-section').locator('kol-table-stateful');
+		await expect(matrix).toBeVisible();
+		// Bounding-Box statt scrollWidth: die App-Shell clippt overflow-x (Memory 2026-08-24).
+		const matrixBox = await matrix.boundingBox();
+		expect(matrixBox, 'Matrix hat ein Layout').not.toBeNull();
+		expect(matrixBox!.x + matrixBox!.width).toBeLessThanOrEqual(375 + 1);
 
 		const book = page.getByRole('button', { name: /Zahlungspflichtig bestellen/ }).first();
+		await book.scrollIntoViewIfNeeded();
 		await expect(book).toBeVisible();
-		// Bounding-Box statt scrollWidth: die App-Shell clippt overflow-x (Memory 2026-08-24).
 		const box = await book.boundingBox();
 		expect(box, 'Buchen-Aktion hat ein Layout').not.toBeNull();
-		expect(box!.x).toBeGreaterThanOrEqual(0);
-		expect(box!.x + box!.width).toBeLessThanOrEqual(375);
 		expect(box!.height).toBeGreaterThanOrEqual(44);
 	});
 });

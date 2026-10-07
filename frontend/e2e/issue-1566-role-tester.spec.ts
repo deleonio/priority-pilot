@@ -124,7 +124,7 @@ test.describe('#1566 Rolle „Tester" — Admin ohne Nutzerverwaltung', () => {
 		// AK3: Der Wechsel überlebt ein Neuladen (/auth/me-Mock liefert den gemutierten Plan).
 		await page.reload();
 		await waitForStableView(page, 'Balamentum');
-		await expect(page.getByTestId('plan-item-free')).toContainText('Aktuell');
+		await expect(page.locator('.settings-plans')).toContainText('Free (dein Paket)');
 		await expect(ownPlanCard(page)).toBeVisible();
 	});
 

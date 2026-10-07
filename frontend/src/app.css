@@ -5510,41 +5510,18 @@ a.plan-badge:focus-visible {
 	border-radius: var(--pp-radius-pill);
 }
 
-/* Paketliste im Reiter „Pakete & Abo" (#1902): eine Spalte, je Paket eine Zeile mit Preisen samt
-   Aktion; auf 375px brechen Preis und Aktion um, statt seitlich zu scrollen. */
+/*
+ * Paket-Matrix (#1529, ADR 0014 Entscheidung 6): `KolTableStateful` bringt ihren eigenen, seitlich
+ * scrollenden Container mit. Der Wrapper darf deshalb NICHT selbst scrollen — sonst läge der Überlauf
+ * außerhalb der Tabelle und die stehende Funktionsspalte hätte keinen Bezug.
+ */
 .plans-section {
 	max-width: 100%;
-	/* Preise sind Zahlenkolonnen — gleich breite Ziffern lassen sie sauber untereinander stehen. */
+	/* Preis-Spalten sind Zahlenkolonnen — gleich breite Ziffern lassen sie sauber untereinander stehen. */
 	font-variant-numeric: tabular-nums;
 }
 
-.plans-list,
-.plans-list__periods {
-	list-style: none;
-	margin: 0;
-	padding: 0;
-	display: flex;
-	flex-direction: column;
-	gap: var(--pp-gap-base);
-}
-
-.plans-list__name {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: var(--pp-gap-tight);
-	margin: 0 0 var(--pp-gap-tight);
-}
-
-.plans-list__period {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--pp-gap-tight);
-}
-
-/* #2307: Widerrufshinweis und Zustimmung über der Paketliste; Text bricht auf 375px um. */
+/* #2307: Widerrufshinweis und Zustimmung über der Paket-Matrix; Text bricht auf 375px um. */
 .withdrawal-consent {
 	display: flex;
 	flex-direction: column;
@@ -5554,11 +5531,6 @@ a.plan-badge:focus-visible {
 
 .withdrawal-consent p {
 	margin: 0;
-}
-
-/* #1898: Monatsäquivalent der Jahreszahlung als zweite Zeile unter dem Monatspreis. */
-.plans-list__per-month {
-	display: block;
 }
 
 /*

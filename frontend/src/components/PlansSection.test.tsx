@@ -12,18 +12,72 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
  * ankommt.
  */
 
+/**
+ * `KolTableStateful`-Mock für #1529 (Spec docs/spec/issue-1529.md AK3): rendert `_data`/`_headers`
+ * in eine inspizierbare native Tabelle (Muster `CompletedTasksTable.test.tsx`), statt die Web
+ * Component zu hydrieren. Jede Kopfzelle trägt `data-width`; jede Datenzeile trägt `data-row-kind`
+ * aus dem privaten Feld `_kind` der Zeile (`'price' | 'action' | 'feature'`, Muster `_task` in
+ * `CompletedTasksTable`-Zeilen) — so bleiben Feature-Zeilen von Preis-/Buchen-Zeilen im
+ * gemeinsamen Tabellenkörper unterscheidbar, ohne die sichtbaren Spalten zu verändern.
+ */
 vi.mock('@public-ui/react-v19', () => ({
 	KolAlert: ({ children }: { children?: ReactNode }) => createElement('div', { role: 'alert' }, children),
-	KolBadge: ({ _label }: { _label?: string }) => createElement('span', null, _label),
 	// Test-Pflege #2307: der Buchen-Knopf trägt seinen Namen im Expert-Slot (Kinder); Checkbox und Link der Widerrufsbelehrung.
 	KolButton: ({ _label, children }: { _label?: string; children?: ReactNode }) =>
 		createElement('button', null, _label, children),
 	KolInputCheckbox: ({ _label }: { _label?: string }) =>
 		createElement('input', { type: 'checkbox', 'aria-label': _label }),
 	KolLink: ({ _href, _label }: { _href?: string; _label?: string }) => createElement('a', { href: _href }, _label),
-	KolDetails: ({ _label, children }: { _label?: string; children?: ReactNode }) =>
-		createElement('div', { 'data-details-label': _label }, children),
 	KolSpin: () => createElement('div', { 'data-testid': 'spin' }),
+	KolTableStateful: ({
+		_label,
+		_data,
+		_headers,
+		_fixedCols,
+	}: {
+		_label?: string;
+		_data?: (Record<string, unknown> & { _kind?: string })[];
+		_headers?: { horizontal?: { key: string; label: string; width?: number }[][] };
+		_fixedCols?: number[];
+	}) => {
+		const headerCells = (_headers?.horizontal ?? []).flat();
+		return createElement(
+			'table',
+			{
+				'data-testid': 'plans-kol-table',
+				'data-table-label': _label ?? '',
+				'data-fixed-cols': JSON.stringify(_fixedCols ?? null),
+			},
+			createElement(
+				'thead',
+				null,
+				createElement(
+					'tr',
+					null,
+					headerCells.map((cell, i) => createElement('th', { key: i, 'data-width': cell.width ?? '' }, cell.label)),
+				),
+			),
+			createElement(
+				'tbody',
+				null,
+				(_data ?? []).map((row, i) =>
+					createElement(
+						'tr',
+						{ key: i, ...(typeof row._kind === 'string' ? { 'data-row-kind': row._kind } : {}) },
+						// Erste Spalte (Zeilenbezeichnung, `key: 'label'`) als `<th scope="row">` wie im
+						// Vorbild `PlansSection.tsx` vor #1529 — nur die Paket-Spalten sind `<td>`.
+						headerCells.map((cell, cellIndex) =>
+							createElement(
+								cellIndex === 0 ? 'th' : 'td',
+								{ key: cell.key, ...(cellIndex === 0 ? { scope: 'row' } : {}) },
+								String(row[cell.key] ?? ''),
+							),
+						),
+					),
+				),
+			),
+		);
+	},
 }));
 
 const getPlansCatalog = vi.fn();
@@ -146,50 +200,106 @@ describe('PlansSection (#1524 AK7: getrennte Zeilen für lesenden und schreibend
 
 		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
 
-		// Seit #1902 stehen die Funktionen je Paket in einem `KolDetails` (Katalog-Reihenfolge).
-		const titles = (key: string): string[] =>
-			Array.from(screen.getByTestId(`plan-item-${key}`).querySelectorAll('[data-details-label] li')).map(
-				(li) => li.textContent ?? '',
-			);
-		const readTitle = featureOffer('mcp_read').title;
-		const readwriteTitle = featureOffer('mcp_readwrite').title;
+		// `tbody` enthält Preis-/Buchen-/Feature-Zeilen gemeinsam (#1529 AK3) — auf Feature-Zeilen
+		// filtern, in Katalog-Reihenfolge (PlansSection.tsx:348-355) — hier also [mcp_read, mcp_readwrite].
+		const featureRows = document.querySelectorAll('tbody tr[data-row-kind="feature"]');
+		expect(featureRows).toHaveLength(2);
+		const [readTitle, readwriteTitle] = Array.from(featureRows).map(
+			(row) => row.querySelector('th[scope="row"]')?.textContent,
+		);
+		expect(readTitle).toBeTruthy();
+		expect(readwriteTitle).toBeTruthy();
 		expect(readTitle).not.toBe(readwriteTitle);
 		// Bissigkeit: `featureOffer()` fällt für unbekannte Identifier auf den neutralen Titel
-		// "Mehr Funktionen" zurück — erst dieser Check erzwingt einen ECHTEN `FEATURE_OFFERS.mcp_read`-Eintrag.
+		// "Mehr Funktionen" zurück (planOffers.ts) — der wäre zufällig auch von mcp_readwrite
+		// unterscheidbar. Erst dieser Check erzwingt einen ECHTEN `FEATURE_OFFERS.mcp_read`-Eintrag.
 		expect(readTitle).not.toBe('Mehr Funktionen');
 
-		expect(titles('free')).toEqual([]);
-		expect(titles('plus')).toEqual([readTitle]);
-		expect(titles('pro')).toEqual([readTitle, readwriteTitle]);
+		// mcp_read: plus und pro enthalten, free nicht.
+		const readCells = Array.from(featureRows[0]!.querySelectorAll('td')).map((cell) => cell.textContent);
+		expect(readCells).toEqual(['—', 'enthalten', 'enthalten']);
+
+		// mcp_readwrite: nur pro enthalten (unverändert).
+		const readwriteCells = Array.from(featureRows[1]!.querySelectorAll('td')).map((cell) => cell.textContent);
+		expect(readwriteCells).toEqual(['—', '—', 'enthalten']);
 	});
 });
 
 /**
- * Test-Pflege #1902 (Spec docs/spec/issue-1902.md AK4): die `KolTableStateful`-Matrix (#1529 AK3)
- * ist einer Paketliste gewichen — eine Zeile je Paket mit den drei Zeiträumen samt Aktion, die
- * Funktionen in einem `KolDetails`. Die Katalog-Werte (Preise, Funktionen) bleiben dieselben.
+ * Rote Spec-Tests für #1529 AK3 (Spec docs/spec/issue-1529.md) — die Preis-Matrix wird als
+ * `KolTableStateful` gebaut: Preis-/Buchen-Zeilen liegen im Tabellenkörper (`_data`), nicht mehr im
+ * `<thead>`, und jede Spalte in `_headers.horizontal[0]` trägt eine gesetzte `width`. Rot, bis
+ * `PlansSection.tsx` `KolTableStateful` (statt der handgebauten `<table>`) importiert und verwendet
+ * — heute liefert `screen.queryByTestId('plans-kol-table')` `null`, weil die Komponente den Mock
+ * nie aufruft.
  */
-describe('PlansSection (#1902 AK4: Paketliste statt Tabelle)', () => {
-	it('rendert je Paket eine Listenzeile mit drei Zeiträumen, ohne Tabelle', async () => {
+describe('PlansSection (#1529 AK3: KolTableStateful-Matrix mit gesetzten Spaltenbreiten)', () => {
+	it('sortiert Funktionen nach dem kleinsten enthaltenden Paket — Funktionen höherer Pakete zuletzt', async () => {
+		getPlansCatalog.mockResolvedValue({
+			features: [
+				{ feature: 'mcp_readwrite', allowedPlans: ['pro'] },
+				{ feature: 'groups', allowedPlans: ['plus', 'pro'] },
+				{ feature: 'feedback', allowedPlans: ['free', 'plus', 'pro'] },
+				{ feature: 'mcp_read', allowedPlans: ['plus', 'pro'] },
+			],
+			prices: CATALOG_CENTS.prices,
+		});
+		render(createElement(PlansSection));
+
+		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
+
+		const titles = Array.from(document.querySelectorAll('tbody tr[data-row-kind="feature"] th')).map(
+			(cell) => cell.textContent,
+		);
+		expect(titles).toEqual(
+			(['feedback', 'groups', 'mcp_read', 'mcp_readwrite'] as const).map((id) => featureOffer(id).title),
+		);
+	});
+
+	it('markiert die Spalte des eigenen Pakets', async () => {
 		getPlansCatalog.mockResolvedValue(CATALOG_CENTS);
 		render(createElement(PlansSection));
 
 		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
 
-		expect(document.querySelector('table')).toBeNull();
-		for (const key of ['free', 'plus', 'pro']) {
-			expect(screen.getByTestId(`plan-item-${key}`).querySelectorAll('.plans-list__period')).toHaveLength(3);
-		}
+		const labels = Array.from(document.querySelectorAll('thead th')).map((cell) => cell.textContent);
+		expect(labels).toEqual(['Funktion', 'Free', 'Plus', 'Pro (dein Paket)']);
 	});
 
-	it('markiert das aktuelle Paket mit „Aktuell“', async () => {
+	it('rendert die Matrix über KolTableStateful mit Preis-, Buchen- und Feature-Zeilen im Körper', async () => {
 		getPlansCatalog.mockResolvedValue(CATALOG_CENTS);
 		render(createElement(PlansSection));
 
-		await waitFor(() => expect(screen.getByTestId('plan-item-pro')).toBeTruthy());
+		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
 
-		expect(screen.getByTestId('plan-item-pro').textContent).toContain('Aktuell');
-		expect(screen.getByTestId('plan-item-plus').textContent).not.toContain('Aktuell');
+		const table = screen.getByTestId('plans-kol-table');
+		// Kein Preis-/Buchen-Kopf mehr: genau EINE Kopfzeile (Paketnamen), keine Preis-/Buchen-Zeile
+		// im `<thead>` (die lagen vor #1529 dort, PlansSection.tsx:315-346 vor der Umstellung).
+		expect(table.querySelectorAll('thead tr')).toHaveLength(1);
+
+		// 3 Preisperioden + 3 Buchen-Perioden + 1 Feature (`groups`, CATALOG_CENTS) = 7 Körperzeilen.
+		const bodyRows = table.querySelectorAll('tbody tr');
+		expect(bodyRows).toHaveLength(7);
+		expect(table.querySelectorAll('tbody tr[data-row-kind="price"]')).toHaveLength(3);
+		expect(table.querySelectorAll('tbody tr[data-row-kind="action"]')).toHaveLength(3);
+		expect(table.querySelectorAll('tbody tr[data-row-kind="feature"]')).toHaveLength(1);
+	});
+
+	it('setzt an jeder Kopfspalte eine feste Breite', async () => {
+		getPlansCatalog.mockResolvedValue(CATALOG_CENTS);
+		render(createElement(PlansSection));
+
+		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
+
+		const table = screen.getByTestId('plans-kol-table');
+		const headerCells = Array.from(table.querySelectorAll('thead th'));
+		// Funktion-Spalte + 3 Paket-Spalten (free/plus/pro aus CATALOG_CENTS.prices).
+		expect(headerCells).toHaveLength(4);
+		for (const cell of headerCells) {
+			const width = cell.getAttribute('data-width');
+			expect(width, `Kopfspalte "${cell.textContent}" muss eine gesetzte width tragen`).not.toBe('');
+			expect(Number.isNaN(Number(width)), `width von "${cell.textContent}" muss eine Zahl sein`).toBe(false);
+		}
 	});
 });
 
@@ -200,10 +310,9 @@ describe('PlansSection je Kanal (#1674)', () => {
 		getPlansCatalog.mockResolvedValue(CATALOG_CENTS);
 		render(createElement(PlansSection));
 
-		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
+		await waitFor(() => expect(screen.getByTestId('plans-kol-table')).toBeTruthy());
 
-		// Zwei bezahlte Pakete × drei Zeiträume; der Name steht im Label (eindeutig für Screenreader).
-		expect(screen.getAllByRole('button', { name: /Zahlungspflichtig bestellen/ })).toHaveLength(6);
+		expect(screen.getByTestId('plans-kol-table').querySelectorAll('tbody tr[data-row-kind="action"]')).toHaveLength(3);
 		expect(screen.queryByText('Die Pakete lassen sich bald direkt in der App buchen.')).toBeNull();
 	});
 
@@ -250,9 +359,8 @@ describe('PlansSection (#1898: Monatsäquivalent bei Jahreszahlung)', () => {
 		render(createElement(PlansSection));
 
 		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
-		// Test-Pflege #1902: Liste statt Matrix — die Preiszeilen des Free-Eintrags statt der Free-Spalte.
-		const priceRows = screen.getByTestId('plan-item-free').querySelectorAll('.plans-list__period');
+		const priceRows = document.querySelectorAll('tr[data-row-kind="price"]');
 		expect(priceRows).toHaveLength(3);
-		for (const row of priceRows) expect(row.textContent).toMatch(/: 0,00 €$/);
+		for (const row of priceRows) expect(row.querySelectorAll('td')[0].textContent).toBe('0,00 €');
 	});
 });
