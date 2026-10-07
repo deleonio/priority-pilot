@@ -3082,14 +3082,6 @@ kol-toolbar {
 /* --- Serien-Tab (#335) --- */
 /* Baum-Stil analog zur Aufgaben-Liste (`.task-tree`): rundum ohne feste Breiten, damit die Liste
    auf Mobilbreite (375px) ohne horizontales Scrollen umbricht. */
-.series-actions {
-	display: flex;
-	gap: var(--pp-gap-tight);
-	flex-wrap: wrap;
-	margin-top: var(--pp-space-2);
-	margin-bottom: var(--pp-space-4);
-}
-
 .series-tree {
 	list-style: none;
 	margin: 0;

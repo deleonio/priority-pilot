@@ -14,6 +14,14 @@ interface GenerateOptions {
 }
 
 /**
+ * Produktpolicy: maximaler Vorlauf-Horizont in Tagen, den `/series/generate-all` und der
+ * tägliche Auto-Job (#2356) materialisieren. Verhindert, dass bei jedem Lauf ein unbegrenztes Fenster
+ * erzeugt wird — es wird nur bis "heute + N Tage" vorlaufend angelegt. Zusätzlich hält die
+ * Generierung je Serie höchstens fünf offene Instanzen vor (#1518, `logics/series.ts`).
+ */
+export const GENERATE_HORIZON_DAYS = 30;
+
+/**
  * Höchstzahl offener Instanzen (`status != 'Done'`) je Serie, die die Generierung vorhält (#1518).
  * Der Horizont `until` bleibt als Obergrenze bestehen — für tägliche Serien greift die Fünfer-Grenze,
  * wöchentliche/monatliche erreichen sie innerhalb der 30 Tage nicht. Bestand über der Grenze wird
