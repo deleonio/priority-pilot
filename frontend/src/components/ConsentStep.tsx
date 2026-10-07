@@ -2,6 +2,7 @@ import { KolDetails } from '@public-ui/react-v19';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
+import { getPublicOrigin } from '../lib/siteOrigin';
 
 /** Rechtsseiten der öffentlichen Website (#1891, #1892) — einzige Textquelle, same-origin geladen (#2227). */
 const LEGAL_LINKS = { terms: '/nutzungsbedingungen/', privacy: '/datenschutz/' } as const;
@@ -29,7 +30,7 @@ const extractLegalHtml = (page: string, path: string): string => {
 		heading.replaceWith(shifted);
 	});
 	main.querySelectorAll('a[href]').forEach((link) => {
-		const href = new URL(link.getAttribute('href') ?? '', `${window.location.origin}${path}`);
+		const href = new URL(link.getAttribute('href') ?? '', `${getPublicOrigin()}${path}`);
 		if (href.protocol === 'http:' || href.protocol === 'https:') {
 			link.setAttribute('href', href.href);
 			link.setAttribute('target', '_blank');

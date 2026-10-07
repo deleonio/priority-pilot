@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { getApiBase } from './siteOrigin';
 
 /**
  * Welches Bild die Startseite für die Lebensbalance zeichnet — die „Zifferblätter" der App.
@@ -95,7 +96,7 @@ export const storeBalanceVariant = (variant: BalanceVariant): void => {
  * Schreibzugriff erst einen CSRF-Token holen, der Best-Effort-Vertrag verträgt keinen Vorab-Fetch.
  * Den Token liefert stattdessen der GET als Antwort-Header (`x-csrf-token`, Server #2009).
  */
-const API_URL = '/api/v1/balance-variant';
+const API_URL = `${getApiBase()}/balance-variant`;
 
 /** CSRF-Token aus dem GET-Antwort-Header; der PUT sendet ihn mit, wenn er bekannt ist. */
 let csrfToken: string | null = null;

@@ -10,7 +10,7 @@ const importPlugin = { rules: { 'no-unresolved': { create: () => ({}) } } };
 
 export default [
 	{
-		ignores: ['dist/', 'dev-dist/'],
+		ignores: ['dist/', 'dist-android/', 'dev-dist/'],
 	},
 	js.configs.recommended,
 	{

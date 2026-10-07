@@ -13,6 +13,8 @@
 		"public/logo/generate-wordmarks.mjs",
 		// #845 Geolocation: Public-API exports (nicht direkt in App verwendet)
 		"src/lib/useGeolocation.ts",
+		// #2378 Android-Build: Alias-Ziel für virtual:pwa-register/react in vite.config.ts, kein Import
+		"src/lib/pwaRegisterStub.ts",
 	],
 	"ignoreDependencies": ["client"],
 }

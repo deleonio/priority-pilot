@@ -14,6 +14,7 @@ import { toApiError } from '../lib/apiError';
 import { planLabel } from '../lib/planOffers';
 import { useFollowingOpen } from '../lib/useFollowingOpen';
 import { useEntitlement } from '../lib/usePlan';
+import { getPublicOrigin } from '../lib/siteOrigin';
 import { FeaturePopoverButton } from './FeaturePopoverButton';
 import { CopyButton } from './CopyButton';
 
@@ -61,7 +62,7 @@ const formatExpiryDate = (iso: string): string => {
 };
 
 /** MCP-Endpunkt dieser App — aus der aktuellen Origin abgeleitet, damit er in jeder Umgebung stimmt. */
-const MCP_URL = `${window.location.origin}/api/v1/mcp/v1`;
+const MCP_URL = `${getPublicOrigin()}/api/v1/mcp/v1`;
 
 /**
  * Aktions-Hülle um einen `KolButton`: der Klick wird am umgebenden Element abgefangen statt über

@@ -1,5 +1,6 @@
 **/node_modules
 **/dist
+**/dist-android
 client/src/schema.d.ts
 server/src/api.d.ts
 pnpm-lock.yaml
