@@ -5,7 +5,7 @@ import { Op, Transaction, type WhereOptions } from 'sequelize';
 import sequelize from '../../database.js';
 import { Pillar, Series, SeriesPillar, Task, TaskPillar } from '../../models/index.js';
 import type { SeriesRhythm } from '../../models/series.js';
-import { generateDueInstances, materializeDueSeries } from '../../logics/series.js';
+import { createOnDemandInstance, generateDueInstances, materializeDueSeries } from '../../logics/series.js';
 import type { PushSender } from '../../logics/push.js';
 import {
 	arePillarsExistent,
@@ -816,6 +816,49 @@ export const createSeriesRouter = ({ pushSender }: SeriesRouterDeps = {}): Route
 		try {
 			const instances = await generateDueInstances(series, { until: new Date(until), pushSender });
 			res.status(201).json(instances.map((task) => serializeTask(task)));
+		} catch (error) {
+			handleWriteError(res, error);
+		}
+	});
+
+	// POST /series/:id/instances — genau eine Aufgabe auf Abruf anlegen (#2357), unabhängig von `autoCreate`
+	seriesRouter.post('/series/:id/instances', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
+		const id = parseId(req.params.id);
+		// #1157: fremde Serien-ID → 404 (wie Tasks/Pillars).
+		const series = id === null ? null : await Series.findOne({ where: { id, ...ownerScope(getUserId(req)) } });
+		if (!series) {
+			sendError(res, 404, 'Serie nicht gefunden.');
+			return;
+		}
+		const body: unknown = req.body ?? {};
+		const validation = validateSeriesFields(body, false);
+		if (!validation.ok) {
+			sendError(res, 400, validation.message);
+			return;
+		}
+		const rawDeadline = (body as Record<string, unknown>).deadline;
+		if (rawDeadline !== undefined && (typeof rawDeadline !== 'string' || Number.isNaN(Date.parse(rawDeadline)))) {
+			sendError(res, 400, 'deadline muss ein gültiges ISO-Datum sein.');
+			return;
+		}
+		if (!series.active) {
+			sendError(res, 409, 'Eine ruhende Serie legt keine Aufgaben an.');
+			return;
+		}
+		const { title, priority, estimatedEffort, description } = validation.attrs;
+		try {
+			const task = await createOnDemandInstance(
+				series,
+				{
+					title,
+					priority,
+					estimatedEffort,
+					description,
+					deadline: rawDeadline === undefined ? undefined : new Date(rawDeadline as string),
+				},
+				pushSender,
+			);
+			res.status(201).json(serializeTask(task as Task));
 		} catch (error) {
 			handleWriteError(res, error);
 		}

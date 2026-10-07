@@ -239,4 +239,36 @@ describe('Push bei fremd angelegten Serien-Instanzen (#1253)', () => {
 		const logs = await NotificationLog.findAll({ where: { kind: KIND } });
 		assert.equal(logs.length, 0, 'ohne Versand wird kein Dedupe-Eintrag angelegt');
 	});
+
+	// ── #2357 AK5: Abruf-Aufgabe (POST /series/:id/instances) löst denselben Push aus ──
+
+	const postInstance = (cookie: string, seriesId: number): Promise<Response> =>
+		fetch(`${server.baseUrl}/series/${seriesId}/instances`, { method: 'POST', headers: { Cookie: cookie } });
+
+	it('Abruf aus fremd angelegter Serie → Empfänger erhält 1 Push mit Titel + „Alice“ (#2357 AK5)', async () => {
+		await seedSharedGroup();
+		const bobId = await userIdOf(BOB);
+		const series = await seedSeries({ userId: bobId, createdById: await userIdOf(ALICE) });
+		await seedSubscription(bobId, 'https://push.example/bob-1');
+
+		const res = await postInstance(await server.login(BOB), series.id);
+		assert.equal(res.status, 201);
+
+		assert.equal(calls.length, 1, 'genau eine Nachricht an den Empfänger');
+		const payload = JSON.parse(calls[0].body) as { title: string; body?: string };
+		const text = `${payload.title} ${payload.body ?? ''}`;
+		assert.ok(text.includes('Wochenputz'), 'die Nachricht nennt den Serientitel');
+		assert.ok(text.includes('Alice Erstellerin'), 'die Nachricht nennt den Anzeigenamen der Erstellerin');
+	});
+
+	it('Abruf aus eigener Serie → kein Versand (#2357 AK5)', async () => {
+		await seedSharedGroup();
+		const bobId = await userIdOf(BOB);
+		const series = await seedSeries({ userId: bobId, createdById: bobId });
+		await seedSubscription(bobId, 'https://push.example/bob-1');
+
+		const res = await postInstance(await server.login(BOB), series.id);
+		assert.equal(res.status, 201);
+		assert.equal(calls.length, 0, 'Selbst-Anlage bleibt still');
+	});
 });
