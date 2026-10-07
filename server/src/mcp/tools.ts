@@ -161,6 +161,7 @@ const pickTaskFields = (args: Record<string, unknown>): Record<string, unknown> 
 		'status',
 		'pillars',
 		'autoDeleteAfterDeadline',
+		'pinned',
 	]) {
 		if (args[key] !== undefined) {
 			fields[key] = args[key];
@@ -416,6 +417,7 @@ const catalog: McpTool[] = [
 				id: { type: 'integer', description: 'ID of the task to change (from task_list).' },
 				...taskFieldProperties,
 				status: { type: 'string', description: 'Status: "Open", "In process" or "Done".' },
+				pinned: { type: 'boolean', description: 'true pins the task, false unpins it.' },
 				series: seriesProperty,
 			},
 			required: ['id'],
