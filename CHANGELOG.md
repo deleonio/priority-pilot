@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.18 - 2026-10-07
 
-_Enthält v0.18.0 – v0.18.15._
+_Enthält v0.18.0 – v0.18.16._
 
 ### 🎉 New Features
 
@@ -26,6 +26,7 @@ _Enthält v0.18.0 – v0.18.15._
 
 - ci(android): upload daily release aab as draft to internal play track by @deleonio in https://github.com/deleonio/priority-pilot/pull/2352
 - chore: roll out daily android release to internal test track by @deleonio in https://github.com/deleonio/priority-pilot/pull/2370
+- docs(skill): add fixed status block to ticket-coordination rounds by @deleonio in https://github.com/deleonio/priority-pilot/pull/2386
 
 ### Other Changes
 
@@ -115,6 +116,7 @@ _Enthält v0.16.0 – v0.16.37._
 
 ### 🎉 New Features
 
+- feat(server): import templates as task packages (#1993) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2197
 - feat(server): import templates as task packages (#1993) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2197
 - feat(frontend): streak rest day and balanced weeks (#1971) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2215
 - feat(frontend): add journal entries with optional pillar by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2216
@@ -503,7 +505,6 @@ _Enthält v0.8.0 – v0.8.17._
 - feat(frontend): restructure login card and add website link by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1772
 - feat(frontend): login card hierarchy, german texts, website back link by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1775
 - Revert "feat(frontend): login card hierarchy, german texts, website back link" by @deleonio in https://github.com/deleonio/priority-pilot/pull/1776
-- feat(frontend): restructure login card hierarchy and labels (#1769) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1777
 - feat(frontend): restructure login card hierarchy and labels (#1769) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1777
 
 ## v0.7 - 2026-09-27
