@@ -112,9 +112,9 @@ describe('StreakCard Hilfetext (#1819)', () => {
 		expect(text).not.toMatch(/spielt keine Rolle/i);
 	});
 
-	it('AK2 — Label und Text sind in allen 10 Sprachen nicht leer', () => {
+	it('AK2 — Label und Text sind in beiden App-Sprachen nicht leer', () => {
 		const languages = Object.keys(helpModules).map((path) => /locales\/([^/]+)\//.exec(path)![1]);
-		expect(languages.sort()).toHaveLength(10);
+		expect(languages.sort()).toHaveLength(2);
 		for (const [path, module] of Object.entries(helpModules)) {
 			const help = module.default.streak?.help;
 			expect(typeof help?.label === 'string' && help.label.trim() !== '', `${path} streak.help.label`).toBe(true);
@@ -125,7 +125,7 @@ describe('StreakCard Hilfetext (#1819)', () => {
 
 /**
  * Spec-Tests #1971 (docs/spec/issue-1971.md, AK7): „x Wochen ausgewogen" neben der Tageskette, nur
- * bei x ≥ 1; Plural-Schlüssel `streak.weeksBalanced_one/_other` in allen 10 Locales; der Hilfetext
+ * bei x ≥ 1; Plural-Schlüssel `streak.weeksBalanced_one/_other` in beiden Locales; der Hilfetext
  * erklärt den Ruhetag.
  */
 const weeksModules = import.meta.glob<{ default: { streak?: Record<string, unknown> } }>(
@@ -171,8 +171,8 @@ describe('StreakCard ausgewogene Wochen (#1971 AK7)', () => {
 		expect(card().querySelector('[data-testid="streak-help"]')?.textContent).toMatch(/Ruhetag/);
 	});
 
-	it('Plural-Schlüssel sind in allen 10 Sprachen nicht leer', () => {
-		expect(Object.keys(weeksModules)).toHaveLength(10);
+	it('Plural-Schlüssel sind in beiden App-Sprachen nicht leer', () => {
+		expect(Object.keys(weeksModules)).toHaveLength(2);
 		for (const [path, module] of Object.entries(weeksModules)) {
 			for (const key of ['weeksBalanced_one', 'weeksBalanced_other']) {
 				const value = module.default.streak?.[key];
