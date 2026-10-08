@@ -1280,8 +1280,9 @@ kol-toolbar {
 	.dashboard {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		column-gap: var(--pp-gap-generous);
-		row-gap: var(--pp-gap-base);
+		/* Ein einheitliches Gap auf beiden Achsen (Mittelwert aus Base 1rem und Generous 2rem) —
+		   vorher war es zeilen-/spaltenweise unterschiedlich (1rem vs. 2rem). */
+		gap: var(--pp-space-5);
 		align-items: stretch;
 	}
 
@@ -1299,10 +1300,10 @@ kol-toolbar {
 		grid-column: 1 / -1;
 	}
 
-	/* „Anstehende Deadlines" bricht aus dem Zwei-Spalten-Raster: Als letztes Widget mit ungerader
-	   Anzahl blieb es allein in der linken Spalte, rechts eine Lücke. Die paginierte Liste läuft
-	   in voller Breite — bündig mit dem „Verpasst"-Bereich darunter. */
-	.dashboard-deadlines {
+	/* „Anstehende Deadlines" läuft nur in voller Breite, wenn der Verpasst-Bereich fehlt — sonst
+	   bildet er mit ihr das letzte Zeilenpaar im Zwei-Spalten-Raster (`:has()`, alle Evergreen-
+	   Browser), und der Grid-`row-gap` liefert das einheitliche Gap zwischen allen Cards. */
+	.dashboard:not(:has(.missed-section)) .dashboard-deadlines {
 		grid-column: 1 / -1;
 	}
 
@@ -5948,6 +5949,11 @@ a.plan-badge:focus-visible {
 	margin-bottom: var(--pp-gap-base);
 }
 
+/* Im Dashboard-Grid gilt das einheitliche Gap (row-gap) — der Eigenmargin würde es verdoppeln. */
+.dashboard .missed-section {
+	margin-bottom: 0;
+}
+
 .missed-list {
 	list-style: none;
 	margin: 0;
@@ -6028,7 +6034,10 @@ a.plan-badge:focus-visible {
 		display: flex;
 		flex-direction: row;
 		align-items: center;
-		flex-shrink: 0;
+		/* Halb breite Grid-Spalte: vier Knöpfe passen nicht immer in eine Zeile — sauber umbrechen. */
+		flex-wrap: wrap;
+		flex-shrink: 1;
+		min-width: 0;
 	}
 
 	.missed-item-actions kol-button {

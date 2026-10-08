@@ -1375,27 +1375,22 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 												onSnoozeTask={handleSnoozeTask}
 												showDayDoneHint={activeTab === 0}
 												onOpenPillars={() => navigate('/settings/pillars')}
+												missedTasks={missedTasks}
+												onCompleteMissed={handleCompleteMissed}
+												onEditMissed={openEdit}
+												onArchiveMissed={handleArchiveMissed}
+												onDeleteMissed={openDelete}
 											/>
 											<p aria-live="polite" className="visually-hidden">
 												{snoozeNotice}
 											</p>
 										</>
 									)}
-									{/* #1964: Verpasst-Bereich — Dashboard-Tab: unter dem Inhalt (nicht als erstes), Aufgaben-Tab: über der Liste.
-								    Nur im aktiven Tab gerendert (KolTabs hält inaktive Panels im DOM, sonst doppelte Test-IDs). */}
-									{tasks !== null && activeTab === 0 && (
-										<MissedTasksSection
-											tasks={missedTasks}
-											onComplete={handleCompleteMissed}
-											onEdit={openEdit}
-											onArchive={handleArchiveMissed}
-											onDelete={openDelete}
-										/>
-									)}
 								</div>
 								<div slot="tab-1">
-									{/* #1964: Verpasst-Bereich — Dashboard-Tab: unter dem Inhalt (nicht als erstes), Aufgaben-Tab: über der Liste.
-								    Nur im aktiven Tab gerendert (KolTabs hält inaktive Panels im DOM, sonst doppelte Test-IDs). */}
+									{/* #1964: Verpasst-Bereich — Aufgaben-Tab: über der Liste (die Dashboard-Instanz
+								    liegt als Grid-Card in `Dashboard`). Nur im aktiven Tab gerendert (KolTabs hält
+								    inaktive Panels im DOM, sonst doppelte Test-IDs). */}
 									{tasks !== null && activeTab === 1 && (
 										<MissedTasksSection
 											tasks={missedTasks}
