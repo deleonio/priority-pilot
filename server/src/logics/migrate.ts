@@ -927,7 +927,7 @@ export const migrateUsersSelectedLlmProvider = async (db: Sequelize): Promise<vo
 /**
  * Zieht die `balanceVariant`-Spalte (Zifferblatt-Auswahl, #2009) auf einer **bestehenden**
  * `users`-Tabelle nach — analog `migrateUsersSelectedLlmProvider`. Bestandskonten starten ohne
- * Wahl (`NULL` = Default `bluete`). Idempotent (Spalte
+ * Wahl (`NULL` = Default `herz`, die Startseite bleibt wie gewohnt). Idempotent (Spalte
  * vorhanden → No-op); bei frischer DB ebenso No-op — `sync()` legt Tabelle inkl. Spalte an.
  */
 export const migrateUsersBalanceVariantColumn = async (db: Sequelize): Promise<void> => {

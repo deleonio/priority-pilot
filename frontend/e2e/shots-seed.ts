@@ -5,7 +5,7 @@ const DAY = 86_400_000;
 const inDays = (days: number): string => new Date(Date.now() + days * DAY).toISOString();
 
 /**
- * Erledigte Aufgaben je Säule (Reihenfolge wie `SEED_PILLARS`). Die Balance misst seit #1638 den
+ * Erledigte Aufgaben je Säule (Reihenfolge wie `SEED_PILLARS`). Das Herz misst seit #1638 den
  * Rhythmus im 28-Tage-Fenster (`PILLAR_RHYTHMS`: 5/3/3/5/1 pro Woche) — rund 90 % davon ergeben
  * „In Balance". Der Aufwand je Aufgabe teilt 4 Punkte je Säule, damit die Säulenliste darunter
  * ebenfalls ihr Ziel von 20 % trifft.
@@ -70,9 +70,17 @@ export const seedShowcase = async (page: Page, email: string): Promise<void> => 
 
 /** Fotografiert Dashboard, nächste Aufgabe, Balance, Graph und KI-Eingabe nach `<out>/<id>.jpg`. */
 export const shootShowcase = async (page: Page, out: string): Promise<void> => {
-	// Zifferblatt ist der Default „Blüte" (`docs/zifferblatt-konzept.md`) — einheitlich auf allen Bildern.
+	// Werbebilder zeigen immer die Blüte (`docs/marketing/play-store/README.md`). Wahl am Konto (#2009):
+	// Beim Laden zieht die App die Konto-Wahl nach und überschreibt den localStorage.
+	const token = (await page.request.get('/api/v1/balance-variant')).headers()['x-csrf-token'];
+	const gewaehlt = await page.request.put('/api/v1/balance-variant', {
+		data: { variant: 'bluete' },
+		headers: token ? { 'x-csrf-token': token } : {},
+	});
+	expect(gewaehlt.ok(), 'Bildwahl Blüte muss gespeichert werden').toBeTruthy();
+
 	const shoot = async (id: string): Promise<void> => {
-		// Kurz stehen lassen: Auftakt der Balance und Graph-Layout laufen nach dem Rendern noch an.
+		// Kurz stehen lassen: Herz-Füllung und Graph-Layout laufen nach dem Rendern noch an.
 		await page.waitForTimeout(1500);
 		await page.screenshot({ path: `${out}/${id}.jpg`, type: 'jpeg', quality: 80, animations: 'disabled' });
 	};

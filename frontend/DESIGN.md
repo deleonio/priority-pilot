@@ -81,7 +81,7 @@ Angleichen — falls je nötig — über `--kolibri-color-*` auf `:root`, nie ü
 | `--pp-success`          | `#1a7f37`       | `#52c45f`  | Erfolgs-Zustände                                             |
 | `--pp-warning`          | `#a15c07`       | `#e8924a`  | Warnungen                                                    |
 | `--pp-danger`           | `#b42318`       | `#f97066`  | Destruktive Aktionen                                         |
-| `--pp-pillar-1…7`       | Neon (geknickt) | Neon (pur) | Balance-Figuren + Legende-Tupfer (Neon-Palette, 2026-09)     |
+| `--pp-pillar-1…7`       | Neon (geknickt) | Neon (pur) | Herz-Wasserstreifen + Legende-Tupfer (Neon-Palette, 2026-09) |
 
 ### Spacing (Skala, mobile-first)
 
@@ -187,13 +187,17 @@ Diese Datei ist die **einzige** Design-System-Referenz für Impeccable in diesem
 
 ## Project-Specific Overrides
 
-### Balance-Bild (HeartBalance / BalanceFigure)
+### Herz (HeartBalance / HeartGlass)
 
-- Zifferblätter, Rahmen und Regeln: [docs/zifferblatt-konzept.md](../docs/zifferblatt-konzept.md).
+- **Drei Wellen, drei Geschwindigkeiten** (Nutzer-Auftrag 2026-09): Oberfläche 7 s, Tiefenschicht 1: 14 s,
+  Tiefenschicht 2: 23 s — identisch in SVG (`DEPTH_WAVE_LAYERS`) und Glas-Shader (`STRATUM`).
+- Tiefenschichten liegen mit drop 3,4/6,8 im Wellental der jeweils vorherigen — sie durchbrechen nie
+  die Wasserlinie (der Füllstand bleibt die eine Aussage).
 - **Neon-Rampe** `--pp-pillar-1…8`: Dark volle Leuchtkraft (`#ff2d95`, `#00e5ff`, `#39ff14`, `#fff01f`,
   `#b026ff`, `#ff6a00`, `#00ffc8`, `#ff3131`); Light in Lesbarkeits-Brechung (`#d6006e`, `#0087a8`,
-  `#16a416`, `#a89200`, `#8a1fd6`, `#c95400`, `#009179`, `#d40f0f`). Eine Quelle für Figuren und
+  `#16a416`, `#a89200`, `#8a1fd6`, `#c95400`, `#009179`, `#d40f0f`). Eine Quelle für Streifen und
   Legende (`rampClass`).
+- SVG-Abdunkelung der Tiefenschichten: 0,16 / 0,22 (stärker als die Glas-Vorlage, dort ≈ 8 %).
 
 ### Dashboard "Nächste Aufgabe" (P2-1)
 

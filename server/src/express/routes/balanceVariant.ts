@@ -16,11 +16,21 @@ import type { createCsrfUtilities } from '../csrf.js';
  * Token-Vorab-Fetch fahren.
  */
 
-/** Die vier Bild-Schlüssel (`BALANCE_VARIANTS`, frontend/src/lib/balanceVariant.ts) — Server-Kopie für die Validierung. */
-const VARIANTEN: readonly string[] = ['strahlen', 'bluete', 'kristall', 'zeiger'];
+/** Die neun Bild-Schlüssel (`BALANCE_VARIANTS`, frontend/src/lib/balanceVariant.ts) — Server-Kopie für die Validierung. */
+const VARIANTEN: readonly string[] = [
+	'herz',
+	'blasen',
+	'scheiben',
+	'ringe',
+	'strahlen',
+	'bluete',
+	'kristall',
+	'segmente',
+	'zeiger',
+];
 
-/** Default, solange nichts (oder ein inzwischen entferntes Bild) gespeichert ist: die Blüte. */
-const DEFAULT_VARIANT = 'bluete';
+/** Default, solange nichts gespeichert ist: das gewohnte Herz (bestehende Nutzer nicht umbauen). */
+const DEFAULT_VARIANT = 'herz';
 
 type BalanceVariantDto = { variant: string };
 
@@ -29,7 +39,7 @@ type CsrfDeps = Pick<ReturnType<typeof createCsrfUtilities>, 'generateCsrfToken'
 export const createBalanceVariantRouter = (csrf: CsrfDeps): Router => {
 	const balanceVariantRouter = Router();
 
-	// GET /balance-variant — gespeicherte Bildwahl des Users; fehlt sie oder ist sie entfernt, der Default `bluete`.
+	// GET /balance-variant — gespeicherte Bildwahl des Users, sonst der Default `herz`.
 	balanceVariantRouter.get('/balance-variant', async (req: Request, res: Response<BalanceVariantDto | ErrorDto>) => {
 		try {
 			const user = await resolveGeoUser(req);
@@ -38,8 +48,7 @@ export const createBalanceVariantRouter = (csrf: CsrfDeps): Router => {
 				return;
 			}
 			res.set('x-csrf-token', csrf.generateCsrfToken(req, res));
-			const stored = user.balanceVariant;
-			res.json({ variant: stored && VARIANTEN.includes(stored) ? stored : DEFAULT_VARIANT });
+			res.json({ variant: user.balanceVariant ?? DEFAULT_VARIANT });
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}

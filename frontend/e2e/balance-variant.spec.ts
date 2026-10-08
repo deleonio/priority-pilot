@@ -8,14 +8,15 @@ import { waitForStableView } from './helpers';
  *
  * Der Bildmacher `zifferblatt-shots.spec.ts` läuft bewusst nur mit `SHOTS` und nur im Desktop-
  * Viewport; dieser Spec prüft den Umschalter selbst — im Mobile-Leitfall des Projekts (375 px),
- * weil Optionsliste und Hinweistext dort nicht überlaufen dürfen (mobile-ui-rules.md).
+ * weil die Optionsliste mit „Blüte" und „Kristall" auf sieben Einträge gewachsen ist und der
+ * Hinweistext länger wurde (mobile-ui-rules.md).
  */
 
 /** localStorage-Schlüssel der Bildwahl — muss mit `balanceVariant.ts` übereinstimmen. */
 const VARIANT_STORAGE_KEY = 'pp-balance-variant';
 
-/** Alle vier Bilder in Einstellungs-Reihenfolge (`BALANCE_VARIANTS`). */
-const VARIANTEN = ['Strahlen', 'Blüte', 'Kristall', 'Zeiger'] as const;
+/** Alle sieben Bilder in Einstellungs-Reihenfolge (`BALANCE_VARIANTS`). */
+const VARIANTEN = ['Herz', 'Blasen', 'Scheiben', 'Ringe', 'Strahlen', 'Blüte', 'Kristall'] as const;
 
 /** Die Radiogroup im Allgemein-Tab — Accessible Name „Bild der Lebensbalance" (Rolle je nach KoliBri-Version `group` oder `radiogroup`). */
 const variantGroup = (page: Page): Locator =>
@@ -31,12 +32,12 @@ const variantOption = (page: Page, label: string): Locator =>
 		.or(variantGroup(page).getByRole('button', { name: label, exact: true }));
 
 test.describe('Bild der Lebensbalance – Umschalter im Allgemein-Tab', () => {
-	test('375px: Alle vier Bilder wählbar, „Kristall" erscheint auf dem Dashboard', async ({ page }) => {
+	test('375px: Alle sieben Bilder wählbar, „Blüte" erscheint auf dem Dashboard', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Balamentum');
 
-		// Die Gruppe mit allen vier Optionen ist sichtbar, jede Option interaktiv.
+		// Die Gruppe mit allen sieben Optionen ist sichtbar, jede Option interaktiv.
 		await expect(variantGroup(page)).toBeVisible();
 		for (const label of VARIANTEN) {
 			await expect(variantOption(page, label)).toBeEnabled();
@@ -50,16 +51,16 @@ test.describe('Bild der Lebensbalance – Umschalter im Allgemein-Tab', () => {
 		expect(groupBox!.x).toBeGreaterThanOrEqual(0);
 		expect(groupBox!.x + groupBox!.width).toBeLessThanOrEqual(375);
 
-		// „Kristall“ wählen (nicht den Default „Blüte“) — der PUT legt die Wahl am Konto ab (#2156), der localStorage bleibt der Gerät-Spiegel.
-		await variantOption(page, 'Kristall').click();
+		// „Blüte“ wählen — der PUT legt die Wahl am Konto ab (#2156), der localStorage bleibt der Gerät-Spiegel.
+		await variantOption(page, 'Blüte').click();
 		const stored = await page.evaluate((key) => localStorage.getItem(key), VARIANT_STORAGE_KEY);
-		expect(stored).toBe('kristall');
+		expect(stored).toBe('bluete');
 
 		// Das Dashboard zeigt das gewählte Bild: Figur sichtbar (Glas oder SVG-Rückfall) und die
 		// Bühne trägt die Variante. Ohne Säulen entfällt die Karte — die Fixture liefert welche.
 		await page.goto('/app/');
 		await waitForStableView(page);
 		await expect(page.getByTestId(/heart-balance-(canvas|svg)/)).toBeVisible();
-		await expect(page.locator('.heart-balance-stage')).toHaveAttribute('data-variante', 'kristall');
+		await expect(page.locator('.heart-balance-stage')).toHaveAttribute('data-variante', 'bluete');
 	});
 });

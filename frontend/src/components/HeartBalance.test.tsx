@@ -33,21 +33,22 @@ describe('HeartBalance', () => {
 		[2, 2],
 	]);
 
-	/** Position des Lappen-Knotens je Säule (`.balance-node` in jeder `heart-column`-Gruppe). */
-	const nodePositions = (): { cx: number; cy: number }[] =>
-		screen.getAllByTestId('heart-column').map((column) => {
-			const node = column.querySelector('.balance-node');
-			return { cx: Number(node?.getAttribute('cx')), cy: Number(node?.getAttribute('cy')) };
-		});
-
-	/** Abstand der Lappenspitzen vom Mittelpunkt, stärkste Säule zuerst. */
-	const petalRadii = (): number[] => nodePositions().map(({ cx, cy }) => Math.hypot(cx - 50, cy - 50));
+	/**
+	 * Grundradien der Blasen aus dem gerenderten SVG, in Zeichenreihenfolge (groß → klein). Im
+	 * Markup stehen die beiden Halbachsen der schwingenden Ellipse; weil sie gegenläufig laufen,
+	 * ist ihr Mittel der Grundradius — unabhängig davon, wo in ihrer Schwingung die Blase steht.
+	 */
+	const orbRadii = (): number[] =>
+		screen
+			.getAllByTestId('heart-column')
+			.map((orb) => (Number(orb.getAttribute('rx')) + Number(orb.getAttribute('ry'))) / 2);
 
 	describe('über alle Varianten', () => {
-		it('zeigt ohne gespeicherte Wahl die Blüte', () => {
+		it('zeigt ohne gespeicherte Wahl das Herz — bestehende Nutzer finden ihr Bild vor', () => {
 			render(<HeartBalance pillars={pillars} punkteProSaeule={gleichverteilt} />);
 
-			expect(screen.getByTestId('heart-balance-svg').querySelector('.balance-petal-mass')).not.toBeNull();
+			expect(screen.getByTestId('heart-balance-svg').querySelector('.heart-vessel')).not.toBeNull();
+			expect(screen.queryAllByTestId('balance-tick')).toHaveLength(0);
 		});
 
 		it('zeichnet in jeder Variante je Säule genau ein Segment', () => {
@@ -65,7 +66,16 @@ describe('HeartBalance', () => {
 		 * dieselbe Zahl, die unter dem Bild steht.
 		 */
 		it('gibt jeder Figur dasselbe Zifferblatt mit 100 Strichen', () => {
-			for (const { value } of BALANCE_VARIANTS) {
+			for (const value of [
+				'blasen',
+				'scheiben',
+				'ringe',
+				'strahlen',
+				'bluete',
+				'kristall',
+				'segmente',
+				'zeiger',
+			] as const) {
 				chooseVariant(value);
 				render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
 
@@ -82,7 +92,16 @@ describe('HeartBalance', () => {
 
 		/* Die Soll-Marke sagt in jeder Figur dasselbe: „hier stünde die Säule genau auf ihrem Ziel". */
 		it('markiert in jeder Figur, wo das Soll liegt', () => {
-			for (const { value } of BALANCE_VARIANTS) {
+			for (const value of [
+				'blasen',
+				'scheiben',
+				'ringe',
+				'strahlen',
+				'bluete',
+				'kristall',
+				'segmente',
+				'zeiger',
+			] as const) {
 				chooseVariant(value);
 				render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
 				expect(screen.getAllByTestId('balance-target').length, value).toBeGreaterThan(0);
@@ -135,10 +154,83 @@ describe('HeartBalance', () => {
 		});
 	});
 
-	describe('Figuren „Blüte" und „Kristall"', () => {
+	describe('Figuren „Blasen" und „Scheiben"', () => {
+		beforeEach(() => chooseVariant('blasen'));
+
 		/*
-		 * Die beiden teilen sich die Stützpunkte — im Markup muss dasselbe ankommen: gleiche
-		 * Knotenpositionen, anderes Material.
+		 * Die beiden teilen sich Geometrie und Bewegung und unterscheiden sich allein im Material —
+		 * das muss im Markup auch so ankommen: gleiche Radien, andere Klasse.
+		 */
+		it('zeichnet Scheiben mit derselben Geometrie wie die Blasen, nur in anderer Klasse', () => {
+			render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
+			const blasen = orbRadii();
+			expect(screen.getAllByTestId('heart-column')[0].getAttribute('class')).toContain('balance-orb');
+			cleanup();
+
+			chooseVariant('scheiben');
+			render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
+			expect(orbRadii()).toEqual(blasen);
+			expect(screen.getAllByTestId('heart-column')[0].getAttribute('class')).toContain('balance-disc');
+		});
+
+		/*
+		 * Die Kernaussage des Bildes: Die Säule, die am weitesten zurückliegt, ist die kleinste Blase
+		 * und liegt damit ganz vorn — als letzte im DOM, also über allen anderen.
+		 */
+		it('stapelt die Blasen von groß nach klein, die schwächste Säule zuletzt', () => {
+			render(
+				<HeartBalance
+					pillars={pillars}
+					punkteProSaeule={
+						new Map([
+							[1, 9],
+							[2, 1],
+						])
+					}
+				/>,
+			);
+
+			const radii = orbRadii();
+			expect(radii[0]).toBeGreaterThan(radii[1]);
+		});
+
+		it('zeigt ohne Punkte ein leeres Bild statt einer Fehlanzeige', () => {
+			render(<HeartBalance pillars={pillars} punkteProSaeule={new Map()} />);
+
+			expect(screen.getByTestId('heart-balance-value').textContent).toBe('0 %');
+			// Kein Punkt vergeben heißt Verhältnis 0 — alle Blasen liegen auf dem Mindestmaß.
+			for (const radius of orbRadii()) expect(radius).toBeCloseTo(R_MIN, 2);
+			const leuchtend = screen
+				.getAllByTestId('balance-tick')
+				.filter((tick) => tick.classList.contains('balance-tick--on'));
+			expect(leuchtend).toHaveLength(0);
+		});
+
+		/*
+		 * Eine Säule ohne Gewicht hat dauerhaft das Verhältnis 0 (`POST /pillars` legt jede neue Säule
+		 * mit `weight: 0` an). Sie darf nicht aus dem Bild verschwinden, sondern liegt als kleinste
+		 * Blase ganz vorn.
+		 */
+		it('behält eine Säule ohne Ziel als kleinste Blase im Bild', () => {
+			render(<HeartBalance pillars={[...pillars, pillar(3, 'Frisch angelegt', 0)]} punkteProSaeule={gleichverteilt} />);
+
+			const radii = orbRadii();
+			expect(radii).toHaveLength(3);
+			expect(radii[2]).toBeCloseTo(R_MIN, 2);
+		});
+	});
+
+	describe('Figuren „Blüte" und „Kristall"', () => {
+		/** Position des Lappen-Knotens je Säule (`.balance-node` in jeder `heart-column`-Gruppe). */
+		const nodePositions = (): { cx: number; cy: number }[] =>
+			screen.getAllByTestId('heart-column').map((column) => {
+				const node = column.querySelector('.balance-node');
+				return { cx: Number(node?.getAttribute('cx')), cy: Number(node?.getAttribute('cy')) };
+			});
+
+		/*
+		 * Die beiden teilen sich die Stützpunkte wie Blasen und Scheiben den Stapel — im Markup muss
+		 * dasselbe ankommen: gleiche Knotenpositionen, anderes Material.
 		 */
 		it('zeichnet Kristall mit denselben Stützpunkten wie die Blüte, nur in anderer Klasse', () => {
 			chooseVariant('bluete');
@@ -160,31 +252,6 @@ describe('HeartBalance', () => {
 			const [staerkste] = nodePositions();
 			expect(staerkste.cx).toBeCloseTo(50, 1);
 			expect(staerkste.cy).toBeLessThan(50);
-		});
-
-		it('zeigt ohne Punkte ein leeres Bild statt einer Fehlanzeige', () => {
-			render(<HeartBalance pillars={pillars} punkteProSaeule={new Map()} />);
-
-			expect(screen.getByTestId('heart-balance-value').textContent).toBe('0 %');
-			// Kein Punkt vergeben heißt Verhältnis 0 — alle Lappen liegen auf dem Mindestmaß.
-			for (const radius of petalRadii()) expect(radius).toBeCloseTo(R_MIN, 1);
-			const leuchtend = screen
-				.getAllByTestId('balance-tick')
-				.filter((tick) => tick.classList.contains('balance-tick--on'));
-			expect(leuchtend).toHaveLength(0);
-		});
-
-		/*
-		 * Eine Säule ohne Gewicht hat dauerhaft das Verhältnis 0 (`POST /pillars` legt jede neue Säule
-		 * mit `weight: 0` an). Sie darf nicht aus dem Bild verschwinden, sondern bleibt als kleinster
-		 * Lappen stehen.
-		 */
-		it('behält eine Säule ohne Ziel als kleinsten Lappen im Bild', () => {
-			render(<HeartBalance pillars={[...pillars, pillar(3, 'Frisch angelegt', 0)]} punkteProSaeule={gleichverteilt} />);
-
-			const radii = petalRadii();
-			expect(radii).toHaveLength(3);
-			expect(radii[2]).toBeCloseTo(R_MIN, 1);
 		});
 	});
 });

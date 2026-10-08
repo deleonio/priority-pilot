@@ -14,8 +14,8 @@ describe('balanceVariant', () => {
 		vi.restoreAllMocks();
 	});
 
-	it('zeigt ohne gespeicherte Wahl die Blüte', () => {
-		expect(readBalanceVariant()).toBe('bluete');
+	it('zeigt ohne gespeicherte Wahl das Herz', () => {
+		expect(readBalanceVariant()).toBe('herz');
 	});
 
 	it('liest jede Variante zurück, die sie geschrieben hat', () => {
@@ -25,10 +25,10 @@ describe('balanceVariant', () => {
 		}
 	});
 
-	it('fällt bei einem unbekannten oder entfernten gespeicherten Wert auf die Blüte zurück', () => {
-		localStorage.setItem('pp-balance-variant', 'herz');
+	it('fällt bei einem unbekannten gespeicherten Wert auf das Herz zurück', () => {
+		localStorage.setItem('pp-balance-variant', 'seifenblasen-3000');
 
-		expect(readBalanceVariant()).toBe('bluete');
+		expect(readBalanceVariant()).toBe('herz');
 	});
 
 	it('übersteht einen gesperrten localStorage in beide Richtungen', () => {
@@ -39,23 +39,23 @@ describe('balanceVariant', () => {
 			throw new Error('QuotaExceededError');
 		});
 
-		expect(readBalanceVariant()).toBe('bluete');
-		expect(() => storeBalanceVariant('zeiger')).not.toThrow();
+		expect(readBalanceVariant()).toBe('herz');
+		expect(() => storeBalanceVariant('ringe')).not.toThrow();
 	});
 
 	it('AK4 — zieht die serverseitige Wahl beim Laden nach und überschreibt den Spiegel', async () => {
 		// GET /balance-variant liefert die Konto-Wahl — sie gilt auch, wenn das Gerät etwas anderes (oder nichts) gespeichert hat.
 		vi.stubGlobal(
 			'fetch',
-			vi.fn(async () => new Response(JSON.stringify({ variant: 'kristall' }), { status: 200 })),
+			vi.fn(async () => new Response(JSON.stringify({ variant: 'blasen' }), { status: 200 })),
 		);
 
 		const { result } = renderHook(() => useBalanceVariant());
-		await waitFor(() => expect(result.current.variant).toBe('kristall'), {
+		await waitFor(() => expect(result.current.variant).toBe('blasen'), {
 			timeout: 2000,
 		});
 		// Der Spiegel folgt dem Konto, damit der nächste Erst-Paint schon richtig startet.
-		expect(readBalanceVariant()).toBe('kristall');
+		expect(readBalanceVariant()).toBe('blasen');
 	});
 
 	it('AK4 — setVariant sendet die Wahl per PUT und übersteht einen unerreichbaren Server (Best-Effort)', async () => {
@@ -63,7 +63,7 @@ describe('balanceVariant', () => {
 		vi.stubGlobal('fetch', fetchMock);
 
 		const { result } = renderHook(() => useBalanceVariant());
-		expect(() => act(() => result.current.setVariant('zeiger'))).not.toThrow();
+		expect(() => act(() => result.current.setVariant('ringe'))).not.toThrow();
 
 		await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1), {
 			timeout: 2000,
@@ -76,15 +76,25 @@ describe('balanceVariant', () => {
 		const [url, init] = putCall as unknown as [string, RequestInit];
 		expect(String(url)).toContain('/balance-variant');
 		expect(init.method).toBe('PUT');
-		expect(JSON.parse(String(init.body))).toEqual({ variant: 'zeiger' });
+		expect(JSON.parse(String(init.body))).toEqual({ variant: 'ringe' });
 
 		// Best-Effort: trotz gescheitertem PUT bleibt die Wahl aktiv (State + Spiegel).
-		expect(result.current.variant).toBe('zeiger');
-		expect(readBalanceVariant()).toBe('zeiger');
+		expect(result.current.variant).toBe('ringe');
+		expect(readBalanceVariant()).toBe('ringe');
 	});
 
-	it('führt die Varianten in fester Reihenfolge', () => {
-		expect(BALANCE_VARIANTS.map((variant) => variant.value)).toEqual(['strahlen', 'bluete', 'kristall', 'zeiger']);
+	it('führt die Varianten in fester Reihenfolge — das Herz zuerst, die Stapel-Bilder nebeneinander', () => {
+		expect(BALANCE_VARIANTS.map((variant) => variant.value)).toEqual([
+			'herz',
+			'blasen',
+			'scheiben',
+			'ringe',
+			'strahlen',
+			'bluete',
+			'kristall',
+			'segmente',
+			'zeiger',
+		]);
 	});
 
 	afterEach(() => {

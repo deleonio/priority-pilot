@@ -90,6 +90,9 @@ Bewusst nicht im Text: PayPal (Abos in der App laufen über Google Play Billing,
 | Desktop-Screenshots    | [landscape/](landscape/)                   | 1920 × 1080 |
 | Screenshots Android XR | [landscape/](landscape/)                   | 1920 × 1080 |
 
+Werbebilder zeigen nur die Zifferblätter Strahlen, Blüte, Kristall oder Zeiger, nicht Herz, Blasen,
+Scheiben, Ringe oder Segmente. Der Bildmacher stellt dafür die Blüte am Konto ein.
+
 Reihenfolge beim Hochladen: `dashboard`, `next`, `balance`, `dependencies`, `ai`.
 
 Das Symbol ist die maskable-Variante aus `frontend/public/icons/` mit weißem Hintergrund bis zum

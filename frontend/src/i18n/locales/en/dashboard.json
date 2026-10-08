@@ -88,9 +88,14 @@
 		"strongest": "{{name}} is pulling ahead ({{actual}})"
 	},
 	"balanceVariant": {
+		"herz": "Heart",
+		"blasen": "Bubbles",
+		"scheiben": "Discs",
+		"ringe": "Rings",
 		"strahlen": "Rays",
 		"bluete": "Blossom",
 		"kristall": "Crystal",
+		"segmente": "Segments",
 		"zeiger": "Hands"
 	},
 	"days_one": "{{count}} day",

@@ -139,7 +139,7 @@
 	},
 	"balanceVariant": {
 		"label": "Life balance image",
-		"hint": "All images show the same calculation: for each pillar, the ratio of actual to target — the strongest pillar always gets the largest shape. “Rays” shows them as wedges of light. “Blossom” and “Crystal” merge all pillars into one silhouette — once soft, once angular. “Hands” shows one hand per pillar on the dial.",
+		"hint": "All images show the same calculation: for each pillar, actual versus target — the strongest pillar always gets the largest shape. “Heart” fills a vessel; “Bubbles” and “Discs” stack the same shapes in two materials, “Rings” shows them as arcs, “Rays” as beams of light. “Blossom” and “Crystal” merge all pillars into one silhouette — once soft, once angular. “Segments” splits the ring by actual shares, “Hands” shows one hand per pillar on the dial.",
 		"preview": "Preview: {{name}}"
 	},
 	"categoryPalette": {

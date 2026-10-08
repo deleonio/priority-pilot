@@ -1,22 +1,25 @@
 import { useEffect, useRef } from 'react';
 import fragmentSource from './balance-figure.frag?raw';
 import {
+	buildArcs,
 	buildHands,
+	buildOrbs,
 	buildPetals,
 	buildRays,
+	buildWedges,
 	RISE_DURATION,
 	targetRadius,
 	type FigureMotion,
 } from '../lib/balanceFigure';
 import type { BalanceMetrics } from '../lib/balanceMetric';
-import type { BalanceVariant } from '../lib/balanceVariant';
+import type { FigureKind } from '../lib/balanceVariant';
 import { PILLAR_RAMP_SIZE } from '../lib/pillarRamp';
 
 /**
  * Die Balance-Figuren als **WebGL-Bild** — die leuchtende Schwester des SVG in `BalanceFigure.tsx`.
  * Geometrie, Reihenfolge, Bewegung und Zifferblatt folgen exakt demselben Bildauftrag (siehe dort
  * und `lib/balanceFigure.ts`); das Shader-Programm `balance-figure.frag` fügt nur das Material
- * hinzu: Saum, Glanz, Neon-Schein, Lichtpuls.
+ * hinzu: Fresnel-Saum, irisierende Seifenhaut, Glanzlicht, Neon-Schein, Lichtpuls.
  *
  * **Warum WebGL und trotzdem kein Framework:** Der Effekt ist ein einziges gebundenes Dreieck —
  * three.js (~600 kB) wäre Wartungslast ohne Gegenwert. Der Shader ist bewusst GLSL ES 1.00
@@ -39,7 +42,7 @@ import { PILLAR_RAMP_SIZE } from '../lib/pillarRamp';
 
 interface BalanceFigureGLProps {
 	/** Welche Figur gezeichnet wird. */
-	figure: BalanceVariant;
+	figure: FigureKind;
 	/** Die Kennzahlen je Säule plus die Soll-Marke. */
 	metrics: BalanceMetrics;
 	/** Zahl der leuchtenden Striche (0–100) — dieselbe Zahl wie die große Prozentanzeige. */
@@ -59,15 +62,22 @@ const VERTEX_SOURCE = ['attribute vec2 a_pos;', 'void main() {', '	gl_Position =
 	'\n',
 );
 
+/** Stärke des Kontaktschattens unter jeder Blase (0–0.3). */
+const SHADOW_STRENGTH = 0.06;
+
 /** Zahl der Uniform-Plätze je Säule — weitere Säulen laufen im letzten (neutralen) zusammen. */
 const SLOTS = 8;
 
 /** Reihenfolge der Figuren im Shader (`u_figure`). */
-const FIGURE_INDEX: Record<BalanceVariant, number> = {
-	strahlen: 0,
-	bluete: 1,
-	kristall: 2,
-	zeiger: 3,
+const FIGURE_INDEX: Record<FigureKind, number> = {
+	blasen: 0,
+	ringe: 1,
+	strahlen: 2,
+	scheiben: 3,
+	bluete: 4,
+	kristall: 5,
+	segmente: 6,
+	zeiger: 7,
 };
 
 /** Stützstellen der Ring-Farbrampe in `app.css` (`--pp-balance-ring-0` … `-100`). */
@@ -115,7 +125,7 @@ type ThemeColors = ReturnType<typeof readThemeColors>;
 
 /** Alles, was der Shader je Datenstand braucht. */
 interface FigureState {
-	figure: BalanceVariant;
+	figure: FigureKind;
 	metrics: BalanceMetrics;
 	activeTicks: number;
 	beatSeconds: number;
@@ -123,8 +133,9 @@ interface FigureState {
 
 /**
  * Packt die Formen einer Figur auf die acht Uniform-Plätze. Gibt es mehr Säulen als Plätze, werden
- * die **hinteren** abgeschnitten: Die Liste ist stärkste → schwächste sortiert, die ersten Säulen
- * sind die, die der Nutzer zuerst sehen will.
+ * die **hinteren** abgeschnitten: Bei den Blasen ist die Liste groß → klein sortiert, ein Stapel
+ * ohne seine größten Blasen wäre keine Aussage mehr; bei Ringen und Strahlen entscheidet die
+ * Anzeigereihenfolge, und dort sind die ersten Säulen die, die der Nutzer zuerst sehen will.
  */
 export const toSlots = (
 	state: FigureState,
@@ -132,14 +143,60 @@ export const toSlots = (
 ): {
 	colors: Rgb[];
 	motions: FigureMotion[];
+	orbRadius: number[];
+	arcRadius: number[];
+	arcWidth: number[];
+	arcSweep: number[];
 	rayAngle: number[];
 	raySpread: number[];
 	rayLength: number[];
+	wedgeMid: number[];
+	wedgeHalf: number[];
+	wedgeInner: number[];
+	wedgeOuter: number[];
 	target: number;
 } => {
 	const colorOf = (colorIndex: number): Rgb =>
 		colorIndex < PILLAR_RAMP_SIZE ? colors.pillars[colorIndex] : colors.neutral;
 
+	if (state.figure === 'ringe') {
+		const arcs = buildArcs(state.metrics).slice(0, SLOTS);
+		return {
+			colors: arcs.map((arc) => colorOf(arc.colorIndex)),
+			motions: arcs,
+			orbRadius: [],
+			arcRadius: arcs.map((arc) => arc.radius),
+			arcWidth: arcs.map((arc) => arc.width),
+			arcSweep: arcs.map((arc) => arc.sweep),
+			rayAngle: [],
+			raySpread: [],
+			rayLength: [],
+			wedgeMid: [],
+			wedgeHalf: [],
+			wedgeInner: [],
+			wedgeOuter: [],
+			target: arcs[0]?.target ?? 0,
+		};
+	}
+	if (state.figure === 'strahlen') {
+		const rays = buildRays(state.metrics).slice(0, SLOTS);
+		return {
+			colors: rays.map((ray) => colorOf(ray.colorIndex)),
+			motions: rays,
+			orbRadius: [],
+			arcRadius: [],
+			arcWidth: [],
+			arcSweep: [],
+			rayAngle: rays.map((ray) => ray.angle),
+			raySpread: rays.map((ray) => ray.spread),
+			rayLength: rays.map((ray) => ray.length),
+			wedgeMid: [],
+			wedgeHalf: [],
+			wedgeInner: [],
+			wedgeOuter: [],
+			target: rays[0]?.targetLength ?? 0,
+		};
+	}
 	// Blüte und Kristall teilen sich die Stützpunkte der Silhouette — Winkel und Radius belegen
 	// dieselben Plätze wie die Strahlen (Mittelwinkel und Länge); nur ihr Material trennt sie.
 	if (state.figure === 'bluete' || state.figure === 'kristall') {
@@ -147,9 +204,17 @@ export const toSlots = (
 		return {
 			colors: petals.map((petal) => colorOf(petal.colorIndex)),
 			motions: petals,
+			orbRadius: [],
+			arcRadius: [],
+			arcWidth: [],
+			arcSweep: [],
 			rayAngle: petals.map((petal) => petal.angle),
 			raySpread: [],
 			rayLength: petals.map((petal) => petal.radius),
+			wedgeMid: [],
+			wedgeHalf: [],
+			wedgeInner: [],
+			wedgeOuter: [],
 			target: targetRadius(state.metrics),
 		};
 	}
@@ -159,20 +224,57 @@ export const toSlots = (
 		return {
 			colors: hands.map((hand) => colorOf(hand.colorIndex)),
 			motions: hands,
+			orbRadius: [],
+			arcRadius: [],
+			arcWidth: [],
+			arcSweep: [],
 			rayAngle: hands.map((hand) => hand.angle),
 			raySpread: hands.map((hand) => hand.spread),
 			rayLength: hands.map((hand) => hand.length),
+			wedgeMid: [],
+			wedgeHalf: [],
+			wedgeInner: [],
+			wedgeOuter: [],
 			target: hands[0]?.targetLength ?? 0,
 		};
 	}
-	const rays = buildRays(state.metrics).slice(0, SLOTS);
+	// Segmente: Tortengrafik der Ist-Anteile auf eigenen Uniform-Plätzen.
+	if (state.figure === 'segmente') {
+		const wedges = buildWedges(state.metrics).slice(0, SLOTS);
+		return {
+			colors: wedges.map((wedge) => colorOf(wedge.colorIndex)),
+			motions: wedges,
+			orbRadius: [],
+			arcRadius: [],
+			arcWidth: [],
+			arcSweep: [],
+			rayAngle: [],
+			raySpread: [],
+			rayLength: [],
+			wedgeMid: wedges.map((wedge) => wedge.angle),
+			wedgeHalf: wedges.map((wedge) => (wedge.end - wedge.start) / 2),
+			wedgeInner: wedges.map((wedge) => wedge.inner),
+			wedgeOuter: wedges.map((wedge) => wedge.outer),
+			target: wedges[0]?.targetRadius ?? 0,
+		};
+	}
+	// Blasen und Scheiben teilen sich die Geometrie — nur ihr Material trennt sie (siehe Shader).
+	const orbs = buildOrbs(state.metrics).slice(0, SLOTS);
 	return {
-		colors: rays.map((ray) => colorOf(ray.colorIndex)),
-		motions: rays,
-		rayAngle: rays.map((ray) => ray.angle),
-		raySpread: rays.map((ray) => ray.spread),
-		rayLength: rays.map((ray) => ray.length),
-		target: rays[0]?.targetLength ?? 0,
+		colors: orbs.map((orb) => colorOf(orb.colorIndex)),
+		motions: orbs,
+		orbRadius: orbs.map((orb) => orb.radius),
+		arcRadius: [],
+		arcWidth: [],
+		arcSweep: [],
+		rayAngle: [],
+		raySpread: [],
+		rayLength: [],
+		wedgeMid: [],
+		wedgeHalf: [],
+		wedgeInner: [],
+		wedgeOuter: [],
+		target: targetRadius(state.metrics),
 	};
 };
 
@@ -232,21 +334,31 @@ const createEngine = (canvas: HTMLCanvasElement): FigureEngine => {
 		rise: uniform('u_rise'),
 		beat: uniform('u_beat'),
 		figure: uniform('u_figure'),
+		shadow: uniform('u_shadow'),
 		colors: uniform('u_colors[0]'),
 		phase: uniform('u_phase[0]'),
 		swing: uniform('u_swing[0]'),
 		rot: uniform('u_rot[0]'),
 		dir: uniform('u_dir[0]'),
 		count: uniform('u_count'),
+		orbRadius: uniform('u_orb_radius[0]'),
+		arcRadius: uniform('u_arc_radius[0]'),
+		arcWidth: uniform('u_arc_width[0]'),
+		arcSweep: uniform('u_arc_sweep[0]'),
 		rayAngle: uniform('u_ray_angle[0]'),
 		raySpread: uniform('u_ray_spread[0]'),
 		rayLength: uniform('u_ray_length[0]'),
+		wedgeMid: uniform('u_wedge_mid[0]'),
+		wedgeHalf: uniform('u_wedge_half[0]'),
+		wedgeInner: uniform('u_wedge_inner[0]'),
+		wedgeOuter: uniform('u_wedge_outer[0]'),
 		target: uniform('u_target'),
 		ringActive: uniform('u_ring_active'),
 		ringStops: uniform('u_ring_stops[0]'),
 		surface: uniform('u_surface'),
 	};
 
+	gl.uniform1f(locations.shadow, SHADOW_STRENGTH);
 	// Premultiplizierte Ausgabe über transparenter Fläche.
 	gl.enable(gl.BLEND);
 	gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -362,9 +474,17 @@ const createEngine = (canvas: HTMLCanvasElement): FigureEngine => {
 			locations.dir,
 			slots.motions.map((motion) => motion.rotDirection),
 		);
+		writeFloats(locations.orbRadius, slots.orbRadius);
+		writeFloats(locations.arcRadius, slots.arcRadius, 1);
+		writeFloats(locations.arcWidth, slots.arcWidth, 1);
+		writeFloats(locations.arcSweep, slots.arcSweep);
 		writeFloats(locations.rayAngle, slots.rayAngle);
 		writeFloats(locations.raySpread, slots.raySpread, 1);
 		writeFloats(locations.rayLength, slots.rayLength);
+		writeFloats(locations.wedgeMid, slots.wedgeMid);
+		writeFloats(locations.wedgeHalf, slots.wedgeHalf);
+		writeFloats(locations.wedgeInner, slots.wedgeInner, 1);
+		writeFloats(locations.wedgeOuter, slots.wedgeOuter);
 
 		if (!looping) draw();
 	};
