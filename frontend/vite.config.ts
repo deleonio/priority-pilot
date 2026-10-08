@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import { brotliCompress, constants as zlib, zstdCompress } from 'node:zlib';
@@ -127,6 +127,26 @@ export default defineConfig(({ mode }) => {
 					handler: () => precompress(resolve(__dirname, outDir)),
 				},
 			},
+			...(android
+				? [
+						{
+							name: 'strip-web-push-sw',
+							apply: 'build' as const,
+							// ADR 0021: Die App kommt ohne Service Worker aus; Push läuft dort über FCM. Der
+							// Web-Push-SW aus public/ bleibt die Website-PWA vorbehalten und wird samt
+							// vorkomprimierter Varianten (precompress-dist lief vorher) aus dem Bundle geworfen.
+							closeBundle: {
+								order: 'post',
+								sequential: true,
+								handler: () => {
+									for (const suffix of ['', '.br', '.zst']) {
+										rmSync(resolve(__dirname, outDir, `push-sw.js${suffix}`), { force: true });
+									}
+								},
+							},
+						},
+					]
+				: []),
 			...(android
 				? []
 				: [
