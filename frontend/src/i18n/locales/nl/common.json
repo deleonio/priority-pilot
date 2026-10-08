@@ -29,7 +29,8 @@
 		"select": "Selecteren",
 		"back": "Terug",
 		"snooze": "Even uitstellen",
-		"snoozed": "Taak even uitgesteld. Ze komt later terug."
+		"snoozed": "Taak even uitgesteld. Ze komt later terug.",
+		"saveAsTemplate": "Opslaan als sjabloon"
 	},
 	"status": {
 		"open": "Open",

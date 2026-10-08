@@ -29,7 +29,8 @@
 		"select": "Sélectionner",
 		"back": "Retour",
 		"snooze": "Mettre de côté un moment",
-		"snoozed": "Tâche mise de côté. Elle reviendra plus tard."
+		"snoozed": "Tâche mise de côté. Elle reviendra plus tard.",
+		"saveAsTemplate": "Enregistrer comme modèle"
 	},
 	"status": {
 		"open": "Ouvert",

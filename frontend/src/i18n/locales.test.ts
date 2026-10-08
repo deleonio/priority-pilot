@@ -61,3 +61,15 @@ describe('onboarding.importAiHint (#2225)', () => {
 		expect(typeof value === 'string' && value.trim().length > 0).toBe(true);
 	});
 });
+
+// #2361 AK4: Die neue Aufgaben-Aktion „Als Vorlage speichern" braucht einen eigenen Label-Schlüssel
+// (Klartext-`_label` des Icon-Buttons = aria-label + Tooltip). Der Gleichstand-Test oben zieht nur
+// dann, wenn der Schlüssel existiert — ein komplett fehlender Schlüssel fiele durchs Netz und würde
+// live den Fallback-Text zeigen. Deshalb hier wie bei #2225 die Existenz je Sprache.
+describe('common:actions.saveAsTemplate (#2361)', () => {
+	it.each([REFERENCE_LANGUAGE, ...otherLanguages])('%s hat einen nicht-leeren Text', (language) => {
+		const common = modules[`./locales/${language}/common.json`].default as { actions?: { saveAsTemplate?: unknown } };
+		const value = common.actions?.saveAsTemplate;
+		expect(typeof value === 'string' && value.trim().length > 0).toBe(true);
+	});
+});

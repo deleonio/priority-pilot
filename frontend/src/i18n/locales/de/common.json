@@ -29,7 +29,8 @@
 		"select": "Auswählen",
 		"back": "Zurück",
 		"snooze": "Kurz zurückstellen",
-		"snoozed": "Aufgabe zurückgestellt. Sie kommt später wieder."
+		"snoozed": "Aufgabe zurückgestellt. Sie kommt später wieder.",
+		"saveAsTemplate": "Als Vorlage speichern"
 	},
 	"status": {
 		"open": "Offen",

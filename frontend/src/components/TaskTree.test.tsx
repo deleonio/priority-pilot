@@ -78,6 +78,7 @@ const baseProps = {
 	onDelete: vi.fn(),
 	onEditDependencies: vi.fn(),
 	onAddSubtask: vi.fn(),
+	onSaveAsTemplate: vi.fn(),
 	onDoneToggle: vi.fn().mockResolvedValue(undefined),
 	onPinToggle: vi.fn(),
 };

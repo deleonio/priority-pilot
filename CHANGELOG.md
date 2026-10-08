@@ -2,9 +2,9 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.18 - 2026-10-07
+## v0.18 - 2026-10-08
 
-_Enthält v0.18.0 – v0.18.37._
+_Enthält v0.18.0 – v0.18.39._
 
 ### 🎉 New Features
 
@@ -64,6 +64,9 @@ _Enthält v0.18.0 – v0.18.37._
 - docs(tickets): require priority/effort prefix in titles by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2421
 - feat(server): add mcp tools for series and templates (#2360) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2420
 - feat(frontend): rhythm and auto-delete only when auto-create on (#2414) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2418
+- feat(server): apply task defaults and create instances in POST /series by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2412
+- refactor(server): compute series generation horizon in one place (#2405) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2425
+- feat(frontend): save task as series template (#2361) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2422
 
 ## v0.17 - 2026-10-07
 
@@ -181,8 +184,8 @@ _Enthält v0.16.0 – v0.16.37._
 - fix(server): invoice and renew only on PAYMENT.SALE.COMPLETED by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2245
 - fix(server): unlock booked plan on first payment (#2231) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2248
 - feat(server): invoice the charged PayPal amount and currency by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2249
-- feat(server): invoice the charged PayPal amount and currency by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2249
 - feat(frontend): snooze next-task suggestion for three hours by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2246
+- fix(deps): update dependency nodemailer to v10 [security] by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1829
 - fix(deps): update dependency nodemailer to v10 [security] by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1829
 - feat(server): withdraw plan and cancel paypal sub after grace expiry by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2250
 - fix(ci): pin valid actions/checkout sha in model-smoke and budget-watch by @deleonio in https://github.com/deleonio/priority-pilot/pull/2252

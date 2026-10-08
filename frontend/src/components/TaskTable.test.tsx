@@ -82,6 +82,7 @@ const defaultProps = {
 	onDelete: vi.fn(),
 	onEditDependencies: vi.fn(),
 	onAddSubtask: vi.fn(),
+	onSaveAsTemplate: vi.fn(),
 	onPinToggle: vi.fn(),
 };
 

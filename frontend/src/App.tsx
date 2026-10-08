@@ -42,7 +42,7 @@ import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesTab } from './components/SeriesTab';
 import { JournalTab } from './components/JournalTab';
 import { SettingsPage } from './components/SettingsPage';
-import { TaskFormModal } from './components/TaskFormModal';
+import { TaskFormModal, taskAsTemplateInitialValues } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
 import { filterForest, nodeMatchesFilter } from './lib/filterForest';
 import { buildBalancePriorities } from './lib/balancePriority';
@@ -73,6 +73,7 @@ type Dialog =
 	// `parentTask` gesetzt → die neu angelegte Aufgabe wird als Vorgänger mit ihr verknüpft (Unteraufgabe).
 	| { kind: 'create'; parentTask?: Task }
 	| { kind: 'edit'; task: Task }
+	| { kind: 'template'; task: Task }
 	| { kind: 'delete'; task: Task }
 	// `completedAt` (ISO): vorgewählter Erledigt-Zeitpunkt aus der Verpasst-Nachfrage (Deadline = pünktlich).
 	| { kind: 'complete'; task: Task; completedAt?: string }
@@ -851,6 +852,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const openComplete = useCallback((task: Task): void => setDialog({ kind: 'complete', task }), []);
 	const openDependencies = useCallback((task: Task): void => setDialog({ kind: 'dependencies', taskId: task.id }), []);
 	const openAddSubtask = useCallback((task: Task): void => setDialog({ kind: 'create', parentTask: task }), []);
+	// #2361: „Als Vorlage speichern“ — öffnet das Serien-Formular im Anlege-Modus, vorbelegt aus der
+	// Aufgabe; die Ausgangsaufgabe selbst bleibt unberührt (kein Update, keine Serien-Zuordnung).
+	const openSaveAsTemplate = useCallback((task: Task): void => setDialog({ kind: 'template', task }), []);
 
 	// #1964: „Archivieren" im Verpasst-Bereich — bewusst einstufig (ohne Bestätigungsdialog, die
 	// Wirkung ist ohne Status-/Score-Folge und der Datensatz bleibt erhalten). Danach globales
@@ -1551,6 +1555,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 														onDelete={openDelete}
 														onEditDependencies={openDependencies}
 														onAddSubtask={openAddSubtask}
+														onSaveAsTemplate={openSaveAsTemplate}
 														onDoneToggle={handleDoneToggle}
 														onPinToggle={handlePinToggle}
 													/>
@@ -1573,6 +1578,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 													onDelete={openDelete}
 													onEditDependencies={openDependencies}
 													onAddSubtask={openAddSubtask}
+													onSaveAsTemplate={openSaveAsTemplate}
 													onDoneToggle={handleDoneToggle}
 													onPinToggle={handlePinToggle}
 												/>
@@ -1650,6 +1656,21 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 							onSaved={afterMutation}
 						/>
 					))}
+				{dialog?.kind === 'template' && (
+					// #2361: „Als Vorlage speichern“ — Serien-Formular im Anlege-Modus, vorbelegt aus der
+					// Aufgabe. Modus-Umschalter gesperrt (Duplikat-Gefahr), Dialogtitel nennt das Ergebnis.
+					<TaskFormModal
+						task={null}
+						initialMode="series"
+						lockMode
+						title="Vorlage erstellen"
+						pillars={pillars}
+						categories={categories}
+						initialValues={taskAsTemplateInitialValues(dialog.task)}
+						onClose={closeDialog}
+						onSaved={afterMutation}
+					/>
+				)}
 				{dialog?.kind === 'search' && (
 					<SearchModal
 						categories={categories}

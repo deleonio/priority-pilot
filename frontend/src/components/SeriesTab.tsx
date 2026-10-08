@@ -2,6 +2,7 @@ import { KolAlert, KolBadge, KolSpin, KolToolbar } from '@public-ui/react-v19';
 import type { Category, Pillar, Series, Task } from 'client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
+import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
 import { toApiError } from '../lib/apiError';
 import { CategoryBadge } from './CategoryBadge';
 import { DeleteSeriesDialog } from './DeleteSeriesDialog';
@@ -87,6 +88,17 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 		const controller = new AbortController();
 		void reload(controller.signal);
 		return () => controller.abort();
+	}, [reload]);
+
+	// Serien-Tab laedt seine Liste selbst (Kaltstart-Ersparnis, Muster TaskGraphPanel) und hoert auf
+	// den App-weiten Aenderungs-Signal: Eine neu angelegte Vorlage (aus dem Task-Formular, #2361)
+	// erscheint damit ohne Seiten-Reload im Tab "Serien & Vorlagen" (AK2).
+	useEffect(() => {
+		const onTasksChanged = (): void => void reload();
+		window.addEventListener(TASKS_CHANGED_EVENT, onTasksChanged);
+		return () => {
+			window.removeEventListener(TASKS_CHANGED_EVENT, onTasksChanged);
+		};
 	}, [reload]);
 
 	/** Nach dem Speichern: Modal schließen und die Liste neu laden. */

@@ -310,10 +310,10 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		// Das Modal schließt sich nach dem Speichern. Der Heading-Text wechselt aber bereits beim
 		// Schrittwechsel (Capture → Formular, siehe QuickCaptureModal): „Neuen Task anlegen" ist im
 		// Formular-Schritt schon versteckt und gate-t das Speichern nicht. Deshalb auf den
-		// Formular-Schritt-Titel „Serie anlegen" prüfen — er verschwindet erst, wenn der POST durch ist
+		// Formular-Schritt-Titel „Serie oder Vorlage anlegen" (#2415) prüfen — er verschwindet erst, wenn der POST durch ist
 		// (onSaved läuft nach `await api.createSeries`), und macht die Persistenz-Verifikation unten
 		// race-frei (der CSRF-Token-Fetch vor dem ersten Write verschiebt das POST-Completion-Timing).
-		await expect(page.getByRole('heading', { name: 'Serie anlegen' })).toBeHidden();
+		await expect(page.getByRole('heading', { name: 'Serie oder Vorlage anlegen' })).toBeHidden();
 
 		// Persistenz gegenprüfen und die angelegte Serie wieder abräumen (afterEach löscht nur Tasks).
 		const series = (await (await page.request.get('/api/v1/series')).json()) as { id: number; title: string }[];
