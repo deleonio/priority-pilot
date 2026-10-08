@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.19 - 2026-10-08
 
-_Enthält v0.19.0 – v0.19.14._
+_Enthält v0.19.0 – v0.19.15._
 
 ### 🎉 New Features
 
@@ -35,6 +35,7 @@ _Enthält v0.19.0 – v0.19.14._
 - [P2/S] Hilfe: Feedback-Formular wählt „Wünsche und Ideen“ vor (#2443) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2446
 - revert(balance): alle neun Zifferblätter wiederherstellen by @deleonio in https://github.com/deleonio/priority-pilot/pull/2447
 - feat(frontend): show care hint actions in one row with icon buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2448
+- feat(frontend): move missed tasks into dashboard grid, unify gap by @deleonio in https://github.com/deleonio/priority-pilot/pull/2450
 
 ## v0.18 - 2026-10-08
 
@@ -152,7 +153,6 @@ _Enthält v0.17.0 – v0.17.45._
 - fix(server): defer plan takeover for delayed-start subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2271
 - docs(skills): add proactive 3-hour progress report to coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2272
 - fix(billing): treat subscriptions with overdue payment as open by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2274
-- feat(server): activate upgrade only after payment received (#2238) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2270
 - feat(server): activate upgrade only after payment received (#2238) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2270
 - test(server): verify prorated credit on plan upgrade by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2277
 - feat(server): allow account deletion after paypal cancellation by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2278
@@ -284,6 +284,7 @@ _Enthält v0.14.0 – v0.14.31._
 
 ### 🎉 New Features
 
+- feat(frontend): add article-create skill and marketing articles by @deleonio in https://github.com/deleonio/priority-pilot/pull/2056
 - feat(frontend): add article-create skill and marketing articles by @deleonio in https://github.com/deleonio/priority-pilot/pull/2056
 - feat(server): reached milestones never expire (#1965) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2148
 - feat(server): store balance variant choice on the account (#2009) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2156
