@@ -275,7 +275,11 @@ export const CareHint = () => {
 				) : (
 					/* #2445: eine Zeile — „Übernehmen“ inhaltsbreit mit Text, Nebenaktionen als Icon-Schalter. */
 					<div className="care-hint-actions">
-						<KolButton _label={t('care.accept')} _variant="secondary" _on={{ onClick: () => schliessen(uebernehmen) }} />
+						<KolButton
+							_label={t('care.accept')}
+							_variant="secondary"
+							_on={{ onClick: () => schliessen(uebernehmen) }}
+						/>
 						<KolButton
 							_label={t('care.notNow')}
 							_hideLabel
