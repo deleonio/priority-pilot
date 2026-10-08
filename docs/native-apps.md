@@ -29,7 +29,7 @@ cd native/android && ./gradlew assembleDebug             # → app/build/outputs
 ```
 
 Push über FCM braucht die `google-services.json` aus der Firebase-Konsole in `native/android/app/`
-(gitignored, nicht einchecken). Ohne sie erzeugt der Gradle-Build eine Platzhalter-Konfiguration:
+(gitignored, nicht einchecken; Einrichtung: [Firebase einrichten](#firebase-einrichten)). Ohne sie erzeugt der Gradle-Build eine Platzhalter-Konfiguration:
 Firebase initialisiert, das Token-Holen scheitert asynchron — der Push-Schalter meldet dann einen
 Fehler, statt dass die App abstürzt.
 Ohne `SITE_URL` bricht der Build bzw. `sync` mit einer Meldung ab; `sync` braucht außerdem `frontend/dist-android`. Für den Emulator: `npx cap run android` im Ordner
@@ -78,6 +78,41 @@ für `balamentum.app` mit den Rechten „Apps in Test-Tracks veröffentlichen“
 bearbeiten und löschen“ einladen. Solange die App ein App-Entwurf ist (noch nie ein Release
 ausgerollt), nimmt die API nur Entwürfe an („Only releases with status draft may be created on draft
 app“): das erste interne Release einmal von Hand ausrollen.
+
+## Firebase einrichten
+
+Push an die App läuft über Firebase Cloud Messaging (`server/src/logics/fcm.ts`). Android stellt die
+Nachrichten auch zu, wenn die App im Hintergrund liegt oder weggewischt ist. Im Code ist alles
+vorhanden; es fehlen nur zwei Dateien aus Firebase. Einmalig:
+
+1. **Projekt:** in der [Firebase-Konsole](https://console.firebase.google.com) „Projekt hinzufügen“,
+   dabei das vorhandene Google-Cloud-Projekt wählen oder ein neues anlegen. Google Analytics wird
+   nicht gebraucht.
+2. **Android-App registrieren:** auf der Projektübersicht das Android-Symbol, Paketname genau
+   `balamentum.app` (SHA-1 nicht nötig). `google-services.json` herunterladen; die Schritte „Firebase
+   SDK hinzufügen“ überspringen, Gradle bindet es schon ein.
+3. **FCM-API prüfen:** unter Projekteinstellungen → Cloud Messaging muss „Firebase Cloud Messaging
+   API (V1)“ aktiviert sein (bei neuen Projekten Standard).
+4. **Server-Schlüssel:** Projekteinstellungen → Dienstkonten → „Neuen privaten Schlüssel generieren“.
+   Die JSON-Datei auf dem Server ablegen, z. B.
+   `/var/www/gh-deploy/priority-pilot/secrets/fcm-service-account.json` (Modus `600`, nicht im Repo).
+5. **Env-Variable:** in der Env-Datei `FCM_SERVICE_ACCOUNT_FILE=<Pfad>` einkommentieren (für
+   Erinnerungen zusätzlich `PUSH_REMINDERS_ENABLED=true`), dann
+   `pm2 reload priority-pilot --update-env`.
+6. **App-Build:** den Inhalt der `google-services.json` als Secret `ANDROID_GOOGLE_SERVICES_JSON`
+   hinterlegen (CI) bzw. die Datei nach `native/android/app/` legen (lokal). Danach die App neu bauen
+   und installieren.
+7. **Prüfen:** in der App unter Einstellungen Push einschalten (ab Android 13 fragt das System nach
+   der Erlaubnis), dann „Push testen“ — einmal mit offener App, einmal mit weggewischter App.
+
+Fehlerbilder:
+
+- **Der Push-Schalter meldet einen Fehler:** Der Build lief ohne `google-services.json` (Platzhalter,
+  siehe [Lokal bauen](#lokal-bauen)). Secret bzw. Datei prüfen und neu bauen. Passt der Paketname in
+  der Datei nicht, bricht schon der Gradle-Build ab.
+- **„Push testen“ meldet „Kein Gerät erreicht“ oder einen Fehler:** `FCM_SERVICE_ACCOUNT_FILE`
+  fehlt, zeigt auf eine unlesbare Datei, oder der Server wurde ohne `--update-env` neu geladen. Der
+  Schlüssel muss aus demselben Firebase-Projekt stammen wie die `google-services.json`.
 
 ## Käufe serverseitig prüfen (Play-Dienstkonto)
 
