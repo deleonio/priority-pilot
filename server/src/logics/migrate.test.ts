@@ -1927,6 +1927,24 @@ describe('migrateInvoiceCreditForColumn (#2237)', () => {
 	});
 });
 
+// ── migrateWaitlistSpracheColumn — sprache (nullable) für die Freischalt-Mail ─────────────────────
+describe('migrateWaitlistSpracheColumn', () => {
+	it('zieht auf einem Alt-Schema sprache nach, Bestandszeilen bleiben (null); zweiter Lauf ist ein No-op', async () => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `waitlist_entries` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `email` VARCHAR(255) NOT NULL UNIQUE)',
+		);
+		await sequelize.query("INSERT INTO waitlist_entries (email) VALUES ('alt@local')");
+		await migrateModule.migrateWaitlistSpracheColumn(sequelize);
+		await assert.doesNotReject(
+			() => migrateModule.migrateWaitlistSpracheColumn(sequelize),
+			'zweiter Lauf bleibt stabil',
+		);
+		const [rows] = await sequelize.query("SELECT sprache FROM waitlist_entries WHERE email = 'alt@local'");
+		assert.deepEqual(rows, [{ sprache: null }]);
+	});
+});
+
 // ── #2305: migrateWaitlistAccessMailStatusColumn — accessMailStatus (nullable) ───────────────────
 // Die Funktion existiert noch nicht (rote Spec-Tests): Zugriff über den Namespace + Cast hält tsc grün.
 describe('migrateWaitlistAccessMailStatusColumn (#2305 AK7)', () => {

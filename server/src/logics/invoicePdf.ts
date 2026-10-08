@@ -1,3 +1,4 @@
+import type { CareSprache } from './careSuggestionData.js';
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import fontkit from '@pdf-lib/fontkit';
@@ -36,14 +37,29 @@ const formatEuro = (amountCents: number): string => (amountCents / 100).toFixed(
  * Zustimmungsdatum und Link auf /widerruf/. Gemeinsame Quelle für PDF und Mail; die Texte gibt der
  * Autor vor dem Go-live frei.
  */
-export const contractConfirmationLines = (label: string, priceCents: number, consentAt: Date): string[] => [
-	'Vertragsbestätigung',
-	`Paket und Laufzeit: ${label}`,
-	`Preis: ${formatEuro(priceCents)} EUR`,
-	`Sie haben am ${isoDate(consentAt)} ausdrücklich zugestimmt, dass wir sofort mit der`,
-	'Leistung beginnen, und zur Kenntnis genommen, dass Ihr Widerrufsrecht damit erlischt.',
-	'Widerrufsbelehrung: https://balamentum.modevel.de/widerruf/',
-];
+export const contractConfirmationLines = (
+	label: string,
+	priceCents: number,
+	consentAt: Date,
+	sprache: CareSprache = 'de',
+): string[] =>
+	sprache === 'en'
+		? [
+				'Contract confirmation',
+				`Plan and term: ${label}`,
+				`Price: €${(priceCents / 100).toFixed(2)}`,
+				`On ${isoDate(consentAt)} you expressly agreed that we start providing the service immediately`,
+				'and acknowledged that your right of withdrawal expires as a result.',
+				'Withdrawal policy: https://balamentum.modevel.de/en/withdrawal/',
+			]
+		: [
+				'Vertragsbestätigung',
+				`Paket und Laufzeit: ${label}`,
+				`Preis: ${formatEuro(priceCents)} EUR`,
+				`Sie haben am ${isoDate(consentAt)} ausdrücklich zugestimmt, dass wir sofort mit der`,
+				'Leistung beginnen, und zur Kenntnis genommen, dass Ihr Widerrufsrecht damit erlischt.',
+				'Widerrufsbelehrung: https://balamentum.modevel.de/widerruf/',
+			];
 
 /**
  * Unicode-Schrift für Namen in allen App-Sprachen (#2233) — die Standard-Helvetica kann nur WinAnsi.

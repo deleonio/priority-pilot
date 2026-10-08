@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import passport from 'passport';
 import { Op, UniqueConstraintError } from 'sequelize';
 import { isDbEmailAllowed, isEmailAllowed } from '../../logics/allowedEmails.js';
+import { spracheAusHeader } from '../../logics/careSuggestionData.js';
 import sequelize from '../../database.js';
 import { Pillar, Subscription, User } from '../../models/index.js';
 import type { UserRole } from '../../models/user.js';
@@ -223,6 +224,8 @@ const NATIVE_STATE = /^[\w-]{16,128}$/;
 // untergeschobener Code lässt sich so nicht in der App einlösen (Login-CSRF).
 authRouter.get('/auth/google', requireGoogleStrategy, (req, res, next) => {
 	delete req.session.nativeState;
+	if (req.query.lng === 'en') req.session.loginLng = 'en';
+	else delete req.session.loginLng;
 	if (req.query.client === 'app') {
 		if (typeof req.query.state !== 'string' || !NATIVE_STATE.test(req.query.state)) {
 			sendError(res, 400, 'state fehlt oder ist ungültig.');
@@ -305,6 +308,7 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 			// Return-Path (#1231) vor regenerate() sichern — die neue Session enthält die
 			// Session-Daten des stillen Einstiegs nicht mehr.
 			const silentReturnTo = sanitizeReturnPath(req.session?.silentReturnTo);
+			const appRoot = req.session?.loginLng === 'en' ? `${APP_ROOT}?lng=en` : APP_ROOT;
 			if (req.session?.silentPending) {
 				delete req.session.silentPending;
 			}
@@ -327,7 +331,7 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 					res.redirect(silentPending ? `${APP_ROOT}?silent=unavailable` : `${APP_ROOT}?error=login_failed`);
 					return;
 				}
-				res.redirect(silentReturnTo ?? APP_ROOT);
+				res.redirect(silentReturnTo ?? appRoot);
 			});
 		},
 	)(req, res, next);
@@ -367,7 +371,7 @@ authRouter.post('/auth/native/exchange', async (req, res) => {
 authRouter.post('/auth/waitlist', async (req, res) => {
 	const { email, ref } = (req.body ?? {}) as { email?: string; ref?: string };
 	try {
-		res.json(await joinWaitlist(String(email ?? ''), ref));
+		res.json(await joinWaitlist(String(email ?? ''), ref, spracheAusHeader(req.get('accept-language'))));
 	} catch (err) {
 		if (err instanceof InvalidWaitlistEmailError) {
 			sendError(res, 400, 'Bitte gib eine gültige E-Mail-Adresse an.');

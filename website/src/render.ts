@@ -257,8 +257,9 @@ ${languageLinks(locale, pathFor, '\t\t\t\t\t')}
 `);
 };
 
-const ctaButton = (label: string): string =>
-	`<a class="kern-btn kern-btn--primary cta" href="${LOGIN_PATH}"><span class="kern-label">${t(label)}</span></a>`;
+/** Google-Login; `?lng=en` lässt die App nach dem OAuth-Callback englisch starten (nicht-deutsche Seiten). */
+const ctaButton = (label: string, locale: Locale): string =>
+	`<a class="kern-btn kern-btn--primary cta" href="${locale === 'de' ? LOGIN_PATH : `${LOGIN_PATH}?lng=en`}"><span class="kern-label">${t(label)}</span></a>`;
 
 /** Die MCP-Funktion zeigt statt eines Screenshots einen Beispiel-Chat — der Chat läuft im Assistenten, nicht in der App. */
 const CHAT_FEATURE = 'mcp';
@@ -357,7 +358,7 @@ export const renderLanding = (context: LandingContext): string => {
 						<h1 class="kern-heading-display">${t(m.hero.title)}</h1>
 						<p class="kern-body kern-body--large">${t(m.hero.lead)}</p>
 						<div class="hero__actions">
-							${ctaButton(m.hero.cta)}
+							${ctaButton(m.hero.cta, locale)}
 							<a class="kern-btn kern-btn--secondary" href="${appPath(locale, 'login=email')}"><span class="kern-label">${t(m.hero.emailCta)}</span></a>
 						</div>
 						<p class="kern-body kern-body--small hero__note">${t(m.hero.ctaNote)}</p>
@@ -416,7 +417,7 @@ ${more.map(featureCard).join('\n')}
 ${plans.map((plan) => planCard(context, plan)).join('\n')}
 					</div>
 					<p class="kern-body kern-body--small">${t(m.pricing.discounts)}</p>
-					${ctaButton(m.pricing.cta)}
+					${ctaButton(m.pricing.cta, locale)}
 				</div>
 			</section>
 			<section class="section section--alt" id="faq" aria-labelledby="faq-title">
@@ -429,7 +430,7 @@ ${m.faq.items.map((item) => `					<details class="kern-accordion"><summary class
 				<div class="container container--narrow">
 					<h2 class="kern-heading-large">${t(m.final.title)}</h2>
 					<p class="kern-body kern-body--large">${t(m.final.text)}</p>
-					${ctaButton(m.hero.cta)}
+					${ctaButton(m.hero.cta, locale)}
 				</div>
 			</section>`;
 	return shell(context, {

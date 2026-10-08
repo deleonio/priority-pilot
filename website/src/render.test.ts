@@ -117,6 +117,7 @@ describe('renderLanding', () => {
 		const html = landing('de');
 		expect(html).toContain(`href="${LOGIN_PATH}"`);
 		expect(html).toContain(de.hero.cta);
+		expect(landing('en')).toContain(`href="${LOGIN_PATH}?lng=en"`);
 		expect(html).toContain('href="/app/?login=email"');
 		expect(html).not.toContain('lng=');
 	});
