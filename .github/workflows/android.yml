@@ -1,11 +1,16 @@
 name: Android App-Bundle
 
 # Baut das signierte Android-App-Bundle (AAB) der Capacitor-App mit gebündelter Web-App (ADR 0021) und legt
-# es als Artefakt ab. Läuft auf einem Tag (Daily-Version stößt ihn je Minor-Release an), lädt er das
-# AAB zusätzlich in den internen Test-Track der Play Console und rollt es dort aus; ein Lauf von main lädt nichts hoch.
+# es als Artefakt ab. Mit Eingabe `tag` (Daily-Version setzt sie je Minor-Release) baut er genau diesen
+# Stand und rollt das AAB zusätzlich im internen Test-Track der Play Console aus; ohne Tag nur Artefakte.
 # Secrets und Keystore-Erzeugung: docs/native-apps.md. Workflows bleiben ungetestet (ADR 0001).
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release-Tag, z. B. v0.19.0 (leer: nur bauen, kein Upload)'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -13,8 +18,21 @@ permissions:
 jobs:
   bundle:
     runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    env:
+      # Start auf einem Tag (Use workflow from) gilt weiter wie eine Eingabe.
+      RELEASE_TAG: ${{ inputs.tag || (github.ref_type == 'tag' && github.ref_name || '') }}
     steps:
+      - name: Tag prüfen
+        if: env.RELEASE_TAG != ''
+        run: |
+          if ! [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag '$RELEASE_TAG' hat nicht die Form vX.Y.Z"
+            exit 1
+          fi
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || '' }}
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -89,7 +107,7 @@ jobs:
           if-no-files-found: error
 
       - name: Play-Service-Account prüfen
-        if: github.ref_type == 'tag'
+        if: env.RELEASE_TAG != ''
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
@@ -99,7 +117,7 @@ jobs:
           fi
 
       - name: In Play Console hochladen (interner Test-Track)
-        if: github.ref_type == 'tag'
+        if: env.RELEASE_TAG != ''
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
@@ -107,4 +125,4 @@ jobs:
           releaseFiles: native/android/app/build/outputs/bundle/release/app-release.aab
           tracks: internal
           status: completed
-          releaseName: ${{ github.ref_name }}
+          releaseName: ${{ env.RELEASE_TAG }}

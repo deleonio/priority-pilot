@@ -39,11 +39,12 @@ Ohne `SITE_URL` bricht der Build bzw. `sync` mit einer Meldung ab; `sync` brauch
 
 Der Workflow `Android App-Bundle` (`.github/workflows/android.yml`) baut
 `app-release.aab`, signiert mit dem Upload-Schlüssel, und legt es als Artefakt `balamentum-aab` ab.
-Nach jedem täglichen Minor-Release startet `Daily Version` ihn auf dem neuen Tag `vX.Y.0`; dann lädt er
+Nach jedem täglichen Minor-Release startet `Daily Version` ihn mit dem neuen Tag `vX.Y.0`; dann lädt er
 das AAB zusätzlich mit dem Release-Namen `vX.Y.0` in den internen Test-Track der Play Console und
 rollt es dort an die internen Tester aus. Geschlossener Test und Produktion bleiben Handarbeit: das
-Release in der Console hochstufen oder das Bundle über „Aus Bibliothek hinzufügen“ wählen. Manuell gestartet von
-`main` lädt der Workflow nichts hoch, auf einem Tag schon.
+Release in der Console hochstufen oder das Bundle über „Aus Bibliothek hinzufügen“ wählen. Von Hand: Actions →
+`Android App-Bundle` → Run workflow, im Feld `tag` die Version eintragen (z. B. `v0.19.0`). Ohne Tag
+entstehen nur die Artefakte, hochgeladen wird nichts. Jede Version lässt sich nur einmal hochladen.
 Zusätzlich legt er die mit demselben Upload-Schlüssel signierte APK als Artefakt `balamentum-apk` ab
 (`adb install app-release.apk`). Da der Fingerabdruck des Upload-Schlüssels in `ANDROID_CERT_SHA256`
 steht, bleibt die App-Link-Verifikation erhalten — Übergang bis zum internen Test-Track nach dem
