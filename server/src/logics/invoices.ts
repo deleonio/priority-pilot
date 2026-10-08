@@ -5,6 +5,7 @@ import InvoiceSequence from '../models/invoiceSequence.js';
 import CreditSequence from '../models/creditSequence.js';
 import Subscription from '../models/subscription.js';
 import User from '../models/user.js';
+import type { CareSprache } from './careSuggestionData.js';
 import { getPlansCatalog, type Plan } from './plans.js';
 import { sendMailToUser, type MailSender } from './mail.js';
 import { buildInvoicePdf, contractConfirmationLines } from './invoicePdf.js';
@@ -30,9 +31,11 @@ const PERIOD_DISPLAY: Record<string, string> = {
 	yearly: 'jährlich',
 };
 
+const PERIOD_DISPLAY_EN: Record<string, string> = { monthly: 'monthly', quarterly: 'quarterly', yearly: 'yearly' };
+
 /** Anzeigename „Plus (monatlich)“: Paket großgeschrieben, Zeitraum deutsch (#2031). */
-export const displayLabel = (plan: Plan, period: string): string =>
-	`${plan.charAt(0).toUpperCase()}${plan.slice(1)} (${PERIOD_DISPLAY[period] ?? period})`;
+export const displayLabel = (plan: Plan, period: string, sprache: CareSprache = 'de'): string =>
+	`${plan.charAt(0).toUpperCase()}${plan.slice(1)} (${(sprache === 'en' ? PERIOD_DISPLAY_EN : PERIOD_DISPLAY)[period] ?? period})`;
 
 /** Tatsächlich abgebuchter Betrag aus dem Zahlungsereignis (#2232). */
 export interface ChargedAmount {

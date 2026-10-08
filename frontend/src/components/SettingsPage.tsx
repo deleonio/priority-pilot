@@ -11,6 +11,7 @@ import {
 } from '@public-ui/react-v19';
 import type { GeoConfig, Pillar } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { useAnimationsEnabled } from '../lib/animations';
 import { useHeartAnimationEnabled } from '../lib/heartAnimation';
@@ -75,16 +76,7 @@ interface SettingsPageProps {
 // Nutzerverwaltung (Index 8, nur für Admins). Muss index-paritätisch mit
 // `SETTINGS_PATH_SEGMENTS` in `App.tsx` bleiben — die rollenabhängigen Tabs werden deshalb ans Ende
 // angehängt statt eingeschoben, damit sich die Indizes der übrigen Tabs für Member nie verschieben.
-const BASE_SETTINGS_TABS = [
-	{ _label: 'Allgemein' },
-	{ _label: 'Säulen' },
-	{ _label: 'Kategorien' },
-	{ _label: 'Ortung' },
-	{ _label: 'KI' },
-	{ _label: 'Gruppen' },
-	{ _label: 'Pakete & Abo' },
-	{ _label: 'Daten' },
-];
+const BASE_SETTINGS_TABS = ['general', 'pillars', 'categories', 'geo', 'ai', 'groups', 'plans', 'data'] as const;
 
 /** Index des Reiters „Pakete & Abo" — unabhängig von der Rolle, weil er vor den rollenabhängigen
  * Reitern liegt. */
@@ -130,9 +122,13 @@ export const SettingsPage = ({
 }: SettingsPageProps) => {
 	// #1080-Muster: Ohne Admin-Rolle wird der Tab gar nicht erst in die Liste aufgenommen (nicht nur
 	// ausgeblendet), damit er weder fokussierbar noch per Accessibility-Baum auffindbar ist.
+	const { t } = useTranslation(['settings', 'common', 'forms']);
 	const settingsTabs = useMemo(
-		() => [...BASE_SETTINGS_TABS, ...(isAdmin ? [{ _label: 'Nutzerverwaltung' }] : [])],
-		[isAdmin],
+		() =>
+			[...BASE_SETTINGS_TABS, ...(isAdmin ? ['adminUsers' as const] : [])].map((key) => ({
+				_label: t(`settingsPage.tabs.${key}`),
+			})),
+		[isAdmin, t],
 	);
 	// #1105: Der aktive Tab wird aus der Route `/settings/:tab` abgeleitet und von `App` als `tab`
 	// übergeben (AK4) — `/settings/llm` öffnet damit den KI-Tab (#886, #1903). Ohne Prop (direkte
@@ -465,7 +461,7 @@ export const SettingsPage = ({
 			<KolTabs
 				ref={settingsTabsRef}
 				className="settings-tabs"
-				_label="Einstellungen"
+				_label={t('settingsPage.tabsLabel')}
 				_tabs={settingsTabs}
 				_selected={activeTab}
 				_on={tabsCallbacks}
@@ -481,10 +477,10 @@ export const SettingsPage = ({
 					{/* #1219 AK6/AK7: Anzeigename — Feld + Speichern im Stapel-Layout der Karte (mobil volle
 							Breite, kein horizontales Scrollen). Der `.settings-profile`-Wrapper hält den
 							16dp-Rhythmus innerhalb der Karte. */}
-					<KolCard className="settings-card" _label="Konto" _level={2}>
+					<KolCard className="settings-card" _label={t('settingsPage.account.card')} _level={2}>
 						<div className="settings-profile">
 							<KolInputText
-								_label="Anzeigename"
+								_label={t('forms:labels.displayName')}
 								_value={displayName}
 								_maxLength={60}
 								_on={{
@@ -498,7 +494,7 @@ export const SettingsPage = ({
 							/>
 							<KolButton
 								className="settings-action-btn"
-								_label="Anzeigename speichern"
+								_label={t('settingsPage.account.saveDisplayName')}
 								_variant="secondary"
 								_on={{ onClick: saveDisplayName }}
 							/>
@@ -508,7 +504,7 @@ export const SettingsPage = ({
 					{/* Darstellung und Spracheingabe teilen sich eine Karte: beide beschreiben, wie die App
 							sich beim Bedienen verhält. Das Karten-Label wiederholt bewusst keinen der beiden
 							Control-Namen („Darstellung", „Sprachaufnahme automatisch starten"). */}
-					<KolCard className="settings-card" _label="Darstellung und Eingabe" _level={2}>
+					<KolCard className="settings-card" _label={t('settingsPage.appearanceCard')} _level={2}>
 						<div className="settings-card-stack">
 							<AppearanceSetting />
 							{/* #1428: Kopfzeile oben/unten — ebenfalls eine Darstellungsfrage der App-Shell. */}
@@ -523,9 +519,9 @@ export const SettingsPage = ({
 									Stack-Layout, desktop eine Zeile. */}
 							<div className="settings-switch-row">
 								<KolInputCheckbox
-									_label="Balance-Priorisierung"
+									_label={t('settingsPage.balancePriority.label')}
 									_variant="switch"
-									_hint="Bei deaktivierter Balance-Priorisierung sortiert die Aufgabenliste wieder nach der Original-Priorität. Die Wahl gilt in diesem Browser."
+									_hint={t('settingsPage.balancePriority.hint')}
 									_checked={balancePriority}
 									_on={{
 										onChange: (_event, value) => {
@@ -540,10 +536,10 @@ export const SettingsPage = ({
 							    UI-Ausblendung; gespeicherte Werte bleiben. */}
 							<div className="settings-switch-row">
 								<KolInputCheckbox
-									_label="Expertenmodus"
+									_label={t('settingsPage.expertMode.label')}
 									_variant="switch"
 									_checked={expertMode}
-									_hint="Zeigt die Fach-Regler für Fortgeschrittene — welche Bereiche das sind, listet der Block darunter. Gilt gerätebezogen und ist standardmäßig aus."
+									_hint={t('settingsPage.expertMode.hint')}
 									_on={{
 										onChange: (_event, value) => {
 											setExpertMode(value === true);
@@ -558,7 +554,7 @@ export const SettingsPage = ({
 							    (`_open`), eigenes Klappen bleibt über den Click-Handler möglich. #2015: `KolDetails`, weil der Block in der Karte liegt (Regel 1). */}
 							<KolDetails
 								className="settings-accordion"
-								_label="Was umfasst der Expertenmodus?"
+								_label={t('settingsPage.expertMode.detailsLabel')}
 								_level={3}
 								_open={expertDetailsOpen}
 								_on={{
@@ -566,23 +562,20 @@ export const SettingsPage = ({
 								}}
 							>
 								<ul className="settings-expert-list">
-									<li>Säulen-Prozente im Aufgabendialog (Feinverteilung der Anteile)</li>
-									<li>Gewichte (0,1–1) im Abhängigkeits-Dialog</li>
-									<li>Säulen-Gewichtungspflege im Tab „Säulen“</li>
-									<li>
-										Reichweite und Intervall im Tab „Ortung“ (Anzeige-Entfernung, Alarm-Entfernung,
-										Aktualisierungsintervall)
-									</li>
+									<li>{t('settingsPage.expertMode.itemPillarShares')}</li>
+									<li>{t('settingsPage.expertMode.itemWeights')}</li>
+									<li>{t('settingsPage.expertMode.itemPillarWeights')}</li>
+									<li>{t('settingsPage.expertMode.itemGeoRange')}</li>
 								</ul>
 							</KolDetails>
 							{/* #971: Switch + zugehörige Alerts je in einer `.settings-switch-row` — mobil volle
 									Breite im Stack-Layout, desktop eine Zeile (Switch links, Alert rechts). */}
 							<div className="settings-switch-row">
 								<KolInputCheckbox
-									_label="Sprachaufnahme automatisch starten"
+									_label={t('forms:labels.autoStartRecording')}
 									_variant="switch"
 									_checked={voiceAutostart}
-									_hint="Beim Öffnen der Formulare zum Anlegen und Bearbeiten von Tasks und Serien wird das erste Eingabefeld fokussiert und dessen Mikrofon automatisch gestartet."
+									_hint={t('settingsPage.voiceAutostart.hint')}
 									_on={{
 										onChange: (_event, value) => {
 											void onToggleVoiceAutostart(value === true);
@@ -590,9 +583,8 @@ export const SettingsPage = ({
 									}}
 								/>
 								{micDenied && (
-									<KolAlert _type="warning" _label="Mikrofon-Zugriff verweigert">
-										Der Zugriff auf das Mikrofon wurde verweigert. Die automatische Sprachaufnahme bleibt deaktiviert.
-										Bitte erteile die Berechtigung im Browser und versuche es erneut.
+									<KolAlert _type="warning" _label={t('settingsPage.voiceAutostart.deniedLabel')}>
+										{t('settingsPage.voiceAutostart.deniedText')}
 									</KolAlert>
 								)}
 							</div>
@@ -601,15 +593,15 @@ export const SettingsPage = ({
 
 					{/* #1183: Master-Schalter „Animationen" — steuert zentral alle dekorativen Animationen
 							(erster Konsument: Konfetti aus #1169). Muster wie die Switch-Zeilen oben (#971). */}
-					<KolCard className="settings-card" _label="Bewegung" _level={2}>
+					<KolCard className="settings-card" _label={t('settingsPage.motion.card')} _level={2}>
 						<div className="settings-card-stack">
 							<div className="settings-switch-row">
 								<KolInputCheckbox
-									_label="Animationen"
+									_label={t('settingsPage.motion.animationsLabel')}
 									_variant="switch"
 									_checked={animationsEnabled}
 									_disabled={prefersReducedMotion}
-									_hint="Dekorative Animationen anzeigen — im Einzelnen schaltbar über „Herz animieren“ und „Erledigt animieren“. Gilt gerätebezogen und ist standardmäßig aus."
+									_hint={t('settingsPage.motion.animationsHint')}
 									_on={{
 										onChange: (_event, value) => {
 											setAnimationsEnabled(value === true);
@@ -622,9 +614,8 @@ export const SettingsPage = ({
 								{/* #1187: Die Systemeinstellung hat Vorrang — sie deaktiviert den Schalter
 										(deshalb `_disabled` oben) und erklärt den Zustand. */}
 								{prefersReducedMotion && (
-									<KolAlert _type="info" _label="Bewegung reduzieren aktiv">
-										Dein Betriebssystem ist auf „Bewegung reduzieren" eingestellt. Dekorative Animationen (z. B.
-										Konfetti) bleiben deshalb aus, unabhängig vom Schalter „Animationen".
+									<KolAlert _type="info" _label={t('settingsPage.motion.reducedLabel')}>
+										{t('settingsPage.motion.reducedText')}
 									</KolAlert>
 								)}
 							</div>
@@ -634,7 +625,7 @@ export const SettingsPage = ({
 									(docs/ux-pattern-master-detail-settings.md). */}
 							<KolDetails
 								className="settings-accordion"
-								_label="Einzelne Animationen"
+								_label={t('settingsPage.motion.singleAnimations')}
 								_level={3}
 								_open={animationsOpen}
 								_on={{
@@ -644,11 +635,11 @@ export const SettingsPage = ({
 								<div className="settings-card-stack">
 									<div className="settings-switch-row">
 										<KolInputCheckbox
-											_label="Herz animieren"
+											_label={t('settingsPage.motion.heartLabel')}
 											_variant="switch"
 											_checked={heartAnimationEnabled}
 											_disabled={!animationsEnabled || prefersReducedMotion}
-											_hint="Das Herz der Lebensbalance auf dem Dashboard schlägt und seine Wasseroberfläche wellt. Setzt den Schalter „Animationen“ voraus. Gilt gerätebezogen."
+											_hint={t('settingsPage.motion.heartHint')}
 											_on={{
 												onChange: (_event, value) => {
 													setHeartAnimationEnabled(value === true);
@@ -658,11 +649,11 @@ export const SettingsPage = ({
 									</div>
 									<div className="settings-switch-row">
 										<KolInputCheckbox
-											_label="Erledigt animieren"
+											_label={t('settingsPage.motion.doneLabel')}
 											_variant="switch"
 											_checked={doneAnimationEnabled}
 											_disabled={!animationsEnabled || prefersReducedMotion}
-											_hint="Beim Erledigt-Machen von Aufgaben regnet Konfetti. Setzt den Schalter „Animationen“ voraus. Gilt gerätebezogen."
+											_hint={t('settingsPage.motion.doneHint')}
 											_on={{
 												onChange: (_event, value) => {
 													setDoneAnimationEnabled(value === true);
@@ -675,16 +666,16 @@ export const SettingsPage = ({
 						</div>
 					</KolCard>
 
-					<KolCard className="settings-card" _label="Benachrichtigungen" _level={2}>
+					<KolCard className="settings-card" _label={t('settingsPage.notifications.card')} _level={2}>
 						<div className="settings-card-stack">
 							{pushSupported ? (
 								<div className="settings-switch-row">
 									<KolInputCheckbox
-										_label="Push-Nachrichten aktivieren"
+										_label={t('settingsPage.notifications.pushLabel')}
 										_variant="switch"
 										_checked={pushEnabled}
 										_disabled={pushPending}
-										_hint="Erlaube Balamentum, dir Erinnerungen (z. B. an fällige Aufgaben) als Push-Nachricht zu senden – auch wenn die App gerade nicht geöffnet ist."
+										_hint={t('settingsPage.notifications.pushHint')}
 										_on={{
 											onChange: (_event, value) => {
 												void togglePush(value === true);
@@ -694,24 +685,22 @@ export const SettingsPage = ({
 									{/* #971: `pushFailed` gehört zur Switch-Zeile; der „Push testen"-Button und die
 										    Test-Push-Ergebnis-Alerts (#932/#886) bleiben eigene Zeilen außerhalb. */}
 									{pushFailed && (
-										<KolAlert _type="warning" _label="Push-Nachrichten nicht aktiviert">
-											Push-Nachrichten konnten nicht aktiviert werden. Bitte erteile die Benachrichtigungs-Berechtigung
-											im Browser und versuche es erneut.
+										<KolAlert _type="warning" _label={t('settingsPage.notifications.pushFailedLabel')}>
+											{t('settingsPage.notifications.pushFailedText')}
 										</KolAlert>
 									)}
 								</div>
 							) : (
-								<KolAlert _type="info" _label="Push-Nachrichten nicht verfügbar">
-									Dieser Browser unterstützt keine Push-Nachrichten. Installiere die App bzw. nutze einen aktuellen
-									Browser, um Erinnerungen zu erhalten.
+								<KolAlert _type="info" _label={t('settingsPage.notifications.pushUnavailableLabel')}>
+									{t('settingsPage.notifications.pushUnavailableText')}
 								</KolAlert>
 							)}
 							<div className="settings-switch-row">
 								<KolInputCheckbox
-									_label="Fürsorge-Hinweise"
+									_label={t('settingsPage.notifications.careLabel')}
 									_variant="switch"
 									_checked={carePushEnabled}
-									_hint="Sanfte Hinweise bei deutlichem Defizit oder Überlast einer Säule – höchstens einer pro Tag, nie nachts. Betrifft nur den Fürsorge-Push: Frist-Erinnerungen bleiben an."
+									_hint={t('settingsPage.notifications.careHint')}
 									_on={{
 										onChange: (_event, value) => {
 											toggleCarePush(value === true);
@@ -720,17 +709,17 @@ export const SettingsPage = ({
 								/>
 								{/* #1794: `careFailed` gehört zur Switch-Zeile (#971-Muster wie `pushFailed`). */}
 								{careFailed && (
-									<KolAlert _type="warning" _label="Einstellung nicht gespeichert">
-										Die Einstellung konnte nicht gespeichert werden. Bitte prüfe die Verbindung und versuche es erneut.
+									<KolAlert _type="warning" _label={t('settingsPage.notifications.saveFailedLabel')}>
+										{t('settingsPage.notifications.saveFailedText')}
 									</KolAlert>
 								)}
 							</div>
 							<div className="settings-switch-row">
 								<KolInputCheckbox
-									_label="Hinweis zum Aufteilen großer Aufgaben"
+									_label={t('settingsPage.notifications.splitHintLabel')}
 									_variant="switch"
 									_checked={splitHintEnabled}
-									_hint="Zeigt an der Karte „Nächste Aufgabe“ einen freundlichen Hinweis, wenn du mehrere große Aufgaben wiederholt verschoben hast. Die Reihenfolge der Empfehlung ändert sich dadurch nicht."
+									_hint={t('settingsPage.notifications.splitHintHint')}
 									_on={{
 										onChange: (_event, value) => {
 											toggleSplitHint(value === true);
@@ -738,14 +727,14 @@ export const SettingsPage = ({
 									}}
 								/>
 								{splitHintFailed && (
-									<KolAlert _type="warning" _label="Einstellung nicht gespeichert">
-										Die Einstellung konnte nicht gespeichert werden. Bitte prüfe die Verbindung und versuche es erneut.
+									<KolAlert _type="warning" _label={t('settingsPage.notifications.saveFailedLabel')}>
+										{t('settingsPage.notifications.saveFailedText')}
 									</KolAlert>
 								)}
 							</div>
 							{pushEnabled && (
 								<KolButton
-									_label="Push testen"
+									_label={t('settingsPage.notifications.pushTest')}
 									class="settings-action-btn"
 									_variant="secondary"
 									_on={{
@@ -763,18 +752,18 @@ export const SettingsPage = ({
 								/>
 							)}
 							{pushTestResult === 'success' && (
-								<KolAlert _type="success" _label="Test-Push gesendet">
-									Zitat unterwegs.
+								<KolAlert _type="success" _label={t('settingsPage.notifications.testSuccessLabel')}>
+									{t('settingsPage.notifications.testSuccessText')}
 								</KolAlert>
 							)}
 							{pushTestResult === 'none' && (
-								<KolAlert _type="warning" _label="Kein Gerät erreicht">
-									Für dieses Konto ist kein Gerät erreichbar. Schalte Push-Nachrichten aus und wieder ein.
+								<KolAlert _type="warning" _label={t('settingsPage.notifications.testNoneLabel')}>
+									{t('settingsPage.notifications.testNoneText')}
 								</KolAlert>
 							)}
 							{pushTestResult === 'error' && (
-								<KolAlert _type="error" _label="Fehler">
-									Push fehlgeschlagen.
+								<KolAlert _type="error" _label={t('settingsPage.notifications.testErrorLabel')}>
+									{t('settingsPage.notifications.testErrorText')}
 								</KolAlert>
 							)}
 						</div>
@@ -788,7 +777,7 @@ export const SettingsPage = ({
 					    der Einstellungen nichts versehentlich auslöst. Neutrale Überschrift: der Klapp-
 					    Toggle ist selbst ein Button und darf nicht „Konto löschen“ heißen; Rot erscheint
 					    erst im Bestätigungsdialog (docs/ux-pattern-sequential-confirmation.md). */}
-					<KolAccordion className="settings-accordion" _label="Konto und Daten" _level={2}>
+					<KolAccordion className="settings-accordion" _label={t('settingsPage.accountData')} _level={2}>
 						<DeleteAccountButton userId={currentUserId} />
 					</KolAccordion>
 				</div>
@@ -804,18 +793,15 @@ export const SettingsPage = ({
 				<div slot="tab-1" className="settings-pillars settings-panel">
 					{/* #1573: Die fünf Säulen sind fest — durchgehender Info-Hinweis statt der früheren
 					    CRUD-Verwaltung (KoliBri-Info-Alert, Muster wie die übrigen Settings-Hinweise). */}
-					<KolAlert _type="info" _label="Feste Säulen">
-						<p>
-							Diese 5 Säulen adressieren per Definition die Balance im Leben und gelten stets. Deine Gewichtung bleibt
-							individuell anpassbar.
-						</p>
+					<KolAlert _type="info" _label={t('settingsPage.pillars.fixedLabel')}>
+						<p>{t('settingsPage.pillars.fixedText')}</p>
 					</KolAlert>
 					{/* Säulen-Ansicht (#439 → #1573): reine Leseansicht, Gewichtung siehe unten. */}
-					<KolCard className="settings-card" _label="Säulen verwalten" _level={2}>
+					<KolCard className="settings-card" _label={t('settingsPage.pillars.manageCard')} _level={2}>
 						<PillarList />
 						<div className="form-actions" style={{ marginTop: '1rem' }}>
 							<KolButton
-								_label="Säulen aller Aufgaben neu berechnen"
+								_label={t('settingsPage.pillars.recalc')}
 								_variant="secondary"
 								_on={{ onClick: () => setRecalcPillarModalOpen(true) }}
 							/>
@@ -827,7 +813,7 @@ export const SettingsPage = ({
 					{/* #1984: Die Säulen-Gewichtungspflege ist Experteninhalt — im Standardmodus bleibt
 					    die Karte weg (bedingtes Rendern, kein CSS-Hide); gespeicherte Gewichte bleiben. */}
 					{expertMode && (
-						<KolCard className="settings-card" _label="Säulen-Gewichtung" _level={2}>
+						<KolCard className="settings-card" _label={t('settingsPage.pillars.weightsCard')} _level={2}>
 							{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
 						    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
 						    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
@@ -848,7 +834,7 @@ export const SettingsPage = ({
 				    Panel-Rezept wie die übrigen Tabs (Design-Lauf 2026-09): `.settings-panel` plus eine
 				    `KolCard` als Gruppierungsfläche. */}
 				<div slot="tab-2" className="settings-categories settings-panel">
-					<KolCard className="settings-card" _label="Kategorien verwalten" _level={2}>
+					<KolCard className="settings-card" _label={t('settingsPage.categoriesCard')} _level={2}>
 						<CategoryList onCategoryChanged={onCategoryChanged} />
 					</KolCard>
 				</div>
@@ -858,16 +844,16 @@ export const SettingsPage = ({
 				        seit #1984 Experteninhalt (siehe unten). Die Remount-Keys ziehen mit um (KI-UX: der
 				        React-Adapter setzt Props erst nach dem Mount). */}
 				<div slot="tab-3" className="settings-geo settings-panel" ref={settingsGeoRef}>
-					<KolCard className="settings-card" _label="Standorterfassung" _level={2}>
+					<KolCard className="settings-card" _label={t('settingsPage.geo.card')} _level={2}>
 						<div className="settings-card-stack">
 							{geoSupported ? (
 								<div className="settings-switch-row">
 									<KolInputCheckbox
-										_label="Standort erfassen"
+										_label={t('settingsPage.geo.label')}
 										_variant="switch"
 										_checked={geoEnabled}
 										_disabled={geoPending}
-										_hint={`Ermittle alle ${geoConfig.intervalMinutes} Minuten deine aktuelle Position (z. B. für ortsbezogene Aufgaben-Vorschläge).`}
+										_hint={t('settingsPage.geo.hint', { minutes: geoConfig.intervalMinutes })}
 										_on={{
 											onChange: (_event, value) => {
 												void toggleGeo(value === true);
@@ -877,26 +863,22 @@ export const SettingsPage = ({
 									{/* #971: `geoDenied` gehört zur Switch-Zeile; der `geoEnabled`-Block
 										    (Ermitteln-Button + Adresse, #933) bleibt eigene Zeilen außerhalb. */}
 									{geoDenied && (
-										<KolAlert _type="warning" _label="Standortzugriff verweigert">
-											Der Zugriff auf den Standort wurde verweigert. Die Standorterfassung bleibt deaktiviert. Bitte
-											erteile die Berechtigung im Browser und versuche es erneut.
+										<KolAlert _type="warning" _label={t('settingsPage.geo.deniedLabel')}>
+											{t('settingsPage.geo.deniedText')}
 										</KolAlert>
 									)}
 								</div>
 							) : (
-								<KolAlert _type="info" _label="Standort nicht verfügbar">
-									Dieser Browser unterstützt keine Standortabfrage. Nutze einen aktuellen Browser, um die Position zu
-									ermitteln.
+								<KolAlert _type="info" _label={t('settingsPage.geo.unavailableLabel')}>
+									{t('settingsPage.geo.unavailableText')}
 								</KolAlert>
 							)}
 							{geoEnabled && (
 								<>
 									{/* #1972: PWA-Grenze direkt am Aktivierungspunkt erklären (Positionsmuster geoDenied);
 										    Text-Empfehlung statt zweitem Install-Button — die Aktion bleibt im InstallPrompt. */}
-									<KolAlert _type="warning" _label="Nähe-Alarm nur bei geöffneter App">
-										Zuverlässige Nähe-Alarme gibt es nur, solange die App geöffnet ist. Im Browser kann der
-										Hintergrund-Alarm entfallen — installiere Balamentum als App, damit der Nähe-Alarm zuverlässig
-										ankommt.
+									<KolAlert _type="warning" _label={t('settingsPage.geo.pwaLabel')}>
+										{t('settingsPage.geo.pwaText')}
 									</KolAlert>
 									{/* #933 AK1/AK5: Test-Schalter stößt refresh() an; während der Ermittlung
 										    deaktiviert (Re-Entrancy-Guard im Hook). Der key-Wechsel auf geoPending
@@ -905,7 +887,7 @@ export const SettingsPage = ({
 										    nicht durchschlägt — der Remount stellt den korrekten Zustand sicher. */}
 									<KolButton
 										key={geoPending ? 'geo-refresh-pending' : 'geo-refresh-idle'}
-										_label="Standort ermitteln"
+										_label={t('settingsPage.geo.refresh')}
 										class="settings-action-btn"
 										_variant="secondary"
 										_disabled={geoPending}
@@ -916,8 +898,9 @@ export const SettingsPage = ({
 										}}
 									/>
 									<div aria-live="polite" className="geo-address">
-										{addressLoading ? 'Adresse wird ermittelt…' : address || 'Keine Adresse für diesen Standort'}
-										{positionUpdatedAt !== null && ` (Stand: ${formatGeoTimestamp(positionUpdatedAt)})`}
+										{addressLoading ? t('settingsPage.geo.addressLoading') : address || t('settingsPage.geo.noAddress')}
+										{positionUpdatedAt !== null &&
+											` ${t('settingsPage.geo.updatedAt', { time: formatGeoTimestamp(positionUpdatedAt) })}`}
 									</div>
 								</>
 							)}
@@ -937,7 +920,7 @@ export const SettingsPage = ({
 						   Werte bleiben und wirken weiter (NearbyCard, Push-Hinweis). */
 						<KolAccordion
 							className="settings-accordion"
-							_label="Reichweite und Intervall"
+							_label={t('settingsPage.geo.rangeAccordion')}
 							_level={2}
 							{...geoRangeAccordion}
 						>
@@ -945,8 +928,8 @@ export const SettingsPage = ({
 								<div className="geo-range-field">
 									<KolInputRange
 										key={`geo-display-${geoEnabled}`}
-										_label="Anzeige-Entfernung (km)"
-										_hint={`Bis zu dieser Entfernung zeigt die „In der Nähe“-Liste Aufgaben. Aktuell ${geoDraft.displayDistanceKm} km.`}
+										_label={t('settingsPage.geo.displayLabel')}
+										_hint={t('settingsPage.geo.displayHint', { km: geoDraft.displayDistanceKm })}
 										_value={geoDraft.displayDistanceKm}
 										_min={geoDraft.alarmDistanceKm}
 										_max={50}
@@ -960,13 +943,15 @@ export const SettingsPage = ({
 									/>
 									{/* Sichtbarer aktueller Wert im Light-DOM (KI-UX Regel 4): Slider
 									    zeigen den gewählten Wert nicht selbst. */}
-									<span className="geo-range-value">{geoDraft.displayDistanceKm} km</span>
+									<span className="geo-range-value">
+										{t('settingsPage.geo.valueKm', { km: geoDraft.displayDistanceKm })}
+									</span>
 								</div>
 								<div className="geo-range-field">
 									<KolInputRange
 										key={`geo-alarm-${geoEnabled}`}
-										_label="Alarm-Entfernung (km)"
-										_hint={`Ab dieser Entfernung zur Aufgabe erscheint der Alarm-Hinweis. Aktuell ${geoDraft.alarmDistanceKm} km.`}
+										_label={t('settingsPage.geo.alarmLabel')}
+										_hint={t('settingsPage.geo.alarmHint', { km: geoDraft.alarmDistanceKm })}
 										_value={geoDraft.alarmDistanceKm}
 										_min={1}
 										_max={geoDraft.displayDistanceKm}
@@ -978,13 +963,15 @@ export const SettingsPage = ({
 											},
 										}}
 									/>
-									<span className="geo-range-value">{geoDraft.alarmDistanceKm} km</span>
+									<span className="geo-range-value">
+										{t('settingsPage.geo.valueKm', { km: geoDraft.alarmDistanceKm })}
+									</span>
 								</div>
 								<div className="geo-range-field">
 									<KolInputRange
 										key={`geo-interval-${geoEnabled}`}
-										_label="Aktualisierungsintervall (Minuten)"
-										_hint={`Wie oft die Position im Hintergrund ermittelt wird. Aktuell ${geoDraft.intervalMinutes} Minuten.`}
+										_label={t('settingsPage.geo.intervalLabel')}
+										_hint={t('settingsPage.geo.intervalHint', { minutes: geoDraft.intervalMinutes })}
 										_value={geoDraft.intervalMinutes}
 										_min={1}
 										_max={60}
@@ -996,13 +983,15 @@ export const SettingsPage = ({
 											},
 										}}
 									/>
-									<span className="geo-range-value">{geoDraft.intervalMinutes} Minuten</span>
+									<span className="geo-range-value">
+										{t('settingsPage.geo.valueMinutes', { minutes: geoDraft.intervalMinutes })}
+									</span>
 								</div>
 
 								<div className="settings-button-row">
 									<KolButton
 										key={`geo-save-${geoDraftChanged}-${geoEnabled}`}
-										_label="Speichern"
+										_label={t('common:actions.save')}
 										class="settings-action-btn"
 										_variant="primary"
 										_disabled={geoActionsDisabled}
@@ -1010,7 +999,7 @@ export const SettingsPage = ({
 									/>
 									<KolButton
 										key={`geo-reset-${geoDraftChanged}-${geoEnabled}`}
-										_label="Zurücksetzen"
+										_label={t('settingsPage.geo.reset')}
 										class="settings-action-btn"
 										_variant="secondary"
 										_disabled={geoActionsDisabled}
@@ -1033,23 +1022,22 @@ export const SettingsPage = ({
 							#1525: ohne Paket-Freischaltung ist der Schalter gesperrt; der Angebots-Alert steht
 							VOR dem Schalter im DOM (nicht nur per CSS), damit die 375px-Stapelreihenfolge (AK6)
 							und die Fokus-/Lesereihenfolge (WCAG 1.3.2) übereinstimmen. */}
-					<KolCard className="settings-card" _label="KI-Funktionen" _level={2}>
+					<KolCard className="settings-card" _label={t('settingsPage.ai.card')} _level={2}>
 						<div className="settings-card-stack">
 							<div className="settings-llm-switch-row">
 								{showAiPlanAlert && (
 									<FeaturePopoverButton
-										label={`Paket „${requiredPlan ? planLabel(requiredPlan) : ''}“ erforderlich`}
+										label={t('settingsPage.ai.planRequired', { plan: requiredPlan ? planLabel(requiredPlan) : '' })}
 										onShowPlans={() => tabsCallbacks.onSelect(new Event('select'), PLANS_TAB_INDEX)}
 									>
-										KI-Features (Anlege-Dialog mit Berater, Lektorate) sind Teil des Pakets „
-										{requiredPlan ? planLabel(requiredPlan) : ''}“.
+										{t('settingsPage.ai.planText', { plan: requiredPlan ? planLabel(requiredPlan) : '' })}
 									</FeaturePopoverButton>
 								)}
 								<KolInputCheckbox
 									key={aiSwitchLocked ? 'ai-switch-locked' : 'ai-switch-unlocked'}
-									_label="KI aktivieren"
+									_label={t('settingsPage.ai.switchLabel')}
 									_variant="switch"
-									_hint="Bei deaktivierter KI öffnet „Neuen Task anlegen“ direkt das vollständige Formular; die Lektorat-Buttons sind ausgeblendet. Bestehende Access-Token bleiben gültig."
+									_hint={t('settingsPage.ai.switchHint')}
 									_checked={aiFeaturesEnabled}
 									_disabled={aiSwitchDisabled}
 									_on={{
@@ -1059,9 +1047,8 @@ export const SettingsPage = ({
 									}}
 								/>
 								{!showAiPlanAlert && !aiEnabled && (
-									<KolAlert _type="info" _label="KI-Features deaktiviert">
-										Der KI-Anlege-Dialog (Verarbeiten und Beraten) und die Lektorat-Buttons sind derzeit ausgeblendet.
-										„Neuen Task anlegen“ öffnet direkt das vollständige Formular.
+									<KolAlert _type="info" _label={t('settingsPage.ai.disabledLabel')}>
+										{t('settingsPage.ai.disabledText')}
 									</KolAlert>
 								)}
 							</div>
@@ -1086,26 +1073,26 @@ export const SettingsPage = ({
 					        spätere Rollen sie ohne Tab-Umbau aufnehmen können (AK4): Tester (#1566) sieht
 					        dieselbe Karte, der Server begrenzt sie auf die eigene Id. */}
 					{(isAdmin || isTester) && typeof currentUserId === 'number' && <OwnPlanCard userId={currentUserId} />}
-					<KolCard className="settings-card" _label="Abo" _level={2}>
+					<KolCard className="settings-card" _label={t('settingsPage.plans.subscriptionCard')} _level={2}>
 						<SubscriptionSection />
 					</KolCard>
-					<KolCard className="settings-card" _label="Pakete" _level={2}>
+					<KolCard className="settings-card" _label={t('settingsPage.plans.plansCard')} _level={2}>
 						<PlansSection />
 					</KolCard>
 				</div>
 				{/* #1969: Tab „Daten" (Index 7, Route /settings/daten): CSV-Import (Datei wählen → Vorschau mit
 				    Spalten-Mapping → Übernehmen) und CSV-Export aller Aufgaben. */}
 				<div slot="tab-7" className="settings-import settings-panel">
-					<KolCard className="settings-card" _label="Import" _level={2}>
+					<KolCard className="settings-card" _label={t('settingsPage.data.importCard')} _level={2}>
 						<TaskImportCard />
 					</KolCard>
-					<KolCard className="settings-card" _label="Export" _level={2}>
+					<KolCard className="settings-card" _label={t('settingsPage.data.exportCard')} _level={2}>
 						<TaskExportCard />
 					</KolCard>
 				</div>
 				{isAdmin && (
 					<div slot="tab-8" className="settings-admin-users settings-panel">
-						<KolCard className="settings-card" _label="Nutzer und Rollen" _level={2}>
+						<KolCard className="settings-card" _label={t('settingsPage.adminUsersCard')} _level={2}>
 							<AdminUsersSection currentUserId={currentUserId} />
 						</KolCard>
 					</div>

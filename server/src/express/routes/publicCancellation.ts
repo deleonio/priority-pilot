@@ -15,6 +15,7 @@ import { isMailConfigured, sendMailToUser, type MailSender } from '../../logics/
 import { publicBaseUrl } from '../../logics/magicLink.js';
 import type { Plan } from '../../logics/plans.js';
 import { EMAIL_RE } from '../../logics/waitlist.js';
+import { spracheAusHeader, type CareSprache } from '../../logics/careSuggestionData.js';
 
 /**
  * Kündigung ohne Login über die Website (#2317, § 312k BGB; Vertrag `docs/spec/issue-2317.md`).
@@ -54,10 +55,72 @@ const limiter = (max: number, keyGenerator: (req: Request) => string) =>
 		keyGenerator,
 	});
 
-const effectiveLabel = (effective: string | null | undefined): string =>
+/** Texte der Website-Kündigung je Sprache (`Accept-Language` der Website-Anfrage). */
+const TEXTE: Record<
+	CareSprache,
+	{
+		zum: (datum: string) => string;
+		naechstmoeglich: string;
+		ordentlich: string;
+		ausserordentlich: string;
+		locale: string;
+		pfad: string;
+		subject: string;
+		mail: (link: string, vertrag: string, art: string, zeitpunkt: string) => string[];
+	}
+> = {
+	de: {
+		zum: (datum) => `zum ${datum}`,
+		naechstmoeglich: 'zum nächstmöglichen Zeitpunkt',
+		ordentlich: 'ordentlich',
+		ausserordentlich: 'außerordentlich',
+		locale: 'de-DE',
+		pfad: '/kuendigen/bestaetigen/',
+		subject: 'Balamentum: Kündigung bestätigen',
+		mail: (link, vertrag, art, zeitpunkt) => [
+			'Hallo,',
+			'',
+			'wir haben eine Kündigung deines Abos ohne Anmeldung erhalten. Bitte bestätige sie über diesen Link (24 Stunden gültig):',
+			'',
+			link,
+			'',
+			`Vertrag: ${vertrag}`,
+			`Art der Kündigung: ${art}`,
+			`Zeitpunkt: ${zeitpunkt}`,
+			'',
+			'Wenn du diese Kündigung nicht angefordert hast, ignoriere diese Mail — dein Abo läuft dann unverändert weiter.',
+		],
+	},
+	en: {
+		zum: (datum) => `as of ${datum}`,
+		naechstmoeglich: 'at the earliest possible date',
+		ordentlich: 'ordinary',
+		ausserordentlich: 'extraordinary',
+		locale: 'en-GB',
+		pfad: '/en/cancel/confirm/',
+		subject: 'Balamentum: Confirm cancellation',
+		mail: (link, vertrag, art, zeitpunkt) => [
+			'Hello,',
+			'',
+			'we have received a cancellation of your subscription without sign-in. Please confirm it using this link (valid for 24 hours):',
+			'',
+			link,
+			'',
+			`Contract: ${vertrag}`,
+			`Type of cancellation: ${art}`,
+			`Effective: ${zeitpunkt}`,
+			'',
+			'If you did not request this cancellation, ignore this email — your subscription will then continue unchanged.',
+		],
+	},
+};
+
+const effectiveLabel = (effective: string | null | undefined, sprache: CareSprache): string =>
 	effective
-		? `zum ${new Date(`${effective}T00:00:00Z`).toLocaleDateString('de-DE', { timeZone: 'UTC' })}`
-		: 'zum nächstmöglichen Zeitpunkt';
+		? TEXTE[sprache].zum(
+				new Date(`${effective}T00:00:00Z`).toLocaleDateString(TEXTE[sprache].locale, { timeZone: 'UTC' }),
+			)
+		: TEXTE[sprache].naechstmoeglich;
 
 const findValidToken = (token: unknown) =>
 	typeof token === 'string' && token !== ''
@@ -105,23 +168,20 @@ export const createPublicCancellationRouter = (deps: PublicCancellationDeps = {}
 					effective,
 				});
 				// Nicht abwarten: die Antwortzeit verrät sonst, ob ein Abo besteht.
+				const sprache = spracheAusHeader(req.get('accept-language'));
+				const t = TEXTE[sprache];
 				void sendMailToUser(
 					{ email: user.email },
 					{
-						subject: 'Balamentum: Kündigung bestätigen',
-						text: [
-							'Hallo,',
-							'',
-							'wir haben eine Kündigung deines Abos ohne Anmeldung erhalten. Bitte bestätige sie über diesen Link (24 Stunden gültig):',
-							'',
-							`${publicBaseUrl() ?? ''}/kuendigen/bestaetigen/?token=${token}`,
-							'',
-							`Vertrag: ${displayLabel(subscription.plan as Plan, subscription.period)}`,
-							`Art der Kündigung: ${kind === 'extraordinary' ? 'außerordentlich' : 'ordentlich'}`,
-							`Zeitpunkt: ${effectiveLabel(effective)}`,
-							'',
-							'Wenn du diese Kündigung nicht angefordert hast, ignoriere diese Mail — dein Abo läuft dann unverändert weiter.',
-						].join('\n'),
+						subject: t.subject,
+						text: t
+							.mail(
+								`${publicBaseUrl() ?? ''}${t.pfad}?token=${token}`,
+								displayLabel(subscription.plan as Plan, subscription.period, sprache),
+								kind === 'extraordinary' ? t.ausserordentlich : t.ordentlich,
+								effectiveLabel(effective, sprache),
+							)
+							.join('\n'),
 					},
 					deps.mailSender,
 				);
@@ -140,10 +200,11 @@ export const createPublicCancellationRouter = (deps: PublicCancellationDeps = {}
 				sendError(res, 400, 'Link ungültig oder abgelaufen.');
 				return;
 			}
+			const sprache = spracheAusHeader(req.get('accept-language'));
 			res.status(200).json({
-				contract: displayLabel(subscription.plan as Plan, subscription.period),
-				kind: row.kind === 'extraordinary' ? 'außerordentlich' : 'ordentlich',
-				effective: effectiveLabel(row.effective),
+				contract: displayLabel(subscription.plan as Plan, subscription.period, sprache),
+				kind: row.kind === 'extraordinary' ? TEXTE[sprache].ausserordentlich : TEXTE[sprache].ordentlich,
+				effective: effectiveLabel(row.effective, sprache),
 			});
 		},
 	);

@@ -14,20 +14,16 @@ afterEach(async () => {
 });
 
 describe('Impress Rechtstext-Links (#2226)', () => {
-	it('AK4: Nicht-Deutsch zeigt den Hinweis, Links tragen hreflang="de" bei unverändertem Ziel', async () => {
+	it('Englisch verlinkt die englischen Rechtsseiten ohne Hinweis, Links tragen hreflang="en"', async () => {
 		await i18next.changeLanguage('en');
 		expect(hint, 'Key legal.germanOnly fehlt in en/messages.json').toBeTruthy();
 		render(<Impress />);
-		expect(screen.getByText(hint!)).toBeTruthy();
+		expect(screen.queryByText(hint!)).toBeNull();
 		const links = screen
 			.getAllByRole('link')
-			.filter((a) => /\/(nutzungsbedingungen|datenschutz)\/$/.test(a.getAttribute('href') ?? ''));
+			.filter((a) => /\/en\/(terms|privacy)\/$/.test(a.getAttribute('href') ?? ''));
 		expect(links).toHaveLength(2);
-		for (const a of links) expect(a.getAttribute('hreflang')).toBe('de');
-		expect(links.map((a) => new URL(a.getAttribute('href')!).pathname).sort()).toEqual([
-			'/datenschutz/',
-			'/nutzungsbedingungen/',
-		]);
+		for (const a of links) expect(a.getAttribute('hreflang')).toBe('en');
 	});
 
 	it('AK4: Deutsch zeigt keinen Hinweis', () => {

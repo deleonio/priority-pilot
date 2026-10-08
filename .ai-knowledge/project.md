@@ -21,7 +21,7 @@ pnpm-Workspace (siehe `pnpm-workspace.yaml`):
 - `client/`: aus `openapi.yml` via `openapi-typescript` generierte API-Typen (`src/schema.d.ts`, nicht versioniert) plus dünner Re-Export (`src/index.ts`).
 - `frontend/`: React 19 + KoliBri (Vite/PWA); spricht die API typsicher per `openapi-fetch` an.
 - `native/`: Capacitor-Wrapper der Android-App im Remote-Modus, lädt die gehostete `/app/` ([Native Apps](../docs/native-apps.md)).
-- `website/`: öffentliche, statisch vorgerenderte Landingpage (de an `/`, die übrigen neun App-Sprachen unter `/<sprache>/`); die App liegt unter `/app/` ([ADR 0015](../docs/adr/0015-oeffentliche-website-und-app-unter-app.md)).
+- `website/`: öffentliche, statisch vorgerenderte Landingpage (de an `/`, neun weitere Sprachen unter `/<sprache>/`, Unterseiten de und en; die App selbst führt nur de und en); die App liegt unter `/app/` ([ADR 0015](../docs/adr/0015-oeffentliche-website-und-app-unter-app.md)).
 
 Gemeinsamer API-Vertrag: `openapi.yml`
 
@@ -56,6 +56,11 @@ Die verbindlichen Kernregeln (Minimalprinzip, KoliBri-First, Commit-/PR-Pflichte
 - **Ort der Fachlogik:** Fachlogik liegt in `server/src/logics/`. REST-Routen, MCP-Werkzeuge (per
   Loopback auf die Route) und Jobs rufen sie auf; MCP-Werkzeuge enthalten keine eigene Fachlogik.
   Offene Abweichungen: [Fachlogik-Inventar](../docs/fachlogik-inventar.md).
+- **Sprachen:** Die App führt Deutsch und Englisch. Jeder sichtbare Text läuft über i18next und steht
+  in `frontend/src/i18n/locales/{de,en}/<namespace>.json` (ein Namespace je Bereich, Datums-/Zahlenformat
+  nach `i18n.language`). Server-Meldungen bleiben deutsch in den Routen; ihre englische Fassung steht
+  in `server/src/express/messagesEn.ts` (greift bei `Accept-Language: en`), Push und Mail folgen
+  `users.sprache`. Website-Unterseiten gibt es auf Deutsch und unter `/en/…` auf Englisch.
 - **Runtime:** pnpm `11` (Node-Version steht in `.nvmrc`).
 - **Coverage-Gate:** Die Logik-Schicht ist gezielt abgedeckt-gegated — `pnpm --filter server test:coverage`
   (node:test, `server/src/logics`, Schwellen 90/85/85) läuft in der CI. `frontend/src/lib`-Coverage ist

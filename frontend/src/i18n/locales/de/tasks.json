@@ -1,0 +1,183 @@
+{
+	"actions": {
+		"actionsFor": "Aktionen für {{title}}",
+		"dependencies": "Abhängigkeiten",
+		"addSubtask": "Unteraufgabe anlegen",
+		"editDependencies": "Abhängigkeiten bearbeiten",
+		"reopen": "Wieder öffnen",
+		"done": "Erledigt",
+		"pin": "Anpinnen",
+		"unpin": "Abpinnen",
+		"deadline": "Deadline {{date}}"
+	},
+	"status": {
+		"open": "Offen",
+		"inProcess": "In Arbeit",
+		"done": "Erledigt"
+	},
+	"taskList": {
+		"empty": "Noch keine Tasks vorhanden. Lege oben einen neuen Task an."
+	},
+	"taskTable": {
+		"label": "Liste aller Tasks",
+		"pinned": "Angepinnt",
+		"columnId": "ID",
+		"columnTitle": "Titel",
+		"columnStatus": "Status",
+		"columnPriority": "Priorität",
+		"columnEffort": "Aufwand (Tage)",
+		"columnDeadline": "Deadline",
+		"columnChecklist": "Checkliste",
+		"columnPinned": "Angepinnt",
+		"columnSeries": "Serie",
+		"columnPredecessors": "Vorgänger",
+		"columnActions": "Aktionen",
+		"pinTask": "{{title}} anpinnen",
+		"unpinTask": "{{title}} abpinnen"
+	},
+	"taskTree": {
+		"aiSuitability": {
+			"draft": "Entwurf",
+			"summary": "Zusammenfassung",
+			"research": "Recherche"
+		},
+		"doneBlocked": "Erledigt (Unteraufgaben offen)",
+		"forUser": "Für: {{name}}",
+		"createdBy": "Erstellt von: {{name}}",
+		"changed": "geändert",
+		"moreActions": "Weitere Aktionen"
+	},
+	"graphCanvas": {
+		"toolbarLabel": "Ansicht des Aufgabengraphen",
+		"fitView": "Ansicht einpassen",
+		"zoomIn": "Vergrößern",
+		"zoomOut": "Verkleinern"
+	},
+	"graphList": {
+		"empty": "Keine offenen Aufgaben — es gibt nichts zu verknüpfen.",
+		"priority": "Priorität {{priority}}",
+		"meta": "Wert {{value}} · Gesamtaufwand {{effort}} Tage",
+		"metaWithProgress": "Wert {{value}} · Gesamtaufwand {{effort}} Tage · {{done}}/{{total}} erledigt",
+		"dependsOn": "Hängt ab von",
+		"noSubtasks": "Keine Unteraufgaben.",
+		"enables": "Ermöglicht",
+		"noParent": "Keine übergeordnete Aufgabe.",
+		"relation": "{{title}} (Gewicht {{weight}})",
+		"editDependencies": "Abhängigkeiten bearbeiten: {{title}}"
+	},
+	"graphNode": {
+		"value": "Wert {{value}}",
+		"progress": "{{done}}/{{total}} erledigt"
+	},
+	"graphPanel": {
+		"heading": "Priorisierung",
+		"loadError": "Der Aufgabengraph konnte nicht geladen werden",
+		"retry": "Erneut versuchen",
+		"loading": "Graph wird geladen",
+		"emptyTitle": "Noch keine verknüpften Aufgaben",
+		"emptyText": "Der Graph zeigt Aufgaben, die voneinander abhängen. Verknüpfe im Tab „Aufgaben\" zwei Aufgaben über „Abhängigkeiten\" — danach steht hier der erste Baum.",
+		"graphHeading": "Abhängigkeitsgraph",
+		"next": "Vor",
+		"position": "Baum {{current}} von {{total}}",
+		"detailMeta": "Priorität {{priority}} · Wert {{value}} · Gesamtaufwand {{effort}} Tage",
+		"detailProgress": "Fortschritt {{done}}/{{total}}. Gezählt werden auch erledigte Unteraufgaben, die im Graphen nicht mehr erscheinen.",
+		"dependsOn": "Hängt ab von: {{list}}",
+		"enables": "Ermöglicht: {{list}}",
+		"nothing": "nichts",
+		"unknownTask": "Unbekannte Aufgabe",
+		"legend": "Legende",
+		"legendArrow": "Ein Pfeil zeigt von der Unteraufgabe nach unten auf die Aufgabe, die sie ermöglicht.",
+		"legendLine": "Je dicker die Linie, desto stärker das Gewicht — die Zahl steht an der Linie.",
+		"legendNode": "Jeder Knoten zeigt Nummer, Titel, Priorität, Wertbeitrag und Fortschritt.",
+		"asList": "Graph als Liste"
+	},
+	"dependencyModal": {
+		"title": "Abhängigkeiten: {{title}}",
+		"selectRequired": "Bitte einen Vorgänger-Task auswählen.",
+		"weightInvalid": "Das Gewicht muss eine Zahl zwischen 0,1 und 1 sein.",
+		"actionFailed": "Aktion fehlgeschlagen",
+		"currentHeading": "Aktuelle Vorgänger",
+		"none": "Dieser Task hat keine Vorgänger.",
+		"weightFor": "Gewicht: {{title}}",
+		"remove": "Vorgänger {{title}} entfernen",
+		"hint": "Hinweis: Die Liste basiert auf dem Aufgabenwald und enthält nur Vorgänger mit Status „Offen\"/„In Bearbeitung\".",
+		"addHeading": "Vorgänger hinzufügen",
+		"noCandidates": "Kein weiterer Task verfügbar, der als Vorgänger hinzugefügt werden könnte.",
+		"selectLabel": "Vorgänger-Task",
+		"weightLabel": "Gewicht (0,1–1): {{weight}}"
+	},
+	"completeTask": {
+		"title": "Aufgabe erledigen",
+		"failed": "Erledigen fehlgeschlagen",
+		"question": "Soll die Aufgabe <title/> als erledigt markiert werden?",
+		"itemLabel": "Erledigen",
+		"checkAll": "Alle abhaken",
+		"completing": "Wird erledigt…",
+		"markDone": "Als erledigt markieren",
+		"saveChecklist": "Checkliste speichern"
+	},
+	"completedTable": {
+		"empty": "Noch keine erledigten Aufgaben vorhanden.",
+		"label": "Liste der erledigten Aufgaben",
+		"columnTitle": "Titel",
+		"columnAction": "Aktion"
+	},
+	"deleteTask": {
+		"title": "Task löschen",
+		"body": "Soll der Task <title/> wirklich gelöscht werden? Diese Aktion kann nicht rückgängig gemacht werden.",
+		"confirm": "Endgültig löschen"
+	},
+	"confirmDelete": {
+		"failed": "Löschen fehlgeschlagen",
+		"deleting": "Löschen…"
+	},
+	"confirmDiscard": {
+		"title": "Ungespeicherte Änderungen",
+		"text": "Es gibt ungespeicherte Änderungen. Weiter bearbeiten oder verwerfen?",
+		"continue": "Weiter bearbeiten",
+		"discard": "Verwerfen"
+	},
+	"archived": {
+		"empty": "Keine archivierten Aufgaben gefunden.",
+		"restore": "Wiederherstellen"
+	},
+	"missedComplete": {
+		"question": "Aufgabe <title/> erst jetzt erledigt?",
+		"onTime": "Nein, pünktlich",
+		"now": "Ja, jetzt"
+	},
+	"missedSection": {
+		"regionLabel": "Verpasste Aufgaben",
+		"title": "Verpasst",
+		"postponed": "{{count}}× verschoben",
+		"reschedule": "Neu planen",
+		"archive": "Archivieren"
+	},
+	"missedCard": {
+		"title": "Verpasste Aufgaben",
+		"loading": "Wird geladen …",
+		"zero": "Bisher wurde keine Aufgabe automatisch bereinigt.",
+		"count_one": "{{count}} Aufgabe",
+		"count_other": "{{count}} Aufgaben",
+		"cleaned": "automatisch bereinigt"
+	},
+	"badges": {
+		"pinned": "Angepinnt",
+		"series": "Serienaufgabe"
+	},
+	"reassign": {
+		"preparing": "Ermittle Aufgaben und verarbeite die erste Portion…",
+		"processing": "Verarbeite Aufgaben…",
+		"progressLabel": "Fortschritt der Neuberechnung",
+		"rateLimit": "HTTP 429 (Rate-Limit des KI-Anbieters)",
+		"status": "Stand seit {{date}}: <strong>{{done}} von {{total}}</strong> Aufgaben neu berechnet.",
+		"statusPending": "Stand seit {{date}}: <strong>{{done}} von {{total}}</strong> Aufgaben neu berechnet, {{pending}} noch offen."
+	},
+	"csv": {
+		"title": "Titel",
+		"deadline": "Frist",
+		"priority": "Priorität",
+		"status": "Status",
+		"description": "Beschreibung"
+	}
+}

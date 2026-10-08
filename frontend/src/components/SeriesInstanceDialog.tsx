@@ -1,6 +1,7 @@
 import { KolAlert, KolButton, KolInputDate, KolInputRange, KolInputText, KolTextarea } from '@public-ui/react-v19';
 import type { Series } from 'client';
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readNumber, readString } from '../lib/inputValue';
@@ -22,6 +23,7 @@ interface SeriesInstanceDialogProps {
  * Abweichung als „geändert“ (`isException`).
  */
 export const SeriesInstanceDialog = ({ series, onClose, onCreated }: SeriesInstanceDialogProps) => {
+	const { t } = useTranslation(['capture', 'common']);
 	const [title, setTitle] = useState(series.title);
 	const [description, setDescription] = useState(series.description ?? '');
 	const [priority, setPriority] = useState(series.priority);
@@ -66,15 +68,15 @@ export const SeriesInstanceDialog = ({ series, onClose, onCreated }: SeriesInsta
 	};
 
 	return (
-		<Modal title={`Aufgabe anlegen: ${series.title}`} onClose={onClose} width="44rem">
+		<Modal title={t('seriesInstance.title', { title: series.title })} onClose={onClose} width="44rem">
 			<div className="series-instance-form">
 				{error !== null && (
-					<KolAlert _type="error" _alert _label="Aufgabe nicht angelegt">
+					<KolAlert _type="error" _alert _label={t('seriesInstance.notCreated')}>
 						{error}
 					</KolAlert>
 				)}
 				<KolInputText
-					_label="Titel"
+					_label={t('seriesInstance.fieldTitle')}
 					_required
 					_value={title}
 					_on={{
@@ -83,7 +85,7 @@ export const SeriesInstanceDialog = ({ series, onClose, onCreated }: SeriesInsta
 					}}
 				/>
 				<KolTextarea
-					_label="Beschreibung (optional)"
+					_label={t('seriesInstance.description')}
 					_rows={3}
 					_value={description}
 					_on={{
@@ -93,7 +95,7 @@ export const SeriesInstanceDialog = ({ series, onClose, onCreated }: SeriesInsta
 				/>
 				<div className="range-inputs-row">
 					<KolInputRange
-						_label={`Priorität (Ganzzahl 1–5): ${formatNumber(priority)}`}
+						_label={t('seriesInstance.priority', { value: formatNumber(priority) })}
 						_min={1}
 						_max={5}
 						_step={1}
@@ -104,7 +106,7 @@ export const SeriesInstanceDialog = ({ series, onClose, onCreated }: SeriesInsta
 						}}
 					/>
 					<KolInputRange
-						_label={`Aufwand in Tagen (0,1–1): ${formatNumber(estimatedEffort)}`}
+						_label={t('seriesInstance.effort', { value: formatNumber(estimatedEffort) })}
 						_min={0.1}
 						_max={1}
 						_step={0.1}
@@ -116,7 +118,7 @@ export const SeriesInstanceDialog = ({ series, onClose, onCreated }: SeriesInsta
 					/>
 				</div>
 				<KolInputDate
-					_label="Fällig am (optional)"
+					_label={t('seriesInstance.deadline')}
 					_type="date"
 					_value={deadline === '' ? undefined : new Date(`${deadline}T00:00:00Z`)}
 					_on={{
@@ -127,9 +129,9 @@ export const SeriesInstanceDialog = ({ series, onClose, onCreated }: SeriesInsta
 					}}
 				/>
 				<div className="modal-actions">
-					<KolButton _label="Abbrechen" _variant="secondary" _on={{ onClick: onClose }} />
+					<KolButton _label={t('common:actions.cancel')} _variant="secondary" _on={{ onClick: onClose }} />
 					<KolButton
-						_label="Aufgabe anlegen"
+						_label={t('seriesInstance.submit')}
 						_variant="primary"
 						_disabled={saving}
 						_on={{ onClick: () => void submit() }}

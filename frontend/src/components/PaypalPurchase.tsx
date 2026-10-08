@@ -2,21 +2,22 @@ import { KolAlert, KolButton, KolInputCheckbox, KolLink } from '@public-ui/react
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
+import i18next from '../i18n/config';
 import { toApiError } from '../lib/apiError';
-import { PERIOD_LABELS, planLabel, type Period, type Plan } from '../lib/planOffers';
+import { periodLabel, planLabel, type Period, type Plan } from '../lib/planOffers';
 import { usePlan } from '../lib/usePlan';
 import type { PurchaseUi } from './billingChannel';
 import { BillingReturnWait, ChangeDialog } from './PaypalDialogs';
 
 /** Zeitpunkte im Weiterführen-Label als „TT.MM.JJJJ" (Muster `SubscriptionSection.tsx`). */
-const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de-DE');
+const formatDate = (iso: string): string => new Date(iso).toLocaleDateString(i18next.language);
 
 /**
  * Kaufweg im Kanal `web`: Buchen und Wechseln über die PayPal-Abo-Routen (#1505/#1506). Der
  * angezeigte Plan ändert sich erst, wenn `/auth/me` ihn liefert (#1496 AK3/AK4).
  */
 export const usePaypalPurchase = (): PurchaseUi => {
-	const { t } = useTranslation('messages');
+	const { t } = useTranslation(['billing', 'messages']);
 	const { plan, subscription, refresh } = usePlan();
 	// Zustimmung zum sofortigen Leistungsbeginn (#2307): eine gemeinsame, nicht vorbelegte Checkbox
 	// schaltet alle Buchen-Knöpfe frei.
@@ -72,14 +73,17 @@ export const usePaypalPurchase = (): PurchaseUi => {
 			if (resumable) {
 				const key = `${targetPlan}-${period}`;
 				return {
-					text: 'Weiterführen',
+					text: t('paypal.resume'),
 					node: (
 						<KolButton
 							data-testid={`resume-${targetPlan}-${period}`}
 							_label={
 								bookingKey === key
-									? 'Wird weitergeführt…'
-									: `${planLabel(targetPlan)} weiterführen ab ${formatDate(subscription.currentPeriodEnd)}`
+									? t('paypal.resumeBusy')
+									: t('paypal.resumeLabel', {
+											plan: planLabel(targetPlan),
+											date: formatDate(subscription.currentPeriodEnd),
+										})
 							}
 							_variant="secondary"
 							_disabled={bookingKey === key}
@@ -88,11 +92,11 @@ export const usePaypalPurchase = (): PurchaseUi => {
 					),
 				};
 			}
-			return { text: 'Aktuelles Paket', node: <span>Aktuelles Paket</span> };
+			return { text: t('purchase.currentPlan'), node: <span>{t('purchase.currentPlan')}</span> };
 		}
 		if (paid === null) {
 			return {
-				text: 'Buchen',
+				text: t('purchase.book'),
 				// Sichtbar steht nur die gesetzliche Beschriftung (§ 312j Abs. 3 BGB); Paket und Laufzeit
 				// hängen als `.visually-hidden` im Expert-Slot (Muster `PlaceFavoritesSection.tsx`), denn ein
 				// nicht-leeres `_label` blendet den Slot aus.
@@ -105,19 +109,19 @@ export const usePaypalPurchase = (): PurchaseUi => {
 						_on={{ onClick: () => void handleBook(targetPlan, period) }}
 					>
 						<span slot="expert">
-							{t('billing.withdrawal.order')}
-							<span className="visually-hidden">{` ${planLabel(targetPlan)} (${PERIOD_LABELS[period]})`}</span>
+							{t('messages:billing.withdrawal.order')}
+							<span className="visually-hidden">{` ${planLabel(targetPlan)} (${periodLabel(period)})`}</span>
 						</span>
 					</KolButton>
 				),
 			};
 		}
 		return {
-			text: 'Wechseln',
+			text: t('purchase.change'),
 			node: (
 				<KolButton
 					data-testid={`change-plan-${targetPlan}-${period}`}
-					_label={`${planLabel(targetPlan)} wechseln (${PERIOD_LABELS[period]})`}
+					_label={t('purchase.changeLabel', { plan: planLabel(targetPlan), period: periodLabel(period) })}
 					_variant="secondary"
 					_on={{ onClick: () => setChangeTarget({ plan: targetPlan, period }) }}
 				/>
@@ -134,24 +138,24 @@ export const usePaypalPurchase = (): PurchaseUi => {
 			{showWithdrawal && (
 				<div className="withdrawal-consent" data-testid="withdrawal-consent">
 					<p>
-						{t('billing.withdrawal.hint')}{' '}
-						<KolLink _href="/widerruf/" _label={t('billing.withdrawal.link')} _target="_blank" />
+						{t('messages:billing.withdrawal.hint')}{' '}
+						<KolLink _href="/widerruf/" _label={t('messages:billing.withdrawal.link')} _target="_blank" />
 					</p>
 					<KolInputCheckbox
-						_label={t('billing.withdrawal.consent')}
+						_label={t('messages:billing.withdrawal.consent')}
 						_checked={withdrawalConsent}
 						_on={{ onChange: () => setWithdrawalConsent((value) => !value) }}
 					/>
 				</div>
 			)}
 			{actionError !== null && (
-				<KolAlert _type="error" _label="Buchung fehlgeschlagen">
+				<KolAlert _type="error" _label={t('paypal.bookingFailed')}>
 					{actionError}
 				</KolAlert>
 			)}
 			{pendingWait?.kind === 'deferred' && (
-				<KolAlert _type="info" _alert _label="Wechsel vorgemerkt">
-					Wechsel bei PayPal eingereicht — er wird mit der nächsten Abrechnung wirksam.
+				<KolAlert _type="info" _alert _label={t('paypal.deferredLabel')}>
+					{t('paypal.deferredText')}
 				</KolAlert>
 			)}
 			{pendingWait?.kind === 'poll' && refresh !== undefined && (

@@ -1,0 +1,25 @@
+{
+	"page": {
+		"label": "Help"
+	},
+	"tabs": {
+		"guide": "User guide",
+		"feedback": "Feedback",
+		"impress": "Legal notice",
+		"changelog": "Changelog"
+	},
+	"guide": {
+		"loading": "Loading user guide …",
+		"loadError": "# Help\n\n- The user guide could not be loaded.",
+		"toc": "Table of contents"
+	},
+	"changelog": {
+		"loading": "Loading changelog …",
+		"error": "The changelog could not be loaded.",
+		"limitLabel": "Show",
+		"last30": "Last 30",
+		"last100": "Last 100",
+		"all": "All",
+		"toc": "Changelog table of contents"
+	}
+}

@@ -16,10 +16,9 @@ import { PRIVACY } from './privacy.ts';
 import { TERMS } from './terms.ts';
 import { WITHDRAWAL } from './withdrawal.ts';
 import { MCP_GUIDE } from './mcp-guide.ts';
-import { TEMPLATES } from './templates.ts';
-import { CLIENT_SCRIPT, QUESTIONS, SCALE_LABELS } from './assessment.ts';
-import { CONFIRM_SCRIPT, REQUEST_SCRIPT } from './cancellation.ts';
-import { SEED_PILLARS } from '../../server/src/models/pillarData.ts';
+import { TEMPLATES, TEMPLATE_TEXT, TEMPLATES_EN, localizeTemplate } from './templates.ts';
+import { ASSESSMENT, clientScript, pillarNames } from './assessment.ts';
+import { CANCELLATION, confirmScript, requestScript } from './cancellation.ts';
 import type { LifeTemplate } from './templates.ts';
 import type de from './i18n/de.json';
 
@@ -46,6 +45,31 @@ const LOCALE_INFO: Record<Locale, { name: string; intl: string; og: string }> = 
 
 /** Pfad der Startseite je Sprache; Deutsch liegt an der Wurzel. */
 export const homePath = (locale: Locale): string => (locale === 'de' ? '/' : `/${locale}/`);
+
+/**
+ * Unterseiten mit deutscher Fassung an der Wurzel und englischer unter `/en/`; die acht übrigen
+ * Sprachen verlinken die englische Fassung. Rechtsverbindlich ist bei Rechtstexten die deutsche.
+ */
+export const SUBPAGES = {
+	privacy: { de: '/datenschutz/', en: '/en/privacy/' },
+	terms: { de: '/nutzungsbedingungen/', en: '/en/terms/' },
+	withdrawal: { de: '/widerruf/', en: '/en/withdrawal/' },
+	cancellation: { de: '/kuendigen/', en: '/en/cancel/' },
+	cancellationConfirm: { de: '/kuendigen/bestaetigen/', en: '/en/cancel/confirm/' },
+	mcpGuide: { de: '/mcp/', en: '/en/mcp/' },
+	templates: { de: '/vorlagen/', en: '/en/templates/' },
+	assessment: { de: '/balance-check/', en: '/en/balance-check/' },
+} as const;
+
+export type Subpage = keyof typeof SUBPAGES;
+
+/** Sprache der Unterseiten für eine Seitensprache: Deutsch bleibt Deutsch, alle übrigen bekommen Englisch. */
+export const subpageLang = (locale: Locale): 'de' | 'en' => (locale === 'de' ? 'de' : 'en');
+
+const subpagePathFor =
+	(page: Subpage) =>
+	(locale: Locale): string =>
+		SUBPAGES[page][subpageLang(locale)];
 
 /** Einstieg in die App und direkter Google-Login (Redirect danach auf /app/, siehe routes/auth.ts). */
 export const APP_PATH = '/app/';
@@ -117,12 +141,17 @@ const alternateLinks = ({ siteUrl }: PageContext, pathFor: (locale: Locale) => s
 		`<link rel="alternate" hreflang="x-default" href="${siteUrl}${pathFor('de')}">`,
 	].join('\n\t\t');
 
-/** Links auf dieselbe Seite in allen Sprachen, die aktuelle als `aria-current`. */
+/**
+ * Links auf dieselbe Seite in allen Sprachen, die aktuelle als `aria-current`. Teilen sich Sprachen
+ * eine Seite (Unterseiten: Englisch für die übrigen acht), erscheint sie nur einmal.
+ */
 const languageLinks = (locale: Locale, pathFor: (locale: Locale) => string, indent: string): string =>
-	LOCALES.map(
-		(target) =>
-			`${indent}<li><a class="kern-link" href="${pathFor(target)}" hreflang="${target}" lang="${target}"${target === locale ? ' aria-current="page"' : ''}>${LOCALE_INFO[target].name}</a></li>`,
-	).join('\n');
+	LOCALES.filter((target) => LOCALES.find((other) => pathFor(other) === pathFor(target)) === target)
+		.map(
+			(target) =>
+				`${indent}<li><a class="kern-link" href="${pathFor(target)}" hreflang="${target}" lang="${target}"${target === locale ? ' aria-current="page"' : ''}>${LOCALE_INFO[target].name}</a></li>`,
+		)
+		.join('\n');
 
 interface ShellOptions {
 	title: string;
@@ -192,13 +221,22 @@ ${body}
 				<span>© ${new Date().getFullYear()} Balamentum</span>
 				<a class="kern-link" href="${homePath(locale)}${messages.footer.imprintPath}">${t(messages.footer.imprint)}</a>
 				<a class="kern-link" href="${homePath(locale)}${messages.footer.accountDeletionPath}">${t(messages.footer.accountDeletion)}</a>
-				<a class="kern-link" href="/datenschutz/" hreflang="de">${t(messages.footer.privacy)}</a>
-				<a class="kern-link" href="/nutzungsbedingungen/" hreflang="de">${t(messages.footer.terms)}</a>
-				<a class="kern-link" href="/widerruf/" hreflang="de">${t(messages.footer.withdrawal)}</a>
-				<a class="kern-link" href="/kuendigen/" hreflang="de">${t(messages.footer.cancellation)}</a>
-				<a class="kern-link" href="${locale === 'en' ? '/en/mcp/' : '/mcp/'}" hreflang="${locale === 'en' ? 'en' : 'de'}">${t(messages.footer.mcpGuide)}</a>
-				<a class="kern-link" href="/vorlagen/" hreflang="de">${t(messages.footer.templates)}</a>
-				<a class="kern-link" href="/balance-check/" hreflang="de">Balance-Check</a>
+				${(
+					[
+						['privacy', messages.footer.privacy],
+						['terms', messages.footer.terms],
+						['withdrawal', messages.footer.withdrawal],
+						['cancellation', messages.footer.cancellation],
+						['mcpGuide', messages.footer.mcpGuide],
+						['templates', messages.footer.templates],
+						['assessment', ASSESSMENT[subpageLang(locale)].title],
+					] as [Subpage, string][]
+				)
+					.map(
+						([page, label]) =>
+							`<a class="kern-link" href="${SUBPAGES[page][subpageLang(locale)]}" hreflang="${subpageLang(locale)}">${t(label)}</a>`,
+					)
+					.join('\n\t\t\t\t')}
 				${locale === 'de' ? '' : `<span class="site-footer__legal-note">${t(messages.footer.legalGermanOnly)}</span>`}
 			</div>
 			<nav class="container" aria-label="${t(messages.meta.language)}">
@@ -465,18 +503,26 @@ ${d.steps.map((step) => `						<li>${t(step)}</li>`).join('\n')}
 	});
 };
 
+/** Hinweis über den englischen Rechtstexten: rechtsverbindlich ist die deutsche Fassung. */
+const bindingNote = (lang: 'de' | 'en', page: Subpage): string =>
+	lang === 'de'
+		? ''
+		: `					<p class="kern-body kern-body--small">This English translation is provided for convenience only. The <a class="kern-link" href="${SUBPAGES[page].de}" hreflang="de">German version</a> is legally binding.</p>\n`;
+
 /**
- * Datenschutzerklärung (#1672): nur Deutsch unter der festen URL `/datenschutz/` (Play-Store-Eintrag,
- * PO-Entscheidung), deshalb zeigt `pathFor` für jede Sprache dasselbe Ziel.
+ * Datenschutzerklärung (#1672): Deutsch unter der festen URL `/datenschutz/` (Play-Store-Eintrag,
+ * PO-Entscheidung), Englisch unter `/en/privacy/` für alle übrigen Sprachen ({@link SUBPAGES}).
  */
 export const renderPrivacy = (context: PageContext & { allMessages: Record<Locale, Messages> }): string => {
-	const { locale } = context;
-	const pathFor = (): string => '/datenschutz/';
+	const lang = subpageLang(context.locale);
+	const pathFor = subpagePathFor('privacy');
+	const text = PRIVACY[lang];
+	const labels = text.factLabels;
 	const body = `			<section class="section">
 					<div class="container container--narrow imprint">
-						<h1 class="kern-heading-large">Datenschutz</h1>
-						<p class="kern-body kern-body--large">${t(PRIVACY.intro)}</p>
-${PRIVACY.sections
+						<h1 class="kern-heading-large">${t(text.title)}</h1>
+${bindingNote(lang, 'privacy')}						<p class="kern-body kern-body--large">${t(text.intro)}</p>
+${text.sections
 	.flatMap((section) => [
 		`					<h2 class="kern-title">${t(section.heading)}</h2>`,
 		...section.paragraphs.map((paragraph) => `					<p class="kern-body">${t(paragraph)}</p>`),
@@ -485,13 +531,13 @@ ${PRIVACY.sections
 					`					<ul class="kern-body">
 ${(
 	[
-		['Zweck', section.facts.purpose],
-		['Rechtsgrundlage', section.facts.legalBasis],
-		['Speicherdauer', section.facts.retention],
-		['Empfänger', section.facts.recipients],
+		[labels.purpose, section.facts.purpose],
+		[labels.legalBasis, section.facts.legalBasis],
+		[labels.retention, section.facts.retention],
+		[labels.recipients, section.facts.recipients],
 	] as [string, string][]
 )
-	.map(([label, text]) => `						<li><strong>${label}:</strong> ${t(text)}</li>`)
+	.map(([label, text]) => `						<li><strong>${t(label)}:</strong> ${t(text)}</li>`)
 	.join('\n')}
 					</ul>`,
 				]
@@ -500,35 +546,41 @@ ${(
 	.join('\n')}				</div>
 			</section>`;
 	return shell(context, {
-		title: 'Datenschutz – Balamentum',
-		description: PRIVACY.description,
-		path: pathFor(),
+		title: `${text.title} – Balamentum`,
+		description: text.description,
+		path: pathFor(context.locale),
 		pathFor,
 		body,
 	});
 };
 
 /**
- * Nutzungsbedingungen (#1891): nur Deutsch unter der festen URL `/nutzungsbedingungen/`, Muster
- * {@link renderPrivacy}. Paketnamen und Preise kommen aus `plans.ts`, nicht aus dem Text.
+ * Nutzungsbedingungen (#1891): `/nutzungsbedingungen/` und `/en/terms/`, Muster {@link renderPrivacy}.
+ * Paketnamen und Preise kommen aus `plans.ts`, nicht aus dem Text.
  */
 export const renderTerms = (context: PageContext & { allMessages: Record<Locale, Messages> }): string => {
 	const { locale, messages } = context;
-	const pathFor = (): string => '/nutzungsbedingungen/';
+	const lang = subpageLang(locale);
+	const pathFor = subpagePathFor('terms');
+	const text = TERMS[lang];
 	const { prices } = getPlansCatalog();
 	const priceList = PLAN_VALUES.map((plan) => {
 		const price = prices[plan];
 		const amount =
 			price.monthly === 0
 				? messages.pricing.free
-				: `${formatPrice(price.monthly, locale)} im Monat, ${formatPrice(price.quarterly, locale)} im Quartal oder ${formatPrice(price.yearly, locale)} im Jahr`;
+				: fill(text.priceLine, {
+						monthly: formatPrice(price.monthly, locale),
+						quarterly: formatPrice(price.quarterly, locale),
+						yearly: formatPrice(price.yearly, locale),
+					});
 		return `						<li>${t(`${messages.pricing.plans[plan]}: ${amount}`)}</li>`;
 	});
 	const body = `			<section class="section">
 					<div class="container container--narrow imprint">
-						<h1 class="kern-heading-large">Nutzungsbedingungen</h1>
-						<p class="kern-body kern-body--large">${t(TERMS.intro)}</p>
-${TERMS.sections
+						<h1 class="kern-heading-large">${t(text.title)}</h1>
+${bindingNote(lang, 'terms')}						<p class="kern-body kern-body--large">${t(text.intro)}</p>
+${text.sections
 	.flatMap((section) => [
 		`					<h2 class="kern-title">${t(section.heading)}</h2>`,
 		...(section.priceLead
@@ -544,26 +596,28 @@ ${priceList.join('\n')}
 	.join('\n')}				</div>
 			</section>`;
 	return shell(context, {
-		title: 'Nutzungsbedingungen – Balamentum',
-		description: TERMS.description,
-		path: pathFor(),
+		title: `${text.title} – Balamentum`,
+		description: text.description,
+		path: pathFor(locale),
 		pathFor,
 		body,
 	});
 };
 
 /**
- * Widerrufsbelehrung mit Muster-Widerrufsformular (#2307): nur Deutsch unter der festen URL
- * `/widerruf/`, Muster {@link renderTerms}. Die Betreiberangaben stammen aus `OPERATOR`.
+ * Widerrufsbelehrung mit Muster-Widerrufsformular (#2307): `/widerruf/` und `/en/withdrawal/`, Muster
+ * {@link renderTerms}. Die Betreiberangaben stammen aus `OPERATOR`.
  */
 export const renderWithdrawal = (context: PageContext & { allMessages: Record<Locale, Messages> }): string => {
-	const pathFor = (): string => '/widerruf/';
-	const anbieter = `${OPERATOR.name}, ${OPERATOR.address.join(', ')}, E-Mail: ${OPERATOR.email}`;
+	const lang = subpageLang(context.locale);
+	const pathFor = subpagePathFor('withdrawal');
+	const text = WITHDRAWAL[lang];
+	const anbieter = `${OPERATOR.name}, ${OPERATOR.address.join(', ')}, ${text.emailLabel}: ${OPERATOR.email}`;
 	const body = `			<section class="section">
 					<div class="container container--narrow imprint">
-						<h1 class="kern-heading-large">Widerrufsbelehrung</h1>
-						<p class="kern-body kern-body--large">${t(WITHDRAWAL.intro)}</p>
-${WITHDRAWAL.sections
+						<h1 class="kern-heading-large">${t(text.title)}</h1>
+${bindingNote(lang, 'withdrawal')}						<p class="kern-body kern-body--large">${t(text.intro)}</p>
+${text.sections
 	.flatMap((section) => [
 		`					<h2 class="kern-title">${t(section.heading)}</h2>`,
 		...section.paragraphs.map((paragraph) => `					<p class="kern-body">${t(fill(paragraph, { anbieter }))}</p>`),
@@ -571,24 +625,22 @@ ${WITHDRAWAL.sections
 	.join('\n')}				</div>
 			</section>`;
 	return shell(context, {
-		title: 'Widerrufsbelehrung – Balamentum',
-		description: WITHDRAWAL.description,
-		path: pathFor(),
+		title: `${text.title} – Balamentum`,
+		description: text.description,
+		path: pathFor(context.locale),
 		pathFor,
 		body,
 	});
 };
 
 /**
- * MCP-Anleitung (#1978): Deutsch unter `/mcp/`, Englisch unter `/en/mcp/`, `pathFor` der übrigen
- * Sprachen zeigt auf die deutsche Seite (deutsches x-default wie bei der Startseite). Muster
- * {@link renderPrivacy}. Der Claude-Ein-Klick-Link trägt die kodierte Endpunkt-URL
- * (claude.com/docs/connectors/building/directory-vs-custom).
+ * MCP-Anleitung (#1978): `/mcp/` und `/en/mcp/`, Muster {@link renderPrivacy}. Der Claude-Ein-Klick-Link
+ * trägt die kodierte Endpunkt-URL (claude.com/docs/connectors/building/directory-vs-custom).
  */
 export const renderMcpGuide = (context: PageContext & { allMessages: Record<Locale, Messages> }): string => {
 	const { locale, siteUrl } = context;
-	const pathFor = (target: Locale): string => (target === 'en' ? '/en/mcp/' : '/mcp/');
-	const d = MCP_GUIDE[locale === 'en' ? 'en' : 'de'];
+	const pathFor = subpagePathFor('mcpGuide');
+	const d = MCP_GUIDE[subpageLang(locale)];
 	const endpoint = `${siteUrl}/mcp/v1`;
 	const fillEndpoint = (value: string): string => t(fill(value, { endpoint }));
 	const claudeLink = `https://claude.ai/customize/connectors?modal=add-custom-connector&amp;connectorName=Balamentum&amp;connectorUrl=${encodeURIComponent(endpoint)}`;
@@ -620,10 +672,10 @@ ${d.sections
 	});
 };
 
-/** Vorlagen-Seiten (#1976): nur Deutsch, `pathFor` aller Sprachen zeigt auf die deutsche Seite (Muster {@link renderPrivacy}). */
+/** Unterseite mit Inhaltsrahmen (#1976), Muster {@link renderPrivacy}. */
 const templatePage = (
 	context: PageContext,
-	path: string,
+	pathFor: (locale: Locale) => string,
 	title: string,
 	description: string,
 	content: string,
@@ -631,8 +683,8 @@ const templatePage = (
 	shell(context, {
 		title: `${title} – Balamentum`,
 		description,
-		path,
-		pathFor: () => path,
+		path: pathFor(context.locale),
+		pathFor,
 		body: `			<section class="section">
 					<div class="container container--narrow imprint">
 ${content}
@@ -643,46 +695,62 @@ ${content}
 const templateCta = (label: string): string =>
 	`						<p><a class="kern-btn kern-btn--primary" href="${APP_PATH}"><span class="kern-label">${t(label)}</span></a></p>`;
 
-export const renderTemplateIndex = (context: PageContext): string =>
-	templatePage(
-		context,
-		'/vorlagen/',
-		'Vorlagen für Lebensprojekte',
-		'Checklisten für Hausbau, Umzug, Steuererklärung und weitere Lebensprojekte in sinnvoller Reihenfolge.',
-		`						<h1 class="kern-heading-large">Vorlagen für Lebensprojekte</h1>
-						<p class="kern-body kern-body--large">Checklisten in Abhängigkeitsreihenfolge – jeder Schritt steht nach dem, was davor erledigt sein muss.</p>
-						<ul class="kern-body">
-${TEMPLATES.map(
-	(template) =>
-		`							<li><a class="kern-link" href="/vorlagen/${template.slug}/">${t(template.title)}</a> – ${t(template.description)} (${template.steps.length} Schritte)</li>`,
-).join('\n')}
-						</ul>
-${templateCta('In der App starten')}`,
-	);
+/** Pfad einer Vorlage je Sprache: deutscher Slug unter `/vorlagen/`, englischer unter `/en/templates/`. */
+const templatePathFor =
+	(template: LifeTemplate) =>
+	(locale: Locale): string => {
+		const lang = subpageLang(locale);
+		return `${SUBPAGES.templates[lang]}${lang === 'de' ? template.slug : TEMPLATES_EN[template.slug].slug}/`;
+	};
 
-export const renderTemplatePage = (context: PageContext & { template: LifeTemplate }): string => {
-	const { template } = context;
-	const titleOf = (id: string): string => template.steps.find((step) => step.id === id)?.title ?? id;
-	const cta = templateCta('In der App starten');
+/** Vorlagen-Übersicht (#1976): `/vorlagen/` und `/en/templates/`. */
+export const renderTemplateIndex = (context: PageContext): string => {
+	const lang = subpageLang(context.locale);
+	const text = TEMPLATE_TEXT[lang];
 	return templatePage(
 		context,
-		`/vorlagen/${template.slug}/`,
-		`${template.title}-Checkliste`,
+		subpagePathFor('templates'),
+		text.title,
+		text.description,
+		`						<h1 class="kern-heading-large">${t(text.title)}</h1>
+						<p class="kern-body kern-body--large">${t(text.lead)}</p>
+						<ul class="kern-body">
+${TEMPLATES.map((template) => {
+	const shown = localizeTemplate(template, lang);
+	return `							<li><a class="kern-link" href="${templatePathFor(template)(context.locale)}">${t(shown.title)}</a> – ${t(shown.description)} (${t(fill(text.steps, { count: String(shown.steps.length) }))})</li>`;
+}).join('\n')}
+						</ul>
+${templateCta(text.cta)}`,
+	);
+};
+
+/** Vorlagen-Seite (#1976); `template` ist der deutsche Datensatz aus `TEMPLATES`. */
+export const renderTemplatePage = (context: PageContext & { template: LifeTemplate }): string => {
+	const lang = subpageLang(context.locale);
+	const text = TEMPLATE_TEXT[lang];
+	const template = localizeTemplate(context.template, lang);
+	const titleOf = (id: string): string => template.steps.find((step) => step.id === id)?.title ?? id;
+	const cta = templateCta(text.cta);
+	const title = fill(text.pageTitle, { title: template.title });
+	return templatePage(
+		context,
+		templatePathFor(context.template),
+		title,
 		template.description,
-		`						<h1 class="kern-heading-large">${t(template.title)}-Checkliste</h1>
+		`						<h1 class="kern-heading-large">${t(title)}</h1>
 						<p class="kern-body kern-body--large">${t(template.description)}</p>
 ${cta}
-						<h2 class="kern-title">Checkliste</h2>
+						<h2 class="kern-title">${t(text.checklist)}</h2>
 						<ol class="kern-body">
 ${template.steps
 	.map(
 		(step) =>
-			`							<li>${t(step.title)}${step.after.length ? `<br><small>nach: ${step.after.map((id) => t(titleOf(id))).join(', ')}</small>` : ''}</li>`,
+			`							<li>${t(step.title)}${step.after.length ? `<br><small>${t(text.after)}: ${step.after.map((id) => t(titleOf(id))).join(', ')}</small>` : ''}</li>`,
 	)
 	.join('\n')}
 						</ol>
 ${cta}
-						<p><a class="kern-link" href="/vorlagen/">Alle Vorlagen</a></p>`,
+						<p><a class="kern-link" href="${SUBPAGES.templates[lang]}">${t(text.all)}</a></p>`,
 	);
 };
 
@@ -709,68 +777,76 @@ export const renderSitemap = (siteUrl: string, paths: readonly string[]): string
 		.map((path) => `\t<url><loc>${siteUrl}${path}</loc></url>`)
 		.join('\n')}\n</urlset>\n`;
 
-/** Balance-Check (#1979): nur Deutsch, `pathFor` aller Sprachen zeigt auf die deutsche Seite (Muster {@link templatePage}). */
-export const renderAssessment = (context: PageContext & { allMessages: Record<Locale, Messages> }): string =>
-	templatePage(
+/** Balance-Check (#1979): `/balance-check/` und `/en/balance-check/`, Muster {@link templatePage}. */
+export const renderAssessment = (context: PageContext & { allMessages: Record<Locale, Messages> }): string => {
+	const text = ASSESSMENT[subpageLang(context.locale)];
+	const names = pillarNames(text);
+	return templatePage(
 		context,
-		'/balance-check/',
-		'Balance-Check',
-		'Fünf Fragen ohne Konto: eine erste Einordnung, wohin deine Aufmerksamkeit zuletzt geflossen ist.',
-		`						<h1 class="kern-heading-large">Balance-Check</h1>
-						<p class="kern-body kern-body--large">Fünf Fragen, keine Anmeldung. Denk an die letzten Wochen und antworte aus dem Bauch.</p>
+		subpagePathFor('assessment'),
+		text.title,
+		text.description,
+		`						<h1 class="kern-heading-large">${t(text.title)}</h1>
+						<p class="kern-body kern-body--large">${t(text.lead)}</p>
 						<form data-form>
-${SEED_PILLARS.map(
-	(pillar, index) => `							<fieldset class="scale">
-								<legend class="kern-body">${t(pillar.name)}: ${t(QUESTIONS[index])}</legend>
-${SCALE_LABELS.map(
-	(label, value) =>
-		`								<label class="scale__option"><input type="radio" name="q${index}" value="${value}"><span>${t(label)}</span></label>`,
-).join('\n')}
+${names
+	.map(
+		(name, index) => `							<fieldset class="scale">
+								<legend class="kern-body">${t(name)}: ${t(text.questions[index])}</legend>
+${text.scale
+	.map(
+		(label, value) =>
+			`								<label class="scale__option"><input type="radio" name="q${index}" value="${value}"><span>${t(label)}</span></label>`,
+	)
+	.join('\n')}
 							</fieldset>`,
-).join('\n')}
+	)
+	.join('\n')}
 						</form>
-						<p class="kern-body kern-body--small" data-progress aria-live="polite">0 von ${SEED_PILLARS.length} beantwortet</p>
+						<p class="kern-body kern-body--small" data-progress aria-live="polite">${t(fill(text.script.progress, { done: '0', total: String(names.length) }))}</p>
 						<section data-result hidden class="result" aria-labelledby="result-title">
-							<h2 class="kern-title" id="result-title">Dein Ergebnis</h2>
+							<h2 class="kern-title" id="result-title">${t(text.result)}</h2>
 							<p class="kern-body" data-summary aria-live="polite"></p>
 							<ul class="result__list" data-list>
-${SEED_PILLARS.map(
-	(pillar) => `								<li data-row data-name="${t(pillar.name)}">
-									<span>${t(pillar.name)}: <span data-percent></span></span>
+${names
+	.map(
+		(name) => `								<li data-row data-name="${t(name)}">
+									<span>${t(name)}: <span data-percent></span></span>
 									<span class="bar" aria-hidden="true"><span class="bar__fill" data-fill></span></span>
 								</li>`,
-).join('\n')}
+	)
+	.join('\n')}
 							</ul>
-							<p><a class="kern-btn kern-btn--primary" href="${APP_PATH}"><span class="kern-label">Kostenlos starten</span></a></p>
-							<p><button type="button" class="kern-btn kern-btn--secondary" data-share><span class="kern-label">Ergebnis teilen</span></button></p>
+							<p><a class="kern-btn kern-btn--primary" href="${APP_PATH}"><span class="kern-label">${t(text.start)}</span></a></p>
+							<p><button type="button" class="kern-btn kern-btn--secondary" data-share><span class="kern-label">${t(text.share)}</span></button></p>
 							<p class="kern-body kern-body--small" data-status role="status"></p>
-							<p class="kern-body kern-body--small">Wird nirgends gespeichert. Der Link enthält deine Antworten – teile ihn nur, wenn du magst.</p>
+							<p class="kern-body kern-body--small">${t(text.note)}</p>
 						</section>
-						<script>${CLIENT_SCRIPT}</script>`,
+						<script>${clientScript(text.script)}</script>`,
 	);
-
-const PERIOD_LABELS = { monthly: 'monatlich', quarterly: 'vierteljährlich', yearly: 'jährlich' } as const;
+};
 
 /**
- * Kündigung ohne Login (#2317, § 312k BGB): nur Deutsch unter `/kuendigen/`, Muster
+ * Kündigung ohne Login (#2317, § 312k BGB): `/kuendigen/` und `/en/cancel/`, Muster
  * {@link renderAssessment}. Der Vertrag ist nur Angabe — der Server ermittelt das Abo über die Adresse.
  */
-export const renderCancellation = (context: PageContext & { allMessages: Record<Locale, Messages> }): string =>
-	templatePage(
+export const renderCancellation = (context: PageContext & { allMessages: Record<Locale, Messages> }): string => {
+	const text = CANCELLATION[subpageLang(context.locale)];
+	return templatePage(
 		context,
-		'/kuendigen/',
-		'Vertrag kündigen',
-		'Kündige dein Balamentum-Abo ohne Anmeldung: Formular ausfüllen und per E-Mail-Link bestätigen.',
-		`						<h1 class="kern-heading-large">Vertrag kündigen</h1>
-						<p class="kern-body kern-body--large">Ohne Anmeldung: Wir schicken dir einen Bestätigungslink an die Adresse deines Kontos.</p>
+		subpagePathFor('cancellation'),
+		text.title,
+		text.description,
+		`						<h1 class="kern-heading-large">${t(text.title)}</h1>
+						<p class="kern-body kern-body--large">${t(text.lead)}</p>
 						<form data-cancel-form class="cancel-form">
-							<label class="kern-body" for="cancel-email">E-Mail-Adresse deines Kontos (Pflichtfeld)</label>
+							<label class="kern-body" for="cancel-email">${t(text.email)}</label>
 							<input class="cancel-form__field" id="cancel-email" name="email" type="email" autocomplete="email" inputmode="email" required>
-							<label class="kern-body" for="cancel-contract">Vertrag (Pflichtfeld)</label>
+							<label class="kern-body" for="cancel-contract">${t(text.contract)}</label>
 							<select class="cancel-form__field" id="cancel-contract" name="contract" required>
 ${PLAN_VALUES.filter((plan) => plan !== 'free')
 	.flatMap((plan) =>
-		Object.entries(PERIOD_LABELS).map(
+		Object.entries(text.periods).map(
 			([period, label]) =>
 				`								<option value="${plan}-${period}">${t(`${plan.charAt(0).toUpperCase()}${plan.slice(1)} (${label})`)}</option>`,
 		),
@@ -778,39 +854,43 @@ ${PLAN_VALUES.filter((plan) => plan !== 'free')
 	.join('\n')}
 							</select>
 							<fieldset class="scale">
-								<legend class="kern-body">Art der Kündigung</legend>
-								<label class="scale__option"><input type="radio" name="kind" value="ordinary" checked><span>Ordentlich</span></label>
-								<label class="scale__option"><input type="radio" name="kind" value="extraordinary"><span>Außerordentlich</span></label>
+								<legend class="kern-body">${t(text.kind)}</legend>
+								<label class="scale__option"><input type="radio" name="kind" value="ordinary" checked><span>${t(text.ordinary)}</span></label>
+								<label class="scale__option"><input type="radio" name="kind" value="extraordinary"><span>${t(text.extraordinary)}</span></label>
 							</fieldset>
 							<div data-reason hidden>
-								<label class="kern-body" for="cancel-reason">Grund der außerordentlichen Kündigung (Pflichtfeld)</label>
+								<label class="kern-body" for="cancel-reason">${t(text.reason)}</label>
 								<textarea class="cancel-form__field" id="cancel-reason" name="reason" rows="3"></textarea>
 							</div>
 							<fieldset class="scale">
-								<legend class="kern-body">Zeitpunkt</legend>
-								<label class="scale__option"><input type="radio" name="when" value="next" checked><span>Zum nächstmöglichen Zeitpunkt</span></label>
-								<label class="scale__option"><input type="radio" name="when" value="date"><span>Zum Wunschdatum</span></label>
+								<legend class="kern-body">${t(text.when)}</legend>
+								<label class="scale__option"><input type="radio" name="when" value="next" checked><span>${t(text.next)}</span></label>
+								<label class="scale__option"><input type="radio" name="when" value="date"><span>${t(text.onDate)}</span></label>
 							</fieldset>
-							<label class="kern-body" for="cancel-date">Wunschdatum</label>
+							<label class="kern-body" for="cancel-date">${t(text.date)}</label>
 							<input class="cancel-form__field" id="cancel-date" name="date" type="date">
-							<button type="submit" class="kern-btn kern-btn--primary cancel-form__submit">Jetzt kündigen</button>
+							<button type="submit" class="kern-btn kern-btn--primary cancel-form__submit">${t(text.submit)}</button>
 						</form>
 						<p class="kern-body" data-status role="status"></p>
 						<p class="kern-body" data-error role="alert"></p>
-						<script>${REQUEST_SCRIPT}</script>`,
+						<script>${requestScript(text.script)}</script>`,
 	);
+};
 
 /** Bestätigungsseite des Mail-Links (#2317): GET zeigt nur an, erst der Knopf kündigt per POST. */
-export const renderCancellationConfirm = (context: PageContext): string =>
-	templatePage(
+export const renderCancellationConfirm = (context: PageContext): string => {
+	const lang = subpageLang(context.locale);
+	const text = CANCELLATION[lang];
+	return templatePage(
 		context,
-		'/kuendigen/bestaetigen/',
-		'Kündigung bestätigen',
-		'Bestätige die Kündigung deines Balamentum-Abos.',
-		`						<h1 class="kern-heading-large" tabindex="-1">Kündigung bestätigen</h1>
+		subpagePathFor('cancellationConfirm'),
+		text.confirmTitle,
+		text.confirmDescription,
+		`						<h1 class="kern-heading-large" tabindex="-1">${t(text.confirmTitle)}</h1>
 						<p class="kern-body" data-summary></p>
-						<p><button type="button" class="kern-btn kern-btn--primary" data-confirm hidden><span class="kern-label">Kündigung jetzt bestätigen</span></button></p>
+						<p><button type="button" class="kern-btn kern-btn--primary" data-confirm hidden><span class="kern-label">${t(text.confirmButton)}</span></button></p>
 						<p class="kern-body" data-status role="status"></p>
-						<p class="kern-body" data-invalid role="alert" hidden>Link ungültig oder abgelaufen. <a class="kern-link" href="/kuendigen/">Kündigung neu anfordern</a></p>
-						<script>${CONFIRM_SCRIPT}</script>`,
+						<p class="kern-body" data-invalid role="alert" hidden>${t(text.invalid)} <a class="kern-link" href="${SUBPAGES.cancellation[lang]}">${t(text.renew)}</a></p>
+						<script>${confirmScript(text.script)}</script>`,
 	);
+};

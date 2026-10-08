@@ -1,0 +1,71 @@
+{
+	"shell": {
+		"search": "Search",
+		"createTask": "Create new task",
+		"logoutFailed": "Logout failed",
+		"loadFailed": "Data could not be loaded",
+		"updateFailed": "Task could not be updated",
+		"loading": "Loading",
+		"loadingTasks": "Loading tasks…",
+		"welcomeTitle": "Welcome to Balamentum",
+		"weekView": "Week view",
+		"calendarFailed": "Appointments could not be loaded",
+		"graphLoading": "Loading graph",
+		"createTemplate": "Create template"
+	},
+	"taskFilter": {
+		"allCategories": "— all categories —",
+		"deadlineActiveLabel": "Task filter active",
+		"deadlineActive": "Filtered: due on {{date}}",
+		"remove": "Remove filter",
+		"showDone": "Show completed tasks",
+		"showArchived": "Show archived",
+		"balance": "Balance prioritization",
+		"showParents": "Show parent tasks",
+		"byTitle": "Filter by title",
+		"byTitlePlaceholder": "Filter by title…",
+		"byCategory": "Filter by category",
+		"submit": "Filter",
+		"noResults": "No tasks found. Try adjusting the filters."
+	},
+	"balanceHint": {
+		"label": "Balance prioritization is now on by default",
+		"text": "Tasks from pillars with a deficit move up the list. You can turn this sorting off in the settings (\"General\" view).",
+		"disable": "Turn off balance prioritization"
+	},
+	"root": {
+		"authChecking": "Checking authentication …",
+		"authFailed": "Authentication failed. Please reload the page."
+	},
+	"api": {
+		"csrfFailed": "CSRF token could not be loaded ({{status}})",
+		"retryFailed": "All retry attempts failed.",
+		"unknownError": "Unknown error",
+		"logoutFailed": "Logout failed ({{status}})",
+		"authCheckFailed": "Auth check failed ({{status}})"
+	},
+	"apiError": {
+		"session": "Not logged in. Please sign in again.",
+		"throttledSeconds": "Too many requests in a short time. Please wait {{seconds}} seconds and try again.",
+		"throttled": "Too many requests in a short time. Please wait a moment and try again.",
+		"planRequired": "{{feature}} requires the {{plan}} plan. Change plan: Settings → Plans.",
+		"server": "Server error (HTTP {{status}}).",
+		"aiUnavailable": "The AI service is currently unavailable. Please try again later.",
+		"aiConfigInvalid": "The AI configuration is invalid. Please check the settings.",
+		"network": "Network error. Please check your internet connection.",
+		"aborted": "The request was cancelled. Please try again.",
+		"unknown": "Unknown error."
+	},
+	"voice": {
+		"denied": "Microphone access was denied.",
+		"nothing": "Nothing recognized – please speak again.",
+		"failed": "Speech recognition failed."
+	},
+	"geolocation": {
+		"unsupported": "Geolocation not supported"
+	},
+	"payment": {
+		"refunded": "Refunded",
+		"paid": "Paid"
+	}
+}

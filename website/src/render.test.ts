@@ -27,6 +27,7 @@ import {
 	renderLanding,
 	renderRobots,
 	renderSitemap,
+	SUBPAGES,
 	type Locale,
 	type Messages,
 	type PageContext,
@@ -59,6 +60,10 @@ const landing = (locale: Locale, siteUrl = 'https://example.org', shots?: Readon
 		plans: PLAN_VALUES,
 		shots,
 	});
+
+/** Footer-Ziel einer Unterseite: de verlinkt die deutsche, alle übrigen Sprachen die englische Fassung. */
+const subpageLink = (locale: string, dePath: string, enPath: string): string =>
+	locale === 'de' ? `href="${dePath}" hreflang="de">` : `href="${enPath}" hreflang="en">`;
 
 /** Alle Blatt-Schlüssel eines Textobjekts als Pfade, damit de und en vergleichbar werden. */
 const keyPaths = (value: unknown, prefix = ''): string[] =>
@@ -299,19 +304,23 @@ describe('renderPrivacy (#1672)', () => {
 		}
 	});
 
-	it('verlinkt /datenschutz/ aus dem Footer aller zehn Sprachen (AK2)', () => {
+	it('verlinkt /datenschutz/ (de) bzw. /en/privacy/ aus dem Footer aller zehn Sprachen (AK2)', () => {
 		for (const [locale, messages] of Object.entries(allMessages)) {
 			const label = (messages.footer as { privacy?: string }).privacy;
 			expect(label, `${locale}: i18n-Key footer.privacy fehlt`).toBeTruthy();
-			expect(landing(locale as Locale), locale).toContain(`href="/datenschutz/" hreflang="de">${label}</a>`);
+			expect(landing(locale as Locale), locale).toContain(
+				`${subpageLink(locale, '/datenschutz/', '/en/privacy/')}${label}</a>`,
+			);
 		}
 	});
 
-	it('übersetzt das Footer-Label der Vorlagen in allen zehn Sprachen, Ziel bleibt /vorlagen/ (#2202 AK1/AK2)', () => {
+	it('übersetzt das Footer-Label der Vorlagen in allen zehn Sprachen, Ziel /vorlagen/ bzw. /en/templates/ (#2202 AK1/AK2)', () => {
 		for (const [locale, messages] of Object.entries(allMessages)) {
 			const label = (messages.footer as { templates?: string }).templates;
 			expect(label, `${locale}: i18n-Key footer.templates fehlt`).toBeTruthy();
-			expect(landing(locale as Locale), locale).toContain(`href="/vorlagen/" hreflang="de">${label}</a>`);
+			expect(landing(locale as Locale), locale).toContain(
+				`${subpageLink(locale, '/vorlagen/', '/en/templates/')}${label}</a>`,
+			);
 		}
 		expect(landing('en'), 'en: Label darf nicht deutsch sein').not.toContain('hreflang="de">Vorlagen</a>');
 	});
@@ -330,6 +339,13 @@ describe('renderPrivacy (#1672)', () => {
 		expect(readFileSync(join(websiteRoot, 'dist', 'sitemap.xml'), 'utf8')).toContain(
 			'<loc>https://example.org/datenschutz/</loc>',
 		);
+		for (const [page, paths] of Object.entries(SUBPAGES)) {
+			for (const path of [paths.de, paths.en]) {
+				expect(existsSync(join(websiteRoot, 'dist', path, 'index.html')), `${page}: dist${path}index.html fehlt`).toBe(
+					true,
+				);
+			}
+		}
 	});
 });
 
@@ -357,7 +373,9 @@ describe('renderWithdrawal (#2307)', () => {
 		for (const [locale, messages] of Object.entries(allMessages)) {
 			const label = (messages.footer as { withdrawal?: string }).withdrawal;
 			expect(label, `${locale}: i18n-Key footer.withdrawal fehlt`).toBeTruthy();
-			expect(landing(locale as Locale), locale).toMatch(new RegExp(`href="/widerruf/"[^>]*>${label}</a>`));
+			expect(landing(locale as Locale), locale).toContain(
+				`${subpageLink(locale, '/widerruf/', '/en/withdrawal/')}${label}</a>`,
+			);
 		}
 	});
 });
@@ -391,7 +409,9 @@ describe('renderCancellation (#2317)', () => {
 		for (const [locale, messages] of Object.entries(allMessages)) {
 			const label = (messages.footer as { cancellation?: string }).cancellation;
 			expect(label, `${locale}: i18n-Key footer.cancellation fehlt`).toBeTruthy();
-			expect(landing(locale as Locale), locale).toMatch(new RegExp(`href="/kuendigen/"[^>]*>${label}</a>`));
+			expect(landing(locale as Locale), locale).toContain(
+				`${subpageLink(locale, '/kuendigen/', '/en/cancel/')}${label}</a>`,
+			);
 		}
 	});
 });
@@ -451,8 +471,9 @@ describe('renderTerms (#1891)', () => {
 		for (const [locale, messages] of Object.entries(allMessages)) {
 			const label = (messages.footer as { terms?: string }).terms;
 			expect(label, `${locale}: i18n-Key footer.terms fehlt`).toBeTruthy();
-			expect(landing(locale as Locale), locale).toMatch(new RegExp(`href="/nutzungsbedingungen/"[^>]*>${label}</a>`));
-			expect(landing(locale as Locale), `${locale}: Datenschutz-Link bleibt`).toContain('href="/datenschutz/"');
+			expect(landing(locale as Locale), locale).toContain(
+				`${subpageLink(locale, '/nutzungsbedingungen/', '/en/terms/')}${label}</a>`,
+			);
 		}
 	});
 
@@ -674,11 +695,10 @@ describe('Rechtstexte nur auf Deutsch (#2226)', () => {
 		}
 	});
 
-	it('AK2: Datenschutz- und Nutzungsbedingungen-Link tragen hreflang="de" bei unverändertem Ziel', () => {
-		for (const locale of Object.keys(allMessages)) {
-			const html = landing(locale as Locale);
-			expect(html, locale).toContain('href="/datenschutz/" hreflang="de">');
-			expect(html, locale).toContain('href="/nutzungsbedingungen/" hreflang="de">');
+	it('AK2: Nicht-Deutsch verlinkt im Footer keine deutsche Unterseite', () => {
+		for (const locale of LOCALES.filter((locale) => locale !== 'de')) {
+			const links = footerOf(landing(locale)).split('<nav')[0];
+			expect(links, locale).not.toContain('hreflang="de"');
 		}
 	});
 });

@@ -1,5 +1,6 @@
 import { KolAlert, KolCard, KolSingleSelect } from '@public-ui/react-v19';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { planLabel, type Plan } from '../lib/planOffers';
@@ -27,6 +28,7 @@ const PLAN_OPTIONS: Array<{ label: string; value: Plan }> = (['free', 'plus', 'p
  */
 export const OwnPlanCard = ({ userId }: { userId: number }) => {
 	const { plan, refresh } = usePlan();
+	const { t } = useTranslation('billing');
 	/** Sperrt die Auswahl während des laufenden PATCH (Race-Schutz bei schnellen Wechseln). */
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -46,17 +48,15 @@ export const OwnPlanCard = ({ userId }: { userId: number }) => {
 	};
 
 	return (
-		<KolCard className="settings-card own-plan-card" _label="Eigenes Paket" _level={2}>
-			<p className="own-plan-hint">
-				Der Wechsel ist kostenfrei, sofort wirksam und ohne Zahlungsweg — er gilt für dein eigenes Konto.
-			</p>
+		<KolCard className="settings-card own-plan-card" _label={t('ownPlanCard.label')} _level={2}>
+			<p className="own-plan-hint">{t('ownPlanCard.hint')}</p>
 			{error !== null && (
-				<KolAlert _type="error" _label="Wechsel nicht möglich">
+				<KolAlert _type="error" _label={t('ownPlanCard.errorLabel')}>
 					{error}
 				</KolAlert>
 			)}
 			<KolSingleSelect
-				_label="Eigenes Paket wechseln"
+				_label={t('ownPlanCard.selectLabel')}
 				_options={PLAN_OPTIONS}
 				_value={plan ?? 'free'}
 				_disabled={pending}

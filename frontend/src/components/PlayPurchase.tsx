@@ -3,8 +3,9 @@ import { ResponseError } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
+import i18next from '../i18n/config';
 import { checkAuth } from '../lib/auth';
-import { PERIOD_LABELS, planLabel, type Period, type Plan } from '../lib/planOffers';
+import { periodLabel, planLabel, type Period, type Plan } from '../lib/planOffers';
 import {
 	initPlayStore,
 	PAYMENT_CANCELLED,
@@ -18,7 +19,7 @@ import type { PurchaseUi } from './billingChannel';
 
 type Store = NonNullable<Awaited<ReturnType<typeof initPlayStore>>>;
 
-const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de-DE');
+const formatDate = (iso: string): string => new Date(iso).toLocaleDateString(i18next.language);
 
 /**
  * Kaufweg im Kanal `play` (#1692, ADR 0017): Preise und Kauf kommen aus Google Play. Nach dem Kauf
@@ -32,11 +33,12 @@ export const usePlayPurchase = (): PurchaseUi => {
 	const [store, setStore] = useState<Store | null>(null);
 	const [unavailable, setUnavailable] = useState(false);
 	const [busyKey, setBusyKey] = useState<string | null>(null);
+	// Schlüssel im Namespace `billing`, übersetzt erst beim Rendern.
 	const [error, setError] = useState<string | null>(null);
-	const [scheduledChange, setScheduledChange] = useState<string | null>(null);
+	const [scheduledChange, setScheduledChange] = useState<{ plan: string; date: string } | null>(null);
 	const [restoring, setRestoring] = useState(false);
 	const [restored, setRestored] = useState<'done' | 'none' | 'failed' | null>(null);
-	const { t } = useTranslation('messages');
+	const { t } = useTranslation(['billing', 'messages']);
 	const refreshRef = useRef(refresh);
 	refreshRef.current = refresh;
 
@@ -51,7 +53,7 @@ export const usePlayPurchase = (): PurchaseUi => {
 				await refreshRef.current?.();
 				await transaction.finish();
 			} catch {
-				setError('Der Kauf ist bei Google eingegangen, konnte aber noch nicht freigeschaltet werden.');
+				setError('play.unlockFailed');
 			}
 		};
 		let active = true;
@@ -79,12 +81,12 @@ export const usePlayPurchase = (): PurchaseUi => {
 		try {
 			const result = await offer.order(change && { googlePlay: change });
 			if (result && result.code !== PAYMENT_CANCELLED) {
-				setError('Der Kauf über Google Play ist fehlgeschlagen.');
+				setError('play.purchaseFailed');
 			} else if (!result && running && change?.replacementMode === 'DEFERRED') {
-				setScheduledChange(`Wechsel zu ${planLabel(plan)} ab ${formatDate(running.currentPeriodEnd)}.`);
+				setScheduledChange({ plan: planLabel(plan), date: formatDate(running.currentPeriodEnd) });
 			}
 		} catch {
-			setError('Der Kauf über Google Play ist fehlgeschlagen.');
+			setError('play.purchaseFailed');
 		} finally {
 			setBusyKey(null);
 		}
@@ -121,15 +123,18 @@ export const usePlayPurchase = (): PurchaseUi => {
 			return { text: '', node: null };
 		}
 		if (subscription !== null && subscription.plan === plan && subscription.period === period) {
-			return { text: 'Aktuelles Paket', node: <span>Aktuelles Paket</span> };
+			return { text: t('purchase.currentPlan'), node: <span>{t('purchase.currentPlan')}</span> };
 		}
 		const offer = store ? playOfferFor(store, plan, period) : undefined;
 		if (!offer) {
 			return { text: '', node: null };
 		}
 		const changing = subscription !== null && subscription.plan !== 'free';
-		const text = changing ? 'Wechseln' : 'Buchen';
-		const label = `${planLabel(plan)} ${text.toLowerCase()} (${PERIOD_LABELS[period]})`;
+		const text = changing ? t('purchase.change') : t('purchase.book');
+		const label = t(changing ? 'purchase.changeLabel' : 'purchase.bookLabel', {
+			plan: planLabel(plan),
+			period: periodLabel(period),
+		});
 		return {
 			text,
 			node: (
@@ -150,32 +155,32 @@ export const usePlayPurchase = (): PurchaseUi => {
 		notice: (
 			<>
 				{unavailable && (
-					<KolAlert _type="warning" _label="Google Play nicht erreichbar">
-						Die Pakete lassen sich gerade nicht laden. Bitte später erneut versuchen.
+					<KolAlert _type="warning" _label={t('play.unavailableLabel')}>
+						{t('play.unavailableText')}
 					</KolAlert>
 				)}
 				{error !== null && (
-					<KolAlert _type="error" _label="Kauf fehlgeschlagen">
-						{error}
+					<KolAlert _type="error" _label={t('play.errorLabel')}>
+						{t(error)}
 					</KolAlert>
 				)}
 				{scheduledChange !== null && (
-					<KolAlert _type="success" _label="Paketwechsel vorgemerkt">
-						{scheduledChange}
+					<KolAlert _type="success" _label={t('play.scheduledLabel')}>
+						{t('play.scheduledChange', scheduledChange)}
 					</KolAlert>
 				)}
 				{restored !== null && (
 					<KolAlert
 						_type={restored === 'done' ? 'success' : restored === 'none' ? 'info' : 'error'}
-						_label={t('billing.restore.action')}
+						_label={t('messages:billing.restore.action')}
 					>
-						{t(`billing.restore.${restored}`)}
+						{t(`messages:billing.restore.${restored}`)}
 					</KolAlert>
 				)}
 				{store !== null && (
 					<KolButton
 						data-testid="restore-purchases"
-						_label={restoring ? t('billing.restore.busy') : t('billing.restore.action')}
+						_label={restoring ? t('messages:billing.restore.busy') : t('messages:billing.restore.action')}
 						_variant="secondary"
 						_disabled={restoring}
 						_on={{ onClick: () => void restore() }}

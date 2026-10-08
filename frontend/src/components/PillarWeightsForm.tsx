@@ -1,6 +1,7 @@
 import { KolAlert, KolButton, KolInputRange } from '@public-ui/react-v19';
 import type { Pillar } from 'client';
 import { useRef, useState, type RefObject } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
@@ -25,10 +26,6 @@ interface PillarWeightsFormProps {
 	onCancel?: () => void;
 }
 
-/** #1555-Hinweistext — wortgleich im Formular-Alert und im #1574-Bestätigungs-Modal. */
-const UNBALANCED_HINT =
-	'Diese Verteilung weicht stark vom gleichmäßigen Zustand ab — Säulen sind üblicherweise eher ausgeglichen gewichtet. Das ist nur ein Hinweis: Du kannst trotzdem speichern.';
-
 /**
  * Gemeinsame Gewichtungs-Formularlogik für die Lebensbalance-Säulen: eine 100-%-Verteilung über die
  * fünf festen Säulen (#1596, Muster wie die Säulen-Verteilung im Aufgabenformular). Je Säule ein
@@ -41,6 +38,9 @@ const UNBALANCED_HINT =
  * genutzt.
  */
 export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsFormProps) => {
+	const { t } = useTranslation(['settings', 'common']);
+	// #1555-Hinweistext — wortgleich im Formular-Alert und im #1574-Bestätigungs-Modal.
+	const unbalancedHint = t('pillarWeights.unbalancedHint');
 	// Prozentwerte (0–100) je Säule, Summe stets 100. Der gespeicherte Stand wird beim Mount über
 	// `fillContributions` auf ganzzahlige Anteile ≥ `SHARE_MIN` gebracht — Altbestände, die den
 	// Mindestanteil unterschreiten, rücken damit beim ersten Speichern glatt.
@@ -132,7 +132,7 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 	return (
 		<>
 			{error !== null && (
-				<KolAlert _type="error" _label="Speichern fehlgeschlagen">
+				<KolAlert _type="error" _label={t('categoryForm.saveFailed')}>
 					{error}
 				</KolAlert>
 			)}
@@ -145,20 +145,17 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 			    beschreien — die ohnehin höfliche Summenzeile unten bleibt die zweite Rückmeldung. */}
 			{unbalanced && (
 				<div aria-live="polite">
-					<KolAlert _type="warning" _label="Verteilung stark unausgewogen">
-						{UNBALANCED_HINT}
+					<KolAlert _type="warning" _label={t('pillarWeights.unbalancedLabel')}>
+						{unbalancedHint}
 					</KolAlert>
 				</div>
 			)}
 
 			{pillars.length === 0 ? (
-				<p>Keine Säulen vorhanden.</p>
+				<p>{t('pillarWeights.empty')}</p>
 			) : (
 				<>
-					<p className="hint">
-						Verteile 100 % auf die fünf Säulen. Ziehst du einen Regler, ziehen die anderen mit — jede Säule behält
-						mindestens {SHARE_MIN} %.
-					</p>
+					<p className="hint">{t('pillarWeights.intro', { min: SHARE_MIN })}</p>
 					<div className="form-grid pillar-weights-grid">
 						{pillars.map((pillar, index) => (
 							<div key={pillar.id} className="pillar-weight-row">
@@ -191,13 +188,18 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 
 			<div className="form-actions">
 				<KolButton
-					_label={saving ? 'Speichern…' : 'Speichern'}
+					_label={saving ? t('categoryForm.saving') : t('common:actions.save')}
 					_variant="primary"
 					_disabled={saving || pillars.length === 0}
 					_on={{ onClick: () => void save() }}
 				/>
 				{onCancel !== undefined && (
-					<KolButton _label="Abbrechen" _variant="secondary" _disabled={saving} _on={{ onClick: () => onCancel() }} />
+					<KolButton
+						_label={t('common:actions.cancel')}
+						_variant="secondary"
+						_disabled={saving}
+						_on={{ onClick: () => onCancel() }}
+					/>
 				)}
 			</div>
 
@@ -206,23 +208,23 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 			    Hinweistext wortgleich zum Formular; „Abbrechen" erhält den Initialfokus (#472-Muster). */}
 			{confirmOpen && (
 				<Modal
-					title="Verteilung stark unausgewogen"
+					title={t('pillarWeights.unbalancedLabel')}
 					onClose={() => setConfirmOpen(false)}
 					initialFocusRef={cancelRef as RefObject<HTMLElement | null>}
 				>
-					<KolAlert _type="warning" _label="Verteilung stark unausgewogen">
-						{UNBALANCED_HINT}
+					<KolAlert _type="warning" _label={t('pillarWeights.unbalancedLabel')}>
+						{unbalancedHint}
 					</KolAlert>
 					<div className="modal-actions pillar-confirm-actions">
 						<KolButton
 							ref={cancelRef}
-							_label="Abbrechen"
+							_label={t('common:actions.cancel')}
 							_variant="secondary"
 							_disabled={saving}
 							_on={{ onClick: () => setConfirmOpen(false) }}
 						/>
 						<KolButton
-							_label={saving ? 'Speichern…' : 'Trotzdem speichern'}
+							_label={saving ? t('categoryForm.saving') : t('pillarWeights.saveAnyway')}
 							_variant="primary"
 							_disabled={saving}
 							_on={{ onClick: () => confirmSave() }}

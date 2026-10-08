@@ -1,5 +1,6 @@
 import { KolAlert, KolButton, KolInputText, KolSelect, KolTextarea } from '@public-ui/react-v19';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 
@@ -8,10 +9,10 @@ import { toApiError } from '../lib/apiError';
 // deutsche Anzeige. Modulkonstante, damit `KolSelect` nicht bei jedem Render eine neue
 // Optionsliste erhält.
 const FEEDBACK_CATEGORIES = [
-	{ label: 'Fragen und Hilfe', value: 'frage' },
-	{ label: 'Wünsche und Ideen', value: 'wunsch' },
-	{ label: 'Fehler melden', value: 'bug' },
-];
+	{ labelKey: 'feedbackForm.categoryQuestion', value: 'frage' },
+	{ labelKey: 'feedbackForm.categoryWish', value: 'wunsch' },
+	{ labelKey: 'feedbackForm.categoryBug', value: 'bug' },
+] as const;
 
 /** Liest den Wert eines KoliBri-Events als String (die Events liefern `unknown`). */
 const readString = (value: unknown): string => (typeof value === 'string' ? value : String(value ?? ''));
@@ -24,6 +25,7 @@ const readString = (value: unknown): string => (typeof value === 'string' ? valu
  * stehen, damit der zweite Versuch ohne Neutippen möglich ist (AK9).
  */
 export const FeedbackForm = () => {
+	const { t } = useTranslation(['settings', 'forms']);
 	const [category, setCategory] = useState('bug');
 	const [title, setTitle] = useState('');
 	const [description, setDescription] = useState('');
@@ -32,7 +34,7 @@ export const FeedbackForm = () => {
 
 	const submit = async (): Promise<void> => {
 		if (title.trim() === '' || description.trim() === '') {
-			setStatus({ type: 'error', message: 'Bitte Titel und Beschreibung ausfüllen.' });
+			setStatus({ type: 'error', message: t('feedbackForm.required') });
 			return;
 		}
 		setSending(true);
@@ -40,7 +42,7 @@ export const FeedbackForm = () => {
 			await api.sendFeedback({ category, title: title.trim(), description: description.trim() });
 			setTitle('');
 			setDescription('');
-			setStatus({ type: 'success', message: 'Danke! Dein Feedback wurde gesendet.' });
+			setStatus({ type: 'success', message: t('feedbackForm.sent') });
 		} catch (reason) {
 			// #1465: Der Server unterscheidet „nicht konfiguriert" (503) von „gerade nicht gespeichert"
 			// (502) — die frühere Pauschalzeile verschluckte den Unterschied, und niemand konnte sehen,
@@ -56,20 +58,20 @@ export const FeedbackForm = () => {
 
 	return (
 		<div className="feedback-form">
-			<p>
-				Fragen, Wünsche und Ideen oder Fehlerberichte landen direkt im Notizbuch der Entwicklung — kein GitHub-Konto
-				nötig.
-			</p>
+			<p>{t('feedbackForm.intro')}</p>
 			{status !== null && (
-				<KolAlert _type={status.type} _label={status.type === 'success' ? 'Gesendet' : 'Fehler'}>
+				<KolAlert
+					_type={status.type}
+					_label={status.type === 'success' ? t('feedbackForm.sentLabel') : t('feedbackForm.errorLabel')}
+				>
 					{status.message}
 				</KolAlert>
 			)}
 			<div className="form-grid">
 				<KolSelect
-					_label="Kategorie"
+					_label={t('forms:labels.category')}
 					_required
-					_options={FEEDBACK_CATEGORIES}
+					_options={FEEDBACK_CATEGORIES.map(({ labelKey, value }) => ({ label: t(labelKey), value }))}
 					_value={category}
 					_on={{ onChange: (_event, value) => setCategory(readString(value)) }}
 				/>
@@ -78,7 +80,7 @@ export const FeedbackForm = () => {
 				    Suchfeld ansagen — dieselbe Auszeichnung wie beim Task-Titel (`TaskForm.tsx:1017`),
 				    der ebenfalls ohne `_type` auskommt und in den e2e als `textbox` adressiert wird. */}
 				<KolInputText
-					_label="Titel"
+					_label={t('feedbackForm.title')}
 					_required
 					_value={title}
 					_on={{
@@ -87,7 +89,7 @@ export const FeedbackForm = () => {
 					}}
 				/>
 				<KolTextarea
-					_label="Beschreibung"
+					_label={t('forms:labels.description')}
 					_required
 					_rows={6}
 					_value={description}
@@ -97,7 +99,7 @@ export const FeedbackForm = () => {
 					}}
 				/>
 				<KolButton
-					_label={sending ? 'Wird gesendet …' : 'Senden'}
+					_label={sending ? t('feedbackForm.sending') : t('feedbackForm.send')}
 					_variant="primary"
 					_disabled={sending}
 					_on={{ onClick: () => void submit() }}

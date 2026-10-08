@@ -8,6 +8,7 @@
  * Die Karte enthält bewusst keine Aufgabeninhalte (AK2) und nennt Meilensteine nur, wenn es
  * welche gibt — keine „0 Meilensteine“-Zeile (Fürsorge-Tonalität: sorgt, nicht protokolliert).
  */
+import i18next from '../i18n/config';
 import logoDunkel from '../assets/logo-with-name.horizontal.dark.svg?raw';
 import { GEDAEMPFT, GRUND, KARTE_BREITE, KARTE_HOEHE, RAMPE, TINTE, xml } from './weeklyShareCard';
 
@@ -75,7 +76,7 @@ export const erzeugeMonatsKarteSvg = ({ saeulen, streak, meilensteine, monat, ma
 	// Meilensteine nur bei nicht-leerer Liste — eine „0 Meilensteine“-Zeile wäre Protokoll, nicht Fürsorge.
 	const meilensteinZeile =
 		meilensteine.length > 0
-			? `<text x="48" y="348" font-size="13"><tspan fill="${GEDAEMPFT}">Meilensteine </tspan><tspan fill="${TINTE}">${xml(meilensteine.join(' · '))}</tspan></text>`
+			? `<text x="48" y="348" font-size="13"><tspan fill="${GEDAEMPFT}">${xml(i18next.t('dashboard:shareCard.milestones'))} </tspan><tspan fill="${TINTE}">${xml(meilensteine.join(' · '))}</tspan></text>`
 			: '';
 	return [
 		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${KARTE_BREITE} ${KARTE_HOEHE}" width="${KARTE_BREITE}" height="${KARTE_HOEHE}" font-family="system-ui, sans-serif">`,

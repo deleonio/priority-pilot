@@ -1,0 +1,83 @@
+{
+	"adminUsers": {
+		"filter": {
+			"label": "Filter",
+			"all": "Alle Aufgaben",
+			"open": "Nur offene Aufgaben",
+			"done": "Nur erledigte Aufgaben"
+		},
+		"roles": {
+			"admin": "Admin",
+			"tester": "Tester",
+			"member": "Mitglied"
+		},
+		"origins": {
+			"einladung": "Einladung",
+			"delegation": "Delegation",
+			"admin": "Admin",
+			"warteliste": "Warteliste"
+		},
+		"subscriptionStatus": {
+			"active": "Aktiv",
+			"approval_pending": "Zahlung ausstehend",
+			"past_due": "Zahlung überfällig",
+			"suspended": "Pausiert",
+			"cancelled": "Gekündigt",
+			"expired": "Abgelaufen",
+			"locked": "Gesperrt"
+		},
+		"invoicesOf": "Rechnungen von {{name}}",
+		"subscriptionsOf": "Abos von {{name}}",
+		"subscriptionsLabel": "Abos",
+		"subscriptionsLoading": "Abos werden geladen …",
+		"subscriptionsEmpty": "Keine Abos vorhanden.",
+		"since": "seit {{date}}",
+		"deleteSubscription": "Abo #{{id}} löschen",
+		"deleteAllSubscriptions": "Alle Abos dieses Nutzers löschen",
+		"deleteAllTitle": "Alle Abos löschen",
+		"deleteOneTitle": "Abo löschen",
+		"deleteAllText": "Alle Abos von {{name}} beim Zahlungsdienstleister kündigen und samt Rechnungen restlos löschen? Danach steht {{name}} auf Free. Zahlungen werden nicht erstattet.",
+		"deleteOneText": "Abo #{{id}} ({{plan}}) von {{name}} beim Zahlungsdienstleister kündigen und samt Rechnungen restlos löschen? Zahlungen werden nicht erstattet.",
+		"deleting": "Lösche …",
+		"deleteNow": "Jetzt löschen",
+		"deleteRefusals": {
+			"subscription_active": "Das Konto hat ein laufendes Abo. Erst „Alle Abos dieses Nutzers löschen“ ausführen, dann erneut versuchen.",
+			"last_group_admin": "Das Konto ist letzter Admin einer Gruppe mit weiteren Mitgliedern. Erst einen anderen Admin bestimmen.",
+			"paypal_unavailable": "PayPal ist gerade nicht erreichbar. Später erneut versuchen.",
+			"fallback": "Das Konto konnte nicht gelöscht werden. Bitte erneut versuchen."
+		},
+		"actionFailed": "Aktion nicht möglich",
+		"usersLoading": "Nutzer werden geladen …",
+		"aiRequests": "KI-Anfragen diesen Monat: {{count}}",
+		"locked": "Gesperrt",
+		"roleOf": "Rolle von {{name}}",
+		"lockSubscription": "Abo sperren",
+		"cancelSubscription": "Abo stornieren",
+		"deleteAccount": "Konto löschen",
+		"allowedHeading": "Freigeschaltete Adressen",
+		"reassign": "Säulenverteilung aller Aufgaben neu berechnen",
+		"resume": "Fortsetzen ({{count}} offen)",
+		"reassignFailed": "Neuberechnung fehlgeschlagen",
+		"reassignCompleted": "Neuberechnung abgeschlossen",
+		"reassignSummary": "{{updated}} Aufgaben neu zugeordnet, {{skipped}} unverändert gelassen, {{failed}} fehlgeschlagen.",
+		"reassignTitle": "Säulenverteilung neu berechnen",
+		"costsTitle": "KI-Kosten bestätigen",
+		"reassignIntent": "Sollen die Säulen-Beiträge der Aufgaben ALLER Konten anhand von Titel und Beschreibung neu berechnet werden? Status, Punkte und Streak bleiben unverändert.",
+		"next": "Weiter",
+		"costsText": "Jede Aufgabe wird einzeln per KI klassifiziert — das verbraucht Kontingent und kann bei vielen Aufgaben dauern. Aufgaben ohne brauchbaren Vorschlag behalten ihre bisherige Zuordnung.",
+		"calculating": "Berechne …",
+		"resumeNow": "Jetzt fortsetzen",
+		"reassignNow": "Jetzt neu berechnen",
+		"lockText": "Den Zugriff von {{name}} auf das bezahlte Paket ({{plan}}) sofort sperren? Die Sperre wirkt sofort.",
+		"cancelText": "Das Abo von {{name}} ({{plan}}) beim Zahlungsdienstleister kündigen? Das Paket läuft bis zum Ende des bezahlten Zeitraums weiter.",
+		"locking": "Sperre …",
+		"cancelling": "Storniere …",
+		"lockNow": "Jetzt sperren",
+		"cancelNow": "Jetzt stornieren",
+		"deleteFailed": "Löschen nicht möglich",
+		"deleteIntent": "Konto von <strong>{{name}}</strong> (<strong>{{email}}</strong>) wirklich löschen?",
+		"deleteScope": "Persönliche Daten und Feedback werden entfernt. Rechnungen und Abo-Datensätze bleiben wegen der Aufbewahrungspflicht. Das lässt sich nicht rückgängig machen.",
+		"deletingAccount": "Wird gelöscht …",
+		"deleteAccountFinal": "Konto endgültig löschen"
+	}
+}

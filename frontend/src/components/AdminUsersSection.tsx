@@ -1,7 +1,9 @@
 import { KolAlert, KolBadge, KolButton, KolDetails, KolInputRadio, KolSpin } from '@public-ui/react-v19';
 import { ResponseError, type AdminUser, type AllowedEmail, type ReassignStatusFilter, type components } from 'client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../api';
+import i18next from '../i18n/config';
 import { toApiError } from '../lib/apiError';
 import { formatEuro, paymentStatusLabel } from '../lib/format';
 import { planLabel } from '../lib/planOffers';
@@ -11,29 +13,20 @@ import { Modal } from './Modal';
 import { ReassignFailureList, ReassignProgressView, ReassignStatusText } from './ReassignRunViews';
 
 /** Statusauswahl des Neuberechnungs-Laufs (#1614) — „offen" schließt Aufgaben in Bearbeitung ein. */
-const FILTER_OPTIONS: { label: string; value: ReassignStatusFilter }[] = [
-	{ label: 'Alle Aufgaben', value: 'all' },
-	{ label: 'Nur offene Aufgaben', value: 'open' },
-	{ label: 'Nur erledigte Aufgaben', value: 'done' },
-];
+const FILTER_VALUES: ReassignStatusFilter[] = ['all', 'open', 'done'];
 
 /** Rollen-Text je serverseitiger Rolle — Rolle immer als Text, nie nur als Farbe (analog GroupDetail). */
 const roleLabel = (role: AdminUser['role']): string =>
-	role === 'admin' ? 'Admin' : role === 'tester' ? 'Tester' : 'Mitglied';
+	i18next.t(`admin:adminUsers.roles.${role === 'admin' || role === 'tester' ? role : 'member'}`);
 
 /** Herkunfts-Text je Zulassung (#1982/#1983) — Herkunft immer als Text-Badge, nie nur Farbe (KI-UX). */
-const ORIGIN_LABELS: Record<AllowedEmail['origin'], string> = {
-	einladung: 'Einladung',
-	delegation: 'Delegation',
-	admin: 'Admin',
-	warteliste: 'Warteliste',
-};
+const originLabel = (origin: AllowedEmail['origin']): string => i18next.t(`admin:adminUsers.origins.${origin}`);
 
 /** Rechnung im Vertragsformat der Eigentümer-Route (#1958) — dieselben Felder wie /billing/invoices. */
 type AdminInvoice = components['schemas']['Invoice'];
 
 /** Zeitpunkte in der Rechnungsliste als „TT.MM.JJJJ" (Muster `SubscriptionSection.tsx`). */
-const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de-DE');
+const formatDate = (iso: string): string => new Date(iso).toLocaleDateString(i18next.language);
 
 /** PDF-Download über die Admin-Route (#1958 AK2) — Anker-Muster `SubscriptionSection.tsx` (`downloadInvoicePdf`). */
 const downloadAdminInvoicePdf = (userId: number, invoice: AdminInvoice): void => {
@@ -52,6 +45,7 @@ const downloadAdminInvoicePdf = (userId: number, invoice: AdminInvoice): void =>
  * (KolAlert), Liste mit Nummer, Zeitraum, Betrag, Status „Ausgestellt" und Download je Rechnung.
  */
 const UserInvoices = ({ userId, displayName }: { userId: number; displayName: string }) => {
+	const { t } = useTranslation(['admin', 'billing']);
 	const [invoices, setInvoices] = useState<AdminInvoice[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	// „Schon geöffnet"-Merker: weitere Klicks holen nicht neu (Lazy-Load, gecacht).
@@ -70,7 +64,7 @@ const UserInvoices = ({ userId, displayName }: { userId: number; displayName: st
 	}, [userId]);
 	return (
 		<KolDetails
-			_label={`Rechnungen von ${displayName}`}
+			_label={t('adminUsers.invoicesOf', { name: displayName })}
 			_on={{
 				onClick: () => {
 					if (openedRef.current) return;
@@ -80,13 +74,13 @@ const UserInvoices = ({ userId, displayName }: { userId: number; displayName: st
 			}}
 		>
 			{error !== null ? (
-				<KolAlert _type="error" _label="Rechnungen">
+				<KolAlert _type="error" _label={t('billing:invoices.label')}>
 					{error}
 				</KolAlert>
 			) : invoices === null ? (
-				<KolSpin _show _variant="cycle" _label="Rechnungen werden geladen …" />
+				<KolSpin _show _variant="cycle" _label={t('billing:invoices.loading')} />
 			) : invoices.length === 0 ? (
-				<p>Noch keine Rechnungen vorhanden.</p>
+				<p>{t('billing:invoices.empty')}</p>
 			) : (
 				<ul className="admin-invoices__list">
 					{invoices.map((invoice) => (
@@ -99,7 +93,7 @@ const UserInvoices = ({ userId, displayName }: { userId: number; displayName: st
 							{/* Status als Text-Badge — Information nie allein über Farbe (WCAG 1.4.1, KI-UX). */}
 							<KolBadge _label={paymentStatusLabel(invoice.paymentStatus)} />
 							<KolButton
-								_label={`PDF ${invoice.number} herunterladen`}
+								_label={t('billing:invoices.download', { number: invoice.number })}
 								_variant="secondary"
 								_icons={{ left: { icon: 'fa-solid fa-download' } }}
 								_on={{ onClick: () => downloadAdminInvoicePdf(userId, invoice) }}
@@ -116,15 +110,8 @@ const UserInvoices = ({ userId, displayName }: { userId: number; displayName: st
 type AdminSubscription = components['schemas']['AdminSubscription'];
 
 /** Abo-Status als Text — unbekannte Status bleiben roh sichtbar statt zu verschwinden. */
-const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
-	active: 'Aktiv',
-	approval_pending: 'Zahlung ausstehend',
-	past_due: 'Zahlung überfällig',
-	suspended: 'Pausiert',
-	cancelled: 'Gekündigt',
-	expired: 'Abgelaufen',
-	locked: 'Gesperrt',
-};
+const subscriptionStatusLabel = (status: string): string =>
+	i18next.t(`admin:adminUsers.subscriptionStatus.${status}`, { defaultValue: status });
 
 /**
  * Abos je Nutzer mit Lösch-Aktionen (#2295) — Lazy-Load wie {@link UserInvoices}. Löschen kündigt
@@ -132,6 +119,7 @@ const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
  * „Sequenzielle Bestätigung“); `onDeleted` lässt die Nutzerzeile (Paket) und Rechnungen neu laden.
  */
 const UserSubscriptions = ({ user, onDeleted }: { user: AdminUser; onDeleted: () => void }) => {
+	const { t } = useTranslation(['admin', 'common']);
 	const [subscriptions, setSubscriptions] = useState<AdminSubscription[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const openedRef = useRef(false);
@@ -171,7 +159,7 @@ const UserSubscriptions = ({ user, onDeleted }: { user: AdminUser; onDeleted: ()
 	};
 	return (
 		<KolDetails
-			_label={`Abos von ${user.displayName}`}
+			_label={t('adminUsers.subscriptionsOf', { name: user.displayName })}
 			_on={{
 				onClick: () => {
 					if (openedRef.current) return;
@@ -181,24 +169,24 @@ const UserSubscriptions = ({ user, onDeleted }: { user: AdminUser; onDeleted: ()
 			}}
 		>
 			{error !== null && (
-				<KolAlert _type="error" _label="Abos">
+				<KolAlert _type="error" _label={t('adminUsers.subscriptionsLabel')}>
 					{error}
 				</KolAlert>
 			)}
 			{subscriptions === null ? (
-				error === null && <KolSpin _show _variant="cycle" _label="Abos werden geladen …" />
+				error === null && <KolSpin _show _variant="cycle" _label={t('adminUsers.subscriptionsLoading')} />
 			) : subscriptions.length === 0 ? (
-				<p>Keine Abos vorhanden.</p>
+				<p>{t('adminUsers.subscriptionsEmpty')}</p>
 			) : (
 				<>
 					<ul className="admin-subscriptions__list">
 						{subscriptions.map((sub) => (
 							<li key={sub.id} className="admin-subscriptions__item">
 								<span>{`#${sub.id} ${planLabel(sub.plan)}`}</span>
-								<span>seit {formatDate(sub.createdAt)}</span>
-								<KolBadge _label={SUBSCRIPTION_STATUS_LABELS[sub.status] ?? sub.status} />
+								<span>{t('adminUsers.since', { date: formatDate(sub.createdAt) })}</span>
+								<KolBadge _label={subscriptionStatusLabel(sub.status)} />
 								<KolButton
-									_label={`Abo #${sub.id} löschen`}
+									_label={t('adminUsers.deleteSubscription', { id: sub.id })}
 									_variant="secondary"
 									_disabled={running}
 									_on={{ onClick: () => setConfirm(sub) }}
@@ -207,7 +195,7 @@ const UserSubscriptions = ({ user, onDeleted }: { user: AdminUser; onDeleted: ()
 						))}
 					</ul>
 					<KolButton
-						_label="Alle Abos dieses Nutzers löschen"
+						_label={t('adminUsers.deleteAllSubscriptions')}
 						_variant="secondary"
 						_disabled={running}
 						_on={{ onClick: () => setConfirm('all') }}
@@ -215,22 +203,28 @@ const UserSubscriptions = ({ user, onDeleted }: { user: AdminUser; onDeleted: ()
 				</>
 			)}
 			{confirm !== null && (
-				<Modal title={confirm === 'all' ? 'Alle Abos löschen' : 'Abo löschen'} onClose={() => setConfirm(null)}>
+				<Modal
+					title={confirm === 'all' ? t('adminUsers.deleteAllTitle') : t('adminUsers.deleteOneTitle')}
+					onClose={() => setConfirm(null)}
+				>
 					<p>
 						{confirm === 'all'
-							? `Alle Abos von ${user.displayName} beim Zahlungsdienstleister kündigen und samt Rechnungen restlos löschen? Danach steht ${user.displayName} auf Free.`
-							: `Abo #${confirm.id} (${planLabel(confirm.plan)}) von ${user.displayName} beim Zahlungsdienstleister kündigen und samt Rechnungen restlos löschen?`}{' '}
-						Zahlungen werden nicht erstattet.
+							? t('adminUsers.deleteAllText', { name: user.displayName })
+							: t('adminUsers.deleteOneText', {
+									id: confirm.id,
+									plan: planLabel(confirm.plan),
+									name: user.displayName,
+								})}
 					</p>
 					<div className="modal-actions">
 						<KolButton
-							_label="Abbrechen"
+							_label={t('common:actions.cancel')}
 							_variant="secondary"
 							_disabled={running}
 							_on={{ onClick: () => setConfirm(null) }}
 						/>
 						<KolButton
-							_label={running ? 'Lösche …' : 'Jetzt löschen'}
+							_label={running ? t('adminUsers.deleting') : t('adminUsers.deleteNow')}
 							_variant="danger"
 							_disabled={running}
 							_on={{ onClick: () => void handleDelete() }}
@@ -243,21 +237,10 @@ const UserSubscriptions = ({ user, onDeleted }: { user: AdminUser; onDeleted: ()
 };
 
 /** Meldung je Ablehnungsgrund der Konto-Löschung (#2327) — feste Texte statt Server-Meldung, mit nächstem Schritt. */
-const DELETE_REFUSALS: Record<string, string> = {
-	subscription_active:
-		'Das Konto hat ein laufendes Abo. Erst „Alle Abos dieses Nutzers löschen“ ausführen, dann erneut versuchen.',
-	last_group_admin:
-		'Das Konto ist letzter Admin einer Gruppe mit weiteren Mitgliedern. Erst einen anderen Admin bestimmen.',
-	paypal_unavailable: 'PayPal ist gerade nicht erreichbar. Später erneut versuchen.',
-};
-const DELETE_FALLBACK = 'Das Konto konnte nicht gelöscht werden. Bitte erneut versuchen.';
+const DELETE_REFUSALS = new Set(['subscription_active', 'last_group_admin', 'paypal_unavailable']);
 
 /** Optionen der Rollen-Radiogruppe je Zeile — stabile Objektidentität wie in `AppearanceSetting.tsx`. */
-const ROLE_OPTIONS: { label: string; value: AdminUser['role'] }[] = [
-	{ label: 'Admin', value: 'admin' },
-	{ label: 'Mitglied', value: 'member' },
-	{ label: 'Tester', value: 'tester' },
-];
+const ROLE_VALUES: AdminUser['role'][] = ['admin', 'member', 'tester'];
 
 /**
  * Nutzerverwaltung für Admins (Rollensystem admin/member/tester): listet alle Nutzer der App und
@@ -271,6 +254,16 @@ const ROLE_OPTIONS: { label: string; value: AdminUser['role'] }[] = [
  * universell (manuelle Vergabe bis T7, #1456 AK6), das UI hier ist rein lesend.
  */
 export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number }) => {
+	const { t } = useTranslation(['admin', 'common']);
+	// Stabile Objektidentität je Sprache (Radiogruppen, Muster `AppearanceSetting.tsx`).
+	const roleOptions = useMemo(
+		() => ROLE_VALUES.map((value) => ({ label: t(`adminUsers.roles.${value}`), value })),
+		[t],
+	);
+	const filterOptions = useMemo(
+		() => FILTER_VALUES.map((value) => ({ label: t(`adminUsers.filter.${value}`), value })),
+		[t],
+	);
 	const [users, setUsers] = useState<AdminUser[] | null>(null);
 	const [allowedEmails, setAllowedEmails] = useState<AllowedEmail[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -324,6 +317,7 @@ export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number })
 
 	// #2327: Konto-Löschung je Nutzerzeile — zwei Ja/Nein-Schritte (Muster #1729), `null` = kein Dialog.
 	const [deleteTarget, setDeleteTarget] = useState<{ user: AdminUser; step: 'intent' | 'scope' } | null>(null);
+	// Ablehnungsgrund als Schlüssel unter `adminUsers.deleteRefusals`.
 	const [deleteError, setDeleteError] = useState<string | null>(null);
 	const [deleting, setDeleting] = useState(false);
 	// Ref-Guard: reale Klicks feuern `_on.onClick` UND Host-`onClick` (Doppel-Submit trotz `_disabled`).
@@ -405,7 +399,7 @@ export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number })
 			await load();
 		} catch (reason) {
 			const code = reason instanceof ResponseError ? (reason.body as { code?: unknown } | undefined)?.code : undefined;
-			setDeleteError((typeof code === 'string' && DELETE_REFUSALS[code]) || DELETE_FALLBACK);
+			setDeleteError(typeof code === 'string' && DELETE_REFUSALS.has(code) ? code : 'fallback');
 		} finally {
 			deletingRef.current = false;
 			setDeleting(false);
@@ -415,12 +409,12 @@ export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number })
 	return (
 		<div className="admin-users">
 			{error !== null && (
-				<KolAlert _type="error" _label="Aktion nicht möglich">
+				<KolAlert _type="error" _label={t('adminUsers.actionFailed')}>
 					{error}
 				</KolAlert>
 			)}
 			{users === null ? (
-				<KolSpin _show _variant="cycle" _label="Nutzer werden geladen …" />
+				<KolSpin _show _variant="cycle" _label={t('adminUsers.usersLoading')} />
 			) : (
 				<>
 					{/* Keine eigene Überschrift mehr: Tab-Reiter („Nutzerverwaltung") und Karten-Label
@@ -432,16 +426,18 @@ export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number })
 								<span className="admin-user-name">{user.displayName}</span>
 								<span className="admin-user-email">{user.email}</span>
 								{/* #1783 AK7: Verbrauch des laufenden Monats — Zusatzzeile, keine eigene Spalte (375px). */}
-								<span className="admin-user-ai">{`KI-Anfragen diesen Monat: ${user.aiRequestsThisMonth ?? 0}`}</span>
+								<span className="admin-user-ai">
+									{t('adminUsers.aiRequests', { count: user.aiRequestsThisMonth ?? 0 })}
+								</span>
 								<KolBadge _label={roleLabel(user.role)} />
 								{/* #1556 AK1: Paket immer als Text-Badge (nie nur Farbe), in jeder Zeile. */}
 								<KolBadge _label={planLabel(user.plan)} />
 								{/* #1959 AK1: Sperr-Status dauerhaft in der Zeile sichtbar (Text-Badge). */}
-								{user.subscriptionStatus === 'locked' && <KolBadge _label="Gesperrt" />}
+								{user.subscriptionStatus === 'locked' && <KolBadge _label={t('adminUsers.locked')} />}
 								<KolInputRadio
-									_label={`Rolle von ${user.displayName}`}
+									_label={t('adminUsers.roleOf', { name: user.displayName })}
 									_orientation="horizontal"
-									_options={ROLE_OPTIONS}
+									_options={roleOptions}
 									_value={user.role}
 									_on={{
 										onChange: (_event, value) => {
@@ -459,13 +455,13 @@ export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number })
 										{user.subscriptionStatus !== null && (
 											<>
 												<KolButton
-													_label="Abo sperren"
+													_label={t('adminUsers.lockSubscription')}
 													_variant="secondary"
 													_disabled={subRunning}
 													_on={{ onClick: () => setSubConfirm({ user, kind: 'lock' }) }}
 												/>
 												<KolButton
-													_label="Abo stornieren"
+													_label={t('adminUsers.cancelSubscription')}
 													_variant="secondary"
 													_disabled={subRunning}
 													_on={{ onClick: () => setSubConfirm({ user, kind: 'cancel' }) }}
@@ -476,7 +472,7 @@ export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number })
 										    Bestätigung zweistufig im Dialog unten. */}
 										{user.id !== currentUserId && (
 											<KolButton
-												_label="Konto löschen"
+												_label={t('adminUsers.deleteAccount')}
 												_variant="secondary"
 												_on={{ onClick: () => setDeleteTarget({ user, step: 'intent' }) }}
 											/>
@@ -503,12 +499,12 @@ export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number })
 					    Herkunft als Text-Badge (KI-UX), Abschnitt nur bei Einträgen sichtbar. */}
 					{allowedEmails !== null && allowedEmails.length > 0 && (
 						<>
-							<h4 className="admin-allowed-heading">Freigeschaltete Adressen</h4>
+							<h4 className="admin-allowed-heading">{t('adminUsers.allowedHeading')}</h4>
 							<ul className="admin-allowed-list">
 								{allowedEmails.map((entry) => (
 									<li key={entry.email} className="admin-allowed-email">
 										<span className="admin-user-email">{entry.email}</span>
-										<KolBadge _label={ORIGIN_LABELS[entry.origin]} />
+										<KolBadge _label={originLabel(entry.origin)} />
 									</li>
 								))}
 							</ul>
@@ -522,7 +518,7 @@ export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number })
 				)}
 				<div className="modal-actions">
 					<KolButton
-						_label="Säulenverteilung aller Aufgaben neu berechnen"
+						_label={t('adminUsers.reassign')}
 						_variant="secondary"
 						_disabled={running}
 						_on={{
@@ -534,7 +530,7 @@ export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number })
 					/>
 					{canResume && status !== null && (
 						<KolButton
-							_label={`Fortsetzen (${status.pending} offen)`}
+							_label={t('adminUsers.resume', { count: status.pending })}
 							_variant="primary"
 							_disabled={running}
 							_on={{
@@ -549,15 +545,13 @@ export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number })
 				</div>
 				{running && <ReassignProgressView run={run} />}
 				{run.phase === 'completed' && run.error !== null && (
-					<KolAlert _type="error" _label="Neuberechnung fehlgeschlagen">
+					<KolAlert _type="error" _label={t('adminUsers.reassignFailed')}>
 						{run.error}
 					</KolAlert>
 				)}
 				{run.phase === 'completed' && run.error === null && (
-					<KolAlert _type={run.failed === 0 ? 'info' : 'warning'} _label="Neuberechnung abgeschlossen">
-						<p>
-							{run.updated} Aufgaben neu zugeordnet, {run.skipped} unverändert gelassen, {run.failed} fehlgeschlagen.
-						</p>
+					<KolAlert _type={run.failed === 0 ? 'info' : 'warning'} _label={t('adminUsers.reassignCompleted')}>
+						<p>{t('adminUsers.reassignSummary', { updated: run.updated, skipped: run.skipped, failed: run.failed })}</p>
 						{run.failed > 0 && <ReassignFailureList reasons={run.failureReasons} />}
 					</KolAlert>
 				)}
@@ -568,25 +562,22 @@ export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number })
 			    Document-Einhängen laufen kann (InvalidStateError). */}
 			{confirmStep !== 'closed' && (
 				<Modal
-					title={confirmStep === 'intent' ? 'Säulenverteilung neu berechnen' : 'KI-Kosten bestätigen'}
+					title={confirmStep === 'intent' ? t('adminUsers.reassignTitle') : t('adminUsers.costsTitle')}
 					onClose={() => setConfirmStep('closed')}
 				>
 					{confirmStep === 'intent' ? (
 						<>
-							<p>
-								Sollen die Säulen-Beiträge der Aufgaben ALLER Konten anhand von Titel und Beschreibung neu berechnet
-								werden? Status, Punkte und Streak bleiben unverändert.
-							</p>
+							<p>{t('adminUsers.reassignIntent')}</p>
 							<div className="form-grid">
 								<KolInputRadio
-									_label="Filter"
-									_options={FILTER_OPTIONS}
+									_label={t('adminUsers.filter.label')}
+									_options={filterOptions}
 									_value={filter}
 									_on={{
 										onChange: (_event, value) => {
-											const next = FILTER_OPTIONS.find((option) => option.value === value);
+											const next = FILTER_VALUES.find((option) => option === value);
 											if (next !== undefined) {
-												setFilter(next.value);
+												setFilter(next);
 											}
 										},
 									}}
@@ -594,13 +585,13 @@ export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number })
 							</div>
 							<div className="modal-actions">
 								<KolButton
-									_label="Abbrechen"
+									_label={t('common:actions.cancel')}
 									_variant="secondary"
 									_disabled={running}
 									_on={{ onClick: () => setConfirmStep('closed') }}
 								/>
 								<KolButton
-									_label="Weiter"
+									_label={t('adminUsers.next')}
 									_variant="primary"
 									_disabled={running}
 									_on={{ onClick: () => setConfirmStep('costs') }}
@@ -609,19 +600,22 @@ export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number })
 						</>
 					) : (
 						<>
-							<p>
-								Jede Aufgabe wird einzeln per KI klassifiziert — das verbraucht Kontingent und kann bei vielen Aufgaben
-								dauern. Aufgaben ohne brauchbaren Vorschlag behalten ihre bisherige Zuordnung.
-							</p>
+							<p>{t('adminUsers.costsText')}</p>
 							<div className="modal-actions">
 								<KolButton
-									_label="Abbrechen"
+									_label={t('common:actions.cancel')}
 									_variant="secondary"
 									_disabled={running}
 									_on={{ onClick: () => setConfirmStep('closed') }}
 								/>
 								<KolButton
-									_label={running ? 'Berechne …' : mode === 'resume' ? 'Jetzt fortsetzen' : 'Jetzt neu berechnen'}
+									_label={
+										running
+											? t('adminUsers.calculating')
+											: mode === 'resume'
+												? t('adminUsers.resumeNow')
+												: t('adminUsers.reassignNow')
+									}
 									_variant="primary"
 									_disabled={running}
 									_on={{ onClick: startReassign }}
@@ -639,17 +633,20 @@ export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number })
 				    Button zurück (Modal, verbindliches Pattern). */}
 			{subConfirm !== null && (
 				<Modal
-					title={subConfirm.kind === 'lock' ? 'Abo sperren' : 'Abo stornieren'}
+					title={subConfirm.kind === 'lock' ? t('adminUsers.lockSubscription') : t('adminUsers.cancelSubscription')}
 					onClose={() => setSubConfirm(null)}
 				>
 					<p>
 						{subConfirm.kind === 'lock'
-							? `Den Zugriff von ${subConfirm.user.displayName} auf das bezahlte Paket (${planLabel(subConfirm.user.plan)}) sofort sperren? Die Sperre wirkt sofort.`
-							: `Das Abo von ${subConfirm.user.displayName} (${planLabel(subConfirm.user.plan)}) beim Zahlungsdienstleister kündigen? Das Paket läuft bis zum Ende des bezahlten Zeitraums weiter.`}
+							? t('adminUsers.lockText', { name: subConfirm.user.displayName, plan: planLabel(subConfirm.user.plan) })
+							: t('adminUsers.cancelText', {
+									name: subConfirm.user.displayName,
+									plan: planLabel(subConfirm.user.plan),
+								})}
 					</p>
 					<div className="modal-actions">
 						<KolButton
-							_label="Abbrechen"
+							_label={t('common:actions.cancel')}
 							_variant="secondary"
 							_disabled={subRunning}
 							_on={{ onClick: () => setSubConfirm(null) }}
@@ -658,11 +655,11 @@ export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number })
 							_label={
 								subRunning
 									? subConfirm.kind === 'lock'
-										? 'Sperre …'
-										: 'Storniere …'
+										? t('adminUsers.locking')
+										: t('adminUsers.cancelling')
 									: subConfirm.kind === 'lock'
-										? 'Jetzt sperren'
-										: 'Jetzt stornieren'
+										? t('adminUsers.lockNow')
+										: t('adminUsers.cancelNow')
 							}
 							_variant="primary"
 							_disabled={subRunning}
@@ -673,22 +670,26 @@ export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number })
 			)}
 			{/* #2327: EINE persistente Modal-Instanz über beide Schritte (Muster #1729). */}
 			{deleteTarget !== null && (
-				<Modal title="Konto löschen" onClose={closeDelete}>
+				<Modal title={t('adminUsers.deleteAccount')} onClose={closeDelete}>
 					{deleteError !== null && (
-						<KolAlert _type="error" _label="Löschen nicht möglich">
-							{deleteError}
+						<KolAlert _type="error" _label={t('adminUsers.deleteFailed')}>
+							{t(`adminUsers.deleteRefusals.${deleteError}`)}
 						</KolAlert>
 					)}
 					{deleteTarget.step === 'intent' ? (
 						<>
 							<p className="admin-delete-text">
-								Konto von <strong>{deleteTarget.user.displayName}</strong> (<strong>{deleteTarget.user.email}</strong>)
-								wirklich löschen?
+								<Trans
+									t={t}
+									i18nKey="adminUsers.deleteIntent"
+									values={{ name: deleteTarget.user.displayName, email: deleteTarget.user.email }}
+									components={{ strong: <strong /> }}
+								/>
 							</p>
 							<div className="modal-actions">
-								<KolButton _label="Abbrechen" _variant="secondary" _on={{ onClick: closeDelete }} />
+								<KolButton _label={t('common:actions.cancel')} _variant="secondary" _on={{ onClick: closeDelete }} />
 								<KolButton
-									_label="Weiter"
+									_label={t('adminUsers.next')}
 									_variant="primary"
 									_on={{ onClick: () => setDeleteTarget({ user: deleteTarget.user, step: 'scope' }) }}
 								/>
@@ -696,19 +697,16 @@ export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number })
 						</>
 					) : (
 						<>
-							<p>
-								Persönliche Daten und Feedback werden entfernt. Rechnungen und Abo-Datensätze bleiben wegen der
-								Aufbewahrungspflicht. Das lässt sich nicht rückgängig machen.
-							</p>
+							<p>{t('adminUsers.deleteScope')}</p>
 							<div className="modal-actions">
 								<KolButton
-									_label="Abbrechen"
+									_label={t('common:actions.cancel')}
 									_variant="secondary"
 									_disabled={deleting}
 									_on={{ onClick: closeDelete }}
 								/>
 								<KolButton
-									_label={deleting ? 'Wird gelöscht …' : 'Konto endgültig löschen'}
+									_label={deleting ? t('adminUsers.deletingAccount') : t('adminUsers.deleteAccountFinal')}
 									_variant="danger"
 									_disabled={deleting}
 									_on={{ onClick: () => void handleDeleteUser() }}

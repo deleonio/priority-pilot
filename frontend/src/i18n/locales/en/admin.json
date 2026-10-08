@@ -1,0 +1,83 @@
+{
+	"adminUsers": {
+		"filter": {
+			"label": "Filter",
+			"all": "All tasks",
+			"open": "Open tasks only",
+			"done": "Completed tasks only"
+		},
+		"roles": {
+			"admin": "Admin",
+			"tester": "Tester",
+			"member": "Member"
+		},
+		"origins": {
+			"einladung": "Invitation",
+			"delegation": "Delegation",
+			"admin": "Admin",
+			"warteliste": "Waitlist"
+		},
+		"subscriptionStatus": {
+			"active": "Active",
+			"approval_pending": "Payment pending",
+			"past_due": "Payment overdue",
+			"suspended": "Paused",
+			"cancelled": "Cancelled",
+			"expired": "Expired",
+			"locked": "Locked"
+		},
+		"invoicesOf": "Invoices of {{name}}",
+		"subscriptionsOf": "Subscriptions of {{name}}",
+		"subscriptionsLabel": "Subscriptions",
+		"subscriptionsLoading": "Loading subscriptions …",
+		"subscriptionsEmpty": "No subscriptions.",
+		"since": "since {{date}}",
+		"deleteSubscription": "Delete subscription #{{id}}",
+		"deleteAllSubscriptions": "Delete all subscriptions of this user",
+		"deleteAllTitle": "Delete all subscriptions",
+		"deleteOneTitle": "Delete subscription",
+		"deleteAllText": "Cancel all subscriptions of {{name}} with the payment provider and delete them completely, including invoices? {{name}} will then be on Free. Payments will not be refunded.",
+		"deleteOneText": "Cancel subscription #{{id}} ({{plan}}) of {{name}} with the payment provider and delete it completely, including invoices? Payments will not be refunded.",
+		"deleting": "Deleting …",
+		"deleteNow": "Delete now",
+		"deleteRefusals": {
+			"subscription_active": "The account has an active subscription. First run “Delete all subscriptions of this user”, then try again.",
+			"last_group_admin": "The account is the last admin of a group with other members. Assign another admin first.",
+			"paypal_unavailable": "PayPal is currently unavailable. Try again later.",
+			"fallback": "The account could not be deleted. Please try again."
+		},
+		"actionFailed": "Action not possible",
+		"usersLoading": "Loading users …",
+		"aiRequests": "AI requests this month: {{count}}",
+		"locked": "Locked",
+		"roleOf": "Role of {{name}}",
+		"lockSubscription": "Lock subscription",
+		"cancelSubscription": "Cancel subscription",
+		"deleteAccount": "Delete account",
+		"allowedHeading": "Approved addresses",
+		"reassign": "Recalculate pillar distribution of all tasks",
+		"resume": "Resume ({{count}} open)",
+		"reassignFailed": "Recalculation failed",
+		"reassignCompleted": "Recalculation completed",
+		"reassignSummary": "{{updated}} tasks reassigned, {{skipped}} left unchanged, {{failed}} failed.",
+		"reassignTitle": "Recalculate pillar distribution",
+		"costsTitle": "Confirm AI costs",
+		"reassignIntent": "Recalculate the pillar contributions of the tasks of ALL accounts based on title and description? Status, points and streak remain unchanged.",
+		"next": "Next",
+		"costsText": "Each task is classified individually by AI — this uses quota and can take a while with many tasks. Tasks without a usable suggestion keep their current assignment.",
+		"calculating": "Calculating …",
+		"resumeNow": "Resume now",
+		"reassignNow": "Recalculate now",
+		"lockText": "Lock {{name}}'s access to the paid plan ({{plan}}) immediately? The lock takes effect immediately.",
+		"cancelText": "Cancel {{name}}'s subscription ({{plan}}) with the payment provider? The plan continues until the end of the paid period.",
+		"locking": "Locking …",
+		"cancelling": "Cancelling …",
+		"lockNow": "Lock now",
+		"cancelNow": "Cancel now",
+		"deleteFailed": "Deletion not possible",
+		"deleteIntent": "Really delete the account of <strong>{{name}}</strong> (<strong>{{email}}</strong>)?",
+		"deleteScope": "Personal data and feedback will be removed. Invoices and subscription records are kept due to the retention obligation. This cannot be undone.",
+		"deletingAccount": "Deleting …",
+		"deleteAccountFinal": "Delete account permanently"
+	}
+}

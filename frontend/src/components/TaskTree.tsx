@@ -2,6 +2,7 @@ import { KolBadge, KolHeading, KolPopoverButton, KolToolbar } from '@public-ui/r
 import type { Category, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { extractLeaves } from '../lib/extractLeaves';
 import { seriesBadge } from '../lib/series';
 import { CategoryBadge } from './CategoryBadge';
@@ -13,8 +14,12 @@ import { isDoneBlockedBySubtasks, priorityBadge, sortPinnedFirst } from '../lib/
 import { sortTasksByBalance, virtualPriorityLabel, type BalancePriority } from '../lib/balancePriority';
 import { setupPopoverAlignment } from '../lib/popoverAlign';
 
-/** Anzeigename der KI-Eignungs-Kategorie (#2349). */
-const AI_SUITABILITY_LABEL = { draft: 'Entwurf', summary: 'Zusammenfassung', research: 'Recherche' } as const;
+/** i18n-Schlüssel des Anzeigenamens der KI-Eignungs-Kategorie (#2349). */
+const AI_SUITABILITY_LABEL = {
+	draft: 'taskTree.aiSuitability.draft',
+	summary: 'taskTree.aiSuitability.summary',
+	research: 'taskTree.aiSuitability.research',
+} as const;
 
 /** Stabiler Default für `seriesById` (kein neues Map-Objekt je Render). */
 const NO_SERIES: ReadonlyMap<number, { autoCreate?: boolean }> = new Map();
@@ -124,6 +129,7 @@ const LeafItem = ({
 	onDoneToggle,
 	onPinToggle,
 }: LeafItemProps) => {
+	const { t } = useTranslation(['tasks', 'common']);
 	const [isUpdating, setIsUpdating] = useState(false);
 	// #361: Die vier sekundären Aktionen liegen hinter einem „…"-Popover. KolPopoverButton regelt
 	// Öffnen/Schließen, Click-outside, Escape und Fokusrückgabe über die native Popover-API selbst;
@@ -138,7 +144,11 @@ const LeafItem = ({
 	// #1345 AK6/AK7: eine Oberaufgabe mit offener Unteraufgabe darf nicht direkt auf „Erledigt"
 	// geschaltet werden (Guard `isDoneBlockedBySubtasks`, #315); Wiedereröffnen bleibt frei.
 	const doneToggleBlocked = !isDone && hasOpenSubtasks;
-	const doneToggleLabel = isDone ? 'Wieder öffnen' : doneToggleBlocked ? 'Erledigt (Unteraufgaben offen)' : 'Erledigt';
+	const doneToggleLabel = isDone
+		? t('actions.reopen')
+		: doneToggleBlocked
+			? t('taskTree.doneBlocked')
+			: t('actions.done');
 	const priority = task?.priority ?? 1;
 	// Im Balance-Modus zeigt das Badge die virtuelle Priorität (~P{n}, eigene Farbe nach Stufe)
 	// statt der Server-Prio — unterscheidbar per Tilde-Präfix, nie nur per Farbe (KI-UX).
@@ -181,7 +191,10 @@ const LeafItem = ({
 						    weiteren Hex-Wert; umbrechfähig über die bestehende Badge-Zeile). „Für: …"
 						    sieht der Ersteller, „Erstellt von: …" der Empfänger. */}
 						{task !== null && task.forUserName != null && (
-							<KolBadge _label={`Für: ${task.forUserName}`} className="task-tree-badge task-tree-badge--provenance" />
+							<KolBadge
+								_label={t('taskTree.forUser', { name: task.forUserName })}
+								className="task-tree-badge task-tree-badge--provenance"
+							/>
 						)}
 						{/* #1521 (AK7): Gruppen-Aufgabe trägt den Gruppennamen statt eines Personennamens —
 						    für jedes Mitglied sichtbar, solange sie niemand erledigt hat. */}
@@ -192,7 +205,9 @@ const LeafItem = ({
 							<span
 								data-testid="group-task-badge"
 								className="task-tree-badge task-tree-badge--provenance task-tree-badge-anchor"
-							>{`Für: ${task.groupName}`}</span>
+							>
+								{t('taskTree.forUser', { name: task.groupName })}
+							</span>
 						)}
 						{/* #2349: KI-Eignung (Heuristik, nur mit ai_assist) als nicht-interaktives Text-Badge; Light-DOM-Span
 						    wie das Gruppen-Badge (Test-Anker + messbare Box), ohne Upsell-Hinweis (ADR 0014). */}
@@ -201,12 +216,12 @@ const LeafItem = ({
 								data-testid="ai-suitability-badge"
 								className="task-tree-badge task-tree-badge--provenance task-tree-badge-anchor"
 							>
-								{AI_SUITABILITY_LABEL[task.aiSuitability]}
+								{t(AI_SUITABILITY_LABEL[task.aiSuitability])}
 							</span>
 						)}
 						{task !== null && task.forUserName == null && task.createdByName != null && task.createdById !== userId && (
 							<KolBadge
-								_label={`Erstellt von: ${task.createdByName}`}
+								_label={t('taskTree.createdBy', { name: task.createdByName })}
 								className="task-tree-badge task-tree-badge--provenance"
 							/>
 						)}
@@ -222,7 +237,7 @@ const LeafItem = ({
 						    Pin-Aktion selbst liegt im „…"-Popover (siehe Toolbar unten). */}
 						{task !== null && task.pinned && <PinnedBadge />}
 						{task !== null && task.isException && templateBadge === null && (
-							<KolBadge _label="geändert" _color="#c66a00" className="task-tree-badge" />
+							<KolBadge _label={t('taskTree.changed')} _color="#c66a00" className="task-tree-badge" />
 						)}
 						{/* #1465: Zahlt die Aufgabe auf keine Säule ein, zeigt die Zeile das Säulen-Badge —
 						    sichtbar, ohne den Eintrag zu öffnen. Es ersetzt das beschreibungs-getriebene
@@ -254,14 +269,14 @@ const LeafItem = ({
 							<KolPopoverButton
 								ref={popoverRef}
 								className="task-tree-more"
-								_label="Weitere Aktionen"
+								_label={t('taskTree.moreActions')}
 								_hideLabel
 								_icons={{ left: { icon: 'fa-solid fa-ellipsis' } }}
 								_variant="secondary"
 								_popoverAlign="left"
 							>
 								<KolToolbar
-									_label={`Aktionen für ${task.title}`}
+									_label={t('actions.actionsFor', { title: task.title })}
 									_orientation="horizontal"
 									_items={[
 										{
@@ -283,7 +298,7 @@ const LeafItem = ({
 										},
 										{
 											type: 'button',
-											_label: 'Bearbeiten',
+											_label: t('common:actions.edit'),
 											_hideLabel: true,
 											_icons: { left: { icon: 'fa-solid fa-pen' } },
 											_variant: 'secondary',
@@ -295,7 +310,7 @@ const LeafItem = ({
 										},
 										{
 											type: 'button',
-											_label: 'Abhängigkeiten',
+											_label: t('actions.dependencies'),
 											_hideLabel: true,
 											_icons: { left: { icon: 'kolicon-link' } },
 											_variant: 'secondary',
@@ -307,7 +322,7 @@ const LeafItem = ({
 										},
 										{
 											type: 'button',
-											_label: 'Unteraufgabe anlegen',
+											_label: t('actions.addSubtask'),
 											_hideLabel: true,
 											_icons: { left: { icon: 'fa-solid fa-plus' } },
 											_variant: 'secondary',
@@ -321,7 +336,7 @@ const LeafItem = ({
 											// #2361: Mit Abstand vor „Löschen" (destruktive Aktion); Popover schließt sich
 											// wie bei „Unteraufgabe anlegen", damit der Dialog den Trigger kennt.
 											type: 'button',
-											_label: 'Als Vorlage speichern',
+											_label: t('common:actions.saveAsTemplate'),
 											_hideLabel: true,
 											_icons: { left: { icon: 'fa-solid fa-clone' } },
 											_variant: 'secondary',
@@ -338,7 +353,7 @@ const LeafItem = ({
 											// `KolButton` kennt kein `aria-pressed` — den Zustand tragen das wechselnde Label
 											// (auch als Tooltip der `_hideLabel`-Variante) und das Pin-Badge in der Zeile.
 											type: 'button',
-											_label: task.pinned ? 'Abpinnen' : 'Anpinnen',
+											_label: task.pinned ? t('actions.unpin') : t('actions.pin'),
 											_hideLabel: true,
 											_icons: { left: { icon: 'fa-solid fa-thumbtack' } },
 											_variant: 'secondary',
@@ -346,7 +361,7 @@ const LeafItem = ({
 										},
 										{
 											type: 'button',
-											_label: 'Löschen',
+											_label: t('common:actions.delete'),
 											_hideLabel: true,
 											_icons: { left: { icon: 'fa-solid fa-trash' } },
 											_variant: 'danger',
@@ -414,6 +429,7 @@ export const TaskTree = ({
 	seriesById = NO_SERIES,
 	balancePriorities = null,
 }: TaskTreeProps) => {
+	const { t } = useTranslation('tasks');
 	const pillarsConfigured = pillars.length > 0;
 	const taskById = new Map(tasks.map((task) => [task.id, task]));
 	const fullForestById = indexById(fullForest);
@@ -439,7 +455,7 @@ export const TaskTree = ({
 			: combinedNodes;
 
 	if (combinedNodes.length === 0) {
-		return <p>Noch keine Tasks vorhanden. Lege oben einen neuen Task an.</p>;
+		return <p>{t('taskList.empty')}</p>;
 	}
 
 	// #1582 AK2/AK5: angepinnte Aufgaben stehen unabhängig von Wertbeitrags-/Balance-Sortierung immer

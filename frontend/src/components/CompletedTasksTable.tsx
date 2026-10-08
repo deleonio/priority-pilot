@@ -3,6 +3,7 @@ import { KolTableStateful, KolToolbar } from '@public-ui/react-v19';
 import type { Category, Pillar, Task } from 'client';
 import { TaskStatus } from 'client';
 import { memo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useDesktopViewport } from '../lib/desktopViewport';
@@ -27,8 +28,8 @@ interface CompletedTasksTableProps {
 }
 
 /** Nachkommastellen für die Punkte-Anzeige — kompakt, aber genau genug für anteilige Werte. */
-const formatPoints = (value: number): string =>
-	Number.isFinite(value) ? value.toLocaleString('de-DE', { maximumFractionDigits: 2 }) : '0';
+const formatPoints = (value: number, locale: string): string =>
+	Number.isFinite(value) ? value.toLocaleString(locale, { maximumFractionDigits: 2 }) : '0';
 
 /** Maximal-Länge gekürzter Säulen-Header (#1020 AK1): lang genug für übliche Namen, kurz genug für einzeilige Kopfzellen. */
 const HEADER_MAX_CHARS = 20;
@@ -81,6 +82,7 @@ interface DoneTaskRow extends KoliBriTableDataType {
  */
 export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
 	const { tasks, pillars, categories = [], forestTaskIds, onReloaded } = props;
+	const { t, i18n } = useTranslation('tasks');
 	const isDesktop = useDesktopViewport();
 	const [reopeningId, setReopeningId] = useState<number | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -102,14 +104,14 @@ export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
 	};
 
 	if (doneTasks.length === 0) {
-		return <p className="completed-tasks-empty">Noch keine erledigten Aufgaben vorhanden.</p>;
+		return <p className="completed-tasks-empty">{t('completedTable.empty')}</p>;
 	}
 
 	const data: DoneTaskRow[] = doneTasks.map((task) => {
 		const points = getTaskPillarPoints(task, pillars);
 		const row: DoneTaskRow = { id: task.id, title: task.title, _task: task };
 		for (const pillar of pillars) {
-			row[pillarKey(pillar.id)] = formatPoints(points.get(pillar.id) ?? 0);
+			row[pillarKey(pillar.id)] = formatPoints(points.get(pillar.id) ?? 0, i18n.language);
 		}
 		return row;
 	});
@@ -124,7 +126,7 @@ export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
 				// der Titelspalte dann den gesamten Rest der 375px-Viewportbreite.
 				{
 					key: 'title',
-					label: 'Titel',
+					label: t('completedTable.columnTitle'),
 					...(isDesktop ? { width: 360 } : {}),
 					// #1063: hinter dem Titel zeigt der Ortsbezug das Geo-Badge (nur bei `address`).
 					// Wie die Aktion-Spalte wird die Zelle über `render` in eine pro Zelle gecachte
@@ -156,7 +158,7 @@ export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
 					: []),
 				{
 					key: 'action',
-					label: 'Aktion',
+					label: t('completedTable.columnAction'),
 					width: 96,
 					// „Wieder öffnen" als KolToolbar-Icon-Button (#307). Die Web Component passt nicht
 					// deklarativ in eine KoliBri-Zelle und wird über `render` in eine pro Zelle
@@ -166,12 +168,12 @@ export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
 						renderIntoCell(
 							domNode,
 							<KolToolbar
-								_label={`Aktionen für ${task.title}`}
+								_label={t('actions.actionsFor', { title: task.title })}
 								_orientation="horizontal"
 								_items={[
 									{
 										type: 'button',
-										_label: 'Wieder öffnen',
+										_label: t('actions.reopen'),
 										_hideLabel: true,
 										_icons: { left: { icon: 'fa-solid fa-repeat' } },
 										_variant: 'secondary',
@@ -195,7 +197,7 @@ export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
 				</p>
 			)}
 			<KolTableStateful
-				_label="Liste der erledigten Aufgaben"
+				_label={t('completedTable.label')}
 				_data={data}
 				_headers={headers}
 				_fixedCols={isDesktop ? [1, 1] : undefined}

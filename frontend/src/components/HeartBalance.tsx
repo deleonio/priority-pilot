@@ -1,5 +1,6 @@
 import type { Pillar } from 'client';
 import { useMemo, type CSSProperties } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BalanceFigure } from './BalanceFigure';
 import { HeartVessel } from './HeartVessel';
 import { buildHeartBalance, heartHealth } from '../lib/heartBalance';
@@ -52,6 +53,7 @@ export const HeartBalance = ({ pillars, punkteProSaeule, fill }: HeartBalancePro
 		const lokal = buildHeartBalance(pillars, punkteProSaeule);
 		return fill === undefined ? lokal : { ...lokal, fill };
 	}, [pillars, punkteProSaeule, fill]);
+	const { t } = useTranslation('dashboard');
 	const health = heartHealth(balance);
 	const { variant } = useBalanceVariant();
 
@@ -67,7 +69,7 @@ export const HeartBalance = ({ pillars, punkteProSaeule, fill }: HeartBalancePro
 	const animated = animationsEnabled && heartAnimationEnabled && !prefersReducedMotion;
 
 	const fillPercent = asPercent(balance.fill);
-	const ariaLabel = `Balance ${fillPercent} Prozent — ${health.label}`;
+	const ariaLabel = t('heartBalance.ariaLabel', { percent: fillPercent, state: health.label });
 
 	/*
 	 * Ruhepuls: Je ausgewogener das Bild, desto langsamer schlägt es (1,5 s leer bis 2,6 s voll).
@@ -128,7 +130,10 @@ export const HeartBalance = ({ pillars, punkteProSaeule, fill }: HeartBalancePro
 							<span className={rampClass('heart-legend-dot', segment.colorIndex)} aria-hidden="true" />
 							<span className="heart-balance-legend-name">{segment.pillar.name}</span>
 							<span className="heart-balance-legend-value">
-								{asPercent(segment.actualShare)} % · Ziel {asPercent(segment.targetShare)} %
+								{t('heartBalance.legendValue', {
+									actual: asPercent(segment.actualShare),
+									target: asPercent(segment.targetShare),
+								})}
 							</span>
 							{delta !== 0 && (
 								<span
@@ -137,7 +142,7 @@ export const HeartBalance = ({ pillars, punkteProSaeule, fill }: HeartBalancePro
 									data-testid="heart-balance-legend-delta"
 								>
 									{delta > 0 ? '+' : '−'}
-									{Math.abs(delta)} pp<span className="visually-hidden"> Abweichung vom Ziel</span>
+									{Math.abs(delta)} pp<span className="visually-hidden"> {t('heartBalance.deltaHint')}</span>
 								</span>
 							)}
 						</li>

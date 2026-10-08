@@ -81,6 +81,7 @@ import { isDbEmailAllowed, isEmailAllowed, getConfiguredEmails } from '../logics
 import { requireAuth, getUserId, hasGoogleOAuth } from './requireAuth.js';
 import { apiTokenAuth, isApiTokenRequest, apiTokenScopeGuard } from './apiTokenAuth.js';
 import { nativeCors } from './nativeCors.js';
+import { translateMessages } from './messagesEn.js';
 import { createCsrfUtilities } from './csrf.js';
 import { upsertOAuthUser } from '../logics/oauthUser.js';
 import { sendError } from './http-error.js';
@@ -128,6 +129,8 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// CORS für die Android-App (#2377): ganz vorn, damit Preflights vor Session, CSRF und Auth enden.
 	app.use(nativeCors);
+	// Nutzersichtbare `{ message }`-Texte bei `Accept-Language: en` englisch (messagesEn.ts).
+	app.use(translateMessages);
 
 	// Zahlungsanbieter-Schnittstelle (#1495): bewusst VOR `express.json()`, der CSRF-Prüfung und
 	// `requireAuth` gemountet — die Webhook-Route braucht den unveränderten Rohbody für die

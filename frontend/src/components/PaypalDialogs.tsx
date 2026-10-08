@@ -1,9 +1,11 @@
 import { KolAlert, KolButton, KolSpin } from '@public-ui/react-v19';
 import { useEffect, useRef, useState, type RefObject } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../api';
+import i18next from '../i18n/config';
 import { toApiError } from '../lib/apiError';
 import { formatEuro } from '../lib/format';
-import { PERIOD_LABELS, planLabel, type Period, type Plan } from '../lib/planOffers';
+import { periodLabel, planLabel, type Period, type Plan } from '../lib/planOffers';
 import { useBillingReturnPoll } from '../lib/usePlan';
 import { Modal } from './Modal';
 
@@ -22,27 +24,26 @@ export const BillingReturnWait = ({
 	currentPlan: Plan | null;
 }) => {
 	const { status } = useBillingReturnPoll(refresh, expectedPlan, currentPlan);
+	const { t } = useTranslation('billing');
 	if (status === 'confirmed') {
 		return null;
 	}
 	if (status === 'timeout') {
 		return (
-			<KolAlert _type="warning" _alert _label="Zahlung wird bestätigt">
-				Die Bestätigung dauert länger als erwartet. Bitte die Einstellungen in Kürze erneut öffnen.
+			<KolAlert _type="warning" _alert _label={t('returnWait.label')}>
+				{t('returnWait.timeout')}
 			</KolAlert>
 		);
 	}
 	return (
-		<KolAlert _type="info" _alert _label="Zahlung wird bestätigt">
-			Zahlung wird bestätigt …
+		<KolAlert _type="info" _alert _label={t('returnWait.label')}>
+			{t('returnWait.pending')}
 		</KolAlert>
 	);
 };
 
-const PERIOD_UNITS: Record<Period, string> = { monthly: 'Monat', quarterly: 'Quartal', yearly: 'Jahr' };
-
 /** Zeitpunkte der Vorschau als „TT.MM.JJJJ" (Muster `SubscriptionSection.tsx`). */
-const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de-DE');
+const formatDate = (iso: string): string => new Date(iso).toLocaleDateString(i18next.language);
 
 interface ChangeDialogProps {
 	targetPlan: Exclude<Plan, 'free'>;
@@ -67,6 +68,7 @@ export const ChangeDialog = ({ targetPlan, targetPeriod, onClose, onChanged }: C
 	} | null>(null);
 	const [previewFailed, setPreviewFailed] = useState(false);
 	const cancelRef = useRef<HTMLKolButtonElement>(null);
+	const { t } = useTranslation(['billing', 'common']);
 
 	useEffect(() => {
 		// Ignore-Flag: bei wechselndem Ziel darf keine veraltete Antwort den Betrag überschreiben.
@@ -99,48 +101,59 @@ export const ChangeDialog = ({ targetPlan, targetPeriod, onClose, onChanged }: C
 	};
 
 	return (
-		<Modal title="Paket wechseln" onClose={onClose} initialFocusRef={cancelRef as RefObject<HTMLElement | null>}>
+		<Modal
+			title={t('changeDialog.title')}
+			onClose={onClose}
+			initialFocusRef={cancelRef as RefObject<HTMLElement | null>}
+		>
 			{error !== null && (
-				<KolAlert _type="error" _label="Wechsel fehlgeschlagen">
+				<KolAlert _type="error" _label={t('changeDialog.errorLabel')}>
 					{error}
 				</KolAlert>
 			)}
 			{previewFailed && (
-				<KolAlert _type="error" _label="Vorschau nicht verfügbar">
-					Der fällige Betrag konnte nicht berechnet werden. Bitte den Dialog schließen und erneut öffnen.
+				<KolAlert _type="error" _label={t('changeDialog.previewFailedLabel')}>
+					{t('changeDialog.previewFailedText')}
 				</KolAlert>
 			)}
 			<p>
-				Wechsel zu <strong>{planLabel(targetPlan)}</strong> ({PERIOD_LABELS[targetPeriod]}).
+				<Trans
+					t={t}
+					i18nKey="changeDialog.target"
+					values={{ plan: planLabel(targetPlan), period: periodLabel(targetPeriod) }}
+					components={{ strong: <strong /> }}
+				/>
 			</p>
-			{preview === null && !previewFailed && <KolSpin _label="Betrag wird berechnet …" />}
+			{preview === null && !previewFailed && <KolSpin _label={t('changeDialog.calculating')} />}
 			<div aria-live="polite">
 				{preview !== null && (
 					<dl className="change-preview">
 						{preview.currentPlan != null && preview.startsAt != null ? (
 							<>
 								<div>
-									<dt>Aktuelles Paket bis</dt>
+									<dt>{t('changeDialog.currentUntil')}</dt>
 									<dd>{formatDate(preview.startsAt)}</dd>
 								</div>
 								<div>
 									<dt>
-										Ab {formatDate(preview.startsAt)}: {planLabel(targetPlan)} für {formatEuro(preview.priceCents)} je{' '}
-										{PERIOD_UNITS[targetPeriod]}
+										{t('changeDialog.startsAt', {
+											date: formatDate(preview.startsAt),
+											plan: planLabel(targetPlan),
+											price: formatEuro(preview.priceCents),
+											unit: t(`periodUnits.${targetPeriod}`),
+										})}
 									</dt>
 								</div>
 							</>
 						) : preview.immediate ? (
 							<>
 								<div>
-									<dt>
-										Preis {planLabel(targetPlan)} ({PERIOD_LABELS[targetPeriod]})
-									</dt>
+									<dt>{t('changeDialog.price', { plan: planLabel(targetPlan), period: periodLabel(targetPeriod) })}</dt>
 									<dd>{formatEuro(preview.priceCents)}</dd>
 								</div>
 								{preview.creditCents > 0 && (
 									<div>
-										<dt>Guthaben aus dem laufenden Abo</dt>
+										<dt>{t('changeDialog.credit')}</dt>
 										<dd>−{formatEuro(preview.creditCents)}</dd>
 									</div>
 								)}
@@ -150,10 +163,10 @@ export const ChangeDialog = ({ targetPlan, targetPeriod, onClose, onChanged }: C
 							<dt>
 								{/* #2241: bei einem Guthaben über dem Preis zieht PayPal den Rest als Gebühr bei der Zustimmung ein. */}
 								{preview.currentPlan != null
-									? 'Jetzt fällig'
+									? t('changeDialog.dueNow')
 									: preview.creditCoversUntil != null && preview.dueCents > 0
-										? 'Fällig bei Zustimmung'
-										: 'Fällig beim ersten Zyklus'}
+										? t('changeDialog.dueOnApproval')
+										: t('changeDialog.dueFirstCycle')}
 							</dt>
 							<dd>
 								<strong>{formatEuro(preview.dueCents)}</strong>
@@ -161,14 +174,14 @@ export const ChangeDialog = ({ targetPlan, targetPeriod, onClose, onChanged }: C
 						</div>
 						{preview.creditCoversUntil != null && (
 							<div>
-								<dt>Guthaben reicht bis</dt>
+								<dt>{t('changeDialog.creditCoversUntil')}</dt>
 								<dd>{formatDate(preview.creditCoversUntil)}</dd>
 							</div>
 						)}
 						{preview.currentPlan == null && preview.startsAt != null && (
 							<div>
-								<dt>Wirksam ab</dt>
-								<dd>{preview.immediate ? 'sofort' : formatDate(preview.startsAt)}</dd>
+								<dt>{t('changeDialog.effectiveFrom')}</dt>
+								<dd>{preview.immediate ? t('changeDialog.immediately') : formatDate(preview.startsAt)}</dd>
 							</div>
 						)}
 					</dl>
@@ -177,13 +190,13 @@ export const ChangeDialog = ({ targetPlan, targetPeriod, onClose, onChanged }: C
 			<div className="modal-actions">
 				<KolButton
 					ref={cancelRef}
-					_label="Abbrechen"
+					_label={t('common:actions.cancel')}
 					_variant="secondary"
 					_disabled={busy}
 					_on={{ onClick: () => onClose() }}
 				/>
 				<KolButton
-					_label={busy ? 'Wird gewechselt…' : 'Wechseln bestätigen'}
+					_label={busy ? t('changeDialog.busy') : t('changeDialog.confirm')}
 					_variant="primary"
 					_disabled={busy || preview === null}
 					_on={{ onClick: () => void confirm() }}

@@ -1,5 +1,6 @@
 import { KolAlert } from '@public-ui/react-v19';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Subscription } from '../lib/auth';
 import type { Period, Plan } from '../lib/planOffers';
 import type { Channel } from '../lib/platform';
@@ -21,13 +22,16 @@ export interface PurchaseUi {
 }
 
 /** App Store bis zum Kauf über StoreKit: Pakete ohne Kauf, kein Verweis auf den Web-Kauf (ADR 0016). */
-const useNoInAppPurchase = (): PurchaseUi => ({
-	notice: (
-		<KolAlert _type="info" _label="Kauf in der App folgt" data-testid="store-purchase-notice">
-			Die Pakete lassen sich bald direkt in der App buchen.
-		</KolAlert>
-	),
-});
+const useNoInAppPurchase = (): PurchaseUi => {
+	const { t } = useTranslation('billing');
+	return {
+		notice: (
+			<KolAlert _type="info" _label={t('storeNotice.label')} data-testid="store-purchase-notice">
+				{t('storeNotice.text')}
+			</KolAlert>
+		),
+	};
+};
 
 type Provider = Subscription['provider'];
 

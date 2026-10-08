@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { PLAN_VALUES, getPlansCatalog } from '../../server/src/logics/plans.ts';
 import { SEED_PILLARS } from '../../server/src/models/pillarData.ts';
+import { ASSESSMENT } from './assessment.ts';
 import de from './i18n/de.json';
 import * as renderModule from './render.ts';
 import { renderLanding } from './render.ts';
@@ -91,7 +92,14 @@ describe('renderAssessment (#1979 AK2, AK5, AK6)', () => {
 		expect(html).toContain('href="/balance-check/"');
 	});
 
-	it('baut die Seite vor, trägt sie in die Sitemap ein und erzeugt keine Sprachvariante', { timeout: 120_000 }, () => {
+	it('englische Fassung deckt jede Säule, Frage und Skalenstufe ab', () => {
+		const en = ASSESSMENT.en;
+		for (const pillar of SEED_PILLARS) expect(en.pillars?.[pillar.key], pillar.key).toBeTruthy();
+		expect(en.questions).toHaveLength(SEED_PILLARS.length);
+		expect(en.scale).toHaveLength(ASSESSMENT.de.scale.length);
+	});
+
+	it('baut die Seite deutsch und englisch vor und trägt beide in die Sitemap ein', { timeout: 120_000 }, () => {
 		const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 		execFileSync('pnpm', ['build'], {
 			cwd: websiteRoot,
@@ -100,7 +108,8 @@ describe('renderAssessment (#1979 AK2, AK5, AK6)', () => {
 		});
 		const sitemap = readFileSync(join(websiteRoot, 'dist', 'sitemap.xml'), 'utf8');
 		expect(existsSync(join(websiteRoot, 'dist', 'balance-check', 'index.html'))).toBe(true);
+		expect(existsSync(join(websiteRoot, 'dist', 'en', 'balance-check', 'index.html'))).toBe(true);
 		expect(sitemap).toContain('<loc>https://example.org/balance-check/</loc>');
-		expect(sitemap).not.toMatch(/\/[a-z]{2}\/balance-check\//);
+		expect(sitemap).toContain('<loc>https://example.org/en/balance-check/</loc>');
 	});
 });

@@ -1,6 +1,7 @@
 import { NotificationLog, User } from '../models/index.js';
 import { sendPushToUser, type PushSender } from './push.js';
 import { istGueltigeZeitzone, tagIn } from './streak.js';
+import { spracheVon, type CareSprache } from './careSuggestionData.js';
 
 /**
  * Fachlicher Push-Trigger „Monatsrückblick" (#1995): höchstens **ein** Push je Nutzer und
@@ -12,6 +13,17 @@ import { istGueltigeZeitzone, tagIn } from './streak.js';
  */
 
 const KIND = 'monthly-recap';
+
+const TEXTE: Record<CareSprache, { title: string; body: string }> = {
+	de: {
+		title: 'Dein Monatsrückblick ist da',
+		body: 'Ein Blick zurück: So hat sich deine Balance im letzten Monat entwickelt.',
+	},
+	en: {
+		title: 'Your monthly recap is here',
+		body: 'A look back: this is how your balance developed last month.',
+	},
+};
 
 /** Vormonat eines Kalendertags `YYYY-MM-DD` als `JJJJ-MM` (Jahreswechsel-sicher). */
 const vormonatVonTag = (tag: string): string => {
@@ -35,15 +47,7 @@ export const runMonthlyRecapPush = async (
 		if (await NotificationLog.findOne({ where: { kind: KIND, dedupeKey } })) {
 			continue;
 		}
-		const { sent } = await sendPushToUser(
-			user.id,
-			{
-				title: 'Dein Monatsrückblick ist da',
-				body: 'Ein Blick zurück: So hat sich deine Balance im letzten Monat entwickelt.',
-				url: '/',
-			},
-			send,
-		);
+		const { sent } = await sendPushToUser(user.id, { ...TEXTE[spracheVon(user.sprache)], url: '/' }, send);
 		if (sent > 0) {
 			await NotificationLog.create({ userId: user.id, kind: KIND, dedupeKey, sentAt: now });
 			usersNotified++;

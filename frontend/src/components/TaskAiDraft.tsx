@@ -1,14 +1,15 @@
 import { KolAlert, KolButton, KolHeading, KolSpin } from '@public-ui/react-v19';
 import type { Task } from 'client';
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readAiPreferences } from '../lib/aiPreferences';
 
-const ACTION_LABELS = {
-	draft: 'Entwurf erstellen',
-	summary: 'Zusammenfassung erstellen',
-	research: 'Recherche starten',
+const ACTION_LABEL_KEYS = {
+	draft: 'aiDraft.actionDraft',
+	summary: 'aiDraft.actionSummary',
+	research: 'aiDraft.actionResearch',
 } as const;
 
 interface TaskAiDraftProps {
@@ -25,6 +26,7 @@ interface TaskAiDraftProps {
  * bleibt auch ohne Aktion sichtbar und löschbar.
  */
 export const TaskAiDraft = ({ task, onChanged }: TaskAiDraftProps) => {
+	const { t } = useTranslation('taskForm');
 	const [draft, setDraft] = useState<string | null>(task.aiDraft ?? null);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -71,27 +73,27 @@ export const TaskAiDraft = ({ task, onChanged }: TaskAiDraftProps) => {
 					<KolButton
 						ref={actionRef}
 						data-testid="ai-draft-action"
-						_label={draft === null ? ACTION_LABELS[suitability] : 'Neu erstellen'}
+						_label={draft === null ? t(ACTION_LABEL_KEYS[suitability]) : t('aiDraft.regenerate')}
 						_variant="secondary"
 						_disabled={busy}
 						_on={{ onClick: () => void create() }}
 					/>
-					{draft === null && !busy && <p className="hint">Das LLM erstellt erst nach Klick einen Entwurf.</p>}
+					{draft === null && !busy && <p className="hint">{t('aiDraft.hint')}</p>}
 				</>
 			)}
-			{busy && <KolSpin _show _variant="cycle" _label="Entwurf wird erstellt" />}
+			{busy && <KolSpin _show _variant="cycle" _label={t('aiDraft.busy')} />}
 			{error !== null && (
-				<KolAlert _type="error" _alert _label="Entwurf fehlgeschlagen">
+				<KolAlert _type="error" _alert _label={t('aiDraft.failed')}>
 					{error}
 				</KolAlert>
 			)}
 			{draft !== null && (
 				<div className="ai-draft__section" data-testid="ai-draft-section">
-					<KolHeading _label="KI-Entwurf" _level={4} />
+					<KolHeading _label={t('aiDraft.heading')} _level={4} />
 					<p className="ai-draft__text">{draft}</p>
 					<KolButton
 						data-testid="ai-draft-delete"
-						_label="Entwurf löschen"
+						_label={t('aiDraft.delete')}
 						_variant="secondary"
 						_icons={{ left: { icon: 'fa-solid fa-trash' } }}
 						_disabled={busy}

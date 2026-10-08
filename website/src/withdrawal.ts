@@ -1,6 +1,6 @@
 /**
- * Text der Widerrufsbelehrung und des Muster-Widerrufsformulars (#2307): nur Deutsch, feste URL
- * `/widerruf/`, Muster `terms.ts`. Grundlage sind die Muster der Anlagen 1 und 2 zu Art. 246a § 1
+ * Text der Widerrufsbelehrung und des Muster-Widerrufsformulars (#2307): Deutsch unter der festen URL
+ * `/widerruf/` (verbindlich), Englisch unter `/en/withdrawal/`, Muster `terms.ts`. Grundlage sind die Muster der Anlagen 1 und 2 zu Art. 246a § 1
  * EGBGB für Dienstleistungsverträge. `{anbieter}` setzt `renderWithdrawal` aus den Betreiberangaben.
  */
 export interface WithdrawalSection {
@@ -8,7 +8,18 @@ export interface WithdrawalSection {
 	paragraphs: string[];
 }
 
-export const WITHDRAWAL: { intro: string; description: string; sections: WithdrawalSection[] } = {
+export interface WithdrawalText {
+	title: string;
+	/** Beschriftung der E-Mail-Adresse in `{anbieter}`. */
+	emailLabel: string;
+	intro: string;
+	description: string;
+	sections: WithdrawalSection[];
+}
+
+const DE: WithdrawalText = {
+	title: 'Widerrufsbelehrung',
+	emailLabel: 'E-Mail',
 	intro:
 		'Wenn du als Verbraucher ein kostenpflichtiges Paket von Balamentum im Browser abschließt, hast du ein gesetzliches Widerrufsrecht. Hier findest du die Widerrufsbelehrung und das Muster-Widerrufsformular.',
 	description:
@@ -51,3 +62,51 @@ export const WITHDRAWAL: { intro: string; description: string; sections: Withdra
 		},
 	],
 };
+
+const EN: WithdrawalText = {
+	title: 'Right of withdrawal',
+	emailLabel: 'email',
+	intro:
+		'If you, as a consumer, take out a paid Balamentum plan in the browser, you have a statutory right of withdrawal. Here you will find the withdrawal instructions and the model withdrawal form.',
+	description:
+		'Withdrawal instructions and model withdrawal form of Balamentum: right of withdrawal, consequences of withdrawal and early expiry when the service starts immediately.',
+	sections: [
+		{
+			heading: 'Right of withdrawal',
+			paragraphs: [
+				'You have the right to withdraw from this contract within fourteen days without giving any reason. The withdrawal period is fourteen days from the day the contract is concluded.',
+				'To exercise your right of withdrawal, you must inform us ({anbieter}) of your decision to withdraw from this contract by means of a clear statement (for example a letter sent by post or an email). You may use the model withdrawal form below, but it is not obligatory.',
+				'To meet the withdrawal deadline, it is sufficient for you to send your communication concerning your exercise of the right of withdrawal before the withdrawal period has expired.',
+			],
+		},
+		{
+			heading: 'Consequences of withdrawal',
+			paragraphs: [
+				'If you withdraw from this contract, we shall reimburse to you all payments received from you without undue delay and in any event not later than fourteen days from the day on which we are informed about your decision to withdraw from this contract. We will carry out such reimbursement using the same means of payment as you used for the initial transaction, unless you have expressly agreed otherwise; in any event, you will not incur any fees as a result of such reimbursement.',
+				'If you requested the service to begin during the withdrawal period, you shall pay us an amount which is in proportion to what has been provided until you have communicated to us your withdrawal from this contract, in comparison with the full coverage of the contract.',
+			],
+		},
+		{
+			heading: 'Early expiry of the right of withdrawal',
+			paragraphs: [
+				'In the case of a contract for the provision of services, your right of withdrawal expires early if we have fully performed the service and only began performing it after you gave your express consent and at the same time confirmed your knowledge that you lose your right of withdrawal once we have fully performed the contract. You give this consent and confirmation before the purchase by ticking the box in the order process.',
+			],
+		},
+		{
+			heading: 'Model withdrawal form',
+			paragraphs: [
+				'If you want to withdraw from the contract, please complete this form and return it to us.',
+				'To {anbieter}:',
+				'I/We (*) hereby give notice that I/We (*) withdraw from my/our (*) contract for the provision of the following service (*):',
+				'Ordered on (*): ____________________',
+				'Name of consumer(s): ____________________',
+				'Address of consumer(s): ____________________',
+				'Signature of consumer(s) (only if this form is notified on paper): ____________________',
+				'Date: ____________________',
+				'(*) Delete as appropriate.',
+			],
+		},
+	],
+};
+
+export const WITHDRAWAL: Record<'de' | 'en', WithdrawalText> = { de: DE, en: EN };

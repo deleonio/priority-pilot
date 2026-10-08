@@ -1,0 +1,74 @@
+{
+	"flow": {
+		"importHeading": "Bring your tasks",
+		"importHint": "Already planning in Todoist or a spreadsheet? Just bring your tasks over."
+	},
+	"login": {
+		"title": "Sign in",
+		"sub": "Sign in to continue.",
+		"errors": {
+			"accessDenied": "Access was denied. Please try again.",
+			"invalidEmail": "Your email address is not allowed. Please contact the administrator.",
+			"magicLinkInvalid": "The sign-in link has expired or was already used. Just request a new one.",
+			"nativeLoginFailed": "Signing in to the app failed. Please try again.",
+			"unknown": "An unknown sign-in error occurred. Please try again."
+		},
+		"google": "Sign in with Google",
+		"or": "or",
+		"magicLinkLabel": "Sign-in link by email",
+		"emailPlaceholder": "name@example.com",
+		"sending": "Sending …",
+		"sendLink": "Send sign-in link",
+		"sent": "If the address is allowed, a sign-in link is on its way. Check your inbox.",
+		"sendFailed": "The link could not be requested right now. Please try again in a moment.",
+		"waitlistTitle": "No access yet?",
+		"waitlistLabel": "Join the waitlist by email",
+		"joining": "Joining …",
+		"join": "Join the waitlist",
+		"position": "Position {{position}} — the more friends you invite, the further you move up.",
+		"positionOf": "Position {{position}} of {{total}} — the more friends you invite, the further you move up.",
+		"newTab": "(opens in a new tab)",
+		"copied": "Copied ✓",
+		"copyLink": "Copy referral link",
+		"waitlistFailed": "Joining the waitlist did not work right now. Please try again in a moment.",
+		"back": "Back to the website",
+		"backAria": "Balamentum: Back to the website"
+	},
+	"sessionExpired": {
+		"title": "Session expired",
+		"text": "Your session has expired. Unsaved changes will be lost when reloading.",
+		"reload": "Reload"
+	},
+	"update": {
+		"newVersionTitle": "New version available",
+		"newVersionText": "Balamentum has been updated. Reload the app to use the new version.",
+		"reloadNow": "Reload now",
+		"offlineTitle": "Ready for offline use",
+		"offlineText": "Balamentum now also works without an internet connection.",
+		"gotIt": "Got it"
+	},
+	"install": {
+		"title": "Install app",
+		"ios": "Tap <bold>Share</bold> and then <bold>Add to Home Screen</bold> to install Balamentum as an app.",
+		"question": "Would you like to install Balamentum as an app on your device?",
+		"install": "Install",
+		"notNow": "Not now"
+	},
+	"footer": {
+		"version": "Version {{version}}"
+	},
+	"impress": {
+		"title": "Legal notice",
+		"legalBasis": "Information pursuant to § 5 DDG",
+		"contact": "Contact",
+		"email": "Email",
+		"representative": "Authorized representative",
+		"vatIdTitle": "VAT identification number",
+		"vatId": "VAT identification number pursuant to § 27 a UStG: {{id}}",
+		"responsible": "Responsible for content pursuant to § 18 (2) MStV",
+		"odrTitle": "EU dispute resolution",
+		"odrText": "The European Commission provides a platform for online dispute resolution (ODR): <link>https://ec.europa.eu/consumers/odr/</link>. You can find our email address above in this legal notice.",
+		"consumerTitle": "Consumer dispute resolution",
+		"consumerText": "We are neither willing nor obliged to participate in dispute resolution proceedings before a consumer arbitration board."
+	}
+}

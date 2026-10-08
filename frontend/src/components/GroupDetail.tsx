@@ -10,6 +10,7 @@ import type {
 	UserSearchHit,
 } from 'client';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { Modal } from './Modal';
@@ -18,9 +19,6 @@ import { DuoCard } from './DuoCard';
 import { getPublicOrigin } from '../lib/siteOrigin';
 import { PlanBadge } from './PlanBadge';
 import { GroupChallengeCard } from './GroupChallengeCard';
-
-/** Rollen-Text je serverseitiger Rolle — Rolle immer als Text, nie nur als Farbe (KI-UX #1211). */
-const roleLabel = (role: GroupMember['role']): string => (role === 'admin' ? 'Admin' : 'Mitglied');
 
 /** Ab dieser Länge sucht der Server nach Namensfragmenten (kürzer: nur volle E-Mail). */
 const MIN_QUERY_LENGTH = 3;
@@ -35,9 +33,9 @@ const inviteLinkUrl = (token: string): string =>
 /** Maskiert einen Token auf Anfang und Ende — nach dem einmaligen Voll-Blick (KI-UX #1226). */
 const maskToken = (token: string): string => `${token.slice(0, 4)} … ${token.slice(-4)}`;
 
-/** Ablaufdatum eines Links kurz und deutsch formatiert. */
-const formatExpiry = (expiresAt: string): string =>
-	new Date(expiresAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+/** Ablaufdatum eines Links kurz in der aktiven Sprache formatiert. */
+const formatExpiry = (expiresAt: string, language: string): string =>
+	new Date(expiresAt).toLocaleDateString(language, { day: '2-digit', month: '2-digit', year: 'numeric' });
 
 type GroupDetailProps = {
 	groupId: number;
@@ -62,6 +60,7 @@ type GroupDetailProps = {
  * hat keinen Filter-Hook für serverseitige Treffer (#1083).
  */
 export const GroupDetail = ({ groupId, ownRole, kind = 'group', refreshKey = 0, id }: GroupDetailProps) => {
+	const { t, i18n } = useTranslation(['groups', 'common']);
 	const isDuo = kind === 'duo';
 	const [members, setMembers] = useState<GroupMember[] | null>(null);
 	// Einladen nur für Admins; ein volles Duo (2 Mitglieder) lässt keine weitere Person zu (#1991, AK3).
@@ -258,12 +257,12 @@ export const GroupDetail = ({ groupId, ownRole, kind = 'group', refreshKey = 0, 
 	return (
 		<div className="group-detail" id={id}>
 			{error !== null && (
-				<KolAlert _type="error" _label="Aktion nicht möglich">
+				<KolAlert _type="error" _label={t('groups:detail.actionError')}>
 					{error}
 				</KolAlert>
 			)}
 			{members === null ? (
-				<KolSpin _show _variant="cycle" _label="Mitglieder werden geladen …" />
+				<KolSpin _show _variant="cycle" _label={t('groups:detail.membersLoading')} />
 			) : (
 				<>
 					{/* Kein eigener Detailkopf mehr (#1257): Avatar und Name stehen bereits im
@@ -276,18 +275,18 @@ export const GroupDetail = ({ groupId, ownRole, kind = 'group', refreshKey = 0, 
 					{/* Duo (#1991): die Karte ersetzt Mitgliederliste und Aufgabenbereiche; `key` lädt sie beim
 					    „Daten auffrischen" neu. */}
 					{isDuo && <DuoCard key={refreshKey} groupId={groupId} />}
-					{!isDuo && <KolHeading _label="Mitglieder" _level={4} />}
+					{!isDuo && <KolHeading _label={t('groups:detail.members')} _level={4} />}
 					<ul className="group-members">
 						{(isDuo ? [] : members).map((member) => (
 							<li key={member.userId} className="group-member">
 								<span className="group-member-name">{member.displayName}</span>
-								<KolBadge _label={roleLabel(member.role)} />
+								<KolBadge _label={t(`groups:roles.${member.role}`)} />
 								{ownRole === 'admin' && (
 									<KolButton
 										_label={
 											member.role === 'admin'
-												? `${member.displayName} zur Mitgliedschaft zurückstufen`
-												: `${member.displayName} zum Administrator machen`
+												? t('groups:detail.demote', { name: member.displayName })
+												: t('groups:detail.promote', { name: member.displayName })
 										}
 										_variant="secondary"
 										_on={{
@@ -296,17 +295,21 @@ export const GroupDetail = ({ groupId, ownRole, kind = 'group', refreshKey = 0, 
 									/>
 								)}
 								{ownRole === 'admin' && (
-									<KolButton _label="Entfernen" _variant="danger" _on={{ onClick: () => setPendingRemoval(member) }} />
+									<KolButton
+										_label={t('common:actions.remove')}
+										_variant="danger"
+										_on={{ onClick: () => setPendingRemoval(member) }}
+									/>
 								)}
 							</li>
 						))}
 					</ul>
-					<KolDetails _label="Offene Einladungen" _level={4}>
+					<KolDetails _label={t('groups:detail.openInvitations')} _level={4}>
 						<ul className="group-invitations">
 							{invitations.map((invitation) => (
 								<li key={invitation.id} className="group-invitation">
 									<span className="group-member-name">{invitation.displayName}</span>
-									<KolBadge _label="Ausstehend" />
+									<KolBadge _label={t('groups:detail.pending')} />
 								</li>
 							))}
 						</ul>
@@ -315,12 +318,12 @@ export const GroupDetail = ({ groupId, ownRole, kind = 'group', refreshKey = 0, 
 						<>
 							{/* #1521 (AK6): Offene Aufgaben, die an die ganze Gruppe gerichtet sind — jedes Mitglied
 					    kann sie erledigen. Abgegrenzt von „Füreinander angelegt" (#1223, Einzel-Empfänger). */}
-							<KolDetails _label="Offene Gruppen-Aufgaben" _level={4}>
+							<KolDetails _label={t('groups:detail.openGroupTasks')} _level={4}>
 								<div data-testid="group-open-tasks">
 									{openGroupTasks === null ? (
-										<KolSpin _show _variant="cycle" _label="Offene Gruppen-Aufgaben werden geladen …" />
+										<KolSpin _show _variant="cycle" _label={t('groups:detail.openGroupTasksLoading')} />
 									) : openGroupTasks.length === 0 ? (
-										<p className="hint">Für diese Gruppe ist gerade keine Aufgabe offen.</p>
+										<p className="hint">{t('groups:detail.openGroupTasksEmpty')}</p>
 									) : (
 										<ul className="group-tasks">
 											{openGroupTasks.map((task) => (
@@ -332,11 +335,11 @@ export const GroupDetail = ({ groupId, ownRole, kind = 'group', refreshKey = 0, 
 									)}
 								</div>
 							</KolDetails>
-							<KolDetails _label="Füreinander angelegt" _level={4}>
+							<KolDetails _label={t('groups:detail.tasks')} _level={4}>
 								{tasks === null ? (
-									<KolSpin _show _variant="cycle" _label="Gruppen-Aufgaben werden geladen …" />
+									<KolSpin _show _variant="cycle" _label={t('groups:detail.tasksLoading')} />
 								) : tasks.length === 0 ? (
-									<p className="hint">Noch hat niemand eine Aufgabe für ein anderes Mitglied angelegt.</p>
+									<p className="hint">{t('groups:detail.tasksEmpty')}</p>
 								) : (
 									<ul className="group-tasks">
 										{tasks.map((task) => (
@@ -345,17 +348,19 @@ export const GroupDetail = ({ groupId, ownRole, kind = 'group', refreshKey = 0, 
 										    als Sekundärzeilen — Block-Elemente, damit lange Namen umbrechen (AK8). */}
 												<div className="group-task-recipient">{task.recipientName}</div>
 												<div className="group-task-title">{task.title}</div>
-												<div className="group-task-creator">{`von ${task.creatorName}`}</div>
+												<div className="group-task-creator">
+													{t('groups:detail.createdBy', { name: task.creatorName })}
+												</div>
 											</li>
 										))}
 									</ul>
 								)}
 							</KolDetails>
-							<KolDetails _label="Füreinander angelegte Serien" _level={4}>
+							<KolDetails _label={t('groups:detail.series')} _level={4}>
 								{seriesList === null ? (
-									<KolSpin _show _variant="cycle" _label="Gruppen-Serien werden geladen …" />
+									<KolSpin _show _variant="cycle" _label={t('groups:detail.seriesLoading')} />
 								) : seriesList.length === 0 ? (
-									<p className="hint">Noch hat niemand eine Serie für ein anderes Mitglied angelegt.</p>
+									<p className="hint">{t('groups:detail.seriesEmpty')}</p>
 								) : (
 									<ul className="group-series">
 										{seriesList.map((series) => (
@@ -366,8 +371,8 @@ export const GroupDetail = ({ groupId, ownRole, kind = 'group', refreshKey = 0, 
 												<div className="group-series-owner">{series.ownerName}</div>
 												<div className="group-series-title">{series.title}</div>
 												<div className="group-series-meta">
-													{`${series.rhythm} · von ${series.creatorName}`}
-													{!series.active && <KolBadge _label="Ruhend" />}
+													{t('groups:detail.seriesMeta', { rhythm: series.rhythm, name: series.creatorName })}
+													{!series.active && <KolBadge _label={t('groups:detail.dormant')} />}
 												</div>
 											</li>
 										))}
@@ -379,11 +384,11 @@ export const GroupDetail = ({ groupId, ownRole, kind = 'group', refreshKey = 0, 
 					{canInvite && (
 						/* Eigenes aufklappbares Element statt unbeschrifteter Sektion (#1257):
 						   standardmäßig zugeklappt, die Überschrift trägt den Zweck. */
-						<KolDetails _label="Mitglieder einladen" _level={4}>
+						<KolDetails _label={t('groups:detail.inviteMembers')} _level={4}>
 							<KolInputText
-								_label="Konto suchen"
+								_label={t('groups:detail.searchLabel')}
 								_type="search"
-								_placeholder="Name ab 3 Zeichen oder volle E-Mail"
+								_placeholder={t('groups:detail.searchPlaceholder')}
 								_value={query}
 								_on={{ onInput: (_event, value) => handleSearch(String(value ?? '')) }}
 							/>
@@ -392,14 +397,14 @@ export const GroupDetail = ({ groupId, ownRole, kind = 'group', refreshKey = 0, 
 							<div role="status">
 								{hits !== null &&
 									(hits.length === 0 ? (
-										<p className="hint">Keine Konten gefunden.</p>
+										<p className="hint">{t('groups:detail.noHits')}</p>
 									) : (
 										<ul className="group-search-hits">
 											{hits.map((hit) => (
 												<li key={hit.id} className="group-search-hit">
 													<span className="group-member-name">{hit.displayName}</span>
 													<KolButton
-														_label="Einladen"
+														_label={t('groups:detail.invite')}
 														_variant="primary"
 														_on={{ onClick: () => void handleInvite(hit.id) }}
 													/>
@@ -413,14 +418,11 @@ export const GroupDetail = ({ groupId, ownRole, kind = 'group', refreshKey = 0, 
 					{canInvite && (
 						/* Eigenes aufklappbares Element mit eindeutigem Namen (#1257) — „Einladungslinks“
 						   statt „Einladungen“, um es von den offenen Einladungen zu unterscheiden. */
-						<KolDetails _label="Einladungslinks" _level={4}>
+						<KolDetails _label={t('groups:detail.inviteLinks')} _level={4}>
 							<section className="group-invite-links">
-								<p className="hint">
-									Über einen Link kann jeder deiner Gruppe ohne persönliche Einladung beitreten. Ein Link ist 7 Tage
-									gültig und lässt sich jederzeit ungültig machen.
-								</p>
+								<p className="hint">{t('groups:detail.inviteLinksHint')}</p>
 								<KolButton
-									_label="Link erzeugen"
+									_label={t('groups:detail.createLink')}
 									_variant="secondary"
 									_on={{ onClick: () => void handleCreateInviteLink() }}
 								/>
@@ -432,7 +434,9 @@ export const GroupDetail = ({ groupId, ownRole, kind = 'group', refreshKey = 0, 
 													<>
 														<span className="group-invite-link-token">{maskToken(link.token)}</span>
 														<span className="group-invite-link-meta">
-															gültig bis {formatExpiry(link.expiresAt)} · Link kopiert
+															{t('groups:detail.validUntilCopied', {
+																date: formatExpiry(link.expiresAt, i18n.language),
+															})}
 														</span>
 													</>
 												) : (
@@ -442,16 +446,18 @@ export const GroupDetail = ({ groupId, ownRole, kind = 'group', refreshKey = 0, 
 															<code className="group-invite-link-token">{inviteLinkUrl(link.token)}</code>
 															<CopyButton
 																text={inviteLinkUrl(link.token)}
-																ariaLabel="Link kopieren"
+																ariaLabel={t('groups:detail.copyLink')}
 																onSuccess={() => setCopiedLinkId(link.id)}
 																onError={(message) => setError(message)}
 															/>
 														</div>
-														<span className="group-invite-link-meta">gültig bis {formatExpiry(link.expiresAt)}</span>
+														<span className="group-invite-link-meta">
+															{t('groups:detail.validUntil', { date: formatExpiry(link.expiresAt, i18n.language) })}
+														</span>
 													</>
 												)}
 												<KolButton
-													_label="Ungültig machen"
+													_label={t('groups:detail.revoke')}
 													_variant="danger"
 													_on={{ onClick: () => setPendingRevoke(link) }}
 												/>
@@ -466,23 +472,27 @@ export const GroupDetail = ({ groupId, ownRole, kind = 'group', refreshKey = 0, 
 			)}
 			{pendingRemoval !== null && (
 				<Modal
-					title="Mitglied entfernen"
+					title={t('groups:detail.removeTitle')}
 					onClose={() => setPendingRemoval(null)}
 					initialFocusRef={cancelRemoveRef as RefObject<HTMLElement | null>}
 				>
 					<p>
-						Willst du <strong>„{pendingRemoval.displayName}“</strong> wirklich aus der Gruppe entfernen? Die Person
-						verliert damit den Zugriff auf die Gruppe und ihre Inhalte.
+						<Trans
+							t={t}
+							i18nKey="groups:detail.removeText"
+							values={{ name: pendingRemoval.displayName }}
+							components={{ strong: <strong /> }}
+						/>
 					</p>
 					<div className="modal-actions">
 						<KolButton
 							ref={cancelRemoveRef}
-							_label="Abbrechen"
+							_label={t('common:actions.cancel')}
 							_variant="secondary"
 							_on={{ onClick: () => setPendingRemoval(null) }}
 						/>
 						<KolButton
-							_label="Entfernen"
+							_label={t('common:actions.remove')}
 							_variant="danger"
 							_on={{ onClick: () => void handleRemove(pendingRemoval.userId) }}
 						/>
@@ -491,23 +501,20 @@ export const GroupDetail = ({ groupId, ownRole, kind = 'group', refreshKey = 0, 
 			)}
 			{pendingRevoke !== null && (
 				<Modal
-					title="Einladungslink ungültig machen"
+					title={t('groups:detail.revokeTitle')}
 					onClose={() => setPendingRevoke(null)}
 					initialFocusRef={cancelRevokeRef as RefObject<HTMLElement | null>}
 				>
-					<p>
-						Willst du diesen Einladungslink wirklich ungültig machen? Niemand kann damit mehr beitreten — das lässt sich
-						nicht rückgängig machen. Bereits Beigetretene bleiben Mitglied.
-					</p>
+					<p>{t('groups:detail.revokeText')}</p>
 					<div className="modal-actions">
 						<KolButton
 							ref={cancelRevokeRef}
-							_label="Abbrechen"
+							_label={t('common:actions.cancel')}
 							_variant="secondary"
 							_on={{ onClick: () => setPendingRevoke(null) }}
 						/>
 						<KolButton
-							_label="Ungültig machen"
+							_label={t('groups:detail.revoke')}
 							_variant="danger"
 							_on={{ onClick: () => void handleRevokeInviteLink(pendingRevoke) }}
 						/>

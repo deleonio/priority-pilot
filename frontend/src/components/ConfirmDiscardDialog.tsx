@@ -1,6 +1,7 @@
 import { KolButton } from '@public-ui/react-v19';
 import { useRef, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { Modal } from './Modal';
 
 interface ConfirmDiscardDialogProps {
@@ -26,23 +27,24 @@ interface ConfirmDiscardDialogProps {
  * Stacking identisch — die Position im DOM-Baum ist dafür irrelevant).
  */
 export const ConfirmDiscardDialog = ({ onContinueEditing, onDiscard }: ConfirmDiscardDialogProps) => {
+	const { t } = useTranslation('tasks');
 	const continueRef = useRef<HTMLKolButtonElement>(null);
 
 	return createPortal(
 		<Modal
-			title="Ungespeicherte Änderungen"
+			title={t('confirmDiscard.title')}
 			onClose={onContinueEditing}
 			initialFocusRef={continueRef as RefObject<HTMLElement | null>}
 		>
-			<p>Es gibt ungespeicherte Änderungen. Weiter bearbeiten oder verwerfen?</p>
+			<p>{t('confirmDiscard.text')}</p>
 			<div className="modal-actions">
 				<KolButton
 					ref={continueRef}
-					_label="Weiter bearbeiten"
+					_label={t('confirmDiscard.continue')}
 					_variant="secondary"
 					_on={{ onClick: () => onContinueEditing() }}
 				/>
-				<KolButton _label="Verwerfen" _variant="danger" _on={{ onClick: () => onDiscard() }} />
+				<KolButton _label={t('confirmDiscard.discard')} _variant="danger" _on={{ onClick: () => onDiscard() }} />
 			</div>
 		</Modal>,
 		document.body,

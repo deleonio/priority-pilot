@@ -1,6 +1,7 @@
 import { KolAlert } from '@public-ui/react-v19';
 import type { Task } from 'client';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { istTagGeschafft } from '../lib/dayDone';
 
@@ -36,6 +37,7 @@ const kalendertagIn = (jetzt: Date, zeitZone: string): string => {
  * Moment, kein dauerhaftes UI-Element.
  */
 export const DayDoneHint = ({ tasks }: DayDoneHintProps) => {
+	const { t } = useTranslation('dashboard');
 	const [letzterTag, setLetzterTag] = useState<string | null | undefined>(undefined);
 	const zeitZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -69,8 +71,8 @@ export const DayDoneHint = ({ tasks }: DayDoneHintProps) => {
 
 	return (
 		<div className="day-done-hint" data-testid="day-done">
-			<KolAlert _type="success" _alert _label="Tag geschafft">
-				<p>Alle Aufgaben erledigt — heute geschafft.</p>
+			<KolAlert _type="success" _alert _label={t('dayDone.label')}>
+				<p>{t('dayDone.text')}</p>
 			</KolAlert>
 		</div>
 	);

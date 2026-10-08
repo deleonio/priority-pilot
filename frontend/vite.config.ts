@@ -60,6 +60,9 @@ const apiProxy = {
 	},
 };
 
+// Handbuch je App-Sprache (HelpPage lädt `user-guide.en.md` bei Englisch, sonst `user-guide.md`).
+const USER_GUIDE_FILES = ['user-guide.md', 'user-guide.en.md'];
+
 // Android-Build (#2378, ADR 0021): SPA für den Capacitor-Wrapper unter https://localhost/ — Basis `/`,
 // kein Service Worker, kein Manifest, eigener Ausgabeordner; Server und Links über `SITE_URL`.
 export default defineConfig(({ mode }) => {
@@ -77,19 +80,21 @@ export default defineConfig(({ mode }) => {
 			{
 				name: 'serve-docs-user-guide',
 				configureServer(server) {
-					server.middlewares.use(`${APP_BASE}user-guide.md`, async (req, res) => {
-						const fs = await import('node:fs/promises');
-						const path = await import('node:path');
-						const filePath = path.resolve(__dirname, '../docs/user-guide.md');
-						try {
-							const content = await fs.readFile(filePath, 'utf-8');
-							res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
-							return res.end(content);
-						} catch {
-							res.statusCode = 404;
-							return res.end('Handbuch nicht gefunden');
-						}
-					});
+					for (const file of USER_GUIDE_FILES) {
+						server.middlewares.use(`${APP_BASE}${file}`, async (req, res) => {
+							const fs = await import('node:fs/promises');
+							const path = await import('node:path');
+							const filePath = path.resolve(__dirname, '../docs', file);
+							try {
+								const content = await fs.readFile(filePath, 'utf-8');
+								res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+								return res.end(content);
+							} catch {
+								res.statusCode = 404;
+								return res.end('Handbuch nicht gefunden');
+							}
+						});
+					}
 				},
 				apply: 'serve',
 			},
@@ -97,12 +102,13 @@ export default defineConfig(({ mode }) => {
 				name: 'copy-docs-user-guide',
 				apply: 'build',
 				generateBundle() {
-					const source = resolve(__dirname, '../docs/user-guide.md');
 					const destDir = resolve(__dirname, outDir);
 					if (!existsSync(destDir)) {
 						mkdirSync(destDir, { recursive: true });
 					}
-					copyFileSync(source, resolve(destDir, 'user-guide.md'));
+					for (const file of USER_GUIDE_FILES) {
+						copyFileSync(resolve(__dirname, '../docs', file), resolve(destDir, file));
+					}
 				},
 			},
 			{

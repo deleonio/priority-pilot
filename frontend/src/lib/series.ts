@@ -1,4 +1,5 @@
 import type { Task } from 'client';
+import i18next from '../i18n/config';
 
 /**
  * Kennzeichnung einer Aufgaben-Zeile als zu einer Serie gehörig (#142, AK 2). Das Badge wird aus
@@ -7,7 +8,7 @@ import type { Task } from 'client';
 interface SeriesBadge {
 	/** `instance` = reguläre generierte Serien-Instanz, `exception` = individuell geänderte Instanz. */
 	variant: 'instance' | 'exception';
-	/** Sichtbares, deutsches Label für die Tabellen-Zelle. */
+	/** Sichtbares Label für die Tabellen-Zelle. */
 	label: string;
 }
 
@@ -29,9 +30,9 @@ export const seriesBadge = (
 	if (task.seriesId === null || task.seriesId === undefined) {
 		return null;
 	}
-	const noun = seriesById?.get(task.seriesId)?.autoCreate === false ? 'Vorlage' : 'Serie';
+	const noun = seriesById?.get(task.seriesId)?.autoCreate === false ? 'template' : 'series';
 	if (task.isException === true) {
-		return { variant: 'exception', label: `${noun} (geändert)` };
+		return { variant: 'exception', label: i18next.t(`capture:seriesBadge.${noun}Changed`) };
 	}
-	return { variant: 'instance', label: noun };
+	return { variant: 'instance', label: i18next.t(`capture:seriesBadge.${noun}`) };
 };

@@ -1,0 +1,74 @@
+{
+	"flow": {
+		"importHeading": "Aufgaben mitbringen",
+		"importHint": "Du planst schon in Todoist oder einer Tabelle? Hol deine Aufgaben einfach herein."
+	},
+	"login": {
+		"title": "Anmelden",
+		"sub": "Melde dich an, um fortzufahren.",
+		"errors": {
+			"accessDenied": "Der Zugriff wurde verweigert. Bitte versuche es erneut.",
+			"invalidEmail": "Deine E-Mail-Adresse ist nicht zugelassen. Bitte wende dich an den Administrator.",
+			"magicLinkInvalid": "Der Anmeldelink ist abgelaufen oder wurde schon benutzt. Fordere einfach einen neuen an.",
+			"nativeLoginFailed": "Die Anmeldung in der App ist fehlgeschlagen. Bitte versuche es erneut.",
+			"unknown": "Ein unbekannter Anmeldefehler ist aufgetreten. Bitte versuche es erneut."
+		},
+		"google": "Mit Google anmelden",
+		"or": "oder",
+		"magicLinkLabel": "Anmeldelink per E-Mail",
+		"emailPlaceholder": "name@beispiel.de",
+		"sending": "Wird gesendet …",
+		"sendLink": "Anmeldelink senden",
+		"sent": "Falls die Adresse zugelassen ist, ist ein Anmeldelink unterwegs. Schau in dein Postfach.",
+		"sendFailed": "Der Link konnte gerade nicht angefordert werden. Bitte versuche es gleich noch einmal.",
+		"waitlistTitle": "Noch ohne Zugang?",
+		"waitlistLabel": "Auf die Warteliste per E-Mail",
+		"joining": "Wird eingetragen …",
+		"join": "Auf die Warteliste",
+		"position": "Position {{position}} — je mehr Freundinnen und Freunde du einlädst, desto weiter rückst du auf.",
+		"positionOf": "Position {{position}} von {{total}} — je mehr Freundinnen und Freunde du einlädst, desto weiter rückst du auf.",
+		"newTab": "(öffnet in neuem Tab)",
+		"copied": "Kopiert ✓",
+		"copyLink": "Empfehlungs-Link kopieren",
+		"waitlistFailed": "Der Eintrag auf die Warteliste hat gerade nicht geklappt. Bitte versuche es gleich noch einmal.",
+		"back": "Zurück zur Website",
+		"backAria": "Balamentum: Zurück zur Website"
+	},
+	"sessionExpired": {
+		"title": "Session abgelaufen",
+		"text": "Deine Anmeldung ist abgelaufen. Ungespeicherte Änderungen gehen beim Neuladen verloren.",
+		"reload": "Neu laden"
+	},
+	"update": {
+		"newVersionTitle": "Neue Version verfügbar",
+		"newVersionText": "Balamentum wurde aktualisiert. Lade die App neu, um die neue Version zu nutzen.",
+		"reloadNow": "Jetzt neu laden",
+		"offlineTitle": "Offline einsatzbereit",
+		"offlineText": "Balamentum funktioniert ab jetzt auch ohne Internetverbindung.",
+		"gotIt": "Verstanden"
+	},
+	"install": {
+		"title": "App installieren",
+		"ios": "Tippe auf <bold>Teilen</bold> und dann auf <bold>Zum Home-Bildschirm</bold>, um Balamentum als App zu installieren.",
+		"question": "Möchtest du Balamentum als App auf deinem Gerät installieren?",
+		"install": "Installieren",
+		"notNow": "Nicht jetzt"
+	},
+	"footer": {
+		"version": "Version {{version}}"
+	},
+	"impress": {
+		"title": "Impressum",
+		"legalBasis": "Angaben gemäß § 5 DDG",
+		"contact": "Kontakt",
+		"email": "E-Mail",
+		"representative": "Vertretungsberechtigt",
+		"vatIdTitle": "Umsatzsteuer-Identifikationsnummer",
+		"vatId": "Umsatzsteuer-Identifikationsnummer gemäß § 27 a UStG: {{id}}",
+		"responsible": "Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV",
+		"odrTitle": "EU-Streitschlichtung",
+		"odrText": "Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit: <link>https://ec.europa.eu/consumers/odr/</link>. Unsere E-Mail-Adresse finden Sie oben im Impressum.",
+		"consumerTitle": "Verbraucherstreitbeilegung",
+		"consumerText": "Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen."
+	}
+}

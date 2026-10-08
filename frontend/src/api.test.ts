@@ -133,7 +133,7 @@ describe('CSRF-Middleware (client.use)', () => {
 		expect(fetchMock).toHaveBeenCalledTimes(2);
 		expect(fetchMock).toHaveBeenLastCalledWith(
 			'/api/v1/auth/logout',
-			expect.objectContaining({ method: 'POST', headers: { 'x-csrf-token': 'csrf-3' } }),
+			expect.objectContaining({ method: 'POST', headers: { 'Accept-Language': 'de', 'x-csrf-token': 'csrf-3' } }),
 		);
 
 		// Nach dem Logout muss der naechste Write einen frischen Token holen.

@@ -8,7 +8,7 @@ import de from './i18n/de.json';
 import * as renderModule from './render.ts';
 import { APP_PATH, renderLanding, renderRobots } from './render.ts';
 import type { Locale, Messages, PageContext } from './render.ts';
-import { TEMPLATES } from './templates.ts';
+import { TEMPLATES, TEMPLATES_EN } from './templates.ts';
 
 type Context = PageContext & { allMessages: Record<Locale, Messages> };
 type Template = (typeof TEMPLATES)[number];
@@ -48,6 +48,18 @@ describe('Vorlagen-Daten (#1976 AK1, Vertrag: docs/spec/issue-1976.md)', () => {
 				seen.add(step.id);
 			}
 		}
+	});
+});
+
+describe('Englische Vorlagen (/en/templates/)', () => {
+	it('jede Vorlage und jeder Schritt hat einen englischen Text, englische Slugs sind eindeutig', () => {
+		for (const template of TEMPLATES) {
+			const en = TEMPLATES_EN[template.slug];
+			expect(en, template.slug).toBeDefined();
+			for (const step of template.steps) expect(en.steps[step.id], `${template.slug}/${step.id}`).toBeTruthy();
+		}
+		const slugs = TEMPLATES.map((template) => TEMPLATES_EN[template.slug]?.slug);
+		expect(new Set(slugs).size).toBe(TEMPLATES.length);
 	});
 });
 

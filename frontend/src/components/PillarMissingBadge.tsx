@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 /**
  * Icon-Badge „keine Säulen-Gewichtung" (#1465): markiert in Aufgaben- und Serienliste die
  * Einträge, die auf keine Lebensbalance-Säule einzahlen (`pillars` leer). Es löst das
@@ -10,13 +12,16 @@
  * statt Emoji (Refuse-Liste Emoji-als-Icon-System, ux-design.md Craft Floor); die Bedeutung
  * transportiert das `aria-label`, nie die Farbe allein (WCAG 1.4.1).
  */
-export const PillarMissingBadge = () => (
-	<span
-		className="pillar-missing-badge"
-		data-testid="pillar-missing-badge"
-		role="img"
-		aria-label="Keine Säulen-Gewichtung gesetzt"
-	>
-		<i className="fa-solid fa-scale-unbalanced" aria-hidden="true" />
-	</span>
-);
+export const PillarMissingBadge = () => {
+	const { t } = useTranslation('settings');
+	return (
+		<span
+			className="pillar-missing-badge"
+			data-testid="pillar-missing-badge"
+			role="img"
+			aria-label={t('pillarMissingBadge.label')}
+		>
+			<i className="fa-solid fa-scale-unbalanced" aria-hidden="true" />
+		</span>
+	);
+};

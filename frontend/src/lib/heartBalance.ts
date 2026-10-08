@@ -1,4 +1,5 @@
 import type { Pillar } from 'client';
+import i18next from '../i18n/config';
 
 /**
  * Rechenkern des Dashboard-Herzens („Lebensbalance", Konzept §4.4). Bewusst — wie `score.ts` und
@@ -158,22 +159,15 @@ interface HeartHealth {
  * Der Füllstand schwankt mit jedem erledigten Task, eine feinere Staffelung würde Rauschen als
  * Zustandswechsel verkaufen.
  */
-const HEALTH_STEPS: readonly (HeartHealth & { min: number })[] = [
-	{ min: 0.85, state: 'stark', label: 'In Balance', hint: 'Deine Säulen liegen dicht am Soll.' },
-	{
-		min: 0.65,
-		state: 'gut',
-		label: 'Gut in Balance',
-		hint: 'Die Verteilung ist solide, kleine Abweichungen sind normal.',
-	},
-	{
-		min: 0.4,
-		state: 'wackelig',
-		label: 'Leichte Schieflage',
-		hint: 'Einzelne Säulen ziehen davon, andere kommen zu kurz.',
-	},
-	{ min: 0, state: 'schwach', label: 'Aus der Balance', hint: 'Fast alle Punkte hängen an wenigen Säulen.' },
+const HEALTH_STEPS: readonly { min: number; state: HeartHealth['state'] }[] = [
+	{ min: 0.85, state: 'stark' },
+	{ min: 0.65, state: 'gut' },
+	{ min: 0.4, state: 'wackelig' },
+	{ min: 0, state: 'schwach' },
 ];
+
+const healthLabel = (state: HeartHealth['state']): string => i18next.t(`dashboard:heartHealth.${state}.label`);
+const healthHint = (state: HeartHealth['state']): string => i18next.t(`dashboard:heartHealth.${state}.hint`);
 
 /** Ab 10 % unter Soll gilt eine Säule als „kommt zu kurz" — darunter ist es Rauschen. */
 const SHORTFALL_LEVEL = 0.9;
@@ -207,11 +201,20 @@ const concreteHint = (segments: readonly HeartSegment[]): string | undefined => 
 	const teile: string[] = [];
 	if (weakest && weakest.level < SHORTFALL_LEVEL) {
 		teile.push(
-			`${weakest.pillar.name} kommt am kürzesten (${percent(weakest.actualShare)} statt ${percent(weakest.targetShare)})`,
+			i18next.t('dashboard:heartHealth.weakest', {
+				name: weakest.pillar.name,
+				actual: percent(weakest.actualShare),
+				target: percent(weakest.targetShare),
+			}),
 		);
 	}
 	if (strongest && strongest.actualShare - strongest.targetShare >= EXCESS_SHARE) {
-		teile.push(`${strongest.pillar.name} zieht davon (${percent(strongest.actualShare)})`);
+		teile.push(
+			i18next.t('dashboard:heartHealth.strongest', {
+				name: strongest.pillar.name,
+				actual: percent(strongest.actualShare),
+			}),
+		);
 	}
 	return teile.length > 0 ? `${teile.join(', ')}.` : undefined;
 };
@@ -221,8 +224,8 @@ export const heartHealth = (balance: BalanceModel): HeartHealth => {
 	if (!balance.hasPoints) {
 		return {
 			state: 'leer',
-			label: 'Noch leer',
-			hint: 'Erledige Aufgaben, damit sich das Bild füllt.',
+			label: healthLabel('leer'),
+			hint: healthHint('leer'),
 		};
 	}
 	// Die letzte Stufe hat `min: 0` und greift damit immer; der Fallback ist nur fürs Typsystem.
@@ -233,6 +236,6 @@ export const heartHealth = (balance: BalanceModel): HeartHealth => {
 	 * beiden Zeilen auseinander. Ab „Gut in Balance" ersetzt der konkrete Hinweis die Floskel — dort
 	 * ist das Benennen der Schieflage die nützlichere Auskunft.
 	 */
-	const hint = (step.state !== 'stark' ? concreteHint(balance.segments) : undefined) ?? step.hint;
-	return { state: step.state, label: step.label, hint };
+	const hint = (step.state !== 'stark' ? concreteHint(balance.segments) : undefined) ?? healthHint(step.state);
+	return { state: step.state, label: healthLabel(step.state), hint };
 };

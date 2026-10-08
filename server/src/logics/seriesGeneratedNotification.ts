@@ -1,6 +1,7 @@
 import { NotificationLog, User } from '../models/index.js';
 import { sendPushToUser, type PushSender } from './push.js';
 import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
+import { spracheVon, type CareSprache } from './careSuggestionData.js';
 
 /**
  * Fachlicher Push-Trigger „Serie von jemand anderem angelegt hat Instanzen erzeugt" (#1253):
@@ -15,6 +16,22 @@ import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
  */
 
 const KIND = 'series-generated';
+
+const TEXTE: Record<
+	CareSprache,
+	{ jemand: string; titel: (name: string) => string; text: (serie: string, anzahl: number) => string }
+> = {
+	de: {
+		jemand: 'Jemand',
+		titel: (name) => `Neue Aufgaben von ${name}`,
+		text: (serie, anzahl) => `„${serie}“: ${anzahl} neue Aufgaben.`,
+	},
+	en: {
+		jemand: 'Someone',
+		titel: (name) => `New tasks from ${name}`,
+		text: (serie, anzahl) => `"${serie}": ${anzahl} new tasks.`,
+	},
+};
 
 /** Die Serie (Ausschnitt), deren Lauf Instanzen erzeugt hat. */
 interface GeneratingSeries {
@@ -68,13 +85,13 @@ export const notifySeriesGenerated = async (
 	if (alreadySent) {
 		return;
 	}
-	const creatorName = creator?.displayName || creator?.email || 'Jemand';
-	const title = `Neue Aufgaben von ${creatorName}`;
-	const body = `„${series.title}“: ${createdTasks.length} neue Aufgaben.`;
+	const recipient = await User.findByPk(series.userId);
+	const texte = TEXTE[spracheVon(recipient?.sprache)];
+	const title = texte.titel(creator?.displayName || creator?.email || texte.jemand);
+	const body = texte.text(series.title, createdTasks.length);
 	const { sent } = await sendPushToUser(series.userId, { title, body, url: '/' }, send);
 	let mailSent = false;
 	if (mailSend || isMailConfigured()) {
-		const recipient = await User.findByPk(series.userId);
 		mailSent = await sendMailToUser({ email: recipient?.email ?? null }, { subject: title, text: body }, mailSend);
 	}
 	if (sent > 0 || mailSent) {

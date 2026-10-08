@@ -30,7 +30,7 @@ import type { PushSender } from './push.js';
  * - AK3: ohne betroffene Säule kein Versand und kein Log-Eintrag.
  * - AK4: der Fürsorge-Schalter stoppt nur den Fürsorge-Push, Frist-Erinnerungen laufen weiter.
  * - AK5: Versand über `sendPushToUser` — Web-Push-Subscription UND FCM-Token desselben Nutzers.
- * - AK6: Textkatalog je Situation in allen zehn CARE_SPRACHEN, Fallback für unbekannte Säulen.
+ * - AK6: Textkatalog je Situation in allen CARE_SPRACHEN, Fallback für unbekannte Säulen.
  * - AK8: ungültige/fehlende Zeitzone fällt auf UTC zurück, ohne den Lauf zu brechen.
  *
  * `carePush.ts` existiert noch nicht — der fehlende Modul-Import ist hier der legitime erste
@@ -260,7 +260,7 @@ describe('logics/carePush — fachlicher Fürsorge-Push (Issue #1794)', () => {
 		}
 	});
 
-	it('AK6: Katalog je Situation in allen zehn Sprachen vollständig, Fallback für unbekannte Säule', () => {
+	it('AK6: Katalog je Situation in allen Sprachen vollständig, Fallback für unbekannte Säule', () => {
 		for (const situation of ['defizit', 'ueberlast'] as const) {
 			const eintraege = CARE_PUSH_TEXTE.filter((eintrag) => eintrag.situation === situation);
 			for (const saeuleId of [1, 2, 3, 4, 5]) {
@@ -323,7 +323,7 @@ describe('logics/carePush — fachlicher Fürsorge-Push (Issue #1794)', () => {
 		return (JSON.parse(calls[0].body) as { title: string }).title;
 	};
 
-	for (const sprache of ['en', 'fr']) {
+	for (const sprache of ['en']) {
 		it(`#1879 AK1/AK2: gespeicherte Sprache "${sprache}" → Push-Titel aus pushTextFuer(..., "${sprache}")`, async () => {
 			const titel = await titelFuer(`care-sprache-${sprache}@example.com`, sprache);
 			assert.equal(titel, pushTextFuer('defizit', 1, sprache as never).titel);

@@ -1,4 +1,5 @@
-import { NotificationLog } from '../models/index.js';
+import { NotificationLog, User } from '../models/index.js';
+import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { sendPushToUser, type PushSender } from './push.js';
 
 /**
@@ -10,6 +11,22 @@ import { sendPushToUser, type PushSender } from './push.js';
  */
 
 const KIND = 'task-created';
+
+const TEXTE: Record<
+	CareSprache,
+	{ jemand: string; titel: (name: string) => string; text: (aufgabe: string) => string }
+> = {
+	de: {
+		jemand: 'Jemand',
+		titel: (name) => `Neue Aufgabe von ${name}`,
+		text: (aufgabe) => `„${aufgabe}“ wurde für dich angelegt.`,
+	},
+	en: {
+		jemand: 'Someone',
+		titel: (name) => `New task from ${name}`,
+		text: (aufgabe) => `"${aufgabe}" was created for you.`,
+	},
+};
 
 /** Der angelegte Task (Ausschnitt), wie ihn der POST-Handler nach dem Commit vorliegen hat. */
 interface CreatedTask {
@@ -41,14 +58,10 @@ export const notifyTaskCreated = async (
 	if (alreadySent) {
 		return;
 	}
-	const creatorName = creator?.displayName ?? 'Jemand';
+	const texte = TEXTE[spracheVon((await User.findByPk(task.userId, { attributes: ['sprache'] }))?.sprache)];
 	const { sent } = await sendPushToUser(
 		task.userId,
-		{
-			title: `Neue Aufgabe von ${creatorName}`,
-			body: `„${task.title}“ wurde für dich angelegt.`,
-			url: '/',
-		},
+		{ title: texte.titel(creator?.displayName ?? texte.jemand), body: texte.text(task.title), url: '/' },
 		send,
 	);
 	if (sent > 0) {

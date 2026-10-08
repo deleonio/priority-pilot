@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 /**
  * Icon-Badge „Angepinnt" (#1582): kennzeichnet in der Aufgabenliste eine angepinnte Aufgabe. Es
  * ersetzt den Pin-Schalter, der bis dahin dauerhaft in der Zeile stand — die Aktion selbst liegt
@@ -8,8 +10,11 @@
  * `aria-label`) gehören auf DASSELBE Element, bei der Web Component läge das Label im Shadow-DOM.
  * Die Bedeutung transportiert der Screenreader-Text, nie Farbe oder Icon allein (WCAG 1.4.1).
  */
-export const PinnedBadge = () => (
-	<span className="pinned-badge" data-testid="pinned-badge" role="img" aria-label="Angepinnt">
-		<i className="fa-solid fa-thumbtack" aria-hidden="true" />
-	</span>
-);
+export const PinnedBadge = () => {
+	const { t } = useTranslation('tasks');
+	return (
+		<span className="pinned-badge" data-testid="pinned-badge" role="img" aria-label={t('badges.pinned')}>
+			<i className="fa-solid fa-thumbtack" aria-hidden="true" />
+		</span>
+	);
+};

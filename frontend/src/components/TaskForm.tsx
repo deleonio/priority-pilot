@@ -25,6 +25,8 @@ import type {
 	TaskPillarContribution,
 	TaskUpdate,
 } from 'client';
+import type { TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
 import { checkAuth } from '../lib/auth';
 import { forwardRef, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
@@ -157,23 +159,23 @@ export interface TaskFormInitialValues {
 const NO_CATEGORY = 0;
 
 /** Auswahl-Optionen des Serien-Rhythmus (Vertrag `SeriesRhythm`, 12 Werte — Backend #469). */
-const RHYTHM_OPTIONS: { label: string; value: SeriesRhythm }[] = [
-	{ label: 'Täglich', value: 'daily' },
-	{ label: 'Wöchentlich', value: 'weekly' },
-	{ label: 'Monatlich', value: 'monthly' },
-	{ label: 'Werktags', value: 'weekdays' },
-	{ label: 'Wochenende', value: 'weekend' },
-	{ label: 'Montags', value: 'mon' },
-	{ label: 'Dienstags', value: 'tue' },
-	{ label: 'Mittwochs', value: 'wed' },
-	{ label: 'Donnerstags', value: 'thu' },
-	{ label: 'Freitags', value: 'fri' },
-	{ label: 'Samstags', value: 'sat' },
-	{ label: 'Sonntags', value: 'sun' },
+const RHYTHM_VALUES: SeriesRhythm[] = [
+	'daily',
+	'weekly',
+	'monthly',
+	'weekdays',
+	'weekend',
+	'mon',
+	'tue',
+	'wed',
+	'thu',
+	'fri',
+	'sat',
+	'sun',
 ];
 
 /** Alle gültigen `SeriesRhythm`-Werte — onChange-Guard ohne hartcodierten Drei-Werte-Filter. */
-const VALID_RHYTHMS = new Set<string>([...RHYTHM_OPTIONS.map((option) => option.value), 'none']);
+const VALID_RHYTHMS = new Set<string>([...RHYTHM_VALUES, 'none']);
 const isSeriesRhythm = (value: string): value is SeriesRhythm => VALID_RHYTHMS.has(value);
 
 /**
@@ -190,28 +192,21 @@ const RHYTHM_WEEKDAY: Partial<Record<SeriesRhythm, number>> = {
 	fri: 5,
 	sat: 6,
 };
-const WEEKDAY_NOUN = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
-const WEEKDAY_ADVERB: Record<number, string> = {
-	0: 'sonntags',
-	1: 'montags',
-	2: 'dienstags',
-	3: 'mittwochs',
-	4: 'donnerstags',
-	5: 'freitags',
-	6: 'samstags',
-};
+const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+const weekdayMismatchText = (weekday: number, t: TFunction): string =>
+	t(`taskForm:taskForm.weekdayMismatch.${WEEKDAY_KEYS[weekday]}`);
 
 /**
  * Bereitet eine vom Series-Backend kommende 400-Fehlermeldung verständlich auf (#470, AK5).
  * Der Wochentag-Rhythmus-Konflikt (`rhythm "wed" erfordert ein startDate an einem Mittwoch.`)
  * wird in eine klare Anweisung mit dem Wochentag als Adverb übersetzt.
  */
-const humanizeSeriesError = (message: string, rhythm: SeriesRhythm): string => {
+const humanizeSeriesError = (message: string, rhythm: SeriesRhythm, t: TFunction): string => {
 	const target = RHYTHM_WEEKDAY[rhythm];
 	if (target === undefined || !/erfordert ein startDate an einem/i.test(message)) {
 		return message;
 	}
-	return `Der Rhythmus ist ${WEEKDAY_ADVERB[target]} gebunden — bitte wähle ein Startdatum, das auf einen ${WEEKDAY_NOUN[target]} fällt.`;
+	return weekdayMismatchText(target, t);
 };
 
 interface TaskFormProps {
@@ -335,6 +330,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	}: TaskFormProps,
 	ref,
 ) {
+	const { t } = useTranslation(['taskForm', 'common']);
 	// #316: Serien-Edit (bearbeiten einer Serie) vs. Task-Edit (bearbeiten eines Tasks). `isEdit`
 	// gilt für beide Bearbeiten-Fälle (Umschalter gesperrt); im Anlege-Fall ist beides `false`.
 	const seriesEdit = series != null;
@@ -644,14 +640,15 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	const [pendingLektorat, setPendingLektorat] = useState<PendingLektorat | null>(null);
 
 	const pillarNameById = useMemo(() => new Map(pillars.map((pillar) => [pillar.id, pillar.name])), [pillars]);
+	const pillarName = (id: number): string => pillarNameById.get(id) ?? t('taskForm.pillarFallback', { id });
 
 	/** Optionen der Kategorie-Auswahl: Platzhalter „ohne" plus die Kategorien des Nutzers. */
 	const categoryOptions = useMemo(
 		() => [
-			{ label: '— ohne Kategorie —', value: NO_CATEGORY },
+			{ label: t('taskForm.noCategory'), value: NO_CATEGORY },
 			...categories.map((category) => ({ label: category.name, value: category.id })),
 		],
-		[categories],
+		[categories, t],
 	);
 	const selectedCategory = categories.find((category) => category.id === categoryId) ?? null;
 	// #470 (AK5): Client-seitige Konsistenzprüfung zwischen Wochentag-Rhythmus (`mon`…`sun`) und
@@ -738,7 +735,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	const suggestPillars = async (): Promise<void> => {
 		const title = form.current.title.trim();
 		if (title === '') {
-			setSuggestError('Bitte zuerst einen Titel angeben, dann lassen sich Säulen vorschlagen.');
+			setSuggestError(t('taskForm.errors.suggestNeedsTitle'));
 			return;
 		}
 		setSuggestError(null);
@@ -750,7 +747,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 			});
 			const next = pillarSuggestionToContributions(suggestions, pillars);
 			if (next.length === 0) {
-				setSuggestError('Es konnte keine passende Säule vorgeschlagen werden.');
+				setSuggestError(t('taskForm.errors.suggestNone'));
 				return;
 			}
 			// Der Vorschlag steht als Block — die Verteilung bleibt bis zur Übernahme unverändert.
@@ -792,7 +789,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	const runLektorat = async (field: 'title' | 'description', maxLength?: number): Promise<void> => {
 		const text = form.current[field].trim();
 		if (text === '') {
-			setLektoratError('Bitte zuerst Text eingeben, der lektoriert werden kann.');
+			setLektoratError(t('taskForm.errors.lektoratNeedsText'));
 			return;
 		}
 		setLektoratError(null);
@@ -983,21 +980,21 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	const submit = async (): Promise<void> => {
 		const title = form.current.title.trim();
 		if (title === '') {
-			setError('Bitte einen Titel angeben.');
+			setError(t('taskForm.errors.titleRequired'));
 			return;
 		}
 		if ([...title].length > TITLE_MAX_LENGTH) {
-			setError(`Der Titel ist zu lang: maximal ${TITLE_MAX_LENGTH} Zeichen erlaubt.`);
+			setError(t('taskForm.errors.titleTooLong', { max: TITLE_MAX_LENGTH }));
 			return;
 		}
 		const priority = form.current.priority;
 		if (priority === null || !Number.isInteger(priority) || priority < 1 || priority > 5) {
-			setError('Priorität muss eine Ganzzahl zwischen 1 und 5 sein.');
+			setError(t('taskForm.errors.priorityInvalid'));
 			return;
 		}
 		const estimatedEffort = form.current.estimatedEffort;
 		if (estimatedEffort === null || !Number.isFinite(estimatedEffort) || estimatedEffort < 0.1 || estimatedEffort > 1) {
-			setError('Geschätzter Aufwand muss eine Zahl zwischen 0,1 und 1 sein.');
+			setError(t('taskForm.errors.effortInvalid'));
 			return;
 		}
 		const description = form.current.description.trim();
@@ -1005,7 +1002,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 		// Kalendertag zeitzonenunabhängig erhält.
 		const deadline = form.current.deadline.trim() === '' ? null : new Date(`${form.current.deadline}T00:00:00Z`);
 		if (deadline !== null && Number.isNaN(deadline.getTime())) {
-			setError('Die Deadline ist kein gültiges Datum.');
+			setError(t('taskForm.errors.deadlineInvalid'));
 			return;
 		}
 		// Serien-`startDate`: leeres Feld greift auf „heute" zurück (kein Pflicht-Validierungsfehler beim
@@ -1015,7 +1012,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 				? new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00Z')
 				: new Date(`${form.current.startDate}T00:00:00Z`);
 		if (isSeriesMode && Number.isNaN(startDate.getTime())) {
-			setError('Das Startdatum ist kein gültiges Datum.');
+			setError(t('taskForm.errors.startDateInvalid'));
 			return;
 		}
 		// #2074: Sicherheitsnetz — die Gleichverteilung ist mit der Säulenliste vorgefüllt; der
@@ -1024,7 +1021,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 		// Empfänger-Konto per test-login). Nur im Anlege-Flow; Edits übernehmen die gespeicherte
 		// Verteilung.
 		if (!isEdit && pillars.length > 0 && contributions.length === 0) {
-			setError('Bitte eine Hauptsäule wählen.');
+			setError(t('taskForm.errors.pillarRequired'));
 			return;
 		}
 		setError(null);
@@ -1169,7 +1166,11 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 					} catch (reason) {
 						const apiError = await toApiError(reason);
 						setError(
-							`Die Aufgabe „${created.title}" wurde angelegt, aber die Verknüpfung als Unteraufgabe von „${parentTask.title}" ist fehlgeschlagen: ${apiError.message}`,
+							t('taskForm.errors.linkFailed', {
+								title: created.title,
+								parent: parentTask.title,
+								message: apiError.message,
+							}),
 						);
 						setSaving(false);
 						return;
@@ -1203,7 +1204,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 			const apiError = await toApiError(reason);
 			// #470 (AK5): Eine vom Series-Backend kommende Wochentag/startDate-400 verständlich
 			// aufbereiten — statt des rohen `rhythm "wed" erfordert …` eine klare Nutzer-Anweisung.
-			setError(isSeriesMode ? humanizeSeriesError(apiError.message, form.current.rhythm) : apiError.message);
+			setError(isSeriesMode ? humanizeSeriesError(apiError.message, form.current.rhythm, t) : apiError.message);
 			setSaving(false);
 		}
 	};
@@ -1223,7 +1224,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 			onSaved();
 		} catch (reason) {
 			const apiError = await toApiError(reason);
-			setError(isSeriesMode ? humanizeSeriesError(apiError.message, form.current.rhythm) : apiError.message);
+			setError(isSeriesMode ? humanizeSeriesError(apiError.message, form.current.rhythm, t) : apiError.message);
 			setSaving(false);
 		}
 	};
@@ -1267,7 +1268,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	return (
 		<>
 			{error !== null && (
-				<KolAlert _type="error" _label="Speichern fehlgeschlagen">
+				<KolAlert _type="error" _label={t('taskForm.saveFailed')}>
 					{error}
 				</KolAlert>
 			)}
@@ -1276,7 +1277,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 			{!isEdit && (
 				<div className="mode-switch" data-testid="mode-switch">
 					<KolInputCheckbox
-						_label="Serie oder Vorlage"
+						_label={t('taskForm.modeSwitch')}
 						_checked={isSeriesMode}
 						_variant="switch"
 						_disabled={lockMode}
@@ -1295,7 +1296,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 				    Kartenfläche; dauerhaft aufgeklappt und mit `_disabled` nicht einklappbar (AK2).
 				    `.form-grid` bleibt unangetastet, da sieben Formulare die Klasse teilen. */}
 				<section className="form-section form-section--primary">
-					<KolAccordion _label="Basisangaben" _level={3} _open _disabled>
+					<KolAccordion _label={t('taskForm.sectionBasics')} _level={3} _open _disabled>
 						<div className="accordion-body">
 							{/* #680: Der Lektorat-Button liegt bewusst AUSSERHALB des VoiceField-Wrappers — der
 			    Wrapper ist der Positionierungs-Kontext des Mic-Buttons (right/bottom, app.css).
@@ -1305,7 +1306,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 								<div style={{ flex: '1 1 16rem', minWidth: 'min(100%, 16rem)' }} data-testid="task-title">
 									<VoiceField
 										variant="input"
-										fieldLabel="Titel"
+										fieldLabel={t('taskForm.titleLabel')}
 										// #1054 (F1): _hasCounter (siehe unten) rendert eine Zählerzeile unter der
 										// Inputbox — Anker-Anhebung, damit der Mic-Button in der Inputbox bleibt.
 										counter
@@ -1320,7 +1321,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 											{/* #679: Zeichenzähler über den KoliBri built-in Counter (_hasCounter)
 							    statt des früheren manuellen character-counter-Divs. */}
 											<KolInputText
-												_label="Titel"
+												_label={t('taskForm.titleLabel')}
 												_required
 												_maxLength={TITLE_MAX_LENGTH}
 												_hasCounter
@@ -1346,7 +1347,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 									<>
 										<KolButton
 											ref={lektoratTitleTriggerRef}
-											_label="Titel lektorieren"
+											_label={t('taskForm.lektoratTitle')}
 											_hideLabel
 											_variant="minimal"
 											_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
@@ -1371,30 +1372,28 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 							{recipientVisible && (
 								<>
 									<KolSingleSelect
-										_label="Empfänger"
+										_label={t('taskForm.recipient')}
 										_options={visibleRecipientOptions}
 										_value={recipientId}
 										_disabled={recipientsLoading || visibleRecipientOptions.length === 0}
 										_on={{ onChange: (_event, value) => setRecipientId(readString(value)) }}
 									/>
-									{recipientsLoading && <p className="hint">Empfänger werden geladen …</p>}
+									{recipientsLoading && <p className="hint">{t('taskForm.recipientsLoading')}</p>}
 									{/* #1252 (KI-UX): Konsequenz-Hinweis, sobald im Bearbeiten-Modus ein fremdes
 							    Konto gewählt ist — die Übergabe gibt das Eigentum ab (ruhiger Hinweistext
 							    statt Extra-Bestätigungsschritt). */}
 									{isEdit && recipientId !== '' && ownUserId !== null && Number(recipientId) !== ownUserId && (
 										<p className="hint">
-											Beim Speichern übergibst du {isSeriesMode ? 'diese Serie' : 'diese Aufgabe'} an{' '}
-											{recipientOptions.find((option) => option.value === recipientId)?.label}. Du siehst sie
-											anschließend nur noch mit „Für:"-Kennzeichen.
+											{t(isSeriesMode ? 'taskForm.handoverSeries' : 'taskForm.handoverTask', {
+												name: recipientOptions.find((option) => option.value === recipientId)?.label,
+											})}
 										</p>
 									)}
 									{recipientError && (
 										<KolAlert
 											_type="warning"
 											_label={
-												isSeriesMode
-													? 'Empfängerauswahl ist nicht verfügbar — die Serie wird für dich angelegt.'
-													: 'Empfängerauswahl ist nicht verfügbar — die Aufgabe wird für dich angelegt.'
+												isSeriesMode ? t('taskForm.recipientUnavailableSeries') : t('taskForm.recipientUnavailableTask')
 											}
 										/>
 									)}
@@ -1403,7 +1402,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 							{/* #727: Range-Inputs responsiv (vertikal ≤768px, horizontal >768px) */}
 							<div className="range-inputs-row">
 								<KolInputRange
-									_label={`Priorität (Ganzzahl 1–5): ${formatNumber(priority)}`}
+									_label={t('taskForm.priorityLabel', { value: formatNumber(priority) })}
 									_min={1}
 									_max={5}
 									_step={1}
@@ -1424,7 +1423,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 								<KolInputRange
 									/* #1159: Label bewusst kompakt — „Geschätzter Aufwand in Tagen …“ bricht zweizeilig
 											   und versetzt die Slider-Bahnen (V-Spring). */
-									_label={`Aufwand in Tagen (0,1–1): ${formatNumber(estimatedEffort)}`}
+									_label={t('taskForm.effortLabel', { value: formatNumber(estimatedEffort) })}
 									_min={0.1}
 									_max={1}
 									_step={0.1}
@@ -1455,20 +1454,18 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 								// Die Säulenliste kommt aus dem App-Zustand (`GET /pillars`). Sie ist hier leer, solange
 								// der Abruf läuft — und bleibt es, wenn er fehlschlug. Der Satz gilt in beiden Fällen und
 								// benennt die Folge, statt einen Ladezustand zu behaupten, der womöglich nie endet.
-								<p className="hint">
-									Keine Säulen geladen — die Aufgabe wird ohne Verteilung gespeichert. Ein Neuladen der Seite holt sie.
-								</p>
+								<p className="hint">{t('taskForm.noPillars')}</p>
 							) : (
 								<div className="pillar-editor">
 									<div className="pillar-editor-head">
-										<span className="pillar-editor-label">Säulen-Verteilung</span>
+										<span className="pillar-editor-label">{t('taskForm.pillarDistribution')}</span>
 										{/* #1527: Ohne KI-Berechtigung bleibt der Vorschlag-Button ausgeblendet
 										    — die Regler selbst bleiben unberührt. */}
 										{aiEnabled && (
 											<>
 												<KolButton
 													ref={suggestTriggerRef}
-													_label={suggesting ? 'Säulen werden vorgeschlagen…' : 'Säulen vorschlagen'}
+													_label={suggesting ? t('taskForm.suggestingPillars') : t('taskForm.suggestPillars')}
 													_variant="secondary"
 													_disabled={saving || suggesting}
 													_on={{ onClick: () => void suggestPillars() }}
@@ -1490,8 +1487,13 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 													key={pillar.id}
 													_label={
 														rank >= 0
-															? `Rang ${rank + 1} von ${pillars.length}: ${pillar.name} — ${formatNumber(share)} %`
-															: `${pillar.name} — ${formatNumber(share)} %`
+															? t('taskForm.pillarRanked', {
+																	rank: rank + 1,
+																	total: pillars.length,
+																	name: pillar.name,
+																	share: formatNumber(share),
+																})
+															: t('taskForm.pillarUnranked', { name: pillar.name, share: formatNumber(share) })
 													}
 													_variant="secondary"
 													_disabled={saving || suggesting}
@@ -1505,24 +1507,26 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 									    ändert sich erst mit „Vorschlag übernehmen“. */}
 									{pillarSuggestion !== null && (
 										<div className="pillar-suggestion-block">
-											<KolHeading _label="KI-Vorschlag" _level={3} />
+											<KolHeading _label={t('taskForm.aiSuggestion')} _level={3} />
 											<ul className="pillar-suggestion-shares">
 												{pillarSuggestion.map((entry) => (
 													<li key={entry.pillarId}>
-														{pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`} —{' '}
-														{formatNumber(entry.share)} %
+														{t('taskForm.pillarUnranked', {
+															name: pillarName(entry.pillarId),
+															share: formatNumber(entry.share),
+														})}
 													</li>
 												))}
 											</ul>
 											<div className="pillar-suggestion-actions">
 												<KolButton
-													_label="Vorschlag übernehmen"
+													_label={t('taskForm.applySuggestion')}
 													_variant="secondary"
 													_disabled={saving || suggesting}
 													_on={{ onClick: applyPillarSuggestion }}
 												/>
 												<KolButton
-													_label="Verwerfen"
+													_label={t('taskForm.discard')}
 													_variant="secondary"
 													_disabled={saving || suggesting}
 													_on={{ onClick: discardPillarSuggestion }}
@@ -1532,11 +1536,11 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 									)}
 									{suggesting && (
 										<div className="pillar-editor-loading">
-											<KolSpin _show _variant="cycle" _label="Säulen-Vorschlag wird geladen" />
+											<KolSpin _show _variant="cycle" _label={t('taskForm.suggestionLoading')} />
 										</div>
 									)}
 									{suggestError !== null && (
-										<KolAlert _type="error" _label="Vorschlag fehlgeschlagen">
+										<KolAlert _type="error" _label={t('taskForm.suggestionFailed')}>
 											{suggestError}
 										</KolAlert>
 									)}
@@ -1547,7 +1551,10 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 										contributions.map((entry, index) => (
 											<div key={entry.pillarId} className="pillar-row">
 												<KolInputRange
-													_label={`${pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`}: ${formatNumber(entry.share)} %`}
+													_label={t('taskForm.pillarShare', {
+														name: pillarName(entry.pillarId),
+														share: formatNumber(entry.share),
+													})}
 													_min={SHARE_MIN}
 													_max={shareCeiling}
 													_step={SHARE_STEP}
@@ -1564,12 +1571,14 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 									<p aria-live="polite" className="visually-hidden">
 										{/* #2078: Ankündigung des Blocks (ohne Fokuswechsel) und Rückkehr-Hinweis,
 										    wenn ein Tipp eine übernommene KI-Verteilung zur Treppe zurücksetzt. */}
-										{pillarSuggestion !== null ? 'KI-Vorschlag eingetroffen. ' : ''}
-										{rankReturnNotice ? 'Verteilung zurück zur Rangfolge-Treppe. ' : ''}
+										{pillarSuggestion !== null ? t('taskForm.suggestionArrived') : ''}
+										{rankReturnNotice ? t('taskForm.rankReturn') : ''}
 										{contributions
-											.map(
-												(entry) =>
-													`${pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`}: ${formatNumber(entry.share)} %`,
+											.map((entry) =>
+												t('taskForm.pillarShare', {
+													name: pillarName(entry.pillarId),
+													share: formatNumber(entry.share),
+												}),
 											)
 											.join(', ')}
 									</p>
@@ -1584,7 +1593,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 				    separate Gruppen-Überschrift. */}
 				<section className="form-section form-section--secondary">
 					<KolAccordion
-						_label="Termin & Ort"
+						_label={t('taskForm.sectionSchedule')}
 						_level={3}
 						_open={scheduleOpen}
 						_on={{
@@ -1600,7 +1609,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 										{/* Serie-Modus (#316): Startdatum (Anker der Serie) + Rhythmus statt Deadline. */}
 										{rhythm !== 'none' && (
 											<KolInputDate
-												_label="Startdatum"
+												_label={t('taskForm.startDate')}
 												_type="date"
 												_value={startDateValue}
 												_on={{
@@ -1619,7 +1628,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 										)}
 										{/* #2358: Schalter vor dem Rhythmus — er bestimmt dessen Optionen. Aus = Vorlage ohne Automatik. */}
 										<KolInputCheckbox
-											_label="Automatisch anlegen"
+											_label={t('taskForm.autoCreate')}
 											_checked={autoCreate}
 											_variant="switch"
 											_on={{
@@ -1645,8 +1654,8 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 										/>
 										{autoCreate && (
 											<KolSingleSelect
-												_label="Rhythmus"
-												_options={RHYTHM_OPTIONS}
+												_label={t('taskForm.rhythmLabel')}
+												_options={RHYTHM_VALUES.map((value) => ({ label: t(`taskForm.rhythm.${value}`), value }))}
 												_value={form.current.rhythm}
 												_on={{
 													onChange: (_event, value) => {
@@ -1660,15 +1669,12 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 											/>
 										)}
 										{weekdayMismatch !== null && (
-											<KolAlert
-												_type="warning"
-												_label={`Der Rhythmus ist ${WEEKDAY_ADVERB[weekdayMismatch]} gebunden — bitte wähle ein Startdatum, das auf einen ${WEEKDAY_NOUN[weekdayMismatch]} fällt.`}
-											/>
+											<KolAlert _type="warning" _label={weekdayMismatchText(weekdayMismatch, t)} />
 										)}
 									</>
 								) : (
 									<KolInputDate
-										_label="Deadline (optional)"
+										_label={t('taskForm.deadlineLabel')}
 										_type="date"
 										_value={deadlineValue}
 										_on={{
@@ -1692,7 +1698,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 								{(!isSeriesMode || autoCreate) && (
 									<KolInputCheckbox
 										className="auto-delete-toggle"
-										_label="Automatisch löschen nach 3 Tagen bei verpasster Deadline"
+										_label={t('taskForm.autoDelete')}
 										_checked={autoDelete}
 										_disabled={autoDeleteDisabled}
 										_on={{
@@ -1703,18 +1709,13 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 										}}
 									/>
 								)}
-								{autoDelete && (
-									<KolAlert
-										_type="info"
-										_label="Die Aufgabe wird bei verpasster Deadline automatisch nach 3 Tagen gelöscht, sofern sie bis dahin nicht erledigt ist."
-									/>
-								)}
+								{autoDelete && <KolAlert _type="info" _label={t('taskForm.autoDeleteInfo')} />}
 							</div>
 							{/* Adressuche (Forward Geocoding): Ortsbezug der Aufgabe ODER Serie (#1063 — auch im
 				    Serie-Modus, die Adresse wird an generierte Instanzen vererbt). #1072: steht nach der
 				    kompletten Deadline-Gruppe. */}
 							<AddressAutocomplete
-								label="Adresse (optional)"
+								label={t('taskForm.addressLabel')}
 								value={address}
 								onValueChange={(next) => {
 									// #1110 (AK4): Echo der übernommenen Treffer-Adresse → Koordinaten behalten.
@@ -1746,7 +1747,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 				    mit den Koordinaten, die gerade am Formular hängen (Freitext ohne Treffer: null). */}
 							{address.trim() !== '' && (
 								<KolButton
-									_label="Als Favorit speichern"
+									_label={t('taskForm.saveFavorite')}
 									_variant="ghost"
 									_disabled={savingFavorite}
 									_on={{
@@ -1758,7 +1759,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 							{/* #1595 (AK2): Fehler beim Anlegen inline im Formular (kein Toast — Anti-Pattern der
 				    Mobile-UI-Regeln); `KolAlert` kündigt den Text an, ohne den Fokus zu verschieben. */}
 							{favoriteError !== null && (
-								<KolAlert _type="error" _label="Ort konnte nicht gespeichert werden">
+								<KolAlert _type="error" _label={t('taskForm.favoriteFailed')}>
 									{favoriteError}
 								</KolAlert>
 							)}
@@ -1772,20 +1773,20 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 									<div
 										id={coordsBoxId}
 										role="group"
-										aria-label="Gespeicherter Ortsbezug"
+										aria-label={t('taskForm.coordsGroup')}
 										style={{ ...COORDS_BOX_BASE_STYLE, color: 'var(--pp-ink, #1a1a1a)' }}
 									>
 										<dl style={{ margin: 0 }}>
 											<div style={{ display: 'flex', gap: 'var(--pp-space-2, 8px)' }}>
-												<dt style={{ color: 'var(--pp-ink-muted, #555)' }}>Breitengrad</dt>
+												<dt style={{ color: 'var(--pp-ink-muted, #555)' }}>{t('taskForm.latitude')}</dt>
 												<dd style={{ margin: 0, fontVariantNumeric: 'tabular-nums' }}>{coords.latitude.toFixed(6)}</dd>
 											</div>
 											<div style={{ display: 'flex', gap: 'var(--pp-space-2, 8px)' }}>
-												<dt style={{ color: 'var(--pp-ink-muted, #555)' }}>Längengrad</dt>
+												<dt style={{ color: 'var(--pp-ink-muted, #555)' }}>{t('taskForm.longitude')}</dt>
 												<dd style={{ margin: 0, fontVariantNumeric: 'tabular-nums' }}>{coords.longitude.toFixed(6)}</dd>
 											</div>
 											<div style={{ display: 'flex', gap: 'var(--pp-space-2, 8px)' }}>
-												<dt style={{ color: 'var(--pp-ink-muted, #555)' }}>Adresse</dt>
+												<dt style={{ color: 'var(--pp-ink-muted, #555)' }}>{t('taskForm.address')}</dt>
 												<dd style={{ margin: 0, overflowWrap: 'anywhere' }}>{address}</dd>
 											</div>
 										</dl>
@@ -1794,21 +1795,23 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 									<div
 										id={coordsBoxId}
 										role="group"
-										aria-label="Gespeicherter Ortsbezug"
+										aria-label={t('taskForm.coordsGroup')}
 										style={{
 											...COORDS_BOX_BASE_STYLE,
 											color: 'var(--pp-ink-muted, #555)',
 											overflowWrap: 'anywhere',
 										}}
 									>
-										Keine Koordinaten hinterlegt — die Aufgabe erscheint dann nicht in der „In der Nähe“-Liste.
+										{t('taskForm.noCoords')}
 									</div>
 								))}
 							{pendingLektorat !== null && (
 								<LektoratDiffModal
 									original={pendingLektorat.original}
 									lektoriert={pendingLektorat.lektoriert}
-									fieldLabel={pendingLektorat.field === 'title' ? 'Titel' : 'Beschreibung'}
+									fieldLabel={
+										pendingLektorat.field === 'title' ? t('taskForm.titleLabel') : t('taskForm.descriptionField')
+									}
 									onConfirm={() => confirmLektorat()}
 									onCancel={() => cancelLektorat()}
 									fallbackFocusRef={getLektoratTriggerRef(pendingLektorat.field)}
@@ -1824,7 +1827,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 			    standardmäßig zugeklappt (AK2), Trigger beschriftet die Sektion selbst. */}
 			<section className="form-section form-section--optional">
 				<KolAccordion
-					_label="Optional"
+					_label={t('taskForm.sectionOptional')}
 					_level={3}
 					_open={optionalOpen}
 					_on={{
@@ -1838,7 +1841,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 							<div style={{ flex: '1 1 16rem', minWidth: 'min(100%, 16rem)' }} data-testid="task-description">
 								<VoiceField
 									variant="textarea"
-									fieldLabel="Beschreibung"
+									fieldLabel={t('taskForm.descriptionField')}
 									// #1054 (F1): _hasCounter (siehe unten) rendert eine Zählerzeile unter der
 									// Textarea — Anker-Anhebung, damit der Mic-Button in der Inputbox bleibt.
 									counter
@@ -1849,7 +1852,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 									}}
 								>
 									<KolTextarea
-										_label="Beschreibung (optional)"
+										_label={t('taskForm.descriptionLabel')}
 										_rows={4}
 										_maxLength={DESCRIPTION_MAX_LENGTH}
 										_hasCounter
@@ -1874,7 +1877,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 								<>
 									<KolButton
 										ref={lektoratDescriptionTriggerRef}
-										_label="Beschreibung lektorieren"
+										_label={t('taskForm.lektoratDescription')}
 										_hideLabel
 										_variant="minimal"
 										_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
@@ -1894,7 +1897,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 						    Beschreibungs-Knopf direkt darüber liegt; der Titel-Knopf meldet zusätzlich über das
 						    Diff-Modal. */}
 						{lektoratError !== null && (
-							<KolAlert _type="error" _label="Lektorat fehlgeschlagen">
+							<KolAlert _type="error" _label={t('taskForm.lektoratFailed')}>
 								{lektoratError}
 							</KolAlert>
 						)}
@@ -1906,8 +1909,8 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 						{categories.length > 0 && (
 							<div className="category-field">
 								<KolSingleSelect
-									_label="Kategorie (optional)"
-									_hint="Thema zum Filtern — wirkt nicht auf die Priorisierung."
+									_label={t('taskForm.categoryLabel')}
+									_hint={t('taskForm.categoryHint')}
 									_options={categoryOptions}
 									_value={categoryId ?? NO_CATEGORY}
 									_on={{
@@ -1926,7 +1929,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 									<div className="category-field__selection">
 										<CategoryBadge category={selectedCategory} />
 										<KolButton
-											_label="Kategorie entfernen"
+											_label={t('taskForm.removeCategory')}
 											_hideLabel
 											_icons={{ left: { icon: 'kolicon-cross' } }}
 											_variant="danger"
@@ -1941,10 +1944,10 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 			    abhaken; beim Speichern fließt die Liste ins Task-Payload. Im Task-Edit aus dem Task vorbelegt. */}
 						{!isSeriesMode && (
 							<div className="checklist-editor" data-testid="checklist-section">
-								<span className="checklist-editor-label">Checkliste (optional)</span>
+								<span className="checklist-editor-label">{t('taskForm.checklist')}</span>
 								<div className="checklist-add">
 									<KolInputText
-										_label="Checklisten-Eintrag"
+										_label={t('taskForm.checklistEntry')}
 										_hideLabel
 										_type="search"
 										_value={newChecklistTitle}
@@ -1954,7 +1957,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 										}}
 									/>
 									<KolButton
-										_label="Hinzufügen"
+										_label={t('common:actions.add')}
 										_variant="secondary"
 										_disabled={saving}
 										_on={{ onClick: () => addChecklistItem() }}
@@ -1963,14 +1966,14 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 								{checklist.map((item) => (
 									<div key={item.id} className="checklist-item" data-testid="checklist-item">
 										<KolInputCheckbox
-											_label="Erledigen"
+											_label={t('taskForm.checklistDone')}
 											_variant="switch"
 											_checked={item.completed}
 											_on={{ onChange: () => toggleChecklistItem(item.id) }}
 										/>
 										<span className="checklist-item-title">{item.title}</span>
 										<KolButton
-											_label="Entfernen"
+											_label={t('common:actions.remove')}
 											_hideLabel
 											_icons={{ left: { icon: 'kolicon-cross' } }}
 											_variant="danger"
@@ -1988,12 +1991,21 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 			{task !== null && <TaskAiDraft task={task} onChanged={onChanged} />}
 			<div className="modal-actions" data-testid="task-actions">
 				<KolButton
-					_label={saving ? (isEdit ? 'Bearbeiten…' : 'Anlegen…') : isEdit ? 'Bearbeiten' : 'Anlegen'}
+					_label={
+						saving
+							? t(isEdit ? 'taskForm.submitEditBusy' : 'taskForm.submitCreateBusy')
+							: t(isEdit ? 'common:actions.edit' : 'common:actions.create')
+					}
 					_variant="primary"
 					_disabled={saving || suggesting}
 					_on={{ onClick: () => void submit() }}
 				/>
-				<KolButton _label="Abbrechen" _variant="secondary" _disabled={saving} _on={{ onClick: () => onClose() }} />
+				<KolButton
+					_label={t('common:actions.cancel')}
+					_variant="secondary"
+					_disabled={saving}
+					_on={{ onClick: () => onClose() }}
+				/>
 			</div>
 			{pendingSeriesUpdate !== null && seriesEdit && (
 				<ConfirmSeriesActionModal

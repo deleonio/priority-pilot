@@ -1,4 +1,5 @@
 import { ResponseError } from 'client';
+import i18next from '../i18n/config';
 import { AI_FAIR_USE_INTERVAL_SECONDS, fairUseMessage, featureOffer, planLabel } from './planOffers';
 
 /** Normalisierte Fehlerinformation aus einem fehlgeschlagenen API-Aufruf. */
@@ -32,10 +33,15 @@ interface ApiError {
  */
 
 /** Bekannte Session-401-Messages aus dem Serververtrag (server/src/express). */
-const SESSION_MESSAGES = new Set(['Nicht eingeloggt.', 'Ungültige Zugangsdaten.']);
+const SESSION_MESSAGES = new Set([
+	'Nicht eingeloggt.',
+	'Ungültige Zugangsdaten.',
+	'Not logged in.',
+	'Invalid credentials.',
+]);
 
 /** Session-Meldung für abgelaufene/ungültige Session statt der irreführenden KI-Meldung (#948). */
-const SESSION_TEXT = 'Nicht eingeloggt. Bitte melde dich erneut an.';
+const sessionText = (): string => i18next.t('app:apiError.session');
 
 /**
  * Drosselung (429, #1479). Der Serververtrag liefert zwar eine `message`, die ist aber technisch
@@ -60,9 +66,9 @@ const readRetryAfter = (response: Response): number | null => {
 const throttledMessage = (response: Response): string => {
 	const sekunden = readRetryAfter(response);
 	if (sekunden !== null) {
-		return `Zu viele Anfragen in kurzer Zeit. Bitte ${sekunden} Sekunden warten und es dann noch einmal versuchen.`;
+		return i18next.t('app:apiError.throttledSeconds', { seconds: sekunden });
 	}
-	return 'Zu viele Anfragen in kurzer Zeit. Bitte einen Moment warten und es dann noch einmal versuchen.';
+	return i18next.t('app:apiError.throttled');
 };
 
 /**
@@ -118,8 +124,10 @@ export const planRequiredDetail = (
  * als `KolAlert _type="error"` in der Fehlerzeile der jeweiligen Ansicht, nicht in einem Dialog.
  */
 const planRequiredMessage = (detail: PlanRequiredDetail): string =>
-	`${featureOffer(detail.feature).title} braucht das Paket ${planLabel(detail.requiredPlan)}. ` +
-	'Paket wechseln: Einstellungen → Pakete.';
+	i18next.t('app:apiError.planRequired', {
+		feature: featureOffer(detail.feature).title,
+		plan: planLabel(detail.requiredPlan),
+	});
 
 /**
  * Aufrufer-Kontext (#1465). Die 502/503/504-Übersetzung aus #620 spricht von „KI-Dienst" und passt
@@ -136,7 +144,7 @@ export const toApiError = async (reason: unknown, { llmMapping = true }: ToApiEr
 	if (reason instanceof ResponseError) {
 		const { status } = reason.response;
 		const isLlmUpstream = llmMapping && (status === 502 || status === 503 || status === 504);
-		let message = `Serverfehler (HTTP ${status}).`;
+		let message = i18next.t('app:apiError.server', { status });
 		// Body-Beschaffung in zwei Stufen (#948): openapi-fetch liest den Body JEDER non-ok Response
 		// selbst (`response.text()`), ein nachgelagertes `response.clone().json()` wirft danach
 		// „Body has already been consumed“. Das geparste Objekt reist im `ResponseError.body` mit
@@ -175,25 +183,25 @@ export const toApiError = async (reason: unknown, { llmMapping = true }: ToApiEr
 			const serverMessage = (body as { message: string }).message;
 			// Für LLM-Dienst-Fehler: nutzerfreundliche Meldung statt technischem Server-Text
 			if (isLlmUpstream) {
-				message = 'Der KI-Dienst ist gerade nicht erreichbar. Bitte versuche es später erneut.';
+				message = i18next.t('app:apiError.aiUnavailable');
 			} else if (status === 401 && SESSION_MESSAGES.has(serverMessage)) {
 				// Session-401 (#948): bekannte Session-Auth-Message → Login-Hinweis statt KI-Meldung
-				message = SESSION_TEXT;
+				message = sessionText();
 			} else if (status === 401 && llmMapping) {
-				message = 'Die KI-Konfiguration ist ungültig. Bitte prüfe die Einstellungen.';
+				message = i18next.t('app:apiError.aiConfigInvalid');
 			} else {
 				message = serverMessage;
 			}
 		} else if (body === undefined) {
 			// Body nicht lesbar (weder Body-Feld noch clone) — für wichtige Statuscodes nutzerfreundliche Meldung
 			if (isLlmUpstream) {
-				message = 'Der KI-Dienst ist gerade nicht erreichbar. Bitte versuche es später erneut.';
+				message = i18next.t('app:apiError.aiUnavailable');
 			} else if (status === 401) {
 				// Ohne lesbaren Body ist ein 401 laut Serververtrag Session-Auth (#948)
-				message = SESSION_TEXT;
+				message = sessionText();
 			}
 		}
-		if (status === 401 && message === SESSION_TEXT) {
+		if (status === 401 && message === sessionText()) {
 			// Session-401 (#1231): globaler Dialog „Session abgelaufen" anstoßen. Genau hier — und
 			// nirgendwo sonst — laufen die Fälle zusammen, die laut #948 auf die Session-Meldung mappen;
 			// jeder andere 401 (LLM-/Proxy-401), 403 oder Netzwerkfehler feuert nicht.
@@ -204,12 +212,12 @@ export const toApiError = async (reason: unknown, { llmMapping = true }: ToApiEr
 	if (reason instanceof Error) {
 		// Netzwerkfehler (z.B. abort, fetch failed) → nutzerfreundliche Meldung
 		if (reason.name === 'TypeError' && reason.message.includes('fetch')) {
-			return { status: null, message: 'Netzwerkfehler. Bitte überprüfe deine Internetverbindung.' };
+			return { status: null, message: i18next.t('app:apiError.network') };
 		}
 		if (reason.name === 'AbortError' || reason.message.includes('aborted')) {
-			return { status: null, message: 'Die Anfrage wurde abgebrochen. Bitte versuche es erneut.' };
+			return { status: null, message: i18next.t('app:apiError.aborted') };
 		}
 		return { status: null, message: reason.message };
 	}
-	return { status: null, message: 'Unbekannter Fehler.' };
+	return { status: null, message: i18next.t('app:apiError.unknown') };
 };

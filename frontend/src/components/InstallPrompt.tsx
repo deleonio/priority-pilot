@@ -2,6 +2,7 @@ import { KolAlert, KolButton } from '@public-ui/react-v19';
 import type { Task } from 'client';
 import { TaskStatus } from 'client';
 import { useEffect, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { isNativeChannel } from '../lib/platform';
 
 type InstallPromptProps = {
@@ -13,6 +14,7 @@ type InstallPromptProps = {
 const DISMISS_KEY = 'pwa-install-dismissed';
 
 export const InstallPrompt = ({ tasks, onDismiss }: InstallPromptProps) => {
+	const { t } = useTranslation(['onboarding', 'common']);
 	// #1972: Aha-Moment = mindestens eine erledigte Aufgabe (Muster DayDoneHint).
 	const hasDoneTask = (tasks ?? []).some((task) => task.status === TaskStatus.Done);
 	const [showPrompt, setShowPrompt] = useState(false);
@@ -120,23 +122,22 @@ export const InstallPrompt = ({ tasks, onDismiss }: InstallPromptProps) => {
 	// iOS Safari Fallback
 	if (isIOS) {
 		return (
-			<KolAlert _type="info" _label="App installieren">
+			<KolAlert _type="info" _label={t('install.title')}>
 				<p>
-					Tippe auf <strong>Teilen</strong> und dann auf <strong>Zum Home-Bildschirm</strong>, um Balamentum als App zu
-					installieren.
+					<Trans t={t} i18nKey="install.ios" components={{ bold: <strong /> }} />
 				</p>
-				<KolButton _label="Schließen" _variant="secondary" _on={{ onClick: handleDismiss }} />
+				<KolButton _label={t('common:actions.close')} _variant="secondary" _on={{ onClick: handleDismiss }} />
 			</KolAlert>
 		);
 	}
 
 	// Standard Fallback für andere Browser
 	return (
-		<KolAlert _type="info" _label="App installieren">
-			<p>Möchtest du Balamentum als App auf deinem Gerät installieren?</p>
+		<KolAlert _type="info" _label={t('install.title')}>
+			<p>{t('install.question')}</p>
 			<div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-				<KolButton _label="Installieren" _variant="primary" _on={{ onClick: handleInstall }} />
-				<KolButton _label="Nicht jetzt" _variant="secondary" _on={{ onClick: handleDismiss }} />
+				<KolButton _label={t('install.install')} _variant="primary" _on={{ onClick: handleInstall }} />
+				<KolButton _label={t('install.notNow')} _variant="secondary" _on={{ onClick: handleDismiss }} />
 			</div>
 		</KolAlert>
 	);

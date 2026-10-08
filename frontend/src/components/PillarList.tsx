@@ -17,7 +17,7 @@ import { toApiError } from '../lib/apiError';
  * sitzt einmalig in der SettingsPage über der Liste (KI-UX-Block zu #1573).
  */
 export const PillarList = () => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['settings', 'common']);
 	const [pillars, setPillars] = useState<Pillar[]>([]);
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -48,26 +48,30 @@ export const PillarList = () => {
 			    keine einzige CSS-Regel, der Fehler stand als normaler Fließtext ohne Fehler-Affordanz
 			    über der Liste. Muster wie `GroupsSection` (Meldungen sind KoliBri, DESIGN.md). */}
 			{error !== null && (
-				<KolAlert _type="error" _label="Säulen konnten nicht geladen werden">
+				<KolAlert _type="error" _label={t('pillarList.loadError')}>
 					<p>{error}</p>
-					<KolButton _label="Erneut versuchen" _variant="secondary" _on={{ onClick: () => void loadPillars() }} />
+					<KolButton
+						_label={t('categoryList.retry')}
+						_variant="secondary"
+						_on={{ onClick: () => void loadPillars() }}
+					/>
 				</KolAlert>
 			)}
 
 			{loading ? (
-				<KolSpin _show _variant="cycle" _label="Säulen werden geladen …" />
+				<KolSpin _show _variant="cycle" _label={t('pillarList.loading')} />
 			) : pillars.length === 0 && error === null ? (
 				/* Kein Anlege-CTA mehr (Anlegen ist gesperrt) und kein zweiter Info-Alert: Der
 				   durchgehende Hinweis zu den festen Säulen sitzt in SettingsPage (#1573 AK2) —
 				   hier nur ein schlichter Marker, damit der Leerzustand (nach der Migration
 				   praktisch unerreichbar) nicht leer wirkt. */
-				<p className="hint">Derzeit sind keine Säulen vorhanden.</p>
+				<p className="hint">{t('pillarList.empty')}</p>
 			) : (
 				<ul className="pillar-items">
 					{pillars.map((pillar) => {
 						// #1848: Übersetzung über den stabilen `key`, sonst der (deutsche) Server-Text.
 						const description = pillar.key
-							? t(`pillars.${pillar.key}.description`, { defaultValue: pillar.description })
+							? t(`common:pillars.${pillar.key}.description`, { defaultValue: pillar.description })
 							: pillar.description;
 						return (
 							<li key={pillar.id} className="pillar-item" data-pillar-id={pillar.id}>

@@ -1,5 +1,6 @@
 import { Op } from 'sequelize';
-import { Task, NotificationLog } from '../models/index.js';
+import { Task, NotificationLog, User } from '../models/index.js';
+import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { sendPushToUser, type PushSender } from './push.js';
 import { selectSeriesRepresentatives, filterVorlauf } from './series.js';
 
@@ -78,11 +79,16 @@ export const collectDailyTopTasks = async (now: Date): Promise<TopTaskGroup[]> =
 };
 
 /** Baut die gebündelte Payload für den Service Worker (`push-sw.js` erwartet `title`/`body?`/`url?`). */
-const buildPayload = (tasks: TopTask[]): { title: string; body: string; url: string } => {
+const TITEL: Record<CareSprache, { eine: string; mehrere: string }> = {
+	de: { eine: 'Deine wichtigste Aufgabe', mehrere: 'Deine wichtigsten Aufgaben' },
+	en: { eine: 'Your most important task', mehrere: 'Your most important tasks' },
+};
+
+const buildPayload = (tasks: TopTask[], sprache: CareSprache): { title: string; body: string; url: string } => {
 	if (tasks.length === 1) {
-		return { title: 'Deine wichtigste Aufgabe', body: tasks[0].title, url: '/' };
+		return { title: TITEL[sprache].eine, body: tasks[0].title, url: '/' };
 	}
-	return { title: 'Deine wichtigsten Aufgaben', body: tasks.map((task) => task.title).join(', '), url: '/' };
+	return { title: TITEL[sprache].mehrere, body: tasks.map((task) => task.title).join(', '), url: '/' };
 };
 
 /**
@@ -107,7 +113,8 @@ export const runDailyTopTasksPush = async (
 		if (alreadySent) {
 			continue;
 		}
-		const { sent } = await sendPushToUser(group.userId, buildPayload(group.tasks), send);
+		const sprache = spracheVon((await User.findByPk(group.userId, { attributes: ['sprache'] }))?.sprache);
+		const { sent } = await sendPushToUser(group.userId, buildPayload(group.tasks, sprache), send);
 		if (sent > 0) {
 			await NotificationLog.create({ userId: group.userId, kind: KIND, dedupeKey, sentAt: now });
 			usersNotified++;

@@ -13,6 +13,7 @@ import '@xyflow/react/dist/base.css';
 import { KolToolbar } from '@public-ui/react-v19';
 import type { TaskGraphEdge, TaskGraphNode } from 'client';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { layoutGraph, NODE_HEIGHT, NODE_WIDTH } from '../lib/graphLayout';
 import { usePrefersReducedMotion } from '../lib/reducedMotion';
 import { formatNumber } from '../lib/task';
@@ -36,6 +37,7 @@ const nodeTypes = { taskGraphNode: TaskGraphNodeCard };
 const strokeWidthOf = (weight: number): number => 1 + Math.min(Math.max(weight, 0), 1) * 3;
 
 const Viewport = ({ nodes, edges, selectedId, onSelect }: TaskGraphCanvasProps) => {
+	const { t } = useTranslation('tasks');
 	const { fitView, zoomIn, zoomOut } = useReactFlow();
 	const prefersReducedMotion = usePrefersReducedMotion();
 	const animationDuration = prefersReducedMotion ? 0 : 200;
@@ -121,25 +123,25 @@ const Viewport = ({ nodes, edges, selectedId, onSelect }: TaskGraphCanvasProps) 
 			 * Über dem Canvas schob sie den Graphen zusätzlich aus dem ersten Sichtfeld.
 			 */}
 			<KolToolbar
-				_label="Ansicht des Aufgabengraphen"
+				_label={t('graphCanvas.toolbarLabel')}
 				_orientation="horizontal"
 				className="task-graph-toolbar"
 				_items={[
 					{
 						type: 'button',
-						_label: 'Ansicht einpassen',
+						_label: t('graphCanvas.fitView'),
 						_variant: 'secondary',
 						_on: { onClick: () => fitView({ duration: animationDuration }) },
 					},
 					{
 						type: 'button',
-						_label: 'Vergrößern',
+						_label: t('graphCanvas.zoomIn'),
 						_variant: 'secondary',
 						_on: { onClick: () => zoomIn({ duration: animationDuration }) },
 					},
 					{
 						type: 'button',
-						_label: 'Verkleinern',
+						_label: t('graphCanvas.zoomOut'),
 						_variant: 'secondary',
 						_on: { onClick: () => zoomOut({ duration: animationDuration }) },
 					},

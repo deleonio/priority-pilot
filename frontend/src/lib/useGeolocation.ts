@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
+import i18next from '../i18n/config';
 import { ACCOUNT_PREFERENCE_KEYS, sendAccountPreferences } from './accountPreferences';
 
 /** Geolocation-Intervall: 5 Minuten in ms (AK 6). */
@@ -148,7 +149,7 @@ export const useGeolocation = (): UseGeolocationResult => {
 	const fetchPosition = useCallback((): Promise<GeolocationPosition> => {
 		return new Promise((resolve, reject) => {
 			if (!supported) {
-				reject(new Error('Geolocation nicht unterstützt'));
+				reject(new Error(i18next.t('app:geolocation.unsupported')));
 				return;
 			}
 			navigator.geolocation.getCurrentPosition(

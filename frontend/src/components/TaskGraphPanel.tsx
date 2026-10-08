@@ -1,6 +1,7 @@
 import { KolAlert, KolButton, KolCard, KolDetails, KolHeading, KolSpin } from '@public-ui/react-v19';
 import type { Task, TaskGraph } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { splitIntoTrees } from '../lib/graphLayout';
@@ -42,6 +43,7 @@ interface TaskGraphPanelProps {
  * ein angezeigter Baum ist immer vollständig.
  */
 export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProps) => {
+	const { t } = useTranslation(['tasks', 'common']);
 	const [graph, setGraph] = useState<TaskGraph | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -142,7 +144,8 @@ export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProp
 		}
 		// #1465: Aufgaben werden mit ihrem Titel angesprochen, nie mit der internen ID — auch der
 		// Fallback für einen im Ausschnitt fehlenden Knoten bleibt deshalb ohne Nummer.
-		const titleOf = (id: number): string => visible.nodes.find((node) => node.id === id)?.title ?? 'Unbekannte Aufgabe';
+		const titleOf = (id: number): string =>
+			visible.nodes.find((node) => node.id === id)?.title ?? t('graphPanel.unknownTask');
 		return {
 			dependsOn: visible.edges
 				.filter((edge) => edge.to === selected.id)
@@ -151,51 +154,48 @@ export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProp
 				.filter((edge) => edge.from === selected.id)
 				.map((edge) => ({ id: edge.to, title: titleOf(edge.to), weight: edge.weight })),
 		};
-	}, [visible, selected]);
+	}, [visible, selected, t]);
 
 	return (
 		<section className="task-graph-panel">
-			<KolHeading _label="Priorisierung" _level={2} />
+			<KolHeading _label={t('graphPanel.heading')} _level={2} />
 
 			{/* Ohne Wrapper mit `role="alert"`: `kol-alert` setzt die Rolle bereits im Shadow DOM (`_alert`
 			    ist standardmäßig an), ein zweiter Live-Bereich darüber ließe den Fehler doppelt ansagen. */}
 			{error !== null && (
-				<KolAlert _type="error" _label="Der Aufgabengraph konnte nicht geladen werden">
+				<KolAlert _type="error" _label={t('graphPanel.loadError')}>
 					<p>{error}</p>
-					<KolButton _label="Erneut versuchen" _variant="primary" _on={{ onClick: () => void reload() }} />
+					<KolButton _label={t('graphPanel.retry')} _variant="primary" _on={{ onClick: () => void reload() }} />
 				</KolAlert>
 			)}
 
 			{/* `_label` statt `aria-label`: KoliBri beschriftet den Spinner intern, ein `aria-label` am
 			    Host ohne Rolle wird von Screenreadern nicht vorgelesen. */}
-			{error === null && graph === null && <KolSpin _show _variant="cycle" _label="Graph wird geladen" />}
+			{error === null && graph === null && <KolSpin _show _variant="cycle" _label={t('graphPanel.loading')} />}
 
 			{error === null && graph !== null && visible === null && (
-				<KolCard _label="Noch keine verknüpften Aufgaben" _level={3}>
-					<p>
-						Der Graph zeigt Aufgaben, die voneinander abhängen. Verknüpfe im Tab „Aufgaben" zwei Aufgaben über
-						„Abhängigkeiten" — danach steht hier der erste Baum.
-					</p>
+				<KolCard _label={t('graphPanel.emptyTitle')} _level={3}>
+					<p>{t('graphPanel.emptyText')}</p>
 				</KolCard>
 			)}
 
 			{error === null && visible !== null && (
 				<>
-					<KolHeading _label="Abhängigkeitsgraph" _level={3} />
+					<KolHeading _label={t('graphPanel.graphHeading')} _level={3} />
 
 					<div className="task-graph-pager">
 						<KolButton
-							_label="Zurück"
+							_label={t('common:actions.back')}
 							_variant="secondary"
 							_disabled={currentIndex === 0}
 							_on={{ onClick: () => showTree(currentIndex - 1) }}
 						/>
 						{/* `aria-live`: ohne Ansage bemerkt ein Screenreader den Wechsel nur an der Knotenliste. */}
 						<p className="task-graph-pager__position" aria-live="polite">
-							{`Baum ${currentIndex + 1} von ${trees.length}`}
+							{t('graphPanel.position', { current: currentIndex + 1, total: trees.length })}
 						</p>
 						<KolButton
-							_label="Vor"
+							_label={t('graphPanel.next')}
 							_variant="secondary"
 							_disabled={currentIndex >= trees.length - 1}
 							_on={{ onClick: () => showTree(currentIndex + 1) }}
@@ -219,34 +219,43 @@ export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProp
 						{selected !== null && (
 							<KolCard _label={selected.title} _level={4} className="task-graph-detail">
 								<p>
-									Priorität {selected.priority} · Wert {formatNumber(selected.value)} · Gesamtaufwand{' '}
-									{formatNumber(selected.totalEstimatedEffort)} Tage
+									{t('graphPanel.detailMeta', {
+										priority: selected.priority,
+										value: formatNumber(selected.value),
+										effort: formatNumber(selected.totalEstimatedEffort),
+									})}
 								</p>
 								{selected.progress && (
 									<p>
-										Fortschritt {selected.progress.done}/{selected.progress.total}. Gezählt werden auch erledigte
-										Unteraufgaben, die im Graphen nicht mehr erscheinen.
+										{t('graphPanel.detailProgress', {
+											done: selected.progress.done,
+											total: selected.progress.total,
+										})}
 									</p>
 								)}
 								<p>
-									Hängt ab von:{' '}
-									{relations.dependsOn.length === 0
-										? 'nichts'
-										: relations.dependsOn
-												.map((relation) => `${relation.title} (${formatNumber(relation.weight)})`)
-												.join(', ')}
+									{t('graphPanel.dependsOn', {
+										list:
+											relations.dependsOn.length === 0
+												? t('graphPanel.nothing')
+												: relations.dependsOn
+														.map((relation) => `${relation.title} (${formatNumber(relation.weight)})`)
+														.join(', '),
+									})}
 								</p>
 								<p>
-									Ermöglicht:{' '}
-									{relations.enables.length === 0
-										? 'nichts'
-										: relations.enables
-												.map((relation) => `${relation.title} (${formatNumber(relation.weight)})`)
-												.join(', ')}
+									{t('graphPanel.enables', {
+										list:
+											relations.enables.length === 0
+												? t('graphPanel.nothing')
+												: relations.enables
+														.map((relation) => `${relation.title} (${formatNumber(relation.weight)})`)
+														.join(', '),
+									})}
 								</p>
 								{taskById.has(selected.id) && (
 									<KolButton
-										_label="Abhängigkeiten bearbeiten"
+										_label={t('actions.editDependencies')}
 										_variant="primary"
 										_on={{ onClick: () => editDependencies(selected.id) }}
 									/>
@@ -257,19 +266,19 @@ export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProp
 
 					<div className="task-graph-aside">
 						<KolDetails
-							_label="Legende"
+							_label={t('graphPanel.legend')}
 							_open={legendOpen}
 							_on={{ onToggle: (_event, value) => setLegendOpen(value === true) }}
 						>
 							<ul className="task-graph-legend">
-								<li>Ein Pfeil zeigt von der Unteraufgabe nach unten auf die Aufgabe, die sie ermöglicht.</li>
-								<li>Je dicker die Linie, desto stärker das Gewicht — die Zahl steht an der Linie.</li>
-								<li>Jeder Knoten zeigt Nummer, Titel, Priorität, Wertbeitrag und Fortschritt.</li>
+								<li>{t('graphPanel.legendArrow')}</li>
+								<li>{t('graphPanel.legendLine')}</li>
+								<li>{t('graphPanel.legendNode')}</li>
 							</ul>
 						</KolDetails>
 
 						<KolDetails
-							_label="Graph als Liste"
+							_label={t('graphPanel.asList')}
 							_open={listOpen}
 							_on={{ onToggle: (_event, value) => setListOpen(value === true) }}
 						>

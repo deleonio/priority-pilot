@@ -11,6 +11,7 @@ import { fetchProviderEndpoint } from './endpointGuard.js';
 import { upstreamErrorDetail } from './upstreamError.js';
 import type { LlmProvider as LlmProviderRow } from '../models/index.js';
 import type { LlmSuitability } from '../logics/llmSuitability.js';
+import type { CareSprache } from '../logics/careSuggestionData.js';
 
 /**
  * Eine vorgeschlagene Säulen-Einzahlung: Säulen-ID plus Konfidenz in Prozent (0–100) und — seit
@@ -916,6 +917,8 @@ export interface AdviseActivitiesInput {
 	 * auszurichten.
 	 */
 	distribution?: PillarDistribution[];
+	/** App-Sprache der Antwort (`activity`, `reason`); ohne Angabe Deutsch. */
+	sprache?: CareSprache;
 }
 
 /** Funktionssignatur des Beraters — injizierbar, damit Tests ohne echten API-Call laufen. */
@@ -1004,6 +1007,9 @@ export const buildAdvisorUserMessage = (input: AdviseActivitiesInput): string =>
 				`Priorität: Richte die Vorschläge primär auf die schwächsten (am stärksten unterversorgten) Säulen aus — in dieser Reihenfolge: ${weakest.join(', ')}.`,
 			);
 		}
+	}
+	if (input.sprache === 'en') {
+		lines.push('', 'Sprache: Formuliere "activity" und "reason" auf Englisch, nicht auf Deutsch.');
 	}
 	return lines.join('\n');
 };

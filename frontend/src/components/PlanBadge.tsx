@@ -1,4 +1,5 @@
 import { KolBadge } from '@public-ui/react-v19';
+import { useTranslation } from 'react-i18next';
 import { featureOffer, planLabel, type FeatureId } from '../lib/planOffers';
 import { useEntitlement } from '../lib/usePlan';
 import { PlanHint } from './PlanHint';
@@ -28,6 +29,7 @@ const COLOR_SUCCESS = '#1a7f37';
  */
 export const PlanBadge = ({ feature, inModal = false }: { feature: FeatureId; inModal?: boolean }) => {
 	const entitlement = useEntitlement(feature);
+	const { t } = useTranslation('billing');
 
 	if (entitlement === undefined) {
 		// Weder Spiegel noch Serverantwort — lieber nichts als ein falsches Badge (AK1).
@@ -42,7 +44,7 @@ export const PlanBadge = ({ feature, inModal = false }: { feature: FeatureId; in
 		return (
 			<span className="plan-badge plan-badge--included" data-testid={`plan-badge-${feature}`}>
 				<KolBadge
-					_label={`${title} · ${paket} · enthalten`}
+					_label={t('planBadge.included', { title, plan: paket })}
 					_color={COLOR_SUCCESS}
 					_icons={{ left: { icon: 'fa-solid fa-check' } }}
 				/>

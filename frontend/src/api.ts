@@ -87,6 +87,7 @@ import type {
 	YearlyRecap,
 } from 'client';
 import createClient from 'openapi-fetch';
+import i18next from './i18n/config';
 import { planRequiredDetail } from './lib/apiError';
 import { appTokenHeaders, clearAppToken, getAppToken, setAppToken } from './lib/appToken';
 import { sortCategoriesByName } from './lib/categories';
@@ -108,7 +109,7 @@ const ensureCsrfToken = async (): Promise<string> => {
 	if (csrfToken === null) {
 		const response = await fetch(`${baseUrl}/auth/csrf`);
 		if (!response.ok) {
-			throw new Error(`CSRF-Token konnte nicht geladen werden (${response.status})`);
+			throw new Error(i18next.t('app:api.csrfFailed', { status: response.status }));
 		}
 		csrfToken = ((await response.json()) as { csrfToken: string }).csrfToken;
 	}
@@ -119,6 +120,8 @@ client.use({
 	onRequest: async ({ request }) => {
 		// Kanal für die serverseitige Kanal-Regel (ADR 0016), z. B. keine PayPal-Kasse in der Android-App.
 		request.headers.set('X-Client-Channel', getChannel());
+		// Aktive App-Sprache für übersetzte Server-Fehlertexte.
+		request.headers.set('Accept-Language', i18next.language);
 		// App-Token der Android-App (#2379); ohne Token bleibt die Website bei der Cookie-Session.
 		const appToken = getAppToken();
 		if (appToken !== null) {
@@ -212,7 +215,7 @@ async function withRetry<T>(
 			}
 		}
 	}
-	throw lastError || new Error('Alle Retry-Versuche fehlgeschlagen.');
+	throw lastError || new Error(i18next.t('app:api.retryFailed'));
 }
 
 /**
@@ -1124,12 +1127,17 @@ export const api = {
 	async lektorat({ text, maxLength, signal }: { text: string; maxLength?: number } & Init): Promise<{ text: string }> {
 		const response = await fetch(`${baseUrl}/lektorat`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json', 'x-csrf-token': await ensureCsrfToken(), ...appTokenHeaders() },
+			headers: {
+				'Content-Type': 'application/json',
+				'Accept-Language': i18next.language,
+				'x-csrf-token': await ensureCsrfToken(),
+				...appTokenHeaders(),
+			},
 			body: JSON.stringify({ text, maxLength }),
 			signal,
 		});
 		if (!response.ok) {
-			const error = await response.json().catch(() => ({ message: 'Unbekannter Fehler' }));
+			const error = await response.json().catch(() => ({ message: i18next.t('app:api.unknownError') }));
 			throw new ResponseError(response, error);
 		}
 		const data = await response.json();
@@ -1147,12 +1155,17 @@ export const api = {
 	}: { category: string; title: string; description: string } & Init): Promise<void> {
 		const response = await fetch(`${baseUrl}/feedback`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json', 'x-csrf-token': await ensureCsrfToken(), ...appTokenHeaders() },
+			headers: {
+				'Content-Type': 'application/json',
+				'Accept-Language': i18next.language,
+				'x-csrf-token': await ensureCsrfToken(),
+				...appTokenHeaders(),
+			},
 			body: JSON.stringify({ category, title, description }),
 			signal,
 		});
 		if (!response.ok) {
-			const error = await response.json().catch(() => ({ message: 'Unbekannter Fehler' }));
+			const error = await response.json().catch(() => ({ message: i18next.t('app:api.unknownError') }));
 			throw new ResponseError(response, error);
 		}
 	},
@@ -1255,10 +1268,10 @@ export const api = {
 	async logout(): Promise<void> {
 		const response = await fetch(`${getApiBase()}/auth/logout`, {
 			method: 'POST',
-			headers: { 'x-csrf-token': await ensureCsrfToken(), ...appTokenHeaders() },
+			headers: { 'Accept-Language': i18next.language, 'x-csrf-token': await ensureCsrfToken(), ...appTokenHeaders() },
 		});
 		if (!response.ok) {
-			throw new Error(`Logout fehlgeschlagen (${response.status})`);
+			throw new Error(i18next.t('app:api.logoutFailed', { status: response.status }));
 		}
 		// Session ist serverseitig zerstört — den (an die alte Session gebundenen) Token verwerfen;
 		// ein App-Token hat der Server mit dem Aufruf widerrufen (#2379).

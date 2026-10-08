@@ -1,6 +1,7 @@
 import { KolAlert, KolButton, KolSpin } from '@public-ui/react-v19';
 import type { Category } from 'client';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { CategoryBadge } from './CategoryBadge';
@@ -25,6 +26,7 @@ interface CategoryListProps {
  * beides doppelt an, und eine als Ordner missbrauchte Säule verzerrt die Balance-Rechnung.
  */
 export const CategoryList = ({ onCategoryChanged }: CategoryListProps) => {
+	const { t } = useTranslation(['settings', 'common']);
 	const [categories, setCategories] = useState<Category[]>([]);
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -73,33 +75,30 @@ export const CategoryList = ({ onCategoryChanged }: CategoryListProps) => {
 	return (
 		<div className="pillar-list category-list" ref={deleteFallbackRef} tabIndex={-1}>
 			<p className="hint category-list-intro">
-				Kategorien ordnen deine Aufgaben nach Thema — „Hausbau", „Steuer", „Verein". Jede Aufgabe hat höchstens eine,
-				sie erscheint als farbiges Kennzeichen in den Listen und lässt sich in der Suche filtern. Anders als eine{' '}
-				<strong>Lebenssäule</strong> wirkt sie nicht auf die Priorisierung: Säulen sagen, worauf eine Aufgabe in deinem
-				Leben einzahlt (anteilig, mehrere gleichzeitig) und steuern damit Wert und Balance. Kategorien sagen nur, wo
-				etwas thematisch hingehört.
+				<Trans t={t} i18nKey="categoryList.intro" components={{ strong: <strong /> }} />
 			</p>
 
 			{error !== null && (
-				<KolAlert _type="error" _label="Kategorien konnten nicht geladen werden">
+				<KolAlert _type="error" _label={t('categoryList.loadError')}>
 					<p>{error}</p>
-					<KolButton _label="Erneut versuchen" _variant="secondary" _on={{ onClick: () => void loadCategories() }} />
+					<KolButton
+						_label={t('categoryList.retry')}
+						_variant="secondary"
+						_on={{ onClick: () => void loadCategories() }}
+					/>
 				</KolAlert>
 			)}
 
 			{loading ? (
-				<KolSpin _show _variant="cycle" _label="Kategorien werden geladen …" />
+				<KolSpin _show _variant="cycle" _label={t('categoryList.loading')} />
 			) : categories.length === 0 && error === null ? (
 				/* Leerzustand als Einladung — die Toolbar bleibt aus, damit es genau eine Primäraktion gibt.
 				   #2015: keine Kartenfläche (Regel 1 — die Liste liegt selbst in der Karte „Kategorien verwalten“). */
 				<section className="empty-state">
-					<h3>Noch keine Kategorien</h3>
-					<p>
-						Lege deine erste Kategorie an, um Aufgaben nach Thema zu bündeln. Ohne Kategorie bleiben Aufgaben einfach
-						ungeordnet — nichts geht verloren.
-					</p>
+					<h3>{t('categoryList.emptyTitle')}</h3>
+					<p>{t('categoryList.emptyText')}</p>
 					<KolButton
-						_label="Neue Kategorie anlegen"
+						_label={t('categoryList.create')}
 						_icons={{ left: { icon: 'fa-solid fa-plus' } }}
 						_variant="primary"
 						_on={{ onClick: () => setFormMode({ kind: 'create' }) }}
@@ -109,7 +108,7 @@ export const CategoryList = ({ onCategoryChanged }: CategoryListProps) => {
 				<>
 					<div className="pillar-list-toolbar">
 						<KolButton
-							_label="Neue Kategorie anlegen"
+							_label={t('categoryList.create')}
 							_icons={{ left: { icon: 'fa-solid fa-plus' } }}
 							_variant="primary"
 							_on={{ onClick: () => setFormMode({ kind: 'create' }) }}
@@ -124,14 +123,14 @@ export const CategoryList = ({ onCategoryChanged }: CategoryListProps) => {
 									{/* Icon-only wie die Zeilen-Aktionen der TaskTable (#2014): Die KolIcons-Font kennt
 									    keinen Stift/Papierkorb → Zahnrad/Kreuz; `_hideLabel` hält das Label im A11y-Baum. */}
 									<KolButton
-										_label="Bearbeiten"
+										_label={t('common:actions.edit')}
 										_icons={{ left: { icon: 'kolicon-cogwheel' } }}
 										_hideLabel
 										_variant="secondary"
 										_on={{ onClick: () => setFormMode({ kind: 'edit', category }) }}
 									/>
 									<KolButton
-										_label="Löschen"
+										_label={t('common:actions.delete')}
 										_icons={{ left: { icon: 'fa-solid fa-trash' } }}
 										_hideLabel
 										_variant="danger"

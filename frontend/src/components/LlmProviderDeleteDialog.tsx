@@ -1,5 +1,6 @@
 import type { LlmProvider } from 'client';
 import type { RefObject } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 
@@ -23,21 +24,27 @@ export const LlmProviderDeleteDialog = ({
 	onClose,
 	onDeleted,
 	fallbackFocusRef,
-}: LlmProviderDeleteDialogProps) => (
-	<ConfirmDeleteDialog
-		title="Provider löschen"
-		body={
-			<p>
-				Soll der Provider <strong>„{provider.name}“</strong> ({provider.endpoint}) wirklich gelöscht werden?{' '}
-				{provider.isActive
-					? 'Er ist der AKTIVE Provider — danach übernimmt automatisch der Fallback (Mistral vor OpenRouter, je nach Server-ENV).'
-					: 'Diese Aktion kann nicht rückgängig gemacht werden.'}
-			</p>
-		}
-		confirmLabel="Endgültig löschen"
-		onConfirm={() => api.deleteLlmProvider({ id: provider.id })}
-		onClose={onClose}
-		onDeleted={onDeleted}
-		fallbackFocusRef={fallbackFocusRef}
-	/>
-);
+}: LlmProviderDeleteDialogProps) => {
+	const { t } = useTranslation('settings');
+	return (
+		<ConfirmDeleteDialog
+			title={t('llmProviderDeleteDialog.title')}
+			body={
+				<p>
+					<Trans
+						t={t}
+						i18nKey="llmProviderDeleteDialog.body"
+						values={{ name: provider.name, endpoint: provider.endpoint }}
+						components={{ strong: <strong /> }}
+					/>{' '}
+					{provider.isActive ? t('llmProviderDeleteDialog.activeHint') : t('llmProviderDeleteDialog.irreversible')}
+				</p>
+			}
+			confirmLabel={t('llmProviderDeleteDialog.confirm')}
+			onConfirm={() => api.deleteLlmProvider({ id: provider.id })}
+			onClose={onClose}
+			onDeleted={onDeleted}
+			fallbackFocusRef={fallbackFocusRef}
+		/>
+	);
+};

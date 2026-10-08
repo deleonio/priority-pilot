@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { KolSpin } from '@public-ui/react-v19';
+import { useTranslation } from 'react-i18next';
 import { App } from './App';
 import { ConsentStep } from './components/ConsentStep';
 import { GroupJoinPage } from './components/GroupJoinPage';
@@ -73,6 +74,7 @@ const consumeMagicLink = async (): Promise<void> => {
  * folgenden Navigationen (z. B. einem Reload).
  */
 const AuthenticatedApp = () => {
+	const { t } = useTranslation('app');
 	const [authState, setAuthState] = useState<AuthState>('loading');
 	const [user, setUser] = useState<AuthUser | null>(null);
 	const [silentPending, setSilentPending] = useState(false);
@@ -151,7 +153,7 @@ const AuthenticatedApp = () => {
 	if (authState === 'loading' || silentPending) {
 		return (
 			<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh' }}>
-				<KolSpin _show _variant="cycle" _label="Authentifizierung wird geprüft …" />
+				<KolSpin _show _variant="cycle" _label={t('root.authChecking')} />
 			</div>
 		);
 	}
@@ -161,7 +163,7 @@ const AuthenticatedApp = () => {
 	}
 
 	if (authState === 'error') {
-		return <div role="alert">Authentifizierung fehlgeschlagen. Bitte Seite neu laden.</div>;
+		return <div role="alert">{t('root.authFailed')}</div>;
 	}
 
 	// #1901: ohne Zustimmung zur aktuellen Fassung zuerst der Zustimmungsschritt, danach die App.

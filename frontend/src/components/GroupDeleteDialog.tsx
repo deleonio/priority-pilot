@@ -1,6 +1,7 @@
 import { KolAlert, KolButton } from '@public-ui/react-v19';
 import type { Group } from 'client';
 import { useEffect, useRef, useState, type RefObject } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { Modal } from './Modal';
@@ -24,6 +25,7 @@ interface GroupDeleteDialogProps {
  * beim Öffnen liegt der Fokus wie in #472 auf „Abbrechen".
  */
 export const GroupDeleteDialog = ({ group, onClose, onDeleted, fallbackFocusRef }: GroupDeleteDialogProps) => {
+	const { t } = useTranslation(['groups', 'common']);
 	const [step, setStep] = useState<'intent' | 'scope'>('intent');
 	const [error, setError] = useState<string | null>(null);
 	const [deleting, setDeleting] = useState(false);
@@ -54,31 +56,36 @@ export const GroupDeleteDialog = ({ group, onClose, onDeleted, fallbackFocusRef 
 
 	return (
 		<Modal
-			title="Gruppe löschen"
+			title={t('groups:deleteDialog.title')}
 			onClose={onClose}
 			fallbackFocusRef={fallbackFocusRef}
 			initialFocusRef={cancelRef as RefObject<HTMLElement | null>}
 		>
 			{error !== null && (
-				<KolAlert _type="error" _label="Löschen fehlgeschlagen">
+				<KolAlert _type="error" _label={t('groups:deleteDialog.errorLabel')}>
 					{error}
 				</KolAlert>
 			)}
 			{step === 'intent' ? (
 				<>
 					<p>
-						Willst du die Gruppe <strong>„{group.name}“</strong> wirklich löschen?
+						<Trans
+							t={t}
+							i18nKey="groups:deleteDialog.intent"
+							values={{ name: group.name }}
+							components={{ strong: <strong /> }}
+						/>
 					</p>
 					<div className="modal-actions">
 						<KolButton
 							ref={cancelRef}
-							_label="Abbrechen"
+							_label={t('common:actions.cancel')}
 							_variant="secondary"
 							_disabled={deleting}
 							_on={{ onClick: () => onClose() }}
 						/>
 						<KolButton
-							_label="Löschen"
+							_label={t('common:actions.delete')}
 							_icons={{ left: { icon: 'fa-solid fa-trash' } }}
 							_variant="danger"
 							_disabled={deleting}
@@ -89,19 +96,23 @@ export const GroupDeleteDialog = ({ group, onClose, onDeleted, fallbackFocusRef 
 			) : (
 				<>
 					<p>
-						Die Gruppe <strong>„{group.name}“</strong> wird endgültig gelöscht — inkl. aller Mitglieder-Einträge. Diese
-						Aktion kann nicht rückgängig gemacht werden.
+						<Trans
+							t={t}
+							i18nKey="groups:deleteDialog.scope"
+							values={{ name: group.name }}
+							components={{ strong: <strong /> }}
+						/>
 					</p>
 					<div className="modal-actions">
 						<KolButton
-							_label="Abbrechen"
+							_label={t('common:actions.cancel')}
 							_variant="secondary"
 							_disabled={deleting}
 							_on={{ onClick: () => onClose() }}
 						/>
 						<KolButton
 							ref={confirmRef}
-							_label="Endgültig löschen"
+							_label={t('groups:deleteDialog.confirm')}
 							_icons={{ left: { icon: 'fa-solid fa-trash' } }}
 							_variant="danger"
 							_disabled={deleting}

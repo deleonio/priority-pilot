@@ -3,6 +3,8 @@
  * Frontend-Validierung für Beschreibung-Textfelder.
  */
 
+import i18next from '../i18n/config';
+
 export const DESCRIPTION_MAX_LENGTH = 3000;
 
 /**
@@ -22,7 +24,7 @@ export function validateDescriptionLength(description: string): {
 		return {
 			isValid: false,
 			remaining,
-			error: `Beschreibung darf maximal ${DESCRIPTION_MAX_LENGTH} Zeichen haben.`,
+			error: i18next.t('taskForm:descriptionLength.tooLong', { max: DESCRIPTION_MAX_LENGTH }),
 		};
 	}
 

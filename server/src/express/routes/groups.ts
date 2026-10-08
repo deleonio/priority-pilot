@@ -20,6 +20,7 @@ import { resolveGeoUser } from './geoConfig.js';
 import { requirePlanFeature } from '../planGuard.js';
 import { allowEmail } from '../../logics/allowedEmails.js';
 import { claimAccessMailSlot, sendAccountAccessMail } from '../../logics/accessMail.js';
+import { spracheAusHeader } from '../../logics/careSuggestionData.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
 import { protokolliereKpiEreignis } from '../../logics/kpiKennzahlen.js';
 import { berechneDuoStreak } from '../../logics/duoStreak.js';
@@ -503,13 +504,25 @@ groupsRouter.post(
 				// mit direktem Konto-Zugang — nach angelegter Einladung, vor der Antwort abgewartet
 				// (Nebenwirkung beobachtbar). Transportfehler schluckt sendAccountAccessMail selbst.
 				try {
-					await sendAccountAccessMail(newInviteeEmail, {
-						subject: `Einladung zur Gruppe „${found.group.name}" bei Balamentum`,
-						lines: [
-							`${displayNameOf(user)} lädt dich ein, in Balamentum die Gruppe „${found.group.name}" zu teilen.`,
-							'Dort könnt ihr Aufgaben gemeinsam planen — schau in Ruhe vorbei.',
-						],
-					});
+					await sendAccountAccessMail(
+						newInviteeEmail,
+						spracheAusHeader(req.get('accept-language')) === 'en'
+							? {
+									subject: `Invitation to the group "${found.group.name}" on Balamentum`,
+									lines: [
+										`${displayNameOf(user)} invites you to share the group "${found.group.name}" in Balamentum.`,
+										'There you can plan tasks together — have a look whenever you like.',
+									],
+									sprache: 'en',
+								}
+							: {
+									subject: `Einladung zur Gruppe „${found.group.name}" bei Balamentum`,
+									lines: [
+										`${displayNameOf(user)} lädt dich ein, in Balamentum die Gruppe „${found.group.name}" zu teilen.`,
+										'Dort könnt ihr Aufgaben gemeinsam planen — schau in Ruhe vorbei.',
+									],
+								},
+					);
 				} catch (error) {
 					console.warn('Einladungs-Mail fehlgeschlagen:', error);
 				}

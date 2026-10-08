@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useVoiceInput } from '../lib/useVoiceInput';
 
 interface VoiceFieldProps {
@@ -51,6 +52,7 @@ export const VoiceField = ({
 	counter = false,
 	children,
 }: VoiceFieldProps) => {
+	const { t } = useTranslation('taskForm');
 	const { isRecording, startRecording, stopRecording, isSupported, voiceError } = useVoiceInput({ onTranscript });
 
 	// Auto-Start (#272): beim Mount die Aufnahme starten, sofern unterstützt. Der Cleanup setzt das
@@ -85,7 +87,9 @@ export const VoiceField = ({
 						// `.focus()` — nur eben nicht über Tab. Das schließt die Tab-Freiheits-Lücke im
 						// Schnellerfassungs-Dialog (AC2c: Tab aus der Textarea heraus landet auf dem CTA).
 						tabIndex={-1}
-						aria-label={isRecording ? `Aufnahme stoppen: ${fieldLabel}` : `Aufnahme starten (Mikrofon): ${fieldLabel}`}
+						aria-label={
+							isRecording ? t('voiceField.stop', { field: fieldLabel }) : t('voiceField.start', { field: fieldLabel })
+						}
 						aria-pressed={isRecording}
 						className={`mic-button${isRecording ? ' mic-button--recording' : ''}`}
 						onClick={() => {

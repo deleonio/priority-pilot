@@ -465,7 +465,7 @@ describe('GET /scores/care-suggestions — Säulen pro Nutzer (#2146)', () => {
 		assert.equal(new Set(keys).size, 2, 'templateKey unterscheidet die Säulen');
 	});
 
-	it('AK4: generischer Text kommt in allen zehn Sprachen mit Säulenname; de und en unterscheiden sich', async () => {
+	it('AK4: generischer Text kommt in allen Sprachen mit Säulenname; de und en unterscheiden sich', async () => {
 		const cookie = await server.register('care-2146-lang@example.com', 'password123');
 		const garten = await legeEigeneSaeuleAn(cookie, 'Gartenarbeit', null);
 		const texte = new Map<string, string>();

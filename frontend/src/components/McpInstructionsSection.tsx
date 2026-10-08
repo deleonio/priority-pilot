@@ -1,5 +1,6 @@
 import { KolAlert, KolButton, KolCard, KolTextarea } from '@public-ui/react-v19';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { ButtonAction } from './ApiTokensSection';
@@ -14,6 +15,7 @@ const MAX_LENGTH = 2000;
  */
 export const McpInstructionsSection = ({ open = true }: { open?: boolean }) => {
 	// `null` = noch nicht geladen; `saved` ist der Serverstand, `draft` der lokal bearbeitete Text.
+	const { t } = useTranslation(['settings', 'common']);
 	const [saved, setSaved] = useState<string | null>(null);
 	const [draft, setDraft] = useState('');
 	const [busy, setBusy] = useState(false);
@@ -30,12 +32,12 @@ export const McpInstructionsSection = ({ open = true }: { open?: boolean }) => {
 				setDraft(text);
 			})
 			.catch(() => {
-				if (active) setFeedback({ type: 'error', text: 'Die Dialog-Vorgaben konnten nicht geladen werden.' });
+				if (active) setFeedback({ type: 'error', text: t('mcpInstructions.loadError') });
 			});
 		return () => {
 			active = false;
 		};
-	}, []);
+	}, [t]);
 
 	const dirty = saved !== null && draft.trim() !== saved;
 
@@ -48,11 +50,11 @@ export const McpInstructionsSection = ({ open = true }: { open?: boolean }) => {
 			const text = result?.instructions ?? draft.trim();
 			setSaved(text);
 			setDraft(text);
-			setFeedback({ type: 'success', text: 'Dialog-Vorgaben gespeichert' });
+			setFeedback({ type: 'success', text: t('mcpInstructions.saved') });
 		} catch (reason) {
 			setFeedback({
 				type: 'error',
-				text: `Speichern fehlgeschlagen — bitte erneut versuchen. ${(await toApiError(reason)).message}`,
+				text: t('mcpInstructions.saveFailed', { message: (await toApiError(reason)).message }),
 			});
 		} finally {
 			setBusy(false);
@@ -60,13 +62,13 @@ export const McpInstructionsSection = ({ open = true }: { open?: boolean }) => {
 	};
 
 	return (
-		<KolCard className="settings-card" _label="Dialog-Vorgaben für die KI" _level={2}>
+		<KolCard className="settings-card" _label={t('mcpInstructions.title')} _level={2}>
 			<div className="settings-card-stack" data-testid="mcp-instructions-panel">
-				<p>Gilt für KI-Clients, die sich per Access-Token verbinden.</p>
+				<p>{t('mcpInstructions.intro')}</p>
 				<KolTextarea
-					_label="Vorgaben"
-					_hint="Beispiel: „Antworte kurz und knapp.“"
-					_placeholder="Antworte kurz und knapp."
+					_label={t('mcpInstructions.label')}
+					_hint={t('mcpInstructions.hint')}
+					_placeholder={t('mcpInstructions.placeholder')}
 					_rows={5}
 					_maxLength={MAX_LENGTH}
 					_hasCounter
@@ -80,7 +82,7 @@ export const McpInstructionsSection = ({ open = true }: { open?: boolean }) => {
 				/>
 				<ButtonAction onClick={() => void handleSave()}>
 					<KolButton
-						_label={busy ? 'Wird gespeichert …' : 'Speichern'}
+						_label={busy ? t('mcpInstructions.saving') : t('common:actions.save')}
 						class="settings-action-btn"
 						_variant="primary"
 						_disabled={!open || !dirty || busy}
@@ -88,7 +90,10 @@ export const McpInstructionsSection = ({ open = true }: { open?: boolean }) => {
 					/>
 				</ButtonAction>
 				{feedback !== null && (
-					<KolAlert _type={feedback.type} _label={feedback.type === 'success' ? 'Gespeichert' : 'Fehler'}>
+					<KolAlert
+						_type={feedback.type}
+						_label={feedback.type === 'success' ? t('mcpInstructions.savedLabel') : t('mcpInstructions.errorLabel')}
+					>
 						{feedback.text}
 					</KolAlert>
 				)}

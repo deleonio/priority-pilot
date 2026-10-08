@@ -194,7 +194,7 @@ describe('ConsentStep Rechtstext-Hinweis (#2226)', () => {
 		await i18next.changeLanguage('de');
 	});
 
-	it('AK3: Nicht-Deutsch zeigt den Hinweis, der Ausweichlink trägt hreflang="de"', async () => {
+	it('Englisch lädt die englische Rechtsseite ohne Hinweis, der Ausweichlink trägt hreflang="en"', async () => {
 		vi.stubGlobal(
 			'fetch',
 			vi.fn(() => Promise.reject(new Error('offline'))),
@@ -202,11 +202,11 @@ describe('ConsentStep Rechtstext-Hinweis (#2226)', () => {
 		await i18next.changeLanguage('en');
 		expect(hint, 'Key legal.germanOnly fehlt in en/messages.json').toBeTruthy();
 		render(<ConsentStep onAccepted={vi.fn()} />);
-		expect(screen.getByText(hint!)).toBeTruthy();
+		expect(screen.queryByText(hint!)).toBeNull();
 		fireEvent.click(screen.getByText(en.consent.readTerms));
 		const fallback = within(await screen.findByRole('alert')).getByRole('link');
-		expect(fallback.getAttribute('href')).toBe(`${window.location.origin}/nutzungsbedingungen/`);
-		expect(fallback.getAttribute('hreflang')).toBe('de');
+		expect(fallback.getAttribute('href')).toBe(`${window.location.origin}/en/terms/`);
+		expect(fallback.getAttribute('hreflang')).toBe('en');
 		vi.unstubAllGlobals();
 	});
 

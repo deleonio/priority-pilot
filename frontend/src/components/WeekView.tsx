@@ -2,10 +2,12 @@ import { KolButton, KolCard } from '@public-ui/react-v19';
 import type { CalendarEvent, Task } from 'client';
 import { TaskStatus } from 'client';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { formatDeadline } from '../lib/task';
 
-/** Deutsche Wochentagsnamen, Montag zuerst (ISO-Wochenstart). */
-const WEEKDAY_LABELS = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+/** Schlüssel der Wochentagsnamen, Montag zuerst (ISO-Wochenstart). */
+const WEEKDAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
 const MS_PER_DAY = 86_400_000;
 
@@ -43,8 +45,8 @@ const pad = (value: number): string => String(value).padStart(2, '0');
 const clock = (date: Date): string => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 
 /** Zeitblock `HH:MM–HH:MM` in Ortszeit, ganztägig als Text. */
-const eventTime = (event: CalendarEvent): string =>
-	event.allDay ? 'ganztägig' : `${clock(new Date(event.start))}–${clock(new Date(event.end))}`;
+const eventTime = (event: CalendarEvent, t: TFunction<'capture'>): string =>
+	event.allDay ? t('weekView.allDay') : `${clock(new Date(event.start))}–${clock(new Date(event.end))}`;
 
 interface WeekViewProps {
 	/** Alle Aufgaben des Nutzers (wie im Dashboard, `GET /tasks`). */
@@ -90,6 +92,7 @@ export const WeekView = ({
 	onSelectDay,
 	calendarEvents = [],
 }: WeekViewProps) => {
+	const { t } = useTranslation('capture');
 	const today = useMemo(() => referenceDate ?? new Date(), [referenceDate]);
 	const weekDates = useMemo(() => weekDatesFor(today), [today]);
 
@@ -112,7 +115,7 @@ export const WeekView = ({
 	return (
 		<section className="week-view">
 			<div className="week-view-heading">
-				<h2>Wochenansicht</h2>
+				<h2>{t('weekView.heading')}</h2>
 			</div>
 			<div className="week-view-grid">
 				{weekDates.map((day, index) => {
@@ -135,13 +138,16 @@ export const WeekView = ({
 						<KolCard
 							key={day.getTime()}
 							className="week-view-day"
-							_label={`${WEEKDAY_LABELS[index]}, ${formatDeadline(day)}`}
+							_label={t('weekView.dayLabel', {
+								weekday: t(`weekView.weekdays.${WEEKDAY_KEYS[index]}`),
+								date: formatDeadline(day),
+							})}
 							_level={3}
 						>
 							<ul className="week-view-tasks">
 								{dayEvents.map((event, eventIndex) => (
 									<li key={`event-${event.sourceId}-${event.start}-${eventIndex}`} className="week-view-event">
-										<span className="week-view-event__time">{eventTime(event)}</span> {event.title}
+										<span className="week-view-event__time">{eventTime(event, t)}</span> {event.title}
 									</li>
 								))}
 								{openDayTasks.map((task) => (
@@ -153,13 +159,17 @@ export const WeekView = ({
 									</li>
 								))}
 								{dayRecommendations.map((task) => (
-									<li key={`empfohlen-${task.id}`}>{task.title} (empfohlen)</li>
+									<li key={`empfohlen-${task.id}`}>{t('weekView.recommended', { title: task.title })}</li>
 								))}
 								{isToday && nextTask !== null && deadlineOutsideWeek(nextTask.deadline) && (
-									<li key={`next-${nextTask.id}`}>{nextTask.title} (nächste Aufgabe)</li>
+									<li key={`next-${nextTask.id}`}>{t('weekView.nextTask', { title: nextTask.title })}</li>
 								)}
 							</ul>
-							<KolButton _label="Tag öffnen" _variant="secondary" _on={{ onClick: () => onSelectDay(day) }} />
+							<KolButton
+								_label={t('weekView.openDay')}
+								_variant="secondary"
+								_on={{ onClick: () => onSelectDay(day) }}
+							/>
 						</KolCard>
 					);
 				})}

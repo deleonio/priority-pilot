@@ -1,6 +1,7 @@
 import { KolButton } from '@public-ui/react-v19';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { flushSync } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { SESSION_EXPIRED_EVENT } from '../lib/apiError';
 import { SESSION_RELOAD_KEY } from '../lib/auth';
 import { Modal } from './Modal';
@@ -29,6 +30,7 @@ import { Modal } from './Modal';
  * Enter-Klick kennt.
  */
 export const SessionExpiredDialog = () => {
+	const { t } = useTranslation(['onboarding', 'common']);
 	const [open, setOpen] = useState(false);
 	const reloadRef = useRef<HTMLSpanElement>(null);
 
@@ -68,14 +70,14 @@ export const SessionExpiredDialog = () => {
 	}
 
 	return (
-		<Modal title="Session abgelaufen" onClose={() => setOpen(false)} initialFocusRef={reloadRef}>
-			<p>Deine Anmeldung ist abgelaufen. Ungespeicherte Änderungen gehen beim Neuladen verloren.</p>
+		<Modal title={t('sessionExpired.title')} onClose={() => setOpen(false)} initialFocusRef={reloadRef}>
+			<p>{t('sessionExpired.text')}</p>
 			<div className="modal-actions session-dialog-actions">
 				<span ref={reloadRef} data-testid="session-reload" tabIndex={-1} onClick={reload} onKeyDown={onReloadKeyDown}>
-					<KolButton _label="Neu laden" _variant="primary" />
+					<KolButton _label={t('sessionExpired.reload')} _variant="primary" />
 				</span>
 				<span data-testid="session-cancel" onClick={() => setOpen(false)}>
-					<KolButton _label="Abbrechen" _variant="secondary" />
+					<KolButton _label={t('common:actions.cancel')} _variant="secondary" />
 				</span>
 			</div>
 		</Modal>

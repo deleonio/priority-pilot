@@ -2,6 +2,7 @@ import { KolAlert, KolButton, KolCard, KolSpin } from '@public-ui/react-v19';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
+import i18next from '../i18n/config';
 import { rasterisiere } from '../lib/karteRasterisieren';
 import { erzeugeMonatsKarteSvg, monatsDateiname, vormonat } from '../lib/monthlyShareCard';
 
@@ -32,7 +33,7 @@ const meilensteinText = (schluessel: string): string => {
 	const trenn = schluessel.indexOf('-');
 	const art = schluessel.slice(0, trenn);
 	const wert = schluessel.slice(trenn + 1);
-	return art === 'streak' ? `Streak ${wert}` : `${wert} Punkte`;
+	return i18next.t(art === 'streak' ? 'dashboard:milestone.streak' : 'dashboard:milestone.points', { value: wert });
 };
 
 export const MonthlyBalanceCard = () => {

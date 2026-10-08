@@ -1,6 +1,7 @@
 import { KolButton, KolCard } from '@public-ui/react-v19';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { isNativeChannel } from '../lib/platform';
 
 /**
@@ -44,6 +45,7 @@ const NativeServiceWorkerCleanup = () => {
  * blubbert an den Wrapper). So bleibt genau ein Handler-Pfad – keine Doppelauslösung.
  */
 const PwaUpdatePrompt = () => {
+	const { t } = useTranslation('onboarding');
 	const {
 		needRefresh: [needRefresh],
 		offlineReady: [offlineReady, setOfflineReady],
@@ -87,18 +89,18 @@ const PwaUpdatePrompt = () => {
 	return (
 		<div className="update-prompt">
 			{needRefresh && (
-				<KolCard _label="Neue Version verfügbar">
-					<p>Balamentum wurde aktualisiert. Lade die App neu, um die neue Version zu nutzen.</p>
+				<KolCard _label={t('update.newVersionTitle')}>
+					<p>{t('update.newVersionText')}</p>
 					<span data-testid="pwa-update-reload" onClick={confirmUpdate}>
-						<KolButton _label="Jetzt neu laden" _variant="primary" />
+						<KolButton _label={t('update.reloadNow')} _variant="primary" />
 					</span>
 				</KolCard>
 			)}
 			{offlineReady && (
-				<KolCard _label="Offline einsatzbereit">
-					<p>Balamentum funktioniert ab jetzt auch ohne Internetverbindung.</p>
+				<KolCard _label={t('update.offlineTitle')}>
+					<p>{t('update.offlineText')}</p>
 					<span data-testid="pwa-offline-close" onClick={() => setOfflineReady(false)}>
-						<KolButton _label="Verstanden" _variant="secondary" />
+						<KolButton _label={t('update.gotIt')} _variant="secondary" />
 					</span>
 				</KolCard>
 			)}

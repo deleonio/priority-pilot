@@ -1,5 +1,6 @@
 import { KolAlert, KolButton, KolInputText } from '@public-ui/react-v19';
 import { useEffect, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { KnowledgeEntry } from 'client';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -25,6 +26,7 @@ const ButtonAction = ({ onClick, children }: { onClick: () => void; children: Re
  * Bewusst ohne `KolAccordion`: der Abschnitt ist direkt bedienbar (AK7/AK8-e2e ohne Aufklappen).
  */
 export const KnowledgeEntriesSection = () => {
+	const { t } = useTranslation(['settings', 'common']);
 	const locked = useEntitlement('knowledge_entries')?.allowed === false;
 	const [entries, setEntries] = useState<KnowledgeEntry[]>([]);
 	const [text, setText] = useState('');
@@ -42,12 +44,12 @@ export const KnowledgeEntriesSection = () => {
 				if (active) setEntries(list ?? []);
 			})
 			.catch(() => {
-				if (active) setError('Die Wissens-Einträge konnten nicht geladen werden.');
+				if (active) setError(t('knowledgeEntries.loadError'));
 			});
 		return () => {
 			active = false;
 		};
-	}, [locked]);
+	}, [locked, t]);
 
 	const run = async (action: () => Promise<void>): Promise<void> => {
 		setError(null);
@@ -64,7 +66,7 @@ export const KnowledgeEntriesSection = () => {
 	const handleCreate = (): Promise<void> => {
 		const trimmed = text.trim();
 		if (trimmed === '') {
-			setError('Bitte einen Text eingeben.');
+			setError(t('knowledgeEntries.textRequired'));
 			return Promise.resolve();
 		}
 		return run(async () => {
@@ -86,33 +88,35 @@ export const KnowledgeEntriesSection = () => {
 
 	return (
 		<div className="api-tokens settings-card knowledge-entries" data-testid="knowledge-entries-panel">
-			<h2>Wissens-Einträge</h2>
+			<h2>{t('knowledgeEntries.title')}</h2>
 			<PlanBadge feature="knowledge_entries" />
 			{!locked && (
 				<>
 					<div className="api-tokens__create">
-						<p>
-							Persönliche Hinweise, z. B. „Ich trainiere dienstags nicht“. Passende Einträge fließen in die
-							Säulenzuordnung neuer Aufgaben ein.
-						</p>
+						<p>{t('knowledgeEntries.intro')}</p>
 						<KolInputText
-							_label="Neuer Wissens-Eintrag"
+							_label={t('knowledgeEntries.newLabel')}
 							_maxLength={MAX_TEXT_LENGTH}
 							_hasCounter
 							_value={text}
 							_on={{ onInput: (_event, value) => setText(String(value ?? '')) }}
 						/>
 						<ButtonAction onClick={() => void handleCreate()}>
-							<KolButton _label="Hinzufügen" class="settings-action-btn" _variant="primary" _disabled={busy} />
+							<KolButton
+								_label={t('common:actions.add')}
+								class="settings-action-btn"
+								_variant="primary"
+								_disabled={busy}
+							/>
 						</ButtonAction>
 						{error !== null && (
-							<KolAlert _type="error" _label="Fehler">
+							<KolAlert _type="error" _label={t('knowledgeEntries.errorLabel')}>
 								{error}
 							</KolAlert>
 						)}
 					</div>
 					{entries.length === 0 ? (
-						<p>Noch kein Eintrag hinterlegt.</p>
+						<p>{t('knowledgeEntries.empty')}</p>
 					) : (
 						<ul className="api-tokens__list">
 							{entries.map((entry) => (
@@ -120,7 +124,7 @@ export const KnowledgeEntriesSection = () => {
 									{editing?.id === entry.id ? (
 										<>
 											<KolInputText
-												_label="Eintrag bearbeiten"
+												_label={t('knowledgeEntries.editLabel')}
 												_maxLength={MAX_TEXT_LENGTH}
 												_hasCounter
 												_value={editing.text}
@@ -128,21 +132,25 @@ export const KnowledgeEntriesSection = () => {
 											/>
 											<ButtonAction onClick={() => void handleSave()}>
 												<KolButton
-													_label="Speichern"
+													_label={t('common:actions.save')}
 													class="settings-action-btn"
 													_variant="secondary"
 													_disabled={busy}
 												/>
 											</ButtonAction>
 											<ButtonAction onClick={() => setEditing(null)}>
-												<KolButton _label="Abbrechen" class="settings-action-btn" _variant="tertiary" />
+												<KolButton
+													_label={t('common:actions.cancel')}
+													class="settings-action-btn"
+													_variant="tertiary"
+												/>
 											</ButtonAction>
 										</>
 									) : (
 										<>
 											<span className="api-tokens__name">{entry.text}</span>
 											<ButtonAction onClick={() => setEditing({ id: entry.id, text: entry.text })}>
-												<KolButton _label="Bearbeiten" class="settings-action-btn" _variant="secondary" />
+												<KolButton _label={t('common:actions.edit')} class="settings-action-btn" _variant="secondary" />
 											</ButtonAction>
 										</>
 									)}
@@ -156,7 +164,8 @@ export const KnowledgeEntriesSection = () => {
 											_variant="danger"
 										>
 											<span slot="expert">
-												Löschen<span className="visually-hidden">{` ${entry.text}`}</span>
+												{t('common:actions.delete')}
+												<span className="visually-hidden">{` ${entry.text}`}</span>
 											</span>
 										</KolButton>
 									</ButtonAction>
@@ -169,9 +178,9 @@ export const KnowledgeEntriesSection = () => {
 
 			{deleteTarget !== null && (
 				<ConfirmDeleteDialog
-					title="Wissens-Eintrag löschen"
-					body={<p>Wirklich löschen? Der Eintrag fließt danach nicht mehr in die Säulenzuordnung ein.</p>}
-					confirmLabel="Endgültig löschen"
+					title={t('knowledgeEntries.deleteTitle')}
+					body={<p>{t('knowledgeEntries.deleteBody')}</p>}
+					confirmLabel={t('categoryDeleteDialog.confirm')}
 					onConfirm={() => api.deleteKnowledgeEntry(deleteTarget.id)}
 					onClose={() => setDeleteTarget(null)}
 					onDeleted={() => {

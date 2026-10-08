@@ -1,5 +1,6 @@
 import { KolAlert, KolInputText, KolSpin } from '@public-ui/react-v19';
 import { useId, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAddressSearch, type AddressSuggestion } from '../lib/useAddressSearch';
 import { PlanBadge } from './PlanBadge';
 
@@ -69,6 +70,7 @@ export const AddressAutocomplete = ({
 	savingFavorite = false,
 	showPlanBadge = true,
 }: AddressAutocompleteProps) => {
+	const { t } = useTranslation('taskForm');
 	// #1310 (AK5): Ein vorbelegter Wert (Schnellerfassung/Bearbeiten) löst KEINE Adresssuche aus —
 	// erst die Eingabe des Nutzers. Ohne diese Sperre würde allein das Öffnen des Formulars mit
 	// gefülltem Adressfeld einen Geocoding-Request absetzen, den niemand angefordert hat.
@@ -194,7 +196,7 @@ export const AddressAutocomplete = ({
 					_label={label}
 					_type="search" // #1111 AK6: als Suchfeld ausgezeichnet (wie das Kopfzeilen-Suchfeld)
 					_ariaDetails={ariaDetails}
-					_placeholder="Straße, Hausnummer, Ort …"
+					_placeholder={t('addressAutocomplete.placeholder')}
 					_value={value}
 					_on={{
 						onChange: (_event, next) => change(String(next ?? '')),
@@ -205,14 +207,12 @@ export const AddressAutocomplete = ({
 				{/* Asynchrone Zustände (mobile-ui-rules Regel 7): Laden / Fehler / Leer / Erfolg. */}
 				{loading && (
 					<div style={{ display: 'flex', alignItems: 'center', gap: 'var(--pp-space-2, 8px)', padding: '8px 0' }}>
-						<KolSpin _label="Adresse wird gesucht …" />
+						<KolSpin _label={t('addressAutocomplete.searching')} />
 					</div>
 				)}
-				{!loading && error && (
-					<KolAlert _type="warning" _label="Adresssuche nicht erreichbar — Adresse bitte manuell eintippen." />
-				)}
+				{!loading && error && <KolAlert _type="warning" _label={t('addressAutocomplete.unavailable')} />}
 				{!loading && !error && value.trim().length >= 3 && !open && (
-					<div style={{ padding: '8px 0' }}>Keine Treffer — Adresse direkt übernehmen.</div>
+					<div style={{ padding: '8px 0' }}>{t('addressAutocomplete.noHits')}</div>
 				)}
 
 				{open && (
@@ -222,7 +222,7 @@ export const AddressAutocomplete = ({
 							id={`${listId}-listbox`}
 							role="listbox"
 							aria-live="polite"
-							aria-label={`${options.length} Treffer`}
+							aria-label={t('addressAutocomplete.hits', { count: options.length })}
 							style={{
 								position: 'relative', // In-Flow unter dem Feld — kein Portal/Overlay (375-px-Viewport, AK7)
 								margin: 0,
@@ -277,7 +277,9 @@ export const AddressAutocomplete = ({
 											disabled={option.saved || savingFavorite}
 											aria-pressed={option.saved}
 											aria-label={
-												option.saved ? `Bereits gespeichert: ${option.text}` : `Als Favorit speichern: ${option.text}`
+												option.saved
+													? t('addressAutocomplete.alreadySaved', { address: option.text })
+													: t('addressAutocomplete.saveFavorite', { address: option.text })
 											}
 											onMouseDown={(event) => {
 												// Der Blur des Feldes würde die Liste vor dem Klick schließen (wie bei der Option).

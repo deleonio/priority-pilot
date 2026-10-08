@@ -9,13 +9,15 @@ import {
 	KolTextarea,
 } from '@public-ui/react-v19';
 import { useEffect, useRef, useState, type RefObject } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../api';
 import type { components } from 'client';
+import i18next from '../i18n/config';
 import { toApiError } from '../lib/apiError';
 import type { Subscription } from '../lib/auth';
 import { formatEuro, paymentStatusLabel } from '../lib/format';
 import { readString } from '../lib/inputValue';
-import { planLabel } from '../lib/planOffers';
+import { periodLabel, planLabel } from '../lib/planOffers';
 import { getChannel } from '../lib/platform';
 import { usePlan } from '../lib/usePlan';
 import { CHANNEL_PROVIDER } from './billingChannel';
@@ -25,10 +27,8 @@ import { Modal } from './Modal';
 
 type Invoice = components['schemas']['Invoice'];
 
-const PERIOD_LABELS: Record<string, string> = { monthly: 'monatlich', quarterly: 'quartalsweise', yearly: 'jährlich' };
-
 /** Zeitpunkte in Abo-Status und Rechnungsliste als „TT.MM.JJJJ" (Muster `ApiTokensSection.tsx`). */
-const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de-DE');
+const formatDate = (iso: string): string => new Date(iso).toLocaleDateString(i18next.language);
 
 /** PDF-Download je Rechnung (#1955 AK5) — Anker-Navigation; die Session läuft als Cookie mit, der Server liefert Content-Disposition. */
 const downloadInvoicePdf = (invoice: Invoice): void => {
@@ -42,10 +42,7 @@ const downloadInvoicePdf = (invoice: Invoice): void => {
 
 type CancellationKind = 'ordinary' | 'extraordinary';
 
-const KIND_OPTIONS: { label: string; value: CancellationKind }[] = [
-	{ label: 'Ordentlich', value: 'ordinary' },
-	{ label: 'Außerordentlich', value: 'extraordinary' },
-];
+const KIND_VALUES: CancellationKind[] = ['ordinary', 'extraordinary'];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -72,6 +69,8 @@ const CancelDialog = ({ subscription, accountEmail, onClose, onCancelled }: Canc
 	const [error, setError] = useState<string | null>(null);
 	const busyRef = useRef(false);
 	const cancelRef = useRef<HTMLKolButtonElement>(null);
+	const { t } = useTranslation(['billing', 'common']);
+	const kindOptions = KIND_VALUES.map((value) => ({ label: t(`cancelDialog.${value}`), value }));
 
 	const reasonMissing = kind === 'extraordinary' && reason.trim() === '';
 	const emailInvalid = !EMAIL_RE.test(email.trim());
@@ -98,19 +97,28 @@ const CancelDialog = ({ subscription, accountEmail, onClose, onCancelled }: Canc
 	};
 
 	return (
-		<Modal title="Verträge kündigen" onClose={onClose} initialFocusRef={cancelRef as RefObject<HTMLElement | null>}>
+		<Modal
+			title={t('cancelDialog.title')}
+			onClose={onClose}
+			initialFocusRef={cancelRef as RefObject<HTMLElement | null>}
+		>
 			{error !== null && (
-				<KolAlert _type="error" _label="Kündigung fehlgeschlagen">
+				<KolAlert _type="error" _label={t('cancelDialog.errorLabel')}>
 					{error}
 				</KolAlert>
 			)}
 			<p>
-				Vertrag: <strong>{planLabel(subscription.plan)}</strong> ({PERIOD_LABELS[subscription.period]})
+				<Trans
+					t={t}
+					i18nKey="cancelDialog.contract"
+					values={{ plan: planLabel(subscription.plan), period: periodLabel(subscription.period) }}
+					components={{ strong: <strong /> }}
+				/>
 			</p>
 			<KolInputRadio
-				_label="Art der Kündigung"
+				_label={t('cancelDialog.kindLabel')}
 				_orientation="vertical"
-				_options={KIND_OPTIONS}
+				_options={kindOptions}
 				_value={kind}
 				_on={{
 					onChange: (_event, value) => {
@@ -122,37 +130,37 @@ const CancelDialog = ({ subscription, accountEmail, onClose, onCancelled }: Canc
 			/>
 			{kind === 'extraordinary' && (
 				<KolTextarea
-					_label="Grund"
+					_label={t('cancelDialog.reason')}
 					_required
 					_rows={3}
 					_value={reason}
 					_touched={touched}
-					_msg={reasonMissing ? { _type: 'error', _description: 'Bitte einen Grund angeben.' } : undefined}
+					_msg={reasonMissing ? { _type: 'error', _description: t('cancelDialog.reasonMissing') } : undefined}
 					_on={{ onInput: (_event, value) => setReason(readString(value)) }}
 				/>
 			)}
-			<p>Zeitpunkt: zum Ende der Laufzeit am {formatDate(subscription.currentPeriodEnd)}</p>
+			<p>{t('cancelDialog.effective', { date: formatDate(subscription.currentPeriodEnd) })}</p>
 			<KolInputEmail
-				_label="E-Mail für die Bestätigung"
+				_label={t('cancelDialog.emailLabel')}
 				_required
 				_autoComplete="email"
-				_hint="Hierhin schicken wir die Bestätigung."
+				_hint={t('cancelDialog.emailHint')}
 				_value={email}
 				_touched={touched}
-				_msg={emailInvalid ? { _type: 'error', _description: 'Bitte eine gültige E-Mail-Adresse angeben.' } : undefined}
+				_msg={emailInvalid ? { _type: 'error', _description: t('cancelDialog.emailInvalid') } : undefined}
 				_on={{ onInput: (_event, value) => setEmail(readString(value)) }}
 			/>
 			<div className="modal-actions">
 				<KolButton
 					ref={cancelRef}
-					_label="Abbrechen"
+					_label={t('common:actions.cancel')}
 					_variant="secondary"
 					_disabled={busy}
 					_on={{ onClick: () => onClose() }}
 				/>
 				<KolButton
 					data-variant="danger"
-					_label={busy ? 'Wird gekündigt…' : 'Jetzt kündigen'}
+					_label={busy ? t('cancelDialog.busy') : t('cancelDialog.confirm')}
 					_variant="danger"
 					_disabled={busy}
 					_on={{ onClick: () => void confirm() }}
@@ -169,8 +177,9 @@ const CancelDialog = ({ subscription, accountEmail, onClose, onCancelled }: Canc
  */
 export const SubscriptionSection = () => {
 	const { subscription, email } = usePlan();
+	const { t } = useTranslation('billing');
 	const [invoices, setInvoices] = useState<Invoice[] | null>(null);
-	const [invoicesError, setInvoicesError] = useState<string | null>(null);
+	const [invoicesFailed, setInvoicesFailed] = useState(false);
 	const [cancelOpen, setCancelOpen] = useState(false);
 	// Merker nach erfolgreicher Kündigung: der Webhook stellt den Status erst verzögert um (#2048).
 	const [locallyCancelled, setLocallyCancelled] = useState(false);
@@ -213,7 +222,7 @@ export const SubscriptionSection = () => {
 			.then((value: Invoice[] | undefined) => setInvoices(value ?? []))
 			.catch(() => {
 				if (!controller.signal.aborted) {
-					setInvoicesError('Die Rechnungen konnten nicht geladen werden.');
+					setInvoicesFailed(true);
 				}
 			});
 		return () => controller.abort();
@@ -225,30 +234,41 @@ export const SubscriptionSection = () => {
 				<>
 					<section className="subscription-status" data-testid="subscription-status">
 						<p>
-							Aktuelles Paket: <strong>{planLabel(current.plan)}</strong> ({PERIOD_LABELS[current.period]})
+							<Trans
+								t={t}
+								i18nKey="subscription.current"
+								values={{ plan: planLabel(current.plan), period: periodLabel(current.period) }}
+								components={{ strong: <strong /> }}
+							/>
 						</p>
-						<p>Periodenende: {formatDate(current.currentPeriodEnd)}</p>
+						<p>{t('subscription.periodEnd', { date: formatDate(current.currentPeriodEnd) })}</p>
 						{current.pendingPlan !== null && (
 							<p data-testid="subscription-pending-plan">
-								Wechsel zu {planLabel(current.pendingPlan)}
 								{current.pendingPlanEffectiveAt !== null
-									? ` ab ${formatDate(current.pendingPlanEffectiveAt)}`
-									: ', aktiv mit Zahlungseingang'}
+									? t('subscription.pendingAt', {
+											plan: planLabel(current.pendingPlan),
+											date: formatDate(current.pendingPlanEffectiveAt),
+										})
+									: t('subscription.pendingOnPayment', { plan: planLabel(current.pendingPlan) })}
 							</p>
 						)}
 						{current.graceUntil !== null && (
-							<p data-testid="subscription-grace-until">Kulanzfrist bis {formatDate(current.graceUntil)}</p>
+							<p data-testid="subscription-grace-until">
+								{t('subscription.graceUntil', { date: formatDate(current.graceUntil) })}
+							</p>
 						)}
 						{isCancelled && (
 							<p data-testid="subscription-cancelled" aria-live="polite">
-								Gekündigt, läuft bis {formatDate(current.currentPeriodEnd)}, danach Free
+								{t('subscription.cancelled', { date: formatDate(current.currentPeriodEnd) })}
 							</p>
 						)}
-						{isCancelled && confirmationEmail !== null && <p>Die Bestätigung geht per Mail an {confirmationEmail}.</p>}
+						{isCancelled && confirmationEmail !== null && (
+							<p>{t('subscription.confirmationSent', { email: confirmationEmail })}</p>
+						)}
 						{canCancel && (
 							<KolButton
 								data-testid="cancel-subscription"
-								_label="Verträge hier kündigen"
+								_label={t('subscription.cancel')}
 								_variant="danger"
 								_on={{ onClick: () => setCancelOpen(true) }}
 							/>
@@ -262,26 +282,23 @@ export const SubscriptionSection = () => {
 				// fälschlich „kein Abo" zu behaupten (Muster `actionCell` in `PaypalPurchase`).
 				current === null && (
 					<section className="subscription-empty" data-testid="subscription-empty">
-						<p>
-							Für dieses Konto läuft derzeit kein Abo. Die Pakete darunter zeigen, was die kostenpflichtigen Stufen
-							bieten.
-						</p>
+						<p>{t('subscription.empty')}</p>
 					</section>
 				)
 			)}
 
 			{showInvoices && (
-				<KolDetails _label="Rechnungen" _level={3}>
+				<KolDetails _label={t('invoices.label')} _level={3}>
 					<section className="billing-invoices" data-testid="billing-invoices">
-						{invoicesError !== null ? (
+						{invoicesFailed ? (
 							// Eigener Titel: „Rechnungen" trägt seit #2308 immer das KolDetails-Label.
-							<KolAlert _type="error" _label="Ladefehler">
-								{invoicesError}
+							<KolAlert _type="error" _label={t('subscription.loadErrorLabel')}>
+								{t('subscription.invoicesLoadFailed')}
 							</KolAlert>
 						) : invoices === null ? (
-							<KolSpin _show _variant="cycle" _label="Rechnungen werden geladen …" />
+							<KolSpin _show _variant="cycle" _label={t('invoices.loading')} />
 						) : invoices.length === 0 ? (
-							<p data-testid="invoices-empty">Noch keine Rechnungen vorhanden.</p>
+							<p data-testid="invoices-empty">{t('invoices.empty')}</p>
 						) : (
 							<ul className="billing-invoices__list">
 								{invoices.map((invoice) => (
@@ -296,7 +313,7 @@ export const SubscriptionSection = () => {
 										<span>
 											<KolButton
 												data-testid="invoice-download"
-												_label={`PDF ${invoice.number} herunterladen`}
+												_label={t('invoices.download', { number: invoice.number })}
 												_variant="secondary"
 												_icons={{ left: { icon: 'fa-solid fa-download' } }}
 												_on={{ onClick: () => downloadInvoicePdf(invoice) }}

@@ -1,5 +1,6 @@
 import { KolAlert, KolButton } from '@public-ui/react-v19';
 import { useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { Modal } from './Modal';
@@ -52,6 +53,7 @@ export const ConfirmDeleteDialog = ({
 	secondaryAction,
 	hotkeyTarget = 'confirm',
 }: ConfirmDeleteDialogProps) => {
+	const { t } = useTranslation(['tasks', 'common']);
 	const [error, setError] = useState<string | null>(null);
 	const [deleting, setDeleting] = useState(false);
 
@@ -93,7 +95,7 @@ export const ConfirmDeleteDialog = ({
 			initialFocusRef={cancelRef as RefObject<HTMLElement | null>}
 		>
 			{error !== null && (
-				<KolAlert _type="error" _label="Löschen fehlgeschlagen">
+				<KolAlert _type="error" _label={t('confirmDelete.failed')}>
 					{error}
 				</KolAlert>
 			)}
@@ -101,7 +103,7 @@ export const ConfirmDeleteDialog = ({
 			<div className="modal-actions">
 				<KolButton
 					ref={cancelRef}
-					_label="Abbrechen"
+					_label={t('common:actions.cancel')}
 					_variant="secondary"
 					_disabled={deleting}
 					_on={{ onClick: () => onClose() }}
@@ -115,7 +117,7 @@ export const ConfirmDeleteDialog = ({
 					/>
 				)}
 				<KolButton
-					_label={deleting ? 'Löschen…' : confirmLabel}
+					_label={deleting ? t('confirmDelete.deleting') : confirmLabel}
 					_icons={{ left: { icon: 'fa-solid fa-trash' } }}
 					_variant="danger"
 					_disabled={deleting}

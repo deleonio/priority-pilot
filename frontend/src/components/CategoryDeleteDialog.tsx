@@ -1,5 +1,6 @@
 import type { Category } from 'client';
 import type { RefObject } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 
@@ -14,19 +15,26 @@ interface CategoryDeleteDialogProps {
 }
 
 /** Bestätigungsdialog vor dem Löschen einer Kategorie (`DELETE /categories/{id}`). */
-export const CategoryDeleteDialog = ({ category, onClose, onDeleted, fallbackFocusRef }: CategoryDeleteDialogProps) => (
-	<ConfirmDeleteDialog
-		title="Kategorie löschen"
-		body={
-			<p>
-				Soll die Kategorie <strong>„{category.name}“</strong> wirklich gelöscht werden? Aufgaben und Serien in dieser
-				Kategorie bleiben erhalten und verlieren nur ihre Zuordnung.
-			</p>
-		}
-		confirmLabel="Endgültig löschen"
-		onConfirm={() => api.deleteCategory({ id: category.id })}
-		onClose={onClose}
-		onDeleted={onDeleted}
-		fallbackFocusRef={fallbackFocusRef}
-	/>
-);
+export const CategoryDeleteDialog = ({ category, onClose, onDeleted, fallbackFocusRef }: CategoryDeleteDialogProps) => {
+	const { t } = useTranslation('settings');
+	return (
+		<ConfirmDeleteDialog
+			title={t('categoryDeleteDialog.title')}
+			body={
+				<p>
+					<Trans
+						t={t}
+						i18nKey="categoryDeleteDialog.body"
+						values={{ name: category.name }}
+						components={{ strong: <strong /> }}
+					/>
+				</p>
+			}
+			confirmLabel={t('categoryDeleteDialog.confirm')}
+			onConfirm={() => api.deleteCategory({ id: category.id })}
+			onClose={onClose}
+			onDeleted={onDeleted}
+			fallbackFocusRef={fallbackFocusRef}
+		/>
+	);
+};

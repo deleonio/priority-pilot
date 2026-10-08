@@ -1,6 +1,7 @@
 import { KolCard } from '@public-ui/react-v19';
 import type { GeoConfig, NearbyTask } from 'client';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { useGeolocation } from '../lib/useGeolocation';
 import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
@@ -21,14 +22,12 @@ import { PlanBadge } from './PlanBadge';
  * localStorage und holt bei aktivierter Freigabe sofort + alle 5 Minuten die Position.
  */
 
-/** Distanz in km mit einer Nachkommastelle, deutsch formatiert („2,4 km", AK3). */
-const formatKm = (km: number): string =>
-	km.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-
-/** Titel ohne geladene Konfiguration (vor dem Fetch bzw. bei Fehler). */
-const baseTitle = 'In der Nähe';
+/** Distanz in km mit einer Nachkommastelle in der aktiven Sprache („2,4 km", AK3). */
+const formatKm = (km: number, language: string): string =>
+	km.toLocaleString(language, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 export const NearbyCard = () => {
+	const { t, i18n } = useTranslation('taskForm');
 	const { supported, enabled, pending, permissionDenied, unavailable, position } = useGeolocation();
 	const [nearby, setNearby] = useState<NearbyTask[] | null>(null);
 	// #1110 (AK4): Nach dem Anlegen einer Aufgabe mit Adresse erscheint sie ohne Reload in der Liste.
@@ -36,7 +35,9 @@ export const NearbyCard = () => {
 	// #1110 (AK1/AK2): Der Titel nennt die gespeicherte Anzeige-Entfernung aus `GET /geo-config`
 	// statt eines hartcodierten Werts — beim nächsten Laden nach einer Änderung in den Einstellungen.
 	const [displayDistanceKm, setDisplayDistanceKm] = useState<number | null>(null);
-	const cardTitle = displayDistanceKm === null ? baseTitle : `In der Nähe (${displayDistanceKm} km)`;
+	// Ohne geladene Konfiguration (vor dem Fetch bzw. bei Fehler) steht der Basistitel.
+	const cardTitle =
+		displayDistanceKm === null ? t('nearby.title') : t('nearby.titleWithDistance', { km: displayDistanceKm });
 
 	useEffect(() => {
 		let cancelled = false;
@@ -108,23 +109,17 @@ export const NearbyCard = () => {
 			<PlanBadge feature="location_reminders" />
 			{permissionDenied || !supported || unavailable ? (
 				<p className="dashboard-nearby-hint" data-testid="nearby-denied">
-					Der Browser hat die Standortfreigabe verweigert, ist nicht verfügbar oder unterstützt keine
-					Standortermittlung. Erlaube den Standortzugriff in den Browser-Einstellungen, um Aufgaben in deiner Nähe zu
-					sehen.
+					{t('nearby.denied')}
 				</p>
 			) : !enabled ? (
 				<p className="dashboard-nearby-hint" data-testid="nearby-preference-off">
-					Die Standortverwendung ist deaktiviert. Aktiviere sie in den Einstellungen, um Aufgaben in deiner Nähe zu
-					sehen.
+					{t('nearby.preferenceOff')}
 				</p>
 			) : nearby === null ? (
-				<p className="dashboard-nearby-hint">
-					{pending ? 'Standort wird ermittelt …' : 'Aufgaben in der Nähe werden geladen …'}
-				</p>
+				<p className="dashboard-nearby-hint">{pending ? t('nearby.locating') : t('nearby.loading')}</p>
 			) : nearby.length === 0 ? (
 				<p className="dashboard-nearby-hint" data-testid="nearby-empty">
-					Keine Aufgaben mit Standort in deiner Nähe. Vergib beim Anlegen einer Aufgabe einen Ort über die Adresssuche,
-					damit sie hier erscheint.
+					{t('nearby.empty')}
 				</p>
 			) : (
 				<ol className="dashboard-nearby-list">
@@ -132,7 +127,9 @@ export const NearbyCard = () => {
 						<li key={task.id} className="dashboard-nearby-item" data-testid="nearby-item">
 							<span className="dashboard-nearby-title">{task.title}</span>
 							{/* #1098 AK6: Distanz in Klammern am Eintrag („(2,4 km)"). */}
-							<span className="dashboard-nearby-distance">({formatKm(task.distanceKm)} km)</span>
+							<span className="dashboard-nearby-distance">
+								{t('nearby.distance', { km: formatKm(task.distanceKm, i18n.language) })}
+							</span>
 						</li>
 					))}
 				</ol>

@@ -3,6 +3,8 @@
  * Frontend-Validierung für Titel-Input-Felder.
  */
 
+import i18next from '../i18n/config';
+
 export const TITLE_MAX_LENGTH = 65;
 
 /**
@@ -17,7 +19,7 @@ export function validateTitleLength(title: string): { isValid: boolean; remainin
 		return {
 			isValid: false,
 			remaining: TITLE_MAX_LENGTH,
-			error: `Titel muss mindestens 1 Zeichen haben.`,
+			error: i18next.t('taskForm:titleLength.tooShort'),
 		};
 	}
 
@@ -25,7 +27,7 @@ export function validateTitleLength(title: string): { isValid: boolean; remainin
 		return {
 			isValid: false,
 			remaining,
-			error: `Titel darf maximal ${TITLE_MAX_LENGTH} Zeichen haben.`,
+			error: i18next.t('taskForm:titleLength.tooLong', { max: TITLE_MAX_LENGTH }),
 		};
 	}
 

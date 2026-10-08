@@ -21,11 +21,9 @@ import { api } from '../api';
  * gehört allein der „Nächsten Aufgabe" als der einen Hauptaussage des Dashboards.
  */
 
-/** Tage mit Einheit — eine Zahl ohne Kontext sagt nichts („3 Tage" statt „3"). */
-const tage = (anzahl: number): string => `${anzahl} ${anzahl === 1 ? 'Tag' : 'Tage'}`;
-
 export const StreakCard = () => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['dashboard', 'common']);
+	const tage = (anzahl: number): string => t('days', { count: anzahl });
 	const [streak, setStreak] = useState<Streak | null>(null);
 	const [helpOpen, setHelpOpen] = useState(false);
 
@@ -55,40 +53,40 @@ export const StreakCard = () => {
 		<KolCard
 			className="dashboard-streak"
 			role="region"
-			aria-label="Streak"
-			_label="Streak"
+			aria-label={t('streak.label')}
+			_label={t('streak.label')}
 			_level={3}
 			data-testid="streak-card"
 		>
 			{streak === null ? (
-				<p className="dashboard-streak-hint">Streak wird geladen …</p>
+				<p className="dashboard-streak-hint">{t('streak.loading')}</p>
 			) : (
 				<div className="dashboard-streak-content">
 					{streak.aktuell === 0 ? (
 						<p className="dashboard-streak-hint" data-testid="streak-zero">
-							Noch kein Streak — hake heute eine Aufgabe ab, dann zählt der erste Tag.
+							{t('streak.zero')}
 						</p>
 					) : (
 						<p className="dashboard-streak-current">
 							<span className="dashboard-streak-value">{tage(streak.aktuell)}</span>
-							<span className="dashboard-streak-label">in Folge erledigt</span>
+							<span className="dashboard-streak-label">{t('streak.inARow')}</span>
 						</p>
 					)}
 					{(streak.wochenAusgewogen ?? 0) >= 1 && (
 						<p className="dashboard-streak-weeks" data-testid="streak-weeks-balanced">
-							{t('streak.weeksBalanced', { count: streak.wochenAusgewogen })}
+							{t('common:streak.weeksBalanced', { count: streak.wochenAusgewogen })}
 						</p>
 					)}
 					<p className="dashboard-streak-best" data-testid="streak-best">
 						<span className="dashboard-streak-best-value">{tage(streak.best)}</span>
-						<span className="dashboard-streak-label">Bestmarke</span>
+						<span className="dashboard-streak-label">{t('streak.best')}</span>
 					</p>
 					<KolDetails
-						_label={t('streak.help.label')}
+						_label={t('common:streak.help.label')}
 						_open={helpOpen}
 						_on={{ onToggle: (_event, value) => setHelpOpen(value === true) }}
 					>
-						<p data-testid="streak-help">{t('streak.help.text')}</p>
+						<p data-testid="streak-help">{t('common:streak.help.text')}</p>
 					</KolDetails>
 				</div>
 			)}

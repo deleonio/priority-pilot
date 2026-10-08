@@ -1,11 +1,12 @@
 import type { Task } from 'client';
 import { TaskStatus } from 'client';
+import i18next from '../i18n/config';
 
-/** Auswahl-Optionen für das Status-Feld (Reihenfolge wie im Workflow). */
-const STATUS_OPTIONS: { label: string; value: TaskStatus }[] = [
-	{ label: 'Offen', value: TaskStatus.Open },
-	{ label: 'In Bearbeitung', value: TaskStatus.InProcess },
-	{ label: 'Erledigt', value: TaskStatus.Done },
+/** Auswahl-Optionen für das Status-Feld (Reihenfolge wie im Workflow), beim Aufruf übersetzt. */
+const statusOptions = (): { label: string; value: TaskStatus }[] => [
+	{ label: i18next.t('common:status.open'), value: TaskStatus.Open },
+	{ label: i18next.t('common:status.inProcess'), value: TaskStatus.InProcess },
+	{ label: i18next.t('common:status.done'), value: TaskStatus.Done },
 ];
 
 /**
@@ -14,20 +15,19 @@ const STATUS_OPTIONS: { label: string; value: TaskStatus }[] = [
  */
 export const allowedStatusOptions = (subtasks: { status: TaskStatus }[]): { label: string; value: TaskStatus }[] => {
 	const hasOpenSubtask = subtasks.some((s) => s.status !== TaskStatus.Done);
-	if (!hasOpenSubtask) return STATUS_OPTIONS;
-	return STATUS_OPTIONS.filter((o) => o.value !== TaskStatus.Done);
+	if (!hasOpenSubtask) return statusOptions();
+	return statusOptions().filter((o) => o.value !== TaskStatus.Done);
 };
 
 /** Liefert den Hinweistext, warum „Erledigt" bei offenen Unteraufgaben blockiert ist (#246). */
 export const doneBlockedHint = (openCount: number): string => {
 	if (openCount === 0) return '';
-	return openCount === 1
-		? 'Es gibt noch 1 offene Unteraufgabe. Bitte alle Unteraufgaben zuerst erledigen.'
-		: `Es gibt noch ${openCount} offene Unteraufgaben. Bitte alle Unteraufgaben zuerst erledigen.`;
+	return i18next.t('taskForm:task.doneBlocked', { count: openCount });
 };
 
-/** Formatiert eine Zahl im deutschen Format mit bis zu zwei Nachkommastellen. */
-export const formatNumber = (value: number): string => value.toLocaleString('de-DE', { maximumFractionDigits: 2 });
+/** Formatiert eine Zahl in der aktiven Sprache mit bis zu zwei Nachkommastellen. */
+export const formatNumber = (value: number): string =>
+	value.toLocaleString(i18next.language, { maximumFractionDigits: 2 });
 
 /**
  * Dialog-Titel für das Task-Formular — einheitlich für den eigenständigen Bearbeiten-Dialog
@@ -35,15 +35,16 @@ export const formatNumber = (value: number): string => value.toLocaleString('de-
  * Stellen driftet.
  */
 export const taskFormModalTitle = (task: Task | null, parentTask: Task | null, mode?: 'task' | 'series'): string => {
-	if (task !== null) return mode === 'series' ? `Serie bearbeiten: ${task.title}` : `Aufgabe bearbeiten: ${task.title}`;
-	if (parentTask !== null) return `Unteraufgabe zu ${parentTask.title}`;
-	if (mode === 'task') return 'Aufgabe anlegen';
-	if (mode === 'series') return 'Serie oder Vorlage anlegen';
-	return 'Neuen Task anlegen';
+	const t = (key: string, title?: string): string => i18next.t(`taskForm:task.modalTitle.${key}`, { title });
+	if (task !== null) return mode === 'series' ? t('editSeries', task.title) : t('editTask', task.title);
+	if (parentTask !== null) return t('subtask', parentTask.title);
+	if (mode === 'task') return t('createTask');
+	if (mode === 'series') return t('createSeries');
+	return t('createDefault');
 };
 
 /**
- * Formatiert eine optionale Deadline als deutsches Datum, sonst „–".
+ * Formatiert eine optionale Deadline als Datum in der aktiven Sprache, sonst „–".
  *
  * Eine Deadline ist ein Kalendertag: Anzeige und Eingabe erfolgen in UTC (`timeZone: 'UTC'` bzw.
  * `getUTC*`), damit sich der Tag nicht je nach Zeitzone des Nutzers um einen Tag verschiebt.
@@ -52,7 +53,7 @@ export const formatDeadline = (deadline: Task['deadline']): string => {
 	if (deadline === null || deadline === undefined || Number.isNaN(deadline.getTime())) {
 		return '–';
 	}
-	return deadline.toLocaleDateString('de-DE', {
+	return deadline.toLocaleDateString(i18next.language, {
 		year: 'numeric',
 		month: '2-digit',
 		day: '2-digit',
@@ -103,20 +104,16 @@ export const deadlineUrgency = (deadline: Date, now: Date): DeadlineUrgency => {
 	return 'later';
 };
 
-/** Kurze, deutsche Restzeit-Angabe einer Deadline relativ zu `now` (für das Dringlichkeits-Badge). */
+/** Kurze Restzeit-Angabe einer Deadline relativ zu `now` (für das Dringlichkeits-Badge). */
 export const formatRelativeDeadline = (deadline: Date, now: Date): string => {
 	const days = daysUntilDeadline(deadline, now);
 	if (days < 0) {
-		const overdue = Math.abs(days);
-		return overdue === 1 ? '1 Tag überfällig' : `${overdue} Tage überfällig`;
+		return i18next.t('taskForm:task.overdue', { count: Math.abs(days) });
 	}
 	if (days === 0) {
-		return 'heute fällig';
+		return i18next.t('taskForm:task.dueToday');
 	}
-	if (days === 1) {
-		return 'in 1 Tag';
-	}
-	return `in ${days} Tagen`;
+	return i18next.t('taskForm:task.inDays', { count: days });
 };
 
 /** CSS-Akzentklasse je Status für die Dashboard-Kennzahlen-Karten (farbcodierter Statusbezug). */

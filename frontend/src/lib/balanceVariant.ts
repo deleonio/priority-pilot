@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getApiBase } from './siteOrigin';
+import i18next from '../i18n/config';
 
 /**
  * Welches Bild die Startseite für die Lebensbalance zeichnet — die „Zifferblätter" der App.
@@ -46,17 +47,15 @@ export type BalanceVariant =
 export type FigureKind = Exclude<BalanceVariant, 'herz'>;
 
 /** Reihenfolge und Beschriftung für die Auswahl in den Einstellungen. */
-export const BALANCE_VARIANTS: readonly { value: BalanceVariant; label: string }[] = [
-	{ value: 'herz', label: 'Herz' },
-	{ value: 'blasen', label: 'Blasen' },
-	{ value: 'scheiben', label: 'Scheiben' },
-	{ value: 'ringe', label: 'Ringe' },
-	{ value: 'strahlen', label: 'Strahlen' },
-	{ value: 'bluete', label: 'Blüte' },
-	{ value: 'kristall', label: 'Kristall' },
-	{ value: 'segmente', label: 'Segmente' },
-	{ value: 'zeiger', label: 'Zeiger' },
-];
+export const BALANCE_VARIANTS: readonly { value: BalanceVariant; readonly label: string }[] = (
+	['herz', 'blasen', 'scheiben', 'ringe', 'strahlen', 'bluete', 'kristall', 'segmente', 'zeiger'] as const
+).map((value) => ({
+	value,
+	// Getter: übersetzt beim Lesen, damit ein Sprachwechsel greift.
+	get label() {
+		return i18next.t(`dashboard:balanceVariant.${value}`);
+	},
+}));
 
 /**
  * Default ist das **Herz**: Es ist das Bild, das bestehende Nutzer kennen — eine neue Voreinstellung

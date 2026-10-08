@@ -1,0 +1,165 @@
+{
+	"heading": "Dashboard",
+	"greeting": "Hello {{name}}!",
+	"priority": "Priority {{priority}}",
+	"reasons": {
+		"dueOn": "Due on {{date}}.",
+		"balance_one": "Pillar {{names}} fell short this week.",
+		"balance_other": "Pillars {{names}} fell short this week.",
+		"unlock_one": "Unlocks {{count}} open task.",
+		"unlock_other": "Unlocks {{count}} open tasks.",
+		"overdue_one": "Overdue by {{count}} day.",
+		"overdue_other": "Overdue by {{count}} days.",
+		"dueToday": "Due today.",
+		"dueIn_one": "Due on {{date}} (in {{count}} day).",
+		"dueIn_other": "Due on {{date}} (in {{count}} days)."
+	},
+	"cards": {
+		"total": "Total",
+		"open": "Open",
+		"done": "Done"
+	},
+	"heart": {
+		"label": "My life balance"
+	},
+	"nextTask": {
+		"label": "Next task",
+		"empty": "No task is due right now (all done or blocked by open predecessors).",
+		"complete": "Complete"
+	},
+	"suggestions": {
+		"label": "What's next?",
+		"empty": "There are no further suggestions right now.",
+		"meta": "(Priority {{priority}})"
+	},
+	"topTasks": {
+		"label": "Top tasks",
+		"empty": "No open tasks.",
+		"meta": "(Priority {{priority}}, value {{value}})"
+	},
+	"pillars": {
+		"label": "My topics",
+		"empty": "Create your first pillars in the <settingsLink>settings</settingsLink> to keep track of your topics here.",
+		"share": "Share",
+		"tasks": "Tasks",
+		"split": "{{open}} open · {{done}} done",
+		"value": "Value",
+		"effort": "Effort",
+		"effortDays": "{{effort}} days"
+	},
+	"balance": {
+		"label": "Total balance",
+		"empty": "No points yet — complete tasks to build up your balance.",
+		"total": "<total>{{points}}</total> points",
+		"row": "{{points}} points ({{share}} %)"
+	},
+	"deadlines": {
+		"label": "Upcoming deadlines",
+		"empty": "No upcoming deadlines."
+	},
+	"heartBalance": {
+		"ariaLabel": "Balance {{percent}} percent — {{state}}",
+		"legendValue": "{{actual}} % · target {{target}} %",
+		"deltaHint": "deviation from target"
+	},
+	"heartHealth": {
+		"leer": {
+			"label": "Still empty",
+			"hint": "Complete tasks to fill the picture."
+		},
+		"stark": {
+			"label": "In balance",
+			"hint": "Your pillars are close to target."
+		},
+		"gut": {
+			"label": "Well balanced",
+			"hint": "The distribution is solid; small deviations are normal."
+		},
+		"wackelig": {
+			"label": "Slightly off balance",
+			"hint": "Some pillars are pulling ahead, others are falling short."
+		},
+		"schwach": {
+			"label": "Out of balance",
+			"hint": "Almost all points come from a few pillars."
+		},
+		"weakest": "{{name}} is furthest behind ({{actual}} instead of {{target}})",
+		"strongest": "{{name}} is pulling ahead ({{actual}})"
+	},
+	"balanceVariant": {
+		"herz": "Heart",
+		"blasen": "Bubbles",
+		"scheiben": "Discs",
+		"ringe": "Rings",
+		"strahlen": "Rays",
+		"bluete": "Blossom",
+		"kristall": "Crystal",
+		"segmente": "Segments",
+		"zeiger": "Hands"
+	},
+	"days_one": "{{count}} day",
+	"days_other": "{{count}} days",
+	"dayDone": {
+		"label": "Day done",
+		"text": "All tasks done — you made it today."
+	},
+	"duo": {
+		"label": "Duo",
+		"errorLabel": "Duo unavailable",
+		"errorText": "The duo couldn't be loaded right now. Reload the page and try again.",
+		"loading": "Loading duo …",
+		"streakMembers": "done in a row: {{names}}",
+		"streakZero": "No shared streak yet — if you both get something done today, the first day counts.",
+		"helpLabel": "When does the shared streak count?",
+		"helpText": "A day counts when both of you got something done that day. The other person's tasks stay hidden.",
+		"pillarPoints": "{{name}}: {{points}} points",
+		"memberEmpty": "Nobody here yet"
+	},
+	"freeTime": {
+		"label": "Free time",
+		"range": "from {{from}} to {{to}}"
+	},
+	"streak": {
+		"label": "Streak",
+		"loading": "Loading streak …",
+		"zero": "No streak yet — check off a task today and the first day counts.",
+		"inARow": "done in a row",
+		"best": "Personal best"
+	},
+	"milestone": {
+		"streak": "Streak {{value}}",
+		"points": "{{value}} points"
+	},
+	"shareCard": {
+		"milestones": "Milestones"
+	},
+	"challengeCard": {
+		"noValue": "No value yet",
+		"rank": "Rank {{rank}}",
+		"more_one": "+ {{count}} more",
+		"more_other": "+ {{count}} more",
+		"subtitle": "7-day challenge · {{period}}",
+		"ranking": "Ranked by balance"
+	},
+	"advisor": {
+		"empty": "The advisor returned no suggestions — try a different question.",
+		"pillarFallback": "Pillar {{id}}",
+		"adopt": "Add as task"
+	},
+	"milestones": {
+		"label": "Milestones",
+		"loading": "Loading milestones …",
+		"groupStreak": "Streak",
+		"groupPoints": "Points",
+		"streakReached": "{{threshold}} days — reached",
+		"streakNotReached": "{{threshold}} days — not reached",
+		"pointsReached": "{{threshold}} points — reached",
+		"pointsNotReached": "{{threshold}} points — not reached"
+	},
+	"featurePopover": {
+		"showPlans": "View plans"
+	},
+	"copyButton": {
+		"error": "Couldn't copy to the clipboard. Please select and copy it manually."
+	}
+}

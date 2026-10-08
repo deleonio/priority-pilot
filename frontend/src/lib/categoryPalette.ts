@@ -1,4 +1,13 @@
 import type { CategoryColor } from 'client';
+import i18next from '../i18n/config';
+
+/** Label als Getter: zur Laufzeit übersetzt, damit ein Sprachwechsel greift. */
+const paletteEntry = (color: CategoryColor, key: string): { color: CategoryColor; label: string } => ({
+	color,
+	get label() {
+		return i18next.t(`settings:categoryPalette.${key}`);
+	},
+});
 
 /**
  * Die feste Kategorie-Palette mit den Namen, die im Auswahlfeld stehen. Die Hex-Werte sind der
@@ -9,14 +18,14 @@ import type { CategoryColor } from 'client';
  * die Textfarbe daraus aus (`spec/badge`) — eine `var(--…)`-Referenz könnte es nicht auswerten.
  */
 export const CATEGORY_PALETTE: { color: CategoryColor; label: string }[] = [
-	{ color: '#b42318', label: 'Rot' },
-	{ color: '#b54708', label: 'Orange' },
-	{ color: '#8a6100', label: 'Gold' },
-	{ color: '#1a7f37', label: 'Grün' },
-	{ color: '#0e7490', label: 'Türkis' },
-	{ color: '#1064d0', label: 'Blau' },
-	{ color: '#6941c6', label: 'Violett' },
-	{ color: '#475467', label: 'Grau' },
+	paletteEntry('#b42318', 'red'),
+	paletteEntry('#b54708', 'orange'),
+	paletteEntry('#8a6100', 'gold'),
+	paletteEntry('#1a7f37', 'green'),
+	paletteEntry('#0e7490', 'turquoise'),
+	paletteEntry('#1064d0', 'blue'),
+	paletteEntry('#6941c6', 'violet'),
+	paletteEntry('#475467', 'grey'),
 ];
 
 /** Vorbelegung des Farbfelds beim Anlegen einer Kategorie. */

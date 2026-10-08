@@ -169,7 +169,7 @@ const buildDoneEffortByPillar = (pillars: Pillar[], tasks: Task[]): Map<number, 
 };
 
 const AppShell = ({ user }: { user: AuthUser }) => {
-	const { t, i18n } = useTranslation('navigation');
+	const { t, i18n } = useTranslation(['navigation', 'app']);
 	const location = useLocation();
 	const navigate = useNavigate();
 	// #1879: aktive App-Sprache beim Start und bei jedem Wechsel an den Server melden (Sprache des
@@ -343,10 +343,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	/** Optionen des Kategorie-Filters: „alle" plus die Kategorien des Nutzers. */
 	const taskCategoryFilterOptions = useMemo(
 		() => [
-			{ label: '— alle Kategorien —', value: NO_CATEGORY_FILTER },
+			{ label: t('app:taskFilter.allCategories'), value: NO_CATEGORY_FILTER },
 			...categories.map((category) => ({ label: category.name, value: category.id })),
 		],
-		[categories],
+		[categories, t],
 	);
 
 	/** Setzt den Kategorie-Filter (`null` entfernt ihn) und spiegelt ihn in die URL. */
@@ -716,10 +716,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			sessionStorage.setItem('pp_just_logged_out', '1');
 			window.location.href = `${import.meta.env.BASE_URL}login`;
 		} catch (reason) {
-			setLogoutError(reason instanceof Error ? reason.message : 'Logout fehlgeschlagen');
+			setLogoutError(reason instanceof Error ? reason.message : t('app:shell.logoutFailed'));
 			setLogoutLoading(false);
 		}
-	}, [user.id]);
+	}, [user.id, t]);
 
 	/** Nach erfolgreicher Mutation: Dialog schließen und Daten neu laden. */
 	const afterMutation = useCallback((): void => {
@@ -1116,7 +1116,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			},
 			{
 				type: 'button' as const,
-				_label: 'Suche',
+				_label: t('app:shell.search'),
 				_hideLabel: true,
 				_icons: SEARCH_ICON,
 				_variant: 'secondary' as const,
@@ -1124,7 +1124,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			},
 			{
 				type: 'button' as const,
-				_label: 'Neuen Task anlegen',
+				_label: t('app:shell.createTask'),
 				_hideLabel: true,
 				_icons: CREATE_ICON,
 				_variant: 'secondary' as const,
@@ -1242,7 +1242,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			    auslösbar — seine Fehlermeldung steht deshalb außerhalb der Inhalts-Verzweigung. */}
 				{logoutError !== null && (
 					<div role="alert">
-						<KolAlert _type="error" _label="Logout fehlgeschlagen">
+						<KolAlert _type="error" _label={t('app:shell.logoutFailed')}>
 							{logoutError}
 						</KolAlert>
 					</div>
@@ -1264,21 +1264,21 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				) : (
 					<>
 						{loadError !== null && (
-							<KolAlert _type="error" _label="Daten konnten nicht geladen werden">
+							<KolAlert _type="error" _label={t('app:shell.loadFailed')}>
 								{loadError}
 							</KolAlert>
 						)}
 						{updateError !== null && (
 							<div role="alert">
-								<KolAlert _type="error" _label="Aufgabe konnte nicht aktualisiert werden">
+								<KolAlert _type="error" _label={t('app:shell.updateFailed')}>
 									{updateError}
 								</KolAlert>
 							</div>
 						)}
 						{tasks === null && loading && (
 							<div className="loading">
-								<KolSpin _show _variant="cycle" _label="Lädt" />
-								<span>Lade Tasks…</span>
+								<KolSpin _show _variant="cycle" _label={t('app:shell.loading')} />
+								<span>{t('app:shell.loadingTasks')}</span>
 							</div>
 						)}
 
@@ -1297,7 +1297,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 									/>
 								) : null}
 								<Modal
-									title="Willkommen bei Balamentum"
+									title={t('app:shell.welcomeTitle')}
 									open={!onboardingDismissed}
 									onClose={() => setOnboardingDismissed(true)}
 								>
@@ -1342,7 +1342,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										{/* Schalter statt Radiogruppe: sichtbar beschriftet, Zustand am checked-Wert erkennbar
 										    (WCAG 1.4.1); Deep-Link-Vertrag `?planview=` bleibt unangetastet. */}
 										<KolInputCheckbox
-											_label="Wochenansicht"
+											_label={t('app:shell.weekView')}
 											_variant="switch"
 											_checked={dashboardView === 'week'}
 											_on={{ onChange: (_event, value) => changeDashboardView(value === true ? 'week' : 'day') }}
@@ -1350,9 +1350,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 									</div>
 									{dashboardView === 'week' ? (
 										<>
-											{calendarEventsFailed && (
-												<KolAlert _type="warning" _label="Termine konnten nicht geladen werden" />
-											)}
+											{calendarEventsFailed && <KolAlert _type="warning" _label={t('app:shell.calendarFailed')} />}
 											<WeekView
 												tasks={tasks}
 												nextTask={nextTask}
@@ -1410,10 +1408,14 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 									    5.2) — nur sichtbar, solange `?deadline=` gesetzt ist; „Filter entfernen" räumt
 									    ausschließlich diesen Parameter, `?q=`/`?cat=` bleiben unangetastet. */}
 										{deadlineFilterDate !== null && (
-											<KolAlert className="task-deadline-filter" _type="info" _label="Aufgaben-Filter aktiv">
-												Gefiltert: fällig am {formatDeadline(deadlineFilterDate)}
+											<KolAlert
+												className="task-deadline-filter"
+												_type="info"
+												_label={t('app:taskFilter.deadlineActiveLabel')}
+											>
+												{t('app:taskFilter.deadlineActive', { date: formatDeadline(deadlineFilterDate) })}
 												<KolButton
-													_label="Filter entfernen"
+													_label={t('app:taskFilter.remove')}
 													_variant="tertiary"
 													_on={{ onClick: () => clearDeadlineFilter() }}
 												/>
@@ -1427,7 +1429,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 											<div className="task-filter-switches">
 												<KolInputCheckbox
 													className="task-view-switch"
-													_label="Erledigte Aufgaben anzeigen"
+													_label={t('app:taskFilter.showDone')}
 													_variant="switch"
 													_checked={taskViewMode === 'done'}
 													_on={{
@@ -1438,7 +1440,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 												/>
 												<KolInputCheckbox
 													className="task-view-switch"
-													_label="Archivierte anzeigen"
+													_label={t('app:taskFilter.showArchived')}
 													_variant="switch"
 													_checked={taskViewMode === 'archived'}
 													_on={{
@@ -1449,7 +1451,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 												/>
 												<KolInputCheckbox
 													className="task-view-switch"
-													_label="Balance-Priorisierung"
+													_label={t('app:taskFilter.balance')}
 													_variant="switch"
 													_checked={balanceMode}
 													_on={{
@@ -1460,7 +1462,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 												/>
 												<KolInputCheckbox
 													className="task-view-switch"
-													_label="Oberaufgaben anzeigen"
+													_label={t('app:taskFilter.showParents')}
 													_variant="switch"
 													_checked={showParents}
 													_on={{
@@ -1473,10 +1475,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 											<KolInputText
 												ref={taskFilterInputRef}
 												className="task-filter-search__field"
-												_label="Nach Titel filtern"
+												_label={t('app:taskFilter.byTitle')}
 												_hideLabel
 												_type="search"
-												_placeholder="Nach Titel filtern…"
+												_placeholder={t('app:taskFilter.byTitlePlaceholder')}
 												_value={searchDraft}
 												_on={{
 													onInput: (event: Event) => {
@@ -1497,7 +1499,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 											{categories.length > 0 && (
 												<KolSingleSelect
 													className="task-filter-category"
-													_label="Nach Kategorie filtern"
+													_label={t('app:taskFilter.byCategory')}
 													_hideLabel
 													_options={taskCategoryFilterOptions}
 													_value={categoryFilter ?? NO_CATEGORY_FILTER}
@@ -1511,7 +1513,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 											)}
 											<KolButton
 												className="task-filter-search__submit"
-												_label="Filtern"
+												_label={t('app:taskFilter.submit')}
 												_variant="secondary"
 												_icons="fa-solid fa-magnifying-glass"
 												_on={{ onClick: () => applyTaskFilter(searchDraft) }}
@@ -1526,11 +1528,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										    Standardsortierung, nennt den Weg zum Abschalten und bietet das direkte
 										    Ausstellen an (Ghost-Button im Alert, Präzedenz SettingsPage). */}
 										{taskViewMode === 'open' && activeTab === 1 && showBalanceHint && (
-											<KolAlert _type="info" _label="Balance-Priorisierung ist jetzt standardmäßig aktiv">
-												Aufgaben aus Säulen mit Defizit rücken in der Liste nach vorn. Abschalten lässt sich die
-												Sortierung in den Einstellungen (Ansicht „Allgemein“).
+											<KolAlert _type="info" _label={t('app:balanceHint.label')}>
+												{t('app:balanceHint.text')}
 												<KolButton
-													_label="Balance-Priorisierung ausschalten"
+													_label={t('app:balanceHint.disable')}
 													_variant="ghost"
 													_on={{ onClick: () => changeBalanceMode(false) }}
 												/>
@@ -1560,7 +1561,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 														onPinToggle={handlePinToggle}
 													/>
 												) : (
-													<p className="empty-state">Keine Aufgaben gefunden. Passen Sie ggf. die Filter an.</p>
+													<p className="empty-state">{t('app:taskFilter.noResults')}</p>
 												)
 											) : (
 												<TaskTree
@@ -1599,7 +1600,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 													onReloaded={reload}
 												/>
 											) : (
-												<p className="empty-state">Keine Aufgaben gefunden. Passen Sie ggf. die Filter an.</p>
+												<p className="empty-state">{t('app:taskFilter.noResults')}</p>
 											)
 										) : (
 											<CompletedTasksTable
@@ -1620,7 +1621,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						    (nicht entfernt), und die Knoten-/Listentitel sind wortgleich zum Aufgaben-Tab —
 						    dauerhaft gemountet würden sie dort exakte Text-Locators (z. B. in E2E-Tests) doppeln. */}
 									{activeTab === 3 && (
-										<Suspense fallback={<KolSpin _show _variant="cycle" aria-label="Graph wird geladen" />}>
+										<Suspense fallback={<KolSpin _show _variant="cycle" aria-label={t('app:shell.graphLoading')} />}>
 											<TaskGraphPanel tasks={tasks} onEditDependencies={openDependencies} />
 										</Suspense>
 									)}
@@ -1663,7 +1664,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						task={null}
 						initialMode="series"
 						lockMode
-						title="Vorlage erstellen"
+						title={t('app:shell.createTemplate')}
 						pillars={pillars}
 						categories={categories}
 						initialValues={taskAsTemplateInitialValues(dialog.task)}

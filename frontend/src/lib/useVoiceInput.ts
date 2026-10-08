@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import i18next from '../i18n/config';
 import { isNativeChannel } from './platform';
 
 interface UseVoiceInputOptions {
@@ -94,11 +95,7 @@ const stopNative = async (): Promise<void> => {
 
 let nativeRunCounter = 0;
 
-const NATIVE_ERRORS: Record<'denied' | 'nothing' | 'failed', string> = {
-	denied: 'Mikrofon-Zugriff wurde verweigert.',
-	nothing: 'Nichts erkannt – bitte erneut sprechen.',
-	failed: 'Spracherkennung fehlgeschlagen.',
-};
+const voiceErrorText = (key: 'denied' | 'nothing' | 'failed'): string => i18next.t(`app:voice.${key}`);
 
 // Modulweiter Guard über alle Hook-Instanzen (#264): Der Browser erlaubt nur EINE aktive
 // SpeechRecognition — startet Feld B, während Feld A aufnimmt, bräche der Browser A mit
@@ -108,7 +105,10 @@ const NATIVE_ERRORS: Record<'denied' | 'nothing' | 'failed', string> = {
 // explizit ausgetragen werden.
 let stopActiveRecording: (() => void) | null = null;
 
-export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOptions): UseVoiceInputResult => {
+export const useVoiceInput = ({
+	onTranscript,
+	lang = i18next.language === 'en' ? 'en-US' : 'de-DE',
+}: UseVoiceInputOptions): UseVoiceInputResult => {
 	const [isRecording, setIsRecording] = useState(false);
 	const [voiceError, setVoiceError] = useState<string | null>(null);
 	const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
@@ -144,7 +144,7 @@ export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOpt
 					if ('text' in result) {
 						onTranscriptRef.current(result.text);
 					} else if (!isAuto) {
-						setVoiceError(NATIVE_ERRORS[result.error]);
+						setVoiceError(voiceErrorText(result.error));
 					}
 				});
 				return;
@@ -218,7 +218,7 @@ export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOpt
 				if (!delivered) {
 					// Ende ohne jedes Ergebnis nicht still verschlucken (#283) — sonst wirkt der
 					// Button „aus" und der Nutzer erfährt nie, dass nichts ankam.
-					reportError('Nichts erkannt – bitte erneut sprechen.');
+					reportError(voiceErrorText('nothing'));
 				}
 			};
 
@@ -231,13 +231,13 @@ export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOpt
 				recognitionRef.current = null;
 				setIsRecording(false);
 				if (err?.error === 'not-allowed') {
-					reportError('Mikrofon-Zugriff wurde verweigert.');
+					reportError(voiceErrorText('denied'));
 				} else if (err?.error === 'no-speech' || err?.error === 'aborted') {
 					// Kein Sprach-Input bzw. engine-seitiger Abbruch einer aktiven Aufnahme: dem Nutzer
 					// den Wiederholungsweg zeigen statt einer generischen Fehlermeldung.
-					reportError('Nichts erkannt – bitte erneut sprechen.');
+					reportError(voiceErrorText('nothing'));
 				} else {
-					reportError('Spracherkennung fehlgeschlagen.');
+					reportError(voiceErrorText('failed'));
 				}
 			};
 
@@ -248,7 +248,7 @@ export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOpt
 				// Doppelstart-/Engine-Konflikt (InvalidStateError): Zustand nicht hängen lassen (#283) —
 				// mit gesetzter Ref wäre der Mic-Button sonst bis zum Neuladen tot.
 				recognitionRef.current = null;
-				reportError('Spracherkennung fehlgeschlagen.');
+				reportError(voiceErrorText('failed'));
 				return;
 			}
 			stopActiveRecording = () => {

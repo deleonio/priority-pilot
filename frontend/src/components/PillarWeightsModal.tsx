@@ -1,6 +1,7 @@
 import type { Pillar } from 'client';
 import { PillarWeightsForm } from './PillarWeightsForm';
 import { Modal } from './Modal';
+import { useTranslation } from 'react-i18next';
 
 interface PillarWeightsModalProps {
 	/** Aktuelle Säulen samt Gewichten (`GET /pillars`); Reihenfolge wie geliefert (nach id). */
@@ -15,8 +16,9 @@ interface PillarWeightsModalProps {
  * `Modal`-Rahmen und reicht `onClose` als Abbrechen-Handler durch.
  */
 export const PillarWeightsModal = ({ pillars, onClose, onSaved }: PillarWeightsModalProps) => {
+	const { t } = useTranslation('settings');
 	return (
-		<Modal title="Säulen-Gewichtung" onClose={onClose}>
+		<Modal title={t('settingsPage.pillars.weightsCard')} onClose={onClose}>
 			<PillarWeightsForm pillars={pillars} onSaved={onSaved} onCancel={onClose} />
 		</Modal>
 	);

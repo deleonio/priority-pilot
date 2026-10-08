@@ -1,3 +1,4 @@
+import i18next from '../i18n/config';
 import { readString } from './inputValue';
 
 /** Heutiger Kalendertag des Nutzers als `YYYY-MM-DD` (Vorbelegung des Datumsfelds). */
@@ -24,7 +25,7 @@ export const toDateValue = (date: string): Date | undefined => {
 };
 
 export const formatDate = (date: string): string =>
-	new Date(`${date}T00:00:00Z`).toLocaleDateString('de-DE', {
+	new Date(`${date}T00:00:00Z`).toLocaleDateString(i18next.language, {
 		day: 'numeric',
 		month: 'long',
 		year: 'numeric',

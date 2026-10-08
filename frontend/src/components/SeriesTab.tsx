@@ -1,6 +1,7 @@
 import { KolAlert, KolBadge, KolSpin, KolToolbar } from '@public-ui/react-v19';
 import type { Category, Pillar, Series, Task } from 'client';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
 import { toApiError } from '../lib/apiError';
@@ -31,22 +32,6 @@ interface SeriesTabProps {
 /** Serie, die aktuell im Bearbeiten-Modal (`TaskForm` im Serie-Modus) geöffnet ist. */
 type EditDialog = { series: Series } | null;
 
-const RHYTHM_LABEL: Record<Series['rhythm'], string> = {
-	daily: 'Täglich',
-	weekly: 'Wöchentlich',
-	monthly: 'Monatlich',
-	weekdays: 'Werktags',
-	weekend: 'Wochenende',
-	mon: 'Montags',
-	tue: 'Dienstags',
-	wed: 'Mittwochs',
-	thu: 'Donnerstags',
-	fri: 'Freitags',
-	sat: 'Samstags',
-	sun: 'Sonntags',
-	none: 'Ohne Rhythmus',
-};
-
 /**
  * Serien-Verwaltung als eigener Tab „Serien" (#335): löst das frühere `SeriesManagementModal` (Einstieg
  * über den Header-Button „Serien verwalten") ab. Analog zum `TaskTree` listet der Tab alle Serien-
@@ -57,6 +42,7 @@ const RHYTHM_LABEL: Record<Series['rhythm'], string> = {
  * vereinheitlichten Einstieg „Neuen Task anlegen" (QuickCapture, #330).
  */
 export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTabProps) => {
+	const { t } = useTranslation(['capture', 'common']);
 	const [series, setSeries] = useState<Series[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [editDialog, setEditDialog] = useState<EditDialog>(null);
@@ -131,27 +117,25 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 	return (
 		<section className="series-section" ref={deleteFallbackRef} tabIndex={-1}>
 			{error !== null && (
-				<KolAlert _type="error" _label="Aktion fehlgeschlagen">
+				<KolAlert _type="error" _label={t('seriesTab.actionFailed')}>
 					{error}
 				</KolAlert>
 			)}
 
-			{createdTitle !== null && <KolAlert _type="success" _alert _label={`Aufgabe angelegt: ${createdTitle}`} />}
+			{createdTitle !== null && (
+				<KolAlert _type="success" _alert _label={t('seriesTab.taskCreated', { title: createdTitle })} />
+			)}
 
 			{series === null && (
 				<div className="loading">
-					<KolSpin _show _variant="cycle" _label="Lädt" />
-					<span>Lade Serien…</span>
+					<KolSpin _show _variant="cycle" _label={t('seriesTab.loading')} />
+					<span>{t('seriesTab.loadingSeries')}</span>
 				</div>
 			)}
 
 			{series !== null && (
 				<ul className="series-tree" data-testid="series-tree">
-					{series.length === 0 && (
-						<li className="series-tree-hint">
-							Noch keine Serie angelegt. Lege eine neue Serie über „Neuen Task anlegen" an.
-						</li>
-					)}
+					{series.length === 0 && <li className="series-tree-hint">{t('seriesTab.empty')}</li>}
 					{series.map((entry) => (
 						<li key={entry.id} className="series-tree-item" data-testid={`series-tree-item-${entry.id}`}>
 							<div className="series-tree-row">
@@ -175,15 +159,23 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 										    alle Badges einer Zeile stammen aus einem System (KoliBri-first, DESIGN.md) —
 										    gleiche Höhe, gleicher Radius, Kontrast rechnet KoliBri selbst (_color). */}
 										{entry.rhythm !== 'none' && (
-											<KolBadge _label={RHYTHM_LABEL[entry.rhythm]} _color="#005b99" className="series-tree-badge" />
+											<KolBadge
+												_label={t(`seriesTab.rhythm.${entry.rhythm}`)}
+												_color="#005b99"
+												className="series-tree-badge"
+											/>
 										)}
 										<CategoryBadge category={categories.find((category) => category.id === entry.categoryId)} />
 										{/* #1251 (AK6): Stillgelegte Serie (active:false, entsteht durch Gruppenaustritt/
 										    -löschung) — Text-Badge statt nur Farbe (KI-UX, WCAG 1.4.1). Kein Toggle:
 										    Reaktivieren wäre ein eigenes Ticket; die Toolbar bleibt (nicht sperren). */}
 										{/* #2358 (AK6): Serie ohne Automatik = Vorlage — Text-Badge, analog „Ruhend". */}
-										{entry.autoCreate === false && <KolBadge _label="Vorlage" className="series-tree-badge" />}
-										{entry.active === false && <KolBadge _label="Ruhend" className="series-tree-badge" />}
+										{entry.autoCreate === false && (
+											<KolBadge _label={t('seriesTab.badgeTemplate')} className="series-tree-badge" />
+										)}
+										{entry.active === false && (
+											<KolBadge _label={t('seriesTab.badgeDormant')} className="series-tree-badge" />
+										)}
 										{/* #1465: Säulen-Badge am Serien-Eintrag, analog TaskTree — die Vorlage zahlt auf
 										    keine Säule ein, also tun es auch ihre Instanzen nicht. Löst das
 										    beschreibungs-getriebene „Hinweis"-Badge aus #1430 ab. */}
@@ -193,7 +185,7 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 										    eine eigene. */}
 										{entry.forUserName != null && (
 											<KolBadge
-												_label={`Für: ${entry.forUserName}`}
+												_label={t('seriesTab.forUser', { name: entry.forUserName })}
 												className="series-tree-badge series-tree-badge--provenance"
 											/>
 										)}
@@ -204,7 +196,7 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 									{entry.forUserId == null && (
 										<div className="series-tree-actions">
 											<KolToolbar
-												_label={`Aktionen für ${entry.title}`}
+												_label={t('seriesTab.actionsFor', { title: entry.title })}
 												_orientation="horizontal"
 												_items={[
 													// #2359: Aufgabe aus Serie/Vorlage anlegen — bei ruhender Serie weggelassen (das „Ruhend"-Badge
@@ -214,7 +206,7 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 														: [
 																{
 																	type: 'button' as const,
-																	_label: 'Aufgabe anlegen',
+																	_label: t('seriesTab.createTask'),
 																	_hideLabel: true,
 																	_icons: { left: { icon: 'fa-solid fa-plus' } },
 																	_variant: 'secondary' as const,
@@ -228,7 +220,7 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 															]),
 													{
 														type: 'button',
-														_label: 'Bearbeiten',
+														_label: t('common:actions.edit'),
 														_hideLabel: true,
 														_icons: { left: { icon: 'fa-solid fa-pen' } },
 														_variant: 'secondary',
@@ -236,7 +228,7 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 													},
 													{
 														type: 'button',
-														_label: 'Löschen',
+														_label: t('common:actions.delete'),
 														_hideLabel: true,
 														_icons: { left: { icon: 'fa-solid fa-trash' } },
 														_variant: 'danger',
@@ -254,7 +246,11 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 			)}
 
 			{editDialog !== null && (
-				<Modal title={`Serie bearbeiten: ${editDialog.series.title}`} onClose={() => setEditDialog(null)} width="44rem">
+				<Modal
+					title={t('seriesTab.editTitle', { title: editDialog.series.title })}
+					onClose={() => setEditDialog(null)}
+					width="44rem"
+				>
 					<TaskForm
 						key={editDialog.series.id}
 						task={null}

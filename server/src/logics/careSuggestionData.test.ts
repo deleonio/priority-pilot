@@ -5,16 +5,16 @@ import { SEED_PILLARS } from '../models/pillarData.js';
 
 /**
  * Rote Spec-Tests für #1791 (Spec docs/spec/issue-1791.md) — AK5: kuratierte Vorlagen-
- * Stammdaten vollständig über Säulen und die zehn App-Sprachen.
+ * Stammdaten vollständig über Säulen und die App-Sprachen.
  *
  * Rot, bis `logics/careSuggestionData.ts` existiert. KEIN Produktivcode.
  */
 
-/** Spiegel zu `frontend/src/i18n/locales/` — die zehn App-Sprachen; neue App-Sprache → Pflicht pflegen. */
-const APP_SPRACHEN = ['de', 'en', 'es', 'fr', 'it', 'nl', 'pl', 'pt', 'ru', 'sv'];
+/** Spiegel zu `frontend/src/i18n/locales/` — die App-Sprachen; neue App-Sprache → Pflicht pflegen. */
+const APP_SPRACHEN = ['de', 'en'];
 
 describe('CARE_VORLAGEN Stammdaten (#1791 AK5)', () => {
-	it('CARE_SPRACHEN entspricht exakt den zehn App-Sprachen', () => {
+	it('CARE_SPRACHEN entspricht exakt den App-Sprachen', () => {
 		assert.deepEqual([...CARE_SPRACHEN], APP_SPRACHEN);
 	});
 
@@ -25,7 +25,7 @@ describe('CARE_VORLAGEN Stammdaten (#1791 AK5)', () => {
 		}
 	});
 
-	it('jede Vorlage in allen zehn Sprachen mit nicht-leerem Titel und Beschreibung; Keys einzigartig', () => {
+	it('jede Vorlage in allen App-Sprachen mit nicht-leerem Titel und Beschreibung; Keys einzigartig', () => {
 		const keys = new Set<string>();
 		for (const vorlage of CARE_VORLAGEN) {
 			assert.ok(!keys.has(vorlage.key), `Key "${vorlage.key}" doppelt — Dismissal-Bezug bricht`);
@@ -42,7 +42,7 @@ describe('CARE_VORLAGEN Stammdaten (#1791 AK5)', () => {
 	it('#1795 AK2: Pause-Vorlage pause-1 existiert (Erholungsvorschlag bei Überlast)', () => {
 		assert.ok(
 			CARE_VORLAGEN.some((vorlage) => vorlage.key === 'pause-1'),
-			'pause-1 fehlt in CARE_VORLAGEN — Vollständigkeit aller zehn Sprachen prüft der Test darüber',
+			'pause-1 fehlt in CARE_VORLAGEN — Vollständigkeit aller Sprachen prüft der Test darüber',
 		);
 	});
 });

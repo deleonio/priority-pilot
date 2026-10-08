@@ -1,6 +1,7 @@
 import { KolCard } from '@public-ui/react-v19';
 import type { MissedTasksSummary } from 'client';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 
 /**
@@ -14,9 +15,8 @@ import { api } from '../api';
  * die Karte ist immer sichtbar, auch im Nullzustand, analog zu `StreakCard`/`MilestoneBadges`.
  */
 
-const aufgaben = (anzahl: number): string => `${anzahl} ${anzahl === 1 ? 'Aufgabe' : 'Aufgaben'}`;
-
 export const MissedTasksCard = () => {
+	const { t } = useTranslation('tasks');
 	const [summary, setSummary] = useState<MissedTasksSummary | null>(null);
 	const [failed, setFailed] = useState(false);
 
@@ -43,22 +43,22 @@ export const MissedTasksCard = () => {
 		<KolCard
 			className="dashboard-missed"
 			role="region"
-			aria-label="Verpasste Aufgaben"
-			_label="Verpasste Aufgaben"
+			aria-label={t('missedCard.title')}
+			_label={t('missedCard.title')}
 			_level={3}
 			data-testid="missed-tasks-card"
 		>
 			{summary === null && !failed ? (
-				<p className="dashboard-missed-hint">Wird geladen …</p>
+				<p className="dashboard-missed-hint">{t('missedCard.loading')}</p>
 			) : failed || summary === null || summary.anzahl === 0 ? (
 				<p className="dashboard-missed-hint" data-testid="missed-tasks-zero">
-					Bisher wurde keine Aufgabe automatisch bereinigt.
+					{t('missedCard.zero')}
 				</p>
 			) : (
 				<div className="dashboard-missed-content">
 					<p className="dashboard-missed-count" data-testid="missed-tasks-count">
-						<span className="dashboard-missed-value">{aufgaben(summary.anzahl)}</span>
-						<span className="dashboard-missed-label">automatisch bereinigt</span>
+						<span className="dashboard-missed-value">{t('missedCard.count', { count: summary.anzahl })}</span>
+						<span className="dashboard-missed-label">{t('missedCard.cleaned')}</span>
 					</p>
 					<ul className="dashboard-missed-list">
 						{summary.eintraege.slice(0, 3).map((eintrag) => (

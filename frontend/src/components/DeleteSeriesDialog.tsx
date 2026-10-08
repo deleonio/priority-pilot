@@ -1,5 +1,6 @@
 import type { Series } from 'client';
 import type { RefObject } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 
@@ -22,25 +23,32 @@ interface DeleteSeriesDialogProps {
  * „Abbrechen“ (irreversible Aktion nicht per Enter auslösbar); Strg+Enter löst — wie vor der
  * #1106-Konsolidierung — den sicheren Default „Nein“ (nur Serie) aus, niemals die Kaskade.
  */
-export const DeleteSeriesDialog = ({ series, onClose, onDeleted, fallbackFocusRef }: DeleteSeriesDialogProps) => (
-	<ConfirmDeleteDialog
-		hotkeyTarget="safeDefault"
-		title="Serie löschen"
-		body={
-			<p>
-				Soll die Serie <strong>„{series.title}"</strong> gelöscht werden — und falls ja, sollen auch alle bereits
-				generierten Instanzen mitgelöscht werden? Diese Aktion kann nicht rückgängig gemacht werden.
-			</p>
-		}
-		confirmLabel="Ja (Serie + alle Aufgaben)"
-		onConfirm={() => api.deleteSeries({ id: series.id, cascade: true })}
-		onClose={onClose}
-		onDeleted={onDeleted}
-		fallbackFocusRef={fallbackFocusRef}
-		secondaryAction={{
-			label: 'Nein (nur Serie, Aufgaben bleiben eigenständig)',
-			// Promise bewusst zurückgeben: `ConfirmDeleteDialog` awaited ihn (Fehler-/`deleting`-Behandlung).
-			onClick: () => api.deleteSeries({ id: series.id, cascade: false }),
-		}}
-	/>
-);
+export const DeleteSeriesDialog = ({ series, onClose, onDeleted, fallbackFocusRef }: DeleteSeriesDialogProps) => {
+	const { t } = useTranslation('capture');
+	return (
+		<ConfirmDeleteDialog
+			hotkeyTarget="safeDefault"
+			title={t('deleteSeries.title')}
+			body={
+				<p>
+					<Trans
+						t={t}
+						i18nKey="deleteSeries.body"
+						values={{ title: series.title }}
+						components={{ strong: <strong /> }}
+					/>
+				</p>
+			}
+			confirmLabel={t('deleteSeries.confirm')}
+			onConfirm={() => api.deleteSeries({ id: series.id, cascade: true })}
+			onClose={onClose}
+			onDeleted={onDeleted}
+			fallbackFocusRef={fallbackFocusRef}
+			secondaryAction={{
+				label: t('deleteSeries.seriesOnly'),
+				// Promise bewusst zurückgeben: `ConfirmDeleteDialog` awaited ihn (Fehler-/`deleting`-Behandlung).
+				onClick: () => api.deleteSeries({ id: series.id, cascade: false }),
+			}}
+		/>
+	);
+};

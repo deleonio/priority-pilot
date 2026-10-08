@@ -155,8 +155,8 @@ describe('Push-Sprache pro User (#1879 AK2/AK4)', () => {
 		const cookie = await server.register(email, 'password123');
 		assert.equal((await putSprache(cookie, { sprache: 'en' })).status, 200);
 		assert.equal(await storedSprache(email), 'en');
-		assert.equal((await putSprache(cookie, { sprache: 'fr' })).status, 200);
-		assert.equal(await storedSprache(email), 'fr');
+		assert.equal((await putSprache(cookie, { sprache: 'de' })).status, 200);
+		assert.equal(await storedSprache(email), 'de');
 	});
 
 	const invalid: Array<[string, unknown]> = [

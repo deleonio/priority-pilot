@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import i18next from '../i18n/config';
 
 /** Vom Nutzer gewählter Modus. `system` folgt der OS-Einstellung (Standard). */
 export type ThemePreference = 'system' | 'light' | 'dark';
@@ -142,9 +143,15 @@ export const useTheme = (): {
 
 /** Export-Konstanten für die UI */
 export const THEME_LABELS: Record<ThemePreference, string> = {
-	system: 'System',
-	light: 'Hell',
-	dark: 'Dunkel',
+	get system() {
+		return i18next.t('settings:theme.system');
+	},
+	get light() {
+		return i18next.t('settings:theme.light');
+	},
+	get dark() {
+		return i18next.t('settings:theme.dark');
+	},
 };
 
 export const THEME_ORDER: ThemePreference[] = ['system', 'light', 'dark'];

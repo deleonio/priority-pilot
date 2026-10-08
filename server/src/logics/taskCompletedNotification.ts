@@ -1,6 +1,7 @@
 import { NotificationLog, User } from '../models/index.js';
 import { sendPushToUser, type PushSender } from './push.js';
 import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
+import { spracheVon, type CareSprache } from './careSuggestionData.js';
 
 /**
  * Fachlicher Push-Trigger „fremd angelegte Aufgabe erledigt" (#1391): setzt B den Status einer von A
@@ -12,6 +13,11 @@ import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
  */
 
 const KIND = 'task-completed';
+
+const TEXTE: Record<CareSprache, { jemand: string; titel: string; text: (name: string, aufgabe: string) => string }> = {
+	de: { jemand: 'Jemand', titel: 'Aufgabe erledigt', text: (name, aufgabe) => `${name} hat „${aufgabe}“ erledigt.` },
+	en: { jemand: 'Someone', titel: 'Task completed', text: (name, aufgabe) => `${name} completed "${aufgabe}".` },
+};
 
 /** Der erledigte Task (Ausschnitt), wie ihn der PATCH-Handler nach dem Commit vorliegen hat. */
 interface CompletedTask {
@@ -46,13 +52,13 @@ export const notifyTaskCompleted = async (
 	if (alreadySent) {
 		return;
 	}
-	const completerName = completer?.displayName ?? 'Jemand';
-	const title = 'Aufgabe erledigt';
-	const body = `${completerName} hat „${task.title}“ erledigt.`;
+	const recipient = await User.findByPk(task.createdById);
+	const texte = TEXTE[spracheVon(recipient?.sprache)];
+	const title = texte.titel;
+	const body = texte.text(completer?.displayName ?? texte.jemand, task.title);
 	const { sent } = await sendPushToUser(task.createdById, { title, body, url: '/' }, send);
 	let mailSent = false;
 	if (mailSend || isMailConfigured()) {
-		const recipient = await User.findByPk(task.createdById);
 		mailSent = await sendMailToUser({ email: recipient?.email ?? null }, { subject: title, text: body }, mailSend);
 	}
 	if (sent > 0 || mailSent) {

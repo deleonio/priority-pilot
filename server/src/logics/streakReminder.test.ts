@@ -189,8 +189,8 @@ describe('logics/streakReminder — Streak-Erinnerung (Issue #1836)', () => {
 		assert.equal(calls.length, 1);
 	});
 
-	it('AK8: Textkatalog in allen zehn Sprachen nicht leer, Streak-Länge eingesetzt', () => {
-		assert.equal(CARE_SPRACHEN.length, 10);
+	it('AK8: Textkatalog in allen Sprachen nicht leer, Streak-Länge eingesetzt', () => {
+		assert.equal(CARE_SPRACHEN.length, 2);
 		for (const sprache of CARE_SPRACHEN) {
 			const { titel, text } = streakReminderText(sprache, 47);
 			assert.notEqual(titel.trim(), '', `${sprache}: Titel leer`);

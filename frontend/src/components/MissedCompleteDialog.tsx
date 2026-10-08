@@ -1,6 +1,7 @@
 import type { Task } from 'client';
 import { KolButton } from '@public-ui/react-v19';
 import { useRef, type RefObject } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Modal } from './Modal';
 
 interface MissedCompleteDialogProps {
@@ -20,21 +21,27 @@ interface MissedCompleteDialogProps {
  * Streak am Fälligkeitstag). Nicht-destruktiv wie `CompleteTaskDialog`, Initialfokus „Abbrechen".
  */
 export const MissedCompleteDialog = ({ task, onAnswer, onClose, fallbackFocusRef }: MissedCompleteDialogProps) => {
+	const { t } = useTranslation(['tasks', 'common']);
 	const cancelRef = useRef<HTMLKolButtonElement>(null);
 	return (
 		<Modal
-			title="Aufgabe erledigen"
+			title={t('completeTask.title')}
 			onClose={onClose}
 			fallbackFocusRef={fallbackFocusRef}
 			initialFocusRef={cancelRef as RefObject<HTMLElement | null>}
 		>
 			<p>
-				Aufgabe <strong>„{task.title}"</strong> erst jetzt erledigt?
+				<Trans t={t} i18nKey="missedComplete.question" components={{ title: <strong>„{task.title}"</strong> }} />
 			</p>
 			<div className="modal-actions">
-				<KolButton ref={cancelRef} _label="Abbrechen" _variant="secondary" _on={{ onClick: () => onClose() }} />
-				<KolButton _label="Nein, pünktlich" _variant="secondary" _on={{ onClick: () => onAnswer(true) }} />
-				<KolButton _label="Ja, jetzt" _variant="primary" _on={{ onClick: () => onAnswer(false) }} />
+				<KolButton
+					ref={cancelRef}
+					_label={t('common:actions.cancel')}
+					_variant="secondary"
+					_on={{ onClick: () => onClose() }}
+				/>
+				<KolButton _label={t('missedComplete.onTime')} _variant="secondary" _on={{ onClick: () => onAnswer(true) }} />
+				<KolButton _label={t('missedComplete.now')} _variant="primary" _on={{ onClick: () => onAnswer(false) }} />
 			</div>
 		</Modal>
 	);

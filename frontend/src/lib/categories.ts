@@ -1,16 +1,16 @@
 import type { Category } from 'client';
+import i18next from '../i18n/config';
 
 /**
- * Kollator für die Anzeigereihenfolge der Kategorien. Einmalig auf Modulebene angelegt: Ein
- * `Intl.Collator` ist teuer im Bau, im Vergleichs-Callback würde er pro Paar neu entstehen.
+ * Kollator für die Anzeigereihenfolge der Kategorien: einmal je Sortierung in der aktiven Sprache
+ * angelegt, nicht im Vergleichs-Callback (dort entstünde er pro Paar neu).
  *
  * `numeric: true` sortiert „Projekt 2" vor „Projekt 10" — ohne die Option gewinnt die Ziffernfolge
  * und die Zehn stünde vor der Zwei.
  */
-const collator = new Intl.Collator('de-DE', { numeric: true });
 
 /**
- * Kategorien nach Namen sortieren, wie ein deutscher Leser sie erwartet.
+ * Kategorien nach Namen sortieren, wie ein Leser der aktiven Sprache sie erwartet.
  *
  * Der Server sortiert bereits (`GET /categories`, `order: [['name', 'ASC']]`), aber SQLite
  * vergleicht Text byteweise (BINARY-Kollation): Kleinschreibung landet hinter der Großschreibung
@@ -21,5 +21,7 @@ const collator = new Intl.Collator('de-DE', { numeric: true });
  * Gibt eine neue Liste zurück und sortiert nicht an Ort und Stelle: Die Eingabe ist die Antwort des
  * API-Clients, die niemand sonst verändert sehen will.
  */
-export const sortCategoriesByName = (categories: Category[]): Category[] =>
-	[...categories].sort((a, b) => collator.compare(a.name, b.name));
+export const sortCategoriesByName = (categories: Category[]): Category[] => {
+	const collator = new Intl.Collator(i18next.language, { numeric: true });
+	return [...categories].sort((a, b) => collator.compare(a.name, b.name));
+};
