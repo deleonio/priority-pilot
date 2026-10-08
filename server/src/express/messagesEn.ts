@@ -1,6 +1,6 @@
 import type { RequestHandler } from 'express';
 import { spracheAusHeader } from '../logics/careSuggestionData.js';
-import { pillarTextIn } from '../models/pillarData.js';
+import { pillarTextFromEn, pillarTextIn } from '../models/pillarData.js';
 import { PILLAR_DISTRIBUTION_RULE } from '../logics/pillarContributions.js';
 import type { FeatureId } from '../logics/plans.js';
 import { FEATURE_LABELS } from './planGuard.js';
@@ -251,6 +251,23 @@ export const translateMessages: RequestHandler = (req, res, next) => {
 	if (spracheAusHeader(req.get('accept-language')) === 'en') {
 		const json = res.json.bind(res);
 		res.json = (body?: unknown) => json(bodyEn(body));
+	}
+	next();
+};
+
+/**
+ * Rückweg zu {@link translateMessages} (nach `express.json()`): Schickt eine englische Oberfläche den
+ * angezeigten Katalogtext einer Standard-Säule unverändert zurück (z. B. beim Speichern des
+ * Bearbeiten-Dialogs), wird wieder der deutsche Seed-Wert gespeichert — sonst ginge die Erkennung
+ * verloren und die deutsche Ansicht zeigte den englischen Text.
+ */
+export const restorePillarTexts: RequestHandler = (req, _res, next) => {
+	const body: unknown = req.body;
+	if (spracheAusHeader(req.get('accept-language')) === 'en' && body !== null && typeof body === 'object') {
+		for (const feld of ['name', 'description'] as const) {
+			const value = (body as Record<string, unknown>)[feld];
+			if (typeof value === 'string') (body as Record<string, unknown>)[feld] = pillarTextFromEn(value);
+		}
 	}
 	next();
 };

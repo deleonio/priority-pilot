@@ -45,6 +45,23 @@ describe('Categories API', () => {
 	const del = (path: string, cookie?: string) =>
 		fetch(`${server.baseUrl}${path}`, { method: 'DELETE', headers: { ...(cookie ? { cookie } : {}) } });
 
+	// Review #2429: Die englische Antwort zeigt Säulen-Katalogwörter übersetzt; der unveränderte
+	// Rückweg darf den deutschen Wert in der DB nicht überschreiben.
+	it('Accept-Language en: Anzeige übersetzt, unverändertes Speichern behält den deutschen Namen', async () => {
+		const cookie = await server.login('alice@example.com');
+		const category = await Category.create({ name: 'Sinn', color: RED, userId: 1 });
+		const en = { 'Accept-Language': 'en', cookie };
+		const list = (await (await fetch(`${server.baseUrl}/categories`, { headers: en })).json()) as { name: string }[];
+		assert.equal(list[0]?.name, 'Meaning');
+		const res = await fetch(`${server.baseUrl}/categories/${category.id}`, {
+			method: 'PATCH',
+			headers: { ...en, 'Content-Type': 'application/json' },
+			body: JSON.stringify({ name: 'Meaning', color: RED }),
+		});
+		assert.equal(res.status, 200);
+		assert.equal((await Category.findByPk(category.id))?.name, 'Sinn');
+	});
+
 	describe('GET /categories', () => {
 		it('200 mit leerer Liste — neue Konten starten ohne Kategorien (kein Seed)', async () => {
 			const cookie = await server.login('alice@example.com');
