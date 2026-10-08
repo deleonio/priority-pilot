@@ -5,6 +5,8 @@
  * Ohne Token (Website) bleibt alles beim Cookie.
  */
 const APP_TOKEN_KEY = 'pp-app-token';
+/** Abmelden in der App, über Neustarts hinweg: danach kein automatischer Google-Login (ADR 0023). */
+export const NATIVE_LOGGED_OUT_KEY = 'pp-native-logged-out';
 
 export const getAppToken = (): string | null => localStorage.getItem(APP_TOKEN_KEY);
 

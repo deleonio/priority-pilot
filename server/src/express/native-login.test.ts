@@ -71,6 +71,11 @@ describe('Login der nativen App mit Einmal-Code (#1669)', () => {
 		assert.equal(await callbackLocation(), '/app/');
 	});
 
+	it('return=scheme leitet über das Custom Scheme in die App, unabhängig vom App Link (ADR 0023)', async () => {
+		const cookie = cookieOf(await start(`/auth/google?client=app&state=${STATE}&return=scheme`));
+		assert.match((await callbackLocation(cookie)) ?? '', /^balamentum\.app:\/\/auth\/native\?code=[\w-]+$/);
+	});
+
 	it('client=app ohne gültigen state wird abgelehnt', async () => {
 		assert.equal((await start('/auth/google?client=app')).status, 400);
 		assert.equal((await start('/auth/google?client=app&state=kurz')).status, 400);

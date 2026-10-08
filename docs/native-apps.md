@@ -137,19 +137,39 @@ Für die Benachrichtigungen bei Verlängerung und Kündigung zusätzlich `GOOGLE
 
 ## Anmeldung in der App
 
-Google blockiert OAuth im WebView. „Mit Google anmelden“ öffnet deshalb `/auth/google?client=app&state=…`
-im System-Browser (`frontend/src/lib/nativeAuth.ts`). Nach dem Login leitet der Server auf
-`/app/auth/native?code=…` um. Android gibt diesen App Link an die App, der WebView löst den Code mit dem
-gemerkten `state` über `POST /auth/native/exchange` ein. Magic-Links auf `/app/` öffnen auf demselben
-Weg die App. Mit `X-Client-Channel: play` antworten Code-Tausch und Magic-Link-Einlösung mit einem
-App-Token statt eines Session-Cookies; die App schickt es als `Authorization: Bearer`, `POST /auth/logout`
-zieht es zurück (#2377). Der Intent-Filter im Manifest nimmt die Domain aus `server.allowNavigation` (Gradle liest sie aus der
-von `sync` erzeugten `capacitor.config.json`), verifiziert wird sie über `/.well-known/assetlinks.json`
-der Website. Prüfen auf dem Gerät: `adb shell pm get-app-links balamentum.app` muss die Domain als
-`verified` zeigen.
+Die App meldet sich nativ über den Android Credential Manager an ([ADR 0023](adr/0023-android-login-nativ-credential-manager.md)):
+Android zeigt die Google-Konten als Sheet, ein Browser öffnet sich nicht. Das Plugin
+`GoogleSignInPlugin.java` holt mit der Client-ID aus `/auth/providers` (`googleClientId`) ein ID-Token,
+`POST /auth/native/google` tauscht es gegen ein App-Token. Die App schickt es als `Authorization: Bearer`,
+`POST /auth/logout` zieht es zurück (#2377). Das Token liegt im localStorage des WebView und übersteht
+Neustarts. Beim Start ohne Sitzung versucht die App die Anmeldung selbst
+(`frontend/src/Root.tsx`), nach dem Abmelden nicht mehr.
 
-Die Sitzung bleibt über App-Neustarts erhalten: `MainActivity.onPause()` ruft `CookieManager.flush()` auf,
-damit der WebView das Session-Cookie vor dem Beenden der App oder des Geräts auf die Platte schreibt.
+Einmalig in der [Google Cloud Console](https://console.cloud.google.com/apis/credentials), im Projekt des
+Web-Clients aus `GOOGLE_CLIENT_ID`: „Anmeldedaten erstellen“ → „OAuth-Client-ID“ → Typ **Android**, Paket
+`balamentum.app`, SHA-1 des Signaturschlüssels. Je einen Client anlegen für
+
+- den Play-App-Signaturschlüssel (Play Console → Testen und veröffentlichen → App-Integrität → App-Signatur),
+- den Upload-Schlüssel (CI-APK `balamentum-apk`, `keytool -list -v -keystore upload.jks`),
+- den Debug-Schlüssel für lokale Builds (`keytool -list -v -keystore ~/.android/debug.keystore -storepass android`).
+
+Ohne passenden Client meldet der Credential Manager einen Fehler, die App fällt auf den Browser zurück:
+`/auth/google?client=app&state=…&return=scheme` im System-Browser (`frontend/src/lib/nativeAuth.ts`), danach
+leitet der Server über das Custom Scheme `balamentum.app://auth/native?code=…` in die App. Der WebView löst den
+Code mit dem gemerkten `state` über `POST /auth/native/exchange` ein. Das Custom Scheme braucht keine
+App-Link-Verifikation.
+
+Magic-Links auf `/app/` öffnen die App über den App Link. Der Intent-Filter im Manifest nimmt die Domain
+aus `server.allowNavigation` (Gradle liest sie aus der von `sync` erzeugten `capacitor.config.json`),
+verifiziert wird sie über `/.well-known/assetlinks.json` der Website. `ANDROID_CERT_SHA256` muss dafür den
+SHA-256 des Play-App-Signaturschlüssels nennen, sonst öffnen Links bei Play-Installationen im Browser.
+Prüfen auf dem Gerät: `adb shell pm get-app-links balamentum.app` muss die Domain als `verified` zeigen.
+
+Fehlerbilder:
+
+- **Browser-Tab statt Konto-Sheet:** Für den Signaturschlüssel der installierten App fehlt der
+  Android-OAuth-Client (Play-Installation: Play-App-Signaturschlüssel).
+- **„Der Zugriff wurde verweigert“:** Die Adresse ist nicht freigegeben (Allowlist, Warteliste).
 
 ## Icons und Splash neu erzeugen
 

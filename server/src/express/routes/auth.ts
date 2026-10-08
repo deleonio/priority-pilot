@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { Router, type RequestHandler } from 'express';
+import { Router, type Request, type RequestHandler, type Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import passport from 'passport';
 import { Op, UniqueConstraintError } from 'sequelize';
@@ -273,6 +273,21 @@ const requireGoogleStrategy: RequestHandler = (_req, res, next) => {
 
 // Zufallswert der App für den nativen Login (ADR 0016), Alphabet wie base64url.
 const NATIVE_STATE = /^[\w-]{16,128}$/;
+// Rücksprung in die App über ihr Custom Scheme (`appId` in native/capacitor.config.ts, Intent-Filter
+// im AndroidManifest): öffnet die App ohne App-Link-Verifikation, also auch bei Play-signierten
+// Installationen, deren Schlüssel assetlinks.json nicht kennt (ADR 0023).
+const APP_SCHEME_LOGIN = 'balamentum.app://auth/native';
+
+/** Beendet einen gescheiterten App-Login mit Rücksprung in die App statt auf die Fehlerseite im Browser. */
+const redirectNativeFailure = (req: Request, res: Response, code: string): boolean => {
+	if (!req.session?.nativeScheme) {
+		return false;
+	}
+	delete req.session.nativeScheme;
+	delete req.session.nativeState;
+	res.redirect(`${APP_SCHEME_LOGIN}?error=${encodeURIComponent(code)}`);
+	return true;
+};
 
 // GET /auth/google — startet den OAuth-Flow. `?client=app&state=…` markiert den Login aus der nativen
 // App (ADR 0016): Er läuft im System-Browser, dessen Session der WebView der App nicht teilt. Der
@@ -280,6 +295,7 @@ const NATIVE_STATE = /^[\w-]{16,128}$/;
 // untergeschobener Code lässt sich so nicht in der App einlösen (Login-CSRF).
 authRouter.get('/auth/google', requireGoogleStrategy, (req, res, next) => {
 	delete req.session.nativeState;
+	delete req.session.nativeScheme;
 	if (req.query.lng === 'en') req.session.loginLng = 'en';
 	else delete req.session.loginLng;
 	if (req.query.client === 'app') {
@@ -288,6 +304,7 @@ authRouter.get('/auth/google', requireGoogleStrategy, (req, res, next) => {
 			return;
 		}
 		req.session.nativeState = req.query.state;
+		if (req.query.return === 'scheme') req.session.nativeScheme = true;
 	}
 	passport.authenticate('google', { scope: ['email', 'profile'] })(req, res, next);
 });
@@ -306,6 +323,7 @@ authRouter.get('/auth/google/silent', (req, res, next) => {
 	// Der stille Login ist immer Web-Kontext: ein Vermerk aus einem abgebrochenen App-Login (#1669)
 	// darf ihn nicht auf den App Link umleiten.
 	delete req.session.nativeState;
+	delete req.session.nativeScheme;
 	// Ebenso keine Sprachwahl aus einem abgebrochenen Website-Login.
 	delete req.session.loginLng;
 	// #1231: Route, von der der stille Login angestoßen wurde, aufnehmen — der Erfolgs-Callback
@@ -336,6 +354,9 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 	// 1:1 an die Frontend-Fehler-Weiche durchgereicht, sonst `login_failed` als Sammelcode.
 	if (!req.query.code) {
 		const code = typeof req.query.error === 'string' && req.query.error !== '' ? req.query.error : 'login_failed';
+		if (redirectNativeFailure(req, res, code)) {
+			return;
+		}
 		res.redirect(
 			silentPending ? `${APP_ROOT}?silent=unavailable` : `${APP_ROOT}?error=${encodeURIComponent(code)}${lng}`,
 		);
@@ -366,6 +387,9 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 					delete req.session.silentReturnTo;
 				}
 				delete req.session.loginLng;
+				if (redirectNativeFailure(req, res, 'login_failed')) {
+					return;
+				}
 				res.redirect(silentPending ? `${APP_ROOT}?silent=unavailable` : `${APP_ROOT}?error=login_failed${lng}`);
 				return;
 			}
@@ -383,10 +407,14 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 			// den der WebView der App über den App Link einlöst (POST /auth/native/exchange).
 			const nativeState = req.session?.nativeState;
 			if (nativeState) {
+				// Ohne Custom Scheme (ältere App-Stände) über den App Link wie bisher.
+				const scheme = req.session.nativeScheme === true;
 				delete req.session.nativeState;
+				delete req.session.nativeScheme;
 				createNativeLoginCode(user.email, nativeState).then(
-					(code) => res.redirect(`${APP_ROOT}auth/native?code=${encodeURIComponent(code)}`),
-					() => res.redirect(`${APP_ROOT}?error=login_failed`),
+					(code) =>
+						res.redirect(`${scheme ? APP_SCHEME_LOGIN : `${APP_ROOT}auth/native`}?code=${encodeURIComponent(code)}`),
+					() => res.redirect(`${scheme ? APP_SCHEME_LOGIN : APP_ROOT}?error=login_failed`),
 				);
 				return;
 			}

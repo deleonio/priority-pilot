@@ -9,6 +9,8 @@ import type { AuthUser } from './lib/auth';
 import { PROFILE_CHANGED_EVENT } from './lib/profileChanged';
 import { checkAuth, SESSION_RELOAD_KEY } from './lib/auth';
 import { api } from './api';
+import { NATIVE_LOGGED_OUT_KEY } from './lib/appToken';
+import { finishNativeLogin, nativeGoogleLogin } from './lib/nativeAuth';
 import { isNativeChannel } from './lib/platform';
 
 type AuthState = 'loading' | 'authenticated' | 'unauthenticated' | 'error';
@@ -18,13 +20,14 @@ const SILENT_ATTEMPTED_KEY = 'pp_silent_attempted';
 const JUST_LOGGED_OUT_KEY = 'pp_just_logged_out';
 
 /**
- * Entscheidet, ob ein stiller Google-Login (OAuth `prompt=none`) versucht werden soll. Die Guards
+ * Entscheidet, ob ein stiller Google-Login (Web: OAuth `prompt=none`, App: Credential Manager,
+ * ADR 0023) versucht werden soll. Die Guards
  * verhindern Endlosschleifen und respektieren aktive Logouts:
  *  - ?silent=unavailable: der stille Versuch ist gescheitert (Interaktion/Consent nötig) → manuelle Login-Seite.
  *  - ?error=…: vorheriger Login-Fehler → Fehlermeldung zeigen statt stillen Versuch.
  *  - ?login=email: „Mit E-Mail anmelden" auf der Website — kein Umweg über Google, direkt zum E-Mail-Feld.
  *  - „pp_just_logged_out": nach Abmelden KEIN stiller Re-Login (sonst ist Ausloggen praktisch unmöglich);
- *    gesetzt von handleLogout() in App.tsx.
+ *    gesetzt von handleLogout() in App.tsx. In der App gilt das über Neustarts hinweg (NATIVE_LOGGED_OUT_KEY).
  *  - „pp_silent_attempted": in dieser Browser-Session wurde bereits ein Versuch gestartet.
  *
  * `allowRepeat` (#1231): der Session-Expired-Reload-Bonus ersetzt ausschließlich diesen letzten
@@ -36,8 +39,7 @@ const shouldAttemptSilentLogin = (allowRepeat = false): boolean => {
 	if (params.get('silent') === 'unavailable') return false;
 	if (params.has('error')) return false;
 	if (params.get('login') === 'email') return false;
-	// In der App blockiert Google den Login im WebView; angemeldet wird dort über den System-Browser.
-	if (isNativeChannel()) return false;
+	if (isNativeChannel() && localStorage.getItem(NATIVE_LOGGED_OUT_KEY) === '1') return false;
 	if (sessionStorage.getItem(JUST_LOGGED_OUT_KEY) === '1') return false;
 	if (!allowRepeat && sessionStorage.getItem(SILENT_ATTEMPTED_KEY) === '1') return false;
 	return true;
@@ -110,6 +112,7 @@ const AuthenticatedApp = () => {
 					// Bei erfolgreicher Anmeldung den Logout-Marker zurücksetzen, damit ein späterer
 					// Logout die Silent-Logik nicht dauerhaft sperrt.
 					sessionStorage.removeItem(JUST_LOGGED_OUT_KEY);
+					localStorage.removeItem(NATIVE_LOGGED_OUT_KEY);
 					// #1231: Auch den „bereits versucht"-Marker zurücksetzen — sonst würde nach dem
 					// Neuladen aus dem Session-Dialog (dessen Reload erneut still anmelden soll) kein
 					// zweiter stiller Versuch mehr starten. Die Loop-Guards (?silent=unavailable,
@@ -139,6 +142,17 @@ const AuthenticatedApp = () => {
 				// Versuch startet (Loop-Guard).
 				sessionStorage.setItem(SILENT_ATTEMPTED_KEY, '1');
 				setSilentPending(true);
+				// In der App blockiert Google OAuth im WebView; dort meldet der Credential Manager nativ an.
+				if (isNativeChannel()) {
+					void nativeGoogleLogin(true).then((result) => {
+						finishNativeLogin(result);
+						if (result === 'canceled' || result === 'unavailable') {
+							setSilentPending(false);
+							setAuthState('unauthenticated');
+						}
+					});
+					return;
+				}
 				// #1231: aktuelle Route als Return-Path mitgeben — der Erfolgs-Callback des stillen
 				// Logins leitet darauf zurück statt fix auf „/". Serverseitig sanitize
 				// (sanitizeReturnPath), hier nur encodeURIComponent gegen Query-Injection.

@@ -24,6 +24,7 @@ import { usersRouter } from './routes/users.js';
 import { createAdminRouter } from './routes/admin.js';
 import { authRouter } from './routes/auth.js';
 import { createMagicLinkRouter } from './routes/magicLink.js';
+import { createNativeGoogleRouter } from './routes/nativeGoogle.js';
 import { createPushRouter } from './routes/push.js';
 import { createMailRouter } from './routes/mail.js';
 import { createLlmProvidersRouter } from './routes/llmProviders.js';
@@ -119,7 +120,7 @@ export interface AppDeps {
 	paypalClient?: PaypalClient;
 	/** Play Developer API für Käufe aus der Android-App (#1687) — Tests injizieren hieran einen Fake. */
 	googlePlayClient?: GooglePlayClient;
-	/** Googles Signaturschlüssel für RTDN (#1689) — Tests reichen eigene herein. */
+	/** Googles Signaturschlüssel für RTDN (#1689) und ID-Tokens der App (ADR 0023) — Tests reichen eigene herein. */
 	googleKeys?: GoogleKeysSource;
 }
 
@@ -301,6 +302,8 @@ export const createApp = (deps: AppDeps = {}) => {
 	app.use(authRouter);
 	// Magic-Link-Login per E-Mail (öffentlich, zweiter Anmeldeweg neben Google).
 	app.use(createMagicLinkRouter(deps.mailSender));
+	// Native Google-Anmeldung der Android-App per ID-Token (ADR 0023).
+	app.use(createNativeGoogleRouter(deps.googleKeys));
 
 	// GET /health — billiger Liveness-Check (ohne DB) für Post-Deploy & Monitoring.
 	app.get('/health', (_req, res: express.Response<HealthDto>) => {

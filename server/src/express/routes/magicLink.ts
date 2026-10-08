@@ -62,10 +62,13 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 
 	// GET /auth/providers — welche Anmeldewege die Login-Seite anbieten soll.
 	router.get('/auth/providers', (_req, res: Response<AuthProvidersDto>) => {
+		const google = hasGoogleOAuth();
 		res.json({
-			google: hasGoogleOAuth(),
+			google,
 			magicLink: isMagicLinkEnabled(),
 			reviewAccess: Boolean(process.env.PLAY_REVIEW_PASSWORD),
+			// Für die native Google-Anmeldung der App (ADR 0023); die Client-ID ist öffentlich.
+			...(google ? { googleClientId: process.env.GOOGLE_CLIENT_ID?.trim() } : {}),
 		});
 	});
 

@@ -60,7 +60,13 @@ describe('Magic-Link-Login per E-Mail', () => {
 	it('GET /auth/providers meldet Google und Magic Link als konfiguriert', async () => {
 		const res = await server.json('/auth/providers');
 		assert.equal(res.status, 200);
-		assert.deepEqual(await res.json(), { google: true, magicLink: true, reviewAccess: false });
+		// googleClientId für die native Google-Anmeldung der App (ADR 0023).
+		assert.deepEqual(await res.json(), {
+			google: true,
+			magicLink: true,
+			reviewAccess: false,
+			googleClientId: process.env.GOOGLE_CLIENT_ID,
+		});
 	});
 
 	it('zugelassene Adresse: 202, genau eine Mail mit Link auf PUBLIC_BASE_URL, DB hält nur den Hash', async () => {

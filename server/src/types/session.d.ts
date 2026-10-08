@@ -22,6 +22,9 @@ declare module 'express-session' {
 		/** #1669: `state` eines Google-Logins aus der nativen App (`/auth/google?client=app&state=…`) —
 		 *  der Erfolgs-Callback leitet mit einem daran gebundenen Einmal-Code auf den App Link (ADR 0016). */
 		nativeState?: string;
+		/** Rücksprung des App-Logins über das Custom Scheme `balamentum.app://` statt über den App Link:
+		 *  braucht keine App-Link-Verifikation (ADR 0023, `/auth/google?client=app&return=scheme`). */
+		nativeScheme?: boolean;
 		/** `?lng=en` vom Login-Link der englischen Website: die App startet nach dem Callback englisch. */
 		loginLng?: 'en';
 	}
