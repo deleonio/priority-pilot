@@ -79,7 +79,7 @@ export interface BalanceModel {
  *   eine Aussage trifft statt leer zu bleiben.
  * - **Soll einer Säule = 0** → ihr Segment bleibt leer; dort investierte Punkte zählen nicht
  *   auf den Füllstand ein, sie fehlen den Säulen mit Soll. Genau das soll das Bild zeigen.
- * - **Alle Punkte in Säulen ohne Soll** → jede Säule mit Ziel steht auf 0, das Herz ist leer.
+ * - **Alle Punkte in Säulen ohne Soll** → jede Säule mit Ziel steht auf 0, der Füllstand ist 0.
  * - **Eine einzige Säule trägt das ganze Soll** → es gibt keine zweite, gegen die sie schieflaufen
  *   könnte; der Füllstand ist dann ihr Erfüllungsgrad (`level`), also 0,95 bei 95 % des Aufwands.
  */
