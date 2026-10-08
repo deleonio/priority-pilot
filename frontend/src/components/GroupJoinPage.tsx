@@ -1,5 +1,6 @@
 import { KolAlert, KolButton, KolSpin } from '@public-ui/react-v19';
 import { useEffect, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 
@@ -26,6 +27,7 @@ type Phase = 'loading' | 'invalid' | 'ready' | 'joining' | 'joined' | 'already-m
 const readToken = (): string | null => new URLSearchParams(window.location.search).get('token');
 
 export const GroupJoinPage = () => {
+	const { t } = useTranslation('groups');
 	const [phase, setPhase] = useState<Phase>('loading');
 	const [preview, setPreview] = useState<LinkPreview | null>(null);
 	// Fehlermeldung für technische Störungen — NICHT für 404/410 (die haben ihren eigenen Zustand).
@@ -91,17 +93,16 @@ export const GroupJoinPage = () => {
 	return (
 		<div className="join-page">
 			<div className="join-card">
-				{phase === 'loading' && <KolSpin _show _variant="cycle" _label="Einladung wird geprüft …" />}
+				{phase === 'loading' && <KolSpin _show _variant="cycle" _label={t('joinPage.checking')} />}
 
 				{phase === 'invalid' && (
-					<KolAlert _type="warning" _label="Einladung nicht mehr gültig">
-						Diese Einladung ist nicht mehr gültig — sie ist abgelaufen oder wurde ungültig gemacht. Frag die Person, die
-						dich eingeladen hat, gerne um einen neuen Link.
+					<KolAlert _type="warning" _label={t('joinPage.invalidLabel')}>
+						{t('joinPage.invalidText')}
 					</KolAlert>
 				)}
 
 				{error !== null && phase === 'error' && (
-					<KolAlert _type="error" _label="Das hat leider nicht geklappt">
+					<KolAlert _type="error" _label={t('joinPage.errorLabel')}>
 						{error}
 					</KolAlert>
 				)}
@@ -113,11 +114,17 @@ export const GroupJoinPage = () => {
 						{(phase === 'ready' || phase === 'joining') && (
 							<>
 								<p className="join-card-context">
-									Du wurdest in die Gruppe <strong>{preview.name}</strong> von <strong>{preview.invitedByName}</strong>{' '}
-									eingeladen.
+									<Trans
+										t={t}
+										i18nKey="joinPage.context"
+										components={{
+											group: <strong>{preview.name}</strong>,
+											inviter: <strong>{preview.invitedByName}</strong>,
+										}}
+									/>
 								</p>
 								<KolButton
-									_label="Gruppe beitreten"
+									_label={t('joinPage.join')}
 									_variant="primary"
 									_disabled={phase === 'joining'}
 									_on={{ onClick: () => void handleJoin() }}
@@ -126,19 +133,19 @@ export const GroupJoinPage = () => {
 						)}
 						{phase === 'joined' && (
 							<>
-								<KolAlert _type="success" _label="Beitritt abgeschlossen">
-									{`Du bist der Gruppe „${preview.name}“ beigetreten.`}
+								<KolAlert _type="success" _label={t('joinPage.joinedLabel')}>
+									{t('joinPage.joinedText', { name: preview.name })}
 								</KolAlert>
 								<KolButton
-									_label="Zu meinen Gruppen"
+									_label={t('joinPage.toGroups')}
 									_variant="secondary"
 									_on={{ onClick: () => window.location.assign(`${import.meta.env.BASE_URL}settings/gruppen`) }}
 								/>
 							</>
 						)}
 						{phase === 'already-member' && (
-							<KolAlert _type="info" _label="Bereits Mitglied">
-								{`Du bist bereits Mitglied der Gruppe „${preview.name}“.`}
+							<KolAlert _type="info" _label={t('joinPage.alreadyLabel')}>
+								{t('joinPage.alreadyText', { name: preview.name })}
 							</KolAlert>
 						)}
 					</>

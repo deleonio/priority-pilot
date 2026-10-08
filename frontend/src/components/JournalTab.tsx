@@ -10,6 +10,7 @@ import {
 } from '@public-ui/react-v19';
 import type { JournalEntry, Pillar } from 'client';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { DESCRIPTION_MAX_LENGTH } from '../lib/descriptionLengthValidation';
@@ -39,17 +40,18 @@ const JournalForm = ({
 	onSubmit: (draft: Draft) => Promise<void>;
 	onCancel?: () => void;
 }) => {
+	const { t } = useTranslation(['capture', 'common']);
 	const [draft, setDraft] = useState<Draft>(initial);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const pillarOptions = [
-		{ label: 'Keine Säule', value: '' },
+		{ label: t('journal.noPillar'), value: '' },
 		...pillars.map((pillar) => ({ label: pillar.name, value: String(pillar.id) })),
 	];
 
 	const submit = async (): Promise<void> => {
 		if (draft.text.trim() === '') {
-			setError('Bitte einen Text eingeben.');
+			setError(t('journal.textRequired'));
 			return;
 		}
 		setError(null);
@@ -75,25 +77,27 @@ const JournalForm = ({
 				_on={{ onInput: (_event, value) => setDraft((previous) => ({ ...previous, text: readString(value) })) }}
 			/>
 			<KolInputDate
-				_label="Datum"
+				_label={t('journal.date')}
 				_type="date"
 				_value={toDateValue(draft.date)}
 				_on={{ onChange: (_event, value) => setDraft((previous) => ({ ...previous, date: readDate(value) })) }}
 			/>
 			<KolSingleSelect
-				_label="Säule (optional)"
+				_label={t('journal.pillarOptional')}
 				_options={pillarOptions}
 				_value={draft.pillarId}
 				_on={{ onChange: (_event, value) => setDraft((previous) => ({ ...previous, pillarId: readString(value) })) }}
 			/>
 			{error !== null && (
-				<KolAlert _type="error" _label="Fehler">
+				<KolAlert _type="error" _label={t('journal.error')}>
 					{error}
 				</KolAlert>
 			)}
 			<div className="journal-form__actions">
 				<KolButton _label={submitLabel} _variant="primary" _disabled={busy} _on={{ onClick: () => void submit() }} />
-				{onCancel !== undefined && <KolButton _label="Abbrechen" _variant="secondary" _on={{ onClick: onCancel }} />}
+				{onCancel !== undefined && (
+					<KolButton _label={t('common:actions.cancel')} _variant="secondary" _on={{ onClick: onCancel }} />
+				)}
 			</div>
 		</div>
 	);
@@ -105,8 +109,9 @@ const JournalForm = ({
  * (`docs/ux-pattern-sequential-confirmation.md`). Die Liste folgt den Server-Antworten ohne Reload.
  */
 export const JournalTab = ({ pillars }: { pillars: Pillar[] }) => {
+	const { t } = useTranslation(['capture', 'common']);
 	const [entries, setEntries] = useState<JournalEntry[] | null>(null);
-	const [loadError, setLoadError] = useState<string | null>(null);
+	const [loadError, setLoadError] = useState(false);
 	const [saved, setSaved] = useState(false);
 	// Schlüssel des Erfassungsformulars — ein Wechsel leert es nach dem Speichern.
 	const [formKey, setFormKey] = useState(0);
@@ -133,7 +138,7 @@ export const JournalTab = ({ pillars }: { pillars: Pillar[] }) => {
 				if (active) setEntries(list);
 			})
 			.catch(() => {
-				if (active) setLoadError('Die Einträge konnten nicht geladen werden. Bitte lade die Seite neu.');
+				if (active) setLoadError(true);
 			});
 		return () => {
 			active = false;
@@ -155,14 +160,14 @@ export const JournalTab = ({ pillars }: { pillars: Pillar[] }) => {
 
 	return (
 		<section className="journal">
-			<KolHeading _label="Journal" _level={2} />
-			<KolHeading _label="Neuer Eintrag" _level={3} />
+			<KolHeading _label={t('journal.heading')} _level={2} />
+			<KolHeading _label={t('journal.newEntry')} _level={3} />
 			<JournalForm
 				key={formKey}
 				initial={{ text: '', date: today(), pillarId: '' }}
 				pillars={pillars}
-				textLabel="Eintrag"
-				submitLabel="Eintrag speichern"
+				textLabel={t('journal.entry')}
+				submitLabel={t('journal.saveEntry')}
 				onSubmit={async (draft) => {
 					const created = await api.createJournalEntry(toBody(draft));
 					setEntries((previous) => sorted([...(previous ?? []), created]));
@@ -170,18 +175,18 @@ export const JournalTab = ({ pillars }: { pillars: Pillar[] }) => {
 					setSaved(true);
 				}}
 			/>
-			{saved && <KolAlert _type="success" _label="Eintrag gespeichert" />}
+			{saved && <KolAlert _type="success" _label={t('journal.saved')} />}
 
 			<div ref={listHeadingRef} tabIndex={-1}>
-				<KolHeading _label="Einträge" _level={3} />
+				<KolHeading _label={t('journal.entries')} _level={3} />
 			</div>
-			{loadError !== null && (
-				<KolAlert _type="error" _label="Fehler">
-					{loadError}
+			{loadError && (
+				<KolAlert _type="error" _label={t('journal.error')}>
+					{t('journal.loadFailed')}
 				</KolAlert>
 			)}
-			{entries === null && loadError === null && <KolSpin _show _variant="cycle" _label="Einträge werden geladen" />}
-			{entries !== null && entries.length === 0 && <p>Noch kein Eintrag. Halte fest, was dich heute bewegt hat.</p>}
+			{entries === null && !loadError && <KolSpin _show _variant="cycle" _label={t('journal.loading')} />}
+			{entries !== null && entries.length === 0 && <p>{t('journal.empty')}</p>}
 			{entries !== null && entries.length > 0 && (
 				<ul className="journal__list">
 					{entries.map((entry) => {
@@ -197,8 +202,8 @@ export const JournalTab = ({ pillars }: { pillars: Pillar[] }) => {
 											pillarId: entry.pillarId === null ? '' : String(entry.pillarId),
 										}}
 										pillars={pillars}
-										textLabel={`Eintrag vom ${dateText}`}
-										submitLabel="Speichern"
+										textLabel={t('journal.entryOf', { date: dateText })}
+										submitLabel={t('common:actions.save')}
 										onCancel={() => setEditingId(null)}
 										onSubmit={async (draft) => {
 											const updated = await api.updateJournalEntry(entry.id, toBody(draft));
@@ -217,14 +222,14 @@ export const JournalTab = ({ pillars }: { pillars: Pillar[] }) => {
 										<p className="journal__text">{entry.text}</p>
 										<div className="journal-form__actions">
 											<KolButton
-												_label={`Eintrag vom ${dateText} bearbeiten`}
+												_label={t('journal.editEntry', { date: dateText })}
 												_hideLabel
 												_icons="fa-solid fa-pen"
 												_variant="secondary"
 												_on={{ onClick: () => setEditingId(entry.id) }}
 											/>
 											<KolButton
-												_label={`Eintrag vom ${dateText} löschen`}
+												_label={t('journal.deleteEntry', { date: dateText })}
 												_hideLabel
 												_icons="fa-solid fa-trash"
 												_variant="danger"
@@ -239,15 +244,15 @@ export const JournalTab = ({ pillars }: { pillars: Pillar[] }) => {
 				</ul>
 			)}
 
-			<KolDetails _label="Statistik">
+			<KolDetails _label={t('journal.stats')}>
 				<JournalStats pillars={pillars} />
 			</KolDetails>
 
 			{deleteTarget !== null && (
 				<ConfirmDeleteDialog
-					title="Eintrag löschen"
-					body={<p>Wirklich löschen? Der Eintrag lässt sich nicht wiederherstellen.</p>}
-					confirmLabel="Endgültig löschen"
+					title={t('journal.deleteTitle')}
+					body={<p>{t('journal.deleteBody')}</p>}
+					confirmLabel={t('journal.deleteConfirm')}
 					onConfirm={() => api.deleteJournalEntry({ id: deleteTarget.id })}
 					onClose={() => setDeleteTarget(null)}
 					onDeleted={() => {

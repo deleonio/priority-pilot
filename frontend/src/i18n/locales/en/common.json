@@ -5,15 +5,7 @@
 	},
 	"language": {
 		"de": "Deutsch",
-		"en": "English",
-		"es": "Español",
-		"fr": "Français",
-		"it": "Italiano",
-		"pt": "Português",
-		"nl": "Nederlands",
-		"pl": "Polski",
-		"ru": "Русский",
-		"sv": "Svenska"
+		"en": "English"
 	},
 	"actions": {
 		"save": "Save",
@@ -99,7 +91,8 @@
 		"selectedCount": "{{selected}} of {{total}} suggestions selected",
 		"suggestError": "Fetching suggestions failed",
 		"applyError": "Creating the tasks failed",
-		"partialInfo": "{{count}} tasks are already created — applying again only creates the missing ones.",
+		"partialInfo_one": "{{count}} task is already created — applying again only creates the missing ones.",
+		"partialInfo_other": "{{count}} tasks are already created — applying again only creates the missing ones.",
 		"balanceHint": "Your strongest pillar is {{name}} ({{share}} %).",
 		"fertig": "Done",
 		"emptyDescription": "Describe what you're struggling with right now — the flow turns it into your first tasks. Your input stays intact.",
@@ -159,5 +152,6 @@
 	},
 	"splitHint": {
 		"reason": "Big tasks are often easier to tackle when you split them into smaller steps."
-	}
+	},
+	"quoted": "“{{value}}”"
 }

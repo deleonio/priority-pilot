@@ -207,7 +207,7 @@ export const OnboardingFlow = ({ pillars, onClose, onApplied, active = true, onI
 			// Der Fehler-Alert nennt, wie viele Aufgaben schon angelegt sind — der Retry vervollständigt.
 			const done = Object.keys(ids).length;
 			setApplyError(
-				done > 0 ? `${t('onboarding.partialInfo', { count: String(done) })} ${apiError.message}` : apiError.message,
+				done > 0 ? `${t('onboarding.partialInfo', { count: done })} ${apiError.message}` : apiError.message,
 			);
 		} finally {
 			setApplying(false);
@@ -338,10 +338,10 @@ export const OnboardingFlow = ({ pillars, onClose, onApplied, active = true, onI
 			)}
 			{step === 4 && !finished && (
 				<>
-					{heading(t('onboarding.importHeading'))}
+					{heading(t('onboarding:flow.importHeading'))}
 					{/* #1969 AK7: optionaler Import-Einstieg — erst am Ende, weil der Verweis in die Einstellungen
 					    den Flow beendet; die Aufgaben aus Schritt 4 sind dann schon angelegt. */}
-					<p>{t('onboarding.importHint')}</p>
+					<p>{t('onboarding:flow.importHint')}</p>
 					{/* #2225: Free-Pfad ohne KI — ein Satz zur Einordnung, Paketgrenze als Hinweis (ADR 0018). */}
 					{!aiPlanAllowed && (
 						<>

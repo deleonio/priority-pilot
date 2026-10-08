@@ -1,0 +1,72 @@
+{
+	"shell": {
+		"search": "Suche",
+		"createTask": "Neuen Task anlegen",
+		"logoutFailed": "Logout fehlgeschlagen",
+		"loadFailed": "Daten konnten nicht geladen werden",
+		"updateFailed": "Aufgabe konnte nicht aktualisiert werden",
+		"loading": "Lädt",
+		"loadingTasks": "Lade Tasks…",
+		"welcomeTitle": "Willkommen bei Balamentum",
+		"weekView": "Wochenansicht",
+		"calendarFailed": "Termine konnten nicht geladen werden",
+		"graphLoading": "Graph wird geladen",
+		"createTemplate": "Vorlage erstellen"
+	},
+	"taskFilter": {
+		"allCategories": "— alle Kategorien —",
+		"deadlineActiveLabel": "Aufgaben-Filter aktiv",
+		"deadlineActive": "Gefiltert: fällig am {{date}}",
+		"remove": "Filter entfernen",
+		"showDone": "Erledigte Aufgaben anzeigen",
+		"showArchived": "Archivierte anzeigen",
+		"balance": "Balance-Priorisierung",
+		"showParents": "Oberaufgaben anzeigen",
+		"byTitle": "Nach Titel filtern",
+		"byTitlePlaceholder": "Nach Titel filtern…",
+		"byCategory": "Nach Kategorie filtern",
+		"submit": "Filtern",
+		"noResults": "Keine Aufgaben gefunden. Passen Sie ggf. die Filter an."
+	},
+	"balanceHint": {
+		"label": "Balance-Priorisierung ist jetzt standardmäßig aktiv",
+		"text": "Aufgaben aus Säulen mit Defizit rücken in der Liste nach vorn. Abschalten lässt sich die Sortierung in den Einstellungen (Ansicht „Allgemein“).",
+		"disable": "Balance-Priorisierung ausschalten"
+	},
+	"root": {
+		"authChecking": "Authentifizierung wird geprüft …",
+		"authFailed": "Authentifizierung fehlgeschlagen. Bitte Seite neu laden."
+	},
+	"api": {
+		"csrfFailed": "CSRF-Token konnte nicht geladen werden ({{status}})",
+		"retryFailed": "Alle Retry-Versuche fehlgeschlagen.",
+		"unknownError": "Unbekannter Fehler",
+		"logoutFailed": "Logout fehlgeschlagen ({{status}})",
+		"authCheckFailed": "Auth-Check fehlgeschlagen ({{status}})"
+	},
+	"apiError": {
+		"session": "Nicht eingeloggt. Bitte melde dich erneut an.",
+		"throttledSeconds_one": "Zu viele Anfragen in kurzer Zeit. Bitte {{count}} Sekunde warten und es dann noch einmal versuchen.",
+		"throttledSeconds_other": "Zu viele Anfragen in kurzer Zeit. Bitte {{count}} Sekunden warten und es dann noch einmal versuchen.",
+		"throttled": "Zu viele Anfragen in kurzer Zeit. Bitte einen Moment warten und es dann noch einmal versuchen.",
+		"planRequired": "{{feature}} braucht das Paket {{plan}}. Paket wechseln: Einstellungen → Pakete.",
+		"server": "Serverfehler (HTTP {{status}}).",
+		"aiUnavailable": "Der KI-Dienst ist gerade nicht erreichbar. Bitte versuche es später erneut.",
+		"aiConfigInvalid": "Die KI-Konfiguration ist ungültig. Bitte prüfe die Einstellungen.",
+		"network": "Netzwerkfehler. Bitte überprüfe deine Internetverbindung.",
+		"aborted": "Die Anfrage wurde abgebrochen. Bitte versuche es erneut.",
+		"unknown": "Unbekannter Fehler."
+	},
+	"voice": {
+		"denied": "Mikrofon-Zugriff wurde verweigert.",
+		"nothing": "Nichts erkannt – bitte erneut sprechen.",
+		"failed": "Spracherkennung fehlgeschlagen."
+	},
+	"geolocation": {
+		"unsupported": "Geolocation nicht unterstützt"
+	},
+	"payment": {
+		"refunded": "Erstattet",
+		"paid": "Bezahlt"
+	}
+}

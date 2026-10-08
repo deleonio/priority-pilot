@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 /**
  * Icon-Badge „Serienaufgabe" (#1518): kennzeichnet in der Aufgabenliste die eine sichtbare Instanz
  * einer Serie. Es ersetzt das Text-Badge „Serie" — die Liste zeigt je Serie nur noch die aktuelle
@@ -9,8 +11,11 @@
  * im Shadow-DOM. Font-Awesome-Repeat (wie die Serien-Aktion in `CompletedTasksTable.tsx`) statt
  * Emoji; die Bedeutung transportiert der Screenreader-Text, nie Farbe oder Icon allein (WCAG 1.4.1).
  */
-export const SeriesBadge = () => (
-	<span className="series-badge" data-testid="series-badge" role="img" aria-label="Serienaufgabe">
-		<i className="fa-solid fa-repeat" aria-hidden="true" />
-	</span>
-);
+export const SeriesBadge = () => {
+	const { t } = useTranslation('tasks');
+	return (
+		<span className="series-badge" data-testid="series-badge" role="img" aria-label={t('badges.series')}>
+			<i className="fa-solid fa-repeat" aria-hidden="true" />
+		</span>
+	);
+};

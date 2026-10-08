@@ -1,5 +1,6 @@
 import { KolButton } from '@public-ui/react-v19';
 import { useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Modal } from './Modal';
 
 interface ConfirmSeriesActionModalProps {
@@ -28,6 +29,7 @@ export const ConfirmSeriesActionModal = ({
 	count,
 	fallbackFocusRef,
 }: ConfirmSeriesActionModalProps) => {
+	const { t } = useTranslation('capture');
 	const [busy, setBusy] = useState(false);
 
 	const decide = (cascade: boolean): void => {
@@ -36,21 +38,22 @@ export const ConfirmSeriesActionModal = ({
 	};
 
 	const question =
-		count !== undefined
-			? `Änderungen auf alle ${count} Instanzen übernehmen?`
-			: 'Änderungen auf alle Instanzen übernehmen?';
+		count !== undefined ? t('confirmSeriesAction.questionCount', { count }) : t('confirmSeriesAction.question');
 
 	return (
-		<Modal title="Änderungen übernehmen" onClose={() => onClose?.()} fallbackFocusRef={fallbackFocusRef}>
+		<Modal title={t('confirmSeriesAction.title')} onClose={() => onClose?.()} fallbackFocusRef={fallbackFocusRef}>
 			<p>{question}</p>
 			<p>
-				<strong>Ja</strong>: bestehende Instanzen erhalten die neuen Werte für die geänderten Felder.{' '}
-				<strong>Nein</strong>: nur das Serien-Template wird aktualisiert (künftige Instanzen).
+				<Trans t={t} i18nKey="confirmSeriesAction.explanation" components={{ strong: <strong /> }} />
 			</p>
 			<div className="modal-actions">
-				<KolButton _label={busy ? 'Wird angewendet…' : 'Ja'} _disabled={busy} _on={{ onClick: () => decide(true) }} />
 				<KolButton
-					_label="Nein (nur Serie)"
+					_label={busy ? t('confirmSeriesAction.applying') : t('confirmSeriesAction.yes')}
+					_disabled={busy}
+					_on={{ onClick: () => decide(true) }}
+				/>
+				<KolButton
+					_label={t('confirmSeriesAction.no')}
 					_variant="secondary"
 					_disabled={busy}
 					_on={{ onClick: () => decide(false) }}

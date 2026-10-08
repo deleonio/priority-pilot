@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import i18next from '../i18n/config';
 
 /**
  * Position der Kopfzeile (#1428): über oder unter dem Inhaltsbereich.
@@ -15,8 +16,18 @@ export type HeaderPosition = 'top' | 'bottom';
 
 /** Reihenfolge und Beschriftung für die Auswahl in den Einstellungen. */
 export const HEADER_POSITIONS: readonly { value: HeaderPosition; label: string }[] = [
-	{ value: 'top', label: 'Oben' },
-	{ value: 'bottom', label: 'Unten' },
+	{
+		value: 'top',
+		get label() {
+			return i18next.t('settings:headerPosition.top');
+		},
+	},
+	{
+		value: 'bottom',
+		get label() {
+			return i18next.t('settings:headerPosition.bottom');
+		},
+	},
 ];
 
 /**

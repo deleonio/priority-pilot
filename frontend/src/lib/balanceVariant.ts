@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getApiBase } from './siteOrigin';
+import i18next from '../i18n/config';
 
 /**
  * Welches Bild die Startseite für die Lebensbalance zeichnet — die „Zifferblätter" der App.
@@ -32,12 +33,15 @@ import { getApiBase } from './siteOrigin';
 export type BalanceVariant = 'strahlen' | 'bluete' | 'kristall' | 'zeiger';
 
 /** Reihenfolge und Beschriftung für die Auswahl in den Einstellungen. */
-export const BALANCE_VARIANTS: readonly { value: BalanceVariant; label: string }[] = [
-	{ value: 'strahlen', label: 'Strahlen' },
-	{ value: 'bluete', label: 'Blüte' },
-	{ value: 'kristall', label: 'Kristall' },
-	{ value: 'zeiger', label: 'Zeiger' },
-];
+export const BALANCE_VARIANTS: readonly { value: BalanceVariant; readonly label: string }[] = (
+	['strahlen', 'bluete', 'kristall', 'zeiger'] as const
+).map((value) => ({
+	value,
+	// Getter: übersetzt beim Lesen, damit ein Sprachwechsel greift.
+	get label() {
+		return i18next.t(`dashboard:balanceVariant.${value}`);
+	},
+}));
 
 /**
  * Default ist die **Blüte**: Sie zeigt alle Säulen als eine Silhouette — die Balance liest sich als

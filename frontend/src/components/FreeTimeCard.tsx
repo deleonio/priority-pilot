@@ -1,6 +1,8 @@
 import { KolCard } from '@public-ui/react-v19';
 import type { FreeSlot } from 'client';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18next from '../i18n/config';
 import { api } from '../api';
 import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
 
@@ -12,9 +14,10 @@ import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
  */
 
 const formatTime = (iso: string): string =>
-	new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+	new Date(iso).toLocaleTimeString(i18next.language, { hour: '2-digit', minute: '2-digit' });
 
 export const FreeTimeCard = () => {
+	const { t } = useTranslation('dashboard');
 	const [slots, setSlots] = useState<FreeSlot[]>([]);
 	const [refreshKey, setRefreshKey] = useState(0);
 
@@ -52,8 +55,8 @@ export const FreeTimeCard = () => {
 		<KolCard
 			className="dashboard-free-time"
 			role="region"
-			aria-label="Freie Zeit"
-			_label="Freie Zeit"
+			aria-label={t('freeTime.label')}
+			_label={t('freeTime.label')}
 			_level={0}
 			data-testid="free-time-card"
 		>
@@ -65,7 +68,7 @@ export const FreeTimeCard = () => {
 						<li key={slot.start} className="dashboard-free-time-slot">
 							<span className="dashboard-free-time-range">
 								<span aria-hidden="true">{`${from}–${to}`}</span>
-								<span className="visually-hidden">{`von ${from} bis ${to} Uhr`}</span>
+								<span className="visually-hidden">{t('freeTime.range', { from, to })}</span>
 							</span>
 							<ul className="dashboard-free-time-tasks">
 								{slot.tasks.map((task) => (

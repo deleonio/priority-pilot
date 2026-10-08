@@ -1,3 +1,5 @@
+import i18next from '../i18n/config';
+
 export type RecipientOption = { label: string; value: string };
 
 /**
@@ -24,6 +26,9 @@ export const buildRecipientOptions = (
 	return [
 		{ label: own.displayName, value: String(own.id) },
 		...[...namesById.entries()].filter(([id]) => id !== own.id).map(([id, label]) => ({ label, value: String(id) })),
-		...groups.map((group) => ({ label: `Gruppe: ${group.name}`, value: `group:${group.id}` })),
+		...groups.map((group) => ({
+			label: i18next.t('groups:recipientOptions.group', { name: group.name }),
+			value: `group:${group.id}`,
+		})),
 	];
 };

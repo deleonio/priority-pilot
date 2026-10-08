@@ -10,6 +10,7 @@ import {
 } from '@public-ui/react-v19';
 import type { Group, ReceivedInvitation } from 'client';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { GroupDeleteDialog } from './GroupDeleteDialog';
@@ -20,12 +21,6 @@ import { PlanBadge } from './PlanBadge';
 type DialogState =
 	{ kind: 'closed' } | { kind: 'create' } | { kind: 'edit'; group: Group } | { kind: 'delete'; group: Group };
 
-/** Rollen-Text je serverseitiger Rolle — Rolle immer als Text, nie nur als Farbe (KI-UX #1211). */
-const roleLabel = (role: Group['role']): string => (role === 'admin' ? 'Admin' : 'Mitglied');
-
-/** Mitgliederzahl mit deutscher Einzahl („1 Mitglied“, „3 Mitglieder“). */
-const memberCountLabel = (count: number): string => `${count} ${count === 1 ? 'Mitglied' : 'Mitglieder'}`;
-
 /**
  * Gruppen-Verwaltung im Settings-Tab „Gruppen“ (#1211 AK6–AK8): Liste der eigenen Gruppen als
  * vertikale Karten (Name, gekappte Beschreibung, Rolle + Mitgliederzahl), Anlegen/Bearbeiten per
@@ -34,6 +29,7 @@ const memberCountLabel = (count: number): string => `${count} ${count === 1 ? 'M
  * sind rein informativ. Zustände: Laden (KolSpin), Fehler (KolAlert), Leer (Karte mit Anlegen-CTA).
  */
 export const GroupsSection = () => {
+	const { t } = useTranslation(['groups', 'common']);
 	const [groups, setGroups] = useState<Group[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [dialog, setDialog] = useState<DialogState>({ kind: 'closed' });
@@ -111,7 +107,7 @@ export const GroupsSection = () => {
 			{/* Keine H2 „Gruppen" mehr: Der Tab-Reiter trägt den Namen bereits — die Überschrift stand
 			    doppelt im Accessibility-Baum (Design-Lauf 2026-09). */}
 			{error !== null && (
-				<KolAlert _type="error" _label="Gruppen konnten nicht geladen werden">
+				<KolAlert _type="error" _label={t('groups:section.loadError')}>
 					{error}
 				</KolAlert>
 			)}
@@ -120,22 +116,26 @@ export const GroupsSection = () => {
 			    Einladungen" im Gruppendetail trennen) — die frühere `<section>` mit eigener H3 ist zur
 			    Karte geworden, der Anker nicht. */}
 			{invitations.length > 0 && (
-				<KolCard className="settings-card group-received-invitations" _label="Einladungen" _level={2}>
+				<KolCard
+					className="settings-card group-received-invitations"
+					_label={t('groups:section.invitations')}
+					_level={2}
+				>
 					<ul className="groups-items">
 						{invitations.map((invitation) => (
 							<li key={invitation.id} className="groups-item">
 								<div className="groups-info">
 									<KolHeading _label={invitation.groupName} _level={3} />
-									<p className="hint">{`Eingeladen von ${invitation.invitedByName}`}</p>
+									<p className="hint">{t('groups:section.invitedBy', { name: invitation.invitedByName })}</p>
 								</div>
 								<div className="groups-actions">
 									<KolButton
-										_label="Annehmen"
+										_label={t('groups:section.accept')}
 										_variant="primary"
 										_on={{ onClick: () => void respondToInvitation(invitation.id, true) }}
 									/>
 									<KolButton
-										_label="Ablehnen"
+										_label={t('groups:section.decline')}
 										_variant="secondary"
 										_on={{ onClick: () => void respondToInvitation(invitation.id, false) }}
 									/>
@@ -146,13 +146,13 @@ export const GroupsSection = () => {
 				</KolCard>
 			)}
 			{groups === null ? (
-				<KolSpin _show _variant="cycle" _label="Gruppen werden geladen …" />
+				<KolSpin _show _variant="cycle" _label={t('groups:section.loading')} />
 			) : (
 				<>
 					{groups.length > 0 && (
 						<div className="groups-toolbar">
 							<KolButton
-								_label="Gruppe anlegen"
+								_label={t('groups:section.create')}
 								_icons={{ left: { icon: 'fa-solid fa-plus' } }}
 								_variant="primary"
 								_on={{ onClick: () => setDialog({ kind: 'create' }) }}
@@ -161,10 +161,10 @@ export const GroupsSection = () => {
 					)}
 					{groups.length === 0 ? (
 						<section className="empty-state">
-							<KolCard _label="Noch keine Gruppen" _level={3}>
-								<p>Lege eine Gruppe an, um gemeinsam mit anderen zu priorisieren — du bist automatisch Admin.</p>
+							<KolCard _label={t('groups:section.emptyTitle')} _level={3}>
+								<p>{t('groups:section.emptyText')}</p>
 								<KolButton
-									_label="Gruppe anlegen"
+									_label={t('groups:section.create')}
 									_icons={{ left: { icon: 'fa-solid fa-plus' } }}
 									_variant="primary"
 									_on={{ onClick: () => setDialog({ kind: 'create' }) }}
@@ -210,9 +210,9 @@ export const GroupsSection = () => {
 													)}
 													{/* Metazeile: Rolle als Text-Badge (nie nur Farbe) + Mitgliederzahl (AK6). */}
 													<div className="groups-meta">
-														<KolBadge _label={roleLabel(group.role)} />
-														{group.kind === 'duo' && <KolBadge _label="Duo" />}
-														<span>{memberCountLabel(group.memberCount)}</span>
+														<KolBadge _label={t(`groups:roles.${group.role}`)} />
+														{group.kind === 'duo' && <KolBadge _label={t('groups:section.duo')} />}
+														<span>{t('groups:section.memberCount', { count: group.memberCount })}</span>
 													</div>
 												</div>
 											</div>
@@ -220,19 +220,19 @@ export const GroupsSection = () => {
 												{/* #1223: Explizites Bedienelement statt „Klick irgendwo ins offene Detail" —
 												    der alte Auffrisch-Pfad war weder sichtbar noch per Tastatur erreichbar. */}
 												<KolButton
-													_label="Daten auffrischen"
+													_label={t('groups:section.refresh')}
 													_variant="secondary"
 													_on={{ onClick: () => setDetailRefreshTick((tick) => tick + 1) }}
 												/>
 												{group.role === 'admin' && (
 													<>
 														<KolButton
-															_label="Bearbeiten"
+															_label={t('common:actions.edit')}
 															_variant="secondary"
 															_on={{ onClick: () => setDialog({ kind: 'edit', group }) }}
 														/>
 														<KolButton
-															_label="Löschen"
+															_label={t('common:actions.delete')}
 															_icons={{ left: { icon: 'fa-solid fa-trash' } }}
 															_variant="danger"
 															_on={{ onClick: () => setDialog({ kind: 'delete', group }) }}

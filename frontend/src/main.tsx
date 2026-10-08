@@ -58,7 +58,11 @@ const renderApp = () => {
 // KoliBri-Komponenten im Default-Theme registrieren — sollte vor dem ersten Render geschehen.
 // Schlägt die Registrierung fehl, wird die App dennoch gerendert (kein weißer Screen); die
 // KoliBri-Komponenten werten dann ggf. ohne Upgrade aus.
-register([DEFAULT, KERN_V2], defineCustomElements)
+// KoliBri-Innentexte (Zeichenzähler, Schließen-Labels) in der App-Sprache; einen öffentlichen
+// Sprachwechsel zur Laufzeit hat KoliBri nicht, deshalb lädt die Sprachwahl die App neu.
+register([DEFAULT, KERN_V2], defineCustomElements, {
+	translation: { name: i18next.resolvedLanguage === 'en' ? 'en' : 'de' },
+})
 	.then(renderApp)
 	.catch((reason: unknown) => {
 		console.error('Fehler bei der KoliBri-Registrierung:', reason);

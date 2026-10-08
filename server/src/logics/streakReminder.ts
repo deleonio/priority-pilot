@@ -1,6 +1,6 @@
 import { NotificationLog, ScoreEntry, Task, User } from '../models/index.js';
 import { uhrzeitIn } from './carePush.js';
-import type { CareSprache } from './careSuggestionData.js';
+import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { sendPushToUser, type PushSender } from './push.js';
 import { berechneStreak, istGueltigeZeitzone, istHeuteRuhetag, streakZeitpunkte, tagIn } from './streak.js';
 
@@ -15,9 +15,6 @@ import { berechneStreak, istGueltigeZeitzone, istHeuteRuhetag, streakZeitpunkte,
 
 const KIND = 'streak-reminder';
 
-/** Push-Sprache: App-Sprache ist im Scheduler nicht bekannt — Default `de`. */
-const PUSH_SPRACHE: CareSprache = 'de';
-
 /** Abendfenster (lokale Stunde, inklusive Anfang, exklusive Ende). */
 const FENSTER_START = 18;
 const FENSTER_ENDE = 21;
@@ -30,29 +27,6 @@ const TEXTE: Record<CareSprache, { titel: string; text: string }> = {
 	en: {
 		titel: 'Your streak is waiting',
 		text: 'You’ve been at it for {n} days – one small task today keeps your streak alive.',
-	},
-	es: { titel: 'Tu racha te espera', text: 'Llevas {n} días seguidos – una pequeña tarea hoy mantiene viva tu racha.' },
-	fr: {
-		titel: 'Votre série vous attend',
-		text: 'Vous êtes sur {n} jours d’affilée – une petite tâche aujourd’hui garde votre série en vie.',
-	},
-	it: {
-		titel: 'La tua serie ti aspetta',
-		text: 'Sei a {n} giorni di fila – un piccolo compito oggi mantiene viva la tua serie.',
-	},
-	nl: {
-		titel: 'Uw reeks wacht op u',
-		text: 'U zit op {n} dagen op rij – één kleine taak vandaag houdt uw reeks in leven.',
-	},
-	pl: { titel: 'Twoja seria czeka', text: 'Trwa już {n} dni – jedno małe zadanie dziś podtrzyma Twoją serię.' },
-	pt: {
-		titel: 'Sua sequência espera por você',
-		text: 'Você está há {n} dias seguidos – uma pequena tarefa hoje mantém sua sequência viva.',
-	},
-	ru: { titel: 'Ваша серия ждёт', text: 'Уже {n} дн. подряд – одна небольшая задача сегодня сохранит вашу серию.' },
-	sv: {
-		titel: 'Din svit väntar',
-		text: 'Du har hållit igång i {n} dagar – en liten uppgift idag håller sviten vid liv.',
 	},
 };
 
@@ -99,7 +73,7 @@ export const runStreakReminder = async (
 		if (aktuell < 1 || aktiveTage[aktiveTage.length - 1] === heute || istHeuteRuhetag(aktiveTage, now, zeitzone)) {
 			continue;
 		}
-		const text = streakReminderText(PUSH_SPRACHE, aktuell);
+		const text = streakReminderText(spracheVon(user.sprache), aktuell);
 		const { sent } = await sendPushToUser(user.id, { title: text.titel, body: text.text, url: '/aufgaben' }, send);
 		if (sent > 0) {
 			await NotificationLog.create({ userId: user.id, kind: KIND, dedupeKey, sentAt: now });

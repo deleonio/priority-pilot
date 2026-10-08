@@ -1,6 +1,7 @@
 import express, { Router } from 'express';
 import type { Request, Response } from 'express';
 import type { components } from '../../api';
+import { spracheAusHeader, type CareSprache } from '../../logics/careSuggestionData.js';
 import { parseCsv } from '../../logics/csv.js';
 import { suggestTaskDependenciesWithMistral, type TaskImportAnalyzer } from '../../llm/llm.js';
 import { Category, Pillar, Task, TaskPillar } from '../../models/index.js';
@@ -33,6 +34,36 @@ export const taskImportBodyParser = express.json({ limit: '11mb' });
 const TODOIST_PRIORITY: Record<string, number> = { '1': 2, '2': 3, '3': 4, '4': 5 };
 
 const DEFAULT_PRIORITY = 3;
+
+/** Zeilen- und Dubletten-Gründe je App-Sprache (Request-Kontext, `Accept-Language`). */
+const GRUENDE: Record<
+	CareSprache,
+	{
+		titelFehlt: string;
+		titelZuLang: (laenge: number) => string;
+		prioritaet: (wert: string) => string;
+		datum: string;
+		wieBestand: (titel: string) => string;
+		wieAufgabe: (titel: string) => string;
+	}
+> = {
+	de: {
+		titelFehlt: 'Titel fehlt.',
+		titelZuLang: (laenge) => `Titel ist mit ${laenge} Zeichen länger als ${MAX_TITLE_LENGTH}.`,
+		prioritaet: (wert) => `Priorität "${wert}" ist ungültig.`,
+		datum: 'Datum ist ungültig (erwartet JJJJ-MM-TT).',
+		wieBestand: (titel) => `Identischer Titel wie bestehende Aufgabe „${titel}“`,
+		wieAufgabe: (titel) => `Identischer Titel wie Aufgabe „${titel}“`,
+	},
+	en: {
+		titelFehlt: 'Title is missing.',
+		titelZuLang: (laenge) => `Title has ${laenge} characters, more than ${MAX_TITLE_LENGTH}.`,
+		prioritaet: (wert) => `Priority "${wert}" is invalid.`,
+		datum: 'Date is invalid (expected YYYY-MM-DD).',
+		wieBestand: (titel) => `Same title as existing task "${titel}"`,
+		wieAufgabe: (titel) => `Same title as task "${titel}"`,
+	},
+};
 
 /** Exakte Dubletten-Basis (AK2): Titel normalisiert auf trim + lowercase. */
 const normalizeTitle = (title: string): string => title.trim().toLowerCase();
@@ -134,7 +165,8 @@ const analyze = async (
 	const categoryByName = new Map(categories.map((category) => [category.name.trim().toLowerCase(), category.id]));
 	const pillarByName = new Map(pillars.map((pillar) => [pillar.name.trim().toLowerCase(), pillar.id]));
 
-	return { ok: true, result: await analyzeRows(dataRows, header, mapping, categoryByName, pillarByName) };
+	const gruende = GRUENDE[spracheAusHeader(req.get('accept-language'))];
+	return { ok: true, result: await analyzeRows(dataRows, header, mapping, categoryByName, pillarByName, gruende) };
 };
 
 const analyzeRows = async (
@@ -143,6 +175,7 @@ const analyzeRows = async (
 	mapping: Mapping | undefined,
 	categoryByName: Map<string, number>,
 	pillarByName: Map<string, number>,
+	gruende: (typeof GRUENDE)[CareSprache],
 ): Promise<{
 	prepared: PreparedRow[];
 	errors: RowError[];
@@ -172,11 +205,11 @@ const analyzeRows = async (
 
 		const title = cell(columns.title);
 		if (title === '') {
-			errors.push({ row, reason: 'Titel fehlt.' });
+			errors.push({ row, reason: gruende.titelFehlt });
 			return;
 		}
 		if (title.length > MAX_TITLE_LENGTH) {
-			errors.push({ row, reason: `Titel ist mit ${title.length} Zeichen länger als ${MAX_TITLE_LENGTH}.` });
+			errors.push({ row, reason: gruende.titelZuLang(title.length) });
 			return;
 		}
 
@@ -187,7 +220,7 @@ const analyzeRows = async (
 			const direct = !columns.todoist && /^\d+$/.test(priorityRaw) ? Number(priorityRaw) : undefined;
 			const value = mapped ?? (direct !== undefined && direct >= 1 && direct <= 5 ? direct : undefined);
 			if (value === undefined) {
-				errors.push({ row, reason: `Priorität "${priorityRaw}" ist ungültig.` });
+				errors.push({ row, reason: gruende.prioritaet(priorityRaw) });
 				return;
 			}
 			priority = value;
@@ -195,7 +228,7 @@ const analyzeRows = async (
 
 		const deadline = parseDeadline(cell(columns.deadline));
 		if (deadline === null) {
-			errors.push({ row, reason: 'Datum ist ungültig (erwartet JJJJ-MM-TT).' });
+			errors.push({ row, reason: gruende.datum });
 			return;
 		}
 
@@ -292,6 +325,7 @@ export const createTaskImportRouter = (
 			return;
 		}
 		const prepared = analysis.result.prepared;
+		const gruende = GRUENDE[spracheAusHeader(req.get('accept-language'))];
 		const userId = getUserId(req);
 		const tasks = await Task.findAll({ where: ownerScope(userId), order: [['id', 'ASC']] });
 
@@ -339,7 +373,7 @@ export const createTaskImportRouter = (
 					keepTaskId: keep.id,
 					duplicateTaskId: copy.id,
 					title: copy.title,
-					reason: `Identischer Titel wie bestehende Aufgabe „${keep.title.trim()}“`,
+					reason: gruende.wieBestand(keep.title.trim()),
 				});
 			}
 		}
@@ -358,7 +392,7 @@ export const createTaskImportRouter = (
 						keepTaskId: member.id,
 						duplicateTaskId,
 						title: rows[index].title,
-						reason: `Identischer Titel wie Aufgabe „${member.title.trim()}“`,
+						reason: gruende.wieAufgabe(member.title.trim()),
 					});
 				}
 			}

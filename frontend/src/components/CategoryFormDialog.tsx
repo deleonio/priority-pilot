@@ -1,6 +1,7 @@
 import { KolAlert, KolButton, KolInputText, KolSingleSelect } from '@public-ui/react-v19';
 import type { Category, CategoryColor, CategoryCreate, CategoryUpdate } from 'client';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
@@ -29,6 +30,7 @@ interface CategoryFormDialogProps {
  * Speichern, wie die Kategorie später in den Listen aussieht.
  */
 export const CategoryFormDialog = ({ category, onClose, onSaved }: CategoryFormDialogProps) => {
+	const { t } = useTranslation(['settings', 'common', 'forms']);
 	const isEdit = category !== undefined;
 
 	const form = useRef({ name: category?.name ?? '', color: category?.color ?? DEFAULT_CATEGORY_COLOR });
@@ -48,7 +50,7 @@ export const CategoryFormDialog = ({ category, onClose, onSaved }: CategoryFormD
 	const submit = async (): Promise<void> => {
 		const name = form.current.name.trim();
 		if (name === '') {
-			setError('Name darf nicht leer sein.');
+			setError(t('categoryForm.nameEmpty'));
 			return;
 		}
 		setError(null);
@@ -80,15 +82,15 @@ export const CategoryFormDialog = ({ category, onClose, onSaved }: CategoryFormD
 	useCtrlEnter(() => void submit(), !saving);
 
 	return (
-		<Modal title={isEdit ? 'Kategorie bearbeiten' : 'Neue Kategorie anlegen'} onClose={onClose}>
+		<Modal title={isEdit ? t('categoryForm.editTitle') : t('categoryList.create')} onClose={onClose}>
 			{error !== null && (
-				<KolAlert _type="error" _label={isEdit ? 'Speichern fehlgeschlagen' : 'Anlegen fehlgeschlagen'}>
+				<KolAlert _type="error" _label={isEdit ? t('categoryForm.saveFailed') : t('categoryForm.createFailed')}>
 					{error}
 				</KolAlert>
 			)}
 			<div className="form-grid">
 				<KolInputText
-					_label="Name"
+					_label={t('forms:labels.name')}
 					_required
 					_maxLength={CATEGORY_NAME_MAX_LENGTH}
 					_type="search"
@@ -107,7 +109,7 @@ export const CategoryFormDialog = ({ category, onClose, onSaved }: CategoryFormD
 					}}
 				/>
 				<KolSingleSelect
-					_label="Farbe"
+					_label={t('categoryForm.color')}
 					_options={categoryColorOptions()}
 					_value={colorState}
 					_on={{
@@ -120,17 +122,36 @@ export const CategoryFormDialog = ({ category, onClose, onSaved }: CategoryFormD
 				/>
 			</div>
 			<p className="hint category-form-preview">
-				Vorschau:{' '}
-				<CategoryBadge category={{ id: category?.id ?? 0, name: nameState.trim() || 'Kategorie', color: colorState }} />
+				{t('categoryForm.preview')}{' '}
+				<CategoryBadge
+					category={{
+						id: category?.id ?? 0,
+						name: nameState.trim() || t('categoryForm.previewFallback'),
+						color: colorState,
+					}}
+				/>
 			</p>
 			<div className="modal-actions">
 				<KolButton
-					_label={saving ? (isEdit ? 'Speichern…' : 'Anlegen…') : isEdit ? 'Speichern' : 'Anlegen'}
+					_label={
+						saving
+							? isEdit
+								? t('categoryForm.saving')
+								: t('categoryForm.creating')
+							: isEdit
+								? t('common:actions.save')
+								: t('common:actions.create')
+					}
 					_variant="primary"
 					_disabled={saving}
 					_on={{ onClick: () => void submit() }}
 				/>
-				<KolButton _label="Abbrechen" _variant="secondary" _disabled={saving} _on={{ onClick: () => onClose() }} />
+				<KolButton
+					_label={t('common:actions.cancel')}
+					_variant="secondary"
+					_disabled={saving}
+					_on={{ onClick: () => onClose() }}
+				/>
 			</div>
 		</Modal>
 	);

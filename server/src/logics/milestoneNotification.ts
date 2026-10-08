@@ -1,4 +1,5 @@
-import { NotificationLog } from '../models/index.js';
+import { NotificationLog, User } from '../models/index.js';
+import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { sendPushToUser, type PushSender } from './push.js';
 
 /**
@@ -19,16 +20,27 @@ interface Meilenstein {
 }
 
 /** Lobender Nachrichtentext je Meilenstein-Typ. */
-const meilensteinText = (meilenstein: Meilenstein): { title: string; body: string } =>
-	meilenstein.typ === 'streak'
-		? {
-				title: 'Meilenstein erreicht! 🔥',
-				body: `${meilenstein.schwelle} Tage Streak am Stück — stark durchgehalten!`,
-			}
-		: {
-				title: 'Meilenstein erreicht! 🎉',
-				body: `${meilenstein.schwelle} Punkte gesammelt — weiter so!`,
-			};
+const TEXTE: Record<CareSprache, { titel: string; streak: string; punkte: string }> = {
+	de: {
+		titel: 'Meilenstein erreicht!',
+		streak: '{n} Tage Streak am Stück — stark durchgehalten!',
+		punkte: '{n} Punkte gesammelt — weiter so!',
+	},
+	en: {
+		titel: 'Milestone reached!',
+		streak: '{n}-day streak in a row — great perseverance!',
+		punkte: '{n} points collected — keep it up!',
+	},
+};
+
+const meilensteinText = (meilenstein: Meilenstein, sprache: CareSprache): { title: string; body: string } => {
+	const texte = TEXTE[sprache];
+	const streak = meilenstein.typ === 'streak';
+	return {
+		title: `${texte.titel} ${streak ? '🔥' : '🎉'}`,
+		body: (streak ? texte.streak : texte.punkte).replace('{n}', String(meilenstein.schwelle)),
+	};
+};
 
 /**
  * Benachrichtigt den Nutzer über neu erreichte Meilensteine — der Übergang `erreicht: false` (vorher)
@@ -47,13 +59,15 @@ export const notifyReachedMilestones = async (
 	const warVorherErreicht = new Set(vorher.filter((m) => m.erreicht).map((m) => m.schluessel));
 	const neuErreicht = nachher.filter((m) => m.erreicht && !warVorherErreicht.has(m.schluessel));
 
+	const sprache =
+		neuErreicht.length > 0 ? spracheVon((await User.findByPk(userId, { attributes: ['sprache'] }))?.sprache) : 'de';
 	for (const meilenstein of neuErreicht) {
 		const dedupeKey = `${userId}:${meilenstein.schluessel}`;
 		const alreadySent = await NotificationLog.findOne({ where: { kind: KIND, dedupeKey } });
 		if (alreadySent) {
 			continue;
 		}
-		const { sent } = await sendPushToUser(userId, { ...meilensteinText(meilenstein), url: '/' }, send);
+		const { sent } = await sendPushToUser(userId, { ...meilensteinText(meilenstein, sprache), url: '/' }, send);
 		if (sent > 0) {
 			await NotificationLog.create({ userId, kind: KIND, dedupeKey, sentAt: new Date() });
 		}

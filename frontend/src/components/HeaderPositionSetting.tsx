@@ -1,6 +1,7 @@
 import { KolInputRadio } from '@public-ui/react-v19';
 import { useMemo, useRef } from 'react';
 import { flushSync } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { HEADER_POSITIONS, useHeaderPosition, type HeaderPosition } from '../lib/headerPosition';
 import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
 
@@ -14,6 +15,7 @@ import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
  */
 export const HeaderPositionSetting = () => {
 	const { position, setPosition } = useHeaderPosition();
+	const { t, i18n } = useTranslation('settings');
 	const ref = useRef<HTMLDivElement>(null);
 
 	// #843: marginLeft auf Shadow-DOM Controls setzen (24dp = 1.5rem)
@@ -21,16 +23,18 @@ export const HeaderPositionSetting = () => {
 
 	// Stabile Objektidentität (hängt nur an der Modul-Konstante), damit die Radiogruppe nicht bei
 	// jedem Render eine neue Options-Liste erhält.
-	const options = useMemo(() => HEADER_POSITIONS.map(({ value, label }) => ({ label, value })), []);
+	// Labels sind Getter (übersetzen beim Lesen) — neu bilden, sobald die Sprache wechselt.
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	const options = useMemo(() => HEADER_POSITIONS.map(({ value, label }) => ({ label, value })), [i18n.language]);
 
 	return (
 		<div ref={ref}>
 			<KolInputRadio
-				_label="Kopfzeile"
+				_label={t('headerPosition.label')}
 				_orientation="horizontal"
 				_options={options}
 				_value={position}
-				_hint="Legt fest, ob die Kopfzeile oben oder unten am Bildschirm steht."
+				_hint={t('headerPosition.hint')}
 				_on={{
 					onChange: (_event, value) => {
 						if (typeof value === 'string') {

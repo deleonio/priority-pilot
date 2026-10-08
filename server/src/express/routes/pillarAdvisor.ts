@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { sendError } from '../http-error.js';
 import { Pillar } from '../../models/index.js';
 import { resolvePillarDescription } from '../../models/pillarData.js';
+import { spracheAusHeader } from '../../logics/careSuggestionData.js';
 import { adviseActivitiesWithMistral, type ActivityAdvisor, type PillarDistribution } from '../../llm/llm.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { requirePlanFeature } from '../planGuard.js';
@@ -133,6 +134,7 @@ export const createPillarAdvisorRouter = (advisor: ActivityAdvisor = adviseActiv
 							description: resolvePillarDescription(pillar),
 						})),
 						distribution: distribution && distribution.length > 0 ? distribution : undefined,
+						sprache: spracheAusHeader(req.get('accept-language')),
 					},
 					providerValidation.provider,
 					getUserId(req),

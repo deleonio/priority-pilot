@@ -253,7 +253,7 @@
 		"cancellation": "Contract hier opzeggen",
 		"mcpGuide": "MCP-handleiding",
 		"templates": "Sjablonen",
-		"legalGermanOnly": "De juridische teksten zijn alleen in het Duits beschikbaar; de Duitse versie is bindend."
+		"legalGermanOnly": "Juridische teksten in het Engels ter informatie; de Duitse versie is bindend."
 	},
 	"imprint": {
 		"title": "Colofon",
@@ -275,10 +275,10 @@
 		"inAppTitle": "In de app",
 		"steps": [
 			"Open Balamentum en meld je aan.",
-			"Open de instellingen, tabblad “Allgemein” (Algemeen).",
-			"Tik in de kaart “Konto” (Account) op “Account verwijderen” en bevestig beide stappen."
+			"Open de instellingen, tabblad “General” (Algemeen).",
+			"Tik in de kaart “Account” op “Delete account” (Account verwijderen) en bevestig beide stappen."
 		],
-		"blocked": "Loopt er nog een abonnement, zeg het dan eerst op in het tabblad “Abo” (Abonnement). Ben je de laatste beheerder van een groep met andere leden, maak dan eerst iemand anders beheerder of hef de groep op.",
+		"blocked": "Loopt er nog een abonnement, zeg het dan eerst op in het tabblad “Plans & subscription” (Abonnementen). Ben je de laatste beheerder van een groep met andere leden, maak dan eerst iemand anders beheerder of hef de groep op.",
 		"deletedTitle": "Wat wordt verwijderd",
 		"deleted": "Je account met alle taken, reeksen, pijlers, categorieën, instellingen, toegangstokens en pushregistraties. Groepen waarin je het enige lid bent, worden ook verwijderd. Taken die je in groepen voor anderen hebt aangemaakt, blijven bij de ontvangers, zonder jou als maker.",
 		"keptTitle": "Wat bewaard blijft",

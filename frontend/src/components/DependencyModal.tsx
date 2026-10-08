@@ -1,6 +1,7 @@
 import { KolAlert, KolButton, KolInputRange, KolSingleSelect } from '@public-ui/react-v19';
 import type { Task } from 'client';
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import type { DependencyRef } from '../lib/dependencies';
@@ -32,6 +33,7 @@ interface DependencyModalProps {
 export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChanged }: DependencyModalProps) => {
 	// #1984: Gewicht-Regler nur im Expertenmodus; das Anlegen bleibt im Standardmodus vollständig
 	// über die Aufgaben-Auswahl möglich (POST mit Standardgewicht 1).
+	const { t } = useTranslation(['tasks', 'common']);
 	const expertMode = useExpertModeGate();
 	const dependencyIds = new Set(dependencies.map((dependency) => dependency.id));
 	const candidates = allTasks.filter((candidate) => candidate.id !== task.id && !dependencyIds.has(candidate.id));
@@ -59,12 +61,12 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 		// bevor React den State-Update durchgeführt hat. Der Ref ist synchron gesetzt.
 		const currentSelectedId = selectedIdRef.current;
 		if (currentSelectedId === null) {
-			setError('Bitte einen Vorgänger-Task auswählen.');
+			setError(t('dependencyModal.selectRequired'));
 			return;
 		}
 		const weightValue = weight.current;
 		if (weightValue === null || !Number.isFinite(weightValue) || weightValue < 0.1 || weightValue > 1) {
-			setError('Das Gewicht muss eine Zahl zwischen 0,1 und 1 sein.');
+			setError(t('dependencyModal.weightInvalid'));
 			return;
 		}
 		setError(null);
@@ -125,19 +127,19 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 	);
 
 	return (
-		<Modal title={`Abhängigkeiten: ${task.title}`} onClose={onClose}>
+		<Modal title={t('dependencyModal.title', { title: task.title })} onClose={onClose}>
 			{/* #1458 AK12, #1782: Referenzstelle `graph_weight`. */}
 			<PlanBadge feature="graph_weight" inModal />
 			{error !== null && (
-				<KolAlert _type="error" _label="Aktion fehlgeschlagen">
+				<KolAlert _type="error" _label={t('dependencyModal.actionFailed')}>
 					{error}
 				</KolAlert>
 			)}
 
 			<section>
-				<h3>Aktuelle Vorgänger</h3>
+				<h3>{t('dependencyModal.currentHeading')}</h3>
 				{dependencies.length === 0 ? (
-					<p>Dieser Task hat keine Vorgänger.</p>
+					<p>{t('dependencyModal.none')}</p>
 				) : (
 					<ul className="dependency-list">
 						{dependencies.map((dependency) => (
@@ -147,7 +149,7 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 								    aus; gespeicherte Gewichte bleiben und erscheinen im Expertenmodus wieder. */}
 								{expertMode && (
 									<KolInputRange
-										_label={`Gewicht: ${dependency.title}`}
+										_label={t('dependencyModal.weightFor', { title: dependency.title })}
 										_min={0.1}
 										_max={1}
 										_step={0.1}
@@ -164,7 +166,7 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 									/>
 								)}
 								<KolButton
-									_label={`Vorgänger ${dependency.title} entfernen`}
+									_label={t('dependencyModal.remove', { title: dependency.title })}
 									_hideLabel
 									_icons={{ left: { icon: 'kolicon-cross' } }}
 									_variant="danger"
@@ -175,19 +177,17 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 						))}
 					</ul>
 				)}
-				<p className="hint">
-					Hinweis: Die Liste basiert auf dem Aufgabenwald und enthält nur Vorgänger mit Status „Offen"/„In Bearbeitung".
-				</p>
+				<p className="hint">{t('dependencyModal.hint')}</p>
 			</section>
 
 			<section>
-				<h3>Vorgänger hinzufügen</h3>
+				<h3>{t('dependencyModal.addHeading')}</h3>
 				{options.length === 0 ? (
-					<p>Kein weiterer Task verfügbar, der als Vorgänger hinzugefügt werden könnte.</p>
+					<p>{t('dependencyModal.noCandidates')}</p>
 				) : (
 					<div className="form-grid">
 						<KolSingleSelect
-							_label="Vorgänger-Task"
+							_label={t('dependencyModal.selectLabel')}
 							_options={options}
 							_value={selectedId}
 							_on={{
@@ -202,7 +202,7 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 						    der POST legt die Abhängigkeit allein über die Aufgaben-Auswahl an (AK2). */}
 						{expertMode && (
 							<KolInputRange
-								_label={`Gewicht (0,1–1): ${formatNumber(weightState)}`}
+								_label={t('dependencyModal.weightLabel', { weight: formatNumber(weightState) })}
 								_min={0.1}
 								_max={1}
 								_step={0.1}
@@ -222,7 +222,7 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 							/>
 						)}
 						<KolButton
-							_label="Hinzufügen"
+							_label={t('common:actions.add')}
 							_variant="primary"
 							_disabled={busy || selectedId === null}
 							_on={{ onClick: () => void add() }}
@@ -232,7 +232,12 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 			</section>
 
 			<div className="modal-actions">
-				<KolButton _label="Schließen" _variant="secondary" _disabled={busy} _on={{ onClick: () => onClose() }} />
+				<KolButton
+					_label={t('common:actions.close')}
+					_variant="secondary"
+					_disabled={busy}
+					_on={{ onClick: () => onClose() }}
+				/>
 			</div>
 		</Modal>
 	);

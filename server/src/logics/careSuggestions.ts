@@ -9,7 +9,7 @@
 import { type BalanceSaeule } from './heartBalance.js';
 import { suggestRankedShares } from './pillarShares.js';
 import { CARE_GENERISCH, CARE_VORLAGEN, type CareSprache } from './careSuggestionData.js';
-import { SEED_PILLARS } from '../models/pillarData.js';
+import { pillarTextIn, SEED_PILLARS } from '../models/pillarData.js';
 
 /** Wie lange eine abgelehnte Vorlage unterdrückt bleibt (AK4): davor weg, ab exakt so vielen Tagen wieder lieferbar. */
 const CARE_ABLEHNUNG_TAGE = 14;
@@ -88,8 +88,8 @@ export const loeseVorlagenAuf = (saeulen: BalanceSaeule[], sprache: CareSprache)
 			key: `${GENERISCH_KEY_PRAEFIX}${saeule.id}`,
 			saeuleId: saeule.id,
 			texte: {
-				titel: CARE_GENERISCH[sprache].titel.replace(/\{name\}/g, saeule.name),
-				beschreibung: CARE_GENERISCH[sprache].beschreibung.replace(/\{name\}/g, saeule.name),
+				titel: CARE_GENERISCH[sprache].titel.replace(/\{name\}/g, pillarTextIn(sprache, saeule.name)),
+				beschreibung: CARE_GENERISCH[sprache].beschreibung.replace(/\{name\}/g, pillarTextIn(sprache, saeule.name)),
 			},
 		}));
 	return [...katalog, ...generisch];

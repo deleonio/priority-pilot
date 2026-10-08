@@ -256,7 +256,7 @@
 		"cancellation": "Cancelar contrato aquí",
 		"mcpGuide": "Guía de MCP",
 		"templates": "Plantillas",
-		"legalGermanOnly": "Los textos legales solo están disponibles en alemán; la versión alemana es la vinculante."
+		"legalGermanOnly": "Textos legales en inglés como ayuda; la versión alemana es la vinculante."
 	},
 	"imprint": {
 		"title": "Aviso legal",
@@ -278,10 +278,10 @@
 		"inAppTitle": "En la app",
 		"steps": [
 			"Abre Balamentum e inicia sesión.",
-			"Abre los ajustes, pestaña «Allgemein» (General).",
-			"En la tarjeta «Konto» (Cuenta), toca «Eliminar cuenta» y confirma los dos pasos."
+			"Abre los ajustes, pestaña «General».",
+			"En la tarjeta «Account» (Cuenta), toca «Delete account» (Eliminar cuenta) y confirma los dos pasos."
 		],
-		"blocked": "Si todavía tienes una suscripción activa, cancélala antes en la pestaña «Abo» (Suscripción). Si eres el último administrador de un grupo con más miembros, nombra antes a otra persona administradora o disuelve el grupo.",
+		"blocked": "Si todavía tienes una suscripción activa, cancélala antes en la pestaña «Plans & subscription» (Planes y suscripción). Si eres el último administrador de un grupo con más miembros, nombra antes a otra persona administradora o disuelve el grupo.",
 		"deletedTitle": "Qué se elimina",
 		"deleted": "Tu cuenta con todas las tareas, series, pilares, categorías, ajustes, tokens de acceso y registros push. También se eliminan los grupos en los que eres el único miembro. Las tareas que creaste para otros en grupos se quedan con sus destinatarios, sin ti como creador.",
 		"keptTitle": "Qué se conserva",

@@ -1,3 +1,4 @@
+import type { CareSprache } from './careSuggestionData.js';
 import { sendMailToUser, type MailSender } from './mail.js';
 import { buildMagicLinkUrl, createLoginToken, isMagicLinkEnabled } from './magicLink.js';
 
@@ -14,13 +15,30 @@ export interface AccessMailContext {
 	subject: string;
 	/** Anlass-Zeilen zwischen Anrede und Zugangslink (ohne „Hallo," — das ergänzt der Baustein). */
 	lines: string[];
+	/** Sprache der festen Bausteine; Default `de`. */
+	sprache?: CareSprache;
 }
+
+/** Feste Bausteine der Zugangs-Mail je Sprache (Anrede, Linkhinweis, Schluss). */
+const BAUSTEINE: Record<CareSprache, { anrede: string; link: string; schluss: string }> = {
+	de: {
+		anrede: 'Hallo,',
+		link: 'Konto öffnen und Passwort setzen (der Link gilt 15 Minuten und funktioniert genau einmal):',
+		schluss: 'Falls du das nicht erwartet hast, kannst du diese Mail ignorieren.',
+	},
+	en: {
+		anrede: 'Hello,',
+		link: 'Open your account and set a password (the link is valid for 15 minutes and works exactly once):',
+		schluss: 'If you did not expect this, you can ignore this email.',
+	},
+};
 
 export const sendAccountAccessMail = async (
 	email: string,
 	context: AccessMailContext,
 	send?: MailSender,
 ): Promise<boolean> => {
+	const bausteine = BAUSTEINE[context.sprache ?? 'de'];
 	if (!isMagicLinkEnabled()) {
 		return false;
 	}
@@ -33,14 +51,14 @@ export const sendAccountAccessMail = async (
 		{
 			subject: context.subject,
 			text: [
-				'Hallo,',
+				bausteine.anrede,
 				'',
 				...context.lines,
 				'',
-				'Konto öffnen und Passwort setzen (der Link gilt 15 Minuten und funktioniert genau einmal):',
+				bausteine.link,
 				buildMagicLinkUrl(token),
 				'',
-				'Falls du das nicht erwartet hast, kannst du diese Mail ignorieren.',
+				bausteine.schluss,
 			].join('\n'),
 		},
 		send,

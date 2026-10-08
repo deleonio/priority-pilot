@@ -1,14 +1,16 @@
 import { KolAlert, KolButton, KolPopoverButton } from '@public-ui/react-v19';
 import { useRef, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useInRouterContext, useNavigate } from 'react-router-dom';
 import { isNativeChannel } from '../lib/platform';
 
 /** Zielroute: der Pakete-Reiter der Einstellungen. */
 const PAKETE_ROUTE = '/settings/pakete';
 
-const PlansButton = ({ onClick }: { onClick: () => void }) => (
-	<KolButton _label="Pakete ansehen" _variant="secondary" _on={{ onClick }} />
-);
+const PlansButton = ({ onClick }: { onClick: () => void }) => {
+	const { t } = useTranslation('dashboard');
+	return <KolButton _label={t('featurePopover.showPlans')} _variant="secondary" _on={{ onClick }} />;
+};
 
 /** Router-Variante; eigenes Bauteil, damit der Hook nur im Router-Kontext läuft (Modals rendern ohne). */
 const RouterPlansButton = () => {

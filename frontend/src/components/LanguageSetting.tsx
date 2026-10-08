@@ -30,7 +30,9 @@ export const LanguageSetting = () => {
 			_options={options}
 			_value={i18n.resolvedLanguage ?? i18n.language}
 			_on={{
-				onChange: (_event, value) => void i18n.changeLanguage(readString(value)),
+				// Neu laden: KoliBri-Innentexte und die schon geladenen Serverdaten (Säulennamen,
+				// Vorschläge) folgen der Sprache sonst erst beim nächsten Abruf.
+				onChange: (_event, value) => void i18n.changeLanguage(readString(value)).then(() => location.reload()),
 			}}
 		/>
 	);

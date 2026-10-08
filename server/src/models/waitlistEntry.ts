@@ -19,6 +19,8 @@ class WaitlistEntry extends Model {
 	public status!: 'waiting' | 'activated';
 	/** Ergebnis des Freischalt-Mailversands (#2305); `null` = nie versucht. */
 	public accessMailStatus!: 'sent' | 'failed' | null;
+	/** App-Sprache beim Eintrag (`Accept-Language`) für die spätere Freischalt-Mail; `null` = Deutsch. */
+	public sprache!: string | null;
 	public createdAt!: Date;
 }
 
@@ -53,6 +55,11 @@ WaitlistEntry.init(
 			defaultValue: 'waiting',
 		},
 		accessMailStatus: {
+			type: DataTypes.STRING,
+			allowNull: true,
+			defaultValue: null,
+		},
+		sprache: {
 			type: DataTypes.STRING,
 			allowNull: true,
 			defaultValue: null,

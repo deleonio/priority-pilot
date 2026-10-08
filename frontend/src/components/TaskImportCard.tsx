@@ -1,6 +1,7 @@
 import { KolAlert, KolBadge, KolButton, KolSingleSelect, KolSpin } from '@public-ui/react-v19';
 import type { TaskImportAnalysis, TaskImportMapping, TaskImportPreview, TaskImportResult } from 'client';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readString } from '../lib/inputValue';
@@ -9,29 +10,22 @@ import { readString } from '../lib/inputValue';
  * CSV-Import (#1969): Datei wählen → Vorschau (Zahlen mit Kontext, Beispiele, Fehlerliste,
  * Spalten-Mapping) → Übernehmen. Der Ablauf ist dreigeteilt (KI-UX: ein Screen, eine Aufgabe),
  * die Fehlerliste ist dauerhaft sichtbar (kein Toast), der Bestätigungs-Button trägt die Anzahl
- * als Kontext („N Aufgaben übernehmen"). Texte bewusst hardcoded Deutsch wie die umgebende
- * SettingsPage (noch nicht i18n).
+ * als Kontext („N Aufgaben übernehmen").
  *
  * Die Datei wird clientseitig gelesen und als String gesendet (kein multipart, Muster-Entscheidung
  * der Analyse). KoliBri bietet kein Datei-Input mit erreichbarem nativen Feld für Unit-Tests —
  * deshalb KolButton + visuell verstecktes natives input (KI-UX-Ausnahme mit Begründung).
  */
-const MAPPING_FIELDS: Array<{ key: keyof TaskImportMapping; label: string }> = [
-	{ key: 'title', label: 'Titel' },
-	{ key: 'deadline', label: 'Frist' },
-	{ key: 'priority', label: 'Priorität' },
-	{ key: 'category', label: 'Kategorie' },
-	{ key: 'pillar', label: 'Säule' },
-];
+const MAPPING_FIELDS: Array<keyof TaskImportMapping> = ['title', 'deadline', 'priority', 'category', 'pillar'];
 
-const UNMAPPED_FIELD_LABEL: Record<string, string> = { category: 'Kategorie', pillar: 'Säule' };
+const UNMAPPED_FIELDS = new Set(['category', 'pillar']);
 
 type ImportSuggestion = TaskImportAnalysis['suggestions'][number];
 type ImportDuplicate = TaskImportAnalysis['duplicates'][number];
 
-const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de-DE');
-
 export const TaskImportCard = () => {
+	const { t, i18n } = useTranslation('capture');
+	const formatDate = (iso: string): string => new Date(iso).toLocaleDateString(i18n.language);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const previewHeadingRef = useRef<HTMLHeadingElement>(null);
 	const successRef = useRef<HTMLDivElement>(null);
@@ -208,7 +202,7 @@ export const TaskImportCard = () => {
 		preview === null
 			? []
 			: [
-					{ label: '— automatisch —', value: '' },
+					{ label: t('taskImport.automatic'), value: '' },
 					...(preview.columns ?? []).map((column) => ({ label: column, value: column })),
 				];
 
@@ -219,25 +213,30 @@ export const TaskImportCard = () => {
 				type="file"
 				accept=".csv,text/csv"
 				className="visually-hidden"
-				aria-label="CSV-Datei auswählen"
+				aria-label={t('taskImport.fileInput')}
 				onChange={onFileChange}
 			/>
 			{imported !== null ? (
 				<div ref={successRef} tabIndex={-1} className="task-import-success">
-					<KolAlert _type="success" _label="Import abgeschlossen">
-						{imported.created} Aufgaben übernommen
-						{imported.errors.length > 0 ? `, ${imported.errors.length} Zeilen übersprungen` : ''}.
+					<KolAlert _type="success" _label={t('taskImport.done')}>
+						{t('taskImport.created', { count: imported.created })}
+						{imported.errors.length > 0 ? t('taskImport.skipped', { count: imported.errors.length }) : ''}.
 					</KolAlert>
 					{analysisError !== null && (
-						<KolAlert _type="error" _label="Import-Bericht">
-							Der Bericht konnte nicht geladen werden: {analysisError}
+						<KolAlert _type="error" _label={t('taskImport.reportLabel')}>
+							{t('taskImport.reportFailed', { error: analysisError })}
 						</KolAlert>
 					)}
 					{analysis !== null && (
 						<div className="task-import-report">
 							{analysis.missingDeadlines.length > 0 && (
 								<section>
-									<h4>{`${analysis.missingDeadlines.length} von ${analysis.total} Aufgaben ohne Frist`}</h4>
+									<h4>
+										{t('taskImport.missingDeadlines', {
+											missing: analysis.missingDeadlines.length,
+											total: analysis.total,
+										})}
+									</h4>
 									<ul className="task-import-report-list">
 										{analysis.missingDeadlines.map((task) => (
 											<li key={`${task.id}-${task.title}`}>{task.title}</li>
@@ -247,7 +246,7 @@ export const TaskImportCard = () => {
 							)}
 							{analysis.duplicates.filter((dup) => !handledDuplicates.includes(dup.duplicateTaskId)).length > 0 && (
 								<section>
-									<h4>Exakte Dubletten</h4>
+									<h4>{t('taskImport.duplicates')}</h4>
 									<ul className="task-import-report-list">
 										{analysis.duplicates
 											.filter((dup) => !handledDuplicates.includes(dup.duplicateTaskId))
@@ -257,16 +256,16 @@ export const TaskImportCard = () => {
 												return (
 													<li key={`${errorKey}-${index}`} className="task-import-report-item">
 														{/* Typ-Marker nie über Farbe allein (WCAG 1.4.1, KI-UX). */}
-														<KolBadge _label="Dublette" />
+														<KolBadge _label={t('taskImport.duplicateBadge')} />
 														<span className="task-import-report-title">{duplicate.title}</span>
 														<span className="task-import-report-reason">{duplicate.reason}</span>
 														{itemErrors[errorKey] && (
-															<KolAlert _type="error" _label="Zusammenführen fehlgeschlagen">
+															<KolAlert _type="error" _label={t('taskImport.mergeFailed')}>
 																{itemErrors[errorKey]}
 															</KolAlert>
 														)}
 														<KolButton
-															_label={`Dublette ‚${duplicate.title}‘ zusammenführen`}
+															_label={t('taskImport.merge', { title: duplicate.title })}
 															_variant="secondary"
 															_disabled={busyKey !== null}
 															_on={{ onClick: () => void mergeDuplicate(duplicate) }}
@@ -280,33 +279,33 @@ export const TaskImportCard = () => {
 							)}
 							{(suggestions.length > 0 || hadSuggestions) && (
 								<section>
-									<h4>Abhängigkeits-Vorschläge</h4>
+									<h4>{t('taskImport.suggestions')}</h4>
 									{suggestions.length === 0 ? (
-										<p>Alle Vorschläge bearbeitet.</p>
+										<p>{t('taskImport.allHandled')}</p>
 									) : (
 										<ul className="task-import-report-list">
 											{suggestions.map((suggestion, index) => {
 												const errorKey = `sug-${suggestion.dependentTaskId}-${suggestion.dependingTaskId}`;
 												return (
 													<li key={`${errorKey}-${index}`} className="task-import-report-item">
-														<KolBadge _label="Vorschlag" />
+														<KolBadge _label={t('taskImport.suggestionBadge')} />
 														<span className="task-import-report-title">{suggestion.title}</span>
 														<span className="task-import-report-reason">{suggestion.reason}</span>
 														{itemErrors[errorKey] && (
-															<KolAlert _type="error" _label="Übernehmen fehlgeschlagen">
+															<KolAlert _type="error" _label={t('taskImport.acceptFailed')}>
 																{itemErrors[errorKey]}
 															</KolAlert>
 														)}
 														<div className="task-import-report-actions">
 															<KolButton
-																_label={`Abhängigkeit ‚${suggestion.title}‘ übernehmen`}
+																_label={t('taskImport.accept', { title: suggestion.title })}
 																_variant="secondary"
 																_disabled={busyKey !== null}
 																_on={{ onClick: () => void acceptSuggestion(suggestion) }}
 																onClick={() => void acceptSuggestion(suggestion)}
 															/>
 															<KolButton
-																_label={`Abhängigkeit ‚${suggestion.title}‘ verwerfen`}
+																_label={t('taskImport.dismiss', { title: suggestion.title })}
 																_variant="secondary"
 																_disabled={busyKey !== null}
 																_on={{ onClick: () => dismissSuggestion(suggestion) }}
@@ -325,38 +324,41 @@ export const TaskImportCard = () => {
 				</div>
 			) : (
 				<>
-					<p className="task-import-hint">
-						Aufgaben aus einer Todoist-Export-CSV oder einer eigenen CSV-Datei übernehmen. Die Vorschau zeigt vor der
-						Übernahme, welche Zeilen angelegt werden.
-					</p>
+					<p className="task-import-hint">{t('taskImport.hint')}</p>
 					<KolButton
-						_label={csvText === '' ? 'CSV-Datei auswählen' : 'Andere Datei auswählen'}
+						_label={csvText === '' ? t('taskImport.chooseFile') : t('taskImport.chooseOtherFile')}
 						_variant="secondary"
 						_on={{ onClick: () => fileInputRef.current?.click() }}
 					/>
-					{loadingPreview && <KolSpin _show _variant="cycle" _label="Vorschau wird erstellt" />}
+					{loadingPreview && <KolSpin _show _variant="cycle" _label={t('taskImport.previewLoading')} />}
 					{!loadingPreview && error !== null && (
-						<KolAlert _type="error" _label="Import fehlgeschlagen">
+						<KolAlert _type="error" _label={t('taskImport.failed')}>
 							{error}
 						</KolAlert>
 					)}
 					{!loadingPreview && error === null && preview !== null && (
 						<div className="task-import-preview">
 							<h3 ref={previewHeadingRef} tabIndex={-1} className="task-import-preview-heading">
-								Vorschau
+								{t('taskImport.preview')}
 							</h3>
 							<p>
-								{preview.valid} von {preview.total} Zeilen
-								{preview.skippedNonTask > 0 ? `, ${preview.skippedNonTask} keine Aufgaben` : ''} übernehmen.
+								{preview.skippedNonTask > 0
+									? t('taskImport.previewSummarySkipped', {
+											valid: preview.valid,
+											total: preview.total,
+											skipped: preview.skippedNonTask,
+										})
+									: t('taskImport.previewSummary', { valid: preview.valid, total: preview.total })}
 							</p>
 							{preview.samples.length > 0 && (
 								<div>
-									<h4>Beispiele</h4>
+									<h4>{t('taskImport.samples')}</h4>
 									<ul className="task-import-samples">
 										{preview.samples.map((sample) => (
 											<li key={sample.row}>
 												{sample.title}
-												{sample.deadline !== null && ` · ${formatDate(sample.deadline)}`} · Priorität {sample.priority}
+												{sample.deadline !== null && ` · ${formatDate(sample.deadline)}`}
+												{t('taskImport.samplePriority', { priority: sample.priority })}
 											</li>
 										))}
 									</ul>
@@ -364,11 +366,11 @@ export const TaskImportCard = () => {
 							)}
 							{preview.errors.length > 0 && (
 								<div>
-									<h4>Nicht übernommene Zeilen</h4>
+									<h4>{t('taskImport.rejectedRows')}</h4>
 									<ul className="task-import-errors">
 										{preview.errors.map((rowError) => (
 											<li key={rowError.row}>
-												Zeile {rowError.row}: {rowError.reason}
+												{t('taskImport.rowError', { row: rowError.row, reason: rowError.reason })}
 											</li>
 										))}
 									</ul>
@@ -376,22 +378,25 @@ export const TaskImportCard = () => {
 							)}
 							{preview.unmapped.length > 0 && (
 								<div>
-									<h4>Ohne Zuordnung</h4>
+									<h4>{t('taskImport.unmapped')}</h4>
 									<ul className="task-import-unmapped">
 										{preview.unmapped.map((entry) => (
 											<li key={`${entry.row}-${entry.field}`}>
-												Zeile {entry.row}: {UNMAPPED_FIELD_LABEL[entry.field] ?? entry.field} „{entry.value}“ ist
-												unbekannt und bleibt ohne Zuordnung.
+												{t('taskImport.unmappedRow', {
+													row: entry.row,
+													field: UNMAPPED_FIELDS.has(entry.field) ? t(`taskImport.field.${entry.field}`) : entry.field,
+													value: entry.value,
+												})}
 											</li>
 										))}
 									</ul>
 								</div>
 							)}
 							<div className="task-import-mapping">
-								{MAPPING_FIELDS.map(({ key, label }) => (
+								{MAPPING_FIELDS.map((key) => (
 									<KolSingleSelect
 										key={key}
-										_label={label}
+										_label={t(`taskImport.field.${key}`)}
 										_options={selectOptions}
 										_value={mapping[key] ?? ''}
 										_on={{ onChange: (_event, value) => changeMapping(key, readString(value)) }}
@@ -399,7 +404,7 @@ export const TaskImportCard = () => {
 								))}
 							</div>
 							<KolButton
-								_label={`${preview.valid} Aufgaben übernehmen`}
+								_label={t('taskImport.import', { count: preview.valid })}
 								_variant="primary"
 								_disabled={preview.valid === 0 || importing}
 								_on={{ onClick: () => void confirmImport() }}

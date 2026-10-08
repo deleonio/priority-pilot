@@ -1,0 +1,187 @@
+{
+	"periods": {
+		"monthly": "monthly",
+		"quarterly": "quarterly",
+		"yearly": "yearly"
+	},
+	"periodUnits": {
+		"monthly": "month",
+		"quarterly": "quarter",
+		"yearly": "year"
+	},
+	"features": {
+		"groups": {
+			"title": "Groups",
+			"benefit": "Share tasks with family or team, plan together and assign responsibilities."
+		},
+		"voiceInput": {
+			"title": "Voice input",
+			"benefit": "Simply dictate tasks on the go instead of typing them."
+		},
+		"aiAssist": {
+			"title": "AI assistance",
+			"benefit": "Quick capture, suggestions and breaking down large tasks — with a larger monthly quota."
+		},
+		"graphWrite": {
+			"title": "Dependencies",
+			"benefit": "Link tasks and set their order in the graph yourself."
+		},
+		"graphWeight": {
+			"title": "Weighted dependencies",
+			"benefit": "Set how strongly a task depends on its predecessor."
+		},
+		"locationReminders": {
+			"title": "Location reminders",
+			"benefit": "Reminders that trigger when you are nearby."
+		},
+		"mcpReadwrite": {
+			"title": "MCP write access",
+			"benefit": "Your own tools and assistants can not only read tasks but also create and change them."
+		},
+		"mcpRead": {
+			"title": "MCP read access",
+			"benefit": "Your own tools and assistants can read tasks and data via a personal API token."
+		},
+		"feedback": {
+			"title": "Feedback and app support",
+			"benefit": "Send feedback and support requests directly from the app — in every plan."
+		},
+		"sync": {
+			"title": "Sync across all devices",
+			"benefit": "Your tasks always up to date on all your devices — in every plan."
+		},
+		"knowledgeEntries": {
+			"title": "Knowledge entries",
+			"benefit": "Personal notes the AI takes into account when assigning new tasks to pillars."
+		},
+		"fallback": {
+			"title": "More features",
+			"benefit": "This feature is part of a larger plan."
+		}
+	},
+	"fairUse_one": "It's busy right now. The AI assistant is responding a bit more slowly — it will continue in about {{count}} second.",
+	"fairUse_other": "It's busy right now. The AI assistant is responding a bit more slowly — it will continue in about {{count}} seconds.",
+	"aiQuotaHint": {
+		"label": "AI assistant a bit slower"
+	},
+	"planHint": {
+		"label": "“{{plan}}” plan required",
+		"text": "{{title}}: This is part of the {{plan}} plan."
+	},
+	"planBadge": {
+		"included": "{{title}} · {{plan}} · included"
+	},
+	"ownPlanCard": {
+		"label": "Your plan",
+		"hint": "Switching is free, takes effect immediately and needs no payment method — it applies to your own account.",
+		"errorLabel": "Switch not possible",
+		"selectLabel": "Switch your plan"
+	},
+	"storeNotice": {
+		"label": "In-app purchase coming soon",
+		"text": "You will soon be able to book plans directly in the app."
+	},
+	"purchase": {
+		"currentPlan": "Current plan",
+		"book": "Book",
+		"change": "Switch",
+		"bookLabel": "Book {{plan}} ({{period}})",
+		"changeLabel": "Switch to {{plan}} ({{period}})"
+	},
+	"play": {
+		"unlockFailed": "Google received the purchase, but it could not be activated yet.",
+		"purchaseFailed": "The purchase via Google Play failed.",
+		"scheduledChange": "Switch to {{plan}} from {{date}}.",
+		"unavailableLabel": "Google Play unavailable",
+		"unavailableText": "The plans cannot be loaded right now. Please try again later.",
+		"errorLabel": "Purchase failed",
+		"scheduledLabel": "Plan switch scheduled"
+	},
+	"paypal": {
+		"resume": "Resume",
+		"resumeBusy": "Resuming…",
+		"resumeLabel": "Resume {{plan}} from {{date}}",
+		"bookingFailed": "Booking failed",
+		"deferredLabel": "Switch scheduled",
+		"deferredText": "Switch submitted to PayPal — it takes effect with the next billing."
+	},
+	"returnWait": {
+		"label": "Confirming payment",
+		"timeout": "Confirmation is taking longer than expected. Please reopen the settings shortly.",
+		"pending": "Confirming payment …"
+	},
+	"changeDialog": {
+		"title": "Switch plan",
+		"errorLabel": "Switch failed",
+		"previewFailedLabel": "Preview unavailable",
+		"previewFailedText": "The amount due could not be calculated. Please close the dialog and open it again.",
+		"target": "Switch to <strong>{{plan}}</strong> ({{period}}).",
+		"calculating": "Calculating amount …",
+		"currentUntil": "Current plan until",
+		"startsAt": "From {{date}}: {{plan}} for {{price}} per {{unit}}",
+		"price": "Price {{plan}} ({{period}})",
+		"credit": "Credit from the current subscription",
+		"dueNow": "Due now",
+		"dueOnApproval": "Due on approval",
+		"dueFirstCycle": "Due with the first cycle",
+		"creditCoversUntil": "Credit lasts until",
+		"effectiveFrom": "Effective from",
+		"immediately": "immediately",
+		"busy": "Switching…",
+		"confirm": "Confirm switch"
+	},
+	"plans": {
+		"label": "Plans",
+		"loadFailed": "The plans could not be loaded.",
+		"loading": "Loading plans …",
+		"priceRow": {
+			"monthly": "Monthly price",
+			"quarterly": "Quarterly price",
+			"yearly": "Yearly price"
+		},
+		"bookRow": {
+			"monthly": "Book monthly",
+			"quarterly": "Book quarterly",
+			"yearly": "Book yearly"
+		},
+		"included": "included",
+		"feature": "Feature",
+		"ownPlan": "{{plan}} (your plan)",
+		"tableLabel": "Plans compared"
+	},
+	"invoices": {
+		"label": "Invoices",
+		"loading": "Loading invoices …",
+		"empty": "No invoices yet.",
+		"download": "Download PDF {{number}}"
+	},
+	"subscription": {
+		"current": "Current plan: <strong>{{plan}}</strong> ({{period}})",
+		"periodEnd": "Period ends: {{date}}",
+		"pendingAt": "Switch to {{plan}} from {{date}}",
+		"pendingOnPayment": "Switch to {{plan}}, active once payment is received",
+		"graceUntil": "Grace period until {{date}}",
+		"cancelled": "Cancelled, runs until {{date}}, then Free",
+		"confirmationSent": "The confirmation will be emailed to {{email}}.",
+		"cancel": "Cancel contracts here",
+		"empty": "There is currently no subscription for this account. The plans below show what the paid tiers offer.",
+		"invoicesLoadFailed": "The invoices could not be loaded.",
+		"loadErrorLabel": "Loading error"
+	},
+	"cancelDialog": {
+		"title": "Cancel contracts",
+		"errorLabel": "Cancellation failed",
+		"contract": "Contract: <strong>{{plan}}</strong> ({{period}})",
+		"kindLabel": "Type of cancellation",
+		"ordinary": "Ordinary",
+		"extraordinary": "Extraordinary",
+		"reason": "Reason",
+		"reasonMissing": "Please provide a reason.",
+		"effective": "Effective: at the end of the term on {{date}}",
+		"emailLabel": "Email for the confirmation",
+		"emailHint": "We will send the confirmation here.",
+		"emailInvalid": "Please enter a valid email address.",
+		"busy": "Cancelling…",
+		"confirm": "Cancel now"
+	}
+}

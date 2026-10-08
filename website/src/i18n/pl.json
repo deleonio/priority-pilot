@@ -256,7 +256,7 @@
 		"cancellation": "Wypowiedz umowę tutaj",
 		"mcpGuide": "Przewodnik MCP",
 		"templates": "Szablony",
-		"legalGermanOnly": "Teksty prawne są dostępne tylko po niemiecku; wiążąca jest wersja niemiecka."
+		"legalGermanOnly": "Teksty prawne po angielsku dla wygody; wiążąca jest wersja niemiecka."
 	},
 	"imprint": {
 		"title": "Nota prawna",
@@ -278,10 +278,10 @@
 		"inAppTitle": "W aplikacji",
 		"steps": [
 			"Otwórz Balamentum i zaloguj się.",
-			"Otwórz ustawienia, karta „Allgemein” (Ogólne).",
-			"W sekcji „Konto” (Konto) dotknij „Usuń konto” i potwierdź oba kroki."
+			"Otwórz ustawienia, karta „General” (Ogólne).",
+			"W sekcji „Account” (Konto) dotknij „Delete account” (Usuń konto) i potwierdź oba kroki."
 		],
-		"blocked": "Jeśli subskrypcja jest jeszcze aktywna, najpierw anuluj ją w karcie „Abo” (Subskrypcja). Jeśli jesteś ostatnim administratorem grupy, w której są inni członkowie, najpierw nadaj komuś innemu rolę administratora albo rozwiąż grupę.",
+		"blocked": "Jeśli subskrypcja jest jeszcze aktywna, najpierw anuluj ją w karcie „Plans & subscription” (Plany i subskrypcja). Jeśli jesteś ostatnim administratorem grupy, w której są inni członkowie, najpierw nadaj komuś innemu rolę administratora albo rozwiąż grupę.",
 		"deletedTitle": "Co zostaje usunięte",
 		"deleted": "Twoje konto ze wszystkimi zadaniami, seriami, filarami, kategoriami, ustawieniami, tokenami dostępu i rejestracjami push. Usuwane są też grupy, w których jesteś jedynym członkiem. Zadania utworzone przez ciebie w grupach dla innych zostają u odbiorców, bez ciebie jako autora.",
 		"keptTitle": "Co zostaje zachowane",

@@ -1,6 +1,7 @@
 import { KolAlert, KolButton, KolInputRadio, KolInputText, KolTextarea } from '@public-ui/react-v19';
 import type { Group } from 'client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
@@ -10,9 +11,9 @@ import { PlanBadge } from './PlanBadge';
 
 /** Art der Gruppe (#1991): „Duo" = genau zwei Personen, die nur Streak und Säulenwerte teilen. */
 const KIND_OPTIONS = [
-	{ label: 'Gruppe', value: 'group' },
-	{ label: 'Duo', value: 'duo' },
-];
+	{ labelKey: 'formDialog.kindGroup', value: 'group' },
+	{ labelKey: 'formDialog.kindDuo', value: 'duo' },
+] as const;
 
 /** #1211: Gruppenname ist Pflicht und auf 60 Zeichen begrenzt (Server-Validierung, AK4). */
 const GROUP_NAME_MAX_LENGTH = 60;
@@ -32,6 +33,12 @@ interface GroupFormDialogProps {
  * Meldung, der Dialog bleibt bei ungültigem Namen offen (KI-UX: kein Alert-Wechsel).
  */
 export const GroupFormDialog = ({ group, onClose, onSaved }: GroupFormDialogProps) => {
+	const { t } = useTranslation(['groups', 'common']);
+	// Stabile Options-Identität: eine neue Liste je Render baut die KoliBri-Auswahl neu auf.
+	const kindOptions = useMemo(
+		() => KIND_OPTIONS.map(({ labelKey, value }) => ({ label: t(`groups:${labelKey}`), value })),
+		[t],
+	);
 	const isEdit = group !== undefined;
 
 	// Form-Ref: Werte werden beim Mount initialisiert und bei Eingabe aktualisiert (PillarFormDialog-
@@ -60,18 +67,18 @@ export const GroupFormDialog = ({ group, onClose, onSaved }: GroupFormDialogProp
 	const submit = async (): Promise<void> => {
 		const name = form.current.name.trim();
 		if (name === '') {
-			setError('Bitte gib einen Namen für die Gruppe ein.');
+			setError(t('groups:formDialog.nameRequired'));
 			return;
 		}
 		if (name.length > GROUP_NAME_MAX_LENGTH) {
-			setError(`Der Name darf maximal ${GROUP_NAME_MAX_LENGTH} Zeichen lang sein.`);
+			setError(t('groups:formDialog.nameTooLong', { max: GROUP_NAME_MAX_LENGTH }));
 			return;
 		}
 		const imageUrl = form.current.imageUrl.trim();
 		// Clientseitige https-Prüfung (#1225, KI-UX): ungültige Adresse bricht das Speichern ab,
 		// der Dialog bleibt offen (gleiche Inline-Meldung wie der Server, 400).
 		if (imageUrl !== '' && !imageUrl.startsWith('https://')) {
-			setError('Die Bildadresse muss beginnen mit https://.');
+			setError(t('groups:formDialog.imageUrlHttps'));
 			return;
 		}
 		setError(null);
@@ -110,17 +117,20 @@ export const GroupFormDialog = ({ group, onClose, onSaved }: GroupFormDialogProp
 	useCtrlEnter(() => void submit(), !saving);
 
 	return (
-		<Modal title={isEdit ? 'Gruppe bearbeiten' : 'Gruppe anlegen'} onClose={onClose}>
+		<Modal title={isEdit ? t('groups:formDialog.titleEdit') : t('groups:formDialog.titleCreate')} onClose={onClose}>
 			{/* #1484 (T3b AK3): Grenzstelle `groups` — Badge als erstes Element unter dem Modal-Titel. */}
 			<PlanBadge feature="groups" inModal />
 			{error !== null && (
-				<KolAlert _type="error" _label={isEdit ? 'Speichern fehlgeschlagen' : 'Anlegen fehlgeschlagen'}>
+				<KolAlert
+					_type="error"
+					_label={isEdit ? t('groups:formDialog.saveFailed') : t('groups:formDialog.createFailed')}
+				>
 					{error}
 				</KolAlert>
 			)}
 			<div className="form-grid">
 				<KolInputText
-					_label="Name"
+					_label={t('groups:formDialog.name')}
 					_required
 					_maxLength={GROUP_NAME_MAX_LENGTH}
 					_type="search"
@@ -139,12 +149,12 @@ export const GroupFormDialog = ({ group, onClose, onSaved }: GroupFormDialogProp
 					}}
 				/>
 				<KolInputRadio
-					_label="Art"
+					_label={t('groups:formDialog.kind')}
 					_orientation="horizontal"
-					_options={KIND_OPTIONS}
+					_options={kindOptions}
 					_value={kind}
 					_disabled={isEdit}
-					_hint="Ein Duo sind zwei Personen: Ihr seht gemeinsam einen Streak und die Säulenwerte, aber keine Aufgaben."
+					_hint={t('groups:formDialog.kindHint')}
 					_on={{
 						onChange: (_event, value) => {
 							if (value === 'group' || value === 'duo') {
@@ -154,7 +164,7 @@ export const GroupFormDialog = ({ group, onClose, onSaved }: GroupFormDialogProp
 					}}
 				/>
 				<KolTextarea
-					_label="Beschreibung"
+					_label={t('groups:formDialog.description')}
 					_rows={4}
 					_value={descriptionState}
 					_on={{
@@ -175,9 +185,9 @@ export const GroupFormDialog = ({ group, onClose, onSaved }: GroupFormDialogProp
 					   schon eine Bild-URL), Pflicht ist es nie. type="url" + deutscher Hinweis auf die
 					   https-Regel, die clientseitig und serverseitig (400) geprüft wird. */
 					<KolInputText
-						_label="Bildadresse"
+						_label={t('groups:formDialog.imageUrl')}
 						_type="url"
-						_hint="Adresse eines Bildes, beginnt mit https://"
+						_hint={t('groups:formDialog.imageUrlHint')}
 						_value={imageUrlState}
 						_on={{
 							onInput: (_event, value) => {
@@ -196,12 +206,25 @@ export const GroupFormDialog = ({ group, onClose, onSaved }: GroupFormDialogProp
 			</div>
 			<div className="modal-actions">
 				<KolButton
-					_label={saving ? (isEdit ? 'Speichern…' : 'Anlegen…') : isEdit ? 'Speichern' : 'Anlegen'}
+					_label={
+						saving
+							? isEdit
+								? t('groups:formDialog.saving')
+								: t('groups:formDialog.creating')
+							: isEdit
+								? t('common:actions.save')
+								: t('common:actions.create')
+					}
 					_variant="primary"
 					_disabled={saving}
 					_on={{ onClick: () => void submit() }}
 				/>
-				<KolButton _label="Abbrechen" _variant="secondary" _disabled={saving} _on={{ onClick: () => onClose() }} />
+				<KolButton
+					_label={t('common:actions.cancel')}
+					_variant="secondary"
+					_disabled={saving}
+					_on={{ onClick: () => onClose() }}
+				/>
 			</div>
 		</Modal>
 	);

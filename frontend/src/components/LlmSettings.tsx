@@ -1,6 +1,7 @@
 import { KolAccordion, KolAlert, KolBadge, KolButton, KolInputRadio, KolSingleSelect } from '@public-ui/react-v19';
 import type { LlmModel, LlmProvider, LlmProviderTestResult } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readString } from '../lib/inputValue';
@@ -39,6 +40,7 @@ interface LlmSettingsProps {
  *   Status-Hinweis zeigt an, was ggf. noch fehlt.
  */
 export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSettingsProps) => {
+	const { t } = useTranslation(['settings', 'common']);
 	const cardDetails = useFollowingOpen(open);
 	const [providers, setProviders] = useState<LlmProvider[] | null>(null);
 	const [models, setModels] = useState<LlmModel[] | null>(null);
@@ -65,9 +67,9 @@ export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSet
 			setProviders(await api.listLlmProviders());
 			setError(null);
 		} catch {
-			setError('Provider-Liste konnte nicht geladen werden.');
+			setError(t('llmSettings.loadError'));
 		}
-	}, []);
+	}, [t]);
 
 	// Provider-Liste einmalig laden (inkl. effektiver Aktiv-Markierung des Servers).
 	useEffect(() => {
@@ -117,15 +119,15 @@ export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSet
 					// Radio-Gruppe sofort spiegeln: ohne dieses State-Update würde ein Re-Render
 					// (z. B. der Toast) die Auswahl auf den VORHER aktiven Provider zurücksetzen.
 					setProviders((current) => current?.map((p) => ({ ...p, isActive: p.id === selected.id })) ?? current);
-					showToast(`Provider gewechselt: ${selected.name}`);
+					showToast(t('llmSettings.providerChanged', { name: selected.name }));
 					onChanged?.();
 				})
 				.catch(() => {
 					setToastMessage(null);
-					setError(`„${selected.name}“ konnte nicht aktiviert werden.`);
+					setError(t('llmSettings.activateFailed', { name: selected.name }));
 				});
 		},
-		[providers, onChanged, showToast],
+		[providers, onChanged, showToast, t],
 	);
 
 	/** Persistiert die Modellwahl des aktiven Providers und spiegelt sie lokal. */
@@ -136,13 +138,13 @@ export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSet
 				const updated = await api.updateLlmProvider({ id: activeProvider.id, input: { model } });
 				setProviders((current) => current?.map((p) => (p.id === updated.id ? updated : p)) ?? current);
 				setTestResults((current) => ({ ...current, [updated.id]: undefined }));
-				showToast(`Modell gesetzt: ${model}`);
+				showToast(t('llmSettings.modelSet', { model }));
 				onChanged?.();
 			} catch (reason) {
 				setError((await toApiError(reason)).message);
 			}
 		},
-		[activeProvider, onChanged, showToast],
+		[activeProvider, onChanged, showToast, t],
 	);
 
 	/** Führt den Test-Prompt für einen Provider aus und speichert das Ergebnis inline. */
@@ -173,13 +175,13 @@ export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSet
 	// und signalisiert falsch eine Auswahl.
 	const options = useMemo(() => {
 		const providerOptions = (providers ?? []).map((p) => ({
-			label: `${p.model !== '' ? `${p.name} (${p.model})` : p.name} · ${p.own ? 'eigen' : 'instanzweit'}`,
+			label: `${p.model !== '' ? `${p.name} (${p.model})` : p.name} · ${p.own ? t('llmSettings.own') : t('llmSettings.shared')}`,
 			value: String(p.id),
 		}));
 		return activeProvider === null
-			? [{ label: 'Kein Provider aktiv', value: '' }, ...providerOptions]
+			? [{ label: t('llmSettings.noProviderOption'), value: '' }, ...providerOptions]
 			: providerOptions;
-	}, [providers, activeProvider]);
+	}, [providers, activeProvider, t]);
 	const radioValue = activeProvider === null ? '' : String(activeProvider.id);
 
 	// Ist das aktuell gewählte Modell (Server-Default) nicht in der Liste, bleibt es trotzdem
@@ -192,26 +194,26 @@ export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSet
 			value: m.id,
 		}));
 		const current = activeProvider?.model ?? '';
-		if (current === '') return [{ label: 'Bitte Modell wählen…', value: '' }, ...list];
+		if (current === '') return [{ label: t('llmSettings.chooseModel'), value: '' }, ...list];
 		return selectedModelInList ? list : [{ label: current, value: current }, ...list];
-	}, [models, activeProvider, selectedModelInList]);
+	}, [models, activeProvider, selectedModelInList, t]);
 
 	return (
 		<>
 			<KolAccordion
 				className="settings-card"
-				_label="KI-Provider"
+				_label={t('llmSettings.title')}
 				_level={2}
 				_disabled={!open || disabled}
 				{...cardDetails}
 			>
 				{toastMessage !== null && (
-					<KolAlert _type="success" _alert _label="Gespeichert">
+					<KolAlert _type="success" _alert _label={t('mcpInstructions.savedLabel')}>
 						{toastMessage}
 					</KolAlert>
 				)}
 				{error !== null && (
-					<KolAlert _type="error" _alert _label="LLM-Einstellungen">
+					<KolAlert _type="error" _alert _label={t('llmSettings.errorLabel')}>
 						{error}
 					</KolAlert>
 				)}
@@ -221,29 +223,25 @@ export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSet
 			    dann die Verwaltung. */}
 				<div className="settings-card-stack">
 					{providers === null ? (
-						<p>Provider werden geladen…</p>
+						<p>{t('llmSettings.loading')}</p>
 					) : (
 						<>
 							<KolInputRadio
-								_label="KI-Provider"
+								_label={t('llmSettings.title')}
 								_orientation={isMobile ? 'vertical' : 'horizontal'}
 								_options={options}
 								_value={radioValue}
-								_hint={
-									activeProvider === null
-										? 'Kein Provider aktiv — es ist kein ENV-Key für Mistral/OpenRouter gesetzt und kein Custom-Provider gewählt.'
-										: 'Wähle den Provider für alle KI-Anfragen. Ohne eigene Wahl übernimmt der Fallback (Mistral vor OpenRouter).'
-								}
+								_hint={activeProvider === null ? t('llmSettings.noProviderHint') : t('llmSettings.providerHint')}
 								_disabled={disabled}
 								_on={{ onChange: handleProviderChange }}
 							/>
 
 							{activeProvider !== null && (
 								<div className="llm-model-select">
-									{models === null && modelsError === null && <p className="hint">Modelle werden geladen…</p>}
+									{models === null && modelsError === null && <p className="hint">{t('llmSettings.modelsLoading')}</p>}
 									{modelsError !== null && (
 										<p className="hint" role="alert">
-											Modellliste nicht verfügbar: {modelsError}
+											{t('llmSettings.modelsError', { message: modelsError })}
 										</p>
 									)}
 									{/* KoliBri-First (ux-design.md): Bedienelemente kommen aus KoliBri — die
@@ -251,14 +249,14 @@ export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSet
 							    TaskForm/DependencyModal), kein natives Select im Eigen-Styling. */}
 									{models !== null && (
 										<KolSingleSelect
-											_label={`Modell von ${activeProvider.name}${activeProvider.kind === 'builtin' ? ' (fix)' : ''}`}
+											_label={
+												activeProvider.kind === 'builtin'
+													? t('llmSettings.modelLabelBuiltin', { name: activeProvider.name })
+													: t('llmSettings.modelLabel', { name: activeProvider.name })
+											}
 											_options={modelOptions}
 											_value={activeProvider.model}
-											_hint={
-												modelsAreFallback
-													? 'Live-Liste nicht erreichbar — es werden bekannte Standard-Modelle angeboten.'
-													: 'Die Modelle werden live vom gewählten Provider geladen.'
-											}
+											_hint={modelsAreFallback ? t('llmSettings.modelsFallbackHint') : t('llmSettings.modelsLiveHint')}
 											_disabled={disabled}
 											_on={{
 												onChange: (_event, value) => void handleModelChange(readString(value)),
@@ -280,34 +278,36 @@ export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSet
 								const testResult = testResults[activeProvider.id];
 								if (configured && testResult?.ok) {
 									return (
-										<KolAlert _type="success" _label="KI-Features bereit">
-											Alle KI-Features laufen über {activeProvider.name} mit Modell {activeProvider.model} (getestet,{' '}
-											{testResult.latencyMs ?? 0} ms).
+										<KolAlert _type="success" _label={t('llmSettings.readyLabel')}>
+											{t('llmSettings.readyText', {
+												name: activeProvider.name,
+												model: activeProvider.model,
+												latency: testResult.latencyMs ?? 0,
+											})}
 										</KolAlert>
 									);
 								}
 								if (configured && testResult !== undefined && !testResult.ok) {
 									return (
-										<KolAlert _type="error" _label="KI-Features schlagen derzeit fehl">
-											{activeProvider.name} ist aktiv, aber der Test schlug fehl: {testResult.message}
+										<KolAlert _type="error" _label={t('llmSettings.failingLabel')}>
+											{t('llmSettings.failingText', { name: activeProvider.name, message: testResult.message })}
 										</KolAlert>
 									);
 								}
 								if (configured) {
 									return (
-										<KolAlert _type="info" _label="KI-Features bereit (noch ungetestet)">
-											Alle KI-Features laufen über {activeProvider.name} mit Modell {activeProvider.model}. Drücke unten
-											„Testen“, um die Verbindung wirklich zu prüfen.
+										<KolAlert _type="info" _label={t('llmSettings.untestedLabel')}>
+											{t('llmSettings.untestedText', { name: activeProvider.name, model: activeProvider.model })}
 										</KolAlert>
 									);
 								}
 								return (
-									<KolAlert _type="warning" _label="KI-Features noch nicht nutzbar">
+									<KolAlert _type="warning" _label={t('llmSettings.notUsableLabel')}>
 										{!activeProvider.hasApiKey
 											? activeProvider.kind === 'builtin'
-												? `Für ${activeProvider.name} ist kein API-Key auf dem Server hinterlegt (ENV-Variable fehlt). Wähle einen anderen Provider oder hinterlege den Key serverseitig.`
-												: `Für ${activeProvider.name} ist kein API-Key hinterlegt — bearbeite den Provider und trage den Key ein.`
-											: 'Wähle oben ein Modell, dann sind alle KI-Features nutzbar.'}
+												? t('llmSettings.noKeyBuiltin', { name: activeProvider.name })
+												: t('llmSettings.noKeyCustom', { name: activeProvider.name })
+											: t('llmSettings.noModel')}
 									</KolAlert>
 								);
 							})()}
@@ -321,7 +321,7 @@ export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSet
 			    den Namen (Design-Lauf 2026-09). */}
 				<div className="llm-provider-admin">
 					<KolButton
-						_label="Neuer Provider"
+						_label={t('llmSettings.newProvider')}
 						class="settings-action-btn"
 						_variant="secondary"
 						_disabled={disabled}
@@ -333,18 +333,21 @@ export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSet
 								<li key={provider.id} className="llm-provider-admin__item">
 									<span className="llm-provider-admin__name">
 										{provider.name}
-										{provider.isActive ? ' (aktiv)' : ''}
+										{provider.isActive ? ` ${t('llmSettings.activeMarker')}` : ''}
 										{/* Eigentums-Marker als KolBadge (#1549, Text statt nur Farbe — WCAG 1.4.1):
 										    „eigen“ = eigene Zeile des Nutzers, „instanzweit“ = Built-in oder geteilt. */}
-										<KolBadge className="llm-provider-admin__badge" _label={provider.own ? 'eigen' : 'instanzweit'} />
+										<KolBadge
+											className="llm-provider-admin__badge"
+											_label={provider.own ? t('llmSettings.own') : t('llmSettings.shared')}
+										/>
 										<span className="llm-provider-admin__meta">
-											{provider.kind === 'builtin' ? ' · fix, Key aus Server-ENV' : ` · ${provider.endpoint}`}
-											{provider.model !== '' ? ` · ${provider.model}` : ' · kein Modell gewählt'}
+											{provider.kind === 'builtin' ? ` · ${t('llmSettings.builtinMeta')}` : ` · ${provider.endpoint}`}
+											{provider.model !== '' ? ` · ${provider.model}` : ` · ${t('llmSettings.noModelMeta')}`}
 										</span>
 									</span>
 									<span className="llm-provider-admin__actions">
 										<KolButton
-											_label={testingId === provider.id ? 'Testen…' : 'Testen'}
+											_label={testingId === provider.id ? t('llmSettings.testing') : t('llmSettings.test')}
 											class="settings-action-btn"
 											_variant="secondary"
 											_disabled={disabled || testingId !== null}
@@ -353,7 +356,7 @@ export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSet
 										{provider.kind === 'custom' && (
 											<>
 												<KolButton
-													_label="Bearbeiten"
+													_label={t('common:actions.edit')}
 													class="settings-action-btn"
 													_variant="secondary"
 													_disabled={disabled}
@@ -361,7 +364,7 @@ export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSet
 												/>
 												<KolButton
 													ref={provider.id === providers.at(-1)?.id ? deleteTriggerRef : undefined}
-													_label="Löschen"
+													_label={t('common:actions.delete')}
 													_icons={{ left: { icon: 'fa-solid fa-trash' } }}
 													class="settings-action-btn"
 													_variant="danger"
@@ -377,12 +380,20 @@ export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSet
 										const result = testResults[provider.id];
 										if (result === undefined) return null;
 										return result.ok ? (
-											<KolAlert _type="success" _label={`Test erfolgreich (${result.latencyMs ?? 0} ms)`}>
-												{provider.name} antwortete über Modell {result.model}
-												{result.sample !== undefined ? `: „${result.sample}“` : '.'}
+											<KolAlert
+												_type="success"
+												_label={t('llmSettings.testOkLabel', { latency: result.latencyMs ?? 0 })}
+											>
+												{result.sample !== undefined
+													? t('llmSettings.testOkSample', {
+															name: provider.name,
+															model: result.model,
+															sample: result.sample,
+														})
+													: t('llmSettings.testOk', { name: provider.name, model: result.model })}
 											</KolAlert>
 										) : (
-											<KolAlert _type="error" _label="Test fehlgeschlagen">
+											<KolAlert _type="error" _label={t('llmSettings.testFailedLabel')}>
 												{result.message}
 											</KolAlert>
 										);

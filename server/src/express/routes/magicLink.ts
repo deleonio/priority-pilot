@@ -5,6 +5,7 @@ import { hasGoogleOAuth } from '../requireAuth.js';
 import { establishSession } from '../establishSession.js';
 import { issueAppToken } from '../apiTokenAuth.js';
 import { isDbEmailAllowed, isEmailAllowed, isOpenSignup } from '../../logics/allowedEmails.js';
+import { spracheAusHeader, type CareSprache } from '../../logics/careSuggestionData.js';
 import { sendMailToUser, type MailSender } from '../../logics/mail.js';
 import { buildMagicLinkUrl, consumeLoginToken, createLoginToken, isMagicLinkEnabled } from '../../logics/magicLink.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
@@ -22,16 +23,34 @@ const NOT_CONFIGURED = 'Anmeldung per E-Mail-Link ist nicht konfiguriert (SMTP/P
 // sich zugelassene Adressen über die Antwort ausspähen.
 const ACCEPTED = 'Falls die Adresse zugelassen ist, ist ein Anmeldelink unterwegs.';
 
-const mailText = (link: string): string =>
-	[
-		'Hallo,',
-		'',
-		'mit diesem Link meldest du dich bei Balamentum an:',
-		link,
-		'',
-		'Der Link ist 15 Minuten gültig und funktioniert genau einmal.',
-		'Falls du keinen Link angefordert hast, kannst du diese Mail ignorieren.',
-	].join('\n');
+const MAIL: Record<CareSprache, { subject: string; text: (link: string) => string }> = {
+	de: {
+		subject: 'Dein Anmeldelink für Balamentum',
+		text: (link) =>
+			[
+				'Hallo,',
+				'',
+				'mit diesem Link meldest du dich bei Balamentum an:',
+				link,
+				'',
+				'Der Link ist 15 Minuten gültig und funktioniert genau einmal.',
+				'Falls du keinen Link angefordert hast, kannst du diese Mail ignorieren.',
+			].join('\n'),
+	},
+	en: {
+		subject: 'Your sign-in link for Balamentum',
+		text: (link) =>
+			[
+				'Hello,',
+				'',
+				'use this link to sign in to Balamentum:',
+				link,
+				'',
+				'The link is valid for 15 minutes and works exactly once.',
+				'If you did not request a link, you can ignore this email.',
+			].join('\n'),
+	},
+};
 
 /**
  * Magic-Link-Login per E-Mail (zweiter Anmeldeweg neben Google). Hängt wie `authRouter` an der
@@ -76,9 +95,10 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 				// Nicht abwarten: die Antwortzeit darf zugelassene Adressen nicht von nicht
 				// zugelassenen/gedrosselten unterscheidbar machen (Zeitkanal). `sendMailToUser`
 				// fängt Fehler bereits selbst ab.
+				const mail = MAIL[spracheAusHeader(req.get('accept-language'))];
 				void sendMailToUser(
 					{ email: normalizedEmail },
-					{ subject: 'Dein Anmeldelink für Balamentum', text: mailText(buildMagicLinkUrl(token)) },
+					{ subject: mail.subject, text: mail.text(buildMagicLinkUrl(token)) },
 					mailSender,
 				);
 			}

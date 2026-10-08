@@ -1,4 +1,5 @@
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
+import i18next from '../i18n/config';
 import { KolBadge, KolButton, KolCard, KolMeter, KolPagination } from '@public-ui/react-v19';
 import { FreeTimeCard } from './FreeTimeCard';
 import { NearbyCard } from './NearbyCard';
@@ -53,27 +54,26 @@ type BegrTask = Task & Partial<Pick<components['schemas']['TaskRecommendation'],
 const begruendungsSaetze = (task: BegrTask, splitSatz: string): string[] => {
 	const { reasons, scoreBreakdown } = task;
 	if (reasons === undefined || Object.keys(reasons).length === 0) {
-		return task.deadline ? [`Fällig am ${formatDeadline(task.deadline)}.`] : [];
+		return task.deadline ? [i18next.t('dashboard:reasons.dueOn', { date: formatDeadline(task.deadline) })] : [];
 	}
 	const anteil = (key: keyof NonNullable<typeof reasons>): number =>
 		scoreBreakdown?.[key as keyof NonNullable<typeof scoreBreakdown>] ?? 0;
 	const saetze: Array<{ key: keyof NonNullable<typeof reasons>; satz: string }> = [];
 	const balance = reasons.balance;
 	if (balance !== undefined && balance.pillars.length > 0) {
-		const namen =
-			balance.pillars.length === 1
-				? `Säule ${balance.pillars[0]!}`
-				: `Säulen ${balance.pillars.slice(0, -1).join(', ')} und ${balance.pillars.at(-1)!}`;
 		saetze.push({
 			key: 'balance',
-			satz: `${namen} kam${balance.pillars.length === 1 ? '' : 'en'} diese Woche zu kurz.`,
+			satz: i18next.t('dashboard:reasons.balance', {
+				count: balance.pillars.length,
+				names: new Intl.ListFormat(i18next.language, { type: 'conjunction' }).format(balance.pillars),
+			}),
 		});
 	}
 	if (reasons.unlock !== undefined) {
 		const offen = reasons.unlock.openCount;
 		saetze.push({
 			key: 'unlock',
-			satz: offen === 1 ? 'Schaltet 1 offene Aufgabe frei.' : `Schaltet ${offen} offene Aufgaben frei.`,
+			satz: i18next.t('dashboard:reasons.unlock', { count: offen }),
 		});
 	}
 	const frist = reasons.deadline;
@@ -83,10 +83,13 @@ const begruendungsSaetze = (task: BegrTask, splitSatz: string): string[] => {
 			key: 'deadline',
 			satz:
 				tage < 0
-					? `Überfällig seit ${-tage} ${-tage === 1 ? 'Tag' : 'Tagen'}.`
+					? i18next.t('dashboard:reasons.overdue', { count: -tage })
 					: tage === 0
-						? 'Fällig heute.'
-						: `Fällig am ${formatDeadline(new Date(`${frist.date}T00:00:00Z`))} (in ${tage} ${tage === 1 ? 'Tag' : 'Tagen'}).`,
+						? i18next.t('dashboard:reasons.dueToday')
+						: i18next.t('dashboard:reasons.dueIn', {
+								count: tage,
+								date: formatDeadline(new Date(`${frist.date}T00:00:00Z`)),
+							}),
 		});
 	}
 	const sortiert = saetze.sort((a, b) => anteil(b.key) - anteil(a.key)).map(({ satz }) => satz);
@@ -173,7 +176,7 @@ export const Dashboard = ({
 	showDayDoneHint = true,
 	onOpenPillars,
 }: DashboardProps) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['dashboard', 'common']);
 	const greeting = displayName.trim();
 	// #1098 AK4: eigene Hook-Instanz (wie Footer/SettingsPage) — entscheidet, ob die
 	// NearbyCard überhaupt gerendert wird. Bei Verweigerung durch den Browser bleibt sie
@@ -188,11 +191,11 @@ export const Dashboard = ({
 			else if (task.status === TaskStatus.Open || task.status === TaskStatus.InProcess) openCount++;
 		}
 		return [
-			{ label: 'Gesamt', count: tasks.length, accent: 'total' },
-			{ label: 'Offen', count: openCount, accent: 'open' },
-			{ label: 'Erledigt', count: doneCount, accent: 'done' },
+			{ label: t('cards.total'), count: tasks.length, accent: 'total' },
+			{ label: t('cards.open'), count: openCount, accent: 'open' },
+			{ label: t('cards.done'), count: doneCount, accent: 'done' },
 		];
-	}, [tasks]);
+	}, [tasks, t]);
 
 	// Einmal pro Mount bestimmter Bezugszeitpunkt für die Deadline-Dringlichkeit (stabil je Ansicht).
 	const now = useMemo(() => new Date(), []);
@@ -294,8 +297,8 @@ export const Dashboard = ({
 	return (
 		<section className="dashboard">
 			<div className="dashboard-heading">
-				<h2>Dashboard</h2>
-				{greeting !== '' && <p className="dashboard-greeting">Hallo {greeting}!</p>}
+				<h2>{t('heading')}</h2>
+				{greeting !== '' && <p className="dashboard-greeting">{t('greeting', { name: greeting })}</p>}
 			</div>
 
 			{/*
@@ -312,7 +315,7 @@ export const Dashboard = ({
 			 */}
 			<div className={pillars.length > 0 ? 'dashboard-hero' : 'dashboard-hero dashboard-hero--solo'}>
 				{pillars.length > 0 && (
-					<KolCard className="dashboard-heart" _label="Meine Lebensbalance" _level={3}>
+					<KolCard className="dashboard-heart" _label={t('heart.label')} _level={3}>
 						<HeartBalance pillars={pillars} punkteProSaeule={punkteProSaeule} fill={serverFill} />
 					</KolCard>
 				)}
@@ -351,24 +354,24 @@ export const Dashboard = ({
 					<KolCard
 						className="dashboard-next-task"
 						role="region"
-						aria-label="Nächste Aufgabe"
-						_label="Nächste Aufgabe"
+						aria-label={t('nextTask.label')}
+						_label={t('nextTask.label')}
 						_level={3}
 					>
 						{nextTask === null ? (
 							<p ref={emptyRef} tabIndex={-1} className="dashboard-next-task-empty">
-								Aktuell steht keine Aufgabe an (alle erledigt oder durch offene Vorgänger blockiert).
+								{t('nextTask.empty')}
 							</p>
 						) : (
 							<div className="dashboard-next-task-content">
 								<span className="dashboard-next-task-title">{nextTask.title}</span>
-								<span className="dashboard-next-task-priority">Priorität {nextTask.priority}</span>
+								<span className="dashboard-next-task-priority">{t('priority', { priority: nextTask.priority })}</span>
 								{/* #1985: „Warum jetzt?“ — Begründungssätze, stärkster Grund zuerst (DOM-Reihenfolge,
 								    A11y); ohne Anteile der Fallback-Satz. Reine Information im Signal-Panel: keine
 								    Interaktion, kein Farb-/Gewichts-Akzent (KI-UX). */}
-								{begruendungsSaetze(nextTask, t('splitHint.reason')).length > 0 && (
+								{begruendungsSaetze(nextTask, t('common:splitHint.reason')).length > 0 && (
 									<ul className="dashboard-next-task-reasons">
-										{begruendungsSaetze(nextTask, t('splitHint.reason')).map((satz) => (
+										{begruendungsSaetze(nextTask, t('common:splitHint.reason')).map((satz) => (
 											<li key={satz}>{satz}</li>
 										))}
 									</ul>
@@ -383,7 +386,7 @@ export const Dashboard = ({
 									<div className="dashboard-next-task-actions">
 										{onCompleteTask !== undefined && (
 											<KolButton
-												_label="Erledigen"
+												_label={t('nextTask.complete')}
 												_variant="primary"
 												_icons={{ left: { icon: 'fa-solid fa-check' } }}
 												_on={{ onClick: () => onCompleteTask(nextTask) }}
@@ -391,7 +394,7 @@ export const Dashboard = ({
 										)}
 										{onEditTask !== undefined && (
 											<KolButton
-												_label="Bearbeiten"
+												_label={t('common:actions.edit')}
 												_hideLabel
 												_variant="secondary"
 												_icons={{ left: { icon: 'fa-solid fa-pen' } }}
@@ -401,7 +404,7 @@ export const Dashboard = ({
 										{/* #2244: Uhr-Button wie „Bearbeiten“ — sekundär, icon-only, nach den anderen Aktionen. */}
 										{onSnoozeTask !== undefined && (
 											<KolButton
-												_label={t('actions.snooze')}
+												_label={t('common:actions.snooze')}
 												_hideLabel
 												_variant="secondary"
 												_icons={{ left: { icon: 'fa-regular fa-clock' } }}
@@ -423,18 +426,18 @@ export const Dashboard = ({
 			<KolCard
 				className="dashboard-suggestions"
 				role="region"
-				aria-label="Was ist jetzt dran?"
-				_label="Was ist jetzt dran?"
+				aria-label={t('suggestions.label')}
+				_label={t('suggestions.label')}
 				_level={3}
 			>
 				{suggestionsFiltered.length === 0 ? (
-					<p className="dashboard-suggestions-empty">Aktuell stehen keine weiteren Vorschläge an.</p>
+					<p className="dashboard-suggestions-empty">{t('suggestions.empty')}</p>
 				) : (
 					<ol className="dashboard-suggestions-list">
 						{suggestionsFiltered.map((task) => (
 							<li key={task.id} className="dashboard-suggestion">
 								<span className="dashboard-suggestion-title">{task.title}</span>
-								<span className="dashboard-suggestion-meta">(Priorität {task.priority})</span>
+								<span className="dashboard-suggestion-meta">{t('suggestions.meta', { priority: task.priority })}</span>
 							</li>
 						))}
 					</ol>
@@ -451,27 +454,30 @@ export const Dashboard = ({
 			{/* #1990: „Freie Zeit" vor „In der Nähe" — erscheint nur mit Kalender und passender Lücke. */}
 			<FreeTimeCard />
 			{(geoEnabled || geoDenied) && <NearbyCard />}
-			<KolCard className="dashboard-top-tasks" _label="Wichtigste Tasks" _level={3}>
+			<KolCard className="dashboard-top-tasks" _label={t('topTasks.label')} _level={3}>
 				{topTasks.length === 0 ? (
-					<p className="dashboard-empty">Keine offenen Aufgaben vorhanden.</p>
+					<p className="dashboard-empty">{t('topTasks.empty')}</p>
 				) : (
 					<ol className="dashboard-top-tasks-list">
 						{topTasks.map((task) => (
 							<li key={task.id} className="dashboard-top-task">
 								<span className="dashboard-top-task-title">{task.title}</span>
 								<span className="dashboard-top-task-meta">
-									(Priorität {task.priority}, Wert {formatNumber(task.value)})
+									{t('topTasks.meta', { priority: task.priority, value: formatNumber(task.value) })}
 								</span>
 							</li>
 						))}
 					</ol>
 				)}
 			</KolCard>
-			<KolCard className="dashboard-pillars" _label="Meine Themen" _level={3}>
+			<KolCard className="dashboard-pillars" _label={t('pillars.label')} _level={3}>
 				{pillars.length === 0 ? (
 					<p className="dashboard-empty">
-						Lege in den <a href={`${import.meta.env.BASE_URL}settings`}>Einstellungen</a> deine ersten Säulen an, um
-						hier den Überblick über deine Themen zu behalten.
+						<Trans
+							t={t}
+							i18nKey="pillars.empty"
+							components={{ settingsLink: <a href={`${import.meta.env.BASE_URL}settings`} /> }}
+						/>
 					</p>
 				) : (
 					<ul className="dashboard-pillars-list">
@@ -503,28 +509,31 @@ export const Dashboard = ({
 									 */}
 									<dl className="dashboard-pillar-facts">
 										<div className="dashboard-pillar-fact dashboard-pillar-fact--lead">
-											<dt>Anteil</dt>
+											<dt>{t('pillars.share')}</dt>
 											<dd>{Math.round(actualShare * 100)} %</dd>
 										</div>
 										<div className="dashboard-pillar-fact">
-											<dt>Aufgaben</dt>
+											<dt>{t('pillars.tasks')}</dt>
 											<dd>
 												{taskCount}
 												<span className="dashboard-pillar-split">
-													{openCount} offen · {doneCount} erledigt
+													{t('pillars.split', { open: openCount, done: doneCount })}
 												</span>
 											</dd>
 										</div>
 										<div className="dashboard-pillar-fact">
-											<dt>Wert</dt>
+											<dt>{t('pillars.value')}</dt>
 											<dd>{formatNumber(totalValue)}</dd>
 										</div>
 										<div className="dashboard-pillar-fact">
-											<dt>Aufwand</dt>
+											<dt>{t('pillars.effort')}</dt>
 											<dd>
-												{formatNumber(totalEstimatedEffort)} Tage
+												{t('pillars.effortDays', { effort: formatNumber(totalEstimatedEffort) })}
 												<span className="dashboard-pillar-split">
-													{formatNumber(openEstimatedEffort)} offen · {formatNumber(doneEstimatedEffort)} erledigt
+													{t('pillars.split', {
+														open: formatNumber(openEstimatedEffort),
+														done: formatNumber(doneEstimatedEffort),
+													})}
 												</span>
 											</dd>
 										</div>
@@ -565,22 +574,25 @@ export const Dashboard = ({
 			{/* #1361: eigener Knoten neben der Streak-Card, damit deren E2E-Locators (#1360) unberührt
 			 * bleiben. Bedingung wertet die volle `tasks`-Liste aus. */}
 			{showDayDoneHint && <DayDoneHint tasks={tasks} />}
-			<KolCard className="dashboard-balance" _label="Gesamtguthaben" _level={3}>
+			<KolCard className="dashboard-balance" _label={t('balance.label')} _level={3}>
 				{gesamtPunkte === 0 ? (
-					<p className="dashboard-empty">
-						Noch keine Punkte vergeben — schließe Tasks ab, um dein Guthaben aufzubauen.
-					</p>
+					<p className="dashboard-empty">{t('balance.empty')}</p>
 				) : (
 					<>
 						<p className="dashboard-balance-total">
-							<span data-testid="balance-total">{formatNumber(gesamtPunkte)}</span> Punkte
+							<Trans
+								t={t}
+								i18nKey="balance.total"
+								values={{ points: formatNumber(gesamtPunkte) }}
+								components={{ total: <span data-testid="balance-total" /> }}
+							/>
 						</p>
 						<ul className="dashboard-balance-list" data-testid="balance-pillar-list">
 							{pillarBalances.map(({ pillar, punkte, anteil }) => (
 								<li key={pillar.id} className="dashboard-balance-row" data-testid="balance-pillar-row">
 									<span className="dashboard-balance-name">{pillar.name}</span>
 									<span className="dashboard-balance-value">
-										{formatNumber(punkte)} Punkte ({Math.round(anteil * 100)} %)
+										{t('balance.row', { count: punkte, points: formatNumber(punkte), share: Math.round(anteil * 100) })}
 									</span>
 								</li>
 							))}
@@ -588,9 +600,9 @@ export const Dashboard = ({
 					</>
 				)}
 			</KolCard>
-			<KolCard className="dashboard-deadlines" _label="Anstehende Deadlines" _level={3}>
+			<KolCard className="dashboard-deadlines" _label={t('deadlines.label')} _level={3}>
 				{upcomingDeadlines.length === 0 ? (
-					<p className="dashboard-empty">Keine anstehenden Deadlines.</p>
+					<p className="dashboard-empty">{t('deadlines.empty')}</p>
 				) : (
 					<>
 						<ul className="dashboard-deadlines-list">

@@ -1,5 +1,6 @@
 import { KolButton } from '@public-ui/react-v19';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface CopyButtonProps {
 	text: string;
@@ -13,6 +14,7 @@ interface CopyButtonProps {
  * Wraps the copy action in a click handler for testability (see ButtonAction pattern).
  */
 export const CopyButton = ({ text, ariaLabel, onSuccess, onError }: CopyButtonProps) => {
+	const { t } = useTranslation('dashboard');
 	const [copied, setCopied] = useState(false);
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -37,7 +39,7 @@ export const CopyButton = ({ text, ariaLabel, onSuccess, onError }: CopyButtonPr
 			}
 			timeoutRef.current = setTimeout(() => setCopied(false), 2000);
 		} catch {
-			onError?.('Konnte nicht in die Zwischenablage kopiert werden. Bitte manuell markieren und kopieren.');
+			onError?.(t('copyButton.error'));
 		}
 	};
 

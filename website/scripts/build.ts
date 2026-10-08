@@ -38,10 +38,11 @@ import {
 	renderCancellationConfirm,
 	renderRobots,
 	renderSitemap,
+	SUBPAGES,
 	type Locale,
 	type Messages,
 } from '../src/render.ts';
-import { TEMPLATES } from '../src/templates.ts';
+import { TEMPLATES, TEMPLATES_EN } from '../src/templates.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
@@ -108,45 +109,28 @@ for (const locale of LOCALES) {
 	paths.push(homePath(locale), imprintPath, deletionPath);
 }
 
-// Datenschutzerklärung: eine feste deutsche Seite an der Wurzel, Footer-Link in allen Sprachen (#1672).
-write(join('datenschutz', 'index.html'), renderPrivacy({ locale: 'de', messages: de, siteUrl, allMessages }));
-paths.push('/datenschutz/');
-
-// Nutzungsbedingungen: wie die Datenschutzerklärung eine feste deutsche Seite (#1891).
-write(join('nutzungsbedingungen', 'index.html'), renderTerms({ locale: 'de', messages: de, siteUrl, allMessages }));
-paths.push('/nutzungsbedingungen/');
-
-// Widerrufsbelehrung und Muster-Widerrufsformular: feste deutsche Seite (#2307).
-write(join('widerruf', 'index.html'), renderWithdrawal({ locale: 'de', messages: de, siteUrl, allMessages }));
-paths.push('/widerruf/');
-
-// Kündigung ohne Login (#2317): feste deutsche Seite; die Bestätigungsseite des Mail-Links bleibt aus der Sitemap.
-write(join('kuendigen', 'index.html'), renderCancellation({ locale: 'de', messages: de, siteUrl, allMessages }));
-write(
-	join('kuendigen', 'bestaetigen', 'index.html'),
-	renderCancellationConfirm({ locale: 'de', messages: de, siteUrl }),
-);
-paths.push('/kuendigen/');
-
-// MCP-Anleitung (#1978): deutsch an der Wurzel, englische Schwester unter /en/, Footer-Link in allen Sprachen.
-write(join('mcp', 'index.html'), renderMcpGuide({ locale: 'de', messages: de, siteUrl, allMessages }));
-write(join('en', 'mcp', 'index.html'), renderMcpGuide({ locale: 'en', messages: en, siteUrl, allMessages }));
-paths.push('/mcp/', '/en/mcp/');
-
-// Vorlagen-Bibliothek (#1976): deutsche Übersicht und je Vorlage eine Seite.
-write(join('vorlagen', 'index.html'), renderTemplateIndex({ locale: 'de', messages: de, siteUrl }));
-paths.push('/vorlagen/');
-for (const template of TEMPLATES) {
-	write(
-		join('vorlagen', template.slug, 'index.html'),
-		renderTemplatePage({ locale: 'de', messages: de, siteUrl, template }),
-	);
-	paths.push(`/vorlagen/${template.slug}/`);
+// Unterseiten (ADR 0015): deutsch an der Wurzel, englisch unter /en/ (SUBPAGES); die übrigen Sprachen verlinken die englische.
+for (const locale of ['de', 'en'] as const) {
+	const context = { locale, messages: allMessages[locale], siteUrl, allMessages };
+	const page = (key: keyof typeof SUBPAGES, html: string, inSitemap = true): void => {
+		write(join(SUBPAGES[key][locale], 'index.html'), html);
+		if (inSitemap) paths.push(SUBPAGES[key][locale]);
+	};
+	page('privacy', renderPrivacy(context));
+	page('terms', renderTerms(context));
+	page('withdrawal', renderWithdrawal(context));
+	page('cancellation', renderCancellation(context));
+	// Die Bestätigungsseite des Mail-Links bleibt aus der Sitemap (#2317).
+	page('cancellationConfirm', renderCancellationConfirm(context), false);
+	page('mcpGuide', renderMcpGuide(context));
+	page('templates', renderTemplateIndex(context));
+	for (const template of TEMPLATES) {
+		const path = `${SUBPAGES.templates[locale]}${locale === 'de' ? template.slug : TEMPLATES_EN[template.slug].slug}/`;
+		write(join(path, 'index.html'), renderTemplatePage({ ...context, template }));
+		paths.push(path);
+	}
+	page('assessment', renderAssessment(context));
 }
-
-// Balance-Check (#1979): feste deutsche Seite ohne Sprachvarianten.
-write(join('balance-check', 'index.html'), renderAssessment({ locale: 'de', messages: de, siteUrl, allMessages }));
-paths.push('/balance-check/');
 
 write('robots.txt', renderRobots(siteUrl));
 if (siteUrl) {

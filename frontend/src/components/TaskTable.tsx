@@ -2,6 +2,7 @@ import type { KoliBriTableDataType, KoliBriTableHeaderCellWithLogic } from '@pub
 import { KolBadge, KolInputCheckbox, KolTableStateful, KolToolbar } from '@public-ui/react-v19';
 import type { ChecklistItem, Task } from 'client';
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { DependencyRef } from '../lib/dependencies';
 import { renderIntoCell } from '../lib/reactCellRoot';
 import { seriesBadge } from '../lib/series';
@@ -78,8 +79,9 @@ const renderPriorityBadge = (priority: number) => {
 export const TaskTable = memo((props: TaskTableProps) => {
 	const { tasks, dependencyMap, onEdit, onDelete, onEditDependencies, onAddSubtask, onSaveAsTemplate, onPinToggle } =
 		props;
+	const { t } = useTranslation(['tasks', 'common']);
 	if (tasks.length === 0) {
-		return <p>Noch keine Tasks vorhanden. Lege oben einen neuen Task an.</p>;
+		return <p>{t('taskList.empty')}</p>;
 	}
 
 	// #1582 AK2/AK5: angepinnte Tasks unabhängig von der Tabellensortierung immer oben.
@@ -91,7 +93,7 @@ export const TaskTable = memo((props: TaskTableProps) => {
 		estimatedEffort: task.estimatedEffort,
 		deadline: formatDeadline(task.deadline),
 		checklist: checklistProgress(task.checklist),
-		pinned: task.pinned ? 'Angepinnt' : '',
+		pinned: task.pinned ? t('taskTable.pinned') : '',
 		predecessors: dependencyMap.get(task.id)?.length ?? 0,
 		series: seriesBadge(task)?.label ?? '',
 		_task: task,
@@ -100,12 +102,12 @@ export const TaskTable = memo((props: TaskTableProps) => {
 	const headers: { horizontal: KoliBriTableHeaderCellWithLogic[][] } = {
 		horizontal: [
 			[
-				{ key: 'id', label: 'ID' },
-				{ key: 'title', label: 'Titel' },
-				{ key: 'status', label: 'Status' },
+				{ key: 'id', label: t('taskTable.columnId') },
+				{ key: 'title', label: t('taskTable.columnTitle') },
+				{ key: 'status', label: t('taskTable.columnStatus') },
 				{
 					key: 'priority',
-					label: 'Priorität',
+					label: t('taskTable.columnPriority'),
 					render: (domNode, _cell, tupel) => {
 						const priority = (tupel as TaskRow).priority;
 						const badge = renderPriorityBadge(priority);
@@ -113,19 +115,19 @@ export const TaskTable = memo((props: TaskTableProps) => {
 						renderIntoCell(domNode, badge);
 					},
 				},
-				{ key: 'estimatedEffort', label: 'Aufwand (Tage)' },
-				{ key: 'deadline', label: 'Deadline' },
-				{ key: 'checklist', label: 'Checkliste' },
+				{ key: 'estimatedEffort', label: t('taskTable.columnEffort') },
+				{ key: 'deadline', label: t('taskTable.columnDeadline') },
+				{ key: 'checklist', label: t('taskTable.columnChecklist') },
 				{
 					key: 'pinned',
-					label: 'Angepinnt',
+					label: t('taskTable.columnPinned'),
 					render: (domNode, _cell, tupel) => {
 						const row = tupel as TaskRow;
 						renderIntoCell(
 							domNode,
 							<KolInputCheckbox
 								_variant="button"
-								_label={row.pinned === '' ? `${row.title} anpinnen` : `${row.title} abpinnen`}
+								_label={t(row.pinned === '' ? 'taskTable.pinTask' : 'taskTable.unpinTask', { title: row.title })}
 								_hideLabel={true}
 								_checked={row.pinned !== ''}
 								_icons={{ checked: 'fa-solid fa-thumbtack', unchecked: 'fa-solid fa-thumbtack' }}
@@ -134,11 +136,11 @@ export const TaskTable = memo((props: TaskTableProps) => {
 						);
 					},
 				},
-				{ key: 'series', label: 'Serie' },
-				{ key: 'predecessors', label: 'Vorgänger' },
+				{ key: 'series', label: t('taskTable.columnSeries') },
+				{ key: 'predecessors', label: t('taskTable.columnPredecessors') },
 				{
 					key: 'actions',
-					label: 'Aktionen',
+					label: t('taskTable.columnActions'),
 					// Feste Breite, damit die fünf Icon-Buttons der Toolbar einzeilig bleiben (sonst Umbruch).
 					width: 264,
 					// Aktionen als `KolToolbar` (Pfeiltasten-Navigation, gruppierte Semantik). Da eine Web
@@ -152,12 +154,12 @@ export const TaskTable = memo((props: TaskTableProps) => {
 						renderIntoCell(
 							domNode,
 							<KolToolbar
-								_label={`Aktionen für ${task.title}`}
+								_label={t('actions.actionsFor', { title: task.title })}
 								_orientation="horizontal"
 								_items={[
 									{
 										type: 'button',
-										_label: 'Bearbeiten',
+										_label: t('common:actions.edit'),
 										_hideLabel: true,
 										_icons: { left: { icon: 'kolicon-cogwheel' } },
 										_variant: 'secondary',
@@ -165,7 +167,7 @@ export const TaskTable = memo((props: TaskTableProps) => {
 									},
 									{
 										type: 'button',
-										_label: 'Abhängigkeiten',
+										_label: t('actions.dependencies'),
 										_hideLabel: true,
 										_icons: { left: { icon: 'kolicon-link' } },
 										_variant: 'secondary',
@@ -173,7 +175,7 @@ export const TaskTable = memo((props: TaskTableProps) => {
 									},
 									{
 										type: 'button',
-										_label: 'Unteraufgabe anlegen',
+										_label: t('actions.addSubtask'),
 										_hideLabel: true,
 										_icons: { left: { icon: 'fa-solid fa-plus' } },
 										_variant: 'secondary',
@@ -183,7 +185,7 @@ export const TaskTable = memo((props: TaskTableProps) => {
 										// #2361: Mit Abstand vor „Löschen" (destruktive Aktion); Klartext-Label bleibt
 										// aria-label + Tooltip.
 										type: 'button',
-										_label: 'Als Vorlage speichern',
+										_label: t('common:actions.saveAsTemplate'),
 										_hideLabel: true,
 										_icons: { left: { icon: 'fa-solid fa-clone' } },
 										_variant: 'secondary',
@@ -191,7 +193,7 @@ export const TaskTable = memo((props: TaskTableProps) => {
 									},
 									{
 										type: 'button',
-										_label: 'Löschen',
+										_label: t('common:actions.delete'),
 										_hideLabel: true,
 										_icons: { left: { icon: 'fa-solid fa-trash' } },
 										_variant: 'danger',
@@ -207,7 +209,7 @@ export const TaskTable = memo((props: TaskTableProps) => {
 	};
 
 	// `_fixedCols: [0, 1]` fixiert die letzte Spalte (Aktionen) beim horizontalen Scrollen.
-	return <KolTableStateful _label="Liste aller Tasks" _data={data} _headers={headers} _fixedCols={[0, 1]} />;
+	return <KolTableStateful _label={t('taskTable.label')} _data={data} _headers={headers} _fixedCols={[0, 1]} />;
 });
 
 TaskTable.displayName = 'TaskTable';

@@ -1,6 +1,7 @@
 import { KolBadge, KolButton } from '@public-ui/react-v19';
 import type { ActivityAdvice, Pillar } from 'client';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface AdvisorResultsProps {
 	advice: ActivityAdvice[];
@@ -17,10 +18,11 @@ interface AdvisorResultsProps {
  * ({@link ./QuickCaptureModal.tsx QuickCaptureModal}) statt in einem eigenen Berater-Dialog.
  */
 export const AdvisorResults = ({ advice, pillars, onAdoptActivity }: AdvisorResultsProps) => {
+	const { t } = useTranslation('dashboard');
 	const pillarNameById = useMemo(() => new Map(pillars.map((pillar) => [pillar.id, pillar.name])), [pillars]);
 
 	if (advice.length === 0) {
-		return <p className="hint">Der Berater hat keine Vorschläge geliefert — versuche es mit einer anderen Frage.</p>;
+		return <p className="hint">{t('advisor.empty')}</p>;
 	}
 
 	return (
@@ -32,14 +34,17 @@ export const AdvisorResults = ({ advice, pillars, onAdoptActivity }: AdvisorResu
 							<span className="advisor-activity">{entry.activity}</span>
 							<span className="advisor-pillars">
 								{entry.pillarIds.map((pillarId) => (
-									<KolBadge key={pillarId} _label={pillarNameById.get(pillarId) ?? `Säule ${pillarId}`} />
+									<KolBadge
+										key={pillarId}
+										_label={pillarNameById.get(pillarId) ?? t('advisor.pillarFallback', { id: pillarId })}
+									/>
 								))}
 							</span>
 						</div>
 						{entry.reason !== '' && <p className="hint advisor-reason">{entry.reason}</p>}
 						{onAdoptActivity !== undefined && (
 							<KolButton
-								_label="Als Aufgabe übernehmen"
+								_label={t('advisor.adopt')}
 								_variant="secondary"
 								// Natives onClick statt _on.onClick: jsdom legt _on nur als inerte Property ab (kein DOM-Listener), sodass der Klick im Test nicht feuern würde.
 								onClick={() => onAdoptActivity(entry.activity)}

@@ -1,6 +1,7 @@
 import type { ChecklistItem, Task } from 'client';
 import { KolAlert, KolButton, KolInputCheckbox } from '@public-ui/react-v19';
 import { useRef, useState, type RefObject } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { toApiError } from '../lib/apiError';
 import { Modal } from './Modal';
 
@@ -38,6 +39,7 @@ export const CompleteTaskDialog = ({
 	onCompleted,
 	fallbackFocusRef,
 }: CompleteTaskDialogProps) => {
+	const { t } = useTranslation(['tasks', 'common']);
 	const [error, setError] = useState<string | null>(null);
 	const [completing, setCompleting] = useState(false);
 	const [checklist, setChecklist] = useState<ChecklistItem[]>(task.checklist ?? []);
@@ -71,31 +73,39 @@ export const CompleteTaskDialog = ({
 		}
 	};
 
-	const mainLabel = completing ? 'Wird erledigt…' : allChecked ? 'Als erledigt markieren' : 'Checkliste speichern';
+	const mainLabel = completing
+		? t('completeTask.completing')
+		: allChecked
+			? t('completeTask.markDone')
+			: t('completeTask.saveChecklist');
 
 	return (
 		<Modal
-			title="Aufgabe erledigen"
+			title={t('completeTask.title')}
 			onClose={onClose}
 			fallbackFocusRef={fallbackFocusRef}
 			initialFocusRef={cancelRef as RefObject<HTMLElement | null>}
 		>
 			{error !== null && (
 				<div role="alert">
-					<KolAlert _type="error" _label="Erledigen fehlgeschlagen">
+					<KolAlert _type="error" _label={t('completeTask.failed')}>
 						{error}
 					</KolAlert>
 				</div>
 			)}
 			<p>
-				Soll die Aufgabe <strong>„{task.title}"</strong> als erledigt markiert werden?
+				<Trans
+					t={t}
+					i18nKey="completeTask.question"
+					components={{ title: <strong>{t('common:quoted', { value: task.title })}</strong> }}
+				/>
 			</p>
 			{showChecklistSection && (
 				<div className="checklist-section" data-testid="checklist-section">
 					{checklist.map((item) => (
 						<div key={item.id} className="checklist-item" data-testid="checklist-item">
 							<KolInputCheckbox
-								_label="Erledigen"
+								_label={t('completeTask.itemLabel')}
 								_variant="switch"
 								_checked={item.completed}
 								_on={{ onChange: () => toggleItem(item.id) }}
@@ -104,7 +114,7 @@ export const CompleteTaskDialog = ({
 						</div>
 					))}
 					<KolButton
-						_label="Alle abhaken"
+						_label={t('completeTask.checkAll')}
 						_variant="secondary"
 						_disabled={completing}
 						_on={{ onClick: () => checkAllItems() }}
@@ -114,7 +124,7 @@ export const CompleteTaskDialog = ({
 			<div className="modal-actions">
 				<KolButton
 					ref={cancelRef}
-					_label="Abbrechen"
+					_label={t('common:actions.cancel')}
 					_variant="secondary"
 					_disabled={completing}
 					_on={{ onClick: () => onClose() }}

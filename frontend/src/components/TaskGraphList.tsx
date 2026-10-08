@@ -1,6 +1,7 @@
 import { KolBadge, KolButton, KolCard } from '@public-ui/react-v19';
 import type { TaskGraphEdge, TaskGraphNode } from 'client';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../lib/task';
 
 interface TaskGraphListProps {
@@ -10,10 +11,11 @@ interface TaskGraphListProps {
 	onEditDependencies: ((taskId: number) => void) | null;
 }
 
+/** i18n-Schlüssel je Status. */
 const STATUS_LABEL: Record<string, string> = {
-	Open: 'Offen',
-	'In process': 'In Arbeit',
-	Done: 'Erledigt',
+	Open: 'status.open',
+	'In process': 'status.inProcess',
+	Done: 'status.done',
 };
 
 /** Eine Kantenbeziehung aus Sicht eines Knotens: Gegenüber + Gewicht der Kante. */
@@ -35,6 +37,7 @@ interface Relation {
  * Aufgabenliste (#238) keine Tabelle mehr ist.
  */
 export const TaskGraphList = ({ nodes, edges, onEditDependencies }: TaskGraphListProps) => {
+	const { t } = useTranslation('tasks');
 	const titleById = useMemo(() => new Map(nodes.map((node) => [node.id, node.title])), [nodes]);
 
 	// Vorgänger („Hängt ab von") und Nachfolger („Ermöglicht") je Knoten aus der Kantenliste.
@@ -60,7 +63,7 @@ export const TaskGraphList = ({ nodes, edges, onEditDependencies }: TaskGraphLis
 	}, [edges, titleById]);
 
 	if (nodes.length === 0) {
-		return <p>Keine offenen Aufgaben — es gibt nichts zu verknüpfen.</p>;
+		return <p>{t('graphList.empty')}</p>;
 	}
 
 	return (
@@ -72,40 +75,49 @@ export const TaskGraphList = ({ nodes, edges, onEditDependencies }: TaskGraphLis
 					<li key={node.id} data-testid={`graph-list-item-${node.id}`}>
 						<KolCard _label={node.title} _level={4}>
 							<div className="task-graph-list-badges">
-								<KolBadge _label={`Priorität ${node.priority}`} />
-								<KolBadge _label={STATUS_LABEL[node.status] ?? node.status} />
+								<KolBadge _label={t('graphList.priority', { priority: node.priority })} />
+								<KolBadge _label={STATUS_LABEL[node.status] ? t(STATUS_LABEL[node.status]) : node.status} />
 							</div>
 							<p className="task-graph-list-meta">
-								Wert {formatNumber(node.value)} · Gesamtaufwand {formatNumber(node.totalEstimatedEffort)} Tage
-								{node.progress ? ` · ${node.progress.done}/${node.progress.total} erledigt` : ''}
+								{node.progress
+									? t('graphList.metaWithProgress', {
+											value: formatNumber(node.value),
+											effort: formatNumber(node.totalEstimatedEffort),
+											done: node.progress.done,
+											total: node.progress.total,
+										})
+									: t('graphList.meta', {
+											value: formatNumber(node.value),
+											effort: formatNumber(node.totalEstimatedEffort),
+										})}
 							</p>
-							<p className="task-graph-list-group-title">Hängt ab von</p>
+							<p className="task-graph-list-group-title">{t('graphList.dependsOn')}</p>
 							{dependsOn.length === 0 ? (
-								<p className="task-graph-list-empty">Keine Unteraufgaben.</p>
+								<p className="task-graph-list-empty">{t('graphList.noSubtasks')}</p>
 							) : (
 								<ul>
 									{dependsOn.map((relation) => (
 										<li key={relation.id}>
-											{relation.title} (Gewicht {formatNumber(relation.weight)})
+											{t('graphList.relation', { title: relation.title, weight: formatNumber(relation.weight) })}
 										</li>
 									))}
 								</ul>
 							)}
-							<p className="task-graph-list-group-title">Ermöglicht</p>
+							<p className="task-graph-list-group-title">{t('graphList.enables')}</p>
 							{enables.length === 0 ? (
-								<p className="task-graph-list-empty">Keine übergeordnete Aufgabe.</p>
+								<p className="task-graph-list-empty">{t('graphList.noParent')}</p>
 							) : (
 								<ul>
 									{enables.map((relation) => (
 										<li key={relation.id}>
-											{relation.title} (Gewicht {formatNumber(relation.weight)})
+											{t('graphList.relation', { title: relation.title, weight: formatNumber(relation.weight) })}
 										</li>
 									))}
 								</ul>
 							)}
 							{onEditDependencies !== null && (
 								<KolButton
-									_label={`Abhängigkeiten bearbeiten: ${node.title}`}
+									_label={t('graphList.editDependencies', { title: node.title })}
 									_variant="secondary"
 									_on={{ onClick: () => onEditDependencies(node.id) }}
 								/>

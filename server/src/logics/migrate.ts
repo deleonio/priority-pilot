@@ -1361,6 +1361,20 @@ export const migrateWaitlistAccessMailStatusColumn = async (db: Sequelize): Prom
 };
 
 /**
+ * Zieht `sprache` (Freischalt-Mail in der Eintragssprache) auf einer **bestehenden**
+ * `waitlist_entries`-Tabelle nach — Muster {@link migrateWaitlistAccessMailStatusColumn}. Nullable:
+ * Bestandseinträge bleiben `NULL` (Deutsch). Idempotent; ohne Tabelle ein No-op.
+ */
+export const migrateWaitlistSpracheColumn = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('waitlist_entries')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+	if (existing.length > 0 && !existing.includes('sprache')) {
+		await db.query('ALTER TABLE `waitlist_entries` ADD COLUMN `sprache` VARCHAR(255)');
+		console.log('Spalte sprache an waitlist_entries nachgezogen.');
+	}
+};
+
+/**
  * Stellt die Altpakete des Vier-Paket-Modells um (#1785): `max` wird `plus`, `ultimate` wird `pro` in
  * `users.plan`, `subscriptions.plan` und `subscriptions.pendingPlan`. Idempotent; fehlende Tabellen
  * oder Spalten sind ein No-op.

@@ -53,9 +53,10 @@ Säulen der Identität“): **Körper, Mentale Gesundheit, Beziehungen, Wirksamk
 | Wirksamkeit        | Ein kleiner, abgeschlossener Schritt kann heute guttun: eine Sache anfangen und zu Ende bringen. Fortschritt darf klein sein.            | Deine Liste ist lang, dein Tag hat Grenzen. Wähle eine Sache, die heute wirklich zählt – der Rest darf warten.                    | Du hast heute manches auf den Weg gebracht. Schön zu sehen, wie deine Pläne Form annehmen.                         |
 | Sinn               | Was gibt dir gerade Halt? Eine kurze Notiz über das, was dir wichtig ist, kann heute Orientierung schenken.                              | Nicht jede Frage braucht heute eine Antwort. Es ist erlaubt, das große Ganze eine Weile ruhen zu lassen.                          | Du richtest deinen Tag bewusst nach deinen Werten aus. Das gibt deinem Plan – und dir – Richtung.                  |
 
-## 5. Beispieltexte in den zehn App-Sprachen
+## 5. Beispieltexte
 
-Anreden folgen der jeweiligen App-Konvention: du-Form (de, en, es, it, pl, sv, pt), Sie-Form
+Die App führt Deutsch und Englisch; die übrigen Sprachen bleiben als Referenz für eine spätere
+Erweiterung. Anreden folgen der jeweiligen App-Konvention: du-Form (de, en, es, it, pl, sv, pt), Sie-Form
 (fr: vous, nl: u, ru: Вы).
 
 ### Englisch (en)
@@ -155,7 +156,7 @@ Neue Fürsorge-Texte (z. B. für eine neue Säule, einen neuen Anlass) folgen de
 1. Situation bestimmen (Defizit / Überlast / Lob), Säule benennen.
 2. Entwurf auf Deutsch nach Abschnitt 4 — warm, konkret, ohne Vorwurf.
 3. Prüffrage stellen: „Sorgt der Text, oder protokolliert er nur?“ — nur „sorgt“ zählt.
-4. Übersetzung in alle zehn App-Sprachen gemäß Abschnitt 5 (Anreden-Konvention je Sprache beachten).
+4. Übersetzung ins Englische gemäß Abschnitt 5 (Anreden-Konvention je Sprache beachten).
 5. Ablage als i18n-Key unter `frontend/src/i18n/locales/<sprache>/`, Referenztext hier ergänzen.
 
 ## 7. Zweckbestimmung und Begriffsliste

@@ -1,5 +1,6 @@
 import { Op } from 'sequelize';
 import { Task, User, NotificationLog } from '../models/index.js';
+import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { roundedDistanceKm } from './geo.js';
 import { sendPushToUser, type PushSender } from './push.js';
 import { shouldBlockFeature } from './plans.js';
@@ -127,7 +128,7 @@ const formatKm = (km: number): string =>
 	new Intl.NumberFormat('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(km);
 
 /** Baut die gebundelte Payload für den Service Worker (`push-sw.js` erwartet `title`/`body?`/`url?`). */
-const buildPayload = (tasks: NearbyGeoTask[]): { title: string; body: string; url: string } => {
+const buildPayload = (tasks: NearbyGeoTask[], sprache: CareSprache): { title: string; body: string; url: string } => {
 	if (tasks.length === 1) {
 		const [task] = tasks;
 		return { title: task.title, body: `${formatKm(task.distanceKm)} km`, url: `/tasks/${task.id}` };
@@ -135,7 +136,8 @@ const buildPayload = (tasks: NearbyGeoTask[]): { title: string; body: string; ur
 	// F4: Bei mehreren Tasks auf die nächstgelegene Aufgabe verlinken (Deep-Link nach AK5).
 	const nearest = tasks.reduce((min, task) => (task.distanceKm < min.distanceKm ? task : min));
 	const lines = tasks.map((task) => `${task.title} (${formatKm(task.distanceKm)} km)`);
-	return { title: `${tasks.length} Aufgaben in der Nähe`, body: lines.join(', '), url: `/tasks/${nearest.id}` };
+	const title = sprache === 'en' ? `${tasks.length} tasks nearby` : `${tasks.length} Aufgaben in der Nähe`;
+	return { title, body: lines.join(', '), url: `/tasks/${nearest.id}` };
 };
 
 /**
@@ -159,11 +161,12 @@ export const runGeoPushNotifications = async (
 		// #1457 AK9: Standort-Push ist Teil von `location_reminders`. Bei eingeschaltetem Rollout
 		// bekommt ein Nutzer ohne passendes Paket keine Nachricht — die Entscheidung fällt wie in
 		// jedem Guard allein `shouldBlockFeature()`, damit die Matrix in `plans.ts` bleibt.
-		const plan = (await User.findByPk(group.userId))?.plan;
+		const user = await User.findByPk(group.userId);
+		const plan = user?.plan;
 		if (plan !== undefined && shouldBlockFeature(plan, 'location_reminders')) {
 			return;
 		}
-		const { sent } = await sendPushToUser(group.userId, buildPayload(group.tasks), send);
+		const { sent } = await sendPushToUser(group.userId, buildPayload(group.tasks, spracheVon(user?.sprache)), send);
 		if (sent > 0) {
 			await NotificationLog.bulkCreate(
 				group.tasks.map((task) => ({

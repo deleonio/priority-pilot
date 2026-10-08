@@ -72,6 +72,31 @@ describe('invoices.ts — issueInvoiceForPeriod (#1495 AK8)', () => {
 	};
 	type Sent = { subject: string; attachments?: { content: unknown }[] };
 
+	it('App-Sprache en: englische Rechnungsmail, das PDF bleibt der deutsche Beleg', async () => {
+		const user = await User.create({
+			email: 'invoice-en@example.com',
+			displayName: 'En',
+			passwordHash: 'x',
+			sprache: 'en',
+		});
+		const subscription = await Subscription.create({
+			userId: user.get('id') as number,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-INVOICE-EN',
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date('2026-04-01T00:00:00Z'),
+		});
+		const sent: { subject: string; text: string }[] = [];
+		await issueInvoiceForPeriod(subscription, now, async (payload) => {
+			sent.push({ subject: payload.subject, text: payload.text });
+		});
+		assert.match(sent[0].subject, /^Your invoice /);
+		assert.match(sent[0].text, /Plan: Plus \(monthly\)/);
+		assert.match(sent[0].text, /issued in German/);
+	});
+
 	it('#2030 AK1: unzugestellte Rechnung wird im Folgelauf erneut versendet (gleiche Nummer, gleiche PDF-Bytes)', async () => {
 		const sub = await makeSub('retry@example.com', 'I-RETRY', '2026-04-01T00:00:00Z');
 		const first = await issueInvoiceForPeriod(sub, now, failing);

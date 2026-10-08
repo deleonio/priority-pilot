@@ -1,5 +1,6 @@
 import { KolAccordion, KolAlert, KolButton, KolDetails } from '@public-ui/react-v19';
 import { useEffect, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api, type PlaceFavoriteView } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useFollowingOpen } from '../lib/useFollowingOpen';
@@ -31,6 +32,7 @@ const ButtonAction = ({ onClick, children }: { onClick: () => void; children: Re
  * Zeilen-Aktionen statt Tabelle (Mobile-Regel 3).
  */
 export const PlaceFavoritesSection = ({ open = true }: { open?: boolean }) => {
+	const { t } = useTranslation(['taskForm', 'common']);
 	const accordion = useFollowingOpen(open);
 	const listDetails = useFollowingOpen(open);
 	const [favorites, setFavorites] = useState<PlaceFavoriteView[]>([]);
@@ -50,17 +52,17 @@ export const PlaceFavoritesSection = ({ open = true }: { open?: boolean }) => {
 				if (active) setFavorites(list ?? []);
 			})
 			.catch(() => {
-				if (active) setError('Die gespeicherten Orte konnten nicht geladen werden.');
+				if (active) setError(t('placeFavorites.loadFailed'));
 			});
 		return () => {
 			active = false;
 		};
-	}, []);
+	}, [t]);
 
 	const handleCreate = async (): Promise<void> => {
 		const trimmedAddress = address.trim();
 		if (trimmedAddress === '') {
-			setError('Bitte eine Adresse angeben.');
+			setError(t('placeFavorites.addressRequired'));
 			return;
 		}
 		setError(null);
@@ -87,21 +89,18 @@ export const PlaceFavoritesSection = ({ open = true }: { open?: boolean }) => {
 
 	return (
 		<div className="api-tokens" data-testid="place-favorites-panel">
-			<KolAccordion className="settings-card" _label="Gespeicherte Orte" _level={2} {...accordion}>
+			<KolAccordion className="settings-card" _label={t('placeFavorites.title')} _level={2} {...accordion}>
 				{/* #1484 (T3b AK3): Grenzstelle `location_reminders` — Badge als erstes Element im
 				    Kartenkörper, weil der Titel über die KoliBri-Prop `_label` läuft (KI-UX-Block). */}
 				<PlanBadge feature="location_reminders" />
 				<div className="api-tokens__create">
-					<p>
-						Hinterlegte Orte stehen im Adressfeld von Aufgabe und Serie oben in der Vorschlagsliste — ein Klick
-						übernimmt die Adresse.
-					</p>
+					<p>{t('placeFavorites.intro')}</p>
 					{/* #1595 (AK5): dieselbe Vervollständigung wie im Aufgabenformular — ab drei Zeichen
 					    Vorschläge, per Tastatur bedienbar, die Auswahl übernimmt Adresse UND Koordinaten.
 					    Ohne `onSaveFavorite`: der Stern in der Trefferzeile wäre hier der zweite Weg zur
 					    selben Aktion wie der „Anlegen"-Knopf darunter. */}
 					<AddressAutocomplete
-						label="Adresse"
+						label={t('placeFavorites.address')}
 						/* Die Karte weist die Grenzstelle `location_reminders` oben schon aus (#1484 AK3) —
 						   ein zweites Badge direkt darunter wäre reine Wiederholung. */
 						showPlanBadge={false}
@@ -117,17 +116,22 @@ export const PlaceFavoritesSection = ({ open = true }: { open?: boolean }) => {
 						}}
 					/>
 					<ButtonAction onClick={() => void handleCreate()}>
-						<KolButton _label="Anlegen" class="settings-action-btn" _variant="primary" _disabled={busy} />
+						<KolButton
+							_label={t('common:actions.create')}
+							class="settings-action-btn"
+							_variant="primary"
+							_disabled={busy}
+						/>
 					</ButtonAction>
 					{error !== null && (
-						<KolAlert _type="error" _label="Fehler">
+						<KolAlert _type="error" _label={t('placeFavorites.error')}>
 							{error}
 						</KolAlert>
 					)}
 				</div>
-				<KolDetails _label="Meine Orte" _level={3} {...listDetails}>
+				<KolDetails _label={t('placeFavorites.myPlaces')} _level={3} {...listDetails}>
 					{favorites.length === 0 ? (
-						<p>Noch kein Ort hinterlegt.</p>
+						<p>{t('placeFavorites.empty')}</p>
 					) : (
 						<ul className="api-tokens__list">
 							{favorites.map((favorite) => (
@@ -146,7 +150,8 @@ export const PlaceFavoritesSection = ({ open = true }: { open?: boolean }) => {
 											_variant="danger"
 										>
 											<span slot="expert">
-												Löschen<span className="visually-hidden">{` ${favorite.address}`}</span>
+												{t('common:actions.delete')}
+												<span className="visually-hidden">{` ${favorite.address}`}</span>
 											</span>
 										</KolButton>
 									</ButtonAction>
@@ -162,9 +167,9 @@ export const PlaceFavoritesSection = ({ open = true }: { open?: boolean }) => {
 			    Adressfeldern von Aufgabe und Serie. */}
 			{deleteTarget !== null && (
 				<ConfirmDeleteDialog
-					title="Ort löschen"
-					body={<p>Wirklich löschen? Der Ort verschwindet aus dem Adressfeld von Aufgabe und Serie.</p>}
-					confirmLabel="Endgültig löschen"
+					title={t('placeFavorites.deleteTitle')}
+					body={<p>{t('placeFavorites.deleteBody')}</p>}
+					confirmLabel={t('placeFavorites.deleteConfirm')}
 					onConfirm={() => api.deletePlaceFavorite({ id: deleteTarget.id })}
 					onClose={() => setDeleteTarget(null)}
 					onDeleted={() => {

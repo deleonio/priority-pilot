@@ -250,7 +250,7 @@
 		"cancellation": "Cancel contract here",
 		"mcpGuide": "MCP guide",
 		"templates": "Templates",
-		"legalGermanOnly": "Legal texts are only available in German; the German version is binding."
+		"legalGermanOnly": "Legal texts in English for convenience; the German version is binding."
 	},
 	"imprint": {
 		"title": "Imprint",
@@ -272,10 +272,10 @@
 		"inAppTitle": "In the app",
 		"steps": [
 			"Open Balamentum and sign in.",
-			"Open the settings, tab “Allgemein” (General).",
-			"In the “Konto” (Account) card, tap “Delete account” and confirm both steps."
+			"Open the settings, tab “General”.",
+			"In the “Account” card, tap “Delete account” and confirm both steps."
 		],
-		"blocked": "If a subscription is still running, cancel it first in the “Abo” (Subscription) tab. If you are the last admin of a group with other members, first make someone else an admin or dissolve the group.",
+		"blocked": "If a subscription is still running, cancel it first in the “Plans & subscription” tab. If you are the last admin of a group with other members, first make someone else an admin or dissolve the group.",
 		"deletedTitle": "What is deleted",
 		"deleted": "Your account with all tasks, series, pillars, categories, settings, access tokens and push registrations. Groups in which you are the only member are deleted as well. Tasks you created for others in groups stay with the recipients, without you as the creator.",
 		"keptTitle": "What is kept",

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ResponseError } from 'client';
 import { api } from '../api';
 import { startNativeGoogleLogin } from '../lib/nativeAuth';
@@ -8,11 +9,11 @@ import { Modal } from './Modal';
 
 type ErrorParam = string | null;
 
-const ERROR_MESSAGES: Record<string, string> = {
-	access_denied: 'Der Zugriff wurde verweigert. Bitte versuche es erneut.',
-	invalid_email: 'Deine E-Mail-Adresse ist nicht zugelassen. Bitte wende dich an den Administrator.',
-	magic_link_invalid: 'Der Anmeldelink ist abgelaufen oder wurde schon benutzt. Fordere einfach einen neuen an.',
-	native_login_failed: 'Die Anmeldung in der App ist fehlgeschlagen. Bitte versuche es erneut.',
+const ERROR_KEYS: Record<string, string> = {
+	access_denied: 'login.errors.accessDenied',
+	invalid_email: 'login.errors.invalidEmail',
+	magic_link_invalid: 'login.errors.magicLinkInvalid',
+	native_login_failed: 'login.errors.nativeLoginFailed',
 };
 
 function getErrorFromSearch(): ErrorParam {
@@ -29,22 +30,14 @@ type MagicLinkState = 'idle' | 'sending' | 'sent' | 'failed';
 type ReviewLoginState = 'idle' | 'sending' | 'failed' | 'throttled';
 type WaitlistState = 'idle' | 'sending' | 'done' | 'failed';
 
-function getErrorMessage(error: string): string {
-	return ERROR_MESSAGES[error] ?? 'Ein unbekannter Anmeldefehler ist aufgetreten. Bitte versuche es erneut.';
-}
-
 // Prüfzugang für Google Play (#2426): so viele Taps auf die Wortmarke öffnen den Dialog; eine längere
 // Pause dazwischen beginnt die Zählung neu.
 const REVIEW_TAPS = 7;
 const REVIEW_TAP_PAUSE_MS = 2000;
 
-const REVIEW_ERRORS: Record<'failed' | 'throttled', string> = {
-	failed: 'Passwort stimmt nicht.',
-	throttled: 'Zu viele Versuche. Bitte in einigen Minuten erneut versuchen.',
-};
-
 /** Passwort-Dialog des Prüfzugangs; nach Erfolg lädt die App neu und startet angemeldet. */
 const ReviewLoginDialog = ({ onClose }: { onClose: () => void }) => {
+	const { t } = useTranslation('onboarding');
 	const [password, setPassword] = useState('');
 	const [state, setState] = useState<ReviewLoginState>('idle');
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -61,10 +54,10 @@ const ReviewLoginDialog = ({ onClose }: { onClose: () => void }) => {
 	};
 
 	return (
-		<Modal title="Prüfzugang" onClose={onClose} initialFocusRef={inputRef}>
+		<Modal title={t('login.review.title')} onClose={onClose} initialFocusRef={inputRef}>
 			<form onSubmit={handleSubmit} className="login-page__form">
 				<label className="login-page__label" htmlFor="review-password">
-					Passwort
+					{t('login.review.password')}
 				</label>
 				<input
 					ref={inputRef}
@@ -81,11 +74,11 @@ const ReviewLoginDialog = ({ onClose }: { onClose: () => void }) => {
 				/>
 				{(state === 'failed' || state === 'throttled') && (
 					<p id="review-password-error" role="alert" className="login-page__alert">
-						{REVIEW_ERRORS[state]}
+						{t(`login.review.${state}`)}
 					</p>
 				)}
 				<button type="submit" disabled={state === 'sending'} className="login-page__btn login-page__btn--primary">
-					{state === 'sending' ? 'Anmeldung läuft …' : 'Anmelden'}
+					{state === 'sending' ? t('login.review.sending') : t('login.review.submit')}
 				</button>
 			</form>
 		</Modal>
@@ -102,6 +95,7 @@ const ReviewLoginDialog = ({ onClose }: { onClose: () => void }) => {
 // unauthentifiziert NICHT sichtbar ist, und `getByRole('heading', { name })` matcht per Default
 // als Teilstring — das Logo-Bild ist kein Heading und kollidiert damit nicht.
 export const LoginPage = () => {
+	const { t, i18n } = useTranslation('onboarding');
 	const [error] = useState<ErrorParam>(getErrorFromSearch);
 	// Magic Link nur anbieten, wenn die Instanz SMTP konfiguriert hat (GET /auth/providers).
 	// Tab-Session-Cache: Wiederkehrende Besuche (OAuth-Redirect, Logout, Session-Ablauf) rendern die
@@ -228,12 +222,12 @@ export const LoginPage = () => {
 					/>
 				</div>
 				<div className="login-page__card">
-					<h1 className="login-page__title">Anmelden</h1>
-					<p className="login-page__sub">Melde dich an, um fortzufahren.</p>
+					<h1 className="login-page__title">{t('login.title')}</h1>
+					<p className="login-page__sub">{t('login.sub')}</p>
 
 					{error !== null && (
 						<div role="alert" className="login-page__alert">
-							{getErrorMessage(error)}
+							{t(ERROR_KEYS[error] ?? 'login.errors.unknown')}
 						</div>
 					)}
 
@@ -259,14 +253,14 @@ export const LoginPage = () => {
 								/>
 							</svg>
 						</span>
-						Mit Google anmelden
+						{t('login.google')}
 					</button>
 
 					{magicLinkEnabled && (
 						<form onSubmit={handleMagicLink} className="login-page__form">
-							<p className="login-page__divider">oder</p>
+							<p className="login-page__divider">{t('login.or')}</p>
 							<label className="login-page__label" htmlFor="magic-link-email">
-								Anmeldelink per E-Mail
+								{t('login.magicLinkLabel')}
 							</label>
 							<input
 								id="magic-link-email"
@@ -275,7 +269,7 @@ export const LoginPage = () => {
 								type="email"
 								autoComplete="email"
 								required
-								placeholder="name@beispiel.de"
+								placeholder={t('login.emailPlaceholder')}
 								value={email}
 								onChange={(event) => setEmail(event.target.value)}
 								className="login-page__input"
@@ -285,16 +279,16 @@ export const LoginPage = () => {
 								disabled={magicLinkState === 'sending'}
 								className="login-page__btn login-page__btn--secondary"
 							>
-								{magicLinkState === 'sending' ? 'Wird gesendet …' : 'Anmeldelink senden'}
+								{magicLinkState === 'sending' ? t('login.sending') : t('login.sendLink')}
 							</button>
 							{magicLinkState === 'sent' && (
 								<p role="status" className="login-page__status">
-									Falls die Adresse zugelassen ist, ist ein Anmeldelink unterwegs. Schau in dein Postfach.
+									{t('login.sent')}
 								</p>
 							)}
 							{magicLinkState === 'failed' && (
 								<p role="alert" className="login-page__alert">
-									Der Link konnte gerade nicht angefordert werden. Bitte versuche es gleich noch einmal.
+									{t('login.sendFailed')}
 								</p>
 							)}
 						</form>
@@ -305,17 +299,17 @@ export const LoginPage = () => {
 					    Anmeldung (immer sichtbar, nicht an SMTP/magicLink gebunden). Duplikat-Eintrag ist
 					    Erfolg: Position + Empfehlungs-Link erscheinen erneut (AK1/AK5). */}
 				<div className="login-page__card">
-					<h2 className="login-page__card-title">Noch ohne Zugang?</h2>
+					<h2 className="login-page__card-title">{t('login.waitlistTitle')}</h2>
 					<form onSubmit={handleWaitlistJoin} className="login-page__form">
 						<label className="login-page__label" htmlFor="waitlist-email">
-							Auf die Warteliste per E-Mail
+							{t('login.waitlistLabel')}
 						</label>
 						<input
 							id="waitlist-email"
 							type="email"
 							autoComplete="email"
 							required
-							placeholder="name@beispiel.de"
+							placeholder={t('login.emailPlaceholder')}
 							value={waitlistEmail}
 							onChange={(event) => setWaitlistEmail(event.target.value)}
 							className="login-page__input"
@@ -325,15 +319,15 @@ export const LoginPage = () => {
 							disabled={waitlistState === 'sending'}
 							className="login-page__btn login-page__btn--secondary"
 						>
-							{waitlistState === 'sending' ? 'Wird eingetragen …' : 'Auf die Warteliste'}
+							{waitlistState === 'sending' ? t('login.joining') : t('login.join')}
 						</button>
 						{waitlistState === 'done' && waitlistResult !== null && (
 							<>
 								<p role="status" className="login-page__status login-page__status--waitlist">
 									<span>
-										Position {waitlistResult.position}
-										{typeof waitlistResult.total === 'number' ? ` von ${waitlistResult.total}` : ''} — je mehr
-										Freundinnen und Freunde du einlädst, desto weiter rückst du auf.
+										{typeof waitlistResult.total === 'number'
+											? t('login.positionOf', { position: waitlistResult.position, total: waitlistResult.total })
+											: t('login.position', { position: waitlistResult.position })}
 									</span>
 									<a
 										className="login-page__ref-link"
@@ -342,7 +336,7 @@ export const LoginPage = () => {
 										rel="noopener noreferrer"
 									>
 										{waitlistResult.link}
-										<span className="visually-hidden"> (öffnet in neuem Tab)</span>
+										<span className="visually-hidden"> {t('login.newTab')}</span>
 									</a>
 								</p>
 								<button
@@ -351,13 +345,13 @@ export const LoginPage = () => {
 									aria-live="polite"
 									className="login-page__btn login-page__btn--secondary"
 								>
-									{referralCopied ? 'Kopiert ✓' : 'Empfehlungs-Link kopieren'}
+									{referralCopied ? t('login.copied') : t('login.copyLink')}
 								</button>
 							</>
 						)}
 						{waitlistState === 'failed' && (
 							<p role="alert" className="login-page__alert">
-								Der Eintrag auf die Warteliste hat gerade nicht geklappt. Bitte versuche es gleich noch einmal.
+								{t('login.waitlistFailed')}
 							</p>
 						)}
 					</form>
@@ -367,8 +361,12 @@ export const LoginPage = () => {
 
 				{/* Zurück zur öffentlichen Website — nur im Web, in der App gibt es dort nichts (#1769) */}
 				{!isNativeChannel() && (
-					<a className="login-page__back" href="/" aria-label="Balamentum: Zurück zur Website">
-						Zurück zur Website
+					<a
+						className="login-page__back"
+						href={(i18n.resolvedLanguage ?? i18n.language) === 'en' ? '/en/' : '/'}
+						aria-label={t('login.backAria')}
+					>
+						{t('login.back')}
 					</a>
 				)}
 			</div>

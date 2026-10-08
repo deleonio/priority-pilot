@@ -1,9 +1,9 @@
 import { OPERATOR } from '../../frontend/src/lib/operator.ts';
 
 /**
- * Text der Datenschutzerklärung (#1672): nur Deutsch, feste URL `/datenschutz/`. Liegt als Modul
- * neben dem Renderer und nicht in den i18n-Dateien, weil der Key-Parity-Test den Text sonst in
- * alle zehn Sprachen duplizieren würde.
+ * Text der Datenschutzerklärung (#1672): Deutsch unter der festen URL `/datenschutz/` (verbindlich),
+ * Englisch unter `/en/privacy/` als Übersetzung. Liegt als Modul neben dem Renderer und nicht in den
+ * i18n-Dateien, weil der Key-Parity-Test den Text sonst in alle zehn Sprachen duplizieren würde.
  */
 export interface PrivacySection {
 	heading: string;
@@ -12,9 +12,22 @@ export interface PrivacySection {
 	facts?: { purpose: string; legalBasis: string; retention: string; recipients: string };
 }
 
-const ACCOUNT_LIFETIME = 'bis du dein Konto löschst; beim Löschen des Kontos werden die Daten sofort entfernt.';
+export interface PrivacyText {
+	title: string;
+	intro: string;
+	description: string;
+	/** Beschriftung der Pflichtangaben in `facts`. */
+	factLabels: { purpose: string; legalBasis: string; retention: string; recipients: string };
+	sections: PrivacySection[];
+}
 
-export const PRIVACY: { intro: string; description: string; sections: PrivacySection[] } = {
+const ACCOUNT_LIFETIME = 'bis du dein Konto löschst; beim Löschen des Kontos werden die Daten sofort entfernt.';
+const ACCOUNT_LIFETIME_EN =
+	'until you delete your account; when the account is deleted, the data is removed immediately.';
+
+const DE: PrivacyText = {
+	title: 'Datenschutz',
+	factLabels: { purpose: 'Zweck', legalBasis: 'Rechtsgrundlage', retention: 'Speicherdauer', recipients: 'Empfänger' },
 	intro:
 		'Balamentum kommt mit so wenig Daten wie möglich aus. Diese Erklärung zählt auf, welche Daten wir wofür verarbeiten, wer sie außerdem sieht und welche Rechte du hast.',
 	description:
@@ -221,3 +234,209 @@ export const PRIVACY: { intro: string; description: string; sections: PrivacySec
 		},
 	],
 };
+
+const EN: PrivacyText = {
+	title: 'Privacy policy',
+	factLabels: {
+		purpose: 'Purpose',
+		legalBasis: 'Legal basis',
+		retention: 'Retention period',
+		recipients: 'Recipients',
+	},
+	intro:
+		'Balamentum gets by with as little data as possible. This policy lists which data we process for what purpose, who else sees it and which rights you have.',
+	description:
+		'Privacy policy of Balamentum: data minimisation, no analysis, sharing only with the services involved, HTTPS encryption and your rights.',
+	sections: [
+		{
+			heading: 'Controller',
+			paragraphs: [
+				`${[OPERATOR.name, ...OPERATOR.address].join(', ')}. Contact for all privacy questions: ${OPERATOR.email}.`,
+			],
+		},
+		{
+			heading: 'Data minimisation',
+			paragraphs: [
+				'We only collect and store the data the service needs: the name and email address of your account as well as your tasks, series and settings. We do not ask for anything else.',
+			],
+		},
+		{
+			heading: 'No analysis',
+			paragraphs: [
+				'We do not analyse your data. There is no usage profile, no tracking and no advertising; the content of your tasks serves your own planning alone.',
+				'The only exception is an anonymous count of whether care suggestions help: how often suggestions are shown, accepted or declined (without reference to your account) and how many accounts are still completing tasks 4 and 12 weeks after sign-up, split by care hints switched on and off. For this we store when you switch the care hints on or off; this history is deleted with your account. Only totals are evaluated; groups of fewer than five people are not reported.',
+			],
+		},
+		{
+			heading: 'Sharing only with the services involved',
+			paragraphs: [
+				'We do not sell your data and do not pass it on for other purposes. The recipients named in the following sections only receive the information their respective task requires, and only if you use the corresponding feature.',
+			],
+		},
+		{
+			heading: 'Encryption',
+			paragraphs: [
+				'All connections between app, website and server are encrypted via HTTPS. We store sign-in links and access tokens only as a hash, never in plain text.',
+			],
+		},
+		{
+			heading: 'Sign-in (Google login and email link)',
+			paragraphs: [],
+			facts: {
+				purpose:
+					'Signing in and maintaining your account. You sign in with your Google account or with a sign-in link sent by email; we store your name and email address.',
+				legalBasis: 'Art. 6(1)(b) GDPR (contract for the use of the app).',
+				retention: `Account data ${ACCOUNT_LIFETIME_EN} Sign-in links are valid for 15 minutes and are deleted shortly after they expire.`,
+				recipients:
+					'Google (Google login), if you choose this sign-in method; our email delivery provider for the sign-in link.',
+			},
+		},
+		{
+			heading: 'Location and saved places',
+			paragraphs: [],
+			facts: {
+				purpose:
+					'Showing tasks near you, searching addresses and saving places as favourites. Your device only determines your location if you switch on the location feature.',
+				legalBasis: 'Art. 6(1)(a) GDPR (consent by switching on the feature).',
+				retention: `Saved places, addresses on tasks and your distance settings ${ACCOUNT_LIFETIME_EN}`,
+				recipients:
+					'Photon (komoot) and Nominatim (OpenStreetMap Foundation) for address search and converting coordinates into addresses.',
+			},
+		},
+		{
+			heading: 'Push notifications',
+			paragraphs: [],
+			facts: {
+				purpose: 'Sending reminders and hints as push notifications to your devices, if you allow it.',
+				legalBasis: 'Art. 6(1)(a) GDPR (consent via the push permission).',
+				retention: 'The device address for push notifications, until you switch off push or delete your account.',
+				recipients:
+					'The push service of your browser (for example Google, Mozilla or Apple) and Firebase Cloud Messaging (Google) in the Android app.',
+			},
+		},
+		{
+			heading: 'AI providers',
+			paragraphs: [],
+			facts: {
+				purpose:
+					'AI features such as suggestions and writing help. For this we send the text of your request to an AI provider and count the monthly usage.',
+				legalBasis: 'Art. 6(1)(b) GDPR (contract), only when you use an AI feature.',
+				retention: `The provider processes the request to answer it; we only keep the monthly usage counter and your provider settings, ${ACCOUNT_LIFETIME_EN}`,
+				recipients: 'Mistral AI or OpenRouter, or the AI provider you enter yourself.',
+			},
+		},
+		{
+			heading: 'Payments via PayPal',
+			paragraphs: [],
+			facts: {
+				purpose: 'Taking out and billing a subscription via PayPal.',
+				legalBasis: 'Art. 6(1)(b) GDPR (contract).',
+				retention:
+					'Subscription records and payment receipts for the statutory retention period, even beyond the deletion of the account (see Invoices).',
+				recipients: 'PayPal (Europe) S.à r.l. et Cie, S.C.A.',
+			},
+		},
+		{
+			heading: 'Purchases via Google Play',
+			paragraphs: [],
+			facts: {
+				purpose: 'Buying and billing subscriptions within the Android app; we verify the purchase with Google.',
+				legalBasis: 'Art. 6(1)(b) GDPR (contract).',
+				retention:
+					'Subscription records and payment receipts for the statutory retention period, even beyond the deletion of the account (see Invoices).',
+				recipients: 'Google (Google Play).',
+			},
+		},
+		{
+			heading: 'Invoices',
+			paragraphs: [],
+			facts: {
+				purpose: 'Creating invoices for paid subscriptions and sending them by email.',
+				legalBasis: 'Art. 6(1)(c) GDPR (obligations under tax law).',
+				retention:
+					'For the statutory retention period (currently 8 years, Section 147(3) of the German Fiscal Code (AO), Section 14b(1) of the German VAT Act (UStG)), even beyond the deletion of the account; an active subscription prevents the account from being deleted.',
+				recipients:
+					'Our email delivery provider; in the event of audits, tax advisers and tax authorities where applicable.',
+			},
+		},
+		{
+			heading: 'Feedback',
+			paragraphs: [],
+			facts: {
+				purpose:
+					'Reading feedback you send in the app and improving the app. Together with the feedback we store your email address so that we can follow up.',
+				legalBasis: 'Art. 6(1)(f) GDPR (legitimate interest in improving the app).',
+				retention:
+					'Feedback is kept with your email address in our GitHub repository until we have dealt with it; when you delete your account, we remove it there. On request we also delete it earlier.',
+				recipients: 'GitHub, where we store the feedback including the email address for processing.',
+			},
+		},
+		{
+			heading: 'Groups and invitations',
+			paragraphs: [],
+			facts: {
+				purpose:
+					'Sharing tasks with others in a group. We store who belongs to which group, who invited whom and the invitation links.',
+				legalBasis: 'Art. 6(1)(b) GDPR (contract), only if you use a group.',
+				retention:
+					'Memberships and invitations, until you leave the group, the invitation is settled or you delete your account; when the account is deleted, they are removed immediately.',
+				recipients: 'The other members of the group see the shared tasks and your name.',
+			},
+		},
+		{
+			heading: 'Email notifications',
+			paragraphs: [],
+			facts: {
+				purpose:
+					'Reminders of due tasks as well as notes on completed tasks and newly created series dates by email to the address of your account.',
+				legalBasis: 'Art. 6(1)(b) GDPR (contract).',
+				retention: `A delivery log against duplicate messages, ${ACCOUNT_LIFETIME_EN}`,
+				recipients: 'Our email delivery provider.',
+			},
+		},
+		{
+			heading: 'Operation, hosting and session cookie',
+			paragraphs: [],
+			facts: {
+				purpose:
+					'Providing the app and the website. After sign-in, the server sets a session cookie plus a cookie that only indicates the signed-in state; both are technically necessary (Section 25(2) of the German TDDDG).',
+				legalBasis: 'Art. 6(1)(b) GDPR (contract) and (f) (legitimate interest in secure operation).',
+				retention: 'The cookies until you sign out or until the session expires.',
+				recipients:
+					'Our hosting provider Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Germany, which operates the server on our behalf in Germany (Art. 28 GDPR).',
+			},
+		},
+		{
+			heading: 'MCP access with access tokens',
+			paragraphs: [],
+			facts: {
+				purpose:
+					'Access to your tasks from your own tools (for example AI assistants via MCP) with an access token you create yourself.',
+				legalBasis: 'Art. 6(1)(b) GDPR (contract), only if you create an access token.',
+				retention: 'We store the token only as a hash, until you revoke it or delete your account.',
+				recipients: 'None on our part. The tool you give the token to receives the requested data on your behalf.',
+			},
+		},
+		{
+			heading: 'Android app',
+			paragraphs: [],
+			facts: {
+				purpose:
+					'The Android app shows the same web app as the browser; in addition it uses push notifications and purchases via Google Play.',
+				legalBasis: 'Art. 6(1)(b) GDPR (contract).',
+				retention: 'The periods of the individual features above apply.',
+				recipients: 'Google (Google Play, Firebase Cloud Messaging).',
+			},
+		},
+		{
+			heading: 'Your rights',
+			paragraphs: [
+				'You have the right of access (Art. 15 GDPR), rectification (Art. 16), erasure (Art. 17), restriction of processing (Art. 18), data portability (Art. 20) and objection (Art. 21). You can withdraw consent at any time, for example by switching off the feature. You can delete your account yourself in the settings.',
+				`To do so, write to us at ${OPERATOR.email}.`,
+				'You also have the right to lodge a complaint with a supervisory authority (Art. 77 GDPR). The authority responsible for us is the Thuringian State Commissioner for Data Protection and Freedom of Information (Thüringer Landesbeauftragter für den Datenschutz und die Informationsfreiheit), Häßlerstraße 8, 99096 Erfurt, Germany.',
+			],
+		},
+	],
+};
+
+export const PRIVACY: Record<'de' | 'en', PrivacyText> = { de: DE, en: EN };

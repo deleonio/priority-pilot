@@ -1,0 +1,183 @@
+{
+	"actions": {
+		"actionsFor": "Actions for {{title}}",
+		"dependencies": "Dependencies",
+		"addSubtask": "Add subtask",
+		"editDependencies": "Edit dependencies",
+		"reopen": "Reopen",
+		"done": "Done",
+		"pin": "Pin",
+		"unpin": "Unpin",
+		"deadline": "Deadline {{date}}"
+	},
+	"status": {
+		"open": "Open",
+		"inProcess": "In progress",
+		"done": "Done"
+	},
+	"taskList": {
+		"empty": "No tasks yet. Create a new task above."
+	},
+	"taskTable": {
+		"label": "List of all tasks",
+		"pinned": "Pinned",
+		"columnId": "ID",
+		"columnTitle": "Title",
+		"columnStatus": "Status",
+		"columnPriority": "Priority",
+		"columnEffort": "Effort (days)",
+		"columnDeadline": "Deadline",
+		"columnChecklist": "Checklist",
+		"columnPinned": "Pinned",
+		"columnSeries": "Series",
+		"columnPredecessors": "Predecessors",
+		"columnActions": "Actions",
+		"pinTask": "Pin {{title}}",
+		"unpinTask": "Unpin {{title}}"
+	},
+	"taskTree": {
+		"aiSuitability": {
+			"draft": "Draft",
+			"summary": "Summary",
+			"research": "Research"
+		},
+		"doneBlocked": "Done (subtasks open)",
+		"forUser": "For: {{name}}",
+		"createdBy": "Created by: {{name}}",
+		"changed": "changed",
+		"moreActions": "More actions"
+	},
+	"graphCanvas": {
+		"toolbarLabel": "Task graph view",
+		"fitView": "Fit view",
+		"zoomIn": "Zoom in",
+		"zoomOut": "Zoom out"
+	},
+	"graphList": {
+		"empty": "No open tasks — there is nothing to link.",
+		"priority": "Priority {{priority}}",
+		"meta": "Value {{value}} · Total effort {{effort}} days",
+		"metaWithProgress": "Value {{value}} · Total effort {{effort}} days · {{done}}/{{total}} done",
+		"dependsOn": "Depends on",
+		"noSubtasks": "No subtasks.",
+		"enables": "Enables",
+		"noParent": "No parent task.",
+		"relation": "{{title}} (weight {{weight}})",
+		"editDependencies": "Edit dependencies: {{title}}"
+	},
+	"graphNode": {
+		"value": "Value {{value}}",
+		"progress": "{{done}}/{{total}} done"
+	},
+	"graphPanel": {
+		"heading": "Prioritization",
+		"loadError": "The task graph could not be loaded",
+		"retry": "Try again",
+		"loading": "Loading graph",
+		"emptyTitle": "No linked tasks yet",
+		"emptyText": "The graph shows tasks that depend on each other. In the “Tasks” tab, link two tasks via “Dependencies” — the first tree will then appear here.",
+		"graphHeading": "Dependency graph",
+		"next": "Next",
+		"position": "Tree {{current}} of {{total}}",
+		"detailMeta": "Priority {{priority}} · Value {{value}} · Total effort {{effort}} days",
+		"detailProgress": "Progress {{done}}/{{total}}. Completed subtasks that no longer appear in the graph are counted too.",
+		"dependsOn": "Depends on: {{list}}",
+		"enables": "Enables: {{list}}",
+		"nothing": "nothing",
+		"unknownTask": "Unknown task",
+		"legend": "Legend",
+		"legendArrow": "An arrow points down from the subtask to the task it enables.",
+		"legendLine": "The thicker the line, the higher the weight — the number is shown on the line.",
+		"legendNode": "Each node shows number, title, priority, value contribution and progress.",
+		"asList": "Graph as list"
+	},
+	"dependencyModal": {
+		"title": "Dependencies: {{title}}",
+		"selectRequired": "Please select a predecessor task.",
+		"weightInvalid": "The weight must be a number between 0.1 and 1.",
+		"actionFailed": "Action failed",
+		"currentHeading": "Current predecessors",
+		"none": "This task has no predecessors.",
+		"weightFor": "Weight: {{title}}",
+		"remove": "Remove predecessor {{title}}",
+		"hint": "Note: The list is based on the task forest and only includes predecessors with status “Open”/“In progress”.",
+		"addHeading": "Add predecessor",
+		"noCandidates": "No other task is available to add as a predecessor.",
+		"selectLabel": "Predecessor task",
+		"weightLabel": "Weight (0.1–1): {{weight}}"
+	},
+	"completeTask": {
+		"title": "Complete task",
+		"failed": "Completing failed",
+		"question": "Mark the task <title/> as done?",
+		"itemLabel": "Complete",
+		"checkAll": "Check all",
+		"completing": "Completing…",
+		"markDone": "Mark as done",
+		"saveChecklist": "Save checklist"
+	},
+	"completedTable": {
+		"empty": "No completed tasks yet.",
+		"label": "List of completed tasks",
+		"columnTitle": "Title",
+		"columnAction": "Action"
+	},
+	"deleteTask": {
+		"title": "Delete task",
+		"body": "Do you really want to delete the task <title/>? This action cannot be undone.",
+		"confirm": "Delete permanently"
+	},
+	"confirmDelete": {
+		"failed": "Deleting failed",
+		"deleting": "Deleting…"
+	},
+	"confirmDiscard": {
+		"title": "Unsaved changes",
+		"text": "There are unsaved changes. Keep editing or discard?",
+		"continue": "Keep editing",
+		"discard": "Discard"
+	},
+	"archived": {
+		"empty": "No archived tasks found.",
+		"restore": "Restore"
+	},
+	"missedComplete": {
+		"question": "Did you only just complete <title/>?",
+		"onTime": "No, on time",
+		"now": "Yes, just now"
+	},
+	"missedSection": {
+		"regionLabel": "Missed tasks",
+		"title": "Missed",
+		"postponed": "postponed {{count}}×",
+		"reschedule": "Reschedule",
+		"archive": "Archive"
+	},
+	"missedCard": {
+		"title": "Missed tasks",
+		"loading": "Loading …",
+		"zero": "No task has been cleaned up automatically so far.",
+		"count_one": "{{count}} task",
+		"count_other": "{{count}} tasks",
+		"cleaned": "cleaned up automatically"
+	},
+	"badges": {
+		"pinned": "Pinned",
+		"series": "Recurring task"
+	},
+	"reassign": {
+		"preparing": "Finding tasks and processing the first batch…",
+		"processing": "Processing tasks…",
+		"progressLabel": "Recalculation progress",
+		"rateLimit": "HTTP 429 (AI provider rate limit)",
+		"status": "Status since {{date}}: <strong>{{done}} of {{total}}</strong> tasks recalculated.",
+		"statusPending": "Status since {{date}}: <strong>{{done}} of {{total}}</strong> tasks recalculated, {{pending}} still open."
+	},
+	"csv": {
+		"title": "Title",
+		"deadline": "Deadline",
+		"priority": "Priority",
+		"status": "Status",
+		"description": "Description"
+	}
+}

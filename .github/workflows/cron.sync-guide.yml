@@ -227,10 +227,10 @@ jobs:
           count="$(git rev-list --count origin/main..HEAD)"
           echo "Commits seit origin/main: $count"
 
-          # Scope-Guard: nur docs/user-guide.md ist erlaubt.
-          bad="$(git diff --name-only origin/main..HEAD | grep -v '^docs/user-guide\.md$' || true)"
+          # Scope-Guard: nur docs/user-guide.md und die englische Fassung sind erlaubt.
+          bad="$(git diff --name-only origin/main..HEAD | grep -vE '^docs/user-guide(\.en)?\.md$' || true)"
           if [ -n "$bad" ]; then
-            echo "::error title=❌ Scope verletzt::Änderungen außerhalb docs/user-guide.md: ${bad}"
+            echo "::error title=❌ Scope verletzt::Änderungen außerhalb docs/user-guide{,.en}.md: ${bad}"
             exit 1
           fi
 

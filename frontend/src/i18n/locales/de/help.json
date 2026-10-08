@@ -1,0 +1,25 @@
+{
+	"page": {
+		"label": "Hilfe"
+	},
+	"tabs": {
+		"guide": "Handbuch",
+		"feedback": "Feedback",
+		"impress": "Impressum",
+		"changelog": "Changelog"
+	},
+	"guide": {
+		"loading": "Lädt Handbuch …",
+		"loadError": "# Hilfe\n\n- Handbuch konnte nicht geladen werden.",
+		"toc": "Inhaltsverzeichnis"
+	},
+	"changelog": {
+		"loading": "Lädt Changelog …",
+		"error": "Changelog konnte nicht geladen werden.",
+		"limitLabel": "Anzeige",
+		"last30": "Letzte 30",
+		"last100": "Letzte 100",
+		"all": "Alle",
+		"toc": "Changelog-Inhaltsverzeichnis"
+	}
+}

@@ -58,7 +58,7 @@ test.describe('Balamentum — Prüfzugang Google Play (#2426)', () => {
 
 		await password.fill(PASSWORD);
 		await page.locator('kol-dialog').getByRole('button', { name: 'Anmelden' }).click();
-		await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
 	});
 
 	test('AK8: bei 375 px ist der Dialog vollständig sichtbar, Touch-Targets ≥ 44 px', async ({ page }) => {

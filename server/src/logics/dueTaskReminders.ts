@@ -3,6 +3,7 @@ import { Task, NotificationLog, User } from '../models/index.js';
 import { sendPushToUser, type PushSender } from './push.js';
 import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
 import { selectSeriesRepresentatives } from './series.js';
+import { spracheVon, type CareSprache } from './careSuggestionData.js';
 
 /**
  * Fachlicher Push-Trigger „fällige Aufgaben" (Issue #355). Bündelt je Nutzer **eine** Push-Nachricht
@@ -72,11 +73,21 @@ export const collectDueTaskReminders = async (now: Date): Promise<DueTaskGroup[]
 };
 
 /** Baut die gebündelte Payload für den Service Worker (`push-sw.js` erwartet `title`/`body?`/`url?`). */
-const buildPayload = (tasks: DueTask[]): { title: string; body: string; url: string } => {
+const TEXTE: Record<CareSprache, { eine: string; mehrere: string; anzahl: string }> = {
+	de: {
+		eine: 'Fällige Aufgabe',
+		mehrere: 'Fällige Aufgaben',
+		anzahl: 'Du hast {n} fällige oder überfällige Aufgaben.',
+	},
+	en: { eine: 'Task due', mehrere: 'Tasks due', anzahl: 'You have {n} due or overdue tasks.' },
+};
+
+const buildPayload = (tasks: DueTask[], sprache: CareSprache): { title: string; body: string; url: string } => {
+	const texte = TEXTE[sprache];
 	if (tasks.length === 1) {
-		return { title: 'Fällige Aufgabe', body: tasks[0].title, url: '/' };
+		return { title: texte.eine, body: tasks[0].title, url: '/' };
 	}
-	return { title: 'Fällige Aufgaben', body: `Du hast ${tasks.length} fällige oder überfällige Aufgaben.`, url: '/' };
+	return { title: texte.mehrere, body: texte.anzahl.replace('{n}', String(tasks.length)), url: '/' };
 };
 
 /**
@@ -96,11 +107,11 @@ export const runDueTaskReminders = async (
 	const groups = await collectDueTaskReminders(now);
 	let usersNotified = 0;
 	for (const group of groups) {
-		const payload = buildPayload(group.tasks);
+		const recipient = await User.findByPk(group.userId);
+		const payload = buildPayload(group.tasks, spracheVon(recipient?.sprache));
 		const { sent } = await sendPushToUser(group.userId, payload, send);
 		let mailSent = false;
 		if (mailSend || isMailConfigured()) {
-			const recipient = await User.findByPk(group.userId);
 			mailSent = await sendMailToUser(
 				{ email: recipient?.email ?? null },
 				{ subject: payload.title, text: payload.body },

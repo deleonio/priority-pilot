@@ -1,5 +1,6 @@
 import type { Task } from 'client';
 import type { RefObject } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 
@@ -13,19 +14,25 @@ interface DeleteTaskDialogProps {
 }
 
 /** Bestätigungsdialog vor dem Löschen eines Tasks (`DELETE /tasks/{id}`). */
-export const DeleteTaskDialog = ({ task, onClose, onDeleted, fallbackFocusRef }: DeleteTaskDialogProps) => (
-	<ConfirmDeleteDialog
-		title="Task löschen"
-		body={
-			<p>
-				Soll der Task <strong>„{task.title}"</strong> wirklich gelöscht werden? Diese Aktion kann nicht rückgängig
-				gemacht werden.
-			</p>
-		}
-		confirmLabel="Endgültig löschen"
-		onConfirm={() => api.deleteTask({ id: task.id })}
-		onClose={onClose}
-		onDeleted={onDeleted}
-		fallbackFocusRef={fallbackFocusRef}
-	/>
-);
+export const DeleteTaskDialog = ({ task, onClose, onDeleted, fallbackFocusRef }: DeleteTaskDialogProps) => {
+	const { t } = useTranslation('tasks');
+	return (
+		<ConfirmDeleteDialog
+			title={t('deleteTask.title')}
+			body={
+				<p>
+					<Trans
+						t={t}
+						i18nKey="deleteTask.body"
+						components={{ title: <strong>{t('common:quoted', { value: task.title })}</strong> }}
+					/>
+				</p>
+			}
+			confirmLabel={t('deleteTask.confirm')}
+			onConfirm={() => api.deleteTask({ id: task.id })}
+			onClose={onClose}
+			onDeleted={onDeleted}
+			fallbackFocusRef={fallbackFocusRef}
+		/>
+	);
+};

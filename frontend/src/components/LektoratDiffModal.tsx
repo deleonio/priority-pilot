@@ -1,5 +1,6 @@
 import { KolAlert, KolButton } from '@public-ui/react-v19';
 import { useRef, type RefObject } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal } from './Modal';
 
 interface LektoratDiffModalProps {
@@ -40,6 +41,7 @@ export const LektoratDiffModal = ({
 	fallbackFocusRef,
 	error,
 }: LektoratDiffModalProps) => {
+	const { t } = useTranslation(['taskForm', 'common']);
 	// Ref für den primären Button (Übernehmen) – wird als Initialfokus verwendet
 	const confirmButtonRef = useRef<HTMLKolButtonElement>(null);
 
@@ -53,30 +55,35 @@ export const LektoratDiffModal = ({
 
 	return (
 		<Modal
-			title={`Lektorat – ${fieldLabel}`}
+			title={t('lektoratDiff.title', { field: fieldLabel })}
 			onClose={handleCancel}
 			fallbackFocusRef={fallbackFocusRef}
 			initialFocusRef={confirmButtonRef}
 		>
 			<div className="lektorat-diff-modal">
 				{error && (
-					<KolAlert _type="error" _label="Lektorat fehlgeschlagen">
+					<KolAlert _type="error" _label={t('lektoratDiff.failed')}>
 						{error}
 					</KolAlert>
 				)}
 				<div className="lektorat-diff-content">
 					<div className="lektorat-diff-section">
-						<h3 className="lektorat-diff-label">Original</h3>
+						<h3 className="lektorat-diff-label">{t('lektoratDiff.original')}</h3>
 						<p className="lektorat-diff-text">{original}</p>
 					</div>
 					<div className="lektorat-diff-section">
-						<h3 className="lektorat-diff-label">Lektorierter Text</h3>
+						<h3 className="lektorat-diff-label">{t('lektoratDiff.edited')}</h3>
 						<p className="lektorat-diff-text">{lektoriert}</p>
 					</div>
 				</div>
 				<div className="modal-actions">
-					<KolButton ref={confirmButtonRef} _label="Übernehmen" _variant="primary" _on={{ onClick: handleConfirm }} />
-					<KolButton _label="Abbrechen" _variant="secondary" _on={{ onClick: handleCancel }} />
+					<KolButton
+						ref={confirmButtonRef}
+						_label={t('lektoratDiff.confirm')}
+						_variant="primary"
+						_on={{ onClick: handleConfirm }}
+					/>
+					<KolButton _label={t('common:actions.cancel')} _variant="secondary" _on={{ onClick: handleCancel }} />
 				</div>
 			</div>
 		</Modal>

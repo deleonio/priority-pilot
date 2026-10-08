@@ -8,7 +8,8 @@ import {
 	KolInputText,
 	KolSpin,
 } from '@public-ui/react-v19';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useFollowingOpen } from '../lib/useFollowingOpen';
@@ -21,9 +22,9 @@ interface CalendarSourceView {
 }
 
 const TYPE_OPTIONS = [
-	{ label: 'ICS-Adresse', value: 'ics' },
-	{ label: 'CalDAV', value: 'caldav' },
-];
+	{ labelKey: 'calendarSources.typeIcs', value: 'ics' },
+	{ labelKey: 'calendarSources.typeCaldav', value: 'caldav' },
+] as const;
 
 /**
  * Einstellungen → „Kalender" (#2210): ICS-Adresse verbinden, verbundene Kalender listen und
@@ -37,6 +38,9 @@ const TYPE_OPTIONS = [
  * die Änderung wird sofort gespeichert.
  */
 export const CalendarSourcesSection = ({ open = true }: { open?: boolean }) => {
+	const { t } = useTranslation(['settings', 'common']);
+	// Stabile Options-Identität: eine neue Liste je Render baut die KoliBri-Auswahl neu auf.
+	const typeOptions = useMemo(() => TYPE_OPTIONS.map(({ labelKey, value }) => ({ label: t(labelKey), value })), [t]);
 	const accordion = useFollowingOpen(open);
 	const [sources, setSources] = useState<CalendarSourceView[]>([]);
 	const [type, setType] = useState<'ics' | 'caldav'>('ics');
@@ -58,7 +62,7 @@ export const CalendarSourcesSection = ({ open = true }: { open?: boolean }) => {
 				if (active) setSources(list ?? []);
 			})
 			.catch(() => {
-				if (active) setError('Die verbundenen Kalender konnten nicht geladen werden.');
+				if (active) setError(t('calendarSources.loadError'));
 			});
 		api
 			.getFreeSlotConfig()
@@ -71,7 +75,7 @@ export const CalendarSourcesSection = ({ open = true }: { open?: boolean }) => {
 		return () => {
 			active = false;
 		};
-	}, []);
+	}, [t]);
 
 	const applyFreeSlotMin = (value: number): void => {
 		setFreeSlotMinMinutes(value);
@@ -83,7 +87,7 @@ export const CalendarSourcesSection = ({ open = true }: { open?: boolean }) => {
 	const handleConnect = async (): Promise<void> => {
 		const trimmedUrl = url.trim();
 		if (trimmedUrl === '') {
-			setError('Bitte eine Kalender-Adresse angeben.');
+			setError(t('calendarSources.urlRequired'));
 			return;
 		}
 		setError(null);
@@ -112,22 +116,20 @@ export const CalendarSourcesSection = ({ open = true }: { open?: boolean }) => {
 			<KolAccordion
 				className="settings-card"
 				data-testid="calendar-sources-panel"
-				_label="Kalender"
+				_label={t('calendarSources.title')}
 				_level={2}
 				{...accordion}
 			>
 				<div className="api-tokens__create">
-					<p>
-						Verbinde die ICS-Adresse deines Kalenders — die Termine der nächsten Tage erscheinen in der Wochenansicht.
-					</p>
+					<p>{t('calendarSources.intro')}</p>
 					<KolInputRadio
-						_label="Art des Kalenders"
-						_options={TYPE_OPTIONS}
+						_label={t('calendarSources.typeLabel')}
+						_options={typeOptions}
 						_value={type}
 						_on={{ onChange: (_event, value) => setType(value === 'caldav' ? 'caldav' : 'ics') }}
 					/>
 					<KolInputText
-						_label={type === 'caldav' ? 'Kalender-Adresse (CalDAV)' : 'Kalender-Adresse (ICS)'}
+						_label={type === 'caldav' ? t('calendarSources.urlCaldav') : t('calendarSources.urlIcs')}
 						_type="url"
 						_required
 						_value={url}
@@ -136,48 +138,48 @@ export const CalendarSourcesSection = ({ open = true }: { open?: boolean }) => {
 					{type === 'caldav' && (
 						<>
 							<KolInputText
-								_label="Benutzername"
+								_label={t('calendarSources.username')}
 								_required
 								_autoComplete="username"
 								_value={username}
 								_on={{ onInput: (_event, value) => setUsername(String(value ?? '')) }}
 							/>
 							<KolInputPassword
-								_label="App-Passwort"
+								_label={t('calendarSources.password')}
 								_required
 								_autoComplete="new-password"
-								_hint="App-Passwort, nicht dein Haupt-Passwort. Nur lesender Zugriff."
+								_hint={t('calendarSources.passwordHint')}
 								_value={password}
 								_on={{ onInput: (_event, value) => setPassword(String(value ?? '')) }}
 							/>
 						</>
 					)}
 					<KolInputText
-						_label="Name (optional)"
+						_label={t('calendarSources.nameLabel')}
 						_value={name}
 						_on={{ onInput: (_event, value) => setName(String(value ?? '')) }}
 					/>
 					<KolButton
-						_label="Verbinden"
+						_label={t('calendarSources.connect')}
 						class="settings-action-btn"
 						_variant="primary"
 						_disabled={busy}
 						_on={{ onClick: () => void handleConnect() }}
 					/>
-					{busy && <KolSpin _label="Wird abgerufen…" _show />}
+					{busy && <KolSpin _label={t('calendarSources.loading')} _show />}
 					{error !== null && (
-						<KolAlert _type="error" _label="Fehler">
+						<KolAlert _type="error" _label={t('calendarSources.errorLabel')}>
 							{error}
 						</KolAlert>
 					)}
 					{removed && (
-						<KolAlert _type="success" _label="Kalender entfernt">
-							Die Termine sind aus der Wochenansicht verschwunden.
+						<KolAlert _type="success" _label={t('calendarSources.removedLabel')}>
+							{t('calendarSources.removedText')}
 						</KolAlert>
 					)}
 				</div>
 				{sources.length === 0 ? (
-					<p>Noch kein Kalender verbunden. Füge die ICS-Adresse deines Kalenders hinzu.</p>
+					<p>{t('calendarSources.empty')}</p>
 				) : (
 					<ul className="api-tokens__list">
 						{sources.map((source) => (
@@ -196,7 +198,8 @@ export const CalendarSourcesSection = ({ open = true }: { open?: boolean }) => {
 									_on={{ onClick: () => setDeleteTarget(source) }}
 								>
 									<span slot="expert">
-										Entfernen<span className="visually-hidden">{` Kalender ${source.name}`}</span>
+										{t('common:actions.remove')}
+										<span className="visually-hidden">{` ${t('calendarSources.removeTarget', { name: source.name })}`}</span>
 									</span>
 								</KolButton>
 							</li>
@@ -206,8 +209,8 @@ export const CalendarSourcesSection = ({ open = true }: { open?: boolean }) => {
 				{sources.length > 0 && (
 					<div className="geo-range-field">
 						<KolInputRange
-							_label="Mindestdauer freier Lücken (Minuten)"
-							_hint="Ab dieser Länge schlägt die Karte „Freie Zeit“ passende Aufgaben vor (10–240 Minuten)."
+							_label={t('calendarSources.freeSlotLabel')}
+							_hint={t('calendarSources.freeSlotHint')}
 							_value={freeSlotMinMinutes}
 							_min={10}
 							_max={240}
@@ -215,21 +218,22 @@ export const CalendarSourcesSection = ({ open = true }: { open?: boolean }) => {
 							_on={{ onChange: (_event, value) => applyFreeSlotMin(Number(value ?? freeSlotMinMinutes)) }}
 						/>
 						{/* Sichtbarer Wert im Light-DOM: der Regler zeigt ihn nicht selbst (Muster Geo-Regler). */}
-						<span className="geo-range-value">{freeSlotMinMinutes} Minuten</span>
+						<span className="geo-range-value">
+							{t('settingsPage.geo.valueMinutes', { minutes: freeSlotMinMinutes })}
+						</span>
 					</div>
 				)}
 			</KolAccordion>
 
 			{deleteTarget !== null && (
 				<ConfirmDeleteDialog
-					title="Kalender entfernen"
+					title={t('calendarSources.deleteTitle')}
 					body={
 						<p>
-							Wirklich entfernen? Die Termine dieses Kalenders verschwinden aus der Wochenansicht
-							{deleteTarget.type === 'caldav' && ', die Zugangsdaten werden gelöscht'}.
+							{deleteTarget.type === 'caldav' ? t('calendarSources.deleteBodyCaldav') : t('calendarSources.deleteBody')}
 						</p>
 					}
-					confirmLabel="Endgültig entfernen"
+					confirmLabel={t('calendarSources.deleteConfirm')}
 					onConfirm={() => api.deleteCalendarSource({ id: deleteTarget.id })}
 					onClose={() => setDeleteTarget(null)}
 					onDeleted={() => {

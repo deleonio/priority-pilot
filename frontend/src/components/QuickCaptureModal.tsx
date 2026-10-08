@@ -1,6 +1,7 @@
 import { KolAlert, KolButton, KolCard, KolSpin, KolTextarea } from '@public-ui/react-v19';
 import type { ActivityAdvice, Category, Pillar, Series, Task } from 'client';
 import { useEffect, useRef, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { AI_FAIR_USE_INTERVAL_SECONDS, fairUseMessage } from '../lib/planOffers';
@@ -61,6 +62,7 @@ export const QuickCaptureModal = ({
 	onClose,
 	onSaved,
 }: QuickCaptureModalProps) => {
+	const { t } = useTranslation('capture');
 	const [step, setStep] = useState<'capture' | 'form' | 'template'>('capture');
 	const [prefill, setPrefill] = useState<TaskFormInitialValues>({});
 	const [parsing, setParsing] = useState(false);
@@ -228,7 +230,7 @@ export const QuickCaptureModal = ({
 	// Der Modal-Heading bleibt im Capture-Schritt „Neuen Task anlegen"; im Formular-Schritt spiegelt er
 	// den Anlege-Kontext (bei einer Unteraufgabe die Eltern-Aufgabe) — dieselbe Beschriftung wie im
 	// eigenständigen `TaskFormModal`.
-	const title = step === 'form' ? taskFormModalTitle(null, parentTask, formMode) : 'Neuen Task anlegen';
+	const title = step === 'form' ? taskFormModalTitle(null, parentTask, formMode) : t('quickCapture.title');
 
 	// #2363 (AK2): Gewählte Vorlage → SeriesInstanceDialog („Aufgabe anlegen") statt Modal-Stapel —
 	// das Schnellerfassen wird unmountet (Muster Schrittwechsel #236, Modal.tsx), der Dialog ist das
@@ -259,21 +261,18 @@ export const QuickCaptureModal = ({
 			{step === 'template' ? (
 				<>
 					{templateError !== null && (
-						<KolAlert _type="error" _label="Vorlagen konnten nicht geladen werden">
+						<KolAlert _type="error" _label={t('quickCapture.templatesLoadError')}>
 							{templateError}
 						</KolAlert>
 					)}
 					{templates === null ? (
 						<div className="pillar-editor-loading">
-							<KolSpin _show _variant="cycle" _label="Vorlagen werden geladen" />
+							<KolSpin _show _variant="cycle" _label={t('quickCapture.templatesLoading')} />
 						</div>
 					) : templates.length === 0 ? (
 						// #2363 (AK3): Keine Vorlage — Hinweis mit dem Anlage-Weg statt leerer Liste.
-						<KolCard _label="Keine Vorlagen" _level={0}>
-							<p>
-								Du hast noch keine Vorlagen. Lege im Tab „Serien &amp; Vorlagen" eine Serie ohne „Automatisch anlegen"
-								an — sie erscheint dann hier als Vorlage.
-							</p>
+						<KolCard _label={t('quickCapture.noTemplatesLabel')} _level={0}>
+							<p>{t('quickCapture.noTemplatesText')}</p>
 						</KolCard>
 					) : (
 						<ul className="template-list">
@@ -306,19 +305,19 @@ export const QuickCaptureModal = ({
 			) : (
 				<>
 					{error !== null && (
-						<KolAlert _type="error" _label="Verarbeitung fehlgeschlagen">
+						<KolAlert _type="error" _label={t('quickCapture.processFailed')}>
 							{error}
 						</KolAlert>
 					)}
 					{adviceError !== null && (
-						<KolAlert _type="error" _label="Beratung fehlgeschlagen">
+						<KolAlert _type="error" _label={t('quickCapture.adviceFailed')}>
 							{adviceError}
 						</KolAlert>
 					)}
 					<div className="form-grid">
 						<VoiceField
 							variant="textarea"
-							fieldLabel="Beschreibe deinen Task"
+							fieldLabel={t('quickCapture.describeTask')}
 							autoStart={voiceAutostart}
 							onTranscript={(transcript) => {
 								const newVal = text.current ? `${text.current} ${transcript}` : transcript;
@@ -330,7 +329,7 @@ export const QuickCaptureModal = ({
 						>
 							<KolTextarea
 								ref={textareaRef}
-								_label="Beschreibe deinen Task"
+								_label={t('quickCapture.describeTask')}
 								_rows={4}
 								_value={captureText}
 								_on={{
@@ -346,12 +345,12 @@ export const QuickCaptureModal = ({
 					</div>
 					{parsing && (
 						<div className="pillar-editor-loading">
-							<KolSpin _show _variant="cycle" _label="Text wird verarbeitet" />
+							<KolSpin _show _variant="cycle" _label={t('quickCapture.processing')} />
 						</div>
 					)}
 					{advising && (
 						<div className="pillar-editor-loading">
-							<KolSpin _show _variant="cycle" _label="Berater denkt nach" />
+							<KolSpin _show _variant="cycle" _label={t('quickCapture.advising')} />
 						</div>
 					)}
 					{/* `aria-live`: Die Vorschläge erscheinen ohne Fokuswechsel im selben Dialog — ohne
@@ -361,11 +360,13 @@ export const QuickCaptureModal = ({
 							advice !== null &&
 							(pillars.length === 0 ? (
 								// #440: Ohne Säulen kann der Berater nichts zuordnen — gestalteter Hinweis statt Liste.
-								<KolCard _label="Keine Säulen definiert" _level={0}>
+								<KolCard _label={t('quickCapture.noPillarsLabel')} _level={0}>
 									<p>
-										Keine Säulen definiert — lege zuerst Säulen in den{' '}
-										<a href={`${import.meta.env.BASE_URL}settings`}>Einstellungen</a> an, damit der Berater Vorschläge
-										machen kann.
+										<Trans
+											t={t}
+											i18nKey="quickCapture.noPillarsText"
+											components={{ link: <a href={`${import.meta.env.BASE_URL}settings`} /> }}
+										/>
 									</p>
 								</KolCard>
 							) : (
@@ -384,7 +385,7 @@ export const QuickCaptureModal = ({
 					</div>
 					<div className="modal-actions">
 						<KolButton
-							_label={parsing ? 'Verarbeiten…' : 'Verarbeiten und weiter'}
+							_label={parsing ? t('quickCapture.processBusy') : t('quickCapture.process')}
 							_variant="primary"
 							_disabled={parsing || advising || !hasText}
 							_on={{ onClick: () => void process() }}
@@ -393,13 +394,13 @@ export const QuickCaptureModal = ({
 						    Primäraktion bleibt „Verarbeiten und weiter". Der Freitext ist hier optional
 						    (ohne Frage berät der Endpunkt über alle Säulen hinweg), daher kein `hasText`-Gate. */}
 						<KolButton
-							_label={advising ? 'Beraten…' : 'Beraten lassen'}
+							_label={advising ? t('quickCapture.consultBusy') : t('quickCapture.consult')}
 							_variant="secondary"
 							_disabled={parsing || advising}
 							_on={{ onClick: () => void consult() }}
 						/>
 						<KolButton
-							_label="Überspringen"
+							_label={t('quickCapture.skip')}
 							_variant="secondary"
 							_disabled={parsing || advising}
 							_on={{
@@ -413,7 +414,7 @@ export const QuickCaptureModal = ({
 						{/* Vierter Weg (#2363): Aufgabe aus einer Vorlage (Serie ohne „Automatisch anlegen") anlegen.
 						    Bewusst `secondary` — die eine Primäraktion bleibt „Verarbeiten und weiter". */}
 						<KolButton
-							_label="Aus Vorlage"
+							_label={t('quickCapture.fromTemplate')}
 							_variant="secondary"
 							_disabled={parsing || advising}
 							_on={{ onClick: () => void openTemplates() }}

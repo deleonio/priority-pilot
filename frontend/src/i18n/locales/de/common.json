@@ -5,15 +5,7 @@
 	},
 	"language": {
 		"de": "Deutsch",
-		"en": "English",
-		"es": "Español",
-		"fr": "Français",
-		"it": "Italiano",
-		"pt": "Português",
-		"nl": "Nederlands",
-		"pl": "Polski",
-		"ru": "Русский",
-		"sv": "Svenska"
+		"en": "English"
 	},
 	"actions": {
 		"save": "Speichern",
@@ -99,7 +91,8 @@
 		"selectedCount": "{{selected}} von {{total}} Vorschlägen ausgewählt",
 		"suggestError": "Vorschläge fehlgeschlagen",
 		"applyError": "Anlegen fehlgeschlagen",
-		"partialInfo": "{{count}} Aufgaben sind bereits angelegt — ein erneuter Klick auf Übernehmen legt nur die fehlenden an.",
+		"partialInfo_one": "{{count}} Aufgabe ist bereits angelegt — ein erneuter Klick auf Übernehmen legt nur die fehlenden an.",
+		"partialInfo_other": "{{count}} Aufgaben sind bereits angelegt — ein erneuter Klick auf Übernehmen legt nur die fehlenden an.",
 		"balanceHint": "Deine stärkste Säule ist {{name}} ({{share}} %).",
 		"fertig": "Fertig",
 		"emptyDescription": "Beschreibe, womit du gerade kämpfst — der Flow macht daraus erste Aufgaben. Deine Eingabe bleibt erhalten.",
@@ -159,5 +152,6 @@
 	},
 	"splitHint": {
 		"reason": "Große Aufgaben lassen sich oft leichter angehen, wenn du sie in kleinere Schritte teilst."
-	}
+	},
+	"quoted": "„{{value}}“"
 }

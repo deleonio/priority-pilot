@@ -16,3 +16,17 @@ export const OPERATOR = {
 	/** Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV — nur bei redaktionell gestalteten Inhalten nötig. */
 	contentResponsible: '',
 };
+
+/** Rechtsseiten der öffentlichen Website (#1891, #1892) je Sprache — einzige Textquelle, same-origin geladen (#2227). */
+const LEGAL_LINKS = {
+	de: { terms: '/nutzungsbedingungen/', privacy: '/datenschutz/', withdrawal: '/widerruf/' },
+	en: { terms: '/en/terms/', privacy: '/en/privacy/', withdrawal: '/en/withdrawal/' },
+} as const;
+
+export type LegalKey = keyof typeof LEGAL_LINKS.de;
+
+/** Sprache der Rechtsseiten: Englisch hat eigene Seiten, sonst gilt die deutsche Fassung. */
+export const legalLanguage = (language: string): keyof typeof LEGAL_LINKS => (language === 'en' ? 'en' : 'de');
+
+/** Pfad der Rechtsseite in der Sprache `language`. */
+export const legalPath = (key: LegalKey, language: string): string => LEGAL_LINKS[legalLanguage(language)][key];

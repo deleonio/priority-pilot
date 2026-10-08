@@ -2,6 +2,7 @@ import { UniqueConstraintError } from 'sequelize';
 import { allowEmail } from './allowedEmails.js';
 import { sendAccountAccessMail } from './accessMail.js';
 import type { MailSender } from './mail.js';
+import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import WaitlistEntry, { newReferralCode } from '../models/waitlistEntry.js';
 
 /**
@@ -62,14 +63,22 @@ const rankedEntries = async (): Promise<(WaitlistEntry & { position: number; ref
  * angelegt und `referredByCode` bleibt unverändert — ein mitgeschickter eigener Code kann so
  * niemals als Selbst-Empfehlung zählen. Ein unbekannter Code wird still ignoriert.
  */
-export const joinWaitlist = async (rawEmail: string, rawRef?: string): Promise<WaitlistJoinResult> => {
+export const joinWaitlist = async (
+	rawEmail: string,
+	rawRef?: string,
+	sprache?: CareSprache,
+): Promise<WaitlistJoinResult> => {
 	const email = normalizeEmail(String(rawEmail ?? ''));
 	if (!EMAIL_RE.test(email)) {
 		throw new InvalidWaitlistEmailError();
 	}
 
 	const existing = await WaitlistEntry.findOne({ where: { email } });
-	const entry = existing ?? (await createEntry(email, await resolveReferrer(rawRef, email)));
+	// Erneuter Eintrag: die zuletzt genutzte Sprache gilt für die spätere Freischalt-Mail.
+	if (existing && sprache !== undefined && existing.sprache !== (sprache === 'en' ? 'en' : null)) {
+		await existing.update({ sprache: sprache === 'en' ? 'en' : null });
+	}
+	const entry = existing ?? (await createEntry(email, await resolveReferrer(rawRef, email), sprache));
 
 	const ranked = await rankedEntries();
 	const own = ranked.find((candidate) => candidate.id === entry.id);
@@ -90,9 +99,18 @@ const resolveReferrer = async (rawRef: string | undefined, email: string): Promi
 };
 
 /** findOne→create mit UniqueConstraintError-Retry: zwei parallele Anmeldungen derselben Adresse. */
-const createEntry = async (email: string, referredByCode: string | null): Promise<WaitlistEntry> => {
+const createEntry = async (
+	email: string,
+	referredByCode: string | null,
+	sprache?: CareSprache,
+): Promise<WaitlistEntry> => {
 	try {
-		return await WaitlistEntry.create({ email, referralCode: newReferralCode(), referredByCode });
+		return await WaitlistEntry.create({
+			email,
+			referralCode: newReferralCode(),
+			referredByCode,
+			sprache: sprache === 'en' ? 'en' : null,
+		});
 	} catch (err) {
 		if (err instanceof UniqueConstraintError) {
 			const existing = await WaitlistEntry.findOne({ where: { email } });
@@ -122,12 +140,19 @@ export const listWaitlistRanked = async (): Promise<WaitlistRankedEntry[]> =>
  * oder fehlendes Magic-Link-Setup) lässt die Freischaltung wirksam.
  */
 const sendActivationMail = async (entry: WaitlistEntry, send?: MailSender): Promise<'sent' | 'failed'> => {
+	const sprache = spracheVon(entry.sprache);
 	const sent = await sendAccountAccessMail(
 		entry.email,
-		{
-			subject: 'Balamentum: Du bist freigeschaltet',
-			lines: ['du bist von der Warteliste freigeschaltet — du kannst Balamentum jetzt nutzen.'],
-		},
+		sprache === 'en'
+			? {
+					subject: 'Balamentum: You now have access',
+					lines: ['you have been let in from the waiting list — you can start using Balamentum now.'],
+					sprache,
+				}
+			: {
+					subject: 'Balamentum: Du bist freigeschaltet',
+					lines: ['du bist von der Warteliste freigeschaltet — du kannst Balamentum jetzt nutzen.'],
+				},
 		send,
 	);
 	const accessMailStatus = sent ? 'sent' : 'failed';

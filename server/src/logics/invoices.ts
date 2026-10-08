@@ -5,6 +5,7 @@ import InvoiceSequence from '../models/invoiceSequence.js';
 import CreditSequence from '../models/creditSequence.js';
 import Subscription from '../models/subscription.js';
 import User from '../models/user.js';
+import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { getPlansCatalog, type Plan } from './plans.js';
 import { sendMailToUser, type MailSender } from './mail.js';
 import { buildInvoicePdf, contractConfirmationLines } from './invoicePdf.js';
@@ -30,9 +31,27 @@ const PERIOD_DISPLAY: Record<string, string> = {
 	yearly: 'jährlich',
 };
 
+const PERIOD_DISPLAY_EN: Record<string, string> = { monthly: 'monthly', quarterly: 'quarterly', yearly: 'yearly' };
+
+/** Feste Wörter der gespeicherten (deutschen) Paket- und Positionstexte → Englisch für die Rechnungsmail. */
+const LABEL_WORDS_EN: [RegExp, string][] = [
+	[/^Gutschrift zu Rechnung /, 'Credit note for invoice '],
+	[/^Paket /, 'Plan '],
+	[/^Abbuchung /, 'Charge '],
+	[/^Verrechnung Restlaufzeit$/, 'Credit for the remaining term'],
+	[/^Abweichung vom Paketpreis$/, 'Difference from the plan price'],
+];
+
+/** Englische Fassung eines gespeicherten Labels (`Paket Plus (monatlich)` → `Plan Plus (monthly)`). */
+const PERIOD_LABEL_EN = (label: string): string =>
+	Object.entries(PERIOD_DISPLAY).reduce(
+		(text, [key, de]) => text.replace(`(${de})`, `(${PERIOD_DISPLAY_EN[key]})`),
+		LABEL_WORDS_EN.reduce((text, [de, en]) => text.replace(de, en), label),
+	);
+
 /** Anzeigename „Plus (monatlich)“: Paket großgeschrieben, Zeitraum deutsch (#2031). */
-export const displayLabel = (plan: Plan, period: string): string =>
-	`${plan.charAt(0).toUpperCase()}${plan.slice(1)} (${PERIOD_DISPLAY[period] ?? period})`;
+export const displayLabel = (plan: Plan, period: string, sprache: CareSprache = 'de'): string =>
+	`${plan.charAt(0).toUpperCase()}${plan.slice(1)} (${(sprache === 'en' ? PERIOD_DISPLAY_EN : PERIOD_DISPLAY)[period] ?? period})`;
 
 /** Tatsächlich abgebuchter Betrag aus dem Zahlungsereignis (#2232). */
 export interface ChargedAmount {
@@ -134,7 +153,11 @@ export const issueCreditNote = async (
  * `periodEnd`) eines Abos mit gespeicherter Zustimmung; sonst leer. Gemeinsame Quelle für PDF-Erstbau
  * und Mail (auch Nachholversand).
  */
-const confirmationFor = async (invoice: Invoice, transaction?: Transaction): Promise<string[]> => {
+const confirmationFor = async (
+	invoice: Invoice,
+	transaction?: Transaction,
+	sprache: CareSprache = 'de',
+): Promise<string[]> => {
 	if (invoice.get('creditForInvoiceId') != null) {
 		return [];
 	}
@@ -159,7 +182,7 @@ const confirmationFor = async (invoice: Invoice, transaction?: Transaction): Pro
 	const period = String(subscription.get('period'));
 	const prices = getPlansCatalog().prices[plan];
 	const priceCents = prices ? prices[period as keyof typeof prices] : 0;
-	return contractConfirmationLines(displayLabel(plan, period), priceCents, consentAt);
+	return contractConfirmationLines(displayLabel(plan, period, sprache), priceCents, consentAt, sprache);
 };
 
 /**
@@ -187,20 +210,35 @@ const deliverInvoice = async (
 	// Gutschrift (#2303): eigener Betreff/Text; der Bezug aufs Original steht in der Position.
 	const isCredit = invoice.get('creditForInvoiceId') != null;
 	const kind = isCredit ? 'Gutschrift' : 'Rechnung';
-	const confirmation = await confirmationFor(invoice);
+	const sprache = spracheVon(user.get('sprache') as string | null);
+	const confirmation = await confirmationFor(invoice, undefined, sprache);
+	const amount = (cents: number): string => `${(cents / 100).toFixed(2)} ${currency}`;
 	const sent = await sendMailToUser(
 		user,
 		{
-			subject: `Ihre ${kind} ${number}`,
-			text: [
-				`${kind} ${number}`,
-				`Zeitraum: ${periodStart.toISOString().slice(0, 10)} bis ${periodEnd.toISOString().slice(0, 10)}`,
-				...(isCredit ? [] : [`Paket: ${label}`]),
-				...lineItems.map((item) => `${item.label}: ${(item.amountCents / 100).toFixed(2)} ${currency}`),
-				`Betrag: ${(amountCents / 100).toFixed(2)} ${currency}`,
-				TAX_NOTE,
-				...(confirmation.length > 0 ? ['', ...confirmation] : []),
-			].join('\n'),
+			// Englisch nur die Mail; das PDF bleibt der deutsche Beleg (gespeicherte Bytes).
+			subject: sprache === 'en' ? `Your ${isCredit ? 'credit note' : 'invoice'} ${number}` : `Ihre ${kind} ${number}`,
+			text: (sprache === 'en'
+				? [
+						`${isCredit ? 'Credit note' : 'Invoice'} ${number}`,
+						`Period: ${periodStart.toISOString().slice(0, 10)} to ${periodEnd.toISOString().slice(0, 10)}`,
+						...(isCredit ? [] : [`Plan: ${PERIOD_LABEL_EN(label)}`]),
+						...lineItems.map((item) => `${PERIOD_LABEL_EN(item.label)}: ${amount(item.amountCents)}`),
+						`Amount: ${amount(amountCents)}`,
+						'No VAT is charged under section 19 of the German VAT Act (UStG).',
+						'The attached PDF is issued in German.',
+						...(confirmation.length > 0 ? ['', ...confirmation] : []),
+					]
+				: [
+						`${kind} ${number}`,
+						`Zeitraum: ${periodStart.toISOString().slice(0, 10)} bis ${periodEnd.toISOString().slice(0, 10)}`,
+						...(isCredit ? [] : [`Paket: ${label}`]),
+						...lineItems.map((item) => `${item.label}: ${(item.amountCents / 100).toFixed(2)} ${currency}`),
+						`Betrag: ${(amountCents / 100).toFixed(2)} ${currency}`,
+						TAX_NOTE,
+						...(confirmation.length > 0 ? ['', ...confirmation] : []),
+					]
+			).join('\n'),
 			attachments: [{ filename: `${number}.pdf`, contentType: 'application/pdf', content: pdf }],
 		},
 		mailSend,

@@ -1,7 +1,9 @@
 import { KolBadge, KolCard } from '@public-ui/react-v19';
 import type { Milestone } from 'client';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
+import i18next from '../i18n/config';
 
 /**
  * Dashboard-Card „Meilensteine" (#1362): feste Streak- und Punkte-Stufen aus
@@ -14,16 +16,18 @@ import { api } from '../api';
  */
 
 const GRUPPEN: { titel: string; typ: Milestone['typ'] }[] = [
-	{ titel: 'Streak', typ: 'streak' },
-	{ titel: 'Punkte', typ: 'punkte' },
+	{ titel: 'milestones.groupStreak', typ: 'streak' },
+	{ titel: 'milestones.groupPoints', typ: 'punkte' },
 ];
 
 const badgeLabel = (stufe: Milestone): string =>
-	`${stufe.typ === 'streak' ? `${stufe.schwelle} Tage` : `${stufe.schwelle} Punkte`} — ${
-		stufe.erreicht ? 'erreicht' : 'nicht erreicht'
-	}`;
+	i18next.t(
+		`dashboard:milestones.${stufe.typ === 'streak' ? 'streak' : 'points'}${stufe.erreicht ? 'Reached' : 'NotReached'}`,
+		{ threshold: stufe.schwelle },
+	);
 
 export const MilestoneBadges = () => {
+	const { t } = useTranslation('dashboard');
 	const [stufen, setStufen] = useState<Milestone[] | null>(null);
 
 	useEffect(() => {
@@ -49,17 +53,17 @@ export const MilestoneBadges = () => {
 		<KolCard
 			className="dashboard-milestones"
 			role="region"
-			aria-label="Meilensteine"
-			_label="Meilensteine"
+			aria-label={t('milestones.label')}
+			_label={t('milestones.label')}
 			_level={3}
 			data-testid="milestone-badges-card"
 		>
 			{stufen === null ? (
-				<p className="dashboard-milestones-hint">Meilensteine werden geladen …</p>
+				<p className="dashboard-milestones-hint">{t('milestones.loading')}</p>
 			) : (
 				GRUPPEN.map(({ titel, typ }) => (
 					<div className="dashboard-milestones-group" key={typ}>
-						<p className="dashboard-milestones-group-title">{titel}</p>
+						<p className="dashboard-milestones-group-title">{t(titel)}</p>
 						<div className="dashboard-milestones-badges">
 							{stufen
 								.filter((stufe) => stufe.typ === typ)

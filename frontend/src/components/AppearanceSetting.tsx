@@ -1,5 +1,6 @@
 import { KolInputRadio } from '@public-ui/react-v19';
 import { useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ThemePreference } from '../lib/theme';
 import { THEME_LABELS, THEME_ORDER, useTheme } from '../lib/theme';
 import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
@@ -13,6 +14,7 @@ import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
 
 export const AppearanceSetting = () => {
 	const { preference, setPreference } = useTheme();
+	const { t, i18n } = useTranslation('settings');
 	const ref = useRef<HTMLDivElement>(null);
 
 	// #843: marginLeft auf Shadow-DOM Controls setzen (24dp = 1.5rem)
@@ -20,16 +22,18 @@ export const AppearanceSetting = () => {
 
 	// Optionen als stabile Objektidentität (nur von den Modul-Konstanten abhängig), damit die
 	// Radiogruppe nicht bei jedem Render eine neue Options-Liste erhält.
-	const options = useMemo(() => THEME_ORDER.map((value) => ({ label: THEME_LABELS[value], value })), []);
+	// Labels sind Getter (übersetzen beim Lesen) — neu bilden, sobald die Sprache wechselt.
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	const options = useMemo(() => THEME_ORDER.map((value) => ({ label: THEME_LABELS[value], value })), [i18n.language]);
 
 	return (
 		<div ref={ref}>
 			<KolInputRadio
-				_label="Darstellung"
+				_label={t('appearance.label')}
 				_orientation="horizontal"
 				_options={options}
 				_value={preference}
-				_hint="Wähle das Farbschema der Anwendung. „System“ folgt der Einstellung deines Betriebssystems."
+				_hint={t('appearance.hint')}
 				_on={{
 					onChange: (_event, value) => {
 						if (typeof value === 'string') {

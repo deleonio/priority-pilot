@@ -63,7 +63,10 @@ describe('LanguageSetting', () => {
 		expect(labels).toEqual(['Deutsch', 'English']);
 	});
 
-	it('stellt bei der Auswahl die Sprache um und schreibt sie in den localStorage', async () => {
+	it('stellt bei der Auswahl die Sprache um, schreibt sie in den localStorage und lädt neu', async () => {
+		// window.location.reload ist in jsdom nicht spybar (#1095-Präzedenz) — Stub per stubGlobal.
+		const reload = vi.fn();
+		vi.stubGlobal('location', { reload });
 		render(<LanguageSetting />);
 		expect(select().value).toBe('de');
 
@@ -76,6 +79,8 @@ describe('LanguageSetting', () => {
 		});
 		// Persistenz kommt vom LanguageDetector (`caches: ['localStorage']`), nicht aus der Komponente.
 		expect(localStorage.getItem('i18nextLng')).toBe('en');
+		await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce());
+		vi.unstubAllGlobals();
 	});
 
 	it('bildet einen Regionalcode auf die Basissprache ab statt auf den Fallback', async () => {

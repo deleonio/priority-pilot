@@ -1,5 +1,6 @@
 import { KolSelect, KolSpin, KolTabs } from '@public-ui/react-v19';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { aggregateChangelog, entriesToMarkdown } from '../lib/changelog';
@@ -9,7 +10,7 @@ import { Impress } from './Impress';
 // Tab-Leiste der Hilfe-Seite (#1190). Modulkonstante, damit `KolTabs` nicht bei jedem Render
 // eine neue Tab-Liste erhält (Muster SettingsPage.tsx). Reihenfolge: Handbuch (Index 0,
 // initial aktiv), Feedback (Index 1), Impressum (Index 2), Changelog (Index 3, #1435).
-const HELP_TABS = [{ _label: 'Handbuch' }, { _label: 'Feedback' }, { _label: 'Impressum' }, { _label: 'Changelog' }];
+const HELP_TAB_KEYS = ['guide', 'feedback', 'impress', 'changelog'] as const;
 
 // Öffentliche GitHub-Releases-API (Repo ist public, kein Token nötig). Seite 1 (100 Einträge)
 // deckt „Letzte 30"/„Letzte 100" so gut wie immer ab (Finding #1, PR #1432); nur „Alle" folgt den
@@ -21,10 +22,10 @@ const RELEASES_URL = 'https://api.github.com/repos/deleonio/priority-pilot/relea
 // Select-Option), Default „30" = bisheriges Verhalten. Der Wechsel schneidet client-seitig, außer
 // die gewählte Menge übersteigt die bereits geladenen Releases — dann wird nachgeladen (Finding #1).
 const CHANGELOG_LIMIT_OPTIONS = [
-	{ label: 'Letzte 30', value: '30' },
-	{ label: 'Letzte 100', value: '100' },
-	{ label: 'Alle', value: 'alle' },
-];
+	{ labelKey: 'last30', value: '30' },
+	{ labelKey: 'last100', value: '100' },
+	{ labelKey: 'all', value: 'alle' },
+] as const;
 
 type ChangelogLimit = (typeof CHANGELOG_LIMIT_OPTIONS)[number]['value'];
 
@@ -134,26 +135,33 @@ type ChangelogState =
 	| { status: 'loaded'; releases: GithubRelease[]; nextUrl: string | null };
 
 interface HelpPageProps {
-	/** Aktiver Tab (Index in `HELP_TABS`), von der Route `/hilfe/:tab` vorgegeben. */
+	/** Aktiver Tab (Index in `HELP_TAB_KEYS`), von der Route `/hilfe/:tab` vorgegeben. */
 	tab: number;
 	/** Tab-Wechsel — die App schreibt ihn in die URL. */
 	onTabChange: (selected: number) => void;
 }
 
 export const HelpPage = ({ tab: activeTab, onTabChange }: HelpPageProps) => {
+	const { t, i18n } = useTranslation('help');
+	const guideFile = i18n.resolvedLanguage === 'en' ? 'user-guide.en.md' : 'user-guide.md';
+	const helpTabs = useMemo(() => HELP_TAB_KEYS.map((key) => ({ _label: t(`tabs.${key}`) })), [t]);
+	const limitOptions = useMemo(
+		() => CHANGELOG_LIMIT_OPTIONS.map(({ labelKey, value }) => ({ label: t(`changelog.${labelKey}`), value })),
+		[t],
+	);
 	const [content, setContent] = useState<string | null>(null);
 	const [changelog, setChangelog] = useState<ChangelogState>({ status: 'idle' });
 	const [limit, setLimit] = useState<ChangelogLimit>('30');
 
 	useEffect(() => {
-		fetch(`${import.meta.env.BASE_URL}user-guide.md`)
+		fetch(`${import.meta.env.BASE_URL}${guideFile}`)
 			.then((r) => {
 				if (!r.ok) throw new Error(r.statusText);
 				return r.text();
 			})
 			.then(setContent)
-			.catch(() => setContent('# Hilfe\n\n- Handbuch konnte nicht geladen werden.'));
-	}, []);
+			.catch(() => setContent(t('guide.loadError')));
+	}, [guideFile, t]);
 
 	// Einziger, reiner Durchlauf über die Markdown-Quellzeilen als gemeinsame Grundlage für das
 	// Inhaltsverzeichnis (Ebene 2/3) UND die Anker-Vergabe beim Rendern (PR #1432 Finding #2:
@@ -263,11 +271,11 @@ export const HelpPage = ({ tab: activeTab, onTabChange }: HelpPageProps) => {
 		// mehr (beides trägt seit #1320 das App-Layout, AK7), und kein „Zurück"-Button (AK3): Header
 		// und Kopf-Aktionen bleiben sichtbar, der Rückweg läuft über den aktiven Toolbar-Button.
 		<div className="help-page">
-			<KolTabs _label="Hilfe" _tabs={HELP_TABS} _selected={activeTab} _on={tabsCallbacks}>
+			<KolTabs _label={t('page.label')} _tabs={helpTabs} _selected={activeTab} _on={tabsCallbacks}>
 				<div slot="tab-0" className="help-page-content">
 					{content === null ? (
 						<div className="help-page-loading">
-							<KolSpin _show _variant="cycle" _label="Lädt Handbuch …" />
+							<KolSpin _show _variant="cycle" _label={t('guide.loading')} />
 						</div>
 					) : (
 						// Layout: mobil TOC über dem Text (wie Changelog), ab Desktop 2/3 Text +
@@ -279,7 +287,7 @@ export const HelpPage = ({ tab: activeTab, onTabChange }: HelpPageProps) => {
 								</ReactMarkdown>
 							</div>
 							<aside className="help-sidebar-aside">
-								<HelpToc items={guideToc} label="Inhaltsverzeichnis" />
+								<HelpToc items={guideToc} label={t('guide.toc')} />
 							</aside>
 						</div>
 					)}
@@ -293,10 +301,10 @@ export const HelpPage = ({ tab: activeTab, onTabChange }: HelpPageProps) => {
 				<div slot="tab-3" className="help-page-content">
 					{changelog.status === 'loading' && (
 						<div className="help-page-loading">
-							<KolSpin _show _variant="cycle" _label="Lädt Changelog …" />
+							<KolSpin _show _variant="cycle" _label={t('changelog.loading')} />
 						</div>
 					)}
-					{changelog.status === 'error' && <p>Changelog konnte nicht geladen werden.</p>}
+					{changelog.status === 'error' && <p>{t('changelog.error')}</p>}
 					{changelog.status === 'loaded' && (
 						// Layout: mobil Auswahl-Regler + TOC über dem Text, ab Desktop 2/3 Text +
 						// 1/3 Sidebar (Auswahl-Regler, TOC der Kategorien).
@@ -316,12 +324,12 @@ export const HelpPage = ({ tab: activeTab, onTabChange }: HelpPageProps) => {
 							</div>
 							<aside className="help-sidebar-aside">
 								<KolSelect
-									_label="Anzeige"
-									_options={CHANGELOG_LIMIT_OPTIONS}
+									_label={t('changelog.limitLabel')}
+									_options={limitOptions}
 									_value={limit}
 									_on={{ onChange: (_event, value) => handleLimitChange(value as ChangelogLimit) }}
 								/>
-								<HelpToc items={changelogToc} label="Changelog-Inhaltsverzeichnis" />
+								<HelpToc items={changelogToc} label={t('changelog.toc')} />
 							</aside>
 						</div>
 					)}

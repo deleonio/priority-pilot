@@ -1,6 +1,7 @@
 import { KolButton, KolInputText, KolSingleSelect } from '@public-ui/react-v19';
 import type { Category } from 'client';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { useAiFeaturesGate } from '../lib/aiPreferences';
 import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
@@ -33,6 +34,7 @@ interface SearchModalProps {
  * mit dem eingegebenen Text gesucht — die Suche funktioniert immer, das Parsing ist die Zugabe.
  */
 export const SearchModal = ({ categories = [], onClose, onSearch }: SearchModalProps) => {
+	const { t } = useTranslation(['capture', 'common']);
 	const [searchQuery, setSearchQuery] = useState('');
 	const [categoryId, setCategoryId] = useState<number | null>(null);
 	const [parsing, setParsing] = useState(false);
@@ -46,10 +48,10 @@ export const SearchModal = ({ categories = [], onClose, onSearch }: SearchModalP
 
 	const categoryOptions = useMemo(
 		() => [
-			{ label: '— alle Kategorien —', value: ALL_CATEGORIES },
+			{ label: t('search.allCategories'), value: ALL_CATEGORIES },
 			...categories.map((category) => ({ label: category.name, value: category.id })),
 		],
-		[categories],
+		[categories, t],
 	);
 
 	// Autofokus auf das Suchfeld beim Öffnen
@@ -100,11 +102,11 @@ export const SearchModal = ({ categories = [], onClose, onSearch }: SearchModalP
 	};
 
 	return (
-		<Modal title="Suche" onClose={onClose} width="var(--pp-modal-width-desktop)">
+		<Modal title={t('search.title')} onClose={onClose} width="var(--pp-modal-width-desktop)">
 			<div className="search-modal">
 				<VoiceField
 					variant="input"
-					fieldLabel="Suchbegriff eingeben"
+					fieldLabel={t('search.queryLabel')}
 					autoStart={voiceAutostart}
 					onTranscript={(text) => {
 						setSearchQuery((prev) => (prev ? `${prev} ${text}` : text));
@@ -113,9 +115,9 @@ export const SearchModal = ({ categories = [], onClose, onSearch }: SearchModalP
 				>
 					<KolInputText
 						ref={inputRef}
-						_label="Suchbegriff eingeben"
+						_label={t('search.queryLabel')}
 						_type="search"
-						_placeholder="Aufgaben durchsuchen..."
+						_placeholder={t('search.placeholder')}
 						_value={searchQuery}
 						_on={{
 							onInput: (event: Event) => {
@@ -128,7 +130,7 @@ export const SearchModal = ({ categories = [], onClose, onSearch }: SearchModalP
 				</VoiceField>
 				{categories.length > 0 && (
 					<KolSingleSelect
-						_label="Kategorie"
+						_label={t('search.category')}
 						_options={categoryOptions}
 						_value={categoryId ?? ALL_CATEGORIES}
 						_on={{
@@ -141,13 +143,18 @@ export const SearchModal = ({ categories = [], onClose, onSearch }: SearchModalP
 				)}
 				<div className="search-modal__actions">
 					<KolButton
-						_label={parsing ? 'Suche startet…' : 'Suche starten'}
+						_label={parsing ? t('search.starting') : t('search.start')}
 						_variant="primary"
 						_icons="fa-solid fa-magnifying-glass"
 						_disabled={parsing || searchQuery.trim() === ''}
 						_on={{ onClick: () => void handleSearch() }}
 					/>
-					<KolButton _label="Abbrechen" _variant="secondary" _disabled={parsing} _on={{ onClick: onClose }} />
+					<KolButton
+						_label={t('common:actions.cancel')}
+						_variant="secondary"
+						_disabled={parsing}
+						_on={{ onClick: onClose }}
+					/>
 				</div>
 			</div>
 		</Modal>

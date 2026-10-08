@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 
 /**
@@ -20,10 +21,10 @@ import { api } from '../api';
  * 🌍-Emoji (Refuse-Liste Emoji-als-Icon-System, ux-design.md Craft Floor).
  */
 
-/** Kontrollierter Fallback-Text, wenn Reverse-Geocoding fehlschlägt oder leer antwortet (AK11). */
-const ADDRESS_UNAVAILABLE = 'Adresse nicht verfügbar';
-
-/** Session-Cache: bereits aufgelöste Koordinaten nicht erneut anfragen (Nominatim 1 req/s). */
+/**
+ * Session-Cache: bereits aufgelöste Koordinaten nicht erneut anfragen (Nominatim 1 req/s). Ein leerer
+ * Eintrag steht für „nicht verfügbar“ — der Fallback-Text wird erst beim Rendern übersetzt (AK11).
+ */
 const addressCache = new Map<string, string>();
 /** Parallele Reverse-Geocoding-Aufrufe pro Koordinate serialisieren (Rate-Limit 1 req/s). */
 const inflight = new Map<string, Promise<string>>();
@@ -37,6 +38,7 @@ interface GeoBadgeProps {
 }
 
 export const GeoBadge = ({ latitude, longitude, address = null }: GeoBadgeProps) => {
+	const { t } = useTranslation('taskForm');
 	// Legacy-Bestand ohne Koordinaten zeigt die gespeicherte Adresse; sonst liefert Reverse-Geocoding.
 	const [resolved, setResolved] = useState<string | null>(address);
 
@@ -59,8 +61,8 @@ export const GeoBadge = ({ latitude, longitude, address = null }: GeoBadgeProps)
 			inflight.get(key) ??
 			api
 				.reverseGeocode({ lat: latitude, lon: longitude })
-				.then(({ address: hit }) => (hit === '' ? ADDRESS_UNAVAILABLE : hit))
-				.catch(() => ADDRESS_UNAVAILABLE)
+				.then(({ address: hit }) => hit)
+				.catch(() => '')
 				.then((text) => {
 					addressCache.set(key, text);
 					inflight.delete(key);
@@ -86,7 +88,9 @@ export const GeoBadge = ({ latitude, longitude, address = null }: GeoBadgeProps)
 			className="geo-badge"
 			data-testid="geo-badge"
 			role="img"
-			aria-label={`Standort: ${resolved ?? ADDRESS_UNAVAILABLE}`}
+			aria-label={t('geoBadge.label', {
+				address: resolved === null || resolved === '' ? t('geoBadge.unavailable') : resolved,
+			})}
 		>
 			<i className="fa-solid fa-globe" aria-hidden="true" />
 		</span>

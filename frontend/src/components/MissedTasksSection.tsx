@@ -1,5 +1,6 @@
 import { KolButton, KolCard } from '@public-ui/react-v19';
 import type { Task } from 'client';
+import { useTranslation } from 'react-i18next';
 import { formatDeadline } from '../lib/task';
 
 interface MissedTasksSectionProps {
@@ -24,6 +25,7 @@ interface MissedTasksSectionProps {
  * `MissedTasksCard`). Liste statt Tabelle — `KolTableStateful` wäre bei 375px unbedienbar (KI-UX #1964).
  */
 export const MissedTasksSection = ({ tasks, onComplete, onEdit, onArchive, onDelete }: MissedTasksSectionProps) => {
+	const { t } = useTranslation(['tasks', 'common']);
 	if (tasks.length === 0) {
 		return null;
 	}
@@ -31,8 +33,8 @@ export const MissedTasksSection = ({ tasks, onComplete, onEdit, onArchive, onDel
 		<KolCard
 			className="missed-section"
 			role="region"
-			aria-label="Verpasste Aufgaben"
-			_label="Verpasst"
+			aria-label={t('missedSection.regionLabel')}
+			_label={t('missedSection.title')}
 			_level={2}
 			data-testid="missed-section"
 		>
@@ -42,18 +44,30 @@ export const MissedTasksSection = ({ tasks, onComplete, onEdit, onArchive, onDel
 						<div className="missed-item-main">
 							<span className="missed-item-title">{task.title}</span>
 							<div className="missed-item-meta">
-								<span className="missed-item-deadline">Deadline {formatDeadline(task.deadline)}</span>
+								<span className="missed-item-deadline">
+									{t('actions.deadline', { date: formatDeadline(task.deadline) })}
+								</span>
 								{(task.postponeCount ?? 0) > 0 && (
-									<span className="missed-item-badge">{task.postponeCount}× verschoben</span>
+									<span className="missed-item-badge">
+										{t('missedSection.postponed', { count: task.postponeCount })}
+									</span>
 								)}
 							</div>
 						</div>
 						<div className="missed-item-actions">
-							<KolButton _label="Erledigt" _variant="primary" _on={{ onClick: () => onComplete(task) }} />
-							<KolButton _label="Neu planen" _variant="secondary" _on={{ onClick: () => onEdit(task) }} />
-							<KolButton _label="Archivieren" _variant="secondary" _on={{ onClick: () => onArchive(task) }} />
+							<KolButton _label={t('actions.done')} _variant="primary" _on={{ onClick: () => onComplete(task) }} />
 							<KolButton
-								_label="Löschen"
+								_label={t('missedSection.reschedule')}
+								_variant="secondary"
+								_on={{ onClick: () => onEdit(task) }}
+							/>
+							<KolButton
+								_label={t('missedSection.archive')}
+								_variant="secondary"
+								_on={{ onClick: () => onArchive(task) }}
+							/>
+							<KolButton
+								_label={t('common:actions.delete')}
 								_icons={{ left: { icon: 'fa-solid fa-trash' } }}
 								_variant="danger"
 								_on={{ onClick: () => onDelete(task) }}

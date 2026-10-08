@@ -1,5 +1,6 @@
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import type { TaskGraphNode } from 'client';
+import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../lib/task';
 
 /** Nutzdaten je Graph-Knoten. Als `type` (nicht `interface`), weil xyflow `Record<string, unknown>` verlangt. */
@@ -13,10 +14,11 @@ type TaskGraphNodeData = {
 
 export type TaskGraphFlowNode = Node<TaskGraphNodeData, 'taskGraphNode'>;
 
+/** i18n-Schlüssel je Status. */
 const STATUS_LABEL: Record<string, string> = {
-	Open: 'Offen',
-	'In process': 'In Arbeit',
-	Done: 'Erledigt',
+	Open: 'status.open',
+	'In process': 'status.inProcess',
+	Done: 'status.done',
 };
 
 /** Priorität 1–5 auf drei Rollen-Stufen. Die Stufe steht immer auch als Text im Chip. */
@@ -43,6 +45,7 @@ const progressPercent = (done: number, total: number): number =>
  * Farbe trägt hier nie allein Bedeutung: Priorität, Status und Fortschritt stehen als Text im Knoten.
  */
 export const TaskGraphNodeCard = ({ data }: NodeProps<TaskGraphFlowNode>) => {
+	const { t } = useTranslation('tasks');
 	const { node, isSelected, isDimmed } = data;
 	const progress = node.progress;
 
@@ -61,14 +64,14 @@ export const TaskGraphNodeCard = ({ data }: NodeProps<TaskGraphFlowNode>) => {
 			</div>
 			<p className="task-graph-node__title">{node.title}</p>
 			<div className="task-graph-node__meta">
-				<span>Wert {formatNumber(node.value)}</span>
-				<span className="task-graph-node__status">{STATUS_LABEL[node.status] ?? node.status}</span>
+				<span>{t('graphNode.value', { value: formatNumber(node.value) })}</span>
+				<span className="task-graph-node__status">
+					{STATUS_LABEL[node.status] ? t(STATUS_LABEL[node.status]) : node.status}
+				</span>
 			</div>
 			{progress !== null && progress !== undefined && (
 				<div className="task-graph-node__progress">
-					<span>
-						{progress.done}/{progress.total} erledigt
-					</span>
+					<span>{t('graphNode.progress', { done: progress.done, total: progress.total })}</span>
 					<span className="task-graph-node__progress-track" aria-hidden="true">
 						<span
 							className="task-graph-node__progress-fill"

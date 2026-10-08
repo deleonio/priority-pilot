@@ -31,7 +31,7 @@ import {
 	type CareAufgabe,
 	type CareVorlage,
 } from '../../logics/careSuggestions.js';
-import { CARE_SPRACHEN, type CareSprache } from '../../logics/careSuggestionData.js';
+import { CARE_SPRACHEN, spracheAusHeader, type CareSprache } from '../../logics/careSuggestionData.js';
 import { bewerteCareDefizit } from '../../logics/careDeficit.js';
 import { protokolliereCareReaktion } from '../../logics/careWirkung.js';
 import type { components } from '../../api';
@@ -55,9 +55,9 @@ const MAX_BALANCE_HISTORY_TAGE = 366;
 /** Maximale Anzahl der in der Zusammenfassung mitgelieferten Einzel-Einträge. */
 const MISSED_TASKS_LIST_LIMIT = 20;
 
-/** Löst den `sprache`-Query-Parameter auf: bekannte App-Sprache oder Default `de`. */
-const loeseSprache = (query: unknown): CareSprache =>
-	typeof query === 'string' && (CARE_SPRACHEN as readonly string[]).includes(query) ? (query as CareSprache) : 'de';
+/** Löst den `sprache`-Query-Parameter auf: bekannte App-Sprache, sonst die aus `Accept-Language`. */
+const loeseSprache = (req: Request): CareSprache =>
+	CARE_SPRACHEN.find((code) => code === req.query.sprache) ?? spracheAusHeader(req.get('accept-language'));
 
 export const scoresRouter = Router();
 
@@ -564,6 +564,7 @@ const createKiVorschlagErmittler = (advisor: ActivityAdvisor) => {
 		saeule: Pillar,
 		saeulen: Pillar[],
 		aufgaben: CareAufgabe[],
+		sprache: CareSprache,
 	): Promise<CareVorschlagDto | undefined> => {
 		const zaehler = await createAiQuotaCounter(userId, false);
 		if (zaehler && !(await zaehler.book())) {
@@ -576,6 +577,7 @@ const createKiVorschlagErmittler = (advisor: ActivityAdvisor) => {
 				{
 					question: `Bisherige Aufgaben: ${titel.join('; ')}. Schlage genau eine Aktivität für die Säule „${saeule.name}“ vor, die zu diesen Aufgaben passt.`,
 					pillars: [{ id: saeule.id, name: saeule.name, description: resolvePillarDescription(saeule) }],
+					sprache,
 				},
 				undefined,
 				userId,
@@ -607,6 +609,7 @@ const createKiVorschlagErmittler = (advisor: ActivityAdvisor) => {
 		saeulen: Pillar[],
 		aufgaben: CareAufgabe[],
 		jetzt: Date,
+		sprache: CareSprache,
 	): Promise<CareVorschlagDto | undefined> => {
 		if (typeof userId !== 'number' || saeule === undefined) {
 			return undefined;
@@ -615,7 +618,7 @@ const createKiVorschlagErmittler = (advisor: ActivityAdvisor) => {
 		if (user === null || effectivePlan(user.plan) === 'free') {
 			return undefined;
 		}
-		const key = `${user.id}:${user.createdAt.getTime()}`;
+		const key = `${user.id}:${user.createdAt.getTime()}:${sprache}`;
 		const tag = jetzt.toISOString().slice(0, 10);
 		const gespeichert = tagesCache.get(key);
 		if (gespeichert?.tag === tag) {
@@ -623,7 +626,7 @@ const createKiVorschlagErmittler = (advisor: ActivityAdvisor) => {
 		}
 		// #1873: das laufende Promise ohne `await` dazwischen eintragen — parallele Abrufe teilen
 		// einen Beraterlauf und eine Buchung.
-		const vorschlag = ermittle(userId, saeule, saeulen, aufgaben);
+		const vorschlag = ermittle(userId, saeule, saeulen, aufgaben, sprache);
 		tagesCache.set(key, { tag, vorschlag });
 		// Ein abgelehntes Promise nicht den Tag über cachen — sonst wirft jeder weitere Abruf erneut.
 		vorschlag.catch(() => {
@@ -639,7 +642,7 @@ const createKiVorschlagErmittler = (advisor: ActivityAdvisor) => {
 // defizitärer Säule (Defizit-Quelle ist `bewerteCareDefizit` aus #1790, nicht kopiert) bis zu
 // drei Einträge — zuerst eigene offene Aufgaben dieser Säule, sonst kuratierte Vorlagen aus
 // `careSuggestionData.ts`. Meldet `bewerteCareDefizit` Überlast, stehen davor Erholungsvorschläge
-// (`anlass: 'ueberlast'`, #1795). `?sprache=` wählt die Sprache der Vorlagen-Texte (Default `de`).
+// (`anlass: 'ueberlast'`, #1795). `?sprache=` wählt die Sprache der Vorlagen-Texte (Default `Accept-Language`, sonst `de`).
 // Gilt vollständig im Free-Paket (Epic #1780) — bewusst ohne planGuard; Plus/Pro erhalten bei einem
 // Defizit ohne Überlast zusätzlich einen KI-Vorschlag an erster Stelle (#1804, #1873,
 // `createKiVorschlagErmittler`). Gescopet wie
@@ -654,7 +657,7 @@ export const createCareSuggestionsRouter = (advisor: ActivityAdvisor = adviseAct
 		async (req: Request, res: Response<{ vorschlaege: CareVorschlagDto[] } | ErrorDto>) => {
 			try {
 				const userId = getUserId(req);
-				const sprache = loeseSprache(req.query.sprache);
+				const sprache = loeseSprache(req);
 				const jetzt = new Date();
 				const [saeulen, tasks, entries, ablehnungen] = await Promise.all([
 					Pillar.findAll({ where: ownerScope(userId), order: [['id', 'ASC']] }),
@@ -746,7 +749,7 @@ export const createCareSuggestionsRouter = (advisor: ActivityAdvisor = adviseAct
 				const ki =
 					erholung.length > 0
 						? undefined
-						: await ermittleKiVorschlag(userId, ersteDefizitSaeule, saeulen, aufgaben, jetzt);
+						: await ermittleKiVorschlag(userId, ersteDefizitSaeule, saeulen, aufgaben, jetzt, sprache);
 				const vorschlaege = [...erholung, ...(ki ? [ki] : []), ...defizitVorschlaege];
 
 				// #1798 AK1: angezeigte Vorlagen anonym zählen (je Nutzer, Vorlage und Woche einmal).

@@ -1,0 +1,187 @@
+{
+	"periods": {
+		"monthly": "monatlich",
+		"quarterly": "quartalsweise",
+		"yearly": "jährlich"
+	},
+	"periodUnits": {
+		"monthly": "Monat",
+		"quarterly": "Quartal",
+		"yearly": "Jahr"
+	},
+	"features": {
+		"groups": {
+			"title": "Gruppen",
+			"benefit": "Aufgaben mit Familie oder Team teilen, gemeinsam planen und Zuständigkeiten verteilen."
+		},
+		"voiceInput": {
+			"title": "Spracheingabe",
+			"benefit": "Aufgaben unterwegs einfach diktieren, statt sie zu tippen."
+		},
+		"aiAssist": {
+			"title": "KI-Unterstützung",
+			"benefit": "Schnellerfassung, Vorschläge und Zerlegung großer Aufgaben — mit einem größeren Monatskontingent."
+		},
+		"graphWrite": {
+			"title": "Abhängigkeiten",
+			"benefit": "Aufgaben verknüpfen und die Reihenfolge im Graphen selbst bestimmen."
+		},
+		"graphWeight": {
+			"title": "Gewichtete Abhängigkeiten",
+			"benefit": "Festlegen, wie stark eine Aufgabe von ihrem Vorgänger abhängt."
+		},
+		"locationReminders": {
+			"title": "Orts-Erinnerungen",
+			"benefit": "Erinnerungen, die ausgelöst werden, wenn du in der Nähe bist."
+		},
+		"mcpReadwrite": {
+			"title": "MCP-Schreibzugriff",
+			"benefit": "Eigene Werkzeuge und Assistenten dürfen Aufgaben nicht nur lesen, sondern auch anlegen und ändern."
+		},
+		"mcpRead": {
+			"title": "MCP-Lesezugriff",
+			"benefit": "Eigene Werkzeuge und Assistenten dürfen über einen persönlichen API-Token Aufgaben und Daten lesen."
+		},
+		"feedback": {
+			"title": "Feedback und App-Support",
+			"benefit": "Rückmeldungen und Support-Anfragen direkt aus der App senden — in jedem Paket."
+		},
+		"sync": {
+			"title": "Synchronisation über alle Geräte",
+			"benefit": "Aufgaben auf allen deinen Geräten stets auf dem gleichen Stand — in jedem Paket."
+		},
+		"knowledgeEntries": {
+			"title": "Wissens-Einträge",
+			"benefit": "Persönliche Hinweise, die die KI bei der Säulenzuordnung neuer Aufgaben berücksichtigt."
+		},
+		"fallback": {
+			"title": "Mehr Funktionen",
+			"benefit": "Diese Funktion gehört zu einem größeren Paket."
+		}
+	},
+	"fairUse_one": "Gerade ist viel los. Die KI-Hilfe antwortet etwas langsamer — in etwa {{count}} Sekunde geht es weiter.",
+	"fairUse_other": "Gerade ist viel los. Die KI-Hilfe antwortet etwas langsamer — in etwa {{count}} Sekunden geht es weiter.",
+	"aiQuotaHint": {
+		"label": "KI-Hilfe etwas langsamer"
+	},
+	"planHint": {
+		"label": "Paket „{{plan}}“ erforderlich",
+		"text": "{{title}}: Das gehört zum Paket {{plan}}."
+	},
+	"planBadge": {
+		"included": "{{title}} · {{plan}} · enthalten"
+	},
+	"ownPlanCard": {
+		"label": "Eigenes Paket",
+		"hint": "Der Wechsel ist kostenfrei, sofort wirksam und ohne Zahlungsweg — er gilt für dein eigenes Konto.",
+		"errorLabel": "Wechsel nicht möglich",
+		"selectLabel": "Eigenes Paket wechseln"
+	},
+	"storeNotice": {
+		"label": "Kauf in der App folgt",
+		"text": "Die Pakete lassen sich bald direkt in der App buchen."
+	},
+	"purchase": {
+		"currentPlan": "Aktuelles Paket",
+		"book": "Buchen",
+		"change": "Wechseln",
+		"bookLabel": "{{plan}} buchen ({{period}})",
+		"changeLabel": "{{plan}} wechseln ({{period}})"
+	},
+	"play": {
+		"unlockFailed": "Der Kauf ist bei Google eingegangen, konnte aber noch nicht freigeschaltet werden.",
+		"purchaseFailed": "Der Kauf über Google Play ist fehlgeschlagen.",
+		"scheduledChange": "Wechsel zu {{plan}} ab {{date}}.",
+		"unavailableLabel": "Google Play nicht erreichbar",
+		"unavailableText": "Die Pakete lassen sich gerade nicht laden. Bitte später erneut versuchen.",
+		"errorLabel": "Kauf fehlgeschlagen",
+		"scheduledLabel": "Paketwechsel vorgemerkt"
+	},
+	"paypal": {
+		"resume": "Weiterführen",
+		"resumeBusy": "Wird weitergeführt…",
+		"resumeLabel": "{{plan}} weiterführen ab {{date}}",
+		"bookingFailed": "Buchung fehlgeschlagen",
+		"deferredLabel": "Wechsel vorgemerkt",
+		"deferredText": "Wechsel bei PayPal eingereicht — er wird mit der nächsten Abrechnung wirksam."
+	},
+	"returnWait": {
+		"label": "Zahlung wird bestätigt",
+		"timeout": "Die Bestätigung dauert länger als erwartet. Bitte die Einstellungen in Kürze erneut öffnen.",
+		"pending": "Zahlung wird bestätigt …"
+	},
+	"changeDialog": {
+		"title": "Paket wechseln",
+		"errorLabel": "Wechsel fehlgeschlagen",
+		"previewFailedLabel": "Vorschau nicht verfügbar",
+		"previewFailedText": "Der fällige Betrag konnte nicht berechnet werden. Bitte den Dialog schließen und erneut öffnen.",
+		"target": "Wechsel zu <strong>{{plan}}</strong> ({{period}}).",
+		"calculating": "Betrag wird berechnet …",
+		"currentUntil": "Aktuelles Paket bis",
+		"startsAt": "Ab {{date}}: {{plan}} für {{price}} je {{unit}}",
+		"price": "Preis {{plan}} ({{period}})",
+		"credit": "Guthaben aus dem laufenden Abo",
+		"dueNow": "Jetzt fällig",
+		"dueOnApproval": "Fällig bei Zustimmung",
+		"dueFirstCycle": "Fällig beim ersten Zyklus",
+		"creditCoversUntil": "Guthaben reicht bis",
+		"effectiveFrom": "Wirksam ab",
+		"immediately": "sofort",
+		"busy": "Wird gewechselt…",
+		"confirm": "Wechseln bestätigen"
+	},
+	"plans": {
+		"label": "Pakete",
+		"loadFailed": "Die Pakete konnten nicht geladen werden.",
+		"loading": "Pakete werden geladen …",
+		"priceRow": {
+			"monthly": "Preis monatlich",
+			"quarterly": "Preis quartalsweise",
+			"yearly": "Preis jährlich"
+		},
+		"bookRow": {
+			"monthly": "Buchen monatlich",
+			"quarterly": "Buchen quartalsweise",
+			"yearly": "Buchen jährlich"
+		},
+		"included": "enthalten",
+		"feature": "Funktion",
+		"ownPlan": "{{plan}} (dein Paket)",
+		"tableLabel": "Pakete im Vergleich"
+	},
+	"invoices": {
+		"label": "Rechnungen",
+		"loading": "Rechnungen werden geladen …",
+		"empty": "Noch keine Rechnungen vorhanden.",
+		"download": "PDF {{number}} herunterladen"
+	},
+	"subscription": {
+		"current": "Aktuelles Paket: <strong>{{plan}}</strong> ({{period}})",
+		"periodEnd": "Periodenende: {{date}}",
+		"pendingAt": "Wechsel zu {{plan}} ab {{date}}",
+		"pendingOnPayment": "Wechsel zu {{plan}}, aktiv mit Zahlungseingang",
+		"graceUntil": "Kulanzfrist bis {{date}}",
+		"cancelled": "Gekündigt, läuft bis {{date}}, danach Free",
+		"confirmationSent": "Die Bestätigung geht per Mail an {{email}}.",
+		"cancel": "Verträge hier kündigen",
+		"empty": "Für dieses Konto läuft derzeit kein Abo. Die Pakete darunter zeigen, was die kostenpflichtigen Stufen bieten.",
+		"invoicesLoadFailed": "Die Rechnungen konnten nicht geladen werden.",
+		"loadErrorLabel": "Ladefehler"
+	},
+	"cancelDialog": {
+		"title": "Verträge kündigen",
+		"errorLabel": "Kündigung fehlgeschlagen",
+		"contract": "Vertrag: <strong>{{plan}}</strong> ({{period}})",
+		"kindLabel": "Art der Kündigung",
+		"ordinary": "Ordentlich",
+		"extraordinary": "Außerordentlich",
+		"reason": "Grund",
+		"reasonMissing": "Bitte einen Grund angeben.",
+		"effective": "Zeitpunkt: zum Ende der Laufzeit am {{date}}",
+		"emailLabel": "E-Mail für die Bestätigung",
+		"emailHint": "Hierhin schicken wir die Bestätigung.",
+		"emailInvalid": "Bitte eine gültige E-Mail-Adresse angeben.",
+		"busy": "Wird gekündigt…",
+		"confirm": "Jetzt kündigen"
+	}
+}

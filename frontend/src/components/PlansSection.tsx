@@ -5,15 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import type { components } from 'client';
 import { formatEuro } from '../lib/format';
-import {
-	featureOffer,
-	PERIOD_LABELS,
-	PERIODS,
-	planLabel,
-	yearlyMonthlyEquivalent,
-	type Period,
-	type Plan,
-} from '../lib/planOffers';
+import { featureOffer, PERIODS, planLabel, yearlyMonthlyEquivalent, type Period, type Plan } from '../lib/planOffers';
 import { getChannel } from '../lib/platform';
 import { renderIntoCell } from '../lib/reactCellRoot';
 import { usePlan } from '../lib/usePlan';
@@ -53,7 +45,7 @@ export const PlansSection = () => {
 	const { plan } = usePlan();
 	// Der Kanal wechselt zur Laufzeit nicht, der gewählte Hook bleibt über alle Renders derselbe.
 	const usePurchase = purchaseHookFor(getChannel());
-	const { t } = useTranslation('messages');
+	const { t } = useTranslation(['billing', 'messages']);
 	const purchase = usePurchase();
 	const matrixRef = useRef<HTMLDivElement>(null);
 	/**
@@ -66,7 +58,7 @@ export const PlansSection = () => {
 	 */
 	const [matrixReady, setMatrixReady] = useState(typeof ResizeObserver === 'undefined');
 	const [catalog, setCatalog] = useState<PlansCatalog | null>(null);
-	const [error, setError] = useState<string | null>(null);
+	const [failed, setFailed] = useState(false);
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -88,7 +80,7 @@ export const PlansSection = () => {
 				// Versuch darf den Fehlerzustand NICHT mehr setzen, sonst gewinnt er das Rennen gegen
 				// den erfolgreichen zweiten Versuch und die Karte zeigt fälschlich den Ladefehler.
 				if (!controller.signal.aborted) {
-					setError('Die Pakete konnten nicht geladen werden.');
+					setFailed(true);
 				}
 			});
 		return () => controller.abort();
@@ -112,16 +104,16 @@ export const PlansSection = () => {
 		// ist (davor stehen Ladefehler bzw. Spinner an seiner Stelle).
 	}, [catalog]);
 
-	if (error !== null) {
+	if (failed) {
 		return (
-			<KolAlert _type="error" _label="Pakete">
-				{error}
+			<KolAlert _type="error" _label={t('plans.label')}>
+				{t('plans.loadFailed')}
 			</KolAlert>
 		);
 	}
 
 	if (catalog === null) {
-		return <KolSpin _show _variant="cycle" _label="Pakete werden geladen …" />;
+		return <KolSpin _show _variant="cycle" _label={t('plans.loading')} />;
 	}
 
 	const plans = Object.keys(catalog.prices);
@@ -140,14 +132,14 @@ export const PlansSection = () => {
 	// unzugänglich machte.
 	const rows: PlanRow[] = [
 		...PERIODS.map((period) => {
-			const row: PlanRow = { label: `Preis ${PERIOD_LABELS[period]}`, _kind: 'price' };
+			const row: PlanRow = { label: t(`plans.priceRow.${period}`), _kind: 'price' };
 			for (const key of plans) {
 				const storePrice = key === 'free' ? undefined : purchase.price?.(key as Exclude<Plan, 'free'>, period);
 				row[key] = storePrice ?? formatEuro(catalog.prices[key][period]);
 				// #1898: Monatsäquivalent der Jahreszahlung als zweite Zeile der Monatszelle; im Store-Modus entfällt es.
 				const perMonth = yearlyMonthlyEquivalent(catalog.prices[key].yearly);
 				if (period === 'monthly' && storePrice === undefined && perMonth !== null) {
-					row[key] += `\n${t('billing.yearlyPerMonth', { price: formatEuro(perMonth) })}`;
+					row[key] += `\n${t('messages:billing.yearlyPerMonth', { price: formatEuro(perMonth) })}`;
 				}
 			}
 			return row;
@@ -155,7 +147,7 @@ export const PlansSection = () => {
 		...(actionCell === undefined
 			? []
 			: PERIODS.map((period) => {
-					const row: PlanRow = { label: `Buchen ${PERIOD_LABELS[period]}`, _kind: 'action', _period: period };
+					const row: PlanRow = { label: t(`plans.bookRow.${period}`), _kind: 'action', _period: period };
 					for (const key of plans) {
 						row[key] = key === 'free' ? '—' : actionCell(key as Exclude<Plan, 'free'>, period).text;
 					}
@@ -164,7 +156,7 @@ export const PlansSection = () => {
 		...features.map((entry) => {
 			const row: PlanRow = { label: featureOffer(entry.feature).title, _kind: 'feature' };
 			for (const key of plans) {
-				row[key] = entry.allowedPlans.includes(key as never) ? 'enthalten' : '—';
+				row[key] = entry.allowedPlans.includes(key as never) ? t('plans.included') : '—';
 			}
 			return row;
 		}),
@@ -173,10 +165,10 @@ export const PlansSection = () => {
 	const headers: { horizontal: KoliBriTableHeaderCellWithLogic[][] } = {
 		horizontal: [
 			[
-				{ key: LABEL_KEY, label: 'Funktion', width: LABEL_COLUMN_WIDTH },
+				{ key: LABEL_KEY, label: t('plans.feature'), width: LABEL_COLUMN_WIDTH },
 				...plans.map((key) => ({
 					key,
-					label: `${planLabel(key)}${key === plan ? ' (dein Paket)' : ''}`,
+					label: key === plan ? t('plans.ownPlan', { plan: planLabel(key) }) : planLabel(key),
 					width: PLAN_COLUMN_WIDTH,
 					// Buchen-Zellen tragen eine Web Component (KolButton); sie passt nicht deklarativ in
 					// eine KoliBri-Zelle und wird wie in `CompletedTasksTable` über `render` in eine pro
@@ -217,7 +209,7 @@ export const PlansSection = () => {
 			 */}
 			<div className="plans-matrix" ref={matrixRef}>
 				{matrixReady && (
-					<KolTableStateful _label="Pakete im Vergleich" _data={rows} _headers={headers} _fixedCols={[1, 0]} />
+					<KolTableStateful _label={t('plans.tableLabel')} _data={rows} _headers={headers} _fixedCols={[1, 0]} />
 				)}
 			</div>
 

@@ -1,6 +1,7 @@
 import { KolAlert } from '@public-ui/react-v19';
 import { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { isNativeChannel } from '../lib/platform';
 
 /** Payload einer Push-Nachricht, wie sie `logics/push.ts` sendet und `push-sw.js` weiterreicht. */
@@ -29,6 +30,7 @@ interface PushPayload {
  * `data-testid` des DOM-Kontrakts (docs/spec/issue-1391.md) und ist als 44px-Tap-Fläche messbar.
  */
 export const PushToast = () => {
+	const { t } = useTranslation('common');
 	const [toast, setToast] = useState<PushPayload | null>(null);
 
 	useEffect(() => {
@@ -94,7 +96,7 @@ export const PushToast = () => {
 					data-testid="push-toast-close"
 					onClick={() => setToast(null)}
 				>
-					Schließen
+					{t('actions.close')}
 				</button>
 			</KolAlert>
 		</div>

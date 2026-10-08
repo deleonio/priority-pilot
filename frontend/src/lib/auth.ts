@@ -1,5 +1,6 @@
 import type { components } from 'client';
 import type { EntitlementMap, Plan } from './planOffers';
+import i18next from '../i18n/config';
 import { appTokenHeaders } from './appToken';
 import { getApiBase } from './siteOrigin';
 
@@ -41,13 +42,13 @@ export async function checkAuth(): Promise<AuthUser | null> {
 	// Google-Top-Level-Navigation selbst ist clientseitig nicht abbrechbar.
 	const response = await fetch(`${getApiBase()}/auth/me`, {
 		signal: AbortSignal.timeout(30_000),
-		headers: appTokenHeaders(),
+		headers: { 'Accept-Language': i18next.language, ...appTokenHeaders() },
 	});
 	if (response.status === 401) {
 		return null;
 	}
 	if (!response.ok) {
-		throw new Error(`Auth-Check fehlgeschlagen (${response.status})`);
+		throw new Error(i18next.t('app:api.authCheckFailed', { status: response.status }));
 	}
 	const json = (await response.json()) as AuthUser;
 	// Issue #217: avatarUrl explizit auf null normalisieren (undefined -> null),

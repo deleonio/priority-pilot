@@ -33,7 +33,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [Tailscale Exit Node](docs/tailscale-exit-node.md) — CI-Traffic über Tailscale-Exit-Node
 - [UX-Pattern: Sequenzielle Bestätigung](docs/ux-pattern-sequential-confirmation.md) — verbindliche Referenz für destruktive Aktionen
 - [Zifferblatt-Konzept](docs/zifferblatt-konzept.md) — die fünf Bilder der Lebensbalance: gemeinsame Kennzahl, Rahmen, Regeln für ein neues Bild
-- [Fürsorge-Tonalität](docs/fuersorge-tonalitaet.md) — Ton, Prüffrage und Beispieltexte (10 Sprachen) für Fürsorge-Hinweise, Pushes und Vorschläge
+- [Fürsorge-Tonalität](docs/fuersorge-tonalitaet.md) — Ton, Prüffrage und Beispieltexte (de/en plus Referenzsprachen) für Fürsorge-Hinweise, Pushes und Vorschläge
 - [Mobile-UI-Regeln](docs/mobile-ui-rules.md) — Daumen-Zonen, Touch-Targets, async Zustände, Anti-Patterns (Schwesterdatei: Cockpit-Design)
 - [Design-Optimierungsplan](docs/design-optimierungsplan.md) — offene Findings aus Impeccable-Audit + Dashboard-Critique, Arbeitsliste mit Kommandos
 - [Fachlogik-Inventar](docs/fachlogik-inventar.md) — Fachlogik mit Mehrfachnutzung (REST/MCP/Jobs), Befund, Zielpfad und Folge-Ticket-Vorschläge
@@ -169,7 +169,7 @@ kann, werden nicht weggemockt. Läuft **nicht** als Teil von `pnpm test` — nur
 
 ## Website
 
-`website/` ist die öffentliche, statisch vorgerenderte Landingpage (de an `/`, die übrigen neun App-Sprachen unter `/<sprache>/`), die App
+`website/` ist die öffentliche, statisch vorgerenderte Landingpage (de an `/`, neun weitere Sprachen unter `/<sprache>/`, Unterseiten de und en), die App
 liegt unter `/app/` ([ADR 0015](docs/adr/0015-oeffentliche-website-und-app-unter-app.md)). Texte in
 `website/src/i18n/<sprache>.json`, Preise kommen aus `server/src/logics/plans.ts`, keine Kopie.
 `pnpm --filter website build` baut nach `website/dist`, `pnpm --filter website test` (Vitest) und

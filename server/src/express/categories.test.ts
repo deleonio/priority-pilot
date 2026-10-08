@@ -45,6 +45,16 @@ describe('Categories API', () => {
 	const del = (path: string, cookie?: string) =>
 		fetch(`${server.baseUrl}${path}`, { method: 'DELETE', headers: { ...(cookie ? { cookie } : {}) } });
 
+	// Review #2429: Nur Säulen werden in der englischen Antwort übersetzt — eine gleichnamige
+	// Kategorie bleibt, wie sie heißt.
+	it('Accept-Language en: eine Kategorie „Sinn“ bleibt „Sinn“', async () => {
+		const cookie = await server.login('alice@example.com');
+		await Category.create({ name: 'Sinn', color: RED, userId: 1 });
+		const headers = { 'Accept-Language': 'en', cookie };
+		const list = (await (await fetch(`${server.baseUrl}/categories`, { headers })).json()) as { name: string }[];
+		assert.equal(list[0]?.name, 'Sinn');
+	});
+
 	describe('GET /categories', () => {
 		it('200 mit leerer Liste — neue Konten starten ohne Kategorien (kein Seed)', async () => {
 			const cookie = await server.login('alice@example.com');

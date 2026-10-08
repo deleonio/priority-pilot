@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { featureOffer, planLabel, type FeatureId } from '../lib/planOffers';
 import { useEntitlement } from '../lib/usePlan';
 import { FeaturePopoverButton } from './FeaturePopoverButton';
@@ -11,6 +12,7 @@ import { FeaturePopoverButton } from './FeaturePopoverButton';
  */
 export const PlanHint = ({ feature, inModal = false }: { feature: FeatureId; inModal?: boolean }) => {
 	const entitlement = useEntitlement(feature);
+	const { t } = useTranslation('billing');
 
 	if (entitlement === undefined || entitlement.allowed) {
 		return null;
@@ -20,10 +22,12 @@ export const PlanHint = ({ feature, inModal = false }: { feature: FeatureId; inM
 	const { title } = featureOffer(feature);
 
 	return (
-		<FeaturePopoverButton label={`Paket „${paket}“ erforderlich`} testId={`plan-badge-${feature}`} inModal={inModal}>
-			<p>
-				{title}: Das gehört zum Paket {paket}.
-			</p>
+		<FeaturePopoverButton
+			label={t('planHint.label', { plan: paket })}
+			testId={`plan-badge-${feature}`}
+			inModal={inModal}
+		>
+			<p>{t('planHint.text', { title, plan: paket })}</p>
 		</FeaturePopoverButton>
 	);
 };

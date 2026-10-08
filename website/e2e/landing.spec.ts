@@ -135,6 +135,10 @@ test.describe('Öffentliche Website', () => {
 			'/datenschutz/',
 			'/nutzungsbedingungen/',
 			'/widerruf/',
+			'/en/privacy/',
+			'/en/terms/',
+			'/en/withdrawal/',
+			'/en/cancel/',
 			'/ru/delete-account/',
 		]) {
 			await page.goto(path);
@@ -163,7 +167,7 @@ test.describe('Angemeldete Nutzer', () => {
 		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Woran solltest du als Nächstes arbeiten?');
 	});
 
-	test('Rechtstext-Hinweis im Footer nur in Nicht-Deutsch, ohne Überlauf, Links hreflang="de" (#2226)', async ({
+	test('Rechtstext-Hinweis im Footer nur in Nicht-Deutsch, ohne Überlauf, Links auf die englischen Rechtstexte (#2226)', async ({
 		page,
 	}) => {
 		await page.setViewportSize({ width: 375, height: 812 });
@@ -176,8 +180,8 @@ test.describe('Angemeldete Nutzer', () => {
 		expect(box).not.toBeNull();
 		expect(box!.x).toBeGreaterThanOrEqual(0);
 		expect(box!.x + box!.width).toBeLessThanOrEqual(375);
-		await expect(footer.locator('a[href="/datenschutz/"]')).toHaveAttribute('hreflang', 'de');
-		await expect(footer.locator('a[href="/nutzungsbedingungen/"]')).toHaveAttribute('hreflang', 'de');
+		await expect(footer.locator('a[href="/en/privacy/"]')).toHaveAttribute('hreflang', 'en');
+		await expect(footer.locator('a[href="/en/terms/"]')).toHaveAttribute('hreflang', 'en');
 
 		await page.goto('/');
 		await expect(page.locator('footer').getByText(/Rechtstexte nur auf Deutsch|verbindlich/i)).toHaveCount(0);

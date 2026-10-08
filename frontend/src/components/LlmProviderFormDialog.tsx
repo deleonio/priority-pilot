@@ -1,6 +1,7 @@
 import { KolAlert, KolButton, KolInputPassword, KolInputText } from '@public-ui/react-v19';
 import type { LlmProvider, LlmProviderInput, LlmProviderTestResult, LlmProviderUpdate } from 'client';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
@@ -29,6 +30,7 @@ interface LlmProviderFormDialogProps {
  * nur ein eingegebener Wert wird gesendet.
  */
 export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProviderFormDialogProps) => {
+	const { t } = useTranslation(['settings', 'common', 'forms']);
 	const isEdit = provider !== undefined;
 
 	const form = useRef({
@@ -81,7 +83,7 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 		const apiKey = form.current.apiKey.trim();
 
 		if (name === '') {
-			setError('Name darf nicht leer sein.');
+			setError(t('categoryForm.nameEmpty'));
 			return;
 		}
 		try {
@@ -90,16 +92,16 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 				throw new Error('protocol');
 			}
 		} catch {
-			setError('Endpoint muss eine gültige http(s)-URL sein (z. B. https://api.mistral.ai/v1).');
+			setError(t('llmProviderForm.endpointInvalid'));
 			return;
 		}
 		if (!isEdit && apiKey === '') {
-			setError('API-Key darf beim Anlegen nicht leer sein.');
+			setError(t('llmProviderForm.apiKeyEmpty'));
 			return;
 		}
 		const model = form.current.model.trim();
 		if (model === '') {
-			setError('Modell darf nicht leer sein — die Modellliste ist nicht bei jedem Anbieter abrufbar.');
+			setError(t('llmProviderForm.modelEmpty'));
 			return;
 		}
 
@@ -150,50 +152,46 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 	};
 
 	return (
-		<Modal title={isEdit ? 'Provider bearbeiten' : 'Neuen Provider anlegen'} onClose={onClose}>
+		<Modal title={isEdit ? t('llmProviderForm.editTitle') : t('llmProviderForm.createTitle')} onClose={onClose}>
 			{error !== null && (
-				<KolAlert _type="error" _label="Speichern fehlgeschlagen">
+				<KolAlert _type="error" _label={t('categoryForm.saveFailed')}>
 					{error}
 				</KolAlert>
 			)}
 			<div className="form-grid">
 				<KolInputText
-					_label="Name"
+					_label={t('forms:labels.name')}
 					_type="search"
 					_value={nameState}
-					_hint="Anzeigename, z. B. z.ai oder Groq"
+					_hint={t('llmProviderForm.nameHint')}
 					_on={{
 						onInput: fieldHandler('name', setNameState),
 						onChange: fieldHandler('name', setNameState),
 					}}
 				/>
 				<KolInputText
-					_label="Endpoint"
+					_label={t('llmProviderForm.endpoint')}
 					_value={endpointState}
-					_hint="OpenAI-kompatible Basis-URL (http/https), z. B. https://api.mistral.ai/v1"
+					_hint={t('llmProviderForm.endpointHint')}
 					_on={{
 						onInput: fieldHandler('endpoint', setEndpointState),
 						onChange: fieldHandler('endpoint', setEndpointState),
 					}}
 				/>
 				<KolInputPassword
-					_label="API-Key"
+					_label={t('llmProviderForm.apiKey')}
 					_value={apiKeyState}
-					_hint={
-						isEdit
-							? 'Feld leer lassen, um den gespeicherten Key nicht zu ändern.'
-							: 'Wird nie angezeigt oder zurückgelesen.'
-					}
+					_hint={isEdit ? t('llmProviderForm.apiKeyHintEdit') : t('llmProviderForm.apiKeyHintCreate')}
 					_on={{
 						onInput: fieldHandler('apiKey', setApiKeyState),
 						onChange: fieldHandler('apiKey', setApiKeyState),
 					}}
 				/>
 				<KolInputText
-					_label="Modell"
+					_label={t('llmProviderForm.model')}
 					_type="search"
 					_value={modelState}
-					_hint="Modellkennung, z. B. glm-4.7 — später änderbar über die Modellliste."
+					_hint={t('llmProviderForm.modelHint')}
 					_on={{
 						onInput: fieldHandler('model', setModelState),
 						onChange: fieldHandler('model', setModelState),
@@ -201,29 +199,37 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 				/>
 			</div>
 			{testResult !== null && testResult.ok && (
-				<KolAlert _type="success" _alert _label="Verbindungstest erfolgreich">
-					{`${testResult.model ?? 'Modell'} antwortete in ${testResult.latencyMs ?? '?'} ms.`}
+				<KolAlert _type="success" _alert _label={t('llmProviderForm.testOkLabel')}>
+					{t('llmProviderForm.testOkText', {
+						model: testResult.model ?? t('llmProviderForm.model'),
+						latency: testResult.latencyMs ?? '?',
+					})}
 				</KolAlert>
 			)}
 			{testResult !== null && !testResult.ok && (
-				<KolAlert _type="error" _alert _label="Verbindungstest fehlgeschlagen">
-					{testResult.message ?? 'Unbekannter Fehler.'}
+				<KolAlert _type="error" _alert _label={t('llmProviderForm.testFailedLabel')}>
+					{testResult.message ?? t('llmProviderForm.unknownError')}
 				</KolAlert>
 			)}
 			<div className="modal-actions">
 				<KolButton
-					_label={isEdit ? 'Speichern' : 'Anlegen'}
+					_label={isEdit ? t('common:actions.save') : t('common:actions.create')}
 					_variant="primary"
 					_disabled={saving}
 					_on={{ onClick: () => void submit() }}
 				/>
 				<KolButton
-					_label={testing ? 'Testen…' : 'Testen'}
+					_label={testing ? t('llmSettings.testing') : t('llmSettings.test')}
 					_variant="secondary"
 					_disabled={saving || testing}
 					_on={{ onClick: () => void runDryTest() }}
 				/>
-				<KolButton _label="Abbrechen" _variant="secondary" _disabled={saving} _on={{ onClick: () => onClose() }} />
+				<KolButton
+					_label={t('common:actions.cancel')}
+					_variant="secondary"
+					_disabled={saving}
+					_on={{ onClick: () => onClose() }}
+				/>
 			</div>
 		</Modal>
 	);

@@ -148,17 +148,24 @@ test.describe('#1901 — Zustimmungsschritt', () => {
 		await expect(weiter).toBeEnabled();
 	});
 
-	test('#2226 AK3/AK6: englische Sprache zeigt den Rechtstext-Hinweis bei 375 px ohne Überlauf', async ({ page }) => {
+	test('#2226 AK3/AK6: englische Sprache verlinkt die englischen Rechtstexte bei 375 px ohne Überlauf', async ({
+		page,
+	}) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await mockConsent(page);
 		await page.addInitScript(() => localStorage.setItem('i18nextLng', 'en'));
 		await page.goto('/app/');
-		const hint = page.getByText(/only (available )?in German|German version/i).first();
-		await expect(hint).toBeVisible();
-		const box = await hint.boundingBox();
+		// Der Rechtstext kommt beim Aufklappen von der englischen Website-Seite.
+		const terms = page.waitForRequest(/\/en\/terms\//);
+		await page.getByText('Read the terms of use').click();
+		await terms;
+		await expect(page.getByText(/only (available )?in German|German version/i)).toHaveCount(0);
+		const button = page.getByRole('button', { name: 'Continue' });
+		await expect(button).toBeVisible();
+		const box = await button.boundingBox();
 		expect(box).not.toBeNull();
 		expect(box!.x).toBeGreaterThanOrEqual(0);
 		expect(box!.x + box!.width).toBeLessThanOrEqual(375);
-		for (const link of await page.getByRole('link').all()) await expect(link).toHaveAttribute('hreflang', 'de');
+		for (const link of await page.getByRole('link').all()) await expect(link).toHaveAttribute('hreflang', 'en');
 	});
 });

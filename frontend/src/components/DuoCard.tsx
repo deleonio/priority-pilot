@@ -1,10 +1,8 @@
 import { KolAlert, KolCard, KolDetails, KolSpin } from '@public-ui/react-v19';
 import type { Duo } from 'client';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
-
-/** Tage mit Einheit — eine Zahl ohne Kontext sagt nichts („3 Tage" statt „3"). */
-const tage = (anzahl: number): string => `${anzahl} ${anzahl === 1 ? 'Tag' : 'Tage'}`;
 
 /**
  * Duo-Karte (#1991): gemeinsamer Streak und je Person die Säulenwerte (`GET /groups/:id/duo`).
@@ -16,6 +14,8 @@ const tage = (anzahl: number): string => `${anzahl} ${anzahl === 1 ? 'Tag' : 'Ta
  * (`.duo-members`, Grid mit `minmax`).
  */
 export const DuoCard = ({ groupId }: { groupId: number }) => {
+	const { t, i18n } = useTranslation('dashboard');
+	const tage = (anzahl: number): string => t('days', { count: anzahl });
 	const [duo, setDuo] = useState<Duo | null>(null);
 	const [helpOpen, setHelpOpen] = useState(false);
 	const [failed, setFailed] = useState(false);
@@ -42,39 +42,48 @@ export const DuoCard = ({ groupId }: { groupId: number }) => {
 	}, [groupId]);
 
 	return (
-		<KolCard className="duo-card" role="region" aria-label="Duo" _label="Duo" _level={3} data-testid="duo-card">
+		<KolCard
+			className="duo-card"
+			role="region"
+			aria-label={t('duo.label')}
+			_label={t('duo.label')}
+			_level={3}
+			data-testid="duo-card"
+		>
 			{failed ? (
-				<KolAlert _type="error" _label="Duo nicht verfügbar">
-					Das Duo konnte gerade nicht geladen werden. Lade die Seite neu und versuche es noch einmal.
+				<KolAlert _type="error" _label={t('duo.errorLabel')}>
+					{t('duo.errorText')}
 				</KolAlert>
 			) : duo === null ? (
-				<KolSpin _show _variant="cycle" _label="Duo wird geladen …" />
+				<KolSpin _show _variant="cycle" _label={t('duo.loading')} />
 			) : (
 				<div className="duo-content">
 					{duo.streak.aktuell > 0 ? (
 						<p className="duo-streak" data-testid="duo-streak-shared">
 							<span className="dashboard-streak-value">{tage(duo.streak.aktuell)}</span>
 							<span className="dashboard-streak-label">
-								{`in Folge erledigt: ${duo.members.map((member) => member.name).join(' und ')}`}
+								{t('duo.streakMembers', {
+									names: new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format(
+										duo.members.map((member) => member.name),
+									),
+								})}
 							</span>
 						</p>
 					) : (
 						<p className="dashboard-streak-hint" data-testid="duo-streak-zero">
-							Noch kein gemeinsamer Streak — erledigt heute beide etwas, dann zählt der erste Tag.
+							{t('duo.streakZero')}
 						</p>
 					)}
 					<p className="duo-streak-best">
 						<span className="dashboard-streak-best-value">{tage(duo.streak.best)}</span>
-						<span className="dashboard-streak-label">Bestmarke</span>
+						<span className="dashboard-streak-label">{t('streak.best')}</span>
 					</p>
 					<KolDetails
-						_label="Wann zählt der gemeinsame Streak?"
+						_label={t('duo.helpLabel')}
 						_open={helpOpen}
 						_on={{ onToggle: (_event, value) => setHelpOpen(value === true) }}
 					>
-						<p>
-							Ein Tag zählt, wenn ihr beide an diesem Tag etwas erledigt habt. Aufgaben des anderen bleiben unsichtbar.
-						</p>
+						<p>{t('duo.helpText')}</p>
 					</KolDetails>
 					<div className="duo-members">
 						{duo.members.map((member) => (
@@ -82,12 +91,14 @@ export const DuoCard = ({ groupId }: { groupId: number }) => {
 								<h4 className="duo-member-name">{member.name}</h4>
 								<ul className="duo-pillars">
 									{member.saeulen.map((saeule) => (
-										<li key={saeule.pillarId}>{`${saeule.name}: ${saeule.wert} Punkte`}</li>
+										<li key={saeule.pillarId}>
+											{t('duo.pillarPoints', { name: saeule.name, count: saeule.wert, points: saeule.wert })}
+										</li>
 									))}
 								</ul>
 							</section>
 						))}
-						{duo.members.length < 2 && <p className="hint duo-member-empty">Noch niemand dabei</p>}
+						{duo.members.length < 2 && <p className="hint duo-member-empty">{t('duo.memberEmpty')}</p>}
 					</div>
 				</div>
 			)}

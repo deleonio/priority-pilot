@@ -22,5 +22,7 @@ declare module 'express-session' {
 		/** #1669: `state` eines Google-Logins aus der nativen App (`/auth/google?client=app&state=…`) —
 		 *  der Erfolgs-Callback leitet mit einem daran gebundenen Einmal-Code auf den App Link (ADR 0016). */
 		nativeState?: string;
+		/** `?lng=en` vom Login-Link der englischen Website: die App startet nach dem Callback englisch. */
+		loginLng?: 'en';
 	}
 }

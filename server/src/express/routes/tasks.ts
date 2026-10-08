@@ -26,6 +26,7 @@ import { requirePlanFeature } from '../planGuard.js';
 import { GEO_CONFIG_DEFAULTS, resolveGeoUser } from './geoConfig.js';
 import { allowEmail } from '../../logics/allowedEmails.js';
 import { claimAccessMailSlot, sendAccountAccessMail } from '../../logics/accessMail.js';
+import { spracheAusHeader } from '../../logics/careSuggestionData.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
 import { notifyTaskCreated } from '../../logics/taskCreatedNotification.js';
 import { notifyTaskCompleted } from '../../logics/taskCompletedNotification.js';
@@ -826,13 +827,25 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			const accessMailThrottled = newRecipientEmail !== null && !claimAccessMailSlot(userId ?? 0);
 			if (newRecipientEmail !== null && !accessMailThrottled) {
 				try {
-					await sendAccountAccessMail(newRecipientEmail, {
-						subject: `Aufgabe „${created.title}" bei Balamentum`,
-						lines: [
-							`${requester?.displayName ?? 'Jemand'} hat dir die Aufgabe „${created.title}" übergeben.`,
-							'Sieh sie dir in Ruhe an — du entscheidest, was daraus wird.',
-						],
-					});
+					await sendAccountAccessMail(
+						newRecipientEmail,
+						spracheAusHeader(req.get('accept-language')) === 'en'
+							? {
+									subject: `Task "${created.title}" on Balamentum`,
+									lines: [
+										`${requester?.displayName ?? 'Someone'} handed the task "${created.title}" over to you.`,
+										'Take your time to look at it — you decide what becomes of it.',
+									],
+									sprache: 'en',
+								}
+							: {
+									subject: `Aufgabe „${created.title}" bei Balamentum`,
+									lines: [
+										`${requester?.displayName ?? 'Jemand'} hat dir die Aufgabe „${created.title}" übergeben.`,
+										'Sieh sie dir in Ruhe an — du entscheidest, was daraus wird.',
+									],
+								},
+					);
 				} catch (error) {
 					console.warn('Zugangs-Mail zur delegierten Aufgabe fehlgeschlagen:', error);
 				}
@@ -1133,13 +1146,25 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			const accessMailThrottled = patchNewRecipientEmail !== null && !claimAccessMailSlot(getUserId(req) ?? 0);
 			if (patchNewRecipientEmail !== null && !accessMailThrottled) {
 				try {
-					await sendAccountAccessMail(patchNewRecipientEmail, {
-						subject: `Aufgabe „${task.title}" bei Balamentum`,
-						lines: [
-							`${requester?.displayName ?? 'Jemand'} hat dir die Aufgabe „${task.title}" übergeben.`,
-							'Sieh sie dir in Ruhe an — du entscheidest, was daraus wird.',
-						],
-					});
+					await sendAccountAccessMail(
+						patchNewRecipientEmail,
+						spracheAusHeader(req.get('accept-language')) === 'en'
+							? {
+									subject: `Task "${task.title}" on Balamentum`,
+									lines: [
+										`${requester?.displayName ?? 'Someone'} handed the task "${task.title}" over to you.`,
+										'Take your time to look at it — you decide what becomes of it.',
+									],
+									sprache: 'en',
+								}
+							: {
+									subject: `Aufgabe „${task.title}" bei Balamentum`,
+									lines: [
+										`${requester?.displayName ?? 'Jemand'} hat dir die Aufgabe „${task.title}" übergeben.`,
+										'Sieh sie dir in Ruhe an — du entscheidest, was daraus wird.',
+									],
+								},
+					);
 				} catch (error) {
 					console.warn('Zugangs-Mail zur übergebenen Aufgabe fehlgeschlagen:', error);
 				}

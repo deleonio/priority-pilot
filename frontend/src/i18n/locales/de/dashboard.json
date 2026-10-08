@@ -1,0 +1,162 @@
+{
+	"heading": "Dashboard",
+	"greeting": "Hallo {{name}}!",
+	"priority": "Priorität {{priority}}",
+	"reasons": {
+		"dueOn": "Fällig am {{date}}.",
+		"balance_one": "Säule {{names}} kam diese Woche zu kurz.",
+		"balance_other": "Säulen {{names}} kamen diese Woche zu kurz.",
+		"unlock_one": "Schaltet {{count}} offene Aufgabe frei.",
+		"unlock_other": "Schaltet {{count}} offene Aufgaben frei.",
+		"overdue_one": "Überfällig seit {{count}} Tag.",
+		"overdue_other": "Überfällig seit {{count}} Tagen.",
+		"dueToday": "Fällig heute.",
+		"dueIn_one": "Fällig am {{date}} (in {{count}} Tag).",
+		"dueIn_other": "Fällig am {{date}} (in {{count}} Tagen)."
+	},
+	"cards": {
+		"total": "Gesamt",
+		"open": "Offen",
+		"done": "Erledigt"
+	},
+	"heart": {
+		"label": "Meine Lebensbalance"
+	},
+	"nextTask": {
+		"label": "Nächste Aufgabe",
+		"empty": "Aktuell steht keine Aufgabe an (alle erledigt oder durch offene Vorgänger blockiert).",
+		"complete": "Erledigen"
+	},
+	"suggestions": {
+		"label": "Was ist jetzt dran?",
+		"empty": "Aktuell stehen keine weiteren Vorschläge an.",
+		"meta": "(Priorität {{priority}})"
+	},
+	"topTasks": {
+		"label": "Wichtigste Tasks",
+		"empty": "Keine offenen Aufgaben vorhanden.",
+		"meta": "(Priorität {{priority}}, Wert {{value}})"
+	},
+	"pillars": {
+		"label": "Meine Themen",
+		"empty": "Lege in den <settingsLink>Einstellungen</settingsLink> deine ersten Säulen an, um hier den Überblick über deine Themen zu behalten.",
+		"share": "Anteil",
+		"tasks": "Aufgaben",
+		"split": "{{open}} offen · {{done}} erledigt",
+		"value": "Wert",
+		"effort": "Aufwand",
+		"effortDays": "{{effort}} Tage"
+	},
+	"balance": {
+		"label": "Gesamtguthaben",
+		"empty": "Noch keine Punkte vergeben — schließe Tasks ab, um dein Guthaben aufzubauen.",
+		"total": "<total>{{points}}</total> Punkte",
+		"row_one": "{{points}} Punkt ({{share}} %)",
+		"row_other": "{{points}} Punkte ({{share}} %)"
+	},
+	"deadlines": {
+		"label": "Anstehende Deadlines",
+		"empty": "Keine anstehenden Deadlines."
+	},
+	"heartBalance": {
+		"ariaLabel": "Balance {{percent}} Prozent — {{state}}",
+		"legendValue": "{{actual}} % · Ziel {{target}} %",
+		"deltaHint": "Abweichung vom Ziel"
+	},
+	"heartHealth": {
+		"leer": {
+			"label": "Noch leer",
+			"hint": "Erledige Aufgaben, damit sich das Bild füllt."
+		},
+		"stark": {
+			"label": "In Balance",
+			"hint": "Deine Säulen liegen dicht am Soll."
+		},
+		"gut": {
+			"label": "Gut in Balance",
+			"hint": "Die Verteilung ist solide, kleine Abweichungen sind normal."
+		},
+		"wackelig": {
+			"label": "Leichte Schieflage",
+			"hint": "Einzelne Säulen ziehen davon, andere kommen zu kurz."
+		},
+		"schwach": {
+			"label": "Aus der Balance",
+			"hint": "Fast alle Punkte hängen an wenigen Säulen."
+		},
+		"weakest": "{{name}} kommt am kürzesten ({{actual}} statt {{target}})",
+		"strongest": "{{name}} zieht davon ({{actual}})"
+	},
+	"balanceVariant": {
+		"strahlen": "Strahlen",
+		"bluete": "Blüte",
+		"kristall": "Kristall",
+		"zeiger": "Zeiger"
+	},
+	"days_one": "{{count}} Tag",
+	"days_other": "{{count}} Tage",
+	"dayDone": {
+		"label": "Tag geschafft",
+		"text": "Alle Aufgaben erledigt — heute geschafft."
+	},
+	"duo": {
+		"label": "Duo",
+		"errorLabel": "Duo nicht verfügbar",
+		"errorText": "Das Duo konnte gerade nicht geladen werden. Lade die Seite neu und versuche es noch einmal.",
+		"loading": "Duo wird geladen …",
+		"streakMembers": "in Folge erledigt: {{names}}",
+		"streakZero": "Noch kein gemeinsamer Streak — erledigt heute beide etwas, dann zählt der erste Tag.",
+		"helpLabel": "Wann zählt der gemeinsame Streak?",
+		"helpText": "Ein Tag zählt, wenn ihr beide an diesem Tag etwas erledigt habt. Aufgaben des anderen bleiben unsichtbar.",
+		"pillarPoints_one": "{{name}}: {{points}} Punkt",
+		"pillarPoints_other": "{{name}}: {{points}} Punkte",
+		"memberEmpty": "Noch niemand dabei"
+	},
+	"freeTime": {
+		"label": "Freie Zeit",
+		"range": "von {{from}} bis {{to}} Uhr"
+	},
+	"streak": {
+		"label": "Streak",
+		"loading": "Streak wird geladen …",
+		"zero": "Noch kein Streak — hake heute eine Aufgabe ab, dann zählt der erste Tag.",
+		"inARow": "in Folge erledigt",
+		"best": "Bestmarke"
+	},
+	"milestone": {
+		"streak": "Streak {{value}}",
+		"points": "{{value}} Punkte"
+	},
+	"shareCard": {
+		"milestones": "Meilensteine"
+	},
+	"challengeCard": {
+		"noValue": "Noch kein Wert",
+		"rank": "Platz {{rank}}",
+		"more_one": "+ {{count}} weitere",
+		"more_other": "+ {{count}} weitere",
+		"subtitle": "7-Tage-Challenge · {{period}}",
+		"ranking": "Rangfolge nach Ausgewogenheit"
+	},
+	"advisor": {
+		"empty": "Der Berater hat keine Vorschläge geliefert — versuche es mit einer anderen Frage.",
+		"pillarFallback": "Säule {{id}}",
+		"adopt": "Als Aufgabe übernehmen"
+	},
+	"milestones": {
+		"label": "Meilensteine",
+		"loading": "Meilensteine werden geladen …",
+		"groupStreak": "Streak",
+		"groupPoints": "Punkte",
+		"streakReached": "{{threshold}} Tage — erreicht",
+		"streakNotReached": "{{threshold}} Tage — nicht erreicht",
+		"pointsReached": "{{threshold}} Punkte — erreicht",
+		"pointsNotReached": "{{threshold}} Punkte — nicht erreicht"
+	},
+	"featurePopover": {
+		"showPlans": "Pakete ansehen"
+	},
+	"copyButton": {
+		"error": "Konnte nicht in die Zwischenablage kopiert werden. Bitte manuell markieren und kopieren."
+	}
+}

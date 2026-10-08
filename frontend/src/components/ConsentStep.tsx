@@ -2,15 +2,9 @@ import { KolDetails } from '@public-ui/react-v19';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
+import { legalLanguage, legalPath, type LegalKey } from '../lib/operator';
 import { getPublicOrigin } from '../lib/siteOrigin';
 
-/** Rechtsseiten der öffentlichen Website (#1891, #1892) — einzige Textquelle, same-origin geladen (#2227). */
-const LEGAL_LINKS = { terms: '/nutzungsbedingungen/', privacy: '/datenschutz/' } as const;
-
-type LegalKey = keyof typeof LEGAL_LINKS;
-
-/** Absolute Adresse der Rechtsseite: `SITE_URL` im Android-Build (ADR 0021), sonst die eigene Origin. */
-const legalUrl = (key: LegalKey): string => `${getPublicOrigin()}${LEGAL_LINKS[key]}`;
 type LegalText = { status: 'loading' | 'error' } | { status: 'ready'; html: string };
 
 /**
@@ -59,6 +53,9 @@ const extractLegalHtml = (page: string, path: string): string => {
  */
 export const ConsentStep = ({ onAccepted }: { onAccepted: () => void }) => {
 	const { t, i18n } = useTranslation('messages');
+	const language = legalLanguage(i18n.resolvedLanguage ?? i18n.language);
+	/** Absolute Adresse der Rechtsseite: `SITE_URL` im Android-Build (ADR 0021), sonst die eigene Origin. */
+	const legalUrl = (key: LegalKey): string => `${getPublicOrigin()}${legalPath(key, language)}`;
 	const [terms, setTerms] = useState(false);
 	const [privacy, setPrivacy] = useState(false);
 	const [saving, setSaving] = useState(false);
@@ -107,7 +104,7 @@ export const ConsentStep = ({ onAccepted }: { onAccepted: () => void }) => {
 			.then((page) =>
 				setTexts((current) => ({
 					...current,
-					[key]: { status: 'ready', html: extractLegalHtml(page, LEGAL_LINKS[key]) },
+					[key]: { status: 'ready', html: extractLegalHtml(page, legalPath(key, language)) },
 				})),
 			)
 			.catch(() => setTexts((current) => ({ ...current, [key]: { status: 'error' } })));
@@ -125,7 +122,7 @@ export const ConsentStep = ({ onAccepted }: { onAccepted: () => void }) => {
 						href={legalUrl(key)}
 						target="_blank"
 						rel="noopener noreferrer"
-						hrefLang="de"
+						hrefLang={language}
 					>
 						{link} {t('consent.newTab')}
 					</a>
@@ -194,9 +191,6 @@ export const ConsentStep = ({ onAccepted }: { onAccepted: () => void }) => {
 							t('consent.privacyLink'),
 						)}
 					</fieldset>
-					{(i18n.resolvedLanguage ?? i18n.language) !== 'de' && (
-						<p className="consent-step__hint">{t('legal.germanOnly')}</p>
-					)}
 					{failed && (
 						<div role="alert" className="login-page__alert">
 							{t('consent.error')}

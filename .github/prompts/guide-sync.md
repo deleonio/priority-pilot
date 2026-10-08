@@ -3,7 +3,7 @@ FOKUS: Handbuch-Sync docs/user-guide.md gegen die Implementation. DIE IMPLEMENTA
 KONTEXT: docs/user-guide.md IST die Hilfe-Seite der App (vite.config.ts liefert sie unter /user-guide.md aus, HelpPage.tsx rendert sie als Markdown). Jede Zeile darin liest ein Endnutzer in der App.
 
 QUELLEN (liest selbst, nicht im Prompt wiederholen):
-  - Handbuch: docs/user-guide.md
+  - Handbuch: docs/user-guide.md (Deutsch, führend) und docs/user-guide.en.md (englische Fassung, bei Sprache `en` angezeigt)
   - Ist-Zustand UI: frontend/src/** (Komponenten, Dialoge, Buttons, Routen in App.tsx, sichtbare Meldungstexte, Tastaturkürzel)
   - Ist-Zustand Server: server/src/** (Push-Benachrichtigungen, LLM-/Einstellungs-Verhalten, Allowlist-/Fehlermeldungen) + openapi.yml (welche Funktionen es überhaupt gibt)
   - Querbeleg für beobachtbares Verhalten: frontend/e2e/*.spec.ts und docs/spec/user-journeys.md
@@ -17,19 +17,20 @@ ABLAUF (STRIKT):
      a) Verhalten hat sich geändert → Beschreibung auf den neuen Ist-Zustand umformulieren.
      b) Beschriebene Funktion existiert nicht mehr → Absatz/Abschnitt STREICHEN.
      c) Implementiertes Nutzer-Feature fehlt im Handbuch → ERGÄNZEN, im Stil und an der passenden Stelle der bestehenden Gliederung.
-  4. ALLE Änderungen lokal committen (ein Commit genügt): git add docs/user-guide.md && git commit -m "docs(guide): Ist-Stand-Sync {{SYNC_DATE}}"
+     d) Jede Änderung am deutschen Handbuch sinngleich in docs/user-guide.en.md nachziehen (UI-Begriffe wie in frontend/src/i18n/locales/en/).
+  4. ALLE Änderungen lokal committen (ein Commit genügt): git add docs/user-guide.md docs/user-guide.en.md && git commit -m "docs(guide): Ist-Stand-Sync {{SYNC_DATE}}"
      NICHT pushen, KEINEN PR anlegen — das macht der Workflow nach dir.
   5. Report schreiben nach /tmp/guide-sync-report.md (Markdown): je Fund ein Abschnitt (Handbuch-Abschnitt, Befund, Korrektur, Beleg im Code als Datei:Zeile), plus Liste offener Unklarheiten (nicht aus Code Ableitbares: NICHT geändert, nur gelistet).
 
 STIL (das Handbuch ist Endnutzer-Prosa, kein Entwicklerdokument):
-  - Deutsch, Du-Form, freundlich-sachlich — wie der bestehende Text.
+  - Deutsch, Du-Form, freundlich-sachlich — wie der bestehende Text (englische Fassung: natürliches Englisch, „you“).
   - KEINE Datei-/Komponentennamen, KEINE API-Pfade, KEIN Implementierungsjargon.
   - Mobile-First: beschreibe, was der Nutzer sieht und antippt.
   - Bestehende Gliederung/Abschnittsreihenfolge beibehalten, nicht ohne Befund umbauen.
   - Vermenschlicht schreiben — Regeln verbindlich per skill:vermenschlichen.
 
 CONSTRAINTS:
-  - NUR docs/user-guide.md ändern — kein Code, keine anderen Dokumente.
+  - NUR docs/user-guide.md und docs/user-guide.en.md ändern — kein Code, keine anderen Dokumente.
   - KEINE Spekulation: nur belegbares, im Code sichtbares Verhalten beschreiben.
   - KEINE Soll-/Absichts-/Ankündigungs-Formulierungen — nur Ist.
   - KEINE Änderungs-Historie: kein „wurde geändert“, kein „seit/neu/jetzt“ im Sinne von „früher war es anders“ — das Handbuch beschreibt den aktuellen Zustand, als gäbe es nie einen anderen.
