@@ -81,7 +81,7 @@ import { isDbEmailAllowed, isEmailAllowed, getConfiguredEmails } from '../logics
 import { requireAuth, getUserId, hasGoogleOAuth } from './requireAuth.js';
 import { apiTokenAuth, isApiTokenRequest, apiTokenScopeGuard } from './apiTokenAuth.js';
 import { nativeCors } from './nativeCors.js';
-import { restorePillarTexts, translateMessages } from './messagesEn.js';
+import { translateMessages } from './messagesEn.js';
 import { createCsrfUtilities } from './csrf.js';
 import { upsertOAuthUser } from '../logics/oauthUser.js';
 import { sendError } from './http-error.js';
@@ -155,7 +155,6 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// JSON-Body parsen.
 	app.use(express.json());
-	app.use(restorePillarTexts);
 
 	// Kündigung ohne Login (#2317): öffentlich, ohne Session und deshalb vor CSRF-Prüfung und `requireAuth`.
 	app.use(createPublicCancellationRouter({ paypalClient: deps.paypalClient, mailSender: deps.mailSender }));

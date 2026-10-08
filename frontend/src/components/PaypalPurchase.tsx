@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import i18next from '../i18n/config';
 import { toApiError } from '../lib/apiError';
+import { legalPath } from '../lib/operator';
 import { periodLabel, planLabel, type Period, type Plan } from '../lib/planOffers';
 import { usePlan } from '../lib/usePlan';
 import type { PurchaseUi } from './billingChannel';
@@ -17,7 +18,7 @@ const formatDate = (iso: string): string => new Date(iso).toLocaleDateString(i18
  * angezeigte Plan ändert sich erst, wenn `/auth/me` ihn liefert (#1496 AK3/AK4).
  */
 export const usePaypalPurchase = (): PurchaseUi => {
-	const { t } = useTranslation(['billing', 'messages']);
+	const { t, i18n } = useTranslation(['billing', 'messages']);
 	const { plan, subscription, refresh } = usePlan();
 	// Zustimmung zum sofortigen Leistungsbeginn (#2307): eine gemeinsame, nicht vorbelegte Checkbox
 	// schaltet alle Buchen-Knöpfe frei.
@@ -139,7 +140,11 @@ export const usePaypalPurchase = (): PurchaseUi => {
 				<div className="withdrawal-consent" data-testid="withdrawal-consent">
 					<p>
 						{t('messages:billing.withdrawal.hint')}{' '}
-						<KolLink _href="/widerruf/" _label={t('messages:billing.withdrawal.link')} _target="_blank" />
+						<KolLink
+							_href={legalPath('withdrawal', i18n.language)}
+							_label={t('messages:billing.withdrawal.link')}
+							_target="_blank"
+						/>
 					</p>
 					<KolInputCheckbox
 						_label={t('messages:billing.withdrawal.consent')}

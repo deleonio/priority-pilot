@@ -1,6 +1,6 @@
 import type { RequestHandler } from 'express';
 import { spracheAusHeader } from '../logics/careSuggestionData.js';
-import { pillarTextFromEn, pillarTextIn } from '../models/pillarData.js';
+import { pillarTextIn, SEED_PILLARS } from '../models/pillarData.js';
 import { PILLAR_DISTRIBUTION_RULE } from '../logics/pillarContributions.js';
 import type { FeatureId } from '../logics/plans.js';
 import { FEATURE_LABELS } from './planGuard.js';
@@ -227,22 +227,32 @@ const meldungEn = (message: string): string => {
 	return message;
 };
 
-/** Felder, in denen Säulen-Katalogtexte stehen (Säulenlisten, Scores, Duo, Fürsorge-Vorschläge). */
-const SAEULEN_FELDER = new Set(['name', 'saeuleName', 'description', 'pillars']);
+/** Listen/Felder, deren Einträge Säulen sind (Scores, Duo, Aufgaben-Beiträge, Begründungen). */
+const SAEULEN_BEHAELTER = new Set(['saeulen', 'pillars', 'Pillars', 'saeule', 'pillar']);
+const SEED_KEYS = new Set(SEED_PILLARS.map((pillar) => pillar.key));
 
-/** Englische Antwort: `message` übersetzen, unveränderte Standard-Säulen-Texte tauschen (tief). */
-const bodyEn = (value: unknown, key?: string): unknown => {
+/**
+ * Englische Antwort: `message` übersetzen und Katalogtexte unveränderter Standard-Säulen tauschen —
+ * nur in Säulen-Objekten (Seed-`key` oder Eintrag eines Säulen-Behälters), damit gleichnamige
+ * Kategorien oder Gruppen („Sinn“) unangetastet bleiben.
+ */
+const bodyEn = (value: unknown, key?: string, inSaeulen = false): unknown => {
 	if (typeof value === 'string') {
 		if (key === 'message') return meldungEn(value);
-		return key !== undefined && SAEULEN_FELDER.has(key) ? pillarTextIn('en', value) : value;
+		if (key === 'saeuleName') return pillarTextIn('en', value);
+		return inSaeulen && key !== undefined && ['name', 'description', 'pillars'].includes(key)
+			? pillarTextIn('en', value)
+			: value;
 	}
-	// Feldname bleibt für Listen erhalten (z. B. `pillars: ['Körper', 'Sinn']` in Begründungen).
-	if (Array.isArray(value)) return value.map((item) => bodyEn(item, key));
+	if (Array.isArray(value)) return value.map((item) => bodyEn(item, key, SAEULEN_BEHAELTER.has(key ?? '')));
 	if (value !== null && typeof value === 'object') {
 		// Model-Instanzen und Datumswerte so serialisieren, wie `res.json` es täte.
 		const toJson = (value as { toJSON?: () => unknown }).toJSON;
-		if (typeof toJson === 'function') return bodyEn(toJson.call(value), key);
-		return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, bodyEn(v, k)]));
+		if (typeof toJson === 'function') return bodyEn(toJson.call(value), key, inSaeulen);
+		const seedKey = (value as { key?: unknown }).key;
+		const saeule =
+			inSaeulen || SAEULEN_BEHAELTER.has(key ?? '') || (typeof seedKey === 'string' && SEED_KEYS.has(seedKey));
+		return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, bodyEn(v, k, saeule)]));
 	}
 	return value;
 };
@@ -252,23 +262,6 @@ export const translateMessages: RequestHandler = (req, res, next) => {
 	if (spracheAusHeader(req.get('accept-language')) === 'en') {
 		const json = res.json.bind(res);
 		res.json = (body?: unknown) => json(bodyEn(body));
-	}
-	next();
-};
-
-/**
- * Rückweg zu {@link translateMessages} (nach `express.json()`): Schickt eine englische Oberfläche den
- * angezeigten Katalogtext einer Standard-Säule unverändert zurück (z. B. beim Speichern des
- * Bearbeiten-Dialogs), wird wieder der deutsche Seed-Wert gespeichert — sonst ginge die Erkennung
- * verloren und die deutsche Ansicht zeigte den englischen Text.
- */
-export const restorePillarTexts: RequestHandler = (req, _res, next) => {
-	const body: unknown = req.body;
-	if (spracheAusHeader(req.get('accept-language')) === 'en' && body !== null && typeof body === 'object') {
-		for (const feld of ['name', 'description'] as const) {
-			const value = (body as Record<string, unknown>)[feld];
-			if (typeof value === 'string') (body as Record<string, unknown>)[feld] = pillarTextFromEn(value);
-		}
 	}
 	next();
 };

@@ -19,8 +19,8 @@ export const OPERATOR = {
 
 /** Rechtsseiten der öffentlichen Website (#1891, #1892) je Sprache — einzige Textquelle, same-origin geladen (#2227). */
 const LEGAL_LINKS = {
-	de: { terms: '/nutzungsbedingungen/', privacy: '/datenschutz/' },
-	en: { terms: '/en/terms/', privacy: '/en/privacy/' },
+	de: { terms: '/nutzungsbedingungen/', privacy: '/datenschutz/', withdrawal: '/widerruf/' },
+	en: { terms: '/en/terms/', privacy: '/en/privacy/', withdrawal: '/en/withdrawal/' },
 } as const;
 
 export type LegalKey = keyof typeof LEGAL_LINKS.de;

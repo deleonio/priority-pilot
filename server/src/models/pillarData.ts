@@ -120,10 +120,3 @@ export const pillarTextIn = (sprache: string, text: string): string => {
 	if (seed === undefined) return text;
 	return seed.name === text ? seed.en.name : seed.en.description;
 };
-
-/** Umkehrung von {@link pillarTextIn} für `en`: der englische Katalogtext wird wieder der deutsche Seed-Wert. */
-export const pillarTextFromEn = (text: string): string => {
-	const seed = SEED_PILLARS.find((pillar) => pillar.en.name === text || pillar.en.description === text);
-	if (seed === undefined) return text;
-	return seed.en.name === text ? seed.name : seed.description;
-};

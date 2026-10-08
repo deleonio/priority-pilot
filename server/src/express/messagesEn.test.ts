@@ -14,10 +14,12 @@ const antwort = (acceptLanguage: string, body: unknown): unknown => {
 };
 
 describe('translateMessages', () => {
-	it('übersetzt bei en Meldung und unveränderte Standard-Säulen, eigene Namen bleiben', () => {
+	it('übersetzt bei en Meldung und unveränderte Standard-Säulen, eigene und Nicht-Säulen-Namen bleiben', () => {
 		const body = {
 			message: 'Anmeldung erforderlich.',
 			saeulen: [{ name: 'Körper' }, { name: 'Mein Sport' }],
+			liste: [{ key: 'sinn', name: 'Sinn' }],
+			gruppe: { name: 'Sinn', category: { name: 'Körper' } },
 			vorschlag: { saeuleName: 'Sinn' },
 			reasons: { pillars: ['Körper', 'Sinn'] },
 			am: new Date('2026-01-02T00:00:00Z'),
@@ -25,6 +27,8 @@ describe('translateMessages', () => {
 		assert.deepEqual(antwort('en-US,en;q=0.9', body), {
 			message: 'Sign-in required.',
 			saeulen: [{ name: 'Body' }, { name: 'Mein Sport' }],
+			liste: [{ key: 'sinn', name: 'Meaning' }],
+			gruppe: { name: 'Sinn', category: { name: 'Körper' } },
 			vorschlag: { saeuleName: 'Meaning' },
 			reasons: { pillars: ['Body', 'Meaning'] },
 			am: '2026-01-02T00:00:00.000Z',
