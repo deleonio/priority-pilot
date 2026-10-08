@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.19 - 2026-10-08
 
-_Enthält v0.19.0 – v0.19.11._
+_Enthält v0.19.0 – v0.19.12._
 
 ### 🎉 New Features
 
@@ -32,6 +32,7 @@ _Enthält v0.19.0 – v0.19.11._
 - feat(i18n): translate app, server texts and website to english by @deleonio in https://github.com/deleonio/priority-pilot/pull/2429
 - fix(server): reset review account on every login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2444
 - [P2/S] Hilfe: Feedback-Formular wählt „Wünsche und Ideen“ vor (#2443) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2446
+- revert(balance): alle neun Zifferblätter wiederherstellen by @deleonio in https://github.com/deleonio/priority-pilot/pull/2447
 
 ## v0.18 - 2026-10-08
 
@@ -147,7 +148,6 @@ _Enthält v0.17.0 – v0.17.45._
 - feat(server): refund and chargeback credit and cancel package (#2237) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2266
 - feat(frontend): brand footer with logos on monthly card (#2255) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2269
 - fix(server): defer plan takeover for delayed-start subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2271
-- docs(skills): add proactive 3-hour progress report to coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2272
 - docs(skills): add proactive 3-hour progress report to coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2272
 - fix(billing): treat subscriptions with overdue payment as open by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2274
 - feat(server): activate upgrade only after payment received (#2238) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2270
@@ -356,6 +356,7 @@ _Enthält v0.13.0 – v0.13.27._
 - feat(frontend): move geo range sliders and expert scope list behind expert mode (#1984) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2109
 - fix(ci): wait for background gate runs instead of terminating them (#1952) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2112
 - fix(ci): detect session-limit aborts only at the failing claude call by @deleonio in https://github.com/deleonio/priority-pilot/pull/2113
+- test(frontend): stabilize pillar-recalc live-progress against CI load (#1953) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2115
 - test(frontend): stabilize pillar-recalc live-progress against CI load (#1953) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2115
 - feat(frontend): align invoice amounts and style invoice lists (#2104) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2116
 
