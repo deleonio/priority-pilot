@@ -5594,6 +5594,8 @@ a.plan-badge:focus-visible {
 	width: 15rem;
 	height: auto;
 	max-width: 100%;
+	/* Prüfzugang (#2426): schnelle Taps aufs Logo sollen nicht als Doppeltipp-Zoom enden */
+	touch-action: manipulation;
 }
 
 .login-page__title {

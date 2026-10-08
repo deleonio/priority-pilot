@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { Router, type RequestHandler } from 'express';
 import rateLimit from 'express-rate-limit';
 import passport from 'passport';
@@ -183,6 +184,48 @@ authRouter.post('/auth/login', async (req, res) => {
 			}
 			res.status(200).json(sessionUser);
 		});
+	});
+});
+
+// POST /auth/review-login — Prüfzugang für Google Play (#2426): Die Play-Prüfer melden ein festes
+// Konto allein per Passwort an (kein Google-Konto, kein Postfach). Aus, solange `PLAY_REVIEW_PASSWORD`
+// leer ist; je Anfrage gelesen. Das Konto umgeht Allowlist/Warteliste bewusst und bekommt bei jedem
+// Login `pro` (ohne Kauf). Im Kanal `play` App-Token statt Session-Cookie (Muster magic-link/verify).
+const PLAY_REVIEW_DEFAULT_EMAIL = 'google-play-review@balamentum.invalid';
+// Anders als `authLimiter` auch außerhalb von production aktiv: 5 Fehlversuche je IP und 15 Minuten.
+const reviewLoginLimiter = rateLimit({
+	windowMs: 15 * 60_000,
+	max: 5,
+	standardHeaders: true,
+	legacyHeaders: false,
+	message: THROTTLED_MESSAGE,
+	skipSuccessfulRequests: true,
+});
+// Vergleich über SHA-256: gleich lange Puffer für `timingSafeEqual`, unabhängig von der Passwortlänge.
+const sha256 = (value: string): Buffer => createHash('sha256').update(value).digest();
+
+authRouter.post('/auth/review-login', reviewLoginLimiter, async (req, res) => {
+	const expected = process.env.PLAY_REVIEW_PASSWORD ?? '';
+	const { password } = (req.body ?? {}) as { password?: unknown };
+	if (expected === '' || typeof password !== 'string' || !timingSafeEqual(sha256(password), sha256(expected))) {
+		sendError(res, 401, 'Ungültige Zugangsdaten.');
+		return;
+	}
+	const account = await upsertOAuthUser({
+		email: (process.env.PLAY_REVIEW_EMAIL || PLAY_REVIEW_DEFAULT_EMAIL).trim().toLowerCase(),
+	});
+	await User.update({ plan: 'pro' }, { where: { id: account.id } });
+	const user = { ...account, plan: 'pro' as const };
+	if (req.get('X-Client-Channel') === 'play') {
+		res.json({ token: await issueAppToken(user.id) });
+		return;
+	}
+	establishSession(req, user, (sessionErr) => {
+		if (sessionErr) {
+			sendError(res, 500, 'Session-Fehler.');
+			return;
+		}
+		res.json({});
 	});
 });
 

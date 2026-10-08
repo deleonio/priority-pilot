@@ -1,8 +1,10 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { ResponseError } from 'client';
 import { api } from '../api';
 import { startNativeGoogleLogin } from '../lib/nativeAuth';
 import { isNativeChannel } from '../lib/platform';
 import { getPublicOrigin } from '../lib/siteOrigin';
+import { Modal } from './Modal';
 
 type ErrorParam = string | null;
 
@@ -24,11 +26,71 @@ function getRefFromSearch(): string | null {
 }
 
 type MagicLinkState = 'idle' | 'sending' | 'sent' | 'failed';
+type ReviewLoginState = 'idle' | 'sending' | 'failed' | 'throttled';
 type WaitlistState = 'idle' | 'sending' | 'done' | 'failed';
 
 function getErrorMessage(error: string): string {
 	return ERROR_MESSAGES[error] ?? 'Ein unbekannter Anmeldefehler ist aufgetreten. Bitte versuche es erneut.';
 }
+
+// Prüfzugang für Google Play (#2426): so viele Taps auf die Wortmarke öffnen den Dialog; eine längere
+// Pause dazwischen beginnt die Zählung neu.
+const REVIEW_TAPS = 7;
+const REVIEW_TAP_PAUSE_MS = 2000;
+
+const REVIEW_ERRORS: Record<'failed' | 'throttled', string> = {
+	failed: 'Passwort stimmt nicht.',
+	throttled: 'Zu viele Versuche. Bitte in einigen Minuten erneut versuchen.',
+};
+
+/** Passwort-Dialog des Prüfzugangs; nach Erfolg lädt die App neu und startet angemeldet. */
+const ReviewLoginDialog = ({ onClose }: { onClose: () => void }) => {
+	const [password, setPassword] = useState('');
+	const [state, setState] = useState<ReviewLoginState>('idle');
+	const inputRef = useRef<HTMLInputElement>(null);
+
+	const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		setState('sending');
+		api
+			.reviewLogin(password)
+			.then(() => window.location.replace(import.meta.env.BASE_URL))
+			.catch((err: unknown) =>
+				setState(err instanceof ResponseError && err.response.status === 429 ? 'throttled' : 'failed'),
+			);
+	};
+
+	return (
+		<Modal title="Prüfzugang" onClose={onClose} initialFocusRef={inputRef}>
+			<form onSubmit={handleSubmit} className="login-page__form">
+				<label className="login-page__label" htmlFor="review-password">
+					Passwort
+				</label>
+				<input
+					ref={inputRef}
+					id="review-password"
+					type="password"
+					autoComplete="current-password"
+					autoCapitalize="off"
+					spellCheck={false}
+					required
+					value={password}
+					onChange={(event) => setPassword(event.target.value)}
+					aria-describedby={state === 'failed' || state === 'throttled' ? 'review-password-error' : undefined}
+					className="login-page__input"
+				/>
+				{(state === 'failed' || state === 'throttled') && (
+					<p id="review-password-error" role="alert" className="login-page__alert">
+						{REVIEW_ERRORS[state]}
+					</p>
+				)}
+				<button type="submit" disabled={state === 'sending'} className="login-page__btn login-page__btn--primary">
+					{state === 'sending' ? 'Anmeldung läuft …' : 'Anmelden'}
+				</button>
+			</form>
+		</Modal>
+	);
+};
 
 // Bewusst rohe Elemente (h1, button, input, div-Alerts) statt KoliBri: Die Shadow-DOM-Typografie
 // von kol-heading ließe sich hier nicht über --pp-Tokens steuern, KoliBri-Klicks und -Eingaben
@@ -58,6 +120,9 @@ export const LoginPage = () => {
 	const [waitlistState, setWaitlistState] = useState<WaitlistState>('idle');
 	const [waitlistResult, setWaitlistResult] = useState<{ position: number; total?: number; link: string } | null>(null);
 	const [referralCopied, setReferralCopied] = useState(false);
+	const [reviewAccess, setReviewAccess] = useState(false);
+	const [reviewOpen, setReviewOpen] = useState(false);
+	const logoTapsRef = useRef({ count: 0, last: 0 });
 
 	useEffect(() => {
 		api
@@ -69,6 +134,7 @@ export const LoginPage = () => {
 					// Storage verweigert — der Fetch entscheidet weiterhin live je Antwort.
 				}
 				setMagicLinkEnabled(providers.magicLink);
+				setReviewAccess(providers.reviewAccess === true);
 			})
 			// Fetch-Fehler überschreiben den Cache nicht — ein Netzwerkblipp ist keine Config-Änderung.
 			.catch(() => undefined);
@@ -114,6 +180,23 @@ export const LoginPage = () => {
 		}
 	};
 
+	// Bewusst versteckte Geste ohne Tastatur-Alternative (WCAG 2.5.1 als dokumentierte Ausnahme): Der
+	// Prüfzugang ist eine Betreiberfunktion für Play-Prüfer, kein Nutzerfeature — ein Tab-Stop auf dem
+	// Logo machte ihn für alle sichtbar. Kein Feedback je Tap, damit die Seite die Geste nicht verrät.
+	const handleLogoTap = () => {
+		if (!reviewAccess) {
+			return;
+		}
+		const now = Date.now();
+		const taps = logoTapsRef.current;
+		taps.count = now - taps.last > REVIEW_TAP_PAUSE_MS ? 1 : taps.count + 1;
+		taps.last = now;
+		if (taps.count >= REVIEW_TAPS) {
+			taps.count = 0;
+			setReviewOpen(true);
+		}
+	};
+
 	const handleLogin = () => {
 		// In der App blockiert Google den Login im WebView, er läuft dort im System-Browser.
 		if (isNativeChannel()) {
@@ -141,6 +224,7 @@ export const LoginPage = () => {
 						alt="Balamentum"
 						width={240}
 						height={35}
+						onClick={handleLogoTap}
 					/>
 				</div>
 				<div className="login-page__card">
@@ -278,6 +362,8 @@ export const LoginPage = () => {
 						)}
 					</form>
 				</div>
+
+				{reviewOpen && <ReviewLoginDialog onClose={() => setReviewOpen(false)} />}
 
 				{/* Zurück zur öffentlichen Website — nur im Web, in der App gibt es dort nichts (#1769) */}
 				{!isNativeChannel() && (

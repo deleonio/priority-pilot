@@ -5,6 +5,8 @@ import { expect, test, type Page } from '@playwright/test';
  * Vertrag: docs/spec/issue-2426.md. Echtes Backend mit `PLAY_REVIEW_PASSWORD` (playwright.config.ts);
  * nur `/auth/me` wird bis zum erfolgreichen Prüf-Login als 401 gemockt, weil das E2E-Backend im
  * Pass-Through-Modus sonst jeden Besucher als angemeldet meldet.
+ * Inhalte des Dialogs über den `kol-dialog`-Host: Der native `<dialog>` liegt im Shadow-DOM, die
+ * geslotteten Felder sind keine Nachfahren davon; Sichtbarkeit und Maße am nativen `dialog[open]`.
  */
 const PASSWORD = 'e2e-review-secret';
 
@@ -42,20 +44,20 @@ test.describe('Balamentum — Prüfzugang Google Play (#2426)', () => {
 
 		await tapLogo(page, 1);
 		await expect(page.locator('dialog[open]')).toBeVisible();
-		await expect(page.locator('dialog[open] input[type="password"]')).toHaveCount(1);
+		await expect(page.locator('kol-dialog input[type="password"]')).toHaveCount(1);
 	});
 
 	test('AK7: falsches Passwort zeigt Fehler im Dialog, korrektes führt ins Dashboard', async ({ page }) => {
 		await gotoLogin(page);
 		await tapLogo(page, 7);
-		const password = page.locator('dialog[open] input[type="password"]');
+		const password = page.locator('kol-dialog input[type="password"]');
 
 		await password.fill('falsch');
-		await page.locator('dialog[open]').getByRole('button', { name: 'Anmelden' }).click();
-		await expect(page.locator('dialog[open] [role="alert"]')).toBeVisible();
+		await page.locator('kol-dialog').getByRole('button', { name: 'Anmelden' }).click();
+		await expect(page.locator('kol-dialog [role="alert"]')).toBeVisible();
 
 		await password.fill(PASSWORD);
-		await page.locator('dialog[open]').getByRole('button', { name: 'Anmelden' }).click();
+		await page.locator('kol-dialog').getByRole('button', { name: 'Anmelden' }).click();
 		await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 	});
 
@@ -70,7 +72,11 @@ test.describe('Balamentum — Prüfzugang Google Play (#2426)', () => {
 		expect(box!.x).toBeGreaterThanOrEqual(0);
 		expect(box!.x + box!.width).toBeLessThanOrEqual(375);
 
-		for (const target of [dialog.locator('input[type="password"]'), dialog.getByRole('button', { name: 'Anmelden' })]) {
+		const content = page.locator('kol-dialog');
+		for (const target of [
+			content.locator('input[type="password"]'),
+			content.getByRole('button', { name: 'Anmelden' }),
+		]) {
 			const targetBox = await target.boundingBox();
 			expect(targetBox).not.toBeNull();
 			expect(targetBox!.height).toBeGreaterThanOrEqual(44);
