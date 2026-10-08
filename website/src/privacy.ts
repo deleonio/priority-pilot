@@ -35,7 +35,7 @@ export const PRIVACY: { intro: string; description: string; sections: PrivacySec
 		{
 			heading: 'Keine Auswertung',
 			paragraphs: [
-				'Wir werten deine Daten nicht aus. Es gibt kein Nutzungsprofil, kein Tracking und keine Werbung; die Inhalte deiner Aufgaben dienen allein deiner eigenen Planung.',
+				'Wir werten deine Daten nicht aus. Es gibt kein Nutzungsprofil, kein Werbe-Tracking und keine Werbung; die Inhalte deiner Aufgaben dienen allein deiner eigenen Planung. Wie viele Menschen Website und App besuchen, zählen wir ohne Cookies auf unserem eigenen Server (Abschnitt „Reichweitenmessung“).',
 				'Einzige Ausnahme ist eine anonyme Zählung, ob Fürsorge-Vorschläge helfen: wie oft Vorschläge angezeigt, übernommen oder abgelehnt werden (ohne Bezug zu deinem Konto) und wie viele Konten 4 und 12 Wochen nach der Registrierung noch Aufgaben erledigen, getrennt nach eingeschalteten und ausgeschalteten Fürsorge-Hinweisen. Dafür speichern wir, wann du die Fürsorge-Hinweise ein- oder ausschaltest; dieser Verlauf wird mit deinem Konto gelöscht. Ausgewertet werden nur Summen, Gruppen mit weniger als fünf Personen werden nicht ausgewiesen.',
 			],
 		},
@@ -174,6 +174,18 @@ export const PRIVACY: { intro: string; description: string; sections: PrivacySec
 				retention: 'Die Cookies bis zum Abmelden oder bis zum Ablauf der Sitzung.',
 				recipients:
 					'Unser Hosting-Anbieter Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Deutschland, der den Server in unserem Auftrag in Deutschland betreibt (Art. 28 DSGVO).',
+			},
+		},
+		{
+			heading: 'Reichweitenmessung (Matomo)',
+			paragraphs: [],
+			facts: {
+				purpose:
+					'Zählen, wie oft Website und App besucht werden, welche Seiten aufgerufen werden und von welcher Seite Besucher kommen. Wir nutzen Matomo ohne Cookies: Auf deinem Gerät wird nichts gespeichert, übertragen werden der Seitenpfad, der Seitentitel, die verweisende Seite sowie technische Angaben zu Browser und Bildschirm, bei Klicks auf externe Links deren Ziel, nie Suchbegriffe, Aufgabeninhalte oder Anmelde-Links. Die IP-Adresse wird vor dem Speichern gekürzt, ein Besuch lässt sich nicht über den Tag hinaus wiedererkennen. Sendet dein Browser „Do Not Track“, zählen wir dich nicht.',
+				legalBasis: 'Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer datensparsamen Reichweitenmessung).',
+				retention: 'Einzelne Besuche 180 Tage, danach nur zusammengefasste Zahlen ohne Personenbezug.',
+				recipients:
+					'Keine. Matomo läuft auf unserem eigenen Server bei Hetzner Online GmbH in Deutschland (siehe Abschnitt „Betrieb, Hosting und Sitzungs-Cookie“).',
 			},
 		},
 		{
