@@ -4,7 +4,11 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.19 - 2026-10-08
 
-_Keine für Nutzer sichtbaren Änderungen._
+_Enthält v0.19.0 – v0.19.1._
+
+### Other Changes
+
+- feat(server): add password review access for google play (#2426) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2433
 
 ## v0.18 - 2026-10-08
 
