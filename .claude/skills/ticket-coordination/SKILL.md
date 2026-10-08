@@ -194,7 +194,7 @@ wall of text — offer a decision round and go through the parked issues one by 
   recurring schedule, set up once at the start, delivers it without being asked. Same status
   block, plus what finished since the last report, next steps in order and open decisions with
   the author. The report run also acts (route, start the next issue) like a check-in.
-- **Empty queue → stop.** Once nothing is in flight (no phase running, no open pipeline PR) and
+- **Empty queue → stop.** Once nothing is in flight (no phase running, no open pipeline PR that is not waiting on the author) and
   everything startable waits on the author, end the coordination after the decision round (2a)
   has been offered: cancel the pending check-in and the progress-report schedule, then send the
   author one push notification with the final status block and the open decisions. A new
