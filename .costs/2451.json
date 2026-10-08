@@ -1,0 +1,41 @@
+[
+	{
+		"timestamp": "2026-10-08T16:39:57.477Z",
+		"tokensIn": 884710,
+		"tokensOut": 11816,
+		"cost": 1.112194,
+		"issueId": "2451",
+		"phase": "review",
+		"model": "claude-opus-5-5",
+		"provider": "claude",
+		"runtime": "claude",
+		"configuredModel": "opus",
+		"cacheCreationTokens": 113462,
+		"cacheReadTokens": 771230,
+		"turns": 9,
+		"durationSeconds": 138,
+		"valueCost": 1.112194,
+		"effort": "high",
+		"verdict": "reviewed",
+		"findings": 2,
+		"nits": 2
+	},
+	{
+		"timestamp": "2026-10-08T16:49:33.527Z",
+		"tokensIn": 3495343,
+		"tokensOut": 17373,
+		"cost": 0,
+		"issueId": "2451",
+		"phase": "documenter",
+		"model": "poolside/laguna-s-2.1:free",
+		"provider": "openrouter",
+		"runtime": "claude",
+		"configuredModel": "haiku",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 3310272,
+		"turns": 26,
+		"durationSeconds": 497,
+		"valueCost": 1.8088896,
+		"effort": "low"
+	}
+]
