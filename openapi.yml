@@ -5056,6 +5056,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /auth/native/google:
+    post:
+      summary: Native Google-Anmeldung der App
+      description: >-
+        Meldet die Android-App mit einem ID-Token an, das sie über den Credential Manager von Google
+        bekommt, ohne Browser (ADR 0023). Zielgruppe muss der Web-Client sein, die E-Mail von Google
+        bestätigt und freigegeben. Mit `X-Client-Channel: play` antwortet die Route mit einem
+        App-Token, sonst mit Session-Cookie.
+      operationId: nativeGoogleLogin
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NativeGoogleLoginRequest'
+      responses:
+        '200':
+          description: Angemeldet im Kanal `play` — App-Token statt Session-Cookie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppToken'
+        '204':
+          description: Angemeldet, Session-Cookie gesetzt
+        '400':
+          description: ID-Token ungültig (Signatur, Zielgruppe, Ablauf oder unbestätigte E-Mail)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Adresse ist nicht freigegeben
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Googles Schlüssel sind nicht abrufbar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /billing/subscriptions:
     post:
       summary: Abo anlegen
@@ -9298,6 +9341,11 @@ components:
         reviewAccess:
           type: boolean
           description: Prüfzugang für Google Play ist konfiguriert (`PLAY_REVIEW_PASSWORD`, #2426); fehlt = aus.
+        googleClientId:
+          type: string
+          description: >-
+            Öffentliche Client-ID des Google-Web-Clients, nur wenn Google-OAuth konfiguriert ist. Die
+            Android-App fordert damit über den Credential Manager ein ID-Token an (ADR 0023).
     MagicLinkRequest:
       type: object
       required:
@@ -9375,6 +9423,14 @@ components:
         token:
           type: string
           description: Klartext-Token (`pp_<32 Hex>`); nur in dieser Antwort enthalten
+    NativeGoogleLoginRequest:
+      type: object
+      required:
+        - idToken
+      properties:
+        idToken:
+          type: string
+          description: ID-Token von Google aus dem Credential Manager der Android-App.
     NativeLoginExchangeRequest:
       type: object
       required:

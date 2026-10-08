@@ -2,6 +2,8 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Root } from './Root';
+import { NATIVE_LOGGED_OUT_KEY } from './lib/appToken';
+import { nativeGoogleLogin } from './lib/nativeAuth';
 
 /**
  * Spec-Tests (#1136, docs/spec/issue-1136.md) für das Auth-Gate in `Root.tsx`:
@@ -23,6 +25,12 @@ vi.mock('@public-ui/react-v19', () => ({
 
 vi.mock('./App', () => ({
 	App: () => createElement('div', { 'data-testid': 'app' }),
+}));
+
+vi.mock('./lib/nativeAuth', () => ({
+	nativeGoogleLogin: vi.fn(async () => 'unavailable'),
+	finishNativeLogin: vi.fn(),
+	startNativeGoogleLogin: vi.fn(),
 }));
 
 describe('Issue #1136 — Root-Auth-Gate', () => {
@@ -132,5 +140,45 @@ describe('Issue #1136 — Root-Auth-Gate', () => {
 
 		expect(screen.queryByRole('heading', { name: /Bahn-Routenplaner/i })).toBeNull();
 		expect(await screen.findByTestId('kol-spin')).toBeTruthy();
+	});
+});
+
+// ADR 0023: In der App versucht Root ohne Sitzung einmal die native Google-Anmeldung, nach dem
+// Abmelden auch über einen Neustart hinweg nicht mehr.
+describe('Root in der Android-App (ADR 0023)', () => {
+	const originalFetch = global.fetch;
+	const scope = globalThis as { __PP_CHANNEL__?: string };
+
+	beforeEach(() => {
+		scope.__PP_CHANNEL__ = 'play';
+		global.fetch = vi
+			.fn()
+			.mockResolvedValue({ ok: false, status: 401, json: async () => ({}) }) as unknown as typeof fetch;
+	});
+
+	afterEach(() => {
+		cleanup();
+		delete scope.__PP_CHANNEL__;
+		global.fetch = originalFetch;
+		sessionStorage.clear();
+		localStorage.clear();
+		vi.clearAllMocks();
+	});
+
+	it('ohne Sitzung startet genau ein automatischer Versuch, danach die Login-Seite', async () => {
+		render(<Root />);
+
+		expect(await screen.findByRole('button', { name: 'Mit Google anmelden' })).toBeVisible();
+		expect(nativeGoogleLogin).toHaveBeenCalledTimes(1);
+		expect(nativeGoogleLogin).toHaveBeenCalledWith(true);
+	});
+
+	it('nach dem Abmelden kein automatischer Versuch', async () => {
+		localStorage.setItem(NATIVE_LOGGED_OUT_KEY, '1');
+
+		render(<Root />);
+
+		expect(await screen.findByRole('button', { name: 'Mit Google anmelden' })).toBeVisible();
+		expect(nativeGoogleLogin).not.toHaveBeenCalled();
 	});
 });

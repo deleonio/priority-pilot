@@ -41,6 +41,7 @@ const EXAKT: Record<string, string> = {
 	'Das Konto konnte nicht gelöscht werden.': 'The account could not be deleted.',
 	'Der Anmeldecode ist abgelaufen oder wurde schon benutzt.': 'The sign-in code has expired or has already been used.',
 	'Der Anmeldelink ist abgelaufen oder wurde schon benutzt.': 'The sign-in link has expired or has already been used.',
+	'Die Google-Anmeldung ist ungültig.': 'The Google sign-in is invalid.',
 	'Der Empfänger teilt keine Gruppe mit dir.': 'The recipient does not share a group with you.',
 	'Der Kauf gehört zu einem anderen Konto.': 'The purchase belongs to a different account.',
 	'Der Kauf ist nicht aktiv.': 'The purchase is not active.',
@@ -91,8 +92,10 @@ const EXAKT: Record<string, string> = {
 	'Feedback konnte gerade nicht gespeichert werden. Bitte später erneut versuchen.':
 		'Feedback could not be saved right now. Please try again later.',
 	'Für CalDAV bitte Benutzername und App-Passwort angeben.': 'For CalDAV, please enter a username and an app password.',
+	'Für diese Adresse ist die Anmeldung nicht freigegeben.': 'Sign-in is not enabled for this address.',
 	'Für dieses Konto ist bereits eine Einladung offen.': 'An invitation is already open for this account.',
 	'Gespeicherter Ort nicht gefunden.': 'Saved place not found.',
+	'Google ist gerade nicht erreichbar.': 'Google cannot be reached right now.',
 	'Google-OAuth ist nicht konfiguriert.': 'Google OAuth is not configured.',
 	'Gruppe nicht gefunden.': 'Group not found.',
 	'In der App ist kein Kauf über PayPal möglich.': 'Purchases via PayPal are not possible in the app.',

@@ -89,9 +89,9 @@ import type {
 import createClient from 'openapi-fetch';
 import i18next from './i18n/config';
 import { planRequiredDetail } from './lib/apiError';
-import { appTokenHeaders, clearAppToken, getAppToken, setAppToken } from './lib/appToken';
+import { appTokenHeaders, clearAppToken, getAppToken, NATIVE_LOGGED_OUT_KEY, setAppToken } from './lib/appToken';
 import { sortCategoriesByName } from './lib/categories';
-import { getChannel } from './lib/platform';
+import { getChannel, isNativeChannel } from './lib/platform';
 import { getApiBase } from './lib/siteOrigin';
 
 // Im Dev-Betrieb leitet der Vite-Proxy (siehe vite.config.ts) /api/v1/*-Anfragen an
@@ -334,6 +334,15 @@ export const api = {
 			setAppToken(data.token);
 		}
 		return response.ok;
+	},
+
+	/** Meldet die App mit dem ID-Token der nativen Google-Anmeldung an (ADR 0023) und speichert das App-Token; liefert den HTTP-Status. */
+	async loginWithGoogleIdToken(idToken: string): Promise<number> {
+		const { data, response } = await client.POST('/auth/native/google', { body: { idToken } });
+		if (response.ok && data?.token) {
+			setAppToken(data.token);
+		}
+		return response.status;
 	},
 
 	/** Löst den Einmal-Code aus dem App-Login mit dem `state` der App ein (#1678) und speichert das App-Token (#2379). */
@@ -1288,6 +1297,10 @@ export const api = {
 		// ein App-Token hat der Server mit dem Aufruf widerrufen (#2379).
 		csrfToken = null;
 		clearAppToken();
+		if (isNativeChannel()) {
+			localStorage.setItem(NATIVE_LOGGED_OUT_KEY, '1');
+			void import('./lib/googleSignIn').then(({ GoogleSignIn }) => GoogleSignIn.signOut()).catch(() => undefined);
+		}
 	},
 
 	// Materialisiert die bis `until` (inklusive) fälligen Instanzen einer Serie als eigenständige Tasks.

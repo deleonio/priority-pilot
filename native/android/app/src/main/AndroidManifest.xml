@@ -25,6 +25,13 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="${appLinkHost}" android:pathPrefix="/app/" />
             </intent-filter>
+            <!-- Rücksprung des Browser-Logins ohne App-Link-Verifikation (ADR 0023): balamentum.app://auth/native -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="${applicationId}" android:host="auth" />
+            </intent-filter>
         </activity>
 
         <provider

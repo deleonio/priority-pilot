@@ -1,14 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * Login in der Android-App (#1678): Der Custom Tab bekommt `client=app` und einen frischen `state`,
- * ein App Link mit Code löst diesen `state` beim Server ein. Browser-Plugin und API sind gemockt.
+ * Login in der Android-App (#1678, ADR 0023): erst nativ über den Credential Manager, sonst bekommt
+ * der Custom Tab `client=app` und einen frischen `state`, ein App Link mit Code löst diesen `state`
+ * beim Server ein. Plugins und API sind gemockt; ohne `googleClientId` bleibt es beim Browser.
  */
 
 vi.mock('@capacitor/browser', () => ({
 	Browser: { open: vi.fn(() => Promise.resolve()), close: vi.fn(() => Promise.resolve()) },
 }));
-vi.mock('../api', () => ({ api: { exchangeNativeLoginCode: vi.fn(() => Promise.resolve(true)) } }));
+vi.mock('../api', () => ({
+	api: {
+		exchangeNativeLoginCode: vi.fn(() => Promise.resolve(true)),
+		getAuthProviders: vi.fn(async () => ({ google: true, magicLink: false })),
+		loginWithGoogleIdToken: vi.fn(async () => 200),
+	},
+}));
+vi.mock('./googleSignIn', () => ({
+	GoogleSignIn: { signIn: vi.fn(async () => ({ idToken: 'id-token' })), signOut: vi.fn() },
+}));
 const launch = vi.hoisted(() => ({ url: '' }));
 vi.mock('@capacitor/app', () => ({
 	App: { addListener: vi.fn(() => Promise.resolve()), getLaunchUrl: vi.fn(async () => ({ url: launch.url })) },
@@ -16,6 +26,7 @@ vi.mock('@capacitor/app', () => ({
 
 import { Browser } from '@capacitor/browser';
 import { api } from '../api';
+import { GoogleSignIn } from './googleSignIn';
 import { handleAppLink, listenForAppLinks, startNativeGoogleLogin } from './nativeAuth';
 
 const replace = vi.fn();
@@ -70,6 +81,60 @@ describe('nativeAuth (#1678)', () => {
 		await handleAppLink(`${window.location.origin}/app/auth/native?code=abc`);
 
 		expect(replace).toHaveBeenCalledWith(`${import.meta.env.BASE_URL}login?error=native_login_failed`);
+	});
+
+	describe('native Anmeldung (ADR 0023)', () => {
+		beforeEach(() => {
+			vi.mocked(api.getAuthProviders).mockResolvedValueOnce({
+				google: true,
+				magicLink: false,
+				googleClientId: 'web-client',
+			});
+		});
+
+		it('meldet über den Credential Manager an, ohne Browser', async () => {
+			await startNativeGoogleLogin();
+
+			expect(GoogleSignIn.signIn).toHaveBeenCalledWith({ serverClientId: 'web-client', auto: false });
+			expect(api.loginWithGoogleIdToken).toHaveBeenCalledWith('id-token');
+			expect(Browser.open).not.toHaveBeenCalled();
+			expect(replace).toHaveBeenCalledWith(import.meta.env.BASE_URL);
+		});
+
+		it('bleibt nach Abbruch auf der Login-Seite', async () => {
+			vi.mocked(GoogleSignIn.signIn).mockRejectedValueOnce(Object.assign(new Error('x'), { code: 'canceled' }));
+
+			await startNativeGoogleLogin();
+
+			expect(Browser.open).not.toHaveBeenCalled();
+			expect(replace).not.toHaveBeenCalled();
+		});
+
+		it('fällt ohne Einrichtung auf den Browser mit Rücksprung über das Custom Scheme zurück', async () => {
+			vi.mocked(GoogleSignIn.signIn).mockRejectedValueOnce(Object.assign(new Error('x'), { code: 'failed' }));
+
+			await startNativeGoogleLogin();
+
+			expect(openedUrl().searchParams.get('return')).toBe('scheme');
+		});
+
+		it('zeigt eine abgelehnte Adresse als fehlenden Zugang', async () => {
+			vi.mocked(api.loginWithGoogleIdToken).mockResolvedValueOnce(403);
+
+			await startNativeGoogleLogin();
+
+			expect(replace).toHaveBeenCalledWith(`${import.meta.env.BASE_URL}login?error=access_denied`);
+		});
+	});
+
+	it('löst den Code aus dem Custom Scheme mit dem gemerkten state ein', async () => {
+		await startNativeGoogleLogin();
+		const state = openedUrl().searchParams.get('state');
+
+		await handleAppLink('balamentum.app://auth/native?code=abc');
+
+		expect(api.exchangeNativeLoginCode).toHaveBeenCalledWith('abc', state);
+		expect(replace).toHaveBeenCalledWith(import.meta.env.BASE_URL);
 	});
 
 	it('verarbeitet den Start-Link nur einmal, auch nach einem Neuladen', async () => {
