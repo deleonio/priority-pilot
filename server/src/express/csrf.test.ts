@@ -65,6 +65,16 @@ describe('CSRF-Schutz (Produktionsmodus)', () => {
 		assert.equal(res.status, 403);
 	});
 
+	// Die Android-App ruft vor der Anmeldung ohne Cookies auf (ADR 0023); ohne Ausnahme scheiterte jeder Login mit 403.
+	it('lässt die Android-App ohne Cookie durch (400 = Code-Prüfung erreicht)', async () => {
+		const res = await fetch(`${server.baseUrl}/auth/native/exchange`, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json', 'x-client-channel': 'play' },
+			body: JSON.stringify({ code: 'unbekannt', state: 'unbekannt' }),
+		});
+		assert.equal(res.status, 400);
+	});
+
 	it('lässt schreibenden Request mit gültigem Token + Cookie durch (401 = Auth-Logik erreicht)', async () => {
 		const { cookie, csrfToken } = await fetchCsrfPair();
 		const res = await fetch(`${server.baseUrl}/auth/login`, {
