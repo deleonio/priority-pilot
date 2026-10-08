@@ -273,15 +273,23 @@ export const CareHint = () => {
 						</div>
 					</div>
 				) : (
+					/* #2445: eine Zeile — „Übernehmen“ inhaltsbreit mit Text, Nebenaktionen als Icon-Schalter. */
 					<div className="care-hint-actions">
+						<KolButton _label={t('care.accept')} _variant="secondary" _on={{ onClick: () => schliessen(uebernehmen) }} />
 						<KolButton
-							className="care-hint-accept"
-							_label={t('care.accept')}
+							_label={t('care.notNow')}
+							_hideLabel
 							_variant="secondary"
-							_on={{ onClick: () => schliessen(uebernehmen) }}
+							_icons={{ left: { icon: 'fa-regular fa-clock' } }}
+							_on={{ onClick: nichtJetzt }}
 						/>
-						<KolButton _label={t('care.notNow')} _variant="tertiary" _on={{ onClick: nichtJetzt }} />
-						<KolButton _label={t('care.dismiss')} _variant="tertiary" _on={{ onClick: () => schliessen(ablehnen) }} />
+						<KolButton
+							_label={t('care.dismiss')}
+							_hideLabel
+							_variant="secondary"
+							_icons={{ left: { icon: 'fa-solid fa-trash' } }}
+							_on={{ onClick: () => schliessen(ablehnen) }}
+						/>
 					</div>
 				)}
 			</KolAlert>
