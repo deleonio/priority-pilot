@@ -1246,7 +1246,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 			{!isEdit && (
 				<div className="mode-switch" data-testid="mode-switch">
 					<KolInputCheckbox
-						_label="Serie"
+						_label="Serie oder Vorlage"
 						_checked={isSeriesMode}
 						_variant="switch"
 						_on={{
