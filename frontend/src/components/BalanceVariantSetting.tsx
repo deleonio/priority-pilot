@@ -3,6 +3,7 @@ import type { Pillar } from 'client';
 import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BalanceFigure } from './BalanceFigure';
+import { HeartVessel } from './HeartVessel';
 import { BALANCE_VARIANTS, useBalanceVariant, type BalanceVariant } from '../lib/balanceVariant';
 import { buildHeartBalance } from '../lib/heartBalance';
 import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
@@ -14,7 +15,7 @@ import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
  * (`balanceVariant.ts`, localStorage-Key `pp-balance-variant`). Aufbau bewusst wie
  * `AppearanceSetting` daneben: Beide wählen, **wie** die App aussieht, nicht **was** sie rechnet.
  *
- * Senkrecht statt waagerecht: Vier Optionen mit sprechenden Namen passen auf 375 px nicht
+ * Senkrecht statt waagerecht: Neun Optionen mit sprechenden Namen passen auf 375 px nicht
  * nebeneinander, ohne dass die Beschriftungen umbrechen (mobile-ui-rules.md).
  *
  * Darunter eine stille Vorschau des gewählten Bildes mit festen Beispieldaten — sie wechselt mit
@@ -73,15 +74,23 @@ export const BalanceVariantSetting = () => {
 				data-variante={variant}
 				data-testid="balance-variant-preview"
 			>
-				<BalanceFigure
-					balance={PREVIEW_BALANCE}
-					figure={variant}
-					animated={false}
-					beatSeconds={2}
-					ariaLabel={t('balanceVariant.preview', {
-						name: BALANCE_VARIANTS.find((option) => option.value === variant)?.label ?? '',
-					})}
-				/>
+				{variant === 'herz' ? (
+					<HeartVessel
+						balance={PREVIEW_BALANCE}
+						animated={false}
+						ariaLabel={t('balanceVariant.preview', { name: BALANCE_VARIANTS[0].label })}
+					/>
+				) : (
+					<BalanceFigure
+						balance={PREVIEW_BALANCE}
+						figure={variant}
+						animated={false}
+						beatSeconds={2}
+						ariaLabel={t('balanceVariant.preview', {
+							name: BALANCE_VARIANTS.find((option) => option.value === variant)?.label ?? '',
+						})}
+					/>
+				)}
 			</div>
 		</div>
 	);

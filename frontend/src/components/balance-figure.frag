@@ -3,8 +3,8 @@ precision highp float;
 /*
  * Balance-Figuren — WebGL-Fassung der Startseiten-Bilder der Lebensbalance.
  *
- * Dieselbe Bildsprache wie das SVG in BalanceFigure.tsx, nur das Material kommt hinzu. Vier
- * Figuren, ein Programm: Strahlen (0), Blüte (1), Kristall (2), Zeiger (3).
+ * Dieselbe Bildsprache wie das SVG in BalanceFigure.tsx, nur das Material kommt hinzu. Sechs
+ * Figuren, ein Programm: Blasen (0), Ringe (1), Strahlen (2), Scheiben (3), Blüte (4), Kristall (5).
  * Sie bekommen dieselben Werte — je Saeule das Verhaeltnis Ist zu Soll (lib/balanceMetric.ts) — und
  * unterscheiden sich allein darin, wie sie es zeigen. Radien, Winkel und Phasen kommen aus
  * lib/balanceFigure.ts; beide Fassungen rechnen dieselbe Geometrie, hier nur je Bildpunkt statt je
@@ -33,7 +33,9 @@ uniform float u_rise;
 /* Ruhepuls: Sekunden je Schlag, ruhiger je ausgewogener. */
 uniform float u_beat;
 
-/* 0 = Strahlen, 1 = Blüte, 2 = Kristall (dieselbe Silhouette wie 1, anderes Material), 3 = Zeiger. */
+/* 0 = Blasen, 1 = Ringe, 2 = Strahlen, 3 = Scheiben (derselbe Stapel wie 0, anderes Material),
+ * 4 = Blüte, 5 = Kristall (dieselbe Silhouette wie 4, anderes Material), 6 = Segmente,
+ * 7 = Zeiger. */
 uniform float u_figure;
 
 /* Je Saeule: Farbe und Bewegung — in jeder Figur dieselbe. */
@@ -44,16 +46,32 @@ uniform float u_rot[8];
 uniform float u_dir[8];
 uniform float u_count;
 
+/* Blasen: Grundradius, absteigend sortiert (Slot 0 liegt hinten). */
+uniform float u_orb_radius[8];
+
+/* Ringe: Spurmitte, Strichstaerke und Bogenlaenge als Anteil des Umlaufs. */
+uniform float u_arc_radius[8];
+uniform float u_arc_width[8];
+uniform float u_arc_sweep[8];
+
 /* Strahlen: Mittelwinkel (Grad), halbe Oeffnung (Grad) und Laenge. Blüte und Kristall nutzen
  * Winkel und Laenge als Stützpunkte ihrer Silhouette (Laenge = Radius der Lappenspitze). */
 uniform float u_ray_angle[8];
 uniform float u_ray_spread[8];
 uniform float u_ray_length[8];
 
+/* Segmente: Mittelwinkel (Grad), halbe sichtbare Spannweite ohne Fuge (Grad), innerer und
+ * aeusserer Radius. Mitte und Halbbreite kommen fertig aus `buildWedges` (start/end) statt im
+ * Shader aus Start+Spannweite und einer geratenen Fugenbreite zurueckgerechnet zu werden. */
+uniform float u_wedge_mid[8];
+uniform float u_wedge_half[8];
+uniform float u_wedge_inner[8];
+uniform float u_wedge_outer[8];
+
 /*
- * Die Soll-Marke, in der Einheit der jeweiligen Figur: Lappen-Radius oder Strahl-/Zeiger-Laenge.
- * Sie ist in jeder Figur dieselbe Aussage — „hier steht die Saeule genau auf ihrem Ziel" — und
- * macht die Abweichung ohne Zahl ablesbar.
+ * Die Soll-Marke, in der Einheit der jeweiligen Figur: Blasen-Radius, Bogen-Anteil oder
+ * Strahl-Laenge. Sie ist in jeder Figur dieselbe Aussage — „hier steht die Saeule genau auf
+ * ihrem Ziel" — und macht die Abweichung ohne Zahl ablesbar.
  */
 uniform float u_target;
 
@@ -64,15 +82,34 @@ uniform vec3 u_ring_stops[5];
 /* Farbe der Karte, auf der das Bild liegt — Bezug fuer die aufgehellte Fuellung und die Marke. */
 uniform vec3 u_surface;
 
+/* Staerke des Kontaktschattens unter jeder Blase (0 = aus). */
+uniform float u_shadow;
+
 const float VIEW = 100.0;
 const float CENTER = 50.0;
 const float PI2 = 6.2831853;
 
 /* Geometrie-Konstanten, zahlengleich zu lib/balanceFigure.ts. */
+const float SWING = 0.12;
 const float RING_INNER = 40.0;
 const float TICK_LENGTH = 5.0;
 const float TICK_LENGTH_MAJOR = 7.5;
 const float TICK_STEP = 3.6;
+
+/*
+ * Deckkraft der Blasenfuellung. Bewusst niedrig: Eine Seifenblase ist innen fast klar und traegt
+ * ihre Farbe in der Haut. Vor allem aber liegen hier bis zu acht Blasen uebereinander — bei einer
+ * satten Fuellung verdeckte die vorderste (die schwaechste Saeule) alle anderen, und der Stapel
+ * waere nur noch eine Scheibe. Die Zuordnung Farbe/Saeule traegt der Saum, nicht die Flaeche.
+ */
+const float FILL_ALPHA = 0.08;
+
+/*
+ * Anteil Kartenfarbe in der Fuellung. Ohne ihn laufen fuenf uebereinanderliegende Saeulenfarben zu
+ * einem grauen Klumpen zusammen (Rot + Gelb + Gruen + Blau + Violett ist nun einmal Grau); mit ihm
+ * bleibt der Stapel licht und jede Farbe erkennbar. Die reine Saeulenfarbe traegt der Saum.
+ */
+const float FILL_TINT = 0.45;
 
 /* Staerke des Neon-Scheins um jede Form (additives Licht, siehe unten). */
 const float GLOW = 0.45;
@@ -80,14 +117,25 @@ const float GLOW = 0.45;
 /* Striche der Soll-Marke ueber den vollen Umlauf — gleiche Anmutung wie `stroke-dasharray` im SVG. */
 const float TARGET_DASHES = 36.0;
 
-/* Atmung und Wippen der Lappen — bewusst klein: Der Radius ist hier der Wert selbst, eine grosse
- * Auslenkung liesse eine schwache Saeule zeitweise stark aussehen. */
+/* Atmung und Wippen der Lappen — bewusst kleiner als die Blasen-Auslenkung: Der Radius ist hier
+ * der Wert selbst, eine grosse Auslenkung liesse eine schwache Saeule zeitweise stark aussehen. */
 const float PETAL_SWING = 0.06;
 const float PETAL_SWAY = 1.6;
+
+/* Deckkraft der unausgefuellten Ringspur — sie zeigt, wie weit es noch waere. */
+const float ARC_TRACK_ALPHA = 0.16;
 
 float easeOutCubic(float x) {
 	float v = 1.0 - x;
 	return 1.0 - v * v * v;
+}
+
+/* Weicher elliptischer Glanzpunkt (rotiert), Staerke 1 im Zentrum, gaussartig abfallend. */
+float spec(vec2 p, vec2 c, vec2 r, float rot) {
+	vec2 v = p - c;
+	vec2 u = vec2(v.x * cos(rot) + v.y * sin(rot), -v.x * sin(rot) + v.y * cos(rot));
+	vec2 z = u / r;
+	return exp(-dot(z, z));
 }
 
 /* Farbe des Strichs `index` (0–99) aus den fuenf Stuetzstellen — vier gleich lange Abschnitte. */
@@ -135,9 +183,9 @@ void main() {
 	vec3 acc = vec3(0.0);
 	float alpha = 0.0;
 
-	if (u_figure > 0.5 && u_figure < 2.5) {
+	if (u_figure > 3.5 && u_figure < 5.5) {
 		/*
-		 * ── Blüte (1) und Kristall (2): eine Silhouette, zwei Materialien ───────────────────────
+		 * ── Blüte (4) und Kristall (5): eine Silhouette, zwei Materialien ───────────────────────
 		 *
 		 * Alle Säulen bilden EINE geschlossene Form: je Säule ein Stützpunkt auf ihrem Winkel, so
 		 * weit aussen wie ihr Wert. Die Kontur zwischen den Stützunkten mischt ihre Radien und
@@ -145,7 +193,7 @@ void main() {
 		 * `petalRadiusAt` in lib/balanceFigure.ts) — die Blüte glaettet die Mischung, der Kristall
 		 * laesst sie kantig. Damit traegt die Kante unterwegs beide Säulenfarben zugleich.
 		 */
-		bool soft = u_figure < 1.5;
+		bool soft = u_figure < 4.5;
 
 		/* Position auf dem Ring: Stützpunkt 0 steht auf 12 Uhr, die Abstände sind gleich. */
 		float count = max(u_count, 1.0);
@@ -187,7 +235,7 @@ void main() {
 		float f = radius - contour;
 
 		/*
-		 * Fuellung. Blüte: zur Kartenfarbe aufgehellt und fast klar — die Flaeche
+		 * Fuellung. Blüte: wie eine Blase zur Kartenfarbe aufgehellt und fast klar — die Flaeche
 		 * traegt Licht, die Kante die Farbe. Kristall: Facetten, die je nach Lage das Licht
 		 * unterschiedlich fangen — die Helligkeit springt an den Kanten, das macht die Flaeche zum
 		 * Kristall statt zum Kreis.
@@ -222,14 +270,156 @@ void main() {
 		acc += contourCol * halo * GLOW * 0.8;
 		alpha = min(1.0, alpha + halo * GLOW * 0.8);
 
-		/* Soll-Marke als gestrichelter Kreis: Spitze innerhalb heisst „kommt zu kurz", ausserhalb
+		/* Soll-Marke als gestrichelter Kreis wie bei den Blasen: Spitze innerhalb heisst „kommt zu
+		   kurz", ausserhalb „zieht davon". */
+		float tr = u_target * rise * beat;
+		float mark = (1.0 - smoothstep(0.0, 0.5 + aa, abs(radius - tr)))
+			* step(0.45, fract(turn * TARGET_DASHES)) * 0.5;
+		acc = u_surface * 0.35 * mark + acc * (1.0 - mark);
+		alpha = mark + alpha * (1.0 - mark);
+	} else if (u_figure < 0.5 || (u_figure > 2.5 && u_figure < 3.5)) {
+		/*
+		 * ── Blasen (0) und Scheiben (3): derselbe Stapel, zwei Materialien ─────────────────────
+		 *
+		 * Geometrie, Reihenfolge und Bewegung sind identisch — nur das Shading trennt sie. Die
+		 * Blase traegt ihre Farbe in einer duennen Haut und laesst den Rest durchscheinen; die
+		 * Scheibe ist eine satte Flaeche mit harter Kante. Ein gemeinsamer Zweig, weil jede
+		 * Trennung der Ellipsen-Mathematik zwei Stellen erzeugte, die auseinanderlaufen koennen.
+		 */
+		bool sharp = u_figure > 2.5;
+
+		for (int i = 0; i < 8; i++) {
+			float used = step(float(i), u_count - 1.0);
+
+			float phase = u_phase[i] + PI2 * time / u_swing[i];
+			float swing = sin(phase) * SWING;
+			float r = u_orb_radius[i] * rise * beat;
+			float ax = max(r * (1.0 + swing), 0.001);
+			float ay = max(r * (1.0 - swing), 0.001);
+
+			/* Drehung um den Mittelpunkt: Grundlage ist dieselbe Phase, damit still gesetzte Blasen
+			 * schon in unterschiedlicher Lage stehen. */
+			float rot = u_phase[i] + u_dir[i] * PI2 * time / u_rot[i];
+			float cs = cos(rot);
+			float sn = sin(rot);
+			vec2 local = vec2(d.x * cs + d.y * sn, -d.x * sn + d.y * cs);
+
+			/* Normierter Abstand: Kante bei k = 1. Die Kantenbreite folgt der kleineren Halbachse. */
+			float w = aa / min(ax, ay);
+			float k = length(local / vec2(ax, ay));
+			float inside = smoothstep(1.0 + w, 1.0 - w, k);
+
+			/*
+			 * Kontaktschatten: dieselbe Ellipse, nach unten rechts versetzt — er laesst den Stapel als
+			 * Stapel lesen statt als flache Scheiben. Sichtbar ist bewusst nur die **Sichel**, die
+			 * neben der Blase heraussteht (`1 - inside`): Ein Schatten auch unter der eigenen Flaeche
+			 * summierte sich bei fuenf Blasen zu einem grauen Klumpen in der Mitte.
+			 */
+			vec2 shadowLocal = local - vec2(1.1 * cs + 1.5 * sn, -1.1 * sn + 1.5 * cs);
+			float ks = length(shadowLocal / vec2(ax, ay));
+			// Scheiben bekommen **keinen** Schatten: Ein weicher Saum um eine harte Kante nimmt genau
+			// die Schaerfe zurueck, die ihr Stilmittel ist. Ihre Tiefe traegt die Kantenlippe.
+			float shadowAlpha = sharp ? 0.0 : smoothstep(1.0 + w * 3.0, 1.0 - w, ks) * (1.0 - inside) * u_shadow * used;
+			acc *= 1.0 - shadowAlpha;
+			alpha = shadowAlpha + alpha * (1.0 - shadowAlpha);
+
+			/*
+			 * Fuellung. Blase: stark zur Kartenfarbe aufgehellt und fast klar — sonst liefen fuenf
+			 * uebereinanderliegende Saeulenfarben zu einem grauen Klumpen zusammen. Scheibe: die
+			 * **reine** Saeulenfarbe, nur zur Mitte hin leicht abgedunkelt, damit die Flaeche eine
+			 * Woelbung behaelt statt als Papierkreis zu wirken.
+			 */
+			vec3 body = sharp
+				? u_colors[i] * mix(0.86, 1.04, clamp(k, 0.0, 1.0))
+				: mix(u_colors[i], u_surface, FILL_TINT) * mix(0.95, 1.12, clamp(k, 0.0, 1.0));
+
+			/*
+			 * Seifenhaut: ein schmaler Fresnel-Saum kurz innerhalb der Kante, zur Lichtseite (oben
+			 * links) staerker. Der Farbschimmer darin laeuft ueber k — das ist die Irisierung, die eine
+			 * Seifenblase von einer Glasscheibe unterscheidet. Der Saum traegt die **reine**
+			 * Saeulenfarbe: Er ist das Einzige, woran eine Saeule im Stapel noch zu erkennen ist,
+			 * sobald weitere Blasen darueberliegen.
+			 */
+			float rim = smoothstep(0.82, 1.0, k) * inside;
+			float lit = clamp(0.5 + (-local.x * 0.35 - local.y * 0.65) / max(r, 1.0), 0.0, 1.0);
+			vec3 sheen = 0.5 + 0.5 * cos(PI2 * (vec3(0.0, 0.33, 0.67) + k * 0.9 + phase * 0.08));
+			vec3 rimCol = mix(u_colors[i], sheen, 0.30) * (0.72 + 0.38 * lit);
+
+			/* Glanzlicht oben links, mit der Blase mitskaliert. */
+			float glint = spec(local, vec2(-0.40, -0.45) * r, vec2(0.30, 0.16) * r, 0.6);
+
+			/*
+			 * Scheibe: volle Deckkraft, harte Kante, kein Saum und kein Schein. Statt des Fresnel-
+			 * Saums nur eine schmale helle Lippe direkt an der Kante — sie trennt zwei gleich satte
+			 * Scheiben voneinander, ohne die Flaeche aufzuweichen.
+			 */
+			float lip = smoothstep(0.93, 1.0, k) * inside;
+			vec3 discCol = mix(body, mix(u_colors[i], vec3(1.0), 0.7), lip);
+
+			vec3 orbCol = sharp ? discCol : mix(body, rimCol, rim) + vec3(0.22) * glint * inside * (1.0 - rim);
+			float orbAlpha = sharp ? inside * used : clamp(inside * FILL_ALPHA + rim * 0.9, 0.0, 1.0) * used;
+			acc = orbCol * orbAlpha + acc * (1.0 - orbAlpha);
+			alpha = orbAlpha + alpha * (1.0 - orbAlpha);
+
+			/*
+			 * Neon-Schein: ein weicher Hauch der Saeulenfarbe **ausserhalb** der Kante. Er wird
+			 * addiert, nicht ueberblendet — Licht legt sich auf den Untergrund, es deckt ihn nicht zu.
+			 * Das ist der Unterschied zwischen einer bunten Scheibe und einer leuchtenden Blase — und
+			 * genau deshalb bekommt die Scheibe ihn nicht: Ihre Schaerfe ist ihr Stilmittel.
+			 */
+			float halo = sharp ? 0.0 : exp(-max(k - 1.0, 0.0) * 9.0) * (1.0 - inside) * used;
+			acc += u_colors[i] * halo * GLOW;
+			alpha = min(1.0, alpha + halo * GLOW);
+		}
+
+		/* Soll-Marke als gestrichelter Kreis: Blase innerhalb heisst „kommt zu kurz", ausserhalb
 		   „zieht davon". */
 		float tr = u_target * rise * beat;
 		float mark = (1.0 - smoothstep(0.0, 0.5 + aa, abs(radius - tr)))
 			* step(0.45, fract(turn * TARGET_DASHES)) * 0.5;
 		acc = u_surface * 0.35 * mark + acc * (1.0 - mark);
 		alpha = mark + alpha * (1.0 - mark);
-	} else if (u_figure > 2.5) {
+	} else if (u_figure < 1.5) {
+		/* ── Ringe: feste Spuren, die Bogenlaenge traegt den Wert ─────────────────────────────── */
+		for (int i = 0; i < 8; i++) {
+			float used = step(float(i), u_count - 1.0);
+
+			/* Atmen der Spur: die Staerke schwingt leicht, die Lage bleibt — eine Uhr, deren Ringe
+			   wandern, koennte man von Tag zu Tag nicht wiedererkennen. */
+			float phase = u_phase[i] + PI2 * time / u_swing[i];
+			float halfWidth = 0.5 * u_arc_width[i] * (1.0 + 0.10 * sin(phase));
+			float band = smoothstep(halfWidth + aa, halfWidth - aa, abs(radius - u_arc_radius[i]));
+
+			/* Winkel-Antialiasing in Umlauf-Anteilen: aussen ist ein Grad mehr Bogen als innen. */
+			float aaTurn = aa / max(PI2 * u_arc_radius[i], 0.001);
+			float sweep = u_arc_sweep[i] * rise;
+			float filled = smoothstep(sweep + aaTurn, sweep - aaTurn, turn);
+
+			/* Unausgefuellte Spur bleibt blass stehen — sie zeigt, wie weit es noch waere. */
+			float track = band * ARC_TRACK_ALPHA * used;
+			acc = u_colors[i] * track + acc * (1.0 - track);
+			alpha = track + alpha * (1.0 - track);
+
+			/* Gefuellter Bogen, zum Kopf hin heller: Das Ende der Strecke ist die Stelle, auf die
+			   das Auge zuerst faellt. */
+			float head = smoothstep(max(sweep - 0.12, 0.0), sweep, turn) * filled;
+			vec3 arcCol = mix(u_colors[i], vec3(1.0), 0.28 * head);
+			float arcAlpha = band * filled * used;
+			acc = arcCol * arcAlpha + acc * (1.0 - arcAlpha);
+			alpha = arcAlpha + alpha * (1.0 - arcAlpha);
+
+			/* Neon-Schein quer zur Spur. */
+			float halo = exp(-max(abs(radius - u_arc_radius[i]) - halfWidth, 0.0) / 1.8) * filled * used;
+			acc += u_colors[i] * halo * GLOW * 0.5;
+			alpha = min(1.0, alpha + halo * GLOW * 0.5);
+
+			/* Soll-Marke: ein Strich quer ueber die Spur an der Stelle, an der die Saeule genau auf
+			   ihrem Ziel stuende. */
+			float mark = band * (1.0 - smoothstep(0.0, aaTurn + 0.004, abs(turn - u_target * rise))) * used;
+			acc = u_surface * mark + acc * (1.0 - mark);
+			alpha = mark + alpha * (1.0 - mark);
+		}
+	} else if (u_figure > 6.5) {
 		/*
 		 * ── Zeiger: ein Uhrwerk, die Laenge traegt den Wert ───────────────────────────────────────
 		 *
@@ -281,6 +471,56 @@ void main() {
 			* step(0.45, fract(turn * TARGET_DASHES)) * 0.5;
 		acc = u_surface * 0.35 * mark + acc * (1.0 - mark);
 		alpha = mark + alpha * (1.0 - mark);
+	} else if (u_figure > 5.5) {
+		/*
+		 * ── Segmente: der Ring als Tortengrafik, der aeussere Radius traegt den Wert ─────
+		 *
+		 * Ein Ring, in Stuecke geteilt: so breit wie der Ist-Anteil der Saeule, gefuellt von
+		 * innen bis auf ihren Wert. Die Groesse der Form bleibt die Kennzahl, die Breite zeigt,
+		 * wie viel von der Gesamtinvestition auf die Saeule entfaellt. Die Stuecke schliessen
+		 * den Ring; die Fuge zwischen ihnen ist Teil der Geometrie (`buildWedges`).
+		 */
+		for (int i = 0; i < 8; i++) {
+			float used = step(float(i), u_count - 1.0);
+
+			/* Atmen des Stuecks: der aeussere Radius schwingt leicht um seinen Wert. */
+			float phase = u_phase[i] + PI2 * time / u_swing[i];
+			float outer = u_wedge_outer[i] * rise * (1.0 + 0.05 * sin(phase));
+			float inner = u_wedge_inner[i];
+			float wOuter = aa / max(outer, 0.001);
+			float wInner = aa / max(inner, 0.001);
+			float ring = smoothstep(outer + wOuter, outer - wOuter, radius)
+				* smoothstep(inner - wInner, inner + wInner, radius);
+
+			/* Winkel-Feld: Mitte und Halbbreite sind bereits um die Fuge schmaler als die Spannweite. */
+			float delta = angleDelta(degAngle - 90.0, u_wedge_mid[i]);
+			float halfSpan = u_wedge_half[i];
+			float aaDeg = degrees(aa / max(radius, 0.5));
+			float inWedge = smoothstep(halfSpan + aaDeg, halfSpan - aaDeg, delta) * ring * used;
+
+			/* Fuellung: satt in der Saeulenfarbe, zur Mitte hin abgedunkelt wie eine Scheibe. */
+			float k = clamp((radius - inner) / max(outer - inner, 0.001), 0.0, 1.0);
+			vec3 segCol = u_colors[i] * mix(0.84, 1.04, k);
+			float segAlpha = inWedge;
+			acc = segCol * segAlpha + acc * (1.0 - segAlpha);
+			alpha = segAlpha + alpha * (1.0 - segAlpha);
+
+			/* Helle Lippe an der aeusseren Kante — sie trennt die Stuecke, ohne die Flaeche
+		   aufzuweichen (Muster der Scheiben). */
+			float lip = smoothstep(0.90, 1.0, k) * inWedge;
+			acc = mix(acc, mix(u_colors[i], vec3(1.0), 0.7), lip * 0.55);
+
+			/* Neon-Schein um die aeussere Kante — Licht, kein Decken. */
+			float halo = exp(-max(abs(radius - outer), 0.0) / 1.6) * inWedge;
+			acc += u_colors[i] * halo * GLOW * 0.5;
+			alpha = min(1.0, alpha + halo * GLOW * 0.5);
+
+			/* Soll-Marke: ein Strich quer ueber die Breite des Stuecks, wo die Saeule genau
+			   auf ihrem Ziel stuende. */
+			float mark = inWedge * (1.0 - smoothstep(0.0, 0.5 + aa, abs(radius - u_target * rise)));
+			acc = u_surface * mark + acc * (1.0 - mark);
+			alpha = mark + alpha * (1.0 - mark);
+		}
 	} else {
 		/* ── Strahlen: feste Winkel, die Laenge traegt den Wert ────────────────────────────────── */
 		for (int i = 0; i < 8; i++) {

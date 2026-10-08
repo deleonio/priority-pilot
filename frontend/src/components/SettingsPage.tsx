@@ -202,7 +202,7 @@ export const SettingsPage = ({
 	// zu-/aufklappen lassen: ein rein gesteuertes `_open={animationsEnabled}` ohne Handler wird vom
 	// nächsten unbeteiligten Re-Render wieder zurückreconciliert (CI-Rennen zweimal rot).
 	const [animationsOpen, setAnimationsOpen] = useState(animationsEnabled);
-	// Feinschalter „Balance animieren“ — gilt nur gemeinsam mit dem Master (das Bild im HeartBalance).
+	// Feinschalter „Herz animieren“ — gilt nur gemeinsam mit dem Master (das Herz im HeartBalance).
 	const { enabled: heartAnimationEnabled, setEnabled: setHeartAnimationEnabled } = useHeartAnimationEnabled();
 	// Feinschalter „Erledigt animieren“ — gilt nur gemeinsam mit dem Master (Konfetti, #1169).
 	const { enabled: doneAnimationEnabled, setEnabled: setDoneAnimationEnabled } = useDoneAnimationEnabled();

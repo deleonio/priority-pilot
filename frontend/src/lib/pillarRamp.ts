@@ -7,8 +7,8 @@
  *   Farbsehschwäche (`pillarPalette.test.ts`). Sie färbt alles, was neben Text steht — vor allem
  *   den Tupfer in der Legende.
  * - `--pp-pillar-neon-1…7` ist die **Bild-Rampe**: dieselben Hues in voller Leuchtkraft, in hellem
- *   wie dunklem Theme gleich. Sie färbt ausschließlich Flächen in den Balance-Bildern (Strahlen,
- *   Lappen, Zeiger). Dort trägt Farbe keine Bedeutung allein — der Säulenname steht als Text in der
+ *   wie dunklem Theme gleich. Sie färbt ausschließlich Flächen in den Balance-Bildern (Wasser,
+ *   Blasen). Dort trägt Farbe keine Bedeutung allein — der Säulenname steht als Text in der
  *   Legende daneben (Relief-Regel, ux-design.md §2, Regel 4).
  *
  * Beide Rampen haben **sieben** Ränge. Ab der 8. Säule wird nicht weiter eingefärbt (Regel 3):
@@ -21,8 +21,8 @@
 export const PILLAR_RAMP_SIZE = 7;
 
 /**
- * Hängt an eine Basisklasse den Rampen-Modifier ihres Farbrangs — `balance-ray` wird zu
- * `balance-ray balance-ray--3`. Jenseits der Rampe bleibt es bei der Basisklasse.
+ * Hängt an eine Basisklasse den Rampen-Modifier ihres Farbrangs — `heart-water` wird zu
+ * `heart-water heart-water--3`. Jenseits der Rampe bleibt es bei der Basisklasse.
  */
 export const rampClass = (base: string, colorIndex: number): string =>
 	colorIndex < PILLAR_RAMP_SIZE ? `${base} ${base}--${colorIndex + 1}` : base;

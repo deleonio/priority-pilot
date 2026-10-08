@@ -1,0 +1,17 @@
+{
+	"version": 1,
+	"active": "default",
+	"presets": {
+		"default": {
+			"u_fill": 0.72,
+			"u_animated": true,
+			"u_rise_duration": 4,
+			"u_wave_length": 40,
+			"u_wave_amplitude": 0.8,
+			"u_wave_duration": 15.5,
+			"u_depth_waves": 2,
+			"u_depth_strength": 0.5,
+			"u_shadow": 0
+		}
+	}
+}

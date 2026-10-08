@@ -11,11 +11,19 @@ import type { BalanceMetrics, PillarMetric } from './balanceMetric';
  *
  * **Die Figuren**, alle um denselben Mittelpunkt, alle innerhalb desselben Zifferblatts:
  *
+ * - **Blasen** — je Säule eine schwingende Ellipse, gestapelt von groß nach klein. Die Säule, die
+ *   am weitesten zurückliegt, ist die kleinste Blase und liegt ganz vorn.
+ * - **Ringe** — je Säule ein konzentrischer Bogen wie die Aktivitätsringe einer Uhr. Die Bogenlänge
+ *   ist der Wert, die stärkste Säule bekommt die äußerste Spur.
  * - **Strahlen** — je Säule ein Lichtstrahl vom Mittelpunkt nach außen, gleichmäßig über den Kreis
  *   verteilt. Die Länge ist der Wert, der längste Strahl steht auf 12 Uhr.
  * - **Blüte und Kristall** — alle Säulen als **eine** Silhouette: je Säule ein Stützpunkt auf ihrem
  *   Winkel, so weit außen wie ihr Wert. Die Blüte verbindet sie weich, der Kristall mit harten
- *   Kanten — dieselben Stützpunkte in zwei Materialien.
+ *   Kanten — derselbe Stapel in zwei Materialien wie Blasen und Scheiben.
+ * - **Segmente** — der Ring als Tortengrafik der Ist-Anteile: je Säule ein Stück, so breit wie ihr
+ *   Ist-Anteil, gefüllt bis auf ihren Wert. Das Breitenmaß ist bewusst der Ist- und nicht der
+ *   Soll-Anteil — die Größe der Form bleibt die Kennzahl, die Breite zeigt, wem wie viel vom Ring
+ *   zusteht.
  * - **Zeiger** — je Säule ein Zeiger auf dem gemeinsamen Zifferblatt, gleichmäßig über den Kreis
  *   verteilt wie die Strahlen, aber mit schmalerer Spitze. Der längste Zeiger steht auf 12 Uhr.
  *
@@ -23,8 +31,9 @@ import type { BalanceMetrics, PillarMetric } from './balanceMetric';
  * wechselt, findet dieselbe Säule an derselben Stelle der Reihenfolge wieder.
  *
  * **Warum jede Säule eine eigene Phase bekommt:** Liegen alle Säulen gleich, sind alle Formen
- * gleich groß. Ohne unterschiedliche Bewegung atmeten sie im Gleichschritt und das Bild wirkte
- * starr. Jede Form schwingt deshalb mit eigener Phase und eigener Periode.
+ * gleich groß. Ohne unterschiedliche Bewegung lägen die Blasen deckungsgleich übereinander und das
+ * Bild zeigte im Gleichstand eine einzige Blase. Jede Form schwingt deshalb mit eigener Phase und
+ * eigener Periode; die Ränder kreuzen sich fortwährend, jede Farbe wird immer wieder sichtbar.
  * `balanceFigure.test.ts` nagelt genau das fest.
  */
 
@@ -47,14 +56,26 @@ export const TICK_COUNT = 100;
 export const FIGURE_MAX = 33;
 
 /**
- * Kleinster Radius einer Form. Kein Schönheitswert: Säulen ohne Gewicht haben dauerhaft das
+ * Kleinster Radius einer Blase. Kein Schönheitswert: Säulen ohne Gewicht haben dauerhaft das
  * Verhältnis 0 (`POST /pillars` legt jede neue Säule mit `weight: 0` an). Ihre Form muss trotzdem
  * sichtbar bleiben, sonst verschwände eine gepflegte Säule spurlos aus dem Bild.
  */
 export const R_MIN = 8;
 
+/**
+ * Auslenkung der Formschwingung: Die eine Halbachse wächst um diesen Anteil, während die andere um
+ * denselben Anteil schrumpft — die Fläche bleibt dabei nahezu konstant, die Blase „atmet" also,
+ * statt zu wachsen.
+ */
+export const SWING = 0.12;
+
 /** Auftakt: die Figuren wachsen einmalig auf ihren Stand, der Ring zieht sich auf (Sekunden). */
 export const RISE_DURATION = 1.4;
+
+/** Innerer Rand des Ringfelds — die Mitte bleibt frei, sonst laufen die Bögen dort zusammen. */
+const ARC_INNER = 11;
+/** Anteil der verfügbaren Spur, den ein Bogen ausfüllt; der Rest ist Luft zwischen den Ringen. */
+const ARC_FILL = 0.62;
 
 /** Kürzester Strahl — auch ein Wert von 0 bleibt als Lichtpunkt sichtbar. */
 const RAY_MIN = 7;
@@ -103,7 +124,8 @@ const toRadius = (value: number): number => R_MIN + clamp01(value) * (FIGURE_MAX
 
 /**
  * Die gemeinsame Ordnung aller Figuren: **stärkste Säule zuerst**, bei Gleichstand nach
- * Säulen-`id`. Sie entscheidet, welcher Strahl, Lappen oder Zeiger auf 12 Uhr steht.
+ * Säulen-`id`. Sie entscheidet bei den Blasen, welche hinten liegt, bei den Ringen, welche Spur die
+ * äußere ist, und bei den Strahlen, welcher zuerst steht.
  *
  * Der Tie-Break über die `id` ist kein Detail: Ohne ihn hinge die Reihenfolge bei gleichen Werten
  * an der Sortierung der Eingabe, und eine Umsortierung der Säulen-Anzeige würfelte das Bild neu.
@@ -111,8 +133,81 @@ const toRadius = (value: number): number => R_MIN + clamp01(value) * (FIGURE_MAX
 const byStrength = (pillars: readonly PillarMetric[]): PillarMetric[] =>
 	[...pillars].sort((a, b) => b.scaled - a.scaled || a.pillarId - b.pillarId);
 
+// ── Figur „Blasen" ──────────────────────────────────────────────────────────────────────────────
+
+/** Eine Blase in Zeichenreihenfolge: Grundform plus ihre eigene Bewegung. */
+export interface Orb extends FigureMotion {
+	pillarId: number;
+	colorIndex: number;
+	/** Grundradius in Nutzereinheiten (`R_MIN`–`FIGURE_MAX`). */
+	radius: number;
+}
+
+/**
+ * Baut die Blasen in **Zeichenreihenfolge**: größter Radius zuerst (hinten), kleinster zuletzt
+ * (vorn). Bei gleichem Radius entscheidet die Säulen-`id` — die Reihenfolge darf nicht von der
+ * Sortierung der Eingabe abhängen, sonst springt der Stapel bei einer Umsortierung der Anzeige.
+ */
+export const buildOrbs = (metrics: BalanceMetrics): Orb[] =>
+	byStrength(metrics.pillars).map((pillar): Orb => ({
+		pillarId: pillar.pillarId,
+		colorIndex: pillar.colorIndex,
+		radius: toRadius(pillar.scaled),
+		...motionOf(pillar.colorIndex),
+	}));
+
 /** Radius des gemeinsamen Soll-Kreises — die Marke, an der eine Säule genau auf ihrem Ziel steht. */
 export const targetRadius = (metrics: BalanceMetrics): number => toRadius(metrics.targetMark);
+
+/**
+ * Halbachsen einer Blase zum Zeitpunkt `time` (Sekunden). Gegenläufig: `rx` wächst genau um den
+ * Anteil, um den `ry` schrumpft. Dieselbe Formel rechnet der Shader je Bildpunkt; hier speist sie
+ * die Stützwerte der SMIL-Animation im SVG.
+ */
+export const orbAxes = (motion: FigureMotion, radius: number, time: number): { rx: number; ry: number } => {
+	const swing = Math.sin(motion.phase + (TAU * time) / motion.swingPeriod) * SWING;
+	return { rx: radius * (1 + swing), ry: radius * (1 - swing) };
+};
+
+// ── Figur „Ringe" ───────────────────────────────────────────────────────────────────────────────
+
+/** Ein Aktivitätsring: eine Spur, deren Lage und Bogenlänge beide den Wert tragen. */
+export interface Arc extends FigureMotion {
+	pillarId: number;
+	colorIndex: number;
+	/** Mittlerer Radius der Spur in Nutzereinheiten. */
+	radius: number;
+	/** Strichstärke des Bogens. */
+	width: number;
+	/** Bogenlänge als Anteil des vollen Umlaufs (0–1) — der Wert der Säule. */
+	sweep: number;
+	/** Dieselbe Marke als Anteil des Umlaufs: Dort steht die Säule genau auf ihrem Ziel. */
+	target: number;
+}
+
+/**
+ * Baut die Ringe **von außen nach innen, stärkste Säule zuerst** — dieselbe Ordnung wie der
+ * Blasen-Stapel: Die am stärksten ausgeprägte Säule bekommt die größte Form, die schwächste die
+ * kleinste. Zusätzlich zur Lage trägt die Bogenlänge denselben Wert; beide Signale zeigen in
+ * dieselbe Richtung, statt sich gegenseitig zu widersprechen.
+ *
+ * Die Spurbreite teilt sich das Feld unter allen Säulen auf; bei vielen Säulen werden die Ringe also
+ * dünner statt enger — eng gestellte Ringe verschmelzen optisch, dünne bleiben lesbar.
+ */
+export const buildArcs = (metrics: BalanceMetrics): Arc[] => {
+	const pillars = byStrength(metrics.pillars);
+	const track = (FIGURE_MAX - ARC_INNER) / Math.max(1, pillars.length);
+	return pillars.map((pillar, index): Arc => ({
+		pillarId: pillar.pillarId,
+		colorIndex: pillar.colorIndex,
+		// Index 0 ist die stärkste Säule und bekommt die äußerste Spur.
+		radius: FIGURE_MAX - track * (index + 0.5),
+		width: track * ARC_FILL,
+		sweep: clamp01(pillar.scaled),
+		target: clamp01(metrics.targetMark),
+		...motionOf(pillar.colorIndex),
+	}));
+};
 
 // ── Figur „Strahlen" ────────────────────────────────────────────────────────────────────────────
 
@@ -132,7 +227,7 @@ export interface Ray extends FigureMotion {
 
 /**
  * Baut die Strahlen gleichmäßig über den Kreis, ab 12 Uhr im Uhrzeigersinn, **stärkste Säule
- * zuerst**. Der längste Strahl steht damit immer auf 12 Uhr
+ * zuerst** — dieselbe Ordnung wie Blasen und Ringe. Der längste Strahl steht damit immer auf 12 Uhr
  * und das Bild liest sich wie ein Zeiger, der von der stärksten zur schwächsten Säule wandert.
  */
 export const buildRays = (metrics: BalanceMetrics): Ray[] => {
@@ -174,7 +269,8 @@ export interface Petal extends FigureMotion {
  * Baut die Stützpunkte der Silhouette wie die Strahlen: gleichmäßig über den Kreis ab 12 Uhr im
  * Uhrzeigersinn, **stärkste Säule zuerst**. Der weiteste Lappen steht damit immer auf 12 Uhr.
  *
- * Blüte und Kristall teilen sich diese Punkte — sie unterscheiden sich allein darin, wie die Kontur zwischen ihnen verläuft: weich oder kantig.
+ * Blüte und Kristall teilen sich diese Punkte (wie Blasen und Scheiben ihren Stapel) — sie
+ * unterscheiden sich allein darin, wie die Kontur zwischen ihnen verläuft: weich oder kantig.
  */
 export const buildPetals = (metrics: BalanceMetrics): Petal[] => {
 	const pillars = byStrength(metrics.pillars);
@@ -230,6 +326,81 @@ export const petalArcPoints = (
 	return Array.from({ length: samples + 1 }, (_, step): { x: number; y: number } => {
 		const angle = petal.angle - petal.spread + (petal.spread * 2 * step) / samples;
 		return polar(angle, petalRadiusAt(petals, angle, smooth));
+	});
+};
+
+// ── Figur „Segmente“ ───────────────────────────────────────────────────────────────
+
+/** Innerer Radius der Ringstücke — gemeinsam für alle, die Breite trägt allein der Winkel. */
+const WEDGE_INNER = 8;
+/** Sichtbare Fuge zwischen zwei Stücken, je Seite in Grad — sonst liest der Ring als Fläche. */
+const WEDGE_GAP = 0.8;
+/**
+ * Kleinster Winkel eines Stücks — das Breiten-Pendant zu `R_MIN`: Eine Säule ohne Ziel hat keinen
+ * Anteil am Ring, ihr Stück wäre unsichtbar. Das Mindeststück hält sie im Bild; den Rest des
+ * Ringes verteilen die Zielanteile weiter exakt.
+ */
+const WEDGE_MIN_SPAN = 3;
+
+/**
+ * Ein Ringstück: so breit wie der Anteil der Säule, gefüllt von innen bis auf ihren Wert.
+ */
+export interface Wedge extends FigureMotion {
+	pillarId: number;
+	colorIndex: number;
+	/** Startwinkel in Grad, 0 zeigt nach rechts, −90 nach oben (SVG-Konvention). */
+	start: number;
+	/** Endwinkel in Grad (exklusiv) — zwischen ihm und dem Nachbarn liegt die Fuge. */
+	end: number;
+	/** Voller Winkelanteil am Ring in Grad, inklusive Fugen — die Stücke schließen den Ring. */
+	span: number;
+	/** Mittlerer Winkel des Stücks — dort steht seine Soll-Marke quer über den Ring. */
+	angle: number;
+	/** Innerer Radius in Nutzereinheiten (bei allen Stücken `WEDGE_INNER`). */
+	inner: number;
+	/** Äußerer Radius in Nutzereinheiten (`R_MIN`–`FIGURE_MAX`) — der Wert der Säule. */
+	outer: number;
+	/** Radius, bei dem die Säule genau auf ihrem Ziel stünde — als Strich quer über das Stück. */
+	targetRadius: number;
+}
+
+/**
+ * Baut die Ringstücke als Tortengrafik der **Ist**-Anteile: Die Anteile summieren auf 100 % und
+ * teilen den Ring daher vollständig auf — kein Luftanteil, kein klappender Startwinkel. Die
+ * Reihenfolge ist wie bei allen Figuren **stärkste Säule zuerst**, ab 12 Uhr im Uhrzeigersinn.
+ *
+ * Das Mindeststück (`WEDGE_MIN_SPAN`) bekommen alle Säulen zuerst, der Rest des Ringes geht nach
+ * Ist-Anteil daran — so bleibt eine Säule ohne Punkte als schmales, aber sichtbares Haar stehen
+ * (dieselbe Pflicht, die `R_MIN` für die Radien erfüllt). Die Fuge schrumpft mit dem Stück, damit
+ * ein Mindeststück nicht zur Zahl 0 zusammenfällt.
+ */
+export const buildWedges = (metrics: BalanceMetrics): Wedge[] => {
+	const pillars = byStrength(metrics.pillars);
+	const count = pillars.length;
+	if (count === 0) return [];
+	const totalActual = metrics.pillars.reduce((sum, pillar) => sum + pillar.actualShare, 0);
+	const reserve = Math.min(WEDGE_MIN_SPAN, 360 / count);
+	let start = -90;
+	return pillars.map((pillar): Wedge => {
+		// Ohne vergebene Punkte hat keine Säule einen Ist-Anteil — dann teilen sich alle den Ring zu
+		// gleichen Teilen, statt auf das Mindeststück zusammenzufallen (Leerzustand eines neuen Kontos).
+		const share = totalActual > 0 ? pillar.actualShare / totalActual : 1 / count;
+		const span = reserve + (360 - reserve * count) * share;
+		const gap = Math.min(WEDGE_GAP, span / 4);
+		const wedge: Wedge = {
+			pillarId: pillar.pillarId,
+			colorIndex: pillar.colorIndex,
+			start: start + gap,
+			end: start + span - gap,
+			span,
+			angle: start + span / 2,
+			inner: WEDGE_INNER,
+			outer: toRadius(pillar.scaled),
+			targetRadius: toRadius(metrics.targetMark),
+			...motionOf(pillar.colorIndex),
+		};
+		start += span;
+		return wedge;
 	});
 };
 

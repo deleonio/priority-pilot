@@ -26,7 +26,7 @@ test.describe('Artikel-Screenshots — Bilder fürs Auge', () => {
 
 	test('Dashboard, Streak, Fürsorge, Bildwahl — Desktop und mobil', async ({ page }) => {
 		// Registrieren (säht die fünf festen Seed-Säulen, #1521) + einloggen — der Test-Login säht
-		// keine Säulen, das Dashboard braucht sie aber (Balance-Karte, Streak, Fürsorge).
+		// keine Säulen, das Dashboard braucht sie aber (Herz-Karte, Streak, Fürsorge).
 		const konto = { email: 'artikel@example.com', password: 'artikel-1234' };
 		await page.request.post('/auth/register', { data: konto });
 		const login = await page.request.post('/auth/login', { data: konto });

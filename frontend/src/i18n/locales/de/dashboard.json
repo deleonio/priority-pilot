@@ -88,9 +88,14 @@
 		"strongest": "{{name}} zieht davon ({{actual}})"
 	},
 	"balanceVariant": {
+		"herz": "Herz",
+		"blasen": "Blasen",
+		"scheiben": "Scheiben",
+		"ringe": "Ringe",
 		"strahlen": "Strahlen",
 		"bluete": "Blüte",
 		"kristall": "Kristall",
+		"segmente": "Segmente",
 		"zeiger": "Zeiger"
 	},
 	"days_one": "{{count}} Tag",

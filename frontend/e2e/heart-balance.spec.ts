@@ -7,7 +7,7 @@ import { waitForStableView } from './helpers';
  * Nagelt den Kernpunkt fest, den nur die echte Seite belegen kann: Das Bild steht als erstes Widget
  * des Dashboards, ist horizontal mittig und bleibt auf schmalen Viewports innerhalb der Seite. Die
  * Segmentierung je Säule und die Rechnung prüfen die Komponenten- und Unit-Tests. Geprüft wird die
- * Standard-Variante „Blüte" (`docs/zifferblatt-konzept.md`); die übrigen Bilder teilen sich
+ * Standard-Variante „Herz" (`docs/zifferblatt-konzept.md`); die übrigen Bilder teilen sich
  * Bühne und Layout mit ihr.
  *
  * Die Breiten-Prüfung misst **Bounding-Boxen**, nicht `documentElement.scrollWidth`: Die App-Shell
@@ -16,7 +16,7 @@ import { waitForStableView } from './helpers';
  * belegt). Geprüft wird zusätzlich bei 320 px, weil das Karten-Padding auf 375 px genug Überlauf
  * schluckt, um einen echten Fehler zu verstecken.
  */
-test.describe('Dashboard — Bild der Lebensbalance', () => {
+test.describe('Dashboard — Herz der Lebensbalance', () => {
 	const deleteAllTasks = async (page: Page): Promise<void> => {
 		const response = await page.request.get('/api/v1/tasks');
 		const tasks = (await response.json()) as { id: number }[];
@@ -30,6 +30,12 @@ test.describe('Dashboard — Bild der Lebensbalance', () => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.request.post('/api/v1/tasks', { data: { title: 'E2E Herz Balance' } });
+		// Bildwahl liegt am Konto (#2009): Andere Specs (z. B. `balance-variant.spec.ts`) lassen sonst ihre Wahl zurück.
+		const token = (await page.request.get('/api/v1/balance-variant')).headers()['x-csrf-token'];
+		await page.request.put('/api/v1/balance-variant', {
+			data: { variant: 'herz' },
+			headers: token ? { 'x-csrf-token': token } : {},
+		});
 
 		await page.reload();
 		await waitForStableView(page);
@@ -61,13 +67,13 @@ test.describe('Dashboard — Bild der Lebensbalance', () => {
 		const cardCenter = cardBox!.x + cardBox!.width / 2;
 		expect(Math.abs(heartCenter - cardCenter)).toBeLessThanOrEqual(1);
 
-		// Das Bild ist das erste Widget unter der Begrüßung — es steht über den Statuskacheln.
+		// Das Herz ist das erste Widget unter der Begrüßung — es steht über den Statuskacheln.
 		const cardsBox = await page.locator('.dashboard-cards').boundingBox();
 		expect(cardsBox).not.toBeNull();
 		expect(cardBox!.y).toBeLessThan(cardsBox!.y);
 	});
 
-	// Die Grafik skaliert im Ruhepuls über ihre Viewbox hinaus —
+	// Die Grafik rendert mit `overflow: visible` und der Herzschlag skaliert über die Viewbox hinaus —
 	// genau die Kombination, die auf schmalen Geräten überläuft, wenn eine Breite einmal absolut
 	// statt relativ gesetzt wird.
 	for (const width of [375, 320]) {

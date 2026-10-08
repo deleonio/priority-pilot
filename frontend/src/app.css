@@ -77,8 +77,8 @@
 	 * gedämpft mitlaufen; ein zweiter Satz Hell-Werte nähme ihm genau das.
 	 *
 	 * Warum das die Kontrastregel nicht bricht: Diese Farben füllen ausschließlich Flächen im Bild
-	 * (Strahlen, Lappen, Zeiger). Sie tragen dort keine Bedeutung allein — jede Säule steht als Text
-	 * mit ihrem Farbtupfer in der Legende, und der Tupfer nimmt weiter die geprüfte `--pp-pillar-*`-
+	 * (Blasen, Wasser). Sie tragen dort keine Bedeutung allein — jede Säule steht als Text mit
+	 * ihrem Farbtupfer in der Legende, und der Tupfer nimmt weiter die geprüfte `--pp-pillar-*`-
 	 * Rampe (Relief-Regel, ux-design.md §2, Regel 4). Die Werte sind die Dark-Werte der Rampe,
 	 * bleiben damit paarweise unterscheidbar auch unter Farbsehschwäche (pillarPalette.test.ts).
 	 */
@@ -4309,20 +4309,20 @@ kol-alert {
 
 /*
  * Die Bühne selbst bewegt sich nicht: Das Zifferblatt ist die Skala des Bildes, und eine Skala, die
- * im Ruhepuls mitwackelt, ist keine. Der Puls sitzt deshalb eine Ebene tiefer, allein auf der
- * Figur (`.balance-figure-beat`).
+ * im Ruhepuls mitwackelt, ist keine. Der Puls sitzt deshalb eine Ebene tiefer, allein auf den
+ * Blasen (`.balance-orbs-beat`).
  */
 .heart-balance-stage {
 	width: 100%;
 	/* Höhen-Deckel zusätzlich zum Breiten-Deckel: Auf kurzen Viewports (Kleinfenster, Phones)
 	   schrumpft die Bühne so weit, dass Karte und Ablesewert ohne Scrollen in den Viewport
-	   passen — das Budget (~29rem) deckt Kopfzeile bis Readout; die Legende darf unter dem
+	   passen — das Budget (~29.5rem) deckt Kopfzeile bis Readout; die Legende darf unter dem
 	   Fold beginnen. `svh` statt `dvh`, damit das Ein-/Ausblenden der mobilen URL-Leiste die
 	   Bühne nicht springen lässt; hohe Fenster treffen weiter den 24rem-Breiten-Deckel. Untergrenze
 	   12rem: Auf sehr kurzen Viewports (Phone quer) bleibt das Bild lesbar und wird gescrollt statt
 	   auf 0 zu klemmen; die erste Deklaration ist der Fallback für Engines ohne `svh`. */
 	max-width: 24rem;
-	max-width: clamp(12rem, calc(100svh - 29rem), 24rem);
+	max-width: clamp(12rem, calc(100svh - 29.5rem), 24rem);
 }
 
 /* Vorschau in den Einstellungen: dieselbe Bühne, klein und unter der Auswahl. */
@@ -4362,8 +4362,58 @@ kol-alert {
 }
 
 /*
- * Soll-Marke: die Stelle, an der eine Säule genau auf ihrem Ziel stünde — ein gestrichelter Kreis.
- * Neutral gefärbt und gestrichelt, weil sie kein Wert ist, sondern ein Bezug — eine durchgezogene farbige Linie würde
+ * Blasen: halbtransparente Füllung mit deutlicher Kante. Die Kante ist tragend — bei fünf
+ * übereinanderliegenden Blasen ist sie das Einzige, was eine Form noch als eigene Form ausweist.
+ * Ohne Modifier bleibt die Blase neutral: ab der 8. Säule wird nicht weiter eingefärbt
+ * (ux-design.md §2, Regel 3).
+ */
+.balance-orb {
+	fill: color-mix(in srgb, var(--pp-border-strong) 55%, var(--pp-surface-1));
+	fill-opacity: 0.12;
+	stroke: var(--pp-border-strong);
+	stroke-width: 1.4;
+	stroke-opacity: 0.95;
+}
+
+.balance-orb--1 {
+	fill: color-mix(in srgb, var(--pp-pillar-neon-1) 55%, var(--pp-surface-1));
+	stroke: var(--pp-pillar-neon-1);
+}
+
+.balance-orb--2 {
+	fill: color-mix(in srgb, var(--pp-pillar-neon-2) 55%, var(--pp-surface-1));
+	stroke: var(--pp-pillar-neon-2);
+}
+
+.balance-orb--3 {
+	fill: color-mix(in srgb, var(--pp-pillar-neon-3) 55%, var(--pp-surface-1));
+	stroke: var(--pp-pillar-neon-3);
+}
+
+.balance-orb--4 {
+	fill: color-mix(in srgb, var(--pp-pillar-neon-4) 55%, var(--pp-surface-1));
+	stroke: var(--pp-pillar-neon-4);
+}
+
+.balance-orb--5 {
+	fill: color-mix(in srgb, var(--pp-pillar-neon-5) 55%, var(--pp-surface-1));
+	stroke: var(--pp-pillar-neon-5);
+}
+
+.balance-orb--6 {
+	fill: color-mix(in srgb, var(--pp-pillar-neon-6) 55%, var(--pp-surface-1));
+	stroke: var(--pp-pillar-neon-6);
+}
+
+.balance-orb--7 {
+	fill: color-mix(in srgb, var(--pp-pillar-neon-7) 55%, var(--pp-surface-1));
+	stroke: var(--pp-pillar-neon-7);
+}
+
+/*
+ * Soll-Marke: die Stelle, an der eine Säule genau auf ihrem Ziel stünde. Bei Blasen und Strahlen
+ * ein gestrichelter Kreis, bei den Ringen ein Strich quer über jede Spur. Neutral gefärbt und
+ * gestrichelt, weil sie kein Wert ist, sondern ein Bezug — eine durchgezogene farbige Linie würde
  * als weitere Säule gelesen.
  */
 .balance-target {
@@ -4381,8 +4431,70 @@ kol-alert {
 }
 
 /*
+ * Scheiben: derselbe Stapel wie die Blasen, entgegengesetztes Material — volle Deckkraft, harte
+ * Kante, kein Saum. Jede kleinere Scheibe liegt auf der größeren, sichtbar bleibt von jeder ein
+ * Ring; die Farbe steht damit satt im Bild statt durchzuscheinen. Die helle Lippe an der Kante
+ * trennt zwei gleich kräftige Scheiben, ohne die Fläche aufzuweichen.
+ */
+.balance-disc {
+	fill: var(--pp-border-strong);
+	stroke: var(--pp-surface-1);
+	stroke-width: 1;
+	stroke-opacity: 0.9;
+}
+
+.balance-disc--1 {
+	fill: var(--pp-pillar-neon-1);
+}
+
+.balance-disc--2 {
+	fill: var(--pp-pillar-neon-2);
+}
+
+.balance-disc--3 {
+	fill: var(--pp-pillar-neon-3);
+}
+
+.balance-disc--4 {
+	fill: var(--pp-pillar-neon-4);
+}
+
+.balance-disc--5 {
+	fill: var(--pp-pillar-neon-5);
+}
+
+.balance-disc--6 {
+	fill: var(--pp-pillar-neon-6);
+}
+
+.balance-disc--7 {
+	fill: var(--pp-pillar-neon-7);
+}
+
+/*
+ * Ringe: je Säule eine Spur. Die blasse Grundspur zeigt, wie weit es noch wäre; darüber liegt der
+ * gefüllte Bogen. Beide teilen sich Radius und Strichstärke — die Komponente setzt sie als
+ * Attribute, weil sie von der Zahl der Säulen abhängen.
+ */
+.balance-arc-track,
+.balance-arc {
+	fill: none;
+	stroke-linecap: round;
+}
+
+.balance-arc-track {
+	stroke: var(--pp-border-strong);
+	stroke-opacity: 0.16;
+}
+
+.balance-arc {
+	stroke: var(--pp-border-strong);
+}
+
+/*
  * Strahlen: je Säule ein Lichtkeil vom Mittelpunkt. Halbtransparent gefüllt mit einer kräftigeren
- * Kante, damit sich überlagernde Strahlen nicht zu einer Fläche verschmelzen.
+ * Kante — dieselbe Aufteilung wie bei den Blasen, damit sich überlagernde Strahlen nicht zu einer
+ * Fläche verschmelzen.
  */
 .balance-ray {
 	fill: color-mix(in srgb, var(--pp-border-strong) 55%, var(--pp-surface-1));
@@ -4564,6 +4676,46 @@ kol-alert {
 }
 
 /*
+ * Segmente: der Ring als Tortengrafik der Ist-Anteile. Satt gefüllt in der Neon-Rampe wie die
+ * Scheiben — die Stücke grenzen aneinander, eine halbtransparente Füllung liefe ineinander.
+ * Ohne Modifier bleibt die Füllung neutral: Ab der 8. Säule wird nicht weiter eingefärbt.
+ */
+.balance-wedge {
+	fill: var(--pp-border-strong);
+	stroke: var(--pp-surface-1);
+	stroke-width: 0.5;
+	stroke-linejoin: round;
+}
+
+.balance-wedge--1 {
+	fill: var(--pp-pillar-neon-1);
+}
+
+.balance-wedge--2 {
+	fill: var(--pp-pillar-neon-2);
+}
+
+.balance-wedge--3 {
+	fill: var(--pp-pillar-neon-3);
+}
+
+.balance-wedge--4 {
+	fill: var(--pp-pillar-neon-4);
+}
+
+.balance-wedge--5 {
+	fill: var(--pp-pillar-neon-5);
+}
+
+.balance-wedge--6 {
+	fill: var(--pp-pillar-neon-6);
+}
+
+.balance-wedge--7 {
+	fill: var(--pp-pillar-neon-7);
+}
+
+/*
  * Zeiger: je Säule ein Zeiger auf dem Zifferblatt. Halbtransparent gefüllt mit kräftiger
  * Kante wie die Strahlen — dieselbe Aufteilung, nur schlanker, damit die Skala frei bleibt.
  */
@@ -4616,7 +4768,7 @@ kol-alert {
  * `transform`-Eigenschaft und die spätere gewinnt.
  *
  * `transform-box: view-box` verankert den Ursprung im Koordinatensystem der `viewBox`; ohne sie
- * bezöge sich `transform-origin` auf die Bounding-Box der Gruppe, die mit den bewegten Formen
+ * bezöge sich `transform-origin` auf die Bounding-Box der Gruppe, die mit den schwingenden Blasen
  * selbst wandert.
  */
 .balance-figure-rise,
@@ -4626,8 +4778,8 @@ kol-alert {
 }
 
 /*
- * Auftakt: Die Figur wächst einmalig aus dem Mittelpunkt auf ihren Stand. `both` hält den
- * Endzustand auch nach dem Durchlauf fest; die Bewegung der einzelnen Formen läuft als SMIL
+ * Auftakt: Die Blasen wachsen einmalig aus dem Mittelpunkt auf ihren Stand. `both` hält den
+ * Endzustand auch nach dem Durchlauf fest; die Schwingung der einzelnen Blasen läuft als SMIL
  * darunter und wird davon nicht berührt.
  */
 .balance-figure-rise {
@@ -4647,7 +4799,7 @@ kol-alert {
 }
 
 /*
- * Ruhepuls — ein gemeinsames, leises Atmen über die ganze Figur. Die Dauer liefert die Komponente als
+ * Ruhepuls — ein gemeinsames, leises Atmen über alle Blasen. Die Dauer liefert die Komponente als
  * `--pp-heart-beat` (ruhiger, je ausgewogener). Das ist eine Umgebungs-Schleife, keine
  * Interaktions-Bewegung: die `--pp-motion-*`-Stufen (120/200 ms) beschreiben Übergänge auf eine
  * Nutzeraktion hin und passen hier bewusst nicht.
@@ -4669,7 +4821,7 @@ kol-alert {
 
 /*
  * Bewegung ist Beiwerk: Umgebungs-Schleifen laufen nicht mit eigener Dauer weiter, wenn sie
- * abbestellt sind. Ohne Animation stehen die Formen in ihrer Grundform auf ihrem Stand — das Bild
+ * abbestellt sind. Ohne Animation stehen die Blasen in ihrer Grundform auf ihrem Stand — das Bild
  * bleibt vollständig, nur still.
  */
 @media (prefers-reduced-motion: reduce) {
@@ -4680,13 +4832,178 @@ kol-alert {
 }
 
 /*
- * Bewegung ist abbestellbar: Der Feinschalter „Balance animieren" (gemeinsam mit dem Master
+ * Bewegung ist abbestellbar: Der Feinschalter „Herz animieren" (gemeinsam mit dem Master
  * „Animationen") setzt die Still-Klasse — alle Schleifen stehen, das Bild bleibt vollständig. Die
  * OS-Einstellung oben greift unabhängig davon.
  */
 .heart-balance-stage--still .balance-figure-rise,
 .heart-balance-stage--still .balance-figure-beat {
 	animation: none;
+}
+
+/* --- Variante „Herz": das Gefäß, das sich wie ein Wasserglas füllt --- */
+
+.heart-balance-svg {
+	display: block;
+	width: 100%;
+	height: auto;
+	overflow: visible;
+}
+
+/*
+ * Glasherz (WebGL): dieselbe Geometrie wie das SVG (Zeichenfläche 100×92, volle Breite der
+ * Bühne). Der Puls bleibt CSS auf der Bühne — das Canvas skaliert als Ganzes mit.
+ */
+.heart-glass-canvas {
+	display: block;
+	width: 100%;
+	height: auto;
+	aspect-ratio: 100 / 92;
+}
+
+/*
+ * Ruhepuls des Herzens — ein doppelter Schlag, wie ein echter. Die Dauer liefert die Komponente
+ * als `--pp-heart-beat` (ruhiger, je ausgewogener). Er sitzt bewusst nur auf **dieser** Variante:
+ * Die Blasen-Bilder tragen außen ein Zifferblatt, und eine mitwackelnde Skala wäre keine.
+ *
+ * Das ist eine Umgebungs-Schleife, keine Interaktions-Bewegung: die `--pp-motion-*`-Stufen
+ * (120/200 ms) beschreiben Übergänge auf eine Nutzeraktion hin und passen hier bewusst nicht.
+ */
+.heart-balance-stage--herz {
+	animation: heart-beat var(--pp-heart-beat, 2s) var(--pp-ease) infinite;
+	transform-origin: 50% 60%;
+}
+
+/* Leeres Gefäß: eingesenkte Fläche, damit das Fehlende genauso ablesbar ist wie das Erreichte. */
+.heart-vessel {
+	fill: var(--pp-surface-2);
+}
+
+/* Kontur als Grenze eines bedeutungstragenden Elements — `border-strong` hält ≥ 3:1 (WCAG 1.4.11). */
+.heart-outline {
+	fill: none;
+	stroke: var(--pp-border-strong);
+	stroke-width: 2;
+	stroke-linejoin: round;
+}
+
+/*
+ * Trennfuge zwischen zwei Wassersäulen: in Kartenfarbe, damit sie als Spalt liest, nicht als Linie —
+ * und bewusst zurückhaltend. Eine kräftige Fuge macht aus dem Wasser ein Balkendiagramm; die
+ * Segmente trennen sich ohnehin schon über ihre Farbe und ihren Pegel.
+ */
+.heart-seam {
+	stroke: var(--pp-surface-1);
+	stroke-width: 0.5;
+	opacity: 0.55;
+}
+
+/*
+ * Wellenlauf: Die Bewegung selbst kommt per SMIL aus der Komponente (`animateTransform`) — nicht
+ * aus CSS. Grund: Die Farb-Kopien der Welle müssen zwingend phasengleich laufen; die gemeinsame
+ * SMIL-Dokument-Zeitachse garantiert das, einzelne CSS-Animationsuhren tun es nicht. Hier bleibt
+ * nur das Erscheinungsbild. Reine Grafikbewegung: kein JavaScript-Frame-Loop, keine Re-Renders.
+ */
+.heart-wave {
+	/* Leicht durchscheinend: das Gefäß darunter tönt mit, das Wasser wirkt flüssig statt lackiert. */
+	opacity: 0.9;
+}
+
+/* Tiefenwellen im SVG-Herzen — Abdunkelung wie die STRATUM-Schichten im Glas-Shader; sie liegen
+   über den Farbstreifen und unter den Fugen. Opacity je Schicht als Attribut (Markup-Parameter). */
+.heart-depth {
+	fill: #000;
+}
+
+/*
+ * Auftakt: Das Wasser steigt einmalig von unten auf seinen Stand — die Wegstrecke liefert die
+ * Komponente als `--pp-heart-rise` (volle Gefäßhöhe) aus. `both` hält den Endzustand auch nach
+ * dem Durchlauf fest; die dauerhafte Wellenbewegung läuft auf den inneren Gruppen und wird davon
+ * nicht berührt.
+ */
+.heart-water-rise {
+	animation: heart-water-rise 1.4s var(--pp-ease) both;
+}
+
+@keyframes heart-water-rise {
+	from {
+		transform: translateY(var(--pp-heart-rise, 82px));
+	}
+
+	to {
+		transform: translateY(0);
+	}
+}
+
+@keyframes heart-beat {
+	0%,
+	100% {
+		transform: scale(1);
+	}
+
+	8% {
+		transform: scale(1.035);
+	}
+
+	17% {
+		transform: scale(1);
+	}
+
+	25% {
+		transform: scale(1.018);
+	}
+
+	34% {
+		transform: scale(1);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.heart-balance-stage--herz,
+	.heart-water-rise {
+		animation: none;
+	}
+}
+
+.heart-balance-stage--still.heart-balance-stage--herz,
+.heart-balance-stage--still .heart-water-rise {
+	animation: none;
+}
+
+/*
+ * Wasserfarbe je Säule aus der Neon-Rampe, der Reihe nach vergeben. Ohne Modifier bleibt das
+ * Segment neutral: ab der 8. Säule wird nicht weiter eingefärbt (ux-design.md §2, Regel 3).
+ */
+.heart-water {
+	fill: var(--pp-border-strong);
+}
+
+.heart-water--1 {
+	fill: var(--pp-pillar-neon-1);
+}
+
+.heart-water--2 {
+	fill: var(--pp-pillar-neon-2);
+}
+
+.heart-water--3 {
+	fill: var(--pp-pillar-neon-3);
+}
+
+.heart-water--4 {
+	fill: var(--pp-pillar-neon-4);
+}
+
+.heart-water--5 {
+	fill: var(--pp-pillar-neon-5);
+}
+
+.heart-water--6 {
+	fill: var(--pp-pillar-neon-6);
+}
+
+.heart-water--7 {
+	fill: var(--pp-pillar-neon-7);
 }
 
 /* Ablesung unter dem Bild — die Zahl steht neben ihrer Bezugsgröße, nicht im Wasser. */
