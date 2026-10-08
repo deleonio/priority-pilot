@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.19 - 2026-10-08
 
-_Enthält v0.19.0 – v0.19.3._
+_Enthält v0.19.0 – v0.19.4._
 
 ### 🎉 New Features
 
@@ -13,6 +13,10 @@ _Enthält v0.19.0 – v0.19.3._
 ### 🚀 Improvements
 
 - feat(frontend): preview selected balance picture in settings by @deleonio in https://github.com/deleonio/priority-pilot/pull/2436
+
+### 🔧 Engineering
+
+- docs(adr-0018): grant plus instead of pro for opt-in trial by @deleonio in https://github.com/deleonio/priority-pilot/pull/2438
 
 ### Other Changes
 
@@ -218,7 +222,6 @@ _Enthält v0.16.0 – v0.16.37._
 - chore: revert container result step from #2253 by @deleonio in https://github.com/deleonio/priority-pilot/pull/2258
 - fix(ci): fix substring typo in container result step by @deleonio in https://github.com/deleonio/priority-pilot/pull/2259
 - feat(frontend): journal statistics with entry counts and balance history by @deleonio in https://github.com/deleonio/priority-pilot/pull/2263
-- test(frontend): give #1821 and keyboard-shortcuts specs own sessions by @deleonio in https://github.com/deleonio/priority-pilot/pull/2264
 - test(frontend): give #1821 and keyboard-shortcuts specs own sessions by @deleonio in https://github.com/deleonio/priority-pilot/pull/2264
 - fix(billing): discard open paypal checkout, no unpaid credit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2260
 - fix(ci): keep container-result step from aborting on empty payload by @deleonio in https://github.com/deleonio/priority-pilot/pull/2268
@@ -471,6 +474,7 @@ _Enthält v0.10.0 – v0.10.36._
 - chore(deps): update gradle to v8.14.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1841
 - fix(ci): 01-triage.yml wieder gültig (Expression-Limit) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1851
 - docs(ci): switch documenter free model to laguna-s-2.1 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1852
+- Säulen-Mindestanteil von 5 % auf allen Wegen erzwingen (#1822) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1853
 - Säulen-Mindestanteil von 5 % auf allen Wegen erzwingen (#1822) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1853
 - fix(server): show clear message for too-long task title (#1818) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1854
 - chore(deps): update renovatebot/github-action action to v46.3.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1850
