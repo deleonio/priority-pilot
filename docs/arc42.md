@@ -12,8 +12,9 @@ Punkte-Konto (Gamification, inklusive Streak und Meilensteinen), wiederkehrende 
 (Serien), Gruppen mit geteilten Tasks und Serien, Kategorien als thematische Ordnungsebene,
 ortsbezogene Aufgaben („Nearby") mit Push beim Betreten des Alarmabstands, KI-Unterstützung (Säulen-Klassifikation, Freitext-Parsing, Aktivitäten-Berater,
 Lektorat), Fürsorge-Hinweise gegen Balance-Defizite sowie ein Paketmodell (Free/Plus/Pro,
-ADR 0018) mit PayPal-Abos; in der Android-App läuft das Abo über Google Play Billing
-(ADR 0017). Erinnerungen gehen als Web-Push oder E-Mail raus; der Zugang zum Launch läuft über
+ADR 0018) mit PayPal-Abos in der PWA; die Android-App kauft über Google Play Billing (ADR 0017),
+die iOS-App über den Apple App Store, PayPal gibt es in keiner nativen App. Beide nativen
+Anbindungen sind noch offen und in der App angekündigt (Nachtrag ADR 0016). Erinnerungen gehen als Web-Push oder E-Mail raus; der Zugang zum Launch läuft über
 eine Warteliste mit Empfehlungs-Rang (ADR 0019).
 
 Das Repository ist ein pnpm-Monorepo mit fünf Workspaces ([pnpm-workspace.yaml](../pnpm-workspace.yaml)):
@@ -147,8 +148,9 @@ graph LR
   (`getPlansCatalog()`, `getEntitlements()`, `shouldBlockFeature()`); Routen deklarieren ihren
   Feature-Bedarf über `planGuard.ts`, LLM-Routen zählen verbrauchende Nutzungen über
   `aiQuotaMeter.ts` — Coverage-Tests erzwingen, dass keine neue Route das Gating vergisst.
-  Abos laufen über PayPal (ADR 0013) oder — in der Android-App — über Google Play Billing mit
-  Server-Verifikation (ADR 0017); die Paket-Angebote leben in den Einstellungen (ADR 0014).
+  Abos laufen in der PWA über PayPal (ADR 0013), in der Android-App über Google Play Billing mit
+  Server-Verifikation (ADR 0017), in der iOS-App über den Apple App Store — PayPal nie in einer
+  nativen App, die nativen Anbindungen sind noch offen (Nachtrag ADR 0016); die Paket-Angebote leben in den Einstellungen (ADR 0014).
   KI-Hilfe: Free keine, Plus und Pro Fair Use — ein internes Monatsbudget drosselt bei Überschreitung
   auf eine Anfrage je 30 Sekunden (`AI_ASSIST_MONTHLY_QUOTA`, `AI_FAIR_USE_INTERVAL_SECONDS`).
   Durchgesetzt wird erst mit dem Env-Schalter `MONETIZATION_ENFORCED` (Default aus, Rückweg ohne
