@@ -21,7 +21,7 @@ Das Repository ist ein pnpm-Monorepo mit fünf Workspaces ([pnpm-workspace.yaml]
 
 - `client/` — aus `openapi.yml` generierte API-Typen, Build-Zeit-Abhängigkeit von Frontend und Server
 - `frontend/` — React-SPA als installierbare PWA, in Produktion unter `/app/` (ADR 0015)
-- `native/` — Android-App als Capacitor-Wrapper im Remote-Modus, lädt die SPA von der Server-URL (ADR 0016)
+- `native/` — Android-App als Capacitor-Wrapper mit gebündelter SPA (ADR 0021)
 - `server/` — Node.js-API-Server (Express) mit SQLite-Persistenz
 - `website/` — öffentliche, statisch vorgerenderte Landingpage: Deutsch an `/`, neun weitere Sprachen unter `/<sprache>/` (ADR 0015)
 
@@ -72,7 +72,7 @@ Messbare Schwellen aus dem Code (Testabdeckung, Rate-Limits) sind in Abschnitt 1
 ```mermaid
 graph LR
     Nutzer[Nutzer<br/>Browser / PWA] -->|HTTPS| Caddy
-    AndroidApp[Android-App<br/>Capacitor-Wrapper] -->|HTTPS /app/| Caddy
+    AndroidApp[Android-App<br/>Capacitor-Wrapper] -->|HTTPS /api/v1| Caddy
     Betreiber[Betreiber<br/>ssh + PM2] -->|betreibt| Caddy
     MCPClient[Externer MCP-Client<br/>Claude Code / ZCode-Connector] -->|IF-07 MCP| Caddy
     subgraph Host[Dedizierter Server]
@@ -126,8 +126,8 @@ graph LR
 - **Öffentliche Website statisch vorgerendert:** `website/` rendert zur Build-Zeit HTML aus
   i18n-JSON (`website/scripts/build.ts`, `src/render.ts`); die Preise importiert das Skript
   direkt aus `server/src/logics/plans.ts` — eine Quelle, keine Kopie. Der Android-Wrapper
-  (`native/`) lädt im Remote-Modus dieselbe SPA von `${SITE_URL}/app/` und bündelt nur eine
-  Fehlerseite.
+  (`native/`) bündelt die SPA als `frontend/dist-android` (ADR 0021); `SITE_URL` liefert nur die
+  Domain für App Links und die erlaubte Navigation.
 - **Sicherheit:** Drei Anmeldewege — Google-OAuth, Magic-Link per E-Mail
   (`routes/magicLink.ts`, 15 Minuten gültiger Einmal-Link, benötigt SMTP und `PUBLIC_BASE_URL`)
   und E-Mail/Passwort (`POST /auth/register`, `POST /auth/login`); `GET /auth/providers` meldet
@@ -178,7 +178,7 @@ graph TB
     client --> frontend
     client --> server
     server -.->|Preise aus plans.ts zur Build-Zeit| website
-    frontend -->|lädt die SPA im Remote-Modus| native
+    frontend -->|bündelt die SPA als dist-android| native
     ci --> Repo
 ```
 
@@ -189,7 +189,7 @@ graph TB
 | `frontend`    | SPA: Auth-Gate, App-Shell, Komponenten, PWA                                          | `frontend/src/`                                 | IF-01, IF-06   |
 | `server`      | Express-API, Fachlogik, Persistenz, Scheduler                                        | `server/src/`                                   | IF-01 … IF-12  |
 | `website`     | öffentliche Landingpage, statisch vorgerendert, zehn Sprachen, Preise aus `plans.ts` | `website/src/`, `website/scripts/build.ts`      | —              |
-| `native`      | Android-Wrapper (Capacitor, Remote-Modus) für die SPA                                | `native/capacitor.config.ts`, `native/android/` | IF-01, IF-11   |
+| `native`      | Android-Wrapper (Capacitor) mit gebündelter SPA                                      | `native/capacitor.config.ts`, `native/android/` | IF-01, IF-11   |
 | `.github`     | CI/CD: Pipeline-Phasen, Verify, Deploy                                               | `.github/workflows/`                            | —              |
 
 ### 5.2 Server (Whitebox `server`)
@@ -240,10 +240,10 @@ mit `basename` in `App.tsx`).
 
 ### 5.4 Website und nativer Wrapper (Whitebox `website`, `native`)
 
-| Baustein   | Verantwortung                                                                                                                                                               | Wichtige Dateien                                 |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| `website/` | Statisch vorgerenderte Landingpage in zehn Sprachen (Deutsch an `/`, neun weitere unter `/<sprache>/`); Preise kommen zur Build-Zeit aus `server/src/logics/plans.ts`       | `scripts/build.ts`, `src/render.ts`, `src/i18n/` |
-| `native/`  | Android-App als Capacitor-Wrapper im Remote-Modus: die SPA (`frontend/dist-android`, ADR 0021) ist gebündelt; Push-Registrierung über `@capacitor/push-notifications` (FCM) | `capacitor.config.ts`, `android/`                |
+| Baustein   | Verantwortung                                                                                                                                                         | Wichtige Dateien                                 |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `website/` | Statisch vorgerenderte Landingpage in zehn Sprachen (Deutsch an `/`, neun weitere unter `/<sprache>/`); Preise kommen zur Build-Zeit aus `server/src/logics/plans.ts` | `scripts/build.ts`, `src/render.ts`, `src/i18n/` |
+| `native/`  | Android-App als Capacitor-Wrapper mit gebündelter SPA (`frontend/dist-android`, ADR 0021); Push-Registrierung über `@capacitor/push-notifications` (FCM)              | `capacitor.config.ts`, `android/`                |
 
 ## 6. Laufzeitsicht
 
@@ -430,10 +430,13 @@ Die Begründungen stehen vollständig in [docs/adr/](adr/); hier nur der Verweis
 | [0013](adr/0013-zahlungsweg-paypal-abos.md)                | Zahlungsweg: PayPal-Abos direkt, Stripe als Zielbild               | Akzeptiert                                                                                                       |
 | [0014](adr/0014-paket-angebote-ohne-dialog.md)             | Paketgrenzen: Angebote in den Einstellungen                        | Akzeptiert; teilweise ersetzt durch ADR 0018 (MCP-Grenzen, KI-Kontingent, Verzicht auf Hinweise im Arbeitsfluss) |
 | [0015](adr/0015-oeffentliche-website-und-app-unter-app.md) | Öffentliche Website an der Wurzel, App unter /app/                 | Akzeptiert                                                                                                       |
-| [0016](adr/0016-nativer-wrapper-capacitor-remote-modus.md) | Nativer Wrapper: Capacitor im Remote-Modus                         | Akzeptiert                                                                                                       |
+| [0016](adr/0016-nativer-wrapper-capacitor-remote-modus.md) | Nativer Wrapper: Capacitor im Remote-Modus                         | Akzeptiert; Entscheidung 1 ersetzt durch ADR 0021                                                                |
 | [0017](adr/0017-store-billing-google-play.md)              | Store-Billing: Google Play Billing mit eigener Server-Verifikation | Akzeptiert; Preisgestaltung entschieden                                                                          |
 | [0018](adr/0018-preismodell-free-plus-pro.md)              | Preismodell: Free, Plus und Pro                                    | Akzeptiert; ersetzt Teile von ADR 0014                                                                           |
 | [0019](adr/0019-zugang-launch-warteliste.md)               | Zugang zum Launch: Warteliste statt Ablehnung                      | Akzeptiert; ersetzt teilweise Punkt 6 von ADR 0015                                                               |
+| [0020](adr/0020-serien-automatisch-anlegen-vorlage.md)     | Serien: Schalter „Automatisch anlegen“, Vorlage                    | Akzeptiert                                                                                                       |
+| [0021](adr/0021-android-app-spa-ohne-service-worker.md)    | Android-App: Web-App als SPA ohne Service Worker                   | Akzeptiert; ersetzt Entscheidung 1 von ADR 0016                                                                  |
+| [0022](adr/0022-e2e-verschluesselung-opt-in.md)            | Ende-zu-Ende-Verschlüsselung als Opt-in                            | Vorgeschlagen                                                                                                    |
 
 ## 10. Qualitätsanforderungen
 
