@@ -1,15 +1,14 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import type { ReactNode } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LaunchBanner } from './LaunchBanner';
 
 /**
- * Rote Spec-Tests für #2229 (docs/spec/issue-2229.md) — AK2 (Anzeige abhängig vom Flag) und
- * AK4 (Schließen merkt sich der Browser). KoliBri-Komponenten sind Web Components, deren
- * `_on.onClick` jsdom nicht auslöst → Mock mit nativen Elementen (Muster PushToast.test.tsx).
+ * Spec-Tests für #2229 (docs/spec/issue-2229.md) — AK2 (Anzeige abhängig vom Flag) und die
+ * Nachschärfung „nicht wegklickbar" (2026-10-08): kein Schließen-Knopf, kein localStorage-Dismiss.
+ * KoliBri-Komponenten sind Web Components, deren `_on.onClick` jsdom nicht auslöst → Mock mit
+ * nativen Elementen (Muster PushToast.test.tsx).
  */
 vi.mock('@public-ui/react-v19', () => ({
-	KolAlert: ({ children }: { children?: ReactNode }) => <div role="status">{children}</div>,
 	KolButton: ({
 		_label,
 		_on,
@@ -25,10 +24,7 @@ vi.mock('@public-ui/react-v19', () => ({
 	),
 }));
 
-const DISMISS_KEY = 'launch-banner-dismissed';
-
 describe('LaunchBanner (#2229)', () => {
-	beforeEach(() => localStorage.clear());
 	afterEach(() => {
 		cleanup();
 		localStorage.clear();
@@ -39,7 +35,7 @@ describe('LaunchBanner (#2229)', () => {
 		expect(screen.queryByTestId('launch-banner')).not.toBeInTheDocument();
 	});
 
-	it('AK2: enabled=true ohne gespeichertes Schließen → Banner sichtbar', () => {
+	it('AK2: enabled=true → Banner sichtbar', () => {
 		render(<LaunchBanner enabled onFeedback={vi.fn()} />);
 		expect(screen.getByTestId('launch-banner')).toBeInTheDocument();
 	});
@@ -51,16 +47,14 @@ describe('LaunchBanner (#2229)', () => {
 		expect(onFeedback).toHaveBeenCalledTimes(1);
 	});
 
-	it('AK4: Schließen setzt den localStorage-Key und entfernt den Banner', () => {
+	it('nicht wegklickbar: kein Schließen-Knopf, Banner bleibt sichtbar', () => {
 		render(<LaunchBanner enabled onFeedback={vi.fn()} />);
-		fireEvent.click(screen.getByTestId('launch-banner-dismiss'));
-		expect(localStorage.getItem(DISMISS_KEY)).not.toBeNull();
-		expect(screen.queryByTestId('launch-banner')).not.toBeInTheDocument();
+		expect(screen.queryByTestId('launch-banner-dismiss')).not.toBeInTheDocument();
+		expect(screen.getByTestId('launch-banner')).toBeInTheDocument();
 	});
 
-	it('AK4: nach Re-Mount bleibt das Banner weg', () => {
-		localStorage.setItem(DISMISS_KEY, '1');
+	it('nicht wegklickbar: kein localStorage-Key wird geschrieben oder gelesen', () => {
 		render(<LaunchBanner enabled onFeedback={vi.fn()} />);
-		expect(screen.queryByTestId('launch-banner')).not.toBeInTheDocument();
+		expect(localStorage.getItem('launch-banner-dismissed')).toBeNull();
 	});
 });

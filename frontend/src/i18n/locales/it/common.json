@@ -155,8 +155,7 @@
 	"launchBanner": {
 		"title": "Balamentum è appena nato",
 		"text": "Sei tra i primi. Quello che noti ci aiuta: raccontacelo pure.",
-		"feedback": "Lascia un feedback",
-		"dismiss": "Chiudi"
+		"feedback": "Lascia un feedback"
 	},
 	"splitHint": {
 		"reason": "Le attività grandi spesso sono più facili da affrontare se le dividi in passaggi più piccoli."

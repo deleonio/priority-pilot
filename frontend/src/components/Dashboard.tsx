@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { KolBadge, KolButton, KolCard, KolMeter } from '@public-ui/react-v19';
+import { KolBadge, KolButton, KolCard, KolMeter, KolPagination } from '@public-ui/react-v19';
 import { FreeTimeCard } from './FreeTimeCard';
 import { NearbyCard } from './NearbyCard';
 import { CareHint } from './CareHint';
@@ -135,6 +135,9 @@ interface StatCard {
 /** Anzahl der im Widget „Wichtigste Tasks" angezeigten Einträge. */
 const TOP_TASKS_LIMIT = 5;
 
+/** Einträge je Seite in der Deadlines-Liste (Client-Pagination, siehe `deadlinePage`). */
+const DEADLINES_PAGE_SIZE = 8;
+
 /** Eine Aufgabe mit gesetzter, gültiger Deadline (für die Deadline-Liste). */
 type TaskWithDeadline = Task & { deadline: Date };
 
@@ -193,6 +196,10 @@ export const Dashboard = ({
 
 	// Einmal pro Mount bestimmter Bezugszeitpunkt für die Deadline-Dringlichkeit (stabil je Ansicht).
 	const now = useMemo(() => new Date(), []);
+
+	// Pagination der Deadlines-Liste: Client-seitig, 8 Einträge je Seite — die Liste wächst mit
+	// den offenen Aufgaben unbegrenzt, die Card soll das Dashboard nicht in die Länge ziehen.
+	const [deadlinePage, setDeadlinePage] = useState(0);
 
 	const topTasks = useMemo(() => forest.slice(0, TOP_TASKS_LIMIT), [forest]);
 
@@ -257,6 +264,14 @@ export const Dashboard = ({
 				.filter((task): task is TaskWithDeadline => task.status !== TaskStatus.Done && hasDeadline(task))
 				.sort((a, b) => a.deadline.getTime() - b.deadline.getTime()),
 		[tasks],
+	);
+
+	// Seite klemmen, falls die Liste schrumpft (Erledigen/Archivieren) und die Seite leer fallen würde.
+	const deadlinePageCount = Math.max(1, Math.ceil(upcomingDeadlines.length / DEADLINES_PAGE_SIZE));
+	const activeDeadlinePage = Math.min(deadlinePage, deadlinePageCount - 1);
+	const visibleDeadlines = upcomingDeadlines.slice(
+		activeDeadlinePage * DEADLINES_PAGE_SIZE,
+		(activeDeadlinePage + 1) * DEADLINES_PAGE_SIZE,
 	);
 
 	// #2244: Verschwindet die Karte samt Knopf (Aufgabe erledigt/zurückgestellt, keine neue in Sicht),
@@ -577,22 +592,35 @@ export const Dashboard = ({
 				{upcomingDeadlines.length === 0 ? (
 					<p className="dashboard-empty">Keine anstehenden Deadlines.</p>
 				) : (
-					<ul className="dashboard-deadlines-list">
-						{upcomingDeadlines.map((task) => {
-							const urgency = deadlineUrgency(task.deadline, now);
-							return (
-								<li key={task.id} className="dashboard-deadline">
-									<span className="dashboard-deadline-title">{task.title}</span>
-									<span className="dashboard-deadline-aside">
-										{urgency !== 'later' && (
-											<KolBadge _label={formatRelativeDeadline(task.deadline, now)} _color={URGENCY_COLOR[urgency]} />
-										)}
-										<span className="dashboard-deadline-date">{formatDeadline(task.deadline)}</span>
-									</span>
-								</li>
-							);
-						})}
-					</ul>
+					<>
+						<ul className="dashboard-deadlines-list">
+							{visibleDeadlines.map((task) => {
+								const urgency = deadlineUrgency(task.deadline, now);
+								return (
+									<li key={task.id} className="dashboard-deadline">
+										<span className="dashboard-deadline-title">{task.title}</span>
+										<span className="dashboard-deadline-aside">
+											{urgency !== 'later' && (
+												<KolBadge _label={formatRelativeDeadline(task.deadline, now)} _color={URGENCY_COLOR[urgency]} />
+											)}
+											<span className="dashboard-deadline-date">{formatDeadline(task.deadline)}</span>
+										</span>
+									</li>
+								);
+							})}
+						</ul>
+						{upcomingDeadlines.length > DEADLINES_PAGE_SIZE && (
+							<KolPagination
+								_label="Deadlines"
+								_max={upcomingDeadlines.length}
+								_page={activeDeadlinePage + 1}
+								_pageSize={DEADLINES_PAGE_SIZE}
+								_hasButtons={{ first: false, last: false, previous: true, next: true }}
+								_siblingCount={0}
+								_on={{ onChangePage: (_event, page) => setDeadlinePage(page - 1) }}
+							/>
+						)}
+					</>
 				)}
 			</KolCard>
 		</section>

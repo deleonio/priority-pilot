@@ -155,8 +155,7 @@
 	"launchBanner": {
 		"title": "Balamentum is gloednieuw",
 		"text": "U hoort bij de eersten. Wat u opvalt, helpt ons: laat het ons gerust weten.",
-		"feedback": "Feedback geven",
-		"dismiss": "Sluiten"
+		"feedback": "Feedback geven"
 	},
 	"splitHint": {
 		"reason": "Grote taken zijn vaak makkelijker aan te pakken als je ze in kleinere stappen opdeelt."

@@ -155,8 +155,7 @@
 	"launchBanner": {
 		"title": "Balamentum es totalmente nuevo",
 		"text": "Eres de los primeros. Lo que notes nos ayuda: cuéntanoslo cuando quieras.",
-		"feedback": "Dar opinión",
-		"dismiss": "Cerrar"
+		"feedback": "Dar opinión"
 	},
 	"splitHint": {
 		"reason": "Las tareas grandes suelen ser más fáciles de abordar si las divides en pasos más pequeños."
