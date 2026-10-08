@@ -74,6 +74,10 @@ export const joinWaitlist = async (
 	}
 
 	const existing = await WaitlistEntry.findOne({ where: { email } });
+	// Erneuter Eintrag: die zuletzt genutzte Sprache gilt für die spätere Freischalt-Mail.
+	if (existing && sprache !== undefined && existing.sprache !== (sprache === 'en' ? 'en' : null)) {
+		await existing.update({ sprache: sprache === 'en' ? 'en' : null });
+	}
 	const entry = existing ?? (await createEntry(email, await resolveReferrer(rawRef, email), sprache));
 
 	const ranked = await rankedEntries();

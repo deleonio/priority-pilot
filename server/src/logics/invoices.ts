@@ -33,11 +33,20 @@ const PERIOD_DISPLAY: Record<string, string> = {
 
 const PERIOD_DISPLAY_EN: Record<string, string> = { monthly: 'monthly', quarterly: 'quarterly', yearly: 'yearly' };
 
-/** Englische Fassung eines deutschen {@link displayLabel} (`Plus (monatlich)` → `Plus (monthly)`). */
+/** Feste Wörter der gespeicherten (deutschen) Paket- und Positionstexte → Englisch für die Rechnungsmail. */
+const LABEL_WORDS_EN: [RegExp, string][] = [
+	[/^Gutschrift zu Rechnung /, 'Credit note for invoice '],
+	[/^Paket /, 'Plan '],
+	[/^Abbuchung /, 'Charge '],
+	[/^Verrechnung Restlaufzeit$/, 'Credit for the remaining term'],
+	[/^Abweichung vom Paketpreis$/, 'Difference from the plan price'],
+];
+
+/** Englische Fassung eines gespeicherten Labels (`Paket Plus (monatlich)` → `Plan Plus (monthly)`). */
 const PERIOD_LABEL_EN = (label: string): string =>
 	Object.entries(PERIOD_DISPLAY).reduce(
 		(text, [key, de]) => text.replace(`(${de})`, `(${PERIOD_DISPLAY_EN[key]})`),
-		label,
+		LABEL_WORDS_EN.reduce((text, [de, en]) => text.replace(de, en), label),
 	);
 
 /** Anzeigename „Plus (monatlich)“: Paket großgeschrieben, Zeitraum deutsch (#2031). */
@@ -214,6 +223,7 @@ const deliverInvoice = async (
 						`${isCredit ? 'Credit note' : 'Invoice'} ${number}`,
 						`Period: ${periodStart.toISOString().slice(0, 10)} to ${periodEnd.toISOString().slice(0, 10)}`,
 						...(isCredit ? [] : [`Plan: ${PERIOD_LABEL_EN(label)}`]),
+						...lineItems.map((item) => `${PERIOD_LABEL_EN(item.label)}: ${amount(item.amountCents)}`),
 						`Amount: ${amount(amountCents)}`,
 						'No VAT is charged under section 19 of the German VAT Act (UStG).',
 						'The attached PDF is issued in German.',

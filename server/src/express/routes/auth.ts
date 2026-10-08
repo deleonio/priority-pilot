@@ -293,6 +293,8 @@ authRouter.get('/auth/google/silent', (req, res, next) => {
 	// Der stille Login ist immer Web-Kontext: ein Vermerk aus einem abgebrochenen App-Login (#1669)
 	// darf ihn nicht auf den App Link umleiten.
 	delete req.session.nativeState;
+	// Ebenso keine Sprachwahl aus einem abgebrochenen Website-Login.
+	delete req.session.loginLng;
 	// #1231: Route, von der der stille Login angestoßen wurde, aufnehmen — der Erfolgs-Callback
 	// leitet darauf zurück statt fix auf „/". Sanitisiert (Open-Redirect-Schutz); ungültig/fehlend
 	// → kein Return-Path.
@@ -312,13 +314,18 @@ authRouter.get('/auth/google/silent', (req, res, next) => {
 // unbekannte Codes). /auth/error bleibt als API-Fallback erhalten.
 authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) => {
 	const silentPending = req.session?.silentPending === true;
+	// Englischer Website-Login: auch die Fehlerseite englisch; der Vermerk gilt nur für diesen Versuch.
+	const lng = !silentPending && req.session?.loginLng === 'en' ? '&lng=en' : '';
+	if (!req.query.code || req.query.error) delete req.session.loginLng;
 	// Issue #1136: Ein Callback-Hit ohne Google-`code` ist kein gültiger OAuth-Abschluss —
 	// Passport würde hier erneut einen Authorization-Redirect starten (ungenutzer Loop). Google
 	// liefert einen Ablehnungsgrund als `error`-Parameter (z. B. `access_denied`); dieser Code wird
 	// 1:1 an die Frontend-Fehler-Weiche durchgereicht, sonst `login_failed` als Sammelcode.
 	if (!req.query.code) {
 		const code = typeof req.query.error === 'string' && req.query.error !== '' ? req.query.error : 'login_failed';
-		res.redirect(silentPending ? `${APP_ROOT}?silent=unavailable` : `${APP_ROOT}?error=${encodeURIComponent(code)}`);
+		res.redirect(
+			silentPending ? `${APP_ROOT}?silent=unavailable` : `${APP_ROOT}?error=${encodeURIComponent(code)}${lng}`,
+		);
 		return;
 	}
 	// Eigene Callback-Signatur statt `failureRedirect`-Option: `failureRedirect` greift nur bei
@@ -345,7 +352,8 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 				if (req.session?.silentReturnTo) {
 					delete req.session.silentReturnTo;
 				}
-				res.redirect(silentPending ? `${APP_ROOT}?silent=unavailable` : `${APP_ROOT}?error=login_failed`);
+				delete req.session.loginLng;
+				res.redirect(silentPending ? `${APP_ROOT}?silent=unavailable` : `${APP_ROOT}?error=login_failed${lng}`);
 				return;
 			}
 			// Return-Path (#1231) vor regenerate() sichern — die neue Session enthält die
