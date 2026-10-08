@@ -212,9 +212,22 @@ authRouter.post('/auth/review-login', reviewLoginLimiter, async (req, res) => {
 		sendError(res, 401, 'Ungültige Zugangsdaten.');
 		return;
 	}
-	const account = await upsertOAuthUser({
-		email: (process.env.PLAY_REVIEW_EMAIL || PLAY_REVIEW_DEFAULT_EMAIL).trim().toLowerCase(),
-	});
+	const email = (process.env.PLAY_REVIEW_EMAIL || PLAY_REVIEW_DEFAULT_EMAIL).trim().toLowerCase();
+	// Jeder Login startet mit einem frischen Konto (#2442): Altkonto samt Daten löschen, neue Id.
+	const previous = await User.findOne({ where: { email } });
+	if (previous) {
+		let result: Awaited<ReturnType<typeof deleteAccount>> | undefined;
+		try {
+			result = await deleteAccount(previous.id);
+		} catch (error) {
+			console.error('Zurücksetzen des Prüfkontos fehlgeschlagen:', error);
+		}
+		if (result !== 'deleted') {
+			sendError(res, 500, 'Das Prüfkonto konnte nicht zurückgesetzt werden.');
+			return;
+		}
+	}
+	const account = await upsertOAuthUser({ email });
 	await User.update({ plan: 'pro' }, { where: { id: account.id } });
 	const user = { ...account, plan: 'pro' as const };
 	if (req.get('X-Client-Channel') === 'play') {

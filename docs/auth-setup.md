@@ -157,6 +157,7 @@ Regeln:
   Console eintragen. Zum Abschalten die Variable leeren und neu starten.
 - **Geste:** Auf der Login-Seite öffnen 7 schnelle Taps auf das Logo einen Dialog mit genau einem
   Passwortfeld. Die Login-Seite selbst sieht unverändert aus.
+- **Zurücksetzen:** Jeder erfolgreiche Login löscht das Prüfkonto samt Daten und legt es neu an (neue Id, Zustimmung und Onboarding erscheinen wieder; #2442). Eine parallele Sitzung endet dabei. Ein Fehlversuch ändert nichts.
 - **Konto:** Es entsteht beim ersten Login, an Allowlist und Warteliste vorbei, und bekommt bei jedem
   Login das Paket `pro` — ohne Kauf, Abo oder Testzeitraum. Kein zweiter Faktor, kein Mail-Link, kein
   Ablauf. In der Android-App gibt es wie beim Anmeldelink ein App-Token statt des Session-Cookies.
