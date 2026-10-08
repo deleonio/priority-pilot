@@ -101,13 +101,12 @@ describe('nativeAuth (#1678)', () => {
 			expect(replace).toHaveBeenCalledWith(import.meta.env.BASE_URL);
 		});
 
-		it('bleibt nach Abbruch auf der Login-Seite', async () => {
+		it('fällt nach einem Abbruch auf den Browser zurück, statt stumm zu bleiben', async () => {
 			vi.mocked(GoogleSignIn.signIn).mockRejectedValueOnce(Object.assign(new Error('x'), { code: 'canceled' }));
 
 			await startNativeGoogleLogin();
 
-			expect(Browser.open).not.toHaveBeenCalled();
-			expect(replace).not.toHaveBeenCalled();
+			expect(openedUrl().searchParams.get('return')).toBe('scheme');
 		});
 
 		it('fällt ohne Einrichtung auf den Browser mit Rücksprung über das Custom Scheme zurück', async () => {
