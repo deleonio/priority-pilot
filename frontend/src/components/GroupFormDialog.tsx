@@ -1,6 +1,6 @@
 import { KolAlert, KolButton, KolInputRadio, KolInputText, KolTextarea } from '@public-ui/react-v19';
 import type { Group } from 'client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -34,6 +34,11 @@ interface GroupFormDialogProps {
  */
 export const GroupFormDialog = ({ group, onClose, onSaved }: GroupFormDialogProps) => {
 	const { t } = useTranslation(['groups', 'common']);
+	// Stabile Options-Identität: eine neue Liste je Render baut die KoliBri-Auswahl neu auf.
+	const kindOptions = useMemo(
+		() => KIND_OPTIONS.map(({ labelKey, value }) => ({ label: t(`groups:${labelKey}`), value })),
+		[t],
+	);
 	const isEdit = group !== undefined;
 
 	// Form-Ref: Werte werden beim Mount initialisiert und bei Eingabe aktualisiert (PillarFormDialog-
@@ -146,7 +151,7 @@ export const GroupFormDialog = ({ group, onClose, onSaved }: GroupFormDialogProp
 				<KolInputRadio
 					_label={t('groups:formDialog.kind')}
 					_orientation="horizontal"
-					_options={KIND_OPTIONS.map(({ labelKey, value }) => ({ label: t(`groups:${labelKey}`), value }))}
+					_options={kindOptions}
 					_value={kind}
 					_disabled={isEdit}
 					_hint={t('groups:formDialog.kindHint')}

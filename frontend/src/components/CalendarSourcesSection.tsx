@@ -8,7 +8,7 @@ import {
 	KolInputText,
 	KolSpin,
 } from '@public-ui/react-v19';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -39,6 +39,8 @@ const TYPE_OPTIONS = [
  */
 export const CalendarSourcesSection = ({ open = true }: { open?: boolean }) => {
 	const { t } = useTranslation(['settings', 'common']);
+	// Stabile Options-Identität: eine neue Liste je Render baut die KoliBri-Auswahl neu auf.
+	const typeOptions = useMemo(() => TYPE_OPTIONS.map(({ labelKey, value }) => ({ label: t(labelKey), value })), [t]);
 	const accordion = useFollowingOpen(open);
 	const [sources, setSources] = useState<CalendarSourceView[]>([]);
 	const [type, setType] = useState<'ics' | 'caldav'>('ics');
@@ -122,7 +124,7 @@ export const CalendarSourcesSection = ({ open = true }: { open?: boolean }) => {
 					<p>{t('calendarSources.intro')}</p>
 					<KolInputRadio
 						_label={t('calendarSources.typeLabel')}
-						_options={TYPE_OPTIONS.map(({ labelKey, value }) => ({ label: t(labelKey), value }))}
+						_options={typeOptions}
 						_value={type}
 						_on={{ onChange: (_event, value) => setType(value === 'caldav' ? 'caldav' : 'ics') }}
 					/>

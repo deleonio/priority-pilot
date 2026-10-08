@@ -1,6 +1,6 @@
 import { KolAlert, KolButton, KolInputRadio } from '@public-ui/react-v19';
 import type { ReassignStatusFilter } from 'client';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { useReassignRun, type ReassignPortionArgs } from '../lib/useReassignRun';
@@ -35,6 +35,11 @@ const FILTER_OPTIONS: { labelKey: string; value: ReassignStatusFilter }[] = [
 
 export const RecalcPillarModal = ({ onClose, onCompleted }: RecalcPillarModalProps) => {
 	const { t } = useTranslation(['settings', 'common']);
+	// Stabile Options-Identität: eine neue Liste je Render baut die KoliBri-Auswahl neu auf.
+	const filterOptions = useMemo(
+		() => FILTER_OPTIONS.map(({ labelKey, value }) => ({ label: t(labelKey), value })),
+		[t],
+	);
 	const [filter, setFilter] = useState<ReassignStatusFilter>('all');
 	const closeRef = useRef<HTMLKolButtonElement>(null);
 
@@ -62,7 +67,7 @@ export const RecalcPillarModal = ({ onClose, onCompleted }: RecalcPillarModalPro
 					<div className="form-grid">
 						<KolInputRadio
 							_label={t('recalcPillar.filter')}
-							_options={FILTER_OPTIONS.map(({ labelKey, value }) => ({ label: t(labelKey), value }))}
+							_options={filterOptions}
 							_value={filter}
 							_on={{
 								onChange: (_event, value) => {

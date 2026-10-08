@@ -8,7 +8,7 @@ import {
 	KolSelect,
 } from '@public-ui/react-v19';
 import type { ApiToken } from 'client';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -108,7 +108,10 @@ export const ApiTokensSection = ({ open = true }: { open?: boolean }) => {
 	// Vorbelegter Name eines neuen Tokens — ein Klick reicht, der Name bleibt änderbar.
 	const defaultTokenName = t('apiTokens.defaultName');
 	const [name, setName] = useState(defaultTokenName);
-	const durationOptions = DURATION_OPTIONS.map(({ labelKey, ...option }) => ({ ...option, label: t(labelKey) }));
+	const durationOptions = useMemo(
+		() => DURATION_OPTIONS.map(({ labelKey, ...option }) => ({ ...option, label: t(labelKey) })),
+		[t],
+	);
 	// Laufzeit-Auswahl (#1357, AK6) — leer = keine Auswahl getroffen, Pflichtfeld ohne Vorauswahl.
 	const [expiresInDays, setExpiresInDays] = useState('');
 	const durationSelectRef = useRef<HTMLKolSelectElement>(null);

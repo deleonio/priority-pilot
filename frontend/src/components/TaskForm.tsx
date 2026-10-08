@@ -331,6 +331,11 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	ref,
 ) {
 	const { t } = useTranslation(['taskForm', 'common']);
+	// Stabile Options-Identität: eine neue Liste je Render baut die KoliBri-Auswahl neu auf.
+	const rhythmOptions = useMemo(
+		() => RHYTHM_VALUES.map((value) => ({ label: t(`taskForm.rhythm.${value}`), value })),
+		[t],
+	);
 	// #316: Serien-Edit (bearbeiten einer Serie) vs. Task-Edit (bearbeiten eines Tasks). `isEdit`
 	// gilt für beide Bearbeiten-Fälle (Umschalter gesperrt); im Anlege-Fall ist beides `false`.
 	const seriesEdit = series != null;
@@ -1655,7 +1660,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 										{autoCreate && (
 											<KolSingleSelect
 												_label={t('taskForm.rhythmLabel')}
-												_options={RHYTHM_VALUES.map((value) => ({ label: t(`taskForm.rhythm.${value}`), value }))}
+												_options={rhythmOptions}
 												_value={form.current.rhythm}
 												_on={{
 													onChange: (_event, value) => {

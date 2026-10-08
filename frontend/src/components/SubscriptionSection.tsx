@@ -8,7 +8,7 @@ import {
 	KolSpin,
 	KolTextarea,
 } from '@public-ui/react-v19';
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { type RefObject, useEffect, useMemo, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../api';
 import type { components } from 'client';
@@ -70,7 +70,7 @@ const CancelDialog = ({ subscription, accountEmail, onClose, onCancelled }: Canc
 	const busyRef = useRef(false);
 	const cancelRef = useRef<HTMLKolButtonElement>(null);
 	const { t } = useTranslation(['billing', 'common']);
-	const kindOptions = KIND_VALUES.map((value) => ({ label: t(`cancelDialog.${value}`), value }));
+	const kindOptions = useMemo(() => KIND_VALUES.map((value) => ({ label: t(`cancelDialog.${value}`), value })), [t]);
 
 	const reasonMissing = kind === 'extraordinary' && reason.trim() === '';
 	const emailInvalid = !EMAIL_RE.test(email.trim());

@@ -1,5 +1,5 @@
 import { KolAlert, KolButton, KolInputText, KolSelect, KolTextarea } from '@public-ui/react-v19';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -26,6 +26,11 @@ const readString = (value: unknown): string => (typeof value === 'string' ? valu
  */
 export const FeedbackForm = () => {
 	const { t } = useTranslation(['settings', 'forms']);
+	// Stabile Options-Identität: eine neue Liste je Render baut die KoliBri-Auswahl neu auf.
+	const categoryOptions = useMemo(
+		() => FEEDBACK_CATEGORIES.map(({ labelKey, value }) => ({ label: t(labelKey), value })),
+		[t],
+	);
 	const [category, setCategory] = useState('bug');
 	const [title, setTitle] = useState('');
 	const [description, setDescription] = useState('');
@@ -71,7 +76,7 @@ export const FeedbackForm = () => {
 				<KolSelect
 					_label={t('forms:labels.category')}
 					_required
-					_options={FEEDBACK_CATEGORIES.map(({ labelKey, value }) => ({ label: t(labelKey), value }))}
+					_options={categoryOptions}
 					_value={category}
 					_on={{ onChange: (_event, value) => setCategory(readString(value)) }}
 				/>
