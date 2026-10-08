@@ -1375,7 +1375,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 												onSnoozeTask={handleSnoozeTask}
 												showDayDoneHint={activeTab === 0}
 												onOpenPillars={() => navigate('/settings/pillars')}
-												missedTasks={missedTasks}
+												missedTasks={tasks !== null && activeTab === 0 ? missedTasks : []}
 												onCompleteMissed={handleCompleteMissed}
 												onEditMissed={openEdit}
 												onArchiveMissed={handleArchiveMissed}

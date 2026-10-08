@@ -1302,7 +1302,9 @@ kol-toolbar {
 
 	/* „Anstehende Deadlines" läuft nur in voller Breite, wenn der Verpasst-Bereich fehlt — sonst
 	   bildet er mit ihr das letzte Zeilenpaar im Zwei-Spalten-Raster (`:has()`, alle Evergreen-
-	   Browser), und der Grid-`row-gap` liefert das einheitliche Gap zwischen allen Cards. */
+	   Browser), und der Grid-`row-gap` liefert das einheitliche Gap zwischen allen Cards.
+	   Annahme: davor steht eine gerade Zahl halbbreiter Cards; ohne Nearby-/FreeTime-Card
+	   steht Verpasst allein links. */
 	.dashboard:not(:has(.missed-section)) .dashboard-deadlines {
 		grid-column: 1 / -1;
 	}
