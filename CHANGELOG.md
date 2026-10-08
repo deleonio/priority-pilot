@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.19 - 2026-10-08
 
-_Enthält v0.19.0 – v0.19.7._
+_Enthält v0.19.0 – v0.19.8._
 
 ### 🎉 New Features
 
@@ -17,6 +17,7 @@ _Enthält v0.19.0 – v0.19.7._
 ### 🚀 Improvements
 
 - feat(frontend): preview selected balance picture in settings by @deleonio in https://github.com/deleonio/priority-pilot/pull/2436
+- docs(skill): coordinator stops on empty queue and sends one push by @deleonio in https://github.com/deleonio/priority-pilot/pull/2440
 
 ### 🔧 Engineering
 
@@ -140,6 +141,7 @@ _Enthält v0.17.0 – v0.17.45._
 
 ### Other Changes
 
+- feat(server): refund and chargeback credit and cancel package (#2237) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2266
 - feat(server): refund and chargeback credit and cancel package (#2237) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2266
 - feat(frontend): brand footer with logos on monthly card (#2255) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2269
 - fix(server): defer plan takeover for delayed-start subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2271
