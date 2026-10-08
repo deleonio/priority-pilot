@@ -1,6 +1,6 @@
 # ADR 0016 — Nativer Wrapper: Capacitor im Remote-Modus
 
-- **Status:** Accepted (2026-09-24) — Entscheidung 1 ersetzt (2026-10-07) durch [ADR 0021](0021-android-app-spa-ohne-service-worker.md); Entscheidungen 2–4 und folgende gelten unverändert
+- **Status:** Accepted (2026-09-24) — Entscheidung 1 ersetzt (2026-10-07) durch [ADR 0021](0021-android-app-spa-ohne-service-worker.md); Entscheidungen 2–4 und folgende gelten unverändert; Entscheidung 4 präzisiert (2026-10-08, Nachtrag)
 - **Datum:** 2026-09-24
 - **Kontext:** [Plan native Apps](../plan-native-apps.md) (PO-Entscheidungen vom 23./24.09.2026), [ADR 0013](0013-zahlungsweg-paypal-abos.md) (Store-Billing bis zu einem nativen Wrapper vertagt), [ADR 0015](0015-oeffentliche-website-und-app-unter-app.md) (App unter `/app/`), [Epic #1664](https://github.com/deleonio/priority-pilot/issues/1664)
 
@@ -22,13 +22,15 @@ Drei Eigenheiten des heutigen Codes bestimmen die Entscheidung mit:
 
 **3. Kanal statt Plattform-Weichen im Code.** Das Frontend ermittelt einen Kanal und verzweigt nur über ihn. Jede API-Anfrage trägt ihn im Header `X-Client-Channel`.
 
-| Kanal      | Erkennung                               | Zahlungsweg                    | PayPal          |
-| ---------- | --------------------------------------- | ------------------------------ | --------------- |
-| `web`      | Browser/PWA                             | PayPal-Abo (ADR 0013)          | sichtbar        |
-| `play`     | `Capacitor.getPlatform() === 'android'` | Google Play Billing            | nicht vorhanden |
-| `appstore` | `Capacitor.getPlatform() === 'ios'`     | Apple In-App-Purchase (später) | nicht vorhanden |
+| Kanal      | Erkennung                               | Zahlungsweg                                | PayPal          | Stand                         |
+| ---------- | --------------------------------------- | ------------------------------------------ | --------------- | ----------------------------- |
+| `web`      | Browser/PWA                             | PayPal-Abo (ADR 0013)                      | sichtbar        | aktiv                         |
+| `play`     | `Capacitor.getPlatform() === 'android'` | Google Play Billing                        | nicht vorhanden | offen, in der App angekündigt |
+| `appstore` | `Capacitor.getPlatform() === 'ios'`     | Apple App Store (In-App-Purchase/StoreKit) | nicht vorhanden | offen, in der App angekündigt |
 
 **4. Ein Zahlungsweg pro Kanal, freigeschaltet wird serverseitig.** Pro Kanal gibt es genau eine Kauf-Implementierung. In den Store-Apps ist PayPal nicht erreichbar, es gibt dort auch keinen Hinweis oder Link auf den Kauf im Web. Der Server lehnt den PayPal-Checkout für die Store-Kanäle mit 409 ab; das ist ein zweites Netz gegen falsch verdrahtete Oberflächen, kein Sicherheitsmechanismus. Welche Funktionen jemand nutzen darf, entscheidet wie bisher der Abo-Status in `/auth/me`, egal wo gekauft wurde. Ein Nutzer hat höchstens ein aktives Abo über alle Anbieter. Die Einzelheiten zu Play Billing hält eine eigene ADR fest.
+
+> **Nachtrag 2026-10-08 (PO-Festlegung, verbindlich):** Es gelten genau diese Zahlungsanbindungen: PWA/Web → PayPal, Android-App (APK/AAB) → Google Play Billing, iOS-App → Apple App Store (In-App-Purchase). **In keiner nativen App wird PayPal angeboten** — weder als Kaufweg noch als Hinweis oder Link. Die nativen Zahlungsanbindungen sind noch offen: Bis sie freigegeben sind, zeigen beide Store-Apps die Pakete ohne Kaufmöglichkeit und kündigen den Kauf in der App an („Kauf in der App folgt“). Das gilt für Android trotz der vorhandenen Play-Billing-Bausteine (ADR 0017), bis der PO die Freigabe erteilt.
 
 **5. Login über den System-Browser mit Einmal-Code.** Die App öffnet `/auth/google?client=app` in einem Custom Tab. Nach dem Login erzeugt der Server einen Einmal-Code (höchstens 60 Sekunden gültig, nur einmal einlösbar, an den Nutzer gebunden) und leitet auf den verifizierten App Link `https://<domain>/app/auth/native?code=…` weiter. Die App fängt den Link ab, schließt den Custom Tab, und der WebView tauscht den Code über `POST /auth/native/exchange` gegen die normale Session. Magic-Links aus der E-Mail öffnen über denselben App-Link-Mechanismus direkt die App. Für die Verifikation liefert die Website `/.well-known/assetlinks.json` aus.
 

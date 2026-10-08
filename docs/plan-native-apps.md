@@ -8,7 +8,8 @@ Balamentum ist eine PWA unter `/app/` (React/Vite, vite-plugin-pwa). Sie soll in
 
 - **Wrapper: Capacitor im Remote-Modus.** `server.url` zeigt auf die gehostete `/app/`, es werden keine Assets gebündelt. Die Web-App aktualisiert sich damit wie bisher ohne Store-Release.
 - **Package-ID `balamentum.app`**, gilt für Android und später iOS.
-- **Genau ein Zahlungsweg pro Kanal.** Web/PWA: PayPal. Android-App: Google Play Billing. iOS-App: Apple In-App-Purchase. In den Store-Apps ist PayPal ausgeblendet und nicht erreichbar.
+- **Genau ein Zahlungsweg pro Kanal.** Web/PWA: PayPal. Android-App: Google Play Billing. iOS-App: Apple App Store (In-App-Purchase). In keiner nativen App wird PayPal angeboten, es ist ausgeblendet und nicht erreichbar.
+- **Native Zahlungsanbindungen sind offen (Stand 2026-10-08).** Bis zur Freigabe durch den PO kündigen die Store-Apps den Kauf in der App nur an („Kauf in der App folgt“); Details im Nachtrag zu [ADR 0016](adr/0016-nativer-wrapper-capacitor-remote-modus.md).
 - **Freigeschaltet wird serverseitig, egal wo gekauft wurde.** Nach dem Login entscheidet überall der Abo-Status (Entitlement-Map in `/auth/me`) über die Funktionen.
 - **CI baut und lädt hoch** (Internal-Testing-Track).
 - **Reihenfolge:** Store-Release zuerst ohne In-App-Kauf (Stufe 1), danach Play Billing (Stufe 2). iOS liegt in weiter Ferne.
@@ -25,11 +26,11 @@ Ausgangslage im Code:
 
 ## Kanal-Regel: ein Zahlungsweg pro Kanal
 
-| Kanal      | Erkennung                               | Zahlungsweg                    | PayPal          |
-| ---------- | --------------------------------------- | ------------------------------ | --------------- |
-| `web`      | Browser/PWA                             | PayPal-Abo (ADR 0013)          | sichtbar        |
-| `play`     | `Capacitor.getPlatform() === 'android'` | Google Play Billing            | nicht vorhanden |
-| `appstore` | `Capacitor.getPlatform() === 'ios'`     | Apple In-App-Purchase (später) | nicht vorhanden |
+| Kanal      | Erkennung                               | Zahlungsweg                                | PayPal          | Stand                         |
+| ---------- | --------------------------------------- | ------------------------------------------ | --------------- | ----------------------------- |
+| `web`      | Browser/PWA                             | PayPal-Abo (ADR 0013)                      | sichtbar        | aktiv                         |
+| `play`     | `Capacitor.getPlatform() === 'android'` | Google Play Billing                        | nicht vorhanden | offen, in der App angekündigt |
+| `appstore` | `Capacitor.getPlatform() === 'ios'`     | Apple App Store (In-App-Purchase/StoreKit) | nicht vorhanden | offen, in der App angekündigt |
 
 So wird die Regel durchgesetzt:
 
