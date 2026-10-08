@@ -3,9 +3,8 @@ import { describe, expect, it } from 'vitest';
 import i18next, { SUPPORTED_LANGUAGES } from './config';
 
 /**
- * Sprach-Allowlist (#1966): nur vollständig übersetzte Sprachen (de, en) kommen ins Bundle und in
- * die Auswahl. Die übrigen Locale-Dateien bleiben für den Schlüssel-Gleichstand-Test in
- * `locales.test.ts` bestehen — sie dürfen nur nicht mehr in die App gelangen.
+ * Sprach-Allowlist (#1966): die App führt genau Deutsch und Englisch, nur diese kommen ins Bundle
+ * und in die Auswahl.
  *
  * AK4 sichert den stillen Ausfall ab: ein alter/localStorage-Sprachcode außerhalb der Allowlist
  * muss wortlos auf `de` fallen, sonst zeigt die Oberfläche fehlende Übersetzungen.
