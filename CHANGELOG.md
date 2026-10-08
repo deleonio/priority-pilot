@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.19 - 2026-10-08
 
-_Enthält v0.19.0 – v0.19.16._
+_Enthält v0.19.0 – v0.19.17._
 
 ### 🎉 New Features
 
@@ -37,6 +37,7 @@ _Enthält v0.19.0 – v0.19.16._
 - feat(frontend): show care hint actions in one row with icon buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2448
 - feat(frontend): move missed tasks into dashboard grid, unify gap by @deleonio in https://github.com/deleonio/priority-pilot/pull/2450
 - feat(native): sign in natively via Credential Manager instead of browser by @deleonio in https://github.com/deleonio/priority-pilot/pull/2451
+- fix(server): exempt app channel from CSRF so native sign-in completes by @deleonio in https://github.com/deleonio/priority-pilot/pull/2452
 
 ## v0.18 - 2026-10-08
 
@@ -156,7 +157,6 @@ _Enthält v0.17.0 – v0.17.45._
 - fix(billing): treat subscriptions with overdue payment as open by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2274
 - feat(server): activate upgrade only after payment received (#2238) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2270
 - test(server): verify prorated credit on plan upgrade by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2277
-- feat(server): allow account deletion after paypal cancellation by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2278
 - feat(server): allow account deletion after paypal cancellation by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2278
 - feat(server): admin lock cancels PayPal subscription by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2281
 - feat(frontend): move brand elements into shared month card, use balamentum.modevel.de by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2283
@@ -301,6 +301,7 @@ _Enthält v0.14.0 – v0.14.31._
 ### Other Changes
 
 - feat(frontend): onboarding rework from review #2087 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2120
+- feat(frontend): rank pillars by tap order (50/20/15/10/5, full save) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2114
 - feat(frontend): rank pillars by tap order (50/20/15/10/5, full save) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2114
 - fix(ci): move tailscale/dns network switch behind the runtime setup (#2091) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2122
 - feat(frontend): progress state on subscription confirm buttons (#2105) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2123
