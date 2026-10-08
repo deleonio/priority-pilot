@@ -235,8 +235,15 @@ export const createApp = (deps: AppDeps = {}) => {
 	app.get('/auth/csrf', csrf.issueCsrfToken);
 	if (process.env.NODE_ENV === 'production') {
 		// Bearer-Requests tragen kein Cookie und können das Double-Submit-Token nicht liefern
-		// (#1352) — sie sind daher von der CSRF-Prüfung ausgenommen.
-		app.use((req, res, next) => (isApiTokenRequest(req) ? next() : csrf.doubleCsrfProtection(req, res, next)));
+		// (#1352) — sie sind daher von der CSRF-Prüfung ausgenommen. Ebenso die Android-App vor der
+		// Anmeldung (Code-Tausch, ID-Token, Magic Link): Sie ruft von `https://localhost` ohne Cookies auf.
+		// Der Header `X-Client-Channel` schützt hier selbst: Fremde Seiten dürfen ihn nur nach einem
+		// CORS-Preflight senden, und den beantwortet `nativeCors` allein für den App-Ursprung.
+		app.use((req, res, next) =>
+			isApiTokenRequest(req) || req.get('X-Client-Channel') === 'play'
+				? next()
+				: csrf.doubleCsrfProtection(req, res, next),
+		);
 		app.use(csrf.csrfErrorHandler);
 	}
 

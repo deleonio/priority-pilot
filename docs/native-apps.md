@@ -142,7 +142,8 @@ Android zeigt die Google-Konten als Sheet, ein Browser öffnet sich nicht. Das P
 `GoogleSignInPlugin.java` holt mit der Client-ID aus `/auth/providers` (`googleClientId`) ein ID-Token,
 `POST /auth/native/google` tauscht es gegen ein App-Token. Die App schickt es als `Authorization: Bearer`,
 `POST /auth/logout` zieht es zurück (#2377). Das Token liegt im localStorage des WebView und übersteht
-Neustarts. Beim Start ohne Sitzung versucht die App die Anmeldung selbst
+Neustarts. Vor der Anmeldung ruft die App ohne Cookies auf; Anfragen mit `X-Client-Channel: play` sind
+deshalb von der CSRF-Prüfung ausgenommen (den Header lässt CORS nur vom App-Ursprung zu). Beim Start ohne Sitzung versucht die App die Anmeldung selbst
 (`frontend/src/Root.tsx`), nach dem Abmelden nicht mehr.
 
 Einmalig in der [Google Cloud Console](https://console.cloud.google.com/apis/credentials), im Projekt des

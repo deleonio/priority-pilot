@@ -76,6 +76,15 @@ describe('Login der nativen App mit Einmal-Code (#1669)', () => {
 		assert.match((await callbackLocation(cookie)) ?? '', /^balamentum\.app:\/\/auth\/native\?code=[\w-]+$/);
 	});
 
+	it('ein abgelehnter Login mit return=scheme springt mit dem Fehlercode in die App zurück', async () => {
+		const cookie = cookieOf(await start(`/auth/google?client=app&state=${STATE}&return=scheme`));
+		const res = await fetch(`${server.baseUrl}/auth/google/callback?error=access_denied`, {
+			redirect: 'manual',
+			headers: { Cookie: cookie },
+		});
+		assert.equal(res.headers.get('location'), 'balamentum.app://auth/native?error=access_denied');
+	});
+
 	it('client=app ohne gültigen state wird abgelehnt', async () => {
 		assert.equal((await start('/auth/google?client=app')).status, 400);
 		assert.equal((await start('/auth/google?client=app&state=kurz')).status, 400);

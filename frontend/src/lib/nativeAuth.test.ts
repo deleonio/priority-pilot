@@ -137,6 +137,12 @@ describe('nativeAuth (#1678)', () => {
 		expect(replace).toHaveBeenCalledWith(import.meta.env.BASE_URL);
 	});
 
+	it('zeigt einen Fehler aus dem Custom Scheme mit seinem Code auf der Login-Seite', async () => {
+		await handleAppLink('balamentum.app://auth/native?error=access_denied');
+
+		expect(replace).toHaveBeenCalledWith(`${import.meta.env.BASE_URL}login?error=access_denied`);
+	});
+
 	it('verarbeitet den Start-Link nur einmal, auch nach einem Neuladen', async () => {
 		launch.url = `${window.location.origin}/app/auth/native?code=abc`;
 

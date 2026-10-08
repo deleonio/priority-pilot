@@ -94,7 +94,8 @@ export const handleAppLink = async (url: string): Promise<void> => {
 	const base = import.meta.env.BASE_URL;
 	const code = target.searchParams.get('code');
 	if (viaScheme && code === null) {
-		window.location.replace(`${base}login?error=native_login_failed`);
+		const error = target.searchParams.get('error') ?? 'native_login_failed';
+		window.location.replace(`${base}login?error=${encodeURIComponent(error)}`);
 		return;
 	}
 	if ((viaScheme || target.pathname === `${APP_LINK_PREFIX}auth/native`) && code !== null) {
