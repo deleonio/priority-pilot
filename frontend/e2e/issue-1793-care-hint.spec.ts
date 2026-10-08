@@ -132,5 +132,16 @@ test.describe('Dashboard — Fürsorge-Hinweis (Issue #1793)', () => {
 			expect(button!.height).toBeGreaterThanOrEqual(44);
 			expect(button!.x + button!.width).toBeLessThanOrEqual(375 + 1);
 		}
+
+		// #2445 AK1+AK3: eine Zeile (gleiche vertikale Mitte), Icon-Schalter ≥ 44 px breit, Übernehmen inhaltsbreit.
+		const accept = (await hint.getByRole('button', { name: 'Vorschlag übernehmen' }).boundingBox())!;
+		const notNow = (await hint.getByRole('button', { name: 'Heute nicht' }).boundingBox())!;
+		const dismiss = (await hint.getByRole('button', { name: 'Diesen Vorschlag nicht mehr' }).boundingBox())!;
+		const mitte = (b: { y: number; height: number }) => b.y + b.height / 2;
+		expect(Math.abs(mitte(accept) - mitte(notNow))).toBeLessThanOrEqual(2);
+		expect(Math.abs(mitte(accept) - mitte(dismiss))).toBeLessThanOrEqual(2);
+		expect(notNow.width).toBeGreaterThanOrEqual(44);
+		expect(dismiss.width).toBeGreaterThanOrEqual(44);
+		expect(accept.width).toBeLessThan(box!.width - 32);
 	});
 });
