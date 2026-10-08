@@ -4,11 +4,16 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.19 - 2026-10-08
 
-_Enthält v0.19.0 – v0.19.1._
+_Enthält v0.19.0 – v0.19.2._
+
+### 🚀 Improvements
+
+- feat(frontend): preview selected balance picture in settings by @deleonio in https://github.com/deleonio/priority-pilot/pull/2436
 
 ### Other Changes
 
 - feat(server): add password review access for google play (#2426) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2433
+- feat(frontend): deadline pagination, compact missed list, slim banner by @deleonio in https://github.com/deleonio/priority-pilot/pull/2416
 
 ## v0.18 - 2026-10-08
 
@@ -207,7 +212,6 @@ _Enthält v0.16.0 – v0.16.37._
 - fix(server): apply billing period change immediately with proration by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2256
 - fix(billing): unicode invoice pdf font and atomic payment events by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2251
 - chore: revert container result step from #2253 by @deleonio in https://github.com/deleonio/priority-pilot/pull/2258
-- fix(ci): fix substring typo in container result step by @deleonio in https://github.com/deleonio/priority-pilot/pull/2259
 - fix(ci): fix substring typo in container result step by @deleonio in https://github.com/deleonio/priority-pilot/pull/2259
 - feat(frontend): journal statistics with entry counts and balance history by @deleonio in https://github.com/deleonio/priority-pilot/pull/2263
 - test(frontend): give #1821 and keyboard-shortcuts specs own sessions by @deleonio in https://github.com/deleonio/priority-pilot/pull/2264
