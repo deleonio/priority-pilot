@@ -146,6 +146,7 @@ _Enthält v0.17.0 – v0.17.45._
 - feat(server): refund and chargeback credit and cancel package (#2237) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2266
 - feat(frontend): brand footer with logos on monthly card (#2255) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2269
 - fix(server): defer plan takeover for delayed-start subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2271
+- fix(server): defer plan takeover for delayed-start subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2271
 - docs(skills): add proactive 3-hour progress report to coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2272
 - fix(billing): treat subscriptions with overdue payment as open by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2274
 - feat(server): activate upgrade only after payment received (#2238) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2270
