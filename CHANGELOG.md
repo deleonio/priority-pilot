@@ -4,11 +4,15 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.19 - 2026-10-08
 
-_Enthält v0.19.0 – v0.19.5._
+_Enthält v0.19.0 – v0.19.6._
 
 ### 🎉 New Features
 
 - feat(frontend): add cookieless matomo to website and web app by @deleonio in https://github.com/deleonio/priority-pilot/pull/2435
+
+### 🐞 Bug Fixes
+
+- docs(arc42): sync android app docs and adr table with adr 0021 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2439
 
 ### 🚀 Improvements
 
@@ -198,7 +202,6 @@ _Enthält v0.16.0 – v0.16.37._
 - docs(skills): add start dialog and instant questions to coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2217
 - docs(skills): add ready-for-market mission to ticket-coordination by @deleonio in https://github.com/deleonio/priority-pilot/pull/2247
 - chore: remove budget watchdog, budget control moves to coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2267
-- chore: remove budget watchdog, budget control moves to coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2267
 
 ### Other Changes
 
@@ -226,7 +229,6 @@ _Enthält v0.16.0 – v0.16.37._
 - feat(frontend): journal statistics with entry counts and balance history by @deleonio in https://github.com/deleonio/priority-pilot/pull/2263
 - test(frontend): give #1821 and keyboard-shortcuts specs own sessions by @deleonio in https://github.com/deleonio/priority-pilot/pull/2264
 - fix(billing): discard open paypal checkout, no unpaid credit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2260
-- fix(ci): keep container-result step from aborting on empty payload by @deleonio in https://github.com/deleonio/priority-pilot/pull/2268
 - fix(ci): keep container-result step from aborting on empty payload by @deleonio in https://github.com/deleonio/priority-pilot/pull/2268
 - feat(server): issue invoice number only after successful pdf build by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2265
 
@@ -342,6 +344,7 @@ _Enthält v0.13.0 – v0.13.27._
 
 ### Other Changes
 
+- fix(server): truncate LLM activity advice to task limits (#2010) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2103
 - fix(server): truncate LLM activity advice to task limits (#2010) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2103
 - chore(ci): pull pi CLI unpinned at latest per run and drop the pi cache by @deleonio in https://github.com/deleonio/priority-pilot/pull/2108
 - feat(server): rank rule mirror and full care suggestions (#2075) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2106
