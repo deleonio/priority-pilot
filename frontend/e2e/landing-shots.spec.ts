@@ -14,8 +14,8 @@ import { seedShowcase, shootShowcase } from './shots-seed';
  * Ohne `SHOTS` überspringt er sich (Begründung im Kopf von `zifferblatt-shots.spec.ts`).
  *
  * **Warum `POST /auth/register` vor dem Test-Login:** Nur die Registrierung legt die fünf Säulen des
- * Nutzers an; der Test-Login allein liefert einen Nutzer ohne Säulen und damit ein leeres Herz. Der
- * Test-Login danach macht ihn zum Admin, damit er sich selbst das größte Paket geben kann — sonst
+ * Nutzers an; der Test-Login allein liefert einen Nutzer ohne Säulen und damit ein leeres
+ * Balance-Bild. Der Test-Login danach macht ihn zum Admin, damit er sich selbst das größte Paket geben kann — sonst
  * zeigen die Bilder Paket-Sperren statt Funktionen.
  *
  * Nur deutsche Bilder: Die englische App ist noch nicht vollständig übersetzt, gemischte Screenshots

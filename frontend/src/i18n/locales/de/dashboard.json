@@ -52,8 +52,7 @@
 		"empty": "Noch keine Punkte vergeben — schließe Tasks ab, um dein Guthaben aufzubauen.",
 		"total": "<total>{{points}}</total> Punkte",
 		"row_one": "{{points}} Punkt ({{share}} %)",
-		"row_other": "{{points}} Punkte ({{share}} %)",
-		"arcTitle": "{{value}} von {{total}}"
+		"row_other": "{{points}} Punkte ({{share}} %)"
 	},
 	"deadlines": {
 		"label": "Anstehende Deadlines",
@@ -89,14 +88,9 @@
 		"strongest": "{{name}} zieht davon ({{actual}})"
 	},
 	"balanceVariant": {
-		"herz": "Herz",
-		"blasen": "Blasen",
-		"scheiben": "Scheiben",
-		"ringe": "Ringe",
 		"strahlen": "Strahlen",
 		"bluete": "Blüte",
 		"kristall": "Kristall",
-		"segmente": "Segmente",
 		"zeiger": "Zeiger"
 	},
 	"days_one": "{{count}} Tag",

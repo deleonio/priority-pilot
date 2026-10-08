@@ -1,12 +1,12 @@
 import { useCallback, useState } from 'react';
 
 /**
- * Feinschalter „Herz animieren" für das Dashboard-Herz — neben dem Master-Schalter
- * „Animationen" (`animations.ts`, #1183) die zweite Stufe: Das Herz schlägt und wellt nur,
- * wenn **beide** Schalter an sind. Muster und Best-Effort-Regeln wie dort.
+ * Feinschalter „Balance animieren" für das Balance-Bild auf dem Dashboard — neben dem Master-Schalter
+ * „Animationen" (`animations.ts`, #1183) die zweite Stufe: Das Bild bewegt sich nur, wenn **beide**
+ * Schalter an sind. Muster und Best-Effort-Regeln wie dort.
  *
  * Der Default ist **an**: Der Master-Schalter bleibt das Tor (er ist standardmäßig aus), wer
- * Animationen insgesamt freischaltet, bekommt das Herz ohne zweiten Klick mit — und kann es
+ * Animationen insgesamt freischaltet, bekommt das Bild ohne zweiten Klick mit — und kann es
  * gezielt abbestellen, ohne Konfetti & Co. zu verlieren. OS-Seitig „Bewegung reduzieren"
  * gewinnt ohnehin immer (CSS `prefers-reduced-motion`).
  */
@@ -16,7 +16,7 @@ const STORAGE_KEY = 'pp-heart-animation-enabled';
 
 /**
  * Liest die gespeicherte Wahl. Fehlt sie oder ist `localStorage` nicht verfügbar, gilt der
- * Default **an** (`true`) — nur ein explizit gespeichertes `false` schaltet das Herz still.
+ * Default **an** (`true`) — nur ein explizit gespeichertes `false` schaltet das Bild still.
  */
 const readHeartAnimationEnabled = (): boolean => {
 	try {
@@ -43,7 +43,7 @@ interface UseHeartAnimationEnabledResult {
 	setEnabled: (enabled: boolean) => void;
 }
 
-/** React-Hook zur Herz-Animation-Einstellung. Liest initial aus `localStorage`, persistiert bei Änderung. */
+/** React-Hook zur Balance-Animation-Einstellung. Liest initial aus `localStorage`, persistiert bei Änderung. */
 export const useHeartAnimationEnabled = (): UseHeartAnimationEnabledResult => {
 	const [enabled, setEnabledState] = useState<boolean>(readHeartAnimationEnabled);
 

@@ -4,11 +4,19 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.19 - 2026-10-08
 
-_Enthält v0.19.0 – v0.19.2._
+_Enthält v0.19.0 – v0.19.4._
+
+### 🎉 New Features
+
+- feat(frontend): add cookieless matomo to website and web app by @deleonio in https://github.com/deleonio/priority-pilot/pull/2435
 
 ### 🚀 Improvements
 
 - feat(frontend): preview selected balance picture in settings by @deleonio in https://github.com/deleonio/priority-pilot/pull/2436
+
+### 🔧 Engineering
+
+- docs(adr-0018): grant plus instead of pro for opt-in trial by @deleonio in https://github.com/deleonio/priority-pilot/pull/2438
 
 ### Other Changes
 
@@ -466,6 +474,7 @@ _Enthält v0.10.0 – v0.10.36._
 - chore(deps): update gradle to v8.14.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1841
 - fix(ci): 01-triage.yml wieder gültig (Expression-Limit) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1851
 - docs(ci): switch documenter free model to laguna-s-2.1 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1852
+- Säulen-Mindestanteil von 5 % auf allen Wegen erzwingen (#1822) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1853
 - Säulen-Mindestanteil von 5 % auf allen Wegen erzwingen (#1822) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1853
 - fix(server): show clear message for too-long task title (#1818) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1854
 - chore(deps): update renovatebot/github-action action to v46.3.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1850

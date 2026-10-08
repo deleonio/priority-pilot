@@ -6,10 +6,9 @@ import i18next from '../i18n/config';
  * `pillar.ts` — als reine Funktionen ohne React, damit die Mathematik ohne DOM prüfbar bleibt und
  * die Komponente nur noch zeichnet.
  *
- * **Metapher:** Das Herz ist ein Gefäß, dessen Wasserpegel von unten steigt. Steht eine Säule
- * auf ihrem Soll, trägt ihr Farbsegment voll bei; sind alle Säulen auf Soll, ist das Herz
- * randvoll — die *Höhe* der gemeinsamen Wasserlinie trägt die Aussage „ausgewogen", die
- * Aufschlüsselung je Säule die Legende neben dem Bild.
+ * **Aussage:** Der Füllstand ist **eine** Zahl für die ganze Balance — sind alle Säulen auf Soll,
+ * steht er auf 1. Im Bild trägt ihn das Zifferblatt (ein leuchtender Strich je Prozentpunkt), die
+ * Aufschlüsselung je Säule die Figur und die Legende neben dem Bild.
  *
  * **Maß:** Der Füllstand ist das **Strengste-Prinzip** (#1474) aus zwei normierten quadratischen
  * Abweichungen vom Soll, `füllstand = min(füllstandGewichtet, füllstandUngewichtet)` mit
@@ -38,8 +37,8 @@ import i18next from '../i18n/config';
  * wäre praktisch abgeschaltet und der Füllstand spränge, ohne dass sich an der Verteilung etwas
  * ändert. Verankert wird deshalb an den Säulen, die überhaupt ein Ziel tragen.
  *
- * Die große Prozentzahl und die Höhe der Wasserlinie bleiben derselbe Wert; das Bild kann der Zahl
- * also weiterhin nicht widersprechen.
+ * Die große Prozentzahl und die leuchtenden Striche des Zifferblatts bleiben derselbe Wert; das
+ * Bild kann der Zahl also nicht widersprechen.
  */
 
 /** Eine Lebenssäule im Bild: mit ihrem Soll, ihrem Ist und ihrer Farbe. */
@@ -52,9 +51,8 @@ interface HeartSegment {
 	 */
 	colorIndex: number;
 	/**
-	 * Balance dieses Segments (0–1): Ist-Anteil gemessen am Soll-Anteil, bei 1 gedeckelt. Das
-	 * Herz-Bild zeichnet sie nicht mehr als eigene Wassersäule, sie bleibt Teil des Modells und
-	 * der Lib-Tests.
+	 * Balance dieses Segments (0–1): Ist-Anteil gemessen am Soll-Anteil, bei 1 gedeckelt. Kein
+	 * Bild zeichnet sie direkt, sie bleibt Teil des Modells und der Lib-Tests.
 	 */
 	level: number;
 	/** Ist-Anteil der Säule am Gesamt-Punktestand (0–1). */
@@ -77,12 +75,12 @@ export interface BalanceModel {
  * Widget „Gesamtguthaben", `buildPillarBalances`).
  *
  * Randfälle bewusst festgelegt:
- * - **Keine Punkte** → jede Wassersäule 0, Herz leer (`hasPoints: false`).
+ * - **Keine Punkte** → jedes Segment 0, Füllstand 0 (`hasPoints: false`).
  * - **Alle Gewichte 0** (kein Soll gepflegt) → Gleichverteilung als Soll, damit das Bild trotzdem
  *   eine Aussage trifft statt leer zu bleiben.
- * - **Soll einer Säule = 0** → ihre Wassersäule bleibt leer; dort investierte Punkte zählen nicht
+ * - **Soll einer Säule = 0** → ihr Segment bleibt leer; dort investierte Punkte zählen nicht
  *   auf den Füllstand ein, sie fehlen den Säulen mit Soll. Genau das soll das Bild zeigen.
- * - **Alle Punkte in Säulen ohne Soll** → jede Säule mit Ziel steht auf 0, das Herz ist leer.
+ * - **Alle Punkte in Säulen ohne Soll** → jede Säule mit Ziel steht auf 0, der Füllstand ist 0.
  * - **Eine einzige Säule trägt das ganze Soll** → es gibt keine zweite, gegen die sie schieflaufen
  *   könnte; der Füllstand ist dann ihr Erfüllungsgrad (`level`), also 0,95 bei 95 % des Aufwands.
  */

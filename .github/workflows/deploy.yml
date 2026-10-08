@@ -76,6 +76,9 @@ jobs:
           # Digital Asset Links der Android-App (ADR 0016); ohne beide Werte entsteht keine Datei.
           ANDROID_PACKAGE_ID: ${{ vars.ANDROID_PACKAGE_ID }}
           ANDROID_CERT_SHA256: ${{ vars.ANDROID_CERT_SHA256 }}
+          # Cookieloses Matomo in Website und Web-App; ohne beide Werte bleibt es aus.
+          MATOMO_URL: ${{ vars.MATOMO_URL }}
+          MATOMO_SITE_ID: ${{ vars.MATOMO_SITE_ID }}
 
       - name: Server-Prod-Deps bündeln
         run: pnpm --filter ./server --prod deploy --legacy server/deploy

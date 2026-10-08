@@ -7,6 +7,7 @@ import { brotliCompress, constants as zlib, zstdCompress } from 'node:zlib';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { matomoScript } from './src/lib/matomo';
 
 const rootPkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf-8')) as {
 	version: string;
@@ -77,6 +78,11 @@ export default defineConfig(({ mode }) => {
 		build: { outDir },
 		plugins: [
 			react(),
+			// Cookieloses Matomo nur in der Web-App, nicht im Android-Build.
+			{
+				name: 'matomo',
+				transformIndexHtml: (html) => html.replace('</head>', `${android ? '' : matomoScript(process.env)}</head>`),
+			},
 			{
 				name: 'serve-docs-user-guide',
 				configureServer(server) {

@@ -38,12 +38,12 @@
 		"motion": {
 			"card": "Motion",
 			"animationsLabel": "Animations",
-			"animationsHint": "Show decorative animations — individually controlled via “Animate heart” and “Animate completion”. Applies per device and is off by default.",
+			"animationsHint": "Show decorative animations — individually controlled via “Animate balance” and “Animate completion”. Applies per device and is off by default.",
 			"reducedLabel": "Reduce motion active",
 			"reducedText": "Your operating system is set to “Reduce motion”. Decorative animations (e.g. confetti) therefore stay off, regardless of the “Animations” switch.",
 			"singleAnimations": "Individual animations",
-			"heartLabel": "Animate heart",
-			"heartHint": "The life balance heart on the dashboard beats and its water surface ripples. Requires the “Animations” switch. Applies per device.",
+			"heartLabel": "Animate balance",
+			"heartHint": "The life balance image on the dashboard breathes and pulses. Requires the “Animations” switch. Applies per device.",
 			"doneLabel": "Animate completion",
 			"doneHint": "Confetti rains when you complete tasks. Requires the “Animations” switch. Applies per device."
 		},
@@ -139,7 +139,7 @@
 	},
 	"balanceVariant": {
 		"label": "Life balance image",
-		"hint": "All images show the same calculation: for each pillar, the ratio of actual to target — the strongest pillar always gets the largest shape. “Heart” fills a vessel; “Bubbles” and “Discs” stack the same shapes in two materials, “Rings” shows them as arcs, “Rays” as wedges of light. “Blossom” and “Crystal” merge all pillars into one silhouette — once soft, once angular. “Segments” divides the ring by actual shares, “Hands” shows one hand per pillar on the dial.",
+		"hint": "All images show the same calculation: for each pillar, the ratio of actual to target — the strongest pillar always gets the largest shape. “Rays” shows them as wedges of light. “Blossom” and “Crystal” merge all pillars into one silhouette — once soft, once angular. “Hands” shows one hand per pillar on the dial.",
 		"preview": "Preview: {{name}}"
 	},
 	"categoryPalette": {

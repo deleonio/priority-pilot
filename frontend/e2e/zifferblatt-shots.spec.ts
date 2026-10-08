@@ -25,22 +25,12 @@ import { waitForStableView, fullPillarContributions } from './helpers';
  * unabhängig davon, was auf dem jeweiligen Rechner in der `.env` steht.
  */
 
-const VARIANTEN = [
-	'herz',
-	'blasen',
-	'scheiben',
-	'ringe',
-	'strahlen',
-	'bluete',
-	'kristall',
-	'segmente',
-	'zeiger',
-] as const;
+const VARIANTEN = ['strahlen', 'bluete', 'kristall', 'zeiger'] as const;
 
 test.describe('Zifferblätter — Bilder fürs Auge', () => {
 	test.skip(!process.env.SHOTS, 'Bildmacher, kein Prüf-Spec — mit SHOTS=1 starten (siehe Kopfkommentar).');
 
-	// Neun Varianten je mit Reload, Auftakt und Wartezeit — der Default-Timeout (30 s) reicht dafür nicht.
+	// Vier Varianten je mit Reload, Auftakt und Wartezeit — der Default-Timeout (30 s) reicht dafür nicht.
 	test.setTimeout(180_000);
 
 	test('legt von jeder Variante einen Screenshot ab', async ({ page }) => {
@@ -89,12 +79,15 @@ test.describe('Zifferblätter — Bilder fürs Auge', () => {
 
 		for (const variante of VARIANTEN) {
 			/*
-			 * Wahl über `evaluate` + `reload`, nicht über `addInitScript`: Ein Init-Skript je Durchlauf
-			 * zu registrieren staffelt sie auf, und es gewänne nur deshalb die richtige Variante, weil
-			 * das zuletzt registrierte zuletzt läuft — eine Reihenfolge-Eigenschaft, auf die sich
-			 * niemand festlegt.
+			 * Wahl am Konto (#2009), nicht im localStorage: Beim Laden zieht die App die Konto-Wahl nach
+			 * und überschreibt den Gerätespiegel. Der GET liefert den CSRF-Token für den PUT.
 			 */
-			await page.evaluate((value) => localStorage.setItem('pp-balance-variant', value), variante);
+			const token = (await page.request.get('/api/v1/balance-variant')).headers()['x-csrf-token'];
+			const gewaehlt = await page.request.put('/api/v1/balance-variant', {
+				data: { variant: variante },
+				headers: token ? { 'x-csrf-token': token } : {},
+			});
+			expect(gewaehlt.ok(), `Bildwahl ${variante} muss gespeichert werden`).toBeTruthy();
 			await page.reload();
 			await waitForStableView(page);
 			await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();

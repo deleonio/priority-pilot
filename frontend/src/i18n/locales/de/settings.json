@@ -38,12 +38,12 @@
 		"motion": {
 			"card": "Bewegung",
 			"animationsLabel": "Animationen",
-			"animationsHint": "Dekorative Animationen anzeigen — im Einzelnen schaltbar über „Herz animieren“ und „Erledigt animieren“. Gilt gerätebezogen und ist standardmäßig aus.",
+			"animationsHint": "Dekorative Animationen anzeigen — im Einzelnen schaltbar über „Balance animieren“ und „Erledigt animieren“. Gilt gerätebezogen und ist standardmäßig aus.",
 			"reducedLabel": "Bewegung reduzieren aktiv",
 			"reducedText": "Dein Betriebssystem ist auf „Bewegung reduzieren\" eingestellt. Dekorative Animationen (z. B. Konfetti) bleiben deshalb aus, unabhängig vom Schalter „Animationen\".",
 			"singleAnimations": "Einzelne Animationen",
-			"heartLabel": "Herz animieren",
-			"heartHint": "Das Herz der Lebensbalance auf dem Dashboard schlägt und seine Wasseroberfläche wellt. Setzt den Schalter „Animationen“ voraus. Gilt gerätebezogen.",
+			"heartLabel": "Balance animieren",
+			"heartHint": "Das Bild der Lebensbalance auf dem Dashboard atmet und pulsiert. Setzt den Schalter „Animationen“ voraus. Gilt gerätebezogen.",
 			"doneLabel": "Erledigt animieren",
 			"doneHint": "Beim Erledigt-Machen von Aufgaben regnet Konfetti. Setzt den Schalter „Animationen“ voraus. Gilt gerätebezogen."
 		},
@@ -139,7 +139,7 @@
 	},
 	"balanceVariant": {
 		"label": "Bild der Lebensbalance",
-		"hint": "Alle Bilder zeigen dieselbe Rechnung: je Säule das Verhältnis von Ist zu Ziel — die stärkste Säule bekommt überall die größte Form. „Herz“ füllt ein Gefäß; „Blasen“ und „Scheiben“ stapeln dieselben Formen in zwei Materialien, „Ringe“ zeigt sie als Bögen, „Strahlen“ als Lichtkeile. „Blüte“ und „Kristall“ fassen alle Säulen zu einer Silhouette zusammen — weich einmal, kantig einmal. „Segmente“ teilt den Ring nach Ist-Anteilen auf, „Zeiger“ zeigt je Säule einen Zeiger auf dem Zifferblatt.",
+		"hint": "Alle Bilder zeigen dieselbe Rechnung: je Säule das Verhältnis von Ist zu Ziel — die stärkste Säule bekommt überall die größte Form. „Strahlen“ zeigt sie als Lichtkeile. „Blüte“ und „Kristall“ fassen alle Säulen zu einer Silhouette zusammen — weich einmal, kantig einmal. „Zeiger“ zeigt je Säule einen Zeiger auf dem Zifferblatt.",
 		"preview": "Vorschau: {{name}}"
 	},
 	"categoryPalette": {

@@ -2,7 +2,6 @@ import type { Pillar } from 'client';
 import { useMemo, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BalanceFigure } from './BalanceFigure';
-import { HeartVessel } from './HeartVessel';
 import { buildHeartBalance, heartHealth } from '../lib/heartBalance';
 import { useBalanceVariant } from '../lib/balanceVariant';
 import { useAnimationsEnabled } from '../lib/animations';
@@ -13,9 +12,9 @@ import { rampClass } from '../lib/pillarRamp';
 /**
  * Die Lebensbalance auf der Startseite: **ein** gerechnetes Ergebnis, mehrere Bilder davon.
  *
- * Diese Komponente rechnet und beschriftet; gezeichnet wird in `HeartVessel` (das Herz-Gefäß) oder
- * `BalanceFigure` (Blasen, Scheiben, Ringe, Strahlen). Welches Bild läuft, wählt der Nutzer in den
- * Einstellungen — wie das Zifferblatt einer Uhr (`lib/balanceVariant.ts`, Default „Herz").
+ * Diese Komponente rechnet und beschriftet; gezeichnet wird in `BalanceFigure` (Strahlen, Blüte,
+ * Kristall, Zeiger). Welches Bild läuft, wählt der Nutzer in den Einstellungen — wie das
+ * Zifferblatt einer Uhr (`lib/balanceVariant.ts`, Default „Blüte").
  *
  * **Was über allen Varianten gleich bleibt**, und zwar absichtlich:
  *
@@ -25,7 +24,7 @@ import { rampClass } from '../lib/pillarRamp';
  * - Die **Legende**: je Säule Farbe, Name, Ist-Anteil, Ziel und Abweichung. Sie macht die Farben
  *   im Bild überhaupt erst zuordenbar und trägt die Relief-Regel (ux-design.md §2, Regel 4) —
  *   der Säulenname steht immer als Text neben der Farbe, in jeder Variante.
- * - Die **Bewegungsschalter**: Master „Animationen" (#1183), Feinschalter „Herz animieren" und die
+ * - Die **Bewegungsschalter**: Master „Animationen" (#1183), Feinschalter „Balance animieren" und die
  *   OS-Einstellung „Bewegung reduzieren", die Vorrang hat.
  *
  * Rechnung, Randfälle und das Balance-Maß stehen in `lib/heartBalance.ts`.
@@ -37,7 +36,7 @@ interface HeartBalanceProps {
 	punkteProSaeule: ReadonlyMap<number, number>;
 	/**
 	 * Füllstand (0–1) aus dem Server im Kadenz-Modell (#1638, GET /scores/balance). Gesetzt ersetzt er
-	 * den lokal aus den Anteilen gerechneten Wert, damit Herz, Verlauf und MCP dieselbe Zahl zeigen.
+	 * den lokal aus den Anteilen gerechneten Wert, damit Bild, Verlauf und MCP dieselbe Zahl zeigen.
 	 */
 	fill?: number;
 }
@@ -59,8 +58,8 @@ export const HeartBalance = ({ pillars, punkteProSaeule, fill }: HeartBalancePro
 
 	/*
 	 * Das Bild bewegt sich nur, wenn beide Schalter es erlauben: der Master „Animationen“ (#1183)
-	 * und der Feinschalter „Herz animieren“. Die OS-Einstellung „Bewegung reduzieren“ hat Vorrang
-	 * und schaltet hier mit ab — Wellen wie Blasenschwingung laufen per SMIL und lassen sich nicht
+	 * und der Feinschalter „Balance animieren“. Die OS-Einstellung „Bewegung reduzieren“ hat Vorrang
+	 * und schaltet hier mit ab — die Bewegung der Formen läuft per SMIL und lassen sich nicht
 	 * per CSS-Media-Query ausnehmen (Auftakt und Puls bleiben trotzdem im CSS abgesichert).
 	 */
 	const { enabled: animationsEnabled } = useAnimationsEnabled();
@@ -73,13 +72,12 @@ export const HeartBalance = ({ pillars, punkteProSaeule, fill }: HeartBalancePro
 
 	/*
 	 * Ruhepuls: Je ausgewogener das Bild, desto langsamer schlägt es (1,5 s leer bis 2,6 s voll).
-	 * Der Wert geht als Custom Property ins CSS (Herzschlag, Blasen-Atmen) und als Uniform in den
-	 * Blasen-Shader — alle Varianten atmen im selben Takt.
+	 * Der Wert geht als Custom Property ins CSS und als Uniform in den Shader — alle Varianten atmen
+	 * im selben Takt.
 	 */
 	const beatSeconds = 1.5 + balance.fill * 1.1;
 
 	const stageClasses = ['heart-balance-stage'];
-	if (variant === 'herz') stageClasses.push('heart-balance-stage--herz');
 	if (!animated) stageClasses.push('heart-balance-stage--still');
 
 	return (
@@ -89,17 +87,13 @@ export const HeartBalance = ({ pillars, punkteProSaeule, fill }: HeartBalancePro
 				data-variante={variant}
 				style={{ '--pp-heart-beat': `${beatSeconds.toFixed(2)}s` } as CSSProperties}
 			>
-				{variant === 'herz' ? (
-					<HeartVessel balance={balance} animated={animated} ariaLabel={ariaLabel} />
-				) : (
-					<BalanceFigure
-						balance={balance}
-						figure={variant}
-						animated={animated}
-						beatSeconds={beatSeconds}
-						ariaLabel={ariaLabel}
-					/>
-				)}
+				<BalanceFigure
+					balance={balance}
+					figure={variant}
+					animated={animated}
+					beatSeconds={beatSeconds}
+					ariaLabel={ariaLabel}
+				/>
 			</div>
 
 			<p className="heart-balance-readout">

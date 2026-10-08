@@ -9,25 +9,15 @@ import i18next from '../i18n/config';
  * derselben Auskunft, keine eigenen Kennzahlen. Was sie unterscheidet, ist die Frage, die
  * das Bild in den Vordergrund stellt:
  *
- * - **Herz** — das gewohnte Gefäß, das sich wie ein Wasserglas füllt. Füllstand = Gesamt-Balance,
- *   Streifenbreite = Verteilung (`HeartVessel`/`heartGeometry.ts`).
- * - **Blasen** — je Säule eine schwingende Ellipse, gestapelt von groß nach klein; Seifenblasen-Glas
- *   mit Fresnel-Saum und Neon-Schein.
- * - **Scheiben** — derselbe Stapel, aber deckend und scharfkantig. Dieselbe Geometrie, entgegen-
- *   gesetztes Material: Wo die Blasen die Farbe in eine Haut legen und den Rest durchscheinen
- *   lassen, ist hier jede Scheibe eine satte Fläche mit harter Kante.
- * - **Ringe** — je Säule ein Bogen wie die Aktivitätsringe einer Uhr, stärkste Säule außen.
  * - **Strahlen** — je Säule ein Lichtstrahl vom Mittelpunkt nach außen, längster auf 12 Uhr.
  * - **Blüte** — alle Säulen als **eine** Silhouette: eine geschlossene Kurve, deren Lappen je Säule
  *   so weit reichen wie ihr Wert. Weiches, organisches Material.
  * - **Kristall** — dieselbe Silhouette mit harten Kanten: Stützpunkte und Facetten statt weicher
  *   Lappen, leuchtende Knoten an den Spitzen.
- * - **Segmente** — der Ring als Tortengrafik der Ist-Anteile: Jedes Stück ist so breit wie der
- *   Anteil seiner Säule und gefüllt von innen bis auf ihren Wert.
  * - **Zeiger** — je Säule ein Zeiger auf dem gemeinsamen Zifferblatt, gleichmäßig über den Kreis
  *   verteilt; der längste steht auf 12 Uhr.
  *
- * Die acht Figuren (alles außer dem Herz) zeichnen **dieselbe Zahlenreihe** (`balanceMetric.ts`): je Säule das Verhältnis
+ * Alle Figuren zeichnen **dieselbe Zahlenreihe** (`balanceMetric.ts`): je Säule das Verhältnis
  * Ist zu Soll. Sie unterscheiden sich in der Form, nie im Inhalt — und teilen sich Zifferblatt,
  * Auftakt, Ruhepuls und Material (`balanceFigure.ts`, `balance-figure.frag`).
  *
@@ -40,15 +30,11 @@ import i18next from '../i18n/config';
  */
 
 /** Schlüssel der Bilder. Der gespeicherte Wert ist genau einer davon. */
-export type BalanceVariant =
-	'herz' | 'blasen' | 'scheiben' | 'ringe' | 'strahlen' | 'bluete' | 'kristall' | 'segmente' | 'zeiger';
-
-/** Die Figuren, die sich Zifferblatt, Kennzahl und Rahmen teilen (`BalanceFigure`) — alles außer dem Herz. */
-export type FigureKind = Exclude<BalanceVariant, 'herz'>;
+export type BalanceVariant = 'strahlen' | 'bluete' | 'kristall' | 'zeiger';
 
 /** Reihenfolge und Beschriftung für die Auswahl in den Einstellungen. */
 export const BALANCE_VARIANTS: readonly { value: BalanceVariant; readonly label: string }[] = (
-	['herz', 'blasen', 'scheiben', 'ringe', 'strahlen', 'bluete', 'kristall', 'segmente', 'zeiger'] as const
+	['strahlen', 'bluete', 'kristall', 'zeiger'] as const
 ).map((value) => ({
 	value,
 	// Getter: übersetzt beim Lesen, damit ein Sprachwechsel greift.
@@ -58,10 +44,10 @@ export const BALANCE_VARIANTS: readonly { value: BalanceVariant; readonly label:
 }));
 
 /**
- * Default ist das **Herz**: Es ist das Bild, das bestehende Nutzer kennen — eine neue Voreinstellung
- * würde ihnen die Startseite ohne Anlass umbauen. Die Blasen-Bilder sind Angebote, keine Ablösung.
+ * Default ist die **Blüte**: Sie zeigt alle Säulen als eine Silhouette — die Balance liest sich als
+ * Form auf einen Blick, ohne erst Einzelteile vergleichen zu müssen.
  */
-const DEFAULT_VARIANT: BalanceVariant = 'herz';
+const DEFAULT_VARIANT: BalanceVariant = 'bluete';
 
 /** `localStorage`-Schlüssel der gespeicherten Wahl (muss mit den Tests übereinstimmen). */
 const STORAGE_KEY = 'pp-balance-variant';
@@ -104,7 +90,7 @@ let csrfToken: string | null = null;
 let kontoNachgezogen = false;
 
 interface UseBalanceVariantResult {
-	/** Aktuell gewähltes Bild (Default `herz`). */
+	/** Aktuell gewähltes Bild (Default `bluete`). */
 	variant: BalanceVariant;
 	/** Wahl setzen (persistiert und sofort im State übernommen). */
 	setVariant: (variant: BalanceVariant) => void;

@@ -68,6 +68,7 @@ import { pullAccountPreferences } from './lib/accountPreferences';
 import { launchConfetti, shouldCelebrateDone } from './lib/confetti';
 import { setupTabsFocusRing } from './lib/tabsFocusRing';
 import { formatDeadline } from './lib/task';
+import { trackPageView } from './lib/matomo';
 
 type Dialog =
 	// `parentTask` gesetzt → die neu angelegte Aufgabe wird als Vorgänger mit ihr verknüpft (Unteraufgabe).
@@ -172,6 +173,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const { t, i18n } = useTranslation(['navigation', 'app']);
 	const location = useLocation();
 	const navigate = useNavigate();
+	useEffect(() => trackPageView(location.pathname), [location.pathname]);
 	// #1879: aktive App-Sprache beim Start und bei jedem Wechsel an den Server melden (Sprache des
 	// Fürsorge-Push) — fire-and-forget, ein Fehlschlag ist für die Nutzung folgenlos.
 	useEffect(() => {

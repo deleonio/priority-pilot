@@ -7,7 +7,7 @@ import { waitForStableView } from './helpers';
  * Nagelt den Kernpunkt fest, den nur die echte Seite belegen kann: Das Bild steht als erstes Widget
  * des Dashboards, ist horizontal mittig und bleibt auf schmalen Viewports innerhalb der Seite. Die
  * Segmentierung je Säule und die Rechnung prüfen die Komponenten- und Unit-Tests. Geprüft wird die
- * Standard-Variante „Herz" (`docs/zifferblatt-konzept.md`); die übrigen Bilder teilen sich
+ * Standard-Variante „Blüte" (`docs/zifferblatt-konzept.md`); die übrigen Bilder teilen sich
  * Bühne und Layout mit ihr.
  *
  * Die Breiten-Prüfung misst **Bounding-Boxen**, nicht `documentElement.scrollWidth`: Die App-Shell
@@ -16,7 +16,7 @@ import { waitForStableView } from './helpers';
  * belegt). Geprüft wird zusätzlich bei 320 px, weil das Karten-Padding auf 375 px genug Überlauf
  * schluckt, um einen echten Fehler zu verstecken.
  */
-test.describe('Dashboard — Herz der Lebensbalance', () => {
+test.describe('Dashboard — Bild der Lebensbalance', () => {
 	const deleteAllTasks = async (page: Page): Promise<void> => {
 		const response = await page.request.get('/api/v1/tasks');
 		const tasks = (await response.json()) as { id: number }[];
@@ -61,13 +61,13 @@ test.describe('Dashboard — Herz der Lebensbalance', () => {
 		const cardCenter = cardBox!.x + cardBox!.width / 2;
 		expect(Math.abs(heartCenter - cardCenter)).toBeLessThanOrEqual(1);
 
-		// Das Herz ist das erste Widget unter der Begrüßung — es steht über den Statuskacheln.
+		// Das Bild ist das erste Widget unter der Begrüßung — es steht über den Statuskacheln.
 		const cardsBox = await page.locator('.dashboard-cards').boundingBox();
 		expect(cardsBox).not.toBeNull();
 		expect(cardBox!.y).toBeLessThan(cardsBox!.y);
 	});
 
-	// Die Grafik rendert mit `overflow: visible` und der Herzschlag skaliert über die Viewbox hinaus —
+	// Die Grafik skaliert im Ruhepuls über ihre Viewbox hinaus —
 	// genau die Kombination, die auf schmalen Geräten überläuft, wenn eine Breite einmal absolut
 	// statt relativ gesetzt wird.
 	for (const width of [375, 320]) {

@@ -2,12 +2,14 @@
  * Baut die öffentliche Website nach `website/dist/` (ADR 0015). Aufruf: `pnpm --filter website build`.
  * `SITE_URL` (z. B. `https://example.org`) macht canonical/hreflang absolut und erzeugt die Sitemap.
  * `ANDROID_PACKAGE_ID` und `ANDROID_CERT_SHA256` erzeugen `/.well-known/assetlinks.json` (ADR 0016).
+ * `MATOMO_URL` und `MATOMO_SITE_ID` binden das cookielose Matomo in jede Seite ein.
  */
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PLAN_VALUES, getPlansCatalog } from '../../server/src/logics/plans.ts';
 import { OPERATOR } from '../../frontend/src/lib/operator.ts';
+import { matomoScript } from '../../frontend/src/lib/matomo.ts';
 import de from '../src/i18n/de.json' with { type: 'json' };
 import en from '../src/i18n/en.json' with { type: 'json' };
 import es from '../src/i18n/es.json' with { type: 'json' };
@@ -47,13 +49,14 @@ const dist = join(root, 'dist');
 const frontendPublic = resolve(root, '../frontend/public');
 const fonts = resolve(root, 'node_modules/@fontsource/archivo/files');
 const siteUrl = (process.env.SITE_URL ?? '').trim().replace(/\/$/, '');
+const matomo = matomoScript(process.env);
 
 const allMessages: Record<Locale, Messages> = { de, en, es, fr, it, nl, pl, pt, ru, sv };
 
 const write = (path: string, content: string): void => {
 	const target = join(dist, path);
 	mkdirSync(dirname(target), { recursive: true });
-	writeFileSync(target, content);
+	writeFileSync(target, path.endsWith('.html') ? content.replace('</head>', `${matomo}</head>`) : content);
 };
 
 const copy = (source: string, target: string): void => {

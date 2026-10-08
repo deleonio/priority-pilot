@@ -78,16 +78,14 @@ shows a card with the button **"Create your first task"** instead. From top to b
   a weekly target for this (Body 5, Impact 5, Mental health 3, Relationships 3, Meaning 1
   completions per week; this is also stated in the pillar descriptions under Settings → Pillars). 100 % means every pillar is on its target; 0 % means
   everything hangs on a single pillar. Which image you see is chosen in the
-  settings under **"Life balance image"** – **Heart**, **Bubbles**,
-  **Discs**, **Rings**, **Rays**, **Blossom**, **Crystal**, **Segments** or **Hands**. All of them show the same numbers: for each pillar,
+  settings under **"Life balance image"** – **Rays**, **Blossom** (default),
+  **Crystal** or **Hands**. All of them show the same numbers: for each pillar,
   the size stands for the ratio of actual to target, and the strongest pillar gets the
-  largest shape. "Bubbles" and "Discs" show the same stack – once
-  translucent and glowing, once solid and sharp-edged. "Blossom" and
+  largest shape. "Blossom" and
   "Crystal" combine all pillars into one shared silhouette whose
-  lobes reach as far per pillar as its value – once soft, once angular. "Segments"
-  divides the ring by actual shares, "Hands" shows one hand per pillar on the dial.
-  Around these eight
-  images runs a dial of
+  lobes reach as far per pillar as its value – once soft, once angular. "Rays"
+  shows one wedge of light per pillar, "Hands" one hand per pillar on the dial.
+  Around every image runs a dial of
   100 ticks that changes from dark red via orange to dark green – the
   lit ticks are your balance score in percent. A strongly neglected pillar pushes the
   score down more clearly than many small deviations. The legend lists, for each pillar, the
@@ -640,11 +638,11 @@ General, Pillars, Categories, Location, AI, Groups, **Plans & subscription** and
   **"Remove"** deletes the calendar with its events and credentials.
   With a connected calendar, **"Minimum length of free gaps"** (10–240 minutes, default 30)
   sets the length from which a gap appears in the "Free time" card.
-- **Life balance image** – choose between **Heart**, **Bubbles**, **Discs**,
-  **Rings**, **Rays**, **Blossom**, **Crystal**, **Segments** and **Hands**. All show the same calculation, just
+- **Life balance image** – choose between **Rays**, **Blossom** (default), **Crystal**
+  and **Hands**. All show the same calculation, just
   displayed differently. The choice is saved to your account and applies on all devices where you
   are signed in.
-- **Animations** – the switches **"Animations"**, **"Animate heart"** and
+- **Animations** – the switches **"Animations"**, **"Animate balance"** and
   **"Animate completion"** control the movements of the balance image on the
   dashboard and the sequence when completing a task. Without motion, the
   image stays complete; it just stands still.
