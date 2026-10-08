@@ -1299,6 +1299,13 @@ kol-toolbar {
 		grid-column: 1 / -1;
 	}
 
+	/* „Anstehende Deadlines" bricht aus dem Zwei-Spalten-Raster: Als letztes Widget mit ungerader
+	   Anzahl blieb es allein in der linken Spalte, rechts eine Lücke. Die paginierte Liste läuft
+	   in voller Breite — bündig mit dem „Verpasst"-Bereich darunter. */
+	.dashboard-deadlines {
+		grid-column: 1 / -1;
+	}
+
 	/*
 	 * Desktop-Hero: „Meine Lebensbalance" links zwei Drittel, rechts ein Drittel die
 	 * Kennzahlen-Kacheln gestapelt und darunter „Nächste Aufgabe" — untenbündig mit der
