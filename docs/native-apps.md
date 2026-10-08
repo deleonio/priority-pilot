@@ -168,8 +168,9 @@ Prüfen auf dem Gerät: `adb shell pm get-app-links balamentum.app` muss die Dom
 
 Fehlerbilder:
 
-- **Browser-Tab statt Konto-Sheet:** Für den Signaturschlüssel der installierten App fehlt der
-  Android-OAuth-Client (Play-Installation: Play-App-Signaturschlüssel).
+- **Browser-Tab statt Konto-Sheet, oder Browser-Tab nach der Kontowahl:** Für den Signaturschlüssel der
+  installierten App fehlt der Android-OAuth-Client (Play-Installation: Play-App-Signaturschlüssel). Der
+  Credential Manager zeigt dann zwar die Konten, meldet nach der Wahl aber einen Abbruch.
 - **„Der Zugriff wurde verweigert“:** Die Adresse ist nicht freigegeben (Allowlist, Warteliste).
 
 ## Icons und Splash neu erzeugen

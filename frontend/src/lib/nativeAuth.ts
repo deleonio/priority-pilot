@@ -63,7 +63,9 @@ const createState = (): string =>
  */
 export const startNativeGoogleLogin = async (): Promise<void> => {
 	const result = await nativeGoogleLogin(false);
-	if (result !== 'unavailable') {
+	// Fehlt der Android-OAuth-Client, meldet der Credential Manager nach der Kontowahl einen Abbruch;
+	// dann bleibt der Browser, statt dass nichts passiert.
+	if (result !== 'unavailable' && result !== 'canceled') {
 		finishNativeLogin(result);
 		return;
 	}
