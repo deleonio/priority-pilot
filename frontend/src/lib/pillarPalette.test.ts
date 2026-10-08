@@ -192,7 +192,7 @@ describe('pillarPalette — AK1: Rampe hat je Theme genau 7 Ränge (Spec #1273)'
 		);
 	});
 
-	it('app.css enthält die Zeichenkette "pp-pillar-8" nicht mehr (Token, .balance-orb--8, .heart-legend-dot--8)', () => {
+	it('app.css enthält die Zeichenkette "pp-pillar-8" nicht mehr (Token, .balance-ray--8, .heart-legend-dot--8)', () => {
 		expect(appCss.match(/pp-pillar-8/g) ?? []).toHaveLength(0);
 	});
 
@@ -207,7 +207,7 @@ describe('pillarPalette — AK1: Rampe hat je Theme genau 7 Ränge (Spec #1273)'
 		expect(match, 'lib/pillarRamp.ts muss PILLAR_RAMP_SIZE deklarieren').not.toBeNull();
 		expect(Number(match?.[1]), 'Rampe muss 7 Ränge haben').toBe(PILLAR_COUNT);
 
-		for (const file of ['HeartBalance.tsx', 'HeartGlass.tsx', 'BalanceFigureGL.tsx']) {
+		for (const file of ['HeartBalance.tsx', 'BalanceFigureGL.tsx']) {
 			const source = readFileSync(`${dir}../components/${file}`, 'utf8');
 			expect(source, `${file} darf die Konstante importieren, nicht neu deklarieren`).not.toMatch(
 				/(const|let)\s+PILLAR_RAMP_SIZE/,

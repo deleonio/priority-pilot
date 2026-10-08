@@ -2,62 +2,50 @@ import { useCallback, useMemo, useState } from 'react';
 import { BalanceFigureGL } from './BalanceFigureGL';
 import {
 	activeTicks,
-	buildArcs,
 	buildHands,
-	buildOrbs,
 	buildPetals,
 	buildRays,
-	buildWedges,
 	CENTER,
-	orbAxes,
 	petalArcPoints,
 	polar,
 	ringTicks,
 	targetRadius,
 	tickLine,
 	VIEW_SIZE,
-	type Arc,
-	type FigureMotion,
 	type Hand,
 	type Petal,
 	type Ray,
 	type RingTick,
-	type Wedge,
 } from '../lib/balanceFigure';
 import { balanceMetrics } from '../lib/balanceMetric';
 import type { BalanceModel } from '../lib/heartBalance';
-import type { FigureKind } from '../lib/balanceVariant';
+import type { BalanceVariant } from '../lib/balanceVariant';
 import { PILLAR_RAMP_SIZE, rampClass } from '../lib/pillarRamp';
 import { supportsWebGl2 } from '../lib/webgl';
 
 /**
- * Die **Figuren-Varianten** der Lebensbalance: Blasen, Scheiben, Ringe, Strahlen, Blüte, Kristall —
- * außen herum immer dasselbe Zifferblatt aus 100 Strichen.
+ * Die **Figuren-Varianten** der Lebensbalance: Strahlen, Blüte, Kristall, Zeiger — außen herum
+ * immer dasselbe Zifferblatt aus 100 Strichen.
  *
  * **Alle zeigen dieselben Zahlen.** Je Säule das Verhältnis Ist zu Soll (`balanceMetric.ts`),
  * ungedeckelt: 1 heißt „genau auf Ziel", 1,5 heißt „zieht davon". Die stärkste Säule bekommt
- * überall die größte Form — bei Blasen und Scheiben die unterste, bei den Ringen die äußerste Spur,
- * bei den Strahlen den längsten Strahl auf 12 Uhr. „Blasen" und „Scheiben" teilen sich Geometrie
- * und Bewegung und unterscheiden sich allein im Material: durchscheinende Haut gegen deckende
- * Fläche mit harter Kante. „Blüte" und „Kristall" folgen demselben Muster mit anderen Stützpunkten:
- * Alle Säulen bilden **eine** Silhouette, deren Lappen je Säule so weit reichen wie ihr Wert —
- * weich verbunden bei der Blüte, mit harten Kanten und Knoten beim Kristall. Eine gemeinsame
- * Soll-Marke zeigt, wo „auf Ziel" läge.
+ * überall die größte Form auf 12 Uhr — den längsten Strahl, den weitesten Lappen, den längsten
+ * Zeiger. „Blüte" und „Kristall" teilen sich die Stützpunkte: Alle Säulen bilden **eine**
+ * Silhouette, deren Lappen je Säule so weit reichen wie ihr Wert — weich verbunden bei der Blüte,
+ * mit harten Kanten und Knoten beim Kristall. Eine gemeinsame Soll-Marke zeigt, wo „auf Ziel" läge.
  * *Außen* trägt das Zifferblatt die Gesamt-Balance: ein Strich je Prozentpunkt, dunkelrot bei 0
  * über orange bis dunkelgrün bei 100. Die Striche bis zum Wert leuchten, die übrigen bleiben
  * abgedunkelt stehen — die Skala ist immer ganz zu sehen, der Stand liest sich als Bogenlänge.
  *
- * **Warum die Formen schwingen:** Liegen alle Säulen gleich, sind alle Formen gleich groß. Ohne
- * Bewegung lägen die Blasen deckungsgleich übereinander und der Gleichstand zeigte eine einzige
- * Blase. Jede Form schwingt deshalb mit eigener Phase und eigener Periode (Rechnung und Begründung
- * in `lib/balanceFigure.ts`); ihre Ränder kreuzen sich fortwährend, jede Farbe wird immer wieder
- * sichtbar.
+ * **Warum die Formen sich bewegen:** Jede Säule atmet mit eigener Phase und eigener Periode
+ * (Rechnung und Begründung in `lib/balanceFigure.ts`) — im Gleichstand bleibt so jede Farbe
+ * unterscheidbar.
  *
  * **Zwei Fassungen desselben Bildauftrags:** Kann der Browser WebGL2, zeichnet `BalanceFigureGL`
  * die Figur in Neon-Glas (Shader `balance-figure.frag`) — Geometrie, Reihenfolge, Bewegung und
- * Zifferblatt identisch, das Material dazu (Fresnel-Saum, Irisierung, Glanzlicht, Neon-Schein,
- * Lichtpuls). Ohne WebGL (oder nach Kontextverlust ohne Wiederkehr) steht das SVG hier als
- * Rückfall — dasselbe Bild, nur ohne Leuchten.
+ * Zifferblatt identisch, das Material dazu (Saum, Glanz, Neon-Schein, Lichtpuls). Ohne WebGL (oder
+ * nach Kontextverlust ohne Wiederkehr) steht das SVG hier als Rückfall — dasselbe Bild, nur ohne
+ * Leuchten.
  *
  * **Warum das SVG text-, theme- und zoomfähig bleibt:** Farbrollen als Custom Properties,
  * `role="img"` mit Label, scharf bei jeder Größe — und kein Render-Loop in JavaScript: Die
@@ -67,7 +55,7 @@ interface BalanceFigureProps {
 	/** Das gerechnete Gesamtbild aus `buildHeartBalance`. */
 	balance: BalanceModel;
 	/** Welche Figur gezeichnet wird. */
-	figure: FigureKind;
+	figure: BalanceVariant;
 	/** Bewegung erlauben (beide Animationsschalter + OS-Einstellung). */
 	animated: boolean;
 	/** Sekunden je Ruhepuls-Schlag; ruhiger, je ausgewogener das Bild. */
@@ -77,93 +65,12 @@ interface BalanceFigureProps {
 }
 
 /**
- * Stützstellen der SMIL-Schwingung. 16 lineare Stützwerte nähern die Sinuskurve auf unter 0,3 %
- * des Radius an — bei einer Schwingung über sechs Sekunden ist davon nichts zu sehen, und es bleibt
- * bei einer Animation im Compositor statt einer Frame-Schleife in JavaScript.
- */
-const SWING_SAMPLES = 16;
-
-/** `rx`- bzw. `ry`-Stützwerte einer Blase über eine volle Periode, geschlossen (erster = letzter). */
-const swingValues = (motion: FigureMotion, radius: number, axis: 'rx' | 'ry'): string =>
-	Array.from({ length: SWING_SAMPLES + 1 }, (_, step) =>
-		orbAxes(motion, radius, (step / SWING_SAMPLES) * motion.swingPeriod)[axis].toFixed(3),
-	).join(';');
-
-/** Grunddrehung einer Form in Grad — dieselbe Phase, die auch ihre Formschwingung anstößt. */
-const baseRotation = (motion: FigureMotion): number => (motion.phase * 180) / Math.PI;
-
-/**
  * Strichfarbe als `color-mix()` zwischen zwei Theme-Tokens. Bewusst nicht als fertiger Farbwert aus
  * JavaScript: So löst der Browser die Rampe selbst auf, und ein Theme-Wechsel färbt den Ring um,
  * ohne dass React etwas davon mitbekommen muss.
  */
 const tickStroke = (tick: RingTick): string =>
 	`color-mix(in srgb, var(--pp-balance-ring-${tick.stop}) ${((1 - tick.mix) * 100).toFixed(1)}%, var(--pp-balance-ring-${tick.stop + 25}))`;
-
-/** Eine schwingende Ellipse samt ihrer SMIL-Animation. */
-const SwingingEllipse = ({
-	motion,
-	radius,
-	className,
-	testId,
-	animated,
-}: {
-	motion: FigureMotion;
-	radius: number;
-	className: string;
-	testId?: string;
-	animated: boolean;
-}) => {
-	const rotation = baseRotation(motion);
-	const axes = orbAxes(motion, radius, 0);
-	return (
-		<ellipse
-			className={className}
-			data-testid={testId}
-			cx={CENTER}
-			cy={CENTER}
-			rx={axes.rx.toFixed(3)}
-			ry={axes.ry.toFixed(3)}
-			transform={`rotate(${rotation.toFixed(2)} ${CENTER} ${CENTER})`}
-		>
-			{animated && (
-				<>
-					{/* Halbachsen gegenläufig: Die Blase atmet, statt zu wachsen. */}
-					<animate
-						attributeName="rx"
-						values={swingValues(motion, radius, 'rx')}
-						dur={`${motion.swingPeriod}s`}
-						repeatCount="indefinite"
-					/>
-					<animate
-						attributeName="ry"
-						values={swingValues(motion, radius, 'ry')}
-						dur={`${motion.swingPeriod}s`}
-						repeatCount="indefinite"
-					/>
-					<animateTransform
-						attributeName="transform"
-						type="rotate"
-						from={`${rotation.toFixed(2)} ${CENTER} ${CENTER}`}
-						to={`${(rotation + 360 * motion.rotDirection).toFixed(2)} ${CENTER} ${CENTER}`}
-						dur={`${motion.rotPeriod}s`}
-						repeatCount="indefinite"
-					/>
-				</>
-			)}
-		</ellipse>
-	);
-};
-
-/**
- * Ein Bogen als Kreis mit `stroke-dasharray`: Der erste Abschnitt ist die gefüllte Strecke, der
- * Rest bleibt Lücke. Bewusst kein `<path>` mit Bogenbefehl — der bräuchte eine Fallunterscheidung
- * für den Halbkreis (`large-arc-flag`) und könnte bei Anteil 1 nicht schließen.
- */
-const arcDash = (arc: Arc, sweep: number): { dasharray: string; circumference: number } => {
-	const circumference = 2 * Math.PI * arc.radius;
-	return { dasharray: `${(circumference * sweep).toFixed(3)} ${circumference.toFixed(3)}`, circumference };
-};
 
 /** Die Spitze eines Strahls als Dreieck — innen die volle Öffnung, außen auf ein Drittel verjüngt. */
 const rayPoints = (ray: Ray): string => {
@@ -187,13 +94,6 @@ const handPoints = (hand: Hand): string => {
 	const tipRight = polar(hand.angle + hand.spread * 0.12, hand.length);
 	return [left, tipLeft, tip, tipRight, right].map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
 };
-
-/** Die vier Ecken eines Ringstücks — Start und Ende seines Winkelanteils, innen und außen. */
-const wedgePoints = (wedge: Wedge): string =>
-	[wedge.start, wedge.end]
-		.flatMap((angle): { x: number; y: number }[] => [polar(angle, wedge.inner), polar(angle, wedge.outer)])
-		.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`)
-		.join(' ');
 
 export const BalanceFigure = ({ balance, figure, animated, beatSeconds, ariaLabel }: BalanceFigureProps) => {
 	const metrics = useMemo(() => balanceMetrics(balance), [balance]);
@@ -257,14 +157,9 @@ export const BalanceFigure = ({ balance, figure, animated, beatSeconds, ariaLabe
 			 */}
 			<g className="balance-figure-rise">
 				<g className="balance-figure-beat">
-					{(figure === 'blasen' || figure === 'scheiben') && (
-						<Orbs metrics={metrics} animated={animated} sharp={figure === 'scheiben'} />
-					)}
-					{figure === 'ringe' && <Arcs metrics={metrics} animated={animated} />}
 					{figure === 'strahlen' && <Rays metrics={metrics} animated={animated} />}
 					{figure === 'bluete' && <Petals metrics={metrics} animated={animated} />}
 					{figure === 'kristall' && <Crystal metrics={metrics} animated={animated} />}
-					{figure === 'segmente' && <Wedges metrics={metrics} animated={animated} />}
 					{figure === 'zeiger' && <Hands metrics={metrics} animated={animated} />}
 				</g>
 			</g>
@@ -272,101 +167,12 @@ export const BalanceFigure = ({ balance, figure, animated, beatSeconds, ariaLabe
 	);
 };
 
-/**
- * Figuren „Blasen" und „Scheiben": derselbe Stapel, stärkste Ellipse hinten, dazu der gemeinsame
- * Soll-Kreis. `sharp` entscheidet allein über das Material — halbtransparente Haut oder deckende
- * Fläche mit harter Kante (Klassen in `app.css`).
- */
-const Orbs = ({
-	metrics,
-	animated,
-	sharp,
-}: {
-	metrics: ReturnType<typeof balanceMetrics>;
-	animated: boolean;
-	sharp: boolean;
-}) => {
-	const orbs = buildOrbs(metrics);
-	const target = targetRadius(metrics);
-	return (
-		<>
-			{/* Soll-Kreis: Blase innerhalb heißt „kommt zu kurz", außerhalb „zieht davon". */}
-			<circle className="balance-target" data-testid="balance-target" cx={CENTER} cy={CENTER} r={target.toFixed(2)} />
-			{orbs.map((orb) => (
-				<SwingingEllipse
-					key={orb.pillarId}
-					motion={orb}
-					radius={orb.radius}
-					className={rampClass(sharp ? 'balance-disc' : 'balance-orb', orb.colorIndex)}
-					testId="heart-column"
-					animated={animated}
-				/>
-			))}
-		</>
-	);
-};
-
-/** Figur „Ringe": je Säule eine Spur, Bogenlänge und Lage tragen beide den Wert. */
-const Arcs = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetrics>; animated: boolean }) => (
-	<>
-		{buildArcs(metrics).map((arc) => {
-			const { dasharray, circumference } = arcDash(arc, arc.sweep);
-			const inner = polar(-90 + arc.target * 360, arc.radius - arc.width / 2);
-			const outer = polar(-90 + arc.target * 360, arc.radius + arc.width / 2);
-			return (
-				<g key={arc.pillarId} data-testid="heart-column">
-					{/* Unausgefüllte Spur bleibt blass stehen — sie zeigt, wie weit es noch wäre. */}
-					<circle
-						className={rampClass('balance-arc-track', arc.colorIndex)}
-						cx={CENTER}
-						cy={CENTER}
-						r={arc.radius.toFixed(3)}
-						strokeWidth={arc.width.toFixed(3)}
-					/>
-					{/*
-					 * Gefüllter Bogen: gedreht auf 12 Uhr, damit die Strecke dort beginnt, wo auch das
-					 * Zifferblatt beginnt. Der Strich atmet in der Stärke, die Spur bleibt liegen.
-					 */}
-					<circle
-						className={rampClass('balance-arc', arc.colorIndex)}
-						cx={CENTER}
-						cy={CENTER}
-						r={arc.radius.toFixed(3)}
-						strokeWidth={arc.width.toFixed(3)}
-						strokeDasharray={dasharray}
-						transform={`rotate(-90 ${CENTER} ${CENTER})`}
-					>
-						{animated && (
-							<animate
-								attributeName="stroke-width"
-								values={`${arc.width.toFixed(3)};${(arc.width * 1.12).toFixed(3)};${arc.width.toFixed(3)}`}
-								dur={`${arc.swingPeriod}s`}
-								repeatCount="indefinite"
-							/>
-						)}
-						<title>{`${(circumference * arc.sweep).toFixed(0)} von ${circumference.toFixed(0)}`}</title>
-					</circle>
-					{/* Soll-Marke: ein Strich quer über die Spur. */}
-					<line
-						className="balance-target-mark"
-						data-testid="balance-target"
-						x1={inner.x.toFixed(2)}
-						y1={inner.y.toFixed(2)}
-						x2={outer.x.toFixed(2)}
-						y2={outer.y.toFixed(2)}
-					/>
-				</g>
-			);
-		})}
-	</>
-);
-
 /** Figur „Strahlen": je Säule ein Lichtkeil vom Mittelpunkt, längster auf 12 Uhr. */
 const Rays = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetrics>; animated: boolean }) => {
 	const rays = buildRays(metrics);
 	return (
 		<>
-			{/* Soll-Kreis quer über alle Strahlen — dieselbe Marke wie bei den Blasen. */}
+			{/* Soll-Kreis quer über alle Strahlen — dieselbe Marke wie bei Blüte, Kristall und Zeigern. */}
 			{rays.length > 0 && (
 				<circle
 					className="balance-target"
@@ -434,7 +240,7 @@ const TipNode = ({ petal, radius, animated }: { petal: Petal; radius: number; an
 /**
  * Figur „Blüte": alle Säulen als **eine** weiche Silhouette. Der Körper bleibt neutral und leicht,
  * die Farbe tragen die Lappenränder — jeder in der Neon-Farbe seiner Säule, vom Tal zur Nachbar-
- * Säule hin. Die Soll-Marke ist der gestrichelte Kreis wie bei den Blasen.
+ * Säule hin. Die Soll-Marke ist der gestrichelte Kreis wie bei den Strahlen.
  */
 const Petals = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetrics>; animated: boolean }) => {
 	const petals = buildPetals(metrics);
@@ -535,47 +341,6 @@ const Crystal = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetr
 				);
 			})}
 			{petals.length === 1 && <TipNode petal={petals[0]} radius={1.7} animated={animated} />}
-		</>
-	);
-};
-
-/**
- * Figur „Segmente“: der Ring als Tortengrafik der Ist-Anteile. Jedes Stück ist so breit wie
- * der Anteil seiner Säule und gefüllt von innen bis auf seinen Wert — die Soll-Marke steht als
- * Strich quer über jedes Stück. Die Fuge zwischen den Stücken ist Teil der Geometrie
- * (`buildWedges`); hier bleibt nur das Erscheinungsbild.
- */
-const Wedges = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetrics>; animated: boolean }) => {
-	const wedges = buildWedges(metrics);
-	return (
-		<>
-			{wedges.map((wedge) => {
-				const inner = polar(wedge.angle, wedge.inner);
-				const outer = polar(wedge.angle, wedge.outer);
-				return (
-					<g key={wedge.pillarId} data-testid="heart-column">
-						<polygon className={rampClass('balance-wedge', wedge.colorIndex)} points={wedgePoints(wedge)}>
-							{animated && (
-								<animate
-									attributeName="opacity"
-									values="0.86;1;0.86"
-									dur={`${wedge.swingPeriod}s`}
-									repeatCount="indefinite"
-								/>
-							)}
-						</polygon>
-						{/* Soll-Marke: ein Strich quer über die Breite des Stücks. */}
-						<line
-							className="balance-target-mark"
-							data-testid="balance-target"
-							x1={inner.x.toFixed(2)}
-							y1={inner.y.toFixed(2)}
-							x2={outer.x.toFixed(2)}
-							y2={outer.y.toFixed(2)}
-						/>
-					</g>
-				);
-			})}
 		</>
 	);
 };

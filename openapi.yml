@@ -2155,7 +2155,7 @@ paths:
       summary: Bildwahl der Lebensbalance lesen
       description: >-
         Liefert die serverseitig pro User gespeicherte Zifferblatt-Wahl (#2009);
-        für Konten ohne gespeicherte Wahl `herz`. Der Antwort-Header `x-csrf-token`
+        für Konten ohne (oder mit einer entfernten) gespeicherten Wahl `bluete`. Der Antwort-Header `x-csrf-token`
         stellt zugleich den CSRF-Token bereit — der Client sendet den späteren PUT
         als einzelnen Fire-and-forget-Aufruf ohne eigenen Token-Vorab-Fetch.
       operationId: getBalanceVariant
@@ -5573,8 +5573,8 @@ components:
       properties:
         variant:
           type: string
-          description: Bild-Schlüssel (Default 'herz')
-          enum: [herz, blasen, scheiben, ringe, strahlen, bluete, kristall, segmente, zeiger]
+          description: Bild-Schlüssel (Default 'bluete')
+          enum: [strahlen, bluete, kristall, zeiger]
     GeoConfig:
       type: object
       description: >-

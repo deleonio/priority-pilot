@@ -79,16 +79,14 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
   dafür ein Wochen-Ziel (Körper 5, Wirksamkeit 5, Mentale Gesundheit 3, Beziehungen 3, Sinn 1
   Erledigungen pro Woche; so steht es auch in den Säulenbeschreibungen unter Einstellungen → Säulen). 100 % heißt, jede Säule liegt auf ihrem Ziel; 0 % heißt,
   alles hängt an einer einzigen Säule. Welches Bild du siehst, wählst du in den
-  Einstellungen unter **„Bild der Lebensbalance"** – **Herz**, **Blasen**,
-  **Scheiben**, **Ringe**, **Strahlen**, **Blüte**, **Kristall**, **Segmente** oder **Zeiger**. Alle zeigen dieselben Zahlen: Je Säule steht
+  Einstellungen unter **„Bild der Lebensbalance"** – **Strahlen**, **Blüte** (Standard),
+  **Kristall** oder **Zeiger**. Alle zeigen dieselben Zahlen: Je Säule steht
   die Größe für das Verhältnis von Ist zu Ziel, die stärkste Säule bekommt die
-  größte Form. „Blasen" und „Scheiben" zeigen denselben Stapel – einmal
-  durchscheinend und leuchtend, einmal satt und scharfkantig. „Blüte" und
+  größte Form. „Blüte" und
   „Kristall" fassen alle Säulen zu einer gemeinsamen Silhouette zusammen, deren
-  Lappen je Säule so weit reichen wie ihr Wert – einmal weich, einmal kantig. „Segmente“
-  teilt den Ring nach Ist-Anteilen auf, „Zeiger“ zeigt je Säule einen Zeiger auf dem Zifferblatt.
-  Bei diesen acht
-  Bildern läuft außen herum ein Zifferblatt aus
+  Lappen je Säule so weit reichen wie ihr Wert – einmal weich, einmal kantig. „Strahlen“
+  zeigt je Säule einen Lichtkeil, „Zeiger“ je Säule einen Zeiger auf dem Zifferblatt.
+  Außen herum läuft bei allen Bildern ein Zifferblatt aus
   100 Strichen, das von Dunkelrot über Orange nach Dunkelgrün wechselt – die
   leuchtenden Striche sind dein Balance-Wert in Prozent. Eine stark vernachlässigte Säule drückt den
   Wert deutlicher als viele kleine Abweichungen. Die Legende nennt je Säule den
@@ -644,11 +642,11 @@ Allgemein, Säulen, Kategorien, Standort, Orte, KI, Gruppen und **Pakete & Abo**
   **„Entfernen“** löscht den Kalender samt seiner Termine und Zugangsdaten.
   Mit verbundenem Kalender legt **„Mindestdauer freier Lücken“** (10–240 Minuten, Standard 30)
   fest, ab welcher Länge eine Lücke in der Karte „Freie Zeit“ erscheint.
-- **Bild der Lebensbalance** – wähle zwischen **Herz**, **Blasen**, **Scheiben**,
-  **Ringe**, **Strahlen**, **Blüte**, **Kristall**, **Segmente** und **Zeiger**. Alle zeigen dieselbe Rechnung, nur anders
+- **Bild der Lebensbalance** – wähle zwischen **Strahlen**, **Blüte** (Standard), **Kristall**
+  und **Zeiger**. Alle zeigen dieselbe Rechnung, nur anders
   dargestellt. Die Wahl wird am Konto gespeichert und gilt auf allen Geräten, auf denen du
   angemeldet bist.
-- **Animationen** – die Schalter **„Animationen"**, **„Herz animieren"** und
+- **Animationen** – die Schalter **„Animationen"**, **„Balance animieren"** und
   **„Erledigt animieren"** steuern die Bewegungen des Balance-Bildes auf dem
   Dashboard und den Ablauf beim Erledigen einer Aufgabe. Ohne Bewegung bleibt das
   Bild vollständig, es steht nur still.

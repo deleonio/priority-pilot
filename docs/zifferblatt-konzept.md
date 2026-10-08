@@ -36,8 +36,7 @@ Je Säule das **Verhältnis Ist zu Soll**, ungedeckelt:
 | beliebig   | 0 %         | 0          | Säule ohne Ziel        |
 
 **Die größte Zahl ergibt immer die größte Form.** Das ist die eine Regel, die jede Figur einhalten
-muss — beim Herz die Füllfläche, bei den Blasen der Radius, bei den Ringen Spur und Bogenlänge, bei
-den Strahlen die Länge.
+muss — bei den Strahlen und Zeigern die Länge, bei Blüte und Kristall die Reichweite des Lappens.
 
 **Normierung:** Die Skala endet beim größten vorkommenden Verhältnis, mindestens aber bei 1. So
 nutzt das Bild seinen Platz aus, und die Soll-Marke (`targetMark`) bleibt im Bild, auch wenn alle
@@ -71,32 +70,32 @@ trägt weiterhin in beide Komponenten dieselbe Unterdeckung bei und widerspricht
    abgedunkelt stehen. Das Zifferblatt **bewegt sich nie** — es ist die Skala.
 6. **Zwei Fassungen**: WebGL fürs Material, SVG als vollwertiger Rückfall. Dasselbe Bild, nur ohne
    Leuchten. Beide lesen dieselbe Geometrie aus `balanceFigure.ts`.
-7. **Bewegung ist abbestellbar.** Master „Animationen", Feinschalter „Herz animieren" und
+7. **Bewegung ist abbestellbar.** Master „Animationen", Feinschalter „Balance animieren" und
    `prefers-reduced-motion` schalten sie ab; das Bild bleibt dann **vollständig**, nur still.
 8. **Die Legende bleibt.** Farbe trägt nie allein Bedeutung: Der Säulenname steht als Text daneben
    (Relief-Regel, ux-design.md §2, Regel 4).
 
 ## 4. Der gemeinsame Rahmen
 
-| Größe               | Wert                            | Warum                                                             |
-| ------------------- | ------------------------------- | ----------------------------------------------------------------- |
-| Zeichenfläche       | `100×100`, Mitte `(50, 50)`     | quadratisch, weil alle Figuren um einen Mittelpunkt liegen        |
-| Zifferblatt innen   | `RING_INNER = 40`               | Strichlängen 5 bzw. 7,5 (Zehner-Marke)                            |
-| Figurenfeld außen   | `FIGURE_MAX = 33`               | plus Schwingungsreserve 12 % → 37 < 40, nichts läuft in die Skala |
-| Kleinste Form       | `R_MIN = 8`                     | eine Säule ohne Ziel darf nicht verschwinden                      |
-| Auftakt             | `RISE_DURATION = 1,4 s`         | einmalig, `easeOutCubic`                                          |
-| Ruhepuls            | `1,5–2,6 s` je nach Balance     | `--pp-heart-beat`; ruhiger, je ausgewogener                       |
-| Schwingung je Säule | `6,5–9,9 s`, Phase golden       | damit gleich große Formen unterscheidbar bleiben                  |
-| Drehung je Säule    | `19–26,5 s`, Richtung wechselnd | dasselbe                                                          |
+| Größe               | Wert                            | Warum                                                                |
+| ------------------- | ------------------------------- | -------------------------------------------------------------------- |
+| Zeichenfläche       | `100×100`, Mitte `(50, 50)`     | quadratisch, weil alle Figuren um einen Mittelpunkt liegen           |
+| Zifferblatt innen   | `RING_INNER = 40`               | Strichlängen 5 bzw. 7,5 (Zehner-Marke)                               |
+| Figurenfeld außen   | `FIGURE_MAX = 33`               | plus Atmen (6 %) und Puls (3 %) → 36 < 40, nichts läuft in die Skala |
+| Kleinste Form       | `R_MIN = 8`                     | eine Säule ohne Ziel darf nicht verschwinden                         |
+| Auftakt             | `RISE_DURATION = 1,4 s`         | einmalig, `easeOutCubic`                                             |
+| Ruhepuls            | `1,5–2,6 s` je nach Balance     | `--pp-heart-beat`; ruhiger, je ausgewogener                          |
+| Schwingung je Säule | `6,5–9,9 s`, Phase golden       | damit gleich große Formen unterscheidbar bleiben                     |
+| Drehung je Säule    | `19–26,5 s`, Richtung wechselnd | dasselbe                                                             |
 
 **Die Bewegung hängt am Farbrang, nicht an der Figur.** Dieselbe Säule schwingt in jedem
 Zifferblatt gleich — wer das Bild wechselt, erkennt sie wieder.
 
 ## 5. Zwei Fallen, die schon zugeschnappt sind
 
-**Gleichstand macht Formen deckungsgleich.** Liegen alle Säulen auf ihrem Ziel, sind alle Werte
-gleich — ohne unterschiedliche Phase und Periode lägen die Blasen exakt übereinander und der
-Bestzustand zeigte eine einzige Blase. Deshalb bekommt jede Säule eine eigene Phase (goldener
+**Gleichstand macht Formen gleichförmig.** Liegen alle Säulen auf ihrem Ziel, sind alle Werte
+gleich — ohne unterschiedliche Phase und Periode atmeten alle Formen im Gleichschritt und der
+Bestzustand wirkte starr. Deshalb bekommt jede Säule eine eigene Phase (goldener
 Winkel) und eine eigene Periode. `balanceFigure.test.ts` nagelt das fest.
 
 **Der Auftakt darf nicht an der Shader-Uhr hängen.** Die Render-Loop läuft nur, wenn das Bild
@@ -107,55 +106,32 @@ setzt ihn auf 1.
 
 ## 6. Die Zifferblätter heute
 
-| Schlüssel  | Bild       | Größe ist …                                  | Material                          |
-| ---------- | ---------- | -------------------------------------------- | --------------------------------- |
-| `herz`     | Herz-Gefäß | Füllfläche und Streifenbreite                | Glas, Welle, Meniskus             |
-| `blasen`   | Blasen     | Radius, größte hinten                        | Seifenhaut, Fresnel-Saum, Schein  |
-| `scheiben` | Scheiben   | Radius, größte hinten (Geometrie wie oben)   | deckend, harte Kante, kein Schein |
-| `ringe`    | Ringe      | Spur (außen = stärkste) **und** Bogenlänge   | Bogen mit hellem Kopf             |
-| `strahlen` | Strahlen   | Länge, längster auf 12 Uhr                   | Lichtkeil mit auslaufendem Puls   |
-| `bluete`   | Blüte      | Lappenlänge, weitester auf 12 Uhr            | weiche Neon-Kontur, irisierend    |
-| `kristall` | Kristall   | Lappenlänge (Stützpunkte wie oben)           | Facetten, helle Kanten und Knoten |
-| `segmente` | Segmente   | äußerer Radius je Stück; Breite = Ist-Anteil | satt, Fuge, helle Lippe           |
-| `zeiger`   | Zeiger     | Länge, längster auf 12 Uhr                   | schlanker Lichtkeil, helle Spitze |
+| Schlüssel  | Bild     | Größe ist …                        | Material                          |
+| ---------- | -------- | ---------------------------------- | --------------------------------- |
+| `strahlen` | Strahlen | Länge, längster auf 12 Uhr         | Lichtkeil mit auslaufendem Puls   |
+| `bluete`   | Blüte    | Lappenlänge, weitester auf 12 Uhr  | weiche Neon-Kontur, irisierend    |
+| `kristall` | Kristall | Lappenlänge (Stützpunkte wie oben) | Facetten, helle Kanten und Knoten |
+| `zeiger`   | Zeiger   | Länge, längster auf 12 Uhr         | schlanker Lichtkeil, helle Spitze |
 
-**„Blasen" und „Scheiben" sind derselbe Stapel in zwei Materialien** — gleiche Geometrie, gleiche
-Bewegung, gleiche Slots. Sie teilen sich im Shader einen Zweig (`bool sharp`), weil jede Trennung
-der Ellipsen-Mathematik zwei Stellen erzeugte, die auseinanderlaufen können. Die Blase legt ihre
-Farbe in eine dünne Haut und lässt den Rest durchscheinen; die Scheibe ist eine satte Fläche mit
-harter Kante. Das ist keine Geschmacksfrage im Code, sondern die eine Stelle, an der ein neues
-Zifferblatt allein durch Material entstehen darf.
-
-**„Blüte" und „Kristall" folgen demselben Muster mit anderer Geometrie**: Alle Säulen bilden
+**„Blüte" und „Kristall" sind dieselbe Silhouette in zwei Materialien**: Alle Säulen bilden
 **eine** Silhouette — je Säule ein Stützpunkt auf ihrem Winkel (`buildPetals`), so weit außen wie
 ihr Wert, stärkste Säule auf 12 Uhr. Zwischen den Stützpunkten mischt die Kontur Radien **und**
 Farben der Nachbarn (Partition der Eins, `petalRadiusAt`): Die Blüte glättet die Mischung zu weichen
 Lappen mit irisierendem Saum, der Kristall lässt sie kantig — Fächerflächen aus der Mitte, deren
 Facetten das Licht je nach Lage anders fangen, dazu helle Knoten auf den Spitzen. Auch sie teilen
-sich einen Shader-Zweig (`bool soft`).
+sich einen Shader-Zweig (`bool soft`) — die eine Stelle, an der ein neues Zifferblatt allein durch
+Material entstehen darf.
 
-**„Segmente“ teilt den Ring nach Ist-Anteilen auf** — ein bewusstes zweites Maß neben der
-Kennzahl: Jedes Stück ist so breit wie der Anteil seiner Säule an der Gesamtinvestition, gefüllt
-von innen bis auf seinen Wert. Die Größe der Form bleibt die Kennzahl (die Regel aus §2, keine
-Ausnahme); die Breite zeigt, wem wie viel vom Ring zusteht. Das ist die eine Stelle, an der eine
-Figur eine zweite Größe aus der Auskunft nutzt — die Kennzahl selbst bleibt unangetastet, am
-gering gewichteten Stück bleibt die Form klein. **„Zeiger“** folgt dem Muster der Strahlen mit
+**„Zeiger“** folgt dem Muster der Strahlen mit
 schlankerer Geometrie — dieselben Winkel- und Längen-Slots, nur schmaler: Das Zifferblatt ist
 bei ihr Teil der Figur, ein breiter Keil würde die Skala unter sich begraben.
 
-**Die Soll-Marke** ist bei Blasen, Scheiben, Strahlen, Blüte, Kristall und Zeigern ein gestrichelter Kreis,
-bei den Ringen ein Strich quer über jede Spur; das Herz trägt sie in seinem Füllstand.
-
-**Was die Scheiben nicht bekommen:** keinen Kontaktschatten und keinen Neon-Schein. Ein weicher Saum
-um eine harte Kante nimmt genau die Schärfe zurück, die ihr Stilmittel ist — ihre Tiefe trägt die
-helle Lippe an der Kante.
+**Die Soll-Marke** ist in allen Zifferblättern ein gestrichelter Kreis.
 
 Gewählt wird in **Einstellungen → Darstellung und Eingabe → „Bild der Lebensbalance"**, gespeichert
-pro Gerät (`localStorage`, `pp-balance-variant`). Default ist `herz` — das Bild, das bestehende
-Nutzer kennen.
-
-Das Herz ist der Sonderfall: Es kam zuerst, hat eine eigene Geometrie (`heartGeometry.ts`) und ein
-eigenes Shader-Programm. Die übrigen teilen sich Programm, Zifferblatt und Rahmen.
+am Konto (`GET`/`PUT /balance-variant`, #2009) mit `localStorage` (`pp-balance-variant`) als
+Gerätespiegel. Default ist `bluete`; ein am Konto gespeichertes, inzwischen entferntes Bild fällt
+ebenfalls auf den Default zurück. Alle Zifferblätter teilen sich Programm, Zifferblatt und Rahmen.
 
 ## 7. Bilder zum Anschauen erzeugen
 

@@ -2,7 +2,6 @@ import { KolInputRadio } from '@public-ui/react-v19';
 import type { Pillar } from 'client';
 import { useMemo, useRef } from 'react';
 import { BalanceFigure } from './BalanceFigure';
-import { HeartVessel } from './HeartVessel';
 import { BALANCE_VARIANTS, useBalanceVariant, type BalanceVariant } from '../lib/balanceVariant';
 import { buildHeartBalance } from '../lib/heartBalance';
 import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
@@ -14,7 +13,7 @@ import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
  * (`balanceVariant.ts`, localStorage-Key `pp-balance-variant`). Aufbau bewusst wie
  * `AppearanceSetting` daneben: Beide wählen, **wie** die App aussieht, nicht **was** sie rechnet.
  *
- * Senkrecht statt waagerecht: Neun Optionen mit sprechenden Namen passen auf 375 px nicht
+ * Senkrecht statt waagerecht: Vier Optionen mit sprechenden Namen passen auf 375 px nicht
  * nebeneinander, ohne dass die Beschriftungen umbrechen (mobile-ui-rules.md).
  *
  * Darunter eine stille Vorschau des gewählten Bildes mit festen Beispieldaten — sie wechselt mit
@@ -56,7 +55,7 @@ export const BalanceVariantSetting = () => {
 				_orientation="vertical"
 				_options={options}
 				_value={variant}
-				_hint="Alle Bilder zeigen dieselbe Rechnung: je Säule das Verhältnis von Ist zu Ziel — die stärkste Säule bekommt überall die größte Form. „Herz“ füllt ein Gefäß; „Blasen“ und „Scheiben“ stapeln dieselben Formen in zwei Materialien, „Ringe“ zeigt sie als Bögen, „Strahlen“ als Lichtkeile. „Blüte“ und „Kristall“ fassen alle Säulen zu einer Silhouette zusammen — weich einmal, kantig einmal. „Segmente“ teilt den Ring nach Ist-Anteilen auf, „Zeiger“ zeigt je Säule einen Zeiger auf dem Zifferblatt."
+				_hint="Alle Bilder zeigen dieselbe Rechnung: je Säule das Verhältnis von Ist zu Ziel — die stärkste Säule bekommt überall die größte Form. „Strahlen“ zeigt sie als Lichtkeile. „Blüte“ und „Kristall“ fassen alle Säulen zu einer Silhouette zusammen — weich einmal, kantig einmal. „Zeiger“ zeigt je Säule einen Zeiger auf dem Zifferblatt."
 				_on={{
 					onChange: (_event, value) => {
 						if (typeof value === 'string') {
@@ -70,17 +69,13 @@ export const BalanceVariantSetting = () => {
 				data-variante={variant}
 				data-testid="balance-variant-preview"
 			>
-				{variant === 'herz' ? (
-					<HeartVessel balance={PREVIEW_BALANCE} animated={false} ariaLabel="Vorschau: Herz" />
-				) : (
-					<BalanceFigure
-						balance={PREVIEW_BALANCE}
-						figure={variant}
-						animated={false}
-						beatSeconds={2}
-						ariaLabel={`Vorschau: ${BALANCE_VARIANTS.find((option) => option.value === variant)?.label ?? ''}`}
-					/>
-				)}
+				<BalanceFigure
+					balance={PREVIEW_BALANCE}
+					figure={variant}
+					animated={false}
+					beatSeconds={2}
+					ariaLabel={`Vorschau: ${BALANCE_VARIANTS.find((option) => option.value === variant)?.label ?? ''}`}
+				/>
 			</div>
 		</div>
 	);

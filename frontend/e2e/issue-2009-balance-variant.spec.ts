@@ -15,7 +15,7 @@ import { waitForStableView } from './helpers';
  * der Fixture-/test-login-Weg legt konten ohne Säulen an). Beobachtet wird die Bühne der
  * Startseite: `.heart-balance-stage[data-variante]` (HeartBalance.tsx).
  *
- * Rot heute: die Wahl ist reine localStorage-Sache — Kontext B zeigt `herz`.
+ * Gewählt werden bewusst Bilder abseits des Defaults `bluete` — sonst bestünde der Test auch ohne Sync.
  */
 
 const VIEWPORT = { width: 375, height: 812 };
@@ -54,7 +54,7 @@ const waehleInKontextA = async (
 test.describe('Balamentum — #2009: Zifferblatt-Auswahl auf allen Geräten', () => {
 	test('AK4+AK6 — Konto-Wahl erscheint im frischen Geräte-Kontext (375 px) auf der Startseite', async ({ browser }) => {
 		const kontextA = await browser.newContext({ viewport: VIEWPORT });
-		await waehleInKontextA(kontextA, 'e2e-2009-sync@example.com', 'sync-1234', 'Blasen');
+		await waehleInKontextA(kontextA, 'e2e-2009-sync@example.com', 'sync-1234', 'Kristall');
 
 		// Kontext B: frischer Storage, keine Cookies — nur dieselbe Anmeldung am selben Konto.
 		const kontextB = await browser.newContext({ viewport: VIEWPORT });
@@ -66,7 +66,7 @@ test.describe('Balamentum — #2009: Zifferblatt-Auswahl auf allen Geräten', ()
 
 		await seiteB.goto('/app/');
 		await waitForStableView(seiteB);
-		await expect(seiteB.locator('.heart-balance-stage')).toHaveAttribute('data-variante', 'blasen');
+		await expect(seiteB.locator('.heart-balance-stage')).toHaveAttribute('data-variante', 'kristall');
 
 		await kontextA.close();
 		await kontextB.close();
@@ -74,7 +74,7 @@ test.describe('Balamentum — #2009: Zifferblatt-Auswahl auf allen Geräten', ()
 
 	test('AK5 — Wahl übersteht Ab- und Anmeldung desselben Kontexts', async ({ browser }) => {
 		const kontextA = await browser.newContext({ viewport: VIEWPORT });
-		await waehleInKontextA(kontextA, 'e2e-2009-relogin@example.com', 'sync-1234', 'Ringe');
+		await waehleInKontextA(kontextA, 'e2e-2009-relogin@example.com', 'sync-1234', 'Zeiger');
 
 		const kontextB = await browser.newContext({ viewport: VIEWPORT });
 		const seiteB = await kontextB.newPage();
@@ -82,7 +82,7 @@ test.describe('Balamentum — #2009: Zifferblatt-Auswahl auf allen Geräten', ()
 		await seiteB.request.post('/auth/login', { data: konto });
 		await seiteB.goto('/app/');
 		await waitForStableView(seiteB);
-		await expect(seiteB.locator('.heart-balance-stage')).toHaveAttribute('data-variante', 'ringe');
+		await expect(seiteB.locator('.heart-balance-stage')).toHaveAttribute('data-variante', 'zeiger');
 
 		// Abmelden (Session beenden) und wieder anmelden — das Bild bleibt.
 		const logout = await seiteB.request.post('/auth/logout');
@@ -92,7 +92,7 @@ test.describe('Balamentum — #2009: Zifferblatt-Auswahl auf allen Geräten', ()
 
 		await seiteB.goto('/app/');
 		await waitForStableView(seiteB);
-		await expect(seiteB.locator('.heart-balance-stage')).toHaveAttribute('data-variante', 'ringe');
+		await expect(seiteB.locator('.heart-balance-stage')).toHaveAttribute('data-variante', 'zeiger');
 
 		await kontextA.close();
 		await kontextB.close();
