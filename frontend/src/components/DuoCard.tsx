@@ -91,7 +91,9 @@ export const DuoCard = ({ groupId }: { groupId: number }) => {
 								<h4 className="duo-member-name">{member.name}</h4>
 								<ul className="duo-pillars">
 									{member.saeulen.map((saeule) => (
-										<li key={saeule.pillarId}>{t('duo.pillarPoints', { name: saeule.name, points: saeule.wert })}</li>
+										<li key={saeule.pillarId}>
+											{t('duo.pillarPoints', { name: saeule.name, count: saeule.wert, points: saeule.wert })}
+										</li>
 									))}
 								</ul>
 							</section>

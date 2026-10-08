@@ -7,6 +7,7 @@ import { getUserId, ownerScope } from '../requireAuth.js';
 import { getVapidPublicKey, isPushConfigured, sendPushToUser } from '../../logics/push.js';
 import type { PushSender } from '../../logics/push.js';
 import { pickRandomQuote } from '../../logics/pushTestQuote.js';
+import { spracheAusHeader } from '../../logics/careSuggestionData.js';
 import type { components } from '../../api';
 
 type VapidPublicKeyDto = components['schemas']['VapidPublicKey'];
@@ -178,7 +179,8 @@ export const createPushRouter = (pushSender?: PushSender) => {
 			return;
 		}
 		const userId = getUserId(req);
-		const quote = pickRandomQuote();
+		const { en, ...deutsch } = pickRandomQuote();
+		const quote = spracheAusHeader(req.get('accept-language')) === 'en' ? { ...deutsch, text: en } : deutsch;
 		const payload = { title: quote.text, body: `— ${quote.author}`, url: '/' };
 		// pushSender ist undefined im Produktivbetrieb → sendPushToUser nutzt seinen web-push-Default.
 		const { sent } = pushSender

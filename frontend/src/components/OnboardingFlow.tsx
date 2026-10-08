@@ -207,7 +207,7 @@ export const OnboardingFlow = ({ pillars, onClose, onApplied, active = true, onI
 			// Der Fehler-Alert nennt, wie viele Aufgaben schon angelegt sind — der Retry vervollständigt.
 			const done = Object.keys(ids).length;
 			setApplyError(
-				done > 0 ? `${t('onboarding.partialInfo', { count: String(done) })} ${apiError.message}` : apiError.message,
+				done > 0 ? `${t('onboarding.partialInfo', { count: done })} ${apiError.message}` : apiError.message,
 			);
 		} finally {
 			setApplying(false);

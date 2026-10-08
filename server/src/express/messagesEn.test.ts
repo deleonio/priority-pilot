@@ -19,12 +19,14 @@ describe('translateMessages', () => {
 			message: 'Anmeldung erforderlich.',
 			saeulen: [{ name: 'Körper' }, { name: 'Mein Sport' }],
 			vorschlag: { saeuleName: 'Sinn' },
+			reasons: { pillars: ['Körper', 'Sinn'] },
 			am: new Date('2026-01-02T00:00:00Z'),
 		};
 		assert.deepEqual(antwort('en-US,en;q=0.9', body), {
 			message: 'Sign-in required.',
 			saeulen: [{ name: 'Body' }, { name: 'Mein Sport' }],
 			vorschlag: { saeuleName: 'Meaning' },
+			reasons: { pillars: ['Body', 'Meaning'] },
 			am: '2026-01-02T00:00:00.000Z',
 		});
 	});

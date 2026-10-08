@@ -156,12 +156,12 @@
 	},
 	"categoryDeleteDialog": {
 		"title": "Kategorie löschen",
-		"body": "Soll die Kategorie <strong>„{{name}}“</strong> wirklich gelöscht werden? Aufgaben und Serien in dieser Kategorie bleiben erhalten und verlieren nur ihre Zuordnung.",
+		"body": "Soll die Kategorie „<name/>“ wirklich gelöscht werden? Aufgaben und Serien in dieser Kategorie bleiben erhalten und verlieren nur ihre Zuordnung.",
 		"confirm": "Endgültig löschen"
 	},
 	"llmProviderDeleteDialog": {
 		"title": "Provider löschen",
-		"body": "Soll der Provider <strong>„{{name}}“</strong> ({{endpoint}}) wirklich gelöscht werden?",
+		"body": "Soll der Provider „<name/>“ (<endpoint/>) wirklich gelöscht werden?",
 		"activeHint": "Er ist der AKTIVE Provider — danach übernimmt automatisch der Fallback (Mistral vor OpenRouter, je nach Server-ENV).",
 		"irreversible": "Diese Aktion kann nicht rückgängig gemacht werden.",
 		"confirm": "Endgültig löschen"
@@ -383,7 +383,8 @@
 		"noTasks": "Mit dem gewählten Filter gab es keine Aufgaben zu bearbeiten.",
 		"result": "<strong>{{updated}}</strong> Aufgaben neu zugeordnet, {{skipped}} unverändert gelassen, {{failed}} fehlgeschlagen.",
 		"quotaExhaustedLabel": "KI-Kontingent aufgebraucht",
-		"quotaExhaustedText": "Der Lauf hat angehalten. {{open}} Aufgaben sind noch offen — im nächsten Abrechnungsmonat oder mit einem größeren Paket lässt er sich fortsetzen.",
+		"quotaExhaustedText_one": "Der Lauf hat angehalten. {{count}} Aufgabe ist noch offen — im nächsten Abrechnungsmonat oder mit einem größeren Paket lässt er sich fortsetzen.",
+		"quotaExhaustedText_other": "Der Lauf hat angehalten. {{count}} Aufgaben sind noch offen — im nächsten Abrechnungsmonat oder mit einem größeren Paket lässt er sich fortsetzen.",
 		"pendingHint": "{{pending}} Aufgaben sind noch offen. „Fortsetzen“ verarbeitet nur diese, auch später nach einem Neuladen."
 	}
 }

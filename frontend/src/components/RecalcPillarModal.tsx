@@ -149,7 +149,7 @@ export const RecalcPillarModal = ({ onClose, onCompleted }: RecalcPillarModalPro
 
 					{run.quotaExhausted && (
 						<KolAlert _type="warning" _label={t('recalcPillar.quotaExhaustedLabel')}>
-							{t('recalcPillar.quotaExhaustedText', { open: run.total - run.processed })}
+							{t('recalcPillar.quotaExhaustedText', { count: run.total - run.processed })}
 						</KolAlert>
 					)}
 

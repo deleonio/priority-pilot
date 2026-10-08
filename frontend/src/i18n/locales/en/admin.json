@@ -75,7 +75,7 @@
 		"lockNow": "Lock now",
 		"cancelNow": "Cancel now",
 		"deleteFailed": "Deletion not possible",
-		"deleteIntent": "Really delete the account of <strong>{{name}}</strong> (<strong>{{email}}</strong>)?",
+		"deleteIntent": "Really delete the account of <name/> (<email/>)?",
 		"deleteScope": "Personal data and feedback will be removed. Invoices and subscription records are kept due to the retention obligation. This cannot be undone.",
 		"deletingAccount": "Deleting …",
 		"deleteAccountFinal": "Delete account permanently"

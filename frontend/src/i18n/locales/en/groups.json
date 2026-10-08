@@ -28,8 +28,8 @@
 	"deleteDialog": {
 		"title": "Delete group",
 		"errorLabel": "Deletion failed",
-		"intent": "Do you really want to delete the group <strong>“{{name}}”</strong>?",
-		"scope": "The group <strong>“{{name}}”</strong> will be permanently deleted — including all member entries. This action cannot be undone.",
+		"intent": "Do you really want to delete the group “<name/>”?",
+		"scope": "The group “<name/>” will be permanently deleted — including all member entries. This action cannot be undone.",
 		"confirm": "Delete permanently"
 	},
 	"detail": {
@@ -65,7 +65,7 @@
 		"copyLink": "Copy link",
 		"revoke": "Revoke",
 		"removeTitle": "Remove member",
-		"removeText": "Do you really want to remove <strong>“{{name}}”</strong> from the group? They will lose access to the group and its content.",
+		"removeText": "Do you really want to remove “<name/>” from the group? They will lose access to the group and its content.",
 		"revokeTitle": "Revoke invite link",
 		"revokeText": "Do you really want to revoke this invite link? Nobody will be able to join with it — this cannot be undone. People who already joined stay members."
 	},
@@ -93,7 +93,7 @@
 		"invalidLabel": "Invitation no longer valid",
 		"invalidText": "This invitation is no longer valid — it has expired or was revoked. Feel free to ask the person who invited you for a new link.",
 		"errorLabel": "Sorry, that did not work",
-		"context": "<strong>{{inviter}}</strong> invited you to the group <strong>{{group}}</strong>.",
+		"context": "<inviter/> invited you to the group <group/>.",
 		"join": "Join group",
 		"joinedLabel": "Joined",
 		"joinedText": "You joined the group “{{name}}”.",

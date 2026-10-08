@@ -275,10 +275,10 @@
 		"inAppTitle": "Nell’app",
 		"steps": [
 			"Apri Balamentum e accedi.",
-			"Apri le impostazioni, scheda «Allgemein» (Generale).",
-			"Nella scheda «Konto» (Account), tocca «Elimina account» e conferma entrambi i passaggi."
+			"Apri le impostazioni, scheda «General» (Generale).",
+			"Nella scheda «Account», tocca «Delete account» (Elimina account) e conferma entrambi i passaggi."
 		],
-		"blocked": "Se è ancora attivo un abbonamento, disdicilo prima nella scheda «Abo» (Abbonamento). Se sei l’ultimo amministratore di un gruppo con altri membri, nomina prima un’altra persona amministratore oppure sciogli il gruppo.",
+		"blocked": "Se è ancora attivo un abbonamento, disdicilo prima nella scheda «Plans & subscription» (Piani e abbonamento). Se sei l’ultimo amministratore di un gruppo con altri membri, nomina prima un’altra persona amministratore oppure sciogli il gruppo.",
 		"deletedTitle": "Cosa viene eliminato",
 		"deleted": "Il tuo account con tutte le attività, serie, pilastri, categorie, impostazioni, token di accesso e registrazioni push. Vengono eliminati anche i gruppi in cui sei l’unico membro. Le attività che hai creato per altri nei gruppi restano ai destinatari, senza di te come autore.",
 		"keptTitle": "Cosa viene conservato",

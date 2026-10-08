@@ -109,7 +109,7 @@
 	"completeTask": {
 		"title": "Aufgabe erledigen",
 		"failed": "Erledigen fehlgeschlagen",
-		"question": "Soll die Aufgabe <title/> als erledigt markiert werden?",
+		"question": "Soll die Aufgabe „<title/>“ als erledigt markiert werden?",
 		"itemLabel": "Erledigen",
 		"checkAll": "Alle abhaken",
 		"completing": "Wird erledigt…",
@@ -124,7 +124,7 @@
 	},
 	"deleteTask": {
 		"title": "Task löschen",
-		"body": "Soll der Task <title/> wirklich gelöscht werden? Diese Aktion kann nicht rückgängig gemacht werden.",
+		"body": "Soll der Task „<title/>“ wirklich gelöscht werden? Diese Aktion kann nicht rückgängig gemacht werden.",
 		"confirm": "Endgültig löschen"
 	},
 	"confirmDelete": {
@@ -142,7 +142,7 @@
 		"restore": "Wiederherstellen"
 	},
 	"missedComplete": {
-		"question": "Aufgabe <title/> erst jetzt erledigt?",
+		"question": "Aufgabe „<title/>“ erst jetzt erledigt?",
 		"onTime": "Nein, pünktlich",
 		"now": "Ja, jetzt"
 	},

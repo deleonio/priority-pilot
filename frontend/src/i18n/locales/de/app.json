@@ -46,7 +46,8 @@
 	},
 	"apiError": {
 		"session": "Nicht eingeloggt. Bitte melde dich erneut an.",
-		"throttledSeconds": "Zu viele Anfragen in kurzer Zeit. Bitte {{seconds}} Sekunden warten und es dann noch einmal versuchen.",
+		"throttledSeconds_one": "Zu viele Anfragen in kurzer Zeit. Bitte {{count}} Sekunde warten und es dann noch einmal versuchen.",
+		"throttledSeconds_other": "Zu viele Anfragen in kurzer Zeit. Bitte {{count}} Sekunden warten und es dann noch einmal versuchen.",
 		"throttled": "Zu viele Anfragen in kurzer Zeit. Bitte einen Moment warten und es dann noch einmal versuchen.",
 		"planRequired": "{{feature}} braucht das Paket {{plan}}. Paket wechseln: Einstellungen → Pakete.",
 		"server": "Serverfehler (HTTP {{status}}).",

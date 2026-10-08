@@ -16,7 +16,6 @@ import pt from './i18n/pt.json';
 import ru from './i18n/ru.json';
 import sv from './i18n/sv.json';
 import {
-	EMAIL_LOGIN_PATH,
 	LOCALES,
 	LOGIN_PATH,
 	SIGNED_IN_REDIRECT,
@@ -118,7 +117,17 @@ describe('renderLanding', () => {
 		const html = landing('de');
 		expect(html).toContain(`href="${LOGIN_PATH}"`);
 		expect(html).toContain(de.hero.cta);
-		expect(html).toContain(`href="${EMAIL_LOGIN_PATH}"`);
+		expect(html).toContain('href="/app/?login=email"');
+		expect(html).not.toContain('lng=');
+	});
+
+	it('startet die App auf nicht-deutschen Seiten englisch', () => {
+		for (const locale of LOCALES.filter((target) => target !== 'de')) {
+			const html = landing(locale);
+			expect(html, locale).toContain('href="/app/?lng=en"');
+			expect(html, locale).toContain('href="/app/?login=email&lng=en"');
+			expect(html, locale).not.toContain('href="/app/"');
+		}
 	});
 
 	it('schickt nur auf der Startseite angemeldete Nutzer vor dem Stylesheet in die App', () => {

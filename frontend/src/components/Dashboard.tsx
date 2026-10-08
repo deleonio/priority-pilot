@@ -577,7 +577,7 @@ export const Dashboard = ({
 								<li key={pillar.id} className="dashboard-balance-row" data-testid="balance-pillar-row">
 									<span className="dashboard-balance-name">{pillar.name}</span>
 									<span className="dashboard-balance-value">
-										{t('balance.row', { points: formatNumber(punkte), share: Math.round(anteil * 100) })}
+										{t('balance.row', { count: punkte, points: formatNumber(punkte), share: Math.round(anteil * 100) })}
 									</span>
 								</li>
 							))}

@@ -69,7 +69,8 @@ export const PillarList = () => {
 			) : (
 				<ul className="pillar-items">
 					{pillars.map((pillar) => {
-						// #1848: Übersetzung über den stabilen `key`, sonst der (deutsche) Server-Text.
+						// #1848: Übersetzung über den stabilen `key`, sonst der Server-Text (bei `en` liefert
+						// der Server die Katalogbeschreibung bereits englisch).
 						const description = pillar.key
 							? t(`common:pillars.${pillar.key}.description`, { defaultValue: pillar.description })
 							: pillar.description;

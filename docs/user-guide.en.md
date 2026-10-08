@@ -71,7 +71,7 @@ Below it, a **tab bar** lets you switch between the five main views:
 
 The dashboard is the start page and display only. If a name is stored,
 it greets you with **"Hello {name}!"**. As long as you have no tasks yet, the app
-shows a card with the button **"Create first task"** instead. From top to bottom:
+shows a card with the button **"Create your first task"** instead. From top to bottom:
 
 - **My life balance:** an image shows how evenly your completed
   tasks of the last four weeks are spread across your pillars – each pillar has
@@ -93,15 +93,15 @@ shows a card with the button **"Create first task"** instead. From top to bottom
   score down more clearly than many small deviations. The legend lists, for each pillar, the
   actual share, the target and the deviation in percentage points (`pp`), and the text
   below the number says which pillar is falling behind and which is pulling ahead.
-- **Status tiles:** **Total**, **Open** and **Completed** – the number of your
+- **Status tiles:** **Total**, **Open** and **Done** – the number of your
   tasks at a glance.
 - **Care hint:** if a pillar is getting too little attention, a suggestion for it appears above the next
   task. If one pillar carries most of your effort (overload), the
   hint suggests balance or a break instead. With Plus or Pro, the suggestion can
   come from the AI based on your previous tasks; it is then labeled **"AI suggestion"**,
-  and "Decline suggestion" hides it until the end of the day. **"Accept suggestion"** creates it as a task (an existing task
-  is set to "In process"), **"Not now"** hides the hint until the end of the day,
-  **"Decline suggestion"** for 14 days. If there is no suggestion, a short
+  and "Not this suggestion again" hides it until the end of the day. **"Accept suggestion"** creates it as a task (an existing task
+  is set to "In progress"), **"Not today"** hides the hint until the end of the day,
+  **"Not this suggestion again"** for 14 days. If there is no suggestion, a short
   message appears there.
 - **Next task:** the task with the highest priority whose predecessors are all
   completed.
@@ -134,24 +134,24 @@ shows a card with the button **"Create first task"** instead. From top to bottom
   deadline and lists up to three of the most recently cleaned-up titles (see
   "Automatic deletion after a missed deadline").
 - **"Missed" section:** overdue open tasks without auto-delete are collected
-  above the task list — with a postpone counter and the actions "Done" (asks: "Task only completed now?" – "Yes, now" counts as late, "No, on time" books the completion on the deadline), "Reschedule",
+  above the task list — with a postpone counter and the actions "Done" (asks: "Did you only just complete …?" – "Yes, just now" counts as late, "No, on time" books the completion on the deadline), "Reschedule",
   "Archive" and "Delete" (on Dashboard and Tasks). Archived tasks disappear from the
   list and the section; you find them on the Tasks page with the "Show archived" toggle
   and bring them back there with "Restore". Not to be confused with the "Missed
   tasks" card above — that one only counts automatic deletions.
 - **Day done:** a short hint that appears when no task is open anymore
   and your last completion was today.
-- **Total credit:** your score from completed tasks, broken down by
+- **Total balance:** your score from completed tasks, broken down by
   pillar (see "Completed tasks and points").
 - **Upcoming deadlines:** open tasks with a due date, sorted by date.
   A colored badge warns about **overdue** (red) and **due soon**
   (orange, today up to 3 days ahead) tasks.
 
-Above the cards you switch between **Today** and **Week**. The
+Above the cards, the **"Week view"** switch toggles between the day and the week view. The
 week view shows the current calendar week as seven day cards (Monday first) with
 the open tasks due on that day; completed ones appear struck through
 below. Events from a connected calendar (see "Calendar" under Settings → General)
-appear above the tasks of their day, with a time or as "all day". Under Today you also see the
+appear above the tasks of their day, with a time or as "all day". In the day view you also see the
 recommended tasks and the next task. With **"Open day"** you jump to the
 Tasks tab and see that day's tasks there.
 
@@ -204,7 +204,7 @@ On the right of each row there can be **badges**:
 - **Draft / Summary / Research** – this is where the AI could do some groundwork; the app detects this from the title and
   description, without sending anything to the AI. Only visible with the AI plan feature.
 - **Series** (repeat symbol) – the task comes from a series.
-- **modified** – a series instance that you have edited individually.
+- **changed** – a series instance that you have edited individually.
 - **Progress** as `completed/total` – only for tasks with subtasks; counts
   all subtasks underneath.
 - **Priority** as `P1` to `P5` – the color indicates importance: P1 blue,
@@ -225,7 +225,7 @@ In the menu you find:
   undo right after completing.
 - **Edit** (pencil) – opens the task form.
 - **Dependencies** (chain) – opens the predecessor editor.
-- **Create subtask** (plus) – creates a new task that is automatically linked to the
+- **Add subtask** (plus) – creates a new task that is automatically linked to the
   current one as a predecessor.
 - **Pin / Unpin** (pin) – keeps a task permanently at the top of the list,
   regardless of sorting; a pin symbol marks it in the row. Unpin
@@ -269,7 +269,7 @@ The task form appears in the same dialog. Fields:
   field shows the current number of characters.
 - **Priority** – slider, whole number from **1 to 5** (default 3). Higher =
   more important; feeds directly into the value.
-- **Estimated effort in days** – slider from **0.1 to 1** (default 0.5).
+- **Effort in days** – slider from **0.1 to 1** (default 0.5).
 - **Deadline (optional)** – due date. Only the calendar day counts,
   regardless of time zone.
 - **Address (optional)** – a location for the task. While you type,
@@ -286,7 +286,7 @@ The task form appears in the same dialog. Fields:
 - **Description (optional)** – further context, max. 3000 characters.
 - **Checklist (optional)** – break the task down into steps you can check off.
   Entries can be added, checked off and removed.
-- **Automatic deletion (optional)** – automatically delete the task 3 days after a missed
+- **"Delete automatically 3 days after a missed deadline"** – automatically delete the task 3 days after a missed
   deadline (only available when a deadline is set; always available for series,
   since the start date serves as the due date).
 - **Copy editing** – with a button next to title and description you can ask the AI
@@ -330,7 +330,7 @@ It does not feed into the value calculation; it is purely for overview.
 
 ## Automatic deletion after a missed deadline
 
-If you enable **"Delete automatically after 3 days if the deadline is missed"** in the form
+If you enable **"Delete automatically 3 days after a missed deadline"** in the form
 (checkbox, only visible when a deadline is set), the task is deleted automatically **3 days after
 the deadline has passed** – **but only if it has not been completed by then**.
 
@@ -343,7 +343,7 @@ option is always available, since the series' start date serves as the due date.
 ## Copy editing
 
 Next to the **title** and **description** fields you find a button with a
-magic wand icon each: **"Edit title"** and **"Edit description"**.
+magic wand icon each: **"Proofread title"** and **"Proofread description"**.
 
 - A click sends the current text to the AI – to the provider that is enabled in the
   settings.
@@ -455,7 +455,7 @@ all pillars and saved that way the next time you save.
 With **"Suggest pillars"** an AI suggests the shares based on title and description.
 The suggestion appears as a separate **"AI suggestion"** block and is never applied
 automatically – not even after quick capture with a pre-filled title. Only
-**"Accept suggestion"** sets the distribution to the AI shares; **"Discard"** leaves your
+**"Apply suggestion"** sets the distribution to the AI shares; **"Discard"** leaves your
 previous ranking unchanged.
 
 ### Adjusting the pillar weighting
@@ -482,7 +482,7 @@ in the free-text step.
 - Optionally, describe your question or situation in the text field (e.g. "What can I do
   for myself this weekend?"). Without a question you get suggestions across all
   pillars. The field supports **voice input**.
-- The suggestions appear below the text field; the dialog stays open. With **"Use as
+- The suggestions appear below the text field; the dialog stays open. With **"Add as
   task"** you write a suggestion back into the same text field and go from there
   to the form with **"Process and continue"**.
 
@@ -517,8 +517,8 @@ Balamentum regularly generates new task instances.
   are kept as independent tasks in both cases.
 
 Tasks created from a series carry the **Series** badge in the task tree;
-if you change an instance individually, **modified** is added. Tasks from a template carry
-**Template** or **Template (modified)**.
+if you change an instance individually, **Series (changed)** appears. Tasks from a template carry
+**Template** or **Template (changed)**.
 
 If someone in a group created a series for you and the shared
 membership ends – because someone leaves the group or the group is deleted –,
@@ -587,12 +587,12 @@ When you complete a task, you collect points:
   pillars – according to the share with which the task contributes to each pillar.
   If you complete a task only after its deadline, you get only
   half the points.
-- Tasks without a pillar assignment feed into the **dashboard total credit**, distributed
+- Tasks without a pillar assignment feed into the **dashboard total balance**, distributed
   according to your pillar weighting — in the completed table they show 0 points per column.
   This way, completed work becomes visible even without an assigned pillar.
 
 Your total score and the breakdown per pillar appear on the dashboard under
-**"Total credit"**.
+**"Total balance"**.
 
 ### Milestone badges
 
@@ -613,7 +613,7 @@ task lowers your point total, but no longer takes away a level you have already 
 ## Settings
 
 The **gear** in the header opens the settings with the sections
-General, Pillars, Categories, Location, Places, AI, Groups and **Plans & subscription**. App admins also see the **User management** section
+General, Pillars, Categories, Location, AI, Groups, **Plans & subscription** and Data. App admins also see the **User management** section
 (see below).
 
 ### General
@@ -683,7 +683,7 @@ copy-editing buttons disappear from the task form. The sections below are then
 collapsed and can be expanded with a click; existing access tokens remain valid. Without
 a suitable plan, all controls in the tab are locked, even with your own provider.
 
-The AI is configured in the **AI providers** card (quick capture, pillar suggestion, pillar advisor,
+The AI is configured in the **AI provider** card (quick capture, pillar suggestion, pillar advisor,
 copy editing). You choose the active provider and from it, via dropdown, the model – the
 model list is loaded live from the provider. Built-in providers (Mistral, OpenRouter)
 get their access from the server; you create your own providers via **"New provider"**
@@ -695,14 +695,14 @@ tab shows a hint that the AI features are not usable yet.
 
 In the **Access tokens** card, under **"Create access token"**, you create personal
 **tokens** with which AI clients such as Claude and other external programs access your data
-– with your permissions. **"Generate token"** creates one and shows its
+– with your permissions. **"Create token"** creates one and shows its
 key **exactly once**; under **"Existing access tokens"** you then only see the
 name, permission level, expiry and last use. For each token you switch between **Read
 only** and **Read and write**. **"Revoke"** blocks a token from the
 next call on.
 
 In the **Dialog instructions for the AI** card you store a free text (up to 2000
-characters, e.g. "Answer briefly and concisely."). AI clients that connect via access token
+characters, e.g. "Keep answers short and concise."). AI clients that connect via access token
 receive it when the connection is established. **"Save"** applies the text; an
 empty field deletes the instructions. The tools and permissions of the tokens do not change as a result.
 
@@ -715,13 +715,13 @@ empty field deletes the instructions. The tools and permissions of the tokens do
   address for the location. Three sliders control the location feature – they
   belong to **expert mode** (Settings → General):
   **Display distance** – up to this distance the "Nearby" list shows
-  tasks; **Alert distance** – if a task is closer than this distance,
+  tasks; **Alarm distance** – if a task is closer than this distance,
   a push notification arrives; **Update interval** – how often the position is
   determined.
 
 ### Places
 
-Saved places have their own tab and are independent of the location switch. You save places you need often here once and then pick them directly in the address field.
+Saved places sit in the **Location** tab and are independent of the location switch. You save places you need often here once and then pick them directly in the address field.
 
 - **Create:** under **"Saved places"**, type an address and choose it from the
   suggestion list – address and coordinates are taken over together –,
@@ -760,18 +760,18 @@ In _Settings → Groups_ you organize tasks together with other users:
 
 - **Create group:** set a name – this makes you the group's admin. Admins carry
   the **"Admin"** badge, members **"Member"**.
-- **Manage members:** as an admin, you search for an account in the group via **"Search account"**
+- **Invite members:** as an admin, you search for an account in the group via **"Search account"**
   and invite it with **"Invite"**; removing members is also
   only possible as an admin.
-- **Invite by link:** in the group, under **"Create link"**, you create an
+- **Invite links:** in the group, under **"Create link"**, you create an
   invitation link. Whoever opens it – even without being signed in – lands on a page with
-  **"Join group"**. Under **"Open invitations"** you can copy links or
-  invalidate them (**"Invalidate"**).
+  **"Join group"**. In the same section you can copy links or
+  revoke them (**"Revoke"**).
 - **Duo:** when creating, choose the **"Duo"** option under **"Type"** – two people
   who see a shared streak and their pillar scores, but none of each other's tasks.
   You bring in your partner via **"Create link"**; once the duo is full, inviting is no longer available.
 - **Invitations** (card in the group overview, not to be confused with
-  "Open invitations"): invited accounts can accept or decline.
+  "Pending invitations"): invited accounts can accept or decline.
 - **Create tasks for others:** in the task and series form, you choose in the
   **"Recipient"** field who the task is for. In the lists you recognize
   other people's tasks by the hints **"For: {name}"** and **"Created by: {name}"**;
@@ -779,7 +779,7 @@ In _Settings → Groups_ you organize tasks together with other users:
 - **7-day challenge:** any member can start a week focused on balance in the group via
   **"Start 7-day challenge"**. The
   ranking measures the balance of the tasks completed in that week, not their number;
-  anyone who has not completed anything yet is at the end with "No score yet". After seven days
+  anyone who has not completed anything yet is at the end with "No value yet". After seven days
   the challenge ends on its own, and **"Share"** creates a summary card with
   the group name, period and ranking – without task contents.
 
@@ -799,11 +799,11 @@ who manages a group is therefore not yet an admin of the app.
   _User management_ section in the settings with all accounts (name, email, role). Using the
   role toggles per account (Admin, Member, Tester) you change the role;
   the change takes effect immediately, even for people who are already signed in.
-- **Block/cancel subscription:** with "Block subscription" you immediately stop a
+- **Lock/cancel subscription:** with "Lock subscription" you immediately lock a
   person's access to their paid plan. "Cancel subscription" cancels the subscription with the
   payment provider – the paid plan then continues until the end of the
   booked period. Both actions require a confirmation;
-  Google Play subscriptions cannot be cancelled, but they can be blocked.
+  Google Play subscriptions cannot be cancelled, but they can be locked.
 - **Delete subscriptions:** under "Subscriptions of …" you delete a single subscription or, via
   "Delete all subscriptions of this user", all subscriptions of a person – after a
   confirmation. The subscription is cancelled with the payment provider and removed completely together with its
@@ -835,11 +835,11 @@ when the app is not open.
   the app usually helps (see below).
 - The app sends reminders once a day as **one bundled notification each**:
   all open tasks whose deadline expires within the next 24 hours or
-  has already passed ("Due tasks"). In addition, there is a **separate** notification
-  "Your top tasks" with up to three tasks. A due date that has already been reported
+  has already passed ("Tasks due"). In addition, there is a **separate** notification
+  "Your most important tasks" with up to three tasks. A due date that has already been reported
   is not reported again.
 - If location tracking is active, you additionally get a hint when an
-  open task with a location is closer than your alert distance (default 1 km):
+  open task with a location is closer than your alarm distance (default 1 km):
   as a single notification with title and distance, or as a bundled notification
   "X tasks nearby". Here, too, the same task is not reported again
   right away.
@@ -866,7 +866,7 @@ Balamentum is an **installable web app (PWA)** and also works offline.
 - **Update:** when a new version is available, a card with
   **"Reload now"** appears at the bottom. A click loads the current version.
 
-A **"Ready to work offline"** card confirms that the app can also be used without a connection.
+A **"Ready for offline use"** card confirms that the app can also be used without a connection.
 
 The current version number is shown in the **footer**; if location tracking is
 active, your most recently determined position is shown there as well.

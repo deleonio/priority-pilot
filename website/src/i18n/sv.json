@@ -275,10 +275,10 @@
 		"inAppTitle": "I appen",
 		"steps": [
 			"Öppna Balamentum och logga in.",
-			"Öppna inställningarna, fliken ”Allgemein” (Allmänt).",
-			"Tryck på ”Radera konto” i kortet ”Konto” och bekräfta båda stegen."
+			"Öppna inställningarna, fliken ”General” (Allmänt).",
+			"Tryck på ”Delete account” (Radera konto) i kortet ”Account” (Konto) och bekräfta båda stegen."
 		],
-		"blocked": "Om en prenumeration fortfarande löper, säg först upp den i fliken ”Abo” (Prenumeration). Om du är den sista administratören i en grupp med andra medlemmar, gör först någon annan till administratör eller lös upp gruppen.",
+		"blocked": "Om en prenumeration fortfarande löper, säg först upp den i fliken ”Plans & subscription” (Planer och prenumeration). Om du är den sista administratören i en grupp med andra medlemmar, gör först någon annan till administratör eller lös upp gruppen.",
 		"deletedTitle": "Vad som raderas",
 		"deleted": "Ditt konto med alla uppgifter, serier, pelare, kategorier, inställningar, åtkomsttoken och push-registreringar. Grupper där du är den enda medlemmen raderas också. Uppgifter som du har skapat åt andra i grupper finns kvar hos mottagarna, utan dig som skapare.",
 		"keptTitle": "Vad som sparas",

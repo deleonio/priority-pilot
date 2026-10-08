@@ -40,10 +40,20 @@ void i18next
 		defaultNS: 'common',
 		// React maskiert selbst; i18nexts zusätzliches Escaping würde Umlaute zerlegen.
 		interpolation: { escapeValue: false },
+		// `?lng=en` setzt die Website-Verlinkung von den nicht-deutschen Seiten.
 		detection: {
-			order: ['localStorage', 'navigator'],
+			order: ['querystring', 'localStorage', 'navigator'],
+			lookupQuerystring: 'lng',
 			caches: ['localStorage'],
 		},
 	});
+
+// Seitensprache für Screenreader und Silbentrennung (`<html lang>` steht im Markup fest auf `de`).
+// `typeof document`: einige Tests laden die Konfiguration in der Node-Umgebung ohne DOM.
+if (typeof document !== 'undefined') {
+	const syncHtmlLang = (): void => document.documentElement.setAttribute('lang', i18next.resolvedLanguage ?? 'de');
+	syncHtmlLang();
+	i18next.on('languageChanged', syncHtmlLang);
+}
 
 export default i18next;

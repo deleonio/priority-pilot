@@ -66,7 +66,7 @@ const readRetryAfter = (response: Response): number | null => {
 const throttledMessage = (response: Response): string => {
 	const sekunden = readRetryAfter(response);
 	if (sekunden !== null) {
-		return i18next.t('app:apiError.throttledSeconds', { seconds: sekunden });
+		return i18next.t('app:apiError.throttledSeconds', { count: sekunden });
 	}
 	return i18next.t('app:apiError.throttled');
 };

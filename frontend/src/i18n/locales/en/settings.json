@@ -156,12 +156,12 @@
 	},
 	"categoryDeleteDialog": {
 		"title": "Delete category",
-		"body": "Do you really want to delete the category <strong>“{{name}}”</strong>? Tasks and series in this category are kept and only lose their assignment.",
+		"body": "Do you really want to delete the category “<name/>”? Tasks and series in this category are kept and only lose their assignment.",
 		"confirm": "Delete permanently"
 	},
 	"llmProviderDeleteDialog": {
 		"title": "Delete provider",
-		"body": "Do you really want to delete the provider <strong>“{{name}}”</strong> ({{endpoint}})?",
+		"body": "Do you really want to delete the provider “<name/>” (<endpoint/>)?",
 		"activeHint": "It is the ACTIVE provider — the fallback then takes over automatically (Mistral before OpenRouter, depending on the server ENV).",
 		"irreversible": "This action cannot be undone.",
 		"confirm": "Delete permanently"
@@ -383,7 +383,8 @@
 		"noTasks": "There were no tasks to process with the selected filter.",
 		"result": "<strong>{{updated}}</strong> tasks reassigned, {{skipped}} left unchanged, {{failed}} failed.",
 		"quotaExhaustedLabel": "AI quota used up",
-		"quotaExhaustedText": "The run has stopped. {{open}} tasks are still open — it can be resumed in the next billing month or with a larger plan.",
+		"quotaExhaustedText_one": "The run has stopped. {{count}} task is still open — it can be resumed in the next billing month or with a larger plan.",
+		"quotaExhaustedText_other": "The run has stopped. {{count}} tasks are still open — it can be resumed in the next billing month or with a larger plan.",
 		"pendingHint": "{{pending}} tasks are still open. “Resume” only processes these, even later after a reload."
 	}
 }

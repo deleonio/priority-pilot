@@ -51,7 +51,9 @@
 		"label": "Gesamtguthaben",
 		"empty": "Noch keine Punkte vergeben — schließe Tasks ab, um dein Guthaben aufzubauen.",
 		"total": "<total>{{points}}</total> Punkte",
-		"row": "{{points}} Punkte ({{share}} %)"
+		"row_one": "{{points}} Punkt ({{share}} %)",
+		"row_other": "{{points}} Punkte ({{share}} %)",
+		"arcTitle": "{{value}} von {{total}}"
 	},
 	"deadlines": {
 		"label": "Anstehende Deadlines",
@@ -112,7 +114,8 @@
 		"streakZero": "Noch kein gemeinsamer Streak — erledigt heute beide etwas, dann zählt der erste Tag.",
 		"helpLabel": "Wann zählt der gemeinsame Streak?",
 		"helpText": "Ein Tag zählt, wenn ihr beide an diesem Tag etwas erledigt habt. Aufgaben des anderen bleiben unsichtbar.",
-		"pillarPoints": "{{name}}: {{points}} Punkte",
+		"pillarPoints_one": "{{name}}: {{points}} Punkt",
+		"pillarPoints_other": "{{name}}: {{points}} Punkte",
 		"memberEmpty": "Noch niemand dabei"
 	},
 	"freeTime": {

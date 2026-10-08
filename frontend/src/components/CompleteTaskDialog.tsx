@@ -94,7 +94,7 @@ export const CompleteTaskDialog = ({
 				</div>
 			)}
 			<p>
-				<Trans t={t} i18nKey="completeTask.question" components={{ title: <strong>„{task.title}"</strong> }} />
+				<Trans t={t} i18nKey="completeTask.question" components={{ title: <strong>{task.title}</strong> }} />
 			</p>
 			{showChecklistSection && (
 				<div className="checklist-section" data-testid="checklist-section">

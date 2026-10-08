@@ -117,8 +117,10 @@ export const GroupJoinPage = () => {
 									<Trans
 										t={t}
 										i18nKey="joinPage.context"
-										values={{ group: preview.name, inviter: preview.invitedByName }}
-										components={{ strong: <strong /> }}
+										components={{
+											group: <strong>{preview.name}</strong>,
+											inviter: <strong>{preview.invitedByName}</strong>,
+										}}
 									/>
 								</p>
 								<KolButton

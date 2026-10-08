@@ -46,7 +46,8 @@
 	},
 	"apiError": {
 		"session": "Not logged in. Please sign in again.",
-		"throttledSeconds": "Too many requests in a short time. Please wait {{seconds}} seconds and try again.",
+		"throttledSeconds_one": "Too many requests in a short time. Please wait {{count}} second and try again.",
+		"throttledSeconds_other": "Too many requests in a short time. Please wait {{count}} seconds and try again.",
 		"throttled": "Too many requests in a short time. Please wait a moment and try again.",
 		"planRequired": "{{feature}} requires the {{plan}} plan. Change plan: Settings → Plans.",
 		"server": "Server error (HTTP {{status}}).",

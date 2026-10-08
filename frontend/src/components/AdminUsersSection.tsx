@@ -682,8 +682,10 @@ export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number })
 								<Trans
 									t={t}
 									i18nKey="adminUsers.deleteIntent"
-									values={{ name: deleteTarget.user.displayName, email: deleteTarget.user.email }}
-									components={{ strong: <strong /> }}
+									components={{
+										name: <strong>{deleteTarget.user.displayName}</strong>,
+										email: <strong>{deleteTarget.user.email}</strong>,
+									}}
 								/>
 							</p>
 							<div className="modal-actions">

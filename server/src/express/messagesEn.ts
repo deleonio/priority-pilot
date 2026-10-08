@@ -228,7 +228,7 @@ const meldungEn = (message: string): string => {
 };
 
 /** Felder, in denen Säulen-Katalogtexte stehen (Säulenlisten, Scores, Duo, Fürsorge-Vorschläge). */
-const SAEULEN_FELDER = new Set(['name', 'saeuleName', 'description']);
+const SAEULEN_FELDER = new Set(['name', 'saeuleName', 'description', 'pillars']);
 
 /** Englische Antwort: `message` übersetzen, unveränderte Standard-Säulen-Texte tauschen (tief). */
 const bodyEn = (value: unknown, key?: string): unknown => {
@@ -236,7 +236,8 @@ const bodyEn = (value: unknown, key?: string): unknown => {
 		if (key === 'message') return meldungEn(value);
 		return key !== undefined && SAEULEN_FELDER.has(key) ? pillarTextIn('en', value) : value;
 	}
-	if (Array.isArray(value)) return value.map((item) => bodyEn(item));
+	// Feldname bleibt für Listen erhalten (z. B. `pillars: ['Körper', 'Sinn']` in Begründungen).
+	if (Array.isArray(value)) return value.map((item) => bodyEn(item, key));
 	if (value !== null && typeof value === 'object') {
 		// Model-Instanzen und Datumswerte so serialisieren, wie `res.json` es täte.
 		const toJson = (value as { toJSON?: () => unknown }).toJSON;

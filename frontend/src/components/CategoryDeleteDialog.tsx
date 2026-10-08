@@ -22,12 +22,7 @@ export const CategoryDeleteDialog = ({ category, onClose, onDeleted, fallbackFoc
 			title={t('categoryDeleteDialog.title')}
 			body={
 				<p>
-					<Trans
-						t={t}
-						i18nKey="categoryDeleteDialog.body"
-						values={{ name: category.name }}
-						components={{ strong: <strong /> }}
-					/>
+					<Trans t={t} i18nKey="categoryDeleteDialog.body" components={{ name: <strong>{category.name}</strong> }} />
 				</p>
 			}
 			confirmLabel={t('categoryDeleteDialog.confirm')}

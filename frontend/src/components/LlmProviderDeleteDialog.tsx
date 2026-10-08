@@ -34,8 +34,7 @@ export const LlmProviderDeleteDialog = ({
 					<Trans
 						t={t}
 						i18nKey="llmProviderDeleteDialog.body"
-						values={{ name: provider.name, endpoint: provider.endpoint }}
-						components={{ strong: <strong /> }}
+						components={{ name: <strong>{provider.name}</strong>, endpoint: <span>{provider.endpoint}</span> }}
 					/>{' '}
 					{provider.isActive ? t('llmProviderDeleteDialog.activeHint') : t('llmProviderDeleteDialog.irreversible')}
 				</p>

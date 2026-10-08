@@ -31,7 +31,7 @@ export const MissedCompleteDialog = ({ task, onAnswer, onClose, fallbackFocusRef
 			initialFocusRef={cancelRef as RefObject<HTMLElement | null>}
 		>
 			<p>
-				<Trans t={t} i18nKey="missedComplete.question" components={{ title: <strong>„{task.title}"</strong> }} />
+				<Trans t={t} i18nKey="missedComplete.question" components={{ title: <strong>{task.title}</strong> }} />
 			</p>
 			<div className="modal-actions">
 				<KolButton

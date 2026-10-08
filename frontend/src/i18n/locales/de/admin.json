@@ -75,7 +75,7 @@
 		"lockNow": "Jetzt sperren",
 		"cancelNow": "Jetzt stornieren",
 		"deleteFailed": "Löschen nicht möglich",
-		"deleteIntent": "Konto von <strong>{{name}}</strong> (<strong>{{email}}</strong>) wirklich löschen?",
+		"deleteIntent": "Konto von <name/> (<email/>) wirklich löschen?",
 		"deleteScope": "Persönliche Daten und Feedback werden entfernt. Rechnungen und Abo-Datensätze bleiben wegen der Aufbewahrungspflicht. Das lässt sich nicht rückgängig machen.",
 		"deletingAccount": "Wird gelöscht …",
 		"deleteAccountFinal": "Konto endgültig löschen"

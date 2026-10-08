@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BalanceFigureGL } from './BalanceFigureGL';
 import {
 	activeTicks,
@@ -307,59 +308,67 @@ const Orbs = ({
 };
 
 /** Figur „Ringe": je Säule eine Spur, Bogenlänge und Lage tragen beide den Wert. */
-const Arcs = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetrics>; animated: boolean }) => (
-	<>
-		{buildArcs(metrics).map((arc) => {
-			const { dasharray, circumference } = arcDash(arc, arc.sweep);
-			const inner = polar(-90 + arc.target * 360, arc.radius - arc.width / 2);
-			const outer = polar(-90 + arc.target * 360, arc.radius + arc.width / 2);
-			return (
-				<g key={arc.pillarId} data-testid="heart-column">
-					{/* Unausgefüllte Spur bleibt blass stehen — sie zeigt, wie weit es noch wäre. */}
-					<circle
-						className={rampClass('balance-arc-track', arc.colorIndex)}
-						cx={CENTER}
-						cy={CENTER}
-						r={arc.radius.toFixed(3)}
-						strokeWidth={arc.width.toFixed(3)}
-					/>
-					{/*
-					 * Gefüllter Bogen: gedreht auf 12 Uhr, damit die Strecke dort beginnt, wo auch das
-					 * Zifferblatt beginnt. Der Strich atmet in der Stärke, die Spur bleibt liegen.
-					 */}
-					<circle
-						className={rampClass('balance-arc', arc.colorIndex)}
-						cx={CENTER}
-						cy={CENTER}
-						r={arc.radius.toFixed(3)}
-						strokeWidth={arc.width.toFixed(3)}
-						strokeDasharray={dasharray}
-						transform={`rotate(-90 ${CENTER} ${CENTER})`}
-					>
-						{animated && (
-							<animate
-								attributeName="stroke-width"
-								values={`${arc.width.toFixed(3)};${(arc.width * 1.12).toFixed(3)};${arc.width.toFixed(3)}`}
-								dur={`${arc.swingPeriod}s`}
-								repeatCount="indefinite"
-							/>
-						)}
-						<title>{`${(circumference * arc.sweep).toFixed(0)} von ${circumference.toFixed(0)}`}</title>
-					</circle>
-					{/* Soll-Marke: ein Strich quer über die Spur. */}
-					<line
-						className="balance-target-mark"
-						data-testid="balance-target"
-						x1={inner.x.toFixed(2)}
-						y1={inner.y.toFixed(2)}
-						x2={outer.x.toFixed(2)}
-						y2={outer.y.toFixed(2)}
-					/>
-				</g>
-			);
-		})}
-	</>
-);
+const Arcs = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetrics>; animated: boolean }) => {
+	const { t } = useTranslation('dashboard');
+	return (
+		<>
+			{buildArcs(metrics).map((arc) => {
+				const { dasharray, circumference } = arcDash(arc, arc.sweep);
+				const inner = polar(-90 + arc.target * 360, arc.radius - arc.width / 2);
+				const outer = polar(-90 + arc.target * 360, arc.radius + arc.width / 2);
+				return (
+					<g key={arc.pillarId} data-testid="heart-column">
+						{/* Unausgefüllte Spur bleibt blass stehen — sie zeigt, wie weit es noch wäre. */}
+						<circle
+							className={rampClass('balance-arc-track', arc.colorIndex)}
+							cx={CENTER}
+							cy={CENTER}
+							r={arc.radius.toFixed(3)}
+							strokeWidth={arc.width.toFixed(3)}
+						/>
+						{/*
+						 * Gefüllter Bogen: gedreht auf 12 Uhr, damit die Strecke dort beginnt, wo auch das
+						 * Zifferblatt beginnt. Der Strich atmet in der Stärke, die Spur bleibt liegen.
+						 */}
+						<circle
+							className={rampClass('balance-arc', arc.colorIndex)}
+							cx={CENTER}
+							cy={CENTER}
+							r={arc.radius.toFixed(3)}
+							strokeWidth={arc.width.toFixed(3)}
+							strokeDasharray={dasharray}
+							transform={`rotate(-90 ${CENTER} ${CENTER})`}
+						>
+							{animated && (
+								<animate
+									attributeName="stroke-width"
+									values={`${arc.width.toFixed(3)};${(arc.width * 1.12).toFixed(3)};${arc.width.toFixed(3)}`}
+									dur={`${arc.swingPeriod}s`}
+									repeatCount="indefinite"
+								/>
+							)}
+							<title>
+								{t('balance.arcTitle', {
+									value: (circumference * arc.sweep).toFixed(0),
+									total: circumference.toFixed(0),
+								})}
+							</title>
+						</circle>
+						{/* Soll-Marke: ein Strich quer über die Spur. */}
+						<line
+							className="balance-target-mark"
+							data-testid="balance-target"
+							x1={inner.x.toFixed(2)}
+							y1={inner.y.toFixed(2)}
+							x2={outer.x.toFixed(2)}
+							y2={outer.y.toFixed(2)}
+						/>
+					</g>
+				);
+			})}
+		</>
+	);
+};
 
 /** Figur „Strahlen": je Säule ein Lichtkeil vom Mittelpunkt, längster auf 12 Uhr. */
 const Rays = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetrics>; animated: boolean }) => {

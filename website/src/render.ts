@@ -74,8 +74,15 @@ const subpagePathFor =
 /** Einstieg in die App und direkter Google-Login (Redirect danach auf /app/, siehe routes/auth.ts). */
 export const APP_PATH = '/app/';
 export const LOGIN_PATH = '/auth/google';
-/** App-Login mit Fokus auf den Anmeldelink per E-Mail (`LoginPage.tsx`, ohne stillen Google-Versuch). */
-export const EMAIL_LOGIN_PATH = `${APP_PATH}?login=email`;
+/**
+ * App-Link je Seitensprache: Die App gibt es nur auf Deutsch und Englisch, alle übrigen Sprachen
+ * starten sie per `?lng=en` (i18next-Detector) englisch. `login=email` fokussiert den Anmeldelink
+ * per E-Mail (`LoginPage.tsx`, ohne stillen Google-Versuch).
+ */
+export const appPath = (locale: Locale, query = ''): string => {
+	const params = [query, locale === 'de' ? '' : 'lng=en'].filter(Boolean).join('&');
+	return params ? `${APP_PATH}?${params}` : APP_PATH;
+};
 
 /**
  * Angemeldete Nutzer springen von der Startseite direkt in die App (ADR 0015, Punkt 4). Das Cookie
@@ -209,7 +216,7 @@ const shell = (context: PageContext, { title, description, path, pathFor, body, 
 ${languageLinks(locale, pathFor, '\t\t\t\t\t\t\t')}
 						</ul>
 					</details>
-					<a class="kern-btn kern-btn--secondary" href="${APP_PATH}"><span class="kern-label">${t(messages.nav.openApp)}</span></a>
+					<a class="kern-btn kern-btn--secondary" href="${appPath(locale)}"><span class="kern-label">${t(messages.nav.openApp)}</span></a>
 				</nav>
 			</div>
 		</header>
@@ -351,11 +358,11 @@ export const renderLanding = (context: LandingContext): string => {
 						<p class="kern-body kern-body--large">${t(m.hero.lead)}</p>
 						<div class="hero__actions">
 							${ctaButton(m.hero.cta)}
-							<a class="kern-btn kern-btn--secondary" href="${EMAIL_LOGIN_PATH}"><span class="kern-label">${t(m.hero.emailCta)}</span></a>
+							<a class="kern-btn kern-btn--secondary" href="${appPath(locale, 'login=email')}"><span class="kern-label">${t(m.hero.emailCta)}</span></a>
 						</div>
 						<p class="kern-body kern-body--small hero__note">${t(m.hero.ctaNote)}</p>
 						<p class="kern-body kern-body--small hero__note">${t(m.hero.purpose)}</p>
-						<p class="kern-body"><a class="kern-link" href="${APP_PATH}">${t(m.hero.secondary)}</a></p>
+						<p class="kern-body"><a class="kern-link" href="${appPath(locale)}">${t(m.hero.secondary)}</a></p>
 					</div>
 ${shots.has('dashboard') ? `					${shotImage('dashboard', m.hero.screenshotAlt, 'shot hero__shot', false)}\n` : ''}				</div>
 			</section>
@@ -692,8 +699,8 @@ ${content}
 			</section>`,
 	});
 
-const templateCta = (label: string): string =>
-	`						<p><a class="kern-btn kern-btn--primary" href="${APP_PATH}"><span class="kern-label">${t(label)}</span></a></p>`;
+const templateCta = (label: string, locale: Locale): string =>
+	`						<p><a class="kern-btn kern-btn--primary" href="${appPath(locale)}"><span class="kern-label">${t(label)}</span></a></p>`;
 
 /** Pfad einer Vorlage je Sprache: deutscher Slug unter `/vorlagen/`, englischer unter `/en/templates/`. */
 const templatePathFor =
@@ -720,7 +727,7 @@ ${TEMPLATES.map((template) => {
 	return `							<li><a class="kern-link" href="${templatePathFor(template)(context.locale)}">${t(shown.title)}</a> – ${t(shown.description)} (${t(fill(text.steps, { count: String(shown.steps.length) }))})</li>`;
 }).join('\n')}
 						</ul>
-${templateCta(text.cta)}`,
+${templateCta(text.cta, context.locale)}`,
 	);
 };
 
@@ -730,7 +737,7 @@ export const renderTemplatePage = (context: PageContext & { template: LifeTempla
 	const text = TEMPLATE_TEXT[lang];
 	const template = localizeTemplate(context.template, lang);
 	const titleOf = (id: string): string => template.steps.find((step) => step.id === id)?.title ?? id;
-	const cta = templateCta(text.cta);
+	const cta = templateCta(text.cta, context.locale);
 	const title = fill(text.pageTitle, { title: template.title });
 	return templatePage(
 		context,
@@ -817,7 +824,7 @@ ${names
 	)
 	.join('\n')}
 							</ul>
-							<p><a class="kern-btn kern-btn--primary" href="${APP_PATH}"><span class="kern-label">${t(text.start)}</span></a></p>
+							<p><a class="kern-btn kern-btn--primary" href="${appPath(context.locale)}"><span class="kern-label">${t(text.start)}</span></a></p>
 							<p><button type="button" class="kern-btn kern-btn--secondary" data-share><span class="kern-label">${t(text.share)}</span></button></p>
 							<p class="kern-body kern-body--small" data-status role="status"></p>
 							<p class="kern-body kern-body--small">${t(text.note)}</p>

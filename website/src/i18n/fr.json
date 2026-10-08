@@ -278,10 +278,10 @@
 		"inAppTitle": "Dans l’app",
 		"steps": [
 			"Ouvrez Balamentum et connectez-vous.",
-			"Ouvrez les paramètres, onglet « Allgemein » (Général).",
-			"Dans la carte « Konto » (Compte), touchez « Supprimer le compte » et confirmez les deux étapes."
+			"Ouvrez les paramètres, onglet « General » (Général).",
+			"Dans la carte « Account » (Compte), touchez « Delete account » (Supprimer le compte) et confirmez les deux étapes."
 		],
-		"blocked": "Si un abonnement est encore en cours, résiliez-le d’abord dans l’onglet « Abo » (Abonnement). Si vous êtes le dernier administrateur d’un groupe qui compte d’autres membres, nommez d’abord une autre personne administrateur ou dissolvez le groupe.",
+		"blocked": "Si un abonnement est encore en cours, résiliez-le d’abord dans l’onglet « Plans & subscription » (Offres et abonnement). Si vous êtes le dernier administrateur d’un groupe qui compte d’autres membres, nommez d’abord une autre personne administrateur ou dissolvez le groupe.",
 		"deletedTitle": "Ce qui est supprimé",
 		"deleted": "Votre compte avec toutes les tâches, séries, piliers, catégories, paramètres, jetons d’accès et inscriptions push. Les groupes dont vous êtes le seul membre sont également supprimés. Les tâches que vous avez créées pour d’autres dans des groupes restent chez leurs destinataires, sans vous comme créateur.",
 		"keptTitle": "Ce qui est conservé",

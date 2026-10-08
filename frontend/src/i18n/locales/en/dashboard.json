@@ -51,7 +51,9 @@
 		"label": "Total balance",
 		"empty": "No points yet — complete tasks to build up your balance.",
 		"total": "<total>{{points}}</total> points",
-		"row": "{{points}} points ({{share}} %)"
+		"row_one": "{{points}} point ({{share}} %)",
+		"row_other": "{{points}} points ({{share}} %)",
+		"arcTitle": "{{value}} of {{total}}"
 	},
 	"deadlines": {
 		"label": "Upcoming deadlines",
@@ -112,7 +114,8 @@
 		"streakZero": "No shared streak yet — if you both get something done today, the first day counts.",
 		"helpLabel": "When does the shared streak count?",
 		"helpText": "A day counts when both of you got something done that day. The other person's tasks stay hidden.",
-		"pillarPoints": "{{name}}: {{points}} points",
+		"pillarPoints_one": "{{name}}: {{points}} point",
+		"pillarPoints_other": "{{name}}: {{points}} points",
 		"memberEmpty": "Nobody here yet"
 	},
 	"freeTime": {
