@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.18 - 2026-10-08
 
-_Enthält v0.18.0 – v0.18.42._
+_Enthält v0.18.0 – v0.18.43._
 
 ### 🎉 New Features
 
@@ -71,6 +71,7 @@ _Enthält v0.18.0 – v0.18.42._
 - feat(frontend): name series/template switch and dialog title (#2415) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2424
 - feat(frontend): add capture-from-template to quick capture (#2363) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2423
 - ci(android): add tag input to roll app bundle into test track by @deleonio in https://github.com/deleonio/priority-pilot/pull/2430
+- docs(marketing): add play store listing with texts and images by @deleonio in https://github.com/deleonio/priority-pilot/pull/2432
 
 ## v0.17 - 2026-10-07
 
@@ -193,7 +194,6 @@ _Enthält v0.16.0 – v0.16.37._
 - feat(server): withdraw plan and cancel paypal sub after grace expiry by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2250
 - fix(ci): pin valid actions/checkout sha in model-smoke and budget-watch by @deleonio in https://github.com/deleonio/priority-pilot/pull/2252
 - fix(ci): Container-Ergebnis-Step robust (#2138) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2253
-- fix(ci): Container-Ergebnis-Step robust (#2138) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2253
 - fix(server): apply billing period change immediately with proration by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2256
 - fix(billing): unicode invoice pdf font and atomic payment events by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2251
 - chore: revert container result step from #2253 by @deleonio in https://github.com/deleonio/priority-pilot/pull/2258
@@ -304,6 +304,7 @@ _Enthält v0.13.0 – v0.13.27._
 - docs(skills): epic closing analysis may post drafts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2066
 - docs(skills): containers first in ticket coordination by @deleonio in https://github.com/deleonio/priority-pilot/pull/2067
 - docs(skills): close fulfilled containers, split after job timeouts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2072
+- feat(frontend): localized care hint texts for de and en (#2063) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2071
 - feat(frontend): localized care hint texts for de and en (#2063) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2071
 - feat(server): suggest initial tasks from free text (#2068) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2079
 - feat(frontend): german labels and unique download buttons (#2031) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2080
