@@ -1844,10 +1844,15 @@ kol-toolbar {
 	margin-top: var(--pp-gap-generous);
 }
 
-/* #1793: `.care-hint` (CareHint.tsx) — Abstand wie `.day-done-hint`; Übernehmen volle Breite,
-   „Heute nicht" und „Diesen Vorschlag nicht mehr" darunter in einer Zeile (bricht bei schmaler Breite/großer Schrift um). */
+/* #1793: `.care-hint` (CareHint.tsx) — Abstand wie `.day-done-hint`; #2445: Übernehmen und die beiden
+   Icon-Schalter in einer Zeile (bricht bei großer Schrift um). */
 .care-hint {
 	margin-top: var(--pp-gap-generous);
+}
+
+/* #2445: ohne den seitlichen Host-Innenabstand (#1028) passt die Aktionszeile bei 375 px in eine Zeile. */
+.care-hint kol-alert {
+	padding-inline: 0;
 }
 
 .care-hint-actions {
@@ -1866,10 +1871,6 @@ kol-toolbar {
 
 .care-hint-grund {
 	margin-top: var(--pp-space-3);
-}
-
-.care-hint-accept {
-	flex: 1 0 100%;
 }
 
 /* #1873: Kennzeichnung „KI-Vorschlag" als eigene Zeile über dem Text — Chip-Stil wie `.series-badge`,

@@ -19,19 +19,19 @@ Ist eine Säule defizitär, zeigt das Dashboard oberhalb der Card „Nächste Au
 
 ## Schritte / erwartetes Ergebnis
 
-| Schritt                    | Erwartung                                                                                                           |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Liste hat Einträge         | genau ein Hinweis (AK1), im DOM vor `.dashboard-next-task`                                                          |
-| Übernehmen, `typ: vorlage` | genau ein `createTask` mit Titel der Vorlage und `pillars: [{ pillarId: saeuleId, share: 100 }]`; Hinweis weg (AK2) |
-| Übernehmen, `typ: task`    | `updateTask({ id: taskId, taskUpdate: { status: 'In process' } })`; kein createTask; Hinweis weg (AK2)              |
-| Ablehnen, `typ: vorlage`   | genau ein `dismissCareSuggestion({ templateKey })`; Hinweis weg (AK3)                                               |
-| Ablehnen, `typ: task`      | kein Server-Call; 14 Tage lokal unterdrückt, auch nach Remount; danach wieder sichtbar (AK3)                        |
-| Nicht jetzt                | kein Server-Call; bis Tagesende lokal unterdrückt, auch nach Remount; am Folgetag wieder sichtbar (AK4)             |
-| Leere Liste                | Rückmeldung „Gerade gibt es keinen Vorschlag für dich." ohne Buttons (AK5)                                          |
-| Zugänglichkeit             | `role="status"` mit Label, Bedeutung über Text (AK6)                                                                |
-| Ladefehler                 | nichts gerendert, kein Fehlerbanner (AK8)                                                                           |
-| Übernehmen scheitert (UX)  | Hinweis wieder sichtbar, Fehlermeldung `role="alert"`                                                               |
-| 375 px                     | kein horizontaler Überlauf, Buttons ≥ 44 px hoch (AK7, E2E, Bounding-Box)                                           |
+| Schritt                    | Erwartung                                                                                                                                                                                                                                                  |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Liste hat Einträge         | genau ein Hinweis (AK1), im DOM vor `.dashboard-next-task`                                                                                                                                                                                                 |
+| Übernehmen, `typ: vorlage` | genau ein `createTask` mit Titel der Vorlage und `pillars: [{ pillarId: saeuleId, share: 100 }]`; Hinweis weg (AK2)                                                                                                                                        |
+| Übernehmen, `typ: task`    | `updateTask({ id: taskId, taskUpdate: { status: 'In process' } })`; kein createTask; Hinweis weg (AK2)                                                                                                                                                     |
+| Ablehnen, `typ: vorlage`   | genau ein `dismissCareSuggestion({ templateKey })`; Hinweis weg (AK3)                                                                                                                                                                                      |
+| Ablehnen, `typ: task`      | kein Server-Call; 14 Tage lokal unterdrückt, auch nach Remount; danach wieder sichtbar (AK3)                                                                                                                                                               |
+| Nicht jetzt                | kein Server-Call; bis Tagesende lokal unterdrückt, auch nach Remount; am Folgetag wieder sichtbar (AK4)                                                                                                                                                    |
+| Leere Liste                | Rückmeldung „Gerade gibt es keinen Vorschlag für dich." ohne Buttons (AK5)                                                                                                                                                                                 |
+| Zugänglichkeit             | `role="status"` mit Label, Bedeutung über Text (AK6)                                                                                                                                                                                                       |
+| Ladefehler                 | nichts gerendert, kein Fehlerbanner (AK8)                                                                                                                                                                                                                  |
+| Übernehmen scheitert (UX)  | Hinweis wieder sichtbar, Fehlermeldung `role="alert"`                                                                                                                                                                                                      |
+| 375 px                     | kein horizontaler Überlauf, Buttons ≥ 44 px hoch (AK7, E2E, Bounding-Box); #2445: Übernehmen (inhaltsbreit), „Heute nicht“ (Uhr) und „Diesen Vorschlag nicht mehr“ (Papierkorb) in einer Zeile, Icon-Schalter `_hideLabel` mit Namen/Tooltip, ≥ 44 × 44 px |
 
 ## Nicht getestet
 

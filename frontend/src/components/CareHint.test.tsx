@@ -32,8 +32,24 @@ vi.mock('@public-ui/react-v19', () => ({
 			{children}
 		</div>
 	),
-	KolButton: ({ _label, _on }: { _label?: string; _on?: { onClick?: (event: MouseEvent) => void } }) => (
-		<button type="button" onClick={() => _on?.onClick?.(new MouseEvent('click'))}>
+	// #2445: `data-hide-label`/`data-icon` machen `_hideLabel` und `_icons.left` testbar.
+	KolButton: ({
+		_label,
+		_hideLabel,
+		_icons,
+		_on,
+	}: {
+		_label?: string;
+		_hideLabel?: boolean;
+		_icons?: { left?: { icon?: string } };
+		_on?: { onClick?: (event: MouseEvent) => void };
+	}) => (
+		<button
+			type="button"
+			data-hide-label={_hideLabel ? 'true' : undefined}
+			data-icon={_icons?.left?.icon}
+			onClick={() => _on?.onClick?.(new MouseEvent('click'))}
+		>
 			{_label}
 		</button>
 	),
@@ -263,6 +279,21 @@ describe('CareHint (#1793)', () => {
 		expect(region.getAttribute('aria-label') ?? '').not.toBe('');
 		const namen = screen.getAllByRole('button').map((b) => b.textContent);
 		expect(namen).toEqual(['Vorschlag übernehmen', 'Heute nicht', 'Diesen Vorschlag nicht mehr']);
+	});
+
+	it('#2445 AK2: „Heute nicht" und „Diesen Vorschlag nicht mehr" sind Icon-Schalter, „Vorschlag übernehmen" bleibt Text', async () => {
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
+		render(<CareHint />);
+		const hint = await screen.findByTestId('care-hint');
+		const notNow = within(hint).getByRole('button', { name: 'Heute nicht' });
+		const dismiss = within(hint).getByRole('button', { name: 'Diesen Vorschlag nicht mehr' });
+		expect(notNow.getAttribute('data-hide-label')).toBe('true');
+		expect(notNow.getAttribute('data-icon')).toContain('fa-clock');
+		expect(dismiss.getAttribute('data-hide-label')).toBe('true');
+		expect(dismiss.getAttribute('data-icon')).toContain('fa-trash');
+		expect(
+			within(hint).getByRole('button', { name: 'Vorschlag übernehmen' }).getAttribute('data-hide-label'),
+		).toBeNull();
 	});
 
 	it('AK8: scheitert das Laden, wird nichts gerendert', async () => {
