@@ -1,4 +1,4 @@
-import { GENERATE_HORIZON_DAYS, materializeDueSeries } from './series.js';
+import { generateHorizonUntil, materializeDueSeries } from './series.js';
 import type { PushSender } from './push.js';
 
 /**
@@ -7,7 +7,5 @@ import type { PushSender } from './push.js';
  * Fremd angelegte Serien lösen die gebündelte Benachrichtigung aus (#1253).
  */
 export const runSeriesAutoCreate = async (now: Date, pushSender?: PushSender): Promise<void> => {
-	const until = new Date(now);
-	until.setUTCDate(until.getUTCDate() + GENERATE_HORIZON_DAYS);
-	await materializeDueSeries(undefined, until, pushSender);
+	await materializeDueSeries(undefined, generateHorizonUntil(now), pushSender);
 };

@@ -13,13 +13,19 @@ interface GenerateOptions {
 	pushSender?: PushSender;
 }
 
+/** Produktpolicy: Vorlauf-Horizont in Tagen (siehe {@link generateHorizonUntil}). */
+const GENERATE_HORIZON_DAYS = 30;
+
 /**
- * Produktpolicy: maximaler Vorlauf-Horizont in Tagen, den `/series/generate-all` und der
- * tägliche Auto-Job (#2356) materialisieren. Verhindert, dass bei jedem Lauf ein unbegrenztes Fenster
- * erzeugt wird — es wird nur bis "heute + N Tage" vorlaufend angelegt. Zusätzlich hält die
- * Generierung je Serie höchstens fünf offene Instanzen vor (#1518, `logics/series.ts`).
+ * Zentraler Materialisierungs-Horizont "now + N Tage" (UTC, inklusive) für die Erstanlage von
+ * `POST /series` (#2404), `POST /series/generate-all` und den täglichen Auto-Job (#2356) — die
+ * Policy-Tage verhindern ein unbegrenztes Vorlauffenster (#2405).
  */
-export const GENERATE_HORIZON_DAYS = 30;
+export const generateHorizonUntil = (now: Date): Date => {
+	const until = new Date(now);
+	until.setUTCDate(until.getUTCDate() + GENERATE_HORIZON_DAYS);
+	return until;
+};
 
 /**
  * Höchstzahl offener Instanzen (`status != 'Done'`) je Serie, die die Generierung vorhält (#1518).
