@@ -1843,6 +1843,11 @@ kol-toolbar {
 	margin-top: var(--pp-gap-generous);
 }
 
+/* #2445: ohne den seitlichen Host-Innenabstand (#1028) passt die Aktionszeile bei 375 px in eine Zeile. */
+.care-hint kol-alert {
+	padding-inline: 0;
+}
+
 .care-hint-actions {
 	display: flex;
 	flex-wrap: wrap;
