@@ -52,7 +52,7 @@ Alles andere aus ADR 0014 gilt weiter, vor allem: kein Angebots-Dialog (Punkt 3)
 - Die Paketmatrix in `plans.ts`, Preise und Migration folgen in #1782 und #1785; dieses Ticket ändert keinen Code.
 - Das Stufenmodell verliert Max und Ultimate; Bestandskunden wechseln ohne Preiserhöhung.
 - Die Hinweis-Regel schafft einen Wiedereinstieg für Entdeckbarkeit, ohne die Fehler des Dialogs (Textverlust, Modal in Modal) zu wiederholen.
-- Zahlungswege bleiben: Web über PayPal, Android über Google Play (ADR 0017). Stripe ist zurückgestellt.
+- Zahlungswege bleiben: Web über PayPal, Android über Google Play (ADR 0017), iOS über den Apple App Store; PayPal nie in einer nativen App, die nativen Anbindungen sind noch offen (Nachtrag ADR 0016). Stripe ist zurückgestellt.
 
 ## Nachtrag 2026-10-05: Keine Pakete auf Zeit ohne Zustimmung
 

@@ -1,6 +1,6 @@
 # ADR 0017 — Store-Billing: Google Play Billing mit eigener Server-Verifikation
 
-- **Status:** Accepted (2026-09-24), Preisgestaltung entschieden (2026-09-30)
+- **Status:** Accepted (2026-09-24), Preisgestaltung entschieden (2026-09-30); Freischaltung in der App offen (2026-10-08, bis dahin nur Ankündigung, siehe Nachtrag [ADR 0016](0016-nativer-wrapper-capacitor-remote-modus.md))
 - **Datum:** 2026-09-24
 - **Kontext:** [ADR 0016](0016-nativer-wrapper-capacitor-remote-modus.md) (Kanal `play`, ein Zahlungsweg pro Kanal), [ADR 0013](0013-zahlungsweg-paypal-abos.md) (PayPal im Web, Store-Billing vertagt), [Plan native Apps](../plan-native-apps.md) Stufe 2, [Epic #1664](https://github.com/deleonio/priority-pilot/issues/1664)
 
