@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.19 - 2026-10-08
 
-_Enthält v0.19.0 – v0.19.12._
+_Enthält v0.19.0 – v0.19.14._
 
 ### 🎉 New Features
 
@@ -23,6 +23,7 @@ _Enthält v0.19.0 – v0.19.12._
 
 - docs(adr-0018): grant plus instead of pro for opt-in trial by @deleonio in https://github.com/deleonio/priority-pilot/pull/2438
 - docs(skill): empty-queue stop ignores PRs parked with the author by @deleonio in https://github.com/deleonio/priority-pilot/pull/2441
+- build(frontend): drop push-sw.js from android bundle by @deleonio in https://github.com/deleonio/priority-pilot/pull/2449
 
 ### Other Changes
 
@@ -33,6 +34,7 @@ _Enthält v0.19.0 – v0.19.12._
 - fix(server): reset review account on every login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2444
 - [P2/S] Hilfe: Feedback-Formular wählt „Wünsche und Ideen“ vor (#2443) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2446
 - revert(balance): alle neun Zifferblätter wiederherstellen by @deleonio in https://github.com/deleonio/priority-pilot/pull/2447
+- feat(frontend): show care hint actions in one row with icon buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2448
 
 ## v0.18 - 2026-10-08
 
@@ -356,7 +358,6 @@ _Enthält v0.13.0 – v0.13.27._
 - feat(frontend): move geo range sliders and expert scope list behind expert mode (#1984) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2109
 - fix(ci): wait for background gate runs instead of terminating them (#1952) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2112
 - fix(ci): detect session-limit aborts only at the failing claude call by @deleonio in https://github.com/deleonio/priority-pilot/pull/2113
-- test(frontend): stabilize pillar-recalc live-progress against CI load (#1953) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2115
 - test(frontend): stabilize pillar-recalc live-progress against CI load (#1953) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2115
 - feat(frontend): align invoice amounts and style invoice lists (#2104) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2116
 
