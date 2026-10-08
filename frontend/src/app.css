@@ -4316,6 +4316,12 @@ kol-alert {
 	max-width: clamp(12rem, calc(100svh - 28rem), 24rem);
 }
 
+/* Vorschau in den Einstellungen: dieselbe Bühne, klein und unter der Auswahl. */
+.heart-balance-stage.balance-variant-preview {
+	max-width: 10rem;
+	margin-block-start: var(--pp-gap-base);
+}
+
 .balance-figure-svg,
 .balance-figure-canvas {
 	display: block;

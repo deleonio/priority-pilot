@@ -1,6 +1,10 @@
 import { KolInputRadio } from '@public-ui/react-v19';
+import type { Pillar } from 'client';
 import { useMemo, useRef } from 'react';
+import { BalanceFigure } from './BalanceFigure';
+import { HeartVessel } from './HeartVessel';
 import { BALANCE_VARIANTS, useBalanceVariant, type BalanceVariant } from '../lib/balanceVariant';
+import { buildHeartBalance } from '../lib/heartBalance';
 import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
 
 /**
@@ -10,9 +14,30 @@ import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
  * (`balanceVariant.ts`, localStorage-Key `pp-balance-variant`). Aufbau bewusst wie
  * `AppearanceSetting` daneben: Beide wählen, **wie** die App aussieht, nicht **was** sie rechnet.
  *
- * Senkrecht statt waagerecht: Sieben Optionen mit sprechenden Namen passen auf 375 px nicht
+ * Senkrecht statt waagerecht: Neun Optionen mit sprechenden Namen passen auf 375 px nicht
  * nebeneinander, ohne dass die Beschriftungen umbrechen (mobile-ui-rules.md).
+ *
+ * Darunter eine stille Vorschau des gewählten Bildes mit festen Beispieldaten — sie wechselt mit
+ * der Auswahl, ohne dass man die Einstellungen verlassen muss.
  */
+
+/** Beispiel-Säulen mit leichter Schieflage, damit jedes Bild seine Unterschiede zeigt. */
+const PREVIEW_PILLARS: Pillar[] = [
+	{ id: 1, name: 'Körper', description: '', weight: 1 },
+	{ id: 2, name: 'Beziehungen', description: '', weight: 1 },
+	{ id: 3, name: 'Arbeit', description: '', weight: 1 },
+	{ id: 4, name: 'Sinn', description: '', weight: 1 },
+];
+const PREVIEW_BALANCE = buildHeartBalance(
+	PREVIEW_PILLARS,
+	new Map([
+		[1, 9],
+		[2, 7],
+		[3, 5],
+		[4, 3],
+	]),
+);
+
 export const BalanceVariantSetting = () => {
 	const { variant, setVariant } = useBalanceVariant();
 	const ref = useRef<HTMLDivElement>(null);
@@ -40,6 +65,23 @@ export const BalanceVariantSetting = () => {
 					},
 				}}
 			/>
+			<div
+				className="heart-balance-stage heart-balance-stage--still balance-variant-preview"
+				data-variante={variant}
+				data-testid="balance-variant-preview"
+			>
+				{variant === 'herz' ? (
+					<HeartVessel balance={PREVIEW_BALANCE} animated={false} ariaLabel="Vorschau: Herz" />
+				) : (
+					<BalanceFigure
+						balance={PREVIEW_BALANCE}
+						figure={variant}
+						animated={false}
+						beatSeconds={2}
+						ariaLabel={`Vorschau: ${BALANCE_VARIANTS.find((option) => option.value === variant)?.label ?? ''}`}
+					/>
+				)}
+			</div>
 		</div>
 	);
 };
