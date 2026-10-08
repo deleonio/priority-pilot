@@ -153,9 +153,9 @@ test.describe('Balamentum — Task/Serie-Umschalter im Anlege-Formular (#316)', 
 		// Nach dem Überspringen: TaskForm im Task-Modus — Titel „Aufgabe anlegen".
 		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
 
-		// Switch auf Serie umschalten → Titel „Serie anlegen".
+		// Switch auf Serie umschalten → Titel „Serie oder Vorlage anlegen" (#2415).
 		await modeSwitch(page).getByRole('checkbox').click();
-		await expect(page.getByRole('heading', { name: 'Serie anlegen' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Serie oder Vorlage anlegen' })).toBeVisible();
 
 		// Zurück auf Aufgabe → Titel „Aufgabe anlegen".
 		await modeSwitch(page).getByRole('checkbox').click();

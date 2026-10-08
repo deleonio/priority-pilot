@@ -38,7 +38,7 @@ export const taskFormModalTitle = (task: Task | null, parentTask: Task | null, m
 	if (task !== null) return mode === 'series' ? `Serie bearbeiten: ${task.title}` : `Aufgabe bearbeiten: ${task.title}`;
 	if (parentTask !== null) return `Unteraufgabe zu ${parentTask.title}`;
 	if (mode === 'task') return 'Aufgabe anlegen';
-	if (mode === 'series') return 'Serie anlegen';
+	if (mode === 'series') return 'Serie oder Vorlage anlegen';
 	return 'Neuen Task anlegen';
 };
 

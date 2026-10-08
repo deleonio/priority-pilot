@@ -306,8 +306,8 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
 
 Speichern mit **„Anlegen"** (bzw. **„Bearbeiten"**), verwerfen mit **„Abbrechen"**.
 
-> **Aufgabe oder Serie?** Beim Anlegen gibt es oben einen Schalter **„Serie"**.
-> Aus = einmalige Aufgabe, Ein = wiederkehrende Serie (siehe „Serien").
+> **Aufgabe oder Serie?** Beim Anlegen gibt es oben einen Schalter **„Serie oder Vorlage"**.
+> Aus = einmalige Aufgabe, Ein = wiederkehrende Serie oder Vorlage (siehe „Serien").
 
 ---
 
@@ -491,7 +491,7 @@ Schnellerfassung: Öffne **„Neuen Task anlegen"** und klicke im Freitext-Schri
 Mit **Serien** legst du wiederkehrende Aufgaben als Vorlage an. Aus einer Serie
 erzeugt Balamentum regelmäßig neue Aufgaben-Instanzen.
 
-- **Neue Serie anlegen:** über **„Neuen Task anlegen"** und den Schalter **„Serie"**
+- **Neue Serie anlegen:** über **„Neuen Task anlegen"** und den Schalter **„Serie oder Vorlage"**
   einschalten. Statt einer Deadline setzt du dann ein **Startdatum** und einen
   **Rhythmus**: **Täglich**, **Wöchentlich**, **Monatlich**, **Werktags** (Mo–Fr),
   **Wochenende** (Sa+So) oder an einem bestimmten Wochentag (**Montags** bis

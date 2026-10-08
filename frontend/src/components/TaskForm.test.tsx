@@ -593,6 +593,21 @@ describe('AK4 — Umschalter & Feld-Sichtbarkeit je Modus (#316)', () => {
 		expect(screen.queryByRole('button', { name: /serie/i })).toBeNull();
 	});
 
+	// #2415: Der Umschalter nennt beide Begriffe — zugänglicher Name „Serie oder Vorlage" (AK1).
+	// Rot, solange das Label nur „Serie" lautet; der KoliBri-Mock rendert `_label` als aria-label.
+	it('AK1 (#2415): Umschalter trägt das Label „Serie oder Vorlage"', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		const switchEl = within(screen.getByTestId('mode-switch')).getByRole('switch', {
+			name: 'Serie oder Vorlage',
+		});
+		expect(switchEl).toBeInTheDocument();
+	});
+
 	it('Anlegen/Task-Modus: `deadline` ist sichtbar', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 
