@@ -4957,6 +4957,42 @@ paths:
                 $ref: '#/components/schemas/Error'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /auth/review-login:
+    post:
+      summary: Prüfzugang für Google Play
+      description: >-
+        Meldet das feste Prüfkonto allein per Passwort an (`PLAY_REVIEW_PASSWORD`, #2426).
+        Das Konto entsteht beim ersten Login und erhält bei jedem Login das Paket `pro`.
+        Ist der Prüfzugang abgeschaltet, antwortet die Route wie bei einem falschen Passwort.
+        Nach fünf Fehlversuchen je IP und 15 Minuten folgt 429. Mit `X-Client-Channel: play`
+        (Android-App) antwortet die Route statt mit Session-Cookie mit einem App-Token.
+      operationId: reviewLogin
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewLoginRequest'
+      responses:
+        '200':
+          description: Angemeldet; Session-Cookie bzw. im Kanal `play` App-Token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewLoginResult'
+        '401':
+          description: Passwort falsch oder Prüfzugang abgeschaltet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Zu viele Fehlversuche
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /auth/waitlist:
     post:
       summary: Auf die Warteliste eintragen
@@ -9259,6 +9295,9 @@ components:
         magicLink:
           type: boolean
           description: Magic Link per E-Mail ist konfiguriert.
+        reviewAccess:
+          type: boolean
+          description: Prüfzugang für Google Play ist konfiguriert (`PLAY_REVIEW_PASSWORD`, #2426); fehlt = aus.
     MagicLinkRequest:
       type: object
       required:
@@ -9275,6 +9314,19 @@ components:
         token:
           type: string
           description: Token aus dem Anmeldelink (Parameter `magic`).
+    ReviewLoginRequest:
+      type: object
+      required: [password]
+      properties:
+        password:
+          type: string
+          description: Prüf-Passwort aus der Play Console (App-Zugriff).
+    ReviewLoginResult:
+      type: object
+      properties:
+        token:
+          type: string
+          description: App-Token (`pp_<32 Hex>`), nur im Kanal `play`
     WaitlistJoinRequest:
       type: object
       description: Eintrag auf die Warteliste des Launch-Zugangs (#1982, ADR 0019).
