@@ -119,6 +119,17 @@ describe('FeedbackForm — Fehlermeldung nennt den Grund des Servers (#1465)', (
 	});
 });
 
+describe('FeedbackForm — Vorauswahl Wünsche und Ideen (#2443 AK2)', () => {
+	it('sendet ohne Kategorie-Wechsel category "wunsch"', async () => {
+		sendFeedback.mockResolvedValue(undefined);
+
+		render(<FeedbackForm />);
+		await fillAndSubmit();
+
+		expect(sendFeedback).toHaveBeenCalledWith(expect.objectContaining({ category: 'wunsch' }));
+	});
+});
+
 describe('FeedbackForm — Intro-Text zur neuen Kategorien-Aufteilung (#1475 AK4)', () => {
 	/**
 	 * Die drei Kategorien heißen jetzt „Fragen und Hilfe", „Wünsche und Ideen", „Fehler melden".

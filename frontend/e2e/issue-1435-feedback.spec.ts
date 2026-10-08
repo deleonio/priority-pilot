@@ -30,9 +30,9 @@ test.describe('Feedback direkt in Obsidian (#1435)', () => {
 	/**
 	 * #1475 AK1: Das Kategorie-Select fasst die bisherigen vier Optionen zu drei zusammen —
 	 * Label-Vertrag: „Fragen und Hilfe" (frage), „Wünsche und Ideen" (wunsch), „Fehler melden"
-	 * (bug), in genau dieser Reihenfolge. Die Vorauswahl bleibt die Fehler-Kategorie (Wert `bug`).
+	 * (bug), in genau dieser Reihenfolge. Die Vorauswahl ist „Wünsche und Ideen" (Wert `wunsch`, #2443 AK1).
 	 */
-	test('AK1 (#1475): Kategorie-Select bietet genau die drei neuen Optionen in Reihenfolge, Vorauswahl ist die Fehler-Kategorie', async ({
+	test('AK1 (#1475): Kategorie-Select bietet genau die drei neuen Optionen in Reihenfolge, Vorauswahl ist Wünsche und Ideen (#2443)', async ({
 		page,
 	}) => {
 		await openFeedbackTab(page);
@@ -47,7 +47,7 @@ test.describe('Feedback direkt in Obsidian (#1435)', () => {
 		// Option geprüft (Wert `bug` wird in AK8/AK9 über die API-Mock-Payload mitgedeckt).
 		await expect
 			.poll(async () => combobox.evaluate((el: HTMLSelectElement) => el.selectedOptions[0]?.textContent?.trim() ?? ''))
-			.toBe('Fehler melden');
+			.toBe('Wünsche und Ideen');
 	});
 
 	test('AK8: erfolgreiches Absenden zeigt eine Bestätigung und leert die Felder', async ({ page }) => {
