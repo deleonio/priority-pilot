@@ -31,7 +31,7 @@ export const FeedbackForm = () => {
 		() => FEEDBACK_CATEGORIES.map(({ labelKey, value }) => ({ label: t(labelKey), value })),
 		[t],
 	);
-	const [category, setCategory] = useState('bug');
+	const [category, setCategory] = useState('wunsch');
 	const [title, setTitle] = useState('');
 	const [description, setDescription] = useState('');
 	const [sending, setSending] = useState(false);
