@@ -20,7 +20,7 @@ sichtbar unter ihrem Master in einem `KolDetails` innerhalb der Karte des Master
 
 Vorhandene Umsetzungen dieses Patterns:
 
-- **„Einzelne Animationen"** — Feinschalter „Herz animieren"/„Erledigt animieren" unter dem Master
+- **„Einzelne Animationen"** — Feinschalter „Balance animieren"/„Erledigt animieren" unter dem Master
   „Animationen" (`SettingsPage.tsx`, Tab „Allgemein") als `KolDetails` in der Karte „Bewegung".
 - **„Einzelne KI-Funktionen"** — Feinschalter „Schnellerfassung aktiv" unter dem Master
   „KI-Features aktiv" (`SettingsPage.tsx`, Tab „KI-Provider").

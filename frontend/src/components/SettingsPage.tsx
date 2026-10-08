@@ -206,7 +206,7 @@ export const SettingsPage = ({
 	// zu-/aufklappen lassen: ein rein gesteuertes `_open={animationsEnabled}` ohne Handler wird vom
 	// nächsten unbeteiligten Re-Render wieder zurückreconciliert (CI-Rennen zweimal rot).
 	const [animationsOpen, setAnimationsOpen] = useState(animationsEnabled);
-	// Feinschalter „Herz animieren“ — gilt nur gemeinsam mit dem Master (das Herz im HeartBalance).
+	// Feinschalter „Balance animieren“ — gilt nur gemeinsam mit dem Master (das Bild im HeartBalance).
 	const { enabled: heartAnimationEnabled, setEnabled: setHeartAnimationEnabled } = useHeartAnimationEnabled();
 	// Feinschalter „Erledigt animieren“ — gilt nur gemeinsam mit dem Master (Konfetti, #1169).
 	const { enabled: doneAnimationEnabled, setEnabled: setDoneAnimationEnabled } = useDoneAnimationEnabled();
@@ -609,7 +609,7 @@ export const SettingsPage = ({
 									_variant="switch"
 									_checked={animationsEnabled}
 									_disabled={prefersReducedMotion}
-									_hint="Dekorative Animationen anzeigen — im Einzelnen schaltbar über „Herz animieren“ und „Erledigt animieren“. Gilt gerätebezogen und ist standardmäßig aus."
+									_hint="Dekorative Animationen anzeigen — im Einzelnen schaltbar über „Balance animieren“ und „Erledigt animieren“. Gilt gerätebezogen und ist standardmäßig aus."
 									_on={{
 										onChange: (_event, value) => {
 											setAnimationsEnabled(value === true);
@@ -644,11 +644,11 @@ export const SettingsPage = ({
 								<div className="settings-card-stack">
 									<div className="settings-switch-row">
 										<KolInputCheckbox
-											_label="Herz animieren"
+											_label="Balance animieren"
 											_variant="switch"
 											_checked={heartAnimationEnabled}
 											_disabled={!animationsEnabled || prefersReducedMotion}
-											_hint="Das Herz der Lebensbalance auf dem Dashboard schlägt und seine Wasseroberfläche wellt. Setzt den Schalter „Animationen“ voraus. Gilt gerätebezogen."
+											_hint="Das Bild der Lebensbalance auf dem Dashboard atmet und pulsiert. Setzt den Schalter „Animationen“ voraus. Gilt gerätebezogen."
 											_on={{
 												onChange: (_event, value) => {
 													setHeartAnimationEnabled(value === true);

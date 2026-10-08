@@ -64,7 +64,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 
 		const rows = page.locator('.settings-general .settings-switch-row');
 		// Seit #1183: 3 Switches im Tab "Allgemein" (Sprachaufnahme, Animationen, Push); seit #1227
-		// sitzen die Animations-Feinschalter („Herz animieren“, „Erledigt animieren“) in einem eigenen
+		// sitzen die Animations-Feinschalter („Balance animieren“, „Erledigt animieren“) in einem eigenen
 		// KolDetails (statt eigener Zeilen) unter dem Master-Schalter — 2 Sub-Zeilen dazu.
 		// Ihr Inhalt bleibt bei geschlossenem KolDetails im DOM (Breite gesetzt, Höhe kollabiert).
 		// Seit #1792 kommt der Balance-Schalter als weitere Hauptzeile dazu → 6 Zeilen, seit #1794
@@ -140,7 +140,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Balamentum');
 
-		// Seit #1227 liegen „Herz animieren"/„Erledigt animieren" im Kollapsbereich unter dem
+		// Seit #1227 liegen „Balance animieren"/„Erledigt animieren" im Kollapsbereich unter dem
 		// Master-Schalter — geschlossen kollabiert deren Zeilenhöhe auf 0. Für die Touch-Target-
 		// Prüfung erst öffnen. `_open={animationsEnabled}` (`SettingsPage.tsx`) macht das Accordion
 		// zum kontrollierten Unter-Abschnitt (docs/ux-pattern-master-detail-settings.md) — der Klick
@@ -152,7 +152,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await animationsSwitch.click();
 
 		const switches = page.locator('.settings-general kol-input-checkbox[_variant="switch"]');
-		// Seit #1183: 3 Switches, seit #1227 5 (Sprachaufnahme, Animationen, Herz animieren,
+		// Seit #1183: 3 Switches, seit #1227 5 (Sprachaufnahme, Animationen, Balance animieren,
 		// Erledigt animieren, Push), seit #1792 6 (Balance-Priorisierung dazu), seit #1794 7
 		// (Fürsorge-Hinweise dazu), seit #1984 8 (Expertenmodus dazu), seit #1994 9 (Aufteilen-Hinweis dazu).
 		await expect(switches).toHaveCount(9);
@@ -286,7 +286,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 	});
 
 	/**
-	 * #1227: „Herz animieren"/„Erledigt animieren" sitzen seit dem Umbau in einem eigenen
+	 * #1227: „Balance animieren"/„Erledigt animieren" sitzen seit dem Umbau in einem eigenen
 	 * Kollapsbereich statt eigener Zeilen unter dem Master-Schalter „Animationen" — Platzersparnis
 	 * in der Breite bei gleicher Bedienbarkeit. Der Klick auf „Einzelne Animationen" blendet
 	 * beide Feinschalter ein; sie bleiben über den Master-Schalter koppelbar.
@@ -299,7 +299,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 
 		// Vor dem Öffnen sind die Feinschalter zwar im DOM (der Details-Block kollabiert nur die Höhe),
 		// aber nicht sichtbar/bedienbar.
-		await expect(switchControl(page, /Herz animieren/i)).toBeHidden();
+		await expect(switchControl(page, /Balance animieren/i)).toBeHidden();
 		await expect(switchControl(page, /Erledigt animieren/i)).toBeHidden();
 
 		await accordionTrigger(page, 'Einzelne Animationen').click();
@@ -310,11 +310,11 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		 * Klappzustand mit `_on.onClick`, der Header-Klick reconciliert nicht mehr zurück. Ein
 		 * einziges Assert-Paar genügt wieder.
 		 */
-		await expect(switchControl(page, /Herz animieren/i)).toBeVisible();
+		await expect(switchControl(page, /Balance animieren/i)).toBeVisible();
 		await expect(switchControl(page, /Erledigt animieren/i)).toBeVisible();
 
 		// Master-Schalter „Animationen" ist standardmäßig aus → beide Feinschalter bleiben deaktiviert.
-		await expect(switchControl(page, /Herz animieren/i)).toBeDisabled();
+		await expect(switchControl(page, /Balance animieren/i)).toBeDisabled();
 		await expect(switchControl(page, /Erledigt animieren/i)).toBeDisabled();
 	});
 
@@ -331,19 +331,19 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await waitForStableView(page, 'Balamentum');
 
 		const animationsSwitch = switchControl(page, /^Animationen$/);
-		await expect(switchControl(page, /Herz animieren/i)).toBeHidden();
+		await expect(switchControl(page, /Balance animieren/i)).toBeHidden();
 
 		// Master an → Details öffnet von selbst, ohne den Aufklapp-Button zu klicken; Feinschalter
 		// werden bedienbar (kein `_disabled` mehr, da nur noch der Master-Zustand zählt).
 		await animationsSwitch.click();
-		await expect(switchControl(page, /Herz animieren/i)).toBeVisible();
+		await expect(switchControl(page, /Balance animieren/i)).toBeVisible();
 		await expect(switchControl(page, /Erledigt animieren/i)).toBeVisible();
-		await expect(switchControl(page, /Herz animieren/i)).toBeEnabled();
+		await expect(switchControl(page, /Balance animieren/i)).toBeEnabled();
 		await expect(switchControl(page, /Erledigt animieren/i)).toBeEnabled();
 
 		// Master wieder aus → Details schließt von selbst, ohne erneuten Klick auf „Animations-Details".
 		await animationsSwitch.click();
-		await expect(switchControl(page, /Herz animieren/i)).toBeHidden();
+		await expect(switchControl(page, /Balance animieren/i)).toBeHidden();
 		await expect(switchControl(page, /Erledigt animieren/i)).toBeHidden();
 	});
 });
