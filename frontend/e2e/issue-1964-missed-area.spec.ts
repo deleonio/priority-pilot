@@ -74,6 +74,28 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		await expect(second).not.toContainText(/\d+× verschoben/);
 	});
 
+	test('Layout — Verpasst genau 1× im Dashboard-Grid, neben Deadlines; auf /aufgaben ebenfalls 1×', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await createTaskViaApi(page, { title: 'Verpasst Layout', deadline: new Date(Date.now() - DAY).toISOString() });
+		await createTaskViaApi(page, { title: 'Bald fällig', deadline: new Date(Date.now() + DAY).toISOString() });
+
+		await page.goto('/app/');
+		await waitForStableView(page);
+		await expect(page.locator('section.dashboard > .missed-section')).toHaveCount(1);
+		await expect(page.getByTestId('missed-section')).toHaveCount(1);
+		await expect(page.getByTestId('missed-section')).toBeVisible();
+		await expect(page.locator('.dashboard-deadlines')).toBeVisible();
+		const missed = await page.getByTestId('missed-section').boundingBox();
+		const deadlines = await page.locator('.dashboard-deadlines').boundingBox();
+		expect(Math.abs(missed!.y - deadlines!.y)).toBeLessThan(2);
+
+		await page.goto('/app/aufgaben');
+		await waitForStableView(page);
+		await expect(page.getByTestId('missed-section')).toHaveCount(1);
+	});
+
 	test('AK6 — 375px: Bereich inkl. vier Aktionen ohne horizontalen Scroll, Targets >= 44px', async ({ page }) => {
 		const past = new Date(Date.now() - DAY).toISOString();
 		await createTaskViaApi(page, { title: 'Mobile Verpasst', deadline: past });

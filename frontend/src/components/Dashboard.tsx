@@ -1,6 +1,7 @@
 import { Trans, useTranslation } from 'react-i18next';
 import i18next from '../i18n/config';
 import { KolBadge, KolButton, KolCard, KolMeter, KolPagination } from '@public-ui/react-v19';
+import { MissedTasksSection } from './MissedTasksSection';
 import { FreeTimeCard } from './FreeTimeCard';
 import { NearbyCard } from './NearbyCard';
 import { CareHint } from './CareHint';
@@ -126,6 +127,16 @@ interface DashboardProps {
 	showDayDoneHint?: boolean;
 	/** Öffnet die Säulen-Einstellungen (Schritt „Säulen gewichten“ im Einstieg, #2221); ohne Callback kein Einstieg. */
 	onOpenPillars?: () => void;
+	/** Verpasste Aufgaben (`GET /tasks?missed=1`, #1964) — letzte Card im Grid, Paar mit den Deadlines; leer → keine Card. */
+	missedTasks?: Task[];
+	/** „Erledigt" im Verpasst-Bereich. */
+	onCompleteMissed?: (task: Task) => void;
+	/** „Neu planen" im Verpasst-Bereich. */
+	onEditMissed?: (task: Task) => void;
+	/** „Archivieren" im Verpasst-Bereich. */
+	onArchiveMissed?: (task: Task) => void;
+	/** „Löschen" im Verpasst-Bereich. */
+	onDeleteMissed?: (task: Task) => void;
 }
 
 interface StatCard {
@@ -175,6 +186,11 @@ export const Dashboard = ({
 	onSnoozeTask,
 	showDayDoneHint = true,
 	onOpenPillars,
+	missedTasks = [],
+	onCompleteMissed,
+	onEditMissed,
+	onArchiveMissed,
+	onDeleteMissed,
 }: DashboardProps) => {
 	const { t } = useTranslation(['dashboard', 'common']);
 	const greeting = displayName.trim();
@@ -635,6 +651,18 @@ export const Dashboard = ({
 					</>
 				)}
 			</KolCard>
+			{/* #1964: Verpasst-Bereich als letzte Grid-Card — bildet mit den Deadlines das letzte
+			    Zeilenpaar des Zwei-Spalten-Rasters; fehlt er, läuft die Deadlines-Card in voller
+			    Breite (CSS-`:has()`-Fallback). Die Aufgaben-Tab-Instanz bleibt in `App.tsx`. */}
+			{missedTasks.length > 0 && onCompleteMissed && onEditMissed && onArchiveMissed && onDeleteMissed && (
+				<MissedTasksSection
+					tasks={missedTasks}
+					onComplete={onCompleteMissed}
+					onEdit={onEditMissed}
+					onArchive={onArchiveMissed}
+					onDelete={onDeleteMissed}
+				/>
+			)}
 		</section>
 	);
 };
