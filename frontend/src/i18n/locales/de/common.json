@@ -152,5 +152,6 @@
 	},
 	"splitHint": {
 		"reason": "Große Aufgaben lassen sich oft leichter angehen, wenn du sie in kleinere Schritte teilst."
-	}
+	},
+	"quoted": "„{{value}}“"
 }

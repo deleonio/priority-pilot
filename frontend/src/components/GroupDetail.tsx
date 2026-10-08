@@ -480,7 +480,7 @@ export const GroupDetail = ({ groupId, ownRole, kind = 'group', refreshKey = 0, 
 						<Trans
 							t={t}
 							i18nKey="groups:detail.removeText"
-							components={{ name: <strong>{pendingRemoval.displayName}</strong> }}
+							components={{ name: <strong>{t('common:quoted', { value: pendingRemoval.displayName })}</strong> }}
 						/>
 					</p>
 					<div className="modal-actions">

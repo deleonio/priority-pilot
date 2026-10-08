@@ -28,8 +28,8 @@
 	"deleteDialog": {
 		"title": "Delete group",
 		"errorLabel": "Deletion failed",
-		"intent": "Do you really want to delete the group “<name/>”?",
-		"scope": "The group “<name/>” will be permanently deleted — including all member entries. This action cannot be undone.",
+		"intent": "Do you really want to delete the group <name/>?",
+		"scope": "The group <name/> will be permanently deleted — including all member entries. This action cannot be undone.",
 		"confirm": "Delete permanently"
 	},
 	"detail": {
@@ -65,7 +65,7 @@
 		"copyLink": "Copy link",
 		"revoke": "Revoke",
 		"removeTitle": "Remove member",
-		"removeText": "Do you really want to remove “<name/>” from the group? They will lose access to the group and its content.",
+		"removeText": "Do you really want to remove <name/> from the group? They will lose access to the group and its content.",
 		"revokeTitle": "Revoke invite link",
 		"revokeText": "Do you really want to revoke this invite link? Nobody will be able to join with it — this cannot be undone. People who already joined stay members."
 	},

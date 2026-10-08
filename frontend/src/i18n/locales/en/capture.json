@@ -74,7 +74,7 @@
 	},
 	"deleteSeries": {
 		"title": "Delete series",
-		"body": "Delete the series \"<title/>\" — and if so, also delete all instances generated so far? This action cannot be undone.",
+		"body": "Delete the series <title/> — and if so, also delete all instances generated so far? This action cannot be undone.",
 		"confirm": "Yes (series + all tasks)",
 		"seriesOnly": "No (series only, tasks remain independent)"
 	},

@@ -157,12 +157,12 @@
 	},
 	"categoryDeleteDialog": {
 		"title": "Kategorie löschen",
-		"body": "Soll die Kategorie „<name/>“ wirklich gelöscht werden? Aufgaben und Serien in dieser Kategorie bleiben erhalten und verlieren nur ihre Zuordnung.",
+		"body": "Soll die Kategorie <name/> wirklich gelöscht werden? Aufgaben und Serien in dieser Kategorie bleiben erhalten und verlieren nur ihre Zuordnung.",
 		"confirm": "Endgültig löschen"
 	},
 	"llmProviderDeleteDialog": {
 		"title": "Provider löschen",
-		"body": "Soll der Provider „<name/>“ (<endpoint/>) wirklich gelöscht werden?",
+		"body": "Soll der Provider <name/> (<endpoint/>) wirklich gelöscht werden?",
 		"activeHint": "Er ist der AKTIVE Provider — danach übernimmt automatisch der Fallback (Mistral vor OpenRouter, je nach Server-ENV).",
 		"irreversible": "Diese Aktion kann nicht rückgängig gemacht werden.",
 		"confirm": "Endgültig löschen"

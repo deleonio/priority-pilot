@@ -109,7 +109,7 @@
 	"completeTask": {
 		"title": "Complete task",
 		"failed": "Completing failed",
-		"question": "Mark the task “<title/>” as done?",
+		"question": "Mark the task <title/> as done?",
 		"itemLabel": "Complete",
 		"checkAll": "Check all",
 		"completing": "Completing…",
@@ -124,7 +124,7 @@
 	},
 	"deleteTask": {
 		"title": "Delete task",
-		"body": "Do you really want to delete the task “<title/>”? This action cannot be undone.",
+		"body": "Do you really want to delete the task <title/>? This action cannot be undone.",
 		"confirm": "Delete permanently"
 	},
 	"confirmDelete": {
@@ -142,7 +142,7 @@
 		"restore": "Restore"
 	},
 	"missedComplete": {
-		"question": "Did you only just complete “<title/>”?",
+		"question": "Did you only just complete <title/>?",
 		"onTime": "No, on time",
 		"now": "Yes, just now"
 	},

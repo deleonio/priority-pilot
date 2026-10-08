@@ -74,7 +74,7 @@
 	},
 	"deleteSeries": {
 		"title": "Serie löschen",
-		"body": "Soll die Serie „<title/>\" gelöscht werden — und falls ja, sollen auch alle bereits generierten Instanzen mitgelöscht werden? Diese Aktion kann nicht rückgängig gemacht werden.",
+		"body": "Soll die Serie <title/> gelöscht werden — und falls ja, sollen auch alle bereits generierten Instanzen mitgelöscht werden? Diese Aktion kann nicht rückgängig gemacht werden.",
 		"confirm": "Ja (Serie + alle Aufgaben)",
 		"seriesOnly": "Nein (nur Serie, Aufgaben bleiben eigenständig)"
 	},

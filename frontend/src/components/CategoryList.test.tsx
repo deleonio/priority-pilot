@@ -221,7 +221,7 @@ describe('CategoryList — Kategorie-Verwaltung', () => {
 
 		// Der Bestätigungstext nennt die Kategorie des GEKLICKTEN Chips (typografische Anführung im
 		// Dialogkörper — das Badge in der Liste trägt den Namen ohne, bleibt also kein Falsch-Treffer):
-		expect(screen.getByText('Verein', { selector: 'strong' })).toBeInTheDocument();
+		expect(screen.getByText('„Verein“')).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: 'Endgültig löschen' })).toBeInTheDocument();
 	});
 

@@ -28,8 +28,8 @@
 	"deleteDialog": {
 		"title": "Gruppe löschen",
 		"errorLabel": "Löschen fehlgeschlagen",
-		"intent": "Willst du die Gruppe „<name/>“ wirklich löschen?",
-		"scope": "Die Gruppe „<name/>“ wird endgültig gelöscht — inkl. aller Mitglieder-Einträge. Diese Aktion kann nicht rückgängig gemacht werden.",
+		"intent": "Willst du die Gruppe <name/> wirklich löschen?",
+		"scope": "Die Gruppe <name/> wird endgültig gelöscht — inkl. aller Mitglieder-Einträge. Diese Aktion kann nicht rückgängig gemacht werden.",
 		"confirm": "Endgültig löschen"
 	},
 	"detail": {
@@ -65,7 +65,7 @@
 		"copyLink": "Link kopieren",
 		"revoke": "Ungültig machen",
 		"removeTitle": "Mitglied entfernen",
-		"removeText": "Willst du „<name/>“ wirklich aus der Gruppe entfernen? Die Person verliert damit den Zugriff auf die Gruppe und ihre Inhalte.",
+		"removeText": "Willst du <name/> wirklich aus der Gruppe entfernen? Die Person verliert damit den Zugriff auf die Gruppe und ihre Inhalte.",
 		"revokeTitle": "Einladungslink ungültig machen",
 		"revokeText": "Willst du diesen Einladungslink wirklich ungültig machen? Niemand kann damit mehr beitreten — das lässt sich nicht rückgängig machen. Bereits Beigetretene bleiben Mitglied."
 	},

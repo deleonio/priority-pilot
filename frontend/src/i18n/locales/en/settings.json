@@ -157,12 +157,12 @@
 	},
 	"categoryDeleteDialog": {
 		"title": "Delete category",
-		"body": "Do you really want to delete the category “<name/>”? Tasks and series in this category are kept and only lose their assignment.",
+		"body": "Do you really want to delete the category <name/>? Tasks and series in this category are kept and only lose their assignment.",
 		"confirm": "Delete permanently"
 	},
 	"llmProviderDeleteDialog": {
 		"title": "Delete provider",
-		"body": "Do you really want to delete the provider “<name/>” (<endpoint/>)?",
+		"body": "Do you really want to delete the provider <name/> (<endpoint/>)?",
 		"activeHint": "It is the ACTIVE provider — the fallback then takes over automatically (Mistral before OpenRouter, depending on the server ENV).",
 		"irreversible": "This action cannot be undone.",
 		"confirm": "Delete permanently"

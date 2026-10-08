@@ -152,5 +152,6 @@
 	},
 	"splitHint": {
 		"reason": "Big tasks are often easier to tackle when you split them into smaller steps."
-	}
+	},
+	"quoted": "“{{value}}”"
 }

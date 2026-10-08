@@ -21,7 +21,11 @@ export const DeleteTaskDialog = ({ task, onClose, onDeleted, fallbackFocusRef }:
 			title={t('deleteTask.title')}
 			body={
 				<p>
-					<Trans t={t} i18nKey="deleteTask.body" components={{ title: <strong>{task.title}</strong> }} />
+					<Trans
+						t={t}
+						i18nKey="deleteTask.body"
+						components={{ title: <strong>{t('common:quoted', { value: task.title })}</strong> }}
+					/>
 				</p>
 			}
 			confirmLabel={t('deleteTask.confirm')}

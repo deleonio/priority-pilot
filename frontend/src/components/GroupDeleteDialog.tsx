@@ -69,7 +69,11 @@ export const GroupDeleteDialog = ({ group, onClose, onDeleted, fallbackFocusRef 
 			{step === 'intent' ? (
 				<>
 					<p>
-						<Trans t={t} i18nKey="groups:deleteDialog.intent" components={{ name: <strong>{group.name}</strong> }} />
+						<Trans
+							t={t}
+							i18nKey="groups:deleteDialog.intent"
+							components={{ name: <strong>{t('common:quoted', { value: group.name })}</strong> }}
+						/>
 					</p>
 					<div className="modal-actions">
 						<KolButton
@@ -91,7 +95,11 @@ export const GroupDeleteDialog = ({ group, onClose, onDeleted, fallbackFocusRef 
 			) : (
 				<>
 					<p>
-						<Trans t={t} i18nKey="groups:deleteDialog.scope" components={{ name: <strong>{group.name}</strong> }} />
+						<Trans
+							t={t}
+							i18nKey="groups:deleteDialog.scope"
+							components={{ name: <strong>{t('common:quoted', { value: group.name })}</strong> }}
+						/>
 					</p>
 					<div className="modal-actions">
 						<KolButton

@@ -31,7 +31,11 @@ export const DeleteSeriesDialog = ({ series, onClose, onDeleted, fallbackFocusRe
 			title={t('deleteSeries.title')}
 			body={
 				<p>
-					<Trans t={t} i18nKey="deleteSeries.body" components={{ title: <strong>{series.title}</strong> }} />
+					<Trans
+						t={t}
+						i18nKey="deleteSeries.body"
+						components={{ title: <strong>{t('common:quoted', { value: series.title })}</strong> }}
+					/>
 				</p>
 			}
 			confirmLabel={t('deleteSeries.confirm')}
