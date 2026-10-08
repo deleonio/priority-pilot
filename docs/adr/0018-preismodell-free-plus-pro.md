@@ -56,4 +56,4 @@ Alles andere aus ADR 0014 gilt weiter, vor allem: kein Angebots-Dialog (Punkt 3)
 
 ## Nachtrag 2026-10-05: Keine Pakete auf Zeit ohne Zustimmung
 
-Plus oder Pro werden nie automatisch auf Zeit vergeben, weder als Einladungsprämie noch als Start-Testphase. Was später wegfällt, erleben Nutzer als Verlust. Eine Pro-Testphase gibt es nur auf eigenen Wunsch: einmal je Konto, frühestens eine Woche nach der Registrierung (#1987). Die Einladungsprämie „ein Monat Plus“ (#1975) ist deshalb verworfen.
+Plus oder Pro werden nie automatisch auf Zeit vergeben, weder als Einladungsprämie noch als Start-Testphase. Was später wegfällt, erleben Nutzer als Verlust. Eine Plus-Testphase gibt es nur auf eigenen Wunsch: einmal je Konto, frühestens eine Woche nach der Registrierung (#1987). Die Einladungsprämie „ein Monat Plus“ (#1975) ist deshalb verworfen.
