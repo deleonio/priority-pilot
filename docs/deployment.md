@@ -209,6 +209,13 @@ es, baut die APK ohne FCM-Push. Das Schlüsselpaar (`gh_deploy`/`gh_deploy.pub`,
 beide **gitignored** — private Schlüssel sind Secrets) liegt im Projekt-Setup vor; Einrichtung des
 Hosts siehe [server-setup.md](server-setup.md).
 
+**Reichweitenmessung (optional):** Die Variablen `MATOMO_URL` (z. B. `https://stats.example.de/`)
+und `MATOMO_SITE_ID` binden cookieloses Matomo in Website und Web-App ein, nicht in die Android-App
+(`frontend/src/lib/matomo.ts`). Fehlt eine davon, wird nichts eingebunden. Gezählt wird nur der
+Pfad ohne Query, weil die Query Anmelde-Tokens trägt. Die Datenschutzerklärung sagt das so zu, deshalb
+in der Matomo-Instanz einstellen: IP-Anonymisierung auf 2 Bytes, Rohdaten nach 180 Tagen löschen,
+Do Not Track beachten. Für Website und App genügt eine Site-ID, `/app/` trennt sie im Bericht.
+
 **Caddy** terminiert TLS davor und reverse-proxyt `/api/v1/*` (Präfix-Strip) und `/auth/*` ans
 Backend — Konfiguration und Pfad-Tabelle: [server-setup.md § 7](server-setup.md#7-caddy-block--dns).
 
