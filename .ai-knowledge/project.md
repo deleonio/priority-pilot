@@ -20,7 +20,7 @@ pnpm-Workspace (siehe `pnpm-workspace.yaml`):
 - `server/` (npm-Name **`server`**): Node.js + Express 5 + Sequelize 6 (SQLite). Gesamte Fachlogik.
 - `client/`: aus `openapi.yml` via `openapi-typescript` generierte API-Typen (`src/schema.d.ts`, nicht versioniert) plus dünner Re-Export (`src/index.ts`).
 - `frontend/`: React 19 + KoliBri (Vite/PWA); spricht die API typsicher per `openapi-fetch` an.
-- `native/`: Capacitor-Wrapper der Android-App im Remote-Modus, lädt die gehostete `/app/` ([Native Apps](../docs/native-apps.md)).
+- `native/`: Capacitor-Wrapper der Android-App mit gebündelter Web-App ([Native Apps](../docs/native-apps.md), [ADR 0021](../docs/adr/0021-android-app-spa-ohne-service-worker.md)).
 - `website/`: öffentliche, statisch vorgerenderte Landingpage (de an `/`, die übrigen neun App-Sprachen unter `/<sprache>/`); die App liegt unter `/app/` ([ADR 0015](../docs/adr/0015-oeffentliche-website-und-app-unter-app.md)).
 
 Gemeinsamer API-Vertrag: `openapi.yml`
