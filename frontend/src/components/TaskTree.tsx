@@ -58,6 +58,8 @@ interface TaskTreeProps {
 	onEditDependencies: (task: Task) => void;
 	/** Legt eine neue Unteraufgabe an, die als Vorgänger mit dieser Aufgabe verknüpft wird. */
 	onAddSubtask: (task: Task) => void;
+	/** #2361: Öffnet das Serien-Formular als Vorlage, vorbelegt aus dieser Aufgabe. */
+	onSaveAsTemplate: (task: Task) => void;
 	/** Schaltet eine Aufgabe per binärem Toggle zwischen „Erledigt" und „Offen" um (#315). */
 	onDoneToggle: (task: Task) => Promise<void>;
 	/** Pinnt die Aufgabe an bzw. wieder ab (#1582). */
@@ -87,6 +89,7 @@ interface LeafItemProps {
 	onDelete: (task: Task) => void;
 	onEditDependencies: (task: Task) => void;
 	onAddSubtask: (task: Task) => void;
+	onSaveAsTemplate: (task: Task) => void;
 	onDoneToggle: (task: Task) => Promise<void>;
 	onPinToggle: (task: Task) => void;
 }
@@ -117,6 +120,7 @@ const LeafItem = ({
 	onDelete,
 	onEditDependencies,
 	onAddSubtask,
+	onSaveAsTemplate,
 	onDoneToggle,
 	onPinToggle,
 }: LeafItemProps) => {
@@ -314,6 +318,20 @@ const LeafItem = ({
 											},
 										},
 										{
+											// #2361: Mit Abstand vor „Löschen" (destruktive Aktion); Popover schließt sich
+											// wie bei „Unteraufgabe anlegen", damit der Dialog den Trigger kennt.
+											type: 'button',
+											_label: 'Als Vorlage speichern',
+											_hideLabel: true,
+											_icons: { left: { icon: 'fa-solid fa-clone' } },
+											_variant: 'secondary',
+											_on: {
+												onClick: () => {
+													void Promise.resolve(popoverRef.current?.hidePopover()).then(() => onSaveAsTemplate(task));
+												},
+											},
+										},
+										{
 											// #1582: Der Pin-Toggle liegt als vorletztes Toolbar-Item vor „Löschen", statt als
 											// eigener Schalter in der Zeile. Wie beim Erledigt-Toggle bewusst KEIN
 											// `hidePopover()`: mehrfaches Umschalten soll ohne Neuöffnen möglich bleiben.
@@ -388,6 +406,7 @@ export const TaskTree = ({
 	onDelete,
 	onEditDependencies,
 	onAddSubtask,
+	onSaveAsTemplate,
 	onDoneToggle,
 	onPinToggle,
 	categories = [],
@@ -455,6 +474,7 @@ export const TaskTree = ({
 					onDelete={onDelete}
 					onEditDependencies={onEditDependencies}
 					onAddSubtask={onAddSubtask}
+					onSaveAsTemplate={onSaveAsTemplate}
 					onDoneToggle={onDoneToggle}
 					onPinToggle={onPinToggle}
 				/>

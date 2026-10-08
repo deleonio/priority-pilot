@@ -12,6 +12,8 @@ interface TaskFormModalProps {
 	 * Vorgänger verknüpft (Unteraufgabe über das bestehende Abhängigkeits-/Aufgabenwald-Konzept).
 	 */
 	parentTask?: Task | null;
+	/** Vorgewählter Formularmodus beim Anlegen (#334) — z. B. `'series'` im Vorlage-Flow (#2361). */
+	initialMode?: 'task' | 'series';
 	/** Verfügbare Lebensbalance-Säulen für die Zuordnung (`GET /pillars`). */
 	pillars: Pillar[];
 	/** Verfügbare Kategorien für die thematische Zuordnung (`GET /categories`). */
@@ -21,6 +23,10 @@ interface TaskFormModalProps {
 	 * per LLM (#236). Greift nur, wenn `task` selbst keinen Wert liefert.
 	 */
 	initialValues?: TaskFormInitialValues;
+	/** Vorgegebener Dialogtitel — override für Spezial-Flows, z. B. „Vorlage erstellen" (#2361). */
+	title?: string;
+	/** Siehe `TaskForm.lockMode` (#2361): Modus-Umschalter sperren + „Termin & Ort" initial auf. */
+	lockMode?: boolean;
 	/** Fallback-Fokusziel für die Fokus-Rückgabe beim Schließen (durchgereicht an `Modal`). */
 	fallbackFocusRef?: RefObject<HTMLElement | null>;
 	onClose: () => void;
@@ -38,9 +44,12 @@ interface TaskFormModalProps {
 export const TaskFormModal = ({
 	task,
 	parentTask = null,
+	initialMode,
 	pillars,
 	categories,
 	initialValues,
+	title,
+	lockMode,
 	fallbackFocusRef,
 	onClose,
 	onSaved,
@@ -57,7 +66,7 @@ export const TaskFormModal = ({
 	return (
 		<Modal
 			ref={modalRef}
-			title={taskFormModalTitle(task, parentTask, 'task')}
+			title={title ?? taskFormModalTitle(task, parentTask, 'task')}
 			onClose={() => {
 				if (taskFormRef.current !== null) {
 					taskFormRef.current.requestClose();
@@ -71,9 +80,11 @@ export const TaskFormModal = ({
 				ref={taskFormRef}
 				task={task}
 				parentTask={parentTask}
+				initialMode={initialMode}
 				pillars={pillars}
 				categories={categories}
 				initialValues={initialValues}
+				lockMode={lockMode}
 				onClose={onClose}
 				onSaved={onSaved}
 				onChanged={onChanged}
@@ -82,3 +93,23 @@ export const TaskFormModal = ({
 		</Modal>
 	);
 };
+
+/**
+ * #2361: Überführt eine bestehende Aufgabe in die Vorbelegung des Serien-Formulars (Vorlage-Flow).
+ * Titel, Beschreibung, Priorität, Aufwand, Adresse (inkl. Koordinaten), Kategorie und Säulen-Verteilung
+ * werden 1:1 übernommen; die Serien-Einstellungen stehen bewusst auf „Automatisch anlegen" aus und
+ * „Ohne Rhythmus". Deadline, Checkliste, Status und Pin entfallen bewusst (kein Serien-Gegenstück).
+ */
+export const taskAsTemplateInitialValues = (task: Task): TaskFormInitialValues => ({
+	title: task.title,
+	description: task.description ?? '',
+	priority: task.priority,
+	estimatedEffort: task.estimatedEffort ?? undefined,
+	address: task.address ?? '',
+	latitude: task.latitude ?? undefined,
+	longitude: task.longitude ?? undefined,
+	categoryId: task.categoryId ?? undefined,
+	pillars: task.pillars,
+	autoCreate: false,
+	rhythm: 'none',
+});

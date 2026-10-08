@@ -29,7 +29,8 @@
 		"select": "Wybierz",
 		"back": "Wstecz",
 		"snooze": "Odłóż na chwilę",
-		"snoozed": "Zadanie odłożone. Wróci później."
+		"snoozed": "Zadanie odłożone. Wróci później.",
+		"saveAsTemplate": "Zapisz jako szablon"
 	},
 	"status": {
 		"open": "Otwarte",

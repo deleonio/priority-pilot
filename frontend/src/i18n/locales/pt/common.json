@@ -29,7 +29,8 @@
 		"select": "Selecionar",
 		"back": "Voltar",
 		"snooze": "Pôr de lado por um tempo",
-		"snoozed": "Tarefa posta de lado. Voltará mais tarde."
+		"snoozed": "Tarefa posta de lado. Voltará mais tarde.",
+		"saveAsTemplate": "Salvar como modelo"
 	},
 	"status": {
 		"open": "Aberto",

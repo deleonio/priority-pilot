@@ -29,7 +29,8 @@
 		"select": "Seleccionar",
 		"back": "Atrás",
 		"snooze": "Posponer un rato",
-		"snoozed": "Tarea pospuesta. Volverá más tarde."
+		"snoozed": "Tarea pospuesta. Volverá más tarde.",
+		"saveAsTemplate": "Guardar como plantilla"
 	},
 	"status": {
 		"open": "Abierto",
