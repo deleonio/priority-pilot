@@ -181,7 +181,7 @@ export const PRIVACY: { intro: string; description: string; sections: PrivacySec
 			paragraphs: [],
 			facts: {
 				purpose:
-					'Zählen, wie oft Website und App besucht werden, welche Seiten aufgerufen werden und von welcher Seite Besucher kommen. Wir nutzen Matomo ohne Cookies: Auf deinem Gerät wird nichts gespeichert, übertragen wird nur der Seitenpfad, nie Suchbegriffe, Aufgabeninhalte oder Anmelde-Links. Die IP-Adresse wird vor dem Speichern gekürzt, ein Besuch lässt sich nicht über den Tag hinaus wiedererkennen. Sendet dein Browser „Do Not Track“, zählen wir dich nicht.',
+					'Zählen, wie oft Website und App besucht werden, welche Seiten aufgerufen werden und von welcher Seite Besucher kommen. Wir nutzen Matomo ohne Cookies: Auf deinem Gerät wird nichts gespeichert, übertragen werden der Seitenpfad, der Seitentitel, die verweisende Seite sowie technische Angaben zu Browser und Bildschirm, bei Klicks auf externe Links deren Ziel, nie Suchbegriffe, Aufgabeninhalte oder Anmelde-Links. Die IP-Adresse wird vor dem Speichern gekürzt, ein Besuch lässt sich nicht über den Tag hinaus wiedererkennen. Sendet dein Browser „Do Not Track“, zählen wir dich nicht.',
 				legalBasis: 'Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer datensparsamen Reichweitenmessung).',
 				retention: 'Einzelne Besuche 180 Tage, danach nur zusammengefasste Zahlen ohne Personenbezug.',
 				recipients:

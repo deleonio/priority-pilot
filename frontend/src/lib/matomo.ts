@@ -21,7 +21,8 @@ let lastPath: string | undefined;
 /** Seitenwechsel der SPA melden; den ersten Aufruf zählt bereits das Snippet. */
 export const trackPageView = (path: string): void => {
 	if (lastPath !== undefined && lastPath !== path) {
-		window._paq?.push(['setCustomUrl', location.origin + path], ['trackPageView']);
+		// Router-Pfade sind basename-relativ; die Fenster-URL trägt das /app/-Präfix.
+		window._paq?.push(['setCustomUrl', location.origin + location.pathname], ['trackPageView']);
 	}
 	lastPath = path;
 };
