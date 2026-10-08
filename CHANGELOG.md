@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.19 - 2026-10-08
 
-_Enthält v0.19.0 – v0.19.8._
+_Enthält v0.19.0 – v0.19.10._
 
 ### 🎉 New Features
 
@@ -22,6 +22,7 @@ _Enthält v0.19.0 – v0.19.8._
 ### 🔧 Engineering
 
 - docs(adr-0018): grant plus instead of pro for opt-in trial by @deleonio in https://github.com/deleonio/priority-pilot/pull/2438
+- docs(skill): empty-queue stop ignores PRs parked with the author by @deleonio in https://github.com/deleonio/priority-pilot/pull/2441
 
 ### Other Changes
 
@@ -29,6 +30,7 @@ _Enthält v0.19.0 – v0.19.8._
 - feat(frontend): deadline pagination, compact missed list, slim banner by @deleonio in https://github.com/deleonio/priority-pilot/pull/2416
 - feat(frontend): reduce balance variants to rays, bloom, crystal, hands by @deleonio in https://github.com/deleonio/priority-pilot/pull/2437
 - feat(i18n): translate app, server texts and website to english by @deleonio in https://github.com/deleonio/priority-pilot/pull/2429
+- fix(server): reset review account on every login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2444
 
 ## v0.18 - 2026-10-08
 
@@ -141,7 +143,6 @@ _Enthält v0.17.0 – v0.17.45._
 
 ### Other Changes
 
-- feat(server): refund and chargeback credit and cancel package (#2237) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2266
 - feat(server): refund and chargeback credit and cancel package (#2237) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2266
 - feat(frontend): brand footer with logos on monthly card (#2255) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2269
 - fix(server): defer plan takeover for delayed-start subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2271
