@@ -28,7 +28,7 @@ name: Daily Version
 # wie deploy.yml). Der Bump-Commit traegt [skip ci], loest deploy.yml also nicht per
 # push aus. Die neue Version steckt aber erst nach einem Build im Frontend-Bundle
 # (Footer, __APP_VERSION__) — daher stoesst der letzte Schritt deploy.yml per
-# workflow_dispatch an (Redeploy ohne erneuten Patch-Bump). Danach baut android.yml auf dem
+# workflow_dispatch an (Redeploy ohne erneuten Patch-Bump). Danach baut android.yml mit dem
 # neuen Tag das AAB und rollt es im internen Test-Track der Play Console aus.
 
 on:
@@ -200,5 +200,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v$(node -p "require('./package.json').version")"
-          gh workflow run android.yml --repo "${{ github.repository }}" --ref "$TAG" \
-            || echo "::warning title=App-Bundle nicht angestoßen::android.yml manuell per workflow_dispatch auf ${TAG} starten."
+          gh workflow run android.yml --repo "${{ github.repository }}" --ref main -f tag="$TAG" \
+            || echo "::warning title=App-Bundle nicht angestoßen::android.yml manuell per workflow_dispatch mit tag=${TAG} starten."

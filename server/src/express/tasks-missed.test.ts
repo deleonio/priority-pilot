@@ -18,6 +18,9 @@ import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } 
  *
  * Rot, bis Modell (`postponeCount`/`archivedAt`), `?missed=1`-Filter, PATCH-Inkrement und
  * Archiv-Aktion existieren. KEIN Produktivcode.
+ *
+ * #2427 (Verpasst-Grenze, docs/spec/issue-2427.md): die beiden Tests am Ende sichern, dass eine
+ * Deadline erst ab dem Folgetag als verpasst zählt.
  */
 
 applyTestAuthEnv('test-secret-issue-1964');
@@ -182,5 +185,26 @@ describe('Verpasst-Bereich (#1964)', () => {
 		assert.ok(entry, 'Erledigen vergibt einen ScoreEntry');
 		assert.equal(entry.pünktlich, true);
 		assert.equal(entry.zeitpunkt.toISOString(), deadline);
+	});
+
+	it('#2427 AK1 — Deadline heute (00:00 UTC) ist nicht verpasst, egal wann abgerufen wird', async () => {
+		const cookie = await auth();
+		const today = new Date().toISOString().slice(0, 10); // heutiger UTC-Tag → 00:00 UTC
+		const task = await createTask(cookie, { title: 'Heute fällig', deadline: today });
+
+		const missed = await list(cookie, '?missed=1');
+		assert.ok(!missed.some((t) => t.id === task.id), 'Deadline heute zählt erst ab dem Folgetag als verpasst');
+	});
+
+	it('#2427 AK2 — Deadline gestern erscheint in der Verpasst-Auswahl', async () => {
+		const cookie = await auth();
+		const yesterday = new Date(Date.now() - DAY).toISOString().slice(0, 10);
+		const task = await createTask(cookie, { title: 'Gestern fällig', deadline: yesterday });
+
+		const missed = await list(cookie, '?missed=1');
+		assert.ok(
+			missed.some((t) => t.id === task.id),
+			'Deadline gestern ist verpasst',
+		);
 	});
 });
