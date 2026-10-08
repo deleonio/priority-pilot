@@ -250,12 +250,15 @@ ausgeschaltet, entfällt der erste Schritt und das Formular öffnet sich direkt:
 Beschreibe deine Aufgabe frei im Feld **„Beschreibe deinen Task"**, z. B.:
 _„Bis Freitag den Kundenbericht fertigstellen, hohe Priorität, etwa ein halber Tag."_
 
-Danach hast du drei Möglichkeiten:
+Danach hast du vier Möglichkeiten:
 
 - **Verarbeiten und weiter** – eine KI liest den Text und füllt Titel, Beschreibung,
   Priorität, Aufwand, Deadline, Adresse, Checkliste und Kategorie im Formular vor.
   Erkennt sie einen wiederkehrenden Termin, öffnet sich das Formular gleich im Serien-Modus.
 - **Beraten lassen** – der Säulen-Berater antwortet im selben Dialog (siehe „Säulen-Berater").
+- **Aus Vorlage** – wählt eine Vorlage (Serie ohne „Automatisch anlegen") und öffnet den
+  Dialog „Aufgabe anlegen", mit Titel, Priorität und Beschreibung der Vorlage vorbelegt.
+  Ohne Vorlagen zeigt der Dialog, wie du eine im Tab „Serien & Vorlagen" anlegst.
 - **Überspringen** – öffnet direkt das leere Formular; bereits eingegebener Text
   wandert in die Beschreibung.
 
