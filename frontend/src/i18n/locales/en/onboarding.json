@@ -32,7 +32,15 @@
 		"copyLink": "Copy referral link",
 		"waitlistFailed": "Joining the waitlist did not work right now. Please try again in a moment.",
 		"back": "Back to the website",
-		"backAria": "Balamentum: Back to the website"
+		"backAria": "Balamentum: Back to the website",
+		"review": {
+			"title": "Review access",
+			"password": "Password",
+			"failed": "Incorrect password.",
+			"throttled": "Too many attempts. Please try again in a few minutes.",
+			"sending": "Signing in …",
+			"submit": "Sign in"
+		}
 	},
 	"sessionExpired": {
 		"title": "Session expired",

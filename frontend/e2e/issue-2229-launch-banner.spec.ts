@@ -1,10 +1,10 @@
 import { expect, test, type Page } from './fixtures';
 
 /**
- * Rote Spec-e2e für #2229 (docs/spec/issue-2229.md) — AK3, AK4, AK7.
- * Der E2E-Server läuft ohne `LAUNCH_BANNER_ENABLED`; der An-Zustand kommt über die echte
- * `/auth/me`-Antwort mit gepatchtem Feld (Playwright holt sie vom Backend-Mock der Fixture und
- * ergänzt `launchBanner`).
+ * Spec-e2e für #2229 (docs/spec/issue-2229.md) — AK3, AK7; AK4 (Schließen) 2026-10-08 ersetzt
+ * durch „nicht wegklickbar". Der E2E-Server läuft ohne `LAUNCH_BANNER_ENABLED`; der An-Zustand
+ * kommt über die echte `/auth/me`-Antwort mit gepatchtem Feld (Playwright holt sie vom
+ * Backend-Mock der Fixture und ergänzt `launchBanner`).
  */
 const enableBanner = async (page: Page): Promise<void> => {
 	await page.route('**/auth/me', async (route) => {
@@ -32,13 +32,13 @@ test.describe('Balamentum — #2229: Einladungs-Banner', () => {
 		await expect(page).toHaveURL(/\/app\/hilfe\/feedback/);
 	});
 
-	test('AK4: Schließen + Reload → Banner bleibt weg', async ({ page }) => {
+	test('Nicht wegklickbar: kein Schließen-Knopf, Banner bleibt über Reload', async ({ page }) => {
 		await page.goto('/app/');
-		await page.getByTestId('launch-banner-dismiss').click();
-		await expect(page.getByTestId('launch-banner')).toHaveCount(0);
+		await expect(page.getByTestId('launch-banner')).toBeVisible();
+		await expect(page.getByTestId('launch-banner-dismiss')).toHaveCount(0);
 		await page.reload();
 		await expect(page.locator('header').first()).toBeVisible();
-		await expect(page.getByTestId('launch-banner')).toHaveCount(0);
+		await expect(page.getByTestId('launch-banner')).toBeVisible();
 	});
 
 	test('AK7: 375px — keine Überlappung mit der Kopfzeile, Knöpfe mindestens 44px hoch', async ({ page }) => {
@@ -50,9 +50,7 @@ test.describe('Balamentum — #2229: Einladungs-Banner', () => {
 		expect(bannerBox.y).toBeGreaterThanOrEqual(headerBox.y + headerBox.height - 0.5);
 		expect(bannerBox.x).toBeGreaterThanOrEqual(0);
 		expect(bannerBox.x + bannerBox.width).toBeLessThanOrEqual(375.5);
-		for (const id of ['launch-banner-feedback', 'launch-banner-dismiss']) {
-			const box = (await page.getByTestId(id).boundingBox())!;
-			expect(box.height, id).toBeGreaterThanOrEqual(44);
-		}
+		const feedbackBox = (await page.getByTestId('launch-banner-feedback').boundingBox())!;
+		expect(feedbackBox.height, 'launch-banner-feedback').toBeGreaterThanOrEqual(44);
 	});
 });

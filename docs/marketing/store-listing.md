@@ -1,7 +1,7 @@
 # Store-Beschreibung
 
 Kurztexte für App-Store-Einträge (Google Play, App Store). Quelle für den USP:
-Ticket #1618.
+Ticket #1618. Alle Angaben für Google Play samt Bildern: [play-store/](play-store/README.md).
 
 ## Deutsch
 

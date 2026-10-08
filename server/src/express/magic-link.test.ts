@@ -60,7 +60,7 @@ describe('Magic-Link-Login per E-Mail', () => {
 	it('GET /auth/providers meldet Google und Magic Link als konfiguriert', async () => {
 		const res = await server.json('/auth/providers');
 		assert.equal(res.status, 200);
-		assert.deepEqual(await res.json(), { google: true, magicLink: true });
+		assert.deepEqual(await res.json(), { google: true, magicLink: true, reviewAccess: false });
 	});
 
 	it('zugelassene Adresse: 202, genau eine Mail mit Link auf PUBLIC_BASE_URL, DB hält nur den Hash', async () => {

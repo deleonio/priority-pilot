@@ -32,7 +32,15 @@
 		"copyLink": "Empfehlungs-Link kopieren",
 		"waitlistFailed": "Der Eintrag auf die Warteliste hat gerade nicht geklappt. Bitte versuche es gleich noch einmal.",
 		"back": "Zurück zur Website",
-		"backAria": "Balamentum: Zurück zur Website"
+		"backAria": "Balamentum: Zurück zur Website",
+		"review": {
+			"title": "Prüfzugang",
+			"password": "Passwort",
+			"failed": "Passwort stimmt nicht.",
+			"throttled": "Zu viele Versuche. Bitte in einigen Minuten erneut versuchen.",
+			"sending": "Anmeldung läuft …",
+			"submit": "Anmelden"
+		}
 	},
 	"sessionExpired": {
 		"title": "Session abgelaufen",

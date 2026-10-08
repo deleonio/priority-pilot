@@ -62,7 +62,11 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 
 	// GET /auth/providers — welche Anmeldewege die Login-Seite anbieten soll.
 	router.get('/auth/providers', (_req, res: Response<AuthProvidersDto>) => {
-		res.json({ google: hasGoogleOAuth(), magicLink: isMagicLinkEnabled() });
+		res.json({
+			google: hasGoogleOAuth(),
+			magicLink: isMagicLinkEnabled(),
+			reviewAccess: Boolean(process.env.PLAY_REVIEW_PASSWORD),
+		});
 	});
 
 	// POST /auth/magic-link — Link anfordern. 202 für jede syntaktisch gültige Adresse.

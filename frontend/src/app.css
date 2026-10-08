@@ -1239,15 +1239,18 @@ kol-toolbar {
 	gap: var(--pp-gap-base);
 	padding: var(--pp-space-2) 0;
 	border-bottom: 1px solid var(--pp-border);
+	/* Bei 375px passt Badge + Datum sonst nicht neben lange Titel — die Aside-Gruppe weicht
+	   in eine eigene Zeile aus (Titel läuft dort voll breit). */
+	flex-wrap: wrap;
 }
 
 .dashboard-deadline:last-child {
 	border-bottom: none;
 }
 
-/* Lange, ungetrennte Titel dürfen die Zeile nicht aus der Card drücken: Die rechte Aside-Gruppe
-   (Badge + Datum) ist flex-shrink: 0 und das Datum nowrap — der Umbruchschutz gehört deshalb
-   an den Titel (gleiches Muster wie .dashboard-nearby-title). */
+/* Lange, ungetrennte Titel dürfen die Zeile nicht aus der Card drücken: Die Aside-Gruppe ist
+   flex-shrink: 0 und das Datum nowrap — der Umbruchschutz gehört deshalb an den Titel (Muster
+   .dashboard-nearby-title). */
 .dashboard-deadline-title {
 	min-width: 0;
 	overflow-wrap: anywhere;
@@ -1264,6 +1267,7 @@ kol-toolbar {
 	display: inline-flex;
 	align-items: center;
 	gap: var(--pp-gap-tight);
+	margin-left: auto;
 	flex-shrink: 0;
 }
 
@@ -3783,13 +3787,18 @@ kol-toolbar {
 
 /*
  * #843 AK3: Typografie für deskriptiven Text.
- * Wir setzen --pp-text-muted auf #616161 für besseren Kontrast.
+ * #616161 ist der Light-Modus-Wert (≈ 5.9:1 auf hellen Flächen); im Dark-Modus zeigt er nur
+ * ≈ 2.7:1 — dort gilt das themeneigene --pp-ink-muted (#a3adba, ≈ 7:1 auf --pp-surface-1).
  * --pp-text-hint-font-size garantiert ≥16sp für deskriptive Texte.
  * KoliBri-Hint-Elemente erben diese Werte über CSS Custom Properties.
  */
 :root {
 	--pp-text-muted: #616161;
 	--pp-text-hint-font-size: 1rem; /* 16sp Basisschriftgröße für Hint-Texte */
+}
+
+:root[data-theme='dark'] {
+	--pp-text-muted: var(--pp-ink-muted);
 }
 
 /*
@@ -4314,6 +4323,12 @@ kol-alert {
 	   auf 0 zu klemmen; die erste Deklaration ist der Fallback für Engines ohne `svh`. */
 	max-width: 24rem;
 	max-width: clamp(12rem, calc(100svh - 28rem), 24rem);
+}
+
+/* Vorschau in den Einstellungen: dieselbe Bühne, klein und unter der Auswahl. */
+.heart-balance-stage.balance-variant-preview {
+	max-width: 10rem;
+	margin-block-start: var(--pp-gap-base);
 }
 
 .balance-figure-svg,
@@ -5594,6 +5609,8 @@ a.plan-badge:focus-visible {
 	width: 15rem;
 	height: auto;
 	max-width: 100%;
+	/* Prüfzugang (#2426): schnelle Taps aufs Logo sollen nicht als Doppeltipp-Zoom enden */
+	touch-action: manipulation;
 }
 
 .login-page__title {
@@ -5917,8 +5934,8 @@ a.plan-badge:focus-visible {
 /*
  * #1964: Verpasst-Bereich über der Aufgabenliste. Liste statt Tabelle (KolTableStateful wäre
  * bei 375px unbedienbar, KI-UX #1964); neutrale Tonalität ohne Warnfarbe (Muster MissedTasksCard).
- * Aktionen stapeln mobil untereinander in voller Breite (Touch-Targets >= 44px, Muster
- * .session-dialog-actions #1231), ab 768px kompakt in einer Zeile.
+ * Aufbau je Eintrag: Titel mit Meta-Zeile links, Aktionen rechts — mobil stapeln die Aktionen
+ * als 2×2-Grid voller Breite (Touch-Targets >= 44px), ab 48rem kompakt in einer Zeile.
  */
 .missed-section {
 	margin-bottom: var(--pp-gap-base);
@@ -5933,8 +5950,8 @@ a.plan-badge:focus-visible {
 .missed-item {
 	display: flex;
 	flex-direction: column;
-	gap: var(--pp-space-2);
-	padding: var(--pp-space-2) 0;
+	gap: var(--pp-space-3);
+	padding: var(--pp-space-3) 0;
 	border-bottom: 1px solid var(--pp-border);
 	min-width: 0;
 }
@@ -5943,11 +5960,10 @@ a.plan-badge:focus-visible {
 	border-bottom: none;
 }
 
-.missed-item-head {
+.missed-item-main {
 	display: flex;
-	flex-wrap: wrap;
-	align-items: baseline;
-	gap: 0.25rem 0.5rem;
+	flex-direction: column;
+	gap: 0.25rem;
 	min-width: 0;
 }
 
@@ -5957,7 +5973,16 @@ a.plan-badge:focus-visible {
 	overflow-wrap: anywhere;
 }
 
+/* Meta-Zeile unter dem Titel: Deadline plus Verschiebe-Badge in einer ruhigen Zeile. */
+.missed-item-meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.25rem 0.5rem;
+}
+
 .missed-item-deadline {
+	font-size: var(--pp-font-size-sm);
 	color: var(--pp-text-muted);
 	white-space: nowrap;
 }
@@ -5973,10 +5998,9 @@ a.plan-badge:focus-visible {
 }
 
 .missed-item-actions {
-	display: flex;
-	flex-direction: column;
-	align-items: stretch;
-	gap: var(--pp-space-3);
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: var(--pp-space-2);
 }
 
 .missed-item-actions kol-button {
@@ -5985,10 +6009,19 @@ a.plan-badge:focus-visible {
 	min-height: 44px;
 }
 
-@media (min-width: 768px) {
-	.missed-item-actions {
+@media (min-width: 48rem) {
+	.missed-item {
 		flex-direction: row;
 		align-items: center;
+		justify-content: space-between;
+		gap: var(--pp-gap-base);
+	}
+
+	.missed-item-actions {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
 	}
 
 	.missed-item-actions kol-button {
@@ -6038,33 +6071,48 @@ a.plan-badge:focus-visible {
 	overflow-wrap: anywhere;
 }
 
-/* Einführungs-Banner (#2229): im Seitenfluss, nicht fixiert — verdeckt so keine Bedienelemente.
-   Mobile-First: Knöpfe gestapelt (volle Breite, ≥ 44px), ab 48rem nebeneinander. */
+/* Einführungs-Banner (#2229): schmaler Streifen im Seitenfluss, nicht fixiert — verdeckt so keine
+   Bedienelemente. Ruhige Fläche statt Alert (dauerhafte Einladung, keine Meldungs-Semantik);
+   mobil gestapelt, ab 48rem Text links, Aktionen rechts. */
 .launch-banner {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-space-3);
 	margin: var(--pp-space-3) var(--pp-space-3) 0;
+	padding: var(--pp-space-3) var(--pp-space-4);
+	background: var(--pp-surface-1);
+	border: 1px solid var(--pp-border);
+	border-radius: var(--pp-radius-md);
+}
+
+.launch-banner__body {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	min-width: 0;
+}
+
+.launch-banner__text {
+	margin: 0;
+	font-size: var(--pp-font-size-sm);
+	color: var(--pp-text-muted);
 }
 
 .launch-banner__actions {
 	display: flex;
-	flex-direction: column;
+	align-items: center;
 	gap: var(--pp-space-2);
 }
 
-.launch-banner__actions kol-button,
-.launch-banner__actions kol-button span[data-testid] {
-	display: block;
-	width: 100%;
+.launch-banner__actions kol-button {
 	min-height: 44px;
 }
 
 @media (min-width: 48rem) {
-	.launch-banner__actions {
+	.launch-banner {
 		flex-direction: row;
-	}
-
-	.launch-banner__actions kol-button,
-	.launch-banner__actions kol-button span[data-testid] {
-		width: auto;
+		align-items: center;
+		justify-content: space-between;
 	}
 }
 

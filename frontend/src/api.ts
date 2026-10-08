@@ -304,6 +304,17 @@ export const api = {
 		}
 	},
 
+	/** Prüfzugang für Google Play (#2426): meldet das Prüfkonto per Passwort an; in der Android-App kommt ein App-Token zurück. */
+	async reviewLogin(password: string): Promise<void> {
+		const { data, error, response } = await client.POST('/auth/review-login', { body: { password } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+		if (data?.token) {
+			setAppToken(data.token);
+		}
+	},
+
 	/** Trägt eine Adresse auf die Warteliste ein (#1982, ADR 0019); idempotent, liefert Position und Empfehlungs-Code. */
 	async addToWaitlist(email: string, ref?: string): Promise<components['schemas']['WaitlistJoined']> {
 		const { data, error, response } = await client.POST('/auth/waitlist', { body: { email, ref } });

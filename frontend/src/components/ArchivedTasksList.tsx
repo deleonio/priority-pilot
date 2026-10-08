@@ -26,12 +26,14 @@ export const ArchivedTasksList = ({ tasks, onRestore, onDelete }: ArchivedTasksL
 		<ul className="missed-list" data-testid="archived-list">
 			{tasks.map((task) => (
 				<li key={task.id} className="missed-item" data-testid="archived-item">
-					<div className="missed-item-head">
+					<div className="missed-item-main">
 						<span className="missed-item-title">{task.title}</span>
 						{task.deadline != null && (
-							<span className="missed-item-deadline">
-								{t('actions.deadline', { date: formatDeadline(task.deadline) })}
-							</span>
+							<div className="missed-item-meta">
+								<span className="missed-item-deadline">
+									{t('actions.deadline', { date: formatDeadline(task.deadline) })}
+								</span>
+							</div>
 						)}
 					</div>
 					<div className="missed-item-actions">

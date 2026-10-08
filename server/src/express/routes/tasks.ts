@@ -626,7 +626,8 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 					archivedAt: archivedOnly ? { [Op.not]: null } : { [Op.is]: null },
 					...(missedOnly
 						? {
-								deadline: { [Op.lt]: new Date() },
+								// #2427: Deadline gilt erst ab dem Folgetag als verpasst (UTC-Tagesbeginn, Muster `syncWindow`).
+								deadline: { [Op.lt]: new Date(new Date().setUTCHours(0, 0, 0, 0)) },
 								status: { [Op.ne]: 'Done' },
 								autoDeleteAfterDeadline: false,
 							}

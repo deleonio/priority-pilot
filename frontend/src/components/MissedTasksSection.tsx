@@ -19,10 +19,10 @@ interface MissedTasksSectionProps {
 /**
  * Bereich „Verpasst" (#1964): überfällige, nicht erledigte Aufgaben ohne Auto-Lösch-Häkchen —
  * abgeleitete Ansicht über `GET /tasks?missed=1`, kein neuer Status. Je Aufgabe die vier
- * Aktionen „Erledigt" / „Neu planen" / „Archivieren" / „Löschen" und der Verschiebe-Zähler als Text-Badge
- * („N× verschoben", nur bei N ≥ 1 — AK3; Status nie allein über Farbe, WCAG 1.4.1). Bewusst
- * neutrale Tonalität ohne Warnfarbe (Muster `MissedTasksCard`). Liste statt Tabelle —
- * `KolTableStateful` wäre bei 375px unbedienbar (KI-UX #1964).
+ * Aktionen „Erledigt" / „Neu planen" / „Archivieren" / „Löschen"; der Verschiebe-Zähler liegt
+ * als Text-Badge („N× verschoben", nur bei N ≥ 1 — AK3; Status nie allein über Farbe, WCAG 1.4.1)
+ * in der Meta-Zeile unter dem Titel. Bewusst neutrale Tonalität ohne Warnfarbe (Muster
+ * `MissedTasksCard`). Liste statt Tabelle — `KolTableStateful` wäre bei 375px unbedienbar (KI-UX #1964).
  */
 export const MissedTasksSection = ({ tasks, onComplete, onEdit, onArchive, onDelete }: MissedTasksSectionProps) => {
 	const { t } = useTranslation(['tasks', 'common']);
@@ -41,14 +41,18 @@ export const MissedTasksSection = ({ tasks, onComplete, onEdit, onArchive, onDel
 			<ul className="missed-list">
 				{tasks.map((task) => (
 					<li key={task.id} className="missed-item" data-testid="missed-item">
-						<div className="missed-item-head">
+						<div className="missed-item-main">
 							<span className="missed-item-title">{task.title}</span>
-							<span className="missed-item-deadline">
-								{t('actions.deadline', { date: formatDeadline(task.deadline) })}
-							</span>
-							{(task.postponeCount ?? 0) > 0 && (
-								<span className="missed-item-badge">{t('missedSection.postponed', { count: task.postponeCount })}</span>
-							)}
+							<div className="missed-item-meta">
+								<span className="missed-item-deadline">
+									{t('actions.deadline', { date: formatDeadline(task.deadline) })}
+								</span>
+								{(task.postponeCount ?? 0) > 0 && (
+									<span className="missed-item-badge">
+										{t('missedSection.postponed', { count: task.postponeCount })}
+									</span>
+								)}
+							</div>
 						</div>
 						<div className="missed-item-actions">
 							<KolButton _label={t('actions.done')} _variant="primary" _on={{ onClick: () => onComplete(task) }} />

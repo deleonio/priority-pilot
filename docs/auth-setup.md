@@ -138,6 +138,43 @@ Regeln:
   das E-Mail-Feld hat sofort den Fokus. Ohne die drei Variablen fehlt das Feld, und der Knopf endet
   auf der reinen Google-Anmeldung.
 
+## Prüfzugang für Google Play
+
+Google Play prüft jede eingereichte Version mit eigenen Zugangsdaten. Die Prüfer haben weder ein
+zugelassenes Google-Konto noch ein Postfach für den Anmeldelink. Dafür gibt es genau ein Prüfkonto,
+das sich allein mit einem Passwort anmeldet (#2426).
+
+| Variable               | Bedeutung                                                                                                |
+| ---------------------- | -------------------------------------------------------------------------------------------------------- |
+| `PLAY_REVIEW_PASSWORD` | Passwort des Prüfzugangs. Leer oder nicht gesetzt = Prüfzugang aus.                                      |
+| `PLAY_REVIEW_EMAIL`    | Optional: E-Mail des Prüfkontos. Default `google-play-review@balamentum.invalid` (stellt keine Mail zu). |
+
+Regeln:
+
+- **Ein/Aus:** Ist `PLAY_REVIEW_PASSWORD` gesetzt, meldet `GET /auth/providers` `reviewAccess: true`.
+  Ohne Passwort öffnet die Logo-Geste nichts, und `POST /auth/review-login` antwortet mit 401.
+- **Passwortwechsel:** Wert in der Env-Datei ändern, Server neu starten, neues Passwort in der Play
+  Console eintragen. Zum Abschalten die Variable leeren und neu starten.
+- **Geste:** Auf der Login-Seite öffnen 7 schnelle Taps auf das Logo einen Dialog mit genau einem
+  Passwortfeld. Die Login-Seite selbst sieht unverändert aus.
+- **Konto:** Es entsteht beim ersten Login, an Allowlist und Warteliste vorbei, und bekommt bei jedem
+  Login das Paket `pro` — ohne Kauf, Abo oder Testzeitraum. Kein zweiter Faktor, kein Mail-Link, kein
+  Ablauf. In der Android-App gibt es wie beim Anmeldelink ein App-Token statt des Session-Cookies.
+- **Drossel:** Nach 5 Fehlversuchen je IP und 15 Minuten antwortet die Route mit 429, auch auf das
+  richtige Passwort. Das Passwort erscheint in keinem Log.
+
+Eintrag in der Play Console (App-Inhalte → App-Zugriff → Anleitung hinzufügen, alles auf Englisch):
+
+1. **Name** (max. 60 Zeichen): `Balamentum review access (logo gesture)`
+2. **Nutzername:** leer lassen.
+3. **Passwort** (max. 100 Zeichen): der Wert von `PLAY_REVIEW_PASSWORD`.
+4. **Weitere Informationen** (max. 500 Zeichen, dieser Text hat 432):
+
+   > Balamentum has no username field. On the login screen, tap the Balamentum logo at the top 7 times quickly. A dialog with a single password field opens. Enter the password above and tap "Anmelden" (Sign in). You are signed in to a dedicated review account with the Pro plan: all features, including the paid plans, are unlocked without a purchase or trial. No Google account, email link, second factor or specific location is needed.
+
+Die Angaben müssen bei jedem Update gültig sein — vor dem Einreichen einmal selbst über die Geste
+anmelden.
+
 ## Neue Person zulassen
 
 1. Adresse an `GOOGLE_ALLOWED_EMAILS` anhängen (Komma, keine Leerzeichen). Soll die Person

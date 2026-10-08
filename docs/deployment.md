@@ -136,6 +136,9 @@ FEEDBACK_GITHUB_TOKEN=
 # GOOGLE_RTDN_AUDIENCE=https://priority-pilot.example.de/api/v1/billing/google/rtdn   # Push-Endpunkt = Zielgruppe der Pub/Sub-Subscription
 ```
 
+**Push an die Android-App:** Firebase-Projekt, Schlüsseldatei und `google-services.json` Schritt
+für Schritt in [native-apps.md § Firebase einrichten](native-apps.md#firebase-einrichten).
+
 **Anmeldung und Zugang:** Nur Adressen aus `GOOGLE_ALLOWED_EMAILS` können sich anmelden; ihr Konto
 legt die App beim ersten erfolgreichen Google-Login an. Neue Personen werden über die Env-Datei
 plus `pm2 reload priority-pilot --update-env` freigeschaltet, nicht in der App. Mit
