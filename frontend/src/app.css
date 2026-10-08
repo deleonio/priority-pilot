@@ -1248,21 +1248,6 @@ kol-toolbar {
 	border-bottom: none;
 }
 
-/* Pagination der Deadlines-Liste: Zurück/Weiter um den Seitenstand („1–8 von 23"). */
-.dashboard-deadlines-pager {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--pp-gap-base);
-	margin-top: var(--pp-space-2);
-}
-
-.dashboard-deadlines-pager-status {
-	font-size: var(--pp-font-size-sm);
-	color: var(--pp-text-muted);
-	font-variant-numeric: tabular-nums;
-}
-
 /* Lange, ungetrennte Titel dürfen die Zeile nicht aus der Card drücken: Die Aside-Gruppe ist
    flex-shrink: 0 und das Datum nowrap — der Umbruchschutz gehört deshalb an den Titel (Muster
    .dashboard-nearby-title). */
