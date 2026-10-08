@@ -84,6 +84,38 @@ describe('UpdatePrompt (#353)', () => {
 		expect(container).toBeEmptyDOMElement();
 	});
 
+	it('meldet in der Android-App alte Service Worker ab und lädt einmal neu', async () => {
+		const unregister = vi.fn().mockResolvedValue(true);
+		const reload = vi.fn();
+		Object.defineProperty(navigator, 'serviceWorker', {
+			configurable: true,
+			value: { getRegistrations: () => Promise.resolve([{ unregister }]) },
+		});
+		vi.stubGlobal('location', { reload });
+		vi.stubGlobal('__PP_CHANNEL__', 'play');
+
+		render(<UpdatePrompt />);
+
+		await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+		expect(unregister).toHaveBeenCalledTimes(1);
+		Reflect.deleteProperty(navigator, 'serviceWorker');
+	});
+
+	it('lädt in der Android-App ohne Service Worker nicht neu', async () => {
+		const getRegistrations = vi.fn().mockResolvedValue([]);
+		const reload = vi.fn();
+		Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: { getRegistrations } });
+		vi.stubGlobal('location', { reload });
+		vi.stubGlobal('__PP_CHANNEL__', 'play');
+
+		render(<UpdatePrompt />);
+
+		await vi.waitFor(() => expect(getRegistrations).toHaveBeenCalled());
+		await Promise.resolve();
+		expect(reload).not.toHaveBeenCalled();
+		Reflect.deleteProperty(navigator, 'serviceWorker');
+	});
+
 	// AK3 — Reload löst Update aus.
 	// Testbare Naht: KolButton ist ein Web Component, dessen `_on.onClick`-Callback in JSDOM nicht
 	// über einen echten DOM-Klick auslösbar ist (siehe InstallPrompt-Präzedenzfall). Das Reload-

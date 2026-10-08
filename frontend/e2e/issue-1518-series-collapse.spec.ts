@@ -52,11 +52,13 @@ test.describe('Balamentum — #1518: eine Instanz je Serie in der Aufgabenliste 
 		await page.setViewportSize({ width: 375, height: 812 });
 		const title = uniqueTitle('Täglich');
 		const seriesId = await createDailySeriesViaApi(page, title);
-		const generated = await page.request.post(`/api/v1/series/${seriesId}/generate`, {
-			data: { until: dayFromTodayUtc(30) },
-		});
-		expect(generated.ok()).toBeTruthy();
-		const instances = (await generated.json()) as { id: number; deadline: string }[];
+		// #2404: POST /series legt die Instanzen sofort an (Fünfer-Grenze).
+		const tasks = (await (await page.request.get('/api/v1/tasks')).json()) as {
+			id: number;
+			deadline: string;
+			seriesId: number | null;
+		}[];
+		const instances = tasks.filter((task) => task.seriesId === seriesId);
 		// AK10: fünf offene Instanzen — nicht 30 Tage im Voraus.
 		expect(instances.length).toBe(5);
 		const earliest = [...instances].sort((a, b) => a.deadline.localeCompare(b.deadline))[0];
@@ -83,7 +85,7 @@ test.describe('Balamentum — #1518: eine Instanz je Serie in der Aufgabenliste 
 		expect(graph.nodes.filter((node) => node.title === title).length).toBe(5);
 
 		// AK13: der Serien-Tab zeigt die Serie unverändert.
-		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true }).click();
 		await expect(page.getByTestId(`series-tree-item-${seriesId}`)).toBeVisible();
 	});
 });

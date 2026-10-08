@@ -65,6 +65,8 @@ vi.mock('./api', () => ({
 		archiveTask: vi.fn(),
 		// Archiv-Ansicht: wird nur im Modus `?view=archived` geladen (in den Tests nicht aufgerufen).
 		listArchivedTasks: vi.fn().mockResolvedValue([]),
+		// Test-Pflege #2399: `reload()` lädt die Serien als Nachzügler mit (Refetch bei Rückkehr in den Vordergrund).
+		listSeries: vi.fn().mockResolvedValue([]),
 		unarchiveTask: vi.fn(),
 		logout: vi.fn(),
 		// #1879: `AppShell` meldet die App-Sprache beim Start (fire-and-forget) — Mock, damit der Aufruf nicht wirft.
@@ -72,8 +74,12 @@ vi.mock('./api', () => ({
 		// #1098 AK5: `useGeolocation` lädt beim Mount die Geo-Konfiguration. Der Mock liefert
 		// keine Werte (resolves undefined), damit der 5-Minuten-Fallback des Hooks greift.
 		getGeoConfig: vi.fn().mockResolvedValue(undefined),
+		// Test-Pflege #1935: die Karte „Dialog-Vorgaben für die KI“ lädt beim Mount ihre Vorgaben.
+		getMcpInstructions: vi.fn().mockResolvedValue(undefined),
 		// Test-Pflege #1794: die Karte „Benachrichtigungen“ lädt beim Mount den Fürsorge-Schalter.
 		getCareConfig: vi.fn().mockResolvedValue(undefined),
+		// Test-Pflege #1994: dieselbe Karte lädt den Aufteilen-Hinweis-Schalter.
+		getSplitHintConfig: vi.fn().mockResolvedValue(undefined),
 		// Rollensystem admin/member (Deep-Link-Test unten): die Settings-Seite lädt beim Mount ihre
 		// Sektionen — leere Antworten reichen, geprüft wird nur der aktive Tab.
 		listLlmProviders: vi.fn().mockResolvedValue([]),
@@ -81,6 +87,7 @@ vi.mock('./api', () => ({
 		listApiTokens: vi.fn().mockResolvedValue([]),
 		// Test-Pflege #1342: der Tab „Standort“ lädt beim Mount die gespeicherten Orte.
 		listPlaceFavorites: vi.fn().mockResolvedValue([]),
+		listKnowledgeEntries: vi.fn().mockResolvedValue([]),
 		listCalendarSources: vi.fn().mockResolvedValue([]),
 		// Test-Pflege #1990: Karte „Freie Zeit" (Dashboard) und Mindestdauer-Regler (Kalender-Einstellungen).
 		listFreeSlots: vi.fn().mockResolvedValue([]),
@@ -502,13 +509,13 @@ describe('App — #1339: Sprachwechsel erhält die Tab-Auswahl', () => {
 			expect(appTabs()).not.toBeNull();
 		});
 		expect(appTabs()?._selected).toBe(2);
-		expect(appTabs()?._tabs?.map((tab) => tab._label)).toContain('Serien');
+		expect(appTabs()?._tabs?.map((tab) => tab._label)).toContain('Serien & Vorlagen');
 
 		await act(async () => {
 			await i18next.changeLanguage('en');
 		});
 
-		expect(appTabs()?._tabs?.map((tab) => tab._label)).toContain('Series');
+		expect(appTabs()?._tabs?.map((tab) => tab._label)).toContain('Series & templates');
 		expect(appTabs()?._selected).toBe(2);
 	});
 });
@@ -734,5 +741,78 @@ describe('App — Hilfe-Segmente', () => {
 		});
 		const tabs = document.querySelector('kol-tabs[_label="Hilfe"]') as unknown as TabsElement;
 		expect(tabs?._tabs?.[tabs._selected ?? -1]?._label).toBe(label);
+	});
+});
+
+/**
+ * #2399 AK1/AK2: Rückkehr in den Vordergrund (`visibilitychange` → `visible`) lädt Aufgaben und Serien
+ * über `reload()` neu; ein noch laufender Ladevorgang wird abgebrochen, `hidden` löst nichts aus
+ * (Spec docs/spec/issue-2399.md). Das Erstladen beim Mount zählt nicht als Refetch.
+ */
+describe('App — #2399: Refetch bei Rückkehr in den Vordergrund', () => {
+	const setVisibility = (state: 'visible' | 'hidden'): void => {
+		Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+		document.dispatchEvent(new Event('visibilitychange'));
+	};
+	// Erstladen abwarten: `reload()` und der SeriesTab-Mount rufen `listSeries` je einmal — Zähler danach relativ lesen.
+	const settleInitialLoad = async (): Promise<void> => {
+		await waitFor(() => expect(api.listSeries).toHaveBeenCalled());
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+		});
+	};
+
+	beforeEach(() => {
+		vi.mocked(api.listSeries).mockClear();
+	});
+
+	afterEach(() => {
+		delete (document as { visibilityState?: unknown }).visibilityState;
+	});
+
+	it('AK1: visible lädt Aufgaben und Serien erneut', async () => {
+		render(<App user={testUser} />);
+		await settleInitialLoad();
+		const tasksBefore = vi.mocked(api.listTasks).mock.calls.length;
+		const seriesBefore = vi.mocked(api.listSeries).mock.calls.length;
+
+		act(() => setVisibility('visible'));
+
+		await waitFor(() => expect(api.listTasks).toHaveBeenCalledTimes(tasksBefore + 1));
+		await waitFor(() => expect(api.listSeries).toHaveBeenCalledTimes(seriesBefore + 1));
+	});
+
+	it('AK2: hidden löst keinen Ladevorgang aus', async () => {
+		render(<App user={testUser} />);
+		await settleInitialLoad();
+		const tasksBefore = vi.mocked(api.listTasks).mock.calls.length;
+
+		act(() => setVisibility('hidden'));
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+		});
+
+		expect(api.listTasks).toHaveBeenCalledTimes(tasksBefore);
+	});
+
+	it('AK2: zwei schnelle visible-Wechsel brechen den ersten Ladevorgang ab', async () => {
+		render(<App user={testUser} />);
+		await settleInitialLoad();
+		const tasksBefore = vi.mocked(api.listTasks).mock.calls.length;
+		// Folgeladungen bleiben offen, damit der erste Refetch beim zweiten Wechsel noch läuft.
+		vi.mocked(api.listTasks).mockImplementation(() => new Promise(() => undefined));
+
+		act(() => {
+			setVisibility('visible');
+			setVisibility('visible');
+		});
+
+		await waitFor(() => expect(api.listTasks).toHaveBeenCalledTimes(tasksBefore + 2));
+		const signals = vi
+			.mocked(api.listTasks)
+			.mock.calls.slice(tasksBefore)
+			.map(([init]) => init?.signal);
+		expect(signals[0]?.aborted).toBe(true);
+		expect(signals[1]?.aborted).toBe(false);
 	});
 });

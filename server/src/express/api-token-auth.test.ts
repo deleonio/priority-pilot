@@ -2,6 +2,7 @@ import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 import { ApiToken, User } from '../models/index.js';
+import { createNativeLoginCode } from '../logics/magicLink.js';
 
 /**
  * Rote Spec-Tests für #1352 (Spec docs/spec/issue-1352.md) — Bearer-Auth neben Session.
@@ -587,5 +588,56 @@ describe('Bearer-Token-Auth — Plan-Deckel für lesenden MCP-Zugriff (#1524 AK4
 		const read = await withBearer(token);
 
 		assert.equal(read.status, 200, 'ohne MONETIZATION_ENFORCED bleibt das Verhalten wie heute');
+	});
+});
+
+/** App-Token (#2377): Code-Tausch im Kanal `play` fuer den per E-Mail bekannten Nutzer. */
+const issueAppToken = async (email: string): Promise<string> => {
+	const state = 'app-state-0123456789';
+	const code = await createNativeLoginCode(email, state);
+	const res = await server.json('/auth/native/exchange', {
+		method: 'POST',
+		headers: { 'X-Client-Channel': 'play' },
+		body: JSON.stringify({ code, state }),
+	});
+	assert.equal(res.status, 200, 'Setup: App-Token muss ausstellbar sein');
+	return ((await res.json()) as { token: string }).token;
+};
+
+describe('App-Token der Android-App (#2377 AK3/AK5, Spec docs/spec/issue-2377.md)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+		process.env.MONETIZATION_ENFORCED = 'true';
+	});
+	after(async () => {
+		delete process.env.MONETIZATION_ENFORCED;
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	it('AK3: ein free-Nutzer liest und schreibt mit dem App-Token ohne plan_required und ohne CSRF', async () => {
+		const email = 'bearer-a@example.com';
+		const token = await issueAppToken(email);
+		await setPlan(email, 'free');
+
+		const me = await fetch(`${server.baseUrl}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+		assert.equal(me.status, 200);
+		const write = await postTaskViaBearer(token, 'Aus der App');
+		assert.equal(write.status, 201, 'Schreiben ohne mcp_readwrite-Deckel und ohne CSRF-Token');
+		assert.equal((await withBearer(token)).status, 200, 'Lesen ohne mcp_read');
+	});
+
+	it('AK5: nach POST /auth/logout mit dem App-Token liefert /auth/me 401', async () => {
+		const token = await issueAppToken('bearer-a@example.com');
+		const out = await fetch(`${server.baseUrl}/auth/logout`, {
+			method: 'POST',
+			headers: { Authorization: `Bearer ${token}` },
+		});
+		assert.ok(out.status < 300, `Logout erfolgreich, war ${out.status}`);
+		const me = await fetch(`${server.baseUrl}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+		assert.equal(me.status, 401);
 	});
 });

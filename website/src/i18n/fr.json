@@ -196,6 +196,8 @@
 			"groups": "Groupes et liens d’invitation",
 			"voice_input": "Saisie vocale",
 			"feedback": "Retours et assistance de l'application",
+			"sync": "Synchronisation sur tous les appareils",
+			"knowledge_entries": "Notes personnelles pour l'IA",
 			"ai_assist": "Aide IA : conseiller de piliers et relecture",
 			"graph_write": "Dépendances entre tâches",
 			"graph_weight": "Modifier les dépendances pondérées",

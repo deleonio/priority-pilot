@@ -29,7 +29,8 @@
 		"select": "Seleziona",
 		"back": "Indietro",
 		"snooze": "Metti da parte per un po’",
-		"snoozed": "Attività messa da parte. Tornerà più tardi."
+		"snoozed": "Attività messa da parte. Tornerà più tardi.",
+		"saveAsTemplate": "Salva come modello"
 	},
 	"status": {
 		"open": "Aperto",
@@ -156,5 +157,8 @@
 		"text": "Sei tra i primi. Quello che noti ci aiuta: raccontacelo pure.",
 		"feedback": "Lascia un feedback",
 		"dismiss": "Chiudi"
+	},
+	"splitHint": {
+		"reason": "Le attività grandi spesso sono più facili da affrontare se le dividi in passaggi più piccoli."
 	}
 }

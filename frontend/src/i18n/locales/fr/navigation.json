@@ -2,7 +2,7 @@
 	"tabs": {
 		"dashboard": "Tableau de bord",
 		"tasks": "Tâches",
-		"series": "Séries",
+		"series": "Séries et modèles",
 		"forest": "Graphe",
 		"journal": "Journal",
 		"ariaLabel": "Vues"

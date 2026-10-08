@@ -33,6 +33,8 @@ afterEach(() => {
 
 const openedUrl = (): URL => new URL(vi.mocked(Browser.open).mock.calls[0][0].url);
 
+const SITE = 'https://app.example.com';
+
 describe('nativeAuth (#1678)', () => {
 	it('öffnet den Google-Login im Browser mit client=app und einem frischen state', async () => {
 		await startNativeGoogleLogin();
@@ -50,7 +52,7 @@ describe('nativeAuth (#1678)', () => {
 		await startNativeGoogleLogin();
 		const state = openedUrl().searchParams.get('state');
 
-		await handleAppLink(`${window.location.origin}${import.meta.env.BASE_URL}auth/native?code=abc`);
+		await handleAppLink(`${window.location.origin}/app/auth/native?code=abc`);
 
 		expect(api.exchangeNativeLoginCode).toHaveBeenCalledWith('abc', state);
 		expect(Browser.close).toHaveBeenCalled();
@@ -65,13 +67,13 @@ describe('nativeAuth (#1678)', () => {
 	it('schickt bei gescheitertem Austausch auf die Login-Seite mit Hinweis', async () => {
 		vi.mocked(api.exchangeNativeLoginCode).mockResolvedValueOnce(false);
 
-		await handleAppLink(`${window.location.origin}${import.meta.env.BASE_URL}auth/native?code=abc`);
+		await handleAppLink(`${window.location.origin}/app/auth/native?code=abc`);
 
 		expect(replace).toHaveBeenCalledWith(`${import.meta.env.BASE_URL}login?error=native_login_failed`);
 	});
 
 	it('verarbeitet den Start-Link nur einmal, auch nach einem Neuladen', async () => {
-		launch.url = `${window.location.origin}${import.meta.env.BASE_URL}auth/native?code=abc`;
+		launch.url = `${window.location.origin}/app/auth/native?code=abc`;
 
 		await listenForAppLinks();
 		await listenForAppLinks();
@@ -85,5 +87,61 @@ describe('nativeAuth (#1678)', () => {
 		await startNativeGoogleLogin();
 
 		expect(replace).toHaveBeenCalledWith(`${import.meta.env.BASE_URL}login?error=native_login_failed`);
+	});
+
+	// #2379: Im eingebauten Android-Build ist `window.location.origin` der lokale WebView-Ursprung,
+	// die Domain steht in VITE_SITE_URL. App Links kommen immer als `/app/...` (AndroidManifest).
+	describe('eingebauter Build (#2379)', () => {
+		beforeEach(() => {
+			vi.stubEnv('VITE_SITE_URL', SITE);
+		});
+		afterEach(() => {
+			vi.unstubAllEnvs();
+		});
+
+		it('AK1: öffnet den Login unter SITE_URL statt unter window.location.origin', async () => {
+			await startNativeGoogleLogin();
+
+			const opened = openedUrl();
+			expect(opened.origin).toBe(SITE);
+			expect(opened.pathname).toBe('/auth/google');
+			expect(opened.searchParams.get('client')).toBe('app');
+		});
+
+		it('AK2: nimmt den App Link der Domain an, löst Code+state ein und zeigt die App-Wurzel', async () => {
+			await startNativeGoogleLogin();
+			const state = openedUrl().searchParams.get('state');
+
+			await handleAppLink(`${SITE}/app/auth/native?code=c1`);
+
+			expect(api.exchangeNativeLoginCode).toHaveBeenCalledWith('c1', state);
+			expect(replace).toHaveBeenCalledWith(import.meta.env.BASE_URL);
+		});
+
+		it('AK2: gescheiterter Austausch landet auf der Login-Seite mit Hinweis', async () => {
+			vi.mocked(api.exchangeNativeLoginCode).mockResolvedValueOnce(false);
+
+			await handleAppLink(`${SITE}/app/auth/native?code=c1`);
+
+			expect(replace).toHaveBeenCalledWith(`${import.meta.env.BASE_URL}login?error=native_login_failed`);
+		});
+
+		it('AK3: verwirft Links von window.location.origin und fremden Domains', async () => {
+			await handleAppLink(`${window.location.origin}/app/auth/native?code=c1`);
+			await handleAppLink('https://evil.example/app/auth/native?code=c1');
+
+			expect(api.exchangeNativeLoginCode).not.toHaveBeenCalled();
+			expect(replace).not.toHaveBeenCalled();
+		});
+
+		it('AK4: Magic Link bleibt in der App (kein assign auf die Domain), Token-Parameter bleibt erhalten', async () => {
+			const assign = vi.fn();
+			vi.stubGlobal('location', { origin: window.location.origin, replace, assign });
+
+			await handleAppLink(`${SITE}/app/?magic=tok123`);
+
+			expect(assign).not.toHaveBeenCalled();
+			expect(replace).toHaveBeenCalledWith(`${import.meta.env.BASE_URL}?magic=tok123`);
+		});
 	});
 });

@@ -115,8 +115,12 @@ test.describe('Balamentum — Task/Serie-Umschalter im Anlege-Formular (#316)', 
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 		const series = (await (await page.request.get('/api/v1/series')).json()) as { title: string }[];
 		expect(series.some((entry) => entry.title === title)).toBeTruthy();
-		const tasks = (await (await page.request.get('/api/v1/tasks')).json()) as { title: string }[];
-		expect(tasks.some((entry) => entry.title === title)).toBeFalsy();
+		const tasks = (await (await page.request.get('/api/v1/tasks')).json()) as {
+			title: string;
+			seriesId?: number | null;
+		}[];
+		// #2404: Serien-Instanzen tragen den Titel — ein eigenständiger Task (ohne seriesId) darf nicht entstehen.
+		expect(tasks.some((entry) => entry.title === title && !entry.seriesId)).toBeFalsy();
 	});
 
 	// AK5 (e2e, Kontroll-Test): Task anlegen (Task-Modus) → das Speichern schickt einen `POST /tasks`.
@@ -149,9 +153,9 @@ test.describe('Balamentum — Task/Serie-Umschalter im Anlege-Formular (#316)', 
 		// Nach dem Überspringen: TaskForm im Task-Modus — Titel „Aufgabe anlegen".
 		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
 
-		// Switch auf Serie umschalten → Titel „Serie anlegen".
+		// Switch auf Serie umschalten → Titel „Serie oder Vorlage anlegen" (#2415).
 		await modeSwitch(page).getByRole('checkbox').click();
-		await expect(page.getByRole('heading', { name: 'Serie anlegen' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Serie oder Vorlage anlegen' })).toBeVisible();
 
 		// Zurück auf Aufgabe → Titel „Aufgabe anlegen".
 		await modeSwitch(page).getByRole('checkbox').click();

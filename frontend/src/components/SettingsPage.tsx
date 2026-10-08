@@ -32,9 +32,11 @@ import { HeaderPositionSetting } from './HeaderPositionSetting';
 import { BalanceVariantSetting } from './BalanceVariantSetting';
 import { LanguageSetting } from './LanguageSetting';
 import { AdminUsersSection } from './AdminUsersSection';
+import { McpInstructionsSection } from './McpInstructionsSection';
 import { ApiTokensSection } from './ApiTokensSection';
 import { CalendarSourcesSection } from './CalendarSourcesSection';
 import { PlaceFavoritesSection } from './PlaceFavoritesSection';
+import { KnowledgeEntriesSection } from './KnowledgeEntriesSection';
 import { CategoryList } from './CategoryList';
 import { DeleteAccountButton } from './DeleteAccount';
 import { GroupsSection } from './GroupsSection';
@@ -286,6 +288,34 @@ export const SettingsPage = ({
 			.catch(() => {
 				setCareFailed(true);
 				setCarePushEnabled(!value);
+			});
+	};
+
+	// #1994 AK6: Schalter „Hinweis zum Aufteilen“ — serverseitig pro User, Muster wie der Fürsorge-Schalter.
+	const [splitHintEnabled, setSplitHintEnabled] = useState(true);
+	const [splitHintFailed, setSplitHintFailed] = useState(false);
+
+	useEffect(() => {
+		api
+			.getSplitHintConfig()
+			.then((config) => {
+				if (config && typeof config.splitHintEnabled === 'boolean') {
+					setSplitHintEnabled(config.splitHintEnabled);
+				}
+			})
+			.catch(() => {
+				// Netzwerk-/Session-Fehler: Default (ein) steht bleiben, Schalter bleibt bedienbar.
+			});
+	}, []);
+
+	const toggleSplitHint = (value: boolean): void => {
+		setSplitHintEnabled(value);
+		api
+			.updateSplitHintConfig({ splitHintEnabled: value })
+			.then(() => setSplitHintFailed(false))
+			.catch(() => {
+				setSplitHintFailed(true);
+				setSplitHintEnabled(!value);
 			});
 	};
 
@@ -695,6 +725,24 @@ export const SettingsPage = ({
 									</KolAlert>
 								)}
 							</div>
+							<div className="settings-switch-row">
+								<KolInputCheckbox
+									_label="Hinweis zum Aufteilen großer Aufgaben"
+									_variant="switch"
+									_checked={splitHintEnabled}
+									_hint="Zeigt an der Karte „Nächste Aufgabe“ einen freundlichen Hinweis, wenn du mehrere große Aufgaben wiederholt verschoben hast. Die Reihenfolge der Empfehlung ändert sich dadurch nicht."
+									_on={{
+										onChange: (_event, value) => {
+											toggleSplitHint(value === true);
+										},
+									}}
+								/>
+								{splitHintFailed && (
+									<KolAlert _type="warning" _label="Einstellung nicht gespeichert">
+										Die Einstellung konnte nicht gespeichert werden. Bitte prüfe die Verbindung und versuche es erneut.
+									</KolAlert>
+								)}
+							</div>
 							{pushEnabled && (
 								<KolButton
 									_label="Push testen"
@@ -1021,6 +1069,8 @@ export const SettingsPage = ({
 					</KolCard>
 					<LlmSettings open={aiFeaturesEnabled} disabled={showAiPlanAlert} />
 					<ApiTokensSection open={aiFeaturesEnabled} />
+					<KnowledgeEntriesSection />
+					<McpInstructionsSection open={aiFeaturesEnabled} />
 				</div>
 				{/* #1211: Gruppen-Verwaltung (AK6–AK8) — eigener Tab „Gruppen" (Index 5, Route
 				        /settings/gruppen). Liste als Accordions mit Rolle + Mitgliederzahl, Anlegen/Bearbeiten

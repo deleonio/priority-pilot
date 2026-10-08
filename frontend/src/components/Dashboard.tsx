@@ -47,9 +47,10 @@ type BegrTask = Task & Partial<Pick<components['schemas']['TaskRecommendation'],
  * scoreBreakdown-Anteil des jeweiligen Faktors (stärkster Grund zuerst = DOM-Reihenfolge, A11y).
  * Rein informativ, ohne Technik-Werte (KI-UX): keine Anteile/Prozente/Scores. Ohne Anteile
  * genau ein Fallback-Satz aus der Frist (ohne Frist keiner). Die Priorität steht schon in der
- * Meta-Zeile der Karte und wird nicht wiederholt.
+ * Meta-Zeile der Karte und wird nicht wiederholt. Bei `reasons.split` (#1994) folgt zuletzt der
+ * übergebene Aufteilen-Satz, ohne Zahl und ohne Aktion.
  */
-const begruendungsSaetze = (task: BegrTask): string[] => {
+const begruendungsSaetze = (task: BegrTask, splitSatz: string): string[] => {
 	const { reasons, scoreBreakdown } = task;
 	if (reasons === undefined || Object.keys(reasons).length === 0) {
 		return task.deadline ? [`Fällig am ${formatDeadline(task.deadline)}.`] : [];
@@ -88,7 +89,9 @@ const begruendungsSaetze = (task: BegrTask): string[] => {
 						: `Fällig am ${formatDeadline(new Date(`${frist.date}T00:00:00Z`))} (in ${tage} ${tage === 1 ? 'Tag' : 'Tagen'}).`,
 		});
 	}
-	return saetze.sort((a, b) => anteil(b.key) - anteil(a.key)).map(({ satz }) => satz);
+	const sortiert = saetze.sort((a, b) => anteil(b.key) - anteil(a.key)).map(({ satz }) => satz);
+	// #1994: Aufteilen-Hinweis am Ende, ohne Score-Anteil (kein Sortier-Faktor).
+	return reasons.split !== undefined ? [...sortiert, splitSatz] : sortiert;
 };
 
 interface DashboardProps {
@@ -363,9 +366,9 @@ export const Dashboard = ({
 								{/* #1985: „Warum jetzt?“ — Begründungssätze, stärkster Grund zuerst (DOM-Reihenfolge,
 								    A11y); ohne Anteile der Fallback-Satz. Reine Information im Signal-Panel: keine
 								    Interaktion, kein Farb-/Gewichts-Akzent (KI-UX). */}
-								{begruendungsSaetze(nextTask).length > 0 && (
+								{begruendungsSaetze(nextTask, t('splitHint.reason')).length > 0 && (
 									<ul className="dashboard-next-task-reasons">
-										{begruendungsSaetze(nextTask).map((satz) => (
+										{begruendungsSaetze(nextTask, t('splitHint.reason')).map((satz) => (
 											<li key={satz}>{satz}</li>
 										))}
 									</ul>

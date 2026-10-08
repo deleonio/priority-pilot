@@ -93,7 +93,8 @@ test.describe('#2078 — KI-Vorschlag-Block', () => {
 		});
 
 		await openFormWithSuggestion(page);
-		await page.getByRole('button', { name: 'Vorschlag übernehmen' }).click();
+		// Test-Pflege (#2146): der Fürsorge-Hinweis hat ebenfalls „Vorschlag übernehmen“ — auf den KI-Block eingrenzen.
+		await page.locator('.pillar-suggestion-block').getByRole('button', { name: 'Vorschlag übernehmen' }).click();
 		// Test-Pflege: „Anlegen“ per Substring auch auf dem FAB „Neuen Task anlegen“ —
 		// deshalb auf die Dialog-Aktionsleiste eingrenzen (strict mode).
 		await page.getByTestId('task-actions').getByRole('button', { name: 'Anlegen' }).click();
@@ -117,8 +118,9 @@ test.describe('#2078 — KI-Vorschlag-Block', () => {
 		await openFormWithSuggestion(page);
 
 		const heading = page.getByRole('heading', { name: 'KI-Vorschlag' });
-		const apply = page.getByRole('button', { name: 'Vorschlag übernehmen' });
-		const discard = page.getByRole('button', { name: 'Verwerfen' });
+		const block = page.locator('.pillar-suggestion-block');
+		const apply = block.getByRole('button', { name: 'Vorschlag übernehmen' });
+		const discard = block.getByRole('button', { name: 'Verwerfen' });
 
 		for (const locator of [heading, apply, discard]) {
 			const box = await measureBox(page, locator);

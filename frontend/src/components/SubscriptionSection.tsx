@@ -19,6 +19,7 @@ import { planLabel } from '../lib/planOffers';
 import { getChannel } from '../lib/platform';
 import { usePlan } from '../lib/usePlan';
 import { CHANNEL_PROVIDER } from './billingChannel';
+import { getApiBase } from '../lib/siteOrigin';
 import { ManagedBy } from './ManagedBy';
 import { Modal } from './Modal';
 
@@ -32,7 +33,7 @@ const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de
 /** PDF-Download je Rechnung (#1955 AK5) — Anker-Navigation; die Session läuft als Cookie mit, der Server liefert Content-Disposition. */
 const downloadInvoicePdf = (invoice: Invoice): void => {
 	const link = document.createElement('a');
-	link.href = `/api/v1/billing/invoices/${invoice.id}/pdf`;
+	link.href = `${getApiBase()}/billing/invoices/${invoice.id}/pdf`;
 	link.download = `${invoice.number}.pdf`;
 	document.body.appendChild(link);
 	link.click();

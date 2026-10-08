@@ -133,6 +133,7 @@ export const main = async (): Promise<void> => {
 			migrateCategoryIdColumns,
 			migrateApiTokenScope,
 			migrateApiTokenExpiresAt,
+			migrateApiTokenKind,
 			migrateLoginTokenPurpose,
 			migrateTaskPinnedColumns,
 			migratePillarRecalcColumns,
@@ -141,7 +142,9 @@ export const main = async (): Promise<void> => {
 			migrateTaskAiDraftColumn,
 			migrateUserCareColumns,
 			migrateUserTermsColumns,
+			migrateUserMcpInstructionsColumn,
 			migrateUsersBalanceVariantColumn,
+			migrateUserAccountPreferenceColumns,
 			migrateUsersFreeSlotMinMinutesColumn,
 			migrateCalendarSourceCaldavColumns,
 		} = await import('./logics/migrate.js');
@@ -237,8 +240,12 @@ export const main = async (): Promise<void> => {
 		await migrateUserCareColumns(sequelize);
 		// Zustimmungs-Spalten am User (#1901) — wie oben.
 		await migrateUserTermsColumns(sequelize);
+		// Dialog-Vorgaben-Spalte am User (#1935) — wie oben.
+		await migrateUserMcpInstructionsColumn(sequelize);
 		// Zifferblatt-Auswahl am User (#2009) — wie oben: sync() ergänzt Bestands-Tabellen nicht.
 		await migrateUsersBalanceVariantColumn(sequelize);
+		// Inhaltliche Präferenzen am User (#2398) — wie oben.
+		await migrateUserAccountPreferenceColumns(sequelize);
 		// Mindestdauer freier Lücken am User (#1990) — wie oben.
 		await migrateUsersFreeSlotMinMinutesColumn(sequelize);
 		// CalDAV-Spalten an calendar_sources (#2211) — wie oben: sync() ergänzt Bestands-Tabellen nicht.
@@ -276,6 +283,8 @@ export const main = async (): Promise<void> => {
 		// (#1357) — vor sync(), damit Token-Zugriffe auf Bestands-DBs nicht mit `no such column`
 		// brechen.
 		await migrateApiTokenExpiresAt(sequelize);
+		// Fehlende kind-Spalte (API- vs. App-Token) an api_tokens nachziehen (#2377) — vor sync(), aus demselben Grund.
+		await migrateApiTokenKind(sequelize);
 		// Fehlende purpose-Spalte an login_tokens nachziehen (#1669) — vor sync(), aus demselben Grund.
 		await migrateLoginTokenPurpose(sequelize);
 		// Fehlende pinned/pinnedAt-Spalten an tasks nachziehen (#1582) — vor sync(), damit
@@ -325,6 +334,11 @@ export const main = async (): Promise<void> => {
 
 		// Kalender-Abruf per ICS (#2209) — alle 30 Minuten, unabhängig von Push.
 		startCalendarSyncScheduler(runCalendarSync, CALENDAR_SYNC_INTERVAL_MS);
+
+		// Serien automatisch anlegen (#2356) — einmal beim Start, danach täglich; push-unabhängig, idempotent.
+		const { runSeriesAutoCreate } = await import('./logics/seriesAutoCreate.js');
+		void runSeriesAutoCreate(new Date()).catch((error) => console.error('Serien-Automatik fehlgeschlagen.', error));
+		startCalendarSyncScheduler(runSeriesAutoCreate, 24 * 60 * 60 * 1000);
 
 		// Kulanzfrist-Ablauf (#2234) — entzieht das Paket und kündigt das PayPal-Abo auch ohne Login;
 		// push-unabhängig, idempotent (stündlich).

@@ -1234,3 +1234,51 @@ export const CARE_VORLAGEN: readonly { key: string; saeuleId: number; texte: Rec
 		},
 	},
 ];
+
+/**
+ * Generische Vorlage für Säulen ohne kuratierte Vorlagen, vor allem eigene Säulen (#2146) —
+ * `{name}` ist der Platzhalter für den Säulennamen. Texte folgen dem Ton-Leitfaden
+ * (`docs/fuersorge-tonalitaet.md`): warm, drängt nicht, konkret für heute.
+ */
+export const CARE_GENERISCH: Record<CareSprache, VorlagenText> = {
+	de: {
+		titel: '{name}: ein kleiner Schritt',
+		beschreibung: 'Gönn dir heute einen kleinen Moment für „{name}“ – schon fünf Minuten zählen.',
+	},
+	en: {
+		titel: '{name}: one small step',
+		beschreibung: 'Give “{name}” a small moment today – even five minutes count.',
+	},
+	es: {
+		titel: '{name}: un pequeño paso',
+		beschreibung: 'Dedica hoy un momento a «{name}»: ya cuentan cinco minutos.',
+	},
+	fr: {
+		titel: '{name} : un petit pas',
+		beschreibung: 'Accorde aujourd\u2019hui un petit moment à « {name} » – cinq minutes comptent déjà.',
+	},
+	it: {
+		titel: '{name}: un piccolo passo',
+		beschreibung: 'Dedica oggi un momento a «{name}»: contano anche cinque minuti.',
+	},
+	nl: {
+		titel: '{name}: een kleine stap',
+		beschreibung: 'Geef „{name}” vandaag een klein moment – al vijf minuten tellen.',
+	},
+	pl: {
+		titel: '{name}: mały krok',
+		beschreibung: 'Poświęć dziś chwilę na „{name}” – liczy się już pięć minut.',
+	},
+	pt: {
+		titel: '{name}: um pequeno passo',
+		beschreibung: 'Dedique hoje um momento a «{name}» – até cinco minutos contam.',
+	},
+	ru: {
+		titel: '{name}: небольшой шаг',
+		beschreibung: 'Уделите сегодня минутку для «{name}» — важны даже пять минут.',
+	},
+	sv: {
+		titel: '{name}: ett litet steg',
+		beschreibung: 'Ge „{name}” en liten stund idag – redan fem minuter räknas.',
+	},
+};

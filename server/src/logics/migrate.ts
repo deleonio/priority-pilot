@@ -70,6 +70,8 @@ const SERIES_TABLE_COLUMNS = [
 	{ name: 'estimatedEffort', definition: 'FLOAT NOT NULL DEFAULT 0.5' },
 	{ name: 'active', definition: 'INTEGER NOT NULL DEFAULT 1' },
 	{ name: 'startDate', definition: 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP' },
+	// Automatische Erzeugung (#2355): NOT NULL DEFAULT 1 — Bestandsserien erzeugen weiter automatisch.
+	{ name: 'autoCreate', definition: 'INTEGER NOT NULL DEFAULT 1' },
 	// Eigentümer-Bindung (#244, AK1): nullable, daher kein DEFAULT nötig.
 	{ name: 'userId', definition: 'INTEGER' },
 	// Ersteller-Konto (#1222, analog `Task.createdById` #1213): nullable, daher kein DEFAULT nötig;
@@ -773,12 +775,13 @@ export const migrateUserGeoConfigColumns = async (db: Sequelize): Promise<void> 
 };
 
 /**
- * Fürsorge-Push-Spalten am User (#1794: Schalter `carePushEnabled`, IANA-Zeitzone `zeitzone`, #1879: App-Sprache `sprache`)
+ * Fürsorge-Push-Spalten am User (#1794: Schalter `carePushEnabled`, IANA-Zeitzone `zeitzone`, #1879: App-Sprache `sprache`, #1994: Aufteilen-Hinweis `splitHintEnabled`)
  * mit denselben Defaults wie das Modell (`server/src/models/user.ts`) bzw. `CARE_CONFIG_DEFAULTS`
  * der Route — gleiches ALTER-Tabellen-Muster wie {@link migrateUserGeoConfigColumns}.
  */
 const USER_CARE_COLUMNS = [
 	{ column: 'carePushEnabled', definition: 'BOOLEAN NOT NULL DEFAULT 1' },
+	{ column: 'splitHintEnabled', definition: 'BOOLEAN NOT NULL DEFAULT 1' },
 	{ column: 'zeitzone', definition: 'STRING' },
 	{ column: 'sprache', definition: 'STRING' },
 ] as const;
@@ -825,6 +828,21 @@ export const migrateUserTermsColumns = async (db: Sequelize): Promise<void> => {
 			console.log(`Spalte ${column} an users nachgezogen.`);
 		}
 	}
+};
+
+/**
+ * Zieht die `mcpInstructions`-Spalte auf einer bestehenden `users`-Tabelle nach (#1935) —
+ * idempotent, No-op bei frischer DB (Muster {@link migrateUserCareColumns}).
+ */
+export const migrateUserMcpInstructionsColumn = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('users')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0 || existing.includes('mcpInstructions')) {
+		return;
+	}
+	await db.query('ALTER TABLE `users` ADD COLUMN `mcpInstructions` TEXT');
+	console.log('Spalte mcpInstructions an users nachgezogen.');
 };
 
 /**
@@ -924,6 +942,28 @@ export const migrateUsersBalanceVariantColumn = async (db: Sequelize): Promise<v
 	console.log('Spalte balanceVariant an users nachgezogen.');
 };
 
+/** Inhaltliche Präferenzen am User (#2398) — anfangs leer, `NULL` = bisheriger Frontend-Default. */
+const USER_ACCOUNT_PREFERENCE_COLUMNS = ['aiEnabled', 'balancePriority', 'expertMode', 'geolocationEnabled'] as const;
+
+/**
+ * Zieht die Präferenz-Spalten auf einer bestehenden `users`-Tabelle nach (#2398) — idempotent,
+ * Muster {@link migrateUserCareColumns}; ohne Tabelle ein No-op.
+ */
+export const migrateUserAccountPreferenceColumns = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('users')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0) {
+		return;
+	}
+	for (const column of USER_ACCOUNT_PREFERENCE_COLUMNS) {
+		if (!existing.includes(column)) {
+			await db.query(`ALTER TABLE \`users\` ADD COLUMN \`${column}\` BOOLEAN NULL`);
+			console.log(`Spalte ${column} an users nachgezogen.`);
+		}
+	}
+};
+
 /**
  * Zieht die `freeSlotMinMinutes`-Spalte (Mindestdauer freier Lücken, #1990) auf einer **bestehenden**
  * `users`-Tabelle nach — analog `migrateUsersBalanceVariantColumn`, Default 30 wie im Modell.
@@ -996,6 +1036,23 @@ export const migrateApiTokenExpiresAt = async (db: Sequelize): Promise<void> => 
 
 	await db.query('ALTER TABLE `api_tokens` ADD COLUMN `expiresAt` DATETIME');
 	console.log('Spalte expiresAt an api_tokens nachgezogen.');
+};
+
+/**
+ * Zieht die `kind`-Spalte (`'api'` | `'app'`, #2377) auf einer **bestehenden** `api_tokens`-Tabelle nach,
+ * BEVOR `sequelize.sync()` läuft — analog `migrateApiTokenScope`. Bestandszeilen bleiben persönliche
+ * API-Tokens (`'api'`). Idempotent; bei frischer DB No-op — `sync()` legt die Spalte an.
+ */
+export const migrateApiTokenKind = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('api_tokens')");
+	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
+
+	if (existing.size === 0 || existing.has('kind')) {
+		return;
+	}
+
+	await db.query("ALTER TABLE `api_tokens` ADD COLUMN `kind` VARCHAR(255) NOT NULL DEFAULT 'api'");
+	console.log('Spalte kind an api_tokens nachgezogen.');
 };
 
 /**

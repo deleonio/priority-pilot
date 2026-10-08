@@ -23,7 +23,9 @@ export type FeatureId =
 	| 'location_reminders'
 	| 'mcp_readwrite'
 	| 'mcp_read'
-	| 'feedback';
+	| 'feedback'
+	| 'sync'
+	| 'knowledge_entries';
 export const FEATURE_IDS: readonly FeatureId[] = [
 	'groups',
 	'voice_input',
@@ -34,6 +36,8 @@ export const FEATURE_IDS: readonly FeatureId[] = [
 	'mcp_readwrite',
 	'mcp_read',
 	'feedback',
+	'sync',
+	'knowledge_entries',
 ];
 
 /**
@@ -72,7 +76,8 @@ export interface PlansCatalog {
  * rein lokal im Browser (#1524 AK1). `graph_write` sind einfache Abhängigkeiten, `graph_weight` das
  * Setzen eines Gewichts (#1782). `mcp_read` ist der lesende MCP-/API-Token-Zugriff, eine Stufe
  * früher als `mcp_readwrite` (#1524 AK3). `feedback` (Feedback und App-Support) ist paketungebunden in jedem
- * Paket nutzbar (#1927).
+ * Paket nutzbar (#1927). `sync` (Synchronisation über alle Geräte) ist reine Ausweisung in jedem Paket (#2397).
+ * `knowledge_entries` (Wissens-Einträge für die Säulenzuordnung) gibt es nur in Pro (#1936).
  */
 const FEATURE_CATALOG: readonly FeatureCatalogEntry[] = [
 	{ feature: 'groups', allowedPlans: ['plus', 'pro'] },
@@ -84,6 +89,8 @@ const FEATURE_CATALOG: readonly FeatureCatalogEntry[] = [
 	{ feature: 'mcp_readwrite', allowedPlans: ['pro'] },
 	{ feature: 'mcp_read', allowedPlans: ['plus', 'pro'] },
 	{ feature: 'feedback', allowedPlans: ['free', 'plus', 'pro'] },
+	{ feature: 'sync', allowedPlans: ['free', 'plus', 'pro'] },
+	{ feature: 'knowledge_entries', allowedPlans: ['pro'] },
 ];
 
 /**

@@ -31,6 +31,8 @@ import type {
 	MonthlyRecap,
 	PlaceFavorite,
 	PlaceFavoriteInput,
+	KnowledgeEntry,
+	KnowledgeEntryInput,
 	JournalEntry,
 	JournalEntryInput,
 	JournalEntryUpdate,
@@ -47,9 +49,11 @@ import type {
 	LlmProviderUpdate,
 	NearbyTask,
 	GeoConfig,
+	McpInstructions,
 	FreeSlot,
 	FreeSlotConfig,
 	CareConfig,
+	SplitHintConfig,
 	CareVorschlag,
 	Profile,
 	ParsedSearch,
@@ -84,13 +88,15 @@ import type {
 } from 'client';
 import createClient from 'openapi-fetch';
 import { planRequiredDetail } from './lib/apiError';
+import { appTokenHeaders, clearAppToken, getAppToken, setAppToken } from './lib/appToken';
 import { sortCategoriesByName } from './lib/categories';
 import { getChannel } from './lib/platform';
+import { getApiBase } from './lib/siteOrigin';
 
 // Im Dev-Betrieb leitet der Vite-Proxy (siehe vite.config.ts) /api/v1/*-Anfragen an
 // http://localhost:3000 weiter und streift das Präfix ab. In Prod übernimmt Caddy denselben
 // Rewrite. Über VITE_API_BASE_URL lässt sich die Basis-URL bei Bedarf überschreiben.
-const baseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
+const baseUrl = import.meta.env.VITE_API_BASE_URL ?? getApiBase();
 const client = createClient<paths>({ baseUrl });
 
 // CSRF-Schutz (Server: server/src/express/csrf.ts): Vor dem ersten schreibenden Aufruf holt der
@@ -113,6 +119,11 @@ client.use({
 	onRequest: async ({ request }) => {
 		// Kanal für die serverseitige Kanal-Regel (ADR 0016), z. B. keine PayPal-Kasse in der Android-App.
 		request.headers.set('X-Client-Channel', getChannel());
+		// App-Token der Android-App (#2379); ohne Token bleibt die Website bei der Cookie-Session.
+		const appToken = getAppToken();
+		if (appToken !== null) {
+			request.headers.set('Authorization', `Bearer ${appToken}`);
+		}
 		if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
 			request.headers.set('x-csrf-token', await ensureCsrfToken());
 		}
@@ -141,6 +152,7 @@ client.use({
 
 type RawTask = components['schemas']['Task'];
 type RawSeries = components['schemas']['Series'];
+type SeriesInstanceInput = components['schemas']['SeriesInstanceInput'];
 type GeocodeSearchResultDto = components['schemas']['GeocodeSearchResult'];
 
 // Serien-`startDate` (im Vertrag ISO-String) zu einem echten `Date` revivieren — analog zu `reviveTask`.
@@ -298,15 +310,24 @@ export const api = {
 		return data;
 	},
 
-	/** Löst den Token aus dem Anmeldelink ein; `false` bei abgelaufenem oder benutztem Link. */
+	/**
+	 * Löst den Token aus dem Anmeldelink ein; `false` bei abgelaufenem oder benutztem Link. In der
+	 * Android-App kommt statt des Cookies ein App-Token zurück (#2379), das gespeichert wird.
+	 */
 	async verifyMagicLink(token: string): Promise<boolean> {
-		const { response } = await client.POST('/auth/magic-link/verify', { body: { token } });
+		const { data, response } = await client.POST('/auth/magic-link/verify', { body: { token } });
+		if (response.ok && data?.token) {
+			setAppToken(data.token);
+		}
 		return response.ok;
 	},
 
-	/** Löst den Einmal-Code aus dem App-Login mit dem `state` der App ein (#1678); danach steht die Session. */
+	/** Löst den Einmal-Code aus dem App-Login mit dem `state` der App ein (#1678) und speichert das App-Token (#2379). */
 	async exchangeNativeLoginCode(code: string, state: string): Promise<boolean> {
-		const { response } = await client.POST('/auth/native/exchange', { body: { code, state } });
+		const { data, response } = await client.POST('/auth/native/exchange', { body: { code, state } });
+		if (response.ok && data?.token) {
+			setAppToken(data.token);
+		}
 		return response.ok;
 	},
 
@@ -1103,7 +1124,7 @@ export const api = {
 	async lektorat({ text, maxLength, signal }: { text: string; maxLength?: number } & Init): Promise<{ text: string }> {
 		const response = await fetch(`${baseUrl}/lektorat`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json', 'x-csrf-token': await ensureCsrfToken() },
+			headers: { 'Content-Type': 'application/json', 'x-csrf-token': await ensureCsrfToken(), ...appTokenHeaders() },
 			body: JSON.stringify({ text, maxLength }),
 			signal,
 		});
@@ -1126,7 +1147,7 @@ export const api = {
 	}: { category: string; title: string; description: string } & Init): Promise<void> {
 		const response = await fetch(`${baseUrl}/feedback`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json', 'x-csrf-token': await ensureCsrfToken() },
+			headers: { 'Content-Type': 'application/json', 'x-csrf-token': await ensureCsrfToken(), ...appTokenHeaders() },
 			body: JSON.stringify({ category, title, description }),
 			signal,
 		});
@@ -1157,7 +1178,7 @@ export const api = {
 	async createSeries({ seriesCreate }: { seriesCreate: SeriesCreate }): Promise<Series> {
 		const { startDate, ...rest } = seriesCreate;
 		const { data, error, response } = await client.POST('/series', {
-			body: { ...rest, startDate: startDate.toISOString() },
+			body: startDate === undefined ? rest : { ...rest, startDate: startDate.toISOString() },
 		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
@@ -1175,6 +1196,24 @@ export const api = {
 			throw new ResponseError(response, error);
 		}
 		return reviveSeries(data);
+	},
+
+	// Legt genau eine Aufgabe aus einer Serie/Vorlage an (#2357/#2359); `deadline` als ISO-String.
+	async createSeriesInstance({
+		id,
+		seriesInstanceInput,
+	}: {
+		id: number;
+		seriesInstanceInput: SeriesInstanceInput;
+	}): Promise<Task> {
+		const { data, error, response } = await client.POST('/series/{id}/instances', {
+			params: { path: { id } },
+			body: seriesInstanceInput,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return reviveTask(data);
 	},
 
 	async deleteSeries({ id, cascade }: { id: number; cascade?: boolean }): Promise<void> {
@@ -1214,15 +1253,17 @@ export const api = {
 	// der Aufrufer. Eigener fetch statt openapi-fetch, da /auth/* nicht in der OpenAPI-Spec steht —
 	// aber wie alle anderen Endpunkte unter dem proxied `/api/v1`-Präfix (s. checkAuth() in lib/auth.ts).
 	async logout(): Promise<void> {
-		const response = await fetch('/api/v1/auth/logout', {
+		const response = await fetch(`${getApiBase()}/auth/logout`, {
 			method: 'POST',
-			headers: { 'x-csrf-token': await ensureCsrfToken() },
+			headers: { 'x-csrf-token': await ensureCsrfToken(), ...appTokenHeaders() },
 		});
 		if (!response.ok) {
 			throw new Error(`Logout fehlgeschlagen (${response.status})`);
 		}
-		// Session ist serverseitig zerstört — den (an die alte Session gebundenen) Token verwerfen.
+		// Session ist serverseitig zerstört — den (an die alte Session gebundenen) Token verwerfen;
+		// ein App-Token hat der Server mit dem Aufruf widerrufen (#2379).
 		csrfToken = null;
+		clearAppToken();
 	},
 
 	// Materialisiert die bis `until` (inklusive) fälligen Instanzen einer Serie als eigenständige Tasks.
@@ -1241,16 +1282,6 @@ export const api = {
 			throw new ResponseError(response, error);
 		}
 		return data.map(reviveTask);
-	},
-
-	// Materialisiert die fälligen Instanzen aller aktiven Serien (im Auth-Modus nur der eigenen) und
-	// gibt die Anzahl der neu erzeugten Tasks zurück (#244, AK7).
-	async generateAllSeries(init: Init = {}): Promise<{ created: number }> {
-		const { data, error, response } = await client.POST('/series/generate-all', { signal: init.signal });
-		if (!response.ok || data === undefined) {
-			throw new ResponseError(response, error);
-		}
-		return data;
 	},
 
 	// --- Web-Push (#355) ---
@@ -1604,6 +1635,29 @@ export const api = {
 		return data;
 	},
 
+	// --- Dialog-Vorgaben für die MCP-KI (#1935) ---
+
+	// Pro Nutzer gespeicherter Freitext, der im MCP-`initialize`-Handshake ausgeliefert wird.
+	async getMcpInstructions(init: Init = {}): Promise<McpInstructions> {
+		const { data, error, response } = await client.GET('/mcp-instructions', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Speichert die Vorgaben getrimmt (leer löscht); zu lang oder kein String → 400.
+	async updateMcpInstructions(instructions: string, init: Init = {}): Promise<McpInstructions> {
+		const { data, error, response } = await client.PUT('/mcp-instructions', {
+			body: { instructions },
+			signal: init.signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
 	// --- Freie Zeit (#1990) ---
 
 	// Heutige Kalender-Lücken mit passenden Aufgaben; ohne Kalender eine leere Liste.
@@ -1647,6 +1701,26 @@ export const api = {
 	// Speichert die Care-Konfiguration; ungültige Zeitzonen werden serverseitig mit 400 abgelehnt.
 	async updateCareConfig(config: CareConfig, init: Init = {}): Promise<CareConfig> {
 		const { data, error, response } = await client.PUT('/care-config', { body: config, signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// --- Aufteilen-Hinweis pro User (#1994) ---
+
+	// Schalter „Hinweis zum Aufteilen großer Aufgaben“ (serverseitig gespeichert, Default ein).
+	async getSplitHintConfig(init: Init = {}): Promise<SplitHintConfig> {
+		const { data, error, response } = await client.GET('/split-hint-config', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Speichert den Schalter; Nicht-Boolean lehnt der Server mit 400 ab.
+	async updateSplitHintConfig(config: SplitHintConfig, init: Init = {}): Promise<SplitHintConfig> {
+		const { data, error, response } = await client.PUT('/split-hint-config', { body: config, signal: init.signal });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}
@@ -1730,6 +1804,43 @@ export const api = {
 	// Entfernt einen eigenen gespeicherten Ort endgültig.
 	async deletePlaceFavorite({ id }: { id: number }): Promise<void> {
 		const { error, response } = await client.DELETE('/place-favorites/{id}', { params: { path: { id } } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
+	// --- Wissens-Einträge (#1936, Pro) ---
+
+	// Eigene Wissens-Einträge, älteste zuerst.
+	async listKnowledgeEntries(init: Init = {}): Promise<KnowledgeEntry[]> {
+		const { data, error, response } = await client.GET('/knowledge-entries', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async createKnowledgeEntry(entry: KnowledgeEntryInput): Promise<KnowledgeEntry> {
+		const { data, error, response } = await client.POST('/knowledge-entries', { body: entry });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async updateKnowledgeEntry(id: number, entry: KnowledgeEntryInput): Promise<KnowledgeEntry> {
+		const { data, error, response } = await client.PATCH('/knowledge-entries/{id}', {
+			params: { path: { id } },
+			body: entry,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async deleteKnowledgeEntry(id: number): Promise<void> {
+		const { error, response } = await client.DELETE('/knowledge-entries/{id}', { params: { path: { id } } });
 		if (!response.ok) {
 			throw new ResponseError(response, error);
 		}

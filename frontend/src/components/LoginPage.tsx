@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { startNativeGoogleLogin } from '../lib/nativeAuth';
 import { isNativeChannel } from '../lib/platform';
+import { getPublicOrigin } from '../lib/siteOrigin';
 
 type ErrorParam = string | null;
 
@@ -93,7 +94,7 @@ export const LoginPage = () => {
 				setWaitlistResult({
 					position,
 					total,
-					link: `${window.location.origin}/app/?ref=${referralCode}`,
+					link: `${getPublicOrigin()}/app/?ref=${referralCode}`,
 				});
 				setWaitlistState('done');
 			})

@@ -32,11 +32,18 @@ class User extends Model {
 	public lastGeoLongitude!: number | null;
 	/** Fürsorge-Push (#1794) — eigener Schalter (Default ein), unabhängig vom Push-Hauptschalter. */
 	public carePushEnabled!: boolean;
+	/** Hinweis zum Aufteilen großer, mehrfach verschobener Aufgaben (#1994) — Default ein. */
+	public splitHintEnabled!: boolean;
 	/** IANA-Zeitzone des Nutzers (#1794) — Ruhezeit + Kalendertag-Dedup; `null` = UTC-Fallback. */
 	public zeitzone!: string | null;
 	public sprache!: string | null;
 	/** Zifferblatt-Auswahl (#2009) — serverseitig am Konto statt nur im Gerät; `null` = Default `herz`. */
 	public balanceVariant!: string | null;
+	/** Inhaltliche Präferenzen am Konto (#2398) — `null` = bisheriger Frontend-Default. */
+	public aiEnabled!: boolean | null;
+	public balancePriority!: boolean | null;
+	public expertMode!: boolean | null;
+	public geolocationEnabled!: boolean | null;
 	/** Mindestdauer freier Kalender-Lücken in Minuten (#1990, Default 30). */
 	public freeSlotMinMinutes!: number;
 	/** Systemweite Rolle (Rollensystem admin/member/tester) — steuert Admin-Views und -API-Endpunkte. */
@@ -57,6 +64,8 @@ class User extends Model {
 	/** Zustimmung zu den Nutzungsbedingungen (#1901): Fassung (`TERMS_VERSION`) und Zeitpunkt; `null` = noch nie. */
 	public termsVersion!: string | null;
 	public termsAcceptedAt!: Date | null;
+	/** Dialog-Vorgaben für die per MCP verbundene KI (#1935) — getrimmter Freitext; `null` = keine. */
+	public mcpInstructions!: string | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -122,6 +131,11 @@ User.init(
 			allowNull: false,
 			defaultValue: true,
 		},
+		splitHintEnabled: {
+			type: DataTypes.BOOLEAN,
+			allowNull: false,
+			defaultValue: true,
+		},
 		zeitzone: {
 			type: DataTypes.STRING,
 			allowNull: true,
@@ -134,6 +148,26 @@ User.init(
 		},
 		balanceVariant: {
 			type: DataTypes.STRING,
+			allowNull: true,
+			defaultValue: null,
+		},
+		aiEnabled: {
+			type: DataTypes.BOOLEAN,
+			allowNull: true,
+			defaultValue: null,
+		},
+		balancePriority: {
+			type: DataTypes.BOOLEAN,
+			allowNull: true,
+			defaultValue: null,
+		},
+		expertMode: {
+			type: DataTypes.BOOLEAN,
+			allowNull: true,
+			defaultValue: null,
+		},
+		geolocationEnabled: {
+			type: DataTypes.BOOLEAN,
 			allowNull: true,
 			defaultValue: null,
 		},
@@ -169,6 +203,11 @@ User.init(
 		},
 		termsAcceptedAt: {
 			type: DataTypes.DATE,
+			allowNull: true,
+			defaultValue: null,
+		},
+		mcpInstructions: {
+			type: DataTypes.TEXT,
 			allowNull: true,
 			defaultValue: null,
 		},

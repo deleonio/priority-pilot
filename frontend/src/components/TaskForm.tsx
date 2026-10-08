@@ -138,6 +138,15 @@ export interface TaskFormInitialValues {
 	checklist?: string[];
 	/** Vom Freitext-Parsing erkannte Kategorie (ID einer Kategorie des Nutzers). */
 	categoryId?: number;
+	/** #2361: Koordinaten der Ausgangsaufgabe — erscheinen im Koordinaten-Kasten und gehen ins Payload. */
+	latitude?: number;
+	longitude?: number;
+	/** #2361: Säulen-Verteilung der Ausgangsaufgabe (Anteile inkl. `confidence` 1:1 übernommen). */
+	pillars?: TaskPillarContribution[];
+	/** #2361: Serien-Schalter „Automatisch anlegen" — im Vorlage-Flow bewusst `false`. */
+	autoCreate?: boolean;
+	/** #2361: Serien-Rhythmus — im Vorlage-Flow bewusst `'none'` („Ohne Rhythmus", kein Startdatum). */
+	rhythm?: SeriesRhythm;
 }
 
 /**
@@ -164,7 +173,7 @@ const RHYTHM_OPTIONS: { label: string; value: SeriesRhythm }[] = [
 ];
 
 /** Alle gültigen `SeriesRhythm`-Werte — onChange-Guard ohne hartcodierten Drei-Werte-Filter. */
-const VALID_RHYTHMS = new Set<string>(RHYTHM_OPTIONS.map((option) => option.value));
+const VALID_RHYTHMS = new Set<string>([...RHYTHM_OPTIONS.map((option) => option.value), 'none']);
 const isSeriesRhythm = (value: string): value is SeriesRhythm => VALID_RHYTHMS.has(value);
 
 /**
@@ -232,6 +241,12 @@ interface TaskFormProps {
 	 * per LLM (#236). Greift nur, wenn `task` selbst keinen Wert liefert.
 	 */
 	initialValues?: TaskFormInitialValues;
+	/**
+	 * #2361: Sperrt den Modus-Umschalter (Aufgabe/Serie) im Anlege-Modus — im Vorlage-Flow würde ein
+	 * Wechsel auf „Aufgabe" eine Duplikat-Aufgabe erzeugen. Öffnet zugleich das Akkordeon „Termin &
+	 * Ort", damit die Serien-Vorbelegung ohne Antippen sichtbar ist.
+	 */
+	lockMode?: boolean;
 	/** Schließt den Dialog (Abbrechen-Button); wird vom Modal-Container bereitgestellt. */
 	onClose: () => void;
 	/** Nach erfolgreichem Speichern aufgerufen (Liste neu laden + Dialog schließen). */
@@ -311,6 +326,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 		pillars,
 		categories = [],
 		initialValues,
+		lockMode = false,
 		onClose,
 		onSaved,
 		onModeChange,
@@ -354,17 +370,19 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 		deadline: string;
 		startDate: string;
 		rhythm: SeriesRhythm;
+		autoCreate: boolean;
 	}>({
 		title: task?.title ?? series?.title ?? initialValues?.title ?? '',
 		priority: task?.priority ?? series?.priority ?? initialValues?.priority ?? 3,
 		estimatedEffort: task?.estimatedEffort ?? series?.estimatedEffort ?? initialValues?.estimatedEffort ?? 0.5,
 		description: task?.description ?? series?.description ?? initialValues?.description ?? '',
 		address: task?.address ?? series?.address ?? initialValues?.address ?? '',
-		latitude: task?.latitude ?? series?.latitude ?? null,
-		longitude: task?.longitude ?? series?.longitude ?? null,
+		latitude: task?.latitude ?? series?.latitude ?? initialValues?.latitude ?? null,
+		longitude: task?.longitude ?? series?.longitude ?? initialValues?.longitude ?? null,
 		deadline: task !== null ? deadlineToDateInput(task.deadline) : isoToDateInput(initialValues?.deadline),
 		startDate: series != null ? startDateToInput(series.startDate) : '',
-		rhythm: series?.rhythm ?? 'weekly',
+		rhythm: series?.rhythm ?? initialValues?.rhythm ?? 'weekly',
+		autoCreate: series?.autoCreate ?? initialValues?.autoCreate ?? true,
 	});
 
 	// Säulen-Verteilung im State (nicht im Ref): Jeder Reglerzug verschiebt alle Anteile und muss neu
@@ -375,7 +393,13 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	// Gleichverteilung (s. u.); Rangfolge-Tipps und KI-Vorschlag überschreiben sie. Nur der
 	// Edit-Flow übernimmt zusätzlich die gespeicherte Verteilung und vervollständigt sie auf alle Säulen.
 	const [contributions, setContributions] = useState<TaskPillarContribution[]>(() =>
-		isEdit ? fillContributions(pillars, task?.pillars ?? series?.pillars ?? []) : [],
+		isEdit
+			? fillContributions(pillars, task?.pillars ?? series?.pillars ?? [])
+			: // #2361: Vorlage-Flow — die gespeicherte Verteilung der Ausgangsaufgabe 1:1 übernehmen
+				// (auf alle Säulen vervollständigt, gleiches Muster wie der Edit-Fall).
+				initialValues?.pillars != null
+				? fillContributions(pillars, initialValues.pillars)
+				: [],
 	);
 	// #2074: Rangfolge der Säulen in Tipp-Reihenfolge; im Edit-Flow aus der gespeicherten Verteilung
 	// abgeleitet (Anteile absteigend = Rang 1..n, Gleichstand nach Listenordnung).
@@ -520,6 +544,9 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	// Re-Render aus). `startDateInput` ist der rohe `YYYY-MM-DD`-String aus dem Datumsfeld.
 	const [rhythm, setRhythm] = useState<SeriesRhythm>(form.current.rhythm);
 	const [startDateInput, setStartDateInput] = useState(form.current.startDate);
+	// #2358: Schalter „Automatisch anlegen" (State-Mirror — steuert Rhythmus-Optionen und Startdatum-Feld).
+	const [autoCreate, setAutoCreate] = useState(form.current.autoCreate);
+	const stashedRef = useRef<{ rhythm: SeriesRhythm; autoDelete: boolean } | null>(null);
 	// #523/#534: Auto-Löschung bei verpasster Deadline. State (nicht Ref), damit der Info-Hinweis beim
 	// Aktivieren der Checkbox reaktiv eingeblendet wird. Im Edit aus dem vorhandenen Task bzw. der Serie
 	// vorbelegt (#534: Auto-Löschen ist nun auch auf Serien anwendbar).
@@ -547,7 +574,9 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	// #1285: Klappzustände der beiden Opt-in-Sektionen (KolAccordion, kontrolliert) — beim Öffnen
 	// immer zugeklappt, einheitlich für Anlegen und Bearbeiten (die #1260-Vorbelegung „Edit mit
 	// gefüllten Werten startet offen“ ist bewusst ersetzt). Kein Auf-/Zuklappen während der Eingabe.
-	const [scheduleOpen, setScheduleOpen] = useState(false);
+	// #2361: Im Vorlage-Flow (`lockMode`) startet „Termin & Ort" aufgeklappt — die tragende
+	// Vorbelegung (Schalter aus, „Ohne Rhythmus") ist sonst ohne Antippen unsichtbar.
+	const [scheduleOpen, setScheduleOpen] = useState(lockMode);
 	const [optionalOpen, setOptionalOpen] = useState(false);
 
 	// #1213 (AK7): Empfängerauswahl — nur im Anlege-Modus, nur wenn der Nutzer in mindestens einer
@@ -850,11 +879,17 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 		setContributions((prev) => {
 			const matchesPillars =
 				prev.length === pillars.length && prev.every((entry, index) => entry.pillarId === pillars[index].id);
-			return matchesPillars ? prev : distributionFromRankOrder(rankedPillarIds, pillars);
+			if (matchesPillars) {
+				return prev;
+			}
+			const next = distributionFromRankOrder(rankedPillarIds, pillars);
+			// #2361: Der Spiegel darf nur bei echter Ersetzung laufen — die im Vorlage-Flow vorbelegte
+			// Verteilung ist selbst Teil des Anfangszustands und bleibt Dirty-Baseline (#1584).
+			initialSnapshotRef.current.contributions = next;
+			return next;
 		});
 		// Die Gleichverteilung ist Teil des Anfangszustands (#1584) und wird in den Schließen-Snapshot
 		// gespiegelt — sonst gilt Schließen ohne Eingriff als „geändert“ und öffnet die Rückfrage.
-		initialSnapshotRef.current.contributions = distributionFromRankOrder(rankedPillarIds, pillars);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [pillars]);
 
@@ -1024,7 +1059,9 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 					...(isHandover ? {} : { pillars }),
 					startDate: form.current.startDate.trim() === '' ? undefined : startDate,
 					rhythm: form.current.rhythm,
-					autoDeleteAfterDeadline: autoDelete,
+					autoCreate: form.current.autoCreate,
+					// #2414: Feld ausgeblendet (keine Automatik) → hängendes true nie speichern.
+					autoDeleteAfterDeadline: autoCreate ? autoDelete : false,
 					// Bei einer Übergabe die Kategorie weglassen (Muster `pillars`): Sie gehört dem
 					// bisherigen Eigentümer — der Server hängt sie per Namensgleichheit um.
 					...(isHandover ? {} : { categoryId }),
@@ -1055,10 +1092,13 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 					// lehnt sonst mit 400 ab, #1249). Ohne das Feld startet die Serie beim Empfänger ohne
 					// Verteilung; der Empfänger trägt sie selbst nach.
 					...(isHandover ? {} : { pillars }),
-					startDate,
+					// #2358: Ohne Rhythmus gibt es kein Startdatum — der Server setzt es selbst.
+					startDate: form.current.rhythm === 'none' ? undefined : startDate,
 					rhythm: form.current.rhythm,
+					autoCreate: form.current.autoCreate,
 					active: true,
-					autoDeleteAfterDeadline: autoDelete,
+					// #2414: Feld ausgeblendet (keine Automatik) → hängendes true nie speichern.
+					autoDeleteAfterDeadline: autoCreate ? autoDelete : false,
 					// Kategorie wie `pillars` bei einer Übergabe weglassen (siehe Kommentar oben) — sie
 					// gehört zum eigenen Konto.
 					...(isHandover ? {} : { categoryId }),
@@ -1236,9 +1276,10 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 			{!isEdit && (
 				<div className="mode-switch" data-testid="mode-switch">
 					<KolInputCheckbox
-						_label="Serie"
+						_label="Serie oder Vorlage"
 						_checked={isSeriesMode}
 						_variant="switch"
+						_disabled={lockMode}
 						_on={{
 							onChange: (_e, checked) => {
 								const newMode = checked === true ? 'series' : 'task';
@@ -1557,37 +1598,67 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 								{isSeriesMode ? (
 									<>
 										{/* Serie-Modus (#316): Startdatum (Anker der Serie) + Rhythmus statt Deadline. */}
-										<KolInputDate
-											_label="Startdatum"
-											_type="date"
-											_value={startDateValue}
+										{rhythm !== 'none' && (
+											<KolInputDate
+												_label="Startdatum"
+												_type="date"
+												_value={startDateValue}
+												_on={{
+													onChange: (_event, value) => {
+														const next = value instanceof Date ? startDateToInput(value) : readString(value);
+														form.current.startDate = next;
+														setStartDateInput(next);
+													},
+													onInput: (_event, value) => {
+														const next = value instanceof Date ? startDateToInput(value) : readString(value);
+														form.current.startDate = next;
+														setStartDateInput(next);
+													},
+												}}
+											/>
+										)}
+										{/* #2358: Schalter vor dem Rhythmus — er bestimmt dessen Optionen. Aus = Vorlage ohne Automatik. */}
+										<KolInputCheckbox
+											_label="Automatisch anlegen"
+											_checked={autoCreate}
+											_variant="switch"
 											_on={{
-												onChange: (_event, value) => {
-													const next = value instanceof Date ? startDateToInput(value) : readString(value);
-													form.current.startDate = next;
-													setStartDateInput(next);
-												},
-												onInput: (_event, value) => {
-													const next = value instanceof Date ? startDateToInput(value) : readString(value);
-													form.current.startDate = next;
-													setStartDateInput(next);
-												},
-											}}
-										/>
-										<KolSingleSelect
-											_label="Rhythmus"
-											_options={RHYTHM_OPTIONS}
-											_value={form.current.rhythm}
-											_on={{
-												onChange: (_event, value) => {
-													const next = readString(value);
-													if (isSeriesRhythm(next)) {
-														form.current.rhythm = next;
-														setRhythm(next);
+												onChange: (_event, checked) => {
+													const next = checked === true;
+													form.current.autoCreate = next;
+													setAutoCreate(next);
+													// #2414: Aus = Vorlage ohne Rhythmus/Auto-Löschen; Werte merken und beim Wiedereinschalten zurückgeben.
+													if (!next) {
+														stashedRef.current = { rhythm: form.current.rhythm, autoDelete };
+														form.current.rhythm = 'none';
+														setRhythm('none');
+														setAutoDelete(false);
+													} else {
+														const restored = stashedRef.current ?? { rhythm: 'weekly' as SeriesRhythm, autoDelete };
+														stashedRef.current = null;
+														form.current.rhythm = restored.rhythm === 'none' ? 'weekly' : restored.rhythm;
+														setRhythm(form.current.rhythm);
+														setAutoDelete(restored.autoDelete);
 													}
 												},
 											}}
 										/>
+										{autoCreate && (
+											<KolSingleSelect
+												_label="Rhythmus"
+												_options={RHYTHM_OPTIONS}
+												_value={form.current.rhythm}
+												_on={{
+													onChange: (_event, value) => {
+														const next = readString(value);
+														if (isSeriesRhythm(next)) {
+															form.current.rhythm = next;
+															setRhythm(next);
+														}
+													},
+												}}
+											/>
+										)}
 										{weekdayMismatch !== null && (
 											<KolAlert
 												_type="warning"
@@ -1618,18 +1689,20 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 					    gekoppelt (deaktiviert ohne Deadline, #534 Anforderung 2); bei Serien stets frei anwählbar,
 					    da das Startdatum als Deadline gilt (#534 Anforderung 1). #546: Statt nativer Checkbox wird
 					    KolInputCheckbox verwendet; der Hinweis im aktivierten Zustand wird als KolAlert gezeigt. */}
-								<KolInputCheckbox
-									className="auto-delete-toggle"
-									_label="Automatisch löschen nach 3 Tagen bei verpasster Deadline"
-									_checked={autoDelete}
-									_disabled={autoDeleteDisabled}
-									_on={{
-										// #534: Ohne Deadline darf der Schalter nicht aktivierbar sein — der `_disabled`-Prop
-										// reicht im Test-jsdom allein nicht aus (rohes dispatchEvent umgeht ihn), daher zusätzlich
-										// die Wertzurückweisung im onChange-Handler.
-										onChange: (_event, checked) => setAutoDelete(autoDeleteDisabled ? false : checked === true),
-									}}
-								/>
+								{(!isSeriesMode || autoCreate) && (
+									<KolInputCheckbox
+										className="auto-delete-toggle"
+										_label="Automatisch löschen nach 3 Tagen bei verpasster Deadline"
+										_checked={autoDelete}
+										_disabled={autoDeleteDisabled}
+										_on={{
+											// #534: Ohne Deadline darf der Schalter nicht aktivierbar sein — der `_disabled`-Prop
+											// reicht im Test-jsdom allein nicht aus (rohes dispatchEvent umgeht ihn), daher zusätzlich
+											// die Wertzurückweisung im onChange-Handler.
+											onChange: (_event, checked) => setAutoDelete(autoDeleteDisabled ? false : checked === true),
+										}}
+									/>
+								)}
 								{autoDelete && (
 									<KolAlert
 										_type="info"

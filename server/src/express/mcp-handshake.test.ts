@@ -17,7 +17,7 @@ import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } 
  * mit In-Memory-DB — kein Deployment-, kein Secret-Bezug.
  */
 
-process.env.GOOGLE_ALLOWED_EMAILS = 'mcp-h@example.com,mcp-h-1413@example.com';
+process.env.GOOGLE_ALLOWED_EMAILS = 'mcp-h@example.com,mcp-h-1413@example.com,mcp-h-1935@example.com';
 applyTestAuthEnv('mcp-handshake-test');
 
 let server: TestServer;
@@ -104,7 +104,7 @@ describe('MCP-Endpunkt /mcp/v1 — Handshake mit SDK-Client (#1353)', () => {
 		try {
 			const { tools } = await client.listTools();
 			const names = tools.map((tool) => tool.name).sort();
-			assert.equal(names.length, 33, `Katalog sollte dreiunddreißig Namen führen, war: ${names.join(', ')}`);
+			assert.equal(names.length, 35, `Katalog sollte fünfunddreißig Namen führen, war: ${names.join(', ')}`);
 			for (const expected of [
 				'task_list',
 				'task_create',
@@ -190,5 +190,86 @@ describe('MCP-Endpunkt /mcp/v1 — Handshake mit SDK-Client (#1353)', () => {
 		} finally {
 			await client.close().catch(() => {});
 		}
+	});
+});
+
+/**
+ * #1935 (Spec docs/spec/issue-1935.md) — Dialog-Vorgaben im `initialize`-Handshake.
+ * Rot, bis `initialize` `result.instructions` liefert (AK2); AK3/AK4 sichern den Bestand ab.
+ */
+describe('MCP-Endpunkt /mcp/v1 — Dialog-Vorgaben (#1935)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	// Test-Pflege #1935: `Record<string, any>` → `RpcBody` (Lint `no-explicit-any`, Verhalten unverändert).
+	type RpcBody = { result: Record<string, unknown>; error?: { message?: string } };
+	const rpc = async (token: string, method: string, params: unknown = {}): Promise<RpcBody> => {
+		const res = await fetch(`${server.baseUrl}/mcp/v1`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Accept: 'application/json, text/event-stream',
+				Authorization: `Bearer ${token}`,
+			},
+			body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+		});
+		return (await res.json()) as RpcBody;
+	};
+
+	const setInstructions = async (cookie: string, instructions: string): Promise<void> => {
+		const res = await server.json('/mcp-instructions', {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({ instructions }),
+		});
+		assert.equal(res.status, 200, 'Setup: Vorgaben müssen speicherbar sein');
+	};
+
+	it('AK2: initialize liefert result.instructions mit dem gespeicherten Text', async () => {
+		const cookie = await server.register('mcp-h-1935@example.com', 'password123');
+		const token = await createToken(cookie);
+		await setInstructions(cookie, 'Antworte kurz und knapp.');
+
+		const body = await rpc(token, 'initialize', {
+			protocolVersion: '2025-06-18',
+			capabilities: {},
+			clientInfo: { name: 't', version: '1' },
+		});
+		assert.equal(body.result.instructions, 'Antworte kurz und knapp.');
+	});
+
+	it('AK3: ohne Vorgaben (oder nach dem Löschen) fehlt der instructions-Schlüssel', async () => {
+		const cookie = await server.register('mcp-h-1935@example.com', 'password123');
+		const token = await createToken(cookie);
+		const init = { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } };
+
+		const before = await rpc(token, 'initialize', init);
+		assert.ok(before.result, 'initialize muss ein Ergebnis liefern');
+		assert.equal('instructions' in before.result, false);
+
+		await setInstructions(cookie, 'Temporär');
+		await setInstructions(cookie, '');
+		const after = await rpc(token, 'initialize', init);
+		assert.deepEqual(after.result, before.result);
+	});
+
+	it('AK4: Vorgaben ändern weder tools/list noch das Rechte-Gate eines Read-Tokens', async () => {
+		const cookie = await server.register('mcp-h-1935@example.com', 'password123');
+		const token = await createToken(cookie);
+		const listBefore = await rpc(token, 'tools/list');
+
+		await setInstructions(cookie, 'Antworte kurz und knapp.');
+
+		assert.deepEqual(await rpc(token, 'tools/list'), listBefore);
+		const denied = await rpc(token, 'tools/call', { name: 'task_create', arguments: { title: 'x' } });
+		assert.match(denied.error?.message ?? '', /writes data, but this token allows read access only/);
 	});
 });

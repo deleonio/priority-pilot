@@ -110,7 +110,7 @@ test.describe('Balamentum — Fokus-Outline auf Tab-Buttons (#1336)', () => {
 		).toBeLessThanOrEqual(hostBox.x + hostBox.width + 1);
 	};
 
-	const appTabNames = ['Dashboard', 'Aufgaben', 'Serien', 'Graph'] as const;
+	const appTabNames = ['Dashboard', 'Aufgaben', 'Serien & Vorlagen', 'Graph'] as const;
 	const viewports = [
 		{ width: 375, height: 812, label: '375px (mobile)' },
 		{ width: 768, height: 1024, label: '768px (tablet)' },
@@ -137,7 +137,7 @@ test.describe('Balamentum — Fokus-Outline auf Tab-Buttons (#1336)', () => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
-		const button = page.getByRole('tab', { name: 'Serien', exact: true });
+		const button = page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true });
 		await button.click();
 		await expect(button).toHaveAttribute('aria-selected', 'true');
 

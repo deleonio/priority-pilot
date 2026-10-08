@@ -57,8 +57,8 @@ test.describe('Balamentum — #1259: Serien-Tab mobil (375px)', () => {
 
 	/** Öffnet den Serien-Tab. */
 	const openSeriesView = async (page: Page): Promise<void> => {
-		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
-		await waitForStableView(page, 'Serien');
+		await page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true }).click();
+		await waitForStableView(page, 'Serien & Vorlagen');
 	};
 
 	test('AK1: kein horizontaler Überlauf bei 375px', async ({ page }) => {

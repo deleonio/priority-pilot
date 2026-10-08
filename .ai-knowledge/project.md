@@ -53,6 +53,9 @@ Die verbindlichen Kernregeln (Minimalprinzip, KoliBri-First, Commit-/PR-Pflichte
 - **ESLint:** Flat-Config in `server/eslint.config.mjs` (ESLint 10).
 - **TypeScript:** `strict`; keine Type-Assertions zum Unterdrücken von Fehlern.
 - **Module:** ESM überall (`"type": "module"`); Server-Importe mit `.js`-Endung.
+- **Ort der Fachlogik:** Fachlogik liegt in `server/src/logics/`. REST-Routen, MCP-Werkzeuge (per
+  Loopback auf die Route) und Jobs rufen sie auf; MCP-Werkzeuge enthalten keine eigene Fachlogik.
+  Offene Abweichungen: [Fachlogik-Inventar](../docs/fachlogik-inventar.md).
 - **Runtime:** pnpm `11` (Node-Version steht in `.nvmrc`).
 - **Coverage-Gate:** Die Logik-Schicht ist gezielt abgedeckt-gegated — `pnpm --filter server test:coverage`
   (node:test, `server/src/logics`, Schwellen 90/85/85) läuft in der CI. `frontend/src/lib`-Coverage ist

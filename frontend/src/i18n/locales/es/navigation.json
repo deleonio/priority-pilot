@@ -2,7 +2,7 @@
 	"tabs": {
 		"dashboard": "Panel",
 		"tasks": "Tareas",
-		"series": "Series",
+		"series": "Series y plantillas",
 		"forest": "Grafo",
 		"journal": "Diario",
 		"ariaLabel": "Vistas"

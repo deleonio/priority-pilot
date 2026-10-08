@@ -42,7 +42,7 @@ import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesTab } from './components/SeriesTab';
 import { JournalTab } from './components/JournalTab';
 import { SettingsPage } from './components/SettingsPage';
-import { TaskFormModal } from './components/TaskFormModal';
+import { TaskFormModal, taskAsTemplateInitialValues } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
 import { filterForest, nodeMatchesFilter } from './lib/filterForest';
 import { buildBalancePriorities } from './lib/balancePriority';
@@ -64,6 +64,7 @@ import { clearPlanMirror, PlanProvider, usePlan, usePlanState } from './lib/useP
 import { notifyTasksChanged } from './lib/tasksChanged';
 import { APP_VERSION } from './lib/version';
 import { useAiFeaturesGate } from './lib/aiPreferences';
+import { pullAccountPreferences } from './lib/accountPreferences';
 import { launchConfetti, shouldCelebrateDone } from './lib/confetti';
 import { setupTabsFocusRing } from './lib/tabsFocusRing';
 import { formatDeadline } from './lib/task';
@@ -72,6 +73,7 @@ type Dialog =
 	// `parentTask` gesetzt → die neu angelegte Aufgabe wird als Vorgänger mit ihr verknüpft (Unteraufgabe).
 	| { kind: 'create'; parentTask?: Task }
 	| { kind: 'edit'; task: Task }
+	| { kind: 'template'; task: Task }
 	| { kind: 'delete'; task: Task }
 	// `completedAt` (ISO): vorgewählter Erledigt-Zeitpunkt aus der Verpasst-Nachfrage (Deadline = pünktlich).
 	| { kind: 'complete'; task: Task; completedAt?: string }
@@ -180,6 +182,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		i18n.on('languageChanged', report);
 		return () => i18n.off('languageChanged', report);
 	}, [i18n]);
+	// #2398: inhaltliche Präferenzen vom Konto nachziehen (das Konto gewinnt gegen den Gerätespiegel),
+	// danach einmal neu rendern, damit die Pro-Render-Gates (KI, Expertenmodus) den Kontostand zeigen.
+	const [, setAccountPreferencesPulled] = useState(false);
+	useEffect(() => {
+		// Der Pass-Through-Nutzer (`/auth/me` ohne Session) trägt keine `id` und hat kein Konto.
+		void pullAccountPreferences(user.id !== undefined).then(() => setAccountPreferencesPulled(true));
+	}, [user.id]);
 	// #1428: Kopfzeilen-Position — die Verschiebung passiert rein per Layout (`.app.header-bottom`),
 	// die DOM-Reihenfolge (banner bleibt first) bleibt unverändert.
 	const { position: headerPosition } = useHeaderPosition();
@@ -226,6 +235,8 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const [calendarEventsFailed, setCalendarEventsFailed] = useState(false);
 	const [pillars, setPillars] = useState<Pillar[]>([]);
 	const [categories, setCategories] = useState<Category[]>([]);
+	// #2359: Serien je ID — die Aufgabenliste kennzeichnet Aufgaben aus Vorlagen (`autoCreate === false`).
+	const [seriesById, setSeriesById] = useState<ReadonlyMap<number, { autoCreate?: boolean }>>(new Map());
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [dialog, setDialog] = useState<Dialog>(null);
@@ -494,6 +505,15 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			setCategories(loadedCategories);
 			setMissedTasks(loadedMissed);
 			setLoadError(null);
+			// Nur Zusatzinfo fürs Badge: ein Fehler hier darf den Aufgabenbestand nicht als Ladefehler melden.
+			void (async () => {
+				try {
+					const loadedSeries = await api.listSeries({ signal });
+					setSeriesById(new Map(loadedSeries.map((entry) => [entry.id, { autoCreate: entry.autoCreate }])));
+				} catch {
+					// Badge fällt auf „Serie" zurück.
+				}
+			})();
 		} catch (reason) {
 			if (signal?.aborted === true) {
 				return;
@@ -514,6 +534,22 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		const controller = new AbortController();
 		void reload(controller.signal);
 		return () => controller.abort();
+	}, [reload]);
+
+	// #2399: Rückkehr in den Vordergrund lädt über `reload()` neu (kein Live-Push); ein noch laufender Refetch wird abgebrochen.
+	useEffect(() => {
+		let controller: AbortController | null = null;
+		const onVisibility = () => {
+			if (document.visibilityState !== 'visible') return;
+			controller?.abort();
+			controller = new AbortController();
+			void reload(controller.signal);
+		};
+		document.addEventListener('visibilitychange', onVisibility);
+		return () => {
+			document.removeEventListener('visibilitychange', onVisibility);
+			controller?.abort();
+		};
 	}, [reload]);
 
 	useEffect(() => {
@@ -816,6 +852,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const openComplete = useCallback((task: Task): void => setDialog({ kind: 'complete', task }), []);
 	const openDependencies = useCallback((task: Task): void => setDialog({ kind: 'dependencies', taskId: task.id }), []);
 	const openAddSubtask = useCallback((task: Task): void => setDialog({ kind: 'create', parentTask: task }), []);
+	// #2361: „Als Vorlage speichern“ — öffnet das Serien-Formular im Anlege-Modus, vorbelegt aus der
+	// Aufgabe; die Ausgangsaufgabe selbst bleibt unberührt (kein Update, keine Serien-Zuordnung).
+	const openSaveAsTemplate = useCallback((task: Task): void => setDialog({ kind: 'template', task }), []);
 
 	// #1964: „Archivieren" im Verpasst-Bereich — bewusst einstufig (ohne Bestätigungsdialog, die
 	// Wirkung ist ohne Status-/Score-Folge und der Datensatz bleibt erhalten). Danach globales
@@ -1510,11 +1549,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 														userId={user.id}
 														categories={categories}
 														pillars={pillars}
+														seriesById={seriesById}
 														balancePriorities={balancePriorities}
 														onEdit={openEdit}
 														onDelete={openDelete}
 														onEditDependencies={openDependencies}
 														onAddSubtask={openAddSubtask}
+														onSaveAsTemplate={openSaveAsTemplate}
 														onDoneToggle={handleDoneToggle}
 														onPinToggle={handlePinToggle}
 													/>
@@ -1531,11 +1572,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 													userId={user.id}
 													categories={categories}
 													pillars={pillars}
+													seriesById={seriesById}
 													balancePriorities={balancePriorities}
 													onEdit={openEdit}
 													onDelete={openDelete}
 													onEditDependencies={openDependencies}
 													onAddSubtask={openAddSubtask}
+													onSaveAsTemplate={openSaveAsTemplate}
 													onDoneToggle={handleDoneToggle}
 													onPinToggle={handlePinToggle}
 												/>
@@ -1613,6 +1656,21 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 							onSaved={afterMutation}
 						/>
 					))}
+				{dialog?.kind === 'template' && (
+					// #2361: „Als Vorlage speichern“ — Serien-Formular im Anlege-Modus, vorbelegt aus der
+					// Aufgabe. Modus-Umschalter gesperrt (Duplikat-Gefahr), Dialogtitel nennt das Ergebnis.
+					<TaskFormModal
+						task={null}
+						initialMode="series"
+						lockMode
+						title="Vorlage erstellen"
+						pillars={pillars}
+						categories={categories}
+						initialValues={taskAsTemplateInitialValues(dialog.task)}
+						onClose={closeDialog}
+						onSaved={afterMutation}
+					/>
+				)}
 				{dialog?.kind === 'search' && (
 					<SearchModal
 						categories={categories}

@@ -50,8 +50,9 @@ test.describe('#2213 Journal-Statistik', () => {
 			const pillars = (await (await current.request.get('/api/v1/pillars')).json()) as { id: number }[];
 			await seedEntry(current, 'Eintrag mit Säule', heute(), pillars[0]!.id);
 			await seedEntry(current, 'Eintrag ohne Säule', heute());
-			// Dritter Eintrag drei Tage zurück: zeigt die Mehrfenster-Ansicht unabhängig vom Wochentag.
-			await seedEntry(current, 'Früherer Eintrag', vorTagen(3), pillars[0]!.id);
+			// Dritter Eintrag acht Tage zurück: liegt garantiert in der Vorwoche, zeigt die
+			// Mehrfenster-Ansicht unabhängig vom Wochentag (3 Tage zurück fielen Do–So in dieselbe ISO-Woche).
+			await seedEntry(current, 'Früherer Eintrag', vorTagen(8), pillars[0]!.id);
 		});
 
 		const stats = statsSection(page);

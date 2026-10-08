@@ -5,7 +5,12 @@ import { Op, Transaction, type WhereOptions } from 'sequelize';
 import sequelize from '../../database.js';
 import { Pillar, Series, SeriesPillar, Task, TaskPillar } from '../../models/index.js';
 import type { SeriesRhythm } from '../../models/series.js';
-import { generateDueInstances, materializeDueSeries } from '../../logics/series.js';
+import {
+	createOnDemandInstance,
+	generateDueInstances,
+	generateHorizonUntil,
+	materializeDueSeries,
+} from '../../logics/series.js';
 import type { PushSender } from '../../logics/push.js';
 import {
 	arePillarsExistent,
@@ -40,6 +45,7 @@ const VALID_RHYTHMS: readonly SeriesRhythm[] = [
 	'fri',
 	'sat',
 	'sun',
+	'none',
 ];
 
 /**
@@ -60,14 +66,6 @@ const RHYTHM_WEEKDAY: ReadonlyMap<SeriesRhythm, number> = new Map([
 	['sat', 6],
 ]);
 
-/**
- * Produktpolicy: maximale Vorlauf-Horizont in Tagen, den `/series/generate-all`
- * materialisiert. Verhindert, dass bei jedem Cron-Lauf ein unbegrenztes Fenster
- * erzeugt wird — es wird nur bis "heute + N Tage" vorlaufend angelegt. Zusätzlich hält die
- * Generierung je Serie höchstens fünf offene Instanzen vor (#1518, `logics/series.ts`).
- */
-const GENERATE_HORIZON_DAYS = 30;
-
 /** Validierte Template-Attribute, wie sie an das Sequelize-Modell übergeben werden. */
 interface SeriesAttributes {
 	title?: string;
@@ -76,6 +74,7 @@ interface SeriesAttributes {
 	estimatedEffort?: number;
 	active?: boolean;
 	startDate?: Date;
+	autoCreate?: boolean;
 	description?: string | null;
 	address?: string | null;
 	latitude?: number | null;
@@ -126,6 +125,7 @@ const serializeSeries = (series: Series, context: SeriesSerializeContext = {}): 
 		estimatedEffort: series.estimatedEffort,
 		active: series.active,
 		startDate: series.startDate.toISOString(),
+		autoCreate: series.autoCreate ?? true,
 		description: series.description ?? null,
 		address: series.address ?? null,
 		latitude: series.latitude ?? null,
@@ -194,7 +194,7 @@ const seriesReadScope = async (userId: number | undefined, requesterId: number |
 const validateSeriesFields = (
 	body: unknown,
 	isPost: boolean,
-	existing?: Pick<Series, 'rhythm' | 'startDate'>,
+	existing?: Pick<Series, 'rhythm' | 'startDate' | 'autoCreate'>,
 ): ValidationResult => {
 	if (typeof body !== 'object' || body === null) {
 		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
@@ -217,7 +217,7 @@ const validateSeriesFields = (
 			return {
 				ok: false,
 				message:
-					'rhythm muss "daily", "weekly", "monthly", "weekdays", "weekend", "mon", "tue", "wed", "thu", "fri", "sat" oder "sun" sein.',
+					'rhythm muss "daily", "weekly", "monthly", "weekdays", "weekend", "mon", "tue", "wed", "thu", "fri", "sat", "sun" oder "none" sein.',
 			};
 		}
 		attrs.rhythm = input.rhythm;
@@ -234,8 +234,9 @@ const validateSeriesFields = (
 		}
 		attrs.priority = input.priority;
 	}
+	// #2404: Task-Defaults wie `POST /tasks` (Modell `task.ts`), wenn beim Anlegen nichts übergeben wird.
 	if (isPost && attrs.priority === undefined) {
-		return { ok: false, message: 'priority ist erforderlich.' };
+		attrs.priority = 3;
 	}
 
 	if (input.estimatedEffort !== undefined) {
@@ -250,7 +251,7 @@ const validateSeriesFields = (
 		attrs.estimatedEffort = input.estimatedEffort;
 	}
 	if (isPost && attrs.estimatedEffort === undefined) {
-		return { ok: false, message: 'estimatedEffort ist erforderlich.' };
+		attrs.estimatedEffort = 0.5;
 	}
 
 	if (input.active !== undefined) {
@@ -266,8 +267,24 @@ const validateSeriesFields = (
 		}
 		attrs.startDate = new Date(input.startDate);
 	}
+	if (input.autoCreate !== undefined) {
+		if (typeof input.autoCreate !== 'boolean') {
+			return { ok: false, message: 'autoCreate muss ein Boolean sein.' };
+		}
+		attrs.autoCreate = input.autoCreate;
+	}
+	// #2355: `none` (ohne Rhythmus) nur bei ausgeschalteter automatischer Erzeugung; die Prüfung nutzt
+	// die effektiven Werte, damit auch ein Teil-PATCH (nur `autoCreate: true`) die Regel nicht umgeht.
+	const effAutoCreate = attrs.autoCreate ?? existing?.autoCreate ?? true;
+	if ((attrs.rhythm ?? existing?.rhythm) === 'none' && effAutoCreate) {
+		return { ok: false, message: 'rhythm "none" ist nur bei autoCreate false erlaubt.' };
+	}
 	if (isPost && attrs.startDate === undefined) {
-		return { ok: false, message: 'startDate ist erforderlich.' };
+		if (attrs.rhythm !== 'none') {
+			return { ok: false, message: 'startDate ist erforderlich.' };
+		}
+		attrs.startDate = new Date();
+		attrs.startDate.setUTCHours(0, 0, 0, 0);
 	}
 
 	if (input.description !== undefined) {
@@ -491,6 +508,15 @@ export const createSeriesRouter = ({ pushSender }: SeriesRouterDeps = {}): Route
 				}
 				return series;
 			});
+			// #2404: erste Instanzen sofort anlegen (wie `POST /series/:id/generate`); `autoCreate: false` erzeugt nichts.
+			const until = generateHorizonUntil(new Date());
+			// Schlägt die Erzeugung fehl, bleibt die Serie bestehen (201): ein 500 würde beim Retry eine Dublette
+			// anlegen — die Instanzen holt `POST /series/generate-all` bzw. der tägliche Job nach.
+			try {
+				await generateDueInstances(created, { until, pushSender });
+			} catch (error) {
+				console.error(`Serie ${created.id}: erste Instanzen konnten nicht angelegt werden:`, error);
+			}
 			// #1222: Angelegt-Objekt ohne Owner-Scope nachladen — bei einer Empfänger-Serie ist der
 			// Ersteller nicht Eigentümer und fände sie über `findSeriesWithPillars` nicht wieder (500).
 			const withPillars = await Series.findOne({ where: { id: created.id }, include: [Pillar] });
@@ -512,8 +538,7 @@ export const createSeriesRouter = ({ pushSender }: SeriesRouterDeps = {}): Route
 		async (req: Request, res: Response<SeriesGenerateAllResultDto | ErrorDto>) => {
 			const userId = getUserId(req);
 			try {
-				const until = new Date();
-				until.setUTCDate(until.getUTCDate() + GENERATE_HORIZON_DAYS);
+				const until = generateHorizonUntil(new Date());
 				const created = await materializeDueSeries(userId, until, pushSender);
 				res.json({ created: created.length });
 			} catch (error) {
@@ -797,6 +822,49 @@ export const createSeriesRouter = ({ pushSender }: SeriesRouterDeps = {}): Route
 		try {
 			const instances = await generateDueInstances(series, { until: new Date(until), pushSender });
 			res.status(201).json(instances.map((task) => serializeTask(task)));
+		} catch (error) {
+			handleWriteError(res, error);
+		}
+	});
+
+	// POST /series/:id/instances — genau eine Aufgabe auf Abruf anlegen (#2357), unabhängig von `autoCreate`
+	seriesRouter.post('/series/:id/instances', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
+		const id = parseId(req.params.id);
+		// #1157: fremde Serien-ID → 404 (wie Tasks/Pillars).
+		const series = id === null ? null : await Series.findOne({ where: { id, ...ownerScope(getUserId(req)) } });
+		if (!series) {
+			sendError(res, 404, 'Serie nicht gefunden.');
+			return;
+		}
+		const body: unknown = req.body ?? {};
+		const validation = validateSeriesFields(body, false);
+		if (!validation.ok) {
+			sendError(res, 400, validation.message);
+			return;
+		}
+		const rawDeadline = (body as Record<string, unknown>).deadline;
+		if (rawDeadline !== undefined && (typeof rawDeadline !== 'string' || Number.isNaN(Date.parse(rawDeadline)))) {
+			sendError(res, 400, 'deadline muss ein gültiges ISO-Datum sein.');
+			return;
+		}
+		if (!series.active) {
+			sendError(res, 409, 'Eine ruhende Serie legt keine Aufgaben an.');
+			return;
+		}
+		const { title, priority, estimatedEffort, description } = validation.attrs;
+		try {
+			const task = await createOnDemandInstance(
+				series,
+				{
+					title,
+					priority,
+					estimatedEffort,
+					description,
+					deadline: rawDeadline === undefined ? undefined : new Date(rawDeadline as string),
+				},
+				pushSender,
+			);
+			res.status(201).json(serializeTask(task as Task));
 		} catch (error) {
 			handleWriteError(res, error);
 		}

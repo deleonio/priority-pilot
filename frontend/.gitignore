@@ -1,4 +1,5 @@
 /dist/
+/dist-android/
 /dev-dist/
 
 # Playwright-Ausgaben (Berichte/Diffs).

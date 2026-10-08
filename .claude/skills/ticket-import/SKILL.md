@@ -68,7 +68,7 @@ author's explicit request to create counts as the go; otherwise wait for it.
 Body and quality bar exactly as in [ticket-create](../ticket-create/SKILL.md) Step 4 (template
 headings, checkable `-` bullets, no vague wording). Additionally:
 
-- Title with area prefix as in [ticket-tree](../ticket-tree/SKILL.md) Step 4 (`Server:`,
+- Assign priority and effort per ticket; title `[<Stufe>/<Aufwand>]` plus area prefix as in [ticket-tree](../ticket-tree/SKILL.md) Step 4 (`Server:`,
   `Frontend:`, `Website:`, `Android-App:`, `Manuell:`, `Doku:` …), naming the goal.
 - Hints section starts with `Teil von #<Epic>. Blockiert durch #a, #b.` (or `Keine Blocker.`),
   then what exists in code (paths), related issues, open questions with a proposal.

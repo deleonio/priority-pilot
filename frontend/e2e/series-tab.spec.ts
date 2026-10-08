@@ -10,7 +10,7 @@ import { waitForStableView } from './helpers';
  * angeboten. Der Tab zeigt die Serien im TaskTree-Stil (`series-tree` als Wurzelcontainer,
  * `series-tree-item-<id>` je Serie) mit einer Aktions-Toolbar (Bearbeiten/Löschen). „Bearbeiten"
  * öffnet weiterhin `TaskForm` im Serie-Modus (Modal; der Umschalter ist im Bearbeiten-Modus ausgeblendet, #334),
- * „Löschen" entfernt die Serie. „Fällige Instanzen generieren" bleibt im Serien-Tab funktional.
+ * „Löschen" entfernt die Serie. Der Button „Fällige Instanzen generieren" entfällt (#2356).
  *
  * Wie `crud.spec.ts` / `series.spec.ts` läuft dies gegen das **echte** Backend (In-Memory-DB,
  * Vite-Proxy). Nichts wird gemockt außer der Auth-Gate (siehe `fixtures.ts`). Diese Tests sind
@@ -46,6 +46,7 @@ test.describe('Balamentum — #335: Serien-Verwaltung als eigener Tab', () => {
 				priority: 3,
 				estimatedEffort: 0.5,
 				active: true,
+				autoCreate: false,
 				...payload,
 			},
 		});
@@ -88,7 +89,7 @@ test.describe('Balamentum — #335: Serien-Verwaltung als eigener Tab', () => {
 	 * Öffnet den Serien-Tab (löst das alte Modal ab). Rot, solange der Tab „Serien" noch nicht existiert.
 	 */
 	const openSeriesTab = async (page: Page): Promise<void> => {
-		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true }).click();
 		await expect(page.getByTestId('series-tree')).toBeVisible();
 	};
 
@@ -107,7 +108,7 @@ test.describe('Balamentum — #335: Serien-Verwaltung als eigener Tab', () => {
 		await waitForStableView(page);
 
 		// Der Tab „Serien" existiert und ist klickbar.
-		const seriesTab = page.getByRole('tab', { name: 'Serien', exact: true });
+		const seriesTab = page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true });
 		await expect(seriesTab).toBeVisible();
 		await seriesTab.click();
 
@@ -214,27 +215,17 @@ test.describe('Balamentum — #335: Serien-Verwaltung als eigener Tab', () => {
 		expect(series.some((entry) => entry.id === seriesId)).toBeFalsy();
 	});
 
-	// AK5 — „Fällige Instanzen generieren" bleibt funktional: Der Button im Serien-Tab erzeugt Instanzen.
-	test('AK5 — „Fällige Instanzen generieren" im Serien-Tab erzeugt fällige Instanzen', async ({ page }) => {
+	// AK5 (#2356) — Instanzen legt der Server-Job an: der Serien-Tab hat keinen Generier-Button mehr.
+	test('AK5 (#2356) — Serien-Tab zeigt keinen Button „Fällige Instanzen generieren"', async ({ page }) => {
 		const title = uniqueTitle('Generieren');
-		// Serie mit Startdatum in der Vergangenheit → mehrere fällige Termine liegen bereit.
 		await createSeriesViaApi(page, { title, rhythm: 'weekly', startDate: '2026-01-01T00:00:00.000Z' });
 
 		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesTab(page);
 
-		// Vorbedingung: noch keine Tasks materialisiert.
-		expect((await listTasksViaApi(page)).length).toBe(0);
-
-		const generateButton = page.getByRole('button', { name: /Fällige Instanzen generieren/i });
-		await expect(generateButton).toBeVisible();
-		await generateButton.click();
-
-		// Nach dem Klick sind fällige Instanzen serverseitig materialisiert.
-		await expect(async () => {
-			expect((await listTasksViaApi(page)).length).toBeGreaterThan(0);
-		}).toPass();
+		await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
+		await expect(page.getByRole('button', { name: /Fällige Instanzen generieren/i })).toHaveCount(0);
 	});
 
 	// AK7 — Serien-Tab auch bei 0 Aufgaben erreichbar: alle Tasks gelöscht, 1 Serie via API,
@@ -256,7 +247,7 @@ test.describe('Balamentum — #335: Serien-Verwaltung als eigener Tab', () => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
-		const seriesTab = page.getByRole('tab', { name: 'Serien', exact: true });
+		const seriesTab = page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true });
 		await expect(seriesTab).toBeVisible();
 		await seriesTab.click();
 

@@ -196,6 +196,8 @@
 			"groups": "Grupos e ligações de convite",
 			"voice_input": "Entrada por voz",
 			"feedback": "Feedback e suporte do app",
+			"sync": "Sincronização em todos os dispositivos",
+			"knowledge_entries": "Notas pessoais para a IA",
 			"ai_assist": "Ajuda de IA: conselheiro de pilares e revisão de texto",
 			"graph_write": "Dependências entre tarefas",
 			"graph_weight": "Editar dependências ponderadas",

@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { registerOwnSession, setEqualPillarWeights, waitForStableView } from './helpers';
+import { registerOwnSession, seedAccountPreferences, setEqualPillarWeights, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #1574 — „Speichern unausgewogener Säulen-Gewichtungen nur mit Bestätigung"
@@ -44,6 +44,8 @@ test.describe('#1574 Säulen-Gewichtung: Bestätigung vor dem Speichern unausgew
 		// liefert `GET /pillars` den ganzen Säulen-Bestand der Shard-DB — Begründung siehe
 		// `registerOwnSession`. Vor der Route-Registrierung, damit der Seed-PUT nicht mitzählt.
 		await registerOwnSession(page, '1574');
+		// Test-Pflege #2398: Expertenmodus liegt am Konto — der App-Start überschreibt den localStorage-Seed.
+		await seedAccountPreferences(page, { expertMode: true });
 
 		let putCount = 0;
 		await page.route('**/pillars/weights', (route) => {

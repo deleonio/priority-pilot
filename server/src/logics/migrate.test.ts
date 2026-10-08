@@ -268,6 +268,23 @@ describe('migrateSeriesTable', () => {
 	});
 });
 
+describe('migrateSeriesTable #2355 autoCreate', () => {
+	it('zieht autoCreate nach (NOT NULL, Default true) und ist idempotent', async () => {
+		await createLegacySeriesTable();
+
+		await migrateSeriesTable(sequelize);
+		await migrateSeriesTable(sequelize);
+
+		const [rows] = await sequelize.query("PRAGMA table_info('series')");
+		const column = (rows as { name: string; notnull: number; dflt_value: string | null }[]).filter(
+			(row) => row.name === 'autoCreate',
+		);
+		assert.equal(column.length, 1, 'genau eine autoCreate-Spalte');
+		assert.equal(column[0].notnull, 1);
+		assert.equal(column[0].dflt_value, '1', 'Bestand und neue Zeilen starten mit true');
+	});
+});
+
 // ── Rote Spec-Tests für #207 — fehlende Schema-Migration für die `userId`-Spalten ───────────────────
 //
 // Root Cause: Die Datenisolation (#207, AK5) ergab `userId` an `pillars` und `tasks` sowie den
@@ -612,15 +629,24 @@ describe('migrateUserGeoConfigColumns', () => {
 				// Test-Pflege #1794/#1879: `carePushEnabled`/`zeitzone`/`sprache` ergänzt — das User-Modell selectiert sie,
 				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention #1256/#role).
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				// Test-Pflege #1994: `splitHintEnabled` ergänzt (Konvention wie oben).
+				'`splitHintEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
 				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
 				'`balanceVariant` VARCHAR(255), ' +
+				// Test-Pflege #2398: Präferenz-Spalten ergänzt (Konvention wie oben).
+				'`aiEnabled` TINYINT, ' +
+				'`balancePriority` TINYINT, ' +
+				'`expertMode` TINYINT, ' +
+				'`geolocationEnabled` TINYINT, ' +
 				// Test-Pflege #1990: `freeSlotMinMinutes` ergänzt (Konvention wie oben).
 				'`freeSlotMinMinutes` INTEGER NOT NULL DEFAULT 30, ' +
 				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
 				'`termsVersion` VARCHAR(255), ' +
 				'`termsAcceptedAt` DATETIME, ' +
+				// Test-Pflege #1935: `mcpInstructions` ergänzt (gleiche Begründung wie oben).
+				'`mcpInstructions` TEXT, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -955,15 +981,24 @@ describe('migrateUsersRoleColumn (Rollensystem admin/member)', () => {
 				// Test-Pflege #1794/#1879: `carePushEnabled`/`zeitzone`/`sprache` ergänzt — das User-Modell selectiert sie,
 				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention #1256/#role).
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				// Test-Pflege #1994: `splitHintEnabled` ergänzt (Konvention wie oben).
+				'`splitHintEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
 				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
 				'`balanceVariant` VARCHAR(255), ' +
+				// Test-Pflege #2398: Präferenz-Spalten ergänzt (Konvention wie oben).
+				'`aiEnabled` TINYINT, ' +
+				'`balancePriority` TINYINT, ' +
+				'`expertMode` TINYINT, ' +
+				'`geolocationEnabled` TINYINT, ' +
 				// Test-Pflege #1990: `freeSlotMinMinutes` ergänzt (Konvention wie oben).
 				'`freeSlotMinMinutes` INTEGER NOT NULL DEFAULT 30, ' +
 				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
 				'`termsVersion` VARCHAR(255), ' +
 				'`termsAcceptedAt` DATETIME, ' +
+				// Test-Pflege #1935: `mcpInstructions` ergänzt (gleiche Begründung wie oben).
+				'`mcpInstructions` TEXT, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -1043,15 +1078,24 @@ describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
 				// Test-Pflege #1794/#1879: `carePushEnabled`/`zeitzone`/`sprache` ergänzt — das User-Modell selectiert sie,
 				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention #1256/#role).
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				// Test-Pflege #1994: `splitHintEnabled` ergänzt (Konvention wie oben).
+				'`splitHintEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
 				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
 				'`balanceVariant` VARCHAR(255), ' +
+				// Test-Pflege #2398: Präferenz-Spalten ergänzt (Konvention wie oben).
+				'`aiEnabled` TINYINT, ' +
+				'`balancePriority` TINYINT, ' +
+				'`expertMode` TINYINT, ' +
+				'`geolocationEnabled` TINYINT, ' +
 				// Test-Pflege #1990: `freeSlotMinMinutes` ergänzt (Konvention wie oben).
 				'`freeSlotMinMinutes` INTEGER NOT NULL DEFAULT 30, ' +
 				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
 				'`termsVersion` VARCHAR(255), ' +
 				'`termsAcceptedAt` DATETIME, ' +
+				// Test-Pflege #1935: `mcpInstructions` ergänzt (gleiche Begründung wie oben).
+				'`mcpInstructions` TEXT, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -1215,15 +1259,24 @@ describe('migrateUsersPlanColumn (#1456 AK1)', () => {
 				// Test-Pflege #1794/#1879: `carePushEnabled`/`zeitzone`/`sprache` ergänzt — das User-Modell selectiert sie,
 				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention #1256/#role).
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				// Test-Pflege #1994: `splitHintEnabled` ergänzt (Konvention wie oben).
+				'`splitHintEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
 				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
 				'`balanceVariant` VARCHAR(255), ' +
+				// Test-Pflege #2398: Präferenz-Spalten ergänzt (Konvention wie oben).
+				'`aiEnabled` TINYINT, ' +
+				'`balancePriority` TINYINT, ' +
+				'`expertMode` TINYINT, ' +
+				'`geolocationEnabled` TINYINT, ' +
 				// Test-Pflege #1990: `freeSlotMinMinutes` ergänzt (Konvention wie oben).
 				'`freeSlotMinMinutes` INTEGER NOT NULL DEFAULT 30, ' +
 				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
 				'`termsVersion` VARCHAR(255), ' +
 				'`termsAcceptedAt` DATETIME, ' +
+				// Test-Pflege #1935: `mcpInstructions` ergänzt (gleiche Begründung wie oben).
+				'`mcpInstructions` TEXT, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -1941,5 +1994,51 @@ describe('migrateCalendarSourceCaldavColumns (#2211)', () => {
 		const source = await CalendarSource.findOne();
 		assert.equal(source?.type, 'ics');
 		assert.equal(source?.passwordEncrypted, null);
+	});
+});
+
+// #2377 AK-Migration (docs/spec/issue-2377.md), Muster migrateApiTokenScope: `api_tokens.kind`
+// ('api' | 'app', Default 'api') unterscheidet persoenliche API-Tokens von App-Tokens.
+describe('migrateApiTokenKind (#2377)', () => {
+	// #2377: `migrateApiTokenKind` existiert noch nicht (rote Spec-Tests) — Zugriff ueber Namespace + Cast.
+	const migrateApiTokenKind = (
+		migrateModule as unknown as { migrateApiTokenKind?: (db: typeof sequelize) => Promise<void> }
+	).migrateApiTokenKind;
+
+	const apiTokenColumns = async (): Promise<string[]> => {
+		const [rows] = await sequelize.query("PRAGMA table_info('api_tokens')");
+		return (rows as { name: string }[]).map((row) => row.name);
+	};
+
+	const createLegacyApiTokensTable = async (): Promise<void> => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `api_tokens` (' +
+				'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+				'`userId` INTEGER NOT NULL, ' +
+				'`name` VARCHAR(255) NOT NULL, ' +
+				'`tokenHash` VARCHAR(255) NOT NULL UNIQUE, ' +
+				'`createdAt` DATETIME NOT NULL, ' +
+				'`updatedAt` DATETIME NOT NULL' +
+				')',
+		);
+	};
+
+	it("zieht kind mit Default 'api' nach — Bestandszeilen bleiben persoenliche Tokens, zweiter Lauf wirft nicht", async () => {
+		assert.ok(migrateApiTokenKind, 'migrateApiTokenKind muss in migrate.ts exportiert werden');
+		await createLegacyApiTokensTable();
+		await sequelize.query(
+			'INSERT INTO api_tokens (userId, name, tokenHash, createdAt, updatedAt) ' +
+				"VALUES (1, 'Alt-Token', 'hash-alt', '2026-01-01 00:00:00', '2026-01-01 00:00:00')",
+		);
+
+		await migrateApiTokenKind!(sequelize);
+		await assert.doesNotReject(() => migrateApiTokenKind!(sequelize), 'idempotent');
+
+		assert.equal((await apiTokenColumns()).filter((name) => name === 'kind').length, 1, 'kind genau einmal');
+		const [rows] = await sequelize.query('SELECT name, kind FROM api_tokens');
+		const row = (rows as { name: string; kind: string }[])[0];
+		assert.equal(row?.name, 'Alt-Token');
+		assert.equal(row?.kind, 'api', 'Bestandszeile bleibt ein persoenlicher API-Token');
 	});
 });

@@ -15,6 +15,7 @@ import { toApiError } from '../lib/apiError';
 import { Modal } from './Modal';
 import { CopyButton } from './CopyButton';
 import { DuoCard } from './DuoCard';
+import { getPublicOrigin } from '../lib/siteOrigin';
 import { PlanBadge } from './PlanBadge';
 import { GroupChallengeCard } from './GroupChallengeCard';
 
@@ -29,7 +30,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 /** Vollständiger Beitrittslink zu einem Token (#1226). */
 const inviteLinkUrl = (token: string): string =>
-	`${window.location.origin}${import.meta.env.BASE_URL}gruppen/beitreten?token=${encodeURIComponent(token)}`;
+	`${getPublicOrigin()}/app/gruppen/beitreten?token=${encodeURIComponent(token)}`;
 
 /** Maskiert einen Token auf Anfang und Ende — nach dem einmaligen Voll-Blick (KI-UX #1226). */
 const maskToken = (token: string): string => `${token.slice(0, 4)} … ${token.slice(-4)}`;

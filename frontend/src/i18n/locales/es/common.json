@@ -29,7 +29,8 @@
 		"select": "Seleccionar",
 		"back": "Atrás",
 		"snooze": "Posponer un rato",
-		"snoozed": "Tarea pospuesta. Volverá más tarde."
+		"snoozed": "Tarea pospuesta. Volverá más tarde.",
+		"saveAsTemplate": "Guardar como plantilla"
 	},
 	"status": {
 		"open": "Abierto",
@@ -156,5 +157,8 @@
 		"text": "Eres de los primeros. Lo que notes nos ayuda: cuéntanoslo cuando quieras.",
 		"feedback": "Dar opinión",
 		"dismiss": "Cerrar"
+	},
+	"splitHint": {
+		"reason": "Las tareas grandes suelen ser más fáciles de abordar si las divides en pasos más pequeños."
 	}
 }

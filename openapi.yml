@@ -1643,6 +1643,41 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /series/{id}/instances:
+    parameters:
+      - $ref: '#/components/parameters/SeriesId'
+    post:
+      summary: Eine Aufgabe aus der Serie auf Abruf anlegen
+      description: >-
+        Legt genau eine Aufgabe aus der Serie an, egal ob `autoCreate` an oder aus ist
+        (#2357). Optional lassen sich `title`, `priority`, `estimatedEffort`, `description`
+        und `deadline` mitgeben, alles andere (Säulen als Snapshot) übernimmt die Aufgabe
+        von der Serie. Sie bleibt über `seriesId`/`originSeriesId` verknüpft und hat keinen
+        Termin-Anker. Weicht ein mitgegebener Wert (außer `deadline`) von der Serie ab,
+        gilt sie als `isException`. Die Fünfer-Grenze gilt nicht. Eine ruhende Serie
+        antwortet 409.
+      operationId: createSeriesInstance
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesInstanceInput'
+      responses:
+        '201':
+          description: Angelegte Aufgabe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /push/vapid-public-key:
     get:
       summary: Öffentlichen VAPID-Schlüssel für Web-Push abrufen
@@ -2159,6 +2194,62 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /account-preferences:
+    get:
+      summary: Inhaltliche Präferenzen des Kontos lesen
+      description: >-
+        Liefert KI-, Balance-Priorität-, Expertenmodus- und Geo-Schalter des
+        angemeldeten Kontos (#2398); nicht gespeicherte Werte mit dem bisherigen
+        Frontend-Default. Ohne Session 401 (kein Dev-Pass-Through-Nutzer). Der
+        Antwort-Header `x-csrf-token` stellt den CSRF-Token für den späteren PUT bereit.
+      operationId: getAccountPreferences
+      tags: [care]
+      responses:
+        '200':
+          description: Aktuelle Präferenzen (inkl. Defaults)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountPreferences'
+        '401':
+          description: Nicht angemeldet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Inhaltliche Präferenzen des Kontos speichern
+      description: >-
+        Speichert eine Teilmenge der vier Schalter am Konto (#2398); nicht gesendete
+        Felder bleiben unverändert. Kein bekanntes Feld oder ein Wert, der kein
+        boolean ist → HTTP 400 ohne Persistenz.
+      operationId: updateAccountPreferences
+      tags: [care]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountPreferencesInput'
+      responses:
+        '200':
+          description: Vollständiger gespeicherter Stand
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountPreferences'
+        '400':
+          description: Ungültige Präferenzen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Nicht angemeldet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /geo-config:
     get:
       summary: Geo-Konfiguration des Users lesen
@@ -2205,6 +2296,49 @@ paths:
                 $ref: '#/components/schemas/Error'
         '403':
           $ref: '#/components/responses/PlanRequired'
+  /mcp-instructions:
+    get:
+      summary: Dialog-Vorgaben für die MCP-KI lesen
+      description: >-
+        Liefert die pro User gespeicherten Dialog-Vorgaben (#1935), die der
+        MCP-Endpunkt im `initialize`-Handshake (`instructions`) an die KI
+        übermittelt. Ohne Vorgaben ein leerer Text.
+      operationId: getMcpInstructions
+      tags: [mcp]
+      responses:
+        '200':
+          description: Aktuelle Dialog-Vorgaben
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpInstructions'
+    put:
+      summary: Dialog-Vorgaben für die MCP-KI speichern
+      description: >-
+        Speichert den Freitext getrimmt (#1935); leer oder nur Whitespace
+        löscht die Vorgaben. Mehr als 2000 Zeichen oder ein Nicht-String →
+        HTTP 400 ohne Persistenz.
+      operationId: updateMcpInstructions
+      tags: [mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/McpInstructions'
+      responses:
+        '200':
+          description: Gespeicherte Dialog-Vorgaben (getrimmt)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpInstructions'
+        '400':
+          description: Ungültige Vorgaben (kein String oder länger als 2000 Zeichen)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /free-slot-config:
     get:
       summary: Mindestdauer freier Lücken lesen
@@ -2281,6 +2415,45 @@ paths:
                 $ref: '#/components/schemas/CareConfig'
         '400':
           description: Ungültige Werte (Schalter kein Boolean, Zeitzone kein IANA-Name)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /split-hint-config:
+    get:
+      summary: Schalter „Hinweis zum Aufteilen“ lesen
+      description: >-
+        Liefert den serverseitig pro User gespeicherten Schalter für den Aufteilen-Hinweis
+        an der Next-Task-Karte (#1994, Default: ein).
+      operationId: getSplitHintConfig
+      tags: [care]
+      responses:
+        '200':
+          description: Aktueller Schalter (inkl. Default)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SplitHintConfig'
+    put:
+      summary: Schalter „Hinweis zum Aufteilen“ speichern
+      description: Speichert den Schalter (#1994); Nicht-Boolean → HTTP 400 ohne Persistenz.
+      operationId: updateSplitHintConfig
+      tags: [care]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SplitHintConfig'
+      responses:
+        '200':
+          description: Gespeicherter Schalter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SplitHintConfig'
+        '400':
+          description: Ungültiger Wert (kein Boolean)
           content:
             application/json:
               schema:
@@ -4307,6 +4480,100 @@ paths:
           $ref: '#/components/responses/PlanRequired'
         '404':
           $ref: '#/components/responses/NotFound'
+  /knowledge-entries:
+    get:
+      summary: Wissens-Einträge auflisten
+      description: >-
+        Liefert die Wissens-Einträge des angemeldeten Nutzers (#1936), älteste zuerst —
+        ausschließlich die eigenen. Pro-Funktion `knowledge_entries`.
+      operationId: listKnowledgeEntries
+      tags: [knowledge-entries]
+      responses:
+        '200':
+          description: Liste der eigenen Wissens-Einträge
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/KnowledgeEntry'
+        '403':
+          $ref: '#/components/responses/PlanRequired'
+    post:
+      summary: Wissens-Eintrag anlegen
+      description: >-
+        Legt einen Wissens-Eintrag an (#1936): Text 1–500 Zeichen, höchstens 50 Einträge je
+        Nutzer. Passende Einträge fließen in die Säulenzuordnung ein.
+      operationId: createKnowledgeEntry
+      tags: [knowledge-entries]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KnowledgeEntryInput'
+      responses:
+        '201':
+          description: Angelegter Wissens-Eintrag
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeEntry'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/PlanRequired'
+  /knowledge-entries/{id}:
+    patch:
+      summary: Wissens-Eintrag ändern
+      description: Ändert den Text eines eigenen Wissens-Eintrags (#1936); fremde oder unbekannte liefern 404.
+      operationId: updateKnowledgeEntry
+      tags: [knowledge-entries]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Id des Wissens-Eintrags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KnowledgeEntryInput'
+      responses:
+        '200':
+          description: Geänderter Wissens-Eintrag
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeEntry'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/PlanRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Wissens-Eintrag löschen
+      description: Entfernt einen eigenen Wissens-Eintrag endgültig (#1936); fremde oder unbekannte liefern 404.
+      operationId: deleteKnowledgeEntry
+      tags: [knowledge-entries]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Id des Wissens-Eintrags
+      responses:
+        '204':
+          description: Wissens-Eintrag gelöscht
+        '403':
+          $ref: '#/components/responses/PlanRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /journal:
     get:
       summary: Journal-Einträge auflisten
@@ -4663,6 +4930,8 @@ paths:
         zur E-Mail noch kein Konto, wird es angelegt (Verknüpfung über die E-Mail wie
         beim Google-Login). Ein Token gilt genau einmal. Bewusst POST statt GET:
         Mail-Scanner rufen Links vorab auf und würden den Token sonst verbrauchen.
+        Mit `X-Client-Channel: play` (Android-App) antwortet die Route statt mit
+        Session-Cookie mit einem App-Token (#2377).
       operationId: verifyMagicLink
       tags: [auth]
       requestBody:
@@ -4672,6 +4941,12 @@ paths:
             schema:
               $ref: '#/components/schemas/MagicLinkVerifyRequest'
       responses:
+        '200':
+          description: Angemeldet im Kanal `play` — App-Token statt Session-Cookie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppToken'
         '204':
           description: Angemeldet, Session-Cookie gesetzt
         '400':
@@ -4720,6 +4995,8 @@ paths:
         Google-Login auf den App Link `/app/auth/native?code=…` weiterleitet, und meldet
         den WebView der nativen App an (ADR 0016, #1669). Ein Code gilt 60 Sekunden,
         genau einmal und nur zusammen mit dem `state`, mit dem die App den Login gestartet hat.
+        Mit `X-Client-Channel: play` antwortet die Route statt mit Session-Cookie mit einem
+        App-Token (#2377).
       operationId: exchangeNativeLoginCode
       tags: [auth]
       requestBody:
@@ -4729,6 +5006,12 @@ paths:
             schema:
               $ref: '#/components/schemas/NativeLoginExchangeRequest'
       responses:
+        '200':
+          description: Angemeldet im Kanal `play` — App-Token statt Session-Cookie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppToken'
         '204':
           description: Angemeldet, Session-Cookie gesetzt
         '400':
@@ -5208,6 +5491,43 @@ components:
           type: string
           nullable: true
           description: Avatar-URL (null ohne Avatar)
+    AccountPreferences:
+      type: object
+      description: >-
+        Inhaltliche Präferenzen am Konto (#2398) — gelten auf allen angemeldeten
+        Geräten; Theme, Kopfzeile, Animationen, Sprach-Autostart und Hinweis-Banner
+        bleiben gerätelokal.
+      required: [aiEnabled, balancePriority, expertMode, geolocationEnabled]
+      properties:
+        aiEnabled:
+          type: boolean
+          description: KI-Bedienelemente sichtbar (Default true)
+        balancePriority:
+          type: boolean
+          description: Aufgabenliste nach Balance sortieren (Default true)
+        expertMode:
+          type: boolean
+          description: Fach-Regler sichtbar (Default false)
+        geolocationEnabled:
+          type: boolean
+          description: Standort-Erfassung aktiv (Default false)
+    AccountPreferencesInput:
+      type: object
+      description: Teilmenge der Präferenzen (#2398), mindestens ein Feld.
+      minProperties: 1
+      properties:
+        aiEnabled:
+          type: boolean
+          description: KI-Bedienelemente sichtbar (Default true)
+        balancePriority:
+          type: boolean
+          description: Aufgabenliste nach Balance sortieren (Default true)
+        expertMode:
+          type: boolean
+          description: Fach-Regler sichtbar (Default false)
+        geolocationEnabled:
+          type: boolean
+          description: Standort-Erfassung aktiv (Default false)
     BalanceVariant:
       type: object
       description: >-
@@ -5243,6 +5563,15 @@ components:
           minimum: 1
           maximum: 60
           description: Aktualisierungsintervall in Minuten (Default 5)
+    McpInstructions:
+      type: object
+      description: Dialog-Vorgaben pro User für die per MCP verbundene KI (#1935).
+      required: [instructions]
+      properties:
+        instructions:
+          type: string
+          maxLength: 2000
+          description: Freitext (getrimmt, höchstens 2000 Zeichen); leer = keine Vorgaben
     FreeSlotConfig:
       type: object
       description: Mindestdauer freier Kalender-Lücken pro User (#1990).
@@ -5289,6 +5618,15 @@ components:
         zeitzone:
           type: string
           description: IANA-Zeitzonenname (Default 'UTC')
+    SplitHintConfig:
+      type: object
+      description: >-
+        Schalter pro User für den Aufteilen-Hinweis an der Next-Task-Karte (#1994).
+      required: [splitHintEnabled]
+      properties:
+        splitHintEnabled:
+          type: boolean
+          description: Hinweis aktiv (Default true)
     CareSprache:
       type: object
       description: App-Sprache des Users für den Fürsorge-Push (#1879).
@@ -5747,6 +6085,8 @@ components:
               mcp_readwrite,
               mcp_read,
               feedback,
+              sync,
+              knowledge_entries,
             ]
         allowedPlans:
           type: array
@@ -6061,6 +6401,23 @@ components:
             token:
               type: string
               description: Klartext-Token (`pp_<32 Hex>`); nur in dieser Antwort enthalten
+    KnowledgeEntry:
+      type: object
+      description: Persönlicher Wissens-Eintrag eines Nutzers für die Säulenzuordnung (#1936).
+      required: [id, text]
+      properties:
+        id:
+          type: integer
+        text:
+          type: string
+    KnowledgeEntryInput:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
     PlaceFavorite:
       type: object
       description: >-
@@ -6336,6 +6693,16 @@ components:
           required: [priority]
           properties:
             priority:
+              type: integer
+        split:
+          type: object
+          description: >-
+            Aufteilen-Hinweis (#1994): Verschiebe-Zähler der empfohlenen Aufgabe; nur bei erkanntem
+            Muster (mindestens 3 offene Aufgaben mit Aufwand >= 0.6 und mindestens 2 Verschiebungen)
+            und eingeschaltetem Schalter. Ändert den Score nicht.
+          required: [postponeCount]
+          properties:
+            postponeCount:
               type: integer
     TaskRecommendation:
       allOf:
@@ -7269,6 +7636,13 @@ components:
           description: Vorgeschlagene Säulen-Einzahlungen, nach pillarId sortiert
           items:
             $ref: '#/components/schemas/PillarSuggestion'
+        knowledgeEntryIds:
+          type: array
+          description: >-
+            IDs der Wissens-Einträge, die in die Zuordnung eingeflossen sind (#1936, nur Pro);
+            fehlt ohne passende Einträge.
+          items:
+            type: integer
         fairUse:
           type: string
           enum: [throttled]
@@ -8226,12 +8600,14 @@ components:
         - fri
         - sat
         - sun
+        - none
       default: weekly
       description: >-
         Wiederholungsrhythmus eines Serien-Templates (striktes RRULE-Subset, #120).
         Wochentag-basierte Rhythmen (#467): `weekdays` (Mo–Fr), `weekend` (Sa+So),
         `mon`…`sun` (jeweils genau dieser Wochentag) erzeugen mehrere Termine pro Woche.
         Bei `mon`…`sun` muss `startDate` auf dem benannten Wochentag liegen, sonst 400.
+        `none` (#2355, ohne Rhythmus) ist nur bei `autoCreate: false` erlaubt, sonst 400.
     Series:
       type: object
       description: >-
@@ -8245,6 +8621,7 @@ components:
         - estimatedEffort
         - active
         - startDate
+        - autoCreate
         - pillars
       properties:
         id:
@@ -8308,6 +8685,11 @@ components:
           description: >-
             Wenn `true`, erben künftig generierte Instanzen diese Option und
             werden bei verpasster Deadline automatisch gelöscht (#523).
+        autoCreate:
+          type: boolean
+          description: >-
+            Wenn `false`, legen `POST /series/generate-all` und `POST /series/{id}/generate`
+            keine Aufgaben an; die Serie ist eine reine Vorlage (#2355). Standard `true`.
         userId:
           type: integer
           nullable: true
@@ -8354,9 +8736,6 @@ components:
       type: object
       required:
         - title
-        - priority
-        - estimatedEffort
-        - startDate
       properties:
         title:
           type: string
@@ -8386,6 +8765,8 @@ components:
         startDate:
           type: string
           format: date-time
+          description: >-
+            Pflicht, außer bei `rhythm: none` (#2355): dann setzt der Server heute (UTC-Mitternacht) ein.
         description:
           type: string
           nullable: true
@@ -8416,6 +8797,11 @@ components:
           description: >-
             Wenn `true`, erben künftig generierte Instanzen diese Option und
             werden bei verpasster Deadline automatisch gelöscht (#523).
+        autoCreate:
+          type: boolean
+          description: >-
+            Wenn `false`, legen `POST /series/generate-all` und `POST /series/{id}/generate`
+            keine Aufgaben an; die Serie ist eine reine Vorlage (#2355). Standard `true`.
         pillars:
           type: array
           description: >-
@@ -8492,6 +8878,11 @@ components:
           description: >-
             Wenn `true`, erben künftig generierte Instanzen diese Option und
             werden bei verpasster Deadline automatisch gelöscht (#523).
+        autoCreate:
+          type: boolean
+          description: >-
+            Wenn `false`, legen `POST /series/generate-all` und `POST /series/{id}/generate`
+            keine Aufgaben an; die Serie ist eine reine Vorlage (#2355). Standard `true`.
         pillars:
           type: array
           description: >-
@@ -8525,6 +8916,25 @@ components:
           type: string
           format: date-time
           description: Letzter zu materialisierender Zeitpunkt (inklusive).
+    SeriesInstanceInput:
+      type: object
+      properties:
+        title:
+          type: string
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 5
+        estimatedEffort:
+          type: number
+          minimum: 0.1
+          maximum: 1
+        description:
+          type: string
+          nullable: true
+        deadline:
+          type: string
+          format: date-time
     SeriesGenerateAllResult:
       type: object
       required:
@@ -8903,6 +9313,16 @@ components:
         acceptPrivacy:
           type: boolean
           enum: [true]
+    AppToken:
+      type: object
+      description: >-
+        App-Token der Android-App (#2377). Authentifiziert jede Anfrage per
+        `Authorization: Bearer`, sessiongleich und ohne CSRF; `POST /auth/logout` zieht es zurück.
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: Klartext-Token (`pp_<32 Hex>`); nur in dieser Antwort enthalten
     NativeLoginExchangeRequest:
       type: object
       required:

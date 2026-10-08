@@ -92,6 +92,7 @@ vi.mock('../api', () => ({
 		updateTask: vi.fn(),
 		createSeries: vi.fn(),
 		updateSeries: vi.fn(),
+		listSeries: vi.fn(),
 		suggestPillars: vi.fn().mockResolvedValue([]),
 		geocodeSearch: vi.fn().mockResolvedValue([]),
 	},
@@ -452,5 +453,73 @@ describe('QuickCaptureModal — kein Paket-Badge (#1941 AK1)', () => {
 		await typeCapture('Laufen gehen');
 
 		expect(screen.queryByTestId('plan-badge-ai_assist')).toBeNull();
+	});
+});
+
+// ── #2363 (AK1/AK3): Aus Vorlage erfassen ────────────────────────────────────────────────────
+
+/**
+ * Rote Spec-Tests für #2363 (AK1, AK3, docs/spec/issue-2363.md): Im Capture-Schritt wählt ein
+ * vierter sekundärer Button „Aus Vorlage" den Schritt „Vorlage wählen" — eine Liste genau der
+ * Serien mit `autoCreate === false`; ohne Vorlage erscheint ein Hinweis statt leerer Liste.
+ * Ebene wie die Nachbarn: gemockte API, ungemocktes KoliBri (Zustand als Props am Host-Element).
+ */
+describe('QuickCaptureModal — Aus Vorlage erfassen (#2363)', () => {
+	afterEach(() => {
+		vi.clearAllMocks();
+		cleanup();
+	});
+
+	const props = { pillars, onClose: vi.fn(), onSaved: vi.fn() };
+
+	const clickAusVorlage = async (): Promise<void> => {
+		const button = [...document.body.querySelectorAll('kol-button')].find(
+			(el) => el.getAttribute('_label') === 'Aus Vorlage',
+		);
+		expect(button, '„Aus Vorlage" muss im Capture-Schritt gerendert werden').toBeTruthy();
+		await act(async () => {
+			(button as unknown as { _on?: { onClick?: (event: MouseEvent) => void } })._on?.onClick?.(
+				new MouseEvent('click'),
+			);
+		});
+	};
+
+	it('AK1: listet nach Klick auf „Aus Vorlage" genau die Serien mit autoCreate:false', async () => {
+		const mockListSeries = api.listSeries as ReturnType<typeof vi.fn>;
+		mockListSeries.mockResolvedValue([
+			{ id: 1, title: 'Automatische Serie', autoCreate: true },
+			{ id: 2, title: 'Vorlage Sport', autoCreate: false },
+			{ id: 3, title: 'Serie ohne Flag' },
+		]);
+
+		render(<QuickCaptureModal {...props} />);
+		await clickAusVorlage();
+
+		await waitFor(() =>
+			expect(
+				[...document.body.querySelectorAll('kol-button')].some((el) => el.getAttribute('_label') === 'Vorlage Sport'),
+				'Die Vorlage muss als Eintrag sichtbar sein',
+			).toBe(true),
+		);
+		const labels = [...document.body.querySelectorAll('kol-button')].map((el) => el.getAttribute('_label'));
+		expect(labels).not.toContain('Automatische Serie');
+		expect(labels).not.toContain('Serie ohne Flag');
+		expect(mockListSeries).toHaveBeenCalledTimes(1);
+	});
+
+	it('AK3: ohne Vorlagen erscheint ein Hinweis statt einer leeren Liste', async () => {
+		const mockListSeries = api.listSeries as ReturnType<typeof vi.fn>;
+		mockListSeries.mockResolvedValue([{ id: 1, title: 'Automatische Serie', autoCreate: true }]);
+
+		render(<QuickCaptureModal {...props} />);
+		await clickAusVorlage();
+
+		await waitFor(() => {
+			const text = document.body.textContent ?? '';
+			expect(text).toMatch(/Serien & Vorlagen/);
+			expect(text).toMatch(/Automatisch anlegen/);
+		});
+		const labels = [...document.body.querySelectorAll('kol-button')].map((el) => el.getAttribute('_label'));
+		expect(labels, 'keine Vorlagen-Einträge').not.toContain('Automatische Serie');
 	});
 });

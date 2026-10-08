@@ -25,16 +25,21 @@ export type TaskGraphNode = Schemas['TaskGraphNode'];
 export type TaskGraphEdge = Schemas['TaskGraphEdge'];
 export type NearbyTask = Schemas['NearbyTask'];
 export type GeoConfig = Schemas['GeoConfig'];
+/** #1935: Dialog-Vorgaben pro Nutzer für die per MCP verbundene KI. */
+export type McpInstructions = Schemas['McpInstructions'];
 export type FreeSlotConfig = Schemas['FreeSlotConfig'];
 export type FreeSlot = Schemas['FreeSlot'];
 /** #1794: Fürsorge-Push-Schalter + Nutzer-Zeitzone (Ruhezeit/Kalendertag). */
 export type CareConfig = Schemas['CareConfig'];
+export type SplitHintConfig = Schemas['SplitHintConfig'];
 export type CareVorschlag = Schemas['CareVorschlag'];
 // Persönliche API-Tokens für externe Clients (#1352) — Liste ohne Klartext, Anlege-Antwort mit.
 export type ApiToken = Schemas['ApiToken'];
 export type CreatedApiToken = Schemas['CreatedApiToken'];
 export type PlaceFavorite = Schemas['PlaceFavorite'];
 export type PlaceFavoriteInput = Schemas['PlaceFavoriteInput'];
+export type KnowledgeEntry = Schemas['KnowledgeEntry'];
+export type KnowledgeEntryInput = Schemas['KnowledgeEntryInput'];
 export type CalendarSource = Schemas['CalendarSource'];
 export type CalendarSourceInput = Schemas['CalendarSourceInput'];
 export type CalendarEvent = Schemas['CalendarEvent'];
@@ -146,7 +151,7 @@ type WithDateStartDate<T> = Omit<T, 'startDate'> & { startDate: Date };
 
 export type SeriesRhythm = Schemas['SeriesRhythm'];
 export type Series = WithDateStartDate<Schemas['Series']>;
-export type SeriesCreate = WithDateStartDate<Schemas['SeriesCreate']>;
+export type SeriesCreate = Omit<Schemas['SeriesCreate'], 'startDate'> & { startDate?: Date };
 export type SeriesUpdate = Omit<Schemas['SeriesUpdate'], 'startDate'> & { startDate?: Date };
 export type SeriesGenerateInput = Omit<Schemas['SeriesGenerateInput'], 'until'> & { until: Date };
 

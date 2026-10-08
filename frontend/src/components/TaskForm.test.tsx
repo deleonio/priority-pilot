@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { Category, Group, GroupMember, Pillar, Series, SeriesRhythm, Task } from 'client';
 import { ResponseError, TaskStatus } from 'client';
-import { createRef, type ReactNode } from 'react';
+import { createRef, type ReactNode, type Ref } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -337,6 +337,7 @@ const minimalSeries = (): Series => ({
 	estimatedEffort: 0.5,
 	active: true,
 	startDate: new Date('2026-09-07T00:00:00.000Z'),
+	autoCreate: true,
 	// TEST-PFLEGE #1596: vollständige Säulen-Verteilung (hier die eine Säule aus `defaultProps` mit
 	// 100 %). Eine Vorlage ohne Beiträge würde beim Öffnen vervollständigt — das ist dann eine echte
 	// Änderung am Template und löst zu Recht die Kaskade-Rückfrage aus.
@@ -590,6 +591,21 @@ describe('AK4 — Umschalter & Feld-Sichtbarkeit je Modus (#316)', () => {
 		expect(switchEl).toBeEnabled();
 		// Kein Button-Paar mehr für die Modus-Auswahl.
 		expect(screen.queryByRole('button', { name: /serie/i })).toBeNull();
+	});
+
+	// #2415: Der Umschalter nennt beide Begriffe — zugänglicher Name „Serie oder Vorlage" (AK1).
+	// Rot, solange das Label nur „Serie" lautet; der KoliBri-Mock rendert `_label` als aria-label.
+	it('AK1 (#2415): Umschalter trägt das Label „Serie oder Vorlage"', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		const switchEl = within(screen.getByTestId('mode-switch')).getByRole('switch', {
+			name: 'Serie oder Vorlage',
+		});
+		expect(switchEl).toBeInTheDocument();
 	});
 
 	it('Anlegen/Task-Modus: `deadline` ist sichtbar', async () => {
@@ -3439,5 +3455,408 @@ describe('TaskForm — KI-Vorschlag-Block (#2078)', () => {
 
 		expect(mockCreateTask).toHaveBeenCalled();
 		expect(mockRecordPillarFeedback).not.toHaveBeenCalled();
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2358 AK1-AK5 (Vertrag: `docs/spec/issue-2358.md`): Schalter „Automatisch
+ * anlegen" im Serien-Modus; Rhythmus „Ohne Rhythmus" (`none`) nur bei ausgeschaltetem Schalter,
+ * dann ohne Startdatum. Der KoliBri-Mock rendert `KolInputCheckbox` als `role="switch"`.
+ */
+describe('TaskForm — Serie als Vorlage: Schalter „Automatisch anlegen" (#2358)', () => {
+	const autoCreateSwitch = (): HTMLInputElement =>
+		screen.getByRole('switch', { name: 'Automatisch anlegen' }) as HTMLInputElement;
+	const rhythmValues = (): string[] =>
+		Array.from((screen.getByLabelText('Rhythmus') as HTMLSelectElement).options).map((o) => o.value);
+	const toggleAutoCreate = async (): Promise<void> => {
+		await act(async () => {
+			fireEvent.click(autoCreateSwitch());
+		});
+	};
+	const renderCreateSeries = async (): Promise<void> => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<TaskForm task={null} initialMode="series" {...defaultProps} />);
+		});
+	};
+
+	it('AK1 — Serie anlegen: Schalter vorhanden und an', async () => {
+		await renderCreateSeries();
+		expect(autoCreateSwitch().checked).toBe(true);
+	});
+
+	it('AK1 — Aufgabe-Modus zeigt den Schalter nicht', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		expect(screen.queryByRole('switch', { name: 'Automatisch anlegen' })).toBeNull();
+	});
+
+	// Test-Pflege #2414: AK2/AK3 (#2358) wählten „Ohne Rhythmus" im Select — die Option ist nie mehr sichtbar,
+	// „keine Automatik" ergibt sich allein aus dem ausgeschalteten Schalter (Vertrag: docs/spec/issue-2414.md).
+	it('AK2 (#2414) — „Ohne Rhythmus" ist weder bei Schalter an noch aus wählbar', async () => {
+		await renderCreateSeries();
+		expect(rhythmValues()).not.toContain('none');
+
+		await toggleAutoCreate();
+
+		expect(screen.queryByLabelText('Rhythmus')).toBeNull();
+	});
+
+	it('AK3 (#2414) — Schalter aus: Payload autoCreate:false, rhythm:none, autoDeleteAfterDeadline:false, kein startDate', async () => {
+		mockCreateSeries.mockResolvedValue(minimalSeries());
+		await renderCreateSeries();
+		await fillTitle('Vorlage ohne Rhythmus');
+		await act(async () => {
+			fireEvent.click(screen.getByLabelText(/Automatisch löschen nach 3 Tagen/i));
+		});
+		await toggleAutoCreate();
+
+		expect(screen.queryByLabelText('Startdatum')).toBeNull();
+
+		await chooseMainPillar();
+		await clickSave();
+
+		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
+		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: Record<string, unknown> }];
+		expect(seriesCreate['autoCreate']).toBe(false);
+		expect(seriesCreate['rhythm']).toBe('none');
+		expect(seriesCreate['autoDeleteAfterDeadline']).toBe(false);
+		expect(seriesCreate['startDate']).toBeUndefined();
+	});
+
+	it('AK3 — Standard (Schalter an): Payload autoCreate:true', async () => {
+		mockCreateSeries.mockResolvedValue(minimalSeries());
+		await renderCreateSeries();
+		await fillTitle('Automatische Serie');
+		await chooseMainPillar();
+		await clickSave();
+
+		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: Record<string, unknown> }];
+		expect(seriesCreate['autoCreate']).toBe(true);
+	});
+
+	it('AK4 (#2414) — aus → an im selben Dialog stellt Rhythmus monthly und Auto-Löschen wieder her', async () => {
+		mockCreateSeries.mockResolvedValue(minimalSeries());
+		await renderCreateSeries();
+		await fillTitle('Zurückgeschaltet');
+		await act(async () => {
+			fireEvent.change(screen.getByLabelText('Rhythmus'), { target: { value: 'monthly' } });
+		});
+		await act(async () => {
+			fireEvent.click(screen.getByLabelText(/Automatisch löschen nach 3 Tagen/i));
+		});
+		await toggleAutoCreate();
+		expect(screen.queryByLabelText('Rhythmus')).toBeNull();
+		await toggleAutoCreate();
+
+		expect((screen.getByLabelText('Rhythmus') as HTMLSelectElement).value).toBe('monthly');
+		expect(screen.getByLabelText(/Automatisch löschen nach 3 Tagen/i)).toBeChecked();
+		expect(screen.getByLabelText('Startdatum')).toBeInTheDocument();
+
+		await chooseMainPillar();
+		await clickSave();
+
+		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: Record<string, unknown> }];
+		expect(seriesCreate['autoCreate']).toBe(true);
+		expect(seriesCreate['rhythm']).toBe('monthly');
+		expect(seriesCreate['autoDeleteAfterDeadline']).toBe(true);
+	});
+
+	it('AK5 — Bearbeiten: Schalter zeigt gespeicherten Wert (autoCreate:false → aus)', async () => {
+		await act(async () => {
+			render(
+				<SeriesEditForm
+					task={null}
+					series={{ ...minimalSeries(), autoCreate: false, rhythm: 'none' as Series['rhythm'] }}
+					{...defaultProps}
+				/>,
+			);
+		});
+		expect(autoCreateSwitch().checked).toBe(false);
+		expect(screen.queryByLabelText('Startdatum')).toBeNull();
+	});
+
+	it('AK5 — Bearbeiten: Umschalten sendet autoCreate im PATCH', async () => {
+		mockUpdateSeries.mockResolvedValue({ ...minimalSeries(), autoCreate: false });
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={minimalSeries()} {...defaultProps} />);
+		});
+		expect(autoCreateSwitch().checked).toBe(true);
+
+		await toggleAutoCreate();
+		await clickSaveEdit();
+		const confirm = screen.queryByRole('button', { name: 'Ja' });
+		if (confirm !== null) {
+			await act(async () => {
+				fireEvent.click(confirm);
+			});
+		}
+
+		expect(mockUpdateSeries).toHaveBeenCalledTimes(1);
+		const [arg] = mockUpdateSeries.mock.calls[0] as [{ seriesUpdate?: Record<string, unknown> }];
+		expect(arg.seriesUpdate?.['autoCreate']).toBe(false);
+	});
+	it('AK2/AK1 (#2414) — Bearbeiten: Schalter aus blendet Felder aus, PATCH sendet rhythm:none und autoDeleteAfterDeadline:false', async () => {
+		mockUpdateSeries.mockResolvedValue({ ...minimalSeries(), autoCreate: false });
+		await act(async () => {
+			render(
+				<SeriesEditForm task={null} series={{ ...minimalSeries(), autoDeleteAfterDeadline: true }} {...defaultProps} />,
+			);
+		});
+		await toggleAutoCreate();
+
+		expect(screen.queryByLabelText('Rhythmus')).toBeNull();
+		expect(screen.queryByLabelText(/Automatisch löschen nach 3 Tagen/i)).toBeNull();
+
+		await clickSaveEdit();
+		const confirm = screen.queryByRole('button', { name: 'Ja' });
+		if (confirm !== null) {
+			await act(async () => {
+				fireEvent.click(confirm);
+			});
+		}
+
+		const [arg] = mockUpdateSeries.mock.calls[0] as [{ seriesUpdate?: Record<string, unknown> }];
+		expect(arg.seriesUpdate?.['autoCreate']).toBe(false);
+		expect(arg.seriesUpdate?.['rhythm']).toBe('none');
+		expect(arg.seriesUpdate?.['autoDeleteAfterDeadline']).toBe(false);
+	});
+
+	it('AK2 (#2414) — gespeicherte Vorlage ohne Automatik: hängendes autoDeleteAfterDeadline wird beim Speichern normalisiert', async () => {
+		mockUpdateSeries.mockResolvedValue({ ...minimalSeries(), autoCreate: false });
+		await act(async () => {
+			render(
+				<SeriesEditForm
+					task={null}
+					series={{
+						...minimalSeries(),
+						autoCreate: false,
+						rhythm: 'none' as Series['rhythm'],
+						autoDeleteAfterDeadline: true,
+					}}
+					{...defaultProps}
+				/>,
+			);
+		});
+		// Der Toggle-Handler läuft nie — das Feld ist ausgeblendet, das alte true darf nicht hängen bleiben.
+		expect(screen.queryByLabelText(/Automatisch löschen nach 3 Tagen/i)).toBeNull();
+
+		await clickSaveEdit();
+		const confirm = screen.queryByRole('button', { name: 'Ja' });
+		if (confirm !== null) {
+			await act(async () => {
+				fireEvent.click(confirm);
+			});
+		}
+
+		const [arg] = mockUpdateSeries.mock.calls[0] as [{ seriesUpdate?: Record<string, unknown> }];
+		expect(arg.seriesUpdate?.['autoCreate']).toBe(false);
+		expect(arg.seriesUpdate?.['autoDeleteAfterDeadline']).toBe(false);
+	});
+
+	it('AK5 (#2414) — gespeicherte Vorlage (none): Schalter an liefert Rhythmus weekly und Startdatum', async () => {
+		await act(async () => {
+			render(
+				<SeriesEditForm
+					task={null}
+					series={{ ...minimalSeries(), autoCreate: false, rhythm: 'none' as Series['rhythm'] }}
+					{...defaultProps}
+				/>,
+			);
+		});
+		expect(screen.queryByLabelText('Rhythmus')).toBeNull();
+
+		await toggleAutoCreate();
+
+		expect((screen.getByLabelText('Rhythmus') as HTMLSelectElement).value).toBe('weekly');
+		expect(screen.getByLabelText('Startdatum')).toBeInTheDocument();
+	});
+
+	it('AK6 (#2414) — Aufgaben-Modus: Auto-Löschen sichtbar, ohne Deadline deaktiviert', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		expect(screen.getByLabelText(/Automatisch löschen nach 3 Tagen/i)).toBeDisabled();
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2361 — Aufgabe als Vorlage speichern.
+ *
+ * Vertrag: docs/spec/issue-2361.md. Die Aktion öffnet das Serien-Formular im Anlage-Modus
+ * (`task = null`, `initialMode = 'series'`) und belegt es aus der Aufgabe vor — über die
+ * (noch nicht existierenden) erweiterten `TaskFormInitialValues`-Felder `latitude`, `longitude`,
+ * `pillars`, `autoCreate` und `rhythm`. Speichern läuft über das bestehende `POST /series`
+ * (#2358: `autoCreate: false` + `rhythm: 'none'` ohne `startDate`); die Ausgangsaufgabe bleibt
+ * unberührt (`updateTask`/`createTask` nie).
+ *
+ * `TemplateSeriesForm` nutzt denselben bewussten Cast wie `SeriesEditForm`: Er hält den Typecheck
+ * grün, bis die Umsetzung die Felder an der Schnittstelle ergänzt; zur Laufzeit sind die Tests
+ * rot, solange TaskForm die Vorbelegung ignoriert.
+ */
+describe('TaskForm — Aufgabe als Vorlage speichern (#2361)', () => {
+	const pillarGeist: Pillar = { id: 2, name: 'Geist', description: 'Geist', weight: 100 };
+	const sportKategorie: Category = { id: 5, name: 'Sport', color: '#1064d0' };
+
+	type TemplateInitialValues = {
+		title: string;
+		description: string;
+		priority: number;
+		estimatedEffort: number;
+		address: string;
+		latitude: number;
+		longitude: number;
+		categoryId: number;
+		pillars: { pillarId: number; share: number; confidence: number }[];
+		autoCreate: boolean;
+		rhythm: SeriesRhythm;
+	};
+
+	const templateValues = (): TemplateInitialValues => ({
+		title: 'Wöchentliches Yoga',
+		description: 'Yoga für Anfänger',
+		priority: 4,
+		estimatedEffort: 0.75,
+		address: 'Brandenburger Tor, Berlin',
+		latitude: 52.5163,
+		longitude: 13.3777,
+		categoryId: sportKategorie.id,
+		pillars: [
+			{ pillarId: pillarKoerper.id, share: 60, confidence: 100 },
+			{ pillarId: pillarGeist.id, share: 40, confidence: 100 },
+		],
+		autoCreate: false,
+		rhythm: 'none',
+	});
+
+	const TemplateSeriesForm = TaskForm as unknown as (
+		props: typeof defaultProps & {
+			task: null;
+			categories: Category[];
+			initialMode: 'series';
+			initialValues: TemplateInitialValues;
+			lockMode: boolean;
+			/** Für den Dirty-Check (#1584): `requestClose` über den Handle auslösen. */
+			ref?: Ref<TaskFormHandle>;
+		},
+	) => ReactNode;
+
+	const renderTemplateForm = async (): Promise<void> => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockListPlaceFavorites.mockResolvedValue([]);
+		await act(async () => {
+			render(
+				<TemplateSeriesForm
+					task={null}
+					{...defaultProps}
+					pillars={[pillarKoerper, pillarGeist]}
+					categories={[sportKategorie]}
+					initialMode="series"
+					initialValues={templateValues()}
+					lockMode
+				/>,
+			);
+		});
+	};
+
+	it('AK1 — öffnet im Serien-Modus mit der kompletten Vorbelegung der Aufgabe', async () => {
+		await renderTemplateForm();
+
+		// Textfelder: Titel, Beschreibung, Adresse.
+		expect((screen.getByRole('textbox', { name: /titel/i }) as HTMLInputElement).value).toBe('Wöchentliches Yoga');
+		expect((screen.getByRole('textbox', { name: /beschreibung/i }) as HTMLInputElement).value).toBe(
+			'Yoga für Anfänger',
+		);
+		expect((screen.getByRole('textbox', { name: /adresse/i }) as HTMLInputElement).value).toBe(
+			'Brandenburger Tor, Berlin',
+		);
+		// Kategorie der Aufgabe im Auswahlfeld.
+		expect((screen.getByTestId('select-Kategorie (optional)') as HTMLSelectElement).value).toBe('5');
+
+		// Säulen-Verteilung: beide Säulen der Aufgabe mit ihren Anteilen 60/40
+		// (Slider-Aria-Label „<Name>: <Anteil> %", nicht die Gleichverteilung 50/50 des Anlage-Flows).
+		expect(document.querySelectorAll('.pillar-row')).toHaveLength(2);
+		expect(screen.getByLabelText('Körper: 60 %')).toBeInTheDocument();
+		expect(screen.getByLabelText('Geist: 40 %')).toBeInTheDocument();
+
+		// Koordinaten der Aufgabe im Koordinaten-Kasten (toFixed(6), Muster TaskForm.tsx).
+		expect(screen.getByText('52.516300')).toBeInTheDocument();
+		expect(screen.getByText('13.377700')).toBeInTheDocument();
+
+		// Serien-Einstellungen: „Automatisch anlegen" aus. Rhythmus-Auswahl und Startdatum-Feld
+		// rendert TaskForm bei ausgeschaltetem Auto-Anlegen gar nicht (#2414) — rhythm:'none' der
+		// Payload sichert AK2.
+		expect(screen.getByRole('switch', { name: 'Automatisch anlegen' })).not.toBeChecked();
+		expect(screen.queryByTestId('select-Rhythmus')).toBeNull();
+		expect(screen.queryByLabelText('Startdatum')).toBeNull();
+
+		// UX-Sperre: Der Modus-Umschalter ist im Vorlage-Flow gesperrt (Wechsel auf „Aufgabe" würde
+		// eine Duplikat-Aufgabe erzeugen).
+		const modeSwitch = within(screen.getByTestId('mode-switch')).getByRole('switch');
+		expect(modeSwitch).toBeDisabled();
+	});
+
+	it('AK1/#1584 — Vorbelegung ist die Dirty-Baseline: sofortiges Schließen fragt nicht nach', async () => {
+		const onClose = vi.fn();
+		const ref = createRef<TaskFormHandle>();
+		mockSuggestPillars.mockResolvedValue([]);
+		mockListPlaceFavorites.mockResolvedValue([]);
+		await act(async () => {
+			render(
+				<TemplateSeriesForm
+					ref={ref}
+					task={null}
+					{...defaultProps}
+					pillars={[pillarKoerper, pillarGeist]}
+					categories={[sportKategorie]}
+					initialMode="series"
+					initialValues={templateValues()}
+					lockMode
+					onClose={onClose}
+				/>,
+			);
+		});
+
+		await act(async () => {
+			ref.current?.requestClose();
+		});
+
+		expect(onClose).toHaveBeenCalledTimes(1);
+		expect(screen.queryByTestId('confirm-series-modal')).toBeNull();
+	});
+
+	it('AK2/AK3 — Speichern: genau ein createSeries mit den vorbelegten Werten, nie updateTask', async () => {
+		mockCreateSeries.mockResolvedValue(minimalSeries());
+		await renderTemplateForm();
+
+		await clickSave();
+
+		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
+		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: Record<string, unknown> }];
+		expect(seriesCreate).toMatchObject({
+			title: 'Wöchentliches Yoga',
+			priority: 4,
+			estimatedEffort: 0.75,
+			description: 'Yoga für Anfänger',
+			address: 'Brandenburger Tor, Berlin',
+			latitude: 52.5163,
+			longitude: 13.3777,
+			categoryId: 5,
+			autoCreate: false,
+			rhythm: 'none',
+		});
+		// „Ohne Rhythmus" ohne Startdatum (#2358): kein `startDate` in der Payload.
+		expect(seriesCreate['startDate']).toBeUndefined();
+		// Säulen-Verteilung 1:1 aus der Aufgabe (60/40, nicht Gleichverteilung).
+		expect(seriesCreate['pillars']).toEqual([
+			{ pillarId: 1, share: 60, confidence: 100 },
+			{ pillarId: 2, share: 40, confidence: 100 },
+		]);
+		// Die Ausgangsaufgabe bleibt unberührt (AK3).
+		expect(mockUpdateTask).not.toHaveBeenCalled();
+		expect(mockCreateTask).not.toHaveBeenCalled();
 	});
 });

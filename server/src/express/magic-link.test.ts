@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 import type { MailSender } from '../logics/mail.js';
-import { LoginToken, User } from '../models/index.js';
+import { ApiToken, LoginToken, User } from '../models/index.js';
 
 /**
  * Magic-Link-Login per E-Mail: Anfordern (`POST /auth/magic-link`), Einlösen
@@ -180,5 +180,27 @@ describe('Magic-Link-Login per E-Mail', () => {
 		} finally {
 			process.env.PUBLIC_BASE_URL = saved;
 		}
+	});
+
+	// #2377 AK2/AK8 (docs/spec/issue-2377.md): im Kanal `play` liefert das Einloesen ein App-Token.
+	it('AK2: mit X-Client-Channel: play antwortet das Einloesen 200 mit { token }, das /auth/me authentifiziert', async () => {
+		await requestLink(ALLOWED);
+		const res = await server.json('/auth/magic-link/verify', {
+			method: 'POST',
+			headers: { 'X-Client-Channel': 'play' },
+			body: JSON.stringify({ token: lastToken() }),
+		});
+		assert.equal(res.status, 200);
+		const { token } = (await res.json()) as { token?: string };
+		assert.ok(token, 'Antwort enthaelt token');
+		const me = await server.json('/auth/me', { headers: { Authorization: `Bearer ${token}` } });
+		assert.equal(me.status, 200);
+		assert.equal(((await me.json()) as { email: string }).email, ALLOWED);
+	});
+
+	it('AK8: ohne Kanal-Header entsteht beim Einloesen kein Token', async () => {
+		await requestLink(ALLOWED);
+		assert.equal((await verify(lastToken())).status, 204);
+		assert.equal(await ApiToken.count(), 0);
 	});
 });

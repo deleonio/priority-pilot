@@ -1,6 +1,8 @@
 import { Router, type Request, type Response } from 'express';
 import { findMcpTool, mcpTools, type McpToolContext } from './tools.js';
 import { readBearerToken } from '../express/apiTokenAuth.js';
+import { getUserId } from '../express/requireAuth.js';
+import { User } from '../models/index.js';
 
 /**
  * MCP-Endpunkt v1 (#1353): JSON-RPC 2.0 über HTTP unter `POST /mcp/v1`.
@@ -63,10 +65,14 @@ mcpRouter.post(MCP_PATH, async (req: Request, res: Response) => {
 	}
 
 	if (body.method === 'initialize') {
+		// Dialog-Vorgaben (#1935): `instructions` aus der MCP-Spec nur, wenn der Nutzer welche gespeichert hat.
+		const userId = getUserId(req);
+		const user = userId === undefined ? null : await User.findByPk(userId, { attributes: ['mcpInstructions'] });
 		sendResult(res, id, {
 			protocolVersion: PROTOCOL_VERSION,
 			capabilities: { tools: {} },
 			serverInfo: { name: 'priority-pilot-mcp-v1', version: '1' },
+			...(user?.mcpInstructions ? { instructions: user.mcpInstructions } : {}),
 		});
 		return;
 	}
@@ -97,7 +103,7 @@ mcpRouter.post(MCP_PATH, async (req: Request, res: Response) => {
 		// Plan-Deckel (#1460): eine paketbedingte Herabstufung nennt das benötigte Paket statt des
 		// generischen Nur-lese-Texts — ein echter read-Token bekommt weiterhin die alte Meldung.
 		const message = req.apiTokenPlanCapped
-			? `The tool "${tool.name}" writes data, but your plan does not include MCP write access. Upgrade to "pro" to use it.`
+			? `The tool "${tool.name}" writes data, but your plan does not include MCP write access (mcp_readwrite). Upgrade to "pro" to use it.`
 			: `The tool "${tool.name}" writes data, but this token allows read access only. ` +
 				'In the settings under "Zugriff" (Access) you can switch the token to "Lesen und Schreiben" (read and write).';
 		sendRpcError(res, id, JSONRPC_INVALID_PARAMS, message);

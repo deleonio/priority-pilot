@@ -96,6 +96,8 @@ Never start labelling right after the call. First agree on focus and order with 
    those leaves to the front of the order, so the container leaves the work chain. Scan all
    containers in scope for both at each check-in and after each merge. Issues
    without dependencies on each other run in parallel; the queues serialise what has to wait.
+   Tickets the author files during the run go to the front of the order, right after
+   containers, unless the author ranks them otherwise.
    Only dependent issues wait for their blocker's merge. A run shown as "pending" is queued, not
    stuck — never re-arm it. Name stage and effort (title prefix) whenever a check-in or decision
    reports what was started or what comes next — the author thinks in „wie wichtig, wie viel
@@ -125,8 +127,9 @@ Label write rules:
 - Re-arming a trigger that is still attached needs two writes: first without it, then with it.
   Adding an already present label fires no event.
 - Label names are exact (`ai:needs-ux-ui`, not `ai:needs-ux`). A write with an unknown name
-  silently creates that label and starts nothing. After every trigger write check within a
-  minute that the phase run did not end `skipped` (a `skipped` run means a wrong label name).
+  silently creates that label and starts nothing. Before every trigger write check the name
+  (`GET repos/{owner}/{repo}/labels/<name>`, 404 = wrong name); after it check within a minute
+  that the phase run did not end `skipped`.
 
 Record every PO decision as a comment on the epic or issue (with the attribution footer), so the
 pipeline and later readers see it.
@@ -166,16 +169,31 @@ wall of text — offer a decision round and go through the parked issues one by 
 - **Schedule the next check-in before asking the author.** A pending question blocks the
   session; without a scheduled wake-up the whole coordination stalls until the answer.
 - The check-in message carries **state only**; the rules live here. Template:
-  `Check-in ticket-coordination (Skill). Epics: … Stand <UTC>: <je Issue: [Stufe/Aufwand]-Kürzel aus dem Titel, Phase, PR, Run-ID, was als Nächstes zu prüfen ist>. Offen beim Autor: … Reihenfolge danach (mit Rang): … Nicht anfassen: …`
+  `Check-in ticket-coordination (Skill). Epics: … Stand <UTC>: <je Issue: [Stufe/Aufwand]-Kürzel aus dem Titel, Phase, PR, Run-ID, was als Nächstes zu prüfen ist>. Erledigt-Basis (<Anzahl>): <Issue-Nummern>. Offen beim Autor: … Reihenfolge danach (mit Rang): … Nicht anfassen: …`
+  The done baseline makes counts and deltas reproducible across context resets. A later run
+  reads the check-in as its instruction: write a finished container as „Abschluss-Analyse
+  starten", never as „schließen" (section 2).
 - Spec, implementation and fixup share one serialized queue; only triage, UX and review run
   side by side — order the queue per section 7, rung 1.
-- Report only on change (phase switch, merge, blocker, question). A quiet check-in stays quiet.
+- **Every round ends with the status block**, quiet rounds included — the author wants to see at
+  a glance whether things move, without asking. Query fresh (labels, PRs, merges), never from
+  memory. Fixed shape, nothing else around it:
+  1. Counter line: `Erledigt X (+n) · In Arbeit Y · Offen Z (davon W wartend)`, where +n counts
+     merges since the previous round.
+  2. Pace line: trend mark, merges in the last 3 hours, minutes since the last merge.
+     ▲ = merge since the last round · ▶ = phases advanced, no merge · ⏸ = nothing moved for two
+     rounds, name the cause in the same line.
+  3. Table `Status | Ticket | Thema | Aufwand | Phase/PR | seit`. Rows: in progress first, then
+     waiting, done collapsed into one row (count, latest numbers). „seit" is the time in the
+     current phase, taken from the last phase-label event; mark ⚠️ once it exceeds roughly
+     twice the usual duration (triage/UX ~20 min, spec ~30 min, implementation ~60 min, review
+     ~20 min) — that is the stall signal, pursue it per section 7.
+  4. One line for what the coordinator did this round (routed, conflict resolved, started),
+     then the next check-in time.
 - **Progress report on a fixed cadence** (default every 3 hours, author may change it): a
-  recurring schedule, set up once at the start, delivers a report without being asked, even when
-  nothing changed. Query the state fresh, never from memory. Contents: overall progress
-  (done / running / open), a table per block of the agreed order, what finished since the last
-  report, what runs now (phase, PR link), next steps in order, open decisions with the author.
-  The report run also acts (route, start the next issue) like a check-in.
+  recurring schedule, set up once at the start, delivers it without being asked. Same status
+  block, plus what finished since the last report, next steps in order and open decisions with
+  the author. The report run also acts (route, start the next issue) like a check-in.
 - Notifications can arrive late, twice, or after the fact. Verify the current state before
   acting on one.
 - A question the author dismissed is not asked again. It stays under "Offen beim Autor" in the
@@ -359,7 +377,12 @@ rung moves one rung up — never re-arm the same trigger a third time.
    - waiting on a decision: ask the author.
 4. **Infrastructure failures** (environment setup timeout, installer exit, runner loss): re-arm
    once and note the signature; a second one the same day goes to the author as an
-   infrastructure finding, not into more re-arms.
+   infrastructure finding, not into more re-arms. A run past twice its usual duration without a
+   push is diagnosed, not waited out: the job's steps (`GET …/actions/runs/<id>/jobs`, the step
+   `in_progress`) and, if needed, its log (`GET …/actions/jobs/<job-id>/logs`) show where it
+   hangs. A setup step (package install, browser download) that hangs runs into the job timeout
+   without any LLM call — treat it as an infrastructure failure at once, re-arm after the run
+   ends and report the signature.
 5. **Park what will not move.** When rungs 3 and 4 are spent and the next step is neither a
    split nor a local implementation, set `ai:needs-human` with one sentence on the cause and
    the decision needed (as a comment on the issue or PR), list it in the report and take it off

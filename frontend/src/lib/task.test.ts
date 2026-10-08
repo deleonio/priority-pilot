@@ -139,7 +139,7 @@ describe('doneBlockedHint', () => {
  *
  * `taskFormModalTitle` bekommt einen dritten Parameter `mode?: 'task' | 'series'`, der den Titel im
  * Anlege- wie im Bearbeiten-Modus typspezifisch macht (AK2 + AK4):
- *  - Anlegen (task === null, parentTask === null): „Aufgabe anlegen" / „Serie anlegen" je Switch-Stellung.
+ *  - Anlegen (task === null, parentTask === null): „Aufgabe anlegen" / „Serie oder Vorlage anlegen" (#2415) je Switch-Stellung.
  *  - Bearbeiten (task !== null): „Aufgabe bearbeiten: <title>" / „Serie bearbeiten: <title>".
  *  - Unteraufgabe (parentTask !== null): „Unteraufgabe zu <title>".
  *  - Ohne Modus (Fallback): „Neuen Task anlegen".
@@ -155,8 +155,10 @@ describe('taskFormModalTitle (#334)', () => {
 		expect(taskFormModalTitle(null, null, 'task')).toBe('Aufgabe anlegen');
 	});
 
-	it('AK2: Anlegen im Serie-Modus → „Serie anlegen"', () => {
-		expect(taskFormModalTitle(null, null, 'series')).toBe('Serie anlegen');
+	// #2415: Schalter (AK1) und Dialogtitel (AK2) nutzen dieselbe Begriffsreihenfolge — rot,
+	// solange der alte Titel „Serie anlegen" geliefert wird.
+	it('AK2: Anlegen im Serie-Modus → „Serie oder Vorlage anlegen" (#2415)', () => {
+		expect(taskFormModalTitle(null, null, 'series')).toBe('Serie oder Vorlage anlegen');
 	});
 
 	// #1465 löst die ID-Klammer aus #1346 wieder ab: Aufgaben werden mit ihrem Titel angesprochen.

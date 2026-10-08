@@ -5,6 +5,7 @@
 
 import { useTranslation } from 'react-i18next';
 import { OPERATOR } from '../lib/operator';
+import { getPublicOrigin } from '../lib/siteOrigin';
 
 /** E-Mail-Adresse aus den Operator-Angaben, als mailto-Link gerendert. */
 const OperatorEmail = () => <a href={`mailto:${OPERATOR.email}`}>{OPERATOR.email}</a>;
@@ -28,7 +29,7 @@ const LegalLinks = () => {
 				{links.map(({ path, label }) => (
 					<li key={path}>
 						<a
-							href={`${window.location.origin}${path}`}
+							href={`${getPublicOrigin()}${path}`}
 							target="_blank"
 							rel="noopener noreferrer"
 							hrefLang="de"

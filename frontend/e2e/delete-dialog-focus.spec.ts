@@ -161,6 +161,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 				priority: 3,
 				estimatedEffort: 0.5,
 				active: true,
+				autoCreate: false,
 				startDate: '2026-09-07T00:00:00.000Z',
 			},
 		});
@@ -171,7 +172,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
-		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true }).click();
 		await expect(page.getByTestId('series-tree')).toBeVisible();
 		await waitForStableView(page);
 		await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
@@ -336,6 +337,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 				priority: 3,
 				estimatedEffort: 0.5,
 				active: true,
+				autoCreate: false,
 				startDate: '2026-09-07T00:00:00.000Z',
 			},
 		});
@@ -343,7 +345,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 
 		await page.goto('/app/');
 		await waitForStableView(page);
-		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await page.getByRole('tab', { name: 'Serien & Vorlagen', exact: true }).click();
 		await expect(page.getByTestId('series-tree')).toBeVisible();
 		await waitForStableView(page);
 		await expect(page.getByText(title, { exact: true }).first()).toBeVisible();

@@ -61,7 +61,7 @@ Darunter wechselst du über eine **Tab-Leiste** zwischen den fünf Hauptansichte
 1. **Dashboard** – Überblick und Empfehlungen
 2. **Aufgaben** – deine Aufgaben anlegen und pflegen; ein Umschalter wechselt hier
    zwischen **offenen** und **erledigten** Aufgaben
-3. **Serien** – wiederkehrende Aufgaben
+3. **Serien & Vorlagen** – wiederkehrende Aufgaben und Vorlagen
 4. **Graph** – die Aufgaben als Graph mit gewichteten Abhängigkeiten
 5. **Journal** – kurze Einträge mit Datum und optional einer Säule festhalten, bearbeiten
    und löschen
@@ -250,12 +250,15 @@ ausgeschaltet, entfällt der erste Schritt und das Formular öffnet sich direkt:
 Beschreibe deine Aufgabe frei im Feld **„Beschreibe deinen Task"**, z. B.:
 _„Bis Freitag den Kundenbericht fertigstellen, hohe Priorität, etwa ein halber Tag."_
 
-Danach hast du drei Möglichkeiten:
+Danach hast du vier Möglichkeiten:
 
 - **Verarbeiten und weiter** – eine KI liest den Text und füllt Titel, Beschreibung,
   Priorität, Aufwand, Deadline, Adresse, Checkliste und Kategorie im Formular vor.
   Erkennt sie einen wiederkehrenden Termin, öffnet sich das Formular gleich im Serien-Modus.
 - **Beraten lassen** – der Säulen-Berater antwortet im selben Dialog (siehe „Säulen-Berater").
+- **Aus Vorlage** – wählt eine Vorlage (Serie ohne „Automatisch anlegen") und öffnet den
+  Dialog „Aufgabe anlegen", mit Titel, Priorität und Beschreibung der Vorlage vorbelegt.
+  Ohne Vorlagen zeigt der Dialog, wie du eine im Tab „Serien & Vorlagen" anlegst.
 - **Überspringen** – öffnet direkt das leere Formular; bereits eingegebener Text
   wandert in die Beschreibung.
 
@@ -306,8 +309,8 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
 
 Speichern mit **„Anlegen"** (bzw. **„Bearbeiten"**), verwerfen mit **„Abbrechen"**.
 
-> **Aufgabe oder Serie?** Beim Anlegen gibt es oben einen Schalter **„Serie"**.
-> Aus = einmalige Aufgabe, Ein = wiederkehrende Serie (siehe „Serien").
+> **Aufgabe oder Serie?** Beim Anlegen gibt es oben einen Schalter **„Serie oder Vorlage"**.
+> Aus = einmalige Aufgabe, Ein = wiederkehrende Serie oder Vorlage (siehe „Serien").
 
 ---
 
@@ -491,7 +494,7 @@ Schnellerfassung: Öffne **„Neuen Task anlegen"** und klicke im Freitext-Schri
 Mit **Serien** legst du wiederkehrende Aufgaben als Vorlage an. Aus einer Serie
 erzeugt Balamentum regelmäßig neue Aufgaben-Instanzen.
 
-- **Neue Serie anlegen:** über **„Neuen Task anlegen"** und den Schalter **„Serie"**
+- **Neue Serie anlegen:** über **„Neuen Task anlegen"** und den Schalter **„Serie oder Vorlage"**
   einschalten. Statt einer Deadline setzt du dann ein **Startdatum** und einen
   **Rhythmus**: **Täglich**, **Wöchentlich**, **Monatlich**, **Werktags** (Mo–Fr),
   **Wochenende** (Sa+So) oder an einem bestimmten Wochentag (**Montags** bis
@@ -499,18 +502,24 @@ erzeugt Balamentum regelmäßig neue Aufgaben-Instanzen.
   Wochentag fallen – sonst zeigt dir die App vor dem Speichern einen Hinweis.
   Priorität, Aufwand, Beschreibung und Säulen werden als Vorlage für
   jede Instanz übernommen.
-- **Verwalten:** im Tab **Serien** siehst du alle Serien mit ihrem Rhythmus. Dort
+- **Automatisch anlegen:** der Schalter ist beim Anlegen an. Schaltest du ihn aus,
+  legt die Serie keine Aufgaben von selbst an und gilt als **Vorlage**; Rhythmus,
+  Startdatum und **Automatisch löschen** entfallen dann (bei erneutem Einschalten sind deine
+  Werte wieder da). Im Tab
+  trägt eine solche Serie das Kennzeichen **Vorlage**.
+- **Aufgabe anlegen:** im Tab **Serien & Vorlagen** legt die Aktion **Aufgabe anlegen** (Plus-Symbol) eine
+  einzelne Aufgabe aus einer Serie oder Vorlage an. Der Dialog ist mit Titel, Priorität, Aufwand und
+  Beschreibung der Serie vorbefüllt, die Fälligkeit ist optional. Bei einer ruhenden Serie fehlt die Aktion.
+- **Verwalten:** im Tab **Serien & Vorlagen** siehst du alle Serien mit ihrem Rhythmus. Dort
   kannst du sie **bearbeiten** oder **löschen**. Beim Löschen entscheidest du zwischen
   **„Ja (Serie + alle Aufgaben)"** und **„Nein (nur Serie, Aufgaben bleiben
   eigenständig)"**: Mit **Ja** werden die offenen Instanzen mitgelöscht, mit **Nein**
   bleiben alle Aufgaben als eigenständige Aufgaben bestehen. Bereits erledigte
   Instanzen bleiben in beiden Fällen als eigenständige Aufgaben erhalten.
-- **Fällige Instanzen generieren:** der gleichnamige Button erzeugt die anstehenden
-  Aufgaben aus allen Serien – alle Termine von heute bis 30 Tage im Voraus, je Serie
-  bleiben höchstens fünf offene Instanzen übrig.
 
 Aus einer Serie entstandene Aufgaben tragen im Aufgabenbaum das Kennzeichen **Serie**;
-weichst du eine Instanz individuell ab, kommt **geändert** hinzu.
+weichst du eine Instanz individuell ab, kommt **geändert** hinzu. Aufgaben aus einer Vorlage tragen
+**Vorlage** bzw. **Vorlage (geändert)**.
 
 Hat jemand aus einer Gruppe eine Serie für dich angelegt und endet die gemeinsame
 Mitgliedschaft – weil jemand die Gruppe verlässt oder die Gruppe gelöscht wird –,
@@ -645,8 +654,10 @@ Allgemein, Säulen, Kategorien, Standort, Orte, KI, Gruppen und **Pakete & Abo**
   Bild vollständig, es steht nur still.
 - **Expertenmodus** – ist der Schalter aktiv, zeigt die App die Fach-Regler: Säulen-Prozente im
   Aufgabendialog, Gewichte im Abhängigkeits-Dialog, die Säulen-Gewichtungspflege im Tab
-  **„Säulen"** und Reichweite/Intervall im Tab **„Ortung"**. Die Wahl gilt auf diesem Gerät;
-  gespeicherte Werte bleiben auch ohne Expertenmodus erhalten.
+  **„Säulen"** und Reichweite/Intervall im Tab **„Ortung"**. Die Wahl wird am Konto gespeichert
+  und gilt auf allen Geräten, auf denen du angemeldet bist – ebenso **„KI aktivieren"**,
+  **„Balance-Priorisierung"** und **„Standort erfassen"**. Gespeicherte Werte bleiben auch ohne
+  Expertenmodus erhalten.
 - **Sprachaufnahme automatisch starten** – ist der Schalter aktiv, startet das Mikrofon
   der Sprachfelder (Aufgabenformular, Schnellerfassung, Suche), sobald du sie öffnest.
   Beim Einschalten wird der Mikrofon-Zugriff angefragt.
@@ -693,6 +704,11 @@ Schlüssel **genau einmal**; unter **„Vorhandene Access-Token"** siehst du dan
 Name, Rechtestufe, Ablauf und die letzte Nutzung. Je Token schaltest du zwischen **Nur
 lesend** und **Lesen und Schreiben** um. **„Zurückziehen"** sperrt einen Token ab dem
 nächsten Aufruf.
+
+In der Karte **Dialog-Vorgaben für die KI** hinterlegst du einen Freitext (bis 2000
+Zeichen, z. B. „Antworte kurz und knapp."). KI-Clients, die sich per Access-Token
+verbinden, erhalten ihn beim Verbindungsaufbau. **„Speichern"** übernimmt den Text; ein
+leeres Feld löscht die Vorgaben. Werkzeuge und Rechte der Tokens ändern sich dadurch nicht.
 
 ### Standort
 

@@ -29,7 +29,8 @@
 		"select": "Wybierz",
 		"back": "Wstecz",
 		"snooze": "Odłóż na chwilę",
-		"snoozed": "Zadanie odłożone. Wróci później."
+		"snoozed": "Zadanie odłożone. Wróci później.",
+		"saveAsTemplate": "Zapisz jako szablon"
 	},
 	"status": {
 		"open": "Otwarte",
@@ -156,5 +157,8 @@
 		"text": "Jesteś jedną z pierwszych osób. To, co zauważysz, nam pomaga – daj nam znać.",
 		"feedback": "Podziel się opinią",
 		"dismiss": "Zamknij"
+	},
+	"splitHint": {
+		"reason": "Duże zadania często łatwiej zacząć, gdy podzielisz je na mniejsze kroki."
 	}
 }

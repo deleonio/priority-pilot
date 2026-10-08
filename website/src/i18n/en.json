@@ -190,6 +190,8 @@
 			"groups": "Groups and invite links",
 			"voice_input": "Voice input",
 			"feedback": "Feedback and app support",
+			"sync": "Sync across all devices",
+			"knowledge_entries": "Knowledge entries for the AI",
 			"ai_assist": "AI help: pillar advisor and copy editing",
 			"graph_write": "Task dependencies",
 			"graph_weight": "Edit weighted dependencies",

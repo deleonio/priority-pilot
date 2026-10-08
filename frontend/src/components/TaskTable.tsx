@@ -17,6 +17,8 @@ interface TaskTableProps {
 	onEditDependencies: (task: Task) => void;
 	/** Legt eine neue Unteraufgabe an, die als Vorgänger mit dieser Aufgabe verknüpft wird. */
 	onAddSubtask: (task: Task) => void;
+	/** #2361: Öffnet das Serien-Formular als Vorlage, vorbelegt aus dieser Aufgabe. */
+	onSaveAsTemplate: (task: Task) => void;
 	/** Pinnt die Aufgabe an bzw. wieder ab (#1582). */
 	onPinToggle: (task: Task) => void;
 }
@@ -74,7 +76,8 @@ const renderPriorityBadge = (priority: number) => {
  * Auslöser-Button verlöre den Fokus (Voraussetzung: die Callback-Props sind in `App` stabil).
  */
 export const TaskTable = memo((props: TaskTableProps) => {
-	const { tasks, dependencyMap, onEdit, onDelete, onEditDependencies, onAddSubtask, onPinToggle } = props;
+	const { tasks, dependencyMap, onEdit, onDelete, onEditDependencies, onAddSubtask, onSaveAsTemplate, onPinToggle } =
+		props;
 	if (tasks.length === 0) {
 		return <p>Noch keine Tasks vorhanden. Lege oben einen neuen Task an.</p>;
 	}
@@ -136,8 +139,8 @@ export const TaskTable = memo((props: TaskTableProps) => {
 				{
 					key: 'actions',
 					label: 'Aktionen',
-					// Feste Breite, damit die vier Icon-Buttons der Toolbar einzeilig bleiben (sonst Umbruch).
-					width: 210,
+					// Feste Breite, damit die fünf Icon-Buttons der Toolbar einzeilig bleiben (sonst Umbruch).
+					width: 264,
 					// Aktionen als `KolToolbar` (Pfeiltasten-Navigation, gruppierte Semantik). Da eine Web
 					// Component nicht deklarativ in eine KoliBri-Zelle passt, wird sie über `render` in eine
 					// pro Zelle gecachte React-Root gemountet (siehe reactCellRoot). Icon-Buttons mit
@@ -175,6 +178,16 @@ export const TaskTable = memo((props: TaskTableProps) => {
 										_icons: { left: { icon: 'fa-solid fa-plus' } },
 										_variant: 'secondary',
 										_on: { onClick: () => onAddSubtask(task) },
+									},
+									{
+										// #2361: Mit Abstand vor „Löschen" (destruktive Aktion); Klartext-Label bleibt
+										// aria-label + Tooltip.
+										type: 'button',
+										_label: 'Als Vorlage speichern',
+										_hideLabel: true,
+										_icons: { left: { icon: 'fa-solid fa-clone' } },
+										_variant: 'secondary',
+										_on: { onClick: () => onSaveAsTemplate(task) },
 									},
 									{
 										type: 'button',

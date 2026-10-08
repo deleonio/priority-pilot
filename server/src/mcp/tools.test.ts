@@ -1011,6 +1011,9 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 			'next_task',
 			'pillar_list',
 			'pillar_weights_set',
+			// #2360: die beiden Serien-Werkzeuge stehen alphabetisch vor task_complete.
+			'series_instantiate',
+			'series_list',
 			'task_complete',
 			'task_create',
 			'task_delete',
@@ -1058,7 +1061,7 @@ describe('MCP-Werkzeug task_delete (#1396)', () => {
 		// #1413: zwei Säulen-Werkzeuge — die CRUD-Werkzeuge sind mit #1573 entfallen —,
 		// #1542: drei Gruppen-Schreibwerkzeuge). Der Vertrag ist „task_delete ist drin", nicht
 		// „es gibt genau dreizehn Werkzeuge" — die vollständige Namensliste prüft der Snapshot-Test.
-		assert.equal(names.length, 33, `Katalog sollte dreiunddreißig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 35, `Katalog sollte fünfunddreißig Namen führen, war: ${names.join(', ')}`);
 		assert.ok(names.includes('task_delete'), 'task_delete muss im Katalog stehen');
 
 		const tool = tools.find((t) => t.name === 'task_delete');
@@ -1271,7 +1274,7 @@ describe('#1420: autoDeleteAfterDeadline über task_create/task_update setzen', 
 		// Zähler wächst mit dem Katalog (#1423: balance_status, #1412: category_create/update/delete,
 		// #1413: vier Säulen-Werkzeuge, #1424: balance_history, #1542: drei Gruppen-Schreibwerkzeuge)
 		// — #1420 selbst fügt kein Werkzeug hinzu.
-		assert.equal(names.length, 33, `Katalog sollte dreiunddreißig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 35, `Katalog sollte fünfunddreißig Namen führen, war: ${names.join(', ')}`);
 	});
 });
 
@@ -1683,8 +1686,8 @@ describe('MCP-Werkzeuge category_create/category_update/category_delete (#1412)'
 		const names = tools.map((t) => t.name).sort();
 		assert.equal(
 			names.length,
-			33,
-			`Katalog sollte dreiunddreißig Namen führen (#1412, #1542, #1543, #1544; Säulen-CRUD seit #1573 entfallen), war: ${names.join(', ')}`,
+			35,
+			`Katalog sollte fünfunddreißig Namen führen (#1412, #1542, #1543, #1544; Säulen-CRUD seit #1573 entfallen), war: ${names.join(', ')}`,
 		);
 		assert.ok(names.includes('category_create'), 'category_create muss im Katalog stehen');
 		assert.ok(names.includes('category_update'), 'category_update muss im Katalog stehen');
@@ -2489,7 +2492,7 @@ describe('MCP-Werkzeuge Einladungen/Einladungslinks (#1544)', () => {
 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name);
-		assert.equal(names.length, 33, `Katalog sollte dreiunddreißig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 35, `Katalog sollte fünfunddreißig Namen führen, war: ${names.join(', ')}`);
 		for (const name of [
 			'group_invitation_list',
 			'group_invitation_create',
@@ -3021,5 +3024,498 @@ describe('MCP-Staffelungs-Hinweis (#1823)', () => {
 		const row = arc42.split('\n').find((line) => line.startsWith('| IF-07'));
 		assert.ok(row, 'IF-07-Zeile fehlt in docs/arc42.md');
 		assert.ok(row.includes(hint), 'IF-07 muss den Text von MCP_PACING_HINT enthalten');
+	});
+});
+
+/**
+ * #2144: task_list listet standardmäßig nur offene Aufgaben (docs/spec/issue-2144.md).
+ *
+ * AK1: ohne Argumente keine erledigten, `Open` und `In process` enthalten.
+ * AK2: includeDone: true liefert offene und erledigte.
+ * AK3/AK4: query filtert offene per Titel-Teilstring (case-insensitiv), Fallback auf erledigte, sonst [].
+ * AK5: Nicht-boolesches includeDone / Nicht-String query wird abgelehnt.
+ * AK6: inputSchema-Properties genau includeDone und query; Beschreibung nennt Default und Fallback.
+ *
+ * Rot, weil task_list heute keine Argumente kennt und alles aus GET /tasks durchreicht.
+ */
+describe('MCP-Werkzeug task_list: nur offene Aufgaben, Fallback auf erledigte (#2144)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => resetDb());
+	after(async () => {
+		await server.close();
+		await closeDb();
+	});
+
+	type ListedTask = { id: number; title: string; status: string };
+
+	const setup = async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		await createTaskViaApi(cookie, 'Zahnarzt anrufen');
+		const inProcessId = await createTaskViaApi(cookie, 'Steuer vorbereiten');
+		const doneId = await createTaskViaApi(cookie, 'Zahnarzt Rechnung ablegen');
+		const doneOnlyId = await createTaskViaApi(cookie, 'Gartenhaus streichen');
+		const patched = await server.json(`/tasks/${inProcessId}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({ status: 'In process' }),
+		});
+		assert.equal(patched.status, 200, 'Setup: Status In process muss setzbar sein');
+		for (const id of [doneId, doneOnlyId]) {
+			const completed = await mcpCall<{ status: string }>(token, 'task_complete', { id });
+			assert.equal(completed.result?.status, 'Done', 'Setup: Aufgabe muss erledigt sein');
+		}
+		return { token };
+	};
+
+	const titles = (tasks: ListedTask[] | undefined): string[] => (tasks ?? []).map((t) => t.title).sort();
+
+	it('AK1: ohne Argumente keine erledigten, offene und In-process-Aufgaben sind enthalten', async () => {
+		const { token } = await setup();
+		const list = await mcpCall<ListedTask[]>(token, 'task_list');
+		assert.equal(list.error, undefined);
+		assert.deepEqual(titles(list.result), ['Steuer vorbereiten', 'Zahnarzt anrufen']);
+	});
+
+	it('AK2: includeDone: true liefert offene und erledigte Aufgaben', async () => {
+		const { token } = await setup();
+		const list = await mcpCall<ListedTask[]>(token, 'task_list', { includeDone: true });
+		assert.equal(list.error, undefined);
+		assert.equal(list.result?.length, 4);
+		assert.equal(list.result?.filter((t) => t.status === 'Done').length, 2);
+	});
+
+	it('AK3: query liefert nur offene Treffer (ohne Groß-/Kleinschreibung), solange es einen gibt', async () => {
+		const { token } = await setup();
+		const list = await mcpCall<ListedTask[]>(token, 'task_list', { query: 'ZAHNARZT' });
+		assert.equal(list.error, undefined);
+		assert.deepEqual(titles(list.result), ['Zahnarzt anrufen']);
+	});
+
+	it('AK4: ohne offenen Treffer liefert query die erledigten Treffer, ohne jeden Treffer []', async () => {
+		const { token } = await setup();
+		const fallback = await mcpCall<ListedTask[]>(token, 'task_list', { query: 'gartenhaus' });
+		assert.equal(fallback.error, undefined);
+		assert.deepEqual(titles(fallback.result), ['Gartenhaus streichen']);
+		assert.equal(fallback.result?.[0]?.status, 'Done');
+
+		const none = await mcpCall<ListedTask[]>(token, 'task_list', { query: 'gibt-es-nicht' });
+		assert.equal(none.error, undefined);
+		assert.deepEqual(none.result, []);
+	});
+
+	it('AK5: nicht-boolesches includeDone und Nicht-String als query werden abgelehnt', async () => {
+		const { token } = await setup();
+		const badFlag = await mcpCall(token, 'task_list', { includeDone: 'ja' });
+		assert.ok(badFlag.error, 'includeDone: "ja" muss abgelehnt werden');
+		const badQuery = await mcpCall(token, 'task_list', { query: 42 });
+		assert.ok(badQuery.error, 'query: 42 muss abgelehnt werden');
+	});
+
+	it('AK6: inputSchema hat genau includeDone und query, Beschreibung nennt Default und Fallback', () => {
+		const tool = findMcpTool('task_list');
+		assert.ok(tool, 'task_list muss im Katalog stehen');
+		const schema = tool.inputSchema as { properties?: Record<string, unknown> };
+		assert.deepEqual(Object.keys(schema.properties ?? {}).sort(), ['includeDone', 'query']);
+		assert.match(tool.description, /open/i, 'Beschreibung muss den Default "nur offene" nennen');
+		assert.match(tool.description, /fall ?back/i, 'Beschreibung muss den Fallback nennen');
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1938 (Spec docs/spec/issue-1938.md) — Serien über task_create/task_update.
+ *
+ * AK1: task_create mit series legt eine Serie samt Instanzen an.
+ * AK2: ohne series bleibt task_create eine Einzelaufgabe.
+ * AK3: task_update mit series ändert den Rhythmus der Serie einer Instanz.
+ * AK4: ungültiger rhythm / series an Einzelaufgabe → Fehler, Bestand unverändert.
+ * AK5: Schemas führen series; der Katalog-Zähler (35) ist bereits oben abgedeckt.
+ *
+ * Rot, weil beide Werkzeuge `series` heute ignorieren (`tools.ts` task_create/task_update).
+ * KEIN Produktivcode.
+ */
+describe('MCP-Werkzeug task_create/task_update: Serien (#1938)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => resetDb());
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	type SeriesRow = { id: number; rhythm: string };
+	type TaskRow = { id: number; title: string; seriesId: number | null };
+
+	const today = (): string => {
+		const d = new Date();
+		d.setUTCHours(0, 0, 0, 0);
+		return d.toISOString();
+	};
+	const listSeries = async (cookie: string): Promise<SeriesRow[]> =>
+		(await (await server.json('/series', { headers: { Cookie: cookie } })).json()) as SeriesRow[];
+	const listTasks = async (token: string): Promise<TaskRow[]> =>
+		(await mcpCall<TaskRow[]>(token, 'task_list')).result ?? [];
+
+	it('AK1: task_create mit series legt genau eine Serie und deren Instanzen an', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const created = await mcpCall(token, 'task_create', {
+			title: 'Täglich gießen',
+			series: { rhythm: 'daily', startDate: today() },
+		});
+		assert.equal(created.error, undefined, `task_create mit series sollte gelingen: ${created.error?.message}`);
+
+		const series = await listSeries(cookie);
+		assert.equal(series.length, 1, 'genau eine Serie muss entstehen');
+		assert.equal(series[0].rhythm, 'daily');
+		const instances = (await listTasks(token)).filter((t) => t.seriesId === series[0].id);
+		assert.ok(instances.length >= 1, 'die fälligen Instanzen müssen mit der seriesId der Serie erzeugt werden');
+	});
+
+	it('#2404 AK4: task_create mit series ohne Priorität/Aufwand setzt genau einen /series-Aufruf ab und legt Serie samt Instanzen an', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const originalFetch = globalThis.fetch;
+		const seriesCalls: string[] = [];
+		globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+			const url = String(input instanceof Request ? input.url : input);
+			if (new URL(url).pathname.startsWith('/series')) {
+				seriesCalls.push(`${init?.method ?? 'GET'} ${new URL(url).pathname}`);
+			}
+			return originalFetch(input, init);
+		}) as typeof fetch;
+		try {
+			const created = await mcpCall(token, 'task_create', {
+				title: 'Täglich gießen',
+				series: { rhythm: 'daily', startDate: today() },
+			});
+			assert.equal(created.error, undefined, `task_create mit series sollte gelingen: ${created.error?.message}`);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+
+		assert.deepEqual(seriesCalls, ['POST /series'], 'genau ein Aufruf, kein /series/:id/generate');
+		const series = await listSeries(cookie);
+		assert.equal(series.length, 1);
+		const instances = (await listTasks(token)).filter((t) => t.seriesId === series[0].id);
+		assert.ok(instances.length >= 1, 'die Instanzen entstehen weiterhin');
+	});
+
+	it('AK2: task_create ohne series legt eine Einzelaufgabe ohne seriesId an, keine Serie', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const created = await mcpCall(token, 'task_create', { title: 'Einmalig' });
+		assert.equal(created.error, undefined);
+
+		const tasks = await listTasks(token);
+		assert.equal(tasks.length, 1);
+		assert.equal(tasks[0].seriesId ?? null, null, 'Einzelaufgabe darf keine seriesId tragen');
+		assert.equal((await listSeries(cookie)).length, 0, 'es darf keine Serie entstehen');
+	});
+
+	it('AK3: task_update mit series ändert den Rhythmus der Serie einer Instanz', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		await mcpCall(token, 'task_create', { title: 'Täglich', series: { rhythm: 'daily', startDate: today() } });
+		const [serie] = await listSeries(cookie);
+		const instance = (await listTasks(token)).find((t) => t.seriesId === serie?.id);
+		assert.ok(instance, 'Setup: AK1-Pfad muss eine Instanz liefern');
+
+		const updated = await mcpCall(token, 'task_update', { id: instance.id, series: { rhythm: 'weekly' } });
+		assert.equal(updated.error, undefined, `task_update mit series sollte gelingen: ${updated.error?.message}`);
+
+		const res = await server.json(`/series/${serie.id}`, { headers: { Cookie: cookie } });
+		assert.equal(((await res.json()) as SeriesRow).rhythm, 'weekly');
+	});
+
+	it('AK4: unbekannter rhythm wird abgelehnt, es entsteht keine Serie und keine Aufgabe', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const failed = await mcpCall(token, 'task_create', {
+			title: 'Kaputt',
+			series: { rhythm: 'hourly', startDate: today() },
+		});
+		assert.ok(failed.error, 'unbekannter rhythm muss als Werkzeugfehler ankommen');
+		assert.equal((await listSeries(cookie)).length, 0);
+		assert.equal((await listTasks(token)).length, 0);
+	});
+
+	it('AK4: task_update mit series an einer Aufgabe ohne seriesId wird abgelehnt, die Aufgabe bleibt unverändert', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const id = await createTaskViaApi(cookie, 'Einzeln');
+
+		const failed = await mcpCall(token, 'task_update', { id, title: 'Umbenannt', series: { rhythm: 'weekly' } });
+		assert.ok(failed.error, 'Einzelaufgabe lässt sich nicht in eine Serie umwandeln');
+		assert.equal((await listSeries(cookie)).length, 0);
+		assert.equal((await listTasks(token)).find((t) => t.id === id)?.title, 'Einzeln');
+	});
+
+	it('AK5: inputSchema von task_create und task_update führt series mit rhythm-Enum, startDate, autoCreate', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const tools = await mcpListTools(await createToken(cookie));
+		const rhythms = [
+			'daily',
+			'weekly',
+			'monthly',
+			'weekdays',
+			'weekend',
+			'mon',
+			'tue',
+			'wed',
+			'thu',
+			'fri',
+			'sat',
+			'sun',
+			'none',
+		];
+		for (const name of ['task_create', 'task_update']) {
+			const tool = tools.find((t) => t.name === name) as { description?: string; inputSchema?: unknown } | undefined;
+			assert.ok(tool, `${name} muss im Katalog stehen`);
+			const series = (
+				tool.inputSchema as {
+					properties?: Record<string, { properties?: Record<string, { enum?: string[] }> }>;
+				}
+			).properties?.series;
+			assert.ok(series, `${name}.inputSchema.properties.series fehlt`);
+			assert.deepEqual([...(series.properties?.rhythm?.enum ?? [])].sort(), [...rhythms].sort());
+			assert.ok(series.properties?.startDate, `${name}: series.startDate fehlt`);
+			assert.ok(series.properties?.autoCreate, `${name}: series.autoCreate fehlt`);
+			assert.match(tool.description ?? '', /series/i, `${name}: Beschreibung muss Serien erwähnen`);
+		}
+	});
+});
+
+/**
+ * #2145: task_update setzt `pinned` (docs/spec/issue-2145.md).
+ *
+ * AK1: tools/list deklariert `pinned` bei task_update als optionales boolean-Feld.
+ * AK2/AK3: true pinnt (pinnedAt gesetzt), false löst (pinnedAt null), auch in task_list.
+ * AK4: ein Update ohne `pinned` lässt den Pin unverändert.
+ * AK5: ein nicht-boolescher Wert endet mit Fehler, der Pin-Zustand bleibt.
+ *
+ * Rot, weil Schema und pickTaskFields `pinned` noch nicht kennen. KEIN Produktivcode.
+ */
+describe('#2145: pinned über task_update setzen', () => {
+	type Pin = { id: number; pinned: boolean; pinnedAt: string | null };
+
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => resetDb());
+	after(async () => {
+		await server.close();
+		closeDb();
+	});
+
+	const pinInList = async (token: string, id: number) =>
+		(await mcpCall<Pin[]>(token, 'task_list')).result?.find((t) => t.id === id);
+
+	it('AK1: tools/list deklariert pinned als optionales boolean-Feld von task_update', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const tool = (await mcpListTools(token)).find((t) => t.name === 'task_update');
+		const schema = tool?.inputSchema as
+			{ properties?: Record<string, { type?: string }>; required?: string[] } | undefined;
+		assert.equal(schema?.properties?.pinned?.type, 'boolean');
+		assert.ok(!schema?.required?.includes('pinned'), 'pinned darf nicht in required stehen');
+	});
+
+	it('AK2/AK3: pinned true pinnt, pinned false löst — in Antwort und task_list', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const taskId = await createTaskViaApi(cookie, 'Pin über MCP');
+
+		const pinned = await mcpCall<Pin>(token, 'task_update', { id: taskId, pinned: true });
+		assert.equal(pinned.error, undefined);
+		assert.equal(pinned.result?.pinned, true);
+		assert.ok(pinned.result?.pinnedAt, 'pinnedAt muss gesetzt sein');
+		const listed = await pinInList(token, taskId);
+		assert.equal(listed?.pinned, true);
+		assert.ok(listed?.pinnedAt);
+
+		const unpinned = await mcpCall<Pin>(token, 'task_update', { id: taskId, pinned: false });
+		assert.equal(unpinned.error, undefined);
+		assert.equal(unpinned.result?.pinned, false);
+		assert.equal(unpinned.result?.pinnedAt, null);
+		const relisted = await pinInList(token, taskId);
+		assert.equal(relisted?.pinned, false);
+		assert.equal(relisted?.pinnedAt, null);
+	});
+
+	it('AK4: ein Update ohne pinned lässt den Pin unverändert', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const taskId = await createTaskViaApi(cookie, 'Pin bleibt');
+
+		await mcpCall(token, 'task_update', { id: taskId, pinned: true });
+		const renamed = await mcpCall<Pin>(token, 'task_update', { id: taskId, title: 'Umbenannt' });
+		assert.equal(renamed.error, undefined);
+		assert.equal(renamed.result?.pinned, true, 'Pin muss nach Update ohne pinned erhalten bleiben');
+	});
+
+	it('AK5: ein nicht-boolescher Wert wird abgelehnt, der Pin-Zustand bleibt', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const taskId = await createTaskViaApi(cookie, 'Pin ungültig');
+
+		await mcpCall(token, 'task_update', { id: taskId, pinned: true });
+		const bad = await mcpCall(token, 'task_update', { id: taskId, pinned: 'yes' });
+		assert.ok(bad.error, 'pinned: "yes" muss fehlschlagen');
+		assert.match(bad.error?.message ?? '', /pinned muss ein Boolean sein\..*\(HTTP 400\)/);
+		assert.equal((await pinInList(token, taskId))?.pinned, true);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2360 (Spec docs/spec/issue-2360.md) — MCP-Werkzeuge `series_list`/`series_instantiate`.
+ *
+ * AK1: Schemas (series_instantiate: required ["id"], optionale Felder); Katalog-Zähler 35 steht oben.
+ * AK2: series_list liefert nur eigene Serien samt autoCreate.
+ * AK3: series_instantiate legt genau eine mit der Serie verknüpfte Aufgabe an, optionale Felder greifen.
+ * AK4: Nur-lese-Token → Scope-Fehler (Paket-Fall: plan-error.test.ts), keine Aufgabe.
+ * AK5: fremde/unbekannte Serien-ID → Tool-Fehler, keine Aufgabe.
+ *
+ * Rot, bis die Werkzeuge in mcpTools existieren (heute: "Unknown tool"-Fehler). KEIN Produktivcode.
+ */
+describe('MCP-Werkzeuge series_list/series_instantiate (#2360)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => resetDb());
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	type SeriesRow = { id: number; title: string; autoCreate: boolean };
+	type TaskRow = {
+		id: number;
+		title: string;
+		seriesId: number | null;
+		priority?: number;
+		deadline?: string | null;
+	};
+
+	const createSeriesViaApi = async (cookie: string, title: string, autoCreate: boolean): Promise<SeriesRow> => {
+		const startDate = new Date();
+		startDate.setUTCDate(startDate.getUTCDate() + 7);
+		startDate.setUTCHours(0, 0, 0, 0);
+		const res = await server.json('/series', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({
+				title,
+				rhythm: 'weekly',
+				priority: 3,
+				estimatedEffort: 0.5,
+				active: true,
+				startDate: startDate.toISOString(),
+				autoCreate,
+			}),
+		});
+		assert.equal(res.status, 201, 'Setup: Serie muss über die API anlegbar sein');
+		return (await res.json()) as SeriesRow;
+	};
+	const listTasks = async (token: string): Promise<TaskRow[]> =>
+		(await mcpCall<TaskRow[]>(token, 'task_list')).result ?? [];
+
+	it('AK1: series_list ohne Pflichtfelder, series_instantiate mit required ["id"] und den optionalen Feldern', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const tools = await mcpListTools(token);
+		const schemaOf = (name: string) =>
+			tools.find((t) => t.name === name)?.inputSchema as
+				{ required?: string[]; properties?: Record<string, unknown> } | undefined;
+		assert.ok(schemaOf('series_list'), 'series_list muss im Katalog stehen');
+		assert.deepEqual(schemaOf('series_list')?.required ?? [], []);
+		const instantiate = schemaOf('series_instantiate');
+		assert.ok(instantiate, 'series_instantiate muss im Katalog stehen');
+		assert.deepEqual(instantiate?.required, ['id']);
+		for (const field of ['title', 'priority', 'estimatedEffort', 'description', 'deadline']) {
+			assert.ok(instantiate?.properties?.[field], `series_instantiate.${field} fehlt im inputSchema`);
+		}
+	});
+
+	it('AK2: series_list liefert nur die eigenen Serien samt autoCreate, fremde Serien fehlen', async () => {
+		const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const own = await createSeriesViaApi(cookieA, 'Eigene Vorlage', false);
+		const foreign = await createSeriesViaApi(cookieB, 'Fremde Serie', true);
+
+		const list = await mcpCall<SeriesRow[]>(tokenA, 'series_list');
+		assert.equal(list.error, undefined, `series_list sollte gelingen: ${list.error?.message}`);
+		assert.deepEqual(
+			list.result?.map((s) => s.id),
+			[own.id],
+		);
+		assert.equal(list.result?.[0].autoCreate, false, 'autoCreate muss mitgeliefert werden');
+		assert.ok(!list.result?.some((s) => s.id === foreign.id));
+	});
+
+	it('AK3: series_instantiate legt genau eine mit der Serie verknüpfte Aufgabe an, title und deadline greifen', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const series = await createSeriesViaApi(cookie, 'Vorlage', false);
+		const before = (await listTasks(token)).length;
+		const deadline = '2031-05-01T00:00:00.000Z';
+
+		const created = await mcpCall<TaskRow>(token, 'series_instantiate', {
+			id: series.id,
+			title: 'Aus Vorlage',
+			deadline,
+		});
+		assert.equal(created.error, undefined, `series_instantiate sollte gelingen: ${created.error?.message}`);
+
+		const tasks = await listTasks(token);
+		assert.equal(tasks.length, before + 1, 'genau eine Aufgabe muss entstehen');
+		const task = tasks.find((t) => t.seriesId === series.id);
+		assert.ok(task, 'die Aufgabe muss mit der Serie verknüpft sein');
+		assert.equal(task?.title, 'Aus Vorlage');
+		assert.equal(new Date(task?.deadline ?? '').toISOString(), deadline);
+	});
+
+	it('AK4: ein Nur-lese-Token weist series_instantiate ab, series_list bleibt möglich, keine Aufgabe entsteht', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const { token } = await createReadOnlyToken(cookie);
+		const series = await createSeriesViaApi(cookie, 'Vorlage', false);
+
+		const res = await mcpCall<TaskRow>(token, 'series_instantiate', { id: series.id });
+		assert.ok(res.error, 'series_instantiate muss mit einem Nur-lese-Token fehlschlagen');
+		assert.match(res.error!.message, /read access only/);
+
+		const list = await mcpCall<SeriesRow[]>(token, 'series_list');
+		assert.equal(list.error, undefined, 'series_list muss mit einem Nur-lese-Token funktionieren');
+		assert.equal(list.result?.length, 1);
+		const tasks = await mcpCall<TaskRow[]>(token, 'task_list');
+		assert.equal(tasks.result?.length ?? 0, 0, 'es darf keine Aufgabe entstanden sein');
+	});
+
+	it('AK5: eine fremde oder unbekannte Serien-ID liefert einen Tool-Fehler, es entsteht keine Aufgabe', async () => {
+		const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const tokenB = await createToken(cookieB);
+		const foreign = await createSeriesViaApi(cookieB, 'Fremde Serie', false);
+
+		const foreignCall = await mcpCall<TaskRow>(tokenA, 'series_instantiate', { id: foreign.id });
+		assert.ok(foreignCall.error, 'fremde Serie muss abgelehnt werden');
+		assert.match(foreignCall.error.message, /nicht gefunden/, '404-Text der Route erwartet');
+		const unknownCall = await mcpCall<TaskRow>(tokenA, 'series_instantiate', { id: 999999 });
+		assert.ok(unknownCall.error, 'unbekannte Serie muss abgelehnt werden');
+		assert.match(unknownCall.error.message, /nicht gefunden/, '404-Text der Route erwartet');
+
+		assert.equal((await listTasks(tokenA)).length, 0);
+		assert.equal((await listTasks(tokenB)).filter((t) => t.seriesId === foreign.id).length, 0);
 	});
 });

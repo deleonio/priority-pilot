@@ -29,7 +29,8 @@
 		"select": "Selecteren",
 		"back": "Terug",
 		"snooze": "Even uitstellen",
-		"snoozed": "Taak even uitgesteld. Ze komt later terug."
+		"snoozed": "Taak even uitgesteld. Ze komt later terug.",
+		"saveAsTemplate": "Opslaan als sjabloon"
 	},
 	"status": {
 		"open": "Open",
@@ -156,5 +157,8 @@
 		"text": "U hoort bij de eersten. Wat u opvalt, helpt ons: laat het ons gerust weten.",
 		"feedback": "Feedback geven",
 		"dismiss": "Sluiten"
+	},
+	"splitHint": {
+		"reason": "Grote taken zijn vaak makkelijker aan te pakken als je ze in kleinere stappen opdeelt."
 	}
 }

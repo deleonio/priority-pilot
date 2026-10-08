@@ -5,6 +5,7 @@
 	"scripts": {
 		"dev": "vite --open",
 		"build": "tsc --noEmit && vite build",
+		"build:android": "tsc --noEmit && vite build --mode android",
 		"format": "prettier . --check",
 		"knip": "knip --config knip.jsonc",
 		"lint": "tsc --noEmit && eslint src e2e playwright.config.ts",

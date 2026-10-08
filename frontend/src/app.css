@@ -2567,6 +2567,24 @@ kol-toolbar {
 	}
 }
 
+/* Vorlagen-Auswahl im Schnellerfassen (#2363): immer vertikal in voller Breite (Touch-Targets ≥ 44px,
+   Muster .session-dialog-actions #1231) — die Beschriftung eines Eintrags ist der Serientitel. */
+.template-list {
+	list-style: none;
+	padding: 0;
+	margin: 1rem 0 0;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: var(--pp-gap-tight);
+}
+
+.template-list kol-button {
+	display: block;
+	width: 100%;
+	min-height: 44px;
+}
+
 /* Bestätigungs-Modal der Säulen-Gewichtung (#1574): Auf Mobilgeräten stapeln die Aktionen
    untereinander in voller Breite (Touch-Targets ≥ 44px, Muster .session-dialog-actions #1231 /
    .update-prompt #1034), ab 768px wieder kompakt rechts. Gap --pp-space-3 statt --pp-gap-tight:
@@ -3101,14 +3119,6 @@ kol-toolbar {
 /* --- Serien-Tab (#335) --- */
 /* Baum-Stil analog zur Aufgaben-Liste (`.task-tree`): rundum ohne feste Breiten, damit die Liste
    auf Mobilbreite (375px) ohne horizontales Scrollen umbricht. */
-.series-actions {
-	display: flex;
-	gap: var(--pp-gap-tight);
-	flex-wrap: wrap;
-	margin-top: var(--pp-space-2);
-	margin-bottom: var(--pp-space-4);
-}
-
 .series-tree {
 	list-style: none;
 	margin: 0;

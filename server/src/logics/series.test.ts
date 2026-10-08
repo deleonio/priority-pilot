@@ -2,7 +2,7 @@ import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { Category, Series, Task, Pillar, SeriesPillar, TaskPillar } from '../models/index.js';
 import { CATEGORY_COLORS } from '../models/categoryColors.js';
-import { generateDueInstances, materializeDueSeries } from './series.js';
+import { generateDueInstances, generateHorizonUntil, materializeDueSeries } from './series.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 
 beforeEach(resetDb);
@@ -774,5 +774,21 @@ describe('generateDueInstances — Fünfer-Grenze offener Instanzen (#1518)', ()
 		assert.equal(third.length, 1, 'genau eine Instanz rückt nach');
 		assert.equal(new Date(third[0].deadline as unknown as Date).getTime(), futureDate(5).getTime());
 		assert.equal(await Task.count({ where: { seriesId: series.id, status: ['Open', 'In process'] } }), 5);
+	});
+});
+
+// Rote Spec-Tests für #2405 — Generierungshorizont an einer Stelle berechnen (AK1).
+// `generateHorizonUntil` existiert noch nicht; der Named-Import scheitert bis zur Umsetzung
+// (legitimer erster roter Zustand). AK2 (Aufrufstellen nutzen die Funktion) ist reiner
+// Verhaltensnachweis über die bestehenden Suiten — bewusst kein eigener Test.
+describe('generateHorizonUntil — Horizont-Berechnung (#2405, AK1)', () => {
+	it('addiert genau GENERATE_HORIZON_DAYS (30) Tage UTC und erhält UTC-Mitternacht über den Monatsübergang', () => {
+		const until = generateHorizonUntil(new Date('2026-10-31T00:00:00.000Z'));
+		assert.equal(until.toISOString(), '2026-11-30T00:00:00.000Z');
+	});
+
+	it('erhält die Uhrzeit des Referenzzeitpunkts (UTC, kein Nullen)', () => {
+		const until = generateHorizonUntil(new Date('2026-03-05T13:45:00.000Z'));
+		assert.equal(until.toISOString(), '2026-04-04T13:45:00.000Z');
 	});
 });

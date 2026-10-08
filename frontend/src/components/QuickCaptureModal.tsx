@@ -1,5 +1,5 @@
 import { KolAlert, KolButton, KolCard, KolSpin, KolTextarea } from '@public-ui/react-v19';
-import type { ActivityAdvice, Category, Pillar, Task } from 'client';
+import type { ActivityAdvice, Category, Pillar, Series, Task } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -11,6 +11,7 @@ import { taskFormModalTitle } from '../lib/task';
 import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
 import { AdvisorResults } from './AdvisorResults';
 import { Modal, type ModalHandle } from './Modal';
+import { SeriesInstanceDialog } from './SeriesInstanceDialog';
 import { TaskForm, type TaskFormHandle, type TaskFormInitialValues } from './TaskForm';
 import { VoiceField } from './VoiceField';
 import { AiQuotaHint } from './AiQuotaHint';
@@ -36,12 +37,15 @@ interface QuickCaptureModalProps {
 
 /**
  * Zweistufiger Anlege-Flow (#236): Vor dem regulären Formular erscheint ein Freitext-Schritt mit
- * einer Textarea. Von dort führen drei Wege weiter (#1335 — Schnellerfassung und Säulen-Berater sind
+ * einer Textarea. Von dort führen vier Wege weiter (#1335 — Schnellerfassung und Säulen-Berater sind
  * ein einziger Dialog, es gibt keinen eigenen Berater-Dialog mehr):
  *  - „Verarbeiten und weiter" schickt den Text an `POST /tasks/parse-text` und füllt {@link TaskForm} vor,
  *  - „Beraten lassen" schickt ihn an `POST /pillars/advisor` und zeigt die Vorschläge ({@link AdvisorResults})
  *    **im selben Schritt** — ein übernommener Vorschlag landet wieder in derselben Textarea,
- *  - „Überspringen" öffnet direkt das leere Formular (ohne LLM-Aufruf).
+ *  - „Überspringen" öffnet direkt das leere Formular (ohne LLM-Aufruf),
+ *  - „Aus Vorlage" (#2363) öffnet den Schritt „Vorlage wählen"; die Wahl einer Vorlage (Serie mit
+ *    `autoCreate === false`) tauscht den Dialog-Inhalt gegen den {@link SeriesInstanceDialog} —
+ *    kein Modal-Stapel, das Schnellerfassen ist dann zu.
  *
  * **Ein einziger persistenter Dialog:** Alle Schritte rendern in denselben `Modal`/`KolDialog` — beim
  * Schrittwechsel werden nur die Kinder getauscht, der Dialog wird NICHT ab- und neu aufgebaut. Das ist
@@ -57,7 +61,7 @@ export const QuickCaptureModal = ({
 	onClose,
 	onSaved,
 }: QuickCaptureModalProps) => {
-	const [step, setStep] = useState<'capture' | 'form'>('capture');
+	const [step, setStep] = useState<'capture' | 'form' | 'template'>('capture');
 	const [prefill, setPrefill] = useState<TaskFormInitialValues>({});
 	const [parsing, setParsing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -71,6 +75,12 @@ export const QuickCaptureModal = ({
 	const [voiceAutostart] = useState(readVoiceAutostartPreference);
 	// #334: Spiegelt den im TaskForm gewählten Modus (Aufgabe/Serie) für den Dialog-Titel.
 	const [formMode, setFormMode] = useState<'task' | 'series'>('task');
+	// #2363 (AK1): Vorlagen-Schritt — `null` = lädt, sonst genau die Serien mit `autoCreate === false`
+	// (Vorlagen, Muster SeriesTab). Fehler separat, damit der Spinner stoppt statt ewig zu laufen.
+	const [templates, setTemplates] = useState<Series[] | null>(null);
+	const [templateError, setTemplateError] = useState<string | null>(null);
+	// #2363 (AK2): Gewählte Vorlage — ersetzt den Dialog-Inhalt durch den SeriesInstanceDialog (#2359).
+	const [templateTarget, setTemplateTarget] = useState<Series | null>(null);
 
 	// Der Dialog startet immer mit leerem Freitext: Seit #1335 gibt es keinen Aufrufer mehr, der Text
 	// mitbringt — die Berater-Übernahme (AK3) schreibt in denselben laufenden Dialog statt ihn mit
@@ -188,6 +198,23 @@ export const QuickCaptureModal = ({
 		}
 	};
 
+	/**
+	 * „Aus Vorlage" (#2363, AK1): lädt die Serien und öffnet im selben persistenten Dialog den Schritt
+	 * „Vorlage wählen" — genau die Einträge mit `autoCreate === false` (Muster SeriesTab.tsx:173);
+	 * `autoCreate: true`/undefiniert sind automatische Serien und erscheinen nicht.
+	 */
+	const openTemplates = async (): Promise<void> => {
+		setStep('template');
+		setTemplates(null);
+		setTemplateError(null);
+		try {
+			const series = await api.listSeries();
+			setTemplates(series.filter((entry) => entry.autoCreate === false));
+		} catch (reason) {
+			setTemplateError((await toApiError(reason)).message);
+		}
+	};
+
 	// Strg+Enter (bzw. ⌘+Enter) löst im Capture-Schritt den primären CTA „Verarbeiten und weiter" aus —
 	// nur solange dessen `_disabled`-Bedingung nicht greift (kein Parsing, Text vorhanden). Im Formular-
 	// Schritt übernimmt der `TaskForm`-eigene Hook, deshalb hier bewusst an `step === 'capture'` gebunden.
@@ -201,7 +228,14 @@ export const QuickCaptureModal = ({
 	// Der Modal-Heading bleibt im Capture-Schritt „Neuen Task anlegen"; im Formular-Schritt spiegelt er
 	// den Anlege-Kontext (bei einer Unteraufgabe die Eltern-Aufgabe) — dieselbe Beschriftung wie im
 	// eigenständigen `TaskFormModal`.
-	const title = step === 'capture' ? 'Neuen Task anlegen' : taskFormModalTitle(null, parentTask, formMode);
+	const title = step === 'form' ? taskFormModalTitle(null, parentTask, formMode) : 'Neuen Task anlegen';
+
+	// #2363 (AK2): Gewählte Vorlage → SeriesInstanceDialog („Aufgabe anlegen") statt Modal-Stapel —
+	// das Schnellerfassen wird unmountet (Muster Schrittwechsel #236, Modal.tsx), der Dialog ist das
+	// einzige offene Modal. `onCreated` läuft auf denselben Pfad wie `onSaved` (Dialog zu, Liste neu).
+	if (templateTarget !== null) {
+		return <SeriesInstanceDialog series={templateTarget} onClose={onClose} onCreated={() => onSaved()} />;
+	}
 
 	return (
 		<Modal
@@ -210,6 +244,11 @@ export const QuickCaptureModal = ({
 			onClose={() => {
 				if (step === 'form' && taskFormRef.current !== null) {
 					taskFormRef.current.requestClose();
+				} else if (step === 'template') {
+					// #2363 (AK4): Escape im Vorlagen-Schritt → zurück zum Capture (Freitext bleibt erhalten).
+					// Das native `<dialog>` hat sich schon selbst geschlossen — deshalb reopen() (Muster TaskForm).
+					setStep('capture');
+					modalRef.current?.reopen();
 				} else {
 					onClose();
 				}
@@ -217,7 +256,40 @@ export const QuickCaptureModal = ({
 			fallbackFocusRef={triggerRef}
 		>
 			<AiQuotaHint message={fairUseHint} />
-			{step === 'form' ? (
+			{step === 'template' ? (
+				<>
+					{templateError !== null && (
+						<KolAlert _type="error" _label="Vorlagen konnten nicht geladen werden">
+							{templateError}
+						</KolAlert>
+					)}
+					{templates === null ? (
+						<div className="pillar-editor-loading">
+							<KolSpin _show _variant="cycle" _label="Vorlagen werden geladen" />
+						</div>
+					) : templates.length === 0 ? (
+						// #2363 (AK3): Keine Vorlage — Hinweis mit dem Anlage-Weg statt leerer Liste.
+						<KolCard _label="Keine Vorlagen" _level={0}>
+							<p>
+								Du hast noch keine Vorlagen. Lege im Tab „Serien &amp; Vorlagen" eine Serie ohne „Automatisch anlegen"
+								an — sie erscheint dann hier als Vorlage.
+							</p>
+						</KolCard>
+					) : (
+						<ul className="template-list">
+							{templates.map((entry) => (
+								<li key={entry.id}>
+									<KolButton
+										_label={entry.title}
+										_variant="secondary"
+										_on={{ onClick: () => setTemplateTarget(entry) }}
+									/>
+								</li>
+							))}
+						</ul>
+					)}
+				</>
+			) : step === 'form' ? (
 				<TaskForm
 					ref={taskFormRef}
 					task={null}
@@ -337,6 +409,14 @@ export const QuickCaptureModal = ({
 									setStep('form');
 								},
 							}}
+						/>
+						{/* Vierter Weg (#2363): Aufgabe aus einer Vorlage (Serie ohne „Automatisch anlegen") anlegen.
+						    Bewusst `secondary` — die eine Primäraktion bleibt „Verarbeiten und weiter". */}
+						<KolButton
+							_label="Aus Vorlage"
+							_variant="secondary"
+							_disabled={parsing || advising}
+							_on={{ onClick: () => void openTemplates() }}
 						/>
 					</div>
 				</>

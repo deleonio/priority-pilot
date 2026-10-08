@@ -29,7 +29,8 @@
 		"select": "Selecionar",
 		"back": "Voltar",
 		"snooze": "Pôr de lado por um tempo",
-		"snoozed": "Tarefa posta de lado. Voltará mais tarde."
+		"snoozed": "Tarefa posta de lado. Voltará mais tarde.",
+		"saveAsTemplate": "Salvar como modelo"
 	},
 	"status": {
 		"open": "Aberto",
@@ -156,5 +157,8 @@
 		"text": "Você está entre os primeiros. O que você notar nos ajuda – conte para nós.",
 		"feedback": "Dar feedback",
 		"dismiss": "Fechar"
+	},
+	"splitHint": {
+		"reason": "Tarefas grandes costumam ser mais fáceis de começar quando você as divide em passos menores."
 	}
 }

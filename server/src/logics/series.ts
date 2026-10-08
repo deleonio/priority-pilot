@@ -13,6 +13,20 @@ interface GenerateOptions {
 	pushSender?: PushSender;
 }
 
+/** Produktpolicy: Vorlauf-Horizont in Tagen (siehe {@link generateHorizonUntil}). */
+const GENERATE_HORIZON_DAYS = 30;
+
+/**
+ * Zentraler Materialisierungs-Horizont "now + N Tage" (UTC, inklusive) für die Erstanlage von
+ * `POST /series` (#2404), `POST /series/generate-all` und den täglichen Auto-Job (#2356) — die
+ * Policy-Tage verhindern ein unbegrenztes Vorlauffenster (#2405).
+ */
+export const generateHorizonUntil = (now: Date): Date => {
+	const until = new Date(now);
+	until.setUTCDate(until.getUTCDate() + GENERATE_HORIZON_DAYS);
+	return until;
+};
+
 /**
  * Höchstzahl offener Instanzen (`status != 'Done'`) je Serie, die die Generierung vorhält (#1518).
  * Der Horizont `until` bleibt als Obergrenze bestehen — für tägliche Serien greift die Fünfer-Grenze,
@@ -24,6 +38,7 @@ const MAX_OPEN_INSTANCES = 5;
 /** Minimalvertrag der Auswahlregel — passt auf `Task`-Modelle wie auf serialisierte DTOs. */
 interface SeriesCandidate {
 	seriesId?: number | null;
+	seriesOccurrence?: Date | string | null;
 	deadline?: Date | string | null;
 	status?: string;
 }
@@ -31,7 +46,8 @@ interface SeriesCandidate {
 /**
  * Auswahlregel #1518: je `seriesId` genau EINE Instanz — die früheste offene mit Deadline ab heute
  * (UTC-Kalendertag von `now`), sonst die jüngste vergangene offene. Erledigte Instanzen sind nie
- * Repräsentant; Aufgaben ohne `seriesId` (auch abgekoppelte mit `originSeriesId`) bleiben unverändert.
+ * Repräsentant; Aufgaben ohne `seriesId` (auch abgekoppelte mit `originSeriesId`) und Instanzen ohne
+ * Termin-Anker (`seriesOccurrence` leer, #2355) bleiben unverändert.
  * Die Eingabereihenfolge bleibt erhalten — nur nicht gewählte Instanzen fallen weg. Zentrale Funktion
  * für Wald, `/next`, `/suggestions`, `/tasks/nearby` und die drei Push-Collector.
  */
@@ -51,9 +67,12 @@ export const selectSeriesRepresentatives = <T extends SeriesCandidate>(tasks: T[
 		return time >= todayTime ? time - todayTime : Number.MAX_SAFE_INTEGER / 2 + (todayTime - time);
 	};
 
+	// Nur ein ausdrückliches `null` heißt „ohne Anker“; fehlt das Feld ganz (reduzierte Kandidaten), gilt die Instanz als verankert.
+	const isAnchored = (task: T): boolean => task.seriesOccurrence !== null;
+
 	const chosen = new Map<number, T>();
 	for (const task of tasks) {
-		if (task.seriesId == null || task.status === 'Done') {
+		if (task.seriesId == null || task.status === 'Done' || !isAnchored(task)) {
 			continue;
 		}
 		const current = chosen.get(task.seriesId);
@@ -61,7 +80,7 @@ export const selectSeriesRepresentatives = <T extends SeriesCandidate>(tasks: T[
 			chosen.set(task.seriesId, task);
 		}
 	}
-	return tasks.filter((task) => task.seriesId == null || chosen.get(task.seriesId) === task);
+	return tasks.filter((task) => task.seriesId == null || !isAnchored(task) || chosen.get(task.seriesId) === task);
 };
 
 /** Vorlauf (Issue #1641): Aufgaben mit `deadline` mehr als so viele Kalendertage in der Zukunft werden zurückgehalten. */
@@ -147,6 +166,115 @@ export const nextOccurrence = (date: Date, rhythm: SeriesRhythm, anchorDay: numb
 	return next;
 };
 
+/** Felder, die sich eine Instanz je Aufruf von der Serie unterscheiden dürfen. */
+type InstanceFields = Partial<Pick<Task, 'title' | 'priority' | 'estimatedEffort' | 'description'>> & {
+	deadline: Date | null;
+	seriesOccurrence: Date | null;
+	userId: number | null;
+	isException?: boolean;
+};
+
+/**
+ * Legt eine Instanz als Snapshot der Serie an (gemeinsame Kopierlogik von {@link generateDueInstances}
+ * und {@link createOnDemandInstance}): Defaults, Ortsbezug (#1063/#1066), Provenienz (#553),
+ * Auto-Lösch-Option (#523), Kategorie und Säulen werden zum Anlagezeitpunkt kopiert — spätere
+ * Template-Änderungen wirken nur auf künftige Instanzen (die Kaskade in PATCH /series zieht offene mit).
+ */
+const createInstanceFromSeries = async (
+	series: Series,
+	pillarRows: SeriesPillar[],
+	fields: InstanceFields,
+): Promise<Task> => {
+	const instance = await Task.create({
+		title: fields.title ?? series.title,
+		priority: fields.priority ?? series.priority,
+		estimatedEffort: fields.estimatedEffort ?? series.estimatedEffort,
+		description: fields.description !== undefined ? fields.description : (series.description ?? null),
+		address: series.address ?? null,
+		latitude: series.latitude ?? null,
+		longitude: series.longitude ?? null,
+		deadline: fields.deadline,
+		seriesId: series.id,
+		seriesOccurrence: fields.seriesOccurrence,
+		isException: fields.isException ?? false,
+		// #553: `seriesId` ist der Live-Link (fällt beim Abkoppeln auf null), `originSeriesId` bleibt Herkunftsnachweis.
+		originSeriesId: series.id,
+		userId: fields.userId,
+		autoDeleteAfterDeadline: series.autoDeleteAfterDeadline,
+		categoryId: series.categoryId ?? null,
+	});
+	if (pillarRows.length > 0) {
+		await TaskPillar.bulkCreate(
+			pillarRows.map((r) => ({
+				taskId: instance.id,
+				pillarId: r.pillarId,
+				share: r.share,
+				confidence: r.confidence,
+			})),
+		);
+	}
+	return instance;
+};
+
+/**
+ * #1253: Erzeugt ein Lauf Instanzen einer fremd angelegten Serie (A für B), erhält B genau eine
+ * gebündelte Nachricht. Die Stille-Entscheidung (Selbst-Anlage/Alt-Bestand) trifft `notifySeriesGenerated`;
+ * Restfehler werden nur protokolliert, damit das Anlegen unberührt bleibt (AK5, Muster routes/tasks.ts #1224).
+ */
+const notifyCreatorOfInstances = async (series: Series, created: Task[], pushSender?: PushSender): Promise<void> => {
+	if (created.length > 0 && series.createdById != null && series.createdById !== series.userId) {
+		try {
+			const creator = await User.findByPk(series.createdById);
+			await notifySeriesGenerated(series, created, creator, pushSender);
+		} catch (error) {
+			console.warn(`Benachrichtigung zur Serie ${series.id} fehlgeschlagen:`, error);
+		}
+	}
+};
+
+/** Überschreibbare Felder einer Abruf-Aufgabe (#2357); nicht gesetzte Werte kommen von der Serie. */
+export interface OnDemandOverrides {
+	title?: string;
+	priority?: number;
+	estimatedEffort?: number;
+	description?: string | null;
+	deadline?: Date;
+}
+
+/**
+ * #2357: Legt genau eine Aufgabe aus der Serie auf Abruf an — unabhängig von `autoCreate`, ohne
+ * Fünfer-Grenze und ohne Termin-Anker (`seriesOccurrence` leer). Weicht ein mitgegebener Wert von der
+ * Serie ab (`deadline` zählt nicht), gilt die Aufgabe als `isException`. Eine ruhende Serie legt nichts
+ * an (`null`).
+ */
+export const createOnDemandInstance = async (
+	series: Series,
+	overrides: OnDemandOverrides,
+	pushSender?: PushSender,
+): Promise<Task | null> => {
+	if (!series.active) {
+		return null;
+	}
+	const pillarRows = await SeriesPillar.findAll({ where: { seriesId: series.id } });
+	const isException =
+		(overrides.title !== undefined && overrides.title !== series.title) ||
+		(overrides.priority !== undefined && overrides.priority !== series.priority) ||
+		(overrides.estimatedEffort !== undefined && overrides.estimatedEffort !== series.estimatedEffort) ||
+		(overrides.description !== undefined && overrides.description !== (series.description ?? null));
+	const instance = await createInstanceFromSeries(series, pillarRows, {
+		title: overrides.title,
+		priority: overrides.priority,
+		estimatedEffort: overrides.estimatedEffort,
+		description: overrides.description,
+		deadline: overrides.deadline ?? null,
+		seriesOccurrence: null,
+		userId: series.userId ?? null,
+		isException,
+	});
+	await notifyCreatorOfInstances(series, [instance], pushSender);
+	return instance;
+};
+
 /**
  * Materialisiert aus einem Serien-Template alle fälligen Termine im Fenster `[startDate, until]` als
  * eigenständige `Task`-Instanzen (Habits, #120). Gibt **nur die neu erzeugten** Instanzen zurück.
@@ -167,7 +295,8 @@ export const nextOccurrence = (date: Date, rhythm: SeriesRhythm, anchorDay: numb
  * später wieder aktiviert wurde).
  */
 export const generateDueInstances = async (series: Series, options: GenerateOptions): Promise<Task[]> => {
-	if (!series.active) {
+	// #2355: `autoCreate: false` = reine Vorlage, Instanzen entstehen nur auf Abruf.
+	if (!series.active || !series.autoCreate) {
 		return [];
 	}
 
@@ -220,62 +349,17 @@ export const generateDueInstances = async (series: Series, options: GenerateOpti
 			continue;
 		}
 		budget -= 1;
-		const instance = await Task.create({
-			title: series.title,
-			priority: series.priority,
-			estimatedEffort: series.estimatedEffort,
-			description: series.description ?? null,
-			// #1063: Serien-Ortsbezug wird als Snapshot auf jede Instanz vererbt (Semantik wie
-			// `description`): Template-Änderungen wirken nur auf künftige Instanzen.
-			address: series.address ?? null,
-			// #1066: Koordinaten-Snapshot analog `address` — Koordinaten sind stabil, spätere
-			// Template-Änderungen wirken nur auf künftige Instanzen (#553-Muster).
-			latitude: series.latitude ?? null,
-			longitude: series.longitude ?? null,
+		const instance = await createInstanceFromSeries(series, pillarRows, {
 			deadline: occurrence,
-			seriesId: series.id,
 			seriesOccurrence: occurrence,
-			isException: false,
-			// #553: Provenienz einmalig und dauerhaft festhalten. `seriesId` ist der Live-Link (fällt beim
-			// Abkoppeln auf null), `originSeriesId` bleibt als Herkunftsnachweis auch nach Serien-Löschung.
-			originSeriesId: series.id,
 			// #1222: Die Instanz gehört dem Serien-Eigentümer — bei einer Serie für ein anderes
-			// Gruppenmitglied (#1222) trägt sie dessen `userId`, nicht den des auslösenden Laufs.
-			// `options.userId` (Sammel-Lauf des Eigentümers) bleibt harmlos identisch.
+			// Gruppenmitglied trägt sie dessen `userId`, nicht den des auslösenden Laufs.
 			userId: options.userId ?? series.userId ?? null,
-			// #523: Auto-Lösch-Option wird vom Template auf jede generierte Instanz vererbt (Snapshot zum
-			// Generierungszeitpunkt, wie die übrigen Default-Werte — AK3/AK4).
-			autoDeleteAfterDeadline: series.autoDeleteAfterDeadline,
-			// Kategorie-Snapshot analog `address`: Eine spätere Template-Änderung wirkt nur auf künftige
-			// Instanzen (die Kaskade in PATCH /series zieht offene Instanzen auf Wunsch mit).
-			categoryId: series.categoryId ?? null,
 		});
-		if (pillarRows.length > 0) {
-			await TaskPillar.bulkCreate(
-				pillarRows.map((r) => ({
-					taskId: instance.id,
-					pillarId: r.pillarId,
-					share: r.share,
-					confidence: r.confidence,
-				})),
-			);
-		}
 		created.push(instance);
 	}
 
-	// #1253: Erzeugt dieser Lauf Instanzen einer fremd angelegten Serie (A für B), erhält B genau
-	// eine gebündelte Nachricht. Der Auslöser sitzt bewusst in der Generierungslogik (nicht im
-	// Router), damit beide Endpunkte und künftige Aufrufer ihn teilen; die Stille-Entscheidung
-	// (Selbst-Anlage/Alt-Bestand) trifft `notifySeriesGenerated`. Restfehler werden gefangen und
-	// nur protokolliert, damit die Generierung unberührt bleibt (AK5, Muster routes/tasks.ts #1224).
-	if (created.length > 0 && series.createdById != null && series.createdById !== series.userId) {
-		try {
-			const creator = await User.findByPk(series.createdById);
-			await notifySeriesGenerated(series, created, creator, options.pushSender);
-		} catch (error) {
-			console.warn(`Benachrichtigung zur Serie ${series.id} fehlgeschlagen:`, error);
-		}
-	}
+	await notifyCreatorOfInstances(series, created, options.pushSender);
 	return created;
 };
 

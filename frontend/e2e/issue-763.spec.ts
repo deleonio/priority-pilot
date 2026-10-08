@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 
 import { expect, test } from './fixtures';
-import { registerOwnSession, waitForStableView } from './helpers';
+import { registerOwnSession, seedAccountPreferences, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #763 „Säulen-Gewichtung Layout-Optimierung".
@@ -18,6 +18,8 @@ import { registerOwnSession, waitForStableView } from './helpers';
 test.beforeEach(async ({ page }) => {
 	// Eigene Session: ohne Konto gilt `GET /pillars` über alle Säulen der Shard-DB (Slider-Index 37+).
 	await registerOwnSession(page, 'pillar-layout-763');
+	// Test-Pflege #2398: Expertenmodus liegt am Konto — der App-Start überschreibt den localStorage-Seed.
+	await seedAccountPreferences(page, { expertMode: true });
 	await page.addInitScript(() => {
 		localStorage.setItem('pp-expert-mode', 'true');
 	});

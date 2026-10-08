@@ -27,12 +27,16 @@ import { createMagicLinkRouter } from './routes/magicLink.js';
 import { createPushRouter } from './routes/push.js';
 import { createMailRouter } from './routes/mail.js';
 import { createLlmProvidersRouter } from './routes/llmProviders.js';
-import { geoConfigRouter } from './routes/geoConfig.js';
+import { geoConfigRouter, resolveGeoUser } from './routes/geoConfig.js';
+import { mcpInstructionsRouter } from './routes/mcpInstructions.js';
 import { careConfigRouter } from './routes/careConfig.js';
+import { splitHintConfigRouter } from './routes/splitHintConfig.js';
 import { kpisRouter } from './routes/kpis.js';
 import { createBalanceVariantRouter } from './routes/balanceVariant.js';
+import { createAccountPreferencesRouter } from './routes/accountPreferences.js';
 import { apiTokensRouter } from './routes/apiTokens.js';
 import { placeFavoritesRouter } from './routes/placeFavorites.js';
+import { knowledgeEntriesRouter } from './routes/knowledgeEntries.js';
 import { journalRouter } from './routes/journal.js';
 import { calendarRouter } from './routes/calendar.js';
 import { freeSlotsRouter } from './routes/freeSlots.js';
@@ -66,10 +70,17 @@ import type { PushSender } from '../logics/push.js';
 import type { MailSender } from '../logics/mail.js';
 import { buildTaskForest } from '../logics/tree.js';
 import { buildTaskGraph } from '../logics/graph.js';
-import { findNextBewertung, findSuggestedBewertungen, toReasons, toScoreBreakdown } from '../logics/find.js';
+import {
+	erkenneAufteilenHinweis,
+	findNextBewertung,
+	findSuggestedBewertungen,
+	toReasons,
+	toScoreBreakdown,
+} from '../logics/find.js';
 import { isDbEmailAllowed, isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
 import { requireAuth, getUserId, hasGoogleOAuth } from './requireAuth.js';
 import { apiTokenAuth, isApiTokenRequest, apiTokenScopeGuard } from './apiTokenAuth.js';
+import { nativeCors } from './nativeCors.js';
 import { createCsrfUtilities } from './csrf.js';
 import { upsertOAuthUser } from '../logics/oauthUser.js';
 import { sendError } from './http-error.js';
@@ -114,6 +125,9 @@ export interface AppDeps {
 export const createApp = (deps: AppDeps = {}) => {
 	const app = express();
 	app.set('trust proxy', 1);
+
+	// CORS für die Android-App (#2377): ganz vorn, damit Preflights vor Session, CSRF und Auth enden.
+	app.use(nativeCors);
 
 	// Zahlungsanbieter-Schnittstelle (#1495): bewusst VOR `express.json()`, der CSRF-Prüfung und
 	// `requireAuth` gemountet — die Webhook-Route braucht den unveränderten Rohbody für die
@@ -327,10 +341,16 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Pro-User Geo-Konfiguration: Anzeige-/Alarm-Entfernung, Intervall (#1098).
 	app.use(geoConfigRouter);
 	app.use(careConfigRouter);
+	// Aufteilen-Hinweis-Schalter pro User (#1994).
+	app.use(splitHintConfigRouter);
+	// Dialog-Vorgaben für die per MCP verbundene KI (#1935).
+	app.use(mcpInstructionsRouter);
 	// KPI-Share-Ping der Wochenkarte (#1989) — bewusst HINTER `requireAuth` (401 anonym).
 	app.use(kpisRouter);
 	// Zifferblatt-Auswahl am Konto (#2009) — der GET stellt den CSRF-Token als Antwort-Header bereit.
 	app.use(createBalanceVariantRouter(csrf));
+	// Inhaltliche Präferenzen am Konto (#2398) — Muster wie die Zifferblatt-Auswahl.
+	app.use(createAccountPreferencesRouter(csrf));
 
 	// Persönliche API-Tokens für externe Clients (#1352): anlegen, listen, zurückziehen.
 	app.use(apiTokensRouter);
@@ -343,6 +363,9 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Gespeicherte Orte (#1342): pro Nutzer benannte Adressen für das Adressfeld von Aufgabe/Serie.
 	app.use(placeFavoritesRouter);
+
+	// Wissens-Einträge (#1936): persönliche Hinweise für die Säulenzuordnung, nur Pro.
+	app.use(knowledgeEntriesRouter);
 
 	// Journal-Einträge (#2212): anlegen, listen, bearbeiten, löschen.
 	app.use(journalRouter);
@@ -451,9 +474,17 @@ export const createApp = (deps: AppDeps = {}) => {
 	// GET /next — nächsten wichtigen Task ermitteln (oder null) — auf den eingeloggten Nutzer gefiltert.
 	app.get('/next', async (req, res: express.Response<RecommendationDto | null | ErrorDto>) => {
 		try {
-			const next = await findNextBewertung(getUserId(req));
+			const userId = getUserId(req);
+			const next = await findNextBewertung(userId);
 			// #1985: Begründungswerte additiv; ohne Anteile entfällt `reasons` komplett.
-			const reasons = next ? toReasons(next) : undefined;
+			let reasons = next ? toReasons(next) : undefined;
+			// #1994: Aufteilen-Hinweis — unabhängig von den Score-Anteilen, per Nutzer-Schalter abschaltbar.
+			if (next && (await resolveGeoUser(req))?.splitHintEnabled !== false) {
+				const split = await erkenneAufteilenHinweis(next.task, userId);
+				if (split) {
+					reasons = { ...reasons, split };
+				}
+			}
 			res.json(
 				next
 					? { ...serializeTask(next.task), scoreBreakdown: toScoreBreakdown(next), ...(reasons ? { reasons } : {}) }

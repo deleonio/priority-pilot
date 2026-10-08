@@ -3,6 +3,7 @@ import type { Category, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { extractLeaves } from '../lib/extractLeaves';
+import { seriesBadge } from '../lib/series';
 import { CategoryBadge } from './CategoryBadge';
 import { GeoBadge } from './GeoBadge';
 import { PillarMissingBadge } from './PillarMissingBadge';
@@ -14,6 +15,9 @@ import { setupPopoverAlignment } from '../lib/popoverAlign';
 
 /** Anzeigename der KI-Eignungs-Kategorie (#2349). */
 const AI_SUITABILITY_LABEL = { draft: 'Entwurf', summary: 'Zusammenfassung', research: 'Recherche' } as const;
+
+/** Stabiler Default für `seriesById` (kein neues Map-Objekt je Render). */
+const NO_SERIES: ReadonlyMap<number, { autoCreate?: boolean }> = new Map();
 
 interface TaskTreeProps {
 	/** Aufgabenwald (`GET /forest`), ggf. bereits gefiltert (`filterForest`): Wurzeln und ihre `dependents` (Unteraufgaben). */
@@ -47,11 +51,15 @@ interface TaskTreeProps {
 	 * aus — es trüge sonst jede Zeile, ohne dass es etwas zu entscheiden gäbe.
 	 */
 	pillars?: Pillar[];
+	/** Serien des Nutzers je ID (#2359): Aufgaben aus Vorlagen (`autoCreate === false`) tragen „Vorlage“ statt des Serien-Icons. */
+	seriesById?: ReadonlyMap<number, { autoCreate?: boolean }>;
 	onEdit: (task: Task) => void;
 	onDelete: (task: Task) => void;
 	onEditDependencies: (task: Task) => void;
 	/** Legt eine neue Unteraufgabe an, die als Vorgänger mit dieser Aufgabe verknüpft wird. */
 	onAddSubtask: (task: Task) => void;
+	/** #2361: Öffnet das Serien-Formular als Vorlage, vorbelegt aus dieser Aufgabe. */
+	onSaveAsTemplate: (task: Task) => void;
 	/** Schaltet eine Aufgabe per binärem Toggle zwischen „Erledigt" und „Offen" um (#315). */
 	onDoneToggle: (task: Task) => Promise<void>;
 	/** Pinnt die Aufgabe an bzw. wieder ab (#1582). */
@@ -74,12 +82,14 @@ interface LeafItemProps {
 	categories: Category[];
 	/** Hat der Nutzer überhaupt Säulen angelegt? Nur dann ist ein fehlender Beitrag eine Aussage. */
 	pillarsConfigured: boolean;
+	seriesById: ReadonlyMap<number, { autoCreate?: boolean }>;
 	/** Virtuelle Balance-Priorität dieses Tasks; `null` → Original-P-Badge. */
 	balancePriority?: BalancePriority | null;
 	onEdit: (task: Task) => void;
 	onDelete: (task: Task) => void;
 	onEditDependencies: (task: Task) => void;
 	onAddSubtask: (task: Task) => void;
+	onSaveAsTemplate: (task: Task) => void;
 	onDoneToggle: (task: Task) => Promise<void>;
 	onPinToggle: (task: Task) => void;
 }
@@ -104,11 +114,13 @@ const LeafItem = ({
 	userId,
 	categories,
 	pillarsConfigured,
+	seriesById,
 	balancePriority,
 	onEdit,
 	onDelete,
 	onEditDependencies,
 	onAddSubtask,
+	onSaveAsTemplate,
 	onDoneToggle,
 	onPinToggle,
 }: LeafItemProps) => {
@@ -136,6 +148,11 @@ const LeafItem = ({
 	// #1213: Ersteller-Sicht auf eine abgegebene Aufgabe — lesbar, aber ohne Schreibrechte (AK5).
 	// Die Aktionen werden ausgeblendet statt anklickbar angeboten, sonst endet jede Aktion in 404.
 	const handedOff = task?.forUserId != null;
+	// #2359: Aufgabe aus einer Vorlage — Text-Badge „Vorlage“/„Vorlage (geändert)“ statt Serien-Icon + „geändert“.
+	const templateBadge =
+		task !== null && task.seriesId != null && seriesById.get(task.seriesId)?.autoCreate === false
+			? seriesBadge(task, seriesById)
+			: null;
 
 	// P2-2: Farb-Mapping für Prioritäts-Badges (analog URGENCY_COLOR im Dashboard).
 	const PRIORITY_COLOR: Record<'info' | 'warning' | 'danger', string> = {
@@ -196,11 +213,15 @@ const LeafItem = ({
 						<CategoryBadge category={categories.find((category) => category.id === node.categoryId)} />
 						{/* #1518: Serien-Icon mit Screenreader-Text statt Text-Badge „Serie" — die Liste zeigt je
 						    Serie nur die aktuelle Instanz. */}
-						{task !== null && task.seriesId != null && <SeriesBadge />}
+						{templateBadge !== null ? (
+							<KolBadge _label={templateBadge.label} className="task-tree-badge" />
+						) : (
+							task !== null && task.seriesId != null && <SeriesBadge />
+						)}
 						{/* #1582: Der Pin-Zustand steht als Icon-Badge in derselben Zeile wie Serie/Ort — die
 						    Pin-Aktion selbst liegt im „…"-Popover (siehe Toolbar unten). */}
 						{task !== null && task.pinned && <PinnedBadge />}
-						{task !== null && task.isException && (
+						{task !== null && task.isException && templateBadge === null && (
 							<KolBadge _label="geändert" _color="#c66a00" className="task-tree-badge" />
 						)}
 						{/* #1465: Zahlt die Aufgabe auf keine Säule ein, zeigt die Zeile das Säulen-Badge —
@@ -297,6 +318,20 @@ const LeafItem = ({
 											},
 										},
 										{
+											// #2361: Mit Abstand vor „Löschen" (destruktive Aktion); Popover schließt sich
+											// wie bei „Unteraufgabe anlegen", damit der Dialog den Trigger kennt.
+											type: 'button',
+											_label: 'Als Vorlage speichern',
+											_hideLabel: true,
+											_icons: { left: { icon: 'fa-solid fa-clone' } },
+											_variant: 'secondary',
+											_on: {
+												onClick: () => {
+													void Promise.resolve(popoverRef.current?.hidePopover()).then(() => onSaveAsTemplate(task));
+												},
+											},
+										},
+										{
 											// #1582: Der Pin-Toggle liegt als vorletztes Toolbar-Item vor „Löschen", statt als
 											// eigener Schalter in der Zeile. Wie beim Erledigt-Toggle bewusst KEIN
 											// `hidePopover()`: mehrfaches Umschalten soll ohne Neuöffnen möglich bleiben.
@@ -371,10 +406,12 @@ export const TaskTree = ({
 	onDelete,
 	onEditDependencies,
 	onAddSubtask,
+	onSaveAsTemplate,
 	onDoneToggle,
 	onPinToggle,
 	categories = [],
 	pillars = [],
+	seriesById = NO_SERIES,
 	balancePriorities = null,
 }: TaskTreeProps) => {
 	const pillarsConfigured = pillars.length > 0;
@@ -431,11 +468,13 @@ export const TaskTree = ({
 					userId={userId}
 					categories={categories}
 					pillarsConfigured={pillarsConfigured}
+					seriesById={seriesById}
 					balancePriority={balancePriorities?.get(node.id) ?? null}
 					onEdit={onEdit}
 					onDelete={onDelete}
 					onEditDependencies={onEditDependencies}
 					onAddSubtask={onAddSubtask}
+					onSaveAsTemplate={onSaveAsTemplate}
 					onDoneToggle={onDoneToggle}
 					onPinToggle={onPinToggle}
 				/>

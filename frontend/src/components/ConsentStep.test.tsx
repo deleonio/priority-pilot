@@ -126,11 +126,21 @@ describe('ConsentStep — Rechtstexte lesen (#2227)', () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 		open(/Nutzungsbedingungen lesen/);
 		expect(await screen.findByText('Konto-Text')).toBeTruthy();
-		expect(fetchedUrls()).toEqual(['/nutzungsbedingungen/']);
+		expect(fetchedUrls()).toEqual([`${window.location.origin}/nutzungsbedingungen/`]);
 		expect(screen.queryByText('Website-Kopf')).toBeNull();
 		expect(screen.queryByText('Website-Fuss')).toBeNull();
 		expect(container.querySelector('a[target="_blank"]')).toBeNull();
 		expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+	});
+
+	it('#2378 AK4: mit VITE_SITE_URL lädt der Rechtstext von der Site-URL', async () => {
+		vi.stubEnv('VITE_SITE_URL', 'https://balamentum.example');
+		respond(PAGE('<p>Konto-Text</p>'));
+		render(<ConsentStep onAccepted={vi.fn()} />);
+		open(/Nutzungsbedingungen lesen/);
+		expect(await screen.findByText('Konto-Text')).toBeTruthy();
+		expect(fetchedUrls()).toEqual(['https://balamentum.example/nutzungsbedingungen/']);
+		vi.unstubAllEnvs();
 	});
 
 	it('AK2: Datenschutzerklärung lädt /datenschutz/; erneutes Aufklappen lädt nicht neu', async () => {
@@ -141,7 +151,7 @@ describe('ConsentStep — Rechtstexte lesen (#2227)', () => {
 		open(/Datenschutzerklärung lesen/);
 		open(/Datenschutzerklärung lesen/);
 		expect(await screen.findByText('Daten-Text')).toBeTruthy();
-		expect(fetchedUrls()).toEqual(['/datenschutz/']);
+		expect(fetchedUrls()).toEqual([`${window.location.origin}/datenschutz/`]);
 	});
 
 	it.each([
@@ -153,7 +163,7 @@ describe('ConsentStep — Rechtstexte lesen (#2227)', () => {
 		open(/Nutzungsbedingungen lesen/);
 		const alert = await screen.findByRole('alert');
 		const fallback = within(alert).getByRole('link');
-		expect(fallback.getAttribute('href')).toBe('/nutzungsbedingungen/');
+		expect(fallback.getAttribute('href')).toBe(`${window.location.origin}/nutzungsbedingungen/`);
 		expect(fallback.getAttribute('target')).toBe('_blank');
 		const [terms] = screen.getAllByRole('checkbox') as HTMLInputElement[];
 		fireEvent.click(terms);
@@ -195,7 +205,7 @@ describe('ConsentStep Rechtstext-Hinweis (#2226)', () => {
 		expect(screen.getByText(hint!)).toBeTruthy();
 		fireEvent.click(screen.getByText(en.consent.readTerms));
 		const fallback = within(await screen.findByRole('alert')).getByRole('link');
-		expect(fallback.getAttribute('href')).toBe('/nutzungsbedingungen/');
+		expect(fallback.getAttribute('href')).toBe(`${window.location.origin}/nutzungsbedingungen/`);
 		expect(fallback.getAttribute('hreflang')).toBe('de');
 		vi.unstubAllGlobals();
 	});

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import passport from 'passport';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 import { createNativeLoginCode } from '../logics/magicLink.js';
+import { ApiToken } from '../models/index.js';
 
 /**
  * Login der nativen App (#1669, ADR 0016): `/auth/google?client=app&state=…` endet mit einem an
@@ -103,5 +104,28 @@ describe('Login der nativen App mit Einmal-Code (#1669)', () => {
 
 		assert.equal((await exchange('manipuliert')).status, 400);
 		assert.equal((await exchange(undefined)).status, 400);
+	});
+
+	// #2377 AK1/AK8 (docs/spec/issue-2377.md): im Kanal `play` liefert der Tausch ein App-Token.
+	it('AK1: mit X-Client-Channel: play antwortet der Tausch 200 mit { token }, das /auth/me als Nutzer authentifiziert', async () => {
+		const code = await createNativeLoginCode(EMAIL, STATE);
+		const res = await server.json('/auth/native/exchange', {
+			method: 'POST',
+			headers: { 'X-Client-Channel': 'play' },
+			body: JSON.stringify({ code, state: STATE }),
+		});
+		assert.equal(res.status, 200);
+		const { token } = (await res.json()) as { token?: string };
+		assert.ok(token, 'Antwort enthaelt token');
+		const me = await server.json('/auth/me', { headers: { Authorization: `Bearer ${token}` } });
+		assert.equal(me.status, 200);
+		assert.equal(((await me.json()) as { email: string }).email, EMAIL);
+	});
+
+	it('AK8: ohne Kanal-Header bleibt es bei 204 + Session-Cookie, es entsteht kein Token', async () => {
+		const res = await exchange(await createNativeLoginCode(EMAIL, STATE));
+		assert.equal(res.status, 204);
+		cookieOf(res);
+		assert.equal(await ApiToken.count(), 0);
 	});
 });

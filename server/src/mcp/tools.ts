@@ -12,6 +12,8 @@
  * LLM-Clients, während die Weboberfläche und die durchgereichten Route-Fehlertexte deutsch bleiben.
  */
 
+import type { SeriesRhythm } from '../models/series.js';
+
 /** Aufrufkontext eines Werkzeugs: Basis-URL des eigenen Servers + Bearer-Token des Aufrufers. */
 export interface McpToolContext {
 	/** z. B. `http://127.0.0.1:3000` — feste Loopback-Adresse mit dem Port, auf dem der Prozess lauscht. */
@@ -26,6 +28,8 @@ interface McpPropertySchema {
 	description: string;
 	/** Nur bei `type: 'array'` gesetzt: Objektschema der Array-Einträge. */
 	items?: { type: 'object'; properties: Record<string, { type: string; description: string }> };
+	/** Nur bei `type: 'object'` gesetzt: Eigenschaften des verschachtelten Objekts. */
+	properties?: Record<string, { type: string; description: string; enum?: readonly string[] }>;
 }
 
 /** JSON-Schema eines Werkzeug-Eingangs (Teilmenge, die MCP-Clients auswerten). */
@@ -156,6 +160,7 @@ const pickTaskFields = (args: Record<string, unknown>): Record<string, unknown> 
 		'status',
 		'pillars',
 		'autoDeleteAfterDeadline',
+		'pinned',
 	]) {
 		if (args[key] !== undefined) {
 			fields[key] = args[key];
@@ -262,6 +267,58 @@ const taskFieldProperties = {
 	},
 } as const;
 
+/** Alle Serien-Rhythmen als Enum des `series`-Parameters; `satisfies` hält die Liste am Modell-Typ fest. */
+const SERIES_RHYTHMS = [
+	'daily',
+	'weekly',
+	'monthly',
+	'weekdays',
+	'weekend',
+	'mon',
+	'tue',
+	'wed',
+	'thu',
+	'fri',
+	'sat',
+	'sun',
+	'none',
+] as const satisfies readonly SeriesRhythm[];
+
+/** Serienparameter von `task_create`/`task_update` — dieselben Felder wie `POST`/`PATCH /series`. */
+const seriesProperty = {
+	type: 'object',
+	description:
+		'Makes the task recurring (series). On task_create: creates the series and its due instances ' +
+		'instead of a single task; startDate (ISO-8601, required unless rhythm is "none") is the first ' +
+		'occurrence and, for rhythms mon-sun, must fall on that weekday. On task_update: changes the series of ' +
+		'a task that already belongs to one (changes affect future instances only); a single task cannot be ' +
+		'converted into a series. autoCreate false makes the series a template without automatic instances ' +
+		'(required with rhythm "none").',
+	properties: {
+		rhythm: { type: 'string', description: 'Repetition rhythm of the series.', enum: SERIES_RHYTHMS },
+		startDate: { type: 'string', description: 'First occurrence as ISO-8601 timestamp.' },
+		autoCreate: {
+			type: 'boolean',
+			description: 'Whether instances are created automatically (default true); false = template only.',
+		},
+	},
+} as const;
+
+/** Serienfelder aus dem `series`-Argument; die Route validiert Inhalt und Pflichtfelder. */
+const pickSeriesFields = (series: unknown): Record<string, unknown> => {
+	if (typeof series !== 'object' || series === null || Array.isArray(series)) {
+		throw new Error('series must be an object.');
+	}
+	const fields: Record<string, unknown> = {};
+	for (const key of ['rhythm', 'startDate', 'autoCreate']) {
+		const value = (series as Record<string, unknown>)[key];
+		if (value !== undefined) {
+			fields[key] = value;
+		}
+	}
+	return fields;
+};
+
 /** @public Staffelungs-Regel für KI-Clients (nur Tests importieren sie); hängt an jeder Werkzeugbeschreibung, dieselbe Regel steht in `docs/arc42.md` (IF-07). */
 export const MCP_PACING_HINT =
 	'Pacing: at most 1 call per second; space out repeated or bulk calls (pause between writes).';
@@ -270,16 +327,49 @@ const catalog: McpTool[] = [
 	{
 		name: 'task_list',
 		description:
-			"Lists the token owner's tasks including their IDs. These IDs identify a task in all other " +
-			'tools (task_update, task_complete, task_link, task_unlink, task_links).',
-		inputSchema: { type: 'object', properties: {} },
-		run: (ctx) => callApi(ctx, '/tasks'),
+			"Lists the token owner's open tasks (every status except Done) including their IDs. These IDs identify a task in all other " +
+			'tools (task_update, task_complete, task_link, task_unlink, task_links). ' +
+			'Completed tasks are only included with includeDone=true, or as a fallback: if query matches no open ' +
+			'task, the completed tasks matching query are returned instead (check each status).',
+		inputSchema: {
+			type: 'object',
+			properties: {
+				includeDone: {
+					type: 'boolean',
+					description: 'If true, completed tasks are listed in addition to the open ones. Default: false.',
+				},
+				query: {
+					type: 'string',
+					description:
+						'Case-insensitive title substring. Only open tasks are returned; without an open match the ' +
+						'completed matches are returned (fallback).',
+				},
+			},
+		},
+		run: async (ctx, args) => {
+			if (args.includeDone !== undefined && typeof args.includeDone !== 'boolean') {
+				throw new Error('includeDone must be a boolean.');
+			}
+			if (args.query !== undefined && typeof args.query !== 'string') {
+				throw new Error('query must be a string.');
+			}
+			const needle = args.query?.toLowerCase();
+			const tasks = ((await callApi(ctx, '/tasks')) as { title: string; status: string }[]).filter(
+				(task) => needle === undefined || task.title.toLowerCase().includes(needle),
+			);
+			const open = tasks.filter((task) => task.status !== 'Done');
+			if (args.includeDone === true) {
+				return tasks;
+			}
+			return open.length > 0 || needle === undefined ? open : tasks;
+		},
 	},
 	{
 		name: 'task_create',
 		description:
 			'Creates a new task for the token owner. Pass userId (a group member from group_members_list) ' +
-			'to create the task for that member instead.',
+			'to create the task for that member instead. Pass series to create a recurring task (series) ' +
+			'with its first instances instead of a single task.',
 		write: true,
 		inputSchema: {
 			type: 'object',
@@ -291,15 +381,26 @@ const catalog: McpTool[] = [
 						'ID of a member of one of your groups (from group_members_list) to create the task for, ' +
 						'instead of the token owner.',
 				},
+				series: seriesProperty,
 			},
 			required: ['title'],
 		},
-		run: (ctx, args) =>
-			callApi(ctx, '/tasks', { method: 'POST', body: { ...pickTaskFields(args), userId: args.userId } }),
+		run: async (ctx, args) => {
+			const task = pickTaskFields(args);
+			if (args.series === undefined) {
+				return callApi(ctx, '/tasks', { method: 'POST', body: { ...task, userId: args.userId } });
+			}
+			return callApi(ctx, '/series', {
+				method: 'POST',
+				body: { ...task, ...pickSeriesFields(args.series), userId: args.userId },
+			});
+		},
 	},
 	{
 		name: 'task_update',
-		description: 'Changes fields of one of your own tasks.',
+		description:
+			'Changes fields of one of your own tasks. Pass series to change the series (rhythm, startDate, ' +
+			'autoCreate) of a task that belongs to one.',
 		write: true,
 		inputSchema: {
 			type: 'object',
@@ -307,11 +408,25 @@ const catalog: McpTool[] = [
 				id: { type: 'integer', description: 'ID of the task to change (from task_list).' },
 				...taskFieldProperties,
 				status: { type: 'string', description: 'Status: "Open", "In process" or "Done".' },
+				pinned: { type: 'boolean', description: 'true pins the task, false unpins it.' },
+				series: seriesProperty,
 			},
 			required: ['id'],
 		},
-		run: (ctx, args) =>
-			callApi(ctx, `/tasks/${requireIntegerId(args, 'id')}`, { method: 'PATCH', body: pickTaskFields(args) }),
+		run: async (ctx, args) => {
+			const id = requireIntegerId(args, 'id');
+			const task = pickTaskFields(args);
+			if (args.series === undefined) {
+				return callApi(ctx, `/tasks/${id}`, { method: 'PATCH', body: task });
+			}
+			const seriesFields = pickSeriesFields(args.series);
+			const { seriesId } = (await callApi(ctx, `/tasks/${id}`)) as { seriesId?: number | null };
+			if (typeof seriesId !== 'number') {
+				throw new Error('series can only be changed on a task that belongs to a series.');
+			}
+			const series = await callApi(ctx, `/series/${seriesId}`, { method: 'PATCH', body: seriesFields });
+			return Object.keys(task).length === 0 ? series : callApi(ctx, `/tasks/${id}`, { method: 'PATCH', body: task });
+		},
 	},
 	{
 		name: 'task_complete',
@@ -419,6 +534,36 @@ const catalog: McpTool[] = [
 		description: "Lists the token owner's pillars including their weighting.",
 		inputSchema: { type: 'object', properties: {} },
 		run: (ctx) => callApi(ctx, '/pillars'),
+	},
+	{
+		name: 'series_list',
+		description:
+			"Lists the token owner's series and templates, including the autoCreate flag (false = template without automatic instances).",
+		inputSchema: { type: 'object', properties: {} },
+		run: (ctx) => callApi(ctx, '/series'),
+	},
+	{
+		name: 'series_instantiate',
+		description:
+			'Creates one task from one of your series or templates (id from series_list), linked to the series. ' +
+			'Optional fields override the series defaults for this task.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				id: { type: 'integer', description: 'ID of the series (from series_list).' },
+				title: taskFieldProperties.title,
+				description: taskFieldProperties.description,
+				priority: taskFieldProperties.priority,
+				estimatedEffort: taskFieldProperties.estimatedEffort,
+				deadline: taskFieldProperties.deadline,
+			},
+			required: ['id'],
+		},
+		run: (ctx, args) => {
+			const { id: _id, ...fields } = args;
+			return callApi(ctx, `/series/${requireIntegerId(args, 'id')}/instances`, { method: 'POST', body: fields });
+		},
 	},
 	{
 		name: 'balance_status',

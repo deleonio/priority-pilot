@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
+import { ACCOUNT_PREFERENCE_KEYS, sendAccountPreferences } from './accountPreferences';
 
 /** Geolocation-Intervall: 5 Minuten in ms (AK 6). */
 export const GEOLOCATION_INTERVAL_MS = 5 * 60 * 1000;
@@ -13,8 +14,8 @@ export interface GeolocationPosition {
 	longitude: number;
 }
 
-/** `localStorage`-Schlüssel der gespeicherten Wahl. */
-const STORAGE_KEY = 'pp-geolocation-enabled';
+/** `localStorage`-Schlüssel der gespeicherten Wahl (Spiegel der Konto-Präferenz, #2398). */
+const STORAGE_KEY = ACCOUNT_PREFERENCE_KEYS.geolocationEnabled;
 
 /**
  * Fenster-Event nach erfolgreichem `PUT /geo-config` (#1098 AK5, #1103 F6): Der Hook läuft als
@@ -35,13 +36,14 @@ export const readGeolocationPreference = (): boolean => {
 	}
 };
 
-/** Speichert die Wahl; Fehler werden ignoriert. */
+/** Speichert die Wahl im Spiegel und am Konto (#2398); Fehler werden ignoriert. */
 export const storeGeolocationPreference = (enabled: boolean): void => {
 	try {
 		localStorage.setItem(STORAGE_KEY, String(enabled));
 	} catch {
 		// Best-Effort
 	}
+	sendAccountPreferences({ geolocationEnabled: enabled });
 };
 
 interface UseGeolocationResult {

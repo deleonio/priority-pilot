@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
-import { Pillar } from '../models/index.js';
+import { Pillar, Task } from '../models/index.js';
 
 let server: TestServer;
 
@@ -163,21 +163,108 @@ describe('Series API', () => {
 	describe('POST /series/:id/generate', () => {
 		it('materialisiert Instanzen als Tasks mit seriesId', async () => {
 			const created = (await (await post('/series', validSeries())).json()) as { id: number };
-			const res = await post(`/series/${created.id}/generate`, {
-				until: futureDate(20),
-			});
+			// #2404: POST legt bis zur Fünfer-Grenze sofort Instanzen an (wöchentlich ab morgen: 5 in 30 Tagen).
+			const tasks = (await (await get('/tasks')).json()) as Array<{ id: number; seriesId: number }>;
+			assert.equal(tasks.filter((t) => t.seriesId === created.id).length, 5);
+
+			// Voll belegt → /generate legt nichts nach; erledigt eine Instanz, füllt es genau eine nach.
+			const full = await post(`/series/${created.id}/generate`, { until: futureDate(60) });
+			assert.equal(full.status, 201);
+			assert.deepEqual(await full.json(), []);
+			assert.equal((await patch(`/tasks/${tasks[0].id}`, { status: 'Done' })).status, 200);
+
+			const res = await post(`/series/${created.id}/generate`, { until: futureDate(60) });
 			assert.equal(res.status, 201);
 			const instances = (await res.json()) as Array<Record<string, unknown>>;
-			assert.equal(instances.length, 3);
-			for (const inst of instances) {
-				assert.equal(inst.seriesId, created.id);
-				assert.equal(inst.isException, false);
-				assert.ok(inst.deadline);
-			}
+			assert.equal(instances.length, 1);
+			assert.equal(instances[0].seriesId, created.id);
+			assert.equal(instances[0].isException, false);
+			assert.ok(instances[0].deadline);
 
-			// Die Instanzen erscheinen auch in der regulären Task-Liste.
-			const tasks = (await (await get('/tasks')).json()) as unknown[];
-			assert.equal(tasks.length, 3);
+			// Die Instanzen erscheinen auch in der regulären Task-Liste (5 + 1 nachgefüllte).
+			const after = (await (await get('/tasks')).json()) as unknown[];
+			assert.equal(after.length, 6);
+		});
+	});
+
+	// #2355 — Schalter `autoCreate` (Spec docs/spec/issue-2355.md)
+	describe('#2355 autoCreate', () => {
+		const today = (): string => {
+			const date = new Date();
+			date.setUTCHours(0, 0, 0, 0);
+			return date.toISOString();
+		};
+
+		// AK1
+		it('AK1: neue Serie ohne Angabe hat autoCreate true; PATCH setzt false, GET liefert es', async () => {
+			const created = (await (await post('/series', validSeries())).json()) as { id: number; autoCreate: boolean };
+			assert.equal(created.autoCreate, true);
+			const res = await patch(`/series/${created.id}`, { autoCreate: false });
+			assert.equal(res.status, 200);
+			const list = (await (await get('/series')).json()) as Array<{ id: number; autoCreate: boolean }>;
+			assert.equal(list.find((item) => item.id === created.id)?.autoCreate, false);
+		});
+
+		it('AK1: POST mit autoCreate false wird übernommen', async () => {
+			const res = await post('/series', { ...validSeries(), autoCreate: false });
+			assert.equal(res.status, 201);
+			assert.equal(((await res.json()) as { autoCreate: boolean }).autoCreate, false);
+		});
+
+		// AK2
+		it('AK2: rhythm none mit autoCreate true oder ohne Angabe → 400', async () => {
+			const { startDate: _omit, ...base } = validSeries();
+			assert.equal((await post('/series', { ...base, rhythm: 'none', autoCreate: true })).status, 400);
+			assert.equal((await post('/series', { ...base, rhythm: 'none' })).status, 400);
+		});
+
+		it('AK2: rhythm none mit autoCreate false ohne startDate → 201, startDate = heute', async () => {
+			const { startDate: _omit, ...base } = validSeries();
+			const res = await post('/series', { ...base, rhythm: 'none', autoCreate: false });
+			assert.equal(res.status, 201);
+			const body = (await res.json()) as { rhythm: string; startDate: string };
+			assert.equal(body.rhythm, 'none');
+			assert.equal(body.startDate.slice(0, 10), today().slice(0, 10));
+		});
+
+		it('AK2: PATCH autoCreate true auf einer none-Serie → 400', async () => {
+			const { startDate: _omit, ...base } = validSeries();
+			const created = (await (await post('/series', { ...base, rhythm: 'none', autoCreate: false })).json()) as {
+				id: number;
+			};
+			assert.equal((await patch(`/series/${created.id}`, { autoCreate: true })).status, 400);
+		});
+
+		// AK3
+		it('AK3: generate-all und /:id/generate legen für autoCreate false nichts an', async () => {
+			const created = (await (
+				await post('/series', { ...validSeries(), rhythm: 'daily', autoCreate: false, startDate: futureDate(-3) })
+			).json()) as { id: number };
+
+			const all = await post('/series/generate-all', {});
+			assert.equal(all.status, 200);
+			assert.equal(((await all.json()) as { created: number }).created, 0);
+
+			const one = await post(`/series/${created.id}/generate`, { until: futureDate(10) });
+			assert.equal(one.status, 201);
+			assert.deepEqual(await one.json(), []);
+
+			assert.deepEqual(await (await get('/tasks')).json(), []);
+		});
+
+		// AK4
+		it('AK4: Instanzen ohne seriesOccurrence erscheinen einzeln, mit Anker nur als eine', async () => {
+			const noAnchor = (await (await post('/series', { ...validSeries(), autoCreate: false })).json()) as {
+				id: number;
+			};
+			await post('/series', validSeries());
+			// #2404: POST mit autoCreate:true erzeugt sofort Instanzen; we add manual tasks to test the forest logic
+			await Task.create({ title: 'Ohne 1', seriesId: noAnchor.id, deadline: new Date(futureDate(1)) });
+			await Task.create({ title: 'Ohne 2', seriesId: noAnchor.id, deadline: new Date(futureDate(2)) });
+			// Nur `/forest` kollabiert Serien auf einen Repräsentanten (`GET /tasks` liefert alle Instanzen);
+			// die verankerte Serie hat durch POST (#2404) fünf Instanzen, erscheint aber genau einmal.
+			const forest = (await (await get('/forest')).json()) as Array<{ title: string }>;
+			assert.deepEqual(forest.map((task) => task.title).sort(), ['Ohne 1', 'Ohne 2', 'Wöchentlich kochen']);
 		});
 	});
 
@@ -185,9 +272,10 @@ describe('Series API', () => {
 	describe('PATCH einer generierten Instanz', () => {
 		it('Statusänderung an Instanz setzt isException, ohne das Template zu berühren', async () => {
 			const series = (await (await post('/series', validSeries())).json()) as { id: number; priority: number };
-			const instances = (await (
-				await post(`/series/${series.id}/generate`, { until: futureDate(20) })
-			).json()) as Array<{ id: number }>;
+			// #2404: POST erzeugt sofort Instanzen; hole sie aus der Task-Liste
+			const allTasks = (await (await get('/tasks')).json()) as Array<{ id: number; seriesId: number }>;
+			const instances = allTasks.filter((t) => t.seriesId === series.id);
+			assert.ok(instances.length > 0, 'POST erzeugt Instanzen sofort');
 			const target = instances[0];
 
 			const res = await patch(`/tasks/${target.id}`, {
@@ -399,55 +487,64 @@ describe('Series API', () => {
 			startDate: futureDate(1),
 		});
 
-		// AK2: erzeugt für die aktive Serie fällige Tasks und liefert { created: N } mit N > 0.
+		// AK2: erzeugt für die aktive Serie fällige Tasks (#2404: sofort nach POST, nicht erst durch generate-all).
 		it('200 mit { created: N > 0 } und materialisierten Tasks', async () => {
+			// #2404: POST erzeugt sofort Instanzen; generate-all liefert created: 0 (Idempotenz)
 			await post('/series', dueSeries());
 
+			// Tasks sind sofort nach POST vorhanden
+			const tasksAfterPost = (await (await get('/tasks')).json()) as unknown[];
+			assert.ok(tasksAfterPost.length > 0, 'POST erzeugt fällige Instanzen sofort');
+
+			// generate-all ist idempotent und erzeugt keine weiteren
 			const res = await post('/series/generate-all', {});
 			assert.equal(res.status, 200);
 			const body = (await res.json()) as Record<string, unknown>;
-			assert.equal(typeof body.created, 'number', 'Body enthält ein numerisches created-Feld');
-			assert.ok((body.created as number) > 0, 'es werden fällige Instanzen erzeugt (created > 0)');
-
-			// Die materialisierten Instanzen erscheinen in der regulären Task-Liste.
-			const tasks = (await (await get('/tasks')).json()) as unknown[];
-			assert.equal(tasks.length, body.created, 'jede erzeugte Instanz taucht als Task auf');
-			assert.ok(tasks.length > 0, 'es existieren Tasks nach dem Sammel-Lauf');
+			assert.equal(body.created, 0, 'generate-all findet keine neuen Instanzen (Idempotenz nach POST)');
 		});
 
 		// AK3: inaktive Serien werden übersprungen.
 		it('inaktive Serien werden übersprungen (nur aktive erzeugen Tasks)', async () => {
+			// #2404: POST erzeugt Instanzen nur für aktive Serien
 			await post('/series', dueSeries());
 			await post('/series', { ...dueSeries(), title: 'Inaktive Serie', active: false });
 
-			const res = await post('/series/generate-all', {});
-			assert.equal(res.status, 200);
-			const body = (await res.json()) as { created: number };
-			assert.ok(body.created > 0, 'die aktive Serie erzeugt fällige Instanzen');
-
-			// Nur die aktive Serie liefert Tasks; die inaktive Serie fügt keine hinzu.
+			// Nur die aktive Serie erzeugt Tasks
 			const tasks = (await (await get('/tasks')).json()) as Array<{ seriesId: number | null }>;
-			assert.equal(tasks.length, body.created, 'genau die von der aktiven Serie erzeugten Tasks liegen vor');
+			assert.ok(tasks.length > 0, 'die aktive Serie erzeugt fällige Instanzen sofort');
 			// Alle erzeugten Tasks tragen eine seriesId (stammen aus einer Serie), keiner aus der inaktiven.
 			assert.ok(
 				tasks.every((task) => typeof task.seriesId === 'number'),
 				'alle erzeugten Tasks gehören zu einer Serie',
 			);
+
+			// generate-all ist idempotent
+			const res = await post('/series/generate-all', {});
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as { created: number };
+			assert.equal(body.created, 0, 'generate-all findet keine neuen Instanzen');
 		});
 
-		// AK5: Idempotenz — der zweite Aufruf erzeugt keine Duplikate.
-		it('wiederholtes Aufrufen erzeugt keine Duplikate (created === 0 beim zweiten Lauf)', async () => {
-			await post('/series', dueSeries());
+		// AK5: Idempotenz — mehrfache generate-all/POST erzeugt keine Duplikate.
+		it('wiederholtes Aufrufen erzeugt keine Duplikate (POST erzeugt sofort, generate-all ist idempotent)', async () => {
+			// #2404: POST erzeugt sofort Instanzen
+			const firstPost = (await post('/series', dueSeries())).status;
+			assert.equal(firstPost, 201);
 
+			const tasksAfterPost = (await (await get('/tasks')).json()) as unknown[];
+			const initialCount = tasksAfterPost.length;
+			assert.ok(initialCount > 0, 'POST erzeugt Instanzen sofort');
+
+			// generate-all ist idempotent
 			const first = (await (await post('/series/generate-all', {})).json()) as { created: number };
-			assert.ok(first.created > 0, 'der erste Lauf erzeugt Instanzen');
+			assert.equal(first.created, 0, 'erster generate-all findet keine neuen Instanzen');
 
 			const second = (await (await post('/series/generate-all', {})).json()) as { created: number };
-			assert.equal(second.created, 0, 'der zweite Lauf erzeugt keine weiteren Instanzen (Idempotenz)');
+			assert.equal(second.created, 0, 'zweiter generate-all erzeugt keine weiteren Instanzen (Idempotenz)');
 
 			// Die Gesamtzahl der Tasks bleibt stabil (keine Dubletten).
 			const tasks = (await (await get('/tasks')).json()) as unknown[];
-			assert.equal(tasks.length, first.created, 'die Task-Anzahl bleibt nach dem zweiten Lauf unverändert');
+			assert.equal(tasks.length, initialCount, 'die Task-Anzahl bleibt nach allen Läufen unverändert');
 		});
 	});
 
@@ -504,18 +601,22 @@ describe('Series API', () => {
 			assert.ok(!('defaultPriority' in body), 'PATCH-Response enthält KEIN defaultPriority');
 		});
 
-		// POST /series ohne priority → 400 (Pflichtfeld)
-		it('POST /series ohne priority → 400', async () => {
+		// POST /series ohne priority → 201 mit Default 3 (#2404)
+		it('POST /series ohne priority → 201 mit Default 3', async () => {
 			const { priority: _omit, ...withoutPriority } = validSeriesRenamed();
 			const res = await post('/series', withoutPriority);
-			assert.equal(res.status, 400);
+			assert.equal(res.status, 201);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.equal(body.priority, 3, 'priority defaults to 3');
 		});
 
-		// POST /series ohne estimatedEffort → 400 (Pflichtfeld)
-		it('POST /series ohne estimatedEffort → 400', async () => {
+		// POST /series ohne estimatedEffort → 201 mit Default 0.5 (#2404)
+		it('POST /series ohne estimatedEffort → 201 mit Default 0.5', async () => {
 			const { estimatedEffort: _omit, ...withoutEffort } = validSeriesRenamed();
 			const res = await post('/series', withoutEffort);
-			assert.equal(res.status, 400);
+			assert.equal(res.status, 201);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.equal(body.estimatedEffort, 0.5, 'estimatedEffort defaults to 0.5');
 		});
 	});
 
@@ -724,6 +825,60 @@ describe('Series API', () => {
 				{ pillarId: koerper, share: 60, confidence: 100 },
 				{ pillarId: sinn, share: 40, confidence: 100 },
 			]);
+		});
+	});
+
+	// #2404 — Serien-Anlage zentral (Spec docs/spec/issue-2404.md)
+	describe('#2404 POST /series: Defaults und sofortige Instanzen', () => {
+		const withoutPriorityAndEffort = () => {
+			const { priority: _p, estimatedEffort: _e, ...rest } = validSeries();
+			return rest;
+		};
+		const tasksOf = async (seriesId: number) =>
+			((await (await get('/tasks')).json()) as Array<{ seriesId: number | null }>).filter(
+				(task) => task.seriesId === seriesId,
+			);
+
+		// AK1
+		it('AK1: ohne priority/estimatedEffort → 201 mit priority 3 und estimatedEffort 0.5', async () => {
+			const res = await post('/series', withoutPriorityAndEffort());
+			assert.equal(res.status, 201);
+			const body = (await res.json()) as { priority: number; estimatedEffort: number };
+			assert.equal(body.priority, 3);
+			assert.equal(body.estimatedEffort, 0.5);
+		});
+
+		// AK2
+		it('AK2: autoCreate true legt die fälligen Instanzen sofort an', async () => {
+			const created = (await (await post('/series', { ...validSeries(), rhythm: 'daily' })).json()) as {
+				id: number;
+			};
+			assert.ok((await tasksOf(created.id)).length >= 1, 'Instanzen müssen direkt nach POST existieren');
+		});
+
+		it('AK2: autoCreate false legt keine Instanzen an', async () => {
+			const created = (await (
+				await post('/series', { ...validSeries(), rhythm: 'daily', autoCreate: false })
+			).json()) as { id: number };
+			assert.equal((await tasksOf(created.id)).length, 0);
+		});
+
+		// AK3
+		it('AK3: ein anschließender generate erzeugt keine Dubletten', async () => {
+			const created = (await (await post('/series', { ...validSeries(), rhythm: 'daily' })).json()) as {
+				id: number;
+			};
+			const before = (await tasksOf(created.id)).length;
+			assert.ok(before >= 1, 'Setup: POST muss Instanzen angelegt haben');
+			const res = await post(`/series/${created.id}/generate`, { until: futureDate(30) });
+			assert.equal(res.status, 201);
+			assert.equal((await tasksOf(created.id)).length, before);
+		});
+
+		// AK6
+		it('AK6: priority 0 und estimatedEffort 2 werden weiter mit 400 abgelehnt', async () => {
+			assert.equal((await post('/series', { ...validSeries(), priority: 0 })).status, 400);
+			assert.equal((await post('/series', { ...validSeries(), estimatedEffort: 2 })).status, 400);
 		});
 	});
 });

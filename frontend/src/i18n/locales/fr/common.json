@@ -29,7 +29,8 @@
 		"select": "Sélectionner",
 		"back": "Retour",
 		"snooze": "Mettre de côté un moment",
-		"snoozed": "Tâche mise de côté. Elle reviendra plus tard."
+		"snoozed": "Tâche mise de côté. Elle reviendra plus tard.",
+		"saveAsTemplate": "Enregistrer comme modèle"
 	},
 	"status": {
 		"open": "Ouvert",
@@ -156,5 +157,8 @@
 		"text": "Vous êtes parmi les premiers. Ce que vous remarquez nous aide : dites-le-nous volontiers.",
 		"feedback": "Donner votre avis",
 		"dismiss": "Fermer"
+	},
+	"splitHint": {
+		"reason": "Les grandes tâches sont souvent plus faciles à aborder si on les découpe en étapes plus petites."
 	}
 }

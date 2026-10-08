@@ -2,7 +2,7 @@
 	"tabs": {
 		"dashboard": "Dashboard",
 		"tasks": "Tasks",
-		"series": "Series",
+		"series": "Series & templates",
 		"forest": "Graph",
 		"journal": "Journal",
 		"ariaLabel": "Views"
