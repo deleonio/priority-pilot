@@ -1,10 +1,10 @@
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../database.js';
 
-/** Freischaltweg einer DB-Zulassung: Warteliste (#1982) oder Einladung/Delegation/Admin (#1983). */
-export type AllowedEmailOrigin = 'einladung' | 'delegation' | 'admin' | 'warteliste';
+/** Freischaltweg einer DB-Zulassung: Warteliste (#1982), Einladung/Delegation/Admin (#1983) oder Prüfkonto (#2456). */
+export type AllowedEmailOrigin = 'einladung' | 'delegation' | 'admin' | 'warteliste' | 'pruefkonto';
 
-const ORIGINS: AllowedEmailOrigin[] = ['einladung', 'delegation', 'admin', 'warteliste'];
+const ORIGINS: AllowedEmailOrigin[] = ['einladung', 'delegation', 'admin', 'warteliste', 'pruefkonto'];
 
 /**
  * DB-Zulassung einer E-Mail-Adresse mit Herkunft (#1982/#1983): Wer freigeschaltet wurde, darf
