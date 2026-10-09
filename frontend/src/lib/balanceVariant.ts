@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getApiBase } from './siteOrigin';
+import { appTokenHeaders } from './appToken';
 import i18next from '../i18n/config';
 
 /**
@@ -125,7 +126,7 @@ export const useBalanceVariant = (): UseBalanceVariantResult => {
 		if (kontoNachgezogen) return;
 		kontoNachgezogen = true;
 		try {
-			void fetch(API_URL)
+			void fetch(API_URL, { headers: appTokenHeaders() })
 				.then(async (response) => {
 					if (!response.ok) return;
 					const token = response.headers.get('x-csrf-token');
@@ -154,6 +155,7 @@ export const useBalanceVariant = (): UseBalanceVariantResult => {
 				headers: {
 					'Content-Type': 'application/json',
 					...(csrfToken ? { 'x-csrf-token': csrfToken } : {}),
+					...appTokenHeaders(),
 				},
 				body: JSON.stringify({ variant: next }),
 			})

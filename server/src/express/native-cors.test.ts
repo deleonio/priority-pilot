@@ -18,7 +18,8 @@ const preflight = (origin: string) =>
 		headers: {
 			Origin: origin,
 			'Access-Control-Request-Method': 'GET',
-			'Access-Control-Request-Headers': 'authorization, content-type, x-client-channel',
+			// Genau die Header, die das Frontend sendet; `x-csrf-token` fehlte und blockierte jeden POST der App.
+			'Access-Control-Request-Headers': 'authorization, content-type, x-client-channel, x-csrf-token, accept-language',
 		},
 	});
 
@@ -31,12 +32,12 @@ describe('CORS fuer den App-Ursprung https://localhost (#2377)', () => {
 		await closeDb();
 	});
 
-	it('AK6: Preflight antwortet 204 mit Allow-Origin und den drei Headern, ohne Credentials', async () => {
+	it('AK6: Preflight antwortet 204 mit Allow-Origin und allen Headern des Frontends, ohne Credentials', async () => {
 		const res = await preflight(APP_ORIGIN);
 		assert.equal(res.status, 204);
 		assert.equal(res.headers.get('access-control-allow-origin'), APP_ORIGIN);
 		const allowed = (res.headers.get('access-control-allow-headers') ?? '').toLowerCase();
-		for (const header of ['authorization', 'content-type', 'x-client-channel']) {
+		for (const header of ['authorization', 'content-type', 'x-client-channel', 'x-csrf-token', 'accept-language']) {
 			assert.ok(allowed.includes(header), `Allow-Headers enthaelt ${header}`);
 		}
 		assert.equal(res.headers.get('access-control-allow-credentials'), null);
