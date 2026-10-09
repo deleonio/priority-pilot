@@ -1,6 +1,6 @@
 /**
- * Werkzeugkatalog des MCP-Servers (#1353) — seit #1381/#1396/#1400/#1423/#1412/#1413/#1542/#1543
- * siebenundzwanzig Werkzeuge.
+ * Werkzeugkatalog des MCP-Servers (#1353) — seit #1381/#1396/#1400/#1423/#1412/#1413/#1542/#1543/#2460
+ * achtunddreißig Werkzeuge.
  *
  * Die Werkzeuge **spiegeln** die vorhandenen HTTP-Routen, statt deren Fachlogik ein zweites Mal zu
  * bauen: jeder Aufruf geht als Loopback-Request mit demselben `Authorization: Bearer …`-Header
@@ -12,6 +12,9 @@
  * LLM-Clients, während die Weboberfläche und die durchgereichten Route-Fehlertexte deutsch bleiben.
  */
 
+import { randomUUID } from 'node:crypto';
+
+import type { ChecklistItem } from '../models/task.js';
 import type { SeriesRhythm } from '../models/series.js';
 
 /** Aufrufkontext eines Werkzeugs: Basis-URL des eigenen Servers + Bearer-Token des Aufrufers. */
@@ -178,6 +181,76 @@ const pickTaskFields = (args: Record<string, unknown>): Record<string, unknown> 
 	return fields;
 };
 
+/**
+ * Checklisten-Kurzschrift bei `task_create` (#2460): reine Strings werden zu vollständigen Einträgen
+ * ergänzt — das Werkzeug erzeugt die UUID (die Route verlangt UUID v4 vom Client), neue Punkte sind
+ * offen. Die Objektform mit eigener Id bleibt unverändert.
+ */
+const expandChecklist = (checklist: unknown): ChecklistItem[] | undefined => {
+	if (!Array.isArray(checklist)) {
+		return undefined;
+	}
+	return checklist.map((entry) =>
+		typeof entry === 'string' ? { id: randomUUID(), title: entry, completed: false } : (entry as ChecklistItem),
+	);
+};
+
+/**
+ * Checklistenpflege per Titel (#2460): die gespeicherte Liste kommt über GET /tasks/:id, zurück
+ * geht sie komplett über PATCH — die Route bleibt dadurch der einzige Prüfpunkt (Owner-Filter,
+ * Max-20-Grenze, Titel-Validierung). Das Read-Modify-Write ist nicht transaktional; bewusst
+ * akzeptiert wie beim Serien-Pfad von `task_update`.
+ */
+const readChecklist = async (ctx: McpToolContext, taskId: number): Promise<ChecklistItem[]> => {
+	const task = (await callApi(ctx, `/tasks/${taskId}`)) as { checklist?: ChecklistItem[] };
+	return task.checklist ?? [];
+};
+
+const saveChecklist = async (
+	ctx: McpToolContext,
+	taskId: number,
+	checklist: ChecklistItem[],
+): Promise<ChecklistItem[]> => {
+	const task = (await callApi(ctx, `/tasks/${taskId}`, {
+		method: 'PATCH',
+		body: { checklist },
+	})) as { checklist?: ChecklistItem[] };
+	return task.checklist ?? checklist;
+};
+
+/** Pflicht-Text aus den Werkzeug-Argumenten; Fehler vor dem Loopback, die Checkliste bleibt unangetastet. */
+const requireNonEmptyString = (args: Record<string, unknown>, key: string): string => {
+	const value = args[key];
+	if (typeof value !== 'string' || value.trim() === '') {
+		throw new Error(`${key} must be a non-empty string.`);
+	}
+	return value;
+};
+
+/**
+ * Checklisten-Punkt per exaktem Titel suchen (trim-normalisiert — die Route trimmt beim Speichern).
+ * Unbekannter Titel und Mehrdeutigkeit sind Werkzeugfehler VOR dem PATCH: nichts an der Liste ändert
+ * sich, die Meldung nennt den gesuchten Titel bzw. die Trefferzahl.
+ */
+const findChecklistItem = (checklist: ChecklistItem[], item: string): ChecklistItem => {
+	const needle = item.trim();
+	const matches = checklist.filter((entry) => entry.title.trim() === needle);
+	if (matches.length === 0) {
+		throw new Error(`Checklist item "${item}" not found.`);
+	}
+	if (matches.length > 1) {
+		throw new Error(`Checklist item "${item}" is ambiguous (${matches.length} matching entries).`);
+	}
+	return matches[0];
+};
+
+/** Nur der Punkt — die Antworten der Checklisten-Werkzeuge enthalten keinen Aufgabenrumpf (#2460). */
+const asChecklistItem = (entry: ChecklistItem, saved?: ChecklistItem): ChecklistItem => ({
+	id: entry.id,
+	title: saved?.title ?? entry.title,
+	completed: saved?.completed ?? entry.completed,
+});
+
 /** Nur die gesetzten Kategorie-Felder übernehmen — `category_update` ändert sonst ungewollt mit. */
 const pickCategoryFields = (args: Record<string, unknown>): Record<string, unknown> => {
 	const fields: Record<string, unknown> = {};
@@ -270,7 +343,9 @@ const taskFieldProperties = {
 		type: 'array',
 		description:
 			'Checklist of the task: list of { id, title, completed }, at most 20 entries. Every entry needs an ' +
-			'id in UUID v4 format (generate a fresh one client-side for new entries); title is 1-255 characters, ' +
+			'id in UUID v4 format (generate a fresh one client-side for new entries); on task_create entries may ' +
+			'also be passed as plain strings — the tool generates the ids and leaves the entries open. ' +
+			'title is 1-255 characters, ' +
 			'completed is a boolean. On task_update this field fully replaces the existing checklist (change the ' +
 			'title of an entry by passing its id, remove an entry by omitting it, set completed true/false); if the ' +
 			'field is missing the checklist stays unchanged. Single tasks only — cannot be combined with series.',
@@ -405,6 +480,10 @@ const catalog: McpTool[] = [
 		},
 		run: async (ctx, args) => {
 			const task = pickTaskFields(args);
+			const checklist = expandChecklist(task.checklist);
+			if (checklist !== undefined) {
+				task.checklist = checklist;
+			}
 			if (args.series === undefined) {
 				return callApi(ctx, '/tasks', { method: 'POST', body: { ...task, userId: args.userId } });
 			}
@@ -474,6 +553,106 @@ const catalog: McpTool[] = [
 			required: ['id'],
 		},
 		run: (ctx, args) => callApi(ctx, `/tasks/${requireIntegerId(args, 'id')}`, { method: 'DELETE' }),
+	},
+	{
+		name: 'task_checklist_add',
+		description:
+			'Appends one entry to the checklist of one of your own tasks. The entry needs no id — the tool ' +
+			'generates it. Cheaper than task_update, which replaces the whole checklist and would require ' +
+			'sending every existing entry along.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				id: { type: 'integer', description: 'ID of the task (from task_list).' },
+				title: { type: 'string', description: 'Text of the new entry, 1-255 characters.' },
+			},
+			required: ['id', 'title'],
+		},
+		run: async (ctx, args) => {
+			const taskId = requireIntegerId(args, 'id');
+			const title = requireNonEmptyString(args, 'title');
+			const checklist = await readChecklist(ctx, taskId);
+			const entry: ChecklistItem = { id: randomUUID(), title, completed: false };
+			const saved = await saveChecklist(ctx, taskId, [...checklist, entry]);
+			return asChecklistItem(
+				entry,
+				saved.find((item) => item.id === entry.id),
+			);
+		},
+	},
+	{
+		name: 'task_checklist_update',
+		description:
+			'Renames and/or ticks a single checklist entry of one of your own tasks, addressed by its exact ' +
+			'title (trimmed comparison). All other entries stay untouched; at least one of title/completed ' +
+			'is required. Cheaper than task_update, which replaces the whole checklist.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				id: { type: 'integer', description: 'ID of the task (from task_list).' },
+				item: { type: 'string', description: 'Exact title of the entry to change.' },
+				title: { type: 'string', description: 'New text of the entry, 1-255 characters.' },
+				completed: { type: 'boolean', description: 'true ticks the entry off, false reopens it.' },
+			},
+			required: ['id', 'item'],
+		},
+		run: async (ctx, args) => {
+			const taskId = requireIntegerId(args, 'id');
+			const item = requireNonEmptyString(args, 'item');
+			const title = args.title === undefined ? undefined : requireNonEmptyString(args, 'title');
+			if (args.completed !== undefined && typeof args.completed !== 'boolean') {
+				throw new Error('completed must be a boolean.');
+			}
+			const completed = args.completed as boolean | undefined;
+			if (title === undefined && completed === undefined) {
+				throw new Error('Nothing to change — pass title or completed.');
+			}
+			const checklist = await readChecklist(ctx, taskId);
+			const entry = findChecklistItem(checklist, item);
+			const updated = checklist.map((existing) =>
+				existing.id === entry.id
+					? {
+							...existing,
+							...(title === undefined ? {} : { title }),
+							...(completed === undefined ? {} : { completed }),
+						}
+					: existing,
+			);
+			const saved = await saveChecklist(ctx, taskId, updated);
+			return asChecklistItem(
+				entry,
+				saved.find((existing) => existing.id === entry.id),
+			);
+		},
+	},
+	{
+		name: 'task_checklist_remove',
+		description:
+			'Deletes a single entry from the checklist of one of your own tasks, addressed by its exact title ' +
+			'(trimmed comparison). All other entries stay untouched.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				id: { type: 'integer', description: 'ID of the task (from task_list).' },
+				item: { type: 'string', description: 'Exact title of the entry to delete.' },
+			},
+			required: ['id', 'item'],
+		},
+		run: async (ctx, args) => {
+			const taskId = requireIntegerId(args, 'id');
+			const item = requireNonEmptyString(args, 'item');
+			const checklist = await readChecklist(ctx, taskId);
+			const entry = findChecklistItem(checklist, item);
+			await saveChecklist(
+				ctx,
+				taskId,
+				checklist.filter((existing) => existing.id !== entry.id),
+			);
+			return { ok: true, removed: entry.title };
+		},
 	},
 	{
 		name: 'task_link',
