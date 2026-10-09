@@ -128,11 +128,13 @@ Schritt still übersprungen.
   Adresse aus der Allowlist — die Prüfung liegt VOR dem Upsert (`server/src/express/index.ts`,
   GoogleStrategy-Verify → `logics/oauthUser.ts`), abgewiesene Adressen hinterlassen keine
   DB-Zeile. Betreiber-Anleitung: [docs/auth-setup.md](../docs/auth-setup.md).
-- `ADMIN_EMAILS` (Rollensystem admin/member): Konten, die bei Register/Login/OAuth automatisch
-  zu `admin` befördert werden (CSV oder JSON-Array, nur Beförderung, nie Rückstufung —
-  `server/src/logics/adminEmails.ts`). Alle anderen Konten sind `member`; Rollen ändern Admins in
-  den Einstellungen unter „Nutzerverwaltung" (`GET/PATCH /admin/users…`, `requireRole('admin')`
-  liest die Rolle frisch aus der DB). Nicht zu verwechseln mit der Gruppen-Rolle (`GroupMember.role`).
+- `ADMIN_EMAILS` (Nutzer-Rollen `admin`/`member`/`tester`, Details: [arc42 §5.2](../docs/arc42.md#52-server-whitebox-server)):
+  Konten, die bei Register/Login/OAuth automatisch zu `admin` befördert werden (CSV oder
+  JSON-Array, nur Beförderung, nie Rückstufung — `server/src/logics/adminEmails.ts`). Alle anderen
+  Konten starten als `member`; Rollen ändern Admins in den Einstellungen unter „Nutzerverwaltung"
+  (`GET/PATCH /admin/users…`, `requireRole('admin')` liest die Rolle frisch aus der DB). `tester`
+  darf zusätzlich nur die eigene Paket-Vergabe (`requireRole(['admin', 'tester'])`, serverseitig
+  auf die eigene Id begrenzt). Nicht zu verwechseln mit der Gruppen-Rolle (`GroupMember.role`).
 
 ## Datenbank
 
