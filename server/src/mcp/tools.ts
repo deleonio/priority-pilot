@@ -161,6 +161,7 @@ const pickTaskFields = (args: Record<string, unknown>): Record<string, unknown> 
 		'pillars',
 		'autoDeleteAfterDeadline',
 		'pinned',
+		'checklist',
 	]) {
 		if (args[key] !== undefined) {
 			fields[key] = args[key];
@@ -264,6 +265,23 @@ const taskFieldProperties = {
 		description:
 			'If true, the task is deleted automatically once its deadline has been overdue for 3 days. ' +
 			'Requires a set deadline; without one the auto-delete job has nothing to act on.',
+	},
+	checklist: {
+		type: 'array',
+		description:
+			'Checklist of the task: list of { id, title, completed }, at most 20 entries. Every entry needs an ' +
+			'id in UUID v4 format (generate a fresh one client-side for new entries); title is 1-255 characters, ' +
+			'completed is a boolean. On task_update this field fully replaces the existing checklist (change the ' +
+			'title of an entry by passing its id, remove an entry by omitting it, set completed true/false); if the ' +
+			'field is missing the checklist stays unchanged. Single tasks only — cannot be combined with series.',
+		items: {
+			type: 'object',
+			properties: {
+				id: { type: 'string', description: 'UUID v4 of the entry; existing entries keep their id.' },
+				title: { type: 'string', description: 'Text of the entry, 1-255 characters.' },
+				completed: { type: 'boolean', description: 'Whether the entry is done.' },
+			},
+		},
 	},
 } as const;
 
@@ -389,6 +407,10 @@ const catalog: McpTool[] = [
 			const task = pickTaskFields(args);
 			if (args.series === undefined) {
 				return callApi(ctx, '/tasks', { method: 'POST', body: { ...task, userId: args.userId } });
+			}
+			if (args.checklist !== undefined) {
+				// POST /series kennt kein checklist — die Angabe würde still verworfen, also lieber abweisen.
+				throw new Error('checklist cannot be combined with series — series instances do not carry a checklist.');
 			}
 			return callApi(ctx, '/series', {
 				method: 'POST',
