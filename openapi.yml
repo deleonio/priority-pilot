@@ -6001,7 +6001,7 @@ components:
           type: string
         origin:
           type: string
-          enum: [einladung, delegation, admin, warteliste]
+          enum: [einladung, delegation, admin, warteliste, pruefkonto]
         createdAt:
           type: string
           format: date-time

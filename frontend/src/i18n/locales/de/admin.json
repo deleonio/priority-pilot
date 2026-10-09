@@ -15,7 +15,8 @@
 			"einladung": "Einladung",
 			"delegation": "Delegation",
 			"admin": "Admin",
-			"warteliste": "Warteliste"
+			"warteliste": "Warteliste",
+			"pruefkonto": "Prüfkonto"
 		},
 		"subscriptionStatus": {
 			"active": "Aktiv",

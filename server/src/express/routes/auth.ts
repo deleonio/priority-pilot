@@ -3,7 +3,7 @@ import { Router, type Request, type RequestHandler, type Response } from 'expres
 import rateLimit from 'express-rate-limit';
 import passport from 'passport';
 import { Op, UniqueConstraintError } from 'sequelize';
-import { isDbEmailAllowed, isEmailAllowed } from '../../logics/allowedEmails.js';
+import { allowEmail, isDbEmailAllowed, isEmailAllowed } from '../../logics/allowedEmails.js';
 import { spracheAusHeader } from '../../logics/careSuggestionData.js';
 import sequelize from '../../database.js';
 import { Pillar, Subscription, User } from '../../models/index.js';
@@ -228,6 +228,10 @@ authRouter.post('/auth/review-login', reviewLoginLimiter, async (req, res) => {
 		}
 	}
 	const account = await upsertOAuthUser({ email });
+	// requireAuth prüft die Zulassung je Request erneut (#2456) — ohne DB-Eintrag scheiterte die
+	// Prüf-Session auf Instanzen mit Allowlist an jedem Daten-Request. Idempotent; überlebt den
+	// Reset je Login, da deleteAccount allowed_emails nicht anfasst.
+	await allowEmail(email, 'pruefkonto');
 	await User.update({ plan: 'pro' }, { where: { id: account.id } });
 	const user = { ...account, plan: 'pro' as const };
 	if (req.get('X-Client-Channel') === 'play') {
