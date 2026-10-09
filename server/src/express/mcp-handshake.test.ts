@@ -104,7 +104,7 @@ describe('MCP-Endpunkt /mcp/v1 — Handshake mit SDK-Client (#1353)', () => {
 		try {
 			const { tools } = await client.listTools();
 			const names = tools.map((tool) => tool.name).sort();
-			assert.equal(names.length, 35, `Katalog sollte fünfunddreißig Namen führen, war: ${names.join(', ')}`);
+			assert.equal(names.length, 38, `Katalog sollte achtunddreißig Namen führen, war: ${names.join(', ')}`);
 			for (const expected of [
 				'task_list',
 				'task_create',
@@ -130,6 +130,9 @@ describe('MCP-Endpunkt /mcp/v1 — Handshake mit SDK-Client (#1353)', () => {
 				'group_members_list',
 				'group_update',
 				'pillar_weights_set',
+				'task_checklist_add',
+				'task_checklist_update',
+				'task_checklist_remove',
 			]) {
 				assert.ok(names.includes(expected), `erwartete Werkzeug "${expected}" in ${JSON.stringify(names)}`);
 			}
