@@ -1014,6 +1014,10 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 			// #2360: die beiden Serien-Werkzeuge stehen alphabetisch vor task_complete.
 			'series_instantiate',
 			'series_list',
+			// #2460: die drei Checklisten-Werkzeuge stehen alphabetisch vor task_complete.
+			'task_checklist_add',
+			'task_checklist_remove',
+			'task_checklist_update',
 			'task_complete',
 			'task_create',
 			'task_delete',
@@ -1061,7 +1065,7 @@ describe('MCP-Werkzeug task_delete (#1396)', () => {
 		// #1413: zwei Säulen-Werkzeuge — die CRUD-Werkzeuge sind mit #1573 entfallen —,
 		// #1542: drei Gruppen-Schreibwerkzeuge). Der Vertrag ist „task_delete ist drin", nicht
 		// „es gibt genau dreizehn Werkzeuge" — die vollständige Namensliste prüft der Snapshot-Test.
-		assert.equal(names.length, 35, `Katalog sollte fünfunddreißig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 38, `Katalog sollte achtunddreißig Namen führen, war: ${names.join(', ')}`);
 		assert.ok(names.includes('task_delete'), 'task_delete muss im Katalog stehen');
 
 		const tool = tools.find((t) => t.name === 'task_delete');
@@ -1274,7 +1278,7 @@ describe('#1420: autoDeleteAfterDeadline über task_create/task_update setzen', 
 		// Zähler wächst mit dem Katalog (#1423: balance_status, #1412: category_create/update/delete,
 		// #1413: vier Säulen-Werkzeuge, #1424: balance_history, #1542: drei Gruppen-Schreibwerkzeuge)
 		// — #1420 selbst fügt kein Werkzeug hinzu.
-		assert.equal(names.length, 35, `Katalog sollte fünfunddreißig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 38, `Katalog sollte achtunddreißig Namen führen, war: ${names.join(', ')}`);
 	});
 });
 
@@ -1686,8 +1690,8 @@ describe('MCP-Werkzeuge category_create/category_update/category_delete (#1412)'
 		const names = tools.map((t) => t.name).sort();
 		assert.equal(
 			names.length,
-			35,
-			`Katalog sollte fünfunddreißig Namen führen (#1412, #1542, #1543, #1544; Säulen-CRUD seit #1573 entfallen), war: ${names.join(', ')}`,
+			38,
+			`Katalog sollte achtunddreißig Namen führen (#1412, #1542, #1543, #1544; Säulen-CRUD seit #1573 entfallen), war: ${names.join(', ')}`,
 		);
 		assert.ok(names.includes('category_create'), 'category_create muss im Katalog stehen');
 		assert.ok(names.includes('category_update'), 'category_update muss im Katalog stehen');
@@ -2492,7 +2496,7 @@ describe('MCP-Werkzeuge Einladungen/Einladungslinks (#1544)', () => {
 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name);
-		assert.equal(names.length, 35, `Katalog sollte fünfunddreißig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 38, `Katalog sollte achtunddreißig Namen führen, war: ${names.join(', ')}`);
 		for (const name of [
 			'group_invitation_list',
 			'group_invitation_create',
@@ -3764,5 +3768,306 @@ describe('#2458: Checklistenpunkte über task_create/task_update verwalten', () 
 		const listed = await mcpCall<SpecTaskWithChecklist[]>(token, 'task_list');
 		const task = listed.result?.find((t) => t.id === created.id);
 		assert.deepEqual(task?.checklist, checklist, 'task_list muss die Checkliste mit id/title/completed spiegeln');
+	});
+});
+
+/** UUID-v4-Format der vom Werkzeug erzeugten Eintrag-Ids (tasks.ts UUID_RE, v4-Spiegel). */
+const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+type ChecklistItemResponse = { id: string; title: string; completed: boolean };
+
+/**
+ * Rote Spec-Tests für #2460 (Spec docs/spec/issue-2460.md) — Checklistenpunkte im MCP einzeln
+ * und mit wenigen Aufrufen pflegen.
+ *
+ * AK1: task_create akzeptiert checklist als Liste reiner Strings; das Werkzeug erzeugt die
+ *      UUIDs, task_list zeigt die Punkte mit serverseitigen UUIDs und completed false.
+ * AK2: task_checklist_update(taskId, item, completed) ändert genau den per Titel benannten
+ *      Punkt mit einem Aufruf — ohne task_list und ohne die übrigen Punkte zu übermitteln.
+ * AK3: add hängt an, update benennt um, remove löscht — je ein Aufruf, Rest unverändert;
+ *      über 20 Punkte greift die Routen-Grenze (HTTP 400), die Liste bleibt unverändert.
+ * AK4: unbekannter oder mehrdeutiger Titel → verständlicher Fehler, Checkliste unverändert.
+ * AK5: add/update antworten nur mit dem Punkt {id,title,completed}, remove kurz — kein
+ *      Aufgabenrumpf (description/priority/Checkliste fehlen).
+ * AK6: Nur-lese-Token → Scope-Fehler; fremde Aufgabe → Fehler ohne Wirkung. Katalog-Count
+ *      35 → 38 im Handshake-Test (dort mitgezogen).
+ *
+ * Rot, weil die drei task_checklist_*-Werkzeuge noch nicht im Katalog stehen (tools/call mit
+ * unbekanntem Namen → JSON-RPC-Fehler statt Ergebnis) und task_create reine Strings heute
+ * ungeprüft an die Route durchreicht, deren validateChecklist sie als "muss ein Objekt sein"
+ * abweist. KEIN Produktivcode.
+ */
+describe('#2460: Checklistenpunkte im MCP einzeln pflegen (task_checklist_*)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => resetDb());
+	after(async () => {
+		await server.close();
+		closeDb();
+	});
+
+	const createTaskWithChecklist = async (
+		cookie: string,
+		title: string,
+		checklist: SpecChecklistItem[],
+	): Promise<SpecTaskWithChecklist> => {
+		const res = await server.json('/tasks', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({ title, checklist }),
+		});
+		assert.equal(res.status, 201, 'Setup: Task mit Checkliste muss über die API anlegbar sein');
+		return (await res.json()) as SpecTaskWithChecklist;
+	};
+
+	it('AK1: task_create mit checklist als reinen Strings legt die Punkte mit Werkzeug-UUIDs an', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const created = await mcpCall<SpecTaskWithChecklist>(token, 'task_create', {
+			title: 'Packen über MCP',
+			checklist: ['Zahnbürste', 'Waschbeutel', 'Drachen'],
+		});
+		assert.equal(
+			created.error,
+			undefined,
+			`task_create mit String-Checkliste darf nicht fehlschlagen: ${created.error?.message}`,
+		);
+		const items = created.result?.checklist ?? [];
+		assert.deepEqual(
+			items.map((i) => i.title),
+			['Zahnbürste', 'Waschbeutel', 'Drachen'],
+			'die drei Punkte müssen in Reihenfolge angelegt sein',
+		);
+		for (const item of items) {
+			assert.match(item.id, UUID_V4_RE, `die Id muss eine vom Werkzeug erzeugte UUID v4 sein, war: ${item.id}`);
+			assert.equal(item.completed, false, 'neu angelegte Punkte sind offen');
+		}
+
+		const listed = await mcpCall<SpecTaskWithChecklist[]>(token, 'task_list');
+		const task = listed.result?.find((t) => t.title === 'Packen über MCP');
+		assert.deepEqual(
+			task?.checklist.map((i) => ({ title: i.title, completed: i.completed })),
+			[
+				{ title: 'Zahnbürste', completed: false },
+				{ title: 'Waschbeutel', completed: false },
+				{ title: 'Drachen', completed: false },
+			],
+			'task_list muss die angelegten Punkte zeigen',
+		);
+	});
+
+	it('AK2: task_checklist_update setzt completed auf true und zurück — genau ein Aufruf je Richtung, Rest unverändert', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const existing = await createTaskWithChecklist(cookie, 'Morgens', [
+			{ id: specUuid(1), title: 'Zahnbürste', completed: false },
+			{ id: specUuid(2), title: 'Waschbeutel', completed: false },
+			{ id: specUuid(3), title: 'Drachen', completed: false },
+		]);
+
+		const done = await mcpCall<ChecklistItemResponse>(token, 'task_checklist_update', {
+			id: existing.id,
+			item: 'Waschbeutel',
+			completed: true,
+		});
+		assert.equal(done.error, undefined, `ein Aufruf muss genügen: ${done.error?.message}`);
+
+		const listed = await mcpCall<SpecTaskWithChecklist[]>(token, 'task_list');
+		const after = listed.result?.find((t) => t.id === existing.id)?.checklist ?? [];
+		assert.deepEqual(
+			after,
+			[
+				{ id: specUuid(1), title: 'Zahnbürste', completed: false },
+				{ id: specUuid(2), title: 'Waschbeutel', completed: true },
+				{ id: specUuid(3), title: 'Drachen', completed: false },
+			],
+			'nur der benannte Punkt darf geändert haben — Ids der übrigen müssen identisch bleiben',
+		);
+
+		const reopened = await mcpCall<ChecklistItemResponse>(token, 'task_checklist_update', {
+			id: existing.id,
+			item: 'Waschbeutel',
+			completed: false,
+		});
+		assert.equal(reopened.error, undefined, 'auch das Zurücksetzen muss mit einem Aufruf gelingen');
+		assert.equal(reopened.result?.completed, false);
+	});
+
+	it('AK3: add hängt an, update benennt um, remove löscht — je ein Aufruf; der 21. Punkt scheitert an der Route', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const existing = await createTaskWithChecklist(cookie, 'Einkauf', [
+			{ id: specUuid(1), title: 'Butter', completed: false },
+			{ id: specUuid(2), title: 'Brot', completed: false },
+		]);
+
+		const added = await mcpCall<ChecklistItemResponse>(token, 'task_checklist_add', {
+			id: existing.id,
+			title: 'Drachen',
+		});
+		assert.equal(added.error, undefined, `add muss mit einem Aufruf gelingen: ${added.error?.message}`);
+		assert.match(added.result?.id ?? '', UUID_V4_RE, 'der neue Punkt braucht eine Werkzeug-UUID');
+		assert.equal(added.result?.completed, false, 'ein angehängter Punkt ist offen');
+
+		const renamed = await mcpCall<ChecklistItemResponse>(token, 'task_checklist_update', {
+			id: existing.id,
+			item: 'Drachen',
+			title: 'Drachenfutter',
+		});
+		assert.equal(renamed.error, undefined, `rename muss mit einem Aufruf gelingen: ${renamed.error?.message}`);
+		assert.equal(renamed.result?.title, 'Drachenfutter');
+
+		const removed = await mcpCall<Record<string, unknown>>(token, 'task_checklist_remove', {
+			id: existing.id,
+			item: 'Butter',
+		});
+		assert.equal(removed.error, undefined, `remove muss mit einem Aufruf gelingen: ${removed.error?.message}`);
+
+		const listed = await mcpCall<SpecTaskWithChecklist[]>(token, 'task_list');
+		assert.deepEqual(
+			listed.result?.find((t) => t.id === existing.id)?.checklist,
+			[
+				{ id: specUuid(2), title: 'Brot', completed: false },
+				{ id: added.result?.id, title: 'Drachenfutter', completed: false },
+			],
+			'nur die benannten Punkte dürfen sich je Aufruf ändern',
+		);
+
+		const full = await createTaskWithChecklist(
+			cookie,
+			'Voll',
+			Array.from({ length: 20 }, (_, i) => ({ id: specUuid(i + 1), title: `P${i}`, completed: false })),
+		);
+		const overflow = await mcpCall<ChecklistItemResponse>(token, 'task_checklist_add', {
+			id: full.id,
+			title: 'Ein zu viel',
+		});
+		assert.ok(overflow.error, 'der 21. Punkt muss abgewiesen werden');
+		assert.match(overflow.error.message, /höchstens 20/, 'die Routen-Grenze muss verständlich melden');
+		assert.match(overflow.error.message, /\(HTTP 400\)/, 'der Fehler muss aus der Route (400) stammen');
+		const stillListed = await mcpCall<SpecTaskWithChecklist[]>(token, 'task_list');
+		assert.equal(
+			stillListed.result?.find((t) => t.id === full.id)?.checklist.length,
+			20,
+			'ein abgelehnter add darf die Liste nicht ändern',
+		);
+	});
+
+	it('AK4: unbekannter und mehrdeutiger Titel liefern verständliche Fehler; die Checkliste bleibt unverändert', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const original: SpecChecklistItem[] = [
+			{ id: specUuid(1), title: 'Einzeln', completed: false },
+			{ id: specUuid(2), title: 'Doppelt', completed: false },
+			{ id: specUuid(3), title: 'Doppelt', completed: false },
+		];
+		const existing = await createTaskWithChecklist(cookie, 'Fehlerfälle', original);
+
+		const unknownUpdate = await mcpCall<ChecklistItemResponse>(token, 'task_checklist_update', {
+			id: existing.id,
+			item: 'Fehlt',
+			completed: true,
+		});
+		assert.ok(unknownUpdate.error, 'unbekannter Titel muss abgewiesen werden');
+		assert.match(unknownUpdate.error.message, /Fehlt/, 'die Meldung muss den gesuchten Titel nennen');
+
+		const unknownRemove = await mcpCall<Record<string, unknown>>(token, 'task_checklist_remove', {
+			id: existing.id,
+			item: 'Fehlt',
+		});
+		assert.ok(unknownRemove.error, 'auch remove muss einen unbekannten Titel abweisen');
+
+		const ambiguous = await mcpCall<ChecklistItemResponse>(token, 'task_checklist_update', {
+			id: existing.id,
+			item: 'Doppelt',
+			completed: true,
+		});
+		assert.ok(ambiguous.error, 'mehrdeutiger Titel muss abgewiesen werden');
+		assert.match(ambiguous.error.message, /Doppelt/, 'die Meldung muss den Titel nennen');
+		assert.match(
+			ambiguous.error.message,
+			/2|zwei|mehrere/i,
+			'die Meldung muss die Mehrdeutigkeit mit Trefferzahl nennen',
+		);
+
+		const listed = await mcpCall<SpecTaskWithChecklist[]>(token, 'task_list');
+		assert.deepEqual(
+			listed.result?.find((t) => t.id === existing.id)?.checklist,
+			original,
+			'abgewiesene Aufrufe dürfen die Checkliste nicht ändern',
+		);
+	});
+
+	it('AK5: add/update antworten nur mit dem Punkt; remove kurz — kein Aufgabenrumpf in keiner Antwort', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const existing = await createTaskWithChecklist(cookie, 'Schlank', [
+			{ id: specUuid(1), title: 'Punkt', completed: false },
+		]);
+
+		const added = await mcpCall<Record<string, unknown>>(token, 'task_checklist_add', {
+			id: existing.id,
+			title: 'Neu',
+		});
+		assert.equal(added.error, undefined);
+		assert.deepEqual(
+			Object.keys(added.result ?? {}).sort(),
+			['completed', 'id', 'title'],
+			'add darf nur den Punkt liefern',
+		);
+
+		const updated = await mcpCall<Record<string, unknown>>(token, 'task_checklist_update', {
+			id: existing.id,
+			item: 'Punkt',
+			completed: true,
+		});
+		assert.equal(updated.error, undefined);
+		assert.deepEqual(
+			Object.keys(updated.result ?? {}).sort(),
+			['completed', 'id', 'title'],
+			'update darf nur den Punkt liefern',
+		);
+
+		const removed = await mcpCall<Record<string, unknown>>(token, 'task_checklist_remove', {
+			id: existing.id,
+			item: 'Punkt',
+		});
+		assert.equal(removed.error, undefined);
+		const body = removed.result ?? {};
+		assert.ok(
+			!Array.isArray(body) && !('description' in body) && !('priority' in body) && !('checklist' in body),
+			'remove darf keinen Aufgabenrumpf liefern',
+		);
+	});
+
+	it('AK6: Nur-lese-Token wird abgewiesen (Scope-Hinweis); fremde Aufgabe ohne Wirkung', async () => {
+		const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const readOnly = await createReadOnlyToken(cookieA);
+
+		const denied = await mcpCall<ChecklistItemResponse>(readOnly.token, 'task_checklist_add', {
+			id: 1,
+			title: 'Über Nur-lese-Token',
+		});
+		assert.ok(denied.error, 'task_checklist_add muss mit einem Nur-lese-Token fehlschlagen');
+		assert.match(denied.error.message, /read access only/, 'die Meldung muss die Rechtestufe nennen');
+		assert.match(denied.error.message, /Lesen und Schreiben/, 'die Meldung muss den Ausweg nennen');
+
+		const tokenA = await createToken(cookieA);
+		const foreignChecklist: SpecChecklistItem[] = [{ id: specUuid(1), title: 'Fremder Punkt', completed: false }];
+		const foreign = await createTaskWithChecklist(cookieB, 'Fremde Aufgabe', foreignChecklist);
+
+		const call = await mcpCall<Record<string, unknown>>(tokenA, 'task_checklist_remove', {
+			id: foreign.id,
+			item: 'Fremder Punkt',
+		});
+		assert.ok(call.error, 'fremde Aufgabe muss abgelehnt werden');
+		assert.match(call.error.message, /nicht gefunden/, '404-Text der Route erwartet');
+
+		const res = await server.json('/tasks', { headers: { Cookie: cookieB } });
+		const tasks = (await res.json()) as SpecTaskWithChecklist[];
+		assert.deepEqual(tasks.find((t) => t.id === foreign.id)?.checklist, foreignChecklist, 'ohne Wirkung');
 	});
 });
