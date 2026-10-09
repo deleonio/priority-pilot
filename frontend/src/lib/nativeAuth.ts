@@ -58,8 +58,8 @@ const createState = (): string =>
 		.replace(/=+$/, '');
 
 /**
- * „Mit Google anmelden“: erst nativ, ohne Einrichtung im System-Browser. Dort bleibt der `state` bis
- * zum Einlösen im localStorage.
+ * „Mit Google anmelden“: erst nativ; ohne Einrichtung oder nach Abbruch im System-Browser. Dort bleibt
+ * der `state` bis zum Einlösen im localStorage.
  */
 export const startNativeGoogleLogin = async (): Promise<void> => {
 	const result = await nativeGoogleLogin(false);
@@ -103,7 +103,8 @@ export const handleAppLink = async (url: string): Promise<void> => {
 	if ((viaScheme || target.pathname === `${APP_LINK_PREFIX}auth/native`) && code !== null) {
 		const state = localStorage.getItem(STATE_KEY) ?? '';
 		localStorage.removeItem(STATE_KEY);
-		const ok = await api.exchangeNativeLoginCode(code, state);
+		// Netzfehler zeigen die Login-Seite mit Hinweis, statt den Nutzer ohne Rückmeldung stehen zu lassen.
+		const ok = await api.exchangeNativeLoginCode(code, state).catch(() => false);
 		window.location.replace(ok ? base : `${base}login?error=native_login_failed`);
 		return;
 	}

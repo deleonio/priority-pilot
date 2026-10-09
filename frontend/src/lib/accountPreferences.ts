@@ -1,4 +1,5 @@
 import { getApiBase } from './siteOrigin';
+import { appTokenHeaders } from './appToken';
 
 /**
  * Inhaltliche Präferenzen am Konto (#2398): KI-, Balance-Priorität-, Expertenmodus- und
@@ -55,7 +56,7 @@ export const pullAccountPreferences = async (hasAccount = true): Promise<void> =
 	accountBound = hasAccount;
 	if (!hasAccount) return;
 	try {
-		const response = await fetch(API_URL);
+		const response = await fetch(API_URL, { headers: appTokenHeaders() });
 		if (!response.ok) return;
 		const token = response.headers.get('x-csrf-token');
 		if (token) csrfToken = token;
@@ -80,6 +81,7 @@ export const sendAccountPreferences = (changes: Partial<AccountPreferences>): vo
 			headers: {
 				'Content-Type': 'application/json',
 				...(csrfToken ? { 'x-csrf-token': csrfToken } : {}),
+				...appTokenHeaders(),
 			},
 			body: JSON.stringify(changes),
 		})

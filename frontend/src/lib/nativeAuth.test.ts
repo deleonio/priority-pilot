@@ -142,6 +142,14 @@ describe('nativeAuth (#1678)', () => {
 		expect(replace).toHaveBeenCalledWith(`${import.meta.env.BASE_URL}login?error=access_denied`);
 	});
 
+	it('zeigt bei einem Netzfehler im Code-Tausch die Login-Seite mit Hinweis', async () => {
+		vi.mocked(api.exchangeNativeLoginCode).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+		await handleAppLink('balamentum.app://auth/native?code=abc');
+
+		expect(replace).toHaveBeenCalledWith(`${import.meta.env.BASE_URL}login?error=native_login_failed`);
+	});
+
 	it('verarbeitet den Start-Link nur einmal, auch nach einem Neuladen', async () => {
 		launch.url = `${window.location.origin}/app/auth/native?code=abc`;
 
