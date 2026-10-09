@@ -2,9 +2,13 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.19 - 2026-10-08
+## v0.20 - 2026-10-09
 
-_Enthält v0.19.0 – v0.19.18._
+_Keine für Nutzer sichtbaren Änderungen._
+
+## v0.19 - 2026-10-09
+
+_Enthält v0.19.0 – v0.19.19._
 
 ### 🎉 New Features
 
@@ -39,6 +43,7 @@ _Enthält v0.19.0 – v0.19.18._
 - feat(frontend): move missed tasks into dashboard grid, unify gap by @deleonio in https://github.com/deleonio/priority-pilot/pull/2450
 - feat(native): sign in natively via Credential Manager instead of browser by @deleonio in https://github.com/deleonio/priority-pilot/pull/2451
 - fix(server): exempt app channel from CSRF so native sign-in completes by @deleonio in https://github.com/deleonio/priority-pilot/pull/2452
+- fix(server): allow app request headers in CORS preflight by @deleonio in https://github.com/deleonio/priority-pilot/pull/2454
 
 ## v0.18 - 2026-10-08
 
@@ -517,7 +522,6 @@ _Enthält v0.10.0 – v0.10.36._
 - ci(review): rerun red e2e shards once before the review starts by @deleonio in https://github.com/deleonio/priority-pilot/pull/1840
 - feat(server): switch plans to free, plus and pro (#1782) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1864
 - feat(server): remove legacy max/ultimate plans, add migrateLegacyPlans by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1867
-- test(server): cover mcp plan tiers plus read and pro write by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1870
 - test(server): cover mcp plan tiers plus read and pro write by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1870
 - docs(skills): add ticket-coordination skill for epic processing by @deleonio in https://github.com/deleonio/priority-pilot/pull/1862
 - feat(frontend): show plan hint at plan limits without dialog (#1787) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1875
