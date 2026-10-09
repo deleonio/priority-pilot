@@ -4,12 +4,13 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.20 - 2026-10-09
 
-_Enthält v0.20.0 – v0.20.2._
+_Enthält v0.20.0 – v0.20.3._
 
 ### Other Changes
 
 - docs(project): add tester to user roles and link to arc42 5.2 (V-15) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2455
 - fix(server): persist db allowance so review login survives allowlist by @deleonio in https://github.com/deleonio/priority-pilot/pull/2457
+- feat(server): manage task checklists via MCP tools (#2458) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2459
 
 ## v0.19 - 2026-10-09
 
@@ -131,7 +132,6 @@ _Enthält v0.17.0 – v0.17.45._
 
 - feat(server): carry upgrade credit over to following cycles (#2241) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2280
 - feat(frontend): add welcome steps card to dashboard after onboarding by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2284
-- feat(frontend): add welcome steps card to dashboard after onboarding by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2284
 - feat(admin): delete user subscriptions and invoices completely (#2295) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2296
 - feat(server): send waitlist activation mail with login link by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2310
 - feat(server): send emails for payment failure and subscription end by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2320
@@ -153,6 +153,7 @@ _Enthält v0.17.0 – v0.17.45._
 ### 🔧 Engineering
 
 - refactor(frontend): extract share-card rasterization into shared helper by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2273
+- test(e2e): fix shard isolation in #2221 and #763 specs by @deleonio in https://github.com/deleonio/priority-pilot/pull/2290
 - test(e2e): fix shard isolation in #2221 and #763 specs by @deleonio in https://github.com/deleonio/priority-pilot/pull/2290
 - test: cover invitation auto-allow of unknown emails (#2223) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2288
 - test(server): freeze time in #2143 proration AK3 test (#2279) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2297
