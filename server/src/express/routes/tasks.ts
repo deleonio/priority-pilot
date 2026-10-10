@@ -74,10 +74,11 @@ const isTaskStatus = (value: unknown): value is TaskStatus =>
 /** UUID-Format (beliebige Version) für die `id` eines Checklist-Eintrags (#531). */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Maximalzahl an Checklist-Einträgen je Task (#531). */
-const MAX_CHECKLIST_ITEMS = 20;
+const MAX_CHECKLIST_ITEMS = 50;
 
 /**
- * Validiert die Checkliste eines Tasks (#531): Liste aus höchstens 20 Einträgen mit gültiger
+ * Validiert die Checkliste eines Tasks (#531): Liste aus höchstens `MAX_CHECKLIST_ITEMS` Einträgen
+ * mit gültiger
  * UUID-`id`, nicht-leerem `title` (1–255 Zeichen nach Trim) und optionalem `completed`
  * (Default `false`). Liefert die normierten Einträge `{ id, title, completed }` oder eine
  * Fehlermeldung (string) — der Fehler wird vom Aufrufer zu HTTP 400 übersetzt.
@@ -87,7 +88,7 @@ const validateChecklist = (value: unknown): ChecklistItem[] | string => {
 		return 'checklist muss eine Liste sein.';
 	}
 	if (value.length > MAX_CHECKLIST_ITEMS) {
-		return 'checklist darf höchstens 20 Einträge enthalten.';
+		return `checklist darf höchstens ${MAX_CHECKLIST_ITEMS} Einträge enthalten.`;
 	}
 	const items: ChecklistItem[] = [];
 	for (const entry of value) {
