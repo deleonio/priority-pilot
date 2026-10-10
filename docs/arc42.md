@@ -9,13 +9,17 @@ Diese Datei beschreibt den Ist-Zustand des Monorepos aus Entwicklersicht. Operat
 Balamentum ist eine Web-Anwendung zur persönlichen Aufgabenorganisation: Aufgaben (Tasks)
 mit Abhängigkeiten, Deadlines und Prioritäten, Lebensbalance-Säulen mit Gewichtung und
 Punkte-Konto (Gamification, inklusive Streak und Meilensteinen), wiederkehrende Aufgaben
-(Serien), Gruppen mit geteilten Tasks und Serien, Kategorien als thematische Ordnungsebene,
-ortsbezogene Aufgaben („Nearby") mit Push beim Betreten des Alarmabstands, KI-Unterstützung (Säulen-Klassifikation, Freitext-Parsing, Aktivitäten-Berater,
-Lektorat), Fürsorge-Hinweise gegen Balance-Defizite sowie ein Paketmodell (Free/Plus/Pro,
-ADR 0018) mit PayPal-Abos in der PWA; die Android-App kauft über Google Play Billing (ADR 0017),
-die iOS-App über den Apple App Store, PayPal gibt es in keiner nativen App. Beide nativen
-Anbindungen sind noch offen und in der App angekündigt (Nachtrag ADR 0016). Erinnerungen gehen als Web-Push oder E-Mail raus; der Zugang zum Launch läuft über
-eine Warteliste mit Empfehlungs-Rang (ADR 0019).
+(Serien), Gruppen mit geteilten Tasks und Serien, Duo-Modus und Gruppen-Challenge, Kategorien
+als thematische Ordnungsebene, Journal und Wissensbasis für eigene Notizen, Vorlagen und
+KI-gestützter Task-Import für den Einstieg, Freizeitslots und lesender Kalender-Abruf per ICS
+oder CalDAV, ortsbezogene Aufgaben („Nearby") mit Push beim Betreten des Alarmabstands,
+KI-Unterstützung (Säulen-Klassifikation, Freitext-Parsing, Aktivitäten-Berater,
+Aufgaben-Entwurf, Lektorat), Fürsorge-Hinweise gegen Balance-Defizite sowie ein Paketmodell
+(Free/Plus/Pro, ADR 0018) mit PayPal-Abos in der PWA; die Android-App kauft über Google Play
+Billing (ADR 0017), die iOS-App über den Apple App Store, PayPal gibt es in keiner nativen App.
+Die Android-App meldet sich nativ über den Credential Manager an (ADR 0023); die iOS-App ist
+noch offen und in der App angekündigt (Nachtrag ADR 0016). Erinnerungen gehen als Web-Push oder
+E-Mail raus; der Zugang zum Launch läuft über eine Warteliste mit Empfehlungs-Rang (ADR 0019).
 
 Das Repository ist ein pnpm-Monorepo mit fünf Workspaces ([pnpm-workspace.yaml](../pnpm-workspace.yaml)):
 
@@ -91,6 +95,7 @@ graph LR
     API -->|IF-11 FCM HTTP v1| FCM[Firebase Cloud Messaging]
     FCM -->|Push| AndroidApp
     API -->|IF-12 Play Developer API + RTDN| Play[Google Play]
+    API -->|IF-13 ICS/CalDAV| Kal[Kalender-Server des Nutzers]
 ```
 
 | ID    | Schnittstelle            | Teilnehmer                    | Bemerkung                                                                                                                                                                                                                                                             |
@@ -106,6 +111,7 @@ graph LR
 | IF-10 | GitHub-Contents-API      | Server ↔ GitHub               | App-Feedback wird als Markdown im Obsidian-Repo abgelegt (`logics/obsidianFeedback.ts`, PAT aus ENV)                                                                                                                                                                  |
 | IF-11 | Firebase Cloud Messaging | Server ↔ FCM                  | HTTP v1 mit Service-Account (`FCM_SERVICE_ACCOUNT_FILE`), Gerätetoken der Android-App in `fcm_tokens` (`logics/fcm.ts`)                                                                                                                                               |
 | IF-12 | Play Developer API       | Server ↔ Google Play          | Abo-Käufe der Android-App bestätigen (`POST /billing/google/purchase`) und per RTDN-Webhook `/billing/google/rtdn` nachziehen (`logics/googlePlay.ts`, Service-Account aus `GOOGLE_PLAY_SERVICE_ACCOUNT_FILE`)                                                        |
+| IF-13 | Kalender-Abruf           | Server ↔ Kalender-Server      | Lesend per ICS-URL oder CalDAV (`REPORT calendar-query`, HTTP Basic mit App-Passwort), `logics/calendar-ics.ts` und `calendar-caldav.ts`                                                                                                                              |
 
 ## 4. Lösungsstrategie
 
@@ -150,7 +156,7 @@ graph LR
   `aiQuotaMeter.ts` — Coverage-Tests erzwingen, dass keine neue Route das Gating vergisst.
   Abos laufen in der PWA über PayPal (ADR 0013), in der Android-App über Google Play Billing mit
   Server-Verifikation (ADR 0017), in der iOS-App über den Apple App Store — PayPal nie in einer
-  nativen App, die nativen Anbindungen sind noch offen (Nachtrag ADR 0016); die Paket-Angebote leben in den Einstellungen (ADR 0014).
+  nativen App; die iOS-Anbindung ist noch offen (Nachtrag ADR 0016). Die Paket-Angebote leben in den Einstellungen (ADR 0014).
   KI-Hilfe: Free keine, Plus und Pro Fair Use — ein internes Monatsbudget drosselt bei Überschreitung
   auf eine Anfrage je 30 Sekunden (`AI_ASSIST_MONTHLY_QUOTA`, `AI_FAIR_USE_INTERVAL_SECONDS`).
   Durchgesetzt wird erst mit dem Env-Schalter `MONETIZATION_ENFORCED` (Default aus, Rückweg ohne
@@ -187,7 +193,7 @@ graph TB
 | `openapi.yml` | API-Vertrag: Pfade, Schemata                                                         | `openapi.yml`                                   | IF-01          |
 | `client`      | generierte Typen (`paths`, `components`)                                             | `client/src/index.ts`, `client/src/schema.d.ts` | IF-01          |
 | `frontend`    | SPA: Auth-Gate, App-Shell, Komponenten, PWA                                          | `frontend/src/`                                 | IF-01, IF-06   |
-| `server`      | Express-API, Fachlogik, Persistenz, Scheduler                                        | `server/src/`                                   | IF-01 … IF-12  |
+| `server`      | Express-API, Fachlogik, Persistenz, Scheduler                                        | `server/src/`                                   | IF-01 … IF-13  |
 | `website`     | öffentliche Landingpage, statisch vorgerendert, zehn Sprachen, Preise aus `plans.ts` | `website/src/`, `website/scripts/build.ts`      | —              |
 | `native`      | Android-Wrapper (Capacitor) mit gebündelter SPA                                      | `native/capacitor.config.ts`, `native/android/` | IF-01, IF-11   |
 | `.github`     | CI/CD: Pipeline-Phasen, Verify, Deploy                                               | `.github/workflows/`                            | —              |
@@ -205,8 +211,10 @@ graph TB
 | Start        | Bootstrap: Env, DB, Seed, Exit-Handler                                                                                                                                                                                          | `index.ts`, `env.ts`, `database.ts`                                                                                                                                                                                                            |
 
 Die Route-Mounts stehen in `server/src/express/index.ts`: öffentliche Routen (`/auth/*` mit
-Passwort- und Magic-Link-Login, Warteliste-Eintrag und Native-Code-Austausch, `/health`,
-`/invite-links/*` samt `/redeem`, `/plans`, `/billing/return` und die Webhooks
+Passwort-, Magic-Link- und Review-Login für Play-Prüfer, Warteliste-Eintrag, nativem
+Google-Login und Native-Code-Austausch, `/health`,
+`/invite-links/*` samt `/redeem`, `/plans`, die Kündigung ohne Login unter
+`/public/cancellation/*`, `/billing/return` und die Webhooks
 `/webhooks/paypal` und `/billing/google/rtdn`) liegen vor
 `requireAuth`, alle fachlichen Endpunkte danach hinter der Session-
 oder Bearer-Token-Pflicht. Der globale `apiTokenScopeGuard` hängt hinter `requireAuth`, sperrt die
@@ -222,18 +230,19 @@ tiefer, am Loopback-Request von `mcp/tools.ts` gegen die Fachroute selbst. Nutze
 durchweg `admin`: DB-Zulassungen (`/admin/allowed-emails`), Warteliste mit Einzel- und
 Top-Aktivierung (`/admin/waitlist*`), Abo-Sperre und -Storno je Nutzer
 (`/admin/users/:id/subscription/lock`, `/subscription/cancel`), Rechnungen samt PDF
-(`/admin/users/:id/invoices`) und die Fürsorge-Wirkungsanalyse (`/admin/care-wirkung`).
+(`/admin/users/:id/invoices`), die Fürsorge-Wirkungsanalyse (`/admin/care-wirkung`) und die
+KPI-Auswertung (`/admin/kpis`).
 
 ### 5.3 Frontend (Whitebox `frontend`)
 
-| Baustein      | Verantwortung                                                                                                                                                                                                                            | Wichtige Dateien                                                                   |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Einstieg      | KoliBri-Registrierung, Theme, Auth-Gate mit stillem Google-Login                                                                                                                                                                         | `main.tsx`, `Root.tsx`                                                             |
-| `App.tsx`     | App-Shell, Tab- und Routensteuerung (`react-router-dom`)                                                                                                                                                                                 | `App.tsx`                                                                          |
-| `components/` | Seiten- und Dialogkomponenten (Dashboard, WeekView, TaskTable, TaskTree, TaskGraph-Panel, GroupsSection, SeriesTab, Settings inkl. Paket-/Abo- und LLM-Einstellungen, Admin-/Token-Verwaltung, Nearby, Lektorat, LoginPage, HelpPage, …) | `frontend/src/components/`                                                         |
-| `lib/`        | Fachliche Utilities und Hooks (Score, Forest, Balance/Heart, Graph-Layout, Plan/Entitlements, Push, Geolocation, Theme, Voice-Input, Native-Plattform inkl. Play-Store, AI-Präferenzen)                                                  | `frontend/src/lib/`                                                                |
-| `api.ts`      | Typsicherer API-Client auf `openapi-fetch`                                                                                                                                                                                               | `frontend/src/api.ts`                                                              |
-| PWA           | Service Worker, Install-/Update-Prompts                                                                                                                                                                                                  | `public/push-sw.js`, `components/InstallPrompt.tsx`, `components/UpdatePrompt.tsx` |
+| Baustein      | Verantwortung                                                                                                                                                                                                                                                                     | Wichtige Dateien                                                                   |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Einstieg      | KoliBri-Registrierung, Theme, Auth-Gate mit stillem Google-Login                                                                                                                                                                                                                  | `main.tsx`, `Root.tsx`                                                             |
+| `App.tsx`     | App-Shell, Tab- und Routensteuerung (`react-router-dom`)                                                                                                                                                                                                                          | `App.tsx`                                                                          |
+| `components/` | Seiten- und Dialogkomponenten (Dashboard, WeekView, TaskTable, TaskTree, TaskGraph-Panel, GroupsSection, SeriesTab, Journal, Wissensbasis, Kalender-Quellen, Settings inkl. Paket-/Abo- und LLM-Einstellungen, Admin-/Token-Verwaltung, Nearby, Lektorat, LoginPage, HelpPage, …) | `frontend/src/components/`                                                         |
+| `lib/`        | Fachliche Utilities und Hooks (Score, Forest, Balance/Heart, Graph-Layout, Plan/Entitlements, Push, Geolocation, Theme, Voice-Input, Native-Plattform inkl. nativer Anmeldung und Play-Store, AI-Präferenzen)                                                                     | `frontend/src/lib/`                                                                |
+| `api.ts`      | Typsicherer API-Client auf `openapi-fetch`                                                                                                                                                                                                                                        | `frontend/src/api.ts`                                                              |
+| PWA           | Service Worker, Install-/Update-Prompts                                                                                                                                                                                                                                           | `public/push-sw.js`, `components/InstallPrompt.tsx`, `components/UpdatePrompt.tsx` |
 
 Die SPA liegt unter der Basis `/app/` (`base` in `frontend/vite.config.ts`, `BrowserRouter`
 mit `basename` in `App.tsx`).
@@ -276,10 +285,16 @@ auf (`server/src/express/routes/magicLink.ts`).
 Der dritte Weg ist klassisch (`POST /auth/register` nur mit `NODE_ENV=test` erreichbar, in Produktion 404, `server/src/express/routes/auth.ts`): `POST /auth/register` legt das Konto mit gehashtem Passwort und den
 fünf persönlichen Säulen an und meldet direkt an, `POST /auth/login` prüft das Passwort mit
 timing-normalisiertem Fehlerverhalten (401 ohne Unterschied zwischen unbekannter Adresse und
-falschem Passwort). Die Android-App empfängt nach dem Google-Login einen Einmal-Code und tauscht
-ihn über `POST /auth/native/exchange` gegen eine Session (`LoginToken`, Zweck `native`); mit
-`X-Client-Channel: play` erhält sie stattdessen ein App-Token (`ApiToken`, Art `app`), das sie per
-Bearer mitschickt. CORS gibt nur den WebView-Ursprung `https://localhost` frei (#2377).
+falschem Passwort). `POST /auth/review-login` meldet das feste Google-Play-Prüfer-Konto per
+Passwort an — nur mit `PLAY_REVIEW_PASSWORD` aktiv, umgeht Allowlist und Warteliste und vergibt
+bei jedem Login `pro` (#2426). Die Android-App meldet sich primär nativ:
+`POST /auth/native/google` prüft das Google-ID-Token aus dem Credential Manager gegen Googles
+JWKS und baut dieselbe Session auf (`routes/nativeGoogle.ts`, ADR 0023); mit
+`X-Client-Channel: play` gibt es statt des Session-Cookies ein App-Token (`ApiToken`, Art
+`app`), das sie per Bearer mitschickt. Ohne Native-Einrichtung bleibt der Browser-Weg mit
+Einmal-Code: Die App empfängt nach dem Google-Login einen Einmal-Code und tauscht ihn über
+`POST /auth/native/exchange` gegen eine Session (`LoginToken`, Zweck `native`). CORS gibt nur
+den WebView-Ursprung `https://localhost` frei (#2377).
 
 ### 6.2 Task mit KI-Säulen-Klassifikation anlegen
 
@@ -305,22 +320,27 @@ Fehlt ein konfigurierter Provider oder Key, antworten die LLM-Routen mit HTTP 50
 
 ### 6.3 Hintergrundläufe
 
-Zwei Scheduler teilen sich das 15-Minuten-Intervall (`server/src/scheduler/index.ts`): Der
-Erinnerungs-Ticker feuert jeden Trigger höchstens einmal pro Tag, sobald die konfigurierte
-UTC-Stunde erreicht ist (`PUSH_REMINDERS_HOUR`, Default 8) — fällige Aufgaben
+Die Ticker (`server/src/scheduler/index.ts`) laufen mit festem Intervall und protokollieren einen
+fehlgeschlagenen Lauf, ohne die übrigen zu blockieren. Der Erinnerungs-Ticker prüft im
+15-Minuten-Intervall, ob die konfigurierte UTC-Stunde erreicht ist (`PUSH_REMINDERS_HOUR`,
+Default 8), und feuert jeden Trigger höchstens einmal pro Tag: fällige Aufgaben
 (`dueTaskReminders`), die drei wichtigsten Aufgaben (`dailyTopTasksPush`), der Fürsorge-Push
-(`carePush`) und die Streak-Erinnerung (`streakReminder`) — und läuft nur mit Web-Push-
-Konfiguration und `PUSH_REMINDERS_ENABLED=true`. Die Deadline-Auto-Löschung
-(`autoDeleteAfterDeadline`) läuft
-push-unabhängig im zweiten Ticker und ist standardmäßig aktiv; sie lässt sich über
-`AUTO_DELETE_AFTER_DEADLINE_ENABLED=false` abschalten. Der Nearby-Push ist kein Scheduler-Job:
-Die App meldet ihre Position im Geo-Intervall, der Server verschickt dann je Nutzer eine
-gebündelte Nachricht für offene Aufgaben im Alarmabstand, Feuer-und-vergessen
-(`logics/geo-background-job.ts`). Serien-Instanzen legt ein täglicher Server-Job an,
-und zwar für Serien mit dem Schalter „Automatisch anlegen"; Serien mit ausgeschaltetem
-Schalter sind Vorlagen, deren Aufgaben nur auf Abruf entstehen
-([ADR 0020](adr/0020-serien-automatisch-anlegen-vorlage.md), Umsetzung in #2353). Der Job
-nutzt die idempotente Logik hinter `POST /series/generate-all`.
+(`carePush`), die Streak-Erinnerung (`streakReminder`) und der Monatsrückblick
+(`monthlyRecapPush`). Er läuft nur, wenn ein Push-Kanal konfiguriert ist (Web-Push-VAPID oder
+FCM) und `PUSH_REMINDERS_ENABLED=true` gesetzt ist. Die Deadline-Auto-Löschung
+(`autoDeleteAfterDeadline`) läuft push-unabhängig um Mitternacht UTC und ist standardmäßig
+aktiv; sie lässt sich über `AUTO_DELETE_AFTER_DEADLINE_ENABLED=false` abschalten. Vier weitere
+Ticker sind push-unabhängig: Der Kalender-Abruf holt alle 30 Minuten externe Termine per ICS
+oder CalDAV (#2209, `logics/calendar-ics.ts` und `calendar-caldav.ts`), die Serien-Automatik
+legt einmal beim Start und danach täglich Instanzen für Serien mit dem Schalter „Automatisch
+anlegen" an ([ADR 0020](adr/0020-serien-automatisch-anlegen-vorlage.md)); Serien mit
+ausgeschaltetem Schalter sind Vorlagen, deren Aufgaben nur auf Abruf entstehen — der Job nutzt
+die idempotente Logik hinter `POST /series/generate-all`. Der Kulanzfrist-Ablauf (#2234)
+entzieht stündlich überfällige Pakete und kündigt das PayPal-Abo auch ohne Login, der tägliche
+PayPal-Abgleich (#2300) zieht verpasste Webhooks nach (nur mit PayPal-Zugangsdaten). Der
+Nearby-Push ist kein Scheduler-Job: Die App meldet ihre Position im Geo-Intervall, der Server
+verschickt dann je Nutzer eine gebündelte Nachricht für offene Aufgaben im Alarmabstand,
+Feuer-und-vergessen (`logics/geo-background-job.ts`).
 
 ## 7. Verteilungssicht
 
@@ -356,7 +376,8 @@ graph TD
 Jeder Merge auf `main` baut in GitHub Actions (`pnpm -r build`, anstoßend aus `openapi.yml` über
 die generierten Typen) und spiegelt die `dist`-Verzeichnisse per `rsync` auf den Server: die
 Website an die Wurzel (ohne `app/`), die SPA nach `app/`, das Backend in sein Laufzeitverzeichnis;
-aus `native/` entsteht zusätzlich die Android-APK. Danach startet
+aus `native/` entsteht zusätzlich die Android-Debug-APK, abgelegt als `demo.apk` im
+Web-Root. Danach startet
 `pm2 reload priority-pilot` das Backend genau einmal neu
 ([deployment.md](deployment.md)). Der Session-Store ist in Produktion SQLite oder Redis
 (`SESSION_STORE`, `server/src/express/session.ts`), der Workspace `client` ist nur
@@ -437,6 +458,7 @@ Die Begründungen stehen vollständig in [docs/adr/](adr/); hier nur der Verweis
 | [0020](adr/0020-serien-automatisch-anlegen-vorlage.md)     | Serien: Schalter „Automatisch anlegen“, Vorlage                    | Akzeptiert                                                                                                       |
 | [0021](adr/0021-android-app-spa-ohne-service-worker.md)    | Android-App: Web-App als SPA ohne Service Worker                   | Akzeptiert; ersetzt Entscheidung 1 von ADR 0016                                                                  |
 | [0022](adr/0022-e2e-verschluesselung-opt-in.md)            | Ende-zu-Ende-Verschlüsselung als Opt-in                            | Vorgeschlagen                                                                                                    |
+| [0023](adr/0023-android-login-nativ-credential-manager.md) | Android-Login nativ über den Credential Manager                    | Akzeptiert                                                                                                       |
 
 ## 10. Qualitätsanforderungen
 
@@ -557,6 +579,7 @@ dokumentiert.
 | Silent Login                  | Stiller Google-OAuth-Versuch mit `prompt=none` beim App-Start (`frontend/src/Root.tsx`)                                                                                               |
 | VAPID                         | Schlüsselpaar für Web-Push; öffentlicher Teil über `GET /push/vapid-public-key`                                                                                                       |
 | Nearby                        | Ortsbezogene Tasks im Umfeld der gemeldeten Position (`GET /tasks/nearby`)                                                                                                            |
+| Kalender-Abruf                | Lesende Übernahme externer Termine per ICS-Abo oder CalDAV (`/calendar-sources`, `logics/calendar-ics.ts`, `calendar-caldav.ts`)                                                      |
 | Paket (Plan)                  | Buchbare Stufe `free`/`plus`/`pro` am User; Katalog und Rechte allein in `server/src/logics/plans.ts`                                                                                 |
 | Entitlement                   | Feature-Freigabe je Paket (`shouldBlockFeature`), deklariert pro Route über `planGuard.ts`                                                                                            |
 | API-Token                     | Persönlicher Bearer-Token für externe Clients (Präfix `pp_`, gehasht gespeichert), mit Scope `read`/`readwrite`                                                                       |
