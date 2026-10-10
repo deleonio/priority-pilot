@@ -206,6 +206,7 @@ _Enthält v0.17.0 – v0.17.45._
 - [P2/M] Website: Rechtstexte für die anderen Sprachen (#2226) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2294
 - fix(ci): use latest verify run in gate, tolerate ai:reviewed on fixup by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2292
 - chore(deps): update dependency @modelcontextprotocol/sdk to v1.31.0 [security] by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2298
+- chore(deps): update dependency @modelcontextprotocol/sdk to v1.31.0 [security] by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2298
 - feat(server): check PayPal config on production startup by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2311
 - fix(auth): Passwort-Registrierung außerhalb der Tests sperren (#2299) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2312
 - feat(server): reconcile paypal subscriptions daily (#2300) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2313
