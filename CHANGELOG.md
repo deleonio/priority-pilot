@@ -330,6 +330,7 @@ _Enthält v0.14.0 – v0.14.31._
 - feat(server): suggest share and confidence per pillar (#2076) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2131
 - feat(ci): auto-merge mechanically solvable PR conflicts (#2099) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2125
 - feat(ci): let container closing analysis act on its result (#2101) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2127
+- feat(ci): let container closing analysis act on its result (#2101) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2127
 - fix(ci): fallback documenter no longer pins release:engineering (#2111) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2129
 - feat(ci): defer pipeline starts in zai peak window via ZAI_PEAK_MODE by @deleonio in https://github.com/deleonio/priority-pilot/pull/2126
 - docs(arc42): sync documentation to implementation state 2026-10-03 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2133
