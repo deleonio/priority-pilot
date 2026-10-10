@@ -8,7 +8,7 @@ import { resetDb, closeDb, startTestServer, type TestServer } from '../test/help
  * Ein Task bekommt ein optionales `checklist`-Array (Default `[]`) mit Einträgen der Form
  * `{ id: UUID, title: 1–255 Zeichen, completed: boolean (Default false) }`. GET/POST/PATCH `/tasks`
  * unterstützen das Feld; `serializeTask` gibt es mit. Validierung: Titel nicht leer, `id` gültige
- * UUID, max. 20 Items. Bestehende Tasks bleiben unberührt (Backward-Kompatibilität).
+ * UUID, max. 50 Items (#2462, zuvor 20). Bestehende Tasks bleiben unberührt (Backward-Kompatibilität).
  *
  * Weder das Modell (`server/src/models/task.ts`) noch `validateTaskFields`/`serializeTask`
  * (`server/src/express/routes/tasks.ts`) noch die OpenAPI kennen `checklist` bisher — `validateTaskFields`
@@ -112,14 +112,46 @@ describe('#531 — Checklisten-Feld in Tasks', () => {
 		assert.equal(res.status, 400);
 	});
 
-	it('AC4/T6: mehr als 20 Checklist-Items → 400', async () => {
-		const zuViele = Array.from({ length: 21 }, (_, i) => ({
+	it('#2462/AK1: POST /tasks mit 50 Checklist-Items → 201, persistent und im Response', async () => {
+		const items = Array.from({ length: 50 }, (_, i) => ({
+			id: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
+			title: `Item ${i}`,
+			completed: i % 2 === 0,
+		}));
+		const res = await post('/tasks', { title: 'Volle Checkliste', checklist: items });
+		assert.equal(res.status, 201);
+		const created = (await res.json()) as { id: number; checklist: typeof items };
+		assert.equal(created.checklist.length, 50, 'alle 50 Einträge müssen im Response liegen');
+		assert.equal(created.checklist[49].title, 'Item 49', 'der 50. Eintrag muss enthalten sein');
+		const res2 = await get(`/tasks/${created.id}`);
+		assert.equal(res2.status, 200);
+		const stored = (await res2.json()) as { checklist: typeof items };
+		assert.equal(stored.checklist.length, 50, 'die 50 Einträge müssen persistent gespeichert sein');
+	});
+
+	it('#2462/AK1: PATCH /tasks/:id mit 50 Checklist-Items → 200', async () => {
+		const id = await createTask({ title: 'Patch auf 50' });
+		const items = Array.from({ length: 50 }, (_, i) => ({
+			id: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
+			title: `Item ${i}`,
+			completed: false,
+		}));
+		const res = await patch(`/tasks/${id}`, { checklist: items });
+		assert.equal(res.status, 200);
+		const updated = (await res.json()) as { checklist: unknown[] };
+		assert.equal(updated.checklist.length, 50);
+	});
+
+	it('#2462/AK2: 51. Checklist-Item → 400 mit Meldung /höchstens 50/', async () => {
+		const zuViele = Array.from({ length: 51 }, (_, i) => ({
 			id: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
 			title: `Item ${i}`,
 			completed: false,
 		}));
 		const res = await post('/tasks', { title: 'Zu viele Items', checklist: zuViele });
 		assert.equal(res.status, 400);
+		const body = (await res.json()) as { message: string };
+		assert.match(body.message, /höchstens 50/, 'die Meldung muss das neue Limit 50 nennen');
 	});
 
 	it('AC5/T7: bestehender Task liefert checklist: [] (Backward-Kompatibilität)', async () => {
