@@ -1611,27 +1611,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 							<div className="deadline-group" data-testid="deadline-group">
 								{isSeriesMode ? (
 									<>
-										{/* Serie-Modus (#316): Startdatum (Anker der Serie) + Rhythmus statt Deadline. */}
-										{rhythm !== 'none' && (
-											<KolInputDate
-												_label={t('taskForm.startDate')}
-												_type="date"
-												_value={startDateValue}
-												_on={{
-													onChange: (_event, value) => {
-														const next = value instanceof Date ? startDateToInput(value) : readString(value);
-														form.current.startDate = next;
-														setStartDateInput(next);
-													},
-													onInput: (_event, value) => {
-														const next = value instanceof Date ? startDateToInput(value) : readString(value);
-														form.current.startDate = next;
-														setStartDateInput(next);
-													},
-												}}
-											/>
-										)}
-										{/* #2358: Schalter vor dem Rhythmus — er bestimmt dessen Optionen. Aus = Vorlage ohne Automatik. */}
+										{/* #2358: Schalter zuerst (#2464) — er bestimmt Startdatum und Rhythmus-Optionen. Aus = Vorlage ohne Automatik. */}
 										<KolInputCheckbox
 											_label={t('taskForm.autoCreate')}
 											_checked={autoCreate}
@@ -1657,6 +1637,26 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 												},
 											}}
 										/>
+										{/* Serie-Modus (#316): Startdatum (Anker der Serie) + Rhythmus statt Deadline. */}
+										{rhythm !== 'none' && (
+											<KolInputDate
+												_label={t('taskForm.startDate')}
+												_type="date"
+												_value={startDateValue}
+												_on={{
+													onChange: (_event, value) => {
+														const next = value instanceof Date ? startDateToInput(value) : readString(value);
+														form.current.startDate = next;
+														setStartDateInput(next);
+													},
+													onInput: (_event, value) => {
+														const next = value instanceof Date ? startDateToInput(value) : readString(value);
+														form.current.startDate = next;
+														setStartDateInput(next);
+													},
+												}}
+											/>
+										)}
 										{autoCreate && (
 											<KolSingleSelect
 												_label={t('taskForm.rhythmLabel')}
