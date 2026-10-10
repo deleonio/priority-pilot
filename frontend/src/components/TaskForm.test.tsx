@@ -144,17 +144,22 @@ vi.mock('@public-ui/react-v19', () => ({
 			onChange={(e) => _on?.onChange?.(e.nativeEvent, e.target.checked)}
 		/>
 	),
+	// Kontrolliert wie KolSelect: _value wird in den nativen Input gespiegelt — leert das Form die
+	// Deadline extern (#2463-Entfernen-Button), zieht der Mock das im DOM nach.
 	KolInputDate: ({
 		_label,
+		_value,
 		_on,
 	}: {
 		_label?: string;
+		_value?: Date;
 		_on?: { onChange?: (_e: unknown, v: unknown) => void; onInput?: (_e: unknown, v: unknown) => void };
 	}) => (
 		<input
 			type="date"
 			aria-label={_label}
 			data-testid={`input-date-${_label}`}
+			value={_value instanceof Date ? _value.toISOString().slice(0, 10) : ''}
 			onChange={(e) => {
 				_on?.onChange?.(e.nativeEvent, e.target.value === '' ? '' : new Date(`${e.target.value}T00:00:00Z`));
 			}}
@@ -3886,8 +3891,7 @@ describe('TaskForm — Deadline am Feld entfernen (#2463)', () => {
 			render(<TaskForm task={minimalNewTask()} {...defaultProps} />);
 		});
 
-		// Erst Deadline setzen und den Schalter aktivieren (Edit-Modus, Muster #534 AK2/AK3 — der
-		// KolInputDate-Mock spiegelt ein Date-_value nicht in den nativen Input, daher via change).
+		// Erst Deadline setzen und den Schalter aktivieren (Edit-Modus, Muster #534 AK2/AK3).
 		const input = screen.getByLabelText('Deadline (optional)') as HTMLInputElement;
 		await act(async () => {
 			fireEvent.change(input, { target: { value: '2026-09-07' } });
