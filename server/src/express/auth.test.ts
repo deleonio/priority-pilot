@@ -731,4 +731,37 @@ describe('#2238 — /auth/me während ausstehender Upgrade-Zahlung', () => {
 			'null = zahlungsgebunden, Frontend-Hinweis aktiv mit Zahlungseingang',
 		);
 	});
+
+	// ── #2471 — demoHint in GET /auth/me ──────────────────────────────────────
+	describe('#2471 — demoHint in GET /auth/me', () => {
+		const REVIEW_EMAIL = 'google-play-review@balamentum.invalid';
+
+		const meOf = async (cookie: string): Promise<{ demoHint?: boolean }> => {
+			const res = await fetch(`${server.baseUrl}/auth/me`, { headers: { cookie } });
+			assert.equal(res.status, 200);
+			return (await res.json()) as { demoHint?: boolean };
+		};
+
+		it('AK1: DEMO_HINT_ENABLED=true + Prüfkontakt-E-Mail → demoHint true', async () => {
+			process.env.DEMO_HINT_ENABLED = 'true';
+			try {
+				assert.equal((await meOf(await testLogin(REVIEW_EMAIL))).demoHint, true);
+			} finally {
+				delete process.env.DEMO_HINT_ENABLED;
+			}
+		});
+
+		it('AK1: DEMO_HINT_ENABLED=true + Normalkonto → demoHint false', async () => {
+			process.env.DEMO_HINT_ENABLED = 'true';
+			try {
+				assert.equal((await meOf(await testLogin(ALLOWED_EMAIL))).demoHint, false);
+			} finally {
+				delete process.env.DEMO_HINT_ENABLED;
+			}
+		});
+
+		it('AK1: Prüfkontakt-E-Mail ohne DEMO_HINT_ENABLED → demoHint false', async () => {
+			assert.equal((await meOf(await testLogin(REVIEW_EMAIL))).demoHint, false);
+		});
+	});
 });
