@@ -1,4 +1,4 @@
-import { KolAlert, KolButton } from '@public-ui/react-v19';
+import { KolButton, KolCard } from '@public-ui/react-v19';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -29,8 +29,18 @@ export const DemoHint = ({ enabled }: { enabled: boolean }) => {
 		sessionStorage.setItem(DEMO_HINT_DISMISSED_KEY, '1');
 		setDismissed(true);
 	};
+	// KolCard statt KolAlert (#2474): der Demo-Hinweis ist Inhalt, kein Status — neutrale Card
+	// nach dem missed-section-Muster, ohne Signal-/Statusfarbe (KolCard hat keinen
+	// Aktions-Slot in der Kopfzeile, das X bleibt deshalb in der Textzeile rechts).
 	return (
-		<KolAlert _type="info" _label={t('demoHint.title')} data-testid="demo-hint">
+		<KolCard
+			className="demo-hint"
+			role="region"
+			aria-label={t('demoHint.title')}
+			_label={t('demoHint.title')}
+			_level={2}
+			data-testid="demo-hint"
+		>
 			<div className="demo-hint__row">
 				<p className="demo-hint__text">{t('demoHint.text')}</p>
 				<KolButton
@@ -41,6 +51,6 @@ export const DemoHint = ({ enabled }: { enabled: boolean }) => {
 					data-testid="demo-hint-close"
 				/>
 			</div>
-		</KolAlert>
+		</KolCard>
 	);
 };
