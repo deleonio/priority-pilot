@@ -5,6 +5,7 @@ import { MissedTasksSection } from './MissedTasksSection';
 import { FreeTimeCard } from './FreeTimeCard';
 import { NearbyCard } from './NearbyCard';
 import { CareHint } from './CareHint';
+import { DemoHint } from './DemoHint';
 import { WelcomeSteps } from './WelcomeSteps';
 import { DayDoneHint } from './DayDoneHint';
 import { StreakCard } from './StreakCard';
@@ -113,6 +114,11 @@ interface DashboardProps {
 	pillars: Pillar[];
 	/** Anzeigename des Nutzers für die personalisierte Begrüßung (aus `localStorage`). Leer → keine Begrüßung. */
 	displayName?: string;
+	/**
+	 * Demo-Hinweis für das Play-Prüfkonto (#2471) — `user.demoHint` aus `GET /auth/me`;
+	 * fehlt das Feld (Alt-Antworten), bleibt die Card aus.
+	 */
+	demoHint?: boolean;
 	/** Markiert die nächste Aufgabe als erledigt („Erledigt" im Signal-Panel, #1168). */
 	onCompleteTask?: (task: Task) => void;
 	/** Öffnet den Bearbeiten-Dialog für die nächste Aufgabe („Bearbeiten" im Signal-Panel, #1447). */
@@ -184,6 +190,7 @@ export const Dashboard = ({
 	onCompleteTask,
 	onEditTask,
 	onSnoozeTask,
+	demoHint,
 	showDayDoneHint = true,
 	onOpenPillars,
 	missedTasks = [],
@@ -312,6 +319,8 @@ export const Dashboard = ({
 
 	return (
 		<section className="dashboard">
+			{/* #2471: Demo-Hinweis nur für das Play-Prüfkonto, oben im Seitenfluss (KI-UX 2A). */}
+			<DemoHint enabled={demoHint === true} />
 			<div className="dashboard-heading">
 				<h2>{t('heading')}</h2>
 				{greeting !== '' && <p className="dashboard-greeting">{t('greeting', { name: greeting })}</p>}

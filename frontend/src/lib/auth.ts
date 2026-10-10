@@ -24,6 +24,8 @@ export type AuthUser = {
 	termsAccepted?: boolean;
 	/** Server-Schalter des Einführungs-Banners (#2229); fehlt das Feld, bleibt der Banner aus. */
 	launchBanner?: boolean;
+	/** Demo-Hinweis für das Play-Prüfkonto (#2471); fehlt das Feld (Alt-Session), bleibt die Card aus. */
+	demoHint?: boolean;
 	/** Kontokennung für Käufe über Google Play (#1687); fehlt im Pass-Through-Modus. */
 	playAccountId?: string;
 };

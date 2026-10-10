@@ -97,6 +97,19 @@ describe('Prüfzugang Google Play (#2426)', () => {
 		assert.equal(res.headers.get('set-cookie'), null);
 	});
 
+	it('#2471 AK1: nach Prüf-Login meldet /auth/me demoHint, wenn der Schalter an ist', async () => {
+		process.env.PLAY_REVIEW_PASSWORD = PASSWORD;
+		process.env.DEMO_HINT_ENABLED = 'true';
+		try {
+			const res = await reviewLogin(PASSWORD);
+			assert.equal(res.status, 200);
+			const me = await meWith(res);
+			assert.equal(((await me.json()) as { demoHint?: boolean }).demoHint, true);
+		} finally {
+			delete process.env.DEMO_HINT_ENABLED;
+		}
+	});
+
 	describe('Reset bei jedem Login (#2442)', () => {
 		const cookieOf = (res: Response) => res.headers.get('set-cookie')?.split(';')[0] ?? '';
 		const tasksOf = async (cookie: string) =>

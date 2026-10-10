@@ -1370,6 +1370,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 												suggestions={suggestions}
 												pillars={pillars}
 												displayName={user.displayName}
+												demoHint={user.demoHint}
 												onCompleteTask={openComplete}
 												onEditTask={openEdit}
 												onSnoozeTask={handleSnoozeTask}

@@ -150,6 +150,11 @@
 		"text": "Du gehörst zu den Ersten. Was dir auffällt, hilft uns – sag es uns gern.",
 		"feedback": "Feedback geben"
 	},
+	"demoHint": {
+		"title": "Play-Prüfkonto",
+		"text": "Du bist mit dem Google-Play-Prüfkonto angemeldet. Diese Umgebung dient der App-Prüfung.",
+		"close": "Schließen"
+	},
 	"splitHint": {
 		"reason": "Große Aufgaben lassen sich oft leichter angehen, wenn du sie in kleinere Schritte teilst."
 	},
