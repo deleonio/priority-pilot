@@ -3,9 +3,9 @@
 	"license": "EUPL-1.2",
 	"devDependencies": {
 		"@action-validator/core": "0.6.0",
-		"@evilmartians/lefthook": "2.1.14",
-		"knip": "6.37.0",
-		"prettier": "3.9.8",
+		"@evilmartians/lefthook": "2.2.1",
+		"knip": "6.41.0",
+		"prettier": "3.9.10",
 		"tsx": "4.23.15"
 	},
 	"private": true,
