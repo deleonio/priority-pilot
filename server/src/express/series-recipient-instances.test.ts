@@ -106,6 +106,20 @@ describe('Empfänger-Serie: Instanz-Eigentümer und Schreib-Isolation (#1222)', 
 		const seriesId = await createSeriesForBob();
 		const bobId = await userIdOf(BOB);
 
+		// #2404: POST /series legt sofort Instanzen an (Horizont now+30 Tage, Fünfer-Grenze) — bei
+		// Wochenrhythmus sind das je Wochentag 4 bis 5 Instanzen; /generate hätte dann kein Budget
+		// mehr und liefe datumsabhängig leer (Sa–Mo exakt 5). Für den Route-Vertrag unten räumen wir
+		// die Vorlauf-Instanzen weg, damit /generate frisch materialisiert.
+		const bobCookie = await server.login(BOB);
+		const vorlauf = (await tasksOf(bobCookie)).filter((task) => task.seriesId === seriesId);
+		for (const task of vorlauf) {
+			const delRes = await fetch(`${server.baseUrl}/tasks/${task.id}`, {
+				method: 'DELETE',
+				headers: { Cookie: bobCookie },
+			});
+			assert.equal(delRes.status, 204, 'Setup: Vorlauf-Instanz muss löschbar sein');
+		}
+
 		const genRes = await fetch(`${server.baseUrl}/series/${seriesId}/generate`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Cookie: await server.login(BOB) },
