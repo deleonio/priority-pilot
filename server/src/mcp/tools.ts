@@ -342,7 +342,7 @@ const taskFieldProperties = {
 	checklist: {
 		type: 'array',
 		description:
-			'Checklist of the task: list of { id, title, completed }, at most 20 entries. Every entry needs an ' +
+			'Checklist of the task: list of { id, title, completed }, at most 50 entries. Every entry needs an ' +
 			'id in UUID v4 format (generate a fresh one client-side for new entries); on task_create entries may ' +
 			'also be passed as plain strings — the tool generates the ids and leaves the entries open. ' +
 			'title is 1-255 characters, ' +

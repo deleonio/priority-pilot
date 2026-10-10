@@ -3685,9 +3685,9 @@ describe('#2458: Checklistenpunkte über task_create/task_update verwalten', () 
 				expected: /muss ein Boolean sein/,
 			},
 			{
-				name: 'mehr als 20 Einträge',
-				checklist: Array.from({ length: 21 }, (_, i) => ({ id: specUuid(i + 1), title: `P${i}`, completed: false })),
-				expected: /höchstens 20/,
+				name: 'mehr als 50 Einträge',
+				checklist: Array.from({ length: 51 }, (_, i) => ({ id: specUuid(i + 1), title: `P${i}`, completed: false })),
+				expected: /höchstens 50/,
 			},
 			{ name: 'keine Liste', checklist: 'keine Liste', expected: /muss eine Liste sein/ },
 		];
@@ -3895,7 +3895,7 @@ describe('#2460: Checklistenpunkte im MCP einzeln pflegen (task_checklist_*)', (
 		assert.equal(reopened.result?.completed, false);
 	});
 
-	it('AK3: add hängt an, update benennt um, remove löscht — je ein Aufruf; der 21. Punkt scheitert an der Route', async () => {
+	it('AK3: add hängt an, update benennt um, remove löscht — je ein Aufruf; der 51. Punkt scheitert an der Route', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
 		const existing = await createTaskWithChecklist(cookie, 'Einkauf', [
@@ -3938,19 +3938,19 @@ describe('#2460: Checklistenpunkte im MCP einzeln pflegen (task_checklist_*)', (
 		const full = await createTaskWithChecklist(
 			cookie,
 			'Voll',
-			Array.from({ length: 20 }, (_, i) => ({ id: specUuid(i + 1), title: `P${i}`, completed: false })),
+			Array.from({ length: 50 }, (_, i) => ({ id: specUuid(i + 1), title: `P${i}`, completed: false })),
 		);
 		const overflow = await mcpCall<ChecklistItemResponse>(token, 'task_checklist_add', {
 			id: full.id,
 			title: 'Ein zu viel',
 		});
-		assert.ok(overflow.error, 'der 21. Punkt muss abgewiesen werden');
-		assert.match(overflow.error.message, /höchstens 20/, 'die Routen-Grenze muss verständlich melden');
+		assert.ok(overflow.error, 'der 51. Punkt muss abgewiesen werden');
+		assert.match(overflow.error.message, /höchstens 50/, 'die Routen-Grenze muss verständlich melden');
 		assert.match(overflow.error.message, /\(HTTP 400\)/, 'der Fehler muss aus der Route (400) stammen');
 		const stillListed = await mcpCall<SpecTaskWithChecklist[]>(token, 'task_list');
 		assert.equal(
 			stillListed.result?.find((t) => t.id === full.id)?.checklist.length,
-			20,
+			50,
 			'ein abgelehnter add darf die Liste nicht ändern',
 		);
 	});
