@@ -83,6 +83,9 @@ export default defineConfig({
 				CALDAV_ENCRYPTION_KEY: 'e2e-caldav-key',
 				// Prüfzugang Google Play (#2426): schaltet POST /auth/review-login für issue-2426-review-login.spec.ts ein.
 				PLAY_REVIEW_PASSWORD: 'e2e-review-secret',
+				// Demo-Hinweis (#2471): zeigt die Card nach dem Prüf-Login; das Prüfkonto-E2E
+				// (issue-2471-demo-hint.spec.ts) liest demoHint unverändert aus der echten /auth/me-Antwort.
+				DEMO_HINT_ENABLED: 'true',
 				MISTRAL_API_KEY: '',
 				OPENROUTER_API_KEY: '',
 				MISTRAL_MODEL: '',

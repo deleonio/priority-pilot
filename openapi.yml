@@ -9062,7 +9062,7 @@ components:
     Me:
       type: object
       description: Antwort von `GET /auth/me` (Issue #206/#1456/#1494/#1901) — Session, Paket, Entitlements, Abo, Zustimmung.
-      required: [email, displayName, avatarUrl, plan, entitlements, subscription, termsAccepted, launchBanner]
+      required: [email, displayName, avatarUrl, plan, entitlements, subscription, termsAccepted, launchBanner, demoHint]
       properties:
         id:
           type: integer
@@ -9100,6 +9100,13 @@ components:
           description: >-
             `true`, wenn der Einladungs-Banner der Einführungsphase aktiv ist (#2229);
             Server-Schalter `LAUNCH_BANNER_ENABLED=true`, Default `false`.
+        demoHint:
+          type: boolean
+          description: >-
+            `true`, wenn der Demo-Hinweis für das Play-Prüfkonto angezeigt werden soll (#2471):
+            Server-Schalter `DEMO_HINT_ENABLED=true` und angemeldete E-Mail = Prüfkontakt-E-Mail
+            (Erkennung an der E-Mail, nicht an der User-Id — jedes Review-Login setzt das Konto
+            zurück, #2442). Im lokalen Pass-Through-Modus immer `false`.
         playAccountId:
           type: string
           description: >-

@@ -1,9 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
-// #2471: Roter Spec-Zustand — Komponente existiert noch nicht, deshalb `@ts-expect-error` auf dem
-// Import (Präzedenz OwnPlanCard.test.tsx); die Umsetzung entfernt das Directive mit der Komponente.
-// @ts-expect-error fehlendes Modul ist der legitime Erst-Rot-Zustand der neuen Funktionalität.
 import { DemoHint } from './DemoHint';
 
 /**

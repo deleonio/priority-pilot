@@ -5,6 +5,7 @@ import { api } from '../api';
 import { startNativeGoogleLogin } from '../lib/nativeAuth';
 import { isNativeChannel } from '../lib/platform';
 import { getPublicOrigin } from '../lib/siteOrigin';
+import { DEMO_HINT_DISMISSED_KEY } from './DemoHint';
 import { Modal } from './Modal';
 
 type ErrorParam = string | null;
@@ -47,7 +48,14 @@ const ReviewLoginDialog = ({ onClose }: { onClose: () => void }) => {
 		setState('sending');
 		api
 			.reviewLogin(password)
-			.then(() => window.location.replace(import.meta.env.BASE_URL))
+			.then(() => {
+				// #2471: Ausblendung des Demo-Hinweises gilt je Login — der Marker aus der Vorgänger-
+				// Session (sessionStorage überlebt die Navigation im selben Tab) muss hier weg, sonst
+				// erscheint die Card nach dem erneuten Prüf-Login nicht wieder (AK4). Genau hier, im
+				// Login-Handler, läuft der Reset genau einmal je Login und nie beim Reload (AK3).
+				sessionStorage.removeItem(DEMO_HINT_DISMISSED_KEY);
+				window.location.replace(import.meta.env.BASE_URL);
+			})
 			.catch((err: unknown) =>
 				setState(err instanceof ResponseError && err.response.status === 429 ? 'throttled' : 'failed'),
 			);
