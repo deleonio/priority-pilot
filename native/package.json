@@ -20,9 +20,9 @@
 		"cordova-plugin-purchase": "13.18.0"
 	},
 	"devDependencies": {
-		"@capacitor/cli": "8.5.2",
-		"@types/node": "25.9.8",
-		"knip": "6.37.0",
+		"@capacitor/cli": "8.5.3",
+		"@types/node": "25.9.9",
+		"knip": "6.41.0",
 		"typescript": "5.9.3",
 		"vitest": "4.1.11"
 	}
