@@ -34,6 +34,7 @@
 		"autoCreate": "Automatisch anlegen",
 		"rhythmLabel": "Rhythmus",
 		"deadlineLabel": "Deadline (optional)",
+		"deadlineClear": "Deadline entfernen",
 		"autoDelete": "Automatisch löschen nach 3 Tagen bei verpasster Deadline",
 		"autoDeleteInfo": "Die Aufgabe wird bei verpasster Deadline automatisch nach 3 Tagen gelöscht, sofern sie bis dahin nicht erledigt ist.",
 		"addressLabel": "Adresse (optional)",

@@ -1678,23 +1678,40 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 										)}
 									</>
 								) : (
-									<KolInputDate
-										_label={t('taskForm.deadlineLabel')}
-										_type="date"
-										_value={deadlineValue}
-										_on={{
-											onChange: (_event, value) => {
-												const next = value instanceof Date ? deadlineToDateInput(value) : readString(value);
-												form.current.deadline = next;
-												setDeadlineInput(next);
-											},
-											onInput: (_event, value) => {
-												const next = value instanceof Date ? deadlineToDateInput(value) : readString(value);
-												form.current.deadline = next;
-												setDeadlineInput(next);
-											},
-										}}
-									/>
+									<>
+										<KolInputDate
+											_label={t('taskForm.deadlineLabel')}
+											_type="date"
+											_value={deadlineValue}
+											_on={{
+												onChange: (_event, value) => {
+													const next = value instanceof Date ? deadlineToDateInput(value) : readString(value);
+													form.current.deadline = next;
+													setDeadlineInput(next);
+												},
+												onInput: (_event, value) => {
+													const next = value instanceof Date ? deadlineToDateInput(value) : readString(value);
+													form.current.deadline = next;
+													setDeadlineInput(next);
+												},
+											}}
+										/>
+										{/* #2463: Gesetzte Deadline am Feld zurücksetzen können (Muster saveFavorite — nur
+										    bei gesetzter Deadline, kein toter Knopf). Das Leeren überlässt den Auto-Lösch-
+										    Reset der bestehenden #534-Kopplung (kein zweiter Reset-Mechanismus). */}
+										{hasDeadline && (
+											<KolButton
+												_label={t('taskForm.deadlineClear')}
+												_variant="ghost"
+												_on={{
+													onClick: () => {
+														form.current.deadline = '';
+														setDeadlineInput('');
+													},
+												}}
+											/>
+										)}
+									</>
 								)}
 								{/* #523/#534/#546: Auto-Löschung bei verpasster Deadline. Im Task-Modus an die Deadline-Präsenz
 					    gekoppelt (deaktiviert ohne Deadline, #534 Anforderung 2); bei Serien stets frei anwählbar,

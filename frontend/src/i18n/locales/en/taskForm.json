@@ -34,6 +34,7 @@
 		"autoCreate": "Create automatically",
 		"rhythmLabel": "Rhythm",
 		"deadlineLabel": "Deadline (optional)",
+		"deadlineClear": "Remove deadline",
 		"autoDelete": "Delete automatically 3 days after a missed deadline",
 		"autoDeleteInfo": "If the deadline is missed, the task is deleted automatically after 3 days unless it has been completed by then.",
 		"addressLabel": "Address (optional)",

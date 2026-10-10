@@ -144,17 +144,22 @@ vi.mock('@public-ui/react-v19', () => ({
 			onChange={(e) => _on?.onChange?.(e.nativeEvent, e.target.checked)}
 		/>
 	),
+	// Kontrolliert wie KolSelect: _value wird in den nativen Input gespiegelt — leert das Form die
+	// Deadline extern (#2463-Entfernen-Button), zieht der Mock das im DOM nach.
 	KolInputDate: ({
 		_label,
+		_value,
 		_on,
 	}: {
 		_label?: string;
+		_value?: Date;
 		_on?: { onChange?: (_e: unknown, v: unknown) => void; onInput?: (_e: unknown, v: unknown) => void };
 	}) => (
 		<input
 			type="date"
 			aria-label={_label}
 			data-testid={`input-date-${_label}`}
+			value={_value instanceof Date ? _value.toISOString().slice(0, 10) : ''}
 			onChange={(e) => {
 				_on?.onChange?.(e.nativeEvent, e.target.value === '' ? '' : new Date(`${e.target.value}T00:00:00Z`));
 			}}
@@ -3858,5 +3863,80 @@ describe('TaskForm — Aufgabe als Vorlage speichern (#2361)', () => {
 		// Die Ausgangsaufgabe bleibt unberührt (AK3).
 		expect(mockUpdateTask).not.toHaveBeenCalled();
 		expect(mockCreateTask).not.toHaveBeenCalled();
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2463 — „Gesetzte Deadline wieder leeren können".
+ *
+ * Contract: docs/spec/issue-2463.md.
+ *
+ * **Erwartete (noch nicht existierende) Schnittstelle** im Task-Modus des TaskForm:
+ *  - Ein KolButton mit zugänglichem Namen „Deadline entfernen" (i18n `taskForm.deadlineClear`),
+ *    nur gerendert, solange eine Deadline gesetzt ist (KI-UX: kein toter Knopf).
+ *  - Klick leert das Deadline-Feld vollständig (`''`) — die bestehende #534-Kopplung setzt den
+ *    Auto-Löschen-Schalter dadurch selbst auf disabled/false (kein zweiter Reset-Mechanismus).
+ *  - Im Update-Payload landen `deadline: null` und `autoDeleteAfterDeadline: false`.
+ *
+ * Rot, solange TaskForm den Entfernen-Button nicht führt (Element nicht gefunden).
+ */
+describe('TaskForm — Deadline am Feld entfernen (#2463)', () => {
+	const deadlineClearButton = (): HTMLElement => screen.getByRole('button', { name: 'Deadline entfernen' });
+
+	it('TF1/AK1+AK2+AK3 — Entfernen-Klick leert das Feld, koppelt den Schalter zurück, Payload: deadline null + autoDelete false', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockUpdateTask.mockResolvedValue(minimalNewTask());
+
+		await act(async () => {
+			render(<TaskForm task={minimalNewTask()} {...defaultProps} />);
+		});
+
+		// Erst Deadline setzen und den Schalter aktivieren (Edit-Modus, Muster #534 AK2/AK3).
+		const input = screen.getByLabelText('Deadline (optional)') as HTMLInputElement;
+		await act(async () => {
+			fireEvent.change(input, { target: { value: '2026-09-07' } });
+		});
+		const toggle = screen.getByLabelText(/Automatisch löschen nach 3 Tagen/i);
+		await act(async () => {
+			fireEvent.click(toggle);
+		});
+		expect(input.value).toBe('2026-09-07');
+		expect(toggle).toBeChecked();
+
+		// AK1: Entfernen-Klick leert das Feld vollständig.
+		await act(async () => {
+			fireEvent.click(deadlineClearButton());
+		});
+		expect(input.value).toBe('');
+
+		// AK3: Kopplung #534 greift über den Button-Pfad (disabled + false, kein zweiter Reset).
+		expect(toggle).toBeDisabled();
+		expect(toggle).not.toBeChecked();
+
+		// AK2: Update-Payload enthält deadline: null und autoDeleteAfterDeadline: false.
+		await clickSaveEdit();
+
+		expect(mockUpdateTask).toHaveBeenCalledTimes(1);
+		const [{ taskUpdate }] = mockUpdateTask.mock.calls[0] as [{ id: number; taskUpdate: Record<string, unknown> }];
+		expect(taskUpdate).toHaveProperty('deadline', null);
+		expect(taskUpdate).toHaveProperty('autoDeleteAfterDeadline', false);
+	});
+
+	it('TF2/AK1 — Button nur bei gesetzter Deadline: ohne Feld keiner, nach Setzen da', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		// Ohne Deadline: kein toter Knopf (KI-UX).
+		expect(screen.queryByRole('button', { name: 'Deadline entfernen' })).toBeNull();
+
+		// Erst mit gesetzter Deadline erscheint der Button (roter Teil, solange er nicht geführt wird).
+		const deadlineInput = screen.getByLabelText('Deadline (optional)');
+		await act(async () => {
+			fireEvent.change(deadlineInput, { target: { value: '2026-09-07' } });
+		});
+		expect(deadlineClearButton()).toBeInTheDocument();
 	});
 });
