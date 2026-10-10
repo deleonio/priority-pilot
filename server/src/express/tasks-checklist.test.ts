@@ -172,4 +172,72 @@ describe('#531 — Checklisten-Feld in Tasks', () => {
 			assert.ok(Array.isArray(task.checklist), 'jeder Task braucht ein checklist-Array');
 		}
 	});
+
+	// ── #2467 — Checklisten-Done-Guard (Spec docs/spec/issue-2467.md) ────────────────────
+
+	it('#2467/AK1: PATCH Done mit offenem gespeicherten Checkpunkt → 409, Status und Checkliste unverändert', async () => {
+		const id = await createTask({
+			title: 'Offene Liste',
+			checklist: [
+				{ id: UUID, title: 'Offen', completed: false },
+				{ id: UUID_2, title: 'Erledigt', completed: true },
+			],
+		});
+		const res = await patch(`/tasks/${id}`, { status: 'Done' });
+		assert.equal(res.status, 409, 'Erledigen mit offenem Checkpunkt muss abgelehnt werden');
+		const body = (await res.json()) as { message: string };
+		assert.match(body.message, /offen/i, 'die Meldung muss den offenen Checkpunkt benennen');
+		const after = await get(`/tasks/${id}`);
+		assert.equal(after.status, 200);
+		const task = (await after.json()) as { status: string; checklist: { completed: boolean }[] };
+		assert.notEqual(task.status, 'Done', 'der Status darf nicht auf Done gewechselt sein');
+		assert.equal(task.checklist[0].completed, false, 'die Checkliste darf nicht verändert sein');
+	});
+
+	it('#2467/AK1: PATCH Done mit im selben Request mitgesendeter offener Checkliste → 409', async () => {
+		const id = await createTask({ title: 'Kombiniert offen' });
+		const res = await patch(`/tasks/${id}`, {
+			status: 'Done',
+			checklist: [{ id: UUID, title: 'Noch offen', completed: false }],
+		});
+		assert.equal(res.status, 409, 'auch die mitgesendete offene Liste muss die Ablehnung auslösen');
+		const body = (await res.json()) as { message: string };
+		assert.match(body.message, /offen/i);
+	});
+
+	it('#2467/AK2: ohne Checkliste und mit abgehakter Checkliste bleibt Done möglich, Reopen ungefragt', async () => {
+		const ohneId = await createTask({ title: 'Ohne Liste' });
+		const resOhne = await patch(`/tasks/${ohneId}`, { status: 'Done' });
+		assert.equal(resOhne.status, 200, 'Done ohne Checkliste darf nicht blockiert werden');
+
+		const mitId = await createTask({
+			title: 'Fertige Liste',
+			checklist: [{ id: UUID, title: 'Erledigt', completed: true }],
+		});
+		const resMit = await patch(`/tasks/${mitId}`, { status: 'Done' });
+		assert.equal(resMit.status, 200, 'Done mit vollständig abgehakter Checkliste darf nicht blockiert werden');
+
+		const offenId = await createTask({
+			title: 'Reopen ohne Prüfung',
+			checklist: [{ id: UUID, title: 'Offen', completed: false }],
+		});
+		const reopen = await patch(`/tasks/${offenId}`, { status: 'Open' });
+		assert.equal(reopen.status, 200, 'Reopen bleibt ohne Prüfung möglich');
+	});
+
+	it('#2467/AK4: PATCH {status: Done, checklist: alle completed} in einem Request → 200, Liste übernommen', async () => {
+		const id = await createTask({
+			title: 'Im Dialog erledigt',
+			checklist: [{ id: UUID, title: 'Erster', completed: false }],
+		});
+		const neueListe = [
+			{ id: UUID, title: 'Erster', completed: true },
+			{ id: UUID_2, title: 'Zweiter', completed: true },
+		];
+		const res = await patch(`/tasks/${id}`, { status: 'Done', checklist: neueListe });
+		assert.equal(res.status, 200, 'Done plus abgehakte Liste im selben Request muss gelingen');
+		const updated = (await res.json()) as { status: string; checklist: typeof neueListe };
+		assert.equal(updated.status, 'Done');
+		assert.deepEqual(updated.checklist, neueListe);
+	});
 });

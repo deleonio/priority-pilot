@@ -232,6 +232,37 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		assert.equal(reopened.result?.status, 'Open', 'Reopen per task_update muss weiterhin funktionieren');
 	});
 
+	// #2467 (Spec docs/spec/issue-2467.md): Der Checklisten-Done-Guard sitzt allein in
+	// PATCH /tasks/:id — task_complete/task_update spiegeln ihn über callApi und reichen
+	// dieselbe Meldung durch. KEINE eigene Prüflogik in tools.ts.
+	it('#2467 AK3: task_complete/task_update mit offenem Checkpunkt → Fehler, Aufgabe bleibt offen', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const created = await server.json('/tasks', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({
+				title: 'Mit offener Checkliste',
+				checklist: [{ id: '550e8400-e29b-41d4-a716-446655440000', title: 'Noch offen', completed: false }],
+			}),
+		});
+		assert.equal(created.status, 201, 'Setup: Task muss über die API anlegbar sein');
+		const taskId = ((await created.json()) as { id: number }).id;
+
+		const completed = await mcpCall<{ status: string }>(token, 'task_complete', { id: taskId });
+		assert.ok(completed.error, 'task_complete mit offenem Checkpunkt muss fehlschlagen');
+		assert.match(completed.error?.message ?? '', /offen/i, 'die Meldung der Route muss durchgereicht werden');
+
+		const updated = await mcpCall<{ status: string }>(token, 'task_update', { id: taskId, status: 'Done' });
+		assert.ok(updated.error, 'task_update mit offenem Checkpunkt muss fehlschlagen');
+		assert.match(updated.error?.message ?? '', /offen/i, 'dieselbe Meldung wie bei task_complete');
+
+		const list = await mcpCall<{ id: number; status: string }[]>(token, 'task_list');
+		const task = list.result?.find((t) => t.id === taskId);
+		assert.ok(task, 'die Aufgabe muss in task_list liegen');
+		assert.notEqual(task?.status, 'Done', 'die Aufgabe muss weiter offen sein');
+	});
+
 	it('der Klartext der gespiegelten Route erreicht den Client samt Statuscode', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
