@@ -2,9 +2,17 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.21 - 2026-10-10
+
+_Keine für Nutzer sichtbaren Änderungen._
+
 ## v0.20 - 2026-10-09
 
-_Enthält v0.20.0 – v0.20.3._
+_Enthält v0.20.0 – v0.20.4._
+
+### 🎉 New Features
+
+- feat(server): manage task checklist items one by one via mcp (#2460) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2461
 
 ### Other Changes
 
@@ -153,7 +161,6 @@ _Enthält v0.17.0 – v0.17.45._
 ### 🔧 Engineering
 
 - refactor(frontend): extract share-card rasterization into shared helper by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2273
-- test(e2e): fix shard isolation in #2221 and #763 specs by @deleonio in https://github.com/deleonio/priority-pilot/pull/2290
 - test(e2e): fix shard isolation in #2221 and #763 specs by @deleonio in https://github.com/deleonio/priority-pilot/pull/2290
 - test: cover invitation auto-allow of unknown emails (#2223) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2288
 - test(server): freeze time in #2143 proration AK3 test (#2279) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2297
