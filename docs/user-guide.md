@@ -325,7 +325,9 @@ in einzelne, abhakbare Teilschritte:
 - **Entfernen:** Kreuz-Button löscht den Eintrag.
 
 Die Checkliste wird mit der Aufgabe gespeichert und ist beim Bearbeiten wieder da.
-Sie fließt nicht in die Wertberechnung ein, dient rein der Übersicht.
+Sie fließt nicht in die Wertberechnung ein, dient rein der Übersicht. Eine Aufgabe mit
+offenen Checkpunkten lässt sich nicht erledigen – der Server lehnt das ab, bis alle
+Punkte abgehakt sind.
 
 ---
 

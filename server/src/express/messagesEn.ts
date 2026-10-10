@@ -45,7 +45,9 @@ const EXAKT: Record<string, string> = {
 	'Der Empfänger teilt keine Gruppe mit dir.': 'The recipient does not share a group with you.',
 	'Der Kauf gehört zu einem anderen Konto.': 'The purchase belongs to a different account.',
 	'Der Kauf ist nicht aktiv.': 'The purchase is not active.',
-	'Der Task kann nicht auf „Erledigt" gesetzt werden, solange noch offene Unteraufgaben existieren.':
+	'Der Task kann nicht auf „Erledigt“ gesetzt werden, solange noch Checkpunkte offen sind.':
+		'The task cannot be set to "Done" while it still has open checkpoints.',
+	'Der Task kann nicht auf „Erledigt“ gesetzt werden, solange noch offene Unteraufgaben existieren.':
 		'The task cannot be set to "Done" while it still has open subtasks.',
 	'Die Aufgabe eignet sich nicht für einen KI-Entwurf.': 'This task is not suitable for an AI draft.',
 	'Die Aufgabe hängt an Aufgaben, die der Empfänger nicht sehen kann. Abhängigkeiten entfernen oder den Empfänger wechseln.':

@@ -1004,8 +1004,19 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				sendError(
 					res,
 					409,
-					'Der Task kann nicht auf „Erledigt" gesetzt werden, solange noch offene Unteraufgaben existieren.',
+					'Der Task kann nicht auf „Erledigt“ gesetzt werden, solange noch offene Unteraufgaben existieren.',
 				);
+				return;
+			}
+		}
+		// Checklisten-Done-Guard (#2467): Ein Übergang auf „Done“ ist nur mit vollständig abgehakter
+		// Checkliste erlaubt. Nur der echte Übergang wird geschützt — bereits erledigte Tasks bleiben
+		// frei editierbar (#1821). Eine im selben Request mitgesendete Liste hat Vorrang vor der
+		// gespeicherten, damit der Erledigen-Dialog/MCP `status` und `checklist` gemeinsam senden kann.
+		if (validation.attrs.status === 'Done' && task.status !== 'Done') {
+			const checklist = validation.attrs.checklist ?? task.checklist ?? [];
+			if (checklist.some((item) => !item.completed)) {
+				sendError(res, 409, 'Der Task kann nicht auf „Erledigt“ gesetzt werden, solange noch Checkpunkte offen sind.');
 				return;
 			}
 		}
