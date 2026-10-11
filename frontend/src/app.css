@@ -6112,6 +6112,9 @@ a.plan-badge:focus-visible {
 	gap: var(--pp-space-3);
 	margin: var(--pp-space-3) var(--pp-space-3) 0;
 	padding: var(--pp-space-3) var(--pp-space-4);
+	/* #2480: Platz für den absoluten Schließen-Knopf oben rechts reservieren. */
+	padding-right: calc(var(--pp-space-4) + 44px + var(--pp-space-2));
+	position: relative;
 	background: var(--pp-surface-1);
 	border: 1px solid var(--pp-border);
 	border-radius: var(--pp-radius-md);
@@ -6138,6 +6141,20 @@ a.plan-badge:focus-visible {
 
 .launch-banner__actions kol-button {
 	min-height: 44px;
+}
+
+/* Schließen-Knopf (#2480): Icon-only oben rechts, Touch-Target mindestens 44px. Custom-Element-Hosts
+   sind default display:inline — als absolutes Element (kein Flex-Item) würde min-44 sonst nicht greifen. */
+.launch-banner__close {
+	position: absolute;
+	top: var(--pp-space-2);
+	right: var(--pp-space-2);
+}
+
+.launch-banner__close kol-button {
+	display: inline-block;
+	min-height: 44px;
+	min-width: 44px;
 }
 
 @media (min-width: 48rem) {

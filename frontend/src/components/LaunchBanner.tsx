@@ -1,21 +1,44 @@
 import { KolButton } from '@public-ui/react-v19';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+const DISMISS_KEY = 'launch-banner-dismissed';
 
 /**
  * Einladungs-Banner der Einführungsphase (#2229): schmaler Streifen im Seitenfluss mit Link zum
  * Feedback-Formular. `enabled` kommt vom Server-Schalter (`launchBanner` aus `GET /auth/me`);
- * bewusst **nicht wegklickbar** — der Banner verschwindet erst, wenn der Server-Schalter
- * ausgeschaltet wird. Kein `KolAlert` — der Banner ist eine dauerhafte Einladung, keine Meldung.
+ * schließbar (#2480) — der Schließen-Knopf setzt pro Gerät den localStorage-Key
+ * `launch-banner-dismissed`, danach bleibt der Banner auch über Reload und neuen Login weg.
+ * Kein `KolAlert` — der Banner ist eine dauerhafte Einladung, keine Meldung.
  */
 export const LaunchBanner = ({ enabled, onFeedback }: { enabled: boolean; onFeedback: () => void }) => {
 	const { t } = useTranslation('common');
+	const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISS_KEY) !== null);
 
-	if (!enabled) {
+	if (!enabled || dismissed) {
 		return null;
 	}
 
 	return (
 		<div className="launch-banner" role="region" aria-label={t('launchBanner.title')} data-testid="launch-banner">
+			<div className="launch-banner__close">
+				{/* Eigener Schließen-Knopf statt KolCard `_hasCloser`: KoliBri benennt dessen X über die
+				    eigene i18n (auch im EN-Modus „Schließen“) — der zugängliche Name muss der App-Sprache
+				    folgen (#2480). */}
+				<KolButton
+					_label={t('launchBanner.close')}
+					_icons={{ left: { icon: 'fa-solid fa-xmark' } }}
+					_hideLabel
+					_variant="ghost"
+					_on={{
+						onClick: () => {
+							localStorage.setItem(DISMISS_KEY, '1');
+							setDismissed(true);
+						},
+					}}
+					data-testid="launch-banner-dismiss"
+				/>
+			</div>
 			<div className="launch-banner__body">
 				<strong>{t('launchBanner.title')}</strong>
 				<p className="launch-banner__text">{t('launchBanner.text')}</p>

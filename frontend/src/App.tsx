@@ -1238,7 +1238,12 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			    fest „Dashboard", während `SettingsPage`/`HelpPage` ihre eigene Überschrift mitbrachten. */}
 				<h1 className="visually-hidden">{pageTitle}</h1>
 
-				<LaunchBanner enabled={user.launchBanner === true} onFeedback={() => navigate('/hilfe/feedback')} />
+				{/* #2480: Play-Prüfkonto mit Demo-Hinweis sieht nie beide Karten — der Banner weicht,
+			    der Demo-Hinweis bleibt die einzige Einblendung (Issue-Messgröße 4). */}
+				<LaunchBanner
+					enabled={user.launchBanner === true && user.demoHint !== true}
+					onFeedback={() => navigate('/hilfe/feedback')}
+				/>
 
 				{/* Der Logout läuft über die Kopf-Aktionen und ist damit auf allen drei Ansichten
 			    auslösbar — seine Fehlermeldung steht deshalb außerhalb der Inhalts-Verzweigung. */}
