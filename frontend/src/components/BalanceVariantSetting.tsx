@@ -22,7 +22,8 @@ import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
  *
  * Direkt unter den Optionen eine stille Vorschau des gewählten Bildes mit festen Beispieldaten — sie
  * wechselt mit der Auswahl, ohne dass man die Einstellungen verlassen muss. Erst danach der lange
- * Hinweis: als eigener Absatz statt `_hint` (den KolInputRadio direkt unter den Optionen rendert).
+ * Hinweis: als eigener Absatz statt `_hint` (den KolInputRadio direkt unter den Optionen rendert); die
+ * Zuordnung zur Gruppe läuft über `_ariaDetails` (TalkBack/VoiceOver iOS lesen das laut KoliBri-Spec noch nicht).
  */
 
 /** Beispiel-Säulen mit leichter Schieflage, damit jedes Bild seine Unterschiede zeigt. */
@@ -81,6 +82,7 @@ export const BalanceVariantSetting = () => {
 				_orientation="vertical"
 				_options={options}
 				_value={variant}
+				_ariaDetails="balance-variant-hint"
 				_on={{
 					onChange: (_event, value) => {
 						if (typeof value === 'string') {
@@ -112,7 +114,9 @@ export const BalanceVariantSetting = () => {
 					/>
 				)}
 			</div>
-			<p className="balance-variant-hint">{t('balanceVariant.hint')}</p>
+			<p id="balance-variant-hint" className="balance-variant-hint">
+				{t('balanceVariant.hint')}
+			</p>
 		</div>
 	);
 };
