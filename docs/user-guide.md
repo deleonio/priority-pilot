@@ -99,11 +99,13 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
 - **Fürsorge-Hinweis:** Kommt eine Säule zu kurz, steht über der nächsten Aufgabe ein
   Vorschlag dazu. Trägt eine Säule den Großteil deines Aufwands (Überlast), schlägt der
   Hinweis stattdessen Ausgleich oder eine Pause vor. Mit Plus oder Pro kann der Vorschlag
-  aus deinen bisherigen Aufgaben von der KI kommen; er ist dann als **„KI-Vorschlag"**
-  gekennzeichnet, und „Vorschlag ablehnen" blendet ihn bis Tagesende aus. **„Vorschlag übernehmen"** legt ihn als Aufgabe an (eine eigene Aufgabe
-  wird auf „In process" gesetzt), **„Nicht jetzt"** blendet den Hinweis bis Tagesende aus,
-  **„Vorschlag ablehnen"** für 14 Tage. Gibt es keinen Vorschlag, steht dort eine kurze
-  Rückmeldung.
+  aus deinen bisherigen Aufgaben von der KI kommen; er ist dann als **„KI-Vorschlag“**
+  gekennzeichnet. **„Vorschlag übernehmen“** legt ihn als Aufgabe an (eine eigene Aufgabe
+  wird auf „In Arbeit“ gesetzt). **„Heute nicht“** fragt danach „Warum nicht jetzt?“ –
+  wählst du einen der fünf Gründe oder „Ohne Grund überspringen“, rückt der nächste
+  Vorschlag nach; der Übersprungene gilt bis Tagesende. **„Diesen Vorschlag nicht mehr“**
+  blendet einen KI-Vorschlag bis Tagesende aus, einen Vorschlag aus deinen eigenen Aufgaben
+  für 14 Tage. Gibt es keinen Vorschlag, steht dort eine kurze Rückmeldung.
 - **Nächste Aufgabe:** die Aufgabe mit der höchsten Priorität, deren Vorgänger alle
   erledigt sind.
   Über **„Erledigen"** schließt du sie in einem Dialog direkt ab; daneben steht ein
@@ -616,7 +618,7 @@ Aufgabe senkt deine Punktesumme, nimmt dir aber keine bereits erreichte Stufe me
 ## Einstellungen
 
 Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit den Bereichen
-Allgemein, Säulen, Kategorien, Standort, Orte, KI, Gruppen und **Pakete & Abo**. Admins der App sehen zusätzlich den Bereich **Nutzerverwaltung**
+Allgemein, Säulen, Kategorien, Ortung, KI, Gruppen, Pakete & Abo und Daten. Admins der App sehen zusätzlich den Bereich **Nutzerverwaltung**
 (siehe unten).
 
 ### Allgemein
@@ -709,7 +711,7 @@ Zeichen, z. B. „Antworte kurz und knapp."). KI-Clients, die sich per Access-To
 verbinden, erhalten ihn beim Verbindungsaufbau. **„Speichern"** übernimmt den Text; ein
 leeres Feld löscht die Vorgaben. Werkzeuge und Rechte der Tokens ändern sich dadurch nicht.
 
-### Standort
+### Ortung
 
 - **Standort erfassen** – ermittelt im Hintergrund regelmäßig deine aktuelle
   Position (Standard alle 5 Minuten). Beim Einschalten wird die
@@ -724,7 +726,7 @@ leeres Feld löscht die Vorgaben. Werkzeuge und Rechte der Tokens ändern sich d
 
 ### Orte
 
-Gespeicherte Orte haben einen eigenen Tab und sind unabhängig vom Standort-Schalter. Orte, die du oft brauchst, legst du hier einmal ab und wählst sie danach im Adressfeld
+Gespeicherte Orte pflegst du im Tab **„Ortung“** der Einstellungen; sie sind unabhängig vom Standort-Schalter. Orte, die du oft brauchst, legst du hier einmal ab und wählst sie danach im Adressfeld
 direkt aus.
 
 - **Anlegen:** unter **„Gespeicherte Orte"** eine Adresse eintippen und aus der
