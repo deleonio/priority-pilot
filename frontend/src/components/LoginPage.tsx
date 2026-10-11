@@ -198,6 +198,9 @@ export const LoginPage = () => {
 	};
 
 	const handleLogin = () => {
+		// #2480: Das Schließen des Einladungs-Banners gilt je Login (Reload nach Session-Ablauf behält
+		// sessionStorage), daher vor beiden Zweigen zurücksetzen.
+		sessionStorage.removeItem(LAUNCH_BANNER_DISMISS_KEY);
 		// In der App blockiert Google den Login im WebView, er läuft dort im System-Browser.
 		if (isNativeChannel()) {
 			void startNativeGoogleLogin();

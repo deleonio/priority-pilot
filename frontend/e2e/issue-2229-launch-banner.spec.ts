@@ -45,6 +45,22 @@ test.describe('Balamentum — #2229: Einladungs-Banner', () => {
 		await expect(page.getByTestId('launch-banner')).toHaveCount(0);
 	});
 
+	test('#2480: Abmelden setzt das Schließen zurück (Banner erscheint nach dem nächsten Login wieder)', async ({
+		page,
+	}) => {
+		await page.route('**/auth/logout', (route) =>
+			route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+		);
+		await page.goto('/app/');
+		await page.getByTestId('launch-banner-dismiss').click();
+		await expect(page.getByTestId('launch-banner')).toHaveCount(0);
+		await expect.poll(() => page.evaluate(() => sessionStorage.getItem('launch-banner-dismissed'))).toBe('1');
+
+		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
+		await page.waitForURL(/\/login(\b|\/|$)/);
+		expect(await page.evaluate(() => sessionStorage.getItem('launch-banner-dismissed'))).toBeNull();
+	});
+
 	test('AK7: 375px — keine Überlappung mit der Kopfzeile, Knöpfe mindestens 44px hoch', async ({ page }) => {
 		await page.goto('/app/');
 		const banner = page.getByTestId('launch-banner');
