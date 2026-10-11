@@ -103,8 +103,8 @@ Nicht alles braucht gleich viel Strenge. Diese Politik kombiniert man mit 1–3:
   e2e-Ansatz).
 - **Coverage-Schwelle** nur für `logics`/`lib`, **nicht** repo-weit (Effizienz-Prinzip „gezielt statt
   repo-weit"). **Umgesetzt:** `server/src/logics` via node:test (`test:coverage`, Schwellen 90/85/85,
-  CI-Gate). **Vorbereitet:** `frontend/src/lib` in `vitest.config.ts` — Provider
-  `@vitest/coverage-v8` installieren, dann `test:coverage`.
+  CI-Gate); `frontend/src/lib` via Vitest (`test:coverage`, Schwellen 80/80/70/80, `vitest.config.ts`,
+  Provider `@vitest/coverage-v8` installiert) — lokal, ohne CI-Gate.
 
 ## Testumfang — so viel wie nötig, so wenig wie irgend möglich
 
