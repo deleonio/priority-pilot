@@ -6143,7 +6143,8 @@ a.plan-badge:focus-visible {
 	min-height: 44px;
 }
 
-/* Schließen-Knopf (#2480): Icon-only oben rechts, Touch-Target mindestens 44px. */
+/* Schließen-Knopf (#2480): Icon-only oben rechts, Touch-Target mindestens 44px. Custom-Element-Hosts
+   sind default display:inline — als absolutes Element (kein Flex-Item) würde min-44 sonst nicht greifen. */
 .launch-banner__close {
 	position: absolute;
 	top: var(--pp-space-2);
@@ -6151,6 +6152,7 @@ a.plan-badge:focus-visible {
 }
 
 .launch-banner__close kol-button {
+	display: inline-block;
 	min-height: 44px;
 	min-width: 44px;
 }
