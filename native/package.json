@@ -11,10 +11,10 @@
 	},
 	"dependencies": {
 		"@capacitor-community/speech-recognition": "7.0.1",
-		"@capacitor/android": "8.5.2",
+		"@capacitor/android": "8.5.3",
 		"@capacitor/app": "8.1.1",
 		"@capacitor/browser": "8.0.4",
-		"@capacitor/core": "8.5.2",
+		"@capacitor/core": "8.5.3",
 		"@capacitor/push-notifications": "8.1.2",
 		"@capacitor/splash-screen": "8.0.2",
 		"cordova-plugin-purchase": "13.18.0"
