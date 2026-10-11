@@ -33,7 +33,7 @@ import { startWelcomeSteps } from './components/WelcomeSteps';
 import { isOnboardingDismissed, storeOnboardingDismissed } from './lib/onboardingPreferences';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
-import { LaunchBanner } from './components/LaunchBanner';
+import { LAUNCH_BANNER_DISMISS_KEY, LaunchBanner } from './components/LaunchBanner';
 import { SessionExpiredDialog } from './components/SessionExpiredDialog';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { PushToast } from './components/PushToast';
@@ -716,6 +716,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			// Issue #396 PR B — Logout-Sperre: „gerade abgemeldet"-Marker unterdrückt den nächsten
 			// stillen Re-Login (s. Root.tsx), sonst wäre ein Ausloggen praktisch unmöglich.
 			sessionStorage.setItem('pp_just_logged_out', '1');
+			sessionStorage.removeItem(LAUNCH_BANNER_DISMISS_KEY);
 			window.location.href = `${import.meta.env.BASE_URL}login`;
 		} catch (reason) {
 			setLogoutError(reason instanceof Error ? reason.message : t('app:shell.logoutFailed'));
@@ -1238,12 +1239,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			    fest „Dashboard", während `SettingsPage`/`HelpPage` ihre eigene Überschrift mitbrachten. */}
 				<h1 className="visually-hidden">{pageTitle}</h1>
 
-				{/* #2480: Play-Prüfkonto mit Demo-Hinweis sieht nie beide Karten — der Banner weicht,
-			    der Demo-Hinweis bleibt die einzige Einblendung (Issue-Messgröße 4). */}
-				<LaunchBanner
-					enabled={user.launchBanner === true && user.demoHint !== true}
-					onFeedback={() => navigate('/hilfe/feedback')}
-				/>
+				<LaunchBanner enabled={user.launchBanner === true} onFeedback={() => navigate('/hilfe/feedback')} />
 
 				{/* Der Logout läuft über die Kopf-Aktionen und ist damit auf allen drei Ansichten
 			    auslösbar — seine Fehlermeldung steht deshalb außerhalb der Inhalts-Verzweigung. */}
@@ -1375,7 +1371,6 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 												suggestions={suggestions}
 												pillars={pillars}
 												displayName={user.displayName}
-												demoHint={user.demoHint}
 												onCompleteTask={openComplete}
 												onEditTask={openEdit}
 												onSnoozeTask={handleSnoozeTask}

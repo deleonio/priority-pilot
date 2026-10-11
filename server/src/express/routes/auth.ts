@@ -195,7 +195,7 @@ authRouter.post('/auth/login', async (req, res) => {
 const PLAY_REVIEW_DEFAULT_EMAIL = 'google-play-review@balamentum.invalid';
 // #2471: geteilter Helper — die Prüfkonto-Erkennung hängt an der E-Mail (jedes Review-Login setzt
 // das Konto zurück, #2442; an der User-Id wäre sie nach dem Reset verloren) und wird in
-// `/auth/review-login` UND `/auth/me` (demoHint) gebraucht. Je Anfrage gelesen, wie die Schalter.
+// `/auth/review-login` gebraucht. Je Anfrage gelesen, wie die Schalter.
 const playReviewEmail = (): string => (process.env.PLAY_REVIEW_EMAIL || PLAY_REVIEW_DEFAULT_EMAIL).trim().toLowerCase();
 // Anders als `authLimiter` auch außerhalb von production aktiv: 5 Fehlversuche je IP und 15 Minuten.
 const reviewLoginLimiter = rateLimit({
@@ -507,8 +507,6 @@ authRouter.get('/auth/me', async (req, res) => {
 			// #1901 (AK8): ohne Auth-Kontext gibt es nichts zu bestätigen.
 			termsAccepted: true,
 			launchBanner: process.env.LAUNCH_BANNER_ENABLED === 'true',
-			// #2471: Pass-Through-Nutzer sind nie das Prüfkonto — der Hinweis bleibt aus.
-			demoHint: false,
 		});
 		return;
 	}
@@ -641,9 +639,6 @@ authRouter.get('/auth/me', async (req, res) => {
 		termsAccepted,
 		// #2229: Server-Schalter des Einführungs-Banners, je Anfrage gelesen (Wechsel ohne Release).
 		launchBanner: process.env.LAUNCH_BANNER_ENABLED === 'true',
-		// #2471: Demo-Hinweis nur für das Play-Prüfkonto und nur bei aktivem Schalter — je Anfrage
-		// gelesen (Muster launchBanner), Erkennung an der E-Mail (#2442), nicht an der User-Id.
-		demoHint: process.env.DEMO_HINT_ENABLED === 'true' && user.email.trim().toLowerCase() === playReviewEmail(),
 		...(user.id !== undefined ? { playAccountId: playAccountIdFor(user.id) } : {}),
 	});
 });
@@ -739,7 +734,7 @@ if (process.env.NODE_ENV === 'test') {
 		// Issue #1136: Ohne konfigurierte Allowlist (Pass-Through-Modus, siehe `isAuthActive`) ist
 		// jede Adresse erlaubt — sonst bliebe der Endpunkt in einer auth-losen E2E-Umgebung unbenutzbar.
 		// #2471: Das Play-Prüfkonto umgeht Allowlist/Warteliste bewusst (#2426) — auch hier, damit
-		// Tests eine Session mit der Prüfkontakt-E-Mail anlegen können (Session-Quelle für demoHint).
+		// Tests eine Session mit der Prüfkontakt-E-Mail anlegen können.
 		const hasAllowlist = !!(process.env.GOOGLE_ALLOWED_EMAILS?.trim() || process.env.GOOGLE_ALLOWED_EMAIL?.trim());
 		if (
 			!email ||

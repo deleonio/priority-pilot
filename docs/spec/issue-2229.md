@@ -15,7 +15,7 @@ Vertrag für `GET /auth/me` und die Komponente `LaunchBanner`. Texte/Locales sie
 Props: `enabled: boolean` (aus `/auth/me`), `onFeedback: () => void` (SPA-Navigation nach `/hilfe/feedback`).
 
 - `enabled=false` → nichts im DOM.
-- `enabled=true`, Schlüssel `launch-banner-dismissed` nicht in `localStorage` → Banner (`data-testid="launch-banner"`)
+- `enabled=true`, Schlüssel `launch-banner-dismissed` nicht in `sessionStorage` (je Login: App-Logout und Prüf-Login löschen ihn) → Banner (`data-testid="launch-banner"`)
   mit Knöpfen `launch-banner-feedback` und `launch-banner-dismiss`.
 - Schlüssel wird synchron beim ersten Render gelesen (kein Aufblitzen).
 - „Schließen" setzt den Schlüssel und entfernt den Banner; ein Re-Mount zeigt ihn nicht mehr.
