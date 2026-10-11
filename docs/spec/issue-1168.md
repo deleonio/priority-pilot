@@ -1,18 +1,16 @@
-# Dashboard-Signal-Panel: „Jetzt starten" → „Erledigt" mit Bestätigungsdialog
+# Dashboard-Signal-Panel: „Erledigt“ mit Bestätigungsdialog
 
-**Stand:** 2026-09-02
+**Stand:** 2026-10-11
 
-Der Aktionsbutton im Panel „Nächste Aufgabe" (`Dashboard.tsx:198-205`) heißt „Jetzt starten" und öffnet
-heute den Edit-Dialog (`App.tsx:611`, `onStartTask={openEdit}`). Er wird ersetzt: Label „Erledigt",
+Der Aktionsbutton im Panel „Nächste Aufgabe“ (`Dashboard.tsx:198-205`) trägt das Label „Erledigt“.
 Klick öffnet einen nicht-destruktiven Bestätigungsdialog; Bestätigen setzt die Aufgabe auf `Done` und
 das Panel zeigt danach ohne manuellen Reload die nächste Aufgabe aus `GET /next`.
 
 ## Vertrag `Dashboard`
 
-- Prop `onStartTask?: (task: Task) => void` wird ersetzt durch `onCompleteTask?: (task: Task) => void`.
+- Prop `onCompleteTask?: (task: Task) => void`.
 - Im Panel „Nächste Aufgabe" (`.dashboard-next-task-content`) rendert bei gesetztem `onCompleteTask` ein
-  `KolButton _label="Erledigt"` (Icon `fa-solid fa-check`, `_variant="primary"`); ein Button „Jetzt
-  starten" existiert nicht mehr. Klick ruft `onCompleteTask(nextTask)`.
+  `KolButton _label="Erledigt"` (Icon `fa-solid fa-check`, `_variant="primary"`); Klick ruft `onCompleteTask(nextTask)`.
 
 ## Vertrag `CompleteTaskDialog` (neu, `frontend/src/components/CompleteTaskDialog.tsx`)
 

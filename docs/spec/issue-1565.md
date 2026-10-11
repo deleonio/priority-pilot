@@ -1,17 +1,19 @@
 # Spec — Issue #1565: Paket-Selbstwechsel des Admins zieht in den Tab „Pakete" um
 
+**Stand:** 2026-10-11
+
 Quelle: Akzeptanzkriterien AK1–AK5 aus dem KI-ANALYSE-Block des Harness-Marker-Kommentars von #1565 (+ KI-UX-Block, advisory, hier eingearbeitet). Löst die Auswahl in der eigenen Zeile der Nutzerverwaltung aus #1556 ab (Spec `docs/spec/issue-1556.md` AK2/AK3 — Zeilen-Select entfällt, Server-Vertrag unverändert). Reine Frontend-Umlagerung auf den bestehenden Endpunkt `PATCH /admin/users/{id}/plan` (#1556 / PR #1563, Backend aus #1456).
 
 ## Ziel
 
-Admins wechseln ihr eigenes Paket künftig im Tab „Pakete" (`/settings/pakete`, Panel `slot="tab-6"`) über eine eigene Karte über der Vergleichs-Matrix. Die Nutzerverwaltung ist danach rein lesend: Paket je Konto nur noch als Badge, keinerlei Auswahl. Mitglieder sehen die Karte nicht. Kein Zahlungsweg — der einzige Call bleibt `PATCH /admin/users/{id}/plan`.
+Admins wechseln ihr eigenes Paket im Tab „Pakete“ (`/settings/pakete`, Panel `slot="tab-6"`) über eine eigene Karte über der Vergleichs-Matrix. Die Nutzerverwaltung ist rein lesend: Paket je Konto nur als Badge, keinerlei Auswahl. Mitglieder sehen die Karte nicht. Kein Zahlungsweg - der einzige Call bleibt `PATCH /admin/users/{id}/plan`.
 
 ## Voraussetzungen
 
 - `api.updateUserPlan({ id, plan })` existiert (`frontend/src/api.ts:523`).
 - `frontend/src/lib/planOffers.ts` exportiert `planLabel` — einzige Textquelle für Auswahl-Optionen und Badges (kein zweites Label-Array, #1556-Muster).
 - Plan-Zustand und `/auth/me`-Refresh kommen aus dem `PlanProvider`-Kontext (`usePlan()` → `{ plan, refresh }`, `frontend/src/lib/usePlan.ts`); `App` stellt ihn über `usePlanState(user.id)` bereit.
-- Neue Komponente `frontend/src/components/OwnPlanCard.tsx`, Prop `{ userId: number }`; Plan und `refresh` aus dem `usePlan()`-Kontext. `SettingsPage` rendert sie im Panel `slot="tab-6"` über der Karte „Pakete im Vergleich" — Gating um die KARTE (rollenerweiterbar für die geplante Rolle „Tester", Analyse-Hinweis), nicht um den Tab.
+- Neue Komponente `frontend/src/components/OwnPlanCard.tsx`, Prop `{ userId: number }`; Plan und `refresh` aus dem `usePlan()`-Kontext. `SettingsPage` rendert sie im Panel `slot="tab-6"` über der Karte "Pakete im Vergleich" - Gating um die KARTE (rollenerweiterbar für die Rolle „Tester", Analyse-Hinweis), nicht um den Tab.
 
 ## Verhalten
 
