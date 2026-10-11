@@ -152,8 +152,7 @@
 	},
 	"demoHint": {
 		"title": "Play-Prüfkonto",
-		"text": "Du bist mit dem Google-Play-Prüfkonto angemeldet. Diese Umgebung dient der App-Prüfung.",
-		"close": "Schließen"
+		"text": "Du bist mit dem Google-Play-Prüfkonto angemeldet. Diese Umgebung dient der App-Prüfung."
 	},
 	"splitHint": {
 		"reason": "Große Aufgaben lassen sich oft leichter angehen, wenn du sie in kleinere Schritte teilst."

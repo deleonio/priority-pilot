@@ -6,13 +6,16 @@ import { DemoHint } from './DemoHint';
 
 /**
  * Spec-Tests für #2471/#2474 (docs/spec/issue-2471.md, docs/spec/issue-2474.md) — #2474 AK1
- * (KolCard statt KolAlert, Nachbarmuster missed-section ohne Statusfarbe) und AK2 (zugänglicher
- * Name des X folgt der App-Sprache, nicht der KoliBri-i18n) sowie die unverändert fortgeltenden
- * #2471-Verträge AK2/AK3/AK5 (Card-Inhalt, sessionStorage-Marker, kein localStorage).
- * KoliBri-Komponenten sind Web Components, deren `_on.onClick` jsdom nicht auslöst → Mock mit
+ * (KolCard statt KolAlert, Nachbarmuster missed-section ohne Statusfarbe) und AK2 (eingebauter
+ * Closer `_hasCloser`, Name aus der KoliBri-i18n — Autoren-Entscheidung 2026-10-11) sowie die
+ * unverändert fortgeltenden #2471-Verträge AK2/AK3/AK5 (Card-Inhalt, sessionStorage-Marker,
+ * kein localStorage).
+ * KoliBri-Komponenten sind Web Components, deren `_on.onClose` jsdom nicht auslöst → Mock mit
  * nativen Elementen (Muster LaunchBanner.test.tsx). Der KolCard-Mock leitet die DOM-relevanten
- * Props weiter (`...rest`, Muster WeeklyCard-Tests) und sammelt die übrigen Props in
- * `mockCardProps` — daran werden `_level` und die Farb-Disziplin (kein `_type`) geprüft.
+ * Props weiter (`...rest`, Muster WeeklyCard-Tests), sammelt die übrigen Props in
+ * `mockCardProps` — daran werden `_level`, die Farb-Disziplin (kein `_type`) und `_hasCloser`
+ * geprüft — und rendert bei `_hasCloser` einen nativen Closer-Button, der wie das echte
+ * KoliBri-X statisch „Schließen“ heißt (KoliBri-Default-i18n, unabhängig von der App-Sprache).
  * i18n läuft echt und ist im Setup auf 'de' gepinnt; Sprach-Tests wechseln selbst (Muster
  * CareHint.test.tsx).
  */
@@ -28,22 +31,31 @@ vi.mock('@public-ui/react-v19', () => ({
 	KolCard: ({
 		_label,
 		_level,
+		_hasCloser,
+		_on,
 		children,
 		...rest
 	}: {
 		_label?: string;
 		_level?: number;
+		_hasCloser?: boolean;
+		_on?: { onClose?: () => void };
 		children?: ReactNode;
 		'data-testid'?: string;
 		className?: string;
 		role?: string;
 		'aria-label'?: string;
 	}) => {
-		mockCardProps.push({ _level, ...rest });
+		mockCardProps.push({ _level, _hasCloser, ...rest });
 		return (
 			<section data-kolcard="" {...rest}>
 				<h2>{_label}</h2>
 				{children}
+				{_hasCloser ? (
+					<button data-testid="demo-hint-closer" onClick={() => _on?.onClose?.()}>
+						Schließen
+					</button>
+				) : null}
 			</section>
 		);
 	},
@@ -89,6 +101,7 @@ describe('DemoHint (#2471/#2474)', () => {
 		const props = mockCardProps[0] ?? {};
 		expect(props._level).toBe(2);
 		expect(props._type).toBeUndefined();
+		expect(props._hasCloser).toBe(true);
 	});
 
 	it('AK2 (#2471): enabled=true → Card mit Hinweistext und X „Schließen“ in der Card', () => {
@@ -98,11 +111,14 @@ describe('DemoHint (#2471/#2474)', () => {
 		expect(within(card).getByRole('button', { name: 'Schließen' })).toBeInTheDocument();
 	});
 
-	it('AK2 (#2474): zugänglicher Name des X folgt der App-Sprache (EN „Close“, nicht KoliBri-i18n)', async () => {
+	it('AK2 (#2474): eingebauter Closer — Name aus der KoliBri-i18n (auch im EN-Modus „Schließen“), kein eigener Button', async () => {
 		await i18next.changeLanguage('en');
 		render(<DemoHint enabled />);
-		expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
-		expect(screen.queryByRole('button', { name: 'Schließen' })).not.toBeInTheDocument();
+		const card = screen.getByTestId('demo-hint');
+		expect(within(card).getByRole('button', { name: 'Schließen' })).toBeInTheDocument();
+		expect(within(card).queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
+		// Guard gegen Rückfall auf den eigenen Close-KolButton aus PR #2475.
+		expect(within(card).queryByTestId('demo-hint-close')).not.toBeInTheDocument();
 	});
 
 	it('AK2 (#2471): enabled=false → keine Card', () => {

@@ -152,8 +152,7 @@
 	},
 	"demoHint": {
 		"title": "Google Play review account",
-		"text": "You are signed in with the Play review account. This environment is used for app review.",
-		"close": "Close"
+		"text": "You are signed in with the Play review account. This environment is used for app review."
 	},
 	"splitHint": {
 		"reason": "Big tasks are often easier to tackle when you split them into smaller steps."

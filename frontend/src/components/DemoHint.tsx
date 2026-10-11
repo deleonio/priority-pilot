@@ -1,4 +1,4 @@
-import { KolButton, KolCard } from '@public-ui/react-v19';
+import { KolCard } from '@public-ui/react-v19';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -12,9 +12,9 @@ export const DEMO_HINT_DISMISSED_KEY = 'pp_demo_hint_dismissed';
 /**
  * Demo-Hinweis für das Play-Prüfkonto (#2471): wegklickbare Card oben im Dashboard, nur für
  * Nutzer mit `demoHint` aus `GET /auth/me` — alle anderen sehen nichts. Die Ausblendung gilt
- * nur für die laufende Browser-Session (AK3). Bewusst eigener Close-KolButton statt
- * `_hasCloser`: KoliBris eingebautes X trägt seinen zugänglichen Namen aus der KoliBri-eigenen
- * i18n („Schließen“), auch im EN-Modus — der eigene Button folgt der App-Sprache (KI-UX).
+ * nur für die laufende Browser-Session (AK3). Eingebauter Closer `_hasCloser` (Autoren-
+ * Entscheidung 2026-10-11): KoliBri benennt das X über die eigene i18n („Schließen“, auch im
+ * EN-Modus) — die frühere App-Sprache-Anforderung ist damit laut Autor abgelöst.
  * Kontrast zum LaunchBanner (#2229): das ist bewusst **nicht** wegklickbar.
  */
 export const DemoHint = ({ enabled }: { enabled: boolean }) => {
@@ -30,8 +30,8 @@ export const DemoHint = ({ enabled }: { enabled: boolean }) => {
 		setDismissed(true);
 	};
 	// KolCard statt KolAlert (#2474): der Demo-Hinweis ist Inhalt, kein Status — neutrale Card
-	// nach dem missed-section-Muster, ohne Signal-/Statusfarbe (KolCard hat keinen
-	// Aktions-Slot in der Kopfzeile, das X bleibt deshalb in der Textzeile rechts).
+	// nach dem missed-section-Muster, ohne Signal-/Statusfarbe; das X oben rechts liefert der
+	// eingebauter Closer (_hasCloser, Grid-Area der Card).
 	return (
 		<KolCard
 			className="demo-hint"
@@ -39,18 +39,11 @@ export const DemoHint = ({ enabled }: { enabled: boolean }) => {
 			aria-label={t('demoHint.title')}
 			_label={t('demoHint.title')}
 			_level={2}
+			_hasCloser
+			_on={{ onClose: close }}
 			data-testid="demo-hint"
 		>
-			<div className="demo-hint__row">
-				<p className="demo-hint__text">{t('demoHint.text')}</p>
-				<KolButton
-					_label={t('demoHint.close')}
-					_hideLabel
-					_icons={{ left: { icon: 'kolicon-cross' } }}
-					_on={{ onClick: close }}
-					data-testid="demo-hint-close"
-				/>
-			</div>
+			<p>{t('demoHint.text')}</p>
 		</KolCard>
 	);
 };
