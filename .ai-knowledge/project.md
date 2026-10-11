@@ -63,8 +63,9 @@ Die verbindlichen Kernregeln (Minimalprinzip, KoliBri-First, Commit-/PR-Pflichte
   `users.sprache`. Website-Unterseiten gibt es auf Deutsch und unter `/en/…` auf Englisch.
 - **Runtime:** pnpm `11` (Node-Version steht in `.nvmrc`).
 - **Coverage-Gate:** Die Logik-Schicht ist gezielt abgedeckt-gegated — `pnpm --filter server test:coverage`
-  (node:test, `server/src/logics`, Schwellen 90/85/85) läuft in der CI. `frontend/src/lib`-Coverage ist
-  in `vitest.config.ts` vorbereitet und mit `pnpm add -D @vitest/coverage-v8` + `test:coverage` aktivierbar.
+  (node:test, `server/src/logics`, Schwellen 90/85/85) läuft in der CI. `frontend/src/lib` ist ebenfalls
+  gegated: `pnpm --filter frontend test:coverage` (Vitest, `vitest.config.ts`, Schwellen 80/80/70/80;
+  Provider `@vitest/coverage-v8` ist installiert) — lokal, nicht Teil des CI-Verify.
 
 ### Code-Dokumentation (JSDoc)
 
