@@ -31,10 +31,9 @@ export const DemoHint = ({ enabled }: { enabled: boolean }) => {
 	};
 	// KolCard statt KolAlert (#2474): der Demo-Hinweis ist Inhalt, kein Status — neutrale Card
 	// nach dem missed-section-Muster, ohne Signal-/Statusfarbe; das X oben rechts liefert der
-	// eingebauter Closer (_hasCloser, Grid-Area der Card).
+	// eingebaute Closer (_hasCloser, Grid-Area der Card).
 	return (
 		<KolCard
-			className="demo-hint"
 			role="region"
 			aria-label={t('demoHint.title')}
 			_label={t('demoHint.title')}
