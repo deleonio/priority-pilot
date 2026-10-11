@@ -1,4 +1,4 @@
-# Spec — Issue #1565: Paket-Selbstwechsel des Admins zieht in den Tab „Pakete" um
+# Spec — Issue #1565: Paket-Selbstwechsel des Admins zieht in den Tab „Pakete“ um
 
 **Stand:** 2026-10-11
 
@@ -6,20 +6,20 @@ Quelle: Akzeptanzkriterien AK1–AK5 aus dem KI-ANALYSE-Block des Harness-Marker
 
 ## Ziel
 
-Admins wechseln ihr eigenes Paket im Tab „Pakete“ (`/settings/pakete`, Panel `slot="tab-6"`) über eine eigene Karte über der Vergleichs-Matrix. Die Nutzerverwaltung ist rein lesend: Paket je Konto nur als Badge, keinerlei Auswahl. Mitglieder sehen die Karte nicht. Kein Zahlungsweg - der einzige Call bleibt `PATCH /admin/users/{id}/plan`.
+Admins wechseln ihr eigenes Paket im Tab „Pakete“ (`/settings/pakete`, Panel `slot="tab-6"`) über eine eigene Karte über der Vergleichs-Matrix. Die Nutzerverwaltung ist rein lesend: Paket je Konto nur als Badge, keinerlei Auswahl. Mitglieder sehen die Karte nicht. Kein Zahlungsweg — der einzige Call bleibt `PATCH /admin/users/{id}/plan`.
 
 ## Voraussetzungen
 
 - `api.updateUserPlan({ id, plan })` existiert (`frontend/src/api.ts:523`).
 - `frontend/src/lib/planOffers.ts` exportiert `planLabel` — einzige Textquelle für Auswahl-Optionen und Badges (kein zweites Label-Array, #1556-Muster).
 - Plan-Zustand und `/auth/me`-Refresh kommen aus dem `PlanProvider`-Kontext (`usePlan()` → `{ plan, refresh }`, `frontend/src/lib/usePlan.ts`); `App` stellt ihn über `usePlanState(user.id)` bereit.
-- Neue Komponente `frontend/src/components/OwnPlanCard.tsx`, Prop `{ userId: number }`; Plan und `refresh` aus dem `usePlan()`-Kontext. `SettingsPage` rendert sie im Panel `slot="tab-6"` über der Karte "Pakete im Vergleich" - Gating um die KARTE (rollenerweiterbar für die Rolle „Tester", Analyse-Hinweis), nicht um den Tab.
+- Neue Komponente `frontend/src/components/OwnPlanCard.tsx`, Prop `{ userId: number }`; Plan und `refresh` aus dem `usePlan()`-Kontext. `SettingsPage` rendert sie im Panel `slot="tab-6"` über der Karte „Pakete im Vergleich“ — Gating um die KARTE (rollenerweiterbar für die Rolle „Tester“, Analyse-Hinweis), nicht um den Tab.
 
 ## Verhalten
 
 ### AK1 — Eigene Karte im Tab Pakete, Wechsel wirkt sofort und bleibt
 
-Im Panel `slot="tab-6"` sehen Admins (nur Rolle `admin`) eine eigene Karte (Karten-Label „Eigenes Paket", Hinweissatz „Der Wechsel ist kostenfrei, sofort wirksam und ohne Zahlungsweg." — Abgrenzung zur Bezahl-Matrix im selben Tab). Die Karte enthält eine Auswahl mit genau den vier Paketen `free | pro | max | ultimate` (Optionstexte via `planLabel`), aktuelles Paket vorausgewählt. Zugängliches Label der Auswahl ist selbstständig formuliert („Eigenes Paket wechseln", KI-UX/A11y — kein Zeilenkontext mehr). Auswahl-Komponente: `KolSingleSelect` mit `_hasClearButton={false}` (KI-UX; ein „kein Paket"-Zwischenstand ist ungültig); ein natives `KolSelect` bleibt tolerierbar.
+Im Panel `slot="tab-6"` sehen Admins (nur Rolle `admin`) eine eigene Karte (Karten-Label „Eigenes Paket“, Hinweissatz „Der Wechsel ist kostenfrei, sofort wirksam und ohne Zahlungsweg.“ — Abgrenzung zur Bezahl-Matrix im selben Tab). Die Karte enthält eine Auswahl mit genau den vier Paketen `free | pro | max | ultimate` (Optionstexte via `planLabel`), aktuelles Paket vorausgewählt. Zugängliches Label der Auswahl ist selbstständig formuliert („Eigenes Paket wechseln“, KI-UX/A11y — kein Zeilenkontext mehr). Auswahl-Komponente: `KolSingleSelect` mit `_hasClearButton={false}` (KI-UX; ein „kein Paket“-Zwischenstand ist ungültig); ein natives `KolSelect` bleibt tolerierbar.
 
 Wechsel: `api.updateUserPlan({ id: <userId>, plan })` → danach `refresh()` aus dem Plan-Kontext ((`/auth/me` neu laden — UI und Session-Snapshot sofort aktuell). Fehler landen als `KolAlert _type="error"` IN der Karte (Meldung benennt Problem + Weiterweg); die Karte bleibt bedienbar. Nach Neuladen der App liefert `/auth/me` das neue Paket (Persistenz, unverändertes Server-Verhalten).
 
@@ -33,7 +33,7 @@ Route `PATCH /admin/users/{id}/plan` und `User.plan` bleiben unangetastet; der S
 
 ### AK4 — Mitglieder sehen keine Auswahl-Karte
 
-Ohne Rolle `admin` wird die Karte gar nicht gerendert (nicht versteckt — kein leerer Panel-Bereich, keine `aria-hidden`-Container, KI-UX). Der Tab „Pakete" selbst inkl. Vergleichs-Matrix bleibt für Mitglieder unverändert.
+Ohne Rolle `admin` wird die Karte gar nicht gerendert (nicht versteckt — kein leerer Panel-Bereich, keine `aria-hidden`-Container, KI-UX). Der Tab „Pakete“ selbst inkl. Vergleichs-Matrix bleibt für Mitglieder unverändert.
 
 ### AK5 — Mobile 375px
 
@@ -55,7 +55,7 @@ Bei 375px Viewport-Breite liegt die Auswahl-Karte vollständig im Viewport (Boun
 | AK3 | — dedup: bestehender Server-Test bleibt unverändert grün, kein neuer Test (ADR-Vertrag aus #1556/#1456)                                                                                         | `server/src/express/admin.api.test.ts`                                      |
 | AK4 | Vitest: ohne Admin-Rolle kein Auswahl-Element in tab-6; E2E: Mitglied sieht die Karte im Tab Pakete nicht (Deep-Link)                                                                           | ebenda + `frontend/e2e/issue-1565-package-switch-tab.spec.ts` (neu)         |
 | AK5 | E2E 375px: Karten-Bounding-Box im Viewport, kein horizontaler Scroll-Container innerhalb der Karte                                                                                              | ebenda                                                                      |
-| AK1 | E2E: Wechsel auf „Pro" im Tab Pakete — PATCH auf eigene Id, Matrix-Kopfzeile „(dein Paket)" wandert ohne Reload, nach Neuladen noch gesetzt                                                     | ebenda                                                                      |
+| AK1 | E2E: Wechsel auf „Pro“ im Tab Pakete — PATCH auf eigene Id, Matrix-Kopfzeile „(dein Paket)“ wandert ohne Reload, nach Neuladen noch gesetzt                                                     | ebenda                                                                      |
 
 E2E-Interaktion folgt der `KolSingleSelect`-Empfehlung des KI-UX-Blocks (Combobox öffnen, Option per Label wählen). Nutzt die Implementierung stattdessen das tolerierte native `KolSelect`, ist die Interaktionszeile der E2E auf `selectOption({ label })` umzustellen (Test-Pflege in der Impl-Phase); alle Assertions bleiben davon unberührt.
 

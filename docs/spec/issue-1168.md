@@ -12,7 +12,7 @@ das Panel zeigt danach ohne manuellen Reload die nächste Aufgabe aus `GET /next
 - Im Panel „Nächste Aufgabe" (`.dashboard-next-task-content`) rendert bei gesetztem `onCompleteTask` ein
   `KolButton _label="Erledigt"` (Icon `fa-solid fa-check`, `_variant="primary"`); Klick ruft `onCompleteTask(nextTask)`.
 
-## Vertrag `CompleteTaskDialog` (neu, `frontend/src/components/CompleteTaskDialog.tsx`)
+## Vertrag `CompleteTaskDialog` (`frontend/src/components/CompleteTaskDialog.tsx`)
 
 Nicht-destruktiver Bestätigungsdialog auf Basis von `Modal` (NICHT `ConfirmDeleteDialog` mit
 `_variant="danger"` — Erledigen ist keine destruktive Aktion). `Modal`-Titel: „Aufgabe erledigen".

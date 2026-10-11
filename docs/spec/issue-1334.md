@@ -28,7 +28,7 @@ Aus jeder Ansicht (Aufgaben, Serien, Wald, Einstellungen) führt ein eindeutig a
   Kopf-Aktionen (`SEARCH_ICON`/`SETTINGS_ICON` etc., `App.tsx:90-94`). Test-Hook: eine
   CSS-Klasse, die `fa-house` enthält (z. B. `<i class="fa-solid fa-house" aria-hidden="true">`).
 - Accessible Name: der Button erhält seinen Namen aus dem i18n-Namespace
-  `navigation`, Schlüssel `menu.home` (alle 10 Sprachdateien unter
+  `navigation`, Schlüssel `menu.home` (beide Sprachdateien de und en unter
   `frontend/src/i18n/locales/*/navigation.json`), deutscher Wert
   `"Zum Dashboard"`.
 - Navigation bleibt Router-basiert (`navigate('/')`); nach dem Klick ist der Dashboard-Tab
