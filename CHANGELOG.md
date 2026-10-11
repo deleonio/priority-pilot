@@ -165,6 +165,7 @@ _Enthält v0.17.0 – v0.17.45._
 - feat(frontend): add welcome steps card to dashboard after onboarding by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2284
 - feat(admin): delete user subscriptions and invoices completely (#2295) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2296
 - feat(server): send waitlist activation mail with login link by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2310
+- feat(server): send waitlist activation mail with login link by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2310
 - feat(server): send emails for payment failure and subscription end by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2320
 - feat(ci): add ai:hold-merge label to block auto-merge by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2333
 - feat(admin): delete foreign user account from admin user list by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2331
