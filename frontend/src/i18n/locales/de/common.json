@@ -148,7 +148,8 @@
 	"launchBanner": {
 		"title": "Balamentum ist ganz neu",
 		"text": "Du gehörst zu den Ersten. Was dir auffällt, hilft uns – sag es uns gern.",
-		"feedback": "Feedback geben"
+		"feedback": "Feedback geben",
+		"close": "Schließen"
 	},
 	"demoHint": {
 		"title": "Play-Prüfkonto",
