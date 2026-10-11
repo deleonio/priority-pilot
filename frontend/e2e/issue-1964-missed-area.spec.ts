@@ -83,7 +83,9 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 
 		await page.goto('/app/');
 		await waitForStableView(page);
-		await expect(page.locator('section.dashboard > .missed-section')).toHaveCount(1);
+		// Test-Pflege #2476: Verpasst hängt seit der strukturellen Koppung der letzten Reihe im
+		// Wrapper `.dashboard-last-row` (neben Deadlines) — kein direktes Grid-Kind mehr.
+		await expect(page.locator('section.dashboard .missed-section')).toHaveCount(1);
 		await expect(page.getByTestId('missed-section')).toHaveCount(1);
 		await expect(page.getByTestId('missed-section')).toBeVisible();
 		await expect(page.locator('.dashboard-deadlines')).toBeVisible();
