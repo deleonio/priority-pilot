@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.22 - 2026-10-11
 
-_Enthält v0.22.0 – v0.22.5._
+_Enthält v0.22.0 – v0.22.6._
 
 ### 🐞 Bug Fixes
 
@@ -20,6 +20,7 @@ _Enthält v0.22.0 – v0.22.5._
 - feat(frontend): use built-in KolCard closer for demo hint (#2474) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2476
 - docs(knowledge): describe frontend coverage gate as implemented (v-18) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2479
 - feat(frontend): make launch banner dismissible (#2480) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2481
+- fix(deps): pin dependency pdf-lib to 1.17.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2482
 
 ## v0.21 - 2026-10-10
 
@@ -232,7 +233,7 @@ _Enthält v0.17.0 – v0.17.45._
 - fix(server): one invoice per PayPal charge, idempotent via sale id by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2316
 - feat(frontend): add withdrawal notice and order button to checkout by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2315
 - [P2/M] Rechnung: Gutschrift als PDF speichern und zustellen (#2303) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2318
-- [P2/M] Rechnung: Gutschrift als PDF speichern und zustellen (#2303) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2318
+- feat(server): add 312k BGB cancellation button and confirmation mail by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2319
 - feat(server): add 312k BGB cancellation button and confirmation mail by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2319
 - feat(server): add cancellation without login via website by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2321
 - fix(frontend): import dark wordmark from src instead of public by @deleonio in https://github.com/deleonio/priority-pilot/pull/2325
