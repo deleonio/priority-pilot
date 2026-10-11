@@ -2,9 +2,13 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.22 - 2026-10-11
+
+_Keine für Nutzer sichtbaren Änderungen._
+
 ## v0.21 - 2026-10-10
 
-_Enthält v0.21.0 – v0.21.6._
+_Enthält v0.21.0 – v0.21.7._
 
 ### 🎉 New Features
 
@@ -23,6 +27,7 @@ _Enthält v0.21.0 – v0.21.6._
 
 - feat(frontend): series auto-create switch before start date (#2464) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2472
 - feat(server): reject done with open checklist items (#2467) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2470
+- feat(frontend): render demo hint as dismissible kolcard (#2474) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2475
 
 ## v0.20 - 2026-10-09
 
@@ -205,7 +210,6 @@ _Enthält v0.17.0 – v0.17.45._
 - feat(frontend): show legal texts inline in consent step by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2293
 - [P2/M] Website: Rechtstexte für die anderen Sprachen (#2226) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2294
 - fix(ci): use latest verify run in gate, tolerate ai:reviewed on fixup by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2292
-- chore(deps): update dependency @modelcontextprotocol/sdk to v1.31.0 [security] by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2298
 - chore(deps): update dependency @modelcontextprotocol/sdk to v1.31.0 [security] by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2298
 - feat(server): check PayPal config on production startup by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2311
 - fix(auth): Passwort-Registrierung außerhalb der Tests sperren (#2299) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2312
