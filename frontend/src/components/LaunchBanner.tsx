@@ -2,18 +2,19 @@ import { KolButton } from '@public-ui/react-v19';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const DISMISS_KEY = 'launch-banner-dismissed';
+/** sessionStorage-Marker der Ausblendung (#2480): gilt je Login, App/LoginPage löschen ihn beim Aus-/Einloggen. */
+export const LAUNCH_BANNER_DISMISS_KEY = 'launch-banner-dismissed';
 
 /**
  * Einladungs-Banner der Einführungsphase (#2229): schmaler Streifen im Seitenfluss mit Link zum
  * Feedback-Formular. `enabled` kommt vom Server-Schalter (`launchBanner` aus `GET /auth/me`);
- * schließbar (#2480) — der Schließen-Knopf setzt pro Gerät den localStorage-Key
- * `launch-banner-dismissed`, danach bleibt der Banner auch über Reload und neuen Login weg.
+ * schließbar (#2480) — der Schließen-Knopf setzt pro Sitzung den sessionStorage-Key
+ * `launch-banner-dismissed`, danach bleibt der Banner über Reload weg, nach einem neuen Login erscheint er wieder.
  * Kein `KolAlert` — der Banner ist eine dauerhafte Einladung, keine Meldung.
  */
 export const LaunchBanner = ({ enabled, onFeedback }: { enabled: boolean; onFeedback: () => void }) => {
 	const { t } = useTranslation('common');
-	const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISS_KEY) !== null);
+	const [dismissed, setDismissed] = useState(() => sessionStorage.getItem(LAUNCH_BANNER_DISMISS_KEY) !== null);
 
 	if (!enabled || dismissed) {
 		return null;
@@ -32,7 +33,7 @@ export const LaunchBanner = ({ enabled, onFeedback }: { enabled: boolean; onFeed
 					_variant="ghost"
 					_on={{
 						onClick: () => {
-							localStorage.setItem(DISMISS_KEY, '1');
+							sessionStorage.setItem(LAUNCH_BANNER_DISMISS_KEY, '1');
 							setDismissed(true);
 						},
 					}}
