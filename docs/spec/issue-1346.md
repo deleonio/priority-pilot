@@ -1,5 +1,7 @@
 # Spec #1346 — Task-ID grau im Bearbeiten-Modal und in Dialogen anzeigen
 
+**Stand:** 2026-10-11
+
 > **Abgelöst durch #1465:** Die Task-ID verschwindet aus Bearbeiten-Modal-Titel und Bestätigungs-
 > dialogen wieder, statt dort gezeigt zu werden (#1465, AK A5). AK7 dieser Spec (ID im Titel bzw.
 > im Löschen-Dialog) trifft damit nicht mehr zu; `frontend/e2e/issue-1346-task-id.spec.ts` ist
@@ -14,7 +16,7 @@ Beim Bearbeiten eines Tasks/einer Serie sowie in den Bestätigungsdialogen (Lös
 ## Feste Annahmen (vom Autor entschieden, Kommentar 2026-09-10T08:34:57Z)
 
 1. Modal-Titel-ID **ohne** Graufärbung (technische Grenze von `KolDialog`).
-2. Auch `DeleteSeriesDialog` zeigt künftig die Serien-ID (bisher keine).
+2. `DeleteSeriesDialog` zeigt keine Serien-ID, ID-Anzeige mit #1465 entfernt.
 3. Einheitlich `#<id>` statt `ID <id>` in allen Dialogen.
 
 ## Verhalten je Akzeptanzkriterium
@@ -49,8 +51,7 @@ Beim Bearbeiten eines Tasks/einer Serie sowie in den Bestätigungsdialogen (Lös
 
 ### AK6 — `DeleteSeriesDialog` nennt die Serien-ID in muted Farbe (neu)
 
-**Voraussetzung:** Dialog offen für eine Serie.
-**Erwartetes Ergebnis:** Body enthält `#<id>` in muted Farbe; bestehende Button-/Fokus-/Hotkey-Erwartungen bleiben unverändert grün.
+**Trifft nicht mehr zu (#1465):** Der Dialog zeigt nur den Serien-Titel, keine Serien-ID (`DeleteSeriesDialog.tsx`). Bestehende Button-/Fokus-/Hotkey-Erwartungen bleiben unverändert grün.
 
 ### AK7 — Kein horizontaler Überlauf bei 375px
 

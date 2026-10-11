@@ -1,6 +1,6 @@
 # User Journeys – Balamentum
 
-**Stand:** 2026-10-04  
+**Stand:** 2026-10-11
 **Ziel:** Reale Nutzerabläufe als Spezifikation des Ist-Zustands.
 
 Diese Journeys beschreiben **von außen sichtbares Verhalten** der laufenden Balamentum App. Sie sind die referenzierbare Quelle für neue Tests, implementierungsagnostisch und auf reale Abläufe fokussiert.
@@ -198,7 +198,7 @@ _Wert-Berechnung als beobachtbarer Effekt – ohne interne Formel:_
 | Zyklische Abhängigkeit (z. B. A → B → A)                             | Wird zurückgewiesen (HTTP 409): „… Es würde ein Zyklus entstehen."                                                                 |
 | Aufgabe mit offenen Unteraufgaben (Vorgängern) auf „Erledigt" setzen | Wird zurückgewiesen (HTTP 409): „Der Task kann nicht auf „Erledigt" gesetzt werden, solange noch offene Unteraufgaben existieren." |
 | Titel fehlt beim Anlegen                                             | „Bitte einen Titel angeben."                                                                                                       |
-| Titel länger als 30 Zeichen                                          | „Titel darf maximal 30 Zeichen haben." (Eingabe wird auf 30 Zeichen begrenzt)                                                      |
+| Titel länger als 65 Zeichen                                          | „Der Titel ist zu lang: maximal 65 Zeichen erlaubt.“ (Eingabe wird auf 65 Zeichen begrenzt)                                        |
 | Kantengewicht außerhalb 0,1–1                                        | „Das Gewicht muss eine Zahl zwischen 0,1 und 1 sein."                                                                              |
 | Priorität / Aufwand außerhalb des Bereichs                           | Werte sind über die Schieberegler begrenzt (1–5 bzw. 0,1–1), außerhalb liegende Werte sind nicht eingebbar                         |
 

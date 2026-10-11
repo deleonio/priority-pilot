@@ -1,5 +1,7 @@
 # Spec: Issue 1284 — Dashboard-Herz: Verteilungsbänder stimmen nicht mit der Legende überein
 
+**Stand:** 2026-10-11
+
 ## Ziel
 
 Die Farbbänder im Glas-Herz (WebGL) zeigen dieselbe Ist-Verteilung wie die Legende und wie der
@@ -17,7 +19,7 @@ unsichtbar.
 - Die Bänder spannen die **sichtbare** Gefäßbreite ab: erstes `x0 = 4`, letzte Kante `x1 = 96`
   (Bounding-Box der Herzkontur); dazwischen kumulierte Ist-Anteile proportional.
 - Jedes Band mit Ist-Anteil > 0 hat positive Breite — auch das größte und das kleinste.
-- Ohne Punkte gilt weiter die Soll-Verteilung (bestehendes Verhalten, ungetestet geändert).
+- Ohne Punkte gilt die Soll-Verteilung.
 
 ### Slot-Mapping (`toSlotBands`, HeartGlass.tsx)
 
