@@ -31,9 +31,10 @@ das Dashboard mountet sie oben im Seitenfluss (`enabled = user.demoHint === true
   de „Play-Prüfkonto: Du bist mit dem Google-Play-Prüfkonto angemeldet. Diese Umgebung dient der
   App-Prüfung.“ / en „Google Play review account: You are signed in with the Play review account.
   This environment is used for app review.“ (KI-UX, final).
-- Schließen: eigener KolButton (X, `_hideLabel`), Test-Id `demo-hint-close`, zugänglicher Name aus
-  `demoHint.close` = „Schließen“/„Close“ — bewusst **kein** `_hasCloser` (KoliBri-eigene Closer-i18n
-  bliebe im EN-Modus deutsch und verletzte AK2).
+- Schließen: eingebauter Card-Closer (`_hasCloser`, X oben rechts) — **Autoren-Entscheidung
+  2026-10-11**, ersetzt den ursprünglich spezifizierten eigenen KolButton `demo-hint-close`
+  (PR #2475); zugänglicher Name aus der KoliBri-i18n = „Schließen" (statisch, auch im
+  EN-Modus).
 - Klick auf X: Card sofort entfernt, `sessionStorage['pp_demo_hint_dismissed'] = '1'`; gesetzter
   Marker → Card bleibt bei Folgemounts weg (überlebt Reload) (AK3).
 - Marker-Reset beim erfolgreichen Login (App-Login-Übergang) → nach Logout + erneutem Prüf-Login

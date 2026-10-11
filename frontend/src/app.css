@@ -1300,13 +1300,26 @@ kol-toolbar {
 		grid-column: 1 / -1;
 	}
 
-	/* „Anstehende Deadlines" läuft nur in voller Breite, wenn der Verpasst-Bereich fehlt — sonst
-	   bildet er mit ihr das letzte Zeilenpaar im Zwei-Spalten-Raster (`:has()`, alle Evergreen-
-	   Browser), und der Grid-`row-gap` liefert das einheitliche Gap zwischen allen Cards.
-	   Annahme: davor steht eine gerade Zahl halbbreiter Cards; ohne Nearby-/FreeTime-Card
-	   steht Verpasst allein links. */
-	.dashboard:not(:has(.missed-section)) .dashboard-deadlines {
+	/* Letzte Dashboard-Reihe strukturell koppeln (#1964, Fixup #2476): Deadlines und Verpasst
+	   teilen sich IMMER eine Zeile — unabhängig davon, wie viele halbbreite Cards darüber
+	   stehen. Die frühere Paritätsannahme („gerade Zahl halbbreiter Cards") brach still, sobald
+	   eine weitere Card (z. B. die Wochencard) dazukam: Verpasst rutschte allein in die nächste
+	   Zeile (198,6 px neben Deadlines). Fehlt der Verpasst-Bereich, füllt die Deadlines-Card die
+	   Reihe voll (wie zuvor per `:has()` am Parent; der Wrapper ersetzt das Konstrukt). */
+	.dashboard-last-row {
 		grid-column: 1 / -1;
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: var(--pp-space-5);
+	}
+
+	.dashboard-last-row:has(.missed-section) {
+		grid-template-columns: 1fr 1fr;
+	}
+
+	/* Abstände steuert im (Inner-)Grid der gap (Muster `section.dashboard > *` oben). */
+	.dashboard-last-row > * {
+		margin-top: 0;
 	}
 
 	/*
@@ -6125,20 +6138,6 @@ a.plan-badge:focus-visible {
 
 .launch-banner__actions kol-button {
 	min-height: 44px;
-}
-
-/* Demo-Hinweis des Play-Prüfkontos (#2471): Card oben im Dashboard, Text links, X rechts.
-   Die ≥44px-Tap-Fläche liefert kol-button selbst (internes --a11y-min-size). */
-.demo-hint__row {
-	display: flex;
-	align-items: flex-start;
-	gap: var(--pp-space-2);
-}
-
-.demo-hint__text {
-	margin: 0;
-	min-width: 0;
-	flex: 1;
 }
 
 @media (min-width: 48rem) {

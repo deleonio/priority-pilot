@@ -625,53 +625,60 @@ export const Dashboard = ({
 					</>
 				)}
 			</KolCard>
-			<KolCard className="dashboard-deadlines" _label={t('deadlines.label')} _level={3}>
-				{upcomingDeadlines.length === 0 ? (
-					<p className="dashboard-empty">{t('deadlines.empty')}</p>
-				) : (
-					<>
-						<ul className="dashboard-deadlines-list">
-							{visibleDeadlines.map((task) => {
-								const urgency = deadlineUrgency(task.deadline, now);
-								return (
-									<li key={task.id} className="dashboard-deadline">
-										<span className="dashboard-deadline-title">{task.title}</span>
-										<span className="dashboard-deadline-aside">
-											{urgency !== 'later' && (
-												<KolBadge _label={formatRelativeDeadline(task.deadline, now)} _color={URGENCY_COLOR[urgency]} />
-											)}
-											<span className="dashboard-deadline-date">{formatDeadline(task.deadline)}</span>
-										</span>
-									</li>
-								);
-							})}
-						</ul>
-						{upcomingDeadlines.length > DEADLINES_PAGE_SIZE && (
-							<KolPagination
-								_label="Deadlines"
-								_max={upcomingDeadlines.length}
-								_page={activeDeadlinePage + 1}
-								_pageSize={DEADLINES_PAGE_SIZE}
-								_hasButtons={{ first: false, last: false, previous: true, next: true }}
-								_siblingCount={0}
-								_on={{ onChangePage: (_event, page) => setDeadlinePage(page - 1) }}
-							/>
-						)}
-					</>
+			{/* Fixup #2476: Deadlines und Verpasst strukturell in EINER Reihe koppeln — die alte
+			    CSS-Paritätsannahme („gerade Zahl halbbreiter Cards davor") brach mit der Wochencard,
+			    Verpasst rutschte allein in die nächste Zeile. Fehlt der Verpasst-Bereich, füllt die
+			    Deadlines-Card die Reihe voll. Die Aufgaben-Tab-Instanz bleibt in `App.tsx`. */}
+			<div className="dashboard-last-row">
+				<KolCard className="dashboard-deadlines" _label={t('deadlines.label')} _level={3}>
+					{upcomingDeadlines.length === 0 ? (
+						<p className="dashboard-empty">{t('deadlines.empty')}</p>
+					) : (
+						<>
+							<ul className="dashboard-deadlines-list">
+								{visibleDeadlines.map((task) => {
+									const urgency = deadlineUrgency(task.deadline, now);
+									return (
+										<li key={task.id} className="dashboard-deadline">
+											<span className="dashboard-deadline-title">{task.title}</span>
+											<span className="dashboard-deadline-aside">
+												{urgency !== 'later' && (
+													<KolBadge
+														_label={formatRelativeDeadline(task.deadline, now)}
+														_color={URGENCY_COLOR[urgency]}
+													/>
+												)}
+												<span className="dashboard-deadline-date">{formatDeadline(task.deadline)}</span>
+											</span>
+										</li>
+									);
+								})}
+							</ul>
+							{upcomingDeadlines.length > DEADLINES_PAGE_SIZE && (
+								<KolPagination
+									_label="Deadlines"
+									_max={upcomingDeadlines.length}
+									_page={activeDeadlinePage + 1}
+									_pageSize={DEADLINES_PAGE_SIZE}
+									_hasButtons={{ first: false, last: false, previous: true, next: true }}
+									_siblingCount={0}
+									_on={{ onChangePage: (_event, page) => setDeadlinePage(page - 1) }}
+								/>
+							)}
+						</>
+					)}
+				</KolCard>
+				{/* #1964: Verpasst-Bereich als Partner der Deadlines in der letzten Reihe. */}
+				{missedTasks.length > 0 && onCompleteMissed && onEditMissed && onArchiveMissed && onDeleteMissed && (
+					<MissedTasksSection
+						tasks={missedTasks}
+						onComplete={onCompleteMissed}
+						onEdit={onEditMissed}
+						onArchive={onArchiveMissed}
+						onDelete={onDeleteMissed}
+					/>
 				)}
-			</KolCard>
-			{/* #1964: Verpasst-Bereich als letzte Grid-Card — bildet mit den Deadlines das letzte
-			    Zeilenpaar des Zwei-Spalten-Rasters; fehlt er, läuft die Deadlines-Card in voller
-			    Breite (CSS-`:has()`-Fallback). Die Aufgaben-Tab-Instanz bleibt in `App.tsx`. */}
-			{missedTasks.length > 0 && onCompleteMissed && onEditMissed && onArchiveMissed && onDeleteMissed && (
-				<MissedTasksSection
-					tasks={missedTasks}
-					onComplete={onCompleteMissed}
-					onEdit={onEditMissed}
-					onArchive={onArchiveMissed}
-					onDelete={onDeleteMissed}
-				/>
-			)}
+			</div>
 		</section>
 	);
 };

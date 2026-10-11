@@ -85,7 +85,10 @@ const waitForHostFontsResolved = (page: Page, selectors: string[]) =>
 		(sel: string[]) =>
 			sel.every((selector) => {
 				const host = document.querySelector(selector);
-				return host === null || host.classList.contains('hydrated');
+				// `hydrated` allein reicht nicht (Fixup #2476, CI-Shard-Rot): ein Host kann die Klasse
+				// tragen, bevor seine Font-Deklaration berechnet ist — `fontFamily === ''` ist genau
+				// dieses Zwischenstadium, das die Assertion dann als "" liest.
+				return host === null || (host.classList.contains('hydrated') && getComputedStyle(host).fontFamily !== '');
 			}),
 		selectors,
 	);
