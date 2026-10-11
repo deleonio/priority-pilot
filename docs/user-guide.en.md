@@ -78,14 +78,16 @@ shows a card with the button **"Create your first task"** instead. From top to b
   a weekly target for this (Body 5, Impact 5, Mental health 3, Relationships 3, Meaning 1
   completions per week; this is also stated in the pillar descriptions under Settings → Pillars). 100 % means every pillar is on its target; 0 % means
   everything hangs on a single pillar. Which image you see is chosen in the
-  settings under **"Life balance image"** – **Rays**, **Blossom** (default),
-  **Crystal** or **Hands**. All of them show the same numbers: for each pillar,
+  settings under **"Life balance image"** – **Heart**, **Bubbles**,
+  **Discs**, **Rings**, **Rays**, **Blossom**, **Crystal**, **Segments** or **Hands**. All of them show the same numbers: for each pillar,
   the size stands for the ratio of actual to target, and the strongest pillar gets the
-  largest shape. "Blossom" and
+  largest shape. "Bubbles" and "Discs" show the same stack – once
+  translucent and glowing, once solid and sharp-edged. "Blossom" and
   "Crystal" combine all pillars into one shared silhouette whose
-  lobes reach as far per pillar as its value – once soft, once angular. "Rays"
-  shows one wedge of light per pillar, "Hands" one hand per pillar on the dial.
-  Around every image runs a dial of
+  lobes reach as far per pillar as its value – once soft, once angular. "Segments"
+  divides the ring by actual shares, "Hands" shows one pointer per pillar on the dial.
+  Around eight of these
+  images runs a dial of
   100 ticks that changes from dark red via orange to dark green – the
   lit ticks are your balance score in percent. A strongly neglected pillar pushes the
   score down more clearly than many small deviations. The legend lists, for each pillar, the
@@ -96,10 +98,13 @@ shows a card with the button **"Create your first task"** instead. From top to b
 - **Care hint:** if a pillar is getting too little attention, a suggestion for it appears above the next
   task. If one pillar carries most of your effort (overload), the
   hint suggests balance or a break instead. With Plus or Pro, the suggestion can
-  come from the AI based on your previous tasks; it is then labeled **"AI suggestion"**,
-  and "Not this suggestion again" hides it until the end of the day. **"Accept suggestion"** creates it as a task (an existing task
-  is set to "In progress"), **"Not today"** hides the hint until the end of the day,
-  **"Not this suggestion again"** for 14 days. If there is no suggestion, a short
+  come from the AI based on your previous tasks; it is then labeled **"AI suggestion"**.
+  **"Accept suggestion"** creates it as a task (an existing task
+  is set to "In progress"). **"Not today"** then asks "Why not now?" – if you
+  choose one of the five reasons or "Skip without a reason", the next suggestion
+  moves up; the skipped one counts until the end of the day. **"Not this suggestion again"**
+  hides an AI suggestion until the end of the day, a suggestion from your own tasks
+  for 14 days. If there is no suggestion, a short
   message appears there.
 - **Next task:** the task with the highest priority whose predecessors are all
   completed.
@@ -515,7 +520,7 @@ Balamentum regularly generates new task instances.
   are kept as independent tasks in both cases.
 
 Tasks created from a series carry the **Series** badge in the task tree;
-if you change an instance individually, **Series (changed)** appears. Tasks from a template carry
+if you change an instance individually, **changed** is added. Tasks from a template carry
 **Template** or **Template (changed)**.
 
 If someone in a group created a series for you and the shared
@@ -638,8 +643,8 @@ General, Pillars, Categories, Location, AI, Groups, **Plans & subscription** and
   **"Remove"** deletes the calendar with its events and credentials.
   With a connected calendar, **"Minimum length of free gaps"** (10–240 minutes, default 30)
   sets the length from which a gap appears in the "Free time" card.
-- **Life balance image** – choose between **Rays**, **Blossom** (default), **Crystal**
-  and **Hands**. All show the same calculation, just
+- **Life balance image** – choose between **Heart**, **Bubbles**, **Discs**,
+  **Rings**, **Rays**, **Blossom**, **Crystal**, **Segments** and **Hands**. All show the same calculation, just
   displayed differently. The choice is saved to your account and applies on all devices where you
   are signed in.
 - **Animations** – the switches **"Animations"**, **"Animate balance"** and
