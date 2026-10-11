@@ -1,9 +1,9 @@
 import { expect, test, type Page } from './fixtures';
 
 /**
- * Spec-e2e für #2229 (docs/spec/issue-2229.md) — AK3, AK7; AK4 (Schließen) 2026-10-08 ersetzt
- * durch „nicht wegklickbar". Der E2E-Server läuft ohne `LAUNCH_BANNER_ENABLED`; der An-Zustand
- * kommt über die echte `/auth/me`-Antwort mit gepatchtem Feld (Playwright holt sie vom
+ * Spec-e2e für #2229/#2480 (docs/spec/issue-2229.md) — AK3, AK7; AK1/AK2 (Schließen +
+ * localStorage-Dismiss) 2026-10-11. Der E2E-Server läuft ohne `LAUNCH_BANNER_ENABLED`; der
+ * An-Zustand kommt über die echte `/auth/me`-Antwort mit gepatchtem Feld (Playwright holt sie vom
  * Backend-Mock der Fixture und ergänzt `launchBanner`).
  */
 const enableBanner = async (page: Page): Promise<void> => {
@@ -28,17 +28,20 @@ test.describe('Balamentum — #2229: Einladungs-Banner', () => {
 	test('AK3: Feedback-Knopf führt zum Feedback-Formular', async ({ page }) => {
 		await page.goto('/app/');
 		await expect(page.getByTestId('launch-banner')).toBeVisible();
+		await expect(page.getByTestId('launch-banner-dismiss')).toBeVisible();
 		await page.getByTestId('launch-banner-feedback').click();
 		await expect(page).toHaveURL(/\/app\/hilfe\/feedback/);
 	});
 
-	test('Nicht wegklickbar: kein Schließen-Knopf, Banner bleibt über Reload', async ({ page }) => {
+	test('AK1/AK2 (#2480): Schließen entfernt den Banner, auch über Reload', async ({ page }) => {
 		await page.goto('/app/');
 		await expect(page.getByTestId('launch-banner')).toBeVisible();
-		await expect(page.getByTestId('launch-banner-dismiss')).toHaveCount(0);
+		await expect(page.getByTestId('launch-banner-dismiss')).toBeVisible();
+		await page.getByTestId('launch-banner-dismiss').click();
+		await expect(page.getByTestId('launch-banner')).toHaveCount(0);
 		await page.reload();
 		await expect(page.locator('header').first()).toBeVisible();
-		await expect(page.getByTestId('launch-banner')).toBeVisible();
+		await expect(page.getByTestId('launch-banner')).toHaveCount(0);
 	});
 
 	test('AK7: 375px — keine Überlappung mit der Kopfzeile, Knöpfe mindestens 44px hoch', async ({ page }) => {
@@ -52,5 +55,7 @@ test.describe('Balamentum — #2229: Einladungs-Banner', () => {
 		expect(bannerBox.x + bannerBox.width).toBeLessThanOrEqual(375.5);
 		const feedbackBox = (await page.getByTestId('launch-banner-feedback').boundingBox())!;
 		expect(feedbackBox.height, 'launch-banner-feedback').toBeGreaterThanOrEqual(44);
+		const dismissBox = (await page.getByTestId('launch-banner-dismiss').boundingBox())!;
+		expect(dismissBox.height, 'launch-banner-dismiss').toBeGreaterThanOrEqual(44);
 	});
 });

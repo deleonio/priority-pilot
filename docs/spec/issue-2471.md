@@ -2,8 +2,9 @@
 
 Ziel: Nur das Play-Prüfkonto aus #2426 sieht auf dem Dashboard eine wegklickbare Hinweis-Card
 („Du bist mit dem Google-Play-Prüfkonto angemeldet …“). Normale Nutzer sehen nichts; der
-LaunchBanner (#2229, bewusst nicht wegklickbar) bleibt unverändert. Ausblendung nur für die
-Session (sessionStorage), nach erneutem Prüf-Login ist die Card wieder da.
+LaunchBanner (#2229, seit #2480 pro Gerät wegklickbar über den Schließen-Knopf) bleibt von
+diesem Bauteil unberührt. Ausblendung nur für die Session (sessionStorage), nach erneutem
+Prüf-Login ist die Card wieder da.
 
 ## Server (AK1)
 
