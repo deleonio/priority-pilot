@@ -158,8 +158,9 @@ jobs:
         run: pnpm --filter website test
       # Coverage-Gate (gezielt, nicht repo-weit): node:test misst die Abdeckung der reinen
       # Logik-Schicht (server/src/logics) und bricht unter den Schwellen ab. Deckt zugleich die
-      # komplette Server-Suite ab. Frontend-lib-Coverage ist vorbereitet (vitest.config.ts), aber
-      # erst nach `pnpm add -D @vitest/coverage-v8` aktiv.
+      # komplette Server-Suite ab. Frontend-lib-Coverage laeuft mit installiertem Provider
+      # (@vitest/coverage-v8) lokal ueber `pnpm --filter frontend test:coverage`
+      # (vitest.config.ts) — bewusst kein Teil dieses CI-Verify.
       - name: Coverage-Gate (server/src/logics)
         run: pnpm --filter server test:coverage
 
