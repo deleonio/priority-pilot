@@ -1,6 +1,6 @@
 import { KolInputRadio } from '@public-ui/react-v19';
 import type { Pillar } from 'client';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BalanceFigure } from './BalanceFigure';
 import { HeartVessel } from './HeartVessel';
@@ -15,11 +15,14 @@ import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
  * (`balanceVariant.ts`, localStorage-Key `pp-balance-variant`). Aufbau bewusst wie
  * `AppearanceSetting` daneben: Beide wählen, **wie** die App aussieht, nicht **was** sie rechnet.
  *
- * Senkrecht statt waagerecht: Neun Optionen mit sprechenden Namen passen auf 375 px nicht
- * nebeneinander, ohne dass die Beschriftungen umbrechen (mobile-ui-rules.md).
+ * Zwei Spalten statt einer langen Liste oder einer Reihe: Neun Optionen mit sprechenden Namen
+ * passen auf 375 px nicht nebeneinander, ohne dass die Beschriftungen umbrechen
+ * (mobile-ui-rules.md); zwei kurze Wörter je Zeile schon. Das Raster setzt ein Effekt inline auf das
+ * Optionen-Wrapper-Element im Shadow-DOM (`.kol-form-field__input`), CSS erreicht es nicht.
  *
- * Darunter eine stille Vorschau des gewählten Bildes mit festen Beispieldaten — sie wechselt mit
- * der Auswahl, ohne dass man die Einstellungen verlassen muss.
+ * Direkt unter den Optionen eine stille Vorschau des gewählten Bildes mit festen Beispieldaten — sie
+ * wechselt mit der Auswahl, ohne dass man die Einstellungen verlassen muss. Erst danach der lange
+ * Hinweis: als eigener Absatz statt `_hint` (den KolInputRadio direkt unter den Optionen rendert).
  */
 
 /** Beispiel-Säulen mit leichter Schieflage, damit jedes Bild seine Unterschiede zeigt. */
@@ -39,6 +42,9 @@ const PREVIEW_BALANCE = buildHeartBalance(
 	]),
 );
 
+/** Optionen-Raster: zwei gleich breite Spalten. */
+const TWO_COLUMNS = { display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: '0.75rem', maxWidth: '24rem' };
+
 export const BalanceVariantSetting = () => {
 	const { variant, setVariant } = useBalanceVariant();
 	const { t, i18n } = useTranslation('settings');
@@ -46,6 +52,21 @@ export const BalanceVariantSetting = () => {
 
 	// #843: marginLeft auf Shadow-DOM Controls setzen (24dp = 1.5rem)
 	useShadowDOMLayout(ref, 'kol-input-radio', '[role="radio"]');
+
+	// Zwei Spalten: Das Shadow-DOM rendert nach dem Mount (kein Light-DOM-Mutation-Signal für den Hook
+	// oben) — daher direkt den Shadow-Root beobachten und das Raster idempotent (neu) setzen.
+	useEffect(() => {
+		const root = ref.current?.querySelector('kol-input-radio')?.shadowRoot;
+		if (!root) return;
+		const apply = () => {
+			const list = root.querySelector<HTMLElement>('.kol-form-field__input');
+			if (list) Object.assign(list.style, TWO_COLUMNS);
+		};
+		const observer = new MutationObserver(apply);
+		observer.observe(root, { childList: true, subtree: true });
+		apply();
+		return () => observer.disconnect();
+	}, []);
 
 	// Stabile Objektidentität (hängt nur an der Modul-Konstante), damit die Radiogruppe nicht bei
 	// jedem Render eine neue Options-Liste erhält.
@@ -60,7 +81,6 @@ export const BalanceVariantSetting = () => {
 				_orientation="vertical"
 				_options={options}
 				_value={variant}
-				_hint={t('balanceVariant.hint')}
 				_on={{
 					onChange: (_event, value) => {
 						if (typeof value === 'string') {
@@ -92,6 +112,7 @@ export const BalanceVariantSetting = () => {
 					/>
 				)}
 			</div>
+			<p className="balance-variant-hint">{t('balanceVariant.hint')}</p>
 		</div>
 	);
 };
