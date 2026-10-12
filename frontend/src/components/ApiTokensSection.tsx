@@ -8,7 +8,6 @@ import {
 	KolSelect,
 } from '@public-ui/react-v19';
 import type { ApiToken } from 'client';
-import { flushSync } from 'react-dom';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../api';
@@ -433,15 +432,12 @@ export const ApiTokensSection = ({ open = true }: { open?: boolean }) => {
 												}`}
 											</span>
 										</span>
-										{/* #2499: flushSync, damit die Bestätigungsstufen sofort im DOM stehen — der Spec-Vertrag (TF2)
-								    prüft den Zeilen-Zustand synchron nach dem Klick; ohne flushSync batcht React das Update
-								    in den nächsten Microtask (jsdom/RTL-act-Umgebung). */}
 										{deviceRevokeId === token.id ? (
 											<span className="api-tokens__confirm">
 												<span className="api-tokens__confirm-question">
 													{t('apiTokens.deviceRevokeQuestion', { name: token.name })}
 												</span>
-												<ButtonAction onClick={() => flushSync(() => setDeviceRevokeId(null))}>
+												<ButtonAction onClick={() => setDeviceRevokeId(null)}>
 													<KolButton
 														_label={t('common:actions.cancel')}
 														class="settings-action-btn"
@@ -460,7 +456,7 @@ export const ApiTokensSection = ({ open = true }: { open?: boolean }) => {
 												</ButtonAction>
 											</span>
 										) : (
-											<ButtonAction onClick={() => flushSync(() => setDeviceRevokeId(token.id))}>
+											<ButtonAction onClick={() => setDeviceRevokeId(token.id)}>
 												<KolButton _label={t('apiTokens.deviceRevoke')} class="settings-action-btn" _variant="danger" />
 											</ButtonAction>
 										)}

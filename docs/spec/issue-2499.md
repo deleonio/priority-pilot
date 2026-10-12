@@ -24,7 +24,7 @@ das Frontend ruft nur DELETE auf.
   {{date}}") und `apiTokens.lastUsed` („zuletzt genutzt {{date}}") bzw. `apiTokens.notUsed`
   („noch nicht genutzt"), Formatierung über das vorhandene `formatDate`. **Kein** Scope-Schalter,
   kein Feature-Popover, kein PATCH.
-- Widerruf wie die Nachbar-Zeile (AK2): Klick auf „Widerrufen" (Key `apiTokens.revoke`)
+- Widerruf wie die Nachbar-Zeile (AK2): Klick auf „Widerrufen“ (Key `apiTokens.deviceRevoke`)
   ersetzt die Aktion in der Zeile durch den `api-tokens__confirm`-Block mit der
   Bestätigungsfrage **„Gerät „{{name}}" wirklich abmelden?"** (neuer Key
   `apiTokens.deviceRevokeQuestion` — die Frage nennt das Gerät, UX-Beratung) plus

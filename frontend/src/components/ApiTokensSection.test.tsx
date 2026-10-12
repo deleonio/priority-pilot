@@ -527,7 +527,11 @@ describe('ApiTokensSection – #2499: Angemeldete Geräte', () => {
 		});
 
 		// Erste Stufe: Frage in der Zeile, nennt das Gerät — noch kein API-Aufruf.
-		clickActionAround(container, '[data-testid="api-devices-section"] .api-tokens__action');
+		// Klick im act-Wrap (Muster AK6): der reine setState flushed in jsdom erst im Microtask.
+		await act(async () => {
+			clickActionAround(container, '[data-testid="api-devices-section"] .api-tokens__action');
+			await Promise.resolve();
+		});
 		const section = () => container.querySelector('[data-testid="api-devices-section"]');
 		expect(section()?.textContent).toContain('Gerät „Pixel 8“ wirklich abmelden?');
 		expect(apiMocks.deleteApiToken).not.toHaveBeenCalled();
@@ -537,12 +541,18 @@ describe('ApiTokensSection – #2499: Angemeldete Geräte', () => {
 		expect(confirmBlock, 'Bestätigungsblock fehlt').not.toBeNull();
 		const cancelWrapper = confirmBlock!.querySelector('.api-tokens__action');
 		expect(cancelWrapper, 'Abbrechen-Aktion fehlt').not.toBeNull();
-		cancelWrapper!.dispatchEvent(new Event('click', { bubbles: true }));
+		await act(async () => {
+			cancelWrapper!.dispatchEvent(new Event('click', { bubbles: true }));
+			await Promise.resolve();
+		});
 		expect(apiMocks.deleteApiToken).not.toHaveBeenCalled();
 		expect(section()?.querySelector('.api-tokens__confirm')).toBeNull();
 
 		// Zweite Stufe: Bestätigen ruft DELETE auf und entfernt die Zeile (Letztes Gerät → Leerzustand).
-		clickActionAround(container, '[data-testid="api-devices-section"] .api-tokens__action');
+		await act(async () => {
+			clickActionAround(container, '[data-testid="api-devices-section"] .api-tokens__action');
+			await Promise.resolve();
+		});
 		await act(async () => {
 			clickActionAround(container, '[data-testid="api-device-revoke-confirm"]');
 			await Promise.resolve();
