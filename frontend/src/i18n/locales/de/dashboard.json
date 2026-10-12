@@ -50,6 +50,7 @@
 	"balance": {
 		"label": "Gesamtguthaben",
 		"empty": "Noch keine Punkte vergeben — schließe Tasks ab, um dein Guthaben aufzubauen.",
+		"arcTitle": "{{value}} von {{total}}",
 		"total": "<total>{{points}}</total> Punkte",
 		"row_one": "{{points}} Punkt ({{share}} %)",
 		"row_other": "{{points}} Punkte ({{share}} %)"

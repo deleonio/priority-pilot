@@ -181,7 +181,7 @@ export const MonthlyBalanceCard = () => {
 						{daten.meilensteine.length > 0 && (
 							<ul className="dashboard-monthly-meilensteine">
 								{daten.meilensteine.map((meilenstein) => (
-									<li key={meilenstein.schluessel}>{meilenstein.schluessel}</li>
+									<li key={meilenstein.schluessel}>{meilensteinText(meilenstein.schluessel)}</li>
 								))}
 							</ul>
 						)}

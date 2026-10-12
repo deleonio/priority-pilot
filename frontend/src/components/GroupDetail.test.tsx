@@ -55,6 +55,14 @@ vi.mock('@public-ui/react-v19', () => ({
 		<button onClick={(e) => _on?.onClick?.(e.nativeEvent)}>{_label}</button>
 	),
 	KolHeading: ({ _label }: { _label?: string }) => <h3>{_label}</h3>,
+	// #2496: DuoCard (im Duo-Fall der AK4-Tests gerendert) braucht eine KolCard-Fläche — fehlte
+	// im Mock und lies den Lauf als Unhandled Error sterben. Harness-Reparatur, keine Assertion berührt.
+	KolCard: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
+		<section>
+			{_label}
+			{children}
+		</section>
+	),
 	KolSpin: ({ _label }: { _label?: string }) => <div role="status">{_label}</div>,
 	KolInputText: ({ _on }: { _on?: { onInput?: (event: unknown, value: string) => void } }) => (
 		// onInput durchgereicht (KoliBri-Signatur: Event + Wert) — für die Such-Debounce-Tests.
@@ -82,6 +90,10 @@ vi.mock('../api', () => ({
 		createGroupInviteLink: vi.fn(),
 		// Test-Pflege #1992: GroupChallengeCard lädt selbst — `undefined` läuft auf „noch keine Challenge“.
 		getGroupChallenge: vi.fn(),
+		// Test-Pflege #2496: DuoCard (im Duo-Fall der AK4-Tests gerendert) lädt selbst per
+		// `.then`-Kette und würde mit eigenem Spin (`role="status"`) das Lade-Signal der Tests
+		// blockieren — Reject läuft auf ihre Fehler-Anzeige, keine Assertion berührt sie.
+		getGroupDuo: vi.fn(() => Promise.reject(new Error('außerhalb des Testvertrags'))),
 	},
 }));
 
@@ -565,5 +577,43 @@ describe('GroupDetail — zweite Ebene als KolDetails (#2015 AK2)', () => {
 
 		fireEvent.click(details!);
 		await waitFor(() => expect(details!.getAttribute('_open')).toBe('true'));
+	});
+});
+
+// #2496 AK4 (docs/spec/issue-2496.md): Einladen nur gegen einen bekannten Mitgliederstand —
+// solange die Liste lädt (members === null), erscheinen die Einladen-Bereiche nicht.
+describe('GroupDetail — Einladen-Bereiche erst nach geladener Mitgliederliste (#2496 AK4)', () => {
+	it('wartet mit „Mitglieder einladen“/„Einladungslinks“, solange die Mitgliederliste lädt', () => {
+		mockGetGroupMembers.mockReturnValue(new Promise(() => {}));
+		mockGetGroupInvitations.mockResolvedValue([]);
+
+		render(<GroupDetail groupId={1} ownRole="admin" />);
+
+		expect(screen.queryByText('Mitglieder einladen')).toBeNull();
+		expect(screen.queryByText('Einladungslinks')).toBeNull();
+	});
+
+	it('zeigt beide Einladen-Bereiche, sobald die Mitgliederliste geladen ist', async () => {
+		mockGetGroupMembers.mockResolvedValue([{ userId: 1, displayName: 'Alice Admin', role: 'admin' }]);
+		mockGetGroupInvitations.mockResolvedValue([]);
+
+		render(<GroupDetail groupId={1} ownRole="admin" />);
+		await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
+
+		expect(screen.getByText('Mitglieder einladen')).toBeInTheDocument();
+		expect(screen.getByText('Einladungslinks')).toBeInTheDocument();
+	});
+
+	it('volles Duo bleibt ohne Einladen-Bereich (#1991, unverändert)', async () => {
+		mockGetGroupMembers.mockResolvedValue([
+			{ userId: 1, displayName: 'Alice Admin', role: 'admin' },
+			{ userId: 2, displayName: 'Bob Baumeister', role: 'member' },
+		]);
+		mockGetGroupInvitations.mockResolvedValue([]);
+
+		render(<GroupDetail groupId={1} ownRole="admin" kind="duo" />);
+		await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
+
+		expect(screen.queryByText('Einladungslinks')).toBeNull();
 	});
 });
