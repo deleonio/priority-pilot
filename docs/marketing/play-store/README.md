@@ -63,10 +63,10 @@ ERINNERT DICH ZUR RICHTIGEN ZEIT
 Push-Erinnerungen und Erinnerungen am Ort.
 
 MIT DEINEM KI-ASSISTENTEN
-Über die MCP-Schnittstelle greift dein KI-Assistent, zum Beispiel Claude, auf deine Aufgaben zu. Frag im Chat, was als Nächstes dran ist, leg Aufgaben an oder lass dir deine Balance erklären.
+Über die MCP-Schnittstelle greift dein KI-Assistent, zum Beispiel Claude, auf deine Aufgaben zu. Frag im Chat, was als Nächstes dran ist, oder lass dir deine Balance erklären. Lesen ist ab Plus dabei, Anlegen und Ändern mit Pro.
 
 PAKETE
-Free kostet nichts und begrenzt die Zahl deiner Aufgaben nicht. Plus und Pro schalten Gruppen, KI-Hilfe, Erinnerungen am Ort und die MCP-Schnittstelle frei.
+Free kostet nichts und begrenzt die Zahl deiner Aufgaben nicht. Plus und Pro schalten Gruppen, KI-Hilfe, Erinnerungen am Ort und den Lesezugriff über die MCP-Schnittstelle frei; Aufgaben über MCP anlegen und ändern kann nur Pro.
 
 BARRIEREFREI UND FÜR EINE HAND GEBAUT
 Die Oberfläche folgt WCAG 2.2 und BITV 2.0. Anmelden kannst du dich mit Google, ohne eigenes Passwort.
