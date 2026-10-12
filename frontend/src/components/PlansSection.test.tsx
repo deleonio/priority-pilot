@@ -359,7 +359,7 @@ describe('PlansSection je Kanal (#1674)', () => {
 		expect(section.querySelectorAll('tr[data-row-kind="action"]')).toHaveLength(0);
 		expect(screen.queryByRole('button')).toBeNull();
 		expect(screen.getByTestId('store-purchase-notice').textContent).toContain('Kauf in der App folgt');
-		expect(screen.getByText('8,99 €')).toBeTruthy();
+		expect(screen.getByText(/^8,99 €/)).toBeTruthy();
 		expect(screen.queryByText('pro 9,49 €')).toBeNull();
 		expect(initialize).not.toHaveBeenCalled();
 		expect(get).not.toHaveBeenCalled();

@@ -7,6 +7,7 @@ import type { Channel } from '../lib/platform';
 import { usePlan } from '../lib/usePlan';
 import { ManagedBy } from './ManagedBy';
 import { usePaypalPurchase } from './PaypalPurchase';
+import { usePlayPurchase } from './PlayPurchase';
 
 /** Was die Paketansicht vom Kaufweg eines Kanals braucht. Sie kennt keinen Anbieter direkt. */
 export interface PurchaseUi {
@@ -41,9 +42,12 @@ export const CHANNEL_PROVIDER: Record<Channel, Provider | undefined> = {
 	appstore: undefined,
 };
 
+/** Freigabe des Play-Kaufs durch die PO (ADR 0017); bis dahin zeigt der Kanal `play` Pakete ohne Kauf. */
+const PLAY_BILLING_RELEASED = false;
+
 const CHANNEL_HOOKS: Record<Channel, () => PurchaseUi> = {
 	web: usePaypalPurchase,
-	play: useNoInAppPurchase,
+	play: PLAY_BILLING_RELEASED ? usePlayPurchase : useNoInAppPurchase,
 	appstore: useNoInAppPurchase,
 };
 
