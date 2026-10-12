@@ -343,6 +343,25 @@ describe('POST/GET /scores/care-suggestions/rejections (#1977)', () => {
 		const alleVonBob = await server.json('/scores/care-suggestions/rejections', { headers: { Cookie: bob } });
 		assert.equal(((await alleVonBob.json()) as unknown[]).length, 0, 'ohne Filter nur eigene Einträge');
 	});
+
+	// #2495/AK3: taskId vorhanden, aber keine Ganzzahl → 400 statt stiller Filter-Ausfall
+	// (heute: `Number('abc')` → NaN → Filter entfällt → alle Einträge). KEIN Produktivcode.
+	it('#2495/AK3: taskId=abc → 400; leerer Parameter bleibt Bestandsverhalten (alle Einträge)', async () => {
+		const cookie = await server.register('care-reject-2495@example.com', 'password123');
+		const taskId = await legeAnkerTaskAn(cookie);
+		assert.equal((await rejeziere(cookie, { grund: 'zu-gross', taskId })).status, 204);
+
+		const invalid = await server.json('/scores/care-suggestions/rejections?taskId=abc', {
+			headers: { Cookie: cookie },
+		});
+		assert.equal(invalid.status, 400, 'vorhandener, aber nicht ganzzahliger taskId muss 400 liefern');
+
+		const leer = await server.json('/scores/care-suggestions/rejections?taskId=', {
+			headers: { Cookie: cookie },
+		});
+		assert.equal(leer.status, 200, 'leerer taskId bleibt Bestandsverhalten');
+		assert.equal(((await leer.json()) as unknown[]).length, 1, 'ohne wirksamen Filter alle eigenen Einträge');
+	});
 });
 
 // Rote Spec-Tests #2146 (docs/spec/issue-2146.md) — Vorlagen pro Nutzer über den Säulen-Key
