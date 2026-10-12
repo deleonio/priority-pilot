@@ -8,6 +8,7 @@ import {
 	KolSelect,
 } from '@public-ui/react-v19';
 import type { ApiToken } from 'client';
+import { flushSync } from 'react-dom';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../api';
@@ -96,10 +97,11 @@ const ScopeToggle = ({ token, disabled, onToggle }: { token: ApiToken; disabled:
  * letzte Nutzung). „Zurückziehen" sperrt den Token ab dem nächsten Aufruf.
  *
  * Aufbau wie `LlmSettings.tsx`: ein `KolAccordion`, das `open` folgt (Schalter
- * „KI aktivieren"; Token bleiben auch bei „aus" gültig), `ul`/`li` mit Zeilen-Aktionen
+ * „KI aktivieren“; Token bleiben auch bei „aus“ gültig), `ul`/`li` mit Zeilen-Aktionen
  * statt Tabelle (Mobile-Regel 3). Der Rückzug läuft über eine zweistufige Bestätigung direkt in
  * der Zeile (Progressive Disclosure, `docs/ux-pattern-sequential-confirmation.md`): kein einzelner
- * Klick löst die irreversible Aktion aus.
+ * Klick löst die irreversible Aktion aus. Angemeldete Android-Geräte (#2499) listet der
+ * Abschnitt „Angemeldete Geräte“ separat unterhalb — Widerruf nach demselben Muster.
  */
 export const ApiTokensSection = ({ open = true }: { open?: boolean }) => {
 	const { t, i18n } = useTranslation(['settings', 'common']);
@@ -170,8 +172,11 @@ export const ApiTokensSection = ({ open = true }: { open?: boolean }) => {
 	// Eigener Ladefehler für die Liste (#1646) — getrennt von `error` (Formular), damit Fehler und
 	// Leer-Zustand im Detail „Vorhandene Access-Token" nie gleichzeitig erscheinen (Muster: SubscriptionSection).
 	const [loadError, setLoadError] = useState<string | null>(null);
-	// Id des Tokens, für den die Rückfrage „wirklich zurückziehen?" gerade offen steht.
+	// Id des Tokens, für den die Rückfrage „wirklich zurückziehen?“ gerade offen steht.
 	const [revokeId, setRevokeId] = useState<number | null>(null);
+	// Id des App-Tokens (angemeldetes Gerät, #2499), dessen Abmelde-Rückfrage offen steht — getrennt
+	// vom `revokeId` der API-Tokens, damit sich die zweistufigen Bestätigungen nicht überlagern.
+	const [deviceRevokeId, setDeviceRevokeId] = useState<number | null>(null);
 	// Id des Tokens, dessen Rechtestufe gerade per PATCH umgeschaltet wird (eigene Sperre, unabhängig
 	// von `busy`, damit das Umschalten eines Tokens nicht Anlegen/Zurückziehen eines anderen blockiert).
 	const [scopeBusyId, setScopeBusyId] = useState<number | null>(null);
@@ -233,12 +238,15 @@ export const ApiTokensSection = ({ open = true }: { open?: boolean }) => {
 			await api.deleteApiToken({ id });
 			setTokens((previous) => previous?.filter((entry) => entry.id !== id) ?? previous);
 			setRevokeId(null);
+			setDeviceRevokeId(null);
 		} catch (reason) {
 			setError((await toApiError(reason)).message);
 		} finally {
 			setBusy(false);
 		}
 	};
+
+	const devices = tokens?.filter((token) => token.kind === 'app') ?? [];
 
 	return (
 		<div className="api-tokens" data-testid="api-tokens-panel">
@@ -404,6 +412,63 @@ export const ApiTokensSection = ({ open = true }: { open?: boolean }) => {
 						</ul>
 					)}
 				</>
+				{/* Angemeldete Geräte (#2499): Android-Anmeldungen (kind 'app') getrennt von den API-Tokens —
+			    dieselbe zweistufige Bestätigung wie darüber, ohne Scope-Schalter (PATCH gilt nur für API-Tokens). */}
+				<KolHeading _label={t('apiTokens.devicesHeading')} _level={3} />
+				<div data-testid="api-devices-section">
+					{tokens !== null &&
+						(devices.length === 0 ? (
+							<p>{t('apiTokens.devicesEmpty')}</p>
+						) : (
+							<ul className="api-tokens__list" data-testid="api-devices-list">
+								{devices.map((token) => (
+									<li key={token.id} className="api-tokens__item" data-testid="api-device-row">
+										<span className="api-tokens__name">
+											{token.name}
+											<span className="api-tokens__meta">
+												{` · ${t('apiTokens.created', { date: formatDate(token.createdAt, i18n.language) })} · ${
+													token.lastUsedAt == null
+														? t('apiTokens.notUsed')
+														: t('apiTokens.lastUsed', { date: formatDate(token.lastUsedAt, i18n.language) })
+												}`}
+											</span>
+										</span>
+										{/* #2499: flushSync, damit die Bestätigungsstufen sofort im DOM stehen — der Spec-Vertrag (TF2)
+								    prüft den Zeilen-Zustand synchron nach dem Klick; ohne flushSync batcht React das Update
+								    in den nächsten Microtask (jsdom/RTL-act-Umgebung). */}
+										{deviceRevokeId === token.id ? (
+											<span className="api-tokens__confirm">
+												<span className="api-tokens__confirm-question">
+													{t('apiTokens.deviceRevokeQuestion', { name: token.name })}
+												</span>
+												<ButtonAction onClick={() => flushSync(() => setDeviceRevokeId(null))}>
+													<KolButton
+														_label={t('common:actions.cancel')}
+														class="settings-action-btn"
+														_variant="secondary"
+														_disabled={busy}
+													/>
+												</ButtonAction>
+												<ButtonAction onClick={() => void handleRevoke(token.id)}>
+													<KolButton
+														data-testid="api-device-revoke-confirm"
+														_label={t('apiTokens.revokeConfirm')}
+														class="settings-action-btn"
+														_variant="danger"
+														_disabled={busy}
+													/>
+												</ButtonAction>
+											</span>
+										) : (
+											<ButtonAction onClick={() => flushSync(() => setDeviceRevokeId(token.id))}>
+												<KolButton _label={t('apiTokens.deviceRevoke')} class="settings-action-btn" _variant="danger" />
+											</ButtonAction>
+										)}
+									</li>
+								))}
+							</ul>
+						))}
+				</div>
 			</KolAccordion>
 		</div>
 	);
