@@ -222,4 +222,38 @@ describe('nativeAuth (#1678)', () => {
 			expect(replace).toHaveBeenCalledWith(`${import.meta.env.BASE_URL}?magic=tok123`);
 		});
 	});
+
+	// #2563 (docs/spec/issue-2563.md): Der Magic Link kehrt per Custom Scheme in die App zurueck,
+	// statt im Browser (oder still) verbraucht zu werden.
+	describe('Magic-Link-Ruecksprung (#2563)', () => {
+		it('AK3: Magic-Ruecksprung per Schema laedt den Link im WebView statt ihn zu verwerfen', async () => {
+			await handleAppLink('balamentum.app://auth/native?magic=tok-2563');
+
+			expect(replace).toHaveBeenCalledWith(`${import.meta.env.BASE_URL}?magic=tok-2563`);
+		});
+	});
+
+	// Im eingebauten Build ist die eigene Domain SITE_URL; Ursprungs-Varianten derselben Domain
+	// (http statt https, www statt ohne www) duerfen nicht still verworfen werden.
+	describe('Magic-Link mit abweichendem Ursprung (#2563, eingebauter Build)', () => {
+		beforeEach(() => {
+			vi.stubEnv('VITE_SITE_URL', SITE);
+		});
+		afterEach(() => {
+			vi.unstubAllEnvs();
+		});
+
+		it('AK4: http- und www-Varianten der eigenen Domain landen im Magic-Flow statt im Nirgendwo', async () => {
+			await handleAppLink(`${SITE.replace('https:', 'http:')}/app/?magic=tok-2563`);
+			expect(replace, 'http-Variante wird nicht still verworfen').toHaveBeenCalledWith(
+				expect.stringContaining('?magic=tok-2563'),
+			);
+			replace.mockClear();
+
+			await handleAppLink(`${SITE.replace('://', '://www.')}/app/?magic=tok-2563`);
+			expect(replace, 'www-Variante wird nicht still verworfen').toHaveBeenCalledWith(
+				expect.stringContaining('?magic=tok-2563'),
+			);
+		});
+	});
 });

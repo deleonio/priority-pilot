@@ -11,6 +11,7 @@ vi.mock('openapi-fetch', () => ({ default: vi.fn(() => ({ GET: vi.fn(), POST: mo
 
 import { api } from './api';
 import { clearAppToken, getAppToken, setAppToken } from './lib/appToken';
+import { createHash } from 'node:crypto';
 
 // Einmal beim Import registriert — vor dem ersten `clearAllMocks` festhalten.
 const middleware = mockUse.mock.calls[0][0] as {
@@ -81,5 +82,50 @@ describe('API-Client mit App-Token (#2379)', () => {
 		expect(new Headers(logoutCall?.[1]?.headers).get('authorization')).toBe('Bearer t-2');
 		expect(getAppToken()).toBeNull();
 		expect((await onRequest('GET')).get('authorization')).toBeNull();
+	});
+});
+
+// #2563 PKCE (docs/spec/issue-2563.md): Der App-Link ist an die anfordernde App gebunden — nur die
+// Challenge geht zum Server, der Verifier bleibt bis zum Einlösen lokal und wird danach gelöscht.
+describe('Magic Link mit PKCE in der Android-App (#2563)', () => {
+	const VERIFIER_KEY = 'pp-magic-verifier';
+	afterEach(() => {
+		localStorage.clear();
+		delete (globalThis as { __PP_CHANNEL__?: string }).__PP_CHANNEL__;
+	});
+
+	it('App-Antrag erzeugt und speichert einen Verifier und schickt nur dessen Challenge', async () => {
+		(globalThis as { __PP_CHANNEL__?: string }).__PP_CHANNEL__ = 'play';
+		mockPOST.mockResolvedValue({ response: { ok: true } });
+
+		await api.requestMagicLink('a@example.com');
+
+		const verifier = localStorage.getItem(VERIFIER_KEY);
+		expect(verifier).toMatch(/^[\w-]{43}$/);
+		const body = mockPOST.mock.calls[0][1].body as Record<string, unknown>;
+		expect(body).toEqual({
+			email: 'a@example.com',
+			codeChallenge: createHash('sha256').update(verifier!).digest('base64url'),
+		});
+		expect(JSON.stringify(body)).not.toContain(verifier!);
+	});
+
+	it('Browser-Antrag bleibt ohne Challenge und ohne Verifier', async () => {
+		mockPOST.mockResolvedValue({ response: { ok: true } });
+
+		await api.requestMagicLink('a@example.com');
+
+		expect(mockPOST.mock.calls[0][1].body).toStrictEqual({ email: 'a@example.com' });
+		expect(localStorage.getItem(VERIFIER_KEY)).toBeNull();
+	});
+
+	it.each([true, false])('Einlösen schickt den gespeicherten Verifier mit und löscht ihn (ok=%s)', async (ok) => {
+		localStorage.setItem(VERIFIER_KEY, 'verifier-1');
+		mockPOST.mockResolvedValue({ response: { ok }, data: ok ? { token: 't' } : undefined });
+
+		expect(await api.verifyMagicLink('m')).toBe(ok);
+
+		expect(mockPOST.mock.calls[0][1].body).toEqual({ token: 'm', codeVerifier: 'verifier-1' });
+		expect(localStorage.getItem(VERIFIER_KEY)).toBeNull();
 	});
 });

@@ -33,6 +33,13 @@
 		"waitlistFailed": "Der Eintrag auf die Warteliste hat gerade nicht geklappt. Bitte versuche es gleich noch einmal.",
 		"back": "Zurück zur Website",
 		"backAria": "Balamentum: Zurück zur Website",
+		"magicLanding": {
+			"title": "Link in der App öffnen",
+			"sub": "Du hast diesen Anmeldelink in der Balamentum-App angefordert — öffne ihn dort, um dich anzumelden.",
+			"openApp": "In der App öffnen",
+			"opened": "App geöffnet — Anmeldung dort abschließen",
+			"hint": "Der Link funktioniert in der Balamentum-App. Im Browser bleibt er ohne Wirkung."
+		},
 		"review": {
 			"title": "Prüfzugang",
 			"password": "Passwort",

@@ -90,6 +90,7 @@ import createClient from 'openapi-fetch';
 import i18next from './i18n/config';
 import { planRequiredDetail } from './lib/apiError';
 import { appTokenHeaders, clearAppToken, getAppToken, NATIVE_LOGGED_OUT_KEY, setAppToken } from './lib/appToken';
+import { createMagicChallenge, takeMagicVerifier } from './lib/magicPkce';
 import { sortCategoriesByName } from './lib/categories';
 import { getChannel, isNativeChannel } from './lib/platform';
 import { getApiBase } from './lib/siteOrigin';
@@ -296,9 +297,13 @@ export const api = {
 		return data;
 	},
 
-	/** Fordert einen Anmeldelink per E-Mail an. Der Server antwortet bewusst immer gleich (202). */
+	/**
+	 * Fordert einen Anmeldelink per E-Mail an. Der Server antwortet bewusst immer gleich (202). Die
+	 * Android-App bindet den Link per PKCE an sich (#2563): Sie schickt nur die Challenge mit.
+	 */
 	async requestMagicLink(email: string): Promise<void> {
-		const { error, response } = await client.POST('/auth/magic-link', { body: { email } });
+		const body = getChannel() === 'play' ? { email, codeChallenge: await createMagicChallenge() } : { email };
+		const { error, response } = await client.POST('/auth/magic-link', { body });
 		if (!response.ok) {
 			throw new ResponseError(response, error);
 		}
@@ -326,10 +331,13 @@ export const api = {
 
 	/**
 	 * Löst den Token aus dem Anmeldelink ein; `false` bei abgelaufenem oder benutztem Link. In der
-	 * Android-App kommt statt des Cookies ein App-Token zurück (#2379), das gespeichert wird.
+	 * Android-App kommt statt des Cookies ein App-Token zurück (#2379), das gespeichert wird; dort geht
+	 * der PKCE-Verifier aus dem Antrag mit (#2563).
 	 */
 	async verifyMagicLink(token: string): Promise<boolean> {
-		const { data, response } = await client.POST('/auth/magic-link/verify', { body: { token } });
+		const codeVerifier = takeMagicVerifier();
+		const body = codeVerifier === null ? { token } : { token, codeVerifier };
+		const { data, response } = await client.POST('/auth/magic-link/verify', { body });
 		if (response.ok && data?.token) {
 			setAppToken(data.token);
 		}

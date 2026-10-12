@@ -7,7 +7,14 @@ import { issueAppToken } from '../apiTokenAuth.js';
 import { isDbEmailAllowed, isEmailAllowed, isOpenSignup } from '../../logics/allowedEmails.js';
 import { spracheAusHeader, type CareSprache } from '../../logics/careSuggestionData.js';
 import { sendMailToUser, type MailSender } from '../../logics/mail.js';
-import { buildMagicLinkUrl, consumeLoginToken, createLoginToken, isMagicLinkEnabled } from '../../logics/magicLink.js';
+import {
+	buildMagicLinkUrl,
+	consumeLoginToken,
+	createLoginToken,
+	isCodeChallenge,
+	isMagicLinkEnabled,
+	matchesCodeChallenge,
+} from '../../logics/magicLink.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
 import { User } from '../../models/index.js';
 import type { components } from '../../api';
@@ -78,10 +85,18 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 			sendError(res, 503, NOT_CONFIGURED);
 			return;
 		}
-		const { email } = (req.body ?? {}) as Partial<MagicLinkRequestDto>;
+		const { email, codeChallenge } = (req.body ?? {}) as Partial<MagicLinkRequestDto>;
 		const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
 		if (!normalizedEmail.includes('@') || normalizedEmail.length > 254) {
 			sendError(res, 400, 'Bitte gib eine gültige E-Mail-Adresse an.');
+			return;
+		}
+		// App-Links nur mit PKCE-Challenge (#2563): Ein über das Custom Scheme abgefangener Token wäre
+		// sonst einlösbar. 400 statt stiller 202 — die Prüfung hängt nur an der Eingabe, nicht an der
+		// Allowlist, und verrät daher keine zugelassenen Adressen.
+		const clientChannel = req.get('X-Client-Channel');
+		if (clientChannel === 'play' && !isCodeChallenge(codeChallenge)) {
+			sendError(res, 400, 'Die App muss eine gültige codeChallenge mitschicken.');
 			return;
 		}
 
@@ -93,7 +108,7 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 			: (await isDbEmailAllowed(normalizedEmail)) || isEmailAllowed(normalizedEmail);
 
 		if (mayReceiveLink) {
-			const token = await createLoginToken(normalizedEmail);
+			const token = await createLoginToken(normalizedEmail, clientChannel === 'play' ? codeChallenge : null);
 			if (token) {
 				// Nicht abwarten: die Antwortzeit darf zugelassene Adressen nicht von nicht
 				// zugelassenen/gedrosselten unterscheidbar machen (Zeitkanal). `sendMailToUser`
@@ -101,7 +116,7 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 				const mail = MAIL[spracheAusHeader(req.get('accept-language'))];
 				void sendMailToUser(
 					{ email: normalizedEmail },
-					{ subject: mail.subject, text: mail.text(buildMagicLinkUrl(token)) },
+					{ subject: mail.subject, text: mail.text(buildMagicLinkUrl(token, clientChannel)) },
 					mailSender,
 				);
 			}
@@ -117,8 +132,13 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 			sendError(res, 503, NOT_CONFIGURED);
 			return;
 		}
-		const { token } = (req.body ?? {}) as Partial<MagicLinkVerifyRequestDto>;
-		const email = typeof token === 'string' && token !== '' ? await consumeLoginToken(token) : null;
+		const { token, codeVerifier } = (req.body ?? {}) as Partial<MagicLinkVerifyRequestDto>;
+		const isApp = req.get('X-Client-Channel') === 'play';
+		const consumed = typeof token === 'string' && token !== '' ? await consumeLoginToken(token) : null;
+		// PKCE (#2563): Ein gebundener Token gilt nur in der App mit passendem Verifier. Ein Fehlversuch
+		// verbraucht ihn trotzdem — ein abgefangener Token bekommt genau einen Versuch.
+		const bound = consumed?.codeChallenge;
+		const email = consumed && (!bound || (isApp && matchesCodeChallenge(bound, codeVerifier))) ? consumed.email : null;
 		// Allowlist erneut prüfen: Sie kann sich zwischen Anfordern und Einlösen geändert haben.
 		if (!email || (!(await isDbEmailAllowed(email)) && !isEmailAllowed(email))) {
 			sendError(res, 400, 'Der Anmeldelink ist abgelaufen oder wurde schon benutzt.');
@@ -127,7 +147,7 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 
 		// Ohne Profildaten: Name und Avatar eines Bestandsnutzers (z. B. aus Google) bleiben stehen.
 		const user = await upsertOAuthUser({ email });
-		if (req.get('X-Client-Channel') === 'play') {
+		if (isApp) {
 			res.json({ token: await issueAppToken(user.id) });
 			return;
 		}

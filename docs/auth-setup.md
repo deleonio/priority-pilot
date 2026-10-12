@@ -133,7 +133,9 @@ Regeln:
 - Konten werden über die E-Mail verknüpft: Wer sich einmal per Google und einmal per Link anmeldet,
   landet im selben Konto. Name und Avatar aus Google bleiben beim Login per Link erhalten.
 - Der Link öffnet nur die App; eingelöst wird er per `POST /auth/magic-link/verify`. Mail-Scanner,
-  die Links vorab aufrufen, verbrauchen ihn deshalb nicht.
+  die Links vorab aufrufen, verbrauchen ihn deshalb nicht. In der Android-App angeforderte Links
+  tragen den Marker `client=app` (#2563): Im Browser eingelöst werden sie nicht, stattdessen bietet
+  die Web-App den Rücksprung in die App an.
 - „Mit E-Mail anmelden“ auf der Website führt auf `/app/?login=email`: kein stiller Google-Versuch,
   das E-Mail-Feld hat sofort den Fokus. Ohne die drei Variablen fehlt das Feld, und der Knopf endet
   auf der reinen Google-Anmeldung.

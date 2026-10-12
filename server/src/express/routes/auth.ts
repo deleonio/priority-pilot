@@ -444,7 +444,7 @@ authRouter.post('/auth/native/exchange', async (req, res) => {
 	const { code, state } = (req.body ?? {}) as { code?: unknown; state?: unknown };
 	const email =
 		typeof code === 'string' && code !== '' && typeof state === 'string' && state !== ''
-			? await consumeLoginToken(nativeLoginToken(code, state), 'native')
+			? (await consumeLoginToken(nativeLoginToken(code, state), 'native'))?.email
 			: null;
 	if (!email || (!(await isDbEmailAllowed(email)) && !isEmailAllowed(email))) {
 		sendError(res, 400, 'Der Anmeldecode ist abgelaufen oder wurde schon benutzt.');

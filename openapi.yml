@@ -4907,6 +4907,10 @@ paths:
         zugelassen ist (E-Mail-Allowlist). Die Antwort ist unabhängig davon immer 202,
         damit sich zugelassene Adressen nicht ausspähen lassen. Pro Adresse gehen
         höchstens drei Links je 15 Minuten raus; weitere Anfragen werden still verworfen.
+        Mit `X-Client-Channel: play` (Android-App) trägt der Mail-Link den App-Marker
+        `client=app` (#2563): Öffnet ihn der Browser, zeigt die Web-App den Rücksprung
+        in die App an, statt den Einmal-Link dort zu verbrauchen. Im Kanal `play` ist
+        `codeChallenge` Pflicht (PKCE); ohne gültige Challenge antwortet die Route 400.
       operationId: requestMagicLink
       tags: [auth]
       requestBody:
@@ -4935,7 +4939,9 @@ paths:
         beim Google-Login). Ein Token gilt genau einmal. Bewusst POST statt GET:
         Mail-Scanner rufen Links vorab auf und würden den Token sonst verbrauchen.
         Mit `X-Client-Channel: play` (Android-App) antwortet die Route statt mit
-        Session-Cookie mit einem App-Token (#2377).
+        Session-Cookie mit einem App-Token (#2377). Ein in der App angeforderter Token
+        gilt nur im Kanal `play` mit passendem `codeVerifier` (PKCE, #2563); jeder
+        Fehlversuch verbraucht ihn.
       operationId: verifyMagicLink
       tags: [auth]
       requestBody:
@@ -9410,6 +9416,12 @@ components:
         email:
           type: string
           description: Adresse, an die der Anmeldelink geht.
+        codeChallenge:
+          type: string
+          pattern: '^[A-Za-z0-9_-]{43}$'
+          description: >-
+            PKCE-Challenge der Android-App, base64url(SHA-256(codeVerifier)) ohne Padding.
+            Pflicht im Kanal `play` (#2563), sonst ignoriert.
     MagicLinkVerifyRequest:
       type: object
       required:
@@ -9418,6 +9430,11 @@ components:
         token:
           type: string
           description: Token aus dem Anmeldelink (Parameter `magic`).
+        codeVerifier:
+          type: string
+          description: >-
+            PKCE-Verifier der Android-App zur Challenge aus dem Antrag (#2563); Pflicht
+            für in der App angeforderte Links.
     ReviewLoginRequest:
       type: object
       required: [password]

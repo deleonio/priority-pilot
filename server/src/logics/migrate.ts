@@ -1090,6 +1090,20 @@ export const migrateLoginTokenPurpose = async (db: Sequelize): Promise<void> => 
 };
 
 /**
+ * Zieht die nullbare `codeChallenge`-Spalte (PKCE-Bindung der App-Links, #2563) auf einer
+ * **bestehenden** `login_tokens`-Tabelle nach — Muster {@link migrateWaitlistSpracheColumn}.
+ * Bestandszeilen bleiben `NULL` (Browser-Links). Idempotent; ohne Tabelle ein No-op.
+ */
+export const migrateLoginTokenCodeChallenge = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('login_tokens')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+	if (existing.length > 0 && !existing.includes('codeChallenge')) {
+		await db.query('ALTER TABLE `login_tokens` ADD COLUMN `codeChallenge` VARCHAR(255)');
+		console.log('Spalte codeChallenge an login_tokens nachgezogen.');
+	}
+};
+
+/**
  * Zieht die nullbare `createdById`-Spalte (Ersteller-Konto, #1213) auf einer **bestehenden**
  * `tasks`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog `migrateTaskAddress`. Nullable,
  * daher kein Default nötig; bestehende Tasks bleiben ohne Ersteller-Eintrag (`NULL`, AK6:
