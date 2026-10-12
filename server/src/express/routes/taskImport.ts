@@ -471,8 +471,10 @@ export const createTaskImportRouter = (
 		// erkennbar, siehe PR-Beschreibung).
 		if (keep.deadline === null || keep.deadline === undefined) keep.deadline = duplicate.deadline ?? null;
 		if (keep.priority === DEFAULT_PRIORITY) keep.priority = duplicate.priority;
-		await duplicate.destroy();
+		// Ganz oder gar nicht (#2495): erst den Ziel-Task speichern, dann die Kopie löschen —
+		// scheitert das Speichern, bleibt die Kopie bestehen und nichts ist verändert.
 		await keep.save();
+		await duplicate.destroy();
 		res.json({ keptTaskId: keep.id });
 	});
 
