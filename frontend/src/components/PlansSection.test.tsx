@@ -21,7 +21,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
  * gemeinsamen Tabellenkörper unterscheidbar, ohne die sichtbaren Spalten zu verändern.
  */
 vi.mock('@public-ui/react-v19', () => ({
-	KolAlert: ({ children }: { children?: ReactNode }) => createElement('div', { role: 'alert' }, children),
+	// #2492: Label und Test-ID des Hinweises sichtbar machen (`store-purchase-notice`).
+	KolAlert: ({
+		_label,
+		children,
+		'data-testid': testId,
+	}: {
+		_label?: string;
+		children?: ReactNode;
+		'data-testid'?: string;
+	}) => createElement('div', { role: 'alert', 'data-testid': testId }, _label, children),
 	// Test-Pflege #2307: der Buchen-Knopf trägt seinen Namen im Expert-Slot (Kinder); Checkbox und Link der Widerrufsbelehrung.
 	KolButton: ({ _label, children }: { _label?: string; children?: ReactNode }) =>
 		createElement('button', null, _label, children),
@@ -331,25 +340,31 @@ describe('PlansSection je Kanal (#1674)', () => {
 		expect(screen.queryByText('Die Pakete lassen sich bald direkt in der App buchen.')).toBeNull();
 	});
 
-	it('play: Preise aus Google Play statt aus dem Katalog, kein Link auf den Web-Kauf (#1692)', async () => {
+	// Test-Pflege #2492: ersetzt „play: Preise aus Google Play" (#1692) — ADR 0016 Nachtrag 2026-10-08.
+	it('play: Katalogpreise ohne Buchen-Zeilen, Hinweis „Kauf in der App folgt", kein Store-Aufruf, kein PayPal (#2492)', async () => {
 		vi.stubGlobal('__PP_CHANNEL__', 'play');
+		const initialize = vi.fn(() => Promise.resolve());
+		const get = vi.fn(() => ({
+			offers: [{ id: 'x@monthly', pricingPhases: [{ price: 'pro 9,49 €' }], order: vi.fn() }],
+		}));
 		vi.stubGlobal('CdvPurchase', {
-			store: {
-				register: vi.fn(),
-				when: () => ({ approved: vi.fn() }),
-				initialize: vi.fn(() => Promise.resolve()),
-				get: (id: string) => ({
-					offers: [{ id: `${id}@monthly`, pricingPhases: [{ price: `${id} 9,49 €` }], order: vi.fn() }],
-				}),
-			},
+			store: { register: vi.fn(), when: () => ({ approved: vi.fn() }), initialize, get },
 		});
 		getPlansCatalog.mockResolvedValue(CATALOG_CENTS);
 		render(createElement(PlansSection));
 
-		await waitFor(() => expect(screen.getByText('pro 9,49 €')).toBeTruthy());
+		await waitFor(() => expect(screen.getByTestId('plans-kol-table')).toBeTruthy());
 
-		expect(screen.queryByText('8,99 €')).toBeNull();
-		expect(screen.getByTestId('plans-section').querySelector('a')).toBeNull();
+		const section = screen.getByTestId('plans-section');
+		expect(section.querySelectorAll('tr[data-row-kind="action"]')).toHaveLength(0);
+		expect(screen.queryByRole('button')).toBeNull();
+		expect(screen.getByTestId('store-purchase-notice').textContent).toContain('Kauf in der App folgt');
+		expect(screen.getByText('8,99 €')).toBeTruthy();
+		expect(screen.queryByText('pro 9,49 €')).toBeNull();
+		expect(initialize).not.toHaveBeenCalled();
+		expect(get).not.toHaveBeenCalled();
+		expect(section.querySelector('a')).toBeNull();
+		expect(section.textContent).not.toMatch(/PayPal/i);
 	});
 });
 
