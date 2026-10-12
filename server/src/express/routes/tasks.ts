@@ -699,6 +699,12 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			sendError(res, 400, validation.message);
 			return;
 		}
+		// Checklisten-Done-Guard (#2495): Auch beim Anlegen gilt — „Done“ nur mit vollständig
+		// abgehakter Checkliste, dieselbe Meldung wie der PATCH-Guard (#2467).
+		if (validation.attrs.status === 'Done' && (validation.attrs.checklist ?? []).some((item) => !item.completed)) {
+			sendError(res, 409, 'Der Task kann nicht auf „Erledigt“ gesetzt werden, solange noch Checkpunkte offen sind.');
+			return;
+		}
 		const userId = getUserId(req);
 		try {
 			// #1213: Ersteller auflösen (Session-Nutzer, sonst Dev-Pass-Through) und optionalen Empfänger
