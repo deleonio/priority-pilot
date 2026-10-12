@@ -4,13 +4,40 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.23 - 2026-10-12
 
+_Enthält v0.23.0 – v0.23.1._
+
+### 🎉 New Features
+
+- feat(frontend): show packages without purchase on Play channel by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2500
+- feat(server): list and revoke android app logins via api-tokens by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2504
+- feat(frontend): revoke android app sessions in token management (#2499) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2506
+
+### 🐞 Bug Fixes
+
+- fix(deps): update dependency @capacitor/browser to v8.0.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2489
+- feat(server): harden token scope, ICS host switch and CORS max-age by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2502
+- fix(server): prevent data loss and silent task/score input errors by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2511
+- feat(frontend): translate fixed balance texts and raw i18n keys (#2496) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2513
+- chore: fix store description and portuguese salutation (#2498) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2516
+
 ### 🚀 Improvements
 
 - fix(deps): update capacitor monorepo to v8.5.3 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2486
+- fix(deps): update dependency @capacitor/push-notifications to v8.1.3 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2503
 
 ### 🔧 Engineering
 
 - fix(deps): update dependency @capacitor/app to v8.1.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2488
+- docs(arc42): align adr 0016 status row with adr 0021/0023 (v-17) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2490
+- test(frontend): wait for toolbar re-render before settings re-click by @deleonio in https://github.com/deleonio/priority-pilot/pull/2505
+- docs(skills): grep old values in e2e and unit tests during spec phase by @deleonio in https://github.com/deleonio/priority-pilot/pull/2507
+- fix(deps): update dependency express-rate-limit to v8.7.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2509
+- test(e2e): isolate spec data per shard (#2508) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2510
+- test(frontend): stabilize archivo host font check by @deleonio in https://github.com/deleonio/priority-pilot/pull/2514
+
+### Other Changes
+
+- fix(native): stop committing generated capacitor.settings.gradle by @deleonio in https://github.com/deleonio/priority-pilot/pull/2517
 
 ## v0.22 - 2026-10-11
 
@@ -197,7 +224,6 @@ _Enthält v0.17.0 – v0.17.45._
 - feat(server): send waitlist activation mail with login link by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2310
 - feat(server): send emails for payment failure and subscription end by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2320
 - feat(ci): add ai:hold-merge label to block auto-merge by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2333
-- feat(ci): add ai:hold-merge label to block auto-merge by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2333
 - feat(admin): delete foreign user account from admin user list by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2331
 
 ### 🐞 Bug Fixes
@@ -206,6 +232,7 @@ _Enthält v0.17.0 – v0.17.45._
 - fix(frontend): keep legal text details open in consent step by @deleonio in https://github.com/deleonio/priority-pilot/pull/2314
 - fix(server): remove duplicate MailSender import in paypal.ts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2322
 - test(e2e): finish pillar recalc fake run on demand instead of wall clock by @deleonio in https://github.com/deleonio/priority-pilot/pull/2323
+- fix(frontend): keep collapsible sections open across re-renders by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2332
 - fix(frontend): keep collapsible sections open across re-renders by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2332
 
 ### 🚀 Improvements
