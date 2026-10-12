@@ -209,4 +209,36 @@ describe('Magic-Link-Login per E-Mail', () => {
 		assert.equal((await verify(lastToken())).status, 204);
 		assert.equal(await ApiToken.count(), 0);
 	});
+
+	// #2563 (docs/spec/issue-2563.md): Der Link in der Mail kennt den anfordernden Kanal.
+	it('AK1: App-Antrag mit X-Client-Channel: play haengt den App-Marker an den Mail-Link', async () => {
+		await server.json('/auth/magic-link', {
+			method: 'POST',
+			headers: { 'X-Client-Channel': 'play' },
+			body: JSON.stringify({ email: ALLOWED }),
+		});
+		const link = sent.at(-1)?.text ?? '';
+		assert.match(link, /\?magic=[\w-]+&client=app\b/, 'Der Mail-Link traegt den App-Kanal-Marker');
+	});
+
+	it('AK1: Browser-Antrag bleibt beim Marker-freien Link', async () => {
+		await requestLink(ALLOWED);
+		assert.doesNotMatch(sent.at(-1)?.text ?? '', /client=app/);
+	});
+
+	it('AK6: Allowlist wird auch beim Einloesen erneut geprueft', async () => {
+		await requestLink(ALLOWED);
+		const token = lastToken();
+		const saved = process.env.GOOGLE_ALLOWED_EMAILS;
+		process.env.GOOGLE_ALLOWED_EMAILS = 'google@example.com';
+		try {
+			assert.equal(
+				(await verify(token)).status,
+				400,
+				'Eine zwischenzeitlich entfernte Adresse kann den Token nicht mehr einloesen',
+			);
+		} finally {
+			process.env.GOOGLE_ALLOWED_EMAILS = saved;
+		}
+	});
 });

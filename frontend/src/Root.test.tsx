@@ -182,3 +182,31 @@ describe('Root in der Android-App (ADR 0023)', () => {
 		expect(nativeGoogleLogin).not.toHaveBeenCalled();
 	});
 });
+
+describe('Issue #2563 — Magic-Link-App-Marker', () => {
+	const originalFetch = global.fetch;
+
+	afterEach(() => {
+		cleanup();
+		global.fetch = originalFetch;
+		window.history.replaceState(null, '', '/');
+	});
+
+	it('AK2: App-Marker-Link wird nicht im Browser eingelöst — Landing bietet den Rücksprung in die App', async () => {
+		const aufgerufeneUrls: string[] = [];
+		global.fetch = vi.fn((input: unknown) => {
+			aufgerufeneUrls.push(String(input instanceof Request ? input.url : input));
+			return Promise.resolve(new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }));
+		}) as unknown as typeof fetch;
+
+		window.history.replaceState(null, '', '/app/?magic=tok-2563&client=app');
+		render(<Root />);
+
+		const ruecksprung = await screen.findByRole('link', { name: /in der app öffnen/i }, { timeout: 3000 });
+		expect(ruecksprung).toHaveAttribute('href', expect.stringContaining('balamentum.app://auth/native?magic=tok-2563'));
+		expect(
+			aufgerufeneUrls.some((url) => url.includes('/auth/magic-link/verify')),
+			'Der Token darf im Browser nicht eingereicht werden',
+		).toBe(false);
+	});
+});
