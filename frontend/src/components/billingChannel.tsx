@@ -21,7 +21,7 @@ export interface PurchaseUi {
 	dialog?: ReactNode;
 }
 
-/** App Store bis zum Kauf über StoreKit: Pakete ohne Kauf, kein Verweis auf den Web-Kauf (ADR 0016). */
+/** Store-Apps bis zur PO-Freigabe des Kaufs (Play Billing, StoreKit): Pakete ohne Kauf, kein Verweis auf den Web-Kauf (ADR 0016). */
 const useNoInAppPurchase = (): PurchaseUi => {
 	const { t } = useTranslation('billing');
 	return {
@@ -42,9 +42,12 @@ export const CHANNEL_PROVIDER: Record<Channel, Provider | undefined> = {
 	appstore: undefined,
 };
 
+/** Freigabe des Play-Kaufs durch die PO (ADR 0017); bis dahin zeigt der Kanal `play` Pakete ohne Kauf. */
+const PLAY_BILLING_RELEASED = false;
+
 const CHANNEL_HOOKS: Record<Channel, () => PurchaseUi> = {
 	web: usePaypalPurchase,
-	play: usePlayPurchase,
+	play: PLAY_BILLING_RELEASED ? usePlayPurchase : useNoInAppPurchase,
 	appstore: useNoInAppPurchase,
 };
 

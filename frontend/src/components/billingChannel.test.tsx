@@ -21,7 +21,6 @@ vi.mock('@public-ui/react-v19', () => ({
 }));
 const channelPurchase = { actionCell: () => ({ text: 'Buchen', node: <button>Buchen</button> }), notice: null };
 vi.mock('./PaypalPurchase', () => ({ usePaypalPurchase: () => channelPurchase }));
-vi.mock('./PlayPurchase', () => ({ usePlayPurchase: () => channelPurchase }));
 let subscription: Partial<Subscription> | null = null;
 vi.mock('../lib/usePlan', () => ({ usePlan: () => ({ subscription }) }));
 vi.mock('../api', () => ({ api: { listBillingInvoices: () => Promise.resolve([]) } }));
@@ -69,8 +68,8 @@ describe('Abo über einen anderen Anbieter (#1695)', () => {
 	});
 
 	it('ein Abo beim eigenen Anbieter lässt den Kaufweg des Kanals unverändert', () => {
-		subscription = { ...ACTIVE, provider: 'google_play' } as Subscription;
-		const { result } = renderHook(() => purchaseHookFor('play')());
+		subscription = { ...ACTIVE, provider: 'paypal' } as Subscription;
+		const { result } = renderHook(() => purchaseHookFor('web')());
 
 		expect(result.current).toBe(channelPurchase);
 	});
