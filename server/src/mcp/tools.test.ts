@@ -1042,6 +1042,10 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 			'next_task',
 			'pillar_list',
 			'pillar_weights_set',
+			// #2501: die drei Series-Checklisten-Werkzeuge stehen alphabetisch vor series_instantiate.
+			'series_checklist_add',
+			'series_checklist_remove',
+			'series_checklist_update',
 			// #2360: die beiden Serien-Werkzeuge stehen alphabetisch vor task_complete.
 			'series_instantiate',
 			'series_list',
@@ -1723,8 +1727,8 @@ describe('MCP-Werkzeuge category_create/category_update/category_delete (#1412)'
 		const names = tools.map((t) => t.name).sort();
 		assert.equal(
 			names.length,
-			38,
-			`Katalog sollte achtunddreißig Namen führen (#1412, #1542, #1543, #1544; Säulen-CRUD seit #1573 entfallen), war: ${names.join(', ')}`,
+			41,
+			`Katalog sollte einundvierzig Namen führen (#1412, #1542, #1543, #1544, #2501; Säulen-CRUD seit #1573 entfallen), war: ${names.join(', ')}`,
 		);
 		assert.ok(names.includes('category_create'), 'category_create muss im Katalog stehen');
 		assert.ok(names.includes('category_update'), 'category_update muss im Katalog stehen');
@@ -2529,7 +2533,7 @@ describe('MCP-Werkzeuge Einladungen/Einladungslinks (#1544)', () => {
 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name);
-		assert.equal(names.length, 38, `Katalog sollte achtunddreißig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 41, `Katalog sollte einundvierzig Namen führen, war: ${names.join(', ')}`);
 		for (const name of [
 			'group_invitation_list',
 			'group_invitation_create',
