@@ -4907,6 +4907,9 @@ paths:
         zugelassen ist (E-Mail-Allowlist). Die Antwort ist unabhängig davon immer 202,
         damit sich zugelassene Adressen nicht ausspähen lassen. Pro Adresse gehen
         höchstens drei Links je 15 Minuten raus; weitere Anfragen werden still verworfen.
+        Mit `X-Client-Channel: play` (Android-App) trägt der Mail-Link den App-Marker
+        `client=app` (#2563): Öffnet ihn der Browser, zeigt die Web-App den Rücksprung
+        in die App an, statt den Einmal-Link dort zu verbrauchen.
       operationId: requestMagicLink
       tags: [auth]
       requestBody:

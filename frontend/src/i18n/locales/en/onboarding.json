@@ -33,6 +33,13 @@
 		"waitlistFailed": "Joining the waitlist did not work right now. Please try again in a moment.",
 		"back": "Back to the website",
 		"backAria": "Balamentum: Back to the website",
+		"magicLanding": {
+			"title": "Open the link in the app",
+			"sub": "You requested this sign-in link in the Balamentum app — open it there to sign in.",
+			"openApp": "Open in the app",
+			"opened": "App opened — finish signing in there",
+			"hint": "This link works in the Balamentum app. In the browser it has no effect."
+		},
 		"review": {
 			"title": "Review access",
 			"password": "Password",

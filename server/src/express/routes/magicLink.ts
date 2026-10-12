@@ -101,7 +101,7 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 				const mail = MAIL[spracheAusHeader(req.get('accept-language'))];
 				void sendMailToUser(
 					{ email: normalizedEmail },
-					{ subject: mail.subject, text: mail.text(buildMagicLinkUrl(token)) },
+					{ subject: mail.subject, text: mail.text(buildMagicLinkUrl(token, req.get('X-Client-Channel'))) },
 					mailSender,
 				);
 			}

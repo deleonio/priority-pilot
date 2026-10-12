@@ -165,6 +165,9 @@ Magic-Links auf `/app/` öffnen die App über den App Link. Der Intent-Filter im
 aus `server.allowNavigation` (Gradle liest sie aus der von `sync` erzeugten `capacitor.config.json`),
 verifiziert wird sie über `/.well-known/assetlinks.json` der Website. `ANDROID_CERT_SHA256` muss dafür den
 SHA-256 des Play-App-Signaturschlüssels nennen, sonst öffnen Links bei Play-Installationen im Browser.
+Öffnet ein in der App angeforderter Link (`client=app`-Marker, #2563) trotzdem den Browser, verbraucht die
+Web-App den Einmal-Token nicht, sondern zeigt die Landing „In der App öffnen“ — der Rücksprung läuft über
+das Custom Scheme `balamentum.app://auth/native?magic=…` in den WebView, der den Token im Kanal `play` einlöst.
 Prüfen auf dem Gerät: `adb shell pm get-app-links balamentum.app` muss die Domain als `verified` zeigen.
 
 Fehlerbilder:

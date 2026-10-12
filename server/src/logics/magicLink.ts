@@ -36,9 +36,14 @@ export const publicBaseUrl = (): string | undefined =>
 /** Magic Link ist nutzbar, sobald SMTP und `PUBLIC_BASE_URL` konfiguriert sind. */
 export const isMagicLinkEnabled = (): boolean => isMailConfigured() && !!publicBaseUrl();
 
-/** Baut den Link, den die Mail enthält. Die App löst `?magic=` per POST ein (kein Verbrauch per GET). */
-export const buildMagicLinkUrl = (token: string): string =>
-	`${publicBaseUrl()}/app/?magic=${encodeURIComponent(token)}`;
+/**
+ * Baut den Link, den die Mail enthält. Die App löst `?magic=` per POST ein (kein Verbrauch per GET).
+ * Fordert die Android-App den Link an (`X-Client-Channel: play`, #2563), markiert `client=app` den
+ * Link: Öffnet ihn ein Browser, bietet die Web-App den Rücksprung in die App an, statt den
+ * Einmal-Token still zu verbrauchen.
+ */
+export const buildMagicLinkUrl = (token: string, clientChannel?: string): string =>
+	`${publicBaseUrl()}/app/?magic=${encodeURIComponent(token)}${clientChannel === 'play' ? '&client=app' : ''}`;
 
 /**
  * Legt einen neuen Token für `email` an und liefert den Klartext — oder `null`, wenn für die Adresse
