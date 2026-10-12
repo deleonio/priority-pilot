@@ -13,8 +13,9 @@ auch ohne Netz. Das Website-Deployment (`frontend/dist` nach `/app/`) bleibt dav
 | `native/android/`                  | von `cap add android` erzeugtes Projekt, eingecheckt; Manifest mit Standort-/Mikrofon-Rechten und App Links |
 | `native/android/app/src/main/res/` | Icons aus `frontend/public/logo/logo.png`, Splash aus der Wortmarke (siehe unten)                           |
 
-`capacitor.config.json` und die kopierten Web-Dateien unter `android/app/src/main/assets/` entstehen
-bei jedem `sync` und sind nicht eingecheckt.
+`capacitor.config.json`, die kopierten Web-Dateien unter `android/app/src/main/assets/` und
+`android/capacitor.settings.gradle` entstehen bei jedem `sync` und sind nicht eingecheckt. Vor dem
+ersten Gradle-Lauf also immer `sync` ausführen.
 
 ## Lokal bauen
 
