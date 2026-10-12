@@ -641,3 +641,39 @@ describe('App-Token der Android-App (#2377 AK3/AK5, Spec docs/spec/issue-2377.md
 		assert.equal(me.status, 401);
 	});
 });
+
+describe('Bearer-Token-Auth — Feedback-Ausnahme nur für POST (#2493 AK1/AK2, Spec docs/spec/issue-2493.md)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const feedbackViaBearer = (token: string, method: string): Promise<Response> =>
+		fetch(`${server.baseUrl}/feedback`, {
+			method,
+			headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+			body: JSON.stringify({ message: 'Test' }),
+		});
+
+	it('AK1: ein Nur-lese-Token erhält bei PUT, PATCH und DELETE auf /feedback 403', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		const { token } = await createToken(cookie);
+		for (const method of ['PUT', 'PATCH', 'DELETE']) {
+			const res = await feedbackViaBearer(token, method);
+			assert.equal(res.status, 403, `${method} /feedback muss mit scope read abgewiesen werden`);
+		}
+	});
+
+	it('AK2: POST /feedback bleibt mit Nur-lese-Token erlaubt (#1890)', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		const { token } = await createToken(cookie);
+		const res = await feedbackViaBearer(token, 'POST');
+		assert.notEqual(res.status, 403);
+	});
+});
