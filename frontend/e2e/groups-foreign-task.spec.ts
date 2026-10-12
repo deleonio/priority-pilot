@@ -78,6 +78,9 @@ const expectWithinViewport = async (page: Page, name: string, locator: ReturnTyp
 	);
 };
 
+// Fremd-/Gruppen-Task: /forest filtert auf eigene Tasks
+test.use({ ownSession: false });
+
 test.describe('Aufgabe für ein Gruppenmitglied (#1213)', () => {
 	// #2186: Die sonntags nachladende Wochenkarte baut das Dashboard sonst unter den Klicks um.
 	test.beforeEach(({ page }) => avoidSunday(page));

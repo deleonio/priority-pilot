@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { seedAccountPreferences, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-e2e für #934 — „InputRange-Mindestbreite 300 px + doppelte Säulen-Beschreibung entfernen".
@@ -17,8 +17,9 @@ import { waitForStableView } from './helpers';
  * beziehen sich auf das Host-Element, damit Slider und Zahlenfeld im Shadow-DOM nicht umbrechen.
  */
 // #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
-// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+// Präferenz liegt am Konto: API-Seed + localStorage-Spiegel (#2508, Muster ai-disable.spec.ts).
 test.beforeEach(async ({ page }) => {
+	await seedAccountPreferences(page, { expertMode: true });
 	await page.addInitScript(() => {
 		localStorage.setItem('pp-expert-mode', 'true');
 	});

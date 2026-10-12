@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { openAccordionSection, waitForStableView } from './helpers';
+import { openAccordionSection, seedAccountPreferences, waitForStableView } from './helpers';
 
 /**
  * Funktionale End-to-End-Spec für die **Serien-Frontend-Vertikale** (#142) gegen das **echte**
@@ -18,8 +18,9 @@ import { openAccordionSection, waitForStableView } from './helpers';
  * alle Tasks (auch generierte Instanzen), dann alle Serien über die echte API wieder ab.
  */
 // #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
-// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+// Präferenz liegt am Konto: API-Seed + localStorage-Spiegel (#2508, Muster ai-disable.spec.ts).
 test.beforeEach(async ({ page }) => {
+	await seedAccountPreferences(page, { expertMode: true });
 	await page.addInitScript(() => {
 		localStorage.setItem('pp-expert-mode', 'true');
 	});

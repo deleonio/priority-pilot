@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableBox } from './helpers';
+import { seedAccountPreferences, waitForStableBox } from './helpers';
 
 /**
  * Rote Spec-e2e für #2015 — „Einstellungen: zweite Ebene ausschließlich Details-Blöcke“
@@ -12,12 +12,15 @@ import { waitForStableBox } from './helpers';
  * overflow-x:hidden, ein Scroll-Überhang wäre dort unsichtbar.
  *
  * Gegen das echte Backend (Vite-Proxy, Muster issue-1098-geo-settings.spec.ts); Expertenmodus
- * und Standorterfassung kommen per localStorage-Seed vor dem Seitenaufbau (#1984/#1098).
+ * und Standorterfassung kommen als Konto-Präferenz per API-Seed (#2508) plus localStorage-Spiegel
+ * vor dem Seitenaufbau (#1984/#1098).
  */
 test.use({ viewport: { width: 375, height: 812 } });
 
 test.describe('Balamentum — #2015: Details-Blöcke über die volle Zeilenbreite', () => {
 	test.beforeEach(async ({ page }) => {
+		// #2508: Konto-Seed — der App-Start-Pull überschreibt den localStorage-Spiegel.
+		await seedAccountPreferences(page, { expertMode: true, geolocationEnabled: true });
 		await page.addInitScript(() => {
 			localStorage.setItem('pp-expert-mode', 'true');
 			localStorage.setItem('pp-geolocation-enabled', 'true');

@@ -47,7 +47,7 @@ const GEO_INIT = (permission: 'granted' | 'denied', geoEnabled: boolean) => `
   })();`;
 
 /** #2508: Die Geo-Präferenz liegt am Konto — der App-Start-Pull überschreibt den localStorage-Seed. */
-const initGeo = async (page: Page, permission: string, geoEnabled: boolean): Promise<void> => {
+const initGeo = async (page: Page, permission: 'granted' | 'denied', geoEnabled: boolean): Promise<void> => {
 	await seedAccountPreferences(page, { geolocationEnabled: geoEnabled });
 	await page.addInitScript(GEO_INIT(permission, geoEnabled));
 };
