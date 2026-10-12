@@ -703,6 +703,23 @@ export const migrateTaskChecklist = async (db: Sequelize): Promise<void> => {
 };
 
 /**
+ * Zieht die `checklist`-Spalte (JSON-Array, #2501) auf einer **bestehenden** `series`-Tabelle nach,
+ * BEVOR `sequelize.sync()` läuft — analog `migrateTaskChecklist` (#531). Bestehende Serien erhalten
+ * den Default `[]`. Idempotent (Spalte vorhanden → No-op); bei frischer DB (keine `series`-Tabelle)
+ * ebenso No-op — `sync()` legt die Spalte inkl. Default an.
+ */
+export const migrateSeriesChecklist = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('series')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0 || existing.includes('checklist')) {
+		return;
+	}
+	await db.query("ALTER TABLE `series` ADD COLUMN `checklist` JSON NOT NULL DEFAULT '[]'");
+	console.log('Spalte checklist an series nachgezogen (#2501).');
+};
+
+/**
  * Zieht die `groupId`-Spalte (Gruppen-Adressierung, #1521) auf einer **bestehenden** `tasks`-Tabelle
  * nach, BEVOR `sequelize.sync()` läuft — analog `migrateTaskChecklist`. Nullable, daher kein Default;
  * Bestandsaufgaben bleiben ohne Gruppenbezug (`NULL`). Idempotent (Spalte vorhanden → No-op).

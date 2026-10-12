@@ -3973,7 +3973,9 @@ describe('TaskForm — Checkliste an der Serie (#2501)', () => {
 			render(<SeriesEditForm task={null} series={seriesWithChecklist()} {...defaultProps} />);
 		});
 
-		await clickSave();
+		// Test-Pflege #2501 (Impl-Phase): Serie-Edit zeigt „Bearbeiten“ (common:actions.edit) —
+		// `clickSave` („Anlegen“) träfe den Anlege-Modus; fachlich unverändert.
+		await clickSaveEdit();
 
 		expect(mockUpdateSeries).toHaveBeenCalledTimes(1);
 		expect(mockUpdateSeries).toHaveBeenCalledWith(

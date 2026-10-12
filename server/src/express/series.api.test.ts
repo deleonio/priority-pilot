@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, after } from 'node:test';
+import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
 import { Pillar, Task } from '../models/index.js';
@@ -887,11 +887,14 @@ describe('Series API', () => {
 // Rot, bis die Impl-Phase `checklist` an Modell/DTO/Validierung anbaut: der Key wird heute
 // still verworfen (201 statt 400, DTO ohne checklist). Spec: docs/spec/issue-2501.md.
 describe('Series API — checklist (#2501)', () => {
+	// Test-Pflege #2501 (Impl-Phase): der erste Describe schließt den Server in seinem `after`,
+	// `if (!server)` übersah das und lief in ECONNREFUSED — Server hier neu starten (Muster
+	// series-dataisolation.test.ts). Keine Assertion geändert.
+	before(async () => {
+		server = await startTestServer();
+	});
 	beforeEach(async () => {
 		await resetDb();
-		if (!server) {
-			server = await startTestServer();
-		}
 	});
 
 	after(async () => {
@@ -970,8 +973,10 @@ describe('Series API — checklist (#2501)', () => {
 	});
 
 	it('AK5: ein Eintrag mit completed wird an POST und PATCH mit 400 abgewiesen', async () => {
+		// Test-Pflege #2501 (Impl-Phase): `validSeries` ist im ersten Describe lokal; hier steht
+		// die fachlich identische Vorlage `validSeriesBody` dieses Describes (Vertrag unverändert).
 		const rejected = await post('/series', {
-			...validSeries(),
+			...validSeriesBody(),
 			checklist: [{ id: UUID_A, title: 'Einräumen', completed: false }],
 		});
 		assert.equal(rejected.status, 400, 'POST lehnt completed ab');
@@ -985,9 +990,11 @@ describe('Series API — checklist (#2501)', () => {
 
 	it('AK5: Abhaken an einer Instanz ändert weder Serie noch Schwestern-Instanz', async () => {
 		const series = await createSeriesWithChecklist();
-		const generated = await post(`/series/${series.id}/generate`, {});
-		assert.ok(generated.ok, 'Setup: Instanzen lassen sich generieren');
-		const instances = (await generated.json()) as { id: number }[];
+		// Test-Pflege #2501 (Impl-Phase): POST /series legt gemäß #2404 sofort bis zu 5 Instanzen an —
+		// /generate ist idempotent und liefert dann keine neuen. Instanzen über GET /tasks beziehen.
+		const instances = ((await (await get('/tasks')).json()) as { id: number; seriesId: number | null }[]).filter(
+			(task) => task.seriesId === series.id,
+		);
 		assert.ok(instances.length >= 2, 'Setup: mindestens zwei Schwestern-Instanzen');
 
 		await patch(`/tasks/${instances[0]!.id}`, {
@@ -1016,9 +1023,11 @@ describe('Series API — checklist (#2501)', () => {
 
 	it('AK5: eine Checklisten-Änderung an der Serie kaskadiert nicht auf offene Instanzen', async () => {
 		const series = await createSeriesWithChecklist();
-		const generated = await post(`/series/${series.id}/generate`, {});
-		assert.ok(generated.ok, 'Setup: Instanzen lassen sich generieren');
-		const [instance] = (await generated.json()) as { id: number }[];
+		// Test-Pflege #2501 (Impl-Phase): Instanzen stehen nach dem Anlegen bereit (s. o., #2404).
+		const [instance] = ((await (await get('/tasks')).json()) as { id: number; seriesId: number | null }[]).filter(
+			(task) => task.seriesId === series.id,
+		);
+		assert.ok(instance, 'Setup: mindestens eine offene Instanz');
 
 		await patch(`/series/${series.id}`, {
 			checklist: [...CHECKLIST, { id: UUID_C, title: 'Futter kaufen' }],

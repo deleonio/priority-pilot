@@ -202,6 +202,9 @@ const createInstanceFromSeries = async (
 		userId: fields.userId,
 		autoDeleteAfterDeadline: series.autoDeleteAfterDeadline,
 		categoryId: series.categoryId ?? null,
+		// #2501: Checkpunkte der Vorlage als Snapshot übernehmen — dieselben UUIDs, alle offen; das
+		// Abhaken bleibt allein an der Instanz (spätere Template-Änderungen kaskadieren nicht).
+		checklist: (series.checklist ?? []).map((item) => ({ ...item, completed: false })),
 	});
 	if (pillarRows.length > 0) {
 		await TaskPillar.bulkCreate(

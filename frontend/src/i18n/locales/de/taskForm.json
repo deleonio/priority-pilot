@@ -56,6 +56,9 @@
 		"checklist": "Checkliste (optional)",
 		"checklistEntry": "Checklisten-Eintrag",
 		"checklistDone": "Erledigen",
+		"checklistMoveUp": "Nach oben verschieben",
+		"checklistMoveDown": "Nach unten verschieben",
+		"checklistFull": "Checkliste voll — höchstens {{count}} Einträge.",
 		"submitEditBusy": "Bearbeiten…",
 		"submitCreateBusy": "Anlegen…",
 		"errors": {

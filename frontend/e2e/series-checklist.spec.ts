@@ -65,9 +65,9 @@ test.describe('Balamentum — Checkpunkte an der Serie (#2501)', () => {
 		await expect(section).toBeVisible();
 
 		// Anlegen
-		await section.getByRole('textbox', { name: 'Checklisten-Eintrag' }).fill('Einräumen');
+		await section.getByRole('searchbox', { name: 'Checklisten-Eintrag' }).fill('Einräumen');
 		await section.getByRole('button', { name: 'Hinzufügen' }).click();
-		await section.getByRole('textbox', { name: 'Checklisten-Eintrag' }).fill('Abwischen');
+		await section.getByRole('searchbox', { name: 'Checklisten-Eintrag' }).fill('Abwischen');
 		await section.getByRole('button', { name: 'Hinzufügen' }).click();
 		await expect(section.getByTestId('checklist-item')).toHaveCount(2);
 
@@ -97,9 +97,9 @@ test.describe('Balamentum — Checkpunkte an der Serie (#2501)', () => {
 		await openSeriesEdit(page, seriesId);
 
 		const section = page.getByTestId('checklist-section');
-		await section.getByRole('textbox', { name: 'Checklisten-Eintrag' }).fill('Erster Schritt');
+		await section.getByRole('searchbox', { name: 'Checklisten-Eintrag' }).fill('Erster Schritt');
 		await section.getByRole('button', { name: 'Hinzufügen' }).click();
-		await section.getByRole('textbox', { name: 'Checklisten-Eintrag' }).fill('Zweiter Schritt');
+		await section.getByRole('searchbox', { name: 'Checklisten-Eintrag' }).fill('Zweiter Schritt');
 		await section.getByRole('button', { name: 'Hinzufügen' }).click();
 
 		await page.getByRole('button', { name: 'Bearbeiten', exact: true }).last().click();

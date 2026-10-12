@@ -5,6 +5,7 @@ import { Task, User } from '../models/index.js';
 import {
 	migrateSeriesColumns,
 	migrateSeriesTable,
+	migrateSeriesChecklist,
 	migrateUserIdColumns,
 	migratePillarDescription,
 	migrateTaskChecklist,
@@ -260,6 +261,9 @@ describe('migrateSeriesTable', () => {
 
 		// Kategorie-Spalte nachziehen: Series.findAll selektiert sie mit (separate Migration).
 		await migrateCategoryIdColumns(sequelize);
+		// Test-Pflege #2501: checklist-Spalte ebenso nachziehen — Series.findAll selektiert sie mit
+		// (separate Migration, Muster der Kategorie-Spalte oben).
+		await migrateSeriesChecklist(sequelize);
 
 		const { default: Series } = await import('../models/series.js');
 		await assert.doesNotReject(() => Series.findAll(), 'Series.findAll() wirft keinen SQLITE_ERROR mehr');

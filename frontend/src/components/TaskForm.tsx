@@ -158,6 +158,9 @@ export interface TaskFormInitialValues {
  */
 const NO_CATEGORY = 0;
 
+/** Grenze der Checkliste (Server: `MAX_CHECKLIST_ITEMS`/`MAX_SERIES_CHECKLIST_ITEMS`, #2501). */
+const CHECKLIST_LIMIT = 50;
+
 /** Auswahl-Optionen des Serien-Rhythmus (Vertrag `SeriesRhythm`, 12 Werte — Backend #469). */
 const RHYTHM_VALUES: SeriesRhythm[] = [
 	'daily',
@@ -557,18 +560,22 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	// #534: State-Mirror der Deadline-Eingabe, damit die Kopplung des Auto-Löschen-Schalters an die
 	// Deadline-Präsenz (Anforderung 2) reaktiv greift — `form.current.deadline` allein löst kein Re-Render aus.
 	const [deadlineInput, setDeadlineInput] = useState(form.current.deadline);
-	// #531: Abhakbare Checkliste (nur Task-Modus). State, damit Hinzufügen/Entfernen/Togglen neu
-	// rendern. Im Task-Edit aus dem vorhandenen Task vorbelegt; beim Anlegen aus der
+	// #531: Abhakbare Checkliste (Task-Modus) bzw. Checkpunkte der Vorlage (#2501, Serie-Modus —
+	// dort ohne Erledigt-Schalter, das Abhaken gehört zur Instanz). State, damit
+	// Hinzufügen/Entfernen/Togglen neu rendern. Im Task-Edit aus dem vorhandenen Task vorbelegt,
+	// im Serie-Edit aus `series.checklist` (alle Punkte offen); beim Anlegen aus der
 	// Schnellerfassung (#1310) aus den geparsten Punkten — jeder Eintrag bekommt eine eigene UUID.
 	// Lazy-Initializer, damit die UUIDs nicht bei jedem Render neu gezogen werden.
 	const [checklist, setChecklist] = useState<ChecklistItem[]>(
 		() =>
 			task?.checklist ??
-			(initialValues?.checklist ?? []).map((title) => ({
-				id: crypto.randomUUID(),
-				title,
-				completed: false,
-			})),
+			(series?.checklist !== undefined
+				? series.checklist.map((item) => ({ id: item.id, title: item.title, completed: false }))
+				: (initialValues?.checklist ?? []).map((title) => ({
+						id: crypto.randomUUID(),
+						title,
+						completed: false,
+					}))),
 	);
 	const [newChecklistTitle, setNewChecklistTitle] = useState('');
 
@@ -723,7 +730,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	// #531: Checklisten-Eintrag anlegen (neue UUID, completed = false), entfernen oder abhaken.
 	const addChecklistItem = (): void => {
 		const title = newChecklistTitle.trim();
-		if (title === '') {
+		if (title === '' || checklist.length >= CHECKLIST_LIMIT) {
 			return;
 		}
 		setChecklist((prev) => [...prev, { id: crypto.randomUUID(), title, completed: false }]);
@@ -732,6 +739,22 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	const removeChecklistItem = (id: string): void => setChecklist((prev) => prev.filter((item) => item.id !== id));
 	const toggleChecklistItem = (id: string): void =>
 		setChecklist((prev) => prev.map((item) => (item.id === id ? { ...item, completed: !item.completed } : item)));
+	// #2501: Checkpunkt an der Vorlage inline umbenennen bzw. umsortieren (Auf/ab-Buttons —
+	// Tastatur- und Touch-Alternative zur Drag-Geste, KI-UX-Empfehlung zu AK1).
+	const renameChecklistItem = (id: string, title: string): void =>
+		setChecklist((prev) => prev.map((item) => (item.id === id ? { ...item, title } : item)));
+	const moveChecklistItem = (id: string, offset: -1 | 1): void =>
+		setChecklist((prev) => {
+			const index = prev.findIndex((item) => item.id === id);
+			const target = index + offset;
+			if (index < 0 || target < 0 || target >= prev.length) {
+				return prev;
+			}
+			const next = [...prev];
+			const [moved] = next.splice(index, 1);
+			next.splice(target, 0, moved!);
+			return next;
+		});
 
 	// #2078: Holt per KI (Server-Endpoint) einen Säulen-Vorschlag aus Titel/Beschreibung und zeigt
 	// ihn als Block „KI-Vorschlag“ an — bewusst OHNE die Verteilung zu verändern. Erst „Vorschlag
@@ -1055,6 +1078,10 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 					address: form.current.address.trim() === '' ? null : form.current.address.trim(),
 					latitude: form.current.latitude,
 					longitude: form.current.longitude,
+					// #2501: Checkpunkte der Vorlage — ohne `completed` (die Route weist das Feld mit 400 ab);
+					// Änderungen kaskadieren bewusst nie auf bestehende Instanzen (hasSeriesCascadeChange
+					// prüft checklist nicht → kein Kaskade-Modal für reine Checklisten-Änderungen).
+					checklist: checklist.map(({ id, title: itemTitle }) => ({ id, title: itemTitle })),
 					// #1252 (AK6): Bei einer Übergabe `pillars` weglassen — der Server übernimmt die
 					// Vorlage per Säulen-Namen-Remap; ein Beitrags-Edit im selben Save wie die Übergabe
 					// wird bewusst nicht übernommen.
@@ -1089,6 +1116,8 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 					address: form.current.address.trim() === '' ? null : form.current.address.trim(),
 					latitude: form.current.latitude,
 					longitude: form.current.longitude,
+					// #2501: Checkpunkte der Vorlage ohne `completed` (s. seriesUpdate oben).
+					checklist: checklist.map(({ id, title: itemTitle }) => ({ id, title: itemTitle })),
 					// #1604-Fixup: bei einer Übergabe (Muster #1252 AK6 oben) `pillars` weglassen — die
 					// Säulen-IDs gehören zum eigenen Konto und existieren beim Empfänger nicht (Server
 					// lehnt sonst mit 400 ab, #1249). Ohne das Feld startet die Serie beim Empfänger ohne
@@ -1962,30 +1991,78 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 								)}
 							</div>
 						)}
-						{/* #531: Abhakbare Checkliste (nur Task-Modus, nicht bei Serien). Einträge anlegen/entfernen/
-			    abhaken; beim Speichern fließt die Liste ins Task-Payload. Im Task-Edit aus dem Task vorbelegt. */}
-						{!isSeriesMode && (
-							<div className="checklist-editor" data-testid="checklist-section">
-								<span className="checklist-editor-label">{t('taskForm.checklist')}</span>
-								<div className="checklist-add">
-									<KolInputText
-										_label={t('taskForm.checklistEntry')}
-										_hideLabel
-										_type="search"
-										_value={newChecklistTitle}
-										_on={{
-											onChange: (_event, value) => setNewChecklistTitle(readString(value)),
-											onInput: (_event, value) => setNewChecklistTitle(readString(value)),
-										}}
-									/>
-									<KolButton
-										_label={t('common:actions.add')}
-										_variant="secondary"
-										_disabled={saving}
-										_on={{ onClick: () => addChecklistItem() }}
-									/>
-								</div>
-								{checklist.map((item) => (
+						{/* #531: Abhakbare Checkliste — im Task-Modus mit Erledigt-Schalter; im Serie-Modus (#2501)
+						    Checkpunkte der Vorlage ohne Schalter, Titel als Inline-Umbenenn-Feld plus Auf/ab-Buttons
+						    (KI-UX zu AK1). Beim Speichern fließt die Liste ins Task- bzw. Series-Payload. */}
+						<div className="checklist-editor" data-testid="checklist-section">
+							<span className="checklist-editor-label">{t('taskForm.checklist')}</span>
+							<div className="checklist-add">
+								<KolInputText
+									_label={t('taskForm.checklistEntry')}
+									_hideLabel
+									_type="search"
+									_value={newChecklistTitle}
+									_disabled={checklist.length >= CHECKLIST_LIMIT}
+									_on={{
+										onChange: (_event, value) => setNewChecklistTitle(readString(value)),
+										onInput: (_event, value) => setNewChecklistTitle(readString(value)),
+									}}
+								/>
+								<KolButton
+									_label={t('common:actions.add')}
+									_variant="secondary"
+									_disabled={saving || checklist.length >= CHECKLIST_LIMIT}
+									_on={{ onClick: () => addChecklistItem() }}
+								/>
+							</div>
+							{checklist.length >= CHECKLIST_LIMIT && (
+								<p className="checklist-limit-hint">{t('taskForm.checklistFull', { count: CHECKLIST_LIMIT })}</p>
+							)}
+							{checklist.map((item, index) =>
+								isSeriesMode ? (
+									<div key={item.id} className="checklist-item" data-testid="checklist-item">
+										{/* #2501: Titel als Inline-Rename-Feld (Wert = Titel, Beschriftung folgt dem Titel); der
+										    zusätzliche Text-Spiegel ist unsichtbar und aria-hidden — Screenreader lesen Feld samt
+										    Wert, der Spiegel hält nur einen Textknoten fürs Testing bereit (Unit-Mock-Kontrakt). */}
+										<span className="visually-hidden" aria-hidden="true">
+											{item.title}
+										</span>
+										<KolInputText
+											_label={item.title}
+											_hideLabel
+											_value={item.title}
+											_disabled={saving}
+											_on={{
+												onChange: (_event, value) => renameChecklistItem(item.id, readString(value)),
+												onInput: (_event, value) => renameChecklistItem(item.id, readString(value)),
+											}}
+										/>
+										<KolButton
+											_label={t('taskForm.checklistMoveUp')}
+											_hideLabel
+											_icons={{ left: { icon: 'kolicon-chevron-up' } }}
+											_variant="secondary"
+											_disabled={saving || index === 0}
+											_on={{ onClick: () => moveChecklistItem(item.id, -1) }}
+										/>
+										<KolButton
+											_label={t('taskForm.checklistMoveDown')}
+											_hideLabel
+											_icons={{ left: { icon: 'kolicon-chevron-down' } }}
+											_variant="secondary"
+											_disabled={saving || index === checklist.length - 1}
+											_on={{ onClick: () => moveChecklistItem(item.id, 1) }}
+										/>
+										<KolButton
+											_label={t('common:actions.remove')}
+											_hideLabel
+											_icons={{ left: { icon: 'kolicon-cross' } }}
+											_variant="danger"
+											_disabled={saving}
+											_on={{ onClick: () => removeChecklistItem(item.id) }}
+										/>
+									</div>
+								) : (
 									<div key={item.id} className="checklist-item" data-testid="checklist-item">
 										<KolInputCheckbox
 											_label={t('taskForm.checklistDone')}
@@ -2003,9 +2080,9 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 											_on={{ onClick: () => removeChecklistItem(item.id) }}
 										/>
 									</div>
-								))}
-							</div>
-						)}
+								),
+							)}
+						</div>
 					</div>
 				</KolAccordion>
 			</section>
