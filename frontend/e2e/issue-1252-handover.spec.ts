@@ -87,9 +87,6 @@ const expectWithinViewport = async (page: Page, name: string, locator: ReturnTyp
 	).toBeLessThanOrEqual(viewport!.width);
 };
 
-// Fremd-/Gruppen-Task: /forest filtert auf eigene Tasks
-test.use({ ownSession: false });
-
 // Pass-Through-Bestand (#2508): Fremde Specs säen je eigenen Nutzer fünf Standard-Säulen — der
 // ungefilterte Pass-Through-Scope sieht sie alle, und die Gleichverteilung des Anlage-Formulars
 // fiele unter 5 % je Säule (Server-Abweisung). Diese Specs prüfen nichts Säulenbezogenes, darum
