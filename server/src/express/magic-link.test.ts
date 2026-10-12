@@ -215,7 +215,10 @@ describe('Magic-Link-Login per E-Mail', () => {
 		await server.json('/auth/magic-link', {
 			method: 'POST',
 			headers: { 'X-Client-Channel': 'play' },
-			body: JSON.stringify({ email: ALLOWED }),
+			body: JSON.stringify({
+				email: ALLOWED,
+				codeChallenge: createHash('sha256').update('v'.repeat(43)).digest('base64url'),
+			}),
 		});
 		const link = sent.at(-1)?.text ?? '';
 		assert.match(link, /\?magic=[\w-]+&client=app\b/, 'Der Mail-Link traegt den App-Kanal-Marker');
@@ -240,5 +243,60 @@ describe('Magic-Link-Login per E-Mail', () => {
 		} finally {
 			process.env.GOOGLE_ALLOWED_EMAILS = saved;
 		}
+	});
+
+	// #2563 PKCE (docs/spec/issue-2563.md): Ein App-Link ist an die anfordernde App gebunden. Wer den
+	// Token ueber das Custom Scheme abfaengt, kann ihn ohne den Verifier weder in der App noch im
+	// Browser einloesen.
+	describe('PKCE-Bindung der App-Links', () => {
+		const VERIFIER = 'v'.repeat(43);
+		const challengeOf = (verifier: string) => createHash('sha256').update(verifier).digest('base64url');
+		const PLAY = { 'X-Client-Channel': 'play' };
+
+		const requestAppLink = (body: Record<string, unknown>) =>
+			server.json('/auth/magic-link', { method: 'POST', headers: PLAY, body: JSON.stringify(body) });
+
+		const verifyApp = (body: Record<string, unknown>) =>
+			server.json('/auth/magic-link/verify', { method: 'POST', headers: PLAY, body: JSON.stringify(body) });
+
+		it('App-Antrag mit codeChallenge + Einloesen mit passendem codeVerifier → 200 { token }', async () => {
+			assert.equal((await requestAppLink({ email: ALLOWED, codeChallenge: challengeOf(VERIFIER) })).status, 202);
+			const res = await verifyApp({ token: lastToken(), codeVerifier: VERIFIER });
+			assert.equal(res.status, 200);
+			assert.ok(((await res.json()) as { token?: string }).token);
+		});
+
+		it('falscher oder fehlender codeVerifier → 400, kein App-Token, Token danach verbraucht', async () => {
+			await requestAppLink({ email: ALLOWED, codeChallenge: challengeOf(VERIFIER) });
+			const token = lastToken();
+			assert.equal((await verifyApp({ token, codeVerifier: 'w'.repeat(43) })).status, 400);
+			assert.equal((await verifyApp({ token, codeVerifier: VERIFIER })).status, 400, 'Fehlversuch verbraucht');
+			await requestAppLink({ email: ALLOWED, codeChallenge: challengeOf(VERIFIER) });
+			assert.equal((await verifyApp({ token: lastToken() })).status, 400);
+			assert.equal(await ApiToken.count(), 0);
+		});
+
+		it('Browser-Einloesen (ohne Kanal) eines gebundenen Tokens → 400 ohne Session', async () => {
+			await requestAppLink({ email: ALLOWED, codeChallenge: challengeOf(VERIFIER) });
+			const res = await server.json('/auth/magic-link/verify', {
+				method: 'POST',
+				body: JSON.stringify({ token: lastToken(), codeVerifier: VERIFIER }),
+			});
+			assert.equal(res.status, 400);
+			assert.equal(res.headers.get('set-cookie'), null);
+		});
+
+		it('App-Antrag ohne oder mit ungueltiger codeChallenge → 400, keine Mail, kein Token', async () => {
+			assert.equal((await requestAppLink({ email: ALLOWED })).status, 400);
+			assert.equal((await requestAppLink({ email: ALLOWED, codeChallenge: 'zu-kurz' })).status, 400);
+			assert.equal((await requestAppLink({ email: ALLOWED, codeChallenge: `${challengeOf(VERIFIER)}=` })).status, 400);
+			assert.equal(sent.length, 0);
+			assert.equal(await LoginToken.count(), 0);
+		});
+
+		it('Browser-Antrag ohne codeChallenge bleibt beim Cookie-Login (204)', async () => {
+			await requestLink(ALLOWED);
+			assert.equal((await verify(lastToken())).status, 204);
+		});
 	});
 });

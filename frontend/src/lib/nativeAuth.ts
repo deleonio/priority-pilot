@@ -1,4 +1,5 @@
 import { api } from '../api';
+import { base64url } from './magicPkce';
 import { getPublicOrigin } from './siteOrigin';
 
 /**
@@ -52,11 +53,7 @@ export const finishNativeLogin = (result: NativeLoginResult): void => {
 };
 
 /** 32 Zufallsbytes als base64url (43 Zeichen), passend zum Format, das der Server erwartet. */
-const createState = (): string =>
-	btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))))
-		.replaceAll('+', '-')
-		.replaceAll('/', '_')
-		.replace(/=+$/, '');
+const createState = (): string => base64url(crypto.getRandomValues(new Uint8Array(32)));
 
 /**
  * „Mit Google anmelden“: erst nativ; ohne Einrichtung oder nach Abbruch im System-Browser. Dort bleibt

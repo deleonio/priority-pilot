@@ -11,6 +11,16 @@ Ein Magic Link meldet den Nutzer dort an, wo er ihn angefordert hat: im Browser 
 - **App-Zweig:** `handleAppLink` lädt Schema-URLs mit `magic`-Parameter im WebView (`BASE_URL?magic=<token>`) statt sie zu verwerfen; der Verify läuft dort über den bestehenden Kanal-Interceptor (`X-Client-Channel: play` → App-Token, #2377) — abgesichert durch den bestehenden Server-Test „AK2 … play … { token }“.
 - **Ursprung-Normalisierung:** Abweichende Ursprünge der eigenen Domain (http statt https, www statt ohne www) werden in der App in den Magic-Flow geführt (WebView-Load mit `?magic=`), nicht still verworfen. Wahrhaft fremde Origins bleiben verworfen (bestehender Test „ignoriert Links auf fremde Domains“).
 
+## PKCE-Bindung der App-Links (PO-Vorgabe)
+
+Eine fremde App kann `balamentum.app://` ebenfalls registrieren und den Token abfangen. Deshalb ist jeder App-Link an die anfordernde App gebunden:
+
+- **Anfordern:** Die Android-App erzeugt einen Verifier (32 Zufallsbytes, base64url), legt ihn unter `pp-magic-verifier` im localStorage ab und schickt nur `codeChallenge` = base64url(SHA-256(Verifier)), 43 Zeichen. Im Kanal `play` ohne gültige Challenge antwortet `POST /auth/magic-link` mit **400** und verschickt nichts. 400 statt stiller 202, weil die Prüfung nur an der Eingabe hängt (vor der Allowlist) und damit keine Adressen verrät; ein veralteter Client bekommt so eine sichtbare Fehlermeldung statt einer Mail, die nie kommt.
+- **Einlösen:** Ein gebundener Token gilt nur mit `X-Client-Channel: play` und passendem `codeVerifier` (Vergleich in konstanter Zeit). Fehlt der Verifier, passt er nicht oder fehlt der Kanal (Browser-/Cookie-Weg), antwortet die Route 400 ohne App-Token und ohne Session.
+- **Fehlversuch verbraucht den Token:** Ein abgefangener Token bekommt genau einen Versuch, Raten ist ausgeschlossen. Der Preis (ein Angreifer kann den Link entwerten) ist hinnehmbar: Der Nutzer fordert einen neuen an.
+- Die App löscht den Verifier beim Einlösen, auch wenn es scheitert. Browser-Links (ohne Challenge) bleiben unverändert beim 204-Cookie-Login.
+- Tests: `server/src/express/magic-link.test.ts` (Block „PKCE-Bindung der App-Links“), `server/src/logics/migrate.test.ts` (`migrateLoginTokenCodeChallenge`), `frontend/src/api.appToken.test.ts` (Block „Magic Link mit PKCE“).
+
 ## Ablauf
 
 1. Android-App fordert den Link an (`POST /auth/magic-link`, Header `X-Client-Channel: play`) → Mail-Link mit `client=app`.
@@ -42,3 +52,7 @@ Ein Magic Link meldet den Nutzer dort an, wo er ihn angefordert hat: im Browser 
 - AK5 ist dedup-abgedeckt (Server-Einmaligkeit/Ablauf + Browser-Meldung); kein neuer Test.
 - TF6 (AK6) ist bewusst ein grüner Spiegel: die Verify-Route prüft die Allowlist bereits erneut — der Test sichert diese Prüfung gegen die anstehende Umsetzung (#1982).
 - Kein Test für die reine Optik der Statuszeile nach dem Tap (UX-Abschnitt oben trägt die Anforderung in die Umsetzung).
+
+## Offene Prüfpunkte
+
+- [ ] Rücksprung nach dem Merge manuell auf echtem Android-Gerät prüfen (Link in der App anfordern, im Browser öffnen, „In der App öffnen“, Anmeldung mit Verifier).

@@ -20,6 +20,8 @@ class LoginToken extends Model {
 	public usedAt?: Date | null;
 	// `magic` = Link aus der Mail, `native` = Einmal-Code nach dem Google-Login der App.
 	public purpose!: 'magic' | 'native';
+	// PKCE-Bindung eines App-Links (#2563): base64url(SHA-256(codeVerifier)); `null` = Browser-Link.
+	public codeChallenge?: string | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -52,6 +54,10 @@ LoginToken.init(
 			type: DataTypes.STRING,
 			allowNull: false,
 			defaultValue: 'magic',
+		},
+		codeChallenge: {
+			type: DataTypes.STRING,
+			allowNull: true,
 		},
 	},
 	{

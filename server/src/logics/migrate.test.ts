@@ -25,6 +25,7 @@ import {
 	migratePlaceFavoriteDropName,
 	migratePlaceFavoriteAddressUnique,
 	migrateLoginTokenPurpose,
+	migrateLoginTokenCodeChallenge,
 	migrateSubscriptionExternalIdUnique,
 	migrateInvoiceLineItemsColumn,
 	migrateInvoicePdfBytesColumn,
@@ -1502,6 +1503,27 @@ describe('migrateLoginTokenPurpose (#1669)', () => {
 		const [rows] = await sequelize.query('SELECT purpose FROM `login_tokens`');
 		assert.deepEqual(rows, [{ purpose: 'magic' }]);
 		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht');
+	});
+});
+
+// ── #2563: migrateLoginTokenCodeChallenge — PKCE-Bindung der App-Links an login_tokens ─────────
+describe('migrateLoginTokenCodeChallenge (#2563)', () => {
+	it('zieht codeChallenge nach, Bestandszeilen bleiben (null), zweiter Lauf bleibt stabil', async () => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `login_tokens` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `email` VARCHAR(255) NOT NULL, ' +
+				"`tokenHash` VARCHAR(255) NOT NULL, `purpose` VARCHAR(255) NOT NULL DEFAULT 'magic', " +
+				'`expiresAt` DATETIME NOT NULL, `usedAt` DATETIME, `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL)',
+		);
+		await sequelize.query(
+			"INSERT INTO `login_tokens` (`email`, `tokenHash`, `expiresAt`, `createdAt`, `updatedAt`) VALUES ('a@example.com', 'h', '2026-01-01', '2026-01-01', '2026-01-01')",
+		);
+
+		await migrateLoginTokenCodeChallenge(sequelize);
+		await assert.doesNotReject(() => migrateLoginTokenCodeChallenge(sequelize), 'zweiter Lauf bleibt stabil');
+
+		const [rows] = await sequelize.query('SELECT codeChallenge FROM `login_tokens`');
+		assert.deepEqual(rows, [{ codeChallenge: null }]);
 	});
 });
 
