@@ -32,9 +32,12 @@ import { setTheme, waitForStableView } from './helpers';
  * `kol-button { font-family: var(--pp-font-family) }` (app.css:213-240) gesetzt ist — derselbe
  * Host liefert wenige Frames später den korrekten Wert. Kein CSS-/Produktionsbug, sondern eine
  * reine Mess-Race: ein reiner Leerstring-Check auf `fontFamily` (frühere Fassung dieses Tests)
- * lässt sich davon täuschen, da der UA-Default-Wert bereits nicht-leer ist. `waitForHostFontsResolved`
- * unten pollt daher gezielt auf die `hydrated`-Klasse jedes in `HOST_SELECTORS` vorhandenen Hosts,
- * bevor AK2/AK6 messen.
+ * lässt sich davon täuschen, da der UA-Default-Wert bereits nicht-leer ist.
+ *
+ * Main-Rot (Verify 38263943560): `Dashboard` steht schon vor dem Laden der Tasks — danach
+ * mountet der `EmptyState` eine frische `kol-card` VOR den Tabs, ihr `kol-button` ist bis zur
+ * Slot-Zuweisung ohne berechnete `font-family` (""). Ein getrenntes Warten-dann-Messen ließ diesen
+ * Wechsel dazwischen; `expectHostsArchivo` pollt deshalb die Messung selbst bis Archivo.
  *
  * HOST_SELECTORS deckt das komplette in app.css:213-240 abgesicherte Tag-Set ab (Review-Fund
  * #1513-Follow-up: die vorherige 5er-Teilmenge inkl. des toten `kol-table`-Selektors hätte eine
@@ -73,26 +76,6 @@ const HOST_SELECTORS = [
 
 const getBodyFontFamily = () => (document.body ? getComputedStyle(document.body).fontFamily : '');
 
-/**
- * Wartet, bis jeder im DOM vorhandene Host aus `selectors` die `hydrated`-Klasse trägt —
- * schließt die Mess-Race aus dem Datei-Header oben. Ein `:defined`, aber noch NICHT
- * `hydrated`-Custom-Element liefert bereits eine nicht-leere `font-family` (den UA-Default vor
- * der Style-Auflösung, z. B. „Times New Roman"), ein reiner Leerstring-Check auf `fontFamily`
- * hätte diesen Zwischenzustand also fälschlich als „aufgelöst" durchgehen lassen.
- */
-const waitForHostFontsResolved = (page: Page, selectors: string[]) =>
-	page.waitForFunction(
-		(sel: string[]) =>
-			sel.every((selector) => {
-				const host = document.querySelector(selector);
-				// `hydrated` allein reicht nicht (Fixup #2476, CI-Shard-Rot): ein Host kann die Klasse
-				// tragen, bevor seine Font-Deklaration berechnet ist — `fontFamily === ''` ist genau
-				// dieses Zwischenstadium, das die Assertion dann als "" liest.
-				return host === null || (host.classList.contains('hydrated') && getComputedStyle(host).fontFamily !== '');
-			}),
-		selectors,
-	);
-
 const getHostFontFamilies = (selectors: string[]) =>
 	selectors.map((selector) => {
 		const host = document.querySelector(selector);
@@ -101,6 +84,20 @@ const getHostFontFamilies = (selectors: string[]) =>
 		}
 		return { selector, present: true, fontFamily: getComputedStyle(host).fontFamily };
 	});
+
+/** Pollt, bis jeder vorhandene Host Archivo als führenden Font trägt; Abweichungen stehen in der Fehlermeldung. */
+const expectHostsArchivo = (page: Page) =>
+	expect
+		.poll(async () => {
+			const present = (await page.evaluate(getHostFontFamilies, HOST_SELECTORS)).filter((r) => r.present);
+			if (present.length === 0) {
+				return ['keines der geprüften KoliBri-Elemente war im DOM vorhanden'];
+			}
+			return present
+				.filter((r) => r.fontFamily.split(',')[0].trim().replace(/['"]/g, '') !== 'Archivo')
+				.map((r) => `${r.selector}: Host-Element font-family war "${r.fontFamily}"`);
+		})
+		.toEqual([]);
 
 test.describe('Issue #1513 — Archivo als primäre Schriftart', () => {
 	test('AK1: body rendert mit Archivo als führendem Font, System-Stack bleibt Fallback', async ({ page }) => {
@@ -118,18 +115,7 @@ test.describe('Issue #1513 — Archivo als primäre Schriftart', () => {
 	test('AK2: KoliBri-Komponenten übernehmen Archivo als Host-Font-Family', async ({ page }) => {
 		await page.goto('/app/');
 		await waitForStableView(page);
-		await waitForHostFontsResolved(page, HOST_SELECTORS);
-
-		const results = await page.evaluate(getHostFontFamilies, HOST_SELECTORS);
-		const present = results.filter((r) => r.present);
-		expect(present.length, 'keines der geprüften KoliBri-Elemente war im DOM vorhanden').toBeGreaterThan(0);
-
-		for (const { selector, fontFamily } of present) {
-			expect(
-				fontFamily.split(',')[0].trim().replace(/['"]/g, ''),
-				`${selector}: Host-Element font-family war "${fontFamily}"`,
-			).toBe('Archivo');
-		}
+		await expectHostsArchivo(page);
 	});
 
 	test('AK5: Basis-Schriftgröße bleibt 16px', async ({ page }) => {
@@ -144,22 +130,13 @@ test.describe('Issue #1513 — Archivo als primäre Schriftart', () => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 		await setTheme(page, 'dark');
-		await waitForHostFontsResolved(page, HOST_SELECTORS);
 
 		const fontFamily = await page.evaluate(getBodyFontFamily);
 		expect(fontFamily.split(',')[0].trim().replace(/['"]/g, ''), `dark mode body font-family war "${fontFamily}"`).toBe(
 			'Archivo',
 		);
 
-		const results = await page.evaluate(getHostFontFamilies, HOST_SELECTORS);
-		const present = results.filter((r) => r.present);
-		expect(present.length).toBeGreaterThan(0);
-		for (const { selector, fontFamily: shadowFont } of present) {
-			expect(
-				shadowFont.split(',')[0].trim().replace(/['"]/g, ''),
-				`dark mode ${selector}: Host-Element font-family war "${shadowFont}"`,
-			).toBe('Archivo');
-		}
+		await expectHostsArchivo(page);
 	});
 
 	test('AK7: bei 375px rendert das Dashboard in Archivo ohne Viewport-Overflow', async ({ page }) => {
