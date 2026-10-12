@@ -462,3 +462,22 @@ describe('ApiTokensSection — #1646: Fehler und Leer-Zustand nie gleichzeitig',
 		expect(container.textContent).not.toContain('Die Token-Liste konnte nicht geladen werden.');
 	});
 });
+
+describe('ApiTokensSection – #2494 AK8: App-Anmeldungen ausgeblendet', () => {
+	it('rendert keine Zeile für kind app, API-Token-Zeilen bleiben', async () => {
+		apiMocks.listApiTokens = vi.fn().mockResolvedValue([
+			{ ...readToken, kind: 'api' },
+			{ ...readToken, id: 9, name: 'Android', kind: 'app', expiresAt: null },
+		]);
+		const { container } = render(<ApiTokensSection />);
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		const rows = container.querySelectorAll('[data-testid="api-token-row"]');
+		expect(rows).toHaveLength(1);
+		expect(rows[0].textContent).toContain('CLI');
+		expect(container.textContent).not.toContain('Android');
+	});
+});
