@@ -174,6 +174,11 @@ test.describe('#1320 Einstellungen als normale Seite mit sichtbarem Header', () 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
 		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
 		await expect(page).toHaveURL(/\/settings\/general/);
+		// Die URL wechselt vor dem Re-Render von `kol-toolbar`: erst wenn der Button aktiv ist, hängt
+		// am Klick der Rückweg statt des alten Handlers.
+		await expect(toolbar.getByRole('button', { name: 'Einstellungen' })).toHaveAccessibleDescription(
+			/Aktuelle Ansicht/,
+		);
 
 		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
 		await expect(page).toHaveURL(/\/aufgaben$/);
@@ -194,6 +199,9 @@ test.describe('#1320 Einstellungen als normale Seite mit sichtbarem Header', () 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
 		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
 		await expect(page).toHaveURL(/\/settings\/general/);
+		await expect(toolbar.getByRole('button', { name: 'Einstellungen' })).toHaveAccessibleDescription(
+			/Aktuelle Ansicht/,
+		);
 		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
 		await expect(page).toHaveURL(/\/$/);
 
