@@ -125,3 +125,31 @@ describe('runSeriesAutoCreate (#2356)', () => {
 		assert.deepEqual(pushes, ['https://push.example/bob-1'], 'eine gebündelte Push trotz mehrerer Instanzen');
 	});
 });
+
+// ── #2501: Checklisten-Snapshot im Auto-Job-Pfad (AK4) ───────────────────────────────────────
+// Rot, bis `Series.checklist` existert: Sequelize verwirft das unbekannte Attribut, der
+// Job-Pfad (generateDueInstances) snapshotet nichts. Cast-Muster MEMORY 2026-08-23.
+describe('runSeriesAutoCreate — Checklisten-Snapshot (#2501 AK4)', () => {
+	it('die vom Job erzeugten Instanzen starten mit der Serien-Checkliste, alle Punkte offen', async () => {
+		const alice = await makeUser('alice');
+		const checklist = [
+			{ id: '11111111-1111-4111-8111-111111111111', title: 'Einräumen' },
+			{ id: '22222222-2222-4222-8222-222222222222', title: 'Abwischen' },
+		];
+		const series = await makeSeries('Auto mit Checkliste', alice.id, {
+			checklist,
+		} as Partial<Parameters<typeof Series.create>[0]>);
+
+		await runSeriesAutoCreate(new Date(), mockSend);
+
+		const instances = await Task.findAll({ where: { seriesId: series.id } });
+		assert.ok(instances.length > 0, 'Setup: der Job hat Instanzen angelegt');
+		for (const instance of instances as (Task & { checklist?: unknown })[]) {
+			assert.deepEqual(
+				instance.checklist,
+				checklist.map((item) => ({ ...item, completed: false })),
+				`Instanz ${instance.id} startet mit der Serien-Checkliste, alle Punkte offen`,
+			);
+		}
+	});
+});

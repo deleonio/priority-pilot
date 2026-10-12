@@ -8697,6 +8697,25 @@ components:
         `mon`…`sun` (jeweils genau dieser Wochentag) erzeugen mehrere Termine pro Woche.
         Bei `mon`…`sun` muss `startDate` auf dem benannten Wochentag liegen, sonst 400.
         `none` (#2355, ohne Rhythmus) ist nur bei `autoCreate: false` erlaubt, sonst 400.
+    SeriesChecklistItem:
+      type: object
+      description: >-
+        Checkpunkt einer Serie/Vorlage (#2501): nur `id` und `title` — ohne `completed`,
+        denn das Abhaken gehört allein zur Instanz (der Snapshot bei der Instanz-Erzeugung
+        setzt jedes `completed` auf `false`). Höchstens 50 Einträge je Serie.
+      required:
+        - id
+        - title
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Stabile UUID des Eintrags; Instanzen übernehmen sie aus dem Template.
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Bezeichnung des Eintrags (nach Trim nicht-leer).
     Series:
       type: object
       description: >-
@@ -8821,6 +8840,15 @@ components:
           description: >-
             Thematische Kategorie des Templates (0..1, siehe Schema `Category`); wird beim
             Generieren auf jede Instanz vererbt. `null`, wenn keine zugeordnet ist.
+        checklist:
+          type: array
+          maxItems: 50
+          description: >-
+            Checkpunkte der Vorlage (#2501). Jede neu erzeugte Instanz startet mit einer
+            Kopie (alle `completed: false`); Änderungen an der Serie kaskadieren nicht auf
+            bestehende offene Instanzen.
+          items:
+            $ref: '#/components/schemas/SeriesChecklistItem'
     SeriesCreate:
       type: object
       required:
@@ -8905,6 +8933,14 @@ components:
           description: >-
             Optionale Kategorie des Templates. Muss eine Kategorie des Eigentümer-Kontos
             sein, sonst 400; wird beim Generieren auf jede Instanz vererbt.
+        checklist:
+          type: array
+          maxItems: 50
+          description: >-
+            Checkpunkte der Vorlage (#2501). Ein Eintrag mit `completed` wird mit 400
+            abgewiesen. Fehlt das Feld, startet die Serie ohne Checkpunkte.
+          items:
+            $ref: '#/components/schemas/SeriesChecklistItem'
     SeriesUpdate:
       type: object
       description: Alle Felder optional — gesetzte Felder gelten nur für künftige Instanzen.
@@ -8988,6 +9024,16 @@ components:
           description: >-
             Setzt die Kategorie des Templates (muss dem Eigentümer-Konto gehören) oder
             entfernt sie mit `null`. Fehlt das Feld, bleibt die Zuordnung unverändert.
+        checklist:
+          type: array
+          maxItems: 50
+          description: >-
+            Ersetzt die Checkpunkte der Vorlage vollständig (#2501); ein Eintrag mit
+            `completed` wird mit 400 abgewiesen. Kaskadiert bewusst nie auf bestehende
+            offene Instanzen (Abhak-Stände sind Nutzerfortschritt). Fehlt das Feld,
+            bleibt die Checkliste unverändert.
+          items:
+            $ref: '#/components/schemas/SeriesChecklistItem'
         applyToInstances:
           type: boolean
           description: >-

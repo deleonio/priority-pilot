@@ -99,6 +99,7 @@ export const main = async (): Promise<void> => {
 			migrateSeriesColumns,
 			migrateSeriesRenameFields,
 			migrateSeriesTable,
+			migrateSeriesChecklist,
 			migrateUsersAvatarUrl,
 			migrateGroupImageUrl,
 			migrateGroupKind,
@@ -174,6 +175,9 @@ export const main = async (): Promise<void> => {
 		await migrateSeriesRenameFields(sequelize);
 		// Fehlende Spalten der series-Tabelle nachziehen (#163).
 		await migrateSeriesTable(sequelize);
+		// Fehlende checklist-Spalte an series nachziehen (#2501) — vor sync(), damit Lese-/Schreib-
+		// zugriffe auf Bestands-DBs nicht mit `no such column` brechen (Muster #531).
+		await migrateSeriesChecklist(sequelize);
 		// Fehlende avatarUrl-Spalte in users nachziehen (#217).
 		await migrateUsersAvatarUrl(sequelize);
 		// Fehlende imageUrl-Spalte (Gruppenbild, #1225) an groups nachziehen — vor sync().

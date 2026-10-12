@@ -232,7 +232,7 @@ const requireNonEmptyString = (args: Record<string, unknown>, key: string): stri
  * Unbekannter Titel und Mehrdeutigkeit sind Werkzeugfehler VOR dem PATCH: nichts an der Liste ändert
  * sich, die Meldung nennt den gesuchten Titel bzw. die Trefferzahl.
  */
-const findChecklistItem = (checklist: ChecklistItem[], item: string): ChecklistItem => {
+const findChecklistItem = <T extends { id: string; title: string }>(checklist: T[], item: string): T => {
 	const needle = item.trim();
 	const matches = checklist.filter((entry) => entry.title.trim() === needle);
 	if (matches.length === 0) {
@@ -250,6 +250,37 @@ const asChecklistItem = (entry: ChecklistItem, saved?: ChecklistItem): Checklist
 	title: saved?.title ?? entry.title,
 	completed: saved?.completed ?? entry.completed,
 });
+
+/** Serien-Checkpunkt (#2501): ohne `completed` — das Abhaken gehört zur Instanz. */
+type SeriesChecklistEntry = { id: string; title: string };
+
+/**
+ * `completed` wird als unbekannter Schlüssel bewusst DURCHGREICHT (nicht lokal geprüft): die Route
+ * weist ihn mit 400 ab (AK5) — sie bleibt der einzige Prüfpunkt, und der Fehler trägt (HTTP 400).
+ */
+type SeriesChecklistPatch = { id: string; title: string; completed?: unknown };
+
+/**
+ * Serien-Checkpunkte per Titel pflegen (#2501, Muster `readChecklist`/`saveChecklist` #2460): die
+ * gespeicherte Liste kommt über GET /series/:id, zurück geht sie komplett über PATCH — die Route
+ * bleibt der einzige Prüfpunkt (Owner-Filter → 404, Grenze 50, `completed` → 400).
+ */
+const readSeriesChecklist = async (ctx: McpToolContext, seriesId: number): Promise<SeriesChecklistEntry[]> => {
+	const series = (await callApi(ctx, `/series/${seriesId}`)) as { checklist?: SeriesChecklistEntry[] };
+	return series.checklist ?? [];
+};
+
+const saveSeriesChecklist = async (
+	ctx: McpToolContext,
+	seriesId: number,
+	checklist: SeriesChecklistPatch[],
+): Promise<SeriesChecklistEntry[]> => {
+	const series = (await callApi(ctx, `/series/${seriesId}`, {
+		method: 'PATCH',
+		body: { checklist },
+	})) as { checklist?: SeriesChecklistEntry[] };
+	return series.checklist ?? [];
+};
 
 /** Nur die gesetzten Kategorie-Felder übernehmen — `category_update` ändert sonst ungewollt mit. */
 const pickCategoryFields = (args: Record<string, unknown>): Record<string, unknown> => {
@@ -735,6 +766,97 @@ const catalog: McpTool[] = [
 		description: "Lists the token owner's pillars including their weighting.",
 		inputSchema: { type: 'object', properties: {} },
 		run: (ctx) => callApi(ctx, '/pillars'),
+	},
+	{
+		name: 'series_checklist_add',
+		description:
+			'Appends one entry to the checklist of one of your own series or templates (id from series_list). ' +
+			'The entry needs no id — the tool generates it. Every new instance starts with a copy of the ' +
+			'checklist, all entries open; ticking off happens on the instance, not the series.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				seriesId: { type: 'integer', description: 'ID of the series (from series_list).' },
+				title: { type: 'string', description: 'Text of the new entry, 1-255 characters.' },
+			},
+			required: ['seriesId', 'title'],
+		},
+		run: async (ctx, args) => {
+			const seriesId = requireIntegerId(args, 'seriesId');
+			const title = requireNonEmptyString(args, 'title');
+			const checklist = await readSeriesChecklist(ctx, seriesId);
+			const entry: SeriesChecklistPatch = { id: randomUUID(), title };
+			const saved = await saveSeriesChecklist(ctx, seriesId, [...checklist, entry]);
+			return { id: entry.id, title: saved.find((item) => item.id === entry.id)?.title ?? title };
+		},
+	},
+	{
+		name: 'series_checklist_update',
+		description:
+			'Renames a single checklist entry of one of your own series or templates, addressed by its exact ' +
+			'title (trimmed comparison). All other entries stay untouched. Series entries have no completed ' +
+			'field — ticking off happens on the instance, not the series.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				seriesId: { type: 'integer', description: 'ID of the series (from series_list).' },
+				item: { type: 'string', description: 'Exact title of the entry to rename.' },
+				title: { type: 'string', description: 'New text of the entry, 1-255 characters.' },
+			},
+			required: ['seriesId', 'item'],
+		},
+		run: async (ctx, args) => {
+			const seriesId = requireIntegerId(args, 'seriesId');
+			const item = requireNonEmptyString(args, 'item');
+			const title = args.title === undefined ? undefined : requireNonEmptyString(args, 'title');
+			if (title === undefined && args.completed === undefined) {
+				throw new Error('Nothing to change — pass title.');
+			}
+			const checklist = await readSeriesChecklist(ctx, seriesId);
+			const entry = findChecklistItem(checklist, item);
+			// `completed` wird bewusst durchgereicht: die Route weist es mit 400 ab (AK5), die Liste
+			// bleibt unangetastet — die Route bleibt der einzige Prüfpunkt.
+			const updated = checklist.map((existing) =>
+				existing.id === entry.id
+					? {
+							...existing,
+							...(title === undefined ? {} : { title }),
+							...(args.completed === undefined ? {} : { completed: args.completed }),
+						}
+					: existing,
+			);
+			const saved = await saveSeriesChecklist(ctx, seriesId, updated);
+			return { id: entry.id, title: saved.find((existing) => existing.id === entry.id)?.title ?? title ?? entry.title };
+		},
+	},
+	{
+		name: 'series_checklist_remove',
+		description:
+			'Deletes a single checklist entry from one of your own series or templates, addressed by its ' +
+			'exact title (trimmed comparison). All other entries stay untouched.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				seriesId: { type: 'integer', description: 'ID of the series (from series_list).' },
+				item: { type: 'string', description: 'Exact title of the entry to delete.' },
+			},
+			required: ['seriesId', 'item'],
+		},
+		run: async (ctx, args) => {
+			const seriesId = requireIntegerId(args, 'seriesId');
+			const item = requireNonEmptyString(args, 'item');
+			const checklist = await readSeriesChecklist(ctx, seriesId);
+			const entry = findChecklistItem(checklist, item);
+			await saveSeriesChecklist(
+				ctx,
+				seriesId,
+				checklist.filter((existing) => existing.id !== entry.id),
+			);
+			return { ok: true, removed: entry.title };
+		},
 	},
 	{
 		name: 'series_list',

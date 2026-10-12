@@ -25,6 +25,7 @@ import { isCategoryExistent, remapCategoryForRecipient, validateCategoryId } fro
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { serializeTask, loadUserNames, loadSharedUserIds, resolveRecipientId } from './tasks.js';
 import { resolveGeoUser } from './geoConfig.js';
+import type { SeriesChecklistItem } from '../../models/series.js';
 import type { components } from '../../api';
 
 type SeriesDto = components['schemas']['Series'];
@@ -81,6 +82,7 @@ interface SeriesAttributes {
 	longitude?: number | null;
 	autoDeleteAfterDeadline?: boolean;
 	categoryId?: number | null;
+	checklist?: SeriesChecklistItem[];
 }
 
 type ValidationResult =
@@ -88,6 +90,46 @@ type ValidationResult =
 
 const isRhythm = (value: unknown): value is SeriesRhythm =>
 	typeof value === 'string' && VALID_RHYTHMS.some((rhythm) => rhythm === value);
+
+/** UUID-Format (beliebige Version) für die `id` eines Serien-Checkpunkts (#2501, Muster tasks.ts). */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Maximalzahl an Checkpunkten je Serie (#2501) — gleiche Grenze wie bei Aufgaben (#531). */
+const MAX_SERIES_CHECKLIST_ITEMS = 50;
+
+/**
+ * Validiert die Checkpunkte einer Serie (#2501): Liste aus höchstens 50 Einträgen mit gültiger
+ * UUID-`id` und nicht-leerem `title` (1–255 Zeichen nach Trim) — **ohne** `completed`: das Abhaken
+ * gehört zur Instanz, ein Eintrag mit `completed` wird mit 400 abgewiesen (AK5). Liefert die
+ * normierten Einträge `{ id, title }` oder eine Fehlermeldung (string) — der Fehler wird vom
+ * Aufrufer zu HTTP 400 übersetzt.
+ */
+const validateSeriesChecklist = (value: unknown): SeriesChecklistItem[] | string => {
+	if (!Array.isArray(value)) {
+		return 'checklist muss eine Liste sein.';
+	}
+	if (value.length > MAX_SERIES_CHECKLIST_ITEMS) {
+		return `checklist darf höchstens ${MAX_SERIES_CHECKLIST_ITEMS} Einträge enthalten.`;
+	}
+	const items: SeriesChecklistItem[] = [];
+	for (const entry of value) {
+		if (typeof entry !== 'object' || entry === null) {
+			return 'Jeder checklist-Eintrag muss ein Objekt sein.';
+		}
+		const item = entry as Record<string, unknown>;
+		if (typeof item.id !== 'string' || !UUID_RE.test(item.id)) {
+			return 'Jeder checklist-Eintrag benötigt eine gültige id (UUID).';
+		}
+		const title = typeof item.title === 'string' ? item.title.trim() : '';
+		if (title === '' || title.length > 255) {
+			return 'Jeder checklist-Eintrag benötigt einen nicht-leeren title (1–255 Zeichen).';
+		}
+		if (item.completed !== undefined) {
+			return 'Serien-checklist-Einträge dürfen kein completed enthalten — das Abhaken gehört zur Instanz.';
+		}
+		items.push({ id: item.id, title });
+	}
+	return items;
+};
 
 /**
  * Kontext für die Ersteller-/Empfänger-Kennzeichen des Series-DTO (#1222, Muster `TaskSerializeContext`
@@ -137,6 +179,8 @@ const serializeSeries = (series: Series, context: SeriesSerializeContext = {}): 
 		createdByName: createdBy !== null ? (context.names?.get(createdBy) ?? null) : null,
 		forUserId: handedOff ? series.userId : null,
 		forUserName: handedOff ? (context.names?.get(series.userId as number) ?? null) : null,
+		// #2501: Checkpunkte der Vorlage — ohne `completed` (das Abhaken gehört zur Instanz).
+		checklist: series.checklist ?? [],
 		pillars: (series.Pillars ?? [])
 			.map((pillar) => ({
 				pillarId: pillar.id,
@@ -350,6 +394,16 @@ const validateSeriesFields = (
 			return { ok: false, message: 'categoryId muss eine Ganzzahl >= 1 oder null sein.' };
 		}
 		attrs.categoryId = result.categoryId;
+	}
+
+	// Checkpunkte der Vorlage (#2501): Validierung ohne `completed` (AK5); die PATCH-Kaskade
+	// (#553) übernimmt die Checkliste bewusst NICHT auf bestehende offene Instanzen.
+	if (input.checklist !== undefined) {
+		const result = validateSeriesChecklist(input.checklist);
+		if (typeof result === 'string') {
+			return { ok: false, message: result };
+		}
+		attrs.checklist = result;
 	}
 
 	// Konsistenz-Prüfung für wochentag-basierte Rhythmen (`mon`…`sun`): der Rhythmus-Name

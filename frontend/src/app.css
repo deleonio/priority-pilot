@@ -4147,6 +4147,21 @@ kol-input-range {
 	overflow-wrap: anywhere;
 }
 
+/* #2501: Serie-Modus — der Titel ist ein Inline-Umbenenn-Feld und übernimmt die Rolle von
+   .checklist-item-title (flexibel, umbruchfähig); Auf/ab- und Entfernen-Buttons bleiben fix,
+   bei engen Zeilen wandert die Button-Gruppe via flex-wrap unter das Feld (KI-UX). */
+.checklist-item kol-input-text {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+/* #2501: sichtbare Grenz-Rückmeldung, wenn die Checkliste voll ist (Regel 7, nicht still). */
+.checklist-limit-hint {
+	margin: 0;
+	font-size: 0.875rem;
+	color: var(--pp-text);
+}
+
 /* --- Issue #788: LLM-Einstellungsmenü optimiert --- */
 
 /* Modell-Select Container für konsistentes Layout. */
