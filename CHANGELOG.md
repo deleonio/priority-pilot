@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.23 - 2026-10-12
 
-_Enthält v0.23.0 – v0.23.1._
+_Enthält v0.23.0 – v0.23.2._
 
 ### 🎉 New Features
 
@@ -19,6 +19,7 @@ _Enthält v0.23.0 – v0.23.1._
 - fix(server): prevent data loss and silent task/score input errors by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2511
 - feat(frontend): translate fixed balance texts and raw i18n keys (#2496) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2513
 - chore: fix store description and portuguese salutation (#2498) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2516
+- fix(server): forest shows handover and group tasks like the list (#2515) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2531
 
 ### 🚀 Improvements
 
@@ -232,7 +233,6 @@ _Enthält v0.17.0 – v0.17.45._
 - fix(frontend): keep legal text details open in consent step by @deleonio in https://github.com/deleonio/priority-pilot/pull/2314
 - fix(server): remove duplicate MailSender import in paypal.ts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2322
 - test(e2e): finish pillar recalc fake run on demand instead of wall clock by @deleonio in https://github.com/deleonio/priority-pilot/pull/2323
-- fix(frontend): keep collapsible sections open across re-renders by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2332
 - fix(frontend): keep collapsible sections open across re-renders by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2332
 
 ### 🚀 Improvements
