@@ -703,8 +703,10 @@ In der Karte **Access-Token** legst du unter **„Access-Token erstellen"** pers
 zugreifen – mit deinen Rechten. **„Token erzeugen"** legt einen an und zeigt seinen
 Schlüssel **genau einmal**; unter **„Vorhandene Access-Token"** siehst du danach nur noch
 Name, Rechtestufe, Ablauf und die letzte Nutzung. Je Token schaltest du zwischen **Nur
-lesend** und **Lesen und Schreiben** um. **„Zurückziehen"** sperrt einen Token ab dem
-nächsten Aufruf.
+lesend** und **Lesen und Schreiben** um. **„Zurückziehen“** sperrt einen Token ab dem
+nächsten Aufruf. Darunter listet der Abschnitt **„Angemeldete Geräte“** deine Anmeldungen
+der Android-App (Name, erstellt, zuletzt genutzt); mit **„Widerrufen“** meldest du ein Gerät
+ab — nach einer Bestätigung ist es ab dem nächsten Aufruf abgemeldet.
 
 In der Karte **Dialog-Vorgaben für die KI** hinterlegst du einen Freitext (bis 2000
 Zeichen, z. B. „Antworte kurz und knapp."). KI-Clients, die sich per Access-Token

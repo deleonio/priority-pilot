@@ -204,7 +204,11 @@
 		"expired": "(abgelaufen)",
 		"revokeQuestion": "Wirklich zurückziehen? Clients verlieren den Zugriff.",
 		"revokeConfirm": "Endgültig zurückziehen",
-		"revoke": "Zurückziehen"
+		"revoke": "Zurückziehen",
+		"devicesHeading": "Angemeldete Geräte",
+		"devicesEmpty": "Keine angemeldeten Geräte.",
+		"deviceRevokeQuestion": "Gerät „{{name}}“ wirklich abmelden?",
+		"deviceRevoke": "Widerrufen"
 	},
 	"calendarSources": {
 		"typeIcs": "ICS-Adresse",
