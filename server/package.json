@@ -22,7 +22,7 @@
 		"csrf-csrf": "4.0.3",
 		"dejavu-fonts-ttf": "2.37.3",
 		"express": "5.2.1",
-		"express-rate-limit": "8.7.0",
+		"express-rate-limit": "8.7.1",
 		"express-session": "1.19.0",
 		"nodemailer": "10.0.9",
 		"passport": "0.7.0",
