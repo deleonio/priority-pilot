@@ -1,3 +1,4 @@
+import type { WhereOptions } from 'sequelize';
 import type { components } from '../api';
 import { Task } from '../models/index.js';
 import { selectSeriesRepresentatives } from './series.js';
@@ -132,7 +133,7 @@ const buildTaskTree = async (task: Task, weight: number | null = null): Promise<
 };
 
 // Funktion, um den gesamten Aufgabenwald (nach Wertschöpfung sortiert) zu erstellen
-export const buildTaskForest = async (userId?: number): Promise<TaskTreeNode[]> => {
+export const buildTaskForest = async (userId?: number, readScope?: WhereOptions): Promise<TaskTreeNode[]> => {
 	// #1518: je Serie nur die aktuelle Instanz — der Wald speist Aufgabenliste und „Wichtigste Tasks".
 	// Unteraufgaben kommen weiterhin ungefiltert über die `buildTaskTree`-Rekursion.
 	const tasks = selectSeriesRepresentatives(
@@ -142,8 +143,9 @@ export const buildTaskForest = async (userId?: number): Promise<TaskTreeNode[]> 
 				// Archiv (#1964): archivierte Aufgaben sind aus der Aufgabenliste herausgenommen — sie
 				// bleiben nur per Direktabruf (`GET /tasks/{id}`) lesbar.
 				archivedAt: null,
-				// Datenisolation (#207, AK5): auf den eingeloggten Nutzer filtern, sofern vorhanden.
-				...(userId !== undefined ? { userId } : {}),
+				// #2515: Lese-Scope der Aufgabenliste (`taskReadScope`) — ohne Scope gilt der alte
+				// Datenisolation-Filter (#207, AK5) auf den eingeloggten Nutzer.
+				...(readScope ?? (userId !== undefined ? { userId } : {})),
 			},
 		}),
 	);

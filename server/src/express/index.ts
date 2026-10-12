@@ -5,7 +5,7 @@ import passport from 'passport';
 import type { Store } from 'express-session';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import type { components } from '../api';
-import { createTasksRouter, serializeTask } from './routes/tasks.js';
+import { createTasksRouter, serializeTask, taskReadScope } from './routes/tasks.js';
 import { pillarsRouter } from './routes/pillars.js';
 import { categoriesRouter } from './routes/categories.js';
 import { createSuggestPillarsRouter } from './routes/suggestPillars.js';
@@ -465,10 +465,14 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Adresssuche (Forward Geocoding): Suchtext → Adress-Vorschläge, für die Ortsauswahl im Task-Formular.
 	app.use('/geocode-search', geocodeRateLimiter, geocodeSearchRouter);
 
-	// GET /forest — Aufgabenwald nach Wertschöpfung sortiert (auf den eingeloggten Nutzer gefiltert).
+	// GET /forest — Aufgabenwald nach Wertschöpfung sortiert. #2515: derselbe Lese-Scope wie die
+	// Aufgabenliste (`taskReadScope`, Requester-Auflösung wie `serializeTasksFor`) — der Wald zeigt
+	// dem Ersteller auch übergebene/unclaimte Gruppen-Aufgaben; ohne Session bleibt alles sichtbar.
 	app.get('/forest', async (req, res: express.Response<TaskTreeNodeDto[] | ErrorDto>) => {
 		try {
-			res.json(await buildTaskForest(getUserId(req)));
+			const userId = getUserId(req);
+			const scope = await taskReadScope(userId, (await resolveGeoUser(req))?.id ?? null);
+			res.json(await buildTaskForest(userId, scope));
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}

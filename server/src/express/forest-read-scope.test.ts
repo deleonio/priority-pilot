@@ -1,7 +1,7 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
-import { Group, GroupMember, Task, User } from '../models/index.js';
+import { Group, GroupMember, Series, Task, User } from '../models/index.js';
 
 /**
  * Rote Spec-Tests für #2515 — `GET /forest` hebt den Root-Fetch auf denselben Lese-Scope wie die
@@ -80,7 +80,17 @@ describe('Lese-Scope des Aufgabenwalds (#2515)', () => {
 		const bobId = await userIdOf(BOB);
 		await seedTask({ title: 'Übergebene Aufgabe', userId: bobId, createdById: aliceId });
 		// Serien-Instanz mit Einzel-Repräsentant: die Auswahlregel darf sie nicht wegfiltern.
-		await seedTask({ title: 'Serien-Instanz', userId: bobId, createdById: aliceId, seriesId: 4201 });
+		// Test-Pflege (#2515): seriesId trägt eine FK-Constraint (Series.hasMany) — daher Series-Row
+		// anlegen (Muster tree.test.ts), die Spec-Notiz „ohne Series-Row seedbar" war falsch.
+		const series = await Series.create({
+			title: 'Forest-Serie',
+			rhythm: 'daily',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: new Date(),
+		});
+		await seedTask({ title: 'Serien-Instanz', userId: bobId, createdById: aliceId, seriesId: series.id });
 		await seedTask({ title: 'Gruppen-Aufgabe', userId: null, groupId, createdById: aliceId });
 
 		const forest = await listForest(await server.login(ALICE));

@@ -309,7 +309,7 @@ const loadOwnGroupIds = async (requesterId: number): Promise<number[]> => {
  * sieht die Aufgabe nur, solange er mit dem Eigentümer mindestens eine Gruppe teilt (leere Liste →
  * `IN (NULL)` → nichts sichtbar). Der `userId`-Zweig bleibt davon unberührt.
  */
-const taskReadScope = async (userId: number | undefined, requesterId: number | null): Promise<WhereOptions> => {
+export const taskReadScope = async (userId: number | undefined, requesterId: number | null): Promise<WhereOptions> => {
 	if (userId === undefined) {
 		return {};
 	}
