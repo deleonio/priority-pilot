@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { headerAction, setEqualPillarWeights, waitForStableView } from './helpers';
+import { headerAction, seedAccountPreferences, setEqualPillarWeights, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #270 „Einstellungen: Popover durch Zahnrad-Toolbar-Button und Route
@@ -24,8 +24,9 @@ import { headerAction, setEqualPillarWeights, waitForStableView } from './helper
  * `/auth/me` wird durch die Fixture authentifiziert, damit die Auth-Gate durchlässig ist.
  */
 // #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
-// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+// Präferenz liegt am Konto: API-Seed + localStorage-Spiegel (#2508, Muster ai-disable.spec.ts).
 test.beforeEach(async ({ page }) => {
+	await seedAccountPreferences(page, { expertMode: true });
 	await page.addInitScript(() => {
 		localStorage.setItem('pp-expert-mode', 'true');
 	});

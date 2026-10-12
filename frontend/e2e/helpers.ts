@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test';
+import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 
 /**
@@ -321,11 +321,23 @@ export const SPEECH_MOCK_INIT_SCRIPT = `
  * Die Registrierung setzt das Session-Cookie im Browser-Context (`page.request` teilt sich den
  * Cookie-Jar mit der Seite) und säht die fünf Standard-Säulen (`auth.ts`, `SEED_PILLARS`).
  * `/auth/me` bleibt von der Fixture gemockt — die Auth-Gate im Frontend ist davon unberührt.
+ *
+ * Kontextagnostisch (Request-Kontext statt `Page`), damit auch die zentrale Fixture je Test eine
+ * eigene Session registrieren kann (#2508).
  */
-export const registerOwnSession = async (page: Page, label: string): Promise<void> => {
+export const createOwnSession = async (
+	request: APIRequestContext,
+	label: string,
+): Promise<{ email: string; password: string }> => {
 	const email = `e2e-${label}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
-	const response = await page.request.post('/auth/register', { data: { email, password: `e2e-${label}-pw` } });
+	const password = `e2e-${label}-pw`;
+	const response = await request.post('/auth/register', { data: { email, password } });
 	expect(response.status(), 'register muss eine Session und die fünf Standard-Säulen liefern').toBe(201);
+	return { email, password };
+};
+
+export const registerOwnSession = async (page: Page, label: string): Promise<void> => {
+	await createOwnSession(page.request, label);
 };
 
 /**
