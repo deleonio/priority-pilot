@@ -677,3 +677,90 @@ describe('Bearer-Token-Auth — Feedback-Ausnahme nur für POST (#2493 AK1/AK2, 
 		assert.notEqual(res.status, 403);
 	});
 });
+
+/**
+ * Rote Spec-Tests für #2494 (Spec docs/spec/issue-2494.md) — App-Tokens in der Token-API
+ * einzeln widerrufbar. AK1–AK6; rot, weil GET/DELETE/`kind` heute nur für `kind: 'api'` gelten.
+ */
+describe('App-Token in der Token-API (#2494 AK1–AK6)', () => {
+	type Row = { id: number; kind?: string; name: string; createdAt: string; lastUsedAt: string | null };
+	const bearer = (token: string): Record<string, string> => ({ Authorization: `Bearer ${token}` });
+	const listVia = async (token: string): Promise<Row[]> => {
+		const res = await fetch(`${server.baseUrl}/api-tokens`, { headers: bearer(token) });
+		assert.equal(res.status, 200, 'App-Token darf /api-tokens erreichen');
+		return (await res.json()) as Row[];
+	};
+	const appRowId = async (token: string): Promise<number> => {
+		const row = (await listVia(token)).find((r) => r.kind === 'app');
+		assert.ok(row, 'App-Token muss in der Liste stehen');
+		return row.id;
+	};
+
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	it('AK1: GET liefert App-Token mit kind app neben API-Tokens, ohne token/tokenHash', async () => {
+		const appToken = await issueAppToken('bearer-a@example.com');
+		const cookie = await server.login('bearer-a@example.com');
+		await createToken(cookie, 'CLI');
+		const rows = await listVia(appToken);
+		const app = rows.filter((r) => r.kind === 'app');
+		assert.equal(app.length, 1);
+		assert.ok(app[0].createdAt && 'lastUsedAt' in app[0] && app[0].name);
+		assert.equal(rows.filter((r) => r.kind === 'api').length, 1);
+		for (const r of rows) assert.ok(!('token' in r) && !('tokenHash' in r));
+	});
+
+	it('AK2/AK3: DELETE widerruft das App-Token (204), danach fehlt es und jeder Request liefert 401', async () => {
+		const appToken = await issueAppToken('bearer-a@example.com');
+		const cookie = await server.login('bearer-a@example.com');
+		const id = await appRowId(appToken);
+		const del = await server.json(`/api-tokens/${id}`, { method: 'DELETE', headers: { Cookie: cookie } });
+		assert.equal(del.status, 204);
+		const tasks = await fetch(`${server.baseUrl}/tasks`, { headers: bearer(appToken) });
+		assert.equal(tasks.status, 401);
+		const list = await server.json('/api-tokens', { headers: { Cookie: cookie } });
+		assert.ok(!((await list.json()) as Row[]).some((r) => r.id === id));
+	});
+
+	it('AK4: fremdes App-Token ist unsichtbar, DELETE liefert 404, Token bleibt gültig', async () => {
+		const tokenA = await issueAppToken('bearer-a@example.com');
+		const tokenB = await issueAppToken('bearer-b@example.com');
+		const idB = await appRowId(tokenB);
+		assert.ok(!(await listVia(tokenA)).some((r) => r.id === idB));
+		const del = await fetch(`${server.baseUrl}/api-tokens/${idB}`, { method: 'DELETE', headers: bearer(tokenA) });
+		assert.equal(del.status, 404);
+		assert.equal((await fetch(`${server.baseUrl}/tasks`, { headers: bearer(tokenB) })).status, 200);
+	});
+
+	it('AK5: Logout widerruft nur das eigene App-Token, zweites App-Token und API-Token bleiben gültig', async () => {
+		const first = await issueAppToken('bearer-a@example.com');
+		const second = await issueAppToken('bearer-a@example.com');
+		const cookie = await server.login('bearer-a@example.com');
+		const api = await createToken(cookie, 'CLI');
+		await fetch(`${server.baseUrl}/auth/logout`, { method: 'POST', headers: bearer(first) });
+		assert.equal((await fetch(`${server.baseUrl}/tasks`, { headers: bearer(first) })).status, 401);
+		assert.equal((await fetch(`${server.baseUrl}/tasks`, { headers: bearer(second) })).status, 200);
+		assert.equal((await fetch(`${server.baseUrl}/tasks`, { headers: bearer(api.token) })).status, 200);
+	});
+
+	it('AK6: PATCH des Scopes auf ein App-Token liefert 404', async () => {
+		const appToken = await issueAppToken('bearer-a@example.com');
+		const cookie = await server.login('bearer-a@example.com');
+		const id = await appRowId(appToken);
+		const res = await server.json(`/api-tokens/${id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({ scope: 'read' }),
+		});
+		assert.equal(res.status, 404);
+	});
+});

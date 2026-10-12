@@ -4322,7 +4322,8 @@ paths:
       summary: Eigene API-Tokens auflisten
       description: >-
         Liefert die nicht zurückgezogenen persönlichen API-Tokens des angemeldeten
-        Nutzers (#1352) — ausschließlich Metadaten, nie den Klartext oder den Hash.
+        Nutzers (#1352) samt Anmeldungen der Android-App (`kind: app`, #2494) —
+        ausschließlich Metadaten, nie den Klartext oder den Hash.
       operationId: listApiTokens
       tags: [api-tokens]
       responses:
@@ -4367,7 +4368,7 @@ paths:
     delete:
       summary: API-Token zurückziehen
       description: >-
-        Zieht einen eigenen API-Token zurück (#1352). Ab dem nächsten Aufruf wird
+        Zieht einen eigenen API-Token oder eine Android-App-Anmeldung zurück (#1352, #2494). Ab dem nächsten Aufruf wird
         jeder Request mit diesem Token mit 401 abgewiesen. Fremde oder unbekannte
         Tokens liefern 404.
       operationId: deleteApiToken
@@ -6419,10 +6420,16 @@ components:
       description: >-
         Persönlicher API-Token für externe Clients (#1352) — Metadaten-Sicht ohne
         Klartext und ohne Hash.
-      required: [id, name, createdAt, lastUsedAt, scope, expiresAt]
+      required: [id, name, createdAt, lastUsedAt, scope, expiresAt, kind]
       properties:
         id:
           type: integer
+        kind:
+          type: string
+          enum: [api, app]
+          description: >-
+            Art der Anmeldung (#2494): `api` = persönlicher API-Token, `app` = Anmeldung der
+            Android-App. App-Anmeldungen sind einzeln widerrufbar, aber nicht umschaltbar.
         name:
           type: string
           description: Frei gewählter Name zur Wiedererkennung (1–60 Zeichen)
