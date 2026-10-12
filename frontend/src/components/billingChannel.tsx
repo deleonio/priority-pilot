@@ -7,7 +7,6 @@ import type { Channel } from '../lib/platform';
 import { usePlan } from '../lib/usePlan';
 import { ManagedBy } from './ManagedBy';
 import { usePaypalPurchase } from './PaypalPurchase';
-import { usePlayPurchase } from './PlayPurchase';
 
 /** Was die Paketansicht vom Kaufweg eines Kanals braucht. Sie kennt keinen Anbieter direkt. */
 export interface PurchaseUi {
@@ -21,7 +20,7 @@ export interface PurchaseUi {
 	dialog?: ReactNode;
 }
 
-/** App Store bis zum Kauf über StoreKit: Pakete ohne Kauf, kein Verweis auf den Web-Kauf (ADR 0016). */
+/** Store-Apps bis zur PO-Freigabe des Kaufs (Play Billing, StoreKit): Pakete ohne Kauf, kein Verweis auf den Web-Kauf (ADR 0016). */
 const useNoInAppPurchase = (): PurchaseUi => {
 	const { t } = useTranslation('billing');
 	return {
@@ -44,7 +43,7 @@ export const CHANNEL_PROVIDER: Record<Channel, Provider | undefined> = {
 
 const CHANNEL_HOOKS: Record<Channel, () => PurchaseUi> = {
 	web: usePaypalPurchase,
-	play: usePlayPurchase,
+	play: useNoInAppPurchase,
 	appstore: useNoInAppPurchase,
 };
 
