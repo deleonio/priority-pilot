@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { seedAccountPreferences, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #287 — „Alle InputNumber-Felder auf InputRange umstellen".
@@ -27,10 +27,12 @@ import { waitForStableView } from './helpers';
  */
 // #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
 // Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+// #2508: Mit Session zieht der App-Start den Kontostand nach — der Seed liegt zusätzlich am Konto.
 test.beforeEach(async ({ page }) => {
 	await page.addInitScript(() => {
 		localStorage.setItem('pp-expert-mode', 'true');
 	});
+	await seedAccountPreferences(page, { expertMode: true });
 });
 
 test.describe('InputRange-Felder statt InputNumber (#287)', () => {

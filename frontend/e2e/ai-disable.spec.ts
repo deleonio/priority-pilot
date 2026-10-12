@@ -1,5 +1,11 @@
 import { expect, test, type Page } from './fixtures';
-import { headerAction, openAccordionSection, registerOwnSession, waitForStableView } from './helpers';
+import {
+	headerAction,
+	openAccordionSection,
+	registerOwnSession,
+	seedAccountPreferences,
+	waitForStableView,
+} from './helpers';
 
 /**
  * Rote Spec-e2e für #1335 — „Schnellerfassung und Berater verschmelzen" (AK4, AK5).
@@ -25,6 +31,8 @@ const switchControl = (page: Page, name: RegExp) =>
 
 /** Setzt die KI-Präferenz vor dem Seitenaufbau (Wert wie in localStorage: 'true'/'false'). */
 const initAiEnabled = async (page: Page, aiEnabled: boolean): Promise<void> => {
+	// #2508: Mit Session zieht der App-Start den Kontostand nach — die Präferenz liegt zusätzlich am Konto.
+	await seedAccountPreferences(page, { aiEnabled });
 	await page.addInitScript((value: boolean) => {
 		try {
 			localStorage.setItem('pp-ai-enabled', String(value));

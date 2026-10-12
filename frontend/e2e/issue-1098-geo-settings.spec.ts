@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { seedAccountPreferences, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #1098 — Geo-Einstellungen (Spec docs/spec/issue-1098.md).
@@ -31,6 +31,12 @@ const GEO_INIT = (geoEnabled: boolean) => `
     localStorage.setItem('pp-geolocation-enabled', String(${geoEnabled}));
   })();`;
 
+/** #2508: Die Geo-Präferenz liegt am Konto — der App-Start-Pull überschreibt den localStorage-Seed. */
+const initGeo = async (page: Page, geoEnabled: boolean): Promise<void> => {
+	await seedAccountPreferences(page, { geolocationEnabled: geoEnabled });
+	await page.addInitScript(GEO_INIT(geoEnabled));
+};
+
 /** Legt einen Task mit Koordinaten über die echte API an (~3 km / ~26 km von Berlin). */
 const createNearbyTask = async (page: Page, title: string, latitude: number, longitude: number): Promise<void> => {
 	const response = await page.request.post('/api/v1/tasks', { data: { title, latitude, longitude } });
@@ -60,6 +66,8 @@ test.describe('Balamentum — #1098: Geo-Einstellungen', () => {
 		await page.addInitScript(() => {
 			localStorage.setItem('pp-expert-mode', 'true');
 		});
+		// #2508: Expertenmodus liegt am Konto — mit Session zieht der App-Start den Kontostand nach.
+		await seedAccountPreferences(page, { expertMode: true });
 	});
 
 	test.afterEach(async ({ page }) => {
@@ -67,7 +75,7 @@ test.describe('Balamentum — #1098: Geo-Einstellungen', () => {
 	});
 
 	test('AK4 — Standort aus: keine NearbyCard, Fußzeile ohne Adresse/Koordinaten', async ({ page }) => {
-		await page.addInitScript(GEO_INIT(false));
+		await initGeo(page, false);
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -82,7 +90,7 @@ test.describe('Balamentum — #1098: Geo-Einstellungen', () => {
 	});
 
 	test('AK6 — Standort an: Distanz in Klammern, nur Tasks innerhalb der Anzeige-Entfernung', async ({ page }) => {
-		await page.addInitScript(GEO_INIT(true));
+		await initGeo(page, true);
 		// ~3 km (innerhalb des 5-km-Defaults) und ~26 km (außerhalb).
 		await createNearbyTask(page, 'E2E 1098 nah', 52.5489, 13.4132);
 		await createNearbyTask(page, 'E2E 1098 fern', 52.3906, 13.0645);
@@ -99,7 +107,7 @@ test.describe('Balamentum — #1098: Geo-Einstellungen', () => {
 
 	test('AK1/AK3 — 375px: „Standort-Details" folgt dem Switch, geöffnet ≥ 44px Touch-Ziel', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.addInitScript(GEO_INIT(false));
+		await initGeo(page, false);
 		// #1151: Die Geo-Einstellungen leben jetzt im Tab „Standort" (/settings/ortung).
 		await page.goto('/app/settings/ortung');
 		await waitForStableView(page, 'Allgemein');
@@ -137,7 +145,7 @@ test.describe('Balamentum — #1098: Geo-Einstellungen', () => {
 	});
 
 	test('AK7 — geänderter Anzeige-Wert überlebt den Reload (serverseitig gespeichert)', async ({ page }) => {
-		await page.addInitScript(GEO_INIT(true));
+		await initGeo(page, true);
 		// #1151: Die Geo-Einstellungen leben jetzt im Tab „Standort" (/settings/ortung).
 		await page.goto('/app/settings/ortung');
 		await waitForStableView(page, 'Allgemein');
