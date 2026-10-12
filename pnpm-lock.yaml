@@ -220,8 +220,8 @@ importers:
         specifier: 8.1.2
         version: 8.1.2(@capacitor/core@8.5.3)
       '@capacitor/browser':
-        specifier: 8.0.4
-        version: 8.0.4(@capacitor/core@8.5.3)
+        specifier: 8.0.5
+        version: 8.0.5(@capacitor/core@8.5.3)
       '@capacitor/core':
         specifier: 8.5.3
         version: 8.5.3
@@ -365,8 +365,8 @@ importers:
         specifier: 8.1.2
         version: 8.1.2(@capacitor/core@8.5.3)
       '@capacitor/browser':
-        specifier: 8.0.4
-        version: 8.0.4(@capacitor/core@8.5.3)
+        specifier: 8.0.5
+        version: 8.0.5(@capacitor/core@8.5.3)
       '@capacitor/core':
         specifier: 8.5.3
         version: 8.5.3
@@ -1089,8 +1089,8 @@ packages:
     peerDependencies:
       '@capacitor/core': '>=8.0.0'
 
-  '@capacitor/browser@8.0.4':
-    resolution: {integrity: sha512-ORZ4u/y+7aMuu6yVuk6SP529fUZyqcbnuHB1q5McpA3o2SYfVoi28iB8rsQjI2ad1qlKJd29ZUuGtspXLBDlWg==}
+  '@capacitor/browser@8.0.5':
+    resolution: {integrity: sha512-qqcEjUqs9kG1naF+tsD8rERuZ3wuIfXzvoIJEERHI4RNWwNSUqAHHduaKhkyb+t01VyVPa0ydx0mZ/eOskk2Ug==}
     peerDependencies:
       '@capacitor/core': '>=8.0.0'
 
@@ -6351,7 +6351,7 @@ snapshots:
     dependencies:
       '@capacitor/core': 8.5.3
 
-  '@capacitor/browser@8.0.4(@capacitor/core@8.5.3)':
+  '@capacitor/browser@8.0.5(@capacitor/core@8.5.3)':
     dependencies:
       '@capacitor/core': 8.5.3
 
