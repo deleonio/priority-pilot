@@ -55,6 +55,14 @@ vi.mock('@public-ui/react-v19', () => ({
 		<button onClick={(e) => _on?.onClick?.(e.nativeEvent)}>{_label}</button>
 	),
 	KolHeading: ({ _label }: { _label?: string }) => <h3>{_label}</h3>,
+	// #2496: DuoCard (im Duo-Fall der AK4-Tests gerendert) braucht eine KolCard-Fläche — fehlte
+	// im Mock und lies den Lauf als Unhandled Error sterben. Harness-Reparatur, keine Assertion berührt.
+	KolCard: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
+		<section>
+			{_label}
+			{children}
+		</section>
+	),
 	KolSpin: ({ _label }: { _label?: string }) => <div role="status">{_label}</div>,
 	KolInputText: ({ _on }: { _on?: { onInput?: (event: unknown, value: string) => void } }) => (
 		// onInput durchgereicht (KoliBri-Signatur: Event + Wert) — für die Such-Debounce-Tests.
@@ -82,6 +90,10 @@ vi.mock('../api', () => ({
 		createGroupInviteLink: vi.fn(),
 		// Test-Pflege #1992: GroupChallengeCard lädt selbst — `undefined` läuft auf „noch keine Challenge“.
 		getGroupChallenge: vi.fn(),
+		// Test-Pflege #2496: DuoCard (im Duo-Fall der AK4-Tests gerendert) lädt selbst per
+		// `.then`-Kette und würde mit eigenem Spin (`role="status"`) das Lade-Signal der Tests
+		// blockieren — Reject läuft auf ihre Fehler-Anzeige, keine Assertion berührt sie.
+		getGroupDuo: vi.fn(() => Promise.reject(new Error('außerhalb des Testvertrags'))),
 	},
 }));
 

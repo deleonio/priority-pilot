@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { BalanceFigureGL } from './BalanceFigureGL';
+import i18next from '../i18n/config';
 import {
 	activeTicks,
 	buildArcs,
@@ -344,7 +345,12 @@ const Arcs = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetrics
 								repeatCount="indefinite"
 							/>
 						)}
-						<title>{`${(circumference * arc.sweep).toFixed(0)} von ${circumference.toFixed(0)}`}</title>
+						<title>
+							{i18next.t('dashboard:balance.arcTitle', {
+								value: (circumference * arc.sweep).toFixed(0),
+								total: circumference.toFixed(0),
+							})}
+						</title>
 					</circle>
 					{/* Soll-Marke: ein Strich quer über die Spur. */}
 					<line

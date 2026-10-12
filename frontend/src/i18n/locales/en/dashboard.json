@@ -50,6 +50,7 @@
 	"balance": {
 		"label": "Total balance",
 		"empty": "No points yet — complete tasks to build up your balance.",
+		"arcTitle": "{{value}} of {{total}}",
 		"total": "<total>{{points}}</total> points",
 		"row_one": "{{points}} point ({{share}} %)",
 		"row_other": "{{points}} points ({{share}} %)"

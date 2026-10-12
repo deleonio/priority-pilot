@@ -64,7 +64,8 @@ export const GroupDetail = ({ groupId, ownRole, kind = 'group', refreshKey = 0, 
 	const isDuo = kind === 'duo';
 	const [members, setMembers] = useState<GroupMember[] | null>(null);
 	// Einladen nur für Admins; ein volles Duo (2 Mitglieder) lässt keine weitere Person zu (#1991, AK3).
-	const canInvite = ownRole === 'admin' && (!isDuo || (members?.length ?? 0) < 2);
+	// Erst nach geladener Mitgliederliste (#2496, AK4) — solange sie lädt, gibt es nichts einzuladen.
+	const canInvite = ownRole === 'admin' && members !== null && (!isDuo || members.length < 2);
 	const [invitations, setInvitations] = useState<GroupInvitation[]>([]);
 	// Füreinander angelegte Aufgaben (#1223): reine Lese-Ansicht, keine Aktionen je Eintrag.
 	// `null` = erster Ladevorgang — sonst blitzt der Leerzustand-Hinweis vor den ersten Daten auf.
