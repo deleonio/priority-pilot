@@ -23,6 +23,7 @@ export const nativeCors = (req: Request, res: Response, next: NextFunction): voi
 	if (req.method === 'OPTIONS') {
 		res.set('Access-Control-Allow-Headers', APP_REQUEST_HEADERS);
 		res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE');
+		res.set('Access-Control-Max-Age', '600');
 		res.status(204).end();
 		return;
 	}
