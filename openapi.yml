@@ -1465,8 +1465,9 @@ paths:
           in: query
           required: false
           description: >-
-            Filtert auf eine eigene Aufgabe. Fehlt der Wert, werden alle eigenen Einträge
-            geliefert.
+            Filtert auf eine eigene Aufgabe. Fehlt oder ist leer der Wert, werden alle
+            eigenen Einträge geliefert; ein nicht ganzzahliger Wert wird mit 400
+            abgelehnt (#2495).
           schema:
             type: integer
       responses:
@@ -1478,6 +1479,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/CareSuggestionRejection'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalServerError'
     post:

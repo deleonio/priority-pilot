@@ -858,8 +858,14 @@ scoresRouter.get(
 	async (req: Request, res: Response<CareRejectionDto[] | ErrorDto>) => {
 		try {
 			const userId = getUserId(req);
-			const taskId =
-				typeof req.query.taskId === 'string' && req.query.taskId !== '' ? Number(req.query.taskId) : undefined;
+			// #2495: Vorhandener, aber nicht ganzzahliger taskId ist ein Bedienfehler (400), statt den
+			// Filter still entfallen zu lassen; fehlender oder leerer Parameter bleibt Bestandsverhalten.
+			const taskIdRaw = typeof req.query.taskId === 'string' && req.query.taskId !== '' ? req.query.taskId : undefined;
+			const taskId = taskIdRaw !== undefined ? Number(taskIdRaw) : undefined;
+			if (taskId !== undefined && !Number.isInteger(taskId)) {
+				sendError(res, 400, 'taskId muss eine Ganzzahl sein.');
+				return;
+			}
 			const eintraege = await CareSuggestionRejection.findAll({
 				where: { ...ownerScope(userId), ...(Number.isInteger(taskId) ? { taskId } : {}) },
 				order: [

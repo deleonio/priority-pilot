@@ -204,7 +204,11 @@
 		"expired": "(expired)",
 		"revokeQuestion": "Really revoke? Clients will lose access.",
 		"revokeConfirm": "Revoke permanently",
-		"revoke": "Revoke"
+		"revoke": "Revoke",
+		"devicesHeading": "Signed-in devices",
+		"devicesEmpty": "No signed-in devices.",
+		"deviceRevokeQuestion": "Really revoke device “{{name}}”?",
+		"deviceRevoke": "Revoke"
 	},
 	"calendarSources": {
 		"typeIcs": "ICS address",

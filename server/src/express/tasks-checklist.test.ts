@@ -240,4 +240,40 @@ describe('#531 — Checklisten-Feld in Tasks', () => {
 		assert.equal(updated.status, 'Done');
 		assert.deepEqual(updated.checklist, neueListe);
 	});
+
+	// ── #2495 — Done-Guard auch beim Anlegen (Spec docs/spec/issue-2495.md, AK2) ───────
+	// Rot, bis der POST-Handler denselben Guard wie der PATCH trägt (heute: POST läuft am
+	// Checklisten-Done-Guard vorbei). KEIN Produktivcode.
+
+	it('#2495/AK2: POST Done mit offenem Checkpunkt → 409 mit derselben Meldung wie im PATCH', async () => {
+		const spiegelId = await createTask({
+			title: 'Spiegel',
+			checklist: [{ id: UUID, title: 'Offen', completed: false }],
+		});
+		const spiegel = await patch(`/tasks/${spiegelId}`, { status: 'Done' });
+		assert.equal(spiegel.status, 409);
+		const spiegelBody = (await spiegel.json()) as { message: string };
+
+		const res = await post('/tasks', {
+			title: 'Direkt erledigt',
+			status: 'Done',
+			checklist: [{ id: UUID_2, title: 'Offen', completed: false }],
+		});
+		assert.equal(res.status, 409, 'Anlegen mit Done + offenem Checkpunkt muss abgelehnt werden');
+		const body = (await res.json()) as { message: string };
+		assert.equal(body.message, spiegelBody.message, 'POST muss dieselbe Meldung wie der PATCH-Guard tragen');
+		const alle = (await (await get('/tasks')).json()) as { title: string }[];
+		assert.ok(!alle.some((task) => task.title === 'Direkt erledigt'), 'der Task darf nicht angelegt sein');
+	});
+
+	it('#2495/AK2: POST Done ohne offene Checkpunkte legt den Task wie bisher an', async () => {
+		const ohneListe = await post('/tasks', { title: 'Done ohne Liste', status: 'Done' });
+		assert.equal(ohneListe.status, 201, 'Done ohne Checkliste darf nicht blockiert werden');
+		const abgehakt = await post('/tasks', {
+			title: 'Done mit abgehakter Liste',
+			status: 'Done',
+			checklist: [{ id: UUID, title: 'Erledigt', completed: true }],
+		});
+		assert.equal(abgehakt.status, 201, 'Done mit vollständig abgehakter Checkliste darf nicht blockiert werden');
+	});
 });
