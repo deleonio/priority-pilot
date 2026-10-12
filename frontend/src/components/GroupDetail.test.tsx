@@ -567,3 +567,41 @@ describe('GroupDetail — zweite Ebene als KolDetails (#2015 AK2)', () => {
 		await waitFor(() => expect(details!.getAttribute('_open')).toBe('true'));
 	});
 });
+
+// #2496 AK4 (docs/spec/issue-2496.md): Einladen nur gegen einen bekannten Mitgliederstand —
+// solange die Liste lädt (members === null), erscheinen die Einladen-Bereiche nicht.
+describe('GroupDetail — Einladen-Bereiche erst nach geladener Mitgliederliste (#2496 AK4)', () => {
+	it('wartet mit „Mitglieder einladen“/„Einladungslinks“, solange die Mitgliederliste lädt', () => {
+		mockGetGroupMembers.mockReturnValue(new Promise(() => {}));
+		mockGetGroupInvitations.mockResolvedValue([]);
+
+		render(<GroupDetail groupId={1} ownRole="admin" />);
+
+		expect(screen.queryByText('Mitglieder einladen')).toBeNull();
+		expect(screen.queryByText('Einladungslinks')).toBeNull();
+	});
+
+	it('zeigt beide Einladen-Bereiche, sobald die Mitgliederliste geladen ist', async () => {
+		mockGetGroupMembers.mockResolvedValue([{ userId: 1, displayName: 'Alice Admin', role: 'admin' }]);
+		mockGetGroupInvitations.mockResolvedValue([]);
+
+		render(<GroupDetail groupId={1} ownRole="admin" />);
+		await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
+
+		expect(screen.getByText('Mitglieder einladen')).toBeInTheDocument();
+		expect(screen.getByText('Einladungslinks')).toBeInTheDocument();
+	});
+
+	it('volles Duo bleibt ohne Einladen-Bereich (#1991, unverändert)', async () => {
+		mockGetGroupMembers.mockResolvedValue([
+			{ userId: 1, displayName: 'Alice Admin', role: 'admin' },
+			{ userId: 2, displayName: 'Bob Baumeister', role: 'member' },
+		]);
+		mockGetGroupInvitations.mockResolvedValue([]);
+
+		render(<GroupDetail groupId={1} ownRole="admin" kind="duo" />);
+		await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
+
+		expect(screen.queryByText('Einladungslinks')).toBeNull();
+	});
+});
