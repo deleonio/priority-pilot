@@ -33,7 +33,14 @@ type CreatedToken = {
 	lastUsedAt: null;
 	expiresAt: string;
 };
-type ListedToken = { id: number; name: string; createdAt: string; lastUsedAt: string | null; expiresAt: string | null };
+type ListedToken = {
+	id: number;
+	name: string;
+	createdAt: string;
+	lastUsedAt: string | null;
+	expiresAt: string | null;
+	kind?: string;
+};
 
 let server: TestServer;
 
@@ -436,7 +443,7 @@ describe('App-Tokens in der Token-Verwaltung (#2377 AK4, Spec docs/spec/issue-23
 		await closeDb();
 	});
 
-	it('AK4: GET /api-tokens per Session listet keine App-Tokens, wohl aber die persoenlichen', async () => {
+	it('AK4: GET /api-tokens per Session listet App-Tokens (#2494: mit kind) und die persoenlichen', async () => {
 		const email = 'app-list@example.com';
 		const cookie = await server.register(email, 'password123');
 		// Test-Pflege #2377: der Code-Tausch prueft die Allowlist erneut, diese Datei setzt keine.
@@ -451,9 +458,13 @@ describe('App-Tokens in der Token-Verwaltung (#2377 AK4, Spec docs/spec/issue-23
 		assert.equal((await createToken(cookie, 'CLI')).status, 201);
 
 		const list = (await (await listTokens(cookie)).json()) as ListedToken[];
+		// Test-Pflege #2494: App-Anmeldungen sind jetzt gelistet (einzeln widerrufbar), erkennbar an `kind`.
 		assert.deepEqual(
-			list.map((t) => t.name),
-			['CLI'],
+			list.map((t) => [t.name, t.kind]),
+			[
+				['Android-App', 'app'],
+				['CLI', 'api'],
+			],
 		);
 	});
 });

@@ -332,73 +332,75 @@ export const ApiTokensSection = ({ open = true }: { open?: boolean }) => {
 						<p>{t('apiTokens.empty')}</p>
 					) : (
 						<ul className="api-tokens__list">
-							{tokens.map((token) => (
-								<li key={token.id} className="api-tokens__item" data-testid="api-token-row">
-									<span className="api-tokens__name">
-										{token.name}
-										<span className="api-tokens__meta">
-											{` · ${t('apiTokens.created', { date: formatDate(token.createdAt, i18n.language) })} · ${
-												token.lastUsedAt == null
-													? t('apiTokens.notUsed')
-													: t('apiTokens.lastUsed', { date: formatDate(token.lastUsedAt, i18n.language) })
-											}${
-												token.expiresAt == null
-													? ''
-													: ` · ${t('apiTokens.validUntil', { date: formatExpiryDate(token.expiresAt, i18n.language) })}${isExpired(token.expiresAt) ? ` ${t('apiTokens.expired')}` : ''}`
-											}`}
-										</span>
-									</span>
-									<span className="api-tokens__scope-group">
-										<span className="api-tokens__scope">
-											<span className="api-tokens__scope-label">
-												{t(token.scope === 'readwrite' ? 'apiTokens.scopeReadwrite' : 'apiTokens.scopeRead')}
+							{tokens
+								.filter((token) => token.kind !== 'app')
+								.map((token) => (
+									<li key={token.id} className="api-tokens__item" data-testid="api-token-row">
+										<span className="api-tokens__name">
+											{token.name}
+											<span className="api-tokens__meta">
+												{` · ${t('apiTokens.created', { date: formatDate(token.createdAt, i18n.language) })} · ${
+													token.lastUsedAt == null
+														? t('apiTokens.notUsed')
+														: t('apiTokens.lastUsed', { date: formatDate(token.lastUsedAt, i18n.language) })
+												}${
+													token.expiresAt == null
+														? ''
+														: ` · ${t('apiTokens.validUntil', { date: formatExpiryDate(token.expiresAt, i18n.language) })}${isExpired(token.expiresAt) ? ` ${t('apiTokens.expired')}` : ''}`
+												}`}
 											</span>
-											<ScopeToggle
-												token={token}
-												disabled={scopeBusyId === token.id || scopeLocked}
-												onToggle={() => {
-													// #1526 AK4: `_disabled` verhindert nur den echten Browser-Klick — der Guard hier
-													// hält den Regler auch dann wirkungslos, wenn `onChange` direkt ausgelöst wird.
-													if (!scopeLocked) void handleToggleScope(token);
-												}}
-											/>
 										</span>
-										{/* #1526 AK4/AK6: löst das freischwebende `PlanBadge` ab — die Erklärung steht jetzt
+										<span className="api-tokens__scope-group">
+											<span className="api-tokens__scope">
+												<span className="api-tokens__scope-label">
+													{t(token.scope === 'readwrite' ? 'apiTokens.scopeReadwrite' : 'apiTokens.scopeRead')}
+												</span>
+												<ScopeToggle
+													token={token}
+													disabled={scopeBusyId === token.id || scopeLocked}
+													onToggle={() => {
+														// #1526 AK4: `_disabled` verhindert nur den echten Browser-Klick — der Guard hier
+														// hält den Regler auch dann wirkungslos, wenn `onChange` direkt ausgelöst wird.
+														if (!scopeLocked) void handleToggleScope(token);
+													}}
+												/>
+											</span>
+											{/* #1526 AK4/AK6: löst das freischwebende `PlanBadge` ab — die Erklärung steht jetzt
 										    unterhalb der Scope-Zeile, direkt neben dem gesperrten Regler. */}
-										{readwriteEntitlement !== undefined && !readwriteEntitlement.allowed && (
-											<FeaturePopoverButton label={t('apiTokens.planRequired')}>
-												{t('apiTokens.readwritePlanText', { plan: planLabel(readwriteEntitlement.requiredPlan) })}
-											</FeaturePopoverButton>
-										)}
-									</span>
-									{revokeId === token.id ? (
-										<span className="api-tokens__confirm">
-											<span className="api-tokens__confirm-question">{t('apiTokens.revokeQuestion')}</span>
-											<ButtonAction onClick={() => setRevokeId(null)}>
-												<KolButton
-													_label={t('common:actions.cancel')}
-													class="settings-action-btn"
-													_variant="secondary"
-													_disabled={busy}
-												/>
-											</ButtonAction>
-											<ButtonAction onClick={() => void handleRevoke(token.id)}>
-												<KolButton
-													data-testid="api-token-revoke-confirm"
-													_label={t('apiTokens.revokeConfirm')}
-													class="settings-action-btn"
-													_variant="danger"
-													_disabled={busy}
-												/>
-											</ButtonAction>
+											{readwriteEntitlement !== undefined && !readwriteEntitlement.allowed && (
+												<FeaturePopoverButton label={t('apiTokens.planRequired')}>
+													{t('apiTokens.readwritePlanText', { plan: planLabel(readwriteEntitlement.requiredPlan) })}
+												</FeaturePopoverButton>
+											)}
 										</span>
-									) : (
-										<ButtonAction onClick={() => setRevokeId(token.id)}>
-											<KolButton _label={t('apiTokens.revoke')} class="settings-action-btn" _variant="danger" />
-										</ButtonAction>
-									)}
-								</li>
-							))}
+										{revokeId === token.id ? (
+											<span className="api-tokens__confirm">
+												<span className="api-tokens__confirm-question">{t('apiTokens.revokeQuestion')}</span>
+												<ButtonAction onClick={() => setRevokeId(null)}>
+													<KolButton
+														_label={t('common:actions.cancel')}
+														class="settings-action-btn"
+														_variant="secondary"
+														_disabled={busy}
+													/>
+												</ButtonAction>
+												<ButtonAction onClick={() => void handleRevoke(token.id)}>
+													<KolButton
+														data-testid="api-token-revoke-confirm"
+														_label={t('apiTokens.revokeConfirm')}
+														class="settings-action-btn"
+														_variant="danger"
+														_disabled={busy}
+													/>
+												</ButtonAction>
+											</span>
+										) : (
+											<ButtonAction onClick={() => setRevokeId(token.id)}>
+												<KolButton _label={t('apiTokens.revoke')} class="settings-action-btn" _variant="danger" />
+											</ButtonAction>
+										)}
+									</li>
+								))}
 						</ul>
 					)}
 				</>

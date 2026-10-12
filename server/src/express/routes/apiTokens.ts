@@ -35,6 +35,7 @@ type ApiTokenDto = {
 	lastUsedAt: string | null;
 	scope: TokenScope;
 	expiresAt: string | null;
+	kind: 'api' | 'app';
 };
 type CreatedApiTokenDto = ApiTokenDto & { token: string };
 
@@ -46,11 +47,12 @@ const serializeApiToken = (token: ApiToken): ApiTokenDto => ({
 	lastUsedAt: token.lastUsedAt ? token.lastUsedAt.toISOString() : null,
 	scope: token.scope,
 	expiresAt: token.expiresAt ? token.expiresAt.toISOString() : null,
+	kind: token.kind,
 });
 
 export const apiTokensRouter = Router();
 
-// GET /api-tokens — eigene, nicht zurückgezogene Tokens (nur Metadaten); App-Tokens (#2377) bleiben außen vor.
+// GET /api-tokens — eigene, nicht zurückgezogene Tokens inkl. App-Anmeldungen (#2494, `kind`); nur Metadaten.
 apiTokensRouter.get('/api-tokens', async (req: Request, res: Response<ApiTokenDto[] | ErrorDto>) => {
 	const userId = getUserId(req);
 	if (userId === undefined) {
@@ -59,7 +61,7 @@ apiTokensRouter.get('/api-tokens', async (req: Request, res: Response<ApiTokenDt
 	}
 	try {
 		const tokens = await ApiToken.findAll({
-			where: { userId, revokedAt: null, kind: 'api' },
+			where: { userId, revokedAt: null },
 			order: [['createdAt', 'ASC']],
 		});
 		res.json(tokens.map(serializeApiToken));
@@ -115,7 +117,7 @@ apiTokensRouter.delete('/api-tokens/:id', async (req: Request, res: Response<Err
 		return;
 	}
 	try {
-		const token = await ApiToken.findOne({ where: { id, userId, revokedAt: null, kind: 'api' } });
+		const token = await ApiToken.findOne({ where: { id, userId, revokedAt: null } });
 		if (!token) {
 			sendError(res, 404, 'Token nicht gefunden.');
 			return;
