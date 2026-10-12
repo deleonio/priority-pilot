@@ -226,8 +226,8 @@ importers:
         specifier: 8.5.3
         version: 8.5.3
       '@capacitor/push-notifications':
-        specifier: 8.1.2
-        version: 8.1.2(@capacitor/core@8.5.3)
+        specifier: 8.1.3
+        version: 8.1.3(@capacitor/core@8.5.3)
       '@fontsource/archivo':
         specifier: 5.3.0
         version: 5.3.0
@@ -371,8 +371,8 @@ importers:
         specifier: 8.5.3
         version: 8.5.3
       '@capacitor/push-notifications':
-        specifier: 8.1.2
-        version: 8.1.2(@capacitor/core@8.5.3)
+        specifier: 8.1.3
+        version: 8.1.3(@capacitor/core@8.5.3)
       '@capacitor/splash-screen':
         specifier: 8.0.2
         version: 8.0.2(@capacitor/core@8.5.3)
@@ -1102,8 +1102,8 @@ packages:
   '@capacitor/core@8.5.3':
     resolution: {integrity: sha512-oBE1oGuYE4ZzYYrulC75OuHdSsD6zLUy7d5o1tFwDLG4govGoubY15cxpiI5l0+q87Lm5p0bhbehMdzJg4aFag==}
 
-  '@capacitor/push-notifications@8.1.2':
-    resolution: {integrity: sha512-TQl4XxqJfNF+KbSYBFMXYYT5WXUaleVKXlByhh/8+KySMVNjp+l5OqAUoGe/sY1IAnGXEuUeCjA/WLZEVvGwrA==}
+  '@capacitor/push-notifications@8.1.3':
+    resolution: {integrity: sha512-UlOCTS3uiw8ZUJ1rkFKJgoqPADipHDNn0lq5mNRwtXALVxQXIeIoRd3iqpzC+962R2LpCRJRkCTjPX2OHK3tBA==}
     peerDependencies:
       '@capacitor/core': '>=8.0.0'
 
@@ -6382,7 +6382,7 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@capacitor/push-notifications@8.1.2(@capacitor/core@8.5.3)':
+  '@capacitor/push-notifications@8.1.3(@capacitor/core@8.5.3)':
     dependencies:
       '@capacitor/core': 8.5.3
 
