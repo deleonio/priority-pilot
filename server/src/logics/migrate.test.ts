@@ -2060,3 +2060,29 @@ describe('migrateApiTokenKind (#2377)', () => {
 		assert.equal(row?.kind, 'api', 'Bestandszeile bleibt ein persoenlicher API-Token');
 	});
 });
+
+// ── #2501: migrateSeriesChecklist — checklist-Spalte an bestehenden series nachziehen ────────
+// Rote Spec-Tests: `migrateSeriesChecklist` existert noch nicht — Zugriff über den Namespace +
+// Cast (Präzedenz migrateGroupImageUrl oben), damit tsc grün bleibt. Rot ist die Spalten-Assertion.
+describe('migrateSeriesChecklist (#2501)', () => {
+	const migrateSeriesChecklist = (migrateModule as { migrateSeriesChecklist?: (db: unknown) => Promise<void> })
+		.migrateSeriesChecklist;
+
+	it('zieht die checklist-Spalte auf einer bestehenden series-Tabelle nach (vor sync())', async () => {
+		await createLegacySeriesTable();
+
+		await assert.doesNotReject(() => migrateSeriesChecklist?.(sequelize), 'die Migration läuft ohne Fehler');
+		const columns = await seriesColumns();
+		assert.ok(columns.includes('checklist'), `die Spalte checklist wurde nachgezogen, war: ${columns.join(', ')}`);
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht mehr ab');
+	});
+
+	it('ist auf einer DB ohne series-Tabelle ein No-op; sync() legt checklist am frischen Schema an', async () => {
+		// beforeEach hat alle Tabellen gedroppt.
+		await assert.doesNotReject(() => migrateSeriesChecklist?.(sequelize), 'No-op auf frischer DB');
+
+		await assert.doesNotReject(() => sequelize.sync());
+		const columns = await seriesColumns();
+		assert.ok(columns.includes('checklist'), 'sync() legt die checklist-Spalte inkl. Default an');
+	});
+});

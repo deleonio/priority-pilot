@@ -1649,23 +1649,9 @@ describe('TaskForm — Vorbelegung aus der Schnellerfassung: Adresse & Checklist
 		expect(screen.getByText('Punkt A')).toBeInTheDocument();
 		expect(screen.getByText('Punkt B')).toBeInTheDocument();
 	});
-
-	it('AK7: im Serien-Modus rendert trotz initialValues.checklist keine Checklist-Section (still verworfen)', async () => {
-		mockSuggestPillars.mockResolvedValue([]);
-		await act(async () => {
-			render(
-				<TaskForm
-					task={null}
-					initialMode="series"
-					initialValues={withExtraInitialValues({ checklist: ['Punkt A'] })}
-					{...defaultProps}
-				/>,
-			);
-		});
-
-		expect(screen.queryByTestId('checklist-section')).toBeNull();
-		expect(screen.queryByTestId('checklist-item')).toBeNull();
-	});
+	// #2501 Test-Pflege: Der frühere AK7-Test („im Serien-Modus rendert trotz initialValues.checklist
+	// keine Checklist-Section — still verworfen") ist mit #2501 widersprüchlich — die Checkliste ist
+	// jetzt gerade im Serie-Modus pflegbar. Ersatz: describe „Checkliste an der Serie (#2501)" unten.
 });
 
 /**
@@ -3938,5 +3924,67 @@ describe('TaskForm — Deadline am Feld entfernen (#2463)', () => {
 			fireEvent.change(deadlineInput, { target: { value: '2026-09-07' } });
 		});
 		expect(deadlineClearButton()).toBeInTheDocument();
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2501 (Spec docs/spec/issue-2501.md): der #531-Checklisten-Editor ist im
+ * Serie-Modus verfügbar — Initialisierung aus `series.checklist`, Einträge OHNE Erledigt-Schalter,
+ * Speichern über den seriesUpdate-Pfad. Rot, bis TaskForm das `!isSeriesMode`-Gate für die
+ * Checkliste entfernt und die Serie-Init/-Save-Pfade erweitert. KEIN Produktivcode.
+ */
+describe('TaskForm — Checkliste an der Serie (#2501)', () => {
+	type SeriesChecklistEntry = { id: string; title: string };
+	const itemA: SeriesChecklistEntry = { id: '22222222-2222-4222-8222-222222222221', title: 'Schritt A' };
+	const itemB: SeriesChecklistEntry = { id: '22222222-2222-4222-8222-222222222222', title: 'Schritt B' };
+
+	// Roter Vertrag: der Series-Client-Typ hat `checklist` noch nicht — der Cast ist die bewusste
+	// Typ-Grenze des TDD-Vertrags (Muster SeriesEditForm oben, MEMORY 2026-08-23).
+	const seriesWithChecklist = () =>
+		({ ...minimalSeries(), checklist: [itemA, itemB] }) as Series & { checklist?: SeriesChecklistEntry[] };
+
+	it('AK1: der Serie-Edit-Modus rendert die Checklist-Section mit den Serien-Einträgen', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={seriesWithChecklist()} {...defaultProps} />);
+		});
+
+		expect(screen.getByTestId('checklist-section')).toBeInTheDocument();
+		expect(screen.getAllByTestId('checklist-item')).toHaveLength(2);
+		expect(screen.getByText('Schritt A')).toBeInTheDocument();
+		expect(screen.getByText('Schritt B')).toBeInTheDocument();
+	});
+
+	it('AK1: Einträge im Serie-Modus haben keinen Erledigt-Schalter', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={seriesWithChecklist()} {...defaultProps} />);
+		});
+
+		for (const item of screen.getAllByTestId('checklist-item')) {
+			expect(within(item).queryByRole('checkbox')).toBeNull();
+		}
+	});
+
+	it('AK1: Speichern schickt checklist im seriesUpdate-Payload', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockUpdateSeries.mockResolvedValue(minimalSeries());
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={seriesWithChecklist()} {...defaultProps} />);
+		});
+
+		await clickSave();
+
+		expect(mockUpdateSeries).toHaveBeenCalledTimes(1);
+		expect(mockUpdateSeries).toHaveBeenCalledWith(
+			expect.objectContaining({
+				seriesUpdate: expect.objectContaining({
+					checklist: expect.arrayContaining([
+						expect.objectContaining({ id: itemA.id, title: 'Schritt A' }),
+						expect.objectContaining({ id: itemB.id, title: 'Schritt B' }),
+					]),
+				}),
+			}),
+		);
 	});
 });

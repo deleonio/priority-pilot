@@ -882,3 +882,155 @@ describe('Series API', () => {
 		});
 	});
 });
+
+// ── #2501: Checkpunkte an der Serie/Vorlage (AK3, AK5) ───────────────────────────────────────
+// Rot, bis die Impl-Phase `checklist` an Modell/DTO/Validierung anbaut: der Key wird heute
+// still verworfen (201 statt 400, DTO ohne checklist). Spec: docs/spec/issue-2501.md.
+describe('Series API — checklist (#2501)', () => {
+	beforeEach(async () => {
+		await resetDb();
+		if (!server) {
+			server = await startTestServer();
+		}
+	});
+
+	after(async () => {
+		if (server) {
+			await server.close();
+		}
+		await closeDb();
+	});
+
+	const UUID_A = '11111111-1111-4111-8111-111111111111';
+	const UUID_B = '22222222-2222-4222-8222-222222222222';
+	const UUID_C = '33333333-3333-4333-8333-333333333333';
+
+	const get = (path: string) => fetch(`${server.baseUrl}${path}`);
+	const post = (path: string, body: unknown) =>
+		fetch(`${server.baseUrl}${path}`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		});
+	const patch = (path: string, body: unknown) =>
+		fetch(`${server.baseUrl}${path}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		});
+
+	const CHECKLIST = [
+		{ id: UUID_A, title: 'Einräumen' },
+		{ id: UUID_B, title: 'Abwischen' },
+	];
+
+	/** Gültiger Serien-Body (Pflichtfelder), Startdatum `offsetDays` Tage in der (Zukunfts-)Vergangenheit. */
+	const futureDate = (offsetDays: number): string => {
+		const result = new Date();
+		result.setUTCDate(result.getUTCDate() + offsetDays);
+		result.setUTCHours(0, 0, 0, 0);
+		return result.toISOString().replace(/\.\d{3}Z$/, '.000Z');
+	};
+	const validSeriesBody = () => ({
+		title: 'Wöchentlich kochen',
+		rhythm: 'weekly',
+		priority: 4,
+		estimatedEffort: 0.5,
+		active: true,
+		startDate: futureDate(1),
+	});
+
+	/** Serie im Tagessrhythmus mit vergangenem Start — `POST /series/:id/generate` erzeugt mind. zwei Instanzen. */
+	const createSeriesWithChecklist = async (): Promise<{ id: number }> => {
+		const res = await post('/series', {
+			...validSeriesBody(),
+			rhythm: 'daily',
+			startDate: futureDate(-3),
+			checklist: CHECKLIST,
+		});
+		assert.equal(res.status, 201, 'Setup: Serie muss anlegbar sein');
+		return (await res.json()) as { id: number };
+	};
+
+	it('AK3: POST und GET liefern die Checkliste mit — Einträge tragen kein completed', async () => {
+		const created = await createSeriesWithChecklist();
+
+		const body = (await (await get(`/series/${created.id}`)).json()) as Record<string, unknown>;
+		assert.deepEqual(body.checklist, CHECKLIST, 'GET /series/:id liefert die Checkliste');
+		for (const entry of body.checklist as Record<string, unknown>[]) {
+			assert.deepEqual(Object.keys(entry).sort(), ['id', 'title'], 'Serien-Einträge kennen kein completed');
+		}
+
+		const list = (await (await get('/series')).json()) as { id: number; checklist?: unknown }[];
+		assert.deepEqual(
+			list.find((entry) => entry.id === created.id)?.checklist,
+			CHECKLIST,
+			'GET /series (Liste) liefert die Checkliste mit',
+		);
+	});
+
+	it('AK5: ein Eintrag mit completed wird an POST und PATCH mit 400 abgewiesen', async () => {
+		const rejected = await post('/series', {
+			...validSeries(),
+			checklist: [{ id: UUID_A, title: 'Einräumen', completed: false }],
+		});
+		assert.equal(rejected.status, 400, 'POST lehnt completed ab');
+
+		const created = await createSeriesWithChecklist();
+		const patched = await patch(`/series/${created.id}`, {
+			checklist: [{ id: UUID_A, title: 'Einräumen', completed: true }],
+		});
+		assert.equal(patched.status, 400, 'PATCH lehnt completed ab');
+	});
+
+	it('AK5: Abhaken an einer Instanz ändert weder Serie noch Schwestern-Instanz', async () => {
+		const series = await createSeriesWithChecklist();
+		const generated = await post(`/series/${series.id}/generate`, {});
+		assert.ok(generated.ok, 'Setup: Instanzen lassen sich generieren');
+		const instances = (await generated.json()) as { id: number }[];
+		assert.ok(instances.length >= 2, 'Setup: mindestens zwei Schwestern-Instanzen');
+
+		await patch(`/tasks/${instances[0]!.id}`, {
+			checklist: [
+				{ id: UUID_A, title: 'Einräumen', completed: true },
+				{ id: UUID_B, title: 'Abwischen', completed: false },
+			],
+		});
+
+		const template = (await (await get(`/series/${series.id}`)).json()) as {
+			checklist?: Array<Record<string, unknown>>;
+		};
+		for (const entry of template.checklist ?? []) {
+			assert.ok(!('completed' in entry), 'die Serie trägt weiterhin keinen Erledigt-Stand');
+		}
+
+		const sibling = (await (await get(`/tasks/${instances[1]!.id}`)).json()) as {
+			checklist: Array<{ id: string; completed: boolean }>;
+		};
+		assert.deepEqual(
+			sibling.checklist.map((item) => item.completed),
+			[false, false],
+			'das Abhaken der einen Instanz bleibt bei der Schwestern-Instanz ohne Wirkung',
+		);
+	});
+
+	it('AK5: eine Checklisten-Änderung an der Serie kaskadiert nicht auf offene Instanzen', async () => {
+		const series = await createSeriesWithChecklist();
+		const generated = await post(`/series/${series.id}/generate`, {});
+		assert.ok(generated.ok, 'Setup: Instanzen lassen sich generieren');
+		const [instance] = (await generated.json()) as { id: number }[];
+
+		await patch(`/series/${series.id}`, {
+			checklist: [...CHECKLIST, { id: UUID_C, title: 'Futter kaufen' }],
+		});
+
+		const unchanged = (await (await get(`/tasks/${instance!.id}`)).json()) as {
+			checklist: Array<{ id: string; title: string }>;
+		};
+		assert.deepEqual(
+			unchanged.checklist.map((item) => item.title),
+			['Einräumen', 'Abwischen'],
+			'die bestehende Instanz behält ihren Snapshot',
+		);
+	});
+});

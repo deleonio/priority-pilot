@@ -2,7 +2,7 @@ import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { Category, Series, Task, Pillar, SeriesPillar, TaskPillar } from '../models/index.js';
 import { CATEGORY_COLORS } from '../models/categoryColors.js';
-import { generateDueInstances, generateHorizonUntil, materializeDueSeries } from './series.js';
+import { createOnDemandInstance, generateDueInstances, generateHorizonUntil, materializeDueSeries } from './series.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 
 beforeEach(resetDb);
@@ -790,5 +790,71 @@ describe('generateHorizonUntil — Horizont-Berechnung (#2405, AK1)', () => {
 	it('erhält die Uhrzeit des Referenzzeitpunkts (UTC, kein Nullen)', () => {
 		const until = generateHorizonUntil(new Date('2026-03-05T13:45:00.000Z'));
 		assert.equal(until.toISOString(), '2026-04-04T13:45:00.000Z');
+	});
+});
+
+// ── #2501: Checklisten-Snapshot bei der Instanz-Erzeugung (AK4) ──────────────────────────────
+// Rot, bis `Series.checklist` existert: Sequelize verwirft das unbekannte Attribut, die Instanz
+// trägt keine Checkliste. Die Intersection-Casts halten tsc grün (Muster MEMORY 2026-08-23).
+type SeriesChecklistAttr = { checklist?: Array<{ id: string; title: string }> };
+type TaskChecklistAttr = { checklist?: Array<{ id: string; title: string; completed: boolean }> };
+
+const CHECKLIST = [
+	{ id: '11111111-1111-4111-8111-111111111111', title: 'Einräumen' },
+	{ id: '22222222-2222-4222-8222-222222222222', title: 'Abwischen' },
+];
+
+const makeSeriesWithChecklist = async (): Promise<Series & SeriesChecklistAttr> => {
+	const baseAttrs = {
+		title: 'Küchendienst',
+		rhythm: 'weekly' as const,
+		priority: 3,
+		estimatedEffort: 0.5,
+		active: true,
+		startDate: futureDate(-7),
+	};
+	return (await Series.create({
+		...baseAttrs,
+		checklist: CHECKLIST,
+	} as typeof baseAttrs & SeriesChecklistAttr)) as Series & SeriesChecklistAttr;
+};
+
+describe('Checklisten-Snapshot an der Instanz (#2501 AK4)', () => {
+	it('generateDueInstances: jede Instanz trägt alle Checkpunkte mit completed: false', async () => {
+		const series = await makeSeriesWithChecklist();
+
+		const instances = await generateDueInstances(series, { until: futureDate(20) });
+		assert.ok(instances.length > 0, 'Setup: mindestens eine Instanz wurde generiert');
+		for (const instance of instances as (Task & TaskChecklistAttr)[]) {
+			assert.deepEqual(
+				instance.checklist,
+				CHECKLIST.map((item) => ({ ...item, completed: false })),
+				`Instanz ${instance.id} startet mit der Serien-Checkliste, alle Punkte offen`,
+			);
+		}
+	});
+
+	it('createOnDemandInstance: die Abruf-Instanz trägt die Serien-Checkliste mit completed: false', async () => {
+		const series = await makeSeriesWithChecklist();
+
+		const instance = (await createOnDemandInstance(series, {})) as Task & TaskChecklistAttr;
+		assert.ok(instance, 'Setup: die Abruf-Instanz wurde angelegt');
+		assert.deepEqual(
+			instance.checklist,
+			CHECKLIST.map((item) => ({ ...item, completed: false })),
+			'auch der Abruf-Pfad snapshotet die Checkliste',
+		);
+	});
+
+	it('der Snapshot nutzt dieselben UUIDs wie die Serie — ein Abhaken an der Instanz braucht kein Back-Mapping', async () => {
+		const series = await makeSeriesWithChecklist();
+
+		const [instance] = (await generateDueInstances(series, { until: futureDate(20) })) as (Task & TaskChecklistAttr)[];
+		assert.ok(instance);
+		assert.deepEqual(
+			(instance.checklist ?? []).map((item) => item.id),
+			CHECKLIST.map((item) => item.id),
+			'Instanz-Einträge übernehmen die Template-UUIDs',
+		);
 	});
 });
