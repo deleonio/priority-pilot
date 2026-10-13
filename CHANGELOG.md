@@ -370,6 +370,7 @@ _Enthält v0.15.0 – v0.15.22._
 ### Other Changes
 
 - docs(spec): sync spec documents to implemented state (2026-10-04) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2169
+- docs(spec): sync spec documents to implemented state (2026-10-04) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2169
 - feat(server): enforce share bounds and consolidate handover rows (#2152) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2172
 - chore: document agent setup comparison and split llm concurrency by @deleonio in https://github.com/deleonio/priority-pilot/pull/2171
 - refactor(server): use findCancelledWithRemaining in cancel route (F-35) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2175
