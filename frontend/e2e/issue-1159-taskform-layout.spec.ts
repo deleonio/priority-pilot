@@ -109,23 +109,21 @@ test.describe('#1285 TaskForm-Sektionen als Accordions', () => {
 		await expect(page.locator('[data-testid="task-description"]')).not.toBeVisible();
 	});
 
-	// #1159 AK4 (unverändert gültig): 1280px — die benachbarten Felder der Primärgruppe
-	// (Priorität | Aufwand) fluchten auf derselben Top-Kante (≤ 2px Versatz).
-	test('#1159 AK4 — 1280px: Top-Kanten innerhalb der Primärgruppe fluchten (≤ 2px)', async ({ page }) => {
+	// #1159 AK4: 1280px — Titel und die Felder der .range-inputs-row teilen dieselbe Top-Kante
+	// (≤ 2px Versatz). Fixup #2525 (PO-Entscheid): die Priorität ist als einziges Row-Feld in der
+	// Primärgruppe verblieben, der Aufwand-Slider liegt im gefalteten Sekundär-Abschnitt.
+	test('#1159 AK4 — 1280px: Titel und Range-Feld der Primärgruppe fluchten (≤ 2px)', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await openForm(page);
 
-		const priorityRange = page.locator('.form-section--primary kol-input-range').first();
-		const effortRange = page.locator('.form-section--primary kol-input-range').nth(1);
+		const titleBox = await page.locator('[data-testid="task-title"]').boundingBox();
+		const priorityRange = primary(page).locator('kol-input-range').first();
 		await waitForStableBox(page, priorityRange);
-		await waitForStableBox(page, effortRange);
-
 		const priorityBox = await priorityRange.boundingBox();
-		const effortBox = await effortRange.boundingBox();
 
+		expect(titleBox).not.toBeNull();
 		expect(priorityBox).not.toBeNull();
-		expect(effortBox).not.toBeNull();
-		expect(Math.abs(priorityBox!.y - effortBox!.y)).toBeLessThanOrEqual(2);
+		expect(Math.abs(titleBox!.y - priorityBox!.y)).toBeLessThanOrEqual(2);
 	});
 
 	// #1159 AK5 (unverändert gültig): exakt 768px — Abstand zwischen Primär- und
@@ -152,7 +150,7 @@ test.describe('#1285 TaskForm-Sektionen als Accordions', () => {
 		// In-Gruppen-Abstände: Titel→range-inputs-row (Gruppe 1),
 		// deadline-group→Adresse (Gruppe 2).
 		const titleBox = await page.locator('[data-testid="task-title"]').boundingBox();
-		const rowBox = await page.locator('.range-inputs-row').boundingBox();
+		const rowBox = await primary(page).locator('.range-inputs-row').boundingBox();
 		const deadlineBox = await page.locator('[data-testid="deadline-group"]').boundingBox();
 		// Like-for-like: Combobox-Container (Feld inkl. Label) statt des blanken Inputs — dessen
 		// Box läge sonst UNTER dem sichtbaren Label und würde dessen Höhe fälschlich in den
@@ -200,7 +198,7 @@ test.describe('#1285 TaskForm-Sektionen als Accordions', () => {
 		// Alle Felder nach dem Aufklappen nutzbar (übernimmt den ehemaligen #1159-AK6-Check).
 		const fields = [
 			page.locator('[data-testid="task-title"]'),
-			page.locator('.range-inputs-row'),
+			primary(page).locator('.range-inputs-row'),
 			page.locator('[data-testid="deadline-group"]'),
 			page.getByLabel('Adresse (optional)'),
 			page.locator('[data-testid="task-description"]'),

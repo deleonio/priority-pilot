@@ -242,7 +242,9 @@ test.describe('#1527 KI-Gate: Säulen-Berater ohne Berechtigung', () => {
 		await headerAction(page, 'Neuen Task anlegen').then((button) => button.click());
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
 
-		// #1596: Die Säulen-Verteilung liegt in den Basisangaben (immer offen) — kein Aufklappen nötig.
+		// #2525 (Fixup): Die Säulen-Verteilung liegt im gefalteten Sekundär-Abschnitt — erst
+		// aufklappen (der #1596-Stand „Basisangaben, immer offen“ ist seit dem Merge überholt).
+		await openAccordionSection(page, 'Termin & Ort');
 		const head = page.locator('.pillar-editor-head');
 		const box = await boundingBoxWhenLaidOut(head);
 		expect(box, '.pillar-editor-head muss eine Bounding-Box haben').not.toBeNull();

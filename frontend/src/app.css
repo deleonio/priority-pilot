@@ -2427,10 +2427,11 @@ kol-toolbar {
 	margin-bottom: var(--pp-space-5);
 }
 
-/* #2525/AK1: Vier Sektionen stapeln im Dialog — bei ≤768 px auf den Inter-Gruppen-Rhythmus
-   verdichtet (Lücken 16 px statt 24 px, Sektions-Unterkanten ebenso), damit der Speichern-Knopf
-   bei 375×812 ohne Scrollen im Viewport liegt. Desktop (>768 px) bleibt unberührt. */
-@media (max-width: 768px) {
+/* #2525/AK1: Der gefaltete Sekundär-Abschnitt hält den Dialog kurz — bei ≤767 px auf den
+   Inter-Gruppen-Rhythmus verdichtet (Lücken 16 px statt 24 px, Sektions-Unterkanten ebenso),
+   damit der Speichern-Knopf bei 375×812 ohne Scrollen im Viewport liegt. Desktop bleibt
+   unberührt. */
+@media (max-width: 767px) {
 	.form-grid--sections {
 		gap: var(--pp-gap-base);
 		margin-bottom: var(--pp-gap-base);
@@ -2440,7 +2441,7 @@ kol-toolbar {
 		margin-bottom: var(--pp-gap-base);
 	}
 
-	/* Der Standardwerte-Hinweis (#2525/AK4) gehört zum „Mehr Angaben“-Kopf — rückt an. */
+	/* Der Standardwerte-Hinweis (#2525/AK4) gehört zum Kopf des Sekundär-Abschnitts — rückt an. */
 	.form-grid--sections .hint--fold {
 		margin-top: calc(-1 * var(--pp-gap-tight));
 	}

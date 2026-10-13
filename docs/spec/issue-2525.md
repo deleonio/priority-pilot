@@ -1,10 +1,12 @@
-# #2525 — „Mehr Angaben“: Säulen & Aufwand einklappen (Spec)
+# #2525 — Säulen & Aufwand einklappen (Spec)
 
 ## Ziel
 
 Bei 375 px sind Titel und Speichern ohne Scrollen erreichbar: Säulen-Verteilung und Aufwand
-wandern in eine vierte, zugeklappte KolAccordion-Sektion „Mehr Angaben“; die Priorität bleibt
-außerhalb. Ohne Öffnen gelten die Standardwerte weiter (Gleichverteilung 20 % je Säule,
+wandern in den zugeklappten Sekundär-Abschnitt („Termin & Ort“); die Priorität bleibt
+außerhalb. Fixup-Anpassung (PO-Entscheid im Kreuzverhör zu PR #2577): kein zweiter
+`.form-section--secondary` — der bestehende Sekundär-Abschnitt trägt den Inhalt. Ohne
+Öffnen gelten die Standardwerte weiter (Gleichverteilung 20 % je Säule, Aufwand 0.5).
 Aufwand 0.5).
 
 ## Voraussetzungen
@@ -15,10 +17,10 @@ Aufwand 0.5).
 
 ## Verhalten
 
-### Sektion „Mehr Angaben“ (AK1–AK3, AK6)
+### Faltung im Sekundär-Abschnitt (AK1–AK3, AK6)
 
-- Vierte kontrollierte KolAccordion-Sektion nach dem Muster `scheduleOpen`/`optionalOpen`
-  (`_label` „Mehr Angaben“, `_level={3}`); die Basisangaben-Sektion bleibt `_open _disabled`.
+- Der bestehende, kontrollierte Sekundär-Abschnitt (KolAccordion „Termin & Ort“,
+  `_level={3}`) trägt den Inhalt; die Basisangaben-Sektion bleibt `_open _disabled`.
 - Inhalt: Aufwand-Slider und Säulen-Editor (Rangfolge-Tipp, Vorschlag-Button). Die Priorität
   bleibt in der Basisangaben-Sektion (AK6).
 - Erwartet: Speichern-Knopf bei 375×812 ohne Scrollen im Viewport (AK1); nach dem Aufklappen
@@ -34,7 +36,7 @@ Aufwand 0.5).
 - Im zugeklappten Zustand zeigt der Bereich den Hinweis „Ohne Öffnen gelten die Standardwerte“.
 - Platzierung (KI-UX, hier als Spec-Entscheid festgelegt): kurze Hinweiszeile unmittelbar unter
   dem Akkordeon-Kopf, außerhalb des einklappbaren KolAccordion-Body-Slots; der Trigger-Name
-  bleibt exakt „Mehr Angaben“ (kein Hinweis im Label). Nur Text, kein KolAlert. Neue i18n-Keys
+  (kein Hinweis im Label). Nur Text, kein KolAlert. Neue i18n-Keys
   in allen Sprachen pflegen.
 
 ### Anfangszustand (AK5)
@@ -61,7 +63,7 @@ Hinweis (KI-UX): bewusste Ausnahme zur #1285-Regel „beim Öffnen immer zugekla
   zugeklappten Zustand sichtbar.
 - TF5 (AK5): Unit — eigene Werte → offen; Standardwerte → zu; Anlegen → zu;
   `initialValues.pillars` → offen.
-- AK6: Unit — Prioritäts-Slider liegt nicht in der „Mehr Angaben“-Sektion; E2E: Priorität ohne
+- AK6: Unit — Prioritäts-Slider liegt nicht im gefalteten Sekundär-Abschnitt; E2E: Priorität ohne
   Aufklappen sichtbar.
 
 ## Offene Fragen

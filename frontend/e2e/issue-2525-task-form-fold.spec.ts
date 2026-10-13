@@ -2,17 +2,17 @@ import { expect, test, type Locator, type Page } from './fixtures';
 import { openAccordionSection, registerOwnSession, waitForStableView } from './helpers';
 
 /**
- * Rote Spec-e2e für #2525 — Formular-Faltung „Mehr Angaben" (Spec: docs/spec/issue-2525.md).
+ * Rote Spec-e2e für #2525 — Formular-Faltung im Sekundär-Abschnitt (Spec: docs/spec/issue-2525.md).
  *
  * - AK1: 375×812 — nach dem Öffnen von „Aufgabe anlegen" ist der Speichern-Knopf ohne Scrollen
  *   sichtbar (boundingBox innerhalb des Viewports; scrollWidth wäre wegen des App-Shell-Clippings
  *   aussageleer).
  * - AK2: Eine nur mit Titel gespeicherte Aufgabe wird angelegt (Payload-Vertrag in Unit getestet).
- * - AK3: Nach dem Aufklappen von „Mehr Angaben" lassen sich Rangfolge setzen und speichern.
+ * - AK3: Nach dem Aufklappen des Sekundär-Abschnitts lassen sich Rangfolge setzen und speichern.
  * - AK4: Im zugeklappten Zustand ist der Standardwerte-Hinweis sichtbar.
  * - AK6: Die Priorität bleibt ohne Aufklappen sichtbar.
  *
- * Rot sind AK1/AK3/AK4, solange es die Sektion (Trigger „Mehr Angaben", Hinweis) nicht gibt bzw.
+ * Rot sind AK1/AK3/AK4, solange es die Faltung (Hinweis) nicht gibt bzw.
  * der Speichern-Knopf unterhalb des 812-px-Folds liegt; AK2/AK6 sind grüne Regressionsspiegel,
  * die nach der Umsetzung grün bleiben müssen.
  */
@@ -47,7 +47,7 @@ const measureBox = async (
 	throw new Error('Bounding-Box nach 3 s nicht messbar');
 };
 
-test.describe('#2525 — „Mehr Angaben"-Faltung', () => {
+test.describe('#2525 — Faltung im Sekundär-Abschnitt', () => {
 	test('AK1 — 375×812: Speichern-Knopf ohne Scrollen im Viewport', async ({ page }) => {
 		await openNewTaskForm(page, 'fold-2525-ak1');
 
@@ -74,7 +74,7 @@ test.describe('#2525 — „Mehr Angaben"-Faltung', () => {
 	test('AK3 — aufklappen, Rang setzen, speichern', async ({ page }) => {
 		await openNewTaskForm(page, 'fold-2525-ak3');
 
-		await openAccordionSection(page, 'Mehr Angaben');
+		await openAccordionSection(page, 'Termin & Ort');
 		await page
 			.locator('kol-dialog')
 			.getByRole('button', { name: /^Körper/ })

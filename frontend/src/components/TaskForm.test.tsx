@@ -2904,7 +2904,7 @@ describe('TaskForm — Säulen-Berater hinter KI-Gate (#1527)', () => {
 
 	it('AK2 — Gate aus: Überschrift und Säulen-Regler bleiben vorhanden und bedienbar', () => {
 		renderPillarEditorWithContribution(false);
-		fireEvent.click(screen.getByText('Mehr Angaben')); // #2525: Säulen-Editor liegt hinter der Faltung
+		fireEvent.click(screen.getByText('Termin & Ort')); // #2525: Säulen-Editor liegt im gefalteten Sekundär-Abschnitt
 
 		expect(screen.getByText('Säulen-Verteilung')).toBeVisible();
 		expect(screen.getByRole('slider', { name: /Körper/ })).toBeVisible();
@@ -2914,7 +2914,7 @@ describe('TaskForm — Säulen-Berater hinter KI-Gate (#1527)', () => {
 		mockSuggestPillars.mockResolvedValue([]);
 		renderPillarEditor(true);
 		fireEvent.click(screen.getByText('Optional'));
-		fireEvent.click(screen.getByText('Mehr Angaben')); // #2525: Säulen-Editor liegt hinter der Faltung
+		fireEvent.click(screen.getByText('Termin & Ort')); // #2525: Säulen-Editor liegt im gefalteten Sekundär-Abschnitt
 		await fillTitle('Büro aufräumen'); // #305: suggestPillars bricht ohne Titel früh ab
 
 		const button = screen.getByRole('button', { name: /Säulen vorschlagen/ });
@@ -3994,15 +3994,15 @@ describe('TaskForm — Checkliste an der Serie (#2501)', () => {
 });
 
 /**
- * Rote TDD-Verträge für #2525 — „Mehr Angaben“: Säulen-Verteilung und Aufwand wandern in eine
- * vierte, zugeklappte KolAccordion-Sektion; die Priorität bleibt außerhalb
+/**
+/**
+ * Rote TDD-Verträge für #2525 — Säulen-Verteilung und Aufwand wandern in den zugeklappten
+ * Sekundär-Abschnitt („Termin & Ort“); die Priorität bleibt außerhalb. PO-Entscheid im
+ * Kreuzverhör zu PR #2577: kein zweiter `.form-section--secondary` — der bestehende
+ * Sekundär-Abschnitt trägt den Inhalt, den AK5-Startzustand und den AK4-Hinweis
  * (Spec: docs/spec/issue-2525.md).
- *
- * Rot, solange die Sektion fehlt: TF3–TF5 und AK6 scheitern am fehlenden „Mehr Angaben“-Trigger
- * bzw. Hinweistext. TF2 (AK2) ist der Regressionsspiegel für die unveränderten Standardwerte im
- * Payload — er ist heute grün und muss nach der Umsetzung grün bleiben.
  */
-describe('TaskForm — „Mehr Angaben“-Sektion (#2525)', () => {
+describe('TaskForm — Faltung im Sekundär-Abschnitt (#2525)', () => {
 	const fivePillars2525: Pillar[] = [
 		{ id: 1, name: 'Körper', description: '', weight: 20 },
 		{ id: 2, name: 'Mentale Gesundheit', description: '', weight: 20 },
@@ -4014,9 +4014,9 @@ describe('TaskForm — „Mehr Angaben“-Sektion (#2525)', () => {
 	/** Gleichverteilung als gespeicherte Säulen-Beiträge (Standardwerte, #2525 AK5). */
 	const equalShares2525 = [1, 2, 3, 4, 5].map((id) => ({ pillarId: id, share: 20, confidence: 100 }));
 
-	/** `<details>` der „Mehr Angaben“-Sektion (KolAccordion-Mock spiegelt `_open` in `details.open`). */
-	const moreSection = (): HTMLDetailsElement =>
-		screen.getByText(/Mehr Angaben/).closest('details') as HTMLDetailsElement;
+	/** `<details>` des Sekundär-Abschnitts (KolAccordion-Mock spiegelt `_open` in `details.open`). */
+	const secondarySection = (): HTMLDetailsElement =>
+		screen.getByText('Termin & Ort').closest('details') as HTMLDetailsElement;
 
 	// TF2 (AK2) — Regressionsspiegel: Nur-Titel-Speichern sendet unverändert die Gleichverteilung
 	// und den Aufwand-Standard; die zugeklappte Sektion darf daran nichts ändern.
@@ -4047,11 +4047,11 @@ describe('TaskForm — „Mehr Angaben“-Sektion (#2525)', () => {
 			render(<TaskForm task={null} pillars={fivePillars2525} onClose={vi.fn()} onSaved={vi.fn()} />);
 		});
 
-		expect(moreSection().open).toBe(false);
+		expect(secondarySection().open).toBe(false);
 		await act(async () => {
-			fireEvent.click(screen.getByText(/Mehr Angaben/));
+			fireEvent.click(screen.getByText('Termin & Ort'));
 		});
-		expect(moreSection().open).toBe(true);
+		expect(secondarySection().open).toBe(true);
 
 		await act(async () => {
 			fireEvent.click(screen.getByRole('button', { name: /^Körper/ }));
@@ -4061,7 +4061,7 @@ describe('TaskForm — „Mehr Angaben“-Sektion (#2525)', () => {
 
 	// TF4 (AK4) — Der Hinweistext existiert und liegt außerhalb des einklappbaren Body-Slots
 	// (KI-UX: zugeklappt rendert KolAccordion nur den Kopf; der Trigger-Name bleibt exakt
-	// „Mehr Angaben“ — der Hinweis ist eine eigene Zeile unter dem Kopf, kein KolAlert).
+	// Der Hinweis ist eine eigene Zeile unter dem Kopf, kein KolAlert).
 	it('TF4/AK4 — zugeklappt: Standardwerte-Hinweis vorhanden, außerhalb des einklappbaren Bodys', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 
@@ -4089,7 +4089,7 @@ describe('TaskForm — „Mehr Angaben“-Sektion (#2525)', () => {
 			);
 		});
 
-		expect(moreSection().open).toBe(true);
+		expect(secondarySection().open).toBe(true);
 	});
 
 	it('TF5/AK5 — Bearbeiten mit Standardwerten (Gleichverteilung + 0.5) startet zugeklappt', async () => {
@@ -4106,7 +4106,7 @@ describe('TaskForm — „Mehr Angaben“-Sektion (#2525)', () => {
 			);
 		});
 
-		expect(moreSection().open).toBe(false);
+		expect(secondarySection().open).toBe(false);
 	});
 
 	it('TF5/AK5 — Anlegen startet zugeklappt', async () => {
@@ -4116,7 +4116,7 @@ describe('TaskForm — „Mehr Angaben“-Sektion (#2525)', () => {
 			render(<TaskForm task={null} pillars={fivePillars2525} onClose={vi.fn()} onSaved={vi.fn()} />);
 		});
 
-		expect(moreSection().open).toBe(false);
+		expect(secondarySection().open).toBe(false);
 	});
 
 	it('TF5/AK5 — Vorlage-Flow: initialValues.pillars gelten als eigene Werte, startet offen', async () => {
@@ -4134,11 +4134,11 @@ describe('TaskForm — „Mehr Angaben“-Sektion (#2525)', () => {
 			);
 		});
 
-		expect(moreSection().open).toBe(true);
+		expect(secondarySection().open).toBe(true);
 	});
 
 	// AK6 — Die Priorität bleibt außerhalb des einklappbaren Bereichs (Sichtbarkeit unverändert).
-	it('AK6 — Priorität liegt nicht in der „Mehr Angaben“-Sektion', async () => {
+	it('AK6 — Priorität liegt nicht im Sekundär-Abschnitt', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 
 		await act(async () => {
@@ -4146,6 +4146,6 @@ describe('TaskForm — „Mehr Angaben“-Sektion (#2525)', () => {
 		});
 
 		const slider = screen.getByRole('slider', { name: /Priorität/ });
-		expect(slider.closest('details')).not.toBe(moreSection());
+		expect(slider.closest('details')).not.toBe(secondarySection());
 	});
 });

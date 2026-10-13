@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 
 import { expect, test } from './fixtures';
-import { seedAccountPreferences, waitForStableView } from './helpers';
+import { openAccordionSection, seedAccountPreferences, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-e2e für #934 — „InputRange-Mindestbreite 300 px + doppelte Säulen-Beschreibung entfernen".
@@ -99,6 +99,9 @@ test.describe('#934 InputRange-Mindestbreite', () => {
 			await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
 			await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
 			await waitForStableView(page);
+
+			// #2525 (Fixup): Der Aufwand-Slider liegt im gefalteten Sekundär-Abschnitt — erst aufklappen.
+			await openAccordionSection(page, 'Termin & Ort');
 
 			// Vorher verproben, dass es wirklich die TaskForm-Range-Felder sind (Priorität + Aufwand).
 			await expect(page.locator('input[type="range"][min="1"][max="5"]')).toBeVisible();

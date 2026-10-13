@@ -579,18 +579,18 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	);
 	const [newChecklistTitle, setNewChecklistTitle] = useState('');
 
-	// #1285: Klappzustände der beiden Opt-in-Sektionen (KolAccordion, kontrolliert) — beim Öffnen
+	// #1285: Klappzustände der Opt-in-Sektionen (KolAccordion, kontrolliert) — beim Öffnen
 	// immer zugeklappt, einheitlich für Anlegen und Bearbeiten (die #1260-Vorbelegung „Edit mit
 	// gefüllten Werten startet offen“ ist bewusst ersetzt). Kein Auf-/Zuklappen während der Eingabe.
-	// #2361: Im Vorlage-Flow (`lockMode`) startet „Termin & Ort" aufgeklappt — die tragende
-	// Vorbelegung (Schalter aus, „Ohne Rhythmus") ist sonst ohne Antippen unsichtbar.
-	const [scheduleOpen, setScheduleOpen] = useState(lockMode);
-	const [optionalOpen, setOptionalOpen] = useState(false);
-	// #2525 (AK5, bewusste #1285-Ausnahme): „Mehr Angaben“ startet offen genau bei eigenen Werten —
-	// Vorbelegung aus einer Vorlage (`initialValues.pillars`) zählt; im Edit-Flow zählt jede
-	// Abweichung von der Gleichverteilung oder vom Aufwand-Standard 0.5. Anlegen und Standardwerte
-	// (Gleichverteilung + 0.5) starten zugeklappt.
-	const [moreOpen, setMoreOpen] = useState(() => {
+	// #2361: Im Vorlage-Flow (`lockMode`) startet „Termin & Ort“ aufgeklappt — die tragende
+	// Vorbelegung (Schalter aus, „Ohne Rhythmus“) ist sonst ohne Antippen unsichtbar.
+	// #2525 (AK5): Säulen-Verteilung und Aufwand liegen im Sekundär-Abschnitt (PO-Entscheid im
+	// Kreuzverhör zu PR #2577 — kein zweiter `.form-section--secondary`); sein Startzustand folgt
+	// AK5: offen genau bei eigenen Werten, sonst zu.
+	const [scheduleOpen, setScheduleOpen] = useState(() => {
+		if (lockMode) {
+			return true;
+		}
 		const source = isEdit ? (task?.pillars ?? series?.pillars ?? []) : (initialValues?.pillars ?? []);
 		if (!isEdit) {
 			// Vorlage-Flow: gespeicherte Verteilung der Ausgangsaufgabe zählt als eigene Werte.
@@ -604,6 +604,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 		const shares = fillContributions(pillars, source).map((entry) => entry.share);
 		return form.current.estimatedEffort !== 0.5 || !shares.every((share) => share === shares[0]);
 	});
+	const [optionalOpen, setOptionalOpen] = useState(false);
 
 	// #1213 (AK7): Empfängerauswahl — nur im Anlege-Modus, nur wenn der Nutzer in mindestens einer
 	// Gruppe ist; dann mit dem eigenen Konto vorbelegt. `recipientVisible` wird erst nach geladener,
@@ -1476,190 +1477,9 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 						</div>
 					</KolAccordion>
 				</section>
-				{/* #2525: Säulen-Verteilung und Aufwand als Opt-in-Sektion „Mehr Angaben“ — die Priorität bleibt
-				    in den Basisangaben (AK6); ohne Öffnen gelten die Standardwerte weiter (AK2). Bewusste
-				    #1285-Ausnahme (AK5): eigene Werte öffnen die Sektion beim Start.
-				    #2525/AK4: Der Standardwerte-Hinweis liegt außerhalb des Body-Slots (zugeklappt lesbar). */}
-				<section className="form-section form-section--secondary">
-					<KolAccordion
-						_label={t('taskForm.sectionMore')}
-						_level={3}
-						_open={moreOpen}
-						_on={{
-							onClick: (_event, open) => setMoreOpen(open === true),
-						}}
-					>
-						<div className="accordion-body">
-							<div className="range-inputs-row">
-								<KolInputRange
-									/* #1159: Label bewusst kompakt — „Geschätzter Aufwand in Tagen …“ bricht zweizeilig
-											   und versetzt die Slider-Bahnen (V-Spring). */
-									_label={t('taskForm.effortLabel', { value: formatNumber(estimatedEffort) })}
-									_min={0.1}
-									_max={1}
-									_step={0.1}
-									_value={estimatedEffort}
-									_on={{
-										onInput: (_event, value) => {
-											const next = readNumber(value) ?? estimatedEffort;
-											form.current.estimatedEffort = next;
-											setEstimatedEffort(next);
-										},
-										onChange: (_event, value) => {
-											const next = readNumber(value) ?? estimatedEffort;
-											form.current.estimatedEffort = next;
-											setEstimatedEffort(next);
-										},
-									}}
-								/>
-							</div>
-							{/* #1962: Säulen-Verteilung im Hauptsäulen-Modus — die Hauptsäule ist
-							    vorausgewählt (erste Säule), die Restverteilung ist ein übernehmbarer
-							    Vorschlag (Regel-Fallback synchron; der KI-Vorschlag läuft über
-							    „Säulen vorschlagen"). Steht genau eine Beitragszeile (Anteil 100 %).
-							    Ein Reglerzug
-							    zieht die anderen Säulen nach, die Summe bleibt 100 %; unter den
-							    Mindestanteil (5 %) fällt keine Säule, weil jede Aufgabe auf jeden
-							    Lebensbereich einzahlt — nur unterschiedlich stark (#1596). */}
-							{pillars.length === 0 ? (
-								// Die Säulenliste kommt aus dem App-Zustand (`GET /pillars`). Sie ist hier leer, solange
-								// der Abruf läuft — und bleibt es, wenn er fehlschlug. Der Satz gilt in beiden Fällen und
-								// benennt die Folge, statt einen Ladezustand zu behaupten, der womöglich nie endet.
-								<p className="hint">{t('taskForm.noPillars')}</p>
-							) : (
-								<div className="pillar-editor">
-									<div className="pillar-editor-head">
-										<span className="pillar-editor-label">{t('taskForm.pillarDistribution')}</span>
-										{/* #1527: Ohne KI-Berechtigung bleibt der Vorschlag-Button ausgeblendet
-										    — die Regler selbst bleiben unberührt. */}
-										{aiEnabled && (
-											<>
-												<KolButton
-													ref={suggestTriggerRef}
-													_label={suggesting ? t('taskForm.suggestingPillars') : t('taskForm.suggestPillars')}
-													_variant="secondary"
-													_disabled={saving || suggesting}
-													_on={{ onClick: () => void suggestPillars() }}
-												/>
-											</>
-										)}
-									</div>
-									{/* #2074: Säulen-Rangfolge — antippen in Reihenfolge der Wichtigkeit erzeugt
-									    die Treppe 50/20/15/10/5, ein erneuter Tipp nimmt den Rang zurück
-									    (Anlegen und Bearbeiten gleichermaßen). Rang und Anteil stehen als Text
-									    im Label (nie nur Farbe); Speichern bleibt die eine Primäraktion,
-									    daher secondary. */}
-									<div className="pillar-rank-list">
-										{pillars.map((pillar) => {
-											const rank = rankedPillarIds.indexOf(pillar.id);
-											const share = displayedShareById.get(pillar.id) ?? 0;
-											return (
-												<KolButton
-													key={pillar.id}
-													_label={
-														rank >= 0
-															? t('taskForm.pillarRanked', {
-																	rank: rank + 1,
-																	total: pillars.length,
-																	name: pillar.name,
-																	share: formatNumber(share),
-																})
-															: t('taskForm.pillarUnranked', { name: pillar.name, share: formatNumber(share) })
-													}
-													_variant="secondary"
-													_disabled={saving || suggesting}
-													_on={{ onClick: () => togglePillarRank(pillar.id) }}
-												/>
-											);
-										})}
-									</div>
-									{/* #2078: KI-Vorschlag als eigener Block (Muster #1962: Übernehmen/Verwerfen) —
-									    Herkunft als Überschrift, die fünf Anteile als Liste; die Verteilung
-									    ändert sich erst mit „Vorschlag übernehmen“. */}
-									{pillarSuggestion !== null && (
-										<div className="pillar-suggestion-block">
-											<KolHeading _label={t('taskForm.aiSuggestion')} _level={3} />
-											<ul className="pillar-suggestion-shares">
-												{pillarSuggestion.map((entry) => (
-													<li key={entry.pillarId}>
-														{t('taskForm.pillarUnranked', {
-															name: pillarName(entry.pillarId),
-															share: formatNumber(entry.share),
-														})}
-													</li>
-												))}
-											</ul>
-											<div className="pillar-suggestion-actions">
-												<KolButton
-													_label={t('taskForm.applySuggestion')}
-													_variant="secondary"
-													_disabled={saving || suggesting}
-													_on={{ onClick: applyPillarSuggestion }}
-												/>
-												<KolButton
-													_label={t('taskForm.discard')}
-													_variant="secondary"
-													_disabled={saving || suggesting}
-													_on={{ onClick: discardPillarSuggestion }}
-												/>
-											</div>
-										</div>
-									)}
-									{suggesting && (
-										<div className="pillar-editor-loading">
-											<KolSpin _show _variant="cycle" _label={t('taskForm.suggestionLoading')} />
-										</div>
-									)}
-									{suggestError !== null && (
-										<KolAlert _type="error" _label={t('taskForm.suggestionFailed')}>
-											{suggestError}
-										</KolAlert>
-									)}
-									{/* #1984: Säulen-Prozentregler nur im Expertenmodus — die Rangfolge-Tipps
-									    (#2074) bleiben im Standardmodus; gespeicherte Verteilungen bleiben
-									    unangetastet (reine UI-Ausblendung). */}
-									{expertMode &&
-										contributions.map((entry, index) => (
-											<div key={entry.pillarId} className="pillar-row">
-												<KolInputRange
-													_label={t('taskForm.pillarShare', {
-														name: pillarName(entry.pillarId),
-														share: formatNumber(entry.share),
-													})}
-													_min={SHARE_MIN}
-													_max={shareCeiling}
-													_step={SHARE_STEP}
-													_value={entry.share}
-													_on={{
-														onInput: (_event, value) => setShare(index, readNumber(value)),
-														onChange: (_event, value) => setShare(index, readNumber(value)),
-													}}
-												/>
-											</div>
-										))}
-									{/* #1596-Fixup: `aria-live` für die gekoppelten Regler — analog zu
-									    `PillarWeightsForm.tsx`, dort gab es nie eine Live-Region für diesen Block. */}
-									<p aria-live="polite" className="visually-hidden">
-										{/* #2078: Ankündigung des Blocks (ohne Fokuswechsel) und Rückkehr-Hinweis,
-										    wenn ein Tipp eine übernommene KI-Verteilung zur Treppe zurücksetzt. */}
-										{pillarSuggestion !== null ? t('taskForm.suggestionArrived') : ''}
-										{rankReturnNotice ? t('taskForm.rankReturn') : ''}
-										{contributions
-											.map((entry) =>
-												t('taskForm.pillarShare', {
-													name: pillarName(entry.pillarId),
-													share: formatNumber(entry.share),
-												}),
-											)
-											.join(', ')}
-									</p>
-								</div>
-							)}
-						</div>
-					</KolAccordion>
-					{!moreOpen && <p className="hint hint--fold">{t('taskForm.moreDefaultsHint')}</p>}
-				</section>
 				{/* #1159: Sekundärgruppe — Termin (Deadline bzw. Startdatum/Rhythmus) und Ort
+				    #2525 (Fixup): Säulen-Verteilung und Aufwand liegen mit im Body (PO-Entscheid im
+				    Kreuzverhör zu PR #2577 — kein zweiter `.form-section--secondary`).
 				    (Adresse) als abgetrennte zweite Einheit. #1260: als KolAccordion standardmäßig
 				    zugeklappt (AK2) — der Trigger beschriftet die Sektion selbst, daher entfällt die
 				    separate Gruppen-Überschrift. */}
@@ -1894,6 +1714,171 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 										{t('taskForm.noCoords')}
 									</div>
 								))}
+							<div className="range-inputs-row">
+								<KolInputRange
+									/* #1159: Label bewusst kompakt — „Geschätzter Aufwand in Tagen …“ bricht zweizeilig
+											   und versetzt die Slider-Bahnen (V-Spring). */
+									_label={t('taskForm.effortLabel', { value: formatNumber(estimatedEffort) })}
+									_min={0.1}
+									_max={1}
+									_step={0.1}
+									_value={estimatedEffort}
+									_on={{
+										onInput: (_event, value) => {
+											const next = readNumber(value) ?? estimatedEffort;
+											form.current.estimatedEffort = next;
+											setEstimatedEffort(next);
+										},
+										onChange: (_event, value) => {
+											const next = readNumber(value) ?? estimatedEffort;
+											form.current.estimatedEffort = next;
+											setEstimatedEffort(next);
+										},
+									}}
+								/>
+							</div>
+							{/* #1962: Säulen-Verteilung im Hauptsäulen-Modus — die Hauptsäule ist
+							    vorausgewählt (erste Säule), die Restverteilung ist ein übernehmbarer
+							    Vorschlag (Regel-Fallback synchron; der KI-Vorschlag läuft über
+							    „Säulen vorschlagen"). Steht genau eine Beitragszeile (Anteil 100 %).
+							    Ein Reglerzug
+							    zieht die anderen Säulen nach, die Summe bleibt 100 %; unter den
+							    Mindestanteil (5 %) fällt keine Säule, weil jede Aufgabe auf jeden
+							    Lebensbereich einzahlt — nur unterschiedlich stark (#1596). */}
+							{pillars.length === 0 ? (
+								// Die Säulenliste kommt aus dem App-Zustand (`GET /pillars`). Sie ist hier leer, solange
+								// der Abruf läuft — und bleibt es, wenn er fehlschlug. Der Satz gilt in beiden Fällen und
+								// benennt die Folge, statt einen Ladezustand zu behaupten, der womöglich nie endet.
+								<p className="hint">{t('taskForm.noPillars')}</p>
+							) : (
+								<div className="pillar-editor">
+									<div className="pillar-editor-head">
+										<span className="pillar-editor-label">{t('taskForm.pillarDistribution')}</span>
+										{/* #1527: Ohne KI-Berechtigung bleibt der Vorschlag-Button ausgeblendet
+										    — die Regler selbst bleiben unberührt. */}
+										{aiEnabled && (
+											<>
+												<KolButton
+													ref={suggestTriggerRef}
+													_label={suggesting ? t('taskForm.suggestingPillars') : t('taskForm.suggestPillars')}
+													_variant="secondary"
+													_disabled={saving || suggesting}
+													_on={{ onClick: () => void suggestPillars() }}
+												/>
+											</>
+										)}
+									</div>
+									{/* #2074: Säulen-Rangfolge — antippen in Reihenfolge der Wichtigkeit erzeugt
+									    die Treppe 50/20/15/10/5, ein erneuter Tipp nimmt den Rang zurück
+									    (Anlegen und Bearbeiten gleichermaßen). Rang und Anteil stehen als Text
+									    im Label (nie nur Farbe); Speichern bleibt die eine Primäraktion,
+									    daher secondary. */}
+									<div className="pillar-rank-list">
+										{pillars.map((pillar) => {
+											const rank = rankedPillarIds.indexOf(pillar.id);
+											const share = displayedShareById.get(pillar.id) ?? 0;
+											return (
+												<KolButton
+													key={pillar.id}
+													_label={
+														rank >= 0
+															? t('taskForm.pillarRanked', {
+																	rank: rank + 1,
+																	total: pillars.length,
+																	name: pillar.name,
+																	share: formatNumber(share),
+																})
+															: t('taskForm.pillarUnranked', { name: pillar.name, share: formatNumber(share) })
+													}
+													_variant="secondary"
+													_disabled={saving || suggesting}
+													_on={{ onClick: () => togglePillarRank(pillar.id) }}
+												/>
+											);
+										})}
+									</div>
+									{/* #2078: KI-Vorschlag als eigener Block (Muster #1962: Übernehmen/Verwerfen) —
+									    Herkunft als Überschrift, die fünf Anteile als Liste; die Verteilung
+									    ändert sich erst mit „Vorschlag übernehmen“. */}
+									{pillarSuggestion !== null && (
+										<div className="pillar-suggestion-block">
+											<KolHeading _label={t('taskForm.aiSuggestion')} _level={3} />
+											<ul className="pillar-suggestion-shares">
+												{pillarSuggestion.map((entry) => (
+													<li key={entry.pillarId}>
+														{t('taskForm.pillarUnranked', {
+															name: pillarName(entry.pillarId),
+															share: formatNumber(entry.share),
+														})}
+													</li>
+												))}
+											</ul>
+											<div className="pillar-suggestion-actions">
+												<KolButton
+													_label={t('taskForm.applySuggestion')}
+													_variant="secondary"
+													_disabled={saving || suggesting}
+													_on={{ onClick: applyPillarSuggestion }}
+												/>
+												<KolButton
+													_label={t('taskForm.discard')}
+													_variant="secondary"
+													_disabled={saving || suggesting}
+													_on={{ onClick: discardPillarSuggestion }}
+												/>
+											</div>
+										</div>
+									)}
+									{suggesting && (
+										<div className="pillar-editor-loading">
+											<KolSpin _show _variant="cycle" _label={t('taskForm.suggestionLoading')} />
+										</div>
+									)}
+									{suggestError !== null && (
+										<KolAlert _type="error" _label={t('taskForm.suggestionFailed')}>
+											{suggestError}
+										</KolAlert>
+									)}
+									{/* #1984: Säulen-Prozentregler nur im Expertenmodus — die Rangfolge-Tipps
+									    (#2074) bleiben im Standardmodus; gespeicherte Verteilungen bleiben
+									    unangetastet (reine UI-Ausblendung). */}
+									{expertMode &&
+										contributions.map((entry, index) => (
+											<div key={entry.pillarId} className="pillar-row">
+												<KolInputRange
+													_label={t('taskForm.pillarShare', {
+														name: pillarName(entry.pillarId),
+														share: formatNumber(entry.share),
+													})}
+													_min={SHARE_MIN}
+													_max={shareCeiling}
+													_step={SHARE_STEP}
+													_value={entry.share}
+													_on={{
+														onInput: (_event, value) => setShare(index, readNumber(value)),
+														onChange: (_event, value) => setShare(index, readNumber(value)),
+													}}
+												/>
+											</div>
+										))}
+									{/* #1596-Fixup: `aria-live` für die gekoppelten Regler — analog zu
+									    `PillarWeightsForm.tsx`, dort gab es nie eine Live-Region für diesen Block. */}
+									<p aria-live="polite" className="visually-hidden">
+										{/* #2078: Ankündigung des Blocks (ohne Fokuswechsel) und Rückkehr-Hinweis,
+										    wenn ein Tipp eine übernommene KI-Verteilung zur Treppe zurücksetzt. */}
+										{pillarSuggestion !== null ? t('taskForm.suggestionArrived') : ''}
+										{rankReturnNotice ? t('taskForm.rankReturn') : ''}
+										{contributions
+											.map((entry) =>
+												t('taskForm.pillarShare', {
+													name: pillarName(entry.pillarId),
+													share: formatNumber(entry.share),
+												}),
+											)
+											.join(', ')}
+									</p>
+								</div>
+							)}
 							{pendingLektorat !== null && (
 								<LektoratDiffModal
 									original={pendingLektorat.original}
@@ -1909,6 +1894,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 							)}
 						</div>
 					</KolAccordion>
+					{!scheduleOpen && <p className="hint hint--fold">{t('taskForm.moreDefaultsHint')}</p>}
 				</section>
 			</div>
 			{/* #1159: Optional-Bereich — Säulen, Beschreibung, Checkliste ohne eigene Fläche; die
