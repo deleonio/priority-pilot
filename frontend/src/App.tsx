@@ -1042,6 +1042,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			if (markingDone && shouldCelebrateDone(task.status, TaskStatus.Done)) {
 				launchConfetti();
 			}
+			// #2522: Selbst-Lader-Karten (u. a. Fürsorge-Hinweis) laden nach dem Erledigen neu —
+			// einmal im gemeinsamen Trichter (CompleteTaskDialog + Signal-Panel); idempotent.
+			notifyTasksChanged();
 		},
 		[],
 	);

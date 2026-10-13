@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CareHint } from './CareHint';
 // #2063: i18n läuft echt (vitest.setup.ts pinnt `de`) — die Sprach-Tests wechseln selbst.
 import i18next from '../i18n/config';
+import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
 
 /**
  * Spec-Tests für den Fürsorge-Hinweis (AK1–AK6, AK8, #1793): lädt die Vorschläge selbst über
@@ -572,5 +573,67 @@ describe('#1977 „Nicht jetzt“ mit Grund (docs/spec/issue-1977.md)', () => {
 		await waitFor(() => expect(hint()).toBeNull());
 		expect(screen.queryByRole('radiogroup')).toBeNull();
 		expect(rejectCareSuggestion).not.toHaveBeenCalled();
+	});
+});
+
+describe('#2522 Aktualisierung nach Erledigen (docs/spec/issue-2522.md)', () => {
+	beforeEach(() => {
+		window.localStorage.clear();
+		listPillars.mockResolvedValue([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }]);
+	});
+
+	afterEach(() => {
+		cleanup();
+		vi.clearAllMocks();
+	});
+
+	// ROT (Spec docs/spec/issue-2522.md): CareHint hört noch nicht auf TASKS_CHANGED_EVENT —
+	// der Event wird dispatcht, aber getCareSuggestions bleibt beim Mount-Aufruf.
+	it('AK1: nach dem Event lädt der Hinweis neu — der erledigte Vorschlag ist weg', async () => {
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [eigene] });
+		render(<CareHint />);
+		await zeigeHinweis();
+		expect(hint()?.textContent).toContain('Fahrrad reparieren');
+
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
+		window.dispatchEvent(new Event(TASKS_CHANGED_EVENT));
+
+		await waitFor(() => expect(getCareSuggestions).toHaveBeenCalledTimes(2));
+		await waitFor(() => expect(hint()?.textContent).not.toContain('Fahrrad reparieren'));
+		expect(hint()?.textContent).toContain('Ein kurzer Spaziergang an der frischen Luft');
+	});
+
+	it('AK2: leere Folgeantwort → Leerzustand wie nach einem Reload', async () => {
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [eigene] });
+		render(<CareHint />);
+		await zeigeHinweis();
+
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [] });
+		window.dispatchEvent(new Event(TASKS_CHANGED_EVENT));
+
+		await waitFor(() => expect(hint()?.textContent).toContain('Gerade gibt es keinen Vorschlag für dich.'));
+		expect(screen.queryByRole('button', { name: 'Vorschlag übernehmen' })).toBeNull();
+	});
+
+	it('AK3: andere Aufgabe erledigt — Vorschlag bleibt während und nach der Antwort stehen', async () => {
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
+		render(<CareHint />);
+		await zeigeHinweis();
+
+		// Antwort des Neuladens kontrolliert freigeben: bis dahin muss der alte Hinweis stehen
+		// (kein undefined-Zwischenstand), danach derselbe Text ohne Flackern.
+		let antwort!: () => void;
+		getCareSuggestions.mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					antwort = () => resolve({ vorschlaege: [vorlage] });
+				}),
+		);
+		window.dispatchEvent(new Event(TASKS_CHANGED_EVENT));
+		await waitFor(() => expect(getCareSuggestions).toHaveBeenCalledTimes(2));
+
+		expect(hint()?.textContent).toContain('Ein kurzer Spaziergang an der frischen Luft');
+		antwort();
+		await waitFor(() => expect(hint()?.textContent).toContain('Ein kurzer Spaziergang an der frischen Luft'));
 	});
 });

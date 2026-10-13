@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { fillContributions } from '../lib/pillar';
+import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
 
 const TAG_MS = 24 * 60 * 60 * 1000;
 /** Spiegel von `CARE_ABLEHNUNG_TAGE` (`server/src/logics/careSuggestions.ts`) — der Server kennt nur Vorlagen-Ablehnungen. */
@@ -68,7 +69,8 @@ const endeDesTages = (jetzt: Date): number =>
  * Aktionsreihe (nichts anzunehmen oder abzulehnen, kein Nachrücken, kein Dismissal). Ein
  * KI-Vorschlag (`typ: 'ki'`, #1873) trägt die Kennzeichnung „KI-Vorschlag“.
  * Lädt selbst (Muster `DayDoneHint`); bis zur Antwort und bei Ladefehler wird nichts gerendert,
- * damit „Nächste Aufgabe“ nicht springt.
+ * damit „Nächste Aufgabe“ nicht springt. Auf `TASKS_CHANGED_EVENT` (#2522) lädt er wie beim Mount
+ * neu — bis zur Antwort bleibt der alte Hinweis stehen.
  *
  * „Nicht jetzt“ (#1977) öffnet eine Inline-Grundauswahl (fünf Gründe, ersetzt die Aktionsreihe):
  * mit Grund geht ein `POST …/rejections` je Aufgabe/Vorlage, ohne Grund wird nur übersprungen —
@@ -93,6 +95,17 @@ export const CareHint = () => {
 	// Leerzustand erst zeigen, wenn eine „Nicht jetzt“-Aktion die Liste leert — ein frischer Mount
 	// mit nur unterdrückten Vorschlägen bleibt unsichtbar (bestehender #1793-Vertrag).
 	const [leerzustand, setLeerzustand] = useState(false);
+	// #2522: Refresh-Key auf TASKS_CHANGED_EVENT (Muster NearbyCard) — Erledigen auf dem Dashboard
+	// lässt den Hinweis wie beim Mount neu laden.
+	const [refreshKey, setRefreshKey] = useState(0);
+
+	useEffect(() => {
+		const onTasksChanged = () => setRefreshKey((key) => key + 1);
+		window.addEventListener(TASKS_CHANGED_EVENT, onTasksChanged);
+		return () => {
+			window.removeEventListener(TASKS_CHANGED_EVENT, onTasksChanged);
+		};
+	}, []);
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -105,7 +118,7 @@ export const CareHint = () => {
 			.then((result) => setSaeulen(result))
 			.catch(() => undefined);
 		return () => controller.abort();
-	}, []);
+	}, [refreshKey]);
 
 	if (vorschlaege === undefined || ausgeblendet) {
 		return null;
