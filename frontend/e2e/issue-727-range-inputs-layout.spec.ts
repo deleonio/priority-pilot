@@ -4,9 +4,9 @@ import { openAccordionSection, waitForStableView } from './helpers';
 /**
  * E2E-Layout-Tests für #727 „Range-Inputs bei schmalen Bildschirmen übereinander anzeigen".
  *
- * Anordnung seit #2525 (Fixup PR #2577): Die Priorität liegt in der Titelzeile der
- * Basisangaben (ab 769 px neben dem Titel, darunter bricht sie unter den Titel), der
- * Aufwand-Slider im gefalteten Sekundär-Abschnitt „Termin & Ort" — die Tests klappen ihn
+ * Anordnung seit #2525 (Fixup PR #2577, Runde 3): Die Priorität liegt als eigene Zeile unter
+ * dem Titel der Basisangaben (#761 AK1: das Titelfeld füllt seine Zeile allein), der
+ * Aufwand-Slider im gefalteten Sekundär-Abschnitt „Termin & Ort“ — die Tests klappen ihn
  * vor der Prüfung auf.
  *
  * Spezifikation: docs/spec/issue-727.md. Die ursprüngliche AK3-Erwartung „nebeneinander

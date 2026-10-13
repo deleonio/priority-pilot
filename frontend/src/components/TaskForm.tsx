@@ -1418,30 +1418,30 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 										/>
 									</>
 								)}
-								{/* #727/#1159 (Fixup #2525): Die Priorität teilt die Titelzeile — ab 769 px stehen Titel
-								    und Slider auf gemeinsamer Top-Kante (#1159 AK4, Fluchtung ≤ 2 px), darunter bricht
-								    der Slider unter den Titel. Der Aufwand-Slider liegt im Sekundär-Abschnitt. */}
-								<div className="range-inputs-row">
-									<KolInputRange
-										_label={t('taskForm.priorityLabel', { value: formatNumber(priority) })}
-										_min={1}
-										_max={5}
-										_step={1}
-										_value={priority}
-										_on={{
-											onInput: (_event, value) => {
-												const next = readNumber(value) ?? priority;
-												form.current.priority = next;
-												setPriority(next);
-											},
-											onChange: (_event, value) => {
-												const next = readNumber(value) ?? priority;
-												form.current.priority = next;
-												setPriority(next);
-											},
-										}}
-									/>
-								</div>
+							</div>
+							{/* #727/#1159 (Fixup #2525, PO-Korrektur Runde 3): Die Priorität steht als eigene Zeile
+							    unter dem Titel — #761 (AK1) verlangt für das Titelfeld die volle Zeilenbreite. Der
+							    Aufwand-Slider liegt im Sekundär-Abschnitt. */}
+							<div className="range-inputs-row">
+								<KolInputRange
+									_label={t('taskForm.priorityLabel', { value: formatNumber(priority) })}
+									_min={1}
+									_max={5}
+									_step={1}
+									_value={priority}
+									_on={{
+										onInput: (_event, value) => {
+											const next = readNumber(value) ?? priority;
+											form.current.priority = next;
+											setPriority(next);
+										},
+										onChange: (_event, value) => {
+											const next = readNumber(value) ?? priority;
+											form.current.priority = next;
+											setPriority(next);
+										},
+									}}
+								/>
 							</div>
 							{/* #1213 (AK7): Empfängerauswahl — nur mit mindestens einer Gruppe, vorbelegt mit
 					    dem eigenen Konto; #1222 (AK8): auch im Serie-Modus; #1252 (AK9): auch im

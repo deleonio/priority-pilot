@@ -12,7 +12,7 @@ import {
  * E2E-Layout-Tests für #1159 „Layout-Optimierung Aufgaben-Formular" + #1285
  * „TaskForm-Sektionen als Accordion-Behälter ohne Kartenfläche".
  *
- * Contract: docs/spec/issue-1159.md (AK4-Fluchtung, AK5-Gruppenabstand),
+ * Contract: docs/spec/issue-1159.md (AK4-Prioritätsposition, AK5-Gruppenabstand),
  * docs/spec/issue-1285.md (AK1–AK5).
  *
  * Gemessen wird über Bounding-Boxes und getComputedStyle — nicht per `scrollWidth`,
@@ -109,10 +109,14 @@ test.describe('#1285 TaskForm-Sektionen als Accordions', () => {
 		await expect(page.locator('[data-testid="task-description"]')).not.toBeVisible();
 	});
 
-	// #1159 AK4: 1280px — Titel und die Felder der .range-inputs-row teilen dieselbe Top-Kante
-	// (≤ 2px Versatz). Fixup #2525 (PO-Entscheid): die Priorität ist als einziges Row-Feld in der
-	// Primärgruppe verblieben, der Aufwand-Slider liegt im gefalteten Sekundär-Abschnitt.
-	test('#1159 AK4 — 1280px: Titel und Range-Feld der Primärgruppe fluchten (≤ 2px)', async ({ page }) => {
+	// #1159 AK4 (ersetzt per PO-Entscheid, Kreuzverhör PR #2577 Runde 3): Der Aufwand-Slider
+	// liegt nicht mehr in der Primärgruppe — „Titel und Range-Feld auf einer Höhe“ hat seinen
+	// Gegenstand verloren (#761 AK1 hat Vorrang: das Titelfeld füllt seine Zeile allein).
+	// Neue Erwartung: Die Priorität steht unter dem Titel und beginnt bündig am linken Rand
+	// der Primärgruppe (≤ 2px Versatz).
+	test('#1159 AK4 — 1280px: Priorität unter dem Titel, bündig am linken Rand der Primärgruppe (≤ 2px)', async ({
+		page,
+	}) => {
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await openForm(page);
 
@@ -120,10 +124,15 @@ test.describe('#1285 TaskForm-Sektionen als Accordions', () => {
 		const priorityRange = primary(page).locator('kol-input-range').first();
 		await waitForStableBox(page, priorityRange);
 		const priorityBox = await priorityRange.boundingBox();
+		const primaryBox = await primary(page).boundingBox();
 
 		expect(titleBox).not.toBeNull();
 		expect(priorityBox).not.toBeNull();
-		expect(Math.abs(titleBox!.y - priorityBox!.y)).toBeLessThanOrEqual(2);
+		expect(primaryBox).not.toBeNull();
+		// Unter dem Titel (nicht mehr in der Titelzeile).
+		expect(priorityBox!.y).toBeGreaterThanOrEqual(titleBox!.y + titleBox!.height - 1);
+		// Bündig am linken Rand der Primärgruppe.
+		expect(Math.abs(priorityBox!.x - primaryBox!.x)).toBeLessThanOrEqual(2);
 	});
 
 	// #1159 AK5 (unverändert gültig): exakt 768px — Abstand zwischen Primär- und

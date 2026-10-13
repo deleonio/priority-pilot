@@ -4110,21 +4110,6 @@ main:focus {
 	}
 }
 
-/* #1159 AK4 (Fixup #2525): Die Priorität teilt die Titelzeile des Basisangaben-Akkordeons —
-   ab 769 px stehen Titel und Slider auf gemeinsamer Top-Kante (Fluchtung ≤ 2 px), darunter
-   bricht der Slider mit Flex-Wrap unter den Titel. Die einst zweispaltige .range-inputs-row
-   der Primärgruppe trägt nur noch dieses eine Feld (der Aufwand-Slider liegt im
-   Sekundär-Abschnitt). */
-.title-fields-row > .range-inputs-row {
-	flex: 1 1 100%;
-}
-
-@media (min-width: 769px) {
-	.title-fields-row > .range-inputs-row {
-		flex: 0 1 340px;
-	}
-}
-
 /* --- #934: Mindestbreite der Range-Felder --- */
 /* Slider + Zahlenfeld innerhalb der KolInputRange brechen unter ~300 px Host-Breite um. Die
    Mindestbreite gilt global für alle Verwendungsstellen (Säulen-Gewichtung, TaskForm, Dependency-
