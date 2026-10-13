@@ -75,9 +75,10 @@ interface WeekViewProps {
  * zugeordneten Aufgaben.
  *
  * Zuordnung je Tag:
- * - **Manuell geplant**: Aufgaben (offen und erledigt, #2012), deren `deadline` auf den jeweiligen
- *   Kalendertag fällt (dieselbe UTC-Tageskonvention wie die Deadline-Liste im Dashboard); erledigte
- *   erscheinen unter den offenen, klar abgesetzt (`week-view-done`).
+ * - **Manuell geplant**: offene Aufgaben am Deadline-Tag (#1617, dieselbe UTC-Tageskonvention wie
+ *   die Deadline-Liste im Dashboard); erledigte Aufgaben (#2574) am Tag des Abhakens (`completedAt`,
+ *   serverseitig aus `ScoreEntry.zeitpunkt` abgeleitet), klar abgesetzt (`week-view-done`) — nur
+ *   ohne Erledigt-Zeitpunkt (kein ScoreEntry, Edge) weiter am Deadline-Tag (#2012).
  * - **Systemisch empfohlen**: die `suggestions`-Liste (`GET /suggestions`) gehört ausschließlich zum
  *   heutigen Tag (`referenceDate`) — die Empfehlungs-Engine (`server/src/logics/find.ts`) bewertet
  *   grundsätzlich nur den aktuellen Zeitpunkt (Prioritäts-/Deadline-/Balance-Score gegen den globalen
@@ -96,10 +97,27 @@ export const WeekView = ({
 	const today = useMemo(() => referenceDate ?? new Date(), [referenceDate]);
 	const weekDates = useMemo(() => weekDatesFor(today), [today]);
 
-	const tasksWithDeadline = useMemo(
-		() => tasks.filter((task): task is Task & { deadline: Date } => task.deadline != null),
+	// Offene Aufgaben bleiben am Deadline-Tag (#1617/#2012); erledigte ordnet `doneAnchorOf` zu (#2574).
+	const openTasksWithDeadline = useMemo(
+		() =>
+			tasks.filter(
+				(task): task is Task & { deadline: Date } => task.status !== TaskStatus.Done && task.deadline != null,
+			),
 		[tasks],
 	);
+
+	/**
+	 * Kalendertag einer erledigten Aufgabe (#2574): der Tag des Abhakens (`completedAt`, serverseitig
+	 * aus `ScoreEntry.zeitpunkt` abgeleitet) — nicht mehr der Deadline-Tag. Ohne Erledigt-Zeitpunkt
+	 * (kein ScoreEntry, Edge) gilt weiter der Deadline-Tag (#2012-Verhalten).
+	 */
+	const doneTasks = useMemo(() => tasks.filter((task) => task.status === TaskStatus.Done), [tasks]);
+	const doneAnchorOf = (task: Task): Date | null => {
+		if (task.completedAt) {
+			return new Date(task.completedAt);
+		}
+		return task.deadline != null ? new Date(task.deadline) : null;
+	};
 
 	/**
 	 * Ein Empfehlungs-Datum gehört unter „heute", wenn es entweder gar keine Deadline hat ODER seine
@@ -120,10 +138,12 @@ export const WeekView = ({
 			<div className="week-view-grid">
 				{weekDates.map((day, index) => {
 					const isToday = sameUtcDay(day, today);
-					const dayTasks = tasksWithDeadline.filter((task) => sameUtcDay(task.deadline, day));
-					// #2012: erledigte Aufgaben erscheinen unter den offenen — erst offene, dann Done.
-					const openDayTasks = dayTasks.filter((task) => task.status !== TaskStatus.Done);
-					const doneDayTasks = dayTasks.filter((task) => task.status === TaskStatus.Done);
+					// #2012/#2574: erst die offenen Aufgaben am Deadline-Tag, dann die erledigten am Erledigt-Tag.
+					const openDayTasks = openTasksWithDeadline.filter((task) => sameUtcDay(task.deadline, day));
+					const doneDayTasks = doneTasks.filter((task) => {
+						const anchor = doneAnchorOf(task);
+						return anchor !== null && sameUtcDay(anchor, day);
+					});
 					// Ganztägige Termine zuerst, sonst in der Reihenfolge der API (nach Start sortiert).
 					const dayEvents = calendarEvents
 						.filter((event) => eventOnDay(event, day))

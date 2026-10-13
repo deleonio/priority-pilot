@@ -180,6 +180,9 @@ export const serializeTask = (task: Task, context: TaskSerializeContext = {}): T
 		latitude: task.latitude ?? null,
 		longitude: task.longitude ?? null,
 		deadline: task.deadline ? task.deadline.toISOString() : null,
+		// #2574: Erledigt-Zeitpunkt aus dem eager-geladenen ScoreEntry — `null`, solange offen; nach
+		// „Wieder öffnen“ wieder null (der Reopen-Pfad zerstört den ScoreEntry).
+		completedAt: task.ScoreEntry ? task.ScoreEntry.zeitpunkt.toISOString() : null,
 		autoDeleteAfterDeadline: task.autoDeleteAfterDeadline ?? false,
 		// Verschiebe-Zähler + Archiv (#1964).
 		postponeCount: task.postponeCount ?? 0,
@@ -562,7 +565,7 @@ const replaceContributions = (
 	);
 
 /** Lädt einen Task inkl. seiner Säulen-Beiträge (für die Serialisierung). */
-const findTaskWithPillars = (id: number): Promise<Task | null> => Task.findByPk(id, { include: [Pillar] });
+const findTaskWithPillars = (id: number): Promise<Task | null> => Task.findByPk(id, { include: [Pillar, ScoreEntry] });
 
 /**
  * Vergibt beim Statuswechsel auf `Done` einen Gamification-`ScoreEntry` (Konzept §4.4) — genau
@@ -634,7 +637,7 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 							}
 						: {}),
 				},
-				include: [Pillar],
+				include: [Pillar, ScoreEntry],
 			});
 			res.json(await serializeTasksFor(req, tasks));
 		} catch (error) {
@@ -879,7 +882,8 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 		const id = parseId(req.params.id);
 		const userId = getUserId(req);
 		// Nur eigene Tasks sind auffindbar (Datenisolation, #207) — fremde → 404.
-		const task = id === null ? null : await Task.findOne({ where: { id, ...ownerScope(userId) }, include: [Pillar] });
+		const task =
+			id === null ? null : await Task.findOne({ where: { id, ...ownerScope(userId) }, include: [Pillar, ScoreEntry] });
 		if (!task) {
 			sendError(res, 404, 'Task nicht gefunden.');
 			return;
