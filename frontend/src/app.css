@@ -2427,16 +2427,12 @@ kol-toolbar {
 	margin-bottom: var(--pp-space-5);
 }
 
-/* #2525/AK1: Der gefaltete Sekundär-Abschnitt hält den Dialog kurz — bei ≤767 px auf den
-   Inter-Gruppen-Rhythmus verdichtet (Lücken 16 px statt 24 px, Sektions-Unterkanten ebenso),
+/* #2525/AK1: Der gefaltete Sekundär-Abschnitt hält den Dialog kurz — die Sektionsabstände
+   bleiben unangetastet (24 px, #1159-Design-Lauf); bei ≤767 px wird nur verdichtet, was
+   unterhalb des letzten Abschnitts liegt (Optional-Unterkante, Falt-Hinweis, Modus-Schalter),
    damit der Speichern-Knopf bei 375×812 ohne Scrollen im Viewport liegt. Desktop bleibt
    unberührt. */
 @media (max-width: 767px) {
-	.form-grid--sections {
-		gap: var(--pp-gap-base);
-		margin-bottom: var(--pp-gap-base);
-	}
-
 	.modal-body section.form-section--optional {
 		margin-bottom: var(--pp-gap-base);
 	}
@@ -4111,6 +4107,21 @@ main:focus {
 	   ein umgebendes Sektions-Polster (#1159-Karte) die Zeile verkleinert. */
 	.range-inputs-row > kol-input-range {
 		flex: 1 1 0;
+	}
+}
+
+/* #1159 AK4 (Fixup #2525): Die Priorität teilt die Titelzeile des Basisangaben-Akkordeons —
+   ab 769 px stehen Titel und Slider auf gemeinsamer Top-Kante (Fluchtung ≤ 2 px), darunter
+   bricht der Slider mit Flex-Wrap unter den Titel. Die einst zweispaltige .range-inputs-row
+   der Primärgruppe trägt nur noch dieses eine Feld (der Aufwand-Slider liegt im
+   Sekundär-Abschnitt). */
+.title-fields-row > .range-inputs-row {
+	flex: 1 1 100%;
+}
+
+@media (min-width: 769px) {
+	.title-fields-row > .range-inputs-row {
+		flex: 0 1 340px;
 	}
 }
 
