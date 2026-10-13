@@ -414,3 +414,13 @@ export const CARE_GENERISCH: Record<CareSprache, VorlagenText> = {
 		beschreibung: 'Give “{name}” a small moment today – even five minutes count.',
 	},
 };
+
+/**
+ * Ermutigungs-Satz unter der Überlast-Mindestmenge (#2521) — Lob-Variante des Ton-Leitfadens
+ * (`docs/fuersorge-tonalitaet.md`): die erledigte Aufgabe anerkennen, du-Form, kein Vorschlag.
+ * Der Satz reist im `titel` des CareVorschlag (`beschreibung` bleibt leer).
+ */
+export const CARE_ERMUTIGUNG: Record<CareSprache, string> = {
+	de: 'Schön, dass du heute etwas für deine Balance getan hast – das zählt.',
+	en: 'Nice work doing something for your balance today – it counts.',
+};

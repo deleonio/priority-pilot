@@ -31,8 +31,8 @@ import {
 	type CareAufgabe,
 	type CareVorlage,
 } from '../../logics/careSuggestions.js';
-import { CARE_SPRACHEN, spracheAusHeader, type CareSprache } from '../../logics/careSuggestionData.js';
-import { bewerteCareDefizit } from '../../logics/careDeficit.js';
+import { CARE_ERMUTIGUNG, CARE_SPRACHEN, spracheAusHeader, type CareSprache } from '../../logics/careSuggestionData.js';
+import { bewerteCareDefizit, UEBERLAST_MINDEST_ERLEDIGUNGEN, zaehleErledigungen } from '../../logics/careDeficit.js';
 import { protokolliereCareReaktion } from '../../logics/careWirkung.js';
 import type { components } from '../../api';
 
@@ -643,6 +643,8 @@ const createKiVorschlagErmittler = (advisor: ActivityAdvisor) => {
 // drei Einträge — zuerst eigene offene Aufgaben dieser Säule, sonst kuratierte Vorlagen aus
 // `careSuggestionData.ts`. Meldet `bewerteCareDefizit` Überlast, stehen davor Erholungsvorschläge
 // (`anlass: 'ueberlast'`, #1795). `?sprache=` wählt die Sprache der Vorlagen-Texte (Default `Accept-Language`, sonst `de`).
+// Unter der Überlast-Mindestmenge (#2521) steht bei 1–2 Erledigungen der Ermutigungs-Satz vorn
+// (`anlass: 'ermutigung'`, ohne Aktionsbasis).
 // Gilt vollständig im Free-Paket (Epic #1780) — bewusst ohne planGuard; Plus/Pro erhalten bei einem
 // Defizit ohne Überlast zusätzlich einen KI-Vorschlag an erster Stelle (#1804, #1873,
 // `createKiVorschlagErmittler`). Gescopet wie
@@ -705,6 +707,28 @@ export const createCareSuggestionsRouter = (advisor: ActivityAdvisor = adviseAct
 					jetzt,
 				);
 
+				// #2521: 1–2 Erledigungen im jüngeren Fenster sind zu wenig für eine Überlast-Einstufung —
+				// statt Ausgleich zu fordern, ermutigt der erste Eintrag (CareHint zeigt nur den ersten, ohne
+				// Aktionsreihe); bei 0 Erledigungen bleibt alles beim Defizit-Verhalten.
+				const erledigungen = zaehleErledigungen(
+					tasks.map((task) => ({ status: task.status, erledigtAm: zeitpunktProTask.get(task.id) ?? null })),
+					jetzt,
+				);
+				const ermutigung: CareVorschlagDto[] =
+					erledigungen > 0 && erledigungen < UEBERLAST_MINDEST_ERLEDIGUNGEN
+						? [
+								{
+									typ: 'vorlage',
+									titel: CARE_ERMUTIGUNG[sprache],
+									beschreibung: null,
+									saeuleId: 0,
+									saeuleName: '',
+									saeulenBeitraege: [],
+									anlass: 'ermutigung',
+								},
+							]
+						: [];
+
 				const ablehnungenDto = ablehnungen.map((ablehnung) => ({
 					templateKey: ablehnung.templateKey,
 					abgelehntAm: ablehnung.abgelehntAm,
@@ -750,7 +774,7 @@ export const createCareSuggestionsRouter = (advisor: ActivityAdvisor = adviseAct
 					erholung.length > 0
 						? undefined
 						: await ermittleKiVorschlag(userId, ersteDefizitSaeule, saeulen, aufgaben, jetzt, sprache);
-				const vorschlaege = [...erholung, ...(ki ? [ki] : []), ...defizitVorschlaege];
+				const vorschlaege = [...ermutigung, ...erholung, ...(ki ? [ki] : []), ...defizitVorschlaege];
 
 				// #1798 AK1: angezeigte Vorlagen anonym zählen (je Nutzer, Vorlage und Woche einmal).
 				const angezeigt = vorschlaege.flatMap((v) => (v.typ === 'vorlage' && v.templateKey ? [v.templateKey] : []));

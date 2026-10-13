@@ -70,14 +70,26 @@ describe('bewerteCareDefizit (#1790)', () => {
 		assert.equal(bericht.find((s) => s.id === 3)?.trend, 'stabil');
 	});
 
-	it('AK3: Anteil am erledigten Aufwand über der Schwelle → ueberlast (strikt größer)', () => {
-		// Jüngeres Fenster: Körper 8, Geist 2 → 80 % bzw. 20 %.
-		const tasks: TaskFixture[] = [task(1, 8, 2 * TAG_MS), task(2, 2, 2 * TAG_MS)];
+	it('AK3: Anteil am erledigten Aufwand über der Schwelle → ueberlast (strikt größer, #2521: ab Mindestmenge)', () => {
+		// Jüngeres Fenster: Körper 9 aus 3 Tasks, Geist 2 aus 1 → 82 % bzw. 18 %; 4 Erledigungen ≥ Mindestmenge.
+		const tasks: TaskFixture[] = [
+			task(1, 8, 2 * TAG_MS),
+			task(1, 0.5, 3 * TAG_MS),
+			task(1, 0.5, 4 * TAG_MS),
+			task(2, 2, 2 * TAG_MS),
+		];
 		const bericht = bewerteCareDefizit(saeulen, tasks, JETZT);
 		assert.equal(bericht.find((s) => s.id === 1)?.ueberlast, true);
 		assert.equal(bericht.find((s) => s.id === 2)?.ueberlast, false);
 		// Exakt auf der Schwelle (je 50 %) → keine Überlast; ohne jeden Aufwand ebenso.
-		const exakt: TaskFixture[] = [task(1, 5, 2 * TAG_MS), task(2, 5, 2 * TAG_MS)];
+		const exakt: TaskFixture[] = [
+			task(1, 1, 2 * TAG_MS),
+			task(1, 1, 3 * TAG_MS),
+			task(1, 1, 4 * TAG_MS),
+			task(2, 1, 2 * TAG_MS),
+			task(2, 1, 3 * TAG_MS),
+			task(2, 1, 4 * TAG_MS),
+		];
 		assert.equal(
 			bewerteCareDefizit(saeulen, exakt, JETZT).every((s) => !s.ueberlast),
 			true,
@@ -86,6 +98,29 @@ describe('bewerteCareDefizit (#1790)', () => {
 			bewerteCareDefizit(saeulen, [], JETZT).every((s) => !s.ueberlast),
 			true,
 		);
+	});
+
+	// #2521 (Spec docs/spec/issue-2521.md): Überlast erst ab Mindestmenge erledigter Aufgaben —
+	// darunter kein Überlast-Flag (Ermutigungs-Pfad der Route, kein Überlast-Push).
+	it('#2521 AK3: unter der Mindestmenge (2 Erledigungen) kein ueberlast, ab 3 wie bisher', () => {
+		// 2 Done-Tasks auf einer Säule = 100 % Anteil — über der Schwelle, aber unter der Mindestmenge.
+		const zwei: TaskFixture[] = [task(1, 1, 2 * TAG_MS), task(1, 1, 3 * TAG_MS)];
+		assert.equal(
+			bewerteCareDefizit(saeulen, zwei, JETZT).every((s) => !s.ueberlast),
+			true,
+			'2 Erledigungen reichen nicht für ueberlast',
+		);
+		const drei: TaskFixture[] = [...zwei, task(1, 1, 4 * TAG_MS)];
+		assert.equal(bewerteCareDefizit(saeulen, drei, JETZT).find((s) => s.id === 1)?.ueberlast, true);
+	});
+
+	it('#2521 AK4: die Mindestmenge steht als exportierte Konstante neben UEBERLAST_ANTEIL und = 3', async () => {
+		// Dynamischer Import + Optionalfeld: der fehlende Export lässt nur diesen Test rot, nicht
+		// gleich das ganze Modul (Muster Memory 2026-08-23).
+		const konstanten = (await import('./careDeficit.js')) as {
+			UEBERLAST_MINDEST_ERLEDIGUNGEN?: number;
+		};
+		assert.equal(konstanten.UEBERLAST_MINDEST_ERLEDIGUNGEN, 3);
 	});
 
 	it('AK4: Fenstergröße und Schwelle stehen an einer Stelle (exportierte Konstanten) und steuern das Verhalten', () => {

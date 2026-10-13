@@ -200,25 +200,28 @@ describe('GET /scores/care-suggestions — KI-Vorschlag Plus/Pro (#1804)', () =>
 	it('#1873 AK2: Überlast → Berater nicht aufgerufen, nichts gebucht', async () => {
 		const { cookie, userId } = await setup('care-ki-ueberlast@example.com', 'plus');
 		const wirksamkeit = (await Pillar.findOne({ where: { userId, name: 'Wirksamkeit' } }))!;
-		const created = await server.json('/tasks', {
-			method: 'POST',
-			headers: { Cookie: cookie },
-			body: JSON.stringify({
-				title: 'Überlast',
-				priority: 3,
-				estimatedEffort: 1,
-			}),
-		});
-		const { id } = (await created.json()) as { id: number };
-		// Legacy-Insert außerhalb der Schreib-Regel (#2077): der Überlast-Lesepfad wertet Alt-
-		// Verteilungen aus, die Schreib-Regel ist für dieses Setup bewusst nicht aktiv.
-		await TaskPillar.create({ taskId: id, pillarId: wirksamkeit.id, share: 100, confidence: 100 });
-		const done = await server.json(`/tasks/${id}`, {
-			method: 'PATCH',
-			headers: { Cookie: cookie },
-			body: JSON.stringify({ status: 'Done' }),
-		});
-		assert.equal(done.status, 200, 'Setup: Statuswechsel auf Done');
+		// #2521: Mindestmenge — 3 Erledigungen im jüngeren Fenster, damit Überlast überhaupt greift.
+		for (let i = 0; i < 3; i++) {
+			const created = await server.json('/tasks', {
+				method: 'POST',
+				headers: { Cookie: cookie },
+				body: JSON.stringify({
+					title: 'Überlast',
+					priority: 3,
+					estimatedEffort: 1,
+				}),
+			});
+			const { id } = (await created.json()) as { id: number };
+			// Legacy-Insert außerhalb der Schreib-Regel (#2077): der Überlast-Lesepfad wertet Alt-
+			// Verteilungen aus, die Schreib-Regel ist für dieses Setup bewusst nicht aktiv.
+			await TaskPillar.create({ taskId: id, pillarId: wirksamkeit.id, share: 100, confidence: 100 });
+			const done = await server.json(`/tasks/${id}`, {
+				method: 'PATCH',
+				headers: { Cookie: cookie },
+				body: JSON.stringify({ status: 'Done' }),
+			});
+			assert.equal(done.status, 200, 'Setup: Statuswechsel auf Done');
+		}
 
 		const vorschlaege = await leseVorschlaege(cookie);
 		assert.equal(vorschlaege[0]?.anlass, 'ueberlast', 'Setup: Überlast liegt vor');

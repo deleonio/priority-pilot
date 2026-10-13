@@ -35,7 +35,7 @@ interface Vorschlag {
 	saeulenBeitraege: { pillarId: number; share: number }[];
 	taskId?: number;
 	templateKey?: string;
-	anlass?: 'defizit' | 'ueberlast';
+	anlass?: 'defizit' | 'ueberlast' | 'ermutigung';
 }
 
 const leseVorschlaege = async (cookie: string, query = ''): Promise<Vorschlag[]> => {
@@ -157,22 +157,24 @@ describe('GET /scores/care-suggestions (#1791)', () => {
 		assert.equal(danach.length, 0, 'abgelehnte Vorlage darf nicht erneut erscheinen');
 	});
 
-	/** Setup: erledigte Aufgabe mit Aufwand in einer Säule (ScoreEntry-Zeitpunkt = jetzt, Legacy-Insert #2077). */
-	const erledigeAufgabe = async (cookie: string, pillarId: number): Promise<void> => {
-		const createRes = await server.json('/tasks', {
-			method: 'POST',
-			headers: { Cookie: cookie },
-			body: JSON.stringify({ title: 'Überlast', priority: 3, estimatedEffort: 1 }),
-		});
-		assert.equal(createRes.status, 201, 'Setup: Task-Anlage muss 201 liefern');
-		const { id } = (await createRes.json()) as { id: number };
-		await TaskPillar.create({ taskId: id, pillarId, share: 100, confidence: 100 });
-		const doneRes = await server.json(`/tasks/${id}`, {
-			method: 'PATCH',
-			headers: { Cookie: cookie },
-			body: JSON.stringify({ status: 'Done' }),
-		});
-		assert.equal(doneRes.status, 200, 'Setup: Statuswechsel auf Done muss 200 liefern');
+	/** Setup: erledigte Aufgabe(n) mit Aufwand in einer Säule (ScoreEntry-Zeitpunkt = jetzt, Legacy-Insert #2077). */
+	const erledigeAufgabe = async (cookie: string, pillarId: number, anzahl = 1): Promise<void> => {
+		for (let i = 0; i < anzahl; i++) {
+			const createRes = await server.json('/tasks', {
+				method: 'POST',
+				headers: { Cookie: cookie },
+				body: JSON.stringify({ title: 'Überlast', priority: 3, estimatedEffort: 1 }),
+			});
+			assert.equal(createRes.status, 201, 'Setup: Task-Anlage muss 201 liefern');
+			const { id } = (await createRes.json()) as { id: number };
+			await TaskPillar.create({ taskId: id, pillarId, share: 100, confidence: 100 });
+			const doneRes = await server.json(`/tasks/${id}`, {
+				method: 'PATCH',
+				headers: { Cookie: cookie },
+				body: JSON.stringify({ status: 'Done' }),
+			});
+			assert.equal(doneRes.status, 200, 'Setup: Statuswechsel auf Done muss 200 liefern');
+		}
 	};
 
 	const WIRKSAMKEIT = 4;
@@ -181,7 +183,8 @@ describe('GET /scores/care-suggestions (#1791)', () => {
 	it('#1795 AK1: bei Überlast ist der erste Vorschlag ein Erholungsvorschlag, keine Aufgabe der überwiegenden Säule', async () => {
 		const cookie = await server.register('care-overload@example.com', 'password123');
 		await createOpenTask(cookie, 'Steuererklärung', WIRKSAMKEIT);
-		await erledigeAufgabe(cookie, WIRKSAMKEIT);
+		// #2521: Mindestmenge — erst ab 3 Erledigungen im jüngeren Fenster gilt eine Säule als überlastet.
+		await erledigeAufgabe(cookie, WIRKSAMKEIT, 3);
 
 		const vorschlaege = await leseVorschlaege(cookie);
 		const erster = vorschlaege[0]!;
@@ -199,7 +202,8 @@ describe('GET /scores/care-suggestions (#1791)', () => {
 
 	it('#1795 AK2: Pause-Vorlage wird mit ?sprache=en in Zielsprache geliefert', async () => {
 		const cookie = await server.register('care-overload-en@example.com', 'password123');
-		await erledigeAufgabe(cookie, WIRKSAMKEIT);
+		// #2521: Mindestmenge — erst ab 3 Erledigungen im jüngeren Fenster gilt eine Säule als überlastet.
+		await erledigeAufgabe(cookie, WIRKSAMKEIT, 3);
 
 		const katalog = CARE_VORLAGEN.find((vorlage) => vorlage.key === 'pause-1');
 		assert.ok(katalog, 'Pause-Vorlage pause-1 muss in CARE_VORLAGEN existieren');
@@ -224,9 +228,31 @@ describe('GET /scores/care-suggestions (#1791)', () => {
 		);
 	});
 
+	it('#2521 AK1/AK5: genau eine Erledigung → genau ein Ermutigungs-Eintrag vorn, kein ueberlast', async () => {
+		const cookie = await server.register('care-ermutigung@example.com', 'password123');
+		const saeuleId = await ersteSaeule(cookie);
+		await erledigeAufgabe(cookie, saeuleId);
+
+		const de = await leseVorschlaege(cookie);
+		const ermutigung = de.filter((v) => v.anlass === 'ermutigung');
+		assert.equal(ermutigung.length, 1, 'genau ein Ermutigungs-Eintrag');
+		assert.equal(de[0]?.anlass, 'ermutigung', 'der Ermutigungs-Eintrag steht vorn (einziger sichtbarer)');
+		assert.equal(de.filter((v) => v.anlass === 'ueberlast').length, 0, 'unter der Mindestmenge kein ueberlast-Eintrag');
+		assert.equal(ermutigung[0]?.taskId, undefined, 'nichts zum Übernehmen');
+		assert.equal(ermutigung[0]?.templateKey, undefined, 'nichts zum Ablehnen/Dismissal');
+		const satz = (v: Vorschlag): string => `${v.titel} ${v.beschreibung ?? ''}`.trim();
+		assert.notEqual(satz(ermutigung[0]!), '', 'der Eintrag trägt den Satz');
+
+		const en = (await leseVorschlaege(cookie, '?sprache=en')).filter((v) => v.anlass === 'ermutigung');
+		assert.equal(en.length, 1, 'Ermutigung auch bei sprache=en');
+		assert.notEqual(satz(en[0]!), '', 'Satz auch auf en');
+		assert.notEqual(satz(en[0]!), satz(ermutigung[0]!), 'de und en unterscheiden sich');
+	});
+
 	it('#2075 AK2: jeder Vorlagen-Vorschlag (Defizit und Erholung) trägt fünf Säulen-Beiträge — Ziel 50, Rest 13/13/12/12', async () => {
 		const cookie = await server.register('care-2075-form@example.com', 'password123');
-		await erledigeAufgabe(cookie, WIRKSAMKEIT);
+		// #2521: Mindestmenge — erst ab 3 Erledigungen im jüngeren Fenster gilt eine Säule als überlastet.
+		await erledigeAufgabe(cookie, WIRKSAMKEIT, 3);
 
 		const relevante = (await leseVorschlaege(cookie)).filter((v) => v.typ === 'vorlage');
 		assert.ok(
@@ -436,19 +462,22 @@ describe('GET /scores/care-suggestions — Säulen pro Nutzer (#2146)', () => {
 	it('AK2: zweiter Nutzer bekommt bei Überlast Erholungsvorschläge mit den ids SEINER Säulen', async () => {
 		const { cookie, saeulen } = await registriereZweitenNutzer();
 		const wirksamkeit = saeulen[3]!;
-		const createRes = await server.json('/tasks', {
-			method: 'POST',
-			headers: { Cookie: cookie },
-			body: JSON.stringify({ title: 'Überlast', priority: 3, estimatedEffort: 1 }),
-		});
-		const { id } = (await createRes.json()) as { id: number };
-		await TaskPillar.create({ taskId: id, pillarId: wirksamkeit.id, share: 100, confidence: 100 });
-		const doneRes = await server.json(`/tasks/${id}`, {
-			method: 'PATCH',
-			headers: { Cookie: cookie },
-			body: JSON.stringify({ status: 'Done' }),
-		});
-		assert.equal(doneRes.status, 200, 'Setup: Statuswechsel auf Done muss 200 liefern');
+		// #2521: Mindestmenge — erst ab 3 Erledigungen im jüngeren Fenster gilt eine Säule als überlastet.
+		for (let i = 0; i < 3; i++) {
+			const createRes = await server.json('/tasks', {
+				method: 'POST',
+				headers: { Cookie: cookie },
+				body: JSON.stringify({ title: 'Überlast', priority: 3, estimatedEffort: 1 }),
+			});
+			const { id } = (await createRes.json()) as { id: number };
+			await TaskPillar.create({ taskId: id, pillarId: wirksamkeit.id, share: 100, confidence: 100 });
+			const doneRes = await server.json(`/tasks/${id}`, {
+				method: 'PATCH',
+				headers: { Cookie: cookie },
+				body: JSON.stringify({ status: 'Done' }),
+			});
+			assert.equal(doneRes.status, 200, 'Setup: Statuswechsel auf Done muss 200 liefern');
+		}
 
 		const erholung = (await leseVorschlaege(cookie)).filter((v) => v.anlass === 'ueberlast');
 		assert.ok(erholung.length > 0, 'Überlast liefert Erholungsvorschläge');
