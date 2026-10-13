@@ -189,7 +189,7 @@ const AuthenticatedApp = () => {
 			});
 	}, []);
 
-	if (authState === 'unauthenticated' && magicAppToken !== null) {
+	if (magicAppToken !== null) {
 		return <MagicLinkLanding token={magicAppToken} />;
 	}
 
