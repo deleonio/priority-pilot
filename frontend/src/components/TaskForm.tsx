@@ -1355,10 +1355,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 			    Wrapper ist der Positionierungs-Kontext des Mic-Buttons (right/bottom, app.css).
 			    Als Kind des Wrappers würde er diesen über die ganze Flex-Zeile spannen lassen und
 			    den Mic-Button aus der Feldbox drängen (AK9/AK10, Issue #264). */}
-							<div
-								className="title-fields-row"
-								style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'flex-start' }}
-							>
+							<div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'flex-start' }}>
 								<div style={{ flex: '1 1 16rem', minWidth: 'min(100%, 16rem)' }} data-testid="task-title">
 									<VoiceField
 										variant="input"

@@ -3994,8 +3994,6 @@ describe('TaskForm — Checkliste an der Serie (#2501)', () => {
 });
 
 /**
-/**
-/**
  * Rote TDD-Verträge für #2525 — Säulen-Verteilung und Aufwand wandern in den zugeklappten
  * Sekundär-Abschnitt („Termin & Ort“); die Priorität bleibt außerhalb. PO-Entscheid im
  * Kreuzverhör zu PR #2577: kein zweiter `.form-section--secondary` — der bestehende
