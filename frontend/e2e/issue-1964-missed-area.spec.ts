@@ -63,9 +63,11 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		await item.getByRole('button', { name: /weitere aktionen/i }).click();
 		const popover = item.locator('kol-popover-button').locator('.kol-popover-button__popover');
 		await expect(popover).toBeVisible();
-		await expect(popover.getByRole('button', { name: /neu planen/i })).toBeVisible();
-		await expect(popover.getByRole('button', { name: /archivieren/i })).toBeVisible();
-		await expect(popover.getByRole('button', { name: /löschen/i })).toBeVisible();
+		// Test-Pflege #2524: die Toolbar-Buttons liegen NICHT im Panel-Subtree (Light-DOM-Slot,
+		// Muster issue-2361) — über das Item selbst finden.
+		await expect(item.getByRole('button', { name: /neu planen/i })).toBeVisible();
+		await expect(item.getByRole('button', { name: /archivieren/i })).toBeVisible();
+		await expect(item.getByRole('button', { name: /löschen/i })).toBeVisible();
 
 		// AK3: ohne Verschiebung kein Zähler (0 wird nicht angezeigt)
 		await createTaskViaApi(page, { title: 'Nie verschoben', deadline: past });
@@ -140,7 +142,8 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		const popover = item.locator('kol-popover-button').locator('.kol-popover-button__popover');
 		await expect(popover).toBeVisible();
 		for (const name of [/neu planen/i, /archivieren/i, /löschen/i]) {
-			const entry = popover.getByRole('button', { name });
+			// Test-Pflege #2524: Buttons nicht im Panel-Subtree (Light-DOM-Slot, Muster issue-2361).
+			const entry = item.getByRole('button', { name });
 			await expect(entry).toBeVisible();
 			let entryBox = await entry.boundingBox();
 			for (let i = 0; i < 30 && !entryBox; i += 1) {
@@ -207,11 +210,8 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		// Test-Pflege #2524: „Archivieren" liegt hinter dem „…"-Popover — erst öffnen, dann klicken.
 		const archivItem = page.getByTestId('missed-item').filter({ hasText: 'Ins Archiv und zurück' });
 		await archivItem.getByRole('button', { name: /weitere aktionen/i }).click();
-		await archivItem
-			.locator('kol-popover-button')
-			.locator('.kol-popover-button__popover')
-			.getByRole('button', { name: /archivieren/i })
-			.click();
+		// Test-Pflege #2524: Buttons nicht im Panel-Subtree (Light-DOM-Slot, Muster issue-2361).
+		await archivItem.getByRole('button', { name: /archivieren/i }).click();
 		await expect(page.getByTestId('missed-section')).toHaveCount(0);
 
 		await page.goto('/app/aufgaben');

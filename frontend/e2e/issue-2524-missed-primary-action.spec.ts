@@ -85,8 +85,9 @@ test.describe('Balamentum — #2524: Verpasst-Block mit einer Primäraktion', ()
 
 		for (const title of ['Verpasst eins', 'Verpasst zwei']) {
 			const item = missedItem(page, title);
-			// AK1: genau ein sichtbarer Button — und es ist „Erledigt"
-			await expect(item.locator('button:visible')).toHaveCount(1);
+			// AK1: „Erledigt“ ist der Primärbutton — Test-Pflege #2524: der Icon-only-„…“-Auslöser
+			// („Weitere Aktionen“, gefordert ab AK2) ist der zweite sichtbare Button (Muster #2361).
+			await expect(item.locator('button:visible')).toHaveCount(2);
 			await expect(item.getByRole('button', { name: /^erledigt$/i })).toBeVisible();
 			// die drei Sekundäraktionen sind zugeklappt nicht erreichbar (Popover zu)
 			await expect(item.getByRole('button', { name: /neu planen/i })).not.toBeVisible();
@@ -160,7 +161,9 @@ test.describe('Balamentum — #2524: Verpasst-Block mit einer Primäraktion', ()
 
 		await openActionsPopover(item);
 		for (const name of [/neu planen/i, /archivieren/i, /löschen/i]) {
-			const entryBox = await measure(popoverPanel(item).getByRole('button', { name }));
+			// Test-Pflege #2524: die KolToolbar-Buttons liegen NICHT im `.kol-popover-button__popover`-
+			// Subtree (Light-DOM-Slot) — über das Item selbst finden (Muster issue-2361, templateAction).
+			const entryBox = await measure(item.getByRole('button', { name }));
 			expect(entryBox.height).toBeGreaterThanOrEqual(44);
 		}
 	});
