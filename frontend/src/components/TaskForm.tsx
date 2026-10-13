@@ -586,6 +586,24 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	// Vorbelegung (Schalter aus, „Ohne Rhythmus") ist sonst ohne Antippen unsichtbar.
 	const [scheduleOpen, setScheduleOpen] = useState(lockMode);
 	const [optionalOpen, setOptionalOpen] = useState(false);
+	// #2525 (AK5, bewusste #1285-Ausnahme): „Mehr Angaben“ startet offen genau bei eigenen Werten —
+	// Vorbelegung aus einer Vorlage (`initialValues.pillars`) zählt; im Edit-Flow zählt jede
+	// Abweichung von der Gleichverteilung oder vom Aufwand-Standard 0.5. Anlegen und Standardwerte
+	// (Gleichverteilung + 0.5) starten zugeklappt.
+	const [moreOpen, setMoreOpen] = useState(() => {
+		const source = isEdit ? (task?.pillars ?? series?.pillars ?? []) : (initialValues?.pillars ?? []);
+		if (!isEdit) {
+			// Vorlage-Flow: gespeicherte Verteilung der Ausgangsaufgabe zählt als eigene Werte.
+			return source.length > 0;
+		}
+		if (source.length === 0) {
+			return false;
+		}
+		// Auf die angezeigte (vervollständigte) Verteilung stellen — ein einzelner gespeicherter
+		// Beitrag ist keine Gleichverteilung, auch wenn seine Anteile untereinander gleich sind.
+		const shares = fillContributions(pillars, source).map((entry) => entry.share);
+		return form.current.estimatedEffort !== 0.5 || !shares.every((share) => share === shares[0]);
+	});
 
 	// #1213 (AK7): Empfängerauswahl — nur im Anlege-Modus, nur wenn der Nutzer in mindestens einer
 	// Gruppe ist; dann mit dem eigenen Konto vorbelegt. `recipientVisible` wird erst nach geladener,
@@ -1454,6 +1472,25 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 										},
 									}}
 								/>
+							</div>
+						</div>
+					</KolAccordion>
+				</section>
+				{/* #2525: Säulen-Verteilung und Aufwand als Opt-in-Sektion „Mehr Angaben“ — die Priorität bleibt
+				    in den Basisangaben (AK6); ohne Öffnen gelten die Standardwerte weiter (AK2). Bewusste
+				    #1285-Ausnahme (AK5): eigene Werte öffnen die Sektion beim Start.
+				    #2525/AK4: Der Standardwerte-Hinweis liegt außerhalb des Body-Slots (zugeklappt lesbar). */}
+				<section className="form-section form-section--secondary">
+					<KolAccordion
+						_label={t('taskForm.sectionMore')}
+						_level={3}
+						_open={moreOpen}
+						_on={{
+							onClick: (_event, open) => setMoreOpen(open === true),
+						}}
+					>
+						<div className="accordion-body">
+							<div className="range-inputs-row">
 								<KolInputRange
 									/* #1159: Label bewusst kompakt — „Geschätzter Aufwand in Tagen …“ bricht zweizeilig
 											   und versetzt die Slider-Bahnen (V-Spring). */
@@ -1620,6 +1657,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 							)}
 						</div>
 					</KolAccordion>
+					{!moreOpen && <p className="hint hint--fold">{t('taskForm.moreDefaultsHint')}</p>}
 				</section>
 				{/* #1159: Sekundärgruppe — Termin (Deadline bzw. Startdatum/Rhythmus) und Ort
 				    (Adresse) als abgetrennte zweite Einheit. #1260: als KolAccordion standardmäßig

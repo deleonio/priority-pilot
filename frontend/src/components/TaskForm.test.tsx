@@ -2904,6 +2904,7 @@ describe('TaskForm — Säulen-Berater hinter KI-Gate (#1527)', () => {
 
 	it('AK2 — Gate aus: Überschrift und Säulen-Regler bleiben vorhanden und bedienbar', () => {
 		renderPillarEditorWithContribution(false);
+		fireEvent.click(screen.getByText('Mehr Angaben')); // #2525: Säulen-Editor liegt hinter der Faltung
 
 		expect(screen.getByText('Säulen-Verteilung')).toBeVisible();
 		expect(screen.getByRole('slider', { name: /Körper/ })).toBeVisible();
@@ -2913,6 +2914,7 @@ describe('TaskForm — Säulen-Berater hinter KI-Gate (#1527)', () => {
 		mockSuggestPillars.mockResolvedValue([]);
 		renderPillarEditor(true);
 		fireEvent.click(screen.getByText('Optional'));
+		fireEvent.click(screen.getByText('Mehr Angaben')); // #2525: Säulen-Editor liegt hinter der Faltung
 		await fillTitle('Büro aufräumen'); // #305: suggestPillars bricht ohne Titel früh ab
 
 		const button = screen.getByRole('button', { name: /Säulen vorschlagen/ });

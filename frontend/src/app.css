@@ -2427,6 +2427,29 @@ kol-toolbar {
 	margin-bottom: var(--pp-space-5);
 }
 
+/* #2525/AK1: Vier Sektionen stapeln im Dialog — bei ≤768 px auf den Inter-Gruppen-Rhythmus
+   verdichtet (Lücken 16 px statt 24 px, Sektions-Unterkanten ebenso), damit der Speichern-Knopf
+   bei 375×812 ohne Scrollen im Viewport liegt. Desktop (>768 px) bleibt unberührt. */
+@media (max-width: 768px) {
+	.form-grid--sections {
+		gap: var(--pp-gap-base);
+		margin-bottom: var(--pp-gap-base);
+	}
+
+	.modal-body section.form-section--optional {
+		margin-bottom: var(--pp-gap-base);
+	}
+
+	/* Der Standardwerte-Hinweis (#2525/AK4) gehört zum „Mehr Angaben“-Kopf — rückt an. */
+	.form-grid--sections .hint--fold {
+		margin-top: calc(-1 * var(--pp-gap-tight));
+	}
+
+	.mode-switch {
+		margin-bottom: var(--pp-gap-tight);
+	}
+}
+
 /* Mode-Switch (Aufgabe/Serie): klebte vorher mit 0 px am „Basisangaben“-Kopf — jetzt
    der Feld-Rhythmus. */
 .mode-switch {

@@ -3,6 +3,8 @@
 		"saveFailed": "Saving failed",
 		"modeSwitch": "Series or template",
 		"sectionBasics": "Basics",
+		"sectionMore": "More details",
+		"moreDefaultsHint": "Without opening, the default values apply",
 		"sectionSchedule": "Date & place",
 		"sectionOptional": "Optional",
 		"titleLabel": "Title",
