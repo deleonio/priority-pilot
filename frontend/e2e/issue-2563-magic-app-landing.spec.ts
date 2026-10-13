@@ -62,4 +62,28 @@ test.describe('Magic-Link-App-Landing (#2563)', () => {
 			expect(box.x + box.width).toBeLessThanOrEqual(breite);
 		}
 	});
+
+	// #2565 (docs/spec/issue-2565.md AK1+AK4): Der Marker `client=app` muss die Landing auch bei
+	// bestehender Browser-Session zeigen (/auth/me → 200) — heute gewinnt der authentifizierte
+	// Zweig, der Token verfällt und der App-Login scheitert.
+	test('AK1: Landing erscheint auch bei bestehender Browser-Session — Token bleibt unverbraucht', async ({ page }) => {
+		await page.route('**/auth/me', (route: Route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ id: 1, displayName: 'Test User', email: 'test@example.com', termsAccepted: true }),
+			}),
+		);
+		const verifyAufrufe: string[] = [];
+		page.on('request', (request: Request) => {
+			if (request.url().includes('/auth/magic-link/verify')) verifyAufrufe.push(request.url());
+		});
+
+		await page.goto(APP_MAGIC_URL);
+
+		const ruecksprung = page.getByRole('link', { name: 'In der App öffnen' });
+		await expect(ruecksprung).toBeVisible();
+		await expect(ruecksprung).toHaveAttribute('href', /balamentum\.app:\/\/auth\/native\?magic=tok-2563/);
+		expect(verifyAufrufe, 'Der Token darf im Browser nicht eingereicht werden (AK4)').toEqual([]);
+	});
 });

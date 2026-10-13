@@ -209,4 +209,34 @@ describe('Issue #2563 — Magic-Link-App-Marker', () => {
 			'Der Token darf im Browser nicht eingereicht werden',
 		).toBe(false);
 	});
+
+	// #2565 (docs/spec/issue-2565.md AK1+AK4): Auch MIT bestehender Browser-Session (/auth/me → 200)
+	// muss die Landing erscheinen — heute gewinnt der authentifizierte Zweig und der Token verfällt.
+	it('AK1 (#2565): App-Marker-Link zeigt die Landing auch bei bestehender Browser-Session', async () => {
+		const aufgerufeneUrls: string[] = [];
+		global.fetch = vi.fn((input: unknown) => {
+			aufgerufeneUrls.push(String(input instanceof Request ? input.url : input));
+			return Promise.resolve({
+				ok: true,
+				status: 200,
+				json: async () => ({
+					id: 1,
+					email: 'peter@example.com',
+					displayName: 'Peter',
+					avatarUrl: null,
+					termsAccepted: true,
+				}),
+			});
+		}) as unknown as typeof fetch;
+
+		window.history.replaceState(null, '', '/app/?magic=tok-2565&client=app');
+		render(<Root />);
+
+		const ruecksprung = await screen.findByRole('link', { name: /in der app öffnen/i }, { timeout: 3000 });
+		expect(ruecksprung).toHaveAttribute('href', expect.stringContaining('balamentum.app://auth/native?magic=tok-2565'));
+		expect(
+			aufgerufeneUrls.some((url) => url.includes('/auth/magic-link/verify')),
+			'Der Token darf auch bei bestehender Session nicht eingereicht werden (AK4)',
+		).toBe(false);
+	});
 });
