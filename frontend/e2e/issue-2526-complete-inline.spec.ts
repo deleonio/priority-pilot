@@ -174,7 +174,9 @@ test.describe('#2526 Erledigen mit einem Tipp, sichtbarem Erfolg und Rückgängi
 	});
 
 	test('AK8: 375×812 Dashboard — „Rückgängig“ vollständig im Viewport, Touch-Target ≥ 44 px', async ({ page }) => {
-		test.use({ viewport: { width: 375, height: 812 } });
+		// Test-Pflege #2526: `test.use()` im Test-Body ist Playwright-unzulässig (bricht beim Sammeln
+		// ab) — Viewport stattdessen dynamisch setzen, Vertrag (375×812) unverändert.
+		await page.setViewportSize({ width: 375, height: 812 });
 		await createTask(page, 'E2E #2526 Mobil Panel', { priority: 3, estimatedEffort: 1 });
 
 		await openDashboard(page);
@@ -191,7 +193,8 @@ test.describe('#2526 Erledigen mit einem Tipp, sichtbarem Erfolg und Rückgängi
 	});
 
 	test('AK8: 375×812 Aufgabenliste — Rückmeldung an der Zeile ohne horizontales Clipping', async ({ page }) => {
-		test.use({ viewport: { width: 375, height: 812 } });
+		// Test-Pflege #2526: dito — dynamischer Viewport statt unzulässigem test.use() im Body.
+		await page.setViewportSize({ width: 375, height: 812 });
 		const id = await createTask(page, 'E2E #2526 Mobil Liste', { priority: 3, estimatedEffort: 1 });
 
 		await openAufgaben(page);

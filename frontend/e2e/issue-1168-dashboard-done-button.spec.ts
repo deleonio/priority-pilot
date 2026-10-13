@@ -37,8 +37,9 @@ const createChecklistTask = async (page: Page, title: string, priority: number):
 			title,
 			priority,
 			checklist: [
-				{ id: '1168-cp-1', title: 'Erster Punkt', completed: false },
-				{ id: '1168-cp-2', title: 'Zweiter Punkt', completed: false },
+				// Server verlangt UUID-Ids (validateChecklist, tasks.ts) — Muster #1583-Spec.
+				{ id: '11111111-1111-1168-1118-111111111161', title: 'Erster Punkt', completed: false },
+				{ id: '22222222-2222-2168-2228-222222222262', title: 'Zweiter Punkt', completed: false },
 			],
 		},
 	});
@@ -90,6 +91,10 @@ test.describe('#1168 „Erledigt"-Button im Dashboard-Signal-Panel', () => {
 		await openDashboard(page);
 		await page.getByRole('button', { name: 'Erledigen' }).click();
 		await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeVisible();
+		// #2526-Test-Pflege: Der Checklisten-Seed macht den Hauptknopf zunächst zu „Checkliste speichern“
+		// (CompleteTaskDialog.tsx mainLabel) — erst „Alle abhaken“ schaltet auf „Als erledigt markieren“ (#1583-Muster).
+		await page.getByRole('button', { name: 'Alle abhaken' }).click();
+		await expect(page.getByRole('button', { name: 'Als erledigt markieren' })).toBeVisible();
 
 		await page.route(`**/api/v1/tasks/${id}`, (route: Route) => {
 			if (route.request().method() === 'PATCH') {
