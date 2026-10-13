@@ -70,6 +70,11 @@ const begruendungsSaetze = (task: BegrTask, splitSatz: string): string[] => {
 			}),
 		});
 	}
+	// #2527: Einstiegssignal statt `balance`, solange die Mindestmenge an Erledigungen nicht
+	// erreicht ist — der einladende Satz ohne Defizit-Vokabular.
+	if (reasons.einstieg !== undefined) {
+		saetze.push({ key: 'einstieg', satz: i18next.t('dashboard:reasons.einstieg') });
+	}
 	if (reasons.unlock !== undefined) {
 		const offen = reasons.unlock.openCount;
 		saetze.push({

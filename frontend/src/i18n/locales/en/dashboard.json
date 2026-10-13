@@ -6,6 +6,7 @@
 		"dueOn": "Due on {{date}}.",
 		"balance_one": "Pillar {{names}} fell short this week.",
 		"balance_other": "Pillars {{names}} fell short this week.",
+		"einstieg": "Pick one small task that does you good today – starting small counts.",
 		"unlock_one": "Unlocks {{count}} open task.",
 		"unlock_other": "Unlocks {{count}} open tasks.",
 		"overdue_one": "Overdue by {{count}} day.",

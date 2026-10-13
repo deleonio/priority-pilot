@@ -6799,6 +6799,12 @@ components:
           properties:
             postponeCount:
               type: integer
+        einstieg:
+          type: boolean
+          description: >-
+            Einstiegssignal (#2527): statt `balance` gesetzt, solange die Überlast-Mindestmenge
+            an Erledigungen noch nicht erreicht ist — das Dashboard zeigt dann den einladenden
+            Einstiegssatz statt der Defizit-Begründung.
     TaskRecommendation:
       allOf:
         - $ref: '#/components/schemas/Task'
@@ -8586,12 +8592,14 @@ components:
             - defizit
             - ueberlast
             - ermutigung
+            - einstieg
           description: >-
             Grund des Vorschlags (#1795): `defizit` gegen ein Balance-Defizit, `ueberlast` als
             Erholung (Pause, Körper, Mentale Gesundheit), wenn eine Säule überlastet ist.
             Erholungsvorschläge stehen vor den Defizit-Vorschlägen. `ermutigung` (#2521) ist
             kein Vorschlag, sondern der Ermutigungs-Satz unter der Überlast-Mindestmenge (1–2
             Erledigungen im jüngeren Fenster) — ohne `taskId`/`templateKey`, an erster Stelle.
+            `einstieg` (#2527) genauso bei 0 Erledigungen: der einladende Einstiegssatz.
         titel:
           type: string
           description: Anzeigetitel des Vorschlags (in der angefragten Sprache).

@@ -1,10 +1,10 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView, fullPillarContributions } from './helpers';
+import { waitForStableView, fullPillarContributions, seedMindestErledigungen } from './helpers';
 
 /**
  * E2E-Spec für #1793 (docs/spec/issue-1793.md): Fürsorge-Hinweis auf dem Dashboard gegen das echte
- * Backend. Der Testnutzer hat gesäte Säulen ohne erledigte Aufgaben — jede Säule ist defizitär, der
- * Server liefert also Vorschläge. ROT, bis `CareHint` im Dashboard eingebunden ist.
+ * Backend. Test-Pflege #2527: die Specs säen die Mindestmenge an Erledigungen — jede Säule bleibt
+ * defizitär (Tasks ohne Säulen-Beitrag), der Server liefert also bedienbare Vorschläge.
  */
 const deleteAllTasks = async (page: Page): Promise<void> => {
 	const tasks = (await (await page.request.get('/api/v1/tasks')).json()) as { id: number }[];
@@ -14,6 +14,7 @@ const deleteAllTasks = async (page: Page): Promise<void> => {
 };
 
 const openDashboard = async (page: Page): Promise<void> => {
+	await seedMindestErledigungen(page); // Test-Pflege #2527
 	await page.goto('/app/');
 	await waitForStableView(page);
 	await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();

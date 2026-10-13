@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from '@testing-library/react';
 import { Dashboard } from './Dashboard';
 import { api } from '../api';
+// #2527: i18n läuft echt (vitest.setup.ts pinnt `de`) — der Sprach-Test wechselt selbst (Muster CareHint #2063).
+import i18next from '../i18n/config';
 
 // KoliBri-Komponenten sind in jsdom nicht registriert; KolPagination wird zum Klick-Stub, damit
 // `_on.onChangePage` auslösbar ist. Alles andere bleibt echt.
@@ -931,5 +933,40 @@ describe('Dashboard — Deadlines-Pagination (8 je Seite)', () => {
 		rerender(<Dashboard tasks={mitDeadlines(3)} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />);
 		expect(container.querySelectorAll('.dashboard-deadline')).toHaveLength(3);
 		expect(screen.queryByTestId('pager')).toBeNull();
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2527 (docs/spec/issue-2527.md): Das Einstieg-Signal (`reasons.einstieg`)
+ * aus `GET /next` rendert den einladenden Einstiegssatz statt „kam diese Woche zu kurz“ —
+ * in de und en (Ton nach docs/fuersorge-tonalitaet.md).
+ */
+describe('Dashboard — Einstiegssatz unter der Mindestmenge (#2527)', () => {
+	const renderKarte = (reasons: object): { container: HTMLElement } => {
+		const nextTask = {
+			...task(42, [], 2, TaskStatus.Open),
+			scoreBreakdown: { total: 1, balance: 1 },
+			reasons,
+		} as unknown as Task;
+		return render(<Dashboard tasks={[nextTask]} forest={[] as TaskTreeNode[]} nextTask={nextTask} pillars={[]} />);
+	};
+
+	const saetze = (container: HTMLElement): string[] =>
+		[...container.querySelectorAll('.dashboard-next-task-reasons li')].map((li) => li.textContent ?? '');
+
+	it('TF3/AK4: reasons.einstieg → deutscher Einstiegssatz statt „kam diese Woche zu kurz“', () => {
+		const { container } = renderKarte({ einstieg: true });
+		expect(saetze(container)).toEqual([
+			'Such dir eine kleine Aufgabe aus, die dir heute guttut – klein anfangen zählt.',
+		]);
+		expect(container.textContent).not.toMatch(/kam diese Woche zu kurz/);
+	});
+
+	it('TF3/AK4: Sprache en — englischer Einstiegssatz', async () => {
+		await i18next.changeLanguage('en');
+		const { container } = renderKarte({ einstieg: true });
+		expect(saetze(container)).toEqual(['Pick one small task that does you good today – starting small counts.']);
+		expect(container.textContent).not.toMatch(/fell short this week/);
+		await i18next.changeLanguage('de');
 	});
 });

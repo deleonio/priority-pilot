@@ -1,11 +1,10 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, seedMindestErledigungen } from './helpers';
 
 /**
  * E2E-Spec für #2063 (docs/spec/issue-2063.md): Fürsorge-Hinweis in der App-Sprache Englisch —
- * Knöpfe und 375-px-Layout. Der Testnutzer hat
- * gesäte Säulen ohne erledigte Aufgaben — der Server liefert Vorschläge (Muster #1793). ROT,
- * bis `CareHint` seine Texte aus i18n zieht (heute hardcoded deutsch).
+ * Knöpfe und 375-px-Layout. Test-Pflege #2527: die Mindestmenge an Erledigungen wird gesät,
+ * damit der Server bedienbare Vorschläge liefert (Muster #1793).
  */
 const deleteAllTasks = async (page: Page): Promise<void> => {
 	const tasks = (await (await page.request.get('/api/v1/tasks')).json()) as { id: number }[];
@@ -15,6 +14,7 @@ const deleteAllTasks = async (page: Page): Promise<void> => {
 };
 
 const openDashboard = async (page: Page): Promise<void> => {
+	await seedMindestErledigungen(page); // Test-Pflege #2527
 	await page.goto('/app/');
 	await waitForStableView(page);
 	await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();

@@ -33,6 +33,7 @@ import {
 	type CareVorlage,
 } from '../../logics/careSuggestions.js';
 import {
+	CARE_EINSTIEG,
 	CARE_ERMUTIGUNG,
 	CARE_SPRACHEN,
 	spracheAusHeader,
@@ -724,13 +725,29 @@ export const createCareSuggestionsRouter = (advisor: ActivityAdvisor = adviseAct
 					jetzt,
 				);
 
-				// #2521: 1–2 Erledigungen im jüngeren Fenster sind zu wenig für eine Überlast-Einstufung —
-				// statt Ausgleich zu fordern, ermutigt der erste Eintrag (CareHint zeigt nur den ersten, ohne
-				// Aktionsreihe); bei 0 Erledigungen bleibt alles beim Defizit-Verhalten.
+				// #2521/#2527: unter der Mindestmenge an Erledigungen im jüngeren Fenster kein
+				// Defizit-Vorwurf — bei 0 Erledigungen lädt der Einstiegssatz zum ersten Schritt ein
+				// (#2527), bei 1–2 ermutigt der Satz aus #2521 (CareHint zeigt nur den ersten, ohne
+				// Aktionsreihe).
 				const erledigungen = zaehleErledigungen(
 					tasks.map((task) => ({ status: task.status, erledigtAm: zeitpunktProTask.get(task.id) ?? null })),
 					jetzt,
 				);
+				const unterMindestmenge = erledigungen < UEBERLAST_MINDEST_ERLEDIGUNGEN;
+				const einstieg: CareVorschlagDto[] =
+					erledigungen === 0
+						? [
+								{
+									typ: 'vorlage',
+									titel: CARE_EINSTIEG[sprache],
+									beschreibung: null,
+									saeuleId: 0,
+									saeuleName: '',
+									saeulenBeitraege: [],
+									anlass: 'einstieg',
+								},
+							]
+						: [];
 				const ermutigung: CareVorschlagDto[] =
 					erledigungen > 0 && erledigungen < UEBERLAST_MINDEST_ERLEDIGUNGEN
 						? [
@@ -771,30 +788,33 @@ export const createCareSuggestionsRouter = (advisor: ActivityAdvisor = adviseAct
 							}))
 						: [];
 
-				const defizitVorschlaege: CareVorschlagDto[] = defizite
-					.filter((defizit) => defizit.defizitaer)
-					.flatMap((defizit) => {
-						const saeule = { id: defizit.id, name: defizit.name, weight: 0 };
-						const vorlagenDerSaeule = vorlagen.filter(
-							(vorlage) => vorlage.saeuleId === saeule.id && vorlage.key !== PAUSE_VORLAGE_KEY,
-						);
-						return waehleCareVorschlaege(saeule, saeulen, aufgaben, vorlagenDerSaeule, ablehnungenDto, jetzt).map(
-							(vorschlag) => ({
-								...vorschlag,
-								saeuleId: defizit.id,
-								saeuleName: pillarTextIn(sprache, defizit.name),
-								anlass: 'defizit' as const,
-							}),
-						);
-					});
+				const defizitVorschlaege: CareVorschlagDto[] = unterMindestmenge
+					? [] // #2527: unter der Mindestmenge keine Defizit-Vorschläge
+					: defizite
+							.filter((defizit) => defizit.defizitaer)
+							.flatMap((defizit) => {
+								const saeule = { id: defizit.id, name: defizit.name, weight: 0 };
+								const vorlagenDerSaeule = vorlagen.filter(
+									(vorlage) => vorlage.saeuleId === saeule.id && vorlage.key !== PAUSE_VORLAGE_KEY,
+								);
+								return waehleCareVorschlaege(saeule, saeulen, aufgaben, vorlagenDerSaeule, ablehnungenDto, jetzt).map(
+									(vorschlag) => ({
+										...vorschlag,
+										saeuleId: defizit.id,
+										saeuleName: pillarTextIn(sprache, defizit.name),
+										anlass: 'defizit' as const,
+									}),
+								);
+							});
 				const ersteDefizitSaeule = saeulen.find((saeule) => defizite.some((d) => d.defizitaer && d.id === saeule.id));
 				// #1873: KI vor den Defizit-Vorschlägen (der Hinweis zeigt nur den ersten); bei Überlast steht
 				// Erholung vorn — dann kein Beraterlauf, damit nur gebucht wird, was angezeigt werden kann.
+				// #2527: auch unter der Mindestmenge zeigt der Hinweis nur den Einstiegs-/Ermutigungs-Satz.
 				const ki =
-					erholung.length > 0
+					erholung.length > 0 || unterMindestmenge
 						? undefined
 						: await ermittleKiVorschlag(userId, ersteDefizitSaeule, saeulen, aufgaben, jetzt, sprache);
-				const vorschlaege = [...ermutigung, ...erholung, ...(ki ? [ki] : []), ...defizitVorschlaege];
+				const vorschlaege = [...einstieg, ...ermutigung, ...erholung, ...(ki ? [ki] : []), ...defizitVorschlaege];
 
 				// #1798 AK1: angezeigte Vorlagen anonym zählen (je Nutzer, Vorlage und Woche einmal).
 				const angezeigt = vorschlaege.flatMap((v) => (v.typ === 'vorlage' && v.templateKey ? [v.templateKey] : []));
