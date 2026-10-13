@@ -134,7 +134,9 @@ describe('logics/carePush — fachlicher Fürsorge-Push (Issue #1794)', () => {
 		// 75 % des Aufwands auf „Körper“ → Überlast (> 50 %), „Soziales“ hat Aufwand → kein Defizit.
 		// (Werte 0.75/0.25 statt 3/1: das Task-Modell validiert estimatedEffort in [0.1, 1] —
 		// server/src/models/task.ts:143-145; dasselbe 75 %-Verhältnis, Test-Pflege #1794.)
+		// #2521: Mindestmenge — 3 Erledigungen im jüngeren Fenster, damit Überlast überhaupt greift.
 		await seedDoneEffort(user.id, koerper.id, 0.75, gestern, 'Überlast-Körper');
+		await seedDoneEffort(user.id, koerper.id, 0.25, gestern, 'Überlast-Körper 2');
 		await seedDoneEffort(user.id, soziales.id, 0.25, gestern, 'Überlast-Soziales');
 		const calls: { endpoint: string; body: string }[] = [];
 
@@ -142,6 +144,23 @@ describe('logics/carePush — fachlicher Fürsorge-Push (Issue #1794)', () => {
 
 		assert.equal(result.usersNotified, 1, 'Überlast ohne Defizit ist ebenfalls ein Fürsorge-Anlass');
 		assert.equal(calls.length, 1);
+	});
+
+	it('#2521 AK1/AK3: eine einzige Erledigung löst keinen Überlast-Push aus (Mindestmenge)', async () => {
+		const user = await seedDeficitUser('care-mindestmenge@example.com');
+		const koerper = (await Pillar.findOne({ where: { userId: user.id } }))!;
+		const gestern = new Date(NOW.getTime() - 24 * 60 * 60 * 1000);
+		// 1 Erledigung auf „Körper“ = 100 % Anteil — über der Schwelle, aber unter der Mindestmenge;
+		// der Säule fehlt danach auch kein Defizit → es bleibt gar kein Fürsorge-Anlass übrig.
+		await seedDoneEffort(user.id, koerper.id, 0.5, gestern, 'Einzig erledigt');
+		const calls: { endpoint: string; body: string }[] = [];
+
+		const result = await runCarePush(NOW, okSender(calls));
+
+		assert.equal(result.usersNotified, 0, 'unter der Mindestmenge gibt es keinen (Überlast-)Push');
+		assert.equal(calls.length, 0);
+		const log = await NotificationLog.findOne({ where: { kind: 'care-push' } });
+		assert.equal(log, null, 'auch kein care-push-Log-Eintrag');
 	});
 
 	it('AK2: Ruhezeit 21–8 Uhr Nutzer-Zeitzone — 07:59 kein Versand, 08:00 schon, 22:30 keiner', async () => {

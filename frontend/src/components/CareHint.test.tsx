@@ -22,7 +22,7 @@ interface Vorschlag {
 	saeulenBeitraege: { pillarId: number; share: number }[];
 	taskId?: number;
 	templateKey?: string;
-	anlass?: 'defizit' | 'ueberlast';
+	anlass?: 'defizit' | 'ueberlast' | 'ermutigung';
 }
 
 vi.mock('@public-ui/react-v19', () => ({
@@ -106,6 +106,16 @@ const vorlage: Vorschlag = {
 	templateKey: 'koerper-spaziergang',
 };
 const zweite: Vorschlag = { ...vorlage, titel: 'Dehnen', templateKey: 'koerper-dehnen' };
+/** #2521: Ermutigungs-Eintrag — `anlass: 'ermutigung'`, ohne taskId/templateKey (nichts anzunehmen). */
+const ermutigung: Vorschlag = {
+	typ: 'vorlage',
+	titel: 'Schön, dass du heute an dich gedacht hast.',
+	beschreibung: null,
+	saeuleId: 0,
+	saeuleName: '',
+	saeulenBeitraege: [],
+	anlass: 'ermutigung',
+};
 const eigene: Vorschlag = {
 	typ: 'task',
 	titel: 'Fahrrad reparieren',
@@ -143,6 +153,17 @@ describe('CareHint (#1793)', () => {
 		// #2063: Sprach-Tests wechseln auf `en` — zurück auf den Setup-Pin, damit keine Folge-Assertion
 		// in der Testdatei an der Sprache hängt.
 		void i18next.changeLanguage('de');
+	});
+
+	it('#2521 AK5: Ermutigungs-Eintrag rendert den Satz ohne Aktionsreihe und ohne Grundauswahl', async () => {
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [ermutigung] });
+		render(<CareHint />);
+		const el = await zeigeHinweis();
+		expect(el.textContent).toContain('Schön, dass du heute an dich gedacht hast.');
+		// Kein Übernehmen / „Nicht jetzt“ / Ablehnen — ein Satz ohne Vorschlag hat nichts anzunehmen;
+		// ohne Aktionen kann er auch keinen Nachrück-Cursor setzen und nicht als Dismissal zählen.
+		expect(screen.queryAllByRole('button')).toHaveLength(0);
+		expect(screen.queryByRole('radiogroup')).toBeNull();
 	});
 
 	it('AK1: rendert genau EINEN Hinweis mit Säulenname und Titel des ersten Vorschlags', async () => {
