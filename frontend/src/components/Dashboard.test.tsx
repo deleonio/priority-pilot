@@ -933,3 +933,82 @@ describe('Dashboard — Deadlines-Pagination (8 je Seite)', () => {
 		expect(screen.queryByTestId('pager')).toBeNull();
 	});
 });
+
+/**
+ * Rote Spec-Tests für #2526 (docs/spec/issue-2526.md, ADR 0024): „Erledigen“ ohne offene
+ * Checkliste wird DIREKT aus dem Signal-Panel ausgeführt (kein Dialog mehr) und meldet an der
+ * Tipp-Stelle zurück — Erfolg mit Punkten/Streak und „Rückgängig“ in einer aria-live-Region,
+ * Fehler als Inline-KolAlert. Bis zur Umsetzung ruft der Klick noch nichts auf → rot.
+ */
+describe('Dashboard — Direkt-Erledigen mit Inline-Rückmeldung (Issue #2526)', () => {
+	const erledigenButton = (container: HTMLElement) =>
+		[...container.querySelectorAll('.dashboard-next-task-content kol-button')].find(
+			(b) => b.getAttribute('_label') === 'Erledigen',
+		);
+
+	const setup = () => {
+		vi.spyOn(api, 'getBalanceStatus').mockResolvedValue({
+			fuellstandProzent: 0,
+			hatPunkte: true,
+			saeulen: [],
+			meilensteine: [],
+		} as unknown as BalanceStatus);
+		vi.spyOn(api, 'getCareSuggestions').mockResolvedValue({ vorschlaege: [] } as never);
+		vi.spyOn(api, 'getStreak').mockResolvedValue({ tage: 4 } as never);
+	};
+
+	it('AK2: Direkt-Erledigen zeigt die Rückmeldung in einer aria-live-Region mit „Rückgängig“', async () => {
+		setup();
+		const updateSpy = vi.spyOn(api, 'updateTask').mockResolvedValue({} as never);
+		const nextTask = task(51, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Open);
+		const { container } = render(
+			<Dashboard
+				tasks={[nextTask]}
+				forest={[] as TaskTreeNode[]}
+				nextTask={nextTask}
+				pillars={[pillar(1, 'Körper', 100)]}
+			/>,
+		);
+
+		const button = erledigenButton(container);
+		expect(button, 'Button „Erledigen“ fehlt im Panel').toBeDefined();
+		(button as unknown as { _on: { onClick: (event: Event) => void } })._on.onClick(new Event('click'));
+
+		await waitFor(() => {
+			const live = container.querySelector('.dashboard-next-task-content [aria-live="polite"]');
+			expect(live, 'Rückmeldung fehlt oder liegt nicht in einer aria-live-Region').not.toBeNull();
+			expect(live!.textContent).toMatch(/\+\d+ Punkte/);
+		});
+		expect(updateSpy).toHaveBeenCalledTimes(1);
+
+		const undo = [...container.querySelectorAll('.dashboard-next-task-content kol-button')].find(
+			(b) => b.getAttribute('_label') === 'Rückgängig',
+		);
+		expect(undo, 'Knopf „Rückgängig“ fehlt im Inline-Zustand').toBeDefined();
+	});
+
+	it('AK7: schlägt das Erledigen fehl, zeigt das Panel eine Inline-Fehlermeldung und die Aufgabe bleibt offen', async () => {
+		setup();
+		vi.spyOn(api, 'updateTask').mockRejectedValue(new Error('Serverfehler'));
+		const nextTask = task(52, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Open);
+		const { container } = render(
+			<Dashboard
+				tasks={[nextTask]}
+				forest={[] as TaskTreeNode[]}
+				nextTask={nextTask}
+				pillars={[pillar(1, 'Körper', 100)]}
+			/>,
+		);
+
+		const button = erledigenButton(container);
+		expect(button, 'Button „Erledigen“ fehlt im Panel').toBeDefined();
+		(button as unknown as { _on: { onClick: (event: Event) => void } })._on.onClick(new Event('click'));
+
+		await waitFor(() => {
+			const alert = container.querySelector('.dashboard-next-task-content kol-alert');
+			expect(alert, 'keine Inline-Fehlermeldung im Panel').not.toBeNull();
+			expect(alert?.getAttribute('_type')).toBe('error');
+		});
+		expect(container.querySelector('.dashboard-next-task-content')?.textContent).toContain('T52');
+	});
+});
