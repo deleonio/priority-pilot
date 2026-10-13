@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.24 - 2026-10-13
 
-_Enthält v0.24.0 – v0.24.11._
+_Enthält v0.24.0 – v0.24.12._
 
 ### 🎉 New Features
 
@@ -25,6 +25,7 @@ _Enthält v0.24.0 – v0.24.11._
 - feat(server): pillar names in care texts follow app language (#2523) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2571
 - feat(frontend): single primary action per missed task (#2524) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2575
 - feat(frontend): show done tasks on their completion day in week view by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2576
+- test(frontend): measure missed/deadlines top edges atomically (#2578) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2579
 
 ## v0.23 - 2026-10-12
 
@@ -194,7 +195,6 @@ _Enthält v0.18.0 – v0.18.45._
 ### 🚀 Improvements
 
 - feat(frontend): restore plan matrix, list higher-tier features last by @deleonio in https://github.com/deleonio/priority-pilot/pull/2366
-- feat(frontend): restore plan matrix, list higher-tier features last by @deleonio in https://github.com/deleonio/priority-pilot/pull/2366
 - chore(native): bundle web app into android app bundle by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2392
 - feat(server): add pinned field to mcp task_update by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2395
 - feat(frontend): store content preferences per account (#2398) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2407
@@ -212,6 +212,7 @@ _Enthält v0.18.0 – v0.18.45._
 
 - feat(server): confirm withdrawal consent on first invoice (#2329) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2336
 - feat(server): flag task llm suitability via keyword heuristic by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2351
+- feat(server): add ai draft action for llm-suitable tasks by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2367
 - feat(server): add ai draft action for llm-suitable tasks by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2367
 - docs(native-apps): Google Play purchase verification setup (#2368) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2372
 - docs(adr): ADR 0020 Serien Automatisch anlegen / Vorlage (#2354) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2374
