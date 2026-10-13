@@ -353,6 +353,23 @@ export const seedAccountPreferences = async (page: Page, preferences: Record<str
 };
 
 /**
+ * #2527-Test-Pflege: sät die Mindestmenge an Erledigungen OHNE Säulen-Beitrag — Care-Vorschläge
+ * und die Defizit-Begründung greifen erst ab der Überlast-Mindestmenge; ohne Beitrag bleibt
+ * jede Säule defizitär, damit die Interaktions-Specs weiterhin bedienbare Vorschläge sehen.
+ */
+export const seedMindestErledigungen = async (page: Page): Promise<void> => {
+	for (let i = 0; i < 3; i++) {
+		const created = await page.request.post('/api/v1/tasks', {
+			data: { title: `E2E Pflege-Erledigt ${i + 1}`, priority: 3, estimatedEffort: 1 },
+		});
+		expect(created.status(), 'Setup: Task-Anlage muss 201 liefern').toBe(201);
+		const { id } = (await created.json()) as { id: number };
+		const done = await page.request.patch(`/api/v1/tasks/${id}`, { data: { status: 'Done' } });
+		expect(done.status(), 'Setup: Statuswechsel auf Done muss 200 liefern').toBe(200);
+	}
+};
+
+/**
  * Vollverteilung über alle Säulen für API-Fixtures (#2077): jeder Anteil in [5, 80], Summe
  * exakt 100, `emphasisIndex` trägt den Höchstanteil; `confidence` nur bei Übergabe. Die reine
  * Logik liegt für den Unit-Test in `src/lib/pillarContributions.ts` (#2154: Vitest excludiert

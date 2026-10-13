@@ -538,8 +538,29 @@ describe('GET /scores/care-suggestions — Säulen pro Nutzer (#2146)', () => {
 		return id;
 	};
 
+	/** #2527-Test-Pflege: Mindestmenge an Erledigungen OHNE Säulen-Beitrag — sie zählen für die
+	 * Mindestmenge, lassen aber jede Säule defizitär (kein Ist-Anteil im jüngeren Fenster). */
+	const erledigeOhneSaeulen = async (cookie: string): Promise<void> => {
+		for (let i = 0; i < UEBERLAST_MINDEST_ERLEDIGUNGEN; i++) {
+			const createRes = await server.json('/tasks', {
+				method: 'POST',
+				headers: { Cookie: cookie },
+				body: JSON.stringify({ title: 'Erledigt ohne Säule', priority: 3, estimatedEffort: 1 }),
+			});
+			assert.equal(createRes.status, 201, 'Setup: Task-Anlage muss 201 liefern');
+			const { id } = (await createRes.json()) as { id: number };
+			const doneRes = await server.json(`/tasks/${id}`, {
+				method: 'PATCH',
+				headers: { Cookie: cookie },
+				body: JSON.stringify({ status: 'Done' }),
+			});
+			assert.equal(doneRes.status, 200, 'Setup: Statuswechsel auf Done muss 200 liefern');
+		}
+	};
+
 	it('AK1: zweiter Nutzer bekommt für eine defizitäre Standard-Säule eine Vorlage mit seiner saeuleId', async () => {
 		const { cookie, saeulen } = await registriereZweitenNutzer();
+		await erledigeOhneSaeulen(cookie); // Test-Pflege #2527: Defizit-Vorschläge erst ab der Mindestmenge
 		const vorschlaege = await leseVorschlaege(cookie);
 		for (const saeule of saeulen) {
 			const vorlagen = vorschlaege.filter((v) => v.saeuleId === saeule.id && v.typ === 'vorlage');
@@ -583,6 +604,7 @@ describe('GET /scores/care-suggestions — Säulen pro Nutzer (#2146)', () => {
 		const cookie = await server.register('care-2146-custom@example.com', 'password123');
 		const garten = await legeEigeneSaeuleAn(cookie, 'Gartenarbeit', null);
 		const musik = await legeEigeneSaeuleAn(cookie, 'Musikmachen', 'eigene-musik');
+		await erledigeOhneSaeulen(cookie); // Test-Pflege #2527
 
 		const vorschlaege = await leseVorschlaege(cookie);
 		for (const [id, name] of [
@@ -604,6 +626,7 @@ describe('GET /scores/care-suggestions — Säulen pro Nutzer (#2146)', () => {
 	it('AK4: generischer Text kommt in allen Sprachen mit Säulenname; de und en unterscheiden sich', async () => {
 		const cookie = await server.register('care-2146-lang@example.com', 'password123');
 		const garten = await legeEigeneSaeuleAn(cookie, 'Gartenarbeit', null);
+		await erledigeOhneSaeulen(cookie); // Test-Pflege #2527
 		const texte = new Map<string, string>();
 		for (const sprache of CARE_SPRACHEN) {
 			const vorschlag = (await leseVorschlaege(cookie, `?sprache=${sprache}`)).find((v) => v.saeuleId === garten);
@@ -620,6 +643,7 @@ describe('GET /scores/care-suggestions — Säulen pro Nutzer (#2146)', () => {
 		const cookie = await server.register('care-2146-task@example.com', 'password123');
 		const garten = await legeEigeneSaeuleAn(cookie, 'Gartenarbeit', null);
 		const taskId = await offeneAufgabe(cookie, 'Beet umgraben', garten);
+		await erledigeOhneSaeulen(cookie); // Test-Pflege #2527
 
 		const treffer = (await leseVorschlaege(cookie)).filter((v) => v.saeuleId === garten);
 		assert.equal(treffer[0]?.typ, 'task');
@@ -630,6 +654,7 @@ describe('GET /scores/care-suggestions — Säulen pro Nutzer (#2146)', () => {
 		const cookie = await server.register('care-2146-dismiss@example.com', 'password123');
 		const garten = await legeEigeneSaeuleAn(cookie, 'Gartenarbeit', null);
 		const musik = await legeEigeneSaeuleAn(cookie, 'Musikmachen', null);
+		await erledigeOhneSaeulen(cookie); // Test-Pflege #2527
 		const gartenKey = (await leseVorschlaege(cookie)).find((v) => v.saeuleId === garten)?.templateKey;
 		assert.ok(gartenKey, 'Setup: generischer Vorschlag mit templateKey');
 
@@ -648,6 +673,7 @@ describe('GET /scores/care-suggestions — Säulen pro Nutzer (#2146)', () => {
 	it('AK7: generischer Vorschlag ist per POST /tasks übernehmbar und erscheint in GET /tasks', async () => {
 		const cookie = await server.register('care-2146-adopt@example.com', 'password123');
 		const garten = await legeEigeneSaeuleAn(cookie, 'Gartenarbeit', null);
+		await erledigeOhneSaeulen(cookie); // Test-Pflege #2527
 		const vorschlag = (await leseVorschlaege(cookie)).find((v) => v.saeuleId === garten);
 		assert.ok(vorschlag, 'Setup: generischer Vorschlag');
 
@@ -685,6 +711,7 @@ describe('GET /scores/care-suggestions — Säulen pro Nutzer (#2146)', () => {
 			const cookie = await server.register('care-2523-en@example.com', 'password123');
 			const saeuleId = await ersteSaeule(cookie);
 			await setzeSprache(cookie, 'en');
+			await erledigeOhneSaeulen(cookie); // Test-Pflege #2527
 
 			const ohneHeader = (await leseVorschlaege(cookie)).filter((v) => v.saeuleId === saeuleId);
 			assert.ok(ohneHeader.length > 0, 'Defizit-Säule muss Vorschläge liefern');
@@ -704,6 +731,7 @@ describe('GET /scores/care-suggestions — Säulen pro Nutzer (#2146)', () => {
 		it('Randbedingung: App-Sprache de + Accept-Language: en — saeuleName bleibt deutsch (Kohärenz)', async () => {
 			const cookie = await server.register('care-2523-de@example.com', 'password123');
 			const saeuleId = await ersteSaeule(cookie);
+			await erledigeOhneSaeulen(cookie); // Test-Pflege #2527
 
 			const vorschlaege = (await leseVorschlaege(cookie, '', { 'Accept-Language': 'en' })).filter(
 				(v) => v.saeuleId === saeuleId,
@@ -720,6 +748,7 @@ describe('GET /scores/care-suggestions — Säulen pro Nutzer (#2146)', () => {
 			// Umbenennen ist per API gesperrt (#1573) — Alt-Bestand modellseitig nachstellen.
 			await Pillar.update({ name: 'Mein Körper' }, { where: { id: saeuleId } });
 			await setzeSprache(cookie, 'en');
+			await erledigeOhneSaeulen(cookie); // Test-Pflege #2527
 
 			const vorschlaege = (await leseVorschlaege(cookie)).filter((v) => v.saeuleId === saeuleId);
 			assert.ok(vorschlaege.length > 0, 'umbenannte Defizit-Säule muss Vorschläge liefern');
