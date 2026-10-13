@@ -4,13 +4,15 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.24 - 2026-10-13
 
-_Enthält v0.24.0 – v0.24.3._
+_Enthält v0.24.0 – v0.24.5._
 
 ### Other Changes
 
 - fix(frontend): show app magic-link landing despite existing session by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2566
 - fix(deps): update dependency i18next to v26.4.4 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2512
 - docs(adr): add 0024 direct completion with undo instead of dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2568
+- feat(server): require minimum completions before overload (#2521) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2569
+- feat(frontend): refresh care hint after completing a task (#2522) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2570
 
 ## v0.23 - 2026-10-12
 
@@ -295,7 +297,6 @@ _Enthält v0.17.0 – v0.17.45._
 - feat(frontend): connect ICS calendars and show events in week view by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2338
 - feat(website): add image film to landing page by @deleonio in https://github.com/deleonio/priority-pilot/pull/2344
 - docs(native): add upload key fingerprint to asset links by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2345
-- docs(native): add upload key fingerprint to asset links by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2345
 
 ## v0.16 - 2026-10-06
 
@@ -380,6 +381,7 @@ _Enthält v0.15.0 – v0.15.22._
 - feat(server): enforce share bounds and consolidate handover rows (#2152) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2172
 - chore: document agent setup comparison and split llm concurrency by @deleonio in https://github.com/deleonio/priority-pilot/pull/2171
 - refactor(server): use findCancelledWithRemaining in cancel route (F-35) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2175
+- fix(frontend): e2e helper, rank-return notice, css tokens (#2154) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2176
 - fix(frontend): e2e helper, rank-return notice, css tokens (#2154) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2176
 - test(frontend): clean up remaining nits from leaf-review rounds (#2173) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2177
 - feat(server): import tasks from todoist and csv (#1969) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2180
