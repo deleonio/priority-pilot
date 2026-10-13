@@ -58,9 +58,14 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		await expect(item).toContainText('Verpasster Zahnarzt');
 		await expect(item).toContainText(/1× verschoben/);
 		await expect(item.getByRole('button', { name: /^erledigt$/i })).toBeVisible();
-		await expect(item.getByRole('button', { name: /neu planen/i })).toBeVisible();
-		await expect(item.getByRole('button', { name: /archivieren/i })).toBeVisible();
-		await expect(item.getByRole('button', { name: /löschen/i })).toBeVisible();
+		// Test-Pflege #2524: „Neu planen"/„Archivieren"/„Löschen" liegen hinter dem „…"-Popover
+		// („Weitere Aktionen") — erst öffnen, dann die Einträge prüfen (vormals direkt sichtbar).
+		await item.getByRole('button', { name: /weitere aktionen/i }).click();
+		const popover = item.locator('kol-popover-button').locator('.kol-popover-button__popover');
+		await expect(popover).toBeVisible();
+		await expect(popover.getByRole('button', { name: /neu planen/i })).toBeVisible();
+		await expect(popover.getByRole('button', { name: /archivieren/i })).toBeVisible();
+		await expect(popover.getByRole('button', { name: /löschen/i })).toBeVisible();
 
 		// AK3: ohne Verschiebung kein Zähler (0 wird nicht angezeigt)
 		await createTaskViaApi(page, { title: 'Nie verschoben', deadline: past });
@@ -114,7 +119,9 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		expect(itemBox!.x).toBeGreaterThanOrEqual(0);
 		expect(itemBox!.x + itemBox!.width).toBeLessThanOrEqual(375);
 
-		for (const name of [/^erledigt$/i, /neu planen/i, /archivieren/i, /löschen/i]) {
+		// Test-Pflege #2524: „Erledigt" + „…"-Auslöser stehen inline, die drei übrigen Aktionen
+		// liegen im „…"-Popover („Weitere Aktionen") und werden nach dem Öffnen gemessen.
+		for (const name of [/^erledigt$/i, /weitere aktionen/i]) {
 			const button = item.getByRole('button', { name });
 			await expect(button).toBeVisible();
 			// boundingBox() misst einmalig und wartet nicht nach (Memory 2026-09-14): kurze Schleife
@@ -127,6 +134,21 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 			expect(box!.x).toBeGreaterThanOrEqual(0);
 			expect(box!.x + box!.width).toBeLessThanOrEqual(375);
 			expect(box!.height).toBeGreaterThanOrEqual(44);
+		}
+
+		await item.getByRole('button', { name: /weitere aktionen/i }).click();
+		const popover = item.locator('kol-popover-button').locator('.kol-popover-button__popover');
+		await expect(popover).toBeVisible();
+		for (const name of [/neu planen/i, /archivieren/i, /löschen/i]) {
+			const entry = popover.getByRole('button', { name });
+			await expect(entry).toBeVisible();
+			let entryBox = await entry.boundingBox();
+			for (let i = 0; i < 30 && !entryBox; i += 1) {
+				await page.waitForTimeout(100);
+				entryBox = await entry.boundingBox();
+			}
+			expect(entryBox, `Popover-Aktion ${String(name)} muss messbar sein`).not.toBeNull();
+			expect(entryBox!.height).toBeGreaterThanOrEqual(44);
 		}
 	});
 
@@ -182,9 +204,12 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 
 		await page.goto('/app/');
 		await waitForStableView(page);
-		await page
-			.getByTestId('missed-item')
-			.filter({ hasText: 'Ins Archiv und zurück' })
+		// Test-Pflege #2524: „Archivieren" liegt hinter dem „…"-Popover — erst öffnen, dann klicken.
+		const archivItem = page.getByTestId('missed-item').filter({ hasText: 'Ins Archiv und zurück' });
+		await archivItem.getByRole('button', { name: /weitere aktionen/i }).click();
+		await archivItem
+			.locator('kol-popover-button')
+			.locator('.kol-popover-button__popover')
 			.getByRole('button', { name: /archivieren/i })
 			.click();
 		await expect(page.getByTestId('missed-section')).toHaveCount(0);
