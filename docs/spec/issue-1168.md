@@ -1,5 +1,7 @@
 # Dashboard-Signal-Panel: „Erledigt“ mit Bestätigungsdialog
 
+**Status:** Superseded (2026-10-13) durch [ADR 0024](../adr/0024-erledigen-direkt-mit-rueckgaengig.md) — „Erledigen“ ohne Bestätigungsdialog, Rückmeldung an der Tipp-Stelle mit „Rückgängig“ (nur Ausnahmen behalten den Dialog).
+
 **Stand:** 2026-10-11
 
 Der Aktionsbutton im Panel „Nächste Aufgabe“ (`Dashboard.tsx:198-205`) trägt das Label „Erledigt“.
