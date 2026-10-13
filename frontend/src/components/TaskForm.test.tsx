@@ -3990,3 +3990,160 @@ describe('TaskForm — Checkliste an der Serie (#2501)', () => {
 		);
 	});
 });
+
+/**
+ * Rote TDD-Verträge für #2525 — „Mehr Angaben“: Säulen-Verteilung und Aufwand wandern in eine
+ * vierte, zugeklappte KolAccordion-Sektion; die Priorität bleibt außerhalb
+ * (Spec: docs/spec/issue-2525.md).
+ *
+ * Rot, solange die Sektion fehlt: TF3–TF5 und AK6 scheitern am fehlenden „Mehr Angaben“-Trigger
+ * bzw. Hinweistext. TF2 (AK2) ist der Regressionsspiegel für die unveränderten Standardwerte im
+ * Payload — er ist heute grün und muss nach der Umsetzung grün bleiben.
+ */
+describe('TaskForm — „Mehr Angaben“-Sektion (#2525)', () => {
+	const fivePillars2525: Pillar[] = [
+		{ id: 1, name: 'Körper', description: '', weight: 20 },
+		{ id: 2, name: 'Mentale Gesundheit', description: '', weight: 20 },
+		{ id: 3, name: 'Beziehungen', description: '', weight: 20 },
+		{ id: 4, name: 'Wirksamkeit', description: '', weight: 20 },
+		{ id: 5, name: 'Sinn', description: '', weight: 20 },
+	];
+
+	/** Gleichverteilung als gespeicherte Säulen-Beiträge (Standardwerte, #2525 AK5). */
+	const equalShares2525 = [1, 2, 3, 4, 5].map((id) => ({ pillarId: id, share: 20, confidence: 100 }));
+
+	/** `<details>` der „Mehr Angaben“-Sektion (KolAccordion-Mock spiegelt `_open` in `details.open`). */
+	const moreSection = (): HTMLDetailsElement =>
+		screen.getByText(/Mehr Angaben/).closest('details') as HTMLDetailsElement;
+
+	// TF2 (AK2) — Regressionsspiegel: Nur-Titel-Speichern sendet unverändert die Gleichverteilung
+	// und den Aufwand-Standard; die zugeklappte Sektion darf daran nichts ändern.
+	it('TF2/AK2 — nur Titel: Payload enthält Gleichverteilung (20 % je Säule) und Aufwand 0.5', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+
+		await act(async () => {
+			render(<TaskForm task={null} pillars={fivePillars2525} onClose={vi.fn()} onSaved={vi.fn()} />);
+		});
+
+		await fillTitle('Nur Titel');
+		await clickSave();
+
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [
+			{ taskCreate: { pillars: { pillarId: number; share: number }[]; estimatedEffort: number } },
+		];
+		expect(taskCreate.pillars.map((p) => p.share)).toEqual([20, 20, 20, 20, 20]);
+		expect(taskCreate.estimatedEffort).toBe(0.5);
+	});
+
+	// TF3 (AK3) — Der Trigger klappt die Sektion auf; innerhalb funktionieren Rangfolge-Tipp
+	// und Treppe wie bisher (bewusst über den Klick kombiniert, nicht nur der Zustand).
+	it('TF3/AK3 — Trigger klappt auf; Rangfolge-Tipp erzeugt die Treppe', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} pillars={fivePillars2525} onClose={vi.fn()} onSaved={vi.fn()} />);
+		});
+
+		expect(moreSection().open).toBe(false);
+		await act(async () => {
+			fireEvent.click(screen.getByText(/Mehr Angaben/));
+		});
+		expect(moreSection().open).toBe(true);
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: /^Körper/ }));
+		});
+		expect(screen.getByRole('button', { name: /Rang 1 von 5: Körper — 50 %/ })).toBeInTheDocument();
+	});
+
+	// TF4 (AK4) — Der Hinweistext existiert und liegt außerhalb des einklappbaren Body-Slots
+	// (KI-UX: zugeklappt rendert KolAccordion nur den Kopf; der Trigger-Name bleibt exakt
+	// „Mehr Angaben“ — der Hinweis ist eine eigene Zeile unter dem Kopf, kein KolAlert).
+	it('TF4/AK4 — zugeklappt: Standardwerte-Hinweis vorhanden, außerhalb des einklappbaren Bodys', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} pillars={fivePillars2525} onClose={vi.fn()} onSaved={vi.fn()} />);
+		});
+
+		const hint = screen.getByText(/Standardwerte/);
+		const details = hint.closest('details');
+		expect(details === null || hint.closest('summary') !== null).toBe(true);
+	});
+
+	// TF5 (AK5) — Anfangszustand: offen genau bei eigenen Werten; Vorlage-Vorbelegung zählt.
+	it('TF5/AK5 — Bearbeiten mit eigenen Werten (Aufwand 0.75) startet offen', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(
+				<TaskForm
+					task={{ ...minimalNewTask(), pillars: equalShares2525, estimatedEffort: 0.75 }}
+					pillars={fivePillars2525}
+					onClose={vi.fn()}
+					onSaved={vi.fn()}
+				/>,
+			);
+		});
+
+		expect(moreSection().open).toBe(true);
+	});
+
+	it('TF5/AK5 — Bearbeiten mit Standardwerten (Gleichverteilung + 0.5) startet zugeklappt', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(
+				<TaskForm
+					task={{ ...minimalNewTask(), pillars: equalShares2525, estimatedEffort: 0.5 }}
+					pillars={fivePillars2525}
+					onClose={vi.fn()}
+					onSaved={vi.fn()}
+				/>,
+			);
+		});
+
+		expect(moreSection().open).toBe(false);
+	});
+
+	it('TF5/AK5 — Anlegen startet zugeklappt', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} pillars={fivePillars2525} onClose={vi.fn()} onSaved={vi.fn()} />);
+		});
+
+		expect(moreSection().open).toBe(false);
+	});
+
+	it('TF5/AK5 — Vorlage-Flow: initialValues.pillars gelten als eigene Werte, startet offen', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(
+				<TaskForm
+					task={null}
+					initialValues={{ pillars: [{ pillarId: 1, share: 50, confidence: 90 }] }}
+					pillars={fivePillars2525}
+					onClose={vi.fn()}
+					onSaved={vi.fn()}
+				/>,
+			);
+		});
+
+		expect(moreSection().open).toBe(true);
+	});
+
+	// AK6 — Die Priorität bleibt außerhalb des einklappbaren Bereichs (Sichtbarkeit unverändert).
+	it('AK6 — Priorität liegt nicht in der „Mehr Angaben“-Sektion', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} pillars={fivePillars2525} onClose={vi.fn()} onSaved={vi.fn()} />);
+		});
+
+		const slider = screen.getByRole('slider', { name: /Priorität/ });
+		expect(slider.closest('details')).not.toBe(moreSection());
+	});
+});
