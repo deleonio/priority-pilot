@@ -143,6 +143,16 @@ describe('GET /scores/care-suggestions — KI-Vorschlag Plus/Pro (#1804)', () =>
 		assert.equal(await verbrauch(userId), 0);
 	});
 
+	it('#2527 AK5: Plus unter der Überlast-Mindestmenge → Berater nicht aufgerufen, nichts gebucht', async () => {
+		const { cookie, userId, saeuleId } = await setup('care-ki-einstieg@example.com', 'plus');
+		await createTask(cookie, 'EinzigeAufgabe', saeuleId); // Defizit vorhanden, 0 Erledigungen im jüngeren Fenster
+
+		const vorschlaege = await leseVorschlaege(cookie);
+		assert.equal(nurKi(vorschlaege).length, 0, 'kein KI-Vorschlag unter der Mindestmenge');
+		assert.equal(aufrufe.length, 0, 'Beraterlauf unterbleibt (Muster #1873: nur buchen, was angezeigt wird)');
+		assert.equal(await verbrauch(userId), 0, 'nichts gebucht');
+	});
+
 	it('AK4: Advisor wirft → 200 mit Bestand/Vorlagen ohne Fehlerfeld, Buchung zurückgenommen', async () => {
 		const { cookie, userId } = await setup('care-ki-fehler@example.com', 'plus');
 		advisorImpl = async () => {

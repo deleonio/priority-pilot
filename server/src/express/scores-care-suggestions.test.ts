@@ -1,6 +1,7 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { CARE_SPRACHEN, CARE_VORLAGEN } from '../logics/careSuggestionData.js';
+import { UEBERLAST_MINDEST_ERLEDIGUNGEN } from '../logics/careDeficit.js';
 import { SHARE_MIN, SHARE_TOTAL } from '../logics/pillarShares.js';
 import { Pillar, TaskPillar } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
@@ -35,7 +36,7 @@ interface Vorschlag {
 	saeulenBeitraege: { pillarId: number; share: number }[];
 	taskId?: number;
 	templateKey?: string;
-	anlass?: 'defizit' | 'ueberlast' | 'ermutigung';
+	anlass?: 'defizit' | 'ueberlast' | 'ermutigung' | 'einstieg';
 }
 
 const leseVorschlaege = async (
@@ -90,6 +91,7 @@ describe('GET /scores/care-suggestions (#1791)', () => {
 
 	it('AK1: offene Aufgabe der Defizit-Säule erscheint zuerst (typ task, taskId)', async () => {
 		const cookie = await server.register('care-task-first@example.com', 'password123');
+		await erledigeVerteilt(cookie, UEBERLAST_MINDEST_ERLEDIGUNGEN); // Test-Pflege #2527
 		const saeuleId = await ersteSaeule(cookie);
 		const taskId = await createOpenTask(cookie, 'Spaziergang im Park', saeuleId);
 
@@ -101,6 +103,7 @@ describe('GET /scores/care-suggestions (#1791)', () => {
 
 	it('AK2: ohne offene Aufgabe kuratierte Vorlage der Säule — Free-Konto, Sprach-Param spiegelt CARE_VORLAGEN', async () => {
 		const cookie = await server.register('care-free-template@example.com', 'password123');
+		await erledigeVerteilt(cookie, UEBERLAST_MINDEST_ERLEDIGUNGEN); // Test-Pflege #2527
 		const saeuleId = await ersteSaeule(cookie);
 
 		const deVorschlaege = (await leseVorschlaege(cookie)).filter((v) => v.saeuleId === saeuleId && v.typ === 'vorlage');
@@ -119,6 +122,7 @@ describe('GET /scores/care-suggestions (#1791)', () => {
 
 	it('AK3: Vorlagen-Payload per POST /tasks anlegbar, Task trägt den Säulen-Beitrag', async () => {
 		const cookie = await server.register('care-adopt@example.com', 'password123');
+		await erledigeVerteilt(cookie, UEBERLAST_MINDEST_ERLEDIGUNGEN); // Test-Pflege #2527
 		const saeuleId = await ersteSaeule(cookie);
 		const vorlage = (await leseVorschlaege(cookie)).find((v) => v.saeuleId === saeuleId && v.typ === 'vorlage');
 		assert.ok(vorlage, 'Setup: Säule braucht eine Vorlage');
@@ -144,6 +148,7 @@ describe('GET /scores/care-suggestions (#1791)', () => {
 
 	it('AK4 (API): frisch abgelehnte Vorlage wird unterdrückt', async () => {
 		const cookie = await server.register('care-dismiss@example.com', 'password123');
+		await erledigeVerteilt(cookie, UEBERLAST_MINDEST_ERLEDIGUNGEN); // Test-Pflege #2527
 		const saeuleId = await ersteSaeule(cookie);
 		const vorlage = (await leseVorschlaege(cookie)).find((v) => v.saeuleId === saeuleId && v.typ === 'vorlage');
 		assert.ok(vorlage?.templateKey, 'Setup: Säule braucht eine Vorlage mit templateKey');
@@ -172,6 +177,31 @@ describe('GET /scores/care-suggestions (#1791)', () => {
 			assert.equal(createRes.status, 201, 'Setup: Task-Anlage muss 201 liefern');
 			const { id } = (await createRes.json()) as { id: number };
 			await TaskPillar.create({ taskId: id, pillarId, share: 100, confidence: 100 });
+			const doneRes = await server.json(`/tasks/${id}`, {
+				method: 'PATCH',
+				headers: { Cookie: cookie },
+				body: JSON.stringify({ status: 'Done' }),
+			});
+			assert.equal(doneRes.status, 200, 'Setup: Statuswechsel auf Done muss 200 liefern');
+		}
+	};
+
+	/** Setup: Mindestmenge Erledigungen, verteilt auf verschiedene Säulen (je 100 % auf die eigene
+	 *  Säule → keine Überlast; Säule 0 bleibt frei — #2527-Test-Pflege und #2527-Tests). */
+	const erledigeVerteilt = async (cookie: string, anzahl: number): Promise<void> => {
+		const res = await server.json('/pillars', { headers: { Cookie: cookie } });
+		assert.equal(res.status, 200, 'Setup: Säulen müssen über die API lesbar sein');
+		const pillars = (await res.json()) as { id: number }[];
+		assert.ok(pillars.length >= anzahl + 1, 'Setup: genug Säulen für die Verteilung');
+		for (let i = 0; i < anzahl; i++) {
+			const createRes = await server.json('/tasks', {
+				method: 'POST',
+				headers: { Cookie: cookie },
+				body: JSON.stringify({ title: 'Erledigt verteilt', priority: 3, estimatedEffort: 1 }),
+			});
+			assert.equal(createRes.status, 201, 'Setup: Task-Anlage muss 201 liefern');
+			const { id } = (await createRes.json()) as { id: number };
+			await TaskPillar.create({ taskId: id, pillarId: pillars[i + 1]!.id, share: 100, confidence: 100 });
 			const doneRes = await server.json(`/tasks/${id}`, {
 				method: 'PATCH',
 				headers: { Cookie: cookie },
@@ -221,6 +251,7 @@ describe('GET /scores/care-suggestions (#1791)', () => {
 
 	it('#1795 AK3: ohne Überlast tragen alle Vorschläge anlass defizit', async () => {
 		const cookie = await server.register('care-no-overload@example.com', 'password123');
+		await erledigeVerteilt(cookie, UEBERLAST_MINDEST_ERLEDIGUNGEN); // Test-Pflege #2527: sonst käme jetzt der Einstieg-Eintrag
 		const saeuleId = await ersteSaeule(cookie);
 		await createOpenTask(cookie, 'Spaziergang', saeuleId);
 
@@ -293,6 +324,59 @@ describe('GET /scores/care-suggestions (#1791)', () => {
 				`${vorschlag.templateKey}: jeder Anteil ≥ SHARE_MIN`,
 			);
 		}
+	});
+
+	// Rote Spec-Tests #2527 (docs/spec/issue-2527.md): Bei 0 Erledigungen im jüngeren Fenster
+	// liefert die Care-Route genau einen Einstieg-Eintrag vorn und keine Defizit-Vorschläge;
+	// ab der Mindestmenge bleibt alles wie bisher.
+	describe('GET /scores/care-suggestions — Einstieg unter der Mindestmenge (#2527)', () => {
+		it('AK1/AK4: 0 Erledigungen → genau ein einstieg-Eintrag vorn, kein defizit/ueberlast, Satz in de und en', async () => {
+			const cookie = await server.register('care-einstieg-2527@example.com', 'password123');
+
+			const de = await leseVorschlaege(cookie);
+			const einstieg = de.filter((v) => v.anlass === 'einstieg');
+			assert.equal(einstieg.length, 1, 'genau ein Einstieg-Eintrag');
+			assert.equal(de[0]?.anlass, 'einstieg', 'der Einstieg-Eintrag steht vorn (einziger sichtbarer)');
+			assert.equal(de.filter((v) => v.anlass === 'defizit').length, 0, 'unter der Mindestmenge keine Defizit-Einträge');
+			assert.equal(
+				de.filter((v) => v.anlass === 'ueberlast').length,
+				0,
+				'unter der Mindestmenge kein ueberlast-Eintrag',
+			);
+			assert.equal(einstieg[0]?.typ, 'vorlage', 'reiner Satz-Eintrag');
+			assert.equal(einstieg[0]?.saeuleId, 0, 'kein Säulenbezug');
+			assert.equal(einstieg[0]?.taskId, undefined, 'nichts zum Übernehmen');
+			assert.equal(einstieg[0]?.templateKey, undefined, 'nichts zum Ablehnen/Dismissal');
+			assert.equal(
+				einstieg[0]?.titel,
+				'Such dir eine kleine Aufgabe aus, die dir heute guttut – klein anfangen zählt.',
+				'deutscher Einstiegssatz (AK4, Ton nach docs/fuersorge-tonalitaet.md)',
+			);
+
+			const en = (await leseVorschlaege(cookie, '?sprache=en')).filter((v) => v.anlass === 'einstieg');
+			assert.equal(en.length, 1, 'Einstieg auch bei sprache=en');
+			assert.equal(
+				en[0]?.titel,
+				'Pick one small task that does you good today – starting small counts.',
+				'englischer Einstiegssatz (AK4)',
+			);
+			assert.notEqual(en[0]?.titel, einstieg[0]?.titel, 'de und en unterscheiden sich');
+		});
+
+		it('AK2/AK3: ab UEBERLAST_MINDEST_ERLEDIGUNGEN Erledigungen → defizit wie bisher, kein einstieg', async () => {
+			const cookie = await server.register('care-defizit-2527@example.com', 'password123');
+			await erledigeVerteilt(cookie, UEBERLAST_MINDEST_ERLEDIGUNGEN);
+
+			const vorschlaege = await leseVorschlaege(cookie);
+			assert.ok(
+				vorschlaege.some((v) => v.anlass === 'defizit'),
+				'Defizit-Vorschläge wie bisher',
+			);
+			assert.ok(
+				vorschlaege.every((v) => v.anlass !== 'einstieg'),
+				'ab der Mindestmenge kein Einstieg-Eintrag',
+			);
+		});
 	});
 });
 
