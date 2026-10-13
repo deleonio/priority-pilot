@@ -4,7 +4,11 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.24 - 2026-10-13
 
-_Enthält v0.24.0 – v0.24.6._
+_Enthält v0.24.0 – v0.24.7._
+
+### 🎉 New Features
+
+- feat(frontend): starter sentence for new accounts instead of deficit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2573
 
 ### Other Changes
 
@@ -161,6 +165,7 @@ _Enthält v0.18.0 – v0.18.45._
 
 ### 🎉 New Features
 
+- feat(server): add read-only CalDAV calendar sources (#2211) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2347
 - feat(server): add read-only CalDAV calendar sources (#2211) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2347
 - feat(free-time): suggest tasks for free calendar gaps by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2348
 - feat(server): add series autoCreate switch and rhythm none by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2373
@@ -544,7 +549,6 @@ _Enthält v0.11.0 – v0.11.31._
 - docs(arc42): align package model with free/plus/pro and adr 0018 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1888
 - fix(native): keep login after app restart by flushing cookies (#1900) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1909
 - revert(ci): sign demo.apk with debug keystore again (#1779) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1910
-- test(e2e): fix flaky confetti AK3 overlay count (#1924) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1950
 - test(e2e): fix flaky confetti AK3 overlay count (#1924) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1950
 - fix(e2e): bypass Node 26 V8 crash in Playwright Vite webServer by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1951
 
