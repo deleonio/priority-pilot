@@ -23,7 +23,7 @@ interface Vorschlag {
 	saeulenBeitraege: { pillarId: number; share: number }[];
 	taskId?: number;
 	templateKey?: string;
-	anlass?: 'defizit' | 'ueberlast' | 'ermutigung';
+	anlass?: 'defizit' | 'ueberlast' | 'ermutigung' | 'einstieg';
 }
 
 vi.mock('@public-ui/react-v19', () => ({
@@ -117,6 +117,16 @@ const ermutigung: Vorschlag = {
 	saeulenBeitraege: [],
 	anlass: 'ermutigung',
 };
+/** #2527: Einstieg-Eintrag bei 0 Erledigungen — reiner Satz, nichts anzunehmen. */
+const einstieg: Vorschlag = {
+	typ: 'vorlage',
+	titel: 'Such dir eine kleine Aufgabe aus, die dir heute guttut – klein anfangen zählt.',
+	beschreibung: null,
+	saeuleId: 0,
+	saeuleName: '',
+	saeulenBeitraege: [],
+	anlass: 'einstieg',
+};
 const eigene: Vorschlag = {
 	typ: 'task',
 	titel: 'Fahrrad reparieren',
@@ -165,6 +175,19 @@ describe('CareHint (#1793)', () => {
 		// ohne Aktionen kann er auch keinen Nachrück-Cursor setzen und nicht als Dismissal zählen.
 		expect(screen.queryAllByRole('button')).toHaveLength(0);
 		expect(screen.queryByRole('radiogroup')).toBeNull();
+	});
+
+	it('#2527 TF4: Einstieg-Eintrag rendert den Satz ohne Aktionsreihe, Grundauswahl und Dismissal', async () => {
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [einstieg] });
+		render(<CareHint />);
+		const el = await zeigeHinweis();
+		expect(el.textContent).toContain('klein anfangen zählt');
+		// Wie #2521: ein Satz ohne Vorschlag hat nichts anzunehmen — keine Aktionen, keine
+		// Grundauswahl, kein Dismissal/Rejection-Call.
+		expect(screen.queryAllByRole('button')).toHaveLength(0);
+		expect(screen.queryByRole('radiogroup')).toBeNull();
+		expect(dismissCareSuggestion).not.toHaveBeenCalled();
+		expect(rejectCareSuggestion).not.toHaveBeenCalled();
 	});
 
 	it('AK1: rendert genau EINEN Hinweis mit Säulenname und Titel des ersten Vorschlags', async () => {

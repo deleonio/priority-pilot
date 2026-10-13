@@ -6112,6 +6112,11 @@ a.plan-badge:focus-visible {
 	min-height: 44px;
 }
 
+/* „…"-Trigger (#2524): Host im Fluss lassen, damit das Popover-Panel daran verankert werden kann (Muster .task-tree-more). */
+.missed-item-more {
+	display: inline-flex;
+}
+
 @media (min-width: 48rem) {
 	.missed-item {
 		flex-direction: row;

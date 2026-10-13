@@ -1,6 +1,7 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { Pillar, Task, TaskPillar } from '../models/index.js';
+import { UEBERLAST_MINDEST_ERLEDIGUNGEN } from '../logics/careDeficit.js';
+import { Pillar, ScoreEntry, Task, TaskPillar } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
 
 /**
@@ -153,6 +154,14 @@ describe('GET /suggestions — Vorschlagsliste (#122)', () => {
 			const frist = inTagen(2);
 			const basis = await Task.create({ title: 'Basis', priority: 3, estimatedEffort: 1, deadline: frist });
 			await basis.addPillar(koerper);
+			// Test-Pflege #2527: `reasons.balance` gibt es erst ab der Überlast-Mindestmenge — die
+			// Erledigungen laufen auf einer zweiten Säule, damit Körper defizitär bleibt.
+			const wirksamkeit = await Pillar.create({ name: 'Wirksamkeit', weight: 20 });
+			for (let i = 0; i < UEBERLAST_MINDEST_ERLEDIGUNGEN; i++) {
+				const erledigt = await Task.create({ title: `Erledigt ${i}`, status: 'Done', priority: 3, estimatedEffort: 1 });
+				await erledigt.addPillar(wirksamkeit);
+				await ScoreEntry.create({ taskId: erledigt.id, punkte: 2, pünktlich: true, zeitpunkt: new Date() });
+			}
 			for (const titel of ['Nachfolger 1', 'Nachfolger 2']) {
 				const nachfolger = await Task.create({ title: titel, priority: 1, estimatedEffort: 1 });
 				await nachfolger.addDependency(basis);
@@ -224,9 +233,27 @@ describe('GET /suggestions — Vorschlagsliste (#122)', () => {
 			await TaskPillar.create({ taskId: task.id, pillarId: koerper.id, share: 100, confidence: 100 });
 		};
 
+		/** #2527: Mindestmenge an Erledigungen, verteilt auf Nicht-Körper-Säulen (keine Überlast). */
+		const erledigungenNichtKoerper = async (cookie: string): Promise<void> => {
+			const userId = ((await (await server.json('/auth/me', { headers: { Cookie: cookie } })).json()) as { id: number })
+				.id;
+			const pillars = (await (await server.json('/pillars', { headers: { Cookie: cookie } })).json()) as {
+				id: number;
+				name: string;
+			}[];
+			const andere = pillars.filter((pillar) => pillar.name !== 'Körper').slice(0, UEBERLAST_MINDEST_ERLEDIGUNGEN);
+			assert.equal(andere.length, UEBERLAST_MINDEST_ERLEDIGUNGEN, 'Setup: genug Nicht-Körper-Säulen');
+			for (const pillar of andere) {
+				const task = await Task.create({ title: 'Erledigt', status: 'Done', priority: 3, estimatedEffort: 1, userId });
+				await TaskPillar.create({ taskId: task.id, pillarId: pillar.id, share: 100, confidence: 100 });
+				await ScoreEntry.create({ taskId: task.id, punkte: 2, pünktlich: true, zeitpunkt: new Date() });
+			}
+		};
+
 		it('AK2: User.sprache=en — reasons.balance.pillars englisch, ohne Header', async () => {
 			const cookie = await registriereMitSprache('sugg-2523-en@example.com', 'en');
 			await taskAufKoerper(cookie);
+			await erledigungenNichtKoerper(cookie); // Test-Pflege #2527: balance erst ab der Mindestmenge
 
 			const res = await fetch(`${server.baseUrl}/next`, { headers: { Cookie: cookie } });
 			assert.equal(res.status, 200);
@@ -237,6 +264,7 @@ describe('GET /suggestions — Vorschlagsliste (#122)', () => {
 		it('Randbedingung: App-Sprache de + Accept-Language: en — reasons.balance.pillars bleibt deutsch', async () => {
 			const cookie = await registriereMitSprache('sugg-2523-de@example.com', null);
 			await taskAufKoerper(cookie);
+			await erledigungenNichtKoerper(cookie); // Test-Pflege #2527: balance erst ab der Mindestmenge
 
 			const res = await fetch(`${server.baseUrl}/next`, {
 				headers: { Cookie: cookie, 'Accept-Language': 'en' },
@@ -244,6 +272,71 @@ describe('GET /suggestions — Vorschlagsliste (#122)', () => {
 			assert.equal(res.status, 200);
 			const next = (await res.json()) as { reasons?: { balance?: { pillars?: string[] } } };
 			assert.deepEqual(next.reasons?.balance?.pillars, ['Körper'], 'App-Sprache gewinnt gegen den Header');
+		});
+	});
+
+	/**
+	 * Rote Spec-Tests für #2527 (docs/spec/issue-2527.md): Unter der Überlast-Mindestmenge liefert
+	 * `GET /next` kein `reasons.balance`, sondern das Einstieg-Signal `einstieg: true`; das
+	 * Dashboard rendert dafür den Einstiegssatz (TF3). Ab der Mindestmenge bleibt alles wie bisher.
+	 */
+	describe('GET /next — Einstieg unter der Mindestmenge (#2527)', () => {
+		const userIdVon = async (cookie: string): Promise<number> =>
+			((await (await server.json('/auth/me', { headers: { Cookie: cookie } })).json()) as { id: number }).id;
+
+		const pillarsVon = async (cookie: string): Promise<{ id: number; name: string }[]> =>
+			(await (await server.json('/pillars', { headers: { Cookie: cookie } })).json()) as {
+				id: number;
+				name: string;
+			}[];
+
+		/** Offene Aufgabe mit Säulen-Beitrag (Modell-Insert, Muster #2523). */
+		const offeneAufgabe = async (userId: number, pillarId: number): Promise<void> => {
+			const task = await Task.create({ title: 'Nächste Aufgabe', priority: 3, estimatedEffort: 1, userId });
+			await TaskPillar.create({ taskId: task.id, pillarId, share: 100, confidence: 100 });
+		};
+
+		/** Erledigte Aufgabe im jüngeren Fenster (Done + ScoreEntry-Zeitpunkt jetzt, Modell-Insert). */
+		const erledigteAufgabe = async (userId: number, pillarId: number): Promise<void> => {
+			const task = await Task.create({ title: 'Erledigt', status: 'Done', priority: 3, estimatedEffort: 1, userId });
+			await TaskPillar.create({ taskId: task.id, pillarId, share: 100, confidence: 100 });
+			await ScoreEntry.create({ taskId: task.id, punkte: 2, pünktlich: true, zeitpunkt: new Date() });
+		};
+
+		it('AK1: 0 Erledigungen im jüngeren Fenster → kein reasons.balance, Einstieg-Signal gesetzt', async () => {
+			const cookie = await server.register('sugg-2527-fresh@example.com', 'password123');
+			const userId = await userIdVon(cookie);
+			const koerper = (await pillarsVon(cookie)).find((pillar) => pillar.name === 'Körper');
+			assert.ok(koerper, 'Setup: Körper-Säule muss gesät sein');
+			await offeneAufgabe(userId, koerper.id);
+
+			const res = await fetch(`${server.baseUrl}/next`, { headers: { Cookie: cookie } });
+			assert.equal(res.status, 200);
+			const next = (await res.json()) as { reasons?: { balance?: unknown; einstieg?: boolean } };
+			assert.ok(next.reasons, 'reasons muss existieren (Einstieg-Signal)');
+			assert.equal(next.reasons.balance, undefined, 'unter der Mindestmenge kein reasons.balance');
+			assert.equal(next.reasons.einstieg, true, 'Einstieg-Signal gesetzt (Spec: TaskReasons.einstieg = true)');
+		});
+
+		it('AK2: ab UEBERLAST_MINDEST_ERLEDIGUNGEN Erledigungen → reasons.balance wie bisher, kein Einstieg-Signal', async () => {
+			const cookie = await server.register('sugg-2527-drei@example.com', 'password123');
+			const userId = await userIdVon(cookie);
+			const pillars = await pillarsVon(cookie);
+			const koerper = pillars.find((pillar) => pillar.name === 'Körper');
+			assert.ok(koerper, 'Setup: Körper-Säule muss gesät sein');
+			await offeneAufgabe(userId, koerper.id);
+			// Mindestmenge auf Nicht-Körper-Säulen verteilt (je 100 % auf die eigene Säule → keine Überlast).
+			const andere = pillars.filter((pillar) => pillar.name !== 'Körper').slice(0, UEBERLAST_MINDEST_ERLEDIGUNGEN);
+			assert.equal(andere.length, UEBERLAST_MINDEST_ERLEDIGUNGEN, 'Setup: genug Nicht-Körper-Säulen');
+			for (const pillar of andere) {
+				await erledigteAufgabe(userId, pillar.id);
+			}
+
+			const res = await fetch(`${server.baseUrl}/next`, { headers: { Cookie: cookie } });
+			assert.equal(res.status, 200);
+			const next = (await res.json()) as { reasons?: { balance?: { pillars: string[] }; einstieg?: boolean } };
+			assert.deepEqual(next.reasons?.balance, { pillars: ['Körper'] }, 'Defizit-Säule wie bisher');
+			assert.equal(next.reasons?.einstieg, undefined, 'ab der Mindestmenge kein Einstieg-Signal');
 		});
 	});
 });

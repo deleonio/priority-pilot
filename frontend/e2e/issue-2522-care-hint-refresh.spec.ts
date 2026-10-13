@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { fullPillarContributions, waitForStableView } from './helpers';
+import { fullPillarContributions, seedMindestErledigungen, waitForStableView } from './helpers';
 
 /**
  * E2E-Spec für #2522 (docs/spec/issue-2522.md): Nach dem Erledigen über die Dashboard-Karte
@@ -39,6 +39,7 @@ test.describe('Dashboard — Fürsorge-Hinweis nach dem Erledigen (#2522)', () =
 				pillars: fullPillarContributions(pillars, 0),
 			},
 		});
+		await seedMindestErledigungen(page); // Test-Pflege #2527: eigener Task braucht defizit-Vorschläge
 		await openDashboard(page);
 
 		const hint = page.getByTestId('care-hint');

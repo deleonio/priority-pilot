@@ -6,6 +6,7 @@
 		"dueOn": "Fällig am {{date}}.",
 		"balance_one": "Säule {{names}} kam diese Woche zu kurz.",
 		"balance_other": "Säulen {{names}} kamen diese Woche zu kurz.",
+		"einstieg": "Such dir eine kleine Aufgabe aus, die dir heute guttut – klein anfangen zählt.",
 		"unlock_one": "Schaltet {{count}} offene Aufgabe frei.",
 		"unlock_other": "Schaltet {{count}} offene Aufgaben frei.",
 		"overdue_one": "Überfällig seit {{count}} Tag.",

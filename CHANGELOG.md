@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.24 - 2026-10-13
 
-_Enthält v0.24.0 – v0.24.5._
+_Enthält v0.24.0 – v0.24.6._
 
 ### Other Changes
 
@@ -13,6 +13,7 @@ _Enthält v0.24.0 – v0.24.5._
 - docs(adr): add 0024 direct completion with undo instead of dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2568
 - feat(server): require minimum completions before overload (#2521) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2569
 - feat(frontend): refresh care hint after completing a task (#2522) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2570
+- feat(server): pillar names in care texts follow app language (#2523) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2571
 
 ## v0.23 - 2026-10-12
 
@@ -382,7 +383,6 @@ _Enthält v0.15.0 – v0.15.22._
 - chore: document agent setup comparison and split llm concurrency by @deleonio in https://github.com/deleonio/priority-pilot/pull/2171
 - refactor(server): use findCancelledWithRemaining in cancel route (F-35) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2175
 - fix(frontend): e2e helper, rank-return notice, css tokens (#2154) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2176
-- fix(frontend): e2e helper, rank-return notice, css tokens (#2154) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2176
 - test(frontend): clean up remaining nits from leaf-review rounds (#2173) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2177
 - feat(server): import tasks from todoist and csv (#1969) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2180
 - feat(frontend): hide llm provider config behind advanced (#1970) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2178
@@ -544,6 +544,7 @@ _Enthält v0.11.0 – v0.11.31._
 - docs(arc42): align package model with free/plus/pro and adr 0018 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1888
 - fix(native): keep login after app restart by flushing cookies (#1900) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1909
 - revert(ci): sign demo.apk with debug keystore again (#1779) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1910
+- test(e2e): fix flaky confetti AK3 overlay count (#1924) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1950
 - test(e2e): fix flaky confetti AK3 overlay count (#1924) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1950
 - fix(e2e): bypass Node 26 V8 crash in Playwright Vite webServer by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1951
 

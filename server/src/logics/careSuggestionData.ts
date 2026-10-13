@@ -424,3 +424,13 @@ export const CARE_ERMUTIGUNG: Record<CareSprache, string> = {
 	de: 'Schön, dass du heute etwas für deine Balance getan hast – das zählt.',
 	en: 'Nice work doing something for your balance today – it counts.',
 };
+
+/**
+ * Einstiegssatz bei 0 Erledigungen im jüngeren Fenster (#2527) — Einladungs-Variante des Ton-
+ * Leitfadens (`docs/fuersorge-tonalitaet.md`): einen kleinen ersten Schritt anbieten, du-Form,
+ * kein Defizit-Vokabular. Der Satz reist im `titel` des CareVorschlags (`beschreibung` leer).
+ */
+export const CARE_EINSTIEG: Record<CareSprache, string> = {
+	de: 'Such dir eine kleine Aufgabe aus, die dir heute guttut – klein anfangen zählt.',
+	en: 'Pick one small task that does you good today – starting small counts.',
+};
