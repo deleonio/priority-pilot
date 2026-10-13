@@ -110,3 +110,64 @@ describe('AK-5 — Score-Rücknahme beim Reopen (Done → Open)', () => {
 		assert.equal(scores.filter((entry) => entry.taskId === id).length, 1, 'nach Done→Open→Done genau ein ScoreEntry');
 	});
 });
+
+/**
+ * #2526 (docs/spec/issue-2526.md): die Inline-Rückmeldung braucht die vergebenen Punkte aus
+ * EINER Quelle — der Server. Der echte Done-Übergang über PATCH /tasks/:id liefert deshalb die
+ * Punktzahl als `vergebenePunkte` in der Response (Formel score.ts: estimatedEffort × priority,
+ * ohne Deadline pünktlich = voller Basiswert). PATCH ohne Done-Übergang liefert das Feld nicht.
+ * ROT, bis der PATCH-Handler die Response erweitert.
+ */
+describe('#2526 — PATCH Done liefert vergebene Punkte in der Response', () => {
+	let server: TestServer;
+
+	beforeEach(async () => {
+		await resetDb();
+		if (!server) {
+			server = await startTestServer();
+		}
+	});
+
+	after(async () => {
+		if (server) {
+			await server.close();
+		}
+		await closeDb();
+	});
+
+	const post = (path: string, body: unknown) =>
+		fetch(`${server.baseUrl}${path}`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		});
+	const patch = (path: string, body: unknown) =>
+		fetch(`${server.baseUrl}${path}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		});
+
+	const createTask = async (body: Record<string, unknown>): Promise<number> => {
+		const res = await post('/tasks', body);
+		assert.equal(res.status, 201, 'Task-Anlage muss 201 liefern');
+		const task = (await res.json()) as { id: number };
+		return task.id;
+	};
+
+	it('AK2: der Done-Übergang liefert die vergebenen Punkte (1 x 3, ohne Deadline puenktlich = 3)', async () => {
+		const id = await createTask({ title: 'Inline-Punkte', priority: 3, estimatedEffort: 1 });
+		const res = await patch(`/tasks/${id}`, { status: 'Done' });
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { vergebenePunkte?: number };
+		assert.equal(body.vergebenePunkte, 3, 'Done-Übergang muss vergebenePunkte=3 liefern');
+	});
+
+	it('PATCH ohne Done-Übergang liefert keine vergebenen Punkte', async () => {
+		const id = await createTask({ title: 'Kein Done', priority: 3, estimatedEffort: 1 });
+		const res = await patch(`/tasks/${id}`, { title: 'Nur Titel geaendert' });
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { vergebenePunkte?: number | null };
+		assert.equal(body.vergebenePunkte, undefined, 'ohne Done-Übergang darf vergebenePunkte fehlen');
+	});
+});

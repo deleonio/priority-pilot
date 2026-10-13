@@ -49,9 +49,8 @@ test.describe('Dashboard — Fürsorge-Hinweis nach dem Erledigen (#2522)', () =
 		await expect(hint).toContainText('E2E #2522 Fenster putzen');
 
 		await page.getByRole('button', { name: 'Erledigen' }).click();
-		await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeVisible();
-		await page.getByRole('button', { name: 'Als erledigt markieren' }).click();
-		await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeHidden();
+		// #2526: Direkt-Erledigen ohne Dialog — der #2522-Trichter feuert nach dem PATCH.
+		await expect(page.locator('.dashboard-next-task-feedback')).toBeVisible();
 
 		// AK1: ohne Reload nennt der Hinweis die erledigte Aufgabe nicht mehr.
 		await expect(hint).not.toContainText('E2E #2522 Fenster putzen');

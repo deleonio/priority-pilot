@@ -26,7 +26,11 @@
 	"nextTask": {
 		"label": "Nächste Aufgabe",
 		"empty": "Aktuell steht keine Aufgabe an (alle erledigt oder durch offene Vorgänger blockiert).",
-		"complete": "Erledigen"
+		"complete": "Erledigen",
+		"earnedPoints": "+{{punkte}} Punkte",
+		"streakDays": "Streak {{tage}} Tage",
+		"undo": "Rückgängig",
+		"errorLabel": "Erledigen fehlgeschlagen"
 	},
 	"suggestions": {
 		"label": "Was ist jetzt dran?",

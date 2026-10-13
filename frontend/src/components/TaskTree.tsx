@@ -1,4 +1,4 @@
-import { KolBadge, KolHeading, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
+import { KolBadge, KolButton, KolHeading, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
 import type { Category, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useEffect, useRef, useState } from 'react';
@@ -10,7 +10,7 @@ import { GeoBadge } from './GeoBadge';
 import { PillarMissingBadge } from './PillarMissingBadge';
 import { PinnedBadge } from './PinnedBadge';
 import { SeriesBadge } from './SeriesBadge';
-import { isDoneBlockedBySubtasks, priorityBadge, sortPinnedFirst } from '../lib/task';
+import { formatNumber, isDoneBlockedBySubtasks, priorityBadge, sortPinnedFirst } from '../lib/task';
 import { sortTasksByBalance, virtualPriorityLabel, type BalancePriority } from '../lib/balancePriority';
 import { setupPopoverAlignment } from '../lib/popoverAlign';
 
@@ -70,6 +70,11 @@ interface TaskTreeProps {
 	/** Pinnt die Aufgabe an bzw. wieder ab (#1582). */
 	onPinToggle: (task: Task) => void;
 	/**
+	 * #2526: Inline-Rückmeldung des Direkt-Erledigens (App-State) — die Zeile dieser Task-ID zeigt
+	 * Punkte/Streak und „Rückgängig“ (derselbe onDoneToggle-Pfad, der ScoreEntry-Abbau bleibt beim Server).
+	 */
+	doneFeedback?: { taskId: number; punkte: number; streakTage?: number } | null;
+	/**
 	 * Virtuelle Balance-Prioritäten je Task-ID. `null`/leer → originale Wertbeitrags-Sortierung und
 	 * `P{n}`-Badges; gesetzt → Liste nach Balance-Score sortiert, Badges als `~P{n}`.
 	 */
@@ -97,6 +102,8 @@ interface LeafItemProps {
 	onSaveAsTemplate: (task: Task) => void;
 	onDoneToggle: (task: Task) => Promise<void>;
 	onPinToggle: (task: Task) => void;
+	/** #2526: siehe TaskTreeProps — die Rückmeldung erscheint in genau dieser Zeile. */
+	doneFeedback?: { taskId: number; punkte: number; streakTage?: number } | null;
 }
 
 /**
@@ -128,6 +135,7 @@ const LeafItem = ({
 	onSaveAsTemplate,
 	onDoneToggle,
 	onPinToggle,
+	doneFeedback,
 }: LeafItemProps) => {
 	const { t } = useTranslation(['tasks', 'common']);
 	const [isUpdating, setIsUpdating] = useState(false);
@@ -379,6 +387,40 @@ const LeafItem = ({
 							</KolPopoverButton>
 						</div>
 					)}
+					{task !== null && (
+						// #2526: Rückmeldung an der Zeile — dieselben Zahlen wie im Panel; „Rückgängig“ läuft über
+						// denselben Toggle-Pfad, der ScoreEntry-Abbau bleibt beim Server (#228). Fixup #2572: die
+						// Region steht dauerhaft im DOM — leer vor der Rückmeldung (Screenreader verkünden frisch
+						// gemountete Live-Regions unzuverlässig) —, nur der Inhalt wechselt; der Leerzustand bleibt
+						// über `:empty` ohne Eigenabstand.
+						<div className="task-tree-done-feedback" aria-live="polite">
+							{doneFeedback != null && doneFeedback.taskId === task.id && (
+								<>
+									<span className="task-tree-done-feedback-points">
+										<i className="fa-solid fa-circle-check" aria-hidden="true" />
+										{t('taskTree.doneFeedbackPoints', { punkte: formatNumber(doneFeedback.punkte) })}
+										{doneFeedback.streakTage !== undefined && (
+											<>
+												{' · '}
+												{t('taskTree.doneFeedbackStreak', { tage: doneFeedback.streakTage })}
+											</>
+										)}
+									</span>
+									<KolButton
+										_label={t('taskTree.undo')}
+										_variant="secondary"
+										_icons={{ left: { icon: 'fa-solid fa-rotate-left' } }}
+										_on={{
+											onClick: () => {
+												setIsUpdating(true);
+												void onDoneToggle(task).finally(() => setIsUpdating(false));
+											},
+										}}
+									/>
+								</>
+							)}
+						</div>
+					)}
 				</div>
 			</div>
 		</li>
@@ -424,6 +466,7 @@ export const TaskTree = ({
 	onSaveAsTemplate,
 	onDoneToggle,
 	onPinToggle,
+	doneFeedback,
 	categories = [],
 	pillars = [],
 	seriesById = NO_SERIES,
@@ -493,6 +536,7 @@ export const TaskTree = ({
 					onSaveAsTemplate={onSaveAsTemplate}
 					onDoneToggle={onDoneToggle}
 					onPinToggle={onPinToggle}
+					doneFeedback={doneFeedback}
 				/>
 			))}
 		</ul>

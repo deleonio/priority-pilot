@@ -6829,6 +6829,9 @@ components:
         accessMailThrottled:
           type: boolean
           description: Nur gesetzt (true), wenn die Zugangs-Mail an eine neue Empfänger-Adresse wegen der Tagesgrenze je Nutzer entfiel (#2041).
+        vergebenePunkte:
+          type: number
+          description: Nur im PATCH-Response beim echten Übergang auf „Done" gesetzt — die mit diesem Request vergebenen Punkte (Formel score.ts, #2526).
         id:
           type: integer
         title:

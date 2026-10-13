@@ -1058,6 +1058,34 @@ kol-toolbar {
 	flex: 0 0 auto;
 }
 
+/* #2526: Inline-Rückmeldung des Direkt-Erledigens („+X Punkte · Streak Y Tage“ + „Rückgängig“) an
+   der Tipp-Stelle — Erfolgs-Rolle `--pp-success` mit Icon UND Text (nie Farbe allein, KI-UX/A11y),
+   Zahlen mit `tabular-nums`. Der Knopf behält seinen Shadow-DOM-Touch-Target (≥44px), die Zeile
+   bricht bei 200 % Text um, statt zu clippen — das 7-s-Fenster bleibt dadurch wirksam. */
+.dashboard-next-task-feedback {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: var(--pp-gap-tight);
+	align-self: stretch;
+}
+
+.dashboard-next-task-feedback:empty {
+	/* Fixup #2572: leere, dauerhaft gerenderte Live-Region — gleicht den Flex-Gap aus, damit der
+	   Leerzustand im Panel keinen Extra-Abstand erzeugt (die Region bleibt bewusst sichtbar). */
+	margin-top: calc(-1 * var(--pp-gap-tight));
+}
+
+.dashboard-next-task-feedback-points {
+	display: flex;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+	min-width: 0;
+	color: var(--pp-success);
+	font-variant-numeric: tabular-nums;
+	overflow-wrap: anywhere;
+}
+
 .dashboard-next-task-priority {
 	font-size: var(--pp-font-size-sm);
 	color: var(--pp-signal-ink);
@@ -2354,6 +2382,31 @@ kol-toolbar {
  */
 .task-tree-more {
 	display: inline-flex;
+}
+
+.task-tree-done-feedback {
+	/* #2526: Rückmeldung an der Listenzeile — dasselbe Muster wie im Panel (`--pp-success` mit Icon
+	   und Text, `tabular-nums`); umbricht statt zu clippen, Touch-Target über KoliBri-Minimum. */
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--pp-gap-tight);
+	margin-top: var(--pp-gap-tight);
+}
+
+.task-tree-done-feedback:empty {
+	/* Fixup #2572: leere, dauerhaft gerenderte Live-Region — kein Extra-Abstand in der Zeile. */
+	margin-top: 0;
+}
+
+.task-tree-done-feedback-points {
+	display: flex;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+	min-width: 0;
+	color: var(--pp-success);
+	font-variant-numeric: tabular-nums;
+	overflow-wrap: anywhere;
 }
 
 .task-tree-badge {

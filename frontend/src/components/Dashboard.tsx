@@ -1,6 +1,7 @@
 import { Trans, useTranslation } from 'react-i18next';
 import i18next from '../i18n/config';
-import { KolBadge, KolButton, KolCard, KolMeter, KolPagination } from '@public-ui/react-v19';
+import { KolAlert, KolBadge, KolButton, KolCard, KolMeter, KolPagination } from '@public-ui/react-v19';
+import { hasOpenChecklistItems } from './CompleteTaskDialog';
 import { MissedTasksSection } from './MissedTasksSection';
 import { FreeTimeCard } from './FreeTimeCard';
 import { NearbyCard } from './NearbyCard';
@@ -18,16 +19,19 @@ import type { components, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
+import { toApiError } from '../lib/apiError';
 import { useGeolocation } from '../lib/useGeolocation';
 import { collectTaskValues } from '../lib/forest';
 import { buildPillarSummaries, calculateMeterThreshold, calculateMeterHighThreshold } from '../lib/pillar';
 import { buildPillarBalances } from '../lib/score';
 import {
 	type DeadlineUrgency,
+	DONE_UNDO_WINDOW_MS,
 	deadlineUrgency,
 	formatDeadline,
 	formatNumber,
 	formatRelativeDeadline,
+	istUeberfaellig,
 } from '../lib/task';
 
 /** Badge-Hintergrundfarbe je hervorzuhebender Dringlichkeit (Textfarbe berechnet KolBadge automatisch). */
@@ -118,8 +122,16 @@ interface DashboardProps {
 	pillars: Pillar[];
 	/** Anzeigename des Nutzers für die personalisierte Begrüßung (aus `localStorage`). Leer → keine Begrüßung. */
 	displayName?: string;
-	/** Markiert die nächste Aufgabe als erledigt („Erledigt" im Signal-Panel, #1168). */
+	/**
+	 * #2526 (ADR 0024): Dialog-Delegierung der beiden Nicht-Direkt-Fälle (offene Checkliste →
+	 * CompleteTaskDialog, überfällige Deadline → Pünktlich-Nachfrage). Das Direkt-Erledigen selbst
+	 * trägt das Panel und braucht diesen Callback nicht.
+	 */
 	onCompleteTask?: (task: Task) => void;
+	/** #2526: nach erfolgreichem Direkt-Erledigen — Konfetti (#1169) + Aktualisierungs-Trichter (#2522). */
+	onDirectComplete?: (task: Task) => void;
+	/** #2526: Rückmeldung abgeschlossen (7-s-Fenster abgelaufen oder Rückgängig) — Ansicht neu laden. */
+	onInlineSettled?: () => void;
 	/** Öffnet den Bearbeiten-Dialog für die nächste Aufgabe („Bearbeiten" im Signal-Panel, #1447). */
 	onEditTask?: (task: Task) => void;
 	/** Stellt die nächste Aufgabe kurz zurück (Uhr-Button im Signal-Panel, #2244). */
@@ -187,6 +199,8 @@ export const Dashboard = ({
 	pillars,
 	displayName = '',
 	onCompleteTask,
+	onDirectComplete,
+	onInlineSettled,
 	onEditTask,
 	onSnoozeTask,
 	showDayDoneHint = true,
@@ -315,6 +329,117 @@ export const Dashboard = ({
 		[suggestions, nextTask],
 	);
 
+	// #2526: Inline-Rückmeldung des Direkt-Erledigens an der Tipp-Stelle — Erfolg (Punkte, Streak,
+	// Rückgängig) statt Bestätigungsdialog; Fehler inline als KolAlert, die Aufgabe bleibt offen.
+	const [inlineFeedback, setInlineFeedback] = useState<{
+		taskId: number;
+		punkte: number;
+		streakTage?: number;
+	} | null>(null);
+	const [inlineError, setInlineError] = useState<string | null>(null);
+	const inlineBusy = useRef(false);
+	const inlineTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	// Unmount räumt den Fenster-Timer ab (kein Set-state nach dem Aushängen).
+	useEffect(
+		() => () => {
+			if (inlineTimer.current !== null) {
+				clearTimeout(inlineTimer.current);
+			}
+		},
+		[],
+	);
+
+	// #2526 (ADR 0024): EIN Tipp auf „Erledigen“ — ohne offene Checkliste und ohne überfällige
+	// Deadline erledigt das Panel die Aufgabe direkt (PATCH aus dem Panel, Rückmeldung an der
+	// Tipp-Stelle). Dialogfälle delegieren: offene Checkliste → CompleteTaskDialog (#1583),
+	// überfällige Deadline → Pünktlich-Nachfrage (MissedCompleteDialog, #1964).
+	const handlePanelComplete = (task: Task): void => {
+		if (hasOpenChecklistItems(task.checklist) || istUeberfaellig(task)) {
+			onCompleteTask?.(task);
+			return;
+		}
+		if (inlineBusy.current) {
+			return;
+		}
+		inlineBusy.current = true;
+		void (async () => {
+			try {
+				setInlineError(null);
+				const updated = await api.updateTask({
+					id: task.id,
+					taskUpdate: {
+						title: task.title,
+						description: task.description,
+						status: TaskStatus.Done,
+						priority: task.priority,
+						estimatedEffort: task.estimatedEffort,
+						deadline: task.deadline,
+					},
+				});
+				// Punkte sofort aus der PATCH-Response (eine Wahrheit, Server); der Streak folgt
+				// nicht-blockierend nach — ein Fehlschlag ist für die Rückmeldung folgenlos.
+				setInlineFeedback({ taskId: task.id, punkte: updated.vergebenePunkte ?? 0 });
+				void api
+					.getStreak()
+					.then((streak) =>
+						setInlineFeedback((prev) => (prev?.taskId === task.id ? { ...prev, streakTage: streak.aktuell } : prev)),
+					)
+					.catch(() => {});
+				onDirectComplete?.(task);
+				inlineTimer.current = setTimeout(() => {
+					inlineTimer.current = null;
+					setInlineFeedback(null);
+					onInlineSettled?.();
+				}, DONE_UNDO_WINDOW_MS);
+			} catch (reason) {
+				const apiError = await toApiError(reason);
+				setInlineError(apiError.message);
+			} finally {
+				inlineBusy.current = false;
+			}
+		})();
+	};
+
+	// „Rückgängig“ — derselbe Wieder-öffnen-Pfad wie in der Liste (handleDoneToggle): der Server
+	// entfernt den ScoreEntry beim Übergang auf Offen, es gibt keine Doppelvergabe (#228).
+	const handlePanelUndo = (task: Task): void => {
+		if (inlineBusy.current) {
+			return;
+		}
+		inlineBusy.current = true;
+		void (async () => {
+			try {
+				setInlineError(null);
+				await api.updateTask({
+					id: task.id,
+					taskUpdate: {
+						title: task.title,
+						description: task.description,
+						status: TaskStatus.Open,
+						priority: task.priority,
+						estimatedEffort: task.estimatedEffort,
+						deadline: task.deadline,
+					},
+				});
+				if (inlineTimer.current !== null) {
+					clearTimeout(inlineTimer.current);
+					inlineTimer.current = null;
+				}
+				setInlineFeedback(null);
+				onInlineSettled?.();
+			} catch (reason) {
+				const apiError = await toApiError(reason);
+				setInlineError(apiError.message);
+			} finally {
+				inlineBusy.current = false;
+			}
+		})();
+	};
+
+	// #2526: Die Rückmeldung gilt nur, solange dieser Task im Panel liegt. Fixup #2572: die
+	// aria-live-Region steht dauerhaft im DOM (leer vor der Rückmeldung), nur der Inhalt wechselt.
+	const panelFeedback = inlineFeedback !== null && inlineFeedback.taskId === nextTask?.id ? inlineFeedback : null;
+
 	return (
 		<section className="dashboard">
 			<div className="dashboard-heading">
@@ -403,16 +528,46 @@ export const Dashboard = ({
 								    Hauptaussage vorbehalten (ux-design.md §1), Icon-only wie der Präzedenzfall
 								    in `TaskTree.tsx:212-223`. Der Breiten-Vertrag aus #1042 gilt jetzt für die
 								    Zeile: sie füllt mobil die Innenbreite, ab Tablet ist sie inhaltsbreit. */}
-								{(onCompleteTask !== undefined || onEditTask !== undefined || onSnoozeTask !== undefined) && (
-									<div className="dashboard-next-task-actions">
-										{onCompleteTask !== undefined && (
+								{inlineError !== null && (
+									<KolAlert className="dashboard-next-task-error" _type="error" _label={t('nextTask.errorLabel')}>
+										{inlineError}
+									</KolAlert>
+								)}
+								{/* #2526: Rückmeldung an der Tipp-Stelle — Erfolg in einer aria-live-Region (kein Fokusraub,
+								    KI-UX/A11y), „Rückgängig“ mit dem bekannten Undo-Icon. Erfolg nie über Farbe allein:
+								    --pp-success + Icon + Text. Die Aktionszeile weicht für das 7-s-Fenster (ADR 0024).
+								    Fixup #2572: die Region steht dauerhaft im DOM — leer vor der Rückmeldung (Screenreader
+								    verkünden frisch gemountete Live-Regions unzuverlässig) —, nur der Inhalt wechselt. */}
+								<div className="dashboard-next-task-feedback" aria-live="polite">
+									{panelFeedback !== null && (
+										<>
+											<span className="dashboard-next-task-feedback-points">
+												<i className="fa-solid fa-circle-check" aria-hidden="true" />
+												{t('nextTask.earnedPoints', { punkte: formatNumber(panelFeedback.punkte) })}
+												{panelFeedback.streakTage !== undefined && (
+													<>
+														{' · '}
+														{t('nextTask.streakDays', { tage: panelFeedback.streakTage })}
+													</>
+												)}
+											</span>
 											<KolButton
-												_label={t('nextTask.complete')}
-												_variant="primary"
-												_icons={{ left: { icon: 'fa-solid fa-check' } }}
-												_on={{ onClick: () => onCompleteTask(nextTask) }}
+												_label={t('nextTask.undo')}
+												_variant="secondary"
+												_icons={{ left: { icon: 'fa-solid fa-rotate-left' } }}
+												_on={{ onClick: () => handlePanelUndo(nextTask) }}
 											/>
-										)}
+										</>
+									)}
+								</div>
+								{panelFeedback === null && (
+									<div className="dashboard-next-task-actions">
+										<KolButton
+											_label={t('nextTask.complete')}
+											_variant="primary"
+											_icons={{ left: { icon: 'fa-solid fa-check' } }}
+											_on={{ onClick: () => handlePanelComplete(nextTask) }}
+										/>
 										{onEditTask !== undefined && (
 											<KolButton
 												_label={t('common:actions.edit')}

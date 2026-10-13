@@ -26,7 +26,11 @@
 	"nextTask": {
 		"label": "Next task",
 		"empty": "No task is due right now (all done or blocked by open predecessors).",
-		"complete": "Complete"
+		"complete": "Complete",
+		"earnedPoints": "+{{punkte}} points",
+		"streakDays": "Streak {{tage}} days",
+		"undo": "Undo",
+		"errorLabel": "Completing failed"
 	},
 	"suggestions": {
 		"label": "What's next?",
