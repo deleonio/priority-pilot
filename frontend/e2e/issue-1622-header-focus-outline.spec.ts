@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from './fixtures';
 import { avoidSunday, headerAction, waitForStableView } from './helpers';
+import { onboardingDismissKey } from '../src/lib/onboardingPreferences';
 
 /**
  * E2E-Vertrag für die sichtbare Fokus-Outline der äußeren Header-Buttons (#1622,
@@ -62,8 +63,27 @@ const outlineGeometry = async (button: Locator): Promise<{ width: number; offset
 	});
 
 test.describe('Balamentum — Fokus-Outline der äußeren Header-Buttons bleibt im Viewport (#1622)', () => {
-	// #2186: Die sonntags nachladende Wochenkarte verschiebt sonst das Layout.
-	test.beforeEach(({ page }) => avoidSunday(page));
+	test.beforeEach(async ({ page, ownSessionUser }) => {
+		// #2186: Die sonntags nachladende Wochenkarte verschiebt sonst das Layout.
+		await avoidSunday(page);
+		// #2580 (Option B): Onboarding je Eigen-Nutzer vorab als beendet markieren (Muster
+		// HEADER_POSITION_KEY, Schlüssel aus `onboardingPreferences.ts`). Die App liest den Merker
+		// synchron beim Mount (App.tsx, `useState(() => isOnboardingDismissed(user.id))`) — der
+		// Willkommens-Dialog öffnet nie und kann dem programmatisch fokussierten Hilfe-Button den
+		// Fokus nicht mehr nachträglich rauben (Rennsituation Dialog-Fokuskette vs. Test-Fokus).
+		if (ownSessionUser) {
+			await page.addInitScript(
+				(entry: { key: string; value: string }) => {
+					try {
+						localStorage.setItem(entry.key, entry.value);
+					} catch {
+						/* ignore */
+					}
+				},
+				{ key: onboardingDismissKey(ownSessionUser.id), value: 'true' },
+			);
+		}
+	});
 
 	const cases: Array<{
 		label: string;
@@ -106,4 +126,36 @@ test.describe('Balamentum — Fokus-Outline der äußeren Header-Buttons bleibt 
 			);
 		});
 	}
+	// TF2 (#2580): der Tasks-Fetch wird künstlich verzögert, sodass die Willkommens-Dialog-Montage
+	// (Bedingung `tasks !== null && tasks.length === 0`, App.tsx) nachweislich NACH dem
+	// programmatischen `button.focus()` landet — exakt die Rennsituation, die in CI sporadisch den
+	// Fokus raubte. Der Beweis läuft mit `dismissOnboarding: false` (Fixture-Option, Muster
+	// `onboarding-flow.spec.ts`), damit er deterministisch ist: Ohne den im beforeEach gesetzten
+	// Merker bleibt der spät mountende Dialog offen und HÄLT den Fokus auf seiner Schritt-Überschrift
+	// (rot, im Impl-Lauf nachgewiesen); mit Merker öffnet er gar nicht erst (grün). Erwartungen
+	// unverändert — insbesondere `toBeFocused` (AK2).
+	test.describe('TF2 — verzögerter Tasks-Fetch (#2580)', () => {
+		test.use({ dismissOnboarding: false });
+
+		test('TF2/AK2: verzögerter Tasks-Fetch — Dialog-Montage nach dem Teststart entzieht den Fokus nicht', async ({
+			page,
+		}) => {
+			await page.route('**/api/v1/tasks*', async (route) => {
+				await new Promise((resolve) => setTimeout(resolve, 3000));
+				await route.continue();
+			});
+
+			await gotoApp(page, { width: 375, height: 812 });
+
+			const button = await headerAction(page, 'Hilfe');
+			await button.focus();
+			await expect(button).toBeFocused();
+
+			// Fokus über die (verzögerte) Dialog-Montage hinaus halten: mit Merker bleibt der Dialog
+			// aus (EmptyState setzt keinen Fokus), ohne Merker öffnete er genau in diesem Fenster und
+			// zöge den Fokus auf seine Schritt-Überschrift.
+			await page.waitForTimeout(3500);
+			await expect(button).toBeFocused();
+		});
+	});
 });
