@@ -568,9 +568,14 @@ const findTaskWithPillars = (id: number): Promise<Task | null> => Task.findByPk(
  * Vergibt beim Statuswechsel auf `Done` einen Gamification-`ScoreEntry` (Konzept §4.4) — genau
  * **einmal** je Task (`taskId` unique + `findOrCreate` ⇒ idempotent, erneutes „Done" erzeugt keinen
  * zweiten Eintrag; `erledigtAm` ist „jetzt" oder der nachgetragene Zeitpunkt, #1964). Basis-Value = `estimatedEffort × priority` (Owner-Vorgabe), pünktlich/verspätet
- * gemäß Deadline (siehe `berechneScore`).
+ * gemäß Deadline (siehe `berechneScore`). Gibt die vergebenen Punkte zurück (#2526), damit der
+ * PATCH-Handler sie in der Response spiegeln kann — eine Wahrheit, der Client rechnet nichts nach.
  */
-const awardScoreOnDone = async (task: Task, transaction: Transaction, erledigtAm: Date = new Date()): Promise<void> => {
+const awardScoreOnDone = async (
+	task: Task,
+	transaction: Transaction,
+	erledigtAm: Date = new Date(),
+): Promise<number> => {
 	const basisPunkte = task.estimatedEffort * task.priority;
 	const { punkte, pünktlich } = berechneScore(task.deadline ?? null, erledigtAm, basisPunkte);
 	await ScoreEntry.findOrCreate({
@@ -578,6 +583,7 @@ const awardScoreOnDone = async (task: Task, transaction: Transaction, erledigtAm
 		defaults: { taskId: task.id, punkte, pünktlich, zeitpunkt: erledigtAm },
 		transaction,
 	});
+	return punkte;
 };
 
 /**
@@ -1029,6 +1035,9 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 		try {
 			// Status vor dem Update festhalten, um den echten Übergang nach „Done" zu erkennen.
 			const warVorherDone = task.status === 'Done';
+			// Vergebene Punkte des Done-Übergangs (#2526) — außerhalb der Transaktion deklariert, damit
+			// die Response sie nach dem Commit spiegeln kann.
+			let vergebenePunkte: number | undefined;
 			// AK2 (#120): Eine individuelle Änderung an einer generierten Serien-Instanz markiert sie als
 			// Ausnahme — der Generator lässt `isException`-Instanzen unangetastet und das Template bleibt
 			// unberührt. Bei gewöhnlichen Tasks (kein `seriesId`) bleibt das Feld unverändert.
@@ -1127,8 +1136,10 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				}
 				// Punkte nur beim echten Übergang auf „Done" vergeben (vorher ≠ Done, jetzt Done) — kein
 				// überflüssiges findOrCreate bei weiteren PATCHes eines bereits erledigten Tasks.
+				// Der vergebene Wert reist in der Response mit (#2526): die Inline-Rückmeldung an der
+				// Tipp-Stelle zeigt ihn an, ohne die Formel ein zweites Mal im Client zu spiegeln.
 				if (!warVorherDone && task.status === 'Done') {
-					await awardScoreOnDone(task, transaction, validation.completedAt);
+					vergebenePunkte = await awardScoreOnDone(task, transaction, validation.completedAt);
 				}
 				// #1821: Korrektur an einem erledigten Task — Punkte neu berechnen, wenn Aufwand, Priorität
 				// oder Deadline sich ändern; der Eintrag bleibt erhalten (kein neuer `zeitpunkt`).
@@ -1220,7 +1231,11 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				return;
 			}
 			const dto = serializeTask(withPillars);
-			res.json(accessMailThrottled ? { ...dto, accessMailThrottled } : dto);
+			res.json({
+				...dto,
+				...(vergebenePunkte !== undefined ? { vergebenePunkte } : {}),
+				...(accessMailThrottled ? { accessMailThrottled } : {}),
+			});
 		} catch (error) {
 			handleWriteError(res, error);
 		}

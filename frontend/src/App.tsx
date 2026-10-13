@@ -131,7 +131,8 @@ const ADMIN_ONLY_SETTINGS_SEGMENTS: ReadonlySet<string> = new Set(['nutzer']);
 
 // Modulkonstanten für Toolbar-Icons: stabile Objektidentität pro Render, damit der Icon-Watcher
 // nicht unnötig erneut feuert (z. B. CREATE_ICON für „Neuen Task anlegen").
-const DONE_REMOVAL_DELAY_MS = 5000;
+// #2526 (ADR 0024): 7 Sekunden Rückgängig-Fenster des Direkt-Erledigens (vorher 5 s, #392).
+const DONE_REMOVAL_DELAY_MS = 7000;
 
 /**
  * Sentinel-Wert des Kategorie-Filters („alle Kategorien"). Kategorie-IDs sind serverseitig `>= 1`,
@@ -253,6 +254,12 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const [logoutError, setLogoutError] = useState<string | null>(null);
 	const [updateError, setUpdateError] = useState<string | null>(null);
 	const doneRemovalTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+	// #2526: Inline-Rückmeldung des Direkt-Erledigens — vergebene Punkte aus der PATCH-Response,
+	// Streak folgt nicht-blockierend; Rückgängig läuft über denselben Toggle-Pfad (ScoreEntry
+	// entfernt der Server beim Wiedereröffnen selbst). Panel und Aufgabenliste spiegeln ihn.
+	const [doneFeedback, setDoneFeedback] = useState<{ taskId: number; punkte: number; streakTage?: number } | null>(
+		null,
+	);
 
 	// Aufgaben-Tab: Suchtext und Offen/Erledigt-Switch (#1105 AK5) leben in den Query-Parametern von
 	// `/aufgaben` (`?q=` bzw. `?view=done`) — Deep-Links und Browser-Back stellen dadurch auch den
@@ -909,6 +916,37 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// „Erledigt" im Verpasst-Bereich: immer erst die Nachfrage „erst jetzt erledigt?" (Dialog).
 	const handleCompleteMissed = useCallback((task: Task): void => setDialog({ kind: 'missedComplete', task }), []);
 
+	// #2526 (ADR 0024): Erledigen im Signal-Panel. Das Direkt-Erledigen trägt das Panel selbst
+	// (PATCH + Inline-Rückmeldung); dieser Callback greift nur für die beiden Dialogfälle:
+	// überfällige Deadline → Pünktlich-Nachfrage, sonst Erledigen-Dialog (offene Checkliste).
+	const completeFromPanel = useCallback(
+		(task: Task): void => {
+			if (task.deadline != null && task.deadline.getTime() < Date.now()) {
+				setDialog({ kind: 'missedComplete', task });
+				return;
+			}
+			openComplete(task);
+		},
+		[openComplete],
+	);
+
+	// #2526: Nach erfolgreichem Direkt-Erledigen im Panel — Konfetti (#1169) und der gemeinsame
+	// #2522-Trichter (Fürsorge-Hinweis/Herz laden neu). Der Reload der Ansicht folgt bewusst erst
+	// nach dem 7-s-Fenster bzw. beim Rückgängig (onInlineSettled), damit die Rückmeldung an der
+	// Tipp-Stelle stehen bleibt.
+	const handlePanelDirectComplete = useCallback((task: Task): void => {
+		if (shouldCelebrateDone(task.status, TaskStatus.Done)) {
+			launchConfetti();
+		}
+		notifyTasksChanged();
+	}, []);
+
+	// #2526: Panel-Rückmeldung ist abgeschlossen (Fenster abgelaufen oder Rückgängig) — Ansicht neu
+	// laden, damit die nächste Aufgabe bzw. der offene Stand sichtbar wird.
+	const reloadAfterInlineAction = useCallback((): void => {
+		void reload();
+	}, [reload]);
+
 	// „Wiederherstellen" im Archiv: einstufig, danach globales Neuladen (Archiv-Liste lädt mit nach).
 	const handleRestoreArchived = useCallback(
 		(task: Task): void => {
@@ -940,7 +978,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			}
 			try {
 				setUpdateError(null);
-				await api.updateTask({
+				const updated = await api.updateTask({
 					id: task.id,
 					taskUpdate: {
 						title: task.title,
@@ -957,6 +995,15 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					if (shouldCelebrateDone(task.status, next)) {
 						launchConfetti();
 					}
+					// #2526: vergebene Punkte in die Zeilen-Rückmeldung; der Streak folgt nicht-blockierend
+					// nach (KI-UX — asynchrone Zahlen ohne erzwungenen Layout-Sprung).
+					setDoneFeedback({ taskId: task.id, punkte: updated.vergebenePunkte ?? 0 });
+					void api
+						.getStreak()
+						.then((streak) =>
+							setDoneFeedback((prev) => (prev?.taskId === task.id ? { ...prev, streakTage: streak.aktuell } : prev)),
+						)
+						.catch(() => {});
 					// Kein reload(): Der Wald (`GET /forest`) enthält nur offene Aufgaben — nach einem Reload
 					// verschwände die Zeile samt Toggle sofort. Der optimistische Status-Update hält die Zeile
 					// im Aufgabenbaum „sticky" für ein Sofort-Undo (#315 AK1); die Erledigte-Tabelle blendet
@@ -975,6 +1022,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						clearTimeout(handle);
 						doneRemovalTimers.current.delete(task.id);
 					}
+					setDoneFeedback((prev) => (prev?.taskId === task.id ? null : prev));
 					await reload();
 				}
 			} catch (reason) {
@@ -1374,7 +1422,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 												suggestions={suggestions}
 												pillars={pillars}
 												displayName={user.displayName}
-												onCompleteTask={openComplete}
+												onCompleteTask={completeFromPanel}
+												onDirectComplete={handlePanelDirectComplete}
+												onInlineSettled={reloadAfterInlineAction}
 												onEditTask={openEdit}
 												onSnoozeTask={handleSnoozeTask}
 												showDayDoneHint={activeTab === 0}
@@ -1560,6 +1610,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 														onSaveAsTemplate={openSaveAsTemplate}
 														onDoneToggle={handleDoneToggle}
 														onPinToggle={handlePinToggle}
+														doneFeedback={doneFeedback}
 													/>
 												) : (
 													<p className="empty-state">{t('app:taskFilter.noResults')}</p>
@@ -1583,6 +1634,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 													onSaveAsTemplate={openSaveAsTemplate}
 													onDoneToggle={handleDoneToggle}
 													onPinToggle={handlePinToggle}
+													doneFeedback={doneFeedback}
 												/>
 											)
 										) : taskViewMode === 'archived' ? (
