@@ -940,7 +940,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			}
 			try {
 				setUpdateError(null);
-				await api.updateTask({
+				// #2574: Die PATCH-Antwort (inkl. `completedAt` aus dem ScoreEntry) trägt den State — ein
+				// reines Status-Spiegeln ließ die Wochenansicht den Erledigt-Tag erst nach dem Auto-Reload
+				// (#392) kennen.
+				const updated = await api.updateTask({
 					id: task.id,
 					taskUpdate: {
 						title: task.title,
@@ -963,7 +966,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					// solche noch im Wald stehenden Aufgaben aus (`forestTaskIds`), damit der Titel nicht
 					// doppelt im DOM steht (#228). Nach DONE_REMOVAL_DELAY_MS löst ein automatischer Reload
 					// die Zeile auf (#392).
-					setTasks((prev) => (prev === null ? null : prev.map((t) => (t.id === task.id ? { ...t, status: next } : t))));
+					setTasks((prev) => (prev === null ? null : prev.map((t) => (t.id === task.id ? updated : t))));
 					const handle = setTimeout(() => {
 						doneRemovalTimers.current.delete(task.id);
 						void reload();

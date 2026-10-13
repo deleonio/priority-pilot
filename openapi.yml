@@ -6877,6 +6877,16 @@ components:
           type: string
           format: date-time
           nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: >-
+            Erledigt-Zeitpunkt (#2574), abgeleitet aus `ScoreEntry.zeitpunkt` — bei Erledigen mit
+            nachgetragenem Input `completedAt` dieser Zeitpunkt, sonst der Zeitpunkt des Abhakens.
+            `null`, solange die Aufgabe offen ist; „Wieder öffnen" setzt sie zurück (der ScoreEntry
+            wird zerstört). Nur Ausgabe — nicht zu verwechseln mit dem gleichnamigen
+            `TaskUpdate`-Input (nachgetragener Zeitpunkt).
         autoDeleteAfterDeadline:
           type: boolean
           description: >-

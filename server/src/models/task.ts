@@ -9,6 +9,7 @@ import {
 import sequelize from '../database.js';
 import Dependency from './dependency.js';
 import Pillar from './pillar.js';
+import type ScoreEntry from './scoreEntry.js';
 import TaskPillar from './taskPillar.js';
 
 type TaskStatus = 'Open' | 'In process' | 'Done';
@@ -116,6 +117,9 @@ class Task extends Model {
 	public addPillar!: BelongsToManyAddAssociationMixin<Pillar, number>;
 	/** Eager-geladene Säulen-Beiträge (über `include: [Pillar]`); je Eintrag mit `TaskPillar`. */
 	public Pillars?: PillarWithContribution[];
+
+	/** Eager-geladener Gamification-Score-Eintrag (über `include: [ScoreEntry]`); `zeitpunkt` = Erledigt-Zeitpunkt (#2574). */
+	public ScoreEntry?: ScoreEntry;
 
 	public Dependency!: Dependency;
 
