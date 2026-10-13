@@ -96,9 +96,21 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		await expect(page.getByTestId('missed-section')).toHaveCount(1);
 		await expect(page.getByTestId('missed-section')).toBeVisible();
 		await expect(page.locator('.dashboard-deadlines')).toBeVisible();
-		const missed = await page.getByTestId('missed-section').boundingBox();
-		const deadlines = await page.locator('.dashboard-deadlines').boundingBox();
-		expect(Math.abs(missed!.y - deadlines!.y)).toBeLessThan(2);
+		// Test-Pflege #2578: beide Oberkanten in EINEM page.evaluate-Snapshot messen (atomarer
+		// Layout-Stand). Zwei sequenzielle boundingBox()-Aufrufe lassen zwischen den Messungen ein
+		// Messfenster, in dem eine async nachladende Karte (z. B. CareHint ueber der letzten Reihe)
+		// die Reihe verschieben kann — der gemessene Versatz war dann deren Hoehe.
+		const tops = await page.evaluate(() => {
+			const missed = document.querySelector('section.dashboard .missed-section');
+			const deadlines = document.querySelector('.dashboard-deadlines');
+			return {
+				missed: missed ? missed.getBoundingClientRect().top : null,
+				deadlines: deadlines ? deadlines.getBoundingClientRect().top : null,
+			};
+		});
+		expect(tops.missed, 'Verpasst-Block muss messbar sein').not.toBeNull();
+		expect(tops.deadlines, 'Deadlines-Block muss messbar sein').not.toBeNull();
+		expect(Math.abs(tops.missed! - tops.deadlines!)).toBeLessThan(2);
 
 		await page.goto('/app/aufgaben');
 		await waitForStableView(page);
