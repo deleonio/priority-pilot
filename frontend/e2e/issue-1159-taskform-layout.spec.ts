@@ -112,11 +112,9 @@ test.describe('#1285 TaskForm-Sektionen als Accordions', () => {
 	// #1159 AK4 (ersetzt per PO-Entscheid, Kreuzverhör PR #2577 Runde 3): Der Aufwand-Slider
 	// liegt nicht mehr in der Primärgruppe — „Titel und Range-Feld auf einer Höhe“ hat seinen
 	// Gegenstand verloren (#761 AK1 hat Vorrang: das Titelfeld füllt seine Zeile allein).
-	// Neue Erwartung: Die Priorität steht unter dem Titel und beginnt bündig am linken Rand
-	// der Primärgruppe (≤ 2px Versatz).
-	test('#1159 AK4 — 1280px: Priorität unter dem Titel, bündig am linken Rand der Primärgruppe (≤ 2px)', async ({
-		page,
-	}) => {
+	// Neue Erwartung: Die Priorität steht unter dem Titel und beginnt bündig mit dem Titelfeld
+	// (≤ 2px Versatz). Gemessen gegen den Titel, nicht gegen die Gruppenbox — die trägt Innenabstand.
+	test('#1159 AK4 — 1280px: Priorität unter dem Titel, bündig mit dem Titelfeld (≤ 2px)', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await openForm(page);
 
@@ -124,15 +122,13 @@ test.describe('#1285 TaskForm-Sektionen als Accordions', () => {
 		const priorityRange = primary(page).locator('kol-input-range').first();
 		await waitForStableBox(page, priorityRange);
 		const priorityBox = await priorityRange.boundingBox();
-		const primaryBox = await primary(page).boundingBox();
 
 		expect(titleBox).not.toBeNull();
 		expect(priorityBox).not.toBeNull();
-		expect(primaryBox).not.toBeNull();
 		// Unter dem Titel (nicht mehr in der Titelzeile).
 		expect(priorityBox!.y).toBeGreaterThanOrEqual(titleBox!.y + titleBox!.height - 1);
-		// Bündig am linken Rand der Primärgruppe.
-		expect(Math.abs(priorityBox!.x - primaryBox!.x)).toBeLessThanOrEqual(2);
+		// Bündig mit dem Titelfeld.
+		expect(Math.abs(priorityBox!.x - titleBox!.x)).toBeLessThanOrEqual(2);
 	});
 
 	// #1159 AK5 (unverändert gültig): exakt 768px — Abstand zwischen Primär- und
