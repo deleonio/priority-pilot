@@ -29,6 +29,8 @@ import { createPushRouter } from './routes/push.js';
 import { createMailRouter } from './routes/mail.js';
 import { createLlmProvidersRouter } from './routes/llmProviders.js';
 import { geoConfigRouter, resolveGeoUser } from './routes/geoConfig.js';
+import { pillarTextIn } from '../models/pillarData.js';
+import { spracheAusHeader, spracheVon } from '../logics/careSuggestionData.js';
 import { mcpInstructionsRouter } from './routes/mcpInstructions.js';
 import { careConfigRouter } from './routes/careConfig.js';
 import { splitHintConfigRouter } from './routes/splitHintConfig.js';
@@ -495,8 +497,21 @@ export const createApp = (deps: AppDeps = {}) => {
 			const next = await findNextBewertung(userId);
 			// #1985: Begründungswerte additiv; ohne Anteile entfällt `reasons` komplett.
 			let reasons = next ? toReasons(next) : undefined;
+			// #2523: Säulennamen der Begründung folgen der App-Sprache (`User.sprache`); der
+			// Middleware-Override (`res.locals.saeulenSprache`) hält den Header dagegen.
+			const geoUser = await resolveGeoUser(req);
+			const sprache = geoUser ? spracheVon(geoUser.sprache) : spracheAusHeader(req.get('accept-language'));
+			if (reasons?.balance) {
+				reasons = {
+					...reasons,
+					balance: { pillars: reasons.balance.pillars.map((name) => pillarTextIn(sprache, name)) },
+				};
+			}
+			if (geoUser) {
+				res.locals.saeulenSprache = sprache;
+			}
 			// #1994: Aufteilen-Hinweis — unabhängig von den Score-Anteilen, per Nutzer-Schalter abschaltbar.
-			if (next && (await resolveGeoUser(req))?.splitHintEnabled !== false) {
+			if (next && geoUser?.splitHintEnabled !== false) {
 				const split = await erkenneAufteilenHinweis(next.task, userId);
 				if (split) {
 					reasons = { ...reasons, split };

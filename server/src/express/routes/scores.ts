@@ -17,11 +17,12 @@ import { meilensteinStandVon } from '../../logics/milestones.js';
 import MilestoneReached from '../../models/milestoneReached.js';
 import { berechneLebensbalanceNachKadenz } from '../../logics/heartBalance.js';
 import { berechneBalanceVerlauf, istGueltigesDatum, zeitraumInTagen } from '../../logics/balanceHistory.js';
-import { resolvePillarDescription } from '../../models/pillarData.js';
+import { pillarTextIn, resolvePillarDescription } from '../../models/pillarData.js';
 import CareSuggestionDismissal from '../../models/careSuggestionDismissal.js';
 import CareSuggestionRejection from '../../models/careSuggestionRejection.js';
 import type { PillarWithContribution } from '../../models/task.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
+import { resolveGeoUser } from './geoConfig.js';
 import {
 	PAUSE_VORLAGE_KEY,
 	saeulenBeitraegeFuerZiel,
@@ -31,7 +32,13 @@ import {
 	type CareAufgabe,
 	type CareVorlage,
 } from '../../logics/careSuggestions.js';
-import { CARE_ERMUTIGUNG, CARE_SPRACHEN, spracheAusHeader, type CareSprache } from '../../logics/careSuggestionData.js';
+import {
+	CARE_ERMUTIGUNG,
+	CARE_SPRACHEN,
+	spracheAusHeader,
+	spracheVon,
+	type CareSprache,
+} from '../../logics/careSuggestionData.js';
 import { bewerteCareDefizit, UEBERLAST_MINDEST_ERLEDIGUNGEN, zaehleErledigungen } from '../../logics/careDeficit.js';
 import { protokolliereCareReaktion } from '../../logics/careWirkung.js';
 import type { components } from '../../api';
@@ -55,9 +62,16 @@ const MAX_BALANCE_HISTORY_TAGE = 366;
 /** Maximale Anzahl der in der Zusammenfassung mitgelieferten Einzel-Einträge. */
 const MISSED_TASKS_LIST_LIMIT = 20;
 
-/** Löst den `sprache`-Query-Parameter auf: bekannte App-Sprache, sonst die aus `Accept-Language`. */
-const loeseSprache = (req: Request): CareSprache =>
-	CARE_SPRACHEN.find((code) => code === req.query.sprache) ?? spracheAusHeader(req.get('accept-language'));
+/**
+ * Löst die App-Sprache auf (#2523): `?sprache=`-Override zuerst, sonst `User.sprache` des
+ * eingeloggten Nutzers, sonst `Accept-Language` (ohne Nutzer wie bisher).
+ */
+const loeseSprache = async (req: Request): Promise<CareSprache> => {
+	const override = CARE_SPRACHEN.find((code) => code === req.query.sprache);
+	if (override !== undefined) return override;
+	const user = await resolveGeoUser(req);
+	return user ? spracheVon(user.sprache) : spracheAusHeader(req.get('accept-language'));
+};
 
 export const scoresRouter = Router();
 
@@ -590,7 +604,7 @@ const createKiVorschlagErmittler = (advisor: ActivityAdvisor) => {
 					// #2075 AK4: dieselbe vollständige Verteilung wie Vorlagen- und Regelpfad.
 					saeulenBeitraege: saeulenBeitraegeFuerZiel(saeule.id, saeulen),
 					saeuleId: saeule.id,
-					saeuleName: saeule.name,
+					saeuleName: pillarTextIn(sprache, saeule.name),
 					anlass: 'defizit',
 				};
 			}
@@ -642,7 +656,8 @@ const createKiVorschlagErmittler = (advisor: ActivityAdvisor) => {
 // defizitärer Säule (Defizit-Quelle ist `bewerteCareDefizit` aus #1790, nicht kopiert) bis zu
 // drei Einträge — zuerst eigene offene Aufgaben dieser Säule, sonst kuratierte Vorlagen aus
 // `careSuggestionData.ts`. Meldet `bewerteCareDefizit` Überlast, stehen davor Erholungsvorschläge
-// (`anlass: 'ueberlast'`, #1795). `?sprache=` wählt die Sprache der Vorlagen-Texte (Default `Accept-Language`, sonst `de`).
+// (`anlass: 'ueberlast'`, #1795). `?sprache=` wählt die Sprache der Vorlagen-Texte (sonst
+// `User.sprache`, sonst `Accept-Language`, Default `de`; #2523).
 // Unter der Überlast-Mindestmenge (#2521) steht bei 1–2 Erledigungen der Ermutigungs-Satz vorn
 // (`anlass: 'ermutigung'`, ohne Aktionsbasis).
 // Gilt vollständig im Free-Paket (Epic #1780) — bewusst ohne planGuard; Plus/Pro erhalten bei einem
@@ -659,7 +674,9 @@ export const createCareSuggestionsRouter = (advisor: ActivityAdvisor = adviseAct
 		async (req: Request, res: Response<{ vorschlaege: CareVorschlagDto[] } | ErrorDto>) => {
 			try {
 				const userId = getUserId(req);
-				const sprache = loeseSprache(req);
+				const sprache = await loeseSprache(req);
+				// #2523: Middleware darf die Säulennamen nicht gegen die App-Sprache übersetzen (Kohärenz).
+				res.locals.saeulenSprache = sprache;
 				const jetzt = new Date();
 				const [saeulen, tasks, entries, ablehnungen] = await Promise.all([
 					Pillar.findAll({ where: ownerScope(userId), order: [['id', 'ASC']] }),
@@ -746,7 +763,10 @@ export const createCareSuggestionsRouter = (advisor: ActivityAdvisor = adviseAct
 								erholungsSaeuleIds,
 							).map((vorschlag) => ({
 								...vorschlag,
-								saeuleName: saeulen.find((saeule) => saeule.id === vorschlag.saeuleId)?.name ?? '',
+								saeuleName: pillarTextIn(
+									sprache,
+									saeulen.find((saeule) => saeule.id === vorschlag.saeuleId)?.name ?? '',
+								),
 								anlass: 'ueberlast' as const,
 							}))
 						: [];
@@ -762,7 +782,7 @@ export const createCareSuggestionsRouter = (advisor: ActivityAdvisor = adviseAct
 							(vorschlag) => ({
 								...vorschlag,
 								saeuleId: defizit.id,
-								saeuleName: defizit.name,
+								saeuleName: pillarTextIn(sprache, defizit.name),
 								anlass: 'defizit' as const,
 							}),
 						);

@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { Pillar, Task } from '../models/index.js';
+import { Pillar, Task, TaskPillar } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
 
 /**
@@ -187,6 +187,63 @@ describe('GET /suggestions — Vorschlagsliste (#122)', () => {
 			};
 			assert.equal(next.reasons, undefined, 'ohne Anteile darf reasons nicht existieren');
 			assert.deepEqual(Object.keys(next.scoreBreakdown), ['total'], 'Beitrag 0 ⇒ Schlüssel fehlt (#2044)');
+		});
+	});
+
+	/**
+	 * Rote Spec-Tests für #2523 (docs/spec/issue-2523.md): `reasons.balance.pillars` folgt der
+	 * App-Sprache (`User.sprache`), nicht dem `Accept-Language`-Header. Task-Setup per Modell-Insert
+	 * (Muster #1985), bewusst unter der UserId des Testnutzers — der Distribution-Regel-Weg über
+	 * POST /tasks ist für Säulen-Beiträge auf einer einzigen Säule nicht nutzbar.
+	 */
+	describe('GET /next — Säulennamen in App-Sprache (#2523)', () => {
+		const registriereMitSprache = async (email: string, sprache: string | null): Promise<string> => {
+			const cookie = await server.register(email, 'password123');
+			if (sprache !== null) {
+				const res = await server.json('/care-config/sprache', {
+					method: 'PUT',
+					headers: { Cookie: cookie },
+					body: JSON.stringify({ sprache }),
+				});
+				assert.equal(res.status, 200, 'Setup: App-Sprache muss über PUT /care-config/sprache setzbar sein');
+			}
+			return cookie;
+		};
+
+		/** Legt per Modell-Insert eine offene Aufgabe des Nutzers an, die zur Körper-Säule beiträgt. */
+		const taskAufKoerper = async (cookie: string): Promise<void> => {
+			const userId = ((await (await server.json('/auth/me', { headers: { Cookie: cookie } })).json()) as { id: number })
+				.id;
+			const pillars = (await (await server.json('/pillars', { headers: { Cookie: cookie } })).json()) as {
+				id: number;
+				name: string;
+			}[];
+			const koerper = pillars.find((p) => p.name === 'Körper');
+			assert.ok(koerper, 'Setup: Körper-Säule muss gesät sein');
+			const task = await Task.create({ title: 'Laufen', priority: 3, estimatedEffort: 1, userId });
+			await TaskPillar.create({ taskId: task.id, pillarId: koerper.id, share: 100, confidence: 100 });
+		};
+
+		it('AK2: User.sprache=en — reasons.balance.pillars englisch, ohne Header', async () => {
+			const cookie = await registriereMitSprache('sugg-2523-en@example.com', 'en');
+			await taskAufKoerper(cookie);
+
+			const res = await fetch(`${server.baseUrl}/next`, { headers: { Cookie: cookie } });
+			assert.equal(res.status, 200);
+			const next = (await res.json()) as { reasons?: { balance?: { pillars?: string[] } } };
+			assert.deepEqual(next.reasons?.balance?.pillars, ['Body'], 'Defizit-Säule muss englisch heißen');
+		});
+
+		it('Randbedingung: App-Sprache de + Accept-Language: en — reasons.balance.pillars bleibt deutsch', async () => {
+			const cookie = await registriereMitSprache('sugg-2523-de@example.com', null);
+			await taskAufKoerper(cookie);
+
+			const res = await fetch(`${server.baseUrl}/next`, {
+				headers: { Cookie: cookie, 'Accept-Language': 'en' },
+			});
+			assert.equal(res.status, 200);
+			const next = (await res.json()) as { reasons?: { balance?: { pillars?: string[] } } };
+			assert.deepEqual(next.reasons?.balance?.pillars, ['Körper'], 'App-Sprache gewinnt gegen den Header');
 		});
 	});
 });

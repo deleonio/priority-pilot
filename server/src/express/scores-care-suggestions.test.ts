@@ -23,8 +23,8 @@ applyTestAuthEnv('test-secret-issue-1791-care-suggestions');
 
 let server: TestServer;
 
-const getCare = (cookie: string, query = ''): Promise<Response> =>
-	server.json(`/scores/care-suggestions${query}`, { headers: { Cookie: cookie } });
+const getCare = (cookie: string, query = '', extraHeaders: Record<string, string> = {}): Promise<Response> =>
+	server.json(`/scores/care-suggestions${query}`, { headers: { ...extraHeaders, Cookie: cookie } });
 
 interface Vorschlag {
 	typ: 'task' | 'vorlage';
@@ -38,8 +38,12 @@ interface Vorschlag {
 	anlass?: 'defizit' | 'ueberlast' | 'ermutigung';
 }
 
-const leseVorschlaege = async (cookie: string, query = ''): Promise<Vorschlag[]> => {
-	const res = await getCare(cookie, query);
+const leseVorschlaege = async (
+	cookie: string,
+	query = '',
+	extraHeaders: Record<string, string> = {},
+): Promise<Vorschlag[]> => {
+	const res = await getCare(cookie, query, extraHeaders);
 	assert.equal(res.status, 200, 'Vorschlags-Endpunkt muss 200 liefern');
 	return ((await res.json()) as { vorschlaege: Vorschlag[] }).vorschlaege;
 };
@@ -577,5 +581,73 @@ describe('GET /scores/care-suggestions — Säulen pro Nutzer (#2146)', () => {
 			tasks.some((task) => task.id === id),
 			'übernommene Aufgabe erscheint in GET /tasks',
 		);
+	});
+
+	/**
+	 * Rote Spec-Tests für #2523 (docs/spec/issue-2523.md): Säulennamen der Fürsorge-Hinweise folgen
+	 * der App-Sprache (`User.sprache`), nicht dem `Accept-Language`-Header.
+	 */
+	describe('Säulennamen in App-Sprache (#2523)', () => {
+		const setzeSprache = async (cookie: string, sprache: string): Promise<void> => {
+			const res = await server.json('/care-config/sprache', {
+				method: 'PUT',
+				headers: { Cookie: cookie },
+				body: JSON.stringify({ sprache }),
+			});
+			assert.equal(res.status, 200, 'Setup: App-Sprache muss über PUT /care-config/sprache setzbar sein');
+		};
+
+		it('AK1: User.sprache=en — saeuleName englisch, ohne und mit deutschem Accept-Language-Header', async () => {
+			const cookie = await server.register('care-2523-en@example.com', 'password123');
+			const saeuleId = await ersteSaeule(cookie);
+			await setzeSprache(cookie, 'en');
+
+			const ohneHeader = (await leseVorschlaege(cookie)).filter((v) => v.saeuleId === saeuleId);
+			assert.ok(ohneHeader.length > 0, 'Defizit-Säule muss Vorschläge liefern');
+			for (const v of ohneHeader) {
+				assert.equal(v.saeuleName, 'Body', 'Seed-Name muss aus User.sprache=en englisch sein');
+			}
+
+			const mitDeHeader = (await leseVorschlaege(cookie, '', { 'Accept-Language': 'de' })).filter(
+				(v) => v.saeuleId === saeuleId,
+			);
+			assert.ok(mitDeHeader.length > 0, 'Defizit-Säule muss auch mit Header Vorschläge liefern');
+			for (const v of mitDeHeader) {
+				assert.equal(v.saeuleName, 'Body', 'App-Sprache gewinnt gegen den Accept-Language-Header');
+			}
+		});
+
+		it('Randbedingung: App-Sprache de + Accept-Language: en — saeuleName bleibt deutsch (Kohärenz)', async () => {
+			const cookie = await server.register('care-2523-de@example.com', 'password123');
+			const saeuleId = await ersteSaeule(cookie);
+
+			const vorschlaege = (await leseVorschlaege(cookie, '', { 'Accept-Language': 'en' })).filter(
+				(v) => v.saeuleId === saeuleId,
+			);
+			assert.ok(vorschlaege.length > 0, 'Defizit-Säule muss Vorschläge liefern');
+			for (const v of vorschlaege) {
+				assert.equal(v.saeuleName, 'Körper', 'App-Sprache de: Name darf nicht gegen die App-Sprache übersetzt werden');
+			}
+		});
+
+		it('AK3: umbenannte Säule erscheint wortgleich in saeuleName und reasons.balance.pillars', async () => {
+			const cookie = await server.register('care-2523-rename@example.com', 'password123');
+			const saeuleId = await ersteSaeule(cookie);
+			// Umbenennen ist per API gesperrt (#1573) — Alt-Bestand modellseitig nachstellen.
+			await Pillar.update({ name: 'Mein Körper' }, { where: { id: saeuleId } });
+			await setzeSprache(cookie, 'en');
+
+			const vorschlaege = (await leseVorschlaege(cookie)).filter((v) => v.saeuleId === saeuleId);
+			assert.ok(vorschlaege.length > 0, 'umbenannte Defizit-Säule muss Vorschläge liefern');
+			for (const v of vorschlaege) {
+				assert.equal(v.saeuleName, 'Mein Körper', 'umbenannte Säule bleibt wortgleich');
+			}
+
+			await createOpenTask(cookie, 'Rücken stärken', saeuleId);
+			const nextRes = await server.json('/next', { headers: { Cookie: cookie } });
+			assert.equal(nextRes.status, 200, 'Setup: GET /next muss 200 liefern');
+			const next = (await nextRes.json()) as { reasons?: { balance?: { pillars?: string[] } } };
+			assert.deepEqual(next.reasons?.balance?.pillars, ['Mein Körper'], 'Begründung trägt den Eigennamen');
+		});
 	});
 });
