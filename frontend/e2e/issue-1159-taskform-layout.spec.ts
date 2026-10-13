@@ -12,7 +12,7 @@ import {
  * E2E-Layout-Tests für #1159 „Layout-Optimierung Aufgaben-Formular" + #1285
  * „TaskForm-Sektionen als Accordion-Behälter ohne Kartenfläche".
  *
- * Contract: docs/spec/issue-1159.md (AK4-Fluchtung, AK5-Gruppenabstand),
+ * Contract: docs/spec/issue-1159.md (AK4-Prioritätsposition, AK5-Gruppenabstand),
  * docs/spec/issue-1285.md (AK1–AK5).
  *
  * Gemessen wird über Bounding-Boxes und getComputedStyle — nicht per `scrollWidth`,
@@ -109,23 +109,26 @@ test.describe('#1285 TaskForm-Sektionen als Accordions', () => {
 		await expect(page.locator('[data-testid="task-description"]')).not.toBeVisible();
 	});
 
-	// #1159 AK4 (unverändert gültig): 1280px — die benachbarten Felder der Primärgruppe
-	// (Priorität | Aufwand) fluchten auf derselben Top-Kante (≤ 2px Versatz).
-	test('#1159 AK4 — 1280px: Top-Kanten innerhalb der Primärgruppe fluchten (≤ 2px)', async ({ page }) => {
+	// #1159 AK4 (ersetzt per PO-Entscheid, Kreuzverhör PR #2577 Runde 3): Der Aufwand-Slider
+	// liegt nicht mehr in der Primärgruppe — „Titel und Range-Feld auf einer Höhe“ hat seinen
+	// Gegenstand verloren (#761 AK1 hat Vorrang: das Titelfeld füllt seine Zeile allein).
+	// Neue Erwartung: Die Priorität steht unter dem Titel und beginnt bündig mit dem Titelfeld
+	// (≤ 2px Versatz). Gemessen gegen den Titel, nicht gegen die Gruppenbox — die trägt Innenabstand.
+	test('#1159 AK4 — 1280px: Priorität unter dem Titel, bündig mit dem Titelfeld (≤ 2px)', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await openForm(page);
 
-		const priorityRange = page.locator('.form-section--primary kol-input-range').first();
-		const effortRange = page.locator('.form-section--primary kol-input-range').nth(1);
+		const titleBox = await page.locator('[data-testid="task-title"]').boundingBox();
+		const priorityRange = primary(page).locator('kol-input-range').first();
 		await waitForStableBox(page, priorityRange);
-		await waitForStableBox(page, effortRange);
-
 		const priorityBox = await priorityRange.boundingBox();
-		const effortBox = await effortRange.boundingBox();
 
+		expect(titleBox).not.toBeNull();
 		expect(priorityBox).not.toBeNull();
-		expect(effortBox).not.toBeNull();
-		expect(Math.abs(priorityBox!.y - effortBox!.y)).toBeLessThanOrEqual(2);
+		// Unter dem Titel (nicht mehr in der Titelzeile).
+		expect(priorityBox!.y).toBeGreaterThanOrEqual(titleBox!.y + titleBox!.height - 1);
+		// Bündig mit dem Titelfeld.
+		expect(Math.abs(priorityBox!.x - titleBox!.x)).toBeLessThanOrEqual(2);
 	});
 
 	// #1159 AK5 (unverändert gültig): exakt 768px — Abstand zwischen Primär- und
@@ -152,7 +155,7 @@ test.describe('#1285 TaskForm-Sektionen als Accordions', () => {
 		// In-Gruppen-Abstände: Titel→range-inputs-row (Gruppe 1),
 		// deadline-group→Adresse (Gruppe 2).
 		const titleBox = await page.locator('[data-testid="task-title"]').boundingBox();
-		const rowBox = await page.locator('.range-inputs-row').boundingBox();
+		const rowBox = await primary(page).locator('.range-inputs-row').boundingBox();
 		const deadlineBox = await page.locator('[data-testid="deadline-group"]').boundingBox();
 		// Like-for-like: Combobox-Container (Feld inkl. Label) statt des blanken Inputs — dessen
 		// Box läge sonst UNTER dem sichtbaren Label und würde dessen Höhe fälschlich in den
@@ -200,7 +203,7 @@ test.describe('#1285 TaskForm-Sektionen als Accordions', () => {
 		// Alle Felder nach dem Aufklappen nutzbar (übernimmt den ehemaligen #1159-AK6-Check).
 		const fields = [
 			page.locator('[data-testid="task-title"]'),
-			page.locator('.range-inputs-row'),
+			primary(page).locator('.range-inputs-row'),
 			page.locator('[data-testid="deadline-group"]'),
 			page.getByLabel('Adresse (optional)'),
 			page.locator('[data-testid="task-description"]'),

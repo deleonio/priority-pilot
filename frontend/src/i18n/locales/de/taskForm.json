@@ -3,6 +3,7 @@
 		"saveFailed": "Speichern fehlgeschlagen",
 		"modeSwitch": "Serie oder Vorlage",
 		"sectionBasics": "Basisangaben",
+		"moreDefaultsHint": "Ohne Öffnen gelten die Standardwerte",
 		"sectionSchedule": "Termin & Ort",
 		"sectionOptional": "Optional",
 		"titleLabel": "Titel",

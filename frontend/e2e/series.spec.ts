@@ -621,7 +621,9 @@ test.describe('Balamentum — Serien behalten die Säulenzuordnung (#343)', () =
 		await waitForStableView(page);
 
 		// 11. Die Säulen-Zeile ist im Formular sichtbar (die Zuordnung wurde ins Formular geladen).
-		// #1596: Die Verteilung steht in den Basisangaben und ist ohne Aufklappen sichtbar.
+		// #2525 (Fixup): Die Verteilung liegt im gefalteten Sekundär-Abschnitt — erst aufklappen
+		// (der #1596-Stand „Basisangaben, immer offen“ ist überholt).
+		await openAccordionSection(page, 'Termin & Ort');
 		await expect(page.locator('.pillar-row').first()).toBeVisible();
 	});
 });

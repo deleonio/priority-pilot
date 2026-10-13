@@ -2480,6 +2480,26 @@ kol-toolbar {
 	margin-bottom: var(--pp-space-5);
 }
 
+/* #2525/AK1: Der gefaltete Sekundär-Abschnitt hält den Dialog kurz — die Sektionsabstände
+   bleiben unangetastet (24 px, #1159-Design-Lauf); bei ≤767 px wird nur verdichtet, was
+   unterhalb des letzten Abschnitts liegt (Optional-Unterkante, Falt-Hinweis, Modus-Schalter),
+   damit der Speichern-Knopf bei 375×812 ohne Scrollen im Viewport liegt. Desktop bleibt
+   unberührt. */
+@media (max-width: 767px) {
+	.modal-body section.form-section--optional {
+		margin-bottom: var(--pp-gap-base);
+	}
+
+	/* Der Standardwerte-Hinweis (#2525/AK4) gehört zum Kopf des Sekundär-Abschnitts — rückt an. */
+	.form-grid--sections .hint--fold {
+		margin-top: calc(-1 * var(--pp-gap-tight));
+	}
+
+	.mode-switch {
+		margin-bottom: var(--pp-gap-tight);
+	}
+}
+
 /* Mode-Switch (Aufgabe/Serie): klebte vorher mit 0 px am „Basisangaben“-Kopf — jetzt
    der Feld-Rhythmus. */
 .mode-switch {

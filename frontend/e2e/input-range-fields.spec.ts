@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { seedAccountPreferences, waitForStableView } from './helpers';
+import { openAccordionSection, seedAccountPreferences, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #287 — „Alle InputNumber-Felder auf InputRange umstellen".
@@ -123,6 +123,9 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 		await openTasksTab(page);
 		await openFirstTaskEdit(page);
 
+		// #2525 (Fixup): Der Aufwand-Slider liegt im gefalteten Sekundär-Abschnitt — erst aufklappen.
+		await openAccordionSection(page, 'Termin & Ort');
+
 		// Das Aufwands-Feld muss als Range-Slider mit exakt diesen Attributen vorliegen.
 		const effort = page.locator('input[type="range"][min="0.1"][max="1"][step="0.1"]');
 		await expect(effort).toBeVisible();
@@ -137,6 +140,9 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 		await waitForStableView(page);
 		await openTasksTab(page);
 		await openFirstTaskEdit(page);
+
+		// Nach dem Reload zählt Aufwand 1 als eigener Wert — idempotent gegenprüfen.
+		await openAccordionSection(page, 'Termin & Ort');
 
 		await expect(page.locator('input[type="range"][min="0.1"][max="1"][step="0.1"]')).toHaveValue('1');
 	});
@@ -246,6 +252,9 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 
 		await openTasksTab(page);
 		await openFirstTaskEdit(page);
+
+		// #2525 (Fixup): Erst „Termin & Ort“ aufklappen, dann beide Slider prüfen.
+		await openAccordionSection(page, 'Termin & Ort');
 
 		// Beide Range-Slider müssen sichtbar sein …
 		await expect(page.locator('input[type="range"][min="1"][max="5"][step="1"]')).toBeVisible();
