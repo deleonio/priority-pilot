@@ -72,12 +72,13 @@ export const setTheme = async (page: Page, theme: 'light' | 'dark'): Promise<voi
 };
 
 /**
- * Findet einen Task-Titel per Exakt-Text, klammert dabei aber die Dashboard-Widgets aus. Seit #1448
- * („Nächste Aufgabe", „Was ist jetzt dran?") und #1465 („Wichtigste Tasks", „Anstehende Deadlines",
- * „In der Nähe") zeigen diese Widgets den reinen Titel ohne `#<ID> –`-Präfix, wodurch sie mit
- * gleichnamigen Titeln in Listen/Formularen textgleich werden — ein seitenweites
- * `getByText(title, { exact: true })` kollidiert dann mit dem Widget-Span und wirft
- * `strict mode violation`.
+ * Findet einen Task-Titel per Exakt-Text, klammert dabei aber die Dashboard-Widgets und die
+ * Fürsorge-Hinweis-Karte aus. Seit #1448 („Nächste Aufgabe", „Was ist jetzt dran?") und #1465
+ * („Wichtigste Tasks", „Anstehende Deadlines", „In der Nähe") zeigen diese Widgets den reinen Titel
+ * ohne `#<ID> –`-Präfix, wodurch sie mit gleichnamigen Titeln in Listen/Formularen textgleich werden —
+ * ein seitenweites `getByText(title, { exact: true })` kollidiert dann mit dem Widget-Span und wirft
+ * `strict mode violation`. Seit #2522 lädt auch die Fürsorge-Hinweis-Karte nach dem Erledigen neu und
+ * kann den frisch angelegten Task als Vorschlagstitel zeigen (`care-hint-titel`).
  */
 const DASHBOARD_TITLE_CLASSES = [
 	'dashboard-next-task-title',
@@ -85,6 +86,7 @@ const DASHBOARD_TITLE_CLASSES = [
 	'dashboard-top-task-title',
 	'dashboard-deadline-title',
 	'dashboard-nearby-title',
+	'care-hint-titel',
 ];
 
 export const taskTitleText = (page: Page, title: string): Locator =>
