@@ -55,12 +55,14 @@ test.describe('Dashboard — Fürsorge-Hinweis nach dem Erledigen (#2522)', () =
 		// AK1: ohne Reload nennt der Hinweis die erledigte Aufgabe nicht mehr.
 		await expect(hint).not.toContainText('E2E #2522 Fenster putzen');
 		// AK2: erst nach dem Neuladen capturen — dann ist der Refetch gelandet; der Text muss dem
-		// Stand nach einem Reload entsprechen.
+		// Stand nach einem Reload entsprechen. textContent beidseitig: `toHaveText` zöge zusätzlich
+		// die KolButton-/KolAlert-Labels in den Vergleich und würde jeden korrekten Stand als
+		// Unterschied werten (Test-Pflege #2522, Begründung im PR-Body).
 		const ohneReload = await hint.textContent();
 		await page.reload();
 		await waitForStableView(page);
 		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
 		await waitForStableView(page);
-		await expect(page.getByTestId('care-hint')).toHaveText(ohneReload ?? '');
+		expect(await page.getByTestId('care-hint').textContent()).toBe(ohneReload);
 	});
 });
