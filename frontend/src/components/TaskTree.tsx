@@ -387,31 +387,38 @@ const LeafItem = ({
 							</KolPopoverButton>
 						</div>
 					)}
-					{task !== null && isDone && doneFeedback?.taskId === task.id && (
-						// #2526: Rückmeldung an der Zeile — dieselben Zahlen wie im Panel (aria-live); „Rückgängig“
-						// läuft über denselben Toggle-Pfad, der ScoreEntry-Abbau bleibt beim Server (#228).
+					{task !== null && (
+						// #2526: Rückmeldung an der Zeile — dieselben Zahlen wie im Panel; „Rückgängig“ läuft über
+						// denselben Toggle-Pfad, der ScoreEntry-Abbau bleibt beim Server (#228). Fixup #2572: die
+						// Region steht dauerhaft im DOM — leer vor der Rückmeldung (Screenreader verkünden frisch
+						// gemountete Live-Regions unzuverlässig) —, nur der Inhalt wechselt; der Leerzustand bleibt
+						// über `:empty` ohne Eigenabstand.
 						<div className="task-tree-done-feedback" aria-live="polite">
-							<span className="task-tree-done-feedback-points">
-								<i className="fa-solid fa-circle-check" aria-hidden="true" />
-								{t('taskTree.doneFeedbackPoints', { punkte: formatNumber(doneFeedback.punkte) })}
-								{doneFeedback.streakTage !== undefined && (
-									<>
-										{' · '}
-										{t('taskTree.doneFeedbackStreak', { tage: doneFeedback.streakTage })}
-									</>
-								)}
-							</span>
-							<KolButton
-								_label={t('taskTree.undo')}
-								_variant="secondary"
-								_icons={{ left: { icon: 'fa-solid fa-rotate-left' } }}
-								_on={{
-									onClick: () => {
-										setIsUpdating(true);
-										void onDoneToggle(task).finally(() => setIsUpdating(false));
-									},
-								}}
-							/>
+							{doneFeedback != null && doneFeedback.taskId === task.id && (
+								<>
+									<span className="task-tree-done-feedback-points">
+										<i className="fa-solid fa-circle-check" aria-hidden="true" />
+										{t('taskTree.doneFeedbackPoints', { punkte: formatNumber(doneFeedback.punkte) })}
+										{doneFeedback.streakTage !== undefined && (
+											<>
+												{' · '}
+												{t('taskTree.doneFeedbackStreak', { tage: doneFeedback.streakTage })}
+											</>
+										)}
+									</span>
+									<KolButton
+										_label={t('taskTree.undo')}
+										_variant="secondary"
+										_icons={{ left: { icon: 'fa-solid fa-rotate-left' } }}
+										_on={{
+											onClick: () => {
+												setIsUpdating(true);
+												void onDoneToggle(task).finally(() => setIsUpdating(false));
+											},
+										}}
+									/>
+								</>
+							)}
 						</div>
 					)}
 				</div>

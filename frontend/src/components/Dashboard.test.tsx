@@ -954,7 +954,7 @@ describe('Dashboard — Direkt-Erledigen mit Inline-Rückmeldung (Issue #2526)',
 			meilensteine: [],
 		} as unknown as BalanceStatus);
 		vi.spyOn(api, 'getCareSuggestions').mockResolvedValue({ vorschlaege: [] } as never);
-		vi.spyOn(api, 'getStreak').mockResolvedValue({ tage: 4 } as never);
+		vi.spyOn(api, 'getStreak').mockResolvedValue({ aktuell: 4 } as never); // Vertrag: `{ aktuell }` (Fixup #2572)
 	};
 
 	it('AK2: Direkt-Erledigen zeigt die Rückmeldung in einer aria-live-Region mit „Rückgängig“', async () => {
@@ -979,12 +979,36 @@ describe('Dashboard — Direkt-Erledigen mit Inline-Rückmeldung (Issue #2526)',
 			expect(live, 'Rückmeldung fehlt oder liegt nicht in einer aria-live-Region').not.toBeNull();
 			expect(live!.textContent).toMatch(/\+\d+ Punkte/);
 		});
+		// Der Streak folgt nicht-blockierend nach — er muss im Region-Text landen (Fixup #2572: Mock
+		// am openapi-Vertrag `{ aktuell }`, sonst war die Streak-Zeile hier nie gerendert).
+		await waitFor(() => {
+			expect(container.querySelector('.dashboard-next-task-content [aria-live="polite"]')?.textContent).toContain(
+				'Streak 4 Tage',
+			);
+		});
 		expect(updateSpy).toHaveBeenCalledTimes(1);
 
 		const undo = [...container.querySelectorAll('.dashboard-next-task-content kol-button')].find(
 			(b) => b.getAttribute('_label') === 'Rückgängig',
 		);
 		expect(undo, 'Knopf „Rückgängig“ fehlt im Inline-Zustand').toBeDefined();
+	});
+
+	it('Fixup #2572: die aria-live-Region steht dauerhaft im DOM — schon vor dem Erledigen und leer', () => {
+		setup();
+		const nextTask = task(53, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Open);
+		const { container } = render(
+			<Dashboard
+				tasks={[nextTask]}
+				forest={[] as TaskTreeNode[]}
+				nextTask={nextTask}
+				pillars={[pillar(1, 'Körper', 100)]}
+			/>,
+		);
+
+		const live = container.querySelector('.dashboard-next-task-content [aria-live="polite"]');
+		expect(live, 'Live-Region muss schon vor dem Erledigen im DOM stehen').not.toBeNull();
+		expect(live!.textContent, 'Ohne Rückmeldung bleibt die Region leer').toBe('');
 	});
 
 	it('AK7: schlägt das Erledigen fehl, zeigt das Panel eine Inline-Fehlermeldung und die Aufgabe bleibt offen', async () => {

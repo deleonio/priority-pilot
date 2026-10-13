@@ -26,10 +26,12 @@ import { buildPillarSummaries, calculateMeterThreshold, calculateMeterHighThresh
 import { buildPillarBalances } from '../lib/score';
 import {
 	type DeadlineUrgency,
+	DONE_UNDO_WINDOW_MS,
 	deadlineUrgency,
 	formatDeadline,
 	formatNumber,
 	formatRelativeDeadline,
+	istUeberfaellig,
 } from '../lib/task';
 
 /** Badge-Hintergrundfarbe je hervorzuhebender Dringlichkeit (Textfarbe berechnet KolBadge automatisch). */
@@ -99,12 +101,6 @@ const begruendungsSaetze = (task: BegrTask, splitSatz: string): string[] => {
 	// #1994: Aufteilen-Hinweis am Ende, ohne Score-Anteil (kein Sortier-Faktor).
 	return reasons.split !== undefined ? [...sortiert, splitSatz] : sortiert;
 };
-
-/** #2526 (ADR 0024): Länge des Rückgängig-Fensters der Inline-Rückmeldung im Panel. */
-const INLINE_FEEDBACK_WINDOW_MS = 7000;
-
-/** Überfällig = Deadline liegt vor „Jetzt“ — der Panel-Klick fragt dann erst die Pünktlichkeit (#1964). */
-const istUeberfaellig = (task: Task): boolean => task.deadline != null && task.deadline.getTime() < Date.now();
 
 interface DashboardProps {
 	tasks: Task[];
@@ -389,7 +385,7 @@ export const Dashboard = ({
 					inlineTimer.current = null;
 					setInlineFeedback(null);
 					onInlineSettled?.();
-				}, INLINE_FEEDBACK_WINDOW_MS);
+				}, DONE_UNDO_WINDOW_MS);
 			} catch (reason) {
 				const apiError = await toApiError(reason);
 				setInlineError(apiError.message);
@@ -434,6 +430,10 @@ export const Dashboard = ({
 			}
 		})();
 	};
+
+	// #2526: Die Rückmeldung gilt nur, solange dieser Task im Panel liegt. Fixup #2572: die
+	// aria-live-Region steht dauerhaft im DOM (leer vor der Rückmeldung), nur der Inhalt wechselt.
+	const panelFeedback = inlineFeedback !== null && inlineFeedback.taskId === nextTask?.id ? inlineFeedback : null;
 
 	return (
 		<section className="dashboard">
@@ -528,29 +528,34 @@ export const Dashboard = ({
 										{inlineError}
 									</KolAlert>
 								)}
-								{inlineFeedback !== null && inlineFeedback.taskId === nextTask.id ? (
-									// #2526: Rückmeldung an der Tipp-Stelle — Erfolg in einer aria-live-Region (kein Fokusraub,
-									// KI-UX/A11y), „Rückgängig“ mit dem bekannten Undo-Icon. Erfolg nie über Farbe allein:
-									// --pp-success + Icon + Text. Die Aktionszeile weicht für das 7-s-Fenster (ADR 0024).
-									<div className="dashboard-next-task-feedback" aria-live="polite">
-										<span className="dashboard-next-task-feedback-points">
-											<i className="fa-solid fa-circle-check" aria-hidden="true" />
-											{t('nextTask.earnedPoints', { punkte: formatNumber(inlineFeedback.punkte) })}
-											{inlineFeedback.streakTage !== undefined && (
-												<>
-													{' · '}
-													{t('nextTask.streakDays', { tage: inlineFeedback.streakTage })}
-												</>
-											)}
-										</span>
-										<KolButton
-											_label={t('nextTask.undo')}
-											_variant="secondary"
-											_icons={{ left: { icon: 'fa-solid fa-rotate-left' } }}
-											_on={{ onClick: () => handlePanelUndo(nextTask) }}
-										/>
-									</div>
-								) : (
+								{/* #2526: Rückmeldung an der Tipp-Stelle — Erfolg in einer aria-live-Region (kein Fokusraub,
+								    KI-UX/A11y), „Rückgängig“ mit dem bekannten Undo-Icon. Erfolg nie über Farbe allein:
+								    --pp-success + Icon + Text. Die Aktionszeile weicht für das 7-s-Fenster (ADR 0024).
+								    Fixup #2572: die Region steht dauerhaft im DOM — leer vor der Rückmeldung (Screenreader
+								    verkünden frisch gemountete Live-Regions unzuverlässig) —, nur der Inhalt wechselt. */}
+								<div className="dashboard-next-task-feedback" aria-live="polite">
+									{panelFeedback !== null && (
+										<>
+											<span className="dashboard-next-task-feedback-points">
+												<i className="fa-solid fa-circle-check" aria-hidden="true" />
+												{t('nextTask.earnedPoints', { punkte: formatNumber(panelFeedback.punkte) })}
+												{panelFeedback.streakTage !== undefined && (
+													<>
+														{' · '}
+														{t('nextTask.streakDays', { tage: panelFeedback.streakTage })}
+													</>
+												)}
+											</span>
+											<KolButton
+												_label={t('nextTask.undo')}
+												_variant="secondary"
+												_icons={{ left: { icon: 'fa-solid fa-rotate-left' } }}
+												_on={{ onClick: () => handlePanelUndo(nextTask) }}
+											/>
+										</>
+									)}
+								</div>
+								{panelFeedback === null && (
 									<div className="dashboard-next-task-actions">
 										<KolButton
 											_label={t('nextTask.complete')}

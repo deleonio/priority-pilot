@@ -1070,6 +1070,12 @@ kol-toolbar {
 	align-self: stretch;
 }
 
+.dashboard-next-task-feedback:empty {
+	/* Fixup #2572: leere, dauerhaft gerenderte Live-Region — gleicht den Flex-Gap aus, damit der
+	   Leerzustand im Panel keinen Extra-Abstand erzeugt (die Region bleibt bewusst sichtbar). */
+	margin-top: calc(-1 * var(--pp-gap-tight));
+}
+
 .dashboard-next-task-feedback-points {
 	display: flex;
 	align-items: center;
@@ -2386,6 +2392,11 @@ kol-toolbar {
 	justify-content: space-between;
 	gap: var(--pp-gap-tight);
 	margin-top: var(--pp-gap-tight);
+}
+
+.task-tree-done-feedback:empty {
+	/* Fixup #2572: leere, dauerhaft gerenderte Live-Region — kein Extra-Abstand in der Zeile. */
+	margin-top: 0;
 }
 
 .task-tree-done-feedback-points {

@@ -67,7 +67,7 @@ import { useAiFeaturesGate } from './lib/aiPreferences';
 import { pullAccountPreferences } from './lib/accountPreferences';
 import { launchConfetti, shouldCelebrateDone } from './lib/confetti';
 import { setupTabsFocusRing } from './lib/tabsFocusRing';
-import { formatDeadline } from './lib/task';
+import { DONE_UNDO_WINDOW_MS, formatDeadline, istUeberfaellig } from './lib/task';
 import { trackPageView } from './lib/matomo';
 
 type Dialog =
@@ -131,9 +131,6 @@ const ADMIN_ONLY_SETTINGS_SEGMENTS: ReadonlySet<string> = new Set(['nutzer']);
 
 // Modulkonstanten für Toolbar-Icons: stabile Objektidentität pro Render, damit der Icon-Watcher
 // nicht unnötig erneut feuert (z. B. CREATE_ICON für „Neuen Task anlegen").
-// #2526 (ADR 0024): 7 Sekunden Rückgängig-Fenster des Direkt-Erledigens (vorher 5 s, #392).
-const DONE_REMOVAL_DELAY_MS = 7000;
-
 /**
  * Sentinel-Wert des Kategorie-Filters („alle Kategorien"). Kategorie-IDs sind serverseitig `>= 1`,
  * `0` kollidiert daher mit keiner echten Kategorie (Muster `ADD_PILLAR_PLACEHOLDER`).
@@ -921,7 +918,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// überfällige Deadline → Pünktlich-Nachfrage, sonst Erledigen-Dialog (offene Checkliste).
 	const completeFromPanel = useCallback(
 		(task: Task): void => {
-			if (task.deadline != null && task.deadline.getTime() < Date.now()) {
+			if (istUeberfaellig(task)) {
 				setDialog({ kind: 'missedComplete', task });
 				return;
 			}
@@ -1008,13 +1005,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					// verschwände die Zeile samt Toggle sofort. Der optimistische Status-Update hält die Zeile
 					// im Aufgabenbaum „sticky" für ein Sofort-Undo (#315 AK1); die Erledigte-Tabelle blendet
 					// solche noch im Wald stehenden Aufgaben aus (`forestTaskIds`), damit der Titel nicht
-					// doppelt im DOM steht (#228). Nach DONE_REMOVAL_DELAY_MS löst ein automatischer Reload
+					// doppelt im DOM steht (#228). Nach DONE_UNDO_WINDOW_MS löst ein automatischer Reload
 					// die Zeile auf (#392).
 					setTasks((prev) => (prev === null ? null : prev.map((t) => (t.id === task.id ? { ...t, status: next } : t))));
 					const handle = setTimeout(() => {
 						doneRemovalTimers.current.delete(task.id);
 						void reload();
-					}, DONE_REMOVAL_DELAY_MS);
+					}, DONE_UNDO_WINDOW_MS);
 					doneRemovalTimers.current.set(task.id, handle);
 				} else {
 					const handle = doneRemovalTimers.current.get(task.id);
@@ -1064,7 +1061,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	);
 
 	// #1168: Signal-Panel-Aktion „Erledigt" — setzt die Aufgabe auf `Done`. Anders als
-	// `handleDoneToggle` kein sticky-Pfad (`DONE_REMOVAL_DELAY_MS`): der greift für die Aufgabenliste,
+	// `handleDoneToggle` kein sticky-Pfad (`DONE_UNDO_WINDOW_MS`): der greift für die Aufgabenliste,
 	// das Panel lädt stattdessen sofort per `reload()` die nächste Aufgabe (`afterMutation`).
 	const completeTask = useCallback(
 		async (task: Task, checklist: ChecklistItem[], allChecked: boolean, completedAt?: string): Promise<void> => {

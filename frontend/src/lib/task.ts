@@ -104,6 +104,9 @@ export const deadlineUrgency = (deadline: Date, now: Date): DeadlineUrgency => {
 	return 'later';
 };
 
+/** Überfällig = Deadline liegt vor „Jetzt“ — der Panel-Klick fragt dann erst die Pünktlichkeit (#1964). */
+export const istUeberfaellig = (task: Task): boolean => task.deadline != null && task.deadline.getTime() < Date.now();
+
 /** Kurze Restzeit-Angabe einer Deadline relativ zu `now` (für das Dringlichkeits-Badge). */
 export const formatRelativeDeadline = (deadline: Date, now: Date): string => {
 	const days = daysUntilDeadline(deadline, now);
@@ -181,6 +184,12 @@ export const isTaskFormDirty = (initial: TaskFormSnapshot, current: TaskFormSnap
 	initial.categoryId !== current.categoryId ||
 	initial.mode !== current.mode ||
 	!contributionsEqual(initial.contributions, current.contributions);
+
+/**
+ * #2526 (ADR 0024): 7 Sekunden Rückgängig-Fenster des Direkt-Erledigens (vorher 5 s, #392) —
+ * Inline-Rückmeldung im Panel (`Dashboard`) und Reload-Verzug der Listenzeile (`App`).
+ */
+export const DONE_UNDO_WINDOW_MS = 7000;
 
 /**
  * Stellt angepinnte Tasks (#1582) vor alle unangepinnten — unabhängig von der Sortierung des
