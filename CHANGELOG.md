@@ -2,9 +2,13 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.24 - 2026-10-13
+
+_Keine für Nutzer sichtbaren Änderungen._
+
 ## v0.23 - 2026-10-12
 
-_Enthält v0.23.0 – v0.23.3._
+_Enthält v0.23.0 – v0.23.4._
 
 ### 🎉 New Features
 
@@ -40,6 +44,7 @@ _Enthält v0.23.0 – v0.23.3._
 
 - fix(native): stop committing generated capacitor.settings.gradle by @deleonio in https://github.com/deleonio/priority-pilot/pull/2517
 - feat(series): manage checklist on series and templates (#2501) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2530
+- feat(auth): magic link signs in where it was requested (#2563) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2564
 
 ## v0.22 - 2026-10-11
 
@@ -246,7 +251,6 @@ _Enthält v0.17.0 – v0.17.45._
 - test(e2e): fix shard isolation in #2221 and #763 specs by @deleonio in https://github.com/deleonio/priority-pilot/pull/2290
 - test: cover invitation auto-allow of unknown emails (#2223) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2288
 - test(server): freeze time in #2143 proration AK3 test (#2279) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2297
-- fix(ci): arm spec-phase soft-abort on hard deadline by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2337
 - fix(ci): arm spec-phase soft-abort on hard deadline by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2337
 - chore(native): rename android package id to balamentum.app by @deleonio in https://github.com/deleonio/priority-pilot/pull/2334
 - test(e2e): isolate admin specs from shared Anna Admin users by @deleonio in https://github.com/deleonio/priority-pilot/pull/2342
