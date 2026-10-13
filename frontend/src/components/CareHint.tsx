@@ -64,7 +64,9 @@ const endeDesTages = (jetzt: Date): number =>
  * Fürsorge-Hinweis auf dem Dashboard (#1793, Ton: `docs/fuersorge-tonalitaet.md`): zeigt den ersten
  * nicht lokal unterdrückten Vorschlag aus `GET /scores/care-suggestions` mit Übernehmen / Nicht
  * jetzt / Ablehnen. Bei `anlass: 'ueberlast'` (#1795) rahmt der Hinweis den Vorschlag als Ausgleich
- * statt als Defizit; ein KI-Vorschlag (`typ: 'ki'`, #1873) trägt die Kennzeichnung „KI-Vorschlag“.
+ * statt als Defizit; bei `anlass: 'ermutigung'` (#2521) zeigt er nur den Ermutigungs-Satz — ohne
+ * Aktionsreihe (nichts anzunehmen oder abzulehnen, kein Nachrücken, kein Dismissal). Ein
+ * KI-Vorschlag (`typ: 'ki'`, #1873) trägt die Kennzeichnung „KI-Vorschlag“.
  * Lädt selbst (Muster `DayDoneHint`); bis zur Antwort und bei Ladefehler wird nichts gerendert,
  * damit „Nächste Aufgabe“ nicht springt.
  *
@@ -128,6 +130,19 @@ export const CareHint = () => {
 	if (vorschlag === undefined) {
 		// Frischer Mount mit nur unterdrückten Vorschlägen: unsichtbar bleiben (#1793-Vertrag).
 		return null;
+	}
+
+	// #2521: Ermutigungs-Eintrag ist reiner Fürsorge-Satz — nichts anzunehmen oder abzulehnen,
+	// daher ohne Aktionsreihe, Grundauswahl, Nachrück-Cursor oder Dismissal; er verschwindet von
+	// selbst, sobald die Überlast-Mindestmenge erreicht ist.
+	if (vorschlag.anlass === 'ermutigung') {
+		return (
+			<div className="care-hint" data-testid="care-hint" role="status" aria-label={t('care.label')}>
+				<KolAlert _type="info" _variant="card" _label={t('care.label')}>
+					<p>{vorschlag.titel}</p>
+				</KolAlert>
+			</div>
+		);
 	}
 
 	const schliessen = (aktion: () => Promise<unknown>): void => {
