@@ -390,16 +390,23 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 				const now = new Date();
 				const { creditCents } = upgradeProration(subscription, body.plan, body.period, now);
 				const carry = creditCarryover(creditCents, getPlansCatalog().prices[body.plan][body.period], body.period, now);
+				// Ein abgebrochener früherer Upgrade-Anlauf bliebe sonst als offenes Abo liegen (#2547):
+				// Stornieren wie `discardPendingCheckout` — VOR `checkout.create`, sonst entsteht bei
+				// fehlgeschlagenem Cleanup ein PayPal-Abo ohne DB-Zeile.
+				for (const pending of await Subscription.findAll({
+					where: { userId, status: 'approval_pending', id: { [Op.ne]: subscription.get('id') } },
+				})) {
+					if (!(await discardPendingCheckout(pending))) {
+						sendError(res, 502, 'PayPal war nicht erreichbar.');
+						return;
+					}
+				}
 				const { approvalUrl, externalSubscriptionId } = await checkout.create(
 					body.plan,
 					body.period,
 					carry.feeCents,
 					carry.startTime,
 				);
-				// Ein abgebrochener früherer Upgrade-Anlauf bliebe sonst als offenes Abo liegen.
-				await Subscription.destroy({
-					where: { userId, status: 'approval_pending', id: { [Op.ne]: subscription.get('id') } },
-				});
 				await Subscription.create({
 					userId,
 					provider: provider.id,
