@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, after } from 'node:test';
+import { describe, it, beforeEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
@@ -186,5 +186,38 @@ describe('Öffentliche Kündigung #2317', () => {
 	it('AK6: je IP begrenzt — mehr als 20 Anfragen für verschiedene Adressen → 429', async () => {
 		for (let i = 0; i < 20; i += 1) assert.equal((await requestCancel(`ip${i}@example.com`)).status, 202);
 		assert.equal((await requestCancel('ip-zuviel@example.com')).status, 429);
+	});
+
+	// #2549 AK4: der bislang stumme 502-Catch bei PayPal-Ausfall loggt den Fehler, bevor er sendet.
+	// Eigener Server mit ablehnendem paypalClient — beforeEach fährt einen erfolgreichen (Muster
+	// billing-subscriptions-cancel.test.ts: frischer Server je Test, close in after).
+	it('AK4 (#2549): PayPal-Ausfall bei Bestätigung → 502 mit Log-Eintrag (nicht stumm)', async () => {
+		server = await startTestServer({
+			paypalClient: {
+				createSubscription: async () => ({ approvalUrl: 'https://paypal.example/x', externalSubscriptionId: 'I-X' }),
+				cancel: async () => {
+					throw new Error('PayPal nicht erreichbar');
+				},
+				revise: async () => ({}),
+			},
+			mailSender: async (payload) => {
+				mails.push(payload);
+			},
+		} as unknown as AppDeps);
+		await accountWithSub('2549-paypal-down@example.com');
+		await requestCancel('2549-paypal-down@example.com');
+		const token = tokenFromMail(mails[mails.length - 1]);
+
+		const ce = mock.method(console, 'error', () => {});
+		try {
+			const res = await post(CONFIRM, { token });
+			assert.equal(res.status, 502);
+			assert.ok(((await res.json()) as { message?: string }).message);
+		} finally {
+			ce.mock.restore();
+		}
+		const logged = ce.mock.calls.map((c) => c.arguments.map(String).join(' ')).join('\n');
+		assert.ok(logged.includes('/public/cancellation'), `502-Catch muss loggen: ${logged}`);
+		assert.ok(logged.includes('PayPal nicht erreichbar'), `Log nennt den Fehler: ${logged}`);
 	});
 });

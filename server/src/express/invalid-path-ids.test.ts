@@ -24,7 +24,9 @@ type RouteCase = { name: string; method: string; path: string; body?: unknown };
 const cases: RouteCase[] = [
 	{ name: 'GET /groups/:id', method: 'GET', path: '/groups/abc' },
 	{ name: 'DELETE /api-tokens/:id', method: 'DELETE', path: '/api-tokens/abc' },
-	{ name: 'PATCH /categories/:id', method: 'PATCH', path: '/categories/abc', body: {} },
+	// #2549 (PO-Nit aus dem #2595-Review): Body gültig, damit die 400 vom Id-Guard kommt und nicht
+	// schon aus validateUpdateBody.
+	{ name: 'PATCH /categories/:id', method: 'PATCH', path: '/categories/abc', body: { name: 'X' } },
 	{ name: 'DELETE /place-favorites/:id', method: 'DELETE', path: '/place-favorites/abc' },
 	{
 		name: 'PATCH /knowledge-entries/:id',
