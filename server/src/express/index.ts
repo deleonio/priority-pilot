@@ -231,11 +231,11 @@ export const createApp = (deps: AppDeps = {}) => {
 	app.use(apiTokenAuth);
 
 	// CSRF-Schutz für alle schreibenden Endpunkte (siehe csrf.ts), Token-Ausstellung via
-	// GET /auth/csrf. Nur in Produktion aktiv — die E2E-Suite seedet Daten über direkte
-	// page.request-Aufrufe ohne Token, und Dev läuft mit 'dev-secret' ohne echte Sessions.
+	// GET /auth/csrf. Aktiv, sobald SESSION_SECRET gesetzt ist (echte Sessions) — nicht bei
+	// NODE_ENV=test: Die E2E-Suite seedet Daten über direkte page.request-Aufrufe ohne Token.
 	const csrf = createCsrfUtilities(sessionSecret ?? 'dev-secret');
 	app.get('/auth/csrf', csrf.issueCsrfToken);
-	if (process.env.NODE_ENV === 'production') {
+	if (sessionSecret && process.env.NODE_ENV !== 'test') {
 		// Bearer-Requests tragen kein Cookie und können das Double-Submit-Token nicht liefern
 		// (#1352) — sie sind daher von der CSRF-Prüfung ausgenommen. Ebenso die Android-App vor der
 		// Anmeldung (Code-Tausch, ID-Token, Magic Link): Sie ruft von `https://localhost` ohne Cookies auf.
