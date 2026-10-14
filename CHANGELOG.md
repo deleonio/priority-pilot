@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.25 - 2026-10-14
 
-_Enthält v0.25.0 – v0.25.4._
+_Enthält v0.25.0 – v0.25.5._
 
 ### Other Changes
 
@@ -12,6 +12,7 @@ _Enthält v0.25.0 – v0.25.4._
 - docs(skills): german-only chat and full-queue status for coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2583
 - [P0/S] Server: CSRF-Schutz greift, sobald die Anmeldung aktiv ist (#2540) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2584
 - fix(server): user search with literal wildcards and result limit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2585
+- fix(server): book llm provider test against ai quota and throttle it (#2542) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2586
 
 ## v0.24 - 2026-10-13
 
@@ -201,7 +202,6 @@ _Enthält v0.18.0 – v0.18.45._
 
 - fix(website): shrink image film section to 48rem by @deleonio in https://github.com/deleonio/priority-pilot/pull/2346
 - fix(native): alte Service Worker in der Android-App abmelden by @deleonio in https://github.com/deleonio/priority-pilot/pull/2385
-- fix(native): alte Service Worker in der Android-App abmelden by @deleonio in https://github.com/deleonio/priority-pilot/pull/2385
 - feat(server): suggest care actions for every deficit pillar by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2401
 - ci(workbench): time-box playwright deps install, fall back without apt by @deleonio in https://github.com/deleonio/priority-pilot/pull/2410
 
@@ -230,6 +230,7 @@ _Enthält v0.18.0 – v0.18.45._
 - docs(adr): ADR 0020 Serien Automatisch anlegen / Vorlage (#2354) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2374
 - feat(server): render invoice pdf as letter with logo, table and footer by @deleonio in https://github.com/deleonio/priority-pilot/pull/2369
 - fix(native): widen android versionCode digits with hard limits by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2371
+- feat(server): create due series automatically every day by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2384
 - feat(server): create due series automatically every day by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2384
 - docs(adr): ADR 0021 Android-App als SPA ohne Service Worker by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2387
 - feat(frontend): add auto-create switch and series templates tab (#2358) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2383
