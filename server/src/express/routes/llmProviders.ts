@@ -20,6 +20,8 @@ import { LlmProvider } from '../../models/index.js';
 import { upstreamErrorDetail } from '../../llm/upstreamError.js';
 import { fetchProviderEndpoint, INTERNAL_ENDPOINT_MESSAGE, isPublicEndpoint } from '../../llm/endpointGuard.js';
 import { resolveGeoUser } from './geoConfig.js';
+import { createAiQuotaCounter } from '../aiQuotaMeter.js';
+import { createProviderTestRateLimiter } from './rateLimit.js';
 
 type LlmProviderDto = components['schemas']['LlmProvider'];
 type LlmProviderInputDto = components['schemas']['LlmProviderInput'];
@@ -547,60 +549,68 @@ export const createLlmProvidersRouter = (
 	 * Verbindungstest: schickt den minimalen Test-Prompt über den Provider (unabhängig von der
 	 * Aktivierung) und meldet Erfolg inkl. Latenz/Antwort oder die konkrete Fehlerursache.
 	 */
-	router.post('/llm-providers/:id/test', async (req, res: Response<ProviderTestResultDto | ErrorDto>) => {
-		const id = parseId(req.params.id);
-		if (id === null) {
-			sendError(res, 400, 'Provider-ID muss eine positive Ganzzahl sein.');
-			return;
-		}
-		const userId = await requireProviderUser(req, res);
-		if (userId === null) return;
-		let row: LlmProvider | null;
-		try {
-			row = await LlmProvider.findByPk(id);
-		} catch {
-			sendError(res, 500, 'Interner Serverfehler.');
-			return;
-		}
-		if (row === null || !isProviderAccessible(row, userId)) {
-			sendError(res, 404, 'Provider nicht gefunden.');
-			return;
-		}
-		const runtime = toRuntimeConfig(row);
-		// Vorab-Checks mit klarer Meldung, bevor der Upstream sinnlos gefragt wird.
-		if (runtime.apiKey === '') {
-			res.json({
-				ok: false,
-				message: `Kein API-Key vorhanden (${runtime.keySource}) — Provider kann keine Anfragen stellen.`,
-			});
-			return;
-		}
-		if (runtime.model === '') {
-			res.json({ ok: false, message: 'Kein Modell gewählt — wähle zuerst ein Modell.' });
-			return;
-		}
-		// Serverseitiger Schutz vor Upstream-Hämmern: laufende/frische Tests teilen ein Ergebnis.
-		const cached = testResultsCache.get(id);
-		if (cached !== undefined && cached.expiresAt > Date.now()) {
-			res.json(await cached.promise);
-			return;
-		}
-		const entry: { promise: Promise<ProviderTestResultDto>; expiresAt: number } = {
-			promise: runTest(runtime).then(
-				(result) => {
-					entry.expiresAt = Date.now() + TEST_RESULT_TTL_MS; // TTL ab Antwort, nicht ab Start
-					return result;
-				},
-				(error: unknown) => {
-					testResultsCache.delete(id); // unerwarteter Runner-Fehler → neu testen lassen
-					throw error;
-				},
-			),
-			expiresAt: Number.POSITIVE_INFINITY, // läuft gerade → parallele Aufrufer teilen das Ergebnis
-		};
-		testResultsCache.set(id, entry);
-		res.json(await entry.promise);
-	});
+	router.post(
+		'/llm-providers/:id/test',
+		createProviderTestRateLimiter(),
+		async (req, res: Response<ProviderTestResultDto | ErrorDto>) => {
+			const id = parseId(req.params.id);
+			if (id === null) {
+				sendError(res, 400, 'Provider-ID muss eine positive Ganzzahl sein.');
+				return;
+			}
+			const userId = await requireProviderUser(req, res);
+			if (userId === null) return;
+			let row: LlmProvider | null;
+			try {
+				row = await LlmProvider.findByPk(id);
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+				return;
+			}
+			if (row === null || !isProviderAccessible(row, userId)) {
+				sendError(res, 404, 'Provider nicht gefunden.');
+				return;
+			}
+			const runtime = toRuntimeConfig(row);
+			// Vorab-Checks mit klarer Meldung, bevor der Upstream sinnlos gefragt wird.
+			if (runtime.apiKey === '') {
+				res.json({
+					ok: false,
+					message: `Kein API-Key vorhanden (${runtime.keySource}) — Provider kann keine Anfragen stellen.`,
+				});
+				return;
+			}
+			if (runtime.model === '') {
+				res.json({ ok: false, message: 'Kein Modell gewählt — wähle zuerst ein Modell.' });
+				return;
+			}
+			// Serverseitiger Schutz vor Upstream-Hämmern: laufende/frische Tests teilen ein Ergebnis.
+			const cached = testResultsCache.get(id);
+			if (cached !== undefined && cached.expiresAt > Date.now()) {
+				res.json(await cached.promise);
+				return;
+			}
+			// Nur die instanzweite Zeile kostet die Instanz Geld (#2542) — ein eigener Provider bucht nichts.
+			const quota = row.userId === null ? await createAiQuotaCounter(userId, true) : undefined;
+			if (quota !== undefined && !(await quota.bookOrReject(res))) return;
+			const entry: { promise: Promise<ProviderTestResultDto>; expiresAt: number } = {
+				promise: runTest(runtime).then(
+					(result) => {
+						entry.expiresAt = Date.now() + TEST_RESULT_TTL_MS; // TTL ab Antwort, nicht ab Start
+						return result;
+					},
+					(error: unknown) => {
+						testResultsCache.delete(id); // unerwarteter Runner-Fehler → neu testen lassen
+						void quota?.refund().catch(() => undefined);
+						throw error;
+					},
+				),
+				expiresAt: Number.POSITIVE_INFINITY, // läuft gerade → parallele Aufrufer teilen das Ergebnis
+			};
+			testResultsCache.set(id, entry);
+			res.json(await entry.promise);
+		},
+	);
 
 	/**
 	 * Verfügbare Modelle eines Providers: fragt dessen OpenAI-kompatiblen `GET /models`-Endpoint
