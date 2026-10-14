@@ -2112,3 +2112,80 @@ describe('migrateSeriesChecklist (#2501)', () => {
 		assert.ok(columns.includes('checklist'), 'sync() legt die checklist-Spalte inkl. Default an');
 	});
 });
+
+// Rote Spec-Tests für #2552 — Spalten-Migrationen über einen Helfer `ensureColumns`.
+//
+// Vertrag (docs/spec/issue-2552.md, AK3): der Helfer ersetzt das wiederholte PRAGMA-table_info-
+// Gerüst — eine fehlende Spalte wird mit ihrer Definition angelegt, eine vorhandene bleibt
+// unverändert (kein zweites ALTER, idempotenter Zweitaufruf), eine fehlende Tabelle ist ein
+// No-op. Es wird KEIN Produktivcode geschrieben; die Tests werden grün, sobald `ensureColumns`
+// in `server/src/logics/migrate.ts` existiert.
+const ensureColumns = (
+	migrateModule as unknown as {
+		ensureColumns?: (
+			db: typeof sequelize,
+			table: string,
+			columns: readonly { name: string; definition: string }[],
+		) => Promise<unknown>;
+	}
+).ensureColumns;
+
+/** Spaltennamen + -typen einer Tabelle (leer, falls die Tabelle nicht existiert). */
+const helperTableColumns = async (table: string): Promise<{ name: string; type: string }[]> => {
+	const [rows] = await sequelize.query(`PRAGMA table_info('${table}')`);
+	return rows as { name: string; type: string }[];
+};
+
+describe('ensureColumns', () => {
+	// ── AK3, Fall 1: fehlende Spalte wird mit ihrer Definition angelegt ───────────────────────
+	it('legt eine fehlende Spalte mit ihrer Definition an', async () => {
+		await sequelize.query('CREATE TABLE `spec_helper` (`id` INTEGER PRIMARY KEY)');
+		assert.ok(ensureColumns, 'ensureColumns ist als Export vorhanden');
+
+		await assert.doesNotReject(() =>
+			ensureColumns(sequelize, 'spec_helper', [{ name: 'notiz', definition: "TEXT NOT NULL DEFAULT ''" }]),
+		);
+
+		const columns = await helperTableColumns('spec_helper');
+		const notiz = columns.find((column) => column.name === 'notiz');
+		assert.ok(notiz, `die Spalte notiz wurde angelegt, war: ${columns.map((c) => c.name).join(', ')}`);
+		assert.equal(notiz.type, 'TEXT', 'die Spalte trägt den Typ aus der Definition');
+		// Die Definition wirkt: Insert ohne die Spalte füllt den NOT-NULL-Default fehlerfrei.
+		await assert.doesNotReject(() => sequelize.query('INSERT INTO `spec_helper` DEFAULT VALUES'));
+	});
+
+	// ── AK3, Fall 2: vorhandene Spalte bleibt unverändert (kein ALTER, idempotenter Zweitaufruf) ─
+	it('lässt eine vorhandene Spalte unverändert und bleibt beim Zweitaufruf stabil', async () => {
+		await sequelize.query('CREATE TABLE `spec_helper` (`id` INTEGER PRIMARY KEY, `notiz` TEXT)');
+		await sequelize.query("INSERT INTO `spec_helper` (`notiz`) VALUES ('bestand')");
+		assert.ok(ensureColumns, 'ensureColumns ist als Export vorhanden');
+
+		await assert.doesNotReject(() =>
+			ensureColumns(sequelize, 'spec_helper', [{ name: 'notiz', definition: "TEXT NOT NULL DEFAULT ''" }]),
+		);
+		await assert.doesNotReject(
+			() => ensureColumns(sequelize, 'spec_helper', [{ name: 'notiz', definition: "TEXT NOT NULL DEFAULT ''" }]),
+			'der Zweitaufruf bleibt fehlerfrei stabil',
+		);
+
+		const columns = await helperTableColumns('spec_helper');
+		assert.equal(
+			columns.filter((column) => column.name === 'notiz').length,
+			1,
+			'die Spalte existiert genau einmal (kein zweites ALTER)',
+		);
+		const [rows] = await sequelize.query('SELECT `notiz` FROM `spec_helper`');
+		assert.equal((rows as { notiz: string }[])[0]?.notiz, 'bestand', 'die Bestandszeile bleibt unverändert');
+	});
+
+	// ── AK3, Fall 3: fehlende Tabelle ist ein No-op ──────────────────────────────────────────
+	it('ist auf einer DB ohne Tabelle ein No-op', async () => {
+		assert.ok(ensureColumns, 'ensureColumns ist als Export vorhanden');
+
+		// beforeEach hat alle Tabellen gedroppt — die Tabelle existiert nicht.
+		await assert.doesNotReject(() =>
+			ensureColumns(sequelize, 'spec_helper_fehlt', [{ name: 'notiz', definition: 'TEXT' }]),
+		);
+		assert.deepEqual(await helperTableColumns('spec_helper_fehlt'), [], 'die Tabelle wurde nicht angelegt');
+	});
+});

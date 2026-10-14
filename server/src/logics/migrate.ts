@@ -2,6 +2,47 @@ import type { Sequelize } from 'sequelize';
 import { SEED_PILLARS } from '../models/pillarData.js';
 
 /**
+ * Liest die vorhandenen Spaltennamen einer Tabelle (leer, falls die Tabelle nicht existiert) —
+ * die einzige table_info-Abfrage der Datei (#2552). Grundlage für {@link ensureColumns}
+ * und die Migrationen mit Zusatzlogik (RENAME/DROP/Backfill/Unique-Index).
+ */
+const existingColumns = async (db: Sequelize, table: string): Promise<string[]> => {
+	const [columns] = await db.query(`PRAGMA table_info('${table}')`);
+	return (columns as { name: string }[]).map((column) => column.name);
+};
+
+/**
+ * Zieht fehlende Spalten mit ihrer Definition auf einer **bestehenden** Tabelle nach (#2552) —
+ * der Ersatz für das wiederholte PRAGMA-Gerüst der Spalten-Migrationen. Idempotent: bereits
+ * vorhandene Spalten werden übersprungen. Fehlt die Tabelle ganz (frische DB), ist der Aufruf
+ * ein No-op — `sync()` legt Tabelle inkl. Spalten an.
+ *
+ * Gibt die Namen der nachgezogenen Spalten zurück (leer, wenn nichts zu tun war) — als
+ * Grundlage für Backfill-Entscheidungen der aufrufenden Migration.
+ */
+export const ensureColumns = async (
+	db: Sequelize,
+	table: string,
+	columns: readonly { name: string; definition: string }[],
+): Promise<string[]> => {
+	const existing = await existingColumns(db, table);
+	// Keine Tabelle (frische DB) → No-op; sync() übernimmt das Anlegen.
+	if (existing.length === 0) {
+		return [];
+	}
+	const added: string[] = [];
+	for (const column of columns) {
+		if (existing.includes(column.name)) {
+			continue;
+		}
+		await db.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${column.name}\` ${column.definition}`);
+		console.log(`Spalte ${column.name} an ${table} nachgezogen.`);
+		added.push(column.name);
+	}
+	return added;
+};
+
+/**
  * Definition der mit dem Serien-Feature (#120/#142) am `Task`-Modell hinzugekommenen Spalten
  * (siehe `server/src/models/task.ts`). Jede Spalte wird per `ALTER TABLE tasks ADD COLUMN`
  * nachgezogen, falls sie auf einer Bestands-`database.sqlite` noch fehlt. Die SQLite-Typen
@@ -41,21 +82,7 @@ const SERIES_COLUMNS = [
  * Tabelle inkl. Spalten und Index korrekt an.
  */
 export const migrateSeriesColumns = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('tasks')");
-	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
-
-	// Keine Tabelle (frische DB) → No-op; sync() übernimmt das Anlegen.
-	if (existing.size === 0) {
-		return;
-	}
-
-	for (const column of SERIES_COLUMNS) {
-		if (existing.has(column.name)) {
-			continue;
-		}
-		await db.query(`ALTER TABLE \`tasks\` ADD COLUMN \`${column.name}\` ${column.definition}`);
-		console.log(`Serien-Spalte ${column.name} an tasks nachgezogen.`);
-	}
+	await ensureColumns(db, 'tasks', SERIES_COLUMNS);
 };
 
 /**
@@ -108,8 +135,7 @@ export async function migrateSeriesRenameFields(seq: Sequelize): Promise<void> {
 	// deshalb der Cast auf unknown[] statt eines Modell-Typs (Muster `graph.ts`, #1471).
 	if ((tableCheck as unknown[]).length === 0) return;
 
-	const [rows] = await seq.query("PRAGMA table_info('series')");
-	const cols = (rows as { name: string }[]).map((r) => r.name);
+	const cols = await existingColumns(seq, 'series');
 
 	if (cols.includes('defaultPriority') && !cols.includes('priority')) {
 		await seq.query('ALTER TABLE `series` RENAME COLUMN `defaultPriority` TO `priority`');
@@ -128,20 +154,7 @@ export async function migrateSeriesRenameFields(seq: Sequelize): Promise<void> {
  * Idempotent und No-op, wenn die Tabelle noch nicht existiert.
  */
 export const migrateSeriesTable = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('series')");
-	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
-
-	if (existing.size === 0) {
-		return;
-	}
-
-	for (const column of SERIES_TABLE_COLUMNS) {
-		if (existing.has(column.name)) {
-			continue;
-		}
-		await db.query(`ALTER TABLE \`series\` ADD COLUMN \`${column.name}\` ${column.definition}`);
-		console.log(`Serien-Tabellenspalte ${column.name} an series nachgezogen.`);
-	}
+	await ensureColumns(db, 'series', SERIES_TABLE_COLUMNS);
 };
 
 /**
@@ -152,15 +165,7 @@ export const migrateSeriesTable = async (db: Sequelize): Promise<void> => {
  * `SQLITE_ERROR: no such column: avatarUrl` fehl. Idempotent; No-op bei frischer DB.
  */
 export const migrateUsersAvatarUrl = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('users')");
-	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
-
-	if (existing.size === 0 || existing.has('avatarUrl')) {
-		return;
-	}
-
-	await db.query('ALTER TABLE `users` ADD COLUMN `avatarUrl` VARCHAR(255)');
-	console.log('Spalte avatarUrl an users nachgezogen.');
+	await ensureColumns(db, 'users', [{ name: 'avatarUrl', definition: 'VARCHAR(255)' }]);
 };
 
 /**
@@ -170,15 +175,7 @@ export const migrateUsersAvatarUrl = async (db: Sequelize): Promise<void> => {
  * Idempotent (Spalte vorhanden → übersprungen); No-op bei frischer DB.
  */
 export const migrateGroupImageUrl = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('groups')");
-	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
-
-	if (existing.size === 0 || existing.has('imageUrl')) {
-		return;
-	}
-
-	await db.query('ALTER TABLE `groups` ADD COLUMN `imageUrl` VARCHAR(255)');
-	console.log('Spalte imageUrl an groups nachgezogen.');
+	await ensureColumns(db, 'groups', [{ name: 'imageUrl', definition: 'VARCHAR(255)' }]);
 };
 
 /**
@@ -187,15 +184,7 @@ export const migrateGroupImageUrl = async (db: Sequelize): Promise<void> => {
  * Idempotent (Spalte vorhanden → übersprungen); No-op bei frischer DB.
  */
 export const migrateGroupKind = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('groups')");
-	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
-
-	if (existing.size === 0 || existing.has('kind')) {
-		return;
-	}
-
-	await db.query("ALTER TABLE `groups` ADD COLUMN `kind` VARCHAR(255) NOT NULL DEFAULT 'group'");
-	console.log('Spalte kind an groups nachgezogen.');
+	await ensureColumns(db, 'groups', [{ name: 'kind', definition: "VARCHAR(255) NOT NULL DEFAULT 'group'" }]);
 };
 
 /**
@@ -207,10 +196,9 @@ export const migrateGroupKind = async (db: Sequelize): Promise<void> => {
  * Idempotent (Spalte fehlt → übersprungen); No-op bei frischer DB.
  */
 export const migratePlaceFavoriteDropName = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('place_favorites')");
-	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
+	const existing = await existingColumns(db, 'place_favorites');
 
-	if (existing.size === 0 || !existing.has('name')) {
+	if (existing.length === 0 || !existing.includes('name')) {
 		return;
 	}
 
@@ -233,8 +221,7 @@ export const migratePlaceFavoriteDropName = async (db: Sequelize): Promise<void>
  * Modell deklarierten Index selbst an.
  */
 export const migratePlaceFavoriteAddressUnique = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('place_favorites')");
-	if ((columns as { name: string }[]).length === 0) {
+	if ((await existingColumns(db, 'place_favorites')).length === 0) {
 		return;
 	}
 
@@ -265,8 +252,7 @@ export const migratePlaceFavoriteAddressUnique = async (db: Sequelize): Promise<
  * Modell deklarierten Index selbst an.
  */
 export const migrateSubscriptionExternalIdUnique = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('subscriptions')");
-	if ((columns as { name: string }[]).length === 0) {
+	if ((await existingColumns(db, 'subscriptions')).length === 0) {
 		return;
 	}
 	const [indexRows] = await db.query("PRAGMA index_list('subscriptions')");
@@ -306,14 +292,7 @@ const USER_ID_COLUMNS = [{ table: 'tasks', column: 'userId', definition: 'INTEGE
  */
 export const migrateUserIdColumns = async (db: Sequelize): Promise<void> => {
 	for (const { table, column, definition } of USER_ID_COLUMNS) {
-		const [rows] = await db.query(`PRAGMA table_info('${table}')`);
-		const existing = (rows as { name: string }[]).map((row) => row.name);
-
-		if (existing.length === 0 || existing.includes(column)) {
-			continue;
-		}
-		await db.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${definition}`);
-		console.log(`Spalte ${column} an ${table} nachgezogen.`);
+		await ensureColumns(db, table, [{ name: column, definition }]);
 	}
 };
 
@@ -329,13 +308,13 @@ export const migrateUserIdColumns = async (db: Sequelize): Promise<void> => {
  * frischer DB (`sync()` legt die Spalte inkl. Default an; das Backfill findet dann nichts Leeres).
  */
 export const migratePillarDescription = async (db: Sequelize): Promise<void> => {
-	const [rows] = await db.query("PRAGMA table_info('pillars')");
-	const existing = (rows as { name: string }[]).map((row) => row.name);
-
-	if (existing.length === 0 || existing.includes('description')) {
+	const added = await ensureColumns(db, 'pillars', [
+		{ name: 'description', definition: "VARCHAR(255) NOT NULL DEFAULT ''" },
+	]);
+	// Backfill nur beim Nachziehen — Bestand mit bereits gefüllter Spalte bleibt unangetastet.
+	if (added.length === 0) {
 		return;
 	}
-	await db.query("ALTER TABLE `pillars` ADD COLUMN `description` VARCHAR(255) NOT NULL DEFAULT ''");
 	for (const { name, description } of SEED_PILLARS) {
 		await db.query("UPDATE `pillars` SET `description` = :description WHERE `name` = :name AND `description` = ''", {
 			replacements: { description, name },
@@ -351,14 +330,11 @@ export const migratePillarDescription = async (db: Sequelize): Promise<void> => 
  * Tabelle (frische DB: `sync()` legt die Spalte an).
  */
 export const migratePillarKey = async (db: Sequelize): Promise<void> => {
-	const [rows] = await db.query("PRAGMA table_info('pillars')");
-	const existing = (rows as { name: string }[]).map((row) => row.name);
+	const existing = await existingColumns(db, 'pillars');
 	if (existing.length === 0) {
 		return;
 	}
-	if (!existing.includes('key')) {
-		await db.query('ALTER TABLE `pillars` ADD COLUMN `key` VARCHAR(255)');
-	}
+	await ensureColumns(db, 'pillars', [{ name: 'key', definition: 'VARCHAR(255)' }]);
 	for (const { key, name } of SEED_PILLARS) {
 		await db.query('UPDATE `pillars` SET `key` = :key WHERE `name` = :name AND `key` IS NULL', {
 			replacements: { key, name },
@@ -386,8 +362,7 @@ export const migratePillarKey = async (db: Sequelize): Promise<void> => {
  * No-op bei frischer DB (keine `pillars`-Tabelle) — `sync()` legt Tabelle inkl. Spalte und Index an.
  */
 export const migratePillarPerUser = async (db: Sequelize): Promise<void> => {
-	const [pillarCols] = await db.query("PRAGMA table_info('pillars')");
-	const pillarColumns = (pillarCols as { name: string }[]).map((row) => row.name);
+	const pillarColumns = await existingColumns(db, 'pillars');
 
 	// Keine pillars-Tabelle (frische DB) → No-op; sync() übernimmt Anlegen von Tabelle + Index.
 	if (pillarColumns.length === 0) {
@@ -395,10 +370,7 @@ export const migratePillarPerUser = async (db: Sequelize): Promise<void> => {
 	}
 
 	// 1. userId-Spalte nachziehen (nullbar, daher kein DEFAULT nötig).
-	if (!pillarColumns.includes('userId')) {
-		await db.query('ALTER TABLE `pillars` ADD COLUMN `userId` INTEGER');
-		console.log('Spalte userId an pillars nachgezogen (#421).');
-	}
+	await ensureColumns(db, 'pillars', [{ name: 'userId', definition: 'INTEGER' }]);
 
 	// 2. + 3. Alten globalen Index droppen, neuen Unique-Index (name, userId) anlegen.
 	const [indexRows] = await db.query("PRAGMA index_list('pillars')");
@@ -526,8 +498,7 @@ export const migratePillarPerUser = async (db: Sequelize): Promise<void> => {
  * No-op bei frischer DB (keine `pillars`-Tabelle) — Seed und sync() übernehmen dort.
  */
 export const migratePillarRestore = async (db: Sequelize): Promise<void> => {
-	const [pillarCols] = await db.query("PRAGMA table_info('pillars')");
-	if ((pillarCols as { name: string }[]).length === 0) {
+	if ((await existingColumns(db, 'pillars')).length === 0) {
 		return;
 	}
 
@@ -624,14 +595,7 @@ export const migratePillarRestore = async (db: Sequelize): Promise<void> => {
  * Samples erhalten bleiben; die Klassifikation ignoriert sie bewusst (siehe `loadFeedbackExamples`).
  */
 export const migratePillarFeedbackUserId = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('pillar_feedback')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-
-	if (existing.length === 0 || existing.includes('userId')) {
-		return;
-	}
-	await db.query('ALTER TABLE `pillar_feedback` ADD COLUMN `userId` INTEGER');
-	console.log('Spalte userId an pillar_feedback nachgezogen (#430).');
+	await ensureColumns(db, 'pillar_feedback', [{ name: 'userId', definition: 'INTEGER' }]);
 };
 
 /**
@@ -646,20 +610,10 @@ export const migratePillarFeedbackUserId = async (db: Sequelize): Promise<void> 
  * frischer DB (keine `llm_providers`-Tabelle) — `sync()` legt Tabelle inkl. Spalten an.
  */
 export const migrateLlmProviderKindColumns = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('llm_providers')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-
-	if (existing.length === 0) {
-		return;
-	}
-	if (!existing.includes('kind')) {
-		await db.query("ALTER TABLE `llm_providers` ADD COLUMN `kind` VARCHAR(255) NOT NULL DEFAULT 'custom'");
-		console.log('Spalte kind an llm_providers nachgezogen.');
-	}
-	if (!existing.includes('builtin_key')) {
-		await db.query('ALTER TABLE `llm_providers` ADD COLUMN `builtin_key` VARCHAR(255)');
-		console.log('Spalte builtin_key an llm_providers nachgezogen.');
-	}
+	await ensureColumns(db, 'llm_providers', [
+		{ name: 'kind', definition: "VARCHAR(255) NOT NULL DEFAULT 'custom'" },
+		{ name: 'builtin_key', definition: 'VARCHAR(255)' },
+	]);
 };
 
 /**
@@ -674,14 +628,7 @@ export const migrateLlmProviderKindColumns = async (db: Sequelize): Promise<void
  * weiter instanzweit und bleiben für alle Nutzer sichtbar.
  */
 export const migrateLlmProviderUserId = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('llm_providers')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-
-	if (existing.length === 0 || existing.includes('userId')) {
-		return;
-	}
-	await db.query('ALTER TABLE `llm_providers` ADD COLUMN `userId` INTEGER');
-	console.log('Spalte userId an llm_providers nachgezogen (#1547).');
+	await ensureColumns(db, 'llm_providers', [{ name: 'userId', definition: 'INTEGER' }]);
 };
 
 /**
@@ -692,14 +639,7 @@ export const migrateLlmProviderUserId = async (db: Sequelize): Promise<void> => 
  * bei frischer DB (keine `tasks`-Tabelle) ebenso No-op — `sync()` legt die Spalte inkl. Default an.
  */
 export const migrateTaskChecklist = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('tasks')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-
-	if (existing.length === 0 || existing.includes('checklist')) {
-		return;
-	}
-	await db.query("ALTER TABLE `tasks` ADD COLUMN `checklist` JSON NOT NULL DEFAULT '[]'");
-	console.log('Spalte checklist an tasks nachgezogen (#531).');
+	await ensureColumns(db, 'tasks', [{ name: 'checklist', definition: "JSON NOT NULL DEFAULT '[]'" }]);
 };
 
 /**
@@ -709,14 +649,7 @@ export const migrateTaskChecklist = async (db: Sequelize): Promise<void> => {
  * ebenso No-op — `sync()` legt die Spalte inkl. Default an.
  */
 export const migrateSeriesChecklist = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('series')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-
-	if (existing.length === 0 || existing.includes('checklist')) {
-		return;
-	}
-	await db.query("ALTER TABLE `series` ADD COLUMN `checklist` JSON NOT NULL DEFAULT '[]'");
-	console.log('Spalte checklist an series nachgezogen (#2501).');
+	await ensureColumns(db, 'series', [{ name: 'checklist', definition: "JSON NOT NULL DEFAULT '[]'" }]);
 };
 
 /**
@@ -725,14 +658,7 @@ export const migrateSeriesChecklist = async (db: Sequelize): Promise<void> => {
  * Bestandsaufgaben bleiben ohne Gruppenbezug (`NULL`). Idempotent (Spalte vorhanden → No-op).
  */
 export const migrateTaskGroupId = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('tasks')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-
-	if (existing.length === 0 || existing.includes('groupId')) {
-		return;
-	}
-	await db.query('ALTER TABLE `tasks` ADD COLUMN `groupId` INTEGER');
-	console.log('Spalte groupId an tasks nachgezogen (#1521).');
+	await ensureColumns(db, 'tasks', [{ name: 'groupId', definition: 'INTEGER' }]);
 };
 
 /**
@@ -742,14 +668,7 @@ export const migrateTaskGroupId = async (db: Sequelize): Promise<void> => {
  * vorhanden → No-op); bei frischer DB ebenso No-op — `sync()` legt die Spalte an.
  */
 export const migrateTaskAddress = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('tasks')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-
-	if (existing.length === 0 || existing.includes('address')) {
-		return;
-	}
-	await db.query('ALTER TABLE `tasks` ADD COLUMN `address` VARCHAR(255)');
-	console.log('Spalte address an tasks nachgezogen.');
+	await ensureColumns(db, 'tasks', [{ name: 'address', definition: 'VARCHAR(255)' }]);
 };
 
 /**
@@ -759,11 +678,11 @@ export const migrateTaskAddress = async (db: Sequelize): Promise<void> => {
  * (ALTER TABLE ADD COLUMN NOT NULL erfordert einen DEFAULT-Wert, siehe migratePillarDescription).
  */
 const USER_GEO_COLUMNS = [
-	{ column: 'displayDistanceKm', definition: 'INTEGER NOT NULL DEFAULT 5' },
-	{ column: 'alarmDistanceKm', definition: 'INTEGER NOT NULL DEFAULT 1' },
-	{ column: 'intervalMinutes', definition: 'INTEGER NOT NULL DEFAULT 5' },
-	{ column: 'lastGeoLatitude', definition: 'FLOAT' },
-	{ column: 'lastGeoLongitude', definition: 'FLOAT' },
+	{ name: 'displayDistanceKm', definition: 'INTEGER NOT NULL DEFAULT 5' },
+	{ name: 'alarmDistanceKm', definition: 'INTEGER NOT NULL DEFAULT 1' },
+	{ name: 'intervalMinutes', definition: 'INTEGER NOT NULL DEFAULT 5' },
+	{ name: 'lastGeoLatitude', definition: 'FLOAT' },
+	{ name: 'lastGeoLongitude', definition: 'FLOAT' },
 ] as const;
 
 /**
@@ -777,18 +696,7 @@ const USER_GEO_COLUMNS = [
  * inkl. Spalten an.
  */
 export const migrateUserGeoConfigColumns = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('users')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-
-	if (existing.length === 0) {
-		return;
-	}
-	for (const { column, definition } of USER_GEO_COLUMNS) {
-		if (!existing.includes(column)) {
-			await db.query(`ALTER TABLE \`users\` ADD COLUMN \`${column}\` ${definition}`);
-			console.log(`Spalte ${column} an users nachgezogen.`);
-		}
-	}
+	await ensureColumns(db, 'users', USER_GEO_COLUMNS);
 };
 
 /**
@@ -797,10 +705,10 @@ export const migrateUserGeoConfigColumns = async (db: Sequelize): Promise<void> 
  * der Route — gleiches ALTER-Tabellen-Muster wie {@link migrateUserGeoConfigColumns}.
  */
 const USER_CARE_COLUMNS = [
-	{ column: 'carePushEnabled', definition: 'BOOLEAN NOT NULL DEFAULT 1' },
-	{ column: 'splitHintEnabled', definition: 'BOOLEAN NOT NULL DEFAULT 1' },
-	{ column: 'zeitzone', definition: 'STRING' },
-	{ column: 'sprache', definition: 'STRING' },
+	{ name: 'carePushEnabled', definition: 'BOOLEAN NOT NULL DEFAULT 1' },
+	{ name: 'splitHintEnabled', definition: 'BOOLEAN NOT NULL DEFAULT 1' },
+	{ name: 'zeitzone', definition: 'STRING' },
+	{ name: 'sprache', definition: 'STRING' },
 ] as const;
 
 /**
@@ -808,24 +716,13 @@ const USER_CARE_COLUMNS = [
  * No-op bei frischer DB (siehe {@link migrateUserGeoConfigColumns} für die Begründung).
  */
 export const migrateUserCareColumns = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('users')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-
-	if (existing.length === 0) {
-		return;
-	}
-	for (const { column, definition } of USER_CARE_COLUMNS) {
-		if (!existing.includes(column)) {
-			await db.query(`ALTER TABLE \`users\` ADD COLUMN \`${column}\` ${definition}`);
-			console.log(`Spalte ${column} an users nachgezogen.`);
-		}
-	}
+	await ensureColumns(db, 'users', USER_CARE_COLUMNS);
 };
 
 /** Zustimmungs-Spalten am User (#1901) — Fassung und Zeitpunkt, anfangs leer. */
 const USER_TERMS_COLUMNS = [
-	{ column: 'termsVersion', definition: 'STRING' },
-	{ column: 'termsAcceptedAt', definition: 'DATETIME' },
+	{ name: 'termsVersion', definition: 'STRING' },
+	{ name: 'termsAcceptedAt', definition: 'DATETIME' },
 ] as const;
 
 /**
@@ -833,18 +730,7 @@ const USER_TERMS_COLUMNS = [
  * No-op bei frischer DB (Muster {@link migrateUserCareColumns}).
  */
 export const migrateUserTermsColumns = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('users')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-
-	if (existing.length === 0) {
-		return;
-	}
-	for (const { column, definition } of USER_TERMS_COLUMNS) {
-		if (!existing.includes(column)) {
-			await db.query(`ALTER TABLE \`users\` ADD COLUMN \`${column}\` ${definition}`);
-			console.log(`Spalte ${column} an users nachgezogen.`);
-		}
-	}
+	await ensureColumns(db, 'users', USER_TERMS_COLUMNS);
 };
 
 /**
@@ -852,14 +738,7 @@ export const migrateUserTermsColumns = async (db: Sequelize): Promise<void> => {
  * idempotent, No-op bei frischer DB (Muster {@link migrateUserCareColumns}).
  */
 export const migrateUserMcpInstructionsColumn = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('users')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-
-	if (existing.length === 0 || existing.includes('mcpInstructions')) {
-		return;
-	}
-	await db.query('ALTER TABLE `users` ADD COLUMN `mcpInstructions` TEXT');
-	console.log('Spalte mcpInstructions an users nachgezogen.');
+	await ensureColumns(db, 'users', [{ name: 'mcpInstructions', definition: 'TEXT' }]);
 };
 
 /**
@@ -872,15 +751,7 @@ export const migrateUserMcpInstructionsColumn = async (db: Sequelize): Promise<v
  * Google-Profil, bis sie selbst speichern). Idempotent; No-op bei frischer DB.
  */
 export const migrateUsersDisplayNameCustom = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('users')");
-	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
-
-	if (existing.size === 0 || existing.has('displayNameCustom')) {
-		return;
-	}
-
-	await db.query('ALTER TABLE `users` ADD COLUMN `displayNameCustom` TINYINT NOT NULL DEFAULT 0');
-	console.log('Spalte displayNameCustom an users nachgezogen.');
+	await ensureColumns(db, 'users', [{ name: 'displayNameCustom', definition: 'TINYINT NOT NULL DEFAULT 0' }]);
 };
 
 /**
@@ -892,15 +763,7 @@ export const migrateUsersDisplayNameCustom = async (db: Sequelize): Promise<void
  * Idempotent; No-op bei frischer DB (dann legt `sync()` die Spalte samt Default an).
  */
 export const migrateUsersRoleColumn = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('users')");
-	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
-
-	if (existing.size === 0 || existing.has('role')) {
-		return;
-	}
-
-	await db.query("ALTER TABLE `users` ADD COLUMN `role` VARCHAR(255) NOT NULL DEFAULT 'member'");
-	console.log('Spalte role an users nachgezogen.');
+	await ensureColumns(db, 'users', [{ name: 'role', definition: "VARCHAR(255) NOT NULL DEFAULT 'member'" }]);
 };
 
 /**
@@ -911,15 +774,7 @@ export const migrateUsersRoleColumn = async (db: Sequelize): Promise<void> => {
  * samt Default an).
  */
 export const migrateUsersPlanColumn = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('users')");
-	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
-
-	if (existing.size === 0 || existing.has('plan')) {
-		return;
-	}
-
-	await db.query("ALTER TABLE `users` ADD COLUMN `plan` VARCHAR(255) NOT NULL DEFAULT 'free'");
-	console.log('Spalte plan an users nachgezogen.');
+	await ensureColumns(db, 'users', [{ name: 'plan', definition: "VARCHAR(255) NOT NULL DEFAULT 'free'" }]);
 };
 
 /**
@@ -930,15 +785,7 @@ export const migrateUsersPlanColumn = async (db: Sequelize): Promise<void> => {
  * legt Tabelle inkl. Spalte an.
  */
 export const migrateUsersSelectedLlmProvider = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('users')");
-	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
-
-	if (existing.size === 0 || existing.has('selectedLlmProviderId')) {
-		return;
-	}
-
-	await db.query('ALTER TABLE `users` ADD COLUMN `selectedLlmProviderId` INTEGER NULL');
-	console.log('Spalte selectedLlmProviderId an users nachgezogen.');
+	await ensureColumns(db, 'users', [{ name: 'selectedLlmProviderId', definition: 'INTEGER NULL' }]);
 };
 
 /**
@@ -948,15 +795,7 @@ export const migrateUsersSelectedLlmProvider = async (db: Sequelize): Promise<vo
  * vorhanden → No-op); bei frischer DB ebenso No-op — `sync()` legt Tabelle inkl. Spalte an.
  */
 export const migrateUsersBalanceVariantColumn = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('users')");
-	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
-
-	if (existing.size === 0 || existing.has('balanceVariant')) {
-		return;
-	}
-
-	await db.query('ALTER TABLE `users` ADD COLUMN `balanceVariant` VARCHAR(255) NULL');
-	console.log('Spalte balanceVariant an users nachgezogen.');
+	await ensureColumns(db, 'users', [{ name: 'balanceVariant', definition: 'VARCHAR(255) NULL' }]);
 };
 
 /** Inhaltliche Präferenzen am User (#2398) — anfangs leer, `NULL` = bisheriger Frontend-Default. */
@@ -967,18 +806,11 @@ const USER_ACCOUNT_PREFERENCE_COLUMNS = ['aiEnabled', 'balancePriority', 'expert
  * Muster {@link migrateUserCareColumns}; ohne Tabelle ein No-op.
  */
 export const migrateUserAccountPreferenceColumns = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('users')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-
-	if (existing.length === 0) {
-		return;
-	}
-	for (const column of USER_ACCOUNT_PREFERENCE_COLUMNS) {
-		if (!existing.includes(column)) {
-			await db.query(`ALTER TABLE \`users\` ADD COLUMN \`${column}\` BOOLEAN NULL`);
-			console.log(`Spalte ${column} an users nachgezogen.`);
-		}
-	}
+	await ensureColumns(
+		db,
+		'users',
+		USER_ACCOUNT_PREFERENCE_COLUMNS.map((name) => ({ name, definition: 'BOOLEAN NULL' })),
+	);
 };
 
 /**
@@ -986,15 +818,7 @@ export const migrateUserAccountPreferenceColumns = async (db: Sequelize): Promis
  * `users`-Tabelle nach — analog `migrateUsersBalanceVariantColumn`, Default 30 wie im Modell.
  */
 export const migrateUsersFreeSlotMinMinutesColumn = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('users')");
-	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
-
-	if (existing.size === 0 || existing.has('freeSlotMinMinutes')) {
-		return;
-	}
-
-	await db.query('ALTER TABLE `users` ADD COLUMN `freeSlotMinMinutes` INTEGER NOT NULL DEFAULT 30');
-	console.log('Spalte freeSlotMinMinutes an users nachgezogen.');
+	await ensureColumns(db, 'users', [{ name: 'freeSlotMinMinutes', definition: 'INTEGER NOT NULL DEFAULT 30' }]);
 };
 
 /**
@@ -1004,18 +828,11 @@ export const migrateUsersFreeSlotMinMinutesColumn = async (db: Sequelize): Promi
  * ohne Tabelle ein No-op.
  */
 export const migrateCalendarSourceCaldavColumns = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('calendar_sources')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-	if (existing.length === 0) return;
-	for (const [name, definition] of [
-		['type', "VARCHAR(255) NOT NULL DEFAULT 'ics'"],
-		['username', 'VARCHAR(255)'],
-		['passwordEncrypted', 'TEXT'],
-	]) {
-		if (existing.includes(name)) continue;
-		await db.query(`ALTER TABLE \`calendar_sources\` ADD COLUMN \`${name}\` ${definition}`);
-		console.log(`Spalte ${name} an calendar_sources nachgezogen.`);
-	}
+	await ensureColumns(db, 'calendar_sources', [
+		{ name: 'type', definition: "VARCHAR(255) NOT NULL DEFAULT 'ics'" },
+		{ name: 'username', definition: 'VARCHAR(255)' },
+		{ name: 'passwordEncrypted', definition: 'TEXT' },
+	]);
 };
 
 /**
@@ -1025,15 +842,7 @@ export const migrateCalendarSourceCaldavColumns = async (db: Sequelize): Promise
  * (Spalte vorhanden → No-op); bei frischer DB ebenso No-op — `sync()` legt Tabelle inkl. Spalte an.
  */
 export const migrateApiTokenScope = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('api_tokens')");
-	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
-
-	if (existing.size === 0 || existing.has('scope')) {
-		return;
-	}
-
-	await db.query("ALTER TABLE `api_tokens` ADD COLUMN `scope` VARCHAR(255) NOT NULL DEFAULT 'read'");
-	console.log('Spalte scope an api_tokens nachgezogen.');
+	await ensureColumns(db, 'api_tokens', [{ name: 'scope', definition: "VARCHAR(255) NOT NULL DEFAULT 'read'" }]);
 };
 
 /**
@@ -1044,15 +853,7 @@ export const migrateApiTokenScope = async (db: Sequelize): Promise<void> => {
  * No-op — `sync()` legt die Spalte an.
  */
 export const migrateApiTokenExpiresAt = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('api_tokens')");
-	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
-
-	if (existing.size === 0 || existing.has('expiresAt')) {
-		return;
-	}
-
-	await db.query('ALTER TABLE `api_tokens` ADD COLUMN `expiresAt` DATETIME');
-	console.log('Spalte expiresAt an api_tokens nachgezogen.');
+	await ensureColumns(db, 'api_tokens', [{ name: 'expiresAt', definition: 'DATETIME' }]);
 };
 
 /**
@@ -1061,15 +862,7 @@ export const migrateApiTokenExpiresAt = async (db: Sequelize): Promise<void> => 
  * API-Tokens (`'api'`). Idempotent; bei frischer DB No-op — `sync()` legt die Spalte an.
  */
 export const migrateApiTokenKind = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('api_tokens')");
-	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
-
-	if (existing.size === 0 || existing.has('kind')) {
-		return;
-	}
-
-	await db.query("ALTER TABLE `api_tokens` ADD COLUMN `kind` VARCHAR(255) NOT NULL DEFAULT 'api'");
-	console.log('Spalte kind an api_tokens nachgezogen.');
+	await ensureColumns(db, 'api_tokens', [{ name: 'kind', definition: "VARCHAR(255) NOT NULL DEFAULT 'api'" }]);
 };
 
 /**
@@ -1078,15 +871,7 @@ export const migrateApiTokenKind = async (db: Sequelize): Promise<void> => {
  * (Spalte vorhanden → No-op); bei frischer DB ebenso No-op — `sync()` legt die Spalte an.
  */
 export const migrateLoginTokenPurpose = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('login_tokens')");
-	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
-
-	if (existing.size === 0 || existing.has('purpose')) {
-		return;
-	}
-
-	await db.query("ALTER TABLE `login_tokens` ADD COLUMN `purpose` VARCHAR(255) NOT NULL DEFAULT 'magic'");
-	console.log('Spalte purpose an login_tokens nachgezogen.');
+	await ensureColumns(db, 'login_tokens', [{ name: 'purpose', definition: "VARCHAR(255) NOT NULL DEFAULT 'magic'" }]);
 };
 
 /**
@@ -1095,12 +880,7 @@ export const migrateLoginTokenPurpose = async (db: Sequelize): Promise<void> => 
  * Bestandszeilen bleiben `NULL` (Browser-Links). Idempotent; ohne Tabelle ein No-op.
  */
 export const migrateLoginTokenCodeChallenge = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('login_tokens')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-	if (existing.length > 0 && !existing.includes('codeChallenge')) {
-		await db.query('ALTER TABLE `login_tokens` ADD COLUMN `codeChallenge` VARCHAR(255)');
-		console.log('Spalte codeChallenge an login_tokens nachgezogen.');
-	}
+	await ensureColumns(db, 'login_tokens', [{ name: 'codeChallenge', definition: 'VARCHAR(255)' }]);
 };
 
 /**
@@ -1111,14 +891,7 @@ export const migrateLoginTokenCodeChallenge = async (db: Sequelize): Promise<voi
  * No-op — `sync()` legt die Spalte an.
  */
 export const migrateTaskCreatedById = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('tasks')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-
-	if (existing.length === 0 || existing.includes('createdById')) {
-		return;
-	}
-	await db.query('ALTER TABLE `tasks` ADD COLUMN `createdById` INTEGER');
-	console.log('Spalte createdById an tasks nachgezogen (#1213).');
+	await ensureColumns(db, 'tasks', [{ name: 'createdById', definition: 'INTEGER' }]);
 };
 
 /**
@@ -1130,14 +903,7 @@ export const migrateTaskCreatedById = async (db: Sequelize): Promise<void> => {
  */
 export const migrateCategoryIdColumns = async (db: Sequelize): Promise<void> => {
 	for (const table of ['tasks', 'series'] as const) {
-		const [columns] = await db.query(`PRAGMA table_info('${table}')`);
-		const existing = (columns as { name: string }[]).map((column) => column.name);
-
-		if (existing.length === 0 || existing.includes('categoryId')) {
-			continue;
-		}
-		await db.query(`ALTER TABLE \`${table}\` ADD COLUMN \`categoryId\` INTEGER`);
-		console.log(`Spalte categoryId an ${table} nachgezogen.`);
+		await ensureColumns(db, table, [{ name: 'categoryId', definition: 'INTEGER' }]);
 	}
 };
 
@@ -1149,20 +915,10 @@ export const migrateCategoryIdColumns = async (db: Sequelize): Promise<void> => 
  * frischer DB No-op — `sync()` legt beide Spalten an.
  */
 export const migrateTaskPinnedColumns = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('tasks')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-
-	if (existing.length === 0) {
-		return;
-	}
-	if (!existing.includes('pinned')) {
-		await db.query('ALTER TABLE `tasks` ADD COLUMN `pinned` BOOLEAN NOT NULL DEFAULT 0');
-		console.log('Spalte pinned an tasks nachgezogen.');
-	}
-	if (!existing.includes('pinnedAt')) {
-		await db.query('ALTER TABLE `tasks` ADD COLUMN `pinnedAt` DATETIME');
-		console.log('Spalte pinnedAt an tasks nachgezogen.');
-	}
+	await ensureColumns(db, 'tasks', [
+		{ name: 'pinned', definition: 'BOOLEAN NOT NULL DEFAULT 0' },
+		{ name: 'pinnedAt', definition: 'DATETIME' },
+	]);
 };
 
 /**
@@ -1171,18 +927,8 @@ export const migrateTaskPinnedColumns = async (db: Sequelize): Promise<void> => 
  * letzten Laufs). Beide nullable. Idempotent; bei frischer DB No-op — `sync()` legt die Spalten an.
  */
 export const migratePillarRecalcColumns = async (db: Sequelize): Promise<void> => {
-	const [taskColumns] = await db.query("PRAGMA table_info('tasks')");
-	const taskExisting = (taskColumns as { name: string }[]).map((column) => column.name);
-	if (taskExisting.length > 0 && !taskExisting.includes('pillarsRecalculatedAt')) {
-		await db.query('ALTER TABLE `tasks` ADD COLUMN `pillarsRecalculatedAt` DATETIME');
-		console.log('Spalte pillarsRecalculatedAt an tasks nachgezogen.');
-	}
-	const [userColumns] = await db.query("PRAGMA table_info('users')");
-	const userExisting = (userColumns as { name: string }[]).map((column) => column.name);
-	if (userExisting.length > 0 && !userExisting.includes('pillarRecalcStartedAt')) {
-		await db.query('ALTER TABLE `users` ADD COLUMN `pillarRecalcStartedAt` DATETIME');
-		console.log('Spalte pillarRecalcStartedAt an users nachgezogen.');
-	}
+	await ensureColumns(db, 'tasks', [{ name: 'pillarsRecalculatedAt', definition: 'DATETIME' }]);
+	await ensureColumns(db, 'users', [{ name: 'pillarRecalcStartedAt', definition: 'DATETIME' }]);
 };
 
 /**
@@ -1194,20 +940,10 @@ export const migratePillarRecalcColumns = async (db: Sequelize): Promise<void> =
  * `sync()` legt beide Spalten an.
  */
 export const migrateTaskMissedColumns = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('tasks')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-
-	if (existing.length === 0) {
-		return;
-	}
-	if (!existing.includes('postponeCount')) {
-		await db.query('ALTER TABLE `tasks` ADD COLUMN `postponeCount` INTEGER NOT NULL DEFAULT 0');
-		console.log('Spalte postponeCount an tasks nachgezogen (#1964).');
-	}
-	if (!existing.includes('archivedAt')) {
-		await db.query('ALTER TABLE `tasks` ADD COLUMN `archivedAt` DATETIME');
-		console.log('Spalte archivedAt an tasks nachgezogen (#1964).');
-	}
+	await ensureColumns(db, 'tasks', [
+		{ name: 'postponeCount', definition: 'INTEGER NOT NULL DEFAULT 0' },
+		{ name: 'archivedAt', definition: 'DATETIME' },
+	]);
 };
 
 /**
@@ -1216,13 +952,7 @@ export const migrateTaskMissedColumns = async (db: Sequelize): Promise<void> => 
  * Idempotent; bei frischer DB No-op — `sync()` legt die Spalte an.
  */
 export const migrateTaskSnoozeColumn = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('tasks')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-
-	if (existing.length > 0 && !existing.includes('snoozedUntil')) {
-		await db.query('ALTER TABLE `tasks` ADD COLUMN `snoozedUntil` DATETIME');
-		console.log('Spalte snoozedUntil an tasks nachgezogen (#2244).');
-	}
+	await ensureColumns(db, 'tasks', [{ name: 'snoozedUntil', definition: 'DATETIME' }]);
 };
 
 /**
@@ -1230,13 +960,7 @@ export const migrateTaskSnoozeColumn = async (db: Sequelize): Promise<void> => {
  * `sequelize.sync()` läuft — analog `migrateTaskSnoozeColumn`. Nullable; idempotent, bei frischer DB No-op.
  */
 export const migrateTaskAiDraftColumn = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('tasks')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-
-	if (existing.length > 0 && !existing.includes('aiDraft')) {
-		await db.query('ALTER TABLE `tasks` ADD COLUMN `aiDraft` TEXT');
-		console.log('Spalte aiDraft an tasks nachgezogen (#2350).');
-	}
+	await ensureColumns(db, 'tasks', [{ name: 'aiDraft', definition: 'TEXT' }]);
 };
 
 /**
@@ -1247,57 +971,25 @@ export const migrateTaskAiDraftColumn = async (db: Sequelize): Promise<void> => 
  * übersprungen; bei frischer DB No-op — `sync()` legt Tabelle inkl. Spalten an.
  */
 export const migrateSubscriptionPendingPlanColumns = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('subscriptions')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-
-	if (existing.length === 0) {
-		return;
-	}
-	if (!existing.includes('pendingPlan')) {
-		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `pendingPlan` VARCHAR(255)');
-		console.log('Spalte pendingPlan an subscriptions nachgezogen.');
-	}
-	// Vorgemerkter Zeitraum eines geplanten Wechsels: zusammen mit pendingPlan fällig — ohne ihn
-	// rechnete die nächste Abbuchung nach einem Downgrade mit der alten Periode weiter.
-	if (!existing.includes('pendingPeriod')) {
-		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `pendingPeriod` VARCHAR(255)');
-		console.log('Spalte pendingPeriod an subscriptions nachgezogen.');
-	}
-	if (!existing.includes('pendingPlanEffectiveAt')) {
-		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `pendingPlanEffectiveAt` DATETIME');
-		console.log('Spalte pendingPlanEffectiveAt an subscriptions nachgezogen.');
-	}
-	if (!existing.includes('firstFailureAt')) {
-		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `firstFailureAt` DATETIME');
-		console.log('Spalte firstFailureAt an subscriptions nachgezogen.');
-	}
-	// Upgrade-Guthaben (#1912); Default 0 lässt Bestandsabos ohne Verrechnung.
-	if (!existing.includes('creditCents')) {
-		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `creditCents` INTEGER NOT NULL DEFAULT 0');
-		console.log('Spalte creditCents an subscriptions nachgezogen.');
-	}
-	// Zustimmungszeitpunkt eines ausstehenden Upgrades (#2238); nullable, Bestandsabos bleiben ohne.
-	if (!existing.includes('approvedAt')) {
-		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `approvedAt` DATETIME');
-		console.log('Spalte approvedAt an subscriptions nachgezogen.');
-	}
-	// Angaben aus dem Kündigungsdialog (#2308); nullable, Bestandsabos bleiben ohne.
-	for (const [name, type] of [
-		['cancellationKind', 'VARCHAR(255)'],
-		['cancellationReason', 'TEXT'],
-		['cancellationEmail', 'VARCHAR(255)'],
-		['cancellationRequestedAt', 'DATETIME'],
-	]) {
-		if (!existing.includes(name)) {
-			await db.query(`ALTER TABLE \`subscriptions\` ADD COLUMN \`${name}\` ${type}`);
-			console.log(`Spalte ${name} an subscriptions nachgezogen.`);
-		}
-	}
-	// Zustimmung zum sofortigen Leistungsbeginn (#2329); nullable, Bestandsabos bleiben ohne.
-	if (!existing.includes('withdrawalConsentAt')) {
-		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `withdrawalConsentAt` DATETIME');
-		console.log('Spalte withdrawalConsentAt an subscriptions nachgezogen.');
-	}
+	await ensureColumns(db, 'subscriptions', [
+		{ name: 'pendingPlan', definition: 'VARCHAR(255)' },
+		// Vorgemerkter Zeitraum eines geplanten Wechsels: zusammen mit pendingPlan fällig — ohne ihn
+		// rechnete die nächste Abbuchung nach einem Downgrade mit der alten Periode weiter.
+		{ name: 'pendingPeriod', definition: 'VARCHAR(255)' },
+		{ name: 'pendingPlanEffectiveAt', definition: 'DATETIME' },
+		{ name: 'firstFailureAt', definition: 'DATETIME' },
+		// Upgrade-Guthaben (#1912); Default 0 lässt Bestandsabos ohne Verrechnung.
+		{ name: 'creditCents', definition: 'INTEGER NOT NULL DEFAULT 0' },
+		// Zustimmungszeitpunkt eines ausstehenden Upgrades (#2238); nullable, Bestandsabos bleiben ohne.
+		{ name: 'approvedAt', definition: 'DATETIME' },
+		// Angaben aus dem Kündigungsdialog (#2308); nullable, Bestandsabos bleiben ohne.
+		{ name: 'cancellationKind', definition: 'VARCHAR(255)' },
+		{ name: 'cancellationReason', definition: 'TEXT' },
+		{ name: 'cancellationEmail', definition: 'VARCHAR(255)' },
+		{ name: 'cancellationRequestedAt', definition: 'DATETIME' },
+		// Zustimmung zum sofortigen Leistungsbeginn (#2329); nullable, Bestandsabos bleiben ohne.
+		{ name: 'withdrawalConsentAt', definition: 'DATETIME' },
+	]);
 };
 
 /**
@@ -1306,12 +998,7 @@ export const migrateSubscriptionPendingPlanColumns = async (db: Sequelize): Prom
  * ohne Positionen. Idempotent; ohne Tabelle ein No-op.
  */
 export const migrateInvoiceLineItemsColumn = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('invoices')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-	if (existing.length > 0 && !existing.includes('lineItems')) {
-		await db.query("ALTER TABLE `invoices` ADD COLUMN `lineItems` JSON NOT NULL DEFAULT '[]'");
-		console.log('Spalte lineItems an invoices nachgezogen.');
-	}
+	await ensureColumns(db, 'invoices', [{ name: 'lineItems', definition: "JSON NOT NULL DEFAULT '[]'" }]);
 };
 
 /**
@@ -1321,12 +1008,7 @@ export const migrateInvoiceLineItemsColumn = async (db: Sequelize): Promise<void
  * ohne gespeichertes PDF (der Download antwortet dann 404). Idempotent; ohne Tabelle ein No-op.
  */
 export const migrateInvoicePdfBytesColumn = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('invoices')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-	if (existing.length > 0 && !existing.includes('pdfBytes')) {
-		await db.query('ALTER TABLE `invoices` ADD COLUMN `pdfBytes` BLOB');
-		console.log('Spalte pdfBytes an invoices nachgezogen.');
-	}
+	await ensureColumns(db, 'invoices', [{ name: 'pdfBytes', definition: 'BLOB' }]);
 };
 
 /**
@@ -1336,16 +1018,10 @@ export const migrateInvoicePdfBytesColumn = async (db: Sequelize): Promise<void>
  * Abbuchung, der komplette Bestand ist damit bezahlt. Idempotent; ohne Tabelle ein No-op.
  */
 export const migrateInvoicePaymentStatusColumn = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('invoices')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-	if (existing.length > 0 && !existing.includes('paymentStatus')) {
-		await db.query("ALTER TABLE `invoices` ADD COLUMN `paymentStatus` VARCHAR(255) NOT NULL DEFAULT 'paid'");
-		console.log('Spalte paymentStatus an invoices nachgezogen.');
-	}
-	if (existing.length > 0 && !existing.includes('saleId')) {
-		await db.query('ALTER TABLE `invoices` ADD COLUMN `saleId` VARCHAR(255)');
-		console.log('Spalte saleId an invoices nachgezogen.');
-	}
+	await ensureColumns(db, 'invoices', [
+		{ name: 'paymentStatus', definition: "VARCHAR(255) NOT NULL DEFAULT 'paid'" },
+		{ name: 'saleId', definition: 'VARCHAR(255)' },
+	]);
 };
 
 /**
@@ -1354,12 +1030,7 @@ export const migrateInvoicePaymentStatusColumn = async (db: Sequelize): Promise<
  * abgerechnet. Idempotent; ohne Tabelle ein No-op.
  */
 export const migrateInvoiceCurrencyColumn = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('invoices')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-	if (existing.length > 0 && !existing.includes('currency')) {
-		await db.query("ALTER TABLE `invoices` ADD COLUMN `currency` VARCHAR(255) NOT NULL DEFAULT 'EUR'");
-		console.log('Spalte currency an invoices nachgezogen.');
-	}
+	await ensureColumns(db, 'invoices', [{ name: 'currency', definition: "VARCHAR(255) NOT NULL DEFAULT 'EUR'" }]);
 };
 
 /**
@@ -1369,12 +1040,7 @@ export const migrateInvoiceCurrencyColumn = async (db: Sequelize): Promise<void>
  * Idempotent; ohne Tabelle ein No-op.
  */
 export const migrateInvoiceCreditForColumn = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('invoices')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-	if (existing.length > 0 && !existing.includes('creditForInvoiceId')) {
-		await db.query('ALTER TABLE `invoices` ADD COLUMN `creditForInvoiceId` INTEGER');
-		console.log('Spalte creditForInvoiceId an invoices nachgezogen.');
-	}
+	await ensureColumns(db, 'invoices', [{ name: 'creditForInvoiceId', definition: 'INTEGER' }]);
 };
 
 /**
@@ -1383,12 +1049,7 @@ export const migrateInvoiceCreditForColumn = async (db: Sequelize): Promise<void
  * bleiben `NULL` (nie versucht). Idempotent; ohne Tabelle ein No-op.
  */
 export const migrateWaitlistAccessMailStatusColumn = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('waitlist_entries')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-	if (existing.length > 0 && !existing.includes('accessMailStatus')) {
-		await db.query('ALTER TABLE `waitlist_entries` ADD COLUMN `accessMailStatus` VARCHAR(255)');
-		console.log('Spalte accessMailStatus an waitlist_entries nachgezogen.');
-	}
+	await ensureColumns(db, 'waitlist_entries', [{ name: 'accessMailStatus', definition: 'VARCHAR(255)' }]);
 };
 
 /**
@@ -1397,12 +1058,7 @@ export const migrateWaitlistAccessMailStatusColumn = async (db: Sequelize): Prom
  * Bestandseinträge bleiben `NULL` (Deutsch). Idempotent; ohne Tabelle ein No-op.
  */
 export const migrateWaitlistSpracheColumn = async (db: Sequelize): Promise<void> => {
-	const [columns] = await db.query("PRAGMA table_info('waitlist_entries')");
-	const existing = (columns as { name: string }[]).map((column) => column.name);
-	if (existing.length > 0 && !existing.includes('sprache')) {
-		await db.query('ALTER TABLE `waitlist_entries` ADD COLUMN `sprache` VARCHAR(255)');
-		console.log('Spalte sprache an waitlist_entries nachgezogen.');
-	}
+	await ensureColumns(db, 'waitlist_entries', [{ name: 'sprache', definition: 'VARCHAR(255)' }]);
 };
 
 /**
@@ -1417,8 +1073,7 @@ export const migrateLegacyPlans = async (db: Sequelize): Promise<void> => {
 		['subscriptions', 'pendingPlan'],
 	] as const;
 	for (const [table, column] of targets) {
-		const [columns] = await db.query(`PRAGMA table_info('${table}')`);
-		if (!(columns as { name: string }[]).some((existing) => existing.name === column)) {
+		if (!(await existingColumns(db, table)).includes(column)) {
 			continue;
 		}
 		await db.query(
