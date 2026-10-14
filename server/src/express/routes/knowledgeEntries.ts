@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { sendError, type ErrorDto } from '../http-error.js';
+import { parseId, sendError, type ErrorDto } from '../http-error.js';
 import { KnowledgeEntry } from '../../models/index.js';
 import { getUserId } from '../requireAuth.js';
 import { requirePlanFeature } from '../planGuard.js';
@@ -83,13 +83,18 @@ knowledgeEntriesRouter.patch(
 			sendError(res, 401, 'Anmeldung erforderlich.');
 			return;
 		}
+		const id = parseId(req.params.id);
+		if (id === null) {
+			sendError(res, 400, 'Ungültige Eintrags-Id.');
+			return;
+		}
 		const text = validText(req.body);
 		if (text === null) {
 			sendError(res, 400, TEXT_ERROR);
 			return;
 		}
 		try {
-			const entry = await KnowledgeEntry.findOne({ where: { id: Number(req.params.id) || 0, userId } });
+			const entry = await KnowledgeEntry.findOne({ where: { id, userId } });
 			if (!entry) {
 				sendError(res, 404, 'Eintrag nicht gefunden.');
 				return;
@@ -107,8 +112,13 @@ knowledgeEntriesRouter.delete('/knowledge-entries/:id', guard, async (req: Reque
 		sendError(res, 401, 'Anmeldung erforderlich.');
 		return;
 	}
+	const id = parseId(req.params.id);
+	if (id === null) {
+		sendError(res, 400, 'Ungültige Eintrags-Id.');
+		return;
+	}
 	try {
-		const deleted = await KnowledgeEntry.destroy({ where: { id: Number(req.params.id) || 0, userId } });
+		const deleted = await KnowledgeEntry.destroy({ where: { id, userId } });
 		if (deleted === 0) {
 			sendError(res, 404, 'Eintrag nicht gefunden.');
 			return;

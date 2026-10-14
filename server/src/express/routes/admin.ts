@@ -197,8 +197,8 @@ export const createAdminRouter = (
 		requireRole('admin'),
 		async (req: Request, res: Response<AdminUserDto | ErrorDto>) => {
 			try {
-				const id = Number(req.params.id);
-				if (!Number.isInteger(id) || id <= 0) {
+				const id = parseId(req.params.id);
+				if (id === null) {
 					sendError(res, 400, 'Ungültige Nutzer-Id.');
 					return;
 				}
@@ -240,8 +240,8 @@ export const createAdminRouter = (
 		requireRole(['admin', 'tester']),
 		async (req: Request, res: Response<AdminUserDto | ErrorDto>) => {
 			try {
-				const id = Number(req.params.id);
-				if (!Number.isInteger(id) || id <= 0) {
+				const id = parseId(req.params.id);
+				if (id === null) {
 					sendError(res, 400, 'Ungültige Nutzer-Id.');
 					return;
 				}
@@ -280,8 +280,8 @@ export const createAdminRouter = (
 		requireRole('admin'),
 		async (req: Request, res: Response<AdminUserDto | ErrorDto>) => {
 			try {
-				const id = Number(req.params.id);
-				if (!Number.isInteger(id) || id <= 0) {
+				const id = parseId(req.params.id);
+				if (id === null) {
 					sendError(res, 400, 'Ungültige Nutzer-Id.');
 					return;
 				}
@@ -356,8 +356,8 @@ export const createAdminRouter = (
 		requireRole('admin'),
 		async (req: Request, res: Response<AdminUserDto | ErrorDto>) => {
 			try {
-				const id = Number(req.params.id);
-				if (!Number.isInteger(id) || id <= 0) {
+				const id = parseId(req.params.id);
+				if (id === null) {
 					sendError(res, 400, 'Ungültige Nutzer-Id.');
 					return;
 				}
@@ -761,8 +761,8 @@ export const createAdminRouter = (
 		'/admin/waitlist/:id/activate',
 		requireRole('admin'),
 		async (req: Request, res: Response<{ status: 'activated'; accessMailStatus: 'sent' | 'failed' } | ErrorDto>) => {
-			const id = Number(req.params.id);
-			if (!Number.isInteger(id) || id <= 0) {
+			const id = parseId(req.params.id);
+			if (id === null) {
 				sendError(res, 400, 'Ungültige Eintrags-Id.');
 				return;
 			}

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { sendError, sendPlanError, type ErrorDto } from '../http-error.js';
+import { parseId, sendError, sendPlanError, type ErrorDto } from '../http-error.js';
 import { ApiToken, User } from '../../models/index.js';
 import { getUserId } from '../requireAuth.js';
 import { generateApiToken, hashApiToken } from '../apiTokenAuth.js';
@@ -111,9 +111,9 @@ apiTokensRouter.delete('/api-tokens/:id', async (req: Request, res: Response<Err
 		sendError(res, 401, 'Anmeldung erforderlich.');
 		return;
 	}
-	const id = Number(req.params.id);
-	if (!Number.isInteger(id)) {
-		sendError(res, 404, 'Token nicht gefunden.');
+	const id = parseId(req.params.id);
+	if (id === null) {
+		sendError(res, 400, 'Ungültige Token-Id.');
 		return;
 	}
 	try {
@@ -136,9 +136,9 @@ apiTokensRouter.patch('/api-tokens/:id', async (req: Request, res: Response<ApiT
 		sendError(res, 401, 'Anmeldung erforderlich.');
 		return;
 	}
-	const id = Number(req.params.id);
-	if (!Number.isInteger(id)) {
-		sendError(res, 404, 'Token nicht gefunden.');
+	const id = parseId(req.params.id);
+	if (id === null) {
+		sendError(res, 400, 'Ungültige Token-Id.');
 		return;
 	}
 	const rawScope = (req.body as { scope?: unknown } | undefined)?.scope;
