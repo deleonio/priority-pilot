@@ -319,3 +319,80 @@ describe('paypal.ts — createPaypalClient().getSubscription (#2300)', () => {
 		);
 	});
 });
+
+// #2546 AK1 (Spec docs/spec/issue-2546.md): jeder PayPal-Fetch muss ein AbortSignal tragen —
+// alle 7 Aufrufstellen (verifyWebhookSignature 2×, getAccessToken 1×, createPaypalClient 4×) über
+// die fünf Abläufe mit je Token- + Fachaufruf = 10 Aufrufe abgedeckt. Rot heute: kein Signal.
+describe('paypal.ts — Fetch-Zeitlimit-Signal (#2546 AK1)', () => {
+	it('trägt jeder Fetch-Aufruf (7 Stellen) ein AbortSignal in den Fetch-Optionen', async () => {
+		const savedEnv = { ...process.env };
+		process.env.PAYPAL_CLIENT_ID = 'id';
+		process.env.PAYPAL_CLIENT_SECRET = 'secret';
+		process.env.PAYPAL_WEBHOOK_ID = 'wh';
+		const signals: unknown[] = [];
+		const spyFetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+			signals.push(init?.signal);
+			return new Response(JSON.stringify({}), { status: 200 });
+		}) as unknown as typeof fetch;
+		try {
+			await verifyWebhookSignature(Buffer.from('{"id":"WH-1"}'), { 'paypal-transmission-sig': 'x' }, spyFetch);
+			await createPaypalClient(spyFetch).createSubscription('PLAN-X');
+			await createPaypalClient(spyFetch).cancel('I-1');
+			await createPaypalClient(spyFetch).getSubscription('I-1');
+			await createPaypalClient(spyFetch).revise('I-1', 'PLAN-Y');
+
+			assert.equal(signals.length, 10, 'alle fünf Abläufe müssen ihre Token- und Fachaufrufe gemacht haben');
+			const ohneSignal = signals.filter((signal) => !(signal instanceof AbortSignal)).length;
+			assert.equal(ohneSignal, 0, 'jeder PayPal-Fetch (7 Stellen) muss ein AbortSignal tragen');
+		} finally {
+			process.env = savedEnv;
+		}
+	});
+});
+
+// #2546 AK2 (Spec docs/spec/issue-2546.md): nie antwortender, abort-bewusster Fake + kleines
+// Limit → cancel() lehnt innerhalb des Limits ab. Der Watchdog (3 s) macht den fehlenden Timeout
+// als klares Rot sichtbar, statt den Test hängen zu lassen. Produktives fetch bricht über das
+// Signal ab — der Fake spiegelt exakt dieses Verhalten (abort-Listener → reject).
+describe('paypal.ts — Fetch-Zeitlimit-Abbruch (#2546 AK2)', () => {
+	it('bricht cancel() bei nie antwortendem PayPal nach PAYPAL_TIMEOUT_MS ab (unter 1 s)', async () => {
+		const savedEnv = { ...process.env };
+		process.env.PAYPAL_CLIENT_ID = 'id';
+		process.env.PAYPAL_CLIENT_SECRET = 'secret';
+		process.env.PAYPAL_TIMEOUT_MS = '100';
+		const hangingFetch = (async (_input: RequestInfo | URL, init?: RequestInit) =>
+			new Promise((_resolve, reject) => {
+				init?.signal?.addEventListener('abort', () => reject(new Error('PayPal-Aufruf abgebrochen')));
+			}) as unknown as Response) as unknown as typeof fetch;
+		let rejected = false;
+		const cancelPromise = createPaypalClient(hangingFetch)
+			.cancel('I-TIMEOUT')
+			.then(
+				() => {},
+				() => {
+					rejected = true;
+				},
+			);
+		let watchdog: NodeJS.Timeout | undefined;
+		const start = Date.now();
+		try {
+			await Promise.race([
+				cancelPromise,
+				new Promise((_resolve, reject) => {
+					watchdog = setTimeout(
+						() => reject(new Error('Watchdog: cancel() bricht nicht ab — kein Zeitlimit am Fetch')),
+						3000,
+					);
+				}),
+			]);
+		} finally {
+			clearTimeout(watchdog);
+			process.env = savedEnv;
+		}
+		assert.ok(rejected, 'nie antwortender PayPal-Fetch muss cancel() nach dem Zeitlimit ablehnen');
+		assert.ok(
+			Date.now() - start < 1000,
+			`Abbruch muss bei PAYPAL_TIMEOUT_MS=100 unter 1 s erfolgen, dauerte ${Date.now() - start} ms`,
+		);
+	});
+});
