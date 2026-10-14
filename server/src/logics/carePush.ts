@@ -1,9 +1,10 @@
-import { NotificationLog, Pillar, ScoreEntry, Task, User } from '../models/index.js';
+import { Pillar, ScoreEntry, Task, User } from '../models/index.js';
 import type { PillarWithContribution } from '../models/task.js';
 import { bewerteCareDefizit } from './careDeficit.js';
+import { sendDedupedPush } from './dedupedPush.js';
 import type { BalanceSaeule, KadenzTask } from './heartBalance.js';
 import { CARE_SPRACHEN, spracheVon, type CareSprache } from './careSuggestionData.js';
-import { sendPushToUser, type PushSender } from './push.js';
+import { type PushSender } from './push.js';
 import { istGueltigeZeitzone } from './streak.js';
 
 /**
@@ -227,15 +228,16 @@ export const runCarePush = async (now: Date = new Date(), send?: PushSender): Pr
 			continue;
 		}
 		const dedupeKey = `${user.id}:${lokalesDatum(now, zeitzone)}`;
-		const bereitsGesendet = await NotificationLog.findOne({ where: { kind: KIND, dedupeKey } });
-		if (bereitsGesendet) {
-			continue;
-		}
 		const sprache = spracheVon(user.sprache);
 		const text = pushTextFuer(situation, betroffeneSaeule.id, sprache);
-		const { sent } = await sendPushToUser(user.id, { title: text.titel, body: text.text, url: '/' }, send);
+		const { sent } = await sendDedupedPush(
+			user.id,
+			KIND,
+			dedupeKey,
+			{ title: text.titel, body: text.text, url: '/' },
+			send,
+		);
 		if (sent > 0) {
-			await NotificationLog.create({ userId: user.id, kind: KIND, dedupeKey, sentAt: now });
 			usersNotified++;
 		}
 	}

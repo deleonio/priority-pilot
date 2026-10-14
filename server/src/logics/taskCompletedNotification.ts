@@ -1,5 +1,6 @@
 import { NotificationLog, User } from '../models/index.js';
-import { sendPushToUser, type PushSender } from './push.js';
+import { sendDedupedPush } from './dedupedPush.js';
+import { type PushSender } from './push.js';
 import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
 
@@ -48,20 +49,23 @@ export const notifyTaskCompleted = async (
 	mailSend?: MailSender,
 ): Promise<void> => {
 	const dedupeKey = String(task.id);
-	const alreadySent = await NotificationLog.findOne({ where: { kind: KIND, dedupeKey } });
-	if (alreadySent) {
+	// Mail teilt denselben Dedupe-Schlüssel (#1426): Die Prüfung bleibt hier, weil der Helfer
+	// „bereits gesendet" nicht von „keine Subscription" unterscheiden kann und die Mail sonst
+	// bei jedem Lauf erneut ginge.
+	if (await NotificationLog.findOne({ where: { kind: KIND, dedupeKey } })) {
 		return;
 	}
 	const recipient = await User.findByPk(task.createdById);
 	const texte = TEXTE[spracheVon(recipient?.sprache)];
 	const title = texte.titel;
 	const body = texte.text(completer?.displayName ?? texte.jemand, task.title);
-	const { sent } = await sendPushToUser(task.createdById, { title, body, url: '/' }, send);
+	const { sent } = await sendDedupedPush(task.createdById, KIND, dedupeKey, { title, body, url: '/' }, send);
 	let mailSent = false;
 	if (mailSend || isMailConfigured()) {
 		mailSent = await sendMailToUser({ email: recipient?.email ?? null }, { subject: title, text: body }, mailSend);
 	}
-	if (sent > 0 || mailSent) {
+	if (sent === 0 && mailSent) {
+		// Protokolliert der Helfer nicht (Push ohne Zustellung), sichert erst die Mail den Log-Eintrag.
 		await NotificationLog.create({
 			userId: task.createdById,
 			kind: KIND,

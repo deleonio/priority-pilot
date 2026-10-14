@@ -1,5 +1,6 @@
-import { NotificationLog, User } from '../models/index.js';
-import { sendPushToUser, type PushSender } from './push.js';
+import { User } from '../models/index.js';
+import { sendDedupedPush } from './dedupedPush.js';
+import { type PushSender } from './push.js';
 import { istGueltigeZeitzone, tagIn } from './streak.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
 
@@ -44,12 +45,14 @@ export const runMonthlyRecapPush = async (
 	for (const user of users) {
 		const zeitzone = istGueltigeZeitzone(user.zeitzone ?? undefined) ? (user.zeitzone as string) : 'UTC';
 		const dedupeKey = `${user.id}:${vormonatVonTag(tagIn(now, zeitzone))}`;
-		if (await NotificationLog.findOne({ where: { kind: KIND, dedupeKey } })) {
-			continue;
-		}
-		const { sent } = await sendPushToUser(user.id, { ...TEXTE[spracheVon(user.sprache)], url: '/' }, send);
+		const { sent } = await sendDedupedPush(
+			user.id,
+			KIND,
+			dedupeKey,
+			{ ...TEXTE[spracheVon(user.sprache)], url: '/' },
+			send,
+		);
 		if (sent > 0) {
-			await NotificationLog.create({ userId: user.id, kind: KIND, dedupeKey, sentAt: now });
 			usersNotified++;
 		}
 	}

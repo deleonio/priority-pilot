@@ -1,7 +1,8 @@
-import { NotificationLog, ScoreEntry, Task, User } from '../models/index.js';
+import { ScoreEntry, Task, User } from '../models/index.js';
 import { uhrzeitIn } from './carePush.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
-import { sendPushToUser, type PushSender } from './push.js';
+import { sendDedupedPush } from './dedupedPush.js';
+import { type PushSender } from './push.js';
 import { berechneStreak, istGueltigeZeitzone, istHeuteRuhetag, streakZeitpunkte, tagIn } from './streak.js';
 
 /**
@@ -56,10 +57,6 @@ export const runStreakReminder = async (
 			continue;
 		}
 		const heute = tagIn(now, zeitzone);
-		const dedupeKey = `${user.id}:${heute}`;
-		if (await NotificationLog.findOne({ where: { kind: KIND, dedupeKey } })) {
-			continue;
-		}
 		const entries = await ScoreEntry.findAll({ include: [{ model: Task, where: { userId: user.id } }] });
 		const { aktuell, aktiveTage } = berechneStreak(
 			streakZeitpunkte(
@@ -74,9 +71,14 @@ export const runStreakReminder = async (
 			continue;
 		}
 		const text = streakReminderText(spracheVon(user.sprache), aktuell);
-		const { sent } = await sendPushToUser(user.id, { title: text.titel, body: text.text, url: '/aufgaben' }, send);
+		const { sent } = await sendDedupedPush(
+			user.id,
+			KIND,
+			`${user.id}:${heute}`,
+			{ title: text.titel, body: text.text, url: '/aufgaben' },
+			send,
+		);
 		if (sent > 0) {
-			await NotificationLog.create({ userId: user.id, kind: KIND, dedupeKey, sentAt: now });
 			usersNotified++;
 		}
 	}
