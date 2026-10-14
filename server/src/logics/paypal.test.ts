@@ -1,4 +1,4 @@
-import { describe, it, mock } from 'node:test';
+import { describe, it, mock, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { verifyWebhookSignature, isGracePeriodExpired, createPaypalClient, assertPaypalConfig } from './paypal.js';
 import { PAYPAL_PLAN_IDS } from './plans.js';
@@ -10,6 +10,18 @@ import { PAYPAL_PLAN_IDS } from './plans.js';
  */
 
 describe('paypal.ts — verifyWebhookSignature (#1495 AK2)', () => {
+	// #2545 Test-Pflege: der neue Config-Guard bricht ohne Zugangsdaten vor dem Netzaufruf ab — die
+	// drei Netzpfad-Tests brauchen jetzt gesetzte Variablen, um unreachable/verified/invalid zu erreichen.
+	const savedEnv = { ...process.env };
+	beforeEach(() => {
+		process.env.PAYPAL_CLIENT_ID = 'id';
+		process.env.PAYPAL_CLIENT_SECRET = 'secret';
+		process.env.PAYPAL_WEBHOOK_ID = 'wh';
+	});
+	after(() => {
+		process.env = savedEnv;
+	});
+
 	it('bei Nichterreichbarkeit von PayPal liefert die Prüfung "unreachable" statt zu werfen', async () => {
 		const unreachableFetch = (async () => {
 			throw new Error('ECONNREFUSED');

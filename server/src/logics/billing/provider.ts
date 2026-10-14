@@ -4,8 +4,11 @@ import type { Plan } from '../plans.js';
 /** Abrechnungszeitraum eines Abos. */
 type BillingPeriod = 'monthly' | 'quarterly' | 'yearly';
 
-/** Ergebnis der Echtheitsprüfung. `unreachable` ≠ `invalid`: ein Netzfehler verwirft kein Ereignis. */
-type EventVerification = 'verified' | 'invalid' | 'unreachable';
+/**
+ * Ergebnis der Echtheitsprüfung. `unreachable` ≠ `invalid`: ein Netzfehler verwirft kein Ereignis.
+ * `unconfigured` (#2545): dem Anbieter fehlen Zugangsdaten — wird ohne 5xx quittiert.
+ */
+type EventVerification = 'verified' | 'invalid' | 'unreachable' | 'unconfigured';
 
 /** Ein eingegangenes Anbieter-Ereignis, soweit Ablage, Dedup und Zuordnung zum Abo es brauchen. */
 interface ProviderEvent {

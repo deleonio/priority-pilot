@@ -24,8 +24,12 @@ export { applyDuePendingPlan, isGracePeriodExpired } from './billing/lifecycle.j
  * gespeichert — der Nutzerbezug entsteht ausschließlich über die externe Abo-ID.
  */
 
-/** Ergebnis der Signaturprüfung. `unreachable` ≠ `invalid`: ein Netzfehler verwirft kein Ereignis. */
-export type PaypalVerificationResult = 'verified' | 'invalid' | 'unreachable';
+/**
+ * Ergebnis der Signaturprüfung. `unreachable` ≠ `invalid`: ein Netzfehler verwirft kein Ereignis.
+ * `unconfigured` (#2545): fehlende Zugangsdaten — kein Prüfversuch, auch kein Anlass für erneute
+ * Zustellung.
+ */
+export type PaypalVerificationResult = 'verified' | 'invalid' | 'unreachable' | 'unconfigured';
 
 /** Signatur des injizierbaren Verifiers (Vorbild `MailSender`) — Tests reichen einen Fake herein. */
 export type PaypalVerifier = (rawBody: Buffer, headers: Record<string, string>) => Promise<PaypalVerificationResult>;
@@ -108,6 +112,19 @@ export const verifyWebhookSignature = async (
 	const clientId = process.env.PAYPAL_CLIENT_ID?.trim() ?? '';
 	const clientSecret = process.env.PAYPAL_CLIENT_SECRET?.trim() ?? '';
 	const webhookId = process.env.PAYPAL_WEBHOOK_ID?.trim() ?? '';
+	const missing = [
+		['PAYPAL_CLIENT_ID', clientId],
+		['PAYPAL_CLIENT_SECRET', clientSecret],
+		['PAYPAL_WEBHOOK_ID', webhookId],
+	]
+		.filter(([, value]) => !value)
+		.map(([name]) => name);
+	if (missing.length > 0) {
+		// Fehlende Konfiguration (#2545) ist kein Erreichbarkeitsproblem: ohne Netzaufruf quittieren,
+		// damit die Route ohne 5xx antwortet und PayPal nicht endlos erneut zustellt.
+		console.error(`PayPal-Signaturprüfung nicht möglich, es fehlen: ${missing.join(', ')}`);
+		return 'unconfigured';
+	}
 	const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
 	try {
@@ -295,14 +312,13 @@ export interface PaypalWebhookEvent {
 }
 
 /**
- * Startprüfung (#2302): In Produktion und mit gesetzten PayPal-Zugangsdaten (Client-ID oder Secret)
- * müssen alle nötigen Variablen gesetzt sein — sonst gälten die Dev-Fallbacks (Fremd-Domain als
- * Return-URL, Variablenname als Plan-ID, unverifizierte Webhooks). Wirft mit den fehlenden
- * Variablennamen, nie mit Werten. Ohne Zugangsdaten (PayPal aus) oder außerhalb von Produktion no-op.
+ * Startprüfung (#2302): In Produktion müssen alle nötigen Variablen gesetzt sein — sonst gälten die
+ * Dev-Fallbacks (Fremd-Domain als Return-URL, Variablenname als Plan-ID, unverifizierte Webhooks).
+ * Wirft mit den fehlenden Variablennamen, nie mit Werten — auch bei komplett fehlenden Zugangsdaten
+ * (#2545: stilles PayPal-aus ist in Produktion ein Fehler). Außerhalb von Produktion no-op.
  */
 export const assertPaypalConfig = (env: NodeJS.ProcessEnv = process.env): void => {
 	if (env.NODE_ENV !== 'production') return;
-	if (!env.PAYPAL_CLIENT_ID?.trim() && !env.PAYPAL_CLIENT_SECRET?.trim()) return;
 	const required = [
 		'PAYPAL_CLIENT_ID',
 		'PAYPAL_CLIENT_SECRET',
