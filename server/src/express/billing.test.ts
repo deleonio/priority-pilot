@@ -1447,3 +1447,52 @@ describe('Billing/Webhook-API (#2301 — ein Beleg je Abbuchung)', () => {
 		}
 	});
 });
+
+describe('Billing/Webhook-API (#2545 — PayPal ohne Konfiguration)', () => {
+	const savedEnv = { ...process.env };
+
+	beforeEach(async () => {
+		await resetDb();
+	});
+
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+		process.env = savedEnv;
+	});
+
+	it('#2545 AK2: ohne Zugangsdaten antwortet der Webhook ohne 5xx (kein PayPal-Retry)', async () => {
+		for (const name of ['PAYPAL_CLIENT_ID', 'PAYPAL_CLIENT_SECRET', 'PAYPAL_WEBHOOK_ID']) {
+			delete process.env[name];
+		}
+		process.env.PAYPAL_API_BASE = 'http://127.0.0.1:9'; // toter Fake: garantiert kein echter PayPal-Kontakt
+		server = await startTestServer();
+
+		const res = await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({ id: 'WH-NOCONFIG', event_type: 'BILLING.SUBSCRIPTION.UPDATED', resource: { id: 'I-NOCONFIG' } }),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		assert.ok(
+			res.status < 500,
+			`Fehlende Konfiguration darf kein 5xx (${res.status}) liefern — PayPal würde endlos erneut zustellen`,
+		);
+	});
+
+	it('#2545 AK2: echter Netzausfall bleibt 503 (unreachable-Pfad aus #1495 AK2 unangetastet)', async () => {
+		process.env.PAYPAL_CLIENT_ID = 'id';
+		process.env.PAYPAL_CLIENT_SECRET = 'secret';
+		process.env.PAYPAL_WEBHOOK_ID = 'wh';
+		process.env.PAYPAL_API_BASE = 'http://127.0.0.1:9';
+		server = await startTestServer();
+
+		const res = await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({ id: 'WH-NETDOWN', event_type: 'BILLING.SUBSCRIPTION.UPDATED', resource: { id: 'I-NETDOWN' } }),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		assert.equal(res.status, 503);
+	});
+});

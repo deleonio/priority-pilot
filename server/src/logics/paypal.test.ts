@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+import { describe, it, mock, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { verifyWebhookSignature, isGracePeriodExpired, createPaypalClient, assertPaypalConfig } from './paypal.js';
 import { PAYPAL_PLAN_IDS } from './plans.js';
@@ -10,6 +10,18 @@ import { PAYPAL_PLAN_IDS } from './plans.js';
  */
 
 describe('paypal.ts — verifyWebhookSignature (#1495 AK2)', () => {
+	// #2545 Test-Pflege: der neue Config-Guard bricht ohne Zugangsdaten vor dem Netzaufruf ab — die
+	// drei Netzpfad-Tests brauchen jetzt gesetzte Variablen, um unreachable/verified/invalid zu erreichen.
+	const savedEnv = { ...process.env };
+	beforeEach(() => {
+		process.env.PAYPAL_CLIENT_ID = 'id';
+		process.env.PAYPAL_CLIENT_SECRET = 'secret';
+		process.env.PAYPAL_WEBHOOK_ID = 'wh';
+	});
+	after(() => {
+		process.env = savedEnv;
+	});
+
 	it('bei Nichterreichbarkeit von PayPal liefert die Prüfung "unreachable" statt zu werfen', async () => {
 		const unreachableFetch = (async () => {
 			throw new Error('ECONNREFUSED');
@@ -52,6 +64,36 @@ describe('paypal.ts — verifyWebhookSignature (#1495 AK2)', () => {
 		);
 
 		assert.equal(result, 'invalid');
+	});
+});
+
+describe('paypal.ts — verifyWebhookSignature ohne Konfiguration (#2545 AK2)', () => {
+	it('liefert "unconfigured", loggt die fehlenden Variablen und ruft PayPal nicht auf', async () => {
+		const savedEnv = { ...process.env };
+		const errors: string[] = [];
+		const errorSpy = mock.method(console, 'error', (...args: unknown[]) => errors.push(args.join(' ')));
+		const calls: string[] = [];
+		const spyingFetch = (async (input: RequestInfo | URL) => {
+			calls.push(String(input));
+			throw new Error('Netzaufruf bei fehlender Konfiguration unzulässig');
+		}) as unknown as typeof fetch;
+		try {
+			for (const name of ['PAYPAL_CLIENT_ID', 'PAYPAL_CLIENT_SECRET', 'PAYPAL_WEBHOOK_ID']) {
+				delete process.env[name];
+			}
+
+			const result = await verifyWebhookSignature(Buffer.from('{"id":"WH-1"}'), {}, spyingFetch);
+
+			assert.equal(result, 'unconfigured', 'Fehlende Konfiguration muss von "unreachable" unterscheidbar sein');
+			assert.equal(calls.length, 0, 'Ohne Zugangsdaten darf kein PayPal-Netzaufruf versucht werden');
+			assert.ok(
+				errors.some((m) => /PAYPAL_CLIENT_ID|PAYPAL_CLIENT_SECRET|PAYPAL_WEBHOOK_ID/.test(m)),
+				'Log muss die fehlenden Variablennamen nennen',
+			);
+		} finally {
+			errorSpy.mock.restore();
+			process.env = savedEnv;
+		}
 	});
 });
 
@@ -220,8 +262,26 @@ describe('paypal.ts — assertPaypalConfig (#2302)', () => {
 		assert.doesNotThrow(() => assertPaypalConfig(full()));
 	});
 
-	it('wirft ohne Zugangsdaten (PayPal aus) auch in Produktion nicht', () => {
-		assert.doesNotThrow(() => assertPaypalConfig({ NODE_ENV: 'production' }));
+	// #2545 AK1 (PO-Entscheidung 2026-10-14, Test-Pflege): ganz ohne Zugangsdaten läuft der Server
+	// weiter (PayPal-Billing aus) — die Meldung mit den Variablennamen kommt per console.error.
+	it('#2545 AK1: läuft in Produktion ohne ALLE PayPal-Variablen weiter und loggt die Variablen', () => {
+		const errors: string[] = [];
+		const errorSpy = mock.method(console, 'error', (...args: unknown[]) => errors.push(args.join(' ')));
+		try {
+			assert.doesNotThrow(() => assertPaypalConfig({ NODE_ENV: 'production' }));
+			assert.ok(
+				errors.some((m) => /PAYPAL_CLIENT_ID/.test(m) && /PAYPAL_CLIENT_SECRET/.test(m)),
+				'Meldung muss die fehlenden Variablennamen nennen',
+			);
+		} finally {
+			errorSpy.mock.restore();
+		}
+	});
+
+	it('#2545 AK1: ohne Zugangsdaten bleibt Dev/Test erlaubt (kein Wurf außerhalb der Produktion)', () => {
+		for (const NODE_ENV of ['test', 'development']) {
+			assert.doesNotThrow(() => assertPaypalConfig({ NODE_ENV }));
+		}
 	});
 
 	it('wirft außerhalb von Produktion nie', () => {
