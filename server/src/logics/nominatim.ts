@@ -8,3 +8,15 @@
  */
 
 export const NOMINATIM_USER_AGENT = 'Balamentum (https://github.com/deleonio/priority-pilot)';
+
+let lastNominatimCall = 0;
+
+/** Prozessweite Drossel (#2543): höchstens 1 Nominatim-Aufruf pro Sekunde, unabhängig von IP/Nutzer. `false` = Aufruf unterlassen. */
+export const acquireNominatimSlot = (): boolean => {
+	const now = Date.now();
+	if (now - lastNominatimCall < 1000) {
+		return false;
+	}
+	lastNominatimCall = now;
+	return true;
+};

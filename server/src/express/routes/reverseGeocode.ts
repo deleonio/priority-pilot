@@ -1,6 +1,6 @@
 import express from 'express';
 import type { components } from '../../api.js';
-import { NOMINATIM_USER_AGENT } from '../../logics/nominatim.js';
+import { acquireNominatimSlot, NOMINATIM_USER_AGENT } from '../../logics/nominatim.js';
 import { requirePlanFeature } from '../planGuard.js';
 
 type ReverseGeocodeDto = components['schemas']['ReverseGeocodeResponse'];
@@ -76,6 +76,11 @@ reverseGeocodeRouter.get(
 		const lonNum = parseFloat(lon);
 		if (isNaN(latNum) || isNaN(lonNum)) {
 			res.status(400).json({ message: 'lat und lon müssen gültige Zahlen sein.' });
+			return;
+		}
+
+		if (!acquireNominatimSlot()) {
+			res.json({ address: '' });
 			return;
 		}
 
