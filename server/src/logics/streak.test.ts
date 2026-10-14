@@ -8,6 +8,9 @@ import { streakZeitpunkte } from './streak.js';
 // ROTE Spec-Tests (#1971, docs/spec/issue-1971.md): Ruhetag-Regel in `berechneStreak` und die neuen
 // Exporte `berechneWochenAusgewogen` / `istHeuteRuhetag` fehlen noch.
 import { berechneWochenAusgewogen, istHeuteRuhetag } from './streak.js';
+// ROTE Spec-Tests (#2554, docs/spec/issue-2554.md): `nutzerZeitzone` fehlt — gemeinsamer
+// UTC-Fallback-Helfer für carePush/monthlyRecapPush/streakReminder statt dreier kopierter Ternäre.
+import { nutzerZeitzone } from './streak.js';
 
 /**
  * Vertrag für die Streak-Berechnung (AK1/AK2, #1360).
@@ -338,5 +341,19 @@ describe('berechneWochenAusgewogen (#1971 AK4)', () => {
 		const eintraege = [e('2026-09-08', 1, 2), { zeitpunkt: new Date('2026-09-06T22:30:00.000Z'), saeulenIds: [3] }];
 		assert.equal(berechneWochenAusgewogen(eintraege, gleich, heute, 'Europe/Berlin'), 1);
 		assert.equal(berechneWochenAusgewogen(eintraege, gleich, heute, 'UTC'), 0);
+	});
+});
+
+describe('nutzerZeitzone (#2554 AK4)', () => {
+	it('gültige IANA-Zone bleibt erhalten', () => {
+		assert.equal(nutzerZeitzone('Europe/Berlin'), 'Europe/Berlin');
+		assert.equal(nutzerZeitzone('UTC'), 'UTC');
+	});
+
+	it('null, undefined, leer und ungültig liefern UTC', () => {
+		assert.equal(nutzerZeitzone(null), 'UTC');
+		assert.equal(nutzerZeitzone(undefined), 'UTC');
+		assert.equal(nutzerZeitzone(''), 'UTC');
+		assert.equal(nutzerZeitzone('Mars/Phobos'), 'UTC');
 	});
 });

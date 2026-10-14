@@ -5,7 +5,9 @@ import Invoice from '../models/invoice.js';
 import Subscription from '../models/subscription.js';
 import User from '../models/user.js';
 import { pdfContains } from '../test/pdf.js';
-import { issueCreditNote, issueInvoiceForPeriod } from './invoices.js';
+// ROTE Spec-Tests (#2554, docs/spec/issue-2554.md): `confirmationFor` ist bislang unexportiert —
+// der Import scheitert, bis invoices.ts den Vertrag exportiert (unbekannter Plan → Fehler statt 0-Preiszeile).
+import { confirmationFor, issueCreditNote, issueInvoiceForPeriod } from './invoices.js';
 
 /**
  * Rote Spec-Tests für #2329 AK3-AK5 (Spec docs/spec/issue-2329.md): die erste Rechnung zu einem Abo mit
@@ -122,5 +124,15 @@ describe('Vertragsbestätigung auf der ersten Rechnung (#2329)', () => {
 		assert.equal(sent.length, 1);
 		assert.doesNotMatch(sent[0].text, /Vertragsbest/);
 		assert.ok(!pdfHas(credit, 'Vertragsbest'));
+	});
+
+	// #2554 AK3 (Spec docs/spec/issue-2554.md): Bestätigung bei unbekanntem Plan wirft den Fehler
+	// (gemeinsamer parsePlan mit AK2) statt Zeilen mit Preis 0 zu erzeugen.
+	it('AK3 (#2554): Vertragsbestätigung bei unbekanntem Plan wirft Fehler statt 0-Preiszeile', async () => {
+		const sub = await makeSub(CONSENT);
+		const invoice = await issueInvoiceForPeriod(sub, now, async () => {});
+		await sub.update({ plan: 'xyz' });
+
+		await assert.rejects(confirmationFor(invoice), /Plan/);
 	});
 });

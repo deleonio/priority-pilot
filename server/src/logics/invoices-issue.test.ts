@@ -228,4 +228,25 @@ describe('invoices.ts — issueInvoiceForPeriod (#1495 AK8)', () => {
 			'Die PDF-Leistungszeile muss das deutsche Label tragen',
 		);
 	});
+
+	// #2554 AK2 (Spec docs/spec/issue-2554.md): ein gespeicherter Plan außerhalb von PLAN_VALUES
+	// ist ein Fehler — keine 0-EUR-Rechnung, keine stille free-Degradierung.
+	it('AK2 (#2554): unbekannter Plan legt keine Rechnung an und meldet den Fehler', async () => {
+		const user = await User.create({ email: 'plan-xyz@example.com', displayName: 'Xyz', passwordHash: 'x' });
+		const subscription = await Subscription.create({
+			userId: user.get('id') as number,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-PLAN-XYZ',
+			plan: 'xyz',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date('2026-04-01T00:00:00Z'),
+		});
+
+		await assert.rejects(
+			issueInvoiceForPeriod(subscription, now, async () => {}),
+			/Plan/,
+		);
+		assert.equal(await Invoice.count({ where: { subscriptionId: subscription.get('id') as number } }), 0);
+	});
 });

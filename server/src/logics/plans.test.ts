@@ -304,3 +304,18 @@ describe('effectivePlan (#1785)', () => {
 		}
 	});
 });
+
+// ROTE Spec-Tests (#2554, docs/spec/issue-2554.md): `parsePlan` fehlt — strikter Plan-Parser
+// (null statt stiller free-Degradierung wie bei `effectivePlan`) für Rechnung und Vertragsbestätigung.
+import { parsePlan } from './plans.js';
+
+describe('parsePlan (#2554 AK2/AK3)', () => {
+	it('free/plus/pro bleiben erhalten, Unbekanntes und Legacy liefern null', () => {
+		for (const plan of ['free', 'plus', 'pro'] as const) {
+			assert.equal(parsePlan(plan), plan);
+		}
+		assert.equal(parsePlan('xyz'), null);
+		assert.equal(parsePlan(''), null);
+		assert.equal(parsePlan('max'), null, 'kein Legacy-Fallback (AGENTS.md: kein Bestandskunden-Ballast)');
+	});
+});
