@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.25 - 2026-10-14
 
-_Enthält v0.25.0 – v0.25.7._
+_Enthält v0.25.0 – v0.25.8._
 
 ### 🐞 Bug Fixes
 
@@ -18,6 +18,7 @@ _Enthält v0.25.0 – v0.25.7._
 - fix(server): user search with literal wildcards and result limit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2585
 - fix(server): book llm provider test against ai quota and throttle it (#2542) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2586
 - fix(server): log invoice delivery errors after commit, don't throw by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2588
+- feat(server): count task effort once per subtree, ending cycles and N+1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2589
 
 ## v0.24 - 2026-10-13
 
@@ -237,7 +238,7 @@ _Enthält v0.18.0 – v0.18.45._
 - fix(native): widen android versionCode digits with hard limits by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2371
 - feat(server): create due series automatically every day by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2384
 - docs(adr): ADR 0021 Android-App als SPA ohne Service Worker by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2387
-- docs(adr): ADR 0021 Android-App als SPA ohne Service Worker by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2387
+- feat(frontend): add auto-create switch and series templates tab (#2358) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2383
 - feat(frontend): add auto-create switch and series templates tab (#2358) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2383
 - feat(frontend): add android build without pwa and fixed site url by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2388
 - feat(frontend): add create-task dialog to series and templates by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2390
@@ -997,25 +998,620 @@ _Enthält v0.2.0 – v0.2.134._
 
 ## v0.1 - 2026-09-12
 
-_Enthält v0.1.683 – v0.1.836._
+_Enthält v0.1.336 – v0.1.836._
+
+### 💥 Breaking Changes
+
+- fix(ci): ensure release:* labels exist before Phase 5 sets them by @deleonio in https://github.com/deleonio/priority-pilot/pull/543
+- ci!: pro-Issue Claude-Memory-Persistenz + ADR 0001 (.github-Tests entfernt) by @deleonio in https://github.com/deleonio/priority-pilot/pull/593
 
 ### 🎉 New Features
 
+- feat(ci): aST-Neufassung des Suite-Analyzers + Dedup + Contract-Tests by @deleonio in https://github.com/deleonio/priority-pilot/pull/505
+- feat: automatisches Löschen bei verpasster Deadline — rote Spec-Tests by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/524
+- feat(series): Bearbeiten & Löschen mit Kaskade auf Instanzen (#553) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/554
+- feat(#566): Black-Box-Verhaltenstests für User Journeys by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/592
+- feat(ci): Fortschrittsmetrik für CI-Läufe by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/615
+- feat(issue-618): Health-Endpoint extern erreichbar machen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/622
+- feat(issue-638): LLM Provider Interface - Rote Tests by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/642
+- feat(issue-619): Startup-Error-Handling implementieren by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/623
+- feat(issue-638): LLM-Kaskade Mistral → OpenRouter-Verfeinerung by @deleonio in https://github.com/deleonio/priority-pilot/pull/643
+- feat(ci): enable LLM egress via tailscale exit node by @deleonio in https://github.com/deleonio/priority-pilot/pull/650
+- feat(llm): OpenRouter-Endpoint über ENV konfigurierbar by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/651
+- feat(llm): LLM provider configuration backend API and UI by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/652
+- feat(issue-656): Nightly SQLite backup with cleanup by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/661
+- feat(issue-657): rollen-konzept für agentic workflow by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/663
+- feat(issue-660): Cloud/Local-Betrieb und Übergangspfad dokumentieren by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/665
+- feat/issue-658: Label-Chain und Übergaberegeln definieren by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/666
+- feat(issue-659): GitHub Actions Workflow Trigger skizzieren by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/667
+- feat(lektorat): Lektorat-Button für Input/Textarea-Felder by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/682
+- feat(issue-687): Lektorat mit Diff-Modal by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/688
+- feat(dx): Browser-MCP für visuelle Prüfung der laufenden App by @deleonio in https://github.com/deleonio/priority-pilot/pull/698
+- feat(679): kolInput zeichenzähler basierend auf KolInputText/KolTextarea by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/681
+- feat(issue-704): Aufgabenbaum-Layout sauber darstellen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/706
+- feat(llm): add LLM provider toggles for Mistral and OpenRouter by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/765
 - feat(frontend): add groups tab with CRUD, roles and delete confirmation by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1214
 - feat(frontend): show task dependencies as weighted graph instead of tree by @deleonio in https://github.com/deleonio/priority-pilot/pull/1309
 - feat(frontend): toggle to show parent tasks in task list by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1388
 - feat(header): make logo clickable and visually smaller by @deleonio in https://github.com/deleonio/priority-pilot/pull/1392
 
+### 🐞 Bug Fixes
+
+- fix: implement-Label auch bei cancelled Claude-Schritt setzen by @deleonio in https://github.com/deleonio/priority-pilot/pull/503
+- fix: fix/workflow details by @deleonio in https://github.com/deleonio/priority-pilot/pull/506
+- fix: rote Spec-Tests für #504 (Push: nur EINE Benachrichtigung) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/509
+- fix: rote Spec-Tests für #511 (pro-Phase Claude-Modell) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/514
+- fix(server/src/index.ts): rote Spec-Tests für #518 (tägliche Top-3-Push um 6 Uhr) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/520
+- fix: rote Spec-Tests für #519 (Documenter exit code 1) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/521
+- fix: rote Spec-Tests für #513 (Phase 6 PR-Documenter) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/516
+- fix(frontend/src/app.css): rote Spec-Tests für #510 (Aufgabenliste mobilfähig – einheitliche... by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/512
+- fix(ci): rote Spec-Tests für #515 (Pro-Ticket Token-/Kostenerfassung) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/517
+- fix(ci): stoppe Review↔Fixup-Label-Endlosloop (No-Progress-Re-Arm) by @deleonio in https://github.com/deleonio/priority-pilot/pull/525
+- fix: needs-human-Verdict für nicht-automatisierbare Findings by @deleonio in https://github.com/deleonio/priority-pilot/pull/527
+- fix(ci): härtet Review-ARTIFACTS_OK-Marker-Check (Retry + Verdict-Fallback) by @deleonio in https://github.com/deleonio/priority-pilot/pull/528
+- fix: rote Spec für #530 — Review-Marker Create-or-Update by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/532
+- fix: rote Spec-Tests für #531 (Checklisten-Feld in Tasks) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/533
+- fix(components): rote Spec-Tests für 534 (Auto-Löschen an Deadline koppeln + für Serien) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/535
+- fix: rote Spec-Tests für #536 (ai:needs-review vor Neu-Setzen entfernen) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/539
+- fix: rote Spec-Tests für #538 (ai:spec-ready nur bei 🟢) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/540
+- fix(ci): optimize PR Post-Merge Documenter workflow by @deleonio in https://github.com/deleonio/priority-pilot/pull/542
+- fix: spec-Tests – ai:needs-human blockiert Workflows by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/545
+- fix(series): erledigte Instanzen bei Serien-Kaskade schonen (#555) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/556
+- fix(workflows): portables VERDICT-Parsing (grep -oP → sed, BSD-/GNU-grep) by @deleonio in https://github.com/deleonio/priority-pilot/pull/571
+- fix(ci): Ticket-Pipeline — Fixup-Deadlock, Guard-Fragilität, Doku-Drift by @deleonio in https://github.com/deleonio/priority-pilot/pull/574
+- fix(ci): verdikt-parser streift markdown-dekoration (**…**) by @deleonio in https://github.com/deleonio/priority-pilot/pull/584
+- fix(ci): PR-Detektion mit Body-Fallback härten (Issue #585) by @deleonio in https://github.com/deleonio/priority-pilot/pull/586
+- fix(tasks/series): titel-länge auf 30 zeichen begrenzt by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/585
+- fix(ci): Spec-Crash + Triage-Ticket-Memory + Permission-Test reparieren by @deleonio in https://github.com/deleonio/priority-pilot/pull/588
+- fix(ci): Memory-Save via vertrauenswürdigen workflow_run-Trigger by @deleonio in https://github.com/deleonio/priority-pilot/pull/599
+- fix(ci): Shell-Discipline-Querschnitt härten (#595) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/601
+- fix(ci): Triage-Ziel-Anker + Marker-Pflicht für Sub-Issues by @deleonio in https://github.com/deleonio/priority-pilot/pull/605
+- fix(ci): label-race-conditions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/614
+- fix(issue-620): Frontend-Error-Handling für LLM-Calls bei Mistral-Ausfall/Timeout by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/624
+- fix(ci): issue-memory reparieren (checkpoints + restore-verifikation) by @deleonio in https://github.com/deleonio/priority-pilot/pull/626
+- fix(ci): expliziter permissions-Block für claude-memory-save (Warnung aufheben) by @deleonio in https://github.com/deleonio/priority-pilot/pull/627
+- fix(push): observable outcomes in push tests ergänzt by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/634
+- fix(issue-630): Test-Cleanup - leeres Duplikat entfernt by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/644
+- fix(e2e): Tab-Freiheits-Checks für Fokus-Verträge (#629) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/635
+- fix(issue-668): Tab-Heuristik auf Datei-Ebene erweitern by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/677
+- fix(issue-669): Redundanz-Signatur um describe-Kette erweitern by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/673
+- feat/issue-671-behavior-assertion-detection by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/674
+- fix(672): parseNameArg Robustheit bei Template-Literalen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/676
+- fix(ci): Fair-Usage-Check schlug im Normalfall fehl (invertierte Logik) by @deleonio in https://github.com/deleonio/priority-pilot/pull/683
+- fix(e2e): Tab-Freiheit in Löschdialogen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/685
+- fix(ci): claude-memory persistiert wieder — Artefakte statt schreib-toter Cache by @deleonio in https://github.com/deleonio/priority-pilot/pull/690
+- fix(issue-697): Auth Field-Mismatch — AuthUser.name vs displayName by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/699
+- fix(frontend): shorten Aufgabenwald tab label to Wald by @deleonio in https://github.com/deleonio/priority-pilot/pull/725
+- fix(787): make header single-line and model-selector a11y-compliant by @deleonio in https://github.com/deleonio/priority-pilot/pull/847
+- fix(setup-claude): use npm root -g for postinstall + cache v4 by @deleonio in https://github.com/deleonio/priority-pilot/pull/923
+- fix(e2e): fix AK2 contrast test for kol-badge and kol-heading (#930) by @deleonio in https://github.com/deleonio/priority-pilot/pull/942
+- fix(settings): make 'Push testen' button inline (Closes #932) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/947
+- fix(pillars): give description textarea 4 rows in pillar form dialog by @deleonio in https://github.com/deleonio/priority-pilot/pull/982
+
 ### 🚀 Improvements
 
+- perf(#546): Auto-Löschen auf KolInputCheckbox + KolAlert umgestellt by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/547
+- perf(task-list): flache Blatt-Liste statt Aufgabenbaum (#537) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/541
+- perf(ci): pro-Phase Modell-Defaults (Vars als Override) by @deleonio in https://github.com/deleonio/priority-pilot/pull/580
+- perf(ci): Review — erstes Review als Kreuzverhör, Folge als Fixup-Nachweis by @deleonio in https://github.com/deleonio/priority-pilot/pull/578
+- perf(env): reduce API timeout and streamline settings by @deleonio in https://github.com/deleonio/priority-pilot/pull/583
+- perf(spec-prompt): Spec-First-Workflow in Spec-Routine verankern by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/594
+- perf(ci): Phasen-Serialisierung + Label-Pre-Check by @deleonio in https://github.com/deleonio/priority-pilot/pull/678
+- fix(ci): CodeQL auf Schedule-only + Cache-Cleanup um ticket-* erweitert by @deleonio in https://github.com/deleonio/priority-pilot/pull/684
+- perf(frontend): App-Shell für Mobile optimieren (einzeiliger Header, Safe-Area) by @deleonio in https://github.com/deleonio/priority-pilot/pull/686
+- perf(dashboard): Mobile-Layout optimiert — 3er-Kachelreihe, Vorschlags-Panel, Guthaben-Zeilen by @deleonio in https://github.com/deleonio/priority-pilot/pull/689
+- perf/#692: Serien-Alert Layout-Verbesserung by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/693
+- feat(ci): add ZAI→Claude fallback for 08:00-12:00 Europe/Berlin by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/896
+- feat(frontend): Make "Push testen" button inline instead of full-width by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/946
+- feat(frontend): display tab bars horizontally on all viewports by @deleonio in https://github.com/deleonio/priority-pilot/pull/978
 - feat(server): replace geocode rate limiter with express-rate-limit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1283
 
 ### 🔧 Engineering
 
+- test(507): rote Spec-Tests für tautologische Push-Tests (TF4) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/508
+- chore(components): focus-Trap-Specs für markierte Dialog-Lücken by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/526
+- chore(documenter): als LLM-Phase 6 neu gebaut (Single-PR statt Batch) by @deleonio in https://github.com/deleonio/priority-pilot/pull/548
+- test(#549): Roter Spec-Test für Testkonzept (docs/testing.md) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/550
+- docs(ux): sequenzielle Bestätigung Pattern-Seite by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/558
+- chore(spec): Doku-Tickets ausnehmen — keine String-Match-Tests by @deleonio in https://github.com/deleonio/priority-pilot/pull/559
+- chore(ux): Sequenzielle-Bestaetigung-Pattern in Workflow-Phasen verankert (#557) by @deleonio in https://github.com/deleonio/priority-pilot/pull/560
+- test: entferne UX-Pattern-Change-Detector (sinnlos laut Testkonzept) by @deleonio in https://github.com/deleonio/priority-pilot/pull/562
+- chore(quarantine): alte Testsuite in Quarantäne verschieben by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/573
+- chore(ci): Triage erstellt+verknüpft Sub-Issues wieder by @deleonio in https://github.com/deleonio/priority-pilot/pull/575
+- fix(ci): Spec berücksichtigt Test-Konzept (nur nützliche Tests, Docs-Carve-out) by @deleonio in https://github.com/deleonio/priority-pilot/pull/576
+- docs(testkonzept): ADR 0001 — GitHub-Workflows bleiben ungetestet (#567) by @deleonio in https://github.com/deleonio/priority-pilot/pull/577
+- refactor(ci): Spec-Prompt nach .github/prompts/spec.md ausgelagert (Prototyp) by @deleonio in https://github.com/deleonio/priority-pilot/pull/579
+- docs(spec): User Journeys für Kern-Workflows dokumentieren (#565) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/581
+- fix(ci): ticket-Memory-Pipeline absichern (Sentinel, Write-Recht, Documenter-Teardown) by @deleonio in https://github.com/deleonio/priority-pilot/pull/587
+- chore(settings): update Claude configuration by @deleonio in https://github.com/deleonio/priority-pilot/pull/590
+- chore(docs): Spec-First documentation and tests for Issue 568 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/589
+- chore(ci): cache-Sub-Actions auf v6.1.0 + stale Save-Kommentar by @deleonio in https://github.com/deleonio/priority-pilot/pull/600
+- chore(test): nur Anwendungscode testen, Nicht-App-Tests & Templates entfernt by @deleonio in https://github.com/deleonio/priority-pilot/pull/603
+- chore(docs): entferne verwaiste CI-Artefakt- und Plan-Notizen by @deleonio in https://github.com/deleonio/priority-pilot/pull/604
+- chore: blende vendored data/templates via .gitignore aus by @deleonio in https://github.com/deleonio/priority-pilot/pull/606
+- docs: entsorge erledigte Pläne, Spike und Migrations-Checkliste by @deleonio in https://github.com/deleonio/priority-pilot/pull/608
+- docs: bereinige abgelöste Deployment-Doku by @deleonio in https://github.com/deleonio/priority-pilot/pull/609
+- docs(ai-knowledge): konsolidiere Wissensbasis-Duplikate by @deleonio in https://github.com/deleonio/priority-pilot/pull/610
+- chore: binde verwaiste wertvolle Seiten ein by @deleonio in https://github.com/deleonio/priority-pilot/pull/607
+- chore(ci): 6 Pipeline-Phasen als 1/6–6/6 durchnummeriert by @deleonio in https://github.com/deleonio/priority-pilot/pull/616
+- fix(issue-630): remove 14 redundant tests by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/636
+- test(Issue 687): Dedup-Nachweis - alle AK bereits durch existierende Tests abgedeckt by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/695
+- chore(ci): nächtlichen Spec-Sync-Workflow ergänzen by @deleonio in https://github.com/deleonio/priority-pilot/pull/700
+- test(e2e): Serien-Cleanup und Doku für #692-Alert-Spec nachziehen by @deleonio in https://github.com/deleonio/priority-pilot/pull/707
+- chore(spec-sync): arc42-Entfernungs-Mandat + Per-Datei-Draft-PRs in die Pipeline by @deleonio in https://github.com/deleonio/priority-pilot/pull/710
+- chore(knip): Knip-Config Cleanup by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/709
+- chore(skills): add knowledge-graph skill for repo doc graph by @deleonio in https://github.com/deleonio/priority-pilot/pull/867
+- chore(ci): validate GitHub Actions schemas in CI and pre-commit by @deleonio in https://github.com/deleonio/priority-pilot/pull/897
+- fix(ci): Menschen-Parker-Guard — ai:needs-human wird nie mehr kollateral entfernt by @deleonio in https://github.com/deleonio/priority-pilot/pull/908
+- fix(frontend): restore all theme options as disabled ui by @deleonio in https://github.com/deleonio/priority-pilot/pull/906
+- fix(frontend): restore header avatar and keep full name removed by @deleonio in https://github.com/deleonio/priority-pilot/pull/905
+- fix(setup-claude): use model alias instead of native ID for zai/openrouter by @deleonio in https://github.com/deleonio/priority-pilot/pull/910
+- fix(setup-claude): OpenRouter Model-Enforcement ausschalten by @deleonio in https://github.com/deleonio/priority-pilot/pull/920
+- Fix/tailscale provider specific by @deleonio in https://github.com/deleonio/priority-pilot/pull/919
+- Fix/openrouter model enforcement by @deleonio in https://github.com/deleonio/priority-pilot/pull/922
+- fix(harness): stop parking PRs without analysis provenance by @deleonio in https://github.com/deleonio/priority-pilot/pull/916
+- fix(harness): Phasen-Absturz sichtbar machen + Kontingent-Check auf 1310 by @deleonio in https://github.com/deleonio/priority-pilot/pull/921
+- refactor(harness): merge fixup and implementation into single phase (step 4, ADR 0005) by @deleonio in https://github.com/deleonio/priority-pilot/pull/927
+- docs(spec): sync specs to implementation state 2026-08-21 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/943
+- docs(guide): sync user guide to implementation state 2026-08-21 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/944
+- fix(docs): Prettier-Formatierung für Kosten-Reports korrigieren by @deleonio in https://github.com/deleonio/priority-pilot/pull/1045
 - fix(frontend): Empfänger-Auswahl liefert beim Clear keine gültige ID mehr by @deleonio in https://github.com/deleonio/priority-pilot/pull/1237
 
 ### Other Changes
 
+- Vorschlags-Engine: Balance-Korrektur & Überlastungsschutz (#122) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/137
+- Auto-Merge bei grüner CI + ai:ready-to-merge (#139) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/143
+- Spike: Agent-SDK-Prototyp fuer einen Workflow-Schritt (#114) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/140
+- Serienaufgaben (Habits): rote Spec-Tests (#120) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/136
+- Serienaufgaben: Backend-Vertikale — rote Spec-Tests (#141) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/144
+- Serienaufgaben: Frontend (Serien-CRUD + Kennzeichnung von Instanzen) (#142) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/145
+- Schema-Migration fuer Serien-Spalten (no such column: seriesId) (#146) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/147
+- Modell-Router (Sonnet): Komplexitaet einschaetzen → Ausfuehrungsmodell waehlen (#149) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/151
+- Modell-Router als echten CI-Baustein liefern (#153) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/154
+- KI-Workflows auf den Modell-Router umstellen + Routing dokumentieren (#150) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/155
+- Deployment vereinfachen: main → Build → rsync (rote Spec-Tests) (#152) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/156
+- fix: Series-API CRUD-Abdeckung und Fehlerbehandlung (#158) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/159
+- Triage: Issue autonom schliessen wenn Anforderungen erfuellt (#157) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/160
+- fix: Series-Tabelle Migration für Bestands-DBs (#163) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/164
+- fix: Format/Lint-Gate als CI-Spiegel verankern (#161) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/162
+- chore(deps): pin dependencies by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/167
+- chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/168
+- feat: Personalisierte Dashboard-Begrüßung (#169) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/170
+- feat: Lefthook + Knip als pre-commit-Hooks einrichten (#165) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/166
+- feat: API-Proxy auf /api/v1-Präfix umstellen (#171) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/172
+- fix: lefthook in CI-Workflows aktiv schalten (#173) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/174
+- feat: Kreuzverhoer-Agent anlegen (#175) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/176
+- feat: Kreuzverhoer-Agent Modell-Delegation & Doku (#177) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/178
+- feat: ENV-Konfiguration beim Serverstart loggen (#180) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/181
+- fix: Fokus nach Task-Löschen (Issue #182) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/183
+- feat: Dashboard-Widget Gesamtguthaben (Gamification-Balance) (#184) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/185
+- refactor(ci): merge gate+automerge into one workflow, drop release infra by @deleonio in https://github.com/deleonio/priority-pilot/pull/188
+- feat: Google OAuth Single-User-Gate (#186) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/187
+- feat: Logout-Button in Navigation (#191) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/195
+- Deploy Workflow wiederherstellen (#196) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/198
+- feat: Login Page/Maske – Google OAuth (#190) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/197
+- feat: User Info Display – Aktuelle Benutzerinformationen anzeigen (#192) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/199
+- feat: Multi-User OAuth Support – Mehrere erlaubte E-Mail-Adressen (#193) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/201
+- feat(workflows): GLM (Z.ai) als dritten KI-Agenten hinzufügen (#200) by @deleonio in https://github.com/deleonio/priority-pilot/pull/202
+- feat: Session Persistence – Migration zu Redis/SQLite (#194) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/203
+- Demo-Alert "Hallo, Christian!" auf Startseite (#204) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/205
+- feat: Logout-Button in Toolbar (rechts oben) (#209) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/211
+- chore: optimize repo by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/210
+- feat: Backend-Passwort-Authentifizierung (#206) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/212
+- feat: Frontend-Auth — Login/Register-Seiten, Auth-Context, Route-Guard (#208) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/213
+- feat: Nach Logout zur Login-Seite weiterleiten (#214) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/216
+- feat: API-Schutz & Datenisolation — Endpunkte absichern + User-ID-Bindung (#207) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/215
+- Avatar mit Google Profilbild (#217) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/218
+- feat: Meter zeigt Ist-Anteil erledigter Tasks statt Zielgewichtung (#219) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/220
+- Backend: CORS-Proxy für Transitous/MOTIS-API (#224) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/227
+- Frontend: Öffentliche Route /bahn mit Routenplaner-UI (#225) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/226
+- Gestalte den App-Header homogener (#222) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/223
+- ci(gate): fehlende App-Permission (Actions: Read) rot melden statt stillem No-op by @deleonio in https://github.com/deleonio/priority-pilot/pull/230
+- Standard-Theme auf Light Mode setzen (#231) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/232
+- fix(auth): Google-Login auf Android/PWA reparieren — SW-Fallback und Auth-Pfad vereinheitlichen by @deleonio in https://github.com/deleonio/priority-pilot/pull/233
+- feat: LLM-Parsing-Endpoint POST /tasks/parse-text (#235) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/237
+- feat: Aufgaben-Übersicht von Table zu List (#238) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/240
+- feat: Fortschrittsanzeige pro Task inkl. Unter-Tasks (#241) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/242
+- feat: Schnellerfassungs-UI für Tasks (#236) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/239
+- feat: Unteraufgaben-Done-Guard (#246) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/249
+- feat: Strg+Enter-Shortcut fuer CTA-Buttons (243) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/248
+- Autofokus Textarea beim Öffnen des QuickCapture-Modals (#250) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/252
+- feat: Nutzerhandbuch docs/user-guide.md (#255) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/258
+- feat: In-App-Hilfe-Seite mit Markdown-Renderer und Header-Button (#256) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/259
+- fix: GraphQL addSubIssue als Pflichtschritt in Triage (#261) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/262
+- feat: Audio-Transkription für Task-Erstellung via Web Speech API (#251) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/257
+- Feature: UI-Button zum Generieren fälliger Serien-Instanzen (#244) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/263
+- feat: Triage- und Re-Triage-Workflows fest auf Opus mit --effort max verdrahten by @deleonio in https://github.com/deleonio/priority-pilot/pull/265
+- Re-Triage-Workflow bei Entfernen von ai:to-big-issue auslösen (#253) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/267
+- feat: Audio-Transkription bei allen Textareas und Text-Inputs (#264) by @deleonio in https://github.com/deleonio/priority-pilot/pull/268
+- Settings-Seite: KolTabs Allgemein + Säulen (#271) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/273
+- Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabefeld (#272) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/276
+- Merge-Konflikte mit main auflösen: Settings-Route (#270) mit Settings-Tabs (#271) und Voice-Autostart (#272) zusammenführen by @deleonio in https://github.com/deleonio/priority-pilot/pull/278
+- Einstellungen: Popover durch Zahnrad-Toolbar-Button und Route /settings/pillars ersetzen (#270) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/274
+- Workflow: Merge-Konflikte in PRs erkennen und per Coding-Agent auflösen (#277) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/280
+- Tabelle für die abgearbeiteten Tasks (#228) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/279
+- feat: Voice-Autostart im Schnellerfassungs-Textfeld (#281) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/282
+- fix: Audio-Texterfassung — Aufnahme-Lebenslauf härten, kein stiller Transkript-Verlust (#283) by @deleonio in https://github.com/deleonio/priority-pilot/pull/284
+- feat: Version nach Deployment automatisch inkrementieren (#286) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/288
+- Header-Toolbar kompakter (Icon-Buttons) und Dark-Mode-Schalter in die Einstellungen (#285) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/289
+- feat: App-Version in der Fußzeile anzeigen (#290) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/291
+- „Aktualisieren"-Schalter aus Header-Toolbar entfernen (#298) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/299
+- feat: InputNumber → InputRange für Priorität, Aufwand & Gewicht (#287) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/292
+- A1 #294: Series-Felder umbenennen (defaultPriority/defaultEstimatedEffort → priority/estimatedEffort) (#300) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/303
+- A2 #294: Series um description erweitern (#301) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/304
+- feat: "Bearbeiten" und "Wieder öffnen" als Icon-Buttons in Toolbar (#307) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/308
+- ci: shard e2e tests across 4 runners, skip CI on draft PRs by @deleonio in https://github.com/deleonio/priority-pilot/pull/310
+- feat: Auto-Trigger Saeulen vorschlagen bei neuem Task (#305) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/309
+- A3 #294: series_pillars-Vorlage + geteilte Pillar-Validierung (#302) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/306
+- Sub-B #293: generateDueInstances überträgt description + Pillars (#295) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/311
+- feat: Toolbar-Reihenfolge und Zahnrad-Icon für Einstellungen (#312) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/313
+- Allow trusted App-bot to re-trigger triage on ai:analyzed removal by @deleonio in https://github.com/deleonio/priority-pilot/pull/314
+- fix(#315): CI-e2e-Fehler in PR #317 behoben — Strict-Mode-Duplikate + toBeDisabled am Erledigt-Toggle by @deleonio in https://github.com/deleonio/priority-pilot/pull/318
+- Sub-C1 #296: Status aus TaskForm entfernen + binärer Erledigt-Toggle in TaskTree (#315) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/317
+- Sub-C2 #296: TaskForm Task/Serie-Umschalter + Serienfelder; Speichern verzweigt (#316) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/319
+- feat: Säulen-Berater — Mistral-gestützter Aktivitäten-Ratgeber by @deleonio in https://github.com/deleonio/priority-pilot/pull/320
+- Sub-D #293: Alten Serien-Erstell-/Bearbeiten-Pfad (SeriesFormModal) ablösen (#297) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/321
+- fix: Settings-Tab bleibt nach Toggle-Interaktion stabil (#323) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/325
+- feat: Spracheingabe im Säulen-Berater-Fragefeld + Voice-Autostart by @deleonio in https://github.com/deleonio/priority-pilot/pull/324
+- fix: Mic-Button im Berater-Fragefeld sauber positionieren (#326) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/331
+- Berater-Vorschlag in Quick Capture übernehmen (#327) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/329
+- Task- und Serien-Anlegen vereinheitlichen: Schnellerfassung als gemeinsamer Einstieg (#330) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/332
+- feat: Säulen-Aufmerksamkeits-Score + UI-Hinweis (#328) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/333
+- fix: Unterversorgungs-Signal relativ normieren (#337) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/341
+- Serien-Verwaltung als eigenen Tab statt Modal (#335) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/338
+- fix: Säulenzuordnung bei Serien-Edit erhalten (#343) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/344
+- chore(deps): pin dependencies by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/346
+- fix(deps): pin dependencies by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/347
+- feat: Berater nutzt Client-Säulenverteilung, priorisiert schwächste S… by @deleonio in https://github.com/deleonio/priority-pilot/pull/345
+- chore(deps): update github actions (major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/350
+- fix(deps): update dependency @anthropic-ai/claude-agent-sdk to v0.3.201 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/349
+- chore(deps): lock file maintenance by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/351
+- feat(pwa): Installer-Erlebnis (Manifest, beforeinstallprompt, UI) by @deleonio in https://github.com/deleonio/priority-pilot/pull/356
+- chore(deps): lock file maintenance by @deleonio in https://github.com/deleonio/priority-pilot/pull/354
+- chore(deps): update devdependencies (non-major) by @deleonio in https://github.com/deleonio/priority-pilot/pull/357
+- feat: Switch statt Button-Paar + dynamische Dialogtitel (#334) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/342
+- PWA: Update-Fluss (registerType: prompt, Update-Prompt) (#353) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/358
+- fix(tasks): Erledigt-Guard & Aufgabenwald an reale „Unteraufgabe anlegen"-Richtung angleichen (#336) by @deleonio in https://github.com/deleonio/priority-pilot/pull/359
+- feat: Aufgabenbaum-Darstellung invertieren (#363) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/364
+- fix(icons): leere PNG-Platzhalter aus Git entfernen (manueller Todo PR #360) by @deleonio in https://github.com/deleonio/priority-pilot/pull/366
+- feat(push): Web-Push-Opt-in-Infrastruktur (Backend + Frontend) für #355 by @deleonio in https://github.com/deleonio/priority-pilot/pull/365
+- Merge-Konflikte von #362 gelöst (Popover-Aktionen + invertierter Baum) by @deleonio in https://github.com/deleonio/priority-pilot/pull/367
+- Sekundäre Aktionen der Aufgabenliste ins Popover verschieben (#361) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/362
+- feat: Neues App-Icon mit Säulen-Balance + Kompass/Pilot Design by @deleonio in https://github.com/deleonio/priority-pilot/pull/360
+- feat(push): fachlichen Trigger für fällige Aufgaben umsetzen (#355) by @deleonio in https://github.com/deleonio/priority-pilot/pull/372
+- feat: Entfernen-Icon-Button im Abhängigkeits-Editor (#368) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/371
+- feat: Update-/Offline-Hinweise als KoliBri-Card am unteren Bildschirmrand fixieren (#373) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/375
+- fix(popover): Popover-Panel viewport-sicher linksbündig ausrichten (#369) by @deleonio in https://github.com/deleonio/priority-pilot/pull/374
+- refactor(mobile): Review-Findings zu #377 beheben — Toggle-Breite & Viewport-Maß entkoppeln by @deleonio in https://github.com/deleonio/priority-pilot/pull/378
+- fix(mobile): Aufgabenliste bei 360px responsiv stabilisieren (#376) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/377
+- fix: Allgemein-Tab als Default beim Öffnen der Einstellungen (#382) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/383
+- Auto-Audio-Record ohne Spracheingabe zeigt keine Fehlermeldung (#379) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/384
+- test: Popover öffnet links vom Trigger — rote Spec-Tests (#380) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/385
+- feat: Push-Test-Button mit zufaelligen Zitaten (#386) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/389
+- Mobile: Erledigt-Toggle in die Toolbar (#387) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/388
+- feat: Kachel In Bearbeitung aus Dashboard entfernen (390) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/391
+- Klickbare Bild-Marke im Header (#395) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/397
+- feat: System-Notification bei SW-Update (#394) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/398
+- Aufgabenliste: abgehakte Aufgaben nach 5 s automatisch ausblenden (#392) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/393
+- App-Icons mit transparentem Hintergrund (#400) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/401
+- Wort-Bildmarke im Header ohne Vanille-Hintergrund (#402) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/404
+- feat(ci): z.ai-Backend pro Issue-Label umschaltbar (ai:use-zai) (#403) by @deleonio in https://github.com/deleonio/priority-pilot/pull/405
+- Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen (#406) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/407
+- feat: skip superseded runs and add outcome annotations to workflows by @deleonio in https://github.com/deleonio/priority-pilot/pull/409
+- feat: Aufgaben und erledigte Aufgaben zusammenführen (#399) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/408
+- Spec: Saeulen-Meter optimieren (#410) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/411
+- fix(ci): 0-Commit-Loop-Bremse + Marker-Reset härten (Split aus #414) by @deleonio in https://github.com/deleonio/priority-pilot/pull/416
+- Spec: #413 - Erledigt-Schalter nur bei Leaf Tasks aktiv by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/414
+- fix(ci): Session-Archiv von Actions-Cache auf Workflow-Artefakte umstellen by @deleonio in https://github.com/deleonio/priority-pilot/pull/418
+- Git-Hook: gestagte Dateien automatisch formatieren (#417) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/419
+- feat: Säulen pro Nutzer – Datenmodell & Migration (Teil 1, #421) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/426
+- Säulen pro Nutzer — Datenmodell & Migration (#427) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/432
+- Backend-API — Säulen-CRUD + Nutzer-Scoping (#428) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/433
+- Backend-API: Säulen-CRUD + Nutzer-Scoping (Teil 2, Epic #420) (#422) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/434
+- Spec: Dynamischer Säulen-Faktor (rote Tests, #423) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/435
+- KI-Klassifikation & Säulen-Berater mit nutzerdefinierten Säulen (#424) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/436
+- fix(hermes): Agenten beginnen sofort mit Arbeit statt auf Deadline zu warten by @deleonio in https://github.com/deleonio/priority-pilot/pull/442
+- feat: Add Mistral Vibe Coding Agent workflows as alternative to Hermes by @deleonio in https://github.com/deleonio/priority-pilot/pull/444
+- Fix: Remove duplicate MISTRAL_API_KEY in vibe workflows by @deleonio in https://github.com/deleonio/priority-pilot/pull/447
+- feat: Provider-specific concurrency for Claude workflows by @deleonio in https://github.com/deleonio/priority-pilot/pull/448
+- fix: Mistral as default provider for Vibe workflows by @deleonio in https://github.com/deleonio/priority-pilot/pull/449
+- Fix: Add PATH for vibe CLI in all vibe workflows by @deleonio in https://github.com/deleonio/priority-pilot/pull/450
+- Fix: Add complete PATH to all AI workflows for command availability by @deleonio in https://github.com/deleonio/priority-pilot/pull/451
+- chore: Workflow Cleanup — stale refs entfernen, VERDICT in Fixup, Skill v2.0.0 by @deleonio in https://github.com/deleonio/priority-pilot/pull/456
+- Säulen-CRUD: OpenAPI-Spec + API-Client (createPillar/updatePillar/deletePillar) (#438) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/441
+- Empty-States und dynamische Grenzfälle: 0 oder viele Säulen (#440) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/458
+- chore(deps): update github actions (major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/459
+- fix(deps): pin dependency react-markdown to 10.1.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/446
+- chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/453
+- feat: Serien-Aufgaben nur zukünftig generieren by @deleonio in https://github.com/deleonio/priority-pilot/pull/460
+- chore(deps): update dependency brace-expansion@2 to v2.1.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/452
+- chore(deps): pin dependencies by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/445
+- Säulen-Verwaltungs-UI im Einstellungen-Tab (anlegen/umbenennen/löschen) (#439) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/457
+- fix(ci): Soft-Deadline + Cache-Permissions korrigiert by @deleonio in https://github.com/deleonio/priority-pilot/pull/461
+- test: rote Spec-Tests für #429 — Säulen-Faktor auf beliebige Säulenzahl by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/462
+- test: rote Spec-Tests für nutzerdefinierte Säulen (#430) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/464
+- refactor: Säulen-Verwaltung auf KoliBri-Dialoge umgestellt by @deleonio in https://github.com/deleonio/priority-pilot/pull/465
+- Update descriptions of the 5 default pillars by @deleonio in https://github.com/deleonio/priority-pilot/pull/463
+- refactor(frontend): Browser-Notification bei PWA-Update entfernen by @deleonio in https://github.com/deleonio/priority-pilot/pull/466
+- docs: GLM-Modellkonfiguration (Status Quo z.ai) dokumentieren by @deleonio in https://github.com/deleonio/priority-pilot/pull/471
+- fix(ci): Workflow setzt Labels via App-Token (force-set) — Agent nur VERDICT by @deleonio in https://github.com/deleonio/priority-pilot/pull/473
+- Rote Spec-Tests für #431 (Säulen-Verwaltung + dynamische Grenzfälle) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/468
+- test: rote Spec-Tests für #467 (wochentag-basierte Rhythmen) — PARTIAL by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/475
+- feat(#472): Initialfokus auf „Abbrechen“ in Lösch-Dialogen + Serien-Bestätigungsdialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/474
+- Doku: Säulen als nutzerdefiniert dokumentieren (#476) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/478
+- test: rote Spec-Tests für #470 — Serien-Rhythmen Frontend by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/477
+- ci(hermes): Failure-Rauschen senken + Test-Pflege-Bedarf gegen Add-only by @deleonio in https://github.com/deleonio/priority-pilot/pull/481
+- spec: Kein sichtbarer Fokus-Sprung auf destruktiven Button in Löschen-Dialogen (#479) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/480
+- chore: update public-ui dependencies to 4.3 by @deleonio in https://github.com/deleonio/priority-pilot/pull/484
+- chore(deps): update dependency brace-expansion@2 to v2.1.4 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/483
+- chore(deps): pin dependencies by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/482
+- ci: Pipeline auf Claude Code only umstellen + hermes-* → claude-* umbenennen by @deleonio in https://github.com/deleonio/priority-pilot/pull/486
+- ci: 5 Pipeline-Workflows mit Phasen-Nummer prefixen (01–05) by @deleonio in https://github.com/deleonio/priority-pilot/pull/488
+- fix(spec): ai:ready wurde nie gesetzt — gh jq-Parse-Fehler im Artefakt-Check by @deleonio in https://github.com/deleonio/priority-pilot/pull/489
+- Feat/issue 485 followup spec cleanup by @deleonio in https://github.com/deleonio/priority-pilot/pull/492
+- test: rote Spec-Tests für Header-Optimierung — Icon-Logo, Avatar, eine Ebene (#485) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/491
+- ci: Skip-Guard für Implement + Spec (läuft bereits → skip statt warten) by @deleonio in https://github.com/deleonio/priority-pilot/pull/490
+- ci: Skip-Guard-Folgefindings aus PR #490 (Review-Runde 8) by @deleonio in https://github.com/deleonio/priority-pilot/pull/493
+- feat: Claude Code Memory-Persistenz für ticketspezifische Workflows by @deleonio in https://github.com/deleonio/priority-pilot/pull/494
+- fix: PR Post-Merge Documentation nur nach echtem Merge triggern (#496) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/498
+- fix(ci): fix 3 critical bugs in post-merge PR documentation workflow by @deleonio in https://github.com/deleonio/priority-pilot/pull/495
+- fix(ci): Claude-Phasen pushen zuverlässig als App (Contents:Write) by @deleonio in https://github.com/deleonio/priority-pilot/pull/501
+- test: rote Spec-Tests für Permission-/Tier-Modell (#497) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/499
+- fix(ci): Documenter-Token-Fix + Ticket-Memory-Abbau by @deleonio in https://github.com/deleonio/priority-pilot/pull/502
+- feat(#396): Automatisches Login (Session-Persistenz + stiller Google-Login) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/500
+- feat(issue-645): LLM-Lektorat-Funktion zum Kürzen und Lektorieren by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/647
+- docs(issue-645): Spec-Doc für LLM-Lektorat-Funktion by @deleonio in https://github.com/deleonio/priority-pilot/pull/648
+- docs(tailscale): Exit-Node-Doku + Workflow-Action v2->v4 by @deleonio in https://github.com/deleonio/priority-pilot/pull/649
+- docs(llm): Multi-Provider-Setup-Guide auf Kaskade + Settings-UI aktualisieren by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/654
+- feat(ci): documenter facts/llm/render split + release chain by @deleonio in https://github.com/deleonio/priority-pilot/pull/711
+- docs(spec): Ist-Stand-Sync 2026-08-16 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/708
+- chore(ci): nächtlichen Guide-Sync für das In-App-Handbuch ergänzen by @deleonio in https://github.com/deleonio/priority-pilot/pull/701
+- test(e2e): header consistency across viewports (red spec tests for #691) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/694
+- docs(spec): issue-618 — Ist-Stand-Sync 2026-08-16 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/712
+- docs(spec): issue-640 — Ist-Stand-Sync 2026-08-16 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/713
+- docs(spec): issue-645 — sync current status 2026-08-16 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/714
+- docs(spec): issue-697 — spec state sync 2026-08-16 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/717
+- docs(spec): remove issue-696 — Ist-Stand-Sync 2026-08-16 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/716
+- docs(spec): issue-687 — Ist-Stand-Sync 2026-08-16 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/715
+- feat(issue-718): restore avatar on mobile by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/719
+- docs(guide): sync user guide to current implementation by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/721
+- feat(frontend): focus-tab-trap-checks for lektorat-diff-modal by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/722
+- fix: lektorat-trigger-buttons-as-icon-only-toggles by @deleonio in https://github.com/deleonio/priority-pilot/pull/724
+- fix(ci): doppelte YAML-Keys im Documenter-Workflow entfernen by @deleonio in https://github.com/deleonio/priority-pilot/pull/726
+- feat(frontend): tabs responsive for mobile viewports by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/705
+- test: rote Spec-Tests für 727 (Range-Inputs Layout) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/732
+- docs(issue-731): spec for memory artifact verification by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/741
+- feat(issue-728): Checklist-Abstandsoptimierung by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/737
+- ci(spec-sync): create non-draft PRs with ai:needs-review via app token by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/739
+- feat(ux): ux-beratung als phase 2b by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/740
+- feat(issue-734): UI-Bezug Klassifizierung im Triage-Workflow by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/744
+- feat(issue-735): UX-Phase in Phasen-Workflow integrieren by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/745
+- docs(issue-736): UX-Phase in Doku integrieren by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/746
+- docs(issue-738): add verification and migration runbook by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/747
+- fix(ci): load issue memory in triage and let review write memory notes by @deleonio in https://github.com/deleonio/priority-pilot/pull/748
+- feat(frontend): add free models selection component by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/743
+- feat(issue-750): seven sequential pipeline phases, optional ux before spec by @deleonio in https://github.com/deleonio/priority-pilot/pull/759
+- docs(guide): Ist-Stand-Sync 2026-08-17 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/760
+- chore(spec): remove obsolete issue-638 spec by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/766
+- docs(spec): issue-639 — Ist-Stand-Sync 2026-08-17 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/767
+- docs(spec): remove issue-641 spec — sync resolved tickets 2026-08-17 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/768
+- docs(spec): issue-656 entfernen — Ist-Stand-Sync 2026-08-17 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/769
+- docs(spec): remove issue-659 spec — ist-stand-sync 2026-08-17 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/770
+- docs(spec): remove issue-669 spec — 2026-08-17 sync by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/771
+- docs(spec): remove issue-671 spec after implementation merged by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/772
+- docs(spec): remove issue-672 — status sync 2026-08-17 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/773
+- docs(spec): issue-679 — Ist-Stand-Sync 2026-08-17 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/774
+- docs(spec): issue-692 — Ist-Stand-Sync 2026-08-17 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/775
+- docs(spec): issue-703 — Ist-Stand-Sync 2026-08-17 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/776
+- docs(spec): issue-718 — status-sync 2026-08-17 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/778
+- docs(spec): issue-733 — Ist-Stand-Sync 2026-08-17 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/782
+- docs(spec): issue-735 — nightly spec sync 2026-08-17 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/783
+- test: In-Flight-Guard auf 4 Labels erweitern (Issue #818) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/821
+- docs: mobile-ui-ruleset as binding reference in ux and implementation by @deleonio in https://github.com/deleonio/priority-pilot/pull/825
+- fix(issue-813): mermaid syntax fix in pipeline-flow.md by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/815
+- docs(guide): Ist-Stand-Sync 2026-08-17 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/814
+- feat(ci): add structured decision-findings to ai:needs-human comments by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/830
+- feat(llm): compact LLM settings menu with inline delete buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/810
+- chore: integrate impeccable design skill into CI phases by @deleonio in https://github.com/deleonio/priority-pilot/pull/829
+- chore(deps): pin dependencies by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/811
+- chore(deps): update dependency flatted to v3.4.4 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/812
+- feat(issue-824): kolibri-test-guard by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/826
+- chore(workflows): switch spec-sync to guide-sync delivery model by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/820
+- docs(ci-arch): Spec-Sync-Mechanik auf Sammel-PR-Modell umgestellt by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/836
+- feat(issue-823): kolibri-mcp and playwright layout integration by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/837
+- feat(issue-763): implement responsive layout for pillar weights by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/789
+- fix(ci): dead pnpm filter to server in CI workflows by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/841
+- feat(issue-761): layout optimization title/description/actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/790
+- feat(issue-845): implement geolocation tracking with 5-minute interval and settings toggle by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/846
+- docs(ci-architecture): clarify spec-sync replaced earlier file-based model by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/849
+- feat(issue-831): KoliBri-MCP in UX-Phase integrieren by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/835
+- fix(frontend): right-align actions and fill field widths by @deleonio in https://github.com/deleonio/priority-pilot/pull/850
+- feat(787): header layout and model selector in toolbar by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/809
+- test(e2e): Fokus-Lande-Erkennung der Lösch-Dialog-Tab-Tests fixen by @deleonio in https://github.com/deleonio/priority-pilot/pull/864
+- chore(ci): run e2e jobs in Playwright docker image by @deleonio in https://github.com/deleonio/priority-pilot/pull/859
+- refactor(ci): unify pipeline labels to ai:needs-* triggers and ai:<past> done labels by @deleonio in https://github.com/deleonio/priority-pilot/pull/858
+- feat(866): Reverse geocoding for geo-location setting by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/868
+- feat(861): OpenRouter context length integration by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/863
+- chore(skills): move PR review kreuzverhoer into skill by @deleonio in https://github.com/deleonio/priority-pilot/pull/869
+- feat(ci): require verifiable explanation comments before ai:needs-human by @deleonio in https://github.com/deleonio/priority-pilot/pull/872
+- refactor(ci): remove unused Done-Labels, consolidate phase triggers by @deleonio in https://github.com/deleonio/priority-pilot/pull/875
+- fix(docs): update all references from priority-pilot to server by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/842
+- docs(spec): spec sync - cleanup completed specs and update user journeys by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/877
+- fix(issue-843): settings screen layout spacing and typography by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/844
+- feat(issue-862): model and context size in ModelSelectionDialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/870
+- chore(guide-sync): Vermenschlichen-Schreibregeln in Claude-Prompt aufnehmen by @deleonio in https://github.com/deleonio/priority-pilot/pull/876
+- fix(ci): retry mergeable-unknown in gate and add hourly gate sweep by @deleonio in https://github.com/deleonio/priority-pilot/pull/880
+- feat(issue-862): deliver contextLength and modelSize from free-models API by @deleonio in https://github.com/deleonio/priority-pilot/pull/881
+- docs(issue-840): fix stale priority-pilot references in comments by @deleonio in https://github.com/deleonio/priority-pilot/pull/882
+- feat(ci): structured decision template with stable option IDs by @deleonio in https://github.com/deleonio/priority-pilot/pull/884
+- feat(ci): trigger re-triage on ai:analysed label removal by @deleonio in https://github.com/deleonio/priority-pilot/pull/885
+- chore(ci): always merge target branch into PR branch before fixup runs by @deleonio in https://github.com/deleonio/priority-pilot/pull/878
+- feat(ux): Design language 'Cockpit' as token layer + UX-first audit by @deleonio in https://github.com/deleonio/priority-pilot/pull/848
+- feat(issue-865): remove avatar and user full name by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/871
+- chore(ci): remove documenter sweep by @deleonio in https://github.com/deleonio/priority-pilot/pull/889
+- test(frontend): assert observable outcomes in useGeolocation tests by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/891
+- chore(ci): start triage only via ai:needs-analyse label by @deleonio in https://github.com/deleonio/priority-pilot/pull/898
+- fix(ci): Label-Races der PR-Pipeline via atomarer Transition schließen by @deleonio in https://github.com/deleonio/priority-pilot/pull/899
+- fix(settings): keep save button inside viewport on llm settings tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/890
+- fix(ci): move target-merge before start-consume in fixup-phase-6 by @deleonio in https://github.com/deleonio/priority-pilot/pull/901
+- feat(ci): zai-timeout-fallback 08-12 berlin by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/895
+- feat(issue-894): Continue-Sweep – hängende Pipeline-Phasen alle 6h fortführen (00:05/06:05/12:05/18:05 Berlin) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/900
+- feat(agents): check the persistent agent memory into Git by @deleonio in https://github.com/deleonio/priority-pilot/pull/907
+- feat(harness): Kosten-Baseline + Modellwahl je Subtask (Schritt 0 & 1) by @deleonio in https://github.com/deleonio/priority-pilot/pull/911
+- feat(harness): Analyse liefert Umsetzungskontext + Hard Stop bei Uneindeutigkeit (Schritt 2) by @deleonio in https://github.com/deleonio/priority-pilot/pull/913
+- feat(harness): Spec-Phase überspringbar, wo sie keinen Vertrag liefern kann (Schritt 3) by @deleonio in https://github.com/deleonio/priority-pilot/pull/914
+- docs(adr): ADR 0004 — Analyse-getriebenes Routing by @deleonio in https://github.com/deleonio/priority-pilot/pull/915
+- fix(setup-claude): Tailscale Exit-Node nur für zai/openrouter by @deleonio in https://github.com/deleonio/priority-pilot/pull/918
+- fix(ci): Claude-CLI-Bereitstellung verifizieren statt Cache vertrauen by @deleonio in https://github.com/deleonio/priority-pilot/pull/924
+- fix(harness): pr-for-issue-Fallback verlangt ein Closing-Keyword statt Volltextsuche by @deleonio in https://github.com/deleonio/priority-pilot/pull/925
+- feat(frontend): Avatar im Header ganz rechts positionieren (#912) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/926
+- docs(guide): sync user guide to current implementation 2026-08-20 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/928
+- docs(guide): sync user guide with current implementation 2026-08-20 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/937
+- feat(harness): Kosten-Baseline eines Tickets aus den Artefakten aggregieren by @deleonio in https://github.com/deleonio/priority-pilot/pull/939
+- docs: record cost baseline of reference run #912 by @deleonio in https://github.com/deleonio/priority-pilot/pull/940
+- feat(frontend): make kolibri host backgrounds transparent by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/938
+- feat(frontend): manual geolocation refresh with address timestamp by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/958
+- feat(frontend): integrate model selector into toolbar by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/957
+- feat(frontend): fix desktop column widths of completed tasks table by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/964
+- feat(frontend): icon-only model button, always visible, third in toolbar by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/966
+- feat(frontend): use textarea for pillar description and cap name at 30 chars by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/963
+- fix(frontend): distinguish session 401 from ai config 401 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/959
+- feat(tests): integrate @axe-core/playwright for E2E accessibility tests by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/903
+- feat(ci): auto re-arm transient fixup crash exactly once (issue 960) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/967
+- test: rote Spec-Tests für #968 — Tab-Leisten nebeneinander (auch mobil) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/973
+- docs(spec): sync specs to implemented state 2026-08-24 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/975
+- chore(deps): pin dependencies by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/976
+- chore(deps): update dependency js-yaml@4 to v4.3.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/977
+- feat(harness): add already-done fixup verdict to return finished PRs to review by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/970
+- docs(guide): sync user guide with implementation state 2026-08-24 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/979
+- fix(frontend): symmetric horizontal padding on settings general tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/974
+- fix(ci): filter unrecognized_model noise from needs-human logtail by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/980
+- feat(llm)!: single active llm provider with radio button selection by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/953
+- chore(ci): issue storage via state branches instead of artifacts by @deleonio in https://github.com/deleonio/priority-pilot/pull/981
+- fix(e2e): limit ak2 error-code assertion to the kol alert by @deleonio in https://github.com/deleonio/priority-pilot/pull/986
+- feat(harness): provider-agnostic cost valuation via model classes + turn tracking by @deleonio in https://github.com/deleonio/priority-pilot/pull/985
+- feat(harness): seal per-ticket costs into repo via documenter by @deleonio in https://github.com/deleonio/priority-pilot/pull/987
+- feat(frontend): switch row layout in settings general tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/983
+- feat(frontend): #972 unify LLM tab layout and KolIcon key-clear button by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/988
+- feat(frontend): min 300px input range width, dedupe pillar description by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/989
+- fix(harness): cost seal via contents api and standalone catch-up job by @deleonio in https://github.com/deleonio/priority-pilot/pull/990
+- fix(ci): use state==MERGED in catch-up guard since merged is no gh json field by @deleonio in https://github.com/deleonio/priority-pilot/pull/991
+- feat(harness): Kosten-Übersicht — repo-weiter Report aus .costs/ by @deleonio in https://github.com/deleonio/priority-pilot/pull/992
+- feat(llm): configurable llm providers with fixed built-ins by @deleonio in https://github.com/deleonio/priority-pilot/pull/994
+- feat(harness): cap fixup rounds at 3 before escalating to human by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/995
+- feat(css): mobile layout für pillar-row (Issue #996) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/998
+- fix(frontend): repair pillar-row e2e setup and dead css selector by @deleonio in https://github.com/deleonio/priority-pilot/pull/1001
+- fix(ux): replace broken icon and add consistent alignment for lectorate buttons (#997) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1000
+- feat(llm): mistral fallback catalog, required custom model, radio labels by @deleonio in https://github.com/deleonio/priority-pilot/pull/999
+- test: useGeolocation #933-AK3 auf Observable Outcomes umstellen (1003) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1006
+- fix(ci): move agent memory out of .claude/ and repair prompt placeholders by @deleonio in https://github.com/deleonio/priority-pilot/pull/1005
+- test(1004): E2E #930 AK2 um Keyboard-Tab-Fokus-Probe erweitern by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1007
+- fix(ci): use FETCH_HEAD as base for state.json merge by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1011
+- feat(llm): add per-provider test prompt and diagnosable upstream errors by @deleonio in https://github.com/deleonio/priority-pilot/pull/1012
+- fix(ci): count only new/changed notes + documenter note post-assertion by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1014
+- docs(spec): sync specs to actual state 2026-08-25 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1013
+- docs(guide): sync user guide to current app state 2026-08-25 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1015
+- feat(llm): surface provider cause and test status in readiness hint by @deleonio in https://github.com/deleonio/priority-pilot/pull/1016
+- feat(frontend): unify push test and geolocation action buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1018
+- fix(ci): make VERDICT parser ignore prose after token by @deleonio in https://github.com/deleonio/priority-pilot/pull/1019
+- fix(ci): Expression-Limit im Fixup-Label-Post-Step (Workflow galt bei jedem Push als ungültig) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1022
+- feat(ci): remove images from PRs and issues in documenter by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1023
+- refactor(prompts): dedupe phase prompts against knowledge base by @deleonio in https://github.com/deleonio/priority-pilot/pull/1026
+- feat(frontend): rebuild completed tasks table as KolTableStateful (#1020) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1024
+- Spec #1027: Vertikaler Abstand der Wald-Cards (rote Tests) (#1027) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1029
+- feat(frontend): padding and radius for kol-alert host (#1028) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1030
+- feat(frontend): improve pwa update/offline prompt tap targets and copy by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1035
+- feat(costs): price z.ai runs, sharpen turn-bundling rule by @deleonio in https://github.com/deleonio/priority-pilot/pull/1036
+- fix(frontend): make llm-provider action buttons responsive (#1037) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1038
+- docs(costs): Kosten-Report für Ticket #1037 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1039
+- docs(costs): Kosten-Report für Ticket #1034 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1040
+- docs(costs): Kosten-Optimierungsplan zur Senkung der LLM-Kosten um 50-66% by @deleonio in https://github.com/deleonio/priority-pilot/pull/1041
+- fix(ci): drei vorbestehende main-CI-Brüche beheben (Prettier, Spec-Skip-Fixture, Workflow-Name) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1046
+- fix(frontend): make dashboard start-task button content-width on desktop by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1044
+- ci(image-strip): add backfill for historical issues and prs by @deleonio in https://github.com/deleonio/priority-pilot/pull/1043
+- chore: translate agent harness instructions from german to english by @deleonio in https://github.com/deleonio/priority-pilot/pull/1050
+- feat(frontend): add search button with voice input to header toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1048
+- docs(spec): sync specs to current implementation state 2026-08-27 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1053
+- docs: sync user guide with the actual app state (2026-08-27) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1052
+- ci(review): review.md auf SKILL.md-Referenzen trimmen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1057
+- fix(frontend): unify header toolbar buttons and align mic button in search dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1054
+- docs(spec): Ist-Stand-Sync 2026-08-27 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1056
+- feat(frontend): auto-start voice recognition in search dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1059
+- feat(server): add task address field with forward geocoding search by @deleonio in https://github.com/deleonio/priority-pilot/pull/1061
+- feat(server): use mistral-small-latest as mistral default model by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1062
+- feat(server): add series address field and geo badges in lists by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1064
+- chore(ci): spec draft PR titles follow the issue title by @deleonio in https://github.com/deleonio/priority-pilot/pull/1065
+- feat(search): Fokus nach Suche im Filterfeld des Aufgaben-Tabs (#1067) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1069
+- ci(costs): add KPI header, weekly trend, share bars, direction table by @deleonio in https://github.com/deleonio/priority-pilot/pull/1068
+- chore(ci): move pipeline protocol from skills to .github/prompts by @deleonio in https://github.com/deleonio/priority-pilot/pull/1075
+- feat(frontend): show geo badge in task list (#1063) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1070
+- feat(frontend): group deadline fields in task form (#1072) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1074
+- feat(frontend): show address instead of raw coordinates in footer by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1076
+- feat(frontend): align update prompt bottom right on desktop (#1077) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1078
+- ci: harness-branch issue storage (ADR 0007) + adr-sync workflow by @deleonio in https://github.com/deleonio/priority-pilot/pull/1081
+- feat(frontend): make ai features disableable (#1080) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1082
+- feat(frontend): add nearby card with geo-distance task list by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1071
+- fix(#1085): disable quick-capture switch when ai is disabled by @deleonio in https://github.com/deleonio/priority-pilot/pull/1087
+- docs(spec): sync specs to current state 2026-08-28 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1088
+- ci(#1084): slim phase prompts via skill references (audit option 1) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1089
+- feat(frontend): fuzzy address search via photon, nominatim fallback by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1086
+- ci(prompts): remove skill duplicates from phase prompts (#1090) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1094
+- test(frontend): assert state in useAddressSearch debounce test by @deleonio in https://github.com/deleonio/priority-pilot/pull/1093
+- ci(prompts): Prompt-Audit auf Netto-Effizienz erweitern by @deleonio in https://github.com/deleonio/priority-pilot/pull/1096
+- fix(frontend): guarantee reload after PWA update confirmation (#1095) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1097
+- chore: add template-structure post-check after triage analysis by @deleonio in https://github.com/deleonio/priority-pilot/pull/1100
+- fix(security): rate limiting, csrf protection, workflow permissions by @deleonio in https://github.com/deleonio/priority-pilot/pull/1079
+- feat(frontend): server-side geo config, alarm distance, interval (#1098) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1103
+- refactor(frontend): unify delete dialogs in ConfirmDeleteDialog (#1106) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1108
+- feat(frontend): app routes for all menus via react router (#1105) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1107
+- docs: stub superseded adr 0006 in 2026-08-29 consolidation sync by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1109
+- fix(ci): gate-merge accepts skipping review checks by @deleonio in https://github.com/deleonio/priority-pilot/pull/1112
+- feat(server): notify users about nearby tasks via push (#1101) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1102
+- feat(frontend): show resolved coordinates in the task form (#1111) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1113
+- feat(frontend): nearby radius title and real distances (#1110) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1114
+- feat(ci): squash-merge pull requests in the auto-merge gate by @deleonio in https://github.com/deleonio/priority-pilot/pull/1115
+- feat(frontend): render dashboard sections as equal-height Kolibri cards by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1120
+- ci(pipeline): phase outputs live in the harness marker comment by @deleonio in https://github.com/deleonio/priority-pilot/pull/1122
+- feat(frontend): move geo badge next to task title (#1121) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1123
+- test(frontend): assert observable outcomes in useGeolocation (#1119) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1124
+- docs(spec): Ist-Stand-Sync 2026-08-30 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1128
+- refactor(server): central http error contract in one module (#1130) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1131
+- docs: sync user guide with implemented state (2026-08-30) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1129
+- refactor(frontend): drop legacy outer sections around dashboard widget cards by @deleonio in https://github.com/deleonio/priority-pilot/pull/1125
+- chore(ci): consolidate phase prompts per prompt audit (#1127) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1132
+- Ai/harness/1127 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1133
+- chore: reorganize scheduled workflows into cron.* groups by @deleonio in https://github.com/deleonio/priority-pilot/pull/1134
+- chore: rename all workflows with descriptive names by @deleonio in https://github.com/deleonio/priority-pilot/pull/1135
+- docs(guide): sync user guide with actual app behavior (2026-08-31) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1139
+- chore(fixup): close fixup loop gap for ambiguous findings (#1137) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1138
+- fix(deps): pin dependencies by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1140
+- chore(deps): update dependency js-yaml@4 to v4.3.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1141
+- chore(deps): update github actions (major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1147
+- fix(deps): update dependency connect-redis to v10 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1148
+- chore(deps): update dependency knip to v6 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1145
+- refactor(server): central auth and request test helpers (#1142) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1150
+- fix(auth): end endless spinner after Google authentication (#1136) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1149
+- feat(frontend): own standort tab for geo settings (#1151) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1152
+- docs(spec): sync specs to implemented state 2026-09-01 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1154
+- docs(guide): sync user guide to current app state (2026-09-01) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1155
+- ci(prompts): add thread-resolve command, label ban, and trim ux sources by @deleonio in https://github.com/deleonio/priority-pilot/pull/1156
+- fix(server): scope series routes to owner (data isolation) (#1157) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1158
+- chore(deps): update dependency tar to v7.5.22 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1163
+- chore(deps): pin dependencies by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1162
+- feat(frontend): add three-tier hierarchy to task form (#1159) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1160
+- chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1164
+- chore(deps): update dependency undici@6 to v6.28.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1165
+- chore(deps): update node.js to v26.8.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1166
+- feat(frontend): replace dashboard start button with done dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1170
+- chore(deps): update pnpm to v11.25.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1167
+- chore(deps): update dependency @evilmartians/lefthook to v2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1174
+- fix(deps): update dependency express-rate-limit to v8.7.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1171
+- chore(deps): update dependency @testing-library/jest-dom to v7 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1175
+- chore(deps): update dependency @tootallnate/once to v3 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1176
+- chore(deps): update dependency brace-expansion@2 to v5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1178
+- feat(frontend): add confetti success feedback on task completion by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1177
+- chore(deps): update dependency picomatch@2 to v4 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1180
+- feat(frontend): confetti when completing via dashboard signal panel (#1182) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1185
 - chore(deps): update dependency undici@6 to v8 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1191
 - feat(frontend): fix clipped focus outline in task popover (#1186) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1189
 - feat(frontend): master switch for animations (confetti default off) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1188
@@ -1130,4 +1726,8 @@ _Enthält v0.1.683 – v0.1.836._
 - feat(server): add task_delete mcp tool (#1396) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1400
 - feat(frontend): reactivate dark mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1394
 - fix(ci): daily-version Tages-Check nur bei (daily)-Tag greifen lassen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1401
+
+## v1.0 - 2026-06-24
+
+_Keine für Nutzer sichtbaren Änderungen._
 
