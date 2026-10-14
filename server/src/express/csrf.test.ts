@@ -65,6 +65,10 @@ describe('CSRF-Schutz (Produktionsmodus)', () => {
 			body: JSON.stringify({ email: 'test@example.com', password: 'stimmt-nicht' }),
 		});
 		assert.equal(res.status, 403);
+		// #2549 AK2: Fehlervertrag ist `{ message }`, nicht `{ error }` (Text unverändert).
+		const body = (await res.json()) as Record<string, unknown>;
+		assert.equal(body.message, 'Ungültiger CSRF-Token.');
+		assert.equal(body.error, undefined);
 	});
 
 	// Die Android-App ruft vor der Anmeldung ohne Cookies auf (ADR 0023); ohne Ausnahme scheiterte jeder Login mit 403.

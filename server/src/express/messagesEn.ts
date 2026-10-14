@@ -136,6 +136,7 @@ const EXAKT: Record<string, string> = {
 	'Unbekannte Kalender-Art.': 'Unknown calendar type.',
 	'Unbekanntes Abo-Produkt.': 'Unknown subscription product.',
 	'Ungültige Zugangsdaten.': 'Invalid credentials.',
+	'Ungültige Anfrage.': 'Invalid request.',
 	'Ungültiger Anzeigename: erforderlich, 1 bis 60 Zeichen (Leerzeichen am Rand werden entfernt).':
 		'Invalid display name: required, 1 to 60 characters (leading and trailing spaces are removed).',
 	'Ungültiger CSRF-Token.': 'Invalid CSRF token.',

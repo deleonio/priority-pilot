@@ -578,8 +578,10 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 		it('GET /auth/error bleibt als API-Fallback erhalten (rohes JSON 400)', async () => {
 			const res = await fetch(`${server.baseUrl}/auth/error`);
 			assert.equal(res.status, 400);
+			// #2549 AK3: Fehlervertrag ist `{ message }`, nicht `{ error }` (Text unverändert).
 			const body = (await res.json()) as Record<string, unknown>;
-			assert.ok(body.error, 'Fallback sollte ein JSON-Fehlerfeld liefern');
+			assert.equal(body.message, 'Login fehlgeschlagen. Bitte prüfe deine Zugangsberechtigung.');
+			assert.equal(body.error, undefined);
 		});
 	});
 
