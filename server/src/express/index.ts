@@ -87,7 +87,7 @@ import { nativeCors } from './nativeCors.js';
 import { translateMessages } from './messagesEn.js';
 import { createCsrfUtilities } from './csrf.js';
 import { upsertOAuthUser } from '../logics/oauthUser.js';
-import { sendError } from './http-error.js';
+import { errorHandler, sendError } from './http-error.js';
 
 type TaskTreeNodeDto = components['schemas']['TaskTreeNode'];
 type TaskGraphDto = components['schemas']['TaskGraph'];
@@ -475,7 +475,9 @@ export const createApp = (deps: AppDeps = {}) => {
 			const userId = getUserId(req);
 			const scope = await taskReadScope(userId, (await resolveGeoUser(req))?.id ?? null);
 			res.json(await buildTaskForest(userId, scope));
-		} catch {
+		} catch (error) {
+			// #2549 AK4: Fehler loggen (Methode, Pfad, Fehlermeldung), bevor die 500 geht.
+			console.error(`${req.method} ${req.originalUrl}`, error);
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	});
@@ -485,7 +487,8 @@ export const createApp = (deps: AppDeps = {}) => {
 	app.get('/graph', async (req, res: express.Response<TaskGraphDto | ErrorDto>) => {
 		try {
 			res.json(await buildTaskGraph(getUserId(req)));
-		} catch {
+		} catch (error) {
+			console.error(`${req.method} ${req.originalUrl}`, error);
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	});
@@ -522,7 +525,8 @@ export const createApp = (deps: AppDeps = {}) => {
 					? { ...serializeTask(next.task), scoreBreakdown: toScoreBreakdown(next), ...(reasons ? { reasons } : {}) }
 					: null,
 			);
-		} catch {
+		} catch (error) {
+			console.error(`${req.method} ${req.originalUrl}`, error);
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	});
@@ -532,10 +536,15 @@ export const createApp = (deps: AppDeps = {}) => {
 		try {
 			const liste = await findSuggestedBewertungen(getUserId(req));
 			res.json(liste.map((eintrag) => ({ ...serializeTask(eintrag.task), scoreBreakdown: toScoreBreakdown(eintrag) })));
-		} catch {
+		} catch (error) {
+			console.error(`${req.method} ${req.originalUrl}`, error);
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	});
+
+	// Globaler Fehlerhandler (#2549 AK1) — letzte Middleware: fängt alle vorher nicht behandelten
+	// Fehler (async Rejections, next(err)) und antwortet 500 + `{ message }` + Log-Eintrag.
+	app.use(errorHandler);
 
 	return app;
 };

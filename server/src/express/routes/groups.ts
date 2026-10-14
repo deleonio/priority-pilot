@@ -147,7 +147,8 @@ groupsRouter.post('/groups', requirePlanFeature('groups'), async (req: Request, 
 			return group;
 		});
 		res.status(201).json(await toDto(created, 'admin'));
-	} catch {
+	} catch (error) {
+		console.error(`${req.method} ${req.originalUrl}`, error);
 		sendError(res, 500, 'Interner Serverfehler.');
 	}
 });

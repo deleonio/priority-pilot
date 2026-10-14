@@ -264,7 +264,7 @@ const signedInCookieOptions = { path: '/', sameSite: 'lax', secure: process.env.
 
 // GET /auth/error — Ziel des OAuth-failureRedirect, liefert eindeutiges Fehler-Feedback statt SPA-Fallback/404.
 authRouter.get('/auth/error', (_req, res) => {
-	res.status(400).json({ error: 'Login fehlgeschlagen. Bitte prüfe deine Zugangsberechtigung.' });
+	res.status(400).json({ message: 'Login fehlgeschlagen. Bitte prüfe deine Zugangsberechtigung.' });
 });
 
 // Guard: passport.authenticate('google') darf nur laufen, wenn die 'google'-Strategie registriert
@@ -273,7 +273,7 @@ authRouter.get('/auth/error', (_req, res) => {
 // Prädikat (hasGoogleOAuth) steuert Registrierung UND Guard, sodass beide nie auseinanderlaufen.
 const requireGoogleStrategy: RequestHandler = (_req, res, next) => {
 	if (!hasGoogleOAuth()) {
-		res.status(503).json({ error: 'Google-OAuth ist nicht konfiguriert.' });
+		res.status(503).json({ message: 'Google-OAuth ist nicht konfiguriert.' });
 		return;
 	}
 	next();

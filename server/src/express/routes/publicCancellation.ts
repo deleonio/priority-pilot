@@ -225,7 +225,8 @@ export const createPublicCancellationRouter = (deps: PublicCancellationDeps = {}
 		}
 		try {
 			await checkout.cancel(subscription.externalSubscriptionId);
-		} catch {
+		} catch (error) {
+			console.error(`${req.method} ${req.originalUrl}`, error);
 			// Kündigung nicht erfolgt — der Link bleibt für einen neuen Versuch gültig.
 			await CancellationToken.update({ usedAt: null }, { where: { id: row.id } });
 			sendError(res, 502, 'PayPal war nicht erreichbar.');

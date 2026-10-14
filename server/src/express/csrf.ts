@@ -32,7 +32,7 @@ export const createCsrfUtilities = (sessionSecret: string) => {
 	// csrf-csrf lehnt mit invalidCsrfTokenError ab — ohne diesen Handler würde Express daraus ein 500.
 	const csrfErrorHandler: ErrorRequestHandler = (err, _req, res, next) => {
 		if (err === invalidCsrfTokenError) {
-			res.status(403).json({ error: 'Ungültiger CSRF-Token.' });
+			res.status(403).json({ message: 'Ungültiger CSRF-Token.' });
 			return;
 		}
 		next(err);
