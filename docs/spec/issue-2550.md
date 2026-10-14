@@ -4,7 +4,7 @@
 
 ## Ziel
 
-Jeder Intervall-Job, der über den generischen Intervall-Starter (`startCalendarSyncScheduler`, `server/src/scheduler/index.ts`) gestartet wird, loggt Fehler unter seinem **eigenen** Namen — nicht unter dem festen Text `Kalender-Abruf fehlgeschlagen:`. Wirft der Kulanzfrist-Sweep, nennt die Fehlerzeile den Sweep (Billing), nicht den Kalender-Abruf.
+Jeder Intervall-Job, der über den generischen Intervall-Starter (`startIntervalScheduler`, `server/src/scheduler/index.ts`) gestartet wird, loggt Fehler unter seinem **eigenen** Namen — nicht unter dem festen Text `Kalender-Abruf fehlgeschlagen:`. Wirft der Kulanzfrist-Sweep, nennt die Fehlerzeile den Sweep (Billing), nicht den Kalender-Abruf.
 
 ## Voraussetzungen
 

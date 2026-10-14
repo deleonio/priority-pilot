@@ -13,7 +13,9 @@ describe('startIntervalScheduler (#2550)', () => {
 
 	beforeEach(() => {
 		errorMock = mock.method(console, 'error', () => {});
-		mock.timers.enable({ apis: ['setInterval', 'clearInterval'] });
+		// 'clearInterval' ist in node:test mock.timers keine gültige API (ERR_INVALID_ARG_VALUE,
+		// Node 26) — gemockte Intervalle lassen sich via clearInterval() direkt beenden.
+		mock.timers.enable({ apis: ['setInterval'] });
 	});
 
 	afterEach(() => {

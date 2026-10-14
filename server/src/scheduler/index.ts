@@ -132,12 +132,17 @@ export const startDeadlineAutoDeleteScheduler = (
 };
 
 /**
- * Startet den Kalender-Abruf (#2209) im festen Intervall — push-unabhängig und ohne Tagesstunde,
- * anders als {@link wireTicker}. Ein fehlschlagender Lauf wird protokolliert, der Timer läuft weiter.
+ * Startet einen Intervall-Job im festen Intervall — push-unabhängig und ohne Tagesstunde,
+ * anders als {@link wireTicker}. Ein fehlschlagender Lauf wird unter dem Job-eigenen `label`
+ * protokolliert (#2550), der Timer läuft weiter.
  */
-export const startCalendarSyncScheduler = (trigger: SchedulerTrigger, intervalMs: number): SchedulerHandle => {
+export const startIntervalScheduler = (
+	label: string,
+	trigger: SchedulerTrigger,
+	intervalMs: number,
+): SchedulerHandle => {
 	const interval = setInterval(() => {
-		trigger(new Date()).catch((error) => console.error('Kalender-Abruf fehlgeschlagen:', error));
+		trigger(new Date()).catch((error) => console.error(`${label} fehlgeschlagen:`, error));
 	}, intervalMs);
 	interval.unref();
 	return { stop: () => clearInterval(interval) };
