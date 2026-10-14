@@ -276,4 +276,51 @@ describe('MCP-Endpunkt /mcp/v1 — Dialog-Vorgaben (#1935)', () => {
 		const denied = await rpc(token, 'tools/call', { name: 'task_create', arguments: { title: 'x' } });
 		assert.match(denied.error?.message ?? '', /writes data, but this token allows read access only/);
 	});
+
+	// #2554 AK5 (Spec docs/spec/issue-2554.md): Bestandsvertrag für die ungültige Nachricht — die
+	// Tests pinnen -32600 und die 202-Quittung, BEVOR die `as JsonRpcRequest`-Assertion entfernt wird
+	// (deshalb sofort grün, kein Rot).
+	const rpcRaw = async (token: string, payload: unknown): Promise<Response> =>
+		fetch(`${server.baseUrl}/mcp/v1`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Accept: 'application/json, text/event-stream',
+				Authorization: `Bearer ${token}`,
+			},
+			body: JSON.stringify(payload),
+		});
+
+	it('#2554 AK5: jsonrpc !== "2.0" liefert Fehlercode -32600 mit bestmöglicher id', async () => {
+		const cookie = await server.register('mcp-h@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const res = await rpcRaw(token, { jsonrpc: '1.0', id: 7, method: 'tools/list', params: {} });
+		const body = (await res.json()) as { error?: { code?: number }; id?: unknown };
+		assert.equal(body.error?.code, -32600);
+		assert.equal(body.id, 7, 'id wird bestmöglich aus dem Body übernommen');
+	});
+
+	it('#2554 AK5: method ohne string liefert -32600, gültige Methoden bleiben unveraendert', async () => {
+		const cookie = await server.register('mcp-h@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const bad = (await (await rpcRaw(token, { jsonrpc: '2.0', id: 1, method: 123, params: {} })).json()) as {
+			error?: { code?: number };
+		};
+		assert.equal(bad.error?.code, -32600);
+
+		const list = (await (await rpcRaw(token, { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} })).json()) as {
+			result?: unknown;
+		};
+		assert.ok(list.result, 'tools/list liefert weiter ein result');
+	});
+
+	it('#2554 AK5: Notification ohne id bleibt stille 202-Quittung', async () => {
+		const cookie = await server.register('mcp-h@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const res = await rpcRaw(token, { jsonrpc: '2.0', method: 'notifications/initialized' });
+		assert.equal(res.status, 202);
+	});
 });
