@@ -8,7 +8,7 @@ G = Guthaben (`creditCents`), P = Katalogpreis `getPlansCatalog().prices[plan][p
 
 - `paypalProvider.ts` (`applyEvent`, ACTIVATED-Zweig): `replacePredecessors` nur bei `coversFirstCycle(subscription)` (#2230).
 - `paypal.ts`, `chargesOnActivation`: `G > 0 && !coversFirstCycle(subscription)` — der `G > 0`-Guard bleibt an der Stelle (kein Preisvergleich; ohne Guthaben aktiviert das Upgrade weiterhin sofort, #2238/#2049).
-- `billingSubscriptions.ts`, Change-Preview: Carry-Entscheidung (#2241) über `coversFirstCycle(subscription)` statt eigenem `creditCents >= price`.
+- `billingSubscriptions.ts`, Change-Preview: Carry-Entscheidung (#2241) über `coversFirstCycle(subscription, { amountCents, plan, period })` statt eigenem `creditCents >= price` — die Preview rechnet das Guthaben erst (Proration), daher die explizite Übergabe.
 
 Preisquelle bleibt die live gelesene Preisliste (`getPlansCatalog()`) — keine Snapshots. Beobachtbares Verhalten bleibt identisch; die Tests sichern den Grenzfall als Spiegel zwischen den Stellen.
 

@@ -8,7 +8,7 @@ import { getUserId } from '../requireAuth.js';
 import { sendError, parseId, type ErrorDto } from '../http-error.js';
 import { createPaypalProvider, type PaypalProviderDeps } from '../../logics/billing/paypalProvider.js';
 import { rankOf } from '../../logics/billing/lifecycle.js';
-import { PaypalHttpError, PERIOD_MONTHS } from '../../logics/paypal.js';
+import { PaypalHttpError, PERIOD_MONTHS, coversFirstCycle } from '../../logics/paypal.js';
 import { getPlansCatalog, PLAN_VALUES, type Plan } from '../../logics/plans.js';
 import { prorateUpgrade } from '../../logics/proration.js';
 import { notifyAdminsOfExtraordinaryCancellation } from '../../logics/cancellationMail.js';
@@ -459,7 +459,9 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			const { creditCents, firstCycleCents } = upgradeProration(subscription, body.plan, body.period, now);
 			const price = getPlansCatalog().prices[body.plan][body.period];
 			// #2241: deckt das Guthaben volle Zyklen, nennt die Vorschau, bis wann — und die Gebühr P − r, die bei der Zustimmung fällig wird.
-			const carry = creditCents >= price ? creditCarryover(creditCents, price, body.period, now) : undefined;
+			const carry = coversFirstCycle(subscription, { amountCents: creditCents, plan: body.plan, period: body.period })
+				? creditCarryover(creditCents, price, body.period, now)
+				: undefined;
 			res.status(200).json({
 				priceCents: price,
 				creditCents,

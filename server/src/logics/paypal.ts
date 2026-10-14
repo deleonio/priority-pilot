@@ -516,13 +516,29 @@ export const replacePredecessors = async (
 };
 
 /**
+ * Die eine Regel „Guthaben deckt den ersten Zyklus“ (#2556): das Guthaben deckt, sobald es den
+ * Preis erreicht — der Grenzfall Guthaben = Preis deckt mit. Ohne Angabe zählen die eigenen
+ * Spalten; im Wechsel (#2241-Preview) das gerechnete Prorations-Guthaben samt Zielplan.
+ */
+export const coversFirstCycle = (
+	subscription: Subscription,
+	credit?: { amountCents: number; plan: Plan; period: BillingPeriod },
+): boolean => {
+	const creditCents = credit?.amountCents ?? (subscription.get('creditCents') as number);
+	const price =
+		getPlansCatalog().prices[credit?.plan ?? (subscription.get('plan') as Plan)][
+			credit?.period ?? (subscription.get('period') as BillingPeriod)
+		];
+	return creditCents >= price;
+};
+
+/**
  * Ob die Bestätigung des Abos sofort abbucht: nur ein Upgrade-Abo (#1912), dessen Guthaben den
  * ersten Zyklus nicht deckt (#2238) — bis zum Zahlungseingang bleibt es ausstehend.
  */
 const chargesOnActivation = (subscription: Subscription): boolean => {
 	const creditCents = subscription.get('creditCents') as number;
-	const price = getPlansCatalog().prices[subscription.get('plan') as Plan];
-	return creditCents > 0 && price[subscription.get('period') as keyof typeof price] > creditCents;
+	return creditCents > 0 && !coversFirstCycle(subscription);
 };
 
 /** Injizierbare Abhängigkeiten von {@link applyPaymentEvent} (Muster `deps` in `billing.ts`). */

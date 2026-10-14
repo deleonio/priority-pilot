@@ -426,10 +426,12 @@ describe('Regel „Guthaben deckt den ersten Zyklus“ an einer Stelle (#2556, S
 		return Subscription.create({
 			userId: user.id,
 			provider: 'paypal',
-			externalSubscriptionId: 'I-2556',
+			externalSubscriptionId: `I-2556-${Math.random()}`,
 			plan: 'pro',
 			period: 'monthly',
 			status: 'approval_pending',
+			// Pflichtspalte (allowNull: false, subscription.ts) — für den Regelvergleich ohne Bedeutung.
+			currentPeriodEnd: NOW,
 			creditCents,
 		});
 	};

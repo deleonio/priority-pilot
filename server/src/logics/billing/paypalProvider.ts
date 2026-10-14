@@ -1,9 +1,9 @@
 import type { MailSender } from '../mail.js';
 import { issueCreditNote, issueInvoiceForPeriod } from '../invoices.js';
-import { getPlansCatalog, type Plan } from '../plans.js';
 import {
 	applyPaymentEvent,
 	applyPlanChange,
+	coversFirstCycle,
 	createPaypalClient,
 	paypalPlanIdFor,
 	PERIOD_MONTHS,
@@ -13,15 +13,7 @@ import {
 	type PaypalVerifier,
 	type PaypalWebhookEvent,
 } from '../paypal.js';
-import type Subscription from '../../models/subscription.js';
 import type { BillingProvider, WebCheckout } from './provider.js';
-
-/** Ob das Guthaben den ersten Zyklus ganz deckt (#2230): Dann gilt ACTIVATED bereits als Zahlung. */
-const coversFirstCycle = (subscription: Subscription): boolean => {
-	const creditCents = subscription.get('creditCents') as number;
-	const price = getPlansCatalog().prices[subscription.get('plan') as Plan];
-	return creditCents >= price[subscription.get('period') as keyof typeof price];
-};
 
 /** Injizierbare Teile; ohne Angabe gelten die echten PayPal-Aufrufe. */
 export interface PaypalProviderDeps {
