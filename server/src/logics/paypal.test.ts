@@ -1,7 +1,16 @@
 import { describe, it, mock, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { verifyWebhookSignature, isGracePeriodExpired, createPaypalClient, assertPaypalConfig } from './paypal.js';
-import { PAYPAL_PLAN_IDS } from './plans.js';
+import {
+	verifyWebhookSignature,
+	isGracePeriodExpired,
+	createPaypalClient,
+	assertPaypalConfig,
+	applyPaymentEvent,
+	coversFirstCycle,
+} from './paypal.js';
+import { PAYPAL_PLAN_IDS, getPlansCatalog } from './plans.js';
+import { Subscription, User } from '../models/index.js';
+import { resetDb, closeDb } from '../test/helpers.js';
 
 /**
  * Rote Spec-Tests für #1495 (Spec docs/spec/issue-1495.md) — Webhook-Signaturprüfung (AK2) und
@@ -394,5 +403,56 @@ describe('paypal.ts — Fetch-Zeitlimit-Abbruch (#2546 AK2)', () => {
 			Date.now() - start < 1000,
 			`Abbruch muss bei PAYPAL_TIMEOUT_MS=100 unter 1 s erfolgen, dauerte ${Date.now() - start} ms`,
 		);
+	});
+});
+
+describe('Regel „Guthaben deckt den ersten Zyklus“ an einer Stelle (#2556, Spec docs/spec/issue-2556.md)', () => {
+	const NOW = new Date('2026-11-15T00:00:00Z');
+
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		await closeDb();
+	});
+
+	const seed = async (creditCents: number) => {
+		const user = await User.create({
+			email: `u-2556-${Math.random()}@example.com`,
+			displayName: 'U',
+			passwordHash: 'x',
+			plan: 'pro',
+		});
+		return Subscription.create({
+			userId: user.id,
+			provider: 'paypal',
+			externalSubscriptionId: `I-2556-${Math.random()}`,
+			plan: 'pro',
+			period: 'monthly',
+			status: 'approval_pending',
+			// Pflichtspalte (allowNull: false, subscription.ts) — für den Regelvergleich ohne Bedeutung.
+			currentPeriodEnd: NOW,
+			creditCents,
+		});
+	};
+
+	it('AK2/TF2: coversFirstCycle — Guthaben = Preis → true, 1 ct darunter → false, Guthaben 0 → false', async () => {
+		const price = getPlansCatalog().prices.pro.monthly;
+		assert.equal(coversFirstCycle(await seed(price)), true, 'Grenzfall: exakt der Preis deckt den ersten Zyklus');
+		assert.equal(coversFirstCycle(await seed(price - 1)), false, '1 ct unter dem Preis deckt nicht');
+		assert.equal(coversFirstCycle(await seed(0)), false, 'ohne Guthaben deckt nichts');
+	});
+
+	it('AK1/TF1: ACTIVATED mit Guthaben exakt zum Preis aktiviert sofort — kein Warten auf den Zahlungseingang', async () => {
+		const subscription = await seed(getPlansCatalog().prices.pro.monthly);
+
+		await applyPaymentEvent(
+			subscription,
+			{ event_type: 'BILLING.SUBSCRIPTION.ACTIVATED', resource: { id: 'I-2556' } },
+			NOW,
+		);
+
+		await subscription.reload();
+		assert.equal(subscription.get('status'), 'active', 'Grenzfall Guthaben = Preis deckt: Aktivierung ohne Zahlung');
 	});
 });
