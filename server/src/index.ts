@@ -163,7 +163,7 @@ export const main = async (): Promise<void> => {
 		const { cleanupOrphanedGroupInvitations } = await import('./logics/groupInvitationCleanup.js');
 		const { sendStartupStatusMail } = await import('./logics/startupStatusMail.js');
 		const { launchServer } = await import('./express/index.js');
-		const { startScheduler, startDeadlineAutoDeleteScheduler, startCalendarSyncScheduler } =
+		const { startScheduler, startDeadlineAutoDeleteScheduler, startIntervalScheduler } =
 			await import('./scheduler/index.js');
 
 		// Fehlende Serien-Spalten auf einer Bestands-DB nachziehen, BEVOR sync() den Unique-Index
@@ -342,19 +342,20 @@ export const main = async (): Promise<void> => {
 		startDeadlineAutoDeleteScheduler([runDeadlineAutoDelete]);
 
 		// Kalender-Abruf per ICS (#2209) — alle 30 Minuten, unabhängig von Push.
-		startCalendarSyncScheduler(runCalendarSync, CALENDAR_SYNC_INTERVAL_MS);
+		startIntervalScheduler('Kalender-Abruf', runCalendarSync, CALENDAR_SYNC_INTERVAL_MS);
 
 		// Serien automatisch anlegen (#2356) — einmal beim Start, danach täglich; push-unabhängig, idempotent.
 		const { runSeriesAutoCreate } = await import('./logics/seriesAutoCreate.js');
 		void runSeriesAutoCreate(new Date()).catch((error) => console.error('Serien-Automatik fehlgeschlagen.', error));
-		startCalendarSyncScheduler(runSeriesAutoCreate, 24 * 60 * 60 * 1000);
+		startIntervalScheduler('Serien-Automatik', runSeriesAutoCreate, 24 * 60 * 60 * 1000);
 
 		// Kulanzfrist-Ablauf (#2234) — entzieht das Paket und kündigt das PayPal-Abo auch ohne Login;
 		// push-unabhängig, idempotent (stündlich).
-		startCalendarSyncScheduler((now) => applyDueGracePeriods(now, paypalGraceDeps()), 60 * 60 * 1000);
+		startIntervalScheduler('Kulanzfrist-Sweep', (now) => applyDueGracePeriods(now, paypalGraceDeps()), 60 * 60 * 1000);
 
 		// Täglicher Abgleich der PayPal-Abos (#2300) — zieht verpasste Webhooks nach; nur mit PayPal-Zugangsdaten, idempotent.
-		startCalendarSyncScheduler(
+		startIntervalScheduler(
+			'PayPal-Abgleich',
 			async (now) => {
 				const deps = paypalReconcileDeps();
 				return deps && reconcilePaypalSubscriptions(now, deps);
