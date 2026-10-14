@@ -188,3 +188,43 @@ describe('Standort-Favoriten API (#1595)', () => {
 		);
 	});
 });
+
+describe('POST /place-favorites Koordinaten-Validierung (#2553 AK3)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+
+	beforeEach(async () => {
+		await resetDb();
+	});
+
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const createFavorite = (cookie: string, body: unknown) =>
+		fetch(`${server.baseUrl}/place-favorites`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify(body),
+		});
+
+	// #1342 AK4 bleibt: abwesende Koordinaten sind null (Freitext-Ort ohne Geocoding-Treffer).
+	it('ohne Koordinaten → 201, latitude/longitude sind null', async () => {
+		const cookie = await registerOn(server, 'fav-no-coords@example.com', 'password');
+		const res = await createFavorite(cookie, { address: 'Nur Adresse 1' });
+		assert.equal(res.status, 201);
+		const favorite = (await res.json()) as { latitude: number | null; longitude: number | null };
+		assert.equal(favorite.latitude, null);
+		assert.equal(favorite.longitude, null);
+	});
+
+	// #2553: anwesende ungültige Werte → 400 statt still speichern (999) oder still nullen ("abc").
+	it('anwesende ungültige Koordinaten → 400 (rot bis zur Umsetzung)', async () => {
+		const cookie = await registerOn(server, 'fav-bad-coords@example.com', 'password');
+		assert.equal((await createFavorite(cookie, { address: 'Breitengrad 999', latitude: 999 })).status, 400);
+		assert.equal((await createFavorite(cookie, { address: 'Längengrad 999', longitude: 999 })).status, 400);
+		assert.equal((await createFavorite(cookie, { address: 'Breite abc', latitude: 'abc' })).status, 400);
+	});
+});
