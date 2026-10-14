@@ -4,12 +4,19 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.25 - 2026-10-14
 
-_Enthält v0.25.0 – v0.25.11._
+_Enthält v0.25.0 – v0.25.13._
 
 ### 🐞 Bug Fixes
 
 - fix(server): block geocode rate limit header bypass by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2587
 - feat(server): cancel pending PayPal checkouts before delete (#2547) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2592
+- fix(server): return 400 for invalid path ids instead of 500 (#2548) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2595
+- feat(server): abort paypal requests after a fixed timeout (#2546) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2594
+- feat(server): per-job error labels in interval scheduler (#2550) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2596
+
+### 🚀 Improvements
+
+- feat(server): unified error contract and global error handler (#2549) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2597
 
 ### Other Changes
 
@@ -357,7 +364,7 @@ _Enthält v0.16.0 – v0.16.37._
 ### 🔧 Engineering
 
 - feat(frontend): make E2E suite weekday-independent by @deleonio in https://github.com/deleonio/priority-pilot/pull/2190
-- feat(frontend): make E2E suite weekday-independent by @deleonio in https://github.com/deleonio/priority-pilot/pull/2190
+- feat(ci): add canonical models.json with cc/pi model adapter by @deleonio in https://github.com/deleonio/priority-pilot/pull/2203
 - feat(ci): add canonical models.json with cc/pi model adapter by @deleonio in https://github.com/deleonio/priority-pilot/pull/2203
 - feat(ci): add impl provider override, budget watchdog and adapter smoke by @deleonio in https://github.com/deleonio/priority-pilot/pull/2208
 - docs(skills): ticket-coordination learnings and ADR 0018 addendum by @deleonio in https://github.com/deleonio/priority-pilot/pull/2214
