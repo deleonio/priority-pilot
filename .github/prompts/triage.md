@@ -47,9 +47,11 @@ VERDICT (one line):
 - VERDICT: needs-human
 
 Container closing analysis only (#2101): additionally emit the `ai-container-result` marker
-block (follow-up tickets or `closed` with reason, schema in SKILL.md) — the workflow's post
-step applies it with the App token (create issues, sub-issue links, native blocked-by,
-close container). Omit it for normal tickets.
+block INTO THE AGENT OUTPUT — print it to stdout at the END of the run (schema in SKILL.md;
+follow-up tickets or `closed` with reason). The workflow's post step applies it with the App
+token (create issues, sub-issue links, native blocked-by, close container) and reads the
+harness comment only as a SECOND source if the output lacks the marker. Omit it for normal
+tickets.
   (spec-ready = traffic light 🟢 AND acceptance criteria phrased testably; analyzed = 🟡/🔴;
    needs-human = ambiguous — one needs-human comment with open questions)
 
