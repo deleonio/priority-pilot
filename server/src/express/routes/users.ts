@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { Op } from 'sequelize';
 import { sendError, type ErrorDto } from '../http-error.js';
+import sequelize from '../../database.js';
 import { User } from '../../models/index.js';
 import { resolveGeoUser } from './geoConfig.js';
 
@@ -20,6 +20,7 @@ type UserSearchDto = {
 };
 
 const MIN_QUERY_LENGTH = 3;
+const SEARCH_LIMIT = 10;
 
 export const usersRouter = Router();
 
@@ -37,9 +38,21 @@ usersRouter.get('/users/search', async (req: Request, res: Response<UserSearchDt
 			res.json([]);
 			return;
 		}
-		const where = isFullEmail ? { email: raw.toLowerCase() } : { displayName: { [Op.like]: `%${raw}%` } };
-		const found = await User.findAll({ where, order: [['displayName', 'ASC']] });
-		res.json(found.map((hit) => ({ id: hit.id, displayName: hit.displayName ?? hit.email })));
+		if (isFullEmail) {
+			const exact = await User.findAll({ where: { email: raw.toLowerCase() }, limit: SEARCH_LIMIT });
+			res.json(exact.map((hit) => ({ id: hit.id, displayName: hit.displayName ?? hit.email })));
+			return;
+		}
+		// `!` als ESCAPE-Zeichen: `%`, `_` und `!` im Suchtext gelten literal (kein Aufzählen per Wildcard).
+		const pattern = `%${raw.replace(/[!%_]/g, '!$&')}%`;
+		const found = await User.findAll({
+			where: sequelize.literal(
+				`${sequelize.getQueryInterface().quoteIdentifier('displayName')} LIKE ${sequelize.escape(pattern)} ESCAPE '!'`,
+			),
+			order: [['displayName', 'ASC']],
+			limit: SEARCH_LIMIT,
+		});
+		res.json(found.map((hit) => ({ id: hit.id, displayName: hit.displayName ?? '' })));
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');
 	}
