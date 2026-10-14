@@ -2744,7 +2744,8 @@ paths:
       description: >-
         Trefferliste für den Einladungsfluss (#1212): volle E-Mail-Adresse als
         Exact-Match ODER displayName-Fragment ab 3 Zeichen. Das DTO enthält nie
-        die E-Mail. Zu kurze Anfragen und Nulltreffer liefern 200 mit [].
+        die E-Mail. Zu kurze Anfragen und Nulltreffer liefern 200 mit []. Höchstens
+        10 Treffer; % und _ im Suchtext gelten literal (#2539).
       operationId: searchUsers
       tags: [groups]
       parameters:
