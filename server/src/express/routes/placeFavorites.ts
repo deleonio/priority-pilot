@@ -42,6 +42,9 @@ const findExisting = async (userId: number, address: string): Promise<PlaceFavor
 		(favorite) => normalizeAddress(favorite.address) === normalizeAddress(address),
 	);
 
+/** JSON-„abwesend“: Feld fehlt (`undefined`) oder ist explizit `null` — beide Fälle senden die Frontend-Sender (#2553). */
+const isAbsent = (value: unknown): boolean => value === undefined || value === null;
+
 export const placeFavoritesRouter = Router();
 
 // GET /place-favorites — eigene Favoriten, älteste zuerst (stabile Reihenfolge im Adressfeld).
@@ -75,11 +78,14 @@ placeFavoritesRouter.post(
 			sendError(res, 400, `Bitte eine Adresse mit 1 bis ${MAX_ADDRESS_LENGTH} Zeichen angeben.`);
 			return;
 		}
-		// #2553 AK3: abwesende Koordinaten bleiben null (#1342 AK4, Freitext-Ort); anwesende müssen
-		// über den zentralen Helfer gültig sein — früher wurden Überschreiter (999) still gespeichert.
-		const latitude = body?.latitude === undefined ? null : parseCoordinate(body.latitude, 90);
-		const longitude = body?.longitude === undefined ? null : parseCoordinate(body.longitude, 180);
-		if ((body?.latitude !== undefined && latitude === null) || (body?.longitude !== undefined && longitude === null)) {
+		const latitudeInput = body?.latitude;
+		const longitudeInput = body?.longitude;
+		// #2553 AK3: abwesende Koordinaten bleiben null (#1342 AK4, Freitext-Ort — JSON `undefined`
+		// oder explizites `null`); anwesende müssen über den zentralen Helfer gültig sein — früher
+		// wurden Überschreiter (999) still gespeichert.
+		const latitude = isAbsent(latitudeInput) ? null : parseCoordinate(latitudeInput, 90);
+		const longitude = isAbsent(longitudeInput) ? null : parseCoordinate(longitudeInput, 180);
+		if ((!isAbsent(latitudeInput) && latitude === null) || (!isAbsent(longitudeInput) && longitude === null)) {
 			sendError(res, 400, 'lat und lon müssen Zahlen in gültigem Bereich sein.');
 			return;
 		}

@@ -220,6 +220,18 @@ describe('POST /place-favorites Koordinaten-Validierung (#2553 AK3)', () => {
 		assert.equal(favorite.longitude, null);
 	});
 
+	// #1342 AK4 bleibt auch für JSON-null: das Frontend sendet bei Freitext-Orten (kein
+	// Vorschlag gewählt) explizit `latitude: null` (PlaceFavoritesSection.tsx, TaskForm.tsx) —
+	// kein 400, sondern 201 mit null wie bei fehlenden Feldern.
+	it('explizite Koordinaten null → 201, bleiben null (Freitext-Ort)', async () => {
+		const cookie = await registerOn(server, 'fav-null-coords@example.com', 'password');
+		const res = await createFavorite(cookie, { address: 'Freitext ohne Treffer', latitude: null, longitude: null });
+		assert.equal(res.status, 201);
+		const favorite = (await res.json()) as { latitude: number | null; longitude: number | null };
+		assert.equal(favorite.latitude, null);
+		assert.equal(favorite.longitude, null);
+	});
+
 	// #2553: anwesende ungültige Werte → 400 statt still speichern (999) oder still nullen ("abc").
 	it('anwesende ungültige Koordinaten → 400 (rot bis zur Umsetzung)', async () => {
 		const cookie = await registerOn(server, 'fav-bad-coords@example.com', 'password');
