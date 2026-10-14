@@ -1,6 +1,7 @@
-import { describe, it, beforeEach, after } from 'node:test';
+import { describe, it, beforeEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { Series, Task } from '../models/index.js';
+import { Series, Task, Pillar, TaskPillar, User } from '../models/index.js';
+import * as treeModule from './tree.js';
 import { buildTaskForest } from './tree.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 
@@ -219,5 +220,66 @@ describe('buildTaskForest — eine Instanz je Serie (#1518)', () => {
 		const forest = await buildTaskForest();
 		assert.equal(forest.length, 1);
 		assert.equal(forest[0].id, instances[1].id, 'die Instanz mit Deadline heute+1');
+	});
+});
+
+// #2544: Aufwand ohne Doppelzählung/Endlosschleife, Säulenzahl höchstens einmal je Nutzer und Anfrage.
+describe('Aufwand im Wald (#2544)', () => {
+	// Aufwände als exakte Binärbrüche (keine Float-Rundung).
+	const seedDiamond = async () => {
+		const a = await Task.create({ title: 'A', priority: 3, estimatedEffort: 1 });
+		const b = await Task.create({ title: 'B', priority: 3, estimatedEffort: 0.5 });
+		const c = await Task.create({ title: 'C', priority: 3, estimatedEffort: 0.25 });
+		const d = await Task.create({ title: 'D', priority: 3, estimatedEffort: 0.125 });
+		await a.addDependency(b);
+		await a.addDependency(c);
+		await b.addDependency(d);
+		await c.addDependency(d);
+		return { a, b, c, d };
+	};
+
+	it('AK1: Diamant zählt den gemeinsamen Knoten D im totalEstimatedEffort von A einmal', async () => {
+		const { a } = await seedDiamond();
+		const forest = await buildTaskForest();
+		assert.equal(forest.length, 1);
+		assert.equal(forest[0].id, a.id);
+		assert.equal(forest[0].totalEstimatedEffort, 1.875);
+	});
+
+	it('AK2: getEstimatedEffort endet bei einem Zyklus (an cycle.ts vorbei angelegt) mit A+B', async () => {
+		const a = await Task.create({ title: 'A', priority: 3, estimatedEffort: 1 });
+		const b = await Task.create({ title: 'B', priority: 3, estimatedEffort: 0.5 });
+		await a.addDependency(b);
+		await b.addDependency(a);
+		assert.equal(typeof treeModule.getEstimatedEffort, 'function', 'getEstimatedEffort muss exportiert sein');
+		assert.equal(await treeModule.getEstimatedEffort(a), 1.5);
+	});
+
+	it('AK3: 50 aktive Aufgaben mit Säulen-Beiträgen stellen höchstens eine Pillar.count-Abfrage', async () => {
+		const user = await User.create({ email: 'wald@example.com', displayName: 'Wald', passwordHash: '__test__' });
+		const pillarA = await Pillar.create({ name: 'Säule A', userId: user.id });
+		const pillarB = await Pillar.create({ name: 'Säule B', userId: user.id });
+		for (let index = 0; index < 50; index += 1) {
+			const task = await Task.create({ title: `T${index}`, priority: 3, estimatedEffort: 0.25, userId: user.id });
+			if (index % 2 === 0) {
+				await TaskPillar.create({
+					taskId: task.id,
+					pillarId: index % 4 === 0 ? pillarA.id : pillarB.id,
+					share: 100,
+					confidence: 80,
+				});
+			}
+		}
+		const countMock = mock.method(Pillar, 'count');
+		try {
+			const forest = await buildTaskForest(user.id);
+			assert.equal(forest.length, 50);
+			assert.ok(
+				countMock.mock.callCount() <= 1,
+				`Pillar.count höchstens einmal je Nutzer, waren ${countMock.mock.callCount()}`,
+			);
+		} finally {
+			countMock.mock.restore();
+		}
 	});
 });

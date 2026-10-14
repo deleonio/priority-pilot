@@ -183,4 +183,22 @@ describe('buildTaskGraph', () => {
 		}
 		assert.ok(queries <= 8, `buildTaskGraph sollte höchstens 8 Queries absetzen, waren ${queries}`);
 	});
+
+	it('Parität im Diamanten: totalEstimatedEffort von A in Graph und Wald = A+B+C+D (#2544 AK4)', async () => {
+		const a = await Task.create({ title: 'A', priority: 3, estimatedEffort: 1 });
+		const b = await Task.create({ title: 'B', priority: 3, estimatedEffort: 0.5 });
+		const c = await Task.create({ title: 'C', priority: 3, estimatedEffort: 0.25 });
+		const d = await Task.create({ title: 'D', priority: 3, estimatedEffort: 0.125 });
+		await a.addDependency(b);
+		await a.addDependency(c);
+		await b.addDependency(d);
+		await c.addDependency(d);
+
+		const graph = await buildTaskGraph();
+		const forest = await buildTaskForest();
+		const graphA = graph.nodes.find((node) => node.id === a.id);
+		assert.ok(graphA, 'A fehlt im Graph');
+		assert.equal(forest[0].totalEstimatedEffort, 1.875, 'Wald');
+		assert.equal(graphA.totalEstimatedEffort, 1.875, 'Graph');
+	});
 });
