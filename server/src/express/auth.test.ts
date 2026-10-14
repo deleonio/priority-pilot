@@ -350,11 +350,17 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			const realFetch = globalThis.fetch;
 			const warns: string[] = [];
 			const warnSpy = mock.method(console, 'warn', (...args: unknown[]) => warns.push(args.join(' ')));
-			// Hängender, abort-bewusster PayPal-Fake: produktives fetch bricht über das Signal ab.
-			globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) =>
-				new Promise((_resolve, reject) => {
-					init?.signal?.addEventListener('abort', () => reject(new Error('PayPal-Aufruf abgebrochen')));
-				}) as unknown as Response) as unknown as typeof fetch;
+			// Hängender, abort-bewusster PayPal-Fake (Muster lektorat.test.ts): nur PayPal-Calls hängen
+			// (produktives fetch bricht über das Signal ab), alles andere fällt zum Original durch —
+			// sonst hängt der eigene /auth/me-Request des Tests am selben Fake.
+			globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+				if (String(input).includes('paypal.com')) {
+					return new Promise<Response>((_resolve, reject) => {
+						init?.signal?.addEventListener('abort', () => reject(new Error('PayPal-Aufruf abgebrochen')));
+					}) as unknown as Response;
+				}
+				return realFetch(input, init);
+			}) as typeof fetch;
 			process.env.PAYPAL_CLIENT_ID = 'id';
 			process.env.PAYPAL_CLIENT_SECRET = 'secret';
 			process.env.PAYPAL_TIMEOUT_MS = '100';

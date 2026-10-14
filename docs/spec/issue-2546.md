@@ -28,7 +28,7 @@ festem Zeitlimit (`signal: AbortSignal.timeout(<Limit>)`, Muster `obsidianFeedba
 - Test-Fakes sind **abort-bewusst**: produktives `fetch` bricht über das übergebene Signal ab —
   der nie antwortende Fake spiegelt exakt dieses Verhalten (abort-Listener → reject) und hängt bis
   zum Signal. Ein Fake, der das Signal ignoriert, würde nie abbrechen (falsches Rot bzw. Hang).
-- Watchdog (3 s) um jeden „muss abbrechen"-Fall: ohne Zeitlimit- Umsetzung endet der Test als
+- Watchdog (3 s) um jeden „muss abbrechen"-Fall: ohne Zeitlimit-Umsetzung endet der Test als
   klares Rot statt als ewiger Hang.
 
 ## Schritte (Kontrakt je Testfall)

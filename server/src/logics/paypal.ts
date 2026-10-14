@@ -84,8 +84,9 @@ export class PaypalHttpError extends Error {
 
 const apiBase = (): string => process.env.PAYPAL_API_BASE?.trim() || 'https://api-m.paypal.com';
 
-/** Fester Zeitlimit je PayPal-Fetch (#2546, Muster `obsidianFeedback.ts`) — über `PAYPAL_TIMEOUT_MS` zur Callzeit überschreibbar. */
-const paypalTimeoutMs = (): number => Number.parseInt(process.env.PAYPAL_TIMEOUT_MS?.trim() || '', 10) || 10000;
+/** Fester Zeitlimit je PayPal-Fetch (#2546, Muster `obsidianFeedback.ts`) — über `PAYPAL_TIMEOUT_MS` zur Callzeit überschreibbar; Werte < 1 fallen auf 10000 zurück. */
+const paypalTimeoutMs = (): number =>
+	Math.max(1, Number.parseInt(process.env.PAYPAL_TIMEOUT_MS?.trim() || '', 10) || 10000);
 
 /** Die fünf Header, die PayPal zur Signaturprüfung erwartet (Groß-/Kleinschreibung egal). */
 const signatureHeaders = (headers: Record<string, string>) => ({
