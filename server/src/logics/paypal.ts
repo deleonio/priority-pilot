@@ -84,6 +84,9 @@ export class PaypalHttpError extends Error {
 
 const apiBase = (): string => process.env.PAYPAL_API_BASE?.trim() || 'https://api-m.paypal.com';
 
+/** Fester Zeitlimit je PayPal-Fetch (#2546, Muster `obsidianFeedback.ts`) — über `PAYPAL_TIMEOUT_MS` zur Callzeit überschreibbar. */
+const paypalTimeoutMs = (): number => Number.parseInt(process.env.PAYPAL_TIMEOUT_MS?.trim() || '', 10) || 10000;
+
 /** Die fünf Header, die PayPal zur Signaturprüfung erwartet (Groß-/Kleinschreibung egal). */
 const signatureHeaders = (headers: Record<string, string>) => ({
 	auth_algo: headers['paypal-auth-algo'] ?? '',
@@ -132,6 +135,7 @@ export const verifyWebhookSignature = async (
 			method: 'POST',
 			headers: { Authorization: `Basic ${basic}`, 'Content-Type': 'application/x-www-form-urlencoded' },
 			body: 'grant_type=client_credentials',
+			signal: AbortSignal.timeout(paypalTimeoutMs()),
 		});
 		if (!tokenRes.ok) {
 			return 'unreachable';
@@ -141,6 +145,7 @@ export const verifyWebhookSignature = async (
 		const res = await fetchImpl(`${apiBase()}/v1/notifications/verify-webhook-signature`, {
 			method: 'POST',
 			headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+			signal: AbortSignal.timeout(paypalTimeoutMs()),
 			body: JSON.stringify({
 				...signatureHeaders(headers),
 				webhook_id: webhookId,
@@ -198,6 +203,7 @@ const getAccessToken = async (fetchImpl: typeof fetch): Promise<string> => {
 		method: 'POST',
 		headers: { Authorization: `Basic ${basic}`, 'Content-Type': 'application/x-www-form-urlencoded' },
 		body: 'grant_type=client_credentials',
+		signal: AbortSignal.timeout(paypalTimeoutMs()),
 	});
 	if (!res.ok) {
 		throw new Error('PayPal-Zugangstoken konnte nicht geholt werden.');
@@ -231,6 +237,7 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 		const res = await fetchImpl(`${apiBase()}/v1/billing/subscriptions`, {
 			method: 'POST',
 			headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+			signal: AbortSignal.timeout(paypalTimeoutMs()),
 			body: JSON.stringify({
 				plan_id: planId,
 				application_context: { return_url: returnUrl, cancel_url: cancelUrl },
@@ -259,6 +266,7 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 		const res = await fetchImpl(`${apiBase()}/v1/billing/subscriptions/${externalSubscriptionId}/cancel`, {
 			method: 'POST',
 			headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+			signal: AbortSignal.timeout(paypalTimeoutMs()),
 			body: JSON.stringify({ reason: 'Vom Nutzer gekündigt.' }),
 		});
 		if (!res.ok) {
@@ -269,6 +277,7 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 		const token = await getAccessToken(fetchImpl);
 		const res = await fetchImpl(`${apiBase()}/v1/billing/subscriptions/${externalSubscriptionId}`, {
 			headers: { Authorization: `Bearer ${token}` },
+			signal: AbortSignal.timeout(paypalTimeoutMs()),
 		});
 		if (!res.ok) {
 			throw new PaypalHttpError('PayPal-Abo konnte nicht abgerufen werden.', res.status);
@@ -281,6 +290,7 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 		const res = await fetchImpl(`${apiBase()}/v1/billing/subscriptions/${externalSubscriptionId}/revise`, {
 			method: 'POST',
 			headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+			signal: AbortSignal.timeout(paypalTimeoutMs()),
 			body: JSON.stringify({ plan_id: targetPlanId }),
 		});
 		if (!res.ok) {
