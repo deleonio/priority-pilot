@@ -4,11 +4,12 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.25 - 2026-10-14
 
-_Enthält v0.25.0 – v0.25.1._
+_Enthält v0.25.0 – v0.25.2._
 
 ### Other Changes
 
 - docs(arc42): add ADR 0024 to decision table (V-19) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2582
+- docs(skills): german-only chat and full-queue status for coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2583
 
 ## v0.24 - 2026-10-13
 
@@ -226,7 +227,6 @@ _Enthält v0.18.0 – v0.18.45._
 - docs(adr): ADR 0020 Serien Automatisch anlegen / Vorlage (#2354) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2374
 - feat(server): render invoice pdf as letter with logo, table and footer by @deleonio in https://github.com/deleonio/priority-pilot/pull/2369
 - fix(native): widen android versionCode digits with hard limits by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2371
-- fix(native): widen android versionCode digits with hard limits by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2371
 - feat(server): create due series automatically every day by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2384
 - docs(adr): ADR 0021 Android-App als SPA ohne Service Worker by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2387
 - feat(frontend): add auto-create switch and series templates tab (#2358) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2383
@@ -415,6 +415,7 @@ _Enthält v0.15.0 – v0.15.22._
 - chore(ci): remove ai:model label family and label-based model fallback by @deleonio in https://github.com/deleonio/priority-pilot/pull/2182
 - docs(skills): escalation ladder for a stalling pipeline (ticket-coordination) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2189
 - docs: add MCP guide page and README section (#1978) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2184
+- feat(frontend): done action for missed tasks, archive view, forest fix by @deleonio in https://github.com/deleonio/priority-pilot/pull/2188
 - feat(frontend): done action for missed tasks, archive view, forest fix by @deleonio in https://github.com/deleonio/priority-pilot/pull/2188
 - [P2/S] Website: DACH-Vorlagenbibliothek mit SEO-Landingpages (#1976) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2194
 
