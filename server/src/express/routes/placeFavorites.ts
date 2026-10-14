@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { UniqueConstraintError } from 'sequelize';
-import { sendError, type ErrorDto } from '../http-error.js';
+import { parseId, sendError, type ErrorDto } from '../http-error.js';
 import { PlaceFavorite } from '../../models/index.js';
 import { getUserId } from '../requireAuth.js';
 import { requirePlanFeature } from '../planGuard.js';
@@ -121,9 +121,9 @@ placeFavoritesRouter.delete(
 			sendError(res, 401, 'Anmeldung erforderlich.');
 			return;
 		}
-		const id = Number(req.params.id);
-		if (!Number.isInteger(id)) {
-			sendError(res, 404, 'Gespeicherter Ort nicht gefunden.');
+		const id = parseId(req.params.id);
+		if (id === null) {
+			sendError(res, 400, 'Ungültige Orts-Id.');
 			return;
 		}
 		try {

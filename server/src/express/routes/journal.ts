@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { sendError, type ErrorDto } from '../http-error.js';
+import { parseId, sendError, type ErrorDto } from '../http-error.js';
 import { JournalEntry, Pillar, ScoreEntry, Task } from '../../models/index.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import {
@@ -81,11 +81,9 @@ const validateInput = async (body: unknown, userId: number): Promise<JournalInpu
 	return input;
 };
 
-/** Eigener Eintrag zur `:id` — oder `null` (fremd/unbekannt → 404). */
-const findOwn = async (req: Request, userId: number): Promise<JournalEntry | null> => {
-	const id = Number(req.params.id);
-	return Number.isInteger(id) ? JournalEntry.findOne({ where: { id, userId } }) : null;
-};
+/** Eigener Eintrag zur Id — oder `null` (fremd/unbekannt → 404). */
+const findOwn = (userId: number, id: number): Promise<JournalEntry | null> =>
+	JournalEntry.findOne({ where: { id, userId } });
 
 export const journalRouter = Router();
 
@@ -220,8 +218,13 @@ journalRouter.patch('/journal/:id', async (req: Request, res: Response<JournalEn
 		sendError(res, 401, 'Anmeldung erforderlich.');
 		return;
 	}
+	const id = parseId(req.params.id);
+	if (id === null) {
+		sendError(res, 400, 'Ungültige Eintrags-Id.');
+		return;
+	}
 	try {
-		const entry = await findOwn(req, userId);
+		const entry = await findOwn(userId, id);
 		if (!entry) {
 			sendError(res, 404, 'Eintrag nicht gefunden.');
 			return;
@@ -245,8 +248,13 @@ journalRouter.delete('/journal/:id', async (req: Request, res: Response<ErrorDto
 		sendError(res, 401, 'Anmeldung erforderlich.');
 		return;
 	}
+	const id = parseId(req.params.id);
+	if (id === null) {
+		sendError(res, 400, 'Ungültige Eintrags-Id.');
+		return;
+	}
 	try {
-		const entry = await findOwn(req, userId);
+		const entry = await findOwn(userId, id);
 		if (!entry) {
 			sendError(res, 404, 'Eintrag nicht gefunden.');
 			return;

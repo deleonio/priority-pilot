@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { Op, Transaction } from 'sequelize';
-import { sendError, type ErrorDto } from '../http-error.js';
+import { parseId, sendError, type ErrorDto } from '../http-error.js';
 import {
 	Group,
 	GroupChallenge,
@@ -184,7 +184,12 @@ groupsRouter.get('/groups/:id', async (req: Request, res: Response<GroupDto | Er
 			sendError(res, 401, 'Anmeldung erforderlich.');
 			return;
 		}
-		const found = await findMembership(user.id, Number(req.params.id));
+		const id = parseId(req.params.id);
+		if (id === null) {
+			sendError(res, 400, 'Ungültige Gruppen-Id.');
+			return;
+		}
+		const found = await findMembership(user.id, id);
 		if (!found) {
 			sendError(res, 404, 'Gruppe nicht gefunden.');
 			return;
@@ -207,7 +212,12 @@ groupsRouter.patch(
 				sendError(res, 401, 'Anmeldung erforderlich.');
 				return;
 			}
-			const found = await findMembership(user.id, Number(req.params.id));
+			const id = parseId(req.params.id);
+			if (id === null) {
+				sendError(res, 400, 'Ungültige Gruppen-Id.');
+				return;
+			}
+			const found = await findMembership(user.id, id);
 			if (!found) {
 				sendError(res, 404, 'Gruppe nicht gefunden.');
 				return;
@@ -294,7 +304,12 @@ groupsRouter.delete('/groups/:id', requirePlanFeature('groups'), async (req: Req
 			sendError(res, 401, 'Anmeldung erforderlich.');
 			return;
 		}
-		const found = await findMembership(user.id, Number(req.params.id));
+		const id = parseId(req.params.id);
+		if (id === null) {
+			sendError(res, 400, 'Ungültige Gruppen-Id.');
+			return;
+		}
+		const found = await findMembership(user.id, id);
 		if (!found || found.role !== 'admin') {
 			sendError(res, 404, 'Gruppe nicht gefunden.');
 			return;
@@ -356,7 +371,12 @@ groupsRouter.get('/groups/:id/members', async (req: Request, res: Response<Membe
 			sendError(res, 401, 'Anmeldung erforderlich.');
 			return;
 		}
-		const found = await findMembership(user.id, Number(req.params.id));
+		const id = parseId(req.params.id);
+		if (id === null) {
+			sendError(res, 400, 'Ungültige Gruppen-Id.');
+			return;
+		}
+		const found = await findMembership(user.id, id);
 		if (!found) {
 			sendError(res, 404, 'Gruppe nicht gefunden.');
 			return;
@@ -383,7 +403,12 @@ groupsRouter.get('/groups/:id/invitations', async (req: Request, res: Response<G
 			sendError(res, 401, 'Anmeldung erforderlich.');
 			return;
 		}
-		const found = await findMembership(user.id, Number(req.params.id));
+		const id = parseId(req.params.id);
+		if (id === null) {
+			sendError(res, 400, 'Ungültige Gruppen-Id.');
+			return;
+		}
+		const found = await findMembership(user.id, id);
 		if (!found) {
 			sendError(res, 404, 'Gruppe nicht gefunden.');
 			return;
@@ -420,7 +445,12 @@ groupsRouter.post(
 				sendError(res, 401, 'Anmeldung erforderlich.');
 				return;
 			}
-			const found = await findMembership(user.id, Number(req.params.id));
+			const id = parseId(req.params.id);
+			if (id === null) {
+				sendError(res, 400, 'Ungültige Gruppen-Id.');
+				return;
+			}
+			const found = await findMembership(user.id, id);
 			if (!found) {
 				sendError(res, 404, 'Gruppe nicht gefunden.');
 				return;
@@ -580,7 +610,12 @@ groupsRouter.post(
 				sendError(res, 401, 'Anmeldung erforderlich.');
 				return;
 			}
-			const invitation = await findOwnPendingInvitation(user.id, Number(req.params.id));
+			const id = parseId(req.params.id);
+			if (id === null) {
+				sendError(res, 400, 'Ungültige Einladungs-Id.');
+				return;
+			}
+			const invitation = await findOwnPendingInvitation(user.id, id);
 			if (!invitation) {
 				sendError(res, 404, 'Einladung nicht gefunden.');
 				return;
@@ -623,7 +658,12 @@ groupsRouter.post('/invitations/:id/decline', async (req: Request, res: Response
 			sendError(res, 401, 'Anmeldung erforderlich.');
 			return;
 		}
-		const invitation = await findOwnPendingInvitation(user.id, Number(req.params.id));
+		const id = parseId(req.params.id);
+		if (id === null) {
+			sendError(res, 400, 'Ungültige Einladungs-Id.');
+			return;
+		}
+		const invitation = await findOwnPendingInvitation(user.id, id);
 		if (!invitation) {
 			sendError(res, 404, 'Einladung nicht gefunden.');
 			return;
@@ -661,7 +701,12 @@ groupsRouter.patch(
 				sendError(res, 401, 'Anmeldung erforderlich.');
 				return;
 			}
-			const found = await findMembership(user.id, Number(req.params.id));
+			const id = parseId(req.params.id);
+			if (id === null) {
+				sendError(res, 400, 'Ungültige Gruppen-Id.');
+				return;
+			}
+			const found = await findMembership(user.id, id);
 			if (!found) {
 				sendError(res, 404, 'Gruppe nicht gefunden.');
 				return;
@@ -675,7 +720,11 @@ groupsRouter.patch(
 				sendError(res, 400, 'Die Rolle muss "admin" oder "member" sein.');
 				return;
 			}
-			const targetUserId = Number(req.params.userId);
+			const targetUserId = parseId(req.params.userId);
+			if (targetUserId === null) {
+				sendError(res, 400, 'Ungültige Nutzer-Id.');
+				return;
+			}
 			const target = await GroupMember.findOne({ where: { groupId: found.group.id, userId: targetUserId } });
 			if (!target) {
 				sendError(res, 404, 'Mitglied nicht gefunden.');
@@ -709,12 +758,21 @@ groupsRouter.delete(
 				sendError(res, 401, 'Anmeldung erforderlich.');
 				return;
 			}
-			const found = await findMembership(user.id, Number(req.params.id));
+			const id = parseId(req.params.id);
+			if (id === null) {
+				sendError(res, 400, 'Ungültige Gruppen-Id.');
+				return;
+			}
+			const found = await findMembership(user.id, id);
 			if (!found) {
 				sendError(res, 404, 'Gruppe nicht gefunden.');
 				return;
 			}
-			const targetUserId = Number(req.params.userId);
+			const targetUserId = parseId(req.params.userId);
+			if (targetUserId === null) {
+				sendError(res, 400, 'Ungültige Nutzer-Id.');
+				return;
+			}
 			const isSelf = targetUserId === user.id;
 			if (found.role !== 'admin' && !isSelf) {
 				sendError(res, 403, 'Nur Administratoren dürfen andere Mitglieder entfernen.');
@@ -771,7 +829,12 @@ groupsRouter.get('/groups/:id/tasks', async (req: Request, res: Response<GroupTa
 			sendError(res, 401, 'Anmeldung erforderlich.');
 			return;
 		}
-		const found = await findMembership(user.id, Number(req.params.id));
+		const id = parseId(req.params.id);
+		if (id === null) {
+			sendError(res, 400, 'Ungültige Gruppen-Id.');
+			return;
+		}
+		const found = await findMembership(user.id, id);
 		if (!found) {
 			sendError(res, 404, 'Gruppe nicht gefunden.');
 			return;
@@ -847,7 +910,12 @@ groupsRouter.get('/groups/:id/series', async (req: Request, res: Response<GroupS
 			sendError(res, 401, 'Anmeldung erforderlich.');
 			return;
 		}
-		const found = await findMembership(user.id, Number(req.params.id));
+		const id = parseId(req.params.id);
+		if (id === null) {
+			sendError(res, 400, 'Ungültige Gruppen-Id.');
+			return;
+		}
+		const found = await findMembership(user.id, id);
 		if (!found) {
 			sendError(res, 404, 'Gruppe nicht gefunden.');
 			return;
@@ -913,7 +981,12 @@ groupsRouter.post(
 				sendError(res, 401, 'Anmeldung erforderlich.');
 				return;
 			}
-			const found = await findMembership(user.id, Number(req.params.id));
+			const id = parseId(req.params.id);
+			if (id === null) {
+				sendError(res, 400, 'Ungültige Gruppen-Id.');
+				return;
+			}
+			const found = await findMembership(user.id, id);
 			if (!found) {
 				sendError(res, 404, 'Gruppe nicht gefunden.');
 				return;
@@ -949,7 +1022,12 @@ groupsRouter.delete(
 				sendError(res, 401, 'Anmeldung erforderlich.');
 				return;
 			}
-			const link = await GroupInviteLink.findByPk(Number(req.params.id));
+			const id = parseId(req.params.id);
+			if (id === null) {
+				sendError(res, 400, 'Ungültige Einladungslink-Id.');
+				return;
+			}
+			const link = await GroupInviteLink.findByPk(id);
 			if (!link) {
 				sendError(res, 404, 'Einladungslink nicht gefunden.');
 				return;
@@ -985,7 +1063,12 @@ groupsRouter.get('/groups/:id/duo', async (req: Request, res: Response<DuoDto | 
 			sendError(res, 401, 'Anmeldung erforderlich.');
 			return;
 		}
-		const found = await findMembership(user.id, Number(req.params.id));
+		const id = parseId(req.params.id);
+		if (id === null) {
+			sendError(res, 400, 'Ungültige Gruppen-Id.');
+			return;
+		}
+		const found = await findMembership(user.id, id);
 		if (!found || found.group.kind !== 'duo') {
 			sendError(res, 404, 'Duo nicht gefunden.');
 			return;
@@ -1114,7 +1197,12 @@ groupsRouter.post(
 				sendError(res, 401, 'Anmeldung erforderlich.');
 				return;
 			}
-			const found = await findMembership(user.id, Number(req.params.id));
+			const id = parseId(req.params.id);
+			if (id === null) {
+				sendError(res, 400, 'Ungültige Gruppen-Id.');
+				return;
+			}
+			const found = await findMembership(user.id, id);
 			if (!found) {
 				sendError(res, 404, 'Gruppe nicht gefunden.');
 				return;
@@ -1148,7 +1236,12 @@ groupsRouter.get('/groups/:id/challenge', async (req: Request, res: Response<Gro
 			sendError(res, 401, 'Anmeldung erforderlich.');
 			return;
 		}
-		const found = await findMembership(user.id, Number(req.params.id));
+		const id = parseId(req.params.id);
+		if (id === null) {
+			sendError(res, 400, 'Ungültige Gruppen-Id.');
+			return;
+		}
+		const found = await findMembership(user.id, id);
 		if (!found) {
 			sendError(res, 404, 'Gruppe nicht gefunden.');
 			return;

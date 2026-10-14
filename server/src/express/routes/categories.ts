@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { createCrudRateLimiter } from './rateLimit.js';
-import { sendError } from '../http-error.js';
+import { parseId, sendError } from '../http-error.js';
 import sequelize from '../../database.js';
 import { Category, Series, Task } from '../../models/index.js';
 import { CATEGORY_COLORS, isCategoryColor } from '../../models/categoryColors.js';
@@ -167,8 +167,8 @@ categoriesRouter.patch('/categories/:id', requireAuth, async (req: Request, res:
 	}
 	const { input } = validation;
 
-	const id = Number(req.params.id);
-	if (!Number.isInteger(id) || id < 1) {
+	const id = parseId(req.params.id);
+	if (id === null) {
 		sendError(res, 400, 'id muss eine Ganzzahl >= 1 sein.');
 		return;
 	}
@@ -199,8 +199,8 @@ categoriesRouter.patch('/categories/:id', requireAuth, async (req: Request, res:
 // DELETE /categories/:id — Kategorie löschen. Anders als beim Löschen einer Säule gibt es nichts zu
 // renormieren: Aufgaben und Serien behalten alles außer der Zuordnung, `categoryId` fällt auf null.
 categoriesRouter.delete('/categories/:id', requireAuth, async (req: Request, res: Response<ErrorDto>) => {
-	const id = Number(req.params.id);
-	if (!Number.isInteger(id) || id < 1) {
+	const id = parseId(req.params.id);
+	if (id === null) {
 		sendError(res, 400, 'id muss eine Ganzzahl >= 1 sein.');
 		return;
 	}
