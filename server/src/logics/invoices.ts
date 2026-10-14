@@ -6,7 +6,7 @@ import CreditSequence from '../models/creditSequence.js';
 import Subscription from '../models/subscription.js';
 import User from '../models/user.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
-import { getPlansCatalog, type Plan } from './plans.js';
+import { getPlansCatalog, parsePlan, type Plan } from './plans.js';
 import { sendMailToUser, type MailSender } from './mail.js';
 import { buildInvoicePdf, contractConfirmationLines } from './invoicePdf.js';
 import { OPERATOR } from './operator.js';
@@ -153,7 +153,7 @@ export const issueCreditNote = async (
  * `periodEnd`) eines Abos mit gespeicherter Zustimmung; sonst leer. Gemeinsame Quelle für PDF-Erstbau
  * und Mail (auch Nachholversand).
  */
-const confirmationFor = async (
+export const confirmationFor = async (
 	invoice: Invoice,
 	transaction?: Transaction,
 	sprache: CareSprache = 'de',
@@ -178,10 +178,13 @@ const confirmationFor = async (
 	if (first?.get('id') !== invoice.get('id')) {
 		return [];
 	}
-	const plan = String(subscription.get('plan')) as Plan;
+	const plan = parsePlan(String(subscription.get('plan')));
+	if (plan === null) {
+		throw new Error(`Unbekannter Plan '${subscription.get('plan')}' (#2554) — keine Bestätigungszeilen.`);
+	}
 	const period = String(subscription.get('period'));
 	const prices = getPlansCatalog().prices[plan];
-	const priceCents = prices ? prices[period as keyof typeof prices] : 0;
+	const priceCents = prices[period as keyof typeof prices];
 	return contractConfirmationLines(displayLabel(plan, period, sprache), priceCents, consentAt, sprache);
 };
 
@@ -304,9 +307,12 @@ export const issueInvoiceForPeriod = async (
 	const subscriptionId = subscription.get('id') as number;
 	const periodEnd = subscription.get('currentPeriodEnd') as Date;
 	const period = String(subscription.get('period'));
-	const plan = String(subscription.get('plan')) as Plan;
+	const plan = parsePlan(String(subscription.get('plan')));
+	if (plan === null) {
+		throw new Error(`Unbekannter Plan '${subscription.get('plan')}' (#2554) — keine Rechnung erzeugt.`);
+	}
 	const prices = getPlansCatalog().prices[plan];
-	const priceCents = prices ? prices[period as keyof typeof prices] : 0;
+	const priceCents = prices[period as keyof typeof prices];
 
 	// #2232: ein abgelöstes Abo (#1912) steht auf `free` — eine Abbuchung darauf ist kein „Free“-Beleg.
 	const label =

@@ -13,6 +13,9 @@ export const PLAN_VALUES: readonly Plan[] = ['free', 'plus', 'pro'];
 /** Gespeicherter Paketwert → ausgewertetes Paket; Unbekanntes wie `free`. */
 export const effectivePlan = (value: string): Plan => (PLAN_VALUES.includes(value as Plan) ? (value as Plan) : 'free');
 
+/** Gespeicherter Paketwert → Plan oder `null` (#2554) — striktes Gegenstück zu {@link effectivePlan} für Kontexte, in denen ein unbekannter Plan ein Fehler ist. Kein Legacy-Fallback. */
+export const parsePlan = (value: string): Plan | null => PLAN_VALUES.find((plan) => plan === value) ?? null;
+
 /** Stabile Feature-Identifier — von Guards, Fehlervertrag und UI-Badges referenziert. */
 export type FeatureId =
 	| 'groups'

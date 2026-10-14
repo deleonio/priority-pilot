@@ -2,7 +2,7 @@ import { NotificationLog, ScoreEntry, Task, User } from '../models/index.js';
 import { uhrzeitIn } from './carePush.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { sendPushToUser, type PushSender } from './push.js';
-import { berechneStreak, istGueltigeZeitzone, istHeuteRuhetag, streakZeitpunkte, tagIn } from './streak.js';
+import { berechneStreak, istHeuteRuhetag, nutzerZeitzone, streakZeitpunkte, tagIn } from './streak.js';
 
 /**
  * Fachlicher Push-Trigger „Streak-Erinnerung“ (#1836): höchstens **ein** Push je Nutzer und lokalem
@@ -50,7 +50,7 @@ export const runStreakReminder = async (
 		if (user.carePushEnabled === false) {
 			continue;
 		}
-		const zeitzone = istGueltigeZeitzone(user.zeitzone ?? undefined) ? (user.zeitzone as string) : 'UTC';
+		const zeitzone = nutzerZeitzone(user.zeitzone);
 		const { stunde } = uhrzeitIn(now, zeitzone);
 		if (stunde < FENSTER_START || stunde >= FENSTER_ENDE) {
 			continue;
