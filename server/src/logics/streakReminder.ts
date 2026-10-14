@@ -11,7 +11,8 @@ import { berechneStreak, istGueltigeZeitzone, istHeuteRuhetag, streakZeitpunkte,
  * erledigt wurde. Zugestellt wird nur abends 18:00–20:59 der Nutzer-Zeitzone (endet mit der
  * Ruhezeit ab 21:00 aus `carePush.ts`); ungültige/fehlende Zone fällt auf UTC zurück. Schalter ist
  * `users.carePushEnabled` (gleiche Fürsorge-Kategorie). Ton nach `docs/fuersorge-tonalitaet.md`.
- * Muster: `carePush.ts` (NotificationLog-Dedup erst nach `sent > 0`, injizierbarer PushSender).
+ * Muster: {@link sendDedupedPush} (`dedupedPush.ts` — NotificationLog-Dedup erst nach
+ * `sent > 0`, injizierbarer PushSender).
  */
 
 const KIND = 'streak-reminder';

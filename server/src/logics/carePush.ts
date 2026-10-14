@@ -15,8 +15,9 @@ import { istGueltigeZeitzone } from './streak.js';
  * Zeitzone fällt der Lauf auf UTC zurück (AK8). Der eigene Schalter `users.carePushEnabled`
  * stoppt nur diesen Trigger — Frist-Erinnerungen (`dueTaskReminders.ts`) bleiben unberührt.
  *
- * Muster: `dueTaskReminders.ts` (gebündelte Nachricht, NotificationLog-Dedup erst nach
- * `sent > 0`, injizierbarer PushSender). Der Dedup-Key ist `<userId>:<lokalesISO-Datum>` —
+ * Muster: {@link sendDedupedPush} (`dedupedPush.ts` — NotificationLog-Dedup erst nach
+ * `sent > 0`, injizierbarer PushSender); gebündelte Nachricht wie `dueTaskReminders.ts`.
+ * Der Dedup-Key ist `<userId>:<lokalesISO-Datum>` —
  * das lokale Datum folgt der Nutzer-Zeitzone (Intl), nicht UTC.
  */
 

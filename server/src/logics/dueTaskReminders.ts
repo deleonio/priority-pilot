@@ -1,6 +1,7 @@
 import { Op } from 'sequelize';
 import { Task, NotificationLog, User } from '../models/index.js';
-import { sendPushToUser, type PushSender } from './push.js';
+import { sendDedupedPushBulk } from './dedupedPush.js';
+import type { PushSender } from './push.js';
 import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
 import { selectSeriesRepresentatives } from './series.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
@@ -91,9 +92,9 @@ const buildPayload = (tasks: DueTask[], sprache: CareSprache): { title: string; 
 };
 
 /**
- * Versendet die gebündelten Erinnerungen (eine Push-Nachricht je Nutzer) und protokolliert je
- * gemeldetem Task einen {@link NotificationLog}-Eintrag. Idempotent: ein zweiter Lauf ohne
- * zwischenzeitliche Änderungen sendet nichts erneut.
+ * Versendet die gebündelten Erinnerungen (eine Push-Nachricht je Nutzer via
+ * {@link sendDedupedPushBulk}) und protokolliert je gemeldetem Task einen {@link NotificationLog}-Eintrag.
+ * Idempotent: ein zweiter Lauf ohne zwischenzeitliche Änderungen sendet nichts erneut.
  *
  * @param send injizierbarer Versand (siehe `logics/push.ts`); Tests reichen einen Mock herein.
  * @param mailSend injizierbarer Mail-Versand (#1426, siehe `logics/mail.ts`); ohne SMTP-Konfiguration
@@ -109,7 +110,14 @@ export const runDueTaskReminders = async (
 	for (const group of groups) {
 		const recipient = await User.findByPk(group.userId);
 		const payload = buildPayload(group.tasks, spracheVon(recipient?.sprache));
-		const { sent } = await sendPushToUser(group.userId, payload, send);
+		const { sent } = await sendDedupedPushBulk(
+			group.userId,
+			KIND,
+			group.tasks.map((task) => dedupeKeyFor(task.id, task.deadline)),
+			payload,
+			send,
+			now,
+		);
 		let mailSent = false;
 		if (mailSend || isMailConfigured()) {
 			mailSent = await sendMailToUser(
@@ -119,6 +127,11 @@ export const runDueTaskReminders = async (
 			);
 		}
 		if (sent > 0 || mailSent) {
+			usersNotified++;
+		}
+		if (sent === 0 && mailSent) {
+			// Nur-Mail-Fall: der Helfer protokolliert nur Push-Zustellungen (`sent > 0`) — den Log-Eintrag
+			// für den Mail-Kanal hier nachziehen, sonst würde die Fallback-Mail je Lauf erneut versendet.
 			await NotificationLog.bulkCreate(
 				group.tasks.map((task) => ({
 					userId: group.userId,
@@ -128,7 +141,6 @@ export const runDueTaskReminders = async (
 				})),
 				{ ignoreDuplicates: true },
 			);
-			usersNotified++;
 		}
 	}
 	return { usersNotified };

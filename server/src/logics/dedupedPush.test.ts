@@ -4,7 +4,7 @@ import type { SendResult } from 'web-push';
 import { NotificationLog, PushSubscription, User } from '../models/index.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 import type { PushSender } from './push.js';
-import { sendDedupedPush } from './dedupedPush.js';
+import { sendDedupedPush, sendDedupedPushBulk } from './dedupedPush.js';
 
 /**
  * Vertragstests für den gemeinsamen Dedupe-Helfer (#2551, Spec `docs/spec/issue-2551.md`): er
@@ -88,5 +88,42 @@ describe('sendDedupedPush — gemeinsamer Push-Dedupe-Helfer (#2551)', () => {
 		assert.equal(pushCalls.length, 0);
 		const logs = await NotificationLog.findAll({ where: { kind: 'streak-reminder' } });
 		assert.equal(logs.length, 0, 'ein Log bei sent: 0 würde den Schlüssel dauerhaft blockieren');
+	});
+});
+
+describe('sendDedupedPushBulk — Bulk-Geschwister für gebündelte Push-Pfade (#2551, Review #2598)', () => {
+	beforeEach(async () => {
+		await resetDb();
+		pushCalls.length = 0;
+	});
+	after(closeDb);
+
+	it('sendet einmal gebündelt und protokolliert einen Log-Eintrag je offenem Schlüssel', async () => {
+		const recipient = await createRecipientWithSubscription('bulk-erstauftrag@example.com');
+
+		const result = await sendDedupedPushBulk(
+			recipient.id,
+			'due-task',
+			['task-1:2026-10-14T10:00:00.000Z', 'task-2:2026-10-14T11:00:00.000Z'],
+			payload,
+			mockSend,
+		);
+
+		assert.equal(result.sent, 1);
+		assert.equal(pushCalls.length, 1, 'ein gebündelter Versand, nicht einer je Schlüssel');
+		const logs = await NotificationLog.findAll({ where: { kind: 'due-task' } });
+		assert.equal(logs.length, 2, 'genau ein Log-Eintrag je offenem Schlüssel');
+	});
+
+	it('zweiter Aufruf mit denselben Schlüsseln sendet nicht erneut und schreibt keine zweiten Einträge', async () => {
+		const recipient = await createRecipientWithSubscription('bulk-zweitauftrag@example.com');
+		const keys = ['task-1:2026-10-14T10:00:00.000Z', 'task-2:2026-10-14T11:00:00.000Z'];
+
+		await sendDedupedPushBulk(recipient.id, 'due-task', keys, payload, mockSend);
+		const second = await sendDedupedPushBulk(recipient.id, 'due-task', keys, payload, mockSend);
+
+		assert.equal(second.sent, 0);
+		assert.equal(pushCalls.length, 1, 'kein erneuter Versand');
+		assert.equal(await NotificationLog.count(), 2, 'keine zweiten Log-Einträge');
 	});
 });

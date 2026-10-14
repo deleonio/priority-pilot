@@ -54,7 +54,11 @@ herein.
 - **AK2** ist der Lauf der zehn bestehenden Suiten im kanonischen Gate des
   Implementierungs-PR — kein neuer Test.
 - Bulk-Pfade (`dueTaskReminders`, `geo-background-job`) behalten ihre Gruppen- und
-  Serialisierungslogik; der Helfer kapselt nur „schon gesendet? → senden → protokollieren“.
+  Serialisierungslogik; für Versand und Protokollierung nutzen sie die Bulk-Geschwister
+  `sendDedupedPushBulk` (Review-Finding zu AK1 in #2598): `findAll`-Vorcheck über alle Schlüssel →
+  ein Versand → `bulkCreate({ ignoreDuplicates: true })` je offenem Schlüssel. Allein der
+  Nur-Mail-Fall von `dueTaskReminders` protokolliert weiter im Aufrufer — der Helfer kennt nur
+  Push-Kanäle („ein Log-Eintrag pro Auslöser, nicht pro Kanal“).
 - Ob der Payload als Objekt oder lazily (Thunk, z. B. `taskCreatedNotification` liest `User.sprache`
   erst nach dem Dedupe-Check) übergeben wird, ist Implementierungsfreiheit ohne beobachtbaren
   Unterschied (zusätzlicher DB-Griff) — bewusst nicht im Vertrag festgezurrt.

@@ -9,8 +9,8 @@ import { spracheVon, type CareSprache } from './careSuggestionData.js';
  * Kalendermonat — die Ankündigung des Rückblicks auf den Vormonat, den die Rückblick-Card
  * (`MonthlyBalanceCard`) im Monatsanfangs-Fenster (Tag 1–7) zeigt. Recap-Monat ist der Vormonat
  * der Nutzerzeitzone (ohne gültige Zone: UTC). Ton nach `docs/fuersorge-tonalitaet.md`: einladend,
- * ohne Schuld-Vokabular; ohne Aufgabeninhalte. Muster: `streakReminder.ts`
- * (NotificationLog-Dedup erst nach `sent > 0`, injizierbarer PushSender).
+ * ohne Schuld-Vokabular; ohne Aufgabeninhalte. Muster: {@link sendDedupedPush} (`dedupedPush.ts` —
+ * NotificationLog-Dedup erst nach `sent > 0`, injizierbarer PushSender).
  */
 
 const KIND = 'monthly-recap';

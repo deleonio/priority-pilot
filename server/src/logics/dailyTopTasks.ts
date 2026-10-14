@@ -94,7 +94,7 @@ const buildPayload = (tasks: TopTask[], sprache: CareSprache): { title: string; 
 
 /**
  * Versendet die gebündelten Top-Aufgaben (eine Push-Nachricht je Nutzer) und protokolliert je
- * zugestelltem Nutzer einen {@link sendDedupedPush}-Log-Eintrag. Idempotent pro Kalendertag: ein
+ * zugestelltem Nutzer einen {@link NotificationLog}-Log-Eintrag. Idempotent pro Kalendertag: ein
  * wiederholter Tick am selben Tag sendet nichts erneut; erst am Folgetag wird der tägliche Push
  * wieder ausgelöst. Nutzer ohne Subscription erhalten keinen Versand und kein Log. Bei 0 aktiven
  * Aufgaben greift der Leer-Fall (kein Push, kein Log).
