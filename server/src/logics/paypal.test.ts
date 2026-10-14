@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { verifyWebhookSignature, isGracePeriodExpired, createPaypalClient, assertPaypalConfig } from './paypal.js';
 import { PAYPAL_PLAN_IDS } from './plans.js';
@@ -52,6 +52,36 @@ describe('paypal.ts — verifyWebhookSignature (#1495 AK2)', () => {
 		);
 
 		assert.equal(result, 'invalid');
+	});
+});
+
+describe('paypal.ts — verifyWebhookSignature ohne Konfiguration (#2545 AK2)', () => {
+	it('liefert "unconfigured", loggt die fehlenden Variablen und ruft PayPal nicht auf', async () => {
+		const savedEnv = { ...process.env };
+		const errors: string[] = [];
+		const errorSpy = mock.method(console, 'error', (...args: unknown[]) => errors.push(args.join(' ')));
+		const calls: string[] = [];
+		const spyingFetch = (async (input: RequestInfo | URL) => {
+			calls.push(String(input));
+			throw new Error('Netzaufruf bei fehlender Konfiguration unzulässig');
+		}) as unknown as typeof fetch;
+		try {
+			for (const name of ['PAYPAL_CLIENT_ID', 'PAYPAL_CLIENT_SECRET', 'PAYPAL_WEBHOOK_ID']) {
+				delete process.env[name];
+			}
+
+			const result = await verifyWebhookSignature(Buffer.from('{"id":"WH-1"}'), {}, spyingFetch);
+
+			assert.equal(result, 'unconfigured', 'Fehlende Konfiguration muss von "unreachable" unterscheidbar sein');
+			assert.equal(calls.length, 0, 'Ohne Zugangsdaten darf kein PayPal-Netzaufruf versucht werden');
+			assert.ok(
+				errors.some((m) => /PAYPAL_CLIENT_ID|PAYPAL_CLIENT_SECRET|PAYPAL_WEBHOOK_ID/.test(m)),
+				'Log muss die fehlenden Variablennamen nennen',
+			);
+		} finally {
+			errorSpy.mock.restore();
+			process.env = savedEnv;
+		}
 	});
 });
 
@@ -220,8 +250,19 @@ describe('paypal.ts — assertPaypalConfig (#2302)', () => {
 		assert.doesNotThrow(() => assertPaypalConfig(full()));
 	});
 
-	it('wirft ohne Zugangsdaten (PayPal aus) auch in Produktion nicht', () => {
-		assert.doesNotThrow(() => assertPaypalConfig({ NODE_ENV: 'production' }));
+	// #2545 AK1 (Test-Pflege-Bedarf): ohne jegliche Zugangsdaten warf die Prüfung in Produktion
+	// bislang still nichts (#2302) — genau dieser blinde Fleck wird zur eindeutigen Meldung.
+	it('#2545 AK1: wirft in Produktion, wenn ALLE PayPal-Variablen fehlen, und nennt die Variablen', () => {
+		assert.throws(
+			() => assertPaypalConfig({ NODE_ENV: 'production' }),
+			(e: Error) => /PAYPAL_CLIENT_ID/.test(e.message) && /PAYPAL_CLIENT_SECRET/.test(e.message),
+		);
+	});
+
+	it('#2545 AK1: ohne Zugangsdaten bleibt Dev/Test erlaubt (kein Wurf außerhalb der Produktion)', () => {
+		for (const NODE_ENV of ['test', 'development']) {
+			assert.doesNotThrow(() => assertPaypalConfig({ NODE_ENV }));
+		}
 	});
 
 	it('wirft außerhalb von Produktion nie', () => {
