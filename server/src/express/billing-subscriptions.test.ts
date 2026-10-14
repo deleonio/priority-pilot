@@ -372,6 +372,111 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		);
 	});
 
+	// #2547 (Spec docs/spec/issue-2547.md): aktives Abo plus ältere offene Checkout-Zeile —
+	// Ausgangslage aller Upgrade-Cleanup-Tests. Die ältere Zeile hat `approvedAt = null`, zählt
+	// also nicht als genehmigtes Upgrade (#2238) und blockiert den Wechsel nicht.
+	const seedUpgradeWithOldPending = async (email: string): Promise<{ cookie: string; userId: number }> => {
+		const cookie = await login(email);
+		const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
+		await Subscription.create({
+			userId: me.id,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-ACTIVE',
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
+		});
+		await Subscription.create({
+			userId: me.id,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-OLD-PENDING',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'approval_pending',
+			currentPeriodEnd: new Date('2026-12-01'),
+		});
+		return { cookie, userId: me.id };
+	};
+
+	it('#2547 AK1: Upgrade mit älterer approval_pending-Zeile storniert diese bei PayPal, bevor sie aus der DB verschwindet', async () => {
+		const cancelCalls: { id: string; rowStillThere: boolean }[] = [];
+		server = await startTestServer(
+			withClient({
+				cancel: async (externalSubscriptionId: string) => {
+					cancelCalls.push({
+						id: externalSubscriptionId,
+						rowStillThere:
+							(await Subscription.count({
+								where: { externalSubscriptionId: 'I-OLD-PENDING', status: 'approval_pending' },
+							})) === 1,
+					});
+				},
+			}),
+		);
+		const { cookie, userId } = await seedUpgradeWithOldPending('upgrade-2547a@example.com');
+
+		const res = await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'monthly' });
+
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { approvalUrl?: string };
+		assert.ok(body.approvalUrl, 'Antwort muss eine Zustimmungs-URL enthalten');
+		assert.deepEqual(cancelCalls, [{ id: 'I-OLD-PENDING', rowStillThere: true }]);
+		assert.equal(
+			await Subscription.count({ where: { userId, externalSubscriptionId: 'I-OLD-PENDING' } }),
+			0,
+			'Die ältere Checkout-Zeile muss entfernt werden',
+		);
+	});
+
+	it('#2547 AK2: scheitert die Stornierung mit 5xx, antwortet die Route 502 und die ältere Zeile bleibt', async () => {
+		server = await startTestServer(
+			withClient({
+				cancel: async () => {
+					throw new PaypalHttpError('PayPal nicht erreichbar', 500);
+				},
+			}),
+		);
+		const { cookie, userId } = await seedUpgradeWithOldPending('upgrade-2547b@example.com');
+
+		const res = await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'monthly' });
+
+		assert.equal(res.status, 502);
+		assert.equal(
+			await Subscription.count({
+				where: { userId, externalSubscriptionId: 'I-OLD-PENDING', status: 'approval_pending' },
+			}),
+			1,
+			'Der 5xx-Fehler darf die ältere Zeile nicht beseitigen',
+		);
+		assert.equal(await Subscription.count({ where: { userId } }), 2, 'Kein neues Abo darf entstehen');
+	});
+
+	it('#2547 AK3: eine 4xx-Ablehnung der Stornierung entfernt die ältere Zeile trotzdem — das Upgrade läuft weiter', async () => {
+		let cancelledWith: string | undefined;
+		server = await startTestServer(
+			withClient({
+				cancel: async (externalSubscriptionId: string) => {
+					cancelledWith = externalSubscriptionId;
+					throw new PaypalHttpError('nie zugestimmt', 422);
+				},
+			}),
+		);
+		const { cookie, userId } = await seedUpgradeWithOldPending('upgrade-2547c@example.com');
+
+		const res = await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'monthly' });
+
+		assert.equal(cancelledWith, 'I-OLD-PENDING');
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { approvalUrl?: string };
+		assert.ok(body.approvalUrl, 'Antwort muss eine Zustimmungs-URL enthalten');
+		assert.equal(
+			await Subscription.count({ where: { userId, externalSubscriptionId: 'I-OLD-PENDING' } }),
+			0,
+			'Die PayPal-Ablehnung (4xx) muss die ältere Zeile entfernen',
+		);
+	});
+
 	it('#1912 AK6: Downgrade bleibt beim revise-Weg — kein neues Abo, kein Guthaben', async () => {
 		let created = false;
 		let revisedTo: string | undefined;
