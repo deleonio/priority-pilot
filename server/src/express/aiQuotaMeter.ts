@@ -143,6 +143,8 @@ const sendThrottled = (res: Response, retryAfter: number): void => {
 export interface AiQuotaCounter {
 	/** Bucht einen Punkt nach Fair Use (#1783); `false` heißt „über dem Budget gedrosselt". */
 	book: () => Promise<boolean>;
+	/** Wie {@link book}, antwortet bei Drossel aber selbst mit 429 `ai_throttled` + `Retry-After`. */
+	bookOrReject: (res: Response) => Promise<boolean>;
 	/** Nimmt eine Buchung zurück, deren Provider-Aufruf nichts geliefert hat. */
 	refund: () => Promise<void>;
 }
@@ -184,6 +186,14 @@ export const createAiQuotaCounter = async (
 	const budget = AI_ASSIST_MONTHLY_QUOTA[effectivePlan(user.plan)];
 	return {
 		book: async () => !('retryAfter' in (await bookFairUse(userId, fairUseKey(user), yearMonth, budget))),
+		bookOrReject: async (res) => {
+			const booking = await bookFairUse(userId, fairUseKey(user), yearMonth, budget);
+			if ('retryAfter' in booking) {
+				sendThrottled(res, booking.retryAfter);
+				return false;
+			}
+			return true;
+		},
 		refund: () => refund(userId, yearMonth),
 	};
 };
