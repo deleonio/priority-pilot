@@ -4,12 +4,13 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.25 - 2026-10-14
 
-_Enthält v0.25.0 – v0.25.2._
+_Enthält v0.25.0 – v0.25.3._
 
 ### Other Changes
 
 - docs(arc42): add ADR 0024 to decision table (V-19) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2582
 - docs(skills): german-only chat and full-queue status for coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2583
+- [P0/S] Server: CSRF-Schutz greift, sobald die Anmeldung aktiv ist (#2540) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2584
 
 ## v0.24 - 2026-10-13
 
@@ -186,6 +187,7 @@ _Enthält v0.18.0 – v0.18.45._
 - feat(server): add read-only CalDAV calendar sources (#2211) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2347
 - feat(free-time): suggest tasks for free calendar gaps by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2348
 - feat(server): add series autoCreate switch and rhythm none by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2373
+- feat(server): add on-demand series instance endpoint by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2382
 - feat(server): add on-demand series instance endpoint by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2382
 - feat(server): issue app tokens and CORS for the Android app by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2389
 - feat(frontend): app token auth and push in embedded android app by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2391
@@ -415,7 +417,6 @@ _Enthält v0.15.0 – v0.15.22._
 - chore(ci): remove ai:model label family and label-based model fallback by @deleonio in https://github.com/deleonio/priority-pilot/pull/2182
 - docs(skills): escalation ladder for a stalling pipeline (ticket-coordination) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2189
 - docs: add MCP guide page and README section (#1978) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2184
-- feat(frontend): done action for missed tasks, archive view, forest fix by @deleonio in https://github.com/deleonio/priority-pilot/pull/2188
 - feat(frontend): done action for missed tasks, archive view, forest fix by @deleonio in https://github.com/deleonio/priority-pilot/pull/2188
 - [P2/S] Website: DACH-Vorlagenbibliothek mit SEO-Landingpages (#1976) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2194
 
