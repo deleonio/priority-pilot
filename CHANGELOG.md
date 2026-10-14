@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.25 - 2026-10-14
 
-_Enthält v0.25.0 – v0.25.14._
+_Enthält v0.25.0 – v0.25.15._
 
 ### 🐞 Bug Fixes
 
@@ -30,6 +30,7 @@ _Enthält v0.25.0 – v0.25.14._
 - feat(server): handle missing paypal credentials explicitly (#2545) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2591
 - ci(triage): read container result from both sources (#2590) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2593
 - refactor(server): unify first-cycle credit coverage rule (#2556) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2599
+- refactor(server): column migrations via shared helper (#2552) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2600
 
 ## v0.24 - 2026-10-13
 
@@ -211,6 +212,7 @@ _Enthält v0.18.0 – v0.18.45._
 - feat(frontend): app token auth and push in embedded android app by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2391
 - feat(server): create recurring tasks via mcp task tools (#1938) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2394
 - feat(server): configurable mcp dialog instructions per user by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2396
+- feat(server): configurable mcp dialog instructions per user by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2396
 - feat(frontend): suggest splitting repeatedly postponed large tasks by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2400
 - feat(server): add knowledge entries for pillar suggestions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2409
 - feat(frontend): refetch data on return to foreground by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2408
@@ -226,7 +228,6 @@ _Enthält v0.18.0 – v0.18.45._
 
 - feat(frontend): restore plan matrix, list higher-tier features last by @deleonio in https://github.com/deleonio/priority-pilot/pull/2366
 - chore(native): bundle web app into android app bundle by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2392
-- feat(server): add pinned field to mcp task_update by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2395
 - feat(server): add pinned field to mcp task_update by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2395
 - feat(frontend): store content preferences per account (#2398) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2407
 - docs(native): add step-by-step firebase setup for push by @deleonio in https://github.com/deleonio/priority-pilot/pull/2431
