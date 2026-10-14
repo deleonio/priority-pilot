@@ -314,11 +314,14 @@ export interface PaypalWebhookEvent {
 /**
  * Startprüfung (#2302): In Produktion müssen alle nötigen Variablen gesetzt sein — sonst gälten die
  * Dev-Fallbacks (Fremd-Domain als Return-URL, Variablenname als Plan-ID, unverifizierte Webhooks).
- * Wirft mit den fehlenden Variablennamen, nie mit Werten — auch bei komplett fehlenden Zugangsdaten
- * (#2545: stilles PayPal-aus ist in Produktion ein Fehler). Außerhalb von Produktion no-op.
+ * Wirft bei Teil-Konfiguration mit den fehlenden Variablennamen, nie mit Werten. Ganz ohne
+ * Zugangsdaten (#2545, PO-Entscheidung 2026-10-14) wird nicht abgebrochen: eindeutige
+ * `console.error`-Meldung, der Server läuft weiter und das PayPal-Billing bleibt aus. Außerhalb
+ * von Produktion no-op.
  */
 export const assertPaypalConfig = (env: NodeJS.ProcessEnv = process.env): void => {
 	if (env.NODE_ENV !== 'production') return;
+	const hasNoCredentials = !env.PAYPAL_CLIENT_ID?.trim() && !env.PAYPAL_CLIENT_SECRET?.trim();
 	const required = [
 		'PAYPAL_CLIENT_ID',
 		'PAYPAL_CLIENT_SECRET',
@@ -327,9 +330,14 @@ export const assertPaypalConfig = (env: NodeJS.ProcessEnv = process.env): void =
 		...Object.values(PAYPAL_PLAN_IDS).flatMap((periods) => Object.values(periods).map((entry) => entry.envVar)),
 	];
 	const missing = required.filter((name) => !env[name]?.trim());
-	if (missing.length > 0) {
-		throw new Error(`PayPal-Konfiguration unvollständig, es fehlen: ${missing.join(', ')}`);
+	if (missing.length === 0) return;
+	if (hasNoCredentials) {
+		// Ganz ohne Zugangsdaten ist PayPal-Billing schlicht aus (#2545): eindeutige Meldung statt
+		// Startabbruch — eine fehlende Konfiguration darf die App nicht lahmlegen.
+		console.error(`PayPal-Billing ist deaktiviert, es fehlen: ${missing.join(', ')}`);
+		return;
 	}
+	throw new Error(`PayPal-Konfiguration unvollständig, es fehlen: ${missing.join(', ')}`);
 };
 
 /**

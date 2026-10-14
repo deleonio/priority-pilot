@@ -4,11 +4,12 @@
 
 Fehlende PayPal-Zugangsdaten werden sichtbar gemacht statt still verschluckt:
 
-1. **Startup (AK1):** `assertPaypalConfig` meldet in Produktion auch dann einen Fehler mit den
-   fehlenden Variablennamen, wenn ALLE PayPal-Variablen leer sind. Gewählter Weg (vom Issue
-   freigegeben): **Startabbruch** — die Funktion wirft mit den fehlenden Variablennamen (gleiche
-   Meldungsform wie #2302: Namen, nie Werte). Dev/Test ohne Zugangsdaten bleibt No-Op
-   (Plan-ID-Fallback-Muster #2302/#1494 unverändert).
+1. **Startup (AK1):** `assertPaypalConfig` meldet in Produktion auch dann eine eindeutige Meldung
+   mit den fehlenden Variablennamen (nie Werten), wenn ALLE PayPal-Variablen leer sind. Gewählter
+   Weg (PO-Entscheidung 2026-10-14): **kein Startabbruch** — `console.error` und der Server läuft
+   weiter, das PayPal-Billing ist aus (eine fehlende Konfiguration darf die App nicht lahmlegen).
+   Teil-Konfiguration (ID oder Secret gesetzt, Rest fehlt) wirft weiter wie #2302. Dev/Test ohne
+   Zugangsdaten bleibt No-Op (Plan-ID-Fallback-Muster #2302/#1494 unverändert).
 2. **Webhook (AK2):** `verifyWebhookSignature` erkennt fehlende Konfiguration **vor** dem
    Netzaufruf und liefert ein von `unreachable` unterscheidbares Ergebnis
    **`'unconfigured'`** (neuer Wert in `PaypalVerificationResult`), dabei `console.error` mit den
@@ -30,8 +31,9 @@ Fehlende PayPal-Zugangsdaten werden sichtbar gemacht statt still verschluckt:
 ## Schritte (Kontrakt je Testfall)
 
 - **TF1 (AK1, Unit `server/src/logics/paypal.test.ts`, describe `assertPaypalConfig`):**
-  1. `NODE_ENV=production`, keinerlei `PAYPAL_*`-Variable gesetzt → `assertPaypalConfig` wirft,
-     die Meldung nennt `PAYPAL_CLIENT_ID` und `PAYPAL_CLIENT_SECRET`.
+  1. `NODE_ENV=production`, keinerlei `PAYPAL_*`-Variable gesetzt → `assertPaypalConfig` wirft
+     nicht und loggt per `console.error`; die Meldung nennt `PAYPAL_CLIENT_ID` und
+     `PAYPAL_CLIENT_SECRET`.
   2. `NODE_ENV≠production` und keine `PAYPAL_*`-Variable gesetzt → wirft nicht (Dev/Test erlaubt).
 - **TF2 (AK2, Unit `server/src/logics/paypal.test.ts`):** `verifyWebhookSignature` mit geleerten
   drei Zugangsvariablen und Fetch-Spy → Ergebnis genau `'unconfigured'`, `console.error` enthält
@@ -44,6 +46,7 @@ Fehlende PayPal-Zugangsdaten werden sichtbar gemacht statt still verschluckt:
 
 ## Erwartetes Ergebnis
 
-Produktivstart ohne jegliche PayPal-Zugangsdaten bricht mit eindeutiger Variablen-Meldung ab; ein
-PayPal-Webhook ohne Konfiguration wird ohne 5xx quittiert (kein Retry-Loop) und der Grund steht mit
-Variablennamen im Log — klar abgesetzt vom 503-Pfad bei echten Erreichbarkeitsproblemen.
+Produktivstart ohne jegliche PayPal-Zugangsdaten läuft mit eindeutiger Variablen-Meldung
+(`console.error`) weiter, das PayPal-Billing bleibt aus; ein PayPal-Webhook ohne Konfiguration wird
+ohne 5xx quittiert (kein Retry-Loop) und der Grund steht mit Variablennamen im Log — klar
+abgesetzt vom 503-Pfad bei echten Erreichbarkeitsproblemen.

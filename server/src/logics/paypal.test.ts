@@ -262,13 +262,20 @@ describe('paypal.ts — assertPaypalConfig (#2302)', () => {
 		assert.doesNotThrow(() => assertPaypalConfig(full()));
 	});
 
-	// #2545 AK1 (Test-Pflege-Bedarf): ohne jegliche Zugangsdaten warf die Prüfung in Produktion
-	// bislang still nichts (#2302) — genau dieser blinde Fleck wird zur eindeutigen Meldung.
-	it('#2545 AK1: wirft in Produktion, wenn ALLE PayPal-Variablen fehlen, und nennt die Variablen', () => {
-		assert.throws(
-			() => assertPaypalConfig({ NODE_ENV: 'production' }),
-			(e: Error) => /PAYPAL_CLIENT_ID/.test(e.message) && /PAYPAL_CLIENT_SECRET/.test(e.message),
-		);
+	// #2545 AK1 (PO-Entscheidung 2026-10-14, Test-Pflege): ganz ohne Zugangsdaten läuft der Server
+	// weiter (PayPal-Billing aus) — die Meldung mit den Variablennamen kommt per console.error.
+	it('#2545 AK1: läuft in Produktion ohne ALLE PayPal-Variablen weiter und loggt die Variablen', () => {
+		const errors: string[] = [];
+		const errorSpy = mock.method(console, 'error', (...args: unknown[]) => errors.push(args.join(' ')));
+		try {
+			assert.doesNotThrow(() => assertPaypalConfig({ NODE_ENV: 'production' }));
+			assert.ok(
+				errors.some((m) => /PAYPAL_CLIENT_ID/.test(m) && /PAYPAL_CLIENT_SECRET/.test(m)),
+				'Meldung muss die fehlenden Variablennamen nennen',
+			);
+		} finally {
+			errorSpy.mock.restore();
+		}
 	});
 
 	it('#2545 AK1: ohne Zugangsdaten bleibt Dev/Test erlaubt (kein Wurf außerhalb der Produktion)', () => {
