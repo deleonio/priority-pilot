@@ -4,6 +4,7 @@ import { sendError, type ErrorDto } from '../http-error.js';
 import { User } from '../../models/index.js';
 import { getUserId, isAuthActive } from '../requireAuth.js';
 import { runGeoPushNotifications } from '../../logics/geo-background-job.js';
+import { parseCoordinate } from '../../logics/geo.js';
 import { requirePlanFeature } from '../planGuard.js';
 
 /**
@@ -143,15 +144,12 @@ geoConfigRouter.post(
 	'/geo/position',
 	requirePlanFeature('location_reminders'),
 	async (req: Request, res: Response<ErrorDto>) => {
-		// `Number('')` wäre 0 und damit fälschlich gültig — leere/fehlende/Array-Parameter ablehnen.
-		const parseCoord = (value: unknown): number =>
-			typeof value === 'number' && Number.isFinite(value) ? value : Number.NaN;
 		const body = (req.body ?? {}) as { lat?: unknown; lon?: unknown };
-		const lat = parseCoord(body.lat);
-		const lon = parseCoord(body.lon);
-		// F1 (#1102-Review): NaN-Vergleche sind immer false — NaN muss explizit abgelehnt werden,
-		// sonst läuft `{"lat":"abc"}` ohne 400 in den Push-Job.
-		if (Number.isNaN(lat) || Number.isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+		// Zentraler Helfer (#2553 AK1) — deckt NaN-/Bereichs-Checks (F1 #1102-Review) und die
+		// `Number("") === 0`-Falle ab; numerische Strings sind jetzt ebenfalls gültig.
+		const lat = parseCoordinate(body.lat, 90);
+		const lon = parseCoordinate(body.lon, 180);
+		if (lat === null || lon === null) {
 			sendError(res, 400, 'lat und lon müssen Zahlen in gültigem Bereich sein.');
 			return;
 		}

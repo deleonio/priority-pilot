@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { UniqueConstraintError } from 'sequelize';
 import { parseId, sendError, type ErrorDto } from '../http-error.js';
+import { parseCoordinate } from '../../logics/geo.js';
 import { PlaceFavorite } from '../../models/index.js';
 import { getUserId } from '../requireAuth.js';
 import { requirePlanFeature } from '../planGuard.js';
@@ -31,10 +32,6 @@ const serializePlaceFavorite = (favorite: PlaceFavorite): PlaceFavoriteDto => ({
 	latitude: favorite.latitude ?? null,
 	longitude: favorite.longitude ?? null,
 });
-
-/** Koordinaten sind optional; alles außer einer endlichen Zahl gilt als „nicht gesetzt" (AK4). */
-const toCoordinate = (value: unknown): number | null =>
-	typeof value === 'number' && Number.isFinite(value) ? value : null;
 
 /** Vergleichsform für die Duplikatprüfung (#1595 AK4): getrimmt und ohne Groß-/Kleinschreibung. */
 const normalizeAddress = (address: string): string => address.trim().toLowerCase();
@@ -78,6 +75,14 @@ placeFavoritesRouter.post(
 			sendError(res, 400, `Bitte eine Adresse mit 1 bis ${MAX_ADDRESS_LENGTH} Zeichen angeben.`);
 			return;
 		}
+		// #2553 AK3: abwesende Koordinaten bleiben null (#1342 AK4, Freitext-Ort); anwesende müssen
+		// über den zentralen Helfer gültig sein — früher wurden Überschreiter (999) still gespeichert.
+		const latitude = body?.latitude === undefined ? null : parseCoordinate(body.latitude, 90);
+		const longitude = body?.longitude === undefined ? null : parseCoordinate(body.longitude, 180);
+		if ((body?.latitude !== undefined && latitude === null) || (body?.longitude !== undefined && longitude === null)) {
+			sendError(res, 400, 'lat und lon müssen Zahlen in gültigem Bereich sein.');
+			return;
+		}
 		try {
 			// #1595 (AK4): Dieselbe Adresse existiert genau einmal. Ein zweiter Speicherversuch ist
 			// kein Fehler, sondern liefert den bestehenden Eintrag zurück — das Frontend braucht so
@@ -90,8 +95,8 @@ placeFavoritesRouter.post(
 			const created = await PlaceFavorite.create({
 				userId,
 				address,
-				latitude: toCoordinate(body?.latitude),
-				longitude: toCoordinate(body?.longitude),
+				latitude,
+				longitude,
 			});
 			res.status(201).json(serializePlaceFavorite(created));
 		} catch (error) {

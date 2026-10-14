@@ -5,7 +5,7 @@ import { Op, Transaction, type WhereOptions } from 'sequelize';
 import sequelize from '../../database.js';
 import { Group, GroupMember, Pillar, ScoreEntry, Task, TaskPillar, User } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
-import { roundedDistanceKm } from '../../logics/geo.js';
+import { parseCoordinate, roundedDistanceKm } from '../../logics/geo.js';
 import { classifyLlmSuitability } from '../../logics/llmSuitability.js';
 import { shouldBlockFeature } from '../../logics/plans.js';
 import { selectSeriesRepresentatives } from '../../logics/series.js';
@@ -658,12 +658,11 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 		'/tasks/nearby',
 		requirePlanFeature('location_reminders'),
 		async (req: Request, res: Response<NearbyTaskDto[] | ErrorDto>) => {
-			// `Number('')` wäre 0 und damit fälschlich gültig — leere/fehlende/Array-Parameter ablehnen.
-			const parseCoord = (value: unknown): number =>
-				typeof value === 'string' && value.trim() !== '' ? Number(value) : Number.NaN;
-			const lat = parseCoord(req.query.lat);
-			const lon = parseCoord(req.query.lon);
-			if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon) || lon < -180 || lon > 180) {
+			// Zentraler Helfer (#2553 AK2) — String-Koersion für Query-Parameter bleibt, die
+			// `Number('')`-Falle und Bereichsüberschreiter (z. B. `lat=999`) laufen auf null → 400.
+			const lat = parseCoordinate(req.query.lat, 90);
+			const lon = parseCoordinate(req.query.lon, 180);
+			if (lat === null || lon === null) {
 				sendError(res, 400, 'lat und lon müssen Zahlen in gültigem Bereich sein.');
 				return;
 			}
