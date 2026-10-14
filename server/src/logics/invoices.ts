@@ -188,9 +188,25 @@ const confirmationFor = async (
 /**
  * Stellt eine bereits angelegte Rechnung per Mail zu und setzt bei Erfolg `deliveredAt` (#2030).
  * Nutzt die gespeicherten `pdfBytes` — das PDF wird nie neu gebaut, Nummer und Anhang bleiben
- * byte-identisch. Ohne gespeichertes PDF oder Empfänger passiert nichts.
+ * byte-identisch. Ohne gespeichertes PDF oder Empfänger passiert nichts. Fehler werden geloggt
+ * statt geworfen (#2541): der Versand läuft nach dem Commit, eine unbehandelte Rejection
+ * würde den Prozess beenden.
  */
 const deliverInvoice = async (
+	invoice: Invoice,
+	user: User | null,
+	label: string,
+	now: Date,
+	mailSend?: MailSender,
+): Promise<void> => {
+	try {
+		await deliverInvoiceUnsafe(invoice, user, label, now, mailSend);
+	} catch (error) {
+		console.error(`Rechnungsversand ${String(invoice.get('number'))} fehlgeschlagen:`, error);
+	}
+};
+
+const deliverInvoiceUnsafe = async (
 	invoice: Invoice,
 	user: User | null,
 	label: string,
