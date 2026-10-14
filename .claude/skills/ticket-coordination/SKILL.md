@@ -45,6 +45,13 @@ Note: this file's prose is English; everything addressed to the author (chat, is
 stays German and follows the [vermenschlichen](../vermenschlichen/SKILL.md) rules. Label chain and
 phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
 
+**Chat language is German, without exception.** Every chat message to the author is German:
+status blocks, check-in and progress-report results, one-line acknowledgements of notifications,
+error reports, questions. English input does not switch the language — not English
+notifications, CI logs, review bodies, harness reminders, a context summary written in English,
+nor the English prose of this file. Quoted identifiers (labels, file paths, log lines, commit
+titles) stay verbatim; the sentence around them is German.
+
 ## 0. Start dialog
 
 Never start labelling right after the call. First agree on focus and order with the author:
@@ -178,8 +185,15 @@ wall of text — offer a decision round and go through the parked issues one by 
 - **Every round ends with the status block**, quiet rounds included — the author wants to see at
   a glance whether things move, without asking. Query fresh (labels, PRs, merges), never from
   memory. Fixed shape, nothing else around it:
-  1. Counter line: `Erledigt X (+n) · In Arbeit Y · Offen Z (davon W wartend)`, where +n counts
-     merges since the previous round.
+  1. Counter line over the **whole queue**, with share done and a ten-step bar:
+     `Fortschritt ████████░░ 80 % · Erledigt X/N (+n) · In Arbeit Y · Offen Z (davon W beim Autor)`.
+     The queue N is every leaf the coordination owns: all sub-issues of the coordinated
+     containers (manual acceptance tickets included), plus tickets the author or the
+     coordinator added during the run (also when they sit outside the container). Containers
+     themselves do not count. X + Y + Z = N; percent = X / N, rounded to whole numbers; one bar
+     step per 10 %. „In Arbeit" = a phase label set or running, or an open PR; „Offen" = not
+     started or waiting (author decisions and manual tickets go into W). +n counts merges since
+     the previous round.
   2. Pace line: trend mark, merges in the last 3 hours, minutes since the last merge.
      ▲ = merge since the last round · ▶ = phases advanced, no merge · ⏸ = nothing moved for two
      rounds, name the cause in the same line.
@@ -190,6 +204,12 @@ wall of text — offer a decision round and go through the parked issues one by 
      ~20 min) — that is the stall signal, pursue it per section 7.
   4. One line for what the coordinator did this round (routed, conflict resolved, started),
      then the next check-in time.
+- **A status question gets the whole picture.** When the author asks for the state in any
+  wording („Status", „Stand", „Überblick", „wie weit sind wir", „was ist noch offen"), answer
+  with the full status block over the whole queue — counter line with percent, table with every
+  leaf (done ones listed per row here, not collapsed), then what waits on the author with links
+  to the issues. Never answer with only the latest delta or only the open items. This holds
+  after the coordination has ended, too: query fresh and answer in the same shape.
 - **Progress report on a fixed cadence** (default every 3 hours, author may change it): a
   recurring schedule, set up once at the start, delivers it without being asked. Same status
   block, plus what finished since the last report, next steps in order and open decisions with
