@@ -4,11 +4,12 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.25 - 2026-10-14
 
-_Enthält v0.25.0 – v0.25.8._
+_Enthält v0.25.0 – v0.25.9._
 
 ### 🐞 Bug Fixes
 
 - fix(server): block geocode rate limit header bypass by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2587
+- feat(server): cancel pending PayPal checkouts before delete (#2547) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2592
 
 ### Other Changes
 
@@ -197,6 +198,7 @@ _Enthält v0.18.0 – v0.18.45._
 - feat(server): add series autoCreate switch and rhythm none by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2373
 - feat(server): add on-demand series instance endpoint by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2382
 - feat(server): issue app tokens and CORS for the Android app by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2389
+- feat(server): issue app tokens and CORS for the Android app by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2389
 - feat(frontend): app token auth and push in embedded android app by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2391
 - feat(server): create recurring tasks via mcp task tools (#1938) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2394
 - feat(server): configurable mcp dialog instructions per user by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2396
@@ -238,7 +240,6 @@ _Enthält v0.18.0 – v0.18.45._
 - fix(native): widen android versionCode digits with hard limits by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2371
 - feat(server): create due series automatically every day by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2384
 - docs(adr): ADR 0021 Android-App als SPA ohne Service Worker by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2387
-- feat(frontend): add auto-create switch and series templates tab (#2358) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2383
 - feat(frontend): add auto-create switch and series templates tab (#2358) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2383
 - feat(frontend): add android build without pwa and fixed site url by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2388
 - feat(frontend): add create-task dialog to series and templates by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2390
