@@ -1,5 +1,6 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import type { Pillar } from 'client';
+import type { ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { HeartBalance } from './HeartBalance';
 import { R_MIN, TICK_COUNT } from '../lib/balanceFigure';
@@ -129,6 +130,24 @@ describe('HeartBalance', () => {
 
 			expect(screen.getByTestId('heart-balance-value').textContent).toBe('42 %');
 			expect(screen.getByTestId('heart-balance-svg').getAttribute('aria-label')).toMatch(/^Balance 42 Prozent — /);
+		});
+
+		// #2645 (docs/spec/issue-2645.md): Das Dashboard leitet die Urteilsreife aus der
+		// Balance-Antwort ab (#2633-Felder) und reicht sie als optionale Prop durch — `undefined`
+		// (Server-Felder fehlen) bleibt bisheriges Verhalten. Die Prop existiert noch nicht und wird
+		// per Intersection-Typ deklariert (Produktiv-Typ unberührt, Muster 2026-08-23).
+		it('zeigt unter der Mindestmenge den Leerzustand statt Urteil und Säulennamen (#2645/AK1)', () => {
+			type PropsMitUrteilsreife = ComponentProps<typeof HeartBalance> & { urteilsreif?: boolean };
+			const props: PropsMitUrteilsreife = { pillars, punkteProSaeule: schieflage, urteilsreif: false };
+			const { container } = render(<HeartBalance {...props} />);
+
+			const state = container.querySelector('.heart-balance-state');
+			expect(state?.getAttribute('data-state')).toBe('leer');
+			expect(state?.textContent).toBe('Noch leer');
+			const hint = container.querySelector('.heart-balance-hint');
+			// Leer-Hinweis statt konkreter Schieflage — keine Säule wird beim Namen genannt.
+			expect(hint?.textContent).toBe('Erledige Aufgaben, damit sich das Bild füllt.');
+			expect(hint?.textContent).not.toContain('Körper');
 		});
 
 		it('weist je Säule die Abweichung vom Ziel in Prozentpunkten aus', () => {
