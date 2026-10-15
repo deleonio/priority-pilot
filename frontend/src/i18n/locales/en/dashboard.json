@@ -28,7 +28,8 @@
 		"empty": "No task is due right now (all done or blocked by open predecessors).",
 		"complete": "Complete",
 		"earnedPoints": "+{{punkte}} points",
-		"streakDays": "Streak {{tage}} days",
+		"streakDays_one": "Streak {{count}} day",
+		"streakDays_other": "Streak {{count}} days",
 		"undo": "Undo",
 		"errorLabel": "Completing failed"
 	},
