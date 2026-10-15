@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.26 - 2026-10-15
 
-_Enthält v0.26.0 – v0.26.16._
+_Enthält v0.26.0 – v0.26.17._
 
 ### 🎉 New Features
 
@@ -37,6 +37,7 @@ _Enthält v0.26.0 – v0.26.16._
 - Server: Fehlgeschlagene PayPal-Kündigung im Kulanzfrist-Sweep wird später erneut versucht (#2606) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2620
 - fix(deps): update dependency i18next to v26.4.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2602
 - chore(deps): update pi-erweiterungen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2627
+- feat(server): expose balance window count and minimum threshold (#2633) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2647
 
 ## v0.25 - 2026-10-15
 
@@ -313,7 +314,6 @@ _Enthält v0.18.0 – v0.18.45._
 - docs(marketing): add play store listing with texts and images by @deleonio in https://github.com/deleonio/priority-pilot/pull/2432
 - fix(server): count deadline as missed only from the next day (#2427) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2428
 - docs: define payment method per channel (pwa, android, ios) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2434
-- docs: define payment method per channel (pwa, android, ios) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2434
 
 ## v0.17 - 2026-10-07
 
@@ -401,6 +401,7 @@ _Enthält v0.16.0 – v0.16.37._
 ### 🐞 Bug Fixes
 
 - fix(website): translate footer templates label, drop unused field by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2204
+- fix(ci): require real verify run on head before gate merges (#2254) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2257
 - fix(ci): require real verify run on head before gate merges (#2254) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2257
 
 ### 🚀 Improvements
