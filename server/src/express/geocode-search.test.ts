@@ -98,14 +98,16 @@ describe('Adresssuche (GET /geocode-search)', () => {
 	// erreichen, warten vorher das Fenster ab, damit der Vorgänger sie nicht trifft.
 	const waitWindow = () => new Promise((resolve) => setTimeout(resolve, 1100));
 
-	/** Mockt `/reverse` (zählt Aufrufe) zusätzlich zu den Such-Upstreams. */
-	const mockReverse = (calls: UpstreamCalls): { count: () => number } => {
+	/** Mockt `/reverse` (zählt Aufrufe, merkt letzte URL) zusätzlich zu den Such-Upstreams. */
+	const mockReverse = (calls: UpstreamCalls): { count: () => number; url: () => string } => {
 		const upstream = globalThis.fetch;
 		let reverse = 0;
+		let lastUrl = '';
 		globalThis.fetch = async function (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) {
 			const url = input instanceof Request ? input.url : String(input);
 			if (url.startsWith('https://nominatim.openstreetmap.org/reverse')) {
 				reverse += 1;
+				lastUrl = url;
 				return new Response(JSON.stringify({ address: { road: 'Zählgasse' } }), {
 					status: 200,
 					headers: { 'Content-Type': 'application/json' },
@@ -113,7 +115,7 @@ describe('Adresssuche (GET /geocode-search)', () => {
 			}
 			return upstream(input, init);
 		} as typeof fetch;
-		return { count: () => reverse + calls.nominatim };
+		return { count: () => reverse + calls.nominatim, url: () => lastUrl };
 	};
 
 	it('AK1 — fragt Photon primär ab und mappt GeoJSON [lon,lat] auf {address, lat, lon}', async () => {
@@ -469,5 +471,53 @@ describe('Adresssuche (GET /geocode-search)', () => {
 		);
 		assert.equal(calls.photon, 1);
 		assert.equal(reverse.count(), 1);
+	});
+
+	// #2608 AK1+AK2 — Ungültige oder außerhalb [-90,90]/[-180,180] liegende Koordinaten antworten
+	// 400, BEVOR Nominatim gefragt wird (kein Kontingent-Verbrauch für Müll-Anfragen).
+	// Rot, solange lat=91/lon=181 (parseFloat ohne Bereichsprüfung) noch bis zum Upstream durchgehen.
+	it('#2608 AK1+AK2 — ungueltige/ausserhalb des Bereichs liegende lat/lon → 400, Nominatim 0x', async () => {
+		const calls = mockUpstreams();
+		const reverse = mockReverse(calls);
+
+		const cases: [string, string][] = [
+			['lat=abc&lon=13.405', 'nan-lat'],
+			['lat=52.52&lon=abc', 'nan-lon'],
+			['lat=&lon=13.405', 'leer-lat'],
+			['lat=91&lon=13.405', 'bereich-lat'],
+			['lat=52.52&lon=181', 'bereich-lon'],
+		];
+		for (const [query, who] of cases) {
+			const res = await get(`/reverse-geocode?${query}`, `spec2608-${who}`);
+			assert.equal(res.status, 400, `${query} muss 400 liefern`);
+		}
+		assert.equal(reverse.count(), 0, 'ungueltige Anfragen duerfen Nominatim nicht erreichen');
+	});
+
+	// #2608 AK3 — Fehlende Query-Parameter bleiben 400 mit der bestehenden Meldung (Status quo).
+	it('#2608 AK3 — fehlende lat/lon → 400 mit bestehender Meldung', async () => {
+		mockUpstreams();
+
+		const ohneBeide = await get('/reverse-geocode', 'spec2608-ohne');
+		assert.equal(ohneBeide.status, 400);
+		assert.deepEqual(await ohneBeide.json(), { message: 'lat und lon als Query-Parameter erforderlich.' });
+
+		const ohneLon = await get('/reverse-geocode?lat=52.52', 'spec2608-ohne-lon');
+		assert.equal(ohneLon.status, 400);
+		assert.deepEqual(await ohneLon.json(), { message: 'lat und lon als Query-Parameter erforderlich.' });
+	});
+
+	// #2608 AK4 — Gültige Koordinaten laufen unverändert: 200 mit Adresse, Nominatim genau 1x
+	// mit denselben Koordinaten in der Upstream-URL (guardt die Umstellung auf parseCoordinate).
+	it('#2608 AK4 — gueltige Koordinaten → 200 mit Adresse, Nominatim genau 1x mit denselben Koordinaten', async () => {
+		await waitWindow();
+		const calls = mockUpstreams();
+		const reverse = mockReverse(calls);
+
+		const res = await get('/reverse-geocode?lat=52.52&lon=13.405', 'spec2608-ok');
+		assert.equal(res.status, 200);
+		assert.deepEqual(await res.json(), { address: 'Zählgasse' });
+		assert.equal(reverse.count(), 1, 'genau ein Nominatim-Aufruf');
+		assert.ok(reverse.url().includes('lat=52.52&lon=13.405'), 'Koordinaten unverändert in der Upstream-URL');
 	});
 });
