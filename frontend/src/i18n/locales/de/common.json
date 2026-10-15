@@ -105,6 +105,20 @@
 		"importieren": "Aufgaben aus Todoist oder CSV importieren",
 		"importAiHint": "Ohne KI-Paket bleibt hier der Import: Deine Aufgaben kommen aus Todoist oder CSV, danach legst du im Dashboard direkt los."
 	},
+	"balanceHistory": {
+		"label": "Balance-Verlauf",
+		"laden": "Verlauf wird geladen …",
+		"leer": "Noch kein Verlauf — er entsteht, sobald du Aufgaben abhakst.",
+		"fehler": "Der Verlauf ist gerade nicht erreichbar.",
+		"start": "Vor 28 Tagen: {{wert}} %",
+		"ende": "Heute: {{wert}} %",
+		"chartLabel": "{{trend}}: von {{start}} % auf {{ende}} %, {{von}} bis {{bis}}",
+		"trend": {
+			"aufwaerts": "Aufwärts",
+			"abwaerts": "Abwärts",
+			"stabil": "Stabil"
+		}
+	},
 	"weeklyCard": {
 		"label": "Meine Woche in fünf Säulen",
 		"laden": "Wochenbalance wird geladen …",

@@ -95,6 +95,8 @@ vi.mock('./api', () => ({
 		listCalendarEvents: vi.fn().mockResolvedValue([]),
 		// Test-Pflege #1360: die neue Dashboard-Card „Streak“ lädt ihre Werte beim Mount selbst.
 		getStreak: vi.fn().mockResolvedValue({ aktuell: 0, best: 0, letzterTag: null }),
+		// Test-Pflege #2082: die neue Dashboard-Card „Balance-Verlauf“ lädt ihren Verlauf beim Mount selbst.
+		getBalanceHistory: vi.fn().mockResolvedValue([]),
 		// Test-Pflege #1362: die neue Dashboard-Card „Meilensteine“ lädt ihre Werte beim Mount selbst.
 		getMilestones: vi.fn().mockResolvedValue([]),
 		// #1638: ohne Server-Antwort zeigt das Dashboard-Herz den lokal gerechneten Füllstand.

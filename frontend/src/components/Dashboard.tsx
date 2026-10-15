@@ -9,6 +9,7 @@ import { CareHint } from './CareHint';
 import { WelcomeSteps } from './WelcomeSteps';
 import { DayDoneHint } from './DayDoneHint';
 import { StreakCard } from './StreakCard';
+import { BalanceHistoryCard } from './BalanceHistoryCard';
 import { WeeklyBalanceCard } from './WeeklyBalanceCard';
 import { MonthlyBalanceCard } from './MonthlyBalanceCard';
 import { YearlyRecapCard } from './YearlyRecapCard';
@@ -726,6 +727,9 @@ export const Dashboard = ({
 			 * lädt selbst (Muster NearbyCard), daher ohne Prop-Kette und ohne Bedingung.
 			 */}
 			<StreakCard />
+			{/* #2082: Balance-Verlauf der letzten 28 Tage direkt nach dem Streak — dieselbe Frage nach dem
+			 * Durchhalten. Lädt selbst (Muster StreakCard), daher ohne Prop-Kette und ohne Bedingung. */}
+			<BalanceHistoryCard />
 			{/* #1968: „Meine Woche in fünf Säulen“ direkt nach dem Streak — beide Karten erzählen
 			 * vom Durchhalten, die Wochenkarte als teilbares Standbild. Lädt selbst (Muster
 			 * StreakCard), daher ohne Prop-Kette; sie erscheint von selbst erst am Sonntag (AK4). */}
