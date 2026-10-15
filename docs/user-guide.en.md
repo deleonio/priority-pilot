@@ -137,7 +137,7 @@ shows a card with the button **"Create your first task"** instead. From top to b
   deadline and lists up to three of the most recently cleaned-up titles (see
   "Automatic deletion after a missed deadline").
 - **"Missed" section:** overdue open tasks without auto-delete are collected
-  above the task list — with a postpone counter and the actions "Done" (asks: "Did you only just complete …?" – "Yes, just now" counts as late, "No, on time" books the completion on the deadline), "Reschedule",
+  above the task list — with a postpone counter and the actions "Done" (asks: "When was … completed?" – "Just now" counts as late, "On time" books the completion on the deadline), "Reschedule",
   "Archive" and "Delete" (on Dashboard and Tasks). Archived tasks disappear from the
   list and the section; you find them on the Tasks page with the "Show archived" toggle
   and bring them back there with "Restore". Not to be confused with the "Missed

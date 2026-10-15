@@ -145,9 +145,10 @@
 		"restore": "Wiederherstellen"
 	},
 	"missedComplete": {
-		"question": "Aufgabe <title/> erst jetzt erledigt?",
-		"onTime": "Nein, pünktlich",
-		"now": "Ja, jetzt"
+		"question": "Wann wurde die Aufgabe <title/> erledigt?",
+		"onTime": "Pünktlich erledigt",
+		"now": "Erst jetzt erledigt",
+		"consequence": "Pünktlich erledigt gibt die vollen Punkte, erst jetzt die halben – der Streak zählt trotzdem."
 	},
 	"missedSection": {
 		"regionLabel": "Verpasste Aufgaben",
