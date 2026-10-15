@@ -3953,8 +3953,10 @@ describe('TaskForm — Checkliste an der Serie (#2501)', () => {
 
 		expect(screen.getByTestId('checklist-section')).toBeInTheDocument();
 		expect(screen.getAllByTestId('checklist-item')).toHaveLength(2);
-		expect(screen.getByText('Schritt A')).toBeInTheDocument();
-		expect(screen.getByText('Schritt B')).toBeInTheDocument();
+		// #2636 (AK3): Titel über das Umbenenn-Feld selbst lesen (zugänglicher Name = Positions-Label),
+		// nicht über den entfernten aria-hidden-Spiegel (Spec docs/spec/issue-2636.md).
+		expect(screen.getByLabelText('Checkpunkt 1')).toHaveValue('Schritt A');
+		expect(screen.getByLabelText('Checkpunkt 2')).toHaveValue('Schritt B');
 	});
 
 	it('AK1: Einträge im Serie-Modus haben keinen Erledigt-Schalter', async () => {
@@ -3990,6 +3992,57 @@ describe('TaskForm — Checkliste an der Serie (#2501)', () => {
 				}),
 			}),
 		);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2636 (Spec docs/spec/issue-2636.md): das Umbenenn-Feld der Serien-
+ * Checkliste trägt ein festes Positions-Label („Checkpunkt 1“, „Checkpunkt 2“, …) statt des
+ * sich mit dem Titel ändernden zugänglichen Namens; der aria-hidden-Textspiegel entfällt.
+ * Rot, bis TaskForm den i18n-Schlüssel setzt und den Spiegel entfernt. KEIN Produktivcode.
+ */
+describe('TaskForm — Umbenenn-Feld der Serien-Checkliste (#2636)', () => {
+	// Eigenes Fixture (die #2501-Helfer sind lokal in deren Describe) — gleiche Form.
+	type SeriesChecklistEntry2636 = { id: string; title: string };
+	const pointA: SeriesChecklistEntry2636 = { id: '26362636-2636-4636-8636-263626362631', title: 'Schritt A' };
+	const pointB: SeriesChecklistEntry2636 = { id: '26362636-2636-4636-8636-263626362632', title: 'Schritt B' };
+	const seriesWithPoints = () =>
+		({ ...minimalSeries(), checklist: [pointA, pointB] }) as Series & { checklist?: SeriesChecklistEntry2636[] };
+
+	it('AK1: Umsortieren verschiebt die Positions-Nummer mit', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={seriesWithPoints()} {...defaultProps} />);
+		});
+
+		// Der Auf-Button des zweiten Eintrags (Index 0 ist an Position 1 disabled).
+		fireEvent.click(screen.getAllByRole('button', { name: 'Nach oben verschieben' })[1]);
+
+		expect(screen.getByLabelText('Checkpunkt 1')).toHaveValue('Schritt B');
+		expect(screen.getByLabelText('Checkpunkt 2')).toHaveValue('Schritt A');
+	});
+
+	it('AK2: der Titel existiert nur als Feldwert, nicht als aria-hidden-Textspiegel', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={seriesWithPoints()} {...defaultProps} />);
+		});
+
+		expect(screen.queryByText('Schritt A')).toBeNull();
+		expect(screen.queryByText('Schritt B')).toBeNull();
+	});
+
+	it('AK4: Label bleibt beim Tippen stabil, neuer Wert steht im Feld', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={seriesWithPoints()} {...defaultProps} />);
+		});
+
+		fireEvent.input(screen.getByLabelText('Checkpunkt 1'), { target: { value: 'Neuer Schritt' } });
+
+		// Label unverändert (Bug: Label = getippter Titel) und neuer Wert im Feld.
+		expect(screen.getByLabelText('Checkpunkt 1')).toHaveValue('Neuer Schritt');
+		expect(screen.queryByLabelText('Neuer Schritt')).toBeNull();
 	});
 });
 

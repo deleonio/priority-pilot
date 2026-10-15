@@ -60,6 +60,7 @@
 		"checklistMoveUp": "Nach oben verschieben",
 		"checklistMoveDown": "Nach unten verschieben",
 		"checklistFull": "Checkliste voll — höchstens {{count}} Einträge.",
+		"checklistCheckpoint": "Checkpunkt {{index}}",
 		"submitEditBusy": "Bearbeiten…",
 		"submitCreateBusy": "Anlegen…",
 		"errors": {
