@@ -139,8 +139,13 @@ describe('POST /geo/position (#1101 F5/F1)', () => {
 	});
 
 	// F1: `NaN < -90` ist false — der NaN-Fall muss explizit 400 liefern, nicht in den Push-Job laufen.
+	// #2553 AK1: die Tabelle bleibt auf 400 fixiert, obwohl der neue Helfer `parseCoordinate`
+	// numerische Strings akzeptiert — `"abc"`, Leerstring (`Number("") === 0`-Falle) und Arrays
+	// sind auch dort null und werden an dieser Pflicht-Route mit 400 abgewiesen.
 	const nan: Array<[string, unknown]> = [
 		['lat als String', { lat: 'abc', lon: 13.4 }],
+		['lat leerer String', { lat: '', lon: 13.4 }],
+		['lat als Array', { lat: [52.5], lon: 13.4 }],
 		['lat null', { lat: null, lon: 13.4 }],
 		['lon fehlt', { lat: 52.5 }],
 	];
@@ -165,5 +170,11 @@ describe('POST /geo/position (#1101 F5/F1)', () => {
 		const res = await postPosition(cookie, { lat: 52.5219, lon: 13.4132 });
 		assert.equal(res.status, 204);
 		assert.equal(await res.text(), '', '204 hat keinen Body');
+		// #2553: der einheitliche Helfer akzeptiert auch numerische Strings als gültiges Paar.
+		assert.equal(
+			(await postPosition(cookie, { lat: '52.5219', lon: '13.4132' })).status,
+			204,
+			'numerische Strings sind mit parseCoordinate gültig',
+		);
 	});
 });

@@ -44,6 +44,12 @@ export const istGueltigeZeitzone = (zeitZone: string | undefined): zeitZone is s
 	}
 };
 
+/** Zeitzone des Nutzers (#2554): gültige IANA-Zone bleibt erhalten, `null`/`''`/Ungültiges fällt auf `'UTC'` zurück. Ersetzt die kopierten Ternäre in carePush/monthlyRecapPush/streakReminder. */
+export const nutzerZeitzone = (value: string | null | undefined): string => {
+	if (value != null && istGueltigeZeitzone(value)) return value;
+	return 'UTC';
+};
+
 /** Ein Kalendertag `YYYY-MM-DD` als UTC-Zeitstempel seiner Mitternacht (nur für Tagesabstände). */
 const alsZeitstempel = (tag: string): number => {
 	const [jahr, monat, tagImMonat] = tag.split('-').map(Number);

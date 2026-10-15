@@ -1,7 +1,7 @@
 import { User } from '../models/index.js';
 import { sendDedupedPush } from './dedupedPush.js';
 import { type PushSender } from './push.js';
-import { istGueltigeZeitzone, tagIn } from './streak.js';
+import { nutzerZeitzone, tagIn } from './streak.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
 
 /**
@@ -43,7 +43,7 @@ export const runMonthlyRecapPush = async (
 	const users = await User.findAll();
 	let usersNotified = 0;
 	for (const user of users) {
-		const zeitzone = istGueltigeZeitzone(user.zeitzone ?? undefined) ? (user.zeitzone as string) : 'UTC';
+		const zeitzone = nutzerZeitzone(user.zeitzone);
 		const dedupeKey = `${user.id}:${vormonatVonTag(tagIn(now, zeitzone))}`;
 		const { sent } = await sendDedupedPush(
 			user.id,

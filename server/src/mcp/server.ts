@@ -34,12 +34,8 @@ const JSONRPC_METHOD_NOT_FOUND = -32601;
 const JSONRPC_INVALID_PARAMS = -32602;
 const JSONRPC_INTERNAL_ERROR = -32603;
 
-interface JsonRpcRequest {
-	jsonrpc?: unknown;
-	id?: string | number | null;
-	method?: unknown;
-	params?: unknown;
-}
+/** Objekt-Prüfung des geparsten JSON-RPC-Bodys (#2554) — Validierung statt Type-Assertion. */
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
 const sendResult = (res: Response, id: string | number | null, result: unknown): void => {
 	res.json({ jsonrpc: '2.0', id, result });
@@ -52,8 +48,9 @@ const sendRpcError = (res: Response, id: string | number | null, code: number, m
 export const mcpRouter: Router = Router();
 
 mcpRouter.post(MCP_PATH, async (req: Request, res: Response) => {
-	const body = (req.body ?? {}) as JsonRpcRequest;
-	const id = body.id ?? null;
+	const body = isRecord(req.body) ? req.body : {};
+	// Bestmögliche id (string/number aus dem Body, sonst `null`) — auch für die Fehlerantwort.
+	const id = typeof body.id === 'string' || typeof body.id === 'number' ? body.id : null;
 	if (body.jsonrpc !== '2.0' || typeof body.method !== 'string') {
 		sendRpcError(res, id, JSONRPC_INVALID_REQUEST, 'Invalid JSON-RPC request.');
 		return;

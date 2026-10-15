@@ -10,4 +10,7 @@
 	// tsx wird als devDependency benötigt (test:node mit tsx) — keine false positive
 	// dejavu-fonts-ttf liefert die PDF-Schrift (#2233), aufgelöst per require.resolve-String — kein Import
 	"ignoreDependencies": ["tsx", "dejavu-fonts-ttf"],
+	// In-Datei genutzte Exports (z. B. ensureColumns, #2552) gelten als benutzt — der Zugriff der
+	// Spec-Tests über das migrateModule-Cast-Muster löst knip nicht auf.
+	"ignoreExportsUsedInFile": true,
 }

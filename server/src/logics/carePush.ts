@@ -5,7 +5,7 @@ import { sendDedupedPush } from './dedupedPush.js';
 import type { BalanceSaeule, KadenzTask } from './heartBalance.js';
 import { CARE_SPRACHEN, spracheVon, type CareSprache } from './careSuggestionData.js';
 import { type PushSender } from './push.js';
-import { istGueltigeZeitzone } from './streak.js';
+import { nutzerZeitzone } from './streak.js';
 
 /**
  * Fachlicher Push-Trigger „Fürsorge-Hinweise“ (#1794): schickt höchstens **einen** gebündelten
@@ -224,7 +224,7 @@ export const runCarePush = async (now: Date = new Date(), send?: PushSender): Pr
 		}
 		const betroffeneSaeule = (ueberlastete.length > 0 ? ueberlastete : defizitaere)[0];
 		// AK2/AK8: Ruhezeit in der Nutzer-Zeitzone; ungültige/fehlende Zone fällt auf 'UTC' zurück.
-		const zeitzone = istGueltigeZeitzone(user.zeitzone ?? undefined) ? (user.zeitzone as string) : 'UTC';
+		const zeitzone = nutzerZeitzone(user.zeitzone);
 		if (istRuhezeit(now, zeitzone)) {
 			continue;
 		}
