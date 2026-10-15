@@ -106,6 +106,14 @@ describe('Ordnung über alle Figuren', () => {
 		const voll = metricsOf([1]);
 		expect(FIGURE_MAX * (1 + SWING)).toBeLessThan(RING_INNER);
 
+		// Leerlauf-Probe (#2558): die Menge muss nicht-leer sein, sonst prüfen die Schleifen nichts.
+		expect(buildArcs(voll).length).toBeGreaterThan(0);
+		expect(buildRays(voll).length).toBeGreaterThan(0);
+		expect(buildOrbs(voll).length).toBeGreaterThan(0);
+		expect(buildPetals(voll).length).toBeGreaterThan(0);
+		expect(buildWedges(voll).length).toBeGreaterThan(0);
+		expect(buildHands(voll).length).toBeGreaterThan(0);
+
 		for (const arc of buildArcs(voll)) expect(arc.radius + arc.width / 2).toBeLessThanOrEqual(FIGURE_MAX);
 		for (const ray of buildRays(voll)) expect(ray.length).toBeLessThanOrEqual(FIGURE_MAX);
 		for (const orb of buildOrbs(voll)) expect(orb.radius).toBeLessThanOrEqual(FIGURE_MAX);
@@ -120,6 +128,14 @@ describe('Ordnung über alle Figuren', () => {
 	 */
 	it('gibt einer Säule ohne Ziel die kleinste Form, nicht gar keine', () => {
 		const leer = metricsOf([0, 0]);
+
+		// Leerlauf-Probe (#2558): die Menge muss nicht-leer sein, sonst prüfen die Schleifen nichts.
+		expect(buildOrbs(leer).length).toBeGreaterThan(0);
+		expect(buildRays(leer).length).toBeGreaterThan(0);
+		expect(buildArcs(leer).length).toBeGreaterThan(0);
+		expect(buildPetals(leer).length).toBeGreaterThan(0);
+		expect(buildWedges(leer).length).toBeGreaterThan(0);
+		expect(buildHands(leer).length).toBeGreaterThan(0);
 
 		for (const orb of buildOrbs(leer)) expect(orb.radius).toBe(R_MIN);
 		for (const ray of buildRays(leer)) expect(ray.length).toBeGreaterThan(0);
