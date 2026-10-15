@@ -287,6 +287,29 @@ describe('tokens-report', () => {
 		}
 	});
 
+	it('Ampel-Trend: Vorwoche ohne messbaren Wert rendert „·" und die Legende erklärt beide Fälle', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-ampel-ohne-'));
+		try {
+			// W35: review messend, analyse nur 0-Wert-Läufe (Ø ≤ 0) — W36: analyse $2;
+			// documenter ohne Wert = Siegel (macht das Ticket vollständig, zählt nicht als messend)
+			writeTicket(dir, '932', [
+				entry({ issueId: '932', phase: 'review', valueCost: 1, timestamp: '2026-08-24T10:00:00Z' }),
+				entry({ issueId: '932', phase: 'analyse', valueCost: 0, timestamp: '2026-08-24T11:00:00Z' }),
+				entry({ issueId: '932', phase: 'documenter', timestamp: '2026-08-24T12:00:00Z' }),
+				entry({ issueId: '932', phase: 'analyse', valueCost: 2, timestamp: '2026-08-31T10:00:00Z' }),
+			]);
+			const report = renderReport(dir);
+			assert.match(report, /\| analyse \| — \| · \$2\.00 \|/, 'Vorwoche ohne messbaren Wert = „·" statt Trend-Pfeil');
+			assert.match(
+				report,
+				/„·" = erste Spalte ohne Vorwoche oder Vorwoche mit Ø Wert ≤ 0/,
+				'Legende erklärt beide „·"-Fälle',
+			);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
 	it('Status-Dashboard und Wochen-Änderungsbericht: Ziele und Siegelwoche auf einen Blick', () => {
 		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-status-'));
 		try {
