@@ -4,11 +4,12 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.26 - 2026-10-15
 
-_Enthält v0.26.0 – v0.26.4._
+_Enthält v0.26.0 – v0.26.5._
 
 ### 🔧 Engineering
 
 - test(e2e): set expired subscription fixtures to a future date by @deleonio in https://github.com/deleonio/priority-pilot/pull/2607
+- docs: align pnpm runtime version with packageManager pin (V-20) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2613
 
 ### Other Changes
 
@@ -260,7 +261,6 @@ _Enthält v0.18.0 – v0.18.45._
 - docs(skill): add fixed status block to ticket-coordination rounds by @deleonio in https://github.com/deleonio/priority-pilot/pull/2386
 - docs(skill): add coordinator learnings from 2026-10-07 by @deleonio in https://github.com/deleonio/priority-pilot/pull/2417
 - docs(adr): add ADR 0022 and concept for opt-in e2e encryption (#1923) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2413
-- docs(adr): add ADR 0022 and concept for opt-in e2e encryption (#1923) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2413
 
 ### Other Changes
 
@@ -280,6 +280,7 @@ _Enthält v0.18.0 – v0.18.45._
 - [P2/M] Server: Inventar der Fachlogik (REST/MCP/Jobs) und Konvention für ihren Ort (#1934) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2403
 - [P1/S] Paketübersicht: Synchronisation in allen Paketen ausweisen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2402
 - docs: evaluate Open-Meteo vs DWD weather APIs (#1931) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2411
+- refactor(server): gerundete Entfernung zentral in logics/geo.ts (#2406) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2419
 - refactor(server): gerundete Entfernung zentral in logics/geo.ts (#2406) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2419
 - docs(tickets): require priority/effort prefix in titles by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2421
 - feat(server): add mcp tools for series and templates (#2360) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2420
