@@ -1,6 +1,7 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { ScoreEntry, Task, TaskPillar, User } from '../models/index.js';
+import { UEBERLAST_MINDEST_ERLEDIGUNGEN } from '../logics/careDeficit.js';
 import { PILLAR_RHYTHMS } from '../models/pillarData.js';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 
@@ -397,5 +398,74 @@ describe('GET /scores/balance — Trend und Defizit (#1796)', () => {
 		assert.ok(body.streak, 'Antwort bleibt unverändert: streak ist vorhanden');
 		assert.ok(Array.isArray(body.meilensteine), 'Antwort bleibt unverändert: meilensteine ist eine Liste');
 		assert.equal(aufrufe, 1, `genau ein ScoreEntry.findAll je Balance-Request ( aktuell: ${aufrufe})`);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2633 (Spec docs/spec/issue-2633.md) — `GET /scores/balance` liefert additiv
+ * `erledigungenImFenster` (Anzahl Erledigungen im jüngeren 7-Tage-Care-Fenster, Basis
+ * `zaehleErledigungen`) und `mindestErledigungen` (Wert aus `UEBERLAST_MINDEST_ERLEDIGUNGEN` —
+ * kein zweites Literal in der Route, AK2). AK4 deckt der Paritätstest (#1423 AK9) über deepEqual
+ * mit ab; die Bestandsfelder sichern die laufenden Tests derselben Datei.
+ */
+describe('GET /scores/balance — Erledigungen im Fenster (#2633)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+		seedPillarCursor = 0;
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const leseZaehler = async (
+		cookie: string,
+	): Promise<{ erledigungenImFenster: number; mindestErledigungen: number }> => {
+		const res = await getBalance(cookie);
+		assert.equal(res.status, 200);
+		return (await res.json()) as { erledigungenImFenster: number; mindestErledigungen: number };
+	};
+
+	it('AK1/AK3: 3 Erledigungen im Fenster → Zähler exakt 3, Mindestmenge aus der Konstante', async () => {
+		const cookie = await server.register('balance-fenster-3@example.com', 'password123');
+		const saeule = await createPillar(cookie, `Fenster-${idCounter++}`);
+		for (let i = 0; i < 3; i++) {
+			await completeTaskWithShares(cookie, `Fenster-${i}`, 1, [{ pillarId: saeule.id, share: 100 }]);
+		}
+		const body = await leseZaehler(cookie);
+		assert.equal(body.erledigungenImFenster, 3);
+		assert.equal(
+			body.mindestErledigungen,
+			UEBERLAST_MINDEST_ERLEDIGUNGEN,
+			'AK2: Wert stammt aus careDeficit, kein zweites Literal',
+		);
+	});
+
+	it('AK3: genau 1 Erledigung im Fenster → Zähler exakt 1', async () => {
+		const cookie = await server.register('balance-fenster-1@example.com', 'password123');
+		const saeule = await createPillar(cookie, `Fenster-${idCounter++}`);
+		await completeTaskWithShares(cookie, 'Einzige', 1, [{ pillarId: saeule.id, share: 100 }]);
+		const body = await leseZaehler(cookie);
+		assert.equal(body.erledigungenImFenster, 1);
+		assert.equal(body.mindestErledigungen, UEBERLAST_MINDEST_ERLEDIGUNGEN);
+	});
+
+	it('AK3: ohne Erledigungen → Zähler exakt 0, Mindestmenge unverändert', async () => {
+		const cookie = await server.register('balance-fenster-0@example.com', 'password123');
+		const body = await leseZaehler(cookie);
+		assert.equal(body.erledigungenImFenster, 0);
+		assert.equal(body.mindestErledigungen, UEBERLAST_MINDEST_ERLEDIGUNGEN);
+	});
+
+	it('AK1: 14 Tage alte Erledigung zählt nicht — Route nutzt das 7-Tage-Care-, nicht das 28-Tage-Kadenz-Fenster', async () => {
+		const cookie = await server.register('balance-fenster-alt@example.com', 'password123');
+		const saeule = await createPillar(cookie, `Fenster-${idCounter++}`);
+		const alt = await completeTaskWithShares(cookie, 'Alt', 1, [{ pillarId: saeule.id, share: 100 }]);
+		await ScoreEntry.update({ zeitpunkt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) }, { where: { taskId: alt } });
+		const body = await leseZaehler(cookie);
+		assert.equal(body.erledigungenImFenster, 0, 'außerhalb des 7-Tage-Fensters zählt die Erledigung nicht');
 	});
 });
