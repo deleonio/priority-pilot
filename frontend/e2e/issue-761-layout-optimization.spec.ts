@@ -1,6 +1,6 @@
 import type { Locator } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { openAccordionSection, waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView, MOBILE } from './helpers';
 
 /**
  * E2E-Layout-Tests für #761 „Layout-Optimierung Titel/Beschreibung/Aktionen".
@@ -27,7 +27,7 @@ const FIELD_ROW_GAP = 8;
 
 /** Die drei Viewport-Klassen aus dem Spec-Wortlaut „Mobile, Tablet, Desktop" (AK4). */
 const RESPONSIVE_VIEWPORTS = [
-	{ label: 'Mobile', width: 375, height: 667 },
+	{ label: 'Mobile', ...MOBILE },
 	{ label: 'Tablet', width: 768, height: 1024 },
 	{ label: 'Desktop', width: 1024, height: 768 },
 ] as const;
@@ -178,7 +178,7 @@ test.describe('#761 Layout-Optimierung Titel/Beschreibung/Aktionen', () => {
 	 * Bezug: docs/spec/issue-761.md, Erwartetes Ergebnis (Touch-Ziele min. 44x44px).
 	 */
 	test('AK5 (Mobile): Aktionen rechtsbündig im Viewport mit Touch-Zielen ab 44px', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await openTaskForm(page);
 
 		const actions = page.locator('[data-testid="task-actions"]');

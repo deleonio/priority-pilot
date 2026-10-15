@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * Roter E2E-Vertrag für #1183 — „Animationen zentral in den Einstellungen schaltbar
@@ -109,8 +109,8 @@ test.describe('Balamentum — Master-Schalter „Animationen" (#1183)', () => {
 		await expect(page.getByTestId('confetti-overlay')).toBeVisible();
 	});
 
-	test('AK5: Schalter ist auf 375×667 sichtbar und bedienbar', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+	test('AK5: Schalter ist auf 375×812 sichtbar und bedienbar', async ({ page }) => {
+		await page.setViewportSize(MOBILE);
 		await openGeneralSettings(page);
 		const toggle = animationsToggle(page);
 		await expect(toggle).toBeVisible();

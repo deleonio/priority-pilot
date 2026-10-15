@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * E2E-Spec für das Balance-Bild der Startseite (Lebensbalance).
@@ -101,12 +101,12 @@ test.describe('Dashboard — Herz der Lebensbalance', () => {
 		expect(box!.width, 'Bühne mindestens 12rem breit').toBeGreaterThanOrEqual(192 - 1);
 	});
 
-	test('Höhen-Deckel: Ablesewert liegt im Viewport (375×667)', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+	test('Höhen-Deckel: Ablesewert liegt im Viewport (375×812)', async ({ page }) => {
+		await page.setViewportSize(MOBILE);
 		await openDashboard(page);
 
 		const box = await page.locator('.heart-balance-readout').boundingBox();
 		expect(box, 'Ablesewert vorhanden').not.toBeNull();
-		expect(box!.y + box!.height, 'Ablesewert unterhalb des Viewports').toBeLessThanOrEqual(667);
+		expect(box!.y + box!.height, 'Ablesewert unterhalb des Viewports').toBeLessThanOrEqual(MOBILE.height);
 	});
 });

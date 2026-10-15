@@ -1,5 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 import { expect, test } from '@playwright/test';
+import { MOBILE } from './helpers';
 
 /**
  * Rote Spec-Tests Warteliste mit Referral-Rang (#1982, Spec docs/spec/issue-1982.md).
@@ -73,7 +74,7 @@ test.describe('Warteliste (#1982)', () => {
 	});
 
 	test('AK6: 375 px — Ergebnisblock bricht um statt horizontal zu scrollen', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await mockUnauthenticated(page);
 		await page.goto('/app/');
 		await eintragen(page, `mobil-${Date.now()}@example.com`);

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * ROTE Spec-Tests für #1182 „Konfetti auch über den Dashboard-Pfad".
@@ -102,8 +102,8 @@ test.describe('#1182 Konfetti über das Dashboard-Signal-Panel', () => {
 		expect(await confetti(page).count()).toBe(0);
 	});
 
-	test('AK4: auf 375×667 erscheint das Overlay vollständig im Viewport', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+	test('AK4: auf 375×812 erscheint das Overlay vollständig im Viewport', async ({ page }) => {
+		await page.setViewportSize(MOBILE);
 		await createTask(page, 'E2E #1182 Mobil', 5);
 
 		await openDashboard(page);

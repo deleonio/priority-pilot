@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { MOBILE } from './helpers';
 
 /**
  * E2E für #1988 (Spec `docs/spec/issue-1988.md`, TF7): Nach dem Übernehmen zeigt die
@@ -10,8 +11,6 @@ import { expect, test, type Page } from '@playwright/test';
  *
  * Session über `POST /auth/test-login` (nur NODE_ENV=test, Muster task-import.spec.ts).
  */
-
-const MOBILE = { width: 375, height: 812 } as const;
 
 const CSV = ['TYPE,CONTENT,PRIORITY,DATE', 'task,Einkaufen,2,2026-11-02', 'task,einkaufen ,3,', 'task,Sport,4,'].join(
 	'\r\n',

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { taskTitleText, waitForStableView } from './helpers';
+import { taskTitleText, waitForStableView, MOBILE } from './helpers';
 
 /**
  * E2E-Specs für die globale Suche (#8009e9bf-9e02-491c-8c73-6b4bac74f087, PR #1048):
@@ -174,7 +174,7 @@ test.describe('Balamentum — globale Suche über den Toolbar-Button', () => {
 	});
 
 	test('AK3: 375px — nach der Suche liegt der Fokus im Filterfeld', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.goto('/app/');
 		await waitForStableView(page);
 

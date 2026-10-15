@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * ROTE Spec-Tests für #1121 „Geo-Badge hinter dem Task-Titel" (Spec docs/spec/issue-1121.md).
@@ -140,7 +140,7 @@ test.describe('Balamentum — #1121: Geo-Badge hinter dem Task-Titel', () => {
 		const title = uniqueTitle('Umbruch').padEnd(65, 'x'); // Domänen-Maximum (server/src/models/task.ts:93)
 		const id = await createTaskViaApi(page, title, 'Lange Musterstraße 123, 12345 Musterstadt');
 
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksView(page);

@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
-import { measureHorizontalScroll, registerOwnSession, taskTitleText, waitForStableView } from './helpers';
+import { measureHorizontalScroll, registerOwnSession, taskTitleText, waitForStableView, MOBILE } from './helpers';
 
 /**
  * Spec-Tests (#228 / #307): die Erledigt-Ansicht — Tabelle NUR mit erledigten Tasks, Punkte je Säule,
@@ -190,7 +190,7 @@ test.describe('Balamentum — Erledigt-Ansicht (#228/#307) gegen das echte Backe
 		page,
 	}) => {
 		await registerOwnSession(page, 'completed-tasks');
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -340,7 +340,7 @@ test.describe('Balamentum — Erledigt-Ansicht (#228/#307) gegen das echte Backe
 
 		test('AK-307-5: Icon-Button „Wieder öffnen" liegt auch bei 375px in einer Toolbar', async ({ page }) => {
 			await registerOwnSession(page, 'completed-tasks');
-			await page.setViewportSize({ width: 375, height: 667 });
+			await page.setViewportSize(MOBILE);
 			await page.goto('/app/');
 			await waitForStableView(page);
 

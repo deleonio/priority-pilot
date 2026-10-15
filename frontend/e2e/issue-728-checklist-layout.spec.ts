@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { openAccordionSection, waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView, MOBILE } from './helpers';
 
 /**
  * E2E-Layout-Tests für #728 „Checklist-Item-Abstand optimieren".
@@ -95,8 +95,8 @@ test.describe('#728 Checklist-Layout über alle Viewports', () => {
 	 * Bezug: docs/spec/issue-728.md, Schritt 2 (vertikale Abstände optimieren) + Testfall „Checklist
 	 * in verschiedenen Viewports".
 	 */
-	test('AK3 (Mobile): Checklist-Items haben auch bei 375×667 einen deutlichen vertikalen Abstand', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+	test('AK3 (Mobile): Checklist-Items haben auch bei 375×812 einen deutlichen vertikalen Abstand', async ({ page }) => {
+		await page.setViewportSize(MOBILE);
 		const items = await openFormWithChecklistItems(page, ['Erster Schritt', 'Zweiter Schritt']);
 
 		const firstBox = await items.nth(0).boundingBox();

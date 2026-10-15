@@ -403,3 +403,6 @@ export const avoidSunday = async (page: Page): Promise<void> => {
 		await page.clock.install({ time: now - 86_400_000 });
 	}
 };
+
+/** Verbindlicher Mobil-Viewport 375×812 (`.ai-knowledge/project.md`, Mobile-First); Guard: `.github/scripts/e2e-viewport.test.ts`. */
+export const MOBILE = { width: 375, height: 812 } as const;

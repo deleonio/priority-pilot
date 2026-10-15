@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 import { expect, test } from '@playwright/test';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * Rote Spec-Tests für Issue #396 — „Automatisches Login", PR B (Silent Google Login via `prompt=none`).
@@ -191,7 +191,7 @@ test.describe('#396 PR B — Silent Google Login (prompt=none)', () => {
 	 */
 	test('AK7 (Mobile-First 375px): Login-Seite ohne horizontales Scrollen bedienbar', async ({ page }) => {
 		await mockUnauthenticated(page);
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.goto('/app/');
 
 		const loginButton = page.getByRole('button', { name: 'Mit Google anmelden' });

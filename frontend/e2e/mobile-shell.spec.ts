@@ -1,6 +1,6 @@
 import type { Locator } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { headerAction, waitForStableView } from './helpers';
+import { headerAction, waitForStableView, MOBILE } from './helpers';
 
 /**
  * E2E-Spec für die Mobile-Optimierung der App-Shell: Der Kopfbereich bleibt auf Handy-Breite
@@ -12,8 +12,6 @@ import { headerAction, waitForStableView } from './helpers';
  * ist die tatsächlich nutzbare Fläche auf 375px, nicht die Schreibweise im Stylesheet.
  */
 
-/** Referenz-Viewport der Projekt-Konventionen (.ai-knowledge/project.md → Mobile-First). */
-const MOBILE = { width: 375, height: 812 } as const;
 const DESKTOP = { width: 1280, height: 800 } as const;
 
 /** Die Kopf-Aktionen, die auf jeder Breite erreichbar bleiben müssen (#1335: „Säulen-Berater" entfällt

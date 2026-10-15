@@ -1,6 +1,6 @@
 import type { Route } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { measureHorizontalScroll, waitForStableView } from './helpers';
+import { measureHorizontalScroll, waitForStableView, MOBILE } from './helpers';
 
 /**
  * Rote Spec-E2E für #1565 (Spec `docs/spec/issue-1565.md`, AK1/AK4/AK5): Der kostenfreie
@@ -13,8 +13,6 @@ import { measureHorizontalScroll, waitForStableView } from './helpers';
  * `issue-1556-admin-plan-switch.spec.ts` (zustandsbehafteter Plan-PATCH): Backend-Vertrag
  * deckt `server/src/express/admin.api.test.ts` ab, hier geht es um den Frontend-Vertrag.
  */
-
-const MOBILE = { width: 375, height: 812 } as const;
 
 /** Mutierbare Fixture — der Plan wechselt im zustandsbehafteten Mock unten. */
 type FixtureUser = {

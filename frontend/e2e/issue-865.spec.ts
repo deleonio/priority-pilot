@@ -7,6 +7,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { dismissOnboardingDialog } from './fixtures';
+import { MOBILE } from './helpers';
 
 test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	/**
@@ -104,7 +105,7 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	 * Spec-Referenz: docs/spec/issue-865.md → Randfälle
 	 */
 	test('AK4: Avatar ist auf Mobile sichtbar (375px)', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.goto('/app/');
 
 		const { avatar, header } = await readHeaderState(page);

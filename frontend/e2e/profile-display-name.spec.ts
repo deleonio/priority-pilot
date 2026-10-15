@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * Rote Spec-e2e für #1219 — Anzeigename selbst festlegen (Spec docs/spec/issue-1219.md).
@@ -17,7 +17,7 @@ test.describe('Balamentum — #1219: Anzeigename', () => {
 	test('AK7: 375px — Feld ohne horizontales Scrollen; nach dem Speichern trägt die Kopfzeile den neuen Namen', async ({
 		page,
 	}) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Balamentum');
 

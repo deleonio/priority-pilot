@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * E2E-Spec für #1556 (Spec `docs/spec/issue-1556.md`, AK1/AK6 — Zeilen-Badges + 375px-Layout)
@@ -11,8 +11,6 @@ import { waitForStableView } from './helpers';
  * Backend-Autorisierung deckt `server/src/express/admin.api.test.ts` ab, hier geht es um den
  * Frontend-Vertrag (Badges, keine Auswahl, Layout bei 375px).
  */
-
-const MOBILE = { width: 375, height: 812 } as const;
 
 type FixtureUser = {
 	id: number;
