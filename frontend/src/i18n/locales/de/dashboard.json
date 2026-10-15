@@ -28,7 +28,8 @@
 		"empty": "Aktuell steht keine Aufgabe an (alle erledigt oder durch offene Vorgänger blockiert).",
 		"complete": "Erledigen",
 		"earnedPoints": "+{{punkte}} Punkte",
-		"streakDays": "Streak {{tage}} Tage",
+		"streakDays_one": "Streak {{count}} Tag",
+		"streakDays_other": "Streak {{count}} Tage",
 		"undo": "Rückgängig",
 		"errorLabel": "Erledigen fehlgeschlagen"
 	},

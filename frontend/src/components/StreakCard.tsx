@@ -3,6 +3,7 @@ import type { Streak } from 'client';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
+import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
 
 /**
  * Dashboard-Card „Streak" (#1360): zeigt die Kalendertage in Folge, an denen mindestens eine
@@ -26,6 +27,17 @@ export const StreakCard = () => {
 	const tage = (anzahl: number): string => t('days', { count: anzahl });
 	const [streak, setStreak] = useState<Streak | null>(null);
 	const [helpOpen, setHelpOpen] = useState(false);
+	// #2632: Refresh-Key auf TASKS_CHANGED_EVENT (Muster CareHint) — Erledigen auf dem Dashboard
+	// lässt die Card wie beim Mount neu laden, der alte Inhalt bleibt bis zur Antwort stehen.
+	const [refreshKey, setRefreshKey] = useState(0);
+
+	useEffect(() => {
+		const onTasksChanged = () => setRefreshKey((key) => key + 1);
+		window.addEventListener(TASKS_CHANGED_EVENT, onTasksChanged);
+		return () => {
+			window.removeEventListener(TASKS_CHANGED_EVENT, onTasksChanged);
+		};
+	}, []);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -47,7 +59,7 @@ export const StreakCard = () => {
 		return () => {
 			cancelled = true;
 		};
-	}, []);
+	}, [refreshKey]);
 
 	return (
 		<KolCard
@@ -69,6 +81,7 @@ export const StreakCard = () => {
 					) : (
 						<p className="dashboard-streak-current">
 							<span className="dashboard-streak-value">{tage(streak.aktuell)}</span>
+							{/* #2632: Leerzeichen im Text-DOM (Flex-Container rendert ihn nicht), damit Textsuche/E2E Wortgrenzen findet. */}{' '}
 							<span className="dashboard-streak-label">{t('streak.inARow')}</span>
 						</p>
 					)}
@@ -78,7 +91,7 @@ export const StreakCard = () => {
 						</p>
 					)}
 					<p className="dashboard-streak-best" data-testid="streak-best">
-						<span className="dashboard-streak-best-value">{tage(streak.best)}</span>
+						<span className="dashboard-streak-best-value">{tage(streak.best)}</span>{' '}
 						<span className="dashboard-streak-label">{t('streak.best')}</span>
 					</p>
 					<KolDetails

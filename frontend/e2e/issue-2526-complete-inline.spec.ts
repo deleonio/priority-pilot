@@ -117,7 +117,7 @@ test.describe('#2526 Erledigen mit einem Tipp, sichtbarem Erfolg und Rückgängi
 
 		// 1 × 3, ohne Deadline pünktlich ⇒ voller Basiswert.
 		await expect(panel(page)).toContainText('+3 Punkte');
-		await expect(panel(page)).toContainText(/Streak \d+ Tage/);
+		await expect(panel(page)).toContainText(/Streak 1 Tag(?!e)/);
 
 		await page.getByRole('button', { name: 'Rückgängig' }).click();
 		await expect.poll(async () => taskStatus(page, id)).toBe('Open');
@@ -131,7 +131,7 @@ test.describe('#2526 Erledigen mit einem Tipp, sichtbarem Erfolg und Rückgängi
 
 		await openDashboard(page);
 		await page.getByRole('button', { name: 'Erledigen', exact: true }).click();
-		await expect(panel(page)).toContainText(/Streak \d+ Tage/);
+		await expect(panel(page)).toContainText(/Streak 1 Tag(?!e)/);
 		await expect(panel(page)).not.toContainText('E2E #2526 Nächste');
 
 		await page.clock.fastForward(7000);

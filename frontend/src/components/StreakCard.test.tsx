@@ -1,9 +1,10 @@
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 // ROTER Spec-Test (#1360, Spec docs/spec/issue-1360.md): `StreakCard` existiert noch nicht.
 // Der Import schlägt fehl, bis `frontend/src/components/StreakCard.tsx` die Komponente bereitstellt.
 import { StreakCard } from './StreakCard';
+import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
 
 /**
  * Spec-Tests für die Streak-Card (AK5, #1360): zeigt aktuellen Streak + Bestmarke aus
@@ -197,5 +198,53 @@ describe('StreakCard Aufklappbereich (#2328 AK2/AK5)', () => {
 
 		fireEvent.click(summary());
 		expect(details().dataset.open).toBe('false');
+	});
+});
+
+/**
+ * Rote Spec-Tests #2632 (docs/spec/issue-2632.md): StreakCard laedt nach dem Erledigen ueber den
+ * gemeinsamen Trichter (`TASKS_CHANGED_EVENT`, #2522) neu — Muster `CareHint.tsx:99-107`.
+ */
+describe('StreakCard Refresh nach TASKS_CHANGED_EVENT (#2632)', () => {
+	afterEach(() => {
+		cleanup();
+		vi.clearAllMocks();
+	});
+
+	it('AK1 — ruft getStreak nach dem Event erneut auf und zeigt den neuen Stand ohne Reload', async () => {
+		getStreak.mockReset();
+		getStreak.mockResolvedValueOnce({ aktuell: 0, best: 0, letzterTag: null });
+		getStreak.mockResolvedValueOnce({ aktuell: 1, best: 1, letzterTag: '2026-10-15' });
+		render(<StreakCard />);
+		await waitFor(() => expect(card().querySelector('[data-testid="streak-zero"]')).not.toBeNull());
+
+		act(() => {
+			window.dispatchEvent(new CustomEvent(TASKS_CHANGED_EVENT));
+		});
+		await waitFor(() => expect(getStreak).toHaveBeenCalledTimes(2));
+		await waitFor(() => expect(card().querySelector('[data-testid="streak-zero"]')).toBeNull());
+		expect(card().querySelector('.dashboard-streak-current')?.textContent).toContain('1');
+	});
+
+	it('AK3 — bis zur neuen Antwort bleibt der alte Inhalt stehen (kein Ladezustand)', async () => {
+		getStreak.mockReset();
+		getStreak.mockResolvedValueOnce({ aktuell: 3, best: 7, letzterTag: '2026-10-14' });
+		let resolveRefetch!: (value: Streak) => void;
+		getStreak.mockImplementationOnce(() => new Promise<Streak>((resolve) => (resolveRefetch = resolve)));
+		render(<StreakCard />);
+		await waitFor(() => expect(card().querySelector('.dashboard-streak-current')?.textContent).toContain('3'));
+
+		act(() => {
+			window.dispatchEvent(new CustomEvent(TASKS_CHANGED_EVENT));
+		});
+		await waitFor(() => expect(getStreak).toHaveBeenCalledTimes(2));
+		// Alter Inhalt bleibt gerendert: Content-State statt Loading (Layout-Sprung-Verbot #2625)
+		expect(card().querySelector('.dashboard-streak-content')).not.toBeNull();
+		expect(card().querySelector('.dashboard-streak-current')?.textContent).toContain('3');
+
+		await act(async () => {
+			resolveRefetch({ aktuell: 4, best: 7, letzterTag: '2026-10-15' });
+		});
+		await waitFor(() => expect(card().querySelector('.dashboard-streak-current')?.textContent).toContain('4'));
 	});
 });
