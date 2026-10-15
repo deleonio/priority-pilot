@@ -46,7 +46,7 @@ curl -fsSL https://deb.nodesource.com/setup_26.x | sudo -E bash -
 sudo apt install -y nodejs git
 
 # pnpm (zum optionalen Prod-Install auf dem Host; sonst nicht zwingend nötig)
-sudo npm install -g pnpm@11
+sudo npm install -g pnpm@12
 
 # PM2 (Prozess-Manager fürs Backend)
 sudo npm install -g pm2
