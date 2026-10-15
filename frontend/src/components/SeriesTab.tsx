@@ -9,6 +9,7 @@ import { CategoryBadge } from './CategoryBadge';
 import { DeleteSeriesDialog } from './DeleteSeriesDialog';
 import { GeoBadge } from './GeoBadge';
 import { Modal } from './Modal';
+import { BADGE_COLOR } from '../lib/badgeColors';
 import { PillarMissingBadge } from './PillarMissingBadge';
 import { SeriesInstanceDialog } from './SeriesInstanceDialog';
 import { TaskForm } from './TaskForm';
@@ -161,7 +162,7 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 										{entry.rhythm !== 'none' && (
 											<KolBadge
 												_label={t(`seriesTab.rhythm.${entry.rhythm}`)}
-												_color="#005b99"
+												_color={BADGE_COLOR.info}
 												className="series-tree-badge"
 											/>
 										)}
