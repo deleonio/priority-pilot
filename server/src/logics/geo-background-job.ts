@@ -2,7 +2,8 @@ import { Op } from 'sequelize';
 import { Task, User, NotificationLog } from '../models/index.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { roundedDistanceKm } from './geo.js';
-import { sendPushToUser, type PushSender } from './push.js';
+import { sendDedupedPushBulk } from './dedupedPush.js';
+import type { PushSender } from './push.js';
 import { shouldBlockFeature } from './plans.js';
 import { selectSeriesRepresentatives } from './series.js';
 
@@ -142,7 +143,7 @@ const buildPayload = (tasks: NearbyGeoTask[], sprache: CareSprache): { title: st
 
 /**
  * Versendet die gebundelten „Aufgaben in der Nähe"-Nachrichten (eine je Nutzer, an alle
- * Subscriptions via {@link sendPushToUser}) und protokolliert je gemeldeter Aufgabe einen
+ * Subscriptions via {@link sendDedupedPushBulk}) und protokolliert je gemeldeter Aufgabe einen
  * {@link NotificationLog}-Eintrag. Idempotent innerhalb des 24-h-Fensters (#1926 AK4).
  *
  * @param send injizierbarer Versand (siehe `logics/push.ts`); Tests reichen einen Mock herein.
@@ -166,17 +167,15 @@ export const runGeoPushNotifications = async (
 		if (plan !== undefined && shouldBlockFeature(plan, 'location_reminders')) {
 			return;
 		}
-		const { sent } = await sendPushToUser(group.userId, buildPayload(group.tasks, spracheVon(user?.sprache)), send);
+		const { sent } = await sendDedupedPushBulk(
+			group.userId,
+			KIND,
+			group.tasks.map((task) => dedupeKeyFor(task.id, now)),
+			buildPayload(group.tasks, spracheVon(user?.sprache)),
+			send,
+			now,
+		);
 		if (sent > 0) {
-			await NotificationLog.bulkCreate(
-				group.tasks.map((task) => ({
-					userId: group.userId,
-					kind: KIND,
-					dedupeKey: dedupeKeyFor(task.id, now),
-					sentAt: now,
-				})),
-				{ ignoreDuplicates: true },
-			);
 			usersNotified++;
 		}
 	};

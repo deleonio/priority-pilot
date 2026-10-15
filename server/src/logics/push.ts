@@ -15,7 +15,7 @@ import { ownerScope } from './ownerScope.js';
 const DEFAULT_VAPID_SUBJECT = 'mailto:admin@example.com';
 
 /** Nutzlast einer Push-Nachricht — der Service Worker (`push-sw.js`) liest genau diese Felder. */
-interface PushPayload {
+export interface PushPayload {
 	title: string;
 	body?: string;
 	/** Ziel-URL für den `notificationclick`-Handler (Default: App-Wurzel). */

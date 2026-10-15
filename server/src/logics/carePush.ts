@@ -1,9 +1,10 @@
-import { NotificationLog, Pillar, ScoreEntry, Task, User } from '../models/index.js';
+import { Pillar, ScoreEntry, Task, User } from '../models/index.js';
 import type { PillarWithContribution } from '../models/task.js';
 import { bewerteCareDefizit } from './careDeficit.js';
+import { sendDedupedPush } from './dedupedPush.js';
 import type { BalanceSaeule, KadenzTask } from './heartBalance.js';
 import { CARE_SPRACHEN, spracheVon, type CareSprache } from './careSuggestionData.js';
-import { sendPushToUser, type PushSender } from './push.js';
+import { type PushSender } from './push.js';
 import { nutzerZeitzone } from './streak.js';
 
 /**
@@ -14,8 +15,9 @@ import { nutzerZeitzone } from './streak.js';
  * Zeitzone fällt der Lauf auf UTC zurück (AK8). Der eigene Schalter `users.carePushEnabled`
  * stoppt nur diesen Trigger — Frist-Erinnerungen (`dueTaskReminders.ts`) bleiben unberührt.
  *
- * Muster: `dueTaskReminders.ts` (gebündelte Nachricht, NotificationLog-Dedup erst nach
- * `sent > 0`, injizierbarer PushSender). Der Dedup-Key ist `<userId>:<lokalesISO-Datum>` —
+ * Muster: {@link sendDedupedPush} (`dedupedPush.ts` — NotificationLog-Dedup erst nach
+ * `sent > 0`, injizierbarer PushSender); gebündelte Nachricht wie `dueTaskReminders.ts`.
+ * Der Dedup-Key ist `<userId>:<lokalesISO-Datum>` —
  * das lokale Datum folgt der Nutzer-Zeitzone (Intl), nicht UTC.
  */
 
@@ -227,15 +229,16 @@ export const runCarePush = async (now: Date = new Date(), send?: PushSender): Pr
 			continue;
 		}
 		const dedupeKey = `${user.id}:${lokalesDatum(now, zeitzone)}`;
-		const bereitsGesendet = await NotificationLog.findOne({ where: { kind: KIND, dedupeKey } });
-		if (bereitsGesendet) {
-			continue;
-		}
 		const sprache = spracheVon(user.sprache);
 		const text = pushTextFuer(situation, betroffeneSaeule.id, sprache);
-		const { sent } = await sendPushToUser(user.id, { title: text.titel, body: text.text, url: '/' }, send);
+		const { sent } = await sendDedupedPush(
+			user.id,
+			KIND,
+			dedupeKey,
+			{ title: text.titel, body: text.text, url: '/' },
+			send,
+		);
 		if (sent > 0) {
-			await NotificationLog.create({ userId: user.id, kind: KIND, dedupeKey, sentAt: now });
 			usersNotified++;
 		}
 	}

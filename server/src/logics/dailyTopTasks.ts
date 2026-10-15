@@ -1,7 +1,8 @@
 import { Op } from 'sequelize';
-import { Task, NotificationLog, User } from '../models/index.js';
+import { Task, User } from '../models/index.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
-import { sendPushToUser, type PushSender } from './push.js';
+import { sendDedupedPush } from './dedupedPush.js';
+import { type PushSender } from './push.js';
 import { selectSeriesRepresentatives, filterVorlauf } from './series.js';
 
 /**
@@ -93,7 +94,7 @@ const buildPayload = (tasks: TopTask[], sprache: CareSprache): { title: string; 
 
 /**
  * Versendet die gebündelten Top-Aufgaben (eine Push-Nachricht je Nutzer) und protokolliert je
- * zugestelltem Nutzer einen {@link NotificationLog}-Eintrag. Idempotent pro Kalendertag: ein
+ * zugestelltem Nutzer einen {@link NotificationLog}-Log-Eintrag. Idempotent pro Kalendertag: ein
  * wiederholter Tick am selben Tag sendet nichts erneut; erst am Folgetag wird der tägliche Push
  * wieder ausgelöst. Nutzer ohne Subscription erhalten keinen Versand und kein Log. Bei 0 aktiven
  * Aufgaben greift der Leer-Fall (kein Push, kein Log).
@@ -108,15 +109,15 @@ export const runDailyTopTasksPush = async (
 	const groups = await collectDailyTopTasks(now);
 	let usersNotified = 0;
 	for (const group of groups) {
-		const dedupeKey = dedupeKeyFor(group.userId, now);
-		const alreadySent = await NotificationLog.findOne({ where: { kind: KIND, dedupeKey } });
-		if (alreadySent) {
-			continue;
-		}
 		const sprache = spracheVon((await User.findByPk(group.userId, { attributes: ['sprache'] }))?.sprache);
-		const { sent } = await sendPushToUser(group.userId, buildPayload(group.tasks, sprache), send);
+		const { sent } = await sendDedupedPush(
+			group.userId,
+			KIND,
+			dedupeKeyFor(group.userId, now),
+			buildPayload(group.tasks, sprache),
+			send,
+		);
 		if (sent > 0) {
-			await NotificationLog.create({ userId: group.userId, kind: KIND, dedupeKey, sentAt: now });
 			usersNotified++;
 		}
 	}
