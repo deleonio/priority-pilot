@@ -8,10 +8,11 @@
 **additive** Felder, damit Frontend und MCP-Clients ableiten können, ob genug Erledigungen für ein
 Balance-Urteil vorliegen:
 
-- `erledigungenImFenster` — Anzahl der Erledigungen im jüngeren `CARE_FENSTER_TAGE`-Fenster
-  (7 Tage, kontoweit/task-level), berechnet mit der bestehenden Funktion `zaehleErledigungen`
-  (`server/src/logics/careDeficit.ts:45`) über die im Handler bereits vorliegende `kadenzTasks`-Liste.
-  Exakt die Zählstelle der Überlast-Regel — **nicht** der 28-Tage-Kadenz-Füllstand.
+- `erledigungenImFenster` — Anzahl der Erledigungen im 28-Tage-Kadenz-Fenster (`KADENZ_FENSTER_TAGE`),
+  also im selben Fenster, das der Füllstand beurteilt, berechnet mit `zaehleErledigungenImKadenzFenster`
+  (`server/src/logics/heartBalance.ts`) über die im Handler bereits vorliegende `kadenzTasks`-Liste.
+  PO-Entscheidung in #2633: **nicht** das 7-Tage-Care-Fenster — sonst sähe ein Nutzer nach einer
+  Woche Pause trotz Verlauf wieder den Leerzustand.
 - `mindestErledigungen` — die Mindestmenge, ab der ein Überlast-Urteil überhaupt gilt; Wert stammt
   aus dem importierten `UEBERLAST_MINDEST_ERLEDIGUNGEN` (`careDeficit.ts:25`), **kein zweites
   Literal** in der Route.
@@ -36,9 +37,9 @@ Balance-Urteil vorliegen:
 2. **Eine Erledigung im Fenster (AK3):** genau 1 erledigte Aufgabe → Zähler exakt `1`.
 3. **Keine Erledigung (AK3):** frischer Nutzer ohne Tasks → Zähler exakt `0`, Mindestmenge
    unverändert.
-4. **Fenstergrenze (AK1):** eine vor 14 Tagen erledigte Aufgabe (innerhalb des 28-Tage-Kadenz-
-   Fensters, außerhalb des 7-Tage-Care-Fensters) zählt **nicht** — der Zähler bleibt `0` (deckt ab,
-   dass die Route das Care-Fenster nutzt, nicht das Kadenz-Fenster).
+4. **Fenstergrenze (AK1):** eine vor 14 Tagen erledigte Aufgabe (außerhalb des 7-Tage-Care-Fensters,
+   innerhalb des 28-Tage-Kadenz-Fensters) zählt — Zähler `1`; eine vor 30 Tagen erledigte zählt
+   nicht — Zähler `0` (deckt ab, dass die Route das Kadenz-Fenster nutzt).
 5. **MCP-Parität (AK4):** der bestehende Paritätstest (#1423 AK9, deepEqual HTTP-Antwort vs.
    `balance_status` über `tools/call`) läuft ohne Werkzeug-Anpassung weiter grün.
 

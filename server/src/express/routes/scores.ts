@@ -15,7 +15,7 @@ import {
 } from '../../logics/streak.js';
 import { meilensteinStandVon } from '../../logics/milestones.js';
 import MilestoneReached from '../../models/milestoneReached.js';
-import { berechneLebensbalanceNachKadenz } from '../../logics/heartBalance.js';
+import { berechneLebensbalanceNachKadenz, zaehleErledigungenImKadenzFenster } from '../../logics/heartBalance.js';
 import { berechneBalanceVerlauf, istGueltigesDatum, zeitraumInTagen } from '../../logics/balanceHistory.js';
 import { pillarTextIn, resolvePillarDescription } from '../../models/pillarData.js';
 import CareSuggestionDismissal from '../../models/careSuggestionDismissal.js';
@@ -276,9 +276,9 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 			// Eine Dezimalstelle: der Füllstand schwankt mit jeder Erledigung, mehr Stellen wären
 			// Rauschen. Die Säulen-Punkte bleiben roh, damit ein Client selbst weiterrechnen kann.
 			fuellstandProzent: Math.round(balance.fill * 1000) / 10,
-			// Erledigungen im jüngeren Care-Fenster (#2633): dieselbe Zählstelle wie die Überlast-Regel
-			// (#2521), damit Client und Werkzeug die Schwelle nachvollziehen können.
-			erledigungenImFenster: zaehleErledigungen(kadenzTasks, jetzt),
+			// Erledigungen im 28-Tage-Kadenz-Fenster (#2633) — dasselbe Fenster, das der Füllstand beurteilt;
+			// mit der Mindestmenge der Überlast-Regel (#2521) entscheidet der Client, ob das Bild schon urteilt.
+			erledigungenImFenster: zaehleErledigungenImKadenzFenster(kadenzTasks, jetzt),
 			mindestErledigungen: UEBERLAST_MINDEST_ERLEDIGUNGEN,
 			hatPunkte: balance.hasPoints,
 			// Trend/Defizit je Säule aus `bewerteCareDefizit` (#1796) — dieselbe Quelle wie /scores/care-suggestions.

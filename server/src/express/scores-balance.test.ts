@@ -403,8 +403,8 @@ describe('GET /scores/balance — Trend und Defizit (#1796)', () => {
 
 /**
  * Rote Spec-Tests für #2633 (Spec docs/spec/issue-2633.md) — `GET /scores/balance` liefert additiv
- * `erledigungenImFenster` (Anzahl Erledigungen im jüngeren 7-Tage-Care-Fenster, Basis
- * `zaehleErledigungen`) und `mindestErledigungen` (Wert aus `UEBERLAST_MINDEST_ERLEDIGUNGEN` —
+ * `erledigungenImFenster` (Anzahl Erledigungen im 28-Tage-Kadenz-Fenster, dasselbe Fenster wie der
+ * Füllstand — PO-Entscheidung in #2633) und `mindestErledigungen` (Wert aus `UEBERLAST_MINDEST_ERLEDIGUNGEN` —
  * kein zweites Literal in der Route, AK2). AK4 deckt der Paritätstest (#1423 AK9) über deepEqual
  * mit ab; die Bestandsfelder sichern die laufenden Tests derselben Datei.
  */
@@ -460,12 +460,21 @@ describe('GET /scores/balance — Erledigungen im Fenster (#2633)', () => {
 		assert.equal(body.mindestErledigungen, UEBERLAST_MINDEST_ERLEDIGUNGEN);
 	});
 
-	it('AK1: 14 Tage alte Erledigung zählt nicht — Route nutzt das 7-Tage-Care-, nicht das 28-Tage-Kadenz-Fenster', async () => {
+	it('AK1: 14 Tage alte Erledigung zählt — Route nutzt das 28-Tage-Kadenz-Fenster des Füllstands', async () => {
 		const cookie = await server.register('balance-fenster-alt@example.com', 'password123');
 		const saeule = await createPillar(cookie, `Fenster-${idCounter++}`);
 		const alt = await completeTaskWithShares(cookie, 'Alt', 1, [{ pillarId: saeule.id, share: 100 }]);
 		await ScoreEntry.update({ zeitpunkt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) }, { where: { taskId: alt } });
 		const body = await leseZaehler(cookie);
-		assert.equal(body.erledigungenImFenster, 0, 'außerhalb des 7-Tage-Fensters zählt die Erledigung nicht');
+		assert.equal(body.erledigungenImFenster, 1, 'innerhalb des 28-Tage-Fensters zählt die Erledigung');
+	});
+
+	it('AK1: 30 Tage alte Erledigung zählt nicht — außerhalb des 28-Tage-Kadenz-Fensters', async () => {
+		const cookie = await server.register('balance-fenster-uralt@example.com', 'password123');
+		const saeule = await createPillar(cookie, `Fenster-${idCounter++}`);
+		const alt = await completeTaskWithShares(cookie, 'Uralt', 1, [{ pillarId: saeule.id, share: 100 }]);
+		await ScoreEntry.update({ zeitpunkt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }, { where: { taskId: alt } });
+		const body = await leseZaehler(cookie);
+		assert.equal(body.erledigungenImFenster, 0, 'außerhalb des 28-Tage-Fensters zählt die Erledigung nicht');
 	});
 });

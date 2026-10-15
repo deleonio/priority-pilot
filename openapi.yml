@@ -8445,8 +8445,8 @@ components:
         erledigungenImFenster:
           type: integer
           description: >-
-            Anzahl erledigter Aufgaben im jüngeren 7-Tage-Care-Fenster (kontoweit, task-level,
-            `zaehleErledigungen`) — dieselbe Zählstelle wie die Überlast-Regel (#2521).
+            Anzahl erledigter Aufgaben im 28-Tage-Kadenz-Fenster (kontoweit, task-level) — dasselbe
+            Fenster, das der Füllstand beurteilt (#2633).
         mindestErledigungen:
           type: integer
           description: >-
