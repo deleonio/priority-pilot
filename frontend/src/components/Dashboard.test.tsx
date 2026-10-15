@@ -1073,3 +1073,31 @@ describe('Dashboard — Einstiegssatz unter der Mindestmenge (#2527)', () => {
 		await i18next.changeLanguage('de');
 	});
 });
+
+/**
+ * Roter Spec-Test #2632 (docs/spec/issue-2632.md): der Inline-Erfolg nennt den Streak in korrekter
+ * Einzahl/Mehrzahl — Locale-Schluessel `nextTask.streakDays_one`/`streakDays_other` in de und en
+ * (Muster `days_one`/`days_other` bzw. #1819-Hilfetext-Glob in StreakCard.test.tsx). Das Verdrahten
+ * des `count`-Parameters am t()-Aufruf sichert die e2e (issue-1360-streak.spec.ts, #2632-Block).
+ */
+const dashboardLocales = import.meta.glob<{ default: { nextTask?: Record<string, unknown> } }>(
+	'../i18n/locales/*/dashboard.json',
+	{ eager: true },
+);
+
+describe('Dashboard Inline-Erfolg — Streak in Einzahl/Mehrzahl (#2632 AK2)', () => {
+	it('streakDays liegt je Sprache in Einzahl (1) und Mehrzahl (2) vor', () => {
+		expect(Object.keys(dashboardLocales).length).toBeGreaterThanOrEqual(2);
+		for (const [path, module] of Object.entries(dashboardLocales)) {
+			const lang = /locales\/([^/]+)\//.exec(path)![1];
+			const de = lang === 'de';
+			const nextTask = module.default.nextTask ?? {};
+			expect(nextTask.streakDays_one, `${lang} streakDays_one`).toBe(
+				de ? 'Streak {{count}} Tag' : 'Streak {{count}} day',
+			);
+			expect(nextTask.streakDays_other, `${lang} streakDays_other`).toBe(
+				de ? 'Streak {{count}} Tage' : 'Streak {{count}} days',
+			);
+		}
+	});
+});

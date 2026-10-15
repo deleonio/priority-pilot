@@ -117,3 +117,53 @@ test.describe('Balamentum — #1360: Streak-Anzeige', () => {
 		expect(weeksBox!.x + weeksBox!.width).toBeLessThanOrEqual(cardBox!.x + cardBox!.width + 1);
 	});
 });
+
+/**
+ * Rote Spec-e2e #2632 (docs/spec/issue-2632.md): Erledigen im Signal-Panel — die Streak-Card
+ * laedt ohne Reload nach (TASKS_CHANGED_EVENT, #2522) und Inline-Erfolg + Karte bilden Streak 1
+ * in der Einzahl bzw. Streak 2 in der Mehrzahl; bei 375x812 ohne horizontales Verschieben.
+ */
+test.describe('#2632: Streak-Refresh nach dem Erledigen', () => {
+	test('AK1-AK4 — erstes Erledigen: Karte "1 Tag" ohne Reload, Inline-Erfolg Einzahl; zweites: Mehrzahl', async ({
+		page,
+	}) => {
+		for (const [title, priority] of [
+			['E2E 2632 eins', 5],
+			['E2E 2632 zwei', 4],
+		] as const) {
+			const res = await page.request.post('/api/v1/tasks', { data: { title, priority, estimatedEffort: 1 } });
+			expect(res.ok()).toBeTruthy();
+		}
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/app/');
+		await waitForStableView(page);
+
+		const streakCard = page.getByTestId('streak-card');
+		await expect(streakCard).toBeVisible();
+		// Ausgangszustand: Tag noch streak-frei (Streak-gerissen-Zustand)
+		await expect(streakCard.getByTestId('streak-zero')).toBeVisible();
+
+		// Marker beweist nach dem Erledigen, dass die Seite nicht neu geladen hat (AK1).
+		await page.evaluate(() => {
+			(window as unknown as { pp2632NoReload?: boolean }).pp2632NoReload = true;
+		});
+		await page.locator('.dashboard-next-task').getByRole('button', { name: 'Erledigen' }).click();
+		await expect(page.locator('.dashboard-next-task').getByText(/Streak 1 Tag\b/)).toBeVisible();
+		await expect(streakCard).toContainText(/\b1 Tag\b/);
+		await expect(streakCard.getByTestId('streak-zero')).toBeHidden();
+		expect(await page.evaluate(() => (window as unknown as { pp2632NoReload?: boolean }).pp2632NoReload)).toBe(true);
+		const box = await streakCard.boundingBox();
+		expect(box).not.toBeNull();
+		expect(box!.x).toBeGreaterThanOrEqual(0);
+		expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
+
+		// Zweite Erledigung (frischer Seitenkontext): Inline-Erfolg Mehrzahl, Karte "2 Tage" (AK2).
+		await page.reload();
+		await waitForStableView(page);
+		await page.locator('.dashboard-next-task').getByRole('button', { name: 'Erledigen' }).click();
+		await expect(page.locator('.dashboard-next-task').getByText(/Streak 2 Tage\b/)).toBeVisible();
+		await expect(streakCard).toContainText(/\b2 Tage\b/);
+		const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+		expect(scrollWidth).toBeLessThanOrEqual(375 + 1);
+	});
+});
