@@ -127,12 +127,19 @@ test.describe('#2632: Streak-Refresh nach dem Erledigen', () => {
 	test('AK1-AK4 — erstes Erledigen: Karte "1 Tag" ohne Reload, Inline-Erfolg Einzahl; zweites: Mehrzahl', async ({
 		page,
 	}) => {
+		// Test-Pflege (#2632): der Streak zählt Kalendertage — `berechneStreak` dedupliziert pro Tag
+		// (streak.ts:100), zwei Erledigungen am selben Tag bleiben "1 Tag". Die zweite Aufgabe bekommt
+		// deshalb nach der ersten Erledigung den Fälligkeitstag gestern: ihre verspätete Erledigung
+		// zählt zusätzlich für gestern (`streakZeitpunkte`, streak.ts:86) — so wird die Mehrzahl
+		// "Streak 2 Tage" erreicht, ohne die Panel-Reihenfolge (Überfällige zuerst) zu verdrehen.
+		const erstellt: number[] = [];
 		for (const [title, priority] of [
 			['E2E 2632 eins', 5],
 			['E2E 2632 zwei', 4],
 		] as const) {
 			const res = await page.request.post('/api/v1/tasks', { data: { title, priority, estimatedEffort: 1 } });
 			expect(res.ok()).toBeTruthy();
+			erstellt.push(((await res.json()) as { id: number }).id);
 		}
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/app/');
@@ -156,6 +163,15 @@ test.describe('#2632: Streak-Refresh nach dem Erledigen', () => {
 		expect(box).not.toBeNull();
 		expect(box!.x).toBeGreaterThanOrEqual(0);
 		expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
+
+		// Test-Pflege (#2632): Fälligkeitstag gestern für die bereits erledigte erste Aufgabe —
+		// ihre Erledigung zählt damit für gestern (`streakZeitpunkte`, streak.ts:86), die zweite
+		// Erledigung heute erreicht die Mehrzahl "Streak 2 Tage" über den Direkt-Weg (das Panel
+		// zeigt nur beim Direkt-Erledigen eine Rückmeldung; überfällige Aufgaben öffnen die
+		// Pünktlich-Nachfrage #1964 ohne Panel-Rückmeldung).
+		const gestern = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+		const patch = await page.request.patch(`/api/v1/tasks/${erstellt[0]}`, { data: { deadline: gestern } });
+		expect(patch.ok()).toBeTruthy();
 
 		// Zweite Erledigung (frischer Seitenkontext): Inline-Erfolg Mehrzahl, Karte "2 Tage" (AK2).
 		await page.reload();

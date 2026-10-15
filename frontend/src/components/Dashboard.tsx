@@ -548,7 +548,7 @@ export const Dashboard = ({
 												{panelFeedback.streakTage !== undefined && (
 													<>
 														{' · '}
-														{t('nextTask.streakDays', { tage: panelFeedback.streakTage })}
+														{t('nextTask.streakDays', { count: panelFeedback.streakTage })}
 													</>
 												)}
 											</span>
