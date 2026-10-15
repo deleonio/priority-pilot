@@ -1,6 +1,6 @@
 # ADR 0017 — Store-Billing: Google Play Billing mit eigener Server-Verifikation
 
-- **Status:** Accepted (2026-09-24), Preisgestaltung entschieden (2026-09-30); Freischaltung in der App offen (2026-10-08, bis dahin nur Ankündigung, siehe Nachtrag [ADR 0016](0016-nativer-wrapper-capacitor-remote-modus.md))
+- **Status:** Accepted (2026-09-24), Preisgestaltung entschieden (2026-09-30); Freischaltung in der App offen (2026-10-08, bis dahin nur Ankündigung, siehe Nachtrag [ADR 0016](0016-nativer-wrapper-capacitor-remote-modus.md)); Produktnamen nachgetragen (2026-10-15, Nachtrag bei Entscheidung 2)
 - **Datum:** 2026-09-24
 - **Kontext:** [ADR 0016](0016-nativer-wrapper-capacitor-remote-modus.md) (Kanal `play`, ein Zahlungsweg pro Kanal), [ADR 0013](0013-zahlungsweg-paypal-abos.md) (PayPal im Web, Store-Billing vertagt), [Plan native Apps](../plan-native-apps.md) Stufe 2, [Epic #1664](https://github.com/deleonio/priority-pilot/issues/1664)
 
@@ -21,6 +21,8 @@ Verlängerung, Kulanzzeit, Sperre, Kündigung, Ablauf und Widerruf meldet Google
 Begründung: kein weiterer Auftragsverarbeiter mit Sitz in den USA (Linie aus ADR 0013) und keine Umsatzbeteiligung eines Dienstleisters.
 
 **2. Produkte je Paket, Base Plans je Zeitraum.** In der Play Console gibt es die Abo-Produkte `pro`, `max` und `ultimate`, jeweils mit den Base Plans `monthly`, `quarterly` und `yearly`. Die Zuordnung steht in `server/src/logics/plans.ts` neben den PayPal-Plan-IDs. Ein Upgrade wirkt sofort, ein Downgrade zum Ende der Periode, beides über die Replacement-Modes von Google Play.
+
+> **Produktnamen der Entscheidung (Nachtrag 2026-10-15).** Entscheidung 2 nannte die Play-Produkte `pro`, `max` und `ultimate`. [ADR 0018](0018-preismodell-free-plus-pro.md) hat das Sortiment inzwischen auf Free, Plus und Pro festgelegt; in der Play Console werden daher die Produkte `plus` und `pro` angelegt (Free braucht kein Play-Produkt). Der ursprüngliche Wortlaut steht oben unverändert.
 
 **3. Store-Gebühr 15 %.** Für Abos berechnet Google im EWR seit dem 30.06.2026 eine Servicegebühr von 10 % und für Google Play Billing eine Billing-Gebühr von 5 %, zusammen 15 % ([Play Console Hilfe](https://support.google.com/googleplay/android-developer/answer/16954621)). Die Gebühr wird vom Preis ohne Umsatzsteuer berechnet.
 

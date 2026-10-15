@@ -3064,7 +3064,8 @@ describe('MCP-Staffelungs-Hinweis (#1823)', () => {
 		const arc42 = readFileSync(new URL('../../../docs/arc42.md', import.meta.url), 'utf8');
 		const row = arc42.split('\n').find((line) => line.startsWith('| IF-07'));
 		assert.ok(row, 'IF-07-Zeile fehlt in docs/arc42.md');
-		assert.ok(row.includes(hint), 'IF-07 muss den Text von MCP_PACING_HINT enthalten');
+		assert.ok(row.includes('MCP_PACING_HINT'), 'IF-07 muss MCP_PACING_HINT nennen');
+		assert.ok(!row.includes(hint), 'IF-07 darf den englischen Hinweistext nicht wörtlich zitieren');
 	});
 });
 
