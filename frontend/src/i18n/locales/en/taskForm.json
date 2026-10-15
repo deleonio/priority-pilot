@@ -60,6 +60,7 @@
 		"checklistMoveUp": "Move up",
 		"checklistMoveDown": "Move down",
 		"checklistFull": "Checklist full — {{count}} entries max.",
+		"checklistCheckpoint": "Checkpoint {{index}}",
 		"submitEditBusy": "Saving…",
 		"submitCreateBusy": "Creating…",
 		"errors": {

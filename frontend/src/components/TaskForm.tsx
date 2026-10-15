@@ -2047,14 +2047,8 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 							{checklist.map((item, index) =>
 								isSeriesMode ? (
 									<div key={item.id} className="checklist-item" data-testid="checklist-item">
-										{/* #2501: Titel als Inline-Rename-Feld (Wert = Titel, Beschriftung folgt dem Titel); der
-										    zusätzliche Text-Spiegel ist unsichtbar und aria-hidden — Screenreader lesen Feld samt
-										    Wert, der Spiegel hält nur einen Textknoten fürs Testing bereit (Unit-Mock-Kontrakt). */}
-										<span className="visually-hidden" aria-hidden="true">
-											{item.title}
-										</span>
 										<KolInputText
-											_label={item.title}
+											_label={t('taskForm.checklistCheckpoint', { index: index + 1 })}
 											_hideLabel
 											_value={item.title}
 											_disabled={saving}
