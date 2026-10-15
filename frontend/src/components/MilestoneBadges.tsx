@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import i18next from '../i18n/config';
+import { BADGE_COLOR } from '../lib/badgeColors';
 
 /**
  * Dashboard-Card „Meilensteine" (#1362): feste Streak- und Punkte-Stufen aus
@@ -71,7 +72,7 @@ export const MilestoneBadges = () => {
 									<span key={stufe.schluessel} data-erreicht={stufe.erreicht}>
 										<KolBadge
 											_label={badgeLabel(stufe)}
-											_color={stufe.erreicht ? '#2e7d32' : '#9e9e9e'}
+											_color={stufe.erreicht ? BADGE_COLOR.progress : BADGE_COLOR.neutral}
 											className="dashboard-milestones-badge"
 										/>
 									</span>
