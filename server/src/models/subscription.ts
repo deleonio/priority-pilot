@@ -27,6 +27,8 @@ class Subscription extends Model {
 	public pendingPlanEffectiveAt?: Date | null;
 	/** Zeitpunkt des ersten fehlgeschlagenen Einzugs (#1506 AK8) — Basis der Kulanzfrist. */
 	public firstFailureAt?: Date | null;
+	/** Bisherige Versuche der PayPal-Kündigung nach Fristablauf, solange sie nicht bestätigt ist (#2606); sonst null. */
+	public cancelRetryAttempts?: number | null;
 	/** Guthaben aus dem abgelösten Abo (#1912), einmalig auf der ersten Rechnung verrechnet. */
 	public creditCents!: number;
 	/** Zeitpunkt der PayPal-Zustimmung (ACTIVATED) eines Upgrades, das bis zum Zahlungseingang ausstehend bleibt (#2238). */
@@ -96,6 +98,10 @@ Subscription.init(
 		},
 		firstFailureAt: {
 			type: DataTypes.DATE,
+			allowNull: true,
+		},
+		cancelRetryAttempts: {
+			type: DataTypes.INTEGER,
 			allowNull: true,
 		},
 		creditCents: {

@@ -2333,6 +2333,7 @@ const SNAPSHOT_COLUMNS: Record<string, readonly string[]> = {
 		'cancellationRequestedAt',
 		'createdAt',
 		'creditCents',
+		'cancelRetryAttempts',
 		'currentPeriodEnd',
 		'externalSubscriptionId',
 		'firstFailureAt',
