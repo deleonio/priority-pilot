@@ -28,7 +28,7 @@ const USER = {
 		plan: 'plus',
 		period: 'monthly',
 		status: 'active',
-		currentPeriodEnd: '2026-10-15T00:00:00.000Z',
+		currentPeriodEnd: '2099-10-15T00:00:00.000Z',
 		pendingPlan: null,
 		pendingPlanEffectiveAt: null,
 		graceUntil: null,
