@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.26 - 2026-10-15
 
-_Enthält v0.26.0 – v0.26.3._
+_Enthält v0.26.0 – v0.26.4._
 
 ### 🔧 Engineering
 
@@ -15,6 +15,7 @@ _Enthält v0.26.0 – v0.26.3._
 - feat(server): remove dead module and history comments (#2557) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2605
 - feat(server): dedupe push notifications via shared helper (#2551) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2598
 - test(frontend): e2e paypal deferred alert + non-empty guards (#2558) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2610
+- docs: align arc42 IF-07 and ADR 0017 with current state (#2561) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2611
 
 ## v0.25 - 2026-10-15
 
@@ -259,6 +260,7 @@ _Enthält v0.18.0 – v0.18.45._
 - docs(skill): add fixed status block to ticket-coordination rounds by @deleonio in https://github.com/deleonio/priority-pilot/pull/2386
 - docs(skill): add coordinator learnings from 2026-10-07 by @deleonio in https://github.com/deleonio/priority-pilot/pull/2417
 - docs(adr): add ADR 0022 and concept for opt-in e2e encryption (#1923) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2413
+- docs(adr): add ADR 0022 and concept for opt-in e2e encryption (#1923) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2413
 
 ### Other Changes
 
@@ -403,7 +405,6 @@ _Enthält v0.16.0 – v0.16.37._
 - fix(frontend): hide closed modal body in sync, stabilize e2e tab click by @deleonio in https://github.com/deleonio/priority-pilot/pull/2206
 - feat(website): add account-free balance check (#1979) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2205
 - docs: dedupe decision log and note removal of dead model vars by @deleonio in https://github.com/deleonio/priority-pilot/pull/2207
-- feat(server): fetch and store calendar events from ICS address by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2218
 - feat(server): fetch and store calendar events from ICS address by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2218
 - docs(website): clarify liability and AI suggestions in terms of use by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2228
 - fix(server): invoice and renew only on PAYMENT.SALE.COMPLETED by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2245
