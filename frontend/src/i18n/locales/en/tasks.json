@@ -145,9 +145,10 @@
 		"restore": "Restore"
 	},
 	"missedComplete": {
-		"question": "Did you only just complete <title/>?",
-		"onTime": "No, on time",
-		"now": "Yes, just now"
+		"question": "When was <title/> completed?",
+		"onTime": "On time",
+		"now": "Just now",
+		"consequence": "On time earns full points, just now earns half — your streak still counts."
 	},
 	"missedSection": {
 		"regionLabel": "Missed tasks",

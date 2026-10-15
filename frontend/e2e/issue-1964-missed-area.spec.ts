@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { MOBILE, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-Tests für #1964 „Verpasst-Bereich“ (Spec docs/spec/issue-1964.md).
@@ -251,7 +251,8 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 
 		await page.goto('/app/');
 		await waitForStableView(page);
-		await page.setViewportSize({ width: 375, height: 667 });
+		// Test-Pflege #2635: verbindliche Mobile-Größe ist MOBILE (375×812, Spiegel-Test #2559).
+		await page.setViewportSize(MOBILE);
 		await page
 			.getByTestId('missed-item')
 			.filter({ hasText: 'Dialogbreite bei kleiner Sicht' })
