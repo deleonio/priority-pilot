@@ -63,10 +63,18 @@ export const BalanceVariantSetting = () => {
 			const list = root.querySelector<HTMLElement>('.kol-form-field__input');
 			if (list) Object.assign(list.style, TWO_COLUMNS);
 		};
-		const observer = new MutationObserver(apply);
+		// 100 ms entprellt (Muster useShadowDOMLayout): KoliBri mutiert den Shadow-Root in Schüben.
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		const observer = new MutationObserver(() => {
+			clearTimeout(timer);
+			timer = setTimeout(apply, 100);
+		});
 		observer.observe(root, { childList: true, subtree: true });
 		apply();
-		return () => observer.disconnect();
+		return () => {
+			clearTimeout(timer);
+			observer.disconnect();
+		};
 	}, []);
 
 	// Stabile Objektidentität (hängt nur an der Modul-Konstante), damit die Radiogruppe nicht bei

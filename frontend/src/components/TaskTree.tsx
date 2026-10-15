@@ -3,6 +3,7 @@ import type { Category, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { BADGE_COLOR } from '../lib/badgeColors';
 import { extractLeaves } from '../lib/extractLeaves';
 import { seriesBadge } from '../lib/series';
 import { CategoryBadge } from './CategoryBadge';
@@ -245,7 +246,7 @@ const LeafItem = ({
 						    Pin-Aktion selbst liegt im „…"-Popover (siehe Toolbar unten). */}
 						{task !== null && task.pinned && <PinnedBadge />}
 						{task !== null && task.isException && templateBadge === null && (
-							<KolBadge _label={t('taskTree.changed')} _color="#c66a00" className="task-tree-badge" />
+							<KolBadge _label={t('taskTree.changed')} _color={BADGE_COLOR.changed} className="task-tree-badge" />
 						)}
 						{/* #1465: Zahlt die Aufgabe auf keine Säule ein, zeigt die Zeile das Säulen-Badge —
 						    sichtbar, ohne den Eintrag zu öffnen. Es ersetzt das beschreibungs-getriebene
@@ -253,14 +254,18 @@ const LeafItem = ({
 						    jede Zeile. */}
 						{task !== null && pillarsConfigured && (task.pillars ?? []).length === 0 && <PillarMissingBadge />}
 						{progress !== undefined && (
-							<KolBadge _label={`${progress.done}/${progress.total}`} _color="#2e7d32" className="task-tree-badge" />
+							<KolBadge
+								_label={`${progress.done}/${progress.total}`}
+								_color={BADGE_COLOR.progress}
+								className="task-tree-badge"
+							/>
 						)}
 						{/* #1583 AK6: Checklisten-Fortschritt bleibt sichtbar, solange nicht alle Einträge
 						    abgehakt sind — dieselbe „erledigt/gesamt"-Formatierung wie in TaskTable.tsx. */}
 						{task !== null && (task.checklist?.length ?? 0) > 0 && (
 							<KolBadge
 								_label={`${task.checklist!.filter((item) => item.completed).length}/${task.checklist!.length}`}
-								_color="#005b99"
+								_color={BADGE_COLOR.info}
 								className="task-tree-badge task-tree-badge--checklist"
 							/>
 						)}
