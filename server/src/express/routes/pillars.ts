@@ -24,7 +24,7 @@ interface WeightEntry {
 }
 
 /**
- * Sperr-Antwort für die festen Säulen (#1573): Die fünf Lebensbalance-Säulen sind per Definition
+ * Sperr-Antwort für die festen Säulen: Die fünf Lebensbalance-Säulen sind per Definition
  * fest — Anlegen, Umbenennen und Löschen sind serverseitig gesperrt. 403 (nicht 404/405), damit
  * klar ist: der Endpunkt existiert, die Operation ist fachlich nicht mehr erlaubt.
  */
@@ -84,17 +84,16 @@ const validateWeightsBody = (body: unknown): ValidationResult => {
 export const pillarsRouter = Router();
 
 // Rate-Limit auf die Säulen-CRUD-Endpunkte (CodeQL js/missing-rate-limiting), Konfiguration siehe
-// `rateLimit.ts`. Der Pfad `/pillars` ist Pflicht (#1479): Dieser Router hängt per
+// `rateLimit.ts`. Der Pfad `/pillars` ist Pflicht: Dieser Router hängt per
 // `app.use(pillarsRouter)` an der Wurzel, pfadlose Middleware liefe deshalb für jede Anfrage mit
 // und würde auch fremde Endpunkte (`/scores`, `/series`, …) aus diesem Kontingent bedienen.
 pillarsRouter.use('/pillars', createCrudRateLimiter());
 
-// ── Auth-Middleware für alle Säulen-Endpunkte (Teil 2, #428) ────────────────────────────
+// ── Auth-Middleware für alle Säulen-Endpunkte ─────────────────────────────────────────
 // Alle Endpunkte benötigen eine gültige Session (requireAuth). Der Scoping erfolgt über
-// getUserId(req) und ownerScope(userId) → Pass-Through-Modus bleibt abwärtskompatibel.
+// getUserId(req) und ownerScope(userId).
 
-// GET /pillars — alle Säulen des eingeloggten Nutzers auflisten (Teil 2, #428, AK4).
-// Früher globale Stammdaten (unscoped); jetzt nutzer-eigen über ownerScope(userId).
+// GET /pillars — alle Säulen des eingeloggten Nutzers auflisten (ownerScope).
 pillarsRouter.get('/pillars', requireAuth, async (req: Request, res: Response<PillarDto[] | ErrorDto>) => {
 	try {
 		const userId = getUserId(req);
@@ -108,8 +107,7 @@ pillarsRouter.get('/pillars', requireAuth, async (req: Request, res: Response<Pi
 	}
 });
 
-// PUT /pillars/weights — die 100 %-Verteilung über alle Säulen des Nutzers setzen (Teil 2, #428).
-// Früher global; jetzt auf userId eingeschränkt (ownerScope).
+// PUT /pillars/weights — die 100 %-Verteilung über alle Säulen des Nutzers setzen (ownerScope).
 pillarsRouter.put('/pillars/weights', requireAuth, async (req: Request, res: Response<PillarDto[] | ErrorDto>) => {
 	const validation = validateWeightsBody(req.body);
 	if (!validation.ok) {
@@ -164,17 +162,17 @@ pillarsRouter.put('/pillars/weights', requireAuth, async (req: Request, res: Res
 	}
 });
 
-// ── POST /pillars — gesperrt (#1573) ──────────────────────────────────────────────────
+// ── POST /pillars — gesperrt ──────────────────────────────────────────────────────────
 pillarsRouter.post('/pillars', requireAuth, async (_req: Request, res: Response<PillarDto | ErrorDto>) => {
 	sendPillarsLocked(res);
 });
 
-// ── PATCH /pillars/:id — gesperrt (#1573) ─────────────────────────────────────────────
+// ── PATCH /pillars/:id — gesperrt ─────────────────────────────────────────────────────
 pillarsRouter.patch('/pillars/:id', requireAuth, async (_req: Request, res: Response<PillarDto | ErrorDto>) => {
 	sendPillarsLocked(res);
 });
 
-// ── DELETE /pillars/:id — gesperrt (#1573) ────────────────────────────────────────────
+// ── DELETE /pillars/:id — gesperrt ────────────────────────────────────────────────────
 pillarsRouter.delete('/pillars/:id', requireAuth, async (_req: Request, res: Response<ErrorDto>) => {
 	sendPillarsLocked(res);
 });
