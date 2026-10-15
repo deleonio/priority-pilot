@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.26 - 2026-10-15
 
-_Enthält v0.26.0 – v0.26.6._
+_Enthält v0.26.0 – v0.26.7._
 
 ### 🐞 Bug Fixes
 
@@ -21,6 +21,7 @@ _Enthält v0.26.0 – v0.26.6._
 - feat(server): dedupe push notifications via shared helper (#2551) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2598
 - test(frontend): e2e paypal deferred alert + non-empty guards (#2558) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2610
 - docs: align arc42 IF-07 and ADR 0017 with current state (#2561) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2611
+- feat(server): validate reverse-geocode coordinates via parseCoordinate by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2612
 
 ## v0.25 - 2026-10-15
 
@@ -286,7 +287,6 @@ _Enthält v0.18.0 – v0.18.45._
 - docs: evaluate Open-Meteo vs DWD weather APIs (#1931) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2411
 - refactor(server): gerundete Entfernung zentral in logics/geo.ts (#2406) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2419
 - docs(tickets): require priority/effort prefix in titles by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2421
-- docs(tickets): require priority/effort prefix in titles by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2421
 - feat(server): add mcp tools for series and templates (#2360) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2420
 - feat(frontend): rhythm and auto-delete only when auto-create on (#2414) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2418
 - feat(server): apply task defaults and create instances in POST /series by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2412
@@ -398,6 +398,7 @@ _Enthält v0.16.0 – v0.16.37._
 - feat(ci): add impl provider override, budget watchdog and adapter smoke by @deleonio in https://github.com/deleonio/priority-pilot/pull/2208
 - docs(skills): ticket-coordination learnings and ADR 0018 addendum by @deleonio in https://github.com/deleonio/priority-pilot/pull/2214
 - docs(skills): add start dialog and instant questions to coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2217
+- docs(skills): add ready-for-market mission to ticket-coordination by @deleonio in https://github.com/deleonio/priority-pilot/pull/2247
 - docs(skills): add ready-for-market mission to ticket-coordination by @deleonio in https://github.com/deleonio/priority-pilot/pull/2247
 - chore: remove budget watchdog, budget control moves to coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2267
 
