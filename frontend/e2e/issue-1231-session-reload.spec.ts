@@ -1,6 +1,6 @@
 import type { Route } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * Rote Spec-e2e für #1231 — „Session abgelaufen: Dialog zum Neuladen der App anbieten".
@@ -137,7 +137,7 @@ test.describe('#1231 — Session-Expired-Dialog mit stillen Re-Login', () => {
 	test('AK5 (375px): Dialog vollständig bedienbar, „Neu laden" per Tastatur (Fokus + Enter) auslösbar', async ({
 		page,
 	}) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await stubAppData(page);
 		const { authed } = mockAuthCycle(page);
 

@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
-import { openAccordionSection, registerOwnSession, waitForStableView } from './helpers';
+import { openAccordionSection, registerOwnSession, waitForStableView, MOBILE } from './helpers';
 
 /**
  * Rote Spec-e2e für #2525 — Formular-Faltung im Sekundär-Abschnitt (Spec: docs/spec/issue-2525.md).
@@ -16,8 +16,6 @@ import { openAccordionSection, registerOwnSession, waitForStableView } from './h
  * der Speichern-Knopf unterhalb des 812-px-Folds liegt; AK2/AK6 sind grüne Regressionsspiegel,
  * die nach der Umsetzung grün bleiben müssen.
  */
-
-const MOBILE = { width: 375, height: 812 };
 
 /** Öffnet das Anlege-Formular bei 375×812 in eigener Session (Shard-Sicherheit). */
 const openNewTaskForm = async (page: Page, session: string): Promise<void> => {

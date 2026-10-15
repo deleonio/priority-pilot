@@ -1,6 +1,6 @@
 import type { Route } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { measureHorizontalScroll, waitForStableView } from './helpers';
+import { measureHorizontalScroll, waitForStableView, MOBILE } from './helpers';
 
 /**
  * E2E-Spec für #1959 (Spec docs/spec/issue-1959.md, AK4): Zeilen-Aktionen „Abo sperren“ /
@@ -12,8 +12,6 @@ import { measureHorizontalScroll, waitForStableView } from './helpers';
  * Die Backend-Autorisierung deckt `server/src/express/admin-subscriptions.test.ts` ab, hier geht
  * es um den Frontend-Vertrag.
  */
-
-const MOBILE = { width: 375, height: 812 } as const;
 
 const ADMIN_USER = { id: 1, displayName: 'Anna Admin', email: 'anna@example.com', role: 'admin' as const };
 const MEMBER_USER = { id: 2, displayName: 'Bernd Beta', email: 'bernd@example.com', role: 'member' as const };

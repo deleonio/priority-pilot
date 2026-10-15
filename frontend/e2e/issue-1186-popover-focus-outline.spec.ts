@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * E2E-Vertrag für die sichtbare Fokus-Outline im „…"-Menü der Aufgabenliste (#1186).
@@ -162,7 +162,7 @@ test.describe('Balamentum — Fokus-Outline im „…"-Menü der Aufgabenliste (
 	});
 
 	test.describe('Mobile-first 375px (#1186 AK3)', () => {
-		test.use({ viewport: { width: 375, height: 667 } });
+		test.use({ viewport: MOBILE });
 
 		test('AK3: AK1 + AK2 gelten unverändert bei 375px-Viewport', async ({ page }) => {
 			const id = await createTask(page, 'Popover Mobile #1186');

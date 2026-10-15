@@ -1,6 +1,6 @@
 import type { Route } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { openAccordionSection, taskTitleText, waitForStableView } from './helpers';
+import { openAccordionSection, taskTitleText, waitForStableView, MOBILE } from './helpers';
 
 /**
  * Rote Spec-e2e für #236 — „Frontend: Schnellerfassungs-UI für Tasks (Textarea + LLM-Vorausfüllung)".
@@ -314,7 +314,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 	test('AK2-Autofokus-Mobile: Textarea ist auf 375-px-Viewport fokussiert, kein Layout-Überlauf (#250)', async ({
 		page,
 	}) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.goto('/app/');
 		await waitForStableView(page);
 

@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { openAccordionSection, waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView, MOBILE } from './helpers';
 
 /**
  * E2E-Layout-Tests für #1061 „Adressfeld mit Forward Geocoding im Task-Formular".
@@ -51,7 +51,7 @@ const openFormWithAddressField = async (page: Page) => {
 
 test.describe('#1061 Adress-Combobox im TaskForm', () => {
 	test('375px: Adressfeld bleibt im Viewport, Vorschlagsliste fließt nicht heraus', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.route('**/api/v1/geocode-search*', (route: Route) =>
 			route.fulfill({
 				status: 200,
@@ -87,7 +87,7 @@ test.describe('#1061 Adress-Combobox im TaskForm', () => {
 	test('375px: fuzzy „munchen" zeigt alle Server-Treffer ohne Substring-Gate, Liste bleibt im Viewport', async ({
 		page,
 	}) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.route('**/api/v1/geocode-search*', (route: Route) =>
 			route.fulfill({
 				status: 200,

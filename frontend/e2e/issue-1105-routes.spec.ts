@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { headerAction, waitForStableView } from './helpers';
+import { headerAction, waitForStableView, MOBILE } from './helpers';
 
 /**
  * ROTE Spec-Tests für #1105 „App-Routes für alle Menüs (außer Dialoge)“ (Stufe 1 TDD, der
@@ -192,7 +192,7 @@ test.describe('#1105 App-Routes für alle Menüs', () => {
 	 * AK8 — Mobile-first: alle Haupt-Routen sind bei 375 px ohne horizontalen Overflow nutzbar.
 	 */
 	test('AK8: Haupt-Routen ohne horizontalen Overflow bei 375px', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 
 		for (const route of ['/', '/aufgaben', '/serien', '/graph']) {
 			await page.goto(`/app${route}`);

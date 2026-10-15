@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * E2E-Vertrag für #1187 — OS-Einstellung „Bewegung reduzieren" transparent machen.
@@ -140,8 +140,8 @@ test.describe('Balamentum — „Bewegung reduzieren" transparent machen (#1187)
 		expect(await page.getByTestId('confetti-overlay').count()).toBe(0);
 	});
 
-	test('AK6: auf 375×667 ist die Info-Meldung sichtbar und nicht geclippt', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+	test('AK6: auf 375×812 ist die Info-Meldung sichtbar und nicht geclippt', async ({ page }) => {
+		await page.setViewportSize(MOBILE);
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await openSettings(page);
 		const banner = reducedMotionBanner(page);

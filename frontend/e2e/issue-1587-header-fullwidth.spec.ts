@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { headerAction, waitForStableView } from './helpers';
+import { headerAction, waitForStableView, MOBILE } from './helpers';
 
 /**
  * E2E-Spec zur randbündigen Kopfleiste. Ausgangspunkt war #1587 (Spec `docs/spec/issue-1587.md`):
@@ -23,7 +23,6 @@ import { headerAction, waitForStableView } from './helpers';
  * mobile-shell.spec.ts — bewusst hier nicht dupliziert.
  */
 
-const MOBILE = { width: 375, height: 812 } as const;
 const DESKTOP = { width: 1024, height: 800 } as const;
 /** Oberhalb der 80rem-Kappung von `.app` (1280px): nur hier trennt sich Shell- von Viewport-Breite. */
 const WIDE = { width: 1600, height: 900 } as const;

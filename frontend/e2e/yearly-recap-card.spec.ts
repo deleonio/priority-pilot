@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * ROTE Spec-Tests #1997 (docs/spec/issue-1997.md): Jahresrückblick-Karte im Dashboard.
@@ -11,7 +11,6 @@ import { waitForStableView } from './helpers';
 
 const JANUAR = new Date(2026, 0, 15, 12);
 const FEBRUAR = new Date(2026, 1, 15, 12);
-const MOBILE = { width: 375, height: 812 } as const;
 
 test.describe('Jahresrückblick-Karte (#1997)', () => {
 	test('AK5: im Januar erscheint die Karte', async ({ page }) => {

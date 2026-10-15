@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { MOBILE } from './helpers';
 
 /**
  * Spec-Test (#1136, docs/spec/issue-1136.md, AK4): Der Neu-Nutzer-Sign-up-Pfad über Google
@@ -32,7 +33,7 @@ test.describe('#1136 — Neu-Nutzer-Sign-up-Pfad (echte Session)', () => {
 		await page.context().addCookies([{ name: name.trim(), value: value.trim(), url: baseURL! }]);
 
 		// Der „erste Login" landet direkt in der App.
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.goto('/app/');
 
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();

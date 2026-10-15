@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView, seedMindestErledigungen } from './helpers';
+import { waitForStableView, seedMindestErledigungen, MOBILE } from './helpers';
 
 /**
  * E2E-Spec für #2063 (docs/spec/issue-2063.md): Fürsorge-Hinweis in der App-Sprache Englisch —
@@ -50,7 +50,7 @@ test.describe('Dashboard — Fürsorge-Hinweis i18n (Issue #2063)', () => {
 	});
 
 	test('AK2: 375px — englischer Hinweis läuft nicht über den Viewport', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await openDashboard(page);
 		await expect(page.getByTestId('care-hint')).toBeVisible();
 		await wechsleAufEnglisch(page);

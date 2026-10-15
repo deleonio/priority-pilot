@@ -1,6 +1,7 @@
 import type { Page, Route } from '@playwright/test';
 import { dismissOnboardingDialog } from './fixtures';
 import { expect, test } from '@playwright/test';
+import { MOBILE } from './helpers';
 
 /**
  * E2E-Smoke-Test (#353) für den PWA-Update-Prompt — Mobile-First (375px).
@@ -30,7 +31,7 @@ test.describe('Balamentum — PWA Update-Prompt Mobile-First (#353)', () => {
 	// AK6 — Mobile-First (375px): kein horizontaler Overflow.
 	test('AK6: App lädt bei 375px ohne horizontalen Overflow', async ({ page }) => {
 		await mockAuthenticated(page);
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.goto('/app/');
 
 		// Sicherstellen, dass die Haupt-App gerendert ist, bevor wir die Layout-Breite prüfen.
@@ -301,7 +302,7 @@ test.describe('Balamentum — UpdatePrompt Desktop-Ausrichtung (#1077)', () => {
 test.describe('Balamentum — PWA Update-Reload-Fallback (#1095)', () => {
 	test('AK4: 375px — Bestätigung + Controller-Wechsel reloadet genau einmal, Prompt danach weg', async ({ page }) => {
 		await mockAuthenticated(page);
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.goto('/app/');
 
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();

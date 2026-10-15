@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * E2E für #2295 (AK6/AK7): In der Nutzerverwaltung lassen sich Abos eines Nutzers nach einem
@@ -13,7 +13,6 @@ import { waitForStableView } from './helpers';
  * (PayPal-Fehler, Plan-Neuberechnung, 403/404) deckt `server/src/express/admin-subscription-delete.test.ts` ab.
  */
 
-const MOBILE = { width: 375, height: 812 } as const;
 const ADMIN = { email: 'admin-2295@example.com', displayName: 'Anna Admin' };
 const SUB = {
 	id: 41,

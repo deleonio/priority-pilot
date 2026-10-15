@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { taskTitleText, waitForStableView } from './helpers';
+import { taskTitleText, waitForStableView, MOBILE } from './helpers';
 
 /**
  * Spec-Tests (#399): Aufgaben und erledigte Aufgaben zusammenführen — ein Aufgaben-Tab mit
@@ -314,7 +314,7 @@ test.describe('Balamentum — Aufgaben-Tab mit Filter und Switch (#399) gegen da
 	});
 
 	test('AK7: Mobile-First (375px) — kein horizontales Scrollen', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.goto('/app/');
 		await waitForStableView(page);
 

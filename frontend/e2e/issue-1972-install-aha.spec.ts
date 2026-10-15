@@ -1,4 +1,5 @@
 import { expect, test, type Page } from './fixtures';
+import { MOBILE } from './helpers';
 
 /**
  * Rote Spec-e2e für #1972 — Install-Aha-Gate + PWA-Grenzen-Hinweis (Spec docs/spec/issue-1972.md).
@@ -34,7 +35,7 @@ test.describe('Balamentum — #1972: Install-Aha-Gate + PWA-Grenzen-Hinweis', ()
 	test('AK4 — 375px: nach Aktivierung der Standorterfassung ist der Hinweis sichtbar und im Viewport', async ({
 		page,
 	}) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.addInitScript(GEO_MOCK);
 		await page.goto('/app/settings/ortung');
 		await expect(geoSwitch(page)).toBeVisible();
@@ -65,7 +66,7 @@ test.describe('Balamentum — #1972: Install-Aha-Gate + PWA-Grenzen-Hinweis', ()
 	});
 
 	test('AK1 — erster Load ohne erledigte Aufgabe zeigt keinen Install-Alert', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.goto('/app/');
 		await expect(page.locator('kol-alert[_label="App installieren"]')).toHaveCount(0);
 	});

@@ -1,6 +1,6 @@
 import type { Route } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { openAccordionSection, waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView, MOBILE } from './helpers';
 
 /**
  * E2E-Test für #1111 — Koordinaten-Box „Gespeicherter Ortsbezug" unter dem Adressfeld (AK7).
@@ -23,7 +23,7 @@ const SUGGESTIONS = [
 
 test.describe('#1111 Koordinaten-Box „Gespeicherter Ortsbezug"', () => {
 	test('375px: Box mit den gewählten Koordinaten bleibt vollständig im Viewport', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.route('**/api/v1/geocode-search*', (route: Route) =>
 			route.fulfill({
 				status: 200,

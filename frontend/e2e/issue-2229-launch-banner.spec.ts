@@ -1,4 +1,5 @@
 import { expect, test, type Page } from './fixtures';
+import { MOBILE } from './helpers';
 
 /**
  * Spec-e2e für #2229/#2480 (docs/spec/issue-2229.md) — AK3, AK7; AK1/AK2 (Schließen +
@@ -17,7 +18,7 @@ const enableBanner = async (page: Page): Promise<void> => {
 
 test.describe('Balamentum — #2229: Einladungs-Banner', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await enableBanner(page);
 	});
 

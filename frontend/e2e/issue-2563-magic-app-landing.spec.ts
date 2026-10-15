@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Request, type Route } from '@playwright/test';
+import { MOBILE } from './helpers';
 
 /**
  * Rote Spec-Tests (#2563, docs/spec/issue-2563.md): Ein Magic Link mit App-Marker (`client=app`)
@@ -46,7 +47,7 @@ test.describe('Magic-Link-App-Landing (#2563)', () => {
 		await erzwingeAbgemeldet(page);
 
 		for (const breite of [375, 320]) {
-			await page.setViewportSize({ width: breite, height: 667 });
+			await page.setViewportSize({ width: breite, height: MOBILE.height });
 			await page.goto(APP_MAGIC_URL);
 
 			const ruecksprung = page.getByRole('link', { name: 'In der App öffnen' });

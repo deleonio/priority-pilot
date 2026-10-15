@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { openAccordionSection, waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView, MOBILE } from './helpers';
 
 /**
  * E2E-Layout-Tests für #727 „Range-Inputs bei schmalen Bildschirmen übereinander anzeigen".
@@ -22,8 +22,8 @@ test.describe('#727 Range-Inputs Layout über alle Viewports', () => {
 	 * AK1 (Mobile) — Priorität bleibt über dem Aufwand bei ≤768px (375px).
 	 * Bezug: docs/spec/issue-727.md, Schritt 1 (Mobile-Ansicht ≤768px).
 	 */
-	test('AK1 (Mobile): Range-Inputs sind bei 375×667 übereinander (vertikal gestapelt)', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+	test('AK1 (Mobile): Range-Inputs sind bei 375×812 übereinander (vertikal gestapelt)', async ({ page }) => {
+		await page.setViewportSize(MOBILE);
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -141,7 +141,7 @@ test.describe('#727 Range-Inputs Layout über alle Viewports', () => {
 	 * bleibt zu jedem Zeitpunkt oberhalb des Aufwands, kein horizontaler Überlauf.
 	 */
 	test('AK4 (Übergänge): Keine Layout-Breaks bei Resize 375→768→1024px', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -158,7 +158,7 @@ test.describe('#727 Range-Inputs Layout über alle Viewports', () => {
 		await expect(effortSlider).toBeVisible();
 
 		const sizes = [
-			[375, 667],
+			[MOBILE.width, MOBILE.height],
 			[768, 1024],
 			[1024, 768],
 		] as const;

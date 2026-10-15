@@ -1,5 +1,6 @@
 import type { Locator, Page, Route } from '@playwright/test';
 import { expect, test } from '@playwright/test';
+import { MOBILE } from './helpers';
 
 /**
  * Rote Spec-Tests (#190) für die Login-Page/Maske (Frontend-UI für Google OAuth).
@@ -106,7 +107,7 @@ test.describe('Balamentum — Login-Page für Google OAuth (#190)', () => {
 
 	test('AK5: Login-Seite ist auf mobilen Viewports bedienbar', async ({ page }) => {
 		await mockUnauthenticated(page);
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.goto('/app/');
 
 		// Auch auf einem schmalen Mobil-Viewport ist der Login-Button sichtbar und bedienbar.
@@ -188,7 +189,7 @@ test.describe('Balamentum — Login-Page für Google OAuth (#190)', () => {
 				body: JSON.stringify({ google: true, magicLink: true }),
 			}),
 		);
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.goto('/app/');
 
 		const targets: [string, Locator][] = [

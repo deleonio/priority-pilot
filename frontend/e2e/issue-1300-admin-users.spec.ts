@@ -1,6 +1,6 @@
 import type { Locator, Route } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { measureHorizontalScroll, waitForStableView } from './helpers';
+import { measureHorizontalScroll, waitForStableView, MOBILE } from './helpers';
 
 /**
  * E2E-Spec für das Rollensystem admin/member (Fixup PR #1300, Finding #3): Tab „Nutzerverwaltung"
@@ -19,8 +19,6 @@ import { measureHorizontalScroll, waitForStableView } from './helpers';
  */
 const roleOption = (row: Locator, name: string): Locator =>
 	row.getByRole('radio', { name }).or(row.getByRole('option', { name })).or(row.getByRole('button', { name }));
-
-const MOBILE = { width: 375, height: 812 } as const;
 
 /** Mutierbare Fixture (die Rolle wechselt im zustandsbehafteten Mock unten). */
 type FixtureUser = { id: number; displayName: string; email: string; role: 'admin' | 'member' };

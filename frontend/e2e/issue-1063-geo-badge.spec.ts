@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * ROTE Spec-Tests für #1063 „Geo-Badge in Listen" (Spec docs/spec/issue-1063.md).
@@ -147,7 +147,7 @@ test.describe('Balamentum — #1063: Geo-Badge in Serien-, Erledigt- und Aufgabe
 	test('AK6 — 375px: Badge verursacht in Serienliste, Erledigt-Liste und Aufgabenliste keinen Überlauf', async ({
 		page,
 	}) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		const seriesTitle = uniqueTitle('MobilSerie');
 		const doneTitle = uniqueTitle('MobilDone');
 		// Langer Titel neben den Badges ist der eigentliche Überlauf-Stressor in der Aufgabenzeile.
