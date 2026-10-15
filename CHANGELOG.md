@@ -2,9 +2,13 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.25 - 2026-10-14
+## v0.26 - 2026-10-15
 
-_Enthält v0.25.0 – v0.25.18._
+_Keine für Nutzer sichtbaren Änderungen._
+
+## v0.25 - 2026-10-15
+
+_Enthält v0.25.0 – v0.25.19._
 
 ### 🐞 Bug Fixes
 
@@ -37,6 +41,7 @@ _Enthält v0.25.0 – v0.25.18._
 - refactor(server): column migrations via shared helper (#2552) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2600
 - fix(server): consolidate coordinate parsing into one validated helper by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2601
 - fix(server): replace type assertions with runtime checks (#2554) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2603
+- test(ci): cover ticket-quality gate decision logic with tests (#2555) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2604
 
 ## v0.24 - 2026-10-13
 
@@ -227,7 +232,6 @@ _Enthält v0.18.0 – v0.18.45._
 - fix(website): shrink image film section to 48rem by @deleonio in https://github.com/deleonio/priority-pilot/pull/2346
 - fix(native): alte Service Worker in der Android-App abmelden by @deleonio in https://github.com/deleonio/priority-pilot/pull/2385
 - feat(server): suggest care actions for every deficit pillar by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2401
-- ci(workbench): time-box playwright deps install, fall back without apt by @deleonio in https://github.com/deleonio/priority-pilot/pull/2410
 - ci(workbench): time-box playwright deps install, fall back without apt by @deleonio in https://github.com/deleonio/priority-pilot/pull/2410
 
 ### 🚀 Improvements
