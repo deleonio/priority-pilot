@@ -365,7 +365,9 @@ describe('heartHealth', () => {
 		expect(unreif.hint).not.toContain('Sinn');
 
 		// Urteilsreif (oder ohne Angabe) gelten die bisherigen Stufen unverändert (#2645/AK2).
-		expect(mitUrteilsreife(balance, true).state).toBe('schwach');
-		expect(heartHealth(balance).state).toBe('schwach');
+		// Test-Pflege #2645: fill liegt hier exakt bei 0,4 (level bei 1 gekappt, spread 0,36 / worst 0,5
+		// → 1 − √0,72) → 'wackelig', nicht 'schwach' — der bisherige Stufenlauf, den AK2 pinnen will.
+		expect(mitUrteilsreife(balance, true).state).toBe('wackelig');
+		expect(heartHealth(balance).state).toBe('wackelig');
 	});
 });

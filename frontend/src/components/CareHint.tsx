@@ -1,6 +1,6 @@
 import { KolAlert, KolButton, KolInputRadio } from '@public-ui/react-v19';
 import type { CareVorschlag, Pillar, TaskCreate } from 'client';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { fillContributions } from '../lib/pillar';
@@ -81,7 +81,15 @@ const endeDesTages = (jetzt: Date): number =>
  * zurück. Die Statusregion ist ein `div`, weil `KolAlert` ohne `_alert` keine Live-Region setzt
  * und der Hinweis nichts vorlesen soll.
  */
-export const CareHint = () => {
+interface CareHintProps {
+	/**
+	 * #2645: Meldet, ob der Hinweis gerade den Einstiegssatz zeigt — das Dashboard unterdrückt
+	 * dann die inhaltsgleiche Begründungszeile der nächsten Aufgabe (der Satz steht genau einmal).
+	 */
+	onEinstiegssatzGezeigt?: (gezeigt: boolean) => void;
+}
+
+export const CareHint = ({ onEinstiegssatzGezeigt }: CareHintProps) => {
 	const { t } = useTranslation('common');
 	const [vorschlaege, setVorschlaege] = useState<CareVorschlag[] | undefined>(undefined);
 	// Konto-Säulen für die Vollverteilungs-Normierung des Übernahme-Payloads (#2077-Fixup #2132).
@@ -121,6 +129,26 @@ export const CareHint = () => {
 		return () => controller.abort();
 	}, [refreshKey]);
 
+	/*
+	 * Nachrücken (#1977): ab Cursor; liegt er hinter dem Listenende, gilt die ganze Liste — so bleibt
+	 * bei nur noch einem Vorschlag die Karte bedienbar statt verschwunden. Bewusst vor den frühen
+	 * Returns berechnet, damit der gezeigte Anlass unten per Effect gemeldet werden kann (Rules of
+	 * Hooks).
+	 */
+	const abCursor = vorschlaege?.slice(nachrueck) ?? [];
+	const vorschlag = (abCursor.length > 0 ? abCursor : (vorschlaege ?? [])).find(
+		(kandidat) => !istUnterdrueckt(kandidat, Date.now()),
+	);
+	// #2645: Der Einstiegssatz steht auf dem Dashboard genau einmal — zeigt der Hinweis ihn, meldet
+	// er das hier (das Dashboard unterdrückt dann die inhaltsgleiche Begründungszeile). Ermutigung
+	// scheidet aus: deren Satz ist ein anderer.
+	const zeigtEinstiegssatz = !ausgeblendet && !leerzustand && vorschlag?.anlass === 'einstieg';
+	// Layout-Effekt (#2645): die Meldung muss IM SELBEN Commit ankommen, in dem der Satz erscheint —
+	// sonst zeigt das Dashboard für einen Commit Satz + duplizierte Begründungszeile zusammen.
+	useLayoutEffect(() => {
+		onEinstiegssatzGezeigt?.(zeigtEinstiegssatz);
+	}, [onEinstiegssatzGezeigt, zeigtEinstiegssatz]);
+
 	if (vorschlaege === undefined || ausgeblendet) {
 		return null;
 	}
@@ -135,12 +163,6 @@ export const CareHint = () => {
 		);
 	}
 
-	// Nachrücken (#1977): ab Cursor; liegt er hinter dem Listenende, gilt die ganze Liste — so bleibt
-	// bei nur noch einem Vorschlag die Karte bedienbar statt verschwunden.
-	const abCursor = vorschlaege.slice(nachrueck);
-	const vorschlag = (abCursor.length > 0 ? abCursor : vorschlaege).find(
-		(kandidat) => !istUnterdrueckt(kandidat, Date.now()),
-	);
 	if (vorschlag === undefined) {
 		// Frischer Mount mit nur unterdrückten Vorschlägen: unsichtbar bleiben (#1793-Vertrag).
 		return null;
