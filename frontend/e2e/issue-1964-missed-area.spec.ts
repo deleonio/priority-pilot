@@ -167,7 +167,9 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		}
 	});
 
-	test('Erledigt — „Ja, jetzt": die Aufgabe verlässt den Verpasst-Bereich und gilt als verspätet', async ({ page }) => {
+	test('Erledigt — „Erst jetzt erledigt": die Aufgabe verlässt den Verpasst-Bereich und gilt als verspätet', async ({
+		page,
+	}) => {
 		const past = new Date(Date.now() - DAY).toISOString();
 		const id = await createTaskViaApi(page, { title: 'Verpasst und doch erledigt', deadline: past });
 
@@ -175,8 +177,13 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		await waitForStableView(page);
 		const item = page.getByTestId('missed-item').filter({ hasText: 'Verpasst und doch erledigt' });
 		await item.getByRole('button', { name: /^erledigt$/i }).click();
-		await expect(page.getByText(/erst jetzt erledigt\?/i)).toBeVisible();
-		await page.getByRole('button', { name: /^ja, jetzt$/i }).click();
+		await expect(page.getByText(/wann wurde die aufgabe/i)).toBeVisible();
+		// #2635 AK2: der Folge-Halbsatz (Punkte/Streak) ist im Dialog sichtbar
+		// (auf kol-dialog gescoped — der Onboarding-Dialog bleibt gemountet, #2070).
+		const dialog = page.locator('kol-dialog:not([_label="Willkommen bei Balamentum"])');
+		await expect(dialog.getByText(/punkt/i)).toBeVisible();
+		await expect(dialog.getByText(/streak/i)).toBeVisible();
+		await page.getByRole('button', { name: /^erst jetzt erledigt$/i }).click();
 
 		await expect(page.getByTestId('missed-section')).toHaveCount(0);
 		const scores = (await (await page.request.get('/api/v1/scores')).json()) as {
@@ -189,7 +196,7 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		await expect(page.getByText('Verpasst und doch erledigt')).toBeVisible();
 	});
 
-	test('Erledigt — „Nein, pünktlich": Erledigung wird zur Deadline gebucht', async ({ page }) => {
+	test('Erledigt — „Pünktlich erledigt": Erledigung wird zur Deadline gebucht', async ({ page }) => {
 		const past = new Date(Date.now() - DAY).toISOString();
 		const id = await createTaskViaApi(page, { title: 'Pünktlich und nur nicht abgehakt', deadline: past });
 
@@ -200,7 +207,7 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 			.filter({ hasText: 'Pünktlich und nur nicht abgehakt' })
 			.getByRole('button', { name: /^erledigt$/i })
 			.click();
-		await page.getByRole('button', { name: /^nein, pünktlich$/i }).click();
+		await page.getByRole('button', { name: /^pünktlich erledigt$/i }).click();
 
 		await expect(page.getByTestId('missed-section')).toHaveCount(0);
 		const scores = (await (await page.request.get('/api/v1/scores')).json()) as {
@@ -235,5 +242,36 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		await archived.getByRole('button', { name: /wiederherstellen/i }).click();
 		await expect(archived).toHaveCount(0);
 		await expect(page.getByTestId('missed-section')).toBeVisible();
+	});
+	test('#2635 AK4 — Nachfrage-Dialog bei 375 px ohne horizontalen Überlauf (inkl. Folge-Halbsatz)', async ({
+		page,
+	}) => {
+		const past = new Date(Date.now() - DAY).toISOString();
+		await createTaskViaApi(page, { title: 'Dialogbreite bei kleiner Sicht', deadline: past });
+
+		await page.goto('/app/');
+		await waitForStableView(page);
+		await page.setViewportSize({ width: 375, height: 667 });
+		await page
+			.getByTestId('missed-item')
+			.filter({ hasText: 'Dialogbreite bei kleiner Sicht' })
+			.getByRole('button', { name: /^erledigt$/i })
+			.click();
+
+		// Folge-Halbsatz im Dialog sichtbar (gescoped — Onboarding-Dialog bleibt gemountet, #2070).
+		const dialog = page.locator('kol-dialog:not([_label="Willkommen bei Balamentum"])');
+		await expect(dialog.getByText(/punkt/i)).toBeVisible();
+		await expect(dialog.getByText(/streak/i)).toBeVisible();
+
+		// Bounding-Box statt scrollWidth (App-Shell clippt overflow-x: hidden, Memory 2026-08-24);
+		// native <dialog> messen — der kol-dialog-Host hat selbst keine Box (Memory 2026-10-08).
+		let box = await dialog.locator('dialog').boundingBox();
+		for (let i = 0; i < 30 && !box; i += 1) {
+			await page.waitForTimeout(100);
+			box = await dialog.locator('dialog').boundingBox();
+		}
+		expect(box, 'Dialog muss messbar sein').not.toBeNull();
+		expect(box!.x).toBeGreaterThanOrEqual(0);
+		expect(box!.x + box!.width).toBeLessThanOrEqual(375);
 	});
 });

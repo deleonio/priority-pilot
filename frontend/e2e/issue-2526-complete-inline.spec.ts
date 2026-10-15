@@ -99,10 +99,10 @@ test.describe('#2526 Erledigen mit einem Tipp, sichtbarem Erfolg und Rückgängi
 		await openDashboard(page);
 		await page.getByRole('button', { name: 'Erledigen', exact: true }).click();
 
-		// Nachfrage statt Direkt-Erledigen: „Nein, pünktlich“ existiert nur im MissedCompleteDialog,
+		// Nachfrage statt Direkt-Erledigen: „Pünktlich erledigt“ existiert nur im MissedCompleteDialog,
 		// „Als erledigt markieren“ nur im (abgelösten) CompleteTaskDialog.
 		await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Nein, pünktlich' })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Pünktlich erledigt' })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Als erledigt markieren' })).toHaveCount(0);
 		expect(await taskStatus(page, id)).toBe('Open');
 	});
