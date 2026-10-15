@@ -55,9 +55,11 @@ type BegrTask = Task & Partial<Pick<components['schemas']['TaskRecommendation'],
  * Rein informativ, ohne Technik-Werte (KI-UX): keine Anteile/Prozente/Scores. Ohne Anteile
  * genau ein Fallback-Satz aus der Frist (ohne Frist keiner). Die Priorität steht schon in der
  * Meta-Zeile der Karte und wird nicht wiederholt. Bei `reasons.split` (#1994) folgt zuletzt der
- * übergebene Aufteilen-Satz, ohne Zahl und ohne Aktion.
+ * übergebene Aufteilen-Satz, ohne Zahl und ohne Aktion. Zeigt der Fürsorge-Hinweis den
+ * Einstiegssatz (`einstiegImHinweis`, #2645), bleibt der inhaltsgleiche Begründungssatz weg —
+ * der Satz steht nur einmal auf dem Dashboard.
  */
-const begruendungsSaetze = (task: BegrTask, splitSatz: string): string[] => {
+const begruendungsSaetze = (task: BegrTask, splitSatz: string, einstiegImHinweis = false): string[] => {
 	const { reasons, scoreBreakdown } = task;
 	if (reasons === undefined || Object.keys(reasons).length === 0) {
 		return task.deadline ? [i18next.t('dashboard:reasons.dueOn', { date: formatDeadline(task.deadline) })] : [];
@@ -76,8 +78,9 @@ const begruendungsSaetze = (task: BegrTask, splitSatz: string): string[] => {
 		});
 	}
 	// #2527: Einstiegssignal statt `balance`, solange die Mindestmenge an Erledigungen nicht
-	// erreicht ist — der einladende Satz ohne Defizit-Vokabular.
-	if (reasons.einstieg !== undefined) {
+	// erreicht ist — der einladende Satz ohne Defizit-Vokabular. Zeigt der CareHint denselben
+	// Satz (#2645), entfällt er hier: doppelt wäre Redundanz im selben View.
+	if (reasons.einstieg !== undefined && !einstiegImHinweis) {
 		saetze.push({ key: 'einstieg', satz: i18next.t('dashboard:reasons.einstieg') });
 	}
 	if (reasons.unlock !== undefined) {
@@ -275,6 +278,13 @@ export const Dashboard = ({
 	// im 28-Tage-Fenster) — dieselbe Zahl wie Verlauf und MCP `balance_status`. Neu geladen, sobald
 	// sich die Aufgaben ändern; bis zur Antwort oder bei Fehler bleibt der lokal gerechnete Wert.
 	const [serverFill, setServerFill] = useState<number | undefined>(undefined);
+	// #2645: Urteilsreife aus der Balance-Antwort (#2633) — unter der Überlast-Mindestmenge zeigt
+	// das Balance-Bild den Leerzustand statt eines Urteils. Fehlen die Felder (Server-Fehler),
+	// bleibt `undefined` = bisheriges Verhalten.
+	const [urteilsreif, setUrteilsreif] = useState<boolean | undefined>(undefined);
+	// #2645: Zeigt der Fürsorge-Hinweis den Einstiegssatz, steht derselbe Satz nicht zusätzlich
+	// als Begründungszeile der nächsten Aufgabe — CareHint meldet das hier hoch (genau einmal).
+	const [einstiegImHinweis, setEinstiegImHinweis] = useState(false);
 	useEffect(() => {
 		let cancelled = false;
 		api
@@ -282,6 +292,9 @@ export const Dashboard = ({
 			.then((status) => {
 				if (!cancelled) {
 					setServerFill(status.fuellstandProzent / 100);
+					if (status.erledigungenImFenster !== undefined && status.mindestErledigungen !== undefined) {
+						setUrteilsreif(status.erledigungenImFenster >= status.mindestErledigungen);
+					}
 				}
 			})
 			.catch(() => {
@@ -463,7 +476,12 @@ export const Dashboard = ({
 			<div className={pillars.length > 0 ? 'dashboard-hero' : 'dashboard-hero dashboard-hero--solo'}>
 				{pillars.length > 0 && (
 					<KolCard className="dashboard-heart" _label={t('heart.label')} _level={3}>
-						<HeartBalance pillars={pillars} punkteProSaeule={punkteProSaeule} fill={serverFill} />
+						<HeartBalance
+							pillars={pillars}
+							punkteProSaeule={punkteProSaeule}
+							fill={serverFill}
+							urteilsreif={urteilsreif}
+						/>
 					</KolCard>
 				)}
 				<div className="dashboard-hero-side">
@@ -497,7 +515,9 @@ export const Dashboard = ({
 							}
 						/>
 					)}
-					<CareHint />
+					{/* #2645: Der Hinweis meldet, ob er den Einstiegssatz zeigt — Dedup mit der
+					    Begründungszeile der nächsten Aufgabe (genau einmal). */}
+					<CareHint onEinstiegssatzGezeigt={setEinstiegImHinweis} />
 					<KolCard
 						className="dashboard-next-task"
 						role="region"
@@ -516,9 +536,9 @@ export const Dashboard = ({
 								{/* #1985: „Warum jetzt?“ — Begründungssätze, stärkster Grund zuerst (DOM-Reihenfolge,
 								    A11y); ohne Anteile der Fallback-Satz. Reine Information im Signal-Panel: keine
 								    Interaktion, kein Farb-/Gewichts-Akzent (KI-UX). */}
-								{begruendungsSaetze(nextTask, t('common:splitHint.reason')).length > 0 && (
+								{begruendungsSaetze(nextTask, t('common:splitHint.reason'), einstiegImHinweis).length > 0 && (
 									<ul className="dashboard-next-task-reasons">
-										{begruendungsSaetze(nextTask, t('common:splitHint.reason')).map((satz) => (
+										{begruendungsSaetze(nextTask, t('common:splitHint.reason'), einstiegImHinweis).map((satz) => (
 											<li key={satz}>{satz}</li>
 										))}
 									</ul>

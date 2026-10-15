@@ -1075,6 +1075,47 @@ describe('Dashboard — Einstiegssatz unter der Mindestmenge (#2527)', () => {
 });
 
 /**
+ * Rote Spec-Tests für #2645 (docs/spec/issue-2645.md): Auf leerem Konto steht der Einstiegssatz
+ * genau einmal — zeigt der CareHint den Satz (`anlass 'einstieg'`), entfällt die inhaltsgleiche
+ * Begründungszeile der nächsten Aufgabe (`reasons.einstieg`). Ohne den Hinweis bleibt die Zeile
+ * stehen (Bestandsvertrag #2527, TF3 oben).
+ */
+describe('Dashboard — Einstiegssatz genau einmal (#2645/AK3)', () => {
+	// CareVorschlag wie `anlass: 'einstieg'` aus GET /scores/care-suggestions (0 Erledigungen).
+	const einstiegVorschlag = {
+		typ: 'vorlage',
+		anlass: 'einstieg',
+		titel: 'Such dir eine kleine Aufgabe aus, die dir heute guttut – klein anfangen zählt.',
+		beschreibung: null,
+		saeuleId: 0,
+		saeuleName: '',
+		saeulenBeitraege: [],
+	} as never;
+
+	it('unterdrückt die Begründungszeile, solange der CareHint den Einstiegssatz zeigt', async () => {
+		vi.spyOn(api, 'getCareSuggestions').mockResolvedValue({ vorschlaege: [einstiegVorschlag] } as never);
+		const nextTask = {
+			...task(42, [], 2, TaskStatus.Open),
+			scoreBreakdown: { total: 1, balance: 1 },
+			reasons: { einstieg: true },
+		} as unknown as Task;
+		const { container } = render(
+			<Dashboard tasks={[nextTask]} forest={[] as TaskTreeNode[]} nextTask={nextTask} pillars={[]} />,
+		);
+
+		// Erst absichern, dass der Hinweis den Satz wirklich zeigt (Quelle der ersten Instanz).
+		await waitFor(() => {
+			const hint = container.querySelector('[data-testid="care-hint"]');
+			expect(hint?.textContent).toContain('Such dir eine kleine Aufgabe');
+		});
+
+		const satz = 'Such dir eine kleine Aufgabe aus, die dir heute guttut – klein anfangen zählt.';
+		expect((container.textContent ?? '').split(satz).length - 1).toBe(1);
+		expect(container.querySelector('.dashboard-next-task-reasons')?.textContent ?? '').not.toContain(satz);
+	});
+});
+
+/**
  * Roter Spec-Test #2632 (docs/spec/issue-2632.md): der Inline-Erfolg nennt den Streak in korrekter
  * Einzahl/Mehrzahl — Locale-Schluessel `nextTask.streakDays_one`/`streakDays_other` in de und en
  * (Muster `days_one`/`days_other` bzw. #1819-Hilfetext-Glob in StreakCard.test.tsx). Das Verdrahten

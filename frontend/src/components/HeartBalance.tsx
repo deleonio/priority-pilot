@@ -40,6 +40,11 @@ interface HeartBalanceProps {
 	 * den lokal aus den Anteilen gerechneten Wert, damit Herz, Verlauf und MCP dieselbe Zahl zeigen.
 	 */
 	fill?: number;
+	/**
+	 * Urteilsreife (#2645): `false` → Leerzustand statt Stufenurteil, solange die Überlast-Mindestmenge
+	 * an Erledigungen nicht erreicht ist. `undefined` (Server-Felder fehlen) = bisheriges Verhalten.
+	 */
+	urteilsreif?: boolean;
 }
 
 /** Ganze Prozent für die Anzeige (die Rechnung selbst bleibt ungerundet). */
@@ -48,13 +53,13 @@ const asPercent = (share: number): number => Math.round(share * 100);
 /** Ab dieser Abweichung ist eine Säule keine Delle mehr, sondern eine Schieflage (Prozentpunkte). */
 const DELTA_STARK = 5;
 
-export const HeartBalance = ({ pillars, punkteProSaeule, fill }: HeartBalanceProps) => {
+export const HeartBalance = ({ pillars, punkteProSaeule, fill, urteilsreif }: HeartBalanceProps) => {
 	const balance = useMemo(() => {
 		const lokal = buildHeartBalance(pillars, punkteProSaeule);
 		return fill === undefined ? lokal : { ...lokal, fill };
 	}, [pillars, punkteProSaeule, fill]);
 	const { t } = useTranslation('dashboard');
-	const health = heartHealth(balance);
+	const health = heartHealth(balance, urteilsreif);
 	const { variant } = useBalanceVariant();
 
 	/*
