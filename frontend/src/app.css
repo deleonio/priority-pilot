@@ -1550,6 +1550,68 @@ kol-toolbar {
 	margin-top: var(--pp-gap-generous);
 }
 
+/* Balance-Verlauf (#2082): Aussage als Text, Linie als Beleg; SVG skaliert mit der Spaltenbreite. */
+.dashboard-balance-history {
+	display: block;
+	margin-top: var(--pp-gap-generous);
+}
+
+.dashboard-balance-history-content {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-space-2);
+}
+
+.dashboard-balance-history-hint,
+.dashboard-balance-history-trend,
+.dashboard-balance-history-werte,
+.dashboard-balance-history-achse {
+	margin: 0;
+}
+
+.dashboard-balance-history-hint {
+	font-size: var(--pp-font-size-sm);
+	color: var(--pp-text-muted);
+}
+
+.dashboard-balance-history-trend {
+	font-size: var(--pp-font-size-xl);
+	font-weight: var(--pp-weight-bold);
+	font-variant-numeric: tabular-nums;
+}
+
+.dashboard-balance-history-werte {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--pp-space-2) var(--pp-space-4);
+	font-variant-numeric: tabular-nums;
+}
+
+.dashboard-balance-history-chart {
+	display: block;
+	width: 100%;
+	height: 7.5rem;
+}
+
+.dashboard-balance-history-linie {
+	stroke: var(--pp-brand);
+	stroke-width: 2;
+	stroke-linejoin: round;
+	stroke-linecap: round;
+	vector-effect: non-scaling-stroke;
+}
+
+.dashboard-balance-history-punkt {
+	fill: var(--pp-brand);
+}
+
+.dashboard-balance-history-achse {
+	display: flex;
+	justify-content: space-between;
+	font-size: var(--pp-font-size-sm);
+	color: var(--pp-text-muted);
+}
+
 .dashboard-streak-content {
 	display: flex;
 	flex-direction: column;

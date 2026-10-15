@@ -105,6 +105,20 @@
 		"importieren": "Import tasks from Todoist or a CSV file",
 		"importAiHint": "Without the AI plan, import is the only step here: bring your tasks from Todoist or a CSV, then start right away on the dashboard."
 	},
+	"balanceHistory": {
+		"label": "Balance history",
+		"laden": "Loading history …",
+		"leer": "No history yet — it builds up as you complete tasks.",
+		"fehler": "The history is not available right now.",
+		"start": "28 days ago: {{wert}} %",
+		"ende": "Today: {{wert}} %",
+		"chartLabel": "{{trend}}: from {{start}} % to {{ende}} %, {{von}} to {{bis}}",
+		"trend": {
+			"aufwaerts": "Upward",
+			"abwaerts": "Downward",
+			"stabil": "Steady"
+		}
+	},
 	"weeklyCard": {
 		"label": "My week in five pillars",
 		"laden": "Weekly balance is loading …",
