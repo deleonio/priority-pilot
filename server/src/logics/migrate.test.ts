@@ -2383,7 +2383,8 @@ const SNAPSHOT_COLUMNS: Record<string, readonly string[]> = {
 
 describe('Schema-Snapshot (#2609): Spaltenmengen nach Migrationen + sync', () => {
 	it('bildet nach Fresh-Install je Tabelle exakt die erwartete Spaltenmenge ab', async () => {
-		// Reihenfolge wie `server/src/index.ts` (startServer) — dortige Änderungen mitspiegeln.
+		// Reihenfolge der `await migrate…`-Aufrufe in `startServer` (`server/src/index.ts`), nicht der
+		// Import-Destructuring-Liste davor — dortige Änderungen mitspiegeln.
 		const migrations: readonly ((db: Sequelize) => Promise<void>)[] = [
 			migrateModule.migrateSeriesColumns,
 			migrateModule.migrateSeriesRenameFields,
