@@ -128,6 +128,117 @@ describe('Kulanzfrist-Ablauf entzieht das Paket (#2234)', () => {
 });
 
 /**
+ * #2606 (docs/spec/issue-2606.md): eine beim Fristablauf gescheiterte PayPal-Kündigung wird in
+ * Folge-Sweeps wiederholt (begrenzt). Kündigung und Mail sind injiziert — nie echtes PayPal/SMTP.
+ */
+describe('Kündigungs-Retry im Kulanzfrist-Sweep (#2606)', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+
+	/** `cancel`-Fake: wirft die ersten `failures` Aufrufe, danach erfolgreich. */
+	const flaky = (failures: number) => {
+		const calls: string[] = [];
+		const cancel = async (id: string) => {
+			calls.push(id);
+			if (calls.length <= failures) {
+				throw new Error('PayPal down');
+			}
+		};
+		return { calls, cancel };
+	};
+
+	const silenced = async <T>(run: () => Promise<T>) => {
+		const warn = console.warn;
+		const error = console.error;
+		const errors: unknown[][] = [];
+		console.warn = () => {};
+		console.error = (...args: unknown[]) => void errors.push(args);
+		try {
+			return { result: await run(), errors };
+		} finally {
+			console.warn = warn;
+			console.error = error;
+		}
+	};
+
+	it('AK1: gescheiterte Kündigung wird im nächsten Sweep erneut versucht', async () => {
+		await seed(daysAgo(20), 'paypal', 'I-RETRY');
+		const { calls, cancel } = flaky(1);
+		await silenced(async () => {
+			await applyDueGracePeriods(NOW, { cancel });
+			await applyDueGracePeriods(NOW, { cancel });
+		});
+
+		assert.deepEqual(calls, ['I-RETRY', 'I-RETRY']);
+	});
+
+	it('AK2: nach erfolgreichem Retry folgen keine weiteren Kündigungen', async () => {
+		await seed(daysAgo(20), 'paypal', 'I-DONE');
+		const { calls, cancel } = flaky(1);
+		await silenced(async () => {
+			for (let i = 0; i < 4; i += 1) {
+				await applyDueGracePeriods(NOW, { cancel });
+			}
+		});
+
+		assert.equal(calls.length, 2);
+	});
+
+	it('AK2: erfolgreiche Kündigung beim Fristablauf wird nicht wiederholt', async () => {
+		await seed(daysAgo(20), 'paypal', 'I-OK');
+		const { calls, cancel } = flaky(0);
+		await applyDueGracePeriods(NOW, { cancel });
+		await applyDueGracePeriods(NOW, { cancel });
+
+		assert.equal(calls.length, 1);
+	});
+
+	it('AK3: nach Erreichen der Versuchsgrenze Billing-Fehler im Log, danach kein cancel mehr', async () => {
+		await seed(daysAgo(20), 'paypal', 'I-LIMIT');
+		const { calls, cancel } = flaky(Infinity);
+		const { errors } = await silenced(async () => {
+			for (let i = 0; i < 30; i += 1) {
+				await applyDueGracePeriods(NOW, { cancel });
+			}
+		});
+		const settled = calls.length;
+		await silenced(() => applyDueGracePeriods(NOW, { cancel }));
+
+		assert.ok(settled > 1 && settled < 30, `Versuche begrenzt, aber > 1 (waren ${settled})`);
+		assert.equal(calls.length, settled);
+		assert.equal(errors.length, 1);
+	});
+
+	it('AK4: Retry ändert Plan/Status nicht erneut, sendet keine zweite Mail und zählt nicht als Entzug', async () => {
+		const { user, subscription } = await seed(daysAgo(20), 'paypal', 'I-QUIET');
+		const { calls, cancel } = flaky(1);
+		const mails: unknown[] = [];
+		const mailSend = async (payload: unknown) => void mails.push(payload);
+		const { result } = await silenced(async () => {
+			const first = await applyDueGracePeriods(NOW, { cancel, mailSend });
+			const retry = await applyDueGracePeriods(NOW, { cancel, mailSend });
+			return { first, retry };
+		});
+
+		assert.equal(calls.length, 2);
+		assert.deepEqual(result, { first: 1, retry: 0 });
+		assert.equal(mails.length, 1);
+		assert.equal(await planOf(user.id), 'free');
+		assert.equal((await subscription.reload()).get('status'), 'grace_expired');
+	});
+
+	it('Randfall: Google-Play-Abo wird nie gekündigt, auch nicht im Retry', async () => {
+		await seed(daysAgo(20), 'google_play', 'GP-NOCANCEL');
+		const { calls, cancel } = flaky(0);
+		await applyDueGracePeriods(NOW, { cancel });
+		await applyDueGracePeriods(NOW, { cancel });
+
+		assert.deepEqual(calls, []);
+	});
+});
+
+/**
  * #2300 (docs/spec/issue-2300.md): täglicher Abgleich der PayPal-Abos. `getSubscription` ist injiziert —
  * nie echtes PayPal. `reconcilePaypalSubscriptions` existiert noch nicht (Rot = fehlender Export).
  */
