@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.26 - 2026-10-15
 
-_Enthält v0.26.0 – v0.26.17._
+_Enthält v0.26.0 – v0.26.18._
 
 ### 🎉 New Features
 
@@ -13,6 +13,7 @@ _Enthält v0.26.0 – v0.26.17._
 ### 🐞 Bug Fixes
 
 - ci: align token report legend with code (#2562) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2614
+- feat(frontend): refresh streak instantly after task completion (#2632) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2649
 
 ### 🚀 Improvements
 
@@ -230,6 +231,7 @@ _Enthält v0.19.0 – v0.19.19._
 ### Other Changes
 
 - feat(server): add password review access for google play (#2426) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2433
+- feat(server): add password review access for google play (#2426) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2433
 - feat(frontend): deadline pagination, compact missed list, slim banner by @deleonio in https://github.com/deleonio/priority-pilot/pull/2416
 - feat(frontend): reduce balance variants to rays, bloom, crystal, hands by @deleonio in https://github.com/deleonio/priority-pilot/pull/2437
 - feat(i18n): translate app, server texts and website to english by @deleonio in https://github.com/deleonio/priority-pilot/pull/2429
@@ -401,7 +403,6 @@ _Enthält v0.16.0 – v0.16.37._
 ### 🐞 Bug Fixes
 
 - fix(website): translate footer templates label, drop unused field by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2204
-- fix(ci): require real verify run on head before gate merges (#2254) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2257
 - fix(ci): require real verify run on head before gate merges (#2254) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2257
 
 ### 🚀 Improvements
