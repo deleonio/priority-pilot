@@ -73,6 +73,17 @@ describe('MilestoneBadges (#1362 AK7)', () => {
 		expect(nichtErreichtCount).toEqual(STUFEN.filter((s) => !s.erreicht).length);
 	});
 
+	it('Farben bleiben: erreicht #2e7d32, nicht erreicht #9e9e9e (#2618 AK3)', async () => {
+		getMilestones.mockResolvedValue(STUFEN);
+		render(<MilestoneBadges />);
+
+		await waitFor(() => expect(badges().length).toEqual(STUFEN.length));
+		const color = (erreicht: string) =>
+			document.querySelector(`[data-erreicht="${erreicht}"] [data-comp="kol-badge"]`)?.getAttribute('data-color');
+		expect(color('true')).toEqual('"#2e7d32"');
+		expect(color('false')).toEqual('"#9e9e9e"');
+	});
+
 	it('nicht erreichte Badges bleiben im DOM sichtbar statt ausgeblendet (kein hidden/display:none)', async () => {
 		getMilestones.mockResolvedValue(STUFEN);
 		render(<MilestoneBadges />);
