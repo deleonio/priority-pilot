@@ -10,7 +10,7 @@
 > statt direkt `ai:needs-impl`, zwischen Analyse und dem Spec-Lauf laeuft optional die UX-Beratung
 > (die Analyse entscheidet per UI-Bezug-Feld im Analyse-Block; Nicht-UI-Tickets ueberspringen UX),
 > ein eigener Lauf ([ticket-spec](../.claude/skills/ticket-spec/SKILL.md),
-> [spec.yml](../.github/workflows/03-claude-spec.yml)) schreibt die roten Tests auf einen
+> [03-define-spec.yml](../.github/workflows/03-define-spec.yml)) schreibt die roten Tests auf einen
 > Draft-PR und gibt per `ai:needs-impl` frei; die Umsetzung macht sie grün, ohne
 > sie zu ändern (Gewaltenteilung).
 
@@ -84,7 +84,7 @@ einem eigenen Schritt vor der Freigabe.
   UX). `ai:needs-impl` erst, wenn die roten Tests stehen.
 - [ticket-implementation](../.claude/skills/ticket-implementation/SKILL.md): Die Umsetzung darf die Tests **nicht ändern**,
   nur grün machen (Tests sind der Vertrag).
-- Neue/erweiterte GitHub-Action analog `.github/workflows/implement.yml`.
+- Neue/erweiterte GitHub-Action analog [04-implement.yml](../.github/workflows/04-implement.yml).
 
 **Stärke gegen Schlingern:** maximal — ausführbarer Vertrag von _anderer_ Instanz als der Code →
 keine tautologischen Tests.
