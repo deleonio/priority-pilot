@@ -37,7 +37,7 @@ Balance-Urteil vorliegen:
 3. **Keine Erledigung (AK3):** frischer Nutzer ohne Tasks → Zähler exakt `0`, Mindestmenge
    unverändert.
 4. **Fenstergrenze (AK1):** eine vor 14 Tagen erledigte Aufgabe (innerhalb des 28-Tage-Kadenz-
-   Fensters, außerhalb des 7-Tage-Care-Fensters) zählt **nicht** — der Zähler bleibt `0` ( deckt ab,
+   Fensters, außerhalb des 7-Tage-Care-Fensters) zählt **nicht** — der Zähler bleibt `0` (deckt ab,
    dass die Route das Care-Fenster nutzt, nicht das Kadenz-Fenster).
 5. **MCP-Parität (AK4):** der bestehende Paritätstest (#1423 AK9, deepEqual HTTP-Antwort vs.
    `balance_status` über `tools/call`) läuft ohne Werkzeug-Anpassung weiter grün.

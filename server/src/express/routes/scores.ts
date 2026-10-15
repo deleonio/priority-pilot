@@ -238,8 +238,6 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 		const jetzt = new Date();
 		const balance = berechneLebensbalanceNachKadenz(balanceSaeulen, kadenzTasks, jetzt);
 		const defizite = bewerteCareDefizit(balanceSaeulen, kadenzTasks, jetzt);
-		// Erledigungen im jüngeren Care-Fenster (#2633): dieselbe Zählstelle wie die Überlast-Regel
-		// (#2521), damit Client und Werkzeug die Schwelle nachvollziehen können.
 
 		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
 		const zeitZone = istGueltigeZeitzone(angefragteZone)
@@ -278,6 +276,8 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 			// Eine Dezimalstelle: der Füllstand schwankt mit jeder Erledigung, mehr Stellen wären
 			// Rauschen. Die Säulen-Punkte bleiben roh, damit ein Client selbst weiterrechnen kann.
 			fuellstandProzent: Math.round(balance.fill * 1000) / 10,
+			// Erledigungen im jüngeren Care-Fenster (#2633): dieselbe Zählstelle wie die Überlast-Regel
+			// (#2521), damit Client und Werkzeug die Schwelle nachvollziehen können.
 			erledigungenImFenster: zaehleErledigungen(kadenzTasks, jetzt),
 			mindestErledigungen: UEBERLAST_MINDEST_ERLEDIGUNGEN,
 			hatPunkte: balance.hasPoints,
