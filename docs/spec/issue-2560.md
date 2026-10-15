@@ -18,3 +18,8 @@ Gleiche Optik, einheitliches Muster: Badge-Farben aus benannter Konstante statt 
 ## AK3
 
 Bestehende Vitest-/E2E-Tests bleiben grün (kein eigener Test).
+
+## Nachtrag #2618 — Meilenstein-Badges
+
+- `MilestoneBadges.tsx` setzt `_color` über `BADGE_COLOR.progress` (erreicht) und eine neue benannte `BADGE_COLOR`-Konstante (`#9e9e9e`, nicht erreicht); sichtbare Farben unverändert.
+- Der Guard `badge-colors.guard.test.ts` prüft zusätzlich `MilestoneBadges.tsx` und erkennt Hex-Literale auch innerhalb eines `_color={…}`-Ausdrucks (Ternary).

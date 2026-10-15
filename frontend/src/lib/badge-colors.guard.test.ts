@@ -6,8 +6,10 @@ import { describe, expect, it } from 'vitest';
  * nie als Hex-Literal direkt am `_color`-Prop (Rückfallschutz fürs Nachbar-Muster `PRIORITY_COLOR`).
  */
 describe('Badge-Farben ohne Hex-Literal (#2560 AK1)', () => {
-	it.each(['TaskTree.tsx', 'SeriesTab.tsx'])('%s hat kein _color="#…"', (file) => {
+	it.each(['TaskTree.tsx', 'SeriesTab.tsx', 'MilestoneBadges.tsx'])('%s hat kein _color="#…"', (file) => {
 		const src = readFileSync(new URL(`../components/${file}`, import.meta.url), 'utf8');
 		expect(src).not.toMatch(/_color=(\{\s*)?["'`]#/);
+		// #2618 AK2: auch Hex-Literale innerhalb eines Ausdrucks (Ternary)
+		expect(src).not.toMatch(/_color=\{[^}]*["'`]#/);
 	});
 });
