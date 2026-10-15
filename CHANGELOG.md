@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.26 - 2026-10-15
 
-_Enthält v0.26.0 – v0.26.14._
+_Enthält v0.26.0 – v0.26.15._
 
 ### 🎉 New Features
 
@@ -35,6 +35,7 @@ _Enthält v0.26.0 – v0.26.14._
 - feat(server): validate reverse-geocode coordinates via parseCoordinate by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2612
 - refactor(frontend): use badge color constant, debounce observer (#2560) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2617
 - Server: Fehlgeschlagene PayPal-Kündigung im Kulanzfrist-Sweep wird später erneut versucht (#2606) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2620
+- fix(deps): update dependency i18next to v26.4.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2602
 
 ## v0.25 - 2026-10-15
 
@@ -309,7 +310,7 @@ _Enthält v0.18.0 – v0.18.45._
 - feat(frontend): add capture-from-template to quick capture (#2363) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2423
 - ci(android): add tag input to roll app bundle into test track by @deleonio in https://github.com/deleonio/priority-pilot/pull/2430
 - docs(marketing): add play store listing with texts and images by @deleonio in https://github.com/deleonio/priority-pilot/pull/2432
-- docs(marketing): add play store listing with texts and images by @deleonio in https://github.com/deleonio/priority-pilot/pull/2432
+- fix(server): count deadline as missed only from the next day (#2427) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2428
 - fix(server): count deadline as missed only from the next day (#2427) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2428
 - docs: define payment method per channel (pwa, android, ios) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2434
 
