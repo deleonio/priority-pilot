@@ -184,6 +184,18 @@ interface KadenzBalance extends Lebensbalance {
 const KADENZ_FENSTER_TAGE = 28;
 const TAG_MS = 24 * 60 * 60 * 1000;
 
+/** Anzahl erledigter Aufgaben im 28-Tage-Kadenz-Fenster — dasselbe Fenster, das der Füllstand
+ *  (`berechneKadenzFuellstand`) beurteilt. Grundlage dafür, ob das Balance-Bild schon urteilen darf (#2633). */
+export const zaehleErledigungenImKadenzFenster = (tasks: Pick<KadenzTask, 'erledigtAm'>[], jetzt: Date): number => {
+	const fensterStart = jetzt.getTime() - KADENZ_FENSTER_TAGE * TAG_MS;
+	return tasks.filter(
+		(task) =>
+			task.erledigtAm !== null &&
+			task.erledigtAm.getTime() > fensterStart &&
+			task.erledigtAm.getTime() <= jetzt.getTime(),
+	).length;
+};
+
 /**
  * Kadenz-Füllstand (#1638): Statt des Ist-Anteils am Gesamtaufwand zählt, wie gut jede Säule ihren
  * eigenen Soll-Rhythmus im 28-Tage-Fenster erfüllt — `erfuellungᵢ = min(1, Aufgaben_28d / (rhythmus × 4))`,

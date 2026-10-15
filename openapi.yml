@@ -8442,6 +8442,16 @@ components:
           description: >-
             Ob überhaupt Punkte vergeben sind. Unterscheidet „noch nichts erledigt" (`false`,
             Füllstand `0`) von „unausgewogen".
+        erledigungenImFenster:
+          type: integer
+          description: >-
+            Anzahl erledigter Aufgaben im 28-Tage-Kadenz-Fenster (kontoweit, task-level) — dasselbe
+            Fenster, das der Füllstand beurteilt (#2633).
+        mindestErledigungen:
+          type: integer
+          description: >-
+            Mindestmenge an Erledigungen im Fenster, ab der die Überlast-Regel überhaupt greift
+            (`UEBERLAST_MINDEST_ERLEDIGUNGEN`).
         saeulen:
           type: array
           description: Punktestand und Gewichtung je Säule des Nutzers, aufsteigend nach Säulen-ID.
