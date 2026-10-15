@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.26 - 2026-10-15
 
-_Enthält v0.26.0 – v0.26.2._
+_Enthält v0.26.0 – v0.26.3._
 
 ### 🔧 Engineering
 
@@ -14,6 +14,7 @@ _Enthält v0.26.0 – v0.26.2._
 
 - feat(server): remove dead module and history comments (#2557) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2605
 - feat(server): dedupe push notifications via shared helper (#2551) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2598
+- test(frontend): e2e paypal deferred alert + non-empty guards (#2558) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2610
 
 ## v0.25 - 2026-10-15
 
@@ -372,7 +373,6 @@ _Enthält v0.16.0 – v0.16.37._
 - feat(frontend): streak rest day and balanced weeks (#1971) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2215
 - feat(frontend): add journal entries with optional pillar by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2216
 - feat(frontend): add balamentum wrapped yearly recap card by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2219
-- feat(frontend): add balamentum wrapped yearly recap card by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2219
 - feat(frontend): add launch-phase feedback invitation banner (#2229) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2261
 
 ### 🐞 Bug Fixes
@@ -403,6 +403,7 @@ _Enthält v0.16.0 – v0.16.37._
 - fix(frontend): hide closed modal body in sync, stabilize e2e tab click by @deleonio in https://github.com/deleonio/priority-pilot/pull/2206
 - feat(website): add account-free balance check (#1979) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2205
 - docs: dedupe decision log and note removal of dead model vars by @deleonio in https://github.com/deleonio/priority-pilot/pull/2207
+- feat(server): fetch and store calendar events from ICS address by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2218
 - feat(server): fetch and store calendar events from ICS address by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2218
 - docs(website): clarify liability and AI suggestions in terms of use by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2228
 - fix(server): invoice and renew only on PAYMENT.SALE.COMPLETED by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2245
