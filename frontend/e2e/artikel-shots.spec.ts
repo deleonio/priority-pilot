@@ -115,6 +115,9 @@ test.describe('Artikel-Screenshots — Bilder fürs Auge', () => {
 		await page.goto('/app/settings/general');
 		const wahl = page.getByTestId('balance-variant-setting');
 		await expect(wahl).toBeVisible();
+		// Beleg-Kontrolle: die Konto-Wahl (#2009) ist angekommen — die Vorschau rendert die Blüte
+		// (BalanceFigure), nicht mehr die Herz-Vorschau; genau das zeigt bildwahl.png.
+		await expect(wahl.locator('[data-testid="balance-variant-preview"]')).toHaveAttribute('data-variante', 'bluete');
 		await wahl.scrollIntoViewIfNeeded();
 		await wahl.screenshot({ path: `${OUT}/bildwahl.png`, animations: 'disabled' });
 	});

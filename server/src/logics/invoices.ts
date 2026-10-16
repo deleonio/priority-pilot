@@ -294,6 +294,8 @@ const enqueueCreation = <T>(run: () => Promise<T>): Promise<T> => {
  * @param transaction Transaktion des Zahlungsereignisses (#2233); der Mailversand folgt erst nach dem Commit.
  *  Ohne sie läuft der Erzeugungsblock in einer eigenen Transaktion (#2236).
  * @param pdfBuild injizierbarer PDF-Bau (Default: `buildInvoicePdf`) — Test-Seam wie `mailSend` (#2236).
+ * @param periodStartOverride echter Beginn des Leistungszeitraums (Periode VOR der Verlängerung, #2230);
+ *  ohne ihn wird ab `periodEnd` zurückgerechnet — bei Monatsüberlauf (Start am 29.–31.) nicht invertierbar.
  */
 export const issueInvoiceForPeriod = async (
 	subscription: Subscription,
@@ -303,6 +305,7 @@ export const issueInvoiceForPeriod = async (
 	charged?: ChargedAmount,
 	transaction?: Transaction,
 	pdfBuild: typeof buildInvoicePdf = buildInvoicePdf,
+	periodStartOverride?: Date,
 ): Promise<Invoice> => {
 	const subscriptionId = subscription.get('id') as number;
 	const periodEnd = subscription.get('currentPeriodEnd') as Date;
@@ -364,8 +367,14 @@ export const issueInvoiceForPeriod = async (
 	// sie zurück und verbrennt weder Rechnung noch Nummer. Schachteln ist verboten: die
 	// In-Memory-SQLite (`pool.max = 1`) bricht bei verschachtelten Transaktionen ab.
 	const createInvoice = async (tx?: Transaction): Promise<Invoice> => {
-		const periodStart = new Date(periodEnd);
-		periodStart.setUTCMonth(periodStart.getUTCMonth() - (PERIOD_MONTHS[period] ?? 1));
+		// Mit Override (#2230) gilt der echte Periodenbeginn, sonst die Rückrechnung ab `periodEnd`.
+		const periodStart =
+			periodStartOverride ??
+			(() => {
+				const derived = new Date(periodEnd);
+				derived.setUTCMonth(derived.getUTCMonth() - (PERIOD_MONTHS[period] ?? 1));
+				return derived;
+			})();
 
 		// #1912: Guthaben aus einem Upgrade wird einmalig als eigene Position verrechnet.
 		const availableCents = Number(subscription.get('creditCents') ?? 0);

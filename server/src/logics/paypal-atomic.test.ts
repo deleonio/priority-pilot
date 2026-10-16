@@ -34,9 +34,18 @@ const seed = async () => {
 	return { user, subscription };
 };
 
-/** Echter Rechnungslauf; reicht jedes weitere Argument (z. B. eine Transaktion) unverändert durch. */
-const realIssue: ApplyPaymentEventDeps['issueInvoice'] = (s, n, saleId, charged, ...rest) =>
-	(issueInvoiceForPeriod as (...args: unknown[]) => Promise<unknown>)(s, n, async () => {}, saleId, charged, ...rest);
+/** Echter Rechnungslauf; reicht Transaktion und Periodenbeginn (#2230) an derselben Stelle durch. */
+const realIssue: ApplyPaymentEventDeps['issueInvoice'] = (s, n, saleId, charged, transaction, periodStart) =>
+	(issueInvoiceForPeriod as (...args: unknown[]) => Promise<unknown>)(
+		s,
+		n,
+		async () => {},
+		saleId,
+		charged,
+		transaction,
+		undefined,
+		periodStart,
+	);
 
 describe('applyPaymentEvent — atomar (#2233 AK3/AK4)', () => {
 	beforeEach(resetDb);

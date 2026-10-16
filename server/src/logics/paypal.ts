@@ -553,6 +553,8 @@ export interface ApplyPaymentEventDeps {
 		saleId?: string | null,
 		charged?: ChargedAmount,
 		transaction?: Transaction,
+		/** Echter Beginn des Leistungszeitraums (Periode vor der Verlängerung, #2230) — siehe `issueInvoiceForPeriod`. */
+		periodStart?: Date,
 	) => Promise<unknown>;
 	/**
 	 * Gutschrift zur Originalrechnung (#2237): eigener Beleg statt `refunded` am Original — läuft in
@@ -676,13 +678,17 @@ export const applyPaymentEvent = async (
 			) {
 				currentPeriodEnd.setTime(now.getTime());
 			}
+			// Echter Beginn des Leistungszeitraums = Periode vor der Verlängerung (#2230): die Rückrechnung
+			// `newEnd − 1 Periode` ist bei Monatsüberlauf (Start am 29.–31.) nicht invertierbar — die Rechnung
+			// läge um bis zu 3 Tage neben dem Periodenrand.
+			const periodStart = new Date(currentPeriodEnd);
 			currentPeriodEnd.setUTCMonth(currentPeriodEnd.getUTCMonth() + months);
 			// Eine späte Abbuchung hebt die Admin-Sperre nicht auf (#2242).
 			await subscription.update(
 				{ currentPeriodEnd, status: status === 'locked' ? 'locked' : 'active', firstFailureAt: null },
 				{ transaction },
 			);
-			await deps.issueInvoice?.(subscription, now, event.resource?.id ?? null, charged, transaction);
+			await deps.issueInvoice?.(subscription, now, event.resource?.id ?? null, charged, transaction, periodStart);
 		});
 		return;
 	}
