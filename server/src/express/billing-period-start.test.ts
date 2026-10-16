@@ -144,7 +144,10 @@ describe('Rechnung und Verlängerung nur bei SALE.COMPLETED (#2230)', () => {
 		const me = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
 			id: number;
 		};
+		// Referenzdatum overflow-sicher wählen (Tag ≤ 28): am Monatsende verfehlt der
+		// setUTCMonth-Round-Trip (paypal.ts +1 Monat → 1.12., invoices.ts −1 Monat → 1.11.) den Tag.
 		const start = new Date(Date.now() + 15 * DAY_MS);
+		if (start.getUTCDate() > 28) start.setUTCDate(28);
 		await Subscription.create({
 			userId: me.id,
 			provider: 'paypal',
