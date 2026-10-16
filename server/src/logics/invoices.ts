@@ -293,9 +293,9 @@ const enqueueCreation = <T>(run: () => Promise<T>): Promise<T> => {
  * @param charged abgebuchter Betrag und Währung (#2232); ohne gilt der Katalogpreis in EUR.
  * @param transaction Transaktion des Zahlungsereignisses (#2233); der Mailversand folgt erst nach dem Commit.
  *  Ohne sie läuft der Erzeugungsblock in einer eigenen Transaktion (#2236).
- * @param pdfBuild injizierbarer PDF-Bau (Default: `buildInvoicePdf`) — Test-Seam wie `mailSend` (#2236).
  * @param periodStartOverride Beginn des abgerechneten Leistungszeitraums (#2230) — das Periodenende vor der
  *   Verlängerung; ohne Angabe wird er aus dem Periodenende zurückgerechnet (driftet bei Monats-Overflow).
+ * @param pdfBuild injizierbarer PDF-Bau (Default: `buildInvoicePdf`) — Test-Seam wie `mailSend` (#2236).
  */
 export const issueInvoiceForPeriod = async (
 	subscription: Subscription,
@@ -304,8 +304,8 @@ export const issueInvoiceForPeriod = async (
 	saleId?: string | null,
 	charged?: ChargedAmount,
 	transaction?: Transaction,
-	pdfBuild: typeof buildInvoicePdf = buildInvoicePdf,
 	periodStartOverride?: Date,
+	pdfBuild: typeof buildInvoicePdf = buildInvoicePdf,
 ): Promise<Invoice> => {
 	const subscriptionId = subscription.get('id') as number;
 	const periodEnd = subscription.get('currentPeriodEnd') as Date;
