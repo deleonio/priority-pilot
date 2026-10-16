@@ -754,9 +754,6 @@ Funktionen oberhalb von Free tragen ein Badge mit dem Paketnamen – etwa Gruppe
 KI-Unterstützung, gewichtete Abhängigkeiten und Orts-Erinnerungen; die Spracheingabe und einfache
 Abhängigkeiten gehören zu Free. Die KI-Assistenz gilt nach Fair Use: Es gibt keinen Zähler und keine Sperre. Wer sehr viele Anfragen in einem Monat stellt, bekommt einen Hinweis, und die KI-Hilfe antwortet dann etwas langsamer.
 
-**Übergangsregel für Bestandskonten:** Ein Konto, das vor dem Start der Pakete angelegt
-wurde und kein Paket gebucht hat, hat **Pro** und damit alle Funktionen.
-
 ---
 
 ## Abo
