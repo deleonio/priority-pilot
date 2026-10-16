@@ -3,8 +3,10 @@ import type { Request, Response, NextFunction } from 'express';
 /** Ursprung des WebViews der Android-App (Capacitor, ADR 0016). */
 const APP_ORIGIN = 'https://localhost';
 /**
- * Alle Header, die das Frontend setzt (`frontend/src/api.ts`). Fehlt einer, verwirft der WebView die
- * Anfrage schon im Preflight: `x-csrf-token` steckt in jedem schreibenden Request.
+ * Alle Anfrage-Header, die das Frontend setzt (`frontend/src/api.ts`). Fehlt einer, verwirft der
+ * WebView die Anfrage schon im Preflight: `x-csrf-token` steckt in jedem schreibenden Request.
+ * Nur Anfrage-Seite: ein `Access-Control-Expose-Headers` für Antwort-Header ist nicht Teil der
+ * Freigabe.
  */
 const APP_REQUEST_HEADERS = 'Authorization, Content-Type, X-Client-Channel, X-CSRF-Token, Accept-Language';
 

@@ -14,7 +14,7 @@ import { rampClass } from '../lib/pillarRamp';
  * Die Lebensbalance auf der Startseite: **ein** gerechnetes Ergebnis, mehrere Bilder davon.
  *
  * Diese Komponente rechnet und beschriftet; gezeichnet wird in `HeartVessel` (das Herz-Gefäß) oder
- * `BalanceFigure` (Blasen, Scheiben, Ringe, Strahlen). Welches Bild läuft, wählt der Nutzer in den
+ * `BalanceFigure` (Blasen, Scheiben, Ringe, Strahlen, Blüte, Kristall, Segmente, Zeiger). Welches Bild läuft, wählt der Nutzer in den
  * Einstellungen — wie das Zifferblatt einer Uhr (`lib/balanceVariant.ts`, Default „Herz").
  *
  * **Was über allen Varianten gleich bleibt**, und zwar absichtlich:
@@ -25,7 +25,7 @@ import { rampClass } from '../lib/pillarRamp';
  * - Die **Legende**: je Säule Farbe, Name, Ist-Anteil, Ziel und Abweichung. Sie macht die Farben
  *   im Bild überhaupt erst zuordenbar und trägt die Relief-Regel (ux-design.md §2, Regel 4) —
  *   der Säulenname steht immer als Text neben der Farbe, in jeder Variante.
- * - Die **Bewegungsschalter**: Master „Animationen" (#1183), Feinschalter „Herz animieren" und die
+ * - Die **Bewegungsschalter**: Master „Animationen" (#1183), Feinschalter „Balance animieren" und die
  *   OS-Einstellung „Bewegung reduzieren", die Vorrang hat.
  *
  * Rechnung, Randfälle und das Balance-Maß stehen in `lib/heartBalance.ts`.
@@ -64,7 +64,7 @@ export const HeartBalance = ({ pillars, punkteProSaeule, fill, urteilsreif }: He
 
 	/*
 	 * Das Bild bewegt sich nur, wenn beide Schalter es erlauben: der Master „Animationen“ (#1183)
-	 * und der Feinschalter „Herz animieren“. Die OS-Einstellung „Bewegung reduzieren“ hat Vorrang
+	 * und der Feinschalter „Balance animieren“. Die OS-Einstellung „Bewegung reduzieren“ hat Vorrang
 	 * und schaltet hier mit ab — Wellen wie Blasenschwingung laufen per SMIL und lassen sich nicht
 	 * per CSS-Media-Query ausnehmen (Auftakt und Puls bleiben trotzdem im CSS abgesichert).
 	 */
