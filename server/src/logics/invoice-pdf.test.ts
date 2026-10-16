@@ -128,6 +128,25 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 	}
 
 	// #2303 AK2 (Spec docs/spec/issue-2303.md): Gutschrift-Titel statt „Rechnung“, Bezug aufs Original.
+	// #2661: die Rechnungsadresse des Empfängers steht im Adressfeld des PDFs.
+	it('#2661: das PDF enthält die Rechnungsadresse des Empfängers im Adressfeld', async () => {
+		const bytes = await pdf(await invoice(), 'Paket plus (monthly)', {
+			...OPERATOR,
+		});
+		const withAddress = await buildInvoicePdf(
+			await invoice('INV-2026-100002'),
+			OPERATOR,
+			{
+				...RECIPIENT,
+				addressLines: ['Max Mustermann', 'Musterstraße 1', '12345 Musterstadt', 'Deutschland'],
+			},
+			'Paket plus (monthly)',
+		);
+		assert.ok(pdfContains(withAddress, 'Musterstraße 1'), 'Straße der Rechnungsadresse muss im PDF stehen');
+		assert.ok(pdfContains(withAddress, '12345 Musterstadt'), 'PLZ und Ort müssen im PDF stehen');
+		assert.ok(pdfContains(withAddress, 'Deutschland'), 'Land muss im PDF stehen');
+		assert.ok(!pdfContains(bytes, 'Musterstraße 1'), 'Ohne Adresse steht keine fremde Adresse im PDF');
+	});
 	it('#2303 AK2: Gutschrift trägt Titel „Gutschrift“, Bezug auf die Originalrechnung und kein „Rechnung GS-“', async () => {
 		const credit = await Invoice.create({
 			userId: 1,

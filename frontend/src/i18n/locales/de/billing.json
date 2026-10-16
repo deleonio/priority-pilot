@@ -88,6 +88,22 @@
 		"bookLabel": "{{plan}} buchen ({{period}})",
 		"changeLabel": "{{plan}} wechseln ({{period}})"
 	},
+	"address": {
+		"required": "Rechnungsadresse",
+		"requiredHint": "Vor dem Abschluss eines Abos brauchen wir deine Rechnungsadresse — sie steht auf jeder Rechnung und den Rechnungs-PDFs.",
+		"name": "Name oder Firma",
+		"street": "Straße und Hausnummer",
+		"zip": "PLZ",
+		"city": "Ort",
+		"country": "Land",
+		"save": "Rechnungsadresse speichern",
+		"saving": "Wird gespeichert …",
+		"saved": "Rechnungsadresse gespeichert.",
+		"invalid": "Bitte alle Felder der Rechnungsadresse ausfüllen.",
+		"loadFailed": "Rechnungsadresse konnte nicht geladen werden.",
+		"saveFailed": "Rechnungsadresse konnte nicht gespeichert werden.",
+		"edit": "Rechnungsadresse ändern"
+	},
 	"play": {
 		"unlockFailed": "Der Kauf ist bei Google eingegangen, konnte aber noch nicht freigeschaltet werden.",
 		"purchaseFailed": "Der Kauf über Google Play ist fehlgeschlagen.",

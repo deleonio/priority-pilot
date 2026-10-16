@@ -10,6 +10,23 @@ import { createPaypalProvider, type PaypalProviderDeps } from '../../logics/bill
 import { rankOf } from '../../logics/billing/lifecycle.js';
 import { PaypalHttpError, PERIOD_MONTHS, coversFirstCycle } from '../../logics/paypal.js';
 import { getPlansCatalog, PLAN_VALUES, type Plan } from '../../logics/plans.js';
+import { extractBillingAddress, hasBillingAddress } from '../../logics/billingAddress.js';
+
+type BillingAddressDto = {
+	name: string | null;
+	street: string | null;
+	zip: string | null;
+	city: string | null;
+	country: string | null;
+};
+
+const serializeBillingAddress = (user: User): BillingAddressDto => ({
+	name: user.billingName,
+	street: user.billingStreet,
+	zip: user.billingZip,
+	city: user.billingCity,
+	country: user.billingCountry,
+});
 import { prorateUpgrade } from '../../logics/proration.js';
 import { notifyAdminsOfExtraordinaryCancellation } from '../../logics/cancellationMail.js';
 import type { MailSender } from '../../logics/mail.js';
@@ -209,6 +226,53 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 		return true;
 	};
 
+	// GET /billing/address — gespeicherte Rechnungsadresse des Nutzers (#2661), `null` je Feld, solange
+	// keine erfasst ist. Bewusst eigener Endpunkt statt /profile: die Adresse ist Bestandteil des
+	// Abrechnungskontexts, nicht des öffentlichen Profils.
+	router.get('/billing/address', async (req: Request, res: Response<BillingAddressDto | ErrorDto>) => {
+		const userId = getUserId(req);
+		if (userId === undefined) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const user = await User.findByPk(userId);
+		if (user === null) {
+			sendError(res, 404, 'Kein Konto gefunden.');
+			return;
+		}
+		res.json(serializeBillingAddress(user));
+	});
+	// PUT /billing/address — Rechnungsadresse erfassen/ändern (#2661): alle Felder Pflicht, Änderungen
+	// wirken auf Rechnungen und PDFs ab dem Speichern.
+	router.put('/billing/address', async (req: Request, res: Response<BillingAddressDto | ErrorDto>) => {
+		const userId = getUserId(req);
+		if (userId === undefined) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const address = extractBillingAddress(req.body);
+		if (address === null) {
+			sendError(
+				res,
+				400,
+				'Unvollständige Rechnungsadresse: Name, Straße, PLZ, Ort und Land sind erforderlich (1 bis 120 Zeichen).',
+			);
+			return;
+		}
+		const user = await User.findByPk(userId);
+		if (user === null) {
+			sendError(res, 404, 'Kein Konto gefunden.');
+			return;
+		}
+		await user.update({
+			billingName: address.name,
+			billingStreet: address.street,
+			billingZip: address.zip,
+			billingCity: address.city,
+			billingCountry: address.country,
+		});
+		res.json(serializeBillingAddress(user));
+	});
 	// POST /billing/subscriptions — legt ein Abo an und liefert die Zustimmungs-URL (AK1). Ein
 	// laufendes Abo desselben Nutzers blockt einen zweiten Anlauf (AK2); ein offener Checkout wird
 	// vorher verworfen, auch wenn der Nutzer nach einem Abbruch nie zurückkehrte (#2235). Bei einem
@@ -229,6 +293,12 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 		// Zustimmung zum sofortigen Leistungsbeginn (#2329, § 312f BGB) — ohne sie kein Abo.
 		if (body.withdrawalConsent !== true) {
 			sendError(res, 400, 'withdrawalConsent muss true sein (Zustimmung zum sofortigen Leistungsbeginn).');
+			return;
+		}
+		// Ohne erfasste Rechnungsadresse kein Abo (#2661): Rechnungsstellung und PDF brauchen sie.
+		const user = await User.findByPk(userId);
+		if (user === null || !hasBillingAddress(user)) {
+			sendError(res, 409, 'Bitte zuerst eine Rechnungsadresse hinterlegen.');
 			return;
 		}
 		// Ein Abo mit Zahlungsrückstand läuft weiter und blockt ebenso (#2240).

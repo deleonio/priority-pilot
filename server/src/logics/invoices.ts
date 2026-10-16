@@ -9,6 +9,7 @@ import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { getPlansCatalog, parsePlan, type Plan } from './plans.js';
 import { sendMailToUser, type MailSender } from './mail.js';
 import { buildInvoicePdf, contractConfirmationLines } from './invoicePdf.js';
+import { billingAddressLines } from './billingAddress.js';
 import { OPERATOR } from './operator.js';
 
 /**
@@ -139,7 +140,11 @@ export const issueCreditNote = async (
 	const pdfBytes = await pdfBuild(
 		credit,
 		OPERATOR,
-		{ displayName: String(user?.get('displayName') ?? ''), email: String(user?.get('email') ?? '') },
+		{
+			displayName: String(user?.get('displayName') ?? ''),
+			email: String(user?.get('email') ?? ''),
+			addressLines: user ? billingAddressLines(user) : [],
+		},
 		`Zur Rechnung ${original.get('number')}`,
 	);
 	await credit.update({ pdfBytes: Buffer.from(pdfBytes) }, { transaction });
@@ -415,6 +420,7 @@ export const issueInvoiceForPeriod = async (
 			{
 				displayName: String(user?.get('displayName') ?? ''),
 				email: String(user?.get('email') ?? ''),
+				addressLines: user ? billingAddressLines(user) : [],
 			},
 			`Paket ${label}`,
 			await confirmationFor(invoice, tx),

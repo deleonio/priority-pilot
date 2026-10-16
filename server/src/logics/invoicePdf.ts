@@ -23,6 +23,8 @@ export interface InvoiceOperator {
 export interface InvoiceRecipient {
 	displayName: string;
 	email: string;
+	/** Adresszeilen der Rechnungsadresse (#2661) — leer, solange keine erfasst ist (Bestandskonten). */
+	addressLines?: string[];
 }
 
 /** ISO-Datum `JJJJ-MM-TT` (Spec-Vertrag: deterministische Zeitraum-Angabe). */
@@ -195,7 +197,13 @@ export const buildInvoicePdf = async (
 	// Adressfeld links: Absenderzeile klein, darunter der Empfänger.
 	text([operator.name, ...operator.address].join(' · '), LEFT, 700, { size: 7, color: GREY });
 	text(recipient.displayName, LEFT, 678, { size: 11 });
-	text(recipient.email, LEFT, 662, { size: 10, color: GREY });
+	// Rechnungsadresse (#2661) unter dem Namen; die E-Mail rückt an das Ende des Adressblocks.
+	let ay = 662;
+	for (const line of recipient.addressLines ?? []) {
+		text(line, LEFT, ay, { size: 10 });
+		ay -= 14;
+	}
+	text(recipient.email, LEFT, ay, { size: 10, color: GREY });
 
 	// Titel links, Datum rechts.
 	text(`${isCredit ? 'Gutschrift' : 'Rechnung'} ${invoice.get('number') as string}`, LEFT, 592, {

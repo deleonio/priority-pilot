@@ -1,6 +1,13 @@
 import { describe, it, mock, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
+import {
+	resetDb,
+	closeDb,
+	startTestServer,
+	type TestServer,
+	applyTestAuthEnv,
+	seedBillingAddress,
+} from '../test/helpers.js';
 import { Subscription } from '../models/index.js';
 import Invoice from '../models/invoice.js';
 import { getPlansCatalog } from '../logics/plans.js';
@@ -48,6 +55,7 @@ describe('Guthaben-Übertrag beim Upgrade (#2241)', () => {
 	it('AK1/AK2/AK5: Plus jährlich → Pro monatlich — keine Rechnung, k Perioden gedeckt, Rest bleibt, Vorschau nennt das Datum', async () => {
 		server = await startTestServer(deps());
 		const cookie = await server.login('carry-2241@example.com');
+		await seedBillingAddress(String('carry-2241@example.com'));
 		const me = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
 			id: number;
 		};
@@ -89,6 +97,7 @@ describe('Guthaben-Übertrag beim Upgrade (#2241)', () => {
 		const id = 'I-CARRY-2241';
 		server = await startTestServer(deps());
 		const cookie = await server.login('late-2241@example.com');
+		await seedBillingAddress(String('late-2241@example.com'));
 		const me = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
 			id: number;
 		};
@@ -124,6 +133,7 @@ describe('Guthaben-Übertrag beim Upgrade (#2241)', () => {
 		try {
 			server = await startTestServer(deps());
 			const cookie = await server.login('carry-2556@example.com');
+			await seedBillingAddress(String('carry-2556@example.com'));
 			const me = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
 				id: number;
 			};

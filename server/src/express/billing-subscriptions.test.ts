@@ -1,6 +1,13 @@
 import { describe, it, beforeEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
+import {
+	resetDb,
+	closeDb,
+	startTestServer,
+	type TestServer,
+	applyTestAuthEnv,
+	seedBillingAddress,
+} from '../test/helpers.js';
 import { Subscription } from '../models/index.js';
 // Invoice ist (Stand #1495) noch nicht aus models/index.ts re-exportiert — direkter Modul-Import
 // (Muster models/invoice.test.ts), um diese Testdatei nicht an einer fremden Produktivlücke
@@ -27,7 +34,11 @@ applyTestAuthEnv('test-secret-issue-1505');
 
 let server: TestServer;
 
-const login = (email: string) => server.login(email);
+const login = async (email: string): Promise<string> => {
+	const cookie = await server.login(email);
+	await seedBillingAddress(email);
+	return cookie;
+};
 const post = (path: string, cookie: string, body: unknown = {}) =>
 	fetch(`${server.baseUrl}${path}`, {
 		method: 'POST',
@@ -895,7 +906,11 @@ describe('Rechnungs-PDF-Download (#1955 AK4)', () => {
 		await closeDb();
 	});
 
-	const login = (email: string) => server.login(email);
+	const login = async (email: string): Promise<string> => {
+		const cookie = await server.login(email);
+		await seedBillingAddress(email);
+		return cookie;
+	};
 	const get = (path: string, cookie?: string) =>
 		fetch(`${server.baseUrl}${path}`, { headers: cookie ? { Cookie: cookie } : {} });
 

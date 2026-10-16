@@ -5110,6 +5110,56 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /billing/address:
+    get:
+      summary: Rechnungsadresse abrufen
+      description: >-
+        Gespeicherte Rechnungsadresse des angemeldeten Nutzers (#2661). `null` je Feld,
+        solange keine erfasst ist — ein Abo-Abschluss ohne Adresse lehnt der Server mit 409 ab.
+      operationId: getBillingAddress
+      tags: [billing]
+      responses:
+        '200':
+          description: Rechnungsadresse; Felder sind `null`, solange keine erfasst ist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingAddress'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Rechnungsadresse erfassen oder ändern
+      description: >-
+        Speichert die Rechnungsadresse am Konto (#2661) — erforderlich vor jedem Abo-Abschluss,
+        Grundlage der Rechnungsstellung und der Rechnungs-PDFs. Alle Felder sind Pflicht;
+        Änderungen wirken auf Rechnungen ab dem Speichern.
+      operationId: updateBillingAddress
+      tags: [billing]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BillingAddressInput'
+      responses:
+        '200':
+          description: Gespeicherte Rechnungsadresse
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingAddress'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /billing/subscriptions:
     post:
       summary: Abo anlegen
@@ -5146,7 +5196,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '409':
-          description: Es besteht bereits ein laufendes Abo, oder die Anfrage kommt aus einer Store-App
+          description: Es besteht bereits ein laufendes Abo, es fehlt die Rechnungsadresse (#2661), oder die Anfrage kommt aus einer Store-App
           content:
             application/json:
               schema:
@@ -9224,6 +9274,41 @@ components:
         withdrawalConsent:
           type: boolean
           description: Zustimmung zum sofortigen Leistungsbeginn mit Kenntnisnahme vom Erlöschen des Widerrufsrechts (#2329, § 312f BGB). Pflicht (`true`) nur bei `POST /billing/subscriptions`, bei Wechseln ignoriert.
+    BillingAddress:
+      type: object
+      description: Gespeicherte Rechnungsadresse des Nutzers (#2661); `null` je Feld, solange keine erfasst ist.
+      properties:
+        name:
+          type: [string, 'null']
+        street:
+          type: [string, 'null']
+        zip:
+          type: [string, 'null']
+        city:
+          type: [string, 'null']
+        country:
+          type: [string, 'null']
+    BillingAddressInput:
+      type: object
+      description: Eingabe der Rechnungsadresse (#2661) — alle Felder Pflicht, 1 bis 120 Zeichen nach Trim.
+      required: [name, street, zip, city, country]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Name oder Firma des Rechnungsempfängers.
+        street:
+          type: string
+          minLength: 1
+        zip:
+          type: string
+          minLength: 1
+        city:
+          type: string
+          minLength: 1
+        country:
+          type: string
+          minLength: 1
     BillingCancelInput:
       type: object
       description: Angaben aus dem Bestätigungsschritt der Kündigung (#2308, § 312k BGB).

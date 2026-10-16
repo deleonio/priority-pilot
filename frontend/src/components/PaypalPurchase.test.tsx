@@ -53,6 +53,7 @@ vi.mock('@public-ui/react-v19', () => ({
 		</label>
 	),
 	KolLink: ({ _href, _label }: { _href: string; _label: string }) => <a href={_href}>{_label}</a>,
+	KolInputText: () => <input type="text" />,
 }));
 
 vi.mock('./Modal', () => ({
@@ -68,8 +69,21 @@ vi.mock('../api', () => ({
 		previewBillingChange: () => previewBillingChange(),
 		changeBillingSubscription: (input: unknown) => changeBillingSubscription(input),
 		createBillingSubscription: (input: unknown) => createBillingSubscription(input),
+		// #2661: das Adressformular im Notice-Block lädt beim Mount die gespeicherte Adresse.
+		getBillingAddress: () => getBillingAddress(),
+		updateBillingAddress: (input: unknown) => updateBillingAddress(input),
 	},
 }));
+const getBillingAddress = vi.fn<
+	() => Promise<{
+		name: string | null;
+		street: string | null;
+		zip: string | null;
+		city: string | null;
+		country: string | null;
+	}>
+>();
+const updateBillingAddress = vi.fn();
 
 const subscriptionState = { subscription: { plan: 'pro', period: 'monthly' } as unknown };
 const refresh = vi.fn(async () => {});
@@ -100,6 +114,11 @@ describe('usePaypalPurchase — Warteverhalten nach dem Wechsel', () => {
 		previewBillingChange.mockReset();
 		changeBillingSubscription.mockReset();
 		createBillingSubscription.mockReset();
+		// #2661: das Adressformular im Hinweisbereich lädt beim Mount die gespeicherte Adresse.
+		getBillingAddress.mockReset();
+		getBillingAddress.mockResolvedValue({ name: null, street: null, zip: null, city: null, country: null });
+		updateBillingAddress.mockReset();
+		updateBillingAddress.mockResolvedValue({});
 		refresh.mockClear();
 		subscriptionState.subscription = { plan: 'pro', period: 'monthly' };
 	});
@@ -185,6 +204,11 @@ describe('usePaypalPurchase — Widerrufsbelehrung vor dem Erstkauf (#2307)', ()
 	beforeEach(() => {
 		createBillingSubscription.mockReset();
 		createBillingSubscription.mockResolvedValue({});
+		// #2661: das Adressformular im Hinweisbereich lädt beim Mount die gespeicherte Adresse.
+		getBillingAddress.mockReset();
+		getBillingAddress.mockResolvedValue({ name: null, street: null, zip: null, city: null, country: null });
+		updateBillingAddress.mockReset();
+		updateBillingAddress.mockResolvedValue({});
 		subscriptionState.subscription = null;
 	});
 	afterEach(cleanup);
