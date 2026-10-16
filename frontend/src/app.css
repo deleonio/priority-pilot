@@ -2365,7 +2365,12 @@ kol-toolbar {
 	/* #1121: hier kein gap — das U+00A0 zwischen Titel und Geo-Badge ist der einzige Trenner
 	   (sonst Doppeltrenner: gap + NBSP + gap). Der Header enthält nur Titel + NBSP + Badge. */
 	gap: 0;
-	flex: 1 1 auto;
+	/* #1258 (Desktop-Fortführung, PR #2663): dominanter Grow — im Einzeilen-Layout (ab 48rem) verteilt
+	   der Header den Freiraum wie bisher, während die gewachsenen Controls (`flex: 1 1 auto`) den
+	   „…"-Button über `margin-left: auto` rechtsbündig halten; im Umbruchfall füllt der Header seine
+	   Zeile allein. Ein moderater Grow würde dem Controls-Container Freiraum wegnehmen und den Button
+	   nach links ziehen. */
+	flex: 1000 1 auto;
 	min-width: 0;
 }
 
@@ -2407,15 +2412,17 @@ kol-toolbar {
 }
 
 @media (min-width: 48rem) {
+	/* #1258 (Desktop-Fortführung, PR #2663): Die Controls wachsen mit (`flex: 1 1 auto`) — erst damit
+	   findet `margin-left: auto` auf dem Button freien Platz: Einzeilig behält der dominante Header
+	   (flex: 1000) fast alles, die umbrochene Controls-Zeile füllt die volle Zeilenbreite; der
+	   „…"-Button steht in beiden Fällen konstant am rechten Rand, unabhängig von der Badge-Anzahl
+	   (mobile erreicht das space-between bereits). */
 	.task-tree-row-controls {
-		flex: 0 1 auto;
+		flex: 1 1 auto;
 		flex-wrap: nowrap;
 		justify-content: flex-start;
 	}
 
-	/* #1258 (Desktop-Fortführung): Auch im Einzeilen-Layout bleibt der „…"-Button
-	   konstant am rechten Rand der Controls-Zeile, unabhängig von der Badge-Anzahl
-	   (mobile erreicht das space-between bereits). */
 	.task-tree-actions {
 		margin-left: auto;
 	}
