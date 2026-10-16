@@ -1548,12 +1548,17 @@ kol-toolbar {
  */
 .dashboard-streak {
 	margin-top: var(--pp-gap-generous);
+	/* #2625: reservierte Höhe ab dem ersten Render — Übergang Laden → Geladen hoehenneutral.
+	   Werte im 4/8-Raster, gemessen bei 375 px; Desktop erhält eigene Werte (siehe unten). */
+	min-height: 236px;
 }
 
 /* Balance-Verlauf (#2082): Aussage als Text, Linie als Beleg; SVG skaliert mit der Spaltenbreite. */
 .dashboard-balance-history {
 	display: block;
 	margin-top: var(--pp-gap-generous);
+	/* #2625: reservierte Höhe (wie .dashboard-streak). */
+	min-height: 124px;
 }
 
 .dashboard-balance-history-content {
@@ -1874,6 +1879,8 @@ kol-toolbar {
  */
 .dashboard-milestones {
 	margin-top: var(--pp-gap-generous);
+	/* #2625: reservierte Höhe (wie .dashboard-streak). */
+	min-height: 476px;
 }
 
 .dashboard-milestones-group + .dashboard-milestones-group {
@@ -1903,6 +1910,8 @@ kol-toolbar {
  */
 .dashboard-missed {
 	margin-top: var(--pp-gap-generous);
+	/* #2625: reservierte Höhe (wie .dashboard-streak). */
+	min-height: 124px;
 }
 
 .dashboard-missed-content {
@@ -1956,6 +1965,15 @@ kol-toolbar {
 	margin-top: var(--pp-gap-generous);
 }
 
+/* #2625: Reservierte Box ab dem ersten Render, solange die Vorschläge laden — dekorative Fläche
+   ohne Inhalt (aria-hidden in CareHint.tsx, mobile-ui-rules), Rollen-Tokens statt Hex, Radius wie
+   die Karte. Der endgültige Inhalt ersetzt sie im selben Testid-Anker. */
+.care-hint-platzhalter {
+	min-height: 176px;
+	background-color: var(--pp-surface-2);
+	border-radius: var(--pp-radius-md);
+}
+
 /* #2445: ohne den seitlichen Host-Innenabstand (#1028) passt die Aktionszeile bei 375 px in eine Zeile. */
 .care-hint kol-alert {
 	padding-inline: 0;
@@ -1989,6 +2007,25 @@ kol-toolbar {
 	border-radius: 0.25rem;
 	background: var(--pp-bg-muted);
 	color: var(--pp-text-muted);
+}
+
+/* #2625: Desktop (≥ 48rem) reserviert eigene, größere Werte — breitere Spalten umbrechen anders,
+   und die Zweispalten-Rasterzeilen (Hero, Karten-Paare, letzte Reihe) bleiben unversehrt
+   (mobile-first, Aufwärts-Kaskade wie die übrigen Dashboard-Blöcke). */
+@media (min-width: 48rem) {
+	.dashboard-streak,
+	.dashboard-balance-history {
+		min-height: 208px;
+	}
+
+	.dashboard-milestones,
+	.dashboard-missed {
+		min-height: 312px;
+	}
+
+	.care-hint-platzhalter {
+		min-height: 172px;
+	}
 }
 
 .dashboard-balance {
