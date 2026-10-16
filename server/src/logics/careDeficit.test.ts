@@ -1,6 +1,12 @@
+import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { bewerteCareDefizit, CARE_FENSTER_TAGE, UEBERLAST_ANTEIL } from './careDeficit.js';
+import {
+	bewerteCareDefizit,
+	CARE_FENSTER_TAGE,
+	UEBERLAST_ANTEIL,
+	UEBERLAST_MINDEST_ERLEDIGUNGEN,
+} from './careDeficit.js';
 
 /**
  * Rote Spec-Tests für #1790 (Spec docs/spec/issue-1790.md), AK1–AK4 — Auswertungsfunktion
@@ -133,5 +139,35 @@ describe('bewerteCareDefizit (#1790)', () => {
 		// Eine Millisekunde nach der Grenze zählt die Erledigung hinein.
 		const drin = bewerteCareDefizit(saeulen, [task(1, 2, CARE_FENSTER_TAGE * TAG_MS - 1)], JETZT);
 		assert.equal(drin.find((s) => s.id === 1)?.defizitaer, false);
+	});
+});
+
+describe('#2623: seedMindestErledigungen leitet die Schleifen-Obergrenze aus UEBERLAST_MINDEST_ERLEDIGUNGEN ab', () => {
+	// Spiegel-Guard zwischen Server-Konstante und E2E-Test-Infrastruktur (Spec docs/spec/issue-2623.md):
+	// akzeptiert Direkt-Import (Typsystem sichert die Quelle) oder benannte Spiegel-Konstante;
+	// rot bei Literal in der Schleife oder bei Spiegel-Abweichung nach Server-Änderung.
+	const HELPERS_PFAD = new URL('../../../frontend/e2e/helpers.ts', import.meta.url);
+
+	it('AK1: die Obergrenze ist der importierte Identifier oder eine benannte Konstante mit dem Server-Wert', () => {
+		const quelltext = readFileSync(HELPERS_PFAD, 'utf8');
+		const funktion = quelltext.match(/export const seedMindestErledigungen[\s\S]*?\n\};/);
+		assert.ok(funktion, 'seedMindestErledigungen in frontend/e2e/helpers.ts nicht gefunden');
+		const schleife = funktion[0].match(/for \(let i = 0; i < ([^;]+); i\+\+\)/);
+		assert.ok(schleife, 'Schleifen-Obergrenze in seedMindestErledigungen nicht gefunden');
+		const obergrenze = schleife[1].trim();
+		if (obergrenze === 'UEBERLAST_MINDEST_ERLEDIGUNGEN') {
+			return; // Direkt-Import-Variante: Kopplung über das Typsystem (frontend-tsc über e2e)
+		}
+		const esc = obergrenze.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+		const spiegel = quelltext.match(new RegExp(`(?:const|let)\\s+${esc}\\s*=\\s*(\\d+)`));
+		assert.ok(
+			spiegel,
+			`Obergrenze "${obergrenze}" ist weder der Import von UEBERLAST_MINDEST_ERLEDIGUNGEN noch eine benannte Spiegel-Konstante (Literal in der Schleife, #2623)`,
+		);
+		assert.equal(
+			Number(spiegel[1]),
+			UEBERLAST_MINDEST_ERLEDIGUNGEN,
+			`Spiegelwert ${spiegel[1]} in frontend/e2e/helpers.ts weicht von UEBERLAST_MINDEST_ERLEDIGUNGEN (${UEBERLAST_MINDEST_ERLEDIGUNGEN}) ab — Spiegel nachziehen oder Direkt-Import nutzen (#2623)`,
+		);
 	});
 });
