@@ -777,9 +777,8 @@ describe('generateDueInstances — Fünfer-Grenze offener Instanzen (#1518)', ()
 	});
 });
 
-// Rote Spec-Tests für #2405 — Generierungshorizont an einer Stelle berechnen (AK1).
-// `generateHorizonUntil` existiert noch nicht; der Named-Import scheitert bis zur Umsetzung
-// (legitimer erster roter Zustand). AK2 (Aufrufstellen nutzen die Funktion) ist reiner
+// Spec-Tests für #2405 — Generierungshorizont an einer Stelle berechnen (AK1); die Funktion ist
+// exportiert in `server/src/logics/series.ts`. AK2 (Aufrufstellen nutzen die Funktion) ist reiner
 // Verhaltensnachweis über die bestehenden Suiten — bewusst kein eigener Test.
 describe('generateHorizonUntil — Horizont-Berechnung (#2405, AK1)', () => {
 	it('addiert genau GENERATE_HORIZON_DAYS (30) Tage UTC und erhält UTC-Mitternacht über den Monatsübergang', () => {
