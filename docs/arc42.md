@@ -160,9 +160,7 @@ graph LR
   KI-Hilfe: Free keine, Plus und Pro Fair Use — ein internes Monatsbudget drosselt bei Überschreitung
   auf eine Anfrage je 30 Sekunden (`AI_ASSIST_MONTHLY_QUOTA`, `AI_FAIR_USE_INTERVAL_SECONDS`).
   Durchgesetzt wird erst mit dem Env-Schalter `MONETIZATION_ENFORCED` (Default aus, Rückweg ohne
-  Deploy). Übergangsregel (#1463): Vor dem Einschalten hebt das CLI-Skript
-  `server/src/cli/grandfatherPlans.ts` alle vor einem Stichtag angelegten `free`-Konten einmalig
-  auf `pro` — bewusst außerhalb von `migrate.ts`, Runbook in `docs/deployment.md`.
+  Deploy).
 
 ## 5. Bausteinsicht
 
