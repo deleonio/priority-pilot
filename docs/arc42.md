@@ -458,7 +458,7 @@ Die Begründungen stehen vollständig in [docs/adr/](adr/); hier nur der Verweis
 | [0020](adr/0020-serien-automatisch-anlegen-vorlage.md)     | Serien: Schalter „Automatisch anlegen“, Vorlage                    | Akzeptiert                                                                                                       |
 | [0021](adr/0021-android-app-spa-ohne-service-worker.md)    | Android-App: Web-App als SPA ohne Service Worker                   | Akzeptiert; ersetzt Entscheidung 1 von ADR 0016                                                                  |
 | [0022](adr/0022-e2e-verschluesselung-opt-in.md)            | Ende-zu-Ende-Verschlüsselung als Opt-in                            | Vorgeschlagen                                                                                                    |
-| [0023](adr/0023-android-login-nativ-credential-manager.md) | Android-Login nativ über den Credential Manager                    | Akzeptiert                                                                                                       |
+| [0023](adr/0023-android-login-nativ-credential-manager.md) | Android-Login nativ über den Credential Manager                    | Akzeptiert; ersetzt Entscheidung 5 von ADR 0016                                                                  |
 | [0024](adr/0024-erledigen-direkt-mit-rueckgaengig.md)      | Erledigen direkt mit „Rückgängig“ statt Bestätigungsdialog         | Akzeptiert                                                                                                       |
 
 ## 10. Qualitätsanforderungen
