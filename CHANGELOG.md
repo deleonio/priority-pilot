@@ -226,6 +226,7 @@ _Enthält v0.19.0 – v0.19.19._
 ### 🐞 Bug Fixes
 
 - docs(arc42): sync android app docs and adr table with adr 0021 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2439
+- docs(arc42): sync android app docs and adr table with adr 0021 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2439
 - fix(frontend): fall back to browser login on canceled native sign-in by @deleonio in https://github.com/deleonio/priority-pilot/pull/2453
 
 ### 🚀 Improvements
