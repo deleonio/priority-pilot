@@ -32,6 +32,16 @@ test.describe('Artikel-Screenshots — Bilder fürs Auge', () => {
 		const login = await page.request.post('/auth/login', { data: konto });
 		expect(login.ok(), 'login muss eine Session liefern').toBeTruthy();
 
+		// Werbebilder zeigen nie die Herz-Variante (Store-Vorgabe, docs/marketing/play-store/README.md):
+		// Bildwahl liegt am Konto (#2009) — beim Laden zieht die App die Konto-Wahl nach und
+		// überschreibt den localStorage, deshalb serverseitiger PUT nach dem shots-seed-Muster.
+		const token = (await page.request.get('/api/v1/balance-variant')).headers()['x-csrf-token'];
+		const gewaehlt = await page.request.put('/api/v1/balance-variant', {
+			data: { variant: 'bluete' },
+			headers: token ? { 'x-csrf-token': token } : {},
+		});
+		expect(gewaehlt.ok(), 'Bildwahl Blüte muss gespeichert werden').toBeTruthy();
+
 		await page.goto('/app/');
 		await waitForStableView(page);
 
