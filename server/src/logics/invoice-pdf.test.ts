@@ -147,6 +147,19 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 		assert.ok(pdfContains(withAddress, 'Deutschland'), 'Land muss im PDF stehen');
 		assert.ok(!pdfContains(bytes, 'Musterstraße 1'), 'Ohne Adresse steht keine fremde Adresse im PDF');
 	});
+
+	// Review #2661: pathologisch lange Adresszeilen werden am Seitenrand geclippt, statt überzulaufen.
+	it('#2661: überlange Adresszeile wird am Seitenrand geclippt statt überzulaufen', async () => {
+		const long = 'X'.repeat(241);
+		const bytes = await buildInvoicePdf(
+			await invoice(),
+			OPERATOR,
+			{ ...RECIPIENT, addressLines: [long] },
+			'Paket plus (monthly)',
+		);
+		assert.ok(!pdfContains(bytes, long), 'Die 241-Zeichen-Zeile darf nicht ungeclippt im PDF stehen');
+		assert.ok(pdfContains(bytes, 'X'.repeat(10)), 'Ein gekürzter Anfang der Zeile muss stehen bleiben');
+	});
 	it('#2303 AK2: Gutschrift trägt Titel „Gutschrift“, Bezug auf die Originalrechnung und kein „Rechnung GS-“', async () => {
 		const credit = await Invoice.create({
 			userId: 1,

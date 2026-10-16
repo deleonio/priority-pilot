@@ -5131,6 +5131,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
     put:
       summary: Rechnungsadresse erfassen oder ändern
       description: >-
@@ -5160,6 +5162,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /billing/subscriptions:
     post:
       summary: Abo anlegen
@@ -9296,19 +9300,24 @@ components:
         name:
           type: string
           minLength: 1
+          maxLength: 120
           description: Name oder Firma des Rechnungsempfängers.
         street:
           type: string
           minLength: 1
+          maxLength: 120
         zip:
           type: string
           minLength: 1
+          maxLength: 120
         city:
           type: string
           minLength: 1
+          maxLength: 120
         country:
           type: string
           minLength: 1
+          maxLength: 120
     BillingCancelInput:
       type: object
       description: Angaben aus dem Bestätigungsschritt der Kündigung (#2308, § 312k BGB).

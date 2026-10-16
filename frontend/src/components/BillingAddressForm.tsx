@@ -23,13 +23,17 @@ type AddressKey = (typeof FIELDS)[number]['key'];
  * Rechnungsadresse vor dem Abo-Abschluss (#2661): lädt beim Mount die gespeicherte Adresse,
  * zeigt sie ausgefüllt zum Ändern und speichert sie über `PUT /billing/address`. Alle fünf
  * Felder sind Pflicht (Server validiert gleich), inline statt Alert-Wechsel (Muster
- * `GroupFormDialog`). Ohne gespeicherte Adresse bleibt das Formular offen.
+ * `GroupFormDialog`). Ohne gespeicherte Adresse bleibt das Formular offen. Ein Lade-Gate hält
+ * das Rendering bis zum GET-Ergebnis zurück (kein Mount-Flash, Review #2661); Ladefehler
+ * zeigen einen eigenen Hinweis statt eines leeren Formulars.
  */
 export const BillingAddressForm = () => {
 	const { t } = useTranslation('billing');
 	const form = useRef<Record<AddressKey, string>>({ name: '', street: '', zip: '', city: '', country: '' });
 	const [values, setValues] = useState<Record<AddressKey, string>>(form.current);
 	const [addressError, setAddressError] = useState<string | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [loadError, setLoadError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
 	const [saved, setSaved] = useState(false);
 	const [hasAddress, setHasAddress] = useState(false);
@@ -48,7 +52,8 @@ export const BillingAddressForm = () => {
 				setValues(next);
 				setHasAddress(FIELDS.every(({ key }) => next[key].trim().length > 0));
 			})
-			.catch(async (reason) => setAddressError((await toApiError(reason)).message));
+			.catch(async (reason) => setLoadError((await toApiError(reason)).message))
+			.finally(() => setLoading(false));
 	}, []);
 	const save = async (): Promise<void> => {
 		setAddressError(null);
@@ -71,6 +76,16 @@ export const BillingAddressForm = () => {
 			setSaving(false);
 		}
 	};
+	if (loading) return null;
+	if (loadError !== null) {
+		return (
+			<div className="billing-address" data-testid="billing-address-load-failed">
+				<KolAlert _type="error" _label={t('address.loadFailed')}>
+					{loadError}
+				</KolAlert>
+			</div>
+		);
+	}
 	if (hasAddress && !saved) {
 		return (
 			<p>

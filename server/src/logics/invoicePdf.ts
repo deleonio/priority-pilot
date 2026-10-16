@@ -198,8 +198,13 @@ export const buildInvoicePdf = async (
 	text([operator.name, ...operator.address].join(' · '), LEFT, 700, { size: 7, color: GREY });
 	text(recipient.displayName, LEFT, 678, { size: 11 });
 	// Rechnungsadresse (#2661) unter dem Namen; die E-Mail rückt an das Ende des Adressblocks.
+	// Pathologisch lange Zeilen (#2661-Review) werden am rechten Rand geclippt statt überzulaufen.
 	let ay = 662;
-	for (const line of recipient.addressLines ?? []) {
+	for (const raw of recipient.addressLines ?? []) {
+		let line = printable(raw, glyphs);
+		while (line.length > 1 && regular.widthOfTextAtSize(line, 10) > RIGHT - LEFT) {
+			line = line.slice(0, -1).trimEnd();
+		}
 		text(line, LEFT, ay, { size: 10 });
 		ay -= 14;
 	}

@@ -64,24 +64,18 @@ export const setDisplayNameCustom = async (email: string, value: 0 | 1): Promise
  * Seedet eine vollständige Rechnungsadresse für die gegebene E-Mail (#2661) — Bestands-Suiten,
  * die `POST /billing/subscriptions` rufen, brauchen sie, seit der Checkout ohne Adresse 409
  * antwortet. Bewusst ein Helper statt pro Suite ein PUT: eine Änderung der Felder greift an
- * einer Stelle.
+ * einer Stelle. Fehlendes Konto wirft, statt den Setup-Fehler still zu maskieren.
  */
 export const seedBillingAddress = async (email: string): Promise<void> => {
-	const [rows] = await sequelize.query('SELECT `id` FROM `users` WHERE `email` = ?', {
-		replacements: [email],
+	const user = await User.findOne({ where: { email } });
+	if (user === null) throw new Error(`seedBillingAddress: kein Konto für ${email}`);
+	await user.update({
+		billingName: 'Max Mustermann',
+		billingStreet: 'Musterstraße 1',
+		billingZip: '12345',
+		billingCity: 'Musterstadt',
+		billingCountry: 'Deutschland',
 	});
-	const id = (rows as { id: number }[])[0]?.id;
-	if (id === undefined) return;
-	await User.update(
-		{
-			billingName: 'Max Mustermann',
-			billingStreet: 'Musterstraße 1',
-			billingZip: '12345',
-			billingCity: 'Musterstadt',
-			billingCountry: 'Deutschland',
-		},
-		{ where: { id } },
-	);
 };
 /** Roh-Wert von `users.displayNameCustom` (0/1) für DB-Asserts ohne Modellabhängigkeit (#1256). */
 export const displayNameCustomOf = async (email: string): Promise<number> => {

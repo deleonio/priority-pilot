@@ -54,7 +54,7 @@ describe('Abgebrochener Checkout (#2235)', () => {
 
 	const seedPending = async (email: string): Promise<{ cookie: string; userId: number }> => {
 		const cookie = await server.login(email);
-		await seedBillingAddress(String(email));
+		await seedBillingAddress(email);
 		const me = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
 			id: number;
 		};

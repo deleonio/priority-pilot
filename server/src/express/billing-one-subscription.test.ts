@@ -83,7 +83,7 @@ describe('Ein Abo über alle Anbieter (#1690)', () => {
 
 	it('aktives PayPal-Abo: Play-Kauf wird mit 409 abgelehnt und nicht bestätigt', async () => {
 		const cookie = await server.login('paypal-zuerst@example.com');
-		await seedBillingAddress(String('paypal-zuerst@example.com'));
+		await seedBillingAddress('paypal-zuerst@example.com');
 		const user = await me(cookie);
 		accountId = user.playAccountId;
 		await subscribe(user.id, 'paypal', 'active');
@@ -98,7 +98,7 @@ describe('Ein Abo über alle Anbieter (#1690)', () => {
 
 	it('aktives Play-Abo: PayPal-Checkout wird mit 409 abgelehnt', async () => {
 		const cookie = await server.login('play-zuerst@example.com');
-		await seedBillingAddress(String('play-zuerst@example.com'));
+		await seedBillingAddress('play-zuerst@example.com');
 		await subscribe((await me(cookie)).id, 'google_play', 'active');
 
 		const res = await post(cookie, '/billing/subscriptions', {
@@ -114,7 +114,7 @@ describe('Ein Abo über alle Anbieter (#1690)', () => {
 
 	it('nach Ablauf des alten Abos ist der Abschluss beim anderen Anbieter möglich', async () => {
 		const cookie = await server.login('wechsel@example.com');
-		await seedBillingAddress(String('wechsel@example.com'));
+		await seedBillingAddress('wechsel@example.com');
 		const user = await me(cookie);
 		accountId = user.playAccountId;
 		await subscribe(user.id, 'paypal', 'cancelled');

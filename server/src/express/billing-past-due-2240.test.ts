@@ -67,7 +67,7 @@ describe('Abo mit Zahlungsrückstand ist offen (#2240)', () => {
 
 	const login = async (email: string) => {
 		const cookie = await server.login(email);
-		await seedBillingAddress(String(email));
+		await seedBillingAddress(email);
 		const body = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
 			id: number;
 			playAccountId: string;
