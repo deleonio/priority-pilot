@@ -145,6 +145,9 @@ describe('Rechnung und Verlängerung nur bei SALE.COMPLETED (#2230)', () => {
 			id: number;
 		};
 		const start = new Date(Date.now() + 15 * DAY_MS);
+		// Datum-robust: Tag ≤ 28, damit der Monats-Rundtrip (Ende = Start + 1 M, periodStart = Ende − 1 M)
+		// identisch bleibt — am 29.–31. overflowt `setUTCMonth(±1)` in den Folgemonat.
+		if (start.getUTCDate() > 28) start.setUTCDate(28);
 		await Subscription.create({
 			userId: me.id,
 			provider: 'paypal',
