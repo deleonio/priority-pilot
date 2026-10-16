@@ -3,7 +3,7 @@ import type { Category, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BADGE_COLOR } from '../lib/badgeColors';
+import { BADGE_COLOR, PRIORITY_COLOR } from '../lib/badgeColors';
 import { extractLeaves } from '../lib/extractLeaves';
 import { seriesBadge } from '../lib/series';
 import { CategoryBadge } from './CategoryBadge';
@@ -173,12 +173,6 @@ const LeafItem = ({
 			? seriesBadge(task, seriesById)
 			: null;
 
-	// P2-2: Farb-Mapping für Prioritäts-Badges (analog URGENCY_COLOR im Dashboard).
-	const PRIORITY_COLOR: Record<'info' | 'warning' | 'danger', string> = {
-		info: '#005b99', // --kol-color-primary
-		warning: '#c66a00', // --kol-color-warning
-		danger: '#b42318', // --kol-color-danger (red)
-	};
 	const priorityColor = PRIORITY_COLOR[priorityBadgeInfo.type];
 
 	return (
