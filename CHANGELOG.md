@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.27 - 2026-10-16
 
-_Enthält v0.27.0 – v0.27.7._
+_Enthält v0.27.0 – v0.27.8._
 
 ### 🐞 Bug Fixes
 
@@ -24,6 +24,7 @@ _Enthält v0.27.0 – v0.27.7._
 - refactor(frontend): consolidate badge colors in one source (#2637) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2653
 - test: strengthen assertions and silence expected errors (#2639) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2659
 - chore: remove grandfather rule for legacy accounts (#2646) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2662
+- feat(billing): require billing address before subscription checkout by @deleonio in https://github.com/deleonio/priority-pilot/pull/2664
 
 ## v0.26 - 2026-10-15
 
@@ -262,7 +263,6 @@ _Enthält v0.19.0 – v0.19.19._
 - feat(i18n): translate app, server texts and website to english by @deleonio in https://github.com/deleonio/priority-pilot/pull/2429
 - fix(server): reset review account on every login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2444
 - [P2/S] Hilfe: Feedback-Formular wählt „Wünsche und Ideen“ vor (#2443) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2446
-- revert(balance): alle neun Zifferblätter wiederherstellen by @deleonio in https://github.com/deleonio/priority-pilot/pull/2447
 - revert(balance): alle neun Zifferblätter wiederherstellen by @deleonio in https://github.com/deleonio/priority-pilot/pull/2447
 - feat(frontend): show care hint actions in one row with icon buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2448
 - feat(frontend): move missed tasks into dashboard grid, unify gap by @deleonio in https://github.com/deleonio/priority-pilot/pull/2450
