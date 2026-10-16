@@ -6,6 +6,7 @@ import { getUserId, isAuthActive } from '../requireAuth.js';
 import { runGeoPushNotifications } from '../../logics/geo-background-job.js';
 import { parseCoordinate } from '../../logics/geo.js';
 import { requirePlanFeature } from '../planGuard.js';
+import { spracheAusHeader, spracheVon, type CareSprache } from '../../logics/careSuggestionData.js';
 
 /**
  * Pro-User Geo-Konfiguration (#1098 AK7): Anzeige-Entfernung (Default 5 km),
@@ -51,6 +52,15 @@ export const resolveGeoUser = async (req: Request): Promise<User | null> => {
 	}
 	return null;
 };
+
+/**
+ * App-Sprachauflösung als reiner Helper (#2624): gespeicherte Nutzer-Sprache (`User.sprache`,
+ * #2523) gewinnt gegen den `Accept-Language`-Header, ohne Nutzer zählt der Header. Ohne
+ * DB-Zugriff — `GET /next` und `loeseSprache` (scores.ts, inkl. `?sprache=`-Override) teilen
+ * sich diese eine Kette statt sie zu duplizieren.
+ */
+export const appSprache = (user: Pick<User, 'sprache'> | null, req: Request): CareSprache =>
+	user ? spracheVon(user.sprache) : spracheAusHeader(req.get('accept-language'));
 
 type GeoConfigDto = { displayDistanceKm: number; alarmDistanceKm: number; intervalMinutes: number };
 
