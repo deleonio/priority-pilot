@@ -21,12 +21,12 @@ import { TaskStatus } from 'client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { URGENCY_COLOR } from '../lib/badgeColors';
 import { useGeolocation } from '../lib/useGeolocation';
 import { collectTaskValues } from '../lib/forest';
 import { buildPillarSummaries, calculateMeterThreshold, calculateMeterHighThreshold } from '../lib/pillar';
 import { buildPillarBalances } from '../lib/score';
 import {
-	type DeadlineUrgency,
 	DONE_UNDO_WINDOW_MS,
 	deadlineUrgency,
 	formatDeadline,
@@ -34,12 +34,6 @@ import {
 	formatRelativeDeadline,
 	istUeberfaellig,
 } from '../lib/task';
-
-/** Badge-Hintergrundfarbe je hervorzuhebender Dringlichkeit (Textfarbe berechnet KolBadge automatisch). */
-const URGENCY_COLOR: Record<Exclude<DeadlineUrgency, 'later'>, string> = {
-	overdue: '#b42318',
-	soon: '#b54708',
-};
 
 /**
  * #1985: „Warum jetzt?“ — `GET /next` liefert die Begründungswerte additiv im Payload
