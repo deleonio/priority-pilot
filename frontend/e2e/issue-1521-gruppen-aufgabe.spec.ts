@@ -54,10 +54,10 @@ const createGroupTaskViaUi = async (page: Page, title: string, groupName: string
 	await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 };
 
-// Pass-Through-Bestand (#2508): Fremde Specs säen je eigenen Nutzer fünf Standard-Säulen — der
-// ungefilterte Pass-Through-Scope sieht sie alle, und die Gleichverteilung des Anlage-Formulars
-// fiele unter 5 % je Säule (Server-Abweisung). Diese Specs prüfen nichts Säulenbezogenes, darum
-// bekommt der Browser ein säulenloses Konto — gültiger Leervertrag: "oder die Liste ist leer".
+// Säulenloser Test-Kontext: Der Test-Login legt Konten OHNE Säulen-Saat an — nur die Registrierung
+// säht die fünf Standard-Säulen (vgl. zifferblatt-shots.spec.ts). Diese Specs prüfen nichts
+// Säulenbezogenes, darum fixiert der Route-Mock GET /pillars auf die leere Liste (gültiger
+// Leervertrag: "oder die Liste ist leer").
 test.beforeEach(async ({ page }) => {
 	await page.route('**/api/v1/pillars', (route) =>
 		route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
