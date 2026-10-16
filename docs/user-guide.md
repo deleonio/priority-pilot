@@ -1,7 +1,7 @@
 # Balamentum – Nutzerhandbuch
 
 Willkommen bei **Balamentum**. Die App beantwortet eine einzige Frage:
-_„Woran sollte ich als Nächstes arbeiten?"_ – und zwar dann, wenn Aufgaben
+_„Woran sollte ich als Nächstes arbeiten?“_ – und zwar dann, wenn Aufgaben
 voneinander abhängen und zugleich auf unterschiedliche Lebensbereiche einzahlen.
 
 Zwei Ideen stecken dahinter:
@@ -24,10 +24,10 @@ Dieses Handbuch erklärt alle Funktionen der Anwendung.
 Balamentum ist ein persönliches Werkzeug – deine Daten sind an dein Konto
 gebunden:
 
-- Auf der Startseite auf **„Mit Google anmelden"** klicken – nach der
+- Auf der Startseite auf **„Mit Google anmelden“** klicken – nach der
   Anmeldung landest du direkt im Dashboard.
 - Ist die Anmeldung per E-Mail freigeschaltet, steht darunter zusätzlich ein Feld
-  **„Anmeldelink per E-Mail"**: Adresse eingeben, **„Anmeldelink senden"** klicken
+  **„Anmeldelink per E-Mail“**: Adresse eingeben, **„Anmeldelink senden“** klicken
   und den Link aus der E-Mail öffnen. Er ist 15 Minuten gültig und funktioniert
   genau einmal.
 
@@ -71,20 +71,20 @@ Darunter wechselst du über eine **Tab-Leiste** zwischen den fünf Hauptansichte
 ## Dashboard
 
 Das Dashboard ist die Startseite und reine Anzeige. Wenn ein Name hinterlegt ist,
-begrüßt es dich mit **„Hallo {Name}!"**. Solange du noch keine Aufgaben hast, zeigt
-die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von oben nach unten:
+begrüßt es dich mit **„Hallo {Name}!“**. Solange du noch keine Aufgaben hast, zeigt
+die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen“**. Von oben nach unten:
 
 - **Meine Lebensbalance:** ein Bild zeigt, wie ausgeglichen sich deine erledigten
   Aufgaben der letzten vier Wochen auf deine Säulen verteilen – jede Säule hat
   dafür ein Wochen-Ziel (Körper 5, Wirksamkeit 5, Mentale Gesundheit 3, Beziehungen 3, Sinn 1
   Erledigungen pro Woche; so steht es auch in den Säulenbeschreibungen unter Einstellungen → Säulen). 100 % heißt, jede Säule liegt auf ihrem Ziel; 0 % heißt,
   alles hängt an einer einzigen Säule. Welches Bild du siehst, wählst du in den
-  Einstellungen unter **„Bild der Lebensbalance"** – **Herz**, **Blasen**,
+  Einstellungen unter **„Bild der Lebensbalance“** – **Herz**, **Blasen**,
   **Scheiben**, **Ringe**, **Strahlen**, **Blüte**, **Kristall**, **Segmente** oder **Zeiger**. Alle zeigen dieselben Zahlen: Je Säule steht
   die Größe für das Verhältnis von Ist zu Ziel, die stärkste Säule bekommt die
-  größte Form. „Blasen" und „Scheiben" zeigen denselben Stapel – einmal
-  durchscheinend und leuchtend, einmal satt und scharfkantig. „Blüte" und
-  „Kristall" fassen alle Säulen zu einer gemeinsamen Silhouette zusammen, deren
+  größte Form. „Blasen“ und „Scheiben“ zeigen denselben Stapel – einmal
+  durchscheinend und leuchtend, einmal satt und scharfkantig. „Blüte“ und
+  „Kristall“ fassen alle Säulen zu einer gemeinsamen Silhouette zusammen, deren
   Lappen je Säule so weit reichen wie ihr Wert – einmal weich, einmal kantig. „Segmente“
   teilt den Ring nach Ist-Anteilen auf, „Zeiger“ zeigt je Säule einen Zeiger auf dem Zifferblatt.
   Bei diesen acht
@@ -108,12 +108,12 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
   für 14 Tage. Gibt es keinen Vorschlag, steht dort eine kurze Rückmeldung.
 - **Nächste Aufgabe:** die Aufgabe mit der höchsten Priorität, deren Vorgänger alle
   erledigt sind.
-  Über **„Erledigen"** schließt du sie in einem Dialog direkt ab; daneben steht ein
+  Über **„Erledigen“** schließt du sie in einem Dialog direkt ab; daneben steht ein
   **Bearbeiten-Button** (Stift-Icon), der das Aufgabenformular öffnet. Steht nichts an,
   erscheint ein Hinweis (alles erledigt oder durch offene Vorgänger blockiert).
 - **Was ist jetzt dran?** Eine nummerierte Vorschlagsliste (serverseitig begrenzt auf
   höchstens fünf Einträge, davon maximal zwei je Säule). Die bereits als „Nächste
-  Aufgabe" angezeigte Aufgabe taucht hier nicht erneut auf.
+  Aufgabe“ angezeigte Aufgabe taucht hier nicht erneut auf.
 - **Freie Zeit:** nur mit verbundenem Kalender – die freien Lücken von jetzt bis 22 Uhr
   mit bis zu drei offenen Aufgaben, deren Aufwand hineinpasst (geringer Aufwand ≈ 15 Minuten,
   höchster ≈ 2 Stunden). Ohne passende Lücke erscheint die Karte nicht.
@@ -124,7 +124,7 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
   Standort-Erfassung in den Einstellungen aktiviert ist – ist sie aus, fehlt die
   Karte ganz. Verweigert der Browser die Standort-Freigabe, bleibt die Karte stehen
   und zeigt stattdessen einen Hinweis. Karte und Erinnerungen gehören zu den Paketen
-  Plus und Pro (siehe „Pakete").
+  Plus und Pro (siehe „Pakete“).
 - **Wichtigste Tasks:** die Top 5 nach berechnetem **Wert**.
 - **Meine Themen:** je Säule ein Fortschrittsbalken, der den **tatsächlichen Anteil**
   (wohin dein Aufwand fließt) gegen die **Zielgewichtung** der Säule stellt. Darunter
@@ -134,7 +134,7 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
 - **Balance-Verlauf:** dein Füllstand der letzten 28 Tage als Linie, darüber der Trend
   (Aufwärts, Abwärts oder Stabil) mit Start- und Endwert in Prozent.
 - **Meilensteine:** die erreichten und noch offenen Stufen für Streak und Punkte
-  (siehe „Erledigte Aufgaben und Punkte").
+  (siehe „Erledigte Aufgaben und Punkte“).
 - **Verpasste Aufgaben:** zählt, wie viele Aufgaben nach verpasster Deadline automatisch
   gelöscht wurden, und nennt bis zu drei der zuletzt bereinigten Titel (siehe
   „Automatisches Löschen nach verpasster Deadline“).
@@ -147,7 +147,7 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
 - **Tag geschafft:** ein kurzer Hinweis, der erscheint, wenn keine Aufgabe mehr offen ist
   und deine letzte Erledigung von heute stammt.
 - **Gesamtguthaben:** dein Punktestand aus erledigten Aufgaben, aufgeschlüsselt je
-  Säule (siehe „Erledigte Aufgaben und Punkte").
+  Säule (siehe „Erledigte Aufgaben und Punkte“).
 - **Anstehende Deadlines:** offene Aufgaben mit Fälligkeit, nach Datum sortiert.
   Ein farbiges Kennzeichen warnt vor **überfälligen** (rot) und **bald fälligen**
   (orange, heute bis in 3 Tagen) Aufgaben.
@@ -172,25 +172,25 @@ Den Überblick über alle Abhängigkeiten findest du im Tab **Graph**.
 
 Oben im Tab findest du vier Schalter und darunter die Filterzeile:
 
-- einen **Umschalter „Erledigte Aufgaben anzeigen"**, der zwischen der Liste der offenen
+- einen **Umschalter „Erledigte Aufgaben anzeigen“**, der zwischen der Liste der offenen
   Aufgaben und der Tabelle der erledigten Aufgaben wechselt,
-- einen **Umschalter „Archivierte anzeigen"**, der die archivierten Aufgaben zeigt – je Eintrag
-  mit „Wiederherstellen" und „Löschen" (schaltet sich gegenseitig mit „Erledigte Aufgaben
-  anzeigen" aus),
-- einen **Schalter „Balance-Priorisierung"** – sortiert die offene Liste so um, dass Aufgaben
+- einen **Umschalter „Archivierte anzeigen“**, der die archivierten Aufgaben zeigt – je Eintrag
+  mit „Wiederherstellen“ und „Löschen“ (schaltet sich gegenseitig mit „Erledigte Aufgaben
+  anzeigen“ aus),
+- einen **Schalter „Balance-Priorisierung“** – sortiert die offene Liste so um, dass Aufgaben
   nach oben rücken, die auf deine bislang vernachlässigten Säulen einzahlen. Das Prioritäts-
   Kennzeichen zeigt dann eine abgeleitete Stufe mit Tilde (`~P1` bis `~P5`) statt der eigentlichen
   Priorität; nach dem Ausschalten zeigt es wieder die gewohnten `P1` bis `P5`. Die Sortierung
   rechnet mit deinem aktuellen Stand: Hakst du eine Aufgabe ab, ordnet sich die Liste sofort neu.
   Deine Aufgaben selbst werden dabei nicht verändert, nur die Reihenfolge der Anzeige,
-- einen **Schalter „Oberaufgaben anzeigen"** – nimmt zusätzlich die Aufgaben in die Liste auf,
+- einen **Schalter „Oberaufgaben anzeigen“** – nimmt zusätzlich die Aufgaben in die Liste auf,
   die selbst Unteraufgaben haben,
 - ein **Suchfeld**, das die aktuelle Ansicht nach **Titel** filtert (Teiltreffer,
-  Groß-/Kleinschreibung egal). Der Filter greift erst, wenn du **„Filtern"** klickst
+  Groß-/Kleinschreibung egal). Der Filter greift erst, wenn du **„Filtern“** klickst
   oder Enter drückst. Der Suchtext bleibt beim Umschalten bestehen; bei keinem Treffer
   erscheint ein Leerhinweis, und
 - ein **Kategorie-Filter** daneben, sobald du Kategorien angelegt hast. Eine Auswahl wirkt
-  sofort, ohne den Umweg über „Filtern".
+  sofort, ohne den Umweg über „Filtern“.
 
 Daneben öffnet die **Lupe in der Kopfzeile** ein Suchfenster: Gib einen Begriff ein
 (optional per Sprache), wähle bei Bedarf eine **Kategorie** und starte die Suche – die App
@@ -199,14 +199,14 @@ stehen in der Adresszeile (`?q=` und `?cat=`), Lesezeichen und Zurück-Taste ste
 also wieder her.
 
 Diktierst du die Anfrage und sind KI-Features aktiv, zerlegt die App sie vor der Suche:
-Aus „offene Sachen zum Hausbau" wird der Suchbegriff „offene Sachen" plus die Kategorie
-„Hausbau". Klappt das nicht, wird schlicht mit dem gesprochenen Text gesucht.
+Aus „offene Sachen zum Hausbau“ wird der Suchbegriff „offene Sachen“ plus die Kategorie
+„Hausbau“. Klappt das nicht, wird schlicht mit dem gesprochenen Text gesucht.
 
 Rechts an jeder Zeile können **Kennzeichen** stehen:
 
 - **Für: {Name}** bzw. **Erstellt von: {Name}** – bei Aufgaben, die du für ein
-  Gruppenmitglied angelegt hast oder die jemand für dich angelegt hat (siehe „Gruppen").
-- **Kategorie** – das farbige Kennzeichen mit dem Namen der Kategorie (siehe „Kategorien").
+  Gruppenmitglied angelegt hast oder die jemand für dich angelegt hat (siehe „Gruppen“).
+- **Kategorie** – das farbige Kennzeichen mit dem Namen der Kategorie (siehe „Kategorien“).
 - **Entwurf / Zusammenfassung / Recherche** – dort könnte die KI vorarbeiten; die App erkennt das am Titel und der
   Beschreibung, ohne dass etwas an die KI geschickt wird. Nur mit KI-Paketmerkmal sichtbar.
 - **Serie** (Wiederholen-Symbol) – die Aufgabe stammt aus einer Serie.
@@ -221,13 +221,13 @@ Rechts an jeder Zeile können **Kennzeichen** stehen:
 
 ### Aktionen je Aufgabe
 
-Alle Aktionen liegen hinter einem **„Weitere Aktionen"-Menü** (Drei-Punkte-Button) am Zeilenende.
+Alle Aktionen liegen hinter einem **„Weitere Aktionen“-Menü** (Drei-Punkte-Button) am Zeilenende.
 Im Menü findest du:
 
 - **Erledigt / Wieder öffnen** – als erster Eintrag, schaltet den Status um. Bei Aufgaben
-  mit offenen Unteraufgaben heißt der Eintrag „Erledigt (Unteraufgaben offen)" und bleibt
+  mit offenen Unteraufgaben heißt der Eintrag „Erledigt (Unteraufgaben offen)“ und bleibt
   gesperrt, bis diese erledigt sind – solche Aufgaben siehst du nur mit dem Schalter
-  „Oberaufgaben anzeigen". Wieder öffnen ist jederzeit möglich – auch als schnelles
+  „Oberaufgaben anzeigen“. Wieder öffnen ist jederzeit möglich – auch als schnelles
   Rückgängig direkt nach dem Erledigen.
 - **Bearbeiten** (Stift) – öffnet das Aufgabenformular.
 - **Abhängigkeiten** (Kette) – öffnet den Vorgänger-Editor.
@@ -238,32 +238,32 @@ Im Menü findest du:
   nimmt sie zurück in die normale Sortierung.
 - **Löschen** (Kreuz) – entfernt die Aufgabe nach Rückfrage.
 
-Frisch erledigte Aufgaben bleiben für **5 Sekunden** „sticky" im offenen Baum (für ein
-sofortiges Undo per „Wieder öffnen"). Danach lädt die Ansicht automatisch neu, und die
+Frisch erledigte Aufgaben bleiben für **5 Sekunden** „sticky“ im offenen Baum (für ein
+sofortiges Undo per „Wieder öffnen“). Danach lädt die Ansicht automatisch neu, und die
 Aufgabe erscheint in der **Erledigt**-Ansicht.
 
 ---
 
 ## Aufgaben anlegen
 
-Neue Aufgaben legst du immer über **„Neuen Task anlegen"** in der Kopfzeile an.
+Neue Aufgaben legst du immer über **„Neuen Task anlegen“** in der Kopfzeile an.
 Der Ablauf ist zweistufig. Hast du die KI-Features in den Einstellungen
 ausgeschaltet, entfällt der erste Schritt und das Formular öffnet sich direkt:
 
 ### Schritt 1 – Schnellerfassung
 
-Beschreibe deine Aufgabe frei im Feld **„Beschreibe deinen Task"**, z. B.:
-_„Bis Freitag den Kundenbericht fertigstellen, hohe Priorität, etwa ein halber Tag."_
+Beschreibe deine Aufgabe frei im Feld **„Beschreibe deinen Task“**, z. B.:
+_„Bis Freitag den Kundenbericht fertigstellen, hohe Priorität, etwa ein halber Tag.“_
 
 Danach hast du vier Möglichkeiten:
 
 - **Verarbeiten und weiter** – eine KI liest den Text und füllt Titel, Beschreibung,
   Priorität, Aufwand, Deadline, Adresse, Checkliste und Kategorie im Formular vor.
   Erkennt sie einen wiederkehrenden Termin, öffnet sich das Formular gleich im Serien-Modus.
-- **Beraten lassen** – der Säulen-Berater antwortet im selben Dialog (siehe „Säulen-Berater").
-- **Aus Vorlage** – wählt eine Vorlage (Serie ohne „Automatisch anlegen") und öffnet den
-  Dialog „Aufgabe anlegen", mit Titel, Priorität und Beschreibung der Vorlage vorbelegt.
-  Ohne Vorlagen zeigt der Dialog, wie du eine im Tab „Serien & Vorlagen" anlegst.
+- **Beraten lassen** – der Säulen-Berater antwortet im selben Dialog (siehe „Säulen-Berater“).
+- **Aus Vorlage** – wählt eine Vorlage (Serie ohne „Automatisch anlegen“) und öffnet den
+  Dialog „Aufgabe anlegen“, mit Titel, Priorität und Beschreibung der Vorlage vorbelegt.
+  Ohne Vorlagen zeigt der Dialog, wie du eine im Tab „Serien & Vorlagen“ anlegst.
 - **Überspringen** – öffnet direkt das leere Formular; bereits eingegebener Text
   wandert in die Beschreibung.
 
@@ -282,10 +282,10 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
   schlägt die App passende Adressen vor; wählst du eine aus, werden die
   zugehörigen Koordinaten gespeichert und unter dem Feld angezeigt. Du kannst
   auch freien Text ohne Treffer übernehmen – dann liegen keine Koordinaten vor
-  und die Aufgabe erscheint nicht in der „In der Nähe"-Liste. Ganz oben in der
-  Vorschlagsliste stehen deine gespeicherten Orte (siehe „Gespeicherte Orte"),
+  und die Aufgabe erscheint nicht in der „In der Nähe“-Liste. Ganz oben in der
+  Vorschlagsliste stehen deine gespeicherten Orte (siehe „Gespeicherte Orte“),
   darunter die Suchtreffer. Am Stern neben einem Suchtreffer legst du ihn als
-  gespeicherten Ort ab, ohne ihn damit auszuwählen. Mit **„Als Favorit speichern"**
+  gespeicherten Ort ab, ohne ihn damit auszuwählen. Mit **„Als Favorit speichern“**
   unter dem Feld sicherst du die Adresse, die gerade eingetragen ist – samt ihrer
   Koordinaten, falls sie aus einem Treffer stammt. Für Serien gilt das
   Adressfeld genauso.
@@ -299,23 +299,23 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
   den Text zu verbessern (Kürzung, Smoothing, Rechtschreibung). Ein Diff-Dialog zeigt den
   Vergleich; du entscheidest, ob du den Vorschlag übernimmst.
 - **KI-Entwurf** – ist eine Aufgabe als KI-geeignet gekennzeichnet (Entwerfen, Zusammenfassen,
-  Recherchieren), bietet „Aufgabe bearbeiten" unten eine passende Aktion an. Erst dein Klick lässt
+  Recherchieren), bietet „Aufgabe bearbeiten“ unten eine passende Aktion an. Erst dein Klick lässt
   die KI einen Entwurf erstellen; er steht getrennt von der Beschreibung und lässt sich löschen.
-- **Kategorie (optional)** – das Thema, zu dem die Aufgabe gehört (siehe „Kategorien").
+- **Kategorie (optional)** – das Thema, zu dem die Aufgabe gehört (siehe „Kategorien“).
   Höchstens eine je Aufgabe; sie ordnet nur, sie verändert die Priorisierung nicht.
 - **Säulen-Verteilung** – wie stark die Aufgabe auf die Lebensbereiche einzahlt. Du tippst die
   Säulen in der Reihenfolge ihrer Wichtigkeit an; Rang und Anteil stehen an jeder Säule
-  (siehe „Lebensbalance-Säulen").
+  (siehe „Lebensbalance-Säulen“).
 - **Empfänger** – für wen die Aufgabe bestimmt ist: dich selbst oder ein Mitglied
-  einer deiner Gruppen (siehe „Gruppen"). Das Feld erscheint, solange du Mitglied
+  einer deiner Gruppen (siehe „Gruppen“). Das Feld erscheint, solange du Mitglied
   mindestens einer Gruppe bist. Wählst du beim **Bearbeiten** ein fremdes Konto,
   übergibst du die Aufgabe mit dem Speichern – danach siehst du sie nur noch mit
-  dem Kennzeichen „Für: {Name}". Ein Hinweis unter dem Feld sagt dir das vorher.
+  dem Kennzeichen „Für: {Name}“. Ein Hinweis unter dem Feld sagt dir das vorher.
 
-Speichern mit **„Anlegen"** (bzw. **„Bearbeiten"**), verwerfen mit **„Abbrechen"**.
+Speichern mit **„Anlegen“** (bzw. **„Bearbeiten“**), verwerfen mit **„Abbrechen“**.
 
-> **Aufgabe oder Serie?** Beim Anlegen gibt es oben einen Schalter **„Serie oder Vorlage"**.
-> Aus = einmalige Aufgabe, Ein = wiederkehrende Serie oder Vorlage (siehe „Serien").
+> **Aufgabe oder Serie?** Beim Anlegen gibt es oben einen Schalter **„Serie oder Vorlage“**.
+> Aus = einmalige Aufgabe, Ein = wiederkehrende Serie oder Vorlage (siehe „Serien“).
 
 ---
 
@@ -324,7 +324,7 @@ Speichern mit **„Anlegen"** (bzw. **„Bearbeiten"**), verwerfen mit **„Abbr
 Im Aufgabenformular kannst du eine **Checkliste** anlegen. Damit zerlegst du eine Aufgabe
 in einzelne, abhakbare Teilschritte:
 
-- **Hinzufügen:** Text eingeben und **„Hinzufügen"** klicken – der neue Eintrag
+- **Hinzufügen:** Text eingeben und **„Hinzufügen“** klicken – der neue Eintrag
   erscheint in der Liste.
 - **Abhaken:** Schalter je Eintrag toggelt zwischen erledigt / offen.
 - **Entfernen:** Kreuz-Button löscht den Eintrag.
@@ -338,7 +338,7 @@ Punkte abgehakt sind.
 
 ## Automatisches Löschen nach verpasster Deadline
 
-Aktivierst du im Formular **„Automatisch löschen nach 3 Tagen bei verpasster Deadline"**
+Aktivierst du im Formular **„Automatisch löschen nach 3 Tagen bei verpasster Deadline“**
 (Checkbox, nur sichtbar bei gesetzter Deadline), wird die Aufgabe **3 Tage nach Ablauf
 der Deadline** automatisch gelöscht – **aber nur, wenn sie bis dahin nicht erledigt ist**.
 
@@ -351,13 +351,13 @@ Option immer wählbar, da das Startdatum der Serie als Fälligkeit dient.
 ## Lektorat
 
 Neben dem **Titel**- und dem **Beschreibungs**-Feld findest du je einen Button mit
-Zauberstab-Icon: **„Titel lektorieren"** und **„Beschreibung lektorieren"**.
+Zauberstab-Icon: **„Titel lektorieren“** und **„Beschreibung lektorieren“**.
 
 - Klick schickt den aktuellen Text an die KI – an den Provider, der in den
   Einstellungen aktiviert ist.
 - Die KI liefert einen verbesserten Vorschlag (Kürzung, Glättung, Rechtschreibung).
 - Ein **Diff-Dialog** zeigt den Vergleich nebeneinander (Original ↔ Vorschlag).
-- Du übernimmst den Vorschlag per **„Übernehmen"** oder brichst ab – der Originaltext
+- Du übernimmst den Vorschlag per **„Übernehmen“** oder brichst ab – der Originaltext
   bleibt dann erhalten.
 
 Das Lektorat ist unabhängig von der Schnellerfassung und jederzeit nutzbar.
@@ -375,35 +375,35 @@ sofern dein Browser Spracherkennung unterstützt.
 - Erkannt wird in der Sprache der Oberfläche (Deutsch oder Englisch).
 - Optional startet die Aufnahme **automatisch** in den Sprachfeldern – Titel-Feld im
   Aufgabenformular, Schnellerfassung und Suche – aktivierbar
-  über _Einstellungen → Allgemein → „Sprachaufnahme automatisch starten"_.
+  über _Einstellungen → Allgemein → „Sprachaufnahme automatisch starten“_.
 - Beim Anlegen und beim Suchen erkennt die KI aus dem gesprochenen Text auch die
-  **Kategorie**, sofern du welche angelegt hast (siehe „Kategorien").
+  **Kategorie**, sofern du welche angelegt hast (siehe „Kategorien“).
 
 ---
 
 ## Abhängigkeiten (Vorgänger)
 
 Aufgaben können voneinander abhängen: Ein **Vorgänger** muss erledigt sein, bevor die
-abhängige Aufgabe sinnvoll begonnen werden kann. Öffne dazu das **„Weitere Aktionen"-
-Menü** (Drei-Punkte-Button) einer Aufgabe und wähle **„Abhängigkeiten"**.
+abhängige Aufgabe sinnvoll begonnen werden kann. Öffne dazu das **„Weitere Aktionen“-
+Menü** (Drei-Punkte-Button) einer Aufgabe und wähle **„Abhängigkeiten“**.
 
 - **Aktuelle Vorgänger** listet die verknüpften Aufgaben; jede lässt sich einzeln
   entfernen. (Bereits erledigte Vorgänger erscheinen hier nicht mehr.)
 - **Vorgänger hinzufügen:** eine Aufgabe auswählen, im **Expertenmodus** ein **Gewicht
-  (0,1–1)** setzen und **„Hinzufügen"**. Ohne Expertenmodus genügt die Auswahl – die
+  (0,1–1)** setzen und **„Hinzufügen“**. Ohne Expertenmodus genügt die Auswahl – die
   Abhängigkeit wird mit dem Standardgewicht 1 angelegt. Das Gewicht steuert, wie stark der
   Vorgänger zum Wert der abhängigen Aufgabe beiträgt (1 = voller Einfluss).
 
 Balamentum verhindert **zyklische Abhängigkeiten** (z. B. A → B → A) und lehnt sie
 mit einem verständlichen Hinweis ab. So bleibt der Abhängigkeitsgraph immer
-widerspruchsfrei – und die „Nächste Aufgabe" ist stets die wichtigste, deren
+widerspruchsfrei – und die „Nächste Aufgabe“ ist stets die wichtigste, deren
 Vorgänger alle erledigt sind.
 
 ---
 
 ## Kategorien
 
-Kategorien ordnen deine Aufgaben nach **Thema** – „Hausbau", „Steuer", „Verein". Jede
+Kategorien ordnen deine Aufgaben nach **Thema** – „Hausbau“, „Steuer“, „Verein“. Jede
 Aufgabe und jede Serie hat höchstens eine; sie erscheint als farbiges Kennzeichen in den
 Listen und lässt sich in der Suche als Filter wählen.
 
@@ -418,7 +418,7 @@ Beides ordnet, aber mit unterschiedlicher Wirkung – deshalb gibt es beides:
 | Wirkung           | steuert Wert, Priorisierung und Balance | nur Gruppierung, Kennzeichen, Filter |
 | Beispiel          | Körper, Beziehungen, Sinn               | Hausbau, Steuer, Verein              |
 
-Kurz: Eine Säule als Ordner zu missbrauchen („Hausbau" als sechste Säule) verzerrt die
+Kurz: Eine Säule als Ordner zu missbrauchen („Hausbau“ als sechste Säule) verzerrt die
 Balance-Rechnung. Dafür sind Kategorien da.
 
 ### Kategorien anlegen und verwalten
@@ -431,9 +431,9 @@ Beim Löschen bleiben die Aufgaben und Serien erhalten; sie verlieren nur die Zu
 
 ### Kategorie zuordnen
 
-Im Aufgaben- und Serienformular wählst du unter **„Kategorie (optional)"** eine aus.
+Im Aufgaben- und Serienformular wählst du unter **„Kategorie (optional)“** eine aus.
 Bei der Schnellerfassung schlägt die KI die passende Kategorie vor, wenn der Text
-eindeutig ist („Fliesen fürs Hausbau-Projekt bestellen") – der Vorschlag ist vor dem
+eindeutig ist („Fliesen fürs Hausbau-Projekt bestellen“) – der Vorschlag ist vor dem
 Speichern änderbar. Eine Serie vererbt ihre Kategorie an jede generierte Aufgabe.
 
 ---
@@ -446,7 +446,7 @@ besteht aus einem Namen und einer kurzen Beschreibung.
 
 ### Verteilung je Aufgabe
 
-Im Aufgabenformular tippst du unter **„Säulen-Verteilung"** die Säulen in der Reihenfolge ihrer
+Im Aufgabenformular tippst du unter **„Säulen-Verteilung“** die Säulen in der Reihenfolge ihrer
 Wichtigkeit an – zuerst die wichtigste. Die angetippten Säulen bekommen die Treppenanteile
 50/20/15/10/5 %, die nicht angetipften teilen den Rest gleichmäßig; Rang und Anteil stehen als
 Text an jeder Säule. Ein erneuter Tipp nimmt den Rang zurück; ein Tipp auf die wichtigste Säule
@@ -460,10 +460,10 @@ stärker als bei anderen. Aufgaben aus der Zeit davor, die noch keine oder nur e
 tragen, behalten ihre gespeicherte Form; beim **Bearbeiten** wird die Verteilung im Formular auf
 alle Säulen vervollständigt und so mit dem nächsten Speichern.
 
-Mit **„Säulen vorschlagen"** schlägt dir eine KI die Anteile aus Titel und Beschreibung vor.
-Der Vorschlag erscheint als eigener Block **„KI-Vorschlag"** und wird nie automatisch
+Mit **„Säulen vorschlagen“** schlägt dir eine KI die Anteile aus Titel und Beschreibung vor.
+Der Vorschlag erscheint als eigener Block **„KI-Vorschlag“** und wird nie automatisch
 angewendet – auch nicht nach der Schnellerfassung mit vorbelegtem Titel. Erst
-**„Vorschlag übernehmen"** setzt die Verteilung auf die KI-Anteile; **„Verwerfen"** lässt deine
+**„Vorschlag übernehmen“** setzt die Verteilung auf die KI-Anteile; **„Verwerfen“** lässt deine
 bisherige Rangfolge unverändert.
 
 ### Säulen-Gewichtung anpassen
@@ -471,8 +471,8 @@ bisherige Rangfolge unverändert.
 Über _Einstellungen → Säulen_ legst du fest, welche Bereiche gerade Priorität haben – dieser
 Editor gehört zum **Expertenmodus**. Auch hier
 verteilst du 100 % über die fünf Säulen: Ein Regler zieht die anderen mit, keine Säule fällt
-unter 5 %. Bei Gleichverteilung ist die Gewichtung neutral. Erhöhst du z. B. „Körper",
-steigen Aufgaben, die stark auf „Körper" einzahlen, im Wert – und rücken damit in der
+unter 5 %. Bei Gleichverteilung ist die Gewichtung neutral. Erhöhst du z. B. „Körper“,
+steigen Aufgaben, die stark auf „Körper“ einzahlen, im Wert – und rücken damit in der
 Priorisierung nach oben.
 
 ---
@@ -480,19 +480,19 @@ Priorisierung nach oben.
 ## Säulen-Berater
 
 Der **Säulen-Berater** ist ein KI-Ratgeber für Aktivitäten. Er steckt in der
-Schnellerfassung: Öffne **„Neuen Task anlegen"** und klicke im Freitext-Schritt auf
-**„Beraten lassen"**.
+Schnellerfassung: Öffne **„Neuen Task anlegen“** und klicke im Freitext-Schritt auf
+**„Beraten lassen“**.
 
 - Er schlägt konkrete Aktivitäten vor und zeigt, auf welche Säulen sie einzahlen –
   mit kurzer Begründung.
-- Er kennt deine aktuelle Verteilung aus „Meine Themen" und richtet die Vorschläge
+- Er kennt deine aktuelle Verteilung aus „Meine Themen“ und richtet die Vorschläge
   **bevorzugt auf die schwächsten (am stärksten unterversorgten) Säulen** aus.
 - Optional beschreibst du im Textfeld deine Frage oder Situation (z. B. „Was kann ich am
-  Wochenende für mich tun?"). Ohne Frage bekommst du Vorschläge über alle Säulen
+  Wochenende für mich tun?“). Ohne Frage bekommst du Vorschläge über alle Säulen
   hinweg. Das Feld unterstützt **Spracheingabe**.
 - Die Vorschläge erscheinen unter dem Textfeld, der Dialog bleibt offen. Mit **„Als Aufgabe
-  übernehmen"** schreibst du einen Vorschlag in dasselbe Textfeld zurück und gehst von dort
-  mit **„Verarbeiten und weiter"** ins Formular.
+  übernehmen“** schreibst du einen Vorschlag in dasselbe Textfeld zurück und gehst von dort
+  mit **„Verarbeiten und weiter“** ins Formular.
 
 ---
 
@@ -501,7 +501,7 @@ Schnellerfassung: Öffne **„Neuen Task anlegen"** und klicke im Freitext-Schri
 Mit **Serien** legst du wiederkehrende Aufgaben als Vorlage an. Aus einer Serie
 erzeugt Balamentum regelmäßig neue Aufgaben-Instanzen.
 
-- **Neue Serie anlegen:** über **„Neuen Task anlegen"** und den Schalter **„Serie oder Vorlage"**
+- **Neue Serie anlegen:** über **„Neuen Task anlegen“** und den Schalter **„Serie oder Vorlage“**
   einschalten. Statt einer Deadline setzt du dann ein **Startdatum** und einen
   **Rhythmus**: **Täglich**, **Wöchentlich**, **Monatlich**, **Werktags** (Mo–Fr),
   **Wochenende** (Sa+So) oder an einem bestimmten Wochentag (**Montags** bis
@@ -519,8 +519,8 @@ erzeugt Balamentum regelmäßig neue Aufgaben-Instanzen.
   Beschreibung der Serie vorbefüllt, die Fälligkeit ist optional. Bei einer ruhenden Serie fehlt die Aktion.
 - **Verwalten:** im Tab **Serien & Vorlagen** siehst du alle Serien mit ihrem Rhythmus. Dort
   kannst du sie **bearbeiten** oder **löschen**. Beim Löschen entscheidest du zwischen
-  **„Ja (Serie + alle Aufgaben)"** und **„Nein (nur Serie, Aufgaben bleiben
-  eigenständig)"**: Mit **Ja** werden die offenen Instanzen mitgelöscht, mit **Nein**
+  **„Ja (Serie + alle Aufgaben)“** und **„Nein (nur Serie, Aufgaben bleiben
+  eigenständig)“**: Mit **Ja** werden die offenen Instanzen mitgelöscht, mit **Nein**
   bleiben alle Aufgaben als eigenständige Aufgaben bestehen. Bereits erledigte
   Instanzen bleiben in beiden Fällen als eigenständige Aufgaben erhalten.
 
@@ -537,7 +537,7 @@ mehr; bearbeiten und löschen kannst du sie weiterhin.
 
 Wenn du ein Serien-Template bearbeitest und **kaskadierbare Felder** änderst
 (Titel, Priorität, Aufwand, Beschreibung, Adresse, **Koordinaten**, Automatisches Löschen, Säulen, Kategorie), erscheint
-vor dem Speichern ein Bestätigungs-Dialog: **„Änderungen auf alle Instanzen übernehmen?"**
+vor dem Speichern ein Bestätigungs-Dialog: **„Änderungen auf alle Instanzen übernehmen?“**
 
 - **Ja** – die geänderten Werte werden auf alle offenen Instanzen
   übertragen (auch auf solche, die du individuell angepasst hast); bereits erledigte
@@ -562,9 +562,9 @@ Der Tab **Graph** zeigt, wie deine Aufgaben zusammenhängen.
   mehrere Kanten.
 
 Gezeigt wird immer eine zusammenhängende Abhängigkeitskette. Hast du mehrere, blätterst du
-über **„Zurück"** und **„Vor"**; dazwischen steht, die wievielte von wie vielen du gerade
+über **„Zurück“** und **„Vor“**; dazwischen steht, die wievielte von wie vielen du gerade
 siehst. Aufgaben ganz ohne Abhängigkeit erscheinen hier nicht – verknüpfe zwei Aufgaben im
-Tab „Aufgaben" über **„Abhängigkeiten"**, dann steht die erste Kette hier.
+Tab „Aufgaben“ über **„Abhängigkeiten“**, dann steht die erste Kette hier.
 
 Unter der Grafik sitzen die Schaltflächen **Ansicht einpassen**, **Vergrößern** und
 **Verkleinern**; auf dem Handy schiebst du den Ausschnitt mit dem Finger.
@@ -572,7 +572,7 @@ Unter der Grafik sitzen die Schaltflächen **Ansicht einpassen**, **Vergrößern
 Ein Tipp auf einen Knoten öffnet darunter eine Detail-Karte mit Priorität, Wert,
 Gesamtaufwand, Fortschritt und allen Vorgängern und Nachfolgern samt Gewicht. Von dort
 kommst du direkt zu **Abhängigkeiten bearbeiten**. Alles Weitere – anlegen, ändern,
-abhaken – machst du im Tab „Aufgaben".
+abhaken – machst du im Tab „Aufgaben“.
 
 Darunter lassen sich zwei Bereiche aufklappen: eine **Legende**, die die Pfeile und
 Linienstärken erklärt, und **Graph als Liste** – dieselben Angaben in Textform und der Weg
@@ -585,7 +585,7 @@ für Tastatur und Screenreader.
 In der **Erledigt**-Ansicht des Aufgaben-Tabs (Umschalter oben) stehen alle
 abgeschlossenen Aufgaben. Je Säule zeigt eine Spalte, wie viele **Punkte** die Aufgabe
 dort eingebracht hat. Auf dem Handy zeigt die Tabelle aus Platzgründen nur Titel und
-Aktion. Mit **„Wieder öffnen"** holst du eine Aufgabe zurück in den offenen Zustand.
+Aktion. Mit **„Wieder öffnen“** holst du eine Aufgabe zurück in den offenen Zustand.
 
 ### Punkte (Gamification)
 
@@ -600,11 +600,11 @@ Beim Erledigen einer Aufgabe sammelst du Punkte:
   Erledigte Arbeit wird so auch ohne zugeordnete Säule sichtbar.
 
 Dein Gesamtstand und die Aufteilung je Säule erscheinen im Dashboard unter
-**„Gesamtguthaben"**.
+**„Gesamtguthaben“**.
 
 ### Meilenstein-Badges
 
-Die Dashboard-Card **„Meilensteine"** zeigt feste Stufen für deinen Streak und deine
+Die Dashboard-Card **„Meilensteine“** zeigt feste Stufen für deinen Streak und deine
 gesammelten Gamification-Punkte. Erreichte Stufen sind hervorgehoben, nicht erreichte
 bleiben sichtbar. Die Auswertung ist rückwirkend: Bestandsdaten oberhalb einer Schwelle
 zählen schon beim ersten Aufruf, ohne dass du dafür etwas Neues erledigen musst.
@@ -621,15 +621,15 @@ Aufgabe senkt deine Punktesumme, nimmt dir aber keine bereits erreichte Stufe me
 ## Einstellungen
 
 Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit den Bereichen
-Allgemein, Säulen, Kategorien, Ortung, KI, Gruppen, Pakete & Abo und Daten. Admins der App sehen zusätzlich den Bereich **Nutzerverwaltung**
+Allgemein, Säulen, Kategorien, Ortung, KI, Gruppen, **Pakete & Abo** und Daten. Admins der App sehen zusätzlich den Bereich **Nutzerverwaltung**
 (siehe unten).
 
 ### Allgemein
 
 - **Anzeigename** – der Name, mit dem das Dashboard dich begrüßt; nach dem Ändern
-  mit **„Anzeigename speichern"** übernehmen.
+  mit **„Anzeigename speichern“** übernehmen.
 - **Darstellung** – wähle das Farbschema: **System**, **Hell** oder **Dunkel**.
-  „System" folgt der Einstellung deines Betriebssystems.
+  „System“ folgt der Einstellung deines Betriebssystems.
 - **Kopfzeile** – legt fest, ob die Kopfzeile **oben** oder **unten** am Bildschirm
   steht. In beiden Positionen bleibt sie beim Scrollen eingeblendet. Die Wahl gilt
   auf diesem Gerät.
@@ -652,41 +652,41 @@ Allgemein, Säulen, Kategorien, Ortung, KI, Gruppen, Pakete & Abo und Daten. Adm
   **Ringe**, **Strahlen**, **Blüte**, **Kristall**, **Segmente** und **Zeiger**. Alle zeigen dieselbe Rechnung, nur anders
   dargestellt. Die Wahl wird am Konto gespeichert und gilt auf allen Geräten, auf denen du
   angemeldet bist.
-- **Animationen** – die Schalter **„Animationen"**, **„Herz animieren"** und
-  **„Erledigt animieren"** steuern die Bewegungen des Balance-Bildes auf dem
+- **Animationen** – die Schalter **„Animationen“**, **„Herz animieren“** und
+  **„Erledigt animieren“** steuern die Bewegungen des Balance-Bildes auf dem
   Dashboard und den Ablauf beim Erledigen einer Aufgabe. Ohne Bewegung bleibt das
   Bild vollständig, es steht nur still.
 - **Expertenmodus** – ist der Schalter aktiv, zeigt die App die Fach-Regler: Säulen-Prozente im
   Aufgabendialog, Gewichte im Abhängigkeits-Dialog, die Säulen-Gewichtungspflege im Tab
-  **„Säulen"** und Reichweite/Intervall im Tab **„Ortung"**. Die Wahl wird am Konto gespeichert
-  und gilt auf allen Geräten, auf denen du angemeldet bist – ebenso **„KI aktivieren"**,
-  **„Balance-Priorisierung"** und **„Standort erfassen"**. Gespeicherte Werte bleiben auch ohne
+  **„Säulen“** und Reichweite/Intervall im Tab **„Ortung“**. Die Wahl wird am Konto gespeichert
+  und gilt auf allen Geräten, auf denen du angemeldet bist – ebenso **„KI aktivieren“**,
+  **„Balance-Priorisierung“** und **„Standort erfassen“**. Gespeicherte Werte bleiben auch ohne
   Expertenmodus erhalten.
 - **Sprachaufnahme automatisch starten** – ist der Schalter aktiv, startet das Mikrofon
   der Sprachfelder (Aufgabenformular, Schnellerfassung, Suche), sobald du sie öffnest.
   Beim Einschalten wird der Mikrofon-Zugriff angefragt.
-- **Konto löschen** – in der Karte **„Konto"** löschst du dein Konto nach einer
+- **Konto löschen** – in der Karte **„Konto“** löschst du dein Konto nach einer
   zweistufigen Rückfrage endgültig, mitsamt aller Aufgaben, Serien, Säulen, Kategorien
   und Einstellungen; Aufgaben und Serien, die du für Gruppenmitglieder angelegt hast,
   bleiben für sie bestehen. Auch dein abgeschicktes Feedback wird dabei entfernt. Solange ein Abo läuft oder du der letzte Admin einer Gruppe bist,
   verweigert die App das Löschen. Ein PayPal-Abo mit offener Zahlung kündigt die App
   dabei mit.
-- **Push-Nachrichten aktivieren** – siehe „Benachrichtigungen".
+- **Push-Nachrichten aktivieren** – siehe „Benachrichtigungen“.
 
 ### Säulen
 
-Der Editor für die **Säulen-Gewichtung** (siehe „Lebensbalance-Säulen") und die
+Der Editor für die **Säulen-Gewichtung** (siehe „Lebensbalance-Säulen“) und die
 Übersicht deiner fünf festen Säulen mit Name, Beschreibung und Gewicht.
 
 ### Kategorien
 
 Die Verwaltung der Kategorien (Anlegen, Bearbeiten, Löschen – jeweils über eigene
-Modal-Dialoge) samt Farbwahl aus der festen Palette; siehe „Kategorien".
+Modal-Dialoge) samt Farbwahl aus der festen Palette; siehe „Kategorien“.
 
 ### KI
 
-Oben schaltest du mit **„KI aktivieren"** die KI-Bedienelemente insgesamt ein und aus.
-Ist der Schalter aus, öffnet „Neuen Task anlegen" direkt das vollständige Formular, und die
+Oben schaltest du mit **„KI aktivieren“** die KI-Bedienelemente insgesamt ein und aus.
+Ist der Schalter aus, öffnet „Neuen Task anlegen“ direkt das vollständige Formular, und die
 Lektorat-Buttons verschwinden aus dem Aufgabenformular. Die Bereiche darunter sind dann
 eingeklappt und lassen sich per Klick aufklappen; bestehende Access-Token bleiben gültig. Ohne
 passendes Paket sind alle Bedienelemente des Tabs gesperrt, auch mit eigenem Provider.
@@ -694,17 +694,17 @@ passendes Paket sind alle Bedienelemente des Tabs gesperrt, auch mit eigenem Pro
 In der Karte **KI-Provider** wird die KI konfiguriert (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater,
 Lektorat). Du wählst den aktiven Provider und daraus per Dropdown das Modell – die
 Modellliste wird live vom Provider geladen. Mitgelieferte Provider (Mistral, OpenRouter)
-beziehen ihren Zugang vom Server; eigene Provider legst du über **„Neuer Provider"** an
+beziehen ihren Zugang vom Server; eigene Provider legst du über **„Neuer Provider“** an
 (Name, Adresse, API-Key, Modell) und kannst sie **testen**, bearbeiten und löschen. Eigene
-Provider gehören deinem Konto („eigen"), die mitgelieferten sind instanzweit geteilt
-(„instanzweit"). Ohne eigene Wahl laufen deine KI-Aufrufe über den instanzweit aktiven
+Provider gehören deinem Konto („eigen“), die mitgelieferten sind instanzweit geteilt
+(„instanzweit“). Ohne eigene Wahl laufen deine KI-Aufrufe über den instanzweit aktiven
 Provider. Ist kein Provider eingerichtet, zeigt der
 Tab den Hinweis, dass die KI-Features noch nicht nutzbar sind.
 
-In der Karte **Access-Token** legst du unter **„Access-Token erstellen"** persönliche
+In der Karte **Access-Token** legst du unter **„Access-Token erstellen“** persönliche
 **Tokens** an, mit denen KI-Clients wie Claude und andere externe Programme auf deine Daten
-zugreifen – mit deinen Rechten. **„Token erzeugen"** legt einen an und zeigt seinen
-Schlüssel **genau einmal**; unter **„Vorhandene Access-Token"** siehst du danach nur noch
+zugreifen – mit deinen Rechten. **„Token erzeugen“** legt einen an und zeigt seinen
+Schlüssel **genau einmal**; unter **„Vorhandene Access-Token“** siehst du danach nur noch
 Name, Rechtestufe, Ablauf und die letzte Nutzung. Je Token schaltest du zwischen **Nur
 lesend** und **Lesen und Schreiben** um. **„Zurückziehen“** sperrt einen Token ab dem
 nächsten Aufruf. Darunter listet der Abschnitt **„Angemeldete Geräte“** deine Anmeldungen
@@ -712,19 +712,19 @@ der Android-App (Name, erstellt, zuletzt genutzt); mit **„Widerrufen“** meld
 ab — nach einer Bestätigung ist es ab dem nächsten Aufruf abgemeldet.
 
 In der Karte **Dialog-Vorgaben für die KI** hinterlegst du einen Freitext (bis 2000
-Zeichen, z. B. „Antworte kurz und knapp."). KI-Clients, die sich per Access-Token
-verbinden, erhalten ihn beim Verbindungsaufbau. **„Speichern"** übernimmt den Text; ein
+Zeichen, z. B. „Antworte kurz und knapp.“). KI-Clients, die sich per Access-Token
+verbinden, erhalten ihn beim Verbindungsaufbau. **„Speichern“** übernimmt den Text; ein
 leeres Feld löscht die Vorgaben. Werkzeuge und Rechte der Tokens ändern sich dadurch nicht.
 
 ### Ortung
 
 - **Standort erfassen** – ermittelt im Hintergrund regelmäßig deine aktuelle
   Position (Standard alle 5 Minuten). Beim Einschalten wird die
-  Standort-Berechtigung angefragt. Mit **„Standort ermitteln"** holst du die
+  Standort-Berechtigung angefragt. Mit **„Standort ermitteln“** holst du die
   Position sofort; dazu siehst du die Uhrzeit der letzten Erfassung und eine
   Adresse zum Standort. Drei Schieberegler steuern die Standortfunktion – sie
   gehören zum **Expertenmodus** (Einstellungen → Allgemein):
-  **Anzeige-Entfernung** – bis zu dieser Entfernung zeigt die „In der Nähe"-Liste
+  **Anzeige-Entfernung** – bis zu dieser Entfernung zeigt die „In der Nähe“-Liste
   Aufgaben; **Alarm-Entfernung** – liegt eine Aufgabe näher als diese Entfernung,
   kommt ein Push-Hinweis; **Aktualisierungsintervall** – wie oft die Position ermittelt
   wird.
@@ -734,15 +734,15 @@ leeres Feld löscht die Vorgaben. Werkzeuge und Rechte der Tokens ändern sich d
 Gespeicherte Orte pflegst du im Tab **„Ortung“** der Einstellungen; sie sind unabhängig vom Standort-Schalter. Orte, die du oft brauchst, legst du hier einmal ab und wählst sie danach im Adressfeld
 direkt aus.
 
-- **Anlegen:** unter **„Gespeicherte Orte"** eine Adresse eintippen und aus der
+- **Anlegen:** unter **„Gespeicherte Orte“** eine Adresse eintippen und aus der
   Vorschlagsliste auswählen – Adresse und Koordinaten werden gemeinsam übernommen –,
-  dann **„Anlegen"**.
+  dann **„Anlegen“**.
 - **Meine Orte:** die Liste darunter führt alle gespeicherten Orte. Einen Eintrag
-  entfernst du nach Rückfrage mit **„Endgültig löschen"**.
+  entfernst du nach Rückfrage mit **„Endgültig löschen“**.
 
 Im Adressfeld von Aufgaben und Serien stehen deine gespeicherten Orte vor den
 Suchtreffern. Weil sie mit Koordinaten gespeichert werden, zählen sie für
-„In der Nähe".
+„In der Nähe“.
 
 ---
 
@@ -770,28 +770,28 @@ In der oberen Karte des Bereichs **Pakete & Abo** siehst du deinen aktuellen Abo
 In _Einstellungen → Gruppen_ organisierst du zusammen mit anderen Nutzern Aufgaben:
 
 - **Gruppe anlegen:** Namen festlegen – du bist damit Admin der Gruppe. Admins tragen
-  das Kennzeichen **„Admin"**, Mitglieder **„Mitglied"**.
-- **Mitglieder verwalten:** als Admin suchst du in der Gruppe über **„Konto suchen"**
-  ein Konto und lädst es per **„Einladen"** ein; entfernen kannst du Mitglieder
+  das Kennzeichen **„Admin“**, Mitglieder **„Mitglied“**.
+- **Mitglieder verwalten:** als Admin suchst du in der Gruppe über **„Konto suchen“**
+  ein Konto und lädst es per **„Einladen“** ein; entfernen kannst du Mitglieder
   ebenfalls nur als Admin.
-- **Einladen per Link:** in der Gruppe erzeugst du unter **„Link erzeugen"** einen
+- **Einladen per Link:** in der Gruppe erzeugst du unter **„Link erzeugen“** einen
   Einladungs-Link. Wer ihn öffnet – auch ohne Anmeldung –, landet auf einer Seite mit
-  **„Gruppe beitreten"**. Unter **„Offene Einladungen"** kannst du Links kopieren oder
-  für ungültig erklären (**„Ungültig machen"**).
-- **Duo:** beim Anlegen wählst du unter **„Art"** die Option **„Duo"** – zwei Personen,
+  **„Gruppe beitreten“**. Unter **„Offene Einladungen“** kannst du Links kopieren oder
+  für ungültig erklären (**„Ungültig machen“**).
+- **Duo:** beim Anlegen wählst du unter **„Art“** die Option **„Duo“** – zwei Personen,
   die gemeinsam einen Streak und ihre Säulenwerte sehen, aber keine Aufgaben des anderen.
-  Den Partner holst du über **„Link erzeugen"**; ist das Duo voll, entfällt das Einladen.
+  Den Partner holst du über **„Link erzeugen“**; ist das Duo voll, entfällt das Einladen.
 - **Einladungen** (Karte in der Gruppen-Übersicht, nicht zu verwechseln mit
-  „Offene Einladungen"): eingeladene Konten können annehmen oder ablehnen.
+  „Offene Einladungen“): eingeladene Konten können annehmen oder ablehnen.
 - **Aufgaben für andere anlegen:** im Aufgaben- und Serien-Formular wählst du im Feld
-  **„Empfänger"**, für wen die Aufgabe bestimmt ist. In den Listen erkennst du
-  fremde Aufgaben an den Hinweisen **„Für: {Name}"** und **„Erstellt von: {Name}"**;
+  **„Empfänger“**, für wen die Aufgabe bestimmt ist. In den Listen erkennst du
+  fremde Aufgaben an den Hinweisen **„Für: {Name}“** und **„Erstellt von: {Name}“**;
   bearbeiten lassen sie sich nur beim Empfänger.
 - **7-Tage-Challenge:** jedes Mitglied startet in der Gruppe über
-  **„7-Tage-Challenge starten"** eine Woche, in der es um Ausgewogenheit geht. Die
+  **„7-Tage-Challenge starten“** eine Woche, in der es um Ausgewogenheit geht. Die
   Rangfolge misst die Balance der in dieser Woche erledigten Aufgaben, nicht ihre Anzahl;
-  wer noch nichts erledigt hat, steht mit „Noch kein Wert" am Ende. Nach sieben Tagen
-  endet die Challenge von selbst, und **„Teilen"** erzeugt eine Abschluss-Karte mit
+  wer noch nichts erledigt hat, steht mit „Noch kein Wert“ am Ende. Nach sieben Tagen
+  endet die Challenge von selbst, und **„Teilen“** erzeugt eine Abschluss-Karte mit
   Gruppenname, Zeitraum und Rangfolge – ohne Aufgabeninhalte.
 
 ---
@@ -839,28 +839,28 @@ eine Gruppe verwaltet, ist deshalb noch kein Admin der App.
 Balamentum kann dich per **Push-Nachricht** an fällige Aufgaben erinnern – auch
 wenn die App gerade nicht geöffnet ist.
 
-- Aktivieren über _Einstellungen → Allgemein → „Push-Nachrichten aktivieren"_. Beim
+- Aktivieren über _Einstellungen → Allgemein → „Push-Nachrichten aktivieren“_. Beim
   Einschalten fragt der Browser nach der Benachrichtigungs-Erlaubnis.
-- Mit **„Push testen"** kannst du eine Testnachricht auslösen.
+- Mit **„Push testen“** kannst du eine Testnachricht auslösen.
 - Unterstützt dein Browser keine Push-Nachrichten, erscheint ein Hinweis – meist hilft
   es, die App zu installieren (siehe unten).
 - Erinnerungen verschickt die App einmal täglich als **je eine gebündelte Nachricht**:
   alle offenen Aufgaben, deren Deadline innerhalb der nächsten 24 Stunden abläuft oder
-  schon überschritten ist („Fällige Aufgaben"). Dazu kommt **separat** eine Nachricht
-  „Deine wichtigsten Aufgaben" mit bis zu drei Aufgaben. Eine bereits gemeldete Fälligkeit
+  schon überschritten ist („Fällige Aufgaben“). Dazu kommt **separat** eine Nachricht
+  „Deine wichtigsten Aufgaben“ mit bis zu drei Aufgaben. Eine bereits gemeldete Fälligkeit
   wird nicht erneut gemeldet.
 - Ist die Standort-Erfassung aktiv, bekommst du zusätzlich einen Hinweis, wenn eine
   offene Aufgabe mit Ortsbezug näher als deine Alarm-Entfernung liegt (Standard 1 km):
   als einzelne Nachricht mit Titel und Entfernung bzw. als gebündelte Nachricht
-  „X Aufgaben in der Nähe". Auch hier wird dieselbe Aufgabe nicht sofort erneut
+  „X Aufgaben in der Nähe“. Auch hier wird dieselbe Aufgabe nicht sofort erneut
   gemeldet.
 
 > **Hinweis: Doppelte Benachrichtigung vermeiden.** Wenn du Balamentum nur als
 > Browser-Tab (Chrome) und **nicht** als eigenständige App nutzt, kann neben der
 > App-Benachrichtigung eine **zweite Benachrichtigung** von Chrome erscheinen (z. B.
-> „URL kopieren", „Teilen", „In Chrome öffnen"). Diese Mehrfachbenachrichtigung ist ein
+> „URL kopieren“, „Teilen“, „In Chrome öffnen“). Diese Mehrfachbenachrichtigung ist ein
 > Plattformverhalten von Chrome, nicht von Balamentum. **Workaround:** Installiere die
-> App als eigenständige App (siehe unten „App installieren und aktualisieren") – dann wird
+> App als eigenständige App (siehe unten „App installieren und aktualisieren“) – dann wird
 > nur noch die gewünschte App-Benachrichtigung angezeigt. Aufeinanderfolgende Pushes
 > ersetzen sich zudem gegenseitig, sodass nichts gestapelt wird – die App vergibt ihren
 > Benachrichtigungen dazu einen festen Tag.
@@ -871,13 +871,13 @@ wenn die App gerade nicht geöffnet ist.
 
 Balamentum ist eine **installierbare Web-App (PWA)** und funktioniert auch offline.
 
-- **Installieren:** Erscheint das Banner **„App installieren"**, kannst du die App mit
-  **„Installieren"** auf dein Gerät legen. Unter iOS/Safari nutzt du dazu **Teilen →
+- **Installieren:** Erscheint das Banner **„App installieren“**, kannst du die App mit
+  **„Installieren“** auf dein Gerät legen. Unter iOS/Safari nutzt du dazu **Teilen →
   Zum Home-Bildschirm**.
 - **Aktualisieren:** Ist eine neue Version verfügbar, erscheint unten eine Karte mit
-  **„Jetzt neu laden"**. Ein Klick lädt die aktuelle Version.
+  **„Jetzt neu laden“**. Ein Klick lädt die aktuelle Version.
 
-Eine Karte **„Offline einsatzbereit"** bestätigt, dass die App auch ohne Verbindung
+Eine Karte **„Offline einsatzbereit“** bestätigt, dass die App auch ohne Verbindung
 nutzbar ist.
 
 Die laufende Versionsnummer steht in der **Fußzeile**; ist die Standort-Erfassung
@@ -888,8 +888,8 @@ aktiv, steht dort zusätzlich deine zuletzt ermittelte Position.
 ## Tastaturkürzel
 
 - **Strg + Enter** (bzw. **⌘ + Enter**) – löst in Dialogen die primäre Aktion aus
-  (z. B. Anlegen/Bearbeiten, „Verarbeiten und weiter", Vorgänger „Hinzufügen",
-  „Speichern" in den Einstellungen, „Endgültig löschen"). „Beraten lassen" bleibt
+  (z. B. Anlegen/Bearbeiten, „Verarbeiten und weiter“, Vorgänger „Hinzufügen“,
+  „Speichern“ in den Einstellungen, „Endgültig löschen“). „Beraten lassen“ bleibt
   ein reiner Klick-Weg.
 - **Esc** oder Klick außerhalb – schließt Dialoge und Menüs.
 

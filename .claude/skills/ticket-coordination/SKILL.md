@@ -176,8 +176,10 @@ wall of text — offer a decision round and go through the parked issues one by 
 - **Schedule the next check-in before asking the author.** A pending question blocks the
   session; without a scheduled wake-up the whole coordination stalls until the answer.
 - The check-in message carries **state only**; the rules live here. Template:
-  `Check-in ticket-coordination (Skill). Epics: … Stand <UTC>: <je Issue: [Stufe/Aufwand]-Kürzel aus dem Titel, Phase, PR, Run-ID, was als Nächstes zu prüfen ist>. Erledigt-Basis (<Anzahl>): <Issue-Nummern>. Offen beim Autor: … Reihenfolge danach (mit Rang): … Nicht anfassen: …`
-  The done baseline makes counts and deltas reproducible across context resets. A later run
+  `Check-in ticket-coordination (Skill). Epics: … Stand <UTC>: <je Issue: [Stufe/Aufwand]-Kürzel aus dem Titel, Phase, PR, Run-ID, was als Nächstes zu prüfen ist>. Erledigt-Basis (<Anzahl>): <Issue-Nummern>. Queue-Zusätze (<Anzahl>): <Issue-Nummern>. Offen beim Autor: … Reihenfolge danach (mit Rang): … Nicht anfassen: …`
+  The done baseline makes counts and deltas reproducible across context resets; the Queue-Zusätze
+  line carries the tickets the author or coordinator added outside the containers during the run,
+  so a later run reconstructs N without drift. A later run
   reads the check-in as its instruction: write a finished container as „Abschluss-Analyse
   starten", never as „schließen" (section 2).
 - Spec, implementation and fixup share one serialized queue; only triage, UX and review run
@@ -192,8 +194,10 @@ wall of text — offer a decision round and go through the parked issues one by 
      coordinator added during the run (also when they sit outside the container). Containers
      themselves do not count. X + Y + Z = N; percent = X / N, rounded to whole numbers; one bar
      step per 10 %. „In Arbeit" = a phase label set or running, or an open PR; „Offen" = not
-     started or waiting (author decisions and manual tickets go into W). +n counts merges since
-     the previous round.
+     started or waiting (author decisions and manual tickets go into W). If several properties
+     match, the author wait takes precedence — a ticket waiting on the author counts as „Offen"
+     (and in W) even when it also has a phase label or an open PR, never in both columns; every
+     leaf lands in exactly one of X/Y/Z. +n counts merges since the previous round.
   2. Pace line: trend mark, merges in the last 3 hours, minutes since the last merge.
      ▲ = merge since the last round · ▶ = phases advanced, no merge · ⏸ = nothing moved for two
      rounds, name the cause in the same line.

@@ -144,7 +144,11 @@ describe('Rechnung und Verlängerung nur bei SALE.COMPLETED (#2230)', () => {
 		const me = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
 			id: number;
 		};
-		const start = new Date(Date.now() + 15 * DAY_MS);
+		// Anker am Monatsmitte-Fünfzehnten (Fixup #2644): setUTCMonth clampt am Monatsende
+		// (31. Okt. + 1 Monat = 30. Nov., zurück nur 30. Okt.) — der reale now+15d-Anker
+		// liess die Suite in Monatsenden-Fenstern deterministisch rot laufen.
+		const now = new Date();
+		const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 15));
 		await Subscription.create({
 			userId: me.id,
 			provider: 'paypal',

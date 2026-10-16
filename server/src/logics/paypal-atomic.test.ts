@@ -34,7 +34,7 @@ const seed = async () => {
 	return { user, subscription };
 };
 
-/** Echter Rechnungslauf; reicht Transaktion und Periodenbeginn (#2230) an derselben Stelle durch. */
+/** Echter Rechnungslauf; reicht jedes weitere Argument (z. B. eine Transaktion) unverändert durch. */
 const realIssue: ApplyPaymentEventDeps['issueInvoice'] = (s, n, saleId, charged, transaction, periodStart) =>
 	(issueInvoiceForPeriod as (...args: unknown[]) => Promise<unknown>)(
 		s,
