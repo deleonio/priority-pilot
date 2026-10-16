@@ -144,13 +144,11 @@ describe('Rechnung und Verlängerung nur bei SALE.COMPLETED (#2230)', () => {
 		const me = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
 			id: number;
 		};
-		// Datumsrobust (#2660): „now + 15 Tage" fällt an Monatenden auf den 29.–31. — +1 Monat rollt
-		// dann in den Folgemonat (31.10. → 1.12.) und die rekonstruierte Rechnungs-periodStart
-		// (invoices.ts: periodEnd − 1 Monat) trifft den Start nicht mehr. Start daher immer der
-		// 1. des Folgemonats: +1 Monat rollt dort nie.
-		const start = new Date();
-		start.setUTCDate(1);
-		start.setUTCMonth(start.getUTCMonth() + 1);
+		// Anker am Monatsmitte-Fünfzehnten (Fixup #2644): setUTCMonth clampt am Monatsende
+		// (31. Okt. + 1 Monat = 30. Nov., zurück nur 30. Okt.) — der reale now+15d-Anker
+		// liess die Suite in Monatsenden-Fenstern deterministisch rot laufen.
+		const now = new Date();
+		const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 15));
 		await Subscription.create({
 			userId: me.id,
 			provider: 'paypal',
