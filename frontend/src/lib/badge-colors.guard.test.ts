@@ -1,8 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import * as badgeColors from './badgeColors';
-
-const colors = badgeColors as unknown as Record<string, Record<string, string>>;
+import { PRIORITY_COLOR, URGENCY_COLOR } from './badgeColors';
 
 /**
  * Spec-Test #2560 AK1 (docs/spec/issue-2560.md): Badge-Farben kommen aus benannten Konstanten,
@@ -29,9 +27,9 @@ describe('Badge-Farben ohne Hex-Literal (#2560 AK1, #2637 AK1/AK3)', () => {
 /** #2637 AK2: die zentrale Quelle liefert exakt die bisherigen Hex-Werte (Aussehen unverändert). */
 describe('Badge-Farb-Mappings aus badgeColors.ts (#2637 AK2)', () => {
 	it('exportiert PRIORITY_COLOR mit den bisherigen Hex-Werten', () => {
-		expect(colors.PRIORITY_COLOR).toEqual({ info: '#005b99', warning: '#c66a00', danger: '#b42318' });
+		expect(PRIORITY_COLOR).toEqual({ info: '#005b99', warning: '#c66a00', danger: '#b42318' });
 	});
 	it('exportiert URGENCY_COLOR mit den bisherigen Hex-Werten', () => {
-		expect(colors.URGENCY_COLOR).toEqual({ overdue: '#b42318', soon: '#b54708' });
+		expect(URGENCY_COLOR).toEqual({ overdue: '#b42318', soon: '#b54708' });
 	});
 });
