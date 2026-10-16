@@ -1,6 +1,13 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
+import {
+	resetDb,
+	closeDb,
+	startTestServer,
+	applyTestAuthEnv,
+	seedBillingAddress,
+	type TestServer,
+} from '../test/helpers.js';
 import { Subscription, User } from '../models/index.js';
 import type { AppDeps } from './index.js';
 import { PaypalHttpError } from '../logics/paypal.js';
@@ -50,6 +57,8 @@ describe('Admin-Abo-Routen #1959 (Spec docs/spec/issue-1959.md)', () => {
 		role: 'admin' | 'member' | 'tester',
 	): Promise<{ cookie: string; userId: number }> => {
 		const cookie = await server.login(email, { role });
+		// #2661: Checkout ohne Rechnungsadresse wäre 409 — für den Zweitabschluss-Test seeden.
+		await seedBillingAddress(email);
 		const me = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
 			id: number;
 		};

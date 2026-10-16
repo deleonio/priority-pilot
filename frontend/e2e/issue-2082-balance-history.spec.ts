@@ -11,9 +11,6 @@ import { registerOwnSession, waitForStableView } from './helpers';
 
 type Eintrag = { tag: string; fuellstandProzent: number };
 
-const iso = (d: Date): string =>
-	`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
 const erledigeAufgabe = async (page: Page, title: string): Promise<void> => {
 	const created = await page.request.post('/api/v1/tasks', { data: { title, priority: 3, estimatedEffort: 1 } });
 	expect(created.ok()).toBeTruthy();
@@ -26,12 +23,19 @@ test.describe('Balamentum — #2082: Füllstand-Verlauf', () => {
 		await registerOwnSession(page, 'balance-history-2082');
 		await erledigeAufgabe(page, 'E2E 2082 erledigt');
 
-		const heute = new Date();
-		const von = new Date(heute);
-		von.setDate(von.getDate() - 27);
-		const tz = await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
+		// von/bis/tz müssen in der Zeitzone der PAGE stehen (Playwright läuft mit Europe/Berlin, der
+		// Runner mit UTC) — im Node-Prozess gerechnete Daten kippen zwischen 22:00 und 24:00 UTC um
+		// einen Tag, und der Test vergleicht gestern mit heute.
+		const { von, bis, tz } = await page.evaluate(() => {
+			const iso = (d: Date): string =>
+				`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+			const bis = new Date();
+			const von = new Date(bis);
+			von.setDate(von.getDate() - 27);
+			return { von: iso(von), bis: iso(bis), tz: Intl.DateTimeFormat().resolvedOptions().timeZone };
+		});
 		const res = await page.request.get('/api/v1/scores/balance/history', {
-			params: { von: iso(von), bis: iso(heute), tz },
+			params: { von, bis, tz },
 		});
 		expect(res.ok()).toBeTruthy();
 		const verlauf = (await res.json()) as Eintrag[];

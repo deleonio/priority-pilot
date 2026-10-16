@@ -362,6 +362,24 @@ export const api = {
 		return response.ok;
 	},
 
+	/** Rechnungsadresse des Kontos (#2661); Felder sind `null`, solange keine erfasst ist. */
+	async getBillingAddress(): Promise<components['schemas']['BillingAddress']> {
+		const { data, error, response } = await client.GET('/billing/address');
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+	/** Speichert die Rechnungsadresse (#2661) — Pflicht vor jedem Abo-Abschluss, Grundlage der Rechnungs-PDFs. */
+	async updateBillingAddress(
+		input: components['schemas']['BillingAddressInput'],
+	): Promise<components['schemas']['BillingAddress']> {
+		const { data, error, response } = await client.PUT('/billing/address', { body: input });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
 	/** Legt ein Abo an (AK1); die Antwort trägt die PayPal-Zustimmungs-URL zum Weiterleiten. */
 	async createBillingSubscription(
 		input: components['schemas']['BillingSubscriptionInput'],

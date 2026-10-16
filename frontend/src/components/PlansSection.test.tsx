@@ -36,6 +36,8 @@ vi.mock('@public-ui/react-v19', () => ({
 		createElement('button', null, _label, children),
 	KolInputCheckbox: ({ _label }: { _label?: string }) =>
 		createElement('input', { type: 'checkbox', 'aria-label': _label }),
+	// #2661: Eingabefelder des Rechnungsadresse-Formulars im Kaufweg.
+	KolInputText: ({ _label }: { _label?: string }) => createElement('input', { type: 'text', 'aria-label': _label }),
 	KolLink: ({ _href, _label }: { _href?: string; _label?: string }) => createElement('a', { href: _href }, _label),
 	KolSpin: () => createElement('div', { 'data-testid': 'spin' }),
 	KolTableStateful: ({
@@ -90,7 +92,14 @@ vi.mock('@public-ui/react-v19', () => ({
 }));
 
 const getPlansCatalog = vi.fn();
-vi.mock('../api', () => ({ api: { getPlansCatalog: () => getPlansCatalog() } }));
+vi.mock('../api', () => ({
+	api: {
+		getPlansCatalog: () => getPlansCatalog(),
+		// #2661: das Adressformular des Kaufwegs lädt beim Mount die gespeicherte Adresse.
+		getBillingAddress: () => Promise.resolve({ name: null, street: null, zip: null, city: null, country: null }),
+		updateBillingAddress: () => Promise.resolve({}),
+	},
+}));
 
 // `subscription: null` (kein Abo): erst dann liefert der Kaufweg Buchen-Aktionen (undefined = noch nicht geladen).
 vi.mock('../lib/usePlan', () => ({ usePlan: () => ({ plan: 'pro', entitlements: {}, subscription: null }) }));

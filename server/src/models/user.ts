@@ -64,6 +64,16 @@ class User extends Model {
 	/** Zustimmung zu den Nutzungsbedingungen (#1901): Fassung (`TERMS_VERSION`) und Zeitpunkt; `null` = noch nie. */
 	public termsVersion!: string | null;
 	public termsAcceptedAt!: Date | null;
+	/**
+	 * Rechnungsadresse (#2661) — Pflicht vor jedem Abo-Abschluss; ohne sie keine Rechnung
+	 * und kein Rechnungs-PDF. Gespeichert am Konto, nicht am Abo: sie gilt für alle
+	 * künftigen Buchungen, Änderungen wirken erst auf Rechnungen ab dann.
+	 */
+	public billingName!: string | null;
+	public billingStreet!: string | null;
+	public billingZip!: string | null;
+	public billingCity!: string | null;
+	public billingCountry!: string | null;
 	/** Dialog-Vorgaben für die per MCP verbundene KI (#1935) — getrimmter Freitext; `null` = keine. */
 	public mcpInstructions!: string | null;
 
@@ -203,6 +213,31 @@ User.init(
 		},
 		termsAcceptedAt: {
 			type: DataTypes.DATE,
+			allowNull: true,
+			defaultValue: null,
+		},
+		billingName: {
+			type: DataTypes.STRING,
+			allowNull: true,
+			defaultValue: null,
+		},
+		billingStreet: {
+			type: DataTypes.STRING,
+			allowNull: true,
+			defaultValue: null,
+		},
+		billingZip: {
+			type: DataTypes.STRING,
+			allowNull: true,
+			defaultValue: null,
+		},
+		billingCity: {
+			type: DataTypes.STRING,
+			allowNull: true,
+			defaultValue: null,
+		},
+		billingCountry: {
+			type: DataTypes.STRING,
 			allowNull: true,
 			defaultValue: null,
 		},

@@ -88,6 +88,22 @@
 		"bookLabel": "Book {{plan}} ({{period}})",
 		"changeLabel": "Switch to {{plan}} ({{period}})"
 	},
+	"address": {
+		"required": "Billing address",
+		"requiredHint": "Before subscribing we need your billing address — it appears on every invoice and invoice PDF.",
+		"name": "Name or company",
+		"street": "Street and number",
+		"zip": "ZIP code",
+		"city": "City",
+		"country": "Country",
+		"save": "Save billing address",
+		"saving": "Saving …",
+		"saved": "Billing address saved.",
+		"invalid": "Please fill in all fields of the billing address.",
+		"loadFailed": "The billing address could not be loaded.",
+		"saveFailed": "The billing address could not be saved.",
+		"edit": "Change billing address"
+	},
 	"play": {
 		"unlockFailed": "Google received the purchase, but it could not be activated yet.",
 		"purchaseFailed": "The purchase via Google Play failed.",

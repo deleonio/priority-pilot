@@ -7,6 +7,7 @@ import { toApiError } from '../lib/apiError';
 import { legalPath } from '../lib/operator';
 import { periodLabel, planLabel, type Period, type Plan } from '../lib/planOffers';
 import { usePlan } from '../lib/usePlan';
+import { BillingAddressForm } from './BillingAddressForm';
 import type { PurchaseUi } from './billingChannel';
 import { BillingReturnWait, ChangeDialog } from './PaypalDialogs';
 
@@ -136,6 +137,7 @@ export const usePaypalPurchase = (): PurchaseUi => {
 
 	const notice = (
 		<>
+			{showWithdrawal && <BillingAddressForm />}
 			{showWithdrawal && (
 				<div className="withdrawal-consent" data-testid="withdrawal-consent">
 					<p>
