@@ -101,7 +101,7 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		// Messfenster, in dem eine async nachladende Karte (z. B. CareHint ueber der letzten Reihe)
 		// die Reihe verschieben kann — der gemessene Versatz war dann deren Hoehe.
 		const tops = await page.evaluate(() => {
-			const missed = document.querySelector('section.dashboard .missed-section');
+			const missed = document.querySelector('[data-testid="missed-section"]');
 			const deadlines = document.querySelector('.dashboard-deadlines');
 			return {
 				missed: missed ? missed.getBoundingClientRect().top : null,
