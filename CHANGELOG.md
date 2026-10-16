@@ -4,11 +4,19 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.27 - 2026-10-16
 
-_Enthält v0.27.0 – v0.27.1._
+_Enthält v0.27.0 – v0.27.3._
 
 ### 🚀 Improvements
 
 - docs(skill): disambiguate ticket-coordination progress counting (#2644) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2657
+
+### Other Changes
+
+- docs: unify formatting and cross-references (#2642) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2654
+- ci(workbench): add kill grace period to chromium install timeout (#2643) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2655
+- docs: fix dead links in ADR 0004 (#2638) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2656
+- docs: align outdated code comments with current behavior (#2640) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2660
+- test(frontend): show blossom instead of heart in promo shots (#2641) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2658
 
 ## v0.26 - 2026-10-15
 
@@ -225,7 +233,6 @@ _Enthält v0.19.0 – v0.19.19._
 
 ### 🐞 Bug Fixes
 
-- docs(arc42): sync android app docs and adr table with adr 0021 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2439
 - docs(arc42): sync android app docs and adr table with adr 0021 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2439
 - fix(frontend): fall back to browser login on canceled native sign-in by @deleonio in https://github.com/deleonio/priority-pilot/pull/2453
 
