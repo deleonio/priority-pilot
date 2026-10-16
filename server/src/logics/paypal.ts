@@ -545,7 +545,8 @@ const chargesOnActivation = (subscription: Subscription): boolean => {
 export interface ApplyPaymentEventDeps {
 	/**
 	 * `saleId`: Sale-Referenz der Abbuchung (`resource.id`, #2086); `charged`: abgebuchter Betrag (`resource.amount`, #2232);
-	 * `transaction`: die Transaktion der Abbuchung (#2233) — Rechnung und Verlängerung gelingen nur gemeinsam.
+	 * `transaction`: die Transaktion der Abbuchung (#2233) — Rechnung und Verlängerung gelingen nur gemeinsam;
+	 * `periodStart`: Start der bezahlten Periode (Stand vor der Verlängerung, #2654).
 	 */
 	issueInvoice?: (
 		subscription: Subscription,
@@ -553,6 +554,7 @@ export interface ApplyPaymentEventDeps {
 		saleId?: string | null,
 		charged?: ChargedAmount,
 		transaction?: Transaction,
+		periodStart?: Date,
 	) => Promise<unknown>;
 	/**
 	 * Gutschrift zur Originalrechnung (#2237): eigener Beleg statt `refunded` am Original — läuft in
@@ -676,13 +678,15 @@ export const applyPaymentEvent = async (
 			) {
 				currentPeriodEnd.setTime(now.getTime());
 			}
+			// Echter Start der bezahlten Periode = Stand vor der Verlängerung (#2654): rückwärts aus dem
+			// neuen Ende abgeleitet wäre bei Monatsübergang (29.–31.) um Tage daneben.
+			const periodStart = new Date(currentPeriodEnd);
 			currentPeriodEnd.setUTCMonth(currentPeriodEnd.getUTCMonth() + months);
-			// Eine späte Abbuchung hebt die Admin-Sperre nicht auf (#2242).
 			await subscription.update(
 				{ currentPeriodEnd, status: status === 'locked' ? 'locked' : 'active', firstFailureAt: null },
 				{ transaction },
 			);
-			await deps.issueInvoice?.(subscription, now, event.resource?.id ?? null, charged, transaction);
+			await deps.issueInvoice?.(subscription, now, event.resource?.id ?? null, charged, transaction, periodStart);
 		});
 		return;
 	}
