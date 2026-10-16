@@ -240,6 +240,7 @@ _Enthält v0.19.0 – v0.19.19._
 
 - feat(frontend): preview selected balance picture in settings by @deleonio in https://github.com/deleonio/priority-pilot/pull/2436
 - docs(skill): coordinator stops on empty queue and sends one push by @deleonio in https://github.com/deleonio/priority-pilot/pull/2440
+- docs(skill): coordinator stops on empty queue and sends one push by @deleonio in https://github.com/deleonio/priority-pilot/pull/2440
 
 ### 🔧 Engineering
 
