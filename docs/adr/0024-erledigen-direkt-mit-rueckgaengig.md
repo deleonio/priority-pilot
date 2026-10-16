@@ -9,7 +9,7 @@
 Seit #1168 öffnet „Erledigen“ auf dem Dashboard einen nicht-destruktiven Bestätigungsdialog. Der
 Klick ist aber der häufigste positive Moment der App — genau dort fällt ein zusätzlicher Tipp am
 meisten ins Gewicht, und ein Modal ohne eigene Fokus-Begründung gilt nach der Design-Sprache als
-Refuse-Fall ([ux-design.md](../ux-design.md) §7). Eine Zusatzfrage ist nur dort nötig, wo die
+Refuse-Fall ([ux-design.md](../../.ai-knowledge/ux-design.md) §7). Eine Zusatzfrage ist nur dort nötig, wo die
 Erledigung wirklich etwas nachfragt: Checkliste oder Pünktlichkeit. Alle anderen Erledigungen
 brauchen keine Bestätigung, sondern eine Rückmeldung.
 
