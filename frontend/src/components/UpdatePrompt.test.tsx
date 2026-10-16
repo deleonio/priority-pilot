@@ -66,6 +66,8 @@ import { UpdatePrompt } from './UpdatePrompt';
 afterEach(() => {
 	cleanup();
 	vi.unstubAllGlobals();
+	// Stub-Aufräumen zentral (#2639 AK1): kein ServiceWorker-Stub überlebt einen Test.
+	Reflect.deleteProperty(navigator, 'serviceWorker');
 });
 
 beforeEach(() => {
@@ -98,7 +100,6 @@ describe('UpdatePrompt (#353)', () => {
 
 		await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
 		expect(unregister).toHaveBeenCalledTimes(1);
-		Reflect.deleteProperty(navigator, 'serviceWorker');
 	});
 
 	it('lädt in der Android-App ohne Service Worker nicht neu', async () => {
@@ -111,9 +112,10 @@ describe('UpdatePrompt (#353)', () => {
 		render(<UpdatePrompt />);
 
 		await vi.waitFor(() => expect(getRegistrations).toHaveBeenCalled());
-		await Promise.resolve();
+		// Mindestens ein Makrotask (#2639 AK1): ein einzelnes `await Promise.resolve()` leert nur
+		// Mikrotasks und würde einen verspäteten Reload-Aufruf übersehen.
+		await new Promise((resolve) => setTimeout(resolve, 0));
 		expect(reload).not.toHaveBeenCalled();
-		Reflect.deleteProperty(navigator, 'serviceWorker');
 	});
 
 	// AK3 — Reload löst Update aus.

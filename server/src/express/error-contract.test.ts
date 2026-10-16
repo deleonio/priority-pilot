@@ -171,6 +171,7 @@ describe('Fehler-Response-Vertrag: tasks & pillars', () => {
 	// buildTaskForest und findNextImportantTask lesen über Task.findAll; ein erzwungener
 	// Lesefehler löst den catch-/500-Branch in index.ts aus (kein Produktivcode nötig).
 	it('GET /forest bei internem Fehler → 500 mit message', async () => {
+		const ce = mock.method(console, 'error', () => {});
 		const original = Task.findAll;
 		Task.findAll = (async () => {
 			throw new Error('DB kaputt');
@@ -179,10 +180,12 @@ describe('Fehler-Response-Vertrag: tasks & pillars', () => {
 			await expectError(await get('/forest'), 500);
 		} finally {
 			Task.findAll = original;
+			ce.mock.restore();
 		}
 	});
 
 	it('GET /next bei internem Fehler → 500 mit message', async () => {
+		const ce = mock.method(console, 'error', () => {});
 		const original = Task.findAll;
 		Task.findAll = (async () => {
 			throw new Error('DB kaputt');
@@ -191,6 +194,7 @@ describe('Fehler-Response-Vertrag: tasks & pillars', () => {
 			await expectError(await get('/next'), 500);
 		} finally {
 			Task.findAll = original;
+			ce.mock.restore();
 		}
 	});
 

@@ -1,6 +1,7 @@
 import { waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { pullAccountPreferences } from './accountPreferences';
+import { setAppToken } from './appToken';
 import { readAiPreferences, storeAiPreferences } from './aiPreferences';
 import { dismissBalanceHint, readBalancePreferences, storeBalancePreferences } from './balancePreferences';
 import { readExpertMode, storeExpertMode } from './expertMode';
@@ -93,6 +94,22 @@ describe('Konto-Präferenzen im Frontend (#2398)', () => {
 		fetchMock.mockRejectedValue(new Error('offline'));
 		expect(() => storeExpertMode({ expertMode: true })).not.toThrow();
 		expect(localStorage.getItem('pp-expert-mode')).toBe('true');
+	});
+
+	it('AK2 — ausgehende Fetch-Aufrufe tragen den App-Token als Authorization-Header (#2639)', async () => {
+		setAppToken('app-token-2639');
+
+		// GET: Token geht an den Server, sonst kann die App den Kontostand nicht laden.
+		await pullAccountPreferences();
+		expect((fetchMock.mock.calls[0][1] as RequestInit).headers).toMatchObject({
+			Authorization: 'Bearer app-token-2639',
+		});
+
+		// PUT: derselbe Header auf dem Schreibweg.
+		storeExpertMode({ expertMode: true });
+		await waitFor(() => expect(putCalls(fetchMock)).toHaveLength(1));
+		const putCall = fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === 'PUT');
+		expect((putCall?.[1] as RequestInit).headers).toMatchObject({ Authorization: 'Bearer app-token-2639' });
 	});
 
 	it('AK4 — Theme, Kopfzeile, Animationen, Sprach-Autostart und Banner senden nichts ans Konto', async () => {

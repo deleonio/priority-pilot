@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BALANCE_VARIANTS, readBalanceVariant, storeBalanceVariant, useBalanceVariant } from './balanceVariant';
+import { setAppToken } from './appToken';
 
 /**
  * Persistenz der Bildwahl. Geprüft wird vor allem der Weg, der schiefgehen kann: Was passiert bei
@@ -81,6 +82,24 @@ describe('balanceVariant', () => {
 		// Best-Effort: trotz gescheitertem PUT bleibt die Wahl aktiv (State + Spiegel).
 		expect(result.current.variant).toBe('ringe');
 		expect(readBalanceVariant()).toBe('ringe');
+	});
+
+	it('AK2 — der PUT trägt den App-Token als Authorization-Header (#2639)', async () => {
+		setAppToken('app-token-2639');
+		const fetchMock = vi.fn(() => Promise.reject(new TypeError('fetch failed')));
+		vi.stubGlobal('fetch', fetchMock);
+
+		const { result } = renderHook(() => useBalanceVariant());
+		act(() => result.current.setVariant('ringe'));
+		await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1), {
+			timeout: 2000,
+		});
+		const putCall = fetchMock.mock.calls.find(
+			(call) => (call as unknown as [string, RequestInit])[1]?.method === 'PUT',
+		);
+		expect((putCall as unknown as [string, RequestInit])[1].headers).toMatchObject({
+			Authorization: 'Bearer app-token-2639',
+		});
 	});
 
 	it('führt die Varianten in fester Reihenfolge — das Herz zuerst, die Stapel-Bilder nebeneinander', () => {
