@@ -2,9 +2,13 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.27 - 2026-10-16
+
+_Keine für Nutzer sichtbaren Änderungen._
+
 ## v0.26 - 2026-10-15
 
-_Enthält v0.26.0 – v0.26.20._
+_Enthält v0.26.0 – v0.26.21._
 
 ### 🎉 New Features
 
@@ -41,6 +45,7 @@ _Enthält v0.26.0 – v0.26.20._
 - chore(deps): update pi-erweiterungen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2627
 - feat(server): expose balance window count and minimum threshold (#2633) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2647
 - feat(frontend): clarify overdue task completion dialog (#2635) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2650
+- fix(frontend): stable position label for series checklist (#2636) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2652
 
 ## v0.25 - 2026-10-15
 
@@ -212,7 +217,6 @@ _Enthält v0.19.0 – v0.19.19._
 
 ### 🎉 New Features
 
-- feat(frontend): add cookieless matomo to website and web app by @deleonio in https://github.com/deleonio/priority-pilot/pull/2435
 - feat(frontend): add cookieless matomo to website and web app by @deleonio in https://github.com/deleonio/priority-pilot/pull/2435
 
 ### 🐞 Bug Fixes
