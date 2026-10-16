@@ -293,9 +293,9 @@ const enqueueCreation = <T>(run: () => Promise<T>): Promise<T> => {
  * @param charged abgebuchter Betrag und Währung (#2232); ohne gilt der Katalogpreis in EUR.
  * @param transaction Transaktion des Zahlungsereignisses (#2233); der Mailversand folgt erst nach dem Commit.
  *  Ohne sie läuft der Erzeugungsblock in einer eigenen Transaktion (#2236).
- * @param periodStartOverride Beginn des abgerechneten Leistungszeitraums (#2230) — das Periodenende vor der
- *   Verlängerung; ohne Angabe wird er aus dem Periodenende zurückgerechnet (driftet bei Monats-Overflow).
  * @param pdfBuild injizierbarer PDF-Bau (Default: `buildInvoicePdf`) — Test-Seam wie `mailSend` (#2236).
+ * @param periodStartOverride echter Start der bezahlten Periode (Stand vor der Verlängerung, #2654);
+ *   ohne Angabe wird er rückwärts aus `periodEnd` abgeleitet.
  */
 export const issueInvoiceForPeriod = async (
 	subscription: Subscription,
@@ -304,8 +304,8 @@ export const issueInvoiceForPeriod = async (
 	saleId?: string | null,
 	charged?: ChargedAmount,
 	transaction?: Transaction,
-	periodStartOverride?: Date,
 	pdfBuild: typeof buildInvoicePdf = buildInvoicePdf,
+	periodStartOverride?: Date,
 ): Promise<Invoice> => {
 	const subscriptionId = subscription.get('id') as number;
 	const periodEnd = subscription.get('currentPeriodEnd') as Date;
@@ -367,13 +367,11 @@ export const issueInvoiceForPeriod = async (
 	// sie zurück und verbrennt weder Rechnung noch Nummer. Schachteln ist verboten: die
 	// In-Memory-SQLite (`pool.max = 1`) bricht bei verschachtelten Transaktionen ab.
 	const createInvoice = async (tx?: Transaction): Promise<Invoice> => {
-		const periodStart =
-			periodStartOverride ??
-			(() => {
-				const start = new Date(periodEnd);
-				start.setUTCMonth(start.getUTCMonth() - (PERIOD_MONTHS[period] ?? 1));
-				return start;
-			})();
+		// Echter Periodenstart wird vom Zahlungs-Pfad mitgegeben (#2654); die Rückwärtsableitung aus
+		// dem Ende ist bei Monatsübergang (29.–31.) verlustreich und bleibt nur Fallback.
+		const derivedStart = new Date(periodEnd);
+		derivedStart.setUTCMonth(derivedStart.getUTCMonth() - (PERIOD_MONTHS[period] ?? 1));
+		const periodStart = periodStartOverride ?? derivedStart;
 
 		// #1912: Guthaben aus einem Upgrade wird einmalig als eigene Position verrechnet.
 		const availableCents = Number(subscription.get('creditCents') ?? 0);
