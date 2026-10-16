@@ -4,7 +4,11 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.27 - 2026-10-16
 
-_Keine für Nutzer sichtbaren Änderungen._
+_Enthält v0.27.0 – v0.27.1._
+
+### 🚀 Improvements
+
+- docs(skill): disambiguate ticket-coordination progress counting (#2644) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2657
 
 ## v0.26 - 2026-10-15
 
