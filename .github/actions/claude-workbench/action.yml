@@ -43,7 +43,7 @@ runs:
 
     - name: Chromium installieren (Playwright)
       shell: bash
-      # apt/`--with-deps` kann haengen: Frist 10 min (danach KILL), im Fallback
+      # apt/`--with-deps` kann hängen: Frist 10 min (danach KILL), im Fallback
       # ohne Systempakete (der Runner bringt die Chromium-Abhängigkeiten in aller Regel mit).
       run: |
         timeout -k 30s 10m pnpm --filter frontend exec playwright install --with-deps chromium \
