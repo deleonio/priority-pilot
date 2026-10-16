@@ -2412,6 +2412,13 @@ kol-toolbar {
 		flex-wrap: nowrap;
 		justify-content: flex-start;
 	}
+
+	/* #1258 (Desktop-Fortführung): Auch im Einzeilen-Layout bleibt der „…"-Button
+	   konstant am rechten Rand der Controls-Zeile, unabhängig von der Badge-Anzahl
+	   (mobile erreicht das space-between bereits). */
+	.task-tree-actions {
+		margin-left: auto;
+	}
 }
 
 /* #1121: Titel wächst nicht mehr über die volle Zeile — das Globus-Icon steht unmittelbar hinter
