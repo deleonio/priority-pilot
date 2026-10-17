@@ -28,9 +28,8 @@ import { createNativeGoogleRouter } from './routes/nativeGoogle.js';
 import { createPushRouter } from './routes/push.js';
 import { createMailRouter } from './routes/mail.js';
 import { createLlmProvidersRouter } from './routes/llmProviders.js';
-import { geoConfigRouter, resolveGeoUser } from './routes/geoConfig.js';
+import { appSprache, geoConfigRouter, resolveGeoUser } from './routes/geoConfig.js';
 import { pillarTextIn } from '../models/pillarData.js';
-import { spracheAusHeader, spracheVon } from '../logics/careSuggestionData.js';
 import { mcpInstructionsRouter } from './routes/mcpInstructions.js';
 import { careConfigRouter } from './routes/careConfig.js';
 import { splitHintConfigRouter } from './routes/splitHintConfig.js';
@@ -498,12 +497,18 @@ export const createApp = (deps: AppDeps = {}) => {
 		try {
 			const userId = getUserId(req);
 			const next = await findNextBewertung(userId);
+			// #2624 AK2: Leerfall direkt beantworten, bevor resolveGeoUser den Nutzer lädt —
+			// keine Nutzer-Abfrage ohne Treffer.
+			if (!next) {
+				res.json(null);
+				return;
+			}
 			// #1985: Begründungswerte additiv; ohne Anteile entfällt `reasons` komplett.
-			let reasons = next ? toReasons(next) : undefined;
+			let reasons = toReasons(next);
 			// #2523: Säulennamen der Begründung folgen der App-Sprache (`User.sprache`); der
 			// Middleware-Override (`res.locals.saeulenSprache`) hält den Header dagegen.
 			const geoUser = await resolveGeoUser(req);
-			const sprache = geoUser ? spracheVon(geoUser.sprache) : spracheAusHeader(req.get('accept-language'));
+			const sprache = appSprache(geoUser, req);
 			if (reasons?.balance) {
 				reasons = {
 					...reasons,
@@ -514,17 +519,17 @@ export const createApp = (deps: AppDeps = {}) => {
 				res.locals.saeulenSprache = sprache;
 			}
 			// #1994: Aufteilen-Hinweis — unabhängig von den Score-Anteilen, per Nutzer-Schalter abschaltbar.
-			if (next && geoUser?.splitHintEnabled !== false) {
+			if (geoUser?.splitHintEnabled !== false) {
 				const split = await erkenneAufteilenHinweis(next.task, userId);
 				if (split) {
 					reasons = { ...reasons, split };
 				}
 			}
-			res.json(
-				next
-					? { ...serializeTask(next.task), scoreBreakdown: toScoreBreakdown(next), ...(reasons ? { reasons } : {}) }
-					: null,
-			);
+			res.json({
+				...serializeTask(next.task),
+				scoreBreakdown: toScoreBreakdown(next),
+				...(reasons ? { reasons } : {}),
+			});
 		} catch (error) {
 			console.error(`${req.method} ${req.originalUrl}`, error);
 			sendError(res, 500, 'Interner Serverfehler.');

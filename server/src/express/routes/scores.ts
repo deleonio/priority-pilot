@@ -22,7 +22,7 @@ import CareSuggestionDismissal from '../../models/careSuggestionDismissal.js';
 import CareSuggestionRejection from '../../models/careSuggestionRejection.js';
 import type { PillarWithContribution } from '../../models/task.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
-import { resolveGeoUser } from './geoConfig.js';
+import { appSprache, resolveGeoUser } from './geoConfig.js';
 import {
 	PAUSE_VORLAGE_KEY,
 	saeulenBeitraegeFuerZiel,
@@ -32,14 +32,7 @@ import {
 	type CareAufgabe,
 	type CareVorlage,
 } from '../../logics/careSuggestions.js';
-import {
-	CARE_EINSTIEG,
-	CARE_ERMUTIGUNG,
-	CARE_SPRACHEN,
-	spracheAusHeader,
-	spracheVon,
-	type CareSprache,
-} from '../../logics/careSuggestionData.js';
+import { CARE_EINSTIEG, CARE_ERMUTIGUNG, CARE_SPRACHEN, type CareSprache } from '../../logics/careSuggestionData.js';
 import { bewerteCareDefizit, UEBERLAST_MINDEST_ERLEDIGUNGEN, zaehleErledigungen } from '../../logics/careDeficit.js';
 import { protokolliereCareReaktion } from '../../logics/careWirkung.js';
 import type { components } from '../../api';
@@ -64,14 +57,13 @@ const MAX_BALANCE_HISTORY_TAGE = 366;
 const MISSED_TASKS_LIST_LIMIT = 20;
 
 /**
- * Löst die App-Sprache auf (#2523): `?sprache=`-Override zuerst, sonst `User.sprache` des
- * eingeloggten Nutzers, sonst `Accept-Language` (ohne Nutzer wie bisher).
+ * Löst die App-Sprache auf (#2523): `?sprache=`-Override zuerst (exklusiv am Care-Endpunkt),
+ * sonst der geteilte Helper `appSprache` (#2624) — `User.sprache`, sonst `Accept-Language`.
  */
 const loeseSprache = async (req: Request): Promise<CareSprache> => {
 	const override = CARE_SPRACHEN.find((code) => code === req.query.sprache);
 	if (override !== undefined) return override;
-	const user = await resolveGeoUser(req);
-	return user ? spracheVon(user.sprache) : spracheAusHeader(req.get('accept-language'));
+	return appSprache(await resolveGeoUser(req), req);
 };
 
 export const scoresRouter = Router();

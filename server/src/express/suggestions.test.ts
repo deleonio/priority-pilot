@@ -1,7 +1,7 @@
-import { describe, it, beforeEach, after } from 'node:test';
+import { describe, it, beforeEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { UEBERLAST_MINDEST_ERLEDIGUNGEN } from '../logics/careDeficit.js';
-import { Pillar, ScoreEntry, Task, TaskPillar } from '../models/index.js';
+import { Pillar, ScoreEntry, Task, TaskPillar, User } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
 
 /**
@@ -337,6 +337,49 @@ describe('GET /suggestions — Vorschlagsliste (#122)', () => {
 			const next = (await res.json()) as { reasons?: { balance?: { pillars: string[] }; einstieg?: boolean } };
 			assert.deepEqual(next.reasons?.balance, { pillars: ['Körper'] }, 'Defizit-Säule wie bisher');
 			assert.equal(next.reasons?.einstieg, undefined, 'ab der Mindestmenge kein Einstieg-Signal');
+		});
+	});
+
+	/**
+	 * Rote Spec-Tests für #2624 (docs/spec/issue-2624.md): `GET /next` mit leerem Ergebnis
+	 * (`200` + `null`) löst KEINE Nutzer-Auflösung mehr aus — die Route kehrt zurück, bevor
+	 * `resolveGeoUser` (User-Abfrage) läuft. Relativer Vergleich gegen eine Kontroll-Anfrage
+	 * (`/suggestions`), weil die Auth-Middleware selbst User-Abfragen machen könnte. Beide
+	 * Fetches schicken bewusst keinen Cookie: die Suite läuft ohne `applyTestAuthEnv`, Auth ist
+	 * inaktiv — ohne Cookie greift in `resolveGeoUser` der Dev-Fallback (`User.findOne`), dessen
+	 * Abfrage der Früh-Return im Leerfall einspart. Gezählt werden die `resolveGeoUser`-Lese-Pfade
+	 * `User.findByPk` und `User.findOne` (mock.method, Muster error-contract.test.ts).
+	 */
+	describe('GET /next — keine Nutzer-Abfrage im Leerfall (#2624 AK2)', () => {
+		it('200 + null mit gleich vielen Nutzer-Abfragen wie eine Kontroll-Anfrage', async () => {
+			await server.register('sugg-2624-leer@example.com', 'password123');
+
+			const zaehleUserAbfragen = async (path: string): Promise<{ status: number; body: unknown; anzahl: number }> => {
+				const findByPk = mock.method(User, 'findByPk', async () => null);
+				const findOne = mock.method(User, 'findOne', async () => null);
+				try {
+					const res = await fetch(`${server.baseUrl}${path}`);
+					return {
+						status: res.status,
+						body: await res.json(),
+						anzahl: findByPk.mock.callCount() + findOne.mock.callCount(),
+					};
+				} finally {
+					findByPk.mock.restore();
+					findOne.mock.restore();
+				}
+			};
+
+			const kontrolle = await zaehleUserAbfragen('/suggestions');
+			const next = await zaehleUserAbfragen('/next');
+			assert.equal(kontrolle.status, 200);
+			assert.equal(next.status, 200);
+			assert.equal(next.body, null, 'leeres /next liefert null');
+			assert.equal(
+				next.anzahl,
+				kontrolle.anzahl,
+				`ohne Früh-Return löst /next im Leerfall eine Nutzer-Auflösung aus: /next=${next.anzahl}, Kontrolle=${kontrolle.anzahl}`,
+			);
 		});
 	});
 });
