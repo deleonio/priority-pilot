@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.28 - 2026-10-17
 
-_Enthält v0.28.0 – v0.28.8._
+_Enthält v0.28.0 – v0.28.9._
 
 ### 🐞 Bug Fixes
 
@@ -19,6 +19,7 @@ _Enthält v0.28.0 – v0.28.8._
 - docs(arc42): sync architecture doc to current state 2026-10-17 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2678
 - feat(frontend): checkout dialog with address and withdrawal consent by @deleonio in https://github.com/deleonio/priority-pilot/pull/2673
 - fix(deps): update dependency i18next to v26.4.7 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2648
+- ci(cron): prompt audit weekly on friday evening instead of daily by @deleonio in https://github.com/deleonio/priority-pilot/pull/2681
 
 ## v0.27 - 2026-10-17
 
@@ -230,6 +231,7 @@ _Enthält v0.21.0 – v0.21.7._
 
 ### 🚀 Improvements
 
+- feat(server): raise checklist limit from 20 to 50 items (#2462) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2465
 - feat(server): raise checklist limit from 20 to 50 items (#2462) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2465
 
 ### 🔧 Engineering
