@@ -3,17 +3,19 @@ import { expect, test, type Page } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
- * #1258 Desktop-Fortführung (PR #2663): Ab 48rem sitzt der „…"-Popover-Button konstant am
- * rechten Rand der Aufgabenzeile — im Einzeilen-Layout wie in der umbrochenen Controls-Zeile
- * (langer Titel + Badge-Zuwachs, der #376-Fall). boundingBox statt scrollWidth (die App-Shell
- * clippt overflow-x, Muster `issue-1258-tasks-mobile.spec.ts`); Referenz ist `.task-tree-row`
- * als Flex-Container der Zeile.
+ * #1258 Desktop-Fortführung (PR #2663): Der „…"-Popover-Button sitzt konstant am rechten Rand der
+ * Aufgabenzeile — mobil im Zweizeilen-Modell, ab 48rem im Einzeilen-Layout wie in der umbrochenen
+ * Controls-Zeile (langer Titel + Badge-Zuwachs, der #376-Fall). boundingBox statt scrollWidth (die
+ * App-Shell clippt overflow-x, Muster `issue-1258-tasks-mobile.spec.ts`); Referenz ist
+ * `.task-tree-row` als Flex-Container der Zeile.
  *
  * Toleranz: hinter dem Button steht die dauerhaft gemountete Done-Feedback-Live-Region
  * (#2526/#2572) und kostet im Leerzustand den Zeilen-Gap (`--task-tree-row-gap` = 8px) — die
  * Button-Rechtskante darf also höchstens einen Gap vom Zeilenrand entfernt sein. Genau diese
  * Kombination (beide Layouts, beide Kanten) hätte das anfängliche No-Op des `margin-left: auto`
- * im content-sized Controls-Container aufgedeckt.
+ * im content-sized Controls-Container aufgedeckt. Mobil kippt zudem das alte `space-between`, wenn
+ * die leere Region als drittes Flex-Item den Freiraum auf zwei Lücken verteilt (Button in der
+ * Zeilenmitte) — der 375px-Fall pinnt das über denselben Auto-Margin.
  */
 test.describe('Balamentum — Aufgaben-Tab ab 48rem: „…"-Button rechtsbündig', () => {
 	/** Zeilen-Gap (8px) + 1px Rundung. */
@@ -77,7 +79,7 @@ test.describe('Balamentum — Aufgaben-Tab ab 48rem: „…"-Button rechtsbündi
 		const controls = row.locator('.task-tree-row-controls');
 
 		// Vorbedingung Einzeilig: Header und Controls überlappen vertikal (dieselbe Flex-Zeile)
-		// und das Desktop-Layout ist aktiv (mobil wäre justify-content: space-between).
+		// und das Einzeilen-Layout ist aktiv (Header und Controls teilen sich die Zeile).
 		await expect
 			.poll(async () => {
 				const headerBox = await header.boundingBox();
@@ -115,7 +117,7 @@ test.describe('Balamentum — Aufgaben-Tab ab 48rem: „…"-Button rechtsbündi
 		const controls = row.locator('.task-tree-row-controls');
 
 		// Vorbedingung Umbruch: die Controls-Zeile liegt GANZ unter dem Header und das
-		// Desktop-Layout ist aktiv (mobil wäre justify-content: space-between).
+		// Einzeilen-Layout ist aktiv.
 		await expect
 			.poll(async () => {
 				const headerBox = await header.boundingBox();
@@ -127,5 +129,40 @@ test.describe('Balamentum — Aufgaben-Tab ab 48rem: „…"-Button rechtsbündi
 		expect(await controls.evaluate((el) => getComputedStyle(el).justifyContent)).toBe('flex-start');
 
 		await expectRightAligned(row, row.locator('.task-tree-actions'));
+	});
+
+	test('Mobil (375px): „…"-Button an der Zeilen-Rechtskante trotz leerer Feedback-Region', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		// Der Regressionfall zum space-between-Kippen: die leere Done-Feedback-Region (#2526) ist das
+		// dritte Flex-Item der Controls-Zeile — unterschiedliche Badge-Breiten dürfen den Button
+		// nicht in die Zeilenmitte rücken. Zwei Aufgaben mit schmaler bzw. breiter Badge-Zeile.
+		const category = await page.request.post('/api/v1/categories', {
+			data: { name: 'E2E-Rechts-Mobil', color: '#1064d0' },
+		});
+		expect(category.ok()).toBeTruthy();
+		const categoryId = ((await category.json()) as { id: number }).id;
+		const checklist = [1, 2].map((number) => ({ id: crypto.randomUUID(), title: `Punkt ${number}` }));
+		const narrowId = await createTaskViaApi(page, { title: 'Mobil schmal', priority: 3 });
+		const wideId = await createTaskViaApi(page, { title: 'Mobil breit', priority: 3, categoryId, checklist });
+		await page.goto('/app/');
+		await waitForStableView(page);
+		await openTasksView(page);
+
+		// Vorbedingung Zweizeilen-Modell: die Controls-Zeile liegt GANZ unter dem Header.
+		for (const id of [narrowId, wideId]) {
+			const row = page.getByTestId(`task-list-item-${id}`);
+			await expect(row).toBeVisible();
+			const header = row.locator('.task-tree-row-header');
+			const controls = row.locator('.task-tree-row-controls');
+			await expect
+				.poll(async () => {
+					const headerBox = await header.boundingBox();
+					const controlsBox = await controls.boundingBox();
+					if (headerBox === null || controlsBox === null) return false;
+					return controlsBox.y >= headerBox.y + headerBox.height - 1;
+				})
+				.toBe(true);
+			await expectRightAligned(row, row.locator('.task-tree-actions'));
+		}
 	});
 });
