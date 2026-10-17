@@ -4,7 +4,11 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.28 - 2026-10-17
 
-_Keine für Nutzer sichtbaren Änderungen._
+_Enthält v0.28.0 – v0.28.1._
+
+### Other Changes
+
+- fix(frontend): keep task list popover button right-aligned on mobile by @deleonio in https://github.com/deleonio/priority-pilot/pull/2669
 
 ## v0.27 - 2026-10-17
 
