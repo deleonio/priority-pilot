@@ -86,7 +86,8 @@
 		"book": "Buchen",
 		"change": "Wechseln",
 		"bookLabel": "{{plan}} buchen ({{period}})",
-		"changeLabel": "{{plan}} wechseln ({{period}})"
+		"changeLabel": "{{plan}} wechseln ({{period}})",
+		"order": "Bestellen"
 	},
 	"address": {
 		"required": "Rechnungsadresse",
@@ -199,5 +200,11 @@
 		"emailInvalid": "Bitte eine gültige E-Mail-Adresse angeben.",
 		"busy": "Wird gekündigt…",
 		"confirm": "Jetzt kündigen"
+	},
+	"checkoutDialog": {
+		"title": "{{plan}} ({{period}}) bestellen",
+		"intro": "Du bist dabei, das Paket {{plan}} ({{period}}) zu bestellen. Rechnungsadresse und Widerrufs-Zustimmung werden vor dem Weiterleiten zum Zahlungsanbieter geprüft.",
+		"addressCreate": "Rechnungsadresse anlegen",
+		"addressEdit": "Rechnungsadresse bearbeiten"
 	}
 }
