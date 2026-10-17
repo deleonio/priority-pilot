@@ -344,8 +344,10 @@ describe('GET /suggestions — Vorschlagsliste (#122)', () => {
 	 * Rote Spec-Tests für #2624 (docs/spec/issue-2624.md): `GET /next` mit leerem Ergebnis
 	 * (`200` + `null`) löst KEINE Nutzer-Auflösung mehr aus — die Route kehrt zurück, bevor
 	 * `resolveGeoUser` (User-Abfrage) läuft. Relativer Vergleich gegen eine Kontroll-Anfrage
-	 * ohne Nutzer-Auflösung (`/suggestions`, gleicher Cookie), weil die Auth-Middleware selbst
-	 * User-Abfragen machen könnte. Gezählt werden die `resolveGeoUser`-Lese-Pfade
+	 * (`/suggestions`), weil die Auth-Middleware selbst User-Abfragen machen könnte. Beide
+	 * Fetches schicken bewusst keinen Cookie: die Suite läuft ohne `applyTestAuthEnv`, Auth ist
+	 * inaktiv — ohne Cookie greift in `resolveGeoUser` der Dev-Fallback (`User.findOne`), dessen
+	 * Abfrage der Früh-Return im Leerfall einspart. Gezählt werden die `resolveGeoUser`-Lese-Pfade
 	 * `User.findByPk` und `User.findOne` (mock.method, Muster error-contract.test.ts).
 	 */
 	describe('GET /next — keine Nutzer-Abfrage im Leerfall (#2624 AK2)', () => {

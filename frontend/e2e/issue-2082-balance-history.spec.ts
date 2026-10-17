@@ -21,32 +21,51 @@ const erledigeAufgabe = async (page: Page, title: string): Promise<void> => {
 	expect((await page.request.patch(`/api/v1/tasks/${task.id}`, { data: { status: 'Done' } })).ok()).toBeTruthy();
 };
 
+/** Zahl vor dem Prozentzeichen — Start-/Endwert der Card (Label kann eigene Ziffern enthalten, „Vor 28 Tagen“). */
+const zahlAus = (text: string): number => Number(/\d+(?=\s*%)/.exec(text)?.[0]);
+
 test.describe('Balamentum — #2082: Füllstand-Verlauf', () => {
 	test('AK3 — Start- und Endwert der Card stimmen mit dem Verlauf-Endpunkt überein', async ({ page }) => {
 		await registerOwnSession(page, 'balance-history-2082');
 		await erledigeAufgabe(page, 'E2E 2082 erledigt');
 
-		const heute = new Date();
-		const von = new Date(heute);
-		von.setDate(von.getDate() - 27);
-		const tz = await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
-		const res = await page.request.get('/api/v1/scores/balance/history', {
-			params: { von: iso(von), bis: iso(heute), tz },
-		});
-		expect(res.ok()).toBeTruthy();
-		const verlauf = (await res.json()) as Eintrag[];
-		expect(verlauf).toHaveLength(28);
+		// UTC-fest: Die Card berechnet ihr Zeitfenster (bis = „heute“) selbst beim Mount. Läuft der
+		// Test über eine Mitternachtsgrenze, fragen Test und Card nach verschiedenen Tagen. Deshalb
+		// wird der Endpunkt VOR und NACH dem Card-Laden abgefragt — der Card-Mount liegt garantiert
+		// zwischen den beiden Abfragen, und die Card muss zu einem der beiden Fenster passen.
+		const holeVerlauf = async (): Promise<Eintrag[]> => {
+			const bis = new Date();
+			const von = new Date(bis);
+			von.setDate(von.getDate() - 27);
+			const tz = await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
+			const res = await page.request.get('/api/v1/scores/balance/history', {
+				params: { von: iso(von), bis: iso(bis), tz },
+			});
+			expect(res.ok()).toBeTruthy();
+			const verlauf = (await res.json()) as Eintrag[];
+			expect(verlauf).toHaveLength(28);
+			return verlauf;
+		};
+
+		const verlaufVorher = await holeVerlauf();
 
 		await page.goto('/app/');
 		await waitForStableView(page);
 		const card = page.getByTestId('balance-history-card');
 		await expect(card).toBeVisible();
-		await expect(card.getByTestId('balance-history-start')).toContainText(
-			String(Math.round(verlauf[0].fuellstandProzent)),
-		);
-		await expect(card.getByTestId('balance-history-end')).toContainText(
-			String(Math.round(verlauf[27].fuellstandProzent)),
-		);
+		const startEl = card.getByTestId('balance-history-start');
+		const endEl = card.getByTestId('balance-history-end');
+		// Beide Testids existieren nur im geladenen Daten-Zweig der Card (nicht bei Spin/Fehler/leer).
+		await expect(endEl).toContainText(/\d/);
+		const gelesen = { start: zahlAus(await startEl.innerText()), ende: zahlAus(await endEl.innerText()) };
+		const stimmtMit = (verlauf: Eintrag[]): boolean =>
+			gelesen.start === Math.round(verlauf[0].fuellstandProzent) &&
+			gelesen.ende === Math.round(verlauf[27].fuellstandProzent);
+		expect(
+			stimmtMit(verlaufVorher) || stimmtMit(await holeVerlauf()),
+			`Card-Werte ${JSON.stringify(gelesen)} passen zu keinem Verlauf-Fenster (alt: ` +
+				`${verlaufVorher[0].fuellstandProzent} % → ${verlaufVorher[27].fuellstandProzent} %)`,
+		).toBe(true);
 		await expect(card.getByTestId('balance-history-trend')).toContainText(/Aufwärts|Abwärts|Stabil/);
 	});
 
