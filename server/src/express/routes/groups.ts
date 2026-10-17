@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { Op, Transaction } from 'sequelize';
-import { parseId, sendError, type ErrorDto } from '../http-error.js';
+import { parseId, sendError, logUrl, type ErrorDto } from '../http-error.js';
 import {
 	Group,
 	GroupChallenge,
@@ -148,7 +148,7 @@ groupsRouter.post('/groups', requirePlanFeature('groups'), async (req: Request, 
 		});
 		res.status(201).json(await toDto(created, 'admin'));
 	} catch (error) {
-		console.error(`${req.method} ${req.originalUrl}`, error);
+		console.error(`${req.method} ${logUrl(req)}`, error);
 		sendError(res, 500, 'Interner Serverfehler.');
 	}
 });
