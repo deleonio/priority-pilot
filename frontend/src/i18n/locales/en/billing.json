@@ -86,7 +86,8 @@
 		"book": "Book",
 		"change": "Switch",
 		"bookLabel": "Book {{plan}} ({{period}})",
-		"changeLabel": "Switch to {{plan}} ({{period}})"
+		"changeLabel": "Switch to {{plan}} ({{period}})",
+		"order": "Order"
 	},
 	"address": {
 		"required": "Billing address",
@@ -199,5 +200,11 @@
 		"emailInvalid": "Please enter a valid email address.",
 		"busy": "Cancelling…",
 		"confirm": "Cancel now"
+	},
+	"checkoutDialog": {
+		"title": "Order {{plan}} ({{period}})",
+		"intro": "You are about to order the {{plan}} plan ({{period}}). Billing address and withdrawal consent are checked before redirecting to the payment provider.",
+		"addressCreate": "Add billing address",
+		"addressEdit": "Change billing address"
 	}
 }
