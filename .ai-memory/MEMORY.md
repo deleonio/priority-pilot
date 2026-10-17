@@ -307,3 +307,9 @@ Konflikte, die er verhindern soll.
 - 2026-10-16 · Server-Tests — billing-period-start.test.ts AK4 (#2230) war am 16.10.2026 datumabhängig rot (now+15d fiel auf den 31.10., setUTCMonth-Round-Trip verfehlte den Tag); behoben über fixes Referenzdatum auf dem main (#2654/#2657) — Eintrag veraltet streichen, siehe Review Nit PR #2659.
 - 2026-10-16 · Server-Tests/Datum — billing-period-start-Tests (#2230): periodStart = periodEnd − 1 Monat per setUTCMonth ist an Monatsenden kein Roundtrip (31.10. → 1.12. → 1.11.), Assertions „periodStart ≈ Start/chargedAt" werden deterministisch rot (rote Fenster: alle Tag-31 + Jan 29-31; nächstes 31.10.) → im Test die Startdauer auf Tag ≤ 28 klemmen — nur heilbar, wo der Test die Basisdauer der Logik stellt (currentPeriodEnd), nicht bei chargedAt = new Date() (dort nutzt die Logik echte Server-Zeit).
 - 2026-10-15 · CI/Spec-Phase — pi-subagents kennt `.claude/agents/*`-Rollen nicht (`Unknown agent: gate-runner`); die ADR-0008-Test-Delegation läuft stattdessen über den builtin-Agenten `delegate` mit Gate-Runner-Briefing im Task (Report-Vertrag: nur command/exit/signature).
+- 2026-10-17 · Vitest/openapi-fetch — ein global.fetch-Mock sieht `client.POST`-Aufrufe NIE:
+  `createClient` (frontend/src/api.ts:102) captured fetch beim Modul-Load, der Root-Verify-Test
+  blieb rot ("URL nie captured") → API-Fassade per `vi.mock('./api')` ersetzen; alle Methoden
+  angeben, die der gerenderte Baum nutzt (LoginPage braucht getAuthProviders, sonst crashen drei
+  Bestands-Tests). Komponenten-Grep auf `api\.` reicht nicht — zeilenübergreifende Ketten
+  (`api` … `.getAuthProviders()`) per Import-Lektüre finden.
