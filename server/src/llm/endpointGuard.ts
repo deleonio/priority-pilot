@@ -38,10 +38,11 @@ const isInternal = (address: string): boolean => internal.check(address, isIP(ad
 export const INTERNAL_ENDPOINT_MESSAGE = 'endpoint darf nicht auf eine interne Adresse zeigen.';
 
 /**
- * `false`, wenn der Host der URL auf eine interne Adresse zeigt. Nicht auflösbare Hosts gelten als
- * öffentlich: Der Abruf scheitert dann ohnehin, und Tests laufen ohne DNS.
+ * `false`, wenn der Host der URL auf eine interne Adresse zeigt. Nicht auflösbare Hosts gelten
+ * als nicht öffentlich (fail-closed, #2685): Der Abruf wird abgelehnt und die Ursache geloggt.
+ * `lookupFn` ist injizierbar, damit Tests ohne DNS laufen (Muster `fetchIcs`).
  */
-export const isPublicEndpoint = async (url: string): Promise<boolean> => {
+export const isPublicEndpoint = async (url: string, lookupFn: typeof lookup = lookup): Promise<boolean> => {
 	let host: string;
 	try {
 		host = new URL(url).hostname.replace(/^\[|\]$/g, '');
@@ -50,10 +51,11 @@ export const isPublicEndpoint = async (url: string): Promise<boolean> => {
 	}
 	if (isIP(host) !== 0) return !isInternal(host);
 	try {
-		const addresses = await lookup(host, { all: true });
+		const addresses = await lookupFn(host, { all: true });
 		return addresses.every(({ address }) => !isInternal(address));
-	} catch {
-		return true;
+	} catch (error) {
+		console.error(`endpointGuard: Host ${host} nicht auflösbar — Endpoint abgelehnt.`, error);
+		return false;
 	}
 };
 
