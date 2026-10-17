@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react';
 import fragmentSource from './balance-figure.frag?raw';
 import {
+	auftaktStand,
 	buildArcs,
 	buildHands,
 	buildOrbs,
 	buildPetals,
 	buildRays,
 	buildWedges,
-	RISE_DURATION,
 	targetRadius,
 	type FigureMotion,
 } from '../lib/balanceFigure';
@@ -51,6 +51,13 @@ interface BalanceFigureGLProps {
 	beatSeconds: number;
 	/** Bewegung erlauben (beide Animationsschalter + OS-Einstellung). */
 	animated: boolean;
+	/**
+	 * Freigabe des Auftakts: Fehlt der echte Balance-Stand noch (die Antwort von
+	 * `GET /scores/balance`), hält die Engine den Auftakt auf 0 — das Zifferblatt bleibt leer,
+	 * statt erst auf den lokalen Notwert zu wachsen und dort die Zielmarke zu wechseln.
+	 * `undefined` = freigegeben (Aufrufe ohne Server-Kopplung).
+	 */
+	auftaktBereit?: boolean;
 	/** Zugängliches Label der Grafik (dieselbe Formel wie das SVG-`aria-label`). */
 	ariaLabel: string;
 	/** Wird gerufen, wenn WebGL nicht aufgebaut werden kann — die Bühne fällt aufs SVG zurück. */
@@ -281,8 +288,10 @@ export const toSlots = (
 interface FigureEngine {
 	/** Uniforms neu setzen (Figur/Werte/Theme) und ggf. ein Standbild zeichnen. */
 	update: (state: FigureState, colors: ThemeColors) => void;
-	/** Render-Loop-Politik neu bewerten (Animation an/aus). */
+	/** Loop-Politik neu bewerten (Animation an/aus). */
 	setLooping: (animated: boolean) => void;
+	/** Auftakt freigeben oder erneut zurückhalten; die Freigabe startet ihn in dieser Sekunde. */
+	setAuftaktBereit: (bereit: boolean) => void;
 	/** GPU-Ressourcen freigeben — gehört zum Effect-Cleanup dazu. */
 	destroy: () => void;
 }
@@ -394,6 +403,10 @@ const createEngine = (canvas: HTMLCanvasElement): FigureEngine => {
 	let animated = false;
 	let visible = true;
 	let pageVisible = !document.hidden;
+	// Auftakt: gehalten, bis der erste echte Stand freigegeben wird — dann beginnt er in dieser
+	// Shader-Sekunde und läuft einmalig auf den echten Wert statt auf einen lokalen Notwert.
+	let riseStart = 0;
+	let aufgeschoben = true;
 
 	const draw = (): void => {
 		resize();
@@ -402,9 +415,10 @@ const createEngine = (canvas: HTMLCanvasElement): FigureEngine => {
 		 * Auftakt nur, solange die Loop ihn auch abspielen kann. Ein Standbild zeigt immer den
 		 * **fertigen** Stand: Wird das Dashboard in einem Hintergrund-Tab aufgebaut, läuft nie ein
 		 * Frame — ein an die Shader-Uhr gebundener Auftakt bliebe dort auf 0 stehen und das Bild wäre
-		 * leer statt fertig.
+		 * leer statt fertig. Nur der gehaltene Auftakt (echter Stand fehlt) lässt auch das Standbild
+		 * leer — es gibt noch nichts Fertiges zu zeigen.
 		 */
-		gl.uniform1f(locations.rise, looping ? Math.min(1, shaderTime / RISE_DURATION) : 1);
+		gl.uniform1f(locations.rise, auftaktStand(shaderTime, riseStart, !aufgeschoben, looping));
 		gl.clearColor(0, 0, 0, 0);
 		gl.clear(gl.COLOR_BUFFER_BIT);
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -530,6 +544,12 @@ const createEngine = (canvas: HTMLCanvasElement): FigureEngine => {
 			gl.uniform1i(locations.animated, next ? 1 : 0);
 			ensureLoop();
 		},
+		setAuftaktBereit: (bereit) => {
+			if (bereit !== !aufgeschoben) return;
+			if (bereit) riseStart = shaderTime; // Der Auftakt beginnt in dieser Sekunde.
+			aufgeschoben = !bereit;
+			if (!looping) draw(); // Standbild nachziehen; die laufende Loop greift im nächsten Frame.
+		},
 		destroy,
 	};
 };
@@ -540,18 +560,20 @@ export const BalanceFigureGL = ({
 	activeTicks,
 	beatSeconds,
 	animated,
+	auftaktBereit,
 	ariaLabel,
 	onGiveUp,
 }: BalanceFigureGLProps) => {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const engineRef = useRef<FigureEngine | null>(null);
 	// Letzter Datenstand — nach einer Kontext-Wiederherstellung neu in den neuen Zustand spielen.
-	const stateRef = useRef<FigureState & { animated: boolean }>({
+	const stateRef = useRef<FigureState & { animated: boolean; auftaktBereit: boolean }>({
 		figure,
 		metrics,
 		activeTicks,
 		beatSeconds,
 		animated,
+		auftaktBereit: auftaktBereit !== false,
 	});
 
 	useEffect(() => {
@@ -573,6 +595,7 @@ export const BalanceFigureGL = ({
 				const engine = createEngine(canvas);
 				engineRef.current = engine;
 				engine.setLooping(stateRef.current.animated);
+				engine.setAuftaktBereit(stateRef.current.auftaktBereit);
 				engine.update(stateRef.current, readThemeColors());
 			} catch {
 				onGiveUp();
@@ -601,11 +624,18 @@ export const BalanceFigureGL = ({
 		engineRef.current?.setLooping(animated);
 	}, [animated]);
 
+	// Auftakt-Politik: Ohne Bewegung zeigt das Standbild sofort den fertigen Stand — zurückgehalten
+	// wird nur bei laufender Animation, bis der erste echte Stand freigegeben wird.
+	useEffect(() => {
+		stateRef.current.auftaktBereit = auftaktBereit !== false;
+		engineRef.current?.setAuftaktBereit(!(auftaktBereit === false && animated));
+	}, [auftaktBereit, animated]);
+
 	// Daten und Theme in die Uniforms — bei laufender Loop greift der nächste Frame, sonst Standbild.
 	useEffect(() => {
-		stateRef.current = { figure, metrics, activeTicks, beatSeconds, animated };
+		stateRef.current = { figure, metrics, activeTicks, beatSeconds, animated, auftaktBereit: auftaktBereit !== false };
 		engineRef.current?.update({ figure, metrics, activeTicks, beatSeconds }, readThemeColors());
-	}, [figure, metrics, activeTicks, beatSeconds, animated]);
+	}, [figure, metrics, activeTicks, beatSeconds, animated, auftaktBereit]);
 
 	/*
 	 * Theme-Wechsel nachziehen: Die Farben stehen als Uniforms in der GPU, nicht als CSS — ein
