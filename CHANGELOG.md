@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.28 - 2026-10-17
 
-_Enthält v0.28.0 – v0.28.9._
+_Enthält v0.28.0 – v0.28.10._
 
 ### 🐞 Bug Fixes
 
@@ -20,6 +20,7 @@ _Enthält v0.28.0 – v0.28.9._
 - feat(frontend): checkout dialog with address and withdrawal consent by @deleonio in https://github.com/deleonio/priority-pilot/pull/2673
 - fix(deps): update dependency i18next to v26.4.7 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2648
 - ci(cron): prompt audit weekly on friday evening instead of daily by @deleonio in https://github.com/deleonio/priority-pilot/pull/2681
+- fix(android): embed native debug symbols in the release aab by @deleonio in https://github.com/deleonio/priority-pilot/pull/2682
 
 ## v0.27 - 2026-10-17
 
@@ -232,7 +233,6 @@ _Enthält v0.21.0 – v0.21.7._
 ### 🚀 Improvements
 
 - feat(server): raise checklist limit from 20 to 50 items (#2462) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2465
-- feat(server): raise checklist limit from 20 to 50 items (#2462) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2465
 
 ### 🔧 Engineering
 
@@ -400,6 +400,7 @@ _Enthält v0.17.0 – v0.17.45._
 
 - refactor(frontend): extract share-card rasterization into shared helper by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2273
 - test(e2e): fix shard isolation in #2221 and #763 specs by @deleonio in https://github.com/deleonio/priority-pilot/pull/2290
+- test: cover invitation auto-allow of unknown emails (#2223) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2288
 - test: cover invitation auto-allow of unknown emails (#2223) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2288
 - test(server): freeze time in #2143 proration AK3 test (#2279) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2297
 - fix(ci): arm spec-phase soft-abort on hard deadline by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2337
