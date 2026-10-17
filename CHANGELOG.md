@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.28 - 2026-10-17
 
-_Enthält v0.28.0 – v0.28.2._
+_Enthält v0.28.0 – v0.28.3._
 
 ### 🐞 Bug Fixes
 
@@ -13,6 +13,7 @@ _Enthält v0.28.0 – v0.28.2._
 ### Other Changes
 
 - fix(frontend): keep task list popover button right-aligned on mobile by @deleonio in https://github.com/deleonio/priority-pilot/pull/2669
+- fix(frontend): start balance dial rise only with the real server value by @deleonio in https://github.com/deleonio/priority-pilot/pull/2676
 
 ## v0.27 - 2026-10-17
 
@@ -287,7 +288,6 @@ _Enthält v0.19.0 – v0.19.19._
 - feat(frontend): move missed tasks into dashboard grid, unify gap by @deleonio in https://github.com/deleonio/priority-pilot/pull/2450
 - feat(native): sign in natively via Credential Manager instead of browser by @deleonio in https://github.com/deleonio/priority-pilot/pull/2451
 - fix(server): exempt app channel from CSRF so native sign-in completes by @deleonio in https://github.com/deleonio/priority-pilot/pull/2452
-- fix(server): allow app request headers in CORS preflight by @deleonio in https://github.com/deleonio/priority-pilot/pull/2454
 - fix(server): allow app request headers in CORS preflight by @deleonio in https://github.com/deleonio/priority-pilot/pull/2454
 
 ## v0.18 - 2026-10-08
