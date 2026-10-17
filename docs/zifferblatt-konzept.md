@@ -84,7 +84,7 @@ trägt weiterhin in beide Komponenten dieselbe Unterdeckung bei und widerspricht
 | Zifferblatt innen   | `RING_INNER = 40`               | Strichlängen 5 bzw. 7,5 (Zehner-Marke)                            |
 | Figurenfeld außen   | `FIGURE_MAX = 33`               | plus Schwingungsreserve 12 % → 37 < 40, nichts läuft in die Skala |
 | Kleinste Form       | `R_MIN = 8`                     | eine Säule ohne Ziel darf nicht verschwinden                      |
-| Auftakt             | `RISE_DURATION = 1,4 s`         | einmalig, `easeOutCubic`                                          |
+| Auftakt             | `RISE_DURATION = 1,4 s`         | einmalig, `easeOutCubic`; startet mit dem ersten Server-Stand     |
 | Ruhepuls            | `1,5–2,6 s` je nach Balance     | `--pp-heart-beat`; ruhiger, je ausgewogener                       |
 | Schwingung je Säule | `6,5–9,9 s`, Phase golden       | damit gleich große Formen unterscheidbar bleiben                  |
 | Drehung je Säule    | `19–26,5 s`, Richtung wechselnd | dasselbe                                                          |
@@ -103,7 +103,9 @@ Winkel) und eine eigene Periode. `balanceFigure.test.ts` nagelt das fest.
 sichtbar und der Tab im Vordergrund ist. Ein aus `u_time` abgeleiteter Auftakt steht bei einem
 Standbild auf 0 — und das Bild ist leer statt fertig (genau der Fall „Dashboard im Hintergrund-Tab
 geöffnet"). Der Fortschritt kommt deshalb als Uniform `u_rise` aus der Komponente, und ein Standbild
-setzt ihn auf 1.
+setzt ihn auf 1. Bis zur ersten Balance-Antwort (`GET /scores/balance`) hält die Komponente den
+Auftakt auf 0 — das Bild wächst einmalig auf den echten Stand, nicht erst auf den lokalen Notwert;
+das leere Zifferblatt ist in diesem Moment wartender Zustand, nicht Fehler.
 
 ## 6. Die Zifferblätter heute
 

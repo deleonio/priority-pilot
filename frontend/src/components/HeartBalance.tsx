@@ -45,6 +45,12 @@ interface HeartBalanceProps {
 	 * an Erledigungen nicht erreicht ist. `undefined` (Server-Felder fehlen) = bisheriges Verhalten.
 	 */
 	urteilsreif?: boolean;
+	/**
+	 * Freigabe des Auftakts der Figuren: `false` hält die GL-Fassung leer, bis der echte
+	 * Balance-Stand aus `fill` da ist — sonst wächst das Bild erst auf den lokalen Notwert und
+	 * wechselt dort mitten in den Auftakt auf den echten Wert (Doppel-Animation).
+	 */
+	auftaktBereit?: boolean;
 }
 
 /** Ganze Prozent für die Anzeige (die Rechnung selbst bleibt ungerundet). */
@@ -53,7 +59,7 @@ const asPercent = (share: number): number => Math.round(share * 100);
 /** Ab dieser Abweichung ist eine Säule keine Delle mehr, sondern eine Schieflage (Prozentpunkte). */
 const DELTA_STARK = 5;
 
-export const HeartBalance = ({ pillars, punkteProSaeule, fill, urteilsreif }: HeartBalanceProps) => {
+export const HeartBalance = ({ pillars, punkteProSaeule, fill, urteilsreif, auftaktBereit }: HeartBalanceProps) => {
 	const balance = useMemo(() => {
 		const lokal = buildHeartBalance(pillars, punkteProSaeule);
 		return fill === undefined ? lokal : { ...lokal, fill };
@@ -95,12 +101,14 @@ export const HeartBalance = ({ pillars, punkteProSaeule, fill, urteilsreif }: He
 				style={{ '--pp-heart-beat': `${beatSeconds.toFixed(2)}s` } as CSSProperties}
 			>
 				{variant === 'herz' ? (
+					/* Das Herz hat keinen Auftakt — sein Füllstand steht sofort, ohne Einfahren. */
 					<HeartVessel balance={balance} animated={animated} ariaLabel={ariaLabel} />
 				) : (
 					<BalanceFigure
 						balance={balance}
 						figure={variant}
 						animated={animated}
+						auftaktBereit={auftaktBereit}
 						beatSeconds={beatSeconds}
 						ariaLabel={ariaLabel}
 					/>

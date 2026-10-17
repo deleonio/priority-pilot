@@ -72,6 +72,18 @@ export const SWING = 0.12;
 /** Auftakt: die Figuren wachsen einmalig auf ihren Stand, der Ring zieht sich auf (Sekunden). */
 export const RISE_DURATION = 1.4;
 
+/**
+ * Fortschritt des Auftakts (0–1). Gehalten (der echte Stand liegt noch nicht vor) bleibt das Bild
+ * leer; nach der Freigabe läuft die Dauer ab dem Freigabe-Moment — ein Standbild zeigt sofort den
+ * fertigen Stand, wie es die Still-Regel des Zifferblatts verlangt.
+ */
+export const auftaktStand = (
+	shaderSekunden: number,
+	startSekunden: number,
+	freigegeben: boolean,
+	lauft: boolean,
+): number => (!freigegeben ? 0 : lauft ? clamp01((shaderSekunden - startSekunden) / RISE_DURATION) : 1);
+
 /** Innerer Rand des Ringfelds — die Mitte bleibt frei, sonst laufen die Bögen dort zusammen. */
 const ARC_INNER = 11;
 /** Anteil der verfügbaren Spur, den ein Bogen ausfüllt; der Rest ist Luft zwischen den Ringen. */
