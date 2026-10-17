@@ -1,31 +1,30 @@
-import { KolAlert, KolButton, KolInputCheckbox, KolLink } from '@public-ui/react-v19';
+import { KolAlert, KolButton } from '@public-ui/react-v19';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import i18next from '../i18n/config';
 import { toApiError } from '../lib/apiError';
-import { legalPath } from '../lib/operator';
 import { periodLabel, planLabel, type Period, type Plan } from '../lib/planOffers';
 import { usePlan } from '../lib/usePlan';
-import { BillingAddressForm } from './BillingAddressForm';
 import type { PurchaseUi } from './billingChannel';
+import { CheckoutDialog } from './CheckoutDialog';
 import { BillingReturnWait, ChangeDialog } from './PaypalDialogs';
 
-/** Zeitpunkte im Weiterführen-Label als „TT.MM.JJJJ" (Muster `SubscriptionSection.tsx`). */
+/** Zeitpunkte im Weiterführen-Label als „TT.MM.JJJJ“ (Muster `SubscriptionSection.tsx`). */
 const formatDate = (iso: string): string => new Date(iso).toLocaleDateString(i18next.language);
 
 /**
- * Kaufweg im Kanal `web`: Buchen und Wechseln über die PayPal-Abo-Routen (#1505/#1506). Der
- * angezeigte Plan ändert sich erst, wenn `/auth/me` ihn liefert (#1496 AK3/AK4).
+ * Kaufweg im Kanal `web`: Bestellen und Wechseln über die PayPal-Abo-Routen (#1505/#1506). Der
+ * angezeigte Plan ändert sich erst, wenn `/auth/me` ihn liefert (#1496 AK3/AK4). Der Bestell-Knopf
+ * öffnet erst den Checkout-Dialog (#2661): Rechnungsadresse und Widerrufs-Zustimmung werden dort
+ * gesammelt, bevor es zum Zahlungsanbieter geht.
  */
 export const usePaypalPurchase = (): PurchaseUi => {
-	const { t, i18n } = useTranslation(['billing', 'messages']);
+	const { t } = useTranslation(['billing', 'messages']);
 	const { plan, subscription, refresh } = usePlan();
-	// Zustimmung zum sofortigen Leistungsbeginn (#2307): eine gemeinsame, nicht vorbelegte Checkbox
-	// schaltet alle Buchen-Knöpfe frei.
-	const [withdrawalConsent, setWithdrawalConsent] = useState(false);
 	const [bookingKey, setBookingKey] = useState<string | null>(null);
 	const [actionError, setActionError] = useState<string | null>(null);
+	const [orderTarget, setOrderTarget] = useState<{ plan: Exclude<Plan, 'free'>; period: Period } | null>(null);
 	const [changeTarget, setChangeTarget] = useState<{ plan: Exclude<Plan, 'free'>; period: Period } | null>(null);
 	// Nach dem Wechsel ohne `approvalUrl`: Upgrade → auf Plan-Bestätigung pollen; sonst Hinweis auf
 	// die Wirkung zum Periodenende — ein Plan-Poll liefe bei Downgrade/Zeitraumwechsel in den Timeout.
@@ -34,7 +33,7 @@ export const usePaypalPurchase = (): PurchaseUi => {
 	);
 
 	// Gekündigt mit Restlaufzeit (#2049): die Zeile des eigenen Pakets führt das Abo ab dem
-	// Periodenende fort — der einzige Einstieg für „Abo weiterführen", das Startdatum steht im Label.
+	// Periodenende fort — der einzige Einstieg für „Abo weiterführen“, das Startdatum steht im Label.
 	const resumable =
 		subscription !== null &&
 		subscription !== undefined &&
@@ -63,13 +62,13 @@ export const usePaypalPurchase = (): PurchaseUi => {
 	};
 
 	const actionCell = (targetPlan: Exclude<Plan, 'free'>, period: Period) => {
-		// `undefined` heißt „Abo-Status noch nicht geladen" (usePlanState hat /auth/me noch nicht
-		// beantwortet) — bis dahin lieber keine Aktion zeigen als fälschlich „Buchen" (kein Abo) oder
-		// „Wechseln" (Abo vorhanden) zu behaupten.
+		// `undefined` heißt „Abo-Status noch nicht geladen“ (usePlanState hat /auth/me noch nicht
+		// beantwortet) — bis dahin lieber keine Aktion zeigen als fälschlich „Bestellen“ (kein Abo)
+		// oder „Wechseln“ (Abo vorhanden) zu behaupten.
 		if (subscription === undefined) {
 			return { text: '', node: null };
 		}
-		// Ein offener Checkout ist kein Paket (#2235): es gilt das bezahlte bzw. „Buchen".
+		// Ein offener Checkout ist kein Paket (#2235): es gilt das bezahlte bzw. „Bestellen“.
 		const paid = subscription?.status === 'approval_pending' ? null : subscription;
 		if (paid !== null && paid.plan === targetPlan && paid.period === period) {
 			if (resumable) {
@@ -98,20 +97,18 @@ export const usePaypalPurchase = (): PurchaseUi => {
 		}
 		if (paid === null) {
 			return {
-				text: t('purchase.book'),
-				// Sichtbar steht nur die gesetzliche Beschriftung (§ 312j Abs. 3 BGB); Paket und Laufzeit
-				// hängen als `.visually-hidden` im Expert-Slot (Muster `PlaceFavoritesSection.tsx`), denn ein
-				// nicht-leeres `_label` blendet den Slot aus.
+				// #2661: der Paket-Knopf heißt schlicht „Bestellen“ und öffnet den Checkout-Dialog;
+				// Paket/Laufzeit wandern unsichtbar in den zugänglichen Namen (Muster purchase.bookLabel).
+				text: t('purchase.order'),
 				node: (
 					<KolButton
 						data-testid={`book-${targetPlan}-${period}`}
 						_label=""
 						_variant="primary"
-						_disabled={!withdrawalConsent || bookingKey === `${targetPlan}-${period}`}
-						_on={{ onClick: () => void handleBook(targetPlan, period) }}
+						_on={{ onClick: () => setOrderTarget({ plan: targetPlan, period }) }}
 					>
 						<span slot="expert">
-							{t('messages:billing.withdrawal.order')}
+							{t('purchase.order')}
 							<span className="visually-hidden">{` ${planLabel(targetPlan)} (${periodLabel(period)})`}</span>
 						</span>
 					</KolButton>
@@ -131,30 +128,8 @@ export const usePaypalPurchase = (): PurchaseUi => {
 		};
 	};
 
-	// Der Hinweisblock steht nur, solange mindestens ein Buchen-Knopf sichtbar ist.
-	const showWithdrawal =
-		subscription !== undefined && (subscription === null || subscription.status === 'approval_pending');
-
 	const notice = (
 		<>
-			{showWithdrawal && <BillingAddressForm />}
-			{showWithdrawal && (
-				<div className="withdrawal-consent" data-testid="withdrawal-consent">
-					<p>
-						{t('messages:billing.withdrawal.hint')}{' '}
-						<KolLink
-							_href={legalPath('withdrawal', i18n.language)}
-							_label={t('messages:billing.withdrawal.link')}
-							_target="_blank"
-						/>
-					</p>
-					<KolInputCheckbox
-						_label={t('messages:billing.withdrawal.consent')}
-						_checked={withdrawalConsent}
-						_on={{ onChange: () => setWithdrawalConsent((value) => !value) }}
-					/>
-				</div>
-			)}
 			{actionError !== null && (
 				<KolAlert _type="error" _label={t('paypal.bookingFailed')}>
 					{actionError}
@@ -171,24 +146,37 @@ export const usePaypalPurchase = (): PurchaseUi => {
 		</>
 	);
 
-	const dialog = changeTarget !== null && (
-		<ChangeDialog
-			targetPlan={changeTarget.plan}
-			targetPeriod={changeTarget.period}
-			onClose={() => setChangeTarget(null)}
-			onChanged={(approvalUrl, immediate) => {
-				const target = changeTarget;
-				setChangeTarget(null);
-				if (approvalUrl !== undefined) {
-					window.location.href = approvalUrl;
-					return;
-				}
-				setPendingWait(immediate ? { kind: 'poll', expectedPlan: target.plan } : { kind: 'deferred' });
-				// Ein Refresh holt den serverseitig sofort wirksamen Zeitraumwechsel in die Anzeige
-				// (Review #1998) — ohne ihn stünde die alte Periode bis zum nächsten Fokus-Refresh.
-				if (!immediate) void refresh?.();
-			}}
-		/>
+	// Bestell-Dialog (#2661): Rechnungsadresse + Widerruf vor dem Zahlungsanbieter.
+	const dialog = (
+		<>
+			{orderTarget !== null && (
+				<CheckoutDialog
+					targetPlan={orderTarget.plan}
+					targetPeriod={orderTarget.period}
+					onClose={() => setOrderTarget(null)}
+					onOrder={() => handleBook(orderTarget.plan, orderTarget.period)}
+				/>
+			)}
+			{changeTarget !== null && (
+				<ChangeDialog
+					targetPlan={changeTarget.plan}
+					targetPeriod={changeTarget.period}
+					onClose={() => setChangeTarget(null)}
+					onChanged={(approvalUrl, immediate) => {
+						const target = changeTarget;
+						setChangeTarget(null);
+						if (approvalUrl !== undefined) {
+							window.location.href = approvalUrl;
+							return;
+						}
+						setPendingWait(immediate ? { kind: 'poll', expectedPlan: target.plan } : { kind: 'deferred' });
+						// Ein Refresh holt den serverseitig sofort wirksamen Zeitraumwechsel in die Anzeige
+						// (Review #1998) — ohne ihn stünde die alte Periode bis zum nächsten Fokus-Refresh.
+						if (!immediate) void refresh?.();
+					}}
+				/>
+			)}
+		</>
 	);
 
 	return { actionCell, notice, dialog };
