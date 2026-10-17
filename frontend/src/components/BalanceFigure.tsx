@@ -71,6 +71,8 @@ interface BalanceFigureProps {
 	figure: FigureKind;
 	/** Bewegung erlauben (beide Animationsschalter + OS-Einstellung). */
 	animated: boolean;
+	/** Freigabe des Auftakts — erst mit dem echten Balance-Stand startet er (nur GL-Fassung). */
+	auftaktBereit?: boolean;
 	/** Sekunden je Ruhepuls-Schlag; ruhiger, je ausgewogener das Bild. */
 	beatSeconds: number;
 	/** Zugängliches Label der Grafik. */
@@ -196,7 +198,14 @@ const wedgePoints = (wedge: Wedge): string =>
 		.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`)
 		.join(' ');
 
-export const BalanceFigure = ({ balance, figure, animated, beatSeconds, ariaLabel }: BalanceFigureProps) => {
+export const BalanceFigure = ({
+	balance,
+	figure,
+	animated,
+	auftaktBereit,
+	beatSeconds,
+	ariaLabel,
+}: BalanceFigureProps) => {
 	const metrics = useMemo(() => balanceMetrics(balance), [balance]);
 	const ticks = useMemo(() => ringTicks(balance.fill), [balance.fill]);
 	const lit = activeTicks(balance.fill);
@@ -214,12 +223,15 @@ export const BalanceFigure = ({ balance, figure, animated, beatSeconds, ariaLabe
 				activeTicks={lit}
 				beatSeconds={beatSeconds}
 				animated={animated}
+				auftaktBereit={auftaktBereit}
 				ariaLabel={ariaLabel}
 				onGiveUp={giveUpGlass}
 			/>
 		);
 	}
 
+	// Der Auftakt bleibt der GL-Fassung vorbehalten: Der Ring des SVG ist bewusst statisch und
+	// zeigt jeden Stand sofort — ein Zurückhalten hätte hier nichts zu verlangsamen.
 	return (
 		<svg
 			className="balance-figure-svg"

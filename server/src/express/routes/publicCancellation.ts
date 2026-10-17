@@ -5,7 +5,7 @@ import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { Op } from 'sequelize';
 import { Subscription, User } from '../../models/index.js';
 import CancellationToken from '../../models/cancellationToken.js';
-import { sendError, type ErrorDto } from '../http-error.js';
+import { sendError, logUrl, type ErrorDto } from '../http-error.js';
 import { THROTTLED_MESSAGE } from './rateLimit.js';
 import { recordCancellation } from './billingSubscriptions.js';
 import { createPaypalProvider, type PaypalProviderDeps } from '../../logics/billing/paypalProvider.js';
@@ -226,7 +226,7 @@ export const createPublicCancellationRouter = (deps: PublicCancellationDeps = {}
 		try {
 			await checkout.cancel(subscription.externalSubscriptionId);
 		} catch (error) {
-			console.error(`${req.method} ${req.originalUrl}`, error);
+			console.error(`${req.method} ${logUrl(req)}`, error);
 			// Kündigung nicht erfolgt — der Link bleibt für einen neuen Versuch gültig.
 			await CancellationToken.update({ usedAt: null }, { where: { id: row.id } });
 			sendError(res, 502, 'PayPal war nicht erreichbar.');

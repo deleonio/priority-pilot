@@ -272,6 +272,10 @@ export const Dashboard = ({
 	// im 28-Tage-Fenster) — dieselbe Zahl wie Verlauf und MCP `balance_status`. Neu geladen, sobald
 	// sich die Aufgaben ändern; bis zur Antwort oder bei Fehler bleibt der lokal gerechnete Wert.
 	const [serverFill, setServerFill] = useState<number | undefined>(undefined);
+	// Der Auftakt des Balance-Bilds startet erst mit der ersten Beantwortung dieser Frage (Erfolg
+	// ODER Fehler — dann auf den lokalen Wert): Sonst wächst das Zifferblatt auf den lokalen
+	// Notwert und wechselt dort zeitversetzt auf den echten Stand (Doppel-Animation).
+	const [auftaktBereit, setAuftaktBereit] = useState(false);
 	// #2645: Urteilsreife aus der Balance-Antwort (#2633) — unter der Überlast-Mindestmenge zeigt
 	// das Balance-Bild den Leerzustand statt eines Urteils. Fehlen die Felder (Server-Fehler),
 	// bleibt `undefined` = bisheriges Verhalten.
@@ -289,10 +293,15 @@ export const Dashboard = ({
 					if (status.erledigungenImFenster !== undefined && status.mindestErledigungen !== undefined) {
 						setUrteilsreif(status.erledigungenImFenster >= status.mindestErledigungen);
 					}
+					setAuftaktBereit(true);
 				}
 			})
 			.catch(() => {
-				// Nicht erreichbar: das Herz zeigt weiter den lokalen Wert statt eines Fehlerzustands.
+				// Nicht erreichbar: das Herz zeigt weiter den lokalen Wert statt eines Fehlerzustands —
+				// der Auftakt läuft dann eben einmalig auf diesen.
+				if (!cancelled) {
+					setAuftaktBereit(true);
+				}
 			});
 		return () => {
 			cancelled = true;
@@ -475,6 +484,7 @@ export const Dashboard = ({
 							punkteProSaeule={punkteProSaeule}
 							fill={serverFill}
 							urteilsreif={urteilsreif}
+							auftaktBereit={auftaktBereit}
 						/>
 					</KolCard>
 				)}

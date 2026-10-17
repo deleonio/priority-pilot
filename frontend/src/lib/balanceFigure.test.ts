@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
 	activeTicks,
+	auftaktStand,
+	auftaktWechselt,
 	buildArcs,
 	buildHands,
 	buildOrbs,
@@ -11,6 +13,7 @@ import {
 	FIGURE_MAX,
 	orbAxes,
 	petalRadiusAt,
+	RISE_DURATION,
 	RING_INNER,
 	R_MIN,
 	ringTicks,
@@ -414,5 +417,39 @@ describe('ringTicks — das Zifferblatt', () => {
 			expect(tick.mix).toBeGreaterThanOrEqual(0);
 			expect(tick.mix).toBeLessThanOrEqual(1);
 		}
+	});
+});
+
+describe('auftaktStand — der Aufwärtstakt des Zifferblatts', () => {
+	it('bleibt gehalten auf 0, solange der echte Stand fehlt', () => {
+		expect(auftaktStand(0.5, 0, false, true)).toBe(0);
+		expect(auftaktStand(9, 0, false, false)).toBe(0);
+	});
+
+	it('läuft nach der Freigabe ab dem Freigabe-Moment und klemmt bei 1', () => {
+		expect(auftaktStand(2, 2, true, true)).toBe(0);
+		expect(auftaktStand(2 + RISE_DURATION / 2, 2, true, true)).toBeCloseTo(0.5, 6);
+		expect(auftaktStand(2 + 2 * RISE_DURATION, 2, true, true)).toBe(1);
+	});
+
+	it('zeigt im Standbild sofort den fertigen Stand', () => {
+		expect(auftaktStand(0, 0, true, false)).toBe(1);
+	});
+});
+
+describe('auftaktWechselt — der Freigabe-Übergang der Engine', () => {
+	/* Der Startzustand ist gehalten; die erste Freigabe muss durchkommen — genau dieser Übergang
+	 * verwarf der invertierte Vergleich, das Zifferblatt blieb dauerhaft leer. */
+	it('zählt die erste Freigabe aus dem gehaltenen Zustand', () => {
+		expect(auftaktWechselt(true, true)).toBe(true);
+	});
+
+	it('zählt wiederholte Aufrufe mit unverändertem Zustand nicht', () => {
+		expect(auftaktWechselt(true, false)).toBe(false);
+		expect(auftaktWechselt(false, true)).toBe(false);
+	});
+
+	it('zählt das erneute Halten nach einer Freigabe (Rückweg)', () => {
+		expect(auftaktWechselt(false, false)).toBe(true);
 	});
 });
