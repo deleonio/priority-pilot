@@ -10,6 +10,7 @@ import { PROFILE_CHANGED_EVENT } from './lib/profileChanged';
 import { checkAuth, SESSION_RELOAD_KEY } from './lib/auth';
 import { api } from './api';
 import { NATIVE_LOGGED_OUT_KEY } from './lib/appToken';
+import { LAUNCH_BANNER_DISMISS_KEY } from './lib/launchBanner';
 import { finishNativeLogin, nativeGoogleLogin } from './lib/nativeAuth';
 import { isNativeChannel } from './lib/platform';
 import { MagicLinkLanding } from './components/MagicLinkLanding';
@@ -68,6 +69,9 @@ const consumeMagicLink = async (): Promise<string | null> => {
 	if (!ok) {
 		url.searchParams.set('error', 'magic_link_invalid');
 		window.history.replaceState(window.history.state, '', url);
+	} else {
+		// Echter Login (#2480): der geräteweite Schließen-Marker des Einladungs-Banners gilt je Login.
+		localStorage.removeItem(LAUNCH_BANNER_DISMISS_KEY);
 	}
 	return null;
 };

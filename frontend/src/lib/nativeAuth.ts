@@ -1,4 +1,5 @@
 import { api } from '../api';
+import { LAUNCH_BANNER_DISMISS_KEY } from './launchBanner';
 import { base64url } from './magicPkce';
 import { getPublicOrigin } from './siteOrigin';
 
@@ -115,6 +116,8 @@ export const handleAppLink = async (url: string): Promise<void> => {
 		localStorage.removeItem(STATE_KEY);
 		// Netzfehler zeigen die Login-Seite mit Hinweis, statt den Nutzer ohne Rückmeldung stehen zu lassen.
 		const ok = await api.exchangeNativeLoginCode(code, state).catch(() => false);
+		// Echter Login (#2480): der geräteweite Schließen-Marker des Einladungs-Banners gilt je Login.
+		if (ok) localStorage.removeItem(LAUNCH_BANNER_DISMISS_KEY);
 		window.location.replace(ok ? base : `${base}login?error=native_login_failed`);
 		return;
 	}

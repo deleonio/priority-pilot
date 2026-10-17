@@ -5,7 +5,7 @@ import { api } from '../api';
 import { startNativeGoogleLogin } from '../lib/nativeAuth';
 import { isNativeChannel } from '../lib/platform';
 import { getPublicOrigin } from '../lib/siteOrigin';
-import { LAUNCH_BANNER_DISMISS_KEY } from './LaunchBanner';
+import { LAUNCH_BANNER_DISMISS_KEY } from '../lib/launchBanner';
 import { Modal } from './Modal';
 
 type ErrorParam = string | null;
@@ -49,9 +49,9 @@ const ReviewLoginDialog = ({ onClose }: { onClose: () => void }) => {
 		api
 			.reviewLogin(password)
 			.then(() => {
-				// #2480: Das Schließen des Einladungs-Banners gilt je Login — der Marker der Vorgänger-Session
-				// (sessionStorage überlebt die Navigation im selben Tab) muss hier weg.
-				sessionStorage.removeItem(LAUNCH_BANNER_DISMISS_KEY);
+				// #2480: Das Schließen des Einladungs-Banners gilt je Login — der geräteweite localStorage-
+				// Marker muss beim echten Login weg, damit der Banner wieder erscheint.
+				localStorage.removeItem(LAUNCH_BANNER_DISMISS_KEY);
 				window.location.replace(import.meta.env.BASE_URL);
 			})
 			.catch((err: unknown) =>
@@ -198,9 +198,9 @@ export const LoginPage = () => {
 	};
 
 	const handleLogin = () => {
-		// #2480: Das Schließen des Einladungs-Banners gilt je Login (Reload nach Session-Ablauf behält
-		// sessionStorage), daher vor beiden Zweigen zurücksetzen.
-		sessionStorage.removeItem(LAUNCH_BANNER_DISMISS_KEY);
+		// #2480: Das Schließen des Einladungs-Banners gilt je Login, daher vor beiden Zweigen
+		// zurücksetzen — nach dem echten Login erscheint der Banner wieder.
+		localStorage.removeItem(LAUNCH_BANNER_DISMISS_KEY);
 		// In der App blockiert Google den Login im WebView, er läuft dort im System-Browser.
 		if (isNativeChannel()) {
 			void startNativeGoogleLogin();

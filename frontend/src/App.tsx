@@ -33,7 +33,8 @@ import { startWelcomeSteps } from './components/WelcomeSteps';
 import { isOnboardingDismissed, storeOnboardingDismissed } from './lib/onboardingPreferences';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
-import { LAUNCH_BANNER_DISMISS_KEY, LaunchBanner } from './components/LaunchBanner';
+import { LaunchBanner } from './components/LaunchBanner';
+import { LAUNCH_BANNER_DISMISS_KEY } from './lib/launchBanner';
 import { SessionExpiredDialog } from './components/SessionExpiredDialog';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { PushToast } from './components/PushToast';
@@ -720,7 +721,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			// Issue #396 PR B — Logout-Sperre: „gerade abgemeldet"-Marker unterdrückt den nächsten
 			// stillen Re-Login (s. Root.tsx), sonst wäre ein Ausloggen praktisch unmöglich.
 			sessionStorage.setItem('pp_just_logged_out', '1');
-			sessionStorage.removeItem(LAUNCH_BANNER_DISMISS_KEY);
+			localStorage.removeItem(LAUNCH_BANNER_DISMISS_KEY);
 			window.location.href = `${import.meta.env.BASE_URL}login`;
 		} catch (reason) {
 			setLogoutError(reason instanceof Error ? reason.message : t('app:shell.logoutFailed'));

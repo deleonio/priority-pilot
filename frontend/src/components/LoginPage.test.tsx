@@ -131,12 +131,12 @@ describe('LoginPage — Google-Login je Kanal (#1678)', () => {
 	});
 
 	it('#2480: Google-Login setzt das Schließen des Einladungs-Banners zurück', () => {
-		sessionStorage.setItem('launch-banner-dismissed', '1');
+		localStorage.setItem('pp-launch-banner-dismissed', '1');
 		render(<LoginPage />);
 
 		fireEvent.click(screen.getByRole('button', { name: /Google/ }));
 
-		expect(sessionStorage.getItem('launch-banner-dismissed')).toBeNull();
+		expect(localStorage.getItem('pp-launch-banner-dismissed')).toBeNull();
 	});
 
 	it('web: bleibt bei der Weiterleitung, kein System-Browser', () => {
