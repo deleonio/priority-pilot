@@ -405,6 +405,7 @@ _Enthält v0.17.0 – v0.17.45._
 - test(server): verify prorated credit on plan upgrade by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2277
 - feat(server): allow account deletion after paypal cancellation by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2278
 - feat(server): admin lock cancels PayPal subscription by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2281
+- feat(server): admin lock cancels PayPal subscription by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2281
 - feat(frontend): move brand elements into shared month card, use balamentum.modevel.de by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2283
 - fix(server): ignore late payments on cancelled subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2282
 - feat(frontend): remember onboarding dismissal across reload by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2285
