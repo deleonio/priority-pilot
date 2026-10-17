@@ -412,11 +412,14 @@ laufen ausschließlich in GitHub Actions und berühren den Betriebshost nicht.
   injizierbare Kanäle; wiederholte Scheduler-Läufe
   deduplizieren ihre Trigger über Einträge im `notification_log`.
 - **Fehlervertrag:** Handler antworten über `sendError` mit `{ message }` (`http-error.ts`); ein
-  globaler Express-Fehlerhandler existiert nicht — nicht abgefangene Fehler in Routen beantwortet
-  Express mit seiner Standard-HTML-Antwort. Nur echte unbehandelte Fehler und Rejections beenden den
-  Prozess mit Exit-Code 1 (`server/src/index.ts`); `server-error-handler.ts` ist der
-  Error-Callback von `app.listen` (Server-Start), CSRF-Fehler übersetzt ein eigener Handler
-  (`csrf.ts`).
+  globaler Fehlerhandler ist die letzte Middleware von `createApp` — unbehandelte Routen-Fehler
+  (auch async Rejections, Express 5) enden als JSON `{ message }` ohne Fehlerdetails (500;
+  Framework-Fehler mit Status wie 400/413 behalten ihn) und erzeugen genau einen Log-Eintrag mit
+  Methode, Pfad und Fehler (`errorHandler` in `http-error.ts`, Mount in `express/index.ts`). Nur
+  echte unbehandelte Fehler und Rejections beenden den Prozess mit Exit-Code 1
+  (`server/src/index.ts`); `server-error-handler.ts` ist der Error-Callback von `app.listen`
+  (Server-Start), CSRF-Fehler übersetzt ein eigener Handler zu 403 und reicht übrige Fehler über
+  `next(err)` an den globalen Handler weiter (`csrf.ts`).
 - **Injizierbare Abhängigkeiten:** `AppDeps` erlaubt Tests, LLM-, Push- und Session-Abhängigkeiten
   zu ersetzen, ohne den Netzwerkpfad zu berühren.
 - **Rate-Limiting:** Auth-Routen mit eigenem Limiter, Geocode-Routen teilen sich einen
