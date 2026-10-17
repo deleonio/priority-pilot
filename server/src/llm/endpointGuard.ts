@@ -40,7 +40,10 @@ export const INTERNAL_ENDPOINT_MESSAGE = 'endpoint darf nicht auf eine interne A
 /**
  * `false`, wenn der Host der URL auf eine interne Adresse zeigt. Nicht auflösbare Hosts gelten
  * als nicht öffentlich (fail-closed, #2685): Der Abruf wird abgelehnt und die Ursache geloggt.
- * `lookupFn` ist injizierbar, damit Tests ohne DNS laufen (Muster `fetchIcs`).
+ * `lookupFn` ist injizierbar, damit Tests ohne DNS laufen (Muster `fetchIcs`);
+ * `ENDPOINT_GUARD_ALLOW_UNRESOLVED_HOSTS=1` (nur `NODE_ENV=test`, `test/helpers.ts`) überspringt
+ * den Lookup für Hostnamen — Routen-Tests nutzen nicht auflösbare Fake-Hosts; IP-Literale
+ * bleiben immer geprüft.
  */
 export const isPublicEndpoint = async (url: string, lookupFn: typeof lookup = lookup): Promise<boolean> => {
 	let host: string;
@@ -50,6 +53,7 @@ export const isPublicEndpoint = async (url: string, lookupFn: typeof lookup = lo
 		return false;
 	}
 	if (isIP(host) !== 0) return !isInternal(host);
+	if (process.env.ENDPOINT_GUARD_ALLOW_UNRESOLVED_HOSTS === '1' && process.env.NODE_ENV === 'test') return true;
 	try {
 		const addresses = await lookupFn(host, { all: true });
 		return addresses.every(({ address }) => !isInternal(address));
