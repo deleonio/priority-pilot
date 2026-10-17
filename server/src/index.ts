@@ -150,6 +150,7 @@ export const main = async (): Promise<void> => {
 			migrateUserAccountPreferenceColumns,
 			migrateUsersFreeSlotMinMinutesColumn,
 			migrateCalendarSourceCaldavColumns,
+			migrateUserBillingAddressColumns,
 		} = await import('./logics/migrate.js');
 		const { runDueTaskReminders } = await import('./logics/dueTaskReminders.js');
 		const { runDeadlineAutoDelete } = await import('./logics/autoDeleteAfterDeadline.js');
@@ -257,6 +258,8 @@ export const main = async (): Promise<void> => {
 		await migrateUsersFreeSlotMinMinutesColumn(sequelize);
 		// CalDAV-Spalten an calendar_sources (#2211) — wie oben: sync() ergänzt Bestands-Tabellen nicht.
 		await migrateCalendarSourceCaldavColumns(sequelize);
+		// Rechnungsadresse am User (#2661) — wie oben: sync() ergänzt Bestands-Tabellen nicht.
+		await migrateUserBillingAddressColumns(sequelize);
 		// Fehlende displayNameCustom-Flag-Spalte an users nachziehen (#1256 — Eigen-Speicherung
 		// schützt den Anzeigenamen vor dem OAuth-Sync) — vor sync(), damit User-Zugriffe auf
 		// Bestands-DBs nicht mit `no such column` brechen.

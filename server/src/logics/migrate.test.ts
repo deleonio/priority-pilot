@@ -653,6 +653,12 @@ describe('migrateUserGeoConfigColumns', () => {
 				'`termsAcceptedAt` DATETIME, ' +
 				// Test-Pflege #1935: `mcpInstructions` ergänzt (gleiche Begründung wie oben).
 				'`mcpInstructions` TEXT, ' +
+				// Test-Pflege #2661: Rechnungsadresse ergänzt (gleiche Begründung wie oben).
+				'`billingName` VARCHAR(255), ' +
+				'`billingStreet` VARCHAR(255), ' +
+				'`billingZip` VARCHAR(255), ' +
+				'`billingCity` VARCHAR(255), ' +
+				'`billingCountry` VARCHAR(255), ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -1005,6 +1011,12 @@ describe('migrateUsersRoleColumn (Rollensystem admin/member)', () => {
 				'`termsAcceptedAt` DATETIME, ' +
 				// Test-Pflege #1935: `mcpInstructions` ergänzt (gleiche Begründung wie oben).
 				'`mcpInstructions` TEXT, ' +
+				// Test-Pflege #2661: Rechnungsadresse ergänzt (gleiche Begründung wie oben).
+				'`billingName` VARCHAR(255), ' +
+				'`billingStreet` VARCHAR(255), ' +
+				'`billingZip` VARCHAR(255), ' +
+				'`billingCity` VARCHAR(255), ' +
+				'`billingCountry` VARCHAR(255), ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -1102,6 +1114,12 @@ describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
 				'`termsAcceptedAt` DATETIME, ' +
 				// Test-Pflege #1935: `mcpInstructions` ergänzt (gleiche Begründung wie oben).
 				'`mcpInstructions` TEXT, ' +
+				// Test-Pflege #2661: Rechnungsadresse ergänzt (gleiche Begründung wie oben).
+				'`billingName` VARCHAR(255), ' +
+				'`billingStreet` VARCHAR(255), ' +
+				'`billingZip` VARCHAR(255), ' +
+				'`billingCity` VARCHAR(255), ' +
+				'`billingCountry` VARCHAR(255), ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -1283,6 +1301,12 @@ describe('migrateUsersPlanColumn (#1456 AK1)', () => {
 				'`termsAcceptedAt` DATETIME, ' +
 				// Test-Pflege #1935: `mcpInstructions` ergänzt (gleiche Begründung wie oben).
 				'`mcpInstructions` TEXT, ' +
+				// Test-Pflege #2661: Rechnungsadresse ergänzt (gleiche Begründung wie oben).
+				'`billingName` VARCHAR(255), ' +
+				'`billingStreet` VARCHAR(255), ' +
+				'`billingZip` VARCHAR(255), ' +
+				'`billingCity` VARCHAR(255), ' +
+				'`billingCountry` VARCHAR(255), ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -2257,6 +2281,11 @@ const SNAPSHOT_COLUMNS: Record<string, readonly string[]> = {
 		'alarmDistanceKm',
 		'avatarUrl',
 		'balancePriority',
+		'billingCity',
+		'billingCountry',
+		'billingName',
+		'billingStreet',
+		'billingZip',
 		'balanceVariant',
 		'carePushEnabled',
 		'createdAt',

@@ -1,5 +1,7 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
+// #2623: Überlast-Schwelle aus der Server-Konstante ableiten statt kopieren (Single Source of Truth).
+import { UEBERLAST_MINDEST_ERLEDIGUNGEN } from '../../server/src/logics/careDeficit.js';
 
 /**
  * Wartet, bis die Ansicht stabil und vollständig hydriert ist, bevor mit ihr interagiert wird:
@@ -358,7 +360,7 @@ export const seedAccountPreferences = async (page: Page, preferences: Record<str
  * jede Säule defizitär, damit die Interaktions-Specs weiterhin bedienbare Vorschläge sehen.
  */
 export const seedMindestErledigungen = async (page: Page): Promise<void> => {
-	for (let i = 0; i < 3; i++) {
+	for (let i = 0; i < UEBERLAST_MINDEST_ERLEDIGUNGEN; i++) {
 		const created = await page.request.post('/api/v1/tasks', {
 			data: { title: `E2E Pflege-Erledigt ${i + 1}`, priority: 3, estimatedEffort: 1 },
 		});

@@ -742,6 +742,23 @@ export const migrateUserMcpInstructionsColumn = async (db: Sequelize): Promise<v
 };
 
 /**
+ * Zieht die Spalten der Rechnungsadresse (#2661) auf einer **bestehenden** `users`-Tabelle
+ * nach — analog `migrateUserMcpInstructionsColumn`. Ohne sie bricht jeder User-Zugriff
+ * (Login, `/auth/me`) auf einer Bestands-DB mit `no such column`. `NULL` = noch keine
+ * Adresse erfasst; der Abo-Abschluss fordert sie vorher ein. Idempotent; No-op bei
+ * frischer DB.
+ */
+export const migrateUserBillingAddressColumns = async (db: Sequelize): Promise<void> => {
+	await ensureColumns(db, 'users', [
+		{ name: 'billingName', definition: 'VARCHAR(255) NULL' },
+		{ name: 'billingStreet', definition: 'VARCHAR(255) NULL' },
+		{ name: 'billingZip', definition: 'VARCHAR(255) NULL' },
+		{ name: 'billingCity', definition: 'VARCHAR(255) NULL' },
+		{ name: 'billingCountry', definition: 'VARCHAR(255) NULL' },
+	]);
+};
+
+/**
  * Zieht die `displayNameCustom`-Flag-Spalte auf einer **bestehenden** `users`-Tabelle nach
  * (#1256) — analog `migrateUsersAvatarUrl`, aber NOT NULL mit Default 0: die Flag markiert,
  * dass der Nutzer seinen Anzeigenamen selbst gesetzt hat, und schützt ihn so vor dem

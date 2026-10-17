@@ -7,6 +7,7 @@ import { distributeWithMinimum } from '../logics/pillarShares.js';
 import type { UserRole } from '../models/user.js';
 // Import models to ensure associations are registered before sync
 import '../models/index.js';
+import { User } from '../models/index.js';
 
 // Die ICS-Tests (#2209) liefern Kalender von einem Loopback-Stub; die SSRF-Sperre in `fetchIcs` ließe das nicht zu.
 process.env.ICS_ALLOW_INTERNAL_HOSTS = '1';
@@ -59,6 +60,23 @@ export const setDisplayNameCustom = async (email: string, value: 0 | 1): Promise
 	});
 };
 
+/**
+ * Seedet eine vollständige Rechnungsadresse für die gegebene E-Mail (#2661) — Bestands-Suiten,
+ * die `POST /billing/subscriptions` rufen, brauchen sie, seit der Checkout ohne Adresse 409
+ * antwortet. Bewusst ein Helper statt pro Suite ein PUT: eine Änderung der Felder greift an
+ * einer Stelle. Fehlendes Konto wirft, statt den Setup-Fehler still zu maskieren.
+ */
+export const seedBillingAddress = async (email: string): Promise<void> => {
+	const user = await User.findOne({ where: { email } });
+	if (user === null) throw new Error(`seedBillingAddress: kein Konto für ${email}`);
+	await user.update({
+		billingName: 'Max Mustermann',
+		billingStreet: 'Musterstraße 1',
+		billingZip: '12345',
+		billingCity: 'Musterstadt',
+		billingCountry: 'Deutschland',
+	});
+};
 /** Roh-Wert von `users.displayNameCustom` (0/1) für DB-Asserts ohne Modellabhängigkeit (#1256). */
 export const displayNameCustomOf = async (email: string): Promise<number> => {
 	const [rows] = await sequelize.query('SELECT `displayNameCustom` FROM `users` WHERE `email` = ?', {
