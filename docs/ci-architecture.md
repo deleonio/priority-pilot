@@ -546,7 +546,7 @@ Kein `--model`: das Modell wird über `"model": "opus"` in der `settings.json` g
 `ANTHROPIC_DEFAULT_OPUS_MODEL` auf `glm-5.3[1m]` ab.
 
 **Prompt:** Kanonisch in `.github/prompts/` (triage, ux, spec, implement, fixup, review,
-documenter, dazu die Nightly-Helfer spec-sync/guide-sync/prompt-audit/code-review-team;
+documenter, dazu die Helper-Crons spec-sync/guide-sync/prompt-audit/code-review-team (Prompt-Audit freitags abends);
 Memory-Snippets memory-read.md/memory-write.md am selben Ort);
 per `sed`/`cat` nach `/tmp/claude-prompt.txt` assembliert und via `-p "$(cat /tmp/claude-prompt.txt)"`
 übergeben — vermeidet Shell-Quoting-Probleme. Die Methode je Phase lebt in der `SKILL.md` des
