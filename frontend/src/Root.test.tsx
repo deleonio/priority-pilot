@@ -1,8 +1,10 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { api } from './api';
 import { Root } from './Root';
 import { NATIVE_LOGGED_OUT_KEY } from './lib/appToken';
+import { LAUNCH_BANNER_DISMISS_KEY } from './lib/launchBanner';
 import { nativeGoogleLogin } from './lib/nativeAuth';
 
 /**
@@ -31,6 +33,15 @@ vi.mock('./lib/nativeAuth', () => ({
 	nativeGoogleLogin: vi.fn(async () => 'unavailable'),
 	finishNativeLogin: vi.fn(),
 	startNativeGoogleLogin: vi.fn(),
+}));
+
+// Root (verifyMagicLink) und LoginPage (getAuthProviders, zeilenübergreifend verkettet) nutzen die
+// API-Fassade — der Auth-Check selbst läuft über direktes fetch.
+vi.mock('./api', () => ({
+	api: {
+		verifyMagicLink: vi.fn(async () => true),
+		getAuthProviders: vi.fn(async () => ({ google: true, magicLink: false })),
+	},
 }));
 
 describe('Issue #1136 — Root-Auth-Gate', () => {
@@ -140,6 +151,37 @@ describe('Issue #1136 — Root-Auth-Gate', () => {
 
 		expect(screen.queryByRole('heading', { name: /Bahn-Routenplaner/i })).toBeNull();
 		expect(await screen.findByTestId('kol-spin')).toBeTruthy();
+	});
+});
+
+// #2480/#2677: Der geräteweite Schließen-Marker des Einladungs-Banners gilt je Login — die
+// Magic-Link-Einlösung im Browser setzt ihn zurück, damit der Banner nach dem Login wieder erscheint.
+describe('Issue #2677 — Magic-Link-Einlösung setzt den Banner-Marker zurück', () => {
+	const originalFetch = global.fetch;
+
+	afterEach(() => {
+		cleanup();
+		global.fetch = originalFetch;
+		window.history.replaceState(null, '', '/');
+		localStorage.clear();
+	});
+
+	it('erfolgreiche Einlösung entfernt pp-launch-banner-dismissed', async () => {
+		localStorage.setItem(LAUNCH_BANNER_DISMISS_KEY, '1');
+
+		global.fetch = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: async () => ({ id: 1, email: 'peter@example.com', displayName: 'Peter', avatarUrl: null }),
+		}) as unknown as typeof fetch;
+
+		window.history.replaceState(null, '', '/?magic=tok-2677');
+		render(<Root />);
+
+		// Der Auth-Check läuft NACH der Einlösung — mit der App sind beide Schritte garantiert durch.
+		expect(await screen.findByTestId('app')).toBeVisible();
+		expect(api.verifyMagicLink).toHaveBeenCalledWith('tok-2677');
+		expect(localStorage.getItem(LAUNCH_BANNER_DISMISS_KEY), 'Der Schließen-Marker gilt je Login').toBeNull();
 	});
 });
 
