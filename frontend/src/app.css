@@ -1674,6 +1674,9 @@ kol-toolbar {
 .dashboard-weekly {
 	display: block;
 	margin-top: var(--pp-gap-generous);
+	/* #2625: reservierte Höhe ab dem ersten Render (Fensterzustand, 4/8-Raster, gemessen bei
+	   375 px); Desktop erhält eigene Werte (siehe unten). */
+	min-height: 400px;
 }
 
 .dashboard-weekly-content {
@@ -1758,6 +1761,8 @@ kol-toolbar {
 .dashboard-monthly {
 	display: block;
 	margin-top: var(--pp-gap-generous);
+	/* #2625: reservierte Höhe (wie .dashboard-weekly). */
+	min-height: 400px;
 }
 
 .dashboard-monthly-content {
@@ -1826,6 +1831,8 @@ kol-toolbar {
 .dashboard-yearly {
 	display: block;
 	margin-top: var(--pp-gap-generous);
+	/* #2625: reservierte Höhe (wie .dashboard-weekly). */
+	min-height: 292px;
 }
 
 .dashboard-yearly-content {
@@ -2025,6 +2032,14 @@ kol-toolbar {
 
 	.care-hint-platzhalter {
 		min-height: 172px;
+	}
+
+	/* #2625: Fensterkarten — im ≥-48rem-Raster umbrechen die Inhalte anders (Zweispalten-
+	   Aktionen, Grid-Stretch); eigene, größere Werte wie bei den Always-on-Karten. */
+	.dashboard-weekly,
+	.dashboard-monthly,
+	.dashboard-yearly {
+		min-height: 336px;
 	}
 }
 

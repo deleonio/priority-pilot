@@ -29,7 +29,9 @@ const KARTEN: { testid: string; geladen: string }[] = [
 	},
 	{ testid: 'milestone-badges-card', geladen: '.dashboard-milestones-group' },
 	{ testid: 'missed-tasks-card', geladen: '[data-testid="missed-tasks-count"], [data-testid="missed-tasks-zero"]' },
-	{ testid: 'care-hint', geladen: '[data-testid="care-hint"]' },
+	// care-hint: echter Inhaltsmarker — der Host (Anker) steht schon im Platzhalter-Zustand im DOM,
+	// der kol-alert dagegen erst ab dem geladenen Zustand (Leerzustand UND Vorschlag).
+	{ testid: 'care-hint', geladen: '[data-testid="care-hint"] kol-alert' },
 ];
 
 /** Fensterkarten: nur gemessen, wenn ihr Fenster heute offen ist (Host in beiden Snapshots). */
