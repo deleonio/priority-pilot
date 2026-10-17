@@ -476,8 +476,8 @@ const parseModelContent = (payload: unknown): unknown => {
 
 /**
  * Einzelner API-Call an einen Provider: schickt die Nachrichten an die Chat-Completions-API
- * (JSON-Mode, Temperatur 0, Timeout) und liefert den geparsten JSON-Inhalt der Modell-Antwort —
- * mit `json = false` ohne JSON-Mode den Freitext (#2350).
+ * (JSON-Mode, Greedy-Sampling mit top_p 1, Timeout) und liefert den geparsten JSON-Inhalt der
+ * Modell-Antwort — mit `json = false` ohne JSON-Mode den Freitext (#2350).
  * Wirft {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
  */
 const callProvider = async (
@@ -499,7 +499,10 @@ const callProvider = async (
 				},
 				body: JSON.stringify({
 					model: config.model,
+					// Neuere Mistral-Modelle (z. B. mistral-large-4) verlangen bei Greedy-Sampling
+					// (temperature 0) explizit top_p 1 — ohne ihn antworten sie mit HTTP 400.
 					temperature: 0,
+					top_p: 1,
 					...(json ? { response_format: { type: 'json_object' } } : {}),
 					messages,
 				}),
