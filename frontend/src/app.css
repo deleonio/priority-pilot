@@ -2428,17 +2428,18 @@ kol-toolbar {
 
 /*
  * #1258: Mobil Zweizeilen-Modell — der Header (Titel) belegt Zeile 1, die Controls nehmen über
- * `flex: 1 1 100%` die zweite Zeile VOLLBREIT ein: Badges links, „…"-Button konstant rechtsbündig
- * (`space-between`). Der Button sitzt damit immer an derselben, daumen-findbaren Stelle — unabhängig
- * davon, wie viele Badges die Aufgabe trägt, und ohne je auf eine dritte Zeile zu rutschen. Ab 48rem
- * kehren die Controls in das alte Einzeilen-Layout neben dem Titel zurück (keine Desktop-Regression).
+ * `flex: 1 1 100%` die zweite Zeile VOLLBREIT ein: Badges links, „…"-Button konstant rechtsbündig.
+ * Der Button wird über `margin-left: auto` an `.task-tree-actions` verankert (dieselbe Mechanik wie
+ * ab 48rem) — NICHT über `space-between`: Die dauerhaft gemountete, leere Done-Feedback-Region
+ * (#2526/#2572) ist ein drittes Flex-Item und ließ `space-between` den Freiraum auf ZWEI Lücken
+ * verteilen — der Button schwebte in der Zeilenmitte statt am rechten Rand.
  */
 .task-tree-row-controls {
 	flex: 1 1 100%;
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	justify-content: space-between;
+	justify-content: flex-start;
 	gap: var(--task-tree-row-gap);
 	min-width: 0;
 }
@@ -2464,19 +2465,12 @@ kol-toolbar {
 }
 
 @media (min-width: 48rem) {
-	/* #1258 (Desktop-Fortführung, PR #2663): Die Controls wachsen mit (`flex: 1 1 auto`) — erst damit
-	   findet `margin-left: auto` auf dem Button freien Platz: Einzeilig behält der dominante Header
-	   (flex: 1000) fast alles, die umbrochene Controls-Zeile füllt die volle Zeilenbreite; der
-	   „…"-Button steht in beiden Fällen konstant am rechten Rand, unabhängig von der Badge-Anzahl
-	   (mobile erreicht das space-between bereits). */
+	/* #1258 (Desktop-Fortführung, PR #2663): Die Controls wachsen mit (`flex: 1 1 auto`) — der
+	   „…"-Button steht über den Auto-Margin (`.task-tree-actions`) auch im Einzeilen-Layout und im
+	   Umbruchfall (langer Titel + Badge-Zuwachs, der #376-Fall) konstant am rechten Rand. */
 	.task-tree-row-controls {
 		flex: 1 1 auto;
 		flex-wrap: nowrap;
-		justify-content: flex-start;
-	}
-
-	.task-tree-actions {
-		margin-left: auto;
 	}
 }
 
@@ -2499,6 +2493,11 @@ kol-toolbar {
 	/* #1258: Der „…"-Button schrumpft nicht — er bleibt in der Controls-Zeile konstant
 	   rechtsbündig stehen, während die Badges links umbrechen. */
 	flex: none;
+	/* #1258/#2663: Auto-Margin hält den Button konstant am rechten Rand der Controls-Zeile — in
+	   beiden Viewports, unabhängig von der Badge-Anzahl. Auto-Margins vor `justify-content`: der
+	   Freiraum sammelt sich komplett VOR dem Button, die leere Done-Feedback-Region (#2526) bleibt
+	   ohne Einfluss (0px breit, :empty). */
+	margin-left: auto;
 	/* Anker für das absolut positionierte „…"-Popover (#361). */
 	position: relative;
 }
