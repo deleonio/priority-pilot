@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	activeTicks,
 	auftaktStand,
+	auftaktWechselt,
 	buildArcs,
 	buildHands,
 	buildOrbs,
@@ -433,5 +434,22 @@ describe('auftaktStand — der Aufwärtstakt des Zifferblatts', () => {
 
 	it('zeigt im Standbild sofort den fertigen Stand', () => {
 		expect(auftaktStand(0, 0, true, false)).toBe(1);
+	});
+});
+
+describe('auftaktWechselt — der Freigabe-Übergang der Engine', () => {
+	/* Der Startzustand ist gehalten; die erste Freigabe muss durchkommen — genau dieser Übergang
+	 * verwarf der invertierte Vergleich, das Zifferblatt blieb dauerhaft leer. */
+	it('zählt die erste Freigabe aus dem gehaltenen Zustand', () => {
+		expect(auftaktWechselt(true, true)).toBe(true);
+	});
+
+	it('zählt wiederholte Aufrufe mit unverändertem Zustand nicht', () => {
+		expect(auftaktWechselt(true, false)).toBe(false);
+		expect(auftaktWechselt(false, true)).toBe(false);
+	});
+
+	it('zählt das erneute Halten nach einer Freigabe (Rückweg)', () => {
+		expect(auftaktWechselt(false, false)).toBe(true);
 	});
 });
