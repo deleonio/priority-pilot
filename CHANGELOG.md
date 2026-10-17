@@ -2,9 +2,9 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.27 - 2026-10-16
+## v0.27 - 2026-10-17
 
-_Enthält v0.27.0 – v0.27.9._
+_Enthält v0.27.0 – v0.27.10._
 
 ### 🐞 Bug Fixes
 
@@ -17,6 +17,7 @@ _Enthält v0.27.0 – v0.27.9._
 ### 🔧 Engineering
 
 - docs: fix broken ADR 0024 link to ux-design.md (#2622) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2668
+- feat(server): derive e2e overload seed threshold from constant (#2623) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2666
 
 ### Other Changes
 
@@ -29,6 +30,7 @@ _Enthält v0.27.0 – v0.27.9._
 - test: strengthen assertions and silence expected errors (#2639) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2659
 - chore: remove grandfather rule for legacy accounts (#2646) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2662
 - feat(billing): require billing address before subscription checkout by @deleonio in https://github.com/deleonio/priority-pilot/pull/2664
+- feat(frontend): reserve dashboard card heights to avoid layout shift by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2667
 
 ## v0.26 - 2026-10-15
 
@@ -258,7 +260,6 @@ _Enthält v0.19.0 – v0.19.19._
 - docs(adr-0018): grant plus instead of pro for opt-in trial by @deleonio in https://github.com/deleonio/priority-pilot/pull/2438
 - docs(skill): empty-queue stop ignores PRs parked with the author by @deleonio in https://github.com/deleonio/priority-pilot/pull/2441
 - build(frontend): drop push-sw.js from android bundle by @deleonio in https://github.com/deleonio/priority-pilot/pull/2449
-- build(frontend): drop push-sw.js from android bundle by @deleonio in https://github.com/deleonio/priority-pilot/pull/2449
 
 ### Other Changes
 
@@ -269,7 +270,6 @@ _Enthält v0.19.0 – v0.19.19._
 - fix(server): reset review account on every login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2444
 - [P2/S] Hilfe: Feedback-Formular wählt „Wünsche und Ideen“ vor (#2443) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2446
 - revert(balance): alle neun Zifferblätter wiederherstellen by @deleonio in https://github.com/deleonio/priority-pilot/pull/2447
-- feat(frontend): show care hint actions in one row with icon buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2448
 - feat(frontend): show care hint actions in one row with icon buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2448
 - feat(frontend): move missed tasks into dashboard grid, unify gap by @deleonio in https://github.com/deleonio/priority-pilot/pull/2450
 - feat(native): sign in natively via Credential Manager instead of browser by @deleonio in https://github.com/deleonio/priority-pilot/pull/2451
@@ -392,6 +392,7 @@ _Enthält v0.17.0 – v0.17.45._
 - fix(server): defer plan takeover for delayed-start subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2271
 - docs(skills): add proactive 3-hour progress report to coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2272
 - fix(billing): treat subscriptions with overdue payment as open by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2274
+- feat(server): activate upgrade only after payment received (#2238) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2270
 - feat(server): activate upgrade only after payment received (#2238) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2270
 - test(server): verify prorated credit on plan upgrade by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2277
 - feat(server): allow account deletion after paypal cancellation by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2278
