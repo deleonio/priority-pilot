@@ -97,15 +97,21 @@ export const usePaypalPurchase = (): PurchaseUi => {
 		}
 		if (paid === null) {
 			return {
-				// #2661: der Paket-Knopf heißt schlicht „Bestellen“ und öffnet den Checkout-Dialog.
+				// #2661: der Paket-Knopf heißt schlicht „Bestellen“ und öffnet den Checkout-Dialog;
+				// Paket/Laufzeit wandern unsichtbar in den zugänglichen Namen (Muster purchase.bookLabel).
 				text: t('purchase.order'),
 				node: (
 					<KolButton
 						data-testid={`book-${targetPlan}-${period}`}
-						_label={t('purchase.order')}
+						_label=""
 						_variant="primary"
 						_on={{ onClick: () => setOrderTarget({ plan: targetPlan, period }) }}
-					/>
+					>
+						<span slot="expert">
+							{t('purchase.order')}
+							<span className="visually-hidden">{` ${planLabel(targetPlan)} (${periodLabel(period)})`}</span>
+						</span>
+					</KolButton>
 				),
 			};
 		}

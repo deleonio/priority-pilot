@@ -92,8 +92,9 @@ test('AK1-AK3: Paket-Knopf „Bestellen“ öffnet den Dialog; erst Adresse + Zu
 	expect(linkBox!.x + linkBox!.width).toBeLessThanOrEqual(375);
 
 	// Adresse ausfüllen und speichern — dann ist nur noch die Zustimmung nötig.
+	// KolInputText mit _type="search" (Repo-Muster) trägt die Rolle searchbox, nicht textbox.
 	const fill = async (testId: string, value: string): Promise<void> => {
-		const input = page.getByTestId(`billing-address-${testId}`).getByRole('textbox');
+		const input = page.getByTestId(`billing-address-${testId}`).getByRole('searchbox');
 		await input.fill(value);
 	};
 	await fill('name', ADDRESS.name);

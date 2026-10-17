@@ -199,8 +199,8 @@ describe('usePaypalPurchase — Warteverhalten nach dem Wechsel', () => {
 		render(<Harness targetPlan="plus" />);
 
 		expect(screen.queryByText('Aktuelles Paket')).toBeNull();
-		// Test-Pflege #2661: der Paket-Knopf heißt schlicht „Bestellen“ und öffnet den Dialog.
-		expect(screen.getByRole('button', { name: 'Bestellen' })).toBeTruthy();
+		// Test-Pflege #2661: der Paket-Knopf heißt „Bestellen“ (Paket/Laufzeit unsichtbar im Namen).
+		expect(screen.getByRole('button', { name: /Bestellen/ })).toBeTruthy();
 	});
 });
 
@@ -222,13 +222,13 @@ describe('usePaypalPurchase — Bestell-Dialog vor dem Zahlungsanbieter (#2661)'
 	afterEach(cleanup);
 	/** Öffnet den Dialog über den Bestell-Knopf und wartet auf die geladene Adresse. */
 	const openDialog = async (): Promise<void> => {
-		fireEvent.click(screen.getByRole('button', { name: 'Bestellen' }));
+		fireEvent.click(screen.getByRole('button', { name: /Bestellen/ }));
 		await waitFor(() => expect(getBillingAddress).toHaveBeenCalled());
 	};
 	it('AK1: der Paket-Knopf heißt „Bestellen“ und öffnet den Dialog statt direkt zu buchen', async () => {
 		getBillingAddress.mockResolvedValue({ name: null, street: null, zip: null, city: null, country: null });
 		render(<Harness />);
-		fireEvent.click(screen.getByRole('button', { name: 'Bestellen' }));
+		fireEvent.click(screen.getByRole('button', { name: /Bestellen/ }));
 		expect(createBillingSubscription).not.toHaveBeenCalled();
 		await waitFor(() => expect(screen.getByRole('button', { name: /Zahlungspflichtig bestellen/ })).toBeTruthy());
 	});

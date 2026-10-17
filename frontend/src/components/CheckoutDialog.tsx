@@ -39,6 +39,8 @@ interface CheckoutDialogProps {
 export const CheckoutDialog = ({ targetPlan, targetPeriod, onClose, onOrder }: CheckoutDialogProps) => {
 	const { t, i18n } = useTranslation(['billing', 'messages']);
 	const form = useRef<Record<AddressKey, string>>({ name: '', street: '', zip: '', city: '', country: '' });
+	/** Zuletzt geladener bzw. gespeicherter Stand — Basis des Dirty-Abgleichs vor dem Bestellen. */
+	const savedRef = useRef<Record<AddressKey, string>>({ name: '', street: '', zip: '', city: '', country: '' });
 	const [values, setValues] = useState<Record<AddressKey, string>>(form.current);
 	const [hasAddress, setHasAddress] = useState(false);
 	const [withdrawalConsent, setWithdrawalConsent] = useState(false);
@@ -61,6 +63,7 @@ export const CheckoutDialog = ({ targetPlan, targetPeriod, onClose, onOrder }: C
 					country: address.country ?? '',
 				};
 				form.current = next;
+				savedRef.current = next;
 				setValues(next);
 				setHasAddress(FIELDS.every(({ key }) => next[key].trim().length > 0));
 			})
@@ -82,6 +85,7 @@ export const CheckoutDialog = ({ targetPlan, targetPeriod, onClose, onOrder }: C
 		setSaving(true);
 		try {
 			await api.updateBillingAddress(address);
+			savedRef.current = address;
 			setHasAddress(true);
 			return true;
 		} catch (reason) {
@@ -101,9 +105,12 @@ export const CheckoutDialog = ({ targetPlan, targetPeriod, onClose, onOrder }: C
 			setOrdering(false);
 		}
 	};
+	/** Formular weicht vom geladenen bzw. gespeicherten Stand ab. */
+	const isDirty = (): boolean => FIELDS.some(({ key }) => form.current[key].trim() !== savedRef.current[key].trim());
 	const confirm = async (): Promise<void> => {
-		// Ohne gespeicherte Adresse sichert der Dialog sie zuerst (Server prüft erneut, #2661).
-		if (!hasAddress && !(await saveAddress())) return;
+		// Ungespeicherte Änderungen sichert der Dialog vor der Bestellung — auch bei bereits
+		// gespeicherter Adresse (Review: kein stiller Verwurf des alten Standes).
+		if ((!hasAddress || isDirty()) && !(await saveAddress())) return;
 		await order();
 	};
 	return (
