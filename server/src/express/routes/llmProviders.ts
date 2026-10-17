@@ -119,8 +119,12 @@ const sendServiceError = (res: Response<ErrorDto>, error: unknown): boolean => {
 
 // ─── Verbindungs-Test (`POST /llm-providers/{id}/test`) ────────────────────────
 
-/** Zeitlimit für den Test-Call — Diagnose-Feedback soll zügig kommen. */
-const TEST_TIMEOUT_MS = 20_000;
+/**
+ * Zeitlimit für den Test-Call — bewusst derselbe Wert wie `REQUEST_TIMEOUT_MS` in llm.ts, damit
+ * der Test repräsentativ bleibt: Ein langsames Modell, das echte KI-Aufrufe gerade noch schafft,
+ * darf nicht am kürzeren Test-Zeitlimit scheitern.
+ */
+const TEST_TIMEOUT_MS = 30_000;
 /** Maximal angezeigte Länge der Modell-Antwort im Ergebnis. */
 const TEST_SAMPLE_MAX_CHARS = 120;
 
@@ -201,7 +205,16 @@ export const runProviderTest = async (runtime: ProviderRuntime): Promise<Provide
 			latencyMs,
 			sample: content.length > TEST_SAMPLE_MAX_CHARS ? `${content.slice(0, TEST_SAMPLE_MAX_CHARS)}…` : content,
 		};
-	} catch {
+	} catch (error) {
+		// AbortSignal.timeout bricht auch das Nachladen des Bodys ab — ohne Unterscheidung bliebe
+		// als Ursache nur das wertlose „konnte nicht als JSON gelesen werden“ (beobachtet bei
+		// überlasteten Free-Modellen: 200-Header kommen, der Body erst nach dem Zeitlimit).
+		if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+			return {
+				ok: false,
+				message: `${runtime.label} hat nicht innerhalb von ${TEST_TIMEOUT_MS / 1000} s vollständig geantwortet (Zeitlimit).`,
+			};
+		}
 		return { ok: false, message: `${runtime.label}-Antwort konnte nicht als JSON gelesen werden.` };
 	}
 };

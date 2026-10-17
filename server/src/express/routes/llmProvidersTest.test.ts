@@ -67,6 +67,26 @@ describe('runProviderTest', () => {
 		assert.match(result.message ?? '', /Insufficient credits/);
 	});
 
+	it('Zeitlimit beim Body-Lesen: klare Timeout-Meldung statt wertlosem JSON-Fehler', async () => {
+		mock.method(
+			globalThis,
+			'fetch',
+			(async () =>
+				({
+					ok: true,
+					json: async () => {
+						throw Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' });
+					},
+				}) as unknown as Response) as typeof fetch,
+		);
+
+		const result = await runProviderTest(runtime({ label: 'OpenRouter' }));
+
+		assert.equal(result.ok, false);
+		assert.match(result.message ?? '', /Zeitlimit/);
+		assert.doesNotMatch(result.message ?? '', /JSON/);
+	});
+
 	it('HTTP 402 mit detail-Body: Ursache wird durchgereicht (Mistral-Abo-Fall)', async () => {
 		mockFetch(402, { detail: 'Check your subscription on https://admin.mistral.ai/subscription' });
 
