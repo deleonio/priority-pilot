@@ -23,7 +23,7 @@
 		"@capacitor/cli": "8.5.3",
 		"@types/node": "25.9.9",
 		"knip": "6.41.0",
-		"typescript": "5.9.3",
+		"typescript": "7.0.2",
 		"vitest": "4.1.11"
 	}
 }
