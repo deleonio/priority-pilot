@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.28 - 2026-10-17
 
-_Enthält v0.28.0 – v0.28.5._
+_Enthält v0.28.0 – v0.28.6._
 
 ### 🐞 Bug Fixes
 
@@ -16,6 +16,7 @@ _Enthält v0.28.0 – v0.28.5._
 - fix(frontend): keep task list popover button right-aligned on mobile by @deleonio in https://github.com/deleonio/priority-pilot/pull/2669
 - fix(frontend): start balance dial rise only with the real server value by @deleonio in https://github.com/deleonio/priority-pilot/pull/2676
 - docs(arc42): sync architecture doc to current state 2026-10-17 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2678
+- feat(frontend): checkout dialog with address and withdrawal consent by @deleonio in https://github.com/deleonio/priority-pilot/pull/2673
 
 ## v0.27 - 2026-10-17
 
@@ -373,6 +374,7 @@ _Enthält v0.17.0 – v0.17.45._
 
 - feat(server): carry upgrade credit over to following cycles (#2241) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2280
 - feat(frontend): add welcome steps card to dashboard after onboarding by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2284
+- feat(frontend): add welcome steps card to dashboard after onboarding by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2284
 - feat(admin): delete user subscriptions and invoices completely (#2295) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2296
 - feat(server): send waitlist activation mail with login link by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2310
 - feat(server): send emails for payment failure and subscription end by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2320
@@ -414,7 +416,6 @@ _Enthält v0.17.0 – v0.17.45._
 - feat(server): admin lock cancels PayPal subscription by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2281
 - feat(frontend): move brand elements into shared month card, use balamentum.modevel.de by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2283
 - fix(server): ignore late payments on cancelled subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2282
-- feat(frontend): remember onboarding dismissal across reload by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2285
 - feat(frontend): remember onboarding dismissal across reload by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2285
 - test(frontend): isolate issue-763 e2e spec with its own session by @deleonio in https://github.com/deleonio/priority-pilot/pull/2291
 - feat(frontend): explain free path without ai in onboarding import by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2289
