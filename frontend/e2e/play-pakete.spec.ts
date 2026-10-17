@@ -54,12 +54,11 @@ const openPlans = async (page: Page, channel?: 'play'): Promise<void> => {
 };
 
 test.describe('Balamentum — #1674/#1692: Paketansicht im Kanal play', () => {
-	test('Web-Gegenprobe: ohne Abo bietet die Matrix „Zahlungspflichtig bestellen" zu den Katalogpreisen an', async ({
-		page,
-	}) => {
+	test('Web-Gegenprobe: ohne Abo bietet die Matrix „Bestellen" zu den Katalogpreisen an', async ({ page }) => {
 		await openPlans(page);
 
-		await expect(page.getByRole('button', { name: /Zahlungspflichtig bestellen/ }).first()).toBeVisible();
+		// Test-Pflege #2661: Paket-Knopf heißt „Bestellen“.
+		await expect(page.getByRole('button', { name: 'Bestellen' }).first()).toBeVisible();
 		await expect(page.getByRole('cell', { name: /^4,99 €/ })).toBeVisible();
 	});
 
