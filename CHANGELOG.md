@@ -4,11 +4,12 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.28 - 2026-10-17
 
-_Enthält v0.28.0 – v0.28.4._
+_Enthält v0.28.0 – v0.28.5._
 
 ### 🐞 Bug Fixes
 
 - fix(server): strip query strings from error logs so tokens stay out by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2674
+- fix(frontend): release dial intro, hide display until real value by @deleonio in https://github.com/deleonio/priority-pilot/pull/2679
 
 ### Other Changes
 
@@ -413,7 +414,7 @@ _Enthält v0.17.0 – v0.17.45._
 - feat(server): admin lock cancels PayPal subscription by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2281
 - feat(frontend): move brand elements into shared month card, use balamentum.modevel.de by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2283
 - fix(server): ignore late payments on cancelled subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2282
-- fix(server): ignore late payments on cancelled subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2282
+- feat(frontend): remember onboarding dismissal across reload by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2285
 - feat(frontend): remember onboarding dismissal across reload by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2285
 - test(frontend): isolate issue-763 e2e spec with its own session by @deleonio in https://github.com/deleonio/priority-pilot/pull/2291
 - feat(frontend): explain free path without ai in onboarding import by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2289
