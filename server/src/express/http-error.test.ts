@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { ValidationError as SequelizeValidationError } from 'sequelize';
 
 // ── Modul (noch nicht vorhanden → legitimer erster roter Zustand) ──────────────────────────
-import { sendError, handleWriteError, parseId } from './http-error.js';
+import { sendError, handleWriteError, parseId, logUrl } from './http-error.js';
 import * as httpErrorModule from './http-error.js';
 
 const ROUTE_FILES = [
@@ -204,5 +204,15 @@ describe('Issue #1456 — sendPlanError (AK7)', () => {
 			feature: 'ai_assist',
 			currentPlan: 'pro',
 		});
+	});
+});
+
+describe('logUrl', () => {
+	it('entfernt den Query-String (Tokens dürfen nicht in Logs landen)', () => {
+		assert.equal(logUrl({ originalUrl: '/public/cancellation/confirm?token=abc123' }), '/public/cancellation/confirm');
+	});
+
+	it('lässt einen Pfad ohne Query-String unverändert', () => {
+		assert.equal(logUrl({ originalUrl: '/tasks' }), '/tasks');
 	});
 });

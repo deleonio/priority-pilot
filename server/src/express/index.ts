@@ -86,7 +86,7 @@ import { nativeCors } from './nativeCors.js';
 import { translateMessages } from './messagesEn.js';
 import { createCsrfUtilities } from './csrf.js';
 import { upsertOAuthUser } from '../logics/oauthUser.js';
-import { errorHandler, sendError } from './http-error.js';
+import { errorHandler, sendError, logUrl } from './http-error.js';
 
 type TaskTreeNodeDto = components['schemas']['TaskTreeNode'];
 type TaskGraphDto = components['schemas']['TaskGraph'];
@@ -476,7 +476,7 @@ export const createApp = (deps: AppDeps = {}) => {
 			res.json(await buildTaskForest(userId, scope));
 		} catch (error) {
 			// #2549 AK4: Fehler loggen (Methode, Pfad, Fehlermeldung), bevor die 500 geht.
-			console.error(`${req.method} ${req.originalUrl}`, error);
+			console.error(`${req.method} ${logUrl(req)}`, error);
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	});
@@ -487,7 +487,7 @@ export const createApp = (deps: AppDeps = {}) => {
 		try {
 			res.json(await buildTaskGraph(getUserId(req)));
 		} catch (error) {
-			console.error(`${req.method} ${req.originalUrl}`, error);
+			console.error(`${req.method} ${logUrl(req)}`, error);
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	});
@@ -531,7 +531,7 @@ export const createApp = (deps: AppDeps = {}) => {
 				...(reasons ? { reasons } : {}),
 			});
 		} catch (error) {
-			console.error(`${req.method} ${req.originalUrl}`, error);
+			console.error(`${req.method} ${logUrl(req)}`, error);
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	});
@@ -542,7 +542,7 @@ export const createApp = (deps: AppDeps = {}) => {
 			const liste = await findSuggestedBewertungen(getUserId(req));
 			res.json(liste.map((eintrag) => ({ ...serializeTask(eintrag.task), scoreBreakdown: toScoreBreakdown(eintrag) })));
 		} catch (error) {
-			console.error(`${req.method} ${req.originalUrl}`, error);
+			console.error(`${req.method} ${logUrl(req)}`, error);
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	});

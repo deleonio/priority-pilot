@@ -17,6 +17,11 @@ export function sendError(res: Response<ErrorDto>, status: number, message: stri
 	res.status(status).json({ message });
 }
 
+/** Pfad ohne Query-String für Logs — die Query kann Tokens tragen (z. B. Kündigungs-Link). */
+export function logUrl(req: { originalUrl: string }): string {
+	return req.originalUrl.split('?')[0];
+}
+
 /** Übersetzt Schreibfehler in passende HTTP-Statuscodes (400 bei Validierung, sonst 500). */
 export function handleWriteError(res: Response<ErrorDto>, error: unknown): void {
 	if (error instanceof SequelizeValidationError) {
@@ -35,7 +40,7 @@ export function handleWriteError(res: Response<ErrorDto>, error: unknown): void 
  * Middleware in `createApp`.
  */
 export const errorHandler: ErrorRequestHandler = (error, req, res, next) => {
-	console.error(`${req.method} ${req.originalUrl}`, error);
+	console.error(`${req.method} ${logUrl(req)}`, error);
 	if (res.headersSent) {
 		next(error);
 		return;
