@@ -42,9 +42,11 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Android SDK 36
+      - name: Android SDK 36 und NDK
         # Das Runner-Image bringt SDK und cmdline-tools mit; installiert wird nur, was fehlt.
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" > /dev/null
+        # NDK gepinnt wie ndkVersion in native/android/app/build.gradle (braucht der Release-Bau
+        # für die nativen Debug-Symbole).
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" "ndk;30.0.16248370" > /dev/null
 
       - name: Web-App für die Android-App bauen
         # Gebündelte SPA (ADR 0021) derselben Version; `cap sync` kopiert sie nach webDir. Direkt über
@@ -105,6 +107,16 @@ jobs:
           name: balamentum-apk
           path: native/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+
+      - name: Native Debug-Symbole im AAB prüfen
+        # AGP kann nur Symbole packen, die die AAR unstripppt mitliefert. Fehlt der Metadaten-Ordner,
+        # bleibt die Play-Warnung trotz korrekter Konfiguration — deshalb Warnung, kein Fehler.
+        run: |
+          if unzip -l native/android/app/build/outputs/bundle/release/app-release.aab | grep -q "BUNDLE-METADATA/com.android.tools.build.debugsymbols"; then
+            echo "Native Debug-Symbole im AAB enthalten."
+          else
+            echo "::warning::Keine nativen Debug-Symbole im AAB — die AARs liefern keine unstripppten .so (Play-Warnung bleibt, harmlos)"
+          fi
 
       - name: Play-Service-Account prüfen
         if: env.RELEASE_TAG != ''

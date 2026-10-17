@@ -20,7 +20,9 @@ ersten Gradle-Lauf also immer `sync` ausführen.
 ## Lokal bauen
 
 Voraussetzungen: JDK 21 und ein Android SDK mit `platforms;android-36`, `build-tools;36.0.0` und
-`platform-tools` (`ANDROID_HOME` zeigt darauf).
+`platform-tools` (`ANDROID_HOME` zeigt darauf); Release-Bauten zusätzlich das NDK in der gepinnten
+Version aus `native/android/app/build.gradle` (`sdkmanager --install "ndk;…"`), sonst bricht der Bau
+an den nativen Debug-Symbolen ab.
 
 ```bash
 export SITE_URL=https://example.org
@@ -52,6 +54,22 @@ steht, bleibt die App-Link-Verifikation erhalten — Übergang bis zum internen 
 Store-Start (#1688).
 Den `versionCode` leitet Gradle aus der Root-Version ab (`major*10000000 + minor*10000 + patch`,
 `native/src/version-code.ts`).
+
+### Native Debug-Symbole und R8
+
+Die Play Console warnt bei Bundles mit nativem Code ohne Debug-Symbole. Einziger nativer Anteil ist
+`libdatastore_shared_counter.so` aus der androidx-credentials-Kette der nativen Anmeldung (ADR 0023).
+Gradle bettet im Release-Bau die unstripppten `.so` als Debug-Metadaten ins AAB ein
+(`debugSymbolLevel 'SYMBOL_TABLE'`, `ndkVersion` gepinnt — das NDK installiert der Workflow mit) und
+prüft danach im Log, ob der Metadaten-Ordner `BUNDLE-METADATA/com.android.tools.build.debugsymbols`
+im AAB liegt. Liefern die AARs nur gestrippte Bibliotheken, kann AGP keine Symbole erzeugen und die
+Play-Warnung bleibt — harmlos, behebbar dann nur noch mit manuell aus den AndroidX-Quellen gebauten
+Symbolen.
+
+R8/ProGuard bleibt bewusst aus (`minifyEnabled false`): Das Bundle besteht fast nur aus den gebündelten
+Web-Assets, die R8 unberührt lässt, der Größengewinn wäre minimal — dem steht ein Reflexionsrisiko im
+Bezahlfluss (cordova-plugin-purchase) gegenüber. Die Play-Warnung zur fehlenden Offenlegungsdatei ist
+deshalb informativ und bleibt stehen.
 
 Upload-Schlüssel einmalig erzeugen und sicher aufbewahren (für PKCS12 gilt ein Passwort für
 Keystore und Schlüssel):
