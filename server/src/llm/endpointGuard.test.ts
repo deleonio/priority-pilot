@@ -34,11 +34,6 @@ describe('isPublicEndpoint', () => {
 
 /** #2685: DNS-Fehler fail-closed — Lookup injizierbar (2. Parameter, wie fetchIcs). */
 describe('isPublicEndpoint: DNS-Fehler fail-closed', () => {
-	// Cast nach MEMORY 2026-08-23: 2. Parameter existiert erst mit der Umsetzung.
-	const guard = isPublicEndpoint as unknown as (
-		url: string,
-		lookupFn: (host: string) => Promise<Array<{ address: string; family: number }>>,
-	) => Promise<boolean>;
 	const dnsFail = async (): Promise<never> => {
 		const error = new Error('getaddrinfo ENOTFOUND provider.invalid') as NodeJS.ErrnoException;
 		error.code = 'ENOTFOUND';
@@ -46,13 +41,13 @@ describe('isPublicEndpoint: DNS-Fehler fail-closed', () => {
 	};
 
 	it('AK1: lehnt nicht auflösbaren Host ab (fail-closed statt fail-open)', async () => {
-		assert.equal(await guard('https://provider.invalid/v1', dnsFail), false);
+		assert.equal(await isPublicEndpoint('https://provider.invalid/v1', dnsFail), false);
 	});
 
 	it('AK2: loggt genau einmal Host und DNS-Ursache', async () => {
 		const errSpy = mock.method(console, 'error', () => {});
 		try {
-			await guard('https://provider.invalid/v1', dnsFail);
+			await isPublicEndpoint('https://provider.invalid/v1', dnsFail);
 			assert.equal(errSpy.mock.callCount(), 1);
 			const logged = errSpy.mock.calls[0].arguments.map(String).join(' ');
 			assert.match(logged, /provider\.invalid/);
@@ -65,7 +60,7 @@ describe('isPublicEndpoint: DNS-Fehler fail-closed', () => {
 	it('AK3: injizierter Lookup entscheidet — interne Auflösung gesperrt, öffentliche durchgelassen', async () => {
 		const internal = async () => [{ address: '10.0.0.5', family: 4 }];
 		const publicHost = async () => [{ address: '93.184.216.34', family: 4 }];
-		assert.equal(await guard('https://spec-intern.invalid/v1', internal), false);
-		assert.equal(await guard('https://spec-oeffentlich.invalid/v1', publicHost), true);
+		assert.equal(await isPublicEndpoint('https://spec-intern.invalid/v1', internal), false);
+		assert.equal(await isPublicEndpoint('https://spec-oeffentlich.invalid/v1', publicHost), true);
 	});
 });
