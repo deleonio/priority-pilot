@@ -12,6 +12,9 @@ import { User } from '../models/index.js';
 // Die ICS-Tests (#2209) liefern Kalender von einem Loopback-Stub; die SSRF-Sperre in `fetchIcs` ließe das nicht zu.
 process.env.ICS_ALLOW_INTERNAL_HOSTS = '1';
 
+// Routen-Tests nutzen nicht auflösbare Fake-Hosts; fail-closed (#2685) ließe die nicht mehr durch.
+process.env.ENDPOINT_GUARD_ALLOW_UNRESOLVED_HOSTS = '1';
+
 export const resetDb = async (): Promise<void> => {
 	await sequelize.sync({ force: true });
 };
