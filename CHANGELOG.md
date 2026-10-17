@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.28 - 2026-10-17
 
-_Enthält v0.28.0 – v0.28.10._
+_Enthält v0.28.0 – v0.28.11._
 
 ### 🐞 Bug Fixes
 
@@ -21,6 +21,7 @@ _Enthält v0.28.0 – v0.28.10._
 - fix(deps): update dependency i18next to v26.4.7 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2648
 - ci(cron): prompt audit weekly on friday evening instead of daily by @deleonio in https://github.com/deleonio/priority-pilot/pull/2681
 - fix(android): embed native debug symbols in the release aab by @deleonio in https://github.com/deleonio/priority-pilot/pull/2682
+- fix(llm): add top_p 1 for greedy sampling and surface embedded 200 errors by @deleonio in https://github.com/deleonio/priority-pilot/pull/2683
 
 ## v0.27 - 2026-10-17
 
@@ -228,6 +229,7 @@ _Enthält v0.21.0 – v0.21.7._
 ### 🎉 New Features
 
 - feat(frontend): allow clearing a set deadline in task form (#2463) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2466
+- feat(frontend): allow clearing a set deadline in task form (#2463) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2466
 - feat(frontend): dismissible demo hint card (#2471) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2473
 
 ### 🚀 Improvements
@@ -400,7 +402,6 @@ _Enthält v0.17.0 – v0.17.45._
 
 - refactor(frontend): extract share-card rasterization into shared helper by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2273
 - test(e2e): fix shard isolation in #2221 and #763 specs by @deleonio in https://github.com/deleonio/priority-pilot/pull/2290
-- test: cover invitation auto-allow of unknown emails (#2223) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2288
 - test: cover invitation auto-allow of unknown emails (#2223) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2288
 - test(server): freeze time in #2143 proration AK3 test (#2279) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2297
 - fix(ci): arm spec-phase soft-abort on hard deadline by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2337
