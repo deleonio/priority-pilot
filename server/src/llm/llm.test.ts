@@ -287,7 +287,8 @@ describe('Lektorat-Funktion (Issue #645)', () => {
  */
 describe('parseTaskTextWithMistral — Schnellerfassung erweitert (#1310)', () => {
 	const originalFetch = globalThis.fetch;
-	let capturedBody: { messages?: { role: string; content: string }[] } | undefined;
+	let capturedBody:
+		{ messages?: { role: string; content: string }[]; temperature?: number; top_p?: number } | undefined;
 
 	/** Mockt NUR den LLM-API-Call (Mistral); zeichnet den gesendeten Body auf. */
 	const stubModelResponse = (parsedJson: unknown): void => {
@@ -390,6 +391,9 @@ describe('parseTaskTextWithMistral — Schnellerfassung erweitert (#1310)', () =
 
 		await parseTaskTextWithMistral('Übermorgen zum Zahnarzt');
 
+		// Produktions-Shape: Greedy-Sampling (temperature 0 + top_p 1, Mistral-400-Schutz) auch bei echten Aufrufen.
+		assert.equal(capturedBody?.temperature, 0);
+		assert.equal(capturedBody?.top_p, 1);
 		const today = new Date().toISOString().slice(0, 10);
 		const promptText = (capturedBody?.messages ?? []).map((m) => m.content).join('\n');
 		assert.ok(
@@ -425,7 +429,8 @@ describe('Kategorie-Erkennung beim Parsen (Aufgabe und Suche)', () => {
 		{ id: 7, name: 'Hausbau' },
 		{ id: 9, name: 'Steuer' },
 	];
-	let capturedBody: { messages?: { role: string; content: string }[] } | undefined;
+	let capturedBody:
+		{ messages?: { role: string; content: string }[]; temperature?: number; top_p?: number } | undefined;
 
 	const stubModelResponse = (parsedJson: unknown): void => {
 		globalThis.fetch = (async (url: string, init?: RequestInit) => {
@@ -457,6 +462,9 @@ describe('Kategorie-Erkennung beim Parsen (Aufgabe und Suche)', () => {
 		const result = await parseTaskTextWithMistral('Fliesen fürs Bad bestellen', undefined, categories);
 
 		assert.equal(result.categoryId, 7, 'gültige Kategorie wird übernommen');
+		// Produktions-Shape: Greedy-Sampling (temperature 0 + top_p 1, Mistral-400-Schutz) auch bei echten Aufrufen.
+		assert.equal(capturedBody?.temperature, 0);
+		assert.equal(capturedBody?.top_p, 1);
 		const systemPrompt = capturedBody?.messages?.find((message) => message.role === 'system')?.content ?? '';
 		assert.match(systemPrompt, /Hausbau/, 'die Kategorien des Nutzers stehen im Prompt');
 	});

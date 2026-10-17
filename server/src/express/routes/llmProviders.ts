@@ -17,7 +17,7 @@ import {
 	type ProviderRuntime,
 } from '../../llm/llmProviders.js';
 import { LlmProvider } from '../../models/index.js';
-import { upstreamErrorDetail } from '../../llm/upstreamError.js';
+import { upstreamBodyDetail, upstreamErrorDetail } from '../../llm/upstreamError.js';
 import { fetchProviderEndpoint, INTERNAL_ENDPOINT_MESSAGE, isPublicEndpoint } from '../../llm/endpointGuard.js';
 import { resolveGeoUser } from './geoConfig.js';
 import { createAiQuotaCounter } from '../aiQuotaMeter.js';
@@ -138,9 +138,9 @@ interface ProviderTestResultDto {
 
 /**
  * Führt den Test-Prompt aus — mit EXAKT den Parametern echter KI-Aufrufe (Endpoint, Key, Modell,
- * JSON-Mode, Temperatur 0), damit der Test repräsentativ ist: Schlägt er fehl, schlagen es auch
- * die KI-Features, und die gemeldete Ursache (Auth/Modell/Abo/Netzwerk) ist die echte.
- * Der Prompt verlangt bewusst JSON, weil `response_format: json_object` aktiv ist.
+ * JSON-Mode, Greedy-Sampling mit top_p 1), damit der Test repräsentativ ist: Schlägt er fehl,
+ * schlagen es auch die KI-Features, und die gemeldete Ursache (Auth/Modell/Abo/Netzwerk) ist die
+ * echte. Der Prompt verlangt bewusst JSON, weil `response_format: json_object` aktiv ist.
  * Injizierbar, damit Route-Tests deterministisch ohne echten Provider laufen.
  */
 export const runProviderTest = async (runtime: ProviderRuntime): Promise<ProviderTestResultDto> => {
@@ -157,7 +157,10 @@ export const runProviderTest = async (runtime: ProviderRuntime): Promise<Provide
 				},
 				body: JSON.stringify({
 					model: runtime.model,
+					// Neuere Mistral-Modelle (z. B. mistral-large-4) verlangen bei Greedy-Sampling
+					// (temperature 0) explizit top_p 1 — ohne ihn antworten sie mit HTTP 400.
 					temperature: 0,
+					top_p: 1,
 					response_format: { type: 'json_object' },
 					messages: [{ role: 'user', content: 'Antworte ausschließlich mit JSON: {"ok": true}' }],
 				}),
@@ -181,7 +184,16 @@ export const runProviderTest = async (runtime: ProviderRuntime): Promise<Provide
 		const payload = (await response.json()) as { choices?: { message?: { content?: unknown } }[] };
 		const content = payload.choices?.[0]?.message?.content;
 		if (typeof content !== 'string') {
-			return { ok: false, message: `${runtime.label}-Antwort hatte keine Modell-Ausgabe (unerwartetes Format).` };
+			// OpenRouter bettet Provider-Fehler (Credits, Rate-Limit, Moderation) in HTTP 200 ein —
+			// ohne die Ursache bliebe hier nur das wertlose „unerwartetes Format“.
+			const detail = upstreamBodyDetail(payload);
+			return {
+				ok: false,
+				message:
+					detail !== ''
+						? `${runtime.label} (${runtime.model}) meldete: ${detail}`
+						: `${runtime.label}-Antwort hatte keine Modell-Ausgabe (unerwartetes Format).`,
+			};
 		}
 		return {
 			ok: true,
