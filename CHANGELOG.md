@@ -4,11 +4,17 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.28 - 2026-10-17
 
-_Enthält v0.28.0 – v0.28.1._
+_Enthält v0.28.0 – v0.28.4._
+
+### 🐞 Bug Fixes
+
+- fix(server): strip query strings from error logs so tokens stay out by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2674
 
 ### Other Changes
 
 - fix(frontend): keep task list popover button right-aligned on mobile by @deleonio in https://github.com/deleonio/priority-pilot/pull/2669
+- fix(frontend): start balance dial rise only with the real server value by @deleonio in https://github.com/deleonio/priority-pilot/pull/2676
+- docs(arc42): sync architecture doc to current state 2026-10-17 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2678
 
 ## v0.27 - 2026-10-17
 
@@ -405,8 +411,8 @@ _Enthält v0.17.0 – v0.17.45._
 - test(server): verify prorated credit on plan upgrade by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2277
 - feat(server): allow account deletion after paypal cancellation by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2278
 - feat(server): admin lock cancels PayPal subscription by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2281
-- feat(server): admin lock cancels PayPal subscription by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2281
 - feat(frontend): move brand elements into shared month card, use balamentum.modevel.de by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2283
+- fix(server): ignore late payments on cancelled subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2282
 - fix(server): ignore late payments on cancelled subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2282
 - feat(frontend): remember onboarding dismissal across reload by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2285
 - test(frontend): isolate issue-763 e2e spec with its own session by @deleonio in https://github.com/deleonio/priority-pilot/pull/2291

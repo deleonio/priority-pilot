@@ -5,6 +5,7 @@ import { TaskStatus } from 'client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from '@testing-library/react';
 import { Dashboard } from './Dashboard';
+import { HeartBalance } from './HeartBalance';
 import { api } from '../api';
 // #2527: i18n läuft echt (vitest.setup.ts pinnt `de`) — der Sprach-Test wechselt selbst (Muster CareHint #2063).
 import i18next from '../i18n/config';
@@ -27,6 +28,13 @@ vi.mock('@public-ui/react-v19', async (importOriginal) => ({
 		/>
 	),
 }));
+
+// Auftakt-Spiegel: HeartBalance rendert echt, protokolliert aber seine Props — die Freigabe des
+// Auftakts ist im jsdom (kein WebGL, SVG-Rückfall ohne Auftakt) sonst nicht beobachtbar.
+vi.mock('./HeartBalance', async (importOriginal) => {
+	const original = await importOriginal<typeof import('./HeartBalance')>();
+	return { ...original, HeartBalance: vi.fn(original.HeartBalance) };
+});
 
 afterEach(() => {
 	cleanup();
@@ -704,6 +712,44 @@ describe('Dashboard — Herz-Füllstand aus dem Server (#1638)', () => {
 
 		await waitFor(() => expect(screen.getByTestId('heart-balance-value').textContent).toBe('37 %'));
 		expect(spy).toHaveBeenCalledTimes(1);
+	});
+});
+
+/**
+ * Der Auftakt des Balance-Bilds startet erst mit der Beantwortung der Balance-Frage — sonst wächst
+ * das Zifferblatt auf den lokalen Notwert und wechselt dort mitten im Auftakt auf den echten Stand.
+ * Im Fehlerfall wird trotzdem freigegeben: Der lokale Wert ist dann der Stand.
+ */
+describe('Dashboard — Auftakt-Freigabe des Balance-Bilds', () => {
+	it('hält den Auftakt zurück und gibt ihn mit der Balance-Antwort frei', async () => {
+		const status = {
+			fuellstandProzent: 37,
+			hatPunkte: true,
+			saeulen: [],
+			meilensteine: [],
+		} as unknown as BalanceStatus;
+		let loesen!: (status: BalanceStatus) => void;
+		vi.spyOn(api, 'getBalanceStatus').mockImplementation(
+			() => new Promise<BalanceStatus>((resolve) => (loesen = resolve)),
+		);
+		const koerper = pillar(1, 'Körper', 100);
+		const tasks = [task(11, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Done)];
+
+		render(<Dashboard tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />);
+
+		await waitFor(() => expect(vi.mocked(HeartBalance).mock.calls.at(-1)?.[0]?.auftaktBereit).toBe(false));
+		await act(async () => loesen(status));
+		await waitFor(() => expect(vi.mocked(HeartBalance).mock.calls.at(-1)?.[0]?.auftaktBereit).toBe(true));
+	});
+
+	it('gibt im Fehlerfall für den lokalen Wert frei', async () => {
+		vi.spyOn(api, 'getBalanceStatus').mockRejectedValue(new Error('nicht erreichbar'));
+		const koerper = pillar(1, 'Körper', 100);
+		const tasks = [task(11, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Done)];
+
+		render(<Dashboard tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />);
+
+		await waitFor(() => expect(vi.mocked(HeartBalance).mock.calls.at(-1)?.[0]?.auftaktBereit).toBe(true));
 	});
 });
 

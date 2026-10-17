@@ -313,3 +313,5 @@ Konflikte, die er verhindern soll.
   angeben, die der gerenderte Baum nutzt (LoginPage braucht getAuthProviders, sonst crashen drei
   Bestands-Tests). Komponenten-Grep auf `api\.` reicht nicht — zeilenübergreifende Ketten
   (`api` … `.getAuthProviders()`) per Import-Lektüre finden.
+- 2026-10-17 · Git-Stash-Kette — scheitert `git stash push -- <pfade>` an pathspec (falsches cwd), poppt `git stash pop` in derselben Befehlskette trotzdem weiter und fasst den FREMDEN alten `stash@{0}` → Konflikt (UU) in fremder Datei, Ancient-Diffs fast im Baum. → Pop nur nach verifiziertem Push (`git stash list | head -1` zeigt den eigenen Eintrag); Konflikt-Räumung: `git checkout HEAD -- <pfad>` (Index+Baum), fremder Stash bleibt liegen.
+- 2026-10-17 · frontend/tests — jsdom lädt app.css nicht: toBeVisible/not.toBeVisible auf CSS-Selektor-Wirkung (visibility-Klasse) bleibt still grün, obwohl das Gate kaputt war (Zifferblatt #2676-Nacharbeit) → Sichtbarkeits-Gates inline am Element stylen (Präzedenz --pp-heart-beat), dann greift jest-dom.
