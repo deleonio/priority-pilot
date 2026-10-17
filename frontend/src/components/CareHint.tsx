@@ -69,9 +69,10 @@ const endeDesTages = (jetzt: Date): number =>
  * nur den Fürsorge-Satz — ohne
  * Aktionsreihe (nichts anzunehmen oder abzulehnen, kein Nachrücken, kein Dismissal). Ein
  * KI-Vorschlag (`typ: 'ki'`, #1873) trägt die Kennzeichnung „KI-Vorschlag“.
- * Lädt selbst (Muster `DayDoneHint`); bis zur Antwort und bei Ladefehler wird nichts gerendert,
- * damit „Nächste Aufgabe“ nicht springt. Auf `TASKS_CHANGED_EVENT` (#2522) lädt er wie beim Mount
- * neu — bis zur Antwort bleibt der alte Hinweis stehen.
+ * Lädt selbst (Muster `DayDoneHint`); bis zur ersten Antwort trägt ein dekorativer Platzhalter die
+ * endgültige Kartenhöhe (#2625 — kein Layout-Sprung), bei Ladefehler wird nichts gerendert. Auf
+ * `TASKS_CHANGED_EVENT` (#2522) lädt er wie beim Mount neu — bis zur Antwort bleibt der alte
+ * Hinweis stehen (der Platzhalter betrifft nur den ersten Ladevorgang).
  *
  * „Nicht jetzt“ (#1977) öffnet eine Inline-Grundauswahl (fünf Gründe, ersetzt die Aktionsreihe):
  * mit Grund geht ein `POST …/rejections` je Aufgabe/Vorlage, ohne Grund wird nur übersprungen —
@@ -107,6 +108,9 @@ export const CareHint = ({ onEinstiegssatzGezeigt }: CareHintProps) => {
 	// #2522: Refresh-Key auf TASKS_CHANGED_EVENT (Muster NearbyCard) — Erledigen auf dem Dashboard
 	// lässt den Hinweis wie beim Mount neu laden.
 	const [refreshKey, setRefreshKey] = useState(0);
+	// #2625: Kennmarke für den ERSTEN Ladevorgang — nur solange trägt der Platzhalter die reservierte
+	// Höhe; der #2522-Refresh lässt den alten Hinweis stehen (kein Platzhalter-Flash).
+	const [initialGeladen, setInitialGeladen] = useState(false);
 
 	useEffect(() => {
 		const onTasksChanged = () => setRefreshKey((key) => key + 1);
@@ -121,7 +125,14 @@ export const CareHint = ({ onEinstiegssatzGezeigt }: CareHintProps) => {
 		api
 			.getCareSuggestions({ signal: controller.signal })
 			.then((result) => setVorschlaege(result.vorschlaege))
-			.catch(() => undefined);
+			.catch(() => undefined)
+			.finally(() => {
+				// Abbruch (Refresh/Unmount/StrictMode-Doppelmount) setzt die Kennmarke nicht — sonst
+				// würde der Platzhalter verschwinden, während der Nachfolge-Fetch noch läuft.
+				if (!controller.signal.aborted) {
+					setInitialGeladen(true);
+				}
+			});
 		api
 			.listPillars({ signal: controller.signal })
 			.then((result) => setSaeulen(result))
@@ -148,6 +159,13 @@ export const CareHint = ({ onEinstiegssatzGezeigt }: CareHintProps) => {
 	useLayoutEffect(() => {
 		onEinstiegssatzGezeigt?.(zeigtEinstiegssatz);
 	}, [onEinstiegssatzGezeigt, zeigtEinstiegssatz]);
+
+	// #2625: Bis zur ersten Antwort reserviert der Platzhalter die Höhe der späteren Karte
+	// (Übergang Laden → Geladen hoehenneutral, AK1); Ladefehler, Ausblenden und nur Unterdrücktes
+	// bleiben unsichtbar (#1793-Vertrag).
+	if (!initialGeladen) {
+		return <div className="care-hint care-hint-platzhalter" data-testid="care-hint" aria-hidden="true" />;
+	}
 
 	if (vorschlaege === undefined || ausgeblendet) {
 		return null;
