@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import fragmentSource from './balance-figure.frag?raw';
 import {
 	auftaktStand,
+	auftaktWechselt,
 	buildArcs,
 	buildHands,
 	buildOrbs,
@@ -545,7 +546,7 @@ const createEngine = (canvas: HTMLCanvasElement): FigureEngine => {
 			ensureLoop();
 		},
 		setAuftaktBereit: (bereit) => {
-			if (bereit !== !aufgeschoben) return;
+			if (!auftaktWechselt(aufgeschoben, bereit)) return;
 			if (bereit) riseStart = shaderTime; // Der Auftakt beginnt in dieser Sekunde.
 			aufgeschoben = !bereit;
 			if (!looping) draw(); // Standbild nachziehen; die laufende Loop greift im nächsten Frame.

@@ -132,6 +132,35 @@ describe('HeartBalance', () => {
 			expect(screen.getByTestId('heart-balance-svg').getAttribute('aria-label')).toMatch(/^Balance 42 Prozent — /);
 		});
 
+		/*
+		 * #2676: Bis der erste Stand freigegeben ist, stehen Bild und Ablesewert unsichtbar — der
+		 * Platz bleibt (kein Layout-Shift), und die erste sichtbare Fassung zeigt sofort den echten
+		 * Wert statt erst auf den lokalen Notwert zu wachsen und darauf zu springen. Die Legende
+		 * bleibt sichtbar: Ihre Anteile kommen aus den Säulen, nicht vom Server-Stand.
+		 */
+		it('hält Bild und Ablesewert unsichtbar, bis der erste Stand freigegeben ist (#2676)', () => {
+			const { container } = render(
+				<HeartBalance pillars={pillars} punkteProSaeule={gleichverteilt} fill={0.42} auftaktBereit={false} />,
+			);
+
+			expect(screen.getByTestId('heart-balance-svg')).not.toBeVisible();
+			expect(screen.getByTestId('heart-balance-value')).not.toBeVisible();
+			// Sichtbarkeits-Gate, nicht Display: Bühne und Zeilen halten ihre Höhe.
+			expect(container.querySelector('.heart-balance-stage')).not.toHaveStyle('display: none');
+			expect(screen.getByTestId('heart-balance-legend')).toBeVisible();
+		});
+
+		it('zeigt mit der Freigabe sofort den echten Stand — der lokale Notwert war nie sichtbar (#2676)', () => {
+			const props = { pillars, punkteProSaeule: gleichverteilt, fill: 0.42 } as const;
+			const { rerender } = render(<HeartBalance {...props} auftaktBereit={false} />);
+
+			rerender(<HeartBalance {...props} auftaktBereit />);
+
+			expect(screen.getByTestId('heart-balance-svg')).toBeVisible();
+			expect(screen.getByTestId('heart-balance-value')).toBeVisible();
+			expect(screen.getByTestId('heart-balance-value').textContent).toBe('42 %');
+		});
+
 		// #2645 (docs/spec/issue-2645.md): Das Dashboard leitet die Urteilsreife aus der
 		// Balance-Antwort ab (#2633-Felder) und reicht sie als optionale Prop durch — `undefined`
 		// (Server-Felder fehlen) bleibt bisheriges Verhalten. Die Prop existiert noch nicht und wird

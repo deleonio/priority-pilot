@@ -84,6 +84,15 @@ export const auftaktStand = (
 	lauft: boolean,
 ): number => (!freigegeben ? 0 : lauft ? clamp01((shaderSekunden - startSekunden) / RISE_DURATION) : 1);
 
+/**
+ * Zählt dieser Aufruf als Übergang des Freigabe-Zustands? Die Engine reagiert nur auf echte
+ * Wechsel: Startzustand ist gehalten (`aufgeschoben`), die erste Freigabe startet den Auftakt,
+ * wiederholte Aufrufe mit unverändertem Zustand tun nichts. Reine Funktion statt Engine-Internas,
+ * weil WebGL in jsdom nicht läuft — ein invertierter Vergleich hier verwarf die Freigabe und ließ
+ * das Zifferblatt dauerhaft leer.
+ */
+export const auftaktWechselt = (aufgeschoben: boolean, bereit: boolean): boolean => aufgeschoben === bereit;
+
 /** Innerer Rand des Ringfelds — die Mitte bleibt frei, sonst laufen die Bögen dort zusammen. */
 const ARC_INNER = 11;
 /** Anteil der verfügbaren Spur, den ein Bogen ausfüllt; der Rest ist Luft zwischen den Ringen. */

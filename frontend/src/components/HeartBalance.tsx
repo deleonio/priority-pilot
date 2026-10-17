@@ -67,6 +67,13 @@ export const HeartBalance = ({ pillars, punkteProSaeule, fill, urteilsreif, auft
 	const { t } = useTranslation('dashboard');
 	const health = heartHealth(balance, urteilsreif);
 	const { variant } = useBalanceVariant();
+	/*
+	 * #2676: Bis der erste Stand freigegeben ist, stehen Bild und Ablesewert unsichtbar (Platz
+	 * bleibt, kein Layout-Shift) — die erste sichtbare Fassung zeigt sofort den echten Wert statt
+	 * erst auf den lokalen Notwert zu wachsen und darauf zu springen. Die Legende bleibt sichtbar:
+	 * Ihre Anteile kommen aus den Säulen, nicht vom Server-Stand.
+	 */
+	const bereit = auftaktBereit !== false;
 
 	/*
 	 * Das Bild bewegt sich nur, wenn beide Schalter es erlauben: der Master „Animationen“ (#1183)
@@ -93,12 +100,19 @@ export const HeartBalance = ({ pillars, punkteProSaeule, fill, urteilsreif, auft
 	if (variant === 'herz') stageClasses.push('heart-balance-stage--herz');
 	if (!animated) stageClasses.push('heart-balance-stage--still');
 
+	/*
+	 * #2676: `visibility` statt `display` — Bühne und Zeilen halten ihre volle Höhe, es entsteht
+	 * kein Layout-Shift. Bewusst Inline statt Selektor in app.css: jsdom lädt das Stylesheet
+	 * nicht, die Unit-Tests auf das Gate brauchen die Angabe direkt am Element.
+	 */
+	const wartetStyle = { visibility: 'hidden' } as const;
+
 	return (
 		<div className="heart-balance">
 			<div
 				className={stageClasses.join(' ')}
 				data-variante={variant}
-				style={{ '--pp-heart-beat': `${beatSeconds.toFixed(2)}s` } as CSSProperties}
+				style={{ '--pp-heart-beat': `${beatSeconds.toFixed(2)}s`, ...(bereit ? null : wartetStyle) } as CSSProperties}
 			>
 				{variant === 'herz' ? (
 					/* Das Herz hat keinen Auftakt — sein Füllstand steht sofort, ohne Einfahren. */
@@ -115,7 +129,7 @@ export const HeartBalance = ({ pillars, punkteProSaeule, fill, urteilsreif, auft
 				)}
 			</div>
 
-			<p className="heart-balance-readout">
+			<p className="heart-balance-readout" style={bereit ? undefined : { visibility: 'hidden' }}>
 				<span className="heart-balance-value" data-testid="heart-balance-value">
 					{fillPercent} %
 				</span>
