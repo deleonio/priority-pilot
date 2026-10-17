@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.28 - 2026-10-17
 
-_Enthält v0.28.0 – v0.28.7._
+_Enthält v0.28.0 – v0.28.8._
 
 ### 🐞 Bug Fixes
 
@@ -18,6 +18,7 @@ _Enthält v0.28.0 – v0.28.7._
 - fix(frontend): start balance dial rise only with the real server value by @deleonio in https://github.com/deleonio/priority-pilot/pull/2676
 - docs(arc42): sync architecture doc to current state 2026-10-17 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2678
 - feat(frontend): checkout dialog with address and withdrawal consent by @deleonio in https://github.com/deleonio/priority-pilot/pull/2673
+- fix(deps): update dependency i18next to v26.4.7 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2648
 
 ## v0.27 - 2026-10-17
 
@@ -247,7 +248,6 @@ _Enthält v0.20.0 – v0.20.4._
 
 ### 🎉 New Features
 
-- feat(server): manage task checklist items one by one via mcp (#2460) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2461
 - feat(server): manage task checklist items one by one via mcp (#2460) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2461
 
 ### Other Changes
