@@ -101,7 +101,7 @@ describe('LoginPage — Prüfzugang (#2426)', () => {
 	it('AK7: korrektes Passwort ruft den Prüf-Login auf', async () => {
 		providers.mockResolvedValue(withReviewAccess(true));
 		reviewLogin.mockResolvedValue(undefined);
-		sessionStorage.setItem('launch-banner-dismissed', '1');
+		localStorage.setItem('pp-launch-banner-dismissed', '1');
 		render(<LoginPage />);
 		await waitFor(() => expect(providers).toHaveBeenCalled());
 		tapLogo(7);
@@ -111,6 +111,6 @@ describe('LoginPage — Prüfzugang (#2426)', () => {
 
 		await waitFor(() => expect(reviewLogin).toHaveBeenCalledWith('richtig'));
 		// #2480: Das Schließen des Einladungs-Banners gilt je Login.
-		await waitFor(() => expect(sessionStorage.getItem('launch-banner-dismissed')).toBeNull());
+		await waitFor(() => expect(localStorage.getItem('pp-launch-banner-dismissed')).toBeNull());
 	});
 });

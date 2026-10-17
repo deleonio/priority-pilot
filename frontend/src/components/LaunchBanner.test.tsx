@@ -4,7 +4,7 @@ import { LaunchBanner } from './LaunchBanner';
 
 /**
  * Spec-Tests für #2229/#2480 (docs/spec/issue-2229.md) — AK2 (Anzeige abhängig vom Flag), AK1/AK2
- * (Schließen-Knopf + sessionStorage-Dismiss, 2026-10-11) und AK3/AK4 (Feedback unberührt).
+ * (Schließen-Knopf + localStorage-Dismiss, 2026-10-11) und AK3/AK4 (Feedback unberührt).
  * KoliBri-Komponenten sind Web Components, deren `_on.onClick` jsdom nicht auslöst → Mock mit
  * nativen Elementen (Muster PushToast.test.tsx). i18n läuft echt, auf 'de' gepinnt — der
  * zugängliche Name des Schließ-Knopfs ist „Schließen“.
@@ -33,7 +33,7 @@ describe('LaunchBanner (#2229/#2480)', () => {
 
 	afterEach(() => {
 		cleanup();
-		sessionStorage.clear();
+		localStorage.clear();
 	});
 
 	it('AK2: enabled=false → kein Banner im DOM', () => {
@@ -58,19 +58,19 @@ describe('LaunchBanner (#2229/#2480)', () => {
 		expect(screen.getByRole('button', { name: 'Schließen' })).toHaveAttribute('data-testid', 'launch-banner-dismiss');
 	});
 
-	it('AK2 (#2480): Klick auf Schließen setzt den sessionStorage-Key und entfernt den Banner', () => {
+	it('AK2 (#2480): Klick auf Schließen setzt den localStorage-Key und entfernt den Banner', () => {
 		render(<LaunchBanner enabled onFeedback={vi.fn()} />);
 		fireEvent.click(screen.getByTestId('launch-banner-dismiss'));
-		expect(sessionStorage.getItem('launch-banner-dismissed')).not.toBeNull();
+		expect(localStorage.getItem('pp-launch-banner-dismissed')).not.toBeNull();
 		expect(screen.queryByTestId('launch-banner')).not.toBeInTheDocument();
 	});
 
-	it('AK2 (#2480): Remount bleibt weg; nach sessionStorage.clear() (neue Sitzung) erscheint der Banner wieder', () => {
-		sessionStorage.setItem('launch-banner-dismissed', '1');
+	it('AK2 (#2480): Remount bleibt weg; nach localStorage.clear() (neuer Login) erscheint der Banner wieder', () => {
+		localStorage.setItem('pp-launch-banner-dismissed', '1');
 		const { unmount } = render(<LaunchBanner enabled onFeedback={vi.fn()} />);
 		expect(screen.queryByTestId('launch-banner')).not.toBeInTheDocument();
 		unmount();
-		sessionStorage.clear();
+		localStorage.clear();
 		render(<LaunchBanner enabled onFeedback={vi.fn()} />);
 		expect(screen.getByTestId('launch-banner')).toBeInTheDocument();
 	});
