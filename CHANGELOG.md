@@ -2,9 +2,13 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.28 - 2026-10-17
+
+_Keine für Nutzer sichtbaren Änderungen._
+
 ## v0.27 - 2026-10-17
 
-_Enthält v0.27.0 – v0.27.10._
+_Enthält v0.27.0 – v0.27.11._
 
 ### 🐞 Bug Fixes
 
@@ -31,6 +35,7 @@ _Enthält v0.27.0 – v0.27.10._
 - chore: remove grandfather rule for legacy accounts (#2646) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2662
 - feat(billing): require billing address before subscription checkout by @deleonio in https://github.com/deleonio/priority-pilot/pull/2664
 - feat(frontend): reserve dashboard card heights to avoid layout shift by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2667
+- refactor(server): resolve app language via shared helper by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2665
 
 ## v0.26 - 2026-10-15
 
@@ -392,7 +397,6 @@ _Enthält v0.17.0 – v0.17.45._
 - fix(server): defer plan takeover for delayed-start subscriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2271
 - docs(skills): add proactive 3-hour progress report to coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2272
 - fix(billing): treat subscriptions with overdue payment as open by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2274
-- feat(server): activate upgrade only after payment received (#2238) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2270
 - feat(server): activate upgrade only after payment received (#2238) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2270
 - test(server): verify prorated credit on plan upgrade by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2277
 - feat(server): allow account deletion after paypal cancellation by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2278
