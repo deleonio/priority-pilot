@@ -2,9 +2,9 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.28 - 2026-10-17
+## v0.28 - 2026-10-18
 
-_Enthält v0.28.0 – v0.28.13._
+_Enthält v0.28.0 – v0.28.14._
 
 ### 🐞 Bug Fixes
 
@@ -12,6 +12,10 @@ _Enthält v0.28.0 – v0.28.13._
 - fix(frontend): release dial intro, hide display until real value by @deleonio in https://github.com/deleonio/priority-pilot/pull/2679
 - fix(frontend): persist launch banner dismissal across sessions by @deleonio in https://github.com/deleonio/priority-pilot/pull/2677
 - feat(server): reject unresolvable hosts in endpoint guard (#2685) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2700
+
+### 🚀 Improvements
+
+- feat(server): log errors when loading free time slots (#2686) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2701
 
 ### Other Changes
 
@@ -232,6 +236,7 @@ _Enthält v0.21.0 – v0.21.7._
 
 - feat(frontend): allow clearing a set deadline in task form (#2463) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2466
 - feat(frontend): dismissible demo hint card (#2471) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2473
+- feat(frontend): dismissible demo hint card (#2471) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2473
 
 ### 🚀 Improvements
 
@@ -427,7 +432,6 @@ _Enthält v0.17.0 – v0.17.45._
 - feat(frontend): explain free path without ai in onboarding import by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2289
 - feat(frontend): show legal texts inline in consent step by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2293
 - [P2/M] Website: Rechtstexte für die anderen Sprachen (#2226) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2294
-- fix(ci): use latest verify run in gate, tolerate ai:reviewed on fixup by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2292
 - fix(ci): use latest verify run in gate, tolerate ai:reviewed on fixup by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2292
 - chore(deps): update dependency @modelcontextprotocol/sdk to v1.31.0 [security] by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2298
 - feat(server): check PayPal config on production startup by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2311
