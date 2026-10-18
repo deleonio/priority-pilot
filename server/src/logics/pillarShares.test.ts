@@ -308,3 +308,44 @@ describe('toContributions — vorgeschlagene Anteile statt Konfidenz-Umrechnung 
 		);
 	});
 });
+
+/**
+ * Spiegel-Block zu `frontend/src/lib/pillar.test.ts` („Spiegel ADR 0025 …") — dieselben
+ * Eingabe-Fälle, identische (harte) Ausgaben. Referenz-Vertrag: die Server-Fassung
+ * (docs/spec/issue-2694.md, ADR 0025). Wer hier etwas ändert, muss es in die Gegenseite übertragen.
+ */
+describe('Spiegel ADR 0025 — identische Verteilung mit dem Frontend', () => {
+	const ranken = (ranks: number[], count: number): number[] => pillarSharesModule.suggestRankedShares(ranks, count);
+
+	it('Gleichverteilung 5 — [20, 20, 20, 20, 20]', () => {
+		assert.deepEqual(ranken([], 5), [20, 20, 20, 20, 20]);
+	});
+
+	it('Gleichverteilung 7 — [15, 15, 14, 14, 14, 14, 14]', () => {
+		assert.deepEqual(ranken([], 7), [15, 15, 14, 14, 14, 14, 14]);
+	});
+
+	it('Rundungsreste mit Gleichstand — Rang 1, n=5: [50, 13, 13, 12, 12]', () => {
+		assert.deepEqual(ranken([0], 5), [50, 13, 13, 12, 12]);
+	});
+
+	it('Kippen unter SHARE_MIN — Ränge 1-3, n=7: Gleichverteilung', () => {
+		assert.deepEqual(ranken([0, 1, 2], 7), [15, 15, 14, 14, 14, 14, 14]);
+	});
+
+	it('mehr als 5 Ränge, Rest unrankt — Ränge 1-5, n=7: Gleichverteilung', () => {
+		assert.deepEqual(ranken([0, 1, 2, 3, 4], 7), [15, 15, 14, 14, 14, 14, 14]);
+	});
+
+	it('sechs Ränge, n=7: Gleichverteilung', () => {
+		assert.deepEqual(ranken([0, 1, 2, 3, 4, 5], 7), [15, 15, 14, 14, 14, 14, 14]);
+	});
+
+	it('Kippen unter SHARE_MIN — Vorgabe [90, 0, 0, 0, 0]: [80, 5, 5, 5, 5]', () => {
+		assert.deepEqual(distributeWithMinimum([90, 0, 0, 0, 0]), [80, 5, 5, 5, 5]);
+	});
+
+	it('Rundungsreste — Vorgabe [33.4, 33.3, 33.3, 0, 0]: [30, 30, 30, 5, 5]', () => {
+		assert.deepEqual(distributeWithMinimum([33.4, 33.3, 33.3, 0, 0]), [30, 30, 30, 5, 5]);
+	});
+});

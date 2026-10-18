@@ -8,6 +8,7 @@ import {
 	buildPillarSummaries,
 	calculateMeterHighThreshold,
 	calculateMeterThreshold,
+	distributionFromRankOrder,
 	evenShares,
 	fillContributions,
 	getTaskPillarPoints,
@@ -733,5 +734,57 @@ describe('distributionFromRankOrder — Rangfolge-Treppe (#2074, AK1-AK3)', () =
 		const result = distributionFromRankOrder([1], fivePillars);
 		expect(result.map((entry) => entry.pillarId)).toEqual([1, 2, 3, 4, 5]);
 		expect(result.every((entry) => entry.confidence === 100)).toBe(true);
+	});
+});
+
+
+/**
+ * Spiegel-Block zu `server/src/logics/pillarShares.test.ts` („Spiegel ADR 0025 …") — dieselben
+ * Eingabe-Fälle, identische (harte) Ausgaben aus der Server-Referenz (docs/spec/issue-2694.md,
+ * ADR 0025). Rote Drift-Fälle (Rang-Treppe mit mehr Säulen als Treppenstufen) gleicht die
+ * Umsetzung an die Server-Fassung an.
+ */
+describe('Spiegel ADR 0025 — identische Verteilung mit dem Server', () => {
+	const sevenPillars: Pillar[] = Array.from({ length: 7 }, (_value, index) => pillar(index + 1, `Säule ${index + 1}`, 0));
+	const fivePillars: Pillar[] = sevenPillars.slice(0, 5);
+	const sharesOf = (ranked: number[], pillars: Pillar[]): number[] =>
+		distributionFromRankOrder(ranked, pillars).map((entry) => entry.share);
+	const vorgabe = (base: number[]): TaskPillarContribution[] =>
+		fivePillars.map((entry, index) => ({ pillarId: entry.id, share: base[index], confidence: 100 }));
+
+	it('Gleichverteilung 5 — [20, 20, 20, 20, 20]', () => {
+		expect(sharesOf([], fivePillars)).toEqual([20, 20, 20, 20, 20]);
+	});
+
+	it('Gleichverteilung 7 — [15, 15, 14, 14, 14, 14, 14]', () => {
+		expect(evenShares(7)).toEqual([15, 15, 14, 14, 14, 14, 14]);
+	});
+
+	it('Rundungsreste mit Gleichstand — Rang 1, n=5: [50, 13, 13, 12, 12]', () => {
+		expect(sharesOf([1], fivePillars)).toEqual([50, 13, 13, 12, 12]);
+	});
+
+	it('Kippen unter SHARE_MIN — Ränge 1-3, n=7: Gleichverteilung (Server-Referenz)', () => {
+		expect(sharesOf([1, 2, 3], sevenPillars)).toEqual([15, 15, 14, 14, 14, 14, 14]);
+	});
+
+	it('mehr als 5 Ränge, Rest unrankt — Ränge 1-5, n=7: Gleichverteilung (Server-Referenz)', () => {
+		expect(sharesOf([1, 2, 3, 4, 5], sevenPillars)).toEqual([15, 15, 14, 14, 14, 14, 14]);
+	});
+
+	it('sechs Ränge, n=7: Gleichverteilung (Server-Referenz)', () => {
+		expect(sharesOf([1, 2, 3, 4, 5, 6], sevenPillars)).toEqual([15, 15, 14, 14, 14, 14, 14]);
+	});
+
+	it('Kippen unter SHARE_MIN — Vorgabe [90, 0, 0, 0, 0]: [80, 5, 5, 5, 5]', () => {
+		expect(fillContributions(fivePillars, vorgabe([90, 0, 0, 0, 0])).map((entry) => entry.share)).toEqual([
+			80, 5, 5, 5, 5,
+		]);
+	});
+
+	it('Rundungsreste — Vorgabe [33.4, 33.3, 33.3, 0, 0]: [30, 30, 30, 5, 5]', () => {
+		expect(fillContributions(fivePillars, vorgabe([33.4, 33.3, 33.3, 0, 0])).map((entry) => entry.share)).toEqual([
+			30, 30, 30, 5, 5,
+		]);
 	});
 });
