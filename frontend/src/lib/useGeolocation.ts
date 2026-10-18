@@ -7,7 +7,7 @@ import { ACCOUNT_PREFERENCE_KEYS, sendAccountPreferences } from './accountPrefer
 export const GEOLOCATION_INTERVAL_MS = 5 * 60 * 1000;
 
 /** Ob der Browser Geolocation unterstützt. */
-export const isGeolocationSupported = (): boolean => typeof navigator !== 'undefined' && 'geolocation' in navigator;
+const isGeolocationSupported = (): boolean => typeof navigator !== 'undefined' && 'geolocation' in navigator;
 
 /** Position als Koordinaten-Paar. */
 export interface GeolocationPosition {
