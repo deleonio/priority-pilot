@@ -54,6 +54,9 @@
 		"forUser": "For: {{name}}",
 		"actionsFor": "Actions for {{title}}",
 		"createTask": "Create task",
+		"pause": "Pause series",
+		"resume": "Resume",
+		"pausedNotice": "Series paused: {{title}}. Tasks that have already been created will remain.",
 		"editTitle": "Edit series: {{title}}"
 	},
 	"seriesInstance": {

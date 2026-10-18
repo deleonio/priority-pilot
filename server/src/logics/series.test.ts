@@ -857,3 +857,55 @@ describe('Checklisten-Snapshot an der Instanz (#2501 AK4)', () => {
 		);
 	});
 });
+
+// ── #2715 — Pause und Wiederaufnahme (AK2/AK4) ──────────────────────────────────────────────
+//
+// Rote Spec-Tests für #2715 (Vertrag: docs/spec/issue-2715.md): `active:false` sperrt die
+// Instanz-Generierung auch direkt auf Logik-Ebene, und nach der Reaktivierung (active:false
+// → true) läuft die Generierung ab heute weiter — das Pause-Fenster wird NICHT nachträglich
+// erzeugt (bewusstes Verhalten des "nur zukünftig"-Pfads). Die Sperre in der Aggregat-Ebene
+// ist bereits gesichert (#244, Gruppenfall in groups-series-resting.api.test.ts) — hier die
+// fehlende direkte Paarung. KEIN Produktivcode: grün mit dem bestehenden active-Guard.
+describe('generateDueInstances — Pause und Wiederaufnahme (#2715, AK2/AK4)', () => {
+	it('pausierte Serie (active:false) erzeugt trotz vergangenem startDate keine Instanzen (AK2)', async () => {
+		const series = await Series.create({
+			title: 'Urlaubs-Serie',
+			rhythm: 'weekly',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: false,
+			startDate: pastDate(21),
+		});
+
+		const created = await generateDueInstances(series, { until: futureDate(14) });
+		assert.equal(created.length, 0, 'AK2: pausierte Serie erzeugt keine Instanzen');
+	});
+
+	it('nach Fortsetzen (active:true) läuft die Generierung ab heute — ohne Nachtrag der Pausewochen (AK4)', async () => {
+		const series = await Series.create({
+			title: 'Urlaubs-Serie',
+			rhythm: 'weekly',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: false,
+			startDate: pastDate(21),
+		});
+
+		// Wiederaufnahme = derselbe PATCH, den der „Fortsetzen“-Button sendet.
+		await series.update({ active: true });
+
+		const created = await generateDueInstances(series, { until: futureDate(14) });
+		assert.ok(created.length >= 1, 'AK4: der nächste Lauf erzeugt wieder Instanzen');
+
+		// Kein Nachtrag: jede Instanz liegt ab heute (UTC), die drei Pausenwochen bleiben leer.
+		const todayUtc = new Date();
+		todayUtc.setUTCHours(0, 0, 0, 0);
+		for (const instance of created) {
+			const deadline = new Date(instance.deadline as unknown as Date);
+			assert.ok(
+				deadline.getTime() >= todayUtc.getTime(),
+				`AK4: Instanz ${instance.id} liegt ab heute (${deadline.toISOString()}), keine Nachhol-Termine aus dem Pause-Fenster`,
+			);
+		}
+	});
+});

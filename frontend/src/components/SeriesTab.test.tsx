@@ -77,6 +77,7 @@ vi.mock('./TaskForm', () => ({
 vi.mock('../api', () => ({
 	api: {
 		listSeries: vi.fn(),
+		updateSeries: vi.fn(),
 	},
 }));
 
@@ -84,6 +85,7 @@ import { api } from '../api';
 import { SeriesTab } from './SeriesTab';
 
 const mockListSeries = api.listSeries as ReturnType<typeof vi.fn>;
+const mockUpdateSeries = api.updateSeries as ReturnType<typeof vi.fn>;
 
 const pillarKoerper: Pillar = { id: 1, name: 'Körper', description: 'Gesundheit', weight: 100 };
 
@@ -332,5 +334,113 @@ describe('SeriesTab — Badge „Vorlage" (#2358, AK6)', () => {
 		expect(screen.getByText('Vorlage')).toBeInTheDocument();
 		expect(screen.queryByText('Ohne Rhythmus')).toBeNull();
 		expect(screen.queryByText('undefined')).toBeNull();
+	});
+});
+
+// ── #2715: Serien pausieren und fortsetzen ──────────────────────────────────────────────
+
+/**
+ * #2715 (docs/spec/issue-2715.md): Jede eigene Automatik-Serie (`active:true`) erhält in der
+ * Toolbar die Aktion „Serie pausieren“, jede pausierte (`active:false`) die Gegenaktion
+ * „Fortsetzen“ — direkt ohne Bestätigungsdialog (ADR 0024), Toolbar-Muster der Nachbar-Aktionen.
+ * Bei `autoCreate:false` („Vorlage“, #2358) entfällt die Aktion: die Serie erzeugt ohnehin
+ * nichts (KI-UX: Aktion nur, wo sie wirkt). Pausieren sendet `updateSeries` mit `active:false`;
+ * danach erscheint das bestehende „Ruhend“-Badge (#1251, Label bleibt „Ruhend“ — KI-UX: zwei
+ * Ursachen, ein Badge). Rot, bis SeriesTab die Aktionen rendert. KEIN Produktivcode.
+ */
+describe('SeriesTab — Pausieren und Fortsetzen (#2715)', () => {
+	it('AK1: aktive Serie bietet „Serie pausieren“, pausierte stattdessen „Fortsetzen“', async () => {
+		const active = { ...makeSeries('weekly', 'Aktive Routine'), id: 611 };
+		const paused = { ...makeSeries('weekly', 'Pausierte Routine'), id: 612, active: false };
+		mockListSeries.mockResolvedValue([active, paused]);
+
+		await act(async () => {
+			render(<SeriesTab pillars={[pillarKoerper]} />);
+		});
+
+		const activeItem = screen.getByTestId('series-tree-item-611');
+		const pausedItem = screen.getByTestId('series-tree-item-612');
+		expect(within(activeItem).getByRole('button', { name: 'Serie pausieren' })).toBeInTheDocument();
+		expect(within(activeItem).queryByRole('button', { name: 'Fortsetzen' })).toBeNull();
+		expect(within(pausedItem).getByRole('button', { name: 'Fortsetzen' })).toBeInTheDocument();
+		expect(within(pausedItem).queryByRole('button', { name: 'Serie pausieren' })).toBeNull();
+	});
+
+	it('AK1 (KI-UX): Vorlage ohne Automatik (autoCreate:false) bietet keine Pausier-Aktion', async () => {
+		mockListSeries.mockResolvedValue([{ ...makeSeries('weekly', 'Meine Vorlage'), id: 621, autoCreate: false }]);
+
+		await act(async () => {
+			render(<SeriesTab pillars={[pillarKoerper]} />);
+		});
+
+		expect(screen.queryByRole('button', { name: 'Serie pausieren' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Fortsetzen' })).toBeNull();
+	});
+
+	it('AK2/AK5: „Serie pausieren“ sendet active:false, zeigt „Ruhend“-Badge und die Gegenaktion', async () => {
+		const active = { ...makeSeries('weekly', 'Urlaubs-Serie'), id: 631 };
+		const paused = { ...active, active: false };
+		mockListSeries.mockResolvedValueOnce([active]).mockResolvedValueOnce([paused]);
+		mockUpdateSeries.mockResolvedValue(paused);
+
+		await act(async () => {
+			render(<SeriesTab pillars={[pillarKoerper]} />);
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Serie pausieren' }));
+		});
+
+		expect(mockUpdateSeries).toHaveBeenCalledWith({ id: 631, seriesUpdate: { active: false } });
+		// AK5: Zustand sichtbar — Badge „Ruhend“ (Label bleibt #1251-„Ruhend“), Gegenaktion übernimmt den Platz.
+		expect(screen.getByText('Ruhend')).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Fortsetzen' })).toBeInTheDocument();
+		// AK6: kein Bestätigungsdialog.
+		expect(screen.queryByTestId('modal')).toBeNull();
+	});
+
+	it('AK6: „Fortsetzen“ sendet active:true — ohne Bestätigungsdialog', async () => {
+		const paused = { ...makeSeries('weekly', 'Urlaubs-Serie'), id: 641, active: false };
+		const resumed = { ...paused, active: true };
+		mockListSeries.mockResolvedValueOnce([paused]).mockResolvedValueOnce([resumed]);
+		mockUpdateSeries.mockResolvedValue(resumed);
+
+		await act(async () => {
+			render(<SeriesTab pillars={[pillarKoerper]} />);
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Fortsetzen' }));
+		});
+
+		expect(mockUpdateSeries).toHaveBeenCalledWith({ id: 641, seriesUpdate: { active: true } });
+		expect(screen.queryByTestId('modal')).toBeNull();
+	});
+
+	// Review-Finding #2722: die Fokus-Rückkehr suchte den Gegen-Button per Light-DOM-`querySelector`
+	// nach `aria-label` — KoliBri-Buttons liegen hinter Shadow-DOM-Grenzen, der Selektor griff ins
+	// Leere und der Fokus fiel auf `<body>`. Der Fix traversiert Shadow-DOM nach Beschriftungstext.
+	it('AK6 (KI-UX): nach dem Pausieren sitzt der Fokus auf dem Gegen-Button, nicht auf <body>', async () => {
+		const active = { ...makeSeries('weekly', 'Fokus-Serie'), id: 651 };
+		const paused = { ...active, active: false };
+		mockListSeries.mockResolvedValueOnce([active]).mockResolvedValueOnce([paused]);
+		mockUpdateSeries.mockResolvedValue(paused);
+
+		await act(async () => {
+			render(<SeriesTab pillars={[pillarKoerper]} />);
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Serie pausieren' }));
+		});
+
+		// Die Fokus-Rückkehr läuft über requestAnimationFrame (nach dem Repaint) — diese Frame abwarten.
+		await act(async () => {
+			await new Promise((resolve) => requestAnimationFrame(resolve));
+		});
+
+		// Gemockte Toolbar-Buttons sind native Buttons im Light-DOM — der Fokus-Spiegel ist direkt lesbar.
+		const item = screen.getByTestId('series-tree-item-651');
+		expect(document.activeElement).toBe(within(item).getByRole('button', { name: 'Fortsetzen' }));
 	});
 });
