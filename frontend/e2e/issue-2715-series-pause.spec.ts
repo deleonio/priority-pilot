@@ -97,6 +97,9 @@ test.describe('Balamentum — Serien pausieren und fortsetzen (#2715)', () => {
 		await expect(item.getByText('Ruhend', { exact: true })).toBeVisible();
 		const resumeButton = item.getByRole('button', { name: 'Fortsetzen' });
 		await expect(resumeButton).toBeVisible();
+		// AK6 (KI-UX): Nach dem Button-Wechsel bleibt der Fokus auf der Toolbar — auf dem Gegen-Button
+		// (Shadow-DOM-Traversierung, Review-Finding zu #2722). `toBeFocused` pierct Shadow-DOM nativ.
+		await expect(resumeButton).toBeFocused();
 
 		// AK6: jederzeit umkehrbar — Fortsetzen stellt den Ausgangszustand wieder her.
 		await resumeButton.click();

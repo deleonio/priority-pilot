@@ -42,6 +42,30 @@ type EditDialog = { series: Series } | null;
  * Instanzen legt der tägliche Server-Job an (#2356). Das Anlegen neuer Serien läuft über den
  * vereinheitlichten Einstieg „Neuen Task anlegen" (QuickCapture, #330).
  */
+/**
+ * Traversiert Shadow- und Light-DOM ab `root` und sammelt alle nativen `<button>`s samt ihres
+ * Beschriftungstexts. #2715: Die Toolbar-Aktionen liegen hinter KoliBri-Shadow-Grenzen
+ * (`kol-toolbar`-Shadow → `kol-button-wc` mit Light-DOM-Button + Label-span) — ein Light-DOM-
+ * `querySelector` durchdringt sie nicht. Das Label liest der Button-Host (`kol-button-wc`); der
+ * Shadow-Root der Toolbar als Wurzel enthielte ALLE Labels verkettet. Native Light-DOM-Buttons
+ * (gemockte Toolbar im Unit-Test) tragen den Text dagegen selbst. Rekursionsmuster:
+ * `findInnerButton` in `TaskTree.tsx` (#361).
+ */
+const collectRowButtons = (
+	root: Element | ShadowRoot | null | undefined,
+	found: Array<{ el: HTMLElement; label: string }> = [],
+): Array<{ el: HTMLElement; label: string }> => {
+	if (root == null) return found;
+	for (const child of Array.from(root.children)) {
+		if (child instanceof HTMLButtonElement) {
+			const text = child.closest('kol-button-wc')?.textContent ?? child.textContent;
+			found.push({ el: child, label: (text ?? '').replace(/\s+/g, ' ').trim() });
+		}
+		collectRowButtons(child.shadowRoot ?? child, found);
+	}
+	return found;
+};
+
 export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTabProps) => {
 	const { t } = useTranslation(['capture', 'common']);
 	const [series, setSeries] = useState<Series[] | null>(null);
@@ -138,12 +162,16 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 				}
 				// KI-UX: Der getoggelte Button fällt mit dem Reload aus dem DOM (die Gegenaktion übernimmt
 				// den Platz) — den Fokus danach auf den Gegen-Button der Zeile setzen, er fiele sonst auf
-				// <body>. Query erst nach dem Repaint, wenn der neue Button gerendert ist.
+				// <body>. Der Gegen-Button liegt hinter KoliBri-Shadow-Grenzen und trägt sein Label nicht
+				// als `aria-label`-Attribut — daher Shadow-Traversierung nach Beschriftungstext
+				// (`collectRowButtons`), erst nach dem Repaint, wenn der neue Button gerendert ist (vor dem
+				// Commit existiert nur die alte Aktion — der Treffer self-guards den Race). Ohne Treffer
+				// (unbekannte Struktur) fängt die Section den Fokus (`deleteFallbackRef`, Muster App.tsx).
 				requestAnimationFrame(() => {
 					const label = next ? t('seriesTab.pause') : t('seriesTab.resume');
-					document
-						.querySelector<HTMLElement>(`[data-testid="series-tree-item-${entry.id}"] button[aria-label="${label}"]`)
-						?.focus();
+					const row = document.querySelector<HTMLElement>(`[data-testid="series-tree-item-${entry.id}"]`);
+					const target = collectRowButtons(row).find((button) => button.label === label)?.el;
+					(target ?? deleteFallbackRef.current)?.focus();
 				});
 			} catch (reason) {
 				const apiError = await toApiError(reason);

@@ -416,4 +416,31 @@ describe('SeriesTab — Pausieren und Fortsetzen (#2715)', () => {
 		expect(mockUpdateSeries).toHaveBeenCalledWith({ id: 641, seriesUpdate: { active: true } });
 		expect(screen.queryByTestId('modal')).toBeNull();
 	});
+
+	// Review-Finding #2722: die Fokus-Rückkehr suchte den Gegen-Button per Light-DOM-`querySelector`
+	// nach `aria-label` — KoliBri-Buttons liegen hinter Shadow-DOM-Grenzen, der Selektor griff ins
+	// Leere und der Fokus fiel auf `<body>`. Der Fix traversiert Shadow-DOM nach Beschriftungstext.
+	it('AK6 (KI-UX): nach dem Pausieren sitzt der Fokus auf dem Gegen-Button, nicht auf <body>', async () => {
+		const active = { ...makeSeries('weekly', 'Fokus-Serie'), id: 651 };
+		const paused = { ...active, active: false };
+		mockListSeries.mockResolvedValueOnce([active]).mockResolvedValueOnce([paused]);
+		mockUpdateSeries.mockResolvedValue(paused);
+
+		await act(async () => {
+			render(<SeriesTab pillars={[pillarKoerper]} />);
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Serie pausieren' }));
+		});
+
+		// Die Fokus-Rückkehr läuft über requestAnimationFrame (nach dem Repaint) — diese Frame abwarten.
+		await act(async () => {
+			await new Promise((resolve) => requestAnimationFrame(resolve));
+		});
+
+		// Gemockte Toolbar-Buttons sind native Buttons im Light-DOM — der Fokus-Spiegel ist direkt lesbar.
+		const item = screen.getByTestId('series-tree-item-651');
+		expect(document.activeElement).toBe(within(item).getByRole('button', { name: 'Fortsetzen' }));
+	});
 });
