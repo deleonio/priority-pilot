@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.29 - 2026-10-18
 
-_Enthält v0.29.0 – v0.29.18._
+_Enthält v0.29.0 – v0.29.19._
 
 ### 🚀 Improvements
 
@@ -33,6 +33,7 @@ _Enthält v0.29.0 – v0.29.18._
 - refactor(frontend): merge balance card share logic into one hook (#2695) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2717
 - feat(frontend): voice search no longer sets category filter (#2716) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2724
 - feat(frontend): pause and resume series (#2715) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2722
+- refactor(frontend): drop dead export isGeolocationSupported (#2697) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2726
 
 ## v0.28 - 2026-10-18
 
@@ -477,7 +478,6 @@ _Enthält v0.17.0 – v0.17.45._
 - fix(frontend): import dark wordmark from src instead of public by @deleonio in https://github.com/deleonio/priority-pilot/pull/2325
 - feat(frontend): remove rail planner page and transit proxy by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2339
 - fix(ci): PR ohne Closing-Keyword finden und Closes ergänzen (#2163) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2343
-- feat(frontend): connect ICS calendars and show events in week view by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2338
 - feat(frontend): connect ICS calendars and show events in week view by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2338
 - feat(website): add image film to landing page by @deleonio in https://github.com/deleonio/priority-pilot/pull/2344
 - docs(native): add upload key fingerprint to asset links by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2345
