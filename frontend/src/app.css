@@ -3211,29 +3211,6 @@ kol-toolbar {
 }
 
 /* --- Säulen-Beiträge im Task-Formular (Mehrfach-Einzahlung) --- */
-/* Kategorie-Feld im Aufgaben-/Serienformular: Das Auswahlfeld nimmt die volle Breite, die
-   getroffene Wahl steht als Badge DARUNTER — dieselbe Leserichtung wie im Formular darüber
-   (erst wählen, dann sehen, was gewählt ist). */
-.category-field {
-	display: grid;
-	gap: var(--pp-gap-tight);
-}
-
-/* Badge und das „×" liegen auf EINER Zeile (inline); erst ein sehr langer Name schiebt den Knopf
-   bei 375px um. Das Badge schrumpft nicht, der icon-only Knopf behält sein Touch-Target
-   (KoliBri-Default ≥ 44px) — dasselbe Verhalten wie in `.checklist-item`. */
-.category-field__selection {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: var(--pp-gap-tight);
-	min-width: 0;
-}
-
-.category-field__selection kol-badge {
-	flex: none;
-}
-
 /* Vorschau im Kategorie-Dialog: Text und Badge auf einer Grundlinie. */
 .category-form-preview {
 	display: flex;
