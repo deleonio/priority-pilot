@@ -1,6 +1,4 @@
 # Spec: API-Token auch über `api-key`-Header annehmen (#1417)
-
-Status: rot (Spec-Phase) — Tests in `server/src/express/api-token-auth.test.ts`,
 `server/src/express/mcp-auth.test.ts`, `frontend/src/components/ApiTokensSection.test.tsx`,
 `frontend/e2e/issue-1417-api-key-header.spec.ts`.
 

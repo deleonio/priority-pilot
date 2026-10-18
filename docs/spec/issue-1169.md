@@ -1,6 +1,4 @@
 # Spec #1169 — Konfetti beim Erledigungs-Switch („Erledigt"-Toggle)
-
-Status: rot spezifiziert (Spec-Phase, rote Tests als ausführbarer Vertrag).
 Quellen: Issue #1169, KI-ANALYSE-Block (Harness-Kommentar, stand 2026-09-02T19:33:06Z),
 KI-UX-Block (derselbe Kommentar).
 

@@ -1,7 +1,5 @@
 # Spec: MCP-Server — eigene Aufgabe löschen (#1396)
 
-Status: rot (Spec-Phase) — Tests in `server/src/mcp/tools.test.ts`.
-
 ## Ziel
 
 Der eingefrorene v1-Werkzeugkatalog (#1353, zuletzt erweitert in #1381 auf zwölf Namen) bekommt ein

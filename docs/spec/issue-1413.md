@@ -1,6 +1,4 @@
 # Spec: MCP-Server — Säulen anlegen, ändern, löschen und gewichten (#1413)
-
-Status: rot (Spec-Phase) — Tests in `server/src/mcp/tools.test.ts` und
 `server/src/express/mcp-handshake.test.ts`.
 
 ## Ziel

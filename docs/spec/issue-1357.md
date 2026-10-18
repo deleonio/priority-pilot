@@ -1,6 +1,4 @@
 # Spec: Token-Verwaltung mit Pflicht-Ablaufdatum (max. 12 Monate) (#1357)
-
-Status: rot (Spec-Phase) — Tests in `server/src/express/api-tokens.test.ts`,
 `server/src/express/api-token-auth.test.ts`, `frontend/src/components/ApiTokensSection.test.tsx`,
 `frontend/e2e/issue-1357-token-expiry.spec.ts`.
 

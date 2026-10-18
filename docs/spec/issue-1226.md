@@ -1,6 +1,4 @@
 # Spec: Gruppe über einen Einladungslink beitreten (#1226)
-
-Status: rot (Spec-Phase) — Tests in `server/src/express/groups-invite-links.api.test.ts` und
 `frontend/e2e/groups-invite-links.spec.ts`.
 
 ## Ziel

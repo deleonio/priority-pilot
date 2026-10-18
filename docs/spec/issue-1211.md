@@ -1,6 +1,4 @@
 # Spec: Gruppen anlegen und eigene Gruppen verwalten (#1211)
-
-Status: rot (Spec-Phase) — Tests in `server/src/express/groups.api.test.ts`,
 `server/src/express/groups-dataisolation.test.ts`, `frontend/e2e/groups.spec.ts`.
 
 ## Ziel

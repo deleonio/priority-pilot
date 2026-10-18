@@ -1,7 +1,5 @@
 # Spec: Upgrade räumt ältere offene Checkouts bei PayPal ab (#2547)
 
-Status: rot (Spec-Phase) — Tests in `server/src/express/billing-subscriptions.test.ts`.
-
 ## Ziel
 
 Der Upgrade-Zweig von `POST /billing/subscriptions/change` (credited change) storniert eine

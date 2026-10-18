@@ -1,7 +1,5 @@
 # Spec: MCP-Server — Aufgaben für andere Gruppenmitglieder anlegen (#1382)
 
-Status: rot (Spec-Phase) — Tests in `server/src/mcp/tools.test.ts`.
-
 ## Ziel
 
 `task_create` bekommt ein optionales Argument `userId`, mit dem der Aufrufer eine Aufgabe direkt

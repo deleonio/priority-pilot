@@ -1,6 +1,4 @@
 # Spec: Anmeldungen der Android-App in der Token-Verwaltung widerrufen (#2499)
-
-Status: rot (Spec-Phase) — Tests in `frontend/src/components/ApiTokensSection.test.tsx`
 (TF1–TF3) und `frontend/e2e/issue-1352-api-tokens.spec.ts` (TF4).
 
 ## Ziel
