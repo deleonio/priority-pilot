@@ -1,4 +1,5 @@
 # Spec #1157 — Serien-Datenisolation (ownerScope im Serien-CRUD)
+
 Quelle: [Issue #1157](https://github.com/deleonio/priority-pilot/issues/1157) (KI-ANALYSE-Block, Ampel 🟢).
 
 ## Ziel

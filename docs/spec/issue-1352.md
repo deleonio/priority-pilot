@@ -1,6 +1,4 @@
 # Spec: Persönliche API-Tokens für externe Clients (#1352)
-`server/src/express/api-token-auth.test.ts`, `frontend/src/components/SettingsPage.test.tsx`,
-`frontend/e2e/issue-1352-api-tokens.spec.ts`.
 
 ## Ziel
 

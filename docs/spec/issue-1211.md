@@ -1,5 +1,4 @@
 # Spec: Gruppen anlegen und eigene Gruppen verwalten (#1211)
-`server/src/express/groups-dataisolation.test.ts`, `frontend/e2e/groups.spec.ts`.
 
 ## Ziel
 

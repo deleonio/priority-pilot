@@ -1,4 +1,5 @@
 # Spec #1169 — Konfetti beim Erledigungs-Switch („Erledigt"-Toggle)
+
 Quellen: Issue #1169, KI-ANALYSE-Block (Harness-Kommentar, stand 2026-09-02T19:33:06Z),
 KI-UX-Block (derselbe Kommentar).
 

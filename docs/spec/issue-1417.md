@@ -1,6 +1,4 @@
 # Spec: API-Token auch über `api-key`-Header annehmen (#1417)
-`server/src/express/mcp-auth.test.ts`, `frontend/src/components/ApiTokensSection.test.tsx`,
-`frontend/e2e/issue-1417-api-key-header.spec.ts`.
 
 Aufbauend auf #1352 (Bearer-Auth-Middleware `apiTokenAuth`), #1353 (MCP-Loopback) und #1356
 (Scope-Sperre). Neu ist ausschließlich eine zweite Leseposition für denselben Klartext-Token:

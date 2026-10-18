@@ -1,5 +1,4 @@
 # Spec: MCP-Server v1 für externe Clients (#1353)
-`server/src/mcp/tools.test.ts`, `frontend/e2e/issue-1353-mcp-tools.spec.ts`.
 
 ## Ziel
 

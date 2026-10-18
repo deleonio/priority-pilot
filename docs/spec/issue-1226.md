@@ -1,5 +1,4 @@
 # Spec: Gruppe über einen Einladungslink beitreten (#1226)
-`frontend/e2e/groups-invite-links.spec.ts`.
 
 ## Ziel
 

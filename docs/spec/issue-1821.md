@@ -1,6 +1,4 @@
 # Spec: Erledigte Aufgaben bearbeitbar (#1821)
-`server/src/express/tasks-completed-notification.test.ts`, `server/src/mcp/tools.test.ts`,
-`frontend/e2e/issue-1821-done-edit.spec.ts`.
 
 ## Ziel
 

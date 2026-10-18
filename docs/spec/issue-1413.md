@@ -1,5 +1,4 @@
 # Spec: MCP-Server — Säulen anlegen, ändern, löschen und gewichten (#1413)
-`server/src/express/mcp-handshake.test.ts`.
 
 ## Ziel
 

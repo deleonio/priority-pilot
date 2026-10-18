@@ -1,6 +1,6 @@
 # Spec: Dialog-Vorgaben für die KI über den MCP-Handshake (#1935)
-`server/src/express/mcp-handshake.test.ts`, `frontend/src/components/McpInstructionsSection.test.tsx`,
-`frontend/e2e/issue-1935-mcp-instructions.spec.ts`. Quelle: KI-ANALYSE-/KI-UX-Block im Harness-Kommentar.
+
+Quelle: KI-ANALYSE-/KI-UX-Block im Harness-Kommentar.
 
 ## Vertrag
 
