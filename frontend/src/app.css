@@ -6478,6 +6478,13 @@ a.plan-badge:focus-visible {
 	border-radius: var(--pp-radius-md);
 }
 
+.launch-banner--plain {
+	/* #2734: Tracking-Hinweis ohne Schließen-Knopf — rechts kein reservierter Platz; bündig mit den
+	   Karten darunter statt eingerückt. */
+	margin-inline: 0;
+	padding-right: var(--pp-space-4);
+}
+
 .launch-banner__body {
 	display: flex;
 	flex-direction: column;

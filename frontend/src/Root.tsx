@@ -14,6 +14,7 @@ import { LAUNCH_BANNER_DISMISS_KEY } from './lib/launchBanner';
 import { finishNativeLogin, nativeGoogleLogin } from './lib/nativeAuth';
 import { isNativeChannel } from './lib/platform';
 import { MagicLinkLanding } from './components/MagicLinkLanding';
+import { TrackingBanner } from './components/TrackingBanner';
 import { trackPageView } from './lib/tracking';
 
 type AuthState = 'loading' | 'authenticated' | 'unauthenticated' | 'error';
@@ -208,7 +209,12 @@ const AuthenticatedApp = () => {
 	}, [screen]);
 
 	if (magicAppToken !== null) {
-		return <MagicLinkLanding token={magicAppToken} />;
+		return (
+			<>
+				<TrackingBanner />
+				<MagicLinkLanding token={magicAppToken} />
+			</>
+		);
 	}
 
 	if (authState === 'loading' || silentPending) {
@@ -220,7 +226,12 @@ const AuthenticatedApp = () => {
 	}
 
 	if (authState === 'unauthenticated') {
-		return <LoginPage />;
+		return (
+			<>
+				<TrackingBanner />
+				<LoginPage />
+			</>
+		);
 	}
 
 	if (authState === 'error') {
@@ -229,7 +240,12 @@ const AuthenticatedApp = () => {
 
 	// #1901: ohne Zustimmung zur aktuellen Fassung zuerst der Zustimmungsschritt, danach die App.
 	if (user!.termsAccepted === false) {
-		return <ConsentStep onAccepted={() => setUser({ ...user!, termsAccepted: true })} />;
+		return (
+			<>
+				<TrackingBanner />
+				<ConsentStep onAccepted={() => setUser({ ...user!, termsAccepted: true })} />
+			</>
+		);
 	}
 
 	return <App user={user!} />;
@@ -244,7 +260,12 @@ export const Root = () => {
 	// Die App liegt unter `/app/` (ADR 0015) — die öffentlichen Routen relativ zur Basis prüfen.
 	const path = window.location.pathname.slice(import.meta.env.BASE_URL.length - 1);
 	if (path === '/gruppen/beitreten') {
-		return <GroupJoinPage />;
+		return (
+			<>
+				<TrackingBanner />
+				<GroupJoinPage />
+			</>
+		);
 	}
 	return <AuthenticatedApp />;
 };

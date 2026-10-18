@@ -18,7 +18,12 @@ export const TrackingBanner = () => {
 	}
 
 	return (
-		<div className="launch-banner" role="region" aria-label={t('trackingBanner.title')} data-testid="tracking-banner">
+		<div
+			className="launch-banner launch-banner--plain"
+			role="region"
+			aria-label={t('trackingBanner.title')}
+			data-testid="tracking-banner"
+		>
 			<div className="launch-banner__body">
 				<strong>{t('trackingBanner.title')}</strong>
 				<p className="launch-banner__text">
