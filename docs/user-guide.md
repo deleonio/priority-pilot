@@ -39,6 +39,16 @@ dann an den Administrator. Wie der Betreiber Adressen freischaltet, steht in
 
 Über die Kopfzeile kannst du dich jederzeit wieder **abmelden** (Icon ganz rechts).
 
+Bei der ersten Anmeldung öffnet sich der Begrüßungs-Dialog **„Willkommen bei Balamentum“**.
+Beschreibe, was dich gerade beschäftigt, und die KI schlägt passende Aufgaben vor, die du
+auswählst und mit **„Übernehmen“** anlegst; danach folgt optional der Schritt
+**„Aufgaben mitbringen“**, um bestehende Aufgaben aus Todoist oder einer CSV-Datei
+hereinzuholen (ohne KI-Paket ist er der einzige), und dann die Abschluss-Karte mit deiner
+nächsten Aufgabe. Eine Startgewichtung der Säulen gibt es nicht: Alle fünf starten zu je
+20 %, über die Dashboard-Karte **„Erste Schritte“** passt du die Gewichtung später an. Mit
+**„Später“** überspringst du den Einstieg – das leere Dashboard bietet mit den Beispielen zum
+Ausprobieren den Wiedereinstieg sowie den Button **„Ersten Task anlegen“**.
+
 ---
 
 ## Überblick: Kopfzeile und Ansichten
@@ -475,6 +485,15 @@ unter 5 %. Bei Gleichverteilung ist die Gewichtung neutral. Erhöhst du z. B. �
 steigen Aufgaben, die stark auf „Körper“ einzahlen, im Wert – und rücken damit in der
 Priorisierung nach oben.
 
+### Säulen-Verteilung neu berechnen
+
+In _Einstellungen → Säulen_ startet der Button **„Säulen aller Aufgaben neu berechnen“** einen
+KI-Lauf, der die Säulen-Beiträge deiner Aufgaben anhand von Titel und Beschreibung neu
+bestimmt – für alle, nur offene oder nur erledigte Aufgaben. Status, Punkte und Streak bleiben
+unverändert. Der Lauf geht auf dem Server weiter, auch wenn du das Fenster schließt; nach einem
+Abbruch verarbeitet **„Fortsetzen“** die offenen Aufgaben weiter. Jede Aufgabe zählt einzeln
+gen dein KI-Kontingent – ist es aufgebraucht, hält der Lauf an und meldet, was offen bleibt.
+
 ---
 
 ## Säulen-Berater
@@ -716,6 +735,10 @@ Zeichen, z. B. „Antworte kurz und knapp.“). KI-Clients, die sich per Access-
 verbinden, erhalten ihn beim Verbindungsaufbau. **„Speichern“** übernimmt den Text; ein
 leeres Feld löscht die Vorgaben. Werkzeuge und Rechte der Tokens ändern sich dadurch nicht.
 
+In der Karte **Wissens-Einträge** hinterlegst du persönliche Hinweise über dich – etwa
+„Ich trainiere dienstags nicht“. Passende Einträge fließen in die Säulenzuordnung neuer
+Aufgaben ein; ein gelöschter Eintrag fließt nicht mehr ein.
+
 ### Ortung
 
 - **Standort erfassen** – ermittelt im Hintergrund regelmäßig deine aktuelle
@@ -743,6 +766,16 @@ direkt aus.
 Im Adressfeld von Aufgaben und Serien stehen deine gespeicherten Orte vor den
 Suchtreffern. Weil sie mit Koordinaten gespeichert werden, zählen sie für
 „In der Nähe“.
+
+### Daten
+
+- **Import:** Übernehme Aufgaben aus einer Todoist-Export-CSV oder einer eigenen CSV-Datei.
+  Eine Vorschau zeigt vor der Übernahme, welche Zeilen angelegt werden; unbekannte Werte
+  bleiben ohne Zuordnung. Der Bericht danach nennt Aufgaben ohne Frist, exakte Dubletten –
+  die sich je Eintrag zusammenführen lassen – und Abhängigkeits-Vorschläge, die du einzeln
+  übernehmen oder verwerfen kannst.
+- **Export:** **„Aufgaben als CSV exportieren“** lädt alle deine Aufgaben als CSV-Datei
+  herunter (Titel, Frist, Priorität, Status, Beschreibung).
 
 ---
 

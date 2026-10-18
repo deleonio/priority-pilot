@@ -38,6 +38,15 @@ case, contact the administrator. How the operator approves addresses is describe
 
 You can **log out** at any time via the header (icon on the far right).
 
+On your first sign-in, the welcome dialog **"Welcome to Balamentum"** opens. Describe what
+occupies you right now and the AI suggests matching tasks, which you select and create with
+**"Apply"**; afterwards comes the optional **"Bring your tasks"** step to import existing
+tasks from Todoist or a CSV file (without an AI package it is the only step), followed by the
+completion card with your next task. There is no starting pillar weighting: all five pillars
+start at 20 % each, and you can adjust the weighting later via the **"First steps"**
+dashboard card. **"Later"** skips the introduction – the empty dashboard then offers to
+resume it along with the **"Create your first task"** button.
+
 ---
 
 ## Overview: header and views
@@ -470,6 +479,15 @@ below 5 %. With an even distribution, the weighting is neutral. If you increase 
 tasks that contribute strongly to "Body" rise in value – and thus move up in
 prioritization.
 
+### Recalculating the pillar distribution
+
+In _Settings → Pillars_, the button **"Recalculate pillars of all tasks"** starts an AI run
+that redetermines the pillar contributions of your tasks from title and description – for all,
+only open or only completed tasks. Status, points and streak remain unchanged. The run
+continues on the server even if you close the window; after an interruption, **"Resume"**
+processes the remaining tasks. Each task counts individually against your AI quota – once it
+is used up, the run stops and reports what is still open.
+
 ---
 
 ## Pillar advisor
@@ -709,6 +727,10 @@ characters, e.g. "Keep answers short and concise."). AI clients that connect via
 receive it when the connection is established. **"Save"** applies the text; an
 empty field deletes the instructions. The tools and permissions of the tokens do not change as a result.
 
+In the **Knowledge entries** card you store personal notes about yourself – for example "I
+don't train on Tuesdays". Matching entries flow into the pillar assignment of new tasks; a
+deleted entry no longer does.
+
 ### Location
 
 - **Track location** – regularly determines your current
@@ -735,6 +757,15 @@ Saved places sit in the **Location** tab and are independent of the location swi
 In the address field of tasks and series, your saved places appear before the
 search results. Because they are saved with coordinates, they count for
 "Nearby".
+
+### Data
+
+- **Import:** Take over tasks from a Todoist export CSV or your own CSV file. A preview
+  shows which rows will be created before you apply them; unknown values stay unassigned.
+  The report afterwards lists tasks without a due date, exact duplicates – which you can
+  merge one by one – and dependency suggestions you can apply or dismiss individually.
+- **Export:** **"Export tasks as CSV"** downloads all your tasks as a CSV file (title, due
+  date, priority, status, description).
 
 ---
 
