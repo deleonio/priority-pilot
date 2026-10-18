@@ -1161,7 +1161,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 
 	// Toolbar-Buttons sind auf allen Viewports identisch — keine unterschiedliche Menüstruktur je nach
 	// Viewport-Breite (#691). `_label`s und Reihenfolge sind stabil, damit Accessible Names konsistent bleiben.
-	// #2723: Nur noch die vier Navigations-Aktionen — „Hilfe" und „Abmelden“ liegen im Avatar-Popover
+	// #2723: Nur noch die vier Navigations-Aktionen — „Hilfe“ und „Abmelden“ liegen im Avatar-Popover
 	// (`.app-header__user`), die seltene bzw. zerstörerische Aktion rückt damit aus der Leiste (KI-UX).
 	// Die KI-Modellwahl lebt seit dem Provider-System in den Einstellungen (Tab „KI“).
 	// KoliBri liefert die Button-Semantik im Shadow-DOM; zusätzliche ARIA-Attribute
@@ -1261,7 +1261,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						 */}
 						<KolToolbar _label={t('menu.headerActions')} _orientation="horizontal" _items={toolbarItems} />
 					</div>
-					{/* #2723: „Hilfe" und „Abmelden“ hinter dem Avatar-Trigger (zugänglicher Name „Benutzermenü",
+					{/* #2723: „Hilfe“ und „Abmelden“ hinter dem Avatar-Trigger (zugänglicher Name „Benutzermenü“,
 				    KI-UX). Der Trigger trägt den Avatar im Expert-Slot — ein leeres `_label` schaltet ihn frei
 				    (KoliBri-Spec KolPopoverButton); der zugängliche Name kommt aus dem visuell versteckten Text,
 				    der Avatar selbst bleibt dekorativ (`_label=""`) und steht ein zweites Mal im Panel.
