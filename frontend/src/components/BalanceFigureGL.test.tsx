@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toSlots } from './BalanceFigureGL';
+import { toSlots } from '../lib/webglStage';
 import { buildOrbs } from '../lib/balanceFigure';
 import type { BalanceMetrics } from '../lib/balanceMetric';
 

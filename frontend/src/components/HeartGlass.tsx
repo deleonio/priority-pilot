@@ -1,6 +1,16 @@
 import { useEffect, useRef } from 'react';
 import fragmentSource from './heart-glass.frag?raw';
 import { PILLAR_RAMP_SIZE } from '../lib/pillarRamp';
+import {
+	BAND_SLOTS,
+	bindFullscreenTriangle,
+	buildProgram,
+	createResize,
+	createUniform,
+	createWebGLContext,
+	parseColor,
+	toSlotBands,
+} from '../lib/webglStage';
 
 /**
  * Das Herz der Startseite als **Glasgefäß in WebGL** — die flüssige Schwester des SVG in
@@ -45,11 +55,6 @@ interface HeartGlassProps {
 	onGiveUp: () => void;
 }
 
-/** Ein Fullscreen-Dreieck — die ganze Zeichnung leistet der Fragment-Shader. */
-const VERTEX_SOURCE = ['attribute vec2 a_pos;', 'void main() {', '	gl_Position = vec4(a_pos, 0.0, 1.0);', '}'].join(
-	'\n',
-);
-
 /** `GLASS_APP` schaltet den Shader von den Preview-Konstanten auf die Theme-Uniforms um. */
 const FRAGMENT_SOURCE = `#define GLASS_APP 1\n${fragmentSource}`;
 
@@ -66,28 +71,6 @@ const DEPTH_STRENGTH = 0.45;
 
 /** Deckkraft des weichen Schattens unterm Herz (0–0.3). */
 const SHADOW_OPACITY = 0.12;
-
-/** Zahl der Band-Uniforms im Shader — Streifen darüber laufen im letzten (neutralen) zusammen. */
-const BAND_SLOTS = 8;
-
-/** Liest eine CSS-Farbe (`#rgb`, `#rrggbb`, `rgb()`) als 0–1-Vektor; unlesbar bleibt schwarz. */
-const parseColor = (value: string): [number, number, number] => {
-	const text = value.trim();
-	const hex = /^#([0-9a-f]{3})$/i.exec(text) ?? /^#([0-9a-f]{6})$/i.exec(text);
-	if (hex) {
-		const digits = hex[1].length === 3 ? [...hex[1]].map((digit) => digit + digit).join('') : hex[1];
-		return [
-			parseInt(digits.slice(0, 2), 16) / 255,
-			parseInt(digits.slice(2, 4), 16) / 255,
-			parseInt(digits.slice(4, 6), 16) / 255,
-		];
-	}
-	const rgb = /^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i.exec(text);
-	if (rgb) {
-		return [Number(rgb[1]) / 255, Number(rgb[2]) / 255, Number(rgb[3]) / 255];
-	}
-	return [0, 0, 0];
-};
 
 /**
  * Theme-Farben aus den CSS-Rollen lesen — dieselben Variablen, die das SVG füllt. Das Wasser nimmt
@@ -109,32 +92,6 @@ const readThemeColors = () => {
 
 type ThemeColors = ReturnType<typeof readThemeColors>;
 
-/** Shader-seitige Bandliste: Farbe plus **linke** Kante als Anteil der sichtbaren Herzbreite (0–1).
- *  Der Shader wechselt an `u_band_edges[i]` zur Farbe i (`bandColorAt`) — Kante i ist die Grenze,
- *  ab der Farbe i gilt; die Fläche bis zur nächsten Kante (bzw. bis 1.0 beim letzten) bleibt bei i. */
-interface SlotBand {
-	color: [number, number, number];
-	edge: number;
-}
-
-/**
- * Streifen auf die Shader-Slots abbilden: Jede Kante liegt auf der **linken** Kante ihres Bandes
- * (`x0`, normiert auf die sichtbare Breite x 4–96) — der Shader beginnt Farbe i genau dort. Die
- * ersten 7 behalten Farbe; läuft die Liste über 8 hinaus (mehr Säulen als Uniform-Slots), läuft
- * der Rest ab der linken Kante des 8. Bandes im letzten Slot **neutral** zusammen — wie das SVG,
- * das ab der 8. Säule ohnehin nicht mehr einfärbt. Das letzte Band behält so seine Fläche bis 1.0.
- */
-export const toSlotBands = (bands: GlassBand[], colors: ThemeColors): SlotBand[] => {
-	const edge = (band: GlassBand): number => Math.max(0, Math.min(1, (band.x0 - 4) / 92));
-	const colorOf = (band: GlassBand): [number, number, number] =>
-		band.colorIndex < PILLAR_RAMP_SIZE ? colors.pillars[band.colorIndex] : colors.neutral;
-	if (bands.length <= BAND_SLOTS) {
-		return bands.map((band) => ({ color: colorOf(band), edge: edge(band) }));
-	}
-	const head = bands.slice(0, BAND_SLOTS - 1).map((band) => ({ color: colorOf(band), edge: edge(band) }));
-	return [...head, { color: colors.neutral, edge: edge(bands[BAND_SLOTS - 1]) }];
-};
-
 interface GlassEngine {
 	/** Uniforms neu setzen (Füllstand/Streifen/Theme) und ggf. ein Standbild zeichnen. */
 	update: (fill: number, bands: GlassBand[], colors: ThemeColors) => void;
@@ -149,39 +106,11 @@ interface GlassEngine {
  * fängt und fällt auf das SVG zurück. So bleibt der Erfolgspfad frei von Sonderfällen.
  */
 const createEngine = (canvas: HTMLCanvasElement): GlassEngine => {
-	const gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: false, antialias: false });
-	if (!gl) throw new Error('WebGL2 nicht verfügbar');
-
-	const compile = (type: number, source: string): WebGLShader => {
-		const shader = gl.createShader(type);
-		if (!shader) throw new Error('Shader-Objekt nicht verfügbar');
-		gl.shaderSource(shader, source);
-		gl.compileShader(shader);
-		if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-			throw new Error(gl.getShaderInfoLog(shader) || 'Shader-Kompilierung fehlgeschlagen');
-		}
-		return shader;
-	};
-
-	const program = gl.createProgram();
-	if (!program) throw new Error('Programm-Objekt nicht verfügbar');
-	gl.attachShader(program, compile(gl.VERTEX_SHADER, VERTEX_SOURCE));
-	gl.attachShader(program, compile(gl.FRAGMENT_SHADER, FRAGMENT_SOURCE));
-	gl.linkProgram(program);
-	if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-		throw new Error(gl.getProgramInfoLog(program) ?? 'Programm-Verknüpfung fehlgeschlagen');
-	}
+	const gl = createWebGLContext(canvas, { alpha: true, premultipliedAlpha: false, antialias: false });
+	const program = buildProgram(gl, FRAGMENT_SOURCE);
 	gl.useProgram(program);
-
-	const buffer = gl.createBuffer();
-	if (!buffer) throw new Error('Buffer-Objekt nicht verfügbar');
-	gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-	const attribute = gl.getAttribLocation(program, 'a_pos');
-	gl.enableVertexAttribArray(attribute);
-	gl.vertexAttribPointer(attribute, 2, gl.FLOAT, false, 0, 0);
-
-	const uniform = (name: string): WebGLUniformLocation | null => gl.getUniformLocation(program, name);
+	const buffer = bindFullscreenTriangle(gl, program);
+	const uniform = createUniform(gl, program);
 	const locations = {
 		resolution: uniform('u_resolution'),
 		time: uniform('u_time'),
@@ -209,24 +138,7 @@ const createEngine = (canvas: HTMLCanvasElement): GlassEngine => {
 	gl.uniform1f(locations.depthStrength, DEPTH_STRENGTH);
 	gl.uniform1f(locations.shadow, SHADOW_OPACITY);
 
-	/*
-	 * Größe nur bei echter Änderung schreiben: Jedes Schreiben von `canvas.width` leert den
-	 * Zeichenbuffer — ungefiltert bei jedem Resize ein Flackern, etwa beim Scrollbalken.
-	 */
-	let backingWidth = 0;
-	let backingHeight = 0;
-	const resize = (): void => {
-		const dpr = Math.min(window.devicePixelRatio || 1, 2);
-		const width = Math.max(1, Math.round(canvas.clientWidth * dpr));
-		const height = Math.max(1, Math.round(canvas.clientHeight * dpr));
-		if (width === backingWidth && height === backingHeight) return;
-		backingWidth = width;
-		backingHeight = height;
-		canvas.width = width;
-		canvas.height = height;
-		gl.viewport(0, 0, width, height);
-		gl.uniform2f(locations.resolution, width, height);
-	};
+	const resize = createResize(gl, canvas, locations.resolution);
 
 	/*
 	 * Selbst-stoppende Render-Maschine: Sie läuft nur, solange die Welle sich bewegen darf und das
