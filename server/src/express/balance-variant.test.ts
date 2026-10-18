@@ -5,7 +5,7 @@ import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } 
 /**
  * Rote Spec-Tests für #2009 (Spec: docs/spec/issue-2009.md) — Zifferblatt-Auswahl am Konto.
  *
- * AK1: `PUT /balance-variant` persistiert einen der zehn Varianten-Schlüssel am Konto;
+ * AK1: `PUT /balance-variant` persistiert einen der zwölf Varianten-Schlüssel am Konto;
  *   jeder andere Wert → 400, nichts persistiert.
  * AK2: `GET /balance-variant` liefert die gespeicherte Wahl, sonst `herz`.
  * AK3: Kontoisolation — die Wahl von Nutzer A ist für Nutzer B nicht sichtbar.
@@ -16,7 +16,7 @@ import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } 
 
 applyTestAuthEnv('test-secret-issue-2009');
 
-/** Die zehn Bild-Schlüssel (`BALANCE_VARIANTS`, frontend/src/lib/balanceVariant.ts). */
+/** Die zwölf Bild-Schlüssel (`BALANCE_VARIANTS`, frontend/src/lib/balanceVariant.ts). */
 const VARIANTEN = [
 	'herz',
 	'blasen',
@@ -28,6 +28,8 @@ const VARIANTEN = [
 	'segmente',
 	'zeiger',
 	'bahnen',
+	'meteore',
+	'pendel',
 ];
 
 let server: TestServer;

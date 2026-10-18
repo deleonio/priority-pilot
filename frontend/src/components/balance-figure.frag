@@ -3,12 +3,14 @@ precision highp float;
 /*
  * Balance-Figuren — WebGL-Fassung der Startseiten-Bilder der Lebensbalance.
  *
- * Dieselbe Bildsprache wie das SVG in BalanceFigure.tsx, nur das Material kommt hinzu. Neun
+ * Dieselbe Bildsprache wie das SVG in BalanceFigure.tsx, nur das Material kommt hinzu. Zwoelf
  * Figuren, ein Programm: Blasen (0), Ringe (1), Strahlen (2), Scheiben (3), Blüte (4), Kristall (5),
- * Segmente (6), Zeiger (7), Bahnen (8). Sie bekommen dieselben Werte — je Saeule das Verhaeltnis
- * Ist zu Soll (lib/balanceMetric.ts) — und unterscheiden sich allein darin, wie sie es zeigen.
- * Radien, Winkel und Phasen kommen aus lib/balanceFigure.ts; beide Fassungen rechnen dieselbe
- * Geometrie, hier nur je Bildpunkt statt je Element.
+ * Segmente (6), Zeiger (7), Bahnen (8), Meteore (9), Pendel (10) — die drei Bahn-Figuren teilen
+ * sich Geometrie und Schweif-Malerei und unterscheiden sich allein in der Bewegung. Sie bekommen
+ * dieselben Werte — je Saeule das Verhaeltnis Ist zu Soll (lib/balanceMetric.ts) — und
+ * unterscheiden sich allein darin, wie sie es zeigen. Radien, Winkel und Phasen kommen aus
+ * lib/balanceFigure.ts; beide Fassungen rechnen dieselbe Geometrie, hier nur je Bildpunkt statt je
+ * Element.
  *
  * Dialekt bewusst GLSL ES 1.00 (gl_FragColor, keine dynamische Array-Indizierung ausserhalb von
  * Schleifen mit konstanten Grenzen): laeuft unveraendert in WebGL1- und WebGL2-Kontexten.
@@ -35,7 +37,8 @@ uniform float u_beat;
 
 /* 0 = Blasen, 1 = Ringe, 2 = Strahlen, 3 = Scheiben (derselbe Stapel wie 0, anderes Material),
  * 4 = Blüte, 5 = Kristall (dieselbe Silhouette wie 4, anderes Material), 6 = Segmente,
- * 7 = Zeiger, 8 = Bahnen (Winkel und große Halbachse auf den Strahlen-Plätzen). */
+ * 7 = Zeiger, 8 = Bahnen, 9 = Meteore, 10 = Pendel (drei Bewegungen auf derselben Bahn-Geometrie,
+ * Winkel und große Halbachse auf den Strahlen-Plätzen). */
 uniform float u_figure;
 
 /* Je Saeule: Farbe und Bewegung — in jeder Figur dieselbe. */
@@ -122,10 +125,13 @@ const float TARGET_DASHES = 36.0;
 const float PETAL_SWING = 0.06;
 const float PETAL_SWAY = 1.6;
 
-/* Bahn-Figur: Abflachung der Umlaufbahn (kleine / große Halbachse) und Bogenlänge des Schweifs
- * hinter dem Kopf — zahlengleich zu lib/balanceFigure.ts. */
+/* Bahn-Figuren: Abflachung der Umlaufbahn (kleine / große Halbachse), Kepler-Exzentrizität,
+ * Pendel-Amplitude und die Bogenlaengen der Schweife — zahlengleich zu lib/balanceFigure.ts. */
 const float ORBIT_FLAT = 0.72;
+const float ORBIT_ECC = 0.55;
+const float ORBIT_SWING = 2.2;
 const float ORBIT_TAIL = 1.9;
+const float METEOR_SWEEP = 5.4;
 
 /* Deckkraft der unausgefuellten Ringspur — sie zeigt, wie weit es noch waere. */
 const float ARC_TRACK_ALPHA = 0.16;
@@ -485,14 +491,20 @@ void main() {
 		alpha = mark + alpha * (1.0 - mark);
 	} else if (u_figure > 7.5) {
 		/*
-		 * ── Bahnen: je Saeule ein Komet auf eigener Ellipsenbahn ───────────────────────────────
+		 * ── Bahnen (8), Meteore (9) und Pendel (10): eine Geometrie, drei Bewegungen ───────
 		 *
 		 * Die Bahn ist der Weg, nicht der Wert: blass und duenn gezeichnet, ihre grosse Achse
 		 * traegt die Kennzahl — die groesste Bahn gehoert zur staerksten Saeule, zeigt auf 12 Uhr
-		 * und beruehrt mit ihrem Scheitel dieselbe Stelle wie eine Strahlenspitze. Der Komet laeuft
-		 * im Dreh-Takt auf der Bahn um (Richtung u_dir), die Bahn atmet im Schwing-Takt; sein
-		 * Schweif leuchtet auf dem Bogen hinter ihm aus.
+		 * und beruehrt mit ihrem Scheitel dieselbe Stelle wie eine Strahlenspitze. Die Bewegung
+		 * trennt die drei: Bahnen laufen im Kepler-Takt um (nahe der kleinen Achse schneller,
+		 * am Scheitel langsam — Kepler-Gleichung, eine Naeherung genuegt dem Auge), Meteore
+		 * gleichmaessig mit langem, pulsierend auslaufendem Schweif, Pendel schwingen um ihre
+		 * Phase — ihr Schweif kippt mit der Bewegungsrichtung und blendet an den Umkehrpunkten ab.
+		 * Die Bahn selbst atmet bei allen im Schwing-Takt.
 		 */
+		bool meteor = u_figure > 8.5 && u_figure < 9.5;
+		bool pendel = u_figure > 9.5;
+
 		for (int i = 0; i < 8; i++) {
 			float used = step(float(i), u_count - 1.0);
 
@@ -511,32 +523,64 @@ void main() {
 			acc = trackCol * track + acc * (1.0 - track);
 			alpha = track + alpha * (1.0 - track);
 
-			/* Kopfposition: Umlauf-Winkel aus Phase, Dreh-Takt und Richtung (Standbild: Phase). */
-			float theta = u_phase[i] + u_dir[i] * PI2 * time / max(u_rot[i], 0.1);
+			/* Kopfposition und Laufrichtung je Bewegung; das Tempo skaliert beim Pendel das
+			   Leuchten (an den Umkehrpunkten steht der Komet kurz). */
+			float theta = u_phase[i];
+			float tailDir = u_dir[i];
+			float speed = 1.0;
+			if (pendel) {
+				float swing = u_phase[i] + PI2 * time / u_swing[i];
+				theta = u_phase[i] + u_dir[i] * ORBIT_SWING * sin(swing);
+				tailDir = cos(swing) >= 0.0 ? 1.0 : -1.0;
+				speed = abs(cos(swing));
+			} else if (meteor) {
+				theta = u_phase[i] + u_dir[i] * PI2 * time / max(u_rot[i], 0.1);
+			} else {
+				float meanA = u_phase[i] + u_dir[i] * PI2 * time / max(u_rot[i], 0.1);
+				theta = meanA - 0.5 * ORBIT_ECC * sin(2.0 * meanA);
+			}
 			vec2 headLocal = vec2(a * cos(theta), b * sin(theta));
 			vec2 head = vec2(headLocal.x * oc - headLocal.y * os, headLocal.x * os + headLocal.y * oc);
 
-			/* Schweif: leuchtende Polylinie auf dem Bogen hinter dem Kopf, zum Ende schmaler werdend. */
+			/* Schweif: leuchtende Polylinie auf dem Bogen hinter dem Kopf. Meteor: fast der
+			   ganze Umlauf leuchtet nach, breiter und mit einer Welle im Takt; die anderen:
+			   kurz, zum Ende schmaler werdend. */
 			float tail = 0.0;
 			vec2 prev = head;
-			for (int t = 1; t <= 8; t++) {
-				float share = float(t) / 8.0;
-				float th = theta - u_dir[i] * ORBIT_TAIL * share;
-				vec2 pl = vec2(a * cos(th), b * sin(th));
-				vec2 pt = vec2(pl.x * oc - pl.y * os, pl.x * os + pl.y * oc);
-				float dist = segDist(d, prev, pt);
-				float fade = 1.0 - share;
-				tail = max(tail, exp(-dist * dist * mix(0.9, 2.8, share)) * fade * fade);
-				prev = pt;
+			if (meteor) {
+				for (int t = 1; t <= 14; t++) {
+					float share = float(t) / 14.0;
+					float th = theta - u_dir[i] * METEOR_SWEEP * share;
+					vec2 pl = vec2(a * cos(th), b * sin(th));
+					vec2 pt = vec2(pl.x * oc - pl.y * os, pl.x * os + pl.y * oc);
+					float dist = segDist(d, prev, pt);
+					float fade = 1.0 - share;
+					float wave = 0.55 + 0.45 * sin(share * 9.0 - time * 2.4);
+					tail = max(tail, exp(-dist * dist * mix(0.35, 1.8, share)) * fade * fade * wave);
+					prev = pt;
+				}
+			} else {
+				for (int t = 1; t <= 8; t++) {
+					float share = float(t) / 8.0;
+					float th = theta - tailDir * ORBIT_TAIL * share;
+					vec2 pl = vec2(a * cos(th), b * sin(th));
+					vec2 pt = vec2(pl.x * oc - pl.y * os, pl.x * os + pl.y * oc);
+					float dist = segDist(d, prev, pt);
+					float fade = 1.0 - share;
+					tail = max(tail, exp(-dist * dist * mix(0.9, 2.8, share)) * fade * fade);
+					prev = pt;
+				}
+				tail *= speed;
 			}
 			tail *= used;
 			acc += u_colors[i] * tail * 0.85;
 			alpha = min(1.0, alpha + tail * 0.85);
 
-			/* Kopf: heller Kern mit weichem Schein — die Stelle, auf die das Auge faellt. */
+			/* Kopf: heller Kern mit weichem Schein — die Stelle, auf die das Auge faellt. Beim
+			   Pendel atmet der Schein mit dem Tempo. */
 			float headD2 = dot(d - head, d - head);
 			float core = exp(-headD2 * 1.3) * used;
-			float glow = exp(-headD2 * 0.09) * used;
+			float glow = exp(-headD2 * 0.09) * used * (pendel ? 0.4 + 0.6 * speed : 1.0);
 			acc += mix(u_colors[i], vec3(1.0), 0.6) * core;
 			acc += u_colors[i] * glow * 0.5;
 			alpha = min(1.0, alpha + core + glow * 0.5);

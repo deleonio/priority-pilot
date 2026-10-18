@@ -246,9 +246,9 @@ export const toSlots = (
 			target: hands[0]?.targetLength ?? 0,
 		};
 	}
-	// Bahnen belegen die Strahlen-Plätze mit Winkel und großer Halbachse — der Shader dreht die
-	// Ellipse auf den Winkel und läuft den Kometen im Dreh-Takt auf ihr um.
-	if (state.figure === 'bahnen') {
+	// Bahnen, Meteore und Pendel teilen sich die Bahn-Geometrie — Winkel und große Halbachse auf
+	// den Strahlen-Plätzen; welche Bewegung der Komet nimmt, wählt der Shader über `u_figure`.
+	if (state.figure === 'bahnen' || state.figure === 'meteore' || state.figure === 'pendel') {
 		const orbits = buildOrbits(state.metrics).slice(0, SLOTS);
 		return {
 			colors: orbits.map((orbit) => colorOf(orbit.colorIndex)),

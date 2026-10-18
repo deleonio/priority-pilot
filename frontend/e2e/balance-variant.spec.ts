@@ -14,7 +14,7 @@ import { waitForStableView } from './helpers';
 /** localStorage-Schlüssel der Bildwahl — muss mit `balanceVariant.ts` übereinstimmen. */
 const VARIANT_STORAGE_KEY = 'pp-balance-variant';
 
-/** Alle zehn Bilder in Einstellungs-Reihenfolge (`BALANCE_VARIANTS`). */
+/** Alle zwölf Bilder in Einstellungs-Reihenfolge (`BALANCE_VARIANTS`). */
 const VARIANTEN = [
 	'Herz',
 	'Blasen',
@@ -26,6 +26,8 @@ const VARIANTEN = [
 	'Segmente',
 	'Zeiger',
 	'Bahnen',
+	'Meteore',
+	'Pendel',
 ] as const;
 
 /** Die Radiogroup im Allgemein-Tab — Accessible Name „Bild der Lebensbalance" (Rolle je nach KoliBri-Version `group` oder `radiogroup`). */
@@ -42,7 +44,7 @@ const variantOption = (page: Page, label: string): Locator =>
 		.or(variantGroup(page).getByRole('button', { name: label, exact: true }));
 
 test.describe('Bild der Lebensbalance – Umschalter im Allgemein-Tab', () => {
-	test('375px: Alle zehn Bilder wählbar, „Blüte" erscheint auf dem Dashboard', async ({ page }) => {
+	test('375px: Alle zwölf Bilder wählbar, „Blüte" erscheint auf dem Dashboard', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Balamentum');

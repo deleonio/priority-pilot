@@ -12,10 +12,13 @@ import {
 	buildWedges,
 	CENTER,
 	FIGURE_MAX,
+	keplerTheta,
+	ORBIT_ECC,
 	ORBIT_FLAT,
+	ORBIT_SWING,
 	orbAxes,
 	orbitPoint,
-	orbitTheta,
+	pendelState,
 	petalRadiusAt,
 	RISE_DURATION,
 	RING_INNER,
@@ -400,13 +403,34 @@ describe('Figur „Bahnen“', () => {
 		expect(Math.hypot(quer.x - CENTER, quer.y - CENTER)).toBeCloseTo(orbit.radius * ORBIT_FLAT, 6);
 	});
 
-	it('läuft im Standbild auf der Phase und im Dreh-Takt in eigene Richtung', () => {
+	it('läuft im Kepler-Takt: an der kleinen Achse schneller als am Scheitel', () => {
 		const [orbit] = buildOrbits(metricsOf([1]));
 
-		expect(orbitTheta(orbit, 0)).toBe(orbit.phase);
-		const viertel = orbit.rotPeriod / 4;
-		const theta = orbitTheta(orbit, viertel);
-		expect(theta).toBeCloseTo(orbit.phase + orbit.rotDirection * (Math.PI / 2), 6);
+		// Standbild: Phase plus Kepler-Versatz (Anomalie-Näherung, zahlengleich zum Shader).
+		expect(keplerTheta(orbit, 0)).toBeCloseTo(orbit.phase - (ORBIT_ECC / 2) * Math.sin(2 * orbit.phase), 6);
+		// Beschleunigung Richtung Periapsis (kleine Achse, dem Zentrum am nächsten): Das
+		// Zeitviertel durch die kleine Achse überstreicht mehr Winkel als das durch den Scheitel.
+		const kleineAchse = keplerTheta(orbit, orbit.rotPeriod * 0.375) - keplerTheta(orbit, orbit.rotPeriod * 0.125);
+		const scheitel = keplerTheta(orbit, orbit.rotPeriod * 0.625) - keplerTheta(orbit, orbit.rotPeriod * 0.375);
+		expect(kleineAchse).toBeGreaterThan(Math.PI / 2);
+		expect(scheitel).toBeLessThan(Math.PI / 2);
+		expect(kleineAchse).toBeGreaterThan(scheitel);
+	});
+
+	it('pendelt um die Phase: Amplitude begrenzt, Tempo an den Umkehrpunkten null', () => {
+		const [orbit] = buildOrbits(metricsOf([1]));
+
+		for (const share of [0, 0.125, 0.25, 0.375, 0.5, 0.75, 0.9]) {
+			const zustand = pendelState(orbit, share * orbit.swingPeriod);
+			expect(zustand.theta).toBeLessThanOrEqual(orbit.phase + ORBIT_SWING + 1e-9);
+			expect(zustand.theta).toBeGreaterThanOrEqual(orbit.phase - ORBIT_SWING - 1e-9);
+			expect(zustand.speed).toBeGreaterThanOrEqual(0);
+			expect(zustand.speed).toBeLessThanOrEqual(1);
+			expect(zustand.dirNow === 1 || zustand.dirNow === -1).toBe(true);
+		}
+		// Phase 0: Das Pendel startet mit vollem Tempo und steht nach einem Viertel Periode kurz.
+		expect(pendelState(orbit, 0).speed).toBeCloseTo(1, 6);
+		expect(pendelState(orbit, orbit.swingPeriod / 4).speed).toBeCloseTo(0, 6);
 	});
 
 	/* Gleichstand wie bei den Blasen: Ohne eigene Phase und Periode liefe alles synchron und das

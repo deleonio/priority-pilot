@@ -114,6 +114,8 @@ describe('balanceVariant', () => {
 			'segmente',
 			'zeiger',
 			'bahnen',
+			'meteore',
+			'pendel',
 		]);
 	});
 
