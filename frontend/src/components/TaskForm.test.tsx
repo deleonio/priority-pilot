@@ -37,13 +37,6 @@ vi.mock('@public-ui/react-v19', () => ({
 			{_label}
 		</button>
 	),
-	// Kategorie-Kennzeichen unter dem Auswahlfeld (`CategoryBadge`). Der Mock hält Beschriftung und
-	// Farbe fest, damit der Test belegen kann, dass genau die gewählte Kategorie angezeigt wird.
-	KolBadge: ({ _label, _color }: { _label?: string; _color?: string }) => (
-		<span data-testid="category-badge" data-color={_color}>
-			{_label}
-		</span>
-	),
 	KolInputText: ({
 		_label,
 		_value,
@@ -2592,13 +2585,13 @@ describe('TaskForm — Sektionen als Accordions (#1285)', () => {
 });
 
 /**
- * Kategorie-Feld im Aufgaben- und Serienformular: Die getroffene Wahl steht als Kennzeichen UNTER
- * dem Auswahlfeld — so, wie sie später in den Listen aussieht — und lässt sich wieder abwählen.
+ * Kategorie-Feld im Aufgaben- und Serienformular: Ein optionales Einzelfeld — das Auswahlfeld
+ * zeigt die getroffene Wahl selbst, die erste Option „— ohne Kategorie —" löst sie wieder.
  *
  * `TaskForm` bedient beide Modi (Aufgabe und Serie) mit demselben Feld; die Serien-Fälle prüfen
- * deshalb nur, dass Anzeige und Abwahl auch dort greifen und im Serien-Payload landen.
+ * deshalb nur, dass Auswahl und Abwahl auch dort greifen und im Serien-Payload landen.
  */
-describe('TaskForm — Kategorie: Kennzeichen unter dem Feld und Abwahl', () => {
+describe('TaskForm — Kategorie: Auswahl und Abwahl im Auswahlfeld', () => {
 	const hausbau: Category = { id: 7, name: 'Hausbau', color: '#b42318' };
 	const steuer: Category = { id: 8, name: 'Steuer', color: '#1064d0' };
 	const withCategories = { ...defaultProps, categories: [hausbau, steuer] };
@@ -2610,57 +2603,17 @@ describe('TaskForm — Kategorie: Kennzeichen unter dem Feld und Abwahl', () => 
 		});
 	};
 
-	const badge = (): HTMLElement | null => screen.queryByTestId('category-badge');
-
-	it('zeigt ohne Auswahl kein Kennzeichen und keinen Entfernen-Knopf', async () => {
+	it('steht ohne Auswahl auf dem Platzhalter „— ohne Kategorie —“', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 
 		await act(async () => {
 			render(<TaskForm task={null} {...withCategories} />);
 		});
 
-		expect(badge()).toBeNull();
-		expect(screen.queryByRole('button', { name: 'Kategorie entfernen' })).toBeNull();
+		expect(screen.getByLabelText('Kategorie (optional)')).toHaveValue('0');
 	});
 
-	it('zeigt die gewählte Kategorie als Kennzeichen unter dem Auswahlfeld', async () => {
-		mockSuggestPillars.mockResolvedValue([]);
-
-		await act(async () => {
-			render(<TaskForm task={null} {...withCategories} />);
-		});
-		await chooseCategory(hausbau.id);
-
-		const shown = badge();
-		expect(shown).not.toBeNull();
-		expect(shown).toHaveTextContent('Hausbau');
-		// Die Farbe kommt aus der Kategorie, nicht aus einem Formular-eigenen Stil — nur so sieht das
-		// Kennzeichen hier genauso aus wie später in der Liste.
-		expect(shown).toHaveAttribute('data-color', hausbau.color);
-
-		// „Unter dem Feld" ist die eigentliche Anforderung: Das Kennzeichen steht in der DOM-Reihenfolge
-		// NACH dem Auswahlfeld, nicht daneben oder davor.
-		const select = screen.getByLabelText('Kategorie (optional)');
-		expect(select.compareDocumentPosition(shown!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-	});
-
-	it('tauscht das Kennzeichen beim Wechsel der Kategorie aus', async () => {
-		mockSuggestPillars.mockResolvedValue([]);
-
-		await act(async () => {
-			render(<TaskForm task={null} {...withCategories} />);
-		});
-		await chooseCategory(hausbau.id);
-		await chooseCategory(steuer.id);
-
-		// Genau EIN Kennzeichen, und zwar das der zuletzt gewählten Kategorie — die alte Farbe darf
-		// nicht danebenstehen bleiben. („Hausbau" bleibt als Auswahl-Option im DOM, das ist gewollt.)
-		expect(screen.getAllByTestId('category-badge')).toHaveLength(1);
-		expect(badge()).toHaveTextContent('Steuer');
-		expect(badge()).toHaveAttribute('data-color', steuer.color);
-	});
-
-	it('„Kategorie entfernen" nimmt die Auswahl zurück und speichert die Aufgabe ohne Kategorie', async () => {
+	it('zeigt die gewählte Kategorie im Auswahlfeld und speichert sie am Task', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 		mockCreateTask.mockResolvedValue(minimalNewTask());
 
@@ -2669,15 +2622,29 @@ describe('TaskForm — Kategorie: Kennzeichen unter dem Feld und Abwahl', () => 
 		});
 		await fillTitle('Fliesen aussuchen');
 		await chooseCategory(hausbau.id);
-		expect(badge()).not.toBeNull();
+		expect(screen.getByLabelText('Kategorie (optional)')).toHaveValue(String(hausbau.id));
+
+		await chooseMainPillar();
+		await clickSave();
+
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: Record<string, unknown> }];
+		expect(taskCreate.categoryId).toBe(hausbau.id);
+	});
+
+	it('„— ohne Kategorie —“ nimmt die Auswahl zurück und speichert die Aufgabe ohne Kategorie', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
 
 		await act(async () => {
-			fireEvent.click(screen.getByRole('button', { name: 'Kategorie entfernen' }));
+			render(<TaskForm task={null} {...withCategories} />);
 		});
+		await fillTitle('Fliesen aussuchen');
+		await chooseCategory(hausbau.id);
 
-		// Kennzeichen weg, Auswahlfeld zurück auf dem Platzhalter — und beim Speichern geht `null` mit,
-		// damit eine zuvor gesetzte Kategorie serverseitig wirklich gelöst wird.
-		expect(badge()).toBeNull();
+		await chooseCategory(0);
+
+		// Auswahlfeld zurück auf dem Platzhalter — und beim Speichern geht `null` mit, damit eine
+		// zuvor gesetzte Kategorie serverseitig wirklich gelöst wird.
 		expect(screen.getByLabelText('Kategorie (optional)')).toHaveValue('0');
 		await chooseMainPillar();
 		await clickSave();
@@ -2686,17 +2653,17 @@ describe('TaskForm — Kategorie: Kennzeichen unter dem Feld und Abwahl', () => 
 		expect(taskCreate.categoryId).toBeNull();
 	});
 
-	it('zeigt beim Bearbeiten die bereits zugeordnete Kategorie als Kennzeichen', async () => {
+	it('zeigt beim Bearbeiten die bereits zugeordnete Kategorie im Auswahlfeld', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 
 		await act(async () => {
 			render(<TaskForm task={{ ...minimalNewTask(), categoryId: steuer.id }} {...withCategories} />);
 		});
 
-		expect(badge()).toHaveTextContent('Steuer');
+		expect(screen.getByLabelText('Kategorie (optional)')).toHaveValue(String(steuer.id));
 	});
 
-	it('Serie: Kennzeichen erscheint, die Abwahl landet im Serien-Payload', async () => {
+	it('Serie: Abwahl über den Platzhalter landet im Serien-Payload', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 		mockCreateSeries.mockResolvedValue(minimalSeries());
 
@@ -2706,12 +2673,9 @@ describe('TaskForm — Kategorie: Kennzeichen unter dem Feld und Abwahl', () => 
 		await switchToSeriesMode();
 		await fillTitle('Wöchentlicher Sport');
 		await chooseCategory(steuer.id);
-		expect(badge()).toHaveTextContent('Steuer');
+		await chooseCategory(0);
+		expect(screen.getByLabelText('Kategorie (optional)')).toHaveValue('0');
 
-		await act(async () => {
-			fireEvent.click(screen.getByRole('button', { name: 'Kategorie entfernen' }));
-		});
-		expect(badge()).toBeNull();
 		await chooseMainPillar();
 		await clickSave();
 

@@ -53,7 +53,6 @@
 		"categoryLabel": "Kategorie (optional)",
 		"categoryHint": "Thema zum Filtern — wirkt nicht auf die Priorisierung.",
 		"noCategory": "— ohne Kategorie —",
-		"removeCategory": "Kategorie entfernen",
 		"checklist": "Checkliste (optional)",
 		"checklistEntry": "Checklisten-Eintrag",
 		"checklistDone": "Erledigen",
