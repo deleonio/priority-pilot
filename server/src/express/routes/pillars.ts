@@ -6,6 +6,8 @@ import sequelize from '../../database.js';
 import { Pillar } from '../../models/index.js';
 import { resolvePillarDescription } from '../../models/pillarData.js';
 import { SHARE_MIN } from '../../logics/pillarShares.js';
+import { validateRequestBody } from '../../logics/requestValidation.js';
+import type { ValidationResult } from '../../logics/requestValidation.js';
 import type { components } from '../../api';
 import { getUserId, ownerScope, requireAuth } from '../requireAuth.js';
 
@@ -32,8 +34,6 @@ const sendPillarsLocked = (res: Response<ErrorDto>): void => {
 	sendError(res, 403, 'Die fünf Säulen sind fest und gelten stets. Anlegen, Umbenennen und Löschen sind gesperrt.');
 };
 
-type ValidationResult = { ok: true; entries: WeightEntry[] } | { ok: false; message: string };
-
 /** Wandelt eine Pillar-Instanz in die im API-Vertrag definierte Form um. */
 const serializePillar = (pillar: Pillar): PillarDto => ({
 	id: pillar.id,
@@ -49,11 +49,12 @@ const serializePillar = (pillar: Pillar): PillarDto => ({
  * `id >= 1`, endlichem `weight >= 0` und ohne doppelte `id`. Fachliche Prüfungen
  * (vollständige Abdeckung, Summe = 100) erfolgen anschließend gegen den DB-Stand.
  */
-const validateWeightsBody = (body: unknown): ValidationResult => {
-	if (typeof body !== 'object' || body === null) {
-		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
+const validateWeightsBody = (body: unknown): ValidationResult<{ ok: true; entries: WeightEntry[] }> => {
+	const bodyResult = validateRequestBody(body);
+	if (!bodyResult.ok) {
+		return bodyResult;
 	}
-	const { weights } = body as Record<string, unknown>;
+	const { weights } = bodyResult.value;
 	if (!Array.isArray(weights) || weights.length === 0) {
 		return { ok: false, message: 'weights muss eine nicht-leere Liste sein.' };
 	}

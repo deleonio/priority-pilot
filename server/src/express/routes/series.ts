@@ -21,6 +21,17 @@ import {
 	PILLAR_DISTRIBUTION_RULE,
 	type PillarContribution,
 } from '../../logics/pillarContributions.js';
+import {
+	validateAddress,
+	validateCoordinates,
+	validateDescription,
+	validateEstimatedEffort,
+	validateIsoDate,
+	validatePriority,
+	validateRequestBody,
+	validateTitle,
+} from '../../logics/requestValidation.js';
+import type { ValidationResult } from '../../logics/requestValidation.js';
 import { isCategoryExistent, remapCategoryForRecipient, validateCategoryId } from '../../logics/categoryOwnership.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { serializeTask, loadUserNames, loadSharedUserIds, resolveRecipientId } from './tasks.js';
@@ -85,8 +96,8 @@ interface SeriesAttributes {
 	checklist?: SeriesChecklistItem[];
 }
 
-type ValidationResult =
-	{ ok: true; attrs: SeriesAttributes; pillars: PillarContribution[] | undefined } | { ok: false; message: string };
+/** Erfolgs-Shape der Serien-Body-Validierung (Fehler-Kanal: `ValidationResult` aus `requestValidation`). */
+type SeriesValidation = { ok: true; attrs: SeriesAttributes; pillars: PillarContribution[] | undefined };
 
 const isRhythm = (value: unknown): value is SeriesRhythm =>
 	typeof value === 'string' && VALID_RHYTHMS.some((rhythm) => rhythm === value);
@@ -239,21 +250,20 @@ const validateSeriesFields = (
 	body: unknown,
 	isPost: boolean,
 	existing?: Pick<Series, 'rhythm' | 'startDate' | 'autoCreate'>,
-): ValidationResult => {
-	if (typeof body !== 'object' || body === null) {
-		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
+): ValidationResult<SeriesValidation> => {
+	const bodyResult = validateRequestBody(body);
+	if (!bodyResult.ok) {
+		return bodyResult;
 	}
-	const input = body as Record<string, unknown>;
+	const input = bodyResult.value;
 	const attrs: SeriesAttributes = {};
 
-	if (input.title !== undefined) {
-		if (typeof input.title !== 'string' || input.title.trim() === '') {
-			return { ok: false, message: 'title muss ein nicht-leerer String sein.' };
-		}
-		attrs.title = input.title.trim();
+	const title = validateTitle(input.title, isPost);
+	if (!title.ok) {
+		return title;
 	}
-	if (isPost && attrs.title === undefined) {
-		return { ok: false, message: 'title ist erforderlich.' };
+	if (title.value !== undefined) {
+		attrs.title = title.value;
 	}
 
 	if (input.rhythm !== undefined) {
@@ -268,15 +278,11 @@ const validateSeriesFields = (
 	}
 
 	if (input.priority !== undefined) {
-		if (
-			typeof input.priority !== 'number' ||
-			!Number.isInteger(input.priority) ||
-			input.priority < 1 ||
-			input.priority > 5
-		) {
-			return { ok: false, message: 'priority muss eine Ganzzahl zwischen 1 und 5 sein.' };
+		const priority = validatePriority(input.priority);
+		if (!priority.ok) {
+			return priority;
 		}
-		attrs.priority = input.priority;
+		attrs.priority = priority.value;
 	}
 	// #2404: Task-Defaults wie `POST /tasks` (Modell `task.ts`), wenn beim Anlegen nichts übergeben wird.
 	if (isPost && attrs.priority === undefined) {
@@ -284,15 +290,11 @@ const validateSeriesFields = (
 	}
 
 	if (input.estimatedEffort !== undefined) {
-		if (
-			typeof input.estimatedEffort !== 'number' ||
-			!Number.isFinite(input.estimatedEffort) ||
-			input.estimatedEffort < 0.1 ||
-			input.estimatedEffort > 1
-		) {
-			return { ok: false, message: 'estimatedEffort muss eine Zahl zwischen 0.1 und 1 sein.' };
+		const estimatedEffort = validateEstimatedEffort(input.estimatedEffort);
+		if (!estimatedEffort.ok) {
+			return estimatedEffort;
 		}
-		attrs.estimatedEffort = input.estimatedEffort;
+		attrs.estimatedEffort = estimatedEffort.value;
 	}
 	if (isPost && attrs.estimatedEffort === undefined) {
 		attrs.estimatedEffort = 0.5;
@@ -306,10 +308,12 @@ const validateSeriesFields = (
 	}
 
 	if (input.startDate !== undefined) {
-		if (typeof input.startDate !== 'string' || Number.isNaN(Date.parse(input.startDate))) {
-			return { ok: false, message: 'startDate muss ein gültiges ISO-Datum sein.' };
+		const startDate = validateIsoDate(input.startDate, 'startDate', false);
+		if (!startDate.ok) {
+			return startDate;
 		}
-		attrs.startDate = new Date(input.startDate);
+		// allowNull=false: null wird vom Helfer abgelehnt, der Wert ist sicher ein Date.
+		attrs.startDate = startDate.value as Date;
 	}
 	if (input.autoCreate !== undefined) {
 		if (typeof input.autoCreate !== 'boolean') {
@@ -332,51 +336,31 @@ const validateSeriesFields = (
 	}
 
 	if (input.description !== undefined) {
-		if (input.description !== null && typeof input.description !== 'string') {
-			return { ok: false, message: 'description muss ein String oder null sein.' };
+		const description = validateDescription(input.description);
+		if (!description.ok) {
+			return description;
 		}
-		attrs.description = input.description;
+		attrs.description = description.value;
 	}
 
-	// Ortsbezug der Serie (#1063): Validierung analog `Task.address` (routes/tasks.ts) — String ≤ 255
-	// oder null; trim/leerer String wird wie null behandelt.
+	// Ortsbezug der Serie (#1063) — Helfer aus `requestValidation.ts`, wie bei `Task.address`.
 	if (input.address !== undefined) {
-		if (input.address !== null && (typeof input.address !== 'string' || input.address.length > 255)) {
-			return { ok: false, message: 'address muss ein String (max. 255 Zeichen) oder null sein.' };
+		const address = validateAddress(input.address);
+		if (!address.ok) {
+			return address;
 		}
-		attrs.address = input.address === null ? null : input.address.trim() === '' ? null : input.address.trim();
+		attrs.address = address.value;
 	}
 
-	// Standort-Koordinaten der Serie (#1066), analog `Task.latitude/longitude`: Zahl im gültigen
-	// Bereich oder null; Freitext ohne Koordinat bleibt speicherbar (AK10).
-	// Standort-Koordinaten der Serie (#1066): nur bei Auswahl eines Adress-Vorschlags gesetzt (Coordinates-only);
-	// Freitext ohne Koordinat bleibt speicherbar (AK10). Lat/lon sind ein Paar: `null` auf einer
-	// Seite leert BEIDE Werte — eine Einzel-Koordinate wird paarweise zu null normalisiert.
+	// Standort-Koordinaten der Serie (#1066): Lat/lon sind ein Paar — eine Einzel-Koordinate wird
+	// paarweise zu null normalisiert (Einzelheiten: `validateCoordinates`).
 	if (input.latitude !== undefined || input.longitude !== undefined) {
-		if (
-			input.latitude !== null &&
-			input.latitude !== undefined &&
-			(typeof input.latitude !== 'number' ||
-				!Number.isFinite(input.latitude) ||
-				input.latitude < -90 ||
-				input.latitude > 90)
-		) {
-			return { ok: false, message: 'latitude muss eine Zahl zwischen -90 und 90 oder null sein.' };
+		const coordinates = validateCoordinates(input);
+		if (!coordinates.ok) {
+			return coordinates;
 		}
-		if (
-			input.longitude !== null &&
-			input.longitude !== undefined &&
-			(typeof input.longitude !== 'number' ||
-				!Number.isFinite(input.longitude) ||
-				input.longitude < -180 ||
-				input.longitude > 180)
-		) {
-			return { ok: false, message: 'longitude muss eine Zahl zwischen -180 und 180 oder null sein.' };
-		}
-		const lat = input.latitude ?? null;
-		const lon = input.longitude ?? null;
-		attrs.latitude = lat !== null && lon !== null ? lat : null;
-		attrs.longitude = lat !== null && lon !== null ? lon : null;
+		attrs.latitude = coordinates.value.latitude;
+		attrs.longitude = coordinates.value.longitude;
 	}
 
 	if (input.autoDeleteAfterDeadline !== undefined) {
@@ -863,12 +847,12 @@ export const createSeriesRouter = ({ pushSender }: SeriesRouterDeps = {}): Route
 			sendError(res, 404, 'Serie nicht gefunden.');
 			return;
 		}
-		const body: unknown = req.body;
-		if (typeof body !== 'object' || body === null) {
-			sendError(res, 400, 'Request-Body muss ein Objekt sein.');
+		const bodyResult = validateRequestBody(req.body);
+		if (!bodyResult.ok) {
+			sendError(res, 400, bodyResult.message);
 			return;
 		}
-		const until = (body as Record<string, unknown>).until;
+		const until = bodyResult.value.until;
 		if (typeof until !== 'string' || Number.isNaN(Date.parse(until))) {
 			sendError(res, 400, 'until muss ein gültiges ISO-Datum sein.');
 			return;

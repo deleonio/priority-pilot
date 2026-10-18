@@ -6,6 +6,7 @@ import { feedbackVaultConfig, githubObsidianClient, type ObsidianGithubClient } 
 import { isMailConfigured, sendMailToUser, type MailSender } from '../../logics/mail.js';
 import { User } from '../../models/index.js';
 import { isApiTokenRequest } from '../apiTokenAuth.js';
+import { validateRequestBody } from '../../logics/requestValidation.js';
 
 type ErrorDto = { message: string };
 
@@ -24,10 +25,11 @@ interface FeedbackInput {
 
 /** Validiert den Body von `POST /feedback` (AK4): Kategorie aus der Liste, Titel und Text gefüllt. */
 const validateBody = (body: unknown): { ok: true; value: FeedbackInput } | { ok: false; message: string } => {
-	if (typeof body !== 'object' || body === null) {
-		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
+	const bodyResult = validateRequestBody(body);
+	if (!bodyResult.ok) {
+		return bodyResult;
 	}
-	const { category, title, description } = body as Record<string, unknown>;
+	const { category, title, description } = bodyResult.value;
 
 	if (typeof category !== 'string' || !CATEGORIES.includes(category as Category)) {
 		return { ok: false, message: `kategorie muss einer von ${CATEGORIES.join(', ')} sein.` };
