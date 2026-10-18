@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.29 - 2026-10-18
 
-_Enthält v0.29.0 – v0.29.21._
+_Enthält v0.29.0 – v0.29.22._
 
 ### 🚀 Improvements
 
@@ -36,6 +36,7 @@ _Enthält v0.29.0 – v0.29.21._
 - refactor(frontend): drop dead export isGeolocationSupported (#2697) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2726
 - feat(frontend): complete the orbit family with meteors and pendulum by @deleonio in https://github.com/deleonio/priority-pilot/pull/2727
 - docs(matomo): runbook for the self-hosted matomo instance by @deleonio in https://github.com/deleonio/priority-pilot/pull/2728
+- docs: narrow e2e run commands in testing.md to pnpm filter calls (#2698) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2729
 
 ## v0.28 - 2026-10-18
 
