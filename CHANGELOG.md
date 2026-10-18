@@ -446,6 +446,7 @@ _Enthält v0.17.0 – v0.17.45._
 - fix(ci): arm spec-phase soft-abort on hard deadline by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2337
 - chore(native): rename android package id to balamentum.app by @deleonio in https://github.com/deleonio/priority-pilot/pull/2334
 - test(e2e): isolate admin specs from shared Anna Admin users by @deleonio in https://github.com/deleonio/priority-pilot/pull/2342
+- test(e2e): isolate admin specs from shared Anna Admin users by @deleonio in https://github.com/deleonio/priority-pilot/pull/2342
 
 ### Other Changes
 
@@ -479,6 +480,7 @@ _Enthält v0.17.0 – v0.17.45._
 - feat(frontend): remove rail planner page and transit proxy by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2339
 - fix(ci): PR ohne Closing-Keyword finden und Closes ergänzen (#2163) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2343
 - feat(frontend): connect ICS calendars and show events in week view by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2338
+- feat(website): add image film to landing page by @deleonio in https://github.com/deleonio/priority-pilot/pull/2344
 - feat(website): add image film to landing page by @deleonio in https://github.com/deleonio/priority-pilot/pull/2344
 - docs(native): add upload key fingerprint to asset links by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2345
 
