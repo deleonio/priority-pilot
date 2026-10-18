@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.29 - 2026-10-18
 
-_Enthält v0.29.0 – v0.29.7._
+_Enthält v0.29.0 – v0.29.8._
 
 ### 🚀 Improvements
 
@@ -16,6 +16,7 @@ _Enthält v0.29.0 – v0.29.7._
 
 - docs(spec): sync spec status to implementation state (2026-10-18) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2704
 - refactor(server): centralize effort conversion in logics/effort.ts by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2708
+- test(server): assert template apply counts as fixed literals (#2692) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2711
 
 ### Other Changes
 
@@ -247,6 +248,7 @@ _Enthält v0.22.0 – v0.22.10._
 - feat(frontend): make launch banner dismissible (#2480) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2481
 - fix(deps): pin dependency pdf-lib to 1.17.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2482
 - fix(frontend): launch banner dismissible per login, demo hint removed by @deleonio in https://github.com/deleonio/priority-pilot/pull/2485
+- fix(frontend): launch banner dismissible per login, demo hint removed by @deleonio in https://github.com/deleonio/priority-pilot/pull/2485
 - feat(frontend): two-column balance image picker with preview above hint by @deleonio in https://github.com/deleonio/priority-pilot/pull/2487
 
 ## v0.21 - 2026-10-10
@@ -460,7 +462,6 @@ _Enthält v0.17.0 – v0.17.45._
 - fix(server): one invoice per PayPal charge, idempotent via sale id by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2316
 - feat(frontend): add withdrawal notice and order button to checkout by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2315
 - [P2/M] Rechnung: Gutschrift als PDF speichern und zustellen (#2303) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2318
-- feat(server): add 312k BGB cancellation button and confirmation mail by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2319
 - feat(server): add 312k BGB cancellation button and confirmation mail by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2319
 - feat(server): add cancellation without login via website by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2321
 - fix(frontend): import dark wordmark from src instead of public by @deleonio in https://github.com/deleonio/priority-pilot/pull/2325
