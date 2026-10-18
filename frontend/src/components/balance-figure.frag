@@ -3,12 +3,12 @@ precision highp float;
 /*
  * Balance-Figuren — WebGL-Fassung der Startseiten-Bilder der Lebensbalance.
  *
- * Dieselbe Bildsprache wie das SVG in BalanceFigure.tsx, nur das Material kommt hinzu. Sechs
- * Figuren, ein Programm: Blasen (0), Ringe (1), Strahlen (2), Scheiben (3), Blüte (4), Kristall (5).
- * Sie bekommen dieselben Werte — je Saeule das Verhaeltnis Ist zu Soll (lib/balanceMetric.ts) — und
- * unterscheiden sich allein darin, wie sie es zeigen. Radien, Winkel und Phasen kommen aus
- * lib/balanceFigure.ts; beide Fassungen rechnen dieselbe Geometrie, hier nur je Bildpunkt statt je
- * Element.
+ * Dieselbe Bildsprache wie das SVG in BalanceFigure.tsx, nur das Material kommt hinzu. Neun
+ * Figuren, ein Programm: Blasen (0), Ringe (1), Strahlen (2), Scheiben (3), Blüte (4), Kristall (5),
+ * Segmente (6), Zeiger (7), Bahnen (8). Sie bekommen dieselben Werte — je Saeule das Verhaeltnis
+ * Ist zu Soll (lib/balanceMetric.ts) — und unterscheiden sich allein darin, wie sie es zeigen.
+ * Radien, Winkel und Phasen kommen aus lib/balanceFigure.ts; beide Fassungen rechnen dieselbe
+ * Geometrie, hier nur je Bildpunkt statt je Element.
  *
  * Dialekt bewusst GLSL ES 1.00 (gl_FragColor, keine dynamische Array-Indizierung ausserhalb von
  * Schleifen mit konstanten Grenzen): laeuft unveraendert in WebGL1- und WebGL2-Kontexten.
@@ -35,7 +35,7 @@ uniform float u_beat;
 
 /* 0 = Blasen, 1 = Ringe, 2 = Strahlen, 3 = Scheiben (derselbe Stapel wie 0, anderes Material),
  * 4 = Blüte, 5 = Kristall (dieselbe Silhouette wie 4, anderes Material), 6 = Segmente,
- * 7 = Zeiger. */
+ * 7 = Zeiger, 8 = Bahnen (Winkel und große Halbachse auf den Strahlen-Plätzen). */
 uniform float u_figure;
 
 /* Je Saeule: Farbe und Bewegung — in jeder Figur dieselbe. */
@@ -122,6 +122,11 @@ const float TARGET_DASHES = 36.0;
 const float PETAL_SWING = 0.06;
 const float PETAL_SWAY = 1.6;
 
+/* Bahn-Figur: Abflachung der Umlaufbahn (kleine / große Halbachse) und Bogenlänge des Schweifs
+ * hinter dem Kopf — zahlengleich zu lib/balanceFigure.ts. */
+const float ORBIT_FLAT = 0.72;
+const float ORBIT_TAIL = 1.9;
+
 /* Deckkraft der unausgefuellten Ringspur — sie zeigt, wie weit es noch waere. */
 const float ARC_TRACK_ALPHA = 0.16;
 
@@ -136,6 +141,13 @@ float spec(vec2 p, vec2 c, vec2 r, float rot) {
 	vec2 u = vec2(v.x * cos(rot) + v.y * sin(rot), -v.x * sin(rot) + v.y * cos(rot));
 	vec2 z = u / r;
 	return exp(-dot(z, z));
+}
+
+/* Abstand eines Punkts zur Strecke a–b — traegt den Kometen-Schweif der Bahn-Figur. */
+float segDist(vec2 p, vec2 a, vec2 b) {
+	vec2 ab = b - a;
+	float t = clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-05), 0.0, 1.0);
+	return length(p - (a + ab * t));
 }
 
 /* Farbe des Strichs `index` (0–99) aus den fuenf Stuetzstellen — vier gleich lange Abschnitte. */
@@ -419,7 +431,7 @@ void main() {
 			acc = u_surface * mark + acc * (1.0 - mark);
 			alpha = mark + alpha * (1.0 - mark);
 		}
-	} else if (u_figure > 6.5) {
+	} else if (u_figure > 6.5 && u_figure < 7.5) {
 		/*
 		 * ── Zeiger: ein Uhrwerk, die Laenge traegt den Wert ───────────────────────────────────────
 		 *
@@ -467,6 +479,72 @@ void main() {
 
 		/* Soll-Marke als gestrichelter Kreis quer ueber alle Zeiger. */
 		float tr = u_target * rise;
+		float mark = (1.0 - smoothstep(0.0, 0.5 + aa, abs(radius - tr)))
+			* step(0.45, fract(turn * TARGET_DASHES)) * 0.5;
+		acc = u_surface * 0.35 * mark + acc * (1.0 - mark);
+		alpha = mark + alpha * (1.0 - mark);
+	} else if (u_figure > 7.5) {
+		/*
+		 * ── Bahnen: je Saeule ein Komet auf eigener Ellipsenbahn ───────────────────────────────
+		 *
+		 * Die Bahn ist der Weg, nicht der Wert: blass und duenn gezeichnet, ihre grosse Achse
+		 * traegt die Kennzahl — die groesste Bahn gehoert zur staerksten Saeule, zeigt auf 12 Uhr
+		 * und beruehrt mit ihrem Scheitel dieselbe Stelle wie eine Strahlenspitze. Der Komet laeuft
+		 * im Dreh-Takt auf der Bahn um (Richtung u_dir), die Bahn atmet im Schwing-Takt; sein
+		 * Schweif leuchtet auf dem Bogen hinter ihm aus.
+		 */
+		for (int i = 0; i < 8; i++) {
+			float used = step(float(i), u_count - 1.0);
+
+			float phase = u_phase[i] + PI2 * time / u_swing[i];
+			float a = u_ray_length[i] * rise * beat * (1.0 + PETAL_SWING * sin(phase));
+			float b = a * ORBIT_FLAT;
+			float oa = radians(u_ray_angle[i]);
+			float oc = cos(oa);
+			float os = sin(oa);
+
+			/* Bahn als duenner elliptischer Strich — normierte Ellipse, Kante bei k = 1. */
+			float k = length(vec2(d.x * oc + d.y * os, -d.x * os + d.y * oc) / vec2(max(a, 0.001), max(b, 0.001)));
+			float trackW = (0.45 + aa) / min(a, b);
+			float track = (1.0 - smoothstep(trackW, trackW * 2.2, abs(k - 1.0))) * used * 0.32;
+			vec3 trackCol = mix(u_colors[i], u_surface, 0.45);
+			acc = trackCol * track + acc * (1.0 - track);
+			alpha = track + alpha * (1.0 - track);
+
+			/* Kopfposition: Umlauf-Winkel aus Phase, Dreh-Takt und Richtung (Standbild: Phase). */
+			float theta = u_phase[i] + u_dir[i] * PI2 * time / max(u_rot[i], 0.1);
+			vec2 headLocal = vec2(a * cos(theta), b * sin(theta));
+			vec2 head = vec2(headLocal.x * oc - headLocal.y * os, headLocal.x * os + headLocal.y * oc);
+
+			/* Schweif: leuchtende Polylinie auf dem Bogen hinter dem Kopf, zum Ende schmaler werdend. */
+			float tail = 0.0;
+			vec2 prev = head;
+			for (int t = 1; t <= 8; t++) {
+				float share = float(t) / 8.0;
+				float th = theta - u_dir[i] * ORBIT_TAIL * share;
+				vec2 pl = vec2(a * cos(th), b * sin(th));
+				vec2 pt = vec2(pl.x * oc - pl.y * os, pl.x * os + pl.y * oc);
+				float dist = segDist(d, prev, pt);
+				float fade = 1.0 - share;
+				tail = max(tail, exp(-dist * dist * mix(0.9, 2.8, share)) * fade * fade);
+				prev = pt;
+			}
+			tail *= used;
+			acc += u_colors[i] * tail * 0.85;
+			alpha = min(1.0, alpha + tail * 0.85);
+
+			/* Kopf: heller Kern mit weichem Schein — die Stelle, auf die das Auge faellt. */
+			float headD2 = dot(d - head, d - head);
+			float core = exp(-headD2 * 1.3) * used;
+			float glow = exp(-headD2 * 0.09) * used;
+			acc += mix(u_colors[i], vec3(1.0), 0.6) * core;
+			acc += u_colors[i] * glow * 0.5;
+			alpha = min(1.0, alpha + core + glow * 0.5);
+		}
+
+		/* Soll-Marke als gestrichelter Kreis wie bei den Blasen: Bahn-Scheitel innerhalb heisst
+		   „kommt zu kurz", ausserhalb „zieht davon". */
+		float tr = u_target * rise * beat;
 		float mark = (1.0 - smoothstep(0.0, 0.5 + aa, abs(radius - tr)))
 			* step(0.45, fract(turn * TARGET_DASHES)) * 0.5;
 		acc = u_surface * 0.35 * mark + acc * (1.0 - mark);

@@ -5,12 +5,15 @@ import {
 	activeTicks,
 	buildArcs,
 	buildHands,
+	buildOrbits,
 	buildOrbs,
 	buildPetals,
 	buildRays,
 	buildWedges,
 	CENTER,
+	ORBIT_FLAT,
 	orbAxes,
+	orbitPoint,
 	petalArcPoints,
 	polar,
 	ringTicks,
@@ -20,6 +23,7 @@ import {
 	type Arc,
 	type FigureMotion,
 	type Hand,
+	type Orbit,
 	type Petal,
 	type Ray,
 	type RingTick,
@@ -32,8 +36,8 @@ import { PILLAR_RAMP_SIZE, rampClass } from '../lib/pillarRamp';
 import { supportsWebGl2 } from '../lib/webgl';
 
 /**
- * Die **Figuren-Varianten** der Lebensbalance: Blasen, Scheiben, Ringe, Strahlen, Blüte, Kristall —
- * außen herum immer dasselbe Zifferblatt aus 100 Strichen.
+ * Die **Figuren-Varianten** der Lebensbalance: Blasen, Scheiben, Ringe, Strahlen, Blüte, Kristall,
+ * Segmente, Zeiger, Bahnen — außen herum immer dasselbe Zifferblatt aus 100 Strichen.
  *
  * **Alle zeigen dieselben Zahlen.** Je Säule das Verhältnis Ist zu Soll (`balanceMetric.ts`),
  * ungedeckelt: 1 heißt „genau auf Ziel", 1,5 heißt „zieht davon". Die stärkste Säule bekommt
@@ -198,6 +202,23 @@ const wedgePoints = (wedge: Wedge): string =>
 		.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`)
 		.join(' ');
 
+/**
+ * Eine Umlaufbahn als Laufpfad für `animateMotion`: beginnt auf der Phase der Säule und läuft in
+ * ihrer Drehrichtung einmal herum — zwei Halb-Ellipsenbögen, gedreht wie die Bahn selbst.
+ */
+const orbitPath = (orbit: Orbit): string => {
+	const small = orbit.radius * ORBIT_FLAT;
+	const sweep = orbit.rotDirection === 1 ? 1 : 0;
+	const arc = `A ${orbit.radius.toFixed(3)} ${small.toFixed(3)} ${orbit.angle.toFixed(2)} 0 ${sweep}`;
+	const start = orbitPoint(orbit, orbit.phase);
+	const half = orbitPoint(orbit, orbit.phase + Math.PI);
+	return [
+		`M ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
+		`${arc} ${half.x.toFixed(2)} ${half.y.toFixed(2)}`,
+		`${arc} ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
+	].join(' ');
+};
+
 export const BalanceFigure = ({
 	balance,
 	figure,
@@ -279,6 +300,7 @@ export const BalanceFigure = ({
 					{figure === 'kristall' && <Crystal metrics={metrics} animated={animated} />}
 					{figure === 'segmente' && <Wedges metrics={metrics} animated={animated} />}
 					{figure === 'zeiger' && <Hands metrics={metrics} animated={animated} />}
+					{figure === 'bahnen' && <Orbits metrics={metrics} animated={animated} />}
 				</g>
 			</g>
 		</svg>
@@ -637,6 +659,77 @@ const Hands = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetric
 					/>
 				</g>
 			))}
+		</>
+	);
+};
+
+/**
+ * Figur „Bahnen": je Säule ein Komet auf eigener Ellipsenbahn um die Mitte. Die Bahn ist der Weg,
+ * nicht der Wert — blass und dünn, ihre große Achse (Attribut `rx`) trägt die Kennzahl; die größte
+ * Bahn zeigt auf 12 Uhr. Der Komet läuft im Dreh-Takt auf seiner Bahn, sein Schweif zeigt entgegen
+ * der Laufrichtung. Die Soll-Marke ist der gestrichelte Kreis wie bei den Strahlen.
+ */
+const Orbits = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetrics>; animated: boolean }) => {
+	const orbits = buildOrbits(metrics);
+	return (
+		<>
+			{orbits.length > 0 && (
+				<circle
+					className="balance-target"
+					data-testid="balance-target"
+					cx={CENTER}
+					cy={CENTER}
+					r={targetRadius(metrics).toFixed(2)}
+				/>
+			)}
+			{orbits.map((orbit) => {
+				const start = orbitPoint(orbit, orbit.phase);
+				const heading = start.heading + (orbit.rotDirection === 1 ? 0 : 180);
+				return (
+					<g key={orbit.pillarId} data-testid="heart-column">
+						<ellipse
+							className={rampClass('balance-orbit-track', orbit.colorIndex)}
+							cx={CENTER}
+							cy={CENTER}
+							rx={orbit.radius.toFixed(3)}
+							ry={(orbit.radius * ORBIT_FLAT).toFixed(3)}
+							transform={`rotate(${orbit.angle.toFixed(2)} ${CENTER} ${CENTER})`}
+						/>
+						{/*
+						 * Der Komet: Kopf und Schweif in einer Gruppe, damit der Schweif der Bewegung folgt
+						 * — `rotate="auto"` dreht die Gruppenachse in Laufrichtung, der Schweif zeigt in
+						 * negatives x. Still steht die Gruppe auf der Phase der Säule.
+						 */}
+						<g
+							transform={
+								animated
+									? undefined
+									: `translate(${start.x.toFixed(2)} ${start.y.toFixed(2)}) rotate(${heading.toFixed(2)})`
+							}
+						>
+							{animated && (
+								<animateMotion
+									dur={`${orbit.rotPeriod}s`}
+									repeatCount="indefinite"
+									rotate="auto"
+									path={orbitPath(orbit)}
+								/>
+							)}
+							<polygon className={rampClass('balance-comet-tail', orbit.colorIndex)} points="0,-1.2 -8.5,0 0,1.2" />
+							<circle className={rampClass('balance-node', orbit.colorIndex)} cx={0} cy={0} r={1.5}>
+								{animated && (
+									<animate
+										attributeName="r"
+										values="1.1;1.9;1.1"
+										dur={`${orbit.swingPeriod}s`}
+										repeatCount="indefinite"
+									/>
+								)}
+							</circle>
+						</g>
+					</g>
+				);
+			})}
 		</>
 	);
 };

@@ -26,6 +26,8 @@ import type { BalanceMetrics, PillarMetric } from './balanceMetric';
  *   zusteht.
  * - **Zeiger** — je Säule ein Zeiger auf dem gemeinsamen Zifferblatt, gleichmäßig über den Kreis
  *   verteilt wie die Strahlen, aber mit schmalerer Spitze. Der längste Zeiger steht auf 12 Uhr.
+ * - **Bahnen** — je Säule ein Komet auf eigener Ellipsenbahn um die Mitte. Die große Achse trägt
+ *   den Wert, die größte Bahn zeigt auf 12 Uhr; der Komet läuft auf seiner Bahn um.
  *
  * Alle ordnen nach derselben Regel: **stärkste Säule zuerst** (`byStrength`). Wer das Bild
  * wechselt, findet dieselbe Säule an derselben Stelle der Reihenfolge wieder.
@@ -459,6 +461,64 @@ export const buildHands = (metrics: BalanceMetrics): Hand[] => {
 		targetLength: toLength(metrics.targetMark),
 		...motionOf(pillar.colorIndex),
 	}));
+};
+
+// ── Figur „Bahnen" ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Abflachung der Umlaufbahn: kleine Halbachse als Anteil der großen. Für alle Bahnen gleich —
+ * die Ellipsenform ist Stil der Figur, kein Datum; die Größe trägt allein die Kennzahl.
+ */
+export const ORBIT_FLAT = 0.72;
+
+/** Ein Komet auf seiner Bahn: der Weg plus die eigene Bewegung der Säule. */
+export interface Orbit extends FigureMotion {
+	pillarId: number;
+	colorIndex: number;
+	/** Mittelwinkel der großen Achse in Grad, 0 zeigt nach rechts, −90 nach oben (SVG-Konvention). */
+	angle: number;
+	/** Große Halbachse in Nutzereinheiten (`R_MIN`–`FIGURE_MAX`) — der Wert der Säule. */
+	radius: number;
+}
+
+/**
+ * Baut die Bahnen wie die Strahlen: gleichmäßig über den Kreis ab 12 Uhr im Uhrzeigersinn,
+ * **stärkste Säule zuerst**. Die größte Bahn zeigt mit ihrer großen Achse auf 12 Uhr — ihr
+ * Scheitel berührt dieselbe Stelle wie die Strahlenspitze. Der Komet läuft auf der Bahn um den
+ * Mittelpunkt (Dreh-Takt und Richtung aus `motionOf`); die Bahn atmet im Schwing-Takt allein im
+ * Shader (±6 % wie die Lappen, `balance-figure.frag`), das SVG zeigt sie in Grundform.
+ */
+export const buildOrbits = (metrics: BalanceMetrics): Orbit[] => {
+	const pillars = byStrength(metrics.pillars);
+	const step = 360 / Math.max(1, pillars.length);
+	return pillars.map((pillar, index): Orbit => ({
+		pillarId: pillar.pillarId,
+		colorIndex: pillar.colorIndex,
+		angle: -90 + index * step,
+		radius: toRadius(pillar.scaled),
+		...motionOf(pillar.colorIndex),
+	}));
+};
+
+/** Umlauf-Winkel des Kometen zum Zeitpunkt `time` — im Standbild steht er auf seiner Phase. */
+export const orbitTheta = (motion: FigureMotion, time: number): number =>
+	motion.phase + (motion.rotDirection * TAU * time) / motion.rotPeriod;
+
+/**
+ * Punkt auf einer Umlaufbahn zum Umlauf-Winkel `theta` (Parameter der Ellipse), plus die Richtung
+ * der Bewegung in Grad — der Schweif des Kometen zeigt entgegen. Dieselbe Formel rechnet der
+ * Shader für Kopf und Schweif je Bildpunkt; hier speist sie das Standbild des SVG.
+ */
+export const orbitPoint = (orbit: Orbit, theta: number): { x: number; y: number; heading: number } => {
+	const small = orbit.radius * ORBIT_FLAT;
+	const radians = (orbit.angle * Math.PI) / 180;
+	const x = orbit.radius * Math.cos(theta);
+	const y = small * Math.sin(theta);
+	return {
+		x: CENTER + x * Math.cos(radians) - y * Math.sin(radians),
+		y: CENTER + x * Math.sin(radians) + y * Math.cos(radians),
+		heading: (Math.atan2(small * Math.cos(theta), -orbit.radius * Math.sin(theta)) * 180) / Math.PI,
+	};
 };
 
 // ── Das Zifferblatt ─────────────────────────────────────────────────────────────────────────────

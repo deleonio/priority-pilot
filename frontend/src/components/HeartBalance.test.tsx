@@ -76,6 +76,7 @@ describe('HeartBalance', () => {
 				'kristall',
 				'segmente',
 				'zeiger',
+				'bahnen',
 			] as const) {
 				chooseVariant(value);
 				render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
@@ -102,6 +103,7 @@ describe('HeartBalance', () => {
 				'kristall',
 				'segmente',
 				'zeiger',
+				'bahnen',
 			] as const) {
 				chooseVariant(value);
 				render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
@@ -300,6 +302,36 @@ describe('HeartBalance', () => {
 			const [staerkste] = nodePositions();
 			expect(staerkste.cx).toBeCloseTo(50, 1);
 			expect(staerkste.cy).toBeLessThan(50);
+		});
+	});
+
+	describe('Figur „Bahnen"', () => {
+		/** Große Halbachse der Bahn-Ellipse je Säule (Attribut `rx` der Spur). */
+		const orbitRadii = (): number[] =>
+			screen
+				.getAllByTestId('heart-column')
+				.map((column) => Number(column.querySelector('.balance-orbit-track')?.getAttribute('rx')));
+
+		it('zeichnet je Säule eine Bahn mit Komet darauf, die größte zuerst', () => {
+			chooseVariant('bahnen');
+			render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
+
+			const columns = screen.getAllByTestId('heart-column');
+			expect(columns).toHaveLength(2);
+			for (const column of columns) {
+				expect(column.querySelector('.balance-orbit-track')).not.toBeNull();
+				expect(column.querySelector('.balance-node')).not.toBeNull();
+			}
+			const radii = orbitRadii();
+			expect(radii[0]).toBeGreaterThan(radii[1]);
+		});
+
+		it('dreht die größte Bahn auf 12 Uhr — ihr Scheitel liegt über der Mitte', () => {
+			chooseVariant('bahnen');
+			render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
+
+			const [spur] = screen.getAllByTestId('heart-column');
+			expect(spur.querySelector('.balance-orbit-track')).toHaveAttribute('transform', 'rotate(-90.00 50 50)');
 		});
 	});
 });

@@ -5,6 +5,7 @@ import {
 	auftaktWechselt,
 	buildArcs,
 	buildHands,
+	buildOrbits,
 	buildOrbs,
 	buildPetals,
 	buildRays,
@@ -86,6 +87,7 @@ const FIGURE_INDEX: Record<FigureKind, number> = {
 	kristall: 5,
 	segmente: 6,
 	zeiger: 7,
+	bahnen: 8,
 };
 
 /** Stützstellen der Ring-Farbrampe in `app.css` (`--pp-balance-ring-0` … `-100`). */
@@ -244,6 +246,27 @@ export const toSlots = (
 			wedgeInner: [],
 			wedgeOuter: [],
 			target: hands[0]?.targetLength ?? 0,
+		};
+	}
+	// Bahnen belegen die Strahlen-Plätze mit Winkel und großer Halbachse — der Shader dreht die
+	// Ellipse auf den Winkel und läuft den Kometen im Dreh-Takt auf ihr um.
+	if (state.figure === 'bahnen') {
+		const orbits = buildOrbits(state.metrics).slice(0, SLOTS);
+		return {
+			colors: orbits.map((orbit) => colorOf(orbit.colorIndex)),
+			motions: orbits,
+			orbRadius: [],
+			arcRadius: [],
+			arcWidth: [],
+			arcSweep: [],
+			rayAngle: orbits.map((orbit) => orbit.angle),
+			raySpread: [],
+			rayLength: orbits.map((orbit) => orbit.radius),
+			wedgeMid: [],
+			wedgeHalf: [],
+			wedgeInner: [],
+			wedgeOuter: [],
+			target: targetRadius(state.metrics),
 		};
 	}
 	// Segmente: Tortengrafik der Ist-Anteile auf eigenen Uniform-Plätzen.

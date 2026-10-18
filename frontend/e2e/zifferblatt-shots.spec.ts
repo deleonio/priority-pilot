@@ -35,12 +35,13 @@ const VARIANTEN = [
 	'kristall',
 	'segmente',
 	'zeiger',
+	'bahnen',
 ] as const;
 
 test.describe('Zifferblätter — Bilder fürs Auge', () => {
 	test.skip(!process.env.SHOTS, 'Bildmacher, kein Prüf-Spec — mit SHOTS=1 starten (siehe Kopfkommentar).');
 
-	// Neun Varianten je mit Reload, Auftakt und Wartezeit — der Default-Timeout (30 s) reicht dafür nicht.
+	// Zehn Varianten je mit Reload, Auftakt und Wartezeit — der Default-Timeout (30 s) reicht dafür nicht.
 	test.setTimeout(180_000);
 
 	test('legt von jeder Variante einen Screenshot ab', async ({ page }) => {

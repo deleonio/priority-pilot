@@ -103,7 +103,8 @@
 		"bluete": "Blossom",
 		"kristall": "Crystal",
 		"segmente": "Segments",
-		"zeiger": "Hands"
+		"zeiger": "Hands",
+		"bahnen": "Orbits"
 	},
 	"days_one": "{{count}} day",
 	"days_other": "{{count}} days",
