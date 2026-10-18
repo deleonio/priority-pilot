@@ -1,7 +1,5 @@
 # Spec #1206 — Changelog-Tab: Aggregation nach Kategorien und klickbare Links
 
-Status: rot (Spec-Phase, Tests noch nicht erfüllt) · Issue: #1206 · Vorgänger: #1190 (`docs/spec/issue-1190.md`)
-
 ## Ziel
 
 Der Changelog-Tab der Hilfe-Seite aggregiert die Release-Bodys aller geladenen Releases

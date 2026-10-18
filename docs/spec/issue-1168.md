@@ -1,57 +1,58 @@
-# Dashboard-Signal-Panel: „Erledigt“ mit Bestätigungsdialog
+# Erledigen-Dialog (`CompleteTaskDialog`) — Ausnahmepfad nach ADR 0024
 
-**Status:** Superseded (2026-10-13) durch [ADR 0024](../adr/0024-erledigen-direkt-mit-rueckgaengig.md) — „Erledigen“ ohne Bestätigungsdialog, Rückmeldung an der Tipp-Stelle mit „Rückgängig“ (nur Ausnahmen behalten den Dialog).
+**Status:** Ist-Vertrag des Ausnahmepfads. Default-Weg ist seit [ADR 0024](../adr/0024-erledigen-direkt-mit-rueckgaengig.md) das Direkt-Erledigen mit „Rückgängig" an der Tipp-Stelle; der Bestätigungsdialog greift nur noch bei den drei Ausnahmen unten.
 
-**Stand:** 2026-10-11
+**Stand:** 2026-10-18 · Komponente: `frontend/src/components/CompleteTaskDialog.tsx` · Quelle: [Issue #1168](https://github.com/deleonio/priority-pilot/issues/1168), [ADR 0024](../adr/0024-erledigen-direkt-mit-rueckgaengig.md)
 
-Der Aktionsbutton im Panel „Nächste Aufgabe“ (`Dashboard.tsx:198-205`) trägt das Label „Erledigt“.
-Klick öffnet einen nicht-destruktiven Bestätigungsdialog; Bestätigen setzt die Aufgabe auf `Done` und
-das Panel zeigt danach ohne manuellen Reload die nächste Aufgabe aus `GET /next`.
+Nicht-destruktiver Bestätigungsdialog auf Basis von `Modal` — bewusst NICHT `ConfirmDeleteDialog` mit
+Danger-Variante: Erledigen ist keine destruktive Aktion. `Modal`-Titel: „Aufgabe erledigen".
 
-## Vertrag `Dashboard`
+## Die drei aktiven Auslöser
 
-- Prop `onCompleteTask?: (task: Task) => void`.
-- Im Panel „Nächste Aufgabe" (`.dashboard-next-task-content`) rendert bei gesetztem `onCompleteTask` ein
-  `KolButton _label="Erledigt"` (Icon `fa-solid fa-check`, `_variant="primary"`); Klick ruft `onCompleteTask(nextTask)`.
+| Fall                                                                                                                                         | Verdrahtung                                                                                                   |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Erledigt-Toggle in der Aufgabenliste bei offener Checkliste (#1583) — nur beim Markieren auf Done; Zurücksetzen auf Offen bleibt ungefragt   | `handleDoneToggle` in `App.tsx` → `setDialog({ kind: 'complete', task })`                                     |
+| Signal-Panel bei offener Checkliste (#2526) — überfällige Deadline führt stattdessen zur Pünktlich-Nachfrage (`MissedCompleteDialog`, #1964) | `handlePanelComplete` in `Dashboard.tsx` → `onCompleteTask` → `completeFromPanel`/`openComplete` in `App.tsx` |
+| Verpasst-Nachfrage mit offener Checkliste (#1964) — Antwort „pünktlich" schickt die Deadline als `completedAt` mit                           | `answerMissedComplete` in `App.tsx` → `setDialog({ kind: 'complete', task, completedAt })`                    |
 
-## Vertrag `CompleteTaskDialog` (`frontend/src/components/CompleteTaskDialog.tsx`)
+## Vertrag `CompleteTaskDialog`
 
-Nicht-destruktiver Bestätigungsdialog auf Basis von `Modal` (NICHT `ConfirmDeleteDialog` mit
-`_variant="danger"` — Erledigen ist keine destruktive Aktion). `Modal`-Titel: „Aufgabe erledigen".
+| Prop               | Bedeutung                                                                                                         |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `task`             | betroffene Aufgabe (Titel im Dialogtext, `task.checklist` für die Checklisten-Sektion)                            |
+| `onConfirm`        | `(checklist, allChecked) => Promise<void>` — speichert den Checklisten-Stand, `status: Done` nur bei `allChecked` |
+| `onClose`          | Schließen ohne Statusänderung (Abbrechen, Escape)                                                                 |
+| `onCompleted`      | nach erfolgreichem Bestätigen (Ansicht neu laden + Dialog schließen)                                              |
+| `fallbackFocusRef` | an `Modal` durchgereicht (Trigger-Button fällt nach Erfolg aus dem DOM)                                           |
 
-| Prop               | Bedeutung                                                               |
-| ------------------ | ----------------------------------------------------------------------- |
-| `task`             | betroffene Aufgabe (ID + Titel werden im Dialogtext genannt)            |
-| `onConfirm`        | Erledigt-Aktion des Aufrufers (setzt `status: Done`)                    |
-| `onClose`          | Schließen ohne Statusänderung (Abbrechen, Escape)                       |
-| `onCompleted`      | nach erfolgreichem Bestätigen (Panel neu laden + Dialog schließen)      |
-| `fallbackFocusRef` | an `Modal` durchgereicht (Trigger-Button fällt nach Erfolg aus dem DOM) |
-
-- Buttons in der Reihenfolge Abbrechen (zuerst, Initialfokus) → „Als erledigt markieren" (`_variant="primary"`, kein Danger).
-- Während des Bestätigens sind beide Buttons deaktiviert.
-- Schlägt `onConfirm` fehl, bleibt der Dialog offen und zeigt `KolAlert _type="error" _label="Erledigen fehlgeschlagen"` mit der `toApiError`-Meldung; `onCompleted`/`onClose` werden nicht aufgerufen.
+- Buttons in der Reihenfolge Abbrechen (zuerst, Initialfokus, `_variant="secondary"`) → Hauptknopf
+  (`_variant="primary"`, kein Danger); während des Bestätigens sind beide deaktiviert.
+- Label des Hauptknopfs abhängig vom Stand (i18n `completeTask.*`): beim Bestätigen „Wird erledigt…",
+  bei vollständig abgehakter Checkliste „Als erledigt markieren", sonst „Checkliste speichern".
+- Checklisten-Sektion nur, wenn die Aufgabe beim Öffnen offene Einträge hat (`hasOpenChecklistItems`);
+  sie bleibt sichtbar, auch wenn der letzte offene Eintrag lokal abgehakt wird (#1583 AK8).
+  „Alle abhaken" setzt alle Einträge auf einmal; Einträge sind KoliBri-Switches
+  (`KolInputCheckbox _variant="switch"`) mit sichtbarem Titel.
+- Schlägt `onConfirm` fehl, bleibt der Dialog offen und zeigt `KolAlert _type="error"
+_label="Erledigen fehlgeschlagen"` mit der `toApiError`-Meldung (in `role="alert"`);
+  `onCompleted`/`onClose` werden nicht aufgerufen.
 - Erfolg: `onCompleted()` wird aufgerufen, kein Fehler-Alert.
 
 ## Verdrahtung `App.tsx`
 
-- `DialogState`-Union erhält eine Variante `{ kind: 'complete'; task: Task }`.
-- `Dashboard` erhält `onCompleteTask={(task) => setDialog({ kind: 'complete', task })}` statt `onStartTask={openEdit}`.
-- `CompleteTaskDialog.onConfirm` ruft denselben Erledigt-Pfad wie `handleDoneToggle` (PUT `/tasks/{id}` mit `status: Done`), `onCompleted` schließt den Dialog und lädt `GET /next` (`reload()`) frisch — anders als der sticky-Pfad der Aufgabenliste (`DONE_REMOVAL_DELAY_MS`), der für das Dashboard-Panel nicht greift.
-
-## Nutzersicht
-
-1. Panel „Nächste Aufgabe" zeigt Titel, Priorität und den Button „Erledigt".
-2. Klick auf „Erledigt" öffnet den Bestätigungsdialog mit Aufgaben-ID und -Titel; Initialfokus liegt auf „Abbrechen".
-3. „Abbrechen" oder Escape schließt den Dialog ohne Statusänderung, Fokus kehrt zum „Erledigt"-Button zurück.
-4. „Als erledigt markieren" setzt den Status auf `Done`; das Panel zeigt danach ohne manuellen Reload die nächste Aufgabe aus `GET /next` bzw. den Leer-Text, falls keine ansteht.
-5. Schlägt die Aktion fehl, bleibt der Dialog offen und zeigt die Fehlermeldung; das Panel bleibt unverändert.
+- `DialogState`-Variante `{ kind: 'complete'; task: Task; completedAt?: string }`; geöffnet über
+  `openComplete` bzw. die drei Auslöser oben.
+- `onConfirm` ruft `completeTask` (`api.updateTask`): nur bei einer beim Öffnen unvollständigen
+  Checkliste geht der Stand ins Payload, `status: Done` nur, wenn alle Einträge abgehakt sind oder
+  keine offene Checkliste vorlag; `completedAt` reist aus der Verpasst-Antwort mit. Erledigen über
+  den Dialog löst dasselbe Konfetti aus wie der Direkt-Pfad (#1182, `shouldCelebrateDone`).
+- `onCompleted` → `afterMutation` (Dialog schließen, Ansicht neu laden);
+  `fallbackFocusRef={deleteFallbackRef}`.
 
 ## A11y
 
-- Initialfokus auf „Abbrechen" (AK2), wie bei `ConfirmDeleteDialog`.
-- `fallbackFocusRef` ist Pflicht: der auslösende Button fällt nach erfolgreichem Bestätigen aus dem DOM (die nächste Aufgabe ersetzt den Panel-Inhalt).
-- Button per Tastatur erreichbar und mit Enter auslösbar; Dialog per Escape schließbar, Fokus-Rückgabe an den Auslöser.
-
-## Layout
-
-- Der „Erledigt"-Button übernimmt den bestehenden Layout-Vertrag aus #1042 unverändert: mobil (375px) volle Innenbreite von `.dashboard-next-task-content`, ab 768px inhaltsbreit und linksbündig mit dem Titel.
+- Initialfokus auf „Abbrechen", wie bei den Lösch-Dialogen.
+- `fallbackFocusRef` ist Pflicht an den Aufrufer: der auslösende Button kann nach dem Bestätigen aus
+  dem DOM fallen (Panel-Inhalt wird ersetzt, Listenzeile lädt neu).
+- Dialog per Escape schließbar, Fokus-Rückgabe an den Auslöser; Fehlermeldung wird über
+  `role="alert"` angesagt.

@@ -1,9 +1,5 @@
 # Spec: Token-Verwaltung mit Pflicht-Ablaufdatum (max. 12 Monate) (#1357)
 
-Status: rot (Spec-Phase) — Tests in `server/src/express/api-tokens.test.ts`,
-`server/src/express/api-token-auth.test.ts`, `frontend/src/components/ApiTokensSection.test.tsx`,
-`frontend/e2e/issue-1357-token-expiry.spec.ts`.
-
 Aufbauend auf #1352 (Token-Verwaltung, Bearer-Auth) und #1356 (Rechtestufe) — beide gemergt. Neu ist
 ausschließlich ein Pflicht-Ablaufdatum je Token. Quelle der Akzeptanzkriterien: KI-ANALYSE-Block im
 Harness-Marker-Kommentar von #1357.

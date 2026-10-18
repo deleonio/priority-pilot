@@ -1,7 +1,5 @@
 # Spec: Serienaufgaben über den MCP anlegen (#1938)
 
-Status: rot (Spec-Phase) — Tests in `server/src/mcp/tools.test.ts` (Block „Serien (#1938)“).
-
 ## Ziel
 
 Ein KI-Client legt über `task_create` wiederkehrende Aufgaben an und ändert deren Rhythmus über

@@ -1,10 +1,5 @@
 # Spec: Gruppenmitglieder über Nutzersuche einladen und Mitgliedschaft pflegen (#1212)
 
-Status: rot (Spec-Phase) — Tests in `server/src/express/users-search.test.ts`,
-`server/src/express/groups-invitations.api.test.ts`,
-`server/src/express/groups-dataisolation.test.ts` (Erweiterung),
-`frontend/src/components/GroupDetail.test.tsx`, `frontend/e2e/groups-invitations.spec.ts`.
-
 Teil 2 der Gruppen-Epic #952 (Teil 1: #1211, Gruppen-CRUD).
 
 ## Ziel

@@ -1,8 +1,5 @@
 # Spec: MCP-Server v1 für externe Clients (#1353)
 
-Status: rot (Spec-Phase) — Tests in `server/src/express/mcp-auth.test.ts`,
-`server/src/mcp/tools.test.ts`, `frontend/e2e/issue-1353-mcp-tools.spec.ts`.
-
 ## Ziel
 
 Ein MCP-Client verbindet sich per Streamable HTTP gegen `/mcp/v1`, authentifiziert mit einem

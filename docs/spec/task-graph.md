@@ -1,6 +1,6 @@
 # Aufgabengraph statt Aufgabenwald (Tab „Wald")
 
-**Stand:** 2026-09-09
+**Stand:** 2026-10-18
 
 ## Ziel
 
@@ -90,9 +90,8 @@ Unteraufgabe anlegen bleiben dem Tab „Aufgaben" vorbehalten.
 
 ### AK7 — Große Graphen
 
-Ab mehr als `MAX_GRAPH_NODES` (60) Knoten zeigt die Ansicht die wertvollsten 60 plus alle Kanten
-zwischen ihnen und weist darauf hin. Die Kappung ist Sache der Ansicht; `GET /graph` bleibt
-vollständig.
+Die Ansicht zeigt je Seite genau einen zusammenhängenden Baum und lässt sich über „Zurück“ und
+„Vor“ durchblättern; Aufgaben ohne Abhängigkeit erscheinen nicht. `GET /graph` bleibt vollständig.
 
 ## Technische Entscheidungen
 

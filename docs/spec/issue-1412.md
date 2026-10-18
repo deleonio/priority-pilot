@@ -1,7 +1,5 @@
 # Spec: MCP-Server — Kategorien anlegen, ändern und löschen (#1412)
 
-Status: rot (Spec-Phase) — Tests in `server/src/mcp/tools.test.ts`.
-
 ## Ziel
 
 Der eingefrorene v1-Werkzeugkatalog (`server/src/mcp/tools.ts`, zuletzt erweitert in #1423 auf

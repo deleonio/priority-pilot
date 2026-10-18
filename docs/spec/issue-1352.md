@@ -1,9 +1,5 @@
 # Spec: Persönliche API-Tokens für externe Clients (#1352)
 
-Status: rot (Spec-Phase) — Tests in `server/src/express/api-tokens.test.ts`,
-`server/src/express/api-token-auth.test.ts`, `frontend/src/components/SettingsPage.test.tsx`,
-`frontend/e2e/issue-1352-api-tokens.spec.ts`.
-
 ## Ziel
 
 Angemeldete Nutzer erzeugen in den Einstellungen einen Bearer-Token für externe Clients (z. B.

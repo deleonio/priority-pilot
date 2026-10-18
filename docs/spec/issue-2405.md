@@ -1,7 +1,5 @@
 # Spec #2405 — Generierungshorizont der Serien an einer Stelle berechnen
 
-Status: rot (Spec-Phase, Tests noch nicht erfüllt) · Issue: #2405
-
 ## Ziel
 
 Die Horizont-Berechnung `now + GENERATE_HORIZON_DAYS` ist bisher an drei Stellen

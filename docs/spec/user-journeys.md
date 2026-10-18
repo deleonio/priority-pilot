@@ -1,6 +1,6 @@
 # User Journeys – Balamentum
 
-**Stand:** 2026-10-11
+**Stand:** 2026-10-18
 **Ziel:** Reale Nutzerabläufe als Spezifikation des Ist-Zustands.
 
 Diese Journeys beschreiben **von außen sichtbares Verhalten** der laufenden Balamentum App. Sie sind die referenzierbare Quelle für neue Tests, implementierungsagnostisch und auf reale Abläufe fokussiert.
@@ -17,7 +17,7 @@ Neue Aufgabe in das System aufnehmen, mit allen relevanten Metadaten (Priorität
 
 - Nutzer ist angemeldet
 - Dashboard oder Aufgaben-Tab ist geöffnet
-- Die Einstellung „Schnellerfassung aktiv" ist eingeschaltet (Standard: an); ist sie ausgeschaltet, öffnet „Neuen Task anlegen" direkt das leere Formular ohne den Erfassungs-Schritt (Option A/B entfallen dann)
+- Bei aktiver KI öffnet „Neuen Task anlegen“ den Erfassungs-Dialog; ohne aktive KI öffnet sich direkt das leere Formular
 
 ### Schritte
 
@@ -30,9 +30,10 @@ Neue Aufgabe in das System aufnehmen, mit allen relevanten Metadaten (Priorität
    - Klick auf **„Verarbeiten und weiter"** (primärer Button; sendet den erfassten Text an die KI)
    - Die KI belegt Titel, Beschreibung, Priorität, Aufwand und Deadline vor; das Formular öffnet sich mit diesen Werten
 
-3. **Option B: Manuelle Erfassung**
-   - Textfeld überspringen mit **„Überspringen"**
-   - Leeres Formular erscheint
+3. **Weitere Optionen**
+   - **„Beraten lassen“**: öffnet den Säulen-Berater
+   - **„Überspringen“**: leeres Formular erscheint
+   - **„Aus Vorlage“**: öffnet die Auswahl gespeicherter Vorlagen
 
 4. **Aufgaben-Metadaten erfassen**
    - **Titel** (Pflichtfeld): _„Kundenbericht Q3 fertigstellen"_
@@ -77,10 +78,10 @@ Zwei Aufgaben so verknüpfen, dass eine Aufgabe vom Erledigen der anderen abhän
 
 2. **Vorgänger auswählen**
    - Im Bereich **„Vorgänger hinzufügen"** eine Aufgabe aus der Liste auswählen
-   - Auswahlliste zeigt alle vorhandenen Aufgaben (außer bereits verknüpfte)
+   - Auswahlliste zeigt alle vorhandenen Aufgaben (außer der Aufgabe selbst und bereits verknüpften)
 
-3. **Kantengewicht setzen**
-   - Gewicht über einen **Schieberegler** einstellen: **0,7** (Bereich 0,1–1,0, Schritt 0,1, Standard 1,0)
+3. **Kantengewicht setzen** (nur im Expertenmodus; die Funktion ist an Pakete mit Graph-Gewicht gebunden)
+   - Im Expertenmodus Gewicht über einen **Schieberegler** einstellen: **0,7** (Bereich 0,1–1,0, Schritt 0,1, Standard 1,0); ohne Expertenmodus wird der Standardwert 1,0 gesetzt, ohne Regler
    - Werte außerhalb 0,1–1,0 werden beim Hinzufügen blockiert (Meldung „Das Gewicht muss eine Zahl zwischen 0,1 und 1 sein.")
    - Das Gewicht steuert, wie stark diese Abhängigkeit in die Wertberechnung eingeht (siehe Journey 4)
 
@@ -122,9 +123,8 @@ Das Gewicht einer bestehenden Abhängigkeit anpassen, um die Priorisierungslogik
    - Der aktuelle Gewichtswert ist angezeigt
 
 3. **Gewicht ändern**
-   - **ENTFERNEN**: Entfernen-Aktion (Icon-Button „Vorgänger … entfernen") neben der Abhängigkeit auslösen
-   - **NEU HINZUFÜGEN**: Aufgabe erneut auswählen mit neuem Gewicht (z. B. **0,9** statt **0,7**)
-   - Klick auf **„Hinzufügen"**
+   - Den Regler der bestehenden Abhängigkeit auf den neuen Wert stellen (z. B. **0,9** statt **0,7**); die Änderung wird sofort gespeichert
+   - **ENTFERNEN**: Entfernen-Aktion (Icon-Button „Vorgänger … entfernen“) neben der Abhängigkeit auslösen
 
 ### Erwartetes Ergebnis
 
@@ -161,7 +161,7 @@ Die automatische Priorisierungsberechnung auslösen, die den Wertbeitrag und die
 
 3. **Nächste Aufgabe ermitteln**
    - Im Dashboard den Bereich **„Nächste Aufgabe"** betrachten
-   - Zeigt die wichtigste Aufgabe, deren Vorgänger alle erledigt sind
+   - Zeigt die höchstscorierte freie Aufgabe (Priorität, Deadline-Nähe, Säulen-Balance, Entsperr-Wirkung, Aufwand), deren Vorgänger alle erledigt sind
    - Steht nichts an, erscheint ein Hinweis (alles erledigt oder blockiert)
 
 ### Erwartetes Ergebnis
