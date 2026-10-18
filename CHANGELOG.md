@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.29 - 2026-10-18
 
-_Enthält v0.29.0 – v0.29.22._
+_Enthält v0.29.0 – v0.29.24._
 
 ### 🚀 Improvements
 
@@ -37,6 +37,8 @@ _Enthält v0.29.0 – v0.29.22._
 - feat(frontend): complete the orbit family with meteors and pendulum by @deleonio in https://github.com/deleonio/priority-pilot/pull/2727
 - docs(matomo): runbook for the self-hosted matomo instance by @deleonio in https://github.com/deleonio/priority-pilot/pull/2728
 - docs: narrow e2e run commands in testing.md to pnpm filter calls (#2698) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2729
+- docs(matomo): document working config:set syntax for trusted_hosts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2733
+- fix(ci): replace mapfile with while-read for macOS bash 3.2 (#2731) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2735
 
 ## v0.28 - 2026-10-18
 
@@ -195,7 +197,6 @@ _Enthält v0.24.0 – v0.24.13._
 - docs(adr): add 0024 direct completion with undo instead of dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2568
 - feat(server): require minimum completions before overload (#2521) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2569
 - feat(frontend): refresh care hint after completing a task (#2522) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2570
-- feat(server): pillar names in care texts follow app language (#2523) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2571
 - feat(server): pillar names in care texts follow app language (#2523) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2571
 - feat(frontend): single primary action per missed task (#2524) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2575
 - feat(frontend): show done tasks on their completion day in week view by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2576
