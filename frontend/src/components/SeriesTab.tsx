@@ -56,6 +56,10 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 	// #2359: Serie, aus der gerade eine Aufgabe angelegt wird (Dialog offen), und die Erfolgsrückmeldung.
 	const [instanceTarget, setInstanceTarget] = useState<Series | null>(null);
 	const [createdTitle, setCreatedTitle] = useState<string | null>(null);
+	// #2715: Serie, deren Pausieren/Fortsetzen gerade läuft (Doppel-Tap-Schutz über `_disabled`),
+	// und der Titel der zuletzt pausierten Serie (Fürsorge-Hinweis, KI-UX).
+	const [togglingId, setTogglingId] = useState<number | null>(null);
+	const [pausedTitle, setPausedTitle] = useState<string | null>(null);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		try {
@@ -115,6 +119,42 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 		onTasksChanged?.();
 	}, [reload, onTasksChanged]);
 
+	/**
+	 * #2715: Serie pausieren (`active:false`) bzw. fortsetzen (`active:true`) — direkt ohne
+	 * Bestätigungsdialog (ADR 0024): die Gegenaktion nimmt den Zustand jederzeit zurück, ein
+	 * Irrtum kostet nichts. Pausieren ist ein reines Template-Flag: bestehende Instanzen bleiben
+	 * bestehen (Fürsorge-Hinweis im Erfolg), beim Fortsetzen läuft die Serie ab heute weiter,
+	 * ohne die Pause nachzutragen (Server-Vertrag, docs/spec/issue-2715.md AK3/AK4).
+	 */
+	const togglePause = useCallback(
+		async (entry: Series, next: boolean): Promise<void> => {
+			setTogglingId(entry.id);
+			setPausedTitle(null);
+			try {
+				await api.updateSeries({ id: entry.id, seriesUpdate: { active: next } });
+				await reload();
+				if (next === false) {
+					setPausedTitle(entry.title);
+				}
+				// KI-UX: Der getoggelte Button fällt mit dem Reload aus dem DOM (die Gegenaktion übernimmt
+				// den Platz) — den Fokus danach auf den Gegen-Button der Zeile setzen, er fiele sonst auf
+				// <body>. Query erst nach dem Repaint, wenn der neue Button gerendert ist.
+				requestAnimationFrame(() => {
+					const label = next ? t('seriesTab.pause') : t('seriesTab.resume');
+					document
+						.querySelector<HTMLElement>(`[data-testid="series-tree-item-${entry.id}"] button[aria-label="${label}"]`)
+						?.focus();
+				});
+			} catch (reason) {
+				const apiError = await toApiError(reason);
+				setError(apiError.message);
+			} finally {
+				setTogglingId(null);
+			}
+		},
+		[reload, t],
+	);
+
 	return (
 		<section className="series-section" ref={deleteFallbackRef} tabIndex={-1}>
 			{error !== null && (
@@ -125,6 +165,10 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 
 			{createdTitle !== null && (
 				<KolAlert _type="success" _alert _label={t('seriesTab.taskCreated', { title: createdTitle })} />
+			)}
+
+			{pausedTitle !== null && (
+				<KolAlert _type="success" _alert _label={t('seriesTab.pausedNotice', { title: pausedTitle })} />
 			)}
 
 			{series === null && (
@@ -219,6 +263,28 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 																	},
 																},
 															]),
+													// #2715: Pausieren/Fortsetzen — Icon-Button im Muster der Nachbar-Aktionen, direkt ohne
+													// Bestätigungsdialog (ADR 0024). Vorlagen ohne Automatik (#2358) bekommen keine Aktion —
+													// sie erzeugen ohnehin nichts; ruhende Serien (auch Gruppen-Ruhe, #1251) immer „Fortsetzen“.
+													...(entry.active === false || entry.autoCreate !== false
+														? [
+																{
+																	type: 'button' as const,
+																	_label: entry.active === false ? t('seriesTab.resume') : t('seriesTab.pause'),
+																	_hideLabel: true,
+																	_icons: {
+																		left: { icon: entry.active === false ? 'fa-solid fa-play' : 'fa-solid fa-pause' },
+																	},
+																	_variant: 'secondary' as const,
+																	_disabled: togglingId === entry.id,
+																	_on: {
+																		onClick: () => {
+																			void togglePause(entry, entry.active === false);
+																		},
+																	},
+																},
+															]
+														: []),
 													{
 														type: 'button',
 														_label: t('common:actions.edit'),

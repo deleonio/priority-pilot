@@ -54,6 +54,9 @@
 		"forUser": "Für: {{name}}",
 		"actionsFor": "Aktionen für {{title}}",
 		"createTask": "Aufgabe anlegen",
+		"pause": "Serie pausieren",
+		"resume": "Fortsetzen",
+		"pausedNotice": "Serie pausiert: {{title}}. Bereits angelegte Termine bleiben bestehen.",
 		"editTitle": "Serie bearbeiten: {{title}}"
 	},
 	"seriesInstance": {

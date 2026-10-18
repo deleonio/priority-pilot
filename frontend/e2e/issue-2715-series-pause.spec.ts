@@ -118,8 +118,10 @@ test.describe('Balamentum — Serien pausieren und fortsetzen (#2715)', () => {
 		const after = await tasksOfSeries(page, seriesId);
 		expect(after.length, 'AK3: Pausieren löscht keine bestehenden Instanzen').toBe(before.length);
 
-		// … und die Instanzen bleiben in der Aufgabenansicht sichtbar.
+		// … und die Instanzen bleiben in der Aufgabenansicht sichtbar. Über `task-list-item-<id>`
+		// gescopet: `getByText(title)` träfe zusätzlich die (bei aktivem Aufgaben-Tab verborgene)
+		// „Nächste Aufgabe“-Karte des Dashboards — KolTabs hält inaktive Panels gemountet.
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
-		await expect(page.getByText(title).first()).toBeVisible();
+		await expect(page.getByTestId(`task-list-item-${after[0]!.id}`)).toBeVisible();
 	});
 });
