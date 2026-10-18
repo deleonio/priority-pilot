@@ -33,11 +33,14 @@ test.describe('#222 App-Header — Homogenität', () => {
 	/**
 	 * AK3 (Smoke): Der kol-avatar im Header hat das _label-Attribut mit dem Benutzernamen gesetzt.
 	 * Bereits implementiert via `_label={user.name}` — bleibt als Regressions-Smoke grün.
+	 * Test-Pflege #2723: Der Avatar liegt im Avatar-Popover — für die Sichtbarkeitsprüfung wird
+	 * es geöffnet, das _label-Attribut ist unabhängig davon gesetzt.
 	 */
 	test('AK3 (Smoke): kol-avatar im Header hat _label mit Benutzernamen', async ({ page }) => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
+		await openAvatarMenu(page);
 		const avatar = page.locator('header kol-avatar').first();
 		await expect(avatar).toBeVisible();
 		await expect(avatar).toHaveAttribute('_label', 'Test User');

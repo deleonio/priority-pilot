@@ -150,6 +150,10 @@ test.describe('#285 Header – kompakte Icon-Toolbar', () => {
 		await expect(await headerAction(page, 'Hilfe')).toBeVisible();
 		await expect(await headerAction(page, 'Abmelden')).toBeVisible();
 
+		// #2723: Popover schließen, bevor die Toolbar bedient wird — das geöffnete Panel (top layer,
+		// fixed positioniert) fängt Pointer-Events über den rechten Toolbar-Buttons ab.
+		await page.keyboard.press('Escape');
+
 		// „Neuen Task anlegen" öffnet weiterhin den Anlege-Dialog.
 		await toolbar.getByRole('button', { name: 'Neuen Task anlegen' }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
@@ -211,8 +215,9 @@ test.describe('#298 „Aktualisieren"-Button entfernt', () => {
 	});
 
 	/**
-	 * AK2 — Regression: Die übrigen Toolbar-Buttons bleiben sichtbar & bedienbar.
-	 * Buttons: „Neuen Task anlegen", „Serien verwalten", „Hilfe", „Einstellungen", „Abmelden".
+	 * AK2 — Regression: Die übrigen Toolbar-Aktionen bleiben sichtbar & bedienbar.
+	 * Buttons: „Neuen Task anlegen", „Einstellungen"; „Hilfe" und „Abmelden" liegen seit #2723 im
+	 * Avatar-Popover (`headerAction` öffnet es — Test-Pflege #2723).
 	 * „Neuen Task anlegen" öffnet weiterhin den Anlege-Dialog.
 	 */
 	test('AK2: Übrige Toolbar-Aktionen bleiben vollständig bedienbar', async ({ page }) => {
@@ -224,9 +229,15 @@ test.describe('#298 „Aktualisieren"-Button entfernt', () => {
 		// Alle verbleibenden Buttons sind weiterhin per Accessible Name auffindbar.
 		// Nach #335 (AK6) ist „Serien verwalten" nicht mehr dabei (eigener Serien-Tab).
 		await expect(toolbar.getByRole('button', { name: 'Neuen Task anlegen' })).toBeVisible();
-		await expect(toolbar.getByRole('button', { name: 'Hilfe' })).toBeVisible();
 		await expect(toolbar.getByRole('button', { name: 'Einstellungen' })).toBeVisible();
-		await expect(toolbar.getByRole('button', { name: 'Abmelden' })).toBeVisible();
+
+		// #2723: „Hilfe" und „Abmelden" sind über das Avatar-Popover erreichbar.
+		await expect(await headerAction(page, 'Hilfe')).toBeVisible();
+		await expect(await headerAction(page, 'Abmelden')).toBeVisible();
+
+		// #2723: Popover schließen, bevor die Toolbar bedient wird — das geöffnete Panel (top layer,
+		// fixed positioniert) fängt Pointer-Events über den rechten Toolbar-Buttons ab.
+		await page.keyboard.press('Escape');
 
 		// „Neuen Task anlegen" öffnet weiterhin den Anlege-Dialog.
 		await toolbar.getByRole('button', { name: 'Neuen Task anlegen' }).click();
