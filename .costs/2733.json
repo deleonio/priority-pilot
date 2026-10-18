@@ -1,0 +1,41 @@
+[
+	{
+		"timestamp": "2026-10-18T15:25:42.892Z",
+		"tokensIn": 410402,
+		"tokensOut": 4254,
+		"cost": 0.263553264,
+		"issueId": "2733",
+		"phase": "review",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"runtime": "pi",
+		"configuredModel": "opus",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 381376,
+		"turns": 8,
+		"durationSeconds": 92,
+		"valueCost": 0.263553264,
+		"effort": "high",
+		"verdict": "reviewed",
+		"findings": 0,
+		"nits": 0
+	},
+	{
+		"timestamp": "2026-10-18T15:32:01.145Z",
+		"tokensIn": 322499,
+		"tokensOut": 8826,
+		"cost": 0,
+		"issueId": "2733",
+		"phase": "documenter",
+		"model": "poolside/laguna-s-2.1:free",
+		"provider": "openrouter",
+		"runtime": "pi",
+		"configuredModel": "haiku",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 248992,
+		"turns": 5,
+		"durationSeconds": 162,
+		"valueCost": 0.4276086,
+		"effort": "low"
+	}
+]
