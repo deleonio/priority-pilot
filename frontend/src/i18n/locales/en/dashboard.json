@@ -104,7 +104,9 @@
 		"kristall": "Crystal",
 		"segmente": "Segments",
 		"zeiger": "Hands",
-		"bahnen": "Orbits"
+		"bahnen": "Orbits",
+		"meteore": "Meteors",
+		"pendel": "Pendulums"
 	},
 	"days_one": "{{count}} day",
 	"days_other": "{{count}} days",

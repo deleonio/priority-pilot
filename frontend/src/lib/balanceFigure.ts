@@ -26,8 +26,10 @@ import type { BalanceMetrics, PillarMetric } from './balanceMetric';
  *   zusteht.
  * - **Zeiger** — je Säule ein Zeiger auf dem gemeinsamen Zifferblatt, gleichmäßig über den Kreis
  *   verteilt wie die Strahlen, aber mit schmalerer Spitze. Der längste Zeiger steht auf 12 Uhr.
- * - **Bahnen** — je Säule ein Komet auf eigener Ellipsenbahn um die Mitte. Die große Achse trägt
- *   den Wert, die größte Bahn zeigt auf 12 Uhr; der Komet läuft auf seiner Bahn um.
+ * - **Bahnen, Meteore und Pendel** — je Säule ein Komet auf eigener Ellipsenbahn um die Mitte;
+ *   die große Achse trägt den Wert, die größte Bahn zeigt auf 12 Uhr. Drei Bewegungen auf
+ *   derselben Geometrie: Bahnen im Kepler-Takt, Meteore mit langem pulsierendem Schweif, Pendel
+ *   als Schwingung um die Phase.
  *
  * Alle ordnen nach derselben Regel: **stärkste Säule zuerst** (`byStrength`). Wer das Bild
  * wechselt, findet dieselbe Säule an derselben Stelle der Reihenfolge wieder.
@@ -471,6 +473,15 @@ export const buildHands = (metrics: BalanceMetrics): Hand[] => {
  */
 export const ORBIT_FLAT = 0.72;
 
+/**
+ * Kepler-Exzentrizität der Bahn-Figuren: wie stark der Umlauf zur Mitte hin beschleunigt — nahe
+ * der kleinen Achse (Periapsis, dem Zentrum am nächsten) läuft der Komet schneller als am Scheitel.
+ */
+export const ORBIT_ECC = 0.55;
+
+/** Amplitude des Pendels: Bogen in Radiant, über den der Komet um seine Phase schwingt. */
+export const ORBIT_SWING = 2.2;
+
 /** Ein Komet auf seiner Bahn: der Weg plus die eigene Bewegung der Säule. */
 export interface Orbit extends FigureMotion {
 	pillarId: number;
@@ -486,7 +497,9 @@ export interface Orbit extends FigureMotion {
  * **stärkste Säule zuerst**. Die größte Bahn zeigt mit ihrer großen Achse auf 12 Uhr — ihr
  * Scheitel berührt dieselbe Stelle wie die Strahlenspitze. Der Komet läuft auf der Bahn um den
  * Mittelpunkt (Dreh-Takt und Richtung aus `motionOf`); die Bahn atmet im Schwing-Takt allein im
- * Shader (±6 % wie die Lappen, `balance-figure.frag`), das SVG zeigt sie in Grundform.
+ * Shader (±6 % wie die Lappen, `balance-figure.frag`), das SVG zeigt sie in Grundform. Wie er
+ * sich bewegt — Kepler-Umlauf, Meteor-Schweif oder Pendel-Schwingung — bestimmen `keplerTheta`
+ * bzw. `pendelState` und der Shader; die Geometrie teilen sich alle drei Figuren.
  */
 export const buildOrbits = (metrics: BalanceMetrics): Orbit[] => {
 	const pillars = byStrength(metrics.pillars);
@@ -500,9 +513,30 @@ export const buildOrbits = (metrics: BalanceMetrics): Orbit[] => {
 	}));
 };
 
-/** Umlauf-Winkel des Kometen zum Zeitpunkt `time` — im Standbild steht er auf seiner Phase. */
-export const orbitTheta = (motion: FigureMotion, time: number): number =>
-	motion.phase + (motion.rotDirection * TAU * time) / motion.rotPeriod;
+/**
+ * Umlauf-Winkel des Kometen im **Kepler-Takt** (Figur „Bahnen"): Die mittlere Anomalie läuft
+ * gleichmäßig, die wahre folgt der Kepler-Gleichung — eine Näherungsstufe genügt dem Auge
+ * (zahlengleich zum Shader). Im Standbild steht er auf `phase + ecc · sin(phase)`.
+ */
+export const keplerTheta = (motion: FigureMotion, time: number): number => {
+	const mean = motion.phase + (motion.rotDirection * TAU * time) / motion.rotPeriod;
+	return mean + ORBIT_ECC * Math.sin(mean);
+};
+
+/**
+ * Zustand des **Pendels** (Figur „Pendel") zum Zeitpunkt `time`: Winkel um die eigene Phase, die
+ * momentane Bewegungsrichtung (der Schweif zeigt entgegen) und das Tempo 0–1 — an den
+ * Umkehrpunkten steht der Komet kurz, Schweif und Leuchten blenden mit dem Tempo ab.
+ */
+export const pendelState = (motion: FigureMotion, time: number): { theta: number; dirNow: 1 | -1; speed: number } => {
+	const swing = motion.phase + (TAU * time) / motion.swingPeriod;
+	const velocity = Math.cos(swing);
+	return {
+		theta: motion.phase + motion.rotDirection * ORBIT_SWING * Math.sin(swing),
+		dirNow: velocity >= 0 ? 1 : -1,
+		speed: Math.abs(velocity),
+	};
+};
 
 /**
  * Punkt auf einer Umlaufbahn zum Umlauf-Winkel `theta` (Parameter der Ellipse), plus die Richtung

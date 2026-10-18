@@ -41,7 +41,18 @@ const metricsOf = (ratios: number[]): BalanceMetrics => {
 
 const stateOf = (
 	metrics: BalanceMetrics,
-	figure: 'blasen' | 'scheiben' | 'ringe' | 'strahlen' | 'bluete' | 'kristall' | 'segmente' | 'zeiger' | 'bahnen',
+	figure:
+		| 'blasen'
+		| 'scheiben'
+		| 'ringe'
+		| 'strahlen'
+		| 'bluete'
+		| 'kristall'
+		| 'segmente'
+		| 'zeiger'
+		| 'bahnen'
+		| 'meteore'
+		| 'pendel',
 ) => ({
 	figure,
 	metrics,
@@ -189,20 +200,22 @@ describe('BalanceFigureGL toSlots', () => {
 		expect(hands.wedgeMid).toHaveLength(0);
 	});
 
-	/* Bahnen belegen die Strahlen-Plätze mit Winkel und großer Halbachse — der Schweif und das
-	 * Um-laufen leben allein im Shader, deshalb braucht die Figur keine Öffnung. */
-	it('belegt die Slots für Bahnen auf den Strahlen-Plätzen, ohne Öffnung', () => {
+	/* Bahnen, Meteore und Pendel teilen sich die Bahn-Geometrie: Alle drei belegen die
+	 * Strahlen-Plätze mit Winkel und großer Halbachse — die Bewegung wählt der Shader (u_figure). */
+	it('belegt die Slots der drei Bahn-Figuren identisch auf den Strahlen-Plätzen', () => {
 		const metrics = metricsOf([0.2, 1, 0.6]);
-		const slots = toSlots(stateOf(metrics, 'bahnen'), colors);
 		const strahlen = toSlots(stateOf(metrics, 'strahlen'), colors);
 
-		expect(slots.rayAngle).toEqual(strahlen.rayAngle);
-		expect(slots.rayLength[0]).toBeGreaterThan(slots.rayLength[2]);
-		expect(slots.raySpread).toHaveLength(0);
-		expect(slots.orbRadius).toHaveLength(0);
-		expect(slots.wedgeMid).toHaveLength(0);
-		// Soll-Marke in Radius-Einheit: die Bahn der Säule auf Ziel (hier die stärkste) berührt
-		// den Strichelkreis mit ihrem Scheitel.
-		expect(slots.target).toBeCloseTo(slots.rayLength[0], 6);
+		for (const figur of ['bahnen', 'meteore', 'pendel'] as const) {
+			const slots = toSlots(stateOf(metrics, figur), colors);
+			expect(slots.rayAngle, figur).toEqual(strahlen.rayAngle);
+			expect(slots.rayLength[0]).toBeGreaterThan(slots.rayLength[2]);
+			expect(slots.raySpread).toHaveLength(0);
+			expect(slots.orbRadius).toHaveLength(0);
+			expect(slots.wedgeMid).toHaveLength(0);
+			// Soll-Marke in Radius-Einheit: die Bahn der Säule auf Ziel (hier die stärkste)
+			// berührt den Strichelkreis mit ihrem Scheitel.
+			expect(slots.target).toBeCloseTo(slots.rayLength[0], 6);
+		}
 	});
 });

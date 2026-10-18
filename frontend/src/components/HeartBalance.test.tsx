@@ -77,6 +77,8 @@ describe('HeartBalance', () => {
 				'segmente',
 				'zeiger',
 				'bahnen',
+				'meteore',
+				'pendel',
 			] as const) {
 				chooseVariant(value);
 				render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
@@ -104,6 +106,8 @@ describe('HeartBalance', () => {
 				'segmente',
 				'zeiger',
 				'bahnen',
+				'meteore',
+				'pendel',
 			] as const) {
 				chooseVariant(value);
 				render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
@@ -305,25 +309,28 @@ describe('HeartBalance', () => {
 		});
 	});
 
-	describe('Figur „Bahnen"', () => {
+	describe('Figuren „Bahnen", „Meteore" und „Pendel"', () => {
 		/** Große Halbachse der Bahn-Ellipse je Säule (Attribut `rx` der Spur). */
 		const orbitRadii = (): number[] =>
 			screen
 				.getAllByTestId('heart-column')
 				.map((column) => Number(column.querySelector('.balance-orbit-track')?.getAttribute('rx')));
 
-		it('zeichnet je Säule eine Bahn mit Komet darauf, die größte zuerst', () => {
-			chooseVariant('bahnen');
-			render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
+		it('zeichnet je Säule und Variante eine Bahn mit Komet darauf, die größte zuerst', () => {
+			for (const value of ['bahnen', 'meteore', 'pendel'] as const) {
+				chooseVariant(value);
+				render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
 
-			const columns = screen.getAllByTestId('heart-column');
-			expect(columns).toHaveLength(2);
-			for (const column of columns) {
-				expect(column.querySelector('.balance-orbit-track')).not.toBeNull();
-				expect(column.querySelector('.balance-node')).not.toBeNull();
+				const columns = screen.getAllByTestId('heart-column');
+				expect(columns, value).toHaveLength(2);
+				for (const column of columns) {
+					expect(column.querySelector('.balance-orbit-track'), value).not.toBeNull();
+					expect(column.querySelector('.balance-node'), value).not.toBeNull();
+				}
+				const radii = orbitRadii();
+				expect(radii[0]).toBeGreaterThan(radii[1]);
+				cleanup();
 			}
-			const radii = orbitRadii();
-			expect(radii[0]).toBeGreaterThan(radii[1]);
 		});
 
 		it('dreht die größte Bahn auf 12 Uhr — ihr Scheitel liegt über der Mitte', () => {
@@ -332,6 +339,20 @@ describe('HeartBalance', () => {
 
 			const [spur] = screen.getAllByTestId('heart-column');
 			expect(spur.querySelector('.balance-orbit-track')).toHaveAttribute('transform', 'rotate(-90.00 50 50)');
+		});
+
+		it('gibt dem Meteor den langen Schweif, den anderen den kurzen', () => {
+			const punkte: Record<string, string> = {};
+			for (const value of ['bahnen', 'meteore', 'pendel'] as const) {
+				chooseVariant(value);
+				render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
+				punkte[value] =
+					screen.getAllByTestId('heart-column')[0].querySelector('.balance-comet-tail')?.getAttribute('points') ?? '';
+				cleanup();
+			}
+			// Der Schweif des Meteors reicht deutlich weiter zurück als der der beiden anderen.
+			expect(punkte.meteore).not.toBe(punkte.bahnen);
+			expect(punkte.bahnen).toBe(punkte.pendel);
 		});
 	});
 });

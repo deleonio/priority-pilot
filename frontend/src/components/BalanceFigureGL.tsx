@@ -78,6 +78,8 @@ const FIGURE_INDEX: Record<FigureKind, number> = {
 	segmente: 6,
 	zeiger: 7,
 	bahnen: 8,
+	meteore: 9,
+	pendel: 10,
 };
 
 /** Stützstellen der Ring-Farbrampe in `app.css` (`--pp-balance-ring-0` … `-100`). */

@@ -11,9 +11,12 @@ import {
 	buildRays,
 	buildWedges,
 	CENTER,
+	keplerTheta,
 	ORBIT_FLAT,
+	ORBIT_SWING,
 	orbAxes,
 	orbitPoint,
+	pendelState,
 	petalArcPoints,
 	polar,
 	ringTicks,
@@ -203,20 +206,53 @@ const wedgePoints = (wedge: Wedge): string =>
 		.join(' ');
 
 /**
- * Eine Umlaufbahn als Laufpfad für `animateMotion`: beginnt auf der Phase der Säule und läuft in
- * ihrer Drehrichtung einmal herum — zwei Halb-Ellipsenbögen, gedreht wie die Bahn selbst.
+ * Eine Umlaufbahn als Laufpfad für `animateMotion`: beginnt beim Umlauf-Winkel `start` und läuft
+ * in der Drehrichtung einmal herum — zwei Halb-Ellipsenbögen, gedreht wie die Bahn selbst.
  */
-const orbitPath = (orbit: Orbit): string => {
+const orbitPath = (orbit: Orbit, start: number): string => {
 	const small = orbit.radius * ORBIT_FLAT;
 	const sweep = orbit.rotDirection === 1 ? 1 : 0;
 	const arc = `A ${orbit.radius.toFixed(3)} ${small.toFixed(3)} ${orbit.angle.toFixed(2)} 0 ${sweep}`;
-	const start = orbitPoint(orbit, orbit.phase);
-	const half = orbitPoint(orbit, orbit.phase + Math.PI);
+	const from = orbitPoint(orbit, start);
+	const half = orbitPoint(orbit, start + Math.PI);
 	return [
-		`M ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
+		`M ${from.x.toFixed(2)} ${from.y.toFixed(2)}`,
 		`${arc} ${half.x.toFixed(2)} ${half.y.toFixed(2)}`,
-		`${arc} ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
+		`${arc} ${from.x.toFixed(2)} ${from.y.toFixed(2)}`,
 	].join(' ');
+};
+
+/**
+ * Weg- und Zeitanteile des Kepler-Umlaufs für `animateMotion` (`keyPoints`/`keyTimes`): Der Weg
+ * wird über Sehnen kumuliert, der Browser interpoliert dazwischen — die Kepler-Beschleunigung
+ * liest sich auch mit acht Stützstellen (zahlengleich zu `keplerTheta`).
+ */
+const keplerKeys = (orbit: Orbit): { points: string; times: string } => {
+	const steps = 8;
+	const small = orbit.radius * ORBIT_FLAT;
+	const thetas = Array.from({ length: steps + 1 }, (_, step) => keplerTheta(orbit, (step / steps) * orbit.rotPeriod));
+	const chord = (from: number, to: number): number =>
+		Math.hypot(orbit.radius * (Math.cos(to) - Math.cos(from)), small * (Math.sin(to) - Math.sin(from)));
+	const fracs = [0];
+	for (let step = 1; step <= steps; step += 1) fracs.push(fracs[step - 1] + chord(thetas[step - 1], thetas[step]));
+	const last = fracs[steps] || 1;
+	return {
+		points: fracs.map((frac) => (frac / last).toFixed(4)).join(';'),
+		times: Array.from({ length: steps + 1 }, (_, step) => (step / steps).toFixed(4)).join(';'),
+	};
+};
+
+/**
+ * Der Bogen des Pendels: das Stück der Bahn, über das der Komet um seine Phase schwingt — von
+ * einer Umkehrposition zur anderen. Der Bogen ist größer als ein Halbkreis, deshalb führt er das
+ * large-arc-Flag.
+ */
+const pendelPath = (orbit: Orbit): string => {
+	const small = orbit.radius * ORBIT_FLAT;
+	const sweep = orbit.rotDirection === 1 ? 1 : 0;
+	const from = orbitPoint(orbit, orbit.phase - orbit.rotDirection * ORBIT_SWING);
+	const to = orbitPoint(orbit, orbit.phase + orbit.rotDirection * ORBIT_SWING);
+	return `M ${from.x.toFixed(2)} ${from.y.toFixed(2)} A ${orbit.radius.toFixed(3)} ${small.toFixed(3)} ${orbit.angle.toFixed(2)} 1 ${sweep} ${to.x.toFixed(2)} ${to.y.toFixed(2)}`;
 };
 
 export const BalanceFigure = ({
@@ -300,7 +336,9 @@ export const BalanceFigure = ({
 					{figure === 'kristall' && <Crystal metrics={metrics} animated={animated} />}
 					{figure === 'segmente' && <Wedges metrics={metrics} animated={animated} />}
 					{figure === 'zeiger' && <Hands metrics={metrics} animated={animated} />}
-					{figure === 'bahnen' && <Orbits metrics={metrics} animated={animated} />}
+					{figure === 'bahnen' && <Orbits metrics={metrics} animated={animated} motion="kepler" />}
+					{figure === 'meteore' && <Orbits metrics={metrics} animated={animated} motion="meteor" />}
+					{figure === 'pendel' && <Orbits metrics={metrics} animated={animated} motion="pendel" />}
 				</g>
 			</g>
 		</svg>
@@ -664,12 +702,21 @@ const Hands = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetric
 };
 
 /**
- * Figur „Bahnen": je Säule ein Komet auf eigener Ellipsenbahn um die Mitte. Die Bahn ist der Weg,
- * nicht der Wert — blass und dünn, ihre große Achse (Attribut `rx`) trägt die Kennzahl; die größte
- * Bahn zeigt auf 12 Uhr. Der Komet läuft im Dreh-Takt auf seiner Bahn, sein Schweif zeigt entgegen
- * der Laufrichtung. Die Soll-Marke ist der gestrichelte Kreis wie bei den Strahlen.
+ * Figuren „Bahnen", „Meteore" und „Pendel": je Säule ein Komet auf eigener Ellipsenbahn um die
+ * Mitte — dieselbe Geometrie, drei Bewegungen. Die Bahn ist der Weg, nicht der Wert: blass und
+ * dünn, ihre große Achse (Attribut `rx`) trägt die Kennzahl; die größte Bahn zeigt auf 12 Uhr.
+ * Bahnen laufen im Kepler-Takt (nahe der Mitte schneller), Meteore tragen einen langen Schweif,
+ * das Pendel schwingt um seine Phase — der Schweif zeigt entgegen der Laufrichtung.
  */
-const Orbits = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetrics>; animated: boolean }) => {
+const Orbits = ({
+	metrics,
+	animated,
+	motion,
+}: {
+	metrics: ReturnType<typeof balanceMetrics>;
+	animated: boolean;
+	motion: 'kepler' | 'meteor' | 'pendel';
+}) => {
 	const orbits = buildOrbits(metrics);
 	return (
 		<>
@@ -683,8 +730,12 @@ const Orbits = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetri
 				/>
 			)}
 			{orbits.map((orbit) => {
-				const start = orbitPoint(orbit, orbit.phase);
-				const heading = start.heading + (orbit.rotDirection === 1 ? 0 : 180);
+				const start = motion === 'pendel' ? pendelState(orbit, 0) : undefined;
+				const theta0 = start ? start.theta : keplerTheta(orbit, 0);
+				const dirNow = start ? start.dirNow : orbit.rotDirection;
+				const position = orbitPoint(orbit, theta0);
+				const heading = position.heading + (dirNow === 1 ? 0 : 180);
+				const keys = motion === 'kepler' ? keplerKeys(orbit) : undefined;
 				return (
 					<g key={orbit.pillarId} data-testid="heart-column">
 						<ellipse
@@ -698,24 +749,43 @@ const Orbits = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetri
 						{/*
 						 * Der Komet: Kopf und Schweif in einer Gruppe, damit der Schweif der Bewegung folgt
 						 * — `rotate="auto"` dreht die Gruppenachse in Laufrichtung, der Schweif zeigt in
-						 * negatives x. Still steht die Gruppe auf der Phase der Säule.
+						 * negatives x. Still steht die Gruppe auf dem Startwinkel der Säule. Bahnen
+						 * folgen dem Kepler-Takt über Weg-Anteile (keyPoints), das Pendel läuft seinen
+						 * Bogen hin und zurück — weich über Splines, wie eine Schwingung.
 						 */}
 						<g
 							transform={
 								animated
 									? undefined
-									: `translate(${start.x.toFixed(2)} ${start.y.toFixed(2)}) rotate(${heading.toFixed(2)})`
+									: `translate(${position.x.toFixed(2)} ${position.y.toFixed(2)}) rotate(${heading.toFixed(2)})`
 							}
 						>
-							{animated && (
-								<animateMotion
-									dur={`${orbit.rotPeriod}s`}
-									repeatCount="indefinite"
-									rotate="auto"
-									path={orbitPath(orbit)}
-								/>
-							)}
-							<polygon className={rampClass('balance-comet-tail', orbit.colorIndex)} points="0,-1.2 -8.5,0 0,1.2" />
+							{animated &&
+								(motion === 'pendel' ? (
+									<animateMotion
+										dur={`${orbit.swingPeriod.toFixed(2)}s`}
+										repeatCount="indefinite"
+										rotate="auto"
+										path={pendelPath(orbit)}
+										calcMode="spline"
+										keyPoints="0;1;0"
+										keyTimes="0;0.5;1"
+										keySplines="0.37 0 0.63 1;0.37 0 0.63 1"
+									/>
+								) : (
+									<animateMotion
+										dur={`${orbit.rotPeriod.toFixed(2)}s`}
+										repeatCount="indefinite"
+										rotate="auto"
+										path={orbitPath(orbit, theta0)}
+										calcMode="linear"
+										{...(keys ? { keyPoints: keys.points, keyTimes: keys.times } : {})}
+									/>
+								))}
+							<polygon
+								className={rampClass('balance-comet-tail', orbit.colorIndex)}
+								points={motion === 'meteor' ? '0,-1.6 -14,0 0,1.6' : '0,-1.2 -8.5,0 0,1.2'}
+							/>
 							<circle className={rampClass('balance-node', orbit.colorIndex)} cx={0} cy={0} r={1.5}>
 								{animated && (
 									<animate
