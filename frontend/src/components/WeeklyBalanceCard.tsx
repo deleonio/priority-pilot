@@ -99,6 +99,11 @@ export const WeeklyBalanceCard = () => {
 					saeulen: daten?.saeulen ?? [],
 					streak: daten?.streak ?? 0,
 					woche: wocheLabel,
+					marken: {
+						balamentum: t('weeklyCard.marken.balamentum'),
+						play: t('weeklyCard.marken.play'),
+						pwa: t('weeklyCard.marken.pwa'),
+					},
 				}),
 			);
 			return { blob, dateiname: kartenDateiname(heute) };

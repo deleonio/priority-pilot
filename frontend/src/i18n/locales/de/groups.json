@@ -23,7 +23,12 @@
 		"rankShared": "Platz {{rank}} (geteilt)",
 		"thanks": "Danke für eine Woche, in der ihr auf Ausgewogenheit geachtet habt.",
 		"share": "Teilen",
-		"startNew": "Neue Challenge starten"
+		"startNew": "Neue Challenge starten",
+		"marken": {
+			"balamentum": "Balamentum",
+			"play": "Erhältlich bei Google Play",
+			"pwa": "Als App installierbar (PWA)"
+		}
 	},
 	"deleteDialog": {
 		"title": "Gruppe löschen",
