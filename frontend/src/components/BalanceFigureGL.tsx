@@ -1,21 +1,19 @@
 import { useEffect, useRef } from 'react';
 import fragmentSource from './balance-figure.frag?raw';
-import {
-	auftaktStand,
-	auftaktWechselt,
-	buildArcs,
-	buildHands,
-	buildOrbits,
-	buildOrbs,
-	buildPetals,
-	buildRays,
-	buildWedges,
-	targetRadius,
-	type FigureMotion,
-} from '../lib/balanceFigure';
+import { auftaktStand, auftaktWechselt } from '../lib/balanceFigure';
 import type { BalanceMetrics } from '../lib/balanceMetric';
 import type { FigureKind } from '../lib/balanceVariant';
 import { PILLAR_RAMP_SIZE } from '../lib/pillarRamp';
+import {
+	bindFullscreenTriangle,
+	buildProgram,
+	createResize,
+	createUniform,
+	createWebGLContext,
+	parseColor,
+	SLOTS,
+	toSlots,
+} from '../lib/webglStage';
 
 /**
  * Die Balance-Figuren als **WebGL-Bild** — die leuchtende Schwester des SVG in `BalanceFigure.tsx`.
@@ -66,16 +64,8 @@ interface BalanceFigureGLProps {
 	onGiveUp: () => void;
 }
 
-/** Ein Fullscreen-Dreieck — die ganze Zeichnung leistet der Fragment-Shader. */
-const VERTEX_SOURCE = ['attribute vec2 a_pos;', 'void main() {', '	gl_Position = vec4(a_pos, 0.0, 1.0);', '}'].join(
-	'\n',
-);
-
 /** Stärke des Kontaktschattens unter jeder Blase (0–0.3). */
 const SHADOW_STRENGTH = 0.06;
-
-/** Zahl der Uniform-Plätze je Säule — weitere Säulen laufen im letzten (neutralen) zusammen. */
-const SLOTS = 8;
 
 /** Reihenfolge der Figuren im Shader (`u_figure`). */
 const FIGURE_INDEX: Record<FigureKind, number> = {
@@ -94,25 +84,6 @@ const FIGURE_INDEX: Record<FigureKind, number> = {
 const RING_STOPS = [0, 25, 50, 75, 100] as const;
 
 type Rgb = [number, number, number];
-
-/** Liest eine CSS-Farbe (`#rgb`, `#rrggbb`, `rgb()`) als 0–1-Vektor; unlesbar bleibt schwarz. */
-const parseColor = (value: string): Rgb => {
-	const text = value.trim();
-	const hex = /^#([0-9a-f]{3})$/i.exec(text) ?? /^#([0-9a-f]{6})$/i.exec(text);
-	if (hex) {
-		const digits = hex[1].length === 3 ? [...hex[1]].map((digit) => digit + digit).join('') : hex[1];
-		return [
-			parseInt(digits.slice(0, 2), 16) / 255,
-			parseInt(digits.slice(2, 4), 16) / 255,
-			parseInt(digits.slice(4, 6), 16) / 255,
-		];
-	}
-	const rgb = /^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i.exec(text);
-	if (rgb) {
-		return [Number(rgb[1]) / 255, Number(rgb[2]) / 255, Number(rgb[3]) / 255];
-	}
-	return [0, 0, 0];
-};
 
 /**
  * Theme-Farben aus den CSS-Rollen lesen — dieselben Variablen, die das SVG einfärbt. Die Figuren
@@ -141,174 +112,6 @@ interface FigureState {
 	beatSeconds: number;
 }
 
-/**
- * Packt die Formen einer Figur auf die acht Uniform-Plätze. Gibt es mehr Säulen als Plätze, werden
- * die **hinteren** abgeschnitten: Bei den Blasen ist die Liste groß → klein sortiert, ein Stapel
- * ohne seine größten Blasen wäre keine Aussage mehr; bei Ringen und Strahlen entscheidet die
- * Anzeigereihenfolge, und dort sind die ersten Säulen die, die der Nutzer zuerst sehen will.
- */
-export const toSlots = (
-	state: FigureState,
-	colors: ThemeColors,
-): {
-	colors: Rgb[];
-	motions: FigureMotion[];
-	orbRadius: number[];
-	arcRadius: number[];
-	arcWidth: number[];
-	arcSweep: number[];
-	rayAngle: number[];
-	raySpread: number[];
-	rayLength: number[];
-	wedgeMid: number[];
-	wedgeHalf: number[];
-	wedgeInner: number[];
-	wedgeOuter: number[];
-	target: number;
-} => {
-	const colorOf = (colorIndex: number): Rgb =>
-		colorIndex < PILLAR_RAMP_SIZE ? colors.pillars[colorIndex] : colors.neutral;
-
-	if (state.figure === 'ringe') {
-		const arcs = buildArcs(state.metrics).slice(0, SLOTS);
-		return {
-			colors: arcs.map((arc) => colorOf(arc.colorIndex)),
-			motions: arcs,
-			orbRadius: [],
-			arcRadius: arcs.map((arc) => arc.radius),
-			arcWidth: arcs.map((arc) => arc.width),
-			arcSweep: arcs.map((arc) => arc.sweep),
-			rayAngle: [],
-			raySpread: [],
-			rayLength: [],
-			wedgeMid: [],
-			wedgeHalf: [],
-			wedgeInner: [],
-			wedgeOuter: [],
-			target: arcs[0]?.target ?? 0,
-		};
-	}
-	if (state.figure === 'strahlen') {
-		const rays = buildRays(state.metrics).slice(0, SLOTS);
-		return {
-			colors: rays.map((ray) => colorOf(ray.colorIndex)),
-			motions: rays,
-			orbRadius: [],
-			arcRadius: [],
-			arcWidth: [],
-			arcSweep: [],
-			rayAngle: rays.map((ray) => ray.angle),
-			raySpread: rays.map((ray) => ray.spread),
-			rayLength: rays.map((ray) => ray.length),
-			wedgeMid: [],
-			wedgeHalf: [],
-			wedgeInner: [],
-			wedgeOuter: [],
-			target: rays[0]?.targetLength ?? 0,
-		};
-	}
-	// Blüte und Kristall teilen sich die Stützpunkte der Silhouette — Winkel und Radius belegen
-	// dieselben Plätze wie die Strahlen (Mittelwinkel und Länge); nur ihr Material trennt sie.
-	if (state.figure === 'bluete' || state.figure === 'kristall') {
-		const petals = buildPetals(state.metrics).slice(0, SLOTS);
-		return {
-			colors: petals.map((petal) => colorOf(petal.colorIndex)),
-			motions: petals,
-			orbRadius: [],
-			arcRadius: [],
-			arcWidth: [],
-			arcSweep: [],
-			rayAngle: petals.map((petal) => petal.angle),
-			raySpread: [],
-			rayLength: petals.map((petal) => petal.radius),
-			wedgeMid: [],
-			wedgeHalf: [],
-			wedgeInner: [],
-			wedgeOuter: [],
-			target: targetRadius(state.metrics),
-		};
-	}
-	// Zeiger belegen die Strahlen-Plätze mit ihrer eigenen, schmaleren Geometrie.
-	if (state.figure === 'zeiger') {
-		const hands = buildHands(state.metrics).slice(0, SLOTS);
-		return {
-			colors: hands.map((hand) => colorOf(hand.colorIndex)),
-			motions: hands,
-			orbRadius: [],
-			arcRadius: [],
-			arcWidth: [],
-			arcSweep: [],
-			rayAngle: hands.map((hand) => hand.angle),
-			raySpread: hands.map((hand) => hand.spread),
-			rayLength: hands.map((hand) => hand.length),
-			wedgeMid: [],
-			wedgeHalf: [],
-			wedgeInner: [],
-			wedgeOuter: [],
-			target: hands[0]?.targetLength ?? 0,
-		};
-	}
-	// Bahnen belegen die Strahlen-Plätze mit Winkel und großer Halbachse — der Shader dreht die
-	// Ellipse auf den Winkel und läuft den Kometen im Dreh-Takt auf ihr um.
-	if (state.figure === 'bahnen') {
-		const orbits = buildOrbits(state.metrics).slice(0, SLOTS);
-		return {
-			colors: orbits.map((orbit) => colorOf(orbit.colorIndex)),
-			motions: orbits,
-			orbRadius: [],
-			arcRadius: [],
-			arcWidth: [],
-			arcSweep: [],
-			rayAngle: orbits.map((orbit) => orbit.angle),
-			raySpread: [],
-			rayLength: orbits.map((orbit) => orbit.radius),
-			wedgeMid: [],
-			wedgeHalf: [],
-			wedgeInner: [],
-			wedgeOuter: [],
-			target: targetRadius(state.metrics),
-		};
-	}
-	// Segmente: Tortengrafik der Ist-Anteile auf eigenen Uniform-Plätzen.
-	if (state.figure === 'segmente') {
-		const wedges = buildWedges(state.metrics).slice(0, SLOTS);
-		return {
-			colors: wedges.map((wedge) => colorOf(wedge.colorIndex)),
-			motions: wedges,
-			orbRadius: [],
-			arcRadius: [],
-			arcWidth: [],
-			arcSweep: [],
-			rayAngle: [],
-			raySpread: [],
-			rayLength: [],
-			wedgeMid: wedges.map((wedge) => wedge.angle),
-			wedgeHalf: wedges.map((wedge) => (wedge.end - wedge.start) / 2),
-			wedgeInner: wedges.map((wedge) => wedge.inner),
-			wedgeOuter: wedges.map((wedge) => wedge.outer),
-			target: wedges[0]?.targetRadius ?? 0,
-		};
-	}
-	// Blasen und Scheiben teilen sich die Geometrie — nur ihr Material trennt sie (siehe Shader).
-	const orbs = buildOrbs(state.metrics).slice(0, SLOTS);
-	return {
-		colors: orbs.map((orb) => colorOf(orb.colorIndex)),
-		motions: orbs,
-		orbRadius: orbs.map((orb) => orb.radius),
-		arcRadius: [],
-		arcWidth: [],
-		arcSweep: [],
-		rayAngle: [],
-		raySpread: [],
-		rayLength: [],
-		wedgeMid: [],
-		wedgeHalf: [],
-		wedgeInner: [],
-		wedgeOuter: [],
-		target: targetRadius(state.metrics),
-	};
-};
-
 interface FigureEngine {
 	/** Uniforms neu setzen (Figur/Werte/Theme) und ggf. ein Standbild zeichnen. */
 	update: (state: FigureState, colors: ThemeColors) => void;
@@ -327,39 +130,11 @@ interface FigureEngine {
 const createEngine = (canvas: HTMLCanvasElement): FigureEngine => {
 	// `premultipliedAlpha`: Die Formen liegen halbtransparent übereinander; der Shader akkumuliert
 	// premultipliziert, nur so bleibt die Überlagerung ohne dunklen Saum über der Karte.
-	const gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: false });
-	if (!gl) throw new Error('WebGL2 nicht verfügbar');
-
-	const compile = (type: number, source: string): WebGLShader => {
-		const shader = gl.createShader(type);
-		if (!shader) throw new Error('Shader-Objekt nicht verfügbar');
-		gl.shaderSource(shader, source);
-		gl.compileShader(shader);
-		if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-			throw new Error(gl.getShaderInfoLog(shader) || 'Shader-Kompilierung fehlgeschlagen');
-		}
-		return shader;
-	};
-
-	const program = gl.createProgram();
-	if (!program) throw new Error('Programm-Objekt nicht verfügbar');
-	gl.attachShader(program, compile(gl.VERTEX_SHADER, VERTEX_SOURCE));
-	gl.attachShader(program, compile(gl.FRAGMENT_SHADER, fragmentSource));
-	gl.linkProgram(program);
-	if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-		throw new Error(gl.getProgramInfoLog(program) ?? 'Programm-Verknüpfung fehlgeschlagen');
-	}
+	const gl = createWebGLContext(canvas, { alpha: true, premultipliedAlpha: true, antialias: false });
+	const program = buildProgram(gl, fragmentSource);
 	gl.useProgram(program);
-
-	const buffer = gl.createBuffer();
-	if (!buffer) throw new Error('Buffer-Objekt nicht verfügbar');
-	gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-	const attribute = gl.getAttribLocation(program, 'a_pos');
-	gl.enableVertexAttribArray(attribute);
-	gl.vertexAttribPointer(attribute, 2, gl.FLOAT, false, 0, 0);
-
-	const uniform = (name: string): WebGLUniformLocation | null => gl.getUniformLocation(program, name);
+	const buffer = bindFullscreenTriangle(gl, program);
+	const uniform = createUniform(gl, program);
 	const locations = {
 		resolution: uniform('u_resolution'),
 		time: uniform('u_time'),
@@ -396,24 +171,7 @@ const createEngine = (canvas: HTMLCanvasElement): FigureEngine => {
 	gl.enable(gl.BLEND);
 	gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
-	/*
-	 * Größe nur bei echter Änderung schreiben: Jedes Schreiben von `canvas.width` leert den
-	 * Zeichenbuffer — ungefiltert bei jedem Resize ein Flackern, etwa beim Scrollbalken.
-	 */
-	let backingWidth = 0;
-	let backingHeight = 0;
-	const resize = (): void => {
-		const dpr = Math.min(window.devicePixelRatio || 1, 2);
-		const width = Math.max(1, Math.round(canvas.clientWidth * dpr));
-		const height = Math.max(1, Math.round(canvas.clientHeight * dpr));
-		if (width === backingWidth && height === backingHeight) return;
-		backingWidth = width;
-		backingHeight = height;
-		canvas.width = width;
-		canvas.height = height;
-		gl.viewport(0, 0, width, height);
-		gl.uniform2f(locations.resolution, width, height);
-	};
+	const resize = createResize(gl, canvas, locations.resolution);
 
 	/*
 	 * Selbst-stoppende Render-Maschine: Sie läuft nur, solange sich etwas bewegen darf und das Bild
