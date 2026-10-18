@@ -312,8 +312,7 @@ const validateSeriesFields = (
 		if (!startDate.ok) {
 			return startDate;
 		}
-		// allowNull=false: null wird vom Helfer abgelehnt, der Wert ist sicher ein Date.
-		attrs.startDate = startDate.value as Date;
+		attrs.startDate = startDate.value;
 	}
 	if (input.autoCreate !== undefined) {
 		if (typeof input.autoCreate !== 'boolean') {

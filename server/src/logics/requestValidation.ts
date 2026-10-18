@@ -31,8 +31,11 @@ export const validateRequestBody = (
 /**
  * Titel: Trim; im Pflicht-Modus (`required`) ist ein Wert erforderlich. Der Typ-/Leer-Check läuft
  * vor dem Pflicht-Check, damit ein ungültiger Wert unabhängig vom Modus dieselbe Meldung liefert.
+ * Overload: bei `required: true` ist der Erfolgswert garantiert ein String (nie undefined).
  */
-export const validateTitle = (value: unknown, required: boolean): FieldResult<string | undefined> => {
+export function validateTitle(value: unknown, required: true): FieldResult<string>;
+export function validateTitle(value: unknown, required: boolean): FieldResult<string | undefined>;
+export function validateTitle(value: unknown, required: boolean): FieldResult<string | undefined> {
 	if (value !== undefined) {
 		if (typeof value !== 'string' || value.trim() === '') {
 			return { ok: false, message: 'title muss ein nicht-leerer String sein.' };
@@ -43,7 +46,7 @@ export const validateTitle = (value: unknown, required: boolean): FieldResult<st
 		return { ok: false, message: 'title ist erforderlich.' };
 	}
 	return { ok: true, value: undefined };
-};
+}
 
 /** Priorität: Ganzzahl 1–5. */
 export const validatePriority = (value: unknown): FieldResult<number> => {
@@ -118,12 +121,19 @@ export const validateCoordinates = (
 /**
  * ISO-Datumsfeld: `null` nur bei `allowNull` erlaubt; die Meldung folgt dem Feld (`deadline` mit
  * „oder null", `startDate` ohne) — als Wortliterale, damit der Dedup-Spiegel sie zuordnen kann.
+ * Overload: bei `allowNull: false` ist der Erfolgswert garantiert ein Date (nie null).
  */
-export const validateIsoDate = (
+export function validateIsoDate(value: unknown, field: 'deadline' | 'startDate', allowNull: false): FieldResult<Date>;
+export function validateIsoDate(
 	value: unknown,
 	field: 'deadline' | 'startDate',
 	allowNull: boolean,
-): FieldResult<Date | null> => {
+): FieldResult<Date | null>;
+export function validateIsoDate(
+	value: unknown,
+	field: 'deadline' | 'startDate',
+	allowNull: boolean,
+): FieldResult<Date | null> {
 	if (value === null && allowNull) {
 		return { ok: true, value: null };
 	}
@@ -137,4 +147,4 @@ export const validateIsoDate = (
 		};
 	}
 	return { ok: true, value: new Date(value) };
-};
+}

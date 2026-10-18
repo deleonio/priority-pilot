@@ -28,8 +28,8 @@ const validateBody = (body: unknown): { ok: true; value: SuggestPillarsInputDto 
 	}
 	const { description, context } = bodyResult.value;
 	// `?? ''`: fehlender Titel fällt unter dieselbe Meldung wie leerer Titel (Verhalten unverändert);
-	// der Helfer trimmt dann garantiert einen String → Wert ist sicher ein string.
-	const title = validateTitle(bodyResult.value.title ?? '', false);
+	// Pflicht-Modus, damit der Helfer-Typ den Wert als String nachweist.
+	const title = validateTitle(bodyResult.value.title ?? '', true);
 	if (!title.ok) {
 		return title;
 	}
@@ -39,7 +39,7 @@ const validateBody = (body: unknown): { ok: true; value: SuggestPillarsInputDto 
 	if (context !== undefined && typeof context !== 'string') {
 		return { ok: false, message: 'context muss ein String sein.' };
 	}
-	return { ok: true, value: { title: title.value as string, description, context } };
+	return { ok: true, value: { title: title.value, description, context } };
 };
 
 /**
@@ -59,8 +59,8 @@ const validateFeedbackBody = (
 	}
 	const { description, pillars } = bodyResult.value;
 	// `?? ''`: fehlender Titel fällt unter dieselbe Meldung wie leerer Titel (Verhalten unverändert);
-	// der Helfer trimmt dann garantiert einen String → Wert ist sicher ein string.
-	const title = validateTitle(bodyResult.value.title ?? '', false);
+	// Pflicht-Modus, damit der Helfer-Typ den Wert als String nachweist.
+	const title = validateTitle(bodyResult.value.title ?? '', true);
 	if (!title.ok) {
 		return title;
 	}
@@ -98,7 +98,7 @@ const validateFeedbackBody = (
 	return {
 		ok: true,
 		value: {
-			title: title.value as string,
+			title: title.value,
 			description: typeof description === 'string' ? description : undefined,
 			pillars: validated,
 		},
