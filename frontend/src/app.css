@@ -4565,6 +4565,7 @@ kol-alert {
  */
 .heart-balance-stage {
 	width: 100%;
+	position: relative;
 	/* Höhen-Deckel zusätzlich zum Breiten-Deckel: Auf kurzen Viewports (Kleinfenster, Phones)
 	   schrumpft die Bühne so weit, dass Karte und Ablesewert ohne Scrollen in den Viewport
 	   passen — das Budget (~29.5rem) deckt Kopfzeile bis Readout; die Legende darf unter dem
@@ -4580,6 +4581,23 @@ kol-alert {
 .balance-variant-hint {
 	margin-block-start: var(--pp-gap-base);
 	color: var(--pp-text-muted);
+}
+
+/*
+ * Erster Start ohne gerätelokalen Stand: Bis zur ersten Server-Antwort stehen Bild und Ablesewert
+ * unsichtbar (#2676) — der Drehmelder zentriert in der freigehaltenen Bühne, statt ein leeres
+ * Feld zu zeigen. Er sitzt an der Bühne, also über dem Bild und nicht über der verborgenen
+ * Ablesezeile. `visibility` erbt: Die Bühne hält sich bis zur Freigabe per Inline-Style
+ * `visibility: hidden` verborgen (#2676-Gate) — ohne eigene Gegenangabe wäre der Melder genau im
+ * Moment seiner Bestimmung unsichtbar (Kreuzverhör #2740), daher hebt er die Erbschaft selbst auf.
+ */
+.heart-balance-loading {
+	visibility: visible;
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 /* Vorschau in den Einstellungen: dieselbe Bühne, klein und unter der Auswahl. */

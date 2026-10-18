@@ -47,6 +47,26 @@ test.describe('Dashboard — Herz der Lebensbalance', () => {
 		await deleteAllTasks(page);
 	});
 
+	test('zeigt bis zur ersten Server-Antwort den Ladeindikator auf der Bühne', async ({ page }) => {
+		// Erster Start ohne gerätelokalen Spiegel (frische Session): Die Balance-Antwort bleibt
+		// bewusst aus — erst der Block macht das Warten deterministisch, sonst rennt die Assertion
+		// gegen die Netzantwort. Geprüft wird die Sichtbarkeit, nicht nur DOM-Präsenz: Der Melder
+		// sitzt in der per Inline-Style verborgenen Bühne und hebt die geerbte Unsichtbarkeit nur
+		// mit eigenem `visibility: visible` auf (Kreuzverhör #2740).
+		await page.route('**/scores/balance?*', () => new Promise(() => undefined));
+		await page.goto('/app/');
+		await waitForStableView(page);
+		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
+		const loading = page.locator('.heart-balance-loading');
+		await expect(loading).toBeVisible();
+
+		// Erste Antwort: Der Indikator entfällt wieder.
+		await page.unroute('**/scores/balance?*');
+		await page.reload();
+		await waitForStableView(page);
+		await expect(loading).toBeHidden();
+	});
+
 	test('steht als erstes Widget und mittig in seiner Karte (375×812)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await openDashboard(page);

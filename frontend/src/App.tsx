@@ -49,6 +49,7 @@ import { TaskFormModal, taskAsTemplateInitialValues } from './components/TaskFor
 import { TaskTree } from './components/TaskTree';
 import { filterForest, nodeMatchesFilter } from './lib/filterForest';
 import { buildBalancePriorities } from './lib/balancePriority';
+import { clearBalanceStatusCache } from './lib/balanceStatusCache';
 import {
 	dismissBalanceHint,
 	hasStoredBalancePreference,
@@ -732,6 +733,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			// #1458 AK2: Paket-Spiegel des Kontos löschen — auf einem geteilten Gerät darf das nächste
 			// Konto nie die Badges des vorigen sehen.
 			clearPlanMirror(user.id);
+			// Derselbe Grund für den Balance-Spiegel (`balanceStatusCache.ts`) — der Zifferblatt-Stand
+			// des vorigen Kontos darf dem nächsten nicht vorantwortet werden.
+			clearBalanceStatusCache(user.id);
 			// Issue #396 PR B — Logout-Sperre: „gerade abgemeldet"-Marker unterdrückt den nächsten
 			// stillen Re-Login (s. Root.tsx), sonst wäre ein Ausloggen praktisch unmöglich.
 			sessionStorage.setItem('pp_just_logged_out', '1');
@@ -1468,6 +1472,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 									) : (
 										<>
 											<Dashboard
+												userId={user.id}
 												tasks={tasks}
 												forest={forest}
 												nextTask={nextTask}

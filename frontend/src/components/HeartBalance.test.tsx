@@ -167,6 +167,22 @@ describe('HeartBalance', () => {
 			expect(screen.getByTestId('heart-balance-value').textContent).toBe('42 %');
 		});
 
+		/*
+		 * Erster Start ohne gerätelokalen Stand: Das Bild bleibt bis zur ersten Server-Antwort
+		 * unsichtbar — der Drehmelder füllt die freigehaltene Bühne, statt ein leeres Feld zu zeigen.
+		 * Mit der Freigabe entfällt er wieder.
+		 */
+		it('zeigt bis zur ersten Freigabe einen Ladeindikator auf der Bühne', () => {
+			const props = { pillars, punkteProSaeule: gleichverteilt, fill: 0.42 } as const;
+			const { container, rerender } = render(<HeartBalance {...props} auftaktBereit={false} />);
+
+			expect(container.querySelector('.heart-balance-loading kol-spin')).not.toBeNull();
+
+			rerender(<HeartBalance {...props} auftaktBereit />);
+
+			expect(container.querySelector('kol-spin')).toBeNull();
+		});
+
 		// #2645 (docs/spec/issue-2645.md): Das Dashboard leitet die Urteilsreife aus der
 		// Balance-Antwort ab (#2633-Felder) und reicht sie als optionale Prop durch — `undefined`
 		// (Server-Felder fehlen) bleibt bisheriges Verhalten. Die Prop existiert noch nicht und wird
