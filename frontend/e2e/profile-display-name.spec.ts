@@ -44,7 +44,8 @@ test.describe('Balamentum — #1219: Anzeigename', () => {
 		// (dort stehen nur die Initialen „E1"), sondern als `_label` des Avatars (der
 		// Accessible Name, den Screenreader verlesen). Präzedenz: header-appearance.spec.ts
 		// AK3 (Smoke) prüft `kol-avatar` genauso. Rot vor der Impl: kein Speichern vorhanden.
-		await expect(page.locator('.app-header__user kol-avatar')).toHaveAttribute('_label', uniqueName, {
+		// #2723-Fixup: Der Trigger-Avatar ist dekorativ (`_label=""`) — der Name lebt im Panel-Avatar.
+		await expect(page.locator('.app-header__user-menu-panel kol-avatar')).toHaveAttribute('_label', uniqueName, {
 			timeout: 10_000,
 		});
 	});

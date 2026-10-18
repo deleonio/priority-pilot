@@ -786,6 +786,19 @@ kol-toolbar {
 }
 
 /*
+ * #2723-Fixup: Der Avatar im Expert-Slot des Triggers bleibt kompakt — 26px plus Button-Padding
+ * (16px) und Rahmen (2px) ergeben exakt die 44px-Touch-Höhe des Buttons, die Leistenhöhe wächst
+ * dadurch nicht (mobile-shell-Einzeilen-Vertrag ≤ 64px, #865-Geometrie: Header < Logo + Toolbar).
+ * Das große Profilbild (32/55px über `--pp-avatar-size`, `.app-header kol-avatar`) steht im Panel.
+ * Spezifität (0,2,2) schlägt die ungeschichtete `.app-header kol-avatar`-Regel (0,1,1).
+ */
+.app-header__user-menu span[slot='expert'] kol-avatar {
+	width: calc(var(--pp-toolbar-height) - 18px);
+	height: calc(var(--pp-toolbar-height) - 18px);
+	aspect-ratio: 1;
+}
+
+/*
  * #2723: Menü-Panel des Benutzermenüs — Avatar über den beiden Einträgen, die über die volle
  * Panel-Breite tappbar sind (KolButton-Hosts sind block-level). Die Breite bemisst
  * `setupPopoverAlignment` am Inhalt (max-content); Abstände aus der --pp-space-Skala.

@@ -36,9 +36,10 @@ test.describe('#718 Avatar auf Mobile wiederherstellen', () => {
 			name: 'Neuen Task anlegen',
 		});
 		// #2723: Avatar liegt im Avatar-Popover — Messungen mit geöffnetem Menü (das fixed
-		// positionierte Panel beeinflusst die Header-Box nicht).
+		// positionierte Panel beeinflusst die Header-Box nicht). #2723-Fixup: Messobjekt ist der
+		// große Panel-Avatar — der Trigger trägt zusätzlich einen kompakten, dekorativen Avatar.
 		await openAvatarMenu(page);
-		const avatar = header.locator('kol-avatar').first();
+		const avatar = header.locator('.app-header__user-menu-panel kol-avatar');
 
 		await expect(logoImg).toBeVisible();
 		await expect(toolbarBtn).toBeVisible();

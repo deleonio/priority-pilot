@@ -160,8 +160,9 @@ test.describe('#1320 Einstellungen als normale Seite mit sichtbarem Header', () 
 		await expect(page.getByRole('banner')).toBeVisible();
 		await expect(page.getByRole('toolbar', { name: /Kopf-Aktionen/ })).toBeVisible();
 		// #2723: Der Avatar liegt im Avatar-Popover — mit geöffnetem Menü sichtbar.
+		// #2723-Fixup: auf den Panel-Avatar scopen — der Trigger trägt zusätzlich einen kompakten Avatar.
 		await openAvatarMenu(page);
-		await expect(page.locator('kol-avatar')).toBeVisible();
+		await expect(page.locator('.app-header__user-menu-panel kol-avatar')).toBeVisible();
 	});
 
 	/** AK3 — Kein Button mit dem zugänglichen Namen „Zurück" existiert mehr. */

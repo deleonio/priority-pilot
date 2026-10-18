@@ -63,7 +63,8 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 		const { avatar, header } = await readHeaderState(page);
 
 		await expect(avatar).toBeVisible();
-		await expect(header.locator('kol-avatar')).toHaveCount(1);
+		// #2723-Fixup: zwei kol-avatar im Header-Teilbaum — Trigger (Kopfzeile) + Panel (Popover).
+		await expect(header.locator('kol-avatar')).toHaveCount(2);
 	});
 
 	/**
@@ -122,7 +123,8 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 		const { avatar, header } = await readHeaderState(page);
 
 		await expect(avatar).toBeVisible();
-		await expect(header.locator('kol-avatar')).toHaveCount(1);
+		// #2723-Fixup: zwei kol-avatar im Header-Teilbaum — Trigger (Kopfzeile) + Panel (Popover).
+		await expect(header.locator('kol-avatar')).toHaveCount(2);
 	});
 
 	/**

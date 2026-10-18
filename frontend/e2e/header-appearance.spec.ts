@@ -14,9 +14,9 @@ import { openAvatarMenu, waitForStableView } from './helpers';
  * AK2 (Avatar kleiner) und AK4 (Light/Dark konsistent) werden manuell visuell verifiziert;
  * ein Screenshot-Diff-Tool (z. B. Playwright visual comparisons) könnte später ergänzt werden.
  *
- * Test-Pflege #2723: Der Avatar ist aus der Kopfzeile ins Avatar-Popover (Benutzermenü)
- * gewandert — die Maß-Verträge messen seitdem mit geöffnetem Menü; der Mittellinie-Vertrag
- * (AK4 unten) entfällt, der Avatar liegt nicht mehr in der Kopfzeilen-Zeile.
+ * Test-Pflege #2723 → Fixup (Review): Der Trigger trägt den Avatar wieder in der Kopfzeilen-Zeile
+ * (Expert-Slot, kompakt 26px im 44px-Button); die Maß-Verträge messen weiterhin den großen
+ * Panel-Avatar (32/55px) mit geöffnetem Menü; der Mittellinie-Vertrag (AK4 unten) bleibt entfallen.
  */
 test.describe('#222 App-Header — Homogenität', () => {
 	/**
@@ -41,7 +41,8 @@ test.describe('#222 App-Header — Homogenität', () => {
 		await waitForStableView(page);
 
 		await openAvatarMenu(page);
-		const avatar = page.locator('header kol-avatar').first();
+		// #2723-Fixup: Trigger-Avatar ist dekorativ (_label=""), der Benutzernamen steht am Panel-Avatar.
+		const avatar = page.locator('.app-header__user-menu-panel kol-avatar');
 		await expect(avatar).toBeVisible();
 		await expect(avatar).toHaveAttribute('_label', 'Test User');
 	});
@@ -80,10 +81,9 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 		const toolbarBtn = header.getByRole('toolbar', { name: /Kopf-Aktionen/i }).getByRole('button', {
 			name: 'Neuen Task anlegen',
 		});
-		// #2723: Avatar liegt im Avatar-Popover — Messungen mit geöffnetem Menü (das fixed
-		// positionierte Panel beeinflusst die Header-Box nicht).
+		// #2723-Fixup: Messobjekt bleibt der große Panel-Avatar (Trigger-Avatar ist kompakt/dekorativ).
 		await openAvatarMenu(page);
-		const avatar = header.locator('kol-avatar').first();
+		const avatar = header.locator('.app-header__user-menu-panel kol-avatar');
 
 		await expect(logoImg).toBeVisible();
 		await expect(toolbarBtn).toBeVisible();

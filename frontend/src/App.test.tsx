@@ -352,7 +352,8 @@ describe('App — Homogenerer Header (#222)', () => {
 		await waitFor(() => {
 			expect(screen.getByText(/Hallo/i)).toBeTruthy();
 		});
-		const avatar = document.querySelector('kol-avatar');
+		// #2723-Fixup: Der Namens-Avatar liegt im Popover-Panel; der Trigger-Avatar ist dekorativ (_label="").
+		const avatar = document.querySelector('.app-header__user-menu-panel kol-avatar');
 		expect(avatar).not.toBeNull();
 		expect(avatar?.getAttribute('_label')).toBe('Erika Muster');
 	});
