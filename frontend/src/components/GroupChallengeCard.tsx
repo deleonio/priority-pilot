@@ -61,7 +61,16 @@ export const GroupChallengeCard = ({ groupId }: { groupId: number }) => {
 		let blob: Blob;
 		try {
 			blob = await rasterisiere(
-				erzeugeChallengeKarteSvg({ gruppe: abgeschlossen.gruppe, zeitraum, rangfolge: abgeschlossen.rangfolge }),
+				erzeugeChallengeKarteSvg({
+					gruppe: abgeschlossen.gruppe,
+					zeitraum,
+					rangfolge: abgeschlossen.rangfolge,
+					marken: {
+						balamentum: t('challengeCard.marken.balamentum'),
+						play: t('challengeCard.marken.play'),
+						pwa: t('challengeCard.marken.pwa'),
+					},
+				}),
 			);
 		} catch {
 			setError(t('groups:challengeCard.cardError'));

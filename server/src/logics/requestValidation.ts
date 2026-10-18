@@ -6,6 +6,8 @@
  * Fehler-Präzedenz bei mehrfach ungültigem Body unverändert bleibt.
  */
 
+import { MAX_EFFORT, MIN_EFFORT } from './effort.js';
+
 /** Generischer Erfolgs-/Fehler-Kanal der Body-Validierung; der Erfolgs-Shape bleibt beim Aufrufer. */
 export type ValidationResult<T extends { ok: true }> = T | { ok: false; message: string };
 
@@ -53,7 +55,7 @@ export const validatePriority = (value: unknown): FieldResult<number> => {
 
 /** Geschätzter Aufwand: endliche Zahl 0.1–1. */
 export const validateEstimatedEffort = (value: unknown): FieldResult<number> => {
-	if (typeof value !== 'number' || !Number.isFinite(value) || value < 0.1 || value > 1) {
+	if (typeof value !== 'number' || !Number.isFinite(value) || value < MIN_EFFORT || value > MAX_EFFORT) {
 		return { ok: false, message: 'estimatedEffort muss eine Zahl zwischen 0.1 und 1 sein.' };
 	}
 	return { ok: true, value };

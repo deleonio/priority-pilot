@@ -127,7 +127,12 @@
 		"teilen": "Share week",
 		"speichern": "Save PNG",
 		"erzeuge": "Creating the card …",
-		"fehler": "The card could not be created. Please try again."
+		"fehler": "The card could not be created. Please try again.",
+		"marken": {
+			"balamentum": "Balamentum",
+			"play": "Get it on Google Play",
+			"pwa": "Installable as an app (PWA)"
+		}
 	},
 	"monthlyCard": {
 		"label": "My month in five pillars",

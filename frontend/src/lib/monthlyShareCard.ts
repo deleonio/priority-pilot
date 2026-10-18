@@ -9,8 +9,18 @@
  * welche gibt — keine „0 Meilensteine“-Zeile (Fürsorge-Tonalität: sorgt, nicht protokolliert).
  */
 import i18next from '../i18n/config';
-import logoDunkel from '../assets/logo-with-name.horizontal.dark.svg?raw';
-import { GEDAEMPFT, GRUND, KARTE_BREITE, KARTE_HOEHE, RAMPE, TINTE, xml } from './weeklyShareCard';
+import {
+	GEDAEMPFT,
+	GRUND,
+	KARTE_BREITE,
+	KARTE_HOEHE,
+	RAMPE,
+	TINTE,
+	kartenFusszeile,
+	kartenKopfzeile,
+	xml,
+	type KartenMarken,
+} from './weeklyShareCard';
 
 export interface MonatsKarteDaten {
 	/** Name und Wert je Säule — bewusst nur das: Aufgabentitel/-inhalte dürfen nie ankommen (AK2). */
@@ -20,38 +30,15 @@ export interface MonatsKarteDaten {
 	meilensteine: string[];
 	monat: string;
 	/** Übersetzte Logo-Bezeichnungen der Marken-Elemente (#2255, #2275) — ohne Parameter deutsche Defaults. */
-	marken?: { balamentum: string; play: string; pwa: string };
+	marken?: KartenMarken;
 }
 
-/** Deutsche Default-Bezeichnungen — die Karte ist ohne Component-Kontext erzeugbar (#2255 AK3). */
-const MARKEN_DEFAULTS = {
-	balamentum: 'Balamentum',
-	play: 'Erhältlich bei Google Play',
-	pwa: 'Als App installierbar (PWA)',
-};
-
-/** Google-Play-Logo als Inline-Pfade (vier Keile, unverzerrt 1:1) — Rasterung lädt keine externen Referenzen. */
-const SPIEL_LOGO = [
-	'<path fill="#00d2ff" d="M2 1 L12 12 L2 23 Z"></path>',
-	'<path fill="#00f076" d="M2 1 L17.2 7.6 L12 12 Z"></path>',
-	'<path fill="#ffc900" d="M17.2 7.6 L21.5 12 L17.2 16.4 L12 12 Z"></path>',
-	'<path fill="#ff3a44" d="M2 23 L17.2 16.4 L12 12 Z"></path>',
-].join('');
-
-/** PWA-Blitz als Inline-Pfad — identisch im data-URL-Logo und in der Karten-Fußzeile (#2255). */
-const PWA_LOGO_PFAD = '<path fill="#00a8ff" d="M10 0 L3 11 H8 L7 20 L16 8 H11 L14 0 Z"></path>';
-
-/** Dunkle Wortmarke (helle Schrift, Schrift + Bild eingebettet) als data-URL — keine externe Referenz (#2275 AK1/AK3). */
-const LOGO_DATEN_URL = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(logoDunkel)}`;
-/** Kopfzeilen-Logo: viewBox 685×104 auf Höhe 32 skaliert. */
-const LOGO_BREITE = Math.round((685 / 104) * 32);
 /** Säulenname ab dieser Länge mit Ellipse kürzen statt kleiner zu setzen (Lesbarkeit bei 375 px, #2275). */
 const NAME_MAX = 12;
 /** Hintergrund-Track der Säulen — leicht heller als GRUND, reine Dekoration. */
 const TRACK = '#1d2939';
 
 export const erzeugeMonatsKarteSvg = ({ saeulen, streak, meilensteine, monat, marken }: MonatsKarteDaten): string => {
-	const bezeichnungen = marken ?? MARKEN_DEFAULTS;
 	const maximal = Math.max(1, ...saeulen.map((s) => s.wert));
 	const basisY = 300;
 	const maximalHoehe = 160;
@@ -82,16 +69,13 @@ export const erzeugeMonatsKarteSvg = ({ saeulen, streak, meilensteine, monat, ma
 		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${KARTE_BREITE} ${KARTE_HOEHE}" width="${KARTE_BREITE}" height="${KARTE_HOEHE}" font-family="system-ui, sans-serif">`,
 		`<rect width="${KARTE_BREITE}" height="${KARTE_HOEHE}" fill="${GRUND}"></rect>`,
 		// Kopfzeile (#2275): Logo links, Monat rechtsbündig — Werbefläche oben, Balken darunter.
-		`<g id="brand-balamentum" transform="translate(48,24)"><title>${xml(bezeichnungen.balamentum)}</title><image href="${LOGO_DATEN_URL}" width="${LOGO_BREITE}" height="32"></image></g>`,
-		`<text x="${KARTE_BREITE - 48}" y="46" text-anchor="end" font-size="16" font-weight="600" fill="${TINTE}">${xml(monat)}</text>`,
+		kartenKopfzeile(monat, marken),
 		`<line x1="48" y1="${basisY}" x2="${KARTE_BREITE - 48}" y2="${basisY}" stroke="${GEDAEMPFT}" stroke-opacity="0.4"></line>`,
 		spalten,
 		meilensteinZeile,
 		`<text x="48" y="376" font-size="15"><tspan fill="${GEDAEMPFT}">Streak </tspan><tspan font-weight="700" fill="${TINTE}">${streak}</tspan></text>`,
 		// Fußzeile (#2275): Domain als einziger Link (Call-to-Action), danach Play/PWA — alle Logos inline.
-		`<a href="https://balamentum.modevel.de"><text x="190" y="376" font-size="16" fill="${TINTE}">balamentum.modevel.de</text></a>`,
-		`<g id="brand-google-play" transform="translate(440,360) scale(0.92)"><title>${xml(bezeichnungen.play)}</title>${SPIEL_LOGO}</g>`,
-		`<g id="brand-pwa" transform="translate(480,362)"><title>${xml(bezeichnungen.pwa)}</title>${PWA_LOGO_PFAD}<text x="19" y="15" font-size="14" font-weight="800" fill="#00a8ff">PWA</text></g>`,
+		kartenFusszeile(marken),
 		'</svg>',
 	].join('');
 };

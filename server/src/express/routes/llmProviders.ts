@@ -630,7 +630,11 @@ export const createLlmProvidersRouter = (
 					},
 					(error: unknown) => {
 						testResultsCache.delete(id); // unerwarteter Runner-Fehler → neu testen lassen
-						void quota?.refund().catch(() => undefined);
+						void quota?.refund().catch((error: unknown) => {
+							// Eine verlorene Rückbuchung kostet einen Budgetpunkt — Ursache sichtbar machen
+							// (Muster: aiQuotaMeter), ohne die Fehlerantwort zu blockieren.
+							console.warn('KI-Budget-Rückbuchung fehlgeschlagen', error);
+						});
 						throw error;
 					},
 				),

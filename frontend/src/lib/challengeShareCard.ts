@@ -7,12 +7,24 @@
  * Die Karte enthält bewusst nur Gruppenname, Zeitraum und Rang/Name/Wert — keine Aufgabeninhalte.
  */
 import i18next from '../i18n/config';
-import { GEDAEMPFT, GRUND, KARTE_BREITE, KARTE_HOEHE, TINTE, xml } from './weeklyShareCard';
+import {
+	GEDAEMPFT,
+	GRUND,
+	KARTE_BREITE,
+	KARTE_HOEHE,
+	TINTE,
+	kartenFusszeile,
+	kartenKopfzeile,
+	xml,
+	type KartenMarken,
+} from './weeklyShareCard';
 
 export interface ChallengeKarteDaten {
 	gruppe: string;
 	zeitraum: string;
 	rangfolge: { name: string; rang: number; balance: number | null }[];
+	/** Übersetzte Logo-Bezeichnungen der Marken-Elemente (#2255, #2275) — ohne Parameter deutsche Defaults. */
+	marken?: KartenMarken;
 }
 
 /** Mehr Zeilen passen nicht auf die feste Kartenhöhe — der Rest steht als „+ n weitere“. */
@@ -25,7 +37,7 @@ export const balanceText = (balance: number | null): string =>
 
 const kuerze = (name: string): string => (name.length > MAX_NAME ? `${name.slice(0, MAX_NAME - 1)}…` : name);
 
-export const erzeugeChallengeKarteSvg = ({ gruppe, zeitraum, rangfolge }: ChallengeKarteDaten): string => {
+export const erzeugeChallengeKarteSvg = ({ gruppe, zeitraum, rangfolge, marken }: ChallengeKarteDaten): string => {
 	const zeilen = rangfolge
 		.slice(0, MAX_ZEILEN)
 		.map((eintrag, index) => {
@@ -46,12 +58,12 @@ export const erzeugeChallengeKarteSvg = ({ gruppe, zeitraum, rangfolge }: Challe
 	return [
 		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${KARTE_BREITE} ${KARTE_HOEHE}" width="${KARTE_BREITE}" height="${KARTE_HOEHE}" font-family="system-ui, sans-serif">`,
 		`<rect width="${KARTE_BREITE}" height="${KARTE_HOEHE}" fill="${GRUND}"></rect>`,
-		`<text x="48" y="48" font-size="18" font-weight="700" fill="${TINTE}">${xml(gruppe)}</text>`,
-		`<text x="48" y="74" font-size="14" fill="${GEDAEMPFT}">${xml(i18next.t('dashboard:challengeCard.subtitle', { period: zeitraum }))}</text>`,
+		kartenKopfzeile(gruppe, marken),
+		`<text x="${KARTE_BREITE - 48}" y="74" text-anchor="end" font-size="14" fill="${GEDAEMPFT}">${xml(i18next.t('dashboard:challengeCard.subtitle', { period: zeitraum }))}</text>`,
 		`<text x="48" y="112" font-size="13" fill="${GEDAEMPFT}">${xml(i18next.t('dashboard:challengeCard.ranking'))}</text>`,
 		zeilen,
 		rest,
-		`<a href="https://balamentum.modevel.de"><text x="${KARTE_BREITE - 48}" y="372" text-anchor="end" font-size="14" fill="${GEDAEMPFT}">balamentum.modevel.de</text></a>`,
+		kartenFusszeile(marken),
 		'</svg>',
 	].join('');
 };

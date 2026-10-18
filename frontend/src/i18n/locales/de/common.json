@@ -127,7 +127,12 @@
 		"teilen": "Woche teilen",
 		"speichern": "PNG speichern",
 		"erzeuge": "Karte wird erzeugt …",
-		"fehler": "Die Karte konnte nicht erzeugt werden. Versuche es bitte noch einmal."
+		"fehler": "Die Karte konnte nicht erzeugt werden. Versuche es bitte noch einmal.",
+		"marken": {
+			"balamentum": "Balamentum",
+			"play": "Erhältlich bei Google Play",
+			"pwa": "Als App installierbar (PWA)"
+		}
 	},
 	"monthlyCard": {
 		"label": "Mein Monat in fünf Säulen",
