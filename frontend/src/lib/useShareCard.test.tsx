@@ -1,9 +1,6 @@
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-// ROTER Spec-Test (#2695, docs/spec/issue-2695.md): `useShareCard` existiert noch nicht —
-// zur Laufzeit schlägt der Import fehl (erwarteter Rot-Zustand); das @ts-expect-error hält nur
-// den Pre-Commit-tsc grün und ist mit der Implementierung zu ENTFERNEN.
-// @ts-expect-error rot: Modul entsteht in der Impl-Phase
+// Spec-Tests #2695 (docs/spec/issue-2695.md) — seit der Umsetzung grün.
 import { useShareCard } from './useShareCard';
 import { rasterisiere } from './karteRasterisieren';
 

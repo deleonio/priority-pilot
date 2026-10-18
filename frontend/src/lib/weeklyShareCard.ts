@@ -42,7 +42,7 @@ export interface KartenMarken {
 }
 
 /** Deutsche Default-Bezeichnungen — jede Karte ist ohne Component-Kontext erzeugbar (#2255 AK3). */
-export const MARKEN_DEFAULTS: KartenMarken = {
+const MARKEN_DEFAULTS: KartenMarken = {
 	balamentum: 'Balamentum',
 	play: 'Erhältlich bei Google Play',
 	pwa: 'Als App installierbar (PWA)',
