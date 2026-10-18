@@ -21,6 +21,7 @@ import { requestMicrophonePermission } from '../lib/micPermission';
 import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
 import { useGeolocation, GEO_CONFIG_CHANGED_EVENT } from '../lib/useGeolocation';
 import { notifyProfileChanged } from '../lib/profileChanged';
+import { isNativeChannel } from '../lib/platform';
 import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
 import { useAiFeaturesEnabled } from '../lib/aiPreferences';
@@ -252,10 +253,19 @@ export const SettingsPage = ({
 		enabled: pushEnabled,
 		pending: pushPending,
 		failed: pushFailed,
+		failureReason: pushFailure,
 		toggle: togglePush,
 	} = usePushSubscription();
 
 	const [pushTestResult, setPushTestResult] = useState<'success' | 'none' | 'error' | null>(null);
+
+	// Der Fehlertext folgt Kanal und Grund: In der App helfen die Android-Einstellungen bzw. ein
+	// App-Update weiter, im Browser die Browser-Berechtigung.
+	const pushFailedTextKey = isNativeChannel()
+		? pushFailure === 'denied'
+			? 'settingsPage.notifications.pushFailedAppDeniedText'
+			: 'settingsPage.notifications.pushFailedAppErrorText'
+		: 'settingsPage.notifications.pushFailedText';
 
 	// #1794 AK7: Fürsorge-Schalter — serverseitig pro User gespeichert und unabhängig vom
 	// Push-Hauptschalter bedienbar (er stoppt nur den Fürsorge-Push, nicht die Frist-Erinnerungen).
@@ -686,7 +696,7 @@ export const SettingsPage = ({
 										    Test-Push-Ergebnis-Alerts (#932/#886) bleiben eigene Zeilen außerhalb. */}
 									{pushFailed && (
 										<KolAlert _type="warning" _label={t('settingsPage.notifications.pushFailedLabel')}>
-											{t('settingsPage.notifications.pushFailedText')}
+											{t(pushFailedTextKey)}
 										</KolAlert>
 									)}
 								</div>

@@ -116,7 +116,7 @@ describe('lib/push', () => {
 			});
 		});
 
-		it('gibt false zurück und subscribed nicht, wenn die Berechtigung verweigert wird', async () => {
+		it("gibt 'denied' zurück und subscribed nicht, wenn die Berechtigung verweigert wird", async () => {
 			installNotification('denied');
 			const pushManager: PushManagerMock = {
 				getSubscription: vi.fn().mockResolvedValue(null),
@@ -126,7 +126,7 @@ describe('lib/push', () => {
 
 			const result = await enablePush();
 
-			expect(result).toBe(false);
+			expect(result).toBe('denied');
 			expect(pushManager.subscribe).not.toHaveBeenCalled();
 			expect(mockedApi.subscribePush).not.toHaveBeenCalled();
 		});

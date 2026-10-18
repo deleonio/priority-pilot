@@ -18,19 +18,22 @@ import { isNativeChannel } from './platform';
  */
 const FCM_TOKEN_KEY = 'pp-fcm-token';
 
+/** Warum das Aktivieren scheiterte: verweigerte Berechtigung oder technischer Fehler (Registrierung/Netz). */
+export type PushFailureReason = 'denied' | 'error';
+
 // Nur das Modul liefern, nie den Plugin-Proxy selbst: Der Proxy beantwortet auch `then`, ein `await` auf
 // ihn riefe eine Plugin-Methode „then“ auf.
 const loadPushPlugin = () => import('@capacitor/push-notifications');
 
 /** Fragt die Android-Berechtigung (ab Android 13) ab, holt das FCM-Token und meldet es beim Server an. */
-const enableNativePush = async (shouldAbort?: () => boolean): Promise<boolean> => {
+const enableNativePush = async (shouldAbort?: () => boolean): Promise<true | PushFailureReason> => {
 	const { PushNotifications: plugin } = await loadPushPlugin();
 	let { receive } = await plugin.checkPermissions();
 	if (receive !== 'granted' && receive !== 'denied') {
 		({ receive } = await plugin.requestPermissions());
 	}
 	if (receive !== 'granted' || shouldAbort?.()) {
-		return false;
+		return 'denied';
 	}
 	let settle: { resolve: (token: string) => void; reject: (error: Error) => void } | undefined;
 	const tokenReceived = new Promise<string>((resolve, reject) => {
@@ -40,19 +43,22 @@ const enableNativePush = async (shouldAbort?: () => boolean): Promise<boolean> =
 		plugin.addListener('registration', ({ value }) => settle?.resolve(value)),
 		plugin.addListener('registrationError', ({ error }) => settle?.reject(new Error(error))),
 	]);
-	let token: string;
+	// Registrieren und Server-Anmeldung sind technische Fehler — anders als die verweigerte
+	// Berechtigung verdienen sie einen eigenen Hinweis statt der Anleitung zur Browser-Berechtigung.
 	try {
 		await plugin.register();
-		token = await tokenReceived;
+		const token = await tokenReceived;
+		if (shouldAbort?.()) {
+			return 'denied';
+		}
+		await api.registerFcmToken(token);
+		localStorage.setItem(FCM_TOKEN_KEY, token);
+		return true;
+	} catch {
+		return 'error';
 	} finally {
 		await Promise.all(handles.map((handle) => handle.remove()));
 	}
-	if (shouldAbort?.()) {
-		return false;
-	}
-	await api.registerFcmToken(token);
-	localStorage.setItem(FCM_TOKEN_KEY, token);
-	return true;
 };
 
 const disableNativePush = async (): Promise<void> => {
@@ -134,20 +140,19 @@ export const hasActiveSubscription = async (): Promise<boolean> => {
 
 /**
  * Fragt die Berechtigung an, erstellt eine Subscription (mit dem VAPID-Public-Key vom Server) und
- * meldet sie am Backend an. Gibt `true` bei Erfolg zurück; `false`, wenn Web-Push nicht unterstützt
- * wird, der Nutzer die Berechtigung nicht erteilt oder `shouldAbort` zwischendurch `true` liefert
- * (Race-Schutz des Mount-Resyncs gegen `toggle(false)`).
+ * meldet sie am Backend an. Gibt `true` bei Erfolg zurück, sonst den `PushFailureReason`;
+ * `shouldAbort` bricht zwischendurch ab (Race-Schutz des Mount-Resyncs gegen `toggle(false)`).
  */
-export const enablePush = async (options?: { shouldAbort?: () => boolean }): Promise<boolean> => {
+export const enablePush = async (options?: { shouldAbort?: () => boolean }): Promise<true | PushFailureReason> => {
 	if (isNativeChannel()) {
 		return enableNativePush(options?.shouldAbort);
 	}
 	if (!isPushSupported()) {
-		return false;
+		return 'error';
 	}
 	const permission = await Notification.requestPermission();
 	if (permission !== 'granted') {
-		return false;
+		return 'denied';
 	}
 
 	const applicationServerKey = urlBase64ToUint8Array(await api.getVapidPublicKey());
@@ -163,12 +168,12 @@ export const enablePush = async (options?: { shouldAbort?: () => boolean }): Pro
 	// Race-Schutz (#1704): Abbruch zwischen den awaits prüfen — ein Mount-Resync, der vom
 	// Nutzer-`toggle(false)` überholt wurde, darf keine neue Subscription mehr erstellen.
 	if (options?.shouldAbort?.()) {
-		return false;
+		return 'error';
 	}
 	subscription ??= await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
 
 	if (options?.shouldAbort?.()) {
-		return false;
+		return 'error';
 	}
 	const json = subscription.toJSON();
 	const keys = json.keys ?? {};
@@ -235,6 +240,8 @@ interface UsePushSubscriptionResult {
 	pending: boolean;
 	/** Ob das Aktivieren fehlschlug (z. B. Berechtigung verweigert) — für einen Hinweis. */
 	failed: boolean;
+	/** Grund des letzten Fehlschlags — für einen zum Grund passenden Hinweis. */
+	failureReason: PushFailureReason | null;
 	/** Push aktivieren (`true`) oder deaktivieren (`false`). */
 	toggle: (next: boolean) => Promise<void>;
 }
@@ -251,6 +258,7 @@ export const usePushSubscription = (): UsePushSubscriptionResult => {
 	const [enabled, setEnabled] = useState<boolean>(readPushPreference);
 	const [pending, setPending] = useState(false);
 	const [failed, setFailed] = useState(false);
+	const [failureReason, setFailureReason] = useState<PushFailureReason | null>(null);
 	// Race-Schutz (#1704): `toggle(false)` setzt das Flag, bevor `disablePush` läuft — ein noch
 	// laufender Mount-Resync bricht damit vor subscribe/subscribePush ab, statt Push „wieder anzustellen".
 	const resyncAborted = useRef(false);
@@ -286,12 +294,14 @@ export const usePushSubscription = (): UsePushSubscriptionResult => {
 			}
 			setPending(true);
 			setFailed(false);
+			setFailureReason(null);
 			try {
 				if (next) {
-					const ok = await enablePush();
-					setEnabled(ok);
-					storePushPreference(ok);
-					setFailed(!ok);
+					const result = await enablePush();
+					setEnabled(result === true);
+					storePushPreference(result === true);
+					setFailed(result !== true);
+					setFailureReason(result === true ? null : result);
 				} else {
 					resyncAborted.current = true;
 					await disablePush();
@@ -303,6 +313,7 @@ export const usePushSubscription = (): UsePushSubscriptionResult => {
 				setEnabled(false);
 				storePushPreference(false);
 				setFailed(true);
+				setFailureReason('error');
 			} finally {
 				setPending(false);
 			}
@@ -310,5 +321,5 @@ export const usePushSubscription = (): UsePushSubscriptionResult => {
 		[pending],
 	);
 
-	return { supported, enabled, pending, failed, toggle };
+	return { supported, enabled, pending, failed, failureReason, toggle };
 };
