@@ -48,7 +48,7 @@ const DE: PrivacyText = {
 		{
 			heading: 'Keine Auswertung',
 			paragraphs: [
-				'Wir werten deine Daten nicht aus. Es gibt kein Nutzungsprofil, kein Werbe-Tracking und keine Werbung; die Inhalte deiner Aufgaben dienen allein deiner eigenen Planung. Wie viele Menschen Website und App besuchen, zählen wir ohne Cookies auf unserem eigenen Server (Abschnitt „Reichweitenmessung“).',
+				'Wir werten deine Daten nicht aus. Es gibt kein Nutzungsprofil, kein Werbe-Tracking und keine Werbung; die Inhalte deiner Aufgaben dienen allein deiner eigenen Planung. Wie viele Menschen Website und App besuchen, zählen wir nur mit deiner Zustimmung, ohne Cookies und auf unserem eigenen Server (Abschnitt „Reichweitenmessung“).',
 				'Einzige Ausnahme ist eine anonyme Zählung, ob Fürsorge-Vorschläge helfen: wie oft Vorschläge angezeigt, übernommen oder abgelehnt werden (ohne Bezug zu deinem Konto) und wie viele Konten 4 und 12 Wochen nach der Registrierung noch Aufgaben erledigen, getrennt nach eingeschalteten und ausgeschalteten Fürsorge-Hinweisen. Dafür speichern wir, wann du die Fürsorge-Hinweise ein- oder ausschaltest; dieser Verlauf wird mit deinem Konto gelöscht. Ausgewertet werden nur Summen, Gruppen mit weniger als fünf Personen werden nicht ausgewiesen.',
 			],
 		},
@@ -194,11 +194,12 @@ const DE: PrivacyText = {
 			paragraphs: [],
 			facts: {
 				purpose:
-					'Zählen, wie oft Website, Web-App und Android-App besucht werden, welche Seiten aufgerufen werden und von welcher Seite Besucher kommen. Wir nutzen Matomo ohne Cookies: Auf deinem Gerät wird nichts gespeichert, übertragen werden der Seitenpfad, der Seitentitel, die verweisende Seite, die Art des Zugangs (Browser, installierte Web-App oder Android-App) sowie technische Angaben zu Browser und Bildschirm, bei Klicks auf externe Links deren Ziel, nie Suchbegriffe, Aufgabeninhalte oder Anmelde-Links. Die IP-Adresse wird vor dem Speichern gekürzt, ein Besuch lässt sich nicht über den Tag hinaus wiedererkennen. Sendet dein Browser „Do Not Track“, zählen wir dich nicht.',
-				legalBasis: 'Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer datensparsamen Reichweitenmessung).',
+					'Nur mit deiner Zustimmung zählen wir, wie oft Website, Web-App und Android-App besucht werden, welche Seiten aufgerufen werden und von welcher Seite Besucher kommen, allein um Balamentum zu verbessern. Bis du die Messung im Hinweis einschaltest, ist sie aus und dein Gerät verbindet sich nicht mit dem Messserver. Ändern kannst du die Wahl jederzeit: auf der Website über „Reichweitenmessung“ in der Fußzeile, in der App unter Einstellungen → Allgemein. Die Wahl speichern wir nur in deinem Browser bzw. in der App. Wir nutzen Matomo ohne Cookies: Auf deinem Gerät wird nichts gespeichert, übertragen werden der Seitenpfad, der Seitentitel, die verweisende Seite, die Art des Zugangs (Browser, installierte Web-App oder Android-App) sowie technische Angaben zu Browser und Bildschirm, bei Klicks auf externe Links deren Ziel, nie Suchbegriffe, Aufgabeninhalte oder Anmelde-Links. Die IP-Adresse wird vor dem Speichern gekürzt, ein Besuch lässt sich nicht über den Tag hinaus wiedererkennen. Sendet dein Browser „Do Not Track“, zählen wir dich nicht.',
+				legalBasis:
+					'Art. 6 Abs. 1 lit. a DSGVO und § 25 Abs. 1 TDDDG (deine Einwilligung, jederzeit für die Zukunft widerrufbar). Das Speichern deiner Wahl ist technisch notwendig (§ 25 Abs. 2 Nr. 2 TDDDG).',
 				retention: 'Einzelne Besuche 180 Tage, danach nur zusammengefasste Zahlen ohne Personenbezug.',
 				recipients:
-					'Keine. Matomo läuft auf unserem eigenen Server bei Hetzner Online GmbH in Deutschland (siehe Abschnitt „Betrieb, Hosting und Sitzungs-Cookie“).',
+					'Keine. Matomo läuft selbst gehostet unter stats.modevel.de auf unserem eigenen Server bei Hetzner Online GmbH in Deutschland (siehe Abschnitt „Betrieb, Hosting und Sitzungs-Cookie“).',
 			},
 		},
 		{
@@ -263,7 +264,7 @@ const EN: PrivacyText = {
 		{
 			heading: 'No analysis',
 			paragraphs: [
-				'We do not analyse your data. There is no usage profile, no advertising tracking and no advertising; the content of your tasks serves your own planning alone. We count how many people visit the website and the app without cookies on our own server (section “Reach measurement”).',
+				'We do not analyse your data. There is no usage profile, no advertising tracking and no advertising; the content of your tasks serves your own planning alone. We count how many people visit the website and the app only with your consent, without cookies and on our own server (section “Reach measurement”).',
 				'The only exception is an anonymous count of whether care suggestions help: how often suggestions are shown, accepted or declined (without reference to your account) and how many accounts are still completing tasks 4 and 12 weeks after sign-up, split by care hints switched on and off. For this we store when you switch the care hints on or off; this history is deleted with your account. Only totals are evaluated; groups of fewer than five people are not reported.',
 			],
 		},
@@ -411,11 +412,12 @@ const EN: PrivacyText = {
 			paragraphs: [],
 			facts: {
 				purpose:
-					'Counting how often the website, web app and Android app are visited, which pages are opened and which page visitors come from. We use Matomo without cookies: nothing is stored on your device; we transmit the page path, the page title, the referring page, the type of access (browser, installed web app or Android app) and technical details about browser and screen, for clicks on external links their target, never search terms, task contents or sign-in links. The IP address is shortened before it is stored; a visit cannot be recognised beyond the day. If your browser sends “Do Not Track”, we do not count you.',
-				legalBasis: 'Art. 6(1)(f) GDPR (legitimate interest in data-minimising reach measurement).',
+					'Only with your consent do we count how often the website, web app and Android app are visited, which pages are opened and which page visitors come from, solely to improve Balamentum. Until you switch measurement on in the notice, it is off and your device does not connect to the measurement server. You can change your choice at any time: on the website via “Reach measurement” in the footer, in the app under Settings → General. Your choice is stored only in your browser or in the app. We use Matomo without cookies: nothing is stored on your device; we transmit the page path, the page title, the referring page, the type of access (browser, installed web app or Android app) and technical details about browser and screen, for clicks on external links their target, never search terms, task contents or sign-in links. The IP address is shortened before it is stored; a visit cannot be recognised beyond the day. If your browser sends “Do Not Track”, we do not count you.',
+				legalBasis:
+					'Art. 6(1)(a) GDPR and Section 25(1) TDDDG (your consent, which you can withdraw at any time with effect for the future). Storing your choice is technically necessary (Section 25(2) no. 2 TDDDG).',
 				retention: 'Individual visits 180 days, after that only aggregated figures without personal reference.',
 				recipients:
-					'None. Matomo runs on our own server at Hetzner Online GmbH in Germany (see section “Operation, hosting and session cookie”).',
+					'None. Matomo runs self-hosted at stats.modevel.de on our own server at Hetzner Online GmbH in Germany (see section “Operation, hosting and session cookie”).',
 			},
 		},
 		{

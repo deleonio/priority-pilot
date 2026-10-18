@@ -143,6 +143,34 @@ img {
 	display: none;
 }
 
+/* Opt-in-Hinweis zur Reichweitenmessung (#2734): im Seitenfluss unter dem Kopf, verdeckt nichts. */
+.tracking-banner {
+	padding: var(--pp-space-2) 0;
+	border-bottom: 1px solid var(--pp-border-subtle);
+}
+
+.tracking-banner__inner {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--pp-space-2);
+}
+
+.tracking-banner__inner p {
+	flex: 1 1 24rem;
+	margin: 0;
+}
+
+.tracking-banner__actions {
+	display: flex;
+	gap: var(--pp-space-1);
+}
+
+.tracking-banner[hidden],
+.site-footer a[hidden] {
+	display: none;
+}
+
 .site-footer {
 	padding: var(--pp-space-3) 0;
 	border-top: 1px solid var(--pp-border-subtle);

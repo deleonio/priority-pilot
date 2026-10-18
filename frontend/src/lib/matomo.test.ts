@@ -36,3 +36,45 @@ describe('matomoScript', () => {
 		expect(html).toContain("['enableHeartBeatTimer']");
 	});
 });
+
+describe('Opt-in (#2734)', () => {
+	const run = async () => {
+		const { matomoScript } = await load();
+		const html = matomoScript({ MATOMO_URL: 'https://stats.example.de', MATOMO_SITE_ID: '1' });
+		new Function(html.slice('<script>'.length, -'</script>'.length))();
+	};
+	const trackerLoaded = () => document.querySelector('script[src="https://stats.example.de/matomo.js"]') !== null;
+
+	beforeEach(() => {
+		window._paq = [];
+		localStorage.clear();
+		document.head.innerHTML = '';
+	});
+
+	it('lädt ohne Zustimmung keinen Tracker und verlangt Zustimmung', async () => {
+		await run();
+		expect(window.bmTracking?.get()).toBeNull();
+		expect(trackerLoaded()).toBe(false);
+		expect(window._paq?.[0]).toEqual(['requireConsent']);
+	});
+
+	it('Zulassen lädt den Tracker ohne Cookies, Ablehnen stoppt ihn; die Wahl bleibt gespeichert', async () => {
+		await run();
+		window.bmTracking?.set(true);
+		expect(trackerLoaded()).toBe(true);
+		expect(window._paq).toContainEqual(['setConsentGiven', false]);
+		window.bmTracking?.set(false);
+		expect(window._paq?.at(-1)).toEqual(['requireConsent']);
+		expect(localStorage.getItem('pp-tracking')).toBe('off');
+	});
+
+	it('gespeichertes Ja lädt den Tracker beim nächsten Besuch, gespeichertes Nein nicht', async () => {
+		localStorage.setItem('pp-tracking', 'on');
+		await run();
+		expect(trackerLoaded()).toBe(true);
+		document.head.innerHTML = '';
+		localStorage.setItem('pp-tracking', 'off');
+		await run();
+		expect(trackerLoaded()).toBe(false);
+	});
+});

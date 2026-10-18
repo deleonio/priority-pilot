@@ -289,5 +289,13 @@
 		"noAccessTitle": "Sem acesso à app",
 		"noAccess": "Escreve-nos a partir do endereço de e-mail da tua conta. Eliminamos a conta no prazo de um mês e confirmamos-te isso.",
 		"back": "Voltar ao início"
+	},
+	"tracking": {
+		"title": "Medição de alcance",
+		"text": "Podemos contar quais páginas são visitadas? Sem cookies, no nosso próprio servidor e apenas para melhorar o Balamentum. Sem o teu sim, a medição fica desligada.",
+		"accept": "Permitir",
+		"decline": "Recusar",
+		"privacy": "Saber mais",
+		"settings": "Medição de alcance"
 	}
 }

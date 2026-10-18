@@ -173,6 +173,27 @@ interface ShellOptions {
 /** Leerzeilen aus bedingten Template-Teilen entfernen, damit das ausgelieferte HTML sauber bleibt. */
 const tidy = (html: string): string => html.replace(/\n[\t ]*(?=\n)/g, '');
 
+/**
+ * Opt-in-Hinweis zur Reichweitenmessung (#2734). Bleibt verborgen, bis das Matomo-Snippet im `<head>`
+ * `window.bmTracking` bereitstellt und noch keine Wahl gespeichert ist; der Fußzeilen-Link öffnet ihn
+ * erneut. Beide Knöpfe gleich gewichtet: Ablehnen ist so leicht wie Zulassen.
+ */
+const trackingBanner = (
+	locale: Locale,
+	messages: Messages,
+): string => `		<section class="tracking-banner" data-tracking-banner hidden aria-label="${t(messages.tracking.title)}">
+			<div class="container tracking-banner__inner">
+				<p class="kern-body"><strong>${t(messages.tracking.title)}:</strong> ${t(messages.tracking.text)} <a class="kern-link" href="${SUBPAGES.privacy[subpageLang(locale)]}">${t(messages.tracking.privacy)}</a></p>
+				<div class="tracking-banner__actions">
+					<button type="button" class="kern-btn kern-btn--secondary" data-tracking="on"><span class="kern-label">${t(messages.tracking.accept)}</span></button>
+					<button type="button" class="kern-btn kern-btn--secondary" data-tracking="off"><span class="kern-label">${t(messages.tracking.decline)}</span></button>
+				</div>
+			</div>
+		</section>`;
+
+/** Steuerung zu `trackingBanner`; steht am Ende des `<body>`, damit der Fußzeilen-Link schon existiert. */
+const TRACKING_SCRIPT = `<script>(function(){var m=window.bmTracking,b=document.querySelector('[data-tracking-banner]');if(!m||!b)return;b.hidden=m.get()!==null;b.addEventListener('click',function(e){var c=e.target.closest('[data-tracking]');if(!c)return;m.set(c.getAttribute('data-tracking')==='on');b.hidden=true});document.querySelectorAll('[data-tracking-settings]').forEach(function(a){a.hidden=false;a.addEventListener('click',function(e){e.preventDefault();b.hidden=false;b.querySelector('button').focus()})})})()</script>`;
+
 const shell = (context: PageContext, { title, description, path, pathFor, body, head = '' }: ShellOptions): string => {
 	const { locale, messages, siteUrl } = context;
 	return tidy(`<!doctype html>
@@ -220,6 +241,7 @@ ${languageLinks(locale, pathFor, '\t\t\t\t\t\t\t')}
 				</nav>
 			</div>
 		</header>
+${trackingBanner(locale, messages)}
 		<main id="main">
 ${body}
 		</main>
@@ -244,6 +266,7 @@ ${body}
 							`<a class="kern-link" href="${SUBPAGES[page][subpageLang(locale)]}" hreflang="${subpageLang(locale)}">${t(label)}</a>`,
 					)
 					.join('\n\t\t\t\t')}
+				<a class="kern-link" href="#" data-tracking-settings hidden>${t(messages.tracking.settings)}</a>
 				${locale === 'de' ? '' : `<span class="site-footer__legal-note">${t(messages.footer.legalGermanOnly)}</span>`}
 			</div>
 			<nav class="container" aria-label="${t(messages.meta.language)}">
@@ -252,6 +275,7 @@ ${languageLinks(locale, pathFor, '\t\t\t\t\t')}
 				</ul>
 			</nav>
 		</footer>
+		${TRACKING_SCRIPT}
 	</body>
 </html>
 `);

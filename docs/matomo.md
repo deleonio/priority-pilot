@@ -206,6 +206,16 @@ curl -fsS "https://stats.modevel.de/matomo.php?idsite=1&rec=1&rand=1&apiv=1" -o 
 In der Matomo-UI („Besucher → Echtzeit") erscheint der eigene Testbesuch; die App zählt unter dem
 Pfad `/app/`. Bleibt die Echtzeit leer, zuerst den Archiv-Cron prüfen (Troubleshooting unten).
 
+## Opt-in (#2734)
+
+Gemessen wird nur nach Zustimmung. Ohne gespeicherte Wahl lädt das Snippet `matomo.js` nicht, es
+geht kein Request an `stats.modevel.de`. Website und App zeigen dann einen Hinweis mit „Zulassen“
+und „Ablehnen“; die Wahl liegt in `localStorage` (`pp-tracking` = `on`/`off`), geteilt von Website
+und Web-App (gleicher Origin), in der Android-App eigenständig. Ändern: Website-Fußzeile
+„Reichweitenmessung“, App unter Einstellungen → Allgemein → Datenschutz. Ausschalten in laufender
+Sitzung setzt `requireConsent`, danach sendet der Tracker nichts mehr. Die Zahlen bilden folglich nur
+zustimmende Besucher ab.
+
 ## 11. Auswerten: Routen und Absprünge
 
 Gezählt wird jeder Seitenaufruf der Website und jeder Routenwechsel der App, nur der Pfad (ohne

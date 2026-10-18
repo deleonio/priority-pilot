@@ -7,6 +7,7 @@ import { createRoot } from 'react-dom/client';
 import { I18nextProvider } from 'react-i18next';
 import i18next from './i18n/config';
 import { Root } from './Root';
+import { TrackingBanner } from './components/TrackingBanner';
 import { applyInitialTheme } from './lib/theme';
 import { listenForAppLinks } from './lib/nativeAuth';
 import { listenForNativePushTaps } from './lib/push';
@@ -49,6 +50,7 @@ const renderApp = () => {
 	root.render(
 		<StrictMode>
 			<I18nextProvider i18n={i18next}>
+				<TrackingBanner />
 				<Root />
 			</I18nextProvider>
 		</StrictMode>,

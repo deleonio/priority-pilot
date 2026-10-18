@@ -4,6 +4,7 @@
  * mit `SITE_URL` statt `https://localhost`. Der erste Aufruf setzt die Besuchsdimension 1 „Kanal“.
  * Eigene Datei, weil `matomo.ts` auch im Website-Build (Node, ohne Vite) läuft.
  */
+import { useCallback, useState } from 'react';
 import { ID_SEGMENT } from './matomo';
 import { getChannel } from './platform';
 import { getPublicOrigin } from './siteOrigin';
@@ -32,4 +33,17 @@ export const trackPageView = (path: string, { known = true } = {}): void => {
 	);
 	lastPath = path;
 	lastUrl = url;
+};
+
+/**
+ * Wahl zur Reichweitenmessung (#2734) über `window.bmTracking` aus dem Snippet. `available` ist
+ * falsch, wenn Matomo im Build aus ist; dann zeigt die App weder Hinweis noch Schalter.
+ */
+export const useTrackingConsent = () => {
+	const [consent, setConsentState] = useState(() => window.bmTracking?.get() ?? null);
+	const setConsent = useCallback((on: boolean): void => {
+		window.bmTracking?.set(on);
+		setConsentState(on ? 'on' : 'off');
+	}, []);
+	return { available: window.bmTracking !== undefined, consent, setConsent };
 };

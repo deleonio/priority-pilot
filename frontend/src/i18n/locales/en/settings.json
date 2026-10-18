@@ -122,7 +122,12 @@
 			"importCard": "Import",
 			"exportCard": "Export"
 		},
-		"adminUsersCard": "Users and roles"
+		"adminUsersCard": "Users and roles",
+		"privacy": {
+			"card": "Privacy",
+			"trackingLabel": "Reach measurement",
+			"trackingHint": "Counts which pages are opened, without cookies, on our own server, only to improve Balamentum. Applies to this device, off by default."
+		}
 	},
 	"theme": {
 		"system": "System",
