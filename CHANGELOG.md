@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.29 - 2026-10-18
 
-_Enthält v0.29.0 – v0.29.24._
+_Enthält v0.29.0 – v0.29.26._
 
 ### 🚀 Improvements
 
@@ -18,6 +18,7 @@ _Enthält v0.29.0 – v0.29.24._
 - docs(spec): sync spec status to implementation state (2026-10-18) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2704
 - refactor(server): centralize effort conversion in logics/effort.ts by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2708
 - test(server): assert template apply counts as fixed literals (#2692) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2711
+- test(frontend): make WeekView unit test timezone-independent (#2730) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2736
 
 ### Other Changes
 
@@ -39,6 +40,7 @@ _Enthält v0.29.0 – v0.29.24._
 - docs: narrow e2e run commands in testing.md to pnpm filter calls (#2698) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2729
 - docs(matomo): document working config:set syntax for trusted_hosts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2733
 - fix(ci): replace mapfile with while-read for macOS bash 3.2 (#2731) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2735
+- feat(frontend): count matomo route changes (404, heartbeat, title, ids) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2737
 
 ## v0.28 - 2026-10-18
 
@@ -198,7 +200,6 @@ _Enthält v0.24.0 – v0.24.13._
 - feat(server): require minimum completions before overload (#2521) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2569
 - feat(frontend): refresh care hint after completing a task (#2522) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2570
 - feat(server): pillar names in care texts follow app language (#2523) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2571
-- feat(frontend): single primary action per missed task (#2524) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2575
 - feat(frontend): single primary action per missed task (#2524) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2575
 - feat(frontend): show done tasks on their completion day in week view by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2576
 - test(frontend): measure missed/deadlines top edges atomically (#2578) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2579
