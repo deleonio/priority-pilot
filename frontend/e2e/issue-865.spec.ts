@@ -7,7 +7,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { dismissOnboardingDialog } from './fixtures';
-import { MOBILE } from './helpers';
+import { MOBILE, openAvatarMenu } from './helpers';
 
 test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	/**
@@ -17,6 +17,10 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 		const header = page.locator('header').first();
 		await expect(header).toBeVisible();
 
+		// #2723 (Test-Pflege): Der Avatar ist aus der Kopfzeile ins Avatar-Popover gewandert —
+		// für Sichtbarkeits-Prüfungen wird das Menü geöffnet (das fixed positionierte Panel
+		// beeinflusst die Header-Box-Messungen nicht).
+		await openAvatarMenu(page);
 		const avatar = header.locator('kol-avatar').first();
 		// Der Klartextname ist seit der #865-Korrektur ganz entfernt — eine `.user-display-name`-Klasse
 		// existiert im Light-DOM nicht mehr, ein Klassen-Locator wäre tote Diagnose (matcht nie).

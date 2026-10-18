@@ -1,5 +1,11 @@
 import { expect, test } from './fixtures';
-import { headerAction, seedAccountPreferences, setEqualPillarWeights, waitForStableView } from './helpers';
+import {
+	headerAction,
+	openAvatarMenu,
+	seedAccountPreferences,
+	setEqualPillarWeights,
+	waitForStableView,
+} from './helpers';
 
 /**
  * ROTE Spec-Tests für #270 „Einstellungen: Popover durch Zahnrad-Toolbar-Button und Route
@@ -153,6 +159,8 @@ test.describe('#1320 Einstellungen als normale Seite mit sichtbarem Header', () 
 
 		await expect(page.getByRole('banner')).toBeVisible();
 		await expect(page.getByRole('toolbar', { name: /Kopf-Aktionen/ })).toBeVisible();
+		// #2723: Der Avatar liegt im Avatar-Popover — mit geöffnetem Menü sichtbar.
+		await openAvatarMenu(page);
 		await expect(page.locator('kol-avatar')).toBeVisible();
 	});
 

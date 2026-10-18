@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { MOBILE } from './helpers';
+import { headerAction, MOBILE } from './helpers';
 
 /**
  * Spec-e2e für #2229/#2480 (docs/spec/issue-2229.md) — AK3, AK7; AK1/AK2 (Schließen +
@@ -57,7 +57,8 @@ test.describe('Balamentum — #2229: Einladungs-Banner', () => {
 		await expect(page.getByTestId('launch-banner')).toHaveCount(0);
 		await expect.poll(() => page.evaluate(() => localStorage.getItem('pp-launch-banner-dismissed'))).toBe('1');
 
-		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
+		// #2723: „Abmelden" liegt im Avatar-Popover — `headerAction` öffnet es vor dem Klick.
+		await (await headerAction(page, /Abmelden|Logout/i)).click();
 		await page.waitForURL(/\/login(\b|\/|$)/);
 		expect(await page.evaluate(() => localStorage.getItem('pp-launch-banner-dismissed'))).toBeNull();
 	});

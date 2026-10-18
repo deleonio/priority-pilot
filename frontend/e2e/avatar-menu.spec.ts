@@ -1,5 +1,6 @@
 import { expect, test } from './fixtures';
 import { MOBILE, openAvatarMenu, waitForStableView } from './helpers';
+import { onboardingDismissKey } from '../src/lib/onboardingPreferences';
 
 /**
  * ROTE Spec-Tests für #2723 „Hilfe und Abmelden in ein Avatar-Popover-Menü verschieben"
@@ -14,6 +15,24 @@ import { MOBILE, openAvatarMenu, waitForStableView } from './helpers';
  * UI-Verhalten gegen das echte Backend (Muster header-toolbar.spec.ts).
  */
 test.describe('#2723 Avatar-Popover (Benutzermenü)', () => {
+	test.beforeEach(async ({ page, ownSessionUser }) => {
+		// Test-Pflege (#2580-Muster, issue-1622): Onboarding vorab als beendet markieren. Der
+		// Fixture-Dismiss des Willkommens-Dialogs klaut sonst über `body.focus()` plus modale
+		// Inert-Phase genau im Tastatur-Test (AK5) den Fokus vom Trigger — Rennsituation der
+		// Dialog-Fokuskette, kein App-Verhalten.
+		if (ownSessionUser) {
+			await page.addInitScript(
+				(entry: { key: string; value: string }) => {
+					try {
+						localStorage.setItem(entry.key, entry.value);
+					} catch {
+						/* ignore */
+					}
+				},
+				{ key: onboardingDismissKey(ownSessionUser.id), value: 'true' },
+			);
+		}
+	});
 	test('AK1: Klick auf den Avatar-Trigger öffnet ein Popover mit „Hilfe" und „Abmelden"', async ({ page }) => {
 		await page.goto('/app/');
 		await waitForStableView(page);

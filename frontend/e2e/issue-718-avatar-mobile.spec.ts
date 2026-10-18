@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAvatarMenu, waitForStableView } from './helpers';
 
 /**
  * Spec-Tests für #718 „Avatar im Header auf Mobile wiederherstellen (unter 48rem ausgeblendet)".
@@ -16,6 +16,11 @@ import { waitForStableView } from './helpers';
  * der Name lebt nur noch als `_label`/Accessible Name des Avatars weiter.
  *
  * Spec: docs/spec/issue-718.md
+ *
+ * Test-Pflege #2723: Der Avatar ist aus der Kopfzeile ins Avatar-Popover (Benutzermenü)
+ * gewandert — sichtbar ist er seitdem im GEOFFNETEN Menü. Die Sichtbarkeits- und Maß-Verträge
+ * messen deshalb mit geöffnetem Menü; der Mittellinie-Vertrag (AK7) entfällt, der Avatar
+ * liegt nicht mehr in der Kopfzeilen-Zeile.
  */
 test.describe('#718 Avatar auf Mobile wiederherstellen', () => {
 	/** Toleranz für Rundungen der Layout-Engine (Sub-Pixel). */
@@ -30,6 +35,9 @@ test.describe('#718 Avatar auf Mobile wiederherstellen', () => {
 		const toolbarBtn = header.getByRole('toolbar', { name: /Kopf-Aktionen/i }).getByRole('button', {
 			name: 'Neuen Task anlegen',
 		});
+		// #2723: Avatar liegt im Avatar-Popover — Messungen mit geöffnetem Menü (das fixed
+		// positionierte Panel beeinflusst die Header-Box nicht).
+		await openAvatarMenu(page);
 		const avatar = header.locator('kol-avatar').first();
 
 		await expect(logoImg).toBeVisible();
@@ -62,6 +70,8 @@ test.describe('#718 Avatar auf Mobile wiederherstellen', () => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
+		// #2723: Avatar im geöffneten Benutzermenü sichtbar.
+		await openAvatarMenu(page);
 		const avatar = page.locator('header kol-avatar').first();
 		await expect(avatar).toBeVisible();
 	});
@@ -74,6 +84,8 @@ test.describe('#718 Avatar auf Mobile wiederherstellen', () => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
+		// #2723: Avatar im geöffneten Benutzermenü sichtbar.
+		await openAvatarMenu(page);
 		const avatar = page.locator('header kol-avatar').first();
 		await expect(avatar).toBeVisible();
 	});
@@ -86,6 +98,8 @@ test.describe('#718 Avatar auf Mobile wiederherstellen', () => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
+		// #2723: Avatar im geöffneten Benutzermenü sichtbar.
+		await openAvatarMenu(page);
 		const avatar = page.locator('header kol-avatar').first();
 		await expect(avatar).toBeVisible();
 	});
@@ -141,24 +155,10 @@ test.describe('#718 Avatar auf Mobile wiederherstellen', () => {
 		).toBeLessThanOrEqual(TOLERANCE_PX);
 	});
 
-	/**
-	 * AK7 — Logo, Toolbar-Button und Avatar teilen sich eine Mittellinie (aus #485 AK4) bei Desktop.
-	 * Stellt sicher, dass die bestehende Header-Konsistenz aus #485 weiterhin erfüllt ist.
+	/*
+	 * AK7 — entfallen mit #2723 (Test-Pflege): Die Mittellinie aus #485 bezog sich auf Logo,
+	 * Toolbar-Button und Avatar in der KOPFZEILEN-Zeile; der Avatar liegt seit #2723 im
+	 * Avatar-Popover unterhalb der Zeile. Die Zeilen-Konsistenz von Logo und Toolbar-Button
+	 * sichert AK6 unten bzw. header-appearance.spec.ts (#485 AK6).
 	 */
-	test('AK7: Logo, Toolbar-Button und Avatar teilen sich eine Mittellinie (≥768px)', async ({ page }) => {
-		await page.setViewportSize({ width: 1024, height: 800 });
-		await page.goto('/app/');
-		await waitForStableView(page);
-
-		const { logo, button, avatar } = await readHeaderBoxes(page);
-
-		const centerOf = (box: { y: number; height: number }): number => box.y + box.height / 2;
-		const centers = [centerOf(logo), centerOf(button), centerOf(avatar)];
-		const spread = Math.max(...centers) - Math.min(...centers);
-
-		expect(
-			spread,
-			`Mittelpunkte (Logo ${centers[0]}, Button ${centers[1]}, Avatar ${centers[2]}) dürfen höchstens ${TOLERANCE_PX}px auseinanderliegen`,
-		).toBeLessThanOrEqual(TOLERANCE_PX);
-	});
 });

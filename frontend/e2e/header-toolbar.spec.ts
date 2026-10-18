@@ -92,10 +92,11 @@ test.describe('#125 Header – Toolbar', () => {
 test.describe('#285 Header – kompakte Icon-Toolbar', () => {
 	/**
 	 * Die Buttons, die laut #285 auf Icon-only umgestellt werden.
-	 * Nach #335 (AK6) entfällt „Serien verwalten" aus der Header-Toolbar (eigener Serien-Tab),
-	 * daher ist er hier nicht mehr aufgeführt.
+	 * Nach #335 (AK6) entfällt „Serien verwalten" aus der Header-Toolbar (eigener Serien-Tab);
+	 * Test-Pflege #2723: „Abmelden" ist in das Avatar-Popover gewandert (dort mit sichtbarem
+	 * Label, siehe avatar-menu.spec.ts) — Icon-only-Vertrag hier nur noch für den Toolbar-Button.
 	 */
-	const ICON_ONLY_LABELS = ['Neuen Task anlegen', 'Abmelden'] as const;
+	const ICON_ONLY_LABELS = ['Neuen Task anlegen'] as const;
 
 	/**
 	 * AK1 — Icon-only mit erhaltenem Accessible Name: Jeder Ziel-Button ist per Accessible Name
@@ -130,22 +131,26 @@ test.describe('#285 Header – kompakte Icon-Toolbar', () => {
 	}
 
 	/**
-	 * AK2 (Regression) — Bestehende Aktionen bleiben per Accessible Name klickbar: Auch nach der
-	 * Icon-only-Umstellung öffnet „Neuen Task anlegen" den Anlege-Dialog. (Die vollständige AK2-
-	 * Regression steht im #125-Block oben; dieser Test sichert die drei umgestellten Buttons ab.)
+	 * AK2 — Regression: Die übrigen Toolbar-Aktionen bleiben sichtbar & bedienbar.
+	 * Test-Pflege #2723: „Hilfe"/„Abmelden" liegen nicht mehr in der Toolbar, sondern im
+	 * Avatar-Popover (`headerAction` öffnet es); „Neuen Task anlegen" öffnet weiterhin den Dialog.
 	 */
-	test('AK2 (Regression): umgestellte Icon-Buttons bleiben per Accessible Name bedienbar', async ({ page }) => {
+	test('AK2: Übrige Toolbar-Aktionen bleiben vollständig bedienbar', async ({ page }) => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
 
-		// Alle drei Ziel-Buttons sind weiterhin per Accessible Name auffindbar & sichtbar.
-		for (const label of ICON_ONLY_LABELS) {
-			await expect(toolbar.getByRole('button', { name: label })).toBeVisible();
-		}
+		// Alle verbleibenden Toolbar-Buttons sind weiterhin per Accessible Name auffindbar.
+		// Nach #335 (AK6) ist „Serien verwalten" nicht mehr dabei (eigener Serien-Tab).
+		await expect(toolbar.getByRole('button', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await expect(toolbar.getByRole('button', { name: 'Einstellungen' })).toBeVisible();
 
-		// Exemplarisch: „Neuen Task anlegen" öffnet weiterhin den Anlege-Dialog.
+		// #2723: „Hilfe" und „Abmelden" sind über das Avatar-Popover erreichbar.
+		await expect(await headerAction(page, 'Hilfe')).toBeVisible();
+		await expect(await headerAction(page, 'Abmelden')).toBeVisible();
+
+		// „Neuen Task anlegen" öffnet weiterhin den Anlege-Dialog.
 		await toolbar.getByRole('button', { name: 'Neuen Task anlegen' }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
 	});
@@ -240,29 +245,11 @@ test.describe('#298 „Aktualisieren"-Button entfernt', () => {
  * AK1 + AK2 sind rot, bis App.tsx umgesetzt ist. AK3 + AK4 sind Regressions-Verträge.
  */
 test.describe('#312 Toolbar-Reihenfolge und Zahnrad-Icon', () => {
-	/**
-	 * AK1 — Reihenfolge getauscht: „Einstellungen" erscheint in DOM-Reihenfolge vor „Hilfe".
-	 * Aktuell ist die Reihenfolge Hilfe → Einstellungen → ROT bis zum Fix.
+	/*
+	 * AK1 — entfallen mit #2723 (Test-Pflege): „Einstellungen vor Hilfe in der Toolbar" ist mit dem
+	 * Umzug von „Hilfe" ins Avatar-Popover gegenstandslos (beide Buttons liegen nicht mehr im
+	 * selben Container). Die Reihenfolge im Popover sichert avatar-menu.spec.ts (AK5).
 	 */
-	test('AK1: „Einstellungen" liegt im DOM vor „Hilfe"', async ({ page }) => {
-		await page.goto('/app/');
-		await waitForStableView(page);
-
-		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
-		await expect(toolbar).toBeVisible();
-
-		const buttons = toolbar.getByRole('button');
-		const names: string[] = await buttons.evaluateAll((els) =>
-			els.map((el) => (el as HTMLElement).getAttribute('aria-label') ?? (el as HTMLElement).textContent?.trim() ?? ''),
-		);
-
-		const idxSettings = names.findIndex((n) => /Einstellungen/i.test(n));
-		const idxHelp = names.findIndex((n) => /Hilfe/i.test(n));
-
-		expect(idxSettings, 'Index von „Einstellungen" muss gefunden werden').toBeGreaterThanOrEqual(0);
-		expect(idxHelp, 'Index von „Hilfe" muss gefunden werden').toBeGreaterThanOrEqual(0);
-		expect(idxSettings, '„Einstellungen" muss vor „Hilfe" erscheinen').toBeLessThan(idxHelp);
-	});
 
 	/**
 	 * AK3 — Keine Navigations-Regression: Beide Buttons navigieren weiterhin korrekt.
@@ -279,11 +266,11 @@ test.describe('#312 Toolbar-Reihenfolge und Zahnrad-Icon', () => {
 		await expect(page).toHaveURL(/\/settings\/general/);
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
 
-		// Zurück und „Hilfe" testen.
+		// Zurück und „Hilfe" testen (#2723: Avatar-Popover, `headerAction` öffnet es).
 		await page.goto('/app/');
 		await waitForStableView(page);
 
-		await toolbar.getByRole('button', { name: 'Hilfe' }).click();
+		await (await headerAction(page, 'Hilfe')).click();
 		await expect(page).toHaveURL(/\/hilfe/);
 		// Hilfe-Seite ist sichtbar (irgendeine Überschrift auf der Hilfe-Seite).
 		await expect(page.getByRole('main')).toBeVisible();
@@ -383,10 +370,8 @@ test.describe('#1320 Direktwechsel Einstellungen ↔ Hilfe über die Toolbar (AK
 		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Balamentum');
 
-		await page
-			.getByRole('toolbar', { name: /Kopf-Aktionen/ })
-			.getByRole('button', { name: 'Hilfe' })
-			.click();
+		// #2723: „Hilfe" liegt im Avatar-Popover — `headerAction` öffnet es vor dem Klick.
+		await (await headerAction(page, 'Hilfe')).click();
 		await expect(page).toHaveURL(/\/hilfe$/);
 	});
 

@@ -13,7 +13,7 @@ import { PinnedBadge } from './PinnedBadge';
 import { SeriesBadge } from './SeriesBadge';
 import { formatNumber, isDoneBlockedBySubtasks, priorityBadge, sortPinnedFirst } from '../lib/task';
 import { sortTasksByBalance, virtualPriorityLabel, type BalancePriority } from '../lib/balancePriority';
-import { setupPopoverAlignment } from '../lib/popoverAlign';
+import { findInnerButton, setupPopoverAlignment } from '../lib/popoverAlign';
 
 /** i18n-Schlüssel des Anzeigenamens der KI-Eignungs-Kategorie (#2349). */
 const AI_SUITABILITY_LABEL = {
@@ -106,18 +106,6 @@ interface LeafItemProps {
 	/** #2526: siehe TaskTreeProps — die Rückmeldung erscheint in genau dieser Zeile. */
 	doneFeedback?: { taskId: number; punkte: number; streakTage?: number } | null;
 }
-
-/**
- * Traversiert Shadow- und Light-DOM ab `el` nach unten und liefert das erste native `<button>`.
- * #361: Nach programmatischem `hidePopover()` gibt die native Popover-API den Fokus nicht an den
- * Invoker zurück (er wandert zu `document.body`). Wir fokussieren den inneren Button daher explizit,
- * damit das anschließend geöffnete Modal den korrekten Trigger für die Fokusrückgabe erfasst.
- */
-const findInnerButton = (el: Element | null | undefined): HTMLElement | null => {
-	if (el == null) return null;
-	if (el instanceof HTMLButtonElement) return el;
-	return findInnerButton(el.shadowRoot?.firstElementChild ?? el.firstElementChild);
-};
 
 const LeafItem = ({
 	node,

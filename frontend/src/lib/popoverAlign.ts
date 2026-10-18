@@ -15,8 +15,8 @@
  * Genutzt von den „…"-Menüs der Aufgabenliste (`TaskTree`) und vom Avatar-Menü im Kopfbereich
  * (`App`); deshalb liegt der Helper hier und nicht in einer der beiden Komponenten.
  *
- * Modul-privat: Einstiegspunkt für Komponenten ist {@link setupPopoverAlignment}, das zusätzlich das
- * asynchrone Custom-Element-Upgrade abwartet.
+ * Öffentliche Einstiegspunkte für Komponenten: {@link setupPopoverAlignment} (wartet zusätzlich das
+ * asynchrone Custom-Element-Upgrade ab) und {@link findInnerButton} (#361-Fokus-Rückgabe).
  *
  * @returns Aufräumfunktion, die alle Observer und Listener wieder abmeldet.
  */
@@ -79,6 +79,21 @@ const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) 
 		panelObs?.disconnect();
 		window.removeEventListener('resize', onResize);
 	};
+};
+
+/**
+ * Traversiert Shadow- und Light-DOM ab `el` nach unten und liefert das erste native `<button>`.
+ * #361: Nach programmatischem `hidePopover()` gibt die native Popover-API den Fokus nicht an den
+ * Invoker zurück (er wandert zu `document.body`). Wir fokussieren den inneren Button daher explizit,
+ * damit das anschließend geöffnete Modal den korrekten Trigger für die Fokusrückgabe erfasst.
+ *
+ * #2723: geteilt mit dem Avatar-Menü im Kopfbereich (`App`) — Escape-Fokus-Rückkehr folgt demselben
+ * Muster, deshalb liegt der Helper neben der Popover-Ausrichtung in diesem Modul.
+ */
+export const findInnerButton = (el: Element | null | undefined): HTMLElement | null => {
+	if (el == null) return null;
+	if (el instanceof HTMLButtonElement) return el;
+	return findInnerButton(el.shadowRoot?.firstElementChild ?? el.firstElementChild);
 };
 
 /**

@@ -777,6 +777,28 @@ kol-toolbar {
 }
 
 /*
+ * #2723: Der Avatar-Trigger („Benutzermenü") ersetzt den rein darstellenden Avatar in der Leiste
+ * und ist ein Touch-Target — deshalb dieselbe `--a11y-min-size`-Kaskade wie bei den
+ * Toolbar-Buttons direkt darüber (mindestens --pp-toolbar-height = 44px, AK6).
+ */
+.app-header__user kol-popover-button {
+	--a11y-min-size: var(--pp-toolbar-height);
+}
+
+/*
+ * #2723: Menü-Panel des Benutzermenüs — Avatar über den beiden Einträgen, die über die volle
+ * Panel-Breite tappbar sind (KolButton-Hosts sind block-level). Die Breite bemisst
+ * `setupPopoverAlignment` am Inhalt (max-content); Abstände aus der --pp-space-Skala.
+ */
+.app-header__user-menu-panel {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-space-1);
+	padding: var(--pp-space-2);
+	min-width: 10rem;
+}
+
+/*
  * #485 AK3/AK4: Die Toolbar-Buttons werden auf die gemeinsame Bezugshöhe festgenagelt.
  * `--a11y-min-size` ist die von KoliBri im Shadow-DOM genutzte Variable für `min-height`/`min-width`
  * der Buttons; Custom Properties vererben durch die Shadow-Grenze, deshalb greift die Vorgabe hier.
