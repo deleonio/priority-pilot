@@ -7,6 +7,14 @@ import { effectivePlan } from '../../logics/plans.js';
 import { createAiQuotaCounter } from '../aiQuotaMeter.js';
 import { aggregierePunkteProSaeule, type PunkteBeitrag } from '../../logics/score.js';
 import {
+	letzterTagVon,
+	mittagDesTags,
+	rundeAufZehntel,
+	saeulenDifferenz,
+	staerksteSaeuleVon,
+	vormonatVon,
+} from '../../logics/scoreRecap.js';
+import {
 	berechneStreak,
 	berechneWochenAusgewogen,
 	istGueltigeZeitzone,
@@ -358,42 +366,6 @@ scoresRouter.get(
 // Gescopet wie /scores/balance strikt mit `ownerScope`.
 const MONAT_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
 
-/** Letzter Kalendertag des Monats `JJJJ-MM` als `YYYY-MM-DD`. */
-const letzterTagVon = (monat: string): string => {
-	const [jahr, monatNr] = monat.split('-').map(Number) as [number, number];
-	return new Date(Date.UTC(jahr, monatNr, 0)).toISOString().slice(0, 10);
-};
-
-/** Vormonat eines Monats `JJJJ-MM` als `JJJJ-MM` (Jahreswechsel-sicher). */
-const vormonatVon = (monat: string): string => {
-	const [jahr, monatNr] = monat.split('-').map(Number) as [number, number];
-	return `${jahr + Math.floor((monatNr - 2) / 12)}-${String(((monatNr + 10) % 12) + 1).padStart(2, '0')}`;
-};
-
-/**
- * UTC-Zeitpunkt 12:00 eines lokalen Kalendertags in `zeitZone` — Streak-Stichtag „Monatsende".
- * Die Mittagsstunde hält DST-Nähte fern; der Offset wird über `Intl` an genau dieser Naht
- * zurückgerechnet (ein Anker `Date.UTC(jahr, monat, 0) - 1` läge in Zeitzonen östlich von UTC
- * schon im Folgemonat).
- */
-const mittagDesTags = (tag: string, zeitZone: string): Date => {
-	const [jahr, monat, tagImMonat] = tag.split('-').map(Number) as [number, number, number];
-	const naive = Date.UTC(jahr, monat - 1, tagImMonat, 12);
-	const teile = new Intl.DateTimeFormat('en-US', {
-		timeZone: zeitZone,
-		year: 'numeric',
-		month: '2-digit',
-		day: '2-digit',
-		hour: '2-digit',
-		minute: '2-digit',
-		second: '2-digit',
-		hourCycle: 'h23',
-	}).formatToParts(new Date(naive));
-	const teil = (typ: Intl.DateTimeFormatPartTypes): number => Number(teile.find((p) => p.type === typ)?.value ?? 0);
-	const alsUtc = Date.UTC(teil('year'), teil('month') - 1, teil('day'), teil('hour'), teil('minute'), teil('second'));
-	return new Date(naive - (alsUtc - naive));
-};
-
 scoresRouter.get('/scores/monthly-recap', async (req: Request, res: Response<MonthlyRecapDto | ErrorDto>) => {
 	try {
 		const monat = typeof req.query.monat === 'string' ? req.query.monat : '';
@@ -436,12 +408,7 @@ scoresRouter.get('/scores/monthly-recap', async (req: Request, res: Response<Mon
 		);
 		// Wochenkarten-Muster: Differenz aus dem kumulativen Verlauf — Stand am Monatsende minus
 		// Stand zum Fenstereintritt (letzter Tag des Vormonats), eine Dezimalstelle.
-		const standFensterEintritt = new Map((verlauf[0]?.saeulen ?? []).map((s) => [s.id, s.punkte]));
-		const monatsSaeulen = (verlauf[verlauf.length - 1]?.saeulen ?? []).map((s) => ({
-			id: s.id,
-			name: s.name,
-			punkte: Math.round((s.punkte - (standFensterEintritt.get(s.id) ?? 0)) * 10) / 10,
-		}));
+		const monatsSaeulen = saeulenDifferenz(verlauf[0]?.saeulen ?? [], verlauf[verlauf.length - 1]?.saeulen ?? []);
 
 		const { aktuell } = berechneStreak(
 			streakZeitpunkte(
@@ -519,19 +486,10 @@ scoresRouter.get('/scores/yearly-recap', async (req: Request, res: Response<Year
 			`${jahr}-12-31`,
 			zeitZone,
 		);
-		const standVorjahr = new Map((verlauf[0]?.saeulen ?? []).map((s) => [s.id, s.punkte]));
-		const saeulenDifferenz = (verlauf[verlauf.length - 1]?.saeulen ?? []).map((s) => ({
-			id: s.id,
-			name: s.name,
-			punkte: Math.round((s.punkte - (standVorjahr.get(s.id) ?? 0)) * 10) / 10,
-		}));
+		const jahresSaeulen = saeulenDifferenz(verlauf[0]?.saeulen ?? [], verlauf[verlauf.length - 1]?.saeulen ?? []);
 		// Ohne Punkte oder ohne Unterschied (z. B. nur nicht zugeordnete Aufgaben, die nach Gewicht
 		// gleich verteilt werden) gibt es keine stärkste Säule.
-		const staerkste = saeulenDifferenz.reduce<(typeof saeulenDifferenz)[number] | null>(
-			(beste, saeule) => (saeule.punkte > (beste?.punkte ?? 0) ? saeule : beste),
-			null,
-		);
-		const alleGleich = saeulenDifferenz.every((saeule) => saeule.punkte === saeulenDifferenz[0]?.punkte);
+		const staerksteSaeule = staerksteSaeuleVon(jahresSaeulen);
 
 		const { best } = berechneStreak(
 			streakZeitpunkte(
@@ -545,9 +503,9 @@ scoresRouter.get('/scores/yearly-recap', async (req: Request, res: Response<Year
 		res.json({
 			jahr,
 			erledigteAufgaben: erledigtImJahr.length,
-			stunden: Math.round(stunden * 10) / 10,
+			stunden: rundeAufZehntel(stunden),
 			laengsterStreak: best,
-			staerksteSaeule: alleGleich ? null : staerkste,
+			staerksteSaeule,
 			abgeschlosseneProjekte: new Set(eltern.map((e) => e.get('dependentTaskId'))).size,
 		});
 	} catch {
