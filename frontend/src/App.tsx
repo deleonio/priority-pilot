@@ -36,6 +36,7 @@ import { findInnerButton, setupPopoverAlignment } from './lib/popoverAlign';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
 import { LaunchBanner } from './components/LaunchBanner';
+import { TrackingBanner } from './components/TrackingBanner';
 import { LAUNCH_BANNER_DISMISS_KEY } from './lib/launchBanner';
 import { SessionExpiredDialog } from './components/SessionExpiredDialog';
 import { UpdatePrompt } from './components/UpdatePrompt';
@@ -1357,6 +1358,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			    fest „Dashboard", während `SettingsPage`/`HelpPage` ihre eigene Überschrift mitbrachten. */}
 				<h1 className="visually-hidden">{pageTitle}</h1>
 
+				<TrackingBanner />
 				<LaunchBanner enabled={user.launchBanner === true} onFeedback={() => navigate('/hilfe/feedback')} />
 
 				{/* Der Logout läuft über das Benutzermenü und ist damit auf allen drei Ansichten
