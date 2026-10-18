@@ -22,6 +22,7 @@ import { fetchProviderEndpoint, INTERNAL_ENDPOINT_MESSAGE, isPublicEndpoint } fr
 import { resolveGeoUser } from './geoConfig.js';
 import { createAiQuotaCounter } from '../aiQuotaMeter.js';
 import { createProviderTestRateLimiter } from './rateLimit.js';
+import { validateRequestBody } from '../../logics/requestValidation.js';
 
 type LlmProviderDto = components['schemas']['LlmProvider'];
 type LlmProviderInputDto = components['schemas']['LlmProviderInput'];
@@ -45,10 +46,11 @@ const isNonEmptyString = (value: unknown): value is string => typeof value === '
 type CreateValidation = { ok: true; input: LlmProviderInputDto } | { ok: false; message: string };
 
 const validateCreate = (body: unknown): CreateValidation => {
-	if (typeof body !== 'object' || body === null || Array.isArray(body)) {
-		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
+	const bodyResult = validateRequestBody(body, { rejectArrays: true });
+	if (!bodyResult.ok) {
+		return bodyResult;
 	}
-	const raw = body as Record<string, unknown>;
+	const raw = bodyResult.value;
 	for (const field of ['name', 'endpoint', 'apiKey', 'model'] as const) {
 		if (!isNonEmptyString(raw[field])) {
 			return { ok: false, message: `${field} muss ein nicht-leerer String sein.` };
@@ -71,10 +73,11 @@ const validateCreate = (body: unknown): CreateValidation => {
 type UpdateValidation = { ok: true; input: LlmProviderUpdateDto } | { ok: false; message: string };
 
 const validateUpdate = (body: unknown): UpdateValidation => {
-	if (typeof body !== 'object' || body === null || Array.isArray(body)) {
-		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
+	const bodyResult = validateRequestBody(body, { rejectArrays: true });
+	if (!bodyResult.ok) {
+		return bodyResult;
 	}
-	const raw = body as Record<string, unknown>;
+	const raw = bodyResult.value;
 	const input: LlmProviderUpdateDto = {};
 	for (const field of ['name', 'endpoint', 'model'] as const) {
 		if (raw[field] === undefined) continue;
@@ -417,11 +420,12 @@ export const createLlmProvidersRouter = (
 	router.post('/llm-providers/test-dry', async (req, res: Response<ProviderTestResultDto | ErrorDto>) => {
 		const userId = await requireProviderUser(req, res);
 		if (userId === null) return;
-		const raw = req.body as Record<string, unknown> | null | undefined;
-		if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-			sendError(res, 400, 'Request-Body muss ein Objekt sein.');
+		const bodyResult = validateRequestBody(req.body, { rejectArrays: true });
+		if (!bodyResult.ok) {
+			sendError(res, 400, bodyResult.message);
 			return;
 		}
+		const raw = bodyResult.value;
 		if (typeof raw.endpoint !== 'string' || !isValidHttpUrl(raw.endpoint.trim())) {
 			sendError(res, 400, 'endpoint muss eine gültige http(s)-URL sein.');
 			return;

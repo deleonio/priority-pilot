@@ -7,6 +7,8 @@ import { getUserId, ownerScope } from '../requireAuth.js';
 import { getVapidPublicKey, isPushConfigured, sendPushToUser } from '../../logics/push.js';
 import type { PushSender } from '../../logics/push.js';
 import { pickRandomQuote } from '../../logics/pushTestQuote.js';
+import { validateRequestBody } from '../../logics/requestValidation.js';
+import type { ValidationResult } from '../../logics/requestValidation.js';
 import { spracheAusHeader } from '../../logics/careSuggestionData.js';
 import type { components } from '../../api';
 
@@ -23,18 +25,17 @@ interface ValidSubscription {
 	expirationTime: number | null;
 }
 
-type ValidationResult = { ok: true; value: ValidSubscription } | { ok: false; message: string };
-
 /**
  * Validiert den Body von `POST /push/subscribe` rein strukturell: `endpoint` muss ein nicht-leerer
  * String sein und `keys` die beiden nicht-leeren Schlüssel `p256dh`/`auth` enthalten (so liefert es
  * `PushManager.subscribe().toJSON()`). `expirationTime` ist optional (Zahl oder `null`).
  */
-const validateSubscription = (body: unknown): ValidationResult => {
-	if (typeof body !== 'object' || body === null) {
-		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
+const validateSubscription = (body: unknown): ValidationResult<{ ok: true; value: ValidSubscription }> => {
+	const bodyResult = validateRequestBody(body);
+	if (!bodyResult.ok) {
+		return bodyResult;
 	}
-	const { endpoint, keys, expirationTime } = body as Record<string, unknown>;
+	const { endpoint, keys, expirationTime } = bodyResult.value;
 	if (typeof endpoint !== 'string' || endpoint.trim() === '') {
 		return { ok: false, message: 'endpoint muss ein nicht-leerer String sein.' };
 	}

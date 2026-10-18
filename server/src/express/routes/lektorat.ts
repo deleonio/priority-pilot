@@ -6,6 +6,7 @@ import { lektoratTextWithMistral } from '../../llm/llm.js';
 import { sendLlmError, validateProviderQuery } from '../llmProviderQuery.js';
 import { requirePlanFeature } from '../planGuard.js';
 import { meterAiQuota } from '../aiQuotaMeter.js';
+import { validateRequestBody } from '../../logics/requestValidation.js';
 
 type ErrorDto = { message: string };
 
@@ -16,10 +17,11 @@ type ErrorDto = { message: string };
 const validateBody = (
 	body: unknown,
 ): { ok: true; value: { text: string; maxLength?: number } } | { ok: false; message: string } => {
-	if (typeof body !== 'object' || body === null) {
-		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
+	const bodyResult = validateRequestBody(body);
+	if (!bodyResult.ok) {
+		return bodyResult;
 	}
-	const { text, maxLength } = body as Record<string, unknown>;
+	const { text, maxLength } = bodyResult.value;
 
 	// `text` fehlt → 400
 	if (text === undefined || text === null) {

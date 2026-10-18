@@ -43,6 +43,10 @@ export default [
 					ignoreRestSiblings: true,
 				},
 			],
+			// TypeScript-Funktions-Overloads (gleicher Name, mehrere Signaturen) sind eine legale
+			// Mehrfachdeklaration, die das Core-`no-redeclare` nicht kennt; echte Redeklarationen
+			// fängt weiterhin `tsc`.
+			'no-redeclare': 'off',
 		},
 	},
 	{

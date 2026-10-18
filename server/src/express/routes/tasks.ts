@@ -5,13 +5,23 @@ import { Op, Transaction, type WhereOptions } from 'sequelize';
 import sequelize from '../../database.js';
 import { Group, GroupMember, Pillar, ScoreEntry, Task, TaskPillar, User } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
-import { MAX_EFFORT, MIN_EFFORT } from '../../logics/effort.js';
 import { parseCoordinate, roundedDistanceKm } from '../../logics/geo.js';
 import { classifyLlmSuitability } from '../../logics/llmSuitability.js';
 import { shouldBlockFeature } from '../../logics/plans.js';
 import { selectSeriesRepresentatives } from '../../logics/series.js';
 import { ZURUECKSTELLEN_STUNDEN } from '../../logics/find.js';
 import { berechneScore } from '../../logics/score.js';
+import {
+	validateAddress,
+	validateCoordinates,
+	validateDescription,
+	validateEstimatedEffort,
+	validateIsoDate,
+	validatePriority,
+	validateRequestBody,
+	validateTitle,
+} from '../../logics/requestValidation.js';
+import type { ValidationResult } from '../../logics/requestValidation.js';
 import {
 	PillarContribution,
 	validatePillars,
@@ -65,9 +75,13 @@ interface TaskAttributes {
 	pinnedAt?: Date | null;
 }
 
-type ValidationResult =
-	| { ok: true; attrs: TaskAttributes; pillars: PillarContribution[] | undefined; completedAt: Date | undefined }
-	| { ok: false; message: string };
+/** Erfolgs-Shape der Task-Body-Validierung (Fehler-Kanal: `ValidationResult` aus `requestValidation`). */
+type TaskValidation = {
+	ok: true;
+	attrs: TaskAttributes;
+	pillars: PillarContribution[] | undefined;
+	completedAt: Date | undefined;
+};
 
 const isTaskStatus = (value: unknown): value is TaskStatus =>
 	typeof value === 'string' && VALID_STATUSES.some((status) => status === value);
@@ -377,21 +391,20 @@ const findClaimableGroupTask = async (id: number, userId: number | undefined): P
  * `requireTitle` erzwingt einen Titel (POST); bei PATCH sind alle Felder optional. `pillars` ist
  * `undefined`, wenn das Feld fehlt (PATCH lässt die Beiträge dann unverändert).
  */
-const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationResult => {
-	if (typeof body !== 'object' || body === null) {
-		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
+const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationResult<TaskValidation> => {
+	const bodyResult = validateRequestBody(body);
+	if (!bodyResult.ok) {
+		return bodyResult;
 	}
-	const input = body as Record<string, unknown>;
+	const input = bodyResult.value;
 	const attrs: TaskAttributes = {};
 
-	if (input.title !== undefined) {
-		if (typeof input.title !== 'string' || input.title.trim() === '') {
-			return { ok: false, message: 'title muss ein nicht-leerer String sein.' };
-		}
-		attrs.title = input.title.trim();
+	const title = validateTitle(input.title, requireTitle);
+	if (!title.ok) {
+		return title;
 	}
-	if (requireTitle && attrs.title === undefined) {
-		return { ok: false, message: 'title ist erforderlich.' };
+	if (title.value !== undefined) {
+		attrs.title = title.value;
 	}
 
 	if (input.status !== undefined) {
@@ -402,27 +415,19 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 	}
 
 	if (input.priority !== undefined) {
-		if (
-			typeof input.priority !== 'number' ||
-			!Number.isInteger(input.priority) ||
-			input.priority < 1 ||
-			input.priority > 5
-		) {
-			return { ok: false, message: 'priority muss eine Ganzzahl zwischen 1 und 5 sein.' };
+		const priority = validatePriority(input.priority);
+		if (!priority.ok) {
+			return priority;
 		}
-		attrs.priority = input.priority;
+		attrs.priority = priority.value;
 	}
 
 	if (input.estimatedEffort !== undefined) {
-		if (
-			typeof input.estimatedEffort !== 'number' ||
-			!Number.isFinite(input.estimatedEffort) ||
-			input.estimatedEffort < MIN_EFFORT ||
-			input.estimatedEffort > MAX_EFFORT
-		) {
-			return { ok: false, message: 'estimatedEffort muss eine Zahl zwischen 0.1 und 1 sein.' };
+		const estimatedEffort = validateEstimatedEffort(input.estimatedEffort);
+		if (!estimatedEffort.ok) {
+			return estimatedEffort;
 		}
-		attrs.estimatedEffort = input.estimatedEffort;
+		attrs.estimatedEffort = estimatedEffort.value;
 	}
 
 	if (input.actualEffort !== undefined) {
@@ -436,59 +441,38 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 	}
 
 	if (input.description !== undefined) {
-		if (input.description !== null && typeof input.description !== 'string') {
-			return { ok: false, message: 'description muss ein String oder null sein.' };
+		const description = validateDescription(input.description);
+		if (!description.ok) {
+			return description;
 		}
-		attrs.description = input.description;
+		attrs.description = description.value;
 	}
 
 	if (input.address !== undefined) {
-		if (input.address !== null && (typeof input.address !== 'string' || input.address.length > 255)) {
-			return { ok: false, message: 'address muss ein String (max. 255 Zeichen) oder null sein.' };
+		const address = validateAddress(input.address);
+		if (!address.ok) {
+			return address;
 		}
-		attrs.address = input.address === null ? null : input.address.trim() === '' ? null : input.address.trim();
+		attrs.address = address.value;
 	}
 
-	// Standort-Koordinaten (#1066): nur bei Auswahl eines Adress-Vorschlags gesetzt (Coordinates-only);
-	// Freitext ohne Koordinat bleibt speicherbar (AK10). `null` leert beide Werte.
-	// Standort-Koordinaten (#1066): nur bei Auswahl eines Adress-Vorschlags gesetzt (Coordinates-only);
-	// Freitext ohne Koordinat bleibt speicherbar (AK10). Lat/lon sind ein Paar: `null` auf einer
-	// Seite leert BEIDE Werte — eine Einzel-Koordinate wird paarweise zu null normalisiert.
+	// Standort-Koordinaten (#1066): Lat/lon sind ein Paar — eine Einzel-Koordinate wird paarweise
+	// zu null normalisiert (Einzelheiten: `validateCoordinates`).
 	if (input.latitude !== undefined || input.longitude !== undefined) {
-		if (
-			input.latitude !== null &&
-			input.latitude !== undefined &&
-			(typeof input.latitude !== 'number' ||
-				!Number.isFinite(input.latitude) ||
-				input.latitude < -90 ||
-				input.latitude > 90)
-		) {
-			return { ok: false, message: 'latitude muss eine Zahl zwischen -90 und 90 oder null sein.' };
+		const coordinates = validateCoordinates(input);
+		if (!coordinates.ok) {
+			return coordinates;
 		}
-		if (
-			input.longitude !== null &&
-			input.longitude !== undefined &&
-			(typeof input.longitude !== 'number' ||
-				!Number.isFinite(input.longitude) ||
-				input.longitude < -180 ||
-				input.longitude > 180)
-		) {
-			return { ok: false, message: 'longitude muss eine Zahl zwischen -180 und 180 oder null sein.' };
-		}
-		const lat = input.latitude ?? null;
-		const lon = input.longitude ?? null;
-		attrs.latitude = lat !== null && lon !== null ? lat : null;
-		attrs.longitude = lat !== null && lon !== null ? lon : null;
+		attrs.latitude = coordinates.value.latitude;
+		attrs.longitude = coordinates.value.longitude;
 	}
 
 	if (input.deadline !== undefined) {
-		if (input.deadline === null) {
-			attrs.deadline = null;
-		} else if (typeof input.deadline !== 'string' || Number.isNaN(Date.parse(input.deadline))) {
-			return { ok: false, message: 'deadline muss ein gültiges ISO-Datum oder null sein.' };
-		} else {
-			attrs.deadline = new Date(input.deadline);
+		const deadline = validateIsoDate(input.deadline, 'deadline', true);
+		if (!deadline.ok) {
+			return deadline;
 		}
+		attrs.deadline = deadline.value;
 	}
 
 	if (input.autoDeleteAfterDeadline !== undefined) {
@@ -1341,12 +1325,12 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				return;
 			}
 
-			const body: unknown = req.body;
-			if (typeof body !== 'object' || body === null) {
-				sendError(res, 400, 'Request-Body muss ein Objekt sein.');
+			const bodyResult = validateRequestBody(req.body);
+			if (!bodyResult.ok) {
+				sendError(res, 400, bodyResult.message);
 				return;
 			}
-			const input = body as Record<string, unknown>;
+			const input = bodyResult.value;
 
 			if (
 				typeof input.dependingTaskId !== 'number' ||

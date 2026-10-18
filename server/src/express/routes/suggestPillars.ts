@@ -11,6 +11,7 @@ import { getUserId, ownerScope } from '../requireAuth.js';
 import { requirePlanFeature } from '../planGuard.js';
 import { shouldBlockFeature } from '../../logics/plans.js';
 import { selectRelevantKnowledge } from '../../logics/knowledgeEntries.js';
+import { validateRequestBody, validateTitle } from '../../logics/requestValidation.js';
 import { meterAiQuota } from '../aiQuotaMeter.js';
 import type { components } from '../../api';
 
@@ -21,12 +22,16 @@ type ErrorDto = components['schemas']['Error'];
 
 /** Validiert den Body von `POST /tasks/suggest-pillars`: `title` Pflicht, `description`/`context` optional. */
 const validateBody = (body: unknown): { ok: true; value: SuggestPillarsInputDto } | { ok: false; message: string } => {
-	if (typeof body !== 'object' || body === null) {
-		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
+	const bodyResult = validateRequestBody(body);
+	if (!bodyResult.ok) {
+		return bodyResult;
 	}
-	const { title, description, context } = body as Record<string, unknown>;
-	if (typeof title !== 'string' || title.trim() === '') {
-		return { ok: false, message: 'title muss ein nicht-leerer String sein.' };
+	const { description, context } = bodyResult.value;
+	// `?? ''`: fehlender Titel fällt unter dieselbe Meldung wie leerer Titel (Verhalten unverändert);
+	// Pflicht-Modus, damit der Helfer-Typ den Wert als String nachweist.
+	const title = validateTitle(bodyResult.value.title ?? '', true);
+	if (!title.ok) {
+		return title;
 	}
 	if (description !== undefined && typeof description !== 'string') {
 		return { ok: false, message: 'description muss ein String sein.' };
@@ -34,7 +39,7 @@ const validateBody = (body: unknown): { ok: true; value: SuggestPillarsInputDto 
 	if (context !== undefined && typeof context !== 'string') {
 		return { ok: false, message: 'context muss ein String sein.' };
 	}
-	return { ok: true, value: { title: title.trim(), description, context } };
+	return { ok: true, value: { title: title.value, description, context } };
 };
 
 /**
@@ -48,12 +53,16 @@ const validateFeedbackBody = (
 	body: unknown,
 	validIds: ReadonlySet<number>,
 ): { ok: true; value: PillarFeedbackInputDto } | { ok: false; message: string } => {
-	if (typeof body !== 'object' || body === null) {
-		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
+	const bodyResult = validateRequestBody(body);
+	if (!bodyResult.ok) {
+		return bodyResult;
 	}
-	const { title, description, pillars } = body as Record<string, unknown>;
-	if (typeof title !== 'string' || title.trim() === '') {
-		return { ok: false, message: 'title muss ein nicht-leerer String sein.' };
+	const { description, pillars } = bodyResult.value;
+	// `?? ''`: fehlender Titel fällt unter dieselbe Meldung wie leerer Titel (Verhalten unverändert);
+	// Pflicht-Modus, damit der Helfer-Typ den Wert als String nachweist.
+	const title = validateTitle(bodyResult.value.title ?? '', true);
+	if (!title.ok) {
+		return title;
 	}
 	if (description !== undefined && description !== null && typeof description !== 'string') {
 		return { ok: false, message: 'description muss ein String sein.' };
@@ -89,7 +98,7 @@ const validateFeedbackBody = (
 	return {
 		ok: true,
 		value: {
-			title: title.trim(),
+			title: title.value,
 			description: typeof description === 'string' ? description : undefined,
 			pillars: validated,
 		},

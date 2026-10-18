@@ -5,6 +5,7 @@ import { parseId, sendError } from '../http-error.js';
 import sequelize from '../../database.js';
 import { Category, Series, Task } from '../../models/index.js';
 import { CATEGORY_COLORS, isCategoryColor } from '../../models/categoryColors.js';
+import { validateRequestBody } from '../../logics/requestValidation.js';
 import type { components } from '../../api';
 import { getUserId, ownerScope, requireAuth } from '../requireAuth.js';
 
@@ -63,10 +64,11 @@ const validateName = (value: unknown): { ok: true; name: string } | { ok: false;
 const validateCreateBody = (
 	body: unknown,
 ): { ok: true; input: CreateCategoryInput } | { ok: false; message: string } => {
-	if (typeof body !== 'object' || body === null) {
-		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
+	const bodyResult = validateRequestBody(body);
+	if (!bodyResult.ok) {
+		return bodyResult;
 	}
-	const { name, color } = body as Record<string, unknown>;
+	const { name, color } = bodyResult.value;
 	const validatedName = validateName(name);
 	if (!validatedName.ok) {
 		return validatedName;
@@ -84,10 +86,11 @@ const validateCreateBody = (
 const validateUpdateBody = (
 	body: unknown,
 ): { ok: true; input: UpdateCategoryInput } | { ok: false; message: string } => {
-	if (typeof body !== 'object' || body === null) {
-		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
+	const bodyResult = validateRequestBody(body);
+	if (!bodyResult.ok) {
+		return bodyResult;
 	}
-	const { name, color } = body as Record<string, unknown>;
+	const { name, color } = bodyResult.value;
 	if (name === undefined && color === undefined) {
 		return { ok: false, message: 'Mindestens eines der Felder (name, color) muss gesetzt sein.' };
 	}
