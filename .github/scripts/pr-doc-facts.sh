@@ -64,8 +64,9 @@ title_ok() {
   [ "${#subject}" -le 60 ]
 }
 
-# Pfade als bash-Array lesen (jq -r => eine Zeile je Datei). Kein `mapfile`:
-# bash 4+, der lokale Lauf auf macOS-Default-bash 3.2 würde abstürzen.
+# Pfade per while-read als bash-Array füllen (jq -r => eine Zeile je Datei). Der
+# eingebaute Array-Zeilenleser der bash 4+ ist tabu — der lokale Lauf auf der
+# macOS-Default-bash 3.2 würde daran abstürzen.
 paths=()
 while IFS= read -r p; do
   paths+=("$p")

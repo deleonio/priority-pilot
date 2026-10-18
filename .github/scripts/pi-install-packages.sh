@@ -32,7 +32,10 @@ fi
 
 # Objektform (mit Ressourcen-Filtern) ebenso zulassen wie den blossen Quell-String —
 # die pi-Doku erlaubt beide in `packages`, und das Projektfile nutzt die Objektform.
-mapfile -t SOURCES < <(jq -r '.packages[]? | if type == "object" then .source else . end' "$SETTINGS")
+SOURCES=()
+while IFS= read -r s; do
+  SOURCES+=("$s")
+done < <(jq -r '.packages[]? | if type == "object" then .source else . end' "$SETTINGS")
 if [ "${#SOURCES[@]}" -eq 0 ]; then
   echo "::error title=pi-Pakete leer::$SETTINGS enthält keine packages."
   exit 1
