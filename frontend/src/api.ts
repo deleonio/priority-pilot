@@ -492,8 +492,8 @@ export const api = {
 		return data;
 	},
 
-	// Suchanfrage in Suchbegriff und Kategorie zerlegen (`POST /tasks/parse-search`), damit eine
-	// gesprochene Anfrage wie „offene Sachen zum Hausbau" direkt den Kategorie-Filter setzt.
+	// Gesprochene Anfrage auf den reinen Suchbegriff kürzen (`POST /tasks/parse-search`) — der
+	// Kategorie-Filter bleibt allein Sache der Suchmaske (#2716).
 	// Retry-Verhalten wie `parseText` — derselbe LLM-Upstream.
 	async parseSearch({ text }: { text: string }): Promise<ParsedSearch> {
 		const { data } = await withRetry(() => client.POST('/tasks/parse-search', { body: { text } }));

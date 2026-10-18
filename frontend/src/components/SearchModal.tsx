@@ -29,9 +29,10 @@ interface SearchModalProps {
  * wechselt und filtert.
  *
  * Bei aktiver KI wird eine frei formulierte Anfrage („offene Sachen zum Hausbau") vor dem Suchen
- * durch `POST /tasks/parse-search` geschickt: Das trennt Suchbegriff und Kategorie, sodass auch
- * eine diktierte Anfrage direkt den Filter setzt. Scheitert der Aufruf oder ist die KI aus, wird
- * mit dem eingegebenen Text gesucht — die Suche funktioniert immer, das Parsing ist die Zugabe.
+ * durch `POST /tasks/parse-search` geschickt: Das kürzt sie auf den reinen Suchbegriff („offene
+ * Sachen"). Der Kategorie-Filter bleibt allein Sache der Maske (#2716). Scheitert der Aufruf oder
+ * ist die KI aus, wird mit dem eingegebenen Text gesucht — die Suche funktioniert immer, das
+ * Parsing ist die Zugabe.
  */
 export const SearchModal = ({ categories = [], onClose, onSearch }: SearchModalProps) => {
 	const { t } = useTranslation(['capture', 'common']);
@@ -76,15 +77,12 @@ export const SearchModal = ({ categories = [], onClose, onSearch }: SearchModalP
 		try {
 			const parsed = await api.parseSearch({ text: query });
 			const parsedText = parsed.text?.trim() ?? '';
-			const parsedCategoryId = parsed.categoryId ?? null;
-			// Drei Fälle: (1) Das Modell hat etwas erkannt — Zerlegung übernehmen, ein leerer `text` neben
-			// einer Kategorie ist dabei gewollt („zeig mir Hausbau" filtert nur nach Kategorie). (2) Es hat
-			// gar nichts erkannt (`{}` ist laut Vertrag ein gültiges Ergebnis) — dann ist das keine
-			// Zerlegung, sondern ein Nicht-Ergebnis, und es wird mit dem gesprochenen Text gesucht statt
-			// ungefiltert alles zu zeigen. Der `catch` unten greift nur bei einer Exception, nicht hier.
-			// Eine im Feld getroffene Kategorie-Auswahl bleibt erhalten, wenn das Modell keine erkennt.
-			const nothingRecognized = parsedText === '' && parsedCategoryId === null;
-			onSearch(nothingRecognized ? query : parsedText, parsedCategoryId ?? categoryId);
+			// Zwei Fälle: (1) Das Modell hat einen Suchbegriff erkannt — Zerlegung übernehmen. (2) Es hat
+			// gar nichts erkannt (`{}` ist laut Vertrag ein gültiges Ergebnis, auch nur mit Kategorie) —
+			// dann wird mit dem gesprochenen Text gesucht statt leerer Anfrage. Der Kategorie-Filter
+			// kommt in beiden Fällen ausschließlich aus der Maske (#2716), die Modell-Auswertung trägt
+			// nur den Suchbegriff bei. Der `catch` unten greift nur bei einer Exception, nicht hier.
+			onSearch(parsedText !== '' ? parsedText : query, categoryId);
 			onClose();
 		} catch {
 			// Kontrollierte Degradation: Ohne Zerlegung wird mit dem gesprochenen Text gesucht.
