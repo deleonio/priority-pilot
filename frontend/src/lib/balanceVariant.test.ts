@@ -113,6 +113,7 @@ describe('balanceVariant', () => {
 			'kristall',
 			'segmente',
 			'zeiger',
+			'bahnen',
 		]);
 	});
 

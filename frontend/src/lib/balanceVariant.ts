@@ -27,9 +27,11 @@ import i18next from '../i18n/config';
  *   Anteil seiner Säule und gefüllt von innen bis auf ihren Wert.
  * - **Zeiger** — je Säule ein Zeiger auf dem gemeinsamen Zifferblatt, gleichmäßig über den Kreis
  *   verteilt; der längste steht auf 12 Uhr.
+ * - **Bahnen** — je Säule ein Komet auf eigener Ellipsenbahn um die Mitte. Die große Achse trägt
+ *   den Wert, die größte Bahn zeigt auf 12 Uhr; der Komet läuft auf seiner Bahn um.
  *
- * Die acht Figuren (alles außer dem Herz) zeichnen **dieselbe Zahlenreihe** (`balanceMetric.ts`): je Säule das Verhältnis
- * Ist zu Soll. Sie unterscheiden sich in der Form, nie im Inhalt — und teilen sich Zifferblatt,
+ * Die neun Figuren (alles außer dem Herz) zeichnen **dieselbe Zahlenreihe** (`balanceMetric.ts`): je Säule das
+ * Verhältnis Ist zu Soll. Sie unterscheiden sich in der Form, nie im Inhalt — und teilen sich Zifferblatt,
  * Auftakt, Ruhepuls und Material (`balanceFigure.ts`, `balance-figure.frag`).
  *
  * Persistenz im Muster von `animations.ts`/`heartAnimation.ts`: reine Funktionen plus ein kleiner
@@ -42,14 +44,14 @@ import i18next from '../i18n/config';
 
 /** Schlüssel der Bilder. Der gespeicherte Wert ist genau einer davon. */
 export type BalanceVariant =
-	'herz' | 'blasen' | 'scheiben' | 'ringe' | 'strahlen' | 'bluete' | 'kristall' | 'segmente' | 'zeiger';
+	'herz' | 'blasen' | 'scheiben' | 'ringe' | 'strahlen' | 'bluete' | 'kristall' | 'segmente' | 'zeiger' | 'bahnen';
 
 /** Die Figuren, die sich Zifferblatt, Kennzahl und Rahmen teilen (`BalanceFigure`) — alles außer dem Herz. */
 export type FigureKind = Exclude<BalanceVariant, 'herz'>;
 
 /** Reihenfolge und Beschriftung für die Auswahl in den Einstellungen. */
 export const BALANCE_VARIANTS: readonly { value: BalanceVariant; readonly label: string }[] = (
-	['herz', 'blasen', 'scheiben', 'ringe', 'strahlen', 'bluete', 'kristall', 'segmente', 'zeiger'] as const
+	['herz', 'blasen', 'scheiben', 'ringe', 'strahlen', 'bluete', 'kristall', 'segmente', 'zeiger', 'bahnen'] as const
 ).map((value) => ({
 	value,
 	// Getter: übersetzt beim Lesen, damit ein Sprachwechsel greift.

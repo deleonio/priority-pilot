@@ -5008,6 +5008,80 @@ kol-alert {
 }
 
 /*
+ * Bahnen: je Säule eine Umlaufbahn mit Komet. Die Bahn ist der Weg, nicht der Wert — blass und
+ * dünn, ihre große Achse (Attribut `rx`) trägt die Kennzahl. Der Schweif läuft dem Kopf in
+ * Laufrichtung hinterher; der Kopf nutzt die Knoten-Klasse der Blüte/Kristall-Spitzen.
+ */
+.balance-orbit-track {
+	fill: none;
+	stroke: var(--pp-border-strong);
+	stroke-width: 0.7;
+	stroke-opacity: 0.4;
+}
+
+.balance-orbit-track--1 {
+	stroke: var(--pp-pillar-neon-1);
+}
+
+.balance-orbit-track--2 {
+	stroke: var(--pp-pillar-neon-2);
+}
+
+.balance-orbit-track--3 {
+	stroke: var(--pp-pillar-neon-3);
+}
+
+.balance-orbit-track--4 {
+	stroke: var(--pp-pillar-neon-4);
+}
+
+.balance-orbit-track--5 {
+	stroke: var(--pp-pillar-neon-5);
+}
+
+.balance-orbit-track--6 {
+	stroke: var(--pp-pillar-neon-6);
+}
+
+.balance-orbit-track--7 {
+	stroke: var(--pp-pillar-neon-7);
+}
+
+.balance-comet-tail {
+	fill: var(--pp-border-strong);
+	fill-opacity: 0.45;
+	stroke: none;
+}
+
+.balance-comet-tail--1 {
+	fill: var(--pp-pillar-neon-1);
+}
+
+.balance-comet-tail--2 {
+	fill: var(--pp-pillar-neon-2);
+}
+
+.balance-comet-tail--3 {
+	fill: var(--pp-pillar-neon-3);
+}
+
+.balance-comet-tail--4 {
+	fill: var(--pp-pillar-neon-4);
+}
+
+.balance-comet-tail--5 {
+	fill: var(--pp-pillar-neon-5);
+}
+
+.balance-comet-tail--6 {
+	fill: var(--pp-pillar-neon-6);
+}
+
+.balance-comet-tail--7 {
+	fill: var(--pp-pillar-neon-7);
+}
+
+/*
  * Zwei Gruppen, zwei Bewegungen: außen der einmalige Auftakt, innen der Ruhepuls. Sie müssen
  * getrennt bleiben — zwei `animation`-Regeln auf demselben Element schreiben dieselbe
  * `transform`-Eigenschaft und die spätere gewinnt.

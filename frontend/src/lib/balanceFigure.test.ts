@@ -5,13 +5,17 @@ import {
 	auftaktWechselt,
 	buildArcs,
 	buildHands,
+	buildOrbits,
 	buildOrbs,
 	buildPetals,
 	buildRays,
 	buildWedges,
 	CENTER,
 	FIGURE_MAX,
+	ORBIT_FLAT,
 	orbAxes,
+	orbitPoint,
+	orbitTheta,
 	petalRadiusAt,
 	RISE_DURATION,
 	RING_INNER,
@@ -59,6 +63,7 @@ describe('Ordnung über alle Figuren', () => {
 		expect(buildPetals(metrics).map((petal) => petal.pillarId)).toEqual(erwartet);
 		expect(buildWedges(metrics).map((wedge) => wedge.pillarId)).toEqual(erwartet);
 		expect(buildHands(metrics).map((hand) => hand.pillarId)).toEqual(erwartet);
+		expect(buildOrbits(metrics).map((orbit) => orbit.pillarId)).toEqual(erwartet);
 	});
 
 	it('gibt derselben Säule in jeder Figur dieselbe Bewegung', () => {
@@ -68,6 +73,7 @@ describe('Ordnung über alle Figuren', () => {
 		const petal = buildPetals(metrics)[0];
 		const wedge = buildWedges(metrics)[0];
 		const hand = buildHands(metrics)[0];
+		const orbit = buildOrbits(metrics)[0];
 
 		for (const key of ['phase', 'swingPeriod', 'rotPeriod', 'rotDirection'] as const) {
 			expect(arc[key]).toBe(orb[key]);
@@ -75,6 +81,7 @@ describe('Ordnung über alle Figuren', () => {
 			expect(petal[key]).toBe(orb[key]);
 			expect(wedge[key]).toBe(orb[key]);
 			expect(hand[key]).toBe(orb[key]);
+			expect(orbit[key]).toBe(orb[key]);
 		}
 	});
 
@@ -116,6 +123,7 @@ describe('Ordnung über alle Figuren', () => {
 		expect(buildPetals(voll).length).toBeGreaterThan(0);
 		expect(buildWedges(voll).length).toBeGreaterThan(0);
 		expect(buildHands(voll).length).toBeGreaterThan(0);
+		expect(buildOrbits(voll).length).toBeGreaterThan(0);
 
 		for (const arc of buildArcs(voll)) expect(arc.radius + arc.width / 2).toBeLessThanOrEqual(FIGURE_MAX);
 		for (const ray of buildRays(voll)) expect(ray.length).toBeLessThanOrEqual(FIGURE_MAX);
@@ -123,6 +131,7 @@ describe('Ordnung über alle Figuren', () => {
 		for (const petal of buildPetals(voll)) expect(petal.radius).toBeLessThanOrEqual(FIGURE_MAX);
 		for (const wedge of buildWedges(voll)) expect(wedge.outer).toBeLessThanOrEqual(FIGURE_MAX);
 		for (const hand of buildHands(voll)) expect(hand.length).toBeLessThanOrEqual(FIGURE_MAX);
+		for (const orbit of buildOrbits(voll)) expect(orbit.radius).toBeLessThanOrEqual(FIGURE_MAX);
 	});
 
 	/*
@@ -139,6 +148,7 @@ describe('Ordnung über alle Figuren', () => {
 		expect(buildPetals(leer).length).toBeGreaterThan(0);
 		expect(buildWedges(leer).length).toBeGreaterThan(0);
 		expect(buildHands(leer).length).toBeGreaterThan(0);
+		expect(buildOrbits(leer).length).toBeGreaterThan(0);
 
 		for (const orb of buildOrbs(leer)) expect(orb.radius).toBe(R_MIN);
 		for (const ray of buildRays(leer)) expect(ray.length).toBeGreaterThan(0);
@@ -150,6 +160,7 @@ describe('Ordnung über alle Figuren', () => {
 			expect(wedge.outer).toBe(R_MIN);
 		}
 		for (const hand of buildHands(leer)) expect(hand.length).toBe(R_MIN);
+		for (const orbit of buildOrbits(leer)) expect(orbit.radius).toBe(R_MIN);
 	});
 
 	it('schwingt gegenläufig — die Fläche atmet, sie wächst nicht', () => {
@@ -209,6 +220,14 @@ describe('Die Soll-Marke', () => {
 		const aufZiel = hands.find((hand) => hand.pillarId === 2);
 
 		expect(hands[0].targetLength).toBeCloseTo(aufZiel?.length ?? -1, 6);
+	});
+
+	it('liegt bei den Bahnen auf dem Scheitel, den eine Säule auf Ziel hätte', () => {
+		const metrics = metricsOf([2, 1]);
+		const orbits = buildOrbits(metrics);
+		const aufZiel = orbits.find((orbit) => orbit.pillarId === 2);
+
+		expect(targetRadius(metrics)).toBeCloseTo(aufZiel?.radius ?? -1, 6);
 	});
 });
 
@@ -357,6 +376,47 @@ describe('Figur „Zeiger“', () => {
 
 		expect(hands[0].spread).toBeLessThan(buildRays(metrics)[0].spread);
 		for (const hand of hands) expect(hand.spread * 2).toBeLessThan(step);
+	});
+});
+
+describe('Figur „Bahnen“', () => {
+	it('stellt die größte Bahn auf 12 Uhr und verteilt den Rest gleichmäßig', () => {
+		const orbits = buildOrbits(metricsOf([0.4, 1.6, 1.0]));
+
+		expect(orbits[0].angle).toBe(-90);
+		expect(orbits[1].angle).toBeCloseTo(-90 + 120, 6);
+		expect(orbits[2].angle).toBeCloseTo(-90 + 240, 6);
+		expect(orbits[0].radius).toBeGreaterThan(orbits[2].radius);
+	});
+
+	/* Die große Achse trägt den Wert: Der Scheitel der Bahn liegt so weit außen wie die Kennzahl,
+	 * quer dazu misst die Bahn den abgeflachten Anteil — sonst wäre die Ellipse ein Datum. */
+	it('trägt die große Achse den Wert und behält die Abflachung bei', () => {
+		const [orbit] = buildOrbits(metricsOf([1]));
+		const scheitel = orbitPoint(orbit, 0);
+		const quer = orbitPoint(orbit, Math.PI / 2);
+
+		expect(Math.hypot(scheitel.x - CENTER, scheitel.y - CENTER)).toBeCloseTo(orbit.radius, 6);
+		expect(Math.hypot(quer.x - CENTER, quer.y - CENTER)).toBeCloseTo(orbit.radius * ORBIT_FLAT, 6);
+	});
+
+	it('läuft im Standbild auf der Phase und im Dreh-Takt in eigene Richtung', () => {
+		const [orbit] = buildOrbits(metricsOf([1]));
+
+		expect(orbitTheta(orbit, 0)).toBe(orbit.phase);
+		const viertel = orbit.rotPeriod / 4;
+		const theta = orbitTheta(orbit, viertel);
+		expect(theta).toBeCloseTo(orbit.phase + orbit.rotDirection * (Math.PI / 2), 6);
+	});
+
+	/* Gleichstand wie bei den Blasen: Ohne eigene Phase und Periode liefe alles synchron und das
+	 * Bild zeigte fünf Deckungsgleiche Bahnen. */
+	it('bewegt gleich große Bahnen paarweise verschieden (Gleichstand)', () => {
+		const orbits = buildOrbits(metricsOf([1, 1, 1, 1, 1]));
+
+		expect(new Set(orbits.map((orbit) => orbit.radius)).size).toBe(1);
+		expect(new Set(orbits.map((orbit) => orbit.phase)).size).toBe(orbits.length);
+		expect(new Set(orbits.map((orbit) => orbit.swingPeriod)).size).toBe(orbits.length);
 	});
 });
 

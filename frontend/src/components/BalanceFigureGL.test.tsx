@@ -41,7 +41,7 @@ const metricsOf = (ratios: number[]): BalanceMetrics => {
 
 const stateOf = (
 	metrics: BalanceMetrics,
-	figure: 'blasen' | 'scheiben' | 'ringe' | 'strahlen' | 'bluete' | 'kristall' | 'segmente' | 'zeiger',
+	figure: 'blasen' | 'scheiben' | 'ringe' | 'strahlen' | 'bluete' | 'kristall' | 'segmente' | 'zeiger' | 'bahnen',
 ) => ({
 	figure,
 	metrics,
@@ -187,5 +187,22 @@ describe('BalanceFigureGL toSlots', () => {
 		expect(hands.rayLength[0]).toBeGreaterThan(hands.rayLength[2]);
 		expect(hands.raySpread[0]).toBeLessThan(rays.raySpread[0]);
 		expect(hands.wedgeMid).toHaveLength(0);
+	});
+
+	/* Bahnen belegen die Strahlen-Plätze mit Winkel und großer Halbachse — der Schweif und das
+	 * Um-laufen leben allein im Shader, deshalb braucht die Figur keine Öffnung. */
+	it('belegt die Slots für Bahnen auf den Strahlen-Plätzen, ohne Öffnung', () => {
+		const metrics = metricsOf([0.2, 1, 0.6]);
+		const slots = toSlots(stateOf(metrics, 'bahnen'), colors);
+		const strahlen = toSlots(stateOf(metrics, 'strahlen'), colors);
+
+		expect(slots.rayAngle).toEqual(strahlen.rayAngle);
+		expect(slots.rayLength[0]).toBeGreaterThan(slots.rayLength[2]);
+		expect(slots.raySpread).toHaveLength(0);
+		expect(slots.orbRadius).toHaveLength(0);
+		expect(slots.wedgeMid).toHaveLength(0);
+		// Soll-Marke in Radius-Einheit: die Bahn der Säule auf Ziel (hier die stärkste) berührt
+		// den Strichelkreis mit ihrem Scheitel.
+		expect(slots.target).toBeCloseTo(slots.rayLength[0], 6);
 	});
 });
