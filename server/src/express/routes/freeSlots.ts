@@ -84,7 +84,8 @@ freeSlotsRouter.get('/tasks/free-slots', async (req: Request, res: Response<Free
 				.slice(0, MAX_SLOTS)
 				.map((slot) => ({ start: slot.start.toISOString(), end: slot.end.toISOString(), tasks: slot.tasks })),
 		);
-	} catch {
+	} catch (error) {
+		console.error('Freie Zeitfenster konnten nicht geladen werden:', error);
 		res.json([]);
 	}
 });
