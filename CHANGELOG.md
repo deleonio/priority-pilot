@@ -2,9 +2,13 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.29 - 2026-10-18
+
+_Keine für Nutzer sichtbaren Änderungen._
+
 ## v0.28 - 2026-10-18
 
-_Enthält v0.28.0 – v0.28.14._
+_Enthält v0.28.0 – v0.28.15._
 
 ### 🐞 Bug Fixes
 
@@ -28,6 +32,7 @@ _Enthält v0.28.0 – v0.28.14._
 - fix(android): embed native debug symbols in the release aab by @deleonio in https://github.com/deleonio/priority-pilot/pull/2682
 - fix(llm): add top_p 1 for greedy sampling and surface embedded 200 errors by @deleonio in https://github.com/deleonio/priority-pilot/pull/2683
 - fix(server): raise llm test timeout to 30s and surface body-read timeouts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2699
+- feat(server): log swallowed db errors in provider resolution (#2687) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2702
 
 ## v0.27 - 2026-10-17
 
@@ -235,7 +240,6 @@ _Enthält v0.21.0 – v0.21.7._
 ### 🎉 New Features
 
 - feat(frontend): allow clearing a set deadline in task form (#2463) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2466
-- feat(frontend): dismissible demo hint card (#2471) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2473
 - feat(frontend): dismissible demo hint card (#2471) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2473
 
 ### 🚀 Improvements
