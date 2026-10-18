@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.29 - 2026-10-18
 
-_Enthält v0.29.0 – v0.29.8._
+_Enthält v0.29.0 – v0.29.9._
 
 ### 🚀 Improvements
 
@@ -22,6 +22,7 @@ _Enthält v0.29.0 – v0.29.8._
 
 - docs: add ADR 0025 on shared logic as duplicate with mirror tests by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2703
 - feat(server): move score recap logic from routes into logics (#2689) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2706
+- feat(frontend): add tenth dial Bahnen with comets on elliptical orbits by @deleonio in https://github.com/deleonio/priority-pilot/pull/2712
 
 ## v0.28 - 2026-10-18
 
@@ -247,7 +248,6 @@ _Enthält v0.22.0 – v0.22.10._
 - docs(knowledge): describe frontend coverage gate as implemented (v-18) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2479
 - feat(frontend): make launch banner dismissible (#2480) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2481
 - fix(deps): pin dependency pdf-lib to 1.17.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2482
-- fix(frontend): launch banner dismissible per login, demo hint removed by @deleonio in https://github.com/deleonio/priority-pilot/pull/2485
 - fix(frontend): launch banner dismissible per login, demo hint removed by @deleonio in https://github.com/deleonio/priority-pilot/pull/2485
 - feat(frontend): two-column balance image picker with preview above hint by @deleonio in https://github.com/deleonio/priority-pilot/pull/2487
 
@@ -577,6 +577,7 @@ _Enthält v0.14.0 – v0.14.31._
 - feat(frontend): add article-create skill and marketing articles by @deleonio in https://github.com/deleonio/priority-pilot/pull/2056
 - feat(server): reached milestones never expire (#1965) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2148
 - feat(server): store balance variant choice on the account (#2009) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2156
+- feat(frontend): show done tasks on their due day in week view (#2012) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2158
 - feat(frontend): show done tasks on their due day in week view (#2012) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2158
 
 ### 🚀 Improvements
