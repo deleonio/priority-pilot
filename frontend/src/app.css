@@ -6191,8 +6191,9 @@ a.plan-badge:focus-visible {
 }
 
 /* --- Erststart-Flow (#2069) --- */
-/* Inhalt des Willkommens-Dialogs (Modal in App.tsx): einspaltig, alle Primäraktionen unten sticky,
-   Touch-Targets übernimmt KoliBri. */
+/* Inhalt des Willkommens-Dialogs (Modal in App.tsx): einspaltig, Aktionen am Flow-Ende ohne
+   eigenen Hintergrund (Muster .modal-actions; sticky+Fläche überlappte die Textarea und trat
+   im Dunkelmodus als fremdes Band auf). Touch-Targets übernimmt KoliBri. */
 .onboarding-flow {
 	display: flex;
 	flex-direction: column;
@@ -6218,13 +6219,9 @@ a.plan-badge:focus-visible {
 }
 
 .onboarding-actions {
-	position: sticky;
-	bottom: 0;
 	display: flex;
 	flex-direction: column;
 	gap: var(--pp-gap-base);
-	padding-block: var(--pp-gap-base);
-	background: var(--pp-surface-0);
 }
 
 /*

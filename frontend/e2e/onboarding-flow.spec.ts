@@ -1,6 +1,6 @@
 import type { Route } from '@playwright/test';
 import { expect, test, type Locator, type Page } from './fixtures';
-import { registerOwnSession, taskTitleText, waitForStableBox, waitForStableView } from './helpers';
+import { registerOwnSession, setTheme, taskTitleText, waitForStableBox, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #2069 — Erststart-Flow Schritte 1–3 (Freitext, Vorschläge, Übernehmen).
@@ -109,6 +109,28 @@ test.describe('#2069 Erststart-Flow', () => {
 		expect(suggestionCalls, 'leeres Feld darf den Suggester nicht aufrufen').toBe(0);
 		const tasks = (await (await page.request.get('/api/v1/tasks')).json()) as unknown[];
 		expect(tasks).toHaveLength(0);
+	});
+
+	// Regression Willkommens-Dialog: sticky + eigene Fläche ließ Weiter/Später über die Textarea
+	// gleiten und trat im Dunkelmodus als fremdes Band auf — der Container bleibt unpositioniert
+	// und ohne eigenen Hintergrund (Muster .modal-actions).
+	test('Aktionen ohne sticky und ohne eigenen Hintergrund (Light + Dark)', async ({ page }) => {
+		await startFreshUser(page);
+		const actions = flow(page).locator('.onboarding-actions');
+		await expect(actions).toBeVisible();
+
+		for (const theme of ['light', 'dark'] as const) {
+			await setTheme(page, theme);
+			const styles = await actions.evaluate((el) => {
+				const computed = window.getComputedStyle(el);
+				return { position: computed.position, background: computed.backgroundColor };
+			});
+			expect(styles.position, `position muss in ${theme} static sein (kein sticky über der Textarea)`).toBe('static');
+			expect(
+				styles.background === 'rgba(0, 0, 0, 0)' || styles.background === 'transparent' || styles.background === '',
+				`Hintergrund muss in ${theme} transparent sein, aber hat: "${styles.background}"`,
+			).toBe(true);
+		}
 	});
 
 	test('AK2: Ladezustand mit aria-live, danach 5 einzeln umschaltbare Karten mit Säulen-Badge und „nach: …“', async ({
