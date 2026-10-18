@@ -5,7 +5,7 @@ import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } 
 /**
  * Rote Spec-Tests für #2009 (Spec: docs/spec/issue-2009.md) — Zifferblatt-Auswahl am Konto.
  *
- * AK1: `PUT /balance-variant` persistiert einen der neun Varianten-Schlüssel am Konto;
+ * AK1: `PUT /balance-variant` persistiert einen der zehn Varianten-Schlüssel am Konto;
  *   jeder andere Wert → 400, nichts persistiert.
  * AK2: `GET /balance-variant` liefert die gespeicherte Wahl, sonst `herz`.
  * AK3: Kontoisolation — die Wahl von Nutzer A ist für Nutzer B nicht sichtbar.
@@ -16,8 +16,19 @@ import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } 
 
 applyTestAuthEnv('test-secret-issue-2009');
 
-/** Die neun Bild-Schlüssel (`BALANCE_VARIANTS`, frontend/src/lib/balanceVariant.ts). */
-const VARIANTEN = ['herz', 'blasen', 'scheiben', 'ringe', 'strahlen', 'bluete', 'kristall', 'segmente', 'zeiger'];
+/** Die zehn Bild-Schlüssel (`BALANCE_VARIANTS`, frontend/src/lib/balanceVariant.ts). */
+const VARIANTEN = [
+	'herz',
+	'blasen',
+	'scheiben',
+	'ringe',
+	'strahlen',
+	'bluete',
+	'kristall',
+	'segmente',
+	'zeiger',
+	'bahnen',
+];
 
 let server: TestServer;
 
@@ -66,7 +77,7 @@ describe('Zifferblatt-Auswahl pro User (#2009 AK1–AK3)', () => {
 		assert.deepEqual((await res.json()) as { variant: string }, { variant: 'herz' });
 	});
 
-	it('AK1 — PUT persistiert jeden der neun Varianten-Schlüssel, GET liefert ihn zurück', async () => {
+	it('AK1 — PUT persistiert jeden der zehn Varianten-Schlüssel, GET liefert ihn zurück', async () => {
 		const cookie = await server.register('variant-alle@example.com', 'password123');
 		for (const variant of VARIANTEN) {
 			const put = await putVariant(cookie, { variant });
