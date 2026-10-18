@@ -194,7 +194,7 @@ const DE: PrivacyText = {
 			paragraphs: [],
 			facts: {
 				purpose:
-					'Zählen, wie oft Website und App besucht werden, welche Seiten aufgerufen werden und von welcher Seite Besucher kommen. Wir nutzen Matomo ohne Cookies: Auf deinem Gerät wird nichts gespeichert, übertragen werden der Seitenpfad, der Seitentitel, die verweisende Seite sowie technische Angaben zu Browser und Bildschirm, bei Klicks auf externe Links deren Ziel, nie Suchbegriffe, Aufgabeninhalte oder Anmelde-Links. Die IP-Adresse wird vor dem Speichern gekürzt, ein Besuch lässt sich nicht über den Tag hinaus wiedererkennen. Sendet dein Browser „Do Not Track“, zählen wir dich nicht.',
+					'Zählen, wie oft Website, Web-App und Android-App besucht werden, welche Seiten aufgerufen werden und von welcher Seite Besucher kommen. Wir nutzen Matomo ohne Cookies: Auf deinem Gerät wird nichts gespeichert, übertragen werden der Seitenpfad, der Seitentitel, die verweisende Seite, die Art des Zugangs (Browser, installierte Web-App oder Android-App) sowie technische Angaben zu Browser und Bildschirm, bei Klicks auf externe Links deren Ziel, nie Suchbegriffe, Aufgabeninhalte oder Anmelde-Links. Die IP-Adresse wird vor dem Speichern gekürzt, ein Besuch lässt sich nicht über den Tag hinaus wiedererkennen. Sendet dein Browser „Do Not Track“, zählen wir dich nicht.',
 				legalBasis: 'Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer datensparsamen Reichweitenmessung).',
 				retention: 'Einzelne Besuche 180 Tage, danach nur zusammengefasste Zahlen ohne Personenbezug.',
 				recipients:
@@ -263,7 +263,7 @@ const EN: PrivacyText = {
 		{
 			heading: 'No analysis',
 			paragraphs: [
-				'We do not analyse your data. There is no usage profile, no tracking and no advertising; the content of your tasks serves your own planning alone.',
+				'We do not analyse your data. There is no usage profile, no advertising tracking and no advertising; the content of your tasks serves your own planning alone. We count how many people visit the website and the app without cookies on our own server (section “Reach measurement”).',
 				'The only exception is an anonymous count of whether care suggestions help: how often suggestions are shown, accepted or declined (without reference to your account) and how many accounts are still completing tasks 4 and 12 weeks after sign-up, split by care hints switched on and off. For this we store when you switch the care hints on or off; this history is deleted with your account. Only totals are evaluated; groups of fewer than five people are not reported.',
 			],
 		},
@@ -404,6 +404,18 @@ const EN: PrivacyText = {
 				retention: 'The cookies until you sign out or until the session expires.',
 				recipients:
 					'Our hosting provider Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Germany, which operates the server on our behalf in Germany (Art. 28 GDPR).',
+			},
+		},
+		{
+			heading: 'Reach measurement (Matomo)',
+			paragraphs: [],
+			facts: {
+				purpose:
+					'Counting how often the website, web app and Android app are visited, which pages are opened and which page visitors come from. We use Matomo without cookies: nothing is stored on your device; we transmit the page path, the page title, the referring page, the type of access (browser, installed web app or Android app) and technical details about browser and screen, for clicks on external links their target, never search terms, task contents or sign-in links. The IP address is shortened before it is stored; a visit cannot be recognised beyond the day. If your browser sends “Do Not Track”, we do not count you.',
+				legalBasis: 'Art. 6(1)(f) GDPR (legitimate interest in data-minimising reach measurement).',
+				retention: 'Individual visits 180 days, after that only aggregated figures without personal reference.',
+				recipients:
+					'None. Matomo runs on our own server at Hetzner Online GmbH in Germany (see section “Operation, hosting and session cookie”).',
 			},
 		},
 		{

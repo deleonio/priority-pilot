@@ -29,37 +29,10 @@ describe('matomoScript', () => {
 		const html = matomoScript({ MATOMO_URL: 'https://stats.example.de', MATOMO_SITE_ID: '1' }, { notFound: true });
 		expect(html).toContain("['setDocumentTitle','404/URL = '+location.pathname],['trackPageView']");
 	});
-});
 
-describe('trackPageView', () => {
-	beforeEach(() => {
-		window._paq = [];
-	});
-
-	it('zählt den Erstaufruf nicht, Wechsel mit /app/-Präfix, gleichen Pfad nicht', async () => {
-		const { trackPageView } = await load();
-		window.history.pushState({}, '', '/app/');
-		trackPageView('/');
-		expect(window._paq).toEqual([]);
-		window.history.pushState({}, '', '/app/aufgaben');
-		trackPageView('/aufgaben');
-		expect(window._paq).toEqual([
-			['setReferrerUrl', `${location.origin}/app/`],
-			['setCustomUrl', `${location.origin}/app/aufgaben`],
-			['setDocumentTitle', '/aufgaben'],
-			['trackPageView'],
-		]);
-		trackPageView('/aufgaben');
-		expect(window._paq).toHaveLength(4);
-	});
-
-	it('fasst IDs zusammen und betitelt unbekannte Pfade als 404', async () => {
-		const { trackPageView } = await load();
-		window.history.pushState({}, '', '/app/');
-		trackPageView('/');
-		window.history.pushState({}, '', '/app/tasks/42');
-		trackPageView('/tasks/42', false);
-		expect(window._paq).toContainEqual(['setCustomUrl', `${location.origin}/app/tasks/:id`]);
-		expect(window._paq).toContainEqual(['setDocumentTitle', '404/URL = /app/tasks/42']);
+	it('überlässt der App die Seitenaufrufe', () => {
+		const html = matomoScript({ MATOMO_URL: 'https://stats.example.de', MATOMO_SITE_ID: '1' }, { pageView: false });
+		expect(html).not.toContain('trackPageView');
+		expect(html).toContain("['enableHeartBeatTimer']");
 	});
 });

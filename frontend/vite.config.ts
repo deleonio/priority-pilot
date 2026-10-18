@@ -78,10 +78,11 @@ export default defineConfig(({ mode }) => {
 		build: { outDir },
 		plugins: [
 			react(),
-			// Cookieloses Matomo nur in der Web-App, nicht im Android-Build.
+			// Cookieloses Matomo in Web-App und Android-App; die Aufrufe meldet die App selbst (lib/tracking.ts).
 			{
 				name: 'matomo',
-				transformIndexHtml: (html) => html.replace('</head>', `${android ? '' : matomoScript(process.env)}</head>`),
+				transformIndexHtml: (html) =>
+					html.replace('</head>', `${matomoScript(process.env, { pageView: false })}</head>`),
 			},
 			{
 				name: 'serve-docs-user-guide',

@@ -14,6 +14,7 @@ import { LAUNCH_BANNER_DISMISS_KEY } from './lib/launchBanner';
 import { finishNativeLogin, nativeGoogleLogin } from './lib/nativeAuth';
 import { isNativeChannel } from './lib/platform';
 import { MagicLinkLanding } from './components/MagicLinkLanding';
+import { trackPageView } from './lib/tracking';
 
 type AuthState = 'loading' | 'authenticated' | 'unauthenticated' | 'error';
 
@@ -192,6 +193,19 @@ const AuthenticatedApp = () => {
 				setAuthState('error');
 			});
 	}, []);
+
+	// Matomo-Login-Trichter: Bildschirme vor der App als eigene Pfade; die App meldet ihre Routen selbst.
+	const screen =
+		magicAppToken !== null
+			? '/anmeldelink'
+			: authState === 'unauthenticated' && !silentPending
+				? '/login'
+				: authState === 'authenticated' && user?.termsAccepted === false
+					? '/einwilligung'
+					: undefined;
+	useEffect(() => {
+		if (screen) trackPageView(screen);
+	}, [screen]);
 
 	if (magicAppToken !== null) {
 		return <MagicLinkLanding token={magicAppToken} />;
