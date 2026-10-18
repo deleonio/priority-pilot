@@ -29,6 +29,7 @@ import {
 	renderAssetLinks,
 	renderLanding,
 	renderMcpGuide,
+	renderNotFound,
 	renderTemplateIndex,
 	renderTemplatePage,
 	renderPrivacy,
@@ -50,13 +51,19 @@ const frontendPublic = resolve(root, '../frontend/public');
 const fonts = resolve(root, 'node_modules/@fontsource/archivo/files');
 const siteUrl = (process.env.SITE_URL ?? '').trim().replace(/\/$/, '');
 const matomo = matomoScript(process.env);
+const matomoNotFound = matomoScript(process.env, { notFound: true });
 
 const allMessages: Record<Locale, Messages> = { de, en, es, fr, it, nl, pl, pt, ru, sv };
 
 const write = (path: string, content: string): void => {
 	const target = join(dist, path);
 	mkdirSync(dirname(target), { recursive: true });
-	writeFileSync(target, path.endsWith('.html') ? content.replace('</head>', `${matomo}</head>`) : content);
+	writeFileSync(
+		target,
+		path.endsWith('.html')
+			? content.replace('</head>', `${path === '404.html' ? matomoNotFound : matomo}</head>`)
+			: content,
+	);
 };
 
 const copy = (source: string, target: string): void => {
@@ -132,6 +139,7 @@ for (const locale of ['de', 'en'] as const) {
 	page('assessment', renderAssessment(context));
 }
 
+write('404.html', renderNotFound({ locale: 'de', messages: de, siteUrl }));
 write('robots.txt', renderRobots(siteUrl));
 if (siteUrl) {
 	write('sitemap.xml', renderSitemap(siteUrl, paths));

@@ -282,6 +282,12 @@ priority-pilot.example.de {
     handle {
         file_server
     }
+
+    # Unbekannte Pfade: Fehlerseite der Website mit Status 404 (zählt in Matomo als 404).
+    handle_errors 404 {
+        rewrite * /404.html
+        file_server
+    }
 }
 
 # Alte Domains und Aufrufe per IP dauerhaft auf die eine Domain umleiten. Der Block oben nennt nur

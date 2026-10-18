@@ -205,6 +205,24 @@ curl -fsS "https://stats.modevel.de/matomo.php?idsite=1&rec=1&rand=1&apiv=1" -o 
 In der Matomo-UI („Besucher → Echtzeit") erscheint der eigene Testbesuch; die App zählt unter dem
 Pfad `/app/`. Bleibt die Echtzeit leer, zuerst den Archiv-Cron prüfen (Troubleshooting unten).
 
+## 11. Auswerten: Routen und Absprünge
+
+Gezählt wird jeder Seitenaufruf der Website und jeder Routenwechsel der App, nur der Pfad (ohne
+Query), Ziffern-Segmente als `:id` (`/app/tasks/:id`). Der Heartbeat misst die Verweildauer auch auf
+der letzten Seite eines Besuchs.
+
+| Frage                            | Bericht                                                      |
+| -------------------------------- | ------------------------------------------------------------ |
+| Welche Seiten werden aufgerufen? | Verhalten → Seiten (App-Titel = Router-Pfad)                 |
+| Wo steigen Leute ein und aus?    | Verhalten → Einstiegsseiten / Ausstiegsseiten (Absprungrate) |
+| Woher, wohin von einer Seite?    | Verhalten → Transitions                                      |
+| Welche Route ist kaputt?         | Verhalten → Seitentitel, Gruppe `404` (`404/URL = <Pfad>`)   |
+| Nur App oder nur Website         | Segment „Seiten-URL enthält `/app/`“ bzw. „enthält nicht“    |
+
+404 der Website entsteht über die Fehlerseite `/404.html` (Caddy `handle_errors`,
+[`server-setup.md` § 7](server-setup.md#7-caddy-block--dns)); die App meldet einen Pfad, den sie
+nicht kennt, beim Routenwechsel selbst als 404.
+
 ---
 
 ## Update
