@@ -289,5 +289,13 @@
 		"noAccessTitle": "Sans accès à l’app",
 		"noAccess": "Écrivez-nous depuis l’adresse e-mail de votre compte. Nous supprimons le compte dans un délai d’un mois et vous le confirmons.",
 		"back": "Retour à l’accueil"
+	},
+	"tracking": {
+		"title": "Mesure d’audience",
+		"text": "Pouvons-nous compter les pages visitées ? Sans cookies, sur notre propre serveur et uniquement pour améliorer Balamentum. Sans ton accord, la mesure reste désactivée.",
+		"accept": "Autoriser",
+		"decline": "Refuser",
+		"privacy": "En savoir plus",
+		"settings": "Mesure d’audience"
 	}
 }

@@ -286,5 +286,13 @@
 		"noAccessTitle": "Utan tillgång till appen",
 		"noAccess": "Skriv till oss från e-postadressen för ditt konto. Vi raderar kontot inom en månad och bekräftar det för dig.",
 		"back": "Tillbaka till startsidan"
+	},
+	"tracking": {
+		"title": "Räckviddsmätning",
+		"text": "Får vi räkna vilka sidor som besöks? Utan cookies, på vår egen server och bara för att förbättra Balamentum. Utan ditt ja är mätningen avstängd.",
+		"accept": "Tillåt",
+		"decline": "Avböj",
+		"privacy": "Läs mer",
+		"settings": "Räckviddsmätning"
 	}
 }

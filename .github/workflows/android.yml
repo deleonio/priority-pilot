@@ -55,6 +55,9 @@ jobs:
         run: ./node_modules/.bin/vite build --mode android
         env:
           SITE_URL: ${{ vars.SITE_URL }}
+          # Cookieloses Matomo (Kanal android); ohne beide Werte bleibt es aus.
+          MATOMO_URL: ${{ vars.MATOMO_URL }}
+          MATOMO_SITE_ID: ${{ vars.MATOMO_SITE_ID }}
 
       - name: Capacitor sync
         # Direkt aus native/node_modules — der gefilterte pnpm-Skriptlauf triggert einen

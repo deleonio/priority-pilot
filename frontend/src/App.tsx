@@ -71,7 +71,7 @@ import { pullAccountPreferences } from './lib/accountPreferences';
 import { launchConfetti, shouldCelebrateDone } from './lib/confetti';
 import { setupTabsFocusRing } from './lib/tabsFocusRing';
 import { DONE_UNDO_WINDOW_MS, formatDeadline, istUeberfaellig } from './lib/task';
-import { trackPageView } from './lib/matomo';
+import { trackPageView } from './lib/tracking';
 
 type Dialog =
 	// `parentTask` gesetzt → die neu angelegte Aufgabe wird als Vorgänger mit ihr verknüpft (Unteraufgabe).
@@ -174,14 +174,6 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const { t, i18n } = useTranslation(['navigation', 'app']);
 	const location = useLocation();
 	const navigate = useNavigate();
-	useEffect(
-		() =>
-			trackPageView(
-				location.pathname,
-				ROUTE_PATHS.includes(location.pathname) || /^\/(settings|hilfe)(\/|$)/.test(location.pathname),
-			),
-		[location.pathname],
-	);
 	// #1879: aktive App-Sprache beim Start und bei jedem Wechsel an den Server melden (Sprache des
 	// Fürsorge-Push) — fire-and-forget, ein Fehlschlag ist für die Nutzung folgenlos.
 	useEffect(() => {
@@ -403,6 +395,15 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 
 	/** Aktiver Haupt-Tab: reine Funktion des Pfads (AK4). */
 	const activeTab = Math.max(0, ROUTE_PATHS.indexOf(location.pathname));
+	// Matomo: offenes Onboarding zählt als eigener Bildschirm (Login-Trichter), unbekannte Pfade als 404.
+	const onboardingOpen = tasks !== null && tasks.length === 0 && activeTab === 0 && !onboardingDismissed;
+	useEffect(
+		() =>
+			trackPageView(onboardingOpen ? '/willkommen' : location.pathname, {
+				known: ROUTE_PATHS.includes(location.pathname) || /^\/(settings|hilfe|tasks)(\/|$)/.test(location.pathname),
+			}),
+		[onboardingOpen, location.pathname],
+	);
 
 	/** Aktiver Settings-Tab: aus `/settings/:tab` abgeleitet; unbekannter Pfad → Säulen (bisheriges Default).
 	 * Rollensystem admin/member: Das Segment `nutzer` (Index 9) existiert nur für Admins — für Member
@@ -869,6 +870,14 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// Stabile Callback-Identitäten, damit die memoisierte `TaskTable` beim Öffnen eines Dialogs nicht
 	// neu rendert (sonst Zellen-/Toolbar-Neuaufbau samt Fokusverlust am auslösenden Button).
 	const openEdit = useCallback((task: Task): void => setDialog({ kind: 'edit', task }), []);
+	// Deep-Link des Geo-Push (`/tasks/<id>`): Aufgabe im Bearbeiten-Dialog öffnen, dann aufs Dashboard.
+	const deepLinkTaskId = /^\/tasks\/(\d+)$/.exec(location.pathname)?.[1];
+	useEffect(() => {
+		if (deepLinkTaskId === undefined || tasks === null) return;
+		const task = tasks.find((candidate) => candidate.id === Number(deepLinkTaskId));
+		if (task) openEdit(task);
+		navigate('/', { replace: true });
+	}, [deepLinkTaskId, tasks, openEdit, navigate]);
 	const openDelete = useCallback((task: Task): void => setDialog({ kind: 'delete', task }), []);
 	const openComplete = useCallback((task: Task): void => setDialog({ kind: 'complete', task }), []);
 	const openDependencies = useCallback((task: Task): void => setDialog({ kind: 'dependencies', taskId: task.id }), []);

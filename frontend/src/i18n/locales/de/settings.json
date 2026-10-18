@@ -122,7 +122,12 @@
 			"importCard": "Import",
 			"exportCard": "Export"
 		},
-		"adminUsersCard": "Nutzer und Rollen"
+		"adminUsersCard": "Nutzer und Rollen",
+		"privacy": {
+			"card": "Datenschutz",
+			"trackingLabel": "Reichweitenmessung",
+			"trackingHint": "Zählt ohne Cookies auf unserem eigenen Server, welche Seiten aufgerufen werden, nur zur Verbesserung von Balamentum. Gilt für dieses Gerät, standardmäßig aus."
+		}
 	},
 	"theme": {
 		"system": "System",

@@ -173,5 +173,12 @@
 	"splitHint": {
 		"reason": "Große Aufgaben lassen sich oft leichter angehen, wenn du sie in kleinere Schritte teilst."
 	},
-	"quoted": "„{{value}}“"
+	"quoted": "„{{value}}“",
+	"trackingBanner": {
+		"title": "Reichweitenmessung",
+		"text": "Dürfen wir zählen, welche Seiten du aufrufst? Ohne Cookies, auf unserem eigenen Server und nur, um Balamentum zu verbessern. Ohne dein Ja bleibt die Messung aus.",
+		"accept": "Zulassen",
+		"decline": "Ablehnen",
+		"privacy": "Mehr dazu"
+	}
 }

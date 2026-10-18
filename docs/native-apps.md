@@ -195,6 +195,15 @@ Fehlerbilder:
   Credential Manager zeigt dann zwar die Konten, meldet nach der Wahl aber einen Abbruch.
 - **„Der Zugriff wurde verweigert“:** Die Adresse ist nicht freigegeben (Allowlist, Warteliste).
 
+## Reichweitenmessung
+
+Die App bindet dasselbe cookielose Matomo ein wie die Web-App ([`matomo.md`](matomo.md)), sofern
+`MATOMO_URL` und `MATOMO_SITE_ID` beim Android-Build gesetzt sind (`android.yml`). Besuche tragen den
+Kanal `android`, URLs zeigen auf `SITE_URL/app/…` statt `https://localhost`. In der Play Console unter
+„App-Inhalte → Datensicherheit“ deshalb angeben: App-Aktivität → „Seitenaufrufe und Tippen in der
+App“, erhoben, nicht geteilt, Zweck „Analysen“, Erhebung optional (nur nach Zustimmung im Hinweis,
+abwählbar unter Einstellungen → Allgemein).
+
 ## Icons und Splash neu erzeugen
 
 Icons entstehen aus dem Web-Logo, der Splash aus der Wortmarke (Marke oben, „balamentum" darunter).

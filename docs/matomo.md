@@ -6,7 +6,8 @@ verspricht dazu: cookielos, IP-Kürzung auf 2 Bytes, Löschung der Rohdaten nach
 Beachtung von Do Not Track — die Instanz ist so eingestellt, dass sie das einlöst. Verdrahtet ist
 das Client-Tracking komplett im Repo (`frontend/src/lib/matomo.ts`, Website-Build in
 [`website/scripts/build.ts`](../website/scripts/build.ts), Vite-Plugin in
-[`frontend/vite.config.ts`](../frontend/vite.config.ts)); die Android-App trackt bewusst nicht.
+[`frontend/vite.config.ts`](../frontend/vite.config.ts), Seitenaufrufe der App in
+`frontend/src/lib/tracking.ts`); die Android-App zählt mit (Kanal `android`).
 Aktiviert wird das Snippet allein über die GitHub-Variablen `MATOMO_URL` und `MATOMO_SITE_ID`
 ([`deployment.md` § 3](deployment.md)).
 
@@ -190,7 +191,7 @@ gh workflow run deploy.yml          # Workflow-Dispatch ohne Versions-Bump
 ```
 
 Beim nächsten Build hängt der Vite-Code das Snippet in den `<head>` der App und der
-Website-Build in jede HTML-Seite; `App.tsx` meldet zusätzlich jeden SPA-Routenwechsel. Fehlt eine
+Website-Build in jede HTML-Seite; die App meldet ihre Aufrufe selbst (`tracking.ts`). Fehlt eine
 der zwei Variablen, wird nichts eingebunden.
 
 ## 10. Verifizieren
@@ -205,11 +206,27 @@ curl -fsS "https://stats.modevel.de/matomo.php?idsite=1&rec=1&rand=1&apiv=1" -o 
 In der Matomo-UI („Besucher → Echtzeit") erscheint der eigene Testbesuch; die App zählt unter dem
 Pfad `/app/`. Bleibt die Echtzeit leer, zuerst den Archiv-Cron prüfen (Troubleshooting unten).
 
+## Opt-in (#2734)
+
+Gemessen wird nur nach Zustimmung. Ohne gespeicherte Wahl lädt das Snippet `matomo.js` nicht, es
+geht kein Request an `stats.modevel.de`. Website und App zeigen dann einen Hinweis mit „Zulassen“
+und „Ablehnen“; die Wahl liegt in `localStorage` (`pp-tracking` = `on`/`off`), geteilt von Website
+und Web-App (gleicher Origin), in der Android-App eigenständig. Ändern: Website-Fußzeile
+„Reichweitenmessung“, App unter Einstellungen → Allgemein → Datenschutz. Ausschalten in laufender
+Sitzung setzt `requireConsent`, danach sendet der Tracker nichts mehr. Die Zahlen bilden folglich nur
+zustimmende Besucher ab.
+
 ## 11. Auswerten: Routen und Absprünge
 
 Gezählt wird jeder Seitenaufruf der Website und jeder Routenwechsel der App, nur der Pfad (ohne
 Query), Ziffern-Segmente als `:id` (`/app/tasks/:id`). Der Heartbeat misst die Verweildauer auch auf
-der letzten Seite eines Besuchs.
+der letzten Seite eines Besuchs. Die Bildschirme vor der App zählen als eigene Pfade:
+`/app/login`, `/app/anmeldelink`, `/app/einwilligung`, `/app/gruppen/beitreten`, dazu
+`/app/willkommen`, solange das Onboarding offen ist.
+
+**Einmalig in Matomo:** Verwaltung → Websites → Benutzerdefinierte Dimensionen →
+Besuchsdimension „Kanal“ anlegen. Sie muss **ID 1** tragen (`CHANNEL_DIMENSION` in `tracking.ts`).
+Werte: `web` (Browser-Tab), `pwa` (installierte Web-App), `android`; Website-Besuche bleiben ohne Wert.
 
 | Frage                            | Bericht                                                      |
 | -------------------------------- | ------------------------------------------------------------ |

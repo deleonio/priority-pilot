@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { trackPageView } from '../lib/tracking';
 
 /**
  * Öffentliche Beitrittsseite (#1226): `/gruppen/beitreten?token=…`
@@ -29,6 +30,7 @@ const readToken = (): string | null => new URLSearchParams(window.location.searc
 export const GroupJoinPage = () => {
 	const { t } = useTranslation('groups');
 	const [phase, setPhase] = useState<Phase>('loading');
+	useEffect(() => trackPageView('/gruppen/beitreten'), []);
 	const [preview, setPreview] = useState<LinkPreview | null>(null);
 	// Fehlermeldung für technische Störungen — NICHT für 404/410 (die haben ihren eigenen Zustand).
 	const [error, setError] = useState<string | null>(null);

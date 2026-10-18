@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { useAnimationsEnabled } from '../lib/animations';
+import { useTrackingConsent } from '../lib/tracking';
 import { useHeartAnimationEnabled } from '../lib/heartAnimation';
 import { useDoneAnimationEnabled } from '../lib/doneAnimation';
 import { usePrefersReducedMotion } from '../lib/reducedMotion';
@@ -194,6 +195,7 @@ export const SettingsPage = ({
 	// #1984: Expertenmodus-Schalter (Default aus, pro Gerät über localStorage) — Gate für die
 	// Säulen-Gewichtungs-Karte in diesem Tab und die Regler in TaskForm/DependencyModal.
 	const { expertMode, setExpertMode } = useExpertMode();
+	const tracking = useTrackingConsent();
 	// #1984: Klappzustand des Accordion „Was umfasst der Expertenmodus?" — folgt dem Schalter
 	// (initial offen bei eingeschaltetem Expertenmodus, sonst zu), manuelles Klappen bleibt
 	// möglich (Muster „Einzelne Animationen").
@@ -675,6 +677,21 @@ export const SettingsPage = ({
 							</KolDetails>
 						</div>
 					</KolCard>
+
+					{/* #2734: Opt-in zur Reichweitenmessung, nur wenn Matomo im Build aktiv ist. */}
+					{tracking.available && (
+						<KolCard className="settings-card" _label={t('settingsPage.privacy.card')} _level={2}>
+							<div className="settings-switch-row">
+								<KolInputCheckbox
+									_label={t('settingsPage.privacy.trackingLabel')}
+									_variant="switch"
+									_checked={tracking.consent === 'on'}
+									_hint={t('settingsPage.privacy.trackingHint')}
+									_on={{ onChange: (_event, value) => tracking.setConsent(value === true) }}
+								/>
+							</div>
+						</KolCard>
+					)}
 
 					<KolCard className="settings-card" _label={t('settingsPage.notifications.card')} _level={2}>
 						<div className="settings-card-stack">
