@@ -537,7 +537,7 @@ void main() {
 				theta = u_phase[i] + u_dir[i] * PI2 * time / max(u_rot[i], 0.1);
 			} else {
 				float meanA = u_phase[i] + u_dir[i] * PI2 * time / max(u_rot[i], 0.1);
-				theta = meanA + ORBIT_ECC * sin(meanA);
+				theta = meanA - 0.5 * ORBIT_ECC * sin(2.0 * meanA);
 			}
 			vec2 headLocal = vec2(a * cos(theta), b * sin(theta));
 			vec2 head = vec2(headLocal.x * oc - headLocal.y * os, headLocal.x * os + headLocal.y * oc);

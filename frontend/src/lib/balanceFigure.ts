@@ -516,11 +516,12 @@ export const buildOrbits = (metrics: BalanceMetrics): Orbit[] => {
 /**
  * Umlauf-Winkel des Kometen im **Kepler-Takt** (Figur „Bahnen"): Die mittlere Anomalie läuft
  * gleichmäßig, die wahre folgt der Kepler-Gleichung — eine Näherungsstufe genügt dem Auge
- * (zahlengleich zum Shader). Im Standbild steht er auf `phase + ecc · sin(phase)`.
+ * (zahlengleich zum Shader). Der Takt ist an der kleinen Achse am schnellsten und an beiden
+ * Scheiteln gleich langsam; im Standbild steht er auf `phase − ecc/2 · sin(2·phase)`.
  */
 export const keplerTheta = (motion: FigureMotion, time: number): number => {
 	const mean = motion.phase + (motion.rotDirection * TAU * time) / motion.rotPeriod;
-	return mean + ORBIT_ECC * Math.sin(mean);
+	return mean - (ORBIT_ECC / 2) * Math.sin(2 * mean);
 };
 
 /**

@@ -403,14 +403,18 @@ describe('Figur „Bahnen“', () => {
 		expect(Math.hypot(quer.x - CENTER, quer.y - CENTER)).toBeCloseTo(orbit.radius * ORBIT_FLAT, 6);
 	});
 
-	it('läuft im Kepler-Takt: im ersten Viertel der Zeit weiter als ein Viertel Umlauf', () => {
+	it('läuft im Kepler-Takt: an der kleinen Achse schneller als am Scheitel', () => {
 		const [orbit] = buildOrbits(metricsOf([1]));
 
 		// Standbild: Phase plus Kepler-Versatz (Anomalie-Näherung, zahlengleich zum Shader).
-		expect(keplerTheta(orbit, 0)).toBeCloseTo(orbit.phase + ORBIT_ECC * Math.sin(orbit.phase), 6);
-		// Beschleunigung Richtung Periapsis (Phase 0 liegt auf der kleinen Achse): Der Weg im
-		// ersten Zeitviertel ist länger als ein Viertel des Umlaufs.
-		expect(keplerTheta(orbit, orbit.rotPeriod / 4) - keplerTheta(orbit, 0)).toBeGreaterThan(Math.PI / 2);
+		expect(keplerTheta(orbit, 0)).toBeCloseTo(orbit.phase - (ORBIT_ECC / 2) * Math.sin(2 * orbit.phase), 6);
+		// Beschleunigung Richtung Periapsis (kleine Achse, dem Zentrum am nächsten): Das
+		// Zeitviertel durch die kleine Achse überstreicht mehr Winkel als das durch den Scheitel.
+		const kleineAchse = keplerTheta(orbit, orbit.rotPeriod * 0.375) - keplerTheta(orbit, orbit.rotPeriod * 0.125);
+		const scheitel = keplerTheta(orbit, orbit.rotPeriod * 0.625) - keplerTheta(orbit, orbit.rotPeriod * 0.375);
+		expect(kleineAchse).toBeGreaterThan(Math.PI / 2);
+		expect(scheitel).toBeLessThan(Math.PI / 2);
+		expect(kleineAchse).toBeGreaterThan(scheitel);
 	});
 
 	it('pendelt um die Phase: Amplitude begrenzt, Tempo an den Umkehrpunkten null', () => {
