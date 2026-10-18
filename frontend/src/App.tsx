@@ -4,6 +4,7 @@ import {
 	KolButton,
 	KolInputCheckbox,
 	KolInputText,
+	KolPopoverButton,
 	KolSingleSelect,
 	KolSpin,
 	KolTabs,
@@ -31,6 +32,7 @@ import { Modal } from './components/Modal';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { startWelcomeSteps } from './components/WelcomeSteps';
 import { isOnboardingDismissed, storeOnboardingDismissed } from './lib/onboardingPreferences';
+import { findInnerButton, setupPopoverAlignment } from './lib/popoverAlign';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
 import { LaunchBanner } from './components/LaunchBanner';
@@ -257,6 +259,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	};
 	const [logoutLoading, setLogoutLoading] = useState(false);
 	const [logoutError, setLogoutError] = useState<string | null>(null);
+	// #2723: „Hilfe" und „Abmelden" liegen hinter dem Avatar-Trigger. KolPopoverButton regelt
+	// Öffnen/Schließen, Click-outside, Escape und Fokus-Rückgabe über die native Popover-API selbst
+	// (#361-Muster, TaskTree); der Ref dient nur der rechtsbündigen Panel-Ausrichtung.
+	const avatarMenuRef = useRef<HTMLKolPopoverButtonElement | null>(null);
 	const [updateError, setUpdateError] = useState<string | null>(null);
 	const doneRemovalTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 	// #2526: Inline-Rückmeldung des Direkt-Erledigens — vergebene Punkte aus der PATCH-Response,
@@ -1162,6 +1168,8 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 
 	// Toolbar-Buttons sind auf allen Viewports identisch — keine unterschiedliche Menüstruktur je nach
 	// Viewport-Breite (#691). `_label`s und Reihenfolge sind stabil, damit Accessible Names konsistent bleiben.
+	// #2723: Nur noch die vier Navigations-Aktionen — „Hilfe“ und „Abmelden“ liegen im Avatar-Popover
+	// (`.app-header__user`), die seltene bzw. zerstörerische Aktion rückt damit aus der Leiste (KI-UX).
 	// Die KI-Modellwahl lebt seit dem Provider-System in den Einstellungen (Tab „KI“).
 	// KoliBri liefert die Button-Semantik im Shadow-DOM; zusätzliche ARIA-Attribute
 	// am Item werden von `kol-toolbar` still verworfen: nativer Button, A11y trägt KoliBri.
@@ -1201,38 +1209,11 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				...(showSettings ? { _ariaDescription: t('menu.activeViewDescription') } : {}),
 				_on: { onClick: toggleSettings },
 			},
-			{
-				type: 'button' as const,
-				_label: t('menu.help'),
-				_hideLabel: true,
-				_icons: HELP_ICON,
-				_variant: showHelp ? ACTIVE_VARIANT : INACTIVE_VARIANT,
-				...(showHelp ? { _ariaDescription: t('menu.activeViewDescription') } : {}),
-				_on: { onClick: toggleHelp },
-			},
-			{
-				type: 'button' as const,
-				_label: t('menu.logout'),
-				_hideLabel: true,
-				_icons: LOGOUT_ICON,
-				_variant: 'secondary' as const,
-				_disabled: logoutLoading,
-				_on: { onClick: (): void => void handleLogout() },
-			},
 		];
-	}, [
-		logoutLoading,
-		handleHomeNavigate,
-		openSearch,
-		openCreateDialog,
-		toggleSettings,
-		toggleHelp,
-		handleLogout,
-		showSettings,
-		showHelp,
-		showMainView,
-		t,
-	]);
+	}, [handleHomeNavigate, openSearch, openCreateDialog, toggleSettings, showSettings, showMainView, t]);
+
+	// #2723: Panel-Ausrichtung des Avatar-Popovers am rechten Viewport-Rand (Muster TaskTree/#361).
+	useEffect(() => setupPopoverAlignment(avatarMenuRef.current), []);
 
 	// #1320: Einstellungen und Hilfe sind normale Seiten der App — kein früher Return mehr vor dem
 	// Layout. Header (Logo, Kopf-Aktionen, Avatar), Dialoge und Fußzeile bleiben auf allen drei
@@ -1287,9 +1268,63 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						 */}
 						<KolToolbar _label={t('menu.headerActions')} _orientation="horizontal" _items={toolbarItems} />
 					</div>
-					{/* Avatar wiederhergestellt per Issue #865 Korrektur — Full Name bleibt entfernt; seit #912 am rechten Rand */}
+					{/* #2723: „Hilfe“ und „Abmelden“ hinter dem Avatar-Trigger (zugänglicher Name „Benutzermenü“,
+				    KI-UX). Der Trigger trägt den Avatar im Expert-Slot — ein leeres `_label` schaltet ihn frei
+				    (KoliBri-Spec KolPopoverButton); der zugängliche Name kommt aus dem visuell versteckten Text,
+				    der Avatar selbst bleibt dekorativ (`_label=""`) und steht ein zweites Mal im Panel.
+				    Escape/Klick-außerhalb/Fokus-Rückgabe liefert die native Popover-API. */}
 					<div className="app-header__user">
-						<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
+						<KolPopoverButton
+							ref={avatarMenuRef}
+							className="app-header__user-menu"
+							_label=""
+							_variant="secondary"
+							_popoverAlign="left"
+						>
+							<span slot="expert">
+								{/* Dekorativ: Der Name des Triggers trägt der versteckte Text; das Avatar-Bild selbst
+							    bleibt stumm (sein internes img-alt „Avatar of“ würde den Namen sonst verschmutzen). */}
+								<KolAvatar _label="" _src={user.avatarUrl ?? undefined} aria-hidden="true" />
+								<span className="visually-hidden">{t('menu.userMenu')}</span>
+							</span>
+							<div
+								className="app-header__user-menu-panel"
+								onKeyDown={(event) => {
+									if (event.key !== 'Escape') return;
+									// #361-Muster: die native Popover-API gibt den Fokus nach dem Schließen nicht
+									// an den Invoker zurück — explizit auf den Trigger fokussieren (AK5).
+									void Promise.resolve(avatarMenuRef.current?.hidePopover()).then(() => {
+										findInnerButton(avatarMenuRef.current)?.focus();
+									});
+								}}
+							>
+								<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
+								<KolButton
+									_label={t('menu.help')}
+									_icons={HELP_ICON}
+									_variant={showHelp ? ACTIVE_VARIANT : INACTIVE_VARIANT}
+									_on={{
+										// Panel schließen, dann navigieren (Muster TaskTree/#361) — sonst bliebe das
+										// Menü auf der Hilfe-Seite offen.
+										onClick: () => {
+											void Promise.resolve(avatarMenuRef.current?.hidePopover()).then(() => toggleHelp());
+										},
+									}}
+								/>
+								<KolButton
+									_label={t('menu.logout')}
+									_icons={LOGOUT_ICON}
+									_variant="secondary"
+									_disabled={logoutLoading}
+									_on={{
+										// Bewusst OHNE hidePopover: Im Fehlerfall bleibt das Menü offen (kein stiller
+										// Close, KI-UX #2723) und der Button wechselt in den Disabled-Zustand; im
+										// Erfolgsfall navigiert handleLogout ohnehin auf /login.
+										onClick: (): void => void handleLogout(),
+									}}
+								/>
+							</div>
+						</KolPopoverButton>
 					</div>
 				</div>
 			</header>
@@ -1300,7 +1335,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 
 				<LaunchBanner enabled={user.launchBanner === true} onFeedback={() => navigate('/hilfe/feedback')} />
 
-				{/* Der Logout läuft über die Kopf-Aktionen und ist damit auf allen drei Ansichten
+				{/* Der Logout läuft über das Benutzermenü und ist damit auf allen drei Ansichten
 			    auslösbar — seine Fehlermeldung steht deshalb außerhalb der Inhalts-Verzweigung. */}
 				{logoutError !== null && (
 					<div role="alert">

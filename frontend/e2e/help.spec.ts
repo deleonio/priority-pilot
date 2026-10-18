@@ -21,16 +21,17 @@ import { headerAction, waitForStableView } from './helpers';
  */
 test.describe('#256 In-App-Hilfe – Seite, Markdown-Renderer und Header-Button', () => {
 	/**
-	 * AK1 — Icon-Only-Hilfe-Button in der Header-Toolbar: Ein Button mit sprechendem Namen (Tooltip /
+	 * AK1 — Icon-Only-Hilfe-Button im Kopfbereich: Ein Button mit sprechendem Namen (Tooltip /
 	 * aria-label „Hilfe") ist sichtbar. KoliBri stellt Icon-Only-Buttons mit einem `_label` als
 	 * zugänglichen Namen bereit, deshalb findet `getByRole('button', { name: /hilfe/i })` ihn auch
-	 * ohne sichtbaren Text.
+	 * ohne sichtbaren Text. Test-Pflege #2723: Der Button liegt im Avatar-Popover — `headerAction`
+	 * öffnet es vor der Prüfung.
 	 */
-	test('AK1: Header-Toolbar zeigt einen Icon-Only-Hilfe-Button (Tooltip vorhanden)', async ({ page }) => {
+	test('AK1: Kopfbereich zeigt einen Icon-Only-Hilfe-Button (Tooltip vorhanden)', async ({ page }) => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
-		await expect(page.getByRole('button', { name: /hilfe/i })).toBeVisible();
+		await expect(await headerAction(page, /hilfe/i)).toBeVisible();
 	});
 
 	/**
@@ -41,7 +42,8 @@ test.describe('#256 In-App-Hilfe – Seite, Markdown-Renderer und Header-Button'
 		await page.goto('/app/');
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: /hilfe/i }).click();
+		// Test-Pflege #2723: Hilfe-Button liegt im Avatar-Popover — `headerAction` öffnet es.
+		await (await headerAction(page, /hilfe/i)).click();
 
 		// URL muss auf die neue Hilfe-Route wechseln.
 		await expect(page).toHaveURL(/\/hilfe/);

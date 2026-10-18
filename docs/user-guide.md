@@ -59,12 +59,15 @@ Ganz oben findest du die **Kopf-Aktionen**:
 - **Suche** (Lupe) – durchsucht deine Aufgaben nach Titel und filtert nach Kategorie.
 - **Neuen Task anlegen** (Plus) – der zentrale Einstieg für neue Aufgaben _und_ Serien.
 - **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Standort, Säulen-Gewichtung, KI (Provider und Access-Token), Gruppen, Kategorien.
+
+Rechts daneben öffnest du über das **Benutzermenü** (Nutzer-Symbol) ein Menü mit deinem Profilbild sowie:
+
 - **Hilfe** (Fragezeichen) – dieses Handbuch.
 - **Abmelden** – beendet die Sitzung.
 
-Rechts daneben siehst du dein Profilbild.
-
-Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle Icon-Buttons stehen direkt in der Leiste – ein zusätzliches Menü gibt es nicht. Beim Scrollen bleibt die Leiste sichtbar; mit etwas Abstand zum Inhalt, damit beides getrennt lesbar bleibt.
+Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle Icon-Buttons der Kopf-Aktionen
+stehen direkt in der Leiste. Beim Scrollen bleibt die Leiste sichtbar; mit etwas Abstand zum
+Inhalt, damit beides getrennt lesbar bleibt.
 
 Darunter wechselst du über eine **Tab-Leiste** zwischen den fünf Hauptansichten:
 

@@ -15,7 +15,8 @@ import { headerAction, waitForStableView, MOBILE } from './helpers';
 const DESKTOP = { width: 1280, height: 800 } as const;
 
 /** Die Kopf-Aktionen, die auf jeder Breite erreichbar bleiben müssen (#1335: „Säulen-Berater" entfällt
- * als eigener Button; der Home-Schalter ist seither als erster Button in die Toolbar gewandert). */
+ * als eigener Button; der Home-Schalter ist seither als erster Button in die Toolbar gewandert).
+ * #2723: „Hilfe" und „Abmelden" liegen im Avatar-Popover — `headerAction` öffnet es bei Bedarf. */
 const HEADER_ACTIONS = ['Zum Dashboard', 'Neuen Task anlegen', 'Einstellungen', 'Hilfe', 'Abmelden'] as const;
 
 const gotoApp = async (page: Page, viewport: { width: number; height: number }): Promise<void> => {
@@ -136,15 +137,17 @@ test.describe('Mobile-Shell — Kopfbereich und Seitenränder', () => {
 	});
 
 	/**
-	 * Gegenprobe: Auf Desktop-Breite bleibt der Kopfbereich unverändert — alle fünf Buttons stehen
-	 * direkt in der Toolbar, es gibt kein „⋮"-Menü, und der Anzeigename steht im Klartext.
+	 * Gegenprobe: Auf Desktop-Breite bleibt der Kopfbereich unverändert — alle fünf Aktionen bleiben
+	 * erreichbar (vier direkt in der Toolbar, „Hilfe"/„Abmelden" seit #2723 im Avatar-Popover), und
+	 * es gibt kein „⋮"-Menü.
 	 */
 	test('1280×800: unveränderter Desktop-Kopfbereich ohne Menü', async ({ page }) => {
 		await gotoApp(page, DESKTOP);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+		await expect(toolbar).toBeVisible();
 		for (const label of HEADER_ACTIONS) {
-			await expect(toolbar.getByRole('button', { name: label })).toBeVisible();
+			await expect(await headerAction(page, label), `Kopf-Aktion „${label}" auch auf Desktop erreichbar`).toBeVisible();
 		}
 
 		await expect(page.getByRole('button', { name: 'Mein Konto' })).toHaveCount(0);

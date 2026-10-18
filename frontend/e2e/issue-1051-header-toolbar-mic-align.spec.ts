@@ -29,7 +29,8 @@ test.describe('#1051 Header-Toolbar einheitlich + Mic-Button ausrichten', () => 
 
 		const buttons = toolbar.getByRole('button');
 		const count = await buttons.count();
-		expect(count).toBe(6);
+		// Test-Pflege #2723: „Hilfe“ und „Abmelden“ liegen im Avatar-Popover — vier statt sechs Buttons.
+		expect(count).toBe(4);
 
 		const bgColors = await buttons.evaluateAll((els) => els.map((el) => getComputedStyle(el).backgroundColor));
 
@@ -99,7 +100,8 @@ test.describe('#1051 Header-Toolbar einheitlich + Mic-Button ausrichten', () => 
 		await expect(toolbar).toBeVisible();
 		const buttons = toolbar.getByRole('button');
 		const count = await buttons.count();
-		expect(count).toBe(6);
+		// Test-Pflege #2723: „Hilfe“ und „Abmelden“ liegen im Avatar-Popover — vier statt sechs Buttons.
+		expect(count).toBe(4);
 
 		const bgColors = await buttons.evaluateAll((els) => els.map((el) => getComputedStyle(el).backgroundColor));
 		const uniqueColors = new Set(bgColors);

@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAvatarMenu, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-Tests für #222 „Gestalte den App-Header homogener".
@@ -13,6 +13,10 @@ import { waitForStableView } from './helpers';
  *
  * AK2 (Avatar kleiner) und AK4 (Light/Dark konsistent) werden manuell visuell verifiziert;
  * ein Screenshot-Diff-Tool (z. B. Playwright visual comparisons) könnte später ergänzt werden.
+ *
+ * Test-Pflege #2723 → Fixup (Review): Der Trigger trägt den Avatar wieder in der Kopfzeilen-Zeile
+ * (Expert-Slot, kompakt 26px im 44px-Button); die Maß-Verträge messen weiterhin den großen
+ * Panel-Avatar (32/55px) mit geöffnetem Menü; der Mittellinie-Vertrag (AK4 unten) bleibt entfallen.
  */
 test.describe('#222 App-Header — Homogenität', () => {
 	/**
@@ -29,12 +33,16 @@ test.describe('#222 App-Header — Homogenität', () => {
 	/**
 	 * AK3 (Smoke): Der kol-avatar im Header hat das _label-Attribut mit dem Benutzernamen gesetzt.
 	 * Bereits implementiert via `_label={user.name}` — bleibt als Regressions-Smoke grün.
+	 * Test-Pflege #2723: Der Avatar liegt im Avatar-Popover — für die Sichtbarkeitsprüfung wird
+	 * es geöffnet, das _label-Attribut ist unabhängig davon gesetzt.
 	 */
 	test('AK3 (Smoke): kol-avatar im Header hat _label mit Benutzernamen', async ({ page }) => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
-		const avatar = page.locator('header kol-avatar').first();
+		await openAvatarMenu(page);
+		// #2723-Fixup: Trigger-Avatar ist dekorativ (_label=""), der Benutzernamen steht am Panel-Avatar.
+		const avatar = page.locator('.app-header__user-menu-panel kol-avatar');
 		await expect(avatar).toBeVisible();
 		await expect(avatar).toHaveAttribute('_label', 'Test User');
 	});
@@ -73,7 +81,9 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 		const toolbarBtn = header.getByRole('toolbar', { name: /Kopf-Aktionen/i }).getByRole('button', {
 			name: 'Neuen Task anlegen',
 		});
-		const avatar = header.locator('kol-avatar').first();
+		// #2723-Fixup: Messobjekt bleibt der große Panel-Avatar (Trigger-Avatar ist kompakt/dekorativ).
+		await openAvatarMenu(page);
+		const avatar = header.locator('.app-header__user-menu-panel kol-avatar');
 
 		await expect(logoImg).toBeVisible();
 		await expect(toolbarBtn).toBeVisible();
@@ -129,26 +139,11 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 		).toBeLessThanOrEqual(TOLERANCE_PX);
 	});
 
-	/**
-	 * AK4 — Alles auf einer Ebene: Die vertikalen Mittelpunkte von Logo, Toolbar-Button und Avatar
-	 * liegen bei ≥768px auf einer Linie (≤2px Abweichung).
+	/*
+	 * AK4 (Mittellinie) — entfallen mit #2723 (Test-Pflege): bezog Logo, Toolbar-Button und Avatar
+	 * in der KOPFZEILEN-Zeile; der Avatar liegt seit #2723 im Avatar-Popover unterhalb der Zeile.
+	 * Die Zeilen-Konsistenz von Logo und Toolbar-Button sichert AK6 unten.
 	 */
-	test('AK4: Logo, Toolbar-Button und Avatar teilen sich eine Mittellinie (≥768px)', async ({ page }) => {
-		await page.setViewportSize({ width: 1024, height: 800 });
-		await page.goto('/app/');
-		await waitForStableView(page);
-
-		const { logo, button, avatar } = await readHeaderBoxes(page);
-
-		const centerOf = (box: { y: number; height: number }): number => box.y + box.height / 2;
-		const centers = [centerOf(logo), centerOf(button), centerOf(avatar)];
-		const spread = Math.max(...centers) - Math.min(...centers);
-
-		expect(
-			spread,
-			`Mittelpunkte (Logo ${centers[0]}, Button ${centers[1]}, Avatar ${centers[2]}) dürfen höchstens ${TOLERANCE_PX}px auseinanderliegen`,
-		).toBeLessThanOrEqual(TOLERANCE_PX);
-	});
 
 	/**
 	 * AK4 — Header bleibt einzeilig: Die Header-Höhe unterschreitet die Summe zweier Zeilen

@@ -324,8 +324,11 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
-		// Ein kol-button Host-Element direkt finden (einfacher als über Button-Rolle)
-		const kolButtonHost = page.locator('kol-button').first();
+		// Ein kol-button Host-Element direkt finden (einfacher als über Button-Rolle).
+		// Test-Pflege #2723: Die kol-buttons des Avatar-Popovers liegen zwar im Light-DOM, sind bei
+		// geschlossenem Menü aber versteckt — sie werden ausgeschlossen, damit der Locator wie zuvor
+		// den ersten sichtbaren Host außerhalb des Menüs trifft.
+		const kolButtonHost = page.locator('kol-button:not(.app-header__user-menu-panel kol-button)').first();
 		await expect(kolButtonHost).toBeVisible();
 
 		// Host-Element muss transparent sein
@@ -376,7 +379,8 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 	 */
 	test('AK3: Theme-Wechsel behält transparente Host-Hintergründe bei', async ({ page }) => {
 		const testTag = 'kol-button'; // Repräsentativ, immer vorhanden
-		const element = page.locator(testTag).first();
+		// Test-Pflege #2723: Avatar-Popover-Kinder sind bei geschlossenem Menü versteckt (siehe AK2).
+		const element = page.locator('kol-button:not(.app-header__user-menu-panel kol-button)').first();
 		await expect(element).toBeVisible();
 
 		// Light → Dark → Light

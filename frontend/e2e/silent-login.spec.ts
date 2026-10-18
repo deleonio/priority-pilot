@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 import { expect, test } from '@playwright/test';
-import { waitForStableView, MOBILE } from './helpers';
+import { headerAction, waitForStableView, MOBILE } from './helpers';
 
 /**
  * Rote Spec-Tests für Issue #396 — „Automatisches Login", PR B (Silent Google Login via `prompt=none`).
@@ -171,7 +171,8 @@ test.describe('#396 PR B — Silent Google Login (prompt=none)', () => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
+		// #2723: „Abmelden" liegt im Avatar-Popover — `headerAction` öffnet es vor dem Klick.
+		await (await headerAction(page, /Abmelden|Logout/i)).click();
 
 		// Nach dem Logout landet der Nutzer auf der Login-Seite …
 		await expect(page.getByRole('button', { name: 'Mit Google anmelden' })).toBeVisible();

@@ -97,14 +97,39 @@ export const taskTitleText = (page: Page, title: string): Locator =>
 		.and(page.locator(DASHBOARD_TITLE_CLASSES.map((className) => `:not(.${className})`).join('')));
 
 /**
- * Liefert eine Kopf-Aktion („Neuen Task anlegen", „Säulen-Berater", „Einstellungen", „Hilfe",
- * „Abmelden"). Seit #691 stehen alle fünf Aktionen auf JEDER Viewport-Breite direkt in der Toolbar
- * „Kopf-Aktionen" — ein Menü-Fallback existiert nicht mehr.
+ * #2723: Öffnet das Avatar-Popover (Benutzermenü) im Header und liefert den Avatar-Trigger zurück.
+ * „Hilfe" und „Abmelden" liegen seit #2723 nicht mehr in der Toolbar „Kopf-Aktionen", sondern
+ * hinter dem Avatar-Trigger — Specs, die auf diese Aktionen klicken, müssen das Menü vorher öffnen.
+ *
+ * Idempotent: Ist das Popover schon offen, wird nicht erneut geklickt (der Klick würde schließen).
+ */
+export const openAvatarMenu = async (page: Page): Promise<Locator> => {
+	const trigger = page.locator('.app-header__user button').first();
+	await expect(trigger).toBeVisible();
+	if ((await trigger.getAttribute('aria-expanded')) !== 'true') {
+		await trigger.click();
+	}
+	await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+	return trigger;
+};
+
+/**
+ * Liefert eine Kopf-Aktion. Die vier Navigations-Aktionen („Zum Dashboard", „Suche",
+ * „Neuen Task anlegen", „Einstellungen") stehen seit #691 auf JEDER Viewport-Breite direkt in der
+ * Toolbar „Kopf-Aktionen"; seit #2723 liegen „Hilfe" und „Abmelden" stattdessen hinter dem
+ * Avatar-Trigger — für sie öffnet dieser Helfer das Popover und liefert den Popover-Eintrag.
  *
  * Das `toBeVisible` wartet zugleich das asynchrone Layout der KoliBri-Toolbar ab (Items werden im
  * Shadow-DOM aufgebaut), damit nachfolgende Messungen nicht in den Pre-Hydration-Zustand laufen.
  */
 export const headerAction = async (page: Page, label: string | RegExp): Promise<Locator> => {
+	const labelText = typeof label === 'string' ? label : label.source;
+	if (/hilfe|abmelden|logout/i.test(labelText)) {
+		await openAvatarMenu(page);
+		const inPopover = page.getByRole('button', { name: label });
+		await expect(inPopover).toBeVisible();
+		return inPopover;
+	}
 	const inToolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ }).getByRole('button', { name: label });
 	await expect(inToolbar).toBeVisible();
 	return inToolbar;

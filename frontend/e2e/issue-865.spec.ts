@@ -7,7 +7,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { dismissOnboardingDialog } from './fixtures';
-import { MOBILE } from './helpers';
+import { MOBILE, openAvatarMenu } from './helpers';
 
 test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	/**
@@ -17,6 +17,10 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 		const header = page.locator('header').first();
 		await expect(header).toBeVisible();
 
+		// #2723 (Test-Pflege): Der Avatar ist aus der Kopfzeile ins Avatar-Popover gewandert —
+		// für Sichtbarkeits-Prüfungen wird das Menü geöffnet (das fixed positionierte Panel
+		// beeinflusst die Header-Box-Messungen nicht).
+		await openAvatarMenu(page);
 		const avatar = header.locator('kol-avatar').first();
 		// Der Klartextname ist seit der #865-Korrektur ganz entfernt — eine `.user-display-name`-Klasse
 		// existiert im Light-DOM nicht mehr, ein Klassen-Locator wäre tote Diagnose (matcht nie).
@@ -50,12 +54,17 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	 * Spec-Referenz: docs/spec/issue-865.md → Schritt 2
 	 */
 	test('AK1: Avatar ist sichtbar (Desktop)', async ({ page }) => {
+		// Test-Pflege #2723: readHeaderState klickt den Avatar-Trigger — der init-script-basierte
+		// Onboarding-Dismiss muss deshalb VOR dem Laden der Seite registriert werden (fängt sonst
+		// den Klick ab); alle AK1–AK5 folgen demselben Muster.
+		await dismissOnboardingDialog(page);
 		await page.goto('/app/');
 
 		const { avatar, header } = await readHeaderState(page);
 
 		await expect(avatar).toBeVisible();
-		await expect(header.locator('kol-avatar')).toHaveCount(1);
+		// #2723-Fixup: zwei kol-avatar im Header-Teilbaum — Trigger (Kopfzeile) + Panel (Popover).
+		await expect(header.locator('kol-avatar')).toHaveCount(2);
 	});
 
 	/**
@@ -63,6 +72,7 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	 * Spec-Referenz: docs/spec/issue-865.md → Schritt 3
 	 */
 	test('AK2: User Full Name ist nicht mehr im DOM vorhanden (Desktop)', async ({ page }) => {
+		await dismissOnboardingDialog(page);
 		await page.goto('/app/');
 
 		const { displayName } = await readHeaderState(page);
@@ -77,6 +87,7 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	 */
 	test('AK3: Keine Leerräume im Layout mit Avatar (Desktop 1440px)', async ({ page }) => {
 		await page.setViewportSize({ width: 1440, height: 800 });
+		await dismissOnboardingDialog(page);
 		await page.goto('/app/');
 
 		const { header, toolbar, logo, avatar } = await readHeaderState(page);
@@ -106,12 +117,14 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	 */
 	test('AK4: Avatar ist auf Mobile sichtbar (375px)', async ({ page }) => {
 		await page.setViewportSize(MOBILE);
+		await dismissOnboardingDialog(page);
 		await page.goto('/app/');
 
 		const { avatar, header } = await readHeaderState(page);
 
 		await expect(avatar).toBeVisible();
-		await expect(header.locator('kol-avatar')).toHaveCount(1);
+		// #2723-Fixup: zwei kol-avatar im Header-Teilbaum — Trigger (Kopfzeile) + Panel (Popover).
+		await expect(header.locator('kol-avatar')).toHaveCount(2);
 	});
 
 	/**
@@ -120,6 +133,7 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	 */
 	test('AK5: Full Name ist nicht mehr auf Tablet vorhanden (768px)', async ({ page }) => {
 		await page.setViewportSize({ width: 768, height: 1024 });
+		await dismissOnboardingDialog(page);
 		await page.goto('/app/');
 
 		const { displayName } = await readHeaderState(page);
