@@ -76,7 +76,7 @@ test.describe('#2723 Avatar-Popover (Benutzermenü)', () => {
 		expect(box!.width, 'Toolbar bleibt innerhalb des 375px-Viewports').toBeLessThanOrEqual(page.viewportSize()!.width);
 	});
 
-	test('AK5: Tastatur — Enter öffnet, Tab-Reihenfolge Hilfe vor Abmelden, Escape schließt mit Fokus-Rückkehr, Klick außerhalb schließt', async ({
+	test('AK5: Tastatur — Enter öffnet, Hilfe vor Abmelden (vertikale Toolbar, Pfeiltasten), Escape schließt mit Fokus-Rückkehr, Klick außerhalb schließt', async ({
 		page,
 	}) => {
 		await page.goto('/app/');
@@ -89,10 +89,11 @@ test.describe('#2723 Avatar-Popover (Benutzermenü)', () => {
 		await page.keyboard.press('Enter');
 		await expect(trigger).toHaveAttribute('aria-expanded', 'true');
 
-		// Tab-Reihenfolge im Popover: erst „Hilfe", dann „Abmelden" (UX-Block #2723).
+		// Reihenfolge im Popover: erst „Hilfe", dann „Abmelden" (UX-Block #2723). Die Einträge bilden
+		// eine vertikale Toolbar — Tab springt hinein, Pfeil runter wechselt (Roving Tabindex).
 		await page.keyboard.press('Tab');
 		await expect(page.getByRole('button', { name: 'Hilfe' })).toBeFocused();
-		await page.keyboard.press('Tab');
+		await page.keyboard.press('ArrowDown');
 		await expect(page.getByRole('button', { name: 'Abmelden' })).toBeFocused();
 
 		// Escape schließt und gibt den Fokus an den Trigger zurück (#361-Muster).

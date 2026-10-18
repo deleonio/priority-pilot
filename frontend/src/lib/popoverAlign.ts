@@ -20,7 +20,7 @@
  *
  * @returns Aufräumfunktion, die alle Observer und Listener wieder abmeldet.
  */
-const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) => {
+const alignPopoverPanel = (host: HTMLKolPopoverButtonElement, alignEnd: boolean): (() => void) => {
 	const root = host.shadowRoot;
 	if (!root) return () => {};
 
@@ -34,10 +34,17 @@ const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) 
 			// #1186: Das Panel clippt mit UA-`overflow: auto` die Fokus-Outline der Toolbar-Buttons.
 			panel.style.overflow = 'visible';
 		}
+		if (alignEnd && panel.style.background !== 'transparent') {
+			// Avatar-Menü: Die Karte (Rahmen, Radius, Schatten) zeichnet der Light-DOM-Inhalt, der
+			// eckige weiße Panel-Grund und der auf die Panel-Mitte gerechnete Pfeil stören dabei.
+			panel.style.background = 'transparent';
+			panel.querySelector<HTMLElement>('.kol-popover__arrow')?.style.setProperty('display', 'none');
+		}
 		const rect = panel.getBoundingClientRect();
 		if (rect.width === 0) return; // Panel versteckt (display:none) — DOM-Writes und Reflow sparen
 		const currentLeft = parseFloat(panel.style.left) || 0;
-		let adjustedLeft = currentLeft;
+		// alignEnd: rechte Panel-Kante bündig mit der rechten Trigger-Kante (Dropdown-Muster).
+		let adjustedLeft = alignEnd ? currentLeft + host.getBoundingClientRect().right - rect.right : currentLeft;
 		const rightOverflow = Math.ceil(rect.right) - window.innerWidth;
 		if (rightOverflow > 0) {
 			adjustedLeft -= rightOverflow;
@@ -48,8 +55,9 @@ const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) 
 		if (projectedLeftEdge < 0) {
 			adjustedLeft -= projectedLeftEdge;
 		}
+		adjustedLeft = Math.round(adjustedLeft);
 		if (adjustedLeft !== currentLeft) {
-			panel.style.left = `${Math.round(adjustedLeft)}px`;
+			panel.style.left = `${adjustedLeft}px`;
 		}
 	};
 
@@ -97,17 +105,20 @@ export const findInnerButton = (el: Element | null | undefined): HTMLElement | n
 };
 
 /**
- * Verdrahtet `alignPopoverPanelLeft` mit einem `KolPopoverButton`-Ref. KoliBri-Custom-Elements werden
+ * Verdrahtet `alignPopoverPanel` mit einem `KolPopoverButton`-Ref. KoliBri-Custom-Elements werden
  * asynchron aufgewertet — beim schnellen Mount ist `shadowRoot` u. U. noch `null`, deshalb ggf. auf
  * die Custom-Element-Definition warten.
  *
+ * `alignEnd` setzt die rechte Panel-Kante bündig unter die rechte Trigger-Kante (Avatar-Menü,
+ * `_popoverAlign="bottom"`) und überlässt die Karten-Optik dem Panel-Inhalt.
+ *
  * @returns Aufräumfunktion für den `useEffect`-Cleanup.
  */
-export const setupPopoverAlignment = (host: HTMLKolPopoverButtonElement | null): (() => void) => {
+export const setupPopoverAlignment = (host: HTMLKolPopoverButtonElement | null, alignEnd = false): (() => void) => {
 	if (!host) return () => {};
 	let cleanup: () => void = () => {};
 	const setup = () => {
-		cleanup = alignPopoverPanelLeft(host);
+		cleanup = alignPopoverPanel(host, alignEnd);
 	};
 	if (host.shadowRoot) {
 		setup();
