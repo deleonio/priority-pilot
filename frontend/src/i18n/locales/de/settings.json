@@ -53,6 +53,8 @@
 			"pushHint": "Erlaube Balamentum, dir Erinnerungen (z. B. an fällige Aufgaben) als Push-Nachricht zu senden – auch wenn die App gerade nicht geöffnet ist.",
 			"pushFailedLabel": "Push-Nachrichten nicht aktiviert",
 			"pushFailedText": "Push-Nachrichten konnten nicht aktiviert werden. Bitte erteile die Benachrichtigungs-Berechtigung im Browser und versuche es erneut.",
+			"pushFailedAppDeniedText": "Push-Nachrichten konnten nicht aktiviert werden, weil die Benachrichtigungs-Berechtigung fehlt. Bitte erlaube sie Balamentum in den Android-Einstellungen und versuche es erneut.",
+			"pushFailedAppErrorText": "Push-Nachrichten konnten nicht aktiviert werden. Bitte prüfe deine Internetverbindung und versuche es erneut – wenn es wiederholt scheitert, hilft vermutlich ein App-Update.",
 			"pushUnavailableLabel": "Push-Nachrichten nicht verfügbar",
 			"pushUnavailableText": "Dieser Browser unterstützt keine Push-Nachrichten. Installiere die App bzw. nutze einen aktuellen Browser, um Erinnerungen zu erhalten.",
 			"careLabel": "Fürsorge-Hinweise",
