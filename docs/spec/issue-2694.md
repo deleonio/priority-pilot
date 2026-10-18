@@ -18,16 +18,16 @@ Server-Fassung; weicht das Frontend ab, wird es in der Umsetzung angeglichen.
 
 ## Fälle des Spiegel-Blocks (in BEIDEN Suiten identisch)
 
-| Fall | Eingabe | Erwartung (Server-Referenz) |
-| --- | --- | --- |
-| Gleichverteilung 5 | keine Ränge, n=5 | `[20, 20, 20, 20, 20]` |
-| Gleichverteilung 7 | keine Ränge, n=7 | `[15, 15, 14, 14, 14, 14, 14]` |
-| Rundungsreste mit Gleichstand | Ränge 1, n=5 | `[50, 13, 13, 12, 12]` (Rest-Gleichstand → Listenordnung) |
-| Kippen unter `SHARE_MIN` (Rang-Treppe) | Ränge 1–3, n=7 | `[15, 15, 14, 14, 14, 14, 14]` (Rest 15/4 < 5 → Gleichverteilung) |
-| Mehr als 5 Ränge, Rest unrankt | Ränge 1–5, n=7 | `[15, 15, 14, 14, 14, 14, 14]` |
-| Sechs Ränge | Ränge 1–6, n=7 | `[15, 15, 14, 14, 14, 14, 14]` |
-| Kippen unter `SHARE_MIN` (Vorgabe) | Basis `[90, 0, 0, 0, 0]` | `[80, 5, 5, 5, 5]` |
-| Rundungsreste (Vorgabe) | Basis `[33.4, 33.3, 33.3, 0, 0]` | `[30, 30, 30, 5, 5]` |
+| Fall                                   | Eingabe                          | Erwartung (Server-Referenz)                                       |
+| -------------------------------------- | -------------------------------- | ----------------------------------------------------------------- |
+| Gleichverteilung 5                     | keine Ränge, n=5                 | `[20, 20, 20, 20, 20]`                                            |
+| Gleichverteilung 7                     | keine Ränge, n=7                 | `[15, 15, 14, 14, 14, 14, 14]`                                    |
+| Rundungsreste mit Gleichstand          | Ränge 1, n=5                     | `[50, 13, 13, 12, 12]` (Rest-Gleichstand → Listenordnung)         |
+| Kippen unter `SHARE_MIN` (Rang-Treppe) | Ränge 1–3, n=7                   | `[15, 15, 14, 14, 14, 14, 14]` (Rest 15/4 < 5 → Gleichverteilung) |
+| Mehr als 5 Ränge, Rest unrankt         | Ränge 1–5, n=7                   | `[15, 15, 14, 14, 14, 14, 14]`                                    |
+| Sechs Ränge                            | Ränge 1–6, n=7                   | `[15, 15, 14, 14, 14, 14, 14]`                                    |
+| Kippen unter `SHARE_MIN` (Vorgabe)     | Basis `[90, 0, 0, 0, 0]`         | `[80, 5, 5, 5, 5]`                                                |
+| Rundungsreste (Vorgabe)                | Basis `[33.4, 33.3, 33.3, 0, 0]` | `[30, 30, 30, 5, 5]`                                              |
 
 Zugriff über die jeweilige öffentliche API: Server `suggestRankedShares` /
 `distributeWithMinimum`; Frontend `distributionFromRankOrder` / `evenShares` /

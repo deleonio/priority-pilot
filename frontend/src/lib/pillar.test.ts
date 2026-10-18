@@ -17,18 +17,6 @@ import {
 	suggestionsToContributions,
 } from './pillar';
 
-/**
- * Bewusste Typ-Grenze des TDD-Vertrags (Muster `isDistributionUnbalanced` #1555): Die Funktion
- * existiert noch nicht — der Cast hält den Typecheck grün, der Laufzeitfehler bleibt rot,
- * bis #2074 den Export in `lib/pillar.ts` liefert.
- */
-const { distributionFromRankOrder } = pillarModule as unknown as {
-	distributionFromRankOrder: (
-		rankedPillarIds: readonly number[],
-		pillars: readonly Pillar[],
-	) => TaskPillarContribution[];
-};
-
 const pillar = (id: number, name: string, weight: number): Pillar => ({ id, name, description: '', weight });
 
 const task = (
@@ -737,7 +725,6 @@ describe('distributionFromRankOrder — Rangfolge-Treppe (#2074, AK1-AK3)', () =
 	});
 });
 
-
 /**
  * Spiegel-Block zu `server/src/logics/pillarShares.test.ts` („Spiegel ADR 0025 …") — dieselben
  * Eingabe-Fälle, identische (harte) Ausgaben aus der Server-Referenz (docs/spec/issue-2694.md,
@@ -745,7 +732,9 @@ describe('distributionFromRankOrder — Rangfolge-Treppe (#2074, AK1-AK3)', () =
  * Umsetzung an die Server-Fassung an.
  */
 describe('Spiegel ADR 0025 — identische Verteilung mit dem Server', () => {
-	const sevenPillars: Pillar[] = Array.from({ length: 7 }, (_value, index) => pillar(index + 1, `Säule ${index + 1}`, 0));
+	const sevenPillars: Pillar[] = Array.from({ length: 7 }, (_value, index) =>
+		pillar(index + 1, `Säule ${index + 1}`, 0),
+	);
 	const fivePillars: Pillar[] = sevenPillars.slice(0, 5);
 	const sharesOf = (ranked: number[], pillars: Pillar[]): number[] =>
 		distributionFromRankOrder(ranked, pillars).map((entry) => entry.share);
