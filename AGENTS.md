@@ -23,6 +23,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [Dauergedächtnis](.ai-memory/MEMORY.md) — Erfahrungs-Log über Tickets hinweg (Protokoll: [Memory](#memory))
 - [Browser-MCP](docs/browser-mcp.md) — laufende App visuell prüfen (`pnpm ui:inspect` + Playwright-MCP)
 - [Deployment](docs/deployment.md) — Merge→Build→rsync→PM2, Host-Layout, Rollback
+- [Matomo](docs/matomo.md) — cookielose Reichweitenmessung: Instanz auf dem Host (`stats.modevel.de`), Caddy-Block, Datenschutz-Einstellungen, Aktivierung über `MATOMO_URL`/`MATOMO_SITE_ID`
 - [Native Apps](docs/native-apps.md) — Android-App mit Capacitor und gebündelter Web-App: Aufbau von `native/`, lokal bauen, Icons erzeugen
 - [Anmeldung & Zugang](docs/auth-setup.md) — Google-OAuth-Client, Allowlist, Konto entsteht beim ersten Login, Admin-Rollen, Fehlerbilder
 - [CI-Architektur](docs/ci-architecture.md) — Provider, Modelle, Soft-Abort, Label-Pipeline, KoliBri MCP
