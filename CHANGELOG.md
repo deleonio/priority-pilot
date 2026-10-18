@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.29 - 2026-10-18
 
-_Enthält v0.29.0 – v0.29.26._
+_Enthält v0.29.0 – v0.29.28._
 
 ### 🚀 Improvements
 
@@ -12,6 +12,7 @@ _Enthält v0.29.0 – v0.29.26._
 - feat(frontend): brand elements on all shareable cards by @deleonio in https://github.com/deleonio/priority-pilot/pull/2707
 - feat(server): log failed ai budget refunds instead of swallowing them by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2710
 - feat(frontend): simplify category assignment to a plain single-select by @deleonio in https://github.com/deleonio/priority-pilot/pull/2721
+- docs: add successor issue number to ADR 0025 (#2732) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2738
 
 ### 🔧 Engineering
 
@@ -41,6 +42,7 @@ _Enthält v0.29.0 – v0.29.26._
 - docs(matomo): document working config:set syntax for trusted_hosts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2733
 - fix(ci): replace mapfile with while-read for macOS bash 3.2 (#2731) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2735
 - feat(frontend): count matomo route changes (404, heartbeat, title, ids) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2737
+- feat(frontend): move help and logout into avatar popover menu (#2723) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2725
 
 ## v0.28 - 2026-10-18
 
@@ -186,7 +188,6 @@ _Enthält v0.24.0 – v0.24.13._
 ### 🎉 New Features
 
 - feat(frontend): starter sentence for new accounts instead of deficit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2573
-- feat(frontend): one-tap complete with success feedback and undo (#2526) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2572
 - feat(frontend): one-tap complete with success feedback and undo (#2526) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2572
 
 ### 🚀 Improvements
