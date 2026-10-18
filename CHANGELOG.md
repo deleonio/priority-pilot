@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.29 - 2026-10-18
 
-_Enthält v0.29.0 – v0.29.31._
+_Enthält v0.29.0 – v0.29.32._
 
 ### 🚀 Improvements
 
@@ -46,6 +46,7 @@ _Enthält v0.29.0 – v0.29.31._
 - feat(frontend): count matomo route changes (404, heartbeat, title, ids) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2737
 - feat(frontend): move help and logout into avatar popover menu (#2723) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2725
 - feat(frontend): show avatar menu as dropdown card with single toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/2741
+- fix(frontend): align tracking notice placement in app shell by @deleonio in https://github.com/deleonio/priority-pilot/pull/2742
 
 ## v0.28 - 2026-10-18
 
@@ -170,7 +171,7 @@ _Enthält v0.25.0 – v0.25.19._
 ### Other Changes
 
 - docs(arc42): add ADR 0024 to decision table (V-19) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2582
-- docs(arc42): add ADR 0024 to decision table (V-19) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2582
+- docs(skills): german-only chat and full-queue status for coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2583
 - docs(skills): german-only chat and full-queue status for coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2583
 - [P0/S] Server: CSRF-Schutz greift, sobald die Anmeldung aktiv ist (#2540) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2584
 - fix(server): user search with literal wildcards and result limit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2585
