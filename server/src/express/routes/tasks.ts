@@ -5,6 +5,7 @@ import { Op, Transaction, type WhereOptions } from 'sequelize';
 import sequelize from '../../database.js';
 import { Group, GroupMember, Pillar, ScoreEntry, Task, TaskPillar, User } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
+import { MAX_EFFORT, MIN_EFFORT } from '../../logics/effort.js';
 import { parseCoordinate, roundedDistanceKm } from '../../logics/geo.js';
 import { classifyLlmSuitability } from '../../logics/llmSuitability.js';
 import { shouldBlockFeature } from '../../logics/plans.js';
@@ -416,8 +417,8 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 		if (
 			typeof input.estimatedEffort !== 'number' ||
 			!Number.isFinite(input.estimatedEffort) ||
-			input.estimatedEffort < 0.1 ||
-			input.estimatedEffort > 1
+			input.estimatedEffort < MIN_EFFORT ||
+			input.estimatedEffort > MAX_EFFORT
 		) {
 			return { ok: false, message: 'estimatedEffort muss eine Zahl zwischen 0.1 und 1 sein.' };
 		}
