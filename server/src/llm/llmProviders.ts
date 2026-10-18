@@ -335,7 +335,9 @@ export const loadActiveProvider = async (userId?: number): Promise<LlmProvider |
 		}
 		const providers = await LlmProvider.findAll({ order: [['id', 'ASC']] });
 		return effectiveActive(providers);
-	} catch {
+	} catch (error) {
+		// DB-Fehler nicht verschlucken — Ursache loggen, dann gilt „kein Provider“ (null).
+		console.error('Aktiven LLM-Provider laden fehlgeschlagen:', error);
 		return null;
 	}
 };
@@ -370,7 +372,9 @@ export const setProviderSelection = async (userId: number, providerId: number | 
 export const hasOwnProviderSelection = async (userId: number): Promise<boolean> => {
 	try {
 		return (await loadOwnSelection(userId)) !== null;
-	} catch {
+	} catch (error) {
+		// DB-Fehler nicht verschlucken — Ursache loggen, dann gilt „keine eigene Auswahl“ (false).
+		console.error('Eigene LLM-Provider-Auswahl prüfen fehlgeschlagen:', error);
 		return false;
 	}
 };
@@ -386,7 +390,9 @@ export const findProviderByName = async (name: string): Promise<LlmProvider | nu
 			where: where(fn('lower', col('name')), name.toLowerCase()),
 			order: [['id', 'ASC']],
 		});
-	} catch {
+	} catch (error) {
+		// DB-Fehler nicht verschlucken — Ursache loggen, dann gilt „nicht gefunden“ (null).
+		console.error('LLM-Provider nach Name finden fehlgeschlagen:', error);
 		return null;
 	}
 };
