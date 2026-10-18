@@ -2,12 +2,12 @@
  * Gerätelokaler Spiegel des letzten Server-Balance-Stands (GET /scores/balance, Kadenz-Modell):
  * Das Zifferblatt startet beim wiederholten Öffnen sofort auf dem zuletzt bekannten Stand und
  * lässt ihn im Hintergrund auffrischen (Stale-While-Revalidate), statt bis zur Netzantwort
- * unsichtbar zu bleiben (#2676). Muster `usePlan.ts`: Beim Abmelden löschen — auf einem geteilten
- * Gerät darf das nächste Konto den Stand des vorigen nicht sehen.
+ * unsichtbar zu bleiben (#2676). Muster `usePlan.ts`: Schlüssel **je Konto** und Räumung beim
+ * Abmelden — auf einem geteilten Gerät darf das nächste Konto den Stand des vorigen nicht sehen.
  */
 
-/** `localStorage`-Schlüssel des Spiegels (muss mit den Tests übereinstimmen). */
-export const BALANCE_STATUS_CACHE_KEY = 'pp-balance-status-cache';
+/** `localStorage`-Schlüssel des Spiegels je Konto (muss mit den Tests übereinstimmen). */
+export const balanceStatusCacheKey = (userId: number): string => `pp-balance-status-${userId}`;
 
 interface CachedBalanceStatus {
 	/** Füllstand 0–1 (`fuellstandProzent / 100`). */
@@ -16,10 +16,10 @@ interface CachedBalanceStatus {
 	urteilsreif?: boolean;
 }
 
-/** Liest den zuletzt bekannten Stand; ohne (lesbaren) Spiegel `undefined`. */
-export const readBalanceStatusCache = (): CachedBalanceStatus | undefined => {
+/** Liest den zuletzt bekannten Stand des Kontos; ohne (lesbaren) Spiegel `undefined`. */
+export const readBalanceStatusCache = (userId: number): CachedBalanceStatus | undefined => {
 	try {
-		const raw = localStorage.getItem(BALANCE_STATUS_CACHE_KEY);
+		const raw = localStorage.getItem(balanceStatusCacheKey(userId));
 		if (raw === null) {
 			return undefined;
 		}
@@ -37,12 +37,15 @@ export const readBalanceStatusCache = (): CachedBalanceStatus | undefined => {
 	}
 };
 
-/** Schreibt die Server-Antwort in den Spiegel; die Urteilsreife folgt der Dashboard-Logik (#2645). */
-export const storeBalanceStatusCache = (status: {
-	fuellstandProzent: number;
-	erledigungenImFenster?: number;
-	mindestErledigungen?: number;
-}): void => {
+/** Schreibt die Server-Antwort in den Spiegel des Kontos; die Urteilsreife folgt der Dashboard-Logik (#2645). */
+export const storeBalanceStatusCache = (
+	userId: number,
+	status: {
+		fuellstandProzent: number;
+		erledigungenImFenster?: number;
+		mindestErledigungen?: number;
+	},
+): void => {
 	const eintrag: CachedBalanceStatus = {
 		fuellstand: status.fuellstandProzent / 100,
 		...(status.erledigungenImFenster !== undefined && status.mindestErledigungen !== undefined
@@ -50,16 +53,16 @@ export const storeBalanceStatusCache = (status: {
 			: {}),
 	};
 	try {
-		localStorage.setItem(BALANCE_STATUS_CACHE_KEY, JSON.stringify(eintrag));
+		localStorage.setItem(balanceStatusCacheKey(userId), JSON.stringify(eintrag));
 	} catch {
 		// Storage gesperrt — der Spiegel bleibt leer, die Antwort gilt weiter nur für diese Sitzung.
 	}
 };
 
-/** Räumt den Spiegel weg (Abmeldung, Muster `clearPlanMirror`). */
-export const clearBalanceStatusCache = (): void => {
+/** Räumt den Spiegel des Kontos weg (Abmeldung, Muster `clearPlanMirror`). */
+export const clearBalanceStatusCache = (userId: number): void => {
 	try {
-		localStorage.removeItem(BALANCE_STATUS_CACHE_KEY);
+		localStorage.removeItem(balanceStatusCacheKey(userId));
 	} catch {
 		// Storage gesperrt — nichts zu räumen.
 	}

@@ -121,6 +121,8 @@ interface DashboardProps {
 	pillars: Pillar[];
 	/** Anzeigename des Nutzers für die personalisierte Begrüßung (aus `localStorage`). Leer → keine Begrüßung. */
 	displayName?: string;
+	/** Konto-Id des angemeldeten Nutzers — Schlüssel des gerätelokalen Balance-Spiegels (je Konto, Muster `planMirrorKey`). */
+	userId: number;
 	/**
 	 * #2526 (ADR 0024): Dialog-Delegierung der beiden Nicht-Direkt-Fälle (offene Checkliste →
 	 * CompleteTaskDialog, überfällige Deadline → Pünktlich-Nachfrage). Das Direkt-Erledigen selbst
@@ -197,6 +199,7 @@ export const Dashboard = ({
 	suggestions = [],
 	pillars,
 	displayName = '',
+	userId,
 	onCompleteTask,
 	onDirectComplete,
 	onInlineSettled,
@@ -273,7 +276,7 @@ export const Dashboard = ({
 	// im 28-Tage-Fenster) — dieselbe Zahl wie Verlauf und MCP `balance_status`. Neu geladen, sobald
 	// sich die Aufgaben ändern; bis zur Antwort oder bei Fehler bleibt der zuletzt bekannte Wert
 	// stehen (der Spiegel-Startwert oder lokal gerechnet, solange kein Spiegel existiert).
-	const [ersterStand] = useState(readBalanceStatusCache);
+	const [ersterStand] = useState(() => readBalanceStatusCache(userId));
 	const [serverFill, setServerFill] = useState<number | undefined>(ersterStand?.fuellstand);
 	// Der Auftakt des Balance-Bilds startet erst mit der ersten Beantwortung dieser Frage (Erfolg
 	// ODER Fehler — dann auf den lokalen Wert): Sonst wächst das Zifferblatt auf den lokalen
@@ -298,13 +301,13 @@ export const Dashboard = ({
 						setUrteilsreif(status.erledigungenImFenster >= status.mindestErledigungen);
 					}
 					setAuftaktBereit(true);
-					// Spiegel nachziehen — der nächste Kaltstart zeigt diesen Stand sofort.
-					storeBalanceStatusCache(status);
+					// Spiegel des Kontos nachziehen — der nächste Kaltstart zeigt diesen Stand sofort.
+					storeBalanceStatusCache(userId, status);
 				}
 			})
 			.catch(() => {
-				// Nicht erreichbar: das Herz zeigt weiter den lokalen Wert statt eines Fehlerzustands —
-				// der Auftakt läuft dann eben einmalig auf diesen.
+				// Nicht erreichbar: das Herz bleibt auf dem zuletzt bekannten Stand (Spiegel-Startwert,
+				// sonst lokal gerechnet) statt eines Fehlerzustands — der Auftakt läuft dann einmalig auf diesen.
 				if (!cancelled) {
 					setAuftaktBereit(true);
 				}
@@ -312,7 +315,7 @@ export const Dashboard = ({
 		return () => {
 			cancelled = true;
 		};
-	}, [tasks]);
+	}, [tasks, userId]);
 
 	const pillarBalances = useMemo(() => buildPillarBalances(pillars, punkteProSaeule), [pillars, punkteProSaeule]);
 

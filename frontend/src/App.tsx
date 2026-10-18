@@ -735,7 +735,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			clearPlanMirror(user.id);
 			// Derselbe Grund für den Balance-Spiegel (`balanceStatusCache.ts`) — der Zifferblatt-Stand
 			// des vorigen Kontos darf dem nächsten nicht vorantwortet werden.
-			clearBalanceStatusCache();
+			clearBalanceStatusCache(user.id);
 			// Issue #396 PR B — Logout-Sperre: „gerade abgemeldet"-Marker unterdrückt den nächsten
 			// stillen Re-Login (s. Root.tsx), sonst wäre ein Ausloggen praktisch unmöglich.
 			sessionStorage.setItem('pp_just_logged_out', '1');
@@ -1472,6 +1472,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 									) : (
 										<>
 											<Dashboard
+												userId={user.id}
 												tasks={tasks}
 												forest={forest}
 												nextTask={nextTask}
