@@ -83,6 +83,11 @@ export const YearlyRecapCard = () => {
 						projekte: t('yearlyCard.projekte'),
 						saeule: t('yearlyCard.saeule'),
 					},
+					marken: {
+						balamentum: t('monthlyCard.marken.balamentum'),
+						play: t('monthlyCard.marken.play'),
+						pwa: t('monthlyCard.marken.pwa'),
+					},
 				}),
 			);
 			return { blob, dateiname: jahresDateiname(vorjahr) };
