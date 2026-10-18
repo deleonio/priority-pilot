@@ -902,3 +902,20 @@ export const renderCancellationConfirm = (context: PageContext): string => {
 						<script>${confirmScript(text.script)}</script>`,
 	);
 };
+
+/** Fehlerseite für unbekannte Pfade (Caddy `handle_errors 404`); zweisprachig, da Caddy die Sprache nicht kennt. */
+export const renderNotFound = (context: PageContext): string =>
+	shell(context, {
+		title: 'Seite nicht gefunden – Balamentum',
+		description: 'Diese Seite gibt es nicht.',
+		path: '/404.html',
+		pathFor: homePath,
+		head: '<meta name="robots" content="noindex">',
+		body: `			<section class="section">
+					<div class="container container--narrow imprint">
+						<h1 class="kern-heading-large">Seite nicht gefunden</h1>
+						<p class="kern-body" lang="en">Page not found.</p>
+						<p><a class="kern-btn kern-btn--primary" href="/"><span class="kern-label">Zur Startseite</span></a></p>
+					</div>
+			</section>`,
+	});
