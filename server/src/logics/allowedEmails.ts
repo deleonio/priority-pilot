@@ -1,4 +1,5 @@
 import AllowedEmail, { type AllowedEmailOrigin } from '../models/allowedEmail.js';
+import { normalize, parseEmails } from './emailParsing.js';
 
 // Multi-User-Allowlist (Issue #193): Liest die erlaubten E-Mail-Adressen aus der Umgebung.
 //
@@ -13,39 +14,6 @@ import AllowedEmail, { type AllowedEmailOrigin } from '../models/allowedEmail.js
 // erfolgt ebenfalls normalisiert, sodass Groß-/Kleinschreibung und Whitespace ignoriert werden.
 // Neben der Env-Allowlist steht die DB-Zulassung (`AllowedEmail`, Freischaltung mit Herkunft):
 // `isDbEmailAllowed()` prüft sie, die Aufrufer kombinieren beide Quellen (siehe unten).
-
-/** Normalisiert eine E-Mail-Adresse für den Vergleich (trim + lowercase). */
-const normalize = (email: string): string => email.trim().toLowerCase();
-
-/**
- * Parst den Roh-Wert einer Allowlist-Env-Variable in eine Liste normalisierter E-Mails.
- * Erkennt automatisch JSON-Array vs. CSV. Leere Einträge werden verworfen.
- */
-const parseEmails = (raw: string): string[] => {
-	const trimmed = raw.trim();
-	if (trimmed === '') {
-		return [];
-	}
-
-	let parts: string[];
-	if (trimmed.startsWith('[')) {
-		// JSON-Array — bei ungültigem JSON fällt der Wert auf CSV zurück.
-		try {
-			const parsed: unknown = JSON.parse(trimmed);
-			if (Array.isArray(parsed)) {
-				parts = parsed.map((entry) => String(entry));
-			} else {
-				parts = trimmed.split(',');
-			}
-		} catch {
-			parts = trimmed.split(',');
-		}
-	} else {
-		parts = trimmed.split(',');
-	}
-
-	return parts.map(normalize).filter((email) => email !== '');
-};
 
 /**
  * Maskiert eine E-Mail-Adresse fürs Log: vom Local-Part bleibt nur das erste Zeichen stehen,
