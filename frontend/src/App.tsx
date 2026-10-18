@@ -1221,8 +1221,37 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		];
 	}, [handleHomeNavigate, openSearch, openCreateDialog, toggleSettings, showSettings, showMainView, t]);
 
-	// #2723: Panel-Ausrichtung des Avatar-Popovers am rechten Viewport-Rand (Muster TaskTree/#361).
-	useEffect(() => setupPopoverAlignment(avatarMenuRef.current), []);
+	// #2723: „Hilfe“ und „Abmelden“ im Avatar-Popover. Hilfe schließt erst das Panel, dann navigiert
+	// sie (Muster TaskTree/#361). Abmelden bewusst OHNE hidePopover: Im Fehlerfall bleibt das Menü
+	// offen (kein stiller Close, KI-UX #2723) und der Eintrag wechselt in den Disabled-Zustand; im
+	// Erfolgsfall navigiert handleLogout ohnehin auf /login.
+	const userMenuItems = useMemo(
+		() => [
+			{
+				type: 'button' as const,
+				_label: t('menu.help'),
+				_icons: HELP_ICON,
+				_variant: showHelp ? ACTIVE_VARIANT : INACTIVE_VARIANT,
+				_on: {
+					onClick: () => {
+						void Promise.resolve(avatarMenuRef.current?.hidePopover()).then(() => toggleHelp());
+					},
+				},
+			},
+			{
+				type: 'button' as const,
+				_label: t('menu.logout'),
+				_icons: LOGOUT_ICON,
+				_variant: 'secondary' as const,
+				_disabled: logoutLoading,
+				_on: { onClick: (): void => void handleLogout() },
+			},
+		],
+		[showHelp, toggleHelp, logoutLoading, handleLogout, t],
+	);
+
+	// #2723: Avatar-Popover klappt unter dem Trigger auf, rechtsbündig zu ihm (Muster TaskTree/#361).
+	useEffect(() => setupPopoverAlignment(avatarMenuRef.current, true), []);
 
 	// #1320: Einstellungen und Hilfe sind normale Seiten der App — kein früher Return mehr vor dem
 	// Layout. Header (Logo, Kopf-Aktionen, Avatar), Dialoge und Fußzeile bleiben auf allen drei
@@ -1288,12 +1317,12 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 							className="app-header__user-menu"
 							_label=""
 							_variant="secondary"
-							_popoverAlign="left"
+							_popoverAlign="bottom"
 						>
 							<span slot="expert">
-								{/* Dekorativ: Der Name des Triggers trägt der versteckte Text; das Avatar-Bild selbst
-							    bleibt stumm (sein internes img-alt „Avatar of“ würde den Namen sonst verschmutzen). */}
-								<KolAvatar _label="" _src={user.avatarUrl ?? undefined} aria-hidden="true" />
+								{/* Dekorativ: Der Name des Triggers trägt der versteckte Text; der Avatar (Initialen bzw.
+							    Bild) ist per aria-hidden stumm, sein internes img-alt „Avatar of“ verschmutzt den Namen nicht. */}
+								<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} aria-hidden="true" />
 								<span className="visually-hidden">{t('menu.userMenu')}</span>
 							</span>
 							<div
@@ -1307,31 +1336,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 									});
 								}}
 							>
-								<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
-								<KolButton
-									_label={t('menu.help')}
-									_icons={HELP_ICON}
-									_variant={showHelp ? ACTIVE_VARIANT : INACTIVE_VARIANT}
-									_on={{
-										// Panel schließen, dann navigieren (Muster TaskTree/#361) — sonst bliebe das
-										// Menü auf der Hilfe-Seite offen.
-										onClick: () => {
-											void Promise.resolve(avatarMenuRef.current?.hidePopover()).then(() => toggleHelp());
-										},
-									}}
-								/>
-								<KolButton
-									_label={t('menu.logout')}
-									_icons={LOGOUT_ICON}
-									_variant="secondary"
-									_disabled={logoutLoading}
-									_on={{
-										// Bewusst OHNE hidePopover: Im Fehlerfall bleibt das Menü offen (kein stiller
-										// Close, KI-UX #2723) und der Button wechselt in den Disabled-Zustand; im
-										// Erfolgsfall navigiert handleLogout ohnehin auf /login.
-										onClick: (): void => void handleLogout(),
-									}}
-								/>
+								<div className="app-header__user-menu-identity">
+									<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
+									<strong className="app-header__user-menu-name">{user.displayName}</strong>
+								</div>
+								{/* Zusammenhängende Aktionsgruppe wie die Kopf-Aktionen (Muster TaskTree-„…"-Menü):
+								    Tab springt in die Gruppe, Pfeiltasten wechseln zwischen den Einträgen. */}
+								<KolToolbar _label={t('menu.userMenu')} _orientation="vertical" _items={userMenuItems} />
 							</div>
 						</KolPopoverButton>
 					</div>

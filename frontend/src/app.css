@@ -799,16 +799,47 @@ kol-toolbar {
 }
 
 /*
- * #2723: Menü-Panel des Benutzermenüs — Avatar über den beiden Einträgen, die über die volle
- * Panel-Breite tappbar sind (KolButton-Hosts sind block-level). Die Breite bemisst
- * `setupPopoverAlignment` am Inhalt (max-content); Abstände aus der --pp-space-Skala.
+ * #2723: Menü-Panel des Benutzermenüs — Dropdown-Karte unter dem Trigger (rechtsbündig, siehe
+ * `setupPopoverAlignment(…, true)`, das den eckigen Panel-Grund transparent stellt). Oben die
+ * Identität (Avatar, Name; die E-Mail bleibt bewusst draußen, #222), darunter die Aktionen als zusammenhängende vertikale Toolbar
+ * wie die Kopf-Aktionen. Die Breite bemisst `setupPopoverAlignment` am Inhalt (max-content).
  */
 .app-header__user-menu-panel {
 	display: flex;
 	flex-direction: column;
-	gap: var(--pp-space-1);
-	padding: var(--pp-space-2);
-	min-width: 10rem;
+	gap: var(--pp-space-3);
+	min-width: 14rem;
+	max-width: min(20rem, calc(100vw - 2 * var(--pp-space-2)));
+	padding: var(--pp-space-3);
+	background: var(--pp-surface-1);
+	border: 1px solid var(--pp-border);
+	border-radius: var(--pp-radius-md);
+	box-shadow: var(--pp-shadow-overlay);
+}
+
+.app-header__user-menu-identity {
+	display: flex;
+	align-items: center;
+	gap: var(--pp-space-3);
+	padding-bottom: var(--pp-space-3);
+	border-bottom: 1px solid var(--pp-border);
+}
+
+.app-header__user-menu-identity kol-avatar {
+	flex-shrink: 0;
+}
+
+.app-header__user-menu-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Einträge über die volle Kartenbreite, Touch-Höhe wie die Kopf-Aktionen. */
+.app-header__user-menu-panel kol-toolbar {
+	--a11y-min-size: var(--pp-toolbar-height);
+	display: block;
 }
 
 /*
