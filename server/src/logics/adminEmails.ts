@@ -1,3 +1,5 @@
+import { normalize, parseEmails } from './emailParsing.js';
+
 // Admin-Bootstrap (Rollensystem admin/member): Liest die E-Mail-Adressen, die automatisch als
 // `admin` gelten, aus der Umgebungsvariable ADMIN_EMAILS.
 //
@@ -7,8 +9,6 @@
 // Nur Beförderung, nie automatische Rückstufung (siehe resolveRole in logics/auth.ts) — ein
 // nachträglich aus ADMIN_EMAILS entferntes Konto bleibt Admin, bis das explizit über die
 // Admin-API geändert wird. Das verhindert versehentliches Aussperren bei ENV-Änderungen.
-
-import { normalize, parseEmails } from './emailParsing.js';
 
 /** Normalisierte Adressen aus ADMIN_EMAILS (leer, wenn nicht konfiguriert) — auch Empfänger der Betreiber-Mails (#2308). */
 export const adminEmails = (): string[] => parseEmails(process.env.ADMIN_EMAILS?.trim() ?? '');

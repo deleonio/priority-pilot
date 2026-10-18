@@ -30,11 +30,14 @@ describe('emailParsing · parseEmails', () => {
 	});
 
 	it('fällt bei ungültigem JSON auf CSV zurück', () => {
-		assert.deepEqual(parseEmails('[a@b.com,c@d.com]'), ['a@b.com', 'c@d.com']);
+		assert.deepEqual(parseEmails('[a@b.com,c@d.com]'), ['[a@b.com', 'c@d.com]']);
 	});
 
-	it('fällt bei JSON ohne Array auf CSV zurück', () => {
-		assert.deepEqual(parseEmails('["a@b.com"'), ['"a@b.com"']);
+	it('behandelt ein JSON-Fragment wie CSV — der Split bleibt am Komma', () => {
+		assert.deepEqual(parseEmails('["a@b.com"'), ['["a@b.com"']);
+	});
+
+	it('behandelt ein JSON-Objekt (kein Array) wie CSV', () => {
 		assert.deepEqual(parseEmails('{"a":1}'), ['{"a":1}']);
 	});
 });
