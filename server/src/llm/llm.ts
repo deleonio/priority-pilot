@@ -563,7 +563,11 @@ const resolveProvider = async (pinned?: LlmProvider, userId?: number): Promise<L
 			return await findProviderByName(pinned);
 		}
 		return await loadActiveProvider(userId);
-	} catch {
+	} catch (error) {
+		// Defensiv: die aufgerufenen Loader fangen DB-Fehler selbst — schlägt hier dennoch etwas
+		// durch, loggen wir die Ursache statt sie zu verschlucken. `null` → Aufrufer wirft
+		// MissingApiKeyError (HTTP 503).
+		console.error('LLM-Provider-Auflösung fehlgeschlagen:', error);
 		return null;
 	}
 };
