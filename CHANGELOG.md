@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.29 - 2026-10-18
 
-_Enthält v0.29.0 – v0.29.14._
+_Enthält v0.29.0 – v0.29.15._
 
 ### 🚀 Improvements
 
@@ -29,6 +29,7 @@ _Enthält v0.29.0 – v0.29.14._
 - feat(server): share email parsing and normalization once (#2693) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2713
 - fix(push): reason-specific push failure message in the android app by @deleonio in https://github.com/deleonio/priority-pilot/pull/2719
 - refactor(frontend): share webgl dial-figure stage in one module (#2696) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2718
+- fix(frontend): onboarding actions without sticky or own background by @deleonio in https://github.com/deleonio/priority-pilot/pull/2720
 
 ## v0.28 - 2026-10-18
 
@@ -231,7 +232,7 @@ _Enthält v0.23.0 – v0.23.4._
 
 - fix(native): stop committing generated capacitor.settings.gradle by @deleonio in https://github.com/deleonio/priority-pilot/pull/2517
 - feat(series): manage checklist on series and templates (#2501) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2530
-- feat(series): manage checklist on series and templates (#2501) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2530
+- feat(auth): magic link signs in where it was requested (#2563) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2564
 - feat(auth): magic link signs in where it was requested (#2563) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2564
 
 ## v0.22 - 2026-10-11
