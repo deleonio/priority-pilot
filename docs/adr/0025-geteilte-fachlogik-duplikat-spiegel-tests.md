@@ -61,7 +61,7 @@ wo sein Kontext lebt.
 
 - Keine Änderung an Workspace-, Build- oder Deployment-Grenzen; die fünf Pakete und ihre Rollen
   gelten unverändert.
-- Das Nachfolge-Issue „Säulen: Anteils- und Rundungslogik zusammenführen" setzt diese
+- Das Nachfolge-Issue #2694 „Säulen: Anteils- und Rundungslogik zusammenführen“ setzt diese
   Entscheidung um: es führt die Logik nicht in einem Modul zusammen, sondern pinnt beide
   Fassungen mit Spiegel-Tests aneinander und richtet die Kommentar-Bindung darauf aus.
 - Die Redundanz ist eingepreist: jede Regeländerung berührt zwei Dateien und zwei Test-Suiten;
