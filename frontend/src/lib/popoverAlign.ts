@@ -20,7 +20,7 @@
  *
  * @returns Aufräumfunktion, die alle Observer und Listener wieder abmeldet.
  */
-const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement, alignEnd: boolean): (() => void) => {
+const alignPopoverPanel = (host: HTMLKolPopoverButtonElement, alignEnd: boolean): (() => void) => {
 	const root = host.shadowRoot;
 	if (!root) return () => {};
 
@@ -105,7 +105,7 @@ export const findInnerButton = (el: Element | null | undefined): HTMLElement | n
 };
 
 /**
- * Verdrahtet `alignPopoverPanelLeft` mit einem `KolPopoverButton`-Ref. KoliBri-Custom-Elements werden
+ * Verdrahtet `alignPopoverPanel` mit einem `KolPopoverButton`-Ref. KoliBri-Custom-Elements werden
  * asynchron aufgewertet — beim schnellen Mount ist `shadowRoot` u. U. noch `null`, deshalb ggf. auf
  * die Custom-Element-Definition warten.
  *
@@ -118,7 +118,7 @@ export const setupPopoverAlignment = (host: HTMLKolPopoverButtonElement | null, 
 	if (!host) return () => {};
 	let cleanup: () => void = () => {};
 	const setup = () => {
-		cleanup = alignPopoverPanelLeft(host, alignEnd);
+		cleanup = alignPopoverPanel(host, alignEnd);
 	};
 	if (host.shadowRoot) {
 		setup();

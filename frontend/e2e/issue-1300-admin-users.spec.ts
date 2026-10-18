@@ -95,8 +95,11 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 		await expect(tab).toBeVisible();
 		await expect(tab).toHaveAttribute('aria-selected', 'true');
 
-		await expect(page.getByText('Anna Admin', { exact: true })).toBeVisible();
-		await expect(page.getByText('Test User', { exact: true })).toBeVisible();
+		// #2741-Fixup: Der Anzeigename des angemeldeten Admins steht zusätzlich im
+		// Kopfbereich-Menü — page-weites getByText löst deshalb doppelt auf.
+		const adminUsersPanel = page.locator('.settings-admin-users');
+		await expect(adminUsersPanel.getByText('Anna Admin', { exact: true })).toBeVisible();
+		await expect(adminUsersPanel.getByText('Test User', { exact: true })).toBeVisible();
 
 		const testUserRow = page.locator('li.admin-user', { hasText: 'Test User' });
 		const adminOption = roleOption(testUserRow, 'Admin');
