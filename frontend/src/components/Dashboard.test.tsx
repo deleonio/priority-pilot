@@ -540,8 +540,8 @@ describe('Dashboard — „Bearbeiten"-Button im Signal-Panel (Issue #1447, docs
 	// `onEditTask` ist die Ziel-Prop aus docs/spec/issue-1447.md — existiert auf `DashboardProps` noch
 	// nicht. Der Cast hält den Spec-Commit tsc-sauber (sonst Build-Fehler statt rotem Testlauf); der
 	// eigentliche Rot-Zustand kommt aus der fehlenden Laufzeit-Umsetzung (Button/Callback fehlen).
-	const renderWithEdit = (props: ComponentProps<typeof Dashboard> & { onEditTask?: (task: Task) => void }) =>
-		render(<Dashboard userId={1} {...(props as ComponentProps<typeof Dashboard>)} />);
+	const renderWithEdit = (props: Omit<ComponentProps<typeof Dashboard>, 'userId'> & { onEditTask?: (task: Task) => void }) =>
+		render(<Dashboard userId={1} {...props} />);
 
 	it('AK1: rendert bei gesetztem nextTask und onEditTask einen Icon-only-Button „Bearbeiten" nach „Erledigen"', () => {
 		const nextTask = task(42, [], 2, TaskStatus.Open);
@@ -948,8 +948,8 @@ describe('Dashboard — Begründungssätze der „Nächste Aufgabe“-Karte (#19
  */
 describe('Dashboard — „Kurz zurückstellen"-Button im Signal-Panel (Issue #2244)', () => {
 	// `onSnoozeTask` existiert noch nicht auf `DashboardProps` — Cast hält den Spec-Commit tsc-sauber.
-	const renderWithSnooze = (props: ComponentProps<typeof Dashboard> & { onSnoozeTask?: (task: Task) => void }) =>
-		render(<Dashboard userId={1} {...(props as ComponentProps<typeof Dashboard>)} />);
+	const renderWithSnooze = (props: Omit<ComponentProps<typeof Dashboard>, 'userId'> & { onSnoozeTask?: (task: Task) => void }) =>
+		render(<Dashboard userId={1} {...props} />);
 	const snoozeButton = (container: HTMLElement) =>
 		[...container.querySelectorAll('.dashboard-next-task-content kol-button')].find(
 			(b) => b.getAttribute('_label') === 'Kurz zurückstellen',
