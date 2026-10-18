@@ -395,3 +395,6 @@ vom Server wegsichern.
 
 Nur: Verzeichnisse + `data/` + `chown` (4), Env-Datei mit freiem `PORT` (5), PM2-Prozessname im
 Workflow, Caddy-Block mit eigenem Port (7). Kein systemd, keine sudoers-Zeile.
+
+Auf demselben Host läuft zusätzlich **Matomo** (PHP-FPM + MariaDB, `stats.modevel.de`) — eigenes
+Runbook: [matomo.md](matomo.md).
