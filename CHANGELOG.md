@@ -4,12 +4,13 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.29 - 2026-10-18
 
-_Enthält v0.29.0 – v0.29.5._
+_Enthält v0.29.0 – v0.29.6._
 
 ### 🚀 Improvements
 
 - docs(guide): sync user guide to current app state 2026-10-18 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2705
 - feat(frontend): brand elements on all shareable cards by @deleonio in https://github.com/deleonio/priority-pilot/pull/2707
+- feat(server): log failed ai budget refunds instead of swallowing them by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2710
 
 ### 🔧 Engineering
 
@@ -234,7 +235,6 @@ _Enthält v0.22.0 – v0.22.10._
 ### 🔧 Engineering
 
 - chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1887
-- chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1887
 - chore(deps): update gradle to v8.14.6 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2483
 - chore(deps): update pi-erweiterungen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2484
 
@@ -244,6 +244,7 @@ _Enthält v0.22.0 – v0.22.10._
 - feat(frontend): use built-in KolCard closer for demo hint (#2474) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2476
 - docs(knowledge): describe frontend coverage gate as implemented (v-18) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2479
 - feat(frontend): make launch banner dismissible (#2480) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2481
+- fix(deps): pin dependency pdf-lib to 1.17.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2482
 - fix(deps): pin dependency pdf-lib to 1.17.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2482
 - fix(frontend): launch banner dismissible per login, demo hint removed by @deleonio in https://github.com/deleonio/priority-pilot/pull/2485
 - feat(frontend): two-column balance image picker with preview above hint by @deleonio in https://github.com/deleonio/priority-pilot/pull/2487
