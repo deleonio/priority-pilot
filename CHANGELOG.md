@@ -4,13 +4,14 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.29 - 2026-10-18
 
-_Enthält v0.29.0 – v0.29.9._
+_Enthält v0.29.0 – v0.29.14._
 
 ### 🚀 Improvements
 
 - docs(guide): sync user guide to current app state 2026-10-18 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2705
 - feat(frontend): brand elements on all shareable cards by @deleonio in https://github.com/deleonio/priority-pilot/pull/2707
 - feat(server): log failed ai budget refunds instead of swallowing them by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2710
+- feat(frontend): simplify category assignment to a plain single-select by @deleonio in https://github.com/deleonio/priority-pilot/pull/2721
 
 ### 🔧 Engineering
 
@@ -23,6 +24,11 @@ _Enthält v0.29.0 – v0.29.9._
 - docs: add ADR 0025 on shared logic as duplicate with mirror tests by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2703
 - feat(server): move score recap logic from routes into logics (#2689) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2706
 - feat(frontend): add tenth dial Bahnen with comets on elliptical orbits by @deleonio in https://github.com/deleonio/priority-pilot/pull/2712
+- feat(server): merge request validation of tasks and series (#2691) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2709
+- feat(server): pin pillar share logic with mirror tests (ADR 0025) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2714
+- feat(server): share email parsing and normalization once (#2693) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2713
+- fix(push): reason-specific push failure message in the android app by @deleonio in https://github.com/deleonio/priority-pilot/pull/2719
+- refactor(frontend): share webgl dial-figure stage in one module (#2696) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2718
 
 ## v0.28 - 2026-10-18
 
@@ -224,6 +230,7 @@ _Enthält v0.23.0 – v0.23.4._
 ### Other Changes
 
 - fix(native): stop committing generated capacitor.settings.gradle by @deleonio in https://github.com/deleonio/priority-pilot/pull/2517
+- feat(series): manage checklist on series and templates (#2501) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2530
 - feat(series): manage checklist on series and templates (#2501) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2530
 - feat(auth): magic link signs in where it was requested (#2563) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2564
 
@@ -577,7 +584,6 @@ _Enthält v0.14.0 – v0.14.31._
 - feat(frontend): add article-create skill and marketing articles by @deleonio in https://github.com/deleonio/priority-pilot/pull/2056
 - feat(server): reached milestones never expire (#1965) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2148
 - feat(server): store balance variant choice on the account (#2009) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2156
-- feat(frontend): show done tasks on their due day in week view (#2012) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2158
 - feat(frontend): show done tasks on their due day in week view (#2012) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2158
 
 ### 🚀 Improvements

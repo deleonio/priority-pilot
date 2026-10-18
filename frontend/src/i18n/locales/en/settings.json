@@ -53,6 +53,8 @@
 			"pushHint": "Allow Balamentum to send you reminders (e.g. for due tasks) as push notifications – even when the app is not open.",
 			"pushFailedLabel": "Push notifications not enabled",
 			"pushFailedText": "Push notifications could not be enabled. Please grant the notification permission in your browser and try again.",
+			"pushFailedAppDeniedText": "Push notifications could not be enabled because the notification permission is missing. Please allow them for Balamentum in the Android settings and try again.",
+			"pushFailedAppErrorText": "Push notifications could not be enabled. Please check your internet connection and try again – if it keeps failing, an app update will probably help.",
 			"pushUnavailableLabel": "Push notifications unavailable",
 			"pushUnavailableText": "This browser does not support push notifications. Install the app or use an up-to-date browser to receive reminders.",
 			"careLabel": "Care hints",

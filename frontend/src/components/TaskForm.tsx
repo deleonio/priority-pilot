@@ -37,7 +37,6 @@ import { buildRecipientOptions } from '../lib/recipientOptions';
 import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
 import { useAiFeaturesGate } from '../lib/aiPreferences';
 import { useExpertModeGate } from '../lib/expertMode';
-import { CategoryBadge } from './CategoryBadge';
 import { VoiceField } from './VoiceField';
 import { AddressAutocomplete, type PlaceFavoriteSuggestion } from './AddressAutocomplete';
 import { notifyTasksChanged } from '../lib/tasksChanged';
@@ -681,7 +680,6 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 		],
 		[categories, t],
 	);
-	const selectedCategory = categories.find((category) => category.id === categoryId) ?? null;
 	// #470 (AK5): Client-seitige Konsistenzprüfung zwischen Wochentag-Rhythmus (`mon`…`sun`) und
 	// Startdatum — spiegelt die Backend-Regel und warnt den Nutzer frühzeitig (vor dem Speichern).
 	const weekdayMismatch = (() => {
@@ -1980,42 +1978,22 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 						)}
 						{/* Kategorie: thematische Ordnung, höchstens eine je Aufgabe. Bewusst getrennt von den
 						    Säulen darunter — der Hinweis benennt den Unterschied in einem Satz, damit niemand
-						    eine Säule als Ordner missbraucht (das verzerrt die Balance-Rechnung). Die lange
-						    Fassung steht dort, wo Zeit dafür ist: im Kategorien-Tab und im Benutzerhandbuch.
-						    Ein mehrzeiliger Hinweis schöbe hier nur das Badge vom Feld weg. */}
+						    eine Säule als Ordner missbraucht (das verzerrt die Balance-Rechnung). Optional: die
+						    erste Option „— ohne Kategorie —" löst eine Zuordnung wieder, das Feld selbst zeigt
+						    die getroffene Wahl. */}
 						{categories.length > 0 && (
-							<div className="category-field">
-								<KolSingleSelect
-									_label={t('taskForm.categoryLabel')}
-									_hint={t('taskForm.categoryHint')}
-									_options={categoryOptions}
-									_value={categoryId ?? NO_CATEGORY}
-									_on={{
-										onChange: (_event, value) => {
-											const next = Number(value);
-											setCategoryId(Number.isInteger(next) && next !== NO_CATEGORY ? next : null);
-										},
-									}}
-								/>
-								{/* Die getroffene Wahl steht als Badge UNTER dem Feld — genau so, wie sie später in den
-								    Listen aussieht — und daneben, auf derselben Zeile, der Weg zurück. Das „×" folgt dem
-								    Muster der Nachbarblöcke (`.pillar-row`, `.checklist-item`): icon-only, `danger`,
-								    Beschriftung nur für Screenreader (#368). Ohne Auswahl bleibt die Zeile aus, damit
-								    das Formular keinen leeren Platz vorhält. */}
-								{selectedCategory !== null && (
-									<div className="category-field__selection">
-										<CategoryBadge category={selectedCategory} />
-										<KolButton
-											_label={t('taskForm.removeCategory')}
-											_hideLabel
-											_icons={{ left: { icon: 'kolicon-cross' } }}
-											_variant="danger"
-											_disabled={saving}
-											_on={{ onClick: () => setCategoryId(null) }}
-										/>
-									</div>
-								)}
-							</div>
+							<KolSingleSelect
+								_label={t('taskForm.categoryLabel')}
+								_hint={t('taskForm.categoryHint')}
+								_options={categoryOptions}
+								_value={categoryId ?? NO_CATEGORY}
+								_on={{
+									onChange: (_event, value) => {
+										const next = Number(value);
+										setCategoryId(Number.isInteger(next) && next !== NO_CATEGORY ? next : null);
+									},
+								}}
+							/>
 						)}
 						{/* #531: Abhakbare Checkliste — im Task-Modus mit Erledigt-Schalter; im Serie-Modus (#2501)
 						    Checkpunkte der Vorlage ohne Schalter, Titel als Inline-Umbenenn-Feld plus Auf/ab-Buttons

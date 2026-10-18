@@ -187,8 +187,14 @@ const RANK_STAIRS = [50, 20, 15, 10, 5];
  * Treppe 50/20/15/10/5 %, alle übrigen teilen den Rest gleichmäßig — ganzzahlig per
  * Largest-Remainder (`roundSharesToTotal`), Gleichstand nach Säulen-Listenordnung. Ergebnis in
  * Listenordnung über alle Säulen, ganzzahlig, Summe exakt `SHARE_TOTAL`, `confidence` 100.
- * Ersetzt die 80/5/5/5/5-Regel `suggestMainDistribution` (#1962); Server-Spiegel `suggestRankedShares`
- * (#2075). Leere Rangfolge → Gleichverteilung; unbekannte oder mehrfach genannte IDs werden ignoriert.
+ * Ersetzt die 80/5/5/5/5-Regel `suggestMainDistribution` (#1962); Spiegel-Test zu
+ * `suggestRankedShares` (#2075). Leere Rangfolge → Gleichverteilung; unbekannte oder mehrfach
+ * genannte IDs werden ignoriert. Ränge über der Treppenlänge bleiben auf der letzten Stufe (5 %);
+ * kippt die Restverteilung unter `SHARE_MIN` (sehr viele Säulen) → Gleichverteilung.
+ *
+ * Bewusstes Duplikat mit Spiegel-Tests statt gemeinsamem Paket (ADR 0025): die Server-Fassung
+ * (`server/src/logics/pillarShares.ts`) ist der Referenz-Vertrag — jede Änderung hier wird dorthin
+ * übertragen (Leserichtung Server → Frontend).
  */
 export const distributionFromRankOrder = (
 	rankedPillarIds: readonly number[],
@@ -205,10 +211,18 @@ export const distributionFromRankOrder = (
 	}
 	const assigned = pillars.map((pillar) => {
 		const rank = rankById.get(pillar.id);
-		return rank !== undefined && rank < RANK_STAIRS.length ? RANK_STAIRS[rank] : null;
+		// Rang über der Treppenlänge bleibt auf der letzten Stufe (5 %) — Spiegel zu
+		// `RANG_ANTEILE[Math.min(rank, …)]` im Server.
+		return rank !== undefined ? RANK_STAIRS[Math.min(rank, RANK_STAIRS.length - 1)] : null;
 	});
 	const rest = SHARE_TOTAL - assigned.reduce<number>((acc, share) => acc + (share ?? 0), 0);
 	const unranked = assigned.filter((share) => share === null).length;
+	if (unranked > 0 && rest / unranked < SHARE_MIN) {
+		// Grenzfall sehr vieler Säulen: die Restverteilung kippt unter den Mindestanteil →
+		// Gleichverteilung (Spiegel zu `suggestRankedShares` im Server).
+		const even = evenShares(pillars.length);
+		return pillars.map((pillar, index) => ({ pillarId: pillar.id, share: even[index], confidence: 100 }));
+	}
 	const shares =
 		unranked > 0
 			? roundSharesToTotal(assigned.map((share) => share ?? rest / unranked))

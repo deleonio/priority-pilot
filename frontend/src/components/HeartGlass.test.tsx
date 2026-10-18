@@ -2,7 +2,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import type { Pillar } from 'client';
 import { afterEach, describe, expect, it } from 'vitest';
 import { HeartBalance } from './HeartBalance';
-import { toSlotBands } from './HeartGlass';
+import { toSlotBands } from '../lib/webglStage';
 
 afterEach(cleanup);
 
