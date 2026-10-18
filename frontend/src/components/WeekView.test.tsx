@@ -305,7 +305,16 @@ describe('WeekView — Kalendertermine (#2210 AK3)', () => {
 	});
 
 	it('ganztägige Termine zeigen „ganztägig" statt einer Uhrzeit', () => {
-		renderWith([event('Urlaub', local(24, 0), local(25, 0), true)]);
+		// Produktions-Kontrakt: ganztägige Termine sind reine UTC-Daten (DATE = UTC-Mitternacht,
+		// server/src/logics/calendar-ics.ts) — Fixture daher über Date.UTC, nicht über local().
+		renderWith([
+			event(
+				'Urlaub',
+				new Date(Date.UTC(2026, 8, 24)).toISOString(),
+				new Date(Date.UTC(2026, 8, 25)).toISOString(),
+				true,
+			),
+		]);
 
 		const thursday = cardOf(/Donnerstag/);
 		expect(within(thursday).getByText(/Urlaub/)).toBeInTheDocument();

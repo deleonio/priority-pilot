@@ -40,6 +40,9 @@ export default defineConfig({
 	},
 	test: {
 		environment: 'jsdom',
+		// Zeitzonen-Pinnung (Spiegel zu timezoneId in playwright.config.ts): Unit-Tests liefern in
+		// jeder Runner-Zeitzone dasselbe Ergebnis (#2730); CI fährt bereits mit TZ=UTC grün.
+		env: { TZ: 'UTC' },
 		// Reihenfolge ist bindend: `vitest.storage-shim.ts` bindet Web Storage im jsdom-Env an jsdoms
 		// Implementierung (Node ≥ 26 bringt einen nativen, ohne --localstorage-file leeren
 		// localStorage-Global mit) und muss laufen, BEVOR `vitest.setup.ts` Module importiert, die
