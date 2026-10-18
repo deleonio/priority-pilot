@@ -40,10 +40,12 @@ You can **log out** at any time via the header (icon on the far right).
 
 On your first sign-in, the welcome dialog **"Welcome to Balamentum"** opens. Describe what
 occupies you right now and the AI suggests matching tasks, which you select and create with
-**"Apply"**; afterwards you set your starting pillar weighting. Without an AI package, the
-step is called **"Bring your tasks"**: you import existing tasks from Todoist or a CSV file,
-or try the suggested examples. **"Later"** skips the introduction – the empty dashboard then
-offers to resume it along with the **"Create your first task"** button.
+**"Apply"**; afterwards comes the optional **"Bring your tasks"** step to import existing
+tasks from Todoist or a CSV file (without an AI package it is the only step), followed by the
+completion card with your next task. There is no starting pillar weighting: all five pillars
+start at 20 % each, and you can adjust the weighting later via the **"First steps"**
+dashboard card. **"Later"** skips the introduction – the empty dashboard then offers to
+resume it along with the **"Create your first task"** button.
 
 ---
 
@@ -479,7 +481,7 @@ prioritization.
 
 ### Recalculating the pillar distribution
 
-In _Settings → Pillars_, the button **"Recalculate pillar distribution"** starts an AI run
+In _Settings → Pillars_, the button **"Recalculate pillars of all tasks"** starts an AI run
 that redetermines the pillar contributions of your tasks from title and description – for all,
 only open or only completed tasks. Status, points and streak remain unchanged. The run
 continues on the server even if you close the window; after an interruption, **"Resume"**

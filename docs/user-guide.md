@@ -41,11 +41,13 @@ dann an den Administrator. Wie der Betreiber Adressen freischaltet, steht in
 
 Bei der ersten Anmeldung öffnet sich der Begrüßungs-Dialog **„Willkommen bei Balamentum“**.
 Beschreibe, was dich gerade beschäftigt, und die KI schlägt passende Aufgaben vor, die du
-auswählst und mit **„Übernehmen“** anlegst; danach legst du deine Startgewichtung der Säulen
-fest. Ohne KI-Paket heißt der Schritt **„Aufgaben mitbringen“**: Du holst bestehende Aufgaben
-aus Todoist oder einer CSV-Datei herein oder probierst die vorgeschlagenen Beispiele. Mit
-**„Später“** überspringst du den Einstieg – das leere Dashboard bietet danach den Wiedereinstieg
-sowie den Button **„Ersten Task anlegen“**.
+auswählst und mit **„Übernehmen“** anlegst; danach folgt optional der Schritt
+**„Aufgaben mitbringen“**, um bestehende Aufgaben aus Todoist oder einer CSV-Datei
+hereinzuholen (ohne KI-Paket ist er der einzige), und dann die Abschluss-Karte mit deiner
+nächsten Aufgabe. Eine Startgewichtung der Säulen gibt es nicht: Alle fünf starten zu je
+20 %, über die Dashboard-Karte **„Erste Schritte“** passt du die Gewichtung später an. Mit
+**„Später“** überspringst du den Einstieg – das leere Dashboard bietet mit den Beispielen zum
+Ausprobieren den Wiedereinstieg sowie den Button **„Ersten Task anlegen“**.
 
 ---
 
@@ -485,7 +487,7 @@ Priorisierung nach oben.
 
 ### Säulen-Verteilung neu berechnen
 
-In _Einstellungen → Säulen_ startet der Button **„Säulen-Verteilung neu berechnen“** einen
+In _Einstellungen → Säulen_ startet der Button **„Säulen aller Aufgaben neu berechnen“** einen
 KI-Lauf, der die Säulen-Beiträge deiner Aufgaben anhand von Titel und Beschreibung neu
 bestimmt – für alle, nur offene oder nur erledigte Aufgaben. Status, Punkte und Streak bleiben
 unverändert. Der Lauf geht auf dem Server weiter, auch wenn du das Fenster schließt; nach einem
