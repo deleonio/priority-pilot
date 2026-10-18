@@ -66,6 +66,7 @@
 		"empty": "No upcoming deadlines."
 	},
 	"heartBalance": {
+		"loading": "Loading life balance…",
 		"ariaLabel": "Balance {{percent}} percent — {{state}}",
 		"legendValue": "{{actual}} % · target {{target}} %",
 		"deltaHint": "deviation from target"

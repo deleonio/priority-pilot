@@ -1,6 +1,7 @@
 import type { Pillar } from 'client';
 import { useMemo, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
+import { KolSpin } from '@public-ui/react-v19';
 import { BalanceFigure } from './BalanceFigure';
 import { HeartVessel } from './HeartVessel';
 import { buildHeartBalance, heartHealth } from '../lib/heartBalance';
@@ -114,6 +115,17 @@ export const HeartBalance = ({ pillars, punkteProSaeule, fill, urteilsreif, auft
 				data-variante={variant}
 				style={{ '--pp-heart-beat': `${beatSeconds.toFixed(2)}s`, ...(bereit ? null : wartetStyle) } as CSSProperties}
 			>
+				{!bereit && (
+					/*
+					 * Erster Start ohne gerätelokalen Stand: Bis zur ersten Server-Antwort stehen Bild und
+					 * Ablesewert unsichtbar (#2676) — der Drehmelder zentriert in der freigehaltenen Bühne,
+					 * statt ein leeres Feld zu zeigen. Er sitzt an der Bühne (nicht am ganzen Block), also
+					 * über dem Bild und nicht über der verborgenen Ablesezeile.
+					 */
+					<div className="heart-balance-loading">
+						<KolSpin _show _variant="cycle" _label={t('heartBalance.loading')} />
+					</div>
+				)}
 				{variant === 'herz' ? (
 					/* Das Herz hat keinen Auftakt — sein Füllstand steht sofort, ohne Einfahren. */
 					<HeartVessel balance={balance} animated={animated} ariaLabel={ariaLabel} />

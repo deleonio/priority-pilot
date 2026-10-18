@@ -21,6 +21,7 @@ import { TaskStatus } from 'client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { readBalanceStatusCache, storeBalanceStatusCache } from '../lib/balanceStatusCache';
 import { URGENCY_COLOR } from '../lib/badgeColors';
 import { useGeolocation } from '../lib/useGeolocation';
 import { collectTaskValues } from '../lib/forest';
@@ -270,16 +271,19 @@ export const Dashboard = ({
 
 	// #1638 AK5: Den Füllstand des Herzens rechnet der Server im Kadenz-Modell (Soll-Rhythmus je Säule
 	// im 28-Tage-Fenster) — dieselbe Zahl wie Verlauf und MCP `balance_status`. Neu geladen, sobald
-	// sich die Aufgaben ändern; bis zur Antwort oder bei Fehler bleibt der lokal gerechnete Wert.
-	const [serverFill, setServerFill] = useState<number | undefined>(undefined);
+	// sich die Aufgaben ändern; bis zur Antwort oder bei Fehler bleibt der zuletzt bekannte Wert
+	// stehen (der Spiegel-Startwert oder lokal gerechnet, solange kein Spiegel existiert).
+	const [ersterStand] = useState(readBalanceStatusCache);
+	const [serverFill, setServerFill] = useState<number | undefined>(ersterStand?.fuellstand);
 	// Der Auftakt des Balance-Bilds startet erst mit der ersten Beantwortung dieser Frage (Erfolg
 	// ODER Fehler — dann auf den lokalen Wert): Sonst wächst das Zifferblatt auf den lokalen
-	// Notwert und wechselt dort zeitversetzt auf den echten Stand (Doppel-Animation).
-	const [auftaktBereit, setAuftaktBereit] = useState(false);
+	// Notwert und wechselt dort zeitversetzt auf den echten Stand (Doppel-Animation). Ein
+	// gespiegelter Stand ist selbst ein echter Server-Stand — mit ihm ist die Freigabe sofort da.
+	const [auftaktBereit, setAuftaktBereit] = useState(ersterStand !== undefined);
 	// #2645: Urteilsreife aus der Balance-Antwort (#2633) — unter der Überlast-Mindestmenge zeigt
 	// das Balance-Bild den Leerzustand statt eines Urteils. Fehlen die Felder (Server-Fehler),
 	// bleibt `undefined` = bisheriges Verhalten.
-	const [urteilsreif, setUrteilsreif] = useState<boolean | undefined>(undefined);
+	const [urteilsreif, setUrteilsreif] = useState<boolean | undefined>(ersterStand?.urteilsreif);
 	// #2645: Zeigt der Fürsorge-Hinweis den Einstiegssatz, steht derselbe Satz nicht zusätzlich
 	// als Begründungszeile der nächsten Aufgabe — CareHint meldet das hier hoch (genau einmal).
 	const [einstiegImHinweis, setEinstiegImHinweis] = useState(false);
@@ -294,6 +298,8 @@ export const Dashboard = ({
 						setUrteilsreif(status.erledigungenImFenster >= status.mindestErledigungen);
 					}
 					setAuftaktBereit(true);
+					// Spiegel nachziehen — der nächste Kaltstart zeigt diesen Stand sofort.
+					storeBalanceStatusCache(status);
 				}
 			})
 			.catch(() => {

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from '@testing-library/react';
 import { Dashboard } from './Dashboard';
 import { HeartBalance } from './HeartBalance';
+import { BALANCE_STATUS_CACHE_KEY } from '../lib/balanceStatusCache';
 import { api } from '../api';
 // #2527: i18n läuft echt (vitest.setup.ts pinnt `de`) — der Sprach-Test wechselt selbst (Muster CareHint #2063).
 import i18next from '../i18n/config';
@@ -39,6 +40,8 @@ vi.mock('./HeartBalance', async (importOriginal) => {
 afterEach(() => {
 	cleanup();
 	vi.restoreAllMocks();
+	// Balance-Spiegel räumen: er darf zwischen den Tests nicht als Vorbelegung weiterleben.
+	localStorage.removeItem(BALANCE_STATUS_CACHE_KEY);
 });
 
 const pillar = (id: number, name: string, weight: number): Pillar => ({ id, name, description: '', weight });
@@ -750,6 +753,46 @@ describe('Dashboard — Auftakt-Freigabe des Balance-Bilds', () => {
 		render(<Dashboard tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />);
 
 		await waitFor(() => expect(vi.mocked(HeartBalance).mock.calls.at(-1)?.[0]?.auftaktBereit).toBe(true));
+	});
+});
+
+/**
+ * Gerätelokaler Spiegel des letzten Balance-Stands (`balanceStatusCache.ts`): Beim wiederholten
+ * Öffnen zeigt das Zifferblatt den zuletzt bekannten Stand sofort — die Freigabe kommt dann aus dem
+ * Spiegel, ohne auf die Netzantwort zu warten; jede Antwort frischt den Spiegel nach.
+ */
+describe('Dashboard — gerätelokaler Balance-Spiegel', () => {
+	it('gibt den Auftakt mit dem gespiegelten Stand sofort frei, ohne auf die Netzantwort zu warten', () => {
+		localStorage.setItem(BALANCE_STATUS_CACHE_KEY, JSON.stringify({ fuellstand: 0.42, urteilsreif: true }));
+		// Antwortet nie — die Freigabe muss allein aus dem Spiegel kommen.
+		vi.spyOn(api, 'getBalanceStatus').mockImplementation(() => new Promise(() => undefined));
+		const koerper = pillar(1, 'Körper', 100);
+		const tasks = [task(11, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Done)];
+
+		render(<Dashboard tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />);
+
+		const props = vi.mocked(HeartBalance).mock.calls.at(-1)?.[0];
+		expect(props?.auftaktBereit).toBe(true);
+		expect(props?.fill).toBeCloseTo(0.42);
+		expect(props?.urteilsreif).toBe(true);
+	});
+
+	it('schreibt die Server-Antwort in den Spiegel', async () => {
+		const status = {
+			fuellstandProzent: 55,
+			hatPunkte: true,
+			saeulen: [],
+			meilensteine: [],
+		} as unknown as BalanceStatus;
+		vi.spyOn(api, 'getBalanceStatus').mockResolvedValue(status);
+		const koerper = pillar(1, 'Körper', 100);
+		const tasks = [task(11, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Done)];
+
+		render(<Dashboard tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />);
+
+		await waitFor(() =>
+			expect(JSON.parse(localStorage.getItem(BALANCE_STATUS_CACHE_KEY) ?? 'null')).toMatchObject({ fuellstand: 0.55 }),
+		);
 	});
 });
 
