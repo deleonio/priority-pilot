@@ -2,7 +2,7 @@ import { KolAlert, KolButton, KolCard, KolSpin } from '@public-ui/react-v19';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
-import { rasterisiere } from '../lib/karteRasterisieren';
+import { useShareCard } from '../lib/useShareCard';
 import { erzeugeWochenKarteSvg, kalenderWoche, kartenDateiname, montagDerWoche } from '../lib/weeklyShareCard';
 
 /**
@@ -29,8 +29,6 @@ export const WeeklyBalanceCard = () => {
 	// Sonntag-Gate (AK4) als Mount-Zustand — das Dashboard remountet ohnehin regelmäßig.
 	const [istSonntag] = useState(() => new Date().getDay() === 0);
 	const [daten, setDaten] = useState<WochenDaten | null>(null);
-	const [rastert, setRastert] = useState(false);
-	const [fehler, setFehler] = useState(false);
 
 	useEffect(() => {
 		if (!istSonntag) {
@@ -81,82 +79,38 @@ export const WeeklyBalanceCard = () => {
 		};
 	}, [istSonntag]);
 
-	if (!istSonntag) {
-		return null;
-	}
-
 	const heute = new Date();
 	const { kw, jahr } = kalenderWoche(heute);
 	const wocheLabel = t('weeklyCard.woche', { kw, jahr });
 
-	/** Erst im Klickpfad erzeugt — bloßes Ansehen der Karte rasterisiert nichts. */
-	const erzeugeKarte = async (): Promise<{ blob: Blob; dateiname: string } | null> => {
-		setRastert(true);
-		setFehler(false);
-		try {
-			const blob = await rasterisiere(
-				erzeugeWochenKarteSvg({
-					saeulen: daten?.saeulen ?? [],
-					streak: daten?.streak ?? 0,
-					woche: wocheLabel,
-					marken: {
-						balamentum: t('weeklyCard.marken.balamentum'),
-						play: t('weeklyCard.marken.play'),
-						pwa: t('weeklyCard.marken.pwa'),
-					},
-				}),
-			);
-			return { blob, dateiname: kartenDateiname(heute) };
-		} catch {
-			setFehler(true);
-			return null;
-		} finally {
-			setRastert(false);
-		}
-	};
+	// Gemeinsame Karten-Logik (#2695): Erzeugen/Herunterladen/Teilen samt Fehler- und
+	// Spinner-Zustand kommen aus dem Hook — die Karte liefert nur SVG, Dateiname, Titel/Text.
+	const { rastert, fehler, speichern, teilen } = useShareCard({
+		erzeugeSvg: () => ({
+			svg: erzeugeWochenKarteSvg({
+				saeulen: daten?.saeulen ?? [],
+				streak: daten?.streak ?? 0,
+				woche: wocheLabel,
+				marken: {
+					balamentum: t('weeklyCard.marken.balamentum'),
+					play: t('weeklyCard.marken.play'),
+					pwa: t('weeklyCard.marken.pwa'),
+				},
+			}),
+			dateiname: kartenDateiname(heute),
+		}),
+		titel: t('weeklyCard.label'),
+		text: wocheLabel,
+		// #1989: Share-Ping fire-and-forget — nur der System-Share zählt, Abbruch
+		// (AbortError) und Download-Fallback nicht. Ein Ping-Fehler bleibt unsichtbar.
+		onGeteilt: () => {
+			void Promise.resolve(api.postWochenkarteShare()).catch(() => {});
+		},
+	});
 
-	const ladeHerunter = (karte: { blob: Blob; dateiname: string }): void => {
-		const url = URL.createObjectURL(karte.blob);
-		const anker = document.createElement('a');
-		anker.href = url;
-		anker.download = karte.dateiname;
-		document.body.append(anker);
-		anker.click();
-		anker.remove();
-		URL.revokeObjectURL(url);
-	};
-
-	const speichern = async (): Promise<void> => {
-		const karte = await erzeugeKarte();
-		if (karte) {
-			ladeHerunter(karte);
-		}
-	};
-
-	const teilen = async (): Promise<void> => {
-		const karte = await erzeugeKarte();
-		if (!karte) {
-			return;
-		}
-		const datei = new File([karte.blob], karte.dateiname, { type: 'image/png' });
-		// File-Share nur, wenn die Plattform Dateien annimmt — sonst fällt der Klick in den
-		// Download-Pfad (AK2, kein toter Button).
-		if (navigator.canShare?.({ files: [datei] })) {
-			try {
-				await navigator.share({ files: [datei], title: t('weeklyCard.label'), text: wocheLabel });
-				// #1989: Share-Ping fire-and-forget — nur der System-Share zählt, Abbruch
-				// (AbortError) und Download-Fallback nicht. Ein Ping-Fehler bleibt unsichtbar.
-				void Promise.resolve(api.postWochenkarteShare()).catch(() => {});
-				return;
-			} catch (fehlerBeimTeilen) {
-				// Abbruch des Systemdialogs ist keine Störung (UX-Beratung) — sonst Meldung.
-				if ((fehlerBeimTeilen as DOMException)?.name === 'AbortError') {
-					return;
-				}
-			}
-		}
-		ladeHerunter(karte);
-	};
+	if (!istSonntag) {
+		return null;
+	}
 
 	return (
 		<KolCard
