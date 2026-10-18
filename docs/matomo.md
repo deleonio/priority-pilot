@@ -146,7 +146,7 @@ Bleibt der Tracker danach stumm („As Matomo is not installed yet…"), steht i
 
 ```bash
 cd /var/www/matomo
-sudo -u www-data php console config:set 'General.trusted_hosts[]=stats.modevel.de'   # JSON-Form: --key trusted_hosts --value '["stats.modevel.de"]'
+sudo -u www-data php console config:set 'General.trusted_hosts[]="stats.modevel.de"'   # Element-Wert als JSON-String
 sudo -u www-data php console config:set PrivacyManager.useAnonymizeIP=1
 sudo -u www-data php console config:set PrivacyManager.anonymizeIPMaskLength=2        # 2 Bytes kuerzen
 sudo -u www-data php console config:set PrivacyManager.useDeleteLog=1
@@ -219,6 +219,7 @@ die Release Notes lesen — das Update-Plugin warnt vorher von selbst.
 | Symptom                                           | Wahrscheinliche Ursache                                           | Prüfen / Fix                                                                                        |
 | ------------------------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | `stats.modevel.de` erreichbar, aber kein TLS      | DNS-A-Record fehlt/falsch                                         | `dig +short stats.modevel.de`, dann `sudo systemctl reload caddy`                                   |
+| Matomo warnt beim Login von „fremder Adresse"     | `trusted_hosts` trägt noch den Loopback-Host der Installer-Phase  | `config:set 'General.trusted_hosts[]="stats.modevel.de"'` oder Zeile in `config.ini.php` ersetzen   |
 | Tracker antwortet „not installed yet"             | `installation_in_progress = 1` steht noch in der `config.ini.php` | Zeile löschen ([Schritt 6](#6-installer))                                                           |
 | Besuche werden gezählt, Berichte bleiben leer     | Archiv-Cron läuft nicht                                           | `tail /var/log/matomo-archive.log`, `systemctl status cron` ([Schritt 8](#8-archivierung-per-cron)) |
 | Echtzeit zählt, Tagesberichte erst Stunden später | Browser-Archivierung aus (so gewollt) — Cron-Takt                 | Cron-Minute im Blick behalten; Archivierung läuft zu :17                                            |
