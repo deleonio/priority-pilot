@@ -11,8 +11,10 @@ on:
   workflow_dispatch: {} # manuell anstoßbar
 
 concurrency:
-  group: test-optimization
-  cancel-in-progress: true
+  # Gleiche Gruppe wie alle Team-Jobs (llm-sync): sequenziell im Team-Block, FIFO.
+  group: llm-sync
+  cancel-in-progress: false
+  queue: max
 
 jobs:
   analyze:
