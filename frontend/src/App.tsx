@@ -972,6 +972,17 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		void reload();
 	}, [reload]);
 
+	// #2767: Wiedereröffnen aus der Erledigt-Tabelle räumt das Erledigt-Feedback des Tasks — sonst
+	// bliebe „+X Punkte · Rückgängig“ an der wieder geöffneten Zeile stehen (Muster wie im
+	// Reopen-Pfad von handleDoneToggle).
+	const handleReopened = useCallback(
+		(task: Task): void => {
+			setDoneFeedback((prev) => (prev?.taskId === task.id ? null : prev));
+			void reload();
+		},
+		[reload],
+	);
+
 	// „Wiederherstellen" im Archiv: einstufig, danach globales Neuladen (Archiv-Liste lädt mit nach).
 	const handleRestoreArchived = useCallback(
 		(task: Task): void => {
@@ -1720,7 +1731,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 													pillars={pillars}
 													categories={categories}
 													forestTaskIds={forestTaskIds}
-													onReloaded={reload}
+													onReloaded={handleReopened}
 												/>
 											) : (
 												<p className="empty-state">{t('app:taskFilter.noResults')}</p>
@@ -1731,7 +1742,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 												pillars={pillars}
 												categories={categories}
 												forestTaskIds={forestTaskIds}
-												onReloaded={reload}
+												onReloaded={handleReopened}
 											/>
 										)}
 									</section>
