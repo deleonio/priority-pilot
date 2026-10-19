@@ -26,6 +26,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [Matomo](docs/matomo.md) — cookielose Reichweitenmessung: Instanz auf dem Host (`stats.modevel.de`), Caddy-Block, Datenschutz-Einstellungen, Aktivierung über `MATOMO_URL`/`MATOMO_SITE_ID`
 - [Native Apps](docs/native-apps.md) — Android-App mit Capacitor und gebündelter Web-App: Aufbau von `native/`, lokal bauen, Icons erzeugen
 - [Anmeldung & Zugang](docs/auth-setup.md) — Google-OAuth-Client, Allowlist, Konto entsteht beim ersten Login, Admin-Rollen, Fehlerbilder
+- [Admin-MCP](docs/mcp-admin.md) — nur lesender MCP-Endpunkt `/mcp/admin/v1` für Admins: einrichten, Werkzeuge, Fehlerbilder
 - [CI-Architektur](docs/ci-architecture.md) — Provider, Modelle, Soft-Abort, Label-Pipeline, KoliBri MCP
 - [Pipeline-Flow](docs/pipeline-flow.md) — Diagramm + Tabellen zum label-getriebenen Ticket-Flows
 - [Pipeline-Optimierung](docs/pipeline-optimierung.md) — Hebel-Map, Entscheidungs-Log, Messmethoden und offene KPIs der KI-Pipeline (Einstieg für jedes Tuning)
