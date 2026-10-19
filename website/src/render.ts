@@ -15,6 +15,7 @@ import { OPERATOR } from '../../frontend/src/lib/operator.ts';
 import { PRIVACY } from './privacy.ts';
 import { TERMS } from './terms.ts';
 import { WITHDRAWAL } from './withdrawal.ts';
+import { ACCESSIBILITY } from './accessibility.ts';
 import { MCP_GUIDE } from './mcp-guide.ts';
 import { TEMPLATES, TEMPLATE_TEXT, TEMPLATES_EN, localizeTemplate } from './templates.ts';
 import { ASSESSMENT, clientScript, pillarNames } from './assessment.ts';
@@ -59,6 +60,7 @@ export const SUBPAGES = {
 	mcpGuide: { de: '/mcp/', en: '/en/mcp/' },
 	templates: { de: '/vorlagen/', en: '/en/templates/' },
 	assessment: { de: '/balance-check/', en: '/en/balance-check/' },
+	accessibility: { de: '/barrierefreiheit/', en: '/en/accessibility/' },
 } as const;
 
 export type Subpage = keyof typeof SUBPAGES;
@@ -259,6 +261,7 @@ ${body}
 						['mcpGuide', messages.footer.mcpGuide],
 						['templates', messages.footer.templates],
 						['assessment', ASSESSMENT[subpageLang(locale)].title],
+						['accessibility', messages.footer.accessibility],
 					] as [Subpage, string][]
 				)
 					.map(
@@ -656,6 +659,38 @@ ${text.sections
 	])
 	.join('\n')}				</div>
 			</section>`;
+	return shell(context, {
+		title: `${text.title} – Balamentum`,
+		description: text.description,
+		path: pathFor(context.locale),
+		pathFor,
+		body,
+	});
+};
+
+/**
+ * Zugänglichkeitserklärung nach § 14 BFSG (#2769): `/barrierefreiheit/` und `/en/accessibility/`,
+ * Muster {@link renderWithdrawal}. Der Mailto-Link im Feedback-Abschnitt trägt die Adresse aus
+ * `OPERATOR`; Konformitätsgrad und Einschränkungen sind Entwurf und werden im PR freigegeben.
+ */
+export const renderAccessibility = (context: PageContext & { allMessages: Record<Locale, Messages> }): string => {
+	const lang = subpageLang(context.locale);
+	const pathFor = subpagePathFor('accessibility');
+	const text = ACCESSIBILITY[lang];
+	const body = `\t\t\t<section class="section">
+	\t\t\t\t<div class="container container--narrow imprint">
+	\t\t\t\t\t<h1 class="kern-heading-large">${t(text.title)}</h1>
+	\t\t\t\t\t<p class="kern-body kern-body--large">${t(text.intro)}</p>
+${text.sections
+	.flatMap((section) => [
+		`\t\t\t\t\t<h2 class="kern-title">${t(section.heading)}</h2>`,
+		...section.paragraphs.map((paragraph) => `\t\t\t\t\t<p class="kern-body">${t(paragraph)}</p>`),
+		...(section.feedbackMailto
+			? [`\t\t\t\t\t<p><a class="kern-link" href="mailto:${OPERATOR.email}">${t(section.feedbackMailto)}</a></p>`]
+			: []),
+	])
+	.join('\n')}\t\t\t\t</div>
+	\t\t</section>`;
 	return shell(context, {
 		title: `${text.title} – Balamentum`,
 		description: text.description,

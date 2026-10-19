@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { ACCESSIBILITY } from './accessibility.ts';
 import { PRIVACY } from './privacy.ts';
 import { TERMS } from './terms.ts';
 import { WITHDRAWAL } from './withdrawal.ts';
@@ -18,9 +19,10 @@ describe('website — Zweckbestimmung ohne Heilversprechen (#1967)', () => {
 		});
 	}
 
-	it('terms.ts, privacy.ts und withdrawal.ts enthalten keinen Begriff der Zu-meiden-Liste', () => {
+	it('terms.ts, privacy.ts, withdrawal.ts und accessibility.ts enthalten keinen Begriff der Zu-meiden-Liste', () => {
 		expect(JSON.stringify(TERMS)).not.toMatch(VERBOTEN);
 		expect(JSON.stringify(PRIVACY)).not.toMatch(VERBOTEN);
 		expect(JSON.stringify(WITHDRAWAL)).not.toMatch(VERBOTEN);
+		expect(JSON.stringify(ACCESSIBILITY)).not.toMatch(VERBOTEN);
 	});
 });

@@ -24,6 +24,7 @@ import {
 	LOCALES,
 	homePath,
 	renderAccountDeletion,
+	renderAccessibility,
 	renderImprint,
 	renderAssessment,
 	renderAssetLinks,
@@ -137,6 +138,7 @@ for (const locale of ['de', 'en'] as const) {
 		paths.push(path);
 	}
 	page('assessment', renderAssessment(context));
+	page('accessibility', renderAccessibility(context));
 }
 
 write('404.html', renderNotFound({ locale: 'de', messages: de, siteUrl }));
