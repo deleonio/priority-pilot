@@ -40,6 +40,7 @@ vi.mock('./HeartBalance', async (importOriginal) => {
 afterEach(() => {
 	cleanup();
 	vi.restoreAllMocks();
+	vi.useRealTimers();
 	// Balance-Spiegel räumen: er darf zwischen den Tests nicht als Vorbelegung weiterleben.
 	localStorage.removeItem(balanceStatusCacheKey(1));
 });
@@ -771,6 +772,85 @@ describe('Dashboard — Auftakt-Freigabe des Balance-Bilds', () => {
 		render(<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />);
 
 		await waitFor(() => expect(vi.mocked(HeartBalance).mock.calls.at(-1)?.[0]?.auftaktBereit).toBe(true));
+	});
+});
+
+/**
+ * #2770 AK1/AK3: Hängt der Balance-Status-Request (Server antwortet nicht), blieb der Auftakt
+ * für immer zurückgehalten — das Zifferblatt blieb leer. Der Request bekommt deshalb ein
+ * AbortSignal mit großzügigem Timeout; der Abbruch landet im bestehenden `catch` und gibt den
+ * Auftakt für den lokalen Wert frei (Spec docs/spec/issue-2770.md). Kurze Wartezeiten dürfen
+ * den Timeout nie erreichen.
+ */
+describe('Dashboard — Balance-Status-Timeout (#2770)', () => {
+	const status = {
+		fuellstandProzent: 37,
+		hatPunkte: true,
+		saeulen: [],
+		meilensteine: [],
+	} as unknown as BalanceStatus;
+
+	it('übergibt dem Request ein AbortSignal (#2770 AK1)', async () => {
+		let signal: AbortSignal | null | undefined;
+		vi.spyOn(api, 'getBalanceStatus').mockImplementation((args) => {
+			signal = args?.signal;
+			return new Promise(() => undefined);
+		});
+		const koerper = pillar(1, 'Körper', 100);
+		const tasks = [task(11, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Done)];
+
+		render(<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />);
+
+		await waitFor(() => expect(signal).toBeInstanceOf(AbortSignal));
+	});
+
+	it('gibt den Auftakt nach Timeout-Ablauf für den lokalen Wert frei (#2770 AK1)', async () => {
+		// Nur die Timer — ein gefaktes `Date` bräuchte der Effekt nicht.
+		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+		// Fetch-Semantik: Der Request antwortet nie von selbst, er reagiert nur auf das Signal.
+		vi.spyOn(api, 'getBalanceStatus').mockImplementation(
+			(args) =>
+				new Promise<BalanceStatus>((_, reject) => {
+					args?.signal?.addEventListener('abort', () => reject(new Error('Timeout abgebrochen')));
+				}),
+		);
+		const koerper = pillar(1, 'Körper', 100);
+		const tasks = [task(11, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Done)];
+
+		render(<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />);
+		expect(vi.mocked(HeartBalance).mock.calls.at(-1)?.[0]?.auftaktBereit).toBe(false);
+
+		// Großzügig über den Timeout hinaus (Timeout-Dauer ist Impl-Detail, Plan ≈ 10 s).
+		await act(async () => {
+			vi.advanceTimersByTime(60_000);
+		});
+		expect(vi.mocked(HeartBalance).mock.calls.at(-1)?.[0]?.auftaktBereit).toBe(true);
+	});
+
+	it('bricht kurze Wartezeiten nicht vorzeitig ab und gibt mit der Antwort frei (#2770 AK3)', async () => {
+		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+		let loesen!: (status: BalanceStatus) => void;
+		vi.spyOn(api, 'getBalanceStatus').mockImplementation(
+			(args) =>
+				new Promise<BalanceStatus>((resolve, reject) => {
+					// Ein Abbruch während der Wartezeit wäre ein vorzeitiger Timeout — laut sichtbar machen.
+					args?.signal?.addEventListener('abort', () => reject(new Error('vorzeitig abgebrochen')));
+					loesen = resolve;
+				}),
+		);
+		const koerper = pillar(1, 'Körper', 100);
+		const tasks = [task(11, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Done)];
+
+		render(<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />);
+
+		await act(async () => {
+			vi.advanceTimersByTime(5_000);
+		});
+		// Noch zurückgehalten — ein Abbruch hier hätte die Antwort-Annahme laut verworfen.
+		expect(vi.mocked(HeartBalance).mock.calls.at(-1)?.[0]?.auftaktBereit).toBe(false);
+
+		await act(async () => loesen(status));
+		expect(vi.mocked(HeartBalance).mock.calls.at(-1)?.[0]?.auftaktBereit).toBe(true);
 	});
 });
 
