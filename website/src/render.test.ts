@@ -356,6 +356,17 @@ describe('renderPrivacy (#1672)', () => {
 				);
 			}
 		}
+		const accessibility = (SUBPAGES as Record<string, { de: string; en: string }>).accessibility;
+		expect(accessibility, 'SUBPAGES.accessibility fehlt (#2769)').toBeDefined();
+		for (const path of [accessibility!.de, accessibility!.en]) {
+			expect(existsSync(join(websiteRoot, 'dist', path, 'index.html')), `dist${path}index.html fehlt (#2769)`).toBe(
+				true,
+			);
+			expect(
+				readFileSync(join(websiteRoot, 'dist', 'sitemap.xml'), 'utf8'),
+				`${path} fehlt in der Sitemap (#2769)`,
+			).toContain(`<loc>https://example.org${path}</loc>`);
+		}
 	});
 });
 
@@ -507,6 +518,48 @@ describe('renderTerms (#1891)', () => {
 			);
 		},
 	);
+});
+
+// #2769: `renderAccessibility` existiert als Export noch nicht (roter Spec-Zustand) — deshalb optional getippt.
+const renderAccessibility = (
+	renderModule as unknown as {
+		renderAccessibility?: (context: PageContext & { allMessages: Record<Locale, Messages> }) => string;
+	}
+).renderAccessibility;
+
+/**
+ * #2769 (Vertrag: `docs/spec/issue-2769.md`) — Zugänglichkeitserklärung nach BFSG: feste deutsche
+ * Seite unter `/barrierefreiheit/`, Footer-Link in allen zehn Sprachen, Muster {@link renderPrivacy}.
+ */
+describe('renderAccessibility (#2769)', () => {
+	it('verlinkt /barrierefreiheit/ (de) bzw. /en/accessibility/ aus dem Footer aller zehn Sprachen (AK1)', () => {
+		for (const [locale, messages] of Object.entries(allMessages)) {
+			const label = (messages.footer as { accessibility?: string }).accessibility;
+			expect(label, `${locale}: i18n-Key footer.accessibility fehlt`).toBeTruthy();
+			expect(landing(locale as Locale), locale).toContain(
+				`${subpageLink(locale, '/barrierefreiheit/', '/en/accessibility/')}${label}</a>`,
+			);
+		}
+		expect(landing('en'), 'en: Label darf nicht deutsch sein').not.toContain('hreflang="de">Barrierefreiheit</a>');
+	});
+
+	it('nennt in de und en WCAG 2.2, bekannte Einschränkungen, Feedback-Kontakt und Durchsetzungsstelle (AK2)', () => {
+		expect(renderAccessibility, 'renderAccessibility existiert noch nicht (Export in render.ts)').toBeTypeOf(
+			'function',
+		);
+		for (const locale of ['de', 'en'] as const) {
+			const html = renderAccessibility!({ locale, messages: allMessages[locale], siteUrl: '', allMessages });
+			expect(html, `${locale}: Konformitätsgrad WCAG 2.2 fehlt`).toMatch(/WCAG\s*2\.2/);
+			expect(html, `${locale}: Abschnitt „Bekannte Einschränkungen“ fehlt`).toMatch(
+				locale === 'de' ? /<h2[^>]*>Bekannte Einschränkungen<\/h2>/ : /<h2[^>]*>Known limitations<\/h2>/,
+			);
+			expect(html, `${locale}: Feedback-Kontakt fehlt`).toContain('mailto:');
+			expect(html, `${locale}: Durchsetzungsstelle nach BFSG fehlt`).toMatch(
+				locale === 'de' ? /Durchsetzungsstelle/ : /enforcement/i,
+			);
+			expect(html, `${locale}: BFSG fehlt`).toContain('BFSG');
+		}
+	});
 });
 
 describe('robots und sitemap', () => {
