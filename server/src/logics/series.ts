@@ -199,6 +199,8 @@ const createInstanceFromSeries = async (
 		isException: fields.isException ?? false,
 		// #553: `seriesId` ist der Live-Link (fällt beim Abkoppeln auf null), `originSeriesId` bleibt Herkunftsnachweis.
 		originSeriesId: series.id,
+		// #2757: Instanz erbt den Serien-Ersteller (null bleibt null — kein Eigentümer-Fallback).
+		createdById: series.createdById ?? null,
 		userId: fields.userId,
 		autoDeleteAfterDeadline: series.autoDeleteAfterDeadline,
 		categoryId: series.categoryId ?? null,
