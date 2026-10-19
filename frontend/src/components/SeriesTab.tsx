@@ -44,11 +44,10 @@ type EditDialog = { series: Series } | null;
  */
 /**
  * Traversiert Shadow- und Light-DOM ab `root` und sammelt alle nativen `<button>`s samt ihres
- * Beschriftungstexts. #2715: Die Toolbar-Aktionen liegen hinter KoliBri-Shadow-Grenzen
- * (`kol-toolbar`-Shadow → `kol-button-wc` mit Light-DOM-Button + Label-span) — ein Light-DOM-
- * `querySelector` durchdringt sie nicht. Das Label liest der Button-Host (`kol-button-wc`); der
- * Shadow-Root der Toolbar als Wurzel enthielte ALLE Labels verkettet. Native Light-DOM-Buttons
- * (gemockte Toolbar im Unit-Test) tragen den Text dagegen selbst. Rekursionsmuster:
+ * Beschriftungstexts. #2715: Die Toolbar-Aktionen liegen im Shadow-DOM von `kol-toolbar` — ein
+ * Light-DOM-`querySelector` durchdringt es nicht. Icon-Buttons (`_hideLabel`) tragen ihr Label seit
+ * KoliBri 4.5.0 als `aria-label` am nativen Button; native Light-DOM-Buttons (gemockte Toolbar im
+ * Unit-Test) tragen den Text selbst. Rekursionsmuster:
  * `findInnerButton` in `TaskTree.tsx` (#361).
  */
 const collectRowButtons = (
@@ -58,13 +57,26 @@ const collectRowButtons = (
 	if (root == null) return found;
 	for (const child of Array.from(root.children)) {
 		if (child instanceof HTMLButtonElement) {
-			const text = child.closest('kol-button-wc')?.textContent ?? child.textContent;
+			const text = child.getAttribute('aria-label') ?? child.textContent;
 			found.push({ el: child, label: (text ?? '').replace(/\s+/g, ' ').trim() });
 		}
 		collectRowButtons(child.shadowRoot ?? child, found);
 	}
 	return found;
 };
+
+/**
+ * Wartet framesweise, bis eine KoliBri-Komponente ihr Theme trägt: Bis dahin hält KoliBri sie per
+ * `visibility: hidden` verborgen, ein `focus()` liefe ins Leere. Höchstens ~30 Frames, dann weiter.
+ */
+const whenThemed = (element: HTMLElement | null | undefined, frames = 30): Promise<void> =>
+	new Promise((resolve) => {
+		const check = (left: number) => {
+			if (element == null || element.dataset.themed !== undefined || left === 0) resolve();
+			else requestAnimationFrame(() => check(left - 1));
+		};
+		check(frames);
+	});
 
 export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTabProps) => {
 	const { t } = useTranslation(['capture', 'common']);
@@ -157,21 +169,25 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 			try {
 				await api.updateSeries({ id: entry.id, seriesUpdate: { active: next } });
 				await reload();
+				// Mit dem Reload committen, damit die neu gemountete Toolbar den Gegen-Button nicht
+				// deaktiviert rendert — ein deaktivierter Button nimmt den Fokus unten nicht an.
+				setTogglingId(null);
 				if (next === false) {
 					setPausedTitle(entry.title);
 				}
 				// KI-UX: Der getoggelte Button fällt mit dem Reload aus dem DOM (die Gegenaktion übernimmt
 				// den Platz) — den Fokus danach auf den Gegen-Button der Zeile setzen, er fiele sonst auf
-				// <body>. Der Gegen-Button liegt hinter KoliBri-Shadow-Grenzen und trägt sein Label nicht
-				// als `aria-label`-Attribut — daher Shadow-Traversierung nach Beschriftungstext
-				// (`collectRowButtons`), erst nach dem Repaint, wenn der neue Button gerendert ist (vor dem
-				// Commit existiert nur die alte Aktion — der Treffer self-guards den Race). Ohne Treffer
-				// (unbekannte Struktur) fängt die Section den Fokus (`deleteFallbackRef`, Muster App.tsx).
+				// <body>. Der Gegen-Button liegt hinter KoliBri-Shadow-Grenzen — daher Shadow-Traversierung
+				// nach Beschriftung (`collectRowButtons`), erst wenn die neu gemountete Toolbar ihr Theme
+				// trägt (`whenThemed`, vorher ist sie unsichtbar und nimmt keinen Fokus). Ohne Treffer (unbekannte
+				// Struktur) fängt die Section den Fokus (`deleteFallbackRef`, Muster App.tsx).
 				requestAnimationFrame(() => {
 					const label = next ? t('seriesTab.pause') : t('seriesTab.resume');
 					const row = document.querySelector<HTMLElement>(`[data-testid="series-tree-item-${entry.id}"]`);
-					const target = collectRowButtons(row).find((button) => button.label === label)?.el;
-					(target ?? deleteFallbackRef.current)?.focus();
+					void whenThemed(row?.querySelector<HTMLElement>('kol-toolbar')).then(() => {
+						const target = collectRowButtons(row).find((button) => button.label === label)?.el;
+						(target ?? deleteFallbackRef.current)?.focus();
+					});
 				});
 			} catch (reason) {
 				const apiError = await toApiError(reason);
@@ -269,6 +285,9 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 									{entry.forUserId == null && (
 										<div className="series-tree-actions">
 											<KolToolbar
+												// KoliBri 4.5.0: kol-toolbar bricht beim Patchen ab, wenn Pausieren/Fortsetzen die
+												// Item-Zahl ändert (Stencil `updateElement`, `nodeType` von null) — neu mounten.
+												key={entry.active === false ? 'paused' : 'active'}
 												_label={t('seriesTab.actionsFor', { title: entry.title })}
 												_orientation="horizontal"
 												_items={[

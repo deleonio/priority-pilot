@@ -3794,6 +3794,17 @@ kol-toolbar {
 	initial-value: 8px;
 }
 
+/*
+ * #968 seit KoliBri 4.5.0: Das Default-Theme stapelt Tabs per `@container tabs (width < 400px)`
+ * mit `--button-group-flex-direction: column` auf `.kol-tabs`. Dieselbe Klammer wie beim Gap oben
+ * (`inherits: false`) hält die Leisten nebeneinander; alle `kol-tabs` der App sind `_align` top.
+ */
+@property --button-group-flex-direction {
+	syntax: '<custom-ident>';
+	inherits: false;
+	initial-value: row;
+}
+
 .settings-placeholder {
 	color: var(--pp-text-muted);
 	margin: 1rem 0;
