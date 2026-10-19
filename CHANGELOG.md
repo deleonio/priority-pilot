@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.30 - 2026-10-19
 
-_Enthält v0.30.0 – v0.30.19._
+_Enthält v0.30.0 – v0.30.20._
 
 ### 🎉 New Features
 
@@ -30,6 +30,7 @@ _Enthält v0.30.0 – v0.30.19._
 - ci: shorten rechts-team label description to 100 characters by @deleonio in https://github.com/deleonio/priority-pilot/pull/2759
 - fix(deps): update kolibri (@public-ui) to v4.5.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2743
 - feat(server): include creator name in write responses (#2755) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2764
+- feat(frontend): clear done-task feedback after reopen (#2767) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2781
 
 ## v0.29 - 2026-10-19
 
@@ -160,6 +161,7 @@ _Enthält v0.26.0 – v0.26.21._
 
 - test(e2e): set expired subscription fixtures to a future date by @deleonio in https://github.com/deleonio/priority-pilot/pull/2607
 - docs: align pnpm runtime version with packageManager pin (V-20) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2613
+- docs: align pnpm runtime version with packageManager pin (V-20) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2613
 - feat(frontend): standardize mobile e2e viewport to 375x812 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2616
 - test(server): add schema snapshot test for column migrations (#2609) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2615
 - docs(tdd-strategy): fix stale workflow links and phase number (V-21) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2626
@@ -169,7 +171,6 @@ _Enthält v0.26.0 – v0.26.21._
 - feat(server): remove dead module and history comments (#2557) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2605
 - feat(server): dedupe push notifications via shared helper (#2551) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2598
 - test(frontend): e2e paypal deferred alert + non-empty guards (#2558) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2610
-- docs: align arc42 IF-07 and ADR 0017 with current state (#2561) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2611
 - docs: align arc42 IF-07 and ADR 0017 with current state (#2561) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2611
 - feat(server): validate reverse-geocode coordinates via parseCoordinate by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2612
 - refactor(frontend): use badge color constant, debounce observer (#2560) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2617
