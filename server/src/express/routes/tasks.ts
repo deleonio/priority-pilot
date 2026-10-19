@@ -177,6 +177,9 @@ export const serializeTask = (task: Task, context: TaskSerializeContext = {}): T
 	// Empfänger bekommt kein „Für:"-Kennzeichen für die eigene Aufgabe (AK3), der Ersteller eines
 	// Selbst-Empfängers ebenso wenig (userId == createdById).
 	const createdBy = task.createdById ?? null;
+	// #2758: System-Herkunft (Fürsorge-Übernahme) — „Balamentum“ ohne Namens-Lookup, da kein
+	// Ersteller-Konto existiert. Bestand ohne Flag bleibt ohne Anzeigename (kein Backfill).
+	const systemCreated = task.systemCreated ?? false;
 	const handedOff =
 		createdBy !== null &&
 		context.requesterId != null &&
@@ -212,7 +215,7 @@ export const serializeTask = (task: Task, context: TaskSerializeContext = {}): T
 		// Empfänger-Serie tragen den Serien-Eigentümer (AK4).
 		userId: task.userId ?? null,
 		createdById: createdBy,
-		createdByName: createdBy !== null ? (context.names?.get(createdBy) ?? null) : null,
+		createdByName: systemCreated ? 'Balamentum' : createdBy !== null ? (context.names?.get(createdBy) ?? null) : null,
 		forUserId: handedOff ? task.userId : null,
 		forUserName: handedOff ? (context.names?.get(task.userId as number) ?? null) : null,
 		// #1521: Gruppen-Adressierung. `groupName` trägt das „Für:"-Kennzeichen der Aufgabenliste
@@ -790,6 +793,13 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				sendError(res, 400, 'categoryId verweist auf eine nicht existierende Kategorie.');
 				return;
 			}
+			// #1798 AK2: Aufgabe aus einer Fürsorge-Vorlage → anonymes Übernahme-Ereignis. #2758: dieselbe
+			// Herkunft setzt das System-Flag — die Aufgabe erhält statt eines Ersteller-Kontos die
+			// System-Kennzeichnung (serializeTask löst dafür „Balamentum“ ohne Lookup auf).
+			const careTemplateKeyRaw = (req.body as { careTemplateKey?: unknown }).careTemplateKey;
+			const careTemplateKey =
+				typeof careTemplateKeyRaw === 'string' && careTemplateKeyRaw.trim() ? careTemplateKeyRaw.trim() : null;
+			const systemCreated = careTemplateKey !== null;
 			const created = await sequelize.transaction(async (transaction) => {
 				// Neuen Task an den Eigentümer binden (Datenisolation, #207; Empfänger #1213, sonst der
 				// eingeloggte Nutzer; `null` im Pass-Through) und den Ersteller festhalten (AK3).
@@ -799,7 +809,9 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 						// #1521: Gruppen-Aufgabe startet ohne Eigentümer — der Claim beim Erledigen trägt ihn nach.
 						userId: groupTargetId !== null ? null : (recipientId ?? userId ?? null),
 						groupId: groupTargetId,
-						createdById: requesterId,
+						// #2758: Fürsorge-Übernahme läuft ohne Ersteller-Konto (System-Flag statt requesterId).
+						createdById: systemCreated ? null : requesterId,
+						systemCreated,
 					},
 					{ transaction },
 				);
@@ -850,10 +862,9 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 					console.warn('Zugangs-Mail zur delegierten Aufgabe fehlgeschlagen:', error);
 				}
 			}
-			// #1798 AK2: Aufgabe aus einer Fürsorge-Vorlage → anonymes Übernahme-Ereignis.
-			const careTemplateKey = (req.body as { careTemplateKey?: unknown }).careTemplateKey;
-			if (typeof careTemplateKey === 'string' && careTemplateKey.trim()) {
-				await protokolliereCareReaktion(userId, 'uebernommen', [careTemplateKey.trim()]);
+			// #1798 AK2: anonymes Übernahme-Ereignis (Key oben geparst, vor der Transaction).
+			if (careTemplateKey !== null) {
+				await protokolliereCareReaktion(userId, 'uebernommen', [careTemplateKey]);
 			}
 			const withPillars = await findTaskWithPillars(created.id);
 			if (!withPillars) {

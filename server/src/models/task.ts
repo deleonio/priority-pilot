@@ -59,6 +59,10 @@ class Task extends Model {
 	// KI-Entwurf (#2350): Ergebnis der Entwurfs-Aktion, getrennt von `description`. `null` ⇒ kein Entwurf.
 	public aiDraft?: string | null;
 
+	// System-Herkunft (#2758): aus einer Fürsorge-Vorlage übernommen (POST /tasks mit careTemplateKey).
+	// serializeTask löst dafür „Balamentum“ als Ersteller auf — ohne Ersteller-Konto. Kein Backfill.
+	public systemCreated?: boolean;
+
 	// Abhakbare Checkliste (Issue #531): JSON-Array aus `{ id, title, completed }`. Default leer;
 	// bestehende Tasks ohne Checkliste liefern `[]` (rückwärtskompatibel).
 	public checklist!: ChecklistItem[];
@@ -259,6 +263,13 @@ Task.init(
 		aiDraft: {
 			type: DataTypes.TEXT,
 			allowNull: true,
+		},
+		// System-Herkunft (#2758), siehe Feld-Kommentar oben. NOT NULL DEFAULT false (SQLite verlangt
+		// DEFAULT bei nachträglichem ADD COLUMN); Bestandsaufgaben bleiben ohne Kennzeichen.
+		systemCreated: {
+			type: DataTypes.BOOLEAN,
+			allowNull: false,
+			defaultValue: false,
 		},
 		// Säulen-Neuberechnung (#1614), siehe Feld-Kommentar oben.
 		pillarsRecalculatedAt: {
