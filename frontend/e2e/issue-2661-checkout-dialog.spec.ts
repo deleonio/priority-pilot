@@ -1,4 +1,4 @@
-import type { Route } from '@playwright/test';
+import type { Page, Route } from '@playwright/test';
 import { expect, test } from './fixtures';
 
 /**
@@ -109,4 +109,65 @@ test('AK1-AK3: Paket-Knopf „Bestellen“ öffnet den Dialog; erst Adresse + Zu
 	await submit.click();
 	await expect.poll(() => checkoutCalls).toBe(1);
 	await expect(page).toHaveURL(/paypal\.example\/approve\/abc/);
+});
+
+/** Route-Mocks für den Bestell-Dialog (Katalog-Mock wie oben, Pro/monatlich = 899 ct). */
+const mockCheckout = async (page: Page): Promise<void> => {
+	await page.route('**/auth/me', json(USER));
+	await page.route('**/api/v1/plans', json(CATALOG));
+	await page.route('**/api/v1/billing/invoices', json([]));
+	await page.route('**/api/v1/billing/address', json(ADDRESS));
+	await page.route('**/api/v1/billing/subscriptions', json({ approvalUrl: 'https://paypal.example/approve/abc' }));
+};
+
+// #2766 AK1/AK2: Preiszeile (aus GET /plans, formatEuro, Endpreis-Hinweis § 19 UStG) und
+// Verlängerungssatz stehen im selben Blick direkt oberhalb des Bestellknopfs.
+test('#2766 AK1+AK2+AK4: Dialog zeigt Gesamtpreis mit Endpreis-Hinweis und Verlängerungssatz oberhalb des Bestellknopfs', async ({
+	page,
+}) => {
+	await mockCheckout(page);
+	await page.goto('/app/settings/pakete');
+	await page.getByTestId('book-pro-monthly').click();
+
+	// AK1: Preiszeile mit Katalogpreis (Pro/monthly = 899 ct) und Endpreis-Hinweis.
+	const price = page.getByTestId('checkout-price');
+	await expect(price).toContainText('8,99 €');
+	await expect(price).toContainText('Endpreis');
+
+	// AK2: Verlängerungssatz (neue Textschlüssel checkoutDialog.*) als Fließtext im Dialog.
+	const renewal = page.getByTestId('checkout-renewal');
+	await expect(renewal).toContainText('automatisch');
+
+	// Beide Angaben liegen im selben Blick oberhalb des Bestellknopfs (vor der Zustimmung).
+	const submit = page.getByTestId('order-submit').getByRole('button');
+	await expect(submit).toBeVisible();
+	const renewalBox = await renewal.boundingBox();
+	const submitBox = await submit.boundingBox();
+	expect(renewalBox, 'Verlängerungssatz hat eine Bounding-Box').not.toBeNull();
+	expect(submitBox, 'Bestellknopf hat eine Bounding-Box').not.toBeNull();
+	expect(renewalBox!.y).toBeLessThan(submitBox!.y);
+	const checkboxBox = await page.getByRole('checkbox').boundingBox();
+	expect(checkboxBox, 'Zustimmung hat eine Bounding-Box').not.toBeNull();
+	expect(renewalBox!.y).toBeLessThan(checkboxBox!.y);
+
+	// AK4: Preiszeile und Verlängerungssatz überlaufen den Dialog bei 375 px nicht.
+	for (const box of [await price.boundingBox(), renewalBox]) {
+		expect(box, 'Preis-/Hinweiszeile hat eine Bounding-Box').not.toBeNull();
+		expect(box!.x).toBeGreaterThanOrEqual(0);
+		expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+	}
+});
+
+// #2766 AK3: Mit englischer Oberfläche zeigt der Dialog den englisch formatierten Preis
+// (formatEuro: „€8.99“) und die englischen Hinweissätze.
+test('#2766 AK3: englische Oberfläche zeigt „€8.99“ und englische Hinweissätze', async ({ page }) => {
+	await page.addInitScript(() => localStorage.setItem('i18nextLng', 'en'));
+	await mockCheckout(page);
+	await page.goto('/app/settings/pakete');
+	await page.getByTestId('book-pro-monthly').click();
+
+	const price = page.getByTestId('checkout-price');
+	await expect(price).toContainText('€8.99');
+	await expect(price).toContainText('final price');
+	await expect(page.getByTestId('checkout-renewal')).toContainText('automatically');
 });

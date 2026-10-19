@@ -206,6 +206,9 @@
 		"title": "{{plan}} ({{period}}) bestellen",
 		"intro": "Du bist dabei, das Paket {{plan}} ({{period}}) zu bestellen. Rechnungsadresse und Widerrufs-Zustimmung werden vor dem Weiterleiten zum Zahlungsanbieter geprüft.",
 		"addressCreate": "Rechnungsadresse anlegen",
-		"addressEdit": "Rechnungsadresse bearbeiten"
+		"addressEdit": "Rechnungsadresse bearbeiten",
+		"price": "{{price}} je {{period}}",
+		"finalPrice": "Endpreis gemäß § 19 UStG.",
+		"renewal": "Das Abo verlängert sich automatisch um den jeweiligen Zeitraum und kann jederzeit zum Ende der Laufzeit gekündigt werden."
 	}
 }

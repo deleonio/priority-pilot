@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { legalPath } from '../lib/operator';
+import { formatEuro } from '../lib/format';
 import { readString } from '../lib/inputValue';
 import { periodLabel, planLabel, type Period, type Plan } from '../lib/planOffers';
 import { Modal } from './Modal';
@@ -34,7 +35,9 @@ interface CheckoutDialogProps {
  * Bestell-Dialog vor dem Zahlungsanbieter (#2661): Rechnungsadresse und Widerrufs-Zustimmung
  * in einem Schritt. Das Adress-Details ist offen und deaktiviert die Bestellung, solange keine
  * vollständige Adresse gespeichert ist; die Widerrufs-Checkbox ist zusätzlich nötig. Erst
- * beides zusammen schaltet „Zahlungspflichtig bestellen“ frei (§ 312f BGB, #2307).
+ * beides zusammen schaltet „Zahlungspflichtig bestellen“ frei (§ 312f BGB, #2307). Preis und
+ * Verlängerungshinweis stehen oberhalb der Zustimmung (#2766); der Katalog-Preis wird ohne
+ * Platzhalter ausgewiesen, ein Ladefehler als Meldung im Dialog.
  */
 export const CheckoutDialog = ({ targetPlan, targetPeriod, onClose, onOrder }: CheckoutDialogProps) => {
 	const { t, i18n } = useTranslation(['billing', 'messages']);
@@ -48,6 +51,9 @@ export const CheckoutDialog = ({ targetPlan, targetPeriod, onClose, onOrder }: C
 	const [orderError, setOrderError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
 	const [ordering, setOrdering] = useState(false);
+	/** Gesamtpreis des gewählten Pakets/Zeitraums aus `GET /plans` (#2766) — `null`, solange nicht geladen. */
+	const [price, setPrice] = useState<number | null>(null);
+	const [priceFailed, setPriceFailed] = useState(false);
 	const cancelRef = useRef<HTMLKolButtonElement>(null);
 	useEffect(() => {
 		let stale = false;
@@ -72,6 +78,24 @@ export const CheckoutDialog = ({ targetPlan, targetPeriod, onClose, onOrder }: C
 			stale = true;
 		};
 	}, []);
+	// #2766: Preis kommt allein aus dem Paket-Katalog (keine zweite Quelle) — Muster PlansSection
+	// (AbortController, `Promise.resolve().then` hält synchronen Fehler im Fehlerzustand).
+	useEffect(() => {
+		const controller = new AbortController();
+		void Promise.resolve()
+			.then(() => api.getPlansCatalog({ signal: controller.signal }))
+			.then((catalog) => {
+				const cents = catalog.prices[targetPlan]?.[targetPeriod];
+				if (typeof cents !== 'number') throw new Error('Unerwartete Antwort von GET /plans.');
+				setPrice(cents);
+			})
+			.catch(() => {
+				// StrictMode montiert Effekte doppelt — der abgebrochene erste Versuch darf den
+				// Fehlerzustand nicht setzen (sonst gewinnt er gegen den zweiten, erfolgreichen).
+				if (!controller.signal.aborted) setPriceFailed(true);
+			});
+		return () => controller.abort();
+	}, [targetPlan, targetPeriod]);
 	const saveAddress = async (): Promise<boolean> => {
 		setAddressError(null);
 		const address = Object.fromEntries(FIELDS.map(({ key }) => [key, form.current[key].trim()])) as Record<
@@ -176,6 +200,25 @@ export const CheckoutDialog = ({ targetPlan, targetPeriod, onClose, onOrder }: C
 					_on={{ onClick: () => void saveAddress() }}
 				/>
 			</KolDetails>
+			{priceFailed && (
+				<KolAlert _type="error" _label={t('plans.label')}>
+					{t('plans.loadFailed')}
+				</KolAlert>
+			)}
+			{price !== null && (
+				<>
+					{/* #2766: Preis mit Bezugsgröße (KI-UX) — Endpreis-Hinweis abgesetzt, kein Platzhalter. */}
+					<p data-testid="checkout-price">
+						<strong>
+							{t('checkoutDialog.price', { price: formatEuro(price), period: t(`periodUnits.${targetPeriod}`) })}
+						</strong>{' '}
+						<span style={{ color: 'var(--pp-ink-muted)', fontSize: 'var(--pp-font-size-sm)' }}>
+							{t('checkoutDialog.finalPrice')}
+						</span>
+					</p>
+					<p data-testid="checkout-renewal">{t('checkoutDialog.renewal')}</p>
+				</>
+			)}
 			<div className="withdrawal-consent" data-testid="withdrawal-consent">
 				<p>
 					{t('messages:billing.withdrawal.hint')}{' '}
