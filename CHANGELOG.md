@@ -4,11 +4,12 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.30 - 2026-10-19
 
-_Enthält v0.30.0 – v0.30.18._
+_Enthält v0.30.0 – v0.30.19._
 
 ### 🎉 New Features
 
 - feat(server): monthly cancellation for quarterly/yearly abos (#2745) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2750
+- feat(frontend): price and renewal notice in checkout dialog (#2766) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2780
 
 ### 🐞 Bug Fixes
 
@@ -168,6 +169,7 @@ _Enthält v0.26.0 – v0.26.21._
 - feat(server): remove dead module and history comments (#2557) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2605
 - feat(server): dedupe push notifications via shared helper (#2551) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2598
 - test(frontend): e2e paypal deferred alert + non-empty guards (#2558) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2610
+- docs: align arc42 IF-07 and ADR 0017 with current state (#2561) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2611
 - docs: align arc42 IF-07 and ADR 0017 with current state (#2561) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2611
 - feat(server): validate reverse-geocode coordinates via parseCoordinate by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2612
 - refactor(frontend): use badge color constant, debounce observer (#2560) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2617
@@ -398,7 +400,6 @@ _Enthält v0.18.0 – v0.18.45._
 - feat(frontend): suggest splitting repeatedly postponed large tasks by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2400
 - feat(server): add knowledge entries for pillar suggestions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2409
 - feat(frontend): refetch data on return to foreground by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2408
-- feat(frontend): refetch data on return to foreground by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2408
 
 ### 🐞 Bug Fixes
 
@@ -440,7 +441,6 @@ _Enthält v0.18.0 – v0.18.45._
 - feat(server): list only open tasks in mcp task_list by default (#2144) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2393
 - [P2/M] Server: Inventar der Fachlogik (REST/MCP/Jobs) und Konvention für ihren Ort (#1934) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2403
 - [P1/S] Paketübersicht: Synchronisation in allen Paketen ausweisen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2402
-- docs: evaluate Open-Meteo vs DWD weather APIs (#1931) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2411
 - docs: evaluate Open-Meteo vs DWD weather APIs (#1931) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2411
 - refactor(server): gerundete Entfernung zentral in logics/geo.ts (#2406) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2419
 - docs(tickets): require priority/effort prefix in titles by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2421
