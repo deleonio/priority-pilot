@@ -200,7 +200,7 @@ abgeleitet, aber nur in eine Richtung: Eine gelistete Adresse wird befördert, e
 entfernte Adresse bleibt Administrator, bis jemand sie in der Nutzerverwaltung zurückstuft. Der
 letzte Administrator kann nicht zurückgestuft werden. Administratoren erreichen zusätzlich den nur
 lesenden MCP-Endpunkt `/mcp/admin/v1` (#1338) mit ihrem persönlichen API-Token; die Adresse steht
-in der Nutzerverwaltung. Details für Nutzer im
+in der Nutzerverwaltung ([Einrichtung](mcp-admin.md)). Details für Nutzer im
 [Nutzerhandbuch](user-guide.md#nutzerverwaltung-nur-für-administratoren), für die Umsetzung in
 [`project.md`](../.ai-knowledge/project.md#konfiguration-umgebungsvariablen).
 
