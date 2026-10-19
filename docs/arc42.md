@@ -79,6 +79,7 @@ graph LR
     AndroidApp[Android-App<br/>Capacitor-Wrapper] -->|HTTPS /api/v1| Caddy
     Betreiber[Betreiber<br/>ssh + PM2] -->|betreibt| Caddy
     MCPClient[Externer MCP-Client<br/>Claude Code / ZCode-Connector] -->|IF-07 MCP| Caddy
+    MCPAdmin[MCP-Client eines Administrators] -->|IF-14 Admin-MCP| Caddy
     subgraph Host[Dedizierter Server]
         Caddy[Caddy, TLS] --> Web["Website (statisch)"]
         Caddy --> SPA[Balamentum SPA /app/]
@@ -112,6 +113,7 @@ graph LR
 | IF-11 | Firebase Cloud Messaging | Server ↔ FCM                  | HTTP v1 mit Service-Account (`FCM_SERVICE_ACCOUNT_FILE`), Gerätetoken der Android-App in `fcm_tokens` (`logics/fcm.ts`)                                                                                                                                                                                              |
 | IF-12 | Play Developer API       | Server ↔ Google Play          | Abo-Käufe der Android-App bestätigen (`POST /billing/google/purchase`) und per RTDN-Webhook `/billing/google/rtdn` nachziehen (`logics/googlePlay.ts`, Service-Account aus `GOOGLE_PLAY_SERVICE_ACCOUNT_FILE`)                                                                                                       |
 | IF-13 | Kalender-Abruf           | Server ↔ Kalender-Server      | Lesend per ICS-URL oder CalDAV (`REPORT calendar-query`, HTTP Basic mit App-Passwort), `logics/calendar-ics.ts` und `calendar-caldav.ts`                                                                                                                                                                             |
+| IF-14 | Admin-MCP                | Admin-Client ↔ Server         | `POST /mcp/admin/v1` (#1338), gleicher Handler wie IF-07 mit eigenem, nur lesendem Katalog (`server/src/mcp/adminTools.ts`); nur Systemrolle `admin`, je Request frisch geprüft; persönlicher API-Token ohne Paket-Gate; jeder Werkzeugaufruf wird ohne Nutzdaten protokolliert                                      |
 
 ## 4. Lösungsstrategie
 
@@ -191,7 +193,7 @@ graph TB
 | `openapi.yml` | API-Vertrag: Pfade, Schemata                                                         | `openapi.yml`                                   | IF-01          |
 | `client`      | generierte Typen (`paths`, `components`)                                             | `client/src/index.ts`, `client/src/schema.d.ts` | IF-01          |
 | `frontend`    | SPA: Auth-Gate, App-Shell, Komponenten, PWA                                          | `frontend/src/`                                 | IF-01, IF-06   |
-| `server`      | Express-API, Fachlogik, Persistenz, Scheduler                                        | `server/src/`                                   | IF-01 … IF-13  |
+| `server`      | Express-API, Fachlogik, Persistenz, Scheduler                                        | `server/src/`                                   | IF-01 … IF-14  |
 | `website`     | öffentliche Landingpage, statisch vorgerendert, zehn Sprachen, Preise aus `plans.ts` | `website/src/`, `website/scripts/build.ts`      | —              |
 | `native`      | Android-Wrapper (Capacitor) mit gebündelter SPA                                      | `native/capacitor.config.ts`, `native/android/` | IF-01, IF-11   |
 | `.github`     | CI/CD: Pipeline-Phasen, Verify, Deploy                                               | `.github/workflows/`                            | —              |

@@ -79,7 +79,7 @@ const parseJsonBody = (text: string, status: number): unknown => {
  * 400 bei ungültiger Eingabe …) wird zu einer Exception, die der JSON-RPC-Rahmen in ein
  * `error`-Objekt übersetzt — die gespiegelte Route bleibt die einzige Entscheidungsinstanz.
  */
-const callApi = async (
+export const callApi = async (
 	ctx: McpToolContext,
 	path: string,
 	init: { method?: string; body?: unknown } = {},
@@ -121,7 +121,7 @@ const callApi = async (
  * Fehlertext nennt nur den Schlüssel, keine Herkunft (die IDs von `task_link`/`group_members_list`
  * kommen aus verschiedenen List-Werkzeugen).
  */
-const requireIntegerId = (args: Record<string, unknown>, key: string): number => {
+export const requireIntegerId = (args: Record<string, unknown>, key: string): number => {
 	const id = args[key];
 	if (typeof id !== 'number' || !Number.isInteger(id) || id < 1) {
 		throw new Error(`${key} must be an integer >= 1.`);

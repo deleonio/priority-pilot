@@ -49,6 +49,8 @@
 		},
 		"actionFailed": "Action not possible",
 		"usersLoading": "Loading users …",
+		"mcpEndpoint": "Admin MCP endpoint (read-only, sign in with your personal API token):",
+		"copyUrl": "Copy URL",
 		"aiRequests": "AI requests this month: {{count}}",
 		"locked": "Locked",
 		"roleOf": "Role of {{name}}",
