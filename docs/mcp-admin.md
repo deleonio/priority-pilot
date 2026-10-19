@@ -30,19 +30,19 @@ curl -X POST https://<domain>/api/v1/mcp/admin/v1 \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
-Im Browser aufgerufen meldet die Adresse nur „Nicht eingeloggt.“: Der Browser schickt `GET` ohne Token.
+Im abgemeldeten Browser aufgerufen meldet die Adresse nur „Nicht eingeloggt.“: Der Browser schickt `GET` ohne Token. Was ein angemeldeter Browser sieht, zeigen die Fehlerbilder unten (403/405).
 
 ## Werkzeuge
 
-| Werkzeug                      | Liefert                                                                                                                              |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `admin_users_list`            | alle Konten: E-Mail, Anzeigename, Rolle, Paket, Anlagedatum, KI-Anfragen im Monat, Status des jüngsten Abos                          |
-| `admin_user_subscriptions`    | Abo-Verlauf eines Nutzers (`userId` aus der Kontenliste): Anbieter, Paket, Status, Laufzeitende, `running`                           |
-| `admin_subscriptions_summary` | Zählungen je Paket und Status, laufende Abos je Paket und Laufzeit, Zahlungsrückstände, gekündigt mit Restlaufzeit, Ende in 30 Tagen |
-| `admin_allowed_emails_list`   | zugelassene Adressen mit Herkunft                                                                                                    |
-| `admin_waitlist_list`         | Warteliste in Freischalt-Reihenfolge                                                                                                 |
-| `admin_kpis`                  | Markteinführungs-Kennzahlen, `zeitraum` = `woche` oder `monat`                                                                       |
-| `admin_care_wirkung`          | Wirkung der Fürsorge-Vorschläge, nur Summen                                                                                          |
+| Werkzeug                      | Liefert                                                                                                                                        |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `admin_users_list`            | alle Konten: E-Mail, Anzeigename, Rolle, Paket, Anlagedatum, KI-Anfragen im Monat, Status des jüngsten Abos                                    |
+| `admin_user_subscriptions`    | Abo-Verlauf eines Nutzers (`userId` aus der Kontenliste): Anbieter, Paket, Status, Laufzeitende, `running`                                     |
+| `admin_subscriptions_summary` | Zählungen je Paket und Status, laufende Abos je Paket und Abrechnungsperiode, Zahlungsrückstände, gekündigt mit Restlaufzeit, Ende in 30 Tagen |
+| `admin_allowed_emails_list`   | zugelassene Adressen mit Herkunft                                                                                                              |
+| `admin_waitlist_list`         | Warteliste in Freischalt-Reihenfolge                                                                                                           |
+| `admin_kpis`                  | Markteinführungs-Kennzahlen, `zeitraum` = `woche` oder `monat`                                                                                 |
+| `admin_care_wirkung`          | Wirkung der Fürsorge-Vorschläge, nur Summen                                                                                                    |
 
 Ein Abo läuft, wenn es `active`, `past_due` oder `suspended` ist oder gekündigt mit Laufzeitende in der Zukunft. `approval_pending` zählt nicht.
 
@@ -54,10 +54,10 @@ Jeder Werkzeugaufruf schreibt eine Zeile `MCP-Admin { userId, tool, ok }` ins Se
 
 ## Fehlerbilder
 
-| Antwort                      | Ursache                                                       | Abhilfe                                                      |
-| ---------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------ |
-| 401 „Nicht eingeloggt.“      | Token fehlt, ist falsch, abgelaufen oder widerrufen           | neuen Token anlegen, Header `Authorization: Bearer …` prüfen |
-| 403                          | Konto ist nicht (mehr) `admin`; die Rolle gilt je Anfrage neu | in der Nutzerverwaltung zum Admin ernennen lassen            |
-| 403 „Ungültiger CSRF-Token.“ | `POST` ohne Token-Header                                      | Header `Authorization: Bearer …` mitsenden                   |
-| 405                          | `GET` mit gültigem Token statt `POST`                         | Client auf Streamable HTTP (POST) stellen                    |
-| „Nutzer nicht gefunden“      | `userId` existiert nicht                                      | Id aus `admin_users_list` nehmen                             |
+| Antwort                      | Ursache                                                                | Abhilfe                                                                         |
+| ---------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| 401 „Nicht eingeloggt.“      | `GET` ohne Login (z. B. Browser ohne Session)                          | im Browser erwartbar; Client stellt auf `POST` mit `Authorization: Bearer …` um |
+| 403                          | Konto ist nicht (mehr) `admin`; die Rolle gilt je Anfrage neu          | in der Nutzerverwaltung zum Admin ernennen lassen                               |
+| 403 „Ungültiger CSRF-Token.“ | `POST` ohne gültigen Token (fehlt, falsch, abgelaufen oder widerrufen) | gültigen Token mitsenden, nötigenfalls neu anlegen                              |
+| 405                          | `GET` mit gültigem Token statt `POST`                                  | Client auf Streamable HTTP (POST) stellen                                       |
+| „Nutzer nicht gefunden“      | `userId` existiert nicht                                               | Id aus `admin_users_list` nehmen                                                |
