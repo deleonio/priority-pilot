@@ -1218,7 +1218,8 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				sendError(res, 404, 'Task nicht gefunden.');
 				return;
 			}
-			const dto = serializeTask(withPillars);
+			// #2755: Wie POST create über serializeTasksFor — erst so trägt die Antwort Ersteller-/Empfänger-Namen.
+			const dto = (await serializeTasksFor(req, [withPillars]))[0];
 			res.json({
 				...dto,
 				...(vergebenePunkte !== undefined ? { vergebenePunkte } : {}),
@@ -1246,7 +1247,8 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				sendError(res, 404, 'Task nicht gefunden.');
 				return;
 			}
-			res.json(serializeTask(withPillars));
+			// #2755: serializeTasksFor statt kontextlosem serializeTask (Ersteller-Name in der Antwort).
+			res.json((await serializeTasksFor(req, [withPillars]))[0]);
 		} catch (error) {
 			handleWriteError(res, error);
 		}
@@ -1268,7 +1270,8 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				sendError(res, 404, 'Task nicht gefunden.');
 				return;
 			}
-			res.json(serializeTask(withPillars));
+			// #2755: serializeTasksFor statt kontextlosem serializeTask (Ersteller-Name in der Antwort).
+			res.json((await serializeTasksFor(req, [withPillars]))[0]);
 		} catch (error) {
 			handleWriteError(res, error);
 		}
@@ -1289,7 +1292,8 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				sendError(res, 404, 'Task nicht gefunden.');
 				return;
 			}
-			res.json(serializeTask(withPillars));
+			// #2755: serializeTasksFor statt kontextlosem serializeTask (Ersteller-Name in der Antwort).
+			res.json((await serializeTasksFor(req, [withPillars]))[0]);
 		} catch (error) {
 			handleWriteError(res, error);
 		}
@@ -1376,7 +1380,8 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 					sendError(res, 404, 'Task nicht gefunden.');
 					return;
 				}
-				res.status(201).json(serializeTask(withPillars));
+				// #2755: serializeTasksFor statt kontextlosem serializeTask (Ersteller-Name in der Antwort).
+				res.status(201).json((await serializeTasksFor(req, [withPillars]))[0]);
 			} catch (error) {
 				handleWriteError(res, error);
 			}
