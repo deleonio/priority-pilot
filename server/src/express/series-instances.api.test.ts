@@ -216,4 +216,63 @@ describe('POST /series/:id/instances (#2357)', () => {
 			'die Abruf-Aufgabe bleibt unverändert',
 		);
 	});
+
+	// ── #2757: Instanzen übernehmen den Ersteller der Serie (Vertrag: docs/spec/issue-2757.md) ──
+
+	it('Abruf-Instanz übernimmt createdById der Serie (AK1, #2757)', async () => {
+		const { cookie, userId } = await login();
+		// Seed setzt createdById = userId (Ersteller = Eigentümer).
+		const series = await seedSeries(userId);
+
+		const res = await postInstance(cookie, series.id);
+		assert.equal(res.status, 201);
+		const [task] = await Task.findAll({ where: { seriesId: series.id } });
+		assert.equal(task?.createdById ?? null, userId, 'Instanz trägt den Serien-Ersteller');
+	});
+
+	it('generierte Instanzen übernehmen createdById der Serie (AK1, #2757)', async () => {
+		const { cookie, userId } = await login();
+		const series = await seedSeries(userId, { autoCreate: true, startDate: futureDate(0) });
+
+		const gen = await fetch(`${server.baseUrl}/series/generate-all`, { method: 'POST', headers: { Cookie: cookie } });
+		assert.equal(gen.status, 200);
+
+		const tasks = await Task.findAll({ where: { seriesId: series.id } });
+		assert.ok(tasks.length >= 1, 'Setup: Generierung muss Instanzen anlegen');
+		for (const task of tasks) {
+			assert.equal(task.createdById ?? null, userId, 'auch der Generierungsweg trägt den Serien-Ersteller');
+		}
+	});
+
+	it('Serie ohne Ersteller → Instanz bleibt ohne Ersteller (AK3, #2757)', async () => {
+		const { cookie, userId } = await login();
+		const series = await seedSeries(userId, { createdById: null });
+
+		const res = await postInstance(cookie, series.id);
+		assert.equal(res.status, 201);
+		const [task] = await Task.findAll({ where: { seriesId: series.id } });
+		assert.equal(task?.createdById ?? null, null, 'kein Eigentümer-Fallback: createdById bleibt null');
+	});
+
+	it('Serie von A für B: Instanz behält userId B, trägt createdById A; DTO nennt den Ersteller (AK2+AK4, #2757)', async () => {
+		await server.login(ALICE, { displayName: 'Alice Erstellerin' });
+		const aliceId = await userIdOf(ALICE);
+		const bobCookie = await server.login(BOB, { displayName: 'Bob Empfänger' });
+		const bobId = await userIdOf(BOB);
+
+		const series = await seedSeries(bobId, { createdById: aliceId });
+		const res = await postInstance(bobCookie, series.id);
+		assert.equal(res.status, 201);
+
+		const [task] = await Task.findAll({ where: { seriesId: series.id } });
+		assert.equal(task?.userId ?? null, bobId, 'Empfänger bleibt Eigentümer der Instanz');
+		assert.equal(task?.createdById ?? null, aliceId, 'Ersteller der Serie trägt die Instanz');
+
+		const list = await fetch(`${server.baseUrl}/tasks`, { headers: { Cookie: bobCookie } });
+		assert.equal(list.status, 200);
+		const dtos = (await list.json()) as Array<{ title: string; createdByName?: string | null }>;
+		const dto = dtos.find((entry) => entry.title === 'Wochenputz');
+		assert.ok(dto, 'Instanz erscheint in der Aufgabenliste von B');
+		assert.equal(dto.createdByName ?? null, 'Alice Erstellerin', 'DTO löst den Anzeigename des Erstellers auf');
+	});
 });
