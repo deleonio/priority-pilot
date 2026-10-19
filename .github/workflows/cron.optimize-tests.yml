@@ -1,13 +1,13 @@
 name: Optimize Tests
 
-# Tägliche Analyse der Test-Suite nach TDD-Prinzipien (Substance over Quantity).
+# Wöchentliche Analyse der Test-Suite nach TDD-Prinzipien (Substance over Quantity).
 # Erkennt tautologische Tests, Redundanzen, fehlende Mutation-Probes, leere Mengen.
-# Läuft täglich 08:57 UTC (09:57/10:57 MESZ) — nicht auf Push/PR, um CI nicht zu belasten.
+# Läuft freitags 10:57 UTC (12:57/11:57 Berlin) — Auftakt des Team-Freitags; nicht auf Push/PR, um CI nicht zu belasten.
 # Ergebnis: Markdown-Report als Workflow-Artefakt + optional Issue bei kritischen Findings.
 
 on:
   schedule:
-    - cron: '57 8 * * 4' # donnerstags 08:57 UTC (woechentlich)
+    - cron: '57 10 * * 5' # woechentlich freitags 10:57 UTC (12:57/11:57 Berlin) — Auftakt des Team-Freitags: Reports bereit fuer den Issue-Tree am Nachmittag
   workflow_dispatch: {} # manuell anstoßbar
 
 concurrency:
@@ -76,7 +76,7 @@ jobs:
 
       - name: Issue bei kritischen Findings (dedupliziert)
         # Vorher: bedingungsloses issues.create JEDEM Lauf → bei persistenten Findings
-        # täglich ein neues Duplikat. Jetzt: ein offenes test-maintenance-Issue suchen und
+        # je Lauf ein neues Duplikat. Jetzt: ein offenes test-maintenance-Issue suchen und
         # dessen Body aktualisieren; nur wenn keines existiert, ein neues anlegen.
         if: steps.analyze.outputs.critical_findings == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0

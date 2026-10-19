@@ -546,7 +546,7 @@ Kein `--model`: das Modell wird über `"model": "opus"` in der `settings.json` g
 `ANTHROPIC_DEFAULT_OPUS_MODEL` auf `glm-5.3[1m]` ab.
 
 **Prompt:** Kanonisch in `.github/prompts/` (triage, ux, spec, implement, fixup, review,
-documenter, dazu die Helper-Crons spec-sync/guide-sync/prompt-audit/code-review-team (Prompt-Audit freitags abends);
+documenter, dazu die Helper-Crons spec-sync/guide-sync/prompt-audit/code-review-team (Prompt-Audit freitags mittags);
 Memory-Snippets memory-read.md/memory-write.md am selben Ort);
 per `sed`/`cat` nach `/tmp/claude-prompt.txt` assembliert und via `-p "$(cat /tmp/claude-prompt.txt)"`
 übergeben — vermeidet Shell-Quoting-Probleme. Die Methode je Phase lebt in der `SKILL.md` des
@@ -1022,10 +1022,10 @@ für dieses Ticket die Phasen 2–4; keine Phase setzt das Label je selbst.
 - **Pädagoge:** Der Bericht (Soll/Ist-Kosten, Rollen-Feedback, Gate-Abweichungen) geht in die
   Job-Summary; dauerhafte Lehren nach `.ai-memory/MEMORY.md`.
 
-## Tägliches Code-Review-Team (`cron.code-review-team.yml`)
+## Wöchentliches Code-Review-Team (`cron.code-review-team.yml`)
 
-Keine Pipeline-Phase, sondern ein Helper-Workflow (täglich 04:27 UTC im LLM-Nachtblock, plus
-`workflow_dispatch`): Ein Team aus vier Perspektiven — Architekt, Clean-Code-Reviewer,
+Keine Pipeline-Phase, sondern ein Helper-Workflow (freitags 13:27 UTC als Abschluss des
+Team-Freitags am Mittag, plus `workflow_dispatch`): Ein Team aus vier Perspektiven — Architekt, Clean-Code-Reviewer,
 Test-Ingenieur, Betriebs- und Sicherheits-Wächter (Methode:
 [`code-review-team`](../.claude/skills/code-review-team/SKILL.md)) — begeht `server/src/`,
 `frontend/src/` und `.github/scripts/` gegen die Vorgaben des Repos (`AGENTS.md`,
@@ -1036,13 +1036,13 @@ Vorgaben selbst: Widersprüche zwischen Quellen, Dopplungen mit Drift, unkonkret
 Regeln — jede Beobachtung mit beiden Fundstellen und einem Konsolidierungsvorschlag. Aus allen Findings setzt der Lauf genau **einen** unkritischen,
 wertvollen Fix um: ein Code-Fix oder eine Konsolidierung der Vorgaben (ADRs bleiben tabu, ein
 ADR-Konflikt wird nur gemeldet). Bei Gleichstand gewinnt die Konsolidierung, weil eine vage Regel
-an jedem Folgetag falsche Code-Findings erzeugt.
+bei jedem Folge-Lauf falsche Code-Findings erzeugt.
 
 **Mechanik:**
 
 - **Skip-Guard:** Hat `main` denselben SHA wie der letzte erfolgreiche Lauf, wird der Lauf
   übersprungen (Budget-Heuristik; ein im Vorlauf ausgesetzter Fix, dessen PR ohne Merge geschlossen
-  wurde, verzögert sich dadurch um einen Tag); `workflow_dispatch` mit `force: true` umgeht ihn.
+  wurde, verzögert sich dadurch um eine Woche); `workflow_dispatch` mit `force: true` umgeht ihn.
 - **In-Flight-Guard = Fix-Pause, nicht Lauf-Skip:** Trägt der offene Fix-PR gerade
   `ai:needs-review`, `ai:needs-fixup`, `ai:reviewed` oder `ai:needs-human`, läuft das Review
   trotzdem und das Protokoll wird aktualisiert — nur der Fix pausiert (`FIX_ALLOWED=false` im

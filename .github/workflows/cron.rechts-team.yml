@@ -28,7 +28,7 @@ name: Rechts Team
 
 on:
   schedule:
-    - cron: '53 2 * * 2' # wöchentlich dienstags 02:53 UTC (04:23/03:53 Berlin), freier Slot im LLM-Nachtblock vor daily-version (03:00)
+    - cron: '53 11 * * 5' # wöchentlich freitags 11:53 UTC (13:53/12:53 Berlin) — Freitag mittag im Team-Block nach UX-Team: Reports bereit für den Issue-Tree am Nachmittag
   workflow_dispatch:
     inputs:
       force:

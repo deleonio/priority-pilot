@@ -1,9 +1,9 @@
 ---
 name: code-review-team
-description: "Code-Review-Team — daily architecture and code-quality review by four perspectives (architect, clean-code reviewer, test engineer, ops and security steward) plus a rulebook check that surfaces contradictory or vague project rules; maintains one running review protocol and implements exactly one uncritical, valuable fix per run (code fix or rule consolidation). Use for 'code-review-team', 'Tagesreview' (German: taegliches Code-Review)."
+description: "Code-Review-Team — weekly (Fridays) architecture and code-quality review by four perspectives (architect, clean-code reviewer, test engineer, ops and security steward) plus a rulebook check that surfaces contradictory or vague project rules; maintains one running review protocol and implements exactly one uncritical, valuable fix per run (code fix or rule consolidation). Use for 'code-review-team', 'Wochenreview' (German: woechentliches Code-Review, freitags)."
 ---
 
-# Method: Code-Review-Team (daily architecture and code-quality review)
+# Method: Code-Review-Team (weekly architecture and code-quality review)
 
 A recurring review run. The run prompt supplies the rule sources, the code sources, the previous
 protocol, whether a fix is allowed today, and where the protocol goes; this file carries the method
