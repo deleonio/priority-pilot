@@ -222,6 +222,8 @@ export const CareHint = ({ onEinstiegssatzGezeigt }: CareHintProps) => {
 			priority: 3,
 			estimatedEffort: 0.5,
 			pillars: saeulen.length > 0 ? fillContributions(saeulen, beitraege) : beitraege,
+			// #2758: Herkunftsmerkmal — der Server kennzeichnet die Aufgabe als „Balamentum“.
+			careTemplateKey: vorschlag.templateKey,
 		};
 		return api.createTask({ taskCreate });
 	};

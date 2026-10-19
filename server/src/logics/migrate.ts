@@ -981,6 +981,16 @@ export const migrateTaskAiDraftColumn = async (db: Sequelize): Promise<void> => 
 };
 
 /**
+ * Zieht das `systemCreated`-Flag (System-Herkunft, #2758) auf einer **bestehenden** `tasks`-Tabelle
+ * nach, BEVOR `sequelize.sync()` läuft — analog `migrateTaskAiDraftColumn`. NOT NULL DEFAULT 0
+ * (SQLite verlangt DEFAULT bei nachträglichem ADD COLUMN); Bestandsaufgaben bleiben ohne
+ * System-Kennzeichen (kein Backfill). Idempotent, bei frischer DB No-op.
+ */
+export const migrateTaskSystemCreatedColumn = async (db: Sequelize): Promise<void> => {
+	await ensureColumns(db, 'tasks', [{ name: 'systemCreated', definition: 'INTEGER NOT NULL DEFAULT 0' }]);
+};
+
+/**
  * Zieht die Pending-Plan-Spalten (#1505) und `firstFailureAt` (#1506) auf einer **bestehenden**
  * `subscriptions`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog
  * `migrateTaskPinnedColumns`. Alle ergänzten Spalten sind nullable (kein DEFAULT nötig),

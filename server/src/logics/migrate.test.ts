@@ -21,6 +21,7 @@ import {
 	migrateTaskMissedColumns,
 	migrateTaskSnoozeColumn,
 	migrateTaskAiDraftColumn,
+	migrateTaskSystemCreatedColumn,
 	migratePillarRecalcColumns,
 	migrateTaskGroupId,
 	migratePlaceFavoriteDropName,
@@ -152,6 +153,7 @@ describe('migrateSeriesColumns', () => {
 		// Task.create()-INSERT mitgeschrieben — Migration hier nachziehen, damit der Insert nicht
 		// an der fehlenden Spalte bricht.
 		await migrateTaskMissedColumns(sequelize);
+		await migrateTaskSystemCreatedColumn(sequelize); // #2758 (Test-Pflege): systemCreated, NOT NULL — im INSERT mitgeschrieben
 		await sequelize.sync();
 
 		const occurrence = new Date('2026-01-01T00:00:00.000Z');
@@ -391,6 +393,7 @@ describe('migrateUserIdColumns', () => {
 		await migrateTaskMissedColumns(sequelize); // #1964 (Test-Pflege): Zähler/Archiv, ebenfalls von Task.findAll mitselektiert
 		await migrateTaskSnoozeColumn(sequelize); // #2244 (Test-Pflege): snoozedUntil, ebenfalls von Task.findAll mitselektiert
 		await migrateTaskAiDraftColumn(sequelize); // #2350 (Test-Pflege): aiDraft, ebenfalls von Task.findAll mitselektiert
+		await migrateTaskSystemCreatedColumn(sequelize); // #2758 (Test-Pflege): systemCreated, NOT NULL — im INSERT mitgeschrieben
 		await sequelize.sync();
 
 		await assert.doesNotReject(
@@ -729,6 +732,7 @@ describe('migrateTaskAddress', () => {
 		await migratePillarRecalcColumns(sequelize);
 		// #1964 (Test-Pflege): siehe Serien-Test oben — Modell-Spalten für das INSERT nachziehen.
 		await migrateTaskMissedColumns(sequelize);
+		await migrateTaskSystemCreatedColumn(sequelize); // #2758 (Test-Pflege): systemCreated, NOT NULL — im INSERT mitgeschrieben
 
 		assert.ok(!(await taskColumns()).includes('address'), 'Alt-Schema hat address noch nicht');
 
@@ -770,6 +774,7 @@ describe('migrateCategoryIdColumns', () => {
 		await migratePillarRecalcColumns(sequelize);
 		// #1964 (Test-Pflege): siehe Serien-Test oben — Modell-Spalten für das INSERT nachziehen.
 		await migrateTaskMissedColumns(sequelize);
+		await migrateTaskSystemCreatedColumn(sequelize); // #2758 (Test-Pflege): systemCreated, NOT NULL — im INSERT mitgeschrieben
 
 		assert.ok(!(await taskColumns()).includes('categoryId'), 'Alt-Schema hat categoryId noch nicht');
 
@@ -809,6 +814,7 @@ describe('migrateTaskPinnedColumns', () => {
 		await migrateCategoryIdColumns(sequelize);
 		// #1964 (Test-Pflege): siehe Serien-Test oben — Modell-Spalten für das INSERT nachziehen.
 		await migrateTaskMissedColumns(sequelize);
+		await migrateTaskSystemCreatedColumn(sequelize); // #2758 (Test-Pflege): systemCreated, NOT NULL — im INSERT mitgeschrieben
 
 		const before = await taskColumns();
 		assert.ok(!before.includes('pinned'), 'Alt-Schema hat pinned noch nicht');
@@ -863,6 +869,7 @@ describe('migrateTaskMissedColumns', () => {
 		assert.ok(!before.includes('archivedAt'), 'Alt-Schema hat archivedAt noch nicht');
 
 		await migrateTaskMissedColumns(sequelize);
+		await migrateTaskSystemCreatedColumn(sequelize); // #2758 (Test-Pflege): systemCreated, NOT NULL — im INSERT mitgeschrieben
 		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht mehr ab');
 
 		const after = await taskColumns();
@@ -2251,6 +2258,7 @@ const SNAPSHOT_COLUMNS: Record<string, readonly string[]> = {
 		'seriesOccurrence',
 		'snoozedUntil',
 		'status',
+		'systemCreated',
 		'title',
 		'updatedAt',
 		'userId',
