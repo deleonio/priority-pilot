@@ -190,6 +190,20 @@ const DE: PrivacyText = {
 			},
 		},
 		{
+			heading: 'Speicher auf deinem Gerät',
+			paragraphs: [],
+			facts: {
+				purpose:
+					'Damit Website und App funktionieren, legen sie einige Angaben im Speicher deines Browsers bzw. der Android-App ab (localStorage und sessionStorage): deine Geräte-Einstellungen wie Darstellung, Position der Kopfzeile, Animationen und Sprach-Start, ob du einen Hinweis schon geschlossen hast, deine Wahl zur Reichweitenmessung, für die Anmeldung per Link und in der Android-App einen Anmeldeschlüssel sowie die Geräteadresse für Push-Nachrichten. Die installierte Web-App speichert außerdem ihre eigenen Programmdateien, damit sie schnell und auch ohne Netz startet; deine Aufgaben liegen dort nicht. Die Schalter für KI, Expertenmodus, Balance-Priorität und Standort gleicht die App mit deinem Konto ab, damit sie auf all deinen Geräten gelten. Werbe- oder Analyse-Kennungen legen wir nicht ab.',
+				legalBasis:
+					'§ 25 Abs. 2 Nr. 2 TDDDG (unbedingt erforderlich für die Funktionen, die du nutzt) und Art. 6 Abs. 1 lit. b DSGVO (Vertrag).',
+				retention:
+					'Bis du die Browserdaten löschst oder die App deinstallierst; den Anmeldeschlüssel bis zum Abmelden, Angaben im sessionStorage bis zum Schließen des Tabs.',
+				recipients:
+					'Keine. Die Angaben bleiben auf deinem Gerät; nur Anmeldeschlüssel und Push-Adresse gehen an unseren Server, um dich anzumelden und Nachrichten zuzustellen.',
+			},
+		},
+		{
 			heading: 'Reichweitenmessung (Matomo)',
 			paragraphs: [],
 			facts: {
@@ -405,6 +419,20 @@ const EN: PrivacyText = {
 				retention: 'The cookies until you sign out or until the session expires.',
 				recipients:
 					'Our hosting provider Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Germany, which operates the server on our behalf in Germany (Art. 28 GDPR).',
+			},
+		},
+		{
+			heading: 'Storage on your device',
+			paragraphs: [],
+			facts: {
+				purpose:
+					'For the website and the app to work, they store some details in the storage of your browser or the Android app (localStorage and sessionStorage): your device settings such as appearance, header position, animations and voice start, whether you have already closed a notice, your choice on reach measurement, a sign-in key for the email link and in the Android app, and the device address for push notifications. The installed web app also stores its own program files so that it starts quickly and even offline; your tasks are not stored there. The app syncs the switches for AI, expert mode, balance priority and location with your account so that they apply on all your devices. We do not store any advertising or analytics identifiers.',
+				legalBasis:
+					'Section 25(2) no. 2 TDDDG (strictly necessary for the features you use) and Art. 6(1)(b) GDPR (contract).',
+				retention:
+					'Until you clear your browser data or uninstall the app; the sign-in key until you sign out, details in sessionStorage until you close the tab.',
+				recipients:
+					'None. The details stay on your device; only the sign-in key and the push address go to our server to sign you in and deliver notifications.',
 			},
 		},
 		{
