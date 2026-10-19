@@ -12,7 +12,8 @@ import {
 	type TestServer,
 } from '../test/helpers.js';
 import { CATEGORY_COLORS } from '../models/categoryColors.js';
-import { ScoreEntry } from '../models/index.js';
+import { ScoreEntry, Task } from '../models/index.js';
+import { runDeadlineAutoDelete } from '../logics/autoDeleteAfterDeadline.js';
 
 /**
  * Rote Spec-Tests für #1353 (Spec docs/spec/issue-1353.md) — MCP-Werkzeuge v1.
@@ -4267,5 +4268,103 @@ describe('#2501: Checkpunkte an der Serie im MCP pflegen (series_checklist_*)', 
 			[{ id: SERIES_UUID_A, title: 'Fremder Punkt' }],
 			'der abgewiesene Aufruf hat die fremde Checkliste nicht verändert',
 		);
+	});
+});
+
+/**
+ * #2756: task_update akzeptiert deadline: null (Deadline entfernen) — docs/spec/issue-2756.md.
+ *
+ * Die REST-Route PATCH /tasks/:id nimmt deadline: null bereits (Entfernen); das deklarierte
+ * MCP-inputSchema erlaubte bisher nur type "string", sodass MCP-Clients null als Schemaverstoss
+ * ablehnen. Der Vertrag hier:
+ *
+ * AK1: task_update mit deadline: null auf einer Aufgabe mit Deadline gelingt ohne error;
+ *      task_list zeigt fuer die Aufgabe danach deadline: null.
+ * AK2: Das inputSchema von task_update deklariert deadline mit type ["string", "null"] und nennt
+ *      das Entfernen per null in der Beschreibung.
+ * AK3: autoDeleteAfterDeadline verhaelt sich nach dem Entfernen per task_update wie per App/REST:
+ *      Deadline null, Flag unveraendert, runDeadlineAutoDelete loescht die Aufgabe nicht.
+ *
+ * Rot ist AK2 (Schema-Spiegel: deadline ist noch { type: "string" }); AK1/AK3 spiegeln den
+ * Funktionsvertrag — die serverseitige Durchreichung kann null bereits, sie bleiben gruen und
+ * sichern das Verhalten gegen Regressionen ab. KEIN Produktivcode in diesem Commit.
+ */
+describe('#2756: task_update akzeptiert deadline: null (Deadline entfernen)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => resetDb());
+	after(async () => {
+		await server.close();
+		closeDb();
+	});
+
+	it('AK1: task_update mit deadline: null entfernt die Deadline, task_list zeigt deadline: null', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const created = await mcpCall<{ id: number }>(token, 'task_create', {
+			title: 'Mit Deadline über MCP angelegt',
+			deadline: '2030-01-01T00:00:00.000Z',
+		});
+		const taskId = created.result?.id;
+		assert.ok(taskId, 'Setup: Aufgabe mit Deadline muss anlegbar sein');
+
+		const update = await mcpCall<{ deadline: string | null }>(token, 'task_update', {
+			id: taskId,
+			deadline: null,
+		});
+		assert.equal(update.error, undefined, 'task_update mit deadline: null darf nicht fehlschlagen');
+
+		const list = await mcpCall<{ id: number; deadline: string | null }[]>(token, 'task_list');
+		const task = list.result?.find((t) => t.id === taskId);
+		assert.ok(task, 'task_list muss die Aufgabe liefern');
+		assert.equal(task?.deadline, null, 'task_list muss deadline: null melden');
+	});
+
+	it('AK2: das inputSchema von task_update erlaubt deadline null und nennt das Entfernen in der Beschreibung', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const tools = await mcpListTools(token);
+		const tool = tools.find((t) => t.name === 'task_update');
+		assert.ok(tool, 'task_update muss in tools/list enthalten sein');
+		const schema = tool?.inputSchema as
+			{ properties?: { deadline?: { type?: unknown; description?: string } } } | undefined;
+		const deadline = schema?.properties?.deadline;
+		assert.ok(
+			Array.isArray(deadline?.type),
+			'task_update.inputSchema.properties.deadline muss type als Array deklarieren',
+		);
+		assert.ok(
+			deadline?.type?.includes('string') && deadline?.type?.includes('null'),
+			'deadline.type muss "string" und "null" enthalten',
+		);
+		assert.match(deadline?.description ?? '', /null/i, 'deadline-Beschreibung muss das Entfernen per null nennen');
+		assert.match(deadline?.description ?? '', /remov/i, 'deadline-Beschreibung muss "removes" (Entfernen) nennen');
+	});
+
+	it('AK3: nach dem Entfernen der Deadline per task_update loescht runDeadlineAutoDelete die Aufgabe nicht', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const created = await mcpCall<{ id: number }>(token, 'task_create', {
+			title: 'Auto-Delete mit entferneter Deadline',
+			deadline: '2030-01-01T00:00:00.000Z',
+			autoDeleteAfterDeadline: true,
+		});
+		const id = created.result?.id;
+		assert.ok(id, 'Setup: Aufgabe mit Deadline + autoDeleteAfterDeadline muss anlegbar sein');
+
+		const update = await mcpCall(token, 'task_update', { id, deadline: null });
+		assert.equal(update.error, undefined, 'task_update mit deadline: null darf nicht fehlschlagen');
+
+		const result = await runDeadlineAutoDelete(new Date('2099-01-01T00:00:00.000Z'));
+		assert.equal(result.deleted, 0, 'ohne Deadline darf runDeadlineAutoDelete nichts loeschen');
+
+		const task = await Task.findByPk(id);
+		assert.ok(task, 'Aufgabe muss nach runDeadlineAutoDelete noch existieren');
+		assert.equal(task?.autoDeleteAfterDeadline, true, 'autoDeleteAfterDeadline bleibt unveraendert');
+		assert.equal(task?.deadline, null, 'Deadline bleibt null');
 	});
 });

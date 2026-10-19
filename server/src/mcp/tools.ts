@@ -28,7 +28,8 @@ export interface McpToolContext {
 
 /** JSON-Schema-Eigenschaft eines Werkzeug-Eingangs (Teilmenge, die MCP-Clients auswerten). */
 interface McpPropertySchema {
-	type: string;
+	/** JSON-Schema `type`: Einzeltyp oder Array (z. B. `['string', 'null']`). */
+	type: string | readonly string[];
 	description: string;
 	/** Nur bei `type: 'array'` gesetzt: Objektschema der Array-Einträge. */
 	items?: { type: 'object'; properties: Record<string, { type: string; description: string }> };
@@ -321,7 +322,7 @@ const taskFieldProperties = {
 			'Estimated own effort in hours; converted to the days field (hours / 14) and clamped to 0.1-1 ' +
 			'days at the edges of the scale. Alternative to estimatedEffort.',
 	},
-	deadline: { type: 'string', description: 'Due date as ISO-8601 timestamp.' },
+	deadline: { type: ['string', 'null'], description: 'Due date as ISO-8601 timestamp; null removes the deadline.' },
 	categoryId: { type: 'integer', description: 'ID of one of your own categories.' },
 	pillars: {
 		type: 'array',
