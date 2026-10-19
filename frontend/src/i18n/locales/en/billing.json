@@ -206,6 +206,9 @@
 		"title": "Order {{plan}} ({{period}})",
 		"intro": "You are about to order the {{plan}} plan ({{period}}). Billing address and withdrawal consent are checked before redirecting to the payment provider.",
 		"addressCreate": "Add billing address",
-		"addressEdit": "Change billing address"
+		"addressEdit": "Change billing address",
+		"price": "{{price}} per {{period}}",
+		"finalPrice": "This is the final price as per § 19 UStG.",
+		"renewal": "The subscription renews automatically for each period and can be cancelled at any time to the end of the billing period."
 	}
 }
