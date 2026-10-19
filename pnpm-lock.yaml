@@ -233,16 +233,16 @@ importers:
         version: 5.3.0
       '@public-ui/components':
         specifier: 4.5.0
-        version: 4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25)
+        version: 4.5.0(adopted-style-sheets@1.1.9-rc.25)
       '@public-ui/react-v19':
         specifier: 4.5.0
-        version: 4.5.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        version: 4.5.0(@public-ui/components@4.5.0(adopted-style-sheets@1.1.9-rc.25))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@public-ui/theme-default':
         specifier: 4.5.0
-        version: 4.5.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))
+        version: 4.5.0(@public-ui/components@4.5.0(adopted-style-sheets@1.1.9-rc.25))
       '@public-ui/theme-kern':
         specifier: 4.5.0
-        version: 4.5.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))
+        version: 4.5.0(@public-ui/components@4.5.0(adopted-style-sheets@1.1.9-rc.25))
       '@xyflow/react':
         specifier: 12.11.6
         version: 12.11.6(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -1750,8 +1750,8 @@ packages:
     engines: {node: '>=20'}
     hasBin: true
 
-  '@public-ui/components@4.5.0-rc.0':
-    resolution: {integrity: sha512-uELZBXDrvVIvT2RQ/uP+E011YFp9zjwNRYB71ZR3xRHUUq//a2zrtEY4jDCoDeSMXZsOePAVKfB6OhMKb0jVng==}
+  '@public-ui/components@4.5.0':
+    resolution: {integrity: sha512-9JthqS6nWjVLldl6XHb3t+DkkMqQYtVMrkE6PLVfOHLKmpfzYIrO9c6hRJZBHp9TDuN+yp/Cy/JeqBm73m3g4w==}
     hasBin: true
     peerDependencies:
       adopted-style-sheets: 1.1.9-rc.25
@@ -6893,7 +6893,7 @@ snapshots:
     dependencies:
       playwright: 1.63.0
 
-  '@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25)':
+  '@public-ui/components@4.5.0(adopted-style-sheets@1.1.9-rc.25)':
     dependencies:
       '@floating-ui/dom': 1.8.0
       adopted-style-sheets: 1.1.9-rc.25
@@ -6905,19 +6905,19 @@ snapshots:
       typed-bem: 1.0.2
       wcag-contrast: 3.0.0
 
-  '@public-ui/react-v19@4.5.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@public-ui/react-v19@4.5.0(@public-ui/components@4.5.0(adopted-style-sheets@1.1.9-rc.25))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
-      '@public-ui/components': 4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25)
+      '@public-ui/components': 4.5.0(adopted-style-sheets@1.1.9-rc.25)
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
 
-  '@public-ui/theme-default@4.5.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))':
+  '@public-ui/theme-default@4.5.0(@public-ui/components@4.5.0(adopted-style-sheets@1.1.9-rc.25))':
     dependencies:
-      '@public-ui/components': 4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25)
+      '@public-ui/components': 4.5.0(adopted-style-sheets@1.1.9-rc.25)
 
-  '@public-ui/theme-kern@4.5.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))':
+  '@public-ui/theme-kern@4.5.0(@public-ui/components@4.5.0(adopted-style-sheets@1.1.9-rc.25))':
     dependencies:
-      '@public-ui/components': 4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25)
+      '@public-ui/components': 4.5.0(adopted-style-sheets@1.1.9-rc.25)
 
   '@redis/bloom@6.2.1(@redis/client@6.2.1)':
     dependencies:
