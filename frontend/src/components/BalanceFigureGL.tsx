@@ -379,7 +379,9 @@ export const BalanceFigureGL = ({
 				const engine = createEngine(canvas);
 				engineRef.current = engine;
 				engine.setLooping(stateRef.current.animated);
-				engine.setAuftaktBereit(stateRef.current.auftaktBereit);
+				// Dieselbe Auftakt-Politik wie im laufenden Effekt unten — der rohe `stateRef`-Wert
+				// würde das Standbild nach jeder Wiederherstellung leer machen (#2770).
+				engine.setAuftaktBereit(!(stateRef.current.auftaktBereit === false && stateRef.current.animated));
 				engine.update(stateRef.current, readThemeColors());
 			} catch {
 				onGiveUp();
