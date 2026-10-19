@@ -38,6 +38,16 @@ describe('Nutzersuche — GET /users/search (#1212)', () => {
 		return { status: res.status, body: (await res.json().catch(() => [])) as UserSearchHit[] };
 	};
 
+	// #2772/AK4: mehrfach gesendeter query-Parameter (Express qs → Array) → 400, statt still
+	// auf den Leerfilter (leere Liste) zu fallen. KEIN Produktivcode.
+	it('#2772/AK4: doppelter query-Parameter (Array) → 400 statt stiller Leerfilter', async () => {
+		const aliceCookie = await server.login(TEST_EMAIL_ALICE);
+		const res = await fetch(`${server.baseUrl}/users/search?query=Bob&query=Bau`, {
+			headers: { cookie: aliceCookie },
+		});
+		assert.equal(res.status, 400, 'mehrfach gesendeter query-Parameter muss 400 liefern');
+	});
+
 	// ── AK1: Treffer bei voller E-Mail oder displayName ab 3 Zeichen ─────────────────────
 
 	it('liefert einen Treffer bei vollständiger E-Mail-Adresse (AK1)', async () => {

@@ -162,6 +162,14 @@ describe('Journal-Statistik API (#2213)', () => {
 		}
 	});
 
+	// #2772/AK4: mehrfach gesendeter granularitaet-Parameter (Express qs → Array) → 400,
+	// statt still auf die Default-Granularität zu fallen. KEIN Produktivcode.
+	it('#2772/AK4: doppelter granularitaet-Parameter (Array) → 400', async () => {
+		const cookie = await register('stats-2772-array@example.com');
+		const res = await stats(cookie, '?von=2026-10-01&bis=2026-10-02&granularitaet=tag&granularitaet=woche');
+		assert.equal(res.status, 400, 'mehrfach gesendeter granularitaet-Parameter muss 400 liefern');
+	});
+
 	it('AK4 — ohne Session 401', async () => {
 		const res = await stats('', '?von=2026-10-01&bis=2026-10-02');
 		assert.equal(res.status, 401);

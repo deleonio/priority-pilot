@@ -204,6 +204,16 @@ describe('GET /scores/balance/history (#1424)', () => {
 		assert.equal(res.status, 200, 'ein unbekannter tz-Wert darf keinen Fehler auslösen');
 	});
 
+	// #2772/AK4: mehrfach gesendeter tz-Parameter (Express qs → Array) → 400 statt stiller
+	// Fallback auf die Serverzeitzone. KEIN Produktivcode.
+	it('#2772/AK4: doppelter tz-Parameter (Array) → 400', async () => {
+		const cookie = await server.register('history-tz-array@example.com', 'password123');
+		await createPillar(cookie, `Säule-${idCounter++}`);
+
+		const res = await getHistory(cookie, '?von=2026-06-01&bis=2026-06-01&tz=UTC&tz=Europe/Berlin');
+		assert.equal(res.status, 400, 'mehrfach gesendeter tz-Parameter muss 400 liefern');
+	});
+
 	it('AK5: tz verschiebt die Tagesgrenze einer späten Erledigung', async () => {
 		const cookie = await server.register('history-tz-shift@example.com', 'password123');
 		const saeule = await createPillar(cookie, `Säule-${idCounter++}`);
