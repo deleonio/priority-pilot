@@ -369,3 +369,49 @@ describe('SubscriptionSection — Kündigungsbutton und Bestätigungsschritt (#2
 		});
 	});
 });
+
+describe('SubscriptionSection (#2745): gekürztes Vertragsende im Dialog und Hinweis', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it('Dialog nennt das gekürzte Ende (contractEndsAt) und den Erstattungshinweis', () => {
+		subscriptionState.subscription = {
+			...baseSubscription,
+			period: 'yearly',
+			contractEndsAt: '2026-11-19T10:00:00.000Z',
+		};
+		render(<SubscriptionSection />);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Verträge hier kündigen' }));
+		const dialog = screen.getByRole('dialog');
+		expect(dialog).toHaveTextContent('19.11.2026');
+		expect(dialog).toHaveTextContent(/anteilig/);
+		expect(dialog).not.toHaveTextContent('15.1.2027');
+	});
+
+	it('Dialog ohne contractEndsAt zeigt weiterhin das Laufzeitende ohne Erstattungshinweis', () => {
+		subscriptionState.subscription = { ...baseSubscription };
+		render(<SubscriptionSection />);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Verträge hier kündigen' }));
+		const dialog = screen.getByRole('dialog');
+		expect(dialog).toHaveTextContent('15.1.2027');
+		expect(dialog).not.toHaveTextContent('anteilig');
+	});
+
+	it('Gekündigt-Hinweis nennt das gekürzte Vertragsende (pendingPlanEffectiveAt)', () => {
+		subscriptionState.subscription = {
+			...baseSubscription,
+			status: 'cancelled',
+			pendingPlanEffectiveAt: '2026-11-19T10:00:00.000Z',
+		};
+		render(<SubscriptionSection />);
+
+		expect(screen.getByTestId('subscription-cancelled')).toHaveTextContent(/19\.11\.2026/);
+	});
+});

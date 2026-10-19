@@ -139,7 +139,12 @@ const CancelDialog = ({ subscription, accountEmail, onClose, onCancelled }: Canc
 					_on={{ onInput: (_event, value) => setReason(readString(value)) }}
 				/>
 			)}
-			<p>{t('cancelDialog.effective', { date: formatDate(subscription.currentPeriodEnd) })}</p>
+			<p>
+				{t('cancelDialog.effective', {
+					date: formatDate(subscription.contractEndsAt ?? subscription.currentPeriodEnd),
+				})}
+			</p>
+			{subscription.contractEndsAt != null && <p>{t('cancelDialog.refundHint')}</p>}
 			<KolInputEmail
 				_label={t('cancelDialog.emailLabel')}
 				_required
@@ -259,7 +264,10 @@ export const SubscriptionSection = () => {
 						)}
 						{isCancelled && (
 							<p data-testid="subscription-cancelled" aria-live="polite">
-								{t('subscription.cancelled', { date: formatDate(current.currentPeriodEnd) })}
+								{t('subscription.cancelled', {
+									// #2745: nach der Kündigung zählt das gekürzte Vertragsende, nicht das Laufzeitende.
+									date: formatDate(current.pendingPlanEffectiveAt ?? current.currentPeriodEnd),
+								})}
 							</p>
 						)}
 						{isCancelled && confirmationEmail !== null && (

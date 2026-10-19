@@ -195,6 +195,7 @@
 		"reason": "Grund",
 		"reasonMissing": "Bitte einen Grund angeben.",
 		"effective": "Zeitpunkt: zum Ende der Laufzeit am {{date}}",
+		"refundHint": "Bezahlte Zeit nach diesem Datum erstatten wir anteilig; die Rechnungskorrektur kommt per Mail.",
 		"emailLabel": "E-Mail für die Bestätigung",
 		"emailHint": "Hierhin schicken wir die Bestätigung.",
 		"emailInvalid": "Bitte eine gültige E-Mail-Adresse angeben.",

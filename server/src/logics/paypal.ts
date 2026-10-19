@@ -14,6 +14,7 @@ import type { MailSender } from './mail.js';
 import { PAYPAL_PLAN_IDS, getPlansCatalog, type Plan } from './plans.js';
 import type { ChargedAmount } from './invoices.js';
 import { sendCancellationConfirmation } from './cancellationMail.js';
+import { resolveCancellationEnd } from './cancellationRefund.js';
 
 export { applyDuePendingPlan, isGracePeriodExpired } from './billing/lifecycle.js';
 
@@ -37,6 +38,9 @@ export type PaypalVerifier = (rawBody: Buffer, headers: Record<string, string>) 
 /** Abrechnungszeitraum eines Abos, wie ihn `PAYPAL_PLAN_IDS` als Schlüssel führt. */
 type BillingPeriod = 'monthly' | 'quarterly' | 'yearly';
 
+/** Anteilige Restlaufzeit-Erstattung über die Sale-Referenz (#2745) — eigener Schnitt, damit bestehende Fakes ohne `refund` weiter passen (Muster `PaypalSubscriptionReader`). */
+export type PaypalRefunder = (saleId: string, amountCents: number) => Promise<void>;
+
 /**
  * Signatur des injizierbaren Abo-Clients (Issue #1505, T6d; Muster `PaypalVerifier`). Tests
  * reichen einen Fake herein (`AppDeps.paypalClient`), Produktion nutzt {@link createPaypalClient}.
@@ -50,6 +54,8 @@ export interface PaypalClient {
 	): Promise<{ approvalUrl: string; externalSubscriptionId: string }>;
 	cancel(externalSubscriptionId: string): Promise<void>;
 	revise(externalSubscriptionId: string, targetPlanId: string): Promise<{ approvalUrl?: string }>;
+	/** Erstattung (#2745) — nur der produktive Client spricht sie; Fakes reichen sie gezielt herein. */
+	refund?: PaypalRefunder;
 }
 
 /** Abo-Abruf für den täglichen Abgleich (#2300): PayPal-Status und nächster Abrechnungstermin. */
@@ -229,7 +235,9 @@ const approveLinkOf = (body: { links?: { rel?: string; href?: string }[] }): str
  * `verifyWebhookSignature`/`paypalVerifier`. `returnUrl`/`cancelUrl` zeigen auf eine
  * Frontend-Route der Einstellungen (T6c, #1496), nicht auf `GET /billing/return`.
  */
-export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClient & PaypalSubscriptionReader => ({
+export const createPaypalClient = (
+	fetchImpl: typeof fetch = fetch,
+): PaypalClient & PaypalSubscriptionReader & { refund: PaypalRefunder } => ({
 	async createSubscription(planId, override) {
 		const token = await getAccessToken(fetchImpl);
 		const returnUrl = process.env.PAYPAL_RETURN_URL?.trim() || 'https://app.example/settings?billing=returned';
@@ -272,6 +280,19 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 		});
 		if (!res.ok) {
 			throw new PaypalHttpError('PayPal-Abo konnte nicht gekündigt werden.', res.status);
+		}
+	},
+	async refund(saleId, amountCents) {
+		const token = await getAccessToken(fetchImpl);
+		const res = await fetchImpl(`${apiBase()}/v1/payments/sale/${saleId}/refund`, {
+			method: 'POST',
+			headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+			signal: AbortSignal.timeout(paypalTimeoutMs()),
+			// Sale-Erstattung (#2745): anteiliger Betrag der Restlaufzeit; Preise laufen bewusst nur in EUR.
+			body: JSON.stringify({ amount: { total: (amountCents / 100).toFixed(2), currency: 'EUR' } }),
+		});
+		if (!res.ok) {
+			throw new PaypalHttpError('PayPal-Erstattung konnte nicht ausgelöst werden.', res.status);
 		}
 	},
 	async getSubscription(externalSubscriptionId) {
@@ -357,7 +378,11 @@ export const assertPaypalConfig = (env: NodeJS.ProcessEnv = process.env): void =
  */
 export const paypalGraceDeps = (): GracePeriodDeps =>
 	process.env.PAYPAL_CLIENT_ID?.trim() && process.env.PAYPAL_CLIENT_SECRET?.trim()
-		? { cancel: (id) => createPaypalClient().cancel(id) }
+		? {
+				cancel: (id) => createPaypalClient().cancel(id),
+				// Anteilige Restlaufzeit-Erstattung (#2745) — Wiederholung im Kulanz-Sweep wie `cancel` (#2606).
+				refund: (saleId, amountCents) => createPaypalClient().refund(saleId, amountCents),
+			}
 		: {};
 
 /** Abruf-Abhängigkeit des täglichen Abgleichs (#2300): nur mit PayPal-Zugangsdaten, sonst `null` (kein Netzaufruf). */
@@ -412,11 +437,15 @@ export const applyPlanChange = async (
 		const wasLocked = subscription.get('status') === 'locked';
 		// Bestätigung nur für ein laufendes Abo — ein wiederholtes CANCELLED bleibt still (#2308 AK7).
 		const wasRunning = ['active', 'past_due', 'suspended'].includes(String(subscription.get('status')));
+		// #2745 (§ 309 Nr. 9 BGB): ab der zweiten Laufzeit endet ein Quartals-/Jahresabo einen
+		// Kalendermonat nach Kündigungseingang statt zum Periodenende — sonst bleibt es dabei. Die
+		// Erstattung der Restlaufzeit löst der Provider aus (`paypalProvider.ts`), der Client kennt.
+		const shortenedEnd = await resolveCancellationEnd(subscription, now);
 		await subscription.update({
 			status: 'cancelled',
 			pendingPlan: 'free',
 			pendingPeriod: null,
-			pendingPlanEffectiveAt: currentPeriodEnd > now ? currentPeriodEnd : now,
+			pendingPlanEffectiveAt: shortenedEnd ?? (currentPeriodEnd > now ? currentPeriodEnd : now),
 		});
 		if (!wasLocked) {
 			await syncUserPlan(subscription, subscription.get('plan') as Plan);

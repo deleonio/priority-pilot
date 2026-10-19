@@ -10,6 +10,7 @@ import { THROTTLED_MESSAGE } from './rateLimit.js';
 import { recordCancellation } from './billingSubscriptions.js';
 import { createPaypalProvider, type PaypalProviderDeps } from '../../logics/billing/paypalProvider.js';
 import { sendCancellationConfirmation } from '../../logics/cancellationMail.js';
+import { resolveCancellationEnd } from '../../logics/cancellationRefund.js';
 import { displayLabel } from '../../logics/invoices.js';
 import { isMailConfigured, sendMailToUser, type MailSender } from '../../logics/mail.js';
 import { publicBaseUrl } from '../../logics/magicLink.js';
@@ -201,10 +202,15 @@ export const createPublicCancellationRouter = (deps: PublicCancellationDeps = {}
 				return;
 			}
 			const sprache = spracheAusHeader(req.get('accept-language'));
+			// #2745: ab der zweiten Laufzeit endet das Abo einen Kalendermonat nach Bestätigung — die
+			// Seite nennt dieses Datum statt des vom Nutzer gewählten Zeitpunkts.
+			const contractEnd = await resolveCancellationEnd(subscription, new Date());
 			res.status(200).json({
 				contract: displayLabel(subscription.plan as Plan, subscription.period, sprache),
 				kind: row.kind === 'extraordinary' ? TEXTE[sprache].ausserordentlich : TEXTE[sprache].ordentlich,
-				effective: effectiveLabel(row.effective, sprache),
+				effective: contractEnd
+					? TEXTE[sprache].zum(contractEnd.toLocaleDateString(TEXTE[sprache].locale, { timeZone: 'UTC' }))
+					: effectiveLabel(row.effective, sprache),
 			});
 		},
 	);

@@ -3,6 +3,7 @@ import User from '../models/user.js';
 import { adminEmails } from './adminEmails.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { displayLabel } from './invoices.js';
+import { resolveCancellationEnd } from './cancellationRefund.js';
 import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
 import type { Plan } from './plans.js';
 
@@ -76,6 +77,9 @@ export const sendCancellationConfirmation = async (
 	}
 	const extraordinary = subscription.get('cancellationKind') === 'extraordinary';
 	const requestedAt = (subscription.get('cancellationRequestedAt') as Date | null) ?? now;
+	// #2745: ab der zweiten Laufzeit nennt die Bestätigung das gekürzte Vertragsende, sonst das Periodenende.
+	const contractEnd =
+		(await resolveCancellationEnd(subscription, now)) ?? (subscription.get('currentPeriodEnd') as Date);
 	const user = await User.findByPk(subscription.get('userId') as number);
 	const email = (subscription.get('cancellationEmail') as string | null) ?? user?.email ?? null;
 	const sprache = spracheVon(user?.sprache);
@@ -93,7 +97,7 @@ export const sendCancellationConfirmation = async (
 				`${t.art}: ${extraordinary ? t.ausserordentlich : t.ordentlich}`,
 				...(extraordinary ? [`${t.grund}: ${String(subscription.get('cancellationReason'))}`] : []),
 				`${t.eingang}: ${formatDate(requestedAt, sprache)}`,
-				`${t.ende}: ${formatDate(subscription.get('currentPeriodEnd') as Date, sprache)}`,
+				`${t.ende}: ${formatDate(contractEnd, sprache)}`,
 				'',
 				t.schluss,
 			].join('\n'),

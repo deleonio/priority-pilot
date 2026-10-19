@@ -1,6 +1,6 @@
 import { Op, type Transaction } from 'sequelize';
 import sequelize from '../database.js';
-import Invoice from '../models/invoice.js';
+import Invoice, { TAX_NOTE } from '../models/invoice.js';
 import InvoiceSequence from '../models/invoiceSequence.js';
 import CreditSequence from '../models/creditSequence.js';
 import Subscription from '../models/subscription.js';
@@ -18,9 +18,6 @@ import { OPERATOR } from './operator.js';
  * nach §19 UStG wird keine Umsatzsteuer erhoben (ADR 0013) — die Rechnung trägt stattdessen den
  * festen Hinweistext {@link TAX_NOTE}.
  */
-
-/** Fester Hinweis statt Steuerausweis (§19 UStG, Kleinunternehmerregelung). */
-const TAX_NOTE = 'Gemäß §19 UStG wird keine Umsatzsteuer ausgewiesen.';
 
 /** Monate je Abrechnungszeitraum — Grundlage für den Rechnungszeitraum (`periodStart`). */
 const PERIOD_MONTHS: Record<string, number> = { monthly: 1, quarterly: 3, yearly: 12 };
@@ -109,6 +106,9 @@ const nextCreditNoteNumber = async (now: Date, transaction?: Transaction): Promi
  *
  * @param mailSend injizierbarer Versand (Default: `sendMailToUser`s nodemailer-Transport).
  * @param pdfBuild injizierbarer PDF-Bau (Default: `buildInvoicePdf`) — Test-Seam wie `mailSend`.
+ * @param creditCents abweichender Gutschriftsbetrag als positiver Erstattungsbetrag (#2745) —
+ *   anteilige Erstattung der Restlaufzeit; auf der Gutschrift negiert gebucht. Ohne Angabe gilt
+ *   der volle Originalbetrag (negiert).
  */
 export const issueCreditNote = async (
 	original: Invoice,
@@ -116,8 +116,9 @@ export const issueCreditNote = async (
 	transaction?: Transaction,
 	mailSend?: MailSender,
 	pdfBuild: typeof buildInvoicePdf = buildInvoicePdf,
+	creditCents?: number,
 ): Promise<Invoice> => {
-	const amountCents = -(original.get('amountCents') as number);
+	const creditAmountCents = creditCents !== undefined ? -creditCents : -(original.get('amountCents') as number);
 	const credit = await Invoice.create(
 		{
 			userId: original.get('userId') as number,
@@ -125,10 +126,10 @@ export const issueCreditNote = async (
 			number: await nextCreditNoteNumber(now, transaction),
 			periodStart: original.get('periodStart') as Date,
 			periodEnd: original.get('periodEnd') as Date,
-			amountCents,
+			amountCents: creditAmountCents,
 			currency: original.get('currency') as string,
 			taxNote: TAX_NOTE,
-			lineItems: [{ label: `Gutschrift zu Rechnung ${original.get('number')}`, amountCents }],
+			lineItems: [{ label: `Gutschrift zu Rechnung ${original.get('number')}`, amountCents: creditAmountCents }],
 			paymentStatus: 'refunded',
 			// Kein `saleId`: die Gutschrift darf nie Ziel künftiger Sale-Lookups sein (sonst
 			// „Gutschrift auf Gutschrift" bei einem zweiten Ereignis derselben Sale).

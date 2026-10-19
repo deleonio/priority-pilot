@@ -195,6 +195,7 @@
 		"reason": "Reason",
 		"reasonMissing": "Please provide a reason.",
 		"effective": "Effective: at the end of the term on {{date}}",
+		"refundHint": "We refund any paid time after this date pro rata; the credit note will be sent by email.",
 		"emailLabel": "Email for the confirmation",
 		"emailHint": "We will send the confirmation here.",
 		"emailInvalid": "Please enter a valid email address.",
