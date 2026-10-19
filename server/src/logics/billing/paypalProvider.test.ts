@@ -295,4 +295,37 @@ describe('Kündigung ab der zweiten Laufzeit: Erstattung und Retry (#2745)', () 
 		assert.deepEqual(refunds, ['SALE-2745-PROVIDER'], 'Erstattung im Sweep nachgeholt');
 		assert.equal((await subscription.reload()).get('refundRetryAttempts'), null, 'Zähler nach Erfolg zurückgesetzt');
 	});
+
+	it('CANCELLED des von einem Upgrade abgelösten Alt-Abos erstattet nicht (#1912, Entzug #2237)', async () => {
+		const { subscription, current } = await secondTermSub();
+		// replacePredecessors-Form (#1912): das Alt-Abo ist lokal `cancelled` + `plan free` ohne
+		// Kündigungs-Merker; der Paketentzug (#2237) hinterlässt dieselbe Form. Der späte
+		// CANCELLED-Webhook trifft den Early-Return von `applyPlanChange` — und erstattet nicht.
+		await subscription.update({ status: 'cancelled', plan: 'free', cancellationRequestedAt: null });
+		const refunds: { saleId: string; amountCents: number }[] = [];
+		const provider = createPaypalProvider({
+			client: {
+				createSubscription: async () => ({ approvalUrl: '', externalSubscriptionId: '' }),
+				revise: async () => ({}),
+				cancel: async () => {},
+				refund: async (saleId, amountCents) => {
+					refunds.push({ saleId, amountCents });
+				},
+			},
+		});
+
+		await provider.applyEvent(subscription, cancelledEvent, NOW);
+
+		assert.deepEqual(refunds, [], 'Alt-Abo eines Upgrades wird nicht erstattet');
+		assert.equal(
+			await Invoice.findOne({ where: { creditForInvoiceId: current.get('id') as number } }),
+			null,
+			'keine Gutschrift zur Rechnung des Alt-Abos',
+		);
+		assert.equal(
+			(await subscription.reload()).get('pendingPlanEffectiveAt'),
+			null,
+			'das Ende bleibt unangetastet (Early-Return von applyPlanChange)',
+		);
+	});
 });

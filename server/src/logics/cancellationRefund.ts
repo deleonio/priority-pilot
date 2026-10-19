@@ -55,7 +55,10 @@ export const resolveCancellationEnd = async (subscription: Subscription, now: Da
  * (Muster `prorateUpgrade`), PayPal-Refund über die Sale-Referenz der laufenden Periode, danach die
  * Gutschrift zur Originalrechnung. Wirft der Refund, geschieht nichts — der Aufrufer meldet den
  * Fehlschlag, das Vertragsende aus {@link resolveCancellationEnd} greift trotzdem (AK6).
- * Idempotent: existiert zur laufenden Rechnung bereits eine Gutschrift, wird kein zweites Mal erstattet.
+ * Idempotent: die Gutschrift entsteht bereits VOR dem PayPal-Aufruf als persistierte Refund-Absicht;
+ * wirft der Refund, wird sie wieder entfernt. Findet der Kulanz-Sweep im Retry eine vorhandene
+ * Gutschrift zur laufenden Rechnung, erkennt die Schranke den bereits ausgelösten Refund und
+ * erstattet kein zweites Mal.
  *
  * @returns die ausgestellte (oder bereits vorhandene) Gutschrift als `creditNote`, `null` ohne Erstattungsfall.
  */
@@ -99,6 +102,16 @@ export const refundRemainingTerm = async ({
 	if (amountCents <= 0) {
 		return { creditNote: null };
 	}
-	await refund(current.get('saleId') as string, amountCents);
-	return { creditNote: await issueCreditNote(current, now, undefined, undefined, undefined, amountCents) };
+	// Absicht vor dem externen Aufruf persistieren (F2 des Kreuzverhörs): die Gutschrift ist der
+	// Merker, an dem die Idempotenz-Schranke (oben) einen bereits ausgelösten Refund im Retry erkennt
+	// — sonst erstattete ein Sweep-Retry nach fehlgeschlagener Finalisierung ein zweites Mal. Wirft
+	// der Refund, ist die Absicht hinfällig: Gutschrift entfernen, nichts geschieht (AK6).
+	const creditNote = await issueCreditNote(current, now, undefined, undefined, undefined, amountCents);
+	try {
+		await refund(current.get('saleId') as string, amountCents);
+	} catch (error) {
+		await creditNote.destroy();
+		throw error;
+	}
+	return { creditNote };
 };

@@ -106,6 +106,27 @@ describe('#2745 Kündigung ab der zweiten Laufzeit — Ende + Erstattung', () =>
 			}),
 			/PAYPAL-REFUND-FAILED/,
 		);
+		// Nichts geschieht: die vor dem Aufruf persistierte Refund-Absicht (Gutschrift) wird wieder
+		// entfernt, der Sweep-Retry startet leer — sonst blockierte der Merker die Nachholung.
+		assert.equal(await Invoice.count(), 2, 'Fehlschlag hinterlässt keine Gutschrift');
+	});
+
+	it('Erneuter Aufruf (Sweep-Retry) erkennt die Gutschrift und erstattet nicht erneut', async () => {
+		const { subscription, current } = await secondTermAnnualSub();
+		const refunds: string[] = [];
+		const spy = async (saleId: string) => {
+			refunds.push(saleId);
+		};
+
+		const first = await refundRemainingTerm({ subscription, now: MONTH_LATER, refund: spy });
+		// Crash nach erfolgreichem Refund, bevor der Sweep den Zähler zurücksetzt (#2606-Muster).
+		await subscription.update({ refundRetryAttempts: 1 });
+		const second = await refundRemainingTerm({ subscription, now: MONTH_LATER, refund: spy });
+
+		assert.deepEqual(refunds, ['SALE-2745'], 'genau eine Erstattung — der Retry erstattet nicht erneut');
+		assert.equal(second.creditNote?.get('id'), first.creditNote?.get('id'), 'Retry liefert die vorhandene Gutschrift');
+		const credits = await Invoice.findAll({ where: { creditForInvoiceId: current.get('id') as number } });
+		assert.equal(credits.length, 1, 'Gutschrift zur Originalrechnung genau einmal');
 	});
 
 	it('AK1-Gegenfall AK3: Kündigung in der ersten Laufzeit liefert kein gekürztes Ende (null)', async () => {

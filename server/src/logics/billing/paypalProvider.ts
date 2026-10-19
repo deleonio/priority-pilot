@@ -62,8 +62,15 @@ export const createPaypalProvider = (deps: PaypalProviderDeps = {}): BillingProv
 			}
 			// #2745: Kündigung ab der zweiten Laufzeit → anteilige Restlaufzeit-Erstattung (Sale-Refund
 			// plus Gutschrift). Ein Fehlschlag kassiert das Vertragsende nicht — er wird geloggt und im
-			// Kulanz-Sweep wiederholt (#2606-Muster, `refundRetryAttempts`).
-			if (type === 'BILLING.SUBSCRIPTION.CANCELLED' && client.refund) {
+			// Kulanz-Sweep wiederholt (#2606-Muster, `refundRetryAttempts`). Nur die Nutzerkündigung
+			// erstattet: das von `replacePredecessors` per API gekündigte Alt-Abo eines Upgrades (#1912)
+			// und der Paketentzug (#2237) melden sich als `cancelled` + `plan free` — dieselbe Form, die
+			// der Early-Return von `applyPlanChange` (paypal.ts) unangetastet lässt.
+			if (
+				type === 'BILLING.SUBSCRIPTION.CANCELLED' &&
+				client.refund &&
+				!(String(subscription.get('status')) === 'cancelled' && String(subscription.get('plan')) === 'free')
+			) {
 				try {
 					await refundRemainingTerm({ subscription, now, refund: client.refund });
 				} catch (error) {
