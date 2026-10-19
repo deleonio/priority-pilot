@@ -4,9 +4,12 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.30 - 2026-10-19
 
+_Enthält v0.30.0 – v0.30.1._
+
 ### Other Changes
 
 - chore: rework terms of use on liability, renewal, withdrawal and account by @deleonio in https://github.com/deleonio/priority-pilot/pull/2748
+- docs(website): add storage-on-your-device section to privacy policy by @deleonio in https://github.com/deleonio/priority-pilot/pull/2746
 
 ## v0.29 - 2026-10-19
 
@@ -163,6 +166,7 @@ _Enthält v0.25.0 – v0.25.19._
 ### 🐞 Bug Fixes
 
 - fix(server): block geocode rate limit header bypass by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2587
+- fix(server): block geocode rate limit header bypass by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2587
 - feat(server): cancel pending PayPal checkouts before delete (#2547) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2592
 - fix(server): return 400 for invalid path ids instead of 500 (#2548) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2595
 - feat(server): abort paypal requests after a fixed timeout (#2546) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2594
@@ -182,7 +186,6 @@ _Enthält v0.25.0 – v0.25.19._
 - docs(skills): german-only chat and full-queue status for coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2583
 - [P0/S] Server: CSRF-Schutz greift, sobald die Anmeldung aktiv ist (#2540) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2584
 - fix(server): user search with literal wildcards and result limit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2585
-- fix(server): book llm provider test against ai quota and throttle it (#2542) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2586
 - fix(server): book llm provider test against ai quota and throttle it (#2542) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2586
 - fix(server): log invoice delivery errors after commit, don't throw by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2588
 - feat(server): count task effort once per subtree, ending cycles and N+1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2589
