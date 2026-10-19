@@ -25,11 +25,17 @@ const openTaskFormChecklist = async (page: Page): Promise<void> => {
 };
 
 /** Legt per Enter an: Titel ins Feld, keydown Enter, Eintrag erscheint, Feld ist leer. */
-const addViaEnter = async (page: Page, title: string): Promise<void> => {
+const addViaEnter = async (page: Page, title: string, seriesMode = false): Promise<void> => {
 	const input = page.getByTestId('checklist-section').getByRole('searchbox', { name: 'Checklisten-Eintrag' });
 	await input.fill(title);
 	await input.press('Enter');
-	await expect(page.getByTestId('checklist-item').filter({ hasText: title })).toHaveCount(1);
+	if (seriesMode) {
+		// Serie-Modus (#2501): der Titel steckt im Inline-Umbenenn-Feld (Input-Value) und ist
+		// nicht per Textinhalt findbar — deshalb über den Wert des letzten Items prüfen.
+		await expect(page.getByTestId('checklist-item').last().getByRole('textbox')).toHaveValue(title);
+	} else {
+		await expect(page.getByTestId('checklist-item').filter({ hasText: title })).toHaveCount(1);
+	}
 	await expect(input).toHaveValue('');
 };
 
@@ -113,8 +119,8 @@ test('AK4 — Serie-Modus: per Enter angelegte Checkpunkte landen im Series-Payl
 
 	const first = uniqueTitle('Serie A');
 	const second = uniqueTitle('Serie B');
-	await addViaEnter(page, first);
-	await addViaEnter(page, second);
+	await addViaEnter(page, first, true);
+	await addViaEnter(page, second, true);
 
 	await page.getByRole('button', { name: 'Bearbeiten', exact: true }).last().click();
 	const confirm = page.getByRole('button', { name: 'Ja', exact: true });

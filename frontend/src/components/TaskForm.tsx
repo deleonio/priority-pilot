@@ -2010,6 +2010,17 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 									_on={{
 										onChange: (_event, value) => setNewChecklistTitle(readString(value)),
 										onInput: (_event, value) => setNewChecklistTitle(readString(value)),
+										// Enter legt wie der „Hinzufügen"-Button an (#2771); addChecklistItem
+										// erbt Leertitel-/Limit-Guard, Fokus bleibt im Feld.
+										onKeyDown: (event: KeyboardEvent) => {
+											if (event.key === 'Enter') {
+												// preventDefault unterdrückt den Suchfeld-Commit: Chromium feuert bei Enter
+												// in type="search" ein natives change mit dem Alt-Wert, das das frische
+												// setNewChecklistTitle('') wieder überschreiben würde (#2771).
+												event.preventDefault();
+												addChecklistItem();
+											}
+										},
 									}}
 								/>
 								<KolButton
