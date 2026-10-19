@@ -73,15 +73,27 @@ test.describe('Balamentum — #1063: Geo-Badge in Serien-, Erledigt- und Aufgabe
 		await expect(page.getByTestId('series-tree')).toBeVisible();
 	};
 
+	// Umschalter-Muster aus completed-tasks.spec.ts (`setViewSwitch`): check()/uncheck() werfen, wenn
+	// die Navigation nach dem Tab-Klick den Switch zwischen Klick und Zustandslesung neu rendert.
+	const setViewSwitch = async (page: Page, on: boolean): Promise<void> => {
+		const viewSwitch = () => page.getByRole('checkbox', { name: /Erledigte Aufgaben/i });
+		await expect(async () => {
+			if ((await viewSwitch().isChecked()) !== on) {
+				await viewSwitch().click();
+			}
+			await expect(viewSwitch()).toBeChecked({ checked: on, timeout: 1_000 });
+		}).toPass({ timeout: 10_000 });
+	};
+
 	const openCompletedView = async (page: Page): Promise<void> => {
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
-		await page.getByRole('checkbox', { name: /Erledigte Aufgaben/i }).check();
+		await setViewSwitch(page, true);
 		await waitForStableView(page);
 	};
 
 	const openTasksView = async (page: Page): Promise<void> => {
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
-		await page.getByRole('checkbox', { name: /Erledigte Aufgaben/i }).uncheck();
+		await setViewSwitch(page, false);
 		await waitForStableView(page);
 	};
 
