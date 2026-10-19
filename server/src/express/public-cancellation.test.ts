@@ -2,7 +2,7 @@ import { describe, it, beforeEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
-import { Subscription } from '../models/index.js';
+import { Subscription, Invoice } from '../models/index.js';
 import type { AppDeps } from './index.js';
 import type { MailSender } from '../logics/mail.js';
 
@@ -219,5 +219,49 @@ describe('Öffentliche Kündigung #2317', () => {
 		const logged = ce.mock.calls.map((c) => c.arguments.map(String).join(' ')).join('\n');
 		assert.ok(logged.includes('/public/cancellation'), `502-Catch muss loggen: ${logged}`);
 		assert.ok(logged.includes('PayPal nicht erreichbar'), `Log nennt den Fehler: ${logged}`);
+	});
+
+	it('AK5 (#2745): Bestätigungsseite und -Mail nennen das gekürzte Ende (zweite Laufzeit)', async () => {
+		const sub = await accountWithSub('zweite-laufzeit@example.com');
+		await sub.update({ period: 'yearly' });
+		// Zweite Laufzeit: abgelaufene Rechnung + laufende mit Sale-Referenz (#2086).
+		await Invoice.create({
+			userId: sub.userId,
+			subscriptionId: sub.id,
+			number: 'INV-2745-000001',
+			periodStart: new Date('2025-06-01T00:00:00Z'),
+			periodEnd: new Date('2026-06-01T00:00:00Z'),
+			amountCents: 9900,
+			paymentStatus: 'paid',
+		});
+		await Invoice.create({
+			userId: sub.userId,
+			subscriptionId: sub.id,
+			number: 'INV-2745-000002',
+			periodStart: new Date('2026-06-01T00:00:00Z'),
+			periodEnd: new Date('2027-06-01T00:00:00Z'),
+			amountCents: 9900,
+			paymentStatus: 'paid',
+			saleId: 'SALE-2745-PUBLIC',
+		});
+		await requestCancel('zweite-laufzeit@example.com', { kind: 'ordinary', effective: '2027-06-01' });
+		const token = tokenFromMail(mails[mails.length - 1]);
+
+		const get = await fetch(`${server.baseUrl}${CONFIRM}?token=${token}`);
+		assert.equal(get.status, 200);
+		const preview = (await get.json()) as { effective: string };
+		// Das gewählte Datum (2027-06-01) zählt nicht: das Ende ist der Kündigungseingang + 1 Kalendermonat.
+		const expected = new Date();
+		expected.setUTCMonth(expected.getUTCMonth() + 1);
+		const expectedLabel = expected.toLocaleDateString('de-DE', { timeZone: 'UTC' });
+		assert.equal(preview.effective, `zum ${expectedLabel}`);
+
+		assert.equal((await post(CONFIRM, { token })).status, 200);
+		const confirmation = mails.find((mail) => mail.subject === 'Balamentum: Bestätigung deiner Kündigung');
+		assert.ok(confirmation, 'Bestätigungsmail geht raus');
+		assert.ok(
+			confirmation?.text.includes(`Vertragsende: ${expectedLabel}`),
+			`Mail nennt das gekürzte Ende (${expectedLabel}): ${confirmation?.text}`,
+		);
 	});
 });

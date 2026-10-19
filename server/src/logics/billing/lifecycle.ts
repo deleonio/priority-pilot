@@ -5,6 +5,7 @@ import { PLAN_VALUES, type Plan } from '../plans.js';
 import type { PaypalSubscriptionReader } from '../paypal.js';
 import type { MailSender } from '../mail.js';
 import { sendSubscriptionEndedMail } from './paymentMail.js';
+import { refundRemainingTerm } from '../cancellationRefund.js';
 
 /**
  * Anbieterneutraler Lebenszyklus eines Abos: vorgemerkter Paketwechsel, Kulanzfrist nach einem
@@ -94,9 +95,11 @@ export const applyDuePendingPlan = async (
 export const isGracePeriodExpired = (firstFailureAt: Date, now: Date): boolean =>
 	now.getTime() - firstFailureAt.getTime() > GRACE_PERIOD_DAYS * DAY_MS;
 
-/** Abhängigkeiten der Kulanzfrist: Kündigung beim Anbieter (nur PayPal), in Tests ein Fake. */
+/** Abhängigkeiten der Kulanzfrist: Kündigung beim Anbieter (nur PayPal) und Erstattung (#2745), in Tests ein Fake. */
 export interface GracePeriodDeps {
 	cancel?: (externalSubscriptionId: string) => Promise<void>;
+	/** Anteilige Restlaufzeit-Erstattung (#2745) — fehlgeschlagene Aufrufe wiederholt der Sweep wie `cancel` (#2606). */
+	refund?: (saleId: string, amountCents: number) => Promise<void>;
 	/** Versand der Entzugs-Mail (#2306); ohne Angabe der SMTP-Standardversand. */
 	mailSend?: MailSender;
 }
@@ -168,12 +171,47 @@ const retryFailedCancellations = async (deps: GracePeriodDeps): Promise<void> =>
 	}
 };
 
+/** Obergrenze der Erstattungsversuche (#2745), den ersten eingerechnet — Muster {@link MAX_CANCEL_ATTEMPTS}. */
+const MAX_REFUND_ATTEMPTS = 5;
+
+/**
+ * Wiederholt im Sweep die gescheiterte anteilige Restlaufzeit-Erstattung (#2745) — Muster
+ * {@link retryFailedCancellations}. Gelingt sie, wird der Zähler zurückgesetzt; nach
+ * {@link MAX_REFUND_ATTEMPTS} wird aufgegeben (Fehler im Log, Erstattung von Hand).
+ */
+const retryFailedRefunds = async (refund?: GracePeriodDeps['refund']): Promise<void> => {
+	if (!refund) {
+		return;
+	}
+	const subscriptions = await Subscription.findAll({
+		where: { provider: 'paypal', refundRetryAttempts: { [Op.ne]: null } },
+	});
+	for (const subscription of subscriptions) {
+		const attempts = (subscription.get('refundRetryAttempts') as number) + 1;
+		try {
+			await refundRemainingTerm({ subscription, now: new Date(), refund });
+			await subscription.update({ refundRetryAttempts: null });
+		} catch (error) {
+			if (attempts >= MAX_REFUND_ATTEMPTS) {
+				console.error(
+					`[billing] PayPal-Erstattung von ${String(subscription.get('externalSubscriptionId'))} nach ${attempts} Versuchen aufgegeben.`,
+					error,
+				);
+				await subscription.update({ refundRetryAttempts: null });
+			} else {
+				await subscription.update({ refundRetryAttempts: attempts });
+			}
+		}
+	}
+};
+
 /**
  * Stündlicher Sweep (#2234): wendet {@link applyDueGracePeriod} auf alle Abos mit gesetztem `firstFailureAt` an
- * und wiederholt gescheiterte Kündigungen ({@link retryFailedCancellations}, #2606).
+ * und wiederholt gescheiterte Kündigungen ({@link retryFailedCancellations}, #2606) und Erstattungen ({@link retryFailedRefunds}, #2745).
  */
 export const applyDueGracePeriods = async (now: Date, deps: GracePeriodDeps = {}): Promise<number> => {
 	await retryFailedCancellations(deps);
+	await retryFailedRefunds(deps.refund);
 	const subscriptions = await Subscription.findAll({ where: { firstFailureAt: { [Op.ne]: null } } });
 	let applied = 0;
 	for (const subscription of subscriptions) {

@@ -30,9 +30,10 @@ import WebhookEvent from './webhookEvent.js';
 import LoginToken from './loginToken.js';
 import AllowedEmail from './allowedEmail.js';
 import MilestoneReached from './milestoneReached.js';
-// Nur Registrierung: `invoices`/`invoice_sequences` werden von `logics/invoices.ts` direkt
-// importiert; hier zählt allein, dass `sequelize.sync()` die Tabellen kennt.
-import './invoice.js';
+// `invoice_sequences` werden von `logics/invoices.ts` direkt importiert; hier zählt allein, dass
+// `sequelize.sync()` die Tabellen kennt. `Invoice` ist zusätzlich exportiert: der Vertrag der
+// Restlaufzeit-Erstattung (#2745) liest ihn über den Modell-Berreich.
+import Invoice from './invoice.js';
 import './invoiceSequence.js';
 // Nur Registrierung: `CareSuggestionDismissal` hat keine Assoziationen; hier zählt allein, dass
 // `sequelize.sync()` die Tabelle kennt (#1791).
@@ -162,4 +163,5 @@ export {
 	LoginToken,
 	AllowedEmail,
 	MilestoneReached,
+	Invoice,
 };

@@ -170,3 +170,162 @@ describe('Aufgeschobenes Abo übernimmt das Paket erst mit der ersten Abbuchung 
 		assert.equal(reloaded.get('pendingPlan') ?? null, null, 'Vorgänger-Ablösung läuft mit der Aktivierung');
 	});
 });
+
+describe('Kündigung ab der zweiten Laufzeit: Erstattung und Retry (#2745)', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		await closeDb();
+	});
+
+	/** PayPal-Abo im zweiten Jahr: eine abgelaufene Rechnung (2025/26) + aktuelle (2026/27, mit saleId). */
+	const secondTermSub = async () => {
+		const user = await User.create({
+			email: '2745-provider@example.com',
+			displayName: 'U',
+			passwordHash: 'x',
+			plan: 'plus',
+		});
+		const subscription = await Subscription.create({
+			userId: user.id,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-2745-PROVIDER',
+			plan: 'plus',
+			period: 'yearly',
+			status: 'active',
+			currentPeriodEnd: new Date('2027-06-01T00:00:00Z'),
+			cancellationRequestedAt: NOW,
+		});
+		await Invoice.create({
+			userId: user.id,
+			subscriptionId: subscription.id,
+			number: 'INV-2745-000001',
+			periodStart: new Date('2025-06-01T00:00:00Z'),
+			periodEnd: new Date('2026-06-01T00:00:00Z'),
+			amountCents: 9900,
+			paymentStatus: 'paid',
+		});
+		const current = await Invoice.create({
+			userId: user.id,
+			subscriptionId: subscription.id,
+			number: 'INV-2745-000002',
+			periodStart: new Date('2026-06-01T00:00:00Z'),
+			periodEnd: new Date('2027-06-01T00:00:00Z'),
+			amountCents: 9900,
+			paymentStatus: 'paid',
+			saleId: 'SALE-2745-PROVIDER',
+		});
+		return { user, subscription, current };
+	};
+
+	const cancelledEvent = {
+		id: 'WH-2745',
+		type: 'BILLING.SUBSCRIPTION.CANCELLED',
+		externalSubscriptionId: 'I-2745-PROVIDER',
+		payload: { event_type: 'BILLING.SUBSCRIPTION.CANCELLED', resource: { id: 'I-2745-PROVIDER' } },
+	};
+
+	it('CANCELLED des verlängerten Jahresabos löst anteilige Sale-Erstattung aus und setzt das gekürzte Ende', async () => {
+		const { subscription, current } = await secondTermSub();
+		const refunds: { saleId: string; amountCents: number }[] = [];
+		const provider = createPaypalProvider({
+			client: {
+				createSubscription: async () => ({ approvalUrl: '', externalSubscriptionId: '' }),
+				revise: async () => ({}),
+				cancel: async () => {},
+				refund: async (saleId, amountCents) => {
+					refunds.push({ saleId, amountCents });
+				},
+			},
+		});
+
+		await provider.applyEvent(subscription, cancelledEvent, NOW);
+
+		// Periode 2026-06-01→2027-06-01 (365 d), gekürztes Ende 2026-11-01 → 212 d bezahlt nach dem Ende:
+		// floor(9900 * 212 / 365) = 5750 Cent.
+		assert.deepEqual(refunds, [{ saleId: 'SALE-2745-PROVIDER', amountCents: 5750 }]);
+		const reloaded = await subscription.reload();
+		assert.equal(
+			(reloaded.get('pendingPlanEffectiveAt') as Date).toISOString(),
+			'2026-11-01T10:00:00.000Z',
+			'Vertragsende = Kündigungseingang + 1 Kalendermonat',
+		);
+		const credit = await Invoice.findOne({ where: { creditForInvoiceId: current.get('id') as number } });
+		assert.ok(credit, 'Gutschrift zur laufenden Rechnung ausgestellt');
+		assert.equal(credit?.get('amountCents'), -5750);
+	});
+
+	it('Fehlschlagender Refund kassiert das Vertragsende nicht und zählt den Versuch (AK6)', async () => {
+		const { subscription } = await secondTermSub();
+		const provider = createPaypalProvider({
+			client: {
+				createSubscription: async () => ({ approvalUrl: '', externalSubscriptionId: '' }),
+				revise: async () => ({}),
+				cancel: async () => {},
+				refund: async () => {
+					throw new Error('PAYPAL-DOWN');
+				},
+			},
+		});
+
+		await provider.applyEvent(subscription, cancelledEvent, NOW);
+
+		const reloaded = await subscription.reload();
+		assert.equal(
+			(reloaded.get('pendingPlanEffectiveAt') as Date).toISOString(),
+			'2026-11-01T10:00:00.000Z',
+			'das Vertragsende greift trotz Refund-Fehlschlag',
+		);
+		assert.equal(reloaded.get('refundRetryAttempts'), 1, 'Fehlschlag ist für die Wiederholung gezählt');
+	});
+
+	it('Der Sweep wiederholt die Erstattung bis zum Erfolg (#2606-Muster)', async () => {
+		const { subscription } = await secondTermSub();
+		await subscription.update({ refundRetryAttempts: 1 });
+		const refunds: string[] = [];
+		const { applyDueGracePeriods } = await import('./lifecycle.js');
+
+		await applyDueGracePeriods(new Date(), {
+			refund: async (saleId) => {
+				refunds.push(saleId);
+			},
+		});
+
+		assert.deepEqual(refunds, ['SALE-2745-PROVIDER'], 'Erstattung im Sweep nachgeholt');
+		assert.equal((await subscription.reload()).get('refundRetryAttempts'), null, 'Zähler nach Erfolg zurückgesetzt');
+	});
+
+	it('CANCELLED des von einem Upgrade abgelösten Alt-Abos erstattet nicht (#1912, Entzug #2237)', async () => {
+		const { subscription, current } = await secondTermSub();
+		// replacePredecessors-Form (#1912): das Alt-Abo ist lokal `cancelled` + `plan free` ohne
+		// Kündigungs-Merker; der Paketentzug (#2237) hinterlässt dieselbe Form. Der späte
+		// CANCELLED-Webhook trifft den Early-Return von `applyPlanChange` — und erstattet nicht.
+		await subscription.update({ status: 'cancelled', plan: 'free', cancellationRequestedAt: null });
+		const refunds: { saleId: string; amountCents: number }[] = [];
+		const provider = createPaypalProvider({
+			client: {
+				createSubscription: async () => ({ approvalUrl: '', externalSubscriptionId: '' }),
+				revise: async () => ({}),
+				cancel: async () => {},
+				refund: async (saleId, amountCents) => {
+					refunds.push({ saleId, amountCents });
+				},
+			},
+		});
+
+		await provider.applyEvent(subscription, cancelledEvent, NOW);
+
+		assert.deepEqual(refunds, [], 'Alt-Abo eines Upgrades wird nicht erstattet');
+		assert.equal(
+			await Invoice.findOne({ where: { creditForInvoiceId: current.get('id') as number } }),
+			null,
+			'keine Gutschrift zur Rechnung des Alt-Abos',
+		);
+		assert.equal(
+			(await subscription.reload()).get('pendingPlanEffectiveAt'),
+			null,
+			'das Ende bleibt unangetastet (Early-Return von applyPlanChange)',
+		);
+	});
+});

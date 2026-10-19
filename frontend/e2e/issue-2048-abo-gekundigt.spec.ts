@@ -1,5 +1,5 @@
 import type { Route } from '@playwright/test';
-import { expect, test, type Page } from './fixtures';
+import { expect, test, type Locator, type Page } from './fixtures';
 
 /**
  * e2e für #2048 AK1+AK7 (Spec docs/spec/issue-2048.md) — Reiter „Pakete & Abo" bei 375 px:
@@ -68,5 +68,90 @@ test.describe('Balamentum — #2048: gekündigtes Abo im Reiter „Pakete & Abo"
 				return box === null ? Number.POSITIVE_INFINITY : box.x + box.width;
 			})
 			.toBeLessThanOrEqual(VIEWPORT.width + 0.5);
+	});
+});
+
+/** #2745: gekündigtes Jahresabo ab der zweiten Laufzeit — Ende einen Monat nach Kündigung gekürzt. */
+const USER_CANCELLED_SHORTENED = {
+	...USER_CANCELLED,
+	period: 'yearly',
+	subscription: {
+		...USER_CANCELLED.subscription,
+		period: 'yearly',
+		currentPeriodEnd: '2099-12-15T00:00:00.000Z',
+		pendingPlan: 'free',
+		pendingPlanEffectiveAt: '2099-01-15T00:00:00.000Z',
+		contractEndsAt: '2099-01-15T00:00:00.000Z',
+	},
+};
+
+/** Aktiv ab der zweiten Laufzeit: der Bestätigungsschritt zeigt das gekürzte Ende VOR dem Klick. */
+const USER_ACTIVE_SHORTENED = {
+	...USER_CANCELLED,
+	period: 'yearly',
+	subscription: {
+		...USER_CANCELLED.subscription,
+		status: 'active',
+		period: 'yearly',
+		currentPeriodEnd: '2099-12-15T00:00:00.000Z',
+		pendingPlan: null,
+		contractEndsAt: '2099-01-15T00:00:00.000Z',
+	},
+};
+
+test.describe('Balamentum — #2745: gekürztes Ende bei Quartals-/Jahresabo (AK7)', () => {
+	test.beforeEach(async ({ page }: { page: Page }) => {
+		await page.route('**/api/v1/plans', (route: Route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ features: [], prices: {} }),
+			}),
+		);
+		await page.route('**/api/v1/billing/invoices', (route: Route) =>
+			route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) }),
+		);
+		await page.setViewportSize(VIEWPORT);
+	});
+
+	/** Bounding-Box-Messung (MEMORY 2026-08-24): `scrollWidth` ist wegen `overflow-x: hidden` ungeeignet. */
+	const assertNoOverflow = async (page: Page, element: Locator): Promise<void> => {
+		await expect
+			.poll(async () => {
+				const box = await element.boundingBox();
+				return box === null ? Number.POSITIVE_INFINITY : box.x + box.width;
+			})
+			.toBeLessThanOrEqual(VIEWPORT.width + 0.5);
+	};
+
+	test('AK7: Gekündigt-Hinweis nennt das gekürzte Ende, kein Überlauf bei 375 px', async ({ page }: { page: Page }) => {
+		await page.route('**/auth/me', (route: Route) =>
+			route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(USER_CANCELLED_SHORTENED) }),
+		);
+		await page.goto('/app/settings/abo');
+
+		const hint = page.getByTestId('subscription-cancelled');
+		await expect(hint).toContainText(/15\.1?\.2099/);
+		await assertNoOverflow(page, hint);
+	});
+
+	test('AK7: Bestätigungsschritt zeigt gekürztes Ende und Erstattungshinweis, kein Überlauf bei 375 px', async ({
+		page,
+	}: {
+		page: Page;
+	}) => {
+		await page.route('**/auth/me', (route: Route) =>
+			route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(USER_ACTIVE_SHORTENED) }),
+		);
+		await page.goto('/app/settings/abo');
+
+		await page.getByRole('button', { name: 'Verträge hier kündigen' }).click();
+		// KoliBri slot't den Inhalt in den Shadow-DOM — Text nur über SEITENWEITE piercende Locators
+		// suchen: ein unter getByRole('dialog') verketteter Text-Engine sieht geslotetten Inhalt nicht
+		// (MEMORY 2026-10-19). Beide Texte kommen nur im Dialog vor (aktives Abo, kein Gekündigt-Hinweis).
+		await expect(page.getByRole('dialog')).toBeVisible();
+		await expect(page.getByText(/15\.1?\.2099/)).toBeVisible();
+		await expect(page.getByText(/erstatten wir anteilig/)).toBeVisible();
+		await assertNoOverflow(page, page.getByRole('dialog'));
 	});
 });

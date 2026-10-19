@@ -997,6 +997,8 @@ export const migrateSubscriptionPendingPlanColumns = async (db: Sequelize): Prom
 		{ name: 'firstFailureAt', definition: 'DATETIME' },
 		// Zähler der PayPal-Kündigungsversuche nach Fristablauf (#2606); nullable.
 		{ name: 'cancelRetryAttempts', definition: 'INTEGER' },
+		// Zähler der gescheiterten Restlaufzeit-Erstattungen (#2745); nullable.
+		{ name: 'refundRetryAttempts', definition: 'INTEGER' },
 		// Upgrade-Guthaben (#1912); Default 0 lässt Bestandsabos ohne Verrechnung.
 		{ name: 'creditCents', definition: 'INTEGER NOT NULL DEFAULT 0' },
 		// Zustimmungszeitpunkt eines ausstehenden Upgrades (#2238); nullable, Bestandsabos bleiben ohne.

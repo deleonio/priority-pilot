@@ -104,11 +104,25 @@ export const serializeInvoice = (invoice: Invoice): InvoiceDto => ({
 const ACTIVE_FIRST: Order = [['status', 'ASC']];
 
 // Gekündigtes Abo mit Restlaufzeit (#2049): gilt wie ein laufendes Abo — Muster des Cancel-Fallbacks.
-const findCancelledWithRemaining = (userId: number) =>
-	Subscription.findOne({
-		where: { userId, status: 'cancelled', currentPeriodEnd: { [Op.gt]: new Date() } },
+// #2745: die Restlaufzeit zählt bis zum gekürzten Vertragsende (`pendingPlanEffectiveAt`), sonst bis zum Periodenende.
+const findCancelledWithRemaining = (userId: number) => {
+	const now = new Date();
+	return Subscription.findOne({
+		where: {
+			userId,
+			status: 'cancelled',
+			[Op.or]: [
+				{ pendingPlanEffectiveAt: { [Op.gt]: now } },
+				{ pendingPlanEffectiveAt: null, currentPeriodEnd: { [Op.gt]: now } },
+			],
+		},
 		order: ACTIVE_FIRST,
 	});
+};
+
+// Ende der Restlaufzeit eines gekündigten Abos (#2049/#2745) — Start eines Folgeabos.
+const cancelledEnd = (subscription: Subscription): Date =>
+	(subscription.get('pendingPlanEffectiveAt') as Date | null) ?? (subscription.get('currentPeriodEnd') as Date);
 
 // Basis eines Wechsels: das bezahlte Abo zuerst (laufend, sonst gekündigt mit Restlaufzeit, #2049), ein
 // offener Checkout nur ohne beides — er ist nie bezahlt und bringt kein Guthaben ein (#2235).
@@ -318,7 +332,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			// (#2049) — jeder Buchungsweg läuft über denselben Startzeitpunkt, ein zweites sofort
 			// abbuchendes Abo entsteht so nicht.
 			const cancelled = await findCancelledWithRemaining(userId);
-			const start = (cancelled?.get('currentPeriodEnd') as Date | undefined) ?? new Date();
+			const start = cancelled ? cancelledEnd(cancelled) : new Date();
 			const { approvalUrl, externalSubscriptionId } = await checkout.create(
 				body.plan,
 				body.period,
@@ -442,7 +456,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			// Gekündigtes Abo, Ziel nicht höher (#2049): `revise` liefe ins Leere (bei PayPal bereits
 			// beendet) — stattdessen ein neues Abo, dessen erste Abbuchung erst am Periodenende startet.
 			if (subscription.get('status') === 'cancelled' && rankOf(body.plan) <= rankOf(currentPlan)) {
-				const start = subscription.get('currentPeriodEnd') as Date;
+				const start = cancelledEnd(subscription);
 				const { approvalUrl, externalSubscriptionId } = await checkout.create(body.plan, body.period, undefined, start);
 				await Subscription.create({
 					userId,

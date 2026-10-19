@@ -9238,7 +9238,18 @@ components:
     MeSubscription:
       type: object
       description: Abo-Status im Vertrag von `GET /auth/me` (#1494/#1495/#1505).
-      required: [provider, plan, period, status, currentPeriodEnd, pendingPlan, pendingPlanEffectiveAt, graceUntil]
+      required:
+        [
+          provider,
+          plan,
+          period,
+          status,
+          currentPeriodEnd,
+          pendingPlan,
+          pendingPlanEffectiveAt,
+          graceUntil,
+          contractEndsAt,
+        ]
       properties:
         provider:
           type: string
@@ -9272,6 +9283,13 @@ components:
           description: >-
             Ende der Kulanzfrist nach Zahlungsausfall (#1505 AK6). Konstant `null`, bis
             T6e (#1506) sie befüllt.
+        contractEndsAt:
+          type: [string, 'null']
+          format: date-time
+          description: >-
+            Gekürztes Vertragsende bei Kündigung (#2745): einen Kalendermonat nach Kündigungseingang,
+            wenn das Quartals-/Jahresabo bereits in der zweiten Laufzeit läuft; sonst `null`.
+            Quelle für das Ende im Kündigungsdialog (§ 312k: vor dem Klick).
     Me:
       type: object
       description: Antwort von `GET /auth/me` (Issue #206/#1456/#1494/#1901) — Session, Paket, Entitlements, Abo, Zustimmung.

@@ -2370,6 +2370,7 @@ const SNAPSHOT_COLUMNS: Record<string, readonly string[]> = {
 		'invoiceReference',
 		'pendingPeriod',
 		'pendingPlan',
+		'refundRetryAttempts',
 		'pendingPlanEffectiveAt',
 		'period',
 		'plan',

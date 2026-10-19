@@ -15,6 +15,7 @@ import { getEntitlements, PLAN_VALUES, type Plan } from '../../logics/plans.js';
 import { TERMS_VERSION } from '../../logics/legal.js';
 import { applyDuePendingPlan, applyDueGracePeriod, GRACE_PERIOD_DAYS } from '../../logics/billing/lifecycle.js';
 import { paypalGraceDeps } from '../../logics/paypal.js';
+import { resolveCancellationEnd } from '../../logics/cancellationRefund.js';
 import { sanitizeReturnPath } from '../../logics/silentReturnPath.js';
 import { consumeLoginToken, createNativeLoginCode, nativeLoginToken } from '../../logics/magicLink.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
@@ -557,6 +558,7 @@ authRouter.get('/auth/me', async (req, res) => {
 		pendingPlan: string | null;
 		pendingPlanEffectiveAt: Date | null;
 		graceUntil: Date | null;
+		contractEndsAt: Date | null;
 	} | null = null;
 	try {
 		// #1690: das laufende Abo zuerst; sonst das zuletzt angelegte (gekündigt oder abgelaufen). Ein
@@ -618,6 +620,9 @@ authRouter.get('/auth/me', async (req, res) => {
 				pendingPlanEffectiveAt: dbSubscription.pendingPlanEffectiveAt ?? null,
 				// #1506 (AK7): während laufender Kulanzfrist firstFailureAt + Frist, sonst null.
 				graceUntil: firstFailureAt ? new Date(firstFailureAt.getTime() + GRACE_PERIOD_DAYS * DAY_MS) : null,
+				// #2745: gekürztes Vertragsende bei Kündigung (zweite Laufzeit), sonst null — Quelle für
+				// den Kündigungsdialog (§ 312k: das Ende steht schon VOR dem Klick).
+				contractEndsAt: await resolveCancellationEnd(dbSubscription, now),
 			};
 		}
 	} catch (error) {
