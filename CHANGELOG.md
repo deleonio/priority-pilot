@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.30 - 2026-10-19
 
-_Enthält v0.30.0 – v0.30.17._
+_Enthält v0.30.0 – v0.30.18._
 
 ### 🎉 New Features
 
@@ -15,6 +15,7 @@ _Enthält v0.30.0 – v0.30.17._
 - build(frontend): fullscreen and dark manifest colors on android by @deleonio in https://github.com/deleonio/priority-pilot/pull/2749
 - fix(ui): keep banner button labels unwrapped, fit invitation banner to content by @deleonio in https://github.com/deleonio/priority-pilot/pull/2760
 - feat(server): allow removing a task deadline via mcp task_update null by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2762
+- fix(server): series instances inherit series creator (#2757) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2779
 
 ### 🔧 Engineering
 
@@ -397,6 +398,7 @@ _Enthält v0.18.0 – v0.18.45._
 - feat(frontend): suggest splitting repeatedly postponed large tasks by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2400
 - feat(server): add knowledge entries for pillar suggestions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2409
 - feat(frontend): refetch data on return to foreground by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2408
+- feat(frontend): refetch data on return to foreground by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2408
 
 ### 🐞 Bug Fixes
 
@@ -410,7 +412,6 @@ _Enthält v0.18.0 – v0.18.45._
 - feat(frontend): restore plan matrix, list higher-tier features last by @deleonio in https://github.com/deleonio/priority-pilot/pull/2366
 - chore(native): bundle web app into android app bundle by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2392
 - feat(server): add pinned field to mcp task_update by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2395
-- feat(frontend): store content preferences per account (#2398) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2407
 - feat(frontend): store content preferences per account (#2398) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2407
 - docs(native): add step-by-step firebase setup for push by @deleonio in https://github.com/deleonio/priority-pilot/pull/2431
 
@@ -439,6 +440,7 @@ _Enthält v0.18.0 – v0.18.45._
 - feat(server): list only open tasks in mcp task_list by default (#2144) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2393
 - [P2/M] Server: Inventar der Fachlogik (REST/MCP/Jobs) und Konvention für ihren Ort (#1934) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2403
 - [P1/S] Paketübersicht: Synchronisation in allen Paketen ausweisen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2402
+- docs: evaluate Open-Meteo vs DWD weather APIs (#1931) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2411
 - docs: evaluate Open-Meteo vs DWD weather APIs (#1931) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2411
 - refactor(server): gerundete Entfernung zentral in logics/geo.ts (#2406) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2419
 - docs(tickets): require priority/effort prefix in titles by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2421
