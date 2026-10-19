@@ -232,17 +232,17 @@ importers:
         specifier: 5.3.0
         version: 5.3.0
       '@public-ui/components':
-        specifier: 4.5.0-rc.0
+        specifier: 4.5.0
         version: 4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25)
       '@public-ui/react-v19':
-        specifier: 4.5.0-rc.0
-        version: 4.5.0-rc.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        specifier: 4.5.0
+        version: 4.5.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@public-ui/theme-default':
-        specifier: 4.5.0-rc.0
-        version: 4.5.0-rc.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))
+        specifier: 4.5.0
+        version: 4.5.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))
       '@public-ui/theme-kern':
-        specifier: 4.5.0-rc.0
-        version: 4.5.0-rc.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))
+        specifier: 4.5.0
+        version: 4.5.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))
       '@xyflow/react':
         specifier: 12.11.6
         version: 12.11.6(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -1756,22 +1756,22 @@ packages:
     peerDependencies:
       adopted-style-sheets: 1.1.9-rc.25
 
-  '@public-ui/react-v19@4.5.0-rc.0':
-    resolution: {integrity: sha512-5SelsYt79m0/MgQvI/KBDIiRrs08H6xwG8wHS55IofhEPwhEtg4/03L2nicyLttNDJIrKvMukyV/BsBIkLJ3yQ==}
+  '@public-ui/react-v19@4.5.0':
+    resolution: {integrity: sha512-hLOJdJT7EpTy8K/ZVkOypmTtBtCDX8GAFGyW/YQFAVaAPvSfw+GwJ5W25O3+ZxJrrtvE6Bs/d1HSM4I562aiHw==}
     peerDependencies:
-      '@public-ui/components': 4.5.0-rc.0
+      '@public-ui/components': 4.5.0
       react: 19.x
       react-dom: 19.x
 
-  '@public-ui/theme-default@4.5.0-rc.0':
-    resolution: {integrity: sha512-27Z7OjmawI5TrzxvhUXXPOeyaiHyVxTYpvktdLqGu1BTMK2N+fund+y8CV3nsTkItwgoDFRSxKyrVRWcPAdS3g==}
+  '@public-ui/theme-default@4.5.0':
+    resolution: {integrity: sha512-rw60iit1jyUWnMh0bsr3e9DS99IlLMROV8R1nBrpeeY5ozqGRsSip0jBK1f9DQnaWKyasApwhgNO8AKksHxZ8g==}
     peerDependencies:
-      '@public-ui/components': 4.5.0-rc.0
+      '@public-ui/components': 4.5.0
 
-  '@public-ui/theme-kern@4.5.0-rc.0':
-    resolution: {integrity: sha512-fiaJPQbSAh7ZtoAlBggj0mo2jtp700jQtrEKLMIXRaJio6LVZC0YDr6a7jOb1rIA0dzhmlAYXfjQqqYPBjrS5g==}
+  '@public-ui/theme-kern@4.5.0':
+    resolution: {integrity: sha512-2P9niqOz/sKnYTU8oD9FDrWMrPnG2eWZ9ktH5ktQLNTH6QT6Pekg0b3EZ0h9WDw42JRHGxYMP6z4x9rSpYlkSQ==}
     peerDependencies:
-      '@public-ui/components': 4.5.0-rc.0
+      '@public-ui/components': 4.5.0
 
   '@redis/bloom@6.2.1':
     resolution: {integrity: sha512-huQgNLaCIZfQ9SeLn4q9124uOUd8HbZDYHwwUzNcRgHqCHiHKl2dDxMqJCeWh8cMqZAoWuHR8XnWbDMIf+o7ag==}
@@ -6905,17 +6905,17 @@ snapshots:
       typed-bem: 1.0.2
       wcag-contrast: 3.0.0
 
-  '@public-ui/react-v19@4.5.0-rc.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@public-ui/react-v19@4.5.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
       '@public-ui/components': 4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25)
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
 
-  '@public-ui/theme-default@4.5.0-rc.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))':
+  '@public-ui/theme-default@4.5.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))':
     dependencies:
       '@public-ui/components': 4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25)
 
-  '@public-ui/theme-kern@4.5.0-rc.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))':
+  '@public-ui/theme-kern@4.5.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))':
     dependencies:
       '@public-ui/components': 4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25)
 
