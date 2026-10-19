@@ -218,7 +218,7 @@ jobs:
           fi
 
           gh label create "ci:rechts-team" --repo "$GITHUB_REPOSITORY" --color D93F0B \
-            --description "Wöchentlicher Rechts-Team-Bericht (DSGVO, Impressum, Verbraucherrechte, Plattform)" 2>/dev/null || true
+            --description "Wöchentlicher Rechts-Team-Bericht (Compliance-Hinweise: DSGVO, Impressum, Verbraucherrechte, Plattform)" 2>/dev/null || true
 
           title="ci: Rechts-Team — Wochenblick ($(date -u +%F))"
           number="$(gh issue list --repo "$GITHUB_REPOSITORY" --label ci:rechts-team --state open \
