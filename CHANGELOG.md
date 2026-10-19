@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.30 - 2026-10-19
 
-_Enthält v0.30.0 – v0.30.12._
+_Enthält v0.30.0 – v0.30.13._
 
 ### 🎉 New Features
 
@@ -13,6 +13,7 @@ _Enthält v0.30.0 – v0.30.12._
 ### 🐞 Bug Fixes
 
 - build(frontend): fullscreen and dark manifest colors on android by @deleonio in https://github.com/deleonio/priority-pilot/pull/2749
+- fix(ui): keep banner button labels unwrapped, fit invitation banner to content by @deleonio in https://github.com/deleonio/priority-pilot/pull/2760
 
 ### 🔧 Engineering
 
@@ -207,7 +208,6 @@ _Enthält v0.25.0 – v0.25.19._
 - refactor(server): unify first-cycle credit coverage rule (#2556) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2599
 - refactor(server): column migrations via shared helper (#2552) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2600
 - fix(server): consolidate coordinate parsing into one validated helper by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2601
-- fix(server): replace type assertions with runtime checks (#2554) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2603
 - fix(server): replace type assertions with runtime checks (#2554) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2603
 - test(ci): cover ticket-quality gate decision logic with tests (#2555) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2604
 
