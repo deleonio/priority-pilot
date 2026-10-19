@@ -1,6 +1,6 @@
 name: Audit Prompts
 
-# Wöchentlicher LLM-Job (freitags mittags; wie die Phasen 01–06 über setup-claude, aber KEINE Pipeline-Phase):
+# Wöchentlicher LLM-Job (in der Nacht auf Freitag; wie die Phasen 01–06 über setup-claude, aber KEINE Pipeline-Phase):
 # Review der Phasen-Prompts der KI-Pipeline unter der Leitfrage: Wie lässt sich der
 # Aufwand pro Phase minimieren (Turns zuerst, Tokens dazu), ohne dass Korrektheit,
 # Vollständigkeit, Präzision, Prägnanz, Klarheit oder Widerspruchsfreiheit leiden — und ohne
@@ -37,7 +37,7 @@ name: Audit Prompts
 
 on:
   schedule:
-    - cron: '17 13 * * 5' # wöchentlich freitags 13:17 UTC (15:17/14:17 Berlin) — Freitag mittag im Team-Block: Reports bereit für den Issue-Tree am Nachmittag
+    - cron: '17 3 * * 5' # wöchentlich freitags 03:17 UTC (05:17/04:17 Berlin) — Nacht auf Freitag im Team-Block: Reports früh am Freitag fertig für den Issue-Tree
   workflow_dispatch:
     inputs:
       force:

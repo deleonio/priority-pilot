@@ -12,7 +12,7 @@ name: Nit Report
 
 on:
   schedule:
-    - cron: '41 12 * * 5' # woechentlich freitags 12:41 UTC (14:41/13:41 Berlin) — Freitag mittag im Team-Block: Reports bereit fuer den Issue-Tree am Nachmittag
+    - cron: '41 2 * * 5' # woechentlich freitags 02:41 UTC (04:41/03:41 Berlin) — Nacht auf Freitag im Team-Block: Reports früh am Freitag fertig fuer den Issue-Tree
   workflow_dispatch:
 
 concurrency:

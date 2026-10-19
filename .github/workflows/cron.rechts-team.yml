@@ -28,7 +28,7 @@ name: Rechts Team
 
 on:
   schedule:
-    - cron: '53 11 * * 5' # wöchentlich freitags 11:53 UTC (13:53/12:53 Berlin) — Freitag mittag im Team-Block nach UX-Team: Reports bereit für den Issue-Tree am Nachmittag
+    - cron: '53 1 * * 5' # wöchentlich freitags 01:53 UTC (03:53/02:53 Berlin) — Nacht auf Freitag im Team-Block nach UX-Team: Reports früh am Freitag fertig für den Issue-Tree
   workflow_dispatch:
     inputs:
       force:

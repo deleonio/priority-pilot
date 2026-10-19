@@ -2,12 +2,12 @@ name: Optimize Tests
 
 # Wöchentliche Analyse der Test-Suite nach TDD-Prinzipien (Substance over Quantity).
 # Erkennt tautologische Tests, Redundanzen, fehlende Mutation-Probes, leere Mengen.
-# Läuft freitags 10:57 UTC (12:57/11:57 Berlin) — Auftakt des Team-Freitags; nicht auf Push/PR, um CI nicht zu belasten.
+# Läuft freitags 00:57 UTC (02:57/01:57 Berlin) — Auftakt des Team-Blocks in der Nacht auf Freitag; nicht auf Push/PR, um CI nicht zu belasten.
 # Ergebnis: Markdown-Report als Workflow-Artefakt + optional Issue bei kritischen Findings.
 
 on:
   schedule:
-    - cron: '57 10 * * 5' # woechentlich freitags 10:57 UTC (12:57/11:57 Berlin) — Auftakt des Team-Freitags: Reports bereit fuer den Issue-Tree am Nachmittag
+    - cron: '57 0 * * 5' # woechentlich freitags 00:57 UTC (02:57/01:57 Berlin) — Auftakt des Team-Blocks in der Nacht auf Freitag: Reports frueh am Freitag fertig fuer den Issue-Tree
   workflow_dispatch: {} # manuell anstoßbar
 
 concurrency:

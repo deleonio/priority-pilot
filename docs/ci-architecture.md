@@ -546,7 +546,7 @@ Kein `--model`: das Modell wird über `"model": "opus"` in der `settings.json` g
 `ANTHROPIC_DEFAULT_OPUS_MODEL` auf `glm-5.3[1m]` ab.
 
 **Prompt:** Kanonisch in `.github/prompts/` (triage, ux, spec, implement, fixup, review,
-documenter, dazu die Helper-Crons spec-sync/guide-sync/prompt-audit/code-review-team (Prompt-Audit freitags mittags);
+documenter, dazu die Helper-Crons spec-sync/guide-sync/prompt-audit/code-review-team (Prompt-Audit in der Nacht auf Freitag);
 Memory-Snippets memory-read.md/memory-write.md am selben Ort);
 per `sed`/`cat` nach `/tmp/claude-prompt.txt` assembliert und via `-p "$(cat /tmp/claude-prompt.txt)"`
 übergeben — vermeidet Shell-Quoting-Probleme. Die Methode je Phase lebt in der `SKILL.md` des
@@ -1024,8 +1024,8 @@ für dieses Ticket die Phasen 2–4; keine Phase setzt das Label je selbst.
 
 ## Wöchentliches Code-Review-Team (`cron.code-review-team.yml`)
 
-Keine Pipeline-Phase, sondern ein Helper-Workflow (freitags 13:27 UTC als Abschluss des
-Team-Freitags am Mittag, plus `workflow_dispatch`): Ein Team aus vier Perspektiven — Architekt, Clean-Code-Reviewer,
+Keine Pipeline-Phase, sondern ein Helper-Workflow (freitags 03:27 UTC (05:27/04:27 Berlin) als Abschluss des
+Team-Blocks in der Nacht auf Freitag, plus `workflow_dispatch`): Ein Team aus vier Perspektiven — Architekt, Clean-Code-Reviewer,
 Test-Ingenieur, Betriebs- und Sicherheits-Wächter (Methode:
 [`code-review-team`](../.claude/skills/code-review-team/SKILL.md)) — begeht `server/src/`,
 `frontend/src/` und `.github/scripts/` gegen die Vorgaben des Repos (`AGENTS.md`,

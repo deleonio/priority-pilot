@@ -1,6 +1,6 @@
 name: Code Review Team
 
-# Wöchentlicher LLM-Job (freitags mittags, Abschluss des Team-Blocks; wie die Phasen 01–06 über setup-agent, aber KEINE Pipeline-Phase):
+# Wöchentlicher LLM-Job (in der Nacht auf Freitag, Abschluss des Team-Blocks; wie die Phasen 01–06 über setup-agent, aber KEINE Pipeline-Phase):
 # Ein Code-Review-Team aus vier Perspektiven (Architekt, Clean-Code-Reviewer, Test-Ingenieur,
 # Betriebs- und Sicherheits-Wächter — Methode: .claude/skills/code-review-team/SKILL.md) begeht
 # den Code gegen die Vorgaben des Repos (AGENTS.md, .ai-knowledge/, docs/, ADRs) und prüft
@@ -44,7 +44,7 @@ name: Code Review Team
 
 on:
   schedule:
-    - cron: '27 13 * * 5' # wöchentlich freitags 13:27 UTC (15:27/14:27 Berlin) — Abschluss des Team-Freitags: Reports bereit für den Issue-Tree am Nachmittag, der Fix-PR läuft übers Wochenende durch die Pipeline
+    - cron: '27 3 * * 5' # wöchentlich freitags 03:27 UTC (05:27/04:27 Berlin) — Abschluss des Team-Blocks in der Nacht auf Freitag: Fix-PR und Reports früh am Freitag fertig, der Fix-PR läuft übers Wochenende durch die Pipeline
   workflow_dispatch:
     inputs:
       force:
