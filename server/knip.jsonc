@@ -13,4 +13,6 @@
 	// In-Datei genutzte Exports (z. B. ensureColumns, #2552) gelten als benutzt — der Zugriff der
 	// Spec-Tests über das migrateModule-Cast-Muster löst knip nicht auf.
 	"ignoreExportsUsedInFile": true,
+	// #2745 Spec-Phase: rote Tests importieren den neuen Seam — Modul entsteht in der Impl-Phase.
+	"ignoreUnresolved": ["src/logics/cancellationRefund.js"],
 }
