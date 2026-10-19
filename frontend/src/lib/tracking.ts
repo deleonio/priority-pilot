@@ -13,7 +13,7 @@ const CHANNEL_DIMENSION = 1;
 
 const channel = (): string => {
 	if (getChannel() === 'play') return 'android';
-	return window.matchMedia?.('(display-mode: standalone)').matches ? 'pwa' : 'web';
+	return window.matchMedia?.('(display-mode: standalone), (display-mode: fullscreen)').matches ? 'pwa' : 'web';
 };
 
 let lastPath: string | undefined;
