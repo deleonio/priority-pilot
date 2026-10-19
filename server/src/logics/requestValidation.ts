@@ -6,6 +6,7 @@
  * Fehler-Präzedenz bei mehrfach ungültigem Body unverändert bleibt.
  */
 
+import { istGueltigesDatum, zeitraumInTagen } from './balanceHistory.js';
 import { MAX_EFFORT, MIN_EFFORT } from './effort.js';
 
 /** Generischer Erfolgs-/Fehler-Kanal der Body-Validierung; der Erfolgs-Shape bleibt beim Aufrufer. */
@@ -148,3 +149,28 @@ export function validateIsoDate(
 	}
 	return { ok: true, value: new Date(value) };
 }
+
+/**
+ * Query-Zeitraum `von`/`bis` (YYYY-MM-DD): Pflicht, existierende Daten, `bis` nicht vor `von`,
+ * Dauer höchstens `maxTage` Tage. Ersetzt den wortgleichen Guard aus `routes/journal.ts` und
+ * `routes/scores.ts`; die Meldungen bleiben identisch (API-Vertrag der 400er-Antworten).
+ */
+export const validateZeitraum = (
+	query: Record<string, unknown>,
+	maxTage: number,
+): FieldResult<{ von: string; bis: string }> => {
+	const { von, bis } = query;
+	if (typeof von !== 'string' || typeof bis !== 'string') {
+		return { ok: false, message: '"von" und "bis" sind Pflichtparameter (Format YYYY-MM-DD).' };
+	}
+	if (!istGueltigesDatum(von) || !istGueltigesDatum(bis)) {
+		return { ok: false, message: '"von" und "bis" müssen ein existierendes Datum im Format YYYY-MM-DD angeben.' };
+	}
+	if (bis < von) {
+		return { ok: false, message: '"bis" darf nicht vor "von" liegen.' };
+	}
+	if (zeitraumInTagen(von, bis) > maxTage) {
+		return { ok: false, message: `Der Zeitraum darf höchstens ${maxTage} Tage umfassen.` };
+	}
+	return { ok: true, value: { von, bis } };
+};
