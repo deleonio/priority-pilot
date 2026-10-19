@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.30 - 2026-10-19
 
-_Enthält v0.30.0 – v0.30.9._
+_Enthält v0.30.0 – v0.30.10._
 
 ### 🎉 New Features
 
@@ -204,7 +204,6 @@ _Enthält v0.25.0 – v0.25.19._
 - feat(server): handle missing paypal credentials explicitly (#2545) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2591
 - ci(triage): read container result from both sources (#2590) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2593
 - refactor(server): unify first-cycle credit coverage rule (#2556) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2599
-- refactor(server): column migrations via shared helper (#2552) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2600
 - refactor(server): column migrations via shared helper (#2552) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2600
 - fix(server): consolidate coordinate parsing into one validated helper by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2601
 - fix(server): replace type assertions with runtime checks (#2554) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2603
@@ -558,6 +557,8 @@ _Enthält v0.16.0 – v0.16.37._
 - feat(groups): add balance-ranked group challenge with share card by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2196
 - feat(frontend): add balance duo card and invite flow (#1991) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2195
 - fix(frontend): hide closed modal body in sync, stabilize e2e tab click by @deleonio in https://github.com/deleonio/priority-pilot/pull/2206
+- feat(website): add account-free balance check (#1979) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2205
+- docs: dedupe decision log and note removal of dead model vars by @deleonio in https://github.com/deleonio/priority-pilot/pull/2207
 - feat(website): add account-free balance check (#1979) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2205
 - docs: dedupe decision log and note removal of dead model vars by @deleonio in https://github.com/deleonio/priority-pilot/pull/2207
 - feat(server): fetch and store calendar events from ICS address by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2218
