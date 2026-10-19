@@ -7,7 +7,7 @@ import { getUserId, ownerScope } from '../requireAuth.js';
 import { getVapidPublicKey, isPushConfigured, sendPushToUser } from '../../logics/push.js';
 import type { PushSender } from '../../logics/push.js';
 import { pickRandomQuote } from '../../logics/pushTestQuote.js';
-import { validateRequestBody } from '../../logics/requestValidation.js';
+import { validateNonEmptyString, validateRequestBody } from '../../logics/requestValidation.js';
 import type { ValidationResult } from '../../logics/requestValidation.js';
 import { spracheAusHeader } from '../../logics/careSuggestionData.js';
 import type { components } from '../../api';
@@ -36,32 +36,41 @@ const validateSubscription = (body: unknown): ValidationResult<{ ok: true; value
 		return bodyResult;
 	}
 	const { endpoint, keys, expirationTime } = bodyResult.value;
-	if (typeof endpoint !== 'string' || endpoint.trim() === '') {
-		return { ok: false, message: 'endpoint muss ein nicht-leerer String sein.' };
+	const endpointCheck = validateNonEmptyString(endpoint, 'endpoint');
+	if (!endpointCheck.ok) {
+		return endpointCheck;
 	}
 	if (typeof keys !== 'object' || keys === null) {
 		return { ok: false, message: 'keys muss ein Objekt mit p256dh und auth sein.' };
 	}
 	const { p256dh, auth } = keys as Record<string, unknown>;
-	if (typeof p256dh !== 'string' || p256dh.trim() === '') {
-		return { ok: false, message: 'keys.p256dh muss ein nicht-leerer String sein.' };
+	const p256dhCheck = validateNonEmptyString(p256dh, 'keys.p256dh');
+	if (!p256dhCheck.ok) {
+		return p256dhCheck;
 	}
-	if (typeof auth !== 'string' || auth.trim() === '') {
-		return { ok: false, message: 'keys.auth muss ein nicht-leerer String sein.' };
+	const authCheck = validateNonEmptyString(auth, 'keys.auth');
+	if (!authCheck.ok) {
+		return authCheck;
 	}
 	if (expirationTime !== undefined && expirationTime !== null && typeof expirationTime !== 'number') {
 		return { ok: false, message: 'expirationTime muss eine Zahl oder null sein.' };
 	}
 	return {
 		ok: true,
-		value: { endpoint, p256dh, auth, expirationTime: typeof expirationTime === 'number' ? expirationTime : null },
+		value: {
+			endpoint: endpointCheck.value,
+			p256dh: p256dhCheck.value,
+			auth: authCheck.value,
+			expirationTime: typeof expirationTime === 'number' ? expirationTime : null,
+		},
 	};
 };
 
 /** `token` aus dem Body von `/push/fcm/*` — `null`, wenn es fehlt, leer oder unplausibel lang ist. */
 const fcmTokenOf = (body: unknown): string | null => {
 	const { token } = (body ?? {}) as Record<string, unknown>;
-	return typeof token === 'string' && token.trim() !== '' && token.length <= 4096 ? token : null;
+	const tokenCheck = validateNonEmptyString(token, 'token');
+	return tokenCheck.ok && tokenCheck.value.length <= 4096 ? tokenCheck.value : null;
 };
 
 /**
@@ -127,16 +136,20 @@ export const createPushRouter = (pushSender?: PushSender) => {
 			return;
 		}
 		const { endpoint } = (req.body ?? {}) as Record<string, unknown>;
-		if (typeof endpoint !== 'string' || endpoint.trim() === '') {
-			sendError(res, 400, 'endpoint muss ein nicht-leerer String sein.');
+		const endpointCheck = validateNonEmptyString(endpoint, 'endpoint');
+		if (!endpointCheck.ok) {
+			sendError(res, 400, endpointCheck.message);
 			return;
 		}
+		const { value: endpointValue } = endpointCheck;
 		const userId = getUserId(req);
 
 		try {
 			// Nur die eigene Subscription entfernen (Datenisolation): endpoint + userId müssen passen.
-			await PushSubscription.destroy({ where: { endpoint, ...(userId !== undefined ? { userId } : {}) } });
-			res.status(200).json({ endpoint });
+			await PushSubscription.destroy({
+				where: { endpoint: endpointValue, ...(userId !== undefined ? { userId } : {}) },
+			});
+			res.status(200).json({ endpoint: endpointValue });
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}

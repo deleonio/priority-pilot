@@ -4,7 +4,7 @@ import { parseId, sendError, type ErrorDto } from '../http-error.js';
 import { JournalEntry, Pillar, ScoreEntry, Task } from '../../models/index.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { berechneBalanceVerlauf, type BalanceHistoryEintrag } from '../../logics/balanceHistory.js';
-import { validateZeitraum } from '../../logics/requestValidation.js';
+import { queryString, validateZeitraum } from '../../logics/requestValidation.js';
 import { istGueltigeZeitzone } from '../../logics/streak.js';
 import { berechneJournalFenster, fensterListe, type JournalStatsGranularitaet } from '../../logics/journalStats.js';
 import type { PillarWithContribution } from '../../models/task.js';
@@ -121,9 +121,14 @@ journalRouter.get('/journal/stats', async (req: Request, res: Response<JournalSt
 			return;
 		}
 		const { von, bis } = zeitraum.value;
+		const granularitaetErgebnis = queryString(req.query.granularitaet, 'granularitaet');
+		if (!granularitaetErgebnis.ok) {
+			sendError(res, 400, granularitaetErgebnis.message);
+			return;
+		}
 		const angefragt: string | undefined =
-			typeof req.query.granularitaet === 'string' && req.query.granularitaet !== ''
-				? req.query.granularitaet
+			granularitaetErgebnis.value !== undefined && granularitaetErgebnis.value !== ''
+				? granularitaetErgebnis.value
 				: undefined;
 		if (angefragt !== undefined && angefragt !== 'tag' && angefragt !== 'woche') {
 			sendError(res, 400, 'Die Granularität muss "tag" oder "woche" sein.');
@@ -139,7 +144,12 @@ journalRouter.get('/journal/stats', async (req: Request, res: Response<JournalSt
 		]);
 		const zeitpunktProTask = new Map(entries.map((entry) => [entry.taskId, entry.zeitpunkt]));
 
-		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+		const tzErgebnis = queryString(req.query.tz, 'tz');
+		if (!tzErgebnis.ok) {
+			sendError(res, 400, tzErgebnis.message);
+			return;
+		}
+		const angefragteZone = tzErgebnis.value;
 		const zeitZone = istGueltigeZeitzone(angefragteZone)
 			? angefragteZone
 			: Intl.DateTimeFormat().resolvedOptions().timeZone;

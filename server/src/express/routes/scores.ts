@@ -25,7 +25,7 @@ import { meilensteinStandVon } from '../../logics/milestones.js';
 import MilestoneReached from '../../models/milestoneReached.js';
 import { berechneLebensbalanceNachKadenz, zaehleErledigungenImKadenzFenster } from '../../logics/heartBalance.js';
 import { berechneBalanceVerlauf } from '../../logics/balanceHistory.js';
-import { validateZeitraum } from '../../logics/requestValidation.js';
+import { queryString, validateZeitraum } from '../../logics/requestValidation.js';
 import { pillarTextIn, resolvePillarDescription } from '../../models/pillarData.js';
 import CareSuggestionDismissal from '../../models/careSuggestionDismissal.js';
 import CareSuggestionRejection from '../../models/careSuggestionRejection.js';
@@ -134,7 +134,12 @@ scoresRouter.get('/scores/streak', async (req: Request, res: Response<StreakDto 
 		]);
 		// Der Client schickt seine IANA-Zeitzone mit (`?tz=`); ohne oder mit unbekanntem Wert wertet
 		// der Server in seiner eigenen Zeitzone aus — die Anzeige verschiebt sich, es gibt keinen Fehler.
-		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+		const tzErgebnis = queryString(req.query.tz, 'tz');
+		if (!tzErgebnis.ok) {
+			sendError(res, 400, tzErgebnis.message);
+			return;
+		}
+		const angefragteZone = tzErgebnis.value;
 		const zeitZone = istGueltigeZeitzone(angefragteZone)
 			? angefragteZone
 			: Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -164,7 +169,12 @@ scoresRouter.get('/scores/streak', async (req: Request, res: Response<StreakDto 
 // (Scoping dort, Muster /scores/streak).
 scoresRouter.get('/scores/milestones', async (req: Request, res: Response<MilestoneDto[] | ErrorDto>) => {
 	try {
-		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+		const tzErgebnis = queryString(req.query.tz, 'tz');
+		if (!tzErgebnis.ok) {
+			sendError(res, 400, tzErgebnis.message);
+			return;
+		}
+		const angefragteZone = tzErgebnis.value;
 		const zeitZone = istGueltigeZeitzone(angefragteZone)
 			? angefragteZone
 			: Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -240,7 +250,12 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 		const balance = berechneLebensbalanceNachKadenz(balanceSaeulen, kadenzTasks, jetzt);
 		const defizite = bewerteCareDefizit(balanceSaeulen, kadenzTasks, jetzt);
 
-		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+		const tzErgebnis = queryString(req.query.tz, 'tz');
+		if (!tzErgebnis.ok) {
+			sendError(res, 400, tzErgebnis.message);
+			return;
+		}
+		const angefragteZone = tzErgebnis.value;
 		const zeitZone = istGueltigeZeitzone(angefragteZone)
 			? angefragteZone
 			: Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -320,7 +335,12 @@ scoresRouter.get(
 			]);
 			const zeitpunktProTask = new Map(entries.map((entry) => [entry.taskId, entry.zeitpunkt]));
 
-			const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+			const tzErgebnis = queryString(req.query.tz, 'tz');
+			if (!tzErgebnis.ok) {
+				sendError(res, 400, tzErgebnis.message);
+				return;
+			}
+			const angefragteZone = tzErgebnis.value;
 			const zeitZone = istGueltigeZeitzone(angefragteZone)
 				? angefragteZone
 				: Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -358,7 +378,12 @@ const MONAT_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 scoresRouter.get('/scores/monthly-recap', async (req: Request, res: Response<MonthlyRecapDto | ErrorDto>) => {
 	try {
-		const monat = typeof req.query.monat === 'string' ? req.query.monat : '';
+		const monatErgebnis = queryString(req.query.monat, 'monat');
+		if (!monatErgebnis.ok) {
+			sendError(res, 400, monatErgebnis.message);
+			return;
+		}
+		const monat = monatErgebnis.value ?? '';
 		if (!MONAT_REGEX.test(monat)) {
 			sendError(
 				res,
@@ -367,7 +392,12 @@ scoresRouter.get('/scores/monthly-recap', async (req: Request, res: Response<Mon
 			);
 			return;
 		}
-		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+		const tzErgebnis = queryString(req.query.tz, 'tz');
+		if (!tzErgebnis.ok) {
+			sendError(res, 400, tzErgebnis.message);
+			return;
+		}
+		const angefragteZone = tzErgebnis.value;
 		const zeitZone = istGueltigeZeitzone(angefragteZone)
 			? angefragteZone
 			: Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -431,13 +461,23 @@ const JAHR_REGEX = /^\d{4}$/;
 
 scoresRouter.get('/scores/yearly-recap', async (req: Request, res: Response<YearlyRecapDto | ErrorDto>) => {
 	try {
-		const jahrText = typeof req.query.jahr === 'string' ? req.query.jahr : '';
+		const jahrErgebnis = queryString(req.query.jahr, 'jahr');
+		if (!jahrErgebnis.ok) {
+			sendError(res, 400, jahrErgebnis.message);
+			return;
+		}
+		const jahrText = jahrErgebnis.value ?? '';
 		if (!JAHR_REGEX.test(jahrText)) {
 			sendError(res, 400, '"jahr" ist ein Pflichtparameter und muss ein vierstelliges Jahr (JJJJ) benennen.');
 			return;
 		}
 		const jahr = Number(jahrText);
-		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+		const tzErgebnis = queryString(req.query.tz, 'tz');
+		if (!tzErgebnis.ok) {
+			sendError(res, 400, tzErgebnis.message);
+			return;
+		}
+		const angefragteZone = tzErgebnis.value;
 		const zeitZone = istGueltigeZeitzone(angefragteZone)
 			? angefragteZone
 			: Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -868,7 +908,13 @@ scoresRouter.get(
 			const userId = getUserId(req);
 			// #2495: Vorhandener, aber nicht ganzzahliger taskId ist ein Bedienfehler (400), statt den
 			// Filter still entfallen zu lassen; fehlender oder leerer Parameter bleibt Bestandsverhalten.
-			const taskIdRaw = typeof req.query.taskId === 'string' && req.query.taskId !== '' ? req.query.taskId : undefined;
+			const taskIdErgebnis = queryString(req.query.taskId, 'taskId');
+			if (!taskIdErgebnis.ok) {
+				sendError(res, 400, taskIdErgebnis.message);
+				return;
+			}
+			const taskIdRaw =
+				taskIdErgebnis.value !== undefined && taskIdErgebnis.value !== '' ? taskIdErgebnis.value : undefined;
 			const taskId = taskIdRaw !== undefined ? Number(taskIdRaw) : undefined;
 			if (taskId !== undefined && !Number.isInteger(taskId)) {
 				sendError(res, 400, 'taskId muss eine Ganzzahl sein.');

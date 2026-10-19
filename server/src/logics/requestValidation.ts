@@ -174,3 +174,28 @@ export const validateZeitraum = (
 	}
 	return { ok: true, value: { von, bis } };
 };
+
+/**
+ * Nicht-leerer String (#2772): ersetzt die Inline-Guards `typeof x !== 'string' || x.trim() === ''`
+ * aus `routes/push.ts`; die Meldung ist wortgleich mit den bisherigen Literalen (endpoint,
+ * keys.p256dh/keys.auth), der Feldname wird als Präfix eingesetzt.
+ */
+export const validateNonEmptyString = (value: unknown, field: string): FieldResult<string> => {
+	if (typeof value !== 'string' || value.trim() === '') {
+		return { ok: false, message: `${field} muss ein nicht-leerer String sein.` };
+	}
+	return { ok: true, value };
+};
+
+/**
+ * Query-Einzelwert-Regel (#2772): mehrfach gesendete String-Query-Parameter parst Express zu einem
+ * Array (`?tz=UTC&tz=Europe/Berlin`) — ein Bedienfehler, der 400 liefert, statt still auf
+ * Fallback/Leerfilter zu fallen. Fehlender oder nicht-String-Wert ergibt `undefined`; die
+ * Leer-/Trim-Behandlung bleibt beim Aufrufer (Bestandsverhalten).
+ */
+export const queryString = (value: unknown, field: string): FieldResult<string | undefined> => {
+	if (Array.isArray(value)) {
+		return { ok: false, message: `${field} darf nur einmal als Query-Parameter übergeben werden.` };
+	}
+	return { ok: true, value: typeof value === 'string' ? value : undefined };
+};
