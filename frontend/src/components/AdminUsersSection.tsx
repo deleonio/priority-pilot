@@ -8,8 +8,12 @@ import { toApiError } from '../lib/apiError';
 import { formatEuro, paymentStatusLabel } from '../lib/format';
 import { planLabel } from '../lib/planOffers';
 import { useReassignRun, type ReassignPortionArgs } from '../lib/useReassignRun';
-import { getApiBase } from '../lib/siteOrigin';
+import { getApiBase, getPublicOrigin } from '../lib/siteOrigin';
+import { CopyButton } from './CopyButton';
 import { Modal } from './Modal';
+
+/** Admin-MCP-Endpunkt (#1338) — nur hier sichtbar, nicht in der öffentlichen MCP-Anleitung. */
+const MCP_ADMIN_URL = `${getPublicOrigin()}/api/v1/mcp/admin/v1`;
 import { ReassignFailureList, ReassignProgressView, ReassignStatusText } from './ReassignRunViews';
 
 /** Statusauswahl des Neuberechnungs-Laufs (#1614) — „offen" schließt Aufgaben in Bearbeitung ein. */
@@ -408,6 +412,19 @@ export const AdminUsersSection = ({ currentUserId }: { currentUserId?: number })
 
 	return (
 		<div className="admin-users">
+			<div className="api-tokens__mcp-url">
+				<span>{t('adminUsers.mcpEndpoint')}</span>
+				<div className="copy-row">
+					<span className="api-tokens__plaintext" data-testid="mcp-admin-url">
+						{MCP_ADMIN_URL}
+					</span>
+					<CopyButton
+						text={MCP_ADMIN_URL}
+						ariaLabel={t('adminUsers.copyUrl')}
+						onError={(message) => setError(message)}
+					/>
+				</div>
+			</div>
 			{error !== null && (
 				<KolAlert _type="error" _label={t('adminUsers.actionFailed')}>
 					{error}

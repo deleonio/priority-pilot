@@ -3047,7 +3047,8 @@ paths:
     get:
       summary: Abos eines Nutzers auflisten
       description: >-
-        #2295: nur für Admins (403 sonst). Alle Abos des Nutzers, neueste zuerst.
+        #2295: nur für Admins (403 sonst). Alle Abos des Nutzers, neueste zuerst; `running`
+        kennzeichnet effektiv laufende Abos (#1338).
       operationId: listAdminUserSubscriptions
       tags: [admin]
       responses:
@@ -3067,6 +3068,12 @@ paths:
                 $ref: '#/components/schemas/Error'
         '403':
           description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Nutzer nicht gefunden
           content:
             application/json:
               schema:
@@ -3429,6 +3436,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CareWirkung'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /admin/subscriptions/summary:
+    get:
+      summary: Abo-Übersicht (#1338)
+      description: >-
+        Nur für Admins (403 sonst). Zählungen über alle Abos ohne Personendaten. Laufend heißt
+        `active`, `past_due` oder `suspended` oder `cancelled` mit `currentPeriodEnd` in der
+        Zukunft; `approval_pending` zählt nicht.
+      operationId: getAdminSubscriptionsSummary
+      tags: [admin]
+      responses:
+        '200':
+          description: Übersicht
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSubscriptionsSummary'
         '403':
           description: Angemeldeter Nutzer ist kein Admin
           content:
@@ -5990,7 +6021,7 @@ components:
     AdminSubscription:
       type: object
       description: Abo eines Nutzers in der Admin-Nutzerverwaltung (#2295).
-      required: [id, provider, plan, status, currentPeriodEnd, createdAt]
+      required: [id, provider, plan, status, currentPeriodEnd, createdAt, running]
       properties:
         id:
           type: integer
@@ -6008,6 +6039,37 @@ components:
         createdAt:
           type: string
           format: date-time
+        running:
+          type: boolean
+          description: Läuft effektiv (#1338) — bezahlt offen oder gekündigt mit Restlaufzeit.
+    AdminSubscriptionsSummary:
+      type: object
+      description: Abo-Übersicht für Admins (#1338), nur Zählungen.
+      required: [byPlanAndStatus, running, overdue, cancelledWithRemainingTerm, endingWithin30Days]
+      properties:
+        byPlanAndStatus:
+          type: object
+          description: Anzahl je Paket und Status.
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: integer
+        running:
+          type: object
+          description: Effektiv laufende Abos je Paket und Laufzeit.
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: integer
+        overdue:
+          type: integer
+          description: Abos mit Status `past_due` oder `suspended`.
+        cancelledWithRemainingTerm:
+          type: integer
+          description: Gekündigte Abos mit Restlaufzeit.
+        endingWithin30Days:
+          type: integer
+          description: Laufende Abos, deren Laufzeit in den nächsten 30 Tagen endet.
     AdminWaitlistEntry:
       type: object
       description: Eintrag der Warteliste im Referral-Rang (#1982, ADR 0019).

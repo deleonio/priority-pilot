@@ -1,4 +1,4 @@
-import { DataTypes, Model, literal, type OrderItem } from 'sequelize';
+import { DataTypes, Model, Op, literal, type OrderItem, type WhereOptions } from 'sequelize';
 import sequelize from '../database.js';
 
 /**
@@ -149,6 +149,22 @@ export const OPEN_SUBSCRIPTION_STATUSES = ['active', 'approval_pending', 'past_d
 
 /** Zahlungsrückstand (#2240): das Abo läuft beim Anbieter weiter und zählt als offen. */
 export const OVERDUE_SUBSCRIPTION_STATUSES = ['past_due', 'suspended'];
+
+/** Status, in denen ein Abo bezahlt läuft — anders als {@link OPEN_SUBSCRIPTION_STATUSES} ohne `approval_pending`. */
+const RUNNING_SUBSCRIPTION_STATUSES = ['active', 'past_due', 'suspended'];
+
+/** Läuft effektiv (#1338): bezahlt offen oder gekündigt mit Restlaufzeit. */
+export const isSubscriptionRunning = (
+	sub: { status: string; currentPeriodEnd: Date | null },
+	now = new Date(),
+): boolean =>
+	RUNNING_SUBSCRIPTION_STATUSES.includes(sub.status) ||
+	(sub.status === 'cancelled' && sub.currentPeriodEnd !== null && sub.currentPeriodEnd > now);
+
+/** {@link isSubscriptionRunning} als Datenbank-Filter. */
+export const runningSubscriptionWhere = (now = new Date()): WhereOptions => ({
+	[Op.or]: [{ status: RUNNING_SUBSCRIPTION_STATUSES }, { status: 'cancelled', currentPeriodEnd: { [Op.gt]: now } }],
+});
 
 /** Reihenfolge offener Abos: bezahlte vor einem nie bestätigten Checkout (#2235, #2240). */
 export const PAID_FIRST: OrderItem = [literal("status = 'approval_pending'"), 'ASC'];

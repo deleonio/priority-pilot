@@ -29,3 +29,7 @@ Der Pfad liegt als Konstante `MCP_PATH` in `server/src/mcp/server.ts`. Jede Midd
 - Protokoll-Drift (neue Spec-Versionen, Client-Sonderfälle) wird selbst getragen; die Tests am echten JSON-RPC-Verhalten (`mcp-auth.test.ts`, `tools.test.ts`) sind der Schutz.
 - Clients, die SSE-Antworten, Sessions oder Server-Push zwingend erwarten, funktionieren gegen diesen Endpunkt nicht.
 - Eine Migration auf das SDK wird bei einem dieser Trigger neu entschieden: ein verbauter oder angestrebter Client verlangt SSE/Sessions, oder der Umfang wächst über Werkzeuge hinaus (#1338 Admin-Tools, Resources/Prompts).
+
+## Nachtrag 2026-10-19 (#1338)
+
+Der Admin-Endpunkt `POST /mcp/admin/v1` bietet weiterhin nur Werkzeuge an. Der Trigger „Umfang wächst über Werkzeuge hinaus“ ist damit nicht ausgelöst; beide Endpunkte teilen denselben handgerollten Handler (`createMcpHandler` in `server/src/mcp/server.ts`), das SDK bleibt Test-Abhängigkeit.

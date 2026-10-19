@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Request, Response, NextFunction } from 'express';
 import { ApiToken, User } from '../models/index.js';
-import { MCP_PATH } from '../mcp/server.js';
+import { MCP_ADMIN_PATH, MCP_PATH } from '../mcp/server.js';
 import { sendError, sendPlanError } from './http-error.js';
 import { getEntitlements, shouldBlockFeature } from '../logics/plans.js';
 import { FEATURE_LABELS } from './planGuard.js';
@@ -161,6 +161,7 @@ const normalizePath = (path: string): string => (path.length > 1 ? path.replace(
  *   gespiegelte HTTP-Route schickt, läuft hier zusätzlich in die Regel unten (AK6).
  * - Verglichen wird der über {@link normalizePath} normalisierte Pfad: der Router bedient
  *   `/mcp/v1` und `/mcp/v1/` mit derselben Route, also muss diese Ausnahme das auch tun.
+ * - `POST /mcp/admin/v1` ({@link MCP_ADMIN_PATH}, #1338) gilt als Transportroute wie `/mcp/v1`.
  * - Alle übrigen schreibenden Requests (POST/PUT/PATCH/DELETE) eines Tokens mit `scope: 'read'`
  *   werden mit 403 abgewiesen, bevor die Fachroute läuft (AK4).
  * - `mcp_read` (#1524 AK4/AK5) deckelt JEDEN Bearer-Request unabhängig von HTTP-Methode und vom
@@ -181,12 +182,15 @@ export const apiTokenScopeGuard = (req: Request, res: Response, next: NextFuncti
 		sendError(res, 403, 'Die Token-Verwaltung ist über einen API-Token nicht erreichbar.');
 		return;
 	}
-	if (path === MCP_PATH) {
+	if (path === MCP_PATH || path === MCP_ADMIN_PATH) {
 		next();
 		return;
 	}
+	// Admin-Auskunft (#1338) ist kein Paketmerkmal: lesende `/admin/*`-Requests (die Loopbacks von
+	// `mcp/adminTools.ts`) überspringen das Paket-Gate, `requireRole('admin')` an der Route entscheidet.
+	const adminRead = (req.method === 'GET' || req.method === 'HEAD') && path.startsWith('/admin/');
 	const currentPlan = req.session.user?.plan;
-	if (currentPlan !== undefined && shouldBlockFeature(currentPlan, 'mcp_read')) {
+	if (!adminRead && currentPlan !== undefined && shouldBlockFeature(currentPlan, 'mcp_read')) {
 		const { requiredPlan } = getEntitlements(currentPlan).mcp_read;
 		sendPlanError(res, 403, `${FEATURE_LABELS.mcp_read} ist ab Paket „${requiredPlan}" verfügbar.`, {
 			code: 'plan_required',

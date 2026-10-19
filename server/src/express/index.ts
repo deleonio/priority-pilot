@@ -43,7 +43,7 @@ import { journalRouter } from './routes/journal.js';
 import { calendarRouter } from './routes/calendar.js';
 import { freeSlotsRouter } from './routes/freeSlots.js';
 import { profileRouter } from './routes/profile.js';
-import { mcpRouter } from '../mcp/server.js';
+import { mcpAdminRouter, mcpRouter } from '../mcp/server.js';
 import type { FetchProviderModels, RunProviderTest } from './routes/llmProviders.js';
 import { lektoratRouter } from './routes/lektorat.js';
 import { taskAiDraftRouter } from './routes/taskAiDraft.js';
@@ -390,6 +390,8 @@ export const createApp = (deps: AppDeps = {}) => {
 	// MCP-Werkzeuge v1 (#1353): POST /mcp/v1. Bewusst HINTER `requireAuth` — ohne gültigen
 	// (Bearer-)Token gibt es 401 und damit keinen Werkzeugaufruf.
 	app.use(mcpRouter);
+	// Admin-MCP-Endpunkt (#1338): POST /mcp/admin/v1, nur lesend, nur für die Systemrolle `admin`.
+	app.use(mcpAdminRouter);
 
 	// Anzeigename selbst festlegen (#1219): GET/PUT /profile.
 	app.use(profileRouter);

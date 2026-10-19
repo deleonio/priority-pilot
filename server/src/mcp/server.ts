@@ -1,7 +1,8 @@
 import { Router, type Request, type Response } from 'express';
-import { findMcpTool, mcpTools, type McpToolContext } from './tools.js';
+import { mcpTools, type McpTool, type McpToolContext } from './tools.js';
+import { mcpAdminTools } from './adminTools.js';
 import { readBearerToken } from '../express/apiTokenAuth.js';
-import { getUserId } from '../express/requireAuth.js';
+import { getUserId, requireRole } from '../express/requireAuth.js';
 import { User } from '../models/index.js';
 
 /**
@@ -26,6 +27,9 @@ import { User } from '../models/index.js';
  */
 export const MCP_PATH = '/mcp/v1';
 
+/** Admin-Endpunkt (#1338): eigener, nur lesender Katalog, nur für die Systemrolle `admin`. */
+export const MCP_ADMIN_PATH = '/mcp/admin/v1';
+
 /** Protokollversion, die der Server beim `initialize` meldet. */
 const PROTOCOL_VERSION = '2025-06-18';
 
@@ -45,105 +49,145 @@ const sendRpcError = (res: Response, id: string | number | null, code: number, m
 	res.json({ jsonrpc: '2.0', id, error: { code, message } });
 };
 
-export const mcpRouter: Router = Router();
+interface McpHandlerOptions {
+	tools: McpTool[];
+	serverName: string;
+	/** Dialog-Vorgaben des Nutzers (#1935) im `initialize` mitsenden. */
+	withUserInstructions: boolean;
+	/** Wird nach jedem `tools/call` mit dem Ergebnis gerufen (Zugriffsprotokoll #1338). */
+	onToolCall?: (req: Request, tool: string, ok: boolean) => void;
+}
 
-mcpRouter.post(MCP_PATH, async (req: Request, res: Response) => {
-	const body = isRecord(req.body) ? req.body : {};
-	// Bestmögliche id (string/number aus dem Body, sonst `null`) — auch für die Fehlerantwort.
-	const id = typeof body.id === 'string' || typeof body.id === 'number' ? body.id : null;
-	if (body.jsonrpc !== '2.0' || typeof body.method !== 'string') {
-		sendRpcError(res, id, JSONRPC_INVALID_REQUEST, 'Invalid JSON-RPC request.');
-		return;
-	}
-	// Notification (kein `id`): der Client erwartet keine Antwort — nur quittieren.
-	if (body.id === undefined) {
-		res.status(202).end();
-		return;
-	}
+/** JSON-RPC-Handler eines MCP-Endpunkts — geteilt von `/mcp/v1` und `/mcp/admin/v1` (#1338). */
+const createMcpHandler =
+	({ tools, serverName, withUserInstructions, onToolCall }: McpHandlerOptions) =>
+	async (req: Request, res: Response): Promise<void> => {
+		const body = isRecord(req.body) ? req.body : {};
+		// Bestmögliche id (string/number aus dem Body, sonst `null`) — auch für die Fehlerantwort.
+		const id = typeof body.id === 'string' || typeof body.id === 'number' ? body.id : null;
+		if (body.jsonrpc !== '2.0' || typeof body.method !== 'string') {
+			sendRpcError(res, id, JSONRPC_INVALID_REQUEST, 'Invalid JSON-RPC request.');
+			return;
+		}
+		// Notification (kein `id`): der Client erwartet keine Antwort — nur quittieren.
+		if (body.id === undefined) {
+			res.status(202).end();
+			return;
+		}
 
-	if (body.method === 'initialize') {
-		// Dialog-Vorgaben (#1935): `instructions` aus der MCP-Spec nur, wenn der Nutzer welche gespeichert hat.
-		const userId = getUserId(req);
-		const user = userId === undefined ? null : await User.findByPk(userId, { attributes: ['mcpInstructions'] });
-		sendResult(res, id, {
-			protocolVersion: PROTOCOL_VERSION,
-			capabilities: { tools: {} },
-			serverInfo: { name: 'priority-pilot-mcp-v1', version: '1' },
-			...(user?.mcpInstructions ? { instructions: user.mcpInstructions } : {}),
-		});
-		return;
-	}
+		if (body.method === 'initialize') {
+			// Dialog-Vorgaben (#1935): `instructions` aus der MCP-Spec nur, wenn der Nutzer welche gespeichert hat.
+			const userId = withUserInstructions ? getUserId(req) : undefined;
+			const user = userId === undefined ? null : await User.findByPk(userId, { attributes: ['mcpInstructions'] });
+			sendResult(res, id, {
+				protocolVersion: PROTOCOL_VERSION,
+				capabilities: { tools: {} },
+				serverInfo: { name: serverName, version: '1' },
+				...(user?.mcpInstructions ? { instructions: user.mcpInstructions } : {}),
+			});
+			return;
+		}
 
-	if (body.method === 'tools/list') {
-		sendResult(res, id, {
-			tools: mcpTools.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
-		});
-		return;
-	}
+		if (body.method === 'tools/list') {
+			sendResult(res, id, {
+				tools: tools.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
+			});
+			return;
+		}
 
-	if (body.method !== 'tools/call') {
-		sendRpcError(res, id, JSONRPC_METHOD_NOT_FOUND, `Unknown method: ${body.method}`);
-		return;
-	}
+		if (body.method !== 'tools/call') {
+			sendRpcError(res, id, JSONRPC_METHOD_NOT_FOUND, `Unknown method: ${body.method}`);
+			return;
+		}
 
-	const params = (body.params ?? {}) as { name?: unknown; arguments?: unknown };
-	const tool = findMcpTool(params.name);
-	if (!tool) {
-		sendRpcError(res, id, JSONRPC_INVALID_PARAMS, `Unknown tool: ${String(params.name)}`);
-		return;
-	}
-	// Rechtestufe (#1356) am Werkzeug prüfen, nicht erst am Loopback: die gespiegelte Route würde
-	// denselben Aufruf zwar ebenfalls mit 403 abweisen, der Client bekäme die Ursache aber nur als
-	// durchgereichten HTTP-Text. Hier entsteht stattdessen ein regulärer JSON-RPC-Fehler, der sagt,
-	// was zu tun ist. Die Route bleibt die zweite Verteidigungslinie (Bearer ohne MCP).
-	if (tool.write && req.apiTokenScope === 'read') {
-		// Plan-Deckel (#1460): eine paketbedingte Herabstufung nennt das benötigte Paket statt des
-		// generischen Nur-lese-Texts — ein echter read-Token bekommt weiterhin die alte Meldung.
-		const message = req.apiTokenPlanCapped
-			? `The tool "${tool.name}" writes data, but your plan does not include MCP write access (mcp_readwrite). Upgrade to "pro" to use it.`
-			: `The tool "${tool.name}" writes data, but this token allows read access only. ` +
-				'In the settings under "Zugriff" (Access) you can switch the token to "Lesen und Schreiben" (read and write).';
-		sendRpcError(res, id, JSONRPC_INVALID_PARAMS, message);
-		return;
-	}
+		const params = (body.params ?? {}) as { name?: unknown; arguments?: unknown };
+		const tool = tools.find((candidate) => candidate.name === params.name);
+		if (!tool) {
+			sendRpcError(res, id, JSONRPC_INVALID_PARAMS, `Unknown tool: ${String(params.name)}`);
+			return;
+		}
+		// Rechtestufe (#1356) am Werkzeug prüfen, nicht erst am Loopback: die gespiegelte Route würde
+		// denselben Aufruf zwar ebenfalls mit 403 abweisen, der Client bekäme die Ursache aber nur als
+		// durchgereichten HTTP-Text. Hier entsteht stattdessen ein regulärer JSON-RPC-Fehler, der sagt,
+		// was zu tun ist. Die Route bleibt die zweite Verteidigungslinie (Bearer ohne MCP).
+		if (tool.write && req.apiTokenScope === 'read') {
+			// Plan-Deckel (#1460): eine paketbedingte Herabstufung nennt das benötigte Paket statt des
+			// generischen Nur-lese-Texts — ein echter read-Token bekommt weiterhin die alte Meldung.
+			const message = req.apiTokenPlanCapped
+				? `The tool "${tool.name}" writes data, but your plan does not include MCP write access (mcp_readwrite). Upgrade to "pro" to use it.`
+				: `The tool "${tool.name}" writes data, but this token allows read access only. ` +
+					'In the settings under "Zugriff" (Access) you can switch the token to "Lesen und Schreiben" (read and write).';
+			sendRpcError(res, id, JSONRPC_INVALID_PARAMS, message);
+			return;
+		}
 
-	const args = (typeof params.arguments === 'object' && params.arguments !== null ? params.arguments : {}) as Record<
-		string,
-		unknown
-	>;
-	// Loopback-Ziel des Werkzeugs: derselbe Server, derselbe Bearer-Token (siehe tools.ts).
-	// Das Ziel wird bewusst NICHT aus `req.protocol`/`Host` gebaut: beides ist Client-kontrolliert
-	// (durch `trust proxy` zusätzlich über `X-Forwarded-Host`/`-Proto`), der Server würde damit auf
-	// Zuruf beliebige Ziele anfragen — inklusive des mitgesendeten Bearer-Tokens (SSRF).
-	// `req.socket.localPort` ist der Port, auf dem dieser Prozess tatsächlich lauscht (im Test der
-	// zufällige Port aus `app.listen(0)`), und kommt vom Kernel, nicht vom Aufrufer.
-	const localPort = req.socket.localPort ?? (Number(process.env.PORT) || 3000);
-	// `apiTokenAuth` (express/apiTokenAuth.ts) hat den Token bereits aus Authorization ODER
-	// api-key/x-api-key aufgelöst (#1417); der Loopback unten spricht ausschließlich Authorization,
-	// darum hier immer als `Bearer <token>` neu aufbauen statt den Roh-Header durchzureichen —
-	// sonst scheitert ein allein über api-key angemeldeter `tools/call` mit 401.
-	const token = readBearerToken(req);
-	const context: McpToolContext = {
-		baseUrl: `http://127.0.0.1:${localPort}`,
-		authorization: token ? `Bearer ${token}` : '',
+		const args = (typeof params.arguments === 'object' && params.arguments !== null ? params.arguments : {}) as Record<
+			string,
+			unknown
+		>;
+		// Loopback-Ziel des Werkzeugs: derselbe Server, derselbe Bearer-Token (siehe tools.ts).
+		// Das Ziel wird bewusst NICHT aus `req.protocol`/`Host` gebaut: beides ist Client-kontrolliert
+		// (durch `trust proxy` zusätzlich über `X-Forwarded-Host`/`-Proto`), der Server würde damit auf
+		// Zuruf beliebige Ziele anfragen — inklusive des mitgesendeten Bearer-Tokens (SSRF).
+		// `req.socket.localPort` ist der Port, auf dem dieser Prozess tatsächlich lauscht (im Test der
+		// zufällige Port aus `app.listen(0)`), und kommt vom Kernel, nicht vom Aufrufer.
+		const localPort = req.socket.localPort ?? (Number(process.env.PORT) || 3000);
+		// `apiTokenAuth` (express/apiTokenAuth.ts) hat den Token bereits aus Authorization ODER
+		// api-key/x-api-key aufgelöst (#1417); der Loopback unten spricht ausschließlich Authorization,
+		// darum hier immer als `Bearer <token>` neu aufbauen statt den Roh-Header durchzureichen —
+		// sonst scheitert ein allein über api-key angemeldeter `tools/call` mit 401.
+		const token = readBearerToken(req);
+		const context: McpToolContext = {
+			baseUrl: `http://127.0.0.1:${localPort}`,
+			authorization: token ? `Bearer ${token}` : '',
+		};
+		try {
+			// CallToolResult per MCP-Spec: das Roh-Payload reist als JSON-Text im ersten Content-Block.
+			// Konforme Clients (SDK, Claude-Connector) validieren den Envelope und lehnen nackte
+			// Arrays/Objekte als `result` ab (mcp-handshake.test.ts).
+			const payload = await tool.run(context, args);
+			onToolCall?.(req, tool.name, true);
+			sendResult(res, id, { content: [{ type: 'text', text: JSON.stringify(payload) }] });
+		} catch (error) {
+			onToolCall?.(req, tool.name, false);
+			const message = error instanceof Error ? error.message : 'Tool call failed.';
+			// Auch ins Serverlog: ein fehlgeschlagener Werkzeugaufruf hinterließ bisher NUR den Text im
+			// Client. Bricht ein Client mit „MCP tool call failed" ab, ohne den JSON-RPC-Fehler zu zeigen,
+			// war der Vorfall damit gar nicht nachvollziehbar.
+			console.error(`MCP-Werkzeug "${tool.name}" fehlgeschlagen:`, message);
+			sendRpcError(res, id, JSONRPC_INTERNAL_ERROR, message);
+		}
 	};
-	try {
-		// CallToolResult per MCP-Spec: das Roh-Payload reist als JSON-Text im ersten Content-Block.
-		// Konforme Clients (SDK, Claude-Connector) validieren den Envelope und lehnen nackte
-		// Arrays/Objekte als `result` ab (mcp-handshake.test.ts).
-		const payload = await tool.run(context, args);
-		sendResult(res, id, { content: [{ type: 'text', text: JSON.stringify(payload) }] });
-	} catch (error) {
-		const message = error instanceof Error ? error.message : 'Tool call failed.';
-		// Auch ins Serverlog: ein fehlgeschlagener Werkzeugaufruf hinterließ bisher NUR den Text im
-		// Client. Bricht ein Client mit „MCP tool call failed" ab, ohne den JSON-RPC-Fehler zu zeigen,
-		// war der Vorfall damit gar nicht nachvollziehbar.
-		console.error(`MCP-Werkzeug "${tool.name}" fehlgeschlagen:`, message);
-		sendRpcError(res, id, JSONRPC_INTERNAL_ERROR, message);
-	}
-});
 
-mcpRouter.get(MCP_PATH, (_req: Request, res: Response) => {
+/** GET: kein SSE-Strom (siehe oben). */
+const methodNotAllowed = (_req: Request, res: Response): void => {
 	res.set('Allow', 'POST');
 	res.status(405).end();
-});
+};
+
+export const mcpRouter: Router = Router();
+
+mcpRouter.post(
+	MCP_PATH,
+	createMcpHandler({ tools: mcpTools, serverName: 'priority-pilot-mcp-v1', withUserInstructions: true }),
+);
+mcpRouter.get(MCP_PATH, methodNotAllowed);
+
+/**
+ * Admin-Endpunkt (#1338): `requireRole` prüft die Rolle bei JEDEM Request frisch aus der DB —
+ * Nicht-Admins bekommen 403 schon bei `initialize`, eine Rückstufung wirkt ab dem nächsten Request.
+ * Jeder `tools/call` hinterlässt eine Protokollzeile ohne Argumente und Nutzdaten.
+ */
+export const mcpAdminRouter: Router = Router();
+
+mcpAdminRouter.post(
+	MCP_ADMIN_PATH,
+	requireRole('admin'),
+	createMcpHandler({
+		tools: mcpAdminTools,
+		serverName: 'priority-pilot-mcp-admin-v1',
+		withUserInstructions: false,
+		onToolCall: (req, tool, ok) => console.info('MCP-Admin', { userId: getUserId(req), tool, ok }),
+	}),
+);
+mcpAdminRouter.get(MCP_ADMIN_PATH, requireRole('admin'), methodNotAllowed);

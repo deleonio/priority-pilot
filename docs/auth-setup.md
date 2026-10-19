@@ -198,7 +198,9 @@ Ohne Neuladen bleibt die alte Liste aktiv, weil der Prozess die Umgebung nur bei
 Jedes Konto hat die Rolle `admin` oder `member`. Die Rolle wird beim Login aus `ADMIN_EMAILS`
 abgeleitet, aber nur in eine Richtung: Eine gelistete Adresse wird befördert, eine aus der Liste
 entfernte Adresse bleibt Administrator, bis jemand sie in der Nutzerverwaltung zurückstuft. Der
-letzte Administrator kann nicht zurückgestuft werden. Details für Nutzer im
+letzte Administrator kann nicht zurückgestuft werden. Administratoren erreichen zusätzlich den nur
+lesenden MCP-Endpunkt `/mcp/admin/v1` (#1338) mit ihrem persönlichen API-Token; die Adresse steht
+in der Nutzerverwaltung. Details für Nutzer im
 [Nutzerhandbuch](user-guide.md#nutzerverwaltung-nur-für-administratoren), für die Umsetzung in
 [`project.md`](../.ai-knowledge/project.md#konfiguration-umgebungsvariablen).
 

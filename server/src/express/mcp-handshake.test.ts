@@ -17,7 +17,8 @@ import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } 
  * mit In-Memory-DB — kein Deployment-, kein Secret-Bezug.
  */
 
-process.env.GOOGLE_ALLOWED_EMAILS = 'mcp-h@example.com,mcp-h-1413@example.com,mcp-h-1935@example.com';
+process.env.GOOGLE_ALLOWED_EMAILS =
+	'mcp-h@example.com,mcp-h-admin@example.com,mcp-h-1413@example.com,mcp-h-1935@example.com';
 applyTestAuthEnv('mcp-handshake-test');
 
 let server: TestServer;
@@ -322,5 +323,21 @@ describe('MCP-Endpunkt /mcp/v1 — Dialog-Vorgaben (#1935)', () => {
 
 		const res = await rpcRaw(token, { jsonrpc: '2.0', method: 'notifications/initialized' });
 		assert.equal(res.status, 202);
+	});
+
+	it('Admin-Endpunkt /mcp/admin/v1 (#1338): Handshake, Werkzeugliste und Aufruf mit SDK-Client', async () => {
+		const cookie = await server.login('mcp-h-admin@example.com', { role: 'admin' });
+		const token = await createToken(cookie);
+
+		const client = await connectClient(token, '/mcp/admin/v1');
+		try {
+			assert.equal(client.getServerVersion()?.name, 'priority-pilot-mcp-admin-v1');
+			const { tools } = await client.listTools();
+			assert.ok(tools.some((tool) => tool.name === 'admin_subscriptions_summary'));
+			const result = await client.callTool({ name: 'admin_subscriptions_summary', arguments: {} });
+			assert.notEqual(result.isError, true);
+		} finally {
+			await client.close().catch(() => {});
+		}
 	});
 });

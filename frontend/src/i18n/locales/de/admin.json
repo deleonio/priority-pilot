@@ -49,6 +49,8 @@
 		},
 		"actionFailed": "Aktion nicht möglich",
 		"usersLoading": "Nutzer werden geladen …",
+		"mcpEndpoint": "Admin-MCP-Endpunkt (nur lesend, Anmeldung mit deinem persönlichen API-Token):",
+		"copyUrl": "URL kopieren",
 		"aiRequests": "KI-Anfragen diesen Monat: {{count}}",
 		"locked": "Gesperrt",
 		"roleOf": "Rolle von {{name}}",
