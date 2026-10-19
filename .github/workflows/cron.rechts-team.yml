@@ -16,8 +16,8 @@ name: Rechts Team
 # WORKFLOW deterministisch (Muster UX-Team: der Agent liefert nur den Report, nie die
 # GitHub-Seiteneffekte). 00-Validate übergeht ci:*-Issues (Skip im verify-issue-quality.sh).
 #
-# STATELESS: kein pro-Issue-Memory (memory-load/expect false). Modell: sonnet (Default,
-# überschreibbar via vars.CLAUDE_MODEL_RECHTS_TEAM).
+# STATELESS: kein pro-Issue-Memory (memory-load/expect false). Modell: opus mit Effort high —
+# Rechtstexte und ADR-Kontext sind groß (Modell-Override via vars.CLAUDE_MODEL_RECHTS_TEAM).
 #
 # LIVE-GANG: claude-workbench startet die Inspect-Instanz (http://localhost:4174) und
 # installiert Chromium; der Agent begeht die App über Playwright-MCP (browser-mcp: true).
@@ -110,7 +110,8 @@ jobs:
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           runtime: ${{ vars.AGENT_RUNTIME }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
-          model: ${{ vars.CLAUDE_MODEL_RECHTS_TEAM || 'sonnet' }}
+          model: ${{ vars.CLAUDE_MODEL_RECHTS_TEAM || 'opus' }}
+          effort: 'high'
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
           claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}

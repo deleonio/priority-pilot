@@ -36,7 +36,8 @@ name: Code Review Team
 # Review würde nie starten. Deshalb Push, PR und ai:needs-review über steps.setup.outputs.gh-token.
 #
 # STATELESS: kein pro-Issue-Memory (memory-load/expect false). Das Protokoll-Issue und der offene
-# Fix-PR sind der einzige Zustand. Modell: sonnet (überschreibbar via vars.CLAUDE_MODEL_CODE_REVIEW_TEAM),
+# Fix-PR sind der einzige Zustand. Modell: opus mit Effort high (überschreibbar via
+# vars.CLAUDE_MODEL_CODE_REVIEW_TEAM),
 # Fan-out-Recherche auf dem billigen Subagent-Modell (vars.CLAUDE_MODEL_CODE_REVIEW_TEAM_SUBAGENT).
 #
 # KEINE Nummer im Dateinamen: Nummern (00–06) sind lastend (Workflow-Name-Matching), dieser
@@ -159,7 +160,7 @@ jobs:
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           runtime: ${{ vars.AGENT_RUNTIME }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
-          model: ${{ vars.CLAUDE_MODEL_CODE_REVIEW_TEAM || 'sonnet' }}
+          model: ${{ vars.CLAUDE_MODEL_CODE_REVIEW_TEAM || 'opus' }}
           effort: 'high'
           # Fan-out-Lesen (Code-Durchsicht) auf dem billigen Modell, Muster Triage —
           # sonst liefe der recherche-Subagent auf dem teuren Hauptmodell.

@@ -1068,7 +1068,7 @@ bei jedem Folge-Lauf falsche Code-Findings erzeugt.
   (erst entfernen, dann setzen — Re-Arm-Muster #536) → Review → Gate → Auto-Merge.
 - **Bewusst stateless:** Kein pro-Issue-Memory — Protokoll-Issue und offener Fix-PR sind der
   einzige Zustand.
-- **Modell:** `vars.CLAUDE_MODEL_CODE_REVIEW_TEAM` (Default `sonnet`), Fan-out-Recherche auf
+- **Modell:** `vars.CLAUDE_MODEL_CODE_REVIEW_TEAM` (Default `opus`, Effort `high`), Fan-out-Recherche auf
   `vars.CLAUDE_MODEL_CODE_REVIEW_TEAM_SUBAGENT` (Default `haiku`), Provider wie alle LLM-Phasen
   via `vars.LLM_PROVIDER` (setup-agent, `tools-tier: full`, inkl. Tailscale-Egress und
   Fair-Usage-Check).

@@ -59,7 +59,8 @@ jobs:
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           runtime: ${{ vars.AGENT_RUNTIME }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
-          model: ${{ vars.CLAUDE_MODEL_NIT_REPORT || 'sonnet' }}
+          model: ${{ vars.CLAUDE_MODEL_NIT_REPORT || 'opus' }}
+          effort: 'high'
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
           claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
