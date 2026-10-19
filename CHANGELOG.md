@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.30 - 2026-10-19
 
-_Enthält v0.30.0 – v0.30.6._
+_Enthält v0.30.0 – v0.30.8._
 
 ### 🎉 New Features
 
@@ -428,8 +428,6 @@ _Enthält v0.18.0 – v0.18.45._
 - feat(server): create due series automatically every day by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2384
 - docs(adr): ADR 0021 Android-App als SPA ohne Service Worker by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2387
 - feat(frontend): add auto-create switch and series templates tab (#2358) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2383
-- feat(frontend): add android build without pwa and fixed site url by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2388
-- feat(frontend): add create-task dialog to series and templates by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2390
 - feat(frontend): add android build without pwa and fixed site url by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2388
 - feat(frontend): add create-task dialog to series and templates by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2390
 - feat(server): list only open tasks in mcp task_list by default (#2144) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2393
