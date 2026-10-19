@@ -170,6 +170,10 @@ const TOP_TASKS_LIMIT = 5;
 /** Einträge je Seite in der Deadlines-Liste (Client-Pagination, siehe `deadlinePage`). */
 const DEADLINES_PAGE_SIZE = 8;
 
+// Hängt der Balance-Status-Request, gibt erst der Timeout-Abbruch den Auftakt frei (#2770) —
+// großzügig, damit langsame (aber erfolgreiche) Antworten nie in den Fehlzustand laufen.
+const BALANCE_STATUS_TIMEOUT_MS = 10_000;
+
 /** Eine Aufgabe mit gesetzter, gültiger Deadline (für die Deadline-Liste). */
 type TaskWithDeadline = Task & { deadline: Date };
 
@@ -292,8 +296,16 @@ export const Dashboard = ({
 	const [einstiegImHinweis, setEinstiegImHinweis] = useState(false);
 	useEffect(() => {
 		let cancelled = false;
+		// Hängt der Request (Server antwortet nicht), bliebe der Auftakt für immer zurückgehalten —
+		// das Zifferblatt bliebe leer (#2770). Der Abbruch nach großzügigem Timeout landet im
+		// bestehenden `catch` und gibt für den lokal gerechneten Stand frei.
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), BALANCE_STATUS_TIMEOUT_MS);
 		api
-			.getBalanceStatus({ tz: Intl.DateTimeFormat().resolvedOptions().timeZone })
+			.getBalanceStatus({
+				tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+				signal: controller.signal,
+			})
 			.then((status) => {
 				if (!cancelled) {
 					setServerFill(status.fuellstandProzent / 100);
@@ -314,6 +326,8 @@ export const Dashboard = ({
 			});
 		return () => {
 			cancelled = true;
+			clearTimeout(timeout);
+			controller.abort();
 		};
 	}, [tasks, userId]);
 
