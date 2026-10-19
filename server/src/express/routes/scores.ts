@@ -24,7 +24,8 @@ import {
 import { meilensteinStandVon } from '../../logics/milestones.js';
 import MilestoneReached from '../../models/milestoneReached.js';
 import { berechneLebensbalanceNachKadenz, zaehleErledigungenImKadenzFenster } from '../../logics/heartBalance.js';
-import { berechneBalanceVerlauf, istGueltigesDatum, zeitraumInTagen } from '../../logics/balanceHistory.js';
+import { berechneBalanceVerlauf } from '../../logics/balanceHistory.js';
+import { validateZeitraum } from '../../logics/requestValidation.js';
 import { pillarTextIn, resolvePillarDescription } from '../../models/pillarData.js';
 import CareSuggestionDismissal from '../../models/careSuggestionDismissal.js';
 import CareSuggestionRejection from '../../models/careSuggestionRejection.js';
@@ -304,23 +305,12 @@ scoresRouter.get(
 	'/scores/balance/history',
 	async (req: Request, res: Response<BalanceHistoryEntryDto[] | ErrorDto>) => {
 		try {
-			const { von, bis } = req.query;
-			if (typeof von !== 'string' || typeof bis !== 'string') {
-				sendError(res, 400, '"von" und "bis" sind Pflichtparameter (Format YYYY-MM-DD).');
+			const zeitraum = validateZeitraum(req.query, MAX_BALANCE_HISTORY_TAGE);
+			if (!zeitraum.ok) {
+				sendError(res, 400, zeitraum.message);
 				return;
 			}
-			if (!istGueltigesDatum(von) || !istGueltigesDatum(bis)) {
-				sendError(res, 400, '"von" und "bis" müssen ein existierendes Datum im Format YYYY-MM-DD angeben.');
-				return;
-			}
-			if (bis < von) {
-				sendError(res, 400, '"bis" darf nicht vor "von" liegen.');
-				return;
-			}
-			if (zeitraumInTagen(von, bis) > MAX_BALANCE_HISTORY_TAGE) {
-				sendError(res, 400, `Der Zeitraum darf höchstens ${MAX_BALANCE_HISTORY_TAGE} Tage umfassen.`);
-				return;
-			}
+			const { von, bis } = zeitraum.value;
 
 			const userId = getUserId(req);
 			const [saeulen, tasks, entries] = await Promise.all([

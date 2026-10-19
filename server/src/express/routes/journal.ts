@@ -3,12 +3,8 @@ import type { Request, Response } from 'express';
 import { parseId, sendError, type ErrorDto } from '../http-error.js';
 import { JournalEntry, Pillar, ScoreEntry, Task } from '../../models/index.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
-import {
-	berechneBalanceVerlauf,
-	istGueltigesDatum,
-	zeitraumInTagen,
-	type BalanceHistoryEintrag,
-} from '../../logics/balanceHistory.js';
+import { berechneBalanceVerlauf, type BalanceHistoryEintrag } from '../../logics/balanceHistory.js';
+import { validateZeitraum } from '../../logics/requestValidation.js';
 import { istGueltigeZeitzone } from '../../logics/streak.js';
 import { berechneJournalFenster, fensterListe, type JournalStatsGranularitaet } from '../../logics/journalStats.js';
 import type { PillarWithContribution } from '../../models/task.js';
@@ -119,23 +115,12 @@ journalRouter.get('/journal/stats', async (req: Request, res: Response<JournalSt
 		return;
 	}
 	try {
-		const { von, bis } = req.query;
-		if (typeof von !== 'string' || typeof bis !== 'string') {
-			sendError(res, 400, '"von" und "bis" sind Pflichtparameter (Format YYYY-MM-DD).');
+		const zeitraum = validateZeitraum(req.query, MAX_JOURNAL_STATS_TAGE);
+		if (!zeitraum.ok) {
+			sendError(res, 400, zeitraum.message);
 			return;
 		}
-		if (!istGueltigesDatum(von) || !istGueltigesDatum(bis)) {
-			sendError(res, 400, '"von" und "bis" müssen ein existierendes Datum im Format YYYY-MM-DD angeben.');
-			return;
-		}
-		if (bis < von) {
-			sendError(res, 400, '"bis" darf nicht vor "von" liegen.');
-			return;
-		}
-		if (zeitraumInTagen(von, bis) > MAX_JOURNAL_STATS_TAGE) {
-			sendError(res, 400, `Der Zeitraum darf höchstens ${MAX_JOURNAL_STATS_TAGE} Tage umfassen.`);
-			return;
-		}
+		const { von, bis } = zeitraum.value;
 		const angefragt: string | undefined =
 			typeof req.query.granularitaet === 'string' && req.query.granularitaet !== ''
 				? req.query.granularitaet
