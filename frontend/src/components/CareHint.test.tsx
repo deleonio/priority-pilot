@@ -223,6 +223,16 @@ describe('CareHint (#1793)', () => {
 		expect(updateTask).not.toHaveBeenCalled();
 	});
 
+	it('#2758 AK5: Übernehmen sendet den careTemplateKey der Vorlage im createTask-Payload', async () => {
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
+		render(<CareHint />);
+		await zeigeHinweis();
+		tap('Vorschlag übernehmen');
+		await waitFor(() => expect(hint()).toBeNull());
+		const { taskCreate } = createTask.mock.calls[0]![0];
+		expect(taskCreate.careTemplateKey).toBe('koerper-spaziergang');
+	});
+
 	it('AK2: Übernehmen einer eigenen Aufgabe → updateTask auf „In process", kein createTask, Hinweis weg', async () => {
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [eigene] });
 		render(<CareHint />);
