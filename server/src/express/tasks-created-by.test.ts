@@ -389,3 +389,153 @@ describe('Ersteller-Lesezugriff endet mit der Gruppenmitgliedschaft (#1250, Task
 		assert.ok(!(await aliceSees(legacy.id)), 'trotz gemeinsamer Gruppe: kein createdById-Zweig für Bestand');
 	});
 });
+
+/**
+ * Rote Spec-Tests für #2755 — Ersteller-Name fehlt in Antworten auf Schreibzugriffe
+ * (Vertrag: docs/spec/issue-2755.md, AK1–AK4).
+ *
+ * Ursache: Die Schreib-Endpunkte (PATCH, archive, snooze, unarchive, dependencies) serialisieren
+ * per `serializeTask(withPillars)` OHNE Kontext — `createdByName` ist dort immer `null`, obwohl
+ * `createdById` gesetzt ist. Vertrag: Jede Schreib-Antwort trägt dieselben `createdByName`/
+ * `forUserName`-Werte wie der Lese-Endpunkt derselben Aufgabe (GET /tasks/:id bzw. GET /tasks).
+ * KEIN Produktivcode.
+ */
+describe('Ersteller-Name in Schreib-Antworten (#2755)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const postTaskFor2755 = async (cookie: string, body: Record<string, unknown>): Promise<Response> =>
+		fetch(`${server.baseUrl}/tasks`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify(body),
+		});
+
+	/** Setup: Alice legt eine Aufgabe für Bob an (#1213-Fluss, mit gemeinsamer Gruppe); liefert die Task-ID. */
+	const seedTaskForBob = async (): Promise<number> => {
+		await server.login(ALICE, { displayName: 'Alice Erstellerin' });
+		await server.login(BOB, { displayName: 'Bob Empfänger' });
+		// Übergabe an ein anderes Mitglied erfordert eine gemeinsame Gruppe (#1213, AK2: sonst 403).
+		const group = await Group.create({ name: 'Spec-Gruppe 2755', description: null });
+		await GroupMember.create({
+			groupId: group.id,
+			userId: await userIdOf(ALICE),
+			role: 'admin',
+			joinedAt: new Date(),
+		});
+		await GroupMember.create({
+			groupId: group.id,
+			userId: await userIdOf(BOB),
+			role: 'member',
+			joinedAt: new Date(),
+		});
+		const res = await postTaskFor2755(await server.login(ALICE), {
+			title: 'Bobs Aufgabe aus #2755',
+			userId: await userIdOf(BOB),
+		});
+		assert.equal(res.status, 201, 'Setup: Aufgabe für Bob muss anlegbar sein (Muster #1213)');
+		return ((await res.json()) as CreatedByTaskDto).id;
+	};
+
+	/** Lese-Orakel: createdByName/forUserName, wie GET /tasks/:id sie für dieselbe Aufgabe liefert. */
+	const leseOrakel = async (taskId: number): Promise<{ createdByName: string | null; forUserName: string | null }> => {
+		const res = await fetch(`${server.baseUrl}/tasks/${taskId}`, {
+			headers: { Cookie: await server.login(BOB) },
+		});
+		assert.equal(res.status, 200, 'Setup: GET /tasks/:id muss 200 liefern');
+		const dto = (await res.json()) as CreatedByTaskDto;
+		return { createdByName: dto.createdByName ?? null, forUserName: dto.forUserName ?? null };
+	};
+
+	/** Der Spiegel-Schritt: Schreib-Antwort muss exakt die Orakel-Werte tragen. */
+	const assertSpiegel = (
+		aktuell: { createdByName: string | null | undefined; forUserName: string | null | undefined },
+		orakel: { createdByName: string | null; forUserName: string | null },
+		endpoint: string,
+	): void => {
+		assert.equal(aktuell.createdByName, orakel.createdByName, `${endpoint}: createdByName wie GET /tasks/:id`);
+		assert.equal(aktuell.forUserName, orakel.forUserName, `${endpoint}: forUserName wie der Lese-Endpunkt`);
+	};
+
+	// ── AK1: PATCH (task_update) ─────────────────────────────────────────────────────
+
+	it('PATCH (task_update) nennt den Ersteller wie GET /tasks/:id (AK1)', async () => {
+		const taskId = await seedTaskForBob();
+		const orakel = await leseOrakel(taskId);
+		assert.equal(orakel.createdByName, 'Alice Erstellerin', 'Setup: Lese-Orakel trägt den Anzeigenamen');
+
+		const res = await fetch(`${server.baseUrl}/tasks/${taskId}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', Cookie: await server.login(BOB) },
+			body: JSON.stringify({ title: 'Umbenannt per task_update' }),
+		});
+		assert.equal(res.status, 200, 'PATCH muss weiterhin 200 liefern');
+		assertSpiegel((await res.json()) as CreatedByTaskDto, orakel, 'PATCH');
+	});
+
+	// ── AK3: PATCH auf Done (task_complete) ──────────────────────────────────────────
+
+	it('PATCH auf Done (task_complete) nennt den Ersteller ebenfalls (AK3)', async () => {
+		const taskId = await seedTaskForBob();
+		const orakel = await leseOrakel(taskId);
+
+		const res = await fetch(`${server.baseUrl}/tasks/${taskId}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', Cookie: await server.login(BOB) },
+			body: JSON.stringify({ status: 'Done' }),
+		});
+		assert.equal(res.status, 200, 'PATCH auf Done muss weiterhin 200 liefern');
+		const dto = (await res.json()) as CreatedByTaskDto;
+		assert.equal(dto.status, 'Done', 'Gegenprobe: Statuswechsel ist erfolgt');
+		assertSpiegel(dto, orakel, 'PATCH Done');
+	});
+
+	// ── AK2: POST /tasks/:id/dependencies (task_link), 201 ──────────────────────────
+
+	it('POST dependencies (task_link) nennt den Ersteller in der 201-Antwort (AK2)', async () => {
+		const taskId = await seedTaskForBob();
+		const orakel = await leseOrakel(taskId);
+		const zweitRes = await postTaskFor2755(await server.login(BOB), { title: 'Bobs zweite Aufgabe' });
+		assert.equal(zweitRes.status, 201, 'Setup: zweite Aufgabe (Abhängiger) muss anlegbar sein');
+		const zweitId = ((await zweitRes.json()) as CreatedByTaskDto).id;
+
+		const res = await fetch(`${server.baseUrl}/tasks/${taskId}/dependencies`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: await server.login(BOB) },
+			body: JSON.stringify({ dependingTaskId: zweitId }),
+		});
+		assert.equal(res.status, 201, 'dependencies muss weiterhin 201 liefern');
+		assertSpiegel((await res.json()) as CreatedByTaskDto, orakel, 'POST dependencies');
+	});
+
+	// ── AK4: archive/snooze/unarchive konsistent zur Aufgabenliste ───────────────────
+
+	it('archive/snooze/unarchive liefern createdByName/forUserName konsistent zur Aufgabenliste (AK4)', async () => {
+		const taskId = await seedTaskForBob();
+		const listenRes = await fetch(`${server.baseUrl}/tasks`, { headers: { Cookie: await server.login(BOB) } });
+		assert.equal(listenRes.status, 200, 'Setup: GET /tasks muss 200 liefern');
+		const eintrag = ((await listenRes.json()) as CreatedByTaskDto[]).find((task) => task.id === taskId);
+		assert.ok(eintrag, 'Setup: Aufgabe muss in der Liste stehen');
+		const orakel = { createdByName: eintrag.createdByName ?? null, forUserName: eintrag.forUserName ?? null };
+
+		const postSub = async (sub: string): Promise<CreatedByTaskDto> => {
+			const res = await fetch(`${server.baseUrl}/tasks/${taskId}/${sub}`, {
+				method: 'POST',
+				headers: { Cookie: await server.login(BOB) },
+			});
+			assert.equal(res.status, 200, `${sub} muss weiterhin 200 liefern`);
+			return (await res.json()) as CreatedByTaskDto;
+		};
+		assertSpiegel(await postSub('archive'), orakel, 'archive');
+		assertSpiegel(await postSub('snooze'), orakel, 'snooze');
+		assertSpiegel(await postSub('unarchive'), orakel, 'unarchive');
+	});
+});
