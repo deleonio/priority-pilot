@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.31 - 2026-10-20
 
-_Enthält v0.31.0 – v0.31.7._
+_Enthält v0.31.0 – v0.31.8._
 
 ### 🎉 New Features
 
@@ -381,7 +381,6 @@ _Enthält v0.19.0 – v0.19.19._
 
 ### 🎉 New Features
 
-- feat(frontend): add cookieless matomo to website and web app by @deleonio in https://github.com/deleonio/priority-pilot/pull/2435
 - feat(frontend): add cookieless matomo to website and web app by @deleonio in https://github.com/deleonio/priority-pilot/pull/2435
 
 ### 🐞 Bug Fixes
