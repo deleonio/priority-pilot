@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.30 - 2026-10-20
 
-_Enthält v0.30.0 – v0.30.25._
+_Enthält v0.30.0 – v0.30.26._
 
 ### 🎉 New Features
 
@@ -39,6 +39,7 @@ _Enthält v0.30.0 – v0.30.25._
 - feat(website): accessibility statement per bfsg (#2769) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2783
 - feat(frontend): balance status timeout and webgl context restore by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2784
 - feat(server): centralize request validation, close array gaps (#2772) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2786
+- feat(server): complete creator names for series and system tasks (#2787) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2788
 
 ## v0.29 - 2026-10-19
 
@@ -455,7 +456,8 @@ _Enthält v0.18.0 – v0.18.45._
 - feat(server): add mcp tools for series and templates (#2360) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2420
 - feat(frontend): rhythm and auto-delete only when auto-create on (#2414) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2418
 - feat(server): apply task defaults and create instances in POST /series by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2412
-- feat(server): apply task defaults and create instances in POST /series by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2412
+- refactor(server): compute series generation horizon in one place (#2405) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2425
+- feat(frontend): save task as series template (#2361) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2422
 - refactor(server): compute series generation horizon in one place (#2405) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2425
 - feat(frontend): save task as series template (#2361) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2422
 - feat(frontend): name series/template switch and dialog title (#2415) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2424
