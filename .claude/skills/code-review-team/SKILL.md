@@ -26,6 +26,27 @@ The perspectives judge against what the rule sources say — they do not invent 
 4. Betriebs- und Sicherheits-Wächter — error handling, logging, input validation, secrets,
    dependency risks, failure modes that stay silent.
 
+### SOLID-Maßstab (Architekt und Clean-Code-Reviewer)
+
+SOLID is a fixed yardstick of both design perspectives — alongside the rule sources, never
+above them: where a rule source or an ADR deliberately decided otherwise, that decision is
+named, not fought.
+
+- **S (Single Responsibility)** — one module, one function, one route has exactly one reason to
+  change. Mixing domain logic, transport and side effects is a finding; shared domain logic
+  belongs in the logic layer the architecture documentation defines.
+- **O (Open/Closed)** — behaviour grows by adding a new strategy at the edge, not by ever longer
+  branch cascades in existing code. The same switch cascade over the same type in several
+  places is an O finding and a duplication finding at once.
+- **L (Liskov)** — every implementation keeps the contract of the type it serves, including
+  function parameters and factory returns. A strengthened precondition or a weakened
+  postcondition is a contract breach.
+- **I (Interface Segregation)** — no consumer is forced to carry fields or methods it never
+  uses; fat types and pseudo-optional mandatory fields are findings.
+- **D (Dependency Inversion)** — layers depend on abstractions, not on the details of the
+  neighbouring layer. The concrete allowed direction is what the architecture documentation
+  says; importing against it is an architect finding.
+
 ## Regelwerk-Prüfung
 
 The moderator carries a fifth duty with no code view of its own: the rules themselves are under
