@@ -1,6 +1,6 @@
 # ADR 0001 — GitHub-Workflows bleiben ungetestet
 
-- **Status:** Accepted
+- **Status:** Accepted — Script-Test-Carve-out präzisiert (Nachtrag 2026-10-20)
 - **Datum:** 2026-08-12
 - **Entscheidungsquelle:** [#567](https://github.com/deleonio/priority-pilot/issues/567) (Teil des Epics [#563 — Teststrategie-Relaunch](https://github.com/deleonio/priority-pilot/issues/563))
 
@@ -82,3 +82,13 @@ davon mehr aus.
 - **Follow-ups:** [#564](https://github.com/deleonio/priority-pilot/issues/564) (Quarantäne-Verschiebung
   / CI-Test-Steps entfernen), [#566](https://github.com/deleonio/priority-pilot/issues/566)
   (spec-first-Neuaufbau, nur für Domänenlogik).
+
+## Nachtrag 2026-10-20 — Script-Test-Carve-out
+
+Der Scope nennt `.github/scripts/*.test.ts` unter den gelöschten Meta-Tests — gemeint ist die
+damalige Workflow-Meta-Suite. Die Entscheidungslogik in `.github/scripts/*.ts` ist davon
+ausgenommen und wird bewusst getestet (Carve-out aus
+[ADR 0004](0004-analyse-getriebenes-routing.md), Quelle:
+[tdd-strategy.md](../../.ai-knowledge/tdd-strategy.md) Testumfang): Skripte sind lokal
+ausführbar und mit `gh`-Stubs via `pnpm test:scripts` testbar — Teil von `pnpm test`.
+Ungetestet bleibt die YAML-Verdrahtung der Workflows.
