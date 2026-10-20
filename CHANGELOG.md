@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.31 - 2026-10-20
 
-_Enthält v0.31.0 – v0.31.3._
+_Enthält v0.31.0 – v0.31.4._
 
 ### 🎉 New Features
 
@@ -17,6 +17,7 @@ _Enthält v0.31.0 – v0.31.3._
 ### Other Changes
 
 - feat(frontend): consolidate legalLanguage and formatDate helpers (#2775) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2791
+- docs: clarify ADR 0001 script-test carve-out via addendum (#2778) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2794
 
 ## v0.30 - 2026-10-20
 
@@ -203,7 +204,6 @@ _Enthält v0.26.0 – v0.26.21._
 - Server: Fehlgeschlagene PayPal-Kündigung im Kulanzfrist-Sweep wird später erneut versucht (#2606) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2620
 - fix(deps): update dependency i18next to v26.4.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2602
 - chore(deps): update pi-erweiterungen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2627
-- feat(server): expose balance window count and minimum threshold (#2633) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2647
 - feat(server): expose balance window count and minimum threshold (#2633) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2647
 - feat(frontend): clarify overdue task completion dialog (#2635) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2650
 - fix(frontend): stable position label for series checklist (#2636) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2652
