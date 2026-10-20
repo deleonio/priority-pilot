@@ -558,6 +558,25 @@ describe('renderAccessibility (#2769)', () => {
 				locale === 'de' ? /Durchsetzungsstelle/ : /enforcement/i,
 			);
 			expect(html, `${locale}: BFSG fehlt`).toContain('BFSG');
+
+			// #2795 (Spec: docs/spec/issue-2795.md) — Durchsetzungsstelle MLBF konkret statt Platzhalter (AK1–AK3).
+			expect(html, `${locale}: MLBF-Website fehlt`).toContain('www.mlbf-barrierefrei.de');
+			expect(html, `${locale}: Platzhalter zur Durchsetzungsstelle noch vorhanden`).not.toContain(
+				locale === 'de'
+					? 'Welche Stelle konkret zuständig ist, tragen wir hier nach, sobald sie benannt ist.'
+					: 'We will name the competent enforcement body here once it has been determined.',
+			);
+			if (locale === 'de') {
+				expect(html, 'de: vollständiger MLBF-Name fehlt').toContain(
+					'Marktüberwachungsstelle der Länder für die Barrierefreiheit von Produkten und Dienstleistungen (MLBF)',
+				);
+				expect(html, 'de: Postanschrift der MLBF fehlt').toContain('Carl-Miller-Str. 6');
+				expect(html, 'de: E-Mail der MLBF fehlt').toContain('kontakt@mlbf-barrierefrei.de');
+				expect(html, 'de: Telefon der MLBF fehlt').toContain('+49 391 567 6970');
+			} else {
+				expect(html, 'en: MLBF fehlt').toContain('MLBF');
+				expect(html, 'en: englische Funktionsbezeichnung fehlt').toMatch(/Market surveillance authority/i);
+			}
 		}
 	});
 });
