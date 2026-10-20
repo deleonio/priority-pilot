@@ -33,7 +33,7 @@ export type DateFormat = 'long' | 'short';
  * unabhängig von der Zeitzone des Nutzers bzw. Runners (#2775).
  */
 export const formatDate = (date: string, { format = 'long' }: { format?: DateFormat } = {}): string => {
-	const parsed = date.length > 10 ? new Date(date) : new Date(`${date}T00:00:00Z`);
+	const parsed = /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(`${date}T00:00:00Z`) : new Date(date);
 	return parsed.toLocaleDateString(
 		i18next.language,
 		format === 'short' ? { timeZone: 'UTC' } : { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' },
