@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.30 - 2026-10-19
 
-_Enthält v0.30.0 – v0.30.22._
+_Enthält v0.30.0 – v0.30.23._
 
 ### 🎉 New Features
 
@@ -33,6 +33,7 @@ _Enthält v0.30.0 – v0.30.22._
 - feat(frontend): clear done-task feedback after reopen (#2767) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2781
 - feat(server): mark system-created tasks as "Balamentum" (#2758) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2782
 - feat(website): accessibility statement per bfsg (#2769) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2783
+- feat(frontend): balance status timeout and webgl context restore by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2784
 
 ## v0.29 - 2026-10-19
 
@@ -446,7 +447,7 @@ _Enthält v0.18.0 – v0.18.45._
 - docs: evaluate Open-Meteo vs DWD weather APIs (#1931) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2411
 - refactor(server): gerundete Entfernung zentral in logics/geo.ts (#2406) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2419
 - docs(tickets): require priority/effort prefix in titles by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2421
-- docs(tickets): require priority/effort prefix in titles by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2421
+- feat(server): add mcp tools for series and templates (#2360) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2420
 - feat(server): add mcp tools for series and templates (#2360) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2420
 - feat(frontend): rhythm and auto-delete only when auto-create on (#2414) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2418
 - feat(server): apply task defaults and create instances in POST /series by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2412
