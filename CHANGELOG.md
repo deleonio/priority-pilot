@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.31 - 2026-10-20
 
-_Enthält v0.31.0 – v0.31.13._
+_Enthält v0.31.0 – v0.31.14._
 
 ### 🎉 New Features
 
@@ -29,6 +29,7 @@ _Enthält v0.31.0 – v0.31.13._
 - ci: select runner for manual dispatch runs (default, pi5, ubuntu-latest) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2805
 - feat(server): waitlist double opt-in with mail confirmation and bot protection by @deleonio in https://github.com/deleonio/priority-pilot/pull/2804
 - refactor(server): clean up three request-validation nits (#2798) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2808
+- fix(website): name MLBF enforcement body in accessibility statement by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2802
 
 ## v0.30 - 2026-10-20
 
@@ -172,7 +173,6 @@ _Enthält v0.27.0 – v0.27.11._
 - docs: align outdated code comments with current behavior (#2640) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2660
 - test(frontend): show blossom instead of heart in promo shots (#2641) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2658
 - refactor(frontend): consolidate badge colors in one source (#2637) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2653
-- test: strengthen assertions and silence expected errors (#2639) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2659
 - test: strengthen assertions and silence expected errors (#2639) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2659
 - chore: remove grandfather rule for legacy accounts (#2646) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2662
 - feat(billing): require billing address before subscription checkout by @deleonio in https://github.com/deleonio/priority-pilot/pull/2664
@@ -414,6 +414,7 @@ _Enthält v0.19.0 – v0.19.19._
 - feat(frontend): deadline pagination, compact missed list, slim banner by @deleonio in https://github.com/deleonio/priority-pilot/pull/2416
 - feat(frontend): reduce balance variants to rays, bloom, crystal, hands by @deleonio in https://github.com/deleonio/priority-pilot/pull/2437
 - feat(i18n): translate app, server texts and website to english by @deleonio in https://github.com/deleonio/priority-pilot/pull/2429
+- fix(server): reset review account on every login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2444
 - fix(server): reset review account on every login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2444
 - [P2/S] Hilfe: Feedback-Formular wählt „Wünsche und Ideen“ vor (#2443) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2446
 - revert(balance): alle neun Zifferblätter wiederherstellen by @deleonio in https://github.com/deleonio/priority-pilot/pull/2447
