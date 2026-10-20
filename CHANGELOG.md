@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.31 - 2026-10-20
 
-_Enthält v0.31.0 – v0.31.5._
+_Enthält v0.31.0 – v0.31.6._
 
 ### 🎉 New Features
 
@@ -13,6 +13,7 @@ _Enthält v0.31.0 – v0.31.5._
 ### 🔧 Engineering
 
 - test(frontend): mirror parseColor and webgl2 context positively (#2777) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2793
+- test(frontend): cover en privacy link on login page (#2796) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2800
 
 ### Other Changes
 
@@ -399,7 +400,6 @@ _Enthält v0.19.0 – v0.19.19._
 
 ### Other Changes
 
-- feat(server): add password review access for google play (#2426) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2433
 - feat(server): add password review access for google play (#2426) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2433
 - feat(frontend): deadline pagination, compact missed list, slim banner by @deleonio in https://github.com/deleonio/priority-pilot/pull/2416
 - feat(frontend): reduce balance variants to rays, bloom, crystal, hands by @deleonio in https://github.com/deleonio/priority-pilot/pull/2437
