@@ -2,9 +2,9 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.30 - 2026-10-19
+## v0.30 - 2026-10-20
 
-_Enthält v0.30.0 – v0.30.23._
+_Enthält v0.30.0 – v0.30.24._
 
 ### 🎉 New Features
 
@@ -34,6 +34,7 @@ _Enthält v0.30.0 – v0.30.23._
 - feat(server): mark system-created tasks as "Balamentum" (#2758) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2782
 - feat(website): accessibility statement per bfsg (#2769) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2783
 - feat(frontend): balance status timeout and webgl context restore by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2784
+- feat(server): centralize request validation, close array gaps (#2772) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2786
 
 ## v0.29 - 2026-10-19
 
@@ -164,6 +165,7 @@ _Enthält v0.26.0 – v0.26.21._
 
 - test(e2e): set expired subscription fixtures to a future date by @deleonio in https://github.com/deleonio/priority-pilot/pull/2607
 - docs: align pnpm runtime version with packageManager pin (V-20) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2613
+- feat(frontend): standardize mobile e2e viewport to 375x812 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2616
 - feat(frontend): standardize mobile e2e viewport to 375x812 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2616
 - test(server): add schema snapshot test for column migrations (#2609) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2615
 - docs(tdd-strategy): fix stale workflow links and phase number (V-21) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2626
@@ -447,7 +449,6 @@ _Enthält v0.18.0 – v0.18.45._
 - docs: evaluate Open-Meteo vs DWD weather APIs (#1931) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2411
 - refactor(server): gerundete Entfernung zentral in logics/geo.ts (#2406) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2419
 - docs(tickets): require priority/effort prefix in titles by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2421
-- feat(server): add mcp tools for series and templates (#2360) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2420
 - feat(server): add mcp tools for series and templates (#2360) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2420
 - feat(frontend): rhythm and auto-delete only when auto-create on (#2414) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2418
 - feat(server): apply task defaults and create instances in POST /series by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2412
