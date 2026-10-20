@@ -49,7 +49,7 @@ const DE: AccessibilityText = {
 		{
 			heading: 'Durchsetzungsstelle',
 			paragraphs: [
-				'Auf digitale Dienstleistungen ist das Barrierefreiheitsstärkungsgesetz (BFSG) anwendbar. Wenn wir dein Feedback nicht zufriedenstellend beantworten, kannst du die Durchsetzungsstelle nach § 14 BFSG einschalten. Welche Stelle konkret zuständig ist, tragen wir hier nach, sobald sie benannt ist.',
+				'Auf digitale Dienstleistungen ist das Barrierefreiheitsstärkungsgesetz (BFSG) anwendbar. Wenn wir dein Feedback nicht zufriedenstellend beantworten, kannst du die Durchsetzungsstelle nach § 14 BFSG einschalten. Die zuständige Stelle ist die Marktüberwachungsstelle der Länder für die Barrierefreiheit von Produkten und Dienstleistungen (MLBF), Carl-Miller-Str. 6, 39112 Magdeburg; erreichbar über www.mlbf-barrierefrei.de, kontakt@mlbf-barrierefrei.de oder +49 391 567 6970.',
 			],
 		},
 	],
@@ -85,7 +85,7 @@ const EN: AccessibilityText = {
 		{
 			heading: 'Enforcement',
 			paragraphs: [
-				'As a digital service offered in Germany, Balamentum falls under the German Accessibility Strengthening Act (Barrierefreiheitsstärkungsgesetz, BFSG). If our response to your feedback is not satisfactory, you can contact the enforcement body under Section 14 BFSG. We will name the competent enforcement body here once it has been determined.',
+				'As a digital service offered in Germany, Balamentum falls under the German Accessibility Strengthening Act (Barrierefreiheitsstärkungsgesetz, BFSG). If our response to your feedback is not satisfactory, you can contact the enforcement body under Section 14 BFSG. The competent body is the Marktüberwachungsstelle der Länder für die Barrierefreiheit von Produkten und Dienstleistungen (MLBF), the market surveillance authority of the German federal states for the accessibility of products and services, Carl-Miller-Str. 6, 39112 Magdeburg, Germany; reachable via www.mlbf-barrierefrei.de, kontakt@mlbf-barrierefrei.de or +49 391 567 6970.',
 			],
 		},
 	],
