@@ -77,6 +77,21 @@ const DE: PrivacyText = {
 			},
 		},
 		{
+			heading: 'Warteliste',
+			paragraphs: [
+				'Bevor du ein Konto hast, kannst du dich auf die Warteliste setzen lassen. Wir speichern dafür deine E-Mail-Adresse, deinen Empfehlungscode und, wie viele Anmeldungen über deinen Empfehlungs-Link erfolgten.',
+			],
+			facts: {
+				purpose:
+					'Eintrag auf die Warteliste für den Zugang zum Launch, Mitteilung deiner Position und Empfehlung über deinen Empfehlungs-Link.',
+				legalBasis:
+					'Art. 6 Abs. 1 lit. b DSGVO (vorvertragliche Maßnahme: Der Eintrag bereitet dein späteres Konto vor).',
+				retention:
+					'Sofort nach Freischaltung (mit Anlage deines Kontos) löschen wir den Wartelisten-Eintrag. Nicht freigeschaltete Einträge löschen wir 6 Wochen nach Ende der Warteliste; zusätzlich kannst du die Löschung jederzeit auf Anforderung veranlassen.',
+				recipients: 'Keine. Die Warteliste bleibt bei uns.',
+			},
+		},
+		{
 			heading: 'Standort und gespeicherte Orte',
 			paragraphs: [],
 			facts: {
@@ -304,6 +319,20 @@ const EN: PrivacyText = {
 				retention: `Account data ${ACCOUNT_LIFETIME_EN} Sign-in links are valid for 15 minutes and are deleted shortly after they expire.`,
 				recipients:
 					'Google (Google login), if you choose this sign-in method; our email delivery provider for the sign-in link.',
+			},
+		},
+		{
+			heading: 'Waitlist',
+			paragraphs: [
+				'Before you have an account, you can join the waitlist. For that we store your email address, your referral code and how many sign-ups came through your referral link.',
+			],
+			facts: {
+				purpose:
+					'Joining the waitlist for launch access, telling you your position and referrals via your referral link.',
+				legalBasis: 'Art. 6(1)(b) GDPR (pre-contractual measure: joining prepares your later account).',
+				retention:
+					'We delete the waitlist entry immediately once access is granted (the data moves into your account). Entries without access are deleted 6 weeks after the waitlist ends; you can request deletion at any time.',
+				recipients: 'None. The waitlist stays with us.',
 			},
 		},
 		{

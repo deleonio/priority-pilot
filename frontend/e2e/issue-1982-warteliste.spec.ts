@@ -19,7 +19,7 @@ const mockUnauthenticated = async (page: Page): Promise<void> => {
 };
 
 /** `boundingBox()` misst einmalig und wartet nicht nach — in kurzer Schleife nachmessen (MEMORY 2026-09-14). */
-const boundingBoxWhenLaidOut = async (page: Page, selector: string): Promise<{ width: number } | null> => {
+const boundingBoxWhenLaidOut = async (page: Page, selector: string): Promise<{ x: number; width: number } | null> => {
 	for (let i = 0; i < 30; i++) {
 		const box = await page.locator(selector).first().boundingBox();
 		if (box) {
@@ -83,5 +83,34 @@ test.describe('Warteliste (#1982)', () => {
 		const box = await boundingBoxWhenLaidOut(page, '[role="status"]');
 		expect(box, 'Ergebnisblock muss sichtbar vermessen sein').toBeTruthy();
 		expect(box!.width, 'kein horizontales Überlaufen des 375px-Viewports').toBeLessThanOrEqual(375);
+	});
+});
+
+test.describe('Warteliste-Hinweis mit Datenschutz-Link (#2768, docs/spec/issue-2768.md)', () => {
+	test('AK3: Hinweiszeile sichtbar, Link klickbar — Navigation nach /datenschutz/ (375px)', async ({ page }) => {
+		await page.setViewportSize(MOBILE);
+		await mockUnauthenticated(page);
+		await page.goto('/app/');
+
+		const link = page.getByRole('link', { name: /Datenschutzerklärung/ });
+		await expect(link).toBeVisible();
+		await expect(link).toHaveAttribute('href', '/datenschutz/');
+		await link.click();
+		await expect(page).toHaveURL(/\/datenschutz\/$/);
+	});
+
+	test('AK3: Hinweiszeile und Karte laufen nicht horizontal über den 375px-Viewport', async ({ page }) => {
+		await page.setViewportSize(MOBILE);
+		await mockUnauthenticated(page);
+		await page.goto('/app/');
+
+		const box = await boundingBoxWhenLaidOut(page, 'a[href="/datenschutz/"]');
+		expect(box, 'Hinweiszeile muss sichtbar vermessen sein').toBeTruthy();
+		expect(box!.x, 'Hinweis startet im Viewport').toBeGreaterThanOrEqual(0);
+		expect(box!.x + box!.width, 'kein horizontales Überlaufen des 375px-Viewports').toBeLessThanOrEqual(375);
+
+		const karte = await boundingBoxWhenLaidOut(page, 'div.login-page__card:has(a[href="/datenschutz/"])');
+		expect(karte, 'Wartelisten-Karte muss sichtbar vermessen sein').toBeTruthy();
+		expect(karte!.x + karte!.width, 'kein horizontal beschnittener Karteninhalt').toBeLessThanOrEqual(375);
 	});
 });

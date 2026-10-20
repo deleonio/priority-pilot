@@ -223,6 +223,25 @@ describe('LoginPage — Wartelisten-Eintrag (#1982, AK5)', () => {
 	});
 });
 
+describe('LoginPage — Warteliste-Hinweis mit Datenschutz-Link (#2768, AK2)', () => {
+	beforeEach(() => {
+		window.history.replaceState(null, '', '/app/');
+		providers.mockResolvedValue({ google: true, magicLink: true });
+	});
+	afterEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('zeigt die Hinweiszeile mit klickbarem Link zur Datenschutzerklärung schon im Leerzustand', async () => {
+		render(<LoginPage />);
+
+		const link = await screen.findByRole('link', { name: /Datenschutzerklärung/ });
+		expect(link.getAttribute('href')).toBe('/datenschutz/');
+		// Hinweis gehört in die Wartelisten-Karte, nicht in eine andere Fläche.
+		expect(link.closest('.login-page__card')).not.toBeNull();
+	});
+});
+
 describe('LoginPage — Magic-Link-Session-Cache und Sende-Zustaende', () => {
 	const CACHE_KEY = 'pp-magic-link-enabled';
 

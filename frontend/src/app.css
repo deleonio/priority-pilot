@@ -6204,6 +6204,21 @@ a.plan-badge:focus-visible {
 	text-underline-offset: 2px;
 }
 
+/* Datenschutz-Hinweis der Wartelisten-Karte (#2768): Fließtext in Basisgröße, weich umbrechend;
+   Unterstreichung trägt die Klick-Affordanz (Link nie nur durch Farbe). */
+.login-page__privacy-hint {
+	margin: 0;
+	color: var(--pp-ink-muted);
+	font-size: var(--pp-font-size-base);
+	overflow-wrap: anywhere;
+}
+
+.login-page__privacy-link {
+	color: inherit;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
 /* Zustimmungsschritt nach dem Login (#1901) — im .login-page-Rahmen, Haken mit aufklappbarem Rechtstext (#2227) darunter */
 .consent-step__group {
 	display: flex;

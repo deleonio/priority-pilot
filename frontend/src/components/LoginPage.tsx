@@ -364,6 +364,17 @@ export const LoginPage = () => {
 							</p>
 						)}
 					</form>
+					{/* Datenschutz-Hinweis (#2768): dauerhaft sichtbar, schon vor dem Eintrag
+						    (Art.-13-Informationspflicht); Link sprachabhängig wie der Zurück-Link. */}
+					<p className="login-page__privacy-hint">
+						{t('login.waitlistPrivacyPrefix')}{' '}
+						<a
+							className="login-page__privacy-link"
+							href={(i18n.resolvedLanguage ?? i18n.language) === 'en' ? '/en/privacy/' : '/datenschutz/'}
+						>
+							{t('login.waitlistPrivacyLink')}
+						</a>
+					</p>
 				</div>
 
 				{reviewOpen && <ReviewLoginDialog onClose={() => setReviewOpen(false)} />}

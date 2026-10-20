@@ -31,6 +31,8 @@
 		"copied": "Kopiert ✓",
 		"copyLink": "Empfehlungs-Link kopieren",
 		"waitlistFailed": "Der Eintrag auf die Warteliste hat gerade nicht geklappt. Bitte versuche es gleich noch einmal.",
+		"waitlistPrivacyPrefix": "Wie wir deine Daten bei der Warteliste verarbeiten, steht in der",
+		"waitlistPrivacyLink": "Datenschutzerklärung",
 		"back": "Zurück zur Website",
 		"backAria": "Balamentum: Zurück zur Website",
 		"magicLanding": {
