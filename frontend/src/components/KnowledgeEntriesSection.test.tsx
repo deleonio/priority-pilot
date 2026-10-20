@@ -11,6 +11,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  */
 
 vi.mock('@public-ui/react-v19', () => ({
+	KolAccordion: ({ _label, children }: { _label?: string; children?: React.ReactNode }) => (
+		<section aria-label={_label}>
+			<h2>{_label}</h2>
+			{children}
+		</section>
+	),
 	KolButton: ({
 		_label,
 		_on,

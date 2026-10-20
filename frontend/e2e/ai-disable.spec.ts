@@ -260,7 +260,9 @@ test.describe('#1527 KI-Gate: Säulen-Berater ohne Berechtigung', () => {
 // ── #1903 (AK3): Details folgen dem Schalter, bleiben aber manuell aufklappbar ─────────────────
 
 test.describe('#1903 KI-Tab: Details bei Schalter aus', () => {
-	const LABELS = ['KI-Provider', 'Access-Token'];
+	// Design-Lauf 2026-10: alle vier Gruppen unter dem Schalter folgen ihm — auch „Wissens-Einträge“
+	// und „Dialog-Vorgaben für die KI“ (vorher: Karte ohne Klappfolge bzw. Abschnitt ohne Karte).
+	const LABELS = ['KI-Provider', 'Access-Token', 'Wissens-Einträge', 'Dialog-Vorgaben für die KI'];
 	const detailsSummary = (page: Page, label: string) =>
 		page.locator('.settings-llm kol-accordion summary').filter({ hasText: new RegExp(`^${label}$`) });
 	const isOpen = (page: Page, label: string) =>

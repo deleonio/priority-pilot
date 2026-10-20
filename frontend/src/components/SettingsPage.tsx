@@ -1083,7 +1083,7 @@ export const SettingsPage = ({
 					</KolCard>
 					<LlmSettings open={aiFeaturesEnabled} disabled={showAiPlanAlert} />
 					<ApiTokensSection open={aiFeaturesEnabled} />
-					<KnowledgeEntriesSection />
+					<KnowledgeEntriesSection open={aiFeaturesEnabled} />
 					<McpInstructionsSection open={aiFeaturesEnabled} />
 				</div>
 				{/* #1211: Gruppen-Verwaltung (AK6–AK8) — eigener Tab „Gruppen" (Index 5, Route
