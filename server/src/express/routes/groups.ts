@@ -3,6 +3,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { Op, Transaction } from 'sequelize';
 import { parseId, sendError, logUrl, type ErrorDto } from '../http-error.js';
+import { queryString } from '../../logics/requestValidation.js';
 import {
 	Group,
 	GroupChallenge,
@@ -1076,7 +1077,12 @@ groupsRouter.get('/groups/:id/duo', async (req: Request, res: Response<DuoDto | 
 		}
 		const memberIds = (await GroupMember.findAll({ where: { groupId: found.group.id } })).map((m) => m.userId);
 		const users = await User.findAll({ where: { id: memberIds } });
-		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+		const tzErgebnis = queryString(req.query.tz, 'tz');
+		if (!tzErgebnis.ok) {
+			sendError(res, 400, tzErgebnis.message);
+			return;
+		}
+		const angefragteZone = tzErgebnis.value;
 		const zeitZone = istGueltigeZeitzone(angefragteZone)
 			? angefragteZone
 			: Intl.DateTimeFormat().resolvedOptions().timeZone;

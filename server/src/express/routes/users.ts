@@ -4,6 +4,7 @@ import { sendError, type ErrorDto } from '../http-error.js';
 import sequelize from '../../database.js';
 import { User } from '../../models/index.js';
 import { resolveGeoUser } from './geoConfig.js';
+import { queryString } from '../../logics/requestValidation.js';
 
 /**
  * Nutzersuche für den Einladungsfluss (#1212, AK1/AK2). Der Router hängt hinter dem globalen
@@ -32,7 +33,12 @@ usersRouter.get('/users/search', async (req: Request, res: Response<UserSearchDt
 			sendError(res, 401, 'Anmeldung erforderlich.');
 			return;
 		}
-		const raw = typeof req.query.query === 'string' ? req.query.query.trim() : '';
+		const queryErgebnis = queryString(req.query.query, 'query');
+		if (!queryErgebnis.ok) {
+			sendError(res, 400, queryErgebnis.message);
+			return;
+		}
+		const raw = queryErgebnis.value !== undefined ? queryErgebnis.value.trim() : '';
 		const isFullEmail = raw.includes('@') && raw.length > 0;
 		if (!isFullEmail && raw.length < MIN_QUERY_LENGTH) {
 			res.json([]);

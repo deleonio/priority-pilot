@@ -476,6 +476,19 @@ describe('POST/GET /scores/care-suggestions/rejections (#1977)', () => {
 		assert.equal(leer.status, 200, 'leerer taskId bleibt Bestandsverhalten');
 		assert.equal(((await leer.json()) as unknown[]).length, 1, 'ohne wirksamen Filter alle eigenen Einträge');
 	});
+
+	// #2772/AK1: mehrfach gesendeter taskId (Express qs → Array) ist ein Bedienfehler (400),
+	// statt den Filter still entfallen zu lassen (ungefilterte Liste). KEIN Produktivcode.
+	it('#2772/AK1: taskId=1&taskId=abc → 400 statt ungefilterter Liste', async () => {
+		const cookie = await server.register('care-reject-2772@example.com', 'password123');
+		const taskId = await legeAnkerTaskAn(cookie);
+		assert.equal((await rejeziere(cookie, { grund: 'zu-gross', taskId })).status, 204);
+
+		const res = await server.json('/scores/care-suggestions/rejections?taskId=1&taskId=abc', {
+			headers: { Cookie: cookie },
+		});
+		assert.equal(res.status, 400, 'mehrfach gesendeter taskId muss 400 liefern');
+	});
 });
 
 // Rote Spec-Tests #2146 (docs/spec/issue-2146.md) — Vorlagen pro Nutzer über den Säulen-Key

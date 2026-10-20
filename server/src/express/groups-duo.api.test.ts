@@ -86,6 +86,16 @@ describe('Duo (#1974)', () => {
 		assert.equal(members.length, 2);
 	});
 
+	// #2772/AK4: mehrfach gesendeter tz-Parameter (Express qs → Array) → 400 statt stiller
+	// Fallback auf die Serverzeitzone. KEIN Produktivcode.
+	it('#2772/AK4: doppelter tz-Parameter (Array) → 400', async () => {
+		const alice = await server.login(ALICE, { displayName: 'Alice' });
+		const bob = await server.login(BOB, { displayName: 'Bob' });
+		const groupId = await duoOf(alice, bob);
+		const res = await get(alice, `/groups/${groupId}/duo?tz=UTC&tz=Europe/Berlin`);
+		assert.equal(res.status, 400, 'mehrfach gesendeter tz-Parameter muss 400 liefern');
+	});
+
 	it('AK2: Einladungslink in volles Duo → 409', async () => {
 		const alice = await server.login(ALICE, { displayName: 'Alice' });
 		const bob = await server.login(BOB, { displayName: 'Bob' });
