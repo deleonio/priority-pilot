@@ -6489,29 +6489,25 @@ a.plan-badge:focus-visible {
 
 /* Einführungs-Banner (#2229): schmaler Streifen im Seitenfluss, nicht fixiert — verdeckt so keine
    Bedienelemente. Ruhige Fläche statt Alert (dauerhafte Einladung, keine Meldungs-Semantik);
-   mobil gestapelt, ab 48rem Text links, Aktionen rechts. Umfasst sich inhaltlich — nur der
-   Tracking-Hinweis (`--plain`) läuft über die volle Breite. */
+   mobil gestapelt, ab 48rem Text links, Aktionen rechts. Gleiche Breite wie der Tracking-Hinweis
+   und die Karten darunter — eine durchgehende Kante statt Stufen. */
 .launch-banner {
 	display: flex;
 	flex-direction: column;
 	gap: var(--pp-space-3);
-	margin: var(--pp-space-3) var(--pp-space-3) 0;
+	margin: var(--pp-space-3) 0 0;
 	padding: var(--pp-space-3) var(--pp-space-4);
 	/* #2480: Platz für den absoluten Schließen-Knopf oben rechts reservieren. */
 	padding-right: calc(var(--pp-space-4) + 44px + var(--pp-space-2));
 	position: relative;
-	width: fit-content;
 	background: var(--pp-surface-1);
 	border: 1px solid var(--pp-border);
 	border-radius: var(--pp-radius-md);
 }
 
 .launch-banner--plain {
-	/* #2734: Tracking-Hinweis ohne Schließen-Knopf — rechts kein reservierter Platz; bündig mit den
-	   Karten darunter statt eingerückt und über die volle Breite. */
-	margin-inline: 0;
+	/* #2734: Tracking-Hinweis ohne Schließen-Knopf — rechts kein reservierter Platz. */
 	padding-right: var(--pp-space-4);
-	width: auto;
 }
 
 .launch-banner__body {
