@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.31 - 2026-10-20
 
-_Enthält v0.31.0 – v0.31.14._
+_Enthält v0.31.0 – v0.31.15._
 
 ### 🎉 New Features
 
@@ -18,6 +18,7 @@ _Enthält v0.31.0 – v0.31.14._
 
 - test(frontend): mirror parseColor and webgl2 context positively (#2777) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2793
 - test(frontend): cover en privacy link on login page (#2796) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2800
+- chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2801
 
 ### Other Changes
 
@@ -154,6 +155,7 @@ _Enthält v0.27.0 – v0.27.11._
 
 ### 🐞 Bug Fixes
 
+- fix(frontend): keep task list popover button right-aligned by @deleonio in https://github.com/deleonio/priority-pilot/pull/2663
 - fix(frontend): keep task list popover button right-aligned by @deleonio in https://github.com/deleonio/priority-pilot/pull/2663
 
 ### 🚀 Improvements
@@ -414,7 +416,6 @@ _Enthält v0.19.0 – v0.19.19._
 - feat(frontend): deadline pagination, compact missed list, slim banner by @deleonio in https://github.com/deleonio/priority-pilot/pull/2416
 - feat(frontend): reduce balance variants to rays, bloom, crystal, hands by @deleonio in https://github.com/deleonio/priority-pilot/pull/2437
 - feat(i18n): translate app, server texts and website to english by @deleonio in https://github.com/deleonio/priority-pilot/pull/2429
-- fix(server): reset review account on every login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2444
 - fix(server): reset review account on every login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2444
 - [P2/S] Hilfe: Feedback-Formular wählt „Wünsche und Ideen“ vor (#2443) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2446
 - revert(balance): alle neun Zifferblätter wiederherstellen by @deleonio in https://github.com/deleonio/priority-pilot/pull/2447
