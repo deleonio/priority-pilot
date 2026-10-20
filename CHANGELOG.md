@@ -161,6 +161,7 @@ _Enthält v0.27.0 – v0.27.11._
 ### Other Changes
 
 - docs: unify formatting and cross-references (#2642) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2654
+- docs: unify formatting and cross-references (#2642) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2654
 - ci(workbench): add kill grace period to chromium install timeout (#2643) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2655
 - docs: fix dead links in ADR 0004 (#2638) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2656
 - docs: align outdated code comments with current behavior (#2640) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2660
