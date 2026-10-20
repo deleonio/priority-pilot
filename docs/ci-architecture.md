@@ -1093,7 +1093,7 @@ Bestanden-Nachweis im Angriffsziele-Check.
 **Mechanik:**
 
 - **Eigene Angriffsinstanz statt Workbench-Inspect:** `hacker-instance.sh` (Muster
-  `ui-inspect.sh`) startet Backend+Frontend auf eigenen Ports (3002/4175) mit In-Memory-DB und
+  `ui-inspect.sh`) startet Backend+Frontend auf den Inspect-Ports (3001/4174 — der Browser-MCP erlaubt genau diese Origins) mit In-Memory-DB und
   Demo-Seed, aber — anders als die Inspect-Instanz — mit **scharfer Auth**: Dummy-Google-Credentials
   - `SESSION_SECRET` schalten `isAuthActive()` ein, `NODE_ENV=test` registriert
     `POST /auth/test-login`, mit dem das Team sich echte Sessions für beliebige E-Mails münzt

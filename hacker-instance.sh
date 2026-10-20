@@ -13,11 +13,21 @@
 #
 # Externe Provider (Google, PayPal, Play, LLM) sind ohne echte Credentials nicht erreichbar -
 # Angriffe bleiben zwingend lokal. Die DB ist eine Wegwerf-In-Memory-DB mit Demo-Seed.
+#
+# MONETIZATION_ENFORCED=1 haengt die Paket-Gates scharf (Rollout-Schalter aus plans.ts, Default
+# aus): Ohne ihn wuerde jede Plan-Pruefung (requirePlanFeature) durchreichen und der
+# Berechtigungs-Knacker testete gegen ein offenstehendes Tor.
 
 set -euo pipefail
 
-BACKEND_PORT="${HACKER_BACKEND_PORT:-3002}"
-FRONTEND_PORT="${HACKER_FRONTEND_PORT:-4175}"
+BACKEND_PORT="${HACKER_BACKEND_PORT:-3001}"
+FRONTEND_PORT="${HACKER_FRONTEND_PORT:-4174}"
+
+# Eigene Env-Namen, gleiche Ports wie die Inspect-Instanz (3001/4174): Der Browser-MCP erlaubt
+# genau diese Origins (.mcp.json --allowed-origins) — eigene Ports wuerden dort geblockt.
+# Paralleler Betrieb mit ui-inspect.sh ist so nicht moeglich, aber die LLM-Laeufe teilen sich
+# die concurrency-Gruppe llm-sync (max. 1 gleichzeitig) und der Port-Vorabcheck bricht sauber
+# ab, falls doch mal eine Instanz laeuft.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -96,13 +106,16 @@ PORT="$BACKEND_PORT" \
 	MISTRAL_API_KEY= \
 	OPENROUTER_API_KEY= \
 	CALDAV_ENCRYPTION_KEY="hacker-team-caldav-key" \
+	MONETIZATION_ENFORCED="1" \
 	start_backend &
 BACKEND_PID=$!
 
 # Bereitschaft: /tasks ohne Session 401 - DAS ist hier der Beweis, dass Server UND Auth-Gate
-# stehen. curl -sf wuerde an 401 scheitern, deshalb Status-Abfrage ohne -f.
+# stehen. curl -w schreibt bei Verbindungsfehler selbst "000" (curl exitet trotzdem mit 7,
+# deshalb `|| true` gegen set -e - KEIN `|| echo 000`, das wuerde "000" an "000" haengen und
+# jeden Vergleich brechen).
 for _ in $(seq 1 60); do
-	code="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$BACKEND_PORT/tasks" 2>/dev/null || echo 000)"
+	code="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$BACKEND_PORT/tasks" 2>/dev/null || true)"
 	if [ "$code" != "000" ] && [ "$code" != "502" ]; then
 		break
 	fi

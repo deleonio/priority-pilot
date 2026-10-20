@@ -3,12 +3,16 @@ FOCUS: monthly adversarial security run (red team, method see METHOD) against th
 METHOD: read and follow .claude/skills/hacker-team/SKILL.md (four attacker perspectives, safety rules, procedure, evidence rules). The report skeleton below is binding.
 
 ATTACK ENVIRONMENT (workflow booted it; restart recipe at the end):
-  - Frontend: http://localhost:4175 (Vite, proxies API to the backend). API: http://localhost:3002.
+  - Frontend: http://localhost:4174 (Vite, proxies API to the backend). API: http://localhost:3001.
   - Auth is ACTIVE: unauthenticated API calls return 401. Mint real sessions via the test endpoint (NODE_ENV=test):
-      curl -s -c /tmp/attacker.jar -H 'Content-Type: application/json' -d '{"email":"angreifer@example.com"}' -X POST http://localhost:3002/auth/test-login
+      curl -s -c /tmp/attacker.jar -H 'Content-Type: application/json' -d '{"email":"angreifer@example.com"}' -X POST http://localhost:3001/auth/test-login
     Mint at least one VICTIM session too (e.g. opfer@example.com) and seed recognizable victim data through the API with it.
+  - Browser-Session: the browser (Playwright-MCP) has its own cookie store. Transfer a minted session in two steps: (1) read the full `connect.sid` value from your cookie jar via bash (INCLUDING `s%3A` prefix and signature), (2) inject it with `playwright_browser_run_code_unsafe`:
+      async (page) => { await page.context().addCookies([{ name: 'connect.sid', value: '<sid-aus-schritt-1>', url: 'http://localhost:4174' }]); }
+    Cookies are host-based, not port-based — one localhost cookie serves frontend AND API through the Vite proxy. Then navigate to http://localhost:4174/app/.
+  - MONETIZATION_ENFORCED=1 is set: the plan gates (requirePlanFeature) are armed — attacks on plus/pro features are real. Without this flag every plan check would pass through (rollout switch, server/src/logics/plans.ts).
   - The DB is an in-memory throwaway with demo seed; NO real secrets exist — external providers (Google, PayPal, Play, LLM) are unreachable. Their surfaces (billing, Play review login, OAuth) are judged from CODE only, never attacked live.
-  - The server code is READ-ONLY for you: attacks run from outside via HTTP (curl) and, where rendering matters, the Playwright browser tools.
+  - POST /auth/test-login exists ONLY in NODE_ENV=test (production never registers it): minting admin role or pro plan through it is NOT a vulnerability — never report it as one. Use it to GET privileges for testing whether OTHER routes properly check them.
 
 GOAL SOURCES (what counts as a breach — read them fully yourself, fresh state):
   1. docs/auth-setup.md
@@ -23,7 +27,7 @@ ATTACK SURFACE (recon first, then attack live): server/src/express/** (routes, m
 ORDER:
   1. BESTAND FIRST: if {{HACKER_ISSUE_NR}} is not 0, read the body of issue {{HACKER_ISSUE_NR}} (`gh issue view {{HACKER_ISSUE_NR}} --json body --jq .body`) — the previous report; take over its open findings with their numbers. Then `gh issue list --state open --limit 200 --json number,title` and `gh pr list --state open --limit 100 --json number,title` as the open-work dedup list.
   2. read ALL goal sources. Batch them in ONE tool block (AGENTS.md "Turns bündeln").
-  3. verify the attack environment (unauthenticated GET http://localhost:3002/tasks must answer 401; frontend must load), mint attacker + victim sessions, seed victim data.
+  3. verify the attack environment (unauthenticated GET http://localhost:3001/tasks must answer 401; frontend must load), mint attacker + victim sessions, seed victim data.
   4. AUFKLÄRUNG: read routes and middleware, build the attack map (route → guard → logic). Every finding you chase later needs this map as context.
   5. ANGRIFFE per METHOD: all four perspectives attack via curl and browser. Log every attempt (method, path, body, status, response excerpt) — failed attacks are `bestanden` results. If the server crashes: secure evidence FIRST (log excerpt /tmp/hacker-instance.log + last request), then restart:
        HACKER_NO_WATCH=1 nohup ./hacker-instance.sh > /tmp/hacker-instance.log 2>&1 &
@@ -58,6 +62,6 @@ VERDICT (one line, the very LAST line of your reply):
 
 HONESTY RULE: output a VERDICT ONLY if /tmp/hacker-team-report.md exists, is non-empty, the Angriffsziele-Check table has all four rows, and every Schwachstelle carries its reproduction and a Datei:Zeile anchor.
 
-SAFETY (binding, per METHOD): attack ONLY the local instance on localhost:4175/3002. No external hosts, no scanning beyond these ports, no real credentials. Restart only per the recipe above.
+SAFETY (binding, per METHOD): attack ONLY the local instance on localhost:4174/3001. No external hosts, no scanning beyond these ports, no real credentials. Restart only per the recipe above.
 
 TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}. Before every step: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. If OVER: write the report with the current state (attacks not yet run go into the Ziel-Check as unklar), end the turn.
