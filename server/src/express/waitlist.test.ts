@@ -200,6 +200,7 @@ describe('Warteliste — Double-Opt-in und Bot-Schutz', () => {
 	const ENV_KEYS = ['SMTP_HOST', 'MAIL_FROM', 'PUBLIC_BASE_URL'] as const;
 	const envBackup: Record<string, string | undefined> = {};
 	let mails: { to: string; subject: string; text: string }[] = [];
+	let failNext = false;
 
 	const confirm = (token: string): Promise<Response> =>
 		fetch(`${server.baseUrl}/auth/waitlist/confirm`, {
@@ -212,6 +213,10 @@ describe('Warteliste — Double-Opt-in und Bot-Schutz', () => {
 		for (const key of ENV_KEYS) envBackup[key] = process.env[key];
 		server = await startTestServer({
 			mailSender: async (payload) => {
+				if (failNext) {
+					failNext = false;
+					throw new Error('smtp down');
+				}
 				mails.push({ to: payload.to, subject: payload.subject, text: payload.text });
 			},
 		});
@@ -222,6 +227,7 @@ describe('Warteliste — Double-Opt-in und Bot-Schutz', () => {
 		process.env.MAIL_FROM = 'test@balamentum.de';
 		process.env.PUBLIC_BASE_URL = 'https://test';
 		mails = [];
+		failNext = false;
 	});
 	after(async () => {
 		for (const key of ENV_KEYS) {
@@ -276,6 +282,14 @@ describe('Warteliste — Double-Opt-in und Bot-Schutz', () => {
 		await join('anna@example.com');
 		await join(' Anna@Example.com ');
 		assert.equal(mails.length, 1);
+	});
+
+	it('gescheiterter Mailversand sperrt die Adresse nicht: der nächste Eintrag sendet erneut', async () => {
+		failNext = true;
+		await join('anna@example.com');
+		assert.equal(mails.length, 0, 'Setup: erster Versand schlug fehl');
+		await join('anna@example.com');
+		assert.equal(mails.length, 1, 'zweiter Eintrag innerhalb von 24 h sendet erneut');
 	});
 
 	it('Honeypot: gefülltes Feld wird folgenlos quittiert — kein Eintrag, keine Mail', async () => {

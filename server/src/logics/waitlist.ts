@@ -72,15 +72,11 @@ const CONFIRM_MAIL_DAILY_LIMIT = 300;
 const confirmMailSends: number[] = [];
 
 /** Gleitendes Fenster im Speicher (Muster `claimAccessMailSlot`): `false` = Tagesgrenze erreicht, die Mail entfällt. */
-const claimConfirmMailSlot = (now: number = Date.now()): boolean => {
+const hasConfirmMailCapacity = (now: number = Date.now()): boolean => {
 	while (confirmMailSends.length > 0 && now - confirmMailSends[0] >= CONFIRM_MAIL_INTERVAL_MS) {
 		confirmMailSends.shift();
 	}
-	if (confirmMailSends.length >= CONFIRM_MAIL_DAILY_LIMIT) {
-		return false;
-	}
-	confirmMailSends.push(now);
-	return true;
+	return confirmMailSends.length < CONFIRM_MAIL_DAILY_LIMIT;
 };
 
 const hashToken = (token: string): string => createHash('sha256').update(token).digest('hex');
@@ -118,19 +114,22 @@ const CONFIRM_MAIL = {
 	},
 };
 
-/** Schickt die Bestätigungs-Mail mit frischem Token; höchstens eine je Adresse und 24 h, dazu die globale Tagesgrenze. */
+/**
+ * Schickt die Bestätigungs-Mail mit frischem Token; höchstens eine je Adresse und 24 h, dazu die globale
+ * Tagesgrenze. Beides wird nur bei erfolgreichem Versand gebucht, ein Fehlschlag erlaubt den nächsten Versuch.
+ */
 const sendConfirmationMail = async (entry: WaitlistEntry, send?: MailSender): Promise<void> => {
 	const sentAt = entry.confirmMailSentAt?.getTime();
 	if (sentAt !== undefined && Date.now() - sentAt < CONFIRM_MAIL_INTERVAL_MS) {
 		return;
 	}
-	if (!claimConfirmMailSlot()) {
+	if (!hasConfirmMailCapacity()) {
 		return;
 	}
 	const token = randomBytes(32).toString('base64url');
-	await entry.update({ confirmTokenHash: hashToken(token), confirmMailSentAt: new Date() });
+	await entry.update({ confirmTokenHash: hashToken(token) });
 	const mail = CONFIRM_MAIL[spracheVon(entry.sprache)];
-	await sendMailToUser(
+	const sent = await sendMailToUser(
 		{ email: entry.email },
 		{
 			subject: mail.subject,
@@ -141,6 +140,10 @@ const sendConfirmationMail = async (entry: WaitlistEntry, send?: MailSender): Pr
 		},
 		send,
 	);
+	if (sent) {
+		confirmMailSends.push(Date.now());
+		await entry.update({ confirmMailSentAt: new Date() });
+	}
 };
 
 /**
