@@ -1106,9 +1106,10 @@ bei jedem Folge-Lauf falsche Code-Findings erzeugt.
 ## Monatliches Hacker-Team (`cron.hacker-team.yml`)
 
 Keine Pipeline-Phase, sondern ein Helper-Workflow (jeden 1. des Monats 04:17 UTC
-(06:17/05:17 Berlin), plus `workflow_dispatch`): Ein Rot-Team aus vier Angreifer-Perspektiven —
+(06:17/05:17 Berlin), plus `workflow_dispatch`): Ein Rot-Team aus sechs Angreifer-Perspektiven —
 Datendieb (Vertraulichkeit), Manipulator (Integrität), Berechtigungs-Knacker (Zugriffskontrolle),
-Saboteur (Verfügbarkeit) — Methode:
+Saboteur (Verfügbarkeit), Schnittstellen-/Protokoll-Spezialist (MCP + Token) und Client-/Session-Spezialist
+(CSRF/Session), die bestätigten Primitive am Ende zu einer Kette komponiert — Methode:
 [`hacker-team`](../.claude/skills/hacker-team/SKILL.md) — fährt über
 [`hacker-instance.sh`](../hacker-instance.sh) eine **lokale Wegwerf-Instanz** hoch und greift sie
 **real an**: Fremddaten lesen, ändern, löschen; Rolle/Plan/Rechte eskalieren; den Dienst crashen.

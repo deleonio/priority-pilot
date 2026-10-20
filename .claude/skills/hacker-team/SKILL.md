@@ -1,6 +1,6 @@
 ---
 name: hacker-team
-description: "Hacker-Team — monthly adversarial security run: four attacker perspectives (data thief, manipulator, authorization breaker, saboteur) boot a local throwaway instance of the system and attack it for real — steal, tamper, escalate, break — then report every reproduced breach with evidence. Use for 'hacker-team', 'Angriffslauf', 'pentest the app' (German: monatlicher Hacker-/Rot-Team-Lauf)."
+description: "Hacker-Team — monthly adversarial security run: six attacker perspectives (data thief, manipulator, authorization breaker, saboteur, protocol/interface specialist, client/session specialist) boot a local throwaway instance of the system and attack it for real — steal, tamper, escalate, break — then chain the reproduced primitives and report every breach with evidence. Use for 'hacker-team', 'Angriffslauf', 'pentest the app' (German: monatlicher Hacker-/Rot-Team-Lauf)."
 ---
 
 # Method: Hacker-Team (monthly adversarial security run)
@@ -27,9 +27,10 @@ commit, does not label, does not comment; the run's GitHub side effects are hand
 
 ## Perspektiven
 
-Play four attacker perspectives in one moderated session; the moderator (you) collects,
-verifies and ranks. Every perspective jagt ihr eigenes Ziel — die Sicherheitsziele
-(Vertraulichkeit, Integrität, Verfügbarkeit + Zugriffskontrolle) sind die Zielscheiben:
+Play six attacker perspectives in one moderated session; the moderator (you) collects,
+verifies, ranks und komponiert die bestätigten Primitive am Ende zu einer Kette (Haltung). Every
+perspective jagt ihr eigenes Ziel — die Sicherheitsziele (Vertraulichkeit, Integrität,
+Verfügbarkeit + Zugriffskontrolle) sind die Zielscheiben:
 
 1. Datendieb (Vertraulichkeit) — Fremddaten lesen: Routen mit IDs ohne Eigentümer-Bindung
    (IDOR/BOLA), Export- und Teilen-Endpunkte, Fremddaten in Fehlermeldungen, Logs und
@@ -43,6 +44,27 @@ verifies and ranks. Every perspective jagt ihr eigenes Ziel — die Sicherheitsz
 4. Saboteur (Verfügbarkeit) — den Dienst unbrauchbar machen: Prozess-Crashes, blockierende
    Endlosschleifen, unbeschränkte Nutzlasten (Riesen-Strings, tiefe JSON-Nester, Massen-Requests),
    destruktive Sammel-Operationen ohne Sicherung, Race Conditions auf Zähler und Quoten.
+5. Schnittstellen-/Protokoll-Spezialist (Spiegel-Fläche) — die maschinenlesbare Zweit-Tür neben
+   der REST-Fläche: die nur-lesende und die schreibende Werkzeug-Fläche sowie der Token-Layer, über
+   den Clients ohne Browser zugreifen. Jagt, ob *jede* Prüfung der ersten Tür an ihrem Spiegel
+   erneut greift: Schreib-Werkzeuge mit nur-lesendem Token, Admin-Werkzeuge mit Member-Token,
+   Scope-Wechsel am Token, abgelaufene/widerrufene Tokens, Rollen- und Plan-Prüfung je nach
+   Zugangsweg (Browser-Session vs. Token) — die Differenz zwischen den Wegen ist die Lücke.
+6. Client-/Session-Spezialist (Browser-Fläche) — die Sitzung selbst angreifen: CSRF (Double-Submit,
+   Header-/Kanal-Umgehung), Session-Fixierung und -Übernahme, Cookie-Flags (httpOnly/secure/
+   sameSite), Open Redirect auf Rückkehr- und Zahlungs-Flows, Clickjacking/CSP, gespeichertes XSS,
+   das einen *fremden* Nutzer erreicht.
+
+## Technik
+
+Zwei Denkwerkzeuge, keine Checkliste — sie schärfen die Angriffe der Perspektiven:
+
+- **Differenz-Test:** dieselbe Anfrage mehrfach mit nur einer geänderten Berechtigung schicken (free
+  vs. plus, member vs. admin, Eigentümer vs. Fremder). Das Delta zeigt, welche Prüfung fehlt — nicht
+  die einzelne Antwort.
+- **Spiegel-Prüfung:** jede Fläche, die eine andere spiegelt (Protokoll↔REST, Member↔Admin,
+  Token↔Session), muss dieselbe Prüfung durchsetzen. Den Spiegel angreifen, nicht nur das Original —
+  eine Mauer, die nur an einer Tür steht, ist keine Mauer.
 
 ## Verfahren
 
@@ -60,7 +82,11 @@ verifies and ranks. Every perspective jagt ihr eigenes Ziel — die Sicherheitsz
 5. Konsolidierung: only reproduced breaches become findings; rank by damage an attacker
    actually gains (account boundary crossed > own-account annoyance), drop duplicates, resolve
    carry-over statuses.
-6. Bericht.
+6. Kette: aus den bestätigten Primitiven den kürzesten Weg vom niedrigsten Privileg zum größten
+   Schaden zusammensetzen (Start → Eskalation → überschrittene Account-Grenze). Trägt die Kette
+   weiter als jedes Einzelglied, ist sie Rang 1, mit vollständiger Repro jedes Gliedes. Keine Kette
+   erzwingen, wenn die Glieder nicht wirklich aneinander anschließen.
+7. Bericht.
 
 ## Belege
 
@@ -84,4 +110,6 @@ kürzesten Weg zum Schaden, nicht die vollständige Abdeckung. Ehrlichkeit schl�
 fehlgeschlagener Angriff wird als gehärtet vermerkt, eine Lücke ohne Repro wird nicht
 behauptet. Ein Lauf ohne einzige bestätigte Schwachstelle ist ein gültiges Ergebnis — sag es
 klar statt Findings aufzublähen. Das Minimalprinzip gilt auch hier: der Bericht nennt die
-Lücke und den kürzesten Fix, keine Security-Vorträge.
+Lücke und den kürzesten Fix, keine Security-Vorträge. Der stärkste Beweis ist selten ein
+Einzelbefund, sondern die Kette: zwei kleine Nachlässigkeiten, die zusammen eine Account-Grenze
+überschreiten, schlagen jede isolierte Auffälligkeit.

@@ -1,12 +1,13 @@
 name: Hacker Team
 
 # Monatlicher LLM-Job (KEINE Pipeline-Phase, Muster cron.rechts-team.yml):
-# Ein Hacker-Team aus vier Angreifer-Perspektiven (Datendieb, Manipulator, Berechtigungs-Knacker,
-# Saboteur — Methode: .claude/skills/hacker-team/SKILL.md) fährt über ./hacker-instance.sh eine
+# Ein Hacker-Team aus sechs Angreifer-Perspektiven (Datendieb, Manipulator, Berechtigungs-Knacker,
+# Saboteur, Schnittstellen-/Protokoll-Spezialist für MCP + Token, Client-/Session-Spezialist für
+# CSRF/Session — Methode: .claude/skills/hacker-team/SKILL.md) fährt über ./hacker-instance.sh eine
 # lokale Wegwerf-Instanz des Systems hoch (Auth SCHARF, In-Memory-DB, Demo-Seed, NODE_ENV=test
 # für /auth/test-login) und greift sie real an: Fremddaten lesen, ändern, löschen, Rechte
-# eskalieren, den Dienst crashen. Nur reproduzierte Brüche werden Findings — gescheiterte
-# Angriffe heißen gehärtet.
+# eskalieren, den Dienst crashen, dann die bestätigten Primitive zu einer Kette komponieren. Nur
+# reproduzierte Brüche werden Findings — gescheiterte Angriffe heißen gehärtet.
 #
 # DELIVERY: Genau EIN offenes Issue mit Label ci:hacker-team (bewusst KEIN ai:*-Label — das
 # würde die Ticket-Pipeline starten!). Vorhanden → Body durch den neuen Bericht ersetzen
