@@ -10,6 +10,8 @@ import {
 	lektoratTextWithMistral,
 	parseTaskTextWithMistral,
 	parseSearchQueryWithMistral,
+	draftTaskWithMistral,
+	MistralRequestError,
 	type AdviseActivitiesInput,
 	type ClassifyPillarsInput,
 	type LektoratInput,
@@ -531,5 +533,74 @@ describe('extractActivityAdvice — Längenbegrenzung der Berater-Antwort (#2010
 		);
 
 		assert.deepEqual(advice, [{ activity: 'Spaziergang', reason: 'Bewegung an der frischen Luft', pillarIds: [1] }]);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2774 (Eingebettete Provider-Fehler bei HTTP 200 sichtbar machen).
+ * Spec: `docs/spec/issue-2774.md`.
+ *
+ * Testebene: öffentliche Einstiege (`parseTaskTextWithMistral` JSON-Pfad, `draftTaskWithMistral`
+ * Freitext-Pfad `json = false` #2350) mit gemocktem `globalThis.fetch` (Muster des #1310-Blocks
+ * oben) — die zu ändernde `callProvider` läuft so über den vollen Produktionspfad mit.
+ */
+describe('callProvider — eingebettete Provider-Fehler bei HTTP 200 (#2774)', () => {
+	const originalFetch = globalThis.fetch;
+
+	/** Mockt NUR den LLM-API-Call (Mistral) mit einem beliebigen 200-Body. */
+	const stubModelResponse = (body: unknown): void => {
+		globalThis.fetch = (async (url: string) => {
+			if (typeof url === 'string' && url.includes('api.mistral.ai')) {
+				return new Response(JSON.stringify(body), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				});
+			}
+			return originalFetch(url);
+		}) as typeof fetch;
+	};
+
+	beforeEach(async () => {
+		await resetDb();
+		await setTestLlmProvider(true);
+	});
+
+	after(async () => {
+		globalThis.fetch = originalFetch;
+		await closeDb();
+	});
+
+	// TF1 (AK1): HTTP 200 mit eingebettetem Fehler (error.message-Form, OpenRouter) → konkrete
+	// Ursache statt generischer Text-Meldung.
+	it('AK1: 200 mit eingebettetem error.message wirft MistralRequestError mit der konkreten Ursache', async () => {
+		stubModelResponse({ error: { message: 'Insufficient credits' } });
+
+		await assert.rejects(
+			() => parseTaskTextWithMistral('Jeden Montag Teammeeting im Büro'),
+			(error: unknown) => {
+				assert.ok(error instanceof MistralRequestError, 'Fehler ist MistralRequestError');
+				assert.match(error.message, /Insufficient credits/, 'enthält die konkrete Provider-Ursache');
+				assert.doesNotMatch(error.message, /enthielt keinen Text/, 'nicht die generische Text-Meldung');
+				return true;
+			},
+		);
+	});
+
+	// TF2 (AK2): normale 200-Antworten bleiben unverändert — JSON-Pfad.
+	it('AK2: JSON-Pfad — 200 mit validem choices-Content parst wie bisher', async () => {
+		stubModelResponse({
+			choices: [{ message: { content: JSON.stringify({ title: 'Teammeeting vorbereiten' }) } }],
+		});
+
+		const result: ParsedTask = await parseTaskTextWithMistral('Jeden Montag Teammeeting im Büro');
+		assert.equal(result.title, 'Teammeeting vorbereiten');
+	});
+
+	// TF2 (AK2): Freitext-Pfad (json = false, #2350) bleibt unverändert.
+	it('AK2: Freitext-Pfad (json = false) liefert den getrimmten choices-Klartext wie bisher', async () => {
+		stubModelResponse({ choices: [{ message: { content: '  Teammeeting vorbereiten und Agenda schreiben.  ' } }] });
+
+		const text = await draftTaskWithMistral({ category: 'draft', title: 'Teammeeting vorbereiten' });
+		assert.equal(text, 'Teammeeting vorbereiten und Agenda schreiben.');
 	});
 });

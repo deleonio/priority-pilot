@@ -8,7 +8,7 @@
 import { findProviderByName, loadActiveProvider, toRuntimeConfig } from './llmProviders.js';
 import { normalizeSuggestedShares } from '../logics/pillarShares.js';
 import { fetchProviderEndpoint } from './endpointGuard.js';
-import { upstreamErrorDetail } from './upstreamError.js';
+import { upstreamBodyDetail, upstreamErrorDetail } from './upstreamError.js';
 import type { LlmProvider as LlmProviderRow } from '../models/index.js';
 import type { LlmSuitability } from '../logics/llmSuitability.js';
 import type { CareSprache } from '../logics/careSuggestionData.js';
@@ -531,6 +531,14 @@ const callProvider = async (
 		payload = await response.json();
 	} catch {
 		throw new MistralRequestError(`${config.label}-Antwort konnte nicht als JSON gelesen werden.`);
+	}
+
+	// OpenRouter bettet Provider-Fehler (Credits, Rate-Limit, Moderation) in HTTP 200 ein — ohne
+	// die Ursache bliebe hier nur das wertlose „Antwort des Modells enthielt keinen Text.“
+	// (Muster runProviderTest, llmProviders.ts; gleiche Helper-Instanz, damit beide nicht driften.)
+	const bodyDetail = upstreamBodyDetail(payload);
+	if (bodyDetail !== '') {
+		throw new MistralRequestError(`${config.label} (${config.model}) meldete: ${bodyDetail}`);
 	}
 
 	return json ? parseModelContent(payload) : modelText(payload);
