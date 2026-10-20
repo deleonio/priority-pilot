@@ -390,6 +390,7 @@ _Enthält v0.19.0 – v0.19.19._
 ### 🚀 Improvements
 
 - feat(frontend): preview selected balance picture in settings by @deleonio in https://github.com/deleonio/priority-pilot/pull/2436
+- feat(frontend): preview selected balance picture in settings by @deleonio in https://github.com/deleonio/priority-pilot/pull/2436
 - docs(skill): coordinator stops on empty queue and sends one push by @deleonio in https://github.com/deleonio/priority-pilot/pull/2440
 
 ### 🔧 Engineering
@@ -401,6 +402,7 @@ _Enthält v0.19.0 – v0.19.19._
 ### Other Changes
 
 - feat(server): add password review access for google play (#2426) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2433
+- feat(frontend): deadline pagination, compact missed list, slim banner by @deleonio in https://github.com/deleonio/priority-pilot/pull/2416
 - feat(frontend): deadline pagination, compact missed list, slim banner by @deleonio in https://github.com/deleonio/priority-pilot/pull/2416
 - feat(frontend): reduce balance variants to rays, bloom, crystal, hands by @deleonio in https://github.com/deleonio/priority-pilot/pull/2437
 - feat(i18n): translate app, server texts and website to english by @deleonio in https://github.com/deleonio/priority-pilot/pull/2429
