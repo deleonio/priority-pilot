@@ -4,11 +4,15 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.31 - 2026-10-20
 
-_Enthält v0.31.0 – v0.31.2._
+_Enthält v0.31.0 – v0.31.3._
 
 ### 🎉 New Features
 
 - feat(frontend): add withdrawal link, cancel page title in terms (#2776) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2792
+
+### 🔧 Engineering
+
+- test(frontend): mirror parseColor and webgl2 context positively (#2777) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2793
 
 ### Other Changes
 
@@ -199,6 +203,7 @@ _Enthält v0.26.0 – v0.26.21._
 - Server: Fehlgeschlagene PayPal-Kündigung im Kulanzfrist-Sweep wird später erneut versucht (#2606) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2620
 - fix(deps): update dependency i18next to v26.4.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2602
 - chore(deps): update pi-erweiterungen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2627
+- feat(server): expose balance window count and minimum threshold (#2633) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2647
 - feat(server): expose balance window count and minimum threshold (#2633) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2647
 - feat(frontend): clarify overdue task completion dialog (#2635) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2650
 - fix(frontend): stable position label for series checklist (#2636) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2652
@@ -476,7 +481,6 @@ _Enthält v0.18.0 – v0.18.45._
 - feat(frontend): add capture-from-template to quick capture (#2363) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2423
 - ci(android): add tag input to roll app bundle into test track by @deleonio in https://github.com/deleonio/priority-pilot/pull/2430
 - docs(marketing): add play store listing with texts and images by @deleonio in https://github.com/deleonio/priority-pilot/pull/2432
-- fix(server): count deadline as missed only from the next day (#2427) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2428
 - fix(server): count deadline as missed only from the next day (#2427) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2428
 - docs: define payment method per channel (pwa, android, ios) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2434
 
