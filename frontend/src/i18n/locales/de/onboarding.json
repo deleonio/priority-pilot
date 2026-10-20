@@ -30,6 +30,7 @@
 		"newTab": "(öffnet in neuem Tab)",
 		"copied": "Kopiert ✓",
 		"copyLink": "Empfehlungs-Link kopieren",
+		"waitlistPending": "Fast geschafft: Wir haben dir eine Mail geschickt. Bitte bestätige dort deinen Eintrag — erst dann zählt dein Platz und du bekommst deinen Empfehlungs-Link.",
 		"waitlistFailed": "Der Eintrag auf die Warteliste hat gerade nicht geklappt. Bitte versuche es gleich noch einmal.",
 		"waitlistPrivacyPrefix": "Wie wir deine Daten bei der Warteliste verarbeiten, steht in der",
 		"waitlistPrivacyLink": "Datenschutzerklärung",

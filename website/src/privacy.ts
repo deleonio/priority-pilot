@@ -79,11 +79,11 @@ const DE: PrivacyText = {
 		{
 			heading: 'Warteliste',
 			paragraphs: [
-				'Bevor du ein Konto hast, kannst du dich auf die Warteliste setzen lassen. Wir speichern dafür deine E-Mail-Adresse, deinen Empfehlungscode und, wie viele Anmeldungen über deinen Empfehlungs-Link erfolgten.',
+				'Bevor du ein Konto hast, kannst du dich auf die Warteliste setzen lassen. Wir speichern dafür deine E-Mail-Adresse, deinen Empfehlungscode und, wie viele Anmeldungen über deinen Empfehlungs-Link erfolgten. Zur Bestätigung schicken wir dir eine E-Mail mit einem Bestätigungslink; erst danach zählt dein Eintrag.',
 			],
 			facts: {
 				purpose:
-					'Eintrag auf die Warteliste für den Zugang zum Launch, Mitteilung deiner Position und Empfehlung über deinen Empfehlungs-Link.',
+					'Eintrag auf die Warteliste für den Zugang zum Launch, Versand einer Bestätigungs-E-Mail (Double-Opt-in), Mitteilung deiner Position und Empfehlung über deinen Empfehlungs-Link.',
 				legalBasis:
 					'Art. 6 Abs. 1 lit. b DSGVO (vorvertragliche Maßnahme: Der Eintrag bereitet dein späteres Konto vor).',
 				retention:
@@ -324,11 +324,11 @@ const EN: PrivacyText = {
 		{
 			heading: 'Waitlist',
 			paragraphs: [
-				'Before you have an account, you can join the waitlist. For that we store your email address, your referral code and how many sign-ups came through your referral link.',
+				'Before you have an account, you can join the waitlist. For that we store your email address, your referral code and how many sign-ups came through your referral link. To confirm your entry we send you an email with a confirmation link; your entry only counts after that.',
 			],
 			facts: {
 				purpose:
-					'Joining the waitlist for launch access, telling you your position and referrals via your referral link.',
+					'Joining the waitlist for launch access, sending a confirmation email (double opt-in), telling you your position and referrals via your referral link.',
 				legalBasis: 'Art. 6(1)(b) GDPR (pre-contractual measure: joining prepares your later account).',
 				retention:
 					'We delete the waitlist entry immediately once access is granted (the data moves into your account). Entries without access are deleted 6 weeks after the waitlist ends; you can request deletion at any time.',

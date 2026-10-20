@@ -196,6 +196,121 @@ describe('Warteliste — Admin-Freischaltung (#1982, AK3/AK4)', () => {
 	});
 });
 
+describe('Warteliste — Double-Opt-in und Bot-Schutz', () => {
+	const ENV_KEYS = ['SMTP_HOST', 'MAIL_FROM', 'PUBLIC_BASE_URL'] as const;
+	const envBackup: Record<string, string | undefined> = {};
+	let mails: { to: string; subject: string; text: string }[] = [];
+	let failNext = false;
+
+	const confirm = (token: string): Promise<Response> =>
+		fetch(`${server.baseUrl}/auth/waitlist/confirm`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ token }),
+		});
+
+	before(async () => {
+		for (const key of ENV_KEYS) envBackup[key] = process.env[key];
+		server = await startTestServer({
+			mailSender: async (payload) => {
+				if (failNext) {
+					failNext = false;
+					throw new Error('smtp down');
+				}
+				mails.push({ to: payload.to, subject: payload.subject, text: payload.text });
+			},
+		});
+	});
+	beforeEach(async () => {
+		await resetDb();
+		process.env.SMTP_HOST = 'smtp.test';
+		process.env.MAIL_FROM = 'test@balamentum.de';
+		process.env.PUBLIC_BASE_URL = 'https://test';
+		mails = [];
+		failNext = false;
+	});
+	after(async () => {
+		for (const key of ENV_KEYS) {
+			if (envBackup[key] === undefined) delete process.env[key];
+			else process.env[key] = envBackup[key];
+		}
+		if (server) {
+			await server.close();
+		}
+		await closeDb();
+	});
+
+	it('Eintrag liefert nur confirmationPending, die Mail trägt Bestätigungs- und Empfehlungslink', async () => {
+		const { status, body } = await join('anna@example.com');
+		assert.equal(status, 200);
+		assert.deepEqual(body, { confirmationPending: true }, 'weder Position noch Code vor der Bestätigung');
+		assert.equal(mails.length, 1);
+		assert.equal(mails[0].to, 'anna@example.com');
+		assert.match(mails[0].text, /https:\/\/test\/app\/\?waitlist=[\w-]+/, 'Bestätigungslink');
+		assert.match(mails[0].text, /https:\/\/test\/app\/\?ref=[\w-]+/, 'Empfehlungslink');
+	});
+
+	it('unbestätigte Einträge zählen nicht: weder im Rang, bei Empfehlungen noch in der Admin-Liste', async () => {
+		await join('anna@example.com');
+		const anna = mails[0].text.match(/ref=([\w-]+)/)?.[1];
+		const token = mails[0].text.match(/waitlist=([\w-]+)/)?.[1] ?? '';
+		await join('bot@example.com', anna);
+		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
+		assert.deepEqual(await waitlist(adminCookie), [], 'Admin-Liste zeigt nur bestätigte Einträge');
+
+		const res = await confirm(token);
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { position?: number; total?: number; referralCode?: string };
+		assert.equal(body.position, 1);
+		assert.equal(body.total, 1, 'der unbestätigte Bot-Eintrag zählt nicht');
+		assert.equal(body.referralCode, anna);
+		const list = await waitlist(adminCookie);
+		assert.equal(list.length, 1);
+		assert.equal(list[0].referralCount, 0, 'unbestätigte Empfehlung zählt nicht');
+	});
+
+	it('Bestätigung ist idempotent; ein unbekannter Token wird mit 400 abgelehnt', async () => {
+		await join('anna@example.com');
+		const token = mails[0].text.match(/waitlist=([\w-]+)/)?.[1] ?? '';
+		assert.equal((await confirm(token)).status, 200);
+		assert.equal((await confirm(token)).status, 200, 'zweiter Klick bleibt erfolgreich');
+		assert.equal((await confirm('gibtsnicht')).status, 400);
+	});
+
+	it('höchstens eine Bestätigungs-Mail je Adresse und 24 h', async () => {
+		await join('anna@example.com');
+		await join('anna@example.com');
+		await join(' Anna@Example.com ');
+		assert.equal(mails.length, 1);
+	});
+
+	it('gescheiterter Mailversand sperrt die Adresse nicht: der nächste Eintrag sendet erneut', async () => {
+		failNext = true;
+		await join('anna@example.com');
+		assert.equal(mails.length, 0, 'Setup: erster Versand schlug fehl');
+		await join('anna@example.com');
+		assert.equal(mails.length, 1, 'zweiter Eintrag innerhalb von 24 h sendet erneut');
+	});
+
+	it('Honeypot: gefülltes Feld wird folgenlos quittiert — kein Eintrag, keine Mail', async () => {
+		const res = await fetch(`${server.baseUrl}/auth/waitlist`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ email: 'bot@example.com', website: 'http://spam.example' }),
+		});
+		assert.equal(res.status, 200);
+		assert.deepEqual(await res.json(), { confirmationPending: true });
+		assert.equal(mails.length, 0);
+		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
+		await join('anna@example.com');
+		await confirm(mails[0].text.match(/waitlist=([\w-]+)/)?.[1] ?? '');
+		assert.deepEqual(
+			(await waitlist(adminCookie)).map((e) => e.email),
+			['anna@example.com'],
+		);
+	});
+});
+
 // ── #2305: Mail mit Login-Link bei Freischaltung (Spec docs/spec/issue-2305.md) ──────────────────
 // Der Versand läuft über den injizierbaren `mailSender` (AppDeps) und den Baustein
 // `sendAccountAccessMail`; der Versandstatus steht als `accessMailStatus` am Eintrag.
@@ -240,6 +355,20 @@ describe('Warteliste — Freischalt-Mail (#2305)', () => {
 		await closeDb();
 	});
 
+	/** Trägt ein und bestätigt über den Mail-Link (Double-Opt-in); die Bestätigungs-Mail zählt nicht zu `mails`. */
+	const joinConfirmed = async (email: string): Promise<void> => {
+		await join(email);
+		const token = mails.find((m) => m.to === email)?.text.match(/waitlist=([\w-]+)/)?.[1];
+		assert.ok(token, `Setup: Bestätigungs-Mail an ${email} muss einen Token tragen`);
+		const res = await fetch(`${server.baseUrl}/auth/waitlist/confirm`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ token }),
+		});
+		assert.equal(res.status, 200);
+		mails = mails.filter((m) => m.to !== email);
+	};
+
 	type StatusDto = WaitlistDto & { accessMailStatus?: AccessStatus };
 
 	const entryOf = async (email: string): Promise<StatusDto> => {
@@ -258,7 +387,7 @@ describe('Warteliste — Freischalt-Mail (#2305)', () => {
 	};
 
 	it('AK1/AK3/AK4: Einzel-Freischaltung verschickt genau eine deutsche Mail mit Magic-Link, Status sent', async () => {
-		await join('anna@example.com');
+		await joinConfirmed('anna@example.com');
 		assert.equal((await entryOf('anna@example.com')).accessMailStatus, null, 'vor der Freischaltung nie versucht');
 
 		const res = await activate('anna@example.com');
@@ -275,11 +404,11 @@ describe('Warteliste — Freischalt-Mail (#2305)', () => {
 	});
 
 	it('AK2: Top-N verschickt je NEU freigeschaltetem Eintrag eine Mail, bereits freigeschaltete erhalten keine', async () => {
-		await join('anna@example.com');
+		await joinConfirmed('anna@example.com');
 		await tick();
-		await join('ben@example.com');
+		await joinConfirmed('ben@example.com');
 		await tick();
-		await join('carl@example.com');
+		await joinConfirmed('carl@example.com');
 		await activate('anna@example.com');
 		mails = [];
 
@@ -300,7 +429,7 @@ describe('Warteliste — Freischalt-Mail (#2305)', () => {
 	});
 
 	it('AK5: Transportfehler — Freischaltung bleibt wirksam, Status failed', async () => {
-		await join('anna@example.com');
+		await joinConfirmed('anna@example.com');
 		mode = 'fail';
 
 		const res = await activate('anna@example.com');
@@ -314,7 +443,7 @@ describe('Warteliste — Freischalt-Mail (#2305)', () => {
 	});
 
 	it('AK5: Magic-Link nicht konfiguriert — Freischaltung wirksam, Status failed, keine Mail', async () => {
-		await join('anna@example.com');
+		await joinConfirmed('anna@example.com');
 		delete process.env.PUBLIC_BASE_URL;
 
 		const res = await activate('anna@example.com');
@@ -328,7 +457,7 @@ describe('Warteliste — Freischalt-Mail (#2305)', () => {
 	});
 
 	it('AK6: erneute Einzel-Freischaltung versendet bei failed erneut, bei sent nicht', async () => {
-		await join('anna@example.com');
+		await joinConfirmed('anna@example.com');
 		mode = 'fail';
 		await activate('anna@example.com');
 		assert.equal(mails.length, 0, 'Setup: erster Versand schlug fehl');

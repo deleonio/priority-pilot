@@ -320,9 +320,18 @@ export const api = {
 		}
 	},
 
-	/** Trägt eine Adresse auf die Warteliste ein (#1982, ADR 0019); idempotent, liefert Position und Empfehlungs-Code. */
-	async addToWaitlist(email: string, ref?: string): Promise<components['schemas']['WaitlistJoined']> {
-		const { data, error, response } = await client.POST('/auth/waitlist', { body: { email, ref } });
+	/** Trägt eine Adresse auf die Warteliste ein (#1982, ADR 0019); idempotent. Mit Mailversand folgt die Bestätigung per Mail-Link (`confirmationPending`), `website` ist der Honeypot. */
+	async addToWaitlist(email: string, ref?: string, website?: string): Promise<components['schemas']['WaitlistJoined']> {
+		const { data, error, response } = await client.POST('/auth/waitlist', { body: { email, ref, website } });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	/** Löst den Token aus dem Bestätigungslink der Wartelisten-Mail ein und liefert Position und Empfehlungs-Code. */
+	async confirmWaitlist(token: string): Promise<components['schemas']['WaitlistJoined']> {
+		const { data, error, response } = await client.POST('/auth/waitlist/confirm', { body: { token } });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}

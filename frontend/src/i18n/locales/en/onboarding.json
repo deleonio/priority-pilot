@@ -30,6 +30,7 @@
 		"newTab": "(opens in a new tab)",
 		"copied": "Copied ✓",
 		"copyLink": "Copy referral link",
+		"waitlistPending": "Almost done: we sent you an email. Please confirm your entry there — your spot only counts after that, and you get your referral link.",
 		"waitlistFailed": "Joining the waitlist did not work right now. Please try again in a moment.",
 		"waitlistPrivacyPrefix": "How we process your waitlist data is explained in the",
 		"waitlistPrivacyLink": "privacy policy",

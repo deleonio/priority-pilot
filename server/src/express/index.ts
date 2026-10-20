@@ -24,6 +24,7 @@ import { usersRouter } from './routes/users.js';
 import { createAdminRouter } from './routes/admin.js';
 import { authRouter } from './routes/auth.js';
 import { createMagicLinkRouter } from './routes/magicLink.js';
+import { createWaitlistRouter } from './routes/waitlist.js';
 import { createNativeGoogleRouter } from './routes/nativeGoogle.js';
 import { createPushRouter } from './routes/push.js';
 import { createMailRouter } from './routes/mail.js';
@@ -310,6 +311,7 @@ export const createApp = (deps: AppDeps = {}) => {
 	app.use(authRouter);
 	// Magic-Link-Login per E-Mail (öffentlich, zweiter Anmeldeweg neben Google).
 	app.use(createMagicLinkRouter(deps.mailSender));
+	app.use(createWaitlistRouter(deps.mailSender));
 	// Native Google-Anmeldung der Android-App per ID-Token (ADR 0023).
 	app.use(createNativeGoogleRouter(deps.googleKeys));
 
