@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
-// i18next global mocken (der neue Helfer liest die globale Instanz, Muster `journalDate.ts`) —
+// i18next global mocken — der Helfer liest den Paket-Singleton (nicht `../i18n/config`: dessen
+// Vite-only `import.meta.glob` bricht den tsx-Build der Website, die operator.ts importiert) —
 // so lässt sich resolvedLanguage unabhängig von language stellen.
-vi.mock('../i18n/config', () => ({ default: { resolvedLanguage: 'en', language: 'en' } }));
+vi.mock('i18next', () => ({ default: { resolvedLanguage: 'en', language: 'en' } }));
 
-// @ts-expect-error — Spec-Phase (#2775): `currentLegalLanguage` implementiert die Umsetzungsphase.
 import { currentLegalLanguage } from './operator';
-import i18next from '../i18n/config';
+import i18next from 'i18next';
 
 const i18nMock = i18next as unknown as { resolvedLanguage: string | undefined; language: string };
 

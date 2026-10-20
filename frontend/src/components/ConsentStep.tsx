@@ -2,7 +2,7 @@ import { KolDetails } from '@public-ui/react-v19';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
-import { legalLanguage, legalPath, type LegalKey } from '../lib/operator';
+import { currentLegalLanguage, legalPath, type LegalKey } from '../lib/operator';
 import { getPublicOrigin } from '../lib/siteOrigin';
 
 type LegalText = { status: 'loading' | 'error' } | { status: 'ready'; html: string };
@@ -52,8 +52,8 @@ const extractLegalHtml = (page: string, path: string): string => {
  * Wer nicht zustimmen will, meldet sich ab.
  */
 export const ConsentStep = ({ onAccepted }: { onAccepted: () => void }) => {
-	const { t, i18n } = useTranslation('messages');
-	const language = legalLanguage(i18n.resolvedLanguage ?? i18n.language);
+	const { t } = useTranslation('messages');
+	const language = currentLegalLanguage();
 	/** Absolute Adresse der Rechtsseite: `SITE_URL` im Android-Build (ADR 0021), sonst die eigene Origin. */
 	const legalUrl = (key: LegalKey): string => `${getPublicOrigin()}${legalPath(key, language)}`;
 	const [terms, setTerms] = useState(false);
