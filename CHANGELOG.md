@@ -4,11 +4,15 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.31 - 2026-10-20
 
-_Enthält v0.31.0 – v0.31.12._
+_Enthält v0.31.0 – v0.31.13._
 
 ### 🎉 New Features
 
 - feat(frontend): add withdrawal link, cancel page title in terms (#2776) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2792
+
+### 🐞 Bug Fixes
+
+- fix(ui): launch banner flush with tracking hint and cards by @deleonio in https://github.com/deleonio/priority-pilot/pull/2807
 
 ### 🔧 Engineering
 
@@ -168,7 +172,7 @@ _Enthält v0.27.0 – v0.27.11._
 - docs: align outdated code comments with current behavior (#2640) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2660
 - test(frontend): show blossom instead of heart in promo shots (#2641) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2658
 - refactor(frontend): consolidate badge colors in one source (#2637) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2653
-- refactor(frontend): consolidate badge colors in one source (#2637) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2653
+- test: strengthen assertions and silence expected errors (#2639) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2659
 - test: strengthen assertions and silence expected errors (#2639) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2659
 - chore: remove grandfather rule for legacy accounts (#2646) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2662
 - feat(billing): require billing address before subscription checkout by @deleonio in https://github.com/deleonio/priority-pilot/pull/2664
