@@ -3446,6 +3446,7 @@ describe('MCP-Werkzeuge series_list/series_instantiate (#2360)', () => {
 		seriesId: number | null;
 		priority?: number;
 		deadline?: string | null;
+		createdByName?: string | null;
 	};
 
 	const createSeriesViaApi = async (cookie: string, title: string, autoCreate: boolean): Promise<SeriesRow> => {
@@ -3507,7 +3508,10 @@ describe('MCP-Werkzeuge series_list/series_instantiate (#2360)', () => {
 	});
 
 	it('AK3: series_instantiate legt genau eine mit der Serie verknüpfte Aufgabe an, title und deadline greifen', async () => {
-		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		// #2787 AK2: bekannter Anzeigename — der Test-Login legt den Nutzer direkt damit an.
+		// (Ein vorgelagertes register würde displayName = E-Mail setzen und der nachgelagerte
+		// Test-Login überschreibt via findOrCreate nicht — Test-Pflege #2787.)
+		const cookie = await server.login('mcp-tools-a@example.com', { displayName: 'Vorlagen-Chef' });
 		const token = await createToken(cookie);
 		const series = await createSeriesViaApi(cookie, 'Vorlage', false);
 		const before = (await listTasks(token)).length;
@@ -3519,6 +3523,12 @@ describe('MCP-Werkzeuge series_list/series_instantiate (#2360)', () => {
 			deadline,
 		});
 		assert.equal(created.error, undefined, `series_instantiate sollte gelingen: ${created.error?.message}`);
+		// #2787 AK2: die Schreib-Antwort (dieselbe Route wie REST) trägt createdByName des Erstellers.
+		assert.equal(
+			created.result?.createdByName ?? null,
+			'Vorlagen-Chef',
+			'series_instantiate-Antwort nennt den Anzeigename des Serien-Erstellers (#2787)',
+		);
 
 		const tasks = await listTasks(token);
 		assert.equal(tasks.length, before + 1, 'genau eine Aufgabe muss entstehen');
@@ -3526,6 +3536,11 @@ describe('MCP-Werkzeuge series_list/series_instantiate (#2360)', () => {
 		assert.ok(task, 'die Aufgabe muss mit der Serie verknüpft sein');
 		assert.equal(task?.title, 'Aus Vorlage');
 		assert.equal(new Date(task?.deadline ?? '').toISOString(), deadline);
+		assert.equal(
+			task?.createdByName ?? null,
+			created.result?.createdByName ?? null,
+			'task_list-Orakel nennt denselben Ersteller wie die Schreib-Antwort (#2787)',
+		);
 	});
 
 	it('AK4: ein Nur-lese-Token weist series_instantiate ab, series_list bleibt möglich, keine Aufgabe entsteht', async () => {

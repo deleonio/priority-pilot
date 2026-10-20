@@ -1,7 +1,8 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
-import { Task, User } from '../models/index.js';
+import { Task, User, Group, GroupMember } from '../models/index.js';
+import CareSuggestionEvent from '../models/careSuggestionEvent.js';
 
 /**
  * Rote Spec-Tests für #2758 — aus Fürsorge-Vorlagen übernommene Aufgaben als „Balamentum"
@@ -12,12 +13,15 @@ import { Task, User } from '../models/index.js';
  * Anzeigename (kein Backfill, AK3).
  *
  * Rot, bis POST /tasks bei `careTemplateKey` die System-Herkunft setzt und serializeTask dafür
- * `createdByName: "Balamentum"` liefert. KEIN Produktivcode.
+ * `createdByName: "Balamentum"` liefert. #2787: Katalog-Validierung für `careTemplateKey`
+ * (unbekannter Schlüssel → 400, TF3) und Übergabe setzt `systemCreated` zurück (TF4).
+ * KEIN Produktivcode.
  */
-process.env.GOOGLE_ALLOWED_EMAILS = 'nina@example.com';
+process.env.GOOGLE_ALLOWED_EMAILS = 'nina@example.com,bob@example.com';
 applyTestAuthEnv('tasks-system-created-test');
 
 const NINA = 'nina@example.com';
+const BOB = 'bob@example.com';
 
 let server: TestServer;
 
@@ -65,7 +69,7 @@ describe('Systemseitig erzeugte Aufgaben (#2758)', () => {
 	it('TF1/AK1: POST mit careTemplateKey legt ohne Ersteller-Konto an — createdById null, createdByName "Balamentum"', async () => {
 		const cookie = await server.login(NINA, { displayName: 'Nina Nutzerin' });
 
-		const res = await postTask(cookie, { title: 'Spaziergang', careTemplateKey: 'koerper-spaziergang' });
+		const res = await postTask(cookie, { title: 'Spaziergang', careTemplateKey: 'koerper-1' });
 		assert.equal(res.status, 201, 'POST muss 201 liefern');
 		const dto = (await res.json()) as SystemTaskDto;
 
@@ -77,7 +81,7 @@ describe('Systemseitig erzeugte Aufgaben (#2758)', () => {
 
 	it('TF2/AK2: GET /tasks — die Antwortform, die mcp task_list durchreicht — nennt "Balamentum"', async () => {
 		const cookie = await server.login(NINA, { displayName: 'Nina Nutzerin' });
-		const res = await postTask(cookie, { title: 'Dehnen', careTemplateKey: 'koerper-dehnen' });
+		const res = await postTask(cookie, { title: 'Dehnen', careTemplateKey: 'koerper-2' });
 		assert.equal(res.status, 201, 'Setup: POST muss 201 liefern');
 		const dto = (await res.json()) as SystemTaskDto;
 
@@ -110,5 +114,52 @@ describe('Systemseitig erzeugte Aufgaben (#2758)', () => {
 		assert.ok(eintrag, 'Setup: Bestandsaufgabe muss in der Liste liegen');
 		assert.equal(eintrag.createdById, null, 'Bestand bleibt ohne Ersteller-Konto');
 		assert.equal(eintrag.createdByName, null, 'kein Backfill: Bestand bleibt ohne Anzeigename');
+	});
+
+	// ── #2787: Katalog-Validierung + Übergabe setzt systemCreated zurück ─────────────
+
+	it('TF3/AK3 (#2787): unbekannter careTemplateKey → 400, keine Aufgabe, kein uebernommen-Ereignis', async () => {
+		const cookie = await server.login(NINA, { displayName: 'Nina Nutzerin' });
+		const vorher = await Task.count();
+
+		const res = await postTask(cookie, { title: 'Tippfehler-Vorlage', careTemplateKey: 'gibts-nicht-42' });
+		assert.equal(res.status, 400, 'unbekannter Schlüssel wird gegen CARE_VORLAGEN abgewiesen');
+		assert.equal(await Task.count(), vorher, 'es wurde keine Aufgabe angelegt');
+		assert.equal(
+			await CareSuggestionEvent.count({ where: { reaktion: 'uebernommen' } }),
+			0,
+			'kein Übernahme-Ereignis für einen unbekannten Schlüssel',
+		);
+	});
+
+	it('TF4/AK4 (#2787): Übergabe einer System-Aufgabe setzt systemCreated zurück — Antwort und Liste nennen den Übergebenden', async () => {
+		const ninaCookie = await server.login(NINA, { displayName: 'Nina Nutzerin' });
+		await server.login(BOB, { displayName: 'Bob Empfänger' });
+		const ninaId = await userIdOf(NINA);
+		const bobId = await userIdOf(BOB);
+
+		// Gemeinsame Gruppe (#1213): sonst lehnt resolveRecipientId die Übergabe mit 403 ab.
+		const group = await Group.create({ name: 'Familie', description: null });
+		await GroupMember.create({ groupId: group.id, userId: ninaId, role: 'admin', joinedAt: new Date() });
+		await GroupMember.create({ groupId: group.id, userId: bobId, role: 'member', joinedAt: new Date() });
+
+		const created = await postTask(ninaCookie, { title: 'Spaziergang', careTemplateKey: 'koerper-1' });
+		assert.equal(created.status, 201, 'Setup: System-Aufgabe muss angelegt sein');
+		const systemDto = (await created.json()) as SystemTaskDto;
+		assert.equal(systemDto.createdByName, 'Balamentum', 'Setup: vor der Übergabe gilt der Systemname');
+
+		const res = await fetch(`${server.baseUrl}/tasks/${systemDto.id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', Cookie: ninaCookie },
+			body: JSON.stringify({ userId: bobId }),
+		});
+		assert.equal(res.status, 200, 'Setup: Übergabe muss gelingen');
+		const dto = (await res.json()) as SystemTaskDto;
+		assert.equal(dto.createdByName, 'Nina Nutzerin', 'Antwort nennt nach der Übergabe den Übergebenden');
+
+		const liste = await listTasks(ninaCookie);
+		const eintrag = liste.find((task) => task.id === dto.id);
+		assert.ok(eintrag, 'die übergebene Aufgabe muss in der Aufgabenliste liegen');
+		assert.equal(eintrag.createdByName, 'Nina Nutzerin', 'Liste nennt denselben Übergebenden');
 	});
 });
