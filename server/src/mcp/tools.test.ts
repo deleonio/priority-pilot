@@ -3508,8 +3508,9 @@ describe('MCP-Werkzeuge series_list/series_instantiate (#2360)', () => {
 	});
 
 	it('AK3: series_instantiate legt genau eine mit der Serie verknüpfte Aufgabe an, title und deadline greifen', async () => {
-		await server.register('mcp-tools-a@example.com', 'password123');
-		// #2787 AK2: bekannter Anzeigename — die Tool-Antwort muss ihn als createdByName tragen.
+		// #2787 AK2: bekannter Anzeigename — der Test-Login legt den Nutzer direkt damit an.
+		// (Ein vorgelagertes register würde displayName = E-Mail setzen und der nachgelagerte
+		// Test-Login überschreibt via findOrCreate nicht — Test-Pflege #2787.)
 		const cookie = await server.login('mcp-tools-a@example.com', { displayName: 'Vorlagen-Chef' });
 		const token = await createToken(cookie);
 		const series = await createSeriesViaApi(cookie, 'Vorlage', false);

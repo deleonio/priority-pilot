@@ -858,7 +858,10 @@ export const createSeriesRouter = ({ pushSender }: SeriesRouterDeps = {}): Route
 		}
 		try {
 			const instances = await generateDueInstances(series, { until: new Date(until), pushSender });
-			res.status(201).json(instances.map((task) => serializeTask(task)));
+			// #2787 AK1: die Schreib-Antwort nennt denselben Ersteller wie die Aufgabenliste —
+			// Namen-Kontext wie bei serializeSeries mitgeben.
+			const names = await loadUserNames([series.createdById ?? 0, series.userId ?? 0]);
+			res.status(201).json(instances.map((task) => serializeTask(task, { names })));
 		} catch (error) {
 			handleWriteError(res, error);
 		}
@@ -901,7 +904,9 @@ export const createSeriesRouter = ({ pushSender }: SeriesRouterDeps = {}): Route
 				},
 				pushSender,
 			);
-			res.status(201).json(serializeTask(task as Task));
+			// #2787 AK1: Abruf-Instanz nennt den Serien-Ersteller wie das Lese-Orakel.
+			const names = await loadUserNames([series.createdById ?? 0, series.userId ?? 0]);
+			res.status(201).json(serializeTask(task as Task, { names }));
 		} catch (error) {
 			handleWriteError(res, error);
 		}

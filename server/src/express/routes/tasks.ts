@@ -37,7 +37,7 @@ import { requirePlanFeature } from '../planGuard.js';
 import { GEO_CONFIG_DEFAULTS, resolveGeoUser } from './geoConfig.js';
 import { allowEmail } from '../../logics/allowedEmails.js';
 import { claimAccessMailSlot, sendAccountAccessMail } from '../../logics/accessMail.js';
-import { spracheAusHeader } from '../../logics/careSuggestionData.js';
+import { spracheAusHeader, CARE_VORLAGEN } from '../../logics/careSuggestionData.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
 import { notifyTaskCreated } from '../../logics/taskCreatedNotification.js';
 import { notifyTaskCompleted } from '../../logics/taskCompletedNotification.js';
@@ -799,6 +799,12 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			const careTemplateKeyRaw = (req.body as { careTemplateKey?: unknown }).careTemplateKey;
 			const careTemplateKey =
 				typeof careTemplateKeyRaw === 'string' && careTemplateKeyRaw.trim() ? careTemplateKeyRaw.trim() : null;
+			// #2787 AK3: nur echte Fürsorge-Vorlagen kennzeichnen die Aufgabe als System-Übernahme —
+			// ein unbekannter Schlüssel ist ein Tippfehler und wird abgewiesen (keine Aufgabe, kein Event).
+			if (careTemplateKey !== null && !CARE_VORLAGEN.some((vorlage) => vorlage.key === careTemplateKey)) {
+				sendError(res, 400, 'careTemplateKey verweist auf keine Fürsorge-Vorlage.');
+				return;
+			}
 			const systemCreated = careTemplateKey !== null;
 			const created = await sequelize.transaction(async (transaction) => {
 				// Neuen Task an den Eigentümer binden (Datenisolation, #207; Empfänger #1213, sonst der
@@ -1062,7 +1068,8 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				...validation.attrs,
 				...(istVerschoben ? { postponeCount: task.postponeCount + 1 } : {}),
 				...(task.seriesId != null ? { isException: true } : {}),
-				...(recipientId !== null ? { userId: recipientId, createdById: requesterId } : {}),
+				// #2787 AK4: die Übergabe entzieht die System-Herkunft — der Übergebende wird Ersteller.
+				...(recipientId !== null ? { userId: recipientId, createdById: requesterId, systemCreated: false } : {}),
 				// #1521: Claim — der Erlediger wird Eigentümer, `createdById` bleibt beim Anleger.
 				...(claimUserId !== null ? { userId: claimUserId } : {}),
 				...(handoverCategoryId !== undefined ? { categoryId: handoverCategoryId } : {}),
