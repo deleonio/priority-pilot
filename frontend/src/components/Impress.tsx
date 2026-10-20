@@ -20,6 +20,7 @@ const LegalLinks = () => {
 	const links = [
 		{ path: legalPath('terms', language), label: t('legal.terms') },
 		{ path: legalPath('privacy', language), label: t('legal.privacy') },
+		{ path: legalPath('withdrawal', language), label: t('legal.withdrawal') },
 	];
 	return (
 		<>
