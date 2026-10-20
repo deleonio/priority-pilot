@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.31 - 2026-10-20
 
-_Enthält v0.31.0 – v0.31.18._
+_Enthält v0.31.0 – v0.31.19._
 
 ### 🎉 New Features
 
@@ -14,6 +14,10 @@ _Enthält v0.31.0 – v0.31.18._
 
 - fix(ui): launch banner flush with tracking hint and cards by @deleonio in https://github.com/deleonio/priority-pilot/pull/2807
 - feat(server): exempt admin role from mcp_read token gate (#2810) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2812
+
+### 🚀 Improvements
+
+- feat(frontend): switch-dependent accordions for ki tab lower sections by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2815
 
 ### 🔧 Engineering
 
@@ -168,7 +172,6 @@ _Enthält v0.27.0 – v0.27.11._
 
 - docs: fix broken ADR 0024 link to ux-design.md (#2622) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2668
 - feat(server): derive e2e overload seed threshold from constant (#2623) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2666
-- feat(server): derive e2e overload seed threshold from constant (#2623) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2666
 
 ### Other Changes
 
@@ -182,7 +185,7 @@ _Enthält v0.27.0 – v0.27.11._
 - chore: remove grandfather rule for legacy accounts (#2646) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2662
 - feat(billing): require billing address before subscription checkout by @deleonio in https://github.com/deleonio/priority-pilot/pull/2664
 - feat(frontend): reserve dashboard card heights to avoid layout shift by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2667
-- feat(frontend): reserve dashboard card heights to avoid layout shift by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2667
+- refactor(server): resolve app language via shared helper by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2665
 - refactor(server): resolve app language via shared helper by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2665
 
 ## v0.26 - 2026-10-15
