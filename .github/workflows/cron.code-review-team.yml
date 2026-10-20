@@ -48,6 +48,15 @@ on:
     - cron: '27 3 * * 5' # wöchentlich freitags 03:27 UTC (05:27/04:27 Berlin) — Abschluss des Team-Blocks in der Nacht auf Freitag: Fix-PR und Reports früh am Freitag fertig, der Fix-PR läuft übers Wochenende durch die Pipeline
   workflow_dispatch:
     inputs:
+      runner:
+        description: 'Runner für diesen Lauf: default = vars.PHASE_RUNNER oder ubuntu-latest'
+        required: false
+        default: 'default'
+        type: choice
+        options:
+          - default
+          - pi5
+          - ubuntu-latest
       force:
         description: 'Skip-Guard ignorieren (Lauf erzwingen, auch wenn main unverändert ist)'
         type: boolean
@@ -79,7 +88,7 @@ env:
 
 jobs:
   code-review-team:
-    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner == 'pi5' && 'pi5' || inputs.runner == 'ubuntu-latest' && 'ubuntu-latest' || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 45
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin

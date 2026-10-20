@@ -40,6 +40,15 @@ on:
     - cron: '5 10,11 * * *'
   workflow_dispatch:
     inputs:
+      runner:
+        description: 'Runner für diesen Lauf: default = vars.PHASE_RUNNER oder ubuntu-latest'
+        required: false
+        default: 'default'
+        type: choice
+        options:
+          - default
+          - pi5
+          - ubuntu-latest
       dry-run:
         description: 'Nur auflisten, nichts nachtriggern (Erst-Beobachtung eines frisch deployten Sweeps)'
         required: false
@@ -66,7 +75,7 @@ env:
 
 jobs:
   sweep:
-    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner == 'pi5' && 'pi5' || inputs.runner == 'ubuntu-latest' && 'ubuntu-latest' || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
       - name: Voraussetzung prüfen (GitHub-App-Secrets)

@@ -35,7 +35,17 @@ on:
   schedule:
     - cron: '0 3 * * *' # 05:00 Berlin im Sommer (CEST, UTC+2)
     - cron: '0 4 * * *' # 05:00 Berlin im Winter (CET, UTC+1)
-  workflow_dispatch: {} # manueller Testlauf, umgeht das Zeitfenster-Gate
+  workflow_dispatch: # manueller Testlauf, umgeht das Zeitfenster-Gate
+    inputs:
+      runner:
+        description: 'Runner für diesen Lauf: default = vars.PHASE_RUNNER oder ubuntu-latest'
+        required: false
+        default: 'default'
+        type: choice
+        options:
+          - default
+          - pi5
+          - ubuntu-latest
 
 concurrency:
   group: daily-version
@@ -47,7 +57,7 @@ permissions:
 
 jobs:
   daily-version:
-    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner == 'pi5' && 'pi5' || inputs.runner == 'ubuntu-latest' && 'ubuntu-latest' || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
       - name: Zeitfenster prüfen (05-07 Uhr Europe/Berlin; manuell immer)

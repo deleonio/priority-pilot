@@ -14,6 +14,16 @@ on:
   schedule:
     - cron: '41 2 * * 5' # woechentlich freitags 02:41 UTC (04:41/03:41 Berlin) — Nacht auf Freitag im Team-Block: Reports früh am Freitag fertig fuer den Issue-Tree
   workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Runner für diesen Lauf: default = vars.PHASE_RUNNER oder ubuntu-latest'
+        required: false
+        default: 'default'
+        type: choice
+        options:
+          - default
+          - pi5
+          - ubuntu-latest
 
 concurrency:
   # Gemeinsame Gruppe aller Nicht-Phasen-LLM-Laeufe (Crons + Ad-hoc): max. 1 gleichzeitig, FIFO.
@@ -29,7 +39,7 @@ permissions:
 
 jobs:
   nit-report:
-    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner == 'pi5' && 'pi5' || inputs.runner == 'ubuntu-latest' && 'ubuntu-latest' || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin

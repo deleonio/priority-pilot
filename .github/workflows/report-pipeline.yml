@@ -35,6 +35,15 @@ on:
     - cron: '43 6 * * 1' # montags 06:43 UTC
   workflow_dispatch:
     inputs:
+      runner:
+        description: 'Runner für diesen Lauf: default = vars.PHASE_RUNNER oder ubuntu-latest'
+        required: false
+        default: 'default'
+        type: choice
+        options:
+          - default
+          - pi5
+          - ubuntu-latest
       issues:
         description: 'Fokus-Modus: kommaseparierte Issue-Nummern (z. B. 1752,1754) — leer = voller Wochen-Report'
         required: false
@@ -48,7 +57,7 @@ env:
 
 jobs:
   report:
-    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner == 'pi5' && 'pi5' || inputs.runner == 'ubuntu-latest' && 'ubuntu-latest' || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
