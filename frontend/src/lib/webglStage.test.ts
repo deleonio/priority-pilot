@@ -29,6 +29,8 @@ describe('webglStage — geteiltes WebGL-Gerüst (#2696)', () => {
 		);
 		expect(source, 'toSlots muss im Modul deklariert sein').toMatch(/export\s+const\s+toSlots\b/);
 		expect(source, 'toSlotBands muss im Modul deklariert sein').toMatch(/export\s+const\s+toSlotBands\b/);
+		expect(source, 'parseColor muss im Modul deklariert sein').toMatch(/export\s+const\s+parseColor\b/);
+		expect(source, 'WebGL2-Kontext muss im Modul geholt werden').toMatch(/getContext\(\s*['"]webgl2['"]/);
 	});
 
 	it.each(components)('%s enthält keine eigene Kopie des Gerüsts mehr', (file) => {
