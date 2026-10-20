@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.31 - 2026-10-20
 
-_Enthält v0.31.0 – v0.31.10._
+_Enthält v0.31.0 – v0.31.11._
 
 ### 🎉 New Features
 
@@ -23,6 +23,7 @@ _Enthält v0.31.0 – v0.31.10._
 - ci: add monthly hacker-team run and solid yardstick to code review team by @deleonio in https://github.com/deleonio/priority-pilot/pull/2799
 - fix(frontend): branch journalDate by format, not string length (#2797) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2803
 - ci: select runner for manual dispatch runs (default, pi5, ubuntu-latest) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2805
+- feat(server): waitlist double opt-in with mail confirmation and bot protection by @deleonio in https://github.com/deleonio/priority-pilot/pull/2804
 
 ## v0.30 - 2026-10-20
 
@@ -160,7 +161,6 @@ _Enthält v0.27.0 – v0.27.11._
 
 ### Other Changes
 
-- docs: unify formatting and cross-references (#2642) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2654
 - docs: unify formatting and cross-references (#2642) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2654
 - ci(workbench): add kill grace period to chromium install timeout (#2643) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2655
 - docs: fix dead links in ADR 0004 (#2638) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2656
@@ -407,6 +407,7 @@ _Enthält v0.19.0 – v0.19.19._
 - feat(server): add password review access for google play (#2426) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2433
 - feat(frontend): deadline pagination, compact missed list, slim banner by @deleonio in https://github.com/deleonio/priority-pilot/pull/2416
 - feat(frontend): reduce balance variants to rays, bloom, crystal, hands by @deleonio in https://github.com/deleonio/priority-pilot/pull/2437
+- feat(i18n): translate app, server texts and website to english by @deleonio in https://github.com/deleonio/priority-pilot/pull/2429
 - feat(i18n): translate app, server texts and website to english by @deleonio in https://github.com/deleonio/priority-pilot/pull/2429
 - fix(server): reset review account on every login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2444
 - [P2/S] Hilfe: Feedback-Formular wählt „Wünsche und Ideen“ vor (#2443) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2446
