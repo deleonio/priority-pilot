@@ -920,6 +920,35 @@ kol-toolbar {
 
 /* --- Dashboard --- */
 
+/*
+ * Vertikaler Karten-Rhythmus: Der Stapel läuft über EINE Flex-Spalte mit Gap — dieselbe
+ * Mechanik wie das Zwei-Spalten-Grid ab 48 rem — statt über Eigenmargins je Karte. Die
+ * Eigenmargins brachen still, sobald Karten bedingt nicht gerendert wurden oder ein Wrapper
+ * dazukam (`.dashboard-last-row` hatte mobil 0 px zwischen Deadlines und Verpasst, gemessen
+ * bei 375 px). Hero-Spalte und letzte Reihe folgen demselben Muster; der 48-rem-Block
+ * überschreibt display/gap dort (Grid, kompakte Hero-Spalte). Einzige bewusste Ausnahme: die
+ * kompakte Zone zwischen Titelzeile und Ziffernblatt — früher margin-top des Herzens, jetzt
+ * ein negativer Ausgleich an der Titelzeile, damit die Balance-Karte samt Ablesewert im
+ * ersten Mobile-Viewport bleibt (Begründung beim `.app-tabs`-Kommentar).
+ */
+.dashboard {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-generous);
+}
+
+.dashboard-heading {
+	margin-bottom: calc(var(--pp-gap-base) - var(--pp-gap-generous));
+}
+
+.dashboard-hero,
+.dashboard-hero-side,
+.dashboard-last-row {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-generous);
+}
+
 /* #1617: Tag/Woche-Umschalter über dem Dashboard-Inhalt. */
 .dashboard-view-switch {
 	display: flex;
@@ -976,13 +1005,13 @@ kol-toolbar {
 /*
  * Kennzahlen-Kacheln: auf Handy-Breite kompaktes 3er-Raster (Gesamt/Offen/Erledigt) statt
  * 2+1-Versatz (auto-fit mit 10rem-Mindestbreite passt erst ab Tablet). Ab 48rem übernimmt dort
- * wieder das auto-fit-Raster mit größeren Zahlen. Der Widget-Abstand nach oben ist wie bei allen
- * Cards generous — die alte 0.5rem-Kopplung stammt aus der Zeit, als die Begrüßung noch direkt
- * über den Kacheln saß (das Herz steht inzwischen dazwischen).
+ * wieder das auto-fit-Raster mit größeren Zahlen. Der Abstand nach oben steuert der Gap der
+ * `dashboard-hero-side` (kein Eigenmargin mehr); die alte 0.5rem-Kopplung stammte aus der
+ * Zeit, als die Begrüßung noch direkt über den Kacheln saß (das Herz steht inzwischen dazwischen).
  */
 .dashboard-cards {
 	list-style: none;
-	margin: var(--pp-gap-generous) 0 0;
+	margin: 0;
 	padding: 0;
 	display: grid;
 	gap: var(--pp-gap-tight);
@@ -1031,10 +1060,6 @@ kol-toolbar {
  * trotzdem: die beiden Farben kommen aus verschiedenen Systemen und dürfen nie getrennt gesetzt
  * werden.
  */
-.dashboard-next-task {
-	margin-top: var(--pp-gap-generous);
-}
-
 /*
  * #1118: Die sieben Dashboard-Widgets sind Kolibri-Cards — die Widget-Klasse sitzt direkt am
  * Card-Host (die alte Außen-<section> ist entfernt). Breite, Höhe, Rahmen und Schatten liefert
@@ -1187,7 +1212,6 @@ kol-toolbar {
  * Dashboard.tsx über `suggestionsFiltered`).
  */
 .dashboard-suggestions {
-	margin-top: var(--pp-gap-generous);
 	/* Bewusst KEIN `color` mehr: die Klasse sitzt am Card-Host, eine direkte Farbe würde die
 	   Card-Textfarbe des Themes (schwarz auf weißer Fläche) übersteuern und im erzwungenen
 	   Dunkelmodus hell-auf-weiß malen (dark-mode-contrast.spec.ts, #1118-Folge). */
@@ -1237,10 +1261,6 @@ kol-toolbar {
  * (mobile-ui-rules.md Touch-Ziel), Titel einzeilig kappbar, Distanz rechtsbündig. Wie die
  * Vorschlagsliste bewusst ohne Signal-Färbung.
  */
-.dashboard-nearby {
-	margin-top: var(--pp-gap-generous);
-}
-
 .dashboard-nearby-hint {
 	font-size: var(--pp-font-size-sm);
 	margin: 0;
@@ -1279,10 +1299,6 @@ kol-toolbar {
 }
 
 /* #1990: „Freie Zeit" — Zeitraum fett, darunter die passenden Aufgaben; reine Information. */
-.dashboard-free-time {
-	margin-top: var(--pp-gap-generous);
-}
-
 .dashboard-free-time-list,
 .dashboard-free-time-tasks {
 	margin: 0;
@@ -1311,14 +1327,6 @@ kol-toolbar {
 .dashboard-suggestion-meta {
 	color: var(--pp-text-muted);
 	font-size: var(--pp-font-size-sm);
-}
-
-.dashboard-top-tasks {
-	margin-top: var(--pp-gap-generous);
-}
-
-.dashboard-deadlines {
-	margin-top: var(--pp-gap-generous);
 }
 
 .dashboard-deadlines-list {
@@ -1356,13 +1364,17 @@ kol-toolbar {
 	white-space: nowrap;
 }
 
-/* Rechte Seite eines Deadline-Eintrags: optionales Dringlichkeits-Badge plus Datum. */
+/* Rechte Seite eines Deadline-Eintrags: optionales Dringlichkeits-Badge plus Datum. Bei
+   200 % Text passt die Gruppe nicht mehr nebeneinander in die Card — flex-wrap: wrap
+   stapelt Badge und Datum dann (WCAG 1.4.10 Reflow, beim Rhythmus-Umbau gefunden). */
 .dashboard-deadline-aside {
 	display: inline-flex;
 	align-items: center;
+	flex-wrap: wrap;
 	gap: var(--pp-gap-tight);
 	margin-left: auto;
 	flex-shrink: 0;
+	max-width: 100%;
 }
 
 /* Ab mittlerer Breite zweispaltig: Begrüßung und „Was ist jetzt dran?" bleiben über die volle
@@ -1392,6 +1404,9 @@ kol-toolbar {
 	.dashboard-heading,
 	.dashboard-suggestions {
 		grid-column: 1 / -1;
+		/* margin-bottom hebt die mobile Kompakt-Ausnahme über dem Ziffernblatt auf: Im Grid
+		   steuert der Gap den Rhythmus. */
+		margin-bottom: 0;
 	}
 
 	/* Letzte Dashboard-Reihe strukturell koppeln (#1964, Fixup #2476): Deadlines und Verpasst
@@ -1524,10 +1539,6 @@ kol-toolbar {
 	font-size: var(--pp-font-size-sm);
 }
 
-.dashboard-pillars {
-	margin-top: var(--pp-gap-generous);
-}
-
 /* AK4 (#440): Bei 8+ Säulen und 375px Viewport kein horizontales Scrollen — der
    Übergelaufschutz sitzt an `overflow-wrap: break-word` (lange Werte/Wörter umbrechen statt die
    Zeile zu sprengen) plus `max-width: 100%`, nicht an `overflow-x: hidden`: Ein Clip hier würde
@@ -1613,7 +1624,6 @@ kol-toolbar {
  * ohne Signal-Färbung — die gehört allein der „Nächsten Aufgabe".
  */
 .dashboard-streak {
-	margin-top: var(--pp-gap-generous);
 	/* #2625: reservierte Höhe ab dem ersten Render — Übergang Laden → Geladen hoehenneutral.
 	   Werte im 4/8-Raster, gemessen bei 375 px; Desktop erhält eigene Werte (siehe unten). */
 	min-height: 236px;
@@ -1622,7 +1632,6 @@ kol-toolbar {
 /* Balance-Verlauf (#2082): Aussage als Text, Linie als Beleg; SVG skaliert mit der Spaltenbreite. */
 .dashboard-balance-history {
 	display: block;
-	margin-top: var(--pp-gap-generous);
 	/* #2625: reservierte Höhe (wie .dashboard-streak). */
 	min-height: 124px;
 }
@@ -1739,7 +1748,6 @@ kol-toolbar {
  */
 .dashboard-weekly {
 	display: block;
-	margin-top: var(--pp-gap-generous);
 	/* #2625: reservierte Höhe ab dem ersten Render (Fensterzustand, 4/8-Raster, gemessen bei
 	   375 px); Desktop erhält eigene Werte (siehe unten). */
 	min-height: 400px;
@@ -1826,7 +1834,6 @@ kol-toolbar {
  */
 .dashboard-monthly {
 	display: block;
-	margin-top: var(--pp-gap-generous);
 	/* #2625: reservierte Höhe (wie .dashboard-weekly). */
 	min-height: 400px;
 }
@@ -1896,7 +1903,6 @@ kol-toolbar {
  */
 .dashboard-yearly {
 	display: block;
-	margin-top: var(--pp-gap-generous);
 	/* #2625: reservierte Höhe (wie .dashboard-weekly). */
 	min-height: 292px;
 }
@@ -1951,7 +1957,6 @@ kol-toolbar {
  * sie farblich, zusätzlich trägt `_label` den Erreicht-Status textuell (mobile-ui-rules Regel 9).
  */
 .dashboard-milestones {
-	margin-top: var(--pp-gap-generous);
 	/* #2625: reservierte Höhe (wie .dashboard-streak). */
 	min-height: 476px;
 }
@@ -1982,7 +1987,6 @@ kol-toolbar {
  * einspaltig (AK6-Muster), damit lange Titel bei 375px nicht horizontal scrollen.
  */
 .dashboard-missed {
-	margin-top: var(--pp-gap-generous);
 	/* #2625: reservierte Höhe (wie .dashboard-streak). */
 	min-height: 124px;
 }
@@ -2028,13 +2032,10 @@ kol-toolbar {
 /* #1361: `.day-done-hint` (DayDoneHint.tsx) ist der einzige Dashboard-Knoten ohne `dashboard-`
    Präfix — trägt denselben Widget-Abstand wie alle Nachbar-Cards, sonst klebt der Hinweis an
    „Meilensteine" (im Grid ab 48rem übernimmt der Grid-`gap`, hier zählt nur die Einspalten-Ansicht). */
-.day-done-hint {
-	margin-top: var(--pp-gap-generous);
-}
-
-/* #1793: `.care-hint` (CareHint.tsx) — Abstand wie `.day-done-hint`; #2445: Übernehmen und die beiden
-   Icon-Schalter in einer Zeile (bricht bei großer Schrift um). */
-.care-hint {
+/* #1793: Abstand steuert der Card-Stapel-Gap (Dashboard) bzw. dieser Aufgaben-Tab-Eigenabstand —
+   kein Eigenmargin mehr am Dashboard-Host. #2445: Übernehmen und die beiden Icon-Schalter des
+   CareHint in einer Zeile (bricht bei großer Schrift um). */
+.task-section .day-done-hint {
 	margin-top: var(--pp-gap-generous);
 }
 
@@ -2107,10 +2108,6 @@ kol-toolbar {
 	.dashboard-yearly {
 		min-height: 336px;
 	}
-}
-
-.dashboard-balance {
-	margin-top: var(--pp-gap-generous);
 }
 
 .dashboard-balance-total {
@@ -4590,7 +4587,6 @@ kol-alert {
  */
 .dashboard-heart {
 	display: block;
-	margin-top: var(--pp-gap-base);
 }
 
 .heart-balance {
@@ -6605,11 +6601,7 @@ a.plan-badge:focus-visible {
 }
 
 /* #2221: `.welcome-steps` (WelcomeSteps.tsx) — Einstieg im Dashboard, eine Spalte; Schritt-Buttons und
-   Schließen ≥44px (docs/mobile-ui-rules.md). */
-.welcome-steps {
-	margin-top: var(--pp-gap-generous);
-}
-
+   Schließen ≥44px (docs/mobile-ui-rules.md). Abstand steuert der Hero-Spalten-Gap. */
 .welcome-steps-list {
 	display: flex;
 	flex-direction: column;
