@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.31 - 2026-10-20
 
-_Enthält v0.31.0 – v0.31.15._
+_Enthält v0.31.0 – v0.31.16._
 
 ### 🎉 New Features
 
@@ -31,6 +31,7 @@ _Enthält v0.31.0 – v0.31.15._
 - feat(server): waitlist double opt-in with mail confirmation and bot protection by @deleonio in https://github.com/deleonio/priority-pilot/pull/2804
 - refactor(server): clean up three request-validation nits (#2798) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2808
 - fix(website): name MLBF enforcement body in accessibility statement by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2802
+- feat(frontend): unify dashboard card spacing rhythm by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2814
 
 ## v0.30 - 2026-10-20
 
@@ -155,7 +156,6 @@ _Enthält v0.27.0 – v0.27.11._
 
 ### 🐞 Bug Fixes
 
-- fix(frontend): keep task list popover button right-aligned by @deleonio in https://github.com/deleonio/priority-pilot/pull/2663
 - fix(frontend): keep task list popover button right-aligned by @deleonio in https://github.com/deleonio/priority-pilot/pull/2663
 
 ### 🚀 Improvements
@@ -418,6 +418,7 @@ _Enthält v0.19.0 – v0.19.19._
 - feat(i18n): translate app, server texts and website to english by @deleonio in https://github.com/deleonio/priority-pilot/pull/2429
 - fix(server): reset review account on every login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2444
 - [P2/S] Hilfe: Feedback-Formular wählt „Wünsche und Ideen“ vor (#2443) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2446
+- revert(balance): alle neun Zifferblätter wiederherstellen by @deleonio in https://github.com/deleonio/priority-pilot/pull/2447
 - revert(balance): alle neun Zifferblätter wiederherstellen by @deleonio in https://github.com/deleonio/priority-pilot/pull/2447
 - feat(frontend): show care hint actions in one row with icon buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2448
 - feat(frontend): move missed tasks into dashboard grid, unify gap by @deleonio in https://github.com/deleonio/priority-pilot/pull/2450
