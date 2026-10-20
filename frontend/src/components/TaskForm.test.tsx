@@ -40,17 +40,25 @@ vi.mock('@public-ui/react-v19', () => ({
 	KolInputText: ({
 		_label,
 		_value,
+		_disabled,
 		_on,
 	}: {
 		_label?: string;
 		_value?: string;
-		_on?: { onChange?: (_e: unknown, v: string) => void; onBlur?: (_e: unknown) => void };
+		_disabled?: boolean;
+		_on?: {
+			onChange?: (_e: unknown, v: string) => void;
+			onBlur?: (_e: unknown) => void;
+			onKeyDown?: (_e: KeyboardEvent) => void;
+		};
 	}) => (
 		<input
 			aria-label={_label}
 			defaultValue={_value}
+			disabled={_disabled}
 			onChange={(e) => _on?.onChange?.(e.nativeEvent, e.target.value)}
 			onBlur={(e) => _on?.onBlur?.(e.nativeEvent)}
+			onKeyDown={(e) => _on?.onKeyDown?.(e.nativeEvent)}
 		/>
 	),
 	KolCombobox: ({
@@ -1598,6 +1606,76 @@ describe('TaskForm — Checklisten-Feld (#531)', () => {
 		expect(typeof taskCreate.checklist![0].id).toBe('string');
 		expect(taskCreate.checklist![0].title).toBe('Schritt 1');
 		expect(taskCreate.checklist![0].completed).toBe(false);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2771 — Checklisten-Eintrag per Enter-Taste anlegen. Vertrag:
+ * `docs/spec/issue-2771.md`. Der KolInputText-Mock reicht `onKeyDown` als natives keyDown
+ * durch; Enter darf ausschließlich `addChecklistItem()` triggern (Limit-/Leertitel-Guard
+ * geerbt). AK2/AK3 sind Spiegel-Guards: solange TaskForm kein Enter behandelt, sind sie
+ * grün — sie pinnen, dass eine spätere Enter-Implementierung die Guards nicht umgeht.
+ */
+describe('TaskForm — Checklisten-Eintrag per Enter (#2771)', () => {
+	it('AK1: Enter im gefüllten Feld legt den Eintrag an und lässt den Fokus im Feld', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		const input = screen.getByLabelText(/Checklisten-Eintrag/i) as HTMLInputElement;
+		input.focus();
+		await act(async () => {
+			fireEvent.change(input, { target: { value: 'Per Enter' } });
+		});
+		await act(async () => {
+			fireEvent.keyDown(input, { key: 'Enter' });
+		});
+
+		expect(screen.getByTestId('checklist-item')).toBeInTheDocument();
+		expect(screen.getByText('Per Enter')).toBeInTheDocument();
+		expect(document.activeElement).toBe(input);
+	});
+
+	it('AK2: Enter im leeren Feld legt keinen Eintrag an', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		const input = screen.getByLabelText(/Checklisten-Eintrag/i);
+		input.focus();
+		await act(async () => {
+			fireEvent.keyDown(input, { key: 'Enter' });
+		});
+
+		expect(screen.queryByTestId('checklist-item')).toBeNull();
+	});
+
+	it('AK3: Bei CHECKLIST_LIMIT ist das Feld deaktiviert, Enter erzeugt keinen 51. Eintrag', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(
+				<TaskForm
+					task={null}
+					{...defaultProps}
+					initialValues={
+						{ checklist: Array.from({ length: 50 }, (_v, i) => `Punkt ${i + 1}`) } as unknown as TaskFormInitialValues
+					}
+				/>,
+			);
+		});
+
+		const input = screen.getByLabelText(/Checklisten-Eintrag/i) as HTMLInputElement;
+		expect(input).toBeDisabled();
+		expect(screen.getByText(/Checkliste voll/)).toBeInTheDocument();
+
+		input.focus();
+		await act(async () => {
+			fireEvent.keyDown(input, { key: 'Enter' });
+		});
+
+		expect(screen.getAllByTestId('checklist-item')).toHaveLength(50);
 	});
 });
 
