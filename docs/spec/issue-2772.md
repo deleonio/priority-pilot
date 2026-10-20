@@ -9,7 +9,7 @@ geschlossen — ohne dass sich eine bestehende 400-Meldung ändert (API-Vertrag)
 
 - Eingeloggte Session (Cookie); alle berührten Endpunkte liegen unter `/scores`, `/journal`,
   `/users`, `/groups` bzw. `/push`.
-- Express paritt mehrfach gesendete Query-Parameter zu Arrays (`?tz=UTC&tz=Europe/Berlin` →
+- Express parst mehrfach gesendete Query-Parameter zu Arrays (`?tz=UTC&tz=Europe/Berlin` →
   `req.query.tz === ['UTC', 'Europe/Berlin']`).
 - Die Feld-Helfer aus `server/src/logics/requestValidation.ts` (#2691) sind das Muster:
   wortgleiche Meldungen, Dedup-Spiegel-Tests im Modul.
@@ -45,7 +45,7 @@ Mehrfach gesendete String-Query-Parameter der JSON-API sind ein Bedienfehler →
   unbekannte einzelne `tz` → Fallback Serverzeit (200).
 - **Ausnahme:** `auth.ts` (`error`-Parameter) bleibt beim Bestandsverhalten — OAuth-Redirect-Flow,
   kein JSON-API-Vertrag.
-- Die exakte Fehlertexte der neuen Array-400er sind nicht Teil des Vertrags (nur Status 400 mit
+- Die exakten Fehlertexte der neuen Array-400er sind nicht Teil des Vertrags (nur Status 400 mit
   `message`).
 
 ### 3. Body-Seite
