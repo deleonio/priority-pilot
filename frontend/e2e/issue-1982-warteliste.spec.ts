@@ -99,6 +99,29 @@ test.describe('Warteliste-Hinweis mit Datenschutz-Link (#2768, docs/spec/issue-2
 		await expect(page).toHaveURL(/\/datenschutz\/$/);
 	});
 
+	test('AK1/AK2 (englisch): Link zeigt auf /en/privacy/ und Ziel antwortet (375px)', async ({ page }) => {
+		await page.setViewportSize(MOBILE);
+		await page.addInitScript(() => localStorage.setItem('i18nextLng', 'en'));
+		await mockUnauthenticated(page);
+		// Website-Seiten (/en/privacy/) bedient der E2E-Stack nicht echt (Randbedingung der Analyse) —
+		// Ziel per Route-Fulfill absichern (Muster `mockLegalPage`); die URL-Assertion bleibt scharf.
+		await page.route('**/en/privacy/', (route: Route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'text/html',
+				body: '<html><body><main id="main"><h1>Privacy policy</h1></main></body></html>',
+			}),
+		);
+		await page.goto('/app/');
+
+		const link = page.getByRole('link', { name: /privacy policy/i });
+		await expect(link).toBeVisible();
+		await expect(link).toHaveAttribute('href', '/en/privacy/');
+		const [response] = await Promise.all([page.waitForResponse((r) => /\/en\/privacy\/$/.test(r.url())), link.click()]);
+		expect(response.status(), 'Ziel antwortet erfolgreich (HTTP < 400)').toBeLessThan(400);
+		await expect(page).toHaveURL(/\/en\/privacy\/$/);
+	});
+
 	test('AK3: Hinweiszeile und Karte laufen nicht horizontal über den 375px-Viewport', async ({ page }) => {
 		await page.setViewportSize(MOBILE);
 		await mockUnauthenticated(page);
