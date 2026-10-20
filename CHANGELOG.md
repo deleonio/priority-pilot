@@ -2,9 +2,13 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.31 - 2026-10-20
+
+_Keine für Nutzer sichtbaren Änderungen._
+
 ## v0.30 - 2026-10-20
 
-_Enthält v0.30.0 – v0.30.27._
+_Enthält v0.30.0 – v0.30.28._
 
 ### 🎉 New Features
 
@@ -17,6 +21,7 @@ _Enthält v0.30.0 – v0.30.27._
 - fix(ui): keep banner button labels unwrapped, fit invitation banner to content by @deleonio in https://github.com/deleonio/priority-pilot/pull/2760
 - feat(server): allow removing a task deadline via mcp task_update null by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2762
 - fix(server): series instances inherit series creator (#2757) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2779
+- feat(server): propagate embedded provider errors at HTTP 200 (#2774) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2790
 
 ### 🚀 Improvements
 
@@ -459,7 +464,6 @@ _Enthält v0.18.0 – v0.18.45._
 - feat(server): apply task defaults and create instances in POST /series by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2412
 - refactor(server): compute series generation horizon in one place (#2405) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2425
 - feat(frontend): save task as series template (#2361) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2422
-- feat(frontend): name series/template switch and dialog title (#2415) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2424
 - feat(frontend): name series/template switch and dialog title (#2415) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2424
 - feat(frontend): add capture-from-template to quick capture (#2363) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2423
 - ci(android): add tag input to roll app bundle into test track by @deleonio in https://github.com/deleonio/priority-pilot/pull/2430
