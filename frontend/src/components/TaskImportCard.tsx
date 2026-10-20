@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readString } from '../lib/inputValue';
+import { formatDate } from '../lib/journalDate';
 
 /**
  * CSV-Import (#1969): Datei wählen → Vorschau (Zahlen mit Kontext, Beispiele, Fehlerliste,
@@ -24,8 +25,7 @@ type ImportSuggestion = TaskImportAnalysis['suggestions'][number];
 type ImportDuplicate = TaskImportAnalysis['duplicates'][number];
 
 export const TaskImportCard = () => {
-	const { t, i18n } = useTranslation('capture');
-	const formatDate = (iso: string): string => new Date(iso).toLocaleDateString(i18n.language);
+	const { t } = useTranslation('capture');
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const previewHeadingRef = useRef<HTMLHeadingElement>(null);
 	const successRef = useRef<HTMLDivElement>(null);
@@ -357,7 +357,7 @@ export const TaskImportCard = () => {
 										{preview.samples.map((sample) => (
 											<li key={sample.row}>
 												{sample.title}
-												{sample.deadline !== null && ` · ${formatDate(sample.deadline)}`}
+												{sample.deadline !== null && ` · ${formatDate(sample.deadline, { format: 'short' })}`}
 												{t('taskImport.samplePriority', { priority: sample.priority })}
 											</li>
 										))}

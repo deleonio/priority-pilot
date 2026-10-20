@@ -4,7 +4,7 @@
  */
 
 import { Trans, useTranslation } from 'react-i18next';
-import { legalLanguage, legalPath, OPERATOR } from '../lib/operator';
+import { currentLegalLanguage, legalPath, OPERATOR } from '../lib/operator';
 import { getPublicOrigin } from '../lib/siteOrigin';
 
 /** E-Mail-Adresse aus den Operator-Angaben, als mailto-Link gerendert. */
@@ -15,8 +15,8 @@ const OperatorEmail = () => <a href={`mailto:${OPERATOR.email}`}>{OPERATOR.email
  * (ADR 0015) — daher `origin` statt `BASE_URL` (#1891).
  */
 const LegalLinks = () => {
-	const { t, i18n } = useTranslation('messages');
-	const language = legalLanguage(i18n.resolvedLanguage ?? i18n.language);
+	const { t } = useTranslation('messages');
+	const language = currentLegalLanguage();
 	const links = [
 		{ path: legalPath('terms', language), label: t('legal.terms') },
 		{ path: legalPath('privacy', language), label: t('legal.privacy') },

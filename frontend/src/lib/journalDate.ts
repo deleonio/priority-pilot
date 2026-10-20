@@ -24,10 +24,18 @@ export const toDateValue = (date: string): Date | undefined => {
 	return date === '' || Number.isNaN(parsed.getTime()) ? undefined : parsed;
 };
 
-export const formatDate = (date: string): string =>
-	new Date(`${date}T00:00:00Z`).toLocaleDateString(i18next.language, {
-		day: 'numeric',
-		month: 'long',
-		year: 'numeric',
-		timeZone: 'UTC',
-	});
+/** Datumsformat: `'long'` (Default, „2. November 2026“) oder `'short'` („2.11.2026“, Import-Vorschau). */
+export type DateFormat = 'long' | 'short';
+
+/**
+ * Kalendertag (`YYYY-MM-DD`) oder ISO-Instant (UTC-Mitternacht, Import-Vorschau) im Lang- oder
+ * Kurzformat. Beide Eingaben landen als UTC-Mitternacht, `timeZone: 'UTC'` hält den Kalendertag
+ * unabhängig von der Zeitzone des Nutzers bzw. Runners (#2775).
+ */
+export const formatDate = (date: string, { format = 'long' }: { format?: DateFormat } = {}): string => {
+	const parsed = date.length > 10 ? new Date(date) : new Date(`${date}T00:00:00Z`);
+	return parsed.toLocaleDateString(
+		i18next.language,
+		format === 'short' ? { timeZone: 'UTC' } : { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' },
+	);
+};
