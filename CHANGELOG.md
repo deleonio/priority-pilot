@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.30 - 2026-10-20
 
-_Enthält v0.30.0 – v0.30.24._
+_Enthält v0.30.0 – v0.30.25._
 
 ### 🎉 New Features
 
@@ -17,6 +17,10 @@ _Enthält v0.30.0 – v0.30.24._
 - fix(ui): keep banner button labels unwrapped, fit invitation banner to content by @deleonio in https://github.com/deleonio/priority-pilot/pull/2760
 - feat(server): allow removing a task deadline via mcp task_update null by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2762
 - fix(server): series instances inherit series creator (#2757) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2779
+
+### 🚀 Improvements
+
+- feat(frontend): add checklist entries via Enter key (#2771) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2785
 
 ### 🔧 Engineering
 
@@ -165,7 +169,6 @@ _Enthält v0.26.0 – v0.26.21._
 
 - test(e2e): set expired subscription fixtures to a future date by @deleonio in https://github.com/deleonio/priority-pilot/pull/2607
 - docs: align pnpm runtime version with packageManager pin (V-20) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2613
-- feat(frontend): standardize mobile e2e viewport to 375x812 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2616
 - feat(frontend): standardize mobile e2e viewport to 375x812 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2616
 - test(server): add schema snapshot test for column migrations (#2609) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2615
 - docs(tdd-strategy): fix stale workflow links and phase number (V-21) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2626
@@ -451,6 +454,7 @@ _Enthält v0.18.0 – v0.18.45._
 - docs(tickets): require priority/effort prefix in titles by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2421
 - feat(server): add mcp tools for series and templates (#2360) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2420
 - feat(frontend): rhythm and auto-delete only when auto-create on (#2414) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2418
+- feat(server): apply task defaults and create instances in POST /series by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2412
 - feat(server): apply task defaults and create instances in POST /series by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2412
 - refactor(server): compute series generation horizon in one place (#2405) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2425
 - feat(frontend): save task as series template (#2361) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2422
