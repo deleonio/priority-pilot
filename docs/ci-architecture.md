@@ -546,7 +546,8 @@ Kein `--model`: das Modell wird über `"model": "opus"` in der `settings.json` g
 `ANTHROPIC_DEFAULT_OPUS_MODEL` auf `glm-5.3[1m]` ab.
 
 **Prompt:** Kanonisch in `.github/prompts/` (triage, ux, spec, implement, fixup, review,
-documenter, dazu die Helper-Crons spec-sync/guide-sync/prompt-audit/code-review-team (Prompt-Audit in der Nacht auf Freitag);
+documenter, dazu die Helper-Crons spec-sync/guide-sync/prompt-audit/code-review-team/hacker-team
+(Prompt-Audit in der Nacht auf Freitag, Hacker-Team monatlich am 1.);
 Memory-Snippets memory-read.md/memory-write.md am selben Ort);
 per `sed`/`cat` nach `/tmp/claude-prompt.txt` assembliert und via `-p "$(cat /tmp/claude-prompt.txt)"`
 übergeben — vermeidet Shell-Quoting-Probleme. Die Methode je Phase lebt in der `SKILL.md` des
@@ -1075,3 +1076,48 @@ bei jedem Folge-Lauf falsche Code-Findings erzeugt.
 - **Herkunft:** Ersetzt `cron.optimize-architecture.yml` (`nightly-arch-opt`), das denselben
   Suchraum wöchentlich nur bis zum Ticket brachte. Label `nightly-arch-opt` und offene
   `[arch-opt]`-Issues bleiben bestehen und dienen dem Agenten als Dedup-Inventar.
+
+## Monatliches Hacker-Team (`cron.hacker-team.yml`)
+
+Keine Pipeline-Phase, sondern ein Helper-Workflow (jeden 1. des Monats 04:17 UTC
+(06:17/05:17 Berlin), plus `workflow_dispatch`): Ein Rot-Team aus vier Angreifer-Perspektiven —
+Datendieb (Vertraulichkeit), Manipulator (Integrität), Berechtigungs-Knacker (Zugriffskontrolle),
+Saboteur (Verfügbarkeit) — Methode:
+[`hacker-team`](../.claude/skills/hacker-team/SKILL.md) — fährt über
+[`hacker-instance.sh`](../hacker-instance.sh) eine **lokale Wegwerf-Instanz** hoch und greift sie
+**real an**: Fremddaten lesen, ändern, löschen; Rolle/Plan/Rechte eskalieren; den Dienst crashen.
+Nur **reproduzierte** Brüche werden Findings (Repro = konkrete Requests + beobachtete Responses
+plus `Datei:Zeile` der fehlenden Prüfung); gescheiterte Angriffe heißen `gehärtet` und zählen als
+Bestanden-Nachweis im Angriffsziele-Check.
+
+**Mechanik:**
+
+- **Eigene Angriffsinstanz statt Workbench-Inspect:** `hacker-instance.sh` (Muster
+  `ui-inspect.sh`) startet Backend+Frontend auf eigenen Ports (3002/4175) mit In-Memory-DB und
+  Demo-Seed, aber — anders als die Inspect-Instanz — mit **scharfer Auth**: Dummy-Google-Credentials
+  - `SESSION_SECRET` schalten `isAuthActive()` ein, `NODE_ENV=test` registriert
+    `POST /auth/test-login`, mit dem das Team sich echte Sessions für beliebige E-Mails münzt
+    (Angreifer- wie Opfer-Konten; Allowlist bewusst leer). Ohne echte Secrets sind externe Provider
+    (Google, PayPal, Play, LLM) nicht erreichbar — deren Flächen werden nur quelltextlich beurteilt.
+    Readiness-Beweis: `/tasks` ohne Session → 401.
+- **Crash = Fund, dann Restart:** Der Saboteur darf die Instanz zerstören; der Agent sichert
+  zuerst den Beweis (Log-Auszug + letzte Anfrage) und startet dann mit demselben Skript neu.
+- **Skip-Guard:** Hat `main` denselben SHA wie der letzte erfolgreiche Lauf, wird der Lauf
+  übersprungen; `workflow_dispatch` mit `force: true` umgeht ihn (Fail-open bei API-Fehlern).
+- **Bericht-Issue:** Genau ein offenes Issue mit Label `ci:hacker-team` (kein `ai:*`-Label, sonst
+  startet die Ticket-Pipeline). Der Agent liest den Vormonats-Bericht per `gh` zurück (stabiles
+  Carry-over). **Auch bei `VERDICT: clean` wird das Issue aktualisiert** — das monatliche „alles
+  verteidigt" ist eine Aufzeichnung wert (Abweichung vom Rechts-Team, das bei clean das Issue
+  unangetastet lässt); der Ziel-Check im Bericht ist der Beweis, dass angegriffen wurde.
+- **Post-Assertion (VERDICT-Muster):** `report` (mindestens ein reproduzierter Bruch) oder `clean`
+  (alle Angriffe abgewehrt) — beide verlangen den Bericht unter `/tmp/hacker-team-report.md` mit
+  den Pflicht-Abschnitten „Angriffsziele-Check" (vier Zeilen: Vertraulichkeit, Integrität,
+  Zugriffskontrolle, Verfügbarkeit) und „Schwachstellen". Artefakt sichert Bericht, Agent-Log und
+  Instanz-Log.
+- **Bewusst stateless:** Kein pro-Issue-Memory — das Bericht-Issue ist der einzige Zustand.
+- **Modell:** `vars.CLAUDE_MODEL_HACKER_TEAM` (Default `opus`, Effort `high`),
+  `tools-tier: review` (volles Lesen + Bash für curl/Session-Münzen/Restart, Code
+  schreibgeschützt — der Agent greift an, er fixt nicht), Playwright-MCP als Browser-Werkzeug
+  (`browser-mcp: true`, `needs-mcp: false` — KoliBri ist für Angriffe nutzlos), inkl. Tailscale-
+  Egress und Fair-Usage-Check. Findings fließen über den Findings-Tree-Skill
+  ([`.claude/skills/findings-tree/SKILL.md`](../.claude/skills/findings-tree/SKILL.md)) in Tickets.

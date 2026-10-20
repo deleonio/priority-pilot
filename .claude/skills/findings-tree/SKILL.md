@@ -1,6 +1,6 @@
 ---
 name: findings-tree
-description: "Findings-Tree — consolidate the weekly team-report findings into one epic with a ticket tree: collect the ci:* report issues (UX-Team, Rechts-Team, Code-Review-Team, Nit-Report, Prompt-Audit, Test-Maintenance), screen every finding for goal-orientation, importance and verifiability, consolidate findings that address the same gap into grouped candidates, and agree everything with the author in a dialog — questions before any creation, full drafts before the go — then cut the agreed catalog into a ticket tree via the ticket-tree catalog mode. Use for 'findings-tree', 'Findings einsammeln', 'Issue-Tree aus den Findings', 'Wochenfindings' (German: consolidate team findings into a ticket tree)."
+description: "Findings-Tree — consolidate the weekly team-report findings into one epic with a ticket tree: collect the ci:* report issues (UX-Team, Rechts-Team, Code-Review-Team, Hacker-Team, Nit-Report, Prompt-Audit, Test-Maintenance), screen every finding for goal-orientation, importance and verifiability, consolidate findings that address the same gap into grouped candidates, and agree everything with the author in a dialog — questions before any creation, full drafts before the go — then cut the agreed catalog into a ticket tree via the ticket-tree catalog mode. Use for 'findings-tree', 'Findings einsammeln', 'Issue-Tree aus den Findings', 'Wochenfindings' (German: consolidate team findings into a ticket tree)."
 argument-hint: "[optional: Fokus oder Label-Filter]"
 ---
 
@@ -19,7 +19,7 @@ the author reads or answers stays German and follows the
 - Read [MEMORY.md](../../../.ai-memory/MEMORY.md).
 - Collect the report issues: `gh issue list --state open --limit 200 --json number,title,labels`
   and keep everything carrying one of the report labels: `ci:ux-team`, `ci:rechts-team`,
-  `ci:code-review-team`, `ci:nit-report`, `ci:prompt-audit`, `test-maintenance`.
+  `ci:code-review-team`, `ci:hacker-team`, `ci:nit-report`, `ci:prompt-audit`, `test-maintenance`.
 - Read every report body and extract per report:
   1. the **Umsetzungs-Kandidaten** — already paste-ready ticket drafts, the primary pool;
   2. further **Funde** (ranked, with anchors) — secondary pool, only when a gap of their own;
