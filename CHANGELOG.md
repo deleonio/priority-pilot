@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.31 - 2026-10-20
 
-_Enthält v0.31.0 – v0.31.6._
+_Enthält v0.31.0 – v0.31.7._
 
 ### 🎉 New Features
 
@@ -20,6 +20,7 @@ _Enthält v0.31.0 – v0.31.6._
 - feat(frontend): consolidate legalLanguage and formatDate helpers (#2775) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2791
 - docs: clarify ADR 0001 script-test carve-out via addendum (#2778) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2794
 - chore(deps): update dependency undici@6 to v8.12.3 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2763
+- ci: add monthly hacker-team run and solid yardstick to code review team by @deleonio in https://github.com/deleonio/priority-pilot/pull/2799
 
 ## v0.30 - 2026-10-20
 
@@ -381,6 +382,7 @@ _Enthält v0.19.0 – v0.19.19._
 ### 🎉 New Features
 
 - feat(frontend): add cookieless matomo to website and web app by @deleonio in https://github.com/deleonio/priority-pilot/pull/2435
+- feat(frontend): add cookieless matomo to website and web app by @deleonio in https://github.com/deleonio/priority-pilot/pull/2435
 
 ### 🐞 Bug Fixes
 
@@ -389,7 +391,6 @@ _Enthält v0.19.0 – v0.19.19._
 
 ### 🚀 Improvements
 
-- feat(frontend): preview selected balance picture in settings by @deleonio in https://github.com/deleonio/priority-pilot/pull/2436
 - feat(frontend): preview selected balance picture in settings by @deleonio in https://github.com/deleonio/priority-pilot/pull/2436
 - docs(skill): coordinator stops on empty queue and sends one push by @deleonio in https://github.com/deleonio/priority-pilot/pull/2440
 
@@ -402,7 +403,6 @@ _Enthält v0.19.0 – v0.19.19._
 ### Other Changes
 
 - feat(server): add password review access for google play (#2426) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2433
-- feat(frontend): deadline pagination, compact missed list, slim banner by @deleonio in https://github.com/deleonio/priority-pilot/pull/2416
 - feat(frontend): deadline pagination, compact missed list, slim banner by @deleonio in https://github.com/deleonio/priority-pilot/pull/2416
 - feat(frontend): reduce balance variants to rays, bloom, crystal, hands by @deleonio in https://github.com/deleonio/priority-pilot/pull/2437
 - feat(i18n): translate app, server texts and website to english by @deleonio in https://github.com/deleonio/priority-pilot/pull/2429
