@@ -95,6 +95,39 @@ const createSub = (userId: number, status: string, currentPeriodEnd: Date) =>
 		cancellationEmail: 'kuendigung-geheim@example.com',
 	});
 
+/**
+ * #2810 (Spec docs/spec/issue-2810.md) — Admin-Ausnahme beim Token-Anlegen: auch bei eingeschaltetem
+ * Paket-Rollout legt ein Admin mit Paket free einen Token an und erreicht damit /mcp/admin/v1 — so wie
+ * es die Doku (docs/mcp-admin.md) verspricht. Rot, bis die Ausnahme am `mcp_read`-Gate von
+ * `POST /api-tokens` existiert.
+ */
+describe('Admin-MCP: Token-Anlegen für Rolle admin vom Paket-Gate ausgenommen (#2810)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+		delete process.env.MONETIZATION_ENFORCED;
+	});
+	after(async () => {
+		delete process.env.MONETIZATION_ENFORCED;
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	it('AK1: admin mit free legt bei eingeschaltetem Rollout einen Token an; tools/list liefert admin_*-Werkzeuge', async () => {
+		const email = 'admin@example.com';
+		await User.update({ plan: 'free' }, { where: { email } });
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		const { token } = await tokenFor(email, 'admin');
+		const list = await rpc(token, 'tools/list');
+		assert.equal(list.status, 200);
+		const admin = (await list.json()) as RpcBody;
+		assert.deepEqual(admin.result!.tools!.map((tool) => tool.name).sort(), ADMIN_TOOLS);
+	});
+});
+
 describe('Admin-MCP-Endpunkt /mcp/admin/v1 (#1338)', () => {
 	before(async () => {
 		server = await startTestServer();
