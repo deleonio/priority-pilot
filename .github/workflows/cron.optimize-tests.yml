@@ -11,14 +11,10 @@ on:
   workflow_dispatch: # manuell anstoßbar
     inputs:
       runner:
-        description: 'Runner für diesen Lauf: default = vars.PHASE_RUNNER oder ubuntu-latest'
+        description: 'Runner-Label für diesen Lauf (leer = vars.PHASE_RUNNER oder ubuntu-latest; z. B. self-hosted, pi5, ubuntu-latest)'
         required: false
-        default: 'default'
-        type: choice
-        options:
-          - default
-          - pi5
-          - ubuntu-latest
+        default: ''
+        type: string
 
 concurrency:
   # Gleiche Gruppe wie alle Team-Jobs (llm-sync): sequenziell im Team-Block, FIFO.
@@ -29,7 +25,7 @@ concurrency:
 jobs:
   analyze:
     name: Test-Suite analysieren
-    runs-on: ${{ inputs.runner == 'pi5' && 'pi5' || inputs.runner == 'ubuntu-latest' && 'ubuntu-latest' || vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 35
     permissions:
       contents: read

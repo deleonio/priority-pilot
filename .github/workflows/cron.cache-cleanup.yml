@@ -36,14 +36,10 @@ on:
   workflow_dispatch:
     inputs:
       runner:
-        description: 'Runner für diesen Lauf: default = vars.PHASE_RUNNER oder ubuntu-latest'
+        description: 'Runner-Label für diesen Lauf (leer = vars.PHASE_RUNNER oder ubuntu-latest; z. B. self-hosted, pi5, ubuntu-latest)'
         required: false
-        default: 'default'
-        type: choice
-        options:
-          - default
-          - pi5
-          - ubuntu-latest
+        default: ''
+        type: string
 
 permissions:
   actions: write # Cache-Deletes
@@ -57,7 +53,7 @@ concurrency:
 
 jobs:
   cleanup:
-    runs-on: ${{ inputs.runner == 'pi5' && 'pi5' || inputs.runner == 'ubuntu-latest' && 'ubuntu-latest' || vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     steps:
       - name: pnpm-/Playwright-Caches ohne Zugriff seit 7 Tagen + verwaiste Altbestaende loeschen
         env:

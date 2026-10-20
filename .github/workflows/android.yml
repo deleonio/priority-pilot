@@ -8,14 +8,10 @@ on:
   workflow_dispatch:
     inputs:
       runner:
-        description: 'Runner für diesen Lauf: default = vars.PHASE_RUNNER oder ubuntu-latest'
+        description: 'Runner-Label für diesen Lauf (leer = vars.PHASE_RUNNER oder ubuntu-latest; z. B. self-hosted, pi5, ubuntu-latest)'
         required: false
-        default: 'default'
-        type: choice
-        options:
-          - default
-          - pi5
-          - ubuntu-latest
+        default: ''
+        type: string
       tag:
         description: 'Release-Tag, z. B. v0.19.0 (leer: nur bauen, kein Upload)'
         required: false
@@ -26,7 +22,7 @@ permissions:
 
 jobs:
   bundle:
-    runs-on: ${{ inputs.runner == 'pi5' && 'pi5' || inputs.runner == 'ubuntu-latest' && 'ubuntu-latest' || vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     env:
       # Start auf einem Tag (Use workflow from) gilt weiter wie eine Eingabe.
       RELEASE_TAG: ${{ inputs.tag || (github.ref_type == 'tag' && github.ref_name || '') }}

@@ -98,18 +98,22 @@ Kill-Switch und Fail-closed-Verhalten: siehe [`tailscale-exit-node.md`](tailscal
 
 ## Runner je Dispatch wählen (`runner`-Input)
 
-Alle manuell startbaren Workflows (`workflow_dispatch`) haben einen Choice-Input `runner` mit
-`default`, `pi5` und `ubuntu-latest` — so lässt sich je Einzellauf der Runner wählen, ohne
-die Repo-Variable `vars.PHASE_RUNNER` umstellen zu müssen. Precedence je Job:
+Alle manuell startbaren Workflows (`workflow_dispatch`) haben einen freien String-Input
+`runner` — so lässt sich je Einzellauf der Runner wählen, ohne die Repo-Variable
+`vars.PHASE_RUNNER` umstellen zu müssen. Precedence je Job:
 
 ```yaml
-runs-on: ${{ inputs.runner == 'pi5' && 'pi5' || inputs.runner == 'ubuntu-latest' && 'ubuntu-latest' || vars.PHASE_RUNNER || 'ubuntu-latest' }}
+runs-on: ${{ inputs.runner || vars.PHASE_RUNNER || 'ubuntu-latest' }}
 ```
 
-- `default` (Vorgabe): bestehende Kette `vars.PHASE_RUNNER || ubuntu-latest` — Verhalten unverändert.
-- `pi5`: dieser eine Lauf auf dem Self-Hosted-Runner (Heimnetz, deutsche IP — überspringt den
-  Tailscale-Exit-Node, s. o.).
-- `ubuntu-latest`: GitHub-gehostet erzwingen (Escape-Hatch, wenn `vars.PHASE_RUNNER=pi5` steht).
+- **leer (Vorgabe):** bestehende Kette `vars.PHASE_RUNNER || ubuntu-latest` — Verhalten unverändert.
+- **Runner-Label:** der Wert geht direkt an `runs-on`. `self-hosted` nimmt irgendeinen
+  Self-Hosted-Runner, ein konkretes Label (z. B. `pi5`) gezielt diesen Runner (Heimnetz,
+  deutsche IP — überspringt den Tailscale-Exit-Node, s. o.), `ubuntu-latest` erzwingt
+  GitHub-gehostet (Escape-Hatch, wenn `vars.PHASE_RUNNER=pi5` steht). So können beliebig
+  viele Self-Hosted-Runner (pi5, pi6, …) parallel existieren und je Lauf adressiert werden.
+- **Achtung Tippfehler:** ein Label ohne passenden Runner lässt den Lauf endlos in der
+  Queue stehen (sichtbar, aber ohne Fehlermeldung).
 
 Bei Label-, Push-, PR- und schedule-Läufen ist der `inputs`-Kontext leer — der Ausdruck fällt
 auf die Kette zurück, Cron- und Pipeline-Läufe verhalten sich unverändert. Workflows ohne
