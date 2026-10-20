@@ -79,7 +79,7 @@ const DE: PrivacyText = {
 		{
 			heading: 'Warteliste',
 			paragraphs: [
-				'Bevor du ein Konto hast, kannst du dich auf die Warteliste setzen lassen. Wir speichern dafür deine E-Mail-Adresse, deinen Empfehlungscode und, wie viele Anmeldungen über deinen Empfehlungs-Link erfolgten.',
+				'Bevor du ein Konto hast, kannst du dich auf die Warteliste setzen lassen. Wir speichern dafür deine E-Mail-Adresse, deinen Empfehlungscode und, wie viele Anmeldungen über deinen Empfehlungs-Link erfolgten. Zur Bestätigung schicken wir dir eine E-Mail mit einem Bestätigungslink; erst danach zählt dein Eintrag.',
 			],
 			facts: {
 				purpose:
@@ -324,7 +324,7 @@ const EN: PrivacyText = {
 		{
 			heading: 'Waitlist',
 			paragraphs: [
-				'Before you have an account, you can join the waitlist. For that we store your email address, your referral code and how many sign-ups came through your referral link.',
+				'Before you have an account, you can join the waitlist. For that we store your email address, your referral code and how many sign-ups came through your referral link. To confirm your entry we send you an email with a confirmation link; your entry only counts after that.',
 			],
 			facts: {
 				purpose:

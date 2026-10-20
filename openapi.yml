@@ -5039,11 +5039,14 @@ paths:
     post:
       summary: Auf die Warteliste eintragen
       description: >-
-        Launch-Zugang über die Warteliste (#1982, ADR 0019). Öffentlich und sessionlos:
-        Unbekannte Adressen tragen sich selbst ein und erhalten sofort ihre 1-basierte
-        Position im Referral-Rang und den persönlichen Empfehlungs-Code. Idempotent —
-        wiederholter Aufruf derselben (normalisierten) Adresse liefert denselben Eintrag.
-        Ein unbekannter oder eigener `ref`-Code wird still ignoriert.
+        Launch-Zugang über die Warteliste (#1982, ADR 0019). Öffentlich und sessionlos.
+        Mit konfiguriertem Mailversand gilt Double-Opt-in: Die Antwort ist immer
+        `confirmationPending: true`, die Bestätigungs-Mail (höchstens eine je Adresse und 24 h)
+        trägt den Link `/app/?waitlist=<Token>`, den `POST /auth/waitlist/confirm` einlöst. Ohne
+        Mailversand (Dev/E2E) gilt der Eintrag sofort als bestätigt und die Antwort trägt
+        Position und Empfehlungs-Code. Idempotent — wiederholter Aufruf derselben (normalisierten)
+        Adresse legt keinen zweiten Eintrag an. Ein unbekannter oder eigener `ref`-Code wird still
+        ignoriert. Das Feld `website` ist ein Honeypot für Bots.
       operationId: joinWaitlist
       tags: [auth]
       requestBody:
@@ -5054,13 +5057,52 @@ paths:
               $ref: '#/components/schemas/WaitlistJoinRequest'
       responses:
         '200':
-          description: Position und Empfehlungs-Code
+          description: Bestätigung ausstehend, oder (ohne Mailversand) Position und Empfehlungs-Code
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/WaitlistJoined'
         '400':
           description: Ungültige E-Mail-Adresse
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Zu viele Anfragen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /auth/waitlist/confirm:
+    post:
+      summary: Wartelisten-Eintrag bestätigen
+      description: >-
+        Löst den Token aus der Bestätigungs-Mail ein (Double-Opt-in) und liefert Position und
+        Empfehlungs-Code. Idempotent — der Link darf mehrfach geöffnet werden.
+      operationId: confirmWaitlist
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WaitlistConfirmRequest'
+      responses:
+        '200':
+          description: Position und Empfehlungs-Code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WaitlistJoined'
+        '400':
+          description: Ungültiger Bestätigungslink
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Zu viele Anfragen
           content:
             application/json:
               schema:
@@ -9668,11 +9710,26 @@ components:
         ref:
           type: string
           description: Persönlicher Empfehlungs-Code des Werbers, falls über dessen Link beigetreten.
+        website:
+          type: string
+          description: Honeypot gegen Bots — das Formular lässt das Feld leer und unsichtbar.
+    WaitlistConfirmRequest:
+      type: object
+      description: Token aus dem Bestätigungslink der Wartelisten-Mail.
+      required: [token]
+      properties:
+        token:
+          type: string
     WaitlistJoined:
       type: object
       description: Antwort nach dem Wartelisten-Eintrag (#1982).
-      required: [position, referralCode]
+      required: [confirmationPending]
       properties:
+        confirmationPending:
+          type: boolean
+          description: >-
+            `true`, solange die Adresse nicht per Mail-Link bestätigt ist; Position und Code
+            fehlen dann.
         position:
           type: integer
           minimum: 1

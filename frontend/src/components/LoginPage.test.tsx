@@ -13,6 +13,7 @@ vi.mock('../api', () => ({
 		getAuthProviders: vi.fn(),
 		requestMagicLink: vi.fn(),
 		addToWaitlist: vi.fn(),
+		confirmWaitlist: vi.fn(),
 	},
 }));
 
@@ -204,10 +205,39 @@ describe('LoginPage — Wartelisten-Eintrag (#1982, AK5)', () => {
 		});
 		fireEvent.click(screen.getByRole('button', { name: /Warteliste/ }));
 
-		expect(addToWaitlist).toHaveBeenCalledWith('unbekannt@example.com', undefined);
+		expect(addToWaitlist).toHaveBeenCalledWith('unbekannt@example.com', undefined, undefined);
 		const status = await screen.findByRole('status');
 		expect(status.textContent).toMatch(/Position 3/);
 		expect(status.textContent).toMatch(/ref-abc/);
+	});
+
+	it('zeigt bei ausstehender Bestätigung den Mail-Hinweis ohne Position', async () => {
+		addToWaitlist.mockResolvedValue({ confirmationPending: true });
+		render(<LoginPage />);
+
+		fireEvent.change(await screen.findByLabelText('Auf die Warteliste per E-Mail'), {
+			target: { value: 'unbekannt@example.com' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: /Warteliste/ }));
+
+		const status = await screen.findByRole('status');
+		expect(status.textContent).toMatch(/Mail/);
+		expect(status.textContent).not.toMatch(/Position/);
+	});
+
+	it('löst den Bestätigungslink (?waitlist=…) ein und zeigt Position und Empfehlungs-Link', async () => {
+		window.history.replaceState(null, '', '/app/?waitlist=tok123');
+		vi.mocked(api.confirmWaitlist).mockResolvedValue({
+			confirmationPending: false,
+			position: 2,
+			referralCode: 'ref-xyz',
+		});
+		render(<LoginPage />);
+
+		const status = await screen.findByRole('status');
+		expect(api.confirmWaitlist).toHaveBeenCalledWith('tok123');
+		expect(status.textContent).toMatch(/Position 2/);
+		expect(status.textContent).toMatch(/ref-xyz/);
 	});
 
 	it('meldet einen gescheiterten Eintrag als Alert (Fuer sorge-Tonalität statt Schuldspruch)', async () => {

@@ -2003,6 +2003,26 @@ describe('migrateWaitlistSpracheColumn', () => {
 	});
 });
 
+// ── migrateWaitlistConfirmationColumns — Double-Opt-in-Spalten (nullable) ─────────────────────────
+describe('migrateWaitlistConfirmationColumns', () => {
+	it('zieht auf einem Alt-Schema die Spalten nach, Bestandszeilen bleiben unbestätigt (null); zweiter Lauf ist ein No-op', async () => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `waitlist_entries` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `email` VARCHAR(255) NOT NULL UNIQUE)',
+		);
+		await sequelize.query("INSERT INTO waitlist_entries (email) VALUES ('alt@local')");
+		await migrateModule.migrateWaitlistConfirmationColumns(sequelize);
+		await assert.doesNotReject(
+			() => migrateModule.migrateWaitlistConfirmationColumns(sequelize),
+			'zweiter Lauf bleibt stabil',
+		);
+		const [rows] = await sequelize.query(
+			"SELECT confirmedAt, confirmTokenHash, confirmMailSentAt FROM waitlist_entries WHERE email = 'alt@local'",
+		);
+		assert.deepEqual(rows, [{ confirmedAt: null, confirmTokenHash: null, confirmMailSentAt: null }]);
+	});
+});
+
 // ── #2305: migrateWaitlistAccessMailStatusColumn — accessMailStatus (nullable) ───────────────────
 // Die Funktion existiert noch nicht (rote Spec-Tests): Zugriff über den Namespace + Cast hält tsc grün.
 describe('migrateWaitlistAccessMailStatusColumn (#2305 AK7)', () => {
@@ -2409,6 +2429,9 @@ const SNAPSHOT_COLUMNS: Record<string, readonly string[]> = {
 	],
 	waitlist_entries: [
 		'accessMailStatus',
+		'confirmMailSentAt',
+		'confirmTokenHash',
+		'confirmedAt',
 		'createdAt',
 		'email',
 		'id',
@@ -2443,6 +2466,7 @@ describe('Schema-Snapshot (#2609): Spaltenmengen nach Migrationen + sync', () =>
 			migrateModule.migrateInvoiceCreditForColumn,
 			migrateModule.migrateWaitlistAccessMailStatusColumn,
 			migrateModule.migrateWaitlistSpracheColumn,
+			migrateModule.migrateWaitlistConfirmationColumns,
 			migrateModule.migrateLegacyPlans,
 			migrateModule.migrateUserIdColumns,
 			migrateModule.migratePillarDescription,

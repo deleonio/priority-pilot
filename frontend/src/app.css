@@ -6197,6 +6197,15 @@ a.plan-badge:focus-visible {
 	overflow-wrap: anywhere;
 }
 
+/* Honeypot-Feld der Warteliste: außerhalb des Viewports statt display:none, damit Bots es ausfüllen. */
+.login-page__hp {
+	position: absolute;
+	left: -9999px;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+}
+
 /* Der Empfehlungs-Link ist ein echter Anker (neuer Tab); Unterstreichung trägt die Klick-Affordanz */
 .login-page__ref-link {
 	color: var(--pp-success);

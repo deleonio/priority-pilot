@@ -114,6 +114,7 @@ export const main = async (): Promise<void> => {
 			migrateInvoiceCreditForColumn,
 			migrateWaitlistAccessMailStatusColumn,
 			migrateWaitlistSpracheColumn,
+			migrateWaitlistConfirmationColumns,
 			migrateLegacyPlans,
 			migrateUserIdColumns,
 			migratePillarDescription,
@@ -213,6 +214,7 @@ export const main = async (): Promise<void> => {
 		// Freischalt-Mail-Status der Warteliste nachziehen (#2305) — vor sync().
 		await migrateWaitlistAccessMailStatusColumn(sequelize);
 		await migrateWaitlistSpracheColumn(sequelize);
+		await migrateWaitlistConfirmationColumns(sequelize);
 		// Altpakete max/ultimate auf plus/pro umstellen (#1785) — nach den Spalten-Migrationen.
 		await migrateLegacyPlans(sequelize);
 		// Fehlende userId-Spalte (Datenisolation #207) an tasks nachziehen, BEVOR sync() läuft.

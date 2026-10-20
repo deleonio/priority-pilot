@@ -27,9 +27,14 @@ function getRefFromSearch(): string | null {
 	return new URLSearchParams(window.location.search).get('ref');
 }
 
+/** Token aus dem Bestätigungslink der Wartelisten-Mail (`?waitlist=…`, Double-Opt-in). */
+function getWaitlistTokenFromSearch(): string | null {
+	return new URLSearchParams(window.location.search).get('waitlist');
+}
+
 type MagicLinkState = 'idle' | 'sending' | 'sent' | 'failed';
 type ReviewLoginState = 'idle' | 'sending' | 'failed' | 'throttled';
-type WaitlistState = 'idle' | 'sending' | 'done' | 'failed';
+type WaitlistState = 'idle' | 'sending' | 'done' | 'pending' | 'failed';
 
 // Prüfzugang für Google Play (#2426): so viele Taps auf die Wortmarke öffnen den Dialog; eine längere
 // Pause dazwischen beginnt die Zählung neu.
@@ -117,6 +122,7 @@ export const LoginPage = () => {
 	const [magicLinkState, setMagicLinkState] = useState<MagicLinkState>('idle');
 	const [referralRef] = useState(getRefFromSearch);
 	const [waitlistEmail, setWaitlistEmail] = useState('');
+	const [waitlistHoneypot, setWaitlistHoneypot] = useState('');
 	const [waitlistState, setWaitlistState] = useState<WaitlistState>('idle');
 	const [waitlistResult, setWaitlistResult] = useState<{ position: number; total?: number; link: string } | null>(null);
 	const [referralCopied, setReferralCopied] = useState(false);
@@ -149,21 +155,45 @@ export const LoginPage = () => {
 			.catch(() => setMagicLinkState('failed'));
 	};
 
-	// Wartelisten-Eintrag (#1982): idempotent — ein wiederholter Eintrag (auch Duplikat) ist
-	// Erfolg und zeigt dieselbe Position erneut. Der ref-Code kommt aus dem persönlichen Link.
+	const showWaitlistPosition = ({
+		position,
+		referralCode,
+		total,
+	}: {
+		position?: number;
+		referralCode?: string;
+		total?: number;
+	}) => {
+		if (position === undefined || referralCode === undefined) {
+			setWaitlistState('pending');
+			return;
+		}
+		setWaitlistResult({ position, total, link: `${getPublicOrigin()}/app/?ref=${referralCode}` });
+		setWaitlistState('done');
+	};
+
+	// Bestätigungslink aus der Wartelisten-Mail: löst den Token ein und zeigt Position und Empfehlungs-Link.
+	useEffect(() => {
+		const token = getWaitlistTokenFromSearch();
+		if (token === null) {
+			return;
+		}
+		setWaitlistState('sending');
+		api
+			.confirmWaitlist(token)
+			.then(showWaitlistPosition)
+			.catch(() => setWaitlistState('failed'));
+	}, []);
+
+	// Wartelisten-Eintrag (#1982): idempotent. Mit Mailversand antwortet der Server mit
+	// `confirmationPending` (Double-Opt-in), Position und Empfehlungs-Link folgen nach dem Klick auf
+	// den Mail-Link. Der ref-Code kommt aus dem persönlichen Link.
 	const handleWaitlistJoin = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		setWaitlistState('sending');
 		api
-			.addToWaitlist(waitlistEmail, referralRef ?? undefined)
-			.then(({ position, referralCode, total }) => {
-				setWaitlistResult({
-					position,
-					total,
-					link: `${getPublicOrigin()}/app/?ref=${referralCode}`,
-				});
-				setWaitlistState('done');
-			})
+			.addToWaitlist(waitlistEmail, referralRef ?? undefined, waitlistHoneypot || undefined)
+			.then(showWaitlistPosition)
 			.catch(() => setWaitlistState('failed'));
 	};
 
@@ -323,6 +353,17 @@ export const LoginPage = () => {
 							onChange={(event) => setWaitlistEmail(event.target.value)}
 							className="login-page__input"
 						/>
+						{/* Honeypot gegen Bots: für Menschen unsichtbar und nicht fokussierbar. */}
+						<div className="login-page__hp" aria-hidden="true">
+							<input
+								type="text"
+								name="website"
+								tabIndex={-1}
+								autoComplete="off"
+								value={waitlistHoneypot}
+								onChange={(event) => setWaitlistHoneypot(event.target.value)}
+							/>
+						</div>
 						<button
 							type="submit"
 							disabled={waitlistState === 'sending'}
@@ -357,6 +398,11 @@ export const LoginPage = () => {
 									{referralCopied ? t('login.copied') : t('login.copyLink')}
 								</button>
 							</>
+						)}
+						{waitlistState === 'pending' && (
+							<p role="status" className="login-page__status login-page__status--waitlist">
+								{t('login.waitlistPending')}
+							</p>
 						)}
 						{waitlistState === 'failed' && (
 							<p role="alert" className="login-page__alert">

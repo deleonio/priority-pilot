@@ -4,7 +4,6 @@ import rateLimit from 'express-rate-limit';
 import passport from 'passport';
 import { Op, UniqueConstraintError } from 'sequelize';
 import { allowEmail, isDbEmailAllowed, isEmailAllowed } from '../../logics/allowedEmails.js';
-import { spracheAusHeader } from '../../logics/careSuggestionData.js';
 import sequelize from '../../database.js';
 import { Pillar, Subscription, User } from '../../models/index.js';
 import type { UserRole } from '../../models/user.js';
@@ -19,7 +18,6 @@ import { resolveCancellationEnd } from '../../logics/cancellationRefund.js';
 import { sanitizeReturnPath } from '../../logics/silentReturnPath.js';
 import { consumeLoginToken, createNativeLoginCode, nativeLoginToken } from '../../logics/magicLink.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
-import { InvalidWaitlistEmailError, joinWaitlist } from '../../logics/waitlist.js';
 import { deleteAccount } from '../../logics/deleteAccount.js';
 import { sendError } from '../http-error.js';
 import { hasGoogleOAuth, isAuthActive } from '../requireAuth.js';
@@ -463,23 +461,6 @@ authRouter.post('/auth/native/exchange', async (req, res) => {
 		}
 		res.status(204).end();
 	});
-});
-
-// POST /auth/waitlist — Launch-Zugang über die Warteliste (#1982, ADR 0019). Öffentlich und
-// sessionlos (läuft unter dem authLimiter oben): Unbekannte tragen sich selbst ein und erhalten
-// sofort ihre 1-basierte Position im Referral-Rang plus persönlichen Empfehlungs-Code.
-// Idempotent — wiederholter Aufruf derselben Adresse liefert denselben Eintrag, kein Duplikat.
-authRouter.post('/auth/waitlist', async (req, res) => {
-	const { email, ref } = (req.body ?? {}) as { email?: string; ref?: string };
-	try {
-		res.json(await joinWaitlist(String(email ?? ''), ref, spracheAusHeader(req.get('accept-language'))));
-	} catch (err) {
-		if (err instanceof InvalidWaitlistEmailError) {
-			sendError(res, 400, 'Bitte gib eine gültige E-Mail-Adresse an.');
-			return;
-		}
-		throw err;
-	}
 });
 
 // GET /auth/me — gibt die aktuelle Session zurück (oder 401). Die Rolle kommt frisch aus der DB

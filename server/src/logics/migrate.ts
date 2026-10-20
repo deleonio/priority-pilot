@@ -1093,6 +1093,20 @@ export const migrateWaitlistSpracheColumn = async (db: Sequelize): Promise<void>
 };
 
 /**
+ * Zieht die Double-Opt-in-Spalten (`confirmedAt`, `confirmTokenHash`, `confirmMailSentAt`) auf einer
+ * **bestehenden** `waitlist_entries`-Tabelle nach — Muster {@link migrateWaitlistSpracheColumn}.
+ * Nullable: Bestandseinträge gelten als unbestätigt und tragen sich bei Bedarf erneut ein.
+ * Idempotent; ohne Tabelle ein No-op.
+ */
+export const migrateWaitlistConfirmationColumns = async (db: Sequelize): Promise<void> => {
+	await ensureColumns(db, 'waitlist_entries', [
+		{ name: 'confirmedAt', definition: 'DATETIME' },
+		{ name: 'confirmTokenHash', definition: 'VARCHAR(255)' },
+		{ name: 'confirmMailSentAt', definition: 'DATETIME' },
+	]);
+};
+
+/**
  * Stellt die Altpakete des Vier-Paket-Modells um (#1785): `max` wird `plus`, `ultimate` wird `pro` in
  * `users.plan`, `subscriptions.plan` und `subscriptions.pendingPlan`. Idempotent; fehlende Tabellen
  * oder Spalten sind ein No-op.
