@@ -22,6 +22,15 @@ on:
     - cron: '0 */1 * * *' # alle 12 Stunden
   workflow_dispatch:
     inputs:
+      runner:
+        description: 'Runner für diesen Lauf: default = vars.PHASE_RUNNER oder ubuntu-latest'
+        required: false
+        default: 'default'
+        type: choice
+        options:
+          - default
+          - pi5
+          - ubuntu-latest
       logLevel:
         description: 'Renovate Log-Level'
         required: false
@@ -46,7 +55,7 @@ permissions:
 
 jobs:
   renovate:
-    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner == 'pi5' && 'pi5' || inputs.runner == 'ubuntu-latest' && 'ubuntu-latest' || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     steps:
       # Kein Checkout noetig: renovatebot/github-action klont die Ziel-Repos selbst

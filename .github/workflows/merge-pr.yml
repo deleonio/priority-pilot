@@ -67,6 +67,15 @@ on:
     # heilt PRs, deren letztes Gate-Event in ein No-op fiel (z. B. mergeable=UNKNOWN direkt nach
     # Review-Abschluss, PR #876) und fuer die daher nie ein Folge-Event kommt.
     inputs:
+      runner:
+        description: 'Runner für diesen Lauf: default = vars.PHASE_RUNNER oder ubuntu-latest'
+        required: false
+        default: 'default'
+        type: choice
+        options:
+          - default
+          - pi5
+          - ubuntu-latest
       pr:
         description: 'PR-Nummer, die das Gate evaluieren soll'
         required: true
@@ -96,7 +105,7 @@ jobs:
           || (github.event_name == 'issues'
             && github.event.label.name == 'ai:hold-merge')
           || github.event_name == 'workflow_dispatch' }}
-    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner == 'pi5' && 'pi5' || inputs.runner == 'ubuntu-latest' && 'ubuntu-latest' || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     permissions:
       contents: read # Label/Merge laufen ueber das App-Token

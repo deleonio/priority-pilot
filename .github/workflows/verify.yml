@@ -23,6 +23,16 @@ on:
   # wiederholt denselben Payload. Ein Dispatch auf den PR-Branch laeuft ohne pull_request-Objekt
   # (Draft-Bedingung greift nicht) und haengt als Check am Head-SHA. Ausgeloest vom Implement-Workflow.
   workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Runner für diesen Lauf: default = vars.PHASE_RUNNER oder ubuntu-latest'
+        required: false
+        default: 'default'
+        type: choice
+        options:
+          - default
+          - pi5
+          - ubuntu-latest
 
 # Least-Privilege (CodeQL actions/missing-workflow-permissions): CI braucht nur Lesen — der
 # GITHUB_TOKEN darf standardmaessig nichts schreiben (Check-/Artifact-Uploads brauchen das nicht).
@@ -66,7 +76,7 @@ jobs:
     # Draft-PRs bekommen wie verify/e2e gar kein CI — dann auch keinen Filter-Laeufer.
     # Ein uebersprungener `changes`-Job laesst `e2e` (needs) korrekt mit entfallen.
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner == 'pi5' && 'pi5' || inputs.runner == 'ubuntu-latest' && 'ubuntu-latest' || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
     permissions:
       contents: read
@@ -105,7 +115,7 @@ jobs:
     # (ready_for_review). push-Events (main) haben kein pull_request-Objekt -> laufen immer.
     # Spiegelt das Muster aus pr-needs-review-label.yml (draft == false).
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner == 'pi5' && 'pi5' || inputs.runner == 'ubuntu-latest' && 'ubuntu-latest' || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     services:
       # Nur hier: die Server-Coverage-Suite (session.test.ts AK-5) verlangt eine laufende Redis-Instanz
       # unter redis://localhost:6379. Der E2E-Job braucht Redis NICHT — das E2E-Backend setzt
@@ -187,7 +197,7 @@ jobs:
     if: >-
       needs.changes.outputs.app == 'true'
       && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
-    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner == 'pi5' && 'pi5' || inputs.runner == 'ubuntu-latest' && 'ubuntu-latest' || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     # Playwright-Image: Browser + System-Dependencies sind vorinstalliert (/ms-playwright via
     # PLAYWRIGHT_BROWSERS_PATH) — kein Browser-Install- und kein apt-Lauf (`--with-deps`) mehr.
     # ACHTUNG: Tag-Version MUSS bei Playwright-Upgrades mit @playwright/test in

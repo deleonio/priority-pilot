@@ -96,6 +96,28 @@ Eingehängt zentral im
 dem Agenten-Aufruf — laufzeitunabhängig, weil der Tarif am Provider hängt, nicht an der CLI.
 Kill-Switch und Fail-closed-Verhalten: siehe [`tailscale-exit-node.md`](tailscale-exit-node.md).
 
+## Runner je Dispatch wählen (`runner`-Input)
+
+Alle manuell startbaren Workflows (`workflow_dispatch`) haben einen Choice-Input `runner` mit
+`default`, `pi5` und `ubuntu-latest` — so lässt sich je Einzellauf der Runner wählen, ohne
+die Repo-Variable `vars.PHASE_RUNNER` umstellen zu müssen. Precedence je Job:
+
+```yaml
+runs-on: ${{ inputs.runner == 'pi5' && 'pi5' || inputs.runner == 'ubuntu-latest' && 'ubuntu-latest' || vars.PHASE_RUNNER || 'ubuntu-latest' }}
+```
+
+- `default` (Vorgabe): bestehende Kette `vars.PHASE_RUNNER || ubuntu-latest` — Verhalten unverändert.
+- `pi5`: dieser eine Lauf auf dem Self-Hosted-Runner (Heimnetz, deutsche IP — überspringt den
+  Tailscale-Exit-Node, s. o.).
+- `ubuntu-latest`: GitHub-gehostet erzwingen (Escape-Hatch, wenn `vars.PHASE_RUNNER=pi5` steht).
+
+Bei Label-, Push-, PR- und schedule-Läufen ist der `inputs`-Kontext leer — der Ausdruck fällt
+auf die Kette zurück, Cron- und Pipeline-Läufe verhalten sich unverändert. Workflows ohne
+Dispatch-Trigger (die Label-Phasen, `cron.security-scan`) und die hart verdrahteten
+`cron.pi-package-cache`/`cron.model-smoke` nehmen an der Auswahl nicht teil — ebenso `deploy`,
+dessen Job auf `ubuntu-latest` gepinnt ist (Gradle/Android-Builds zu schwer für pi5). Auf dem
+Einzel-Runner pi5 queuen Jobs aller Gruppen serial (s. Concurrency-Kopplung unten).
+
 ## Laufzeit umschalten: Claude Code oder pi
 
 Seit #1184 ist die **Laufzeit** genauso eine Variable wie der Provider. Beide Achsen sind

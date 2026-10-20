@@ -8,7 +8,17 @@ name: Optimize Tests
 on:
   schedule:
     - cron: '57 0 * * 5' # woechentlich freitags 00:57 UTC (02:57/01:57 Berlin) — Auftakt des Team-Blocks in der Nacht auf Freitag: Reports frueh am Freitag fertig fuer den Issue-Tree
-  workflow_dispatch: {} # manuell anstoßbar
+  workflow_dispatch: # manuell anstoßbar
+    inputs:
+      runner:
+        description: 'Runner für diesen Lauf: default = vars.PHASE_RUNNER oder ubuntu-latest'
+        required: false
+        default: 'default'
+        type: choice
+        options:
+          - default
+          - pi5
+          - ubuntu-latest
 
 concurrency:
   # Gleiche Gruppe wie alle Team-Jobs (llm-sync): sequenziell im Team-Block, FIFO.
@@ -19,7 +29,7 @@ concurrency:
 jobs:
   analyze:
     name: Test-Suite analysieren
-    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner == 'pi5' && 'pi5' || inputs.runner == 'ubuntu-latest' && 'ubuntu-latest' || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 35
     permissions:
       contents: read
