@@ -193,7 +193,7 @@ export const validateNonEmptyString = (value: unknown, field: string): FieldResu
  * Fallback/Leerfilter zu fallen. Fehlender oder nicht-String-Wert ergibt `undefined`; die
  * Leer-/Trim-Behandlung bleibt beim Aufrufer (Bestandsverhalten).
  */
-export const queryString = (value: unknown, field: string): FieldResult<string | undefined> => {
+export const validateQueryEinzelwert = (value: unknown, field: string): FieldResult<string | undefined> => {
 	if (Array.isArray(value)) {
 		return { ok: false, message: `${field} darf nur einmal als Query-Parameter übergeben werden.` };
 	}

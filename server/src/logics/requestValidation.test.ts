@@ -8,6 +8,7 @@ import {
 	validateDescription,
 	validateEstimatedEffort,
 	validateIsoDate,
+	validateNonEmptyString,
 	validatePriority,
 	validateRequestBody,
 	validateTitle,
@@ -165,28 +166,19 @@ describe('validateIsoDate', () => {
 });
 
 describe('validateNonEmptyString (#2772, TF4)', () => {
-	// Neuer Helfer (#2772) — dynamischer Import, damit der Rest der Datei grün bleibt, bis der
-	// Export existiert (erster Rot-Zustand: fehlender Export). KEIN Produktivcode.
-	const loadHelper = async (): Promise<(value: unknown, field: string) => Check<string>> => {
-		const mod = (await import('./requestValidation.js')) as {
-			validateNonEmptyString?: (value: unknown, field: string) => Check<string>;
-		};
-		assert.ok(typeof mod.validateNonEmptyString === 'function', 'Export validateNonEmptyString fehlt noch');
-		return mod.validateNonEmptyString;
-	};
-
-	it('lehnt Nicht-Strings, Leer- und Whitespace-Strings wortgleich zu den push.ts-Literalen ab', async () => {
-		const validate = await loadHelper();
-		assert.equal(errOf(validate(undefined, 'endpoint')), 'endpoint muss ein nicht-leerer String sein.');
-		assert.equal(errOf(validate('', 'endpoint')), 'endpoint muss ein nicht-leerer String sein.');
-		assert.equal(errOf(validate('   ', 'endpoint')), 'endpoint muss ein nicht-leerer String sein.');
-		assert.equal(errOf(validate(42, 'keys.p256dh')), 'keys.p256dh muss ein nicht-leerer String sein.');
-		assert.equal(errOf(validate(['x'], 'keys.auth')), 'keys.auth muss ein nicht-leerer String sein.');
+	it('lehnt Nicht-Strings, Leer- und Whitespace-Strings wortgleich zu den push.ts-Literalen ab', () => {
+		assert.equal(errOf(validateNonEmptyString(undefined, 'endpoint')), 'endpoint muss ein nicht-leerer String sein.');
+		assert.equal(errOf(validateNonEmptyString('', 'endpoint')), 'endpoint muss ein nicht-leerer String sein.');
+		assert.equal(errOf(validateNonEmptyString('   ', 'endpoint')), 'endpoint muss ein nicht-leerer String sein.');
+		assert.equal(errOf(validateNonEmptyString(42, 'keys.p256dh')), 'keys.p256dh muss ein nicht-leerer String sein.');
+		assert.equal(errOf(validateNonEmptyString(['x'], 'keys.auth')), 'keys.auth muss ein nicht-leerer String sein.');
 	});
 
-	it('nimmt einen gültigen String an und liefert ihn unverändert zurück', async () => {
-		const validate = await loadHelper();
-		assert.equal(valOf(validate('https://push.example.com/abc', 'endpoint')), 'https://push.example.com/abc');
+	it('nimmt einen gültigen String an und liefert ihn unverändert zurück', () => {
+		assert.equal(
+			valOf(validateNonEmptyString('https://push.example.com/abc', 'endpoint')),
+			'https://push.example.com/abc',
+		);
 	});
 });
 

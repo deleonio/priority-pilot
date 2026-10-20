@@ -25,7 +25,7 @@ import { meilensteinStandVon } from '../../logics/milestones.js';
 import MilestoneReached from '../../models/milestoneReached.js';
 import { berechneLebensbalanceNachKadenz, zaehleErledigungenImKadenzFenster } from '../../logics/heartBalance.js';
 import { berechneBalanceVerlauf } from '../../logics/balanceHistory.js';
-import { queryString, validateZeitraum } from '../../logics/requestValidation.js';
+import { validateQueryEinzelwert, validateZeitraum } from '../../logics/requestValidation.js';
 import { pillarTextIn, resolvePillarDescription } from '../../models/pillarData.js';
 import CareSuggestionDismissal from '../../models/careSuggestionDismissal.js';
 import CareSuggestionRejection from '../../models/careSuggestionRejection.js';
@@ -134,7 +134,7 @@ scoresRouter.get('/scores/streak', async (req: Request, res: Response<StreakDto 
 		]);
 		// Der Client schickt seine IANA-Zeitzone mit (`?tz=`); ohne oder mit unbekanntem Wert wertet
 		// der Server in seiner eigenen Zeitzone aus — die Anzeige verschiebt sich, es gibt keinen Fehler.
-		const tzErgebnis = queryString(req.query.tz, 'tz');
+		const tzErgebnis = validateQueryEinzelwert(req.query.tz, 'tz');
 		if (!tzErgebnis.ok) {
 			sendError(res, 400, tzErgebnis.message);
 			return;
@@ -169,7 +169,7 @@ scoresRouter.get('/scores/streak', async (req: Request, res: Response<StreakDto 
 // (Scoping dort, Muster /scores/streak).
 scoresRouter.get('/scores/milestones', async (req: Request, res: Response<MilestoneDto[] | ErrorDto>) => {
 	try {
-		const tzErgebnis = queryString(req.query.tz, 'tz');
+		const tzErgebnis = validateQueryEinzelwert(req.query.tz, 'tz');
 		if (!tzErgebnis.ok) {
 			sendError(res, 400, tzErgebnis.message);
 			return;
@@ -250,7 +250,7 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 		const balance = berechneLebensbalanceNachKadenz(balanceSaeulen, kadenzTasks, jetzt);
 		const defizite = bewerteCareDefizit(balanceSaeulen, kadenzTasks, jetzt);
 
-		const tzErgebnis = queryString(req.query.tz, 'tz');
+		const tzErgebnis = validateQueryEinzelwert(req.query.tz, 'tz');
 		if (!tzErgebnis.ok) {
 			sendError(res, 400, tzErgebnis.message);
 			return;
@@ -335,7 +335,7 @@ scoresRouter.get(
 			]);
 			const zeitpunktProTask = new Map(entries.map((entry) => [entry.taskId, entry.zeitpunkt]));
 
-			const tzErgebnis = queryString(req.query.tz, 'tz');
+			const tzErgebnis = validateQueryEinzelwert(req.query.tz, 'tz');
 			if (!tzErgebnis.ok) {
 				sendError(res, 400, tzErgebnis.message);
 				return;
@@ -378,7 +378,7 @@ const MONAT_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 scoresRouter.get('/scores/monthly-recap', async (req: Request, res: Response<MonthlyRecapDto | ErrorDto>) => {
 	try {
-		const monatErgebnis = queryString(req.query.monat, 'monat');
+		const monatErgebnis = validateQueryEinzelwert(req.query.monat, 'monat');
 		if (!monatErgebnis.ok) {
 			sendError(res, 400, monatErgebnis.message);
 			return;
@@ -392,7 +392,7 @@ scoresRouter.get('/scores/monthly-recap', async (req: Request, res: Response<Mon
 			);
 			return;
 		}
-		const tzErgebnis = queryString(req.query.tz, 'tz');
+		const tzErgebnis = validateQueryEinzelwert(req.query.tz, 'tz');
 		if (!tzErgebnis.ok) {
 			sendError(res, 400, tzErgebnis.message);
 			return;
@@ -461,7 +461,7 @@ const JAHR_REGEX = /^\d{4}$/;
 
 scoresRouter.get('/scores/yearly-recap', async (req: Request, res: Response<YearlyRecapDto | ErrorDto>) => {
 	try {
-		const jahrErgebnis = queryString(req.query.jahr, 'jahr');
+		const jahrErgebnis = validateQueryEinzelwert(req.query.jahr, 'jahr');
 		if (!jahrErgebnis.ok) {
 			sendError(res, 400, jahrErgebnis.message);
 			return;
@@ -472,7 +472,7 @@ scoresRouter.get('/scores/yearly-recap', async (req: Request, res: Response<Year
 			return;
 		}
 		const jahr = Number(jahrText);
-		const tzErgebnis = queryString(req.query.tz, 'tz');
+		const tzErgebnis = validateQueryEinzelwert(req.query.tz, 'tz');
 		if (!tzErgebnis.ok) {
 			sendError(res, 400, tzErgebnis.message);
 			return;
@@ -908,7 +908,7 @@ scoresRouter.get(
 			const userId = getUserId(req);
 			// #2495: Vorhandener, aber nicht ganzzahliger taskId ist ein Bedienfehler (400), statt den
 			// Filter still entfallen zu lassen; fehlender oder leerer Parameter bleibt Bestandsverhalten.
-			const taskIdErgebnis = queryString(req.query.taskId, 'taskId');
+			const taskIdErgebnis = validateQueryEinzelwert(req.query.taskId, 'taskId');
 			if (!taskIdErgebnis.ok) {
 				sendError(res, 400, taskIdErgebnis.message);
 				return;

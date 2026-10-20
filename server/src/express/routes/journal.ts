@@ -4,7 +4,7 @@ import { parseId, sendError, type ErrorDto } from '../http-error.js';
 import { JournalEntry, Pillar, ScoreEntry, Task } from '../../models/index.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { berechneBalanceVerlauf, type BalanceHistoryEintrag } from '../../logics/balanceHistory.js';
-import { queryString, validateZeitraum } from '../../logics/requestValidation.js';
+import { validateQueryEinzelwert, validateZeitraum } from '../../logics/requestValidation.js';
 import { istGueltigeZeitzone } from '../../logics/streak.js';
 import { berechneJournalFenster, fensterListe, type JournalStatsGranularitaet } from '../../logics/journalStats.js';
 import type { PillarWithContribution } from '../../models/task.js';
@@ -121,7 +121,7 @@ journalRouter.get('/journal/stats', async (req: Request, res: Response<JournalSt
 			return;
 		}
 		const { von, bis } = zeitraum.value;
-		const granularitaetErgebnis = queryString(req.query.granularitaet, 'granularitaet');
+		const granularitaetErgebnis = validateQueryEinzelwert(req.query.granularitaet, 'granularitaet');
 		if (!granularitaetErgebnis.ok) {
 			sendError(res, 400, granularitaetErgebnis.message);
 			return;
@@ -144,7 +144,7 @@ journalRouter.get('/journal/stats', async (req: Request, res: Response<JournalSt
 		]);
 		const zeitpunktProTask = new Map(entries.map((entry) => [entry.taskId, entry.zeitpunkt]));
 
-		const tzErgebnis = queryString(req.query.tz, 'tz');
+		const tzErgebnis = validateQueryEinzelwert(req.query.tz, 'tz');
 		if (!tzErgebnis.ok) {
 			sendError(res, 400, tzErgebnis.message);
 			return;
