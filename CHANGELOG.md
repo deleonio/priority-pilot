@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.31 - 2026-10-20
 
-_Enthält v0.31.0 – v0.31.8._
+_Enthält v0.31.0 – v0.31.10._
 
 ### 🎉 New Features
 
@@ -21,6 +21,8 @@ _Enthält v0.31.0 – v0.31.8._
 - docs: clarify ADR 0001 script-test carve-out via addendum (#2778) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2794
 - chore(deps): update dependency undici@6 to v8.12.3 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2763
 - ci: add monthly hacker-team run and solid yardstick to code review team by @deleonio in https://github.com/deleonio/priority-pilot/pull/2799
+- fix(frontend): branch journalDate by format, not string length (#2797) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2803
+- ci: select runner for manual dispatch runs (default, pi5, ubuntu-latest) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2805
 
 ## v0.30 - 2026-10-20
 
