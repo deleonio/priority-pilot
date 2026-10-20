@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.30 - 2026-10-20
 
-_Enthält v0.30.0 – v0.30.26._
+_Enthält v0.30.0 – v0.30.27._
 
 ### 🎉 New Features
 
@@ -21,6 +21,7 @@ _Enthält v0.30.0 – v0.30.26._
 ### 🚀 Improvements
 
 - feat(frontend): add checklist entries via Enter key (#2771) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2785
+- feat(frontend): add waitlist privacy section and login privacy hint by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2789
 
 ### 🔧 Engineering
 
@@ -458,8 +459,7 @@ _Enthält v0.18.0 – v0.18.45._
 - feat(server): apply task defaults and create instances in POST /series by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2412
 - refactor(server): compute series generation horizon in one place (#2405) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2425
 - feat(frontend): save task as series template (#2361) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2422
-- refactor(server): compute series generation horizon in one place (#2405) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2425
-- feat(frontend): save task as series template (#2361) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2422
+- feat(frontend): name series/template switch and dialog title (#2415) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2424
 - feat(frontend): name series/template switch and dialog title (#2415) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2424
 - feat(frontend): add capture-from-template to quick capture (#2363) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2423
 - ci(android): add tag input to roll app bundle into test track by @deleonio in https://github.com/deleonio/priority-pilot/pull/2430
