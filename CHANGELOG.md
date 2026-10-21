@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.31 - 2026-10-20
 
-_Enthält v0.31.0 – v0.31.19._
+_Enthält v0.31.0 – v0.31.20._
 
 ### 🎉 New Features
 
@@ -38,6 +38,7 @@ _Enthält v0.31.0 – v0.31.19._
 - fix(website): name MLBF enforcement body in accessibility statement by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2802
 - feat(frontend): unify dashboard card spacing rhythm by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2814
 - chore: hacker team gains two attacker perspectives and chain method by @deleonio in https://github.com/deleonio/priority-pilot/pull/2811
+- chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2813
 
 ## v0.30 - 2026-10-20
 
@@ -185,7 +186,6 @@ _Enthält v0.27.0 – v0.27.11._
 - chore: remove grandfather rule for legacy accounts (#2646) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2662
 - feat(billing): require billing address before subscription checkout by @deleonio in https://github.com/deleonio/priority-pilot/pull/2664
 - feat(frontend): reserve dashboard card heights to avoid layout shift by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2667
-- refactor(server): resolve app language via shared helper by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2665
 - refactor(server): resolve app language via shared helper by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2665
 
 ## v0.26 - 2026-10-15
@@ -428,6 +428,7 @@ _Enthält v0.19.0 – v0.19.19._
 - revert(balance): alle neun Zifferblätter wiederherstellen by @deleonio in https://github.com/deleonio/priority-pilot/pull/2447
 - feat(frontend): show care hint actions in one row with icon buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2448
 - feat(frontend): move missed tasks into dashboard grid, unify gap by @deleonio in https://github.com/deleonio/priority-pilot/pull/2450
+- feat(native): sign in natively via Credential Manager instead of browser by @deleonio in https://github.com/deleonio/priority-pilot/pull/2451
 - feat(native): sign in natively via Credential Manager instead of browser by @deleonio in https://github.com/deleonio/priority-pilot/pull/2451
 - fix(server): exempt app channel from CSRF so native sign-in completes by @deleonio in https://github.com/deleonio/priority-pilot/pull/2452
 - fix(server): allow app request headers in CORS preflight by @deleonio in https://github.com/deleonio/priority-pilot/pull/2454
