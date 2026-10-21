@@ -81,6 +81,8 @@ vi.mock('../api', () => ({
 		// #2661: das Adressformular im Notice-Block lädt beim Mount die gespeicherte Adresse.
 		getBillingAddress: () => getBillingAddress(),
 		updateBillingAddress: (input: unknown) => updateBillingAddress(input),
+		// Der Checkout-Dialog laedt Preis und Sandbox-Konto aus dem Paket-Katalog.
+		getPlansCatalog: () => getPlansCatalog(),
 	},
 }));
 const getBillingAddress = vi.fn<
@@ -93,6 +95,16 @@ const getBillingAddress = vi.fn<
 	}>
 >();
 const updateBillingAddress = vi.fn();
+const getPlansCatalog = vi.fn();
+
+/** Paket-Katalog wie aus `GET /plans` — LIVE-Default ohne Sandbox-Konto. */
+const KATALOG = {
+	features: [],
+	prices: {
+		plus: { monthly: 499, quarterly: 1347, yearly: 4790 },
+		pro: { monthly: 899, quarterly: 2427, yearly: 8630 },
+	},
+};
 
 const subscriptionState = { subscription: { plan: 'pro', period: 'monthly' } as unknown };
 const refresh = vi.fn(async () => {});
@@ -217,6 +229,8 @@ describe('usePaypalPurchase — Bestell-Dialog vor dem Zahlungsanbieter (#2661)'
 		getBillingAddress.mockReset();
 		updateBillingAddress.mockReset();
 		updateBillingAddress.mockResolvedValue({});
+		getPlansCatalog.mockReset();
+		getPlansCatalog.mockResolvedValue(KATALOG);
 		subscriptionState.subscription = null;
 	});
 	afterEach(cleanup);
@@ -303,5 +317,24 @@ describe('usePaypalPurchase — Bestell-Dialog vor dem Zahlungsanbieter (#2661)'
 		render(<Harness targetPlan="plus" />);
 		expect(screen.getByRole('button', { name: /Plus weiterführen ab/ })).toBeTruthy();
 		expect(screen.queryByRole('checkbox')).toBeNull();
+	});
+
+	// Sandbox-Testkonto: Der Server liefert es nur mit, wenn er selbst gegen die PayPal-Sandbox
+	// läuft — der Dialog zeigt den Hinweis nur dann (LIVE nie).
+	it('zeigt den Sandbox-Hinweis, wenn der Katalog ein Testkonto liefert', async () => {
+		getPlansCatalog.mockResolvedValue({
+			...KATALOG,
+			paypalSandboxAccount: { email: 'sb-k6dxv52906900@personal.example.com', password: 'Tester1!' },
+		});
+		getBillingAddress.mockResolvedValue({ name: null, street: null, zip: null, city: null, country: null });
+		render(<Harness />);
+		await openDialog();
+		expect(screen.getByText(/sb-k6dxv52906900@personal\.example\.com/)).toBeTruthy();
+	});
+	it('ohne Testkonto im Katalog gibt es keinen Sandbox-Hinweis', async () => {
+		getBillingAddress.mockResolvedValue({ name: null, street: null, zip: null, city: null, country: null });
+		render(<Harness />);
+		await openDialog();
+		expect(screen.queryByText(/sb-k6dxv52906900@personal\.example\.com/)).toBeNull();
 	});
 });

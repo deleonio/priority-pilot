@@ -90,6 +90,12 @@ export class PaypalHttpError extends Error {
 
 const apiBase = (): string => process.env.PAYPAL_API_BASE?.trim() || 'https://api-m.paypal.com';
 
+export type PaypalSandboxAccount = { email: string; password: string };
+export const getPaypalSandboxAccount = (): PaypalSandboxAccount | undefined =>
+	apiBase().includes('sandbox.paypal.com')
+		? { email: 'sb-k6dxv52906900@personal.example.com', password: 'Tester1!' }
+		: undefined;
+
 /** Fester Zeitlimit je PayPal-Fetch (#2546, Muster `obsidianFeedback.ts`) — über `PAYPAL_TIMEOUT_MS` zur Callzeit überschreibbar; Werte < 1 fallen auf 10000 zurück. */
 const paypalTimeoutMs = (): number =>
 	Math.max(1, Number.parseInt(process.env.PAYPAL_TIMEOUT_MS?.trim() || '', 10) || 10000);

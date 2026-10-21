@@ -209,6 +209,7 @@
 		"addressEdit": "Change billing address",
 		"price": "{{price}} per {{period}}",
 		"finalPrice": "This is the final price as per § 19 UStG.",
-		"renewal": "The subscription renews automatically for each period and can be cancelled at any time to the end of the billing period."
+		"renewal": "The subscription renews automatically for each period and can be cancelled at any time to the end of the billing period.",
+		"sandboxHint": "PayPal Sandbox environment: sign in with the test account {{email}}, password {{password}}."
 	}
 }

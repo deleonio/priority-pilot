@@ -6366,6 +6366,17 @@ components:
           type: object
           additionalProperties:
             $ref: '#/components/schemas/PlanPrice'
+        paypalSandboxAccount:
+          type: object
+          description: >-
+            PayPal-Sandbox-Testkonto — nur im Sandbox-Modus mitgeliefert, im LIVE-Default
+            bleibt das Feld weg.
+          properties:
+            email:
+              type: string
+            password:
+              type: string
+          required: [email, password]
     GroupMember:
       type: object
       description: Mitglied einer Gruppe mit Anzeigename und Rolle (#1212).
