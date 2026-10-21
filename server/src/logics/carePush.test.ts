@@ -172,6 +172,10 @@ describe('logics/carePush — fachlicher Fürsorge-Push (Issue #1794)', () => {
 		const vorFenster = await runCarePush(new Date('2026-07-07T06:59:00Z'), send); // 08:59 Berlin
 		assert.equal(vorFenster.usersNotified, 0, '08:59 liegt vor dem Fenster');
 
+		// Test-Pflege #2849: runCarePush läuft global — Nutzer 1 (im Fenster) würde den 09:00-Lauf
+		// mitzählen; der Schalter nimmt ihn aus der Menge, damit die Grenz-Assertion beim neuen Nutzer bleibt.
+		await User.update({ carePushEnabled: false }, { where: { email: 'care-fenster-1@example.com' } });
+
 		await seedDeficitUser('care-fenster-2@example.com', { zeitzone: 'Europe/Berlin' });
 		const grenze = await runCarePush(new Date('2026-07-07T07:00:00Z'), send); // 09:00 Berlin
 		assert.equal(grenze.usersNotified, 1, '09:00 öffnet das Fenster');

@@ -151,7 +151,8 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 		assert.equal(first.usersNotified, 1);
 		assert.equal(second.usersNotified, 0, 'zweiter Lauf ohne neue fällige Termine meldet niemanden erneut');
 		assert.equal(calls.length, 1, 'der Versand wurde nicht wiederholt');
-		assert.equal(await NotificationLog.count(), 1);
+		// #2849 AK2 (Test-Pflege): zum Task-Log kommt die Tag-Deckel-Marker-Zeile (<userId>:<lokalesDatum>) hinzu.
+		assert.equal(await NotificationLog.count(), 2);
 	});
 
 	it('erinnert erneut, wenn sich die Deadline eines bereits gemeldeten Tasks verschiebt', async () => {
@@ -161,7 +162,9 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 
 		await runDueTaskReminders(NOW, okSender(calls));
 		await task.update({ deadline: new Date(NOW.getTime() + 1000) });
-		const second = await runDueTaskReminders(NOW, okSender(calls));
+		// #2849 AK2 (Test-Pflege): der Tag-Deckel begrenzt je Nutzer und lokalem Tag auf einen Push —
+		// die verschobene Deadline löst die Erinnerung deshalb erst am Folgetag erneut aus.
+		const second = await runDueTaskReminders(new Date(NOW.getTime() + 24 * 60 * 60 * 1000), okSender(calls));
 
 		assert.equal(second.usersNotified, 1, 'eine geänderte Deadline löst die Erinnerung erneut aus');
 		assert.equal(calls.length, 2);
@@ -219,7 +222,7 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 		assert.equal(pushCalls.length, 1, 'genau eine Push-Nachricht');
 		assert.equal(mailCalls.length, 1, 'genau eine Mail zusätzlich zur Push-Nachricht');
 		assert.equal(second.usersNotified, 0, 'zweiter Lauf ohne neue fällige Termine sendet auf keinem Kanal erneut');
-		assert.equal(await NotificationLog.count(), 1, 'ein NotificationLog-Eintrag pro Auslöser, nicht pro Kanal');
+		assert.equal(await NotificationLog.count(), 2, 'Task-Log plus Tag-Deckel-Marker (#2849 AK2), nicht pro Kanal');
 	});
 
 	it('AK7: schlägt der Mail-Versand fehl, wird die Push-Nachricht dennoch zugestellt und der Log-Eintrag geschrieben', async () => {
@@ -243,7 +246,11 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 
 		assert.equal(result.usersNotified, 1, 'ein fehlgeschlagener Mail-Versand bricht den Lauf nicht ab');
 		assert.equal(pushCalls.length, 1, 'die Push-Nachricht wird trotz Mail-Fehler zugestellt');
-		assert.equal(await NotificationLog.count(), 1, 'Log-Eintrag entsteht, weil mindestens ein Kanal erfolgreich war');
+		assert.equal(
+			await NotificationLog.count(),
+			2,
+			'Log plus Tag-Deckel-Marker (#2849 AK2), weil mindestens ein Kanal erfolgreich war',
+		);
 	});
 	// #1518 AK7 (Spec docs/spec/issue-1518.md, Journey 2): je Serie höchstens eine Instanz im Fälligkeits-Push.
 	it('#1518 AK7: fünf fällige Instanzen derselben Serie ergeben genau einen Eintrag', async () => {
@@ -313,10 +320,23 @@ describe('logics/dueTaskReminders — Fenster & Zeitzone (#2849)', () => {
 		assert.equal(calls.length, 1);
 
 		// Frische Nutzer für den oberen Fensterrand (Dedup darf die Grenze nicht vorgaukeln).
+		// Test-Pflege #2849: die Zeilen referenzieren die Ids 2/3 ohne Anlage — nachgetragen.
+		await User.create({
+			email: 'due-rand-2@example.com',
+			displayName: 'Rand 2',
+			passwordHash: '__test__',
+			zeitzone: 'Europe/Berlin',
+		} as never);
 		await seedSubscription(2, 'https://push.example.com/d2');
 		await createTask({ title: 'drei', deadline: new Date('2026-07-07T05:00:00Z'), userId: 2 });
 		const rand = await runDueTaskReminders(new Date('2026-07-07T06:59:00Z'), send); // 08:59 Berlin
 		assert.equal(rand.usersNotified, 1, '08:59 lokal gehört noch zum Fenster');
+		await User.create({
+			email: 'due-rand-3@example.com',
+			displayName: 'Rand 3',
+			passwordHash: '__test__',
+			zeitzone: 'Europe/Berlin',
+		} as never);
 		await seedSubscription(3, 'https://push.example.com/d3');
 		await createTask({ title: 'vier', deadline: new Date('2026-07-07T05:00:00Z'), userId: 3 });
 		const zu = await runDueTaskReminders(new Date('2026-07-07T07:00:00Z'), send); // 09:00 Berlin

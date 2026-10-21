@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, after } from 'node:test';
+import { describe, it, beforeEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SendResult } from 'web-push';
 import { resetDb, closeDb } from '../test/helpers.js';
@@ -120,7 +120,16 @@ describe('runSeriesAutoCreate (#2356)', () => {
 		});
 		await makeSeries('Wochenputz', bob.id, { createdById: alice.id });
 
-		await runSeriesAutoCreate(new Date(), mockSend);
+		// #2849 (Test-Pflege): der Job ruft intern `notifySeriesGenerated` — dessen Ruhezeit-Gate
+		// blockt zone-lose Nutzer (UTC-Fallback) zwischen 21 und 7; der Lauf pinnt deshalb eine
+		// feste Tageszeit statt der echten Wanduhr.
+		mock.timers.enable({ apis: ['Date'] });
+		try {
+			mock.timers.setTime(new Date('2026-07-07T10:00:00Z').getTime());
+			await runSeriesAutoCreate(new Date(), mockSend);
+		} finally {
+			mock.timers.reset();
+		}
 
 		assert.deepEqual(pushes, ['https://push.example/bob-1'], 'eine gebündelte Push trotz mehrerer Instanzen');
 	});

@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SendResult } from 'web-push';
-import { Task, PushSubscription, NotificationLog, Series } from '../models/index.js';
+import { Task, PushSubscription, NotificationLog, Series, User } from '../models/index.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 import { collectDailyTopTasks, runDailyTopTasksPush } from './dailyTopTasks.js';
 import type { PushSender } from './push.js';
@@ -322,6 +322,20 @@ describe('logics/dailyTopTasks — Fenster & Zeitzone (#2849)', () => {
 	});
 
 	it('AK2: sendet nur bei lokaler Stunde 7–8 — 05:59 Berlin keiner, 07:00 ja, 08:59 ja, 09:00 keiner', async () => {
+		// Test-Pflege #2849: die Zeilen 1–3 werden referenziert, aber nie angelegt — nachgetragen
+		// (die Assertions erwarten Berlin-Fenster; ohne Zeile fiele der Lookup auf UTC zurück).
+		for (const [id, email] of [
+			[1, 'top-berlin-1'],
+			[2, 'top-berlin-2'],
+			[3, 'top-berlin-3'],
+		] as const) {
+			await User.create({
+				email: `${email}@example.com`,
+				displayName: `Berlin ${id}`,
+				passwordHash: '__test__',
+				zeitzone: 'Europe/Berlin',
+			} as never);
+		}
 		const calls: { endpoint: string; body: string }[] = [];
 		const send = okSender(calls);
 		await seedSubscription(1, 'https://push.example.com/w1');
@@ -344,8 +358,16 @@ describe('logics/dailyTopTasks — Fenster & Zeitzone (#2849)', () => {
 	});
 
 	it('AK3: Fenster folgen der Empfängerzeitzone — New-York-Nutzer sendet zu 11:30Z (07:30 lokal), nicht zu 05:30Z', async () => {
-		await seedSubscription(4, 'https://push.example.com/w4');
-		await createTask({ title: 'NY', priority: 1, userId: 4 });
+		// Test-Pflege #2849: der Empfänger wurde referenziert, aber nie angelegt — nachgetragen;
+		// die Id dynamisch vom erzeugten Datensatz (sync force startet die Autoinkrement-Ids bei 1).
+		const ny = await User.create({
+			email: 'top-ny@example.com',
+			displayName: 'New York',
+			passwordHash: '__test__',
+			zeitzone: 'America/New_York',
+		} as never);
+		await seedSubscription(ny.id, 'https://push.example.com/w4');
+		await createTask({ title: 'NY', priority: 1, userId: ny.id });
 		const calls: { endpoint: string; body: string }[] = [];
 		const send = okSender(calls);
 

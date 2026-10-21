@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, after, mock } from 'node:test';
+import { describe, it, beforeEach, afterEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SendResult } from 'web-push';
 import { resetDb, closeDb, applyTestAuthEnv } from '../test/helpers.js';
@@ -41,6 +41,16 @@ const mockSender: PushSender = (subscription, payload) => {
 
 describe('notifyReachedMilestones (#1363)', () => {
 	let userId: number;
+
+	// #2849 (Test-Pflege): das Ruhezeit-Gate blockt zone-lose Nutzer (UTC-Fallback) zwischen 21 und 7 —
+	// die Suite läuft deshalb mit fester Tageszeit statt echter Wanduhr, sonst wäre sie uhrenabhängig.
+	beforeEach(() => {
+		mock.timers.enable({ apis: ['Date'] });
+		mock.timers.setTime(new Date('2026-07-07T10:00:00Z').getTime());
+	});
+	afterEach(() => {
+		mock.timers.reset();
+	});
 
 	beforeEach(async () => {
 		await resetDb();

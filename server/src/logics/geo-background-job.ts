@@ -6,6 +6,8 @@ import { sendDedupedPushBulk } from './dedupedPush.js';
 import type { PushSender } from './push.js';
 import { shouldBlockFeature } from './plans.js';
 import { selectSeriesRepresentatives } from './series.js';
+import { istRuhezeit } from './carePush.js';
+import { nutzerZeitzone } from './streak.js';
 
 /**
  * Fachlicher Push-Trigger „Aufgaben in der Nähe" (Issue #1101). Der Client meldet im
@@ -15,7 +17,8 @@ import { selectSeriesRepresentatives } from './series.js';
  * ohnehin aufeinanderfolgende Pushes — Einzel-Pushes je Aufgabe sind ausgeschlossen).
  * Der Push geht nur beim **Eintritt** in den Alarmabstand (Flanke gegenüber der zuletzt
  * gemeldeten Position, #1926) und je Aufgabe höchstens einmal in 24 h — Wiederholungen werden
- * über {@link NotificationLog} unterdrückt (Muster: `dueTaskReminders.ts`).
+ * über {@link NotificationLog} unterdrückt (Muster: `dueTaskReminders.ts`). Ruhezeit 21–7
+ * Ortszeit des Empfängers: kein Versand, kein Log (#2849 AK4).
  */
 
 const KIND = 'geo-nearby-task';
@@ -165,6 +168,11 @@ export const runGeoPushNotifications = async (
 		const user = await User.findByPk(group.userId);
 		const plan = user?.plan;
 		if (plan !== undefined && shouldBlockFeature(plan, 'location_reminders')) {
+			return;
+		}
+		// #2849 AK4: Ruhezeit 21–7 Ortszeit — kein Versand, kein Log; der nächste Standort-Bericht
+		// im Fenster pusht erneut.
+		if (istRuhezeit(now, nutzerZeitzone(user?.zeitzone))) {
 			return;
 		}
 		const { sent } = await sendDedupedPushBulk(
