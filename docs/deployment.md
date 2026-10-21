@@ -259,7 +259,8 @@ Neben dem Cloud-Betrieb läuft Balamentum lokal: Entwicklung per `pnpm dev` (Bef
 [project.md](../.ai-knowledge/project.md)), dauerhaftes Selbsthosting per `pnpm build` +
 `node server/dist/index.js` (Autostart analog PM2, Schritt 6 in
 [server-setup.md](server-setup.md)). Die App ist eine **Single-User-Anwendung** — Kapazitätsgrenzen
-sind SQLite (Festplatte; alte Aufgaben archivieren ab ~100 MB, ab ~500 MB PostgreSQL erwägen) und die
+sind SQLite (Festplatte; alte Aufgaben archivieren ab ~100 MB, mehr Bedarf: MariaDB als
+Produktiv-Datenbank, siehe [ADR 0026](adr/0026-mariadb-als-produktiv-datenbank.md)) und die
 LLM-Provider-Quota.
 
 **Cloud → Local (Daten mitnehmen):**
