@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.32 - 2026-10-21
 
-_Enthält v0.32.0 – v0.32.5._
+_Enthält v0.32.0 – v0.32.6._
 
 ### 🚀 Improvements
 
@@ -19,6 +19,7 @@ _Enthält v0.32.0 – v0.32.5._
 
 - chore(deps): update pi-erweiterungen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2818
 - fix(server): bind app tokens to mcp plan gates (#2816) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2820
+- fix(ci): port hard deadline watchdog (#2097) to triage phase by @deleonio in https://github.com/deleonio/priority-pilot/pull/2840
 
 ## v0.31 - 2026-10-21
 
@@ -405,12 +406,12 @@ _Enthält v0.20.0 – v0.20.4._
 ### 🎉 New Features
 
 - feat(server): manage task checklist items one by one via mcp (#2460) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2461
+- feat(server): manage task checklist items one by one via mcp (#2460) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2461
 
 ### Other Changes
 
 - docs(project): add tester to user roles and link to arc42 5.2 (V-15) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2455
 - fix(server): persist db allowance so review login survives allowlist by @deleonio in https://github.com/deleonio/priority-pilot/pull/2457
-- feat(server): manage task checklists via MCP tools (#2458) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2459
 - feat(server): manage task checklists via MCP tools (#2458) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2459
 
 ## v0.19 - 2026-10-09
