@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, after } from 'node:test';
+import { describe, it, beforeEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SendResult } from 'web-push';
 import { resetDb, closeDb } from '../test/helpers.js';
@@ -109,18 +109,28 @@ describe('runSeriesAutoCreate (#2356)', () => {
 
 	// AK4
 	it('benachrichtigt den Empfänger einer fremd angelegten Serie genau einmal gebündelt', async () => {
-		const alice = await makeUser('alice');
-		const bob = await makeUser('bob');
-		await PushSubscription.create({
-			endpoint: 'https://push.example/bob-1',
-			p256dh: 'p256dh',
-			auth: 'auth',
-			expirationTime: null,
-			userId: bob.id,
-		});
-		await makeSeries('Wochenputz', bob.id, { createdById: alice.id });
+		// #2849 (Test-Pflege): der Job ruft intern `notifySeriesGenerated` — dessen Ruhezeit-Gate
+		// blockt zone-lose Nutzer (UTC-Fallback) zwischen 21 und 7. Der Lauf pinnt deshalb eine
+		// feste Tageszeit, schon VOR dem Anlegen der Serie: deren startDate (`day(0)`) muss zur
+		// gepinnten Laufzeit passen, sonst erzeugt der Job null Instanzen und es ginge keine Push.
+		mock.timers.enable({ apis: ['Date'] });
+		try {
+			mock.timers.setTime(new Date('2026-07-07T10:00:00Z').getTime());
+			const alice = await makeUser('alice');
+			const bob = await makeUser('bob');
+			await PushSubscription.create({
+				endpoint: 'https://push.example/bob-1',
+				p256dh: 'p256dh',
+				auth: 'auth',
+				expirationTime: null,
+				userId: bob.id,
+			});
+			await makeSeries('Wochenputz', bob.id, { createdById: alice.id });
 
-		await runSeriesAutoCreate(new Date(), mockSend);
+			await runSeriesAutoCreate(new Date(), mockSend);
+		} finally {
+			mock.timers.reset();
+		}
 
 		assert.deepEqual(pushes, ['https://push.example/bob-1'], 'eine gebündelte Push trotz mehrerer Instanzen');
 	});

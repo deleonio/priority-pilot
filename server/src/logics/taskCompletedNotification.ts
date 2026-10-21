@@ -3,6 +3,8 @@ import { sendDedupedPush } from './dedupedPush.js';
 import { type PushSender } from './push.js';
 import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
+import { istRuhezeit } from './carePush.js';
+import { nutzerZeitzone } from './streak.js';
 
 /**
  * Fachlicher Push-Trigger „fremd angelegte Aufgabe erledigt" (#1391): setzt B den Status einer von A
@@ -10,6 +12,7 @@ import { spracheVon, type CareSprache } from './careSuggestionData.js';
  * und Bs Anzeigenamen. Wie `notifyTaskCreated` (#1224) verhindert der Auslöser über
  * {@link NotificationLog} (eigene `kind`, `dedupeKey` = Task-Id), dass dieselbe Aufgabe erneut meldet
  * — pro Aufgabe höchstens eine Nachricht, auch nach Wiedereröffnen und erneutem Erledigen.
+ * Ruhezeit 21–7 Ortszeit des Empfängers: kein Versand, kein Log (#2849 AK4).
  * Selbst-Anlagen lösen nichts aus (entscheidet der Aufrufer, indem er gar nicht erst aufruft).
  */
 
@@ -56,6 +59,10 @@ export const notifyTaskCompleted = async (
 		return;
 	}
 	const recipient = await User.findByPk(task.createdById);
+	// #2849 AK4: Ruhezeit 21–7 Ortszeit — komplett stumm (Push wie Mail), kein Log, kein Nachholen.
+	if (istRuhezeit(new Date(), nutzerZeitzone(recipient?.zeitzone))) {
+		return;
+	}
 	const texte = TEXTE[spracheVon(recipient?.sprache)];
 	const title = texte.titel;
 	const body = texte.text(completer?.displayName ?? texte.jemand, task.title);

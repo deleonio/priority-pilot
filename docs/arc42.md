@@ -321,12 +321,14 @@ Fehlt ein konfigurierter Provider oder Key, antworten die LLM-Routen mit HTTP 50
 ### 6.3 Hintergrundläufe
 
 Die Ticker (`server/src/scheduler/index.ts`) laufen mit festem Intervall und protokollieren einen
-fehlgeschlagenen Lauf, ohne die übrigen zu blockieren. Der Erinnerungs-Ticker prüft im
-15-Minuten-Intervall, ob die konfigurierte UTC-Stunde erreicht ist (`PUSH_REMINDERS_HOUR`,
-Default 8), und feuert jeden Trigger höchstens einmal pro Tag: fällige Aufgaben
-(`dueTaskReminders`), die drei wichtigsten Aufgaben (`dailyTopTasksPush`), der Fürsorge-Push
-(`carePush`), die Streak-Erinnerung (`streakReminder`) und der Monatsrückblick
-(`monthlyRecapPush`). Er läuft nur, wenn ein Push-Kanal konfiguriert ist (Web-Push-VAPID oder
+fehlgeschlagenen Lauf, ohne die übrigen zu blockieren. Der Erinnerungs-Ticker tickt stündlich
+(#2849) und ruft je Tick jeden Trigger auf: fällige Aufgaben (`dueTaskReminders`), die drei
+wichtigsten Aufgaben (`dailyTopTasksPush`), der Fürsorge-Push (`carePush`), die Streak-Erinnerung
+(`streakReminder`) und der Monatsrückblick (`monthlyRecapPush`). Die Zustellfenster prüfen die
+Trigger je Nutzerzeitzone (`users.zeitzone`, Fallback UTC) selbst: Morgen 7–9 und Tag 9–18,
+Abend 18–21, Ruhezeit 21–7 (dann auch keine Ereignis-Pushes); je Trigger geht höchstens eine
+Nachricht je Nutzer und lokalem Tag raus. Er läuft nur, wenn ein Push-Kanal konfiguriert ist
+(Web-Push-VAPID oder
 FCM) und `PUSH_REMINDERS_ENABLED=true` gesetzt ist. Die Deadline-Auto-Löschung
 (`autoDeleteAfterDeadline`) läuft push-unabhängig um Mitternacht UTC und ist standardmäßig
 aktiv; sie lässt sich über `AUTO_DELETE_AFTER_DEADLINE_ENABLED=false` abschalten. Vier weitere

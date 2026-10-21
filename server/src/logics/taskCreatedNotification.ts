@@ -2,6 +2,8 @@ import { User } from '../models/index.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { sendDedupedPush } from './dedupedPush.js';
 import { type PushSender } from './push.js';
+import { istRuhezeit } from './carePush.js';
+import { nutzerZeitzone } from './streak.js';
 
 /**
  * Fachlicher Push-Trigger „Aufgabe von jemand anderem angelegt" (#1224): legt ein Gruppenmitglied A
@@ -9,6 +11,7 @@ import { type PushSender } from './push.js';
  * Wie `dailyTopTasks` verhindert der Auslöser über {@link sendDedupedPush} (eigene `kind`,
  * `dedupeKey` = Task-Id), dass dieselbe Aufgabe erneut meldet — pro Aufgabe höchstens eine Nachricht.
  * Selbst-Anlagen lösen nichts aus (entscheidet der Aufrufer, indem er keinen Empfänger übergibt).
+ * Ruhezeit 21–7 Ortszeit des Empfängers: kein Versand, kein Log (#2849 AK4).
  */
 
 const KIND = 'task-created';
@@ -54,7 +57,12 @@ export const notifyTaskCreated = async (
 	creator: Creator | null,
 	send?: PushSender,
 ): Promise<void> => {
-	const texte = TEXTE[spracheVon((await User.findByPk(task.userId, { attributes: ['sprache'] }))?.sprache)];
+	const recipient = await User.findByPk(task.userId, { attributes: ['sprache', 'zeitzone'] });
+	// #2849 AK4: Ruhezeit 21–7 Ortszeit — kein Push, kein Log, kein Nachholen.
+	if (istRuhezeit(new Date(), nutzerZeitzone(recipient?.zeitzone))) {
+		return;
+	}
+	const texte = TEXTE[spracheVon(recipient?.sprache)];
 	await sendDedupedPush(
 		task.userId,
 		KIND,

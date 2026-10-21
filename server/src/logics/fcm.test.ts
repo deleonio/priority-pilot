@@ -152,7 +152,8 @@ describe('logics/push — Versand zusätzlich über FCM (#1675)', () => {
 
 		assert.equal(result.usersNotified, 1);
 		assert.equal(sendCalls(calls).length, 1);
-		assert.equal(await NotificationLog.count(), 1);
+		// #2849 AK2 (Test-Pflege): zum Task-Log kommt die Tag-Deckel-Marker-Zeile (<userId>:<lokalesDatum>) hinzu.
+		assert.equal(await NotificationLog.count(), 2);
 	});
 
 	it('ohne Service-Account bleibt es beim Web-Push, FCM wird nicht angesprochen', async () => {

@@ -17,15 +17,16 @@ import type { PushSender } from './push.js';
  * erste Rot-Zustand.
  */
 
-// 03:00 UTC am 01.10.2026 — erster Scheduler-Lauf im neuen Monat; Recap-Monat = 2026-09.
-const NOW = new Date('2026-10-01T03:00:00Z');
+// 10:00 UTC am 01.10.2026 — UTC-Stunde 10 liegt im Fenster 9–17 (#2849); Recap-Monat = 2026-09.
+const NOW = new Date('2026-10-01T10:00:00Z');
 
 /** Empfänger mit Push-Subscription (ohne Subscription: sent = 0, kein Log — Muster streakReminder). */
-const seedEmpfaenger = async (email: string) => {
+const seedEmpfaenger = async (email: string, zeitzone?: string) => {
 	const user = await User.create({
 		email,
 		displayName: 'Rueckblick',
 		passwordHash: '__test__',
+		...(zeitzone ? { zeitzone } : {}),
 	} as never);
 	await PushSubscription.create({
 		endpoint: `https://push.example.com/${user.id}`,
@@ -100,5 +101,56 @@ describe('runMonthlyRecapPush (#1995 AK3)', () => {
 		assert.equal(retry.usersNotified, 1, 'Ohne Log-Eintrag muss der nächste Lauf erneut zustellen');
 		assert.equal(calls.length, 1);
 		assert.equal(await NotificationLog.count({ where: { userId: anna.id, kind: 'monthly-recap' } }), 1);
+	});
+});
+
+// Rote Spec-Tests für #2849 (Spec docs/spec/issue-2849.md): Fenster lokale Stunde 9–17 an
+// lokalem Monatstag 1–7. KEIN Produktivcode.
+describe('runMonthlyRecapPush — Fenster & Monatstag (#2849 AK6)', () => {
+	beforeEach(resetDb);
+	after(closeDb);
+
+	it('sendet nur bei lokaler Stunde 9–17 — 07:59Z und 18:00Z keiner, 09:00Z ja', async () => {
+		await seedEmpfaenger('recap-fenster-1@example.com');
+		await seedEmpfaenger('recap-fenster-2@example.com');
+		await seedEmpfaenger('recap-fenster-3@example.com');
+		const calls: string[] = [];
+		const send = okSender(calls);
+
+		assert.equal(
+			(await runMonthlyRecapPush(new Date('2026-10-01T07:59:00Z'), send)).usersNotified,
+			0,
+			'07:59 UTC liegt vor dem Fenster',
+		);
+		assert.equal(
+			(await runMonthlyRecapPush(new Date('2026-10-01T09:00:00Z'), send)).usersNotified,
+			3,
+			'09:00 UTC öffnet das Fenster',
+		);
+		await NotificationLog.destroy({ where: {} });
+		assert.equal(
+			(await runMonthlyRecapPush(new Date('2026-10-01T18:00:00Z'), send)).usersNotified,
+			0,
+			'18:00 UTC liegt außerhalb des Fensters',
+		);
+		assert.equal(calls.length, 3);
+	});
+
+	it('sendet nur an lokalem Monatstag 1–7 — Tag 7 ja, Tag 8 (Auckland, lokal) nein', async () => {
+		// Pacific/Auckland, Oktober = NZDT (UTC+13): 2026-10-06T20:00Z = 7. Okt., 09:00 lokal → Tag 7, im Fenster.
+		await seedEmpfaenger('recap-tag7@example.com', 'Pacific/Auckland');
+		const calls: string[] = [];
+		const send = okSender(calls);
+		assert.equal((await runMonthlyRecapPush(new Date('2026-10-06T20:00:00Z'), send)).usersNotified, 1);
+
+		// 2026-10-07T20:00Z = 8. Okt., 09:00 lokal (Tag 8) — der UTC-Kalendertag wäre noch der 7.,
+		// das lokale Datum entscheidet.
+		await seedEmpfaenger('recap-tag8@example.com', 'Pacific/Auckland');
+		assert.equal(
+			(await runMonthlyRecapPush(new Date('2026-10-07T20:00:00Z'), send)).usersNotified,
+			0,
+			'lokaler Monatstag 8 liegt außerhalb 1–7',
+		);
+		assert.equal(calls.length, 1);
 	});
 });
