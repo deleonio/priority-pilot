@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.32 - 2026-10-21
 
-_Enthält v0.32.0 – v0.32.6._
+_Enthält v0.32.0 – v0.32.7._
 
 ### 🚀 Improvements
 
@@ -171,6 +171,7 @@ _Enthält v0.28.0 – v0.28.15._
 - docs(arc42): sync architecture doc to current state 2026-10-17 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2678
 - feat(frontend): checkout dialog with address and withdrawal consent by @deleonio in https://github.com/deleonio/priority-pilot/pull/2673
 - fix(deps): update dependency i18next to v26.4.7 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2648
+- ci(cron): prompt audit weekly on friday evening instead of daily by @deleonio in https://github.com/deleonio/priority-pilot/pull/2681
 - ci(cron): prompt audit weekly on friday evening instead of daily by @deleonio in https://github.com/deleonio/priority-pilot/pull/2681
 - fix(android): embed native debug symbols in the release aab by @deleonio in https://github.com/deleonio/priority-pilot/pull/2682
 - fix(llm): add top_p 1 for greedy sampling and surface embedded 200 errors by @deleonio in https://github.com/deleonio/priority-pilot/pull/2683
@@ -405,7 +406,6 @@ _Enthält v0.20.0 – v0.20.4._
 
 ### 🎉 New Features
 
-- feat(server): manage task checklist items one by one via mcp (#2460) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2461
 - feat(server): manage task checklist items one by one via mcp (#2460) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2461
 
 ### Other Changes
