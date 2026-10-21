@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, after } from 'node:test';
+import { describe, it, beforeEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SendResult } from 'web-push';
 import { resetDb, closeDb, applyTestAuthEnv } from '../test/helpers.js';
@@ -113,5 +113,46 @@ describe('notifyReachedMilestones (#1363)', () => {
 			[`${userId}:punkte-250`, `${userId}:punkte-50`].sort(),
 			'dedupeKey enthält userId UND schluessel (sonst wäre der Meilenstein global statt je Nutzer eindeutig)',
 		);
+	});
+});
+
+// Rote Spec-Tests für #2849 (Spec docs/spec/issue-2849.md): Ruhezeit 21–7 Uhr Nutzer-Zeitzone —
+// kein Push, kein NotificationLog. KEIN Produktivcode.
+describe('notifyReachedMilestones — Ruhezeit (#2849 AK4)', () => {
+	beforeEach(async () => {
+		await resetDb();
+		calls = [];
+	});
+
+	it('23:00 lokal (Berlin): kein Push, kein Log — 07:00 lokal: Zustellung wie bisher', async () => {
+		const user = await User.create({
+			email: 'ruhe-milestone@example.com',
+			passwordHash: '__test__',
+			displayName: 'Ruhe-Meilenstein',
+			zeitzone: 'Europe/Berlin',
+		} as never);
+		await PushSubscription.create({
+			endpoint: 'https://push.example/ruhe-milestone',
+			p256dh: 'p256dh',
+			auth: 'auth',
+			expirationTime: null,
+			userId: user.id,
+		});
+		const vorher = [meilenstein('punkte-50', false)];
+		const nachher = [meilenstein('punkte-50', true)];
+
+		mock.timers.enable({ apis: ['Date'] });
+		try {
+			mock.timers.setTime(new Date('2026-07-07T21:00:00Z').getTime()); // 23:00 Berlin
+			await notifyReachedMilestones(user.id, vorher, nachher, mockSender);
+			assert.equal(calls.length, 0, 'Ruhezeit: kein Push');
+			assert.equal(await NotificationLog.count(), 0, 'Ruhezeit: kein NotificationLog-Eintrag');
+
+			mock.timers.setTime(new Date('2026-07-07T05:00:00Z').getTime()); // 07:00 Berlin
+			await notifyReachedMilestones(user.id, vorher, nachher, mockSender);
+			assert.equal(calls.length, 1, '07:00 lokal: Zustellung wie bisher');
+		} finally {
+			mock.timers.reset();
+		}
 	});
 });

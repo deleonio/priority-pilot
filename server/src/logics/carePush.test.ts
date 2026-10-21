@@ -41,9 +41,10 @@ import type { PushSender } from './push.js';
 
 // Nutzer-Zeitzone Europa/Berlin, Juli = CEST (UTC+2):
 // 05:59Z → 07:59 lokal, 06:00Z → 08:00 lokal, 19:30Z → 21:30 lokal, 20:30Z → 22:30 lokal.
-// 19:30 UTC liegt außerhalb der UTC-Ruhezeit (AK8: Zone-lose Nutzer fallen auf UTC zurück) —
-// die Lauf-Semantik-Tests (Defizit/Dedup/Schalter/Kanäle) treffen so keinen Ruhezeit-Block.
-const NOW = new Date('2026-07-07T19:30:00Z');
+// #2849: Fürsorge-Fenster ist lokale Stunde 9–17. NOW = 12:00 UTC liegt im UTC-Fenster —
+// die Lauf-Semantik-Tests (Defizit/Dedup/Schalter/Kanäle, Zone-los → UTC-Fallback) treffen
+// so keinen Fenster-Block.
+const NOW = new Date('2026-07-07T12:00:00Z');
 
 type CareUserAttrs = { carePushEnabled?: boolean; zeitzone?: string | null; sprache?: string | null };
 
@@ -116,9 +117,9 @@ describe('logics/carePush — fachlicher Fürsorge-Push (Issue #1794)', () => {
 		const calls: { endpoint: string; body: string }[] = [];
 		const send = okSender(calls);
 
-		const first = await runCarePush(new Date('2026-07-07T06:00:00Z'), send); // 08:00 lokal
-		const second = await runCarePush(new Date('2026-07-07T06:30:00Z'), send); // 08:30 lokal, gleicher Tag
-		const third = await runCarePush(new Date('2026-07-08T06:00:00Z'), send); // nächster lokaler Tag
+		const first = await runCarePush(new Date('2026-07-07T08:00:00Z'), send); // 10:00 lokal
+		const second = await runCarePush(new Date('2026-07-07T08:30:00Z'), send); // 10:30 lokal, gleicher Tag
+		const third = await runCarePush(new Date('2026-07-08T08:00:00Z'), send); // nächster lokaler Tag
 
 		assert.equal(first.usersNotified, 1);
 		assert.equal(second.usersNotified, 0, 'wiederholter Lauf am selben lokalen Kalendertag sendet nichts');
@@ -163,24 +164,22 @@ describe('logics/carePush — fachlicher Fürsorge-Push (Issue #1794)', () => {
 		assert.equal(log, null, 'auch kein care-push-Log-Eintrag');
 	});
 
-	it('AK2: Ruhezeit 21–8 Uhr Nutzer-Zeitzone — 07:59 kein Versand, 08:00 schon, 22:30 keiner', async () => {
-		await seedDeficitUser('care-quiet-1@example.com', { zeitzone: 'Europe/Berlin' });
+	it('#2849 AK6: Fenster lokale Stunde 9–17 — 08:59 kein Versand, 09:00 schon, 18:00 keiner', async () => {
 		const calls: { endpoint: string; body: string }[] = [];
 		const send = okSender(calls);
 
-		const frueh = await runCarePush(new Date('2026-07-07T05:59:00Z'), send); // 07:59 Berlin
-		const grenze = await runCarePush(new Date('2026-07-07T06:00:00Z'), send); // 08:00 Berlin
+		await seedDeficitUser('care-fenster-1@example.com', { zeitzone: 'Europe/Berlin' });
+		const vorFenster = await runCarePush(new Date('2026-07-07T06:59:00Z'), send); // 08:59 Berlin
+		assert.equal(vorFenster.usersNotified, 0, '08:59 liegt vor dem Fenster');
 
-		assert.equal(frueh.usersNotified, 0, '07:59 liegt noch in der Ruhezeit');
-		assert.equal(grenze.usersNotified, 1, '08:00 ist die erlaubte Grenze');
+		await seedDeficitUser('care-fenster-2@example.com', { zeitzone: 'Europe/Berlin' });
+		const grenze = await runCarePush(new Date('2026-07-07T07:00:00Z'), send); // 09:00 Berlin
+		assert.equal(grenze.usersNotified, 1, '09:00 öffnet das Fenster');
+
+		await seedDeficitUser('care-fenster-3@example.com', { zeitzone: 'Europe/Berlin' });
+		const abend = await runCarePush(new Date('2026-07-07T16:00:00Z'), send); // 18:00 Berlin
+		assert.equal(abend.usersNotified, 0, '18:00 liegt außerhalb des Fensters');
 		assert.equal(calls.length, 1);
-
-		// Zweiter Nutzer, derselbe Schicht-Nacht-Fall: 22:30 lokal.
-		await seedDeficitUser('care-quiet-2@example.com', { zeitzone: 'Europe/Berlin' });
-		const nachts = await runCarePush(new Date('2026-07-07T20:30:00Z'), send); // 22:30 Berlin
-
-		assert.equal(nachts.usersNotified, 0, '22:30 liegt in der Ruhezeit');
-		assert.equal(calls.length, 1, 'auch nachts wird kein zweiter Push ausgelöst');
 	});
 
 	it('AK3: ausgewogene Säulen → kein Versand und kein NotificationLog-Eintrag', async () => {
@@ -223,7 +222,8 @@ describe('logics/carePush — fachlicher Fürsorge-Push (Issue #1794)', () => {
 		});
 		const calls: { endpoint: string; body: string }[] = [];
 
-		const result = await runDueTaskReminders(NOW, okSender(calls));
+		// #2849: Frist-Erinnerungen haben ihr eigenes Morgenfenster — 07:30 UTC liegt darin.
+		const result = await runDueTaskReminders(new Date('2026-07-07T07:30:00Z'), okSender(calls));
 
 		assert.equal(result.usersNotified, 1, 'der Fürsorge-Schalter darf Frist-Erinnerungen nicht anfassen');
 		assert.equal(calls.length, 1);
@@ -308,28 +308,27 @@ describe('logics/carePush — fachlicher Fürsorge-Push (Issue #1794)', () => {
 		);
 	});
 
-	it('AK8: ungültige oder fehlende Zeitzone bricht den Lauf nicht und fällt auf UTC zurück', async () => {
+	it('#2849 AK5: ungültige oder fehlende Zeitzone fällt auf UTC zurück — Fenster UTC 9–17', async () => {
 		await seedDeficitUser('care-tz-bad@example.com', { zeitzone: 'Mars/Olympus' });
 		await seedDeficitUser('care-tz-null@example.com', { zeitzone: null });
 		const calls: { endpoint: string; body: string }[] = [];
 
-		// 19:30 UTC liegt außerhalb der UTC-Ruhezeit — mit dem UTC-Fallback wird versendet;
-		// in Europa/Berlin wäre es 21:30 und damit blockiert (differenziert den Fallback).
-		const result = await runCarePush(new Date('2026-07-07T19:30:00Z'), okSender(calls));
+		// 15:59 UTC liegt im UTC-Fenster (9–17), in Berlin aber wäre es 17:59 — außerhalb:
+		// nur der UTC-Fallback erklärt die Zustellung (differenziert den Fallback).
+		const result = await runCarePush(new Date('2026-07-07T15:59:00Z'), okSender(calls));
 
 		assert.equal(result.usersNotified, 2, 'beide Nutzer werden mit dem UTC-Fallback bedient');
 		assert.equal(calls.length, 2);
 
-		// 22:30 UTC liegt IN der UTC-Ruhezeit (21:00–08:00) — der UTC-Fallback blockiert.
-		// Frische Nutzer, damit der Dedup (gleicher UTC-Kalendertag) die Unterscheidung
-		// nicht schon vorher erledigt: überspringen der Prüfung würde hier nächtlich zustellen.
-		await seedDeficitUser('care-tz-bad-night@example.com', { zeitzone: 'Mars/Olympus' });
-		await seedDeficitUser('care-tz-null-night@example.com', { zeitzone: null });
-		const nightCalls: { endpoint: string; body: string }[] = [];
-		const night = await runCarePush(new Date('2026-07-07T22:30:00Z'), okSender(nightCalls));
+		// 18:00 UTC liegt außerhalb des UTC-Fensters — der UTC-Fallback blockiert. Frische Nutzer,
+		// damit der Dedup (gleicher lokaler Tag) die Unterscheidung nicht vorab erledigt.
+		await seedDeficitUser('care-tz-bad-abend@example.com', { zeitzone: 'Mars/Olympus' });
+		await seedDeficitUser('care-tz-null-abend@example.com', { zeitzone: null });
+		const abendCalls: { endpoint: string; body: string }[] = [];
+		const abend = await runCarePush(new Date('2026-07-07T18:00:00Z'), okSender(abendCalls));
 
-		assert.equal(night.usersNotified, 0, '22:30 UTC fällt in die UTC-Ruhezeit — kein Versand');
-		assert.equal(nightCalls.length, 0);
+		assert.equal(abend.usersNotified, 0, '18:00 UTC liegt außerhalb des UTC-Fensters — kein Versand');
+		assert.equal(abendCalls.length, 0);
 	});
 
 	// #1879 AK1/AK3/AK4: Push-Sprache aus `User.sprache`; null/ungültig → Deutsch.

@@ -18,11 +18,12 @@ import type { PushSender } from './push.js';
  *  - Ranking-Feld ist `Task.priority`, **aufsteigend = wichtiger** (P1 am höchsten; entspricht dem
  *    Demo-Seed `Task 1 = priority 1`, der von anderen Tasks abhängt). Siehe „Offene Punkte" im PR-Body.
  *  - Leer-Fall (0 Aufgaben): **kein Push**, kein NotificationLog (analog No-op in `dueTaskReminders`).
- *  - Stunde: 06:00 Uhr — der Scheduler feuert den Trigger über `PUSH_REMINDERS_HOUR=6` (siehe
- *    scheduler/index.ts); das Gating selbst ist dort bereits grün abgedeckt.
+ *  - Fenster (#2849): lokale Stunde 7–8 des Empfängers; das Gating liegt im Trigger selbst
+ *    (`runDailyTopTasksPush`), der Scheduler tickt stündlich (`PUSH_REMINDERS_HOUR` entfällt).
  */
 
-const NOW = new Date('2026-07-07T06:00:00Z');
+// im UTC-Morgenfenster (lokale Stunde 7–8, #2849)
+const NOW = new Date('2026-07-07T07:30:00Z');
 
 type TaskOverrides = Partial<{
 	title: string;
@@ -153,10 +154,10 @@ describe('logics/dailyTopTasks — „3 wichtigste Aufgaben um 6 Uhr" (Issue #51
 		const calls: { endpoint: string; body: string }[] = [];
 
 		const first = await runDailyTopTasksPush(NOW, okSender(calls));
-		// Zweiter Tick am selben Kalendertag (z. B. 23:00 Uhr) darf nicht erneut senden.
-		const sameDay = await runDailyTopTasksPush(new Date('2026-07-07T23:00:00Z'), okSender(calls));
+		// Zweiter Tick am selben lokalen Tag (z. B. 08:15 Uhr, noch im Fenster) sendet nicht erneut.
+		const sameDay = await runDailyTopTasksPush(new Date('2026-07-07T08:15:00Z'), okSender(calls));
 		// Erster Tick am Folgetag löst den täglichen Push erneut aus.
-		const nextDay = await runDailyTopTasksPush(new Date('2026-07-08T06:00:00Z'), okSender(calls));
+		const nextDay = await runDailyTopTasksPush(new Date('2026-07-08T07:30:00Z'), okSender(calls));
 
 		assert.equal(first.usersNotified, 1);
 		assert.equal(sameDay.usersNotified, 0, 'zweiter Tick am selben Tag ist ein No-op (Idempotenz/Tag)');
@@ -307,5 +308,66 @@ describe('logics/dailyTopTasks — Vorlauf 3 Tage (Issue #1641)', () => {
 			['Sonst nichts los'],
 			'die Serie ist nicht enthalten, nur die unabhängige Aufgabe',
 		);
+	});
+});
+
+// Rote Spec-Tests für #2849 (Spec docs/spec/issue-2849.md): Fenster lokale Stunde 7–8 je
+// Empfänger-Zeitzone, ohne gültige Zone UTC. KEIN Produktivcode.
+describe('logics/dailyTopTasks — Fenster & Zeitzone (#2849)', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		await closeDb();
+	});
+
+	it('AK2: sendet nur bei lokaler Stunde 7–8 — 05:59 Berlin keiner, 07:00 ja, 08:59 ja, 09:00 keiner', async () => {
+		const calls: { endpoint: string; body: string }[] = [];
+		const send = okSender(calls);
+		await seedSubscription(1, 'https://push.example.com/w1');
+		await createTask({ title: 'Eins', priority: 1, userId: 1 });
+
+		const frueh = await runDailyTopTasksPush(new Date('2026-07-07T03:59:00Z'), send); // 05:59 Berlin
+		assert.equal(frueh.usersNotified, 0, '05:59 lokal liegt vor dem Fenster');
+		const morgens = await runDailyTopTasksPush(new Date('2026-07-07T05:00:00Z'), send); // 07:00 Berlin
+		assert.equal(morgens.usersNotified, 1, '07:00 lokal öffnet das Fenster');
+
+		await seedSubscription(2, 'https://push.example.com/w2');
+		await createTask({ title: 'Zwei', priority: 1, userId: 2 });
+		const rand = await runDailyTopTasksPush(new Date('2026-07-07T06:59:00Z'), send); // 08:59 Berlin
+		assert.equal(rand.usersNotified, 1, '08:59 lokal gehört noch zum Fenster');
+		await seedSubscription(3, 'https://push.example.com/w3');
+		await createTask({ title: 'Drei', priority: 1, userId: 3 });
+		const zu = await runDailyTopTasksPush(new Date('2026-07-07T07:00:00Z'), send); // 09:00 Berlin
+		assert.equal(zu.usersNotified, 0, '09:00 lokal liegt außerhalb des Fensters');
+		assert.equal(calls.length, 2);
+	});
+
+	it('AK3: Fenster folgen der Empfängerzeitzone — New-York-Nutzer sendet zu 11:30Z (07:30 lokal), nicht zu 05:30Z', async () => {
+		await seedSubscription(4, 'https://push.example.com/w4');
+		await createTask({ title: 'NY', priority: 1, userId: 4 });
+		const calls: { endpoint: string; body: string }[] = [];
+		const send = okSender(calls);
+
+		const nachts = await runDailyTopTasksPush(new Date('2026-07-07T05:30:00Z'), send); // 01:30 New York
+		assert.equal(nachts.usersNotified, 0, '01:30 New York liegt außerhalb — die UTC-Stunde 5:30 zählt nicht');
+		const morgens = await runDailyTopTasksPush(new Date('2026-07-07T11:30:00Z'), send); // 07:30 New York
+		assert.equal(morgens.usersNotified, 1, '07:30 New York liegt im Fenster');
+		assert.equal(calls.length, 1);
+	});
+
+	it('AK5: ohne Zeitzone gelten die Fenster in UTC — 05:30Z keiner, 07:30Z beide', async () => {
+		await seedSubscription(5, 'https://push.example.com/w5');
+		await createTask({ title: 'UTC', priority: 1, userId: 5 });
+		await seedSubscription(6, 'https://push.example.com/w6');
+		await createTask({ title: 'Mars', priority: 1, userId: 6 });
+		const calls: { endpoint: string; body: string }[] = [];
+		const send = okSender(calls);
+
+		const frueh = await runDailyTopTasksPush(new Date('2026-07-07T05:30:00Z'), send);
+		assert.equal(frueh.usersNotified, 0, 'UTC 05:30 liegt vor dem Fenster');
+		const morgens = await runDailyTopTasksPush(new Date('2026-07-07T07:30:00Z'), send);
+		assert.equal(morgens.usersNotified, 2, 'UTC 07:30 liegt im Fenster — beide Zone-losen Nutzer');
+		assert.equal(calls.length, 2);
 	});
 });

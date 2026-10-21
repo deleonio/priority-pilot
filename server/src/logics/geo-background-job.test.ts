@@ -360,3 +360,46 @@ describe('logics/geo-background-job — Geo-Push-Trigger (#1101)', () => {
 		assert.equal(groups[0].tasks[0].title, 'Einkaufen');
 	});
 });
+
+// Rote Spec-Tests für #2849 (Spec docs/spec/issue-2849.md): Standort-Push bleibt in der Ruhezeit
+// (lokale Stunde 21–23, 0–6) aus — kein Versand, kein NotificationLog. KEIN Produktivcode.
+describe('runGeoPushNotifications — Ruhezeit (#2849 AK4)', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		await closeDb();
+	});
+
+	it('23:00 lokal (Berlin): kein Push, kein Log — 07:00 lokal: Zustellung wie bisher', async () => {
+		const user = await User.create({
+			email: 'geo-ruhe@example.com',
+			passwordHash: 'x',
+			displayName: 'Ruhe',
+			zeitzone: 'Europe/Berlin',
+		} as never);
+		await seedSubscription(user.id, `https://push.example.com/${user.id}`);
+		await createTask({ title: 'nah', latitude: LAT_NEAR, longitude: LON, userId: user.id });
+		const calls: { endpoint: string; body: string }[] = [];
+		const send = okSender(calls);
+
+		const nachts = await runGeoPushNotifications(
+			[{ userId: user.id, lat: LAT, lon: LON }],
+			send,
+			new Date('2026-07-07T21:00:00Z'), // 23:00 Berlin
+		);
+		assert.equal(nachts.usersNotified, 0, 'Ruhezeit: kein Push');
+		assert.equal(await NotificationLog.count(), 0, 'Ruhezeit: kein NotificationLog-Eintrag');
+
+		// Flanke neutralisieren — egal, ob der Ruhezeit-Lauf die Position gespeichert hat.
+		await User.update({ lastGeoLatitude: null, lastGeoLongitude: null }, { where: { id: user.id } });
+
+		const morgens = await runGeoPushNotifications(
+			[{ userId: user.id, lat: LAT, lon: LON }],
+			send,
+			new Date('2026-07-07T05:00:00Z'), // 07:00 Berlin
+		);
+		assert.equal(morgens.usersNotified, 1, '07:00 lokal: Zustellung wie bisher');
+		assert.equal(calls.length, 1);
+	});
+});

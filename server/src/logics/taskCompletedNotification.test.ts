@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, after } from 'node:test';
+import { describe, it, beforeEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SendResult } from 'web-push';
 import { resetDb, closeDb } from '../test/helpers.js';
@@ -73,5 +73,54 @@ describe('notifyTaskCompleted — Mail-Kanal (#1426, TF5/AK5)', () => {
 		assert.equal(mailCalls[0].to, 'creator@example.com', 'Mail geht an den Ersteller (Empfänger der Erinnerung)');
 		const logs = await NotificationLog.findAll({ where: { kind: 'task-completed' } });
 		assert.equal(logs.length, 1, 'ein NotificationLog-Eintrag pro Auslöser, nicht pro Kanal');
+	});
+});
+
+// Rote Spec-Tests für #2849 (Spec docs/spec/issue-2849.md): Ruhezeit 21–7 Uhr Nutzer-Zeitzone —
+// kein Push, kein NotificationLog. KEIN Produktivcode.
+describe('notifyTaskCompleted — Ruhezeit (#2849 AK4)', () => {
+	beforeEach(async () => {
+		await resetDb();
+		pushCalls.length = 0;
+	});
+	after(closeDb);
+
+	it('23:00 lokal (Berlin): kein Push, kein Log — 07:00 lokal: Zustellung wie bisher', async () => {
+		const creator = await User.create({
+			email: 'ruhe-completed@example.com',
+			displayName: 'Ersteller',
+			passwordHash: '__test__',
+			zeitzone: 'Europe/Berlin',
+		} as never);
+		await PushSubscription.create({
+			endpoint: 'https://push.example/ruhe-completed',
+			p256dh: 'p256dh',
+			auth: 'auth',
+			expirationTime: null,
+			userId: creator.id,
+		});
+
+		mock.timers.enable({ apis: ['Date'] });
+		try {
+			mock.timers.setTime(new Date('2026-07-07T21:00:00Z').getTime()); // 23:00 Berlin
+			await notifyTaskCompleted(
+				{ id: 801, title: 'Nachts erledigt', createdById: creator.id },
+				{ displayName: 'Ben' },
+				mockSend,
+			);
+			assert.equal(pushCalls.length, 0, 'Ruhezeit: kein Push');
+			assert.equal(await NotificationLog.count(), 0, 'Ruhezeit: kein NotificationLog-Eintrag');
+
+			mock.timers.setTime(new Date('2026-07-07T05:00:00Z').getTime()); // 07:00 Berlin
+			await notifyTaskCompleted(
+				{ id: 802, title: 'Morgens erledigt', createdById: creator.id },
+				{ displayName: 'Ben' },
+				mockSend,
+			);
+			assert.equal(pushCalls.length, 1, '07:00 lokal: Zustellung wie bisher');
+			assert.equal(await NotificationLog.count({ where: { kind: 'task-completed' } }), 1);
+		} finally {
+			mock.timers.reset();
+		}
 	});
 });

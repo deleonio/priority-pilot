@@ -223,6 +223,51 @@ describe('scheduler/startScheduler — Gate (Issue #355)', () => {
 	});
 });
 
+// Roter Spec-Test für #2849 (Spec docs/spec/issue-2849.md): der Scheduler tickt stündlich,
+// die Tagesstunden-Bedingung (`shouldFire`/`PUSH_REMINDERS_HOUR`) entfällt. KEIN Produktivcode.
+describe('scheduler/startScheduler — stündlicher Tick (#2849 AK1)', () => {
+	const originalEnv = { ...process.env };
+
+	afterEach(() => {
+		process.env = { ...originalEnv };
+	});
+
+	it('TF1: feuert bei JEDEM Tick — auch zweimal vor der konfigurierten Tagesstunde; PUSH_REMINDERS_HOUR wird ignoriert', async () => {
+		const keys = webpush.generateVAPIDKeys();
+		process.env.VAPID_PUBLIC_KEY = keys.publicKey;
+		process.env.VAPID_PRIVATE_KEY = keys.privateKey;
+		process.env.PUSH_REMINDERS_ENABLED = 'true';
+		process.env.PUSH_REMINDERS_HOUR = '8'; // wird künftig nicht mehr ausgewertet
+		const calls: Date[] = [];
+		let current = new Date('2026-07-07T07:00:00Z');
+		let tickFn: (() => void) | undefined;
+
+		const handle = startScheduler(
+			[
+				async (now) => {
+					calls.push(now);
+				},
+			],
+			{
+				now: () => current,
+				setIntervalFn: ((fn: () => void) => {
+					tickFn = fn;
+					return 1 as unknown as NodeJS.Timeout;
+				}) as typeof setInterval,
+				clearIntervalFn: (() => {}) as typeof clearInterval,
+			},
+		);
+
+		tickFn?.();
+		current = new Date('2026-07-07T07:30:00Z');
+		tickFn?.();
+		await flush();
+
+		assert.equal(calls.length, 2, 'beide Ticks feuern — die Tagesstunden-Bedingung ist entfallen');
+		handle.stop();
+	});
+});
+
 describe('scheduler/startDeadlineAutoDeleteScheduler — push-unabhängiges Gate (#523)', () => {
 	const originalEnv = { ...process.env };
 
