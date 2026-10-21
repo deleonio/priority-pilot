@@ -13,11 +13,14 @@ const MAX_SETTLE = 12;
  * #2848 (docs/spec/issue-2848.md): Öffnet ein Push-Ziel das Dashboard mit einem Karten-Anker
  * (`/#karte-…`), springt die App nach dem ersten Rendern der Zielkarte dorthin — Fokus aufs
  * Anker-Ziel (`tabIndex={-1}` an der Karte, Vorbild `dashboard-next-task-empty`), dann EIN
- * `scrollIntoView`. Der Sticky-Header ist über das bestehende `scroll-padding-top` am
- * Scroll-Container (app.css) abgezogen, `prefers-reduced-motion` schaltet die Animation ab.
- * Danach entfernt `history.replaceState` den Anker (kein History-Eintrag, Matomo hängt am
- * pathname, kein Re-Sprung beim Reload). Fehlt die Karte (datumabhängige Rückblicke), bleibt
- * das Dashboard still oben — keine Meldung (§2.2.4 des Push-Konzepts).
+ * `scrollIntoView` ohne Animation: Die Position wird zum Fokus-Zeitpunkt gemessen (e2e AK1), und
+ * asynchron nachladende Karten über dem Ziel verschieben das Animationsziel sonst während des
+ * Laufs (bewusste Abweichung von der Animations-Idee aus docs/push-konzept.md §2.2, s. PR —
+ * deckt sich mit dem `prefers-reduced-motion`-Verhalten). Der Sticky-Header ist über das
+ * bestehende `scroll-padding-top` am Scroll-Container (app.css) abgezogen. Danach entfernt
+ * `history.replaceState` den Anker (kein History-Eintrag, Matomo hängt am pathname, kein
+ * Re-Sprung beim Reload). Fehlt die Karte (datumabhängige Rückblicke), bleibt das Dashboard
+ * still oben — keine Meldung (§2.2.4 des Push-Konzepts).
  *
  * Der Sprung wird kurz gegenhalten (§2.2 „nach dem ersten Rendern mit Daten"): Selbstladende
  * Karten über dem Ziel (Herz, Fürsorge, Willkommen) wachsen asynchron und verschieben die
@@ -42,23 +45,23 @@ export const useDashboardAnchor = (): void => {
 				Array.from(host.children).some((child) => child.assignedSlot === null),
 			);
 		};
-		const scrollTargetIntoView = (target: Element, smooth: boolean): void => {
-			const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-			Element.prototype.scrollIntoView.call(target, {
-				behavior: smooth && !reduceMotion ? 'smooth' : 'auto',
-				block: 'start',
-			});
+		const scrollTargetIntoView = (target: Element): void => {
+			Element.prototype.scrollIntoView.call(target, { behavior: 'auto', block: 'start' });
 		};
-		const holdPosition = (id: string, target: Element): void => {
-			// Karte weiter im Blick behalten, bis das Layout über ihr ruhig ist (dann steht der
-			// Kartenanfang im Viewport). Korrektur ohne Animation, ohne erneuten Fokus.
-			if (!target.isConnected || target.getBoundingClientRect().top < window.innerHeight) {
+		const holdPosition = (target: Element): void => {
+			// Karte im sichtbaren Band halten (Kartenanfang zwischen 0 und Viewport-Höhe), bis das
+			// Layout über ihr ruhig ist. Korrektur ohne Animation, ohne erneuten Fokus.
+			if (!target.isConnected) {
+				return;
+			}
+			const top = target.getBoundingClientRect().top;
+			if (top >= 0 && top < window.innerHeight) {
 				return;
 			}
 			if (settles < MAX_SETTLE) {
 				settles += 1;
-				scrollTargetIntoView(target, false);
-				timer = setTimeout(() => holdPosition(id, target), SETTLE_MS);
+				scrollTargetIntoView(target);
+				timer = setTimeout(() => holdPosition(target), SETTLE_MS);
 			}
 		};
 		const jump = (): void => {
@@ -81,9 +84,9 @@ export const useDashboardAnchor = (): void => {
 			// Karte still fehl. Der native HTMLElement.focus greift auf dem tabindex="-1"-Host
 			// zuverlässig (Probe im #2848-Impl-Lauf).
 			HTMLElement.prototype.focus.call(target, { preventScroll: true });
-			scrollTargetIntoView(target, true);
+			scrollTargetIntoView(target);
 			window.history.replaceState(null, '', window.location.pathname + window.location.search);
-			timer = setTimeout(() => holdPosition(id, target), SETTLE_MS);
+			timer = setTimeout(() => holdPosition(target), SETTLE_MS);
 		};
 		const onHashChange = (): void => {
 			attempts = 0;
