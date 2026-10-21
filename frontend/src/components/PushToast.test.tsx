@@ -154,4 +154,70 @@ describe('PushToast — native Vordergrund-Push im Kanal play (#1679)', () => {
 
 		await waitFor(() => expect(nativePlugin.listeners.has('pushNotificationReceived')).toBe(false));
 	});
+
+	// AK4 (#2848): nativ verhält sich „Öffnen" wie im Web — Payload mit url, Klick navigiert.
+	it('AK4: native Payload mit url zeigt die Aktion Öffnen, Klick navigiert zum Ziel und schließt den Hinweis', async () => {
+		const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => undefined);
+		render(<PushToast />);
+		await waitFor(() => expect(nativePlugin.listeners.get('pushNotificationReceived')).toBeDefined());
+		const onReceived = nativePlugin.listeners.get('pushNotificationReceived') as (data: unknown) => void;
+		onReceived({ title: 'Aufgabe fällig', url: '/app/tasks/7' });
+
+		const open = screen.getByTestId('push-toast-open');
+		expect(open).toBeVisible();
+		fireEvent.click(open);
+
+		expect(assign).toHaveBeenCalledWith('/app/tasks/7');
+		expect(screen.queryByTestId('push-toast')).not.toBeInTheDocument();
+		assign.mockRestore();
+	});
+});
+
+/**
+ * #2848 AK4 (docs/spec/issue-2848.md): Payload mit `url` — der Service Worker liefert die
+ * Ziel-URL bereits mit (`push-sw.js:51`); der Hinweis bietet sie als zweite Aktion „Öffnen" an
+ * (nativer Button im Slot, DOM-Vertrag `push-toast-open` neben `push-toast-close`). Vertrag für
+ * die Navigation ist `window.location.assign(url)` — Push-Ziele sind seltene Nutzeraktionen, der
+ * frische App-Zustand entspricht dem Web-Neueinstieg (jsdom navigiert nicht selbst, daher Spy).
+ */
+describe('PushToast — Aktion Öffnen bei Push mit Ziel-URL (#2848 AK4)', () => {
+	let serviceWorkerStub: EventTarget;
+
+	const dispatchPush = (payload: { title: string; body?: string; url?: string }): void => {
+		serviceWorkerStub.dispatchEvent(new MessageEvent('message', { data: { type: 'push', payload } }));
+	};
+
+	beforeEach(() => {
+		serviceWorkerStub = new EventTarget();
+		Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: serviceWorkerStub });
+	});
+
+	afterEach(() => {
+		Reflect.deleteProperty(navigator, 'serviceWorker');
+		cleanup();
+	});
+
+	it('Payload mit url zeigt „Öffnen", Klick navigiert zum Ziel und schließt den Hinweis', () => {
+		const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => undefined);
+		render(<PushToast />);
+		dispatchPush({ title: 'Aufgabe erledigt', body: 'Rasen mähen', url: '/app/tasks/7' });
+
+		const open = screen.getByTestId('push-toast-open');
+		expect(open).toBeVisible();
+		expect(open).toHaveTextContent('Öffnen');
+		fireEvent.click(open);
+
+		expect(assign).toHaveBeenCalledWith('/app/tasks/7');
+		expect(screen.queryByTestId('push-toast')).not.toBeInTheDocument();
+		assign.mockRestore();
+	});
+
+	// Ohne url bleibt es beim bisherigen Vertrag: nur Schließen, keine Öffen-Aktion.
+	it('Payload ohne url zeigt keine Öffen-Aktion', () => {
+		render(<PushToast />);
+		dispatchPush({ title: 'Aufgabe erledigt', body: 'Rasen mähen' });
+
+		expect(screen.getByTestId('push-toast-close')).toBeVisible();
+		expect(screen.queryByTestId('push-toast-open')).not.toBeInTheDocument();
+	});
 });
