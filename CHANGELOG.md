@@ -4,11 +4,12 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.32 - 2026-10-21
 
-_Enthält v0.32.0 – v0.32.3._
+_Enthält v0.32.0 – v0.32.4._
 
 ### 🔧 Engineering
 
 - chore(deps): update playwright (npm + docker image) to v1.64.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2819
+- chore(deps): update pi-erweiterungen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2821
 
 ### Other Changes
 
@@ -150,7 +151,6 @@ _Enthält v0.28.0 – v0.28.15._
 ### 🐞 Bug Fixes
 
 - fix(server): strip query strings from error logs so tokens stay out by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2674
-- fix(frontend): release dial intro, hide display until real value by @deleonio in https://github.com/deleonio/priority-pilot/pull/2679
 - fix(frontend): release dial intro, hide display until real value by @deleonio in https://github.com/deleonio/priority-pilot/pull/2679
 - fix(frontend): persist launch banner dismissal across sessions by @deleonio in https://github.com/deleonio/priority-pilot/pull/2677
 - feat(server): reject unresolvable hosts in endpoint guard (#2685) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2700
@@ -405,6 +405,7 @@ _Enthält v0.20.0 – v0.20.4._
 ### Other Changes
 
 - docs(project): add tester to user roles and link to arc42 5.2 (V-15) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2455
+- fix(server): persist db allowance so review login survives allowlist by @deleonio in https://github.com/deleonio/priority-pilot/pull/2457
 - fix(server): persist db allowance so review login survives allowlist by @deleonio in https://github.com/deleonio/priority-pilot/pull/2457
 - feat(server): manage task checklists via MCP tools (#2458) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2459
 
