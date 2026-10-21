@@ -2,9 +2,15 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.31 - 2026-10-20
+## v0.32 - 2026-10-21
 
-_Enthält v0.31.0 – v0.31.20._
+### Other Changes
+
+- chore(deps): update pi-erweiterungen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2818
+
+## v0.31 - 2026-10-21
+
+_Enthält v0.31.0 – v0.31.21._
 
 ### 🎉 New Features
 
@@ -24,6 +30,7 @@ _Enthält v0.31.0 – v0.31.20._
 - test(frontend): mirror parseColor and webgl2 context positively (#2777) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2793
 - test(frontend): cover en privacy link on login page (#2796) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2800
 - chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2801
+- chore(deps): update node.js to v26.12.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2817
 
 ### Other Changes
 
@@ -428,7 +435,6 @@ _Enthält v0.19.0 – v0.19.19._
 - revert(balance): alle neun Zifferblätter wiederherstellen by @deleonio in https://github.com/deleonio/priority-pilot/pull/2447
 - feat(frontend): show care hint actions in one row with icon buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2448
 - feat(frontend): move missed tasks into dashboard grid, unify gap by @deleonio in https://github.com/deleonio/priority-pilot/pull/2450
-- feat(native): sign in natively via Credential Manager instead of browser by @deleonio in https://github.com/deleonio/priority-pilot/pull/2451
 - feat(native): sign in natively via Credential Manager instead of browser by @deleonio in https://github.com/deleonio/priority-pilot/pull/2451
 - fix(server): exempt app channel from CSRF so native sign-in completes by @deleonio in https://github.com/deleonio/priority-pilot/pull/2452
 - fix(server): allow app request headers in CORS preflight by @deleonio in https://github.com/deleonio/priority-pilot/pull/2454
