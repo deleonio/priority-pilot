@@ -10,6 +10,7 @@
 		"welcomeTitle": "Welcome to Balamentum",
 		"weekView": "Week view",
 		"calendarFailed": "Appointments could not be loaded",
+		"taskGone": "This task no longer exists.",
 		"graphLoading": "Loading graph",
 		"createTemplate": "Create template"
 	},

@@ -5865,8 +5865,10 @@ kol-alert {
 	margin: 0.25rem 0 0.5rem;
 }
 
-/* Tap-Fläche ≥44px (WCAG 2.5.8, docs/mobile-ui-rules.md) — volle Breite auf schmalen Viewports. */
-.push-toast__close {
+/* Tap-Fläche ≥44px (WCAG 2.5.8, docs/mobile-ui-rules.md) — volle Breite auf schmalen Viewports.
+   „Öffnen" (#2848 AK4) teilt die Box mit „Schließen"; der Abstand dazwischen hält ≥8px. */
+.push-toast__close,
+.push-toast__open {
 	display: block;
 	width: 100%;
 	min-height: 44px;
@@ -5879,6 +5881,10 @@ kol-alert {
 	cursor: pointer;
 }
 
+.push-toast__close {
+	margin-top: 0.5rem;
+}
+
 @media (min-width: 768px) {
 	/* Desktop (Muster #1077): unten rechts statt vollbreit. */
 	.push-toast {
@@ -5887,9 +5893,15 @@ kol-alert {
 		margin-left: auto;
 	}
 
-	.push-toast__close {
+	.push-toast__close,
+	.push-toast__open {
 		display: inline-block;
 		width: auto;
+	}
+
+	.push-toast__close {
+		margin-top: 0;
+		margin-left: 0.5rem;
 	}
 }
 

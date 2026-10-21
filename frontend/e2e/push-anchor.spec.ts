@@ -103,6 +103,11 @@ test.describe('Push-Anker auf Dashboard-Karten (#2848)', () => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
+		// Test-Pflege (#2848-Impl): `karte-balance` erscheint erst mit dem async geladenen Säulen-Bestand
+		// (nach waitForStableView noch nicht zwingend da) — web-first auf den garantierten Anker warten,
+		// damit das Inventar unten nicht auf eine halb geladene Seite stößt.
+		await expect(page.locator('#karte-balance')).toBeVisible();
+
 		const presentIds = await page.evaluate(() =>
 			Array.from(document.querySelectorAll('[id^="karte-"]'), (element) => element.id),
 		);

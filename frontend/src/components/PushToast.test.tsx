@@ -157,7 +157,10 @@ describe('PushToast — native Vordergrund-Push im Kanal play (#1679)', () => {
 
 	// AK4 (#2848): nativ verhält sich „Öffnen" wie im Web — Payload mit url, Klick navigiert.
 	it('AK4: native Payload mit url zeigt die Aktion Öffnen, Klick navigiert zum Ziel und schließt den Hinweis', async () => {
-		const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => undefined);
+		// jsdom definiert `location.assign` nicht-konfigurierbar — `vi.spyOn` scheitert dort ("Cannot
+		// redefine property"); deshalb wie in UpdatePrompt.test.tsx den globalen location-Stub.
+		const assign = vi.fn();
+		vi.stubGlobal('location', { assign });
 		render(<PushToast />);
 		await waitFor(() => expect(nativePlugin.listeners.get('pushNotificationReceived')).toBeDefined());
 		const onReceived = nativePlugin.listeners.get('pushNotificationReceived') as (data: unknown) => void;
@@ -169,7 +172,7 @@ describe('PushToast — native Vordergrund-Push im Kanal play (#1679)', () => {
 
 		expect(assign).toHaveBeenCalledWith('/app/tasks/7');
 		expect(screen.queryByTestId('push-toast')).not.toBeInTheDocument();
-		assign.mockRestore();
+		vi.unstubAllGlobals();
 	});
 });
 
@@ -198,7 +201,9 @@ describe('PushToast — Aktion Öffnen bei Push mit Ziel-URL (#2848 AK4)', () =>
 	});
 
 	it('Payload mit url zeigt „Öffnen", Klick navigiert zum Ziel und schließt den Hinweis', () => {
-		const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => undefined);
+		// jsdom-Falle wie oben: location-Stub statt vi.spyOn (UpdatePrompt.test.tsx-Präzedenz).
+		const assign = vi.fn();
+		vi.stubGlobal('location', { assign });
 		render(<PushToast />);
 		dispatchPush({ title: 'Aufgabe erledigt', body: 'Rasen mähen', url: '/app/tasks/7' });
 
@@ -209,7 +214,7 @@ describe('PushToast — Aktion Öffnen bei Push mit Ziel-URL (#2848 AK4)', () =>
 
 		expect(assign).toHaveBeenCalledWith('/app/tasks/7');
 		expect(screen.queryByTestId('push-toast')).not.toBeInTheDocument();
-		assign.mockRestore();
+		vi.unstubAllGlobals();
 	});
 
 	// Ohne url bleibt es beim bisherigen Vertrag: nur Schließen, keine Öffen-Aktion.

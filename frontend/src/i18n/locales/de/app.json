@@ -10,6 +10,7 @@
 		"welcomeTitle": "Willkommen bei Balamentum",
 		"weekView": "Wochenansicht",
 		"calendarFailed": "Termine konnten nicht geladen werden",
+		"taskGone": "Diese Aufgabe gibt es nicht mehr.",
 		"graphLoading": "Graph wird geladen",
 		"createTemplate": "Vorlage erstellen"
 	},
