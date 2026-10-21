@@ -260,10 +260,43 @@ jobs:
           sed -i "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
           bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
 
-          ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
+          # Harte Frist (#2097, Muster aus 02/03/04): Der Agent endet IMMER vor
+          # timeout-minutes - sonst bricht GitHub den GESAMTEN Job ab (conclusion
+          # cancelled), Label-Auswertung, Storage und Kostendatensatz laufen nie und
+          # das Ticket bleibt stumm mit konsumiertem Trigger (Run 39561034417, #2823).
+          # Budget = Restzeit bis starttime.epoch + 1800 minus 9 min Puffer (Labels/
+          # Storage/Kosten); Vorlauf schroedert mit ab, Untergrenze 300 s, Override nur
+          # als Obergrenze. Exit 124/137 = Frist, KEIN Fehler: die Label-Post-Assertion
+          # unten parkt den Lauf dann als needs-human (Ersatz-Begruendung am Ticket).
+          START_EPOCH="${{ steps.starttime.outputs.epoch }}"
+          BUDGET=$(( START_EPOCH + 1800 - 540 - $(date +%s) ))
+          if [ "$BUDGET" -lt 300 ]; then
+            echo "::warning::Vorlauf ueberzogen - Agent bekommt nur das Restfenster von 300 s."
+            BUDGET=300
+          fi
+          HARD_BUDGET="$BUDGET"
+          OVERRIDE="${{ vars.AGENT_HARD_BUDGET_OVERRIDE }}"
+          case "$OVERRIDE" in
+            '') : ;; # nicht gesetzt - Restzeit gilt unveraendert
+            *[!0-9]*)
+              echo "::error title=Ungueltiges AGENT_HARD_BUDGET_OVERRIDE::Wert '$OVERRIDE' ist nicht numerisch - provozierte Kurzlaeufe wuerden unbemerkt nichts testen."
+              exit 1
+              ;;
+            *) if [ "$OVERRIDE" -lt "$HARD_BUDGET" ]; then HARD_BUDGET="$OVERRIDE"; fi ;; # absolute Obergrenze
+          esac
+          set +e
+          timeout --signal=TERM --kill-after=60s "$HARD_BUDGET" \
+            ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
             ${{ steps.setup.outputs.invoke-args }} \
             2>&1 | tee /tmp/claude-output.log
-          test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
+          RC="${PIPESTATUS[0]}"
+          set -e
+          if [ "$RC" = "124" ] || [ "$RC" = "137" ]; then
+            echo "::warning title=Frist erreicht::Agent nach ${HARD_BUDGET}s per SIGTERM beendet (#2097) - Phasen-Notiz-Artefakt sichert den Teilstand, Ticket wird als needs-human geparkt."
+            echo "HARD_DEADLINE_HIT=true" >> "$GITHUB_ENV"
+          elif [ "$RC" != "0" ]; then
+            exit "$RC"
+          fi
 
       - name: Token & Kosten erfassen
         # always(): Auch ein abgebrochener Lauf hat Token verbraucht — gerade teure
@@ -314,6 +347,34 @@ jobs:
             verdict="$(grep 'VERDICT:' "$LOG" | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | grep -oE 'spec-ready|needs-human|analyzed' | head -1 || true)"
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
+
+          # Harte Frist ohne Verdict (#2097): Es gibt keinen Analyse-Block zu erwarten -
+          # statt "Analyse fehlt" (exit 1, Trigger konsumiert, Ticket stumm) nimmt der
+          # Lauf den needs-human-Weg mit Ersatz-Begruendung am Ticket; der Mensch
+          # re-armt ueber ai:needs-analyse (Re-Triage setzt auf dem Phasen-Notiz-
+          # Artefakt auf). Mit Verdict laeuft die normale Auswertung weiter (Teilstand).
+          if [ "${HARD_DEADLINE_HIT:-false}" = "true" ] && [ -z "$verdict" ]; then
+            echo "::warning title=Harte Frist erreicht::Agent ohne Verdict beendet worden - Ticket wird als needs-human geparkt."
+            {
+              echo "<!-- ai-triage-decision -->"
+              echo "## ⏸️ Analyse an der harten Frist gestoppt"
+              echo ""
+              echo "**Was zu entscheiden ist:** Der Analyse-Lauf hat die harte Zeitgrenze erreicht, ohne zu einem Ergebnis zu kommen (Workflow-Schutz #2097 - kein Fehlverhalten des Tickets)."
+              echo ""
+              echo "**Worauf es sich bezieht:** Issue #${ISSUE}"
+              echo ""
+              echo "**Optionen:**"
+              echo "- Neu anstoßen: \`ai:needs-human\` entfernen **und** \`ai:needs-analyse\` setzen (Re-Triage setzt auf dem gesicherten Teilstand auf)."
+              echo "- Hängt ein Lauf wiederholt an der Frist: Log des Laufs im Actions-Tab prüfen, erst dann neu anstoßen."
+              echo ""
+              echo "> Das Entfernen von \`ai:needs-human\` hebt nur die Sperre auf und startet nichts."
+              echo ""
+              echo "---"
+              echo "_Diagnose des Workflows: harte Frist (#2097) vor erstem Verdict._"
+            } > /tmp/triage-deadline.md
+            gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file /tmp/triage-deadline.md || true
+            verdict="needs-human"
+          fi
 
           # ADR 0009 — Analyse-Storage ist der Harness-Kommentar (erste Zeile
           # `<!-- ai-harness -->`), nicht mehr der Issue-Body: Der Validator (00)
