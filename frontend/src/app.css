@@ -5956,6 +5956,14 @@ a.plan-badge:focus-visible {
 	margin: 0;
 }
 
+/* Sandbox-Hinweis im Checkout-Dialog: nur im Sandbox-Modus gerendert, bewusst dezent. */
+.sandbox-hint {
+	font-size: var(--pp-font-size-sm);
+	color: var(--pp-ink-muted);
+	text-align: center;
+	margin: var(--pp-gap-tight) 0 0;
+}
+
 /*
  * Login-Seite (unauthentifizierter Einstieg): vertikales Logo mit Wortmarke, Card auf
  * ruhiger Fläche, Buttons im Website-Stil (Pille, Marke). Alle Farben über --pp-Tokens,

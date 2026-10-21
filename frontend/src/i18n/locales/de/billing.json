@@ -209,6 +209,7 @@
 		"addressEdit": "Rechnungsadresse bearbeiten",
 		"price": "{{price}} je {{period}}",
 		"finalPrice": "Endpreis gemäß § 19 UStG.",
-		"renewal": "Das Abo verlängert sich automatisch um den jeweiligen Zeitraum und kann jederzeit zum Ende der Laufzeit gekündigt werden."
+		"renewal": "Das Abo verlängert sich automatisch um den jeweiligen Zeitraum und kann jederzeit zum Ende der Laufzeit gekündigt werden.",
+		"sandboxHint": "PayPal-Sandbox-Testumgebung: Anmeldung mit dem Testkonto {{email}}, Passwort {{password}}."
 	}
 }

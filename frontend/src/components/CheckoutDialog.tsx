@@ -2,6 +2,7 @@ import { KolAlert, KolButton, KolDetails, KolInputCheckbox, KolInputText, KolLin
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
+import type { components } from 'client';
 import { toApiError } from '../lib/apiError';
 import { legalPath } from '../lib/operator';
 import { formatEuro } from '../lib/format';
@@ -22,6 +23,9 @@ const FIELDS = [
 ] as const;
 
 type AddressKey = (typeof FIELDS)[number]['key'];
+
+/** PayPal-Sandbox-Testkonto aus `GET /plans` — der Server liefert es nur im Sandbox-Modus mit. */
+type SandboxAccount = NonNullable<components['schemas']['PlansCatalog']['paypalSandboxAccount']>;
 
 interface CheckoutDialogProps {
 	targetPlan: Exclude<Plan, 'free'>;
@@ -54,6 +58,8 @@ export const CheckoutDialog = ({ targetPlan, targetPeriod, onClose, onOrder }: C
 	/** Gesamtpreis des gewählten Pakets/Zeitraums aus `GET /plans` (#2766) — `null`, solange nicht geladen. */
 	const [price, setPrice] = useState<number | null>(null);
 	const [priceFailed, setPriceFailed] = useState(false);
+	/** Sandbox-Testkonto aus dem geladenen Katalog — `null`, solange nicht geladen bzw. im LIVE-Betrieb. */
+	const [sandboxAccount, setSandboxAccount] = useState<SandboxAccount | null>(null);
 	const cancelRef = useRef<HTMLKolButtonElement>(null);
 	useEffect(() => {
 		let stale = false;
@@ -85,6 +91,7 @@ export const CheckoutDialog = ({ targetPlan, targetPeriod, onClose, onOrder }: C
 		void Promise.resolve()
 			.then(() => api.getPlansCatalog({ signal: controller.signal }))
 			.then((catalog) => {
+				setSandboxAccount(catalog.paypalSandboxAccount ?? null);
 				const cents = catalog.prices[targetPlan]?.[targetPeriod];
 				if (typeof cents !== 'number') throw new Error('Unerwartete Antwort von GET /plans.');
 				setPrice(cents);
@@ -247,6 +254,14 @@ export const CheckoutDialog = ({ targetPlan, targetPeriod, onClose, onOrder }: C
 				</span>
 			</KolButton>
 			<KolButton ref={cancelRef} _label={t('common:cancel')} _variant="tertiary" _on={{ onClick: onClose }} />
+			{sandboxAccount !== null && (
+				<p className="sandbox-hint">
+					{t('checkoutDialog.sandboxHint', {
+						email: sandboxAccount.email,
+						password: sandboxAccount.password,
+					})}
+				</p>
+			)}
 		</Modal>
 	);
 };
