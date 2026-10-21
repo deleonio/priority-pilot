@@ -4,7 +4,11 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.32 - 2026-10-21
 
-_Enthält v0.32.0 – v0.32.4._
+_Enthält v0.32.0 – v0.32.5._
+
+### 🚀 Improvements
+
+- feat(server): invoice pdf in the modevel.de template look by @deleonio in https://github.com/deleonio/priority-pilot/pull/2839
 
 ### 🔧 Engineering
 
@@ -406,7 +410,7 @@ _Enthält v0.20.0 – v0.20.4._
 
 - docs(project): add tester to user roles and link to arc42 5.2 (V-15) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2455
 - fix(server): persist db allowance so review login survives allowlist by @deleonio in https://github.com/deleonio/priority-pilot/pull/2457
-- fix(server): persist db allowance so review login survives allowlist by @deleonio in https://github.com/deleonio/priority-pilot/pull/2457
+- feat(server): manage task checklists via MCP tools (#2458) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2459
 - feat(server): manage task checklists via MCP tools (#2458) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2459
 
 ## v0.19 - 2026-10-09
