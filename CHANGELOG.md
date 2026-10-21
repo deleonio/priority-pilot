@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.32 - 2026-10-21
 
-_Enthält v0.32.0 – v0.32.7._
+_Enthält v0.32.0 – v0.32.8._
 
 ### 🚀 Improvements
 
@@ -14,6 +14,7 @@ _Enthält v0.32.0 – v0.32.7._
 
 - chore(deps): update playwright (npm + docker image) to v1.64.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2819
 - chore(deps): update pi-erweiterungen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2821
+- docs(adr): mariadb as production database (#2823) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2842
 
 ### Other Changes
 
@@ -172,7 +173,7 @@ _Enthält v0.28.0 – v0.28.15._
 - feat(frontend): checkout dialog with address and withdrawal consent by @deleonio in https://github.com/deleonio/priority-pilot/pull/2673
 - fix(deps): update dependency i18next to v26.4.7 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2648
 - ci(cron): prompt audit weekly on friday evening instead of daily by @deleonio in https://github.com/deleonio/priority-pilot/pull/2681
-- ci(cron): prompt audit weekly on friday evening instead of daily by @deleonio in https://github.com/deleonio/priority-pilot/pull/2681
+- fix(android): embed native debug symbols in the release aab by @deleonio in https://github.com/deleonio/priority-pilot/pull/2682
 - fix(android): embed native debug symbols in the release aab by @deleonio in https://github.com/deleonio/priority-pilot/pull/2682
 - fix(llm): add top_p 1 for greedy sampling and surface embedded 200 errors by @deleonio in https://github.com/deleonio/priority-pilot/pull/2683
 - fix(server): raise llm test timeout to 30s and surface body-read timeouts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2699
