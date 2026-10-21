@@ -20,6 +20,7 @@ const OPERATOR = {
 	name: 'Testbetreiber GmbH',
 	address: ['Weg 1', '12345 Ort'],
 	email: 'rechnung@betreiber.example',
+	taxNumber: '154/254/02959',
 	ustId: '',
 };
 const RECIPIENT = { displayName: 'Ada Beispiel', email: 'ada@example.com' };
@@ -74,9 +75,16 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 			'Betreiberangaben (Name, Anschrift) müssen drinstehen',
 		);
 		assert.ok(has(OPERATOR.email), 'Betreiber-Kontakt muss drinstehen');
-		assert.ok(has(RECIPIENT.displayName) && has(RECIPIENT.email), 'Empfänger (Name, E-Mail) muss drinstehen');
+		assert.ok(has(RECIPIENT.displayName), 'Empfänger-Name muss drinstehen');
+		assert.ok(!has(RECIPIENT.email), 'Das Kundenkonto (E-Mail) gehört nicht ins Adressfeld');
 		assert.ok(has('7,99 €'), 'Betrag muss in Euro mit Komma drinstehen');
 		assert.ok(has(TAX_NOTE), '§19-UStG-Hinweis muss drinstehen');
+		assert.ok(has('Steuer-Nr.: 154/254/02959'), 'Steuer-Nr. muss als Pflichtangabe drinstehen');
+		assert.ok(has('Ort, '), 'Ortsdatum wie in der Vorlage muss drinstehen');
+		assert.ok(has('Stk.') && has('ME'), 'Menge- und ME-Spalten müssen drinstehen');
+		assert.ok(has('Zwischensumme:') && has('Gesamtsumme:'), 'Summenzeilen müssen drinstehen');
+		assert.ok(has('Balamentum-Abonnement'), 'Der Produktbezug muss im Anschreiben drinstehen');
+		assert.ok(has('per PayPal beglichen'), 'Der Zahlungsweg-Hinweis muss drinstehen');
 	});
 
 	it('#2142 AK5: lineItems erscheinen mit Bezeichnung und Betrag, ohne lineItems bleibt das PDF unverändert', async () => {
@@ -102,10 +110,32 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 		assert.ok(pdfContains(withId, 'DE123456789'), 'Bei gesetzter ustId muss die USt-IdNr. im PDF stehen');
 	});
 
-	it('Grußzeile trägt den Betreibernamen statt eines festen Personennamens', async () => {
+	it('Steuer-Nr.-Zeile nur bei gesetzter taxNumber', async () => {
+		const without = await pdf(await invoice('INV-2026-100003'), undefined, { ...OPERATOR, taxNumber: undefined });
+		assert.ok(!pdfContains(without, 'Steuer-Nr.'), 'Ohne taxNumber darf keine Steuer-Nr.-Zeile erscheinen');
+	});
+
+	it('Rechtsform erscheint, wenn gesetzt', async () => {
+		const bytes = await pdf(await invoice('INV-2026-100006'), undefined, {
+			...OPERATOR,
+			name: 'Musterfirma & Söhne',
+			legalForm: 'Einzelunternehmen',
+		});
+		assert.ok(pdfContains(bytes, 'Einzelunternehmen'), 'Die gesetzte Rechtsform muss im PDF stehen');
+		assert.ok(!pdfContains(await pdf(await invoice('INV-2026-100007')), 'Einzelunternehmen'));
+	});
+
+	it('Grußzeile trägt den Betreibernamen bzw. die Vertreterperson statt eines festen Personennamens', async () => {
 		const bytes = await pdf(await invoice(), undefined, { ...OPERATOR, name: 'Signatur Testname' });
 		assert.ok(pdfContains(bytes, 'Signatur Testname'));
 		assert.ok(!pdfContains(bytes, 'Martin Oppitz'));
+
+		const represented = await pdf(await invoice('INV-2026-100004'), undefined, {
+			...OPERATOR,
+			name: 'Firma Testname',
+			representative: 'Eigene Person',
+		});
+		assert.ok(pdfContains(represented, 'Eigene Person'), 'Mit representative unterschreibt die Person');
 	});
 
 	it('buildInvoicePdf liefert ein echtes PDF (%PDF-Magic)', async () => {
@@ -178,7 +208,7 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 		assert.ok(pdfContains(bytes, 'Gutschrift GS-2026-000001'), 'Titel ist der Gutschrift-Titel');
 		assert.ok(pdfContains(bytes, 'INV-2026-000001'), 'Die Nummer der Originalrechnung muss im PDF stehen');
 		assert.ok(!pdfContains(bytes, 'Rechnung GS-'), 'Eine Gutschrift darf nicht als „Rechnung“ betitelt sein');
-		assert.ok(pdfContains(bytes, 'Gutschriftdatum'), 'Datumszeile heißt bei Gutschriften „Gutschriftdatum“');
+		assert.ok(pdfContains(bytes, 'über PayPal erstattet'), 'Der Erstattungs-Hinweis muss drinstehen');
 	});
 });
 
