@@ -4,11 +4,16 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.32 - 2026-10-21
 
-_Enthält v0.32.0 – v0.32.1._
+_Enthält v0.32.0 – v0.32.3._
+
+### 🔧 Engineering
+
+- chore(deps): update playwright (npm + docker image) to v1.64.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2819
 
 ### Other Changes
 
 - chore(deps): update pi-erweiterungen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2818
+- fix(server): bind app tokens to mcp plan gates (#2816) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2820
 
 ## v0.31 - 2026-10-21
 
@@ -439,7 +444,6 @@ _Enthält v0.19.0 – v0.19.19._
 - feat(frontend): move missed tasks into dashboard grid, unify gap by @deleonio in https://github.com/deleonio/priority-pilot/pull/2450
 - feat(native): sign in natively via Credential Manager instead of browser by @deleonio in https://github.com/deleonio/priority-pilot/pull/2451
 - fix(server): exempt app channel from CSRF so native sign-in completes by @deleonio in https://github.com/deleonio/priority-pilot/pull/2452
-- fix(server): allow app request headers in CORS preflight by @deleonio in https://github.com/deleonio/priority-pilot/pull/2454
 - fix(server): allow app request headers in CORS preflight by @deleonio in https://github.com/deleonio/priority-pilot/pull/2454
 
 ## v0.18 - 2026-10-08
