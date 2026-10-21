@@ -642,6 +642,51 @@ describe('App-Token der Android-App (#2377 AK3/AK5, Spec docs/spec/issue-2377.md
 	});
 });
 
+/**
+ * #2816 (Spec docs/spec/issue-2816.md) — der MCP-Transport ist auch über App-Tokens paketgebunden.
+ * Rot, bis `apiTokenAuth` App-Tokens planbedingt herabstuft und `apiTokenScopeGuard` den
+ * Member-MCP-Pfad für App-Tokens am `mcp_read`-Gate prüft (heute überspringt `kind: 'app'` beide
+ * Gates, der Handshake antwortet 200).
+ */
+describe('App-Token — MCP-Transport paketgebunden (#2816 AK1, Spec docs/spec/issue-2816.md)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+		process.env.MONETIZATION_ENFORCED = 'true';
+	});
+	after(async () => {
+		delete process.env.MONETIZATION_ENFORCED;
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const mcpInitialize = (token: string): Promise<Response> =>
+		fetch(`${server.baseUrl}/mcp/v1`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+			body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
+		});
+
+	it('AK1: free + App-Token erhält auf POST /mcp/v1 403 mit plan_required/mcp_read/plus, REST-Sync bleibt frei', async () => {
+		const email = 'bearer-a@example.com';
+		const token = await issueAppToken(email);
+		await setPlan(email, 'free');
+
+		const mcp = await mcpInitialize(token);
+		assert.equal(mcp.status, 403, 'der MCP-Transport ist ab Plus, free darf nicht hinein');
+		const body = (await mcp.json()) as { code?: string; feature?: string; requiredPlan?: string };
+		assert.equal(body.code, 'plan_required');
+		assert.equal(body.feature, 'mcp_read');
+		assert.equal(body.requiredPlan, 'plus');
+
+		assert.equal((await withBearer(token)).status, 200, 'GET /tasks bleibt frei (App-Sync)');
+		const write = await postTaskViaBearer(token, 'Aus der App');
+		assert.equal(write.status, 201, 'POST /tasks bleibt frei (App-Sync)');
+	});
+});
+
 describe('Bearer-Token-Auth — Feedback-Ausnahme nur für POST (#2493 AK1/AK2, Spec docs/spec/issue-2493.md)', () => {
 	before(async () => {
 		server = await startTestServer();
