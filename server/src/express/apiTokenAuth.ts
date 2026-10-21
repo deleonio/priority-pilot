@@ -110,9 +110,8 @@ export const apiTokenAuth = async (req: Request, res: Response, next: NextFuncti
 		// Plan-Deckel (#1460): ein in der DB auf readwrite stehender Token schreibt nur noch, wenn
 		// das aktuelle Paket des Besitzers mcp_readwrite enthält. Der Spaltenwert bleibt unverändert
 		// (ein Upgrade wirkt sofort wieder) — nur der für diesen Request wirksame Scope wird herabgestuft.
-		// App-Tokens (#2377) sind sessiongleich und unterliegen keinem Plan-Deckel.
-		const planCapped =
-			record.kind === 'api' && record.scope === 'readwrite' && shouldBlockFeature(user.plan, 'mcp_readwrite');
+		// Seit #2816 gilt der Deckel auch für App-Tokens; ihre App-Routen bleiben im Scope-Guard frei.
+		const planCapped = record.scope === 'readwrite' && shouldBlockFeature(user.plan, 'mcp_readwrite');
 		req.apiTokenId = record.id;
 		req.apiTokenKind = record.kind;
 		req.apiTokenScope = planCapped ? 'read' : record.scope;
@@ -170,14 +169,40 @@ const normalizePath = (path: string): string => (path.length > 1 ? path.replace(
  *   (`mcp/tools.ts`, `callApi`) laufen mit demselben Bearer-Header ein zweites Mal durch diesen
  *   Guard und übersetzen den `plan_required`-Fehlerkörper generisch in einen JSON-RPC-Fehler —
  *   `mcp/server.ts`/`mcp/tools.ts` brauchen dafür keine eigene Änderung.
- * - App-Tokens (#2377) sind sessiongleich und passieren den Guard wie eine Browser-Session.
+ * - App-Tokens (#2377) sind sessiongleich und passieren den Guard wie eine Browser-Session — seit
+ *   #2816 mit genau einer Ausnahme: am Member-MCP-Transport ({@link MCP_PATH}) greift für sie
+ *   dasselbe `mcp_read`-Gate. Die Plus-Schreibsperre setzt dort oben in `apiTokenAuth` an (Scope
+ *   wird herabgestuft) und schlägt am Werkzeug-Gate (`mcp/server.ts`) an.
  */
 export const apiTokenScopeGuard = (req: Request, res: Response, next: NextFunction): void => {
-	if (!isApiTokenRequest(req) || req.apiTokenKind === 'app') {
+	if (!isApiTokenRequest(req)) {
 		next();
 		return;
 	}
 	const path = normalizePath(req.path);
+	// App-Tokens (#2377) sind sessiongleich — seit #2816 mit genau einer Ausnahme: der Member-MCP-
+	// Transport ist ab Plus ein Paketmerkmal (`mcp_read`) und wird auch für App-Tokens plangeprüft.
+	// Alles andere (REST-Sync, `/api-tokens`, Schreib-Methoden-Block, Admin-MCP) bleibt für
+	// App-Tokens freigestellt — nur so bleibt der App-Sync ein Free-Merkmal.
+	if (req.apiTokenKind === 'app') {
+		if (path !== MCP_PATH) {
+			next();
+			return;
+		}
+		const currentPlan = req.session.user?.plan;
+		if (currentPlan !== undefined && shouldBlockFeature(currentPlan, 'mcp_read')) {
+			const { requiredPlan } = getEntitlements(currentPlan).mcp_read;
+			sendPlanError(res, 403, `${FEATURE_LABELS.mcp_read} ist ab Paket „${requiredPlan}" verfügbar.`, {
+				code: 'plan_required',
+				feature: 'mcp_read',
+				requiredPlan,
+				currentPlan,
+			});
+			return;
+		}
+		next();
+		return;
+	}
 	if (path === '/api-tokens' || path.startsWith('/api-tokens/')) {
 		sendError(res, 403, 'Die Token-Verwaltung ist über einen API-Token nicht erreichbar.');
 		return;
