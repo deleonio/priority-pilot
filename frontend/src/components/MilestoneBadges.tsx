@@ -53,6 +53,8 @@ export const MilestoneBadges = () => {
 	return (
 		<KolCard
 			className="dashboard-milestones"
+			id="karte-meilensteine"
+			tabIndex={-1}
 			role="region"
 			aria-label={t('milestones.label')}
 			_label={t('milestones.label')}

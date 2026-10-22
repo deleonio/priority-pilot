@@ -2,6 +2,7 @@ import { User } from '../models/index.js';
 import { sendDedupedPush } from './dedupedPush.js';
 import { type PushSender } from './push.js';
 import { nutzerZeitzone, tagIn } from './streak.js';
+import { uhrzeitIn } from './carePush.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
 
 /**
@@ -44,7 +45,13 @@ export const runMonthlyRecapPush = async (
 	let usersNotified = 0;
 	for (const user of users) {
 		const zeitzone = nutzerZeitzone(user.zeitzone);
-		const dedupeKey = `${user.id}:${vormonatVonTag(tagIn(now, zeitzone))}`;
+		// #2849 AK6: Fenster 9–17 Ortszeit an lokalem Monatstag 1–7 (ohne gültige Zone: UTC).
+		const { stunde } = uhrzeitIn(now, zeitzone);
+		const lokalTag = tagIn(now, zeitzone);
+		if (stunde < 9 || stunde >= 18 || Number(lokalTag.slice(8, 10)) > 7) {
+			continue;
+		}
+		const dedupeKey = `${user.id}:${vormonatVonTag(lokalTag)}`;
 		const { sent } = await sendDedupedPush(
 			user.id,
 			KIND,

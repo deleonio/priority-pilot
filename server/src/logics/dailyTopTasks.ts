@@ -4,11 +4,14 @@ import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { sendDedupedPush } from './dedupedPush.js';
 import { type PushSender } from './push.js';
 import { selectSeriesRepresentatives, filterVorlauf } from './series.js';
+import { uhrzeitIn } from './carePush.js';
+import { nutzerZeitzone, tagIn } from './streak.js';
 
 /**
- * Fachlicher Push-Trigger „3 wichtigste Aufgaben um 6 Uhr" (Issue #518). Sendet **tagesunabhängig
- * von Deadlines** einmal täglich um 06:00 Uhr je Nutzer **eine** gebündelte Push-Nachricht mit den
- * 3 nach Priorität höchsten aktiven Aufgaben (Anti-Spam statt einer Notification je Task).
+ * Fachlicher Push-Trigger „3 wichtigste Aufgaben am Morgen" (Issue #518). Sendet **tagesunabhängig
+ * von Deadlines** einmal täglich im Morgenfenster (lokale Stunde 7–8, #2849) je Nutzer **eine**
+ * gebündelte Push-Nachricht mit den 3 nach Priorität höchsten aktiven Aufgaben (Anti-Spam statt
+ * einer Notification je Task).
  *
  * Abgrenzung zu {@link ./dueTaskReminders.js} (#355): jener Trigger löst auf nahe Deadlines aus
  * (`deadline <= now + 24h`), dieser bewertet rein nach `Task.priority`. Beide Trigger koexistieren
@@ -30,10 +33,12 @@ interface TopTaskGroup {
 	tasks: TopTask[];
 }
 
-const dayKey = (date: Date): string => date.toISOString().slice(0, 10);
+/** Zustellfenster: lokale Stunde 7–8 des Empfängers (#2849 AK2 — Anfang inklusive, 9 exklusiv). */
+const FENSTER_START = 7;
+const FENSTER_ENDE = 9;
 
-/** Pro Nutzer und Kalendertag eindeutig — ein wiederholter Tick am selben Tag ist ein No-op. */
-const dedupeKeyFor = (userId: number, date: Date): string => `${userId}:${dayKey(date)}`;
+/** Pro Nutzer und lokalem Kalendertag eindeutig (#2849 AK2) — ein wiederholter Tick am selben Tag ist ein No-op. */
+const dedupeKeyFor = (userId: number, date: Date, zeitzone: string): string => `${userId}:${tagIn(date, zeitzone)}`;
 
 /**
  * Ermittelt je Nutzer die {@link TOP_N} nach Priorität höchsten aktiven Tasks (`status != 'Done'`,
@@ -109,11 +114,18 @@ export const runDailyTopTasksPush = async (
 	const groups = await collectDailyTopTasks(now);
 	let usersNotified = 0;
 	for (const group of groups) {
-		const sprache = spracheVon((await User.findByPk(group.userId, { attributes: ['sprache'] }))?.sprache);
+		const recipient = await User.findByPk(group.userId, { attributes: ['sprache', 'zeitzone'] });
+		// #2849 AK2/AK5: Morgenfenster 7–8 in der Nutzer-Zeitzone (ohne gültige Zone: UTC).
+		const zeitzone = nutzerZeitzone(recipient?.zeitzone);
+		const { stunde } = uhrzeitIn(now, zeitzone);
+		if (stunde < FENSTER_START || stunde >= FENSTER_ENDE) {
+			continue;
+		}
+		const sprache = spracheVon(recipient?.sprache);
 		const { sent } = await sendDedupedPush(
 			group.userId,
 			KIND,
-			dedupeKeyFor(group.userId, now),
+			dedupeKeyFor(group.userId, now, zeitzone),
 			buildPayload(group.tasks, sprache),
 			send,
 		);

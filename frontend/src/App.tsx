@@ -877,10 +877,14 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const openEdit = useCallback((task: Task): void => setDialog({ kind: 'edit', task }), []);
 	// Deep-Link des Geo-Push (`/tasks/<id>`): Aufgabe im Bearbeiten-Dialog öffnen, dann aufs Dashboard.
 	const deepLinkTaskId = /^\/tasks\/(\d+)$/.exec(location.pathname)?.[1];
+	// #2848 AK5: Gibt es die verlinkte Aufgabe nicht mehr, meldet sich das Dashboard dauerhaft
+	// statt still aufzumachen (KolAlert-Card, kein Toast — UX-Beratung).
+	const [deepLinkTaskGone, setDeepLinkTaskGone] = useState(false);
 	useEffect(() => {
 		if (deepLinkTaskId === undefined || tasks === null) return;
 		const task = tasks.find((candidate) => candidate.id === Number(deepLinkTaskId));
 		if (task) openEdit(task);
+		else setDeepLinkTaskGone(true);
 		navigate('/', { replace: true });
 	}, [deepLinkTaskId, tasks, openEdit, navigate]);
 	const openDelete = useCallback((task: Task): void => setDialog({ kind: 'delete', task }), []);
@@ -1495,6 +1499,11 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										</>
 									) : (
 										<>
+											{deepLinkTaskGone && (
+												<KolAlert _type="info" _variant="card" data-testid="deeplink-task-gone">
+													{t('app:shell.taskGone')}
+												</KolAlert>
+											)}
 											<Dashboard
 												userId={user.id}
 												tasks={tasks}

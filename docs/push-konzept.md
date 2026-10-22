@@ -1,239 +1,261 @@
-# Push-Konzept: Jede Nachricht führt zu ihrem Thema
+# Push-Konzept — Anlässe, Ziele, Zeitfenster
 
-Push-Nachrichten in Balamentum haben zwei Schwächen: Fast jeder Tipp öffnet nur die Startseite,
-und viele wichtige Ereignisse (Gruppeneinladung, fehlgeschlagene Zahlung, neue Rechnung,
-Wochenrückblick) lösen gar keinen Push aus. Dieses Konzept legt fest: welche Push-Arten es gibt,
-wohin jeder Tipp führt, wie viel pro Tag zugestellt wird, zu welcher lokalen Zeit, welche Schalter
-es gibt und welche neuen Anlässe dazukommen. Es ist der Bauplan für die Umsetzungs-Issues am Ende
-([Issue-Schnitt](#issue-schnitt)), nicht selbst Umsetzung.
+Legt fest, welche Push-Nachrichten die App verschickt, wohin ein Tipp darauf führt, wann sie
+zugestellt werden und welcher Schalter sie steuert. Grundlage für die Umsetzungs-Issues am Ende
+(#2844). Schwesterdokumente: [Fürsorge-Tonalität](fuersorge-tonalitaet.md) (Ton und Prüffrage),
+[Mobile-UI-Regeln](mobile-ui-rules.md), [ADR 0018](adr/0018-preismodell-free-plus-pro.md)
+(Paketgrenzen und Upgrade-Hinweise).
 
-Alle Fürsorge- und Hinweistexte folgen der [Fürsorge-Tonalität](fuersorge-tonalitaet.md); die
-Bewertung von Balance-Zuständen richtet sich nach dem [Zifferblatt-Konzept](zifferblatt-konzept.md).
+## 1. Ausgangslage
 
-## Grundregeln
+Alle fachlichen Pushes laufen über `sendDedupedPush`/`sendDedupedPushBulk`
+(`server/src/logics/dedupedPush.ts`). Die Dedupe nutzt `notification_logs` (`kind` + `dedupeKey`),
+ein Eintrag entsteht erst nach erfolgreicher Zustellung. Die Nutzlast trägt `title`, `body` und
+`url` (`PushPayload`, `server/src/logics/push.ts`). Der Klick-Weg ist im Web `notificationclick` in
+`frontend/public/push-sw.js`, in der Android-App `listenForNativePushTaps` in
+`frontend/src/lib/push.ts`. Beide lösen `url` ab der App-Wurzel `/app/` auf.
 
-1. **Jede Push-Art hat ein konkretes Ziel.** Ein Tipp führt zur Seite, zur Aufgabe oder zur
-   Dashboard-Karte, um die es geht — nie „nur zur App“.
-2. **Ein Gedanke je Nachricht.** Texte sind ein bis zwei Sätze, in der Nutzersprache
-   (`users.sprache`), Ton nach Fürsorge-Tonalität.
-3. **Weniger ist mehr.** Das Budget (siehe [Budget](#push-budget)) begrenzt den Tag; besser eine
-   gebündelte Nachricht als drei einzelne. Der Service Worker ersetzt ohnehin aufeinanderfolgende
-   Nachrichten (`tag: 'priority-pilot'`, `push-sw.js`).
-4. **Werbung ist getrennt von Service.** Pushes, die zum Upgrade anregen sollen, laufen nur mit
-   eigenem Opt-in (siehe [Werbung und Service](#werbung-und-service-trennen)).
+Befunde, die dieses Konzept beheben soll:
 
-## Bestand: alle zehn Push-Arten und ihre Ziele
+- **Ziel fehlt.** Acht von zehn Push-Arten schicken `url: '/'`. Wer „Meilenstein erreicht“ antippt,
+  landet oben auf dem Dashboard und findet die Meilenstein-Karte erst nach langem Scrollen.
+  Dashboard-Karten haben keinen Anker, Hash-Scrolling gibt es nicht.
+- **Zeitfenster liefen ins Leere.** Der Scheduler (`server/src/scheduler/index.ts`) rief alle
+  Trigger einmal pro UTC-Tag um 8 UTC auf (seit #2858 stündlich, Abschnitt 3). Die
+  Streak-Erinnerung sendet nur zwischen 18 und 21 Uhr Ortszeit und kommt deshalb in Europa nie an.
+  Fällige Aufgaben und Top-Aufgaben treffen in Deutschland um 9 oder 10 Uhr ein, nicht am Morgen.
+- **Pushes verdrängen sich.** Der Service Worker setzt für jede Nachricht `tag: 'priority-pilot'`.
+  Fällige Aufgaben und Top-Aufgaben kommen im selben Lauf, die zweite ersetzt die erste. Die
+  Android-App (`server/src/logics/fcm.ts`) setzt keinen Tag, dort stapeln sich alle.
+- **Der In-App-Hinweis führt nirgends hin.** `PushToast` zeigt Titel und Text bei offener App,
+  bietet aber keinen Weg zum Ziel.
+- **Wichtige Ereignisse bleiben stumm.** Gruppeneinladungen, eine fehlgeschlagene Zahlung, das
+  Ende einer Kulanzfrist und neue Rechnungen erzeugen höchstens eine Mail. Abo-Ereignisse aus
+  Google Play erzeugen gar nichts.
+- **Kaum Wahl.** Es gibt nur den Hauptschalter und „Fürsorge-Hinweise“ (`users.carePushEnabled`).
 
-Alle Bestands-Arten versendet der Server über `sendDedupedPush`/`sendDedupedPushBulk`
-(`server/src/logics/dedupedPush.ts`, Dedupe über `notification_logs` aus `kind` + `dedupeKey`).
-Schalter heute: nur der Push-Haupt-Schalter (Gerät abonnieren/kündigen) und „Fürsorge-Hinweise“
-(`users.carePushEnabled`). Die Spalte „Schalter“ nennt die künftige Gruppe aus dem
-[Schalter-Abschnitt](#schalter-unter-benachrichtigungen).
+## 2. Ziele
 
-| Push-Art (`kind`)  | Anlass                                          | Beispieltext (de)                                                                                                | Ziel heute    | Ziel künftig                                                          | Häufigkeit                         | Schalter              | Paket    |
-| ------------------ | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------- | ---------------------------------- | --------------------- | -------- |
-| `due-task`         | Aufgabe fällig/überfällig (ab 24 h vor Termin)  | „Fällige Aufgaben — Du hast 3 fällige oder überfällige Aufgaben.“                                                | `/`           | eine: `/tasks/{id}`; mehrere: `/aufgaben?deadline={frühester Termin}` | 1×/Tag, je Aufgabe+Termin genau 1× | Aufgaben              | Free     |
-| `daily-top-tasks`  | 3 wichtigste Aufgaben des Tages                 | „Deine wichtigsten Aufgaben — Steuererklärung, Arzttermin“                                                       | `/`           | `/#tagesplan` (Tagesplan-Karte)                                       | 1×/Tag morgens                     | Aufgaben              | Free     |
-| `care-push`        | Säule defizitär oder überlastet                 | „Deine Liste ist lang, dein Tag hat Grenzen. Wähle eine Sache, die heute wirklich zählt – der Rest darf warten.“ | `/`           | `/#fuersorge` (Fürsorge-Hinweis)                                      | max. 1×/Tag, 8–21 Uhr lokal        | Fürsorge & Rückblicke | Free     |
-| `streak-reminder`  | Streak läuft Gefahr, heute noch nichts erledigt | „Deine Streak wartet — Du bist seit 5 Tagen dran – eine kleine Aufgabe heute hält deine Serie am Leben.“         | `/aufgaben`   | `/#streak` (Streak-Karte)                                             | max. 1×/Tag, 18–21 Uhr lokal       | Fürsorge & Rückblicke | Free     |
-| `monthly-recap`    | Monatsrückblick bereit (Tag 1–7)                | „Dein Monatsrückblick ist da — Ein Blick zurück: So hat sich deine Balance im letzten Monat entwickelt.“         | `/`           | `/#monat` (Monatskarte)                                               | 1×/Monat                           | Fürsorge & Rückblicke | Free     |
-| `milestone`        | Streak- oder Punkte-Schwelle überschritten      | „Meilenstein erreicht! 🎉 — 100 Punkte gesammelt — weiter so!“                                                   | `/`           | `/#meilensteine` (Meilenstein-Karte)                                  | je neuem Meilenstein               | Fürsorge & Rückblicke | Free     |
-| `task-created`     | Gruppenmitglied legt Aufgabe für einen          | „Neue Aufgabe von Anna — „Ablage sortieren“ wurde für dich angelegt.“                                            | `/`           | `/tasks/{id}`                                                         | je Aufgabe, genau 1×               | Gruppen               | Plus/Pro |
-| `task-completed`   | Fremde Aufgabe erstmals erledigt                | „Aufgabe erledigt — Anna hat „Ablage sortieren“ erledigt.“                                                       | `/`           | `/tasks/{id}`                                                         | je Aufgabe, genau 1×               | Gruppen               | Plus/Pro |
-| `series-generated` | Serien-Lauf erzeugt fremde Aufgaben             | „Neue Aufgaben von Anna — „Wochenputz“: 3 neue Aufgaben.“                                                        | `/`           | `/serien`                                                             | je Serie+Lauf                      | Gruppen               | Plus/Pro |
-| `geo-nearby-task`  | Betreten des Alarmabstands                      | „2 Aufgaben in der Nähe — Supermarkt (0,8 km), Apotheke (1,0 km)“                                                | `/tasks/{id}` | bleibt                                                                | Flanke je Aufgabe, max. 1×/24 h    | Aufgaben              | Plus/Pro |
+### 2.1 Format
 
-Begründungen, wo ein Ziel die Startseite bleibt: keine — nach der Umstellung führt jede Bestands-Art
-zu einem konkreten Ziel. `due-task` mit mehreren Aufgaben nutzt den bestehenden Deadline-Filter
-(`?deadline=YYYY-MM-DD`, `frontend/src/App.tsx`), `geo-nearby-task` öffnet die nächste Aufgabe
-bereits heute über den bestehenden Deep-Link (`/tasks/{id}` öffnet den Bearbeiten-Dialog).
+Ein Ziel ist ein App-Pfad, optional mit Query und Anker: `/<pfad>[?query][#anker]`. Anker tragen
+ein festes Präfix je Fläche, damit sie sich nicht mit anderen IDs der Seite schneiden:
 
-## Zielformat und Klickpfad
+| Fläche             | Anker-Schema    | Beispiel                      |
+| ------------------ | --------------- | ----------------------------- |
+| Dashboard-Karte    | `#karte-<name>` | `/#karte-streak`              |
+| Gruppe             | `#gruppe-<id>`  | `/settings/gruppen#gruppe-12` |
+| Einstellungs-Block | `#<name>`       | `/settings/pakete#rechnungen` |
 
-**Format des Ziels** ist das bestehende Feld `url` in `PushPayload` (`server/src/logics/push.ts`):
-App-Pfad ab Wurzel plus optionaler Query plus optionaler Hash-Anker für Dashboard-Karten:
+Die erlaubten Anker stehen in **einer** Liste auf dem Server (Ziele je Push-Art) und als Spiegel im
+Frontend (IDs an den Karten). Ein Spiegel-Test gleicht beide ab
+([ADR 0025](adr/0025-geteilte-fachlogik-duplikat-spiegel-tests.md)).
 
-```text
-/                         App-Wurzel (nur noch Fallback, wenn kein Ziel bekannt)
-/aufgaben?deadline=2026-11-02   Seite mit Filter
-/#streak                  Dashboard mit Karte „Streak“ (Hash-Anker)
-```
+Anker der Dashboard-Karten (`frontend/src/components/Dashboard.tsx`):
 
-**Dashboard-Karten als Anker.** Adressierbare Karten bekommen ein `id`-Attribut mit festem Namen;
-der Anker ist der Name ohne Sonderzeichen:
+| Anker                    | Karte                         | sichtbar                        |
+| ------------------------ | ----------------------------- | ------------------------------- |
+| `karte-balance`          | Herz/Zifferblatt              | immer                           |
+| `karte-willkommen`       | Willkommensschritte           | bis alle Schritte erledigt sind |
+| `karte-fuersorge`        | Fürsorge-Hinweis (`CareHint`) | wenn ein Hinweis anliegt        |
+| `karte-freie-zeit`       | Freie Zeit                    | mit verbundenem Kalender        |
+| `karte-top-aufgaben`     | Top-Aufgaben                  | wenn offene Aufgaben existieren |
+| `karte-streak`           | Streak                        | immer                           |
+| `karte-wochenrueckblick` | Wochenbilanz                  | nur sonntags                    |
+| `karte-monatsrueckblick` | Monatsbilanz                  | Tag 1 bis 7 des Monats          |
+| `karte-jahresrueckblick` | Jahresrückblick               | nur im Januar                   |
+| `karte-meilensteine`     | Meilenstein-Abzeichen         | immer                           |
+| `karte-deadlines`        | Deadlines                     | wenn Deadlines anstehen         |
 
-| Anker           | Karte                          | Bedingung heute              |
-| --------------- | ------------------------------ | ---------------------------- |
-| `#tagesplan`    | Tagesplan (Tag-Ansicht)        | immer                        |
-| `#fuersorge`    | Fürsorge-Hinweis (`care-hint`) | bei Bedarf                   |
-| `#streak`       | Streak-Karte                   | bei laufendem Streak         |
-| `#woche`        | Wochenkarte                    | nur sonntags                 |
-| `#monat`        | Monatskarte                    | Tag 1–7 des Monats           |
-| `#jahr`         | Jahresrückblick                | nur im Januar                |
-| `#meilensteine` | Meilenstein-Karte              | bei erreichten Meilensteinen |
-| `#willkommen`   | Willkommens-Schritte           | bis Onboarding abgeschlossen |
-| `#rechnungen`   | Rechnungen im Tab Pakete       | immer                        |
+### 2.2 Verhalten beim Öffnen
 
-**Verhalten Web.** Der `notificationclick`-Handler in `frontend/public/push-sw.js` löst die URL
-über `toAppUrl` gegen den Scope auf — ein Hash bleibt dabei erhalten, der Service Worker braucht
-keine Änderung. Die App reagiert auf `location.hash`: sie navigiert zum Dashboard (falls nötig)
-und scrollt zur Karte (`scrollIntoView`, Vorbild `care-hint`-Sprung in `Dashboard.tsx`). Hash bei
-bereits offenem Fenster wird ebenso über den Hash-Handler behandelt.
+1. Die App öffnet die Route. Web: `notificationclick` fokussiert ein offenes Fenster und navigiert
+   es. Android: `listenForNativePushTaps` schreibt den Verlaufseintrag und löst `popstate` aus.
+2. Trägt das Ziel einen Anker, scrollt die Seite **nach dem ersten Rendern mit Daten** zur
+   Karte (`scrollIntoView`, Vorbild: der Sprung der Willkommensschritte zum Fürsorge-Hinweis in
+   `Dashboard.tsx`) und setzt den Fokus auf deren Überschrift, damit Screenreader die Karte ansagen.
+   `prefers-reduced-motion` schaltet die Scroll-Animation ab.
+3. Danach entfernt die App den Anker aus der Adresse (`replace`), sonst springt ein Neuladen
+   erneut.
+4. Ist die Karte nicht gerendert (Hinweis schon erledigt, Monatsfenster vorbei), bleibt das
+   Dashboard oben stehen. Es gibt keine Fehlermeldung.
+5. `/tasks/<id>` öffnet wie heute die Aufgabe im Bearbeiten-Dialog. Gibt es die Aufgabe nicht
+   mehr, zeigt die App einen kurzen Hinweis („Diese Aufgabe gibt es nicht mehr.“) statt still auf
+   dem Dashboard zu landen.
+6. Kommt ein Push bei offener App an, bekommt der In-App-Hinweis (`PushToast`) eine Aktion
+   „Öffnen“ mit demselben Ziel.
 
-**Verhalten Android.** Der native Tap-Listener (`listenForNativePushTaps`, `frontend/src/lib/push.ts`)
-schreibt die URL per `history.pushState` in den Router-Verlauf — Pfad, Query und Hash bleiben
-erhalten; derselbe Hash-Handler der Web-App führt den Sprung aus.
+Damit Push und Karte nicht auseinanderlaufen, gilt für zeitgebundene Karten: **Der Push geht nur in
+dem Zeitraum raus, in dem die Zielkarte sichtbar ist** (Wochenrückblick am Sonntag, Monatsrückblick
+an Tag 1 bis 7, Jahresrückblick im Januar).
 
-**Karte gerade nicht gerendert.** Zeitgebundene Karten (Wochen-, Monats-, Jahreskarte) und
-bedingte Karten (Streak, Fürsorge) können beim Tipp außerhalb ihres Fensters fehlen. Regel: Der
-Hash-Anker überschreibt das Zeitfenster — die Karte wird beim angesprungenen Besuch einmalig
-trotzdem gerendert (der Push gehört zur Karte, sonst wäre das Ziel eine leere Seite). Fällt eine
-Karte aus einem anderen Grund weg (z. B. Streak zwischenzeitlich gebrochen), landet der Tipp auf
-dem Dashboard ohne Scroll; das ist kein Fehler.
+### 2.3 Gruppierung in der Mitteilungszentrale
 
-## Bewertung des Ideenkatalogs
+Statt eines Tags für alles bekommt jede Schaltergruppe (Abschnitt 5) einen eigenen Tag:
+`pp-aufgaben`, `pp-fuersorge`, `pp-erfolge`, `pp-gruppen`, `pp-abo`, `pp-tipps`. Eine neue
+Fürsorge-Nachricht ersetzt die alte, verdrängt aber keine Zahlungs-Nachricht. Für Android gilt
+dasselbe über das `tag`-Feld der FCM-Notification.
 
-Jeder Vorschlag aus dem Ticket: übernehmen (mit Ziel, Häufigkeit, Schalter, Beispieltext), ändern
-(gekürzt/umgeformt) oder verwerfen (mit Begründung).
+## 3. Zeitmodell
 
-### Fürsorge & Produkt
+Der Scheduler ruft die Trigger **stündlich** auf statt einmal am Tag. Jeder Trigger prüft je
+Nutzer selbst, ob dessen lokales Zeitfenster offen ist (`users.zeitzone`, Fallback UTC — so wie
+`carePush.ts` und `streakReminder.ts` es schon tun). Die Dedupe je lokalem Tag verhindert doppelte
+Zustellung, auch wenn das Fenster mehrere Läufe umfasst.
 
-| Vorschlag                                    | Bewertung      | Begründung und Ausgestaltung                                                                                                                                                                                                                                                                                                                         |
-| -------------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Lob bei guter Balance                        | **übernehmen** | Anerkennung fehlt bisher außerhalb des Dashboards. Ziel `/#zifferblatt` (Balance-Karte), Häufigkeit max. 1×/Monat und nur, wenn die Balance im grünen Bereich ist und das letzte Lob ≥ 30 Tage zurückliegt, Schalter „Fürsorge & Rückblicke“. Text: „Deine Balance trägt diesen Monat. Schau rein, was schon gut läuft – das hast du dir aufgebaut.“ |
-| Wochenrückblick am Sonntag                   | **übernehmen** | Sonntags passt zum Fenster der Wochenkarte; kein zusätzlicher Anlass nötig. Ziel `/#woche`, 1×/Woche (sonntags, 17–20 Uhr lokal), Schalter „Fürsorge & Rückblicke“. Text: „Deine Woche im Rückblick — Ein Blick auf sieben Tage Balance: Was trägt dich, was darf kürzer sein?“                                                                      |
-| Jahresrückblick im Januar                    | **übernehmen** | Gegenstück zur Monats-/Wochenkarte, einmal im Jahr kein Risiko. Ziel `/#jahr`, 1×/Jahr (erste Januartage), Schalter „Fürsorge & Rückblicke“. Text: „Dein Jahr in der Balance — Der Jahresrückblick ist bereit: Woraus hast du 2026 Kraft geschöpft?“                                                                                                 |
-| Überlast-Hinweis „Du darfst heute kürzen“    | **verwerfen**  | Existiert schon: `care-push` behandelt Überlast mit Vorrang vor Defizit — eine zweite Art würde denselben Anlass doppeln.                                                                                                                                                                                                                            |
-| Freie Zeit im Kalender erkannt               | **verwerfen**  | Kalendertermine sagen nichts über tatsächliche Verfügbarkeit aus; ein daraus abgeleiteter Ratschlag wäre leicht falsch und wirkt bevormundend.                                                                                                                                                                                                       |
-| Nach Deadline automatisch entfernte Aufgaben | **verwerfen**  | Nachträgliche Fehlermeldung („…wurde entfernt“) protokolliert nur, statt zu sorgen — sie besteht die Prüffrage nicht; die Auto-Löschung ist bewusst pro Aufgabe eingestellt.                                                                                                                                                                         |
-| Abendlicher Journal-Impuls                   | **ändern**     | Jeden Abend wäre Dauerbeschallung; gedrosselt ist er ein sanfter Anstoß. Ziel `/journal`, 3×/Woche (19–21 Uhr lokal), Schalter „Fürsorge & Rückblicke“. Text: „Platz für einen Gedanken — Drei Minuten im Journal können den Tag sortieren. Nur wenn du magst.“                                                                                      |
-| Willkommens-Schritte nach 2 Tagen offen      | **übernehmen** | Onboarding-Abbrüche sind die größte Hürde; der Hinweis endet von selbst. Ziel `/#willkommen`, genau 2 Versuche (Tag 2 und Tag 5 nach Registrierung), Schalter „Aufgaben“. Text: “Fast fertig eingerichtet — Noch zwei kurze Schritte, dann kennt Balamentum deine Säulen.“                                                                           |
+| Fenster (Ortszeit) | Wofür                                                             |
+| ------------------ | ----------------------------------------------------------------- |
+| Morgen 07–09 Uhr   | „Dein Tag“: fällige Aufgaben und Top-Aufgaben in einer Nachricht  |
+| Tag 09–18 Uhr      | Fürsorge, Rückblicke, Service-Nachrichten, nachgeholte Ereignisse |
+| Abend 18–21 Uhr    | Streak-Erinnerung, Journal-Impuls                                 |
+| Ruhezeit 21–07 Uhr | keine Zustellung                                                  |
 
-### Gruppen (Feature Plus/Pro)
+Das Morgenfenster beginnt um 07 Uhr, die bisherige Ruhezeit-Grenze 08 Uhr aus `carePush.ts` rückt
+für alle Arten auf 07 Uhr. Fürsorge-Hinweise bleiben im Tagesfenster.
 
-| Vorschlag                                  | Bewertung      | Begründung und Ausgestaltung                                                                                                                                                                                                                                                                                                                                                                               |
-| ------------------------------------------ | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Einladung in eine Gruppe                   | **übernehmen** | Persönliche Anfrage verdient sofortige Nachricht; heute bleibt sie unsichtbar. Ziel `/settings/groups`, sofort beim Ereignis, Schalter „Gruppen“. Text: „Anna lädt dich ein — „Fitness-Gruppe“ wartet auf deine Antwort.“                                                                                                                                                                                  |
-| Einladung angenommen / Link eingelöst      | **übernehmen** | Schließt die Schleife für den Einladenden. Ziel `/settings/groups` (Fokus auf die Gruppe), sofort, Schalter „Gruppen“. Text: „Anna ist dabei — „Fitness-Gruppe“ kann jetzt losgehen.“                                                                                                                                                                                                                      |
-| Challenge gestartet / Zwischenstand / Ende | **ändern**     | Start und Ende sind echte Ereignisse, der Zwischenstand ist Alltag und geht im Tagesgeschäft unter. Start + Ende: Ziel `/settings/groups`, je 1×, Schalter „Gruppen“. Text Start: „Challenge startet — „Die meisten Schritte im Mai“: Ab heute zählt jeder Schritt.“ Text Ende: „Challenge beendet — „Die meisten Schritte im Mai“ ist entschieden. Schau rein, wie es ausging.“ Zwischenstand: verworfen. |
-| Duo-Partner hat etwas erledigt             | **ändern**     | Je Erledigung wäre bei aktiven Partnern Dauer-Push; gebündelt bleibt es verbindlich. Max. 1 Nachricht/Tag (Sammeln bis 20 Uhr), Ziel `/settings/groups`, Schalter „Gruppen“. Text: „Anna war heute dran — 2 erledigte Aufgaben in eurem Duo.“                                                                                                                                                              |
+**Ereignis-Pushes** (jemand legt eine Aufgabe für mich an, eine Einladung kommt) gehen sofort
+raus, außer in der Ruhezeit. Fällt ein Ereignis in die Ruhezeit, entfällt der Push, der Inhalt
+ist ja in der App sichtbar. Ausnahmen sind offene Einladungen und Service-Nachrichten: Die holt der
+erste stündliche Lauf nach 07 Uhr nach, wenn sie dann noch zutreffen (Einladung nicht angenommen,
+Zahlung weiter offen).
 
-### Abo & Rechnungen
+**Ortserinnerungen** (`geo-nearby-task`) bleiben ereignisgetrieben, halten aber die Ruhezeit ein.
 
-| Vorschlag                                        | Bewertung      | Begründung und Ausgestaltung                                                                                                                                                                                                                                                                                                                                |
-| ------------------------------------------------ | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Neue Rechnung oder Gutschrift                    | **übernehmen** | Pflichtinformation, heute nur per Mail — Push schließt die Lücke. Ziel `/settings/plans#rechnungen`, sofort, nicht abschaltbar (Service). Text: „Neue Rechnung — Deine Rechnung für November 2026 liegt bereit.“                                                                                                                                            |
-| Zahlung fehlgeschlagen / Kulanzfrist / Abo endet | **übernehmen** | Zeitkritisch und rechtsrelevant; ohne Nachricht droht der stille Abo-Verlust (Google Play hat heute gar keinen Kanal). Ziel `/settings/plans`, sofort, nicht abschaltbar (Service). Text: „Zahlung nicht erfolgreich — Die Zahlung für dein Paket ist fehlgeschlagen. Bitte Zahlungsmethode prüfen.“                                                        |
-| Abo aktiv: „Das ist jetzt neu für dich“          | **ändern**     | Direkt nach dem Kauf ist es Transaktionsbestätigung mit Nutzen (kein Werbe-Push im Sinne der Trennung), darf aber nicht wiederkommen. Genau 1× nach jedem Upgrade oder Kauf, Ziel `/settings/plans`, Schalter „Abo & Rechnungen“ (an, da Service). Text: „Plus ist aktiv — Ortserinnerungen und KI-Hilfe stehen dir jetzt zur Verfügung.“                   |
-| Paketgrenze erreicht (KI-Kontingent, Kalender)   | **ändern**     | Beide Grenzen erlebt der Nutzer unmittelbar in der App (KI-Drossel im laufenden Dialog, Kalender-Ablehnung im Formular) — ein Push erreicht ihn nie „danach“. Kein Push; stattdessen In-App-Hinweis mit Blick auf das höhere Paket.                                                                                                                         |
-| Nutzungsbezogener Plus-Hinweis                   | **übernehmen** | Werblicher Anlass mit klarem Nutzenversprechen — läuft ausschließlich unter dem Opt-in „Tipps & Angebote“. Ziel `/settings/plans`, max. 1×/Monat, Schalter „Tipps & Angebote“ (default aus). Text: „Ortserinnerungen könnten dir Wege ersparen — Viele deiner Aufgaben haben einen Ort. Wenn du magst, erinnert dich Balamentum, wenn du in der Nähe bist.“ |
+## 4. Push-Budget
 
-## Push-Budget
+- **Höchstens drei Pushes je Nutzer und lokalem Tag** über alle Arten zusammen. Gezählt wird über
+  `notification_logs` (`userId`, `sentAt` im lokalen Tag), es entsteht keine neue Tabelle.
+- **Service-Nachrichten** (Abschnitt 6, Gruppe Abo & Rechnungen) zählen nicht mit und werden nie
+  vom Budget verdrängt.
+- **Vorrang** bei vollem Budget, von oben nach unten:
+  1. Direkt an mich gerichtet: Aufgabe für mich angelegt, Gruppeneinladung
+  2. Ortserinnerung
+  3. „Dein Tag“ (fällige Aufgaben und Top-Aufgaben)
+  4. Fürsorge-Hinweis, Streak-Erinnerung
+  5. Erfolge und Rückblicke
+  6. Tipps und Angebote
+- **Bündeln:** Fällige Aufgaben und Top-Aufgaben werden zu einem Morgen-Push „Dein Tag“. Fallen
+  Wochen- und Monatsrückblick auf denselben Tag, geht nur der Monatsrückblick raus. Ein Lob ersetzt
+  an diesem Tag den Fürsorge-Hinweis, es kommt nie beides.
 
-**Tageshöchstzahl: 5 Pushes pro Nutzer und Tag** über alle Arten zusammen. Nicht ins Budget
-gezählt: nicht abschaltbare Service-Pushes (Rechnung, Zahlung, Abo-Ende) — sie sind selten,
-zeitkritisch und rechtlich geboten.
+## 5. Schalter
 
-- **Ruhezeiten: 21:00–08:00 Uhr der Nutzerzeitzone** für alle geplanten Arten (verallgemeinert
-  aus dem bestehenden `care-push`-Fenster). Ereignis-Pushes (`task-created`, `task-completed`,
-  `series-generated`, Gruppen-Einladungen) werden sofort zugestellt — sie sind direkt, selten und
-  antworten auf ein frisches Ereignis; Störungen regelt das Gerät (Bitte-nicht-stören).
-- **Vorrang beim Zusammentreffen** (das Budget füllt sich von oben): 1. Service (Zahlung,
-  Rechnung), 2. soziale Ereignisse (Gruppe, neue/erledigte Aufgaben), 3. Termine (`due-task`,
-  `geo-nearby-task`), 4. Rückblicke und Meilensteine, 5. Fürsorge-Anstöße (`care-push`, Streak,
-  Lob, Journal-Impuls), 6. Tipps & Angebote. Innerhalb einer Stufe gewinnen neuere Ereignisse.
-  Fürsorge-Anstöße verlieren als Erstes — ihr Anlass kehrt am Folgetag wieder (tagesweises Dedupe
-  existiert bereits).
-- **Bündelung `due-task` + `daily-top-tasks`:** feuern beide am Morgen, entfällt die separate
-  Fälligkeits-Nachricht — die Tages-Nachricht übernimmt („Deine wichtigsten Aufgaben — A, B, C;
-  davon 2 heute fällig“) und loggt beide `kind`s. Ziel ist dann `/#tagesplan`; die Aufgabe-Ansicht
-  bleibt über die Karte erreichbar.
+Unter „Einstellungen → Allgemein → Benachrichtigungen“ (`SettingsPage.tsx`) bleibt der
+Hauptschalter. Darunter stehen fünf Gruppen:
 
-Technisch zählt das Budget je Kalendertag der Nutzerzeitzone (nicht UTC), sonst würde die
-Tagesgrenze mitten im lokalen Abend kippen.
+| Schalter                  | Enthält                                                          | Standard |
+| ------------------------- | ---------------------------------------------------------------- | -------- |
+| Aufgaben und Erinnerungen | Dein Tag, Aufgaben anderer Personen, Serien, Willkommensschritte | an       |
+| Fürsorge                  | Fürsorge-Hinweis, Lob, Streak, Journal-Impuls, Willkommen zurück | an       |
+| Erfolge und Rückblicke    | Meilensteine, Wochen-, Monats- und Jahresrückblick               | an       |
+| Gruppen                   | Einladungen, angenommene Einladungen, Challenges                 | an       |
+| Tipps und Angebote        | nutzungsbezogene Hinweise auf Plus und Pro                       | **aus**  |
 
-## Zeitmodell: lokale Zustellfenster
+- Ortserinnerungen haben ihren Schalter schon unter „Einstellungen → Ortung“ und bleiben dort.
+- **Abo und Rechnungen** hat keinen eigenen Schalter. Diese Service-Nachrichten betreffen den
+  Vertrag. Sie lassen sich nur mit dem Hauptschalter abstellen, die Mail geht in jedem Fall raus.
+- Der bestehende Schalter `carePushEnabled` wird zum Schalter „Fürsorge“, die übrigen kommen als
+  Boolean-Felder an `users` hinzu.
 
-**Problem.** Der Scheduler feuert genau einmal pro UTC-Tag (`PUSH_REMINDERS_HOUR`, Default 08:00
-UTC — `server/src/scheduler/index.ts`). Ein Trigger mit lokalem Fenster verpasst es deshalb fast
-immer: Die Streak-Erinnerung (18–21 Uhr lokal) erreicht Nutzer in Europa nie, weil der einzige
-Tick vormittags liegt. `care-push` und `geo-nearby-task` umgehen das heute durch eigene
-Intervall-Jobs bzw. clientgetriggerte Läufe — kein generalisierbares Muster.
+## 6. Bestand: Ziele der zehn Push-Arten
 
-**Konzept.** Der 15-Minuten-Tick bleibt zentral, der 1×-pro-UTC-Tag-Gate fällt weg. Jeder geplante
-Trigger erhält ein lokales Zustellfenster (Von-bis-Stunde) und entscheidet je Nutzer:
+| Kind               | Anlass                                   | Beispieltext (de)                                                 | heute         | künftig                                                      | Fenster, Häufigkeit            | Schalter                  | Paket     |
+| ------------------ | ---------------------------------------- | ----------------------------------------------------------------- | ------------- | ------------------------------------------------------------ | ------------------------------ | ------------------------- | --------- |
+| `due-task`         | Deadline in den nächsten 24 h            | „Fällige Aufgaben – Du hast 3 fällige oder überfällige Aufgaben.“ | `/`           | eine Aufgabe: `/tasks/<id>`, mehrere: `/#karte-deadlines`    | Morgen, 1/Tag, in „Dein Tag“   | Aufgaben und Erinnerungen | alle      |
+| `daily-top-tasks`  | Bis zu drei wichtigste Aufgaben          | „Deine wichtigsten Aufgaben – Steuer, Laufen, Oma anrufen“        | `/`           | eine Aufgabe: `/tasks/<id>`, mehrere: `/#karte-top-aufgaben` | Morgen, 1/Tag, in „Dein Tag“   | Aufgaben und Erinnerungen | alle      |
+| `care-push`        | Säule im Defizit oder überlastet         | „Dein Körper könnte eine Pause gebrauchen …“                      | `/`           | `/#karte-fuersorge`                                          | Tag, 1/Tag                     | Fürsorge                  | alle      |
+| `streak-reminder`  | Heute noch nichts erledigt, Streak läuft | „Deine Streak wartet – eine kleine Aufgabe heute hält sie.“       | `/aufgaben`   | `/#karte-streak`                                             | Abend, 1/Tag, nicht am Ruhetag | Fürsorge                  | alle      |
+| `monthly-recap`    | Neuer Monat                              | „Dein Monatsrückblick ist da“                                     | `/`           | `/#karte-monatsrueckblick`                                   | Tag, Tag 1 bis 7, 1/Monat      | Erfolge und Rückblicke    | alle      |
+| `milestone`        | Streak- oder Punkte-Meilenstein          | „Meilenstein erreicht! 30 Tage Streak am Stück.“                  | `/`           | `/#karte-meilensteine`                                       | Ereignis                       | Erfolge und Rückblicke    | alle      |
+| `task-created`     | Jemand legt eine Aufgabe für mich an     | „Neue Aufgabe von Anna – „Fenster putzen“ …“                      | `/`           | `/tasks/<id>`                                                | Ereignis                       | Aufgaben und Erinnerungen | alle      |
+| `task-completed`   | Jemand erledigt meine Aufgabe            | „Aufgabe erledigt – Anna hat „Fenster putzen“ erledigt.“          | `/`           | `/tasks/<id>`                                                | Ereignis                       | Aufgaben und Erinnerungen | alle      |
+| `series-generated` | Jemand erzeugt Serien-Aufgaben für mich  | „Neue Aufgaben von Anna – „Haushalt“: 4 neue Aufgaben.“           | `/`           | `/serien`                                                    | Ereignis                       | Aufgaben und Erinnerungen | alle      |
+| `geo-nearby-task`  | Aufgabe mit Ort in der Nähe              | „Apotheke – 0,3 km“                                               | `/tasks/<id>` | bleibt                                                       | Ereignis, je Aufgabe 1/24 h    | Ortung                    | Plus, Pro |
 
-1. Der Tick prüft je Nutzer die lokale Stunde über `user.zeitzone` (`Intl`, Fallback UTC —
-   bestehende Konvention `nutzerZeitzone`).
-2. Liegt sie im Fenster **und** wurde heute (lokaler Kalendertag) noch nicht gesendet, wird
-   zugestellt; das Dedupe über den lokalen Tagesschlüssel existiert für die meisten Arten schon
-   (`{userId}:{lokalesDatum}`).
-3. Fenster verpasst (Server-Ausfall, Nutzer ohne Tick an diesem Tag) → kein Nachziehen am selben
-   Tag; der nächste Tag bringt die nächste Chance. Geplante Pushes sind Erinnerungen, keine
-   Pflichttermine.
+Bei `due-task` und `daily-top-tasks` gilt nach der Bündelung „Dein Tag“: Steht genau eine Aufgabe
+in der Nachricht, öffnet sie diese Aufgabe. Stehen mehrere drin, öffnet sie die Karte
+`#karte-deadlines`, sobald eine fällige dabei ist, sonst `#karte-top-aufgaben`.
 
-Feste Sendestunden je Art (lokale Zeit): `daily-top-tasks` 06:00, `due-task` 08:00,
-Wochenrückblick sonntags 17:00, Journal-Impuls 19:00, Streak-Fenster 18–21 (bestehend),
-`care-push` 08–21 (bestehend), Monats-/Jahresrückblick im Fenster des jeweiligen ersten
-Kartentags. Der 15-Minuten-Takt macht je Nutzer ohne eigene Timer ausführbar — Vorbild ist der
-Geo-Job, der bereits per `startIntervalScheduler` im festen Intervall läuft.
+## 7. Neue Anlässe
 
-## Schalter unter „Benachrichtigungen“
+Bewertung aller Vorschläge aus #2844, ergänzt um zwei Anlässe aus der Analyse. Beispieltexte
+folgen der [Prüffrage](fuersorge-tonalitaet.md#2-die-prüffrage): Jeder Text bietet einen Schritt,
+eine Erlaubnis oder Anerkennung an.
 
-Heute gibt es neben dem Hauptschalter nur „Fürsorge-Hinweise“. Künftig fünf Gruppen (KoliBri-
-Switches in der Karte „Benachrichtigungen“, `frontend/src/components/SettingsPage.tsx`):
+### 7.1 Fürsorge und Produkt
 
-| Gruppe                | enthält                                                                                                    | Default                             |
-| --------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| Aufgaben              | `due-task`, `daily-top-tasks`, `geo-nearby-task`, Willkommens-Schritte                                     | an                                  |
-| Fürsorge & Rückblicke | `care-push`, `streak-reminder`, `monthly-recap`, Wochen-/Jahresrückblick, Lob, Journal-Impuls, `milestone` | an                                  |
-| Gruppen               | `task-created`, `task-completed`, `series-generated`, Einladungen, Challenge, Duo                          | an                                  |
-| Abo & Rechnungen      | Rechnung, Zahlungsproblem, Abo-Ende, „neu für dich“                                                        | an, **nicht abschaltbar** (Service) |
-| Tipps & Angebote      | nutzungsbezogene Plus-Hinweise                                                                             | **aus** (Opt-in)                    |
+| Anlass                                      | Bewertung  | Begründung                                                                                                                          | Ziel, Fenster, Häufigkeit, Schalter                                                                                                                                 | Beispieltext                                                                     |
+| ------------------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Lob bei guter Balance                       | übernehmen | Die Lob-Texte gibt es schon in der Tonalität, bisher nur auf dem Dashboard. Anerkennung bindet stärker als Mahnung.                 | `/#karte-balance`, Tag, höchstens 1/Woche, nur ohne Defizit und Überlast, Fürsorge                                                                                  | „Du pflegst deine Beziehungen mit viel Wärme. Diese Verbindungen tragen dich.“   |
+| Wochenrückblick                             | übernehmen | Die Karte gibt es schon, sie wird aber nur gesehen, wenn man sonntags zufällig öffnet.                                              | `/#karte-wochenrueckblick`, Sonntag 17–20 Uhr, 1/Woche, Erfolge und Rückblicke                                                                                      | „Deine Woche in einem Bild: Schau, wo du dir gutgetan hast.“                     |
+| Jahresrückblick                             | übernehmen | Einmal im Jahr, hoher Wiedererkennungswert, die Karte steht im Januar.                                                              | `/#karte-jahresrueckblick`, 2. Januar, Tag, 1/Jahr, Erfolge und Rückblicke                                                                                          | „Dein Jahr ist rund. Ein Blick zurück auf alles, was du bewegt hast.“            |
+| Überlast-Hinweis                            | ändern     | Ist schon Teil von `care-push` (Überlast hat Vorrang vor Defizit). Kein eigener Anlass, nur das Ziel aus Abschnitt 6.               | wie `care-push`                                                                                                                                                     | „Deine Liste ist lang, dein Tag hat Grenzen. Wähle eine Sache, die heute zählt.“ |
+| Freie Zeit im Kalender                      | ändern     | Ein eigener Push wäre ein vierter am Tag. Als Satz im Morgen-Push „Dein Tag“ bringt er denselben Nutzen ohne zusätzliche Nachricht. | Zusatzzeile in „Dein Tag“, nur mit verbundenem Kalender; Ziel `/#karte-freie-zeit`, wenn keine Aufgabe im Push steht                                                | „… Heute Nachmittag hast du zwei Stunden frei.“                                  |
+| Aufgaben nach Deadline automatisch entfernt | verwerfen  | Der Text könnte nur protokollieren („3 Aufgaben entfernt“) und fällt durch die Prüffrage. Die Karte „Verpasste Aufgaben“ reicht.    | –                                                                                                                                                                   | –                                                                                |
+| Abendlicher Journal-Impuls                  | ändern     | Nur für Menschen, die das Journal nutzen, sonst wirkt er wie Werbung für eine Funktion.                                             | `/journal`, Abend, höchstens 2/Woche, nur bei Journal-Eintrag in den letzten 30 Tagen, Fürsorge                                                                     | „Was war heute gut? Ein Satz im Journal reicht.“                                 |
+| Willkommensschritte nicht abgeschlossen     | übernehmen | Wer nach zwei Tagen nicht weiter eingerichtet hat, bekommt sonst nie die Fürsorge-Funktionen zu sehen.                              | `/#karte-willkommen`, Tag, einmalig am 2. Tag nach Registrierung, Aufgaben und Erinnerungen                                                                         | „Zwei kleine Schritte fehlen noch, dann kennt die App deine Säulen.“             |
+| Willkommen zurück (aus der Analyse)         | übernehmen | Rückkehr nach einer Pause ist der wichtigste Moment für die Bindung. Ohne Schuld, mit einem kleinen Einstieg.                       | `/#karte-balance`, Tag, nach 7 Tagen ohne angelegte oder erledigte Aufgabe (ein Zeitstempel der letzten App-Öffnung fehlt bisher), höchstens 1 je 30 Tage, Fürsorge | „Schön, dass es dich gibt. Wenn du magst: eine kleine Aufgabe für heute wartet.“ |
 
-„Fürsorge & Rückblicke“ übernimmt die Rolle des heutigen `carePushEnabled` (Feld wird Gruppe, kein
-Datenverlust — es gibt keine Bestandskunden-Ballast-Pflicht, Migration des Felds ist Teil des
-Schalter-Issues). Der Hauptschalter bleibt: Ohne Abonnement stellt das Gerät überhaupt nichts zu.
+### 7.2 Gruppen
 
-**Nicht abschaltbar** sind nur die Service-Pushes der Gruppe „Abo & Rechnungen“ — Rechnung und
-Zahlungsprobleme sind Vertragsinformationen mit Fristcharakter; ein Abschalten hätte den stillen
-Abo-Verlust zur Folge.
+| Anlass                                         | Bewertung  | Begründung                                                                                                                         | Ziel, Fenster, Häufigkeit, Schalter                                                      | Beispieltext                                                                      |
+| ---------------------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Einladung in eine Gruppe erhalten              | übernehmen | Heute erfährt die eingeladene Person nichts, wenn sie die App nicht öffnet. Einladungen veralten dann ungesehen.                   | `/settings/gruppen#einladungen`, Ereignis (Ruhezeit: nachholen), 1 je Einladung, Gruppen | „Anna lädt dich in die Gruppe „Familie“ ein.“                                     |
+| Einladung angenommen, Einladungslink eingelöst | übernehmen | Die einladende Person sieht, dass es losgehen kann.                                                                                | `/settings/gruppen#gruppe-<id>`, Ereignis, 1 je neuem Mitglied, Gruppen                  | „Ben ist jetzt in „Familie“ dabei.“                                               |
+| Challenge gestartet, Zwischenstand, Ende       | ändern     | Start und Ende übernehmen. Zwischenstände erzeugen Wettbewerbsdruck und Lärm, das passt nicht zur Fürsorge.                        | `/settings/gruppen#gruppe-<id>`, Ereignis, 2 je Challenge, Gruppen                       | „Die Challenge in „Familie“ ist geschafft – schaut euch an, was ihr bewegt habt.“ |
+| Duo-Partner hat etwas erledigt                 | verwerfen  | Erledigte gemeinsame Aufgaben meldet schon `task-completed`. Meldungen über jede Aktivität der anderen Person kippen in Kontrolle. | –                                                                                        | –                                                                                 |
 
-## Werbung und Service trennen
+### 7.3 Abo und Rechnungen
 
-- **Service-Pushes** antworten auf eine Handlung oder ein Vertragsereignis des Nutzers (Kauf,
-  Zahlung, Rechnung, Abo-Ende). Sie laufen ohne eigenes Opt-in, sind nicht abschaltbar und
-  enthalten keine Verkaufsargumente.
-- **Werbliche Pushes** regen zu einem Kauf oder Upgrade an, das nicht unmittelbar auf einer
-  eigenen Handlung des Nutzers beruht. Davon gibt es genau eine Art: den nutzungsbezogenen
-  Plus-Hinweis. Er läuft ausschließlich mit dem Opt-in „Tipps & Angebote“ (default aus), mit
-  fester Obergrenze von 1×/Monat und freier Kündbarkeit des Opt-ins (datenschutzfreundlich: jede
-  Nachricht muss sich abschalten lassen, ohne die Service-Pushes zu verlieren).
-- **Grenzfälle:** „Das ist jetzt neu für dich“ (direkt nach Kauf) und der
-  Paketgrenzen-In-App-Hinweis zählen nicht als Werbung — sie folgen unmittelbar auf eine eigene
-  Handlung bzw. bleiben ganz in der App.
-- **Tonalitäts-Prüfpunkt:** jeder Fürsorge- und Hinweistext muss die Prüffrage aus der
-  Fürsorge-Tonalität mit „sorgt“ beantworten: „Sorgt der Text, oder protokolliert er nur?“ — er
-  muss heute etwas anbieten (Schritt, Erlaubnis oder Anerkennung), nicht nur feststellen. Die
-  Beispieltexte dieses Konzepts sind darauf geprüft; neue Texte werden im Review dagegen geprüft.
+| Anlass                                         | Bewertung  | Begründung                                                                                                                                                                                                               | Ziel, Fenster, Häufigkeit, Schalter                                                    | Beispieltext                                                               |
+| ---------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Neue Rechnung oder Gutschrift                  | übernehmen | Service-Nachricht. Die Mail mit PDF bleibt als Beleg, der Push führt direkt zur Liste.                                                                                                                                   | `/settings/pakete#rechnungen`, Tag, 1 je Rechnung, Service                             | „Deine Rechnung für Oktober ist da.“                                       |
+| Zahlung fehlgeschlagen, Kulanzfrist, Abo endet | übernehmen | Service-Nachricht. Heute nur Mail (PayPal) oder gar nichts (Google Play). Ohne Hinweis verliert die Person Funktionen, ohne es zu merken.                                                                                | `/settings/pakete`, Tag, je Zustand 1, Kulanzfrist zusätzlich 3 Tage vor Ende, Service | „Deine Zahlung hat nicht geklappt. Bis zum 3. November bleibt Plus aktiv.“ |
+| Abo aktiv: „Das ist jetzt neu“                 | verwerfen  | Wer gerade bezahlt hat, ist in der App. Die Einführung gehört dorthin, nicht in einen Push.                                                                                                                              | –                                                                                      | –                                                                          |
+| Paketgrenze erreicht                           | verwerfen  | Die KI-Grenze ist nach [ADR 0018](adr/0018-preismodell-free-plus-pro.md) Entscheidung 4 unsichtbar und kein Verkaufsargument. Die Kalendergrenze trifft man in der App, dort greift der Inline-Hinweis (Entscheidung 6). | –                                                                                      | –                                                                          |
+| Nutzungsbezogener Plus-Hinweis                 | ändern     | Nur mit Opt-in und nur mit konkretem Nutzungssignal, sonst ist es Werbung, die niemand bestellt hat. Regeln in Abschnitt 8.                                                                                              | `/settings/pakete`, Tag, höchstens 1 je 30 Tage, Tipps und Angebote                    | siehe Abschnitt 8                                                          |
 
-## Issue-Schnitt
+## 8. Tipps und Angebote
+
+Pushes, die zum Abo motivieren, sind Werbung. Sie folgen strengeren Regeln als alle anderen:
+
+- **Nur mit Einwilligung.** Schalter „Tipps und Angebote“, Standard aus. Der Schalter erklärt in
+  einem Satz, was kommt („Höchstens einmal im Monat ein Hinweis auf eine Funktion, die zu deiner
+  Nutzung passt.“). Abschalten geht an derselben Stelle.
+- **Höchstens ein Push je 30 Tage**, nur für Free-Konten, nie in den ersten 7 Tagen nach der
+  Registrierung.
+- **Nur mit Nutzungssignal.** Der Hinweis nennt eine Funktion, die zu etwas passt, das die Person
+  schon tut. Kandidaten:
+  - mindestens drei Aufgaben mit Ort → Ortserinnerungen (Plus)
+  - mindestens drei Aufgaben für andere Personen angelegt → Gruppen (Plus)
+- **Nie die Fürsorge als Hebel.** Die Fürsorge gehört vollständig in Free
+  ([ADR 0018](adr/0018-preismodell-free-plus-pro.md), Grundsatz 3). Kein Text verknüpft Balance,
+  Streak oder Wohlbefinden mit einem Kauf.
+- **Prüffrage gilt.** Der Text bietet einen Nutzen an, er drängt nicht. Erlaubt: „Deine Aufgaben
+  mit Ort können sich melden, wenn du in der Nähe bist. Das kann Plus.“ Nicht erlaubt: „Nur noch
+  heute: Plus zum Sonderpreis!“
+- **Trennung Werbung und Service.** Abo- und Rechnungs-Nachrichten (Abschnitt 7.3) enthalten nie
+  einen werblichen Satz. Vor dem Livegang prüft das [Rechts-Team](../.claude/skills/rechts-team/SKILL.md)
+  Einwilligungstext und Trennung.
+
+## 9. Lösungsplan — Issue-Schnitt
 
 Alle Issues höchstens „Mittel“. Sie entstehen mit dem Skill [Ticket-Baum](../.claude/skills/ticket-tree/SKILL.md)
-unter einem Epic „Push-Konzept“ mit nativen `blocked-by`-Beziehungen gemäß Spalte „Hängt ab von“.
+unter einem Epic „Push-Nachrichten mit Ziel“ als Nachfolger von #2844, mit nativen
+`blocked-by`-Beziehungen gemäß Spalte „Hängt ab von“.
 
-| Nr  | Issue                                                                                                                             | Größe  | Hängt ab von |
-| --- | --------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------ |
-| 1   | [P2/M] Ziel-Infrastruktur: `id`-Anker auf Dashboard-Karten, Hash-Handler mit Scroll und Zeitfenster-Override                      | Mittel | –            |
-| 2   | [P2/S] Bestands-Ziele umstellen: alle zehn Push-Arten auf Konzept-Ziele (inkl. `due-task`-Deadline-Filter)                        | Klein  | 1            |
-| 3   | [P2/M] Zeitmodell: lokale Zustellfenster im Scheduler (15-Min-Tick, lokaler Tagesschlüssel, feste Sendestunden)                   | Mittel | –            |
-| 4   | [P2/M] Schaltergruppen unter „Benachrichtigungen“ (fünf Gruppen, `carePushEnabled` wird Gruppe, nicht abschaltbare Service-Arten) | Mittel | –            |
-| 5   | [P2/M] Push-Budget: Tageszähler, Vorrang, Bündelung `due-task` + `daily-top-tasks`                                                | Mittel | 3, 4         |
-| 6   | [P2/M] Neue Anlässe Fürsorge & Rückblicke: Lob, Wochen- und Jahresrückblick, Journal-Impuls, Willkommens-Schritte                 | Mittel | 1, 3, 4      |
-| 7   | [P2/M] Neue Anlässe Gruppen: Einladung (erhalten/angenommen), Challenge Start/Ende, Duo-Bündelung                                 | Mittel | 4            |
-| 8   | [P2/M] Neue Anlässe Abo & Rechnungen: Rechnung, Zahlungsproblem, Abo-Ende, „neu für dich“; Google-Play-Kanal mitdenken            | Mittel | 4            |
-| 9   | [P2/S] Tipps & Angebote: Opt-in-Schalter, monatlicher nutzungsbezogener Plus-Hinweis (Werbung getrennt)                           | Klein  | 4            |
+| Nr  | Issue                                                                                                                                 | Größe  | Hängt ab von | Welle |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------ | ----- |
+| 1   | `[P1/M]` Push-Ziele öffnen: Anker an Dashboard-Karten, Scrollen und Fokus, „Öffnen“ im In-App-Hinweis, Hinweis bei gelöschter Aufgabe | Mittel | –            | 1     |
+| 2   | `[P1/M]` Zeitmodell: Scheduler stündlich, lokale Fenster je Trigger, Ruhezeit 21–07 Uhr                                               | Mittel | –            | 1     |
+| 3   | `[P1/S]` Bestands-Pushes auf ihre Ziele umstellen, Ziel-Liste mit Spiegel-Test                                                        | Klein  | 1            | 2     |
+| 4   | `[P2/M]` Push-Budget, Vorrang, „Dein Tag“-Bündel und Tags je Gruppe (Web und FCM)                                                     | Mittel | 2            | 2     |
+| 5   | `[P2/M]` Schaltergruppen unter Benachrichtigungen                                                                                     | Mittel | –            | 1     |
+| 6   | `[P1/M]` Service-Pushes Abo und Rechnungen (PayPal, Google Play, Rechnungen, Kulanzfrist)                                             | Mittel | 1, 2         | 2     |
+| 7   | `[P2/M]` Gruppen-Pushes: Einladung, neues Mitglied, Challenge Start und Ende                                                          | Mittel | 1, 2, 5      | 3     |
+| 8   | `[P2/M]` Fürsorge-Erweiterung: Lob, Wochen- und Jahresrückblick, Journal-Impuls, Willkommensschritte, Willkommen zurück               | Mittel | 3, 4, 5      | 3     |
+| 9   | `[P3/M]` Tipps und Angebote: Einwilligung, Nutzungssignale, Obergrenze, Prüfung durch das Rechts-Team                                 | Mittel | 4, 5         | 4     |
+| 10  | `[P3/S]` Benutzerhandbuch: Abschnitt Benachrichtigungen                                                                               | Klein  | 5–9          | 4     |
 
-Kritischer Pfad: 1 → 2 und 3/4 → 5/6 → 8. Issue 3 (Zeitmodell) ist unabhängig von der
-Ziel-Infrastruktur und kann parallel zuerst laufen — ohne ihn bleiben Streak und Wochenrückblick
-in Europa stumm.
+Kritischer Pfad: 2 → 4 → 8 → 9. Issue 2 behebt nebenbei die Streak-Erinnerung, die heute in Europa
+nie ankommt, und kann deshalb vor allen anderen starten.

@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, after } from 'node:test';
+import { describe, it, beforeEach, afterEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SendResult } from 'web-push';
 import { resetDb, closeDb } from '../test/helpers.js';
@@ -110,6 +110,15 @@ const textOf = (call: SentPush): string => {
 };
 
 describe('notifySeriesGenerated (#1253, TF7)', () => {
+	// #2849 (Test-Pflege): das Ruhezeit-Gate blockt zone-lose Nutzer (UTC-Fallback) zwischen 21 und 7 —
+	// die Suite läuft deshalb mit fester Tageszeit statt echter Wanduhr, sonst wäre sie uhrenabhängig.
+	beforeEach(() => {
+		mock.timers.enable({ apis: ['Date'] });
+		mock.timers.setTime(new Date('2026-07-07T10:00:00Z').getTime());
+	});
+	afterEach(() => {
+		mock.timers.reset();
+	});
 	// AK4/AK7: Bündelung — alle Instanzen eines Laufs in EINER Nachricht mit Anzahl.
 	it('mehrere Instanzen eines Laufs → genau 1 Versand mit Serientitel, Ersteller und Anzahl', async () => {
 		const { aliceId, bobId } = await seedUsers();
@@ -242,5 +251,29 @@ describe('notifySeriesGenerated (#1253, TF7)', () => {
 		assert.equal(mailCalls.length, 1, 'genau eine Mail zusätzlich zur Push-Nachricht');
 		const logs = await NotificationLog.findAll({ where: { kind: 'series-generated' } });
 		assert.equal(logs.length, 1, 'ein NotificationLog-Eintrag pro Auslöser, nicht pro Kanal');
+	});
+});
+
+// Rote Spec-Tests für #2849 (Spec docs/spec/issue-2849.md): Ruhezeit 21–7 Uhr Nutzer-Zeitzone —
+// kein Push, kein NotificationLog. KEIN Produktivcode.
+describe('notifySeriesGenerated — Ruhezeit (#2849 AK4)', () => {
+	it('23:00 lokal (Berlin): kein Push, kein Log — 07:00 lokal: Zustellung wie bisher', async () => {
+		const { aliceId, bobId } = await seedUsers();
+		await User.update({ zeitzone: 'Europe/Berlin' }, { where: { id: bobId } });
+		const { series, instances } = await seedSeriesWithInstances(aliceId, bobId, 1);
+
+		mock.timers.enable({ apis: ['Date'] });
+		try {
+			mock.timers.setTime(new Date('2026-07-07T21:00:00Z').getTime()); // 23:00 Berlin
+			await notifySeriesGenerated(series, instances, { displayName: 'Alice' }, mockSend);
+			assert.equal(calls.length, 0, 'Ruhezeit: kein Push');
+			assert.equal(await NotificationLog.count(), 0, 'Ruhezeit: kein NotificationLog-Eintrag');
+
+			mock.timers.setTime(new Date('2026-07-07T05:00:00Z').getTime()); // 07:00 Berlin
+			await notifySeriesGenerated(series, instances, { displayName: 'Alice' }, mockSend);
+			assert.equal(calls.length, 1, '07:00 lokal: Zustellung wie bisher');
+		} finally {
+			mock.timers.reset();
+		}
 	});
 });

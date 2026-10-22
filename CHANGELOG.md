@@ -4,11 +4,12 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.32 - 2026-10-21
 
-_Enthält v0.32.0 – v0.32.8._
+_Enthält v0.32.0 – v0.32.11._
 
 ### 🚀 Improvements
 
 - feat(server): invoice pdf in the modevel.de template look by @deleonio in https://github.com/deleonio/priority-pilot/pull/2839
+- feat(server): hourly scheduler delivers reminders in local windows by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2858
 
 ### 🔧 Engineering
 
@@ -21,6 +22,8 @@ _Enthält v0.32.0 – v0.32.8._
 - chore(deps): update pi-erweiterungen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2818
 - fix(server): bind app tokens to mcp plan gates (#2816) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2820
 - fix(ci): port hard deadline watchdog (#2097) to triage phase by @deleonio in https://github.com/deleonio/priority-pilot/pull/2840
+- feat(billing): PayPal-Sandbox-Hinweis mit Testkonto im CheckoutDialog by @deleonio in https://github.com/deleonio/priority-pilot/pull/2843
+- docs(push): goals, time windows, budget and new occasions (#2844) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2845
 
 ## v0.31 - 2026-10-21
 
@@ -173,7 +176,6 @@ _Enthält v0.28.0 – v0.28.15._
 - feat(frontend): checkout dialog with address and withdrawal consent by @deleonio in https://github.com/deleonio/priority-pilot/pull/2673
 - fix(deps): update dependency i18next to v26.4.7 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2648
 - ci(cron): prompt audit weekly on friday evening instead of daily by @deleonio in https://github.com/deleonio/priority-pilot/pull/2681
-- fix(android): embed native debug symbols in the release aab by @deleonio in https://github.com/deleonio/priority-pilot/pull/2682
 - fix(android): embed native debug symbols in the release aab by @deleonio in https://github.com/deleonio/priority-pilot/pull/2682
 - fix(llm): add top_p 1 for greedy sampling and surface embedded 200 errors by @deleonio in https://github.com/deleonio/priority-pilot/pull/2683
 - fix(server): raise llm test timeout to 30s and surface body-read timeouts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2699
@@ -397,6 +399,7 @@ _Enthält v0.21.0 – v0.21.7._
 
 ### Other Changes
 
+- feat(frontend): series auto-create switch before start date (#2464) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2472
 - feat(frontend): series auto-create switch before start date (#2464) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2472
 - feat(server): reject done with open checklist items (#2467) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2470
 - feat(frontend): render demo hint as dismissible kolcard (#2474) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2475

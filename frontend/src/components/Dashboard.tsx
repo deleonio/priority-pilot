@@ -24,6 +24,7 @@ import { toApiError } from '../lib/apiError';
 import { readBalanceStatusCache, storeBalanceStatusCache } from '../lib/balanceStatusCache';
 import { URGENCY_COLOR } from '../lib/badgeColors';
 import { useGeolocation } from '../lib/useGeolocation';
+import { useDashboardAnchor } from '../lib/useDashboardAnchor';
 import { collectTaskValues } from '../lib/forest';
 import { buildPillarSummaries, calculateMeterThreshold, calculateMeterHighThreshold } from '../lib/pillar';
 import { buildPillarBalances } from '../lib/score';
@@ -217,6 +218,8 @@ export const Dashboard = ({
 	onArchiveMissed,
 	onDeleteMissed,
 }: DashboardProps) => {
+	// #2848: Push-Ziele mit `/#karte-…` springen nach dem ersten Rendern zur Zielkarte (Anker-Hook).
+	useDashboardAnchor();
 	const { t } = useTranslation(['dashboard', 'common']);
 	const greeting = displayName.trim();
 	// #1098 AK4: eigene Hook-Instanz (wie Footer/SettingsPage) — entscheidet, ob die
@@ -501,7 +504,7 @@ export const Dashboard = ({
 			 */}
 			<div className={pillars.length > 0 ? 'dashboard-hero' : 'dashboard-hero dashboard-hero--solo'}>
 				{pillars.length > 0 && (
-					<KolCard className="dashboard-heart" _label={t('heart.label')} _level={3}>
+					<KolCard className="dashboard-heart" id="karte-balance" tabIndex={-1} _label={t('heart.label')} _level={3}>
 						<HeartBalance
 							pillars={pillars}
 							punkteProSaeule={punkteProSaeule}
@@ -678,7 +681,13 @@ export const Dashboard = ({
 			{/* #1990: „Freie Zeit" vor „In der Nähe" — erscheint nur mit Kalender und passender Lücke. */}
 			<FreeTimeCard />
 			{(geoEnabled || geoDenied) && <NearbyCard />}
-			<KolCard className="dashboard-top-tasks" _label={t('topTasks.label')} _level={3}>
+			<KolCard
+				className="dashboard-top-tasks"
+				id="karte-top-aufgaben"
+				tabIndex={-1}
+				_label={t('topTasks.label')}
+				_level={3}
+			>
 				{topTasks.length === 0 ? (
 					<p className="dashboard-empty">{t('topTasks.empty')}</p>
 				) : (
@@ -832,7 +841,13 @@ export const Dashboard = ({
 			    Verpasst rutschte allein in die nächste Zeile. Fehlt der Verpasst-Bereich, füllt die
 			    Deadlines-Card die Reihe voll. Die Aufgaben-Tab-Instanz bleibt in `App.tsx`. */}
 			<div className="dashboard-last-row">
-				<KolCard className="dashboard-deadlines" _label={t('deadlines.label')} _level={3}>
+				<KolCard
+					className="dashboard-deadlines"
+					id="karte-deadlines"
+					tabIndex={-1}
+					_label={t('deadlines.label')}
+					_level={3}
+				>
 					{upcomingDeadlines.length === 0 ? (
 						<p className="dashboard-empty">{t('deadlines.empty')}</p>
 					) : (
