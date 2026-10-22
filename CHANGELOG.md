@@ -4,11 +4,19 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.33 - 2026-10-22
 
-_Enthält v0.33.0 – v0.33.1._
+_Enthält v0.33.0 – v0.33.2._
 
 ### 🐞 Bug Fixes
 
 - feat(billing): recipient from billing address, account email, logo fix by @deleonio in https://github.com/deleonio/priority-pilot/pull/2862
+
+### 🔧 Engineering
+
+- docs(skill): compact ticket-coordination with binding status block by @deleonio in https://github.com/deleonio/priority-pilot/pull/2863
+
+### Other Changes
+
+- feat(server): existing push notifications open their topic (#2851) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2861
 
 ## v0.32 - 2026-10-22
 
@@ -142,7 +150,6 @@ _Enthält v0.29.0 – v0.29.34._
 
 ### Other Changes
 
-- docs: add ADR 0025 on shared logic as duplicate with mirror tests by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2703
 - docs: add ADR 0025 on shared logic as duplicate with mirror tests by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2703
 - feat(server): move score recap logic from routes into logics (#2689) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2706
 - feat(frontend): add tenth dial Bahnen with comets on elliptical orbits by @deleonio in https://github.com/deleonio/priority-pilot/pull/2712
