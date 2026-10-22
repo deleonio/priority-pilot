@@ -142,7 +142,7 @@ export const issueCreditNote = async (
 		credit,
 		OPERATOR,
 		{
-			displayName: String(user?.get('displayName') ?? ''),
+			name: String(user?.get('billingName') ?? ''),
 			email: String(user?.get('email') ?? ''),
 			addressLines: user ? billingAddressLines(user) : [],
 		},
@@ -419,7 +419,7 @@ export const issueInvoiceForPeriod = async (
 			invoice,
 			OPERATOR,
 			{
-				displayName: String(user?.get('displayName') ?? ''),
+				name: String(user?.get('billingName') ?? ''),
 				email: String(user?.get('email') ?? ''),
 				addressLines: user ? billingAddressLines(user) : [],
 			},
