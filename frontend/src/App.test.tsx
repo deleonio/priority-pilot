@@ -80,6 +80,9 @@ vi.mock('./api', () => ({
 		getCareConfig: vi.fn().mockResolvedValue(undefined),
 		// Test-Pflege #1994: dieselbe Karte lädt den Aufteilen-Hinweis-Schalter.
 		getSplitHintConfig: vi.fn().mockResolvedValue(undefined),
+		// #2850: neue Push-Gruppen-Client-Methoden (Default undefined wie die Nachbar-Getter).
+		getPushGroups: vi.fn().mockResolvedValue(undefined),
+		updatePushGroups: vi.fn().mockResolvedValue(undefined),
 		// Rollensystem admin/member (Deep-Link-Test unten): die Settings-Seite lädt beim Mount ihre
 		// Sektionen — leere Antworten reichen, geprüft wird nur der aktive Tab.
 		listLlmProviders: vi.fn().mockResolvedValue([]),

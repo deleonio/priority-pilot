@@ -146,6 +146,7 @@ export const main = async (): Promise<void> => {
 			migrateTaskAiDraftColumn,
 			migrateTaskSystemCreatedColumn,
 			migrateUserCareColumns,
+			migrateUserPushGroupColumns,
 			migrateUserTermsColumns,
 			migrateUserMcpInstructionsColumn,
 			migrateUsersBalanceVariantColumn,
@@ -250,6 +251,8 @@ export const main = async (): Promise<void> => {
 		await migrateUserGeoConfigColumns(sequelize);
 		// Fürsorge-Push-Spalten am User (#1794) — wie oben: sync() ergänzt Bestands-Tabellen nicht.
 		await migrateUserCareColumns(sequelize);
+		// Push-Gruppen-Spalten am User (#2850) — wie oben.
+		await migrateUserPushGroupColumns(sequelize);
 		// Zustimmungs-Spalten am User (#1901) — wie oben.
 		await migrateUserTermsColumns(sequelize);
 		// Dialog-Vorgaben-Spalte am User (#1935) — wie oben.

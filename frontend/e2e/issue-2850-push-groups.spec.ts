@@ -13,12 +13,16 @@ import { waitForStableView } from './helpers';
 const groupSwitch = (page: Page, name: RegExp) =>
 	page.getByRole('checkbox', { name }).or(page.getByRole('switch', { name }));
 
-const FÜNF_LABELS = ['Aufgaben und Erinnerungen', 'Fürsorge', 'Erfolge und Rückblicke', 'Gruppen', 'Tipps und Angebote'];
+const FÜNF_LABELS = [
+	'Aufgaben und Erinnerungen',
+	'Fürsorge',
+	'Erfolge und Rückblicke',
+	'Gruppen',
+	'Tipps und Angebote',
+];
 
 test.describe('Balamentum — #2850: Push-Gruppenschalter', () => {
-	test('AK2/AK5 — 375px: fünf Schalter ohne horizontalen Überlauf, Toggle überlebt den Reload', async ({
-		page,
-	}) => {
+	test('AK2/AK5 — 375px: fünf Schalter ohne horizontalen Überlauf, Toggle überlebt den Reload', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Balamentum');

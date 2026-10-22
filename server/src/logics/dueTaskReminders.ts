@@ -123,6 +123,10 @@ export const runDueTaskReminders = async (
 	let usersNotified = 0;
 	for (const group of groups) {
 		const recipient = await User.findByPk(group.userId);
+		// #2850 AK3: Gruppenschalter „Aufgaben und Erinnerungen" aus → kein Versand (Muster carePush).
+		if (recipient?.taskPushEnabled === false) {
+			continue;
+		}
 		// #2849 AK2/AK5: Morgenfenster 7–8 in der Nutzer-Zeitzone (ohne gültige Zone: UTC).
 		const zeitzone = nutzerZeitzone(recipient?.zeitzone);
 		const { stunde } = uhrzeitIn(now, zeitzone);

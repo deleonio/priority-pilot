@@ -395,6 +395,13 @@ describe('logics/dailyTopTasks — Fenster & Zeitzone (#2849)', () => {
 	});
 
 	it('#2850 AK3: Gruppenschalter „Aufgaben und Erinnerungen“ aus → kein Top-3-Push', async () => {
+		// Test-Pflege #2850: der Nutzer für `userId: 1` muss existieren, sonst matched das UPDATE
+		// keine Zeile und der Gruppenschalter bleibt auf Default an.
+		await User.create({
+			email: 'top3-group-off@example.com',
+			displayName: 'Gruppe-aus-Empfänger',
+			passwordHash: '__test__',
+		});
 		await seedSubscription(1, 'https://push.example.com/group-off');
 		await createTask({ title: 'Einzige', priority: 2, userId: 1 });
 		await User.update({ taskPushEnabled: false } as never, { where: { id: 1 } });

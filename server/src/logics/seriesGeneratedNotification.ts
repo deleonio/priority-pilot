@@ -93,6 +93,10 @@ export const notifySeriesGenerated = async (
 		return;
 	}
 	const recipient = await User.findByPk(series.userId);
+	// #2850 AK3: Gruppenschalter „Aufgaben und Erinnerungen" aus → kein Push, kein Log (Muster carePush).
+	if (recipient?.taskPushEnabled === false) {
+		return;
+	}
 	// #2849 AK4: Ruhezeit 21–7 Ortszeit — komplett stumm (Push wie Mail), kein Log, kein Nachholen.
 	if (istRuhezeit(new Date(), nutzerZeitzone(recipient?.zeitzone))) {
 		return;

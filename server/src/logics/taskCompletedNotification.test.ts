@@ -150,7 +150,9 @@ describe('notifyTaskCompleted — Ruhezeit (#2849 AK4)', () => {
 		await User.update({ taskPushEnabled: false } as never, { where: { id: recipient.id } });
 
 		await notifyTaskCompleted(
-			{ id: 502, title: 'Ab waschen', userId: recipient.id },
+			// Test-Pflege #2850: Empfänger ist der Ersteller — das Spec-Fixture nannte fälschlich
+			// `userId` (Muster des #1426-Tests oben: `createdById`).
+			{ id: 502, title: 'Ab waschen', createdById: recipient.id },
 			{ displayName: 'Ben' },
 			mockSend,
 		);

@@ -58,7 +58,11 @@ export const notifyTaskCreated = async (
 	creator: Creator | null,
 	send?: PushSender,
 ): Promise<void> => {
-	const recipient = await User.findByPk(task.userId, { attributes: ['sprache', 'zeitzone'] });
+	const recipient = await User.findByPk(task.userId, { attributes: ['sprache', 'zeitzone', 'taskPushEnabled'] });
+	// #2850 AK3: Gruppenschalter „Aufgaben und Erinnerungen" aus → kein Push, kein Log (Muster carePush).
+	if (recipient?.taskPushEnabled === false) {
+		return;
+	}
 	// #2849 AK4: Ruhezeit 21–7 Ortszeit — kein Push, kein Log, kein Nachholen.
 	if (istRuhezeit(new Date(), nutzerZeitzone(recipient?.zeitzone))) {
 		return;

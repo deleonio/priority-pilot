@@ -392,6 +392,9 @@ describe('logics/dueTaskReminders — Fenster & Zeitzone (#2849)', () => {
 	});
 
 	it('#2850 AK3: Gruppenschalter „Aufgaben und Erinnerungen“ aus → kein Frist-Erinnerungs-Push', async () => {
+		// Test-Pflege #2850: der Nutzer für `userId: 1` muss existieren, sonst matched das UPDATE
+		// keine Zeile und der Gruppenschalter bleibt auf Default an (Muster seedUser, Mail-Pfad).
+		await seedUser();
 		await seedSubscription(1, 'https://push.example.com/group-off');
 		await createTask({ title: 'Rechnung zahlen', deadline: new Date(NOW.getTime() - 1000), userId: 1 });
 		await User.update({ taskPushEnabled: false } as never, { where: { id: 1 } });

@@ -1581,7 +1581,7 @@ describe('SettingsPage – #1792: Balance-Priorisierung Schalter (AK3)', () => {
 /**
  * Rote Spec-Tests für #1794 — Fürsorge-Schalter (Spec: docs/spec/issue-1794.md, KI-UX-Block).
  *
- * - AK7: Switch „Fürsorge-Hinweise" (KolInputCheckbox `_variant="switch"`) in einer
+ * - AK7: Switch „Fürsorge" (#2850-Rename, früher „Fürsorge-Hinweise"; KolInputCheckbox `_variant="switch"`) in einer
  *   `.settings-switch-row` der Karte „Benachrichtigungen", Zustand aus GET /care-config,
  *   `_hint` nennt die Abgrenzung (betrifft nur Fürsorge, Frist-Erinnerungen bleiben an).
  * - AK7: Toggle ruft `api.updateCareConfig` mit dem neuen Zustand auf (kein Speichern-Button).
@@ -1594,8 +1594,7 @@ describe('SettingsPage – #1794: Fürsorge-Schalter (AK7)', () => {
 		return value === null || value === undefined ? '' : String(value);
 	};
 
-	const queryCareSwitch = (container: HTMLElement) =>
-		container.querySelector('kol-input-checkbox[_label="Fürsorge-Hinweise"]');
+	const queryCareSwitch = (container: HTMLElement) => container.querySelector('kol-input-checkbox[_label="Fürsorge"]');
 
 	const flipSwitch = async (container: HTMLElement, value: boolean) => {
 		await act(async () => {
@@ -2231,7 +2230,13 @@ describe('SettingsPage – #1994: Aufteilen-Hinweis-Schalter (AK6)', () => {
  * neue Render-/Default-Vertrag.
  */
 describe('SettingsPage – #2850: Push-Gruppenschalter (AK1)', () => {
-	const FÜNF_GRUPPEN = ['Aufgaben und Erinnerungen', 'Fürsorge', 'Erfolge und Rückblicke', 'Gruppen', 'Tipps und Angebote'];
+	const FÜNF_GRUPPEN = [
+		'Aufgaben und Erinnerungen',
+		'Fürsorge',
+		'Erfolge und Rückblicke',
+		'Gruppen',
+		'Tipps und Angebote',
+	];
 
 	const bound = (el: Element, name: string): string => {
 		const value = (el as unknown as Record<string, unknown>)[name] ?? el.getAttribute(name);
@@ -2242,9 +2247,12 @@ describe('SettingsPage – #2850: Push-Gruppenschalter (AK1)', () => {
 		container.querySelector(`kol-input-checkbox[_label="${label}"]`);
 
 	it('AK1: fünf Gruppenschalter je in einer .settings-switch-row, Defaults aus GET /push-groups', async () => {
-		apiMocks.getPushGroups = vi
-			.fn()
-			.mockResolvedValue({ taskPushEnabled: true, successPushEnabled: true, groupPushEnabled: true, tipPushEnabled: false });
+		apiMocks.getPushGroups = vi.fn().mockResolvedValue({
+			taskPushEnabled: true,
+			successPushEnabled: true,
+			groupPushEnabled: true,
+			tipPushEnabled: false,
+		});
 		pushState.enabled = true;
 		pushState.supported = true;
 		const { container } = render(<SettingsPage {...defaultProps} />);

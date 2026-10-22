@@ -70,7 +70,8 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		// Seit #1792 kommt der Balance-Schalter als weitere Hauptzeile dazu → 6 Zeilen, seit #1794
 		// kommt der Fürsorge-Schalter dazu → 7, seit #1984 der Expertenmodus-Schalter → 8, seit #1994
 		// der Aufteilen-Hinweis-Schalter → 9.
-		await expect(rows).toHaveCount(9);
+		// Seit #2850: 13 Zeilen (vier Push-Gruppen dazu).
+		await expect(rows).toHaveCount(13);
 
 		// Volle Breite gilt für die Hauptzeilen; die Sub-Zeilen sitzen im Accordion-Kollapsbereich
 		// und liegen dafür versetzt unter dem Master.
@@ -118,7 +119,8 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		// Seit #1183: 3 Switches, seit #1227 (s. AK1) 5 Zeilen, seit #1792 6 (Balance-Schalter dazu),
 		// seit #1794 7 (Fürsorge-Schalter dazu), seit #1984 8 (Expertenmodus-Schalter dazu), seit #1994 9
 		// (Aufteilen-Hinweis dazu).
-		await expect(rows).toHaveCount(9);
+		// Seit #2850: 13 Zeilen (vier Push-Gruppen dazu).
+		await expect(rows).toHaveCount(13);
 
 		for (let i = 0; i < 9; i++) {
 			const style = await rows.nth(i).evaluate((el) => {
@@ -154,8 +156,9 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		const switches = page.locator('.settings-general kol-input-checkbox[_variant="switch"]');
 		// Seit #1183: 3 Switches, seit #1227 5 (Sprachaufnahme, Animationen, Balance animieren,
 		// Erledigt animieren, Push), seit #1792 6 (Balance-Priorisierung dazu), seit #1794 7
-		// (Fürsorge-Hinweise dazu), seit #1984 8 (Expertenmodus dazu), seit #1994 9 (Aufteilen-Hinweis dazu).
-		await expect(switches).toHaveCount(9);
+		// (Fürsorge dazu), seit #1984 8 (Expertenmodus dazu), seit #1994 9 (Aufteilen-Hinweis dazu),
+		// seit #2850 13 (vier Push-Gruppen dazu).
+		await expect(switches).toHaveCount(13);
 
 		// Das Öffnen animiert die Zeilenhöhe (CSS-Transition) — auf den Endzustand des zuletzt
 		// eingeblendeten Feinschalters („Erledigt animieren") warten, bevor gemessen wird. Am

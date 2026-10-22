@@ -33,6 +33,7 @@ import { appSprache, geoConfigRouter, resolveGeoUser } from './routes/geoConfig.
 import { pillarTextIn } from '../models/pillarData.js';
 import { mcpInstructionsRouter } from './routes/mcpInstructions.js';
 import { careConfigRouter } from './routes/careConfig.js';
+import { pushGroupsRouter } from './routes/pushGroups.js';
 import { splitHintConfigRouter } from './routes/splitHintConfig.js';
 import { kpisRouter } from './routes/kpis.js';
 import { createBalanceVariantRouter } from './routes/balanceVariant.js';
@@ -357,6 +358,7 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Pro-User Geo-Konfiguration: Anzeige-/Alarm-Entfernung, Intervall (#1098).
 	app.use(geoConfigRouter);
 	app.use(careConfigRouter);
+	app.use(pushGroupsRouter);
 	// Aufteilen-Hinweis-Schalter pro User (#1994).
 	app.use(splitHintConfigRouter);
 	// Dialog-Vorgaben für die per MCP verbundene KI (#1935).
