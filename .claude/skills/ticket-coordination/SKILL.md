@@ -8,416 +8,160 @@ argument-hint: "[Epic-/Issue-Nummern oder Themen; leer = Startdialog klaert den 
 
 Auftrag: $ARGUMENTS
 
-The coordinator does not write product code. It moves issues through the pipeline by setting
-labels, reads the phase outputs, decides as PO where the pipeline asks for it, and removes
-blockers. Scope is **exactly** what the start dialog (section 0) agreed with the author — nothing
-else from the backlog. When the author names themes instead of epics (e.g. "payment, onboarding,
-store"), map each theme to its leaf issues across all epics (titles carry `[P-Stufe/Aufwand]`,
-epics carry rank tables), order by theme first, then rank, and list the mapping in the first
-report so the author can correct it. A "max. N parallel" limit counts every issue with a phase
-running or queued — triage and UX included — not PRs the author drives themselves, not
-containers in their closing analysis and not items parked on the author. Starting a new issue
-needs a free slot even when its phase has its own queue.
+The coordinator writes no product code. It moves issues through the label pipeline, decides as PO
+where the pipeline asks, and removes blockers. Prose here is English; everything to the author
+(chat, issue comments) is **German** and follows [vermenschlichen](../vermenschlichen/SKILL.md).
+Label chain: [Pipeline-Flow](../../../docs/pipeline-flow.md).
+
+## Overview — read this first, then the whole file
+
+1. **Mission** (below) decides what is in scope and in which order.
+2. **§0 Start dialog:** agree focus, frame (parallel limit, untouchable tickets), order — before any label.
+3. **§1 Order** → **§2 Drive one issue** (analysis → PO routing → PR → merge → next); **§2a** when everything waits on the author.
+4. **§3 Cadence — binding:** *every round ends with the status block*, even quiet ones; a fixed
+   progress report runs every 3 hours. This overrides every brevity rule (AGENTS.md, output style).
+5. **§4 Pitfalls**, **§5 Tool notes**, **§6 Subagents** (diagnosis, conflicts), **§7 Stall ladder**.
+
+Read the file completely before the first action (partial reads cost the status block once).
 
 ## Mission: ready for market
 
-Above every single ticket stands one goal: make the app ready for live and for the market. A
-rounded, stable product beats more features. Every decision on order, scope and new tickets is
-measured against it:
+A stable, rounded product beats more features. Scope is **exactly** what §0 agreed.
 
-- **In focus:** stability (main green, no data loss, no silent errors), payment and plans
-  (subscribe, upgrade, downgrade, cancel, refunds), clean invoices, sign-up and onboarding
-  (first start, empty states, legal texts and consent), and market fitness: what a paying
-  stranger needs to trust and use the app.
-- **Out of focus:** new features that are not needed to bring the app to market. They wait
-  until after go-live; say so when ordering, do not drop them silently. The author can pull one
-  forward explicitly — then it is in focus.
-- **Proactive gap checks:** do not wait for tickets to exist. When a focus area has no open
-  tickets or the author doubts it works, run an audit through a subagent (flows walked end to
-  end in code, existing tests run, suspected bugs proven with a throwaway test that is never
-  committed; nothing pushed), show
-  the ranked findings and the product decisions they need, and create tickets only after the
-  author's release.
-- **Ticket test:** for each issue ask "is the app worse at market launch without it?" Yes →
-  focus order; no → after go-live.
-
-Note: this file's prose is English; everything addressed to the author (chat, issue comments)
-stays German and follows the [vermenschlichen](../vermenschlichen/SKILL.md) rules. Label chain and
-phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
-
-**Chat language is German, without exception.** Every chat message to the author is German:
-status blocks, check-in and progress-report results, one-line acknowledgements of notifications,
-error reports, questions. English input does not switch the language — not English
-notifications, CI logs, review bodies, harness reminders, a context summary written in English,
-nor the English prose of this file. Quoted identifiers (labels, file paths, log lines, commit
-titles) stay verbatim; the sentence around them is German.
+- **In focus:** stability (main green, no data loss, no silent errors), payment and plans, clean
+  invoices, sign-up and onboarding (empty states, legal texts, consent), what a paying stranger needs.
+- **Out of focus:** features not needed at launch. They wait until after go-live (say so, don't drop silently); the author can pull one forward.
+- **Ticket test:** is the app worse at launch without it? Yes → focus order.
+- **Gap audit:** a focus area without tickets, or doubted by the author → subagent audit (flows
+  walked in code, tests run, suspected bugs proven with a throwaway test, nothing pushed); show
+  ranked findings, create tickets only after release.
+- **Themes instead of epics:** map each theme to its leaf issues across all epics, order by theme
+  then rank, list the mapping in the first report.
+- **Parallel limit "max. N":** counts every issue with a phase running or queued (triage and UX
+  included); not PRs the author drives, containers in closing analysis, or items parked on the author.
 
 ## 0. Start dialog
 
-Never start labelling right after the call. First agree on focus and order with the author:
+Never label right after the call.
 
-1. **Focus.** Confirm the epics, issues or themes the call names; ask only when it names nothing
-   or "alles" — then propose a focused set from the mission's focus areas — open issues mapped to
-   them, nearly finished containers (section 1, item 6), anything repairing main — and let the
-   author pick. Name what stays out (features after go-live) and why.
-2. **Frame.** Ask once for the parallel limit, tickets not to touch (manual, the author's own,
-   pipeline or workflow tickets), and how often to report. Offer defaults so one answer suffices.
-3. **Order proposal.** Build the order per section 1 and show it as a table: position, issue
-   with `[stage/effort]` title prefix, blocker, first phase (analysis, UX, spec, implementation),
-   open questions. Put parked questions in a separate list and offer a decision round
-   (section 2a) before the start, so the queue does not stall on them.
-4. **Fine-tune.** Let the author move, drop or add issues and repeat the table until they
-   confirm. Only then set the first trigger.
-5. **Record.** Post the agreed focus, order and limits as a PO comment on the epic (or the first
-   issue) and carry them in every check-in message.
-6. **Re-tune.** When the author changes priorities or limits mid-run, show the updated table
-   once and continue only after confirmation; running phases keep running.
+1. **Focus:** confirm the named epics/issues/themes; if none or "alles", propose a set from the focus areas (nearly finished containers, repairs of main) and name what stays out.
+2. **Frame:** ask once, with defaults: parallel limit, tickets not to touch (manual, the author's own, pipeline tickets), report cadence.
+3. **Order:** table of position, issue with `[Stufe/Aufwand]`, blocker, first phase, open questions; parked questions in a separate list (offer §2a first).
+4. Author adjusts until confirmed; only then set the first trigger.
+5. Post focus, order and limits as a PO comment on the epic; carry them in every check-in.
+6. When priorities change mid-run: show the new table once, continue after confirmation; running phases keep running.
 
 ## 1. Plan the order
 
-1. Read the epic body (waves, critical path, rank table) and its sub-issues with state and
-   labels. Trees can be three-level (epic → `Gruppe:` issues → leaves): collect the leaves
-   through the groups; epic and groups are containers, not work items.
-2. Per open sub-issue check the native `blocked-by` relations **and** the "Blockiert durch" line
-   in the body — they can point into another epic (cross-epic dependency).
-3. Never label containers — epics ("Nicht in die Pipeline geben") and group tickets titled
-   `Gruppe:` ("Sammelticket (Gruppe)") — except for their closing analysis (section 2, "All
-   sub-issues of a container (epic or group) closed"). Never label tickets titled `Manuell:` or marked "Aufgabe für den PO", tickets
-   marked "zurückgestellt".
-4. A manual ticket on the critical path blocks everything behind it. Ask the author at once (one
-   question, concrete options) instead of waiting silently.
-5. Priority and effort are part of every leaf issue: the title prefix `[P0/M]` (stage / effort)
-   and the body line `Priorität: <Stufe> · Rang <r> von <n>. Aufwand: <S|M|L> (…)`. The epic's
-   rank table is the source of truth; the title prefix is the shortcut that survives every list
-   view and search.
-6. Order: waves decide startability, rank decides importance. Phases queue first in, first out
-   per concurrency group; which phases share a group is described in
-   [CI-Architektur](../../../docs/ci-architecture.md) (at the time of writing: spec,
-   implementation and fixup share one queue; triage, UX, review and documentation each have
-   their own). **Start leaves whose blockers are closed, highest rank first**, and keep a
-   working set of at most four issues in flight (the author may set a different limit) — do not
-   start a lower-ranked leaf while a higher-ranked startable one is still unlabelled.
-   **Containers come first, before rank:** a container (epic or group) whose sub-issues are all
-   closed gets its closing analysis at once — it surfaces important new sub-issues early or
-   closes the container. A nearly finished container (one or two startable leaves left) moves
-   those leaves to the front of the order, so the container leaves the work chain. Scan all
-   containers in scope for both at each check-in and after each merge. Issues
-   without dependencies on each other run in parallel; the queues serialise what has to wait.
-   Tickets the author files during the run go to the front of the order, right after
-   containers, unless the author ranks them otherwise.
-   Only dependent issues wait for their blocker's merge. A run shown as "pending" is queued, not
-   stuck — never re-arm it. Name stage and effort (title prefix) whenever a check-in or decision
-   reports what was started or what comes next — the author thinks in „wie wichtig, wie viel
-   Kraft".
+1. Read the epic (waves, critical path, rank table) and its sub-issues; collect leaves through `Gruppe:` issues. Epics and groups are containers, not work items.
+2. Check native `blocked-by` **and** the "Blockiert durch" line (may point into another epic).
+3. **Never label:** containers (except their closing analysis), `Manuell:`/"Aufgabe für den PO" tickets, tickets marked "zurückgestellt". A manual ticket on the critical path: ask the author at once.
+4. **Start order:** leaves with closed blockers, highest rank first; stay within the limit (default 4); don't start a lower rank while a higher startable one is unlabelled. Waves = startability, rank = importance.
+5. **Containers first:** a container with all sub-issues closed gets its closing analysis at once (§2); a nearly finished one (1–2 startable leaves) moves those to the front. Scan at each check-in and after each merge.
+6. Tickets the author files during the run go right after containers.
+7. Spec, implementation and fixup share **one queue**; triage, UX, review run side by side. A "pending" run is queued, not stuck — never re-arm it.
+8. Name stage and effort (title prefix) whenever reporting what started or comes next.
 
 ## 2. Drive one issue
 
 | Situation | Action |
 | --- | --- |
-| Next issue is free (all blockers closed) | set `ai:needs-analyse` |
-| `ai:needs-po-review` present, or a fresh KI-ANALYSE without it (sub-issues of a split carry only `ai:analysed`) | read KI-ANALYSE (Ampel, Offene Fragen) and the `ai-phase-routing` table; set the **first** phase with Run = ja: ux → `ai:needs-ux-ui`, else spec → `ai:needs-spec`, else `ai:needs-impl` |
-| Analysis has open questions or 🟡/🔴 | put the question to the author with the options from the analysis; do not route. Parser false alarms (constraints listed as questions) you clear yourself with a comment. A `<!-- ai-triage-decision -->` comment with `ai:needs-human` is the same case before any analysis: after the answer post it as a PO comment, then set `ai:analysed` + `ai:needs-analyse` without `ai:needs-human` |
-| `ai:needs-human` after a phase | read the run log first (section 4, item 3); only a real open question goes to the author — at once, in the same turn, as multiple choice (section 2a) |
-| `ai:continued` on the issue | soft abort at the time limit, the next run resumes — wait. A second run without push ends the attempt: section 7, rung 3 |
-| PR of the issue appears | subscribe to its activity immediately |
-| `ai:needs-human` on the PR | read the stop comment; fix small causes yourself (base merge, re-review), otherwise ask the author |
-| PR has a merge conflict (`mergeable_state: dirty`) | check every open PR of the epic at each check-in and after each merge to main. No phase **running** on the branch → hand the resolution to a subagent at once (section 6, one per PR, in parallel), even if a fixup is merely queued or crashed — waiting for the queue costs hours when phases stall. Never re-arm `ai:needs-fixup` on a conflicting PR: GitHub starts no `pull_request` workflow while the PR conflicts, and every re-set counts toward the fixup round cap. Phase running → wait for its end; the fixup run merges main before it starts and resolves the markers itself, so give it the resolution rule as an inline review comment on the conflicting file (it reads review threads, not plain PR comments). After the subagent's push: if the PR already had a green verdict, re-arm `ai:needs-review`; an attached `ai:needs-fixup` stays (its findings are still open). A conflict that needs a product decision goes to the author |
-| Author comments as PO on a PR or issue | apply at once (ticket body, ADR, labels), adjust dependent tickets |
-| PR merged, issue closed | check main CI, start the next issue in the same turn |
-| All sub-issues of a container (epic or group) closed | a container always gets at least one closing analysis — something new may have come up. Check the merged PRs for named follow-up work that no ticket covers and post it as a PO comment on the container, then set `ai:analysed` + `ai:needs-analyse` on it — at once, in the same turn the last sub-issue closes, outside the parallel-ticket limit: new important issues surface early, a finished container leaves the work chain fast. The analysis emits its result as the `ai-container-result` marker and the workflow acts on it itself: the post-step creates the new sub-issues from it (title with priority prefix, template body, native `blockedBy`), links them under the container, or closes the container with the analysis' reason — drive new sub-issues like any other; when they close, the container gets its next closing analysis. Manually only as reserve, when the run could not act (no marker or failed post-step — the run log warns; the analysis' draft comment is the template): create the drafts with their priority prefix, link them under the container (`POST repos/{owner}/{repo}/issues/<container>/sub_issues` with the issue's numeric id — not its number — as `sub_issue_id`), start them like any other leaf, or close the container with the analysis' evidence. A remaining `ai:needs-human` on the container is a real stop — read the run log, never drop it. Never close a container on your own judgement |
+| Next issue free (blockers closed) | `ai:needs-analyse` |
+| `ai:needs-po-review`, or fresh KI-ANALYSE without it | read Ampel, open questions and `ai-phase-routing`; set the **first** phase with Run = ja: ux → `ai:needs-ux-ui`, else spec → `ai:needs-spec`, else `ai:needs-impl` |
+| Open questions or 🟡/🔴 | ask the author with the analysis' options; don't route. Parser false alarms: clear with a comment. `<!-- ai-triage-decision -->` + `ai:needs-human`: after the answer post it as PO comment, set `ai:analysed` + `ai:needs-analyse` without `ai:needs-human` |
+| `ai:needs-human` after a phase | read the run log first (§4.3); only a real open question goes to the author — immediately, as multiple choice (§2a) |
+| `ai:continued` | soft abort, next run resumes — wait. Second run without push: §7 rung 3 |
+| PR appears | subscribe to its activity at once |
+| `ai:needs-human` on the PR | read the stop comment; fix small causes (base merge, re-review), else ask |
+| PR conflict (`mergeable_state: dirty`) | check every open PR at each check-in and after each merge. No phase **running** on the branch → conflict subagent at once (§6), even if a fixup is only queued. Never re-arm `ai:needs-fixup` on a conflicting PR (no workflow starts, rounds count). Phase running → wait; give it the resolution rule as an inline review comment (it reads threads, not PR comments). After the push: green verdict before → `ai:needs-review` again; attached `ai:needs-fixup` stays. Product decision needed → author |
+| Author comments as PO | apply at once (body, ADR, labels), adjust dependents |
+| PR merged | check main CI, start the next issue in the same turn |
+| Container: all sub-issues closed | closing analysis, always: post named follow-up work as PO comment, set `ai:analysed` + `ai:needs-analyse` at once, outside the limit. The run emits the `ai-container-result` marker and the post-step creates sub-issues or closes it; reserve: create/close by hand from the run's draft (`POST …/issues/<container>/sub_issues` with the numeric id). `ai:needs-human` on the container is a real stop. Never close a container on your own judgement |
 
-Label write rules:
+**Label writes:** an update replaces the **whole** set — always carry `ai:analysed`, drop only the consumed trigger. Never remove `ai:analysed` (starts re-triage). Re-arming an attached trigger = two writes (without, then with). Verify the name first (`GET …/labels/<name>`, 404 = wrong; unknown names silently create a label) and check within a minute that the run did not end `skipped`.
 
-- An issue update replaces the **whole** label set. Always carry `ai:analysed` along; drop
-  only the consumed trigger (`ai:needs-po-review`).
-- Never remove `ai:analysed` — removing it starts a re-triage.
-- Re-arming a trigger that is still attached needs two writes: first without it, then with it.
-  Adding an already present label fires no event.
-- Label names are exact (`ai:needs-ux-ui`, not `ai:needs-ux`). A write with an unknown name
-  silently creates that label and starts nothing. Before every trigger write check the name
-  (`GET repos/{owner}/{repo}/labels/<name>`, 404 = wrong name); after it check within a minute
-  that the phase run did not end `skipped`.
+Record every PO decision as a comment (with attribution footer).
 
-Record every PO decision as a comment on the epic or issue (with the attribution footer), so the
-pipeline and later readers see it.
+## 2a. Decision round
 
-## 2a. Decision round with the author
+When everything startable waits on the author, go through the parked issues one by one:
 
-When everything startable waits on the author, do not idle and do not list the questions in one
-wall of text — offer a decision round and go through the parked issues one by one:
+1. Order by leverage (answers that free blocked issues first), then rank.
+2. Per issue: multiple choice, at most four per round, the analysis' recommendation first; at most two rounds, the rest is decided by the recommendation and named as such.
+3. Post answers as `PO-Entscheidung (Autor)` comment, each decision as a full sentence (the next phase reads only that), then `ai:analysed` + `ai:needs-analyse` without `ai:needs-human`.
+4. An answer rejecting the premise: offer close (`not_planned`), reshape (new body and title, PO comment; product principle → matching ADR, check siblings) or park.
+5. Blocker placeholder `#BLOCKER_…` in the body: resolve from the native relation, fix the line, don't ask.
+6. A follow-up question the analysis marks non-blocking with an assumption: confirm with the author, comment on container and issue, drop `ai:needs-human` (no re-analysis), route as after triage.
 
-1. Order by leverage: an answer that frees other issues (blocked sub-issues) first, then rank.
-2. Per issue put the triage questions as multiple choice (at most four per round), the
-   analysis' recommendation first; split longer lists into at most two rounds.
-3. Post the answers as a `PO-Entscheidung (Autor)` comment that restates each decision as a full
-   sentence (the next phase reads only the comment), then set `ai:analysed` + `ai:needs-analyse`
-   without `ai:needs-human`. Whatever is still open after two rounds is decided by the
-   analysis' recommendation and named as such in the chat.
-4. An answer that rejects the ticket's premise is not a rejected option: offer close
-   (`not_planned`, reason as comment), reshape or park. Reshape means rewriting the body
-   ("Wie soll es sein?", measures) and the title, plus a PO comment with the reason; a
-   product principle behind it (e.g. "no plan on time without consent") goes into the matching
-   ADR and is checked against sibling tickets at once.
-5. A blocker placeholder in the body (`#BLOCKER_…`) is resolved from the native `blocked-by`
-   relation; fix the body line instead of asking.
-6. A follow-up question that the analysis itself marks as not blocking, with a stated
-   assumption: confirm the assumption with the author, comment on the container and the affected
-   sub-issue, drop `ai:needs-human` — no re-analysis; then route like after triage (UX, spec or
-   implementation).
+## 3. Cadence and status block
 
-## 3. Cadence
+**Triggers:** react to PR events at once. Phases without events (triage, UX, a spec before its draft PR) → check in every ~15 min; only when everything in flight has a subscribed PR, ~50 min. Replace the pending check-in, never stack. Schedule the next check-in **before** asking the author a question.
 
-- React to PR events at once; use scheduled check-ins as fallback with the cadence the author
-  asks for. Replace the pending check-in instead of stacking a second one.
-- Issue phases (triage, UX, a spec run before its draft PR) send no events to the coordinator,
-  only PR activity does. While any issue in flight sits in such a phase, check in every
-  ~15 minutes, otherwise a finished analysis waits unrouted until the next check-in. Only when
-  everything in flight has a subscribed PR can the fallback stretch to ~50 minutes.
-- **Schedule the next check-in before asking the author.** A pending question blocks the
-  session; without a scheduled wake-up the whole coordination stalls until the answer.
-- The check-in message carries **state only**; the rules live here. Template:
-  `Check-in ticket-coordination (Skill). Epics: … Stand <UTC>: <je Issue: [Stufe/Aufwand]-Kürzel aus dem Titel, Phase, PR, Run-ID, was als Nächstes zu prüfen ist>. Erledigt-Basis (<Anzahl>): <Issue-Nummern>. Queue-Zusätze (<Anzahl>): <Issue-Nummern>. Offen beim Autor: … Reihenfolge danach (mit Rang): … Nicht anfassen: …`
-  The done baseline makes counts and deltas reproducible across context resets; the Queue-Zusätze
-  line carries the tickets the author or coordinator added outside the containers during the run,
-  so a later run reconstructs N without drift. A later run
-  reads the check-in as its instruction: write a finished container as „Abschluss-Analyse
-  starten", never as „schließen" (section 2).
-- Spec, implementation and fixup share one serialized queue; only triage, UX and review run
-  side by side — order the queue per section 7, rung 1.
-- **Every round ends with the status block**, quiet rounds included — the author wants to see at
-  a glance whether things move, without asking. Query fresh (labels, PRs, merges), never from
-  memory. Fixed shape, nothing else around it:
-  1. Counter line over the **whole queue**, with share done and a ten-step bar:
-     `Fortschritt ████████░░ 80 % · Erledigt X/N (+n) · In Arbeit Y · Offen Z (davon W beim Autor)`.
-     The queue N is every leaf the coordination owns: all sub-issues of the coordinated
-     containers (manual acceptance tickets included), plus tickets the author or the
-     coordinator added during the run (also when they sit outside the container). Containers
-     themselves do not count. X + Y + Z = N; percent = X / N, rounded to whole numbers; one bar
-     step per 10 %. „In Arbeit" = a phase label set or running, or an open PR; „Offen" = not
-     started or waiting (author decisions and manual tickets go into W). If several properties
-     match, the author wait takes precedence — a ticket waiting on the author counts as „Offen"
-     (and in W) even when it also has a phase label or an open PR, never in both columns; every
-     leaf lands in exactly one of X/Y/Z. +n counts merges since the previous round.
-  2. Pace line: trend mark, merges in the last 3 hours, minutes since the last merge.
-     ▲ = merge since the last round · ▶ = phases advanced, no merge · ⏸ = nothing moved for two
-     rounds, name the cause in the same line.
-  3. Table `Status | Ticket | Thema | Aufwand | Phase/PR | seit`. Rows: in progress first, then
-     waiting, done collapsed into one row (count, latest numbers). „seit" is the time in the
-     current phase, taken from the last phase-label event; mark ⚠️ once it exceeds roughly
-     twice the usual duration (triage/UX ~20 min, spec ~30 min, implementation ~60 min, review
-     ~20 min) — that is the stall signal, pursue it per section 7.
-  4. One line for what the coordinator did this round (routed, conflict resolved, started),
-     then the next check-in time.
-- **A status question gets the whole picture.** When the author asks for the state in any
-  wording („Status", „Stand", „Überblick", „wie weit sind wir", „was ist noch offen"), answer
-  with the full status block over the whole queue — counter line with percent, table with every
-  leaf (done ones listed per row here, not collapsed), then what waits on the author with links
-  to the issues. Never answer with only the latest delta or only the open items. This holds
-  after the coordination has ended, too: query fresh and answer in the same shape.
-- **Progress report on a fixed cadence** (default every 3 hours, author may change it): a
-  recurring schedule, set up once at the start, delivers it without being asked. Same status
-  block, plus what finished since the last report, next steps in order and open decisions with
-  the author. The report run also acts (route, start the next issue) like a check-in.
-- **Empty queue → stop.** Once nothing is in flight (no phase running, no open pipeline PR that is not waiting on the author) and
-  everything startable waits on the author, end the coordination after the decision round (2a)
-  has been offered: cancel the pending check-in and the progress-report schedule, then send the
-  author one push notification with the final status block and the open decisions. A new
-  message from the author restarts it.
-- Notifications can arrive late, twice, or after the fact. Verify the current state before
-  acting on one.
-- A question the author dismissed is not asked again. It stays under "Offen beim Autor" in the
-  check-in until the author answers on their own; the issue waits, the rest goes on.
+**Check-in message = state only** (rules live here): `Check-in ticket-coordination (Skill). Epics: … Stand <UTC>: <je Issue: [Stufe/Aufwand], Phase, PR, Run-ID, nächste Prüfung>. Erledigt-Basis (<n>): <Nummern>. Queue-Zusätze (<n>): <Nummern>. Offen beim Autor: … Reihenfolge danach (mit Rang): … Nicht anfassen: …` A finished container reads "Abschluss-Analyse starten", never "schließen".
+
+**Every round ends with the status block** (quiet rounds included; query fresh, never from memory; nothing else around it):
+
+1. `Fortschritt ████████░░ 80 % · Erledigt X/N (+n) · In Arbeit Y · Offen Z (davon W beim Autor)`
+   N = every leaf the coordination owns (sub-issues of the containers incl. manual tickets, plus tickets added during the run; containers don't count). X+Y+Z = N, each leaf in exactly one: In Arbeit = phase label set/running or open PR; Offen = not started or waiting. Waiting on the author wins (Offen and W). Percent = X/N rounded, one bar step per 10 %, +n = merges since the last round.
+2. Pace line: ▲ merge since last round · ▶ phases advanced, no merge · ⏸ nothing moved for two rounds (name the cause); plus merges in the last 3 h and minutes since the last merge.
+3. Table `Status | Ticket | Thema | Aufwand | Phase/PR | seit`: in progress first, then waiting, done collapsed (count, latest numbers). ⚠️ when "seit" exceeds ~2× usual (triage/UX 20 min, spec 30, implementation 60, review 20) — pursue per §7.
+4. One line on what the coordinator did, then the next check-in time.
+
+**Status question** ("Status", "Stand", "Überblick", "was ist noch offen"): the full block over the whole queue, done leaves listed per row, then what waits on the author with links — never only the delta. Also after the coordination ended.
+
+**Progress report** every 3 h (author may change), one recurring schedule set up once at the start: status block plus what finished since, next steps in order, open decisions. It also acts like a check-in.
+
+**Empty queue → stop:** nothing in flight and everything startable waits on the author, §2a offered → cancel check-in and report schedule, send one push with the final block and open decisions. A new author message restarts.
+
+Notifications can arrive late or twice — verify the state before acting. A dismissed question is not asked again; it stays under "Offen beim Autor".
 
 ## 4. Pitfalls
 
-1. **Merged without CI.** A PR can merge while its verify runs were skipped or cancelled. After
-   each merge look at the main CI; a red main makes every following PR red. Fix main first
-   (own small PR from a fresh branch off main), then re-run the blocked PR (base merge,
-   `ai:needs-human` off, `ai:needs-review` on).
-2. **"Flake" verdicts.** A fixup that calls a red job a flake and stops at `ai:needs-human`
-   without a push has not found the cause. Check whether the same test is red on main and
-   reproduce it; state-dependent tests (shared test data within a shard) look like flakes.
-   Real infrastructure failures have a signature in the log (dev server crash, `connection
-   refused` from one test on until the shard ends): re-run the failed jobs once, record the
-   signature in a ticket, never send the PR into fixup for it. A new UI element (an extra
-   select, a second dialog) that breaks a foreign e2e locator is the PR's own fault, not a flake:
-   post the CI cause as an inline thread on the touched file so the fixup reads it.
-3. **Phase ended without a usable result.** Four forms:
-   - No verdict, no branch, no PR, trigger still attached → re-arm the trigger once (remove,
-     add). A second failure goes to the author with the cause from the run log.
-   - `ai:needs-human` although the work is done: the agent could not write its result (blocked
-     tool or file access), wrote a wrong verdict token (e.g. `URTEIL:` instead of the expected
-     one) or the label step itself crashed, so no reason comment exists. Read the
-     agent's final output in the run log; if it has no real open question, post its result as an
-     issue comment and set the next phase. If it has open questions, they exist only there:
-     take them from the log and ask the author.
-   - A phase reports success but its block is missing (seen with UX: the block write was
-     denied, the verdict still passed and the next phase started without the input). After
-     every UX run check that its block is in the harness comment. Spec and implementation read
-     the UX result only from there, a plain PO comment does not reach them. If it is missing:
-     take the next phase's trigger off (only while that phase has not started), write the run
-     log's final output as the block between the UX markers of the harness comment, then set
-     the trigger again. If the next phase already ran, check the PR against the UX result and
-     post every gap as an inline review thread, so the fixup picks it up.
-   - Triage finds the ticket already fulfilled (typical after the blocker's PR covered it): it
-     posts the evidence as a plain comment, the run ends red and `ai:needs-analyse` stays. Check
-     the evidence (file:line, tests), close the issue as completed with a short PO comment, drop
-     the label; hardening points it lists become a ticket proposal to the author.
-4. **Late pushes miss the merge.** The gate merges the reviewed head. A commit pushed after the
-   green review may not be in main — check the merged commit and bring the rest in a new PR.
-5. **Optional review nits on own PRs.** Reply and resolve; do not push only for a nit — the push
-   resets review and CI. Nits that reveal a product gap (feature built but invisible, cost
-   without benefit) are not nits for the epic: see "All sub-issues of a container (epic or group) closed" above.
-6. **Misleading titles.** "Frontend: …" can need server work. Trust the analysis, not the title.
-7. **Check the practice before calling a rule violation.** A rule in the docs can contradict
-   what dozens of files do; then the rule is the finding, not the file.
-8. **Merged branches.** A branch whose PR is merged is finished; restart it from main before new
-   work instead of stacking on merged history.
-9. **List views lie about merges.** A PR list can show `merged: false` for merged PRs; the issue's
-   `closed_by_pull_requests` and state are reliable.
-10. **Tooling outages.** When the GitHub connection fails ("temporarily unavailable"), wait and
-    retry; do not switch to unauthenticated web reads for decisions, they are rate limited and
-    incomplete.
-11. **Scope creep.** Found problems outside the epics (flaky tests, rule gaps) become a proposal
-    to the author or a new ticket after asking — never an unannounced pipeline start.
-12. **Stale base.** A PR branched before a related merge can pass its own CI and still break
-    main. When two PRs of the epic touch the same files, merge main into a local copy of the
-    later one and run the affected package tests before its gate merge.
-13. **Pushes into a running phase.** A phase run works on the branch state from its start. A
-    push to that branch meanwhile (also a base merge) can make its push fail or land on top
-    unseen. Do not push while a phase runs on the branch; when it happened, check the head
-    after the run (own commit present, on top of the foreign one) before routing on.
-14. **Stale `ai:needs-human` after an answered triage question.** When the author answers the
-    triage question, the re-triage writes a final KI-ANALYSE (no open questions) and adds
-    `ai:needs-po-review`, but the old `ai:needs-human` can stay. Both together mean "ready to
-    route", not "blocked": check the analysis timestamp is after the answer, then route and drop
-    `ai:needs-human` in the same write.
-15. **Two tickets, one shared building block.** When two analyses each plan the same piece (a
-    model, a check function), an issue comment alone does not reach the later phases: spec and
-    implementation work from the spec document and the PR. Post the directive on both issues
-    before the spec, then — as soon as the first spec fixes names — post the identical contract
-    (model name, file, fields, function signature) on both draft PRs before their implementation
-    starts. Check the implementation diff against it; a deviation is a blocking PO comment on
-    the PR before the review, so the review sends it into fixup.
-
-16. **Provider quota exhausted.** A phase crash with `429 [1310] ... Limit Exhausted. Your limit will
-    reset at <time>` stops every LLM phase (spec, implementation, fixup, review). The reset time
-    is in the provider's zone (UTC+8 — the request ID starts with the provider's local
-    timestamp). Do not re-arm before the reset, every attempt burns a run and adds an
-    `ai:needs-human`; schedule one check-in shortly after the reset and re-arm all crashed
-    triggers then. Work that needs no pipeline LLM (conflict subagent, label fixes) goes on.
-17. **Fixing a finding on your own PR yourself.** Swap `ai:needs-fixup` for `ai:needs-review` in
-    the same step (else the pipeline fixup runs on the branch in parallel) and post the proof
-    as an `<!-- ai-fixup-decisions -->` comment with the fixed-findings table; a thread reply
-    alone lets the re-review end in a false `ai:needs-human`.
-18. **Blocker merged → automatic re-triage.** When a blocker's PR merges, the pipeline itself sets
-    `ai:needs-analyse` on the blocked issue. Do not route it before that run ends: the re-triage
-    rewrites the label set and drops your trigger. Post PO notes on the issue right away — the
-    re-triage works them into the analysis — and route on its `ai:needs-po-review`. This only
-    happens for issues that were already analysed; a never-analysed issue needs your
-    `ai:needs-analyse`.
-19. **PO decisions for a fixup.** The fixup reads review threads, not plain PR comments: answer
-    in the thread of the finding itself, also when correcting an earlier decision. Before
-    deciding a new mandatory UI field, check the e2e create flows that would hit it; prefer a
-    preselected default over a hard requirement (one such decision broke ~60 specs).
-20. **Dead self-hosted runner.** Runs stay `queued` with the runner's label, a job without a log
-    means the runner died mid-job. Only the author can switch the runner variable; then cancel
-    the queued runs (force-cancel stragglers) and re-arm every affected trigger with two writes.
-21. **Never re-run an old main run.** Concurrency cancels the newer main run in favour of the
-    re-run; re-run only the latest one.
-22. **Literal file paths as comment bodies.** A phase comment that reads `@/tmp/<file>.md` was
-    posted with `-f body=@…` (raw string); the content is lost. The verdict label still counts;
-    report the skill gap instead of re-running the phase.
-23. **Phase killed at the job timeout.** A runtime without soft abort runs into the hard job
-    timeout without pushing: run conclusion `cancelled`, orphan processes in the log, no
-    `ai:continued`, the trigger still attached. After the second such run on the same issue do
-    not re-arm: propose a split to the author (two or three leaves with a `blocked-by` chain,
-    the issue becomes their container, its draft PR is closed).
-
-24. **Fixup round cap without open findings.** The cap comment lists only fixed findings and the
-    last review was green: the `ai:needs-fixup` came from the conflict detector, not from the
-    review. Resolve the conflict (section 2), then decide option F.1 yourself — swap
-    `ai:needs-human` for `ai:needs-review` with a short PO comment. A cap with open findings
-    stays with the author.
+1. **Merged without CI:** verify runs may be skipped. After each merge check main CI; red main makes every PR red → fix main first (own small PR), then re-run the blocked PR (base merge, `ai:needs-human` off, `ai:needs-review` on). Never re-run an old main run (concurrency cancels the newer one).
+2. **"Flake" verdicts:** a fixup that calls a job a flake and stops without a push found no cause. Compare with main, reproduce. State-dependent tests (shared data in a shard) look like flakes. Real infrastructure failures have a log signature (dev server crash, `connection refused` until shard end): re-run once, note the signature, no fixup. A new UI element breaking a foreign e2e locator is the PR's fault: post the cause as inline thread.
+3. **Phase ended without usable result:**
+   - no verdict/branch/PR, trigger attached → re-arm once; second failure → author with the log cause.
+   - `ai:needs-human` though done (blocked write, wrong verdict token, label step crashed): read the final output in the log; no real question → post its result as comment, set the next phase; real questions exist only there → ask the author.
+   - success but block missing (UX): after every UX run check the block in the harness comment. Missing → take the next trigger off (only if not started), write the log's output between the UX markers, set the trigger again; if already ran, post gaps as inline review threads.
+   - triage finds the ticket fulfilled: it posts evidence, run red, `ai:needs-analyse` stays → verify (file:line, tests), close as completed with PO comment, drop the label; hardening points → proposal.
+4. **Late pushes miss the merge:** the gate merges the reviewed head; check the merged commit, rest in a new PR.
+5. **Optional nits on own PRs:** reply and resolve, no push (resets review/CI). Nits revealing a product gap belong to the container's closing analysis.
+6. **Misleading titles:** trust the analysis. **Practice vs. rule:** if dozens of files contradict a docs rule, the rule is the finding.
+7. **Merged branches** are finished; restart from main. **List views lie:** use `closed_by_pull_requests` and state, not `merged`. **Tooling outage:** wait and retry, no unauthenticated reads.
+8. **Scope creep:** problems outside the epics → proposal or ticket after asking, never an unannounced start.
+9. **Stale base:** two PRs touching the same files → merge main into a local copy of the later one and run the affected tests before its gate merge. **Never push while a phase runs on the branch** (also a base merge); after the run check that your commit is on top.
+10. **Stale `ai:needs-human`** next to a fresh final analysis and `ai:needs-po-review` = ready to route: check the timestamp is after the answer, route and drop it in one write.
+11. **Shared building block in two tickets:** post the directive on both issues before the spec, then the identical contract (names, file, fields, signature) on both draft PRs before implementation; a deviation is a blocking PO comment before the review.
+12. **Quota exhausted** (`429 … reset at <time>`, provider zone UTC+8): stops all LLM phases; don't re-arm before the reset; one check-in shortly after, then re-arm all crashed triggers. Non-LLM work (conflict subagent, label fixes) goes on.
+13. **Fixing a finding on your own PR yourself:** swap `ai:needs-fixup` for `ai:needs-review` in the same step and post an `<!-- ai-fixup-decisions -->` comment with the fixed-findings table; a thread reply alone causes a false `ai:needs-human`. Fixup round cap with only fixed findings and a green review = conflict detector: resolve the conflict, swap `ai:needs-human` for `ai:needs-review` with a PO comment; a cap with open findings stays with the author.
+14. **Blocker merged → automatic re-triage** (only for already analysed issues): don't route before it ends (it drops your trigger); post PO notes right away, route on its `ai:needs-po-review`.
+15. **PO decisions for a fixup** go into the thread of the finding (it reads threads, not PR comments). Before a new mandatory UI field check the e2e create flows; prefer a preselected default (one decision broke ~60 specs).
+16. **Dead self-hosted runner** (runs `queued`, jobs without log): only the author switches the runner variable; then cancel queued runs and re-arm every affected trigger with two writes.
+17. **Comment body `@/tmp/<file>.md`** = posted with `-f body=@…`, content lost; the verdict label counts, report the gap, don't re-run.
+18. **Job timeout without soft abort** (`cancelled`, no `ai:continued`): after the second on one issue don't re-arm, propose a split (two or three leaves with a `blocked-by` chain, the issue becomes their container, its draft PR is closed).
 
 ## 5. Tool notes
 
-- PR labels come from the PR read; the issue read does not resolve PR numbers.
-- Workflow run lists: filter main CI by branch only; an extra event filter has returned stale runs.
-- Large list results: read the saved file with `jq` instead of paging through it.
-- Run logs: fetch the download link, then search it (`grep` for the error, the verdict line,
-  the first failing test) instead of loading the whole log.
+- PR labels come from the PR read, not the issue read. Main CI runs: filter by branch only.
+- Large lists: save to a file, read with `jq`. Run logs: fetch the link, `grep` for error, verdict, first failing test.
 
-## 6. Delegating to subagents
+## 6. Subagents
 
-The coordinator keeps everything that needs judgement or the author: order, PO routing,
-questions, new tickets, the check-in chain. Reading and diagnosis — the context-heavy part — can
-go to subagents, one per issue or PR in flight, so several issues and phases are watched at the
-same time without flooding the coordinator's context.
+The coordinator keeps judgement, the author, order, routing, tickets and the check-in chain. Reading and diagnosis go to subagents, one per issue or PR (`gate-runner` for failing runs, `recherche` for code questions).
 
-**Brief** (self-contained, a subagent sees nothing of this conversation): issue and PR number,
-current phase and run ID, what changed since the last look, the question to answer, and what it
-may do. Existing agents fit many briefs: `gate-runner` for failing runs and log triage,
-`recherche` for code questions (does the PR base miss a related merge, does an analysis match the
-code).
+- **Brief** (self-contained): issue/PR, phase and run ID, what changed, the question, what it may do.
+- **May:** read issues, PRs, comments, runs, logs; reproduce locally in a separate worktree; re-run failed jobs once for a documented infrastructure signature.
+- **Must not:** set labels, comment, push, create tickets, ask the author — it returns a proposal.
+- **Exception, conflict subagent:** own worktree, may push one merge commit to the PR branch (merge main, never rebase/amend/force; keep both sides, regenerate generated files with the repo tooling, canonical gate for the touched packages; only when green and no phase runs on the branch). Product decision needed → push nothing, report.
+- **Report:** state (phase, head, CI), finding with evidence, proposed action (exact label set or text), author needed or not.
 
-**May do:** read issues, PRs, comments, run lists and logs; reproduce a failure locally in a
-separate worktree; re-run failed jobs once for a documented infrastructure signature.
+## 7. Stall ladder
 
-**Must not do:** set or remove pipeline labels, comment, push, create tickets, ask the author.
-It returns a proposal, the coordinator acts on it.
+Re-arming what just failed is not coordination. Each rung once; a second failure moves one rung up; never re-arm the same trigger a third time.
 
-**Exception — merge conflicts:** a conflict subagent works in its own worktree and may push one
-merge commit to the PR branch: merge main into the branch (never rebase, amend or force-push),
-keep both sides' behaviour, regenerate lockfiles and generated files with the repo tooling, run
-the canonical gate for the touched packages, and push only when it is green and no phase runs on
-the branch (pitfall 13). If keeping both sides needs a product decision, it pushes nothing and
-reports the conflict. Labels and comments stay with the coordinator.
-
-**Report** (short, fixed shape): state (phase, PR head, CI), finding with evidence (log line,
-file:line), proposed action (exact label set or comment text), and whether the author is needed.
-
-Fits: diagnosing a red CI or an `ai:needs-human` stop while another issue is being routed;
-checking all PRs of an epic for follow-up work before its closing analysis; a test merge
-against main; resolving a merge conflict (exception above). Does not fit: anything that only needs one label read — do that directly.
-
-## 7. When the pipeline stalls — the way out
-
-Re-arming what just failed is not coordination. Try each rung once; a second failure on the same
-rung moves one rung up — never re-arm the same trigger a third time.
-
-1. **Order the shared queue.** Spec, implementation and fixup share one queue, so parallel slots
-   there are an illusion: keep at most one issue in that queue, the others work in triage, UX or
-   review. Priority: repairs main → fixups (short, end in a merge) → continuations → new
-   implementations. To reorder, take the trigger off the waiting issue (its queued run then
-   skips) and put it back once the queue is free; never cancel a running phase.
-2. **Spot a slow provider early.** Signs: a small (S) issue without push after a full run,
-   several soft aborts the same day, crashes without verdict, triage at its time limit. Then
-   start no new implementations; tell the author once with the evidence (run IDs, durations)
-   and offer the provider switch — their decision.
-3. **Two runs without push → stop.** A second soft abort, crash or infrastructure failure on
-   the same issue ends the pipeline attempt (a repeated soft abort is marked
-   `ai:to-big-issue`). By size:
-   - small and clear (S, test or config, no product decision): ask the author to release it for
-     a local implementation — a subagent in its own worktree, canonical gate, PR with
-     `Closes #N`, no labels. Once the PR exists, drop the stop labels from the issue and set
-     `ai:needs-review` on the PR.
-   - medium or unclear: propose a split (pitfall 23).
-   - waiting on a decision: ask the author.
-4. **Infrastructure failures** (environment setup timeout, installer exit, runner loss): re-arm
-   once and note the signature; a second one the same day goes to the author as an
-   infrastructure finding, not into more re-arms. A run past twice its usual duration without a
-   push is diagnosed, not waited out: the job's steps (`GET …/actions/runs/<id>/jobs`, the step
-   `in_progress`) and, if needed, its log (`GET …/actions/jobs/<job-id>/logs`) show where it
-   hangs. A setup step (package install, browser download) that hangs runs into the job timeout
-   without any LLM call — treat it as an infrastructure failure at once, re-arm after the run
-   ends and report the signature.
-5. **Park what will not move.** When rungs 3 and 4 are spent and the next step is neither a
-   split nor a local implementation, set `ai:needs-human` with one sentence on the cause and
-   the decision needed (as a comment on the issue or PR), list it in the report and take it off
-   the slot count — the slot goes to the next startable issue. Do not touch parked items again
-   until the author answers.
-6. **Report throughput, not only state.** When the queue holds more than two runs or no merge
-   landed for two hours, tell the author once — cause, queue, the rungs above with a
-   recommendation — before the next re-arm. While only long runs are in flight, schedule the
-   check-in at their time limit instead of every few minutes.
+1. **Order the shared queue:** at most one issue in spec/implementation/fixup, the others in triage, UX, review. Priority: repair main → fixups → continuations → new implementations. To reorder take the trigger off the waiting issue and put it back later; never cancel a running phase.
+2. **Slow provider** (S issue without push after a full run, several soft aborts a day, crashes without verdict): start no new implementations; tell the author once with run IDs and durations, offer the provider switch (their decision).
+3. **Two runs without push → stop** (repeated soft abort = `ai:to-big-issue`): small and clear (S, test/config, no product decision) → ask the author to release a local implementation (subagent worktree, canonical gate, PR with `Closes #N`, no labels; then drop stop labels, `ai:needs-review` on the PR); medium or unclear → split (pitfall 18); waiting on a decision → ask.
+4. **Infrastructure failure** (setup timeout, installer exit, runner loss): re-arm once, note the signature; a second one the same day goes to the author. A run past 2× its usual duration is diagnosed, not waited out (`GET …/actions/runs/<id>/jobs`, then the job log); a hanging setup step is infrastructure at once.
+5. **Park:** rungs 3 and 4 spent, next step neither split nor local → `ai:needs-human` plus one sentence on cause and decision (comment), list it, take it off the slot count, don't touch it until the author answers.
+6. **Report throughput:** more than two runs queued or no merge for two hours → tell the author once (cause, queue, rungs, recommendation) before the next re-arm. While only long runs are in flight, check in at their time limit.
