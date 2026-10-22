@@ -393,4 +393,17 @@ describe('logics/dailyTopTasks — Fenster & Zeitzone (#2849)', () => {
 		assert.equal(morgens.usersNotified, 2, 'UTC 07:30 liegt im Fenster — beide Zone-losen Nutzer');
 		assert.equal(calls.length, 2);
 	});
+
+	it('#2850 AK3: Gruppenschalter „Aufgaben und Erinnerungen“ aus → kein Top-3-Push', async () => {
+		await seedSubscription(1, 'https://push.example.com/group-off');
+		await createTask({ title: 'Einzige', priority: 2, userId: 1 });
+		await User.update({ taskPushEnabled: false } as never, { where: { id: 1 } });
+		const calls: { endpoint: string; body: string }[] = [];
+
+		const result = await runDailyTopTasksPush(NOW, okSender(calls));
+
+		assert.equal(result.usersNotified, 0, 'ausgeschaltete Gruppe stoppt den Top-3-Push');
+		assert.equal(calls.length, 0);
+		assert.equal(await NotificationLog.count(), 0);
+	});
 });

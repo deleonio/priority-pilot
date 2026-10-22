@@ -390,4 +390,16 @@ describe('logics/dueTaskReminders — Fenster & Zeitzone (#2849)', () => {
 		assert.equal(morgens.usersNotified, 2, 'UTC 07:30 liegt im Fenster');
 		assert.equal(calls.length, 2);
 	});
+
+	it('#2850 AK3: Gruppenschalter „Aufgaben und Erinnerungen“ aus → kein Frist-Erinnerungs-Push', async () => {
+		await seedSubscription(1, 'https://push.example.com/group-off');
+		await createTask({ title: 'Rechnung zahlen', deadline: new Date(NOW.getTime() - 1000), userId: 1 });
+		await User.update({ taskPushEnabled: false } as never, { where: { id: 1 } });
+		const calls: { endpoint: string; body: string }[] = [];
+
+		const result = await runDueTaskReminders(NOW, okSender(calls));
+
+		assert.equal(result.usersNotified, 0, 'ausgeschaltete Gruppe stoppt den Frist-Push');
+		assert.equal(calls.length, 0);
+	});
 });

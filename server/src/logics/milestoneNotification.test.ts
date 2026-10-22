@@ -170,4 +170,15 @@ describe('notifyReachedMilestones — Ruhezeit (#2849 AK4)', () => {
 			mock.timers.reset();
 		}
 	});
+
+	it('#2850 AK3: Gruppenschalter „Erfolge und Rückblicke“ aus → kein Meilenstein-Push', async () => {
+		await User.update({ successPushEnabled: false } as never, { where: { id: userId } });
+		const vorher = [meilenstein('punkte-50', false)];
+		const nachher = [meilenstein('punkte-50', true)];
+
+		await notifyReachedMilestones(userId, vorher, nachher, mockSender);
+
+		assert.equal(calls.length, 0, 'ausgeschaltete Gruppe stoppt den Meilenstein-Push');
+		assert.equal(await NotificationLog.count(), 0);
+	});
 });

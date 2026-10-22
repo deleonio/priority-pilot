@@ -2219,3 +2219,53 @@ describe('SettingsPage – #1994: Aufteilen-Hinweis-Schalter (AK6)', () => {
 		expect(apiMocks.updateSplitHintConfig).toHaveBeenCalledWith({ splitHintEnabled: false });
 	});
 });
+
+/**
+ * Rote Spec-Tests für #2850 — Push-Gruppenschalter (Spec: docs/spec/issue-2850.md).
+ *
+ * AK1: die Karte „Benachrichtigungen“ rendert unter dem Hauptschalter fünf Gruppenschalter
+ * („Aufgaben und Erinnerungen“, „Fürsorge“, „Erfolge und Rückblicke“, „Gruppen“, „Tipps und
+ * Angebote“) mit den Defaults an/an/an/an/aus; Zustand der vier neuen Gruppen kommt aus
+ * GET /push-groups, Fürsorge bleibt wie bisher an /care-config (bestehende #1794-Tests).
+ * Toggle-Verhalten je Zeile ist durch die #1794-Muster abgedeckt (Dedup) — hier nur der
+ * neue Render-/Default-Vertrag.
+ */
+describe('SettingsPage – #2850: Push-Gruppenschalter (AK1)', () => {
+	const FÜNF_GRUPPEN = ['Aufgaben und Erinnerungen', 'Fürsorge', 'Erfolge und Rückblicke', 'Gruppen', 'Tipps und Angebote'];
+
+	const bound = (el: Element, name: string): string => {
+		const value = (el as unknown as Record<string, unknown>)[name] ?? el.getAttribute(name);
+		return value === null || value === undefined ? '' : String(value);
+	};
+
+	const querySwitch = (container: HTMLElement, label: string) =>
+		container.querySelector(`kol-input-checkbox[_label="${label}"]`);
+
+	it('AK1: fünf Gruppenschalter je in einer .settings-switch-row, Defaults aus GET /push-groups', async () => {
+		apiMocks.getPushGroups = vi
+			.fn()
+			.mockResolvedValue({ taskPushEnabled: true, successPushEnabled: true, groupPushEnabled: true, tipPushEnabled: false });
+		pushState.enabled = true;
+		pushState.supported = true;
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		await waitFor(() => {
+			for (const label of FÜNF_GRUPPEN) {
+				expect(querySwitch(container, label), `${label} fehlt in der Karte „Benachrichtigungen“`).not.toBeNull();
+			}
+		});
+
+		const erwartet: Record<string, string> = {
+			'Aufgaben und Erinnerungen': 'true',
+			Fürsorge: 'true',
+			'Erfolge und Rückblicke': 'true',
+			Gruppen: 'true',
+			'Tipps und Angebote': 'false',
+		};
+		for (const label of FÜNF_GRUPPEN) {
+			const toggle = querySwitch(container, label)!;
+			expect(toggle.closest('.settings-switch-row'), `${label}: Switch-Zeile (#971-Muster)`).not.toBeNull();
+			expect(bound(toggle, '_checked'), `${label}: Default-Zustand`).toBe(erwartet[label]);
+		}
+	});
+});

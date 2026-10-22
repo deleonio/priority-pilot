@@ -402,4 +402,19 @@ describe('runGeoPushNotifications — Ruhezeit (#2849 AK4)', () => {
 		assert.equal(morgens.usersNotified, 1, '07:00 lokal: Zustellung wie bisher');
 		assert.equal(calls.length, 1);
 	});
+
+	it('#2850 AK4: Gruppenschalter alle aus → Geo-Push bleibt unangetastet', async () => {
+		await createTask({ title: 'nah', latitude: LAT_NEAR, longitude: LON, userId: 1 });
+		await seedSubscription(1, 'https://push.example/geo');
+		await User.update(
+			{ taskPushEnabled: false, successPushEnabled: false, groupPushEnabled: false, tipPushEnabled: false } as never,
+			{ where: { id: 1 } },
+		);
+		const calls: { endpoint: string; body: string }[] = [];
+
+		const result = await runGeoPushNotifications([position], okSender(calls), NOW);
+
+		assert.equal(result.usersNotified, 1, 'Geo-Push kennt keine Gruppenschalter');
+		assert.equal(calls.length, 1);
+	});
 });
