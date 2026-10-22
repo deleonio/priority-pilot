@@ -158,6 +158,10 @@ export const main = async (): Promise<void> => {
 		const { runDailyDigest } = await import('./logics/dailyDigest.js');
 		const { runDeadlineAutoDelete } = await import('./logics/autoDeleteAfterDeadline.js');
 		const { runCarePush } = await import('./logics/carePush.js');
+		const { runAppreciationPush, runWelcomeBackPush } = await import('./logics/appreciationPush.js');
+		const { runWeeklyRecapPush, runYearlyRecapPush } = await import('./logics/recapPushes.js');
+		const { runJournalImpulsePush } = await import('./logics/journalImpulsePush.js');
+		const { runWelcomeStepsPush } = await import('./logics/welcomeStepsPush.js');
 		const { runStreakReminder } = await import('./logics/streakReminder.js');
 		const { runMonthlyRecapPush } = await import('./logics/monthlyRecapPush.js');
 		const { vorrangVon } = await import('./logics/pushBudget.js');
@@ -356,8 +360,14 @@ export const main = async (): Promise<void> => {
 		startScheduler([
 			{ rang: vorrangVon('daily-digest'), trigger: runDailyDigest },
 			{ rang: vorrangVon('care-push'), trigger: runCarePush },
+			{ rang: vorrangVon('appreciation'), trigger: runAppreciationPush },
+			{ rang: vorrangVon('welcome-back'), trigger: runWelcomeBackPush },
+			{ rang: vorrangVon('journal-impulse'), trigger: runJournalImpulsePush },
 			{ rang: vorrangVon('streak-reminder'), trigger: runStreakReminder },
 			{ rang: vorrangVon('monthly-recap'), trigger: runMonthlyRecapPush },
+			{ rang: vorrangVon('weekly-recap'), trigger: runWeeklyRecapPush },
+			{ rang: vorrangVon('yearly-recap'), trigger: runYearlyRecapPush },
+			{ rang: vorrangVon('welcome-steps'), trigger: runWelcomeStepsPush },
 			{ rang: vorrangVon('group-challenge'), trigger: runGroupPush },
 			// #2856: Tipps-Hinweis ist KEIN Service-Kind — gerangt wie die Budget-Kinder.
 			{ rang: vorrangVon('tip-push'), trigger: runTipPush },

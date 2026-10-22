@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.33 - 2026-10-22
 
-_Enthält v0.33.0 – v0.33.9._
+_Enthält v0.33.0 – v0.33.12._
 
 ### 🎉 New Features
 
@@ -21,6 +21,7 @@ _Enthält v0.33.0 – v0.33.9._
 
 - docs(skill): compact ticket-coordination with binding status block by @deleonio in https://github.com/deleonio/priority-pilot/pull/2863
 - chore(deps): update dependency vite to v8.3.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2838
+- chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2869
 
 ### Other Changes
 
@@ -28,6 +29,8 @@ _Enthält v0.33.0 – v0.33.9._
 - feat(server): daily push budget and Dein Tag digest (#2853) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2860
 - feat(push): per-topic push group switches (#2850) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2868
 - feat(server): html email template for all user mails by @deleonio in https://github.com/deleonio/priority-pilot/pull/2870
+- feat(server): group pushes for invitations, joins and challenges by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2872
+- feat(server): add push occasions for praise, recaps, journal and welcome by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2871
 
 ## v0.32 - 2026-10-22
 
@@ -163,7 +166,6 @@ _Enthält v0.29.0 – v0.29.34._
 
 - docs: add ADR 0025 on shared logic as duplicate with mirror tests by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2703
 - feat(server): move score recap logic from routes into logics (#2689) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2706
-- feat(frontend): add tenth dial Bahnen with comets on elliptical orbits by @deleonio in https://github.com/deleonio/priority-pilot/pull/2712
 - feat(frontend): add tenth dial Bahnen with comets on elliptical orbits by @deleonio in https://github.com/deleonio/priority-pilot/pull/2712
 - feat(server): merge request validation of tasks and series (#2691) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2709
 - feat(server): pin pillar share logic with mirror tests (ADR 0025) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2714

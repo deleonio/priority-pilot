@@ -153,6 +153,24 @@ describe('pushBudget — Höchstens drei fachliche Pushes je Nutzer und lokalem 
 
 		assert.equal(JSON.parse(aufrufe[0] ?? '{}').tag, 'pp-fuersorge');
 	});
+
+	// #2855 AK8: die sechs neuen Kinds brauchen VORRANG-Eintrag (kein Fallback-Rang) und den
+	// Gruppentag ihrer Schaltergruppe (Vertrag: docs/spec/issue-2855.md).
+	it('#2855 AK8: neue Kinds in VORRANG (kein Fallback) und TAGS mit korrektem Gruppentag', () => {
+		const neuen = ['appreciation', 'welcome-back', 'journal-impulse', 'weekly-recap', 'yearly-recap', 'welcome-steps'];
+		for (const kind of neuen) {
+			assert.ok(
+				vorrangVon(kind) < vorrangVon('unbekannt-kind-x'),
+				`${kind} fehlt in der VORRANG-Liste (sortiert sonst als unbekannt nach vorn/hinten)`,
+			);
+		}
+		assert.equal(tagVon('appreciation'), 'pp-fuersorge');
+		assert.equal(tagVon('welcome-back'), 'pp-fuersorge');
+		assert.equal(tagVon('journal-impulse'), 'pp-fuersorge');
+		assert.equal(tagVon('weekly-recap'), 'pp-erfolge');
+		assert.equal(tagVon('yearly-recap'), 'pp-erfolge');
+		assert.equal(tagVon('welcome-steps'), 'pp-aufgaben');
+	});
 });
 
 // #2854 TF5 (AK6): die Gruppen-Kinds im Budget registriert (VORRANG-Falle: unregistrierte

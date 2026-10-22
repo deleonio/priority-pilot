@@ -30,6 +30,18 @@ export const tagIn = (zeitpunkt: Date, zeitZone: string): string => {
 	return `${teil('year')}-${teil('month')}-${teil('day')}`;
 };
 
+/** ISO-Kalenderwoche (`2026-W28`) eines Zeitpunkts in der gegebenen Zone: Der Donnerstag der Woche entscheidet über Wochen-Jahr und -Nummer (ISO 8601 — Woche 1 enthält den ersten Donnerstag). Zivilrechnung auf dem {@link tagIn}-String; `Intl` formatiert keine Wochen (Node 26 ignoriert die `week`-Option still), daher die kanonische Regel statt Locale-Handrechnung. */
+export const isoWocheIn = (zeitpunkt: Date, zeitZone: string): string => {
+	const [jahr, monat, tag] = tagIn(zeitpunkt, zeitZone).split('-').map(Number) as [number, number, number];
+	const zeitstempel = Date.UTC(jahr, monat - 1, tag);
+	const wochentag = (new Date(zeitstempel).getUTCDay() + 6) % 7; // Mo = 0 … So = 6
+	const donnerstag = zeitstempel + (3 - wochentag) * TAG_MS; // kann vor dem Tag liegen (Fr–So)
+	const wochenJahr = new Date(donnerstag).getUTCFullYear();
+	const tagDesJahres = Math.floor((donnerstag - Date.UTC(wochenJahr, 0, 1)) / TAG_MS) + 1;
+	const woche = Math.floor((tagDesJahres - 1) / 7) + 1;
+	return `${wochenJahr}-W${String(woche).padStart(2, '0')}`;
+};
+
 /**
  * Ob `zeitZone` eine gültige IANA-Zeitzone ist. Ungültige Werte lässt `Intl` mit `RangeError`
  * auflaufen — die Route fällt in dem Fall auf die Serverzeit zurück, statt einen Fehler zu liefern.
