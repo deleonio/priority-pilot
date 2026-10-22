@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.33 - 2026-10-22
 
-_Enthält v0.33.0 – v0.33.17._
+_Enthält v0.33.0 – v0.33.18._
 
 ### 🎉 New Features
 
@@ -17,6 +17,10 @@ _Enthält v0.33.0 – v0.33.17._
 - fix(billing): remove vat id line from invoice pdf by @deleonio in https://github.com/deleonio/priority-pilot/pull/2864
 - fix(frontend): flex-wrap dashboard cards to remove empty cells by @deleonio in https://github.com/deleonio/priority-pilot/pull/2867
 - docs(website): privacy policy names care switch with old label (#2878) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2886
+
+### 🚀 Improvements
+
+- feat(server): limit challenge-end sweep to 7-day backlog window (#2879) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2885
 
 ### 🔧 Engineering
 
@@ -179,7 +183,6 @@ _Enthält v0.29.0 – v0.29.34._
 - refactor(frontend): share webgl dial-figure stage in one module (#2696) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2718
 - fix(frontend): onboarding actions without sticky or own background by @deleonio in https://github.com/deleonio/priority-pilot/pull/2720
 - refactor(frontend): merge balance card share logic into one hook (#2695) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2717
-- feat(frontend): voice search no longer sets category filter (#2716) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2724
 - feat(frontend): voice search no longer sets category filter (#2716) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2724
 - feat(frontend): pause and resume series (#2715) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2722
 - refactor(frontend): drop dead export isGeolocationSupported (#2697) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2726
@@ -346,6 +349,7 @@ _Enthält v0.24.0 – v0.24.13._
 
 ### Other Changes
 
+- fix(frontend): show app magic-link landing despite existing session by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2566
 - fix(frontend): show app magic-link landing despite existing session by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2566
 - fix(deps): update dependency i18next to v26.4.4 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2512
 - docs(adr): add 0024 direct completion with undo instead of dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2568
