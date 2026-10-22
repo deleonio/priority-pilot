@@ -7,6 +7,7 @@ import { selectSeriesRepresentatives } from './series.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { uhrzeitIn } from './carePush.js';
 import { nutzerZeitzone, tagIn } from './streak.js';
+import { PUSH_TARGETS } from './pushTargets.js';
 
 /**
  * Fachlicher Push-Trigger „fällige Aufgaben" (Issue #355). Bündelt je Nutzer **eine** Push-Nachricht
@@ -92,9 +93,13 @@ const TEXTE: Record<CareSprache, { eine: string; mehrere: string; anzahl: string
 const buildPayload = (tasks: DueTask[], sprache: CareSprache): { title: string; body: string; url: string } => {
 	const texte = TEXTE[sprache];
 	if (tasks.length === 1) {
-		return { title: texte.eine, body: tasks[0].title, url: '/' };
+		return { title: texte.eine, body: tasks[0].title, url: PUSH_TARGETS.dueTask.eine(tasks[0].id) };
 	}
-	return { title: texte.mehrere, body: texte.anzahl.replace('{n}', String(tasks.length)), url: '/' };
+	return {
+		title: texte.mehrere,
+		body: texte.anzahl.replace('{n}', String(tasks.length)),
+		url: PUSH_TARGETS.dueTask.mehrere,
+	};
 };
 
 /**

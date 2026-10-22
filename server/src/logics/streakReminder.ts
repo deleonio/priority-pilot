@@ -4,6 +4,7 @@ import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { sendDedupedPush } from './dedupedPush.js';
 import { type PushSender } from './push.js';
 import { berechneStreak, istHeuteRuhetag, nutzerZeitzone, streakZeitpunkte, tagIn } from './streak.js';
+import { PUSH_TARGETS } from './pushTargets.js';
 
 /**
  * Fachlicher Push-Trigger „Streak-Erinnerung“ (#1836): höchstens **ein** Push je Nutzer und lokalem
@@ -76,7 +77,7 @@ export const runStreakReminder = async (
 			user.id,
 			KIND,
 			`${user.id}:${heute}`,
-			{ title: text.titel, body: text.text, url: '/aufgaben' },
+			{ title: text.titel, body: text.text, url: PUSH_TARGETS.streakReminder },
 			send,
 		);
 		if (sent > 0) {

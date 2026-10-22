@@ -69,8 +69,7 @@ describe('runMonthlyRecapPush (#1995 AK3)', () => {
 		assert.ok(payload.title!.length > 0, 'Push-Titel darf nicht leer sein');
 		assert.equal(typeof payload.body, 'string');
 		assert.ok(payload.body!.length > 0, 'Push-Text darf nicht leer sein');
-		assert.equal(typeof payload.url, 'string');
-		assert.ok(payload.url!.startsWith('/'), 'Push-URL ist ein App-Pfad (push-sw-Vertrag)');
+		assert.equal(payload.url, '/#karte-monatsrueckblick', '#2851 AK1: der Push öffnet die Monatsbilanz-Karte');
 		for (const user of [anna, ben]) {
 			const log = await NotificationLog.findOne({ where: { userId: user.id, kind: 'monthly-recap' } });
 			assert.ok(log, `Log-Eintrag für ${user.email} fehlt`);

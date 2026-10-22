@@ -132,6 +132,7 @@ describe('notifySeriesGenerated (#1253, TF7)', () => {
 		assert.ok(text.includes('Wochenputz'), 'die Nachricht nennt den Serientitel');
 		assert.ok(text.includes('Alice Erstellerin'), 'die Nachricht nennt den Ersteller-Anzeigenamen');
 		assert.ok(text.includes('3'), 'die Nachricht nennt die Zahl der neuen Aufgaben');
+		assert.equal(JSON.parse(calls[0].body).url, '/serien', '#2851 AK1: der Push öffnet die Serien-Ansicht');
 	});
 
 	// AK3: Dedupe — Schlüssel bindet an die erzeugte Aufgabe; Wiederholung schweigt.

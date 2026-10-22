@@ -113,7 +113,7 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 
 	it('versendet eine gebündelte Payload je Nutzer über sendPushToUser', async () => {
 		await seedSubscription(1, 'https://push.example.com/a');
-		await createTask({ title: 'Rechnung zahlen', deadline: new Date(NOW.getTime() - 1000), userId: 1 });
+		const task = await createTask({ title: 'Rechnung zahlen', deadline: new Date(NOW.getTime() - 1000), userId: 1 });
 		const calls: { endpoint: string; body: string }[] = [];
 
 		const result = await runDueTaskReminders(NOW, okSender(calls));
@@ -123,7 +123,7 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 		const payload = JSON.parse(calls[0].body);
 		assert.equal(payload.title, 'Fällige Aufgabe');
 		assert.equal(payload.body, 'Rechnung zahlen');
-		assert.equal(payload.url, '/');
+		assert.equal(payload.url, `/tasks/${task.id}`, '#2851 AK1: Einzelaufgabe wird direkt verlinkt');
 	});
 
 	it('bündelt bei mehreren fälligen Tasks eine zusammenfassende Payload mit Anzahl', async () => {
@@ -138,6 +138,7 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 		const payload = JSON.parse(calls[0].body);
 		assert.equal(payload.title, 'Fällige Aufgaben');
 		assert.match(payload.body, /2/);
+		assert.equal(payload.url, '/#karte-deadlines', '#2851 AK1: gebündelter Push springt zur Deadlines-Karte');
 	});
 
 	it('ist idempotent — ein zweiter Lauf ohne neue fällige Termine sendet nichts erneut', async () => {

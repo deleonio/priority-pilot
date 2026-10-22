@@ -92,7 +92,7 @@ describe('logics/dailyTopTasks — „3 wichtigste Aufgaben um 6 Uhr" (Issue #51
 
 	it('AC3/T2: bei 1–2 Aufgaben enthält der Push genau diese (kein Auffüllen auf 3)', async () => {
 		await seedSubscription(1, 'https://push.example.com/a');
-		await createTask({ title: 'Einzige', priority: 2, userId: 1 });
+		const task = await createTask({ title: 'Einzige', priority: 2, userId: 1 });
 		const calls: { endpoint: string; body: string }[] = [];
 
 		const result = await runDailyTopTasksPush(NOW, okSender(calls));
@@ -100,7 +100,7 @@ describe('logics/dailyTopTasks — „3 wichtigste Aufgaben um 6 Uhr" (Issue #51
 		assert.equal(result.usersNotified, 1);
 		assert.equal(calls.length, 1, 'genau eine gebündelte Notification');
 		const payload = JSON.parse(calls[0].body);
-		assert.equal(payload.url, '/');
+		assert.equal(payload.url, `/tasks/${task.id}`, '#2851 AK1: Einzelaufgabe wird direkt verlinkt');
 		assert.match(payload.body, /Einzige/, 'die vorhandene Aufgabe taucht im Push auf');
 	});
 
@@ -132,6 +132,7 @@ describe('logics/dailyTopTasks — „3 wichtigste Aufgaben um 6 Uhr" (Issue #51
 		assert.match(payload.body, /Beta/);
 		assert.match(payload.body, /Gamma/);
 		assert.doesNotMatch(payload.body, /Delta/, 'vierte (niedrigere) Priorität ist nicht im Push');
+		assert.equal(payload.url, '/#karte-top-aufgaben', '#2851 AK1: gebündelter Push springt zur Top-Aufgaben-Karte');
 	});
 
 	it('AC4: sendet nur an Nutzer mit Subscription; ohne Subscription kein Versand und kein Log', async () => {
