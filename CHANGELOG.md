@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.33 - 2026-10-22
 
-_Enthält v0.33.0 – v0.33.13._
+_Enthält v0.33.0 – v0.33.14._
 
 ### 🎉 New Features
 
@@ -32,6 +32,7 @@ _Enthält v0.33.0 – v0.33.13._
 - feat(server): group pushes for invitations, joins and challenges by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2872
 - feat(server): add push occasions for praise, recaps, journal and welcome by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2871
 - chore(deps): update node.js to v26.12.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2874
+- feat(server): consent-gated monthly tip push for free users by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2873
 
 ## v0.32 - 2026-10-22
 
@@ -369,6 +370,7 @@ _Enthält v0.23.0 – v0.23.4._
 - fix(server): prevent data loss and silent task/score input errors by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2511
 - feat(frontend): translate fixed balance texts and raw i18n keys (#2496) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2513
 - chore: fix store description and portuguese salutation (#2498) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2516
+- fix(server): forest shows handover and group tasks like the list (#2515) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2531
 - fix(server): forest shows handover and group tasks like the list (#2515) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2531
 
 ### 🚀 Improvements
@@ -748,7 +750,6 @@ _Enthält v0.14.0 – v0.14.31._
 
 - perf(server): single ScoreEntry read per balance request (#2150) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2155
 - feat(frontend): show categories as inline chips instead of card rows by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2161
-- feat(frontend): clarify dashboard day/week view switcher labels (#2011) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2165
 - feat(frontend): clarify dashboard day/week view switcher labels (#2011) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2165
 - feat(frontend): shorten delete button label for saved places (#2013) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2166
 
