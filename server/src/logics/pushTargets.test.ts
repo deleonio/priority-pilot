@@ -69,4 +69,21 @@ describe('pushTargets (#2851 AK2) — die §6-Ziele je Push-Art in einer Liste',
 			'Anker /settings/pakete#rechnungen fehlt im Frontend (Spiegel #2852 AK7)',
 		);
 	});
+
+	// #2855 AK8: die sechs neuen Push-Ziele — Karte-Anker per Spiegel an die Frontend-Ids gebunden.
+	it('#2855 AK8: neue Ziele mit Spiegel-Ankern (Dashboard/Weekly/Yearly/WelcomeSteps)', () => {
+		assert.equal(PUSH_TARGETS.appreciation, '/#karte-balance');
+		assert.equal(PUSH_TARGETS.welcomeBack, '/#karte-balance');
+		assert.equal(PUSH_TARGETS.weeklyRecap, '/#karte-wochenrueckblick');
+		assert.equal(PUSH_TARGETS.yearlyRecap, '/#karte-jahresrueckblick');
+		assert.equal(PUSH_TARGETS.welcomeSteps, '/#karte-willkommen');
+		assert.equal(PUSH_TARGETS.journalImpulse, '/journal');
+
+		const quelltext = ['Dashboard.tsx', 'WeeklyBalanceCard.tsx', 'YearlyRecapCard.tsx', 'WelcomeSteps.tsx']
+			.map((datei) => readFileSync(new URL(`../../../frontend/src/components/${datei}`, import.meta.url), 'utf8'))
+			.join('\n');
+		for (const anker of ['karte-balance', 'karte-wochenrueckblick', 'karte-jahresrueckblick', 'karte-willkommen']) {
+			assert.match(quelltext, new RegExp(`id="${anker}"`), `Anker #${anker} fehlt im Frontend (Spiegel #2855)`);
+		}
+	});
 });
