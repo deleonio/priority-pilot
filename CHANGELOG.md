@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.33 - 2026-10-22
 
-_Enthält v0.33.0 – v0.33.6._
+_Enthält v0.33.0 – v0.33.7._
 
 ### 🎉 New Features
 
@@ -20,6 +20,7 @@ _Enthält v0.33.0 – v0.33.6._
 ### 🔧 Engineering
 
 - docs(skill): compact ticket-coordination with binding status block by @deleonio in https://github.com/deleonio/priority-pilot/pull/2863
+- chore(deps): update dependency vite to v8.3.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2838
 
 ### Other Changes
 
@@ -143,7 +144,6 @@ _Enthält v0.29.0 – v0.29.34._
 - docs(guide): sync user guide to current app state 2026-10-18 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2705
 - feat(frontend): brand elements on all shareable cards by @deleonio in https://github.com/deleonio/priority-pilot/pull/2707
 - feat(server): log failed ai budget refunds instead of swallowing them by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2710
-- feat(server): log failed ai budget refunds instead of swallowing them by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2710
 - feat(frontend): simplify category assignment to a plain single-select by @deleonio in https://github.com/deleonio/priority-pilot/pull/2721
 - docs: add successor issue number to ADR 0025 (#2732) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2738
 - feat(frontend): matomo channel, login funnel, geo push deep link by @deleonio in https://github.com/deleonio/priority-pilot/pull/2739
@@ -152,6 +152,7 @@ _Enthält v0.29.0 – v0.29.34._
 ### 🔧 Engineering
 
 - docs(spec): sync spec status to implementation state (2026-10-18) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2704
+- refactor(server): centralize effort conversion in logics/effort.ts by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2708
 - refactor(server): centralize effort conversion in logics/effort.ts by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2708
 - test(server): assert template apply counts as fixed literals (#2692) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2711
 - test(frontend): make WeekView unit test timezone-independent (#2730) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2736
