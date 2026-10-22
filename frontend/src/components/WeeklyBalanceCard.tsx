@@ -115,6 +115,8 @@ export const WeeklyBalanceCard = () => {
 	return (
 		<KolCard
 			className="dashboard-weekly"
+			id="karte-wochenrueckblick"
+			tabIndex={-1}
 			role="region"
 			aria-label={t('weeklyCard.label')}
 			_label={t('weeklyCard.label')}

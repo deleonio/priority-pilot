@@ -80,7 +80,14 @@ export const WelcomeSteps = ({ tasks, onOpenPillars, onOpenSuggestion }: Welcome
 	};
 
 	return (
-		<div className="welcome-steps" data-testid="welcome-steps" role="region" aria-label={t('welcome.label')}>
+		<div
+			className="welcome-steps"
+			id="karte-willkommen"
+			tabIndex={-1}
+			data-testid="welcome-steps"
+			role="region"
+			aria-label={t('welcome.label')}
+		>
 			<KolCard _label={t('welcome.label')} _level={3}>
 				<ul className="welcome-steps-list">
 					<li data-step="task" data-done={String(done('task'))}>

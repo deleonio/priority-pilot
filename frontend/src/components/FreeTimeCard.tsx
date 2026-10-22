@@ -54,6 +54,8 @@ export const FreeTimeCard = () => {
 	return (
 		<KolCard
 			className="dashboard-free-time"
+			id="karte-freie-zeit"
+			tabIndex={-1}
 			role="region"
 			aria-label={t('freeTime.label')}
 			_label={t('freeTime.label')}
