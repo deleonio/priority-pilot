@@ -2220,6 +2220,47 @@ describe('SettingsPage – #1994: Aufteilen-Hinweis-Schalter (AK6)', () => {
 });
 
 /**
+ * Rote Spec-Tests für #2856 (AK6, Spec docs/spec/issue-2856.md) — der tipsHint des Schalters
+ * „Tipps und Angebote“ nennt die Frequenz (push-konzept.md §8): „Höchstens einmal im Monat …“
+ * (de) / „At most once a month …“ (en) in allen tipsHint-Sprachdateien.
+ */
+describe('SettingsPage – #2856: tipsHint nennt die Frequenz (AK6)', () => {
+	const queryTippsSwitch = (container: HTMLElement) =>
+		container.querySelector('kol-input-checkbox[_label="Tipps und Angebote"]');
+
+	const bound = (el: Element, name: string): string => {
+		const value = (el as unknown as Record<string, unknown>)[name] ?? el.getAttribute(name);
+		return value === null || value === undefined ? '' : String(value);
+	};
+
+	it('AK6: der gerenderte Hinweis erklärt, was kommt, und nennt die Frequenz', async () => {
+		apiMocks.getPushGroups = vi.fn().mockResolvedValue({
+			taskPushEnabled: true,
+			successPushEnabled: true,
+			groupPushEnabled: true,
+			tipPushEnabled: false,
+		});
+		pushState.enabled = true;
+		pushState.supported = true;
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		await waitFor(() => {
+			expect(queryTippsSwitch(container), 'Tipps-Schalter fehlt').not.toBeNull();
+		});
+		expect(bound(queryTippsSwitch(container)!, '_hint')).toMatch(/Höchstens einmal im Monat/);
+	});
+
+	it('AK6: alle tipsHint-Sprachdateien (de/en) tragen den Frequenz-Satz', async () => {
+		const de = (await import('../i18n/locales/de/settings.json')).default;
+		const en = (await import('../i18n/locales/en/settings.json')).default;
+		const notifications = (json: unknown): Record<string, string> =>
+			(json as { settingsPage: { notifications: Record<string, string> } }).settingsPage.notifications;
+		expect(notifications(de).tipsHint).toMatch(/Höchstens einmal im Monat/);
+		expect(notifications(en).tipsHint).toMatch(/At most once a month/);
+	});
+});
+
+/**
  * Rote Spec-Tests für #2850 — Push-Gruppenschalter (Spec: docs/spec/issue-2850.md).
  *
  * AK1: die Karte „Benachrichtigungen“ rendert unter dem Hauptschalter fünf Gruppenschalter

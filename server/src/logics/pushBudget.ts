@@ -54,6 +54,8 @@ const VORRANG: string[][] = [
 	['weekly-recap'],
 	['yearly-recap'],
 	['welcome-steps'],
+	// #2856 AK5: der Tipps-Hinweis (§8) ist Werbung — unterste §4-Stufe, budgetiert.
+	['tip-push'],
 ];
 
 /**
@@ -94,6 +96,8 @@ const TAGS: Record<string, string> = {
 	'yearly-recap': 'pp-erfolge',
 	'welcome-steps': 'pp-aufgaben',
 	'abo-service': 'pp-abo',
+	// #2856: Tipps und Angebote sind eine eigene Gruppe (§2.3).
+	'tip-push': 'pp-tipps',
 };
 
 /** Gruppen-Tag eines Kinds — für noch nicht zugeordnete Kinds die Aufgabengruppe als Fallback. */
