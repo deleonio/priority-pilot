@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 
 /** Wartezeit zwischen den Such-Durchläufen nach dem Anker-Ziel (Karten laden asynchron). */
-const POLL_MS = 200; /** Obergrenze des Nachhaltens (~5 s) — ein Anker ohne Karte pollt nicht ewig. */
+const POLL_MS = 200;
+/** Obergrenze des Nachhaltens (~5 s) — ein Anker ohne Karte pollt nicht ewig. */
 const MAX_ATTEMPTS = 25;
 /** Wartezeit zwischen den Korrektur-Scrolls, bis das Layout über dem Ziel ruhig ist. */
 const SETTLE_MS = 250;

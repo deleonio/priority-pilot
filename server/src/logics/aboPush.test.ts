@@ -11,7 +11,7 @@ import type { PushSender } from './push.js';
  * Rote Spec-Tests für #2852 (Spec docs/spec/issue-2852.md) — zustandsbasierter Abo-/Rechnungs-
  * Service-Sweep. AK1 neue Rechnung/Gutschrift, AK2 fehlgeschlagene Zahlung, AK3 Kulanz-Erinnerung,
  * AK4 Ruhezeit mit Nachholung, AK5 Abo-Ende, AK6 Texte de/en ohne Werbesatz.
- * `aboPush.ts` existiert noch nicht — der fehlende Modul-Import ist der legitime erste Rot-Zustand.
+ * Umsetzung von `aboPush.ts` im selben PR.
  * Muster: `monthlyRecapPush.test.ts` (injizierbare Uhr, injizierbarer PushSender, Dedupe über
  * NotificationLog erst bei sent > 0), Ruhezeit-Gate `istRuhezeit` (`carePush.ts`).
  */
@@ -38,11 +38,12 @@ const seedEmpfaenger = async (email: string, extra: Record<string, unknown> = {}
 	return user;
 };
 
+let aboNummer = 0;
 const seedAbo = async (userId: number, status: string, extra: Record<string, unknown> = {}): Promise<Subscription> =>
 	Subscription.create({
 		userId,
 		provider: 'paypal',
-		externalSubscriptionId: `I-2852-${userId}`,
+		externalSubscriptionId: `I-2852-${userId}-${++aboNummer}`,
 		plan: 'plus',
 		period: 'monthly',
 		status,
@@ -59,7 +60,7 @@ const seedRechnung = async (
 	Invoice.create({
 		userId,
 		subscriptionId,
-		number: `INV-2026-2852-${userId}`,
+		number: `INV-2026-2852-${userId}-${++rechnungsNummer}`,
 		periodStart: new Date(createdAt.getTime() - 30 * DAY_MS),
 		periodEnd: createdAt,
 		amountCents: 799,
@@ -67,6 +68,7 @@ const seedRechnung = async (
 		...extra,
 	});
 
+let rechnungsNummer = 0;
 // Test-Pflege (#1995): `PushSender` erhält die Wire-Payload als STRING — erst JSON.parse macht
 // die Felder auswertbar.
 const okSender =
@@ -197,7 +199,9 @@ describe('runAboServicePush (#2852)', () => {
 	// AK3 — zu früh (Tag 11) und Frist abgelaufen (Tag 16): kein Push.
 	it('AK3: vor Tag 12 und nach Fristablauf kommt keine Erinnerung', async () => {
 		const user = await seedEmpfaenger('kulanz-frueh@example.com');
-		const firstFailureAt = new Date(NOW.getTime() - 11 * DAY_MS - 12 * 60 * 60 * 1000);
+		// 08:00 UTC (nicht 22:00) — damit firstFailureAt + 16 Tage im Tagesfenster liegt und
+		// nicht das AK4-Ruhezeit-Gate den Abo-Ende-Push korrekt unterdrückt.
+		const firstFailureAt = new Date(NOW.getTime() - 11 * DAY_MS - 2 * 60 * 60 * 1000);
 		await seedAbo(user.id, 'past_due', { firstFailureAt });
 		const calls: string[] = [];
 
