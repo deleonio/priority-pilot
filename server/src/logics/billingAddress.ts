@@ -57,14 +57,14 @@ export const hasBillingAddress = (user: User): boolean =>
 
 /**
  * Empfänger-Adresszeilen der Rechnung (#2661 AK3) — der PDF-Adressblock, Zeile für Zeile.
- * Bei (nach #2661 ausgeschlossener) fehlender Adresse bleibt nur der Anzeigename.
+ * Ohne erfasste Rechnungsadresse bleibt das Array leer.
  */
 export const billingAddressLines = (
-	user: Pick<User, 'displayName' | 'billingName' | 'billingStreet' | 'billingZip' | 'billingCity' | 'billingCountry'>,
+	user: Pick<User, 'billingName' | 'billingStreet' | 'billingZip' | 'billingCity' | 'billingCountry'>,
 ): string[] =>
 	[
-		user.billingName ?? user.displayName,
-		user.billingStreet ?? null,
+		user.billingName,
+		user.billingStreet,
 		user.billingZip || user.billingCity ? [user.billingZip, user.billingCity].filter(Boolean).join(' ') : null,
-		user.billingCountry ?? null,
+		user.billingCountry,
 	].filter((line): line is string => line !== null && line.length > 0);

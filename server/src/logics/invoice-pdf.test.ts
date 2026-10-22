@@ -23,13 +23,18 @@ const OPERATOR = {
 	taxNumber: '154/254/02959',
 	ustId: '',
 };
-const RECIPIENT = { displayName: 'Ada Beispiel', email: 'ada@example.com' };
+const RECIPIENT = { name: 'Ada Beispiel', email: 'ada@example.com' };
 
 const setup = async () => {
 	const user = await User.create({
 		email: 'pdf@example.com',
-		displayName: 'Ada Beispiel',
+		displayName: 'Mo',
 		passwordHash: '__test__',
+		billingName: 'Ada Beispiel',
+		billingStreet: 'Musterweg 3',
+		billingZip: '12345',
+		billingCity: 'Musterstadt',
+		billingCountry: 'Deutschland',
 	});
 	const subscription = await Subscription.create({
 		userId: user.id,
@@ -75,8 +80,8 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 			'Betreiberangaben (Name, Anschrift) müssen drinstehen',
 		);
 		assert.ok(has(OPERATOR.email), 'Betreiber-Kontakt muss drinstehen');
-		assert.ok(has(RECIPIENT.displayName), 'Empfänger-Name muss drinstehen');
-		assert.ok(!has(RECIPIENT.email), 'Das Kundenkonto (E-Mail) gehört nicht ins Adressfeld');
+		assert.ok(has(RECIPIENT.name), 'Empfänger-Name muss drinstehen');
+		assert.ok(has(RECIPIENT.email), 'Kundenkonto (E-Mail) steht im Einleitungssatz');
 		assert.ok(has('7,99 €'), 'Betrag muss in Euro mit Komma drinstehen');
 		assert.ok(has(TAX_NOTE), '§19-UStG-Hinweis muss drinstehen');
 		assert.ok(has('Steuer-Nr.: 154/254/02959'), 'Steuer-Nr. muss als Pflichtangabe drinstehen');
@@ -145,12 +150,12 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 	});
 
 	// #2233 AK1: WinAnsi-only Helvetica wirft bei Kyrillisch/Polnisch/Emoji — Unicode-Schrift gefordert.
-	for (const displayName of ['Иван Петров', 'Łukasz Żółć Ślęzak', 'Anna 🎉']) {
-		it(`#2233 AK1: buildInvoicePdf baut ein gültiges PDF für „${displayName}"`, async () => {
+	for (const name of ['Иван Петров', 'Łukasz Żółć Ślęzak', 'Anna 🎉']) {
+		it(`#2233 AK1: buildInvoicePdf baut ein gültiges PDF für „${name}"`, async () => {
 			const bytes = await buildInvoicePdf(
 				await invoice(),
 				OPERATOR,
-				{ displayName, email: 'x@example.com' },
+				{ name, email: 'x@example.com' },
 				'Paket plus (monthly)',
 			);
 			assert.equal(Buffer.from(bytes).subarray(0, 5).toString(), '%PDF-');
@@ -237,6 +242,10 @@ describe('invoices.ts — PDF-Erzeugung und -Aufbewahrung (#1955 AK1/AK3)', () =
 		);
 		const mailed = Buffer.from(attachment.content);
 		assert.ok(mailed.length > 0 && mailed.subarray(0, 5).toString() === '%PDF-', 'Der Anhang muss ein echtes PDF sein');
+		assert.ok(
+			pdfContains(mailed, 'Ada Beispiel') && pdfContains(mailed, 'pdf@example.com') && !pdfContains(mailed, 'Mo'),
+			'Das PDF trägt Rechnungsanschrift und Kundenkonto, nicht den Anzeigenamen',
+		);
 
 		await invoice.reload();
 		const stored = (invoice.get({ plain: true }) as { pdfBytes?: Uint8Array }).pdfBytes;

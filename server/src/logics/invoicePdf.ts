@@ -26,11 +26,11 @@ export interface InvoiceOperator {
 	representative?: string;
 }
 
-/** Empfänger der Rechnung — das User-Modell hat keine Anschrift (B2C-Status quo #1495). */
+/** Empfänger der Rechnung: Name der Rechnungsanschrift plus Kundenkonto (E-Mail) als Kennung. */
 export interface InvoiceRecipient {
-	displayName: string;
+	name: string;
 	email: string;
-	/** Adresszeilen der Rechnungsadresse (#2661) — leer, solange keine erfasst ist (Bestandskonten). */
+	/** Adresszeilen der Rechnungsanschrift (#2661) — leer, solange keine erfasst ist. */
 	addressLines?: string[];
 }
 
@@ -253,8 +253,7 @@ export const buildInvoicePdf = async (
 	if (operator.ustId) text(`USt-IdNr.: ${operator.ustId}`, RIGHT, sy - 14, { size: 9, color: GREY, right: true });
 
 	// Adressfeld links: Absenderzeile klein (Name ohne Rechtsform + Anschrift, am Spaltenrand geclippt),
-	// darunter der Empfänger. Der Anzeigename entfällt, wenn die Rechnungsadresse ihn schon trägt; das
-	// Kundenkonto (E-Mail) steht bewusst nicht im Adressfeld.
+	// darunter die Rechnungsanschrift. Das Kundenkonto (E-Mail) steht im Einleitungssatz.
 	let senderLine = printable([operator.name, ...operator.address].join(' · '), glyphs);
 	while (senderLine.length > 1 && regular.widthOfTextAtSize(senderLine, 6) > SENDER_X - LEFT - 12) {
 		senderLine = senderLine.slice(0, -1).trimEnd();
@@ -262,12 +261,7 @@ export const buildInvoicePdf = async (
 	text(senderLine, LEFT, 700, { size: 6, color: GREY });
 	const addressLines = recipient.addressLines ?? [];
 	let ay = 678;
-	if (addressLines[0] !== recipient.displayName) {
-		text(recipient.displayName, LEFT, ay, { size: 11 });
-		ay -= 16;
-	}
-	// Rechnungsadresse (#2661) unter dem Namen. Pathologisch lange Zeilen (#2661-Review) werden am
-	// rechten Rand geclippt statt überzulaufen.
+	// Pathologisch lange Zeilen (#2661-Review) werden am rechten Rand geclippt statt überzulaufen.
 	for (const raw of addressLines) {
 		let line = printable(raw, glyphs);
 		while (line.length > 1 && regular.widthOfTextAtSize(line, 10) > RIGHT - LEFT) {
@@ -287,12 +281,12 @@ export const buildInvoicePdf = async (
 
 	// Anrede und Einleitung mit Produktbezug (Vorlage: „vielen Dank für Ihren Auftrag …“).
 	y = TITLE_Y - 32;
-	paragraph(`Guten Tag${recipient.displayName ? ` ${recipient.displayName}` : ''},`, LEFT, RIGHT - LEFT, 10.5);
+	paragraph(`Guten Tag${recipient.name ? ` ${recipient.name}` : ''},`, LEFT, RIGHT - LEFT, 10.5);
 	y -= 2;
 	paragraph(
 		isCredit
-			? 'hiermit erhalten Sie die folgende Gutschrift.'
-			: 'vielen Dank für Ihren Auftrag. Hiermit stelle ich Ihnen Ihr Balamentum-Abonnement in Rechnung.',
+			? `hiermit erhalten Sie die folgende Gutschrift für das Kundenkonto ${recipient.email}.`
+			: `vielen Dank für Ihren Auftrag. Hiermit stelle ich Ihnen Ihr Balamentum-Abonnement für das Kundenkonto ${recipient.email} in Rechnung.`,
 		LEFT,
 		RIGHT - LEFT,
 		10.5,
