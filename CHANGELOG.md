@@ -4,7 +4,11 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.33 - 2026-10-22
 
-_Keine für Nutzer sichtbaren Änderungen._
+_Enthält v0.33.0 – v0.33.1._
+
+### 🐞 Bug Fixes
+
+- feat(billing): recipient from billing address, account email, logo fix by @deleonio in https://github.com/deleonio/priority-pilot/pull/2862
 
 ## v0.32 - 2026-10-22
 
@@ -138,6 +142,7 @@ _Enthält v0.29.0 – v0.29.34._
 
 ### Other Changes
 
+- docs: add ADR 0025 on shared logic as duplicate with mirror tests by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2703
 - docs: add ADR 0025 on shared logic as duplicate with mirror tests by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2703
 - feat(server): move score recap logic from routes into logics (#2689) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2706
 - feat(frontend): add tenth dial Bahnen with comets on elliptical orbits by @deleonio in https://github.com/deleonio/priority-pilot/pull/2712
@@ -410,7 +415,6 @@ _Enthält v0.21.0 – v0.21.7._
 
 - feat(frontend): series auto-create switch before start date (#2464) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2472
 - feat(server): reject done with open checklist items (#2467) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2470
-- feat(frontend): render demo hint as dismissible kolcard (#2474) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2475
 - feat(frontend): render demo hint as dismissible kolcard (#2474) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2475
 
 ## v0.20 - 2026-10-09
