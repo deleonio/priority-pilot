@@ -4,6 +4,7 @@ import { sendDedupedPush } from './dedupedPush.js';
 import { type PushSender } from './push.js';
 import { istRuhezeit } from './carePush.js';
 import { nutzerZeitzone } from './streak.js';
+import { PUSH_TARGETS } from './pushTargets.js';
 
 /**
  * Fachlicher Push-Trigger „Aufgabe von jemand anderem angelegt" (#1224): legt ein Gruppenmitglied A
@@ -67,7 +68,11 @@ export const notifyTaskCreated = async (
 		task.userId,
 		KIND,
 		String(task.id),
-		{ title: texte.titel(creator?.displayName ?? texte.jemand), body: texte.text(task.title), url: '/' },
+		{
+			title: texte.titel(creator?.displayName ?? texte.jemand),
+			body: texte.text(task.title),
+			url: PUSH_TARGETS.taskCreated(task.id),
+		},
 		send,
 	);
 };

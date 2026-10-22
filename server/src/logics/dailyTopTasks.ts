@@ -6,6 +6,7 @@ import { type PushSender } from './push.js';
 import { selectSeriesRepresentatives, filterVorlauf } from './series.js';
 import { uhrzeitIn } from './carePush.js';
 import { nutzerZeitzone, tagIn } from './streak.js';
+import { PUSH_TARGETS } from './pushTargets.js';
 
 /**
  * Fachlicher Push-Trigger „3 wichtigste Aufgaben am Morgen" (Issue #518). Sendet **tagesunabhängig
@@ -92,9 +93,13 @@ const TITEL: Record<CareSprache, { eine: string; mehrere: string }> = {
 
 const buildPayload = (tasks: TopTask[], sprache: CareSprache): { title: string; body: string; url: string } => {
 	if (tasks.length === 1) {
-		return { title: TITEL[sprache].eine, body: tasks[0].title, url: '/' };
+		return { title: TITEL[sprache].eine, body: tasks[0].title, url: PUSH_TARGETS.dailyTopTasks.eine(tasks[0].id) };
 	}
-	return { title: TITEL[sprache].mehrere, body: tasks.map((task) => task.title).join(', '), url: '/' };
+	return {
+		title: TITEL[sprache].mehrere,
+		body: tasks.map((task) => task.title).join(', '),
+		url: PUSH_TARGETS.dailyTopTasks.mehrere,
+	};
 };
 
 /**

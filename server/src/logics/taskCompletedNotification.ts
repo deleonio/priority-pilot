@@ -5,6 +5,7 @@ import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { istRuhezeit } from './carePush.js';
 import { nutzerZeitzone } from './streak.js';
+import { PUSH_TARGETS } from './pushTargets.js';
 
 /**
  * Fachlicher Push-Trigger „fremd angelegte Aufgabe erledigt" (#1391): setzt B den Status einer von A
@@ -66,7 +67,13 @@ export const notifyTaskCompleted = async (
 	const texte = TEXTE[spracheVon(recipient?.sprache)];
 	const title = texte.titel;
 	const body = texte.text(completer?.displayName ?? texte.jemand, task.title);
-	const { sent } = await sendDedupedPush(task.createdById, KIND, dedupeKey, { title, body, url: '/' }, send);
+	const { sent } = await sendDedupedPush(
+		task.createdById,
+		KIND,
+		dedupeKey,
+		{ title, body, url: PUSH_TARGETS.taskCompleted(task.id) },
+		send,
+	);
 	let mailSent = false;
 	if (mailSend || isMailConfigured()) {
 		mailSent = await sendMailToUser({ email: recipient?.email ?? null }, { subject: title, text: body }, mailSend);

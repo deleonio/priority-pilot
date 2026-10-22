@@ -4,6 +4,7 @@ import { sendDedupedPush } from './dedupedPush.js';
 import { type PushSender } from './push.js';
 import { istRuhezeit } from './carePush.js';
 import { nutzerZeitzone } from './streak.js';
+import { PUSH_TARGETS } from './pushTargets.js';
 
 /**
  * Fachlicher Push-Trigger „Meilenstein erreicht" (#1363): überschreitet ein Nutzer beim Erledigen
@@ -71,6 +72,12 @@ export const notifyReachedMilestones = async (
 	const sprache = spracheVon(user?.sprache);
 	for (const meilenstein of neuErreicht) {
 		const dedupeKey = `${userId}:${meilenstein.schluessel}`;
-		await sendDedupedPush(userId, KIND, dedupeKey, { ...meilensteinText(meilenstein, sprache), url: '/' }, send);
+		await sendDedupedPush(
+			userId,
+			KIND,
+			dedupeKey,
+			{ ...meilensteinText(meilenstein, sprache), url: PUSH_TARGETS.milestone },
+			send,
+		);
 	}
 };

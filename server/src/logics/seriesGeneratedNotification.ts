@@ -5,6 +5,7 @@ import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { istRuhezeit } from './carePush.js';
 import { nutzerZeitzone } from './streak.js';
+import { PUSH_TARGETS } from './pushTargets.js';
 
 /**
  * Fachlicher Push-Trigger „Serie von jemand anderem angelegt hat Instanzen erzeugt" (#1253):
@@ -99,7 +100,13 @@ export const notifySeriesGenerated = async (
 	const texte = TEXTE[spracheVon(recipient?.sprache)];
 	const title = texte.titel(creator?.displayName || creator?.email || texte.jemand);
 	const body = texte.text(series.title, createdTasks.length);
-	const { sent } = await sendDedupedPush(series.userId, KIND, dedupeKey, { title, body, url: '/' }, send);
+	const { sent } = await sendDedupedPush(
+		series.userId,
+		KIND,
+		dedupeKey,
+		{ title, body, url: PUSH_TARGETS.seriesGenerated },
+		send,
+	);
 	let mailSent = false;
 	if (mailSend || isMailConfigured()) {
 		mailSent = await sendMailToUser({ email: recipient?.email ?? null }, { subject: title, text: body }, mailSend);
