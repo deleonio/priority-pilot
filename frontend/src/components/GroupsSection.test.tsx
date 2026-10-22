@@ -230,7 +230,7 @@ describe('GroupsSection — Sprunganker für Gruppen-Pushes (#2854 AK7)', () => 
 		);
 		const ziel = document.getElementById('gruppe-42');
 		expect(ziel).not.toBeNull();
-		await waitFor(() => expect(ziel).toBeFocused());
+		await waitFor(() => expect(ziel).toHaveFocus());
 		expect(scrollIntoView).toHaveBeenCalled();
 	});
 
@@ -247,7 +247,7 @@ describe('GroupsSection — Sprunganker für Gruppen-Pushes (#2854 AK7)', () => 
 			expect(el).not.toBeNull();
 			return el;
 		});
-		await waitFor(() => expect(ziel).toBeFocused());
+		await waitFor(() => expect(ziel).toHaveFocus());
 		expect(scrollIntoView).toHaveBeenCalled();
 	});
 });

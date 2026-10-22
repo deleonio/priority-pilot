@@ -72,9 +72,7 @@ describe('pushTargets (#2851 AK2) — die §6-Ziele je Push-Art in einer Liste',
 
 	// #2854 (docs/spec/issue-2854.md): Gruppen-Pushes zielen auf den Gruppen-Tab mit Sektions-Ankern.
 	it('#2854: groupInvitations zeigt auf /settings/gruppen#einladungen, groupDetail auf #gruppe-<id>', () => {
-		// @ts-expect-error Eintrag entsteht in der Umsetzung (#2854) — roter Spec-Test.
 		assert.equal(PUSH_TARGETS.groupInvitations, '/settings/gruppen#einladungen');
-		// @ts-expect-error dito.
 		assert.equal(PUSH_TARGETS.groupDetail(7), '/settings/gruppen#gruppe-7');
 	});
 

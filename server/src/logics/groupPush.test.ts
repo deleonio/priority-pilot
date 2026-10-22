@@ -12,7 +12,6 @@ import {
 } from '../models/index.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 import type { PushSender } from './push.js';
-// @ts-expect-error Modul entsteht in der Umsetzung (#2854) — roter Spec-Test, Impl entfernt die Direktive.
 import { notifyChallengeStarted, notifyGroupInvitation, notifyGroupMember, runGroupPush } from './groupPush.js';
 
 /**
@@ -121,7 +120,7 @@ describe('groupPush — Gruppen-Pushes (#2854)', () => {
 		const group = await createGroup('Familie');
 		const bob = await createRecipient('bob@example.com');
 		const alice = await User.create({ email: 'alice@example.com', displayName: 'Alice', passwordHash: '__test__' });
-		const invitation = await GroupInvitation.create({
+		await GroupInvitation.create({
 			groupId: group.id,
 			invitedUserId: bob.id,
 			invitedByUserId: alice.id,
@@ -223,7 +222,7 @@ describe('groupPush — Gruppen-Pushes (#2854)', () => {
 		);
 		await notifyGroupMember(group, { id: ben.id, displayName: 'Ben' }, stumm.id, mockSend);
 		await notifyChallengeStarted({ id: 9, groupId: group.id }, mockSend);
-		const ende = await GroupChallenge.create({
+		await GroupChallenge.create({
 			groupId: group.id,
 			startsAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
 			endsAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
