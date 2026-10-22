@@ -154,3 +154,21 @@ describe('pushBudget — Höchstens drei fachliche Pushes je Nutzer und lokalem 
 		assert.equal(JSON.parse(aufrufe[0] ?? '{}').tag, 'pp-fuersorge');
 	});
 });
+
+// #2854 TF5 (AK6): die Gruppen-Kinds im Budget registriert (VORRANG-Falle: unregistrierte
+// Kinds sortieren in waehleImBudget mit indexOf −1 nach VORN) und mit dem Tag pp-gruppen.
+describe('pushBudget — Gruppen-Pushes (#2854 AK6)', () => {
+	it('registriert group-invitation in §4-Stufe 1 (neben task-created, vor geo-nearby-task) und taggt alle Gruppen-Kinds pp-gruppen', () => {
+		assert.equal(
+			vorrangVon('group-invitation'),
+			vorrangVon('task-created'),
+			'Einladung gehört in §4 Stufe 1 neben task-created',
+		);
+		assert.ok(vorrangVon('group-invitation') < vorrangVon('geo-nearby-task'), 'Einladung rangiert vor geo-nearby-task');
+		assert.ok(vorrangVon('group-member') < vorrangVon('daily-digest'), 'group-member muss registriert sein');
+		assert.ok(vorrangVon('group-challenge') < vorrangVon('daily-digest'), 'group-challenge muss registriert sein');
+		assert.equal(tagVon('group-invitation'), 'pp-gruppen', '§2.3: Gruppen-Tag');
+		assert.equal(tagVon('group-member'), 'pp-gruppen', '§2.3: Gruppen-Tag');
+		assert.equal(tagVon('group-challenge'), 'pp-gruppen', '§2.3: Gruppen-Tag');
+	});
+});

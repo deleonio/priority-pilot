@@ -16,9 +16,9 @@ import { createSuggestInitialTasksRouter } from './routes/suggestInitialTasks.js
 import { createPillarAdvisorRouter } from './routes/pillarAdvisor.js';
 import { createCareSuggestionsRouter, scoresRouter } from './routes/scores.js';
 import { createSeriesRouter } from './routes/series.js';
-import { groupsRouter } from './routes/groups.js';
+import { createGroupsRouter } from './routes/groups.js';
 import { templatesRouter } from './routes/templates.js';
-import { inviteLinksPublicRouter } from './routes/inviteLinks.js';
+import { createInviteLinksPublicRouter } from './routes/inviteLinks.js';
 import { plansPublicRouter } from './routes/plans.js';
 import { usersRouter } from './routes/users.js';
 import { createAdminRouter } from './routes/admin.js';
@@ -324,7 +324,7 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Öffentliche Einladungslink-Preisgabe (#1226): GET + redeem unter /invite-links — bewusst
 	// VOR requireAuth, damit ein Link ohne Session geöffnet werden kann (redeem prüft die
 	// Session selbst und antwortet sonst 401).
-	app.use(inviteLinksPublicRouter);
+	app.use(createInviteLinksPublicRouter({ pushSender: deps.pushSender }));
 
 	// Öffentlicher Paket-Katalog (#1456): Preise und Feature-Matrix sind ohne Session lesbar —
 	// deshalb ebenfalls VOR requireAuth gemountet.
@@ -442,7 +442,7 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Gruppen (Issue #1211): CRUD hinter requireAuth — Sichtbarkeit/Rechte über group_members-
 	// Membership, nicht über ownerScope (Group hat kein userId). Einladungen folgen in Ticket 2 (#952).
-	app.use(groupsRouter);
+	app.use(createGroupsRouter({ pushSender: deps.pushSender }));
 
 	// Nutzersuche für den Einladungsfluss (#1212): nur id+displayName, E-Mail nur als Volltreffer.
 	app.use(usersRouter);

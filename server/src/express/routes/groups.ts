@@ -24,6 +24,8 @@ import { claimAccessMailSlot, sendAccountAccessMail } from '../../logics/accessM
 import { spracheAusHeader } from '../../logics/careSuggestionData.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
 import { protokolliereKpiEreignis } from '../../logics/kpiKennzahlen.js';
+import { notifyChallengeStarted, notifyGroupInvitation, notifyGroupMember } from '../../logics/groupPush.js';
+import type { PushSender } from '../../logics/push.js';
 import { berechneDuoStreak } from '../../logics/duoStreak.js';
 import { istGueltigeZeitzone, streakZeitpunkte } from '../../logics/streak.js';
 import { berechneLebensbalanceNachKadenz } from '../../logics/heartBalance.js';
@@ -114,333 +116,301 @@ const findMembership = async (userId: number, groupId: number): Promise<{ group:
 	return { group, role: membership.role as GroupRole };
 };
 
-export const groupsRouter = Router();
+export interface GroupsRouterDeps {
+	/** Injizierbarer Push-Versand (Vorbild `createTasksRouter`) — Gruppen-Pushes (#2854). */
+	pushSender?: PushSender;
+}
 
-// POST /groups — Gruppe anlegen; der Ersteller wird in derselben Transaktion als Admin-Mitglied
-// eingetragen (AK1), damit nie eine gruppenlose Mitgliedschaft bzw. mitgliederlose Gruppe entsteht.
-groupsRouter.post('/groups', requirePlanFeature('groups'), async (req: Request, res: Response<GroupDto | ErrorDto>) => {
-	try {
-		const user = await resolveGeoUser(req);
-		if (!user) {
-			sendError(res, 401, 'Anmeldung erforderlich.');
-			return;
-		}
-		const body = (req.body ?? {}) as { name?: unknown; description?: unknown; kind?: unknown };
-		if (body.kind !== undefined && body.kind !== 'group' && body.kind !== 'duo') {
-			sendError(res, 400, "Die Art der Gruppe muss 'group' oder 'duo' sein.");
-			return;
-		}
-		const kind = body.kind ?? 'group';
-		const name = validateName(body.name);
-		if (name === null) {
-			sendError(res, 400, `Der Gruppenname ist Pflicht und darf ${NAME_MAX_LENGTH} Zeichen nicht überschreiten.`);
-			return;
-		}
-		const description =
-			typeof body.description === 'string' && body.description.trim().length > 0 ? body.description.trim() : null;
+export const createGroupsRouter = ({ pushSender }: GroupsRouterDeps = {}): Router => {
+	const groupsRouter = Router();
 
-		const created = await sequelize.transaction(async (transaction) => {
-			const group = await Group.create({ name, description, kind }, { transaction });
-			await GroupMember.create(
-				{ groupId: group.id, userId: user.id, role: 'admin', joinedAt: new Date() },
-				{ transaction },
-			);
-			return group;
-		});
-		res.status(201).json(await toDto(created, 'admin'));
-	} catch (error) {
-		console.error(`${req.method} ${logUrl(req)}`, error);
-		sendError(res, 500, 'Interner Serverfehler.');
-	}
-});
-
-// GET /groups — nur Gruppen eigener Membership, je mit Rolle und Mitgliederzahl (AK2).
-groupsRouter.get('/groups', async (req: Request, res: Response<GroupDto[] | ErrorDto>) => {
-	try {
-		const user = await resolveGeoUser(req);
-		if (!user) {
-			sendError(res, 401, 'Anmeldung erforderlich.');
-			return;
-		}
-		const memberships = await GroupMember.findAll({ where: { userId: user.id } });
-		const groups = await Group.findAll({ where: { id: memberships.map((membership) => membership.groupId) } });
-		const dtos = await Promise.all(
-			groups.map((group) =>
-				toDto(
-					group,
-					(memberships.find((membership) => membership.groupId === group.id)?.role ?? 'member') as GroupRole,
-				),
-			),
-		);
-		res.json(dtos);
-	} catch {
-		sendError(res, 500, 'Interner Serverfehler.');
-	}
-});
-
-// GET /groups/:id — eigene Membership → 200, fremde Gruppe → 404 (AK3).
-groupsRouter.get('/groups/:id', async (req: Request, res: Response<GroupDto | ErrorDto>) => {
-	try {
-		const user = await resolveGeoUser(req);
-		if (!user) {
-			sendError(res, 401, 'Anmeldung erforderlich.');
-			return;
-		}
-		const id = parseId(req.params.id);
-		if (id === null) {
-			sendError(res, 400, 'Ungültige Gruppen-Id.');
-			return;
-		}
-		const found = await findMembership(user.id, id);
-		if (!found) {
-			sendError(res, 404, 'Gruppe nicht gefunden.');
-			return;
-		}
-		res.json(await toDto(found.group, found.role));
-	} catch {
-		sendError(res, 500, 'Interner Serverfehler.');
-	}
-});
-
-// PATCH /groups/:id — nur Admins (AK3): ein Mitglied ohne Adminrolle bekommt 403 (die Gruppe
-// kennt es ja), ein Nicht-Mitglied 404 (kein Existenz-Leak, Muster invitations-Route).
-groupsRouter.patch(
-	'/groups/:id',
-	requirePlanFeature('groups'),
-	async (req: Request, res: Response<GroupDto | ErrorDto>) => {
-		try {
-			const user = await resolveGeoUser(req);
-			if (!user) {
-				sendError(res, 401, 'Anmeldung erforderlich.');
-				return;
-			}
-			const id = parseId(req.params.id);
-			if (id === null) {
-				sendError(res, 400, 'Ungültige Gruppen-Id.');
-				return;
-			}
-			const found = await findMembership(user.id, id);
-			if (!found) {
-				sendError(res, 404, 'Gruppe nicht gefunden.');
-				return;
-			}
-			if (found.role !== 'admin') {
-				sendError(res, 403, 'Nur Administratoren dürfen die Gruppe bearbeiten.');
-				return;
-			}
-			const body = (req.body ?? {}) as { name?: unknown; description?: unknown; imageUrl?: unknown };
-			// PATCH-Vertrag (openapi.yml, GroupUpdate): alle Felder optional, abwesende Felder bleiben
-			// unverändert. `name` wird deshalb nur bei Anwesenheit validiert — der Frontend-Dialog
-			// sendet im Bearbeiten-Modus ausschließlich geänderte Felder, ein reines
-			// Beschreibungs-Edit ohne `name` muss daher 200 liefern (Review PR #1214, Finding 1).
-			const changes: { name?: string; description?: string | null; imageUrl?: string | null } = {};
-			if (body.name !== undefined) {
+	// POST /groups — Gruppe anlegen; der Ersteller wird in derselben Transaktion als Admin-Mitglied
+	// eingetragen (AK1), damit nie eine gruppenlose Mitgliedschaft bzw. mitgliederlose Gruppe entsteht.
+	groupsRouter.post(
+		'/groups',
+		requirePlanFeature('groups'),
+		async (req: Request, res: Response<GroupDto | ErrorDto>) => {
+			try {
+				const user = await resolveGeoUser(req);
+				if (!user) {
+					sendError(res, 401, 'Anmeldung erforderlich.');
+					return;
+				}
+				const body = (req.body ?? {}) as { name?: unknown; description?: unknown; kind?: unknown };
+				if (body.kind !== undefined && body.kind !== 'group' && body.kind !== 'duo') {
+					sendError(res, 400, "Die Art der Gruppe muss 'group' oder 'duo' sein.");
+					return;
+				}
+				const kind = body.kind ?? 'group';
 				const name = validateName(body.name);
 				if (name === null) {
 					sendError(res, 400, `Der Gruppenname ist Pflicht und darf ${NAME_MAX_LENGTH} Zeichen nicht überschreiten.`);
 					return;
 				}
-				changes.name = name;
-			}
-			if (body.description !== undefined) {
-				changes.description =
+				const description =
 					typeof body.description === 'string' && body.description.trim().length > 0 ? body.description.trim() : null;
+
+				const created = await sequelize.transaction(async (transaction) => {
+					const group = await Group.create({ name, description, kind }, { transaction });
+					await GroupMember.create(
+						{ groupId: group.id, userId: user.id, role: 'admin', joinedAt: new Date() },
+						{ transaction },
+					);
+					return group;
+				});
+				res.status(201).json(await toDto(created, 'admin'));
+			} catch (error) {
+				console.error(`${req.method} ${logUrl(req)}`, error);
+				sendError(res, 500, 'Interner Serverfehler.');
 			}
-			// Bildadresse (#1225, AK1): `null` entfernt das Bild bewusst — nur deshalb darf `null`
-			// hier nicht mit „abwesend" gleichgesetzt werden.
-			if (body.imageUrl !== undefined) {
-				if (body.imageUrl === null) {
-					changes.imageUrl = null;
-				} else {
-					const imageUrl = validateImageUrl(body.imageUrl);
-					if (imageUrl === null) {
-						sendError(res, 400, 'Die Bildadresse muss beginnen mit https://.');
-						return;
-					}
-					changes.imageUrl = imageUrl;
-				}
+		},
+	);
+
+	// GET /groups — nur Gruppen eigener Membership, je mit Rolle und Mitgliederzahl (AK2).
+	groupsRouter.get('/groups', async (req: Request, res: Response<GroupDto[] | ErrorDto>) => {
+		try {
+			const user = await resolveGeoUser(req);
+			if (!user) {
+				sendError(res, 401, 'Anmeldung erforderlich.');
+				return;
 			}
-			await found.group.update(changes);
+			const memberships = await GroupMember.findAll({ where: { userId: user.id } });
+			const groups = await Group.findAll({ where: { id: memberships.map((membership) => membership.groupId) } });
+			const dtos = await Promise.all(
+				groups.map((group) =>
+					toDto(
+						group,
+						(memberships.find((membership) => membership.groupId === group.id)?.role ?? 'member') as GroupRole,
+					),
+				),
+			);
+			res.json(dtos);
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+		}
+	});
+
+	// GET /groups/:id — eigene Membership → 200, fremde Gruppe → 404 (AK3).
+	groupsRouter.get('/groups/:id', async (req: Request, res: Response<GroupDto | ErrorDto>) => {
+		try {
+			const user = await resolveGeoUser(req);
+			if (!user) {
+				sendError(res, 401, 'Anmeldung erforderlich.');
+				return;
+			}
+			const id = parseId(req.params.id);
+			if (id === null) {
+				sendError(res, 400, 'Ungültige Gruppen-Id.');
+				return;
+			}
+			const found = await findMembership(user.id, id);
+			if (!found) {
+				sendError(res, 404, 'Gruppe nicht gefunden.');
+				return;
+			}
 			res.json(await toDto(found.group, found.role));
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
-	},
-);
-
-/**
- * Stillagt Cross-Member-Serien (#1251): jede Serie, deren Eigentümer (`userId`) und Ersteller
- * (`createdById`) beide in den genannten Mitgliedsmengen liegen, wird `active:false` — mit dem
- * Ende der gemeinsamen Gruppe darf eine fremd angelegte Serie keine Aufgaben mehr erzeugen
- * (Bestands-Aufgaben bleiben unberührt). Filter auf `createdById !== userId` in JS statt SQL —
- * `Op.ne` wäre mit NULL-Werten (Altbestand ohne createdById) nicht falsch-positiv-sicher
- * (Muster GET /groups/:id/tasks).
- */
-const restCrossMemberSeries = async (
-	ownerIds: number[],
-	creatorIds: number[],
-	transaction: Transaction,
-): Promise<void> => {
-	if (ownerIds.length === 0 || creatorIds.length === 0) {
-		return;
-	}
-	const candidates = await Series.findAll({
-		where: { userId: { [Op.in]: ownerIds }, createdById: { [Op.in]: creatorIds } },
-		transaction,
 	});
-	const restingIds = candidates.filter((series) => series.createdById !== series.userId).map((series) => series.id);
-	if (restingIds.length > 0) {
-		await Series.update({ active: false }, { where: { id: restingIds }, transaction });
-	}
-};
 
-// DELETE /groups/:id — Admin → 204; Gruppe UND alle Mitgliedschaften in einer Transaktion
-// entfernen (AK5), danach ist jede :id-Route 404. Die Auflösung ist der Massenaustritt aller
-// Mitglieder: die Einladungen der Gruppe werden mit entfernt (#1251, AK1) und die Cross-Member-
-// Serien ALLER ehemaligen Paare stillagt (AK5) — zurück blieben sonst Geister-Einladungen mit
-// leerem Gruppennamen in GET /invitations und munter weiterlaufende fremde Serien.
-groupsRouter.delete('/groups/:id', requirePlanFeature('groups'), async (req: Request, res: Response<ErrorDto>) => {
-	try {
-		const user = await resolveGeoUser(req);
-		if (!user) {
-			sendError(res, 401, 'Anmeldung erforderlich.');
+	// PATCH /groups/:id — nur Admins (AK3): ein Mitglied ohne Adminrolle bekommt 403 (die Gruppe
+	// kennt es ja), ein Nicht-Mitglied 404 (kein Existenz-Leak, Muster invitations-Route).
+	groupsRouter.patch(
+		'/groups/:id',
+		requirePlanFeature('groups'),
+		async (req: Request, res: Response<GroupDto | ErrorDto>) => {
+			try {
+				const user = await resolveGeoUser(req);
+				if (!user) {
+					sendError(res, 401, 'Anmeldung erforderlich.');
+					return;
+				}
+				const id = parseId(req.params.id);
+				if (id === null) {
+					sendError(res, 400, 'Ungültige Gruppen-Id.');
+					return;
+				}
+				const found = await findMembership(user.id, id);
+				if (!found) {
+					sendError(res, 404, 'Gruppe nicht gefunden.');
+					return;
+				}
+				if (found.role !== 'admin') {
+					sendError(res, 403, 'Nur Administratoren dürfen die Gruppe bearbeiten.');
+					return;
+				}
+				const body = (req.body ?? {}) as { name?: unknown; description?: unknown; imageUrl?: unknown };
+				// PATCH-Vertrag (openapi.yml, GroupUpdate): alle Felder optional, abwesende Felder bleiben
+				// unverändert. `name` wird deshalb nur bei Anwesenheit validiert — der Frontend-Dialog
+				// sendet im Bearbeiten-Modus ausschließlich geänderte Felder, ein reines
+				// Beschreibungs-Edit ohne `name` muss daher 200 liefern (Review PR #1214, Finding 1).
+				const changes: { name?: string; description?: string | null; imageUrl?: string | null } = {};
+				if (body.name !== undefined) {
+					const name = validateName(body.name);
+					if (name === null) {
+						sendError(res, 400, `Der Gruppenname ist Pflicht und darf ${NAME_MAX_LENGTH} Zeichen nicht überschreiten.`);
+						return;
+					}
+					changes.name = name;
+				}
+				if (body.description !== undefined) {
+					changes.description =
+						typeof body.description === 'string' && body.description.trim().length > 0 ? body.description.trim() : null;
+				}
+				// Bildadresse (#1225, AK1): `null` entfernt das Bild bewusst — nur deshalb darf `null`
+				// hier nicht mit „abwesend" gleichgesetzt werden.
+				if (body.imageUrl !== undefined) {
+					if (body.imageUrl === null) {
+						changes.imageUrl = null;
+					} else {
+						const imageUrl = validateImageUrl(body.imageUrl);
+						if (imageUrl === null) {
+							sendError(res, 400, 'Die Bildadresse muss beginnen mit https://.');
+							return;
+						}
+						changes.imageUrl = imageUrl;
+					}
+				}
+				await found.group.update(changes);
+				res.json(await toDto(found.group, found.role));
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	/**
+	 * Stillagt Cross-Member-Serien (#1251): jede Serie, deren Eigentümer (`userId`) und Ersteller
+	 * (`createdById`) beide in den genannten Mitgliedsmengen liegen, wird `active:false` — mit dem
+	 * Ende der gemeinsamen Gruppe darf eine fremd angelegte Serie keine Aufgaben mehr erzeugen
+	 * (Bestands-Aufgaben bleiben unberührt). Filter auf `createdById !== userId` in JS statt SQL —
+	 * `Op.ne` wäre mit NULL-Werten (Altbestand ohne createdById) nicht falsch-positiv-sicher
+	 * (Muster GET /groups/:id/tasks).
+	 */
+	const restCrossMemberSeries = async (
+		ownerIds: number[],
+		creatorIds: number[],
+		transaction: Transaction,
+	): Promise<void> => {
+		if (ownerIds.length === 0 || creatorIds.length === 0) {
 			return;
 		}
-		const id = parseId(req.params.id);
-		if (id === null) {
-			sendError(res, 400, 'Ungültige Gruppen-Id.');
-			return;
-		}
-		const found = await findMembership(user.id, id);
-		if (!found || found.role !== 'admin') {
-			sendError(res, 404, 'Gruppe nicht gefunden.');
-			return;
-		}
-		await sequelize.transaction(async (transaction) => {
-			const members = await GroupMember.findAll({ where: { groupId: found.group.id }, transaction });
-			const memberIds = members.map((member) => member.userId);
-			await restCrossMemberSeries(memberIds, memberIds, transaction);
-			await GroupMember.destroy({ where: { groupId: found.group.id }, transaction });
-			await GroupInvitation.destroy({ where: { groupId: found.group.id }, transaction });
-			await GroupChallenge.destroy({ where: { groupId: found.group.id }, transaction });
-			await Group.destroy({ where: { id: found.group.id }, transaction });
+		const candidates = await Series.findAll({
+			where: { userId: { [Op.in]: ownerIds }, createdById: { [Op.in]: creatorIds } },
+			transaction,
 		});
-		res.status(204).send();
-	} catch {
-		sendError(res, 500, 'Interner Serverfehler.');
-	}
-});
-
-/**
- * ── Einladungen und Mitgliedschaftspflege (#1212, Teil 2 der Gruppen-Epic #952) ──────────
- *
- * Sichtbarkeit wie oben über `findMembership`. Abweichend vom #1211-Muster (dort einheitlich
- * 404 für Nicht-Admins) unterscheiden die neuen Routen bewusst: Ein Mitglied ohne Adminrechte
- * bekommt 403 (die Gruppe kennt es ja), ein Nicht-Mitglied 404 (kein Existenz-Leak) — so
- * verlangt es der AK-Satz des Tickets.
- */
-
-type MemberDto = {
-	userId: number;
-	displayName: string;
-	role: GroupRole;
-};
-
-type GroupInvitationDto = {
-	id: number;
-	groupId: number;
-	userId: number;
-	displayName?: string;
-	status: string;
-	accessMailThrottled?: boolean;
-};
-
-type ReceivedInvitationDto = {
-	id: number;
-	groupId: number;
-	groupName: string;
-	invitedByName: string;
-};
-
-/** Anzeigename mit E-Mail-Fallback (User.displayName ist optional). */
-const displayNameOf = (user: User | null): string => user?.displayName ?? user?.email ?? '';
-
-// GET /groups/:id/members — jedes Mitglied (admin oder member) sieht die Liste; fremde Gruppe 404.
-groupsRouter.get('/groups/:id/members', async (req: Request, res: Response<MemberDto[] | ErrorDto>) => {
-	try {
-		const user = await resolveGeoUser(req);
-		if (!user) {
-			sendError(res, 401, 'Anmeldung erforderlich.');
-			return;
+		const restingIds = candidates.filter((series) => series.createdById !== series.userId).map((series) => series.id);
+		if (restingIds.length > 0) {
+			await Series.update({ active: false }, { where: { id: restingIds }, transaction });
 		}
-		const id = parseId(req.params.id);
-		if (id === null) {
-			sendError(res, 400, 'Ungültige Gruppen-Id.');
-			return;
-		}
-		const found = await findMembership(user.id, id);
-		if (!found) {
-			sendError(res, 404, 'Gruppe nicht gefunden.');
-			return;
-		}
-		const members = await GroupMember.findAll({ where: { groupId: found.group.id } });
-		const users = await User.findAll({ where: { id: members.map((member) => member.userId) } });
-		res.json(
-			members.map((member) => ({
-				userId: member.userId,
-				displayName: displayNameOf(users.find((candidate) => candidate.id === member.userId) ?? null),
-				role: member.role as GroupRole,
-			})),
-		);
-	} catch {
-		sendError(res, 500, 'Interner Serverfehler.');
-	}
-});
+	};
 
-// GET /groups/:id/invitations — offene Einladungen der Gruppe; nur Admins (Nicht-Admin 403).
-groupsRouter.get('/groups/:id/invitations', async (req: Request, res: Response<GroupInvitationDto[] | ErrorDto>) => {
-	try {
-		const user = await resolveGeoUser(req);
-		if (!user) {
-			sendError(res, 401, 'Anmeldung erforderlich.');
-			return;
+	// DELETE /groups/:id — Admin → 204; Gruppe UND alle Mitgliedschaften in einer Transaktion
+	// entfernen (AK5), danach ist jede :id-Route 404. Die Auflösung ist der Massenaustritt aller
+	// Mitglieder: die Einladungen der Gruppe werden mit entfernt (#1251, AK1) und die Cross-Member-
+	// Serien ALLER ehemaligen Paare stillagt (AK5) — zurück blieben sonst Geister-Einladungen mit
+	// leerem Gruppennamen in GET /invitations und munter weiterlaufende fremde Serien.
+	groupsRouter.delete('/groups/:id', requirePlanFeature('groups'), async (req: Request, res: Response<ErrorDto>) => {
+		try {
+			const user = await resolveGeoUser(req);
+			if (!user) {
+				sendError(res, 401, 'Anmeldung erforderlich.');
+				return;
+			}
+			const id = parseId(req.params.id);
+			if (id === null) {
+				sendError(res, 400, 'Ungültige Gruppen-Id.');
+				return;
+			}
+			const found = await findMembership(user.id, id);
+			if (!found || found.role !== 'admin') {
+				sendError(res, 404, 'Gruppe nicht gefunden.');
+				return;
+			}
+			await sequelize.transaction(async (transaction) => {
+				const members = await GroupMember.findAll({ where: { groupId: found.group.id }, transaction });
+				const memberIds = members.map((member) => member.userId);
+				await restCrossMemberSeries(memberIds, memberIds, transaction);
+				await GroupMember.destroy({ where: { groupId: found.group.id }, transaction });
+				await GroupInvitation.destroy({ where: { groupId: found.group.id }, transaction });
+				await GroupChallenge.destroy({ where: { groupId: found.group.id }, transaction });
+				await Group.destroy({ where: { id: found.group.id }, transaction });
+			});
+			res.status(204).send();
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
 		}
-		const id = parseId(req.params.id);
-		if (id === null) {
-			sendError(res, 400, 'Ungültige Gruppen-Id.');
-			return;
-		}
-		const found = await findMembership(user.id, id);
-		if (!found) {
-			sendError(res, 404, 'Gruppe nicht gefunden.');
-			return;
-		}
-		if (found.role !== 'admin') {
-			sendError(res, 403, 'Nur Administratoren sehen offene Einladungen.');
-			return;
-		}
-		const invitations = await GroupInvitation.findAll({ where: { groupId: found.group.id, status: 'pending' } });
-		const users = await User.findAll({ where: { id: invitations.map((invitation) => invitation.invitedUserId) } });
-		res.json(
-			invitations.map((invitation) => ({
-				id: invitation.id,
-				groupId: invitation.groupId,
-				userId: invitation.invitedUserId,
-				displayName: displayNameOf(users.find((candidate) => candidate.id === invitation.invitedUserId) ?? null),
-				status: invitation.status,
-			})),
-		);
-	} catch {
-		sendError(res, 500, 'Interner Serverfehler.');
-	}
-});
+	});
 
-// POST /groups/:id/invitations — Admin lädt ein Konto ein (AK3/AK4). Duplikat nur gegen eine
-// bestehende `pending`-Zeile; nach `declined` ist eine neue Einladung zulässig (Spec-Entscheidung).
-groupsRouter.post(
-	'/groups/:id/invitations',
-	requirePlanFeature('groups'),
-	async (req: Request, res: Response<GroupInvitationDto | ErrorDto>) => {
+	/**
+	 * ── Einladungen und Mitgliedschaftspflege (#1212, Teil 2 der Gruppen-Epic #952) ──────────
+	 *
+	 * Sichtbarkeit wie oben über `findMembership`. Abweichend vom #1211-Muster (dort einheitlich
+	 * 404 für Nicht-Admins) unterscheiden die neuen Routen bewusst: Ein Mitglied ohne Adminrechte
+	 * bekommt 403 (die Gruppe kennt es ja), ein Nicht-Mitglied 404 (kein Existenz-Leak) — so
+	 * verlangt es der AK-Satz des Tickets.
+	 */
+
+	type MemberDto = {
+		userId: number;
+		displayName: string;
+		role: GroupRole;
+	};
+
+	type GroupInvitationDto = {
+		id: number;
+		groupId: number;
+		userId: number;
+		displayName?: string;
+		status: string;
+		accessMailThrottled?: boolean;
+	};
+
+	type ReceivedInvitationDto = {
+		id: number;
+		groupId: number;
+		groupName: string;
+		invitedByName: string;
+	};
+
+	/** Anzeigename mit E-Mail-Fallback (User.displayName ist optional). */
+	const displayNameOf = (user: User | null): string => user?.displayName ?? user?.email ?? '';
+
+	// GET /groups/:id/members — jedes Mitglied (admin oder member) sieht die Liste; fremde Gruppe 404.
+	groupsRouter.get('/groups/:id/members', async (req: Request, res: Response<MemberDto[] | ErrorDto>) => {
+		try {
+			const user = await resolveGeoUser(req);
+			if (!user) {
+				sendError(res, 401, 'Anmeldung erforderlich.');
+				return;
+			}
+			const id = parseId(req.params.id);
+			if (id === null) {
+				sendError(res, 400, 'Ungültige Gruppen-Id.');
+				return;
+			}
+			const found = await findMembership(user.id, id);
+			if (!found) {
+				sendError(res, 404, 'Gruppe nicht gefunden.');
+				return;
+			}
+			const members = await GroupMember.findAll({ where: { groupId: found.group.id } });
+			const users = await User.findAll({ where: { id: members.map((member) => member.userId) } });
+			res.json(
+				members.map((member) => ({
+					userId: member.userId,
+					displayName: displayNameOf(users.find((candidate) => candidate.id === member.userId) ?? null),
+					role: member.role as GroupRole,
+				})),
+			);
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+		}
+	});
+
+	// GET /groups/:id/invitations — offene Einladungen der Gruppe; nur Admins (Nicht-Admin 403).
+	groupsRouter.get('/groups/:id/invitations', async (req: Request, res: Response<GroupInvitationDto[] | ErrorDto>) => {
 		try {
 			const user = await resolveGeoUser(req);
 			if (!user) {
@@ -458,154 +428,279 @@ groupsRouter.post(
 				return;
 			}
 			if (found.role !== 'admin') {
-				sendError(res, 403, 'Nur Administratoren dürfen einladen.');
+				sendError(res, 403, 'Nur Administratoren sehen offene Einladungen.');
 				return;
 			}
-			const body = (req.body ?? {}) as { userId?: unknown; email?: unknown };
-			// #1983 (AK2): Alternativ zur `userId` lädt der Admin eine E-Mail-Adresse ein. Eine
-			// unbekannte Adresse wird als Konto angelegt und mit Herkunft `einladung` freigeschaltet
-			// (AK4: Zugangs-Mail, unten nach angelegter Einladung); ein bekanntes Konto verhält
-			// sich exakt wie der userId-Pfad.
-			let invitedUserId: number;
-			let invitedName: string;
-			let newInviteeEmail: string | null = null;
-			if (typeof body.email === 'string' && body.email.trim() !== '') {
-				const email = body.email.trim().toLowerCase();
-				if (!email.includes('@') || email.length > 254) {
-					sendError(res, 400, 'Bitte gib eine gültige E-Mail-Adresse an.');
-					return;
-				}
-				const existingUser = await User.findOne({ where: { email } });
-				if (existingUser) {
-					invitedUserId = existingUser.id;
-					invitedName = displayNameOf(existingUser);
-				} else {
-					const invitee = await upsertOAuthUser({ email });
-					await allowEmail(email, 'einladung');
-					invitedUserId = invitee.id;
-					invitedName = invitee.displayName;
-					newInviteeEmail = email;
-				}
-			} else {
-				const parsedUserId = typeof body.userId === 'number' ? body.userId : Number(body.userId);
-				if (!Number.isInteger(parsedUserId)) {
-					sendError(res, 400, 'Die einzuladende userId ist Pflicht.');
-					return;
-				}
-				const invited = await User.findByPk(parsedUserId);
-				if (!invited) {
-					sendError(res, 404, 'Konto nicht gefunden.');
-					return;
-				}
-				invitedUserId = invited.id;
-				invitedName = displayNameOf(invited);
-			}
-			const existingMember = await GroupMember.findOne({ where: { groupId: found.group.id, userId: invitedUserId } });
-			if (existingMember) {
-				sendError(res, 409, 'Das Konto ist bereits Mitglied dieser Gruppe.');
-				return;
-			}
-			if (await isDuoFull(found.group)) {
-				sendError(res, 409, DUO_FULL_MESSAGE);
-				return;
-			}
-			const existingInvitation = await GroupInvitation.findOne({
-				where: { groupId: found.group.id, invitedUserId, status: 'pending' },
-			});
-			if (existingInvitation) {
-				sendError(res, 409, 'Für dieses Konto ist bereits eine Einladung offen.');
-				return;
-			}
-			const created = await GroupInvitation.create({
-				groupId: found.group.id,
-				invitedUserId,
-				invitedByUserId: user.id,
-				status: 'pending',
-				createdAt: new Date(),
-			});
-			// #1989: je angelegter Einladung ein anonymes KPI-Ereignis — je Paar und Tag einmal;
-			// vor der Antwort abgewartet (Nebenwirkung beobachtbar), ein Fehler ist folgenlos.
-			await protokolliereKpiEreignis(user.id, 'einladung', new Date(), invitedUserId);
-			let accessMailThrottled = false;
-			if (newInviteeEmail !== null) {
-				// #2041: je Nutzer begrenzt — an der Grenze entfällt nur die Mail.
-				accessMailThrottled = !claimAccessMailSlot(user.id);
-			}
-			if (newInviteeEmail !== null && !accessMailThrottled) {
-				// #1983 (AK4): Die Einladungs-Benachrichtigung an die neue Adresse ist eine E-Mail
-				// mit direktem Konto-Zugang — nach angelegter Einladung, vor der Antwort abgewartet
-				// (Nebenwirkung beobachtbar). Transportfehler schluckt sendAccountAccessMail selbst.
-				try {
-					await sendAccountAccessMail(
-						newInviteeEmail,
-						spracheAusHeader(req.get('accept-language')) === 'en'
-							? {
-									subject: `Invitation to the group "${found.group.name}" on Balamentum`,
-									lines: [
-										`${displayNameOf(user)} invites you to share the group "${found.group.name}" in Balamentum.`,
-										'There you can plan tasks together — have a look whenever you like.',
-									],
-									sprache: 'en',
-								}
-							: {
-									subject: `Einladung zur Gruppe „${found.group.name}" bei Balamentum`,
-									lines: [
-										`${displayNameOf(user)} lädt dich ein, in Balamentum die Gruppe „${found.group.name}" zu teilen.`,
-										'Dort könnt ihr Aufgaben gemeinsam planen — schau in Ruhe vorbei.',
-									],
-								},
-					);
-				} catch (error) {
-					console.warn('Einladungs-Mail fehlgeschlagen:', error);
-				}
-			}
-			res.status(201).json({
-				id: created.id,
-				groupId: created.groupId,
-				userId: created.invitedUserId,
-				displayName: invitedName,
-				status: created.status,
-				...(accessMailThrottled ? { accessMailThrottled } : {}),
-			});
+			const invitations = await GroupInvitation.findAll({ where: { groupId: found.group.id, status: 'pending' } });
+			const users = await User.findAll({ where: { id: invitations.map((invitation) => invitation.invitedUserId) } });
+			res.json(
+				invitations.map((invitation) => ({
+					id: invitation.id,
+					groupId: invitation.groupId,
+					userId: invitation.invitedUserId,
+					displayName: displayNameOf(users.find((candidate) => candidate.id === invitation.invitedUserId) ?? null),
+					status: invitation.status,
+				})),
+			);
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
-	},
-);
+	});
 
-// GET /invitations — offene Einladungen des angemeldeten Kontos, gruppenübergreifend (AK5).
-groupsRouter.get('/invitations', async (req: Request, res: Response<ReceivedInvitationDto[] | ErrorDto>) => {
-	try {
-		const user = await resolveGeoUser(req);
-		if (!user) {
-			sendError(res, 401, 'Anmeldung erforderlich.');
-			return;
+	// POST /groups/:id/invitations — Admin lädt ein Konto ein (AK3/AK4). Duplikat nur gegen eine
+	// bestehende `pending`-Zeile; nach `declined` ist eine neue Einladung zulässig (Spec-Entscheidung).
+	groupsRouter.post(
+		'/groups/:id/invitations',
+		requirePlanFeature('groups'),
+		async (req: Request, res: Response<GroupInvitationDto | ErrorDto>) => {
+			try {
+				const user = await resolveGeoUser(req);
+				if (!user) {
+					sendError(res, 401, 'Anmeldung erforderlich.');
+					return;
+				}
+				const id = parseId(req.params.id);
+				if (id === null) {
+					sendError(res, 400, 'Ungültige Gruppen-Id.');
+					return;
+				}
+				const found = await findMembership(user.id, id);
+				if (!found) {
+					sendError(res, 404, 'Gruppe nicht gefunden.');
+					return;
+				}
+				if (found.role !== 'admin') {
+					sendError(res, 403, 'Nur Administratoren dürfen einladen.');
+					return;
+				}
+				const body = (req.body ?? {}) as { userId?: unknown; email?: unknown };
+				// #1983 (AK2): Alternativ zur `userId` lädt der Admin eine E-Mail-Adresse ein. Eine
+				// unbekannte Adresse wird als Konto angelegt und mit Herkunft `einladung` freigeschaltet
+				// (AK4: Zugangs-Mail, unten nach angelegter Einladung); ein bekanntes Konto verhält
+				// sich exakt wie der userId-Pfad.
+				let invitedUserId: number;
+				let invitedName: string;
+				let newInviteeEmail: string | null = null;
+				if (typeof body.email === 'string' && body.email.trim() !== '') {
+					const email = body.email.trim().toLowerCase();
+					if (!email.includes('@') || email.length > 254) {
+						sendError(res, 400, 'Bitte gib eine gültige E-Mail-Adresse an.');
+						return;
+					}
+					const existingUser = await User.findOne({ where: { email } });
+					if (existingUser) {
+						invitedUserId = existingUser.id;
+						invitedName = displayNameOf(existingUser);
+					} else {
+						const invitee = await upsertOAuthUser({ email });
+						await allowEmail(email, 'einladung');
+						invitedUserId = invitee.id;
+						invitedName = invitee.displayName;
+						newInviteeEmail = email;
+					}
+				} else {
+					const parsedUserId = typeof body.userId === 'number' ? body.userId : Number(body.userId);
+					if (!Number.isInteger(parsedUserId)) {
+						sendError(res, 400, 'Die einzuladende userId ist Pflicht.');
+						return;
+					}
+					const invited = await User.findByPk(parsedUserId);
+					if (!invited) {
+						sendError(res, 404, 'Konto nicht gefunden.');
+						return;
+					}
+					invitedUserId = invited.id;
+					invitedName = displayNameOf(invited);
+				}
+				const existingMember = await GroupMember.findOne({ where: { groupId: found.group.id, userId: invitedUserId } });
+				if (existingMember) {
+					sendError(res, 409, 'Das Konto ist bereits Mitglied dieser Gruppe.');
+					return;
+				}
+				if (await isDuoFull(found.group)) {
+					sendError(res, 409, DUO_FULL_MESSAGE);
+					return;
+				}
+				const existingInvitation = await GroupInvitation.findOne({
+					where: { groupId: found.group.id, invitedUserId, status: 'pending' },
+				});
+				if (existingInvitation) {
+					sendError(res, 409, 'Für dieses Konto ist bereits eine Einladung offen.');
+					return;
+				}
+				const created = await GroupInvitation.create({
+					groupId: found.group.id,
+					invitedUserId,
+					invitedByUserId: user.id,
+					status: 'pending',
+					createdAt: new Date(),
+				});
+				// #1989: je angelegter Einladung ein anonymes KPI-Ereignis — je Paar und Tag einmal;
+				// vor der Antwort abgewartet (Nebenwirkung beobachtbar), ein Fehler ist folgenlos.
+				await protokolliereKpiEreignis(user.id, 'einladung', new Date(), invitedUserId);
+				// #2854 AK1: Eingeladenes Konto über die Einladung informieren — nach dem Commit, ein
+				// Fehler beim Versand bleibt folgenlos fürs Anlegen (#1224-AK4-Muster).
+				try {
+					await notifyGroupInvitation(
+						{
+							id: created.id,
+							groupId: found.group.id,
+							groupName: found.group.name,
+							invitedUserId,
+							invitedByName: displayNameOf(user),
+						},
+						pushSender,
+					);
+				} catch (error) {
+					console.warn('Einladungs-Push fehlgeschlagen:', error);
+				}
+				let accessMailThrottled = false;
+				if (newInviteeEmail !== null) {
+					// #2041: je Nutzer begrenzt — an der Grenze entfällt nur die Mail.
+					accessMailThrottled = !claimAccessMailSlot(user.id);
+				}
+				if (newInviteeEmail !== null && !accessMailThrottled) {
+					// #1983 (AK4): Die Einladungs-Benachrichtigung an die neue Adresse ist eine E-Mail
+					// mit direktem Konto-Zugang — nach angelegter Einladung, vor der Antwort abgewartet
+					// (Nebenwirkung beobachtbar). Transportfehler schluckt sendAccountAccessMail selbst.
+					try {
+						await sendAccountAccessMail(
+							newInviteeEmail,
+							spracheAusHeader(req.get('accept-language')) === 'en'
+								? {
+										subject: `Invitation to the group "${found.group.name}" on Balamentum`,
+										lines: [
+											`${displayNameOf(user)} invites you to share the group "${found.group.name}" in Balamentum.`,
+											'There you can plan tasks together — have a look whenever you like.',
+										],
+										sprache: 'en',
+									}
+								: {
+										subject: `Einladung zur Gruppe „${found.group.name}" bei Balamentum`,
+										lines: [
+											`${displayNameOf(user)} lädt dich ein, in Balamentum die Gruppe „${found.group.name}" zu teilen.`,
+											'Dort könnt ihr Aufgaben gemeinsam planen — schau in Ruhe vorbei.',
+										],
+									},
+						);
+					} catch (error) {
+						console.warn('Einladungs-Mail fehlgeschlagen:', error);
+					}
+				}
+				res.status(201).json({
+					id: created.id,
+					groupId: created.groupId,
+					userId: created.invitedUserId,
+					displayName: invitedName,
+					status: created.status,
+					...(accessMailThrottled ? { accessMailThrottled } : {}),
+				});
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	// GET /invitations — offene Einladungen des angemeldeten Kontos, gruppenübergreifend (AK5).
+	groupsRouter.get('/invitations', async (req: Request, res: Response<ReceivedInvitationDto[] | ErrorDto>) => {
+		try {
+			const user = await resolveGeoUser(req);
+			if (!user) {
+				sendError(res, 401, 'Anmeldung erforderlich.');
+				return;
+			}
+			const invitations = await GroupInvitation.findAll({ where: { invitedUserId: user.id, status: 'pending' } });
+			const groups = await Group.findAll({ where: { id: invitations.map((invitation) => invitation.groupId) } });
+			const inviters = await User.findAll({
+				where: { id: invitations.map((invitation) => invitation.invitedByUserId) },
+			});
+			res.json(
+				invitations.map((invitation) => ({
+					id: invitation.id,
+					groupId: invitation.groupId,
+					groupName: groups.find((group) => group.id === invitation.groupId)?.name ?? '',
+					invitedByName: displayNameOf(
+						inviters.find((candidate) => candidate.id === invitation.invitedByUserId) ?? null,
+					),
+				})),
+			);
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
 		}
-		const invitations = await GroupInvitation.findAll({ where: { invitedUserId: user.id, status: 'pending' } });
-		const groups = await Group.findAll({ where: { id: invitations.map((invitation) => invitation.groupId) } });
-		const inviters = await User.findAll({ where: { id: invitations.map((invitation) => invitation.invitedByUserId) } });
-		res.json(
-			invitations.map((invitation) => ({
-				id: invitation.id,
-				groupId: invitation.groupId,
-				groupName: groups.find((group) => group.id === invitation.groupId)?.name ?? '',
-				invitedByName: displayNameOf(inviters.find((candidate) => candidate.id === invitation.invitedByUserId) ?? null),
-			})),
-		);
-	} catch {
-		sendError(res, 500, 'Interner Serverfehler.');
-	}
-});
+	});
 
-/** Offene Einladung des angemeldeten Kontos — fremde oder erledigte Einladung → null (→ 404). */
-const findOwnPendingInvitation = async (userId: number, invitationId: number): Promise<GroupInvitation | null> =>
-	GroupInvitation.findOne({ where: { id: invitationId, invitedUserId: userId, status: 'pending' } });
+	/** Offene Einladung des angemeldeten Kontos — fremde oder erledigte Einladung → null (→ 404). */
+	const findOwnPendingInvitation = async (userId: number, invitationId: number): Promise<GroupInvitation | null> =>
+		GroupInvitation.findOne({ where: { id: invitationId, invitedUserId: userId, status: 'pending' } });
 
-// POST /invitations/:id/accept — nur der Eingeladene selbst; legt die Mitgliedschaft an (AK6/AK8).
-groupsRouter.post(
-	'/invitations/:id/accept',
-	requirePlanFeature('groups'),
-	async (req: Request, res: Response<{ groupId: number } | ErrorDto>) => {
+	// POST /invitations/:id/accept — nur der Eingeladene selbst; legt die Mitgliedschaft an (AK6/AK8).
+	groupsRouter.post(
+		'/invitations/:id/accept',
+		requirePlanFeature('groups'),
+		async (req: Request, res: Response<{ groupId: number } | ErrorDto>) => {
+			try {
+				const user = await resolveGeoUser(req);
+				if (!user) {
+					sendError(res, 401, 'Anmeldung erforderlich.');
+					return;
+				}
+				const id = parseId(req.params.id);
+				if (id === null) {
+					sendError(res, 400, 'Ungültige Einladungs-Id.');
+					return;
+				}
+				const invitation = await findOwnPendingInvitation(user.id, id);
+				if (!invitation) {
+					sendError(res, 404, 'Einladung nicht gefunden.');
+					return;
+				}
+				let duoFull = false;
+				await sequelize.transaction(async (transaction) => {
+					const existing = await GroupMember.findOne({
+						where: { groupId: invitation.groupId, userId: user.id },
+						transaction,
+					});
+					if (!existing) {
+						const group = await Group.findByPk(invitation.groupId, { transaction });
+						if (group && (await isDuoFull(group, transaction))) {
+							duoFull = true;
+							return;
+						}
+						await GroupMember.create(
+							{ groupId: invitation.groupId, userId: user.id, role: 'member', joinedAt: new Date() },
+							{ transaction },
+						);
+					}
+					await invitation.update({ status: 'accepted' }, { transaction });
+				});
+				if (duoFull) {
+					sendError(res, 409, DUO_FULL_MESSAGE);
+					return;
+				}
+				// #2854 AK3: Einladenden über die Annahme informieren — nach dem Commit, ein Fehler beim
+				// Versand bleibt folgenlos fürs Annehmen.
+				try {
+					const group = await Group.findByPk(invitation.groupId, { attributes: ['id', 'name'] });
+					if (group) {
+						await notifyGroupMember(
+							group,
+							{ id: user.id, displayName: displayNameOf(user) },
+							invitation.invitedByUserId,
+							pushSender,
+						);
+					}
+				} catch (error) {
+					console.warn('Beitritts-Push fehlgeschlagen:', error);
+				}
+				res.json({ groupId: invitation.groupId });
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	// POST /invitations/:id/decline — nur der Eingeladene selbst; Mitgliederliste bleibt unverändert (AK7).
+	groupsRouter.post('/invitations/:id/decline', async (req: Request, res: Response<{ groupId: number } | ErrorDto>) => {
 		try {
 			const user = await resolveGeoUser(req);
 			if (!user) {
@@ -622,81 +717,164 @@ groupsRouter.post(
 				sendError(res, 404, 'Einladung nicht gefunden.');
 				return;
 			}
-			let duoFull = false;
-			await sequelize.transaction(async (transaction) => {
-				const existing = await GroupMember.findOne({
-					where: { groupId: invitation.groupId, userId: user.id },
-					transaction,
-				});
-				if (!existing) {
-					const group = await Group.findByPk(invitation.groupId, { transaction });
-					if (group && (await isDuoFull(group, transaction))) {
-						duoFull = true;
-						return;
-					}
-					await GroupMember.create(
-						{ groupId: invitation.groupId, userId: user.id, role: 'member', joinedAt: new Date() },
-						{ transaction },
-					);
-				}
-				await invitation.update({ status: 'accepted' }, { transaction });
-			});
-			if (duoFull) {
-				sendError(res, 409, DUO_FULL_MESSAGE);
-				return;
-			}
+			await invitation.update({ status: 'declined' });
 			res.json({ groupId: invitation.groupId });
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
-	},
-);
+	});
 
-// POST /invitations/:id/decline — nur der Eingeladene selbst; Mitgliederliste bleibt unverändert (AK7).
-groupsRouter.post('/invitations/:id/decline', async (req: Request, res: Response<{ groupId: number } | ErrorDto>) => {
-	try {
-		const user = await resolveGeoUser(req);
-		if (!user) {
-			sendError(res, 401, 'Anmeldung erforderlich.');
-			return;
-		}
-		const id = parseId(req.params.id);
-		if (id === null) {
-			sendError(res, 400, 'Ungültige Einladungs-Id.');
-			return;
-		}
-		const invitation = await findOwnPendingInvitation(user.id, id);
-		if (!invitation) {
-			sendError(res, 404, 'Einladung nicht gefunden.');
-			return;
-		}
-		await invitation.update({ status: 'declined' });
-		res.json({ groupId: invitation.groupId });
-	} catch {
-		sendError(res, 500, 'Interner Serverfehler.');
-	}
-});
+	/**
+	 * Prüft, ob `target` der letzte verbleibende Administrator der Gruppe ist — in dem Fall darf
+	 * weder die Rolle auf `member` zurückgestuft noch das Mitglied entfernt werden (AK6/AK10,
+	 * gemeinsame Prüfung für PATCH und DELETE, siehe docs/spec/issue-1221.md).
+	 */
+	const isLastRemainingAdmin = async (groupId: number, target: GroupMember): Promise<boolean> => {
+		if (target.role !== 'admin') return false;
+		const adminCount = await GroupMember.count({ where: { groupId, role: 'admin' } });
+		return adminCount <= 1;
+	};
 
-/**
- * Prüft, ob `target` der letzte verbleibende Administrator der Gruppe ist — in dem Fall darf
- * weder die Rolle auf `member` zurückgestuft noch das Mitglied entfernt werden (AK6/AK10,
- * gemeinsame Prüfung für PATCH und DELETE, siehe docs/spec/issue-1221.md).
- */
-const isLastRemainingAdmin = async (groupId: number, target: GroupMember): Promise<boolean> => {
-	if (target.role !== 'admin') return false;
-	const adminCount = await GroupMember.count({ where: { groupId, role: 'admin' } });
-	return adminCount <= 1;
-};
+	const LAST_ADMIN_MESSAGE = 'Die Gruppe braucht mindestens einen Administrator — ernenne zuerst eine andere Person.';
 
-const LAST_ADMIN_MESSAGE = 'Die Gruppe braucht mindestens einen Administrator — ernenne zuerst eine andere Person.';
+	// PATCH /groups/:id/members/:userId — Admin ändert die Rolle eines Mitglieds (AK1-AK6). Der
+	// letzte verbleibende Admin bleibt unantastbar (AK6, 409 mit Begründung, dieselbe Prüfung wie
+	// DELETE).
+	groupsRouter.patch(
+		'/groups/:id/members/:userId',
+		requirePlanFeature('groups'),
+		async (req: Request, res: Response<MemberDto | ErrorDto>) => {
+			try {
+				const user = await resolveGeoUser(req);
+				if (!user) {
+					sendError(res, 401, 'Anmeldung erforderlich.');
+					return;
+				}
+				const id = parseId(req.params.id);
+				if (id === null) {
+					sendError(res, 400, 'Ungültige Gruppen-Id.');
+					return;
+				}
+				const found = await findMembership(user.id, id);
+				if (!found) {
+					sendError(res, 404, 'Gruppe nicht gefunden.');
+					return;
+				}
+				if (found.role !== 'admin') {
+					sendError(res, 403, 'Nur Administratoren dürfen Rollen ändern.');
+					return;
+				}
+				const body = (req.body ?? {}) as { role?: unknown };
+				if (body.role !== 'admin' && body.role !== 'member') {
+					sendError(res, 400, 'Die Rolle muss "admin" oder "member" sein.');
+					return;
+				}
+				const targetUserId = parseId(req.params.userId);
+				if (targetUserId === null) {
+					sendError(res, 400, 'Ungültige Nutzer-Id.');
+					return;
+				}
+				const target = await GroupMember.findOne({ where: { groupId: found.group.id, userId: targetUserId } });
+				if (!target) {
+					sendError(res, 404, 'Mitglied nicht gefunden.');
+					return;
+				}
+				if (body.role === 'member' && (await isLastRemainingAdmin(found.group.id, target))) {
+					sendError(res, 409, LAST_ADMIN_MESSAGE);
+					return;
+				}
+				await target.update({ role: body.role });
+				const targetUser = await User.findByPk(targetUserId);
+				res.json({ userId: target.userId, displayName: displayNameOf(targetUser), role: target.role as GroupRole });
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
 
-// PATCH /groups/:id/members/:userId — Admin ändert die Rolle eines Mitglieds (AK1-AK6). Der
-// letzte verbleibende Admin bleibt unantastbar (AK6, 409 mit Begründung, dieselbe Prüfung wie
-// DELETE).
-groupsRouter.patch(
-	'/groups/:id/members/:userId',
-	requirePlanFeature('groups'),
-	async (req: Request, res: Response<MemberDto | ErrorDto>) => {
+	// DELETE /groups/:id/members/:userId — Admin entfernt beliebige Mitglieder, jedes Mitglied sich
+	// selbst (AK9). Der letzte verbleibende Admin bleibt unantastbar (AK10, 409 mit Begründung).
+	// Der Austritt räumt im selben atomaren Vorgang auf (#1251): offene Einladungen der Gruppe für
+	// das entfernte Konto werden gelöscht (AK2) und Serien, die ein anderes (verbleibendes) Mitglied
+	// für es angelegt hat, werden stillagt (AK3) — Bestands-Aufgaben bleiben Eigentum des Empfängers.
+	groupsRouter.delete(
+		'/groups/:id/members/:userId',
+		requirePlanFeature('groups'),
+		async (req: Request, res: Response<ErrorDto>) => {
+			try {
+				const user = await resolveGeoUser(req);
+				if (!user) {
+					sendError(res, 401, 'Anmeldung erforderlich.');
+					return;
+				}
+				const id = parseId(req.params.id);
+				if (id === null) {
+					sendError(res, 400, 'Ungültige Gruppen-Id.');
+					return;
+				}
+				const found = await findMembership(user.id, id);
+				if (!found) {
+					sendError(res, 404, 'Gruppe nicht gefunden.');
+					return;
+				}
+				const targetUserId = parseId(req.params.userId);
+				if (targetUserId === null) {
+					sendError(res, 400, 'Ungültige Nutzer-Id.');
+					return;
+				}
+				const isSelf = targetUserId === user.id;
+				if (found.role !== 'admin' && !isSelf) {
+					sendError(res, 403, 'Nur Administratoren dürfen andere Mitglieder entfernen.');
+					return;
+				}
+				const target = await GroupMember.findOne({ where: { groupId: found.group.id, userId: targetUserId } });
+				if (!target) {
+					sendError(res, 404, 'Mitglied nicht gefunden.');
+					return;
+				}
+				if (await isLastRemainingAdmin(found.group.id, target)) {
+					sendError(res, 409, LAST_ADMIN_MESSAGE);
+					return;
+				}
+				await sequelize.transaction(async (transaction) => {
+					const remaining = await GroupMember.findAll({ where: { groupId: found.group.id }, transaction });
+					const remainingIds = remaining
+						.filter((member) => member.userId !== targetUserId)
+						.map((member) => member.userId);
+					await restCrossMemberSeries([targetUserId], remainingIds, transaction);
+					await GroupInvitation.destroy({
+						where: { groupId: found.group.id, invitedUserId: targetUserId },
+						transaction,
+					});
+					await target.destroy({ transaction });
+				});
+				res.status(204).send();
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	/**
+	 * ── Füreinander angelegte Aufgaben (#1223, Teil 4 der Gruppen-Epic #952) ─────────────────
+	 *
+	 * Reine Lese-Ansicht: offen (nicht `Done`), vom Ersteller für ein anderes Gruppenmitglied
+	 * angelegt (`userId != createdById`, Altbestand ohne `createdById` bleibt privat — auch für
+	 * Admins). Reduzierter Feldsatz ohne Beschreibung, Checkliste und Ids (Datenisolation).
+	 * Sortierung stabil: Empfänger case-insensitive, dann deadline aufsteigend (ohne zuletzt),
+	 * dann id.
+	 */
+	type GroupTaskDto = {
+		id: number;
+		title: string;
+		deadline: string | null;
+		status: Task['status'];
+		recipientName: string;
+		creatorName: string;
+	};
+
+	// GET /groups/:id/tasks — jedes Mitglied (admin oder member) sieht die Liste; fremde Gruppe 404.
+	groupsRouter.get('/groups/:id/tasks', async (req: Request, res: Response<GroupTaskDto[] | ErrorDto>) => {
 		try {
 			const user = await resolveGeoUser(req);
 			if (!user) {
@@ -713,270 +891,71 @@ groupsRouter.patch(
 				sendError(res, 404, 'Gruppe nicht gefunden.');
 				return;
 			}
-			if (found.role !== 'admin') {
-				sendError(res, 403, 'Nur Administratoren dürfen Rollen ändern.');
+			if (found.group.kind === 'duo') {
+				res.json([]);
 				return;
 			}
-			const body = (req.body ?? {}) as { role?: unknown };
-			if (body.role !== 'admin' && body.role !== 'member') {
-				sendError(res, 400, 'Die Rolle muss "admin" oder "member" sein.');
-				return;
-			}
-			const targetUserId = parseId(req.params.userId);
-			if (targetUserId === null) {
-				sendError(res, 400, 'Ungültige Nutzer-Id.');
-				return;
-			}
-			const target = await GroupMember.findOne({ where: { groupId: found.group.id, userId: targetUserId } });
-			if (!target) {
-				sendError(res, 404, 'Mitglied nicht gefunden.');
-				return;
-			}
-			if (body.role === 'member' && (await isLastRemainingAdmin(found.group.id, target))) {
-				sendError(res, 409, LAST_ADMIN_MESSAGE);
-				return;
-			}
-			await target.update({ role: body.role });
-			const targetUser = await User.findByPk(targetUserId);
-			res.json({ userId: target.userId, displayName: displayNameOf(targetUser), role: target.role as GroupRole });
-		} catch {
-			sendError(res, 500, 'Interner Serverfehler.');
-		}
-	},
-);
-
-// DELETE /groups/:id/members/:userId — Admin entfernt beliebige Mitglieder, jedes Mitglied sich
-// selbst (AK9). Der letzte verbleibende Admin bleibt unantastbar (AK10, 409 mit Begründung).
-// Der Austritt räumt im selben atomaren Vorgang auf (#1251): offene Einladungen der Gruppe für
-// das entfernte Konto werden gelöscht (AK2) und Serien, die ein anderes (verbleibendes) Mitglied
-// für es angelegt hat, werden stillagt (AK3) — Bestands-Aufgaben bleiben Eigentum des Empfängers.
-groupsRouter.delete(
-	'/groups/:id/members/:userId',
-	requirePlanFeature('groups'),
-	async (req: Request, res: Response<ErrorDto>) => {
-		try {
-			const user = await resolveGeoUser(req);
-			if (!user) {
-				sendError(res, 401, 'Anmeldung erforderlich.');
-				return;
-			}
-			const id = parseId(req.params.id);
-			if (id === null) {
-				sendError(res, 400, 'Ungültige Gruppen-Id.');
-				return;
-			}
-			const found = await findMembership(user.id, id);
-			if (!found) {
-				sendError(res, 404, 'Gruppe nicht gefunden.');
-				return;
-			}
-			const targetUserId = parseId(req.params.userId);
-			if (targetUserId === null) {
-				sendError(res, 400, 'Ungültige Nutzer-Id.');
-				return;
-			}
-			const isSelf = targetUserId === user.id;
-			if (found.role !== 'admin' && !isSelf) {
-				sendError(res, 403, 'Nur Administratoren dürfen andere Mitglieder entfernen.');
-				return;
-			}
-			const target = await GroupMember.findOne({ where: { groupId: found.group.id, userId: targetUserId } });
-			if (!target) {
-				sendError(res, 404, 'Mitglied nicht gefunden.');
-				return;
-			}
-			if (await isLastRemainingAdmin(found.group.id, target)) {
-				sendError(res, 409, LAST_ADMIN_MESSAGE);
-				return;
-			}
-			await sequelize.transaction(async (transaction) => {
-				const remaining = await GroupMember.findAll({ where: { groupId: found.group.id }, transaction });
-				const remainingIds = remaining
-					.filter((member) => member.userId !== targetUserId)
-					.map((member) => member.userId);
-				await restCrossMemberSeries([targetUserId], remainingIds, transaction);
-				await GroupInvitation.destroy({ where: { groupId: found.group.id, invitedUserId: targetUserId }, transaction });
-				await target.destroy({ transaction });
+			const members = await GroupMember.findAll({ where: { groupId: found.group.id } });
+			const memberIds = members.map((member) => member.userId);
+			const memberIdSet = new Set(memberIds);
+			const tasks = await Task.findAll({
+				where: { userId: { [Op.in]: memberIds }, status: { [Op.ne]: 'Done' } },
 			});
-			res.status(204).send();
+			// Filter in JS statt in SQL: `userId != createdById` wäre mit NULL-Werten (Altbestand)
+			// in SQL nicht falsch-positiv-sicher.
+			const mutual = tasks.filter(
+				(task) =>
+					task.createdById !== null &&
+					task.createdById !== undefined &&
+					task.createdById !== task.userId &&
+					memberIdSet.has(task.createdById),
+			);
+			const users = await User.findAll({ where: { id: memberIds } });
+			const nameOf = (userId: number): string =>
+				displayNameOf(users.find((candidate) => candidate.id === userId) ?? null);
+			const dtos: GroupTaskDto[] = mutual.map((task) => ({
+				id: task.id,
+				title: task.title,
+				deadline: task.deadline ? task.deadline.toISOString() : null,
+				status: task.status,
+				recipientName: nameOf(task.userId ?? 0),
+				creatorName: nameOf(task.createdById!),
+			}));
+			dtos.sort((a, b) => {
+				const byRecipient = a.recipientName.localeCompare(b.recipientName, undefined, { sensitivity: 'accent' });
+				if (byRecipient !== 0) return byRecipient;
+				const aDeadline = a.deadline ? Date.parse(a.deadline) : Number.POSITIVE_INFINITY;
+				const bDeadline = b.deadline ? Date.parse(b.deadline) : Number.POSITIVE_INFINITY;
+				if (aDeadline !== bDeadline) return aDeadline - bDeadline;
+				return a.id - b.id;
+			});
+			res.json(dtos);
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
-	},
-);
+	});
 
-/**
- * ── Füreinander angelegte Aufgaben (#1223, Teil 4 der Gruppen-Epic #952) ─────────────────
- *
- * Reine Lese-Ansicht: offen (nicht `Done`), vom Ersteller für ein anderes Gruppenmitglied
- * angelegt (`userId != createdById`, Altbestand ohne `createdById` bleibt privat — auch für
- * Admins). Reduzierter Feldsatz ohne Beschreibung, Checkliste und Ids (Datenisolation).
- * Sortierung stabil: Empfänger case-insensitive, dann deadline aufsteigend (ohne zuletzt),
- * dann id.
- */
-type GroupTaskDto = {
-	id: number;
-	title: string;
-	deadline: string | null;
-	status: Task['status'];
-	recipientName: string;
-	creatorName: string;
-};
+	/**
+	 * ── Füreinander angelegte Serien (#1254) ──────────────────────────────────────────────
+	 *
+	 * Reine Lese-Ansicht analog /groups/:id/tasks (#1223): Serien, die ein Mitglied für ein
+	 * anderes Mitglied angelegt hat (`userId != createdById`, beide gesetzt und beide Mitglieder
+	 * — Altbestand ohne Ersteller bleibt privat, auch für Admins, kein Rollen-Sonderweg).
+	 * Ruhende Serien (`active:false`, z. B. nach `restCrossMemberSeries` #1251) bleiben sichtbar
+	 * und sind im DTO gekennzeichnet. Reduzierter Feldsatz ohne Beschreibung, Adresse, Koordinaten
+	 * und Ids (Datenisolation). Sortierung stabil: Eigentümer case-insensitive, dann Titel, dann id.
+	 */
+	type GroupSeriesDto = {
+		id: number;
+		title: string;
+		rhythm: Series['rhythm'];
+		active: boolean;
+		ownerName: string;
+		creatorName: string;
+	};
 
-// GET /groups/:id/tasks — jedes Mitglied (admin oder member) sieht die Liste; fremde Gruppe 404.
-groupsRouter.get('/groups/:id/tasks', async (req: Request, res: Response<GroupTaskDto[] | ErrorDto>) => {
-	try {
-		const user = await resolveGeoUser(req);
-		if (!user) {
-			sendError(res, 401, 'Anmeldung erforderlich.');
-			return;
-		}
-		const id = parseId(req.params.id);
-		if (id === null) {
-			sendError(res, 400, 'Ungültige Gruppen-Id.');
-			return;
-		}
-		const found = await findMembership(user.id, id);
-		if (!found) {
-			sendError(res, 404, 'Gruppe nicht gefunden.');
-			return;
-		}
-		if (found.group.kind === 'duo') {
-			res.json([]);
-			return;
-		}
-		const members = await GroupMember.findAll({ where: { groupId: found.group.id } });
-		const memberIds = members.map((member) => member.userId);
-		const memberIdSet = new Set(memberIds);
-		const tasks = await Task.findAll({
-			where: { userId: { [Op.in]: memberIds }, status: { [Op.ne]: 'Done' } },
-		});
-		// Filter in JS statt in SQL: `userId != createdById` wäre mit NULL-Werten (Altbestand)
-		// in SQL nicht falsch-positiv-sicher.
-		const mutual = tasks.filter(
-			(task) =>
-				task.createdById !== null &&
-				task.createdById !== undefined &&
-				task.createdById !== task.userId &&
-				memberIdSet.has(task.createdById),
-		);
-		const users = await User.findAll({ where: { id: memberIds } });
-		const nameOf = (userId: number): string =>
-			displayNameOf(users.find((candidate) => candidate.id === userId) ?? null);
-		const dtos: GroupTaskDto[] = mutual.map((task) => ({
-			id: task.id,
-			title: task.title,
-			deadline: task.deadline ? task.deadline.toISOString() : null,
-			status: task.status,
-			recipientName: nameOf(task.userId ?? 0),
-			creatorName: nameOf(task.createdById!),
-		}));
-		dtos.sort((a, b) => {
-			const byRecipient = a.recipientName.localeCompare(b.recipientName, undefined, { sensitivity: 'accent' });
-			if (byRecipient !== 0) return byRecipient;
-			const aDeadline = a.deadline ? Date.parse(a.deadline) : Number.POSITIVE_INFINITY;
-			const bDeadline = b.deadline ? Date.parse(b.deadline) : Number.POSITIVE_INFINITY;
-			if (aDeadline !== bDeadline) return aDeadline - bDeadline;
-			return a.id - b.id;
-		});
-		res.json(dtos);
-	} catch {
-		sendError(res, 500, 'Interner Serverfehler.');
-	}
-});
-
-/**
- * ── Füreinander angelegte Serien (#1254) ──────────────────────────────────────────────
- *
- * Reine Lese-Ansicht analog /groups/:id/tasks (#1223): Serien, die ein Mitglied für ein
- * anderes Mitglied angelegt hat (`userId != createdById`, beide gesetzt und beide Mitglieder
- * — Altbestand ohne Ersteller bleibt privat, auch für Admins, kein Rollen-Sonderweg).
- * Ruhende Serien (`active:false`, z. B. nach `restCrossMemberSeries` #1251) bleiben sichtbar
- * und sind im DTO gekennzeichnet. Reduzierter Feldsatz ohne Beschreibung, Adresse, Koordinaten
- * und Ids (Datenisolation). Sortierung stabil: Eigentümer case-insensitive, dann Titel, dann id.
- */
-type GroupSeriesDto = {
-	id: number;
-	title: string;
-	rhythm: Series['rhythm'];
-	active: boolean;
-	ownerName: string;
-	creatorName: string;
-};
-
-// GET /groups/:id/series — jedes Mitglied (admin oder member) sieht die Liste; fremde Gruppe 404.
-groupsRouter.get('/groups/:id/series', async (req: Request, res: Response<GroupSeriesDto[] | ErrorDto>) => {
-	try {
-		const user = await resolveGeoUser(req);
-		if (!user) {
-			sendError(res, 401, 'Anmeldung erforderlich.');
-			return;
-		}
-		const id = parseId(req.params.id);
-		if (id === null) {
-			sendError(res, 400, 'Ungültige Gruppen-Id.');
-			return;
-		}
-		const found = await findMembership(user.id, id);
-		if (!found) {
-			sendError(res, 404, 'Gruppe nicht gefunden.');
-			return;
-		}
-		if (found.group.kind === 'duo') {
-			res.json([]);
-			return;
-		}
-		const members = await GroupMember.findAll({ where: { groupId: found.group.id } });
-		const memberIds = members.map((member) => member.userId);
-		const memberIdSet = new Set(memberIds);
-		const series = await Series.findAll({ where: { userId: { [Op.in]: memberIds } } });
-		// Filter in JS statt in SQL: `userId != createdById` wäre mit NULL-Werten (Altbestand)
-		// in SQL nicht falsch-positiv-sicher.
-		const mutual = series.filter(
-			(entry) =>
-				entry.createdById !== null &&
-				entry.createdById !== undefined &&
-				entry.createdById !== entry.userId &&
-				memberIdSet.has(entry.createdById),
-		);
-		const users = await User.findAll({ where: { id: memberIds } });
-		const nameOf = (userId: number): string =>
-			displayNameOf(users.find((candidate) => candidate.id === userId) ?? null);
-		const dtos: GroupSeriesDto[] = mutual.map((entry) => ({
-			id: entry.id,
-			title: entry.title,
-			rhythm: entry.rhythm,
-			active: entry.active,
-			ownerName: nameOf(entry.userId ?? 0),
-			creatorName: nameOf(entry.createdById!),
-		}));
-		dtos.sort((a, b) => {
-			const byOwner = a.ownerName.localeCompare(b.ownerName, undefined, { sensitivity: 'accent' });
-			if (byOwner !== 0) return byOwner;
-			const byTitle = a.title.localeCompare(b.title, undefined, { sensitivity: 'accent' });
-			if (byTitle !== 0) return byTitle;
-			return a.id - b.id;
-		});
-		res.json(dtos);
-	} catch {
-		sendError(res, 500, 'Interner Serverfehler.');
-	}
-});
-
-// ── Einladungslinks (#1226) — Admin-Teil hinter requireAuth; der öffentliche Teil (GET + redeem)
-// hängt bewusst VOR requireAuth (siehe express/index.ts, routes/inviteLinks.ts).
-
-const INVITE_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-
-type InviteLinkDto = { id: number; token: string; expiresAt: string };
-
-// POST /groups/:id/invite-links — nur Admins (AK1): jeder Aufruf erzeugt einen neuen Token
-// aus `crypto.randomBytes` (hex ≥ 32 Zeichen), gültig für 7 Tage. Nicht-Admin-Mitglied → 403,
-// Nicht-Mitglied (auch unbekannte Gruppe) → 404.
-groupsRouter.post(
-	'/groups/:id/invite-links',
-	requirePlanFeature('groups'),
-	async (req: Request, res: Response<InviteLinkDto | ErrorDto>) => {
+	// GET /groups/:id/series — jedes Mitglied (admin oder member) sieht die Liste; fremde Gruppe 404.
+	groupsRouter.get('/groups/:id/series', async (req: Request, res: Response<GroupSeriesDto[] | ErrorDto>) => {
 		try {
 			const user = await resolveGeoUser(req);
 			if (!user) {
@@ -993,31 +972,143 @@ groupsRouter.post(
 				sendError(res, 404, 'Gruppe nicht gefunden.');
 				return;
 			}
-			if (found.role !== 'admin') {
-				sendError(res, 403, 'Nur Administratoren dürfen Einladungslinks erzeugen.');
+			if (found.group.kind === 'duo') {
+				res.json([]);
 				return;
 			}
-			const created = await GroupInviteLink.create({
-				groupId: found.group.id,
-				token: randomBytes(24).toString('hex'),
-				createdByUserId: user.id,
-				expiresAt: new Date(Date.now() + INVITE_LINK_TTL_MS),
-				revokedAt: null,
-				createdAt: new Date(),
+			const members = await GroupMember.findAll({ where: { groupId: found.group.id } });
+			const memberIds = members.map((member) => member.userId);
+			const memberIdSet = new Set(memberIds);
+			const series = await Series.findAll({ where: { userId: { [Op.in]: memberIds } } });
+			// Filter in JS statt in SQL: `userId != createdById` wäre mit NULL-Werten (Altbestand)
+			// in SQL nicht falsch-positiv-sicher.
+			const mutual = series.filter(
+				(entry) =>
+					entry.createdById !== null &&
+					entry.createdById !== undefined &&
+					entry.createdById !== entry.userId &&
+					memberIdSet.has(entry.createdById),
+			);
+			const users = await User.findAll({ where: { id: memberIds } });
+			const nameOf = (userId: number): string =>
+				displayNameOf(users.find((candidate) => candidate.id === userId) ?? null);
+			const dtos: GroupSeriesDto[] = mutual.map((entry) => ({
+				id: entry.id,
+				title: entry.title,
+				rhythm: entry.rhythm,
+				active: entry.active,
+				ownerName: nameOf(entry.userId ?? 0),
+				creatorName: nameOf(entry.createdById!),
+			}));
+			dtos.sort((a, b) => {
+				const byOwner = a.ownerName.localeCompare(b.ownerName, undefined, { sensitivity: 'accent' });
+				if (byOwner !== 0) return byOwner;
+				const byTitle = a.title.localeCompare(b.title, undefined, { sensitivity: 'accent' });
+				if (byTitle !== 0) return byTitle;
+				return a.id - b.id;
 			});
-			res.status(201).json({ id: created.id, token: created.token, expiresAt: created.expiresAt.toISOString() });
+			res.json(dtos);
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
-	},
-);
+	});
 
-// DELETE /invite-links/:id — nur Admins der Gruppe (AK4): setzt `revokedAt` (204), danach sind
-// Einlösen und öffentliches GET 410. Mitglied → 403, fremde Gruppe/unbekannter Link → 404.
-groupsRouter.delete(
-	'/invite-links/:id',
-	requirePlanFeature('groups'),
-	async (req: Request, res: Response<ErrorDto>) => {
+	// ── Einladungslinks (#1226) — Admin-Teil hinter requireAuth; der öffentliche Teil (GET + redeem)
+	// hängt bewusst VOR requireAuth (siehe express/index.ts, routes/inviteLinks.ts).
+
+	const INVITE_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+	type InviteLinkDto = { id: number; token: string; expiresAt: string };
+
+	// POST /groups/:id/invite-links — nur Admins (AK1): jeder Aufruf erzeugt einen neuen Token
+	// aus `crypto.randomBytes` (hex ≥ 32 Zeichen), gültig für 7 Tage. Nicht-Admin-Mitglied → 403,
+	// Nicht-Mitglied (auch unbekannte Gruppe) → 404.
+	groupsRouter.post(
+		'/groups/:id/invite-links',
+		requirePlanFeature('groups'),
+		async (req: Request, res: Response<InviteLinkDto | ErrorDto>) => {
+			try {
+				const user = await resolveGeoUser(req);
+				if (!user) {
+					sendError(res, 401, 'Anmeldung erforderlich.');
+					return;
+				}
+				const id = parseId(req.params.id);
+				if (id === null) {
+					sendError(res, 400, 'Ungültige Gruppen-Id.');
+					return;
+				}
+				const found = await findMembership(user.id, id);
+				if (!found) {
+					sendError(res, 404, 'Gruppe nicht gefunden.');
+					return;
+				}
+				if (found.role !== 'admin') {
+					sendError(res, 403, 'Nur Administratoren dürfen Einladungslinks erzeugen.');
+					return;
+				}
+				const created = await GroupInviteLink.create({
+					groupId: found.group.id,
+					token: randomBytes(24).toString('hex'),
+					createdByUserId: user.id,
+					expiresAt: new Date(Date.now() + INVITE_LINK_TTL_MS),
+					revokedAt: null,
+					createdAt: new Date(),
+				});
+				res.status(201).json({ id: created.id, token: created.token, expiresAt: created.expiresAt.toISOString() });
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	// DELETE /invite-links/:id — nur Admins der Gruppe (AK4): setzt `revokedAt` (204), danach sind
+	// Einlösen und öffentliches GET 410. Mitglied → 403, fremde Gruppe/unbekannter Link → 404.
+	groupsRouter.delete(
+		'/invite-links/:id',
+		requirePlanFeature('groups'),
+		async (req: Request, res: Response<ErrorDto>) => {
+			try {
+				const user = await resolveGeoUser(req);
+				if (!user) {
+					sendError(res, 401, 'Anmeldung erforderlich.');
+					return;
+				}
+				const id = parseId(req.params.id);
+				if (id === null) {
+					sendError(res, 400, 'Ungültige Einladungslink-Id.');
+					return;
+				}
+				const link = await GroupInviteLink.findByPk(id);
+				if (!link) {
+					sendError(res, 404, 'Einladungslink nicht gefunden.');
+					return;
+				}
+				const found = await findMembership(user.id, link.groupId);
+				if (!found) {
+					sendError(res, 404, 'Einladungslink nicht gefunden.');
+					return;
+				}
+				if (found.role !== 'admin') {
+					sendError(res, 403, 'Nur Administratoren dürfen Einladungslinks ungültig machen.');
+					return;
+				}
+				await link.update({ revokedAt: new Date() });
+				res.status(204).send();
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	type DuoDto = {
+		streak: { aktuell: number; best: number };
+		members: { userId: number; name: string; saeulen: { pillarId: number; name: string; wert: number }[] }[];
+	};
+
+	// GET /groups/:id/duo — gemeinsamer Streak (nur Tage, an denen beide Mitglieder etwas erledigt haben)
+	// und je Mitglied nur Säulenwerte, keine Aufgabenfelder (#1974). Nicht-Mitglied und `kind='group'` → 404.
+	groupsRouter.get('/groups/:id/duo', async (req: Request, res: Response<DuoDto | ErrorDto>) => {
 		try {
 			const user = await resolveGeoUser(req);
 			if (!user) {
@@ -1026,178 +1117,183 @@ groupsRouter.delete(
 			}
 			const id = parseId(req.params.id);
 			if (id === null) {
-				sendError(res, 400, 'Ungültige Einladungslink-Id.');
+				sendError(res, 400, 'Ungültige Gruppen-Id.');
 				return;
 			}
-			const link = await GroupInviteLink.findByPk(id);
-			if (!link) {
-				sendError(res, 404, 'Einladungslink nicht gefunden.');
+			const found = await findMembership(user.id, id);
+			if (!found || found.group.kind !== 'duo') {
+				sendError(res, 404, 'Duo nicht gefunden.');
 				return;
 			}
-			const found = await findMembership(user.id, link.groupId);
-			if (!found) {
-				sendError(res, 404, 'Einladungslink nicht gefunden.');
+			const memberIds = (await GroupMember.findAll({ where: { groupId: found.group.id } })).map((m) => m.userId);
+			const users = await User.findAll({ where: { id: memberIds } });
+			const tzErgebnis = validateQueryEinzelwert(req.query.tz, 'tz');
+			if (!tzErgebnis.ok) {
+				sendError(res, 400, tzErgebnis.message);
 				return;
 			}
-			if (found.role !== 'admin') {
-				sendError(res, 403, 'Nur Administratoren dürfen Einladungslinks ungültig machen.');
-				return;
-			}
-			await link.update({ revokedAt: new Date() });
-			res.status(204).send();
-		} catch {
-			sendError(res, 500, 'Interner Serverfehler.');
-		}
-	},
-);
+			const angefragteZone = tzErgebnis.value;
+			const zeitZone = istGueltigeZeitzone(angefragteZone)
+				? angefragteZone
+				: Intl.DateTimeFormat().resolvedOptions().timeZone;
+			const jetzt = new Date();
 
-type DuoDto = {
-	streak: { aktuell: number; best: number };
-	members: { userId: number; name: string; saeulen: { pillarId: number; name: string; wert: number }[] }[];
-};
-
-// GET /groups/:id/duo — gemeinsamer Streak (nur Tage, an denen beide Mitglieder etwas erledigt haben)
-// und je Mitglied nur Säulenwerte, keine Aufgabenfelder (#1974). Nicht-Mitglied und `kind='group'` → 404.
-groupsRouter.get('/groups/:id/duo', async (req: Request, res: Response<DuoDto | ErrorDto>) => {
-	try {
-		const user = await resolveGeoUser(req);
-		if (!user) {
-			sendError(res, 401, 'Anmeldung erforderlich.');
-			return;
-		}
-		const id = parseId(req.params.id);
-		if (id === null) {
-			sendError(res, 400, 'Ungültige Gruppen-Id.');
-			return;
-		}
-		const found = await findMembership(user.id, id);
-		if (!found || found.group.kind !== 'duo') {
-			sendError(res, 404, 'Duo nicht gefunden.');
-			return;
-		}
-		const memberIds = (await GroupMember.findAll({ where: { groupId: found.group.id } })).map((m) => m.userId);
-		const users = await User.findAll({ where: { id: memberIds } });
-		const tzErgebnis = validateQueryEinzelwert(req.query.tz, 'tz');
-		if (!tzErgebnis.ok) {
-			sendError(res, 400, tzErgebnis.message);
-			return;
-		}
-		const angefragteZone = tzErgebnis.value;
-		const zeitZone = istGueltigeZeitzone(angefragteZone)
-			? angefragteZone
-			: Intl.DateTimeFormat().resolvedOptions().timeZone;
-		const jetzt = new Date();
-
-		// Je Mitglied strikt mit `ownerScope` (Muster GET /scores/balance): Säulenwerte und Zeitpunkte.
-		const stands = await Promise.all(
-			memberIds.map(async (memberId) => {
-				const [saeulen, tasks, entries] = await Promise.all([
-					Pillar.findAll({ where: ownerScope(memberId), order: [['id', 'ASC']] }),
-					Task.findAll({ where: ownerScope(memberId), include: [Pillar] }),
-					ScoreEntry.findAll({ include: [{ model: Task, where: ownerScope(memberId) }] }),
-				]);
-				const zeitpunktProTask = new Map(entries.map((entry) => [entry.taskId, entry.zeitpunkt]));
-				const balance = berechneLebensbalanceNachKadenz(
-					saeulen.map((saeule) => ({ id: saeule.id, key: saeule.key, name: saeule.name, weight: saeule.weight })),
-					tasks.map((task) => ({
-						status: task.status,
-						estimatedEffort: task.estimatedEffort,
-						pillars: (task.Pillars ?? []).map((pillar: PillarWithContribution) => ({
-							pillarId: pillar.id,
-							share: pillar.TaskPillar.share,
+			// Je Mitglied strikt mit `ownerScope` (Muster GET /scores/balance): Säulenwerte und Zeitpunkte.
+			const stands = await Promise.all(
+				memberIds.map(async (memberId) => {
+					const [saeulen, tasks, entries] = await Promise.all([
+						Pillar.findAll({ where: ownerScope(memberId), order: [['id', 'ASC']] }),
+						Task.findAll({ where: ownerScope(memberId), include: [Pillar] }),
+						ScoreEntry.findAll({ include: [{ model: Task, where: ownerScope(memberId) }] }),
+					]);
+					const zeitpunktProTask = new Map(entries.map((entry) => [entry.taskId, entry.zeitpunkt]));
+					const balance = berechneLebensbalanceNachKadenz(
+						saeulen.map((saeule) => ({ id: saeule.id, key: saeule.key, name: saeule.name, weight: saeule.weight })),
+						tasks.map((task) => ({
+							status: task.status,
+							estimatedEffort: task.estimatedEffort,
+							pillars: (task.Pillars ?? []).map((pillar: PillarWithContribution) => ({
+								pillarId: pillar.id,
+								share: pillar.TaskPillar.share,
+							})),
+							erledigtAm: zeitpunktProTask.get(task.id) ?? null,
 						})),
-						erledigtAm: zeitpunktProTask.get(task.id) ?? null,
-					})),
-					jetzt,
-				);
+						jetzt,
+					);
+					return {
+						userId: memberId,
+						name: displayNameOf(users.find((candidate) => candidate.id === memberId) ?? null),
+						saeulen: balance.saeulen.map((saeule) => ({
+							pillarId: saeule.id,
+							name: saeule.name,
+							wert: Math.round(saeule.punkte * 10) / 10,
+						})),
+						zeitpunkte: streakZeitpunkte(
+							entries.map((entry) => ({ zeitpunkt: entry.zeitpunkt, deadline: entry.Task?.deadline })),
+							zeitZone,
+						),
+					};
+				}),
+			);
+			const [a, b] = stands;
+			const { aktuell, best } = berechneDuoStreak(a?.zeitpunkte ?? [], b?.zeitpunkte ?? [], jetzt, zeitZone);
+			res.json({
+				streak: { aktuell, best },
+				members: stands.map(({ userId, name, saeulen }) => ({ userId, name, saeulen })),
+			});
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+		}
+	});
+
+	type GroupChallengeDto = {
+		gruppe: string;
+		status: ChallengeStatus;
+		startsAt: string;
+		endsAt: string;
+		rangfolge: RangEintrag[];
+	};
+
+	/**
+	 * Challenge-Stand (#1992): Rangfolge nach Balance über die im Zeitraum erledigten Tasks je Mitglied
+	 * (strikt `ownerScope`, Muster Duo). Die Tasks fließen nur in die Rechnung — die Antwort trägt je
+	 * Mitglied Name, Rang und Wert (AK4).
+	 */
+	const challengeDto = async (group: Group, challenge: GroupChallenge): Promise<GroupChallengeDto> => {
+		const jetzt = new Date();
+		const memberIds = (await GroupMember.findAll({ where: { groupId: group.id } })).map((m) => m.userId);
+		const users = await User.findAll({ where: { id: memberIds } });
+		const bis = jetzt < challenge.endsAt ? jetzt : challenge.endsAt;
+		const mitglieder = await Promise.all(
+			memberIds.map(async (memberId) => {
+				const [saeulen, entries] = await Promise.all([
+					Pillar.findAll({ where: ownerScope(memberId), order: [['id', 'ASC']] }),
+					ScoreEntry.findAll({
+						where: { zeitpunkt: { [Op.gte]: challenge.startsAt, [Op.lt]: bis } },
+						include: [{ model: Task, where: ownerScope(memberId), include: [Pillar] }],
+					}),
+				]);
 				return {
-					userId: memberId,
 					name: displayNameOf(users.find((candidate) => candidate.id === memberId) ?? null),
-					saeulen: balance.saeulen.map((saeule) => ({
-						pillarId: saeule.id,
-						name: saeule.name,
-						wert: Math.round(saeule.punkte * 10) / 10,
-					})),
-					zeitpunkte: streakZeitpunkte(
-						entries.map((entry) => ({ zeitpunkt: entry.zeitpunkt, deadline: entry.Task?.deadline })),
-						zeitZone,
+					saeulen: saeulen.map((saeule) => ({ id: saeule.id, name: saeule.name, weight: saeule.weight })),
+					tasks: entries.flatMap(({ Task: task }) =>
+						task
+							? [
+									{
+										status: task.status,
+										estimatedEffort: task.estimatedEffort,
+										pillars: (task.Pillars ?? []).map((pillar: PillarWithContribution) => ({
+											pillarId: pillar.id,
+											share: pillar.TaskPillar.share,
+										})),
+									},
+								]
+							: [],
 					),
 				};
 			}),
 		);
-		const [a, b] = stands;
-		const { aktuell, best } = berechneDuoStreak(a?.zeitpunkte ?? [], b?.zeitpunkte ?? [], jetzt, zeitZone);
-		res.json({
-			streak: { aktuell, best },
-			members: stands.map(({ userId, name, saeulen }) => ({ userId, name, saeulen })),
-		});
-	} catch {
-		sendError(res, 500, 'Interner Serverfehler.');
-	}
-});
-
-type GroupChallengeDto = {
-	gruppe: string;
-	status: ChallengeStatus;
-	startsAt: string;
-	endsAt: string;
-	rangfolge: RangEintrag[];
-};
-
-/**
- * Challenge-Stand (#1992): Rangfolge nach Balance über die im Zeitraum erledigten Tasks je Mitglied
- * (strikt `ownerScope`, Muster Duo). Die Tasks fließen nur in die Rechnung — die Antwort trägt je
- * Mitglied Name, Rang und Wert (AK4).
- */
-const challengeDto = async (group: Group, challenge: GroupChallenge): Promise<GroupChallengeDto> => {
-	const jetzt = new Date();
-	const memberIds = (await GroupMember.findAll({ where: { groupId: group.id } })).map((m) => m.userId);
-	const users = await User.findAll({ where: { id: memberIds } });
-	const bis = jetzt < challenge.endsAt ? jetzt : challenge.endsAt;
-	const mitglieder = await Promise.all(
-		memberIds.map(async (memberId) => {
-			const [saeulen, entries] = await Promise.all([
-				Pillar.findAll({ where: ownerScope(memberId), order: [['id', 'ASC']] }),
-				ScoreEntry.findAll({
-					where: { zeitpunkt: { [Op.gte]: challenge.startsAt, [Op.lt]: bis } },
-					include: [{ model: Task, where: ownerScope(memberId), include: [Pillar] }],
-				}),
-			]);
-			return {
-				name: displayNameOf(users.find((candidate) => candidate.id === memberId) ?? null),
-				saeulen: saeulen.map((saeule) => ({ id: saeule.id, name: saeule.name, weight: saeule.weight })),
-				tasks: entries.flatMap(({ Task: task }) =>
-					task
-						? [
-								{
-									status: task.status,
-									estimatedEffort: task.estimatedEffort,
-									pillars: (task.Pillars ?? []).map((pillar: PillarWithContribution) => ({
-										pillarId: pillar.id,
-										share: pillar.TaskPillar.share,
-									})),
-								},
-							]
-						: [],
-				),
-			};
-		}),
-	);
-	return {
-		gruppe: group.name,
-		status: challengeStatus(challenge.endsAt, jetzt),
-		startsAt: challenge.startsAt.toISOString(),
-		endsAt: challenge.endsAt.toISOString(),
-		rangfolge: berechneRangfolge(mitglieder),
+		return {
+			gruppe: group.name,
+			status: challengeStatus(challenge.endsAt, jetzt),
+			startsAt: challenge.startsAt.toISOString(),
+			endsAt: challenge.endsAt.toISOString(),
+			rangfolge: berechneRangfolge(mitglieder),
+		};
 	};
-};
 
-// POST /groups/:id/challenge — jedes Mitglied startet eine 7-Tage-Challenge (#1992 AK1);
-// läuft schon eine → 409, Nicht-Mitglied → 404.
-groupsRouter.post(
-	'/groups/:id/challenge',
-	requirePlanFeature('groups'),
-	async (req: Request, res: Response<GroupChallengeDto | ErrorDto>) => {
+	// POST /groups/:id/challenge — jedes Mitglied startet eine 7-Tage-Challenge (#1992 AK1);
+	// läuft schon eine → 409, Nicht-Mitglied → 404.
+	groupsRouter.post(
+		'/groups/:id/challenge',
+		requirePlanFeature('groups'),
+		async (req: Request, res: Response<GroupChallengeDto | ErrorDto>) => {
+			try {
+				const user = await resolveGeoUser(req);
+				if (!user) {
+					sendError(res, 401, 'Anmeldung erforderlich.');
+					return;
+				}
+				const id = parseId(req.params.id);
+				if (id === null) {
+					sendError(res, 400, 'Ungültige Gruppen-Id.');
+					return;
+				}
+				const found = await findMembership(user.id, id);
+				if (!found) {
+					sendError(res, 404, 'Gruppe nicht gefunden.');
+					return;
+				}
+				const startsAt = new Date();
+				const laufend = await GroupChallenge.findOne({
+					where: { groupId: found.group.id, endsAt: { [Op.gt]: startsAt } },
+				});
+				if (laufend) {
+					sendError(res, 409, 'Es läuft bereits eine Challenge.');
+					return;
+				}
+				const challenge = await GroupChallenge.create({
+					groupId: found.group.id,
+					startsAt,
+					endsAt: new Date(startsAt.getTime() + CHALLENGE_DAUER_MS),
+				});
+				// #2854 AK4: Challenge-Start den Mitgliedern melden — nach dem Commit, ein Fehler beim
+				// Versand bleibt folgenlos fürs Starten.
+				try {
+					await notifyChallengeStarted({ id: challenge.id, groupId: found.group.id }, pushSender);
+				} catch (error) {
+					console.warn('Challenge-Start-Push fehlgeschlagen:', error);
+				}
+				res.status(201).json(await challengeDto(found.group, challenge));
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	// GET /groups/:id/challenge — jüngste Challenge der Gruppe mit Status aus `endsAt` (AK2); noch
+	// keine → 204, Nicht-Mitglied → 404.
+	groupsRouter.get('/groups/:id/challenge', async (req: Request, res: Response<GroupChallengeDto | ErrorDto>) => {
 		try {
 			const user = await resolveGeoUser(req);
 			if (!user) {
@@ -1214,55 +1310,18 @@ groupsRouter.post(
 				sendError(res, 404, 'Gruppe nicht gefunden.');
 				return;
 			}
-			const startsAt = new Date();
-			const laufend = await GroupChallenge.findOne({
-				where: { groupId: found.group.id, endsAt: { [Op.gt]: startsAt } },
+			const challenge = await GroupChallenge.findOne({
+				where: { groupId: found.group.id },
+				order: [['startsAt', 'DESC']],
 			});
-			if (laufend) {
-				sendError(res, 409, 'Es läuft bereits eine Challenge.');
+			if (!challenge) {
+				res.status(204).send();
 				return;
 			}
-			const challenge = await GroupChallenge.create({
-				groupId: found.group.id,
-				startsAt,
-				endsAt: new Date(startsAt.getTime() + CHALLENGE_DAUER_MS),
-			});
-			res.status(201).json(await challengeDto(found.group, challenge));
+			res.json(await challengeDto(found.group, challenge));
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
-	},
-);
-
-// GET /groups/:id/challenge — jüngste Challenge der Gruppe mit Status aus `endsAt` (AK2); noch
-// keine → 204, Nicht-Mitglied → 404.
-groupsRouter.get('/groups/:id/challenge', async (req: Request, res: Response<GroupChallengeDto | ErrorDto>) => {
-	try {
-		const user = await resolveGeoUser(req);
-		if (!user) {
-			sendError(res, 401, 'Anmeldung erforderlich.');
-			return;
-		}
-		const id = parseId(req.params.id);
-		if (id === null) {
-			sendError(res, 400, 'Ungültige Gruppen-Id.');
-			return;
-		}
-		const found = await findMembership(user.id, id);
-		if (!found) {
-			sendError(res, 404, 'Gruppe nicht gefunden.');
-			return;
-		}
-		const challenge = await GroupChallenge.findOne({
-			where: { groupId: found.group.id },
-			order: [['startsAt', 'DESC']],
-		});
-		if (!challenge) {
-			res.status(204).send();
-			return;
-		}
-		res.json(await challengeDto(found.group, challenge));
-	} catch {
-		sendError(res, 500, 'Interner Serverfehler.');
-	}
-});
+	});
+	return groupsRouter;
+};
