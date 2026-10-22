@@ -411,6 +411,7 @@ _Enthält v0.21.0 – v0.21.7._
 - feat(frontend): series auto-create switch before start date (#2464) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2472
 - feat(server): reject done with open checklist items (#2467) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2470
 - feat(frontend): render demo hint as dismissible kolcard (#2474) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2475
+- feat(frontend): render demo hint as dismissible kolcard (#2474) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2475
 
 ## v0.20 - 2026-10-09
 
