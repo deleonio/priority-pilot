@@ -921,15 +921,15 @@ kol-toolbar {
 /* --- Dashboard --- */
 
 /*
- * Vertikaler Karten-Rhythmus: Der Stapel läuft über EINE Flex-Spalte mit Gap — dieselbe
- * Mechanik wie das Zwei-Spalten-Grid ab 48 rem — statt über Eigenmargins je Karte. Die
- * Eigenmargins brachen still, sobald Karten bedingt nicht gerendert wurden oder ein Wrapper
- * dazukam (`.dashboard-last-row` hatte mobil 0 px zwischen Deadlines und Verpasst, gemessen
- * bei 375 px). Hero-Spalte und letzte Reihe folgen demselben Muster; der 48-rem-Block
- * überschreibt display/gap dort (Grid, kompakte Hero-Spalte). Einzige bewusste Ausnahme: die
- * kompakte Zone zwischen Titelzeile und Ziffernblatt — früher margin-top des Herzens, jetzt
- * ein negativer Ausgleich an der Titelzeile, damit die Balance-Karte samt Ablesewert im
- * ersten Mobile-Viewport bleibt (Begründung beim `.app-tabs`-Kommentar).
+ * Karten-Rhythmus: Der Stapel läuft über Flex mit Gap — mobil EINE Spalte, ab 48 rem
+ * umbrechende Zeilen (1–3 Karten nebeneinander, je nach Breite) — statt über Eigenmargins
+ * je Karte. Die Eigenmargins brachen still, sobald Karten bedingt nicht gerendert wurden
+ * oder ein Wrapper dazukam (`.dashboard-last-row` hatte mobil 0 px zwischen Deadlines und
+ * Verpasst, gemessen bei 375 px). Hero-Spalte und letzte Reihe folgen demselben Muster; der
+ * 48-rem-Block überschreibt dort Richtung/Gap (kompakte Hero-Spalte). Einzige bewusste
+ * Ausnahme: die kompakte Zone zwischen Titelzeile und Ziffernblatt — früher margin-top des
+ * Herzens, jetzt ein negativer Ausgleich an der Titelzeile, damit die Balance-Karte samt
+ * Ablesewert im ersten Mobile-Viewport bleibt (Begründung beim `.app-tabs`-Kommentar).
  */
 .dashboard {
 	display: flex;
@@ -1377,34 +1377,60 @@ kol-toolbar {
 	max-width: 100%;
 }
 
-/* Ab mittlerer Breite zweispaltig: Begrüßung und „Was ist jetzt dran?" bleiben über die volle
-   Breite; der Hero („Meine Lebensbalance" zwei Drittel, rechts ein Drittel die gestapelten
-   Kacheln samt „Nächste Aufgabe") und die fünf Sekundär-Widgets („In der Nähe" — nur bei
-   aktivierter/verweigerter Standorterhebung gerendert —, „Wichtigste Tasks", „Meine Themen",
-   „Gesamtguthaben" und „Anstehende Deadlines") fließen ins Zwei-Spalten-Raster. */
+/* Ab mittlerer Breite umbrechende Karten-Zeilen: Vollbreite Blöcke (Titelzeile, „Was ist jetzt
+   dran?", Hero mit „Meine Lebensbalance" zwei Drittel plus rechts ein Drittel die gestapelten
+   Kacheln samt „Nächste Aufgabe", letzte Reihe Deadlines/Verpasst) belegen je eine Zeile; die
+   Widget-Karten (unten) brechen mit 20-rem-Basis auf 1–3 nebeneinander. Karten, die heute
+   nicht gerendert werden (Fensterkarten, „In der Nähe" aus), hinterlassen so weder eine leere
+   Kachel noch einen verwaisten Gap — die letzte Zeile wächst auf die Restbreite. */
 @media (min-width: 48rem) {
 	.dashboard {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
+		flex-direction: row;
+		flex-wrap: wrap;
 		/* Ein einheitliches Gap auf beiden Achsen (Mittelwert aus Base 1rem und Generous 2rem) —
 		   vorher war es zeilen-/spaltenweise unterschiedlich (1rem vs. 2rem). */
 		gap: var(--pp-space-5);
 		align-items: stretch;
 	}
 
-	/* #1118 Gleichhöhe je Grid-Zeile: liefert align-items: stretch (s. o.) gemeinsam mit dem
+	/* #1118 Gleichhöhe je Karten-Zeile: liefert align-items: stretch (s. o.) gemeinsam mit dem
 	   theme-seitigen height: 100 % am kol-card-Host — kein eigener Override nötig. */
 
-	/* Abstände steuert im Grid der gap, nicht die Eigenmargin der Widgets. (Spezifität 0,1,1, damit
-	   der Reset auch die erst später im Quelltext liegenden Widget-Margins übersteht — #1118 AK5.) */
+	/* Jedes Kind füllt zunächst seine eigene Zeile; die Widget-Karten unten brechen auf die
+	   20-rem-Basis herunter. Abstände steuert der gap, nicht die Eigenmargin der Widgets.
+	   (Spezifität 0,1,1, damit der Reset auch die erst später im Quelltext liegenden
+	   Widget-Margins übersteht — #1118 AK5.) */
 	section.dashboard > * {
+		flex: 1 1 100%;
+		min-width: 0;
 		margin-top: 0;
+	}
+
+	/* Widget-Pool, 1–3 nebeneinander: Freie Zeit, In der Nähe, Wichtigste Tasks, Meine Themen,
+	   Streak, Verlauf, Wochen-/Monats-/Jahreskarte (falls im Fenster), Meilensteine,
+	   Verpasst-Zähler, Gesamtguthaben. `:is()` hebt die Spezifität über die Vollbreiten-Regel
+	   oben; nicht gerenderte Karten fallen aus der Rechnung, ohne Lücken zu hinterlassen. */
+	section.dashboard
+		> :is(
+			.dashboard-free-time,
+			.dashboard-nearby,
+			.dashboard-top-tasks,
+			.dashboard-pillars,
+			.dashboard-streak,
+			.dashboard-balance-history,
+			.dashboard-weekly,
+			.dashboard-monthly,
+			.dashboard-yearly,
+			.dashboard-milestones,
+			.dashboard-missed,
+			.dashboard-balance
+		) {
+		flex-basis: 20rem;
 	}
 
 	.dashboard-heading,
 	.dashboard-suggestions {
-		grid-column: 1 / -1;
-		/* margin-bottom hebt die mobile Kompakt-Ausnahme über dem Ziffernblatt auf: Im Grid
+		/* margin-bottom hebt die mobile Kompakt-Ausnahme über dem Ziffernblatt auf: Im Stapel
 		   steuert der Gap den Rhythmus. */
 		margin-bottom: 0;
 	}
@@ -1416,7 +1442,6 @@ kol-toolbar {
 	   Zeile (198,6 px neben Deadlines). Fehlt der Verpasst-Bereich, füllt die Deadlines-Card die
 	   Reihe voll (wie zuvor per `:has()` am Parent; der Wrapper ersetzt das Konstrukt). */
 	.dashboard-last-row {
-		grid-column: 1 / -1;
 		display: grid;
 		grid-template-columns: 1fr;
 		gap: var(--pp-space-5);
@@ -1441,7 +1466,6 @@ kol-toolbar {
 	 * auf eine Spalte um; die Kacheln behalten dort ihr auto-fit-Raster über die volle Breite.
 	 */
 	.dashboard-hero {
-		grid-column: 1 / -1;
 		display: grid;
 		grid-template-columns: 2fr 1fr;
 		gap: var(--pp-gap-generous);
