@@ -89,6 +89,13 @@ describe('invoices.ts — Gutschrift als PDF (#2303)', () => {
 		assert.equal(mails.length, 1, 'Genau eine Mail nach dem Commit');
 		const credit = await Invoice.findByPk(creditId);
 		assert.ok(mails[0].subject.includes('Gutschrift') && mails[0].subject.includes(String(credit?.get('number'))));
+		const creditHtml = mails[0].html ?? '';
+		assert.ok(
+			creditHtml.includes(String(credit?.get('number'))) &&
+				creditHtml.includes('cid:balamentum-logo') &&
+				creditHtml.includes('cid:modevel-logo'),
+			'Gutschrift-HTML trägt Nummer und beide Logo-CIDs',
+		);
 		const attachment = mails[0].attachments?.[0];
 		assert.ok(
 			attachment && Buffer.from(attachment.content).equals(Buffer.from(credit?.get('pdfBytes') as Uint8Array)),

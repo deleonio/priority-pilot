@@ -2,6 +2,7 @@ import { NotificationLog, User } from '../models/index.js';
 import { sendDedupedPush } from './dedupedPush.js';
 import { type PushSender } from './push.js';
 import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
+import { renderMailHtml } from './mailTemplate.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { istRuhezeit } from './carePush.js';
 import { nutzerZeitzone } from './streak.js';
@@ -68,7 +69,8 @@ export const notifyTaskCompleted = async (
 	if (istRuhezeit(new Date(), nutzerZeitzone(recipient?.zeitzone))) {
 		return;
 	}
-	const texte = TEXTE[spracheVon(recipient?.sprache)];
+	const sprache = spracheVon(recipient?.sprache);
+	const texte = TEXTE[sprache];
 	const title = texte.titel;
 	const body = texte.text(completer?.displayName ?? texte.jemand, task.title);
 	const { sent } = await sendDedupedPush(
@@ -80,7 +82,12 @@ export const notifyTaskCompleted = async (
 	);
 	let mailSent = false;
 	if (mailSend || isMailConfigured()) {
-		mailSent = await sendMailToUser({ email: recipient?.email ?? null }, { subject: title, text: body }, mailSend);
+		const mailHtml = renderMailHtml({ heading: title, paragraphs: [body], lang: sprache });
+		mailSent = await sendMailToUser(
+			{ email: recipient?.email ?? null },
+			{ subject: title, text: body, html: mailHtml.html, attachments: mailHtml.attachments },
+			mailSend,
+		);
 	}
 	if (sent === 0 && mailSent) {
 		// Protokolliert der Helfer nicht (Push ohne Zustellung), sichert erst die Mail den Log-Eintrag.

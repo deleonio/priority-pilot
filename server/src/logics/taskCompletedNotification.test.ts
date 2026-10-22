@@ -26,7 +26,7 @@ const mockSend: PushSender = (subscription, payload) => {
 	return Promise.resolve({ statusCode: 201, body: '', headers: {} } as SendResult);
 };
 
-type MailSenderStub = (payload: { to: string; subject: string; text: string }) => Promise<void>;
+type MailSenderStub = (payload: { to: string; subject: string; text: string; html?: string }) => Promise<void>;
 type NotifyTaskCompletedWithMail = (
 	task: Parameters<typeof notifyTaskCompleted>[0],
 	completer: Parameters<typeof notifyTaskCompleted>[1],
@@ -64,7 +64,7 @@ describe('notifyTaskCompleted — Mail-Kanal (#1426, TF5/AK5)', () => {
 			expirationTime: null,
 			userId: creator.id,
 		});
-		const mailCalls: { to: string; subject: string; text: string }[] = [];
+		const mailCalls: { to: string; subject: string; text: string; html?: string }[] = [];
 		const mailSend: MailSenderStub = (payload) => {
 			mailCalls.push(payload);
 			return Promise.resolve();
@@ -81,6 +81,7 @@ describe('notifyTaskCompleted — Mail-Kanal (#1426, TF5/AK5)', () => {
 		assert.equal(JSON.parse(pushCalls[0].body).url, '/tasks/1', '#2851 AK1: der Push verlinkt die erledigte Aufgabe');
 		assert.equal(mailCalls.length, 1, 'genau eine Mail zusätzlich zur Push-Nachricht');
 		assert.equal(mailCalls[0].to, 'creator@example.com', 'Mail geht an den Ersteller (Empfänger der Erinnerung)');
+		assert.match(mailCalls[0].html ?? '', /cid:balamentum-logo/, 'HTML-Variante mit Logo');
 		const logs = await NotificationLog.findAll({ where: { kind: 'task-completed' } });
 		assert.equal(logs.length, 1, 'ein NotificationLog-Eintrag pro Auslöser, nicht pro Kanal');
 	});

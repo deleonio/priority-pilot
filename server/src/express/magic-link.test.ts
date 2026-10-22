@@ -18,10 +18,10 @@ process.env.PUBLIC_BASE_URL = 'https://app.example.com/';
 const ALLOWED = 'erlaubt@example.com';
 
 let server: TestServer;
-let sent: { to: string; text: string }[] = [];
+let sent: { to: string; text: string; html?: string }[] = [];
 
 const recordingSender: MailSender = (payload) => {
-	sent.push({ to: payload.to, text: payload.text });
+	sent.push({ to: payload.to, text: payload.text, html: payload.html });
 	return Promise.resolve();
 };
 
@@ -75,6 +75,7 @@ describe('Magic-Link-Login per E-Mail', () => {
 		assert.equal(sent.length, 1);
 		assert.equal(sent[0].to, ALLOWED, 'Adresse wird normalisiert');
 		assert.match(sent[0].text, /https:\/\/app\.example\.com\/app\/\?magic=/);
+		assert.match(sent[0].html ?? '', /href="https:\/\/app\.example\.com\/app\/\?magic=/, 'HTML mit Button-Link');
 
 		const token = lastToken();
 		const rows = await LoginToken.findAll();
