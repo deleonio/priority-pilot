@@ -21,6 +21,7 @@ import { periodLabel, planLabel } from '../lib/planOffers';
 import { getChannel } from '../lib/platform';
 import { usePlan } from '../lib/usePlan';
 import { CHANNEL_PROVIDER } from './billingChannel';
+import { BillingAddressDialog } from './BillingAddressDialog';
 import { getApiBase } from '../lib/siteOrigin';
 import { ManagedBy } from './ManagedBy';
 import { Modal } from './Modal';
@@ -186,6 +187,7 @@ export const SubscriptionSection = () => {
 	const [invoices, setInvoices] = useState<Invoice[] | null>(null);
 	const [invoicesFailed, setInvoicesFailed] = useState(false);
 	const [cancelOpen, setCancelOpen] = useState(false);
+	const [addressOpen, setAddressOpen] = useState(false);
 	// Merker nach erfolgreicher Kündigung: der Webhook stellt den Status erst verzögert um (#2048).
 	const [locallyCancelled, setLocallyCancelled] = useState(false);
 	// Bestätigungsadresse der lokalen Kündigung — die Mail kommt erst mit dem Webhook (KI-UX #2308).
@@ -295,6 +297,17 @@ export const SubscriptionSection = () => {
 				)
 			)}
 
+			{/* Rechnungsadresse ohne Bestellvorgang pflegen — erst mit geladenem Abo-Stand (kein
+			    Blinken beim Laden), dasselbe Formular wie im Checkout (#2661). */}
+			{current !== undefined && (
+				<KolButton
+					data-testid="billing-address-edit"
+					_label={t('address.edit')}
+					_variant="secondary"
+					_on={{ onClick: () => setAddressOpen(true) }}
+				/>
+			)}
+
 			{showInvoices && (
 				<KolDetails _label={t('invoices.label')} _level={3}>
 					<section className="billing-invoices" data-testid="billing-invoices">
@@ -334,6 +347,8 @@ export const SubscriptionSection = () => {
 					</section>
 				</KolDetails>
 			)}
+
+			{addressOpen && <BillingAddressDialog onClose={() => setAddressOpen(false)} />}
 
 			{cancelOpen && current != null && (
 				<CancelDialog

@@ -105,6 +105,10 @@
 		"saveFailed": "Rechnungsadresse konnte nicht gespeichert werden.",
 		"edit": "Rechnungsadresse ändern"
 	},
+	"addressDialog": {
+		"title": "Rechnungsadresse",
+		"text": "Diese Anschrift erscheint auf künftigen Rechnungen."
+	},
 	"play": {
 		"unlockFailed": "Der Kauf ist bei Google eingegangen, konnte aber noch nicht freigeschaltet werden.",
 		"purchaseFailed": "Der Kauf über Google Play ist fehlgeschlagen.",
