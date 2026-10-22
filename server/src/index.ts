@@ -155,12 +155,12 @@ export const main = async (): Promise<void> => {
 			migrateCalendarSourceCaldavColumns,
 			migrateUserBillingAddressColumns,
 		} = await import('./logics/migrate.js');
-		const { runDueTaskReminders } = await import('./logics/dueTaskReminders.js');
+		const { runDailyDigest } = await import('./logics/dailyDigest.js');
 		const { runDeadlineAutoDelete } = await import('./logics/autoDeleteAfterDeadline.js');
-		const { runDailyTopTasksPush } = await import('./logics/dailyTopTasks.js');
 		const { runCarePush } = await import('./logics/carePush.js');
 		const { runStreakReminder } = await import('./logics/streakReminder.js');
 		const { runMonthlyRecapPush } = await import('./logics/monthlyRecapPush.js');
+		const { vorrangVon } = await import('./logics/pushBudget.js');
 		const { runAboServicePush } = await import('./logics/aboPush.js');
 		const { runCalendarSync, CALENDAR_SYNC_INTERVAL_MS } = await import('./logics/calendar-ics.js');
 		const { applyDueGracePeriods, reconcilePaypalSubscriptions } = await import('./logics/billing/lifecycle.js');
@@ -344,14 +344,18 @@ export const main = async (): Promise<void> => {
 
 		await launchServer();
 
-		// Fachliche Web-Push-Trigger (Issue #355 + #518) — No-Op ohne VAPID-Keys oder ohne
-		// explizites PUSH_REMINDERS_ENABLED=true (siehe scheduler/index.ts).
+		// Fachliche Web-Push-Trigger (Issue #355 + #518 + #2853) — No-Op ohne VAPID-Keys oder ohne
+		// explizites PUSH_REMINDERS_ENABLED=true (siehe scheduler/index.ts). Der Morgen-Push ist
+		// seit #2853 der Digest „Dein Tag“ (fällige + Top-Aufgaben gebündelt, inkl. Morgen-Mail
+		// #1426); die alten Morgen-Trigger (`runDueTaskReminders`, `runDailyTopTasksPush`) sind
+		// entfallen. Je Tick sendet der Scheduler in §4-Vorrang-Ordnung (F1.2) — über den
+		// Tagesverlauf bleibt es First-Come-First-Served. Der Abo-Service-Push (#2852) bleibt
+		// ungerangt: als Service-Nachricht läuft er nach den gerangten Triggern und budgetfrei.
 		startScheduler([
-			runDueTaskReminders,
-			runDailyTopTasksPush,
-			runCarePush,
-			runStreakReminder,
-			runMonthlyRecapPush,
+			{ rang: vorrangVon('daily-digest'), trigger: runDailyDigest },
+			{ rang: vorrangVon('care-push'), trigger: runCarePush },
+			{ rang: vorrangVon('streak-reminder'), trigger: runStreakReminder },
+			{ rang: vorrangVon('monthly-recap'), trigger: runMonthlyRecapPush },
 			runAboServicePush,
 		]);
 
