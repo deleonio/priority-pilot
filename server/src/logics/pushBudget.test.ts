@@ -172,3 +172,21 @@ describe('pushBudget — Gruppen-Pushes (#2854 AK6)', () => {
 		assert.equal(tagVon('group-challenge'), 'pp-gruppen', '§2.3: Gruppen-Tag');
 	});
 });
+
+// #2856 AK5: das Tipps-Kind ist registriert (VORRANG-Falle: unregistrierte Kinds sortieren mit
+// −1 nach vorn) und trägt den Gruppen-Tag pp-tipps — als KEIN Service-Kind in der untersten
+// §4-Stufe nach monthly-recap (Konzept §8).
+describe('pushBudget — Tipps-Hinweis (#2856 AK5)', () => {
+	it('registriert tip-push in der untersten Stufe (nach monthly-recap) und taggt es pp-tipps', () => {
+		assert.ok(
+			vorrangVon('tip-push') >= vorrangVon('monthly-recap'),
+			'tip-push gehört in die unterste Stufe (nach monthly-recap)',
+		);
+		assert.notEqual(
+			vorrangVon('tip-push'),
+			vorrangVon('unregistriert-beispiel'),
+			'Registrierung ist Pflicht (VORRANG-Falle)',
+		);
+		assert.equal(tagVon('tip-push'), 'pp-tipps', '§8/§2.3: Tipps-Tag');
+	});
+});
