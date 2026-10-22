@@ -45,9 +45,15 @@ const VORRANG: string[][] = [
 	['due-task'],
 	['daily-top-tasks'],
 	['care-push'],
+	['appreciation'],
+	['welcome-back'],
+	['journal-impulse'],
 	['streak-reminder'],
 	['milestone'],
 	['monthly-recap'],
+	['weekly-recap'],
+	['yearly-recap'],
+	['welcome-steps'],
 ];
 
 /**
@@ -78,9 +84,15 @@ const TAGS: Record<string, string> = {
 	'group-member': 'pp-gruppen',
 	'group-challenge': 'pp-gruppen',
 	'care-push': 'pp-fuersorge',
+	appreciation: 'pp-fuersorge',
+	'welcome-back': 'pp-fuersorge',
+	'journal-impulse': 'pp-fuersorge',
 	'streak-reminder': 'pp-fuersorge',
 	milestone: 'pp-erfolge',
 	'monthly-recap': 'pp-erfolge',
+	'weekly-recap': 'pp-erfolge',
+	'yearly-recap': 'pp-erfolge',
+	'welcome-steps': 'pp-aufgaben',
 	'abo-service': 'pp-abo',
 };
 

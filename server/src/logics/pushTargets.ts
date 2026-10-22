@@ -7,6 +7,13 @@ export const PUSH_TARGETS = {
 	dueTask: { eine: (id: number) => `/tasks/${id}`, mehrere: '/#karte-deadlines' },
 	dailyTopTasks: { eine: (id: number) => `/tasks/${id}`, mehrere: '/#karte-top-aufgaben' },
 	carePush: '/#karte-fuersorge',
+	// #2855: Lob/Willkommen zurück auf die Balance-Karte, Rückblicke auf ihre Cards, Journal auf die Route.
+	appreciation: '/#karte-balance',
+	welcomeBack: '/#karte-balance',
+	weeklyRecap: '/#karte-wochenrueckblick',
+	yearlyRecap: '/#karte-jahresrueckblick',
+	welcomeSteps: '/#karte-willkommen',
+	journalImpulse: '/journal',
 	streakReminder: '/#karte-streak',
 	monthlyRecap: '/#karte-monatsrueckblick',
 	milestone: '/#karte-meilensteine',
