@@ -156,6 +156,21 @@ describe('logics/push — Versand zusätzlich über FCM (#1675)', () => {
 		assert.equal(await NotificationLog.count(), 2);
 	});
 
+	it('#2853 AK4: setzt den Gruppen-Tag der Payload als android.notification.tag', async () => {
+		configureFcm();
+		await FcmToken.create({ token: 'device-1', userId: 1 });
+		const calls = mockGoogle();
+
+		await sendPushToUser(
+			1,
+			{ title: 'Fürsorge', body: 'x', url: '/', tag: 'pp-fuersorge' } as Parameters<typeof sendPushToUser>[1],
+			webSender([]),
+		);
+
+		const body = JSON.parse(sendCalls(calls)[0]?.init.body as string);
+		assert.equal(body.message.android.notification.tag, 'pp-fuersorge');
+	});
+
 	it('ohne Service-Account bleibt es beim Web-Push, FCM wird nicht angesprochen', async () => {
 		await seedBoth();
 		const calls = mockGoogle();

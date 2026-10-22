@@ -134,6 +134,20 @@ describe('push-sw.js — Issue #504 (nur EINE Benachrichtigung)', () => {
 		expect(options?.tag).toBeTruthy();
 	});
 
+	it('#2853 AK4: zeigt die Notification mit dem Gruppen-Tag aus der Payload', async () => {
+		await dispatchPush({ title: 'Fürsorge', body: 'Pause gönnen', url: '/', tag: 'pp-fuersorge' });
+
+		const options = showNotification.mock.calls.at(-1)?.[1] as { tag?: string } | undefined;
+		expect(options?.tag).toBe('pp-fuersorge');
+	});
+
+	it('#2853 AK4: ohne payload.tag bleibt der Fallback priority-pilot', async () => {
+		await dispatchPush({ title: 'Balamentum', body: 'Zitat', url: '/' });
+
+		const options = showNotification.mock.calls.at(-1)?.[1] as { tag?: string } | undefined;
+		expect(options?.tag).toBe('priority-pilot');
+	});
+
 	it('AK3: das Handbuch dokumentiert das Symptom der doppelten Benachrichtigung', () => {
 		const guide = readFileSync(new URL('../../../docs/user-guide.md', import.meta.url), 'utf-8');
 
