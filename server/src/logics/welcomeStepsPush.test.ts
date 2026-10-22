@@ -115,4 +115,20 @@ describe('logics/welcomeStepsPush — Willkommensschritte (#2855 AK5)', () => {
 		assert.equal(result.usersNotified, 0);
 		assert.equal(await NotificationLog.count(), 0);
 	});
+
+	it('AK5: Tagesfenster Tag 09–18 — vor 09:00 lokal kein Versand, ab 09:00 versendet (08:59/09:00 Berlin)', async () => {
+		await seedNutzerAb('ws-fenster@example.com', '2026-07-05T10:00:00Z');
+		const calls: { endpoint: string; body: string }[] = [];
+
+		// Europa/Berlin, Juli = CEST (UTC+2): 06:59Z = 08:59 lokal, 07:00Z = 09:00 lokal — beides
+		// liegt auf dem lokalen Tag 2 (2026-07-07), nur die Stunde unterscheidet.
+		await runWelcomeStepsPush(new Date('2026-07-07T06:59:00Z'), okSender(calls));
+		assert.equal(calls.length, 0, 'vor dem lokalen Fenster wird nicht gesendet');
+		assert.equal(await NotificationLog.count(), 0);
+
+		const result = await runWelcomeStepsPush(new Date('2026-07-07T07:00:00Z'), okSender(calls));
+
+		assert.equal(result.usersNotified, 1, 'ab 09:00 lokal wird gesendet');
+		assert.equal(calls.length, 1);
+	});
 });

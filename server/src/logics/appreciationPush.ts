@@ -3,6 +3,7 @@ import { NotificationLog, Pillar, ScoreEntry, Task, User } from '../models/index
 import type { PillarWithContribution } from '../models/task.js';
 import { bewerteCareDefizit } from './careDeficit.js';
 import { sendDedupedPush } from './dedupedPush.js';
+import { uhrzeitIn } from './carePush.js';
 import type { BalanceSaeule, KadenzTask } from './heartBalance.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { type PushSender } from './push.js';
@@ -11,8 +12,9 @@ import { PUSH_TARGETS } from './pushTargets.js';
 
 /**
  * Fachliche Push-Trigger „Lob" (#2855 AK1) und „Willkommen zurück" (#2855 AK6) — die beiden
- * Fürsorge-Anlässe ohne eigenes Tagesfenster (Ruhezeit/Budget über die gemeinsame Mechanik aus
- * `dedupedPush.ts`). Das Lob honoriert eine ausgewogene Woche, wenn {@link bewerteCareDefizit}
+ * Fürsorge-Anlässe im Fenster Tag 09–18 Ortszeit (`push-konzept.md` §3/§7.1), das die Ruhezeit
+ * 21–07 mit abdeckt; das Budget-Tor läuft über die gemeinsame Mechanik aus `dedupedPush.ts`
+ * (die selbst keine Uhrzeit prüft). Das Lob honoriert eine ausgewogene Woche, wenn {@link bewerteCareDefizit}
  * weder ein Defizit noch eine Überlast meldet; am lokalen Tag eines `care-push`-Versands bleibt
  * es aus (Fürsorge schlägt Lob). Willkommen zurück erreicht Nutzer nach sieben Tagen ohne
  * angelegte oder erledigte Aufgabe — ältere Historie ist unschädlich.
@@ -51,6 +53,15 @@ const SIEBEN_TAGE_MS = 7 * 24 * 60 * 60 * 1000;
 const DREISSIG_TAGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
+ * Fenster Tag 09–18 Ortszeit (Anfang inklusive, Ende exklusiv) — Muster `istImFenster` aus
+ * `carePush.ts`; `sendDedupedPush` prüft selbst keine Uhrzeit, das Gate gehört zum Trigger.
+ */
+const istImTagesfenster = (now: Date, zeitzone: string): boolean => {
+	const { stunde } = uhrzeitIn(now, zeitzone);
+	return stunde >= 9 && stunde < 18;
+};
+
+/**
  * Care-Auswertung je Nutzer — dasselbe Sammeln wie `runCarePush` (`carePush.ts`): Säulen in
  * Id-Ordnung, Aufgaben mit Säulen-Beiträgen, Erledigungszeitpunkte aus `ScoreEntry`. Gibt `null`
  * zurück, wenn der Nutzer keine Säule hat (keine Bewertung möglich).
@@ -83,7 +94,8 @@ const careDefiziteFuer = async (user: User, now: Date) => {
 
 /**
  * Versendet höchstens ein Lob je Nutzer und ISO-Woche — Voraussetzung ist eine ausgewogene
- * Auswertung ohne `care-push`-Versand am selben lokalen Tag.
+ * Auswertung ohne `care-push`-Versand am selben lokalen Tag; Versandfenster ist Tag 09–18
+ * Ortszeit (der stündliche Scheduler feuert sonst auch nachts).
  *
  * @param now Auswertungszeitpunkt (Scheduler: jetzt; Tests: feste Zeit).
  * @param send injizierbarer Versand (siehe `logics/push.ts`); Tests reichen einen Mock herein.
@@ -98,11 +110,14 @@ export const runAppreciationPush = async (
 		if (user.carePushEnabled === false) {
 			continue;
 		}
+		const zeitzone = nutzerZeitzone(user.zeitzone);
+		if (!istImTagesfenster(now, zeitzone)) {
+			continue;
+		}
 		const defizite = await careDefiziteFuer(user, now);
 		if (defizite === null || defizite.some((eintrag) => eintrag.defizitaer || eintrag.ueberlast)) {
 			continue;
 		}
-		const zeitzone = nutzerZeitzone(user.zeitzone);
 		// Nie am selben lokalen Tag wie ein Fürsorge-Hinweis — gleicher Dedup-Schlüssel wie `runCarePush`.
 		const careHeute = await NotificationLog.findOne({
 			where: { kind: 'care-push', userId: user.id, dedupeKey: `${user.id}:${tagIn(now, zeitzone)}` },
@@ -130,7 +145,8 @@ export const runAppreciationPush = async (
  * Versendet eine Willkommen-zurück-Nachricht an Nutzer ohne angelegte (`Task.createdAt`) oder
  * erledigte (`ScoreEntry.zeitpunkt`) Aufgabe in den letzten sieben Tagen — höchstens einmal je
  * 30 Tage, geprüft über `NotificationLog`-Einträge des Kinds (`sentAt`-Rückblick; der
- * Dedup-Schlüssel wechselt täglich, hält die Sperre also selbst nicht).
+ * Dedup-Schlüssel wechselt täglich, hält die Sperre also selbst nicht). Versandfenster ist
+ * Tag 09–18 Ortszeit — sonst feuerte der stündliche Scheduler nachts, sobald die Sperre abläuft.
  *
  * @param now Auswertungszeitpunkt (Scheduler: jetzt; Tests: feste Zeit).
  * @param send injizierbarer Versand (siehe `logics/push.ts`); Tests reichen einen Mock herein.
@@ -143,6 +159,10 @@ export const runWelcomeBackPush = async (
 	let usersNotified = 0;
 	for (const user of users) {
 		if (user.carePushEnabled === false) {
+			continue;
+		}
+		const zeitzone = nutzerZeitzone(user.zeitzone);
+		if (!istImTagesfenster(now, zeitzone)) {
 			continue;
 		}
 		const seitSiebenTagen = new Date(now.getTime() - SIEBEN_TAGE_MS);
@@ -170,7 +190,6 @@ export const runWelcomeBackPush = async (
 		if (seitDreissigTagen) {
 			continue;
 		}
-		const zeitzone = nutzerZeitzone(user.zeitzone);
 		const dedupeKey = `${user.id}:welcome-back:${tagIn(now, zeitzone)}`;
 		const { sent } = await sendDedupedPush(
 			user.id,

@@ -1,5 +1,6 @@
 import { Task, User } from '../models/index.js';
 import { sendDedupedPush } from './dedupedPush.js';
+import { uhrzeitIn } from './carePush.js';
 import { type PushSender } from './push.js';
 import { nutzerZeitzone, tagIn } from './streak.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
@@ -7,7 +8,8 @@ import { PUSH_TARGETS } from './pushTargets.js';
 
 /**
  * Fachlicher Push-Trigger „Willkommensschritte" (#2855 AK5): erinnert genau am zweiten lokalen
- * Kalendertag nach der Registrierung an die ersten Schritte — nur bei Nutzern ohne einzige
+ * Kalendertag nach der Registrierung im Fenster Tag 09–18 Ortszeit an die ersten Schritte —
+ * nur bei Nutzern ohne einzige
  * Aufgabe (Server-Kriterium; der localStorage-Zustand `pp-welcome-steps` der Willkommens-Card
  * ist serverseitig unsichtbar). Der Dedup-Schlüssel ist die Konto-Id: genau ein Push je Konto,
  * unabhängig vom Datum. Schalter: `users.taskPushEnabled` (Gruppe Aufgaben).
@@ -38,7 +40,8 @@ const tageZwischen = (frueher: string, spaeter: string): number => {
 
 /**
  * Versendet genau einen Willkommensschritte-Push je Konto — am lokalen Tag 2 nach
- * `users.createdAt`, solange der Nutzer keine Aufgabe hat.
+ * `users.createdAt` im Fenster Tag 09–18 Ortszeit, solange der Nutzer keine Aufgabe hat
+ * (der stündliche Scheduler feuert sonst nach Ortszeit-Mitternacht des Tag-2).
  *
  * @param now Auswertungszeitpunkt (Scheduler: jetzt; Tests: feste Zeit).
  * @param send injizierbarer Versand (siehe `logics/push.ts`); Tests reichen einen Mock herein.
@@ -54,6 +57,11 @@ export const runWelcomeStepsPush = async (
 			continue;
 		}
 		const zeitzone = nutzerZeitzone(user.zeitzone);
+		// Fenster Tag 09–18 Ortszeit (Muster `runMonthlyRecapPush`); `sendDedupedPush` prüft keine Uhrzeit.
+		const { stunde } = uhrzeitIn(now, zeitzone);
+		if (stunde < 9 || stunde >= 18) {
+			continue;
+		}
 		const registrierungsTag = tagIn(user.createdAt, zeitzone);
 		if (tageZwischen(registrierungsTag, tagIn(now, zeitzone)) !== 2) {
 			continue;

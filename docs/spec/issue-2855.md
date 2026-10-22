@@ -7,8 +7,9 @@ Status: Spec-Phase (rote Tests) · Issue: #2855 · Konzept: `docs/push-konzept.m
 Sechs neue serverseitige Push-Anlässe nach dem Muster `carePush.ts`/`monthlyRecapPush.ts`: je
 lokales Fenster, Häufigkeitsgrenze, Gruppenschalter und Ziel-Anker aus `PUSH_TARGETS`; Texte in
 de und en nach der Prüffrage aus `docs/fuersorge-tonalitaet.md` (Prüffrage selbst = Review-Check,
-nicht automatisiert). Kein UI-Change → keine E2E. Budget-Tor (max. 3/Tag) und Ruhezeit 21–7
-greifen unverändert über die bestehende Mechanik (`sendDedupedPush`, `pushBudget.ts`).
+nicht automatisiert). Kein UI-Change → keine E2E. Budget-Tor (max. 3/Tag) greift unverändert über
+die bestehende Mechanik (`sendDedupedPush`, `pushBudget.ts`); die Ruhezeit 21–7 hält jedes
+Anlass-Fenster selbst ein (kein Trigger sendet nach 21 Uhr), `sendDedupedPush` prüft keine Uhrzeit.
 
 ## Modul- und Namensvertrag (bindend für die Impl-Phase)
 
@@ -36,8 +37,8 @@ Ende exklusiv (Repo-Konvention).
   1 Säule, 1 Erledigung gestern — unter der Überlast-Mindestmenge, kein Defizit).
 - Zusätzlich blockiert: lokaler Tag, an dem bereits ein `care-push`-Log existiert
   (Gegenprobe `kind='care-push'`, `dedupeKey = <userId>:<lokalesDatum>`).
-- Häufigkeit: Dedup-Key `<userId>:<ISO-Woche>` → höchstens 1 je ISO-Woche. Kein eigenes
-  Tagesfenster (Ruhezeit/Budget über gemeinsame Mechanik).
+- Häufigkeit: Dedup-Key `<userId>:<ISO-Woche>` → höchstens 1 je ISO-Woche. Tagesfenster Tag
+  09–18 Uhr Ortszeit (Anfang inklusive, Ende exklusiv).
 
 ### Wochenrückblick (`weekly-recap`, AK2)
 
@@ -63,12 +64,15 @@ Ende exklusiv (Repo-Konvention).
 - Genau am lokalen Kalendertag 2 nach `users.createdAt` (lokales Datum `now` = lokales Datum
   `createdAt` + 2 Tage), nur wenn der Nutzer **keine** Aufgabe hat (Server-Kriterium; der
   localStorage-Zustand `pp-welcome-steps` ist serverseitig unsichtbar).
+- Tagesfenster Tag 09–18 Uhr Ortszeit (Anfang inklusive, Ende exklusiv) — sonst feuerte der
+  stündliche Scheduler den Tag-2-Push nach Ortszeit-Mitternacht.
 - Dedup-Key fix `<userId>` → genau einmal je Konto. Schalter `taskPushEnabled`.
 
 ### Willkommen zurück (`welcome-back`, AK6)
 
 - Nur wenn in den letzten 7 Tagen weder eine Aufgabe angelegt (`Task.createdAt`) noch erledigt
   wurde (`ScoreEntry.zeitpunkt`) — ältere Historie ist unschädlich.
+- Tagesfenster Tag 09–18 Uhr Ortszeit (Anfang inklusive, Ende exklusiv).
 - Häufigkeit: höchstens 1 je 30 Tage, geprüft über `NotificationLog`-Einträge des Kinds mit
   `sentAt` innerhalb der letzten 30 Tage; Dedup-Key `<userId>:welcome-back:<lokalesDatum>`.
   Schalter `carePushEnabled`.

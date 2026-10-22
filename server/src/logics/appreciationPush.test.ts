@@ -152,6 +152,21 @@ describe('logics/appreciationPush — Lob (#2855 AK1)', () => {
 		assert.equal(calls.length, 0);
 		assert.equal(await NotificationLog.count(), 0);
 	});
+
+	it('AK1: Tagesfenster Tag 09–18 — vor 09:00 lokal kein Versand, ab 09:00 versendet (08:59/09:00 Berlin)', async () => {
+		await seedAusgewogenerNutzer('lob-fenster@example.com');
+		const calls: { endpoint: string; body: string }[] = [];
+
+		// Europa/Berlin, Juli = CEST (UTC+2): 06:59Z = 08:59 lokal, 07:00Z = 09:00 lokal.
+		await runAppreciationPush(new Date('2026-07-07T06:59:00Z'), okSender(calls));
+		assert.equal(calls.length, 0, 'vor dem lokalen Fenster wird nicht gesendet');
+		assert.equal(await NotificationLog.count(), 0);
+
+		const result = await runAppreciationPush(new Date('2026-07-07T07:00:00Z'), okSender(calls));
+
+		assert.equal(result.usersNotified, 1, 'ab 09:00 lokal wird gesendet');
+		assert.equal(calls.length, 1);
+	});
 });
 
 describe('logics/appreciationPush — Willkommen zurück (#2855 AK6)', () => {
@@ -261,5 +276,20 @@ describe('logics/appreciationPush — Willkommen zurück (#2855 AK6)', () => {
 		assert.equal(result.usersNotified, 0);
 		assert.equal(calls.length, 0);
 		assert.equal(await NotificationLog.count(), 0);
+	});
+
+	it('AK6: Tagesfenster Tag 09–18 — vor 09:00 lokal kein Versand, ab 09:00 versendet (08:59/09:00 Berlin)', async () => {
+		await seedZurueckkehrer('wb-fenster@example.com');
+		const calls: { endpoint: string; body: string }[] = [];
+
+		// Europa/Berlin, Juli = CEST (UTC+2): 06:59Z = 08:59 lokal, 07:00Z = 09:00 lokal.
+		await runWelcomeBackPush(new Date('2026-07-07T06:59:00Z'), okSender(calls));
+		assert.equal(calls.length, 0, 'vor dem lokalen Fenster wird nicht gesendet');
+		assert.equal(await NotificationLog.count(), 0);
+
+		const result = await runWelcomeBackPush(new Date('2026-07-07T07:00:00Z'), okSender(calls));
+
+		assert.equal(result.usersNotified, 1, 'ab 09:00 lokal wird gesendet');
+		assert.equal(calls.length, 1);
 	});
 });
