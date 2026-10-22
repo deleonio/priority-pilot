@@ -16,6 +16,8 @@ export const PUSH_TARGETS = {
 	// #2852: Abo-/Rechnungs-Service-Pushes zielen auf den Pakete-Tab (Rechnungen mit Anker).
 	aboInvoice: '/settings/pakete#rechnungen',
 	aboStatus: '/settings/pakete',
+	// #2856: Tipps-Hinweis zielt wie die Service-Pushes auf den Pakete-Tab.
+	tipps: '/settings/pakete',
 	// #2854: Gruppen-Pushes zielen auf den Gruppen-Tab (Einladungs-Karte bzw. Gruppe mit Anker).
 	groupInvitations: '/settings/gruppen#einladungen',
 	groupDetail: (id: number) => `/settings/gruppen#gruppe-${id}`,

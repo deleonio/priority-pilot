@@ -162,6 +162,7 @@ export const main = async (): Promise<void> => {
 		const { runMonthlyRecapPush } = await import('./logics/monthlyRecapPush.js');
 		const { vorrangVon } = await import('./logics/pushBudget.js');
 		const { runAboServicePush } = await import('./logics/aboPush.js');
+		const { runTipPush } = await import('./logics/tipPush.js');
 		const { runGroupPush } = await import('./logics/groupPush.js');
 		const { runCalendarSync, CALENDAR_SYNC_INTERVAL_MS } = await import('./logics/calendar-ics.js');
 		const { applyDueGracePeriods, reconcilePaypalSubscriptions } = await import('./logics/billing/lifecycle.js');
@@ -358,6 +359,8 @@ export const main = async (): Promise<void> => {
 			{ rang: vorrangVon('streak-reminder'), trigger: runStreakReminder },
 			{ rang: vorrangVon('monthly-recap'), trigger: runMonthlyRecapPush },
 			{ rang: vorrangVon('group-challenge'), trigger: runGroupPush },
+			// #2856: Tipps-Hinweis ist KEIN Service-Kind — gerangt wie die Budget-Kinder.
+			{ rang: vorrangVon('tip-push'), trigger: runTipPush },
 			runAboServicePush,
 		]);
 

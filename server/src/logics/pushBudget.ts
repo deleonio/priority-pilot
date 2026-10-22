@@ -48,6 +48,8 @@ const VORRANG: string[][] = [
 	['streak-reminder'],
 	['milestone'],
 	['monthly-recap'],
+	// #2856 AK5: der Tipps-Hinweis (§8) ist Werbung — unterste §4-Stufe, budgetiert.
+	['tip-push'],
 ];
 
 /**
@@ -82,6 +84,8 @@ const TAGS: Record<string, string> = {
 	milestone: 'pp-erfolge',
 	'monthly-recap': 'pp-erfolge',
 	'abo-service': 'pp-abo',
+	// #2856: Tipps und Angebote sind eine eigene Gruppe (§2.3).
+	'tip-push': 'pp-tipps',
 };
 
 /** Gruppen-Tag eines Kinds — für noch nicht zugeordnete Kinds die Aufgabengruppe als Fallback. */
