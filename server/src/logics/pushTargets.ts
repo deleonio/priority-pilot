@@ -13,4 +13,7 @@ export const PUSH_TARGETS = {
 	taskCreated: (id: number) => `/tasks/${id}`,
 	taskCompleted: (id: number) => `/tasks/${id}`,
 	seriesGenerated: '/serien',
+	// #2852: Abo-/Rechnungs-Service-Pushes zielen auf den Pakete-Tab (Rechnungen mit Anker).
+	aboInvoice: '/settings/pakete#rechnungen',
+	aboStatus: '/settings/pakete',
 } as const;
