@@ -159,11 +159,11 @@ describe('logics/geo-background-job — Geo-Push-Trigger (#1101)', () => {
 
 		await runGeoPushNotifications([position], okSender(calls), NOW);
 
-		const payload = JSON.parse(calls[0].body) as { title: string; body?: string; url?: string };
+		const payload = JSON.parse(calls[0].body) as { title: string; body?: string; url?: string; tag?: string };
 		assert.equal(payload.title, 'Bäckerei');
 		assert.match(payload.body ?? '', /0,4 km/, 'Entfernung de-DE mit einer Nachkommastelle (formatKm-Konvention)');
 		assert.ok(
-			!Object.keys(payload).some((key) => !['title', 'body', 'url'].includes(key)),
+			!Object.keys(payload).some((key) => !['title', 'body', 'url', 'tag'].includes(key)),
 			'kein Feld außerhalb des SW-Kontrakts',
 		);
 		assert.match(payload.url ?? '', new RegExp(`/\\d`), 'Deep-Link statt generischer App-Wurzel');

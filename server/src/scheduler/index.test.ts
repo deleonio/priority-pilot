@@ -133,6 +133,32 @@ describe('scheduler/createTicker — Tick-Logik (Issue #355)', () => {
 		await assert.doesNotReject(tick());
 		assert.deepEqual(calls, ['zweiter'], 'ein fehlschlagender Trigger blockiert die übrigen nicht');
 	});
+
+	it('#2853/F1.2: Einträge mit rang laufen je Tick aufsteigend vor den ungerangten (stabil)', async () => {
+		const aufgerufen: string[] = [];
+		const merker = (name: string) => () => {
+			aufgerufen.push(name);
+			return Promise.resolve();
+		};
+		const { tick } = createTicker(
+			[
+				merker('ungerangt-1'),
+				{ rang: 5, trigger: merker('rang-5') },
+				merker('ungerangt-2'),
+				{ rang: 1, trigger: merker('rang-1') },
+				{ rang: 5, trigger: merker('rang-5-b') },
+			],
+			{ now: () => new Date('2026-07-07T08:00:00Z'), hour: 8 },
+		);
+
+		await tick();
+
+		assert.deepEqual(
+			aufgerufen,
+			['rang-1', 'rang-5', 'rang-5-b', 'ungerangt-1', 'ungerangt-2'],
+			'das Push-Budget wird je Tick in §4-Vorrang-Ordnung konsumiert (F1.2)',
+		);
+	});
 });
 
 describe('scheduler/startScheduler — Gate (Issue #355)', () => {

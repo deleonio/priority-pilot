@@ -1,29 +1,19 @@
 import { Op } from 'sequelize';
-import { Task, NotificationLog, User } from '../models/index.js';
-import { sendDedupedPushBulk } from './dedupedPush.js';
-import type { PushSender } from './push.js';
-import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
+import { Task, NotificationLog } from '../models/index.js';
 import { selectSeriesRepresentatives } from './series.js';
-import { spracheVon, type CareSprache } from './careSuggestionData.js';
-import { uhrzeitIn } from './carePush.js';
-import { nutzerZeitzone, tagIn } from './streak.js';
-import { PUSH_TARGETS } from './pushTargets.js';
 
 /**
- * Fachlicher Push-Trigger „fällige Aufgaben" (Issue #355). Bündelt je Nutzer **eine** Push-Nachricht
- * für alle fälligen/überfälligen Tasks (Anti-Spam statt einer Notification je Task) und verhindert
- * über {@link NotificationLog}, dass derselbe fällige Termin bei einem wiederholten Scheduler-Lauf
- * erneut gemeldet wird. Verschiebt sich die `deadline` eines Tasks, ändert sich der `dedupeKey` —
- * die Erinnerung wird dann bewusst erneut ausgelöst (frühestens am Folgetag, #2849 AK2).
- * Zustellfenster: lokale Stunde 7–8 des Empfängers (#2849 AK2), ohne gültige Zone UTC (AK5).
+ * Sammler „fällige Aufgaben" (Issue #355) für den Morgen-Digest „Dein Tag" (#2853): ermittelt je
+ * Nutzer die noch nicht gemeldeten fälligen/überfälligen Tasks (`deadline <= now + 24h`,
+ * `status != 'Done'`, Anti-Spam statt einer Meldung je Task). Der Versand läuft über
+ * {@link ./dailyDigest.js} (Push und Morgen-Mail #1426) — der frühere Eigentrigger
+ * `runDueTaskReminders` ist mit der Bündelung entfallen. Verschiebt sich die `deadline` eines
+ * Tasks, ändert sich der `dedupeKey` — die Erinnerung wird dann bewusst erneut ausgelöst
+ * (frühestens am Folgetag, #2849 AK2).
  */
 
-const KIND = 'due-task';
 /** Zeitfenster: ein Task gilt ab 24h vor der Deadline als "bald fällig" (zusätzlich zu überfälligen). */
 const DUE_WINDOW_MS = 24 * 60 * 60 * 1000;
-/** Zustellfenster: lokale Stunde 7–8 des Empfängers (#2849 AK2 — Anfang inklusive, 9 exklusiv). */
-const FENSTER_START = 7;
-const FENSTER_ENDE = 9;
 
 interface DueTask {
 	id: number;
@@ -62,7 +52,7 @@ export const collectDueTaskReminders = async (now: Date): Promise<DueTaskGroup[]
 
 	const dedupeKeys = dueTasks.map((task) => dedupeKeyFor(task.id, task.deadline as Date));
 	const alreadySent = await NotificationLog.findAll({
-		where: { kind: KIND, dedupeKey: { [Op.in]: dedupeKeys } },
+		where: { kind: 'due-task', dedupeKey: { [Op.in]: dedupeKeys } },
 	});
 	const sentKeys = new Set(alreadySent.map((row) => row.dedupeKey));
 
@@ -78,99 +68,4 @@ export const collectDueTaskReminders = async (now: Date): Promise<DueTaskGroup[]
 		groups.set(userId, group);
 	}
 	return [...groups.values()];
-};
-
-/** Baut die gebündelte Payload für den Service Worker (`push-sw.js` erwartet `title`/`body?`/`url?`). */
-const TEXTE: Record<CareSprache, { eine: string; mehrere: string; anzahl: string }> = {
-	de: {
-		eine: 'Fällige Aufgabe',
-		mehrere: 'Fällige Aufgaben',
-		anzahl: 'Du hast {n} fällige oder überfällige Aufgaben.',
-	},
-	en: { eine: 'Task due', mehrere: 'Tasks due', anzahl: 'You have {n} due or overdue tasks.' },
-};
-
-const buildPayload = (tasks: DueTask[], sprache: CareSprache): { title: string; body: string; url: string } => {
-	const texte = TEXTE[sprache];
-	if (tasks.length === 1) {
-		return { title: texte.eine, body: tasks[0].title, url: PUSH_TARGETS.dueTask.eine(tasks[0].id) };
-	}
-	return {
-		title: texte.mehrere,
-		body: texte.anzahl.replace('{n}', String(tasks.length)),
-		url: PUSH_TARGETS.dueTask.mehrere,
-	};
-};
-
-/**
- * Versendet die gebündelten Erinnerungen (eine Push-Nachricht je Nutzer via
- * {@link sendDedupedPushBulk}) und protokolliert je gemeldetem Task einen {@link NotificationLog}-Eintrag.
- * Idempotent: ein zweiter Lauf ohne zwischenzeitliche Änderungen sendet nichts erneut. Fenster
- * (7–8 Uhr Nutzer-Zeitzone) und Tag-Deckel (höchstens ein Push je Nutzer und lokalem Kalendertag,
- * #2849 AK2) werden vor dem Versand geprüft — Skip schreibt bewusst keinen Log-Eintrag.
- *
- * @param now Zeitpunkt des Scheduler-Ticks (UTC); bestimmt Fenster und lokalen Tag.
- * @param send injizierbarer Versand (siehe `logics/push.ts`); Tests reichen einen Mock herein.
- * @param mailSend injizierbarer Mail-Versand (#1426, siehe `logics/mail.ts`); ohne SMTP-Konfiguration
- *   und ohne injizierten Sender wird kein Mail-Versuch unternommen (AK6).
- */
-export const runDueTaskReminders = async (
-	now: Date = new Date(),
-	send?: PushSender,
-	mailSend?: MailSender,
-): Promise<{ usersNotified: number }> => {
-	const groups = await collectDueTaskReminders(now);
-	let usersNotified = 0;
-	for (const group of groups) {
-		const recipient = await User.findByPk(group.userId);
-		// #2849 AK2/AK5: Morgenfenster 7–8 in der Nutzer-Zeitzone (ohne gültige Zone: UTC).
-		const zeitzone = nutzerZeitzone(recipient?.zeitzone);
-		const { stunde } = uhrzeitIn(now, zeitzone);
-		if (stunde < FENSTER_START || stunde >= FENSTER_ENDE) {
-			continue;
-		}
-		// #2849 AK2: höchstens ein Push je Nutzer und lokalem Kalendertag (Muster carePush —
-		// dedupeKey `<userId>:<lokalesDatum>`) — ein Wiederholungstick mit neuer fälliger
-		// Aufgabe sendet nichts mehr.
-		const tagKey = `${group.userId}:${tagIn(now, zeitzone)}`;
-		if (await NotificationLog.findOne({ where: { kind: KIND, dedupeKey: tagKey } })) {
-			continue;
-		}
-		const payload = buildPayload(group.tasks, spracheVon(recipient?.sprache));
-		const { sent } = await sendDedupedPushBulk(
-			group.userId,
-			KIND,
-			group.tasks.map((task) => dedupeKeyFor(task.id, task.deadline)),
-			payload,
-			send,
-			now,
-		);
-		let mailSent = false;
-		if (mailSend || isMailConfigured()) {
-			mailSent = await sendMailToUser(
-				{ email: recipient?.email ?? null },
-				{ subject: payload.title, text: payload.body },
-				mailSend,
-			);
-		}
-		if (sent > 0 || mailSent) {
-			usersNotified++;
-			// Tag-Deckel (#2849 AK2) als Marker-Zeile protokollieren — nur nach erfolgreichem Versand.
-			await NotificationLog.create({ userId: group.userId, kind: KIND, dedupeKey: tagKey, sentAt: now });
-		}
-		if (sent === 0 && mailSent) {
-			// Nur-Mail-Fall: der Helfer protokolliert nur Push-Zustellungen (`sent > 0`) — den Log-Eintrag
-			// für den Mail-Kanal hier nachziehen, sonst würde die Fallback-Mail je Lauf erneut versendet.
-			await NotificationLog.bulkCreate(
-				group.tasks.map((task) => ({
-					userId: group.userId,
-					kind: KIND,
-					dedupeKey: dedupeKeyFor(task.id, task.deadline),
-					sentAt: now,
-				})),
-				{ ignoreDuplicates: true },
-			);
-		}
-	}
-	return { usersNotified };
 };

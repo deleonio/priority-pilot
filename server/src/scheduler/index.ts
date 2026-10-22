@@ -9,8 +9,24 @@ import { isPushConfigured } from '../logics/push.js';
  * Ruhezeit 21–7, jeweils Nutzer-Zeitzone) prüfen die Trigger selbst.
  */
 
-/** Ein fachlicher Trigger (z. B. `runDueTaskReminders`) — erhält den aktuellen Zeitpunkt des Ticks. */
+/** Ein fachlicher Trigger (z. B. `runDailyDigest`) — erhält den aktuellen Zeitpunkt des Ticks. */
 type SchedulerTrigger = (now: Date) => Promise<unknown>;
+
+/**
+ * Trigger-Eintrag mit Vorrang (#2853/F1.2): Einträge mit `rang` laufen je Tick aufsteigend vor den
+ * übrigen — der Scheduler konsumiert das Push-Budget in §4-Vorrang-Ordnung, das Budget-Tor
+ * (`passtImBudget`) macht daraus die gemeinsame Auswahl des Ticks; über den Tagesverlauf bleibt es
+ * First-Come-First-Served. Ungerangte Trigger folgen in Registrierungs-Reihenfolge.
+ */
+interface RangTrigger {
+	rang: number;
+	trigger: SchedulerTrigger;
+}
+
+type SchedulerEntry = SchedulerTrigger | RangTrigger;
+
+/** Vorrang eines Eintrags — ungerangte laufen nach allen gerangten, in Registrierungs-Reihenfolge. */
+const rangVon = (entry: SchedulerEntry): number => (typeof entry === 'object' ? entry.rang : Number.POSITIVE_INFINITY);
 
 interface SchedulerHandle {
 	stop: () => void;
@@ -45,12 +61,17 @@ interface TickerOptions {
  * jeder Tick (#2849).
  */
 export const createTicker = (
-	triggers: SchedulerTrigger[],
+	triggers: SchedulerEntry[],
 	options: TickerOptions = {},
 ): { tick: () => Promise<void> } => {
 	const now = options.now ?? (() => new Date());
 	const hour = options.hour;
 	let lastFiredDay: string | undefined;
+
+	// Stabile Sortierung (#22 ES2019): gleiche Ränge und ungerangte bleiben in Registrierungs-Reihenfolge.
+	const eintraege = [...triggers]
+		.sort((a, b) => rangVon(a) - rangVon(b))
+		.map((entry) => (typeof entry === 'object' ? entry.trigger : entry));
 
 	const tick = async (): Promise<void> => {
 		const current = now();
@@ -58,7 +79,7 @@ export const createTicker = (
 			return;
 		}
 		lastFiredDay = dayKey(current);
-		for (const trigger of triggers) {
+		for (const trigger of eintraege) {
 			try {
 				await trigger(current);
 			} catch (error) {
@@ -82,7 +103,7 @@ interface StartSchedulerOptions extends TickerOptions {
  * injizierbar, damit Tests den Gate-Entscheid ohne echten Timer prüfen können.
  */
 const wireTicker = (
-	triggers: SchedulerTrigger[],
+	triggers: SchedulerEntry[],
 	options: StartSchedulerOptions,
 	defaultHour: number | undefined,
 	tickLabel: string,
@@ -106,7 +127,7 @@ const wireTicker = (
  * (weder VAPID-Keys noch FCM-Service-Account) oder ohne `PUSH_REMINDERS_ENABLED=true` — dann läuft
  * kein Timer (kein stiller Hintergrundlauf ohne bewusstes Push-Opt-in).
  */
-export const startScheduler = (triggers: SchedulerTrigger[], options: StartSchedulerOptions = {}): SchedulerHandle => {
+export const startScheduler = (triggers: SchedulerEntry[], options: StartSchedulerOptions = {}): SchedulerHandle => {
 	if (!(isPushConfigured() || isFcmConfigured()) || !isRemindersEnabled()) {
 		return { stop: () => {} };
 	}
@@ -127,7 +148,7 @@ const AUTO_DELETE_HOUR = 0;
  * können ihn via `AUTO_DELETE_AFTER_DEADLINE_ENABLED=false` abschalten.
  */
 export const startDeadlineAutoDeleteScheduler = (
-	triggers: SchedulerTrigger[],
+	triggers: SchedulerEntry[],
 	options: StartSchedulerOptions = {},
 ): SchedulerHandle => {
 	if (!isAutoDeleteAfterDeadlineEnabled()) {
