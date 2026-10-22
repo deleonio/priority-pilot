@@ -3,6 +3,7 @@ import { UniqueConstraintError } from 'sequelize';
 import { allowEmail } from './allowedEmails.js';
 import { sendAccountAccessMail } from './accessMail.js';
 import { sendMailToUser, type MailSender } from './mail.js';
+import { renderMailHtml } from './mailTemplate.js';
 import { isMagicLinkEnabled, publicBaseUrl } from './magicLink.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import WaitlistEntry, { newReferralCode } from '../models/waitlistEntry.js';
@@ -81,36 +82,27 @@ const hasConfirmMailCapacity = (now: number = Date.now()): boolean => {
 
 const hashToken = (token: string): string => createHash('sha256').update(token).digest('hex');
 
-const CONFIRM_MAIL = {
+const CONFIRM_MAIL: Record<
+	CareSprache,
+	{ subject: string; anrede: string; hinweis: string; referral: string; schluss: string; button: string }
+> = {
 	de: {
 		subject: 'Balamentum: Bitte bestätige deinen Wartelisten-Eintrag',
-		text: (confirmLink: string, referralLink: string) =>
-			[
-				'Hallo,',
-				'',
-				'bitte bestätige deinen Eintrag auf der Warteliste von Balamentum:',
-				confirmLink,
-				'',
-				'Danach zählt dein Platz. Mit diesem Link lädst du Freundinnen und Freunde ein — je mehr sich darüber anmelden, desto weiter rückst du auf:',
-				referralLink,
-				'',
-				'Falls du dich nicht eingetragen hast, kannst du diese Mail ignorieren.',
-			].join('\n'),
+		anrede: 'Hallo,',
+		hinweis: 'bitte bestätige deinen Eintrag auf der Warteliste von Balamentum:',
+		referral:
+			'Danach zählt dein Platz. Mit diesem Link lädst du Freundinnen und Freunde ein — je mehr sich darüber anmelden, desto weiter rückst du auf:',
+		schluss: 'Falls du dich nicht eingetragen hast, kannst du diese Mail ignorieren.',
+		button: 'E-Mail bestätigen',
 	},
 	en: {
 		subject: 'Balamentum: Please confirm your waitlist entry',
-		text: (confirmLink: string, referralLink: string) =>
-			[
-				'Hello,',
-				'',
-				'please confirm your entry on the Balamentum waitlist:',
-				confirmLink,
-				'',
-				'Your spot counts after that. Use this link to invite friends — the more of them sign up through it, the further you move up:',
-				referralLink,
-				'',
-				'If you did not sign up, you can ignore this email.',
-			].join('\n'),
+		anrede: 'Hello,',
+		hinweis: 'please confirm your entry on the Balamentum waitlist:',
+		referral:
+			'Your spot counts after that. Use this link to invite friends — the more of them sign up through it, the further you move up:',
+		schluss: 'If you did not sign up, you can ignore this email.',
+		button: 'Confirm email',
 	},
 };
 
@@ -128,15 +120,24 @@ const sendConfirmationMail = async (entry: WaitlistEntry, send?: MailSender): Pr
 	}
 	const token = randomBytes(32).toString('base64url');
 	await entry.update({ confirmTokenHash: hashToken(token) });
-	const mail = CONFIRM_MAIL[spracheVon(entry.sprache)];
+	const sprache = spracheVon(entry.sprache);
+	const mail = CONFIRM_MAIL[sprache];
+	const confirmLink = `${publicBaseUrl()}/app/?waitlist=${encodeURIComponent(token)}`;
+	const referralLink = `${publicBaseUrl()}/app/?ref=${entry.referralCode}`;
+	const mailHtml = renderMailHtml({
+		heading: mail.subject,
+		intro: `${mail.anrede} ${mail.hinweis}`,
+		button: { label: mail.button, url: confirmLink },
+		paragraphs: [mail.referral, referralLink, mail.schluss],
+		lang: sprache,
+	});
 	const sent = await sendMailToUser(
 		{ email: entry.email },
 		{
 			subject: mail.subject,
-			text: mail.text(
-				`${publicBaseUrl()}/app/?waitlist=${encodeURIComponent(token)}`,
-				`${publicBaseUrl()}/app/?ref=${entry.referralCode}`,
-			),
+			text: [mail.anrede, '', mail.hinweis, confirmLink, '', mail.referral, referralLink, '', mail.schluss].join('\n'),
+			html: mailHtml.html,
+			attachments: mailHtml.attachments,
 		},
 		send,
 	);

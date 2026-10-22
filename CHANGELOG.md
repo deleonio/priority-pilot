@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.33 - 2026-10-22
 
-_Enthält v0.33.0 – v0.33.7._
+_Enthält v0.33.0 – v0.33.9._
 
 ### 🎉 New Features
 
@@ -26,6 +26,8 @@ _Enthält v0.33.0 – v0.33.7._
 
 - feat(server): existing push notifications open their topic (#2851) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2861
 - feat(server): daily push budget and Dein Tag digest (#2853) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2860
+- feat(push): per-topic push group switches (#2850) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2868
+- feat(server): html email template for all user mails by @deleonio in https://github.com/deleonio/priority-pilot/pull/2870
 
 ## v0.32 - 2026-10-22
 
@@ -153,7 +155,6 @@ _Enthält v0.29.0 – v0.29.34._
 
 - docs(spec): sync spec status to implementation state (2026-10-18) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2704
 - refactor(server): centralize effort conversion in logics/effort.ts by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2708
-- refactor(server): centralize effort conversion in logics/effort.ts by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2708
 - test(server): assert template apply counts as fixed literals (#2692) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2711
 - test(frontend): make WeekView unit test timezone-independent (#2730) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2736
 - fix(deps): update dependency react-i18next to v17.1.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2680
@@ -162,6 +163,7 @@ _Enthält v0.29.0 – v0.29.34._
 
 - docs: add ADR 0025 on shared logic as duplicate with mirror tests by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2703
 - feat(server): move score recap logic from routes into logics (#2689) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2706
+- feat(frontend): add tenth dial Bahnen with comets on elliptical orbits by @deleonio in https://github.com/deleonio/priority-pilot/pull/2712
 - feat(frontend): add tenth dial Bahnen with comets on elliptical orbits by @deleonio in https://github.com/deleonio/priority-pilot/pull/2712
 - feat(server): merge request validation of tasks and series (#2691) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2709
 - feat(server): pin pillar share logic with mirror tests (ADR 0025) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2714

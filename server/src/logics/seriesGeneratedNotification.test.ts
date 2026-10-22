@@ -12,7 +12,7 @@ import { notifySeriesGenerated } from './seriesGeneratedNotification.js';
  * `NotificationLog`-Eintrag (kein zweiter `kind`). Kein Import von `logics/mail.ts` (existiert noch
  * nicht) — lokaler Stub + Cast auf die künftige Signatur (Muster: dueTaskReminders.test.ts).
  */
-type MailSenderStub = (payload: { to: string; subject: string; text: string }) => Promise<void>;
+type MailSenderStub = (payload: { to: string; subject: string; text: string; html?: string }) => Promise<void>;
 type NotifySeriesGeneratedWithMail = (
 	series: Parameters<typeof notifySeriesGenerated>[0],
 	createdTasks: Parameters<typeof notifySeriesGenerated>[1],
@@ -240,7 +240,7 @@ describe('notifySeriesGenerated (#1253, TF7)', () => {
 		const { aliceId, bobId } = await seedUsers();
 		const { series, instances } = await seedSeriesWithInstances(aliceId, bobId, 1);
 		const alice = await User.findByPk(aliceId);
-		const mailCalls: { to: string; subject: string; text: string }[] = [];
+		const mailCalls: { to: string; subject: string; text: string; html?: string }[] = [];
 		const mailSend: MailSenderStub = (payload) => {
 			mailCalls.push(payload);
 			return Promise.resolve();
@@ -250,6 +250,7 @@ describe('notifySeriesGenerated (#1253, TF7)', () => {
 
 		assert.equal(calls.length, 1, 'genau eine Push-Nachricht');
 		assert.equal(mailCalls.length, 1, 'genau eine Mail zusätzlich zur Push-Nachricht');
+		assert.match(mailCalls[0].html ?? '', /cid:balamentum-logo/, 'HTML-Variante mit Logo');
 		const logs = await NotificationLog.findAll({ where: { kind: 'series-generated' } });
 		assert.equal(logs.length, 1, 'ein NotificationLog-Eintrag pro Auslöser, nicht pro Kanal');
 	});
