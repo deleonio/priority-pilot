@@ -4,8 +4,9 @@ import type { SendResult } from 'web-push';
 import { NotificationLog, PushSubscription, User } from '../models/index.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 import type { PushSender } from './push.js';
+import { createTicker } from '../scheduler/index.js';
 import { sendDedupedPush } from './dedupedPush.js';
-import { BUDGET_KIND, SERVICE_KINDS, tagVon, waehleImBudget } from './pushBudget.js';
+import { BUDGET_KIND, SERVICE_KINDS, tagVon, vorrangVon, waehleImBudget } from './pushBudget.js';
 
 /**
  * ROTE Spec-Tests für #2853 „Höchstens drei Pushes am Tag“ (Spec `docs/spec/issue-2853.md`).
@@ -50,7 +51,7 @@ describe('pushBudget — Höchstens drei fachliche Pushes je Nutzer und lokalem 
 		assert.deepEqual(waehleImBudget(kandidaten, 0), []);
 	});
 
-	it('AK1/TF1: fünf fachliche Pushes an einem Tag → genau drei Sends, Budget-Zähler = 3, Verdrängte ohne Log', async () => {
+	it('AK1/TF1: fünf direkte Sends ohne gemeinsamen Tick bleiben First-Come-First-Served (F1.2: über den Tagesverlauf)', async () => {
 		const recipient = await erstelleEmpfaenger('budget-fuenf@example.com');
 		const kinds = ['care-push', 'streak-reminder', 'milestone', 'monthly-recap', 'task-created'];
 		const gesendet: number[] = [];
@@ -63,6 +64,27 @@ describe('pushBudget — Höchstens drei fachliche Pushes je Nutzer und lokalem 
 		assert.equal(await NotificationLog.count({ where: { kind: BUDGET_KIND } }), 3);
 		// Der verdrängte Push hinterlässt auch keinen Fach-Log-Eintrag (kein Nachziehen).
 		assert.equal(await NotificationLog.count({ where: { kind: 'monthly-recap' } }), 0);
+	});
+
+	it('AK1/F1.2: ein Tick wählt gemeinsam nach §4 — Vorrang schlägt Registrierungs-Reihenfolge', async () => {
+		const recipient = await erstelleEmpfaenger('budget-tick@example.com');
+		const kinds = ['milestone', 'monthly-recap', 'streak-reminder', 'due-task', 'task-created'];
+		// Bewusst §4-feindliche Registrierungs-Reihenfolge (§4-Rang 5, 5, 4, 3, 1).
+		const { tick } = createTicker(
+			kinds.map((kind, i) => ({
+				rang: vorrangVon(kind),
+				trigger: () => sendDedupedPush(recipient.id, kind, `${kind}:tick${i}`, payload, mockSend),
+			})),
+		);
+
+		await tick();
+
+		assert.deepEqual(
+			(await NotificationLog.findAll({ where: { kind: kinds } })).map((zeile) => zeile.kind).sort(),
+			['due-task', 'streak-reminder', 'task-created'],
+			'gesendet haben die §4-top-3, nicht die zuerst registrierten',
+		);
+		assert.equal(await NotificationLog.count({ where: { kind: BUDGET_KIND } }), 3);
 	});
 
 	it('AK1: das Budget folgt dem lokalen Kalendertag des Empfängers, nicht dem UTC-Tag', async () => {

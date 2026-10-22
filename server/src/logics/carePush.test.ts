@@ -16,7 +16,7 @@ import {
 	User,
 } from '../models/index.js';
 import { resetDb, closeDb } from '../test/helpers.js';
-import { runDueTaskReminders } from './dueTaskReminders.js';
+import { runDailyDigest } from './dailyDigest.js';
 import { CARE_SPRACHEN } from './careSuggestionData.js';
 import { CARE_PUSH_TEXTE, pushTextFuer, runCarePush } from './carePush.js';
 import type { PushSender } from './push.js';
@@ -226,10 +226,10 @@ describe('logics/carePush — fachlicher Fürsorge-Push (Issue #1794)', () => {
 		});
 		const calls: { endpoint: string; body: string }[] = [];
 
-		// #2849: Frist-Erinnerungen haben ihr eigenes Morgenfenster — 07:30 UTC liegt darin.
-		const result = await runDueTaskReminders(new Date('2026-07-07T07:30:00Z'), okSender(calls));
+		// #2849/#2853: Frist-Erinnerungen laufen im Morgen-Digest „Dein Tag“ — 07:30 UTC liegt im Fenster 7–9.
+		const result = await runDailyDigest(new Date('2026-07-07T07:30:00Z'), okSender(calls));
 
-		assert.equal(result.usersNotified, 1, 'der Fürsorge-Schalter darf Frist-Erinnerungen nicht anfassen');
+		assert.equal(result.usersNotified, 1, 'der Fürsorge-Schalter darf den Digest nicht anfassen');
 		assert.equal(calls.length, 1);
 	});
 

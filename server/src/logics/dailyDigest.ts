@@ -1,9 +1,10 @@
-import { User } from '../models/index.js';
+import { NotificationLog, User } from '../models/index.js';
 import { uhrzeitIn } from './carePush.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { collectDailyTopTasks } from './dailyTopTasks.js';
 import { sendDedupedPush } from './dedupedPush.js';
 import { collectDueTaskReminders } from './dueTaskReminders.js';
+import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
 import type { PushSender } from './push.js';
 import { nutzerZeitzone, tagIn } from './streak.js';
 
@@ -13,6 +14,8 @@ import { nutzerZeitzone, tagIn } from './streak.js';
  * Morgen-Pushes entfallen. URL-Regeln: genau eine Aufgabe öffnet die Aufgabe, mehrere mit fälliger
  * dabei die Karte „Fällig“, sonst „Top-Aufgaben“. Ein Wiederholungstick am selben lokalen Tag
  * sendet nichts (Dedupe über {@link sendDedupedPush}). Fenster: lokale Stunde 7–9 (#2849).
+ * Zusätzlich geht die Morgen-Mail (#1426, F2.2) an die SMTP-Empfänger — als zweiter Kanal neben
+ * dem Push, ohne Budget-Verbrauch (Konzept §4 zählt Pushes).
  */
 
 const KIND = 'daily-digest';
@@ -34,13 +37,20 @@ const buildPayload = (aufgaben: DigestAufgabe[], hatFaellige: boolean, sprache: 
 });
 
 /**
- * Versendet die Morgen-Bündelung (eine Push-Nachricht je Nutzer im Morgenfenster). Idempotent pro
- * Kalendertag; zählt als fachlicher Push ins Budget ({@link ./pushBudget.js}).
+ * Versendet die Morgen-Bündelung (eine Push-Nachricht je Nutzer im Morgenfenster) und die
+ * Morgen-Mail (#1426). Idempotent pro Kalendertag über beide Kanäle; der Push zählt als
+ * fachlicher Push ins Budget ({@link ./pushBudget.js}).
  *
- * @param now  Zeitpunkt des Scheduler-Ticks (UTC); bestimmt Fenster und lokalen Tag.
+ * @param now Zeitpunkt des Scheduler-Ticks (UTC); bestimmt Fenster und lokalen Tag.
  * @param send injizierbarer Versand (siehe `logics/push.ts`); Tests reichen einen Mock herein.
+ * @param mailSend injizierbarer Mail-Versand (#1426, siehe `logics/mail.ts`); ohne SMTP-Konfiguration
+ *   und ohne injizierten Sender wird kein Mail-Versuch unternommen.
  */
-export const runDailyDigest = async (now: Date = new Date(), send?: PushSender): Promise<{ usersNotified: number }> => {
+export const runDailyDigest = async (
+	now: Date = new Date(),
+	send?: PushSender,
+	mailSend?: MailSender,
+): Promise<{ usersNotified: number }> => {
 	const [faellige, top] = await Promise.all([collectDueTaskReminders(now), collectDailyTopTasks(now)]);
 	// Je Nutzer vereinen — dieselbe Aufgabe kann fällig UND Top-Aufgabe sein (Union je Task-Id).
 	const gruppen = new Map<number, { aufgaben: Map<number, string>; hatFaellige: boolean }>();
@@ -63,7 +73,7 @@ export const runDailyDigest = async (now: Date = new Date(), send?: PushSender):
 
 	let usersNotified = 0;
 	for (const [userId, gruppe] of gruppen) {
-		const recipient = await User.findByPk(userId, { attributes: ['sprache', 'zeitzone'] });
+		const recipient = await User.findByPk(userId, { attributes: ['sprache', 'zeitzone', 'email'] });
 		// #2849 AK2/AK5: Morgenfenster 7–9 in der Nutzer-Zeitzone (ohne gültige Zone: UTC).
 		const zeitzone = nutzerZeitzone(recipient?.zeitzone);
 		const { stunde } = uhrzeitIn(now, zeitzone);
@@ -71,15 +81,31 @@ export const runDailyDigest = async (now: Date = new Date(), send?: PushSender):
 			continue;
 		}
 		const aufgaben = [...gruppe.aufgaben].map(([id, title]) => ({ id, title }));
-		const { sent } = await sendDedupedPush(
-			userId,
-			KIND,
-			`${userId}:${tagIn(now, zeitzone)}`,
-			buildPayload(aufgaben, gruppe.hatFaellige, spracheVon(recipient?.sprache)),
-			send,
-			now,
-		);
-		if (sent > 0) {
+		const payload = buildPayload(aufgaben, gruppe.hatFaellige, spracheVon(recipient?.sprache));
+		const dedupeKey = `${userId}:${tagIn(now, zeitzone)}`;
+		// Tag-Deckel (#2849 AK2) vor beiden Kanälen prüfen — der Wiederholungstick darf weder Push
+		// noch Mail erneut auslösen.
+		if (await NotificationLog.findOne({ where: { kind: KIND, dedupeKey } })) {
+			continue;
+		}
+		const { sent } = await sendDedupedPush(userId, KIND, dedupeKey, payload, send, now);
+		// Morgen-Mail als zweiter Kanal (#1426, F2.2): zusätzlich zum Push, ohne Budget-Verbrauch
+		// (Konzept §4 zählt Pushes).
+		let mailSent = false;
+		if (mailSend || isMailConfigured()) {
+			mailSent = await sendMailToUser(
+				{ email: recipient?.email ?? null },
+				{ subject: payload.title, text: payload.body },
+				mailSend,
+			);
+		}
+		if (sent === 0 && mailSent) {
+			// Nur-Mail-Fall (Push verdrängt oder ohne Subscription): den Digest-Schlüssel selbst
+			// nachziehen — sendDedupedPush protokolliert nur `sent > 0`; ohne Zeile würde die Mail je
+			// Wiederholungstick erneut versendet.
+			await NotificationLog.create({ userId, kind: KIND, dedupeKey, sentAt: now });
+		}
+		if (sent > 0 || mailSent) {
 			usersNotified++;
 		}
 	}

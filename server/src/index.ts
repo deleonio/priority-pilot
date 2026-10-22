@@ -159,6 +159,7 @@ export const main = async (): Promise<void> => {
 		const { runCarePush } = await import('./logics/carePush.js');
 		const { runStreakReminder } = await import('./logics/streakReminder.js');
 		const { runMonthlyRecapPush } = await import('./logics/monthlyRecapPush.js');
+		const { vorrangVon } = await import('./logics/pushBudget.js');
 		const { runCalendarSync, CALENDAR_SYNC_INTERVAL_MS } = await import('./logics/calendar-ics.js');
 		const { applyDueGracePeriods, reconcilePaypalSubscriptions } = await import('./logics/billing/lifecycle.js');
 		const { paypalGraceDeps, paypalReconcileDeps } = await import('./logics/paypal.js');
@@ -341,10 +342,16 @@ export const main = async (): Promise<void> => {
 
 		// Fachliche Web-Push-Trigger (Issue #355 + #518 + #2853) — No-Op ohne VAPID-Keys oder ohne
 		// explizites PUSH_REMINDERS_ENABLED=true (siehe scheduler/index.ts). Der Morgen-Push ist
-		// seit #2853 der Digest „Dein Tag“ (fällige + Top-Aufgaben gebündelt); die beiden alten
-		// Morgen-Trigger (`runDueTaskReminders`, `runDailyTopTasksPush`) werden nicht mehr
-		// registriert (Mail-Fallback dort unangetastet, aber ohne Tick).
-		startScheduler([runDailyDigest, runCarePush, runStreakReminder, runMonthlyRecapPush]);
+		// seit #2853 der Digest „Dein Tag“ (fällige + Top-Aufgaben gebündelt, inkl. Morgen-Mail
+		// #1426); die alten Morgen-Trigger (`runDueTaskReminders`, `runDailyTopTasksPush`) sind
+		// entfallen. Je Tick sendet der Scheduler in §4-Vorrang-Ordnung (F1.2) — über den
+		// Tagesverlauf bleibt es First-Come-First-Served.
+		startScheduler([
+			{ rang: vorrangVon('daily-digest'), trigger: runDailyDigest },
+			{ rang: vorrangVon('care-push'), trigger: runCarePush },
+			{ rang: vorrangVon('streak-reminder'), trigger: runStreakReminder },
+			{ rang: vorrangVon('monthly-recap'), trigger: runMonthlyRecapPush },
+		]);
 
 		// Deadline-Auto-Löschung (#523) — bewusst push-unabhängig (siehe startDeadlineAutoDeleteScheduler):
 		// das fachliche Opt-in ist das pro-Task-Feld `autoDeleteAfterDeadline`, nicht Web-Push. Default-on,

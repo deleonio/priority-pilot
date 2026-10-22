@@ -73,7 +73,7 @@ nicht verdrängen (Konzept §2.3).
 
 ## Bewusste Änderungen am Bestand (Test-Pflege durch die Umsetzung)
 
-- Bestehtende Tests, die exakte `NotificationLog.count()`-Werte je fachlichem Send prüfen, bekommen
+- Bestehende Tests, die exakte `NotificationLog.count()`-Werte je fachlichem Send prüfen, bekommen
   je Send einen zusätzlichen Budget-Marker (+1): `dedupedPush.test.ts:127`, `dueTaskReminders.test.ts:155`,
   `dueTaskReminders.test.ts:225`, `dailyTopTasks.test.ts:148`, `dailyTopTasks.test.ts:166`, `fcm.test.ts` („zählt … nur einmal“).
 - `dueTaskReminders.test.ts` und `dailyTopTasks.test.ts` prüfen die zwei getrennten Morgen-Pushes

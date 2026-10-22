@@ -37,7 +37,7 @@ const versende = async (
  * `dedupeKey` bereits ein {@link NotificationLog}-Eintrag existiert, sendet sonst über
  * {@link sendPushToUser} und protokolliert die Zustellung. Der Log-Eintrag entsteht nur bei
  * `sent > 0` — sonst würde ein Schlüssel ohne zustellbare Subscription dauerhaft blockieren.
- * Gebündelte Sends je Nutzer (z. B. `dueTaskReminders`) nutzen die Geschwister
+ * Gebündelte Sends je Nutzer (z. B. `geo-background-job`) nutzen die Geschwister
  * {@link sendDedupedPushBulk}.
  *
  * @param send injizierbarer Versand (siehe `logics/push.ts`); Tests reichen einen Mock herein.
@@ -62,7 +62,7 @@ export const sendDedupedPush = async (
 
 /**
  * Bulk-Geschwister von {@link sendDedupedPush} für gebündelte Sends je Nutzer (z. B.
- * `dueTaskReminders`, `geo-background-job`): ein `findAll`-Vorcheck über alle Schlüssel (statt
+ * `geo-background-job`): ein `findAll`-Vorcheck über alle Schlüssel (statt
  * `findOne` je Schlüssel), ein gemeinsamer Versand, danach ein `bulkCreate` mit
  * `ignoreDuplicates` je noch offenem Schlüssel. Protokolliert wie der Einzelfall nur bei
  * `sent > 0`; Zustellung über andere Kanäle (Mail-Fallback) kennt es nicht — deren

@@ -6,7 +6,10 @@ import { nutzerZeitzone, tagIn } from './streak.js';
  * Push-Budget (#2853, Konzept §4): höchstens drei fachliche Pushes je Nutzer und lokalem Tag.
  * Gezählt wird über Marker-Zeilen (`kind = BUDGET_KIND`) in `notification_logs` — keine neue
  * Tabelle. Service-Nachrichten zählen nicht und werden nie verdrängt. Das Tor selbst sitzt in
- * {@link ./dedupedPush.js} (`sendDedupedPush`/`sendDedupedPushBulk`).
+ * {@link ./dedupedPush.js} (`sendDedupedPush`/`sendDedupedPushBulk`). Die §4-Auswahl je
+ * Scheduler-Tick (F1.2) läuft strukturell: der Scheduler sendet je Tick in Vorrang-Ordnung
+ * ({@link vorrangVon}), das per-Send-Tor macht daraus die gemeinsame Auswahl des Ticks — über den
+ * Tagesverlauf bleibt es First-Come-First-Served.
  */
 
 /** Marker-KIND: je zugestelltem fachlichen Push entsteht eine Zeile mit dem lokalen Tag im `dedupeKey`. */
@@ -25,7 +28,7 @@ export const SERVICE_KINDS: string[] = [];
 /** Ob ein Kind unter das Budget fällt (Service-Nachrichten nicht). */
 export const istServiceKind = (kind: string): boolean => SERVICE_KINDS.includes(kind);
 
-/** Vorrang bei vollem Budget (Konzept §4, von oben nach unten); unbekannte Kinds zuletzt. */
+/** Vorrang bei vollem Budget (Konzept §4, von oben nach unten); unbekannte Kinds (kein §4-Platz) sortiert `indexOf` mit −1 nach vorn. */
 const VORRANG = [
 	'task-created',
 	'task-completed',
@@ -46,6 +49,12 @@ const VORRANG = [
  */
 export const waehleImBudget = (kandidaten: string[], freie: number): string[] =>
 	[...kandidaten].sort((a, b) => VORRANG.indexOf(a) - VORRANG.indexOf(b)).slice(0, Math.max(freie, 0));
+
+/** §4-Rang eines Kinds (0 = höchster Vorrang, unbekannt = hinten) — Ordnung der Trigger je Scheduler-Tick (F1.2). */
+export const vorrangVon = (kind: string): number => {
+	const rang = VORRANG.indexOf(kind);
+	return rang === -1 ? VORRANG.length : rang;
+};
 
 /** Gruppen-Tag je Push-Art (Konzept §2.3); Ortserinnerung und Serien zählen zur Aufgabengruppe. */
 const TAGS: Record<string, string> = {

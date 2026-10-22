@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import type { SendResult } from 'web-push';
 import { FcmToken, NotificationLog, PushSubscription, Task } from '../models/index.js';
 import { resetDb, closeDb } from '../test/helpers.js';
-import { runDueTaskReminders } from './dueTaskReminders.js';
+import { runDailyDigest } from './dailyDigest.js';
 import { sendPushToUser, type PushSender } from './push.js';
 
 /**
@@ -148,13 +148,13 @@ describe('logics/push — Versand zusätzlich über FCM (#1675)', () => {
 			userId: 1,
 		});
 
-		const result = await runDueTaskReminders(new Date('2026-07-07T08:00:00Z'), webSender([]));
+		const result = await runDailyDigest(new Date('2026-07-07T08:00:00Z'), webSender([]));
 
 		assert.equal(result.usersNotified, 1);
 		assert.equal(sendCalls(calls).length, 1);
-		// #2849 AK2 (Test-Pflege): zum Task-Log kommt die Tag-Deckel-Marker-Zeile (<userId>:<lokalesDatum>) hinzu,
-		// #2853 (Test-Pflege): außerdem der Budget-Marker.
-		assert.equal(await NotificationLog.count(), 3);
+		// #2853 (Test-Pflege): der Digest trägt den Tag-Deckel-Schlüssel (#2849 AK2) und den Budget-Marker —
+		// nicht pro Kanal, obwohl Web-Push und FCM beide zugestellt haben.
+		assert.equal(await NotificationLog.count(), 2);
 	});
 
 	it('#2853 AK4: setzt den Gruppen-Tag der Payload als android.notification.tag', async () => {
@@ -162,11 +162,7 @@ describe('logics/push — Versand zusätzlich über FCM (#1675)', () => {
 		await FcmToken.create({ token: 'device-1', userId: 1 });
 		const calls = mockGoogle();
 
-		await sendPushToUser(
-			1,
-			{ title: 'Fürsorge', body: 'x', url: '/', tag: 'pp-fuersorge' } as Parameters<typeof sendPushToUser>[1],
-			webSender([]),
-		);
+		await sendPushToUser(1, { title: 'Fürsorge', body: 'x', url: '/', tag: 'pp-fuersorge' }, webSender([]));
 
 		const body = JSON.parse(sendCalls(calls)[0]?.init.body as string);
 		assert.equal(body.message.android.notification.tag, 'pp-fuersorge');
