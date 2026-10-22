@@ -71,7 +71,7 @@ describe('logics/streakReminder — Streak-Erinnerung (Issue #1836)', () => {
 		await closeDb();
 	});
 
-	it('AK1: gefährdete Streak 3 um 19:00 → genau ein Push mit "3", url /aufgaben und Log streak-reminder', async () => {
+	it('AK1: gefährdete Streak 3 um 19:00 → genau ein Push mit "3", url /#karte-streak und Log streak-reminder', async () => {
 		const user = await seedUser('streak-1@example.com', DREI_TAGE);
 		const calls: string[] = [];
 
@@ -80,7 +80,7 @@ describe('logics/streakReminder — Streak-Erinnerung (Issue #1836)', () => {
 		assert.equal(result.usersNotified, 1);
 		assert.equal(calls.length, 1);
 		const payload = JSON.parse(calls[0]) as { title: string; body: string; url: string };
-		assert.equal(payload.url, '/aufgaben');
+		assert.equal(payload.url, '/#karte-streak', '#2851 AK1: der Push öffnet die Streak-Karte');
 		assert.match(payload.body, /3/, 'Streak-Länge steht im Text');
 		const log = await NotificationLog.findOne({ where: { kind: 'streak-reminder' } });
 		assert.ok(log);

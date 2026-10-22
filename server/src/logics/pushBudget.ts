@@ -20,10 +20,9 @@ const BUDGET_GRENZE = 3;
 
 /**
  * Kinds der Service-Nachrichten (Gruppe Abo & Rechnungen, Konzept §7.3) — umgehen das Budget.
- * Die Kinds entstehen erst mit dem Service-Push-Issue; die Liste ist bewusst veränderlich,
- * damit Tests ein Kind probehalber aufnehmen können.
+ * Die Liste ist bewusst veränderlich, damit Tests ein Kind probehalber aufnehmen können.
  */
-export const SERVICE_KINDS: string[] = [];
+export const SERVICE_KINDS: string[] = ['abo-service'];
 
 /** Ob ein Kind unter das Budget fällt (Service-Nachrichten nicht). */
 export const istServiceKind = (kind: string): boolean => SERVICE_KINDS.includes(kind);

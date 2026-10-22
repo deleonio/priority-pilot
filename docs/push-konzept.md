@@ -20,8 +20,8 @@ Befunde, die dieses Konzept beheben soll:
 - **Ziel fehlt.** Acht von zehn Push-Arten schicken `url: '/'`. Wer „Meilenstein erreicht“ antippt,
   landet oben auf dem Dashboard und findet die Meilenstein-Karte erst nach langem Scrollen.
   Dashboard-Karten haben keinen Anker, Hash-Scrolling gibt es nicht.
-- **Zeitfenster laufen ins Leere.** Der Scheduler (`server/src/scheduler/index.ts`) ruft alle
-  Trigger einmal pro UTC-Tag zur Stunde `PUSH_REMINDERS_HOUR` (Standard 8 UTC) auf. Die
+- **Zeitfenster liefen ins Leere.** Der Scheduler (`server/src/scheduler/index.ts`) rief alle
+  Trigger einmal pro UTC-Tag um 8 UTC auf (seit #2858 stündlich, Abschnitt 3). Die
   Streak-Erinnerung sendet nur zwischen 18 und 21 Uhr Ortszeit und kommt deshalb in Europa nie an.
   Fällige Aufgaben und Top-Aufgaben treffen in Deutschland um 9 oder 10 Uhr ein, nicht am Morgen.
 - **Pushes verdrängen sich.** Der Service Worker setzt für jede Nachricht `tag: 'priority-pilot'`.

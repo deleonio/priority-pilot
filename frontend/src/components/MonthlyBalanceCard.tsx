@@ -104,6 +104,8 @@ export const MonthlyBalanceCard = () => {
 	return (
 		<KolCard
 			className="dashboard-monthly"
+			id="karte-monatsrueckblick"
+			tabIndex={-1}
 			role="region"
 			aria-label={t('monthlyCard.label')}
 			_label={t('monthlyCard.label')}

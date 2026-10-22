@@ -173,7 +173,14 @@ export const CareHint = ({ onEinstiegssatzGezeigt }: CareHintProps) => {
 
 	if (vorschlaege.length === 0 || leerzustand) {
 		return (
-			<div className="care-hint" data-testid="care-hint" role="status" aria-label={t('care.label')}>
+			<div
+				className="care-hint"
+				id="karte-fuersorge"
+				tabIndex={-1}
+				data-testid="care-hint"
+				role="status"
+				aria-label={t('care.label')}
+			>
 				<KolAlert _type="info" _variant="card" _label={t('care.label')}>
 					<p>{t('care.empty')}</p>
 				</KolAlert>
@@ -191,7 +198,14 @@ export const CareHint = ({ onEinstiegssatzGezeigt }: CareHintProps) => {
 	// verschwinden von selbst, sobald die Überlast-Mindestmenge erreicht ist.
 	if (vorschlag.anlass === 'ermutigung' || vorschlag.anlass === 'einstieg') {
 		return (
-			<div className="care-hint" data-testid="care-hint" role="status" aria-label={t('care.label')}>
+			<div
+				className="care-hint"
+				id="karte-fuersorge"
+				tabIndex={-1}
+				data-testid="care-hint"
+				role="status"
+				aria-label={t('care.label')}
+			>
 				<KolAlert _type="info" _variant="card" _label={t('care.label')}>
 					<p>{vorschlag.titel}</p>
 				</KolAlert>
@@ -306,7 +320,14 @@ export const CareHint = ({ onEinstiegssatzGezeigt }: CareHintProps) => {
 	};
 
 	return (
-		<div className="care-hint" data-testid="care-hint" role="status" aria-label={t('care.label')}>
+		<div
+			className="care-hint"
+			id="karte-fuersorge"
+			tabIndex={-1}
+			data-testid="care-hint"
+			role="status"
+			aria-label={t('care.label')}
+		>
 			<KolAlert _type="info" _variant="card" _label={t('care.label')}>
 				{/* #1873: `span` statt `KolBadge` wie `SeriesBadge`/`GeoBadge` — der Text läge sonst im Shadow-DOM. */}
 				{vorschlag.typ === 'ki' && (

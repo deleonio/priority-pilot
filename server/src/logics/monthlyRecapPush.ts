@@ -4,6 +4,7 @@ import { type PushSender } from './push.js';
 import { nutzerZeitzone, tagIn } from './streak.js';
 import { uhrzeitIn } from './carePush.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
+import { PUSH_TARGETS } from './pushTargets.js';
 
 /**
  * Fachlicher Push-Trigger „Monatsrückblick" (#1995): höchstens **ein** Push je Nutzer und
@@ -56,7 +57,7 @@ export const runMonthlyRecapPush = async (
 			user.id,
 			KIND,
 			dedupeKey,
-			{ ...TEXTE[spracheVon(user.sprache)], url: '/' },
+			{ ...TEXTE[spracheVon(user.sprache)], url: PUSH_TARGETS.monthlyRecap },
 			send,
 		);
 		if (sent > 0) {

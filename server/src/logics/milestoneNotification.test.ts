@@ -85,6 +85,11 @@ describe('notifyReachedMilestones (#1363)', () => {
 
 		await notifyReachedMilestones(userId, vorher, nachher, mockSender);
 		assert.equal(calls.length, 1, 'erster Aufruf sendet genau einmal');
+		assert.equal(
+			JSON.parse(calls[0].body).url,
+			'/#karte-meilensteine',
+			'#2851 AK1: der Push öffnet die Meilenstein-Karte',
+		);
 		const logsNach1 = await NotificationLog.findAll({ where: { kind: 'milestone' } });
 		assert.equal(logsNach1.length, 1, 'erster Aufruf legt genau einen Dedupe-Eintrag an');
 

@@ -21,15 +21,19 @@ const OPERATOR = {
 	address: ['Weg 1', '12345 Ort'],
 	email: 'rechnung@betreiber.example',
 	taxNumber: '154/254/02959',
-	ustId: '',
 };
-const RECIPIENT = { displayName: 'Ada Beispiel', email: 'ada@example.com' };
+const RECIPIENT = { name: 'Ada Beispiel', email: 'ada@example.com' };
 
 const setup = async () => {
 	const user = await User.create({
 		email: 'pdf@example.com',
-		displayName: 'Ada Beispiel',
+		displayName: 'Mo',
 		passwordHash: '__test__',
+		billingName: 'Ada Beispiel',
+		billingStreet: 'Musterweg 3',
+		billingZip: '12345',
+		billingCity: 'Musterstadt',
+		billingCountry: 'Deutschland',
 	});
 	const subscription = await Subscription.create({
 		userId: user.id,
@@ -75,11 +79,12 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 			'Betreiberangaben (Name, Anschrift) müssen drinstehen',
 		);
 		assert.ok(has(OPERATOR.email), 'Betreiber-Kontakt muss drinstehen');
-		assert.ok(has(RECIPIENT.displayName), 'Empfänger-Name muss drinstehen');
-		assert.ok(!has(RECIPIENT.email), 'Das Kundenkonto (E-Mail) gehört nicht ins Adressfeld');
+		assert.ok(has(RECIPIENT.name), 'Empfänger-Name muss drinstehen');
+		assert.ok(has(RECIPIENT.email), 'Kundenkonto (E-Mail) steht im Einleitungssatz');
 		assert.ok(has('7,99 €'), 'Betrag muss in Euro mit Komma drinstehen');
 		assert.ok(has(TAX_NOTE), '§19-UStG-Hinweis muss drinstehen');
 		assert.ok(has('Steuer-Nr.: 154/254/02959'), 'Steuer-Nr. muss als Pflichtangabe drinstehen');
+		assert.ok(!has('USt-IdNr.'), 'Die USt-IdNr. wird nicht mehr gedruckt');
 		assert.ok(has('Ort, '), 'Ortsdatum wie in der Vorlage muss drinstehen');
 		assert.ok(has('Stk.') && has('ME'), 'Menge- und ME-Spalten müssen drinstehen');
 		assert.ok(has('Zwischensumme:') && has('Gesamtsumme:'), 'Summenzeilen müssen drinstehen');
@@ -101,13 +106,6 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 		assert.ok(pdfContains(bytes, 'Paket pro (yearly)') && pdfContains(bytes, '99,00 €'), 'Paketposition');
 		assert.ok(pdfContains(bytes, 'Verrechnung Restwert') && pdfContains(bytes, '-4,00 €'), 'Verrechnungsposition');
 		assert.ok(!pdfContains(await pdf(plain), 'Verrechnung'));
-	});
-
-	it('ohne ustId keine USt-IdNr.-Zeile, mit ustId erscheint sie', async () => {
-		assert.ok(!pdfContains(await pdf(await invoice()), 'USt-IdNr'), 'Ohne ustId darf keine USt-IdNr.-Zeile erscheinen');
-
-		const withId = await pdf(await invoice('INV-2026-100002'), undefined, { ...OPERATOR, ustId: 'DE123456789' });
-		assert.ok(pdfContains(withId, 'DE123456789'), 'Bei gesetzter ustId muss die USt-IdNr. im PDF stehen');
 	});
 
 	it('Steuer-Nr.-Zeile nur bei gesetzter taxNumber', async () => {
@@ -145,12 +143,12 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 	});
 
 	// #2233 AK1: WinAnsi-only Helvetica wirft bei Kyrillisch/Polnisch/Emoji — Unicode-Schrift gefordert.
-	for (const displayName of ['Иван Петров', 'Łukasz Żółć Ślęzak', 'Anna 🎉']) {
-		it(`#2233 AK1: buildInvoicePdf baut ein gültiges PDF für „${displayName}"`, async () => {
+	for (const name of ['Иван Петров', 'Łukasz Żółć Ślęzak', 'Anna 🎉']) {
+		it(`#2233 AK1: buildInvoicePdf baut ein gültiges PDF für „${name}"`, async () => {
 			const bytes = await buildInvoicePdf(
 				await invoice(),
 				OPERATOR,
-				{ displayName, email: 'x@example.com' },
+				{ name, email: 'x@example.com' },
 				'Paket plus (monthly)',
 			);
 			assert.equal(Buffer.from(bytes).subarray(0, 5).toString(), '%PDF-');
@@ -237,6 +235,10 @@ describe('invoices.ts — PDF-Erzeugung und -Aufbewahrung (#1955 AK1/AK3)', () =
 		);
 		const mailed = Buffer.from(attachment.content);
 		assert.ok(mailed.length > 0 && mailed.subarray(0, 5).toString() === '%PDF-', 'Der Anhang muss ein echtes PDF sein');
+		assert.ok(
+			pdfContains(mailed, 'Ada Beispiel') && pdfContains(mailed, 'pdf@example.com') && !pdfContains(mailed, 'Mo'),
+			'Das PDF trägt Rechnungsanschrift und Kundenkonto, nicht den Anzeigenamen',
+		);
 
 		await invoice.reload();
 		const stored = (invoice.get({ plain: true }) as { pdfBytes?: Uint8Array }).pdfBytes;

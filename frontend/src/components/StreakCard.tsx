@@ -64,6 +64,8 @@ export const StreakCard = () => {
 	return (
 		<KolCard
 			className="dashboard-streak"
+			id="karte-streak"
+			tabIndex={-1}
 			role="region"
 			aria-label={t('streak.label')}
 			_label={t('streak.label')}

@@ -160,6 +160,7 @@ export const main = async (): Promise<void> => {
 		const { runStreakReminder } = await import('./logics/streakReminder.js');
 		const { runMonthlyRecapPush } = await import('./logics/monthlyRecapPush.js');
 		const { vorrangVon } = await import('./logics/pushBudget.js');
+		const { runAboServicePush } = await import('./logics/aboPush.js');
 		const { runCalendarSync, CALENDAR_SYNC_INTERVAL_MS } = await import('./logics/calendar-ics.js');
 		const { applyDueGracePeriods, reconcilePaypalSubscriptions } = await import('./logics/billing/lifecycle.js');
 		const { paypalGraceDeps, paypalReconcileDeps } = await import('./logics/paypal.js');
@@ -345,12 +346,14 @@ export const main = async (): Promise<void> => {
 		// seit #2853 der Digest „Dein Tag“ (fällige + Top-Aufgaben gebündelt, inkl. Morgen-Mail
 		// #1426); die alten Morgen-Trigger (`runDueTaskReminders`, `runDailyTopTasksPush`) sind
 		// entfallen. Je Tick sendet der Scheduler in §4-Vorrang-Ordnung (F1.2) — über den
-		// Tagesverlauf bleibt es First-Come-First-Served.
+		// Tagesverlauf bleibt es First-Come-First-Served. Der Abo-Service-Push (#2852) bleibt
+		// ungerangt: als Service-Nachricht läuft er nach den gerangten Triggern und budgetfrei.
 		startScheduler([
 			{ rang: vorrangVon('daily-digest'), trigger: runDailyDigest },
 			{ rang: vorrangVon('care-push'), trigger: runCarePush },
 			{ rang: vorrangVon('streak-reminder'), trigger: runStreakReminder },
 			{ rang: vorrangVon('monthly-recap'), trigger: runMonthlyRecapPush },
+			runAboServicePush,
 		]);
 
 		// Deadline-Auto-Löschung (#523) — bewusst push-unabhängig (siehe startDeadlineAutoDeleteScheduler):

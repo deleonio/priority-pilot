@@ -119,7 +119,7 @@ describe('Meilenstein-Push bei Statuswechsel auf Done (#1363)', () => {
 		const payload = JSON.parse(calls[0].body) as { title: string; body?: string; url?: string };
 		const text = `${payload.title} ${payload.body ?? ''}`;
 		assert.ok(/50/.test(text), 'die Nachricht nennt die erreichte Schwelle');
-		assert.equal(payload.url, '/', 'die Nachricht verlinkt auf die App-Wurzel');
+		assert.equal(payload.url, '/#karte-meilensteine', 'die Nachricht öffnet die Meilenstein-Karte (#2851)');
 	});
 
 	// ── AK2/TF2: kein Push-Opt-in → kein Versand, kein Log, PATCH bleibt unberührt ──

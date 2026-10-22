@@ -20,7 +20,9 @@ import { readString } from '../lib/inputValue';
 import { periodLabel, planLabel } from '../lib/planOffers';
 import { getChannel } from '../lib/platform';
 import { usePlan } from '../lib/usePlan';
+import { useSettingsAnchor } from '../lib/useSettingsAnchor';
 import { CHANNEL_PROVIDER } from './billingChannel';
+import { BillingAddressDialog } from './BillingAddressDialog';
 import { getApiBase } from '../lib/siteOrigin';
 import { ManagedBy } from './ManagedBy';
 import { Modal } from './Modal';
@@ -186,6 +188,7 @@ export const SubscriptionSection = () => {
 	const [invoices, setInvoices] = useState<Invoice[] | null>(null);
 	const [invoicesFailed, setInvoicesFailed] = useState(false);
 	const [cancelOpen, setCancelOpen] = useState(false);
+	const [addressOpen, setAddressOpen] = useState(false);
 	// Merker nach erfolgreicher Kündigung: der Webhook stellt den Status erst verzögert um (#2048).
 	const [locallyCancelled, setLocallyCancelled] = useState(false);
 	// Bestätigungsadresse der lokalen Kündigung — die Mail kommt erst mit dem Webhook (KI-UX #2308).
@@ -208,7 +211,29 @@ export const SubscriptionSection = () => {
 	const current = subscription?.status === 'approval_pending' ? null : subscription;
 
 	// Ehemalige Abonnenten (`subscription === null`) sehen ihre Rechnungen weiter, aber keine leere Gruppe (#1940).
-	const showInvoices = subscription != null || (subscription === null && invoices !== null && invoices.length > 0);
+	// #2852: Über den Rechnungen-Anker (`/settings/pakete#rechnungen`) ist die Sektion ein expliziter
+	// Navigationsauftrag — sie erscheint dann auch ohne Abo/Bestand, statt ins Leere zu springen;
+	// ohne Anker gilt die #1940-Regel unverändert.
+	const [ankerRechnungen, setAnkerRechnungen] = useState(false);
+	const [rechnungenOffen, setRechnungenOffen] = useState(false);
+	const showInvoices =
+		subscription != null || ankerRechnungen || (subscription === null && invoices !== null && invoices.length > 0);
+
+	// #2852 AK7: Der Push-Ziel-Hash klappt die Rechnungen auf (KolDetails), damit der
+	// Anker-Sprung (`useSettingsAnchor`, #2848-Muster) auf sichtbare Inhalte trifft.
+	useEffect(() => {
+		const aktivieren = (): void => {
+			if (window.location.hash !== '#rechnungen') {
+				return;
+			}
+			setAnkerRechnungen(true);
+			setRechnungenOffen(true);
+		};
+		aktivieren();
+		window.addEventListener('hashchange', aktivieren);
+		return () => window.removeEventListener('hashchange', aktivieren);
+	}, []);
+	useSettingsAnchor('rechnungen');
 
 	// Ein neues Abo (z. B. Weiterführen, #2049) meldet /auth/me als `approval_pending` — der lokale
 	// Kündigungs-Merker verfällt, der Gekündigt-Hinweis verschwindet ohne Neuladen (AK7). Ein
@@ -295,45 +320,72 @@ export const SubscriptionSection = () => {
 				)
 			)}
 
-			{showInvoices && (
-				<KolDetails _label={t('invoices.label')} _level={3}>
-					<section className="billing-invoices" data-testid="billing-invoices">
-						{invoicesFailed ? (
-							// Eigener Titel: „Rechnungen" trägt seit #2308 immer das KolDetails-Label.
-							<KolAlert _type="error" _label={t('subscription.loadErrorLabel')}>
-								{t('subscription.invoicesLoadFailed')}
-							</KolAlert>
-						) : invoices === null ? (
-							<KolSpin _show _variant="cycle" _label={t('invoices.loading')} />
-						) : invoices.length === 0 ? (
-							<p data-testid="invoices-empty">{t('invoices.empty')}</p>
-						) : (
-							<ul className="billing-invoices__list">
-								{invoices.map((invoice) => (
-									<li key={invoice.id} className="billing-invoices__item">
-										<span>{invoice.number}</span>
-										<span>
-											{formatDate(invoice.periodStart)} – {formatDate(invoice.periodEnd)}
-										</span>
-										<span>{formatEuro(invoice.amountCents)}</span>
-										{/* Status als Text-Badge — Information nie allein über Farbe (WCAG 1.4.1, KI-UX). */}
-										<KolBadge _label={paymentStatusLabel(invoice.paymentStatus)} />
-										<span>
-											<KolButton
-												data-testid="invoice-download"
-												_label={t('invoices.download', { number: invoice.number })}
-												_variant="secondary"
-												_icons={{ left: { icon: 'fa-solid fa-download' } }}
-												_on={{ onClick: () => downloadInvoicePdf(invoice) }}
-											/>
-										</span>
-									</li>
-								))}
-							</ul>
-						)}
-					</section>
-				</KolDetails>
+			{/* Rechnungsadresse ohne Bestellvorgang pflegen — erst mit geladenem Abo-Stand (kein
+			    Blinken beim Laden), dasselbe Formular wie im Checkout (#2661). */}
+			{current !== undefined && (
+				<KolButton
+					data-testid="billing-address-edit"
+					_label={t('address.edit')}
+					_variant="secondary"
+					_on={{ onClick: () => setAddressOpen(true) }}
+				/>
 			)}
+
+			{showInvoices && (
+				// #2852 AK7: Anker-Ziel des Rechnungs-Push (`PUSH_TARGETS.aboInvoice`) — eigene Sektion
+				// mit tabIndex=-1, damit der Sprung Fokus + scrollIntoView auf das Licht-DOM setzen kann
+				// (KoliBri-Hosts überschreiben focus(), Muster `useDashboardAnchor`).
+				<section id="rechnungen" tabIndex={-1}>
+					<KolDetails
+						_label={t('invoices.label')}
+						_level={3}
+						_open={rechnungenOffen}
+						_on={{
+							onToggle: (_event, value) => {
+								setRechnungenOffen(value === true);
+							},
+						}}
+					>
+						<section className="billing-invoices" data-testid="billing-invoices">
+							{invoicesFailed ? (
+								// Eigener Titel: „Rechnungen" trägt seit #2308 immer das KolDetails-Label.
+								<KolAlert _type="error" _label={t('subscription.loadErrorLabel')}>
+									{t('subscription.invoicesLoadFailed')}
+								</KolAlert>
+							) : invoices === null ? (
+								<KolSpin _show _variant="cycle" _label={t('invoices.loading')} />
+							) : invoices.length === 0 ? (
+								<p data-testid="invoices-empty">{t('invoices.empty')}</p>
+							) : (
+								<ul className="billing-invoices__list">
+									{invoices.map((invoice) => (
+										<li key={invoice.id} className="billing-invoices__item">
+											<span>{invoice.number}</span>
+											<span>
+												{formatDate(invoice.periodStart)} – {formatDate(invoice.periodEnd)}
+											</span>
+											<span>{formatEuro(invoice.amountCents)}</span>
+											{/* Status als Text-Badge — Information nie allein über Farbe (WCAG 1.4.1, KI-UX). */}
+											<KolBadge _label={paymentStatusLabel(invoice.paymentStatus)} />
+											<span>
+												<KolButton
+													data-testid="invoice-download"
+													_label={t('invoices.download', { number: invoice.number })}
+													_variant="secondary"
+													_icons={{ left: { icon: 'fa-solid fa-download' } }}
+													_on={{ onClick: () => downloadInvoicePdf(invoice) }}
+												/>
+											</span>
+										</li>
+									))}
+								</ul>
+							)}
+						</section>
+					</KolDetails>
+				</section>
+			)}
+
+			{addressOpen && <BillingAddressDialog onClose={() => setAddressOpen(false)} />}
 
 			{cancelOpen && current != null && (
 				<CancelDialog

@@ -8,6 +8,8 @@ import { isNativeChannel } from '../lib/platform';
 interface PushPayload {
 	title: string;
 	body?: string;
+	/** Optionales Ziel (Deep-Link) — zeigt die Aktion „Öffnen" (#2848 AK4). */
+	url?: string;
 }
 
 /**
@@ -39,11 +41,11 @@ export const PushToast = () => {
 			// nicht als System-Notification an, sie kommt nur an `pushNotificationReceived`. Zuerst
 			// prüfen: Der WebView kennt `navigator.serviceWorker` auch, dort kommt aber keine Push-Nachricht
 			// an. Das Plugin wird wie in `lib/push.ts` erst on demand geladen, im Web-Bundle steckt es nicht.
-			const onReceived = ({ title, body }: { title?: string; body?: string }) => {
+			const onReceived = ({ title, body, url }: { title?: string; body?: string; url?: string }) => {
 				if (!title) {
 					return;
 				}
-				flushSync(() => setToast({ title, body }));
+				flushSync(() => setToast({ title, body, url }));
 			};
 			let handle: { remove: () => Promise<unknown> } | undefined;
 			let disposed = false;
@@ -90,6 +92,22 @@ export const PushToast = () => {
 			<KolAlert _type="success" _variant="card" _alert={true} data-testid="push-toast">
 				<strong className="push-toast__title">{toast.title}</strong>
 				{toast.body && <p className="push-toast__body">{toast.body}</p>}
+				{toast.url !== undefined && (
+					<button
+						type="button"
+						className="push-toast__open"
+						data-testid="push-toast-open"
+						onClick={() => {
+							const url = toast.url;
+							setToast(null);
+							if (url !== undefined) {
+								window.location.assign(url);
+							}
+						}}
+					>
+						{t('actions.open')}
+					</button>
+				)}
 				<button
 					type="button"
 					className="push-toast__close"

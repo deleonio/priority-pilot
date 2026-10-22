@@ -2,13 +2,39 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.32 - 2026-10-21
+## v0.33 - 2026-10-22
 
-_Enthält v0.32.0 – v0.32.10._
+_Enthält v0.33.0 – v0.33.3._
+
+### 🎉 New Features
+
+- feat(frontend): edit billing address without checkout flow by @deleonio in https://github.com/deleonio/priority-pilot/pull/2866
+
+### 🐞 Bug Fixes
+
+- feat(billing): recipient from billing address, account email, logo fix by @deleonio in https://github.com/deleonio/priority-pilot/pull/2862
+- fix(billing): remove vat id line from invoice pdf by @deleonio in https://github.com/deleonio/priority-pilot/pull/2864
+
+### 🔧 Engineering
+
+- docs(skill): compact ticket-coordination with binding status block by @deleonio in https://github.com/deleonio/priority-pilot/pull/2863
+
+### Other Changes
+
+- feat(server): existing push notifications open their topic (#2851) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2861
+
+## v0.32 - 2026-10-22
+
+_Enthält v0.32.0 – v0.32.13._
+
+### 🎉 New Features
+
+- feat(frontend): land push targets on the right card anchor (#2848) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2859
 
 ### 🚀 Improvements
 
 - feat(server): invoice pdf in the modevel.de template look by @deleonio in https://github.com/deleonio/priority-pilot/pull/2839
+- feat(server): hourly scheduler delivers reminders in local windows by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2858
 
 ### 🔧 Engineering
 
@@ -23,6 +49,7 @@ _Enthält v0.32.0 – v0.32.10._
 - fix(ci): port hard deadline watchdog (#2097) to triage phase by @deleonio in https://github.com/deleonio/priority-pilot/pull/2840
 - feat(billing): PayPal-Sandbox-Hinweis mit Testkonto im CheckoutDialog by @deleonio in https://github.com/deleonio/priority-pilot/pull/2843
 - docs(push): goals, time windows, budget and new occasions (#2844) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2845
+- docs: push concept with message targets, budget and switches (#2844) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2846
 
 ## v0.31 - 2026-10-21
 
@@ -111,6 +138,7 @@ _Enthält v0.29.0 – v0.29.34._
 ### 🚀 Improvements
 
 - docs(guide): sync user guide to current app state 2026-10-18 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2705
+- docs(guide): sync user guide to current app state 2026-10-18 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2705
 - feat(frontend): brand elements on all shareable cards by @deleonio in https://github.com/deleonio/priority-pilot/pull/2707
 - feat(server): log failed ai budget refunds instead of swallowing them by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2710
 - feat(frontend): simplify category assignment to a plain single-select by @deleonio in https://github.com/deleonio/priority-pilot/pull/2721
@@ -177,7 +205,6 @@ _Enthält v0.28.0 – v0.28.15._
 - ci(cron): prompt audit weekly on friday evening instead of daily by @deleonio in https://github.com/deleonio/priority-pilot/pull/2681
 - fix(android): embed native debug symbols in the release aab by @deleonio in https://github.com/deleonio/priority-pilot/pull/2682
 - fix(llm): add top_p 1 for greedy sampling and surface embedded 200 errors by @deleonio in https://github.com/deleonio/priority-pilot/pull/2683
-- fix(server): raise llm test timeout to 30s and surface body-read timeouts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2699
 - fix(server): raise llm test timeout to 30s and surface body-read timeouts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2699
 - feat(server): log swallowed db errors in provider resolution (#2687) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2702
 

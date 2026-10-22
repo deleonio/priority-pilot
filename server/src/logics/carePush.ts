@@ -6,6 +6,7 @@ import type { BalanceSaeule, KadenzTask } from './heartBalance.js';
 import { CARE_SPRACHEN, spracheVon, type CareSprache } from './careSuggestionData.js';
 import { type PushSender } from './push.js';
 import { nutzerZeitzone } from './streak.js';
+import { PUSH_TARGETS } from './pushTargets.js';
 
 /**
  * Fachlicher Push-Trigger „Fürsorge-Hinweise“ (#1794): schickt höchstens **einen** gebündelten
@@ -244,7 +245,7 @@ export const runCarePush = async (now: Date = new Date(), send?: PushSender): Pr
 			user.id,
 			KIND,
 			dedupeKey,
-			{ title: text.titel, body: text.text, url: '/' },
+			{ title: text.titel, body: text.text, url: PUSH_TARGETS.carePush },
 			send,
 		);
 		if (sent > 0) {

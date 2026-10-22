@@ -105,6 +105,10 @@
 		"saveFailed": "The billing address could not be saved.",
 		"edit": "Change billing address"
 	},
+	"addressDialog": {
+		"title": "Billing address",
+		"text": "This address appears on future invoices."
+	},
 	"play": {
 		"unlockFailed": "Google received the purchase, but it could not be activated yet.",
 		"purchaseFailed": "The purchase via Google Play failed.",

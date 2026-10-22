@@ -94,6 +94,8 @@ export const YearlyRecapCard = () => {
 	return (
 		<KolCard
 			className="dashboard-yearly"
+			id="karte-jahresrueckblick"
+			tabIndex={-1}
 			role="region"
 			aria-label={t('yearlyCard.label')}
 			_label={t('yearlyCard.label')}
