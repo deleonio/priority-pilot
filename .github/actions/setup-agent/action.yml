@@ -563,7 +563,7 @@ runs:
 
     - name: Tailscale-Exit-Node verbinden (OAuth-Client; für zai, #2102)
       if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai' && runner.name != 'pi5' && inputs.tailscale-oauth-client-id != ''
-      uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4.2.0
+      uses: tailscale/github-action@99a8333667fff04fdd6cffb46dfd409f8329a7bf # v4.3.0
       with:
         oauth-client-id: ${{ inputs.tailscale-oauth-client-id }}
         oauth-secret: ${{ inputs.tailscale-oauth-secret }}
@@ -574,7 +574,7 @@ runs:
 
     - name: Tailscale-Exit-Node verbinden (Auth-Key-Fallback; für zai)
       if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai' && runner.name != 'pi5' && inputs.tailscale-oauth-client-id == ''
-      uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4.2.0
+      uses: tailscale/github-action@99a8333667fff04fdd6cffb46dfd409f8329a7bf # v4.3.0
       with:
         authkey: ${{ inputs.tailscale-authkey }}
         args: --exit-node=${{ inputs.tailscale-exit-node }} --exit-node-allow-lan-access=true
