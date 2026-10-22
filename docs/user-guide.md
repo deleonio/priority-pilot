@@ -869,24 +869,80 @@ eine Gruppe verwaltet, ist deshalb noch kein Admin der App.
 
 ## Benachrichtigungen (Push)
 
-Balamentum kann dich per **Push-Nachricht** an fällige Aufgaben erinnern – auch
-wenn die App gerade nicht geöffnet ist.
+Balamentum kann dich per **Push-Nachricht** erinnern – an fällige Aufgaben, deine
+Fürsorge-Säulen, Erfolge und Aktivitäten in deinen Gruppen. Auch wenn die App
+gerade nicht geöffnet ist.
+
+### Schalter
 
 - Aktivieren über _Einstellungen → Allgemein → „Push-Nachrichten aktivieren“_. Beim
-  Einschalten fragt der Browser nach der Benachrichtigungs-Erlaubnis.
-- Mit **„Push testen“** kannst du eine Testnachricht auslösen.
+  Einschalten fragt der Browser nach der Benachrichtigungs-Erlaubnis. Mit **„Push testen“**
+  löst du eine Testnachricht aus.
 - Unterstützt dein Browser keine Push-Nachrichten, erscheint ein Hinweis – meist hilft
   es, die App zu installieren (siehe unten).
-- Erinnerungen verschickt die App einmal täglich als **je eine gebündelte Nachricht**:
-  alle offenen Aufgaben, deren Deadline innerhalb der nächsten 24 Stunden abläuft oder
-  schon überschritten ist („Fällige Aufgaben“). Dazu kommt **separat** eine Nachricht
-  „Deine wichtigsten Aufgaben“ mit bis zu drei Aufgaben. Eine bereits gemeldete Fälligkeit
-  wird nicht erneut gemeldet.
-- Ist die Standort-Erfassung aktiv, bekommst du zusätzlich einen Hinweis, wenn eine
-  offene Aufgabe mit Ortsbezug näher als deine Alarm-Entfernung liegt (Standard 1 km):
-  als einzelne Nachricht mit Titel und Entfernung bzw. als gebündelte Nachricht
-  „X Aufgaben in der Nähe“. Auch hier wird dieselbe Aufgabe nicht sofort erneut
-  gemeldet.
+- Unter dem Hauptschalter stehen fünf Gruppen-Schalter:
+  - **Aufgaben und Erinnerungen** – „Dein Tag“ am Morgen (fällige Aufgaben und deine bis
+    zu drei wichtigsten Aufgaben), Meldungen, wenn jemand für dich eine Aufgabe anlegt,
+    erledigt oder aus einer Serie neue Aufgaben erzeugt, sowie Willkommensschritte.
+  - **Fürsorge** – Fürsorge-Hinweis zu einer Säule im Defizit oder unter Überlast, Lob
+    bei guter Balance, Streak-Erinnerung, Journal-Impuls, „Willkommen zurück“.
+  - **Erfolge und Rückblicke** – Meilensteine (Streak, Punkte) sowie Wochen-, Monats- und
+    Jahresrückblick.
+  - **Gruppen** – Einladungen, angenommene Einladungen sowie Start und Ende einer
+    Challenge.
+  - **Tipps und Angebote** – höchstens einmal im Monat ein nutzungsbezogener Hinweis auf
+    Plus oder Pro. Dieser Schalter ist standardmäßig **aus**.
+- Zwei Sonderregeln:
+  - **Ortserinnerungen** („Aufgabe in der Nähe“, in den Paketen Plus und Pro) haben ihren
+    Schalter unter _Einstellungen → Ortung_ – dort stellst du auch die Entfernungen ein.
+    Ist die Standort-Erfassung aktiv, meldet sich eine offene Aufgabe mit Ortsbezug,
+    sobald sie näher als deine Alarm-Entfernung liegt (Standard 1 km) – je Aufgabe
+    höchstens einmal in 24 Stunden.
+  - **Abo und Rechnungen** haben keinen eigenen Schalter. Diese Service-Nachrichten
+    betreffen deinen Vertrag: Sie lässt nur der Hauptschalter weg – die Mail geht in
+    jedem Fall raus.
+
+### Wann die Nachrichten kommen
+
+Die App verschickt Pushes in Zeitfenstern nach deiner Ortszeit:
+
+| Fenster         | Wofür                                                       |
+| --------------- | ----------------------------------------------------------- |
+| Morgen 7–9 Uhr  | „Dein Tag“: fällige Aufgaben und deine wichtigsten Aufgaben |
+| Tag 9–18 Uhr    | Fürsorge-Hinweise, Rückblicke, Service-Nachrichten          |
+| Abend 18–21 Uhr | Streak-Erinnerung, Journal-Impuls                           |
+| 21–7 Uhr        | Ruhezeit – es kommt nichts                                  |
+
+- **Ereignis-Pushes** (jemand legt eine Aufgabe für dich an, eine Gruppen-Einladung
+  kommt) gehen sofort raus – außer in der Ruhezeit; dann entfällt der Push, der Inhalt
+  steht in der App. Offene Einladungen und offene Service-Nachrichten holt der erste
+  Lauf am Morgen nach.
+- **Ortserinnerungen** sind ereignisgetrieben und halten die Ruhezeit ebenfalls ein.
+
+### Tagesbudget
+
+- **Höchstens drei Pushes je Tag** kommen zusammen – über alle Arten. Ausgenommen sind
+  Service-Nachrichten (Abo und Rechnungen); sie zählen nicht mit und werden nie
+  verdrängt.
+- Ist das Budget voll, zählt zuerst, was direkt an dich gerichtet ist (neue Aufgabe,
+  Einladung), dann die Ortserinnerung, dann „Dein Tag“.
+- Verwandte Nachrichten werden gebündelt: „Dein Tag“ fasst fällige und wichtigste
+  Aufgaben in einer Nachricht zusammen, und von zwei Rückblicken am selben Tag kommt
+  nur der größere (Monats- statt Wochenrückblick).
+
+### Wohin dich ein Tipp führt
+
+| Push                                     | Ziel                                                                            |
+| ---------------------------------------- | ------------------------------------------------------------------------------- |
+| „Dein Tag“                               | bei genau einer Aufgabe direkt zur Aufgabe, sonst zur passenden Dashboard-Karte |
+| Fürsorge-Hinweis, Lob, Willkommen zurück | zur Fürsorge- bzw. Balance-Karte                                                |
+| Streak-Erinnerung                        | zur Streak-Karte                                                                |
+| Meilenstein                              | zur Meilenstein-Karte                                                           |
+| Wochen-, Monats- und Jahresrückblick     | zur jeweiligen Rückblick-Karte                                                  |
+| Neue/erledigte Aufgabe, Serien-Aufgaben  | zur Aufgabe bzw. zu „Serien“                                                    |
+| Gruppen-Einladung, Challenge             | zu Einstellungen → Gruppen (Einladungen bzw. die Gruppe)                        |
+| Rechnung, Zahlungsproblem                | zu Einstellungen → Pakete (Rechnungen)                                          |
+| Ortserinnerung                           | direkt zur Aufgabe                                                              |
 
 > **Hinweis: Doppelte Benachrichtigung vermeiden.** Wenn du Balamentum nur als
 > Browser-Tab (Chrome) und **nicht** als eigenständige App nutzt, kann neben der
@@ -894,9 +950,9 @@ wenn die App gerade nicht geöffnet ist.
 > „URL kopieren“, „Teilen“, „In Chrome öffnen“). Diese Mehrfachbenachrichtigung ist ein
 > Plattformverhalten von Chrome, nicht von Balamentum. **Workaround:** Installiere die
 > App als eigenständige App (siehe unten „App installieren und aktualisieren“) – dann wird
-> nur noch die gewünschte App-Benachrichtigung angezeigt. Aufeinanderfolgende Pushes
-> ersetzen sich zudem gegenseitig, sodass nichts gestapelt wird – die App vergibt ihren
-> Benachrichtigungen dazu einen festen Tag.
+> nur noch die gewünschte App-Benachrichtigung angezeigt. Pushes derselben Schaltergruppe
+> ersetzen sich zudem gegenseitig, sodass nichts gestapelt wird – je Gruppe vergibt die
+> App einen eigenen Benachrichtigungs-Tag.
 
 ---
 
