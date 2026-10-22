@@ -193,4 +193,14 @@ describe('notifyTaskCreated — Ruhezeit (#2849 AK4)', () => {
 			mock.timers.reset();
 		}
 	});
+
+	it('#2850 AK3: Gruppenschalter „Aufgaben und Erinnerungen“ aus → kein Task-created-Push', async () => {
+		const recipient = await createRecipientWithSubscription();
+		await User.update({ taskPushEnabled: false } as never, { where: { id: recipient.id } });
+
+		await notifyTaskCreated({ id: 501, title: 'Einkaufen', userId: recipient.id }, { displayName: 'Anna' }, mockSend);
+
+		assert.equal(pushCalls.length, 0, 'ausgeschaltete Gruppe stoppt den Anlage-Push');
+		assert.equal(await NotificationLog.count(), 0);
+	});
 });

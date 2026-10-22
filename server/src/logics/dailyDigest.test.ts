@@ -81,6 +81,18 @@ describe('dailyDigest — Morgen-Push „Dein Tag“ (#2853 AK3)', () => {
 		assert.equal(payload.url, '/#karte-deadlines', 'mehrere Aufgaben mit fälliger dabei → Karte „Fällig“');
 	});
 
+	it('#2850 AK3: ausgeschaltete Gruppe „Aufgaben und Erinnerungen“ stoppt den Digest', async () => {
+		const empfaenger = await erstelleEmpfaenger('gruppe-aus@example.com');
+		await empfaenger.update({ taskPushEnabled: false } as never);
+		await seedSubscription(empfaenger.id);
+		await createTask({ title: 'Steuer', deadline: new Date('2026-07-07T10:00:00Z'), userId: empfaenger.id });
+
+		const result = await runDailyDigest(NOW, mockSend);
+
+		assert.equal(result.usersNotified, 0);
+		assert.equal(pushCalls.length, 0);
+	});
+
 	it('AK3: enthält die Nachricht genau eine Aufgabe, öffnet sie diese Aufgabe', async () => {
 		await seedSubscription(1);
 		const task = await createTask({ title: 'Steuer', deadline: new Date('2026-07-07T10:00:00Z') });

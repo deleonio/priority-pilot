@@ -277,4 +277,15 @@ describe('notifySeriesGenerated — Ruhezeit (#2849 AK4)', () => {
 			mock.timers.reset();
 		}
 	});
+
+	it('#2850 AK3: Gruppenschalter „Aufgaben und Erinnerungen“ aus → kein Serien-Push', async () => {
+		const { aliceId, bobId } = await seedUsers();
+		await User.update({ taskPushEnabled: false } as never, { where: { id: bobId } });
+		const { series, instances } = await seedSeriesWithInstances(aliceId, bobId, 1);
+		const alice = (await User.findByPk(aliceId))!;
+
+		await notifySeriesGenerated(series, instances, alice, mockSend);
+
+		assert.equal(await NotificationLog.count(), 0, 'ausgeschaltete Gruppe: kein Versand, kein Log');
+	});
 });

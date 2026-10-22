@@ -9,7 +9,7 @@ import {
 	KolInputText,
 	KolTabs,
 } from '@public-ui/react-v19';
-import type { GeoConfig, Pillar } from 'client';
+import type { GeoConfig, Pillar, PushGroups } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
@@ -324,6 +324,42 @@ export const SettingsPage = ({
 			.catch(() => {
 				setSplitHintFailed(true);
 				setSplitHintEnabled(!value);
+			});
+	};
+
+	// #2850: Push-Gruppen pro User (docs/push-konzept.md §5) — vier Gruppen-Schalter, Muster wie
+	// der Fürsorge-/Aufteilen-Schalter: sofortiges Speichern, Fehler als Zeilen-Alert. „Fürsorge“
+	// selbst bleibt der bestehende Fürsorge-Schalter darüber (unverändert an /care-config).
+	const [pushGroups, setPushGroups] = useState<PushGroups>({
+		taskPushEnabled: true,
+		successPushEnabled: true,
+		groupPushEnabled: true,
+		tipPushEnabled: false,
+	});
+	const [pushGroupsFailed, setPushGroupsFailed] = useState<keyof PushGroups | null>(null);
+
+	useEffect(() => {
+		api
+			.getPushGroups()
+			.then((groups) => {
+				if (groups && typeof groups.taskPushEnabled === 'boolean') {
+					setPushGroups(groups);
+				}
+			})
+			.catch(() => {
+				// Netzwerk-/Session-Fehler: Defaults (§5) stehen bleiben, Schalter bleiben bedienbar.
+			});
+	}, []);
+
+	const togglePushGroup = (key: keyof PushGroups, value: boolean): void => {
+		const neu = { ...pushGroups, [key]: value };
+		setPushGroups(neu);
+		api
+			.updatePushGroups(neu)
+			.then(() => setPushGroupsFailed(null))
+			.catch(() => {
+				setPushGroupsFailed(key);
+				setPushGroups({ ...pushGroups, [key]: !value });
 			});
 	};
 
@@ -724,6 +760,24 @@ export const SettingsPage = ({
 							)}
 							<div className="settings-switch-row">
 								<KolInputCheckbox
+									_label={t('settingsPage.notifications.tasksLabel')}
+									_variant="switch"
+									_checked={pushGroups.taskPushEnabled}
+									_hint={t('settingsPage.notifications.tasksHint')}
+									_on={{
+										onChange: (_event, value) => {
+											togglePushGroup('taskPushEnabled', value === true);
+										},
+									}}
+								/>
+								{pushGroupsFailed === 'taskPushEnabled' && (
+									<KolAlert _type="warning" _label={t('settingsPage.notifications.saveFailedLabel')}>
+										{t('settingsPage.notifications.saveFailedText')}
+									</KolAlert>
+								)}
+							</div>
+							<div className="settings-switch-row">
+								<KolInputCheckbox
 									_label={t('settingsPage.notifications.careLabel')}
 									_variant="switch"
 									_checked={carePushEnabled}
@@ -736,6 +790,61 @@ export const SettingsPage = ({
 								/>
 								{/* #1794: `careFailed` gehört zur Switch-Zeile (#971-Muster wie `pushFailed`). */}
 								{careFailed && (
+									<KolAlert _type="warning" _label={t('settingsPage.notifications.saveFailedLabel')}>
+										{t('settingsPage.notifications.saveFailedText')}
+									</KolAlert>
+								)}
+							</div>
+							{/* #2850: die übrigen drei Gruppen (§5-Reihenfolge Aufgaben → Fürsorge → Erfolge → Gruppen → Tipps). */}
+							<div className="settings-switch-row">
+								<KolInputCheckbox
+									_label={t('settingsPage.notifications.successLabel')}
+									_variant="switch"
+									_checked={pushGroups.successPushEnabled}
+									_hint={t('settingsPage.notifications.successHint')}
+									_on={{
+										onChange: (_event, value) => {
+											togglePushGroup('successPushEnabled', value === true);
+										},
+									}}
+								/>
+								{pushGroupsFailed === 'successPushEnabled' && (
+									<KolAlert _type="warning" _label={t('settingsPage.notifications.saveFailedLabel')}>
+										{t('settingsPage.notifications.saveFailedText')}
+									</KolAlert>
+								)}
+							</div>
+							<div className="settings-switch-row">
+								<KolInputCheckbox
+									_label={t('settingsPage.notifications.groupsLabel')}
+									_variant="switch"
+									_checked={pushGroups.groupPushEnabled}
+									_hint={t('settingsPage.notifications.groupsHint')}
+									_on={{
+										onChange: (_event, value) => {
+											togglePushGroup('groupPushEnabled', value === true);
+										},
+									}}
+								/>
+								{pushGroupsFailed === 'groupPushEnabled' && (
+									<KolAlert _type="warning" _label={t('settingsPage.notifications.saveFailedLabel')}>
+										{t('settingsPage.notifications.saveFailedText')}
+									</KolAlert>
+								)}
+							</div>
+							<div className="settings-switch-row">
+								<KolInputCheckbox
+									_label={t('settingsPage.notifications.tipsLabel')}
+									_variant="switch"
+									_checked={pushGroups.tipPushEnabled}
+									_hint={t('settingsPage.notifications.tipsHint')}
+									_on={{
+										onChange: (_event, value) => {
+											togglePushGroup('tipPushEnabled', value === true);
+										},
+									}}
+								/>
+								{pushGroupsFailed === 'tipPushEnabled' && (
 									<KolAlert _type="warning" _label={t('settingsPage.notifications.saveFailedLabel')}>
 										{t('settingsPage.notifications.saveFailedText')}
 									</KolAlert>

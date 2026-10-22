@@ -64,7 +64,13 @@ export const notifyReachedMilestones = async (
 	const warVorherErreicht = new Set(vorher.filter((m) => m.erreicht).map((m) => m.schluessel));
 	const neuErreicht = nachher.filter((m) => m.erreicht && !warVorherErreicht.has(m.schluessel));
 	const user =
-		neuErreicht.length > 0 ? await User.findByPk(userId, { attributes: ['sprache', 'zeitzone'] }) : undefined;
+		neuErreicht.length > 0
+			? await User.findByPk(userId, { attributes: ['sprache', 'zeitzone', 'successPushEnabled'] })
+			: undefined;
+	// #2850 AK3: Gruppenschalter „Erfolge und Rückblicke" aus → kein Push, kein Log (Muster carePush).
+	if (user?.successPushEnabled === false) {
+		return;
+	}
 	// #2849 AK4: Ruhezeit 21–7 Ortszeit — kein Push, kein Log, kein Nachholen.
 	if (user && istRuhezeit(new Date(), nutzerZeitzone(user.zeitzone))) {
 		return;

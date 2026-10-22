@@ -73,7 +73,11 @@ export const runDailyDigest = async (
 
 	let usersNotified = 0;
 	for (const [userId, gruppe] of gruppen) {
-		const recipient = await User.findByPk(userId, { attributes: ['sprache', 'zeitzone', 'email'] });
+		const recipient = await User.findByPk(userId, { attributes: ['sprache', 'zeitzone', 'email', 'taskPushEnabled'] });
+		// #2850 AK3: Gruppenschalter „Aufgaben und Erinnerungen“ aus → weder Push noch Mail.
+		if (recipient?.taskPushEnabled === false) {
+			continue;
+		}
 		// #2849 AK2/AK5: Morgenfenster 7–9 in der Nutzer-Zeitzone (ohne gültige Zone: UTC).
 		const zeitzone = nutzerZeitzone(recipient?.zeitzone);
 		const { stunde } = uhrzeitIn(now, zeitzone);

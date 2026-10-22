@@ -133,4 +133,31 @@ describe('notifyTaskCompleted — Ruhezeit (#2849 AK4)', () => {
 			mock.timers.reset();
 		}
 	});
+
+	it('#2850 AK3: Gruppenschalter „Aufgaben und Erinnerungen“ aus → kein Task-completed-Push', async () => {
+		const recipient = await User.create({
+			email: 'completed-group-off@example.com',
+			displayName: 'Gruppe-aus-Empfänger',
+			passwordHash: '__test__',
+		});
+		await PushSubscription.create({
+			endpoint: 'https://push.example/completed-off',
+			p256dh: 'p256dh',
+			auth: 'auth',
+			expirationTime: null,
+			userId: recipient.id,
+		});
+		await User.update({ taskPushEnabled: false } as never, { where: { id: recipient.id } });
+
+		await notifyTaskCompleted(
+			// Test-Pflege #2850: Empfänger ist der Ersteller — das Spec-Fixture nannte fälschlich
+			// `userId` (Muster des #1426-Tests oben: `createdById`).
+			{ id: 502, title: 'Ab waschen', createdById: recipient.id },
+			{ displayName: 'Ben' },
+			mockSend,
+		);
+
+		assert.equal(pushCalls.length, 0, 'ausgeschaltete Gruppe stoppt den Abschluss-Push');
+		assert.equal(await NotificationLog.count(), 0);
+	});
 });

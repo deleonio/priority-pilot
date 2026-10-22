@@ -719,6 +719,22 @@ export const migrateUserCareColumns = async (db: Sequelize): Promise<void> => {
 	await ensureColumns(db, 'users', USER_CARE_COLUMNS);
 };
 
+/** Push-Gruppen-Spalten am User (#2850, docs/push-konzept.md §5) — drei Gruppen an, Tipps abweichend aus. */
+const USER_PUSH_GROUP_COLUMNS = [
+	{ name: 'taskPushEnabled', definition: 'BOOLEAN NOT NULL DEFAULT 1' },
+	{ name: 'successPushEnabled', definition: 'BOOLEAN NOT NULL DEFAULT 1' },
+	{ name: 'groupPushEnabled', definition: 'BOOLEAN NOT NULL DEFAULT 1' },
+	{ name: 'tipPushEnabled', definition: 'BOOLEAN NOT NULL DEFAULT 0' },
+] as const;
+
+/**
+ * Zieht die Push-Gruppen-Spalten auf einer bestehenden `users`-Tabelle nach (#2850) — idempotent,
+ * No-op bei frischer DB (Muster {@link migrateUserCareColumns}).
+ */
+export const migrateUserPushGroupColumns = async (db: Sequelize): Promise<void> => {
+	await ensureColumns(db, 'users', USER_PUSH_GROUP_COLUMNS);
+};
+
 /** Zustimmungs-Spalten am User (#1901) — Fassung und Zeitpunkt, anfangs leer. */
 const USER_TERMS_COLUMNS = [
 	{ name: 'termsVersion', definition: 'STRING' },
