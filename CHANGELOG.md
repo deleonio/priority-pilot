@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.33 - 2026-10-22
 
-_Enthält v0.33.0 – v0.33.4._
+_Enthält v0.33.0 – v0.33.5._
 
 ### 🎉 New Features
 
@@ -15,6 +15,7 @@ _Enthält v0.33.0 – v0.33.4._
 
 - feat(billing): recipient from billing address, account email, logo fix by @deleonio in https://github.com/deleonio/priority-pilot/pull/2862
 - fix(billing): remove vat id line from invoice pdf by @deleonio in https://github.com/deleonio/priority-pilot/pull/2864
+- fix(frontend): flex-wrap dashboard cards to remove empty cells by @deleonio in https://github.com/deleonio/priority-pilot/pull/2867
 
 ### 🔧 Engineering
 
@@ -140,6 +141,7 @@ _Enthält v0.29.0 – v0.29.34._
 
 - docs(guide): sync user guide to current app state 2026-10-18 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2705
 - feat(frontend): brand elements on all shareable cards by @deleonio in https://github.com/deleonio/priority-pilot/pull/2707
+- feat(frontend): brand elements on all shareable cards by @deleonio in https://github.com/deleonio/priority-pilot/pull/2707
 - feat(server): log failed ai budget refunds instead of swallowing them by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2710
 - feat(frontend): simplify category assignment to a plain single-select by @deleonio in https://github.com/deleonio/priority-pilot/pull/2721
 - docs: add successor issue number to ADR 0025 (#2732) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2738
@@ -157,7 +159,6 @@ _Enthält v0.29.0 – v0.29.34._
 ### Other Changes
 
 - docs: add ADR 0025 on shared logic as duplicate with mirror tests by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2703
-- feat(server): move score recap logic from routes into logics (#2689) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2706
 - feat(server): move score recap logic from routes into logics (#2689) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2706
 - feat(frontend): add tenth dial Bahnen with comets on elliptical orbits by @deleonio in https://github.com/deleonio/priority-pilot/pull/2712
 - feat(server): merge request validation of tasks and series (#2691) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2709
