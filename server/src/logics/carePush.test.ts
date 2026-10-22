@@ -103,7 +103,7 @@ describe('logics/carePush — fachlicher Fürsorge-Push (Issue #1794)', () => {
 		assert.equal(result.usersNotified, 1);
 		assert.equal(calls.length, 1, 'genau eine gebündelte Nachricht trotz Defizit-Auswertung');
 		const payload = JSON.parse(calls[0].body) as { title: string; body: string; url: string };
-		assert.equal(payload.url, '/', 'der Push öffnet das Dashboard (KI-UX: Zustand dort sichtbar)');
+		assert.equal(payload.url, '/#karte-fuersorge', '#2851 AK1: der Push öffnet die Fürsorge-Karte');
 		assert.notEqual(payload.title.trim(), '', 'Titel aus dem Katalog, kein Leerstring');
 		assert.notEqual((payload.body ?? '').trim(), '', 'Text aus dem Katalog, kein Leerstring');
 		const log = await NotificationLog.findOne({ where: { kind: 'care-push' } });

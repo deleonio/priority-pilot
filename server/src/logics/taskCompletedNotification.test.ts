@@ -78,6 +78,7 @@ describe('notifyTaskCompleted — Mail-Kanal (#1426, TF5/AK5)', () => {
 		);
 
 		assert.equal(pushCalls.length, 1, 'genau eine Push-Nachricht');
+		assert.equal(JSON.parse(pushCalls[0].body).url, '/tasks/1', '#2851 AK1: der Push verlinkt die erledigte Aufgabe');
 		assert.equal(mailCalls.length, 1, 'genau eine Mail zusätzlich zur Push-Nachricht');
 		assert.equal(mailCalls[0].to, 'creator@example.com', 'Mail geht an den Ersteller (Empfänger der Erinnerung)');
 		const logs = await NotificationLog.findAll({ where: { kind: 'task-completed' } });

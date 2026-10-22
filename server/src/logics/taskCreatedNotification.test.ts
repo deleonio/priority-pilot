@@ -61,18 +61,15 @@ describe('notifyTaskCreated — Push bei fremd angelegter Aufgabe (#1224)', () =
 
 	it('sendet genau eine Nachricht mit Aufgabentitel und Anzeigename des Erstellers', async () => {
 		const recipient = await createRecipientWithSubscription();
+		const task = { id: 1, title: 'Wäsche aufhängen', userId: recipient.id };
 
-		await notifyTaskCreated(
-			{ id: 1, title: 'Wäsche aufhängen', userId: recipient.id },
-			{ displayName: 'Anna' },
-			mockSend,
-		);
+		await notifyTaskCreated(task, { displayName: 'Anna' }, mockSend);
 
 		assert.equal(pushCalls.length, 1);
 		const payload = JSON.parse(pushCalls[0].body) as { title: string; body: string; url: string };
 		assert.match(payload.title, /Anna/);
 		assert.match(payload.body, /Wäsche aufhängen/);
-		assert.equal(payload.url, '/');
+		assert.equal(payload.url, `/tasks/${task.id}`, '#2851 AK3: Deep-Link zur neu angelegten Aufgabe');
 	});
 
 	it('ohne bekannten Ersteller steht „Jemand" in der Nachricht', async () => {
