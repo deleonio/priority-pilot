@@ -21,7 +21,6 @@ export interface InvoiceOperator {
 	email: string;
 	/** Steuer-Nr. (Pflichtangabe § 14 UStG) — Zeile erscheint nur bei gesetztem Wert. */
 	taxNumber?: string;
-	ustId: string;
 	/** Unterschrift unter der Grußformel — sonst der Firmenname. */
 	representative?: string;
 }
@@ -248,9 +247,8 @@ export const buildInvoicePdf = async (
 	text(operator.email, RIGHT, (sy -= 14), { size: 9, color: GREY, right: true });
 	text(SITE, RIGHT, (sy -= 14), { size: 9, color: GREY, right: true });
 	if (operator.taxNumber) {
-		text(`Steuer-Nr.: ${operator.taxNumber}`, RIGHT, (sy -= 14), { size: 9, color: GREY, right: true });
+		text(`Steuer-Nr.: ${operator.taxNumber}`, RIGHT, sy - 14, { size: 9, color: GREY, right: true });
 	}
-	if (operator.ustId) text(`USt-IdNr.: ${operator.ustId}`, RIGHT, sy - 14, { size: 9, color: GREY, right: true });
 
 	// Adressfeld links: Absenderzeile klein (Name ohne Rechtsform + Anschrift, am Spaltenrand geclippt),
 	// darunter die Rechnungsanschrift. Das Kundenkonto (E-Mail) steht im Einleitungssatz.

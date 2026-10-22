@@ -12,6 +12,5 @@ export const OPERATOR = {
 	address: ['Am Silberblick 32', '98716 Elgersburg'],
 	email: 'balamentum@modevel.de',
 	taxNumber: '154/254/02959',
-	ustId: 'DE 268 950 317',
 	representative: 'Martin Oppitz',
 };
