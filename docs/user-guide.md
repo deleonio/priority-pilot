@@ -906,12 +906,13 @@ gerade nicht geöffnet ist.
 
 Die App verschickt Pushes in Zeitfenstern nach deiner Ortszeit:
 
-| Fenster         | Wofür                                                       |
-| --------------- | ----------------------------------------------------------- |
-| Morgen 7–9 Uhr  | „Dein Tag“: fällige Aufgaben und deine wichtigsten Aufgaben |
-| Tag 9–18 Uhr    | Fürsorge-Hinweise, Rückblicke, Service-Nachrichten          |
-| Abend 18–21 Uhr | Streak-Erinnerung, Journal-Impuls                           |
-| 21–7 Uhr        | Ruhezeit – es kommt nichts                                  |
+| Fenster           | Wofür                                                               |
+| ----------------- | ------------------------------------------------------------------- |
+| Morgen 7–9 Uhr    | „Dein Tag“: fällige Aufgaben und deine wichtigsten Aufgaben         |
+| Tag 9–18 Uhr      | Fürsorge-Hinweise, Monats- und Jahresrückblick, Service-Nachrichten |
+| Sonntag 17–20 Uhr | Wochenrückblick (1× pro Woche)                                      |
+| Abend 18–21 Uhr   | Streak-Erinnerung, Journal-Impuls                                   |
+| 21–7 Uhr          | Ruhezeit – es kommt nichts                                          |
 
 - **Ereignis-Pushes** (jemand legt eine Aufgabe für dich an, eine Gruppen-Einladung
   kommt) gehen sofort raus – außer in der Ruhezeit; dann entfällt der Push, der Inhalt
@@ -941,7 +942,7 @@ Die App verschickt Pushes in Zeitfenstern nach deiner Ortszeit:
 | Wochen-, Monats- und Jahresrückblick     | zur jeweiligen Rückblick-Karte                                                  |
 | Neue/erledigte Aufgabe, Serien-Aufgaben  | zur Aufgabe bzw. zu „Serien“                                                    |
 | Gruppen-Einladung, Challenge             | zu Einstellungen → Gruppen (Einladungen bzw. die Gruppe)                        |
-| Rechnung, Zahlungsproblem                | zu Einstellungen → Pakete (Rechnungen)                                          |
+| Rechnung, Zahlungsproblem                | zu Einstellungen → Pakete & Abo (Rechnungen)                                    |
 | Ortserinnerung                           | direkt zur Aufgabe                                                              |
 
 > **Hinweis: Doppelte Benachrichtigung vermeiden.** Wenn du Balamentum nur als
