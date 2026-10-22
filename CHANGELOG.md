@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.33 - 2026-10-22
 
-_Enthält v0.33.0 – v0.33.14._
+_Enthält v0.33.0 – v0.33.16._
 
 ### 🎉 New Features
 
@@ -33,6 +33,8 @@ _Enthält v0.33.0 – v0.33.14._
 - feat(server): add push occasions for praise, recaps, journal and welcome by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2871
 - chore(deps): update node.js to v26.12.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2874
 - feat(server): consent-gated monthly tip push for free users by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2873
+- docs: explain push switch groups, time windows and daily budget (#2857) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2876
+- fix(deps): update dependency nodemailer to v10.0.10 [security] by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2884
 
 ## v0.32 - 2026-10-22
 
@@ -370,7 +372,6 @@ _Enthält v0.23.0 – v0.23.4._
 - fix(server): prevent data loss and silent task/score input errors by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2511
 - feat(frontend): translate fixed balance texts and raw i18n keys (#2496) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2513
 - chore: fix store description and portuguese salutation (#2498) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2516
-- fix(server): forest shows handover and group tasks like the list (#2515) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2531
 - fix(server): forest shows handover and group tasks like the list (#2515) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2531
 
 ### 🚀 Improvements
