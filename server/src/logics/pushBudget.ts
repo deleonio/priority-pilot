@@ -68,6 +68,7 @@ const TAGS: Record<string, string> = {
 	'streak-reminder': 'pp-fuersorge',
 	milestone: 'pp-erfolge',
 	'monthly-recap': 'pp-erfolge',
+	'abo-service': 'pp-abo',
 };
 
 /** Gruppen-Tag eines Kinds — für noch nicht zugeordnete Kinds die Aufgabengruppe als Fallback. */

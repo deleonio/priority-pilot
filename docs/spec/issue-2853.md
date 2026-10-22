@@ -14,7 +14,7 @@ nicht verdrängen (Konzept §2.3).
   `NotificationLog`-Zeile mit diesem Kind und dem lokalen Tag des Empfängers im `dedupeKey`
   (keine neue Tabelle, Konzept §4). Kein Marker bei Verdrängung und bei `sent = 0`.
 - `SERVICE_KINDS: string[]` — explizite Liste der Service-Kinds (Gruppe Abo & Rechnungen, Konzept
-  §7.3), heute leer; `istServiceKind(kind)` prüft dagegen. Service-Kinds zählen nicht und werden
+  §7.3), enthält `['abo-service']` (#2852); `istServiceKind(kind)` prüft dagegen. Service-Kinds zählen nicht und werden
   nie verdrängt.
 - `waehleImBudget(kandidaten, freie)` — Auswahl nach Vorrang (Konzept §4, von oben nach unten):
   1. Direkt an mich gerichtet (`task-created`, `task-completed`, `series-generated`)

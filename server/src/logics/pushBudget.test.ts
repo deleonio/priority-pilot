@@ -120,7 +120,7 @@ describe('pushBudget — Höchstens drei fachliche Pushes je Nutzer und lokalem 
 		}
 	});
 
-	it('AK4/TF4: tagVon ordnet alle zehn Push-Arten einem der sechs Gruppen-Tags zu', () => {
+	it('AK4/TF4: tagVon ordnet alle elf Push-Arten einem der sechs Gruppen-Tags zu', () => {
 		const gueltig = new Set(['pp-aufgaben', 'pp-fuersorge', 'pp-erfolge', 'pp-gruppen', 'pp-abo', 'pp-tipps']);
 		const kinds = [
 			'due-task',
@@ -133,7 +133,9 @@ describe('pushBudget — Höchstens drei fachliche Pushes je Nutzer und lokalem 
 			'task-completed',
 			'series-generated',
 			'geo-nearby-task',
+			'abo-service',
 		];
+		assert.equal(tagVon('abo-service'), 'pp-abo');
 		for (const kind of kinds) {
 			assert.ok(gueltig.has(tagVon(kind)), `tagVon('${kind}') muss ein gültiges Gruppen-Tag liefern`);
 		}
