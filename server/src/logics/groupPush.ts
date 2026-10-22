@@ -23,6 +23,10 @@ const KIND_EINLADUNG = 'group-invitation';
 const KIND_MITGLIED = 'group-member';
 const KIND_CHALLENGE = 'group-challenge';
 
+const TAG_MS = 24 * 60 * 60 * 1000;
+/** Rückstands-Schutz: nur Challenge-Enden der letzten 7 Tage erhalten einen Ende-Push. */
+const FENSTER_TAGE = 7;
+
 /** Titel/Text je Empfänger-Sprache — `body` erhält Einladenden/Beigetretenen + Gruppe (§7.2). */
 type PersonenTexte = Record<CareSprache, { title: string; body: (name: string, gruppe: string) => string }>;
 
@@ -222,7 +226,9 @@ export const runGroupPush = async (now: Date = new Date(), send?: PushSender): P
 		}
 	}
 
-	const beendeteChallenges = await GroupChallenge.findAll({ where: { endsAt: { [Op.lte]: now } } });
+	const beendeteChallenges = await GroupChallenge.findAll({
+		where: { endsAt: { [Op.gte]: new Date(now.getTime() - FENSTER_TAGE * TAG_MS), [Op.lte]: now } },
+	});
 	for (const challenge of beendeteChallenges) {
 		const group = await Group.findByPk(challenge.groupId, { attributes: ['id', 'name'] });
 		if (!group) {
