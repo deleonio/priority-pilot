@@ -56,7 +56,7 @@ describe('logics/journalImpulsePush — Journal-Impuls (#2855 AK4)', () => {
 	});
 
 	it('AK4: Journal-Eintrag in 30 Tagen + Abendfenster → Push mit Ziel /journal, Slot-Dedup (AK7: de/en)', async () => {
-		const de = await seedJournalNutzer('ji-de@example.com', { sprache: 'de' });
+		await seedJournalNutzer('ji-de@example.com', { sprache: 'de' });
 		await seedJournalNutzer('ji-en@example.com', { sprache: 'en' });
 		const calls: { endpoint: string; body: string }[] = [];
 
@@ -97,7 +97,7 @@ describe('logics/journalImpulsePush — Journal-Impuls (#2855 AK4)', () => {
 	});
 
 	it('AK4: Abendfenster — 17:59 lokal kein Versand, 18:00 lokal ja', async () => {
-		const user = await seedJournalNutzer('ji-fenster@example.com');
+		await seedJournalNutzer('ji-fenster@example.com');
 		const send = okSender([]);
 
 		const vorFenster = await runJournalImpulsePush(new Date('2026-07-07T15:59:00Z'), send); // 17:59 Berlin
@@ -107,7 +107,7 @@ describe('logics/journalImpulsePush — Journal-Impuls (#2855 AK4)', () => {
 	});
 
 	it('AK4: 20:00 lokal liegt außerhalb des Abendfensters', async () => {
-		const user = await seedJournalNutzer('ji-spaet@example.com');
+		await seedJournalNutzer('ji-spaet@example.com');
 		const calls: { endpoint: string; body: string }[] = [];
 
 		const result = await runJournalImpulsePush(new Date('2026-07-07T18:00:00Z'), okSender(calls)); // 20:00 Berlin

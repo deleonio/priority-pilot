@@ -52,7 +52,9 @@ const seedAusgewogenerNutzer = async (email: string, extra: PushUserAttrs = {}) 
 	const user = await seedUser(email, extra);
 	const saeule = await Pillar.create({ name: 'Körper', userId: user.id });
 	await seedSubscription(user.id, `https://push.example.com/${email}`);
-	await seedDoneEffort(user.id, saeule.id, 0.5, GESTERN, 'Ausgleich');
+	// Test-Pflege #2855: 6 h nach GESTERN — sonst fällt die Erledigung für den Montags-Lauf (7 Tage
+	// später, Fenster links exklusiv) exakt auf die Fenstergrenze und der Nutzer wäre fälschlich defizitär.
+	await seedDoneEffort(user.id, saeule.id, 0.5, new Date(GESTERN.getTime() + 6 * 60 * 60 * 1000), 'Ausgleich');
 	return user;
 };
 
@@ -242,7 +244,10 @@ describe('logics/appreciationPush — Willkommen zurück (#2855 AK6)', () => {
 		const result = await runWelcomeBackPush(NOW, okSender(calls));
 
 		assert.equal(result.usersNotified, 1, 'Log vor 10 Tagen blockt, Log vor 40 Tagen nicht');
-		const log = await NotificationLog.findOne({ where: { kind: 'welcome-back', userId: lange.id } });
+		const log = await NotificationLog.findOne({
+			where: { kind: 'welcome-back', userId: lange.id },
+			order: [['sentAt', 'DESC']],
+		});
 		assert.ok(log);
 		assert.notEqual(log.dedupeKey, '2:welcome-back:2026-05-28', 'für den alten Stand wurde neu gesendet');
 	});
