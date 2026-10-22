@@ -69,4 +69,30 @@ describe('pushTargets (#2851 AK2) — die §6-Ziele je Push-Art in einer Liste',
 			'Anker /settings/pakete#rechnungen fehlt im Frontend (Spiegel #2852 AK7)',
 		);
 	});
+
+	// #2854 (docs/spec/issue-2854.md): Gruppen-Pushes zielen auf den Gruppen-Tab mit Sektions-Ankern.
+	it('#2854: groupInvitations zeigt auf /settings/gruppen#einladungen, groupDetail auf #gruppe-<id>', () => {
+		// @ts-expect-error Eintrag entsteht in der Umsetzung (#2854) — roter Spec-Test.
+		assert.equal(PUSH_TARGETS.groupInvitations, '/settings/gruppen#einladungen');
+		// @ts-expect-error dito.
+		assert.equal(PUSH_TARGETS.groupDetail(7), '/settings/gruppen#gruppe-7');
+	});
+
+	// Spiegel (#2854 AK7): beide Anker existieren als id-Attribute in GroupsSection.
+	it('#2854: die Anker einladungen und gruppe-<id> existieren in GroupsSection (Spiegel)', () => {
+		const quelltext = readFileSync(
+			new URL('../../../frontend/src/components/GroupsSection.tsx', import.meta.url),
+			'utf8',
+		);
+		assert.match(
+			quelltext,
+			/id="einladungen"/,
+			'Anker /settings/gruppen#einladungen fehlt im Frontend (Spiegel #2854)',
+		);
+		assert.match(
+			quelltext,
+			/id=\{`gruppe-\$\{group\.id\}`\}/,
+			'Anker /settings/gruppen#gruppe-<id> fehlt im Frontend (Spiegel #2854)',
+		);
+	});
 });

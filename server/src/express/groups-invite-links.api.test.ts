@@ -1,7 +1,9 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
+import type { SendResult } from 'web-push';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
-import { GroupInviteLink } from '../models/index.js';
+import { GroupInviteLink, NotificationLog, PushSubscription } from '../models/index.js';
+import type { PushSender } from '../logics/push.js';
 
 // Rote Spec-Tests für #1226 (AK1–AK4) — API-Vertrag laut docs/spec/issue-1226.md.
 // Die Routen POST/DELETE …/invite-links, GET /invite-links/{token} (öffentlich, VOR requireAuth)
@@ -17,6 +19,26 @@ const TEST_EMAIL_CAROL = 'carol@example.com';
 
 let server: TestServer;
 
+// #2854 TF2 (AK3): injizierter Push-Sender — der Redeem-Route-Push läuft über den Seam
+// (Muster groups-invitations.api.test.ts).
+interface SentPush {
+	endpoint: string;
+	body: string;
+}
+const pushCalls: SentPush[] = [];
+const mockSender: PushSender = (subscription, payload) => {
+	pushCalls.push({ endpoint: subscription.endpoint, body: payload });
+	return Promise.resolve({ statusCode: 201, body: '', headers: {} } as SendResult);
+};
+
+/** Push-Trigger laufen nach dem Commit, asynchron zur HTTP-Antwort — kurz auf sie warten. */
+const waitForPushes = async (expected: number): Promise<void> => {
+	for (let i = 0; i < 150; i += 1) {
+		if (pushCalls.length >= expected) return;
+		await new Promise((resolve) => setTimeout(resolve, 20));
+	}
+};
+
 type GroupDto = { id: number; name: string; role: string };
 type InviteLinkDto = { id: number; token: string; expiresAt?: string };
 type PublicLinkDto = { name: string; invitedByName: string };
@@ -24,7 +46,7 @@ type MemberDto = { userId: number; displayName: string; role: string };
 
 describe('Gruppen-Beitritt über Einladungslink (#1226)', () => {
 	before(async () => {
-		server = await startTestServer();
+		server = await startTestServer({ pushSender: mockSender });
 	});
 	beforeEach(async () => {
 		await resetDb();
@@ -240,5 +262,49 @@ describe('Gruppen-Beitritt über Einladungslink (#1226)', () => {
 			headers: { cookie: carol },
 		});
 		assert.equal(redeemRes.status, 410);
+	});
+
+	// ── #2854 TF2: Push-Trigger der Redeem-Route ────────────────────────────────────────
+
+	it('#2854 AK3: POST /invite-links/{token}/redeem benachrichtigt den Link-Ersteller (group-member)', async () => {
+		pushCalls.length = 0;
+		const alice = await server.login(TEST_EMAIL_ALICE, { displayName: 'Alice Admin' });
+		const bob = await server.login(TEST_EMAIL_BOB, { displayName: 'Bob Baumeister' });
+		const group = await createGroup(alice, 'Wohnprojekt');
+		const link = await createLink(alice, group.id);
+		// Ids der realen Konten (Link-Ersteller + Beigetreten) über die Nutzersuche.
+		const idVon = async (cookie: string, name: string): Promise<number> => {
+			const hits = (await (
+				await fetch(`${server.baseUrl}/users/search?query=${encodeURIComponent(name)}`, { headers: { cookie } })
+			).json()) as { id: number; displayName: string }[];
+			const hit = hits.find((kandidat) => kandidat.displayName === name);
+			assert.ok(hit, `Setup: "${name}" muss über die Suche auffindbar sein`);
+			return hit.id;
+		};
+		const aliceId = await idVon(alice, 'Alice Admin');
+		const bobId = await idVon(bob, 'Bob Baumeister');
+		await PushSubscription.create({
+			endpoint: 'https://push.example/alice-link',
+			p256dh: 'p256dh',
+			auth: 'auth',
+			expirationTime: null,
+			userId: aliceId,
+		});
+
+		const res = await fetch(`${server.baseUrl}/invite-links/${link.token}/redeem`, {
+			method: 'POST',
+			headers: { cookie: bob },
+		});
+		assert.equal(res.status, 200, 'Setup: Einlösen muss gelingen');
+		await waitForPushes(1);
+
+		assert.equal(pushCalls.length, 1, 'genau ein Push an den Link-Ersteller');
+		assert.equal(pushCalls[0].endpoint, 'https://push.example/alice-link');
+		const payload = JSON.parse(pushCalls[0].body) as { url?: string };
+		assert.equal(payload.url, `/settings/gruppen#gruppe-${group.id}`);
+		const log = await NotificationLog.findOne({
+			where: { kind: 'group-member', dedupeKey: `member:${group.id}:${bobId}` },
+		});
+		assert.ok(log, 'Beitritts-Push muss mit dedupeKey member:<groupId>:<userId> protokolliert sein');
 	});
 });
