@@ -2,9 +2,13 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.33 - 2026-10-22
+
+_Keine für Nutzer sichtbaren Änderungen._
+
 ## v0.32 - 2026-10-22
 
-_Enthält v0.32.0 – v0.32.12._
+_Enthält v0.32.0 – v0.32.13._
 
 ### 🎉 New Features
 
@@ -28,6 +32,7 @@ _Enthält v0.32.0 – v0.32.12._
 - fix(ci): port hard deadline watchdog (#2097) to triage phase by @deleonio in https://github.com/deleonio/priority-pilot/pull/2840
 - feat(billing): PayPal-Sandbox-Hinweis mit Testkonto im CheckoutDialog by @deleonio in https://github.com/deleonio/priority-pilot/pull/2843
 - docs(push): goals, time windows, budget and new occasions (#2844) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2845
+- docs: push concept with message targets, budget and switches (#2844) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2846
 
 ## v0.31 - 2026-10-21
 
@@ -170,7 +175,6 @@ _Enthält v0.28.0 – v0.28.15._
 
 ### 🚀 Improvements
 
-- feat(server): log errors when loading free time slots (#2686) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2701
 - feat(server): log errors when loading free time slots (#2686) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2701
 
 ### Other Changes
