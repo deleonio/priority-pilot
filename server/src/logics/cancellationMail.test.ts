@@ -63,6 +63,7 @@ describe('Kündigungsbestätigung per Webhook (#2308)', () => {
 		assert.match(mails[0].text, /außerordentlich/i);
 		assert.match(mails[0].text, /0?9\.0?5\.2027/, 'Kündigungsdatum = gespeicherter Eingang');
 		assert.match(mails[0].text, /0?1\.0?6\.2027/, 'Vertragsende = currentPeriodEnd');
+		assert.match(mails[0].html ?? '', /Vertragsende/, 'HTML mit Zeilen-Fragment');
 	});
 
 	it('AK6: ohne gespeicherte Angaben → Konto-Adresse, Art ordentlich, Ereigniszeit als Kündigungsdatum', async () => {

@@ -199,7 +199,7 @@ describe('Warteliste — Admin-Freischaltung (#1982, AK3/AK4)', () => {
 describe('Warteliste — Double-Opt-in und Bot-Schutz', () => {
 	const ENV_KEYS = ['SMTP_HOST', 'MAIL_FROM', 'PUBLIC_BASE_URL'] as const;
 	const envBackup: Record<string, string | undefined> = {};
-	let mails: { to: string; subject: string; text: string }[] = [];
+	let mails: { to: string; subject: string; text: string; html?: string }[] = [];
 	let failNext = false;
 
 	const confirm = (token: string): Promise<Response> =>
@@ -217,7 +217,7 @@ describe('Warteliste — Double-Opt-in und Bot-Schutz', () => {
 					failNext = false;
 					throw new Error('smtp down');
 				}
-				mails.push({ to: payload.to, subject: payload.subject, text: payload.text });
+				mails.push({ to: payload.to, subject: payload.subject, text: payload.text, html: payload.html });
 			},
 		});
 	});
@@ -248,6 +248,7 @@ describe('Warteliste — Double-Opt-in und Bot-Schutz', () => {
 		assert.equal(mails[0].to, 'anna@example.com');
 		assert.match(mails[0].text, /https:\/\/test\/app\/\?waitlist=[\w-]+/, 'Bestätigungslink');
 		assert.match(mails[0].text, /https:\/\/test\/app\/\?ref=[\w-]+/, 'Empfehlungslink');
+		assert.match(mails[0].html ?? '', /href="https:\/\/test\/app\/\?waitlist=/, 'HTML mit Button-Link');
 	});
 
 	it('unbestätigte Einträge zählen nicht: weder im Rang, bei Empfehlungen noch in der Admin-Liste', async () => {
@@ -320,7 +321,7 @@ type AccessStatus = 'sent' | 'failed' | null;
 describe('Warteliste — Freischalt-Mail (#2305)', () => {
 	const ENV_KEYS = ['SMTP_HOST', 'MAIL_FROM', 'PUBLIC_BASE_URL'] as const;
 	const envBackup: Record<string, string | undefined> = {};
-	let mails: { to: string; subject: string; text: string }[] = [];
+	let mails: { to: string; subject: string; text: string; html?: string }[] = [];
 	let mode: MailMode = 'ok';
 	let adminCookie: string;
 
@@ -331,7 +332,7 @@ describe('Warteliste — Freischalt-Mail (#2305)', () => {
 				if (mode === 'fail') {
 					throw new Error('smtp down');
 				}
-				mails.push({ to: payload.to, subject: payload.subject, text: payload.text });
+				mails.push({ to: payload.to, subject: payload.subject, text: payload.text, html: payload.html });
 			},
 		});
 	});

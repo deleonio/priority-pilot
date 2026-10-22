@@ -1,5 +1,6 @@
 import type { CareSprache } from './careSuggestionData.js';
 import { sendMailToUser, type MailSender } from './mail.js';
+import { renderMailHtml } from './mailTemplate.js';
 import { buildMagicLinkUrl, createLoginToken, isMagicLinkEnabled } from './magicLink.js';
 
 /**
@@ -19,17 +20,19 @@ export interface AccessMailContext {
 	sprache?: CareSprache;
 }
 
-/** Feste Bausteine der Zugangs-Mail je Sprache (Anrede, Linkhinweis, Schluss). */
-const BAUSTEINE: Record<CareSprache, { anrede: string; link: string; schluss: string }> = {
+/** Feste Bausteine der Zugangs-Mail je Sprache (Anrede, Linkhinweis, Schluss, Button-Label). */
+const BAUSTEINE: Record<CareSprache, { anrede: string; link: string; schluss: string; button: string }> = {
 	de: {
 		anrede: 'Hallo,',
 		link: 'Konto öffnen und Passwort setzen (der Link gilt 15 Minuten und funktioniert genau einmal):',
 		schluss: 'Falls du das nicht erwartet hast, kannst du diese Mail ignorieren.',
+		button: 'Konto öffnen',
 	},
 	en: {
 		anrede: 'Hello,',
 		link: 'Open your account and set a password (the link is valid for 15 minutes and works exactly once):',
 		schluss: 'If you did not expect this, you can ignore this email.',
+		button: 'Open account',
 	},
 };
 
@@ -38,7 +41,8 @@ export const sendAccountAccessMail = async (
 	context: AccessMailContext,
 	send?: MailSender,
 ): Promise<boolean> => {
-	const bausteine = BAUSTEINE[context.sprache ?? 'de'];
+	const sprache = context.sprache ?? 'de';
+	const bausteine = BAUSTEINE[sprache];
 	if (!isMagicLinkEnabled()) {
 		return false;
 	}
@@ -46,20 +50,21 @@ export const sendAccountAccessMail = async (
 	if (token === null) {
 		return false;
 	}
+	const link = buildMagicLinkUrl(token);
+	const mailHtml = renderMailHtml({
+		heading: context.subject,
+		intro: [bausteine.anrede, ...context.lines, bausteine.link].join(' '),
+		button: { label: bausteine.button, url: link },
+		closing: bausteine.schluss,
+		lang: sprache,
+	});
 	return sendMailToUser(
 		{ email },
 		{
 			subject: context.subject,
-			text: [
-				bausteine.anrede,
-				'',
-				...context.lines,
-				'',
-				bausteine.link,
-				buildMagicLinkUrl(token),
-				'',
-				bausteine.schluss,
-			].join('\n'),
+			text: [bausteine.anrede, '', ...context.lines, '', bausteine.link, link, '', bausteine.schluss].join('\n'),
+			html: mailHtml.html,
+			attachments: mailHtml.attachments,
 		},
 		send,
 	);

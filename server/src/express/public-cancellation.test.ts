@@ -98,6 +98,7 @@ describe('Öffentliche Kündigung #2317', () => {
 		assert.equal(bodies[1], bodies[2]);
 		assert.equal(mails.length, 1);
 		assert.equal(mails[0].to, 'mit-abo@example.com');
+		assert.match(mails[0].html ?? '', /\/kuendigen\/bestaetigen\/\?token=/, 'HTML mit Button-Link');
 	});
 
 	it('AK4: Token ist einmalig — die zweite Einlösung kündigt nicht erneut', async () => {
