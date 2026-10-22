@@ -178,6 +178,7 @@ _Enthält v0.28.0 – v0.28.15._
 - fix(android): embed native debug symbols in the release aab by @deleonio in https://github.com/deleonio/priority-pilot/pull/2682
 - fix(llm): add top_p 1 for greedy sampling and surface embedded 200 errors by @deleonio in https://github.com/deleonio/priority-pilot/pull/2683
 - fix(server): raise llm test timeout to 30s and surface body-read timeouts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2699
+- fix(server): raise llm test timeout to 30s and surface body-read timeouts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2699
 - feat(server): log swallowed db errors in provider resolution (#2687) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2702
 
 ## v0.27 - 2026-10-17

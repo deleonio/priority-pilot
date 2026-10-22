@@ -151,7 +151,8 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 		assert.equal(first.usersNotified, 1);
 		assert.equal(second.usersNotified, 0, 'zweiter Lauf ohne neue fällige Termine meldet niemanden erneut');
 		assert.equal(calls.length, 1, 'der Versand wurde nicht wiederholt');
-		assert.equal(await NotificationLog.count(), 1);
+		// #2849 AK2 (Test-Pflege): zum Task-Log kommt die Tag-Deckel-Marker-Zeile (<userId>:<lokalesDatum>) hinzu.
+		assert.equal(await NotificationLog.count(), 2);
 	});
 
 	it('erinnert erneut, wenn sich die Deadline eines bereits gemeldeten Tasks verschiebt', async () => {
@@ -161,7 +162,9 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 
 		await runDueTaskReminders(NOW, okSender(calls));
 		await task.update({ deadline: new Date(NOW.getTime() + 1000) });
-		const second = await runDueTaskReminders(NOW, okSender(calls));
+		// #2849 AK2 (Test-Pflege): der Tag-Deckel begrenzt je Nutzer und lokalem Tag auf einen Push —
+		// die verschobene Deadline löst die Erinnerung deshalb erst am Folgetag erneut aus.
+		const second = await runDueTaskReminders(new Date(NOW.getTime() + 24 * 60 * 60 * 1000), okSender(calls));
 
 		assert.equal(second.usersNotified, 1, 'eine geänderte Deadline löst die Erinnerung erneut aus');
 		assert.equal(calls.length, 2);
@@ -219,7 +222,7 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 		assert.equal(pushCalls.length, 1, 'genau eine Push-Nachricht');
 		assert.equal(mailCalls.length, 1, 'genau eine Mail zusätzlich zur Push-Nachricht');
 		assert.equal(second.usersNotified, 0, 'zweiter Lauf ohne neue fällige Termine sendet auf keinem Kanal erneut');
-		assert.equal(await NotificationLog.count(), 1, 'ein NotificationLog-Eintrag pro Auslöser, nicht pro Kanal');
+		assert.equal(await NotificationLog.count(), 2, 'Task-Log plus Tag-Deckel-Marker (#2849 AK2), nicht pro Kanal');
 	});
 
 	it('AK7: schlägt der Mail-Versand fehl, wird die Push-Nachricht dennoch zugestellt und der Log-Eintrag geschrieben', async () => {
@@ -243,7 +246,11 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 
 		assert.equal(result.usersNotified, 1, 'ein fehlgeschlagener Mail-Versand bricht den Lauf nicht ab');
 		assert.equal(pushCalls.length, 1, 'die Push-Nachricht wird trotz Mail-Fehler zugestellt');
-		assert.equal(await NotificationLog.count(), 1, 'Log-Eintrag entsteht, weil mindestens ein Kanal erfolgreich war');
+		assert.equal(
+			await NotificationLog.count(),
+			2,
+			'Log plus Tag-Deckel-Marker (#2849 AK2), weil mindestens ein Kanal erfolgreich war',
+		);
 	});
 	// #1518 AK7 (Spec docs/spec/issue-1518.md, Journey 2): je Serie höchstens eine Instanz im Fälligkeits-Push.
 	it('#1518 AK7: fünf fällige Instanzen derselben Serie ergeben genau einen Eintrag', async () => {
@@ -275,5 +282,111 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 		assert.equal(groups.length, 1);
 		const titles = groups[0].tasks.map((task) => task.title).sort();
 		assert.deepEqual(titles, ['Einzeln', 'Täglich'], 'die Serie erscheint genau einmal');
+	});
+});
+
+// Rote Spec-Tests für #2849 (Spec docs/spec/issue-2849.md): Fenster lokale Stunde 7–8 je
+// Empfänger-Zeitzone, Tag-Dedup je Trigger, UTC-Fallback ohne gültige Zone. KEIN Produktivcode.
+describe('logics/dueTaskReminders — Fenster & Zeitzone (#2849)', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		await closeDb();
+	});
+
+	it('AK2: sendet nur bei lokaler Stunde 7–8; ein Wiederholungstick mit neuer fälliger Aufgabe sendet nichts mehr', async () => {
+		await User.create({
+			email: 'due-berlin@example.com',
+			displayName: 'Berlin',
+			passwordHash: '__test__',
+			zeitzone: 'Europe/Berlin',
+		} as never);
+		await seedSubscription(1, 'https://push.example.com/d1');
+		await createTask({ title: 'eins', deadline: new Date('2026-07-07T05:00:00Z'), userId: 1 });
+		const calls: { endpoint: string; body: string }[] = [];
+		const send = okSender(calls);
+
+		const vorFenster = await runDueTaskReminders(new Date('2026-07-07T03:59:00Z'), send); // 05:59 Berlin
+		assert.equal(vorFenster.usersNotified, 0, '05:59 lokal liegt vor dem Fenster');
+
+		const morgens = await runDueTaskReminders(new Date('2026-07-07T05:00:00Z'), send); // 07:00 Berlin
+		assert.equal(morgens.usersNotified, 1, '07:00 lokal öffnet das Fenster');
+
+		// Neue fällige Aufgabe im selben Fenster: Tag-Dedup je Trigger verhindert den zweiten Push.
+		await createTask({ title: 'zwei', deadline: new Date('2026-07-07T06:20:00Z'), userId: 1 });
+		const wiederholung = await runDueTaskReminders(new Date('2026-07-07T06:30:00Z'), send); // 08:30 Berlin
+		assert.equal(wiederholung.usersNotified, 0, 'höchstens ein Push je Nutzer und lokalem Tag');
+		assert.equal(calls.length, 1);
+
+		// Frische Nutzer für den oberen Fensterrand (Dedup darf die Grenze nicht vorgaukeln).
+		// Test-Pflege #2849: die Zeilen referenzieren die Ids 2/3 ohne Anlage — nachgetragen.
+		await User.create({
+			email: 'due-rand-2@example.com',
+			displayName: 'Rand 2',
+			passwordHash: '__test__',
+			zeitzone: 'Europe/Berlin',
+		} as never);
+		await seedSubscription(2, 'https://push.example.com/d2');
+		await createTask({ title: 'drei', deadline: new Date('2026-07-07T05:00:00Z'), userId: 2 });
+		const rand = await runDueTaskReminders(new Date('2026-07-07T06:59:00Z'), send); // 08:59 Berlin
+		assert.equal(rand.usersNotified, 1, '08:59 lokal gehört noch zum Fenster');
+		await User.create({
+			email: 'due-rand-3@example.com',
+			displayName: 'Rand 3',
+			passwordHash: '__test__',
+			zeitzone: 'Europe/Berlin',
+		} as never);
+		await seedSubscription(3, 'https://push.example.com/d3');
+		await createTask({ title: 'vier', deadline: new Date('2026-07-07T05:00:00Z'), userId: 3 });
+		const zu = await runDueTaskReminders(new Date('2026-07-07T07:00:00Z'), send); // 09:00 Berlin
+		assert.equal(zu.usersNotified, 0, '09:00 lokal liegt außerhalb des Fensters');
+		assert.equal(calls.length, 2);
+	});
+
+	it('AK3: Fenster folgen der Empfängerzeitzone — New York sendet zu 11:30Z, nicht zu 05:30Z', async () => {
+		await User.create({
+			email: 'due-ny@example.com',
+			displayName: 'NY',
+			passwordHash: '__test__',
+			zeitzone: 'America/New_York',
+		} as never);
+		await seedSubscription(1, 'https://push.example.com/d4');
+		await createTask({ title: 'ny', deadline: new Date('2026-07-07T10:00:00Z'), userId: 1 });
+		const calls: { endpoint: string; body: string }[] = [];
+		const send = okSender(calls);
+
+		const nachts = await runDueTaskReminders(new Date('2026-07-07T05:30:00Z'), send); // 01:30 New York
+		assert.equal(nachts.usersNotified, 0, '01:30 New York liegt außerhalb — die UTC-Stunde 5:30 zählt nicht');
+		const morgens = await runDueTaskReminders(new Date('2026-07-07T11:30:00Z'), send); // 07:30 New York
+		assert.equal(morgens.usersNotified, 1, '07:30 New York liegt im Fenster');
+		assert.equal(calls.length, 1);
+	});
+
+	it('AK5: ohne/ungültige Zeitzone gelten die Fenster in UTC — 05:30Z keiner, 07:30Z beide', async () => {
+		await User.create({
+			email: 'due-null@example.com',
+			displayName: 'Null',
+			passwordHash: '__test__',
+			zeitzone: null,
+		} as never);
+		await User.create({
+			email: 'due-mars@example.com',
+			displayName: 'Mars',
+			passwordHash: '__test__',
+			zeitzone: 'Mars/Olympus',
+		} as never);
+		await seedSubscription(1, 'https://push.example.com/d5');
+		await seedSubscription(2, 'https://push.example.com/d6');
+		await createTask({ title: 'a', deadline: new Date('2026-07-07T04:00:00Z'), userId: 1 });
+		await createTask({ title: 'b', deadline: new Date('2026-07-07T04:00:00Z'), userId: 2 });
+		const calls: { endpoint: string; body: string }[] = [];
+		const send = okSender(calls);
+
+		const frueh = await runDueTaskReminders(new Date('2026-07-07T05:30:00Z'), send);
+		assert.equal(frueh.usersNotified, 0, 'UTC 05:30 liegt vor dem Fenster (7–8)');
+		const morgens = await runDueTaskReminders(new Date('2026-07-07T07:30:00Z'), send);
+		assert.equal(morgens.usersNotified, 2, 'UTC 07:30 liegt im Fenster');
+		assert.equal(calls.length, 2);
 	});
 });

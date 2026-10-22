@@ -168,10 +168,19 @@ export const uhrzeitIn = (datum: Date, zeitzone: string): { stunde: number; minu
 	return { stunde, minute };
 };
 
-/** Ruhezeit 21:00–08:00 (Grenze 08:00 selbst ist erlaubt) in der Nutzer-Zeitzone. */
-const istRuhezeit = (datum: Date, zeitzone: string): boolean => {
+/**
+ * Ruhezeit 21:00–07:00 (#2849 AK4): lokale Stunde ≥21 oder <7 — Ereignis-Pushes entfallen dann
+ * komplett (kein Versand, kein NotificationLog). Gemeinsamer Helfer der fünf Ereignis-Sender.
+ */
+export const istRuhezeit = (datum: Date, zeitzone: string): boolean => {
 	const { stunde } = uhrzeitIn(datum, zeitzone);
-	return stunde >= 21 || stunde < 8;
+	return stunde >= 21 || stunde < 7;
+};
+
+/** Fürsorge-Fenster 09:00–18:00 (#2849 AK6): lokale Stunde 9–17 — Anfang inklusive, Ende exklusiv. */
+const istImFenster = (datum: Date, zeitzone: string): boolean => {
+	const { stunde } = uhrzeitIn(datum, zeitzone);
+	return stunde >= 9 && stunde < 18;
 };
 
 /**
@@ -223,9 +232,9 @@ export const runCarePush = async (now: Date = new Date(), send?: PushSender): Pr
 			continue;
 		}
 		const betroffeneSaeule = (ueberlastete.length > 0 ? ueberlastete : defizitaere)[0];
-		// AK2/AK8: Ruhezeit in der Nutzer-Zeitzone; ungültige/fehlende Zone fällt auf 'UTC' zurück.
+		// #2849 AK6: Fürsorge-Fenster 9–17 in der Nutzer-Zeitzone; ungültige/fehlende Zone fällt auf 'UTC' zurück.
 		const zeitzone = nutzerZeitzone(user.zeitzone);
-		if (istRuhezeit(now, zeitzone)) {
+		if (!istImFenster(now, zeitzone)) {
 			continue;
 		}
 		const dedupeKey = `${user.id}:${lokalesDatum(now, zeitzone)}`;

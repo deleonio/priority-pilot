@@ -3,6 +3,8 @@ import { sendDedupedPush } from './dedupedPush.js';
 import { type PushSender } from './push.js';
 import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
+import { istRuhezeit } from './carePush.js';
+import { nutzerZeitzone } from './streak.js';
 
 /**
  * Fachlicher Push-Trigger „Serie von jemand anderem angelegt hat Instanzen erzeugt" (#1253):
@@ -10,7 +12,8 @@ import { spracheVon, type CareSprache } from './careSuggestionData.js';
  * erhält B genau **eine** gebündelte Nachricht je Serie und Lauf — mit Serientitel,
  * Anzeigenamen von A und Zahl der neuen Aufgaben. Wie `taskCreatedNotification` (#1224)
  * verhindert der Auslöser über {@link NotificationLog} (eigene `kind`, dedupeKey bindet an die
- * erzeugte Aufgabe), dass derselbe Lauf erneut meldet.
+ * erzeugte Aufgabe), dass derselbe Lauf erneut meldet. Ruhezeit 21–7 Ortszeit des Empfängers:
+ * kein Versand, kein Log (#2849 AK4).
  *
  * Selbst-Anlagen (`createdById === userId`) und Alt-Bestand ohne `createdById` lösen nichts aus —
  * die Stille-Entscheidung trifft diese Logik selbst anhand der Serien-Felder, nicht der Aufrufer.
@@ -89,6 +92,10 @@ export const notifySeriesGenerated = async (
 		return;
 	}
 	const recipient = await User.findByPk(series.userId);
+	// #2849 AK4: Ruhezeit 21–7 Ortszeit — komplett stumm (Push wie Mail), kein Log, kein Nachholen.
+	if (istRuhezeit(new Date(), nutzerZeitzone(recipient?.zeitzone))) {
+		return;
+	}
 	const texte = TEXTE[spracheVon(recipient?.sprache)];
 	const title = texte.titel(creator?.displayName || creator?.email || texte.jemand);
 	const body = texte.text(series.title, createdTasks.length);
