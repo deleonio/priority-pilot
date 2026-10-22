@@ -50,4 +50,23 @@ describe('pushTargets (#2851 AK2) — die §6-Ziele je Push-Art in einer Liste',
 			);
 		}
 	});
+
+	// #2852 (docs/spec/issue-2852.md): Abo-/Rechnungs-Service-Pushes zielen auf den Pakete-Tab.
+	it('#2852: aboInvoice zeigt auf /settings/pakete#rechnungen, aboStatus auf /settings/pakete', () => {
+		assert.equal(PUSH_TARGETS.aboInvoice, '/settings/pakete#rechnungen');
+		assert.equal(PUSH_TARGETS.aboStatus, '/settings/pakete');
+	});
+
+	// Spiegel (#2852 AK7): der Rechnungen-Anker existiert als id="rechnungen" im Frontend.
+	it('#2852: der rechnungen-Anker existiert als id="rechnungen" in SubscriptionSection (Spiegel)', () => {
+		const quelltext = readFileSync(
+			new URL('../../../frontend/src/components/SubscriptionSection.tsx', import.meta.url),
+			'utf8',
+		);
+		assert.match(
+			quelltext,
+			/id="rechnungen"/,
+			'Anker /settings/pakete#rechnungen fehlt im Frontend (Spiegel #2852 AK7)',
+		);
+	});
 });
