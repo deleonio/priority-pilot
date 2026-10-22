@@ -160,6 +160,7 @@ export const main = async (): Promise<void> => {
 		const { runCarePush } = await import('./logics/carePush.js');
 		const { runStreakReminder } = await import('./logics/streakReminder.js');
 		const { runMonthlyRecapPush } = await import('./logics/monthlyRecapPush.js');
+		const { runAboServicePush } = await import('./logics/aboPush.js');
 		const { runCalendarSync, CALENDAR_SYNC_INTERVAL_MS } = await import('./logics/calendar-ics.js');
 		const { applyDueGracePeriods, reconcilePaypalSubscriptions } = await import('./logics/billing/lifecycle.js');
 		const { paypalGraceDeps, paypalReconcileDeps } = await import('./logics/paypal.js');
@@ -342,7 +343,14 @@ export const main = async (): Promise<void> => {
 
 		// Fachliche Web-Push-Trigger (Issue #355 + #518) — No-Op ohne VAPID-Keys oder ohne
 		// explizites PUSH_REMINDERS_ENABLED=true (siehe scheduler/index.ts).
-		startScheduler([runDueTaskReminders, runDailyTopTasksPush, runCarePush, runStreakReminder, runMonthlyRecapPush]);
+		startScheduler([
+			runDueTaskReminders,
+			runDailyTopTasksPush,
+			runCarePush,
+			runStreakReminder,
+			runMonthlyRecapPush,
+			runAboServicePush,
+		]);
 
 		// Deadline-Auto-Löschung (#523) — bewusst push-unabhängig (siehe startDeadlineAutoDeleteScheduler):
 		// das fachliche Opt-in ist das pro-Task-Feld `autoDeleteAfterDeadline`, nicht Web-Push. Default-on,

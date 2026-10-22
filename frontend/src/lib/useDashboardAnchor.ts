@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 
 /** Wartezeit zwischen den Such-Durchläufen nach dem Anker-Ziel (Karten laden asynchron). */
-const POLL_MS = 200;
-/** Obergrenze des Nachhaltens (~5 s) — ein Anker ohne Karte pollt nicht ewig. */
+const POLL_MS = 200; /** Obergrenze des Nachhaltens (~5 s) — ein Anker ohne Karte pollt nicht ewig. */
 const MAX_ATTEMPTS = 25;
 /** Wartezeit zwischen den Korrektur-Scrolls, bis das Layout über dem Ziel ruhig ist. */
 const SETTLE_MS = 250;
@@ -29,22 +28,25 @@ const MAX_SETTLE = 12;
  * navigiert ein bereits offenes Fenster per Hash-Änderung (§2.2.1) — das remountet das
  * Dashboard nicht.
  */
+/**
+ * KoliBri-Hydration abgeschlossen? (gleiches Prädikat wie `waitForStableView` in e2e/helpers.ts)
+ * Ein Sprung während des Upgrades verliert den Fokus wieder — KoliBri-Eigenfokus läuft dort
+ * noch und überblendet ihn. Erst danach springen. Geschwister-Hook: `useSettingsAnchor` (#2852).
+ */
+export const isKoliHydrated = (): boolean => {
+	if (document.querySelector(':not(:defined)') !== null) {
+		return false;
+	}
+	return !Array.from(document.querySelectorAll('kol-tabs')).some((host) =>
+		Array.from(host.children).some((child) => child.assignedSlot === null),
+	);
+};
+
 export const useDashboardAnchor = (): void => {
 	useEffect(() => {
 		let attempts = 0;
 		let settles = 0;
 		let timer: ReturnType<typeof setTimeout> | undefined;
-		// KoliBri-Hydration abgeschlossen? (gleiches Prädikat wie `waitForStableView` in e2e/helpers.ts)
-		// Ein Sprung während des Upgrades verliert den Fokus wieder — KoliBri-Eigenfokus läuft dort
-		// noch und überblendet ihn. Erst danach springen.
-		const isHydrated = (): boolean => {
-			if (document.querySelector(':not(:defined)') !== null) {
-				return false;
-			}
-			return !Array.from(document.querySelectorAll('kol-tabs')).some((host) =>
-				Array.from(host.children).some((child) => child.assignedSlot === null),
-			);
-		};
 		const scrollTargetIntoView = (target: Element): void => {
 			Element.prototype.scrollIntoView.call(target, { behavior: 'auto', block: 'start' });
 		};
@@ -73,7 +75,7 @@ export const useDashboardAnchor = (): void => {
 			// Sichtbarkeit ist Teil des Render-Ziels: KolTabs-Panels sind vor dem KoliBri-Upgrade
 			// verdeckt — ein focus() dort versackt still. Erst springen, wenn die Karte wirklich
 			// gerendert ist.
-			if (target === null || target.getClientRects().length === 0 || !isHydrated()) {
+			if (target === null || target.getClientRects().length === 0 || !isKoliHydrated()) {
 				if (attempts < MAX_ATTEMPTS) {
 					attempts += 1;
 					timer = setTimeout(jump, POLL_MS);
