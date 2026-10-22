@@ -154,9 +154,8 @@ export const main = async (): Promise<void> => {
 			migrateCalendarSourceCaldavColumns,
 			migrateUserBillingAddressColumns,
 		} = await import('./logics/migrate.js');
-		const { runDueTaskReminders } = await import('./logics/dueTaskReminders.js');
+		const { runDailyDigest } = await import('./logics/dailyDigest.js');
 		const { runDeadlineAutoDelete } = await import('./logics/autoDeleteAfterDeadline.js');
-		const { runDailyTopTasksPush } = await import('./logics/dailyTopTasks.js');
 		const { runCarePush } = await import('./logics/carePush.js');
 		const { runStreakReminder } = await import('./logics/streakReminder.js');
 		const { runMonthlyRecapPush } = await import('./logics/monthlyRecapPush.js');
@@ -340,9 +339,12 @@ export const main = async (): Promise<void> => {
 
 		await launchServer();
 
-		// Fachliche Web-Push-Trigger (Issue #355 + #518) — No-Op ohne VAPID-Keys oder ohne
-		// explizites PUSH_REMINDERS_ENABLED=true (siehe scheduler/index.ts).
-		startScheduler([runDueTaskReminders, runDailyTopTasksPush, runCarePush, runStreakReminder, runMonthlyRecapPush]);
+		// Fachliche Web-Push-Trigger (Issue #355 + #518 + #2853) — No-Op ohne VAPID-Keys oder ohne
+		// explizites PUSH_REMINDERS_ENABLED=true (siehe scheduler/index.ts). Der Morgen-Push ist
+		// seit #2853 der Digest „Dein Tag“ (fällige + Top-Aufgaben gebündelt); die beiden alten
+		// Morgen-Trigger (`runDueTaskReminders`, `runDailyTopTasksPush`) werden nicht mehr
+		// registriert (Mail-Fallback dort unangetastet, aber ohne Tick).
+		startScheduler([runDailyDigest, runCarePush, runStreakReminder, runMonthlyRecapPush]);
 
 		// Deadline-Auto-Löschung (#523) — bewusst push-unabhängig (siehe startDeadlineAutoDeleteScheduler):
 		// das fachliche Opt-in ist das pro-Task-Feld `autoDeleteAfterDeadline`, nicht Web-Push. Default-on,

@@ -5,7 +5,6 @@ import { NotificationLog, PushSubscription, User } from '../models/index.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 import type { PushSender } from './push.js';
 import { sendDedupedPush } from './dedupedPush.js';
-// @ts-expect-error – Modul entsteht erst in der Umsetzung (#2853); nach dem Anlegen diesen Kommentar entfernen.
 import { BUDGET_KIND, SERVICE_KINDS, tagVon, waehleImBudget } from './pushBudget.js';
 
 /**

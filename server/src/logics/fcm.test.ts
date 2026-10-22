@@ -152,8 +152,9 @@ describe('logics/push — Versand zusätzlich über FCM (#1675)', () => {
 
 		assert.equal(result.usersNotified, 1);
 		assert.equal(sendCalls(calls).length, 1);
-		// #2849 AK2 (Test-Pflege): zum Task-Log kommt die Tag-Deckel-Marker-Zeile (<userId>:<lokalesDatum>) hinzu.
-		assert.equal(await NotificationLog.count(), 2);
+		// #2849 AK2 (Test-Pflege): zum Task-Log kommt die Tag-Deckel-Marker-Zeile (<userId>:<lokalesDatum>) hinzu,
+		// #2853 (Test-Pflege): außerdem der Budget-Marker.
+		assert.equal(await NotificationLog.count(), 3);
 	});
 
 	it('#2853 AK4: setzt den Gruppen-Tag der Payload als android.notification.tag', async () => {

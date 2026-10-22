@@ -20,6 +20,8 @@ export interface PushPayload {
 	body?: string;
 	/** Ziel-URL für den `notificationclick`-Handler (Default: App-Wurzel). */
 	url?: string;
+	/** Gruppen-Tag der Mitteilungszentrale (#2853, Konzept §2.3) — das Budget-Tor setzt ihn aus dem `kind`. */
+	tag?: string;
 }
 
 /**

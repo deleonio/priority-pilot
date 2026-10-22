@@ -1,0 +1,103 @@
+import { NotificationLog, User } from '../models/index.js';
+import { Op } from 'sequelize';
+import { nutzerZeitzone, tagIn } from './streak.js';
+
+/**
+ * Push-Budget (#2853, Konzept §4): höchstens drei fachliche Pushes je Nutzer und lokalem Tag.
+ * Gezählt wird über Marker-Zeilen (`kind = BUDGET_KIND`) in `notification_logs` — keine neue
+ * Tabelle. Service-Nachrichten zählen nicht und werden nie verdrängt. Das Tor selbst sitzt in
+ * {@link ./dedupedPush.js} (`sendDedupedPush`/`sendDedupedPushBulk`).
+ */
+
+/** Marker-KIND: je zugestelltem fachlichen Push entsteht eine Zeile mit dem lokalen Tag im `dedupeKey`. */
+export const BUDGET_KIND = 'push-budget';
+
+/** Grenze je Nutzer und lokalem Kalendertag (Konzept §4). */
+const BUDGET_GRENZE = 3;
+
+/**
+ * Kinds der Service-Nachrichten (Gruppe Abo & Rechnungen, Konzept §7.3) — umgehen das Budget.
+ * Die Kinds entstehen erst mit dem Service-Push-Issue; die Liste ist bewusst veränderlich,
+ * damit Tests ein Kind probehalber aufnehmen können.
+ */
+export const SERVICE_KINDS: string[] = [];
+
+/** Ob ein Kind unter das Budget fällt (Service-Nachrichten nicht). */
+export const istServiceKind = (kind: string): boolean => SERVICE_KINDS.includes(kind);
+
+/** Vorrang bei vollem Budget (Konzept §4, von oben nach unten); unbekannte Kinds zuletzt. */
+const VORRANG = [
+	'task-created',
+	'task-completed',
+	'series-generated',
+	'geo-nearby-task',
+	'daily-digest',
+	'due-task',
+	'daily-top-tasks',
+	'care-push',
+	'streak-reminder',
+	'milestone',
+	'monthly-recap',
+];
+
+/**
+ * Wählt aus `kandidaten` höchstens `freie` nach Vorrang (Konzept §4) aus — der beobachtbare
+ * Vertrag der Ordnung; das Tor fragt sie je Send (`passtImBudget`).
+ */
+export const waehleImBudget = (kandidaten: string[], freie: number): string[] =>
+	[...kandidaten].sort((a, b) => VORRANG.indexOf(a) - VORRANG.indexOf(b)).slice(0, Math.max(freie, 0));
+
+/** Gruppen-Tag je Push-Art (Konzept §2.3); Ortserinnerung und Serien zählen zur Aufgabengruppe. */
+const TAGS: Record<string, string> = {
+	'due-task': 'pp-aufgaben',
+	'daily-top-tasks': 'pp-aufgaben',
+	'daily-digest': 'pp-aufgaben',
+	'task-created': 'pp-aufgaben',
+	'task-completed': 'pp-aufgaben',
+	'series-generated': 'pp-aufgaben',
+	'geo-nearby-task': 'pp-aufgaben',
+	'care-push': 'pp-fuersorge',
+	'streak-reminder': 'pp-fuersorge',
+	milestone: 'pp-erfolge',
+	'monthly-recap': 'pp-erfolge',
+};
+
+/** Gruppen-Tag eines Kinds — für noch nicht zugeordnete Kinds die Aufgabengruppe als Fallback. */
+export const tagVon = (kind: string): string => TAGS[kind] ?? 'pp-aufgaben';
+
+/** Prefix der Budget-Marker je Nutzer und lokalem Tag (`users.zeitzone`, Fallback UTC). */
+const budgetPrefix = async (userId: number | undefined, sentAt: Date): Promise<string> => {
+	const recipient = userId === undefined ? undefined : await User.findByPk(userId, { attributes: ['zeitzone'] });
+	return `${userId}:${tagIn(sentAt, nutzerZeitzone(recipient?.zeitzone))}`;
+};
+
+/** Ob der fachliche Push `kind` noch ins Tagesbudget passt (`false` = verdrängt, Konzept §4). */
+export const passtImBudget = async (userId: number | undefined, kind: string, sentAt: Date): Promise<boolean> => {
+	if (istServiceKind(kind)) {
+		return true;
+	}
+	const freie =
+		BUDGET_GRENZE -
+		(await NotificationLog.count({
+			where: {
+				kind: BUDGET_KIND,
+				userId: userId ?? null,
+				dedupeKey: { [Op.like]: `${await budgetPrefix(userId, sentAt)}:%` },
+			},
+		}));
+	return waehleImBudget([kind], freie).length > 0;
+};
+
+/**
+ * Budget-Marker nach zugestelltem fachlichen Push — Verdrängte und Fehlzustellungen bleiben ohne
+ * Zeile. Der Schlüssel nimmt den eindeutigen Fach-Schlüssel auf (UNIQUE `kind`+`dedupeKey` in
+ * `notification_logs` erlaubt je Tag so viele Marker wie Sends).
+ */
+export const protokolliereBudget = async (
+	userId: number | undefined,
+	fachSchluessel: string,
+	sentAt: Date,
+): Promise<void> => {
+	const dedupeKey = `${await budgetPrefix(userId, sentAt)}:${fachSchluessel}`;
+	await NotificationLog.create({ userId, kind: BUDGET_KIND, dedupeKey, sentAt });
+};

@@ -152,7 +152,8 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 		assert.equal(second.usersNotified, 0, 'zweiter Lauf ohne neue fällige Termine meldet niemanden erneut');
 		assert.equal(calls.length, 1, 'der Versand wurde nicht wiederholt');
 		// #2849 AK2 (Test-Pflege): zum Task-Log kommt die Tag-Deckel-Marker-Zeile (<userId>:<lokalesDatum>) hinzu.
-		assert.equal(await NotificationLog.count(), 2);
+		// #2853 (Test-Pflege): zum Task-Log kommt der Budget-Marker hinzu.
+		assert.equal(await NotificationLog.count(), 3);
 	});
 
 	it('erinnert erneut, wenn sich die Deadline eines bereits gemeldeten Tasks verschiebt', async () => {
@@ -222,7 +223,11 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 		assert.equal(pushCalls.length, 1, 'genau eine Push-Nachricht');
 		assert.equal(mailCalls.length, 1, 'genau eine Mail zusätzlich zur Push-Nachricht');
 		assert.equal(second.usersNotified, 0, 'zweiter Lauf ohne neue fällige Termine sendet auf keinem Kanal erneut');
-		assert.equal(await NotificationLog.count(), 2, 'Task-Log plus Tag-Deckel-Marker (#2849 AK2), nicht pro Kanal');
+		assert.equal(
+			await NotificationLog.count(),
+			3,
+			'Task-Log plus Tag-Deckel-Marker (#2849 AK2) plus Budget-Marker (#2853), nicht pro Kanal',
+		);
 	});
 
 	it('AK7: schlägt der Mail-Versand fehl, wird die Push-Nachricht dennoch zugestellt und der Log-Eintrag geschrieben', async () => {
@@ -248,8 +253,8 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 		assert.equal(pushCalls.length, 1, 'die Push-Nachricht wird trotz Mail-Fehler zugestellt');
 		assert.equal(
 			await NotificationLog.count(),
-			2,
-			'Log plus Tag-Deckel-Marker (#2849 AK2), weil mindestens ein Kanal erfolgreich war',
+			3,
+			'Log plus Tag-Deckel-Marker (#2849 AK2) plus Budget-Marker (#2853), weil mindestens ein Kanal erfolgreich war',
 		);
 	});
 	// #1518 AK7 (Spec docs/spec/issue-1518.md, Journey 2): je Serie höchstens eine Instanz im Fälligkeits-Push.

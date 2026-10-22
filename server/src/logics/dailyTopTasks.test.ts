@@ -145,7 +145,11 @@ describe('logics/dailyTopTasks — „3 wichtigste Aufgaben um 6 Uhr" (Issue #51
 
 		assert.equal(result.usersNotified, 1, 'nur der Nutzer mit Subscription zählt als benachrichtigt');
 		assert.equal(calls.length, 1, 'genau ein Versand an die bestehende Subscription');
-		assert.equal(await NotificationLog.count(), 1, 'nur für den tatsächlich zugestellten Nutzer wird geloggt');
+		assert.equal(
+			await NotificationLog.count(),
+			2,
+			'nur für den tatsächlich zugestellten Nutzer wird geloggt (+1 Budget-Marker, #2853)',
+		);
 	});
 
 	it('AC1/T5: ist idempotent pro Kalendertag — mehrfache Ticks senden einmal; am Folgetag erneut', async () => {
@@ -163,7 +167,7 @@ describe('logics/dailyTopTasks — „3 wichtigste Aufgaben um 6 Uhr" (Issue #51
 		assert.equal(sameDay.usersNotified, 0, 'zweiter Tick am selben Tag ist ein No-op (Idempotenz/Tag)');
 		assert.equal(nextDay.usersNotified, 1, 'am Folgetag wird der tägliche Push erneut versendet');
 		assert.equal(calls.length, 2, 'ein Versand am 07.07., ein Versand am 08.07.');
-		assert.equal(await NotificationLog.count(), 2, 'pro Kalendertag ein Log-Eintrag');
+		assert.equal(await NotificationLog.count(), 4, 'pro Kalendertag Log-Eintrag plus Budget-Marker (#2853)');
 	});
 
 	it('AC1/T6: ignoriert Tasks ohne userId — kein Broadcast an alle Subscriptions', async () => {

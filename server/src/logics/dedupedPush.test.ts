@@ -124,6 +124,6 @@ describe('sendDedupedPushBulk — Bulk-Geschwister für gebündelte Push-Pfade (
 
 		assert.equal(second.sent, 0);
 		assert.equal(pushCalls.length, 1, 'kein erneuter Versand');
-		assert.equal(await NotificationLog.count(), 2, 'keine zweiten Log-Einträge');
+		assert.equal(await NotificationLog.count(), 3, 'keine zweiten Log-Einträge (+1 Budget-Marker, #2853)');
 	});
 });
