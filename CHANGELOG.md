@@ -171,6 +171,8 @@ _Enthält v0.29.0 – v0.29.34._
 - feat(server): pin pillar share logic with mirror tests (ADR 0025) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2714
 - feat(server): share email parsing and normalization once (#2693) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2713
 - fix(push): reason-specific push failure message in the android app by @deleonio in https://github.com/deleonio/priority-pilot/pull/2719
+- feat(server): share email parsing and normalization once (#2693) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2713
+- fix(push): reason-specific push failure message in the android app by @deleonio in https://github.com/deleonio/priority-pilot/pull/2719
 - refactor(frontend): share webgl dial-figure stage in one module (#2696) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2718
 - fix(frontend): onboarding actions without sticky or own background by @deleonio in https://github.com/deleonio/priority-pilot/pull/2720
 - refactor(frontend): merge balance card share logic into one hook (#2695) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2717
