@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.34 - 2026-10-23
 
-_Enthält v0.34.0 – v0.34.2._
+_Enthält v0.34.0 – v0.34.3._
 
 ### 🐞 Bug Fixes
 
@@ -380,7 +380,6 @@ _Enthält v0.24.0 – v0.24.13._
 - feat(frontend): refresh care hint after completing a task (#2522) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2570
 - feat(server): pillar names in care texts follow app language (#2523) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2571
 - feat(frontend): single primary action per missed task (#2524) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2575
-- feat(frontend): show done tasks on their completion day in week view by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2576
 - feat(frontend): show done tasks on their completion day in week view by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2576
 - test(frontend): measure missed/deadlines top edges atomically (#2578) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2579
 - test(frontend): mark onboarding dismissed up front in header focus test by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2581
