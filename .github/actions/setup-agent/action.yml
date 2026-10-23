@@ -174,6 +174,20 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: 'Node auf den Job-PATH (self-hosted mac: nvm liegt nicht im launchd-PATH)'
+      shell: bash
+      run: |
+        if ! command -v npm >/dev/null 2>&1; then
+          for d in "$HOME"/.nvm/versions/node/*/bin; do
+            if [ -x "$d/npm" ]; then
+              echo "$d" >> "$GITHUB_PATH"
+              echo "::notice title=Node-Setup::npm fehlt im Job-PATH — $d vorgehängt (Runner-Dienst erbt den nvm-PATH nicht)."
+              break
+            fi
+          done
+        fi
+        command -v npm >/dev/null 2>&1 || echo "::warning::npm weiterhin nicht gefunden — Node installieren (nvm) oder den Runner-PATH korrigieren."
+
     - name: Voraussetzung prüfen (GitHub-App-Secrets)
       id: preflight
       env:
