@@ -1,4 +1,4 @@
-name: Kosten-Uebersicht
+name: Report Pipeline
 
 # Rendert BEIDE Zusammenfassungen ueber die versiegelten Kosten-Datensaetze (.costs/*.json)
 # in EINE Job-Summary: die Turn-Uebersicht (turns-report.ts, Abrechnungsmassstab der Abos,

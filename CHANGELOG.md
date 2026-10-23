@@ -2,6 +2,23 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.34 - 2026-10-23
+
+_Enthält v0.34.0 – v0.34.3._
+
+### 🐞 Bug Fixes
+
+- fix(frontend): align settings accordion content with kol card padding by @deleonio in https://github.com/deleonio/priority-pilot/pull/2899
+
+### 🚀 Improvements
+
+- feat(frontend): move push channel switches into collapsible details by @deleonio in https://github.com/deleonio/priority-pilot/pull/2892
+
+### Other Changes
+
+- feat(frontend): category rows with right-aligned action toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/2895
+- docs(arc42): add adr 0025/0026 to decision table and mariadb note by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2902
+
 ## v0.33 - 2026-10-23
 
 _Enthält v0.33.0 – v0.33.23._

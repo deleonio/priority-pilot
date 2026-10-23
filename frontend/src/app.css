@@ -3014,31 +3014,31 @@ kol-toolbar {
 	}
 }
 
-/* --- Kategorie-Verwaltung (#2014): Kennzeichen als Chips statt Kartenzeilen --- */
+/* --- Kategorie-Verwaltung (#2014): Kennzeichen links, Aktionen als Toolbar rechts --- */
 /*
- * Kategorien laufen wie die Badges der Aufgabenlisten (`.task-tree-badges`) in EINER umbrechenden
- * Chip-Zeile; je Chip bleiben Bearbeiten/Löschen als eigene Touch-Ziele (KoliBri-Default
- * `--a11y-min-size`, 44px). Die Chip-Regeln stehen bewusst NACH dem Säulen-Grid oben: gleiche
- * Spezifität, spätere Quelle gewinnt — so schaltet `.category-items` das ab 48rem aktive
- * `.pillar-items`-Grid dauerhaft auf die Flex-Zeile zurück, ohne die geteilten Karten-Styles von
- * Säulen und Gruppen anzufassen (`li.pillar-item` bleibt deren Locator-Vertrag).
+ * Je Kategorie eine volle Zeile: das Kennzeichen bleibt ein Chip, Bearbeiten/Löschen stehen
+ * rechtsbündig — die durchgehende rechte Kante hält die Liste ruhig und gleichmäßig; als
+ * Touch-Ziele bleiben Bearbeiten/Löschen eigene Knöpfe (KoliBri-Default `--a11y-min-size`, 44px).
+ * Die Zeilen-Regeln stehen bewusst NACH dem Säulen-Grid oben: gleiche Spezifität, spätere Quelle
+ * gewinnt — so schaltet `.category-items` das ab 48rem aktive `.pillar-items`-Grid dauerhaft auf
+ * die einspaltige Liste zurück, ohne die geteilten Karten-Styles von Säulen und Gruppen
+ * anzufassen (`li.pillar-item` bleibt deren Locator-Vertrag).
  */
 .category-items {
 	display: flex;
-	flex-direction: row;
-	flex-wrap: wrap;
-	align-items: center;
+	flex-direction: column;
 }
 
 .category-chip {
-	display: inline-flex;
+	display: flex;
 	align-items: center;
+	justify-content: space-between;
 	gap: var(--pp-gap-tight);
 	padding: 0 var(--pp-space-2);
 	border-radius: var(--pp-radius-pill);
 	background: var(--pp-surface-2);
-	/* Chips dürfen schrumpfen und innen umbrechen (KI-UX: Umbrechen vor Abschneiden), aber nie
-	   über den Listenrand hinauslaufen. */
+	/* Zeile darf schrumpfen und das Kennzeichen innen umbrechen (KI-UX: Umbrechen vor
+	   Abschneiden), aber nie über den Listenrand hinauslaufen. */
 	min-width: 0;
 	max-width: 100%;
 }
@@ -3048,6 +3048,7 @@ kol-toolbar {
 	flex-wrap: wrap;
 	align-items: center;
 	gap: var(--pp-gap-tight);
+	flex-shrink: 0;
 }
 
 /* --- Gruppen-Verwaltung im Settings-Tab „Gruppen“ (#1211): Karten-Muster analog zu den Säulen --- */
@@ -3969,13 +3970,16 @@ kol-toolbar {
  * Dasselbe Schieflage-Muster in allen Settings-Akkordeons (Kalender #2210, API-Tokens, Orte,
  * Wissen, KI, Geo-Reichweite, „Konto und Daten“): Der Inhalt sitzt links 2.25em ein, rechts
  * nur 0.5rem. Eine Regel für alle Tabs, denn die Sektionen haben keinen gemeinsamen Wrapper —
- * die direkten Light-DOM-Kinder rücken pauschal auf symmetrische 0.5rem. Der Element-Selector
- * hält KolCard-Hosts mit derselben Klasse `.settings-card` außen vor: deren Theme-Padding ist
- * bereits symmetrisch.
+ * die direkten Light-DOM-Kinder rücken beidseits auf das Content-Padding einer KolCard
+ * (`kol-card__content`: 1rem = `--pp-space-4`), damit Akkordeon-Inhalt bündig mit dem Inhalt
+ * der Nachbar-Karten im selben Tab fluchtet. Links trägt der Margin den Ausgleich, rechts
+ * zusätzlich, weil das Theme dort 0.5rem festnäht. Der Element-Selector hält KolCard-Hosts
+ * mit derselben Klasse `.settings-card` außen vor: deren Theme-Padding ist bereits symmetrisch.
  */
 kol-accordion.settings-card > *,
 kol-accordion.settings-accordion > * {
-	margin-left: calc(-2.25em + var(--pp-space-2));
+	margin-left: calc(var(--pp-space-4) - 2.25em);
+	margin-right: calc(var(--pp-space-4) - var(--pp-space-2));
 }
 
 /*
