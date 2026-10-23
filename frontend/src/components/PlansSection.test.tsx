@@ -21,12 +21,23 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
  * gemeinsamen Tabellenkörper unterscheidbar, ohne die sichtbaren Spalten zu verändern.
  */
 vi.mock('@public-ui/react-v19', () => ({
-	KolAlert: ({ children }: { children?: ReactNode }) => createElement('div', { role: 'alert' }, children),
+	// #2492: Label und Test-ID des Hinweises sichtbar machen (`store-purchase-notice`).
+	KolAlert: ({
+		_label,
+		children,
+		'data-testid': testId,
+	}: {
+		_label?: string;
+		children?: ReactNode;
+		'data-testid'?: string;
+	}) => createElement('div', { role: 'alert', 'data-testid': testId }, _label, children),
 	// Test-Pflege #2307: der Buchen-Knopf trägt seinen Namen im Expert-Slot (Kinder); Checkbox und Link der Widerrufsbelehrung.
 	KolButton: ({ _label, children }: { _label?: string; children?: ReactNode }) =>
 		createElement('button', null, _label, children),
 	KolInputCheckbox: ({ _label }: { _label?: string }) =>
 		createElement('input', { type: 'checkbox', 'aria-label': _label }),
+	// #2661: Eingabefelder des Rechnungsadresse-Formulars im Kaufweg.
+	KolInputText: ({ _label }: { _label?: string }) => createElement('input', { type: 'text', 'aria-label': _label }),
 	KolLink: ({ _href, _label }: { _href?: string; _label?: string }) => createElement('a', { href: _href }, _label),
 	KolSpin: () => createElement('div', { 'data-testid': 'spin' }),
 	KolTableStateful: ({
@@ -81,7 +92,14 @@ vi.mock('@public-ui/react-v19', () => ({
 }));
 
 const getPlansCatalog = vi.fn();
-vi.mock('../api', () => ({ api: { getPlansCatalog: () => getPlansCatalog() } }));
+vi.mock('../api', () => ({
+	api: {
+		getPlansCatalog: () => getPlansCatalog(),
+		// #2661: das Adressformular des Kaufwegs lädt beim Mount die gespeicherte Adresse.
+		getBillingAddress: () => Promise.resolve({ name: null, street: null, zip: null, city: null, country: null }),
+		updateBillingAddress: () => Promise.resolve({}),
+	},
+}));
 
 // `subscription: null` (kein Abo): erst dann liefert der Kaufweg Buchen-Aktionen (undefined = noch nicht geladen).
 vi.mock('../lib/usePlan', () => ({ usePlan: () => ({ plan: 'pro', entitlements: {}, subscription: null }) }));
@@ -173,11 +191,9 @@ describe('PlansSection (#1496 AK2: drei Zeiträume, keine festen Beträge)', () 
 /**
  * Rote Spec-Tests für #1524 AK7 (Spec docs/spec/issue-1524.md) — die Paket-Tabelle zeigt lesenden
  * und schreibenden MCP-Zugriff als ZWEI unterscheidbare Zeilen. Die Tabelle rendert datengetrieben
- * aus `catalog.features` (`PlansSection.tsx:348-355`) über `featureOffer(entry.feature).title`
- * (`frontend/src/lib/planOffers.ts`) — heute kennt `FEATURE_OFFERS` nur `mcp_readwrite`, für
- * `mcp_read` fällt `featureOffer()` auf den neutralen Fallback-Titel "Mehr Funktionen" zurück. Rot,
- * bis `FEATURE_OFFERS.mcp_read` einen eigenen, von `mcp_readwrite` sprachlich unterscheidbaren
- * Titel trägt.
+ * aus `catalog.features` über `featureOffer(entry.feature).title` (`frontend/src/lib/planOffers.ts`):
+ * `FEATURE_OFFERS` trägt für `mcp_read` einen eigenen, von `mcp_readwrite` sprachlich
+ * unterscheidbaren Titel — der neutrale Fallback-Titel "Mehr Funktionen" scheidet damit aus.
  *
  * Test-Pflege (#1529, Spec docs/spec/issue-1529.md AK3): seit der `KolTableStateful`-Matrix liegen
  * Preis-, Buchen- UND Feature-Zeilen gemeinsam in `_data`/`tbody` (vorher nur Feature-Zeilen). Die
@@ -201,7 +217,7 @@ describe('PlansSection (#1524 AK7: getrennte Zeilen für lesenden und schreibend
 		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
 
 		// `tbody` enthält Preis-/Buchen-/Feature-Zeilen gemeinsam (#1529 AK3) — auf Feature-Zeilen
-		// filtern, in Katalog-Reihenfolge (PlansSection.tsx:348-355) — hier also [mcp_read, mcp_readwrite].
+		// filtern, in Katalog-Reihenfolge (features.map in PlansSection.tsx) — hier also [mcp_read, mcp_readwrite].
 		const featureRows = document.querySelectorAll('tbody tr[data-row-kind="feature"]');
 		expect(featureRows).toHaveLength(2);
 		const [readTitle, readwriteTitle] = Array.from(featureRows).map(
@@ -228,10 +244,9 @@ describe('PlansSection (#1524 AK7: getrennte Zeilen für lesenden und schreibend
 /**
  * Rote Spec-Tests für #1529 AK3 (Spec docs/spec/issue-1529.md) — die Preis-Matrix wird als
  * `KolTableStateful` gebaut: Preis-/Buchen-Zeilen liegen im Tabellenkörper (`_data`), nicht mehr im
- * `<thead>`, und jede Spalte in `_headers.horizontal[0]` trägt eine gesetzte `width`. Rot, bis
- * `PlansSection.tsx` `KolTableStateful` (statt der handgebauten `<table>`) importiert und verwendet
- * — heute liefert `screen.queryByTestId('plans-kol-table')` `null`, weil die Komponente den Mock
- * nie aufruft.
+ * `<thead>`, und jede Spalte in `_headers.horizontal[0]` trägt eine gesetzte `width`.
+ * `PlansSection.tsx` importiert und verwendet `KolTableStateful` (statt der handgebauten `<table>`);
+ * die Tests greifen über die `plans-kol-table`-Testid auf die gerenderte Matrix zu.
  */
 describe('PlansSection (#1529 AK3: KolTableStateful-Matrix mit gesetzten Spaltenbreiten)', () => {
 	it('sortiert Funktionen nach dem kleinsten enthaltenden Paket — Funktionen höherer Pakete zuletzt', async () => {
@@ -289,7 +304,7 @@ describe('PlansSection (#1529 AK3: KolTableStateful-Matrix mit gesetzten Spalten
 
 		const table = screen.getByTestId('plans-kol-table');
 		// Kein Preis-/Buchen-Kopf mehr: genau EINE Kopfzeile (Paketnamen), keine Preis-/Buchen-Zeile
-		// im `<thead>` (die lagen vor #1529 dort, PlansSection.tsx:315-346 vor der Umstellung).
+		// im `<thead>` (die lagen vor #1529 dort).
 		expect(table.querySelectorAll('thead tr')).toHaveLength(1);
 
 		// 3 Preisperioden + 3 Buchen-Perioden + 1 Feature (`groups`, CATALOG_CENTS) = 7 Körperzeilen.
@@ -331,25 +346,31 @@ describe('PlansSection je Kanal (#1674)', () => {
 		expect(screen.queryByText('Die Pakete lassen sich bald direkt in der App buchen.')).toBeNull();
 	});
 
-	it('play: Preise aus Google Play statt aus dem Katalog, kein Link auf den Web-Kauf (#1692)', async () => {
+	// Test-Pflege #2492: ersetzt „play: Preise aus Google Play" (#1692) — ADR 0016 Nachtrag 2026-10-08.
+	it('play: Katalogpreise ohne Buchen-Zeilen, Hinweis „Kauf in der App folgt", kein Store-Aufruf, kein PayPal (#2492)', async () => {
 		vi.stubGlobal('__PP_CHANNEL__', 'play');
+		const initialize = vi.fn(() => Promise.resolve());
+		const get = vi.fn(() => ({
+			offers: [{ id: 'x@monthly', pricingPhases: [{ price: 'pro 9,49 €' }], order: vi.fn() }],
+		}));
 		vi.stubGlobal('CdvPurchase', {
-			store: {
-				register: vi.fn(),
-				when: () => ({ approved: vi.fn() }),
-				initialize: vi.fn(() => Promise.resolve()),
-				get: (id: string) => ({
-					offers: [{ id: `${id}@monthly`, pricingPhases: [{ price: `${id} 9,49 €` }], order: vi.fn() }],
-				}),
-			},
+			store: { register: vi.fn(), when: () => ({ approved: vi.fn() }), initialize, get },
 		});
 		getPlansCatalog.mockResolvedValue(CATALOG_CENTS);
 		render(createElement(PlansSection));
 
-		await waitFor(() => expect(screen.getByText('pro 9,49 €')).toBeTruthy());
+		await waitFor(() => expect(screen.getByTestId('plans-kol-table')).toBeTruthy());
 
-		expect(screen.queryByText('8,99 €')).toBeNull();
-		expect(screen.getByTestId('plans-section').querySelector('a')).toBeNull();
+		const section = screen.getByTestId('plans-section');
+		expect(section.querySelectorAll('tr[data-row-kind="action"]')).toHaveLength(0);
+		expect(screen.queryByRole('button')).toBeNull();
+		expect(screen.getByTestId('store-purchase-notice').textContent).toContain('Kauf in der App folgt');
+		expect(screen.getByText(/^8,99 €/)).toBeTruthy();
+		expect(screen.queryByText('pro 9,49 €')).toBeNull();
+		expect(initialize).not.toHaveBeenCalled();
+		expect(get).not.toHaveBeenCalled();
+		expect(section.querySelector('a')).toBeNull();
+		expect(section.textContent).not.toMatch(/PayPal/i);
 	});
 });
 

@@ -32,14 +32,73 @@ const XML_ESCAPES: Record<string, string> = {
 /** Namen stammen aus Nutzereingaben — bevor sie ins SVG gehen, werden sie XML-sicher gemacht. */
 export const xml = (text: string): string => text.replace(/[<>&"']/g, (zeichen) => XML_ESCAPES[zeichen] ?? zeichen);
 
+import logoDunkel from '../assets/logo-with-name.horizontal.dark.svg?raw';
+
+/** Übersetzte Logo-Bezeichnungen der Marken-Elemente (#2255, #2275) — für alle Karten gemeinsam. */
+export interface KartenMarken {
+	balamentum: string;
+	play: string;
+	pwa: string;
+}
+
+/** Deutsche Default-Bezeichnungen — jede Karte ist ohne Component-Kontext erzeugbar (#2255 AK3). */
+const MARKEN_DEFAULTS: KartenMarken = {
+	balamentum: 'Balamentum',
+	play: 'Erhältlich bei Google Play',
+	pwa: 'Als App installierbar (PWA)',
+};
+
+/** Google-Play-Logo als Inline-Pfade (vier Keile, unverzerrt 1:1) — Rasterung lädt keine externen Referenzen. */
+const SPIEL_LOGO = [
+	'<path fill="#00d2ff" d="M2 1 L12 12 L2 23 Z"></path>',
+	'<path fill="#00f076" d="M2 1 L17.2 7.6 L12 12 Z"></path>',
+	'<path fill="#ffc900" d="M17.2 7.6 L21.5 12 L17.2 16.4 L12 12 Z"></path>',
+	'<path fill="#ff3a44" d="M2 23 L17.2 16.4 L12 12 Z"></path>',
+].join('');
+
+/** PWA-Blitz als Inline-Pfad — identisch in jeder Karten-Fußzeile (#2255). */
+const PWA_LOGO_PFAD = '<path fill="#00a8ff" d="M10 0 L3 11 H8 L7 20 L16 8 H11 L14 0 Z"></path>';
+
+/** Dunkle Wortmarke (helle Schrift, Schrift + Bild eingebettet) als data-URL — keine externe Referenz (#2275 AK1/AK3). */
+const LOGO_DATEN_URL = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(logoDunkel)}`;
+/** Kopfzeilen-Logo: viewBox 685×104 auf Höhe 32 skaliert. */
+const LOGO_BREITE = Math.round((685 / 104) * 32);
+
+/**
+ * Gemeinsame Marken-Kopfzeile aller Karten (#2255, #2275): Logo links, Label rechtsbündig —
+ * Werbefläche oben, Inhaltsbereich darunter. `<title>` trägt die übersetzte Bezeichnung.
+ */
+export const kartenKopfzeile = (label: string, marken?: KartenMarken): string => {
+	const bezeichnungen = marken ?? MARKEN_DEFAULTS;
+	return [
+		`<g id="brand-balamentum" transform="translate(48,24)"><title>${xml(bezeichnungen.balamentum)}</title><image href="${LOGO_DATEN_URL}" width="${LOGO_BREITE}" height="32"></image></g>`,
+		`<text x="${KARTE_BREITE - 48}" y="46" text-anchor="end" font-size="16" font-weight="600" fill="${TINTE}">${xml(label)}</text>`,
+	].join('');
+};
+
+/**
+ * Gemeinsame Marken-Fußzeile aller Karten (#2255, #2275): Domain als einziger Link
+ * (Call-to-Action), danach Play/PWA-Logo — alle Logos inline, keine externe Referenz.
+ */
+export const kartenFusszeile = (marken?: KartenMarken): string => {
+	const bezeichnungen = marken ?? MARKEN_DEFAULTS;
+	return [
+		`<a href="https://balamentum.modevel.de"><text x="190" y="376" font-size="16" fill="${TINTE}">balamentum.modevel.de</text></a>`,
+		`<g id="brand-google-play" transform="translate(440,360) scale(0.92)"><title>${xml(bezeichnungen.play)}</title>${SPIEL_LOGO}</g>`,
+		`<g id="brand-pwa" transform="translate(480,362)"><title>${xml(bezeichnungen.pwa)}</title>${PWA_LOGO_PFAD}<text x="19" y="15" font-size="14" font-weight="800" fill="#00a8ff">PWA</text></g>`,
+	].join('');
+};
+
 export interface WochenKarteDaten {
 	/** Name und Wert je Säule — bewusst nur das: Aufgabentitel/-inhalte dürfen nie ankommen (AK1). */
 	saeulen: { name: string; wert: number }[];
 	streak: number;
 	woche: string;
+	/** Übersetzte Logo-Bezeichnungen der Marken-Elemente (#2255, #2275) — ohne Parameter deutsche Defaults. */
+	marken?: KartenMarken;
 }
 
-export const erzeugeWochenKarteSvg = ({ saeulen, streak, woche }: WochenKarteDaten): string => {
+export const erzeugeWochenKarteSvg = ({ saeulen, streak, woche, marken }: WochenKarteDaten): string => {
 	const maximal = Math.max(1, ...saeulen.map((s) => s.wert));
 	const basisY = 300;
 	const maximalHoehe = 160;
@@ -62,10 +121,11 @@ export const erzeugeWochenKarteSvg = ({ saeulen, streak, woche }: WochenKarteDat
 	return [
 		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${KARTE_BREITE} ${KARTE_HOEHE}" width="${KARTE_BREITE}" height="${KARTE_HOEHE}" font-family="system-ui, sans-serif">`,
 		`<rect width="${KARTE_BREITE}" height="${KARTE_HOEHE}" fill="${GRUND}"></rect>`,
-		`<text x="48" y="48" font-size="16" font-weight="600" fill="${TINTE}">${xml(woche)}</text>`,
+		kartenKopfzeile(woche, marken),
+		`<line x1="48" y1="300" x2="${KARTE_BREITE - 48}" y2="300" stroke="${GEDAEMPFT}" stroke-opacity="0.4"></line>`,
 		spalten,
-		`<text x="48" y="362" font-size="15"><tspan fill="${GEDAEMPFT}">Streak </tspan><tspan font-weight="700" fill="${TINTE}">${streak}</tspan></text>`,
-		`<a href="https://balamentum.modevel.de"><text x="${KARTE_BREITE - 48}" y="362" text-anchor="end" font-size="14" fill="${GEDAEMPFT}">balamentum.modevel.de</text></a>`,
+		`<text x="48" y="376" font-size="15"><tspan fill="${GEDAEMPFT}">Streak </tspan><tspan font-weight="700" fill="${TINTE}">${streak}</tspan></text>`,
+		kartenFusszeile(marken),
 		'</svg>',
 	].join('');
 };

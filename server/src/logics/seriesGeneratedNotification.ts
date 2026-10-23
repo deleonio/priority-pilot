@@ -1,7 +1,12 @@
 import { NotificationLog, User } from '../models/index.js';
-import { sendPushToUser, type PushSender } from './push.js';
+import { sendDedupedPush } from './dedupedPush.js';
+import { type PushSender } from './push.js';
 import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
+import { renderMailHtml } from './mailTemplate.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
+import { istRuhezeit } from './carePush.js';
+import { nutzerZeitzone } from './streak.js';
+import { PUSH_TARGETS } from './pushTargets.js';
 
 /**
  * Fachlicher Push-Trigger „Serie von jemand anderem angelegt hat Instanzen erzeugt" (#1253):
@@ -9,7 +14,8 @@ import { spracheVon, type CareSprache } from './careSuggestionData.js';
  * erhält B genau **eine** gebündelte Nachricht je Serie und Lauf — mit Serientitel,
  * Anzeigenamen von A und Zahl der neuen Aufgaben. Wie `taskCreatedNotification` (#1224)
  * verhindert der Auslöser über {@link NotificationLog} (eigene `kind`, dedupeKey bindet an die
- * erzeugte Aufgabe), dass derselbe Lauf erneut meldet.
+ * erzeugte Aufgabe), dass derselbe Lauf erneut meldet. Ruhezeit 21–7 Ortszeit des Empfängers:
+ * kein Versand, kein Log (#2849 AK4).
  *
  * Selbst-Anlagen (`createdById === userId`) und Alt-Bestand ohne `createdById` lösen nichts aus —
  * die Stille-Entscheidung trifft diese Logik selbst anhand der Serien-Felder, nicht der Aufrufer.
@@ -81,20 +87,43 @@ export const notifySeriesGenerated = async (
 		return;
 	}
 	const dedupeKey = `${series.id}:${createdTasks[0].id}`;
-	const alreadySent = await NotificationLog.findOne({ where: { kind: KIND, dedupeKey } });
-	if (alreadySent) {
+	// Mail teilt denselben Dedupe-Schlüssel (#1426): Die Prüfung bleibt hier, weil der Helfer
+	// „bereits gesendet" nicht von „keine Subscription" unterscheiden kann und die Mail sonst
+	// bei jedem Lauf erneut ginge.
+	if (await NotificationLog.findOne({ where: { kind: KIND, dedupeKey } })) {
 		return;
 	}
 	const recipient = await User.findByPk(series.userId);
-	const texte = TEXTE[spracheVon(recipient?.sprache)];
+	// #2850 AK3: Gruppenschalter „Aufgaben und Erinnerungen" aus → kein Push, kein Log (Muster carePush).
+	if (recipient?.taskPushEnabled === false) {
+		return;
+	}
+	// #2849 AK4: Ruhezeit 21–7 Ortszeit — komplett stumm (Push wie Mail), kein Log, kein Nachholen.
+	if (istRuhezeit(new Date(), nutzerZeitzone(recipient?.zeitzone))) {
+		return;
+	}
+	const sprache = spracheVon(recipient?.sprache);
+	const texte = TEXTE[sprache];
 	const title = texte.titel(creator?.displayName || creator?.email || texte.jemand);
 	const body = texte.text(series.title, createdTasks.length);
-	const { sent } = await sendPushToUser(series.userId, { title, body, url: '/' }, send);
+	const { sent } = await sendDedupedPush(
+		series.userId,
+		KIND,
+		dedupeKey,
+		{ title, body, url: PUSH_TARGETS.seriesGenerated },
+		send,
+	);
 	let mailSent = false;
 	if (mailSend || isMailConfigured()) {
-		mailSent = await sendMailToUser({ email: recipient?.email ?? null }, { subject: title, text: body }, mailSend);
+		const mailHtml = renderMailHtml({ heading: title, paragraphs: [body], lang: sprache });
+		mailSent = await sendMailToUser(
+			{ email: recipient?.email ?? null },
+			{ subject: title, text: body, html: mailHtml.html, attachments: mailHtml.attachments },
+			mailSend,
+		);
 	}
-	if (sent > 0 || mailSent) {
+	if (sent === 0 && mailSent) {
+		// Protokolliert der Helfer nicht (Push ohne Zustellung), sichert erst die Mail den Log-Eintrag.
 		await NotificationLog.create({ userId: series.userId, kind: KIND, dedupeKey, sentAt: new Date() });
 	}
 };

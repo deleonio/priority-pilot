@@ -1581,7 +1581,7 @@ describe('SettingsPage – #1792: Balance-Priorisierung Schalter (AK3)', () => {
 /**
  * Rote Spec-Tests für #1794 — Fürsorge-Schalter (Spec: docs/spec/issue-1794.md, KI-UX-Block).
  *
- * - AK7: Switch „Fürsorge-Hinweise" (KolInputCheckbox `_variant="switch"`) in einer
+ * - AK7: Switch „Fürsorge" (#2850-Rename, früher „Fürsorge-Hinweise"; KolInputCheckbox `_variant="switch"`) in einer
  *   `.settings-switch-row` der Karte „Benachrichtigungen", Zustand aus GET /care-config,
  *   `_hint` nennt die Abgrenzung (betrifft nur Fürsorge, Frist-Erinnerungen bleiben an).
  * - AK7: Toggle ruft `api.updateCareConfig` mit dem neuen Zustand auf (kein Speichern-Button).
@@ -1594,8 +1594,7 @@ describe('SettingsPage – #1794: Fürsorge-Schalter (AK7)', () => {
 		return value === null || value === undefined ? '' : String(value);
 	};
 
-	const queryCareSwitch = (container: HTMLElement) =>
-		container.querySelector('kol-input-checkbox[_label="Fürsorge-Hinweise"]');
+	const queryCareSwitch = (container: HTMLElement) => container.querySelector('kol-input-checkbox[_label="Fürsorge"]');
 
 	const flipSwitch = async (container: HTMLElement, value: boolean) => {
 		await act(async () => {
@@ -2142,6 +2141,38 @@ describe('SettingsPage – #2015: zweite Ebene ausschließlich KolDetails (Regel
 		expect(bound(details!, '_open'), 'Master aus → Details zu').toBe('false');
 	});
 
+	it('TF2/AK2: „Einzelne Benachrichtigungen“ ist ein KolDetails und folgt dem Push-Master', async () => {
+		pushState.enabled = true;
+		pushState.supported = true;
+		const { container, rerender } = render(<SettingsPage {...defaultProps} />);
+
+		const details = container.querySelector('kol-details[_label="Einzelne Benachrichtigungen"]');
+		expect(details, 'KolDetails „Einzelne Benachrichtigungen“').not.toBeNull();
+		expect(bound(details!, '_open'), 'Push an → Details offen').toBe('true');
+		expect(details!.querySelectorAll('kol-input-checkbox').length, 'sechs Kanal-Schalter im Klappbereich').toBe(6);
+
+		// Der Sync läuft per Effect auf `pushEnabled` — der gemockte Hook liefert den neuen Stand
+		// beim Rerender, das Details muss ohne Header-Klick mitgehen.
+		pushState.enabled = false;
+		await act(async () => {
+			rerender(<SettingsPage {...defaultProps} />);
+		});
+		expect(bound(details!, '_open'), 'Master aus → Details zu').toBe('false');
+	});
+
+	it('„Einzelne Benachrichtigungen“ ist bei ausgeschaltetem Push zu; Header-Klick klappt auf', () => {
+		pushState.enabled = false;
+		pushState.supported = true;
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		const details = container.querySelector('kol-details[_label="Einzelne Benachrichtigungen"]');
+		expect(bound(details!, '_open'), 'Push aus → Details zu').toBe('false');
+		act(() => {
+			(details as unknown as { _on: { onClick: (event: unknown, open: boolean) => void } })._on.onClick({}, true);
+		});
+		expect(bound(details!, '_open'), 'Header-Klick öffnet unabhängig vom Master').toBe('true');
+	});
+
 	it('„Reichweite und Intervall“ ist ein eigenes KolAccordion unter der Karte „Standorterfassung“, ohne KolDetails', () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
@@ -2217,5 +2248,105 @@ describe('SettingsPage – #1994: Aufteilen-Hinweis-Schalter (AK6)', () => {
 		});
 
 		expect(apiMocks.updateSplitHintConfig).toHaveBeenCalledWith({ splitHintEnabled: false });
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2856 (AK6, Spec docs/spec/issue-2856.md) — der tipsHint des Schalters
+ * „Tipps und Angebote“ nennt die Frequenz (push-konzept.md §8): „Höchstens einmal im Monat …“
+ * (de) / „At most once a month …“ (en) in allen tipsHint-Sprachdateien.
+ */
+describe('SettingsPage – #2856: tipsHint nennt die Frequenz (AK6)', () => {
+	const queryTippsSwitch = (container: HTMLElement) =>
+		container.querySelector('kol-input-checkbox[_label="Tipps und Angebote"]');
+
+	const bound = (el: Element, name: string): string => {
+		const value = (el as unknown as Record<string, unknown>)[name] ?? el.getAttribute(name);
+		return value === null || value === undefined ? '' : String(value);
+	};
+
+	it('AK6: der gerenderte Hinweis erklärt, was kommt, und nennt die Frequenz', async () => {
+		apiMocks.getPushGroups = vi.fn().mockResolvedValue({
+			taskPushEnabled: true,
+			successPushEnabled: true,
+			groupPushEnabled: true,
+			tipPushEnabled: false,
+		});
+		pushState.enabled = true;
+		pushState.supported = true;
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		await waitFor(() => {
+			expect(queryTippsSwitch(container), 'Tipps-Schalter fehlt').not.toBeNull();
+		});
+		expect(bound(queryTippsSwitch(container)!, '_hint')).toMatch(/Höchstens einmal im Monat/);
+	});
+
+	it('AK6: alle tipsHint-Sprachdateien (de/en) tragen den Frequenz-Satz', async () => {
+		const de = (await import('../i18n/locales/de/settings.json')).default;
+		const en = (await import('../i18n/locales/en/settings.json')).default;
+		const notifications = (json: unknown): Record<string, string> =>
+			(json as { settingsPage: { notifications: Record<string, string> } }).settingsPage.notifications;
+		expect(notifications(de).tipsHint).toMatch(/Höchstens einmal im Monat/);
+		expect(notifications(en).tipsHint).toMatch(/At most once a month/);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2850 — Push-Gruppenschalter (Spec: docs/spec/issue-2850.md).
+ *
+ * AK1: die Karte „Benachrichtigungen“ rendert unter dem Hauptschalter fünf Gruppenschalter
+ * („Aufgaben und Erinnerungen“, „Fürsorge“, „Erfolge und Rückblicke“, „Gruppen“, „Tipps und
+ * Angebote“) mit den Defaults an/an/an/an/aus; Zustand der vier neuen Gruppen kommt aus
+ * GET /push-groups, Fürsorge bleibt wie bisher an /care-config (bestehende #1794-Tests).
+ * Toggle-Verhalten je Zeile ist durch die #1794-Muster abgedeckt (Dedup) — hier nur der
+ * neue Render-/Default-Vertrag.
+ */
+describe('SettingsPage – #2850: Push-Gruppenschalter (AK1)', () => {
+	const FÜNF_GRUPPEN = [
+		'Aufgaben und Erinnerungen',
+		'Fürsorge',
+		'Erfolge und Rückblicke',
+		'Gruppen',
+		'Tipps und Angebote',
+	];
+
+	const bound = (el: Element, name: string): string => {
+		const value = (el as unknown as Record<string, unknown>)[name] ?? el.getAttribute(name);
+		return value === null || value === undefined ? '' : String(value);
+	};
+
+	const querySwitch = (container: HTMLElement, label: string) =>
+		container.querySelector(`kol-input-checkbox[_label="${label}"]`);
+
+	it('AK1: fünf Gruppenschalter je in einer .settings-switch-row, Defaults aus GET /push-groups', async () => {
+		apiMocks.getPushGroups = vi.fn().mockResolvedValue({
+			taskPushEnabled: true,
+			successPushEnabled: true,
+			groupPushEnabled: true,
+			tipPushEnabled: false,
+		});
+		pushState.enabled = true;
+		pushState.supported = true;
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		await waitFor(() => {
+			for (const label of FÜNF_GRUPPEN) {
+				expect(querySwitch(container, label), `${label} fehlt in der Karte „Benachrichtigungen“`).not.toBeNull();
+			}
+		});
+
+		const erwartet: Record<string, string> = {
+			'Aufgaben und Erinnerungen': 'true',
+			Fürsorge: 'true',
+			'Erfolge und Rückblicke': 'true',
+			Gruppen: 'true',
+			'Tipps und Angebote': 'false',
+		};
+		for (const label of FÜNF_GRUPPEN) {
+			const toggle = querySwitch(container, label)!;
+			expect(toggle.closest('.settings-switch-row'), `${label}: Switch-Zeile (#971-Muster)`).not.toBeNull();
+			expect(bound(toggle, '_checked'), `${label}: Default-Zustand`).toBe(erwartet[label]);
+		}
 	});
 });

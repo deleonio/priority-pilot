@@ -1,6 +1,9 @@
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../database.js';
 
+/** Fester Hinweis statt Steuerausweis (§19 UStG, Kleinunternehmerregelung) — Modell-Default, da jede Rechnung denselben Pflichttext trägt. */
+export const TAX_NOTE = 'Gemäß §19 UStG wird keine Umsatzsteuer ausgewiesen.';
+
 /**
  * Eine ausgestellte Rechnung zu einem Abrechnungszeitraum (Issue #1495 AK8). `number` ist die
  * fortlaufende Rechnungsnummer aus `../logics/invoices.ts` (`INV-<Jahr>-<6-stellig>`, eindeutig per
@@ -78,6 +81,7 @@ Invoice.init(
 		taxNote: {
 			type: DataTypes.STRING,
 			allowNull: false,
+			defaultValue: TAX_NOTE,
 		},
 		deliveredAt: {
 			type: DataTypes.DATE,
@@ -89,7 +93,8 @@ Invoice.init(
 			defaultValue: [],
 		},
 		pdfBytes: {
-			type: DataTypes.BLOB,
+			// MEDIUMBLOB (Typ-Audit #2826): MySQL-BLOB endet bei 64 KB — zu klein für Rechnungs-PDFs.
+			type: DataTypes.BLOB('medium'),
 			allowNull: true,
 		},
 		paymentStatus: {

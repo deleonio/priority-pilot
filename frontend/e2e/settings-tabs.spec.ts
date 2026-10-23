@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { seedAccountPreferences, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #271 „Settings-Seite: Tabs Allgemein + Säulen" (Stufe 1 TDD, der einklagbare
@@ -18,8 +18,9 @@ import { waitForStableView } from './helpers';
  * Fixture authentifiziert, damit die Auth-Gate durchlässig ist.
  */
 // #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
-// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+// Präferenz liegt am Konto: API-Seed + localStorage-Spiegel (#2508, Muster ai-disable.spec.ts).
 test.beforeEach(async ({ page }) => {
+	await seedAccountPreferences(page, { expertMode: true });
 	await page.addInitScript(() => {
 		localStorage.setItem('pp-expert-mode', 'true');
 	});
@@ -271,6 +272,8 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 	 * Standort-Tab sichtbar und bedienbar (bestehende #1098-Abläufe laufen dort weiter).
 	 */
 	test('AK2/AK3: bei eingeschaltetem Standort sind die drei Slider im Standort-Tab bedienbar', async ({ page }) => {
+		// #2508: Konto-Seed — der App-Start-Pull überschreibt den localStorage-Spiegel.
+		await seedAccountPreferences(page, { geolocationEnabled: true });
 		await page.addInitScript(() => {
 			Object.defineProperty(navigator, 'geolocation', {
 				value: {
@@ -335,6 +338,8 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 	 */
 	test('AK5: 375px — vier Tabs und Geo-Slider ohne horizontale Überlagerung', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
+		// #2508: Konto-Seed — der App-Start-Pull überschreibt den localStorage-Spiegel.
+		await seedAccountPreferences(page, { geolocationEnabled: true });
 		await page.addInitScript(() => {
 			Object.defineProperty(navigator, 'geolocation', {
 				value: {

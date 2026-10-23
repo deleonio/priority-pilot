@@ -16,7 +16,7 @@ import type { createCsrfUtilities } from '../csrf.js';
  * Token-Vorab-Fetch fahren.
  */
 
-/** Die neun Bild-Schlüssel (`BALANCE_VARIANTS`, frontend/src/lib/balanceVariant.ts) — Server-Kopie für die Validierung. */
+/** Die zwölf Bild-Schlüssel (`BALANCE_VARIANTS`, frontend/src/lib/balanceVariant.ts) — Server-Kopie für die Validierung. */
 const VARIANTEN: readonly string[] = [
 	'herz',
 	'blasen',
@@ -27,6 +27,9 @@ const VARIANTEN: readonly string[] = [
 	'kristall',
 	'segmente',
 	'zeiger',
+	'bahnen',
+	'meteore',
+	'pendel',
 ];
 
 /** Default, solange nichts gespeichert ist: das gewohnte Herz (bestehende Nutzer nicht umbauen). */

@@ -5,6 +5,10 @@ import { waitForStableView } from './helpers';
 /**
  * ROTE Spec-Tests für #1168 „Dashboard-Signal-Panel: 'Jetzt starten' → 'Erledigt'".
  *
+ * #2526-Test-Pflege: Der Panel-Knopf erledigt Plain-Tasks direkt (ADR 0024) — TF3/TF4 (Dialog-Fluss)
+ * sind durch `issue-2526-complete-inline.spec.ts` abgelöst und entfernt; TF5/TF6 prüfen den
+ * verbliebenen Dialogfall (offene Checkliste) mit Checklisten-Seed.
+ *
  * Spec-Bezug: docs/spec/issue-1168.md — AK2–AK6 (TF3–TF6). Der Button „Jetzt starten" öffnet heute
  * den Task-Edit-Dialog; ein Bestätigungsdialog „Aufgabe erledigen" existiert noch nicht. Alle Tests
  * sind rot, bis `CompleteTaskDialog` existiert und im Panel verdrahtet ist. Die Komponente selbst
@@ -25,8 +29,20 @@ const deleteAllTasks = async (page: Page): Promise<void> => {
 	}
 };
 
-const createTask = async (page: Page, title: string, priority: number): Promise<number> => {
-	const response = await page.request.post('/api/v1/tasks', { data: { title, priority } });
+// #2526 (ADR 0024): Ohne offene Checkliste erledigt das Panel direkt — nur mit ihr öffnet der
+// Panel-Knopf weiterhin den Bestätigungsdialog. TF5/TF6 seeden ihn deshalb.
+const createChecklistTask = async (page: Page, title: string, priority: number): Promise<number> => {
+	const response = await page.request.post('/api/v1/tasks', {
+		data: {
+			title,
+			priority,
+			checklist: [
+				// Server verlangt UUID-Ids (validateChecklist, tasks.ts) — Muster #1583-Spec.
+				{ id: '11111111-1111-1168-1118-111111111161', title: 'Erster Punkt', completed: false },
+				{ id: '22222222-2222-2168-2228-222222222262', title: 'Zweiter Punkt', completed: false },
+			],
+		},
+	});
 	const created = (await response.json()) as { id: number };
 	return created.id;
 };
@@ -52,47 +68,8 @@ test.describe('#1168 „Erledigt"-Button im Dashboard-Signal-Panel', () => {
 		await deleteAllTasks(page);
 	});
 
-	test('TF3 (AK2, AK4, AK5): Bestätigen setzt Status auf Done und das Panel zeigt ohne Reload die nächste Aufgabe', async ({
-		page,
-	}) => {
-		const firstId = await createTask(page, 'E2E #1168 Erste Aufgabe', 5);
-		await createTask(page, 'E2E #1168 Zweite Aufgabe', 2);
-
-		await openDashboard(page);
-		// Panel-Titel scopen: Der ungescopte getByText-Text matcht zusätzlich Top-Task-,
-		// Aufgabenlisten- und Wald-Rendering derselben Aufgabe (strict-mode violation).
-		await expect(page.locator('.dashboard-next-task-content')).toContainText('E2E #1168 Erste Aufgabe');
-
-		await page.getByRole('button', { name: 'Erledigen' }).click();
-		await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeVisible();
-		// AK2: Der Dialog nennt die betroffene Aufgabe namentlich. Der Inhalts-Anchor ist die
-		// Light-DOM-Hülle `.modal-body` (Modal.tsx): der native <dialog> steckt im Shadow-DOM des
-		// KolDialog-Hosts, sein textContent umfasst die geschlotteten Kinder nicht.
-		await expect(page.locator('.modal-body')).toContainText('E2E #1168 Erste Aufgabe');
-
-		await page.getByRole('button', { name: 'Als erledigt markieren' }).click();
-		await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeHidden();
-
-		// Ohne manuellen Reload zeigt das Panel jetzt die zweite Aufgabe (AK5).
-		await expect(page.locator('.dashboard-next-task-content')).toContainText('E2E #1168 Zweite Aufgabe');
-
-		await expect.poll(async () => taskStatus(page, firstId)).toBe('Done');
-	});
-
-	test('TF4 (AK5, Leerfall): einzige Aufgabe erledigen zeigt den Leer-Text', async ({ page }) => {
-		await createTask(page, 'E2E #1168 Einzige Aufgabe', 5);
-
-		await openDashboard(page);
-		await page.getByRole('button', { name: 'Erledigen' }).click();
-		await page.getByRole('button', { name: 'Als erledigt markieren' }).click();
-		await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeHidden();
-
-		await expect(page.locator('.dashboard-next-task-empty')).toBeVisible();
-		await expect(page.locator('.dashboard-next-task-empty')).toContainText('Aktuell steht keine Aufgabe an');
-	});
-
 	test('TF5 (AK3): Abbrechen schließt den Dialog ohne Statusänderung', async ({ page }) => {
-		const id = await createTask(page, 'E2E #1168 Abbrechen-Aufgabe', 5);
+		const id = await createChecklistTask(page, 'E2E #1168 Abbrechen-Aufgabe', 5);
 
 		await openDashboard(page);
 		await page.getByRole('button', { name: 'Erledigen' }).click();
@@ -109,11 +86,15 @@ test.describe('#1168 „Erledigt"-Button im Dashboard-Signal-Panel', () => {
 	test('TF6 (AK6): schlägt das Erledigen fehl, bleibt der Dialog offen und zeigt eine Fehlermeldung', async ({
 		page,
 	}) => {
-		const id = await createTask(page, 'E2E #1168 Fehler-Aufgabe', 5);
+		const id = await createChecklistTask(page, 'E2E #1168 Fehler-Aufgabe', 5);
 
 		await openDashboard(page);
 		await page.getByRole('button', { name: 'Erledigen' }).click();
 		await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeVisible();
+		// #2526-Test-Pflege: Der Checklisten-Seed macht den Hauptknopf zunächst zu „Checkliste speichern“
+		// (CompleteTaskDialog.tsx mainLabel) — erst „Alle abhaken“ schaltet auf „Als erledigt markieren“ (#1583-Muster).
+		await page.getByRole('button', { name: 'Alle abhaken' }).click();
+		await expect(page.getByRole('button', { name: 'Als erledigt markieren' })).toBeVisible();
 
 		await page.route(`**/api/v1/tasks/${id}`, (route: Route) => {
 			if (route.request().method() === 'PATCH') {

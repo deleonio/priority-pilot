@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
-import { measureHorizontalScroll, registerOwnSession, taskTitleText, waitForStableView } from './helpers';
+import { measureHorizontalScroll, registerOwnSession, taskTitleText, waitForStableView, MOBILE } from './helpers';
 
 /**
  * Spec-Tests (#228 / #307): die Erledigt-Ansicht — Tabelle NUR mit erledigten Tasks, Punkte je Säule,
@@ -40,15 +40,33 @@ test.describe('Balamentum — Erledigt-Ansicht (#228/#307) gegen das echte Backe
 	// Navigation läuft daher über den Tab plus check/uncheck des Umschalters (idempotent).
 	const viewSwitch = (page: Page) => page.getByRole('checkbox', { name: /Erledigte Aufgaben/i });
 
+	/**
+	 * Setzt den Offen/Erledigt-Umschalter auf den Zielzustand (idempotent wie das alte check()/uncheck()).
+	 * Bewusst NICHT check()/uncheck(): Playwright werten den Zustand nach EINEM Klick ohne Wiederholung
+	 * aus und werfen sofort — der Tab-Klick direkt davor löst eine React-Router-Navigation aus, die das
+	 * Switch-Element zwischen Klick und Zustandslesung ersetzen/rendern kann. Zwei CI-Läufe in Folge
+	 * zeigten genau diese Signatur in zufällig je einem Mobil-Test (#2723-Fixup Runde 2, Run 39143640734).
+	 * Klick nur bei abweichendem Zustand + auto-retryende Assertion über einen FRISCH gelösten Locator
+	 * (expect.toPass): Ein verlorenes Toggle wird im nächsten Poll nachgeholt statt hart zu rotieren.
+	 */
+	const setViewSwitch = async (page: Page, on: boolean): Promise<void> => {
+		await expect(async () => {
+			if ((await viewSwitch(page).isChecked()) !== on) {
+				await viewSwitch(page).click();
+			}
+			await expect(viewSwitch(page)).toBeChecked({ checked: on, timeout: 1_000 });
+		}).toPass({ timeout: 10_000 });
+	};
+
 	const openTasksTab = async (page: Page): Promise<void> => {
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
-		await viewSwitch(page).uncheck();
+		await setViewSwitch(page, false);
 		await waitForStableView(page);
 	};
 
 	const openCompletedTab = async (page: Page): Promise<void> => {
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
-		await viewSwitch(page).check();
+		await setViewSwitch(page, true);
 		await waitForStableView(page);
 	};
 
@@ -190,7 +208,7 @@ test.describe('Balamentum — Erledigt-Ansicht (#228/#307) gegen das echte Backe
 		page,
 	}) => {
 		await registerOwnSession(page, 'completed-tasks');
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -340,7 +358,7 @@ test.describe('Balamentum — Erledigt-Ansicht (#228/#307) gegen das echte Backe
 
 		test('AK-307-5: Icon-Button „Wieder öffnen" liegt auch bei 375px in einer Toolbar', async ({ page }) => {
 			await registerOwnSession(page, 'completed-tasks');
-			await page.setViewportSize({ width: 375, height: 667 });
+			await page.setViewportSize(MOBILE);
 			await page.goto('/app/');
 			await waitForStableView(page);
 

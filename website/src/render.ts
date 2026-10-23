@@ -15,6 +15,7 @@ import { OPERATOR } from '../../frontend/src/lib/operator.ts';
 import { PRIVACY } from './privacy.ts';
 import { TERMS } from './terms.ts';
 import { WITHDRAWAL } from './withdrawal.ts';
+import { ACCESSIBILITY } from './accessibility.ts';
 import { MCP_GUIDE } from './mcp-guide.ts';
 import { TEMPLATES, TEMPLATE_TEXT, TEMPLATES_EN, localizeTemplate } from './templates.ts';
 import { ASSESSMENT, clientScript, pillarNames } from './assessment.ts';
@@ -59,6 +60,7 @@ export const SUBPAGES = {
 	mcpGuide: { de: '/mcp/', en: '/en/mcp/' },
 	templates: { de: '/vorlagen/', en: '/en/templates/' },
 	assessment: { de: '/balance-check/', en: '/en/balance-check/' },
+	accessibility: { de: '/barrierefreiheit/', en: '/en/accessibility/' },
 } as const;
 
 export type Subpage = keyof typeof SUBPAGES;
@@ -173,6 +175,27 @@ interface ShellOptions {
 /** Leerzeilen aus bedingten Template-Teilen entfernen, damit das ausgelieferte HTML sauber bleibt. */
 const tidy = (html: string): string => html.replace(/\n[\t ]*(?=\n)/g, '');
 
+/**
+ * Opt-in-Hinweis zur Reichweitenmessung (#2734). Bleibt verborgen, bis das Matomo-Snippet im `<head>`
+ * `window.bmTracking` bereitstellt und noch keine Wahl gespeichert ist; der Fußzeilen-Link öffnet ihn
+ * erneut. Beide Knöpfe gleich gewichtet: Ablehnen ist so leicht wie Zulassen.
+ */
+const trackingBanner = (
+	locale: Locale,
+	messages: Messages,
+): string => `		<section class="tracking-banner" data-tracking-banner hidden aria-label="${t(messages.tracking.title)}">
+			<div class="container tracking-banner__inner">
+				<p class="kern-body"><strong>${t(messages.tracking.title)}:</strong> ${t(messages.tracking.text)} <a class="kern-link" href="${SUBPAGES.privacy[subpageLang(locale)]}">${t(messages.tracking.privacy)}</a></p>
+				<div class="tracking-banner__actions">
+					<button type="button" class="kern-btn kern-btn--secondary" data-tracking="on"><span class="kern-label">${t(messages.tracking.accept)}</span></button>
+					<button type="button" class="kern-btn kern-btn--secondary" data-tracking="off"><span class="kern-label">${t(messages.tracking.decline)}</span></button>
+				</div>
+			</div>
+		</section>`;
+
+/** Steuerung zu `trackingBanner`; steht am Ende des `<body>`, damit der Fußzeilen-Link schon existiert. */
+const TRACKING_SCRIPT = `<script>(function(){var m=window.bmTracking,b=document.querySelector('[data-tracking-banner]');if(!m||!b)return;b.hidden=m.get()!==null;b.addEventListener('click',function(e){var c=e.target.closest('[data-tracking]');if(!c)return;m.set(c.getAttribute('data-tracking')==='on');b.hidden=true});document.querySelectorAll('[data-tracking-settings]').forEach(function(a){a.hidden=false;a.addEventListener('click',function(e){e.preventDefault();b.hidden=false;b.querySelector('button').focus()})})})()</script>`;
+
 const shell = (context: PageContext, { title, description, path, pathFor, body, head = '' }: ShellOptions): string => {
 	const { locale, messages, siteUrl } = context;
 	return tidy(`<!doctype html>
@@ -220,6 +243,7 @@ ${languageLinks(locale, pathFor, '\t\t\t\t\t\t\t')}
 				</nav>
 			</div>
 		</header>
+${trackingBanner(locale, messages)}
 		<main id="main">
 ${body}
 		</main>
@@ -237,6 +261,7 @@ ${body}
 						['mcpGuide', messages.footer.mcpGuide],
 						['templates', messages.footer.templates],
 						['assessment', ASSESSMENT[subpageLang(locale)].title],
+						['accessibility', messages.footer.accessibility],
 					] as [Subpage, string][]
 				)
 					.map(
@@ -244,6 +269,7 @@ ${body}
 							`<a class="kern-link" href="${SUBPAGES[page][subpageLang(locale)]}" hreflang="${subpageLang(locale)}">${t(label)}</a>`,
 					)
 					.join('\n\t\t\t\t')}
+				<a class="kern-link" href="#" data-tracking-settings hidden>${t(messages.tracking.settings)}</a>
 				${locale === 'de' ? '' : `<span class="site-footer__legal-note">${t(messages.footer.legalGermanOnly)}</span>`}
 			</div>
 			<nav class="container" aria-label="${t(messages.meta.language)}">
@@ -252,6 +278,7 @@ ${languageLinks(locale, pathFor, '\t\t\t\t\t')}
 				</ul>
 			</nav>
 		</footer>
+		${TRACKING_SCRIPT}
 	</body>
 </html>
 `);
@@ -642,6 +669,38 @@ ${text.sections
 };
 
 /**
+ * Zugänglichkeitserklärung nach § 14 BFSG (#2769): `/barrierefreiheit/` und `/en/accessibility/`,
+ * Muster {@link renderWithdrawal}. Der Mailto-Link im Feedback-Abschnitt trägt die Adresse aus
+ * `OPERATOR`; Konformitätsgrad und Einschränkungen sind Entwurf und werden im PR freigegeben.
+ */
+export const renderAccessibility = (context: PageContext & { allMessages: Record<Locale, Messages> }): string => {
+	const lang = subpageLang(context.locale);
+	const pathFor = subpagePathFor('accessibility');
+	const text = ACCESSIBILITY[lang];
+	const body = `\t\t\t<section class="section">
+	\t\t\t\t<div class="container container--narrow imprint">
+	\t\t\t\t\t<h1 class="kern-heading-large">${t(text.title)}</h1>
+	\t\t\t\t\t<p class="kern-body kern-body--large">${t(text.intro)}</p>
+${text.sections
+	.flatMap((section) => [
+		`\t\t\t\t\t<h2 class="kern-title">${t(section.heading)}</h2>`,
+		...section.paragraphs.map((paragraph) => `\t\t\t\t\t<p class="kern-body">${t(paragraph)}</p>`),
+		...(section.feedbackMailto
+			? [`\t\t\t\t\t<p><a class="kern-link" href="mailto:${OPERATOR.email}">${t(section.feedbackMailto)}</a></p>`]
+			: []),
+	])
+	.join('\n')}\t\t\t\t</div>
+	\t\t</section>`;
+	return shell(context, {
+		title: `${text.title} – Balamentum`,
+		description: text.description,
+		path: pathFor(context.locale),
+		pathFor,
+		body,
+	});
+};
+
+/**
  * MCP-Anleitung (#1978): `/mcp/` und `/en/mcp/`, Muster {@link renderPrivacy}. Der Claude-Ein-Klick-Link
  * trägt die kodierte Endpunkt-URL (claude.com/docs/connectors/building/directory-vs-custom).
  */
@@ -902,3 +961,20 @@ export const renderCancellationConfirm = (context: PageContext): string => {
 						<script>${confirmScript(text.script)}</script>`,
 	);
 };
+
+/** Fehlerseite für unbekannte Pfade (Caddy `handle_errors 404`); zweisprachig, da Caddy die Sprache nicht kennt. */
+export const renderNotFound = (context: PageContext): string =>
+	shell(context, {
+		title: 'Seite nicht gefunden – Balamentum',
+		description: 'Diese Seite gibt es nicht.',
+		path: '/404.html',
+		pathFor: homePath,
+		head: '<meta name="robots" content="noindex">',
+		body: `			<section class="section">
+					<div class="container container--narrow imprint">
+						<h1 class="kern-heading-large">Seite nicht gefunden</h1>
+						<p class="kern-body" lang="en">Page not found.</p>
+						<p><a class="kern-btn kern-btn--primary" href="/"><span class="kern-label">Zur Startseite</span></a></p>
+					</div>
+			</section>`,
+	});

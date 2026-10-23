@@ -1,8 +1,10 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { api } from './api';
 import { Root } from './Root';
 import { NATIVE_LOGGED_OUT_KEY } from './lib/appToken';
+import { LAUNCH_BANNER_DISMISS_KEY } from './lib/launchBanner';
 import { nativeGoogleLogin } from './lib/nativeAuth';
 
 /**
@@ -31,6 +33,15 @@ vi.mock('./lib/nativeAuth', () => ({
 	nativeGoogleLogin: vi.fn(async () => 'unavailable'),
 	finishNativeLogin: vi.fn(),
 	startNativeGoogleLogin: vi.fn(),
+}));
+
+// Root (verifyMagicLink) und LoginPage (getAuthProviders, zeilenübergreifend verkettet) nutzen die
+// API-Fassade — der Auth-Check selbst läuft über direktes fetch.
+vi.mock('./api', () => ({
+	api: {
+		verifyMagicLink: vi.fn(async () => true),
+		getAuthProviders: vi.fn(async () => ({ google: true, magicLink: false })),
+	},
 }));
 
 describe('Issue #1136 — Root-Auth-Gate', () => {
@@ -143,6 +154,37 @@ describe('Issue #1136 — Root-Auth-Gate', () => {
 	});
 });
 
+// #2480/#2677: Der geräteweite Schließen-Marker des Einladungs-Banners gilt je Login — die
+// Magic-Link-Einlösung im Browser setzt ihn zurück, damit der Banner nach dem Login wieder erscheint.
+describe('Issue #2677 — Magic-Link-Einlösung setzt den Banner-Marker zurück', () => {
+	const originalFetch = global.fetch;
+
+	afterEach(() => {
+		cleanup();
+		global.fetch = originalFetch;
+		window.history.replaceState(null, '', '/');
+		localStorage.clear();
+	});
+
+	it('erfolgreiche Einlösung entfernt pp-launch-banner-dismissed', async () => {
+		localStorage.setItem(LAUNCH_BANNER_DISMISS_KEY, '1');
+
+		global.fetch = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: async () => ({ id: 1, email: 'peter@example.com', displayName: 'Peter', avatarUrl: null }),
+		}) as unknown as typeof fetch;
+
+		window.history.replaceState(null, '', '/?magic=tok-2677');
+		render(<Root />);
+
+		// Der Auth-Check läuft NACH der Einlösung — mit der App sind beide Schritte garantiert durch.
+		expect(await screen.findByTestId('app')).toBeVisible();
+		expect(api.verifyMagicLink).toHaveBeenCalledWith('tok-2677');
+		expect(localStorage.getItem(LAUNCH_BANNER_DISMISS_KEY), 'Der Schließen-Marker gilt je Login').toBeNull();
+	});
+});
+
 // ADR 0023: In der App versucht Root ohne Sitzung einmal die native Google-Anmeldung, nach dem
 // Abmelden auch über einen Neustart hinweg nicht mehr.
 describe('Root in der Android-App (ADR 0023)', () => {
@@ -180,5 +222,63 @@ describe('Root in der Android-App (ADR 0023)', () => {
 
 		expect(await screen.findByRole('button', { name: 'Mit Google anmelden' })).toBeVisible();
 		expect(nativeGoogleLogin).not.toHaveBeenCalled();
+	});
+});
+
+describe('Issue #2563 — Magic-Link-App-Marker', () => {
+	const originalFetch = global.fetch;
+
+	afterEach(() => {
+		cleanup();
+		global.fetch = originalFetch;
+		window.history.replaceState(null, '', '/');
+	});
+
+	it('AK2: App-Marker-Link wird nicht im Browser eingelöst — Landing bietet den Rücksprung in die App', async () => {
+		const aufgerufeneUrls: string[] = [];
+		global.fetch = vi.fn((input: unknown) => {
+			aufgerufeneUrls.push(String(input instanceof Request ? input.url : input));
+			return Promise.resolve(new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }));
+		}) as unknown as typeof fetch;
+
+		window.history.replaceState(null, '', '/app/?magic=tok-2563&client=app');
+		render(<Root />);
+
+		const ruecksprung = await screen.findByRole('link', { name: /in der app öffnen/i }, { timeout: 3000 });
+		expect(ruecksprung).toHaveAttribute('href', expect.stringContaining('balamentum.app://auth/native?magic=tok-2563'));
+		expect(
+			aufgerufeneUrls.some((url) => url.includes('/auth/magic-link/verify')),
+			'Der Token darf im Browser nicht eingereicht werden',
+		).toBe(false);
+	});
+
+	// #2565 (docs/spec/issue-2565.md AK1+AK4): Auch MIT bestehender Browser-Session (/auth/me → 200)
+	// muss die Landing erscheinen — heute gewinnt der authentifizierte Zweig und der Token verfällt.
+	it('AK1 (#2565): App-Marker-Link zeigt die Landing auch bei bestehender Browser-Session', async () => {
+		const aufgerufeneUrls: string[] = [];
+		global.fetch = vi.fn((input: unknown) => {
+			aufgerufeneUrls.push(String(input instanceof Request ? input.url : input));
+			return Promise.resolve({
+				ok: true,
+				status: 200,
+				json: async () => ({
+					id: 1,
+					email: 'peter@example.com',
+					displayName: 'Peter',
+					avatarUrl: null,
+					termsAccepted: true,
+				}),
+			});
+		}) as unknown as typeof fetch;
+
+		window.history.replaceState(null, '', '/app/?magic=tok-2565&client=app');
+		render(<Root />);
+
+		const ruecksprung = await screen.findByRole('link', { name: /in der app öffnen/i }, { timeout: 3000 });
+		expect(ruecksprung).toHaveAttribute('href', expect.stringContaining('balamentum.app://auth/native?magic=tok-2565'));
+		expect(
+			aufgerufeneUrls.some((url) => url.includes('/auth/magic-link/verify')),
+			'Der Token darf auch bei bestehender Session nicht eingereicht werden (AK4)',
+		).toBe(false);
 	});
 });

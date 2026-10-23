@@ -35,7 +35,13 @@ on:
   schedule:
     - cron: '0 3 * * *' # 05:00 Berlin im Sommer (CEST, UTC+2)
     - cron: '0 4 * * *' # 05:00 Berlin im Winter (CET, UTC+1)
-  workflow_dispatch: {} # manueller Testlauf, umgeht das Zeitfenster-Gate
+  workflow_dispatch: # manueller Testlauf, umgeht das Zeitfenster-Gate
+    inputs:
+      runner:
+        description: 'Runner-Label für diesen Lauf (leer = vars.PHASE_RUNNER oder ubuntu-latest; z. B. self-hosted, pi5, ubuntu-latest)'
+        required: false
+        default: ''
+        type: string
 
 concurrency:
   group: daily-version
@@ -47,7 +53,7 @@ permissions:
 
 jobs:
   daily-version:
-    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
       - name: Zeitfenster prüfen (05-07 Uhr Europe/Berlin; manuell immer)
@@ -123,7 +129,7 @@ jobs:
             echo "has_merges=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: steps.mergecheck.outputs.has_merges == 'true'
         with:
           node-version-file: .nvmrc
@@ -131,7 +137,7 @@ jobs:
       - name: App-Token holen
         id: app-token
         if: steps.mergecheck.outputs.has_merges == 'true'
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           client-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}

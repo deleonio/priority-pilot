@@ -641,3 +641,171 @@ describe('App-Token der Android-App (#2377 AK3/AK5, Spec docs/spec/issue-2377.md
 		assert.equal(me.status, 401);
 	});
 });
+
+/**
+ * #2816 (Spec docs/spec/issue-2816.md) — der MCP-Transport ist auch über App-Tokens paketgebunden.
+ * Rot, bis `apiTokenAuth` App-Tokens planbedingt herabstuft und `apiTokenScopeGuard` den
+ * Member-MCP-Pfad für App-Tokens am `mcp_read`-Gate prüft (heute überspringt `kind: 'app'` beide
+ * Gates, der Handshake antwortet 200).
+ */
+describe('App-Token — MCP-Transport paketgebunden (#2816 AK1, Spec docs/spec/issue-2816.md)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+		process.env.MONETIZATION_ENFORCED = 'true';
+	});
+	after(async () => {
+		delete process.env.MONETIZATION_ENFORCED;
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const mcpInitialize = (token: string): Promise<Response> =>
+		fetch(`${server.baseUrl}/mcp/v1`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+			body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
+		});
+
+	it('AK1: free + App-Token erhält auf POST /mcp/v1 403 mit plan_required/mcp_read/plus, REST-Sync bleibt frei', async () => {
+		const email = 'bearer-a@example.com';
+		const token = await issueAppToken(email);
+		await setPlan(email, 'free');
+
+		const mcp = await mcpInitialize(token);
+		assert.equal(mcp.status, 403, 'der MCP-Transport ist ab Plus, free darf nicht hinein');
+		const body = (await mcp.json()) as { code?: string; feature?: string; requiredPlan?: string };
+		assert.equal(body.code, 'plan_required');
+		assert.equal(body.feature, 'mcp_read');
+		assert.equal(body.requiredPlan, 'plus');
+
+		assert.equal((await withBearer(token)).status, 200, 'GET /tasks bleibt frei (App-Sync)');
+		const write = await postTaskViaBearer(token, 'Aus der App');
+		assert.equal(write.status, 201, 'POST /tasks bleibt frei (App-Sync)');
+	});
+});
+
+describe('Bearer-Token-Auth — Feedback-Ausnahme nur für POST (#2493 AK1/AK2, Spec docs/spec/issue-2493.md)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const feedbackViaBearer = (token: string, method: string): Promise<Response> =>
+		fetch(`${server.baseUrl}/feedback`, {
+			method,
+			headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+			body: JSON.stringify({ message: 'Test' }),
+		});
+
+	it('AK1: ein Nur-lese-Token erhält bei PUT, PATCH und DELETE auf /feedback 403', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		const { token } = await createToken(cookie);
+		for (const method of ['PUT', 'PATCH', 'DELETE']) {
+			const res = await feedbackViaBearer(token, method);
+			assert.equal(res.status, 403, `${method} /feedback muss mit scope read abgewiesen werden`);
+		}
+	});
+
+	it('AK2: POST /feedback bleibt mit Nur-lese-Token erlaubt (#1890)', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		const { token } = await createToken(cookie);
+		const res = await feedbackViaBearer(token, 'POST');
+		assert.notEqual(res.status, 403);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2494 (Spec docs/spec/issue-2494.md) — App-Tokens in der Token-API
+ * einzeln widerrufbar. AK1–AK6; rot, weil GET/DELETE/`kind` heute nur für `kind: 'api'` gelten.
+ */
+describe('App-Token in der Token-API (#2494 AK1–AK6)', () => {
+	type Row = { id: number; kind?: string; name: string; createdAt: string; lastUsedAt: string | null };
+	const bearer = (token: string): Record<string, string> => ({ Authorization: `Bearer ${token}` });
+	const listVia = async (token: string): Promise<Row[]> => {
+		const res = await fetch(`${server.baseUrl}/api-tokens`, { headers: bearer(token) });
+		assert.equal(res.status, 200, 'App-Token darf /api-tokens erreichen');
+		return (await res.json()) as Row[];
+	};
+	const appRowId = async (token: string): Promise<number> => {
+		const row = (await listVia(token)).find((r) => r.kind === 'app');
+		assert.ok(row, 'App-Token muss in der Liste stehen');
+		return row.id;
+	};
+
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	it('AK1: GET liefert App-Token mit kind app neben API-Tokens, ohne token/tokenHash', async () => {
+		const appToken = await issueAppToken('bearer-a@example.com');
+		const cookie = await server.login('bearer-a@example.com');
+		await createToken(cookie, 'CLI');
+		const rows = await listVia(appToken);
+		const app = rows.filter((r) => r.kind === 'app');
+		assert.equal(app.length, 1);
+		assert.ok(app[0].createdAt && 'lastUsedAt' in app[0] && app[0].name);
+		assert.equal(rows.filter((r) => r.kind === 'api').length, 1);
+		for (const r of rows) assert.ok(!('token' in r) && !('tokenHash' in r));
+	});
+
+	it('AK2/AK3: DELETE widerruft das App-Token (204), danach fehlt es und jeder Request liefert 401', async () => {
+		const appToken = await issueAppToken('bearer-a@example.com');
+		const cookie = await server.login('bearer-a@example.com');
+		const id = await appRowId(appToken);
+		const del = await server.json(`/api-tokens/${id}`, { method: 'DELETE', headers: { Cookie: cookie } });
+		assert.equal(del.status, 204);
+		const tasks = await fetch(`${server.baseUrl}/tasks`, { headers: bearer(appToken) });
+		assert.equal(tasks.status, 401);
+		const list = await server.json('/api-tokens', { headers: { Cookie: cookie } });
+		assert.ok(!((await list.json()) as Row[]).some((r) => r.id === id));
+	});
+
+	it('AK4: fremdes App-Token ist unsichtbar, DELETE liefert 404, Token bleibt gültig', async () => {
+		const tokenA = await issueAppToken('bearer-a@example.com');
+		const tokenB = await issueAppToken('bearer-b@example.com');
+		const idB = await appRowId(tokenB);
+		assert.ok(!(await listVia(tokenA)).some((r) => r.id === idB));
+		const del = await fetch(`${server.baseUrl}/api-tokens/${idB}`, { method: 'DELETE', headers: bearer(tokenA) });
+		assert.equal(del.status, 404);
+		assert.equal((await fetch(`${server.baseUrl}/tasks`, { headers: bearer(tokenB) })).status, 200);
+	});
+
+	it('AK5: Logout widerruft nur das eigene App-Token, zweites App-Token und API-Token bleiben gültig', async () => {
+		const first = await issueAppToken('bearer-a@example.com');
+		const second = await issueAppToken('bearer-a@example.com');
+		const cookie = await server.login('bearer-a@example.com');
+		const api = await createToken(cookie, 'CLI');
+		await fetch(`${server.baseUrl}/auth/logout`, { method: 'POST', headers: bearer(first) });
+		assert.equal((await fetch(`${server.baseUrl}/tasks`, { headers: bearer(first) })).status, 401);
+		assert.equal((await fetch(`${server.baseUrl}/tasks`, { headers: bearer(second) })).status, 200);
+		assert.equal((await fetch(`${server.baseUrl}/tasks`, { headers: bearer(api.token) })).status, 200);
+	});
+
+	it('AK6: PATCH des Scopes auf ein App-Token liefert 404', async () => {
+		const appToken = await issueAppToken('bearer-a@example.com');
+		const cookie = await server.login('bearer-a@example.com');
+		const id = await appRowId(appToken);
+		const res = await server.json(`/api-tokens/${id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({ scope: 'read' }),
+		});
+		assert.equal(res.status, 404);
+	});
+});

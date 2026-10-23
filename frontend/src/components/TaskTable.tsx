@@ -3,6 +3,7 @@ import { KolBadge, KolInputCheckbox, KolTableStateful, KolToolbar } from '@publi
 import type { ChecklistItem, Task } from 'client';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { PRIORITY_COLOR } from '../lib/badgeColors';
 import type { DependencyRef } from '../lib/dependencies';
 import { renderIntoCell } from '../lib/reactCellRoot';
 import { seriesBadge } from '../lib/series';
@@ -54,13 +55,6 @@ interface TaskRow extends KoliBriTableDataType {
 	/** Referenz auf den Original-Task, damit die Aktions-Callbacks ihn erhalten. */
 	_task: Task;
 }
-
-/** P2-2: Farb-Mapping für Prioritäts-Badges (analog URGENCY_COLOR im Dashboard). */
-const PRIORITY_COLOR: Record<'info' | 'warning' | 'danger', string> = {
-	info: '#005b99', // --kol-color-primary
-	warning: '#c66a00', // --kol-color-warning
-	danger: '#b42318', // --kol-color-danger (red)
-};
 
 /** Rendert die Priorität als farbigen Badge für die Tabellenzelle (P2-2). */
 const renderPriorityBadge = (priority: number) => {

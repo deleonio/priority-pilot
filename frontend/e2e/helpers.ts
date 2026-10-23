@@ -1,5 +1,7 @@
-import type { Locator, Page } from '@playwright/test';
+import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
+// #2623: Überlast-Schwelle aus der Server-Konstante ableiten statt kopieren (Single Source of Truth).
+import { UEBERLAST_MINDEST_ERLEDIGUNGEN } from '../../server/src/logics/careDeficit.js';
 
 /**
  * Wartet, bis die Ansicht stabil und vollständig hydriert ist, bevor mit ihr interagiert wird:
@@ -72,12 +74,13 @@ export const setTheme = async (page: Page, theme: 'light' | 'dark'): Promise<voi
 };
 
 /**
- * Findet einen Task-Titel per Exakt-Text, klammert dabei aber die Dashboard-Widgets aus. Seit #1448
- * („Nächste Aufgabe", „Was ist jetzt dran?") und #1465 („Wichtigste Tasks", „Anstehende Deadlines",
- * „In der Nähe") zeigen diese Widgets den reinen Titel ohne `#<ID> –`-Präfix, wodurch sie mit
- * gleichnamigen Titeln in Listen/Formularen textgleich werden — ein seitenweites
- * `getByText(title, { exact: true })` kollidiert dann mit dem Widget-Span und wirft
- * `strict mode violation`.
+ * Findet einen Task-Titel per Exakt-Text, klammert dabei aber die Dashboard-Widgets und die
+ * Fürsorge-Hinweis-Karte aus. Seit #1448 („Nächste Aufgabe", „Was ist jetzt dran?") und #1465
+ * („Wichtigste Tasks", „Anstehende Deadlines", „In der Nähe") zeigen diese Widgets den reinen Titel
+ * ohne `#<ID> –`-Präfix, wodurch sie mit gleichnamigen Titeln in Listen/Formularen textgleich werden —
+ * ein seitenweites `getByText(title, { exact: true })` kollidiert dann mit dem Widget-Span und wirft
+ * `strict mode violation`. Seit #2522 lädt auch die Fürsorge-Hinweis-Karte nach dem Erledigen neu und
+ * kann den frisch angelegten Task als Vorschlagstitel zeigen (`care-hint-titel`).
  */
 const DASHBOARD_TITLE_CLASSES = [
 	'dashboard-next-task-title',
@@ -85,6 +88,7 @@ const DASHBOARD_TITLE_CLASSES = [
 	'dashboard-top-task-title',
 	'dashboard-deadline-title',
 	'dashboard-nearby-title',
+	'care-hint-titel',
 ];
 
 export const taskTitleText = (page: Page, title: string): Locator =>
@@ -93,14 +97,39 @@ export const taskTitleText = (page: Page, title: string): Locator =>
 		.and(page.locator(DASHBOARD_TITLE_CLASSES.map((className) => `:not(.${className})`).join('')));
 
 /**
- * Liefert eine Kopf-Aktion („Neuen Task anlegen", „Säulen-Berater", „Einstellungen", „Hilfe",
- * „Abmelden"). Seit #691 stehen alle fünf Aktionen auf JEDER Viewport-Breite direkt in der Toolbar
- * „Kopf-Aktionen" — ein Menü-Fallback existiert nicht mehr.
+ * #2723: Öffnet das Avatar-Popover (Benutzermenü) im Header und liefert den Avatar-Trigger zurück.
+ * „Hilfe" und „Abmelden" liegen seit #2723 nicht mehr in der Toolbar „Kopf-Aktionen", sondern
+ * hinter dem Avatar-Trigger — Specs, die auf diese Aktionen klicken, müssen das Menü vorher öffnen.
+ *
+ * Idempotent: Ist das Popover schon offen, wird nicht erneut geklickt (der Klick würde schließen).
+ */
+export const openAvatarMenu = async (page: Page): Promise<Locator> => {
+	const trigger = page.locator('.app-header__user button').first();
+	await expect(trigger).toBeVisible();
+	if ((await trigger.getAttribute('aria-expanded')) !== 'true') {
+		await trigger.click();
+	}
+	await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+	return trigger;
+};
+
+/**
+ * Liefert eine Kopf-Aktion. Die vier Navigations-Aktionen („Zum Dashboard", „Suche",
+ * „Neuen Task anlegen", „Einstellungen") stehen seit #691 auf JEDER Viewport-Breite direkt in der
+ * Toolbar „Kopf-Aktionen"; seit #2723 liegen „Hilfe" und „Abmelden" stattdessen hinter dem
+ * Avatar-Trigger — für sie öffnet dieser Helfer das Popover und liefert den Popover-Eintrag.
  *
  * Das `toBeVisible` wartet zugleich das asynchrone Layout der KoliBri-Toolbar ab (Items werden im
  * Shadow-DOM aufgebaut), damit nachfolgende Messungen nicht in den Pre-Hydration-Zustand laufen.
  */
 export const headerAction = async (page: Page, label: string | RegExp): Promise<Locator> => {
+	const labelText = typeof label === 'string' ? label : label.source;
+	if (/hilfe|abmelden|logout/i.test(labelText)) {
+		await openAvatarMenu(page);
+		const inPopover = page.getByRole('button', { name: label });
+		await expect(inPopover).toBeVisible();
+		return inPopover;
+	}
 	const inToolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ }).getByRole('button', { name: label });
 	await expect(inToolbar).toBeVisible();
 	return inToolbar;
@@ -321,11 +350,23 @@ export const SPEECH_MOCK_INIT_SCRIPT = `
  * Die Registrierung setzt das Session-Cookie im Browser-Context (`page.request` teilt sich den
  * Cookie-Jar mit der Seite) und säht die fünf Standard-Säulen (`auth.ts`, `SEED_PILLARS`).
  * `/auth/me` bleibt von der Fixture gemockt — die Auth-Gate im Frontend ist davon unberührt.
+ *
+ * Kontextagnostisch (Request-Kontext statt `Page`), damit auch die zentrale Fixture je Test eine
+ * eigene Session registrieren kann (#2508).
  */
-export const registerOwnSession = async (page: Page, label: string): Promise<void> => {
+export const createOwnSession = async (
+	request: APIRequestContext,
+	label: string,
+): Promise<{ email: string; password: string }> => {
 	const email = `e2e-${label}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
-	const response = await page.request.post('/auth/register', { data: { email, password: `e2e-${label}-pw` } });
+	const password = `e2e-${label}-pw`;
+	const response = await request.post('/auth/register', { data: { email, password } });
 	expect(response.status(), 'register muss eine Session und die fünf Standard-Säulen liefern').toBe(201);
+	return { email, password };
+};
+
+export const registerOwnSession = async (page: Page, label: string): Promise<void> => {
+	await createOwnSession(page.request, label);
 };
 
 /**
@@ -336,6 +377,23 @@ export const registerOwnSession = async (page: Page, label: string): Promise<voi
 export const seedAccountPreferences = async (page: Page, preferences: Record<string, boolean>): Promise<void> => {
 	const response = await page.request.put('/api/v1/account-preferences', { data: preferences });
 	expect(response.status(), 'Konto-Präferenzen müssen gespeichert werden').toBe(200);
+};
+
+/**
+ * #2527-Test-Pflege: sät die Mindestmenge an Erledigungen OHNE Säulen-Beitrag — Care-Vorschläge
+ * und die Defizit-Begründung greifen erst ab der Überlast-Mindestmenge; ohne Beitrag bleibt
+ * jede Säule defizitär, damit die Interaktions-Specs weiterhin bedienbare Vorschläge sehen.
+ */
+export const seedMindestErledigungen = async (page: Page): Promise<void> => {
+	for (let i = 0; i < UEBERLAST_MINDEST_ERLEDIGUNGEN; i++) {
+		const created = await page.request.post('/api/v1/tasks', {
+			data: { title: `E2E Pflege-Erledigt ${i + 1}`, priority: 3, estimatedEffort: 1 },
+		});
+		expect(created.status(), 'Setup: Task-Anlage muss 201 liefern').toBe(201);
+		const { id } = (await created.json()) as { id: number };
+		const done = await page.request.patch(`/api/v1/tasks/${id}`, { data: { status: 'Done' } });
+		expect(done.status(), 'Setup: Statuswechsel auf Done muss 200 liefern').toBe(200);
+	}
 };
 
 /**
@@ -372,3 +430,6 @@ export const avoidSunday = async (page: Page): Promise<void> => {
 		await page.clock.install({ time: now - 86_400_000 });
 	}
 };
+
+/** Verbindlicher Mobil-Viewport 375×812 (`.ai-knowledge/project.md`, Mobile-First); Guard: `.github/scripts/e2e-viewport.test.ts`. */
+export const MOBILE = { width: 375, height: 812 } as const;

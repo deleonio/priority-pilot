@@ -1,9 +1,9 @@
 ---
 name: code-review-team
-description: "Code-Review-Team — daily architecture and code-quality review by four perspectives (architect, clean-code reviewer, test engineer, ops and security steward) plus a rulebook check that surfaces contradictory or vague project rules; maintains one running review protocol and implements exactly one uncritical, valuable fix per run (code fix or rule consolidation). Use for 'code-review-team', 'Tagesreview' (German: taegliches Code-Review)."
+description: "Code-Review-Team — weekly (Fridays) architecture and code-quality review by four perspectives (architect, clean-code reviewer, test engineer, ops and security steward) plus a rulebook check that surfaces contradictory or vague project rules; maintains one running review protocol and implements exactly one uncritical, valuable fix per run (code fix or rule consolidation). Use for 'code-review-team', 'Wochenreview' (German: woechentliches Code-Review, freitags)."
 ---
 
-# Method: Code-Review-Team (daily architecture and code-quality review)
+# Method: Code-Review-Team (weekly architecture and code-quality review)
 
 A recurring review run. The run prompt supplies the rule sources, the code sources, the previous
 protocol, whether a fix is allowed today, and where the protocol goes; this file carries the method
@@ -25,6 +25,27 @@ The perspectives judge against what the rule sources say — they do not invent 
    scope against the project's TDD strategy (a test exists only if it evaluates something).
 4. Betriebs- und Sicherheits-Wächter — error handling, logging, input validation, secrets,
    dependency risks, failure modes that stay silent.
+
+### SOLID-Maßstab (Architekt und Clean-Code-Reviewer)
+
+SOLID is a fixed yardstick of both design perspectives — alongside the rule sources, never
+above them: where a rule source or an ADR deliberately decided otherwise, that decision is
+named, not fought.
+
+- **S (Single Responsibility)** — one module, one function, one route has exactly one reason to
+  change. Mixing domain logic, transport and side effects is a finding; shared domain logic
+  belongs in the logic layer the architecture documentation defines.
+- **O (Open/Closed)** — behaviour grows by adding a new strategy at the edge, not by ever longer
+  branch cascades in existing code. The same switch cascade over the same type in several
+  places is an O finding and a duplication finding at once.
+- **L (Liskov)** — every implementation keeps the contract of the type it serves, including
+  function parameters and factory returns. A strengthened precondition or a weakened
+  postcondition is a contract breach.
+- **I (Interface Segregation)** — no consumer is forced to carry fields or methods it never
+  uses; fat types and pseudo-optional mandatory fields are findings.
+- **D (Dependency Inversion)** — layers depend on abstractions, not on the details of the
+  neighbouring layer. The concrete allowed direction is what the architecture documentation
+  says; importing against it is an architect finding.
 
 ## Regelwerk-Prüfung
 

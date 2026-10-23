@@ -6,10 +6,9 @@ import type { ErrorRequestHandler, Request, Response } from 'express';
  * ein HMAC-Cookie wird mit dem `x-csrf-token`-Header verglichen; Frontend holt den Token
  * über GET /auth/csrf und sendet ihn bei jedem schreibenden Request mit (siehe frontend/src/api.ts).
  *
- * Aktiv nur in Produktion (gleiche Haltung wie die SESSION_SECRET-/Allowlist-Gates in index.ts):
- * Dev führt 'dev-secret' ohne echte Sessions, und die E2E-Suite seedet ihre Daten über direkte
- * page.request-Aufrufe ohne Token — der Frontend-Token-Flow läuft in allen Umgebungen und wird
- * im E2E trotzdem mitgefahren.
+ * Aktiv, sobald SESSION_SECRET gesetzt ist (echte Sessions), außer bei NODE_ENV=test: Die
+ * E2E-Suite seedet ihre Daten über direkte page.request-Aufrufe ohne Token — der Frontend-Token-Flow
+ * läuft in allen Umgebungen und wird im E2E trotzdem mitgefahren.
  */
 export const createCsrfUtilities = (sessionSecret: string) => {
 	// Cookie-Name/-Flags folgen dem Session-Cookie: `__Host-` + secure nur in Produktion (HTTPS via
@@ -33,7 +32,7 @@ export const createCsrfUtilities = (sessionSecret: string) => {
 	// csrf-csrf lehnt mit invalidCsrfTokenError ab — ohne diesen Handler würde Express daraus ein 500.
 	const csrfErrorHandler: ErrorRequestHandler = (err, _req, res, next) => {
 		if (err === invalidCsrfTokenError) {
-			res.status(403).json({ error: 'Ungültiger CSRF-Token.' });
+			res.status(403).json({ message: 'Ungültiger CSRF-Token.' });
 			return;
 		}
 		next(err);

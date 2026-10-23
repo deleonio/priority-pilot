@@ -253,6 +253,7 @@
 		"cancellation": "Verträge hier kündigen",
 		"mcpGuide": "MCP-Anleitung",
 		"templates": "Vorlagen",
+		"accessibility": "Barrierefreiheit",
 		"legalGermanOnly": "Rechtstexte nur auf Deutsch, verbindlich ist die deutsche Fassung."
 	},
 	"imprint": {
@@ -286,5 +287,13 @@
 		"noAccessTitle": "Ohne Zugang zur App",
 		"noAccess": "Schreib uns von der E-Mail-Adresse deines Kontos. Wir löschen das Konto innerhalb eines Monats und bestätigen dir das.",
 		"back": "Zurück zur Startseite"
+	},
+	"tracking": {
+		"title": "Reichweitenmessung",
+		"text": "Dürfen wir zählen, welche Seiten besucht werden? Ohne Cookies, auf unserem eigenen Server und nur, um Balamentum zu verbessern. Ohne dein Ja bleibt die Messung aus.",
+		"accept": "Zulassen",
+		"decline": "Ablehnen",
+		"privacy": "Mehr dazu",
+		"settings": "Reichweitenmessung"
 	}
 }

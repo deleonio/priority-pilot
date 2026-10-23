@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * Rote Spec-E2E für #1958 (Spec `docs/spec/issue-1958.md`, AK3/AK5): Die Nutzerverwaltung zeigt
@@ -25,7 +25,6 @@ import { waitForStableView } from './helpers';
  * Aufklapp-Klick zielt auf den Label-Text (`getByText`, pierct den offenen Shadow-DOM).
  */
 
-const MOBILE = { width: 375, height: 812 } as const;
 const ADMIN = { email: 'admin-1958@example.com', displayName: 'Anna Admin' };
 
 const INVOICES = [

@@ -1,8 +1,6 @@
 # Spec: Dialog-Vorgaben für die KI über den MCP-Handshake (#1935)
 
-Status: rot (Spec-Phase) — Tests in `server/src/express/mcp-instructions.test.ts`,
-`server/src/express/mcp-handshake.test.ts`, `frontend/src/components/McpInstructionsSection.test.tsx`,
-`frontend/e2e/issue-1935-mcp-instructions.spec.ts`. Quelle: KI-ANALYSE-/KI-UX-Block im Harness-Kommentar.
+Quelle: KI-ANALYSE-/KI-UX-Block im Harness-Kommentar.
 
 ## Vertrag
 

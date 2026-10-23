@@ -23,14 +23,22 @@ const PERCENT = 100;
  * Wert kaum (der Beitrag bleibt nahe neutral). Gleichverteilung (jede Säule weight = 100/N) ergibt
  * exakt Faktor 1 für beliebige N ≥ 1.
  */
-const getPillarFactor = async (task: Task): Promise<number> => {
+const getPillarFactor = async (task: Task, pillarCounts: PillarCounts): Promise<number> => {
 	const pillars = await task.getPillars();
 	if (pillars.length === 0) {
 		return 1;
 	}
 
 	// N = Anzahl der Säulen des Task-Eigentümers; Legacy-Fallback für NULL-owned Tasks
-	const N = task.userId != null ? await Pillar.count({ where: { userId: task.userId } }) : LEGACY_PILLAR_COUNT;
+	let N = LEGACY_PILLAR_COUNT;
+	if (task.userId != null) {
+		let count = pillarCounts.get(task.userId);
+		if (count === undefined) {
+			count = await Pillar.count({ where: { userId: task.userId } });
+			pillarCounts.set(task.userId, count);
+		}
+		N = count;
+	}
 
 	if (N <= 0) {
 		return 1; // Keine Säulen im System ⇒ kein Einfluss
@@ -47,15 +55,21 @@ const getPillarFactor = async (task: Task): Promise<number> => {
 	return factor;
 };
 
-export const calculateValueContribution = async (task: Task): Promise<number> => {
+/** Säulenzahl je userId, von einer Anfrage geteilt, damit `Pillar.count` nicht je Knoten läuft (#2544). */
+export type PillarCounts = Map<number, number>;
+
+export const calculateValueContribution = async (
+	task: Task,
+	pillarCounts: PillarCounts = new Map(),
+): Promise<number> => {
 	const dependencies = await task.getDependents();
 	let value = 0;
 	for (const dependency of dependencies) {
-		const dependencyValue = await calculateValueContribution(dependency);
+		const dependencyValue = await calculateValueContribution(dependency, pillarCounts);
 		const weight = dependency.Dependency?.dataValues?.weight || 1;
 		value += dependencyValue * weight;
 	}
 	const baseValue = (value + task.priority) / (dependencies.length + 1);
 	// Säulen-Beiträge einbeziehen: höher gewichtete Säulen heben den Wert (multiplikativ).
-	return baseValue * (await getPillarFactor(task));
+	return baseValue * (await getPillarFactor(task, pillarCounts));
 };

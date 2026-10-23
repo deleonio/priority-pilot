@@ -47,7 +47,10 @@ fi
 
 # Kategorie-Titel + Reihenfolge kommen ausschließlich aus release.yml (kein zweites,
 # gepflegtes Duplikat der Liste im Skript).
-mapfile -t CATEGORIES < <(sed -n 's/^    - title: //p' "$RELEASE_YML")
+CATEGORIES=()
+while IFS= read -r c; do
+  CATEGORIES+=("$c")
+done < <(sed -n 's/^    - title: //p' "$RELEASE_YML")
 if [ "${#CATEGORIES[@]}" -eq 0 ]; then
   echo "::warning title=Keine Kategorien::.github/release.yml enthält keine Kategorie-Titel."
   exit 0

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { accordionTrigger, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #1994 (docs/spec/issue-1994.md AK5/AK6/AK7): drei große, mehrfach verschobene
@@ -50,6 +50,9 @@ test.describe('Balamentum — #1994: Aufteilen-Hinweis', () => {
 
 		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Balamentum');
+		// Push-Details-Umbau: der Schalter sitzt im Klappbereich „Einzelne Benachrichtigungen"
+		// — vor Prüfung und Klick aufklappen (Muster issue-1794-care-switch AK8).
+		await accordionTrigger(page, 'Einzelne Benachrichtigungen').click();
 		await expect(switchLocator(page)).toBeChecked();
 		await switchLocator(page).click();
 		await expect

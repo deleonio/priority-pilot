@@ -81,7 +81,8 @@ test.describe('Balamentum — #1902: Reiter „Pakete & Abo“', () => {
 		expect(matrixBox, 'Matrix hat ein Layout').not.toBeNull();
 		expect(matrixBox!.x + matrixBox!.width).toBeLessThanOrEqual(375 + 1);
 
-		const book = page.getByRole('button', { name: /Zahlungspflichtig bestellen/ }).first();
+		// Test-Pflege #2661: der Paket-Knopf heißt schlicht „Bestellen“ (Paket/Laufzeit unsichtbar im Namen).
+		const book = page.getByRole('button', { name: /^Bestellen/ }).first();
 		await book.scrollIntoViewIfNeeded();
 		await expect(book).toBeVisible();
 		const box = await book.boundingBox();

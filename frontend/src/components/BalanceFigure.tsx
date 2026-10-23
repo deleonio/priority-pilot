@@ -1,15 +1,22 @@
 import { useCallback, useMemo, useState } from 'react';
 import { BalanceFigureGL } from './BalanceFigureGL';
+import i18next from '../i18n/config';
 import {
 	activeTicks,
 	buildArcs,
 	buildHands,
+	buildOrbits,
 	buildOrbs,
 	buildPetals,
 	buildRays,
 	buildWedges,
 	CENTER,
+	keplerTheta,
+	ORBIT_FLAT,
+	ORBIT_SWING,
 	orbAxes,
+	orbitPoint,
+	pendelState,
 	petalArcPoints,
 	polar,
 	ringTicks,
@@ -19,6 +26,7 @@ import {
 	type Arc,
 	type FigureMotion,
 	type Hand,
+	type Orbit,
 	type Petal,
 	type Ray,
 	type RingTick,
@@ -31,8 +39,8 @@ import { PILLAR_RAMP_SIZE, rampClass } from '../lib/pillarRamp';
 import { supportsWebGl2 } from '../lib/webgl';
 
 /**
- * Die **Figuren-Varianten** der Lebensbalance: Blasen, Scheiben, Ringe, Strahlen, Blüte, Kristall —
- * außen herum immer dasselbe Zifferblatt aus 100 Strichen.
+ * Die **Figuren-Varianten** der Lebensbalance: Blasen, Scheiben, Ringe, Strahlen, Blüte, Kristall,
+ * Segmente, Zeiger, Bahnen — außen herum immer dasselbe Zifferblatt aus 100 Strichen.
  *
  * **Alle zeigen dieselben Zahlen.** Je Säule das Verhältnis Ist zu Soll (`balanceMetric.ts`),
  * ungedeckelt: 1 heißt „genau auf Ziel", 1,5 heißt „zieht davon". Die stärkste Säule bekommt
@@ -70,6 +78,8 @@ interface BalanceFigureProps {
 	figure: FigureKind;
 	/** Bewegung erlauben (beide Animationsschalter + OS-Einstellung). */
 	animated: boolean;
+	/** Freigabe des Auftakts — erst mit dem echten Balance-Stand startet er (nur GL-Fassung). */
+	auftaktBereit?: boolean;
 	/** Sekunden je Ruhepuls-Schlag; ruhiger, je ausgewogener das Bild. */
 	beatSeconds: number;
 	/** Zugängliches Label der Grafik. */
@@ -195,7 +205,64 @@ const wedgePoints = (wedge: Wedge): string =>
 		.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`)
 		.join(' ');
 
-export const BalanceFigure = ({ balance, figure, animated, beatSeconds, ariaLabel }: BalanceFigureProps) => {
+/**
+ * Eine Umlaufbahn als Laufpfad für `animateMotion`: beginnt beim Umlauf-Winkel `start` und läuft
+ * in der Drehrichtung einmal herum — zwei Halb-Ellipsenbögen, gedreht wie die Bahn selbst.
+ */
+const orbitPath = (orbit: Orbit, start: number): string => {
+	const small = orbit.radius * ORBIT_FLAT;
+	const sweep = orbit.rotDirection === 1 ? 1 : 0;
+	const arc = `A ${orbit.radius.toFixed(3)} ${small.toFixed(3)} ${orbit.angle.toFixed(2)} 0 ${sweep}`;
+	const from = orbitPoint(orbit, start);
+	const half = orbitPoint(orbit, start + Math.PI);
+	return [
+		`M ${from.x.toFixed(2)} ${from.y.toFixed(2)}`,
+		`${arc} ${half.x.toFixed(2)} ${half.y.toFixed(2)}`,
+		`${arc} ${from.x.toFixed(2)} ${from.y.toFixed(2)}`,
+	].join(' ');
+};
+
+/**
+ * Weg- und Zeitanteile des Kepler-Umlaufs für `animateMotion` (`keyPoints`/`keyTimes`): Der Weg
+ * wird über Sehnen kumuliert, der Browser interpoliert dazwischen — die Kepler-Beschleunigung
+ * liest sich auch mit acht Stützstellen (zahlengleich zu `keplerTheta`).
+ */
+const keplerKeys = (orbit: Orbit): { points: string; times: string } => {
+	const steps = 8;
+	const small = orbit.radius * ORBIT_FLAT;
+	const thetas = Array.from({ length: steps + 1 }, (_, step) => keplerTheta(orbit, (step / steps) * orbit.rotPeriod));
+	const chord = (from: number, to: number): number =>
+		Math.hypot(orbit.radius * (Math.cos(to) - Math.cos(from)), small * (Math.sin(to) - Math.sin(from)));
+	const fracs = [0];
+	for (let step = 1; step <= steps; step += 1) fracs.push(fracs[step - 1] + chord(thetas[step - 1], thetas[step]));
+	const last = fracs[steps] || 1;
+	return {
+		points: fracs.map((frac) => (frac / last).toFixed(4)).join(';'),
+		times: Array.from({ length: steps + 1 }, (_, step) => (step / steps).toFixed(4)).join(';'),
+	};
+};
+
+/**
+ * Der Bogen des Pendels: das Stück der Bahn, über das der Komet um seine Phase schwingt — von
+ * einer Umkehrposition zur anderen. Der Bogen ist größer als ein Halbkreis, deshalb führt er das
+ * large-arc-Flag.
+ */
+const pendelPath = (orbit: Orbit): string => {
+	const small = orbit.radius * ORBIT_FLAT;
+	const sweep = orbit.rotDirection === 1 ? 1 : 0;
+	const from = orbitPoint(orbit, orbit.phase - orbit.rotDirection * ORBIT_SWING);
+	const to = orbitPoint(orbit, orbit.phase + orbit.rotDirection * ORBIT_SWING);
+	return `M ${from.x.toFixed(2)} ${from.y.toFixed(2)} A ${orbit.radius.toFixed(3)} ${small.toFixed(3)} ${orbit.angle.toFixed(2)} 1 ${sweep} ${to.x.toFixed(2)} ${to.y.toFixed(2)}`;
+};
+
+export const BalanceFigure = ({
+	balance,
+	figure,
+	animated,
+	auftaktBereit,
+	beatSeconds,
+	ariaLabel,
+}: BalanceFigureProps) => {
 	const metrics = useMemo(() => balanceMetrics(balance), [balance]);
 	const ticks = useMemo(() => ringTicks(balance.fill), [balance.fill]);
 	const lit = activeTicks(balance.fill);
@@ -213,12 +280,15 @@ export const BalanceFigure = ({ balance, figure, animated, beatSeconds, ariaLabe
 				activeTicks={lit}
 				beatSeconds={beatSeconds}
 				animated={animated}
+				auftaktBereit={auftaktBereit}
 				ariaLabel={ariaLabel}
 				onGiveUp={giveUpGlass}
 			/>
 		);
 	}
 
+	// Der Auftakt bleibt der GL-Fassung vorbehalten: Der Ring des SVG ist bewusst statisch und
+	// zeigt jeden Stand sofort — ein Zurückhalten hätte hier nichts zu verlangsamen.
 	return (
 		<svg
 			className="balance-figure-svg"
@@ -266,6 +336,9 @@ export const BalanceFigure = ({ balance, figure, animated, beatSeconds, ariaLabe
 					{figure === 'kristall' && <Crystal metrics={metrics} animated={animated} />}
 					{figure === 'segmente' && <Wedges metrics={metrics} animated={animated} />}
 					{figure === 'zeiger' && <Hands metrics={metrics} animated={animated} />}
+					{figure === 'bahnen' && <Orbits metrics={metrics} animated={animated} motion="kepler" />}
+					{figure === 'meteore' && <Orbits metrics={metrics} animated={animated} motion="meteor" />}
+					{figure === 'pendel' && <Orbits metrics={metrics} animated={animated} motion="pendel" />}
 				</g>
 			</g>
 		</svg>
@@ -344,7 +417,12 @@ const Arcs = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetrics
 								repeatCount="indefinite"
 							/>
 						)}
-						<title>{`${(circumference * arc.sweep).toFixed(0)} von ${circumference.toFixed(0)}`}</title>
+						<title>
+							{i18next.t('dashboard:balance.arcTitle', {
+								value: (circumference * arc.sweep).toFixed(0),
+								total: circumference.toFixed(0),
+							})}
+						</title>
 					</circle>
 					{/* Soll-Marke: ein Strich quer über die Spur. */}
 					<line
@@ -619,6 +697,109 @@ const Hands = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetric
 					/>
 				</g>
 			))}
+		</>
+	);
+};
+
+/**
+ * Figuren „Bahnen", „Meteore" und „Pendel": je Säule ein Komet auf eigener Ellipsenbahn um die
+ * Mitte — dieselbe Geometrie, drei Bewegungen. Die Bahn ist der Weg, nicht der Wert: blass und
+ * dünn, ihre große Achse (Attribut `rx`) trägt die Kennzahl; die größte Bahn zeigt auf 12 Uhr.
+ * Bahnen laufen im Kepler-Takt (nahe der Mitte schneller), Meteore tragen einen langen Schweif,
+ * das Pendel schwingt um seine Phase — der Schweif zeigt entgegen der Laufrichtung.
+ */
+const Orbits = ({
+	metrics,
+	animated,
+	motion,
+}: {
+	metrics: ReturnType<typeof balanceMetrics>;
+	animated: boolean;
+	motion: 'kepler' | 'meteor' | 'pendel';
+}) => {
+	const orbits = buildOrbits(metrics);
+	return (
+		<>
+			{orbits.length > 0 && (
+				<circle
+					className="balance-target"
+					data-testid="balance-target"
+					cx={CENTER}
+					cy={CENTER}
+					r={targetRadius(metrics).toFixed(2)}
+				/>
+			)}
+			{orbits.map((orbit) => {
+				const start = motion === 'pendel' ? pendelState(orbit, 0) : undefined;
+				const theta0 = start ? start.theta : keplerTheta(orbit, 0);
+				const dirNow = start ? start.dirNow : orbit.rotDirection;
+				const position = orbitPoint(orbit, theta0);
+				const heading = position.heading + (dirNow === 1 ? 0 : 180);
+				const keys = motion === 'kepler' ? keplerKeys(orbit) : undefined;
+				return (
+					<g key={orbit.pillarId} data-testid="heart-column">
+						<ellipse
+							className={rampClass('balance-orbit-track', orbit.colorIndex)}
+							cx={CENTER}
+							cy={CENTER}
+							rx={orbit.radius.toFixed(3)}
+							ry={(orbit.radius * ORBIT_FLAT).toFixed(3)}
+							transform={`rotate(${orbit.angle.toFixed(2)} ${CENTER} ${CENTER})`}
+						/>
+						{/*
+						 * Der Komet: Kopf und Schweif in einer Gruppe, damit der Schweif der Bewegung folgt
+						 * — `rotate="auto"` dreht die Gruppenachse in Laufrichtung, der Schweif zeigt in
+						 * negatives x. Still steht die Gruppe auf dem Startwinkel der Säule. Bahnen
+						 * folgen dem Kepler-Takt über Weg-Anteile (keyPoints), das Pendel läuft seinen
+						 * Bogen hin und zurück — weich über Splines, wie eine Schwingung.
+						 */}
+						<g
+							transform={
+								animated
+									? undefined
+									: `translate(${position.x.toFixed(2)} ${position.y.toFixed(2)}) rotate(${heading.toFixed(2)})`
+							}
+						>
+							{animated &&
+								(motion === 'pendel' ? (
+									<animateMotion
+										dur={`${orbit.swingPeriod.toFixed(2)}s`}
+										repeatCount="indefinite"
+										rotate="auto"
+										path={pendelPath(orbit)}
+										calcMode="spline"
+										keyPoints="0;1;0"
+										keyTimes="0;0.5;1"
+										keySplines="0.37 0 0.63 1;0.37 0 0.63 1"
+									/>
+								) : (
+									<animateMotion
+										dur={`${orbit.rotPeriod.toFixed(2)}s`}
+										repeatCount="indefinite"
+										rotate="auto"
+										path={orbitPath(orbit, theta0)}
+										calcMode="linear"
+										{...(keys ? { keyPoints: keys.points, keyTimes: keys.times } : {})}
+									/>
+								))}
+							<polygon
+								className={rampClass('balance-comet-tail', orbit.colorIndex)}
+								points={motion === 'meteor' ? '0,-1.6 -14,0 0,1.6' : '0,-1.2 -8.5,0 0,1.2'}
+							/>
+							<circle className={rampClass('balance-node', orbit.colorIndex)} cx={0} cy={0} r={1.5}>
+								{animated && (
+									<animate
+										attributeName="r"
+										values="1.1;1.9;1.1"
+										dur={`${orbit.swingPeriod}s`}
+										repeatCount="indefinite"
+									/>
+								)}
+							</circle>
+						</g>
+					</g>
+				);
+			})}
 		</>
 	);
 };

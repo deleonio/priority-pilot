@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, seedAccountPreferences, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-e2e für #934 — „InputRange-Mindestbreite 300 px + doppelte Säulen-Beschreibung entfernen".
@@ -17,8 +17,9 @@ import { waitForStableView } from './helpers';
  * beziehen sich auf das Host-Element, damit Slider und Zahlenfeld im Shadow-DOM nicht umbrechen.
  */
 // #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
-// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+// Präferenz liegt am Konto: API-Seed + localStorage-Spiegel (#2508, Muster ai-disable.spec.ts).
 test.beforeEach(async ({ page }) => {
+	await seedAccountPreferences(page, { expertMode: true });
 	await page.addInitScript(() => {
 		localStorage.setItem('pp-expert-mode', 'true');
 	});
@@ -98,6 +99,9 @@ test.describe('#934 InputRange-Mindestbreite', () => {
 			await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
 			await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
 			await waitForStableView(page);
+
+			// #2525 (Fixup): Der Aufwand-Slider liegt im gefalteten Sekundär-Abschnitt — erst aufklappen.
+			await openAccordionSection(page, 'Termin & Ort');
 
 			// Vorher verproben, dass es wirklich die TaskForm-Range-Felder sind (Priorität + Aufwand).
 			await expect(page.locator('input[type="range"][min="1"][max="5"]')).toBeVisible();

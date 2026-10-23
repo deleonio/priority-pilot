@@ -26,7 +26,7 @@
 	"film": {
 		"title": "Balamentum em filme",
 		"lead": "Quase quatro minutos que mostram como uma lista cheia se transforma na próxima tarefa certa.",
-		"fallback": "O seu navegador não reproduz vídeos. Experimente o Balamentum diretamente."
+		"fallback": "O teu navegador não reproduz vídeos. Experimenta o Balamentum diretamente."
 	},
 	"usp": {
 		"title": "O que o Balamentum te dá",
@@ -231,7 +231,7 @@
 			},
 			{
 				"q": "Por que o e-mail de login não chega?",
-				"a": "São enviados no máximo três links de login por endereço a cada 15 minutos; pedidos adicionais desse período ficam sem e-mail. Verifique também a pasta de spam. Endereços @gmail.com e @googlemail.com chegam à mesma caixa de entrada, mas são duas contas separadas no app — use sempre a mesma grafia."
+				"a": "São enviados no máximo três links de login por endereço a cada 15 minutos; pedidos adicionais desse período ficam sem e-mail. Verifica também a pasta de spam. Endereços @gmail.com e @googlemail.com chegam à mesma caixa de entrada, mas são duas contas separadas no app — usa sempre a mesma grafia."
 			},
 			{
 				"q": "Há uma app para Android para descarregar?",
@@ -256,6 +256,7 @@
 		"cancellation": "Cancelar contrato aqui",
 		"mcpGuide": "Guia do MCP",
 		"templates": "Modelos",
+		"accessibility": "Acessibilidade",
 		"legalGermanOnly": "Textos legais em inglês para conveniência; a versão alemã é a vinculativa."
 	},
 	"imprint": {
@@ -289,5 +290,13 @@
 		"noAccessTitle": "Sem acesso à app",
 		"noAccess": "Escreve-nos a partir do endereço de e-mail da tua conta. Eliminamos a conta no prazo de um mês e confirmamos-te isso.",
 		"back": "Voltar ao início"
+	},
+	"tracking": {
+		"title": "Medição de alcance",
+		"text": "Podemos contar quais páginas são visitadas? Sem cookies, no nosso próprio servidor e apenas para melhorar o Balamentum. Sem o teu sim, a medição fica desligada.",
+		"accept": "Permitir",
+		"decline": "Recusar",
+		"privacy": "Saber mais",
+		"settings": "Medição de alcance"
 	}
 }

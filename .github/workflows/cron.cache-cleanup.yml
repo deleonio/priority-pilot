@@ -34,6 +34,12 @@ on:
   schedule:
     - cron: '17 3 * * *' # taeglich 03:17 UTC, versetzt zu Renovate (Mo 04:00 UTC)
   workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Runner-Label für diesen Lauf (leer = vars.PHASE_RUNNER oder ubuntu-latest; z. B. self-hosted, pi5, ubuntu-latest)'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   actions: write # Cache-Deletes
@@ -47,7 +53,7 @@ concurrency:
 
 jobs:
   cleanup:
-    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     steps:
       - name: pnpm-/Playwright-Caches ohne Zugriff seit 7 Tagen + verwaiste Altbestaende loeschen
         env:

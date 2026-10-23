@@ -1,6 +1,6 @@
 import express from 'express';
 import type { components } from '../../api.js';
-import { NOMINATIM_USER_AGENT } from '../../logics/nominatim.js';
+import { acquireNominatimSlot, NOMINATIM_USER_AGENT } from '../../logics/nominatim.js';
 import { requirePlanFeature } from '../planGuard.js';
 
 type GeocodeSearchResultDto = components['schemas']['GeocodeSearchResult'];
@@ -118,6 +118,9 @@ const searchPhoton = async (query: string): Promise<GeocodeSearchResultDto[] | n
 
 /** Bisheriges Nominatim-Mapping ( unverändert) — Fallback für den Fall, dass Photon nicht antwortet. */
 const searchNominatim = async (query: string): Promise<GeocodeSearchResultDto[]> => {
+	if (!acquireNominatimSlot()) {
+		return [];
+	}
 	const url = `${NOMINATIM_API}?format=jsonv2&q=${encodeURIComponent(query)}&limit=${RESULT_LIMIT}&accept-language=de`;
 	const response = await fetch(url, {
 		headers: { 'User-Agent': NOMINATIM_USER_AGENT },

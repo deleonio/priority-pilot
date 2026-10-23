@@ -159,11 +159,11 @@ describe('logics/geo-background-job — Geo-Push-Trigger (#1101)', () => {
 
 		await runGeoPushNotifications([position], okSender(calls), NOW);
 
-		const payload = JSON.parse(calls[0].body) as { title: string; body?: string; url?: string };
+		const payload = JSON.parse(calls[0].body) as { title: string; body?: string; url?: string; tag?: string };
 		assert.equal(payload.title, 'Bäckerei');
 		assert.match(payload.body ?? '', /0,4 km/, 'Entfernung de-DE mit einer Nachkommastelle (formatKm-Konvention)');
 		assert.ok(
-			!Object.keys(payload).some((key) => !['title', 'body', 'url'].includes(key)),
+			!Object.keys(payload).some((key) => !['title', 'body', 'url', 'tag'].includes(key)),
 			'kein Feld außerhalb des SW-Kontrakts',
 		);
 		assert.match(payload.url ?? '', new RegExp(`/\\d`), 'Deep-Link statt generischer App-Wurzel');
@@ -358,5 +358,63 @@ describe('logics/geo-background-job — Geo-Push-Trigger (#1101)', () => {
 		assert.equal(groups.length, 1);
 		assert.equal(groups[0].tasks.length, 1, 'genau eine Aufgabe statt einer Sammelmeldung über alle Instanzen');
 		assert.equal(groups[0].tasks[0].title, 'Einkaufen');
+	});
+});
+
+// Rote Spec-Tests für #2849 (Spec docs/spec/issue-2849.md): Standort-Push bleibt in der Ruhezeit
+// (lokale Stunde 21–23, 0–6) aus — kein Versand, kein NotificationLog. KEIN Produktivcode.
+describe('runGeoPushNotifications — Ruhezeit (#2849 AK4)', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		await closeDb();
+	});
+
+	it('23:00 lokal (Berlin): kein Push, kein Log — 07:00 lokal: Zustellung wie bisher', async () => {
+		const user = await User.create({
+			email: 'geo-ruhe@example.com',
+			passwordHash: 'x',
+			displayName: 'Ruhe',
+			zeitzone: 'Europe/Berlin',
+		} as never);
+		await seedSubscription(user.id, `https://push.example.com/${user.id}`);
+		await createTask({ title: 'nah', latitude: LAT_NEAR, longitude: LON, userId: user.id });
+		const calls: { endpoint: string; body: string }[] = [];
+		const send = okSender(calls);
+
+		const nachts = await runGeoPushNotifications(
+			[{ userId: user.id, lat: LAT, lon: LON }],
+			send,
+			new Date('2026-07-07T21:00:00Z'), // 23:00 Berlin
+		);
+		assert.equal(nachts.usersNotified, 0, 'Ruhezeit: kein Push');
+		assert.equal(await NotificationLog.count(), 0, 'Ruhezeit: kein NotificationLog-Eintrag');
+
+		// Flanke neutralisieren — egal, ob der Ruhezeit-Lauf die Position gespeichert hat.
+		await User.update({ lastGeoLatitude: null, lastGeoLongitude: null }, { where: { id: user.id } });
+
+		const morgens = await runGeoPushNotifications(
+			[{ userId: user.id, lat: LAT, lon: LON }],
+			send,
+			new Date('2026-07-07T05:00:00Z'), // 07:00 Berlin
+		);
+		assert.equal(morgens.usersNotified, 1, '07:00 lokal: Zustellung wie bisher');
+		assert.equal(calls.length, 1);
+	});
+
+	it('#2850 AK4: Gruppenschalter alle aus → Geo-Push bleibt unangetastet', async () => {
+		await createTask({ title: 'nah', latitude: LAT_NEAR, longitude: LON, userId: 1 });
+		await seedSubscription(1, 'https://push.example/geo');
+		await User.update(
+			{ taskPushEnabled: false, successPushEnabled: false, groupPushEnabled: false, tipPushEnabled: false } as never,
+			{ where: { id: 1 } },
+		);
+		const calls: { endpoint: string; body: string }[] = [];
+
+		const result = await runGeoPushNotifications([position], okSender(calls), NOW);
+
+		assert.equal(result.usersNotified, 1, 'Geo-Push kennt keine Gruppenschalter');
+		assert.equal(calls.length, 1);
 	});
 });

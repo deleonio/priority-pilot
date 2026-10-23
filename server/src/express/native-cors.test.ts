@@ -43,6 +43,13 @@ describe('CORS fuer den App-Ursprung https://localhost (#2377)', () => {
 		assert.equal(res.headers.get('access-control-allow-credentials'), null);
 	});
 
+	it('AK5 (#2493): Preflight traegt Access-Control-Max-Age als ganze Zahl > 0', async () => {
+		const res = await preflight(APP_ORIGIN);
+		const maxAge = res.headers.get('access-control-max-age');
+		assert.match(maxAge ?? '', /^\d+$/);
+		assert.ok(Number(maxAge) > 0);
+	});
+
 	it('AK6: auch normale Antworten an diesen Origin tragen Allow-Origin', async () => {
 		const res = await fetch(`${server.baseUrl}/auth/providers`, { headers: { Origin: APP_ORIGIN } });
 		assert.equal(res.headers.get('access-control-allow-origin'), APP_ORIGIN);

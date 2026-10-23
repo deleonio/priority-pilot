@@ -15,6 +15,7 @@
 		"create": "Create",
 		"update": "Update",
 		"close": "Close",
+		"open": "Open",
 		"edit": "Edit",
 		"add": "Add",
 		"remove": "Remove",
@@ -105,6 +106,20 @@
 		"importieren": "Import tasks from Todoist or a CSV file",
 		"importAiHint": "Without the AI plan, import is the only step here: bring your tasks from Todoist or a CSV, then start right away on the dashboard."
 	},
+	"balanceHistory": {
+		"label": "Balance history",
+		"laden": "Loading history …",
+		"leer": "No history yet — it builds up as you complete tasks.",
+		"fehler": "The history is not available right now.",
+		"start": "28 days ago: {{wert}} %",
+		"ende": "Today: {{wert}} %",
+		"chartLabel": "{{trend}}: from {{start}} % to {{ende}} %, {{von}} to {{bis}}",
+		"trend": {
+			"aufwaerts": "Upward",
+			"abwaerts": "Downward",
+			"stabil": "Steady"
+		}
+	},
 	"weeklyCard": {
 		"label": "My week in five pillars",
 		"laden": "Weekly balance is loading …",
@@ -113,7 +128,12 @@
 		"teilen": "Share week",
 		"speichern": "Save PNG",
 		"erzeuge": "Creating the card …",
-		"fehler": "The card could not be created. Please try again."
+		"fehler": "The card could not be created. Please try again.",
+		"marken": {
+			"balamentum": "Balamentum",
+			"play": "Get it on Google Play",
+			"pwa": "Installable as an app (PWA)"
+		}
 	},
 	"monthlyCard": {
 		"label": "My month in five pillars",
@@ -154,5 +174,12 @@
 	"splitHint": {
 		"reason": "Big tasks are often easier to tackle when you split them into smaller steps."
 	},
-	"quoted": "“{{value}}”"
+	"quoted": "“{{value}}”",
+	"trackingBanner": {
+		"title": "Reach measurement",
+		"text": "May we count which pages you open? Without cookies, on our own server and only to improve Balamentum. Without your yes, measurement stays off.",
+		"accept": "Allow",
+		"decline": "Decline",
+		"privacy": "Learn more"
+	}
 }

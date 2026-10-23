@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Request, Response, NextFunction } from 'express';
 import { ApiToken, User } from '../models/index.js';
-import { MCP_PATH } from '../mcp/server.js';
+import { MCP_ADMIN_PATH, MCP_PATH } from '../mcp/server.js';
 import { sendError, sendPlanError } from './http-error.js';
 import { getEntitlements, shouldBlockFeature } from '../logics/plans.js';
 import { FEATURE_LABELS } from './planGuard.js';
@@ -110,9 +110,8 @@ export const apiTokenAuth = async (req: Request, res: Response, next: NextFuncti
 		// Plan-Deckel (#1460): ein in der DB auf readwrite stehender Token schreibt nur noch, wenn
 		// das aktuelle Paket des Besitzers mcp_readwrite enthält. Der Spaltenwert bleibt unverändert
 		// (ein Upgrade wirkt sofort wieder) — nur der für diesen Request wirksame Scope wird herabgestuft.
-		// App-Tokens (#2377) sind sessiongleich und unterliegen keinem Plan-Deckel.
-		const planCapped =
-			record.kind === 'api' && record.scope === 'readwrite' && shouldBlockFeature(user.plan, 'mcp_readwrite');
+		// Seit #2816 gilt der Deckel auch für App-Tokens; ihre App-Routen bleiben im Scope-Guard frei.
+		const planCapped = record.scope === 'readwrite' && shouldBlockFeature(user.plan, 'mcp_readwrite');
 		req.apiTokenId = record.id;
 		req.apiTokenKind = record.kind;
 		req.apiTokenScope = planCapped ? 'read' : record.scope;
@@ -161,6 +160,7 @@ const normalizePath = (path: string): string => (path.length > 1 ? path.replace(
  *   gespiegelte HTTP-Route schickt, läuft hier zusätzlich in die Regel unten (AK6).
  * - Verglichen wird der über {@link normalizePath} normalisierte Pfad: der Router bedient
  *   `/mcp/v1` und `/mcp/v1/` mit derselben Route, also muss diese Ausnahme das auch tun.
+ * - `POST /mcp/admin/v1` ({@link MCP_ADMIN_PATH}, #1338) gilt als Transportroute wie `/mcp/v1`.
  * - Alle übrigen schreibenden Requests (POST/PUT/PATCH/DELETE) eines Tokens mit `scope: 'read'`
  *   werden mit 403 abgewiesen, bevor die Fachroute läuft (AK4).
  * - `mcp_read` (#1524 AK4/AK5) deckelt JEDEN Bearer-Request unabhängig von HTTP-Methode und vom
@@ -169,24 +169,53 @@ const normalizePath = (path: string): string => (path.length > 1 ? path.replace(
  *   (`mcp/tools.ts`, `callApi`) laufen mit demselben Bearer-Header ein zweites Mal durch diesen
  *   Guard und übersetzen den `plan_required`-Fehlerkörper generisch in einen JSON-RPC-Fehler —
  *   `mcp/server.ts`/`mcp/tools.ts` brauchen dafür keine eigene Änderung.
- * - App-Tokens (#2377) sind sessiongleich und passieren den Guard wie eine Browser-Session.
+ * - App-Tokens (#2377) sind sessiongleich und passieren den Guard wie eine Browser-Session — seit
+ *   #2816 mit genau einer Ausnahme: am Member-MCP-Transport ({@link MCP_PATH}) greift für sie
+ *   dasselbe `mcp_read`-Gate. Die Plus-Schreibsperre setzt dort oben in `apiTokenAuth` an (Scope
+ *   wird herabgestuft) und schlägt am Werkzeug-Gate (`mcp/server.ts`) an.
  */
 export const apiTokenScopeGuard = (req: Request, res: Response, next: NextFunction): void => {
-	if (!isApiTokenRequest(req) || req.apiTokenKind === 'app') {
+	if (!isApiTokenRequest(req)) {
 		next();
 		return;
 	}
 	const path = normalizePath(req.path);
+	// App-Tokens (#2377) sind sessiongleich — seit #2816 mit genau einer Ausnahme: der Member-MCP-
+	// Transport ist ab Plus ein Paketmerkmal (`mcp_read`) und wird auch für App-Tokens plangeprüft.
+	// Alles andere (REST-Sync, `/api-tokens`, Schreib-Methoden-Block, Admin-MCP) bleibt für
+	// App-Tokens freigestellt — nur so bleibt der App-Sync ein Free-Merkmal.
+	if (req.apiTokenKind === 'app') {
+		if (path !== MCP_PATH) {
+			next();
+			return;
+		}
+		const currentPlan = req.session.user?.plan;
+		if (currentPlan !== undefined && shouldBlockFeature(currentPlan, 'mcp_read')) {
+			const { requiredPlan } = getEntitlements(currentPlan).mcp_read;
+			sendPlanError(res, 403, `${FEATURE_LABELS.mcp_read} ist ab Paket „${requiredPlan}" verfügbar.`, {
+				code: 'plan_required',
+				feature: 'mcp_read',
+				requiredPlan,
+				currentPlan,
+			});
+			return;
+		}
+		next();
+		return;
+	}
 	if (path === '/api-tokens' || path.startsWith('/api-tokens/')) {
 		sendError(res, 403, 'Die Token-Verwaltung ist über einen API-Token nicht erreichbar.');
 		return;
 	}
-	if (path === MCP_PATH) {
+	if (path === MCP_PATH || path === MCP_ADMIN_PATH) {
 		next();
 		return;
 	}
+	// Admin-Auskunft (#1338) ist kein Paketmerkmal: lesende `/admin/*`-Requests (die Loopbacks von
+	// `mcp/adminTools.ts`) überspringen das Paket-Gate, `requireRole('admin')` an der Route entscheidet.
+	const adminRead = (req.method === 'GET' || req.method === 'HEAD') && path.startsWith('/admin/');
 	const currentPlan = req.session.user?.plan;
-	if (currentPlan !== undefined && shouldBlockFeature(currentPlan, 'mcp_read')) {
+	if (!adminRead && currentPlan !== undefined && shouldBlockFeature(currentPlan, 'mcp_read')) {
 		const { requiredPlan } = getEntitlements(currentPlan).mcp_read;
 		sendPlanError(res, 403, `${FEATURE_LABELS.mcp_read} ist ab Paket „${requiredPlan}" verfügbar.`, {
 			code: 'plan_required',
@@ -196,8 +225,12 @@ export const apiTokenScopeGuard = (req: Request, res: Response, next: NextFuncti
 		});
 		return;
 	}
-	// Feedback (#1890) ist die einzige Schreib-Ausnahme: kein Nutzerdatum, auch mit Nur-lese-Token erlaubt.
-	if (WRITE_METHODS.has(req.method) && req.apiTokenScope === 'read' && path !== '/feedback') {
+	// Feedback (#1890) ist die einzige Schreib-Ausnahme (nur POST): kein Nutzerdatum, auch mit Nur-lese-Token erlaubt.
+	if (
+		WRITE_METHODS.has(req.method) &&
+		req.apiTokenScope === 'read' &&
+		!(req.method === 'POST' && path === '/feedback')
+	) {
 		if (req.apiTokenPlanCapped) {
 			const currentPlan = req.session.user?.plan;
 			const { requiredPlan } = getEntitlements(currentPlan ?? 'free').mcp_readwrite;

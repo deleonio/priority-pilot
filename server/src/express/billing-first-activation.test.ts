@@ -1,6 +1,13 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
+import {
+	resetDb,
+	closeDb,
+	startTestServer,
+	type TestServer,
+	applyTestAuthEnv,
+	seedBillingAddress,
+} from '../test/helpers.js';
 import { User } from '../models/index.js';
 import type { AppDeps } from './index.js';
 
@@ -55,6 +62,7 @@ describe('Erstabschluss schaltet das gebuchte Paket frei (#2231)', () => {
 	it('AK1/AK2: Checkout → ACTIVATED bleibt free, erst SALE.COMPLETED schaltet plus frei (/auth/me und User.plan)', async () => {
 		server = await startTestServer(deps());
 		const cookie = await server.login(EMAIL);
+		await seedBillingAddress(EMAIL);
 		const checkout = await fetch(`${server.baseUrl}/billing/subscriptions`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Cookie: cookie },

@@ -6,6 +6,7 @@
 		"dueOn": "Fällig am {{date}}.",
 		"balance_one": "Säule {{names}} kam diese Woche zu kurz.",
 		"balance_other": "Säulen {{names}} kamen diese Woche zu kurz.",
+		"einstieg": "Such dir eine kleine Aufgabe aus, die dir heute guttut – klein anfangen zählt.",
 		"unlock_one": "Schaltet {{count}} offene Aufgabe frei.",
 		"unlock_other": "Schaltet {{count}} offene Aufgaben frei.",
 		"overdue_one": "Überfällig seit {{count}} Tag.",
@@ -25,7 +26,12 @@
 	"nextTask": {
 		"label": "Nächste Aufgabe",
 		"empty": "Aktuell steht keine Aufgabe an (alle erledigt oder durch offene Vorgänger blockiert).",
-		"complete": "Erledigen"
+		"complete": "Erledigen",
+		"earnedPoints": "+{{punkte}} Punkte",
+		"streakDays_one": "Streak {{count}} Tag",
+		"streakDays_other": "Streak {{count}} Tage",
+		"undo": "Rückgängig",
+		"errorLabel": "Erledigen fehlgeschlagen"
 	},
 	"suggestions": {
 		"label": "Was ist jetzt dran?",
@@ -50,6 +56,7 @@
 	"balance": {
 		"label": "Gesamtguthaben",
 		"empty": "Noch keine Punkte vergeben — schließe Tasks ab, um dein Guthaben aufzubauen.",
+		"arcTitle": "{{value}} von {{total}}",
 		"total": "<total>{{points}}</total> Punkte",
 		"row_one": "{{points}} Punkt ({{share}} %)",
 		"row_other": "{{points}} Punkte ({{share}} %)"
@@ -59,6 +66,7 @@
 		"empty": "Keine anstehenden Deadlines."
 	},
 	"heartBalance": {
+		"loading": "Lade Lebensbalance…",
 		"ariaLabel": "Balance {{percent}} Prozent — {{state}}",
 		"legendValue": "{{actual}} % · Ziel {{target}} %",
 		"deltaHint": "Abweichung vom Ziel"
@@ -96,7 +104,10 @@
 		"bluete": "Blüte",
 		"kristall": "Kristall",
 		"segmente": "Segmente",
-		"zeiger": "Zeiger"
+		"zeiger": "Zeiger",
+		"bahnen": "Bahnen",
+		"meteore": "Meteore",
+		"pendel": "Pendel"
 	},
 	"days_one": "{{count}} Tag",
 	"days_other": "{{count}} Tage",

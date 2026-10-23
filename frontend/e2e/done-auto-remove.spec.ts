@@ -4,12 +4,12 @@ import { waitForStableView } from './helpers';
 /**
  * Roter TDD-Vertrag für #392 „Aufgabenliste: abgehakte Aufgaben nach 5 s automatisch ausblenden".
  *
- * Wenn eine Aufgabe auf „Erledigt" gesetzt wird, bleibt sie 5 Sekunden lang in der Liste sichtbar
+ * Wenn eine Aufgabe auf „Erledigt" gesetzt wird, bleibt sie 7 Sekunden lang in der Liste sichtbar
  * (optimistisches Update, Undo-Fenster) und verschwindet dann automatisch — ohne manuellen Reload.
  * Wird die Aufgabe im 5-s-Fenster per „Wieder öffnen" zurückgesetzt, bricht das den Timer ab.
  *
  * Implementierungsstellen (Kern): `handleDoneToggle` in `frontend/src/App.tsx`, Timer-Ref (Map),
- * Cleanup-`useEffect`. Benannte Konstante `DONE_REMOVAL_DELAY_MS = 5000`.
+ * Cleanup-`useEffect`. Benannte Konstante `DONE_REMOVAL_DELAY_MS` (seit #2526/ADR 0024: 7000).
  *
  * `page.clock` (Playwright built-in) steuert `setTimeout` deterministisch — keine echten Wartezeiten.
  * Clock muss vor `page.goto()` installiert sein, damit sie App-seitige `setTimeout`-Aufrufe erfasst.
@@ -79,7 +79,7 @@ test.describe('Balamentum — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)', (
 
 	// Barriere gegen einen Fake-Clock-Race (#392, CI-flaky): `handleDoneToggle` plant den 5-s-Entfern-
 	// Timer erst NACH `await api.updateTask()` — synchron unmittelbar nach dem optimistischen Update, das
-	// den Toggle auf „Wieder öffnen" umschaltet. Erst dann darf `page.clock.fastForward(5000)` feuern,
+	// den Toggle auf „Wieder öffnen" umschaltet. Erst dann darf `page.clock.fastForward(7000)` feuern,
 	// sonst spult die Uhr in langsamen Umgebungen vor, bevor der Timer überhaupt existiert → er wird auf
 	// „jetzt + 5 s" gelegt und feuert nie (Zeile bleibt sichtbar). `expect.poll` bestätigt nur den
 	// Server-Stand, nicht den geplanten Client-Timer — deshalb zusätzlich auf den umgeschalteten Toggle
@@ -136,8 +136,8 @@ test.describe('Balamentum — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)', (
 		await expect.poll(async () => fetchStatus(page, childId)).toBe('Done');
 		await expectMarkedDoneInUi(page, childId);
 
-		// 5 Sekunden vergehen → automatischer reload(), erledigte Aufgabe fällt aus GET /forest heraus.
-		await page.clock.fastForward(5000);
+		// 7 Sekunden vergehen → automatischer reload(), erledigte Aufgabe fällt aus GET /forest heraus.
+		await page.clock.fastForward(7000);
 
 		// Die erledigte Unteraufgabe ist nun aus der Liste entfernt.
 		await expect(item(page, childId)).not.toBeVisible();
@@ -176,8 +176,8 @@ test.describe('Balamentum — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)', (
 		// Status ist wieder Open.
 		await expect.poll(async () => fetchStatus(page, id)).toBe('Open');
 
-		// Weitere 5 Sekunden vergehen — kein verspätetes Entfernen; die Aufgabe bleibt sichtbar.
-		await page.clock.fastForward(5000);
+		// Weitere 7 Sekunden vergehen — kein verspätetes Entfernen; die Aufgabe bleibt sichtbar.
+		await page.clock.fastForward(7000);
 		await expect(item(page, id)).toBeVisible();
 	});
 
@@ -203,8 +203,8 @@ test.describe('Balamentum — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)', (
 		await expect.poll(async () => fetchStatus(page, id)).toBe('Done');
 		await expectMarkedDoneInUi(page, id);
 
-		// 5 Sekunden → automatisches Entfernen.
-		await page.clock.fastForward(5000);
+		// 7 Sekunden → automatisches Entfernen.
+		await page.clock.fastForward(7000);
 
 		// Aufgabe aus der Liste verschwunden.
 		await expect(item(page, id)).not.toBeVisible();

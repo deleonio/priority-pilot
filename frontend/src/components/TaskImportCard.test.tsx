@@ -132,6 +132,20 @@ const ANALYSIS_1988 = {
 	suggestions: [],
 };
 
+// Spiegel-Test #2775 (Spec `docs/spec/issue-2775.md`, AK3): Die Vorschau-Beispiele formatieren
+// die Deadline weiterhin kurz und tagstabil („2.11.2026“) — die Konsolidierung auf
+// `journalDate.formatDate` darf die sichtbare Ausgabe nicht ändern.
+describe('TaskImportCard Datumsspiegel (#2775 AK3)', () => {
+	it('zeigt die Deadline der Vorschau-Beispiele als kurzes Datum', async () => {
+		apiMock.previewTaskImport.mockResolvedValue(PREVIEW);
+		render(<TaskImportCard />);
+
+		await chooseFile();
+
+		await waitFor(() => expect(document.body.textContent).toContain('· 2.11.2026'));
+	});
+});
+
 describe('TaskImportCard (Spec #1988 AK1/AK6)', () => {
 	it('zeigt nach dem Import den Bericht mit Anzahl, ohne-Frist-Liste und Dubletten mit Begründung; Merge-Aktion trägt das Objekt im Namen', async () => {
 		apiMock.importTasks.mockResolvedValue(IMPORT_RESULT);

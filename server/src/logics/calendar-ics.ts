@@ -137,7 +137,7 @@ const readLimited = async (response: Response): Promise<string> => {
 /**
  * Lädt die ICS-Datei — per GET, nie schreibend (AK6); `request` setzt nur der CalDAV-Abruf (#2211,
  * lesendes `REPORT`). SSRF-Sperre wie bei LLM-Endpoints (F-2): keine internen Ziele, keine
- * Redirects. `ICS_ALLOW_INTERNAL_HOSTS=1` hebt die Sperre nur für die Tests mit Loopback-Stub auf
+ * Redirects. `ICS_ALLOW_INTERNAL_HOSTS=1` hebt die Sperre nur bei `NODE_ENV=test` für die Tests mit Loopback-Stub auf
  * (`test/helpers.ts`).
  */
 export const fetchIcs = async (
@@ -145,7 +145,10 @@ export const fetchIcs = async (
 	fetchImpl: typeof fetch = fetch,
 	request: Pick<RequestInit, 'method' | 'headers' | 'body'> = { method: 'GET' },
 ): Promise<string> => {
-	if (process.env.ICS_ALLOW_INTERNAL_HOSTS !== '1' && !(await isPublicEndpoint(url))) {
+	if (
+		!(process.env.ICS_ALLOW_INTERNAL_HOSTS === '1' && process.env.NODE_ENV === 'test') &&
+		!(await isPublicEndpoint(url))
+	) {
 		throw new Error('Kalender-Adresse zeigt auf eine interne Adresse.');
 	}
 	const response = await fetchImpl(url, {

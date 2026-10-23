@@ -1,15 +1,18 @@
-import { NotificationLog, User } from '../models/index.js';
-import { sendPushToUser, type PushSender } from './push.js';
-import { istGueltigeZeitzone, tagIn } from './streak.js';
+import { User } from '../models/index.js';
+import { sendDedupedPush } from './dedupedPush.js';
+import { type PushSender } from './push.js';
+import { nutzerZeitzone, tagIn } from './streak.js';
+import { uhrzeitIn } from './carePush.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
+import { PUSH_TARGETS } from './pushTargets.js';
 
 /**
  * Fachlicher Push-Trigger „Monatsrückblick" (#1995): höchstens **ein** Push je Nutzer und
  * Kalendermonat — die Ankündigung des Rückblicks auf den Vormonat, den die Rückblick-Card
  * (`MonthlyBalanceCard`) im Monatsanfangs-Fenster (Tag 1–7) zeigt. Recap-Monat ist der Vormonat
  * der Nutzerzeitzone (ohne gültige Zone: UTC). Ton nach `docs/fuersorge-tonalitaet.md`: einladend,
- * ohne Schuld-Vokabular; ohne Aufgabeninhalte. Muster: `streakReminder.ts`
- * (NotificationLog-Dedup erst nach `sent > 0`, injizierbarer PushSender).
+ * ohne Schuld-Vokabular; ohne Aufgabeninhalte. Muster: {@link sendDedupedPush} (`dedupedPush.ts` —
+ * NotificationLog-Dedup erst nach `sent > 0`, injizierbarer PushSender).
  */
 
 const KIND = 'monthly-recap';
@@ -42,14 +45,26 @@ export const runMonthlyRecapPush = async (
 	const users = await User.findAll();
 	let usersNotified = 0;
 	for (const user of users) {
-		const zeitzone = istGueltigeZeitzone(user.zeitzone ?? undefined) ? (user.zeitzone as string) : 'UTC';
-		const dedupeKey = `${user.id}:${vormonatVonTag(tagIn(now, zeitzone))}`;
-		if (await NotificationLog.findOne({ where: { kind: KIND, dedupeKey } })) {
+		// #2850 AK3: Gruppenschalter „Erfolge und Rückblicke" aus → kein Versand (Muster carePush).
+		if (user.successPushEnabled === false) {
 			continue;
 		}
-		const { sent } = await sendPushToUser(user.id, { ...TEXTE[spracheVon(user.sprache)], url: '/' }, send);
+		const zeitzone = nutzerZeitzone(user.zeitzone);
+		// #2849 AK6: Fenster 9–17 Ortszeit an lokalem Monatstag 1–7 (ohne gültige Zone: UTC).
+		const { stunde } = uhrzeitIn(now, zeitzone);
+		const lokalTag = tagIn(now, zeitzone);
+		if (stunde < 9 || stunde >= 18 || Number(lokalTag.slice(8, 10)) > 7) {
+			continue;
+		}
+		const dedupeKey = `${user.id}:${vormonatVonTag(lokalTag)}`;
+		const { sent } = await sendDedupedPush(
+			user.id,
+			KIND,
+			dedupeKey,
+			{ ...TEXTE[spracheVon(user.sprache)], url: PUSH_TARGETS.monthlyRecap },
+			send,
+		);
 		if (sent > 0) {
-			await NotificationLog.create({ userId: user.id, kind: KIND, dedupeKey, sentAt: now });
 			usersNotified++;
 		}
 	}

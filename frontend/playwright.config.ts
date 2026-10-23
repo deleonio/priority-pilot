@@ -79,6 +79,10 @@ export default defineConfig({
 				// ICS-Abruf (#2209/#2210): die Specs liefern die Kalenderdatei von einem lokalen Stub aus;
 				// ohne die Freigabe sperrt die SSRF-Prüfung 127.0.0.1.
 				ICS_ALLOW_INTERNAL_HOSTS: '1',
+				// LLM-Endpoint-Guard (#2685): Specs mit Fake-Hosts (z. B. llm.invalid, nur als nicht
+				// auflösende Marke genutzt) würden fail-closed 400 liefern — im e2e-Backend freigeben
+				// wie in `server/src/test/helpers.ts` für die Unit-Tests.
+				ENDPOINT_GUARD_ALLOW_UNRESOLVED_HOSTS: '1',
 				// CalDAV (#2211): ohne Schlüssel lehnt der Server CalDAV-Quellen ab (AK5).
 				CALDAV_ENCRYPTION_KEY: 'e2e-caldav-key',
 				// Prüfzugang Google Play (#2426): schaltet POST /auth/review-login für issue-2426-review-login.spec.ts ein.

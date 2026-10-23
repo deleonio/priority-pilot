@@ -1,6 +1,6 @@
 import type { Locator, Route } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { measureHorizontalScroll, waitForStableView } from './helpers';
+import { measureHorizontalScroll, waitForStableView, MOBILE } from './helpers';
 
 /**
  * E2E-Spec für das Rollensystem admin/member (Fixup PR #1300, Finding #3): Tab „Nutzerverwaltung"
@@ -19,8 +19,6 @@ import { measureHorizontalScroll, waitForStableView } from './helpers';
  */
 const roleOption = (row: Locator, name: string): Locator =>
 	row.getByRole('radio', { name }).or(row.getByRole('option', { name })).or(row.getByRole('button', { name }));
-
-const MOBILE = { width: 375, height: 812 } as const;
 
 /** Mutierbare Fixture (die Rolle wechselt im zustandsbehafteten Mock unten). */
 type FixtureUser = { id: number; displayName: string; email: string; role: 'admin' | 'member' };
@@ -97,8 +95,11 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 		await expect(tab).toBeVisible();
 		await expect(tab).toHaveAttribute('aria-selected', 'true');
 
-		await expect(page.getByText('Anna Admin', { exact: true })).toBeVisible();
-		await expect(page.getByText('Test User', { exact: true })).toBeVisible();
+		// #2741-Fixup: Der Anzeigename des angemeldeten Admins steht zusätzlich im
+		// Kopfbereich-Menü — page-weites getByText löst deshalb doppelt auf.
+		const adminUsersPanel = page.locator('.settings-admin-users');
+		await expect(adminUsersPanel.getByText('Anna Admin', { exact: true })).toBeVisible();
+		await expect(adminUsersPanel.getByText('Test User', { exact: true })).toBeVisible();
 
 		const testUserRow = page.locator('li.admin-user', { hasText: 'Test User' });
 		const adminOption = roleOption(testUserRow, 'Admin');

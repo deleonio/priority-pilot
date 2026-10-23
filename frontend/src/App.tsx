@@ -4,6 +4,7 @@ import {
 	KolButton,
 	KolInputCheckbox,
 	KolInputText,
+	KolPopoverButton,
 	KolSingleSelect,
 	KolSpin,
 	KolTabs,
@@ -31,9 +32,12 @@ import { Modal } from './components/Modal';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { startWelcomeSteps } from './components/WelcomeSteps';
 import { isOnboardingDismissed, storeOnboardingDismissed } from './lib/onboardingPreferences';
+import { findInnerButton, setupPopoverAlignment } from './lib/popoverAlign';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
-import { LAUNCH_BANNER_DISMISS_KEY, LaunchBanner } from './components/LaunchBanner';
+import { LaunchBanner } from './components/LaunchBanner';
+import { TrackingBanner } from './components/TrackingBanner';
+import { LAUNCH_BANNER_DISMISS_KEY } from './lib/launchBanner';
 import { SessionExpiredDialog } from './components/SessionExpiredDialog';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { PushToast } from './components/PushToast';
@@ -46,6 +50,7 @@ import { TaskFormModal, taskAsTemplateInitialValues } from './components/TaskFor
 import { TaskTree } from './components/TaskTree';
 import { filterForest, nodeMatchesFilter } from './lib/filterForest';
 import { buildBalancePriorities } from './lib/balancePriority';
+import { clearBalanceStatusCache } from './lib/balanceStatusCache';
 import {
 	dismissBalanceHint,
 	hasStoredBalancePreference,
@@ -67,8 +72,8 @@ import { useAiFeaturesGate } from './lib/aiPreferences';
 import { pullAccountPreferences } from './lib/accountPreferences';
 import { launchConfetti, shouldCelebrateDone } from './lib/confetti';
 import { setupTabsFocusRing } from './lib/tabsFocusRing';
-import { formatDeadline } from './lib/task';
-import { trackPageView } from './lib/matomo';
+import { DONE_UNDO_WINDOW_MS, formatDeadline, istUeberfaellig } from './lib/task';
+import { trackPageView } from './lib/tracking';
 
 type Dialog =
 	// `parentTask` gesetzt → die neu angelegte Aufgabe wird als Vorgänger mit ihr verknüpft (Unteraufgabe).
@@ -131,8 +136,6 @@ const ADMIN_ONLY_SETTINGS_SEGMENTS: ReadonlySet<string> = new Set(['nutzer']);
 
 // Modulkonstanten für Toolbar-Icons: stabile Objektidentität pro Render, damit der Icon-Watcher
 // nicht unnötig erneut feuert (z. B. CREATE_ICON für „Neuen Task anlegen").
-const DONE_REMOVAL_DELAY_MS = 5000;
-
 /**
  * Sentinel-Wert des Kategorie-Filters („alle Kategorien"). Kategorie-IDs sind serverseitig `>= 1`,
  * `0` kollidiert daher mit keiner echten Kategorie (Muster `ADD_PILLAR_PLACEHOLDER`).
@@ -173,7 +176,6 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const { t, i18n } = useTranslation(['navigation', 'app']);
 	const location = useLocation();
 	const navigate = useNavigate();
-	useEffect(() => trackPageView(location.pathname), [location.pathname]);
 	// #1879: aktive App-Sprache beim Start und bei jedem Wechsel an den Server melden (Sprache des
 	// Fürsorge-Push) — fire-and-forget, ein Fehlschlag ist für die Nutzung folgenlos.
 	useEffect(() => {
@@ -251,8 +253,18 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	};
 	const [logoutLoading, setLogoutLoading] = useState(false);
 	const [logoutError, setLogoutError] = useState<string | null>(null);
+	// #2723: „Hilfe" und „Abmelden" liegen hinter dem Avatar-Trigger. KolPopoverButton regelt
+	// Öffnen/Schließen, Click-outside, Escape und Fokus-Rückgabe über die native Popover-API selbst
+	// (#361-Muster, TaskTree); der Ref dient nur der rechtsbündigen Panel-Ausrichtung.
+	const avatarMenuRef = useRef<HTMLKolPopoverButtonElement | null>(null);
 	const [updateError, setUpdateError] = useState<string | null>(null);
 	const doneRemovalTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+	// #2526: Inline-Rückmeldung des Direkt-Erledigens — vergebene Punkte aus der PATCH-Response,
+	// Streak folgt nicht-blockierend; Rückgängig läuft über denselben Toggle-Pfad (ScoreEntry
+	// entfernt der Server beim Wiedereröffnen selbst). Panel und Aufgabenliste spiegeln ihn.
+	const [doneFeedback, setDoneFeedback] = useState<{ taskId: number; punkte: number; streakTage?: number } | null>(
+		null,
+	);
 
 	// Aufgaben-Tab: Suchtext und Offen/Erledigt-Switch (#1105 AK5) leben in den Query-Parametern von
 	// `/aufgaben` (`?q=` bzw. `?view=done`) — Deep-Links und Browser-Back stellen dadurch auch den
@@ -385,6 +397,15 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 
 	/** Aktiver Haupt-Tab: reine Funktion des Pfads (AK4). */
 	const activeTab = Math.max(0, ROUTE_PATHS.indexOf(location.pathname));
+	// Matomo: offenes Onboarding zählt als eigener Bildschirm (Login-Trichter), unbekannte Pfade als 404.
+	const onboardingOpen = tasks !== null && tasks.length === 0 && activeTab === 0 && !onboardingDismissed;
+	useEffect(
+		() =>
+			trackPageView(onboardingOpen ? '/willkommen' : location.pathname, {
+				known: ROUTE_PATHS.includes(location.pathname) || /^\/(settings|hilfe|tasks)(\/|$)/.test(location.pathname),
+			}),
+		[onboardingOpen, location.pathname],
+	);
 
 	/** Aktiver Settings-Tab: aus `/settings/:tab` abgeleitet; unbekannter Pfad → Säulen (bisheriges Default).
 	 * Rollensystem admin/member: Das Segment `nutzer` (Index 9) existiert nur für Admins — für Member
@@ -713,10 +734,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			// #1458 AK2: Paket-Spiegel des Kontos löschen — auf einem geteilten Gerät darf das nächste
 			// Konto nie die Badges des vorigen sehen.
 			clearPlanMirror(user.id);
+			// Derselbe Grund für den Balance-Spiegel (`balanceStatusCache.ts`) — der Zifferblatt-Stand
+			// des vorigen Kontos darf dem nächsten nicht vorantwortet werden.
+			clearBalanceStatusCache(user.id);
 			// Issue #396 PR B — Logout-Sperre: „gerade abgemeldet"-Marker unterdrückt den nächsten
 			// stillen Re-Login (s. Root.tsx), sonst wäre ein Ausloggen praktisch unmöglich.
 			sessionStorage.setItem('pp_just_logged_out', '1');
-			sessionStorage.removeItem(LAUNCH_BANNER_DISMISS_KEY);
+			localStorage.removeItem(LAUNCH_BANNER_DISMISS_KEY);
 			window.location.href = `${import.meta.env.BASE_URL}login`;
 		} catch (reason) {
 			setLogoutError(reason instanceof Error ? reason.message : t('app:shell.logoutFailed'));
@@ -851,6 +875,18 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// Stabile Callback-Identitäten, damit die memoisierte `TaskTable` beim Öffnen eines Dialogs nicht
 	// neu rendert (sonst Zellen-/Toolbar-Neuaufbau samt Fokusverlust am auslösenden Button).
 	const openEdit = useCallback((task: Task): void => setDialog({ kind: 'edit', task }), []);
+	// Deep-Link des Geo-Push (`/tasks/<id>`): Aufgabe im Bearbeiten-Dialog öffnen, dann aufs Dashboard.
+	const deepLinkTaskId = /^\/tasks\/(\d+)$/.exec(location.pathname)?.[1];
+	// #2848 AK5: Gibt es die verlinkte Aufgabe nicht mehr, meldet sich das Dashboard dauerhaft
+	// statt still aufzumachen (KolAlert-Card, kein Toast — UX-Beratung).
+	const [deepLinkTaskGone, setDeepLinkTaskGone] = useState(false);
+	useEffect(() => {
+		if (deepLinkTaskId === undefined || tasks === null) return;
+		const task = tasks.find((candidate) => candidate.id === Number(deepLinkTaskId));
+		if (task) openEdit(task);
+		else setDeepLinkTaskGone(true);
+		navigate('/', { replace: true });
+	}, [deepLinkTaskId, tasks, openEdit, navigate]);
 	const openDelete = useCallback((task: Task): void => setDialog({ kind: 'delete', task }), []);
 	const openComplete = useCallback((task: Task): void => setDialog({ kind: 'complete', task }), []);
 	const openDependencies = useCallback((task: Task): void => setDialog({ kind: 'dependencies', taskId: task.id }), []);
@@ -909,6 +945,48 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// „Erledigt" im Verpasst-Bereich: immer erst die Nachfrage „erst jetzt erledigt?" (Dialog).
 	const handleCompleteMissed = useCallback((task: Task): void => setDialog({ kind: 'missedComplete', task }), []);
 
+	// #2526 (ADR 0024): Erledigen im Signal-Panel. Das Direkt-Erledigen trägt das Panel selbst
+	// (PATCH + Inline-Rückmeldung); dieser Callback greift nur für die beiden Dialogfälle:
+	// überfällige Deadline → Pünktlich-Nachfrage, sonst Erledigen-Dialog (offene Checkliste).
+	const completeFromPanel = useCallback(
+		(task: Task): void => {
+			if (istUeberfaellig(task)) {
+				setDialog({ kind: 'missedComplete', task });
+				return;
+			}
+			openComplete(task);
+		},
+		[openComplete],
+	);
+
+	// #2526: Nach erfolgreichem Direkt-Erledigen im Panel — Konfetti (#1169) und der gemeinsame
+	// #2522-Trichter (Fürsorge-Hinweis/Herz laden neu). Der Reload der Ansicht folgt bewusst erst
+	// nach dem 7-s-Fenster bzw. beim Rückgängig (onInlineSettled), damit die Rückmeldung an der
+	// Tipp-Stelle stehen bleibt.
+	const handlePanelDirectComplete = useCallback((task: Task): void => {
+		if (shouldCelebrateDone(task.status, TaskStatus.Done)) {
+			launchConfetti();
+		}
+		notifyTasksChanged();
+	}, []);
+
+	// #2526: Panel-Rückmeldung ist abgeschlossen (Fenster abgelaufen oder Rückgängig) — Ansicht neu
+	// laden, damit die nächste Aufgabe bzw. der offene Stand sichtbar wird.
+	const reloadAfterInlineAction = useCallback((): void => {
+		void reload();
+	}, [reload]);
+
+	// #2767: Wiedereröffnen aus der Erledigt-Tabelle räumt das Erledigt-Feedback des Tasks — sonst
+	// bliebe „+X Punkte · Rückgängig“ an der wieder geöffneten Zeile stehen (Muster wie im
+	// Reopen-Pfad von handleDoneToggle).
+	const handleReopened = useCallback(
+		(task: Task): void => {
+			setDoneFeedback((prev) => (prev?.taskId === task.id ? null : prev));
+			void reload();
+		},
+		[reload],
+	);
+
 	// „Wiederherstellen" im Archiv: einstufig, danach globales Neuladen (Archiv-Liste lädt mit nach).
 	const handleRestoreArchived = useCallback(
 		(task: Task): void => {
@@ -940,7 +1018,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			}
 			try {
 				setUpdateError(null);
-				await api.updateTask({
+				// #2574: Die PATCH-Antwort (inkl. `completedAt` aus dem ScoreEntry) trägt den State — ein
+				// reines Status-Spiegeln ließ die Wochenansicht den Erledigt-Tag erst nach dem Auto-Reload
+				// (#392) kennen.
+				const updated = await api.updateTask({
 					id: task.id,
 					taskUpdate: {
 						title: task.title,
@@ -957,17 +1038,26 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					if (shouldCelebrateDone(task.status, next)) {
 						launchConfetti();
 					}
+					// #2526: vergebene Punkte in die Zeilen-Rückmeldung; der Streak folgt nicht-blockierend
+					// nach (KI-UX — asynchrone Zahlen ohne erzwungenen Layout-Sprung).
+					setDoneFeedback({ taskId: task.id, punkte: updated.vergebenePunkte ?? 0 });
+					void api
+						.getStreak()
+						.then((streak) =>
+							setDoneFeedback((prev) => (prev?.taskId === task.id ? { ...prev, streakTage: streak.aktuell } : prev)),
+						)
+						.catch(() => {});
 					// Kein reload(): Der Wald (`GET /forest`) enthält nur offene Aufgaben — nach einem Reload
 					// verschwände die Zeile samt Toggle sofort. Der optimistische Status-Update hält die Zeile
 					// im Aufgabenbaum „sticky" für ein Sofort-Undo (#315 AK1); die Erledigte-Tabelle blendet
 					// solche noch im Wald stehenden Aufgaben aus (`forestTaskIds`), damit der Titel nicht
-					// doppelt im DOM steht (#228). Nach DONE_REMOVAL_DELAY_MS löst ein automatischer Reload
+					// doppelt im DOM steht (#228). Nach DONE_UNDO_WINDOW_MS löst ein automatischer Reload
 					// die Zeile auf (#392).
-					setTasks((prev) => (prev === null ? null : prev.map((t) => (t.id === task.id ? { ...t, status: next } : t))));
+					setTasks((prev) => (prev === null ? null : prev.map((t) => (t.id === task.id ? updated : t))));
 					const handle = setTimeout(() => {
 						doneRemovalTimers.current.delete(task.id);
 						void reload();
-					}, DONE_REMOVAL_DELAY_MS);
+					}, DONE_UNDO_WINDOW_MS);
 					doneRemovalTimers.current.set(task.id, handle);
 				} else {
 					const handle = doneRemovalTimers.current.get(task.id);
@@ -975,6 +1065,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						clearTimeout(handle);
 						doneRemovalTimers.current.delete(task.id);
 					}
+					setDoneFeedback((prev) => (prev?.taskId === task.id ? null : prev));
 					await reload();
 				}
 			} catch (reason) {
@@ -1016,7 +1107,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	);
 
 	// #1168: Signal-Panel-Aktion „Erledigt" — setzt die Aufgabe auf `Done`. Anders als
-	// `handleDoneToggle` kein sticky-Pfad (`DONE_REMOVAL_DELAY_MS`): der greift für die Aufgabenliste,
+	// `handleDoneToggle` kein sticky-Pfad (`DONE_UNDO_WINDOW_MS`): der greift für die Aufgabenliste,
 	// das Panel lädt stattdessen sofort per `reload()` die nächste Aufgabe (`afterMutation`).
 	const completeTask = useCallback(
 		async (task: Task, checklist: ChecklistItem[], allChecked: boolean, completedAt?: string): Promise<void> => {
@@ -1042,6 +1133,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			if (markingDone && shouldCelebrateDone(task.status, TaskStatus.Done)) {
 				launchConfetti();
 			}
+			// #2522: Selbst-Lader-Karten (u. a. Fürsorge-Hinweis) laden nach dem Erledigen neu —
+			// einmal im gemeinsamen Trichter (CompleteTaskDialog + Signal-Panel); idempotent.
+			notifyTasksChanged();
 		},
 		[],
 	);
@@ -1103,6 +1197,8 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 
 	// Toolbar-Buttons sind auf allen Viewports identisch — keine unterschiedliche Menüstruktur je nach
 	// Viewport-Breite (#691). `_label`s und Reihenfolge sind stabil, damit Accessible Names konsistent bleiben.
+	// #2723: Nur noch die vier Navigations-Aktionen — „Hilfe“ und „Abmelden“ liegen im Avatar-Popover
+	// (`.app-header__user`), die seltene bzw. zerstörerische Aktion rückt damit aus der Leiste (KI-UX).
 	// Die KI-Modellwahl lebt seit dem Provider-System in den Einstellungen (Tab „KI“).
 	// KoliBri liefert die Button-Semantik im Shadow-DOM; zusätzliche ARIA-Attribute
 	// am Item werden von `kol-toolbar` still verworfen: nativer Button, A11y trägt KoliBri.
@@ -1142,38 +1238,40 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				...(showSettings ? { _ariaDescription: t('menu.activeViewDescription') } : {}),
 				_on: { onClick: toggleSettings },
 			},
+		];
+	}, [handleHomeNavigate, openSearch, openCreateDialog, toggleSettings, showSettings, showMainView, t]);
+
+	// #2723: „Hilfe“ und „Abmelden“ im Avatar-Popover. Hilfe schließt erst das Panel, dann navigiert
+	// sie (Muster TaskTree/#361). Abmelden bewusst OHNE hidePopover: Im Fehlerfall bleibt das Menü
+	// offen (kein stiller Close, KI-UX #2723) und der Eintrag wechselt in den Disabled-Zustand; im
+	// Erfolgsfall navigiert handleLogout ohnehin auf /login.
+	const userMenuItems = useMemo(
+		() => [
 			{
 				type: 'button' as const,
 				_label: t('menu.help'),
-				_hideLabel: true,
 				_icons: HELP_ICON,
 				_variant: showHelp ? ACTIVE_VARIANT : INACTIVE_VARIANT,
-				...(showHelp ? { _ariaDescription: t('menu.activeViewDescription') } : {}),
-				_on: { onClick: toggleHelp },
+				_on: {
+					onClick: () => {
+						void Promise.resolve(avatarMenuRef.current?.hidePopover()).then(() => toggleHelp());
+					},
+				},
 			},
 			{
 				type: 'button' as const,
 				_label: t('menu.logout'),
-				_hideLabel: true,
 				_icons: LOGOUT_ICON,
 				_variant: 'secondary' as const,
 				_disabled: logoutLoading,
 				_on: { onClick: (): void => void handleLogout() },
 			},
-		];
-	}, [
-		logoutLoading,
-		handleHomeNavigate,
-		openSearch,
-		openCreateDialog,
-		toggleSettings,
-		toggleHelp,
-		handleLogout,
-		showSettings,
-		showHelp,
-		showMainView,
-		t,
-	]);
+		],
+		[showHelp, toggleHelp, logoutLoading, handleLogout, t],
+	);
+
+	// #2723: Avatar-Popover klappt unter dem Trigger auf, rechtsbündig zu ihm (Muster TaskTree/#361).
+	useEffect(() => setupPopoverAlignment(avatarMenuRef.current, true), []);
 
 	// #1320: Einstellungen und Hilfe sind normale Seiten der App — kein früher Return mehr vor dem
 	// Layout. Header (Logo, Kopf-Aktionen, Avatar), Dialoge und Fußzeile bleiben auf allen drei
@@ -1228,9 +1326,45 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						 */}
 						<KolToolbar _label={t('menu.headerActions')} _orientation="horizontal" _items={toolbarItems} />
 					</div>
-					{/* Avatar wiederhergestellt per Issue #865 Korrektur — Full Name bleibt entfernt; seit #912 am rechten Rand */}
+					{/* #2723: „Hilfe“ und „Abmelden“ hinter dem Avatar-Trigger (zugänglicher Name „Benutzermenü“,
+				    KI-UX). Der Trigger trägt den Avatar im Expert-Slot — ein leeres `_label` schaltet ihn frei
+				    (KoliBri-Spec KolPopoverButton); der zugängliche Name kommt aus dem visuell versteckten Text,
+				    der Avatar selbst bleibt dekorativ (`_label=""`) und steht ein zweites Mal im Panel.
+				    Escape/Klick-außerhalb/Fokus-Rückgabe liefert die native Popover-API. */}
 					<div className="app-header__user">
-						<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
+						<KolPopoverButton
+							ref={avatarMenuRef}
+							className="app-header__user-menu"
+							_label=""
+							_variant="secondary"
+							_popoverAlign="bottom"
+						>
+							<span slot="expert">
+								{/* Dekorativ: Der Name des Triggers trägt der versteckte Text; der Avatar (Initialen bzw.
+							    Bild) ist per aria-hidden stumm, sein internes img-alt „Avatar of“ verschmutzt den Namen nicht. */}
+								<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} aria-hidden="true" />
+								<span className="visually-hidden">{t('menu.userMenu')}</span>
+							</span>
+							<div
+								className="app-header__user-menu-panel"
+								onKeyDown={(event) => {
+									if (event.key !== 'Escape') return;
+									// #361-Muster: die native Popover-API gibt den Fokus nach dem Schließen nicht
+									// an den Invoker zurück — explizit auf den Trigger fokussieren (AK5).
+									void Promise.resolve(avatarMenuRef.current?.hidePopover()).then(() => {
+										findInnerButton(avatarMenuRef.current)?.focus();
+									});
+								}}
+							>
+								<div className="app-header__user-menu-identity">
+									<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
+									<strong className="app-header__user-menu-name">{user.displayName}</strong>
+								</div>
+								{/* Zusammenhängende Aktionsgruppe wie die Kopf-Aktionen (Muster TaskTree-„…"-Menü):
+								    Tab springt in die Gruppe, Pfeiltasten wechseln zwischen den Einträgen. */}
+								<KolToolbar _label={t('menu.userMenu')} _orientation="vertical" _items={userMenuItems} />
+							</div>
+						</KolPopoverButton>
 					</div>
 				</div>
 			</header>
@@ -1239,9 +1373,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			    fest „Dashboard", während `SettingsPage`/`HelpPage` ihre eigene Überschrift mitbrachten. */}
 				<h1 className="visually-hidden">{pageTitle}</h1>
 
+				<TrackingBanner />
 				<LaunchBanner enabled={user.launchBanner === true} onFeedback={() => navigate('/hilfe/feedback')} />
 
-				{/* Der Logout läuft über die Kopf-Aktionen und ist damit auf allen drei Ansichten
+				{/* Der Logout läuft über das Benutzermenü und ist damit auf allen drei Ansichten
 			    auslösbar — seine Fehlermeldung steht deshalb außerhalb der Inhalts-Verzweigung. */}
 				{logoutError !== null && (
 					<div role="alert">
@@ -1364,14 +1499,22 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										</>
 									) : (
 										<>
+											{deepLinkTaskGone && (
+												<KolAlert _type="info" _variant="card" data-testid="deeplink-task-gone">
+													{t('app:shell.taskGone')}
+												</KolAlert>
+											)}
 											<Dashboard
+												userId={user.id}
 												tasks={tasks}
 												forest={forest}
 												nextTask={nextTask}
 												suggestions={suggestions}
 												pillars={pillars}
 												displayName={user.displayName}
-												onCompleteTask={openComplete}
+												onCompleteTask={completeFromPanel}
+												onDirectComplete={handlePanelDirectComplete}
+												onInlineSettled={reloadAfterInlineAction}
 												onEditTask={openEdit}
 												onSnoozeTask={handleSnoozeTask}
 												showDayDoneHint={activeTab === 0}
@@ -1557,6 +1700,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 														onSaveAsTemplate={openSaveAsTemplate}
 														onDoneToggle={handleDoneToggle}
 														onPinToggle={handlePinToggle}
+														doneFeedback={doneFeedback}
 													/>
 												) : (
 													<p className="empty-state">{t('app:taskFilter.noResults')}</p>
@@ -1580,6 +1724,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 													onSaveAsTemplate={openSaveAsTemplate}
 													onDoneToggle={handleDoneToggle}
 													onPinToggle={handlePinToggle}
+													doneFeedback={doneFeedback}
 												/>
 											)
 										) : taskViewMode === 'archived' ? (
@@ -1595,7 +1740,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 													pillars={pillars}
 													categories={categories}
 													forestTaskIds={forestTaskIds}
-													onReloaded={reload}
+													onReloaded={handleReopened}
 												/>
 											) : (
 												<p className="empty-state">{t('app:taskFilter.noResults')}</p>
@@ -1606,7 +1751,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 												pillars={pillars}
 												categories={categories}
 												forestTaskIds={forestTaskIds}
-												onReloaded={reload}
+												onReloaded={handleReopened}
 											/>
 										)}
 									</section>

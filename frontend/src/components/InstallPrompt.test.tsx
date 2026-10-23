@@ -61,7 +61,7 @@ describe('InstallPrompt', () => {
 		Object.defineProperty(window, 'matchMedia', {
 			writable: true,
 			value: vi.fn().mockImplementation((query) => {
-				if (query === '(display-mode: standalone)') {
+				if (query === '(display-mode: standalone), (display-mode: fullscreen)') {
 					return mockMatchMedia(false);
 				}
 				return mockMatchMedia(false);
@@ -83,7 +83,7 @@ describe('InstallPrompt', () => {
 		Object.defineProperty(window, 'matchMedia', {
 			writable: true,
 			value: vi.fn().mockImplementation((query) => {
-				if (query === '(display-mode: standalone)') {
+				if (query === '(display-mode: standalone), (display-mode: fullscreen)') {
 					return mockMatchMedia(true);
 				}
 				return mockMatchMedia(false);

@@ -1,21 +1,25 @@
-import { KolAlert, KolButton, KolCard, KolTextarea } from '@public-ui/react-v19';
+import { KolAccordion, KolAlert, KolButton, KolTextarea } from '@public-ui/react-v19';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { useFollowingOpen } from '../lib/useFollowingOpen';
 import { ButtonAction } from './ApiTokensSection';
 
 /** Obergrenze der Vorgaben in Zeichen — Spiegel von `MAX_INSTRUCTIONS_LENGTH` in `routes/mcpInstructions.ts`. */
 const MAX_LENGTH = 2000;
 
 /**
- * Einstellungen → „KI" → Karte „Dialog-Vorgaben für die KI" (#1935): Freitext, den der MCP-Endpunkt
+ * Einstellungen → „KI“ → Karte „Dialog-Vorgaben für die KI“ (#1935): Freitext, den der MCP-Endpunkt
  * im `initialize`-Handshake an verbundene KI-Clients übermittelt. Speichern ist explizit (kein
- * Auto-Save); `open` sperrt Feld und Button wie die Schwester-Karten, die Vorgaben bleiben erhalten.
+ * Auto-Save); ein `KolAccordion` wie die Schwester-Karten des Tabs (`LlmSettings`,
+ * `ApiTokensSection`): `open` folgt dem Schalter „KI aktivieren“ — aus = eingeklappt und gesperrt,
+ * die gespeicherten Vorgaben bleiben erhalten; manuelles Klappen bleibt möglich.
  */
 export const McpInstructionsSection = ({ open = true }: { open?: boolean }) => {
 	// `null` = noch nicht geladen; `saved` ist der Serverstand, `draft` der lokal bearbeitete Text.
 	const { t } = useTranslation(['settings', 'common']);
+	const accordion = useFollowingOpen(open);
 	const [saved, setSaved] = useState<string | null>(null);
 	const [draft, setDraft] = useState('');
 	const [busy, setBusy] = useState(false);
@@ -62,7 +66,13 @@ export const McpInstructionsSection = ({ open = true }: { open?: boolean }) => {
 	};
 
 	return (
-		<KolCard className="settings-card" _label={t('mcpInstructions.title')} _level={2}>
+		<KolAccordion
+			className="settings-card"
+			_label={t('mcpInstructions.title')}
+			_level={2}
+			_disabled={!open}
+			{...accordion}
+		>
 			<div className="settings-card-stack" data-testid="mcp-instructions-panel">
 				<p>{t('mcpInstructions.intro')}</p>
 				<KolTextarea
@@ -98,6 +108,6 @@ export const McpInstructionsSection = ({ open = true }: { open?: boolean }) => {
 					</KolAlert>
 				)}
 			</div>
-		</KolCard>
+		</KolAccordion>
 	);
 };

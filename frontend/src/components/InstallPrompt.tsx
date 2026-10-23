@@ -25,7 +25,7 @@ export const InstallPrompt = ({ tasks, onDismiss }: InstallPromptProps) => {
 	useEffect(() => {
 		// Prüfe, ob die App bereits installiert ist (standalone mode)
 		const checkInstalled = () => {
-			const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+			const isStandalone = window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
 			setIsInstalled(isStandalone);
 		};
 
@@ -40,7 +40,7 @@ export const InstallPrompt = ({ tasks, onDismiss }: InstallPromptProps) => {
 		// überhaupt erreichbar ist, muss showPrompt hier gesetzt werden – aber nur,
 		// wenn die App nicht bereits im Standalone-Modus läuft und der Nutzer
 		// den Prompt nicht bereits dauerhaft geschlossen hat.
-		const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches;
+		const isStandaloneMode = window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
 		const wasDismissed = localStorage.getItem(DISMISS_KEY) === 'true';
 		if (isIOSSafari && !isStandaloneMode && !wasDismissed) {
 			setShowPrompt(true);
@@ -71,7 +71,7 @@ export const InstallPrompt = ({ tasks, onDismiss }: InstallPromptProps) => {
 		window.addEventListener('appinstalled', handleAppInstalled as EventListener);
 
 		// Media Query Listener für display-mode Änderungen
-		const mediaQuery = window.matchMedia('(display-mode: standalone)');
+		const mediaQuery = window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)');
 		const handleDisplayModeChange = (e: MediaQueryListEvent) => {
 			setIsInstalled(e.matches);
 		};

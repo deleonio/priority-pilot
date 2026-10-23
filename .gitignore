@@ -56,3 +56,6 @@ native/assets/
 # lokale Artefakte: macOS-Metadaten, Upload-Keystore der Play-Signatur (docs/native-apps.md)
 .DS_Store
 upload.jks
+
+# TypeScript-Inkrementalbuild-State (tsc -b), wird bei jedem Build neu geschrieben
+*.tsbuildinfo

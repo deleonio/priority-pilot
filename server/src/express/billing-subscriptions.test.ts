@@ -1,6 +1,13 @@
 import { describe, it, beforeEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
+import {
+	resetDb,
+	closeDb,
+	startTestServer,
+	type TestServer,
+	applyTestAuthEnv,
+	seedBillingAddress,
+} from '../test/helpers.js';
 import { Subscription } from '../models/index.js';
 // Invoice ist (Stand #1495) noch nicht aus models/index.ts re-exportiert — direkter Modul-Import
 // (Muster models/invoice.test.ts), um diese Testdatei nicht an einer fremden Produktivlücke
@@ -27,7 +34,11 @@ applyTestAuthEnv('test-secret-issue-1505');
 
 let server: TestServer;
 
-const login = (email: string) => server.login(email);
+const login = async (email: string): Promise<string> => {
+	const cookie = await server.login(email);
+	await seedBillingAddress(email);
+	return cookie;
+};
 const post = (path: string, cookie: string, body: unknown = {}) =>
 	fetch(`${server.baseUrl}${path}`, {
 		method: 'POST',
@@ -369,6 +380,111 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		assert.deepEqual(
 			active.map((sub) => sub.get('externalSubscriptionId')),
 			['I-OLD'],
+		);
+	});
+
+	// #2547 (Spec docs/spec/issue-2547.md): aktives Abo plus ältere offene Checkout-Zeile —
+	// Ausgangslage aller Upgrade-Cleanup-Tests. Die ältere Zeile hat `approvedAt = null`, zählt
+	// also nicht als genehmigtes Upgrade (#2238) und blockiert den Wechsel nicht.
+	const seedUpgradeWithOldPending = async (email: string): Promise<{ cookie: string; userId: number }> => {
+		const cookie = await login(email);
+		const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
+		await Subscription.create({
+			userId: me.id,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-ACTIVE',
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
+		});
+		await Subscription.create({
+			userId: me.id,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-OLD-PENDING',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'approval_pending',
+			currentPeriodEnd: new Date('2026-12-01'),
+		});
+		return { cookie, userId: me.id };
+	};
+
+	it('#2547 AK1: Upgrade mit älterer approval_pending-Zeile storniert diese bei PayPal, bevor sie aus der DB verschwindet', async () => {
+		const cancelCalls: { id: string; rowStillThere: boolean }[] = [];
+		server = await startTestServer(
+			withClient({
+				cancel: async (externalSubscriptionId: string) => {
+					cancelCalls.push({
+						id: externalSubscriptionId,
+						rowStillThere:
+							(await Subscription.count({
+								where: { externalSubscriptionId: 'I-OLD-PENDING', status: 'approval_pending' },
+							})) === 1,
+					});
+				},
+			}),
+		);
+		const { cookie, userId } = await seedUpgradeWithOldPending('upgrade-2547a@example.com');
+
+		const res = await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'monthly' });
+
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { approvalUrl?: string };
+		assert.ok(body.approvalUrl, 'Antwort muss eine Zustimmungs-URL enthalten');
+		assert.deepEqual(cancelCalls, [{ id: 'I-OLD-PENDING', rowStillThere: true }]);
+		assert.equal(
+			await Subscription.count({ where: { userId, externalSubscriptionId: 'I-OLD-PENDING' } }),
+			0,
+			'Die ältere Checkout-Zeile muss entfernt werden',
+		);
+	});
+
+	it('#2547 AK2: scheitert die Stornierung mit 5xx, antwortet die Route 502 und die ältere Zeile bleibt', async () => {
+		server = await startTestServer(
+			withClient({
+				cancel: async () => {
+					throw new PaypalHttpError('PayPal nicht erreichbar', 500);
+				},
+			}),
+		);
+		const { cookie, userId } = await seedUpgradeWithOldPending('upgrade-2547b@example.com');
+
+		const res = await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'monthly' });
+
+		assert.equal(res.status, 502);
+		assert.equal(
+			await Subscription.count({
+				where: { userId, externalSubscriptionId: 'I-OLD-PENDING', status: 'approval_pending' },
+			}),
+			1,
+			'Der 5xx-Fehler darf die ältere Zeile nicht beseitigen',
+		);
+		assert.equal(await Subscription.count({ where: { userId } }), 2, 'Kein neues Abo darf entstehen');
+	});
+
+	it('#2547 AK3: eine 4xx-Ablehnung der Stornierung entfernt die ältere Zeile trotzdem — das Upgrade läuft weiter', async () => {
+		let cancelledWith: string | undefined;
+		server = await startTestServer(
+			withClient({
+				cancel: async (externalSubscriptionId: string) => {
+					cancelledWith = externalSubscriptionId;
+					throw new PaypalHttpError('nie zugestimmt', 422);
+				},
+			}),
+		);
+		const { cookie, userId } = await seedUpgradeWithOldPending('upgrade-2547c@example.com');
+
+		const res = await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'monthly' });
+
+		assert.equal(cancelledWith, 'I-OLD-PENDING');
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { approvalUrl?: string };
+		assert.ok(body.approvalUrl, 'Antwort muss eine Zustimmungs-URL enthalten');
+		assert.equal(
+			await Subscription.count({ where: { userId, externalSubscriptionId: 'I-OLD-PENDING' } }),
+			0,
+			'Die PayPal-Ablehnung (4xx) muss die ältere Zeile entfernen',
 		);
 	});
 
@@ -790,7 +906,11 @@ describe('Rechnungs-PDF-Download (#1955 AK4)', () => {
 		await closeDb();
 	});
 
-	const login = (email: string) => server.login(email);
+	const login = async (email: string): Promise<string> => {
+		const cookie = await server.login(email);
+		await seedBillingAddress(email);
+		return cookie;
+	};
 	const get = (path: string, cookie?: string) =>
 		fetch(`${server.baseUrl}${path}`, { headers: cookie ? { Cookie: cookie } : {} });
 

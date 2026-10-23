@@ -209,12 +209,14 @@ es, baut die APK ohne FCM-Push. Das Schlüsselpaar (`gh_deploy`/`gh_deploy.pub`,
 beide **gitignored** — private Schlüssel sind Secrets) liegt im Projekt-Setup vor; Einrichtung des
 Hosts siehe [server-setup.md](server-setup.md).
 
-**Reichweitenmessung (optional):** Die Variablen `MATOMO_URL` (z. B. `https://stats.example.de/`)
+**Reichweitenmessung:** Die Variablen `MATOMO_URL` (z. B. `https://stats.modevel.de/`)
 und `MATOMO_SITE_ID` binden cookieloses Matomo in Website und Web-App ein, nicht in die Android-App
 (`frontend/src/lib/matomo.ts`). Fehlt eine davon, wird nichts eingebunden. Gezählt wird nur der
 Pfad ohne Query, weil die Query Anmelde-Tokens trägt. Die Datenschutzerklärung sagt das so zu, deshalb
 in der Matomo-Instanz einstellen: IP-Anonymisierung auf 2 Bytes, Rohdaten nach 180 Tagen löschen,
 Do Not Track beachten. Für Website und App genügt eine Site-ID, `/app/` trennt sie im Bericht.
+Die Instanz läuft selbst gehostet auf demselben Host (`stats.modevel.de`) — Einrichtung, Betrieb
+und Updates: [matomo.md](matomo.md).
 
 **Caddy** terminiert TLS davor und reverse-proxyt `/api/v1/*` (Präfix-Strip) und `/auth/*` ans
 Backend — Konfiguration und Pfad-Tabelle: [server-setup.md § 7](server-setup.md#7-caddy-block--dns).
@@ -257,7 +259,8 @@ Neben dem Cloud-Betrieb läuft Balamentum lokal: Entwicklung per `pnpm dev` (Bef
 [project.md](../.ai-knowledge/project.md)), dauerhaftes Selbsthosting per `pnpm build` +
 `node server/dist/index.js` (Autostart analog PM2, Schritt 6 in
 [server-setup.md](server-setup.md)). Die App ist eine **Single-User-Anwendung** — Kapazitätsgrenzen
-sind SQLite (Festplatte; alte Aufgaben archivieren ab ~100 MB, ab ~500 MB PostgreSQL erwägen) und die
+sind SQLite (Festplatte; alte Aufgaben archivieren ab ~100 MB, mehr Bedarf: MariaDB als
+Produktiv-Datenbank, siehe [ADR 0026](adr/0026-mariadb-als-produktiv-datenbank.md)) und die
 LLM-Provider-Quota.
 
 **Cloud → Local (Daten mitnehmen):**
@@ -275,28 +278,6 @@ Merge auf `main` neu.
 die Defaults (`./database.sqlite`, Seeding nur in leere DB). Das Frontend ruft die API in beiden
 Betriebsarten unter `/api/v1/*` auf — in Produktion streift Caddy das Präfix, lokal der Vite-Dev-Proxy
 (derselbe Rewrite, siehe [server-setup.md § 7](server-setup.md#7-caddy-block--dns)).
-
----
-
-## 7. Übergangs-Setzung vor dem Launch (#1463)
-
-Bestandskonten mit `plan = 'free'`, die vor einem Stichtag angelegt wurden, bekommen einmalig das
-Übergangs-Tier `pro` und behalten so alle Funktionen. Die Setzung läuft **nicht** beim
-Serverstart (`migrate.ts`), sondern nur als manueller Lauf — ein später bewusst auf `free`
-zurückgesetztes Konto bleibt dadurch unberührt. Reihenfolge verbindlich:
-
-1. **Backup** ziehen (`maintenance.sh`, siehe [Sicherheit & Betrieb](#5-sicherheit--betrieb)).
-2. **Setzung** im Server-Verzeichnis (`.env` mit `DATABASE_STORAGE` wird automatisch geladen):
-   `GRANDFATHER_CUTOFF=2026-10-01T00:00:00Z node dist/cli/grandfatherPlans.js`. Fehlt der Stichtag
-   oder ist er ungültig, bricht das Skript ohne DB-Zugriff mit Exit-Code 1 ab. Ein zweiter Lauf mit
-   gleichem Stichtag ändert 0 Konten.
-3. **Prüfen:** Das Skript gibt die Anzahl geänderter Konten und die Paketverteilung aus
-   (`{"free":…,"plus":…,"pro":…}`). `free` darf nur noch Konten ab dem Stichtag enthalten.
-4. **Schalter an:** `MONETIZATION_ENFORCED=true` in die Env-Datei, `pm2 reload` — der Wert wird pro
-   Aufruf gelesen, kein Deploy nötig.
-
-**Rückweg:** `MONETIZATION_ENFORCED` entfernen (oder `false`) und `pm2 reload` — Gating und
-Kontingente sind sofort wieder aus, ebenfalls ohne Deploy. Die gesetzten Pläne bleiben bestehen.
 
 ---
 

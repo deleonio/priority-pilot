@@ -1,6 +1,6 @@
 import type { Locator } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { headerAction, waitForStableView } from './helpers';
+import { headerAction, waitForStableView, MOBILE } from './helpers';
 
 /**
  * E2E-Spec für die Mobile-Optimierung der App-Shell: Der Kopfbereich bleibt auf Handy-Breite
@@ -12,12 +12,11 @@ import { headerAction, waitForStableView } from './helpers';
  * ist die tatsächlich nutzbare Fläche auf 375px, nicht die Schreibweise im Stylesheet.
  */
 
-/** Referenz-Viewport der Projekt-Konventionen (.ai-knowledge/project.md → Mobile-First). */
-const MOBILE = { width: 375, height: 812 } as const;
 const DESKTOP = { width: 1280, height: 800 } as const;
 
 /** Die Kopf-Aktionen, die auf jeder Breite erreichbar bleiben müssen (#1335: „Säulen-Berater" entfällt
- * als eigener Button; der Home-Schalter ist seither als erster Button in die Toolbar gewandert). */
+ * als eigener Button; der Home-Schalter ist seither als erster Button in die Toolbar gewandert).
+ * #2723: „Hilfe" und „Abmelden" liegen im Avatar-Popover — `headerAction` öffnet es bei Bedarf. */
 const HEADER_ACTIONS = ['Zum Dashboard', 'Neuen Task anlegen', 'Einstellungen', 'Hilfe', 'Abmelden'] as const;
 
 const gotoApp = async (page: Page, viewport: { width: number; height: number }): Promise<void> => {
@@ -91,7 +90,7 @@ test.describe('Mobile-Shell — Kopfbereich und Seitenränder', () => {
 		// Playwright pierct offene Shadow-DOMs, daher erreicht getByRole('tab') den Button in
 		// kol-button-wc. Sichtbarkeit abwarten, damit das Layout (und ein Umbruch) schon steht.
 		const tabTops: number[] = [];
-		for (const label of ['Dashboard', 'Aufgaben', 'Serien & Vorlagen', 'Graph'] as const) {
+		for (const label of ['Dashboard', 'Aufgaben', 'Serien & Vorlagen', 'Graph', 'Journal'] as const) {
 			const tab = page.getByRole('tab', { name: label });
 			await expect(tab).toBeVisible();
 			const box = await tab.boundingBox();
@@ -138,15 +137,17 @@ test.describe('Mobile-Shell — Kopfbereich und Seitenränder', () => {
 	});
 
 	/**
-	 * Gegenprobe: Auf Desktop-Breite bleibt der Kopfbereich unverändert — alle fünf Buttons stehen
-	 * direkt in der Toolbar, es gibt kein „⋮"-Menü, und der Anzeigename steht im Klartext.
+	 * Gegenprobe: Auf Desktop-Breite bleibt der Kopfbereich unverändert — alle fünf Aktionen bleiben
+	 * erreichbar (vier direkt in der Toolbar, „Hilfe"/„Abmelden" seit #2723 im Avatar-Popover), und
+	 * es gibt kein „⋮"-Menü.
 	 */
 	test('1280×800: unveränderter Desktop-Kopfbereich ohne Menü', async ({ page }) => {
 		await gotoApp(page, DESKTOP);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+		await expect(toolbar).toBeVisible();
 		for (const label of HEADER_ACTIONS) {
-			await expect(toolbar.getByRole('button', { name: label })).toBeVisible();
+			await expect(await headerAction(page, label), `Kopf-Aktion „${label}" auch auf Desktop erreichbar`).toBeVisible();
 		}
 
 		await expect(page.getByRole('button', { name: 'Mein Konto' })).toHaveCount(0);

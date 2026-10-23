@@ -6,7 +6,7 @@
 
 - Location: `frontend/e2e/**/*.spec.ts`
 - Zweck: Integrationstests gegen echte UI
-- Ausführung: `npx playwright test` (oder `pnpm test:e2e`)
+- Ausführung: `pnpm --filter frontend test:e2e` oder `pnpm --filter website test:e2e`
 
 ### Unit-Tests (Vitest)
 

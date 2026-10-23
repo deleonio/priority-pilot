@@ -1,5 +1,6 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import type { Pillar } from 'client';
+import type { ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { HeartBalance } from './HeartBalance';
 import { R_MIN, TICK_COUNT } from '../lib/balanceFigure';
@@ -75,6 +76,9 @@ describe('HeartBalance', () => {
 				'kristall',
 				'segmente',
 				'zeiger',
+				'bahnen',
+				'meteore',
+				'pendel',
 			] as const) {
 				chooseVariant(value);
 				render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
@@ -101,6 +105,9 @@ describe('HeartBalance', () => {
 				'kristall',
 				'segmente',
 				'zeiger',
+				'bahnen',
+				'meteore',
+				'pendel',
 			] as const) {
 				chooseVariant(value);
 				render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
@@ -129,6 +136,69 @@ describe('HeartBalance', () => {
 
 			expect(screen.getByTestId('heart-balance-value').textContent).toBe('42 %');
 			expect(screen.getByTestId('heart-balance-svg').getAttribute('aria-label')).toMatch(/^Balance 42 Prozent — /);
+		});
+
+		/*
+		 * #2676: Bis der erste Stand freigegeben ist, stehen Bild und Ablesewert unsichtbar — der
+		 * Platz bleibt (kein Layout-Shift), und die erste sichtbare Fassung zeigt sofort den echten
+		 * Wert statt erst auf den lokalen Notwert zu wachsen und darauf zu springen. Die Legende
+		 * bleibt sichtbar: Ihre Anteile kommen aus den Säulen, nicht vom Server-Stand.
+		 */
+		it('hält Bild und Ablesewert unsichtbar, bis der erste Stand freigegeben ist (#2676)', () => {
+			const { container } = render(
+				<HeartBalance pillars={pillars} punkteProSaeule={gleichverteilt} fill={0.42} auftaktBereit={false} />,
+			);
+
+			expect(screen.getByTestId('heart-balance-svg')).not.toBeVisible();
+			expect(screen.getByTestId('heart-balance-value')).not.toBeVisible();
+			// Sichtbarkeits-Gate, nicht Display: Bühne und Zeilen halten ihre Höhe.
+			expect(container.querySelector('.heart-balance-stage')).not.toHaveStyle('display: none');
+			expect(screen.getByTestId('heart-balance-legend')).toBeVisible();
+		});
+
+		it('zeigt mit der Freigabe sofort den echten Stand — der lokale Notwert war nie sichtbar (#2676)', () => {
+			const props = { pillars, punkteProSaeule: gleichverteilt, fill: 0.42 } as const;
+			const { rerender } = render(<HeartBalance {...props} auftaktBereit={false} />);
+
+			rerender(<HeartBalance {...props} auftaktBereit />);
+
+			expect(screen.getByTestId('heart-balance-svg')).toBeVisible();
+			expect(screen.getByTestId('heart-balance-value')).toBeVisible();
+			expect(screen.getByTestId('heart-balance-value').textContent).toBe('42 %');
+		});
+
+		/*
+		 * Erster Start ohne gerätelokalen Stand: Das Bild bleibt bis zur ersten Server-Antwort
+		 * unsichtbar — der Drehmelder füllt die freigehaltene Bühne, statt ein leeres Feld zu zeigen.
+		 * Mit der Freigabe entfällt er wieder.
+		 */
+		it('zeigt bis zur ersten Freigabe einen Ladeindikator auf der Bühne', () => {
+			const props = { pillars, punkteProSaeule: gleichverteilt, fill: 0.42 } as const;
+			const { container, rerender } = render(<HeartBalance {...props} auftaktBereit={false} />);
+
+			expect(container.querySelector('.heart-balance-loading kol-spin')).not.toBeNull();
+
+			rerender(<HeartBalance {...props} auftaktBereit />);
+
+			expect(container.querySelector('kol-spin')).toBeNull();
+		});
+
+		// #2645 (docs/spec/issue-2645.md): Das Dashboard leitet die Urteilsreife aus der
+		// Balance-Antwort ab (#2633-Felder) und reicht sie als optionale Prop durch — `undefined`
+		// (Server-Felder fehlen) bleibt bisheriges Verhalten. Die Prop existiert noch nicht und wird
+		// per Intersection-Typ deklariert (Produktiv-Typ unberührt, Muster 2026-08-23).
+		it('zeigt unter der Mindestmenge den Leerzustand statt Urteil und Säulennamen (#2645/AK1)', () => {
+			type PropsMitUrteilsreife = ComponentProps<typeof HeartBalance> & { urteilsreif?: boolean };
+			const props: PropsMitUrteilsreife = { pillars, punkteProSaeule: schieflage, urteilsreif: false };
+			const { container } = render(<HeartBalance {...props} />);
+
+			const state = container.querySelector('.heart-balance-state');
+			expect(state?.getAttribute('data-state')).toBe('leer');
+			expect(state?.textContent).toBe('Noch leer');
+			const hint = container.querySelector('.heart-balance-hint');
+			// Leer-Hinweis statt konkreter Schieflage — keine Säule wird beim Namen genannt.
+			expect(hint?.textContent).toBe('Erledige Aufgaben, damit sich das Bild füllt.');
+			expect(hint?.textContent).not.toContain('Körper');
 		});
 
 		it('weist je Säule die Abweichung vom Ziel in Prozentpunkten aus', () => {
@@ -252,6 +322,53 @@ describe('HeartBalance', () => {
 			const [staerkste] = nodePositions();
 			expect(staerkste.cx).toBeCloseTo(50, 1);
 			expect(staerkste.cy).toBeLessThan(50);
+		});
+	});
+
+	describe('Figuren „Bahnen", „Meteore" und „Pendel"', () => {
+		/** Große Halbachse der Bahn-Ellipse je Säule (Attribut `rx` der Spur). */
+		const orbitRadii = (): number[] =>
+			screen
+				.getAllByTestId('heart-column')
+				.map((column) => Number(column.querySelector('.balance-orbit-track')?.getAttribute('rx')));
+
+		it('zeichnet je Säule und Variante eine Bahn mit Komet darauf, die größte zuerst', () => {
+			for (const value of ['bahnen', 'meteore', 'pendel'] as const) {
+				chooseVariant(value);
+				render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
+
+				const columns = screen.getAllByTestId('heart-column');
+				expect(columns, value).toHaveLength(2);
+				for (const column of columns) {
+					expect(column.querySelector('.balance-orbit-track'), value).not.toBeNull();
+					expect(column.querySelector('.balance-node'), value).not.toBeNull();
+				}
+				const radii = orbitRadii();
+				expect(radii[0]).toBeGreaterThan(radii[1]);
+				cleanup();
+			}
+		});
+
+		it('dreht die größte Bahn auf 12 Uhr — ihr Scheitel liegt über der Mitte', () => {
+			chooseVariant('bahnen');
+			render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
+
+			const [spur] = screen.getAllByTestId('heart-column');
+			expect(spur.querySelector('.balance-orbit-track')).toHaveAttribute('transform', 'rotate(-90.00 50 50)');
+		});
+
+		it('gibt dem Meteor den langen Schweif, den anderen den kurzen', () => {
+			const punkte: Record<string, string> = {};
+			for (const value of ['bahnen', 'meteore', 'pendel'] as const) {
+				chooseVariant(value);
+				render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
+				punkte[value] =
+					screen.getAllByTestId('heart-column')[0].querySelector('.balance-comet-tail')?.getAttribute('points') ?? '';
+				cleanup();
+			}
+			// Der Schweif des Meteors reicht deutlich weiter zurück als der der beiden anderen.
+			expect(punkte.meteore).not.toBe(punkte.bahnen);
+			expect(punkte.bahnen).toBe(punkte.pendel);
 		});
 	});
 });

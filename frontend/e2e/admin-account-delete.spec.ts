@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * E2E für #2327 (AK5/AK7): Admin löscht in der Nutzerverwaltung ein fremdes Konto — Abbrechen
@@ -9,7 +9,6 @@ import { waitForStableView } from './helpers';
  * test-login über die separate `request`-Fixture an. Bounding-Box statt scrollWidth.
  */
 
-const MOBILE = { width: 375, height: 812 } as const;
 // Eigener Anzeigename: alle Specs teilen ein Backend — weitere „Anna Admin“ hätten Konto-löschen-Buttons.
 const ADMIN = { email: 'admin-2327@example.com', displayName: 'Arne Admin' };
 

@@ -1,6 +1,7 @@
 import { Trans, useTranslation } from 'react-i18next';
 import i18next from '../i18n/config';
-import { KolBadge, KolButton, KolCard, KolMeter, KolPagination } from '@public-ui/react-v19';
+import { KolAlert, KolBadge, KolButton, KolCard, KolMeter, KolPagination } from '@public-ui/react-v19';
+import { hasOpenChecklistItems } from './CompleteTaskDialog';
 import { MissedTasksSection } from './MissedTasksSection';
 import { FreeTimeCard } from './FreeTimeCard';
 import { NearbyCard } from './NearbyCard';
@@ -8,6 +9,7 @@ import { CareHint } from './CareHint';
 import { WelcomeSteps } from './WelcomeSteps';
 import { DayDoneHint } from './DayDoneHint';
 import { StreakCard } from './StreakCard';
+import { BalanceHistoryCard } from './BalanceHistoryCard';
 import { WeeklyBalanceCard } from './WeeklyBalanceCard';
 import { MonthlyBalanceCard } from './MonthlyBalanceCard';
 import { YearlyRecapCard } from './YearlyRecapCard';
@@ -18,23 +20,22 @@ import type { components, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
+import { toApiError } from '../lib/apiError';
+import { readBalanceStatusCache, storeBalanceStatusCache } from '../lib/balanceStatusCache';
+import { URGENCY_COLOR } from '../lib/badgeColors';
 import { useGeolocation } from '../lib/useGeolocation';
+import { useDashboardAnchor } from '../lib/useDashboardAnchor';
 import { collectTaskValues } from '../lib/forest';
 import { buildPillarSummaries, calculateMeterThreshold, calculateMeterHighThreshold } from '../lib/pillar';
 import { buildPillarBalances } from '../lib/score';
 import {
-	type DeadlineUrgency,
+	DONE_UNDO_WINDOW_MS,
 	deadlineUrgency,
 	formatDeadline,
 	formatNumber,
 	formatRelativeDeadline,
+	istUeberfaellig,
 } from '../lib/task';
-
-/** Badge-Hintergrundfarbe je hervorzuhebender Dringlichkeit (Textfarbe berechnet KolBadge automatisch). */
-const URGENCY_COLOR: Record<Exclude<DeadlineUrgency, 'later'>, string> = {
-	overdue: '#b42318',
-	soon: '#b54708',
-};
 
 /**
  * #1985: „Warum jetzt?“ — `GET /next` liefert die Begründungswerte additiv im Payload
@@ -50,9 +51,11 @@ type BegrTask = Task & Partial<Pick<components['schemas']['TaskRecommendation'],
  * Rein informativ, ohne Technik-Werte (KI-UX): keine Anteile/Prozente/Scores. Ohne Anteile
  * genau ein Fallback-Satz aus der Frist (ohne Frist keiner). Die Priorität steht schon in der
  * Meta-Zeile der Karte und wird nicht wiederholt. Bei `reasons.split` (#1994) folgt zuletzt der
- * übergebene Aufteilen-Satz, ohne Zahl und ohne Aktion.
+ * übergebene Aufteilen-Satz, ohne Zahl und ohne Aktion. Zeigt der Fürsorge-Hinweis den
+ * Einstiegssatz (`einstiegImHinweis`, #2645), bleibt der inhaltsgleiche Begründungssatz weg —
+ * der Satz steht nur einmal auf dem Dashboard.
  */
-const begruendungsSaetze = (task: BegrTask, splitSatz: string): string[] => {
+const begruendungsSaetze = (task: BegrTask, splitSatz: string, einstiegImHinweis = false): string[] => {
 	const { reasons, scoreBreakdown } = task;
 	if (reasons === undefined || Object.keys(reasons).length === 0) {
 		return task.deadline ? [i18next.t('dashboard:reasons.dueOn', { date: formatDeadline(task.deadline) })] : [];
@@ -69,6 +72,12 @@ const begruendungsSaetze = (task: BegrTask, splitSatz: string): string[] => {
 				names: new Intl.ListFormat(i18next.language, { type: 'conjunction' }).format(balance.pillars),
 			}),
 		});
+	}
+	// #2527: Einstiegssignal statt `balance`, solange die Mindestmenge an Erledigungen nicht
+	// erreicht ist — der einladende Satz ohne Defizit-Vokabular. Zeigt der CareHint denselben
+	// Satz (#2645), entfällt er hier: doppelt wäre Redundanz im selben View.
+	if (reasons.einstieg !== undefined && !einstiegImHinweis) {
+		saetze.push({ key: 'einstieg', satz: i18next.t('dashboard:reasons.einstieg') });
 	}
 	if (reasons.unlock !== undefined) {
 		const offen = reasons.unlock.openCount;
@@ -113,8 +122,18 @@ interface DashboardProps {
 	pillars: Pillar[];
 	/** Anzeigename des Nutzers für die personalisierte Begrüßung (aus `localStorage`). Leer → keine Begrüßung. */
 	displayName?: string;
-	/** Markiert die nächste Aufgabe als erledigt („Erledigt" im Signal-Panel, #1168). */
+	/** Konto-Id des angemeldeten Nutzers — Schlüssel des gerätelokalen Balance-Spiegels (je Konto, Muster `planMirrorKey`). */
+	userId: number;
+	/**
+	 * #2526 (ADR 0024): Dialog-Delegierung der beiden Nicht-Direkt-Fälle (offene Checkliste →
+	 * CompleteTaskDialog, überfällige Deadline → Pünktlich-Nachfrage). Das Direkt-Erledigen selbst
+	 * trägt das Panel und braucht diesen Callback nicht.
+	 */
 	onCompleteTask?: (task: Task) => void;
+	/** #2526: nach erfolgreichem Direkt-Erledigen — Konfetti (#1169) + Aktualisierungs-Trichter (#2522). */
+	onDirectComplete?: (task: Task) => void;
+	/** #2526: Rückmeldung abgeschlossen (7-s-Fenster abgelaufen oder Rückgängig) — Ansicht neu laden. */
+	onInlineSettled?: () => void;
 	/** Öffnet den Bearbeiten-Dialog für die nächste Aufgabe („Bearbeiten" im Signal-Panel, #1447). */
 	onEditTask?: (task: Task) => void;
 	/** Stellt die nächste Aufgabe kurz zurück (Uhr-Button im Signal-Panel, #2244). */
@@ -152,6 +171,10 @@ const TOP_TASKS_LIMIT = 5;
 /** Einträge je Seite in der Deadlines-Liste (Client-Pagination, siehe `deadlinePage`). */
 const DEADLINES_PAGE_SIZE = 8;
 
+// Hängt der Balance-Status-Request, gibt erst der Timeout-Abbruch den Auftakt frei (#2770) —
+// großzügig, damit langsame (aber erfolgreiche) Antworten nie in den Fehlzustand laufen.
+const BALANCE_STATUS_TIMEOUT_MS = 10_000;
+
 /** Eine Aufgabe mit gesetzter, gültiger Deadline (für die Deadline-Liste). */
 type TaskWithDeadline = Task & { deadline: Date };
 
@@ -181,7 +204,10 @@ export const Dashboard = ({
 	suggestions = [],
 	pillars,
 	displayName = '',
+	userId,
 	onCompleteTask,
+	onDirectComplete,
+	onInlineSettled,
 	onEditTask,
 	onSnoozeTask,
 	showDayDoneHint = true,
@@ -192,6 +218,8 @@ export const Dashboard = ({
 	onArchiveMissed,
 	onDeleteMissed,
 }: DashboardProps) => {
+	// #2848: Push-Ziele mit `/#karte-…` springen nach dem ersten Rendern zur Zielkarte (Anker-Hook).
+	useDashboardAnchor();
 	const { t } = useTranslation(['dashboard', 'common']);
 	const greeting = displayName.trim();
 	// #1098 AK4: eigene Hook-Instanz (wie Footer/SettingsPage) — entscheidet, ob die
@@ -253,24 +281,58 @@ export const Dashboard = ({
 
 	// #1638 AK5: Den Füllstand des Herzens rechnet der Server im Kadenz-Modell (Soll-Rhythmus je Säule
 	// im 28-Tage-Fenster) — dieselbe Zahl wie Verlauf und MCP `balance_status`. Neu geladen, sobald
-	// sich die Aufgaben ändern; bis zur Antwort oder bei Fehler bleibt der lokal gerechnete Wert.
-	const [serverFill, setServerFill] = useState<number | undefined>(undefined);
+	// sich die Aufgaben ändern; bis zur Antwort oder bei Fehler bleibt der zuletzt bekannte Wert
+	// stehen (der Spiegel-Startwert oder lokal gerechnet, solange kein Spiegel existiert).
+	const [ersterStand] = useState(() => readBalanceStatusCache(userId));
+	const [serverFill, setServerFill] = useState<number | undefined>(ersterStand?.fuellstand);
+	// Der Auftakt des Balance-Bilds startet erst mit der ersten Beantwortung dieser Frage (Erfolg
+	// ODER Fehler — dann auf den lokalen Wert): Sonst wächst das Zifferblatt auf den lokalen
+	// Notwert und wechselt dort zeitversetzt auf den echten Stand (Doppel-Animation). Ein
+	// gespiegelter Stand ist selbst ein echter Server-Stand — mit ihm ist die Freigabe sofort da.
+	const [auftaktBereit, setAuftaktBereit] = useState(ersterStand !== undefined);
+	// #2645: Urteilsreife aus der Balance-Antwort (#2633) — unter der Überlast-Mindestmenge zeigt
+	// das Balance-Bild den Leerzustand statt eines Urteils. Fehlen die Felder (Server-Fehler),
+	// bleibt `undefined` = bisheriges Verhalten.
+	const [urteilsreif, setUrteilsreif] = useState<boolean | undefined>(ersterStand?.urteilsreif);
+	// #2645: Zeigt der Fürsorge-Hinweis den Einstiegssatz, steht derselbe Satz nicht zusätzlich
+	// als Begründungszeile der nächsten Aufgabe — CareHint meldet das hier hoch (genau einmal).
+	const [einstiegImHinweis, setEinstiegImHinweis] = useState(false);
 	useEffect(() => {
 		let cancelled = false;
+		// Hängt der Request (Server antwortet nicht), bliebe der Auftakt für immer zurückgehalten —
+		// das Zifferblatt bliebe leer (#2770). Der Abbruch nach großzügigem Timeout landet im
+		// bestehenden `catch` und gibt für den lokal gerechneten Stand frei.
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), BALANCE_STATUS_TIMEOUT_MS);
 		api
-			.getBalanceStatus({ tz: Intl.DateTimeFormat().resolvedOptions().timeZone })
+			.getBalanceStatus({
+				tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+				signal: controller.signal,
+			})
 			.then((status) => {
 				if (!cancelled) {
 					setServerFill(status.fuellstandProzent / 100);
+					if (status.erledigungenImFenster !== undefined && status.mindestErledigungen !== undefined) {
+						setUrteilsreif(status.erledigungenImFenster >= status.mindestErledigungen);
+					}
+					setAuftaktBereit(true);
+					// Spiegel des Kontos nachziehen — der nächste Kaltstart zeigt diesen Stand sofort.
+					storeBalanceStatusCache(userId, status);
 				}
 			})
 			.catch(() => {
-				// Nicht erreichbar: das Herz zeigt weiter den lokalen Wert statt eines Fehlerzustands.
+				// Nicht erreichbar: das Herz bleibt auf dem zuletzt bekannten Stand (Spiegel-Startwert,
+				// sonst lokal gerechnet) statt eines Fehlerzustands — der Auftakt läuft dann einmalig auf diesen.
+				if (!cancelled) {
+					setAuftaktBereit(true);
+				}
 			});
 		return () => {
 			cancelled = true;
+			clearTimeout(timeout);
+			controller.abort();
 		};
-	}, [tasks]);
+	}, [tasks, userId]);
 
 	const pillarBalances = useMemo(() => buildPillarBalances(pillars, punkteProSaeule), [pillars, punkteProSaeule]);
 
@@ -310,6 +372,117 @@ export const Dashboard = ({
 		[suggestions, nextTask],
 	);
 
+	// #2526: Inline-Rückmeldung des Direkt-Erledigens an der Tipp-Stelle — Erfolg (Punkte, Streak,
+	// Rückgängig) statt Bestätigungsdialog; Fehler inline als KolAlert, die Aufgabe bleibt offen.
+	const [inlineFeedback, setInlineFeedback] = useState<{
+		taskId: number;
+		punkte: number;
+		streakTage?: number;
+	} | null>(null);
+	const [inlineError, setInlineError] = useState<string | null>(null);
+	const inlineBusy = useRef(false);
+	const inlineTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	// Unmount räumt den Fenster-Timer ab (kein Set-state nach dem Aushängen).
+	useEffect(
+		() => () => {
+			if (inlineTimer.current !== null) {
+				clearTimeout(inlineTimer.current);
+			}
+		},
+		[],
+	);
+
+	// #2526 (ADR 0024): EIN Tipp auf „Erledigen“ — ohne offene Checkliste und ohne überfällige
+	// Deadline erledigt das Panel die Aufgabe direkt (PATCH aus dem Panel, Rückmeldung an der
+	// Tipp-Stelle). Dialogfälle delegieren: offene Checkliste → CompleteTaskDialog (#1583),
+	// überfällige Deadline → Pünktlich-Nachfrage (MissedCompleteDialog, #1964).
+	const handlePanelComplete = (task: Task): void => {
+		if (hasOpenChecklistItems(task.checklist) || istUeberfaellig(task)) {
+			onCompleteTask?.(task);
+			return;
+		}
+		if (inlineBusy.current) {
+			return;
+		}
+		inlineBusy.current = true;
+		void (async () => {
+			try {
+				setInlineError(null);
+				const updated = await api.updateTask({
+					id: task.id,
+					taskUpdate: {
+						title: task.title,
+						description: task.description,
+						status: TaskStatus.Done,
+						priority: task.priority,
+						estimatedEffort: task.estimatedEffort,
+						deadline: task.deadline,
+					},
+				});
+				// Punkte sofort aus der PATCH-Response (eine Wahrheit, Server); der Streak folgt
+				// nicht-blockierend nach — ein Fehlschlag ist für die Rückmeldung folgenlos.
+				setInlineFeedback({ taskId: task.id, punkte: updated.vergebenePunkte ?? 0 });
+				void api
+					.getStreak()
+					.then((streak) =>
+						setInlineFeedback((prev) => (prev?.taskId === task.id ? { ...prev, streakTage: streak.aktuell } : prev)),
+					)
+					.catch(() => {});
+				onDirectComplete?.(task);
+				inlineTimer.current = setTimeout(() => {
+					inlineTimer.current = null;
+					setInlineFeedback(null);
+					onInlineSettled?.();
+				}, DONE_UNDO_WINDOW_MS);
+			} catch (reason) {
+				const apiError = await toApiError(reason);
+				setInlineError(apiError.message);
+			} finally {
+				inlineBusy.current = false;
+			}
+		})();
+	};
+
+	// „Rückgängig“ — derselbe Wieder-öffnen-Pfad wie in der Liste (handleDoneToggle): der Server
+	// entfernt den ScoreEntry beim Übergang auf Offen, es gibt keine Doppelvergabe (#228).
+	const handlePanelUndo = (task: Task): void => {
+		if (inlineBusy.current) {
+			return;
+		}
+		inlineBusy.current = true;
+		void (async () => {
+			try {
+				setInlineError(null);
+				await api.updateTask({
+					id: task.id,
+					taskUpdate: {
+						title: task.title,
+						description: task.description,
+						status: TaskStatus.Open,
+						priority: task.priority,
+						estimatedEffort: task.estimatedEffort,
+						deadline: task.deadline,
+					},
+				});
+				if (inlineTimer.current !== null) {
+					clearTimeout(inlineTimer.current);
+					inlineTimer.current = null;
+				}
+				setInlineFeedback(null);
+				onInlineSettled?.();
+			} catch (reason) {
+				const apiError = await toApiError(reason);
+				setInlineError(apiError.message);
+			} finally {
+				inlineBusy.current = false;
+			}
+		})();
+	};
+
+	// #2526: Die Rückmeldung gilt nur, solange dieser Task im Panel liegt. Fixup #2572: die
+	// aria-live-Region steht dauerhaft im DOM (leer vor der Rückmeldung), nur der Inhalt wechselt.
+	const panelFeedback = inlineFeedback !== null && inlineFeedback.taskId === nextTask?.id ? inlineFeedback : null;
+
 	return (
 		<section className="dashboard">
 			<div className="dashboard-heading">
@@ -331,8 +504,14 @@ export const Dashboard = ({
 			 */}
 			<div className={pillars.length > 0 ? 'dashboard-hero' : 'dashboard-hero dashboard-hero--solo'}>
 				{pillars.length > 0 && (
-					<KolCard className="dashboard-heart" _label={t('heart.label')} _level={3}>
-						<HeartBalance pillars={pillars} punkteProSaeule={punkteProSaeule} fill={serverFill} />
+					<KolCard className="dashboard-heart" id="karte-balance" tabIndex={-1} _label={t('heart.label')} _level={3}>
+						<HeartBalance
+							pillars={pillars}
+							punkteProSaeule={punkteProSaeule}
+							fill={serverFill}
+							urteilsreif={urteilsreif}
+							auftaktBereit={auftaktBereit}
+						/>
 					</KolCard>
 				)}
 				<div className="dashboard-hero-side">
@@ -366,7 +545,9 @@ export const Dashboard = ({
 							}
 						/>
 					)}
-					<CareHint />
+					{/* #2645: Der Hinweis meldet, ob er den Einstiegssatz zeigt — Dedup mit der
+					    Begründungszeile der nächsten Aufgabe (genau einmal). */}
+					<CareHint onEinstiegssatzGezeigt={setEinstiegImHinweis} />
 					<KolCard
 						className="dashboard-next-task"
 						role="region"
@@ -385,9 +566,9 @@ export const Dashboard = ({
 								{/* #1985: „Warum jetzt?“ — Begründungssätze, stärkster Grund zuerst (DOM-Reihenfolge,
 								    A11y); ohne Anteile der Fallback-Satz. Reine Information im Signal-Panel: keine
 								    Interaktion, kein Farb-/Gewichts-Akzent (KI-UX). */}
-								{begruendungsSaetze(nextTask, t('common:splitHint.reason')).length > 0 && (
+								{begruendungsSaetze(nextTask, t('common:splitHint.reason'), einstiegImHinweis).length > 0 && (
 									<ul className="dashboard-next-task-reasons">
-										{begruendungsSaetze(nextTask, t('common:splitHint.reason')).map((satz) => (
+										{begruendungsSaetze(nextTask, t('common:splitHint.reason'), einstiegImHinweis).map((satz) => (
 											<li key={satz}>{satz}</li>
 										))}
 									</ul>
@@ -398,16 +579,46 @@ export const Dashboard = ({
 								    Hauptaussage vorbehalten (ux-design.md §1), Icon-only wie der Präzedenzfall
 								    in `TaskTree.tsx:212-223`. Der Breiten-Vertrag aus #1042 gilt jetzt für die
 								    Zeile: sie füllt mobil die Innenbreite, ab Tablet ist sie inhaltsbreit. */}
-								{(onCompleteTask !== undefined || onEditTask !== undefined || onSnoozeTask !== undefined) && (
-									<div className="dashboard-next-task-actions">
-										{onCompleteTask !== undefined && (
+								{inlineError !== null && (
+									<KolAlert className="dashboard-next-task-error" _type="error" _label={t('nextTask.errorLabel')}>
+										{inlineError}
+									</KolAlert>
+								)}
+								{/* #2526: Rückmeldung an der Tipp-Stelle — Erfolg in einer aria-live-Region (kein Fokusraub,
+								    KI-UX/A11y), „Rückgängig“ mit dem bekannten Undo-Icon. Erfolg nie über Farbe allein:
+								    --pp-success + Icon + Text. Die Aktionszeile weicht für das 7-s-Fenster (ADR 0024).
+								    Fixup #2572: die Region steht dauerhaft im DOM — leer vor der Rückmeldung (Screenreader
+								    verkünden frisch gemountete Live-Regions unzuverlässig) —, nur der Inhalt wechselt. */}
+								<div className="dashboard-next-task-feedback" aria-live="polite">
+									{panelFeedback !== null && (
+										<>
+											<span className="dashboard-next-task-feedback-points">
+												<i className="fa-solid fa-circle-check" aria-hidden="true" />
+												{t('nextTask.earnedPoints', { punkte: formatNumber(panelFeedback.punkte) })}
+												{panelFeedback.streakTage !== undefined && (
+													<>
+														{' · '}
+														{t('nextTask.streakDays', { count: panelFeedback.streakTage })}
+													</>
+												)}
+											</span>
 											<KolButton
-												_label={t('nextTask.complete')}
-												_variant="primary"
-												_icons={{ left: { icon: 'fa-solid fa-check' } }}
-												_on={{ onClick: () => onCompleteTask(nextTask) }}
+												_label={t('nextTask.undo')}
+												_variant="secondary"
+												_icons={{ left: { icon: 'fa-solid fa-rotate-left' } }}
+												_on={{ onClick: () => handlePanelUndo(nextTask) }}
 											/>
-										)}
+										</>
+									)}
+								</div>
+								{panelFeedback === null && (
+									<div className="dashboard-next-task-actions">
+										<KolButton
+											_label={t('nextTask.complete')}
+											_variant="primary"
+											_icons={{ left: { icon: 'fa-solid fa-check' } }}
+											_on={{ onClick: () => handlePanelComplete(nextTask) }}
+										/>
 										{onEditTask !== undefined && (
 											<KolButton
 												_label={t('common:actions.edit')}
@@ -470,7 +681,13 @@ export const Dashboard = ({
 			{/* #1990: „Freie Zeit" vor „In der Nähe" — erscheint nur mit Kalender und passender Lücke. */}
 			<FreeTimeCard />
 			{(geoEnabled || geoDenied) && <NearbyCard />}
-			<KolCard className="dashboard-top-tasks" _label={t('topTasks.label')} _level={3}>
+			<KolCard
+				className="dashboard-top-tasks"
+				id="karte-top-aufgaben"
+				tabIndex={-1}
+				_label={t('topTasks.label')}
+				_level={3}
+			>
 				{topTasks.length === 0 ? (
 					<p className="dashboard-empty">{t('topTasks.empty')}</p>
 				) : (
@@ -566,6 +783,9 @@ export const Dashboard = ({
 			 * lädt selbst (Muster NearbyCard), daher ohne Prop-Kette und ohne Bedingung.
 			 */}
 			<StreakCard />
+			{/* #2082: Balance-Verlauf der letzten 28 Tage direkt nach dem Streak — dieselbe Frage nach dem
+			 * Durchhalten. Lädt selbst (Muster StreakCard), daher ohne Prop-Kette und ohne Bedingung. */}
+			<BalanceHistoryCard />
 			{/* #1968: „Meine Woche in fünf Säulen“ direkt nach dem Streak — beide Karten erzählen
 			 * vom Durchhalten, die Wochenkarte als teilbares Standbild. Lädt selbst (Muster
 			 * StreakCard), daher ohne Prop-Kette; sie erscheint von selbst erst am Sonntag (AK4). */}
@@ -621,7 +841,13 @@ export const Dashboard = ({
 			    Verpasst rutschte allein in die nächste Zeile. Fehlt der Verpasst-Bereich, füllt die
 			    Deadlines-Card die Reihe voll. Die Aufgaben-Tab-Instanz bleibt in `App.tsx`. */}
 			<div className="dashboard-last-row">
-				<KolCard className="dashboard-deadlines" _label={t('deadlines.label')} _level={3}>
+				<KolCard
+					className="dashboard-deadlines"
+					id="karte-deadlines"
+					tabIndex={-1}
+					_label={t('deadlines.label')}
+					_level={3}
+				>
 					{upcomingDeadlines.length === 0 ? (
 						<p className="dashboard-empty">{t('deadlines.empty')}</p>
 					) : (

@@ -1,7 +1,12 @@
 import { NotificationLog, User } from '../models/index.js';
-import { sendPushToUser, type PushSender } from './push.js';
+import { sendDedupedPush } from './dedupedPush.js';
+import { type PushSender } from './push.js';
 import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
+import { renderMailHtml } from './mailTemplate.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
+import { istRuhezeit } from './carePush.js';
+import { nutzerZeitzone } from './streak.js';
+import { PUSH_TARGETS } from './pushTargets.js';
 
 /**
  * Fachlicher Push-Trigger „fremd angelegte Aufgabe erledigt" (#1391): setzt B den Status einer von A
@@ -9,6 +14,7 @@ import { spracheVon, type CareSprache } from './careSuggestionData.js';
  * und Bs Anzeigenamen. Wie `notifyTaskCreated` (#1224) verhindert der Auslöser über
  * {@link NotificationLog} (eigene `kind`, `dedupeKey` = Task-Id), dass dieselbe Aufgabe erneut meldet
  * — pro Aufgabe höchstens eine Nachricht, auch nach Wiedereröffnen und erneutem Erledigen.
+ * Ruhezeit 21–7 Ortszeit des Empfängers: kein Versand, kein Log (#2849 AK4).
  * Selbst-Anlagen lösen nichts aus (entscheidet der Aufrufer, indem er gar nicht erst aufruft).
  */
 
@@ -48,20 +54,43 @@ export const notifyTaskCompleted = async (
 	mailSend?: MailSender,
 ): Promise<void> => {
 	const dedupeKey = String(task.id);
-	const alreadySent = await NotificationLog.findOne({ where: { kind: KIND, dedupeKey } });
-	if (alreadySent) {
+	// Mail teilt denselben Dedupe-Schlüssel (#1426): Die Prüfung bleibt hier, weil der Helfer
+	// „bereits gesendet" nicht von „keine Subscription" unterscheiden kann und die Mail sonst
+	// bei jedem Lauf erneut ginge.
+	if (await NotificationLog.findOne({ where: { kind: KIND, dedupeKey } })) {
 		return;
 	}
 	const recipient = await User.findByPk(task.createdById);
-	const texte = TEXTE[spracheVon(recipient?.sprache)];
+	// #2850 AK3: Gruppenschalter „Aufgaben und Erinnerungen" aus → kein Push, kein Log (Muster carePush).
+	if (recipient?.taskPushEnabled === false) {
+		return;
+	}
+	// #2849 AK4: Ruhezeit 21–7 Ortszeit — komplett stumm (Push wie Mail), kein Log, kein Nachholen.
+	if (istRuhezeit(new Date(), nutzerZeitzone(recipient?.zeitzone))) {
+		return;
+	}
+	const sprache = spracheVon(recipient?.sprache);
+	const texte = TEXTE[sprache];
 	const title = texte.titel;
 	const body = texte.text(completer?.displayName ?? texte.jemand, task.title);
-	const { sent } = await sendPushToUser(task.createdById, { title, body, url: '/' }, send);
+	const { sent } = await sendDedupedPush(
+		task.createdById,
+		KIND,
+		dedupeKey,
+		{ title, body, url: PUSH_TARGETS.taskCompleted(task.id) },
+		send,
+	);
 	let mailSent = false;
 	if (mailSend || isMailConfigured()) {
-		mailSent = await sendMailToUser({ email: recipient?.email ?? null }, { subject: title, text: body }, mailSend);
+		const mailHtml = renderMailHtml({ heading: title, paragraphs: [body], lang: sprache });
+		mailSent = await sendMailToUser(
+			{ email: recipient?.email ?? null },
+			{ subject: title, text: body, html: mailHtml.html, attachments: mailHtml.attachments },
+			mailSend,
+		);
 	}
-	if (sent > 0 || mailSent) {
+	if (sent === 0 && mailSent) {
+		// Protokolliert der Helfer nicht (Push ohne Zustellung), sichert erst die Mail den Log-Eintrag.
 		await NotificationLog.create({
 			userId: task.createdById,
 			kind: KIND,

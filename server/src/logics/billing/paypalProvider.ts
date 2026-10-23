@@ -1,9 +1,10 @@
 import type { MailSender } from '../mail.js';
 import { issueCreditNote, issueInvoiceForPeriod } from '../invoices.js';
-import { getPlansCatalog, type Plan } from '../plans.js';
+import { refundRemainingTerm } from '../cancellationRefund.js';
 import {
 	applyPaymentEvent,
 	applyPlanChange,
+	coversFirstCycle,
 	createPaypalClient,
 	paypalPlanIdFor,
 	PERIOD_MONTHS,
@@ -13,15 +14,7 @@ import {
 	type PaypalVerifier,
 	type PaypalWebhookEvent,
 } from '../paypal.js';
-import type Subscription from '../../models/subscription.js';
 import type { BillingProvider, WebCheckout } from './provider.js';
-
-/** Ob das Guthaben den ersten Zyklus ganz deckt (#2230): Dann gilt ACTIVATED bereits als Zahlung. */
-const coversFirstCycle = (subscription: Subscription): boolean => {
-	const creditCents = subscription.get('creditCents') as number;
-	const price = getPlansCatalog().prices[subscription.get('plan') as Plan];
-	return creditCents >= price[subscription.get('period') as keyof typeof price];
-};
 
 /** Injizierbare Teile; ohne Angabe gelten die echten PayPal-Aufrufe. */
 export interface PaypalProviderDeps {
@@ -67,9 +60,31 @@ export const createPaypalProvider = (deps: PaypalProviderDeps = {}): BillingProv
 			) {
 				await replacePredecessors(subscription, client);
 			}
+			// #2745: Kündigung ab der zweiten Laufzeit → anteilige Restlaufzeit-Erstattung (Sale-Refund
+			// plus Gutschrift). Ein Fehlschlag kassiert das Vertragsende nicht — er wird geloggt und im
+			// Kulanz-Sweep wiederholt (#2606-Muster, `refundRetryAttempts`). Nur die Nutzerkündigung
+			// erstattet: das von `replacePredecessors` per API gekündigte Alt-Abo eines Upgrades (#1912)
+			// und der Paketentzug (#2237) melden sich als `cancelled` + `plan free` — dieselbe Form, die
+			// der Early-Return von `applyPlanChange` (paypal.ts) unangetastet lässt.
+			if (
+				type === 'BILLING.SUBSCRIPTION.CANCELLED' &&
+				client.refund &&
+				!(String(subscription.get('status')) === 'cancelled' && String(subscription.get('plan')) === 'free')
+			) {
+				try {
+					await refundRemainingTerm({ subscription, now, refund: client.refund });
+				} catch (error) {
+					console.warn(
+						`PayPal-Erstattung für ${String(subscription.get('externalSubscriptionId'))} fehlgeschlagen — Wiederholung im Sweep.`,
+						error,
+					);
+					const attempts = (subscription.get('refundRetryAttempts') as number | null) ?? 0;
+					await subscription.update({ refundRetryAttempts: attempts + 1 });
+				}
+			}
 			await applyPaymentEvent(subscription, paypalEvent, now, {
-				issueInvoice: (s, n, saleId, charged, transaction) =>
-					issueInvoiceForPeriod(s, n, deps.mailSender, saleId, charged, transaction),
+				issueInvoice: (s, n, saleId, charged, transaction, periodStart) =>
+					issueInvoiceForPeriod(s, n, deps.mailSender, saleId, charged, transaction, undefined, periodStart),
 				issueCreditNote: (original, n, transaction) => issueCreditNote(original, n, transaction, deps.mailSender),
 				// Paketentzug (#2237) kündigt auch das PayPal-Abo — der Client ist hier im Scope.
 				cancelPaypal: () => client.cancel(subscription.get('externalSubscriptionId') as string),

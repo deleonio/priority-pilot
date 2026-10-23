@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { YearlyRecap } from 'client';
 import { api } from '../api';
-import { rasterisiere } from '../lib/karteRasterisieren';
+import { useShareCard } from '../lib/useShareCard';
 import { erzeugeJahresKarteSvg, jahresDateiname } from '../lib/yearlyShareCard';
 
 /**
@@ -24,8 +24,6 @@ export const YearlyRecapCard = () => {
 	const [imFenster] = useState(() => new Date().getMonth() === 0);
 	const [vorjahr] = useState(() => new Date().getFullYear() - 1);
 	const [daten, setDaten] = useState<YearlyRecap | null>(null);
-	const [rastert, setRastert] = useState(false);
-	const [fehler, setFehler] = useState(false);
 
 	useEffect(() => {
 		if (!imFenster) {
@@ -54,89 +52,50 @@ export const YearlyRecapCard = () => {
 		};
 	}, [imFenster, vorjahr]);
 
+	const zahl = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1 });
+	const label = `${t('yearlyCard.rueckblick')} ${vorjahr}`;
+
+	// Gemeinsame Karten-Logik (#2695): Erzeugen/Herunterladen/Teilen samt Fehler- und
+	// Spinner-Zustand kommen aus dem Hook — die Karte liefert nur SVG, Dateiname, Titel/Text.
+	const { rastert, fehler, speichern, teilen } = useShareCard({
+		erzeugeSvg: () => ({
+			svg: erzeugeJahresKarteSvg({
+				jahr: vorjahr,
+				label,
+				erledigteAufgaben: daten?.erledigteAufgaben ?? 0,
+				stunden: daten?.stunden ?? 0,
+				laengsterStreak: daten?.laengsterStreak ?? 0,
+				staerksteSaeule: daten?.staerksteSaeule ?? null,
+				abgeschlosseneProjekte: daten?.abgeschlosseneProjekte ?? 0,
+				sprache: i18n.language,
+				beschriftungen: {
+					aufgaben: t('yearlyCard.aufgaben'),
+					stunden: t('yearlyCard.stunden'),
+					streak: t('yearlyCard.streak'),
+					projekte: t('yearlyCard.projekte'),
+					saeule: t('yearlyCard.saeule'),
+				},
+				marken: {
+					balamentum: t('monthlyCard.marken.balamentum'),
+					play: t('monthlyCard.marken.play'),
+					pwa: t('monthlyCard.marken.pwa'),
+				},
+			}),
+			dateiname: jahresDateiname(vorjahr),
+		}),
+		titel: t('yearlyCard.label'),
+		text: label,
+	});
+
 	if (!imFenster) {
 		return null;
 	}
 
-	const zahl = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1 });
-	const label = `${t('yearlyCard.rueckblick')} ${vorjahr}`;
-
-	/** Erst im Klickpfad erzeugt — bloßes Ansehen der Karte rasterisiert nichts. */
-	const erzeugeKarte = async (): Promise<{ blob: Blob; dateiname: string } | null> => {
-		setRastert(true);
-		setFehler(false);
-		try {
-			const blob = await rasterisiere(
-				erzeugeJahresKarteSvg({
-					jahr: vorjahr,
-					label,
-					erledigteAufgaben: daten?.erledigteAufgaben ?? 0,
-					stunden: daten?.stunden ?? 0,
-					laengsterStreak: daten?.laengsterStreak ?? 0,
-					staerksteSaeule: daten?.staerksteSaeule ?? null,
-					abgeschlosseneProjekte: daten?.abgeschlosseneProjekte ?? 0,
-					sprache: i18n.language,
-					beschriftungen: {
-						aufgaben: t('yearlyCard.aufgaben'),
-						stunden: t('yearlyCard.stunden'),
-						streak: t('yearlyCard.streak'),
-						projekte: t('yearlyCard.projekte'),
-						saeule: t('yearlyCard.saeule'),
-					},
-				}),
-			);
-			return { blob, dateiname: jahresDateiname(vorjahr) };
-		} catch {
-			setFehler(true);
-			return null;
-		} finally {
-			setRastert(false);
-		}
-	};
-
-	const ladeHerunter = (karte: { blob: Blob; dateiname: string }): void => {
-		const url = URL.createObjectURL(karte.blob);
-		const anker = document.createElement('a');
-		anker.href = url;
-		anker.download = karte.dateiname;
-		document.body.append(anker);
-		anker.click();
-		anker.remove();
-		URL.revokeObjectURL(url);
-	};
-
-	const speichern = async (): Promise<void> => {
-		const karte = await erzeugeKarte();
-		if (karte) {
-			ladeHerunter(karte);
-		}
-	};
-
-	const teilen = async (): Promise<void> => {
-		const karte = await erzeugeKarte();
-		if (!karte) {
-			return;
-		}
-		const datei = new File([karte.blob], karte.dateiname, { type: 'image/png' });
-		// File-Share nur, wenn die Plattform Dateien annimmt — sonst fällt der Klick in den
-		// Download-Pfad (kein toter Button).
-		if (navigator.canShare?.({ files: [datei] })) {
-			try {
-				await navigator.share({ files: [datei], title: t('yearlyCard.label'), text: label });
-				return;
-			} catch (fehlerBeimTeilen) {
-				// Abbruch des Systemdialogs ist keine Störung (UX-Beratung) — sonst Download.
-				if ((fehlerBeimTeilen as DOMException)?.name === 'AbortError') {
-					return;
-				}
-			}
-		}
-		ladeHerunter(karte);
-	};
-
 	return (
 		<KolCard
 			className="dashboard-yearly"
+			id="karte-jahresrueckblick"
+			tabIndex={-1}
 			role="region"
 			aria-label={t('yearlyCard.label')}
 			_label={t('yearlyCard.label')}

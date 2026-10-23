@@ -172,3 +172,53 @@ describe('POST /tasks/import/merge (#1988 AK6)', () => {
 		assert.equal(await Task.count({ where: { userId: strangerId } }), 1);
 	});
 });
+
+// ── #2495 — Merge ganz oder gar nicht (Spec docs/spec/issue-2495.md, AK1) ─────────────
+// Rote Spec-Tests #2495: scheitert `keep.save()`, darf `duplicate.destroy()` nicht laufen —
+// beide Tasks bleiben unverändert (heute: destroy läuft VOR save → Kopie schon weg, wenn
+// das Speichern scheitert). KEIN Produktivcode.
+describe('POST /tasks/import/merge — Fehlerfall (#2495)', () => {
+	let server: TestServer;
+	let cookie: string;
+
+	beforeEach(async () => {
+		await resetDb();
+		if (!server) server = await startTestServer();
+		cookie = await server.login(EMAIL);
+	});
+
+	it('AK1: scheitert das Speichern des Ziel-Tasks, existieren beide Tasks unverändert weiter', async () => {
+		const uid = await userId();
+		const keep = await Task.create({
+			userId: uid,
+			title: 'Einkaufen',
+			deadline: new Date('2026-11-02T00:00:00.000Z'),
+			priority: 2,
+		});
+		const dup = await Task.create({ userId: uid, title: 'einkaufen', priority: 3 });
+
+		const originalSave = Task.prototype.save;
+		Task.prototype.save = async function (this: Task) {
+			if (this.id === keep.id) throw new Error('Speichern fehlgeschlagen (Test-Stoerfall #2495)');
+			return originalSave.call(this);
+		} as typeof originalSave;
+		try {
+			const res = await post(server.baseUrl, cookie, 'merge', {
+				keepTaskId: keep.id,
+				duplicateTaskId: dup.id,
+			});
+			assert.equal(res.status, 500, 'der Fehler muss nach außen sichtbar bleiben');
+		} finally {
+			Task.prototype.save = originalSave;
+		}
+
+		const tasks = await Task.findAll({ where: { userId: uid } });
+		assert.equal(tasks.length, 2, 'beide Tasks müssen weiterexistieren');
+		const kept = tasks.find((task) => task.id === keep.id);
+		assert.equal(kept?.deadline?.toISOString(), '2026-11-02T00:00:00.000Z', 'Ziel-Task unverändert');
+		assert.equal(kept?.priority, 2, 'Ziel-Task unverändert');
+		const copy = tasks.find((task) => task.id === dup.id);
+		assert.ok(copy, 'die Kopie darf nicht gelöscht worden sein');
+		assert.equal(copy?.priority, 3, 'Kopie unverändert');
+	});
+});

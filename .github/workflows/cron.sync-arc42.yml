@@ -34,6 +34,11 @@ on:
     - cron: '47 5 * * 6' # samstags 05:47 UTC, 30 Min hinter ADR-Sync (05:17) — Architektur-Familie am Wochenende im z.ai-Off-Peak
   workflow_dispatch:
     inputs:
+      runner:
+        description: 'Runner-Label für diesen Lauf (leer = vars.PHASE_RUNNER oder ubuntu-latest; z. B. self-hosted, pi5, ubuntu-latest)'
+        required: false
+        default: ''
+        type: string
       force:
         description: 'Skip-Guard ignorieren (Lauf erzwingen, auch wenn main unverändert ist)'
         type: boolean
@@ -62,7 +67,7 @@ env:
 
 jobs:
   arc42-sync:
-    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin

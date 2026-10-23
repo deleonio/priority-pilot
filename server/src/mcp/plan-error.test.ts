@@ -9,6 +9,8 @@ import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 import { User } from '../models/index.js';
+import { createNativeLoginCode } from '../logics/magicLink.js';
+import { allowEmail } from '../logics/allowedEmails.js';
 import type { Plan } from '../logics/plans.js';
 
 applyTestAuthEnv('mcp-plan-error-test');
@@ -302,5 +304,80 @@ describe('MCP-Loopback — series_instantiate braucht das Paket mit mcp_readwrit
 		const tasks = await fetch(`${server.baseUrl}/tasks`, { headers: { Cookie: cookie } });
 		const rows = (await tasks.json()) as { seriesId?: number | null }[];
 		assert.equal(rows.filter((t) => t.seriesId === seriesId).length, 0, 'keine Aufgabe darf entstehen');
+	});
+});
+
+/** App-Token (#2377): Code-Tausch im Kanal `play` fuer den per E-Mail bekannten Nutzer (Muster api-token-auth.test.ts). */
+const issueAppToken = async (email: string): Promise<string> => {
+	const state = 'app-state-0123456789';
+	const code = await createNativeLoginCode(email, state);
+	const res = await fetch(`${server.baseUrl}/auth/native/exchange`, {
+		method: 'POST',
+		headers: { 'X-Client-Channel': 'play', 'Content-Type': 'application/json' },
+		body: JSON.stringify({ code, state }),
+	});
+	assert.equal(res.status, 200, 'Setup: App-Token muss ausstellbar sein');
+	return ((await res.json()) as { token: string }).token;
+};
+
+/**
+ * #2816 AK2/AK3 (Spec docs/spec/issue-2816.md) — MCP über App-Token je Paket. Rot, bis App-Tokens
+ * plangebunden sind: heute umgeht `kind: 'app'` beide Gates (apiTokenAuth/apiTokenScopeGuard),
+ * ein plus-Nutzer könnte task_create per App-Token erfolgreich rufen.
+ */
+describe('MCP-Loopback — App-Token je Paket (#2816 AK2/AK3)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+		delete process.env.MONETIZATION_ENFORCED;
+	});
+	after(async () => {
+		delete process.env.MONETIZATION_ENFORCED;
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const listTaskCount = async (cookie: string): Promise<number> => {
+		const res = await fetch(`${server.baseUrl}/tasks`, { headers: { Cookie: cookie } });
+		return ((await res.json()) as unknown[]).length;
+	};
+
+	it('AK2: plus + App-Token — task_list liefert ein Result, task_create wird mit mcp_readwrite/pro abgewiesen, keine Aufgabe entsteht', async () => {
+		const email = 'mcp-2816-plus@example.com';
+		const cookie = await server.register(email);
+		await allowEmail(email, 'admin');
+		const token = await issueAppToken(email);
+		await setPlan(email, 'plus');
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		const list = await mcpCall(token, 'task_list');
+		assert.equal(list.error, undefined, 'task_list ist ab Plus erlaubt');
+		assert.ok(list.text, 'task_list muss ein Ergebnis liefern');
+
+		const { error } = await mcpCall(token, 'task_create', { title: 'Sollte nicht entstehen' });
+		assert.ok(error, 'task_create muss für plus über das App-Token abgewiesen werden');
+		assert.match(error.message, /mcp_readwrite/);
+		assert.match(error.message, /"pro"/);
+		assert.equal(await listTaskCount(cookie), 0, 'keine Aufgabe darf angelegt werden');
+	});
+
+	it('AK3: pro + App-Token — task_create und task_list liefern Results (kein Rückschritt)', async () => {
+		const email = 'mcp-2816-pro@example.com';
+		const cookie = await server.register(email);
+		await allowEmail(email, 'admin');
+		const token = await issueAppToken(email);
+		await setPlan(email, 'pro');
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		const created = await mcpCall(token, 'task_create', { title: 'Von Pro per App-Token' });
+		assert.equal(created.error, undefined, 'pro darf per App-Token anlegen');
+		assert.ok(created.text);
+		assert.equal(await listTaskCount(cookie), 1);
+
+		const list = await mcpCall(token, 'task_list');
+		assert.equal(list.error, undefined);
+		assert.ok(list.text);
 	});
 });

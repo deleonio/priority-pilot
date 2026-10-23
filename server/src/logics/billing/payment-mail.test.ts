@@ -56,6 +56,7 @@ describe('Mail bei Zahlungsausfall (#2306)', () => {
 			assert.equal(sent[0].to, 'abo@example.com');
 			assert.match(sent[0].text, /04\.\s?11\.\s?2026|4\.\s?November 2026|2026-11-04/);
 			assert.match(sent[0].text, /https:\/\/www\.paypal\.com\//);
+			assert.match(sent[0].html ?? '', /Deine Zahlung hat nicht geklappt/, 'HTML mit Betreff-Fragment');
 		});
 	}
 

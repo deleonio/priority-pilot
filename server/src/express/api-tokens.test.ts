@@ -33,7 +33,14 @@ type CreatedToken = {
 	lastUsedAt: null;
 	expiresAt: string;
 };
-type ListedToken = { id: number; name: string; createdAt: string; lastUsedAt: string | null; expiresAt: string | null };
+type ListedToken = {
+	id: number;
+	name: string;
+	createdAt: string;
+	lastUsedAt: string | null;
+	expiresAt: string | null;
+	kind?: string;
+};
 
 let server: TestServer;
 
@@ -424,6 +431,76 @@ describe('Persönliche API-Tokens — Plan-Deckel fürs Anlegen (#1524 AK6)', ()
 	});
 });
 
+/**
+ * #2810 (Spec docs/spec/issue-2810.md) — Admin-Ausnahme beim Token-Anlegen: das `mcp_read`-Gate an
+ * `POST /api-tokens` nimmt Konten mit Rolle admin aus (PO-Entscheidung), analog zur adminRead-Ausnahme
+ * im Token-Guard (`apiTokenAuth.ts`). Die Rolle wird je Request frisch aus der DB geprüft (AK3), nicht
+ * aus dem Session-Snapshot. Rot, bis die Ausnahme existiert (AK1: 403 statt 201).
+ */
+describe('Persönliche API-Tokens — Admin-Ausnahme beim Anlegen (#2810)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+		delete process.env.MONETIZATION_ENFORCED;
+	});
+	after(async () => {
+		delete process.env.MONETIZATION_ENFORCED;
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	it('AK1: Admin mit Paket free legt bei eingeschaltetem Rollout einen Token an (Klartext genau in dieser Antwort)', async () => {
+		const email = 'admin-free-token@example.com';
+		const cookie = await server.login(email, { role: 'admin' });
+		await setPlan(email, 'free');
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		const res = await createToken(cookie, 'MCP-Admin');
+
+		assert.equal(res.status, 201, 'Admin ist vom mcp_read-Gate beim Anlegen ausgenommen');
+		const body = (await res.json()) as CreatedToken;
+		assert.ok(typeof body.token === 'string' && body.token.length > 0, 'Antwort muss den Klartext enthalten');
+		const list = (await (await listTokens(cookie)).json()) as ListedToken[];
+		assert.equal(list.length, 1);
+		assert.equal(
+			(list[0] as unknown as Record<string, unknown>).token,
+			undefined,
+			'Liste darf keinen Klartext enthalten',
+		);
+	});
+
+	it('AK2: tester mit Paket free erhält bei eingeschaltetem Rollout weiterhin 403 plan_required/mcp_read', async () => {
+		const email = 'tester-free-token@example.com';
+		const cookie = await server.login(email, { role: 'tester' });
+		await setPlan(email, 'free');
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		const res = await createToken(cookie, 'CLI');
+
+		assert.equal(res.status, 403, 'die Ausnahme gilt nur für Rolle admin');
+		const body = (await res.json()) as { code?: string; feature?: string; currentPlan?: string };
+		assert.equal(body.code, 'plan_required');
+		assert.equal(body.feature, 'mcp_read');
+		assert.equal(body.currentPlan, 'free');
+	});
+
+	it('AK3: nach Deklassierung admin→member in der DB erhält die Session beim Anlegen 403 (frische DB-Rolle)', async () => {
+		const email = 'demoted-admin@example.com';
+		const cookie = await server.login(email, { role: 'admin' });
+		await setPlan(email, 'free');
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		await User.update({ role: 'member' }, { where: { email } });
+		const res = await createToken(cookie, 'CLI');
+
+		assert.equal(res.status, 403, 'die Ausnahme prüft die frische DB-Rolle, nicht den Session-Snapshot');
+		const body = (await res.json()) as { code?: string };
+		assert.equal(body.code, 'plan_required');
+	});
+});
+
 describe('App-Tokens in der Token-Verwaltung (#2377 AK4, Spec docs/spec/issue-2377.md)', () => {
 	before(async () => {
 		server = await startTestServer();
@@ -436,7 +513,7 @@ describe('App-Tokens in der Token-Verwaltung (#2377 AK4, Spec docs/spec/issue-23
 		await closeDb();
 	});
 
-	it('AK4: GET /api-tokens per Session listet keine App-Tokens, wohl aber die persoenlichen', async () => {
+	it('AK4: GET /api-tokens per Session listet App-Tokens (#2494: mit kind) und die persoenlichen', async () => {
 		const email = 'app-list@example.com';
 		const cookie = await server.register(email, 'password123');
 		// Test-Pflege #2377: der Code-Tausch prueft die Allowlist erneut, diese Datei setzt keine.
@@ -451,9 +528,13 @@ describe('App-Tokens in der Token-Verwaltung (#2377 AK4, Spec docs/spec/issue-23
 		assert.equal((await createToken(cookie, 'CLI')).status, 201);
 
 		const list = (await (await listTokens(cookie)).json()) as ListedToken[];
+		// Test-Pflege #2494: App-Anmeldungen sind jetzt gelistet (einzeln widerrufbar), erkennbar an `kind`.
 		assert.deepEqual(
-			list.map((t) => t.name),
-			['CLI'],
+			list.map((t) => [t.name, t.kind]),
+			[
+				['Android-App', 'app'],
+				['CLI', 'api'],
+			],
 		);
 	});
 });

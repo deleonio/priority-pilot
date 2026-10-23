@@ -33,6 +33,9 @@ beforeEach(() => {
 });
 afterEach(() => {
 	vi.clearAllMocks();
+	// clearAllMocks behält Implementationen: `register` zurück auf den Basis-Stand, damit ein
+	// überschriebener Stand (z. B. Rejection im Fehlerfall-Test) nicht in Folgetests leakt.
+	plugin.register.mockImplementation(async () => plugin.listeners.get('registration')?.({ value: 'fcm-token-1' }));
 	vi.unstubAllGlobals();
 	localStorage.clear();
 });
@@ -75,6 +78,26 @@ describe('Push in der Android-App (#1679)', () => {
 
 		expect(result.current.enabled).toBe(false);
 		expect(result.current.failed).toBe(true);
+		expect(api.registerFcmToken).not.toHaveBeenCalled();
+	});
+
+	// Grund-Klassifikation für den passenden Hinweis (SettingsPage): verweigerte Berechtigung vs.
+	// technischer Fehler. Direkte enablePush-Aufrufe, weil das Plugin-Mock im renderHook-Kontext
+	// nicht zuverlässig greift (dort fällt der Hook gelegentlich auf das echte Capacitor-Proxy
+	// zurück — Capturing wäre hier ein eigenes Thema).
+	it("play: enablePush liefert 'denied', wenn die Berechtigung verweigert wird", async () => {
+		plugin.checkPermissions.mockResolvedValue({ receive: 'prompt' });
+		plugin.requestPermissions.mockResolvedValue({ receive: 'denied' });
+
+		expect(await enablePush()).toBe('denied');
+		expect(api.registerFcmToken).not.toHaveBeenCalled();
+	});
+
+	it("play: enablePush liefert 'error', wenn die Token-Registrierung scheitert", async () => {
+		plugin.checkPermissions.mockResolvedValue({ receive: 'granted' });
+		plugin.register.mockRejectedValueOnce(new Error('placeholder google-services.json'));
+
+		expect(await enablePush()).toBe('error');
 		expect(api.registerFcmToken).not.toHaveBeenCalled();
 	});
 

@@ -83,6 +83,51 @@ const baseProps = {
 	onPinToggle: vi.fn(),
 };
 
+describe('TaskTree — Ersteller-Badge für System-Aufgaben (#2758, AK4)', () => {
+	// Spiegel-Guard: der Server liefert für aus Fürsorge-Vorlagen übernommene Aufgaben
+	// `createdById: null` + `createdByName: "Balamentum"` — die bestehende Badge-Bedingung
+	// (TaskTree.tsx:213) muss das ohne Eingriff anzeigen, eigene Aufgaben weiterhin ohne Badge.
+	const systemTask = (id: number, title: string): Task => ({
+		...task(id, title),
+		userId: 7,
+		createdById: null,
+		createdByName: 'Balamentum',
+		forUserName: null,
+	});
+
+	it('System-Aufgabe (createdById null, createdByName "Balamentum") zeigt den Ersteller-Badge', () => {
+		const parent = node(1, 'System-Aufgabe');
+		render(
+			<TaskTree
+				{...baseProps}
+				forest={[]}
+				fullForest={[parent]}
+				parentNodes={[parent]}
+				userId={7}
+				tasks={[systemTask(1, 'System-Aufgabe')]}
+			/>,
+		);
+
+		expect(screen.getByText('Erstellt von: Balamentum')).toBeInTheDocument();
+	});
+
+	it('eigene Aufgabe (createdById = userId) bleibt ohne Ersteller-Badge', () => {
+		const parent = node(2, 'Meine Aufgabe');
+		render(
+			<TaskTree
+				{...baseProps}
+				forest={[]}
+				fullForest={[parent]}
+				parentNodes={[parent]}
+				userId={7}
+				tasks={[{ ...systemTask(2, 'Meine Aufgabe'), createdById: 7, createdByName: 'Ich Selbst' }]}
+			/>,
+		);
+
+		expect(screen.queryByText('Erstellt von: Ich Selbst')).toBeNull();
+	});
+});
+
 describe('TaskTree — Erledigt-Guard für eingeblendete Oberaufgaben (#1345, TaskTree.tsx:110)', () => {
 	it('AK6/AK7: Erledigt-Button ist disabled mit Label "Erledigt (Unteraufgaben offen)", solange eine Unteraufgabe offen ist', () => {
 		const parent = node(1, 'Elternaufgabe', [node(2, 'Kind offen')]);

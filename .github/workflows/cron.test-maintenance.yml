@@ -1,0 +1,132 @@
+name: Test-Maintenance
+
+# Wöchentliche Analyse der Test-Suite nach TDD-Prinzipien (Substance over Quantity).
+# Erkennt tautologische Tests, Redundanzen, fehlende Mutation-Probes, leere Mengen.
+# Läuft freitags 00:57 UTC (02:57/01:57 Berlin) — Auftakt des Team-Blocks in der Nacht auf Freitag; nicht auf Push/PR, um CI nicht zu belasten.
+# Ergebnis: Markdown-Report als Workflow-Artefakt + optional Issue bei kritischen Findings.
+
+on:
+  schedule:
+    - cron: '57 0 * * 5' # woechentlich freitags 00:57 UTC (02:57/01:57 Berlin) — Auftakt des Team-Blocks in der Nacht auf Freitag: Reports frueh am Freitag fertig fuer den Issue-Tree
+  workflow_dispatch: # manuell anstoßbar
+    inputs:
+      runner:
+        description: 'Runner-Label für diesen Lauf (leer = vars.PHASE_RUNNER oder ubuntu-latest; z. B. self-hosted, pi5, ubuntu-latest)'
+        required: false
+        default: ''
+        type: string
+
+concurrency:
+  # Gleiche Gruppe wie alle Team-Jobs (llm-sync): sequenziell im Team-Block, FIFO.
+  group: llm-sync
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  analyze:
+    name: Test-Suite analysieren
+    runs-on: ${{ inputs.runner || vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    services:
+      # Erforderlich für AK-5 (Redis-Store Session-Sharing Test in session.test.ts)
+      # Der Test verbindet sich zu redis://localhost:6379
+      redis:
+        image: redis:8
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test-Suite ausführen (Unit + E2E Shard 1)
+        run: |
+          set -euo pipefail
+          pnpm -r test 2>&1 | tee unit-results.txt
+          pnpm --filter frontend exec playwright test --shard=1/4 2>&1 | tee e2e-results.txt || true
+
+      - name: Test-Analyse (TypeScript, wie Contract-Tests)
+        id: analyze
+        run: |
+          pnpm dlx tsx@4.22.4 .github/scripts/analyze-test-suite.ts \
+            --unit-results unit-results.txt \
+            --e2e-results e2e-results.txt \
+            --repo-root . \
+            --report-dir .ai-knowledge
+
+      - name: Report als Artefakt hochladen
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-optimization-report-${{ github.run_id }}
+          path: ${{ steps.analyze.outputs.report_path }}
+          retention-days: 30
+
+      - name: Issue bei kritischen Findings (dedupliziert)
+        # Vorher: bedingungsloses issues.create JEDEM Lauf → bei persistenten Findings
+        # je Lauf ein neues Duplikat. Jetzt: ein offenes test-maintenance-Issue suchen und
+        # dessen Body aktualisieren; nur wenn keines existiert, ein neues anlegen.
+        if: steps.analyze.outputs.critical_findings == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('${{ steps.analyze.outputs.report_path }}', 'utf8');
+            const { owner, repo } = context.repo;
+            const runDate = new Date().toISOString().slice(0, 10);
+
+            // Labels idempotisch anlegen (422 „existiert bereits" ist kein Fehler).
+            const ensureLabel = async (name, color) => {
+              try {
+                await github.rest.issues.createLabel({ owner, repo, name, color });
+                core.info(`Label „${name}" angelegt.`);
+              } catch (err) {
+                core.info(`Label „${name}" existiert bereits oder nicht anlegbar: ${err.message}`);
+              }
+            };
+            await ensureLabel('ci:test-maintenance', 'fbca04');
+            await ensureLabel('automated', '0e8a16');
+
+            const body = `> 🔄 Automatisch aktualisiert am ${runDate} (Run #${context.runId})\n\n${report}`;
+
+            const existing = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'open',
+              labels: 'ci:test-maintenance',
+            });
+
+            if (existing.data.length > 0) {
+              const issue = existing.data[0];
+              await github.rest.issues.update({ owner, repo, issue_number: issue.number, body });
+              core.info(`Bestehendes Issue #${issue.number} aktualisiert (kein Spam-Duplikat).`);
+            } else {
+              const created = await github.rest.issues.create({
+                owner,
+                repo,
+                title: `ci: Test-Maintenance — Tägliche Test-Optimierung (${runDate})`,
+                body,
+                labels: ['ci:test-maintenance', 'automated'],
+              });
+              core.info(`Neues Issue #${created.data.number} erstellt.`);
+            }

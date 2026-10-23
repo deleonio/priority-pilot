@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CareHint } from './CareHint';
 // #2063: i18n läuft echt (vitest.setup.ts pinnt `de`) — die Sprach-Tests wechseln selbst.
 import i18next from '../i18n/config';
+import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
 
 /**
  * Spec-Tests für den Fürsorge-Hinweis (AK1–AK6, AK8, #1793): lädt die Vorschläge selbst über
@@ -22,7 +23,7 @@ interface Vorschlag {
 	saeulenBeitraege: { pillarId: number; share: number }[];
 	taskId?: number;
 	templateKey?: string;
-	anlass?: 'defizit' | 'ueberlast';
+	anlass?: 'defizit' | 'ueberlast' | 'ermutigung' | 'einstieg';
 }
 
 vi.mock('@public-ui/react-v19', () => ({
@@ -106,6 +107,26 @@ const vorlage: Vorschlag = {
 	templateKey: 'koerper-spaziergang',
 };
 const zweite: Vorschlag = { ...vorlage, titel: 'Dehnen', templateKey: 'koerper-dehnen' };
+/** #2521: Ermutigungs-Eintrag — `anlass: 'ermutigung'`, ohne taskId/templateKey (nichts anzunehmen). */
+const ermutigung: Vorschlag = {
+	typ: 'vorlage',
+	titel: 'Schön, dass du heute an dich gedacht hast.',
+	beschreibung: null,
+	saeuleId: 0,
+	saeuleName: '',
+	saeulenBeitraege: [],
+	anlass: 'ermutigung',
+};
+/** #2527: Einstieg-Eintrag bei 0 Erledigungen — reiner Satz, nichts anzunehmen. */
+const einstieg: Vorschlag = {
+	typ: 'vorlage',
+	titel: 'Such dir eine kleine Aufgabe aus, die dir heute guttut – klein anfangen zählt.',
+	beschreibung: null,
+	saeuleId: 0,
+	saeuleName: '',
+	saeulenBeitraege: [],
+	anlass: 'einstieg',
+};
 const eigene: Vorschlag = {
 	typ: 'task',
 	titel: 'Fahrrad reparieren',
@@ -145,6 +166,30 @@ describe('CareHint (#1793)', () => {
 		void i18next.changeLanguage('de');
 	});
 
+	it('#2521 AK5: Ermutigungs-Eintrag rendert den Satz ohne Aktionsreihe und ohne Grundauswahl', async () => {
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [ermutigung] });
+		render(<CareHint />);
+		const el = await zeigeHinweis();
+		expect(el.textContent).toContain('Schön, dass du heute an dich gedacht hast.');
+		// Kein Übernehmen / „Nicht jetzt“ / Ablehnen — ein Satz ohne Vorschlag hat nichts anzunehmen;
+		// ohne Aktionen kann er auch keinen Nachrück-Cursor setzen und nicht als Dismissal zählen.
+		expect(screen.queryAllByRole('button')).toHaveLength(0);
+		expect(screen.queryByRole('radiogroup')).toBeNull();
+	});
+
+	it('#2527 TF4: Einstieg-Eintrag rendert den Satz ohne Aktionsreihe, Grundauswahl und Dismissal', async () => {
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [einstieg] });
+		render(<CareHint />);
+		const el = await zeigeHinweis();
+		expect(el.textContent).toContain('klein anfangen zählt');
+		// Wie #2521: ein Satz ohne Vorschlag hat nichts anzunehmen — keine Aktionen, keine
+		// Grundauswahl, kein Dismissal/Rejection-Call.
+		expect(screen.queryAllByRole('button')).toHaveLength(0);
+		expect(screen.queryByRole('radiogroup')).toBeNull();
+		expect(dismissCareSuggestion).not.toHaveBeenCalled();
+		expect(rejectCareSuggestion).not.toHaveBeenCalled();
+	});
+
 	it('AK1: rendert genau EINEN Hinweis mit Säulenname und Titel des ersten Vorschlags', async () => {
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage, zweite] });
 		render(<CareHint />);
@@ -176,6 +221,16 @@ describe('CareHint (#1793)', () => {
 			{ pillarId: 5, share: 5, confidence: 100 },
 		]);
 		expect(updateTask).not.toHaveBeenCalled();
+	});
+
+	it('#2758 AK5: Übernehmen sendet den careTemplateKey der Vorlage im createTask-Payload', async () => {
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
+		render(<CareHint />);
+		await zeigeHinweis();
+		tap('Vorschlag übernehmen');
+		await waitFor(() => expect(hint()).toBeNull());
+		const { taskCreate } = createTask.mock.calls[0]![0];
+		expect(taskCreate.careTemplateKey).toBe('koerper-spaziergang');
 	});
 
 	it('AK2: Übernehmen einer eigenen Aufgabe → updateTask auf „In process", kein createTask, Hinweis weg', async () => {
@@ -551,5 +606,67 @@ describe('#1977 „Nicht jetzt“ mit Grund (docs/spec/issue-1977.md)', () => {
 		await waitFor(() => expect(hint()).toBeNull());
 		expect(screen.queryByRole('radiogroup')).toBeNull();
 		expect(rejectCareSuggestion).not.toHaveBeenCalled();
+	});
+});
+
+describe('#2522 Aktualisierung nach Erledigen (docs/spec/issue-2522.md)', () => {
+	beforeEach(() => {
+		window.localStorage.clear();
+		listPillars.mockResolvedValue([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }]);
+	});
+
+	afterEach(() => {
+		cleanup();
+		vi.clearAllMocks();
+	});
+
+	// ROT (Spec docs/spec/issue-2522.md): CareHint hört noch nicht auf TASKS_CHANGED_EVENT —
+	// der Event wird dispatcht, aber getCareSuggestions bleibt beim Mount-Aufruf.
+	it('AK1: nach dem Event lädt der Hinweis neu — der erledigte Vorschlag ist weg', async () => {
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [eigene] });
+		render(<CareHint />);
+		await zeigeHinweis();
+		expect(hint()?.textContent).toContain('Fahrrad reparieren');
+
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
+		window.dispatchEvent(new Event(TASKS_CHANGED_EVENT));
+
+		await waitFor(() => expect(getCareSuggestions).toHaveBeenCalledTimes(2));
+		await waitFor(() => expect(hint()?.textContent).not.toContain('Fahrrad reparieren'));
+		expect(hint()?.textContent).toContain('Ein kurzer Spaziergang an der frischen Luft');
+	});
+
+	it('AK2: leere Folgeantwort → Leerzustand wie nach einem Reload', async () => {
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [eigene] });
+		render(<CareHint />);
+		await zeigeHinweis();
+
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [] });
+		window.dispatchEvent(new Event(TASKS_CHANGED_EVENT));
+
+		await waitFor(() => expect(hint()?.textContent).toContain('Gerade gibt es keinen Vorschlag für dich.'));
+		expect(screen.queryByRole('button', { name: 'Vorschlag übernehmen' })).toBeNull();
+	});
+
+	it('AK3: andere Aufgabe erledigt — Vorschlag bleibt während und nach der Antwort stehen', async () => {
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
+		render(<CareHint />);
+		await zeigeHinweis();
+
+		// Antwort des Neuladens kontrolliert freigeben: bis dahin muss der alte Hinweis stehen
+		// (kein undefined-Zwischenstand), danach derselbe Text ohne Flackern.
+		let antwort!: () => void;
+		getCareSuggestions.mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					antwort = () => resolve({ vorschlaege: [vorlage] });
+				}),
+		);
+		window.dispatchEvent(new Event(TASKS_CHANGED_EVENT));
+		await waitFor(() => expect(getCareSuggestions).toHaveBeenCalledTimes(2));
+
+		expect(hint()?.textContent).toContain('Ein kurzer Spaziergang an der frischen Luft');
+		antwort();
+		await waitFor(() => expect(hint()?.textContent).toContain('Ein kurzer Spaziergang an der frischen Luft'));
 	});
 });

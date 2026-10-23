@@ -1,8 +1,10 @@
-import { NotificationLog, ScoreEntry, Task, User } from '../models/index.js';
+import { ScoreEntry, Task, User } from '../models/index.js';
 import { uhrzeitIn } from './carePush.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
-import { sendPushToUser, type PushSender } from './push.js';
-import { berechneStreak, istGueltigeZeitzone, istHeuteRuhetag, streakZeitpunkte, tagIn } from './streak.js';
+import { sendDedupedPush } from './dedupedPush.js';
+import { type PushSender } from './push.js';
+import { berechneStreak, istHeuteRuhetag, nutzerZeitzone, streakZeitpunkte, tagIn } from './streak.js';
+import { PUSH_TARGETS } from './pushTargets.js';
 
 /**
  * Fachlicher Push-Trigger „Streak-Erinnerung“ (#1836): höchstens **ein** Push je Nutzer und lokalem
@@ -10,7 +12,8 @@ import { berechneStreak, istGueltigeZeitzone, istHeuteRuhetag, streakZeitpunkte,
  * erledigt wurde. Zugestellt wird nur abends 18:00–20:59 der Nutzer-Zeitzone (endet mit der
  * Ruhezeit ab 21:00 aus `carePush.ts`); ungültige/fehlende Zone fällt auf UTC zurück. Schalter ist
  * `users.carePushEnabled` (gleiche Fürsorge-Kategorie). Ton nach `docs/fuersorge-tonalitaet.md`.
- * Muster: `carePush.ts` (NotificationLog-Dedup erst nach `sent > 0`, injizierbarer PushSender).
+ * Muster: {@link sendDedupedPush} (`dedupedPush.ts` — NotificationLog-Dedup erst nach
+ * `sent > 0`, injizierbarer PushSender).
  */
 
 const KIND = 'streak-reminder';
@@ -50,16 +53,12 @@ export const runStreakReminder = async (
 		if (user.carePushEnabled === false) {
 			continue;
 		}
-		const zeitzone = istGueltigeZeitzone(user.zeitzone ?? undefined) ? (user.zeitzone as string) : 'UTC';
+		const zeitzone = nutzerZeitzone(user.zeitzone);
 		const { stunde } = uhrzeitIn(now, zeitzone);
 		if (stunde < FENSTER_START || stunde >= FENSTER_ENDE) {
 			continue;
 		}
 		const heute = tagIn(now, zeitzone);
-		const dedupeKey = `${user.id}:${heute}`;
-		if (await NotificationLog.findOne({ where: { kind: KIND, dedupeKey } })) {
-			continue;
-		}
 		const entries = await ScoreEntry.findAll({ include: [{ model: Task, where: { userId: user.id } }] });
 		const { aktuell, aktiveTage } = berechneStreak(
 			streakZeitpunkte(
@@ -74,9 +73,14 @@ export const runStreakReminder = async (
 			continue;
 		}
 		const text = streakReminderText(spracheVon(user.sprache), aktuell);
-		const { sent } = await sendPushToUser(user.id, { title: text.titel, body: text.text, url: '/aufgaben' }, send);
+		const { sent } = await sendDedupedPush(
+			user.id,
+			KIND,
+			`${user.id}:${heute}`,
+			{ title: text.titel, body: text.text, url: PUSH_TARGETS.streakReminder },
+			send,
+		);
 		if (sent > 0) {
-			await NotificationLog.create({ userId: user.id, kind: KIND, dedupeKey, sentAt: now });
 			usersNotified++;
 		}
 	}

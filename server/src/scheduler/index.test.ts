@@ -1,7 +1,76 @@
-import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { afterEach, beforeEach, describe, it, mock } from 'node:test';
 import webpush from 'web-push';
-import { createTicker, startScheduler, startDeadlineAutoDeleteScheduler } from './index.js';
+
+import { createTicker, startDeadlineAutoDeleteScheduler, startIntervalScheduler, startScheduler } from './index.js';
+
+// Vertrag aus docs/spec/issue-2550.md: der generalisierte Intervall-Starter loggt Fehler
+// unter dem Job-eigenen Label statt unter dem festen Kalender-Text.
+
+const flush = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
+
+describe('startIntervalScheduler (#2550)', () => {
+	let errorMock: ReturnType<typeof mock.method>;
+
+	beforeEach(() => {
+		errorMock = mock.method(console, 'error', () => {});
+		// 'clearInterval' ist in node:test mock.timers keine gültige API (ERR_INVALID_ARG_VALUE,
+		// Node 26) — gemockte Intervalle lassen sich via clearInterval() direkt beenden.
+		mock.timers.enable({ apis: ['setInterval'] });
+	});
+
+	afterEach(() => {
+		mock.timers.reset();
+		errorMock.mock.restore();
+	});
+
+	it('AK1: loggt einen Fehler mit dem Job-eigenen Label — Kulanzfrist-Sweep, ohne Kalender-Abruf', async () => {
+		const trigger = () => Promise.reject(new Error('Kulanz-Sweep kaputt'));
+		const handle = startIntervalScheduler('Kulanzfrist-Sweep', trigger, 1000);
+
+		mock.timers.tick(1000);
+		await flush();
+
+		assert.equal(errorMock.mock.callCount(), 1);
+		const label = String(errorMock.mock.calls[0]?.arguments[0]);
+		assert.match(label, /Kulanzfrist-Sweep fehlgeschlagen/);
+		assert.doesNotMatch(label, /Kalender-Abruf/);
+		assert.equal(String(errorMock.mock.calls[0]?.arguments[1]), 'Error: Kulanz-Sweep kaputt');
+		handle.stop();
+	});
+
+	it('AK2: Kalender-Fehler tragen weiterhin das Label Kalender-Abruf', async () => {
+		const trigger = () => Promise.reject(new Error('ics kaputt'));
+		const handle = startIntervalScheduler('Kalender-Abruf', trigger, 1000);
+
+		mock.timers.tick(1000);
+		await flush();
+
+		assert.equal(errorMock.mock.callCount(), 1);
+		assert.match(String(errorMock.mock.calls[0]?.arguments[0]), /Kalender-Abruf fehlgeschlagen/);
+		handle.stop();
+	});
+
+	it('AK4: nach fehlerhaftem Lauf feuert der nächste Tick; stop() beendet den Timer', async () => {
+		let calls = 0;
+		const trigger = () => {
+			calls += 1;
+			return Promise.reject(new Error('boom'));
+		};
+		const handle = startIntervalScheduler('Kulanzfrist-Sweep', trigger, 1000);
+
+		mock.timers.tick(1000);
+		await flush();
+		mock.timers.tick(1000);
+		await flush();
+		assert.equal(calls, 2);
+
+		handle.stop();
+		mock.timers.tick(5000);
+		await flush();
+		assert.equal(calls, 2);
+	});
+});
 
 describe('scheduler/createTicker — Tick-Logik (Issue #355)', () => {
 	it('feuert erst, sobald die konfigurierte Stunde erreicht ist', async () => {
@@ -63,6 +132,32 @@ describe('scheduler/createTicker — Tick-Logik (Issue #355)', () => {
 
 		await assert.doesNotReject(tick());
 		assert.deepEqual(calls, ['zweiter'], 'ein fehlschlagender Trigger blockiert die übrigen nicht');
+	});
+
+	it('#2853/F1.2: Einträge mit rang laufen je Tick aufsteigend vor den ungerangten (stabil)', async () => {
+		const aufgerufen: string[] = [];
+		const merker = (name: string) => () => {
+			aufgerufen.push(name);
+			return Promise.resolve();
+		};
+		const { tick } = createTicker(
+			[
+				merker('ungerangt-1'),
+				{ rang: 5, trigger: merker('rang-5') },
+				merker('ungerangt-2'),
+				{ rang: 1, trigger: merker('rang-1') },
+				{ rang: 5, trigger: merker('rang-5-b') },
+			],
+			{ now: () => new Date('2026-07-07T08:00:00Z'), hour: 8 },
+		);
+
+		await tick();
+
+		assert.deepEqual(
+			aufgerufen,
+			['rang-1', 'rang-5', 'rang-5-b', 'ungerangt-1', 'ungerangt-2'],
+			'das Push-Budget wird je Tick in §4-Vorrang-Ordnung konsumiert (F1.2)',
+		);
 	});
 });
 
@@ -151,6 +246,51 @@ describe('scheduler/startScheduler — Gate (Issue #355)', () => {
 		assert.equal(typeof registered, 'function', 'registriert einen Interval-Callback');
 		handle.stop();
 		assert.equal(cleared, true, 'stop() räumt den Timer auf');
+	});
+});
+
+// Roter Spec-Test für #2849 (Spec docs/spec/issue-2849.md): der Scheduler tickt stündlich,
+// die Tagesstunden-Bedingung (`shouldFire`/`PUSH_REMINDERS_HOUR`) entfällt. KEIN Produktivcode.
+describe('scheduler/startScheduler — stündlicher Tick (#2849 AK1)', () => {
+	const originalEnv = { ...process.env };
+
+	afterEach(() => {
+		process.env = { ...originalEnv };
+	});
+
+	it('TF1: feuert bei JEDEM Tick — auch zweimal vor der konfigurierten Tagesstunde; PUSH_REMINDERS_HOUR wird ignoriert', async () => {
+		const keys = webpush.generateVAPIDKeys();
+		process.env.VAPID_PUBLIC_KEY = keys.publicKey;
+		process.env.VAPID_PRIVATE_KEY = keys.privateKey;
+		process.env.PUSH_REMINDERS_ENABLED = 'true';
+		process.env.PUSH_REMINDERS_HOUR = '8'; // wird künftig nicht mehr ausgewertet
+		const calls: Date[] = [];
+		let current = new Date('2026-07-07T07:00:00Z');
+		let tickFn: (() => void) | undefined;
+
+		const handle = startScheduler(
+			[
+				async (now) => {
+					calls.push(now);
+				},
+			],
+			{
+				now: () => current,
+				setIntervalFn: ((fn: () => void) => {
+					tickFn = fn;
+					return 1 as unknown as NodeJS.Timeout;
+				}) as typeof setInterval,
+				clearIntervalFn: (() => {}) as typeof clearInterval,
+			},
+		);
+
+		tickFn?.();
+		current = new Date('2026-07-07T07:30:00Z');
+		tickFn?.();
+		await flush();
+
+		assert.equal(calls.length, 2, 'beide Ticks feuern — die Tagesstunden-Bedingung ist entfallen');
+		handle.stop();
 	});
 });
 

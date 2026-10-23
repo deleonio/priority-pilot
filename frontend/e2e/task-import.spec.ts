@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { MOBILE } from './helpers';
 
 /**
  * Rote Spec-E2E für #1969 (Spec `docs/spec/issue-1969.md`, AK6): Der Import ist als eigene
@@ -12,7 +13,6 @@ import { expect, test, type Page } from '@playwright/test';
  * Zustand ist das Sichtbarkeits-Timeout der Registerkarte.
  */
 
-const MOBILE = { width: 375, height: 812 } as const;
 const USER = { email: 'import-1969@example.com', displayName: 'Ida Import' };
 
 const TODOIST_CSV = [

@@ -1,6 +1,13 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
+import {
+	resetDb,
+	closeDb,
+	startTestServer,
+	type TestServer,
+	applyTestAuthEnv,
+	seedBillingAddress,
+} from '../test/helpers.js';
 import { Subscription } from '../models/index.js';
 import type { AppDeps } from './index.js';
 import { getPlansCatalog } from '../logics/plans.js';
@@ -47,6 +54,7 @@ describe('Abgebrochener Checkout (#2235)', () => {
 
 	const seedPending = async (email: string): Promise<{ cookie: string; userId: number }> => {
 		const cookie = await server.login(email);
+		await seedBillingAddress(email);
 		const me = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
 			id: number;
 		};

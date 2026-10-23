@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { seedAccountPreferences, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-Tests für #1066 „Dashboard-Card „In der Nähe““ (Spec docs/spec/issue-1066.md).
@@ -46,6 +46,12 @@ const GEO_INIT = (permission: 'granted' | 'denied', geoEnabled: boolean) => `
     nativeSetItem(PREF_KEY, String(${geoEnabled}));
   })();`;
 
+/** #2508: Die Geo-Präferenz liegt am Konto — der App-Start-Pull überschreibt den localStorage-Seed. */
+const initGeo = async (page: Page, permission: 'granted' | 'denied', geoEnabled: boolean): Promise<void> => {
+	await seedAccountPreferences(page, { geolocationEnabled: geoEnabled });
+	await page.addInitScript(GEO_INIT(permission, geoEnabled));
+};
+
 /** Legt einen Task optional mit Koordinaten über die echte API an; gibt die `id` zurück. */
 const createTaskViaApi = async (
 	page: Page,
@@ -74,7 +80,7 @@ test.describe('Balamentum — #1066: Dashboard-Card „In der Nähe“', () => {
 	// `nearby-preference-off` entfällt — bei ausgeschaltetem Standort wird die Card gar nicht
 	// mehr gerendert (statt eines Hinweises in der Card).
 	test('AK8 — Präferenz aus (Default): Card wird gar nicht gerendert, keine Positionsabholung', async ({ page }) => {
-		await page.addInitScript(GEO_INIT('granted', false));
+		await initGeo(page, 'granted', false);
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -85,7 +91,7 @@ test.describe('Balamentum — #1066: Dashboard-Card „In der Nähe“', () => {
 	});
 
 	test('AK4 — Browser verweigert Freigabe: Hinweis, Rest-Dashboard voll nutzbar', async ({ page }) => {
-		await page.addInitScript(GEO_INIT('denied', true));
+		await initGeo(page, 'denied', true);
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -100,7 +106,7 @@ test.describe('Balamentum — #1066: Dashboard-Card „In der Nähe“', () => {
 	});
 
 	test('AK9 — keine Tasks mit Koordinaten: klare Leer-Aussage statt Fehler', async ({ page }) => {
-		await page.addInitScript(GEO_INIT('granted', true));
+		await initGeo(page, 'granted', true);
 		await page.goto('/app/');
 		await waitForStableView(page);
 
@@ -111,7 +117,7 @@ test.describe('Balamentum — #1066: Dashboard-Card „In der Nähe“', () => {
 	test('AK2/AK3 — offene Tasks aufsteigend nach Distanz, Distanz in Klammern mit einer Nachkommastelle', async ({
 		page,
 	}) => {
-		await page.addInitScript(GEO_INIT('granted', true));
+		await initGeo(page, 'granted', true);
 		// Test-Pflege #1098 AK6: Server-Filter auf die Anzeige-Entfernung (Default 5 km) —
 		// die früheren Referenzorte (Hamburg ~255 km, Potsdam ~26 km) fielen durch den Filter;
 		// jetzt zwei Punkte bei ~1 km und ~3 km nördlich der Referenzposition.
@@ -137,7 +143,7 @@ test.describe('Balamentum — #1066: Dashboard-Card „In der Nähe“', () => {
 
 	test('AK5 — bei 375px kein Layoutbruch: Card und Einträge bleiben im Viewport', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.addInitScript(GEO_INIT('granted', true));
+		await initGeo(page, 'granted', true);
 		await createTaskViaApi(page, 'E2E 1066 mobil', { latitude: 52.52, longitude: 13.405 });
 		await page.goto('/app/');
 		await waitForStableView(page);

@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAvatarMenu, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #691 „Header-Konsistenz über alle Viewports" (Stufe 1 TDD, der einklagbare Vertrag).
@@ -79,6 +79,7 @@ test.describe('#691 Header-Konsistenz über alle Viewports', () => {
 
 		// Erwartete Buttons bei allen Viewports — alle fünf Kopf-Aktionen (ohne Bürgermenü)
 		// #1335: Der „Säulen-Berater" ist in „Neuen Task anlegen" verschmolzen — kein eigener Button mehr.
+		// #2723: „Hilfe"/„Abmelden" liegen im Avatar-Popover — deshalb wird es vor dem Zählen geöffnet.
 		const expectedButtons = ['Neuen Task anlegen', 'Hilfe', 'Einstellungen', 'Abmelden'];
 
 		const foundButtons: Map<string, number> = new Map();
@@ -90,6 +91,9 @@ test.describe('#691 Header-Konsistenz über alle Viewports', () => {
 
 			const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
 			await expect(toolbar).toBeVisible();
+
+			// #2723: „Hilfe"/„Abmelden" zählen nur im geöffneten Avatar-Popover als sichtbare Header-Buttons.
+			await openAvatarMenu(page);
 
 			// Alle sichtbaren Buttons in der Toolbar zählen.
 			const allButtons = await toolbar.getByRole('button').all();

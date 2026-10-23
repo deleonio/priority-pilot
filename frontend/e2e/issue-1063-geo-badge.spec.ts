@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * ROTE Spec-Tests für #1063 „Geo-Badge in Listen" (Spec docs/spec/issue-1063.md).
@@ -73,15 +73,27 @@ test.describe('Balamentum — #1063: Geo-Badge in Serien-, Erledigt- und Aufgabe
 		await expect(page.getByTestId('series-tree')).toBeVisible();
 	};
 
+	// Umschalter-Muster aus completed-tasks.spec.ts (`setViewSwitch`): check()/uncheck() werfen, wenn
+	// die Navigation nach dem Tab-Klick den Switch zwischen Klick und Zustandslesung neu rendert.
+	const setViewSwitch = async (page: Page, on: boolean): Promise<void> => {
+		const viewSwitch = () => page.getByRole('checkbox', { name: /Erledigte Aufgaben/i });
+		await expect(async () => {
+			if ((await viewSwitch().isChecked()) !== on) {
+				await viewSwitch().click();
+			}
+			await expect(viewSwitch()).toBeChecked({ checked: on, timeout: 1_000 });
+		}).toPass({ timeout: 10_000 });
+	};
+
 	const openCompletedView = async (page: Page): Promise<void> => {
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
-		await page.getByRole('checkbox', { name: /Erledigte Aufgaben/i }).check();
+		await setViewSwitch(page, true);
 		await waitForStableView(page);
 	};
 
 	const openTasksView = async (page: Page): Promise<void> => {
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
-		await page.getByRole('checkbox', { name: /Erledigte Aufgaben/i }).uncheck();
+		await setViewSwitch(page, false);
 		await waitForStableView(page);
 	};
 
@@ -147,7 +159,7 @@ test.describe('Balamentum — #1063: Geo-Badge in Serien-, Erledigt- und Aufgabe
 	test('AK6 — 375px: Badge verursacht in Serienliste, Erledigt-Liste und Aufgabenliste keinen Überlauf', async ({
 		page,
 	}) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		const seriesTitle = uniqueTitle('MobilSerie');
 		const doneTitle = uniqueTitle('MobilDone');
 		// Langer Titel neben den Badges ist der eigentliche Überlauf-Stressor in der Aufgabenzeile.

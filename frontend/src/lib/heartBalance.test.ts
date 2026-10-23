@@ -336,4 +336,38 @@ describe('heartHealth', () => {
 		expect(health.state).toBe('stark');
 		expect(health.hint).toBe('Deine Säulen liegen dicht am Soll.');
 	});
+
+	// #2645 (docs/spec/issue-2645.md): Der Server nennt Zähler und Mindestmenge im Kadenz-Fenster
+	// (#2633); unter der Mindestmenge hat das Bild zu wenig Grundlage, um zu urteilen — es zeigt den
+	// Leerzustand statt einer Stufe mit Schieflage-Hinweis. Der zweite Parameter ist noch nicht
+	// implementiert und wird daher per Signatur-Cast deklariert (Produktiv-Typ unberührt,
+	// Muster 2026-08-23).
+	it('urteilt erst ab der Mindestmenge — ohne Urteilsreife Leerzustand trotz Punkten (#2645/AK1)', () => {
+		const balance = buildHeartBalance(
+			[pillar(1, 'Sinn', 50), pillar(2, 'Wirksamkeit', 50)],
+			new Map([
+				[1, 8],
+				[2, 2],
+			]),
+		);
+		expect(balance.hasPoints).toBe(true);
+
+		const mitUrteilsreife = heartHealth as unknown as (
+			balance: ReturnType<typeof buildHeartBalance>,
+			urteilsreif?: boolean,
+		) => { state: string; label: string; hint: string };
+
+		const unreif = mitUrteilsreife(balance, false);
+		expect(unreif.state).toBe('leer');
+		expect(unreif.label).toBe('Noch leer');
+		// Leer-Hinweis statt konkreter Schieflage — keine Säule wird beim Namen genannt.
+		expect(unreif.hint).toBe('Erledige Aufgaben, damit sich das Bild füllt.');
+		expect(unreif.hint).not.toContain('Sinn');
+
+		// Urteilsreif (oder ohne Angabe) gelten die bisherigen Stufen unverändert (#2645/AK2).
+		// Test-Pflege #2645: fill liegt hier exakt bei 0,4 (level bei 1 gekappt, spread 0,36 / worst 0,5
+		// → 1 − √0,72) → 'wackelig', nicht 'schwach' — der bisherige Stufenlauf, den AK2 pinnen will.
+		expect(mitUrteilsreife(balance, true).state).toBe('wackelig');
+		expect(heartHealth(balance).state).toBe('wackelig');
+	});
 });

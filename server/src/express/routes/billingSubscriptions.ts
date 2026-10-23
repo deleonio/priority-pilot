@@ -8,8 +8,25 @@ import { getUserId } from '../requireAuth.js';
 import { sendError, parseId, type ErrorDto } from '../http-error.js';
 import { createPaypalProvider, type PaypalProviderDeps } from '../../logics/billing/paypalProvider.js';
 import { rankOf } from '../../logics/billing/lifecycle.js';
-import { PaypalHttpError, PERIOD_MONTHS } from '../../logics/paypal.js';
+import { PaypalHttpError, PERIOD_MONTHS, coversFirstCycle } from '../../logics/paypal.js';
 import { getPlansCatalog, PLAN_VALUES, type Plan } from '../../logics/plans.js';
+import { extractBillingAddress, hasBillingAddress } from '../../logics/billingAddress.js';
+
+type BillingAddressDto = {
+	name: string | null;
+	street: string | null;
+	zip: string | null;
+	city: string | null;
+	country: string | null;
+};
+
+const serializeBillingAddress = (user: User): BillingAddressDto => ({
+	name: user.billingName,
+	street: user.billingStreet,
+	zip: user.billingZip,
+	city: user.billingCity,
+	country: user.billingCountry,
+});
 import { prorateUpgrade } from '../../logics/proration.js';
 import { notifyAdminsOfExtraordinaryCancellation } from '../../logics/cancellationMail.js';
 import type { MailSender } from '../../logics/mail.js';
@@ -87,11 +104,25 @@ export const serializeInvoice = (invoice: Invoice): InvoiceDto => ({
 const ACTIVE_FIRST: Order = [['status', 'ASC']];
 
 // Gekündigtes Abo mit Restlaufzeit (#2049): gilt wie ein laufendes Abo — Muster des Cancel-Fallbacks.
-const findCancelledWithRemaining = (userId: number) =>
-	Subscription.findOne({
-		where: { userId, status: 'cancelled', currentPeriodEnd: { [Op.gt]: new Date() } },
+// #2745: die Restlaufzeit zählt bis zum gekürzten Vertragsende (`pendingPlanEffectiveAt`), sonst bis zum Periodenende.
+const findCancelledWithRemaining = (userId: number) => {
+	const now = new Date();
+	return Subscription.findOne({
+		where: {
+			userId,
+			status: 'cancelled',
+			[Op.or]: [
+				{ pendingPlanEffectiveAt: { [Op.gt]: now } },
+				{ pendingPlanEffectiveAt: null, currentPeriodEnd: { [Op.gt]: now } },
+			],
+		},
 		order: ACTIVE_FIRST,
 	});
+};
+
+// Ende der Restlaufzeit eines gekündigten Abos (#2049/#2745) — Start eines Folgeabos.
+const cancelledEnd = (subscription: Subscription): Date =>
+	(subscription.get('pendingPlanEffectiveAt') as Date | null) ?? (subscription.get('currentPeriodEnd') as Date);
 
 // Basis eines Wechsels: das bezahlte Abo zuerst (laufend, sonst gekündigt mit Restlaufzeit, #2049), ein
 // offener Checkout nur ohne beides — er ist nie bezahlt und bringt kein Guthaben ein (#2235).
@@ -209,6 +240,53 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 		return true;
 	};
 
+	// GET /billing/address — gespeicherte Rechnungsadresse des Nutzers (#2661), `null` je Feld, solange
+	// keine erfasst ist. Bewusst eigener Endpunkt statt /profile: die Adresse ist Bestandteil des
+	// Abrechnungskontexts, nicht des öffentlichen Profils.
+	router.get('/billing/address', async (req: Request, res: Response<BillingAddressDto | ErrorDto>) => {
+		const userId = getUserId(req);
+		if (userId === undefined) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const user = await User.findByPk(userId);
+		if (user === null) {
+			sendError(res, 404, 'Kein Konto gefunden.');
+			return;
+		}
+		res.json(serializeBillingAddress(user));
+	});
+	// PUT /billing/address — Rechnungsadresse erfassen/ändern (#2661): alle Felder Pflicht, Änderungen
+	// wirken auf Rechnungen und PDFs ab dem Speichern.
+	router.put('/billing/address', async (req: Request, res: Response<BillingAddressDto | ErrorDto>) => {
+		const userId = getUserId(req);
+		if (userId === undefined) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const address = extractBillingAddress(req.body);
+		if (address === null) {
+			sendError(
+				res,
+				400,
+				'Unvollständige Rechnungsadresse: Name, Straße, PLZ, Ort und Land sind erforderlich (1 bis 120 Zeichen).',
+			);
+			return;
+		}
+		const user = await User.findByPk(userId);
+		if (user === null) {
+			sendError(res, 404, 'Kein Konto gefunden.');
+			return;
+		}
+		await user.update({
+			billingName: address.name,
+			billingStreet: address.street,
+			billingZip: address.zip,
+			billingCity: address.city,
+			billingCountry: address.country,
+		});
+		res.json(serializeBillingAddress(user));
+	});
 	// POST /billing/subscriptions — legt ein Abo an und liefert die Zustimmungs-URL (AK1). Ein
 	// laufendes Abo desselben Nutzers blockt einen zweiten Anlauf (AK2); ein offener Checkout wird
 	// vorher verworfen, auch wenn der Nutzer nach einem Abbruch nie zurückkehrte (#2235). Bei einem
@@ -231,6 +309,12 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 400, 'withdrawalConsent muss true sein (Zustimmung zum sofortigen Leistungsbeginn).');
 			return;
 		}
+		// Ohne erfasste Rechnungsadresse kein Abo (#2661): Rechnungsstellung und PDF brauchen sie.
+		const user = await User.findByPk(userId);
+		if (user === null || !hasBillingAddress(user)) {
+			sendError(res, 409, 'Bitte zuerst eine Rechnungsadresse hinterlegen.');
+			return;
+		}
 		// Ein Abo mit Zahlungsrückstand läuft weiter und blockt ebenso (#2240).
 		const running = OPEN_SUBSCRIPTION_STATUSES.filter((status) => status !== 'approval_pending');
 		if (await Subscription.findOne({ where: { userId, status: running } })) {
@@ -248,7 +332,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			// (#2049) — jeder Buchungsweg läuft über denselben Startzeitpunkt, ein zweites sofort
 			// abbuchendes Abo entsteht so nicht.
 			const cancelled = await findCancelledWithRemaining(userId);
-			const start = (cancelled?.get('currentPeriodEnd') as Date | undefined) ?? new Date();
+			const start = cancelled ? cancelledEnd(cancelled) : new Date();
 			const { approvalUrl, externalSubscriptionId } = await checkout.create(
 				body.plan,
 				body.period,
@@ -372,7 +456,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			// Gekündigtes Abo, Ziel nicht höher (#2049): `revise` liefe ins Leere (bei PayPal bereits
 			// beendet) — stattdessen ein neues Abo, dessen erste Abbuchung erst am Periodenende startet.
 			if (subscription.get('status') === 'cancelled' && rankOf(body.plan) <= rankOf(currentPlan)) {
-				const start = subscription.get('currentPeriodEnd') as Date;
+				const start = cancelledEnd(subscription);
 				const { approvalUrl, externalSubscriptionId } = await checkout.create(body.plan, body.period, undefined, start);
 				await Subscription.create({
 					userId,
@@ -390,16 +474,23 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 				const now = new Date();
 				const { creditCents } = upgradeProration(subscription, body.plan, body.period, now);
 				const carry = creditCarryover(creditCents, getPlansCatalog().prices[body.plan][body.period], body.period, now);
+				// Ein abgebrochener früherer Upgrade-Anlauf bliebe sonst als offenes Abo liegen (#2547):
+				// Stornieren wie `discardPendingCheckout` — VOR `checkout.create`, sonst entsteht bei
+				// fehlgeschlagenem Cleanup ein PayPal-Abo ohne DB-Zeile.
+				for (const pending of await Subscription.findAll({
+					where: { userId, status: 'approval_pending', id: { [Op.ne]: subscription.get('id') } },
+				})) {
+					if (!(await discardPendingCheckout(pending))) {
+						sendError(res, 502, 'PayPal war nicht erreichbar.');
+						return;
+					}
+				}
 				const { approvalUrl, externalSubscriptionId } = await checkout.create(
 					body.plan,
 					body.period,
 					carry.feeCents,
 					carry.startTime,
 				);
-				// Ein abgebrochener früherer Upgrade-Anlauf bliebe sonst als offenes Abo liegen.
-				await Subscription.destroy({
-					where: { userId, status: 'approval_pending', id: { [Op.ne]: subscription.get('id') } },
-				});
 				await Subscription.create({
 					userId,
 					provider: provider.id,
@@ -452,7 +543,9 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			const { creditCents, firstCycleCents } = upgradeProration(subscription, body.plan, body.period, now);
 			const price = getPlansCatalog().prices[body.plan][body.period];
 			// #2241: deckt das Guthaben volle Zyklen, nennt die Vorschau, bis wann — und die Gebühr P − r, die bei der Zustimmung fällig wird.
-			const carry = creditCents >= price ? creditCarryover(creditCents, price, body.period, now) : undefined;
+			const carry = coversFirstCycle(subscription, { amountCents: creditCents, plan: body.plan, period: body.period })
+				? creditCarryover(creditCents, price, body.period, now)
+				: undefined;
 			res.status(200).json({
 				priceCents: price,
 				creditCents,

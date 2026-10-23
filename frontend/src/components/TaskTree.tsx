@@ -1,8 +1,9 @@
-import { KolBadge, KolHeading, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
+import { KolBadge, KolButton, KolHeading, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
 import type { Category, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { BADGE_COLOR, PRIORITY_COLOR } from '../lib/badgeColors';
 import { extractLeaves } from '../lib/extractLeaves';
 import { seriesBadge } from '../lib/series';
 import { CategoryBadge } from './CategoryBadge';
@@ -10,9 +11,9 @@ import { GeoBadge } from './GeoBadge';
 import { PillarMissingBadge } from './PillarMissingBadge';
 import { PinnedBadge } from './PinnedBadge';
 import { SeriesBadge } from './SeriesBadge';
-import { isDoneBlockedBySubtasks, priorityBadge, sortPinnedFirst } from '../lib/task';
+import { formatNumber, isDoneBlockedBySubtasks, priorityBadge, sortPinnedFirst } from '../lib/task';
 import { sortTasksByBalance, virtualPriorityLabel, type BalancePriority } from '../lib/balancePriority';
-import { setupPopoverAlignment } from '../lib/popoverAlign';
+import { findInnerButton, setupPopoverAlignment } from '../lib/popoverAlign';
 
 /** i18n-Schlüssel des Anzeigenamens der KI-Eignungs-Kategorie (#2349). */
 const AI_SUITABILITY_LABEL = {
@@ -70,6 +71,11 @@ interface TaskTreeProps {
 	/** Pinnt die Aufgabe an bzw. wieder ab (#1582). */
 	onPinToggle: (task: Task) => void;
 	/**
+	 * #2526: Inline-Rückmeldung des Direkt-Erledigens (App-State) — die Zeile dieser Task-ID zeigt
+	 * Punkte/Streak und „Rückgängig“ (derselbe onDoneToggle-Pfad, der ScoreEntry-Abbau bleibt beim Server).
+	 */
+	doneFeedback?: { taskId: number; punkte: number; streakTage?: number } | null;
+	/**
 	 * Virtuelle Balance-Prioritäten je Task-ID. `null`/leer → originale Wertbeitrags-Sortierung und
 	 * `P{n}`-Badges; gesetzt → Liste nach Balance-Score sortiert, Badges als `~P{n}`.
 	 */
@@ -97,19 +103,9 @@ interface LeafItemProps {
 	onSaveAsTemplate: (task: Task) => void;
 	onDoneToggle: (task: Task) => Promise<void>;
 	onPinToggle: (task: Task) => void;
+	/** #2526: siehe TaskTreeProps — die Rückmeldung erscheint in genau dieser Zeile. */
+	doneFeedback?: { taskId: number; punkte: number; streakTage?: number } | null;
 }
-
-/**
- * Traversiert Shadow- und Light-DOM ab `el` nach unten und liefert das erste native `<button>`.
- * #361: Nach programmatischem `hidePopover()` gibt die native Popover-API den Fokus nicht an den
- * Invoker zurück (er wandert zu `document.body`). Wir fokussieren den inneren Button daher explizit,
- * damit das anschließend geöffnete Modal den korrekten Trigger für die Fokusrückgabe erfasst.
- */
-const findInnerButton = (el: Element | null | undefined): HTMLElement | null => {
-	if (el == null) return null;
-	if (el instanceof HTMLButtonElement) return el;
-	return findInnerButton(el.shadowRoot?.firstElementChild ?? el.firstElementChild);
-};
 
 const LeafItem = ({
 	node,
@@ -128,6 +124,7 @@ const LeafItem = ({
 	onSaveAsTemplate,
 	onDoneToggle,
 	onPinToggle,
+	doneFeedback,
 }: LeafItemProps) => {
 	const { t } = useTranslation(['tasks', 'common']);
 	const [isUpdating, setIsUpdating] = useState(false);
@@ -164,12 +161,6 @@ const LeafItem = ({
 			? seriesBadge(task, seriesById)
 			: null;
 
-	// P2-2: Farb-Mapping für Prioritäts-Badges (analog URGENCY_COLOR im Dashboard).
-	const PRIORITY_COLOR: Record<'info' | 'warning' | 'danger', string> = {
-		info: '#005b99', // --kol-color-primary
-		warning: '#c66a00', // --kol-color-warning
-		danger: '#b42318', // --kol-color-danger (red)
-	};
 	const priorityColor = PRIORITY_COLOR[priorityBadgeInfo.type];
 
 	return (
@@ -237,7 +228,7 @@ const LeafItem = ({
 						    Pin-Aktion selbst liegt im „…"-Popover (siehe Toolbar unten). */}
 						{task !== null && task.pinned && <PinnedBadge />}
 						{task !== null && task.isException && templateBadge === null && (
-							<KolBadge _label={t('taskTree.changed')} _color="#c66a00" className="task-tree-badge" />
+							<KolBadge _label={t('taskTree.changed')} _color={BADGE_COLOR.changed} className="task-tree-badge" />
 						)}
 						{/* #1465: Zahlt die Aufgabe auf keine Säule ein, zeigt die Zeile das Säulen-Badge —
 						    sichtbar, ohne den Eintrag zu öffnen. Es ersetzt das beschreibungs-getriebene
@@ -245,14 +236,18 @@ const LeafItem = ({
 						    jede Zeile. */}
 						{task !== null && pillarsConfigured && (task.pillars ?? []).length === 0 && <PillarMissingBadge />}
 						{progress !== undefined && (
-							<KolBadge _label={`${progress.done}/${progress.total}`} _color="#2e7d32" className="task-tree-badge" />
+							<KolBadge
+								_label={`${progress.done}/${progress.total}`}
+								_color={BADGE_COLOR.progress}
+								className="task-tree-badge"
+							/>
 						)}
 						{/* #1583 AK6: Checklisten-Fortschritt bleibt sichtbar, solange nicht alle Einträge
 						    abgehakt sind — dieselbe „erledigt/gesamt"-Formatierung wie in TaskTable.tsx. */}
 						{task !== null && (task.checklist?.length ?? 0) > 0 && (
 							<KolBadge
 								_label={`${task.checklist!.filter((item) => item.completed).length}/${task.checklist!.length}`}
-								_color="#005b99"
+								_color={BADGE_COLOR.info}
 								className="task-tree-badge task-tree-badge--checklist"
 							/>
 						)}
@@ -379,6 +374,40 @@ const LeafItem = ({
 							</KolPopoverButton>
 						</div>
 					)}
+					{task !== null && (
+						// #2526: Rückmeldung an der Zeile — dieselben Zahlen wie im Panel; „Rückgängig“ läuft über
+						// denselben Toggle-Pfad, der ScoreEntry-Abbau bleibt beim Server (#228). Fixup #2572: die
+						// Region steht dauerhaft im DOM — leer vor der Rückmeldung (Screenreader verkünden frisch
+						// gemountete Live-Regions unzuverlässig) —, nur der Inhalt wechselt; der Leerzustand bleibt
+						// über `:empty` ohne Eigenabstand.
+						<div className="task-tree-done-feedback" aria-live="polite">
+							{doneFeedback != null && doneFeedback.taskId === task.id && (
+								<>
+									<span className="task-tree-done-feedback-points">
+										<i className="fa-solid fa-circle-check" aria-hidden="true" />
+										{t('taskTree.doneFeedbackPoints', { punkte: formatNumber(doneFeedback.punkte) })}
+										{doneFeedback.streakTage !== undefined && (
+											<>
+												{' · '}
+												{t('taskTree.doneFeedbackStreak', { tage: doneFeedback.streakTage })}
+											</>
+										)}
+									</span>
+									<KolButton
+										_label={t('taskTree.undo')}
+										_variant="secondary"
+										_icons={{ left: { icon: 'fa-solid fa-rotate-left' } }}
+										_on={{
+											onClick: () => {
+												setIsUpdating(true);
+												void onDoneToggle(task).finally(() => setIsUpdating(false));
+											},
+										}}
+									/>
+								</>
+							)}
+						</div>
+					)}
 				</div>
 			</div>
 		</li>
@@ -424,6 +453,7 @@ export const TaskTree = ({
 	onSaveAsTemplate,
 	onDoneToggle,
 	onPinToggle,
+	doneFeedback,
 	categories = [],
 	pillars = [],
 	seriesById = NO_SERIES,
@@ -493,6 +523,7 @@ export const TaskTree = ({
 					onSaveAsTemplate={onSaveAsTemplate}
 					onDoneToggle={onDoneToggle}
 					onPinToggle={onPinToggle}
+					doneFeedback={doneFeedback}
 				/>
 			))}
 		</ul>

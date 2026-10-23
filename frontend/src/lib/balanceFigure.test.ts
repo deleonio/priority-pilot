@@ -1,16 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import {
 	activeTicks,
+	auftaktStand,
+	auftaktWechselt,
 	buildArcs,
 	buildHands,
+	buildOrbits,
 	buildOrbs,
 	buildPetals,
 	buildRays,
 	buildWedges,
 	CENTER,
 	FIGURE_MAX,
+	keplerTheta,
+	ORBIT_ECC,
+	ORBIT_FLAT,
+	ORBIT_SWING,
 	orbAxes,
+	orbitPoint,
+	pendelState,
 	petalRadiusAt,
+	RISE_DURATION,
 	RING_INNER,
 	R_MIN,
 	ringTicks,
@@ -56,6 +66,7 @@ describe('Ordnung über alle Figuren', () => {
 		expect(buildPetals(metrics).map((petal) => petal.pillarId)).toEqual(erwartet);
 		expect(buildWedges(metrics).map((wedge) => wedge.pillarId)).toEqual(erwartet);
 		expect(buildHands(metrics).map((hand) => hand.pillarId)).toEqual(erwartet);
+		expect(buildOrbits(metrics).map((orbit) => orbit.pillarId)).toEqual(erwartet);
 	});
 
 	it('gibt derselben Säule in jeder Figur dieselbe Bewegung', () => {
@@ -65,6 +76,7 @@ describe('Ordnung über alle Figuren', () => {
 		const petal = buildPetals(metrics)[0];
 		const wedge = buildWedges(metrics)[0];
 		const hand = buildHands(metrics)[0];
+		const orbit = buildOrbits(metrics)[0];
 
 		for (const key of ['phase', 'swingPeriod', 'rotPeriod', 'rotDirection'] as const) {
 			expect(arc[key]).toBe(orb[key]);
@@ -72,6 +84,7 @@ describe('Ordnung über alle Figuren', () => {
 			expect(petal[key]).toBe(orb[key]);
 			expect(wedge[key]).toBe(orb[key]);
 			expect(hand[key]).toBe(orb[key]);
+			expect(orbit[key]).toBe(orb[key]);
 		}
 	});
 
@@ -106,12 +119,22 @@ describe('Ordnung über alle Figuren', () => {
 		const voll = metricsOf([1]);
 		expect(FIGURE_MAX * (1 + SWING)).toBeLessThan(RING_INNER);
 
+		// Leerlauf-Probe (#2558): die Menge muss nicht-leer sein, sonst prüfen die Schleifen nichts.
+		expect(buildArcs(voll).length).toBeGreaterThan(0);
+		expect(buildRays(voll).length).toBeGreaterThan(0);
+		expect(buildOrbs(voll).length).toBeGreaterThan(0);
+		expect(buildPetals(voll).length).toBeGreaterThan(0);
+		expect(buildWedges(voll).length).toBeGreaterThan(0);
+		expect(buildHands(voll).length).toBeGreaterThan(0);
+		expect(buildOrbits(voll).length).toBeGreaterThan(0);
+
 		for (const arc of buildArcs(voll)) expect(arc.radius + arc.width / 2).toBeLessThanOrEqual(FIGURE_MAX);
 		for (const ray of buildRays(voll)) expect(ray.length).toBeLessThanOrEqual(FIGURE_MAX);
 		for (const orb of buildOrbs(voll)) expect(orb.radius).toBeLessThanOrEqual(FIGURE_MAX);
 		for (const petal of buildPetals(voll)) expect(petal.radius).toBeLessThanOrEqual(FIGURE_MAX);
 		for (const wedge of buildWedges(voll)) expect(wedge.outer).toBeLessThanOrEqual(FIGURE_MAX);
 		for (const hand of buildHands(voll)) expect(hand.length).toBeLessThanOrEqual(FIGURE_MAX);
+		for (const orbit of buildOrbits(voll)) expect(orbit.radius).toBeLessThanOrEqual(FIGURE_MAX);
 	});
 
 	/*
@@ -120,6 +143,15 @@ describe('Ordnung über alle Figuren', () => {
 	 */
 	it('gibt einer Säule ohne Ziel die kleinste Form, nicht gar keine', () => {
 		const leer = metricsOf([0, 0]);
+
+		// Leerlauf-Probe (#2558): die Menge muss nicht-leer sein, sonst prüfen die Schleifen nichts.
+		expect(buildOrbs(leer).length).toBeGreaterThan(0);
+		expect(buildRays(leer).length).toBeGreaterThan(0);
+		expect(buildArcs(leer).length).toBeGreaterThan(0);
+		expect(buildPetals(leer).length).toBeGreaterThan(0);
+		expect(buildWedges(leer).length).toBeGreaterThan(0);
+		expect(buildHands(leer).length).toBeGreaterThan(0);
+		expect(buildOrbits(leer).length).toBeGreaterThan(0);
 
 		for (const orb of buildOrbs(leer)) expect(orb.radius).toBe(R_MIN);
 		for (const ray of buildRays(leer)) expect(ray.length).toBeGreaterThan(0);
@@ -131,6 +163,7 @@ describe('Ordnung über alle Figuren', () => {
 			expect(wedge.outer).toBe(R_MIN);
 		}
 		for (const hand of buildHands(leer)) expect(hand.length).toBe(R_MIN);
+		for (const orbit of buildOrbits(leer)) expect(orbit.radius).toBe(R_MIN);
 	});
 
 	it('schwingt gegenläufig — die Fläche atmet, sie wächst nicht', () => {
@@ -190,6 +223,14 @@ describe('Die Soll-Marke', () => {
 		const aufZiel = hands.find((hand) => hand.pillarId === 2);
 
 		expect(hands[0].targetLength).toBeCloseTo(aufZiel?.length ?? -1, 6);
+	});
+
+	it('liegt bei den Bahnen auf dem Scheitel, den eine Säule auf Ziel hätte', () => {
+		const metrics = metricsOf([2, 1]);
+		const orbits = buildOrbits(metrics);
+		const aufZiel = orbits.find((orbit) => orbit.pillarId === 2);
+
+		expect(targetRadius(metrics)).toBeCloseTo(aufZiel?.radius ?? -1, 6);
 	});
 });
 
@@ -341,6 +382,68 @@ describe('Figur „Zeiger“', () => {
 	});
 });
 
+describe('Figur „Bahnen“', () => {
+	it('stellt die größte Bahn auf 12 Uhr und verteilt den Rest gleichmäßig', () => {
+		const orbits = buildOrbits(metricsOf([0.4, 1.6, 1.0]));
+
+		expect(orbits[0].angle).toBe(-90);
+		expect(orbits[1].angle).toBeCloseTo(-90 + 120, 6);
+		expect(orbits[2].angle).toBeCloseTo(-90 + 240, 6);
+		expect(orbits[0].radius).toBeGreaterThan(orbits[2].radius);
+	});
+
+	/* Die große Achse trägt den Wert: Der Scheitel der Bahn liegt so weit außen wie die Kennzahl,
+	 * quer dazu misst die Bahn den abgeflachten Anteil — sonst wäre die Ellipse ein Datum. */
+	it('trägt die große Achse den Wert und behält die Abflachung bei', () => {
+		const [orbit] = buildOrbits(metricsOf([1]));
+		const scheitel = orbitPoint(orbit, 0);
+		const quer = orbitPoint(orbit, Math.PI / 2);
+
+		expect(Math.hypot(scheitel.x - CENTER, scheitel.y - CENTER)).toBeCloseTo(orbit.radius, 6);
+		expect(Math.hypot(quer.x - CENTER, quer.y - CENTER)).toBeCloseTo(orbit.radius * ORBIT_FLAT, 6);
+	});
+
+	it('läuft im Kepler-Takt: an der kleinen Achse schneller als am Scheitel', () => {
+		const [orbit] = buildOrbits(metricsOf([1]));
+
+		// Standbild: Phase plus Kepler-Versatz (Anomalie-Näherung, zahlengleich zum Shader).
+		expect(keplerTheta(orbit, 0)).toBeCloseTo(orbit.phase - (ORBIT_ECC / 2) * Math.sin(2 * orbit.phase), 6);
+		// Beschleunigung Richtung Periapsis (kleine Achse, dem Zentrum am nächsten): Das
+		// Zeitviertel durch die kleine Achse überstreicht mehr Winkel als das durch den Scheitel.
+		const kleineAchse = keplerTheta(orbit, orbit.rotPeriod * 0.375) - keplerTheta(orbit, orbit.rotPeriod * 0.125);
+		const scheitel = keplerTheta(orbit, orbit.rotPeriod * 0.625) - keplerTheta(orbit, orbit.rotPeriod * 0.375);
+		expect(kleineAchse).toBeGreaterThan(Math.PI / 2);
+		expect(scheitel).toBeLessThan(Math.PI / 2);
+		expect(kleineAchse).toBeGreaterThan(scheitel);
+	});
+
+	it('pendelt um die Phase: Amplitude begrenzt, Tempo an den Umkehrpunkten null', () => {
+		const [orbit] = buildOrbits(metricsOf([1]));
+
+		for (const share of [0, 0.125, 0.25, 0.375, 0.5, 0.75, 0.9]) {
+			const zustand = pendelState(orbit, share * orbit.swingPeriod);
+			expect(zustand.theta).toBeLessThanOrEqual(orbit.phase + ORBIT_SWING + 1e-9);
+			expect(zustand.theta).toBeGreaterThanOrEqual(orbit.phase - ORBIT_SWING - 1e-9);
+			expect(zustand.speed).toBeGreaterThanOrEqual(0);
+			expect(zustand.speed).toBeLessThanOrEqual(1);
+			expect(zustand.dirNow === 1 || zustand.dirNow === -1).toBe(true);
+		}
+		// Phase 0: Das Pendel startet mit vollem Tempo und steht nach einem Viertel Periode kurz.
+		expect(pendelState(orbit, 0).speed).toBeCloseTo(1, 6);
+		expect(pendelState(orbit, orbit.swingPeriod / 4).speed).toBeCloseTo(0, 6);
+	});
+
+	/* Gleichstand wie bei den Blasen: Ohne eigene Phase und Periode liefe alles synchron und das
+	 * Bild zeigte fünf Deckungsgleiche Bahnen. */
+	it('bewegt gleich große Bahnen paarweise verschieden (Gleichstand)', () => {
+		const orbits = buildOrbits(metricsOf([1, 1, 1, 1, 1]));
+
+		expect(new Set(orbits.map((orbit) => orbit.radius)).size).toBe(1);
+		expect(new Set(orbits.map((orbit) => orbit.phase)).size).toBe(orbits.length);
+		expect(new Set(orbits.map((orbit) => orbit.swingPeriod)).size).toBe(orbits.length);
+	});
+});
+
 describe('ringTicks — das Zifferblatt', () => {
 	it('hat immer 100 Striche, einen je Prozentpunkt', () => {
 		expect(ringTicks(0)).toHaveLength(TICK_COUNT);
@@ -398,5 +501,39 @@ describe('ringTicks — das Zifferblatt', () => {
 			expect(tick.mix).toBeGreaterThanOrEqual(0);
 			expect(tick.mix).toBeLessThanOrEqual(1);
 		}
+	});
+});
+
+describe('auftaktStand — der Aufwärtstakt des Zifferblatts', () => {
+	it('bleibt gehalten auf 0, solange der echte Stand fehlt', () => {
+		expect(auftaktStand(0.5, 0, false, true)).toBe(0);
+		expect(auftaktStand(9, 0, false, false)).toBe(0);
+	});
+
+	it('läuft nach der Freigabe ab dem Freigabe-Moment und klemmt bei 1', () => {
+		expect(auftaktStand(2, 2, true, true)).toBe(0);
+		expect(auftaktStand(2 + RISE_DURATION / 2, 2, true, true)).toBeCloseTo(0.5, 6);
+		expect(auftaktStand(2 + 2 * RISE_DURATION, 2, true, true)).toBe(1);
+	});
+
+	it('zeigt im Standbild sofort den fertigen Stand', () => {
+		expect(auftaktStand(0, 0, true, false)).toBe(1);
+	});
+});
+
+describe('auftaktWechselt — der Freigabe-Übergang der Engine', () => {
+	/* Der Startzustand ist gehalten; die erste Freigabe muss durchkommen — genau dieser Übergang
+	 * verwarf der invertierte Vergleich, das Zifferblatt blieb dauerhaft leer. */
+	it('zählt die erste Freigabe aus dem gehaltenen Zustand', () => {
+		expect(auftaktWechselt(true, true)).toBe(true);
+	});
+
+	it('zählt wiederholte Aufrufe mit unverändertem Zustand nicht', () => {
+		expect(auftaktWechselt(true, false)).toBe(false);
+		expect(auftaktWechselt(false, true)).toBe(false);
+	});
+
+	it('zählt das erneute Halten nach einer Freigabe (Rückweg)', () => {
+		expect(auftaktWechselt(false, false)).toBe(true);
 	});
 });

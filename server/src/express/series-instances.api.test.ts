@@ -6,7 +6,8 @@ import { Category, Pillar, Series, SeriesPillar, Task, TaskPillar, User } from '
 /**
  * Rote Spec-Tests für #2357 — `POST /series/:id/instances` legt genau eine Aufgabe aus einer Serie
  * auf Abruf an (Vertrag: docs/spec/issue-2357.md, AK1–AK4 und AK7). Rot, bis die Route existiert.
- * KEIN Produktivcode.
+ * #2757: Instanzen übernehmen den Serien-Ersteller. #2787: Schreib-Antworten der Serien-Endpunkte
+ * tragen `createdByName` (Vertrag: docs/spec/issue-2787.md). KEIN Produktivcode.
  */
 process.env.GOOGLE_ALLOWED_EMAILS = 'alice@example.com,bob@example.com';
 applyTestAuthEnv('series-instances-api-test');
@@ -215,5 +216,109 @@ describe('POST /series/:id/instances (#2357)', () => {
 			1,
 			'die Abruf-Aufgabe bleibt unverändert',
 		);
+	});
+
+	// ── #2757: Instanzen übernehmen den Ersteller der Serie (Vertrag: docs/spec/issue-2757.md) ──
+
+	it('Abruf-Instanz übernimmt createdById der Serie (AK1, #2757)', async () => {
+		const { cookie, userId } = await login();
+		// Seed setzt createdById = userId (Ersteller = Eigentümer).
+		const series = await seedSeries(userId);
+
+		const res = await postInstance(cookie, series.id);
+		assert.equal(res.status, 201);
+		const [task] = await Task.findAll({ where: { seriesId: series.id } });
+		assert.equal(task?.createdById ?? null, userId, 'Instanz trägt den Serien-Ersteller');
+	});
+
+	it('generierte Instanzen übernehmen createdById der Serie (AK1, #2757)', async () => {
+		const { cookie, userId } = await login();
+		const series = await seedSeries(userId, { autoCreate: true, startDate: futureDate(0) });
+
+		const gen = await fetch(`${server.baseUrl}/series/generate-all`, { method: 'POST', headers: { Cookie: cookie } });
+		assert.equal(gen.status, 200);
+
+		const tasks = await Task.findAll({ where: { seriesId: series.id } });
+		assert.ok(tasks.length >= 1, 'Setup: Generierung muss Instanzen anlegen');
+		for (const task of tasks) {
+			assert.equal(task.createdById ?? null, userId, 'auch der Generierungsweg trägt den Serien-Ersteller');
+		}
+	});
+
+	it('Serie ohne Ersteller → Instanz bleibt ohne Ersteller (AK3, #2757)', async () => {
+		const { cookie, userId } = await login();
+		const series = await seedSeries(userId, { createdById: null });
+
+		const res = await postInstance(cookie, series.id);
+		assert.equal(res.status, 201);
+		const [task] = await Task.findAll({ where: { seriesId: series.id } });
+		assert.equal(task?.createdById ?? null, null, 'kein Eigentümer-Fallback: createdById bleibt null');
+	});
+
+	it('Serie von A für B: Instanz behält userId B, trägt createdById A; DTO nennt den Ersteller (AK2+AK4, #2757)', async () => {
+		await server.login(ALICE, { displayName: 'Alice Erstellerin' });
+		const aliceId = await userIdOf(ALICE);
+		const bobCookie = await server.login(BOB, { displayName: 'Bob Empfänger' });
+		const bobId = await userIdOf(BOB);
+
+		const series = await seedSeries(bobId, { createdById: aliceId });
+		const res = await postInstance(bobCookie, series.id);
+		assert.equal(res.status, 201);
+		// #2787 AK1: die Schreib-Antwort selbst nennt den Ersteller — nicht nur die Liste.
+		const antwort = (await res.json()) as { id: number; createdByName?: string | null };
+		assert.equal(
+			antwort.createdByName ?? null,
+			'Alice Erstellerin',
+			'Schreib-Antwort von POST /instances nennt den Serien-Ersteller wie das Lese-Orakel (#2787)',
+		);
+
+		const [task] = await Task.findAll({ where: { seriesId: series.id } });
+		assert.equal(task?.userId ?? null, bobId, 'Empfänger bleibt Eigentümer der Instanz');
+		assert.equal(task?.createdById ?? null, aliceId, 'Ersteller der Serie trägt die Instanz');
+
+		const list = await fetch(`${server.baseUrl}/tasks`, { headers: { Cookie: bobCookie } });
+		assert.equal(list.status, 200);
+		const dtos = (await list.json()) as Array<{ title: string; createdByName?: string | null }>;
+		const dto = dtos.find((entry) => entry.title === 'Wochenputz');
+		assert.ok(dto, 'Instanz erscheint in der Aufgabenliste von B');
+		assert.equal(dto.createdByName ?? null, 'Alice Erstellerin', 'DTO löst den Anzeigename des Erstellers auf');
+	});
+
+	// ── #2787: Schreib-Antworten tragen createdByName (Vertrag: docs/spec/issue-2787.md) ──
+
+	it('Generate: je generierter Instanz nennt die Schreib-Antwort createdByName des Serien-Erstellers (AK1, #2787)', async () => {
+		await server.login(ALICE, { displayName: 'Alice Erstellerin' });
+		const aliceId = await userIdOf(ALICE);
+		const bobCookie = await server.login(BOB, { displayName: 'Bob Empfänger' });
+		const bobId = await userIdOf(BOB);
+
+		const series = await seedSeries(bobId, { createdById: aliceId, autoCreate: true, startDate: futureDate(0) });
+		const until = new Date();
+		until.setUTCDate(until.getUTCDate() + 7);
+		const res = await fetch(`${server.baseUrl}/series/${series.id}/generate`, {
+			method: 'POST',
+			headers: { Cookie: bobCookie, 'Content-Type': 'application/json' },
+			body: JSON.stringify({ until: until.toISOString() }),
+		});
+		assert.equal(res.status, 201);
+		const dtos = (await res.json()) as Array<{ id: number; createdByName?: string | null }>;
+		assert.ok(dtos.length >= 1, 'Setup: Generierung muss Instanzen liefern');
+		for (const instanz of dtos) {
+			assert.equal(
+				instanz.createdByName ?? null,
+				'Alice Erstellerin',
+				'Generate-Antwort löst den Serien-Ersteller je Instanz auf (#2787)',
+			);
+		}
+
+		// Read-Orakel: dieselben Werte wie GET /tasks.
+		const oracle = await fetch(`${server.baseUrl}/tasks`, { headers: { Cookie: bobCookie } });
+		assert.equal(oracle.status, 200);
+		const liste = (await oracle.json()) as Array<{ id: number; createdByName?: string | null }>;
+		for (const instanz of dtos) {
+			const eintrag = liste.find((task) => task.id === instanz.id);
+			assert.ok(eintrag, 'Orakel: generierte Instanz muss in GET /tasks liegen');
+			assert.equal(eintrag.createdByName ?? null, instanz.createdByName ?? null, 'identischer Wert wie Lese-Orakel');
+		}
 	});
 });

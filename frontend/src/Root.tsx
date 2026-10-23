@@ -10,8 +10,12 @@ import { PROFILE_CHANGED_EVENT } from './lib/profileChanged';
 import { checkAuth, SESSION_RELOAD_KEY } from './lib/auth';
 import { api } from './api';
 import { NATIVE_LOGGED_OUT_KEY } from './lib/appToken';
+import { LAUNCH_BANNER_DISMISS_KEY } from './lib/launchBanner';
 import { finishNativeLogin, nativeGoogleLogin } from './lib/nativeAuth';
 import { isNativeChannel } from './lib/platform';
+import { MagicLinkLanding } from './components/MagicLinkLanding';
+import { TrackingBanner } from './components/TrackingBanner';
+import { trackPageView } from './lib/tracking';
 
 type AuthState = 'loading' | 'authenticated' | 'unauthenticated' | 'error';
 
@@ -46,22 +50,32 @@ const shouldAttemptSilentLogin = (allowRepeat = false): boolean => {
 };
 
 /**
- * Magic-Link-Einstieg: Der Link aus der Mail öffnet die App mit `?magic=<token>`. Der Parameter wird
- * sofort aus der URL entfernt (kein Token in Verlauf oder Referrer) und dann per POST eingelöst — nie
- * per GET, weil Mail-Scanner Links vorab aufrufen. Scheitert das Einlösen, setzt `?error=` die Meldung
- * der Login-Seite und sperrt zugleich den stillen Google-Login (siehe `shouldAttemptSilentLogin`).
+ * Magic-Link-Einstieg: Der Link aus der Mail öffnet die App mit `?magic=<token>`. Die Parameter werden
+ * sofort aus der URL entfernt (kein Token in Verlauf oder Referrer), danach der Token per POST
+ * eingelöst — nie per GET, weil Mail-Scanner Links vorab aufrufen. Scheitert das Einlösen, setzt
+ * `?error=` die Meldung der Login-Seite und sperrt zugleich den stillen Google-Login (siehe
+ * `shouldAttemptSilentLogin`). Trägt der Link den App-Marker `client=app` (#2563), wird er NICHT im
+ * Browser eingelöst: Der Token geht als Rückgabe an die App-Landing (Rücksprung in die App).
  */
-const consumeMagicLink = async (): Promise<void> => {
+const consumeMagicLink = async (): Promise<string | null> => {
 	const url = new URL(window.location.href);
 	const token = url.searchParams.get('magic');
-	if (token === null) return;
+	if (token === null) return null;
+	// Marker vor dem Löschen lesen — danach ist die Landing-Entscheidung weg.
+	const appMarker = url.searchParams.get('client') === 'app';
 	url.searchParams.delete('magic');
+	url.searchParams.delete('client');
 	window.history.replaceState(window.history.state, '', url);
+	if (appMarker) return token;
 	const ok = await api.verifyMagicLink(token).catch(() => false);
 	if (!ok) {
 		url.searchParams.set('error', 'magic_link_invalid');
 		window.history.replaceState(window.history.state, '', url);
+	} else {
+		// Echter Login (#2480): der geräteweite Schließen-Marker des Einladungs-Banners gilt je Login.
+		localStorage.removeItem(LAUNCH_BANNER_DISMISS_KEY);
 	}
+	return null;
 };
 
 /**
@@ -85,7 +99,9 @@ const AuthenticatedApp = () => {
 	const silentInitiated = useRef(false);
 	// Einlösen des Magic Links genau einmal (StrictMode ruft den Effekt doppelt auf); der Auth-Check
 	// wartet darauf, sonst sähe er noch keine Session und startete den stillen Google-Login.
-	const magicLogin = useRef<Promise<void> | null>(null);
+	const magicLogin = useRef<Promise<string | null> | null>(null);
+	// #2563: Token eines App-Marker-Links — ungleich null rendert die App-Landing statt Login/App.
+	const [magicAppToken, setMagicAppToken] = useState<string | null>(null);
 
 	// #1219 AK6: Anzeigename in der Kopfzeile sofort aktualisieren — SettingsPage meldet den
 	// gespeicherten Namen per Fenster-Event (notifyProfileChanged), hier wird der User-State
@@ -102,9 +118,19 @@ const AuthenticatedApp = () => {
 	}, []);
 
 	useEffect(() => {
+		// #2563: Trägt der Link den App-Marker, merkt sich der Effect-Scope das — der unauthentifizierte
+		// Zweig rendert dann die Landing, statt den stillen Google-Login zu starten (der würde die
+		// Landing verlassen). Der Auth-Check läuft weiterhin: TF3 verlangt das 401 von `/auth/me`.
+		let appLanding = false;
 		magicLogin.current ??= consumeMagicLink();
 		magicLogin.current
-			.then(() => checkAuth())
+			.then((appToken) => {
+				if (appToken !== null) {
+					appLanding = true;
+					setMagicAppToken(appToken);
+				}
+				return checkAuth();
+			})
 			.then((authUser: AuthUser | null) => {
 				if (authUser !== null) {
 					setUser(authUser);
@@ -120,7 +146,12 @@ const AuthenticatedApp = () => {
 					sessionStorage.removeItem(SILENT_ATTEMPTED_KEY);
 					return;
 				}
-				// Unauthentifiziert: einmalig entscheiden, ob ein stiller Login versucht wird.
+				// Unauthentifiziert: #2563-App-Landing übernimmt (kein stiller Login), sonst einmalig
+				// entscheiden, ob ein stiller Login versucht wird.
+				if (appLanding) {
+					setAuthState('unauthenticated');
+					return;
+				}
 				if (silentInitiated.current) {
 					return;
 				}
@@ -164,6 +195,28 @@ const AuthenticatedApp = () => {
 			});
 	}, []);
 
+	// Matomo-Login-Trichter: Bildschirme vor der App als eigene Pfade; die App meldet ihre Routen selbst.
+	const screen =
+		magicAppToken !== null
+			? '/anmeldelink'
+			: authState === 'unauthenticated' && !silentPending
+				? '/login'
+				: authState === 'authenticated' && user?.termsAccepted === false
+					? '/einwilligung'
+					: undefined;
+	useEffect(() => {
+		if (screen) trackPageView(screen);
+	}, [screen]);
+
+	if (magicAppToken !== null) {
+		return (
+			<>
+				<TrackingBanner />
+				<MagicLinkLanding token={magicAppToken} />
+			</>
+		);
+	}
+
 	if (authState === 'loading' || silentPending) {
 		return (
 			<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh' }}>
@@ -173,7 +226,12 @@ const AuthenticatedApp = () => {
 	}
 
 	if (authState === 'unauthenticated') {
-		return <LoginPage />;
+		return (
+			<>
+				<TrackingBanner />
+				<LoginPage />
+			</>
+		);
 	}
 
 	if (authState === 'error') {
@@ -182,7 +240,12 @@ const AuthenticatedApp = () => {
 
 	// #1901: ohne Zustimmung zur aktuellen Fassung zuerst der Zustimmungsschritt, danach die App.
 	if (user!.termsAccepted === false) {
-		return <ConsentStep onAccepted={() => setUser({ ...user!, termsAccepted: true })} />;
+		return (
+			<>
+				<TrackingBanner />
+				<ConsentStep onAccepted={() => setUser({ ...user!, termsAccepted: true })} />
+			</>
+		);
 	}
 
 	return <App user={user!} />;
@@ -197,7 +260,12 @@ export const Root = () => {
 	// Die App liegt unter `/app/` (ADR 0015) — die öffentlichen Routen relativ zur Basis prüfen.
 	const path = window.location.pathname.slice(import.meta.env.BASE_URL.length - 1);
 	if (path === '/gruppen/beitreten') {
-		return <GroupJoinPage />;
+		return (
+			<>
+				<TrackingBanner />
+				<GroupJoinPage />
+			</>
+		);
 	}
 	return <AuthenticatedApp />;
 };

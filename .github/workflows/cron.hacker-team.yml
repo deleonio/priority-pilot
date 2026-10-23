@@ -1,0 +1,316 @@
+name: Hacker-Team
+
+# Monatlicher LLM-Job (KEINE Pipeline-Phase, Muster cron.rechts-team.yml):
+# Ein Hacker-Team aus sechs Angreifer-Perspektiven (Datendieb, Manipulator, Berechtigungs-Knacker,
+# Saboteur, Schnittstellen-/Protokoll-Spezialist für MCP + Token, Client-/Session-Spezialist für
+# CSRF/Session — Methode: .claude/skills/hacker-team/SKILL.md) fährt über ./hacker-instance.sh eine
+# lokale Wegwerf-Instanz des Systems hoch (Auth SCHARF, In-Memory-DB, Demo-Seed, NODE_ENV=test
+# für /auth/test-login) und greift sie real an: Fremddaten lesen, ändern, löschen, Rechte
+# eskalieren, den Dienst crashen, dann die bestätigten Primitive zu einer Kette komponieren. Nur
+# reproduzierte Brüche werden Findings — gescheiterte Angriffe heißen gehärtet.
+#
+# DELIVERY: Genau EIN offenes Issue mit Label ci:hacker-team (bewusst KEIN ai:*-Label — das
+# würde die Ticket-Pipeline starten!). Vorhanden → Body durch den neuen Bericht ersetzen
+# (Titel-Datum wird mit aktualisiert); fehlt → neu anlegen. Issue-Anlegen/Updaten macht der
+# WORKFLOW deterministisch (Muster Rechts-Team: der Agent liefert nur den Bericht, nie die
+# GitHub-Seiteneffekte). 00-Validate übergeht ci:*-Issues (Skip im verify-issue-quality.sh).
+# Auch VERDICT clean aktualisiert das Issue: Ein monatliches „alles verteidigt" ist eine
+# Aufzeichnung wert (Abweichung vom Rechts-Team, das bei clean das Issue unangetastet lässt).
+#
+# EIGENE INSTANZ statt claude-workbench: Die Workbench-Inspect-Instanz blanked die Auth — für
+# Angriffe auf Berechtigungen/Ownership genau falsch. hacker-instance.sh startet stattdessen
+# mit Dummy-Google-Credentials + SESSION_SECRET (isAuthActive() scharf), leerer Allowlist
+# (test-login münzt Sessions für beliebige E-Mails) und ohne echte Secrets — externe Provider
+# sind nicht erreichbar, Angriffe bleiben zwingend lokal. Der Agent darf nach einem Crash
+# (Saboteur-Erfolg) mit demselben Skript neu starten: erst Beweis sichern, dann Restart.
+#
+# STATELESS: kein pro-Issue-Memory (memory-load/expect false). Modell: opus mit Effort high
+# (überschreibbar via vars.CLAUDE_MODEL_HACKER_TEAM). tools-tier review: volles Lesen + Bash
+# (curl, Prozesse), Code schreibgeschützt — der Agent greift an, er fixt nicht.
+#
+# KEINE Nummer im Dateinamen: Nummern (00–06) sind lastend (Workflow-Name-Matching), dieser
+# Job ist ein Helper und hängt nicht in der Label-Kette.
+
+on:
+  schedule:
+    - cron: '17 4 1 * *' # monatlich am 1. des Monats 04:17 UTC (06:17/05:17 Berlin) — außerhalb des wöchentlichen Freitag-Team-Blocks
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Runner-Label für diesen Lauf (leer = vars.PHASE_RUNNER oder ubuntu-latest; z. B. self-hosted, pi5, ubuntu-latest)'
+        required: false
+        default: ''
+        type: string
+      force:
+        description: 'Skip-Guard ignorieren (Lauf erzwingen, auch wenn main unverändert ist)'
+        type: boolean
+        default: false
+
+concurrency:
+  # Gemeinsame Gruppe aller Nicht-Phasen-LLM-Läufe (Crons + Ad-hoc): max. 1 gleichzeitig, FIFO.
+  # Die Pipeline-Phasen (01-05) laufen in pro-Ticket-Lanes (`harness-<Nr.>` /
+  # `harness-pr-<Branch>`, s. 01-triage.yml).
+  group: llm-sync
+  cancel-in-progress: false
+  queue: max
+
+permissions:
+  contents: read # Quellen + Skill + App-Code lesen
+  issues: write # Hacker-Team-Issue anlegen/aktualisieren + gh label create
+  id-token: write # App-Token (setup-agent)
+  actions: read # Skip-Guard: letzte erfolgreiche Run-Historie lesen
+
+jobs:
+  hacker-team:
+    runs-on: ${{ inputs.runner || vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 120
+    env:
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    steps:
+      - name: Skip-Guard (main unverändert seit letztem erfolgreichen Lauf)
+        # Budget-Heuristik: Hat main seit dem letzten erfolgreichen Lauf denselben SHA, greifen
+        # dieselben Angriffe auf denselben Code → kein Lauf. Fail-open bei API-Fehlern
+        # (leerer last_sha → Lauf). force=true umgeht.
+        id: guard
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force == true) }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          last_sha="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow cron.hacker-team.yml \
+            --status success --limit 1 --json headSha --jq '.[0].headSha // empty' 2>/dev/null || true)"
+          if [ -n "$last_sha" ] && [ "$last_sha" = "$GITHUB_SHA" ]; then
+            echo "::notice title=⏭️ Hacker-Team übersprungen::Main unverändert ($GITHUB_SHA) seit letztem erfolgreichen Lauf."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Startzeit merken (für weiches Zeitlimit)
+        id: starttime
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          now=$(date +%s)
+          echo "epoch=$now" >> "$GITHUB_OUTPUT"
+          # 75 min weiche Deadline innerhalb des 120-min-Hart-Limits: Environment-Bau + Boot
+          # brauchen ~10 min, die Angriffssitzung den Löwenanteil, Restpuffer für Post-Steps.
+          echo "soft_deadline_epoch=$((now + 4500))" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Claude Code
+        id: setup
+        if: steps.guard.outputs.skip != 'true'
+        uses: ./.github/actions/setup-agent
+        with:
+          # KoliBri-MCP ist für Angriffe nutzlos, der Browser (Playwright-MCP) ist Angriffswerkzeug.
+          needs-mcp: false
+          browser-mcp: true
+          # review-Tier: volles Lesen + Bash (curl, Session-Münzen, Instanz-Restart), Code
+          # schreibgeschützt — der Agent ändert nichts, der Bericht geht nach /tmp.
+          tools-tier: review
+          event-type: ${{ github.event_name }}
+          # ticket-ref ist Pflicht-Input, dieser Job hat kein Ticket: '0' fließt NUR in den
+          # ungenutzten Storage-Namen — Memory ist komplett aus (memory-load: false).
+          ticket-ref: '0'
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          runtime: ${{ vars.AGENT_RUNTIME }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
+          model: ${{ vars.CLAUDE_MODEL_HACKER_TEAM || 'opus' }}
+          effort: 'high'
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          tailscale-oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
+          tailscale-oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
+          tailscale-authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
+          tailscale-exit-node: ${{ vars.TAILSCALE_EXIT_NODE }}
+          memory-load: 'false'
+          expect-memory: 'false'
+
+      - name: pnpm einrichten
+        if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
+
+      - name: Node.js einrichten
+        if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Abhängigkeiten installieren
+        if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Playwright-Cache (ms-playwright)
+        if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Chromium installieren (Playwright, für Browser-Angriffe)
+        if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        run: |
+          timeout -k 30s 10m pnpm --filter frontend exec playwright install --with-deps chromium \
+            || { echo "::warning::playwright install --with-deps abgebrochen, installiere ohne Systempakete"; \
+                 pnpm --filter frontend exec playwright install chromium; }
+
+      - name: Server bauen (für den no-watch-Start der Angriffsinstanz)
+        if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        run: pnpm --filter server build
+
+      - name: Angriffsinstanz starten (Auth scharf, In-Memory-DB, test-login aktiv)
+        # Bereitschaft = /tasks antwortet ohne Session 401: Server steht UND das Auth-Gate ist
+        # scharf — genau der Zustand, den die Angriffe brauchen (Readiness-Beweis im Skript).
+        id: instance
+        if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        env:
+          HACKER_NO_WATCH: '1'
+        run: |
+          nohup ./hacker-instance.sh > /tmp/hacker-instance.log 2>&1 &
+          timeout=180
+          elapsed=0
+          while [ $elapsed -lt $timeout ]; do
+            code="$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/tasks 2>/dev/null || true)"
+            if [ "$code" = "401" ]; then
+              echo "::notice::✅ Angriffsinstanz bereit nach ${elapsed}s (Auth-Gate scharf: /tasks → 401)."
+              exit 0
+            fi
+            sleep 2
+            elapsed=$((elapsed + 2))
+          done
+          echo "::error::Angriffsinstanz nicht innerhalb von ${timeout}s bereit (letzter Status: ${code:-keiner})."
+          echo "::group::hacker-instance.log (letzte 60 Zeilen)"
+          tail -n 60 /tmp/hacker-instance.log || true
+          echo "::endgroup::"
+          exit 1
+
+      - name: Hacker-Team via Claude
+        id: claude
+        if: >-
+          steps.guard.outputs.skip != 'true'
+          && steps.setup.outputs.configured == 'true'
+          && steps.instance.outcome == 'success'
+        env:
+          # Der Agent liest den Vormonats-Bericht + offene Tickets per gh (Carry-over + Dedup).
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+        run: |
+          # Vorheriges Hacker-Team-Issue auflösen (0 = Erstlauf) — als Platzhalter in den Prompt.
+          prev_issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --label ci:hacker-team --state open \
+            --json number --jq '.[0].number // 0' 2>/dev/null || echo 0)"
+
+          cp .github/prompts/hacker-team.md /tmp/claude-prompt.txt
+          sed -i "s/{{REPORT_DATE}}/$(date -u +%F)/g" /tmp/claude-prompt.txt
+          sed -i "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{HACKER_ISSUE_NR}}/${prev_issue}/g" /tmp/claude-prompt.txt
+          bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
+
+          ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
+            ${{ steps.setup.outputs.invoke-args }} \
+            2>&1 | tee /tmp/claude-output.log
+          test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
+
+      - name: Bericht als Artefakt sichern
+        # Auch bei Folgefehlern (Post-Assertion, Issue-Step) bleibt der Bericht auffindbar.
+        if: ${{ always() && steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hacker-team-report
+          path: |
+            /tmp/hacker-team-report.md
+            /tmp/claude-output.log
+            /tmp/hacker-instance.log
+            .playwright-mcp/
+          if-no-files-found: ignore
+
+      - name: Post-Assertion (Verdict ↔ Bericht) + Issue-Anlage/Update
+        # Ehrlichkeits-Kreuzcheck nach dem VERDICT-Muster der Phasen-Workflows, danach das
+        # Issue-Handling deterministisch (bewusst KEINE Agent-Aufgabe). Genau EIN offenes
+        # Hacker-Team-Issue: vorhanden → Body durch den neuen Bericht ersetzen, sonst neu anlegen.
+        # Label ci:hacker-team NICHT ai:* — sonst startet die Ticket-Pipeline!
+        # Bewusst auch bei clean ein Issue-Update: das monatliche „alles verteidigt" gehört
+        # aufgezeichnet (der Bericht trägt den Ziel-Check als Beweis).
+        if: >-
+          ${{ always()
+              && steps.guard.outputs.skip != 'true'
+              && steps.setup.outputs.configured == 'true'
+              && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure') }}
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          OUTCOME: ${{ steps.claude.outcome }}
+        run: |
+          # Portables VERDICT-Parsen wie in 01 (BSD/GNU-grep-sicher): erster bekannter
+          # Token gewinnt, Prosa/Markdown nach dem Token ist egal.
+          verdict=""
+          if [ -f /tmp/claude-output.log ]; then
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | grep -oE 'report|clean' | head -1 || true)"
+          fi
+          echo "Claude-Verdict aus Output: '${verdict:-keins}'"
+
+          if [ "$OUTCOME" != "success" ]; then
+            echo "::error title=❌ Hacker-Team fehlgeschlagen::Claude-Lauf nicht erfolgreich — kein stiller Bericht."
+            exit 1
+          fi
+          if [ "$verdict" != "report" ] && [ "$verdict" != "clean" ]; then
+            echo "::error title=❌ Hacker-Team ohne Verdict::Weder «report» noch «clean» — Lauf wiederholen."
+            exit 1
+          fi
+
+          # Berichts-Vertrag: Datei da, substantiell, Pflicht-Abschnitte vorhanden (auch bei
+          # clean — der Ziel-Check ist der Beweis, dass angegriffen wurde).
+          REPORT=/tmp/hacker-team-report.md
+          if [ ! -s "$REPORT" ]; then
+            echo "::error title=❌ Bericht fehlt::$REPORT fehlt oder ist leer."
+            exit 1
+          fi
+          missing=""
+          for heading in '## Angriffsziele-Check' '## Schwachstellen'; do
+            grep -qF "$heading" "$REPORT" || missing="${missing} «${heading}»"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error title=❌ Berichts-Vertrag verletzt::Fehlt:${missing} (siehe .github/prompts/hacker-team.md)."
+            exit 1
+          fi
+
+          size="$(wc -c < "$REPORT" | tr -d ' ')"
+          if [ "$size" -gt 60000 ]; then
+            echo "::warning title=⚠️ Bericht nahe am Issue-Limit::${size} Zeichen (GitHub-Limit 65536) — Schwachstellen/Historie im Prompt straffen."
+          fi
+
+          gh label create "ci:hacker-team" --repo "$GITHUB_REPOSITORY" --color B60200 \
+            --description "Monatlicher Hacker-Team-Angriffsbericht (Rot-Team gegen die lokale Instanz)" 2>/dev/null || true
+
+          title="ci: Hacker-Team — Angriffsbericht ($(date -u +%F))"
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --label ci:hacker-team --state open \
+            --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$REPORT"
+            echo "HACKER_ISSUE=$number" >> "$GITHUB_ENV"
+            echo "::notice title=✅ Hacker-Team-Issue aktualisiert::#$number trägt den Angriffsbericht von $(date -u +%F)."
+          else
+            url="$(gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
+              --label ci:hacker-team --body-file "$REPORT")"
+            number="$(printf '%s\n' "$url" | sed -nE 's#.*/issues/([0-9]+).*#\1#p' | tail -1)"
+            echo "HACKER_ISSUE=${number:-?}" >> "$GITHUB_ENV"
+            echo "::notice title=✅ Hacker-Team-Issue erstellt::${url:-Nummer nicht auflösbar}"
+          fi
+
+          {
+            echo "### Hacker-Team – fertig"
+            echo ""
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\`"
+            echo "- Verdict: \`$verdict\` — Angriffsbericht im Hacker-Team-Issue #${number:-?} (Label \`ci:hacker-team\`)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 🩺 Z.AI Fair-Usage-Check (1313)
+        # Rohausgabe des Claude-Laufs auf z.ai-Fehler 1313 (Fair Usage) durchsuchen
+        # und Ergebnis als Annotation + Job-Summary sichtbar machen.
+        if: always()
+        uses: ./.github/actions/llm-fair-usage-check

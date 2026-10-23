@@ -46,7 +46,7 @@ curl -fsSL https://deb.nodesource.com/setup_26.x | sudo -E bash -
 sudo apt install -y nodejs git
 
 # pnpm (zum optionalen Prod-Install auf dem Host; sonst nicht zwingend nötig)
-sudo npm install -g pnpm@11
+sudo npm install -g pnpm@12
 
 # PM2 (Prozess-Manager fürs Backend)
 sudo npm install -g pm2
@@ -282,6 +282,12 @@ priority-pilot.example.de {
     handle {
         file_server
     }
+
+    # Unbekannte Pfade: Fehlerseite der Website mit Status 404 (zählt in Matomo als 404).
+    handle_errors 404 {
+        rewrite * /404.html
+        file_server
+    }
 }
 
 # Alte Domains und Aufrufe per IP dauerhaft auf die eine Domain umleiten. Der Block oben nennt nur
@@ -395,3 +401,6 @@ vom Server wegsichern.
 
 Nur: Verzeichnisse + `data/` + `chown` (4), Env-Datei mit freiem `PORT` (5), PM2-Prozessname im
 Workflow, Caddy-Block mit eigenem Port (7). Kein systemd, keine sudoers-Zeile.
+
+Auf demselben Host läuft zusätzlich **Matomo** (PHP-FPM + MariaDB, `stats.modevel.de`) — eigenes
+Runbook: [matomo.md](matomo.md).

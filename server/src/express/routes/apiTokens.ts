@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import type { Request, Response } from 'express';
-import { sendError, sendPlanError, type ErrorDto } from '../http-error.js';
+import type { NextFunction, Request, Response } from 'express';
+import { parseId, sendError, sendPlanError, type ErrorDto } from '../http-error.js';
 import { ApiToken, User } from '../../models/index.js';
 import { getUserId } from '../requireAuth.js';
 import { generateApiToken, hashApiToken } from '../apiTokenAuth.js';
@@ -35,6 +35,7 @@ type ApiTokenDto = {
 	lastUsedAt: string | null;
 	scope: TokenScope;
 	expiresAt: string | null;
+	kind: 'api' | 'app';
 };
 type CreatedApiTokenDto = ApiTokenDto & { token: string };
 
@@ -46,11 +47,12 @@ const serializeApiToken = (token: ApiToken): ApiTokenDto => ({
 	lastUsedAt: token.lastUsedAt ? token.lastUsedAt.toISOString() : null,
 	scope: token.scope,
 	expiresAt: token.expiresAt ? token.expiresAt.toISOString() : null,
+	kind: token.kind,
 });
 
 export const apiTokensRouter = Router();
 
-// GET /api-tokens — eigene, nicht zurückgezogene Tokens (nur Metadaten); App-Tokens (#2377) bleiben außen vor.
+// GET /api-tokens — eigene, nicht zurückgezogene Tokens inkl. App-Anmeldungen (#2494, `kind`); nur Metadaten.
 apiTokensRouter.get('/api-tokens', async (req: Request, res: Response<ApiTokenDto[] | ErrorDto>) => {
 	const userId = getUserId(req);
 	if (userId === undefined) {
@@ -59,7 +61,7 @@ apiTokensRouter.get('/api-tokens', async (req: Request, res: Response<ApiTokenDt
 	}
 	try {
 		const tokens = await ApiToken.findAll({
-			where: { userId, revokedAt: null, kind: 'api' },
+			where: { userId, revokedAt: null },
 			order: [['createdAt', 'ASC']],
 		});
 		res.json(tokens.map(serializeApiToken));
@@ -70,9 +72,25 @@ apiTokensRouter.get('/api-tokens', async (req: Request, res: Response<ApiTokenDt
 
 // POST /api-tokens — legt einen Token an und liefert den Klartext genau in dieser einen Antwort.
 // #1524 AK6: `mcp_read` (ab Plus) sperrt schon das Anlegen, nicht erst die Nutzung.
+// #2810: Rolle admin ist vom Gate ausgenommen (PO-Entscheidung, analog zur adminRead-Ausnahme in
+// apiTokenAuth.ts) — die Rolle kommt frisch aus der DB statt aus dem Session-Snapshot, eine
+// Deklassierung wirkt also sofort. Admin-MCP bleibt damit laut Doku paketunabhängig.
+const mcpReadGate = requirePlanFeature('mcp_read');
+const mcpReadGateWithAdminExemption = Object.assign(
+	async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+		const userId = getUserId(req);
+		if (typeof userId === 'number' && (await User.findByPk(userId))?.role === 'admin') {
+			next();
+			return;
+		}
+		await mcpReadGate(req, res, next);
+	},
+	{ planFeature: 'mcp_read' as const },
+);
+
 apiTokensRouter.post(
 	'/api-tokens',
-	requirePlanFeature('mcp_read'),
+	mcpReadGateWithAdminExemption,
 	async (req: Request, res: Response<CreatedApiTokenDto | ErrorDto>) => {
 		const userId = getUserId(req);
 		if (userId === undefined) {
@@ -109,13 +127,13 @@ apiTokensRouter.delete('/api-tokens/:id', async (req: Request, res: Response<Err
 		sendError(res, 401, 'Anmeldung erforderlich.');
 		return;
 	}
-	const id = Number(req.params.id);
-	if (!Number.isInteger(id)) {
-		sendError(res, 404, 'Token nicht gefunden.');
+	const id = parseId(req.params.id);
+	if (id === null) {
+		sendError(res, 400, 'Ungültige Token-Id.');
 		return;
 	}
 	try {
-		const token = await ApiToken.findOne({ where: { id, userId, revokedAt: null, kind: 'api' } });
+		const token = await ApiToken.findOne({ where: { id, userId, revokedAt: null } });
 		if (!token) {
 			sendError(res, 404, 'Token nicht gefunden.');
 			return;
@@ -134,9 +152,9 @@ apiTokensRouter.patch('/api-tokens/:id', async (req: Request, res: Response<ApiT
 		sendError(res, 401, 'Anmeldung erforderlich.');
 		return;
 	}
-	const id = Number(req.params.id);
-	if (!Number.isInteger(id)) {
-		sendError(res, 404, 'Token nicht gefunden.');
+	const id = parseId(req.params.id);
+	if (id === null) {
+		sendError(res, 400, 'Ungültige Token-Id.');
 		return;
 	}
 	const rawScope = (req.body as { scope?: unknown } | undefined)?.scope;

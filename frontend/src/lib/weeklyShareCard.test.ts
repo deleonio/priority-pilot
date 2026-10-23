@@ -51,4 +51,14 @@ describe('weeklyShareCard — reine SVG-Erzeugung (#1968 AK1)', () => {
 		expect(svgText(svg)).toContain('balamentum.modevel.de');
 		expect(svg).not.toContain('balamentum.app');
 	});
+	it('#2283: trägt Balamentum-, Google-Play- und PWA-Logo inline — ohne externe Referenz', () => {
+		const svg = erzeugeWochenKarteSvg({ saeulen: SAEULEN, streak: 12, woche: 'KW 41 / 2026' });
+		for (const id of ['brand-balamentum', 'brand-google-play', 'brand-pwa']) {
+			expect(svg).toContain(`id="${id}"`);
+		}
+		const referenzen = [...svg.matchAll(/(?:href|src)="([^"]+)"/g)].map((m) => m[1]);
+		for (const referenz of referenzen) {
+			expect(referenz === 'https://balamentum.modevel.de' || referenz.startsWith('data:')).toBe(true);
+		}
+	});
 });

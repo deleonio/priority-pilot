@@ -6,7 +6,9 @@
  * Aufgabe verteilt das Frontend KI-Vorschläge mit dieser Regel; die serverseitige Neuberechnung
  * (`reassignTaskPillars.ts`) muss dieselbe Regel anwenden. Vorher gab sie nicht vorgeschlagenen
  * Säulen 0 % und drückte damit „Sinn“ in der Lebensbalance unter den Mindestanteil (#1601).
- * Wer hier etwas ändert, ändert es auch im Frontend.
+ * Bewusstes Duplikat mit Spiegel-Tests statt gemeinsamem Paket (ADR 0025): diese Server-Fassung
+ * ist der Referenz-Vertrag — jede Änderung hier wird ins Frontend (`frontend/src/lib/pillar.ts`)
+ * übertragen (Leserichtung Server → Frontend).
  */
 
 /** Soll-Summe der Anteile über alle Säulen. */

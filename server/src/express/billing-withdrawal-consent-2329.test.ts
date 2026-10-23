@@ -1,6 +1,13 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
+import {
+	resetDb,
+	closeDb,
+	startTestServer,
+	type TestServer,
+	applyTestAuthEnv,
+	seedBillingAddress,
+} from '../test/helpers.js';
 import { Subscription } from '../models/index.js';
 import type { AppDeps } from './index.js';
 
@@ -43,6 +50,7 @@ describe('Checkout-Zustimmung zum sofortigen Leistungsbeginn (#2329)', () => {
 
 	it('AK1: Erstkauf ohne withdrawalConsent: true antwortet 400 und legt kein Abo an', async () => {
 		const cookie = await server.login('ak1-consent@example.com');
+		await seedBillingAddress('ak1-consent@example.com');
 		for (const extra of [{}, { withdrawalConsent: false }, { withdrawalConsent: 'true' }]) {
 			const res = await checkout(cookie, { plan: 'plus', period: 'monthly', ...extra });
 			assert.equal(res.status, 400, `Body-Zusatz ${JSON.stringify(extra)} muss abgelehnt werden`);
@@ -52,6 +60,7 @@ describe('Checkout-Zustimmung zum sofortigen Leistungsbeginn (#2329)', () => {
 
 	it('AK2: mit withdrawalConsent: true antwortet 201 und das Abo trägt den Zustimmungszeitpunkt', async () => {
 		const cookie = await server.login('ak2-consent@example.com');
+		await seedBillingAddress('ak2-consent@example.com');
 		const before = Date.now();
 
 		const res = await checkout(cookie, { plan: 'plus', period: 'monthly', withdrawalConsent: true });

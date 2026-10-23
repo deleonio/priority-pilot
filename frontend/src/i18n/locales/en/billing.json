@@ -86,7 +86,28 @@
 		"book": "Book",
 		"change": "Switch",
 		"bookLabel": "Book {{plan}} ({{period}})",
-		"changeLabel": "Switch to {{plan}} ({{period}})"
+		"changeLabel": "Switch to {{plan}} ({{period}})",
+		"order": "Order"
+	},
+	"address": {
+		"required": "Billing address",
+		"requiredHint": "Before subscribing we need your billing address — it appears on every invoice and invoice PDF.",
+		"name": "Name or company",
+		"street": "Street and number",
+		"zip": "ZIP code",
+		"city": "City",
+		"country": "Country",
+		"save": "Save billing address",
+		"saving": "Saving …",
+		"saved": "Billing address saved.",
+		"invalid": "Please fill in all fields of the billing address.",
+		"loadFailed": "The billing address could not be loaded.",
+		"saveFailed": "The billing address could not be saved.",
+		"edit": "Change billing address"
+	},
+	"addressDialog": {
+		"title": "Billing address",
+		"text": "This address appears on future invoices."
 	},
 	"play": {
 		"unlockFailed": "Google received the purchase, but it could not be activated yet.",
@@ -178,10 +199,21 @@
 		"reason": "Reason",
 		"reasonMissing": "Please provide a reason.",
 		"effective": "Effective: at the end of the term on {{date}}",
+		"refundHint": "We refund any paid time after this date pro rata; the credit note will be sent by email.",
 		"emailLabel": "Email for the confirmation",
 		"emailHint": "We will send the confirmation here.",
 		"emailInvalid": "Please enter a valid email address.",
 		"busy": "Cancelling…",
 		"confirm": "Cancel now"
+	},
+	"checkoutDialog": {
+		"title": "Order {{plan}} ({{period}})",
+		"intro": "You are about to order the {{plan}} plan ({{period}}). Billing address and withdrawal consent are checked before redirecting to the payment provider.",
+		"addressCreate": "Add billing address",
+		"addressEdit": "Change billing address",
+		"price": "{{price}} per {{period}}",
+		"finalPrice": "This is the final price as per § 19 UStG.",
+		"renewal": "The subscription renews automatically for each period and can be cancelled at any time to the end of the billing period.",
+		"sandboxHint": "PayPal Sandbox environment: sign in with the test account {{email}}, password {{password}}."
 	}
 }

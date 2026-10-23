@@ -71,7 +71,7 @@ test('#1787 AK1: Hinweis an graph_weight (Modal-Link mit App-Basis) und location
 	await expect(page.getByTestId('plan-badge-location_reminders')).toBeVisible();
 });
 
-test('#1787 AK4: im Kanal play führt der Hinweis zur Paketansicht mit Play-Kauf', async ({ page }) => {
+test('#1787 AK4: im Kanal play führt der Hinweis zur Paketansicht ohne Kaufweg', async ({ page }) => {
 	await page.addInitScript(() => {
 		(window as { __PP_CHANNEL__?: string }).__PP_CHANNEL__ = 'play';
 	});
@@ -86,6 +86,6 @@ test('#1787 AK4: im Kanal play führt der Hinweis zur Paketansicht mit Play-Kauf
 
 	await expect(page).toHaveURL(/\/app\/settings\/pakete$/);
 	await expect(page.getByTestId('plans-section')).toBeVisible();
-	await expect(page.getByText('Google Play nicht erreichbar')).toBeVisible();
+	await expect(page.getByTestId('store-purchase-notice')).toContainText('Kauf in der App folgt');
 	await expect(page.getByRole('button', { name: 'Buchen' })).toHaveCount(0);
 });

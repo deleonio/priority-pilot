@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * ROTE Spec-Tests für #1182 „Konfetti auch über den Dashboard-Pfad".
@@ -53,12 +53,10 @@ const taskStatus = async (page: Page, id: number): Promise<string> => {
 /** Das Konfetti-Overlay — der einzige Vertragspunkt zwischen Spec und Umsetzung (#1169). */
 const confetti = (page: Page) => page.getByTestId('confetti-overlay');
 
-/** AK1-Ablauf: Aufgabe über das Signal-Panel und den Bestätigungsdialog erledigen. */
+/** AK1-Ablauf: Aufgabe per Direkt-Erledigen im Signal-Panel (#2526, ADR 0024 — kein Dialog mehr). */
 const completeViaDashboard = async (page: Page): Promise<void> => {
 	await page.getByRole('button', { name: 'Erledigen', exact: true }).click();
-	await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeVisible();
-	await page.getByRole('button', { name: 'Als erledigt markieren' }).click();
-	await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeHidden();
+	await expect(page.locator('.dashboard-next-task-feedback')).toBeVisible();
 };
 
 test.describe('#1182 Konfetti über das Dashboard-Signal-Panel', () => {
@@ -104,8 +102,8 @@ test.describe('#1182 Konfetti über das Dashboard-Signal-Panel', () => {
 		expect(await confetti(page).count()).toBe(0);
 	});
 
-	test('AK4: auf 375×667 erscheint das Overlay vollständig im Viewport', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+	test('AK4: auf 375×812 erscheint das Overlay vollständig im Viewport', async ({ page }) => {
+		await page.setViewportSize(MOBILE);
 		await createTask(page, 'E2E #1182 Mobil', 5);
 
 		await openDashboard(page);

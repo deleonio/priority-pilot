@@ -1,7 +1,8 @@
+import type { WhereOptions } from 'sequelize';
 import type { components } from '../api';
 import { Task } from '../models/index.js';
 import { selectSeriesRepresentatives } from './series.js';
-import { calculateValueContribution } from './value.js';
+import { calculateValueContribution, type PillarCounts } from './value.js';
 
 interface TaskTreeNode {
 	id: number;
@@ -90,18 +91,26 @@ const computeProgress = async (task: Task): Promise<{ done: number; total: numbe
 	return { done, total };
 };
 
-const getEstimatedEffort = async (task: Task): Promise<number> => {
+// Jede Aufgabe zählt einmal (Diamanten) und Zyklen enden (#2544): `visited` gilt je Wurzelaufruf.
+export const getEstimatedEffort = async (task: Task, visited: Set<number> = new Set()): Promise<number> => {
+	visited.add(task.id);
 	let estimatedEffort = task.estimatedEffort;
 	const dependencies = (await task.getDependencies()).filter(isActive);
 	for (const dependency of dependencies) {
-		estimatedEffort += await getEstimatedEffort(dependency);
+		if (!visited.has(dependency.id)) {
+			estimatedEffort += await getEstimatedEffort(dependency, visited);
+		}
 	}
 	return estimatedEffort;
 };
 
 // Rekursive Funktion, um den Baum eines Tasks zu erstellen. `weight` ist das Gewicht der Kante vom
 // Elternknoten zu `task` (aus dessen `getDependencies()`-Aufruf) — `null` für Wurzelknoten (#1429).
-const buildTaskTree = async (task: Task, weight: number | null = null): Promise<TaskTreeNode> => {
+const buildTaskTree = async (
+	task: Task,
+	weight: number | null = null,
+	pillarCounts: PillarCounts = new Map(),
+): Promise<TaskTreeNode> => {
 	// Kinder = direkte Unteraufgaben = Vorgänger dieses Tasks (`getDependencies()`), analog zum
 	// Aufwands-Rollup oben. Damit erscheint die Eltern-Aufgabe über ihren Unteraufgaben (#336, AK4).
 	// Erledigte Unteraufgaben werden ausgeblendet — sie blockieren nicht mehr und müssen nicht
@@ -113,7 +122,7 @@ const buildTaskTree = async (task: Task, weight: number | null = null): Promise<
 
 	for (const subtask of subtasks) {
 		const edgeWeight = subtask.Dependency?.dataValues?.weight || 1;
-		children.push(await buildTaskTree(subtask, edgeWeight));
+		children.push(await buildTaskTree(subtask, edgeWeight, pillarCounts));
 	}
 
 	return {
@@ -122,7 +131,7 @@ const buildTaskTree = async (task: Task, weight: number | null = null): Promise<
 		priority: task.priority,
 		estimatedEffort: task.estimatedEffort || 0,
 		totalEstimatedEffort,
-		value: await calculateValueContribution(task),
+		value: await calculateValueContribution(task, pillarCounts),
 		status: task.status,
 		progress: await computeProgress(task),
 		categoryId: task.categoryId ?? null,
@@ -132,7 +141,7 @@ const buildTaskTree = async (task: Task, weight: number | null = null): Promise<
 };
 
 // Funktion, um den gesamten Aufgabenwald (nach Wertschöpfung sortiert) zu erstellen
-export const buildTaskForest = async (userId?: number): Promise<TaskTreeNode[]> => {
+export const buildTaskForest = async (userId?: number, readScope?: WhereOptions): Promise<TaskTreeNode[]> => {
 	// #1518: je Serie nur die aktuelle Instanz — der Wald speist Aufgabenliste und „Wichtigste Tasks".
 	// Unteraufgaben kommen weiterhin ungefiltert über die `buildTaskTree`-Rekursion.
 	const tasks = selectSeriesRepresentatives(
@@ -142,8 +151,9 @@ export const buildTaskForest = async (userId?: number): Promise<TaskTreeNode[]> 
 				// Archiv (#1964): archivierte Aufgaben sind aus der Aufgabenliste herausgenommen — sie
 				// bleiben nur per Direktabruf (`GET /tasks/{id}`) lesbar.
 				archivedAt: null,
-				// Datenisolation (#207, AK5): auf den eingeloggten Nutzer filtern, sofern vorhanden.
-				...(userId !== undefined ? { userId } : {}),
+				// #2515: Lese-Scope der Aufgabenliste (`taskReadScope`) — ohne Scope gilt der alte
+				// Datenisolation-Filter (#207, AK5) auf den eingeloggten Nutzer.
+				...(readScope ?? (userId !== undefined ? { userId } : {})),
 			},
 		}),
 	);
@@ -160,8 +170,9 @@ export const buildTaskForest = async (userId?: number): Promise<TaskTreeNode[]> 
 
 	// Erstelle Bäume für alle Wurzeltasks
 	const forest: TaskTreeNode[] = [];
+	const pillarCounts: PillarCounts = new Map();
 	for (const rootTask of rootTasks) {
-		forest.push(await buildTaskTree(rootTask));
+		forest.push(await buildTaskTree(rootTask, null, pillarCounts));
 	}
 
 	// Sortiere die Bäume nach Wertschöpfung (absteigend)

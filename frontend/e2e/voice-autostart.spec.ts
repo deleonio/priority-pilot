@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * Rote Spec-Tests für #272 — „Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabefeld
@@ -610,7 +610,7 @@ test.describe('Suche-Dialog: Voice-Autostart im Suchfeld', () => {
 	 * vollständig im Viewport, kein horizontaler Überlauf im Dialog.
 	 */
 	test('AK4: 375px-Viewport — Auto-Start unverändert, Mic-Button vollständig sichtbar', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await setVoiceAutostartInStorage(page, true);
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
 		await page.goto('/app/');

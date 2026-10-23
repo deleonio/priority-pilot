@@ -5,8 +5,11 @@
  */
 import { describe, it, before, afterEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { startTestServer, closeDb, type TestServer } from '../test/helpers.js';
+import { startTestServer, closeDb, resetDb, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 import * as nominatimLogics from '../logics/nominatim.js';
+
+// Auth-Env VOR dem Server-Start (#2543: Nutzer-Isolation über server.login).
+applyTestAuthEnv('geocode-search-test');
 
 let server: TestServer;
 let savedFetch: typeof fetch | null = null;
@@ -64,6 +67,7 @@ function mockUpstreams(opts: { photon?: Upstream; nominatim?: Upstream } = {}): 
 describe('Adresssuche (GET /geocode-search)', () => {
 	before(async () => {
 		server = await startTestServer();
+		await resetDb();
 	});
 
 	afterEach(() => {
@@ -78,10 +82,41 @@ describe('Adresssuche (GET /geocode-search)', () => {
 		await closeDb();
 	});
 
-	// Der Rate-Limiter zählt je (IP+Session) — ein eigener Session-Token pro Test hält die Tests
-	// unabhängig voneinander (sonst würde ein schnell folgender Test vom vorigen mit-limitiert).
-	const get = (path: string, sessionToken: string) =>
-		fetch(`${server.baseUrl}${path}`, { headers: { 'x-session-token': sessionToken } });
+	// #2543 AK4: Der Rate-Limiter zählt je (IP + Nutzer-Id), nicht je Header — ein eigener Nutzer pro
+	// Test hält die Tests unabhängig voneinander (sonst würde ein schnell folgender Test vom vorigen
+	// mit-limitiert). `who` benennt den Nutzer; derselbe Name = derselbe Nutzer = dasselbe Kontingent.
+	const cookies = new Map<string, string>();
+	const get = async (path: string, who: string, headers: Record<string, string> = {}) => {
+		let cookie = cookies.get(who);
+		if (!cookie) {
+			cookie = await server.login(`${who}@geocode.test`);
+			cookies.set(who, cookie);
+		}
+		return fetch(`${server.baseUrl}${path}`, { headers: { cookie, ...headers } });
+	};
+	// #2543 AK3: Die globale Nominatim-Drossel (1 req/s) gilt über alle Nutzer — Tests, die Nominatim
+	// erreichen, warten vorher das Fenster ab, damit der Vorgänger sie nicht trifft.
+	const waitWindow = () => new Promise((resolve) => setTimeout(resolve, 1100));
+
+	/** Mockt `/reverse` (zählt Aufrufe, merkt letzte URL) zusätzlich zu den Such-Upstreams. */
+	const mockReverse = (calls: UpstreamCalls): { count: () => number; url: () => string } => {
+		const upstream = globalThis.fetch;
+		let reverse = 0;
+		let lastUrl = '';
+		globalThis.fetch = async function (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) {
+			const url = input instanceof Request ? input.url : String(input);
+			if (url.startsWith('https://nominatim.openstreetmap.org/reverse')) {
+				reverse += 1;
+				lastUrl = url;
+				return new Response(JSON.stringify({ address: { road: 'Zählgasse' } }), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				});
+			}
+			return upstream(input, init);
+		} as typeof fetch;
+		return { count: () => reverse + calls.nominatim, url: () => lastUrl };
+	};
 
 	it('AK1 — fragt Photon primär ab und mappt GeoJSON [lon,lat] auf {address, lat, lon}', async () => {
 		const calls = mockUpstreams({
@@ -136,6 +171,7 @@ describe('Adresssuche (GET /geocode-search)', () => {
 	});
 
 	it('AK2 — Photon 429 → Antwort kommt vom Nominatim-Fallback', async () => {
+		await waitWindow();
 		const calls = mockUpstreams({
 			photon: { status: 429, body: { error: 'rate limited' } },
 			nominatim: {
@@ -156,6 +192,7 @@ describe('Adresssuche (GET /geocode-search)', () => {
 	});
 
 	it('AK2 — Photon nicht erreichbar (Timeout/Netzwerkfehler) → Nominatim-Fallback', async () => {
+		await waitWindow();
 		const calls = mockUpstreams({
 			photon: { fail: true },
 			nominatim: {
@@ -202,6 +239,7 @@ describe('Adresssuche (GET /geocode-search)', () => {
 	});
 
 	it('Nominatim-Fallback schlägt fehl (5xx) → 200 mit leerer Liste', async () => {
+		await waitWindow();
 		mockUpstreams({
 			photon: { status: 200, body: { type: 'FeatureCollection', features: [] } },
 			nominatim: { status: 503, body: { error: 'Service Unavailable' } },
@@ -238,6 +276,7 @@ describe('Adresssuche (GET /geocode-search)', () => {
 	});
 
 	it('Rate-Limit ist geteilt: Reverse-Geocode direkt nach Suche derselben Session → gedrosselt', async () => {
+		await waitWindow();
 		// Nominatim würde für /reverse eine echte Adresse liefern — käme die Anfrage durch,
 		// wäre die Antwort nicht leer. Der geteilte Zähler muss sie vorher abfangen.
 		mockUpstreams();
@@ -313,6 +352,7 @@ describe('Adresssuche (GET /geocode-search)', () => {
 	// #1280 AK2 — Reverse→Reverse: auch der zweite /reverse-geocode binnen 1s wird gedrosselt
 	// (200 + leere Adresse statt 429) — der Frontend-Fallback-Vertrag gilt für beide Endpunkte.
 	it('AK2 — zweite /reverse-geocode-Anfrage derselben Session binnen 1s → 200 mit leerer Adresse', async () => {
+		await waitWindow();
 		// Nominatim würde eine echte Adresse liefern — käme die zweite Anfrage durch, wäre die
 		// Antwort nicht leer. Die Drossel muss sie abfangen, BEVOR der Upstream gefragt wird.
 		mockUpstreams();
@@ -339,5 +379,145 @@ describe('Adresssuche (GET /geocode-search)', () => {
 			{ address: '' },
 			'zweite Reverse-Anfrage binnen 1s muss gedrosselt werden (200 + leer statt 429)',
 		);
+	});
+
+	// #2543 AK1+AK2 — Der Header x-session-token darf kein neues Kontingent verschaffen (Bypass).
+	it('#2543 AK2 — wechselnder x-session-token derselben IP/Nutzers: zweite Suche gedrosselt, Upstream 1×', async () => {
+		await waitWindow();
+		const calls = mockUpstreams({
+			photon: {
+				status: 200,
+				body: {
+					type: 'FeatureCollection',
+					features: [
+						{ type: 'Feature', geometry: { type: 'Point', coordinates: [1, 1] }, properties: { name: 'Treffer' } },
+					],
+				},
+			},
+		});
+
+		const first = await get('/geocode-search?q=Erste', 'bypass-search', { 'x-session-token': 'A' });
+		assert.equal(first.status, 200);
+		const second = await get('/geocode-search?q=Zweite', 'bypass-search', { 'x-session-token': 'B' });
+		assert.equal(second.status, 200);
+		assert.deepEqual(await second.json(), [], 'Token-Wechsel darf das Kontingent nicht erneuern');
+		assert.equal(calls.photon, 1, 'gedrosselte Anfrage erreicht den Upstream nicht');
+	});
+
+	it('#2543 AK2 — wechselnder x-session-token: zweiter /reverse-geocode gedrosselt, Nominatim 1×', async () => {
+		await waitWindow();
+		const calls = mockUpstreams();
+		const reverse = mockReverse(calls);
+
+		const first = await get('/reverse-geocode?lat=52.52&lon=13.405', 'bypass-reverse', { 'x-session-token': 'A' });
+		assert.deepEqual(await first.json(), { address: 'Zählgasse' });
+		const second = await get('/reverse-geocode?lat=52.52&lon=13.405', 'bypass-reverse', { 'x-session-token': 'B' });
+		assert.equal(second.status, 200);
+		assert.deepEqual(await second.json(), { address: '' });
+		assert.equal(reverse.count(), 1, 'Nominatim wird nur einmal gefragt');
+	});
+
+	// #2543 AK3 — globale Nominatim-Drossel: verschiedene Nutzer teilen sich 1 req/s.
+	it('#2543 AK3 — zwei Nutzer, Reverse binnen 1s: nur ein Nominatim-Aufruf, zweite Antwort Fallback', async () => {
+		await waitWindow();
+		const calls = mockUpstreams();
+		const reverse = mockReverse(calls);
+
+		const first = await get('/reverse-geocode?lat=52.52&lon=13.405', 'global-a');
+		assert.deepEqual(await first.json(), { address: 'Zählgasse' });
+		const second = await get('/reverse-geocode?lat=52.52&lon=13.405', 'global-b');
+		assert.equal(second.status, 200);
+		assert.deepEqual(await second.json(), { address: '' }, 'anderer Nutzer, aber gleiches Nominatim-Kontingent');
+		assert.equal(reverse.count(), 1);
+	});
+
+	it('#2543 AK3 — Nominatim-Fallback der Suche teilt die globale Drossel mit Reverse-Geocoding', async () => {
+		await waitWindow();
+		const calls = mockUpstreams({
+			photon: { status: 429, body: {} },
+			nominatim: { status: 200, body: [{ display_name: 'Fallback 1, Berlin', lat: '52.5', lon: '13.4' }] },
+		});
+		const reverse = mockReverse(calls);
+
+		await get('/reverse-geocode?lat=52.52&lon=13.405', 'global-c');
+		const search = await get('/geocode-search?q=Fallback', 'global-d');
+		assert.equal(search.status, 200);
+		assert.deepEqual(await search.json(), [], 'Fallback-Antwort statt Nominatim-Treffer');
+		assert.equal(calls.nominatim, 0, 'Suche erreicht Nominatim nicht, das Kontingent ist verbraucht');
+		assert.equal(reverse.count(), 1);
+	});
+
+	it('#2543 AK3 — Photon-Anfragen fallen nicht unter die globale Drossel', async () => {
+		await waitWindow();
+		const calls = mockUpstreams({
+			photon: {
+				status: 200,
+				body: {
+					type: 'FeatureCollection',
+					features: [
+						{ type: 'Feature', geometry: { type: 'Point', coordinates: [2, 1] }, properties: { name: 'Photon' } },
+					],
+				},
+			},
+		});
+		const reverse = mockReverse(calls);
+
+		await get('/reverse-geocode?lat=52.52&lon=13.405', 'global-e');
+		const search = await get('/geocode-search?q=Photon', 'global-f');
+		assert.deepEqual(
+			await search.json(),
+			[{ address: 'Photon', lat: 1, lon: 2 }],
+			'Photon antwortet trotz Nominatim-Verbrauch',
+		);
+		assert.equal(calls.photon, 1);
+		assert.equal(reverse.count(), 1);
+	});
+
+	// #2608 AK1+AK2 — Ungültige oder außerhalb [-90,90]/[-180,180] liegende Koordinaten antworten
+	// 400, BEVOR Nominatim gefragt wird (kein Kontingent-Verbrauch für Müll-Anfragen).
+	// Rot, solange lat=91/lon=181 (parseFloat ohne Bereichsprüfung) noch bis zum Upstream durchgehen.
+	it('#2608 AK1+AK2 — ungueltige/ausserhalb des Bereichs liegende lat/lon → 400, Nominatim 0x', async () => {
+		const calls = mockUpstreams();
+		const reverse = mockReverse(calls);
+
+		const cases: [string, string][] = [
+			['lat=abc&lon=13.405', 'nan-lat'],
+			['lat=52.52&lon=abc', 'nan-lon'],
+			['lat=&lon=13.405', 'leer-lat'],
+			['lat=91&lon=13.405', 'bereich-lat'],
+			['lat=52.52&lon=181', 'bereich-lon'],
+		];
+		for (const [query, who] of cases) {
+			const res = await get(`/reverse-geocode?${query}`, `spec2608-${who}`);
+			assert.equal(res.status, 400, `${query} muss 400 liefern`);
+		}
+		assert.equal(reverse.count(), 0, 'ungueltige Anfragen duerfen Nominatim nicht erreichen');
+	});
+
+	// #2608 AK3 — Fehlende Query-Parameter bleiben 400 mit der bestehenden Meldung (Status quo).
+	it('#2608 AK3 — fehlende lat/lon → 400 mit bestehender Meldung', async () => {
+		mockUpstreams();
+
+		const ohneBeide = await get('/reverse-geocode', 'spec2608-ohne');
+		assert.equal(ohneBeide.status, 400);
+		assert.deepEqual(await ohneBeide.json(), { message: 'lat und lon als Query-Parameter erforderlich.' });
+
+		const ohneLon = await get('/reverse-geocode?lat=52.52', 'spec2608-ohne-lon');
+		assert.equal(ohneLon.status, 400);
+		assert.deepEqual(await ohneLon.json(), { message: 'lat und lon als Query-Parameter erforderlich.' });
+	});
+
+	// #2608 AK4 — Gültige Koordinaten laufen unverändert: 200 mit Adresse, Nominatim genau 1x
+	// mit denselben Koordinaten in der Upstream-URL (guardt die Umstellung auf parseCoordinate).
+	it('#2608 AK4 — gueltige Koordinaten → 200 mit Adresse, Nominatim genau 1x mit denselben Koordinaten', async () => {
+		await waitWindow();
+		const calls = mockUpstreams();
+		const reverse = mockReverse(calls);
+
+		const res = await get('/reverse-geocode?lat=52.52&lon=13.405', 'spec2608-ok');
+		assert.equal(res.status, 200);
+		assert.deepEqual(await res.json(), { address: 'Zählgasse' });
+		assert.equal(reverse.count(), 1, 'genau ein Nominatim-Aufruf');
+		assert.ok(reverse.url().includes('lat=52.52&lon=13.405'), 'Koordinaten unverändert in der Upstream-URL');
 	});
 });

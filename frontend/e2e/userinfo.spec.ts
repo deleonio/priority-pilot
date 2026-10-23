@@ -1,5 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 import { expect, test } from '@playwright/test';
+import { onboardingDismissKey } from '../src/lib/onboardingPreferences';
 
 /**
  * Rote Spec-Tests (#192) für die Anzeige aktueller Benutzerinformationen (User Info Display).
@@ -40,9 +41,23 @@ test.describe('Balamentum — User Info Display (#192)', () => {
 
 	test('AK3b: Name aus /auth/me ist im Header/Navigation sichtbar', async ({ page }) => {
 		await mockMe(page, { id: 1, displayName: 'Max Mustermann', email: 'max@example.com' });
+		// Onboarding vorab als beendet markiert (#2580-Muster), sonst fängt der
+		// Willkommens-Dialog den Klick auf den Menü-Trigger ab.
+		await page.addInitScript((key: string) => {
+			try {
+				localStorage.setItem(key, 'true');
+			} catch {
+				/* ignore */
+			}
+		}, onboardingDismissKey(1));
 		await page.goto('/app/');
 
-		await expect(page.getByText('Max Mustermann')).toBeVisible();
+		// #2741: Der Name steht im Benutzermenü (der Trigger zeigt nur Initialen) — Menü öffnen und
+		// den Namen gescoped auf seinen Textknoten prüfen (der Panel-Avatar trägt ihn ebenfalls).
+		await page.locator('.app-header__user button').first().click();
+		const menuName = page.locator('.app-header__user-menu-name');
+		await expect(menuName).toBeVisible();
+		await expect(menuName).toHaveText('Max Mustermann');
 	});
 
 	test('AK6: Bei HTTP 500 erscheint eine Fehlermeldung — KEIN Login-Screen', async ({ page }) => {

@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 import { expect, test } from '@playwright/test';
-import { waitForStableView } from './helpers';
+import { headerAction, waitForStableView } from './helpers';
 
 const DISPLAY_NAME = 'Peter';
 
@@ -82,9 +82,7 @@ test.describe('#214 Nach Logout zur Login-Seite weiterleiten', () => {
 
 		await page.goto('/app/');
 		await waitForStableView(page);
-		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).toBeVisible();
-
-		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
+		await (await headerAction(page, /Abmelden|Logout/i)).click();
 
 		// Echte Navigation → Root.tsx remountet → /auth/me → 401 → LoginPage erscheint.
 		// Mit pushState bleibt Root.tsx eingehängt, LoginPage wird nie gerendert → Timeout → ROT.
@@ -113,7 +111,7 @@ test.describe('#214 Nach Logout zur Login-Seite weiterleiten', () => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
+		await (await headerAction(page, /Abmelden|Logout/i)).click();
 
 		// LoginPage muss sichtbar sein (stellt sicher, dass die Prüfung nach echter Navigation gilt).
 		await expect(page.getByRole('button', { name: 'Mit Google anmelden' })).toBeVisible();
@@ -144,7 +142,7 @@ test.describe('#214 Nach Logout zur Login-Seite weiterleiten', () => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
+		await (await headerAction(page, /Abmelden|Logout/i)).click();
 
 		// Echte Navigation ist Pflicht: LoginPage muss rendern (ROT mit pushState).
 		await expect(page.getByRole('button', { name: 'Mit Google anmelden' })).toBeVisible();
@@ -178,34 +176,36 @@ const stubBackend = async (page: Page): Promise<void> => {
 };
 
 /**
- * ROTE Spec-Tests für #209 „Logout-Button im Toolbar rechts oben" (Stufe 1 TDD, einklagbarer Vertrag).
+ * ROTE Spec-Tests für #209 „Logout-Button im Toolbar rechts oben“ (Stufe 1 TDD, einklagbarer Vertrag).
  *
- * Ziel: Der Logout-Button soll als echtes `_items`-Element **innerhalb** der `KolToolbar`
- * („Kopf-Aktionen") platziert sein — nicht als freistehender `<button>` neben der Toolbar.
- * Die Toolbar-Semantik (role="toolbar", Pfeiltasten-Navigation) gilt damit auch für den Logout.
+ * Ziel: Der Logout-Button sollte als echtes `_items`-Element **innerhalb** der `KolToolbar`
+ * („Kopf-Aktionen“) platziert sein — nicht als freistehender `<button>` neben der Toolbar.
  *
- * Derzeit ist der Logout-Button in App.tsx ein eigenständiger `<button class="logout-button">`
- * außerhalb der `<KolToolbar>`. Diese Tests sind ROT, bis die Umsetzung ihn als letztes
- * `_items`-Element der KolToolbar einbindet.
+ * Test-Pflege #2723: „Abmelden“ ist aus der Toolbar ins Avatar-Popover (Benutzermenü) gewandert.
+ * Der Platzierungsvertrag invertiert sich dadurch: Der Logout-Button liegt NICHT mehr in der
+ * Toolbar, sondern hinter dem Avatar-Trigger (`headerAction` öffnet das Menü). Der Vertrag
+ * „Abmelden ist das letzte Element“ entfällt — die Reihenfolge im Popover (Hilfe vor Abmelden)
+ * sichert avatar-menu.spec.ts (AK5).
  *
  * Die funktionale Logout-Logik (POST /auth/logout, Redirect, Session-Cleanup) ist durch die
  * Tests für #191 (unten) abgedeckt — hier wird ausschließlich die Platzierung geprüft.
  */
 test.describe('#209 Logout-Button im Toolbar (rechts oben)', () => {
 	/**
-	 * AK-1: Der Logout-Button ist ein Nachkomme der KolToolbar (role="toolbar", label „Kopf-Aktionen").
-	 * Aktuell ist er ein Geschwister-Element der Toolbar — dieser Test ist ROT.
+	 * AK-1 (invertiert durch #2723): Der Logout-Button liegt hinter dem Avatar-Trigger — innerhalb
+	 * der Toolbar „Kopf-Aktionen“ existiert kein „Abmelden“-Button mehr (Count 0).
 	 */
-	test('AK-1: Logout-Button liegt innerhalb der benannten Toolbar „Kopf-Aktionen"', async ({ page }) => {
+	test('AK-1: Logout-Button liegt hinter dem Avatar-Trigger, nicht mehr in der Toolbar', async ({ page }) => {
 		await stubBackend(page);
 		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
 		await expect(toolbar).toBeVisible();
+		await expect(toolbar.getByRole('button', { name: /Abmelden|Logout/i })).toHaveCount(0);
 
-		// Der Logout-Button muss innerhalb der Toolbar erreichbar sein.
-		await expect(toolbar.getByRole('button', { name: /Abmelden|Logout/i })).toBeVisible();
+		// Der Logout-Button ist im geöffneten Avatar-Popover erreichbar (headerAction öffnet es).
+		await expect(await headerAction(page, /Abmelden|Logout/i)).toBeVisible();
 	});
 
 	/**
@@ -230,31 +230,16 @@ test.describe('#209 Logout-Button im Toolbar (rechts oben)', () => {
 		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).toHaveCount(0);
 	});
 
-	/**
-	 * AK-3: Der Logout-Button ist das letzte (rechteste) Toolbar-Element.
-	 * „rechts oben" bedeutet: kein weiterer Toolbar-Button folgt danach.
+	/*
+	 * AK-3 — entfallen mit #2723 (Test-Pflege): „Abmelden ist das letzte Toolbar-Element“ ist mit dem
+	 * Umzug ins Avatar-Popover gegenstandslos; die Reihenfolge im Popover (Abmelden zuletzt) sichert
+	 * avatar-menu.spec.ts (AK5, Tab-Reihenfolge Hilfe vor Abmelden).
 	 */
-	test('AK-3: Logout-Button ist das letzte Element in der Toolbar', async ({ page }) => {
-		await stubBackend(page);
-		await page.goto('/app/');
-		await waitForStableView(page);
-
-		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
-		const buttons = toolbar.getByRole('button');
-		// KolToolbar rendert seine Buttons asynchron im Shadow-DOM; erst warten, bevor gezählt wird.
-		await expect(buttons.first()).toBeVisible();
-		const count = await buttons.count();
-		expect(count).toBeGreaterThan(0);
-
-		const lastButton = buttons.nth(count - 1);
-		await expect(lastButton).toHaveAccessibleName(/Abmelden|Logout/i);
-	});
 
 	/**
-	 * AK-4: Klick auf den Toolbar-Logout-Button löst POST /auth/logout aus (Verdrahtung erhalten).
-	 * Stellt sicher, dass die Umplatzierung in die Toolbar die Funktionalität nicht bricht.
+	 * AK-4: Klick auf den Logout-Button (Avatar-Popover) löst POST /auth/logout aus (Verdrahtung erhalten).
 	 */
-	test('AK-4: Klick auf Toolbar-Logout-Button sendet POST /auth/logout', async ({ page }) => {
+	test('AK-4: Klick auf Logout-Button sendet POST /auth/logout', async ({ page }) => {
 		await stubBackend(page);
 
 		await page.route('**/auth/logout', (route) =>
@@ -264,10 +249,10 @@ test.describe('#209 Logout-Button im Toolbar (rechts oben)', () => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
-		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
 		const logoutRequest = page.waitForRequest((req) => /\/auth\/logout$/.test(req.url()));
 
-		await toolbar.getByRole('button', { name: /Abmelden|Logout/i }).click();
+		// #2723: Der Logout-Button liegt im Avatar-Popover — `headerAction` öffnet es vor dem Klick.
+		await (await headerAction(page, /Abmelden|Logout/i)).click();
 		const request = await logoutRequest;
 
 		expect(request.method()).toBe('POST');
@@ -315,11 +300,11 @@ test.describe('#191 Logout-Button in Navigation', () => {
 		await expect(page.getByRole('button', { name: 'Mit Google anmelden' })).toBeVisible();
 		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).toHaveCount(0);
 
-		// Eingeloggt: /auth/me = 200 → App mit Toolbar → Logout-Button ist sichtbar.
+		// Eingeloggt: /auth/me = 200 → App → Logout-Button im Avatar-Popover sichtbar (headerAction öffnet es).
 		await page.unroute('**/auth/me', unauthenticated);
 		await page.goto('/app/');
 		await waitForStableView(page);
-		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).toBeVisible();
+		await expect(await headerAction(page, /Abmelden|Logout/i)).toBeVisible();
 	});
 
 	/**
@@ -339,7 +324,7 @@ test.describe('#191 Logout-Button in Navigation', () => {
 		await waitForStableView(page);
 
 		const logoutRequest = page.waitForRequest((request) => /\/auth\/logout$/.test(request.url()));
-		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
+		await (await headerAction(page, /Abmelden|Logout/i)).click();
 		const request = await logoutRequest;
 
 		expect(request.method()).toBe('POST');
@@ -363,7 +348,7 @@ test.describe('#191 Logout-Button in Navigation', () => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
+		await (await headerAction(page, /Abmelden|Logout/i)).click();
 
 		await expect(page).toHaveURL(/\/login(\b|\/|$)/);
 	});
@@ -385,7 +370,7 @@ test.describe('#191 Logout-Button in Navigation', () => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
+		await (await headerAction(page, /Abmelden|Logout/i)).click();
 		await expect(page).toHaveURL(/\/login(\b|\/|$)/);
 
 		// Ab jetzt antwortet das Backend ohne gültige Session mit 401: ein direkter erneuter Aufruf der
@@ -425,7 +410,9 @@ test.describe('#191 Logout-Button in Navigation', () => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
+		// #2723: Der Button liegt im Avatar-Popover; es bleibt im Fehlerfall bewusst offen (KI-UX).
+		const logoutButton = await headerAction(page, /Abmelden|Logout/i);
+		await logoutButton.click();
 
 		// Fehlermeldung ist sichtbar.
 		await expect(page.getByRole('alert')).toBeVisible();
@@ -433,7 +420,8 @@ test.describe('#191 Logout-Button in Navigation', () => {
 		// Kein Redirect auf /login — Nutzer bleibt auf der App-Seite.
 		await expect(page).not.toHaveURL(/\/login/);
 
-		// Button ist nach dem Fehlschlag wieder bedienbar (nicht dauerhaft disabled).
-		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).not.toBeDisabled();
+		// Button ist nach dem Fehlschlag wieder bedienbar (nicht dauerhaft disabled) — das Popover
+		// bleibt offen, deshalb ist der Popover-Button selbst wieder anwählbar.
+		await expect(logoutButton).not.toBeDisabled();
 	});
 });

@@ -7,6 +7,14 @@ import { effectivePlan } from '../../logics/plans.js';
 import { createAiQuotaCounter } from '../aiQuotaMeter.js';
 import { aggregierePunkteProSaeule, type PunkteBeitrag } from '../../logics/score.js';
 import {
+	letzterTagVon,
+	mittagDesTags,
+	rundeAufZehntel,
+	saeulenDifferenz,
+	staerksteSaeuleVon,
+	vormonatVon,
+} from '../../logics/scoreRecap.js';
+import {
 	berechneStreak,
 	berechneWochenAusgewogen,
 	istGueltigeZeitzone,
@@ -15,13 +23,15 @@ import {
 } from '../../logics/streak.js';
 import { meilensteinStandVon } from '../../logics/milestones.js';
 import MilestoneReached from '../../models/milestoneReached.js';
-import { berechneLebensbalanceNachKadenz } from '../../logics/heartBalance.js';
-import { berechneBalanceVerlauf, istGueltigesDatum, zeitraumInTagen } from '../../logics/balanceHistory.js';
-import { resolvePillarDescription } from '../../models/pillarData.js';
+import { berechneLebensbalanceNachKadenz, zaehleErledigungenImKadenzFenster } from '../../logics/heartBalance.js';
+import { berechneBalanceVerlauf } from '../../logics/balanceHistory.js';
+import { validateQueryEinzelwert, validateZeitraum } from '../../logics/requestValidation.js';
+import { pillarTextIn, resolvePillarDescription } from '../../models/pillarData.js';
 import CareSuggestionDismissal from '../../models/careSuggestionDismissal.js';
 import CareSuggestionRejection from '../../models/careSuggestionRejection.js';
 import type { PillarWithContribution } from '../../models/task.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
+import { appSprache, resolveGeoUser } from './geoConfig.js';
 import {
 	PAUSE_VORLAGE_KEY,
 	saeulenBeitraegeFuerZiel,
@@ -31,8 +41,8 @@ import {
 	type CareAufgabe,
 	type CareVorlage,
 } from '../../logics/careSuggestions.js';
-import { CARE_SPRACHEN, spracheAusHeader, type CareSprache } from '../../logics/careSuggestionData.js';
-import { bewerteCareDefizit } from '../../logics/careDeficit.js';
+import { CARE_EINSTIEG, CARE_ERMUTIGUNG, CARE_SPRACHEN, type CareSprache } from '../../logics/careSuggestionData.js';
+import { bewerteCareDefizit, UEBERLAST_MINDEST_ERLEDIGUNGEN, zaehleErledigungen } from '../../logics/careDeficit.js';
 import { protokolliereCareReaktion } from '../../logics/careWirkung.js';
 import type { components } from '../../api';
 
@@ -55,9 +65,15 @@ const MAX_BALANCE_HISTORY_TAGE = 366;
 /** Maximale Anzahl der in der Zusammenfassung mitgelieferten Einzel-Einträge. */
 const MISSED_TASKS_LIST_LIMIT = 20;
 
-/** Löst den `sprache`-Query-Parameter auf: bekannte App-Sprache, sonst die aus `Accept-Language`. */
-const loeseSprache = (req: Request): CareSprache =>
-	CARE_SPRACHEN.find((code) => code === req.query.sprache) ?? spracheAusHeader(req.get('accept-language'));
+/**
+ * Löst die App-Sprache auf (#2523): `?sprache=`-Override zuerst (exklusiv am Care-Endpunkt),
+ * sonst der geteilte Helper `appSprache` (#2624) — `User.sprache`, sonst `Accept-Language`.
+ */
+const loeseSprache = async (req: Request): Promise<CareSprache> => {
+	const override = CARE_SPRACHEN.find((code) => code === req.query.sprache);
+	if (override !== undefined) return override;
+	return appSprache(await resolveGeoUser(req), req);
+};
 
 export const scoresRouter = Router();
 
@@ -118,7 +134,12 @@ scoresRouter.get('/scores/streak', async (req: Request, res: Response<StreakDto 
 		]);
 		// Der Client schickt seine IANA-Zeitzone mit (`?tz=`); ohne oder mit unbekanntem Wert wertet
 		// der Server in seiner eigenen Zeitzone aus — die Anzeige verschiebt sich, es gibt keinen Fehler.
-		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+		const tzErgebnis = validateQueryEinzelwert(req.query.tz, 'tz');
+		if (!tzErgebnis.ok) {
+			sendError(res, 400, tzErgebnis.message);
+			return;
+		}
+		const angefragteZone = tzErgebnis.value;
 		const zeitZone = istGueltigeZeitzone(angefragteZone)
 			? angefragteZone
 			: Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -148,7 +169,12 @@ scoresRouter.get('/scores/streak', async (req: Request, res: Response<StreakDto 
 // (Scoping dort, Muster /scores/streak).
 scoresRouter.get('/scores/milestones', async (req: Request, res: Response<MilestoneDto[] | ErrorDto>) => {
 	try {
-		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+		const tzErgebnis = validateQueryEinzelwert(req.query.tz, 'tz');
+		if (!tzErgebnis.ok) {
+			sendError(res, 400, tzErgebnis.message);
+			return;
+		}
+		const angefragteZone = tzErgebnis.value;
 		const zeitZone = istGueltigeZeitzone(angefragteZone)
 			? angefragteZone
 			: Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -224,7 +250,12 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 		const balance = berechneLebensbalanceNachKadenz(balanceSaeulen, kadenzTasks, jetzt);
 		const defizite = bewerteCareDefizit(balanceSaeulen, kadenzTasks, jetzt);
 
-		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+		const tzErgebnis = validateQueryEinzelwert(req.query.tz, 'tz');
+		if (!tzErgebnis.ok) {
+			sendError(res, 400, tzErgebnis.message);
+			return;
+		}
+		const angefragteZone = tzErgebnis.value;
 		const zeitZone = istGueltigeZeitzone(angefragteZone)
 			? angefragteZone
 			: Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -261,6 +292,10 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 			// Eine Dezimalstelle: der Füllstand schwankt mit jeder Erledigung, mehr Stellen wären
 			// Rauschen. Die Säulen-Punkte bleiben roh, damit ein Client selbst weiterrechnen kann.
 			fuellstandProzent: Math.round(balance.fill * 1000) / 10,
+			// Erledigungen im 28-Tage-Kadenz-Fenster (#2633) — dasselbe Fenster, das der Füllstand beurteilt;
+			// mit der Mindestmenge der Überlast-Regel (#2521) entscheidet der Client, ob das Bild schon urteilt.
+			erledigungenImFenster: zaehleErledigungenImKadenzFenster(kadenzTasks, jetzt),
+			mindestErledigungen: UEBERLAST_MINDEST_ERLEDIGUNGEN,
 			hatPunkte: balance.hasPoints,
 			// Trend/Defizit je Säule aus `bewerteCareDefizit` (#1796) — dieselbe Quelle wie /scores/care-suggestions.
 			saeulen: balance.saeulen.map((saeule) => {
@@ -285,23 +320,12 @@ scoresRouter.get(
 	'/scores/balance/history',
 	async (req: Request, res: Response<BalanceHistoryEntryDto[] | ErrorDto>) => {
 		try {
-			const { von, bis } = req.query;
-			if (typeof von !== 'string' || typeof bis !== 'string') {
-				sendError(res, 400, '"von" und "bis" sind Pflichtparameter (Format YYYY-MM-DD).');
+			const zeitraum = validateZeitraum(req.query, MAX_BALANCE_HISTORY_TAGE);
+			if (!zeitraum.ok) {
+				sendError(res, 400, zeitraum.message);
 				return;
 			}
-			if (!istGueltigesDatum(von) || !istGueltigesDatum(bis)) {
-				sendError(res, 400, '"von" und "bis" müssen ein existierendes Datum im Format YYYY-MM-DD angeben.');
-				return;
-			}
-			if (bis < von) {
-				sendError(res, 400, '"bis" darf nicht vor "von" liegen.');
-				return;
-			}
-			if (zeitraumInTagen(von, bis) > MAX_BALANCE_HISTORY_TAGE) {
-				sendError(res, 400, `Der Zeitraum darf höchstens ${MAX_BALANCE_HISTORY_TAGE} Tage umfassen.`);
-				return;
-			}
+			const { von, bis } = zeitraum.value;
 
 			const userId = getUserId(req);
 			const [saeulen, tasks, entries] = await Promise.all([
@@ -311,7 +335,12 @@ scoresRouter.get(
 			]);
 			const zeitpunktProTask = new Map(entries.map((entry) => [entry.taskId, entry.zeitpunkt]));
 
-			const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+			const tzErgebnis = validateQueryEinzelwert(req.query.tz, 'tz');
+			if (!tzErgebnis.ok) {
+				sendError(res, 400, tzErgebnis.message);
+				return;
+			}
+			const angefragteZone = tzErgebnis.value;
 			const zeitZone = istGueltigeZeitzone(angefragteZone)
 				? angefragteZone
 				: Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -347,45 +376,14 @@ scoresRouter.get(
 // Gescopet wie /scores/balance strikt mit `ownerScope`.
 const MONAT_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
 
-/** Letzter Kalendertag des Monats `JJJJ-MM` als `YYYY-MM-DD`. */
-const letzterTagVon = (monat: string): string => {
-	const [jahr, monatNr] = monat.split('-').map(Number) as [number, number];
-	return new Date(Date.UTC(jahr, monatNr, 0)).toISOString().slice(0, 10);
-};
-
-/** Vormonat eines Monats `JJJJ-MM` als `JJJJ-MM` (Jahreswechsel-sicher). */
-const vormonatVon = (monat: string): string => {
-	const [jahr, monatNr] = monat.split('-').map(Number) as [number, number];
-	return `${jahr + Math.floor((monatNr - 2) / 12)}-${String(((monatNr + 10) % 12) + 1).padStart(2, '0')}`;
-};
-
-/**
- * UTC-Zeitpunkt 12:00 eines lokalen Kalendertags in `zeitZone` — Streak-Stichtag „Monatsende".
- * Die Mittagsstunde hält DST-Nähte fern; der Offset wird über `Intl` an genau dieser Naht
- * zurückgerechnet (ein Anker `Date.UTC(jahr, monat, 0) - 1` läge in Zeitzonen östlich von UTC
- * schon im Folgemonat).
- */
-const mittagDesTags = (tag: string, zeitZone: string): Date => {
-	const [jahr, monat, tagImMonat] = tag.split('-').map(Number) as [number, number, number];
-	const naive = Date.UTC(jahr, monat - 1, tagImMonat, 12);
-	const teile = new Intl.DateTimeFormat('en-US', {
-		timeZone: zeitZone,
-		year: 'numeric',
-		month: '2-digit',
-		day: '2-digit',
-		hour: '2-digit',
-		minute: '2-digit',
-		second: '2-digit',
-		hourCycle: 'h23',
-	}).formatToParts(new Date(naive));
-	const teil = (typ: Intl.DateTimeFormatPartTypes): number => Number(teile.find((p) => p.type === typ)?.value ?? 0);
-	const alsUtc = Date.UTC(teil('year'), teil('month') - 1, teil('day'), teil('hour'), teil('minute'), teil('second'));
-	return new Date(naive - (alsUtc - naive));
-};
-
 scoresRouter.get('/scores/monthly-recap', async (req: Request, res: Response<MonthlyRecapDto | ErrorDto>) => {
 	try {
-		const monat = typeof req.query.monat === 'string' ? req.query.monat : '';
+		const monatErgebnis = validateQueryEinzelwert(req.query.monat, 'monat');
+		if (!monatErgebnis.ok) {
+			sendError(res, 400, monatErgebnis.message);
+			return;
+		}
+		const monat = monatErgebnis.value ?? '';
 		if (!MONAT_REGEX.test(monat)) {
 			sendError(
 				res,
@@ -394,7 +392,12 @@ scoresRouter.get('/scores/monthly-recap', async (req: Request, res: Response<Mon
 			);
 			return;
 		}
-		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+		const tzErgebnis = validateQueryEinzelwert(req.query.tz, 'tz');
+		if (!tzErgebnis.ok) {
+			sendError(res, 400, tzErgebnis.message);
+			return;
+		}
+		const angefragteZone = tzErgebnis.value;
 		const zeitZone = istGueltigeZeitzone(angefragteZone)
 			? angefragteZone
 			: Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -425,12 +428,7 @@ scoresRouter.get('/scores/monthly-recap', async (req: Request, res: Response<Mon
 		);
 		// Wochenkarten-Muster: Differenz aus dem kumulativen Verlauf — Stand am Monatsende minus
 		// Stand zum Fenstereintritt (letzter Tag des Vormonats), eine Dezimalstelle.
-		const standFensterEintritt = new Map((verlauf[0]?.saeulen ?? []).map((s) => [s.id, s.punkte]));
-		const monatsSaeulen = (verlauf[verlauf.length - 1]?.saeulen ?? []).map((s) => ({
-			id: s.id,
-			name: s.name,
-			punkte: Math.round((s.punkte - (standFensterEintritt.get(s.id) ?? 0)) * 10) / 10,
-		}));
+		const monatsSaeulen = saeulenDifferenz(verlauf[0]?.saeulen ?? [], verlauf[verlauf.length - 1]?.saeulen ?? []);
 
 		const { aktuell } = berechneStreak(
 			streakZeitpunkte(
@@ -463,13 +461,23 @@ const JAHR_REGEX = /^\d{4}$/;
 
 scoresRouter.get('/scores/yearly-recap', async (req: Request, res: Response<YearlyRecapDto | ErrorDto>) => {
 	try {
-		const jahrText = typeof req.query.jahr === 'string' ? req.query.jahr : '';
+		const jahrErgebnis = validateQueryEinzelwert(req.query.jahr, 'jahr');
+		if (!jahrErgebnis.ok) {
+			sendError(res, 400, jahrErgebnis.message);
+			return;
+		}
+		const jahrText = jahrErgebnis.value ?? '';
 		if (!JAHR_REGEX.test(jahrText)) {
 			sendError(res, 400, '"jahr" ist ein Pflichtparameter und muss ein vierstelliges Jahr (JJJJ) benennen.');
 			return;
 		}
 		const jahr = Number(jahrText);
-		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+		const tzErgebnis = validateQueryEinzelwert(req.query.tz, 'tz');
+		if (!tzErgebnis.ok) {
+			sendError(res, 400, tzErgebnis.message);
+			return;
+		}
+		const angefragteZone = tzErgebnis.value;
 		const zeitZone = istGueltigeZeitzone(angefragteZone)
 			? angefragteZone
 			: Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -508,19 +516,10 @@ scoresRouter.get('/scores/yearly-recap', async (req: Request, res: Response<Year
 			`${jahr}-12-31`,
 			zeitZone,
 		);
-		const standVorjahr = new Map((verlauf[0]?.saeulen ?? []).map((s) => [s.id, s.punkte]));
-		const saeulenDifferenz = (verlauf[verlauf.length - 1]?.saeulen ?? []).map((s) => ({
-			id: s.id,
-			name: s.name,
-			punkte: Math.round((s.punkte - (standVorjahr.get(s.id) ?? 0)) * 10) / 10,
-		}));
+		const jahresSaeulen = saeulenDifferenz(verlauf[0]?.saeulen ?? [], verlauf[verlauf.length - 1]?.saeulen ?? []);
 		// Ohne Punkte oder ohne Unterschied (z. B. nur nicht zugeordnete Aufgaben, die nach Gewicht
 		// gleich verteilt werden) gibt es keine stärkste Säule.
-		const staerkste = saeulenDifferenz.reduce<(typeof saeulenDifferenz)[number] | null>(
-			(beste, saeule) => (saeule.punkte > (beste?.punkte ?? 0) ? saeule : beste),
-			null,
-		);
-		const alleGleich = saeulenDifferenz.every((saeule) => saeule.punkte === saeulenDifferenz[0]?.punkte);
+		const staerksteSaeule = staerksteSaeuleVon(jahresSaeulen);
 
 		const { best } = berechneStreak(
 			streakZeitpunkte(
@@ -534,9 +533,9 @@ scoresRouter.get('/scores/yearly-recap', async (req: Request, res: Response<Year
 		res.json({
 			jahr,
 			erledigteAufgaben: erledigtImJahr.length,
-			stunden: Math.round(stunden * 10) / 10,
+			stunden: rundeAufZehntel(stunden),
 			laengsterStreak: best,
-			staerksteSaeule: alleGleich ? null : staerkste,
+			staerksteSaeule,
 			abgeschlosseneProjekte: new Set(eltern.map((e) => e.get('dependentTaskId'))).size,
 		});
 	} catch {
@@ -590,7 +589,7 @@ const createKiVorschlagErmittler = (advisor: ActivityAdvisor) => {
 					// #2075 AK4: dieselbe vollständige Verteilung wie Vorlagen- und Regelpfad.
 					saeulenBeitraege: saeulenBeitraegeFuerZiel(saeule.id, saeulen),
 					saeuleId: saeule.id,
-					saeuleName: saeule.name,
+					saeuleName: pillarTextIn(sprache, saeule.name),
 					anlass: 'defizit',
 				};
 			}
@@ -642,7 +641,10 @@ const createKiVorschlagErmittler = (advisor: ActivityAdvisor) => {
 // defizitärer Säule (Defizit-Quelle ist `bewerteCareDefizit` aus #1790, nicht kopiert) bis zu
 // drei Einträge — zuerst eigene offene Aufgaben dieser Säule, sonst kuratierte Vorlagen aus
 // `careSuggestionData.ts`. Meldet `bewerteCareDefizit` Überlast, stehen davor Erholungsvorschläge
-// (`anlass: 'ueberlast'`, #1795). `?sprache=` wählt die Sprache der Vorlagen-Texte (Default `Accept-Language`, sonst `de`).
+// (`anlass: 'ueberlast'`, #1795). `?sprache=` wählt die Sprache der Vorlagen-Texte (sonst
+// `User.sprache`, sonst `Accept-Language`, Default `de`; #2523).
+// Unter der Überlast-Mindestmenge (#2521) steht bei 1–2 Erledigungen der Ermutigungs-Satz vorn
+// (`anlass: 'ermutigung'`, ohne Aktionsbasis).
 // Gilt vollständig im Free-Paket (Epic #1780) — bewusst ohne planGuard; Plus/Pro erhalten bei einem
 // Defizit ohne Überlast zusätzlich einen KI-Vorschlag an erster Stelle (#1804, #1873,
 // `createKiVorschlagErmittler`). Gescopet wie
@@ -657,7 +659,9 @@ export const createCareSuggestionsRouter = (advisor: ActivityAdvisor = adviseAct
 		async (req: Request, res: Response<{ vorschlaege: CareVorschlagDto[] } | ErrorDto>) => {
 			try {
 				const userId = getUserId(req);
-				const sprache = loeseSprache(req);
+				const sprache = await loeseSprache(req);
+				// #2523: Middleware darf die Säulennamen nicht gegen die App-Sprache übersetzen (Kohärenz).
+				res.locals.saeulenSprache = sprache;
 				const jetzt = new Date();
 				const [saeulen, tasks, entries, ablehnungen] = await Promise.all([
 					Pillar.findAll({ where: ownerScope(userId), order: [['id', 'ASC']] }),
@@ -705,6 +709,44 @@ export const createCareSuggestionsRouter = (advisor: ActivityAdvisor = adviseAct
 					jetzt,
 				);
 
+				// #2521/#2527: unter der Mindestmenge an Erledigungen im jüngeren Fenster kein
+				// Defizit-Vorwurf — bei 0 Erledigungen lädt der Einstiegssatz zum ersten Schritt ein
+				// (#2527), bei 1–2 ermutigt der Satz aus #2521 (CareHint zeigt nur den ersten, ohne
+				// Aktionsreihe).
+				const erledigungen = zaehleErledigungen(
+					tasks.map((task) => ({ status: task.status, erledigtAm: zeitpunktProTask.get(task.id) ?? null })),
+					jetzt,
+				);
+				const unterMindestmenge = erledigungen < UEBERLAST_MINDEST_ERLEDIGUNGEN;
+				const einstieg: CareVorschlagDto[] =
+					erledigungen === 0
+						? [
+								{
+									typ: 'vorlage',
+									titel: CARE_EINSTIEG[sprache],
+									beschreibung: null,
+									saeuleId: 0,
+									saeuleName: '',
+									saeulenBeitraege: [],
+									anlass: 'einstieg',
+								},
+							]
+						: [];
+				const ermutigung: CareVorschlagDto[] =
+					erledigungen > 0 && erledigungen < UEBERLAST_MINDEST_ERLEDIGUNGEN
+						? [
+								{
+									typ: 'vorlage',
+									titel: CARE_ERMUTIGUNG[sprache],
+									beschreibung: null,
+									saeuleId: 0,
+									saeuleName: '',
+									saeulenBeitraege: [],
+									anlass: 'ermutigung',
+								},
+							]
+						: [];
+
 				const ablehnungenDto = ablehnungen.map((ablehnung) => ({
 					templateKey: ablehnung.templateKey,
 					abgelehntAm: ablehnung.abgelehntAm,
@@ -722,35 +764,41 @@ export const createCareSuggestionsRouter = (advisor: ActivityAdvisor = adviseAct
 								erholungsSaeuleIds,
 							).map((vorschlag) => ({
 								...vorschlag,
-								saeuleName: saeulen.find((saeule) => saeule.id === vorschlag.saeuleId)?.name ?? '',
+								saeuleName: pillarTextIn(
+									sprache,
+									saeulen.find((saeule) => saeule.id === vorschlag.saeuleId)?.name ?? '',
+								),
 								anlass: 'ueberlast' as const,
 							}))
 						: [];
 
-				const defizitVorschlaege: CareVorschlagDto[] = defizite
-					.filter((defizit) => defizit.defizitaer)
-					.flatMap((defizit) => {
-						const saeule = { id: defizit.id, name: defizit.name, weight: 0 };
-						const vorlagenDerSaeule = vorlagen.filter(
-							(vorlage) => vorlage.saeuleId === saeule.id && vorlage.key !== PAUSE_VORLAGE_KEY,
-						);
-						return waehleCareVorschlaege(saeule, saeulen, aufgaben, vorlagenDerSaeule, ablehnungenDto, jetzt).map(
-							(vorschlag) => ({
-								...vorschlag,
-								saeuleId: defizit.id,
-								saeuleName: defizit.name,
-								anlass: 'defizit' as const,
-							}),
-						);
-					});
+				const defizitVorschlaege: CareVorschlagDto[] = unterMindestmenge
+					? [] // #2527: unter der Mindestmenge keine Defizit-Vorschläge
+					: defizite
+							.filter((defizit) => defizit.defizitaer)
+							.flatMap((defizit) => {
+								const saeule = { id: defizit.id, name: defizit.name, weight: 0 };
+								const vorlagenDerSaeule = vorlagen.filter(
+									(vorlage) => vorlage.saeuleId === saeule.id && vorlage.key !== PAUSE_VORLAGE_KEY,
+								);
+								return waehleCareVorschlaege(saeule, saeulen, aufgaben, vorlagenDerSaeule, ablehnungenDto, jetzt).map(
+									(vorschlag) => ({
+										...vorschlag,
+										saeuleId: defizit.id,
+										saeuleName: pillarTextIn(sprache, defizit.name),
+										anlass: 'defizit' as const,
+									}),
+								);
+							});
 				const ersteDefizitSaeule = saeulen.find((saeule) => defizite.some((d) => d.defizitaer && d.id === saeule.id));
 				// #1873: KI vor den Defizit-Vorschlägen (der Hinweis zeigt nur den ersten); bei Überlast steht
 				// Erholung vorn — dann kein Beraterlauf, damit nur gebucht wird, was angezeigt werden kann.
+				// #2527: auch unter der Mindestmenge zeigt der Hinweis nur den Einstiegs-/Ermutigungs-Satz.
 				const ki =
-					erholung.length > 0
+					erholung.length > 0 || unterMindestmenge
 						? undefined
 						: await ermittleKiVorschlag(userId, ersteDefizitSaeule, saeulen, aufgaben, jetzt, sprache);
-				const vorschlaege = [...erholung, ...(ki ? [ki] : []), ...defizitVorschlaege];
+				const vorschlaege = [...einstieg, ...ermutigung, ...erholung, ...(ki ? [ki] : []), ...defizitVorschlaege];
 
 				// #1798 AK1: angezeigte Vorlagen anonym zählen (je Nutzer, Vorlage und Woche einmal).
 				const angezeigt = vorschlaege.flatMap((v) => (v.typ === 'vorlage' && v.templateKey ? [v.templateKey] : []));
@@ -858,8 +906,20 @@ scoresRouter.get(
 	async (req: Request, res: Response<CareRejectionDto[] | ErrorDto>) => {
 		try {
 			const userId = getUserId(req);
-			const taskId =
-				typeof req.query.taskId === 'string' && req.query.taskId !== '' ? Number(req.query.taskId) : undefined;
+			// #2495: Vorhandener, aber nicht ganzzahliger taskId ist ein Bedienfehler (400), statt den
+			// Filter still entfallen zu lassen; fehlender oder leerer Parameter bleibt Bestandsverhalten.
+			const taskIdErgebnis = validateQueryEinzelwert(req.query.taskId, 'taskId');
+			if (!taskIdErgebnis.ok) {
+				sendError(res, 400, taskIdErgebnis.message);
+				return;
+			}
+			const taskIdRaw =
+				taskIdErgebnis.value !== undefined && taskIdErgebnis.value !== '' ? taskIdErgebnis.value : undefined;
+			const taskId = taskIdRaw !== undefined ? Number(taskIdRaw) : undefined;
+			if (taskId !== undefined && !Number.isInteger(taskId)) {
+				sendError(res, 400, 'taskId muss eine Ganzzahl sein.');
+				return;
+			}
 			const eintraege = await CareSuggestionRejection.findAll({
 				where: { ...ownerScope(userId), ...(Number.isInteger(taskId) ? { taskId } : {}) },
 				order: [

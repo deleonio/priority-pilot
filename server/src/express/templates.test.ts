@@ -17,8 +17,6 @@ let template: Template;
 const SERVER_TEMPLATES = '../logics/templates.js';
 const loadServerTemplates = () => import(SERVER_TEMPLATES) as Promise<{ TEMPLATES: Template[] }>;
 
-const edgeCount = (t: Template) => t.steps.reduce((sum, step) => sum + step.after.length, 0);
-
 describe('Vorlagen-API (#1993)', () => {
 	beforeEach(async () => {
 		await resetDb();
@@ -53,7 +51,7 @@ describe('Vorlagen-API (#1993)', () => {
 			const body = (await res.json()) as { slug: string; taskCount: number; dependencyCount: number; steps: Step[] };
 			assert.equal(body.slug, 'hausbau');
 			assert.equal(body.taskCount, 9);
-			assert.equal(body.dependencyCount, edgeCount(template));
+			assert.equal(body.dependencyCount, 10); // (#2692) feste Sollzahl statt edgeCount(template)
 			assert.deepEqual(body.steps, template.steps);
 			assert.equal(await Task.count(), 0, 'Vorschau schreibt nichts');
 		});
@@ -101,8 +99,8 @@ describe('Vorlagen-API (#1993)', () => {
 			const cookie = await server.login('alice@example.com');
 			assert.equal((await apply('hausbau', cookie)).status < 300, true);
 			assert.equal((await apply('hausbau', cookie)).status < 300, true);
-			assert.equal(await Task.count({ where: { userId: 1 } }), template.steps.length * 2);
-			assert.equal(await Dependency.count(), edgeCount(template) * 2);
+			assert.equal(await Task.count({ where: { userId: 1 } }), 18); // (#2692) 9 × 2, fest
+			assert.equal(await Dependency.count(), 20); // (#2692) 10 × 2, fest
 			assert.equal(await Category.count({ where: { name: 'Hausbau', userId: 1 } }), 1);
 		});
 	});
@@ -145,5 +143,26 @@ describe('Vorlagen-API (#1993)', () => {
 			const websiteSide = (await import(websiteUrl)) as { TEMPLATES: unknown };
 			assert.equal(websiteSide.TEMPLATES, serverSide.TEMPLATES);
 		});
+	});
+
+	// Vertrag: docs/spec/issue-2692.md (AK1, AK4). Sollzahlen fest, nicht aus TEMPLATES abgeleitet —
+	// ein Drift in den Vorlagendaten muss laut rot schlagen (Website nutzt dieselbe Instanz).
+	describe('Sollzahlen je Vorlage (#2692)', () => {
+		const cases = [
+			{ slug: 'hausbau', category: 'Hausbau', tasks: 9, edges: 10 },
+			{ slug: 'umzug', category: 'Umzug', tasks: 8, edges: 8 },
+			{ slug: 'steuererklaerung', category: 'Steuererklärung', tasks: 7, edges: 6 },
+		];
+		for (const c of cases) {
+			it(`Übernahme ${c.slug} legt ${c.tasks} Aufgaben mit ${c.edges} Kanten an`, async () => {
+				const cookie = await server.login('alice@example.com');
+				const res = await apply(c.slug, cookie);
+				assert.ok(res.status >= 200 && res.status < 300, `Status ${res.status}`);
+				assert.equal(await Task.count({ where: { userId: 1 } }), c.tasks);
+				assert.equal(await Dependency.count(), c.edges);
+				const category = await Category.findOne({ where: { name: c.category, userId: 1 } });
+				assert.ok(category, `Kategorie ${c.category} angelegt`);
+			});
+		}
 	});
 });

@@ -53,6 +53,7 @@ import type {
 	FreeSlot,
 	FreeSlotConfig,
 	CareConfig,
+	PushGroups,
 	SplitHintConfig,
 	CareVorschlag,
 	Profile,
@@ -90,6 +91,7 @@ import createClient from 'openapi-fetch';
 import i18next from './i18n/config';
 import { planRequiredDetail } from './lib/apiError';
 import { appTokenHeaders, clearAppToken, getAppToken, NATIVE_LOGGED_OUT_KEY, setAppToken } from './lib/appToken';
+import { createMagicChallenge, takeMagicVerifier } from './lib/magicPkce';
 import { sortCategoriesByName } from './lib/categories';
 import { getChannel, isNativeChannel } from './lib/platform';
 import { getApiBase } from './lib/siteOrigin';
@@ -296,9 +298,13 @@ export const api = {
 		return data;
 	},
 
-	/** Fordert einen Anmeldelink per E-Mail an. Der Server antwortet bewusst immer gleich (202). */
+	/**
+	 * Fordert einen Anmeldelink per E-Mail an. Der Server antwortet bewusst immer gleich (202). Die
+	 * Android-App bindet den Link per PKCE an sich (#2563): Sie schickt nur die Challenge mit.
+	 */
 	async requestMagicLink(email: string): Promise<void> {
-		const { error, response } = await client.POST('/auth/magic-link', { body: { email } });
+		const body = getChannel() === 'play' ? { email, codeChallenge: await createMagicChallenge() } : { email };
+		const { error, response } = await client.POST('/auth/magic-link', { body });
 		if (!response.ok) {
 			throw new ResponseError(response, error);
 		}
@@ -315,9 +321,18 @@ export const api = {
 		}
 	},
 
-	/** Trägt eine Adresse auf die Warteliste ein (#1982, ADR 0019); idempotent, liefert Position und Empfehlungs-Code. */
-	async addToWaitlist(email: string, ref?: string): Promise<components['schemas']['WaitlistJoined']> {
-		const { data, error, response } = await client.POST('/auth/waitlist', { body: { email, ref } });
+	/** Trägt eine Adresse auf die Warteliste ein (#1982, ADR 0019); idempotent. Mit Mailversand folgt die Bestätigung per Mail-Link (`confirmationPending`), `website` ist der Honeypot. */
+	async addToWaitlist(email: string, ref?: string, website?: string): Promise<components['schemas']['WaitlistJoined']> {
+		const { data, error, response } = await client.POST('/auth/waitlist', { body: { email, ref, website } });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	/** Löst den Token aus dem Bestätigungslink der Wartelisten-Mail ein und liefert Position und Empfehlungs-Code. */
+	async confirmWaitlist(token: string): Promise<components['schemas']['WaitlistJoined']> {
+		const { data, error, response } = await client.POST('/auth/waitlist/confirm', { body: { token } });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}
@@ -326,10 +341,13 @@ export const api = {
 
 	/**
 	 * Löst den Token aus dem Anmeldelink ein; `false` bei abgelaufenem oder benutztem Link. In der
-	 * Android-App kommt statt des Cookies ein App-Token zurück (#2379), das gespeichert wird.
+	 * Android-App kommt statt des Cookies ein App-Token zurück (#2379), das gespeichert wird; dort geht
+	 * der PKCE-Verifier aus dem Antrag mit (#2563).
 	 */
 	async verifyMagicLink(token: string): Promise<boolean> {
-		const { data, response } = await client.POST('/auth/magic-link/verify', { body: { token } });
+		const codeVerifier = takeMagicVerifier();
+		const body = codeVerifier === null ? { token } : { token, codeVerifier };
+		const { data, response } = await client.POST('/auth/magic-link/verify', { body });
 		if (response.ok && data?.token) {
 			setAppToken(data.token);
 		}
@@ -354,6 +372,24 @@ export const api = {
 		return response.ok;
 	},
 
+	/** Rechnungsadresse des Kontos (#2661); Felder sind `null`, solange keine erfasst ist. */
+	async getBillingAddress(): Promise<components['schemas']['BillingAddress']> {
+		const { data, error, response } = await client.GET('/billing/address');
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+	/** Speichert die Rechnungsadresse (#2661) — Pflicht vor jedem Abo-Abschluss, Grundlage der Rechnungs-PDFs. */
+	async updateBillingAddress(
+		input: components['schemas']['BillingAddressInput'],
+	): Promise<components['schemas']['BillingAddress']> {
+		const { data, error, response } = await client.PUT('/billing/address', { body: input });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
 	/** Legt ein Abo an (AK1); die Antwort trägt die PayPal-Zustimmungs-URL zum Weiterleiten. */
 	async createBillingSubscription(
 		input: components['schemas']['BillingSubscriptionInput'],
@@ -466,8 +502,8 @@ export const api = {
 		return data;
 	},
 
-	// Suchanfrage in Suchbegriff und Kategorie zerlegen (`POST /tasks/parse-search`), damit eine
-	// gesprochene Anfrage wie „offene Sachen zum Hausbau" direkt den Kategorie-Filter setzt.
+	// Gesprochene Anfrage auf den reinen Suchbegriff kürzen (`POST /tasks/parse-search`) — der
+	// Kategorie-Filter bleibt allein Sache der Suchmaske (#2716).
 	// Retry-Verhalten wie `parseText` — derselbe LLM-Upstream.
 	async parseSearch({ text }: { text: string }): Promise<ParsedSearch> {
 		const { data } = await withRetry(() => client.POST('/tasks/parse-search', { body: { text } }));
@@ -1758,6 +1794,27 @@ export const api = {
 	// Speichert den Schalter; Nicht-Boolean lehnt der Server mit 400 ab.
 	async updateSplitHintConfig(config: SplitHintConfig, init: Init = {}): Promise<SplitHintConfig> {
 		const { data, error, response } = await client.PUT('/split-hint-config', { body: config, signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// --- Push-Gruppen pro User (#2850) ---
+
+	// Die vier Gruppen-Schalter (serverseitig gespeichert, Defaults aus docs/push-konzept.md §5);
+	// „Fürsorge" bleibt der bestehende Schalter an getCareConfig/updateCareConfig.
+	async getPushGroups(init: Init = {}): Promise<PushGroups> {
+		const { data, error, response } = await client.GET('/push-groups', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Speichert die Gruppen; Nicht-Boolean lehnt der Server mit 400 ab.
+	async updatePushGroups(groups: PushGroups, init: Init = {}): Promise<PushGroups> {
+		const { data, error, response } = await client.PUT('/push-groups', { body: groups, signal: init.signal });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}

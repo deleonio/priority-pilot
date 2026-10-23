@@ -133,7 +133,9 @@ Regeln:
 - Konten werden über die E-Mail verknüpft: Wer sich einmal per Google und einmal per Link anmeldet,
   landet im selben Konto. Name und Avatar aus Google bleiben beim Login per Link erhalten.
 - Der Link öffnet nur die App; eingelöst wird er per `POST /auth/magic-link/verify`. Mail-Scanner,
-  die Links vorab aufrufen, verbrauchen ihn deshalb nicht.
+  die Links vorab aufrufen, verbrauchen ihn deshalb nicht. In der Android-App angeforderte Links
+  tragen den Marker `client=app` (#2563): Im Browser eingelöst werden sie nicht, stattdessen bietet
+  die Web-App den Rücksprung in die App an.
 - „Mit E-Mail anmelden“ auf der Website führt auf `/app/?login=email`: kein stiller Google-Versuch,
   das E-Mail-Feld hat sofort den Fokus. Ohne die drei Variablen fehlt das Feld, und der Knopf endet
   auf der reinen Google-Anmeldung.
@@ -196,7 +198,9 @@ Ohne Neuladen bleibt die alte Liste aktiv, weil der Prozess die Umgebung nur bei
 Jedes Konto hat die Rolle `admin` oder `member`. Die Rolle wird beim Login aus `ADMIN_EMAILS`
 abgeleitet, aber nur in eine Richtung: Eine gelistete Adresse wird befördert, eine aus der Liste
 entfernte Adresse bleibt Administrator, bis jemand sie in der Nutzerverwaltung zurückstuft. Der
-letzte Administrator kann nicht zurückgestuft werden. Details für Nutzer im
+letzte Administrator kann nicht zurückgestuft werden. Administratoren erreichen zusätzlich den nur
+lesenden MCP-Endpunkt `/mcp/admin/v1` (#1338) mit ihrem persönlichen API-Token; die Adresse steht
+in der Nutzerverwaltung ([Einrichtung](mcp-admin.md)). Details für Nutzer im
 [Nutzerhandbuch](user-guide.md#nutzerverwaltung-nur-für-administratoren), für die Umsetzung in
 [`project.md`](../.ai-knowledge/project.md#konfiguration-umgebungsvariablen).
 

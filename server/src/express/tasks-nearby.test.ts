@@ -203,4 +203,20 @@ describe('GET /tasks/nearby (#1066)', () => {
 		const items = (await res.json()) as { title: string }[];
 		assert.equal(items.length, 0, 'Tasks anderer Nutzer dürfen nicht durchsickern');
 	});
+
+	// #2553 AK2: dieselben ungültigen Werte wie /geo/position → 400 (parst über parseCoordinate);
+	// die String-Koersion für Query-Parameter bleibt erhalten.
+	it('weist ungültige Query-Koordinaten ab, String-Koersion bleibt gültig (AK2 #2553)', async () => {
+		const cookie = await server.register('nearby-query@example.com', 'password123');
+		const get = (query: string): Promise<Response> =>
+			fetch(`${server.baseUrl}/tasks/nearby?${query}`, { headers: { Cookie: cookie } });
+
+		assert.equal((await get(`lat=abc&lon=${LON}`)).status, 400, 'lat=abc → 400');
+		assert.equal((await get(`lat=999&lon=${LON}`)).status, 400, 'lat=999 → 400');
+		assert.equal((await get(`lat=&lon=${LON}`)).status, 400, 'leeres lat → 400 (Number("") === 0-Falle)');
+		assert.equal((await get('lat=52.5&lat=52.5&lon=13.4')).status, 400, 'lat als Array → 400');
+
+		const ok = await get(`lat=${LAT}&lon=${LON}`);
+		assert.equal(ok.status, 200, 'numerische Query-Strings bleiben gültig');
+	});
 });

@@ -73,3 +73,30 @@ describe('common:actions.saveAsTemplate (#2361)', () => {
 		expect(typeof value === 'string' && value.trim().length > 0).toBe(true);
 	});
 });
+
+// #2635: Frage-Antwort-Einheit im MissedCompleteDialog — die Frage nennt die Entscheidung
+// (Wann?), beide Knöpfe sind vollständige Antworten ohne Ja/Nein-Partikel, und der neue
+// Folge-Halbsatz nennt die Punkte-/Streak-Folge (pünktlich = volle Punkte, jetzt = halbe,
+// der Fälligkeitstag zählt trotzdem für den Streak). Vertrag: docs/spec/issue-2635.md.
+describe('tasks:missedComplete (#2635)', () => {
+	it.each([REFERENCE_LANGUAGE, ...otherLanguages])(
+		'%s bildet eine Frage-Antwort-Einheit mit Folge-Halbsatz',
+		(language) => {
+			const tasks = modules[`./locales/${language}/tasks.json`].default as {
+				missedComplete?: { question?: string; onTime?: string; now?: string; consequence?: string };
+			};
+			const block = tasks.missedComplete;
+			const question = (block?.question ?? '').replace(/<[^>]+>/g, '');
+			expect(question).toMatch(language === 'de' ? /^Wann\b/ : /^When\b/);
+			expect(question.trimEnd()).toMatch(/\?$/);
+			expect(block?.onTime ?? '').not.toMatch(/^(ja|nein|yes|no)\b/i);
+			expect(block?.now ?? '').not.toMatch(/^(ja|nein|yes|no)\b/i);
+			expect(block?.onTime ?? '').toMatch(language === 'de' ? /^pünktlich/i : /^on time/i);
+			expect(block?.now ?? '').toMatch(language === 'de' ? /^erst jetzt/i : /^just now/i);
+			const consequence = block?.consequence ?? '';
+			expect(consequence).toMatch(language === 'de' ? /punkt/i : /point/i);
+			expect(consequence).toMatch(language === 'de' ? /halb/i : /half/i);
+			expect(consequence).toMatch(/streak/i);
+		},
+	);
+});

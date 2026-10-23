@@ -1,6 +1,13 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
+import {
+	resetDb,
+	closeDb,
+	startTestServer,
+	type TestServer,
+	applyTestAuthEnv,
+	seedBillingAddress,
+} from '../test/helpers.js';
 import { Subscription, User } from '../models/index.js';
 import Invoice from '../models/invoice.js';
 import type { AppDeps } from './index.js';
@@ -78,6 +85,7 @@ describe('Rechnung und Verlängerung nur bei SALE.COMPLETED (#2230)', () => {
 		const id = 'I-2230-FLOW';
 		server = await startTestServer(deps(id));
 		const cookie = await server.login('flow-2230@example.com');
+		await seedBillingAddress('flow-2230@example.com');
 		assert.equal(
 			(await post('/billing/subscriptions', cookie, { plan: 'plus', period: 'monthly', withdrawalConsent: true }))
 				.status,
@@ -122,6 +130,7 @@ describe('Rechnung und Verlängerung nur bei SALE.COMPLETED (#2230)', () => {
 		const id = 'I-2230-LATE';
 		server = await startTestServer(deps(id));
 		const cookie = await server.login('late-2230@example.com');
+		await seedBillingAddress('late-2230@example.com');
 		assert.equal(
 			(await post('/billing/subscriptions', cookie, { plan: 'plus', period: 'monthly', withdrawalConsent: true }))
 				.status,
@@ -141,10 +150,15 @@ describe('Rechnung und Verlängerung nur bei SALE.COMPLETED (#2230)', () => {
 		const id = 'I-2230-DEFER';
 		server = await startTestServer(deps(id));
 		const cookie = await server.login('defer-2230@example.com');
+		await seedBillingAddress('defer-2230@example.com');
 		const me = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
 			id: number;
 		};
-		const start = new Date(Date.now() + 15 * DAY_MS);
+		// Anker am Monatsmitte-Fünfzehnten (Fixup #2644): setUTCMonth clampt am Monatsende
+		// (31. Okt. + 1 Monat = 30. Nov., zurück nur 30. Okt.) — der reale now+15d-Anker
+		// liess die Suite in Monatsenden-Fenstern deterministisch rot laufen.
+		const now = new Date();
+		const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 15));
 		await Subscription.create({
 			userId: me.id,
 			provider: 'paypal',
@@ -174,6 +188,7 @@ describe('Rechnung und Verlängerung nur bei SALE.COMPLETED (#2230)', () => {
 		const id = 'I-2230-UP';
 		server = await startTestServer(deps(id));
 		const cookie = await server.login('up-2230@example.com');
+		await seedBillingAddress('up-2230@example.com');
 		const me = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
 			id: number;
 		};
@@ -202,6 +217,7 @@ describe('Rechnung und Verlängerung nur bei SALE.COMPLETED (#2230)', () => {
 		const id = 'I-2230-CREDIT';
 		server = await startTestServer(deps(id));
 		const cookie = await server.login('credit-2230@example.com');
+		await seedBillingAddress('credit-2230@example.com');
 		const me = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
 			id: number;
 		};
@@ -243,6 +259,7 @@ describe('Paketübernahme bei Startaufschub erst mit der ersten Abbuchung (#2239
 		const id = 'I-2239-NEW';
 		server = await startTestServer(deps(id));
 		const cookie = await server.login('defer-2239@example.com');
+		await seedBillingAddress('defer-2239@example.com');
 		const me = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
 			id: number;
 		};

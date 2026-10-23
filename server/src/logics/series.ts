@@ -199,9 +199,14 @@ const createInstanceFromSeries = async (
 		isException: fields.isException ?? false,
 		// #553: `seriesId` ist der Live-Link (fällt beim Abkoppeln auf null), `originSeriesId` bleibt Herkunftsnachweis.
 		originSeriesId: series.id,
+		// #2757: Instanz erbt den Serien-Ersteller (null bleibt null — kein Eigentümer-Fallback).
+		createdById: series.createdById ?? null,
 		userId: fields.userId,
 		autoDeleteAfterDeadline: series.autoDeleteAfterDeadline,
 		categoryId: series.categoryId ?? null,
+		// #2501: Checkpunkte der Vorlage als Snapshot übernehmen — dieselben UUIDs, alle offen; das
+		// Abhaken bleibt allein an der Instanz (spätere Template-Änderungen kaskadieren nicht).
+		checklist: (series.checklist ?? []).map((item) => ({ ...item, completed: false })),
 	});
 	if (pillarRows.length > 0) {
 		await TaskPillar.bulkCreate(

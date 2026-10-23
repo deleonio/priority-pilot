@@ -1,6 +1,7 @@
 import express from 'express';
 import type { components } from '../../api.js';
-import { NOMINATIM_USER_AGENT } from '../../logics/nominatim.js';
+import { parseCoordinate } from '../../logics/geo.js';
+import { acquireNominatimSlot, NOMINATIM_USER_AGENT } from '../../logics/nominatim.js';
 import { requirePlanFeature } from '../planGuard.js';
 
 type ReverseGeocodeDto = components['schemas']['ReverseGeocodeResponse'];
@@ -72,10 +73,17 @@ reverseGeocodeRouter.get(
 			return;
 		}
 
-		const latNum = parseFloat(lat);
-		const lonNum = parseFloat(lon);
-		if (isNaN(latNum) || isNaN(lonNum)) {
+		// Zentraler Helfer (#2608, Muster #2553) — deckt NaN UND Bereichsgrenzen (90/180) ab,
+		// bevor Nominatim gefragt wird (kein Kontingent-Verbrauch für Müll-Anfragen).
+		const latNum = parseCoordinate(lat, 90);
+		const lonNum = parseCoordinate(lon, 180);
+		if (latNum === null || lonNum === null) {
 			res.status(400).json({ message: 'lat und lon müssen gültige Zahlen sein.' });
+			return;
+		}
+
+		if (!acquireNominatimSlot()) {
+			res.json({ address: '' });
 			return;
 		}
 

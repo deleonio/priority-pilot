@@ -86,7 +86,28 @@
 		"book": "Buchen",
 		"change": "Wechseln",
 		"bookLabel": "{{plan}} buchen ({{period}})",
-		"changeLabel": "{{plan}} wechseln ({{period}})"
+		"changeLabel": "{{plan}} wechseln ({{period}})",
+		"order": "Bestellen"
+	},
+	"address": {
+		"required": "Rechnungsadresse",
+		"requiredHint": "Vor dem Abschluss eines Abos brauchen wir deine Rechnungsadresse — sie steht auf jeder Rechnung und den Rechnungs-PDFs.",
+		"name": "Name oder Firma",
+		"street": "Straße und Hausnummer",
+		"zip": "PLZ",
+		"city": "Ort",
+		"country": "Land",
+		"save": "Rechnungsadresse speichern",
+		"saving": "Wird gespeichert …",
+		"saved": "Rechnungsadresse gespeichert.",
+		"invalid": "Bitte alle Felder der Rechnungsadresse ausfüllen.",
+		"loadFailed": "Rechnungsadresse konnte nicht geladen werden.",
+		"saveFailed": "Rechnungsadresse konnte nicht gespeichert werden.",
+		"edit": "Rechnungsadresse ändern"
+	},
+	"addressDialog": {
+		"title": "Rechnungsadresse",
+		"text": "Diese Anschrift erscheint auf künftigen Rechnungen."
 	},
 	"play": {
 		"unlockFailed": "Der Kauf ist bei Google eingegangen, konnte aber noch nicht freigeschaltet werden.",
@@ -178,10 +199,21 @@
 		"reason": "Grund",
 		"reasonMissing": "Bitte einen Grund angeben.",
 		"effective": "Zeitpunkt: zum Ende der Laufzeit am {{date}}",
+		"refundHint": "Bezahlte Zeit nach diesem Datum erstatten wir anteilig; die Rechnungskorrektur kommt per Mail.",
 		"emailLabel": "E-Mail für die Bestätigung",
 		"emailHint": "Hierhin schicken wir die Bestätigung.",
 		"emailInvalid": "Bitte eine gültige E-Mail-Adresse angeben.",
 		"busy": "Wird gekündigt…",
 		"confirm": "Jetzt kündigen"
+	},
+	"checkoutDialog": {
+		"title": "{{plan}} ({{period}}) bestellen",
+		"intro": "Du bist dabei, das Paket {{plan}} ({{period}}) zu bestellen. Rechnungsadresse und Widerrufs-Zustimmung werden vor dem Weiterleiten zum Zahlungsanbieter geprüft.",
+		"addressCreate": "Rechnungsadresse anlegen",
+		"addressEdit": "Rechnungsadresse bearbeiten",
+		"price": "{{price}} je {{period}}",
+		"finalPrice": "Endpreis gemäß § 19 UStG.",
+		"renewal": "Das Abo verlängert sich automatisch um den jeweiligen Zeitraum und kann jederzeit zum Ende der Laufzeit gekündigt werden.",
+		"sandboxHint": "PayPal-Sandbox-Testumgebung: Anmeldung mit dem Testkonto {{email}}, Passwort {{password}}."
 	}
 }

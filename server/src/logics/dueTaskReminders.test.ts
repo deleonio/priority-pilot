@@ -1,27 +1,15 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import type { SendResult } from 'web-push';
-import { Task, PushSubscription, NotificationLog, User, Series } from '../models/index.js';
+import { Task, Series } from '../models/index.js';
 import { resetDb, closeDb } from '../test/helpers.js';
-import { collectDueTaskReminders, runDueTaskReminders } from './dueTaskReminders.js';
-import type { PushSender } from './push.js';
+import { collectDueTaskReminders } from './dueTaskReminders.js';
 
 /**
- * TF5/TF7 (AK5/AK7, #1426, Vertrag: docs/spec/issue-1426.md): der Trigger soll bei konfiguriertem
- * SMTP zusätzlich zur Push-Nachricht genau eine Mail verschicken; ein Mail-Fehler darf den Lauf
- * nicht abbrechen. `logics/mail.ts` existiert noch nicht — daher hier bewusst KEIN Import von dort
- * (würde die ganze Datei per Modul-Fehler rot machen und alle bestehenden Push-only-Tests oben mit
- * reißen). Stattdessen ein lokal typisierter Mail-Stub plus Cast auf die künftige, um einen
- * dritten Parameter erweiterte Signatur von `runDueTaskReminders` (Muster: MEMORY.md
- * 2026-08-23, Intersection-Typ für eine in der Impl-Phase erst entstehende API).
+ * Tests für den Sammler „fällige Aufgaben" (Issue #355) — die Auswahl- und Gruppierungslogik des
+ * Morgen-Digests „Dein Tag" (#2853). Der frühere Eigentrigger `runDueTaskReminders` (Push +
+ * Morgen-Mail #1426, Fenster, Tag-Deckel) ist mit der Bündelung entfallen; sein Verhalten lebt im
+ * Digest und wird in `dailyDigest.test.ts` geprüft.
  */
-type MailSenderStub = (payload: { to: string; subject: string; text: string }) => Promise<void>;
-type RunDueTaskRemindersWithMail = (
-	now: Date,
-	send?: PushSender,
-	mailSend?: MailSenderStub,
-) => Promise<{ usersNotified: number }>;
-const runDueTaskRemindersWithMail = runDueTaskReminders as unknown as RunDueTaskRemindersWithMail;
 
 const NOW = new Date('2026-07-07T08:00:00Z');
 
@@ -42,22 +30,7 @@ const createTask = (overrides: TaskOverrides = {}) =>
 		userId: overrides.userId ?? null,
 	});
 
-const seedSubscription = (userId: number | null, endpoint: string) =>
-	PushSubscription.create({ endpoint, p256dh: 'p256dh', auth: 'auth', expirationTime: null, userId });
-
-/** Legt den `User`-Datensatz für `userId: 1` an — Voraussetzung für `User.findByPk` im Mail-Pfad (AK5/AK7). */
-const seedUser = () =>
-	User.create({ email: 'reminder@example.com', displayName: 'Reminder Empfänger', passwordHash: '__test__' });
-
-/** Erfolgs-Sender: zählt die Aufrufe und liefert die versendete Payload (Vorbild: push.test.ts). */
-const okSender =
-	(calls: { endpoint: string; body: string }[]): PushSender =>
-	(subscription, payload) => {
-		calls.push({ endpoint: subscription.endpoint, body: payload });
-		return Promise.resolve({ statusCode: 201, body: '', headers: {} } as SendResult);
-	};
-
-describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgaben" (Issue #355)', () => {
+describe('logics/dueTaskReminders — Sammler „fällige Aufgaben" (Issue #355)', () => {
 	beforeEach(async () => {
 		await resetDb();
 	});
@@ -111,141 +84,7 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 		assert.equal(groups[0].tasks.length, 3);
 	});
 
-	it('versendet eine gebündelte Payload je Nutzer über sendPushToUser', async () => {
-		await seedSubscription(1, 'https://push.example.com/a');
-		await createTask({ title: 'Rechnung zahlen', deadline: new Date(NOW.getTime() - 1000), userId: 1 });
-		const calls: { endpoint: string; body: string }[] = [];
-
-		const result = await runDueTaskReminders(NOW, okSender(calls));
-
-		assert.equal(result.usersNotified, 1);
-		assert.equal(calls.length, 1);
-		const payload = JSON.parse(calls[0].body);
-		assert.equal(payload.title, 'Fällige Aufgabe');
-		assert.equal(payload.body, 'Rechnung zahlen');
-		assert.equal(payload.url, '/');
-	});
-
-	it('bündelt bei mehreren fälligen Tasks eine zusammenfassende Payload mit Anzahl', async () => {
-		await seedSubscription(1, 'https://push.example.com/a');
-		await createTask({ title: 'Task 1', deadline: new Date(NOW.getTime() - 1000), userId: 1 });
-		await createTask({ title: 'Task 2', deadline: new Date(NOW.getTime() - 1000), userId: 1 });
-		const calls: { endpoint: string; body: string }[] = [];
-
-		await runDueTaskReminders(NOW, okSender(calls));
-
-		assert.equal(calls.length, 1, 'genau eine Notification statt einer je Task');
-		const payload = JSON.parse(calls[0].body);
-		assert.equal(payload.title, 'Fällige Aufgaben');
-		assert.match(payload.body, /2/);
-	});
-
-	it('ist idempotent — ein zweiter Lauf ohne neue fällige Termine sendet nichts erneut', async () => {
-		await seedSubscription(1, 'https://push.example.com/a');
-		await createTask({ title: 'Rechnung zahlen', deadline: new Date(NOW.getTime() - 1000), userId: 1 });
-		const calls: { endpoint: string; body: string }[] = [];
-
-		const first = await runDueTaskReminders(NOW, okSender(calls));
-		const second = await runDueTaskReminders(NOW, okSender(calls));
-
-		assert.equal(first.usersNotified, 1);
-		assert.equal(second.usersNotified, 0, 'zweiter Lauf ohne neue fällige Termine meldet niemanden erneut');
-		assert.equal(calls.length, 1, 'der Versand wurde nicht wiederholt');
-		assert.equal(await NotificationLog.count(), 1);
-	});
-
-	it('erinnert erneut, wenn sich die Deadline eines bereits gemeldeten Tasks verschiebt', async () => {
-		await seedSubscription(1, 'https://push.example.com/a');
-		const task = await createTask({ title: 'verschoben', deadline: new Date(NOW.getTime() - 1000), userId: 1 });
-		const calls: { endpoint: string; body: string }[] = [];
-
-		await runDueTaskReminders(NOW, okSender(calls));
-		await task.update({ deadline: new Date(NOW.getTime() + 1000) });
-		const second = await runDueTaskReminders(NOW, okSender(calls));
-
-		assert.equal(second.usersNotified, 1, 'eine geänderte Deadline löst die Erinnerung erneut aus');
-		assert.equal(calls.length, 2);
-	});
-
-	it('ohne fällige Tasks bleibt der Lauf ein No-op (kein Versand, kein Log-Eintrag)', async () => {
-		await createTask({ title: 'weit weg', deadline: new Date(NOW.getTime() + 10 * 24 * 60 * 60 * 1000), userId: 1 });
-		const calls: { endpoint: string; body: string }[] = [];
-
-		const result = await runDueTaskReminders(NOW, okSender(calls));
-
-		assert.equal(result.usersNotified, 0);
-		assert.equal(calls.length, 0);
-		assert.equal(await NotificationLog.count(), 0);
-	});
-
-	it('ignoriert Tasks mit userId = null — kein Broadcast an alle Subscriptions', async () => {
-		await seedSubscription(1, 'https://push.example.com/a');
-		await createTask({ title: 'Aufgabe ohne Nutzer', deadline: new Date(NOW.getTime() - 1000), userId: null });
-		const calls: { endpoint: string; body: string }[] = [];
-
-		const result = await runDueTaskReminders(NOW, okSender(calls));
-
-		assert.equal(result.usersNotified, 0, 'Tasks ohne userId dürfen keine Push-Nachricht auslösen');
-		assert.equal(calls.length, 0);
-	});
-
-	it('legt keinen NotificationLog-Eintrag an, wenn der Nutzer keine Subscription hat', async () => {
-		// keine seedSubscription für userId 1
-		await createTask({ title: 'fällig', deadline: new Date(NOW.getTime() - 1000), userId: 1 });
-		const calls: { endpoint: string; body: string }[] = [];
-
-		const result = await runDueTaskReminders(NOW, okSender(calls));
-
-		assert.equal(result.usersNotified, 0, 'kein Push → nicht als "notified" zählen');
-		assert.equal(calls.length, 0);
-		assert.equal(await NotificationLog.count(), 0, 'ohne gesendeten Push kein Log-Eintrag');
-	});
-
-	it('AK5: verschickt zusätzlich zur Push-Nachricht genau eine Mail; zweiter Lauf sendet auf keinem Kanal erneut', async () => {
-		await seedUser();
-		await seedSubscription(1, 'https://push.example.com/a');
-		await createTask({ title: 'Rechnung zahlen', deadline: new Date(NOW.getTime() - 1000), userId: 1 });
-		const pushCalls: { endpoint: string; body: string }[] = [];
-		const mailCalls: { to: string; subject: string; text: string }[] = [];
-		const mailSend: MailSenderStub = (payload) => {
-			mailCalls.push(payload);
-			return Promise.resolve();
-		};
-
-		const first = await runDueTaskRemindersWithMail(NOW, okSender(pushCalls), mailSend);
-		const second = await runDueTaskRemindersWithMail(NOW, okSender(pushCalls), mailSend);
-
-		assert.equal(first.usersNotified, 1);
-		assert.equal(pushCalls.length, 1, 'genau eine Push-Nachricht');
-		assert.equal(mailCalls.length, 1, 'genau eine Mail zusätzlich zur Push-Nachricht');
-		assert.equal(second.usersNotified, 0, 'zweiter Lauf ohne neue fällige Termine sendet auf keinem Kanal erneut');
-		assert.equal(await NotificationLog.count(), 1, 'ein NotificationLog-Eintrag pro Auslöser, nicht pro Kanal');
-	});
-
-	it('AK7: schlägt der Mail-Versand fehl, wird die Push-Nachricht dennoch zugestellt und der Log-Eintrag geschrieben', async () => {
-		await seedUser();
-		await seedSubscription(1, 'https://push.example.com/a');
-		await createTask({ title: 'Rechnung zahlen', deadline: new Date(NOW.getTime() - 1000), userId: 1 });
-		const pushCalls: { endpoint: string; body: string }[] = [];
-		let failingMailSendCalls = 0;
-		const failingMailSend: MailSenderStub = () => {
-			failingMailSendCalls++;
-			return Promise.reject(new Error('SMTP-Transport fehlgeschlagen'));
-		};
-
-		const result = await runDueTaskRemindersWithMail(NOW, okSender(pushCalls), failingMailSend);
-
-		assert.equal(
-			failingMailSendCalls,
-			1,
-			'der Mail-Versand wird tatsächlich versucht (sonst prüft der Test AK7 nicht)',
-		);
-
-		assert.equal(result.usersNotified, 1, 'ein fehlgeschlagener Mail-Versand bricht den Lauf nicht ab');
-		assert.equal(pushCalls.length, 1, 'die Push-Nachricht wird trotz Mail-Fehler zugestellt');
-		assert.equal(await NotificationLog.count(), 1, 'Log-Eintrag entsteht, weil mindestens ein Kanal erfolgreich war');
-	});
-	// #1518 AK7 (Spec docs/spec/issue-1518.md, Journey 2): je Serie höchstens eine Instanz im Fälligkeits-Push.
+	// #1518 AK7 (Spec docs/spec/issue-1518.md, Journey 2): je Serie höchstens eine Instanz in den fälligen Aufgaben.
 	it('#1518 AK7: fünf fällige Instanzen derselben Serie ergeben genau einen Eintrag', async () => {
 		const series = await Series.create({
 			title: 'Täglich',

@@ -19,7 +19,7 @@ const USER = {
 		plan: 'pro',
 		period: 'monthly',
 		status: 'active',
-		currentPeriodEnd: '2027-01-15T00:00:00.000Z',
+		currentPeriodEnd: '2099-01-15T00:00:00.000Z',
 		pendingPlan: null,
 		pendingPlanEffectiveAt: null,
 		graceUntil: null,
@@ -62,7 +62,7 @@ test.describe('Balamentum — #2308: Verträge hier kündigen', () => {
 
 		const dialog = page.locator('kol-dialog');
 		await expect(dialog).toContainText('zum Ende der Laufzeit');
-		await expect(dialog).toContainText(/15\.1?\.2027/);
+		await expect(dialog).toContainText(/15\.1?\.2099/);
 		await expect(dialog.locator('kol-input-email input')).toHaveValue('user-2308@example.com');
 
 		// AK8: Dialog-Buttons und Felder liegen im Viewport (Bounding-Box; scrollWidth ist wegen overflow-x: hidden ungeeignet).

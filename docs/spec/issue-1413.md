@@ -1,8 +1,5 @@
 # Spec: MCP-Server — Säulen anlegen, ändern, löschen und gewichten (#1413)
 
-Status: rot (Spec-Phase) — Tests in `server/src/mcp/tools.test.ts` und
-`server/src/express/mcp-handshake.test.ts`.
-
 ## Ziel
 
 Der eingefrorene v1-Werkzeugkatalog (#1353, zuletzt erweitert in #1423 auf vierzehn Namen) bekommt

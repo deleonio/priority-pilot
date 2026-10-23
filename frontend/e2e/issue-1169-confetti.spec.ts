@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * E2E-Vertrag für #1169 — Konfetti beim Erledigt-Switch („…"-Popover, beide TaskTree-Stellen).
@@ -174,8 +174,8 @@ test.describe('Balamentum — Konfetti beim Erledigt-Toggle (#1169)', () => {
 		await expect.poll(async () => fetchStatus(page, idB)).toBe('Done');
 	});
 
-	test('AK4: auf 375×667 läuft der Effekt durch und die UI bleibt bedienbar', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+	test('AK4: auf 375×812 läuft der Effekt durch und die UI bleibt bedienbar', async ({ page }) => {
+		await page.setViewportSize(MOBILE);
 		const id = await seedOpenTask(page, 'Mobil');
 
 		await openActionsPopover(page, id);

@@ -777,6 +777,72 @@ kol-toolbar {
 }
 
 /*
+ * #2723: Der Avatar-Trigger („Benutzermenü") ersetzt den rein darstellenden Avatar in der Leiste
+ * und ist ein Touch-Target — deshalb dieselbe `--a11y-min-size`-Kaskade wie bei den
+ * Toolbar-Buttons direkt darüber (mindestens --pp-toolbar-height = 44px, AK6).
+ */
+.app-header__user kol-popover-button {
+	--a11y-min-size: var(--pp-toolbar-height);
+}
+
+/*
+ * #2723-Fixup: Der Avatar im Expert-Slot des Triggers bleibt kompakt — 26px plus Button-Padding
+ * (16px) und Rahmen (2px) ergeben exakt die 44px-Touch-Höhe des Buttons, die Leistenhöhe wächst
+ * dadurch nicht (mobile-shell-Einzeilen-Vertrag ≤ 64px, #865-Geometrie: Header < Logo + Toolbar).
+ * Das große Profilbild (32/55px über `--pp-avatar-size`, `.app-header kol-avatar`) steht im Panel.
+ * Spezifität (0,2,2) schlägt die ungeschichtete `.app-header kol-avatar`-Regel (0,1,1).
+ */
+.app-header__user-menu span[slot='expert'] kol-avatar {
+	width: calc(var(--pp-toolbar-height) - 18px);
+	height: calc(var(--pp-toolbar-height) - 18px);
+	aspect-ratio: 1;
+}
+
+/*
+ * #2723: Menü-Panel des Benutzermenüs — Dropdown-Karte unter dem Trigger (rechtsbündig, siehe
+ * `setupPopoverAlignment(…, true)`, das den eckigen Panel-Grund transparent stellt). Oben die
+ * Identität (Avatar, Name; die E-Mail bleibt bewusst draußen, #222), darunter die Aktionen als zusammenhängende vertikale Toolbar
+ * wie die Kopf-Aktionen. Die Breite bemisst `setupPopoverAlignment` am Inhalt (max-content).
+ */
+.app-header__user-menu-panel {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-space-3);
+	min-width: 14rem;
+	max-width: min(20rem, calc(100vw - 2 * var(--pp-space-2)));
+	padding: var(--pp-space-3);
+	background: var(--pp-surface-1);
+	border: 1px solid var(--pp-border);
+	border-radius: var(--pp-radius-md);
+	box-shadow: var(--pp-shadow-overlay);
+}
+
+.app-header__user-menu-identity {
+	display: flex;
+	align-items: center;
+	gap: var(--pp-space-3);
+	padding-bottom: var(--pp-space-3);
+	border-bottom: 1px solid var(--pp-border);
+}
+
+.app-header__user-menu-identity kol-avatar {
+	flex-shrink: 0;
+}
+
+.app-header__user-menu-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Einträge über die volle Kartenbreite, Touch-Höhe wie die Kopf-Aktionen. */
+.app-header__user-menu-panel kol-toolbar {
+	--a11y-min-size: var(--pp-toolbar-height);
+	display: block;
+}
+
+/*
  * #485 AK3/AK4: Die Toolbar-Buttons werden auf die gemeinsame Bezugshöhe festgenagelt.
  * `--a11y-min-size` ist die von KoliBri im Shadow-DOM genutzte Variable für `min-height`/`min-width`
  * der Buttons; Custom Properties vererben durch die Shadow-Grenze, deshalb greift die Vorgabe hier.
@@ -854,6 +920,35 @@ kol-toolbar {
 
 /* --- Dashboard --- */
 
+/*
+ * Karten-Rhythmus: Der Stapel läuft über Flex mit Gap — mobil EINE Spalte, ab 48 rem
+ * umbrechende Zeilen (1–3 Karten nebeneinander, je nach Breite) — statt über Eigenmargins
+ * je Karte. Die Eigenmargins brachen still, sobald Karten bedingt nicht gerendert wurden
+ * oder ein Wrapper dazukam (`.dashboard-last-row` hatte mobil 0 px zwischen Deadlines und
+ * Verpasst, gemessen bei 375 px). Hero-Spalte und letzte Reihe folgen demselben Muster; der
+ * 48-rem-Block überschreibt dort Richtung/Gap (kompakte Hero-Spalte). Einzige bewusste
+ * Ausnahme: die kompakte Zone zwischen Titelzeile und Ziffernblatt — früher margin-top des
+ * Herzens, jetzt ein negativer Ausgleich an der Titelzeile, damit die Balance-Karte samt
+ * Ablesewert im ersten Mobile-Viewport bleibt (Begründung beim `.app-tabs`-Kommentar).
+ */
+.dashboard {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-generous);
+}
+
+.dashboard-heading {
+	margin-bottom: calc(var(--pp-gap-base) - var(--pp-gap-generous));
+}
+
+.dashboard-hero,
+.dashboard-hero-side,
+.dashboard-last-row {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-generous);
+}
+
 /* #1617: Tag/Woche-Umschalter über dem Dashboard-Inhalt. */
 .dashboard-view-switch {
 	display: flex;
@@ -910,13 +1005,13 @@ kol-toolbar {
 /*
  * Kennzahlen-Kacheln: auf Handy-Breite kompaktes 3er-Raster (Gesamt/Offen/Erledigt) statt
  * 2+1-Versatz (auto-fit mit 10rem-Mindestbreite passt erst ab Tablet). Ab 48rem übernimmt dort
- * wieder das auto-fit-Raster mit größeren Zahlen. Der Widget-Abstand nach oben ist wie bei allen
- * Cards generous — die alte 0.5rem-Kopplung stammt aus der Zeit, als die Begrüßung noch direkt
- * über den Kacheln saß (das Herz steht inzwischen dazwischen).
+ * wieder das auto-fit-Raster mit größeren Zahlen. Der Abstand nach oben steuert der Gap der
+ * `dashboard-hero-side` (kein Eigenmargin mehr); die alte 0.5rem-Kopplung stammte aus der
+ * Zeit, als die Begrüßung noch direkt über den Kacheln saß (das Herz steht inzwischen dazwischen).
  */
 .dashboard-cards {
 	list-style: none;
-	margin: var(--pp-gap-generous) 0 0;
+	margin: 0;
 	padding: 0;
 	display: grid;
 	gap: var(--pp-gap-tight);
@@ -965,10 +1060,6 @@ kol-toolbar {
  * trotzdem: die beiden Farben kommen aus verschiedenen Systemen und dürfen nie getrennt gesetzt
  * werden.
  */
-.dashboard-next-task {
-	margin-top: var(--pp-gap-generous);
-}
-
 /*
  * #1118: Die sieben Dashboard-Widgets sind Kolibri-Cards — die Widget-Klasse sitzt direkt am
  * Card-Host (die alte Außen-<section> ist entfernt). Breite, Höhe, Rahmen und Schatten liefert
@@ -1058,6 +1149,34 @@ kol-toolbar {
 	flex: 0 0 auto;
 }
 
+/* #2526: Inline-Rückmeldung des Direkt-Erledigens („+X Punkte · Streak Y Tage“ + „Rückgängig“) an
+   der Tipp-Stelle — Erfolgs-Rolle `--pp-success` mit Icon UND Text (nie Farbe allein, KI-UX/A11y),
+   Zahlen mit `tabular-nums`. Der Knopf behält seinen Shadow-DOM-Touch-Target (≥44px), die Zeile
+   bricht bei 200 % Text um, statt zu clippen — das 7-s-Fenster bleibt dadurch wirksam. */
+.dashboard-next-task-feedback {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: var(--pp-gap-tight);
+	align-self: stretch;
+}
+
+.dashboard-next-task-feedback:empty {
+	/* Fixup #2572: leere, dauerhaft gerenderte Live-Region — gleicht den Flex-Gap aus, damit der
+	   Leerzustand im Panel keinen Extra-Abstand erzeugt (die Region bleibt bewusst sichtbar). */
+	margin-top: calc(-1 * var(--pp-gap-tight));
+}
+
+.dashboard-next-task-feedback-points {
+	display: flex;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+	min-width: 0;
+	color: var(--pp-success);
+	font-variant-numeric: tabular-nums;
+	overflow-wrap: anywhere;
+}
+
 .dashboard-next-task-priority {
 	font-size: var(--pp-font-size-sm);
 	color: var(--pp-signal-ink);
@@ -1093,7 +1212,6 @@ kol-toolbar {
  * Dashboard.tsx über `suggestionsFiltered`).
  */
 .dashboard-suggestions {
-	margin-top: var(--pp-gap-generous);
 	/* Bewusst KEIN `color` mehr: die Klasse sitzt am Card-Host, eine direkte Farbe würde die
 	   Card-Textfarbe des Themes (schwarz auf weißer Fläche) übersteuern und im erzwungenen
 	   Dunkelmodus hell-auf-weiß malen (dark-mode-contrast.spec.ts, #1118-Folge). */
@@ -1143,10 +1261,6 @@ kol-toolbar {
  * (mobile-ui-rules.md Touch-Ziel), Titel einzeilig kappbar, Distanz rechtsbündig. Wie die
  * Vorschlagsliste bewusst ohne Signal-Färbung.
  */
-.dashboard-nearby {
-	margin-top: var(--pp-gap-generous);
-}
-
 .dashboard-nearby-hint {
 	font-size: var(--pp-font-size-sm);
 	margin: 0;
@@ -1185,10 +1299,6 @@ kol-toolbar {
 }
 
 /* #1990: „Freie Zeit" — Zeitraum fett, darunter die passenden Aufgaben; reine Information. */
-.dashboard-free-time {
-	margin-top: var(--pp-gap-generous);
-}
-
 .dashboard-free-time-list,
 .dashboard-free-time-tasks {
 	margin: 0;
@@ -1217,14 +1327,6 @@ kol-toolbar {
 .dashboard-suggestion-meta {
 	color: var(--pp-text-muted);
 	font-size: var(--pp-font-size-sm);
-}
-
-.dashboard-top-tasks {
-	margin-top: var(--pp-gap-generous);
-}
-
-.dashboard-deadlines {
-	margin-top: var(--pp-gap-generous);
 }
 
 .dashboard-deadlines-list {
@@ -1262,42 +1364,75 @@ kol-toolbar {
 	white-space: nowrap;
 }
 
-/* Rechte Seite eines Deadline-Eintrags: optionales Dringlichkeits-Badge plus Datum. */
+/* Rechte Seite eines Deadline-Eintrags: optionales Dringlichkeits-Badge plus Datum. Bei
+   200 % Text passt die Gruppe nicht mehr nebeneinander in die Card — flex-wrap: wrap
+   stapelt Badge und Datum dann (WCAG 1.4.10 Reflow, beim Rhythmus-Umbau gefunden). */
 .dashboard-deadline-aside {
 	display: inline-flex;
 	align-items: center;
+	flex-wrap: wrap;
 	gap: var(--pp-gap-tight);
 	margin-left: auto;
 	flex-shrink: 0;
+	max-width: 100%;
 }
 
-/* Ab mittlerer Breite zweispaltig: Begrüßung und „Was ist jetzt dran?" bleiben über die volle
-   Breite; der Hero („Meine Lebensbalance" zwei Drittel, rechts ein Drittel die gestapelten
-   Kacheln samt „Nächste Aufgabe") und die fünf Sekundär-Widgets („In der Nähe" — nur bei
-   aktivierter/verweigerter Standorterhebung gerendert —, „Wichtigste Tasks", „Meine Themen",
-   „Gesamtguthaben" und „Anstehende Deadlines") fließen ins Zwei-Spalten-Raster. */
+/* Ab mittlerer Breite umbrechende Karten-Zeilen: Vollbreite Blöcke (Titelzeile, „Was ist jetzt
+   dran?", Hero mit „Meine Lebensbalance" zwei Drittel plus rechts ein Drittel die gestapelten
+   Kacheln samt „Nächste Aufgabe", letzte Reihe Deadlines/Verpasst) belegen je eine Zeile; die
+   Widget-Karten (unten) brechen mit 20-rem-Basis auf 1–3 nebeneinander. Karten, die heute
+   nicht gerendert werden (Fensterkarten, „In der Nähe" aus), hinterlassen so weder eine leere
+   Kachel noch einen verwaisten Gap — die letzte Zeile wächst auf die Restbreite. */
 @media (min-width: 48rem) {
 	.dashboard {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
+		flex-direction: row;
+		flex-wrap: wrap;
 		/* Ein einheitliches Gap auf beiden Achsen (Mittelwert aus Base 1rem und Generous 2rem) —
 		   vorher war es zeilen-/spaltenweise unterschiedlich (1rem vs. 2rem). */
 		gap: var(--pp-space-5);
 		align-items: stretch;
 	}
 
-	/* #1118 Gleichhöhe je Grid-Zeile: liefert align-items: stretch (s. o.) gemeinsam mit dem
+	/* #1118 Gleichhöhe je Karten-Zeile: liefert align-items: stretch (s. o.) gemeinsam mit dem
 	   theme-seitigen height: 100 % am kol-card-Host — kein eigener Override nötig. */
 
-	/* Abstände steuert im Grid der gap, nicht die Eigenmargin der Widgets. (Spezifität 0,1,1, damit
-	   der Reset auch die erst später im Quelltext liegenden Widget-Margins übersteht — #1118 AK5.) */
+	/* Jedes Kind füllt zunächst seine eigene Zeile; die Widget-Karten unten brechen auf die
+	   20-rem-Basis herunter. Abstände steuert der gap, nicht die Eigenmargin der Widgets.
+	   (Spezifität 0,1,1, damit der Reset auch die erst später im Quelltext liegenden
+	   Widget-Margins übersteht — #1118 AK5.) */
 	section.dashboard > * {
+		flex: 1 1 100%;
+		min-width: 0;
 		margin-top: 0;
+	}
+
+	/* Widget-Pool, 1–3 nebeneinander: Freie Zeit, In der Nähe, Wichtigste Tasks, Meine Themen,
+	   Streak, Verlauf, Wochen-/Monats-/Jahreskarte (falls im Fenster), Meilensteine,
+	   Verpasst-Zähler, Gesamtguthaben. `:is()` hebt die Spezifität über die Vollbreiten-Regel
+	   oben; nicht gerenderte Karten fallen aus der Rechnung, ohne Lücken zu hinterlassen. */
+	section.dashboard
+		> :is(
+			.dashboard-free-time,
+			.dashboard-nearby,
+			.dashboard-top-tasks,
+			.dashboard-pillars,
+			.dashboard-streak,
+			.dashboard-balance-history,
+			.dashboard-weekly,
+			.dashboard-monthly,
+			.dashboard-yearly,
+			.dashboard-milestones,
+			.dashboard-missed,
+			.dashboard-balance
+		) {
+		flex-basis: 20rem;
 	}
 
 	.dashboard-heading,
 	.dashboard-suggestions {
-		grid-column: 1 / -1;
+		/* margin-bottom hebt die mobile Kompakt-Ausnahme über dem Ziffernblatt auf: Im Stapel
+		   steuert der Gap den Rhythmus. */
+		margin-bottom: 0;
 	}
 
 	/* Letzte Dashboard-Reihe strukturell koppeln (#1964, Fixup #2476): Deadlines und Verpasst
@@ -1307,7 +1442,6 @@ kol-toolbar {
 	   Zeile (198,6 px neben Deadlines). Fehlt der Verpasst-Bereich, füllt die Deadlines-Card die
 	   Reihe voll (wie zuvor per `:has()` am Parent; der Wrapper ersetzt das Konstrukt). */
 	.dashboard-last-row {
-		grid-column: 1 / -1;
 		display: grid;
 		grid-template-columns: 1fr;
 		gap: var(--pp-space-5);
@@ -1332,7 +1466,6 @@ kol-toolbar {
 	 * auf eine Spalte um; die Kacheln behalten dort ihr auto-fit-Raster über die volle Breite.
 	 */
 	.dashboard-hero {
-		grid-column: 1 / -1;
 		display: grid;
 		grid-template-columns: 2fr 1fr;
 		gap: var(--pp-gap-generous);
@@ -1430,10 +1563,6 @@ kol-toolbar {
 	font-size: var(--pp-font-size-sm);
 }
 
-.dashboard-pillars {
-	margin-top: var(--pp-gap-generous);
-}
-
 /* AK4 (#440): Bei 8+ Säulen und 375px Viewport kein horizontales Scrollen — der
    Übergelaufschutz sitzt an `overflow-wrap: break-word` (lange Werte/Wörter umbrechen statt die
    Zeile zu sprengen) plus `max-width: 100%`, nicht an `overflow-x: hidden`: Ein Clip hier würde
@@ -1519,7 +1648,72 @@ kol-toolbar {
  * ohne Signal-Färbung — die gehört allein der „Nächsten Aufgabe".
  */
 .dashboard-streak {
-	margin-top: var(--pp-gap-generous);
+	/* #2625: reservierte Höhe ab dem ersten Render — Übergang Laden → Geladen hoehenneutral.
+	   Werte im 4/8-Raster, gemessen bei 375 px; Desktop erhält eigene Werte (siehe unten). */
+	min-height: 236px;
+}
+
+/* Balance-Verlauf (#2082): Aussage als Text, Linie als Beleg; SVG skaliert mit der Spaltenbreite. */
+.dashboard-balance-history {
+	display: block;
+	/* #2625: reservierte Höhe (wie .dashboard-streak). */
+	min-height: 124px;
+}
+
+.dashboard-balance-history-content {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-space-2);
+}
+
+.dashboard-balance-history-hint,
+.dashboard-balance-history-trend,
+.dashboard-balance-history-werte,
+.dashboard-balance-history-achse {
+	margin: 0;
+}
+
+.dashboard-balance-history-hint {
+	font-size: var(--pp-font-size-sm);
+	color: var(--pp-text-muted);
+}
+
+.dashboard-balance-history-trend {
+	font-size: var(--pp-font-size-xl);
+	font-weight: var(--pp-weight-bold);
+	font-variant-numeric: tabular-nums;
+}
+
+.dashboard-balance-history-werte {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--pp-space-2) var(--pp-space-4);
+	font-variant-numeric: tabular-nums;
+}
+
+.dashboard-balance-history-chart {
+	display: block;
+	width: 100%;
+	height: 7.5rem;
+}
+
+.dashboard-balance-history-linie {
+	stroke: var(--pp-brand);
+	stroke-width: 2;
+	stroke-linejoin: round;
+	stroke-linecap: round;
+	vector-effect: non-scaling-stroke;
+}
+
+.dashboard-balance-history-punkt {
+	fill: var(--pp-brand);
+}
+
+.dashboard-balance-history-achse {
+	display: flex;
+	justify-content: space-between;
+	font-size: var(--pp-font-size-sm);
+	color: var(--pp-text-muted);
 }
 
 .dashboard-streak-content {
@@ -1578,7 +1772,9 @@ kol-toolbar {
  */
 .dashboard-weekly {
 	display: block;
-	margin-top: var(--pp-gap-generous);
+	/* #2625: reservierte Höhe ab dem ersten Render (Fensterzustand, 4/8-Raster, gemessen bei
+	   375 px); Desktop erhält eigene Werte (siehe unten). */
+	min-height: 400px;
 }
 
 .dashboard-weekly-content {
@@ -1662,7 +1858,8 @@ kol-toolbar {
  */
 .dashboard-monthly {
 	display: block;
-	margin-top: var(--pp-gap-generous);
+	/* #2625: reservierte Höhe (wie .dashboard-weekly). */
+	min-height: 400px;
 }
 
 .dashboard-monthly-content {
@@ -1730,7 +1927,8 @@ kol-toolbar {
  */
 .dashboard-yearly {
 	display: block;
-	margin-top: var(--pp-gap-generous);
+	/* #2625: reservierte Höhe (wie .dashboard-weekly). */
+	min-height: 292px;
 }
 
 .dashboard-yearly-content {
@@ -1783,7 +1981,8 @@ kol-toolbar {
  * sie farblich, zusätzlich trägt `_label` den Erreicht-Status textuell (mobile-ui-rules Regel 9).
  */
 .dashboard-milestones {
-	margin-top: var(--pp-gap-generous);
+	/* #2625: reservierte Höhe (wie .dashboard-streak). */
+	min-height: 476px;
 }
 
 .dashboard-milestones-group + .dashboard-milestones-group {
@@ -1812,7 +2011,8 @@ kol-toolbar {
  * einspaltig (AK6-Muster), damit lange Titel bei 375px nicht horizontal scrollen.
  */
 .dashboard-missed {
-	margin-top: var(--pp-gap-generous);
+	/* #2625: reservierte Höhe (wie .dashboard-streak). */
+	min-height: 124px;
 }
 
 .dashboard-missed-content {
@@ -1856,14 +2056,20 @@ kol-toolbar {
 /* #1361: `.day-done-hint` (DayDoneHint.tsx) ist der einzige Dashboard-Knoten ohne `dashboard-`
    Präfix — trägt denselben Widget-Abstand wie alle Nachbar-Cards, sonst klebt der Hinweis an
    „Meilensteine" (im Grid ab 48rem übernimmt der Grid-`gap`, hier zählt nur die Einspalten-Ansicht). */
-.day-done-hint {
+/* #1793: Abstand steuert der Card-Stapel-Gap (Dashboard) bzw. dieser Aufgaben-Tab-Eigenabstand —
+   kein Eigenmargin mehr am Dashboard-Host. #2445: Übernehmen und die beiden Icon-Schalter des
+   CareHint in einer Zeile (bricht bei großer Schrift um). */
+.task-section .day-done-hint {
 	margin-top: var(--pp-gap-generous);
 }
 
-/* #1793: `.care-hint` (CareHint.tsx) — Abstand wie `.day-done-hint`; #2445: Übernehmen und die beiden
-   Icon-Schalter in einer Zeile (bricht bei großer Schrift um). */
-.care-hint {
-	margin-top: var(--pp-gap-generous);
+/* #2625: Reservierte Box ab dem ersten Render, solange die Vorschläge laden — dekorative Fläche
+   ohne Inhalt (aria-hidden in CareHint.tsx, mobile-ui-rules), Rollen-Tokens statt Hex, Radius wie
+   die Karte. Der endgültige Inhalt ersetzt sie im selben Testid-Anker. */
+.care-hint-platzhalter {
+	min-height: 176px;
+	background-color: var(--pp-surface-2);
+	border-radius: var(--pp-radius-md);
 }
 
 /* #2445: ohne den seitlichen Host-Innenabstand (#1028) passt die Aktionszeile bei 375 px in eine Zeile. */
@@ -1901,8 +2107,31 @@ kol-toolbar {
 	color: var(--pp-text-muted);
 }
 
-.dashboard-balance {
-	margin-top: var(--pp-gap-generous);
+/* #2625: Desktop (≥ 48rem) reserviert eigene, größere Werte — breitere Spalten umbrechen anders,
+   und die Zweispalten-Rasterzeilen (Hero, Karten-Paare, letzte Reihe) bleiben unversehrt
+   (mobile-first, Aufwärts-Kaskade wie die übrigen Dashboard-Blöcke). */
+@media (min-width: 48rem) {
+	.dashboard-streak,
+	.dashboard-balance-history {
+		min-height: 208px;
+	}
+
+	.dashboard-milestones,
+	.dashboard-missed {
+		min-height: 312px;
+	}
+
+	.care-hint-platzhalter {
+		min-height: 172px;
+	}
+
+	/* #2625: Fensterkarten — im ≥-48rem-Raster umbrechen die Inhalte anders (Zweispalten-
+	   Aktionen, Grid-Stretch); eigene, größere Werte wie bei den Always-on-Karten. */
+	.dashboard-weekly,
+	.dashboard-monthly,
+	.dashboard-yearly {
+		min-height: 336px;
+	}
 }
 
 .dashboard-balance-total {
@@ -2275,23 +2504,29 @@ kol-toolbar {
 	/* #1121: hier kein gap — das U+00A0 zwischen Titel und Geo-Badge ist der einzige Trenner
 	   (sonst Doppeltrenner: gap + NBSP + gap). Der Header enthält nur Titel + NBSP + Badge. */
 	gap: 0;
-	flex: 1 1 auto;
+	/* #1258 (Desktop-Fortführung, PR #2663): dominanter Grow — im Einzeilen-Layout (ab 48rem) verteilt
+	   der Header den Freiraum wie bisher, während die gewachsenen Controls (`flex: 1 1 auto`) den
+	   „…"-Button über `margin-left: auto` rechtsbündig halten; im Umbruchfall füllt der Header seine
+	   Zeile allein. Ein moderater Grow würde dem Controls-Container Freiraum wegnehmen und den Button
+	   nach links ziehen. */
+	flex: 1000 1 auto;
 	min-width: 0;
 }
 
 /*
  * #1258: Mobil Zweizeilen-Modell — der Header (Titel) belegt Zeile 1, die Controls nehmen über
- * `flex: 1 1 100%` die zweite Zeile VOLLBREIT ein: Badges links, „…"-Button konstant rechtsbündig
- * (`space-between`). Der Button sitzt damit immer an derselben, daumen-findbaren Stelle — unabhängig
- * davon, wie viele Badges die Aufgabe trägt, und ohne je auf eine dritte Zeile zu rutschen. Ab 48rem
- * kehren die Controls in das alte Einzeilen-Layout neben dem Titel zurück (keine Desktop-Regression).
+ * `flex: 1 1 100%` die zweite Zeile VOLLBREIT ein: Badges links, „…"-Button konstant rechtsbündig.
+ * Der Button wird über `margin-left: auto` an `.task-tree-actions` verankert (dieselbe Mechanik wie
+ * ab 48rem) — NICHT über `space-between`: Die dauerhaft gemountete, leere Done-Feedback-Region
+ * (#2526/#2572) ist ein drittes Flex-Item und ließ `space-between` den Freiraum auf ZWEI Lücken
+ * verteilen — der Button schwebte in der Zeilenmitte statt am rechten Rand.
  */
 .task-tree-row-controls {
 	flex: 1 1 100%;
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	justify-content: space-between;
+	justify-content: flex-start;
 	gap: var(--task-tree-row-gap);
 	min-width: 0;
 }
@@ -2317,10 +2552,12 @@ kol-toolbar {
 }
 
 @media (min-width: 48rem) {
+	/* #1258 (Desktop-Fortführung, PR #2663): Die Controls wachsen mit (`flex: 1 1 auto`) — der
+	   „…"-Button steht über den Auto-Margin (`.task-tree-actions`) auch im Einzeilen-Layout und im
+	   Umbruchfall (langer Titel + Badge-Zuwachs, der #376-Fall) konstant am rechten Rand. */
 	.task-tree-row-controls {
-		flex: 0 1 auto;
+		flex: 1 1 auto;
 		flex-wrap: nowrap;
-		justify-content: flex-start;
 	}
 }
 
@@ -2343,6 +2580,11 @@ kol-toolbar {
 	/* #1258: Der „…"-Button schrumpft nicht — er bleibt in der Controls-Zeile konstant
 	   rechtsbündig stehen, während die Badges links umbrechen. */
 	flex: none;
+	/* #1258/#2663: Auto-Margin hält den Button konstant am rechten Rand der Controls-Zeile — in
+	   beiden Viewports, unabhängig von der Badge-Anzahl. Auto-Margins vor `justify-content`: der
+	   Freiraum sammelt sich komplett VOR dem Button, die leere Done-Feedback-Region (#2526) bleibt
+	   ohne Einfluss (0px breit, :empty). */
+	margin-left: auto;
 	/* Anker für das absolut positionierte „…"-Popover (#361). */
 	position: relative;
 }
@@ -2354,6 +2596,31 @@ kol-toolbar {
  */
 .task-tree-more {
 	display: inline-flex;
+}
+
+.task-tree-done-feedback {
+	/* #2526: Rückmeldung an der Listenzeile — dasselbe Muster wie im Panel (`--pp-success` mit Icon
+	   und Text, `tabular-nums`); umbricht statt zu clippen, Touch-Target über KoliBri-Minimum. */
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--pp-gap-tight);
+	margin-top: var(--pp-gap-tight);
+}
+
+.task-tree-done-feedback:empty {
+	/* Fixup #2572: leere, dauerhaft gerenderte Live-Region — kein Extra-Abstand in der Zeile. */
+	margin-top: 0;
+}
+
+.task-tree-done-feedback-points {
+	display: flex;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+	min-width: 0;
+	color: var(--pp-success);
+	font-variant-numeric: tabular-nums;
+	overflow-wrap: anywhere;
 }
 
 .task-tree-badge {
@@ -2425,6 +2692,26 @@ kol-toolbar {
 
 .modal-body section.form-section--optional {
 	margin-bottom: var(--pp-space-5);
+}
+
+/* #2525/AK1: Der gefaltete Sekundär-Abschnitt hält den Dialog kurz — die Sektionsabstände
+   bleiben unangetastet (24 px, #1159-Design-Lauf); bei ≤767 px wird nur verdichtet, was
+   unterhalb des letzten Abschnitts liegt (Optional-Unterkante, Falt-Hinweis, Modus-Schalter),
+   damit der Speichern-Knopf bei 375×812 ohne Scrollen im Viewport liegt. Desktop bleibt
+   unberührt. */
+@media (max-width: 767px) {
+	.modal-body section.form-section--optional {
+		margin-bottom: var(--pp-gap-base);
+	}
+
+	/* Der Standardwerte-Hinweis (#2525/AK4) gehört zum Kopf des Sekundär-Abschnitts — rückt an. */
+	.form-grid--sections .hint--fold {
+		margin-top: calc(-1 * var(--pp-gap-tight));
+	}
+
+	.mode-switch {
+		margin-bottom: var(--pp-gap-tight);
+	}
 }
 
 /* Mode-Switch (Aufgabe/Serie): klebte vorher mit 0 px am „Basisangaben“-Kopf — jetzt
@@ -2727,31 +3014,31 @@ kol-toolbar {
 	}
 }
 
-/* --- Kategorie-Verwaltung (#2014): Kennzeichen als Chips statt Kartenzeilen --- */
+/* --- Kategorie-Verwaltung (#2014): Kennzeichen links, Aktionen als Toolbar rechts --- */
 /*
- * Kategorien laufen wie die Badges der Aufgabenlisten (`.task-tree-badges`) in EINER umbrechenden
- * Chip-Zeile; je Chip bleiben Bearbeiten/Löschen als eigene Touch-Ziele (KoliBri-Default
- * `--a11y-min-size`, 44px). Die Chip-Regeln stehen bewusst NACH dem Säulen-Grid oben: gleiche
- * Spezifität, spätere Quelle gewinnt — so schaltet `.category-items` das ab 48rem aktive
- * `.pillar-items`-Grid dauerhaft auf die Flex-Zeile zurück, ohne die geteilten Karten-Styles von
- * Säulen und Gruppen anzufassen (`li.pillar-item` bleibt deren Locator-Vertrag).
+ * Je Kategorie eine volle Zeile: das Kennzeichen bleibt ein Chip, Bearbeiten/Löschen stehen
+ * rechtsbündig — die durchgehende rechte Kante hält die Liste ruhig und gleichmäßig; als
+ * Touch-Ziele bleiben Bearbeiten/Löschen eigene Knöpfe (KoliBri-Default `--a11y-min-size`, 44px).
+ * Die Zeilen-Regeln stehen bewusst NACH dem Säulen-Grid oben: gleiche Spezifität, spätere Quelle
+ * gewinnt — so schaltet `.category-items` das ab 48rem aktive `.pillar-items`-Grid dauerhaft auf
+ * die einspaltige Liste zurück, ohne die geteilten Karten-Styles von Säulen und Gruppen
+ * anzufassen (`li.pillar-item` bleibt deren Locator-Vertrag).
  */
 .category-items {
 	display: flex;
-	flex-direction: row;
-	flex-wrap: wrap;
-	align-items: center;
+	flex-direction: column;
 }
 
 .category-chip {
-	display: inline-flex;
+	display: flex;
 	align-items: center;
+	justify-content: space-between;
 	gap: var(--pp-gap-tight);
 	padding: 0 var(--pp-space-2);
 	border-radius: var(--pp-radius-pill);
 	background: var(--pp-surface-2);
-	/* Chips dürfen schrumpfen und innen umbrechen (KI-UX: Umbrechen vor Abschneiden), aber nie
-	   über den Listenrand hinauslaufen. */
+	/* Zeile darf schrumpfen und das Kennzeichen innen umbrechen (KI-UX: Umbrechen vor
+	   Abschneiden), aber nie über den Listenrand hinauslaufen. */
 	min-width: 0;
 	max-width: 100%;
 }
@@ -2761,6 +3048,7 @@ kol-toolbar {
 	flex-wrap: wrap;
 	align-items: center;
 	gap: var(--pp-gap-tight);
+	flex-shrink: 0;
 }
 
 /* --- Gruppen-Verwaltung im Settings-Tab „Gruppen“ (#1211): Karten-Muster analog zu den Säulen --- */
@@ -3011,29 +3299,6 @@ kol-toolbar {
 }
 
 /* --- Säulen-Beiträge im Task-Formular (Mehrfach-Einzahlung) --- */
-/* Kategorie-Feld im Aufgaben-/Serienformular: Das Auswahlfeld nimmt die volle Breite, die
-   getroffene Wahl steht als Badge DARUNTER — dieselbe Leserichtung wie im Formular darüber
-   (erst wählen, dann sehen, was gewählt ist). */
-.category-field {
-	display: grid;
-	gap: var(--pp-gap-tight);
-}
-
-/* Badge und das „×" liegen auf EINER Zeile (inline); erst ein sehr langer Name schiebt den Knopf
-   bei 375px um. Das Badge schrumpft nicht, der icon-only Knopf behält sein Touch-Target
-   (KoliBri-Default ≥ 44px) — dasselbe Verhalten wie in `.checklist-item`. */
-.category-field__selection {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: var(--pp-gap-tight);
-	min-width: 0;
-}
-
-.category-field__selection kol-badge {
-	flex: none;
-}
-
 /* Vorschau im Kategorie-Dialog: Text und Badge auf einer Grundlinie. */
 .category-form-preview {
 	display: flex;
@@ -3551,6 +3816,17 @@ kol-toolbar {
 	initial-value: 8px;
 }
 
+/*
+ * #968 seit KoliBri 4.5.0: Das Default-Theme stapelt Tabs per `@container tabs (width < 400px)`
+ * mit `--button-group-flex-direction: column` auf `.kol-tabs`. Dieselbe Klammer wie beim Gap oben
+ * (`inherits: false`) hält die Leisten nebeneinander; alle `kol-tabs` der App sind `_align` top.
+ */
+@property --button-group-flex-direction {
+	syntax: '<custom-ident>';
+	inherits: false;
+	initial-value: row;
+}
+
 .settings-placeholder {
 	color: var(--pp-text-muted);
 	margin: 1rem 0;
@@ -3688,6 +3964,22 @@ kol-toolbar {
  */
 .groups-accordion > .groups-body {
 	margin-left: calc(-2.25em + var(--pp-space-2));
+}
+
+/*
+ * Dasselbe Schieflage-Muster in allen Settings-Akkordeons (Kalender #2210, API-Tokens, Orte,
+ * Wissen, KI, Geo-Reichweite, „Konto und Daten“): Der Inhalt sitzt links 2.25em ein, rechts
+ * nur 0.5rem. Eine Regel für alle Tabs, denn die Sektionen haben keinen gemeinsamen Wrapper —
+ * die direkten Light-DOM-Kinder rücken beidseits auf das Content-Padding einer KolCard
+ * (`kol-card__content`: 1rem = `--pp-space-4`), damit Akkordeon-Inhalt bündig mit dem Inhalt
+ * der Nachbar-Karten im selben Tab fluchtet. Links trägt der Margin den Ausgleich, rechts
+ * zusätzlich, weil das Theme dort 0.5rem festnäht. Der Element-Selector hält KolCard-Hosts
+ * mit derselben Klasse `.settings-card` außen vor: deren Theme-Padding ist bereits symmetrisch.
+ */
+kol-accordion.settings-card > *,
+kol-accordion.settings-accordion > * {
+	margin-left: calc(var(--pp-space-4) - 2.25em);
+	margin-right: calc(var(--pp-space-4) - var(--pp-space-2));
 }
 
 /*
@@ -4147,6 +4439,31 @@ kol-input-range {
 	overflow-wrap: anywhere;
 }
 
+/* #2501: Serie-Modus — der Titel ist ein Inline-Umbenenn-Feld und übernimmt die Rolle von
+   .checklist-item-title (flexibel, umbruchfähig); Auf/ab- und Entfernen-Buttons bleiben fix,
+   bei engen Zeilen wandert die Button-Gruppe via flex-wrap unter das Feld (KI-UX). */
+.checklist-item kol-input-text {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+/* Der hideLabel-Switch („Erledigen“) trägt sein Label unsichtbar im internen Grid — der
+   Theme-Layer hält die 1fr-Spalte auch bei _hideLabel layoutwirksam (Muster .api-tokens__scope,
+   app.css:5830 ff.). Feste Breite zwingt das Grid auf den sichtbaren Schalter. Bewusst über den
+   TaskForm-Editor-Wrapper gescoped statt über .checklist-item: der CompleteTaskDialog nutzt
+   dieselbe Item-Klasse mit SICHTBAREM Label und würde sonst mitgequetscht (Review #2888). */
+.checklist-editor .checklist-item kol-input-checkbox[_variant='switch'] {
+	flex: 0 0 auto;
+	width: 3.6em;
+}
+
+/* #2501: sichtbare Grenz-Rückmeldung, wenn die Checkliste voll ist (Regel 7, nicht still). */
+.checklist-limit-hint {
+	margin: 0;
+	font-size: 0.875rem;
+	color: var(--pp-text);
+}
+
 /* --- Issue #788: LLM-Einstellungsmenü optimiert --- */
 
 /* Modell-Select Container für konsistentes Layout. */
@@ -4321,7 +4638,6 @@ kol-alert {
  */
 .dashboard-heart {
 	display: block;
-	margin-top: var(--pp-gap-base);
 }
 
 .heart-balance {
@@ -4338,6 +4654,7 @@ kol-alert {
  */
 .heart-balance-stage {
 	width: 100%;
+	position: relative;
 	/* Höhen-Deckel zusätzlich zum Breiten-Deckel: Auf kurzen Viewports (Kleinfenster, Phones)
 	   schrumpft die Bühne so weit, dass Karte und Ablesewert ohne Scrollen in den Viewport
 	   passen — das Budget (~29.5rem) deckt Kopfzeile bis Readout; die Legende darf unter dem
@@ -4353,6 +4670,23 @@ kol-alert {
 .balance-variant-hint {
 	margin-block-start: var(--pp-gap-base);
 	color: var(--pp-text-muted);
+}
+
+/*
+ * Erster Start ohne gerätelokalen Stand: Bis zur ersten Server-Antwort stehen Bild und Ablesewert
+ * unsichtbar (#2676) — der Drehmelder zentriert in der freigehaltenen Bühne, statt ein leeres
+ * Feld zu zeigen. Er sitzt an der Bühne, also über dem Bild und nicht über der verborgenen
+ * Ablesezeile. `visibility` erbt: Die Bühne hält sich bis zur Freigabe per Inline-Style
+ * `visibility: hidden` verborgen (#2676-Gate) — ohne eigene Gegenangabe wäre der Melder genau im
+ * Moment seiner Bestimmung unsichtbar (Kreuzverhör #2740), daher hebt er die Erbschaft selbst auf.
+ */
+.heart-balance-loading {
+	visibility: visible;
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 /* Vorschau in den Einstellungen: dieselbe Bühne, klein und unter der Auswahl. */
@@ -4790,6 +5124,80 @@ kol-alert {
 .balance-hand--7 {
 	fill: color-mix(in srgb, var(--pp-pillar-neon-7) 55%, var(--pp-surface-1));
 	stroke: var(--pp-pillar-neon-7);
+}
+
+/*
+ * Bahnen: je Säule eine Umlaufbahn mit Komet. Die Bahn ist der Weg, nicht der Wert — blass und
+ * dünn, ihre große Achse (Attribut `rx`) trägt die Kennzahl. Der Schweif läuft dem Kopf in
+ * Laufrichtung hinterher; der Kopf nutzt die Knoten-Klasse der Blüte/Kristall-Spitzen.
+ */
+.balance-orbit-track {
+	fill: none;
+	stroke: var(--pp-border-strong);
+	stroke-width: 0.7;
+	stroke-opacity: 0.4;
+}
+
+.balance-orbit-track--1 {
+	stroke: var(--pp-pillar-neon-1);
+}
+
+.balance-orbit-track--2 {
+	stroke: var(--pp-pillar-neon-2);
+}
+
+.balance-orbit-track--3 {
+	stroke: var(--pp-pillar-neon-3);
+}
+
+.balance-orbit-track--4 {
+	stroke: var(--pp-pillar-neon-4);
+}
+
+.balance-orbit-track--5 {
+	stroke: var(--pp-pillar-neon-5);
+}
+
+.balance-orbit-track--6 {
+	stroke: var(--pp-pillar-neon-6);
+}
+
+.balance-orbit-track--7 {
+	stroke: var(--pp-pillar-neon-7);
+}
+
+.balance-comet-tail {
+	fill: var(--pp-border-strong);
+	fill-opacity: 0.45;
+	stroke: none;
+}
+
+.balance-comet-tail--1 {
+	fill: var(--pp-pillar-neon-1);
+}
+
+.balance-comet-tail--2 {
+	fill: var(--pp-pillar-neon-2);
+}
+
+.balance-comet-tail--3 {
+	fill: var(--pp-pillar-neon-3);
+}
+
+.balance-comet-tail--4 {
+	fill: var(--pp-pillar-neon-4);
+}
+
+.balance-comet-tail--5 {
+	fill: var(--pp-pillar-neon-5);
+}
+
+.balance-comet-tail--6 {
+	fill: var(--pp-pillar-neon-6);
+}
+
+.balance-comet-tail--7 {
+	fill: var(--pp-pillar-neon-7);
 }
 
 /*
@@ -5508,8 +5916,10 @@ kol-alert {
 	margin: 0.25rem 0 0.5rem;
 }
 
-/* Tap-Fläche ≥44px (WCAG 2.5.8, docs/mobile-ui-rules.md) — volle Breite auf schmalen Viewports. */
-.push-toast__close {
+/* Tap-Fläche ≥44px (WCAG 2.5.8, docs/mobile-ui-rules.md) — volle Breite auf schmalen Viewports.
+   „Öffnen" (#2848 AK4) teilt die Box mit „Schließen"; der Abstand dazwischen hält ≥8px. */
+.push-toast__close,
+.push-toast__open {
 	display: block;
 	width: 100%;
 	min-height: 44px;
@@ -5522,6 +5932,10 @@ kol-alert {
 	cursor: pointer;
 }
 
+.push-toast__close {
+	margin-top: 0.5rem;
+}
+
 @media (min-width: 768px) {
 	/* Desktop (Muster #1077): unten rechts statt vollbreit. */
 	.push-toast {
@@ -5530,9 +5944,15 @@ kol-alert {
 		margin-left: auto;
 	}
 
-	.push-toast__close {
+	.push-toast__close,
+	.push-toast__open {
 		display: inline-block;
 		width: auto;
+	}
+
+	.push-toast__close {
+		margin-top: 0;
+		margin-left: 0.5rem;
 	}
 }
 
@@ -5597,6 +6017,14 @@ a.plan-badge:focus-visible {
 
 .withdrawal-consent p {
 	margin: 0;
+}
+
+/* Sandbox-Hinweis im Checkout-Dialog: nur im Sandbox-Modus gerendert, bewusst dezent. */
+.sandbox-hint {
+	font-size: var(--pp-font-size-sm);
+	color: var(--pp-ink-muted);
+	text-align: center;
+	margin: var(--pp-gap-tight) 0 0;
 }
 
 /*
@@ -5836,9 +6264,33 @@ a.plan-badge:focus-visible {
 	overflow-wrap: anywhere;
 }
 
+/* Honeypot-Feld der Warteliste: außerhalb des Viewports statt display:none, damit Bots es ausfüllen. */
+.login-page__hp {
+	position: absolute;
+	left: -9999px;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+}
+
 /* Der Empfehlungs-Link ist ein echter Anker (neuer Tab); Unterstreichung trägt die Klick-Affordanz */
 .login-page__ref-link {
 	color: var(--pp-success);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+/* Datenschutz-Hinweis der Wartelisten-Karte (#2768): Fließtext in Basisgröße, weich umbrechend;
+   Unterstreichung trägt die Klick-Affordanz (Link nie nur durch Farbe). */
+.login-page__privacy-hint {
+	margin: 0;
+	color: var(--pp-ink-muted);
+	font-size: var(--pp-font-size-base);
+	overflow-wrap: anywhere;
+}
+
+.login-page__privacy-link {
+	color: inherit;
 	text-decoration: underline;
 	text-underline-offset: 2px;
 }
@@ -5925,8 +6377,9 @@ a.plan-badge:focus-visible {
 }
 
 /* --- Erststart-Flow (#2069) --- */
-/* Inhalt des Willkommens-Dialogs (Modal in App.tsx): einspaltig, alle Primäraktionen unten sticky,
-   Touch-Targets übernimmt KoliBri. */
+/* Inhalt des Willkommens-Dialogs (Modal in App.tsx): einspaltig, Aktionen am Flow-Ende ohne
+   eigenen Hintergrund (Muster .modal-actions; sticky+Fläche überlappte die Textarea und trat
+   im Dunkelmodus als fremdes Band auf). Touch-Targets übernimmt KoliBri. */
 .onboarding-flow {
 	display: flex;
 	flex-direction: column;
@@ -5952,13 +6405,9 @@ a.plan-badge:focus-visible {
 }
 
 .onboarding-actions {
-	position: sticky;
-	bottom: 0;
 	display: flex;
 	flex-direction: column;
 	gap: var(--pp-gap-base);
-	padding-block: var(--pp-gap-base);
-	background: var(--pp-surface-0);
 }
 
 /*
@@ -6044,6 +6493,11 @@ a.plan-badge:focus-visible {
 	min-height: 44px;
 }
 
+/* „…"-Trigger (#2524): Host im Fluss lassen, damit das Popover-Panel daran verankert werden kann (Muster .task-tree-more). */
+.missed-item-more {
+	display: inline-flex;
+}
+
 @media (min-width: 48rem) {
 	.missed-item {
 		flex-direction: row;
@@ -6111,12 +6565,13 @@ a.plan-badge:focus-visible {
 
 /* Einführungs-Banner (#2229): schmaler Streifen im Seitenfluss, nicht fixiert — verdeckt so keine
    Bedienelemente. Ruhige Fläche statt Alert (dauerhafte Einladung, keine Meldungs-Semantik);
-   mobil gestapelt, ab 48rem Text links, Aktionen rechts. */
+   mobil gestapelt, ab 48rem Text links, Aktionen rechts. Gleiche Breite wie der Tracking-Hinweis
+   und die Karten darunter — eine durchgehende Kante statt Stufen. */
 .launch-banner {
 	display: flex;
 	flex-direction: column;
 	gap: var(--pp-space-3);
-	margin: var(--pp-space-3) var(--pp-space-3) 0;
+	margin: var(--pp-space-3) 0 0;
 	padding: var(--pp-space-3) var(--pp-space-4);
 	/* #2480: Platz für den absoluten Schließen-Knopf oben rechts reservieren. */
 	padding-right: calc(var(--pp-space-4) + 44px + var(--pp-space-2));
@@ -6124,6 +6579,11 @@ a.plan-badge:focus-visible {
 	background: var(--pp-surface-1);
 	border: 1px solid var(--pp-border);
 	border-radius: var(--pp-radius-md);
+}
+
+.launch-banner--plain {
+	/* #2734: Tracking-Hinweis ohne Schließen-Knopf — rechts kein reservierter Platz. */
+	padding-right: var(--pp-space-4);
 }
 
 .launch-banner__body {
@@ -6143,6 +6603,8 @@ a.plan-badge:focus-visible {
 	display: flex;
 	align-items: center;
 	gap: var(--pp-space-2);
+	/* Knöpfe behalten ihre natürliche Breite — der Body bricht, nicht das Label. */
+	flex-shrink: 0;
 }
 
 .launch-banner__actions kol-button {
@@ -6210,11 +6672,7 @@ a.plan-badge:focus-visible {
 }
 
 /* #2221: `.welcome-steps` (WelcomeSteps.tsx) — Einstieg im Dashboard, eine Spalte; Schritt-Buttons und
-   Schließen ≥44px (docs/mobile-ui-rules.md). */
-.welcome-steps {
-	margin-top: var(--pp-gap-generous);
-}
-
+   Schließen ≥44px (docs/mobile-ui-rules.md). Abstand steuert der Hero-Spalten-Gap. */
 .welcome-steps-list {
 	display: flex;
 	flex-direction: column;

@@ -36,9 +36,9 @@ self.addEventListener('push', (event) => {
 		body: payload.body || '',
 		icon: 'icons/icon-192x192.png',
 		badge: 'icons/icon-192x192.png',
-		// Stabiler Tag (#504): aufeinanderfolgende Pushes ersetzen die vorige Notification,
-		// statt sie zu stapeln (Coalescing im Notification-Shade / Sperrbildschirm).
-		tag: 'priority-pilot',
+		// Gruppen-Tag (#2853): Nachrichten derselben Gruppe ersetzen die vorige, verschiedene
+		// Gruppen verdrängen sich nicht — Fallback für Payloads ohne Tag (#504).
+		tag: payload.tag || 'priority-pilot',
 		// Ziel-URL für den notificationclick-Handler mitgeben (Default: App-Wurzel).
 		data: { url: toAppUrl(payload.url) },
 	};

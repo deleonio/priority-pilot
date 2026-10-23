@@ -12,7 +12,8 @@ import {
 	type TestServer,
 } from '../test/helpers.js';
 import { CATEGORY_COLORS } from '../models/categoryColors.js';
-import { ScoreEntry } from '../models/index.js';
+import { ScoreEntry, Task } from '../models/index.js';
+import { runDeadlineAutoDelete } from '../logics/autoDeleteAfterDeadline.js';
 
 /**
  * Rote Spec-Tests für #1353 (Spec docs/spec/issue-1353.md) — MCP-Werkzeuge v1.
@@ -1042,6 +1043,10 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 			'next_task',
 			'pillar_list',
 			'pillar_weights_set',
+			// #2501: die drei Series-Checklisten-Werkzeuge stehen alphabetisch vor series_instantiate.
+			'series_checklist_add',
+			'series_checklist_remove',
+			'series_checklist_update',
 			// #2360: die beiden Serien-Werkzeuge stehen alphabetisch vor task_complete.
 			'series_instantiate',
 			'series_list',
@@ -1094,9 +1099,10 @@ describe('MCP-Werkzeug task_delete (#1396)', () => {
 		const names = tools.map((t) => t.name).sort();
 		// Zähler wächst mit dem Katalog (#1423: balance_status, #1412: drei Kategorie-Werkzeuge,
 		// #1413: zwei Säulen-Werkzeuge — die CRUD-Werkzeuge sind mit #1573 entfallen —,
-		// #1542: drei Gruppen-Schreibwerkzeuge). Der Vertrag ist „task_delete ist drin", nicht
+		// #1542: drei Gruppen-Schreibwerkzeuge, #2501: drei Series-Checklisten-Werkzeuge).
+		// Der Vertrag ist „task_delete ist drin", nicht
 		// „es gibt genau dreizehn Werkzeuge" — die vollständige Namensliste prüft der Snapshot-Test.
-		assert.equal(names.length, 38, `Katalog sollte achtunddreißig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 41, `Katalog sollte einundvierzig Namen führen, war: ${names.join(', ')}`);
 		assert.ok(names.includes('task_delete'), 'task_delete muss im Katalog stehen');
 
 		const tool = tools.find((t) => t.name === 'task_delete');
@@ -1307,9 +1313,10 @@ describe('#1420: autoDeleteAfterDeadline über task_create/task_update setzen', 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name).sort();
 		// Zähler wächst mit dem Katalog (#1423: balance_status, #1412: category_create/update/delete,
-		// #1413: vier Säulen-Werkzeuge, #1424: balance_history, #1542: drei Gruppen-Schreibwerkzeuge)
+		// #1413: vier Säulen-Werkzeuge, #1424: balance_history, #1542: drei Gruppen-Schreibwerkzeuge,
+		// #2501: drei Series-Checklisten-Werkzeuge)
 		// — #1420 selbst fügt kein Werkzeug hinzu.
-		assert.equal(names.length, 38, `Katalog sollte achtunddreißig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 41, `Katalog sollte einundvierzig Namen führen, war: ${names.join(', ')}`);
 	});
 });
 
@@ -1721,8 +1728,8 @@ describe('MCP-Werkzeuge category_create/category_update/category_delete (#1412)'
 		const names = tools.map((t) => t.name).sort();
 		assert.equal(
 			names.length,
-			38,
-			`Katalog sollte achtunddreißig Namen führen (#1412, #1542, #1543, #1544; Säulen-CRUD seit #1573 entfallen), war: ${names.join(', ')}`,
+			41,
+			`Katalog sollte einundvierzig Namen führen (#1412, #1542, #1543, #1544, #2501; Säulen-CRUD seit #1573 entfallen), war: ${names.join(', ')}`,
 		);
 		assert.ok(names.includes('category_create'), 'category_create muss im Katalog stehen');
 		assert.ok(names.includes('category_update'), 'category_update muss im Katalog stehen');
@@ -2527,7 +2534,7 @@ describe('MCP-Werkzeuge Einladungen/Einladungslinks (#1544)', () => {
 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name);
-		assert.equal(names.length, 38, `Katalog sollte achtunddreißig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 41, `Katalog sollte einundvierzig Namen führen, war: ${names.join(', ')}`);
 		for (const name of [
 			'group_invitation_list',
 			'group_invitation_create',
@@ -3058,7 +3065,8 @@ describe('MCP-Staffelungs-Hinweis (#1823)', () => {
 		const arc42 = readFileSync(new URL('../../../docs/arc42.md', import.meta.url), 'utf8');
 		const row = arc42.split('\n').find((line) => line.startsWith('| IF-07'));
 		assert.ok(row, 'IF-07-Zeile fehlt in docs/arc42.md');
-		assert.ok(row.includes(hint), 'IF-07 muss den Text von MCP_PACING_HINT enthalten');
+		assert.ok(row.includes('MCP_PACING_HINT'), 'IF-07 muss MCP_PACING_HINT nennen');
+		assert.ok(!row.includes(hint), 'IF-07 darf den englischen Hinweistext nicht wörtlich zitieren');
 	});
 });
 
@@ -3438,6 +3446,7 @@ describe('MCP-Werkzeuge series_list/series_instantiate (#2360)', () => {
 		seriesId: number | null;
 		priority?: number;
 		deadline?: string | null;
+		createdByName?: string | null;
 	};
 
 	const createSeriesViaApi = async (cookie: string, title: string, autoCreate: boolean): Promise<SeriesRow> => {
@@ -3499,7 +3508,10 @@ describe('MCP-Werkzeuge series_list/series_instantiate (#2360)', () => {
 	});
 
 	it('AK3: series_instantiate legt genau eine mit der Serie verknüpfte Aufgabe an, title und deadline greifen', async () => {
-		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		// #2787 AK2: bekannter Anzeigename — der Test-Login legt den Nutzer direkt damit an.
+		// (Ein vorgelagertes register würde displayName = E-Mail setzen und der nachgelagerte
+		// Test-Login überschreibt via findOrCreate nicht — Test-Pflege #2787.)
+		const cookie = await server.login('mcp-tools-a@example.com', { displayName: 'Vorlagen-Chef' });
 		const token = await createToken(cookie);
 		const series = await createSeriesViaApi(cookie, 'Vorlage', false);
 		const before = (await listTasks(token)).length;
@@ -3511,6 +3523,12 @@ describe('MCP-Werkzeuge series_list/series_instantiate (#2360)', () => {
 			deadline,
 		});
 		assert.equal(created.error, undefined, `series_instantiate sollte gelingen: ${created.error?.message}`);
+		// #2787 AK2: die Schreib-Antwort (dieselbe Route wie REST) trägt createdByName des Erstellers.
+		assert.equal(
+			created.result?.createdByName ?? null,
+			'Vorlagen-Chef',
+			'series_instantiate-Antwort nennt den Anzeigename des Serien-Erstellers (#2787)',
+		);
 
 		const tasks = await listTasks(token);
 		assert.equal(tasks.length, before + 1, 'genau eine Aufgabe muss entstehen');
@@ -3518,6 +3536,11 @@ describe('MCP-Werkzeuge series_list/series_instantiate (#2360)', () => {
 		assert.ok(task, 'die Aufgabe muss mit der Serie verknüpft sein');
 		assert.equal(task?.title, 'Aus Vorlage');
 		assert.equal(new Date(task?.deadline ?? '').toISOString(), deadline);
+		assert.equal(
+			task?.createdByName ?? null,
+			created.result?.createdByName ?? null,
+			'task_list-Orakel nennt denselben Ersteller wie die Schreib-Antwort (#2787)',
+		);
 	});
 
 	it('AK4: ein Nur-lese-Token weist series_instantiate ab, series_list bleibt möglich, keine Aufgabe entsteht', async () => {
@@ -4100,5 +4123,263 @@ describe('#2460: Checklistenpunkte im MCP einzeln pflegen (task_checklist_*)', (
 		const res = await server.json('/tasks', { headers: { Cookie: cookieB } });
 		const tasks = (await res.json()) as SpecTaskWithChecklist[];
 		assert.deepEqual(tasks.find((t) => t.id === foreign.id)?.checklist, foreignChecklist, 'ohne Wirkung');
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2501 (Spec docs/spec/issue-2501.md) — Checkpunkte an der Serie/Vorlage
+ * über MCP pflegen (series_checklist_add/update/remove). Muster: #2460 (task_checklist_*).
+ *
+ * AK2: die drei Werkzeuge existieren (Katalog wächst 38 → 41), add/update/remove wirken je Aufruf
+ *   genau einmal, der 51. Punkt wird abgewiesen (Grenze 50), `completed` ist kein Eingabefeld.
+ * AK3: series_list liefert die Checkliste mit — Einträge ohne `completed`.
+ * AK6: fremde Serien-ID → 404, keine Wirkung.
+ *
+ * Rot, weil die drei series_checklist_*-Werkzeuge noch nicht im Katalog stehen (tools/call mit
+ * unbekanntem Namen → Fehler) und der Zähler-Vertrag 41 noch nicht erfüllt ist. KEIN Produktivcode.
+ */
+describe('#2501: Checkpunkte an der Serie im MCP pflegen (series_checklist_*)', () => {
+	type SeriesChecklistEntry = { id: string; title: string };
+	type SeriesRow = { id: number; title: string; checklist?: SeriesChecklistEntry[] };
+
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => resetDb());
+	after(async () => {
+		await server.close();
+		closeDb();
+	});
+
+	const SERIES_UUID_A = '11111111-1111-4111-8111-111111111111';
+	const SERIES_UUID_B = '22222222-2222-4222-8222-222222222222';
+
+	const createSeriesWithChecklist = async (
+		cookie: string,
+		title: string,
+		checklist: SeriesChecklistEntry[],
+	): Promise<SeriesRow> => {
+		const res = await server.json('/series', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({
+				title,
+				rhythm: 'none',
+				priority: 3,
+				estimatedEffort: 0.5,
+				autoCreate: false,
+				active: true,
+				checklist,
+			}),
+		});
+		assert.equal(res.status, 201, 'Setup: Serie muss über die API anlegbar sein');
+		return (await res.json()) as SeriesRow;
+	};
+
+	it('AK2: tools/list führt die drei series_checklist_*-Werkzeuge, der Katalog wächst auf 41 Namen', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const tools = await mcpListTools(token);
+		const names = tools.map((t) => t.name);
+		for (const expected of ['series_checklist_add', 'series_checklist_update', 'series_checklist_remove']) {
+			assert.ok(names.includes(expected), `${expected} muss im Katalog stehen`);
+		}
+		assert.equal(names.length, 41, `Katalog sollte einundvierzig Namen führen, war: ${names.length}`);
+	});
+
+	it('AK2: add hängt einen Punkt an (Werkzeug-UUID), update benennt um, remove entfernt — je Aufruf genau eine Änderung', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const series = await createSeriesWithChecklist(cookie, 'Küchendienst', [
+			{ id: SERIES_UUID_A, title: 'Einräumen' },
+			{ id: SERIES_UUID_B, title: 'Abwischen' },
+		]);
+
+		const added = await mcpCall<SeriesChecklistEntry>(token, 'series_checklist_add', {
+			seriesId: series.id,
+			title: 'Futter kaufen',
+		});
+		assert.equal(added.error, undefined, `add muss gelingen: ${added.error?.message}`);
+		assert.match(added.result?.id ?? '', UUID_V4_RE, 'add erzeugt eine UUID-Id');
+		assert.deepEqual(Object.keys(added.result ?? {}).sort(), ['id', 'title'], 'Serien-Punkte kennen kein completed');
+
+		const renamed = await mcpCall<SeriesChecklistEntry>(token, 'series_checklist_update', {
+			seriesId: series.id,
+			item: 'Einräumen',
+			title: 'Staubwischen',
+		});
+		assert.equal(renamed.error, undefined, `update (Umbenennen) muss gelingen: ${renamed.error?.message}`);
+		assert.equal(renamed.result?.title, 'Staubwischen');
+
+		const rejectedCompleted = await mcpCall<SeriesChecklistEntry>(token, 'series_checklist_update', {
+			seriesId: series.id,
+			item: 'Staubwischen',
+			completed: true,
+		});
+		assert.ok(rejectedCompleted.error, 'completed ist an der Serie kein Feld — der Aufruf muss abgewiesen werden');
+		assert.match(rejectedCompleted.error.message, /\(HTTP 400\)/);
+
+		const removed = await mcpCall<Record<string, unknown>>(token, 'series_checklist_remove', {
+			seriesId: series.id,
+			item: 'Abwischen',
+		});
+		assert.equal(removed.error, undefined, `remove muss gelingen: ${removed.error?.message}`);
+
+		const listed = await mcpCall<SeriesRow[]>(token, 'series_list');
+		const after = listed.result?.find((entry) => entry.id === series.id);
+		assert.deepEqual(
+			after?.checklist,
+			[
+				{ id: SERIES_UUID_A, title: 'Staubwischen' },
+				{ id: added.result?.id, title: 'Futter kaufen' },
+			],
+			'genau die drei Aufrufe haben gewirkt — und sonst nichts (AK3: series_list ohne completed)',
+		);
+	});
+
+	it('AK2: der 51. Punkt wird abgewiesen (Grenze 50 wie bei Aufgaben), die Liste bleibt unverändert', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const full = Array.from({ length: 50 }, (_, i) => ({ id: specUuid(i + 1), title: `P${i}` }));
+		const series = await createSeriesWithChecklist(cookie, 'Voll', full);
+
+		const overflow = await mcpCall<SeriesChecklistEntry>(token, 'series_checklist_add', {
+			seriesId: series.id,
+			title: 'Ein zu viel',
+		});
+		assert.ok(overflow.error, 'der 51. Punkt muss abgewiesen werden');
+		assert.match(overflow.error.message, /höchstens 50/, 'die Routen-Grenze muss verständlich melden');
+		assert.match(overflow.error.message, /\(HTTP 400\)/, 'der Fehler muss aus der Route (400) stammen');
+
+		const listed = await mcpCall<SeriesRow[]>(token, 'series_list');
+		assert.equal(
+			listed.result?.find((entry) => entry.id === series.id)?.checklist.length,
+			50,
+			'ein abgelehnter add darf die Liste nicht ändern',
+		);
+	});
+
+	it('AK6: fremde Serien-ID → Fehler (404), die Checkliste der fremden Serie bleibt unverändert', async () => {
+		const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const foreign = await createSeriesWithChecklist(cookieB, 'Fremde Serie', [
+			{ id: SERIES_UUID_A, title: 'Fremder Punkt' },
+		]);
+
+		const denied = await mcpCall<SeriesChecklistEntry>(tokenA, 'series_checklist_add', {
+			seriesId: foreign.id,
+			title: 'Eigener Punkt',
+		});
+		assert.ok(denied.error, 'fremde Serie muss abgewiesen werden');
+		assert.match(denied.error.message, /\(HTTP 404\)/, 'die Datenisolation meldet 404');
+
+		const own = (await (
+			await server.json(`/series/${foreign.id}`, { headers: { Cookie: cookieB } })
+		).json()) as SeriesRow;
+		assert.deepEqual(
+			own.checklist,
+			[{ id: SERIES_UUID_A, title: 'Fremder Punkt' }],
+			'der abgewiesene Aufruf hat die fremde Checkliste nicht verändert',
+		);
+	});
+});
+
+/**
+ * #2756: task_update akzeptiert deadline: null (Deadline entfernen) — docs/spec/issue-2756.md.
+ *
+ * Die REST-Route PATCH /tasks/:id nimmt deadline: null bereits (Entfernen); das deklarierte
+ * MCP-inputSchema erlaubte bisher nur type "string", sodass MCP-Clients null als Schemaverstoss
+ * ablehnen. Der Vertrag hier:
+ *
+ * AK1: task_update mit deadline: null auf einer Aufgabe mit Deadline gelingt ohne error;
+ *      task_list zeigt fuer die Aufgabe danach deadline: null.
+ * AK2: Das inputSchema von task_update deklariert deadline mit type ["string", "null"] und nennt
+ *      das Entfernen per null in der Beschreibung.
+ * AK3: autoDeleteAfterDeadline verhaelt sich nach dem Entfernen per task_update wie per App/REST:
+ *      Deadline null, Flag unveraendert, runDeadlineAutoDelete loescht die Aufgabe nicht.
+ *
+ * Rot ist AK2 (Schema-Spiegel: deadline ist noch { type: "string" }); AK1/AK3 spiegeln den
+ * Funktionsvertrag — die serverseitige Durchreichung kann null bereits, sie bleiben gruen und
+ * sichern das Verhalten gegen Regressionen ab. KEIN Produktivcode in diesem Commit.
+ */
+describe('#2756: task_update akzeptiert deadline: null (Deadline entfernen)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => resetDb());
+	after(async () => {
+		await server.close();
+		closeDb();
+	});
+
+	it('AK1: task_update mit deadline: null entfernt die Deadline, task_list zeigt deadline: null', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const created = await mcpCall<{ id: number }>(token, 'task_create', {
+			title: 'Mit Deadline über MCP angelegt',
+			deadline: '2030-01-01T00:00:00.000Z',
+		});
+		const taskId = created.result?.id;
+		assert.ok(taskId, 'Setup: Aufgabe mit Deadline muss anlegbar sein');
+
+		const update = await mcpCall<{ deadline: string | null }>(token, 'task_update', {
+			id: taskId,
+			deadline: null,
+		});
+		assert.equal(update.error, undefined, 'task_update mit deadline: null darf nicht fehlschlagen');
+
+		const list = await mcpCall<{ id: number; deadline: string | null }[]>(token, 'task_list');
+		const task = list.result?.find((t) => t.id === taskId);
+		assert.ok(task, 'task_list muss die Aufgabe liefern');
+		assert.equal(task?.deadline, null, 'task_list muss deadline: null melden');
+	});
+
+	it('AK2: das inputSchema von task_update erlaubt deadline null und nennt das Entfernen in der Beschreibung', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const tools = await mcpListTools(token);
+		const tool = tools.find((t) => t.name === 'task_update');
+		assert.ok(tool, 'task_update muss in tools/list enthalten sein');
+		const schema = tool?.inputSchema as
+			{ properties?: { deadline?: { type?: unknown; description?: string } } } | undefined;
+		const deadline = schema?.properties?.deadline;
+		assert.ok(
+			Array.isArray(deadline?.type),
+			'task_update.inputSchema.properties.deadline muss type als Array deklarieren',
+		);
+		assert.ok(
+			deadline?.type?.includes('string') && deadline?.type?.includes('null'),
+			'deadline.type muss "string" und "null" enthalten',
+		);
+		assert.match(deadline?.description ?? '', /null/i, 'deadline-Beschreibung muss das Entfernen per null nennen');
+		assert.match(deadline?.description ?? '', /remov/i, 'deadline-Beschreibung muss "removes" (Entfernen) nennen');
+	});
+
+	it('AK3: nach dem Entfernen der Deadline per task_update loescht runDeadlineAutoDelete die Aufgabe nicht', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const created = await mcpCall<{ id: number }>(token, 'task_create', {
+			title: 'Auto-Delete mit entferneter Deadline',
+			deadline: '2030-01-01T00:00:00.000Z',
+			autoDeleteAfterDeadline: true,
+		});
+		const id = created.result?.id;
+		assert.ok(id, 'Setup: Aufgabe mit Deadline + autoDeleteAfterDeadline muss anlegbar sein');
+
+		const update = await mcpCall(token, 'task_update', { id, deadline: null });
+		assert.equal(update.error, undefined, 'task_update mit deadline: null darf nicht fehlschlagen');
+
+		const result = await runDeadlineAutoDelete(new Date('2099-01-01T00:00:00.000Z'));
+		assert.equal(result.deleted, 0, 'ohne Deadline darf runDeadlineAutoDelete nichts loeschen');
+
+		const task = await Task.findByPk(id);
+		assert.ok(task, 'Aufgabe muss nach runDeadlineAutoDelete noch existieren');
+		assert.equal(task?.autoDeleteAfterDeadline, true, 'autoDeleteAfterDeadline bleibt unveraendert');
+		assert.equal(task?.deadline, null, 'Deadline bleibt null');
 	});
 });

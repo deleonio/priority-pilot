@@ -23,8 +23,8 @@ interface CompletedTasksTableProps {
 	 * solche Aufgaben hier ausblenden, damit ihr Titel nicht doppelt im DOM steht (#228).
 	 */
 	forestTaskIds: ReadonlySet<number>;
-	/** Nach dem Wiedereröffnen eines Tasks neu laden (Daten aktualisieren). */
-	onReloaded: () => void;
+	/** Nach dem Wiedereröffnen eines Tasks aufrufen — erhält den Task (räumt App-seitig das Erledigt-Feedback, #2767) und lädt neu. */
+	onReloaded: (task: Task) => void;
 }
 
 /** Nachkommastellen für die Punkte-Anzeige — kompakt, aber genau genug für anteilige Werte. */
@@ -94,7 +94,7 @@ export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
 		setError(null);
 		try {
 			await api.updateTask({ id: task.id, taskUpdate: { status: TaskStatus.Open } });
-			onReloaded();
+			onReloaded(task);
 		} catch (reason) {
 			const apiError = await toApiError(reason);
 			setError(apiError.message);

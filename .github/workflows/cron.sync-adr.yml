@@ -28,6 +28,11 @@ on:
     - cron: '17 5 * * 6' # samstags 05:17 UTC (Wochenende = zai ganztägig Off-Peak), versetzt zu Spec-Sync (tägl. 02:37) und Guide-Sync (tägl. 03:07)
   workflow_dispatch:
     inputs:
+      runner:
+        description: 'Runner-Label für diesen Lauf (leer = vars.PHASE_RUNNER oder ubuntu-latest; z. B. self-hosted, pi5, ubuntu-latest)'
+        required: false
+        default: ''
+        type: string
       force:
         description: 'Skip-Guard ignorieren (Lauf erzwingen, auch wenn main unverändert ist)'
         type: boolean
@@ -54,7 +59,7 @@ env:
 
 jobs:
   adr-sync:
-    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 20
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin

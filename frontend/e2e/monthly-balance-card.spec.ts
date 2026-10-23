@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * ROTE Spec-Tests #1995 (docs/spec/issue-1995.md): Rückblick-Card im Dashboard.
@@ -17,7 +17,6 @@ import { waitForStableView } from './helpers';
 
 const IM_FENSTER = new Date(2026, 9, 2, 12); // Tag 2 im Monatsanfangs-Fenster
 const NACH_DEM_FENSTER = new Date(2026, 9, 8, 12); // Tag 8 — Card wieder weg
-const MOBILE = { width: 375, height: 812 } as const;
 
 test.describe('Rückblick-Card (#1995)', () => {
 	test('AK5: ohne Anmeldung keine Karte — das Auth-Gate zeigt die Login-Seite', async ({ page }) => {

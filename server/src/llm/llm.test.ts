@@ -10,6 +10,8 @@ import {
 	lektoratTextWithMistral,
 	parseTaskTextWithMistral,
 	parseSearchQueryWithMistral,
+	draftTaskWithMistral,
+	MistralRequestError,
 	type AdviseActivitiesInput,
 	type ClassifyPillarsInput,
 	type LektoratInput,
@@ -287,7 +289,8 @@ describe('Lektorat-Funktion (Issue #645)', () => {
  */
 describe('parseTaskTextWithMistral — Schnellerfassung erweitert (#1310)', () => {
 	const originalFetch = globalThis.fetch;
-	let capturedBody: { messages?: { role: string; content: string }[] } | undefined;
+	let capturedBody:
+		{ messages?: { role: string; content: string }[]; temperature?: number; top_p?: number } | undefined;
 
 	/** Mockt NUR den LLM-API-Call (Mistral); zeichnet den gesendeten Body auf. */
 	const stubModelResponse = (parsedJson: unknown): void => {
@@ -390,6 +393,9 @@ describe('parseTaskTextWithMistral — Schnellerfassung erweitert (#1310)', () =
 
 		await parseTaskTextWithMistral('Übermorgen zum Zahnarzt');
 
+		// Produktions-Shape: Greedy-Sampling (temperature 0 + top_p 1, Mistral-400-Schutz) auch bei echten Aufrufen.
+		assert.equal(capturedBody?.temperature, 0);
+		assert.equal(capturedBody?.top_p, 1);
 		const today = new Date().toISOString().slice(0, 10);
 		const promptText = (capturedBody?.messages ?? []).map((m) => m.content).join('\n');
 		assert.ok(
@@ -425,7 +431,8 @@ describe('Kategorie-Erkennung beim Parsen (Aufgabe und Suche)', () => {
 		{ id: 7, name: 'Hausbau' },
 		{ id: 9, name: 'Steuer' },
 	];
-	let capturedBody: { messages?: { role: string; content: string }[] } | undefined;
+	let capturedBody:
+		{ messages?: { role: string; content: string }[]; temperature?: number; top_p?: number } | undefined;
 
 	const stubModelResponse = (parsedJson: unknown): void => {
 		globalThis.fetch = (async (url: string, init?: RequestInit) => {
@@ -457,6 +464,9 @@ describe('Kategorie-Erkennung beim Parsen (Aufgabe und Suche)', () => {
 		const result = await parseTaskTextWithMistral('Fliesen fürs Bad bestellen', undefined, categories);
 
 		assert.equal(result.categoryId, 7, 'gültige Kategorie wird übernommen');
+		// Produktions-Shape: Greedy-Sampling (temperature 0 + top_p 1, Mistral-400-Schutz) auch bei echten Aufrufen.
+		assert.equal(capturedBody?.temperature, 0);
+		assert.equal(capturedBody?.top_p, 1);
 		const systemPrompt = capturedBody?.messages?.find((message) => message.role === 'system')?.content ?? '';
 		assert.match(systemPrompt, /Hausbau/, 'die Kategorien des Nutzers stehen im Prompt');
 	});
@@ -523,5 +533,74 @@ describe('extractActivityAdvice — Längenbegrenzung der Berater-Antwort (#2010
 		);
 
 		assert.deepEqual(advice, [{ activity: 'Spaziergang', reason: 'Bewegung an der frischen Luft', pillarIds: [1] }]);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2774 (Eingebettete Provider-Fehler bei HTTP 200 sichtbar machen).
+ * Spec: `docs/spec/issue-2774.md`.
+ *
+ * Testebene: öffentliche Einstiege (`parseTaskTextWithMistral` JSON-Pfad, `draftTaskWithMistral`
+ * Freitext-Pfad `json = false` #2350) mit gemocktem `globalThis.fetch` (Muster des #1310-Blocks
+ * oben) — die zu ändernde `callProvider` läuft so über den vollen Produktionspfad mit.
+ */
+describe('callProvider — eingebettete Provider-Fehler bei HTTP 200 (#2774)', () => {
+	const originalFetch = globalThis.fetch;
+
+	/** Mockt NUR den LLM-API-Call (Mistral) mit einem beliebigen 200-Body. */
+	const stubModelResponse = (body: unknown): void => {
+		globalThis.fetch = (async (url: string) => {
+			if (typeof url === 'string' && url.includes('api.mistral.ai')) {
+				return new Response(JSON.stringify(body), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				});
+			}
+			return originalFetch(url);
+		}) as typeof fetch;
+	};
+
+	beforeEach(async () => {
+		await resetDb();
+		await setTestLlmProvider(true);
+	});
+
+	after(async () => {
+		globalThis.fetch = originalFetch;
+		await closeDb();
+	});
+
+	// TF1 (AK1): HTTP 200 mit eingebettetem Fehler (error.message-Form, OpenRouter) → konkrete
+	// Ursache statt generischer Text-Meldung.
+	it('AK1: 200 mit eingebettetem error.message wirft MistralRequestError mit der konkreten Ursache', async () => {
+		stubModelResponse({ error: { message: 'Insufficient credits' } });
+
+		await assert.rejects(
+			() => parseTaskTextWithMistral('Jeden Montag Teammeeting im Büro'),
+			(error: unknown) => {
+				assert.ok(error instanceof MistralRequestError, 'Fehler ist MistralRequestError');
+				assert.match(error.message, /Insufficient credits/, 'enthält die konkrete Provider-Ursache');
+				assert.doesNotMatch(error.message, /enthielt keinen Text/, 'nicht die generische Text-Meldung');
+				return true;
+			},
+		);
+	});
+
+	// TF2 (AK2): normale 200-Antworten bleiben unverändert — JSON-Pfad.
+	it('AK2: JSON-Pfad — 200 mit validem choices-Content parst wie bisher', async () => {
+		stubModelResponse({
+			choices: [{ message: { content: JSON.stringify({ title: 'Teammeeting vorbereiten' }) } }],
+		});
+
+		const result: ParsedTask = await parseTaskTextWithMistral('Jeden Montag Teammeeting im Büro');
+		assert.equal(result.title, 'Teammeeting vorbereiten');
+	});
+
+	// TF2 (AK2): Freitext-Pfad (json = false, #2350) bleibt unverändert.
+	it('AK2: Freitext-Pfad (json = false) liefert den getrimmten choices-Klartext wie bisher', async () => {
+		stubModelResponse({ choices: [{ message: { content: '  Teammeeting vorbereiten und Agenda schreiben.  ' } }] });
+
+		const text = await draftTaskWithMistral({ category: 'draft', title: 'Teammeeting vorbereiten' });
+		assert.equal(text, 'Teammeeting vorbereiten und Agenda schreiben.');
 	});
 });

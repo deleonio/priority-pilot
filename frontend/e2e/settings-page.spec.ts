@@ -1,5 +1,11 @@
 import { expect, test } from './fixtures';
-import { headerAction, setEqualPillarWeights, waitForStableView } from './helpers';
+import {
+	headerAction,
+	openAvatarMenu,
+	seedAccountPreferences,
+	setEqualPillarWeights,
+	waitForStableView,
+} from './helpers';
 
 /**
  * ROTE Spec-Tests für #270 „Einstellungen: Popover durch Zahnrad-Toolbar-Button und Route
@@ -24,8 +30,9 @@ import { headerAction, setEqualPillarWeights, waitForStableView } from './helper
  * `/auth/me` wird durch die Fixture authentifiziert, damit die Auth-Gate durchlässig ist.
  */
 // #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
-// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+// Präferenz liegt am Konto: API-Seed + localStorage-Spiegel (#2508, Muster ai-disable.spec.ts).
 test.beforeEach(async ({ page }) => {
+	await seedAccountPreferences(page, { expertMode: true });
 	await page.addInitScript(() => {
 		localStorage.setItem('pp-expert-mode', 'true');
 	});
@@ -152,7 +159,10 @@ test.describe('#1320 Einstellungen als normale Seite mit sichtbarem Header', () 
 
 		await expect(page.getByRole('banner')).toBeVisible();
 		await expect(page.getByRole('toolbar', { name: /Kopf-Aktionen/ })).toBeVisible();
-		await expect(page.locator('kol-avatar')).toBeVisible();
+		// #2723: Der Avatar liegt im Avatar-Popover — mit geöffnetem Menü sichtbar.
+		// #2723-Fixup: auf den Panel-Avatar scopen — der Trigger trägt zusätzlich einen kompakten Avatar.
+		await openAvatarMenu(page);
+		await expect(page.locator('.app-header__user-menu-panel kol-avatar')).toBeVisible();
 	});
 
 	/** AK3 — Kein Button mit dem zugänglichen Namen „Zurück" existiert mehr. */
@@ -174,6 +184,11 @@ test.describe('#1320 Einstellungen als normale Seite mit sichtbarem Header', () 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
 		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
 		await expect(page).toHaveURL(/\/settings\/general/);
+		// Die URL wechselt vor dem Re-Render von `kol-toolbar`: erst wenn der Button aktiv ist, hängt
+		// am Klick der Rückweg statt des alten Handlers.
+		await expect(toolbar.getByRole('button', { name: 'Einstellungen' })).toHaveAccessibleDescription(
+			/Aktuelle Ansicht/,
+		);
 
 		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
 		await expect(page).toHaveURL(/\/aufgaben$/);
@@ -194,6 +209,9 @@ test.describe('#1320 Einstellungen als normale Seite mit sichtbarem Header', () 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
 		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
 		await expect(page).toHaveURL(/\/settings\/general/);
+		await expect(toolbar.getByRole('button', { name: 'Einstellungen' })).toHaveAccessibleDescription(
+			/Aktuelle Ansicht/,
+		);
 		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
 		await expect(page).toHaveURL(/\/$/);
 

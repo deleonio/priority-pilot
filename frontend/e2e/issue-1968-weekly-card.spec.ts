@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * ROTE Spec-Tests #1968 (docs/spec/issue-1968.md): Teilbare Wochen-Balance-Karte.
@@ -15,7 +15,6 @@ import { waitForStableView } from './helpers';
  */
 
 const SONNTAG = new Date(2026, 9, 11, 12); // KW 41/2026, Montag–Sonntag, Mittags (TZ-kanten-sicher)
-const MOBILE = { width: 375, height: 812 } as const;
 
 test.describe('Wochen-Balance-Karte (#1968)', () => {
 	test('AK5: ohne Anmeldung keine Karte — das Auth-Gate zeigt die Login-Seite', async ({ page }) => {

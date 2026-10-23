@@ -5,7 +5,9 @@
  * Basis ist das Momentaufnahmen-Defizit `defizitᵢ` (#1474): Hier zählt eine Säule als `defizitaer`,
  * wenn im jüngeren Fenster kein erledigter Aufwand anlandete — offene Tasks ändern das nicht. Der
  * `trend` vergleicht die zwei aufeinanderfolgenden Fenster, `ueberlast` meldet Säulen mit strikt
- * mehr als `UEBERLAST_ANTEIL` des Gesamtaufwands des jüngeren Fensters. Nur explizit zugewiesene
+ * mehr als `UEBERLAST_ANTEIL` des Gesamtaufwands des jüngeren Fensters — und erst ab
+ * `UEBERLAST_MINDEST_ERLEDIGUNGEN` Erledigungen im jüngeren Fenster (#2521; darunter ermutigt die
+ * Fürsorge, statt Ausgleich zu fordern). Nur explizit zugewiesene
  * Säulen tragen (`share / 100`); Done ohne `erledigtAm` zählt in keinem Fenster — der Zeitpunkt ist
  * unbekannt, die Säule bleibt konservativ defizitär sichtbar. Fenstergröße und Schwellen sind
  * exportierte Konstanten: #1793/#1794/#1796 importieren sie, statt Werte zu kopieren (AK4).
@@ -18,6 +20,10 @@ export const CARE_FENSTER_TAGE = 7;
 /** Anteilsschwelle am Gesamtaufwand des jüngeren Fensters, ab der Überlast gemeldet wird (strikt). */
 export const UEBERLAST_ANTEIL = 0.5;
 
+/** Mindestmenge erledigter Aufgaben im jüngeren Fenster (kontoweit), ab der Überlast überhaupt
+ *  gemeldet wird (#2521) — darunter ermutigt die Fürsorge, statt Ausgleich zu fordern. */
+export const UEBERLAST_MINDEST_ERLEDIGUNGEN = 3;
+
 const TAG_MS = 24 * 60 * 60 * 1000;
 const TOTAL_SHARE = 100;
 
@@ -29,9 +35,23 @@ export interface SaeulenDefizit {
 	defizitaer: boolean;
 	/** Jünger > älter → `erholt`, jünger < älter → `verschlechtert`, sonst `stabil`. */
 	trend: 'erholt' | 'stabil' | 'verschlechtert';
-	/** Strikt mehr als `UEBERLAST_ANTEIL` des Gesamtaufwands des jüngeren Fensters. */
+	/** Strikt mehr als `UEBERLAST_ANTEIL` des Gesamtaufwands und mindestens
+	 *  `UEBERLAST_MINDEST_ERLEDIGUNGEN` Erledigungen im jüngeren Fenster (#2521). */
 	ueberlast: boolean;
 }
+
+/** Anzahl erledigter Aufgaben im jüngeren Fenster (kontoweit, task-level) — die einzige Zählstelle
+ *  der Mindestmengen-Regel (#2521); Konsumenten rufen sie, statt Fenster selbst zu rechnen. */
+export const zaehleErledigungen = (tasks: Pick<KadenzTask, 'status' | 'erledigtAm'>[], jetzt: Date): number => {
+	const start = jetzt.getTime() - CARE_FENSTER_TAGE * TAG_MS;
+	return tasks.filter(
+		(task) =>
+			task.status === 'Done' &&
+			task.erledigtAm !== null &&
+			task.erledigtAm.getTime() > start &&
+			task.erledigtAm.getTime() <= jetzt.getTime(),
+	).length;
+};
 
 /**
  * Wertet die erledigte Pflege je Säule über die zwei aufeinanderfolgenden `CARE_FENSTER_TAGE`-Fenster
@@ -69,6 +89,7 @@ export const bewerteCareDefizit = (saeulen: BalanceSaeule[], tasks: KadenzTask[]
 	const juenger = aufwandJeSaeule(juengerStart, jetztMs);
 	const aelter = aufwandJeSaeule(aelterStart, juengerStart);
 	const gesamtJuenger = [...juenger.values()].reduce((summe, wert) => summe + wert, 0);
+	const erledigungen = zaehleErledigungen(tasks, jetzt);
 
 	return saeulen.map((saeule) => {
 		const istJuenger = juenger.get(saeule.id) ?? 0;
@@ -78,7 +99,10 @@ export const bewerteCareDefizit = (saeulen: BalanceSaeule[], tasks: KadenzTask[]
 			name: saeule.name,
 			defizitaer: istJuenger === 0,
 			trend: istJuenger > istAelter ? 'erholt' : istJuenger < istAelter ? 'verschlechtert' : 'stabil',
-			ueberlast: gesamtJuenger > 0 && istJuenger / gesamtJuenger > UEBERLAST_ANTEIL,
+			ueberlast:
+				erledigungen >= UEBERLAST_MINDEST_ERLEDIGUNGEN &&
+				gesamtJuenger > 0 &&
+				istJuenger / gesamtJuenger > UEBERLAST_ANTEIL,
 		};
 	});
 };

@@ -80,6 +80,9 @@ vi.mock('./api', () => ({
 		getCareConfig: vi.fn().mockResolvedValue(undefined),
 		// Test-Pflege #1994: dieselbe Karte lädt den Aufteilen-Hinweis-Schalter.
 		getSplitHintConfig: vi.fn().mockResolvedValue(undefined),
+		// #2850: neue Push-Gruppen-Client-Methoden (Default undefined wie die Nachbar-Getter).
+		getPushGroups: vi.fn().mockResolvedValue(undefined),
+		updatePushGroups: vi.fn().mockResolvedValue(undefined),
 		// Rollensystem admin/member (Deep-Link-Test unten): die Settings-Seite lädt beim Mount ihre
 		// Sektionen — leere Antworten reichen, geprüft wird nur der aktive Tab.
 		listLlmProviders: vi.fn().mockResolvedValue([]),
@@ -95,6 +98,8 @@ vi.mock('./api', () => ({
 		listCalendarEvents: vi.fn().mockResolvedValue([]),
 		// Test-Pflege #1360: die neue Dashboard-Card „Streak“ lädt ihre Werte beim Mount selbst.
 		getStreak: vi.fn().mockResolvedValue({ aktuell: 0, best: 0, letzterTag: null }),
+		// Test-Pflege #2082: die neue Dashboard-Card „Balance-Verlauf“ lädt ihren Verlauf beim Mount selbst.
+		getBalanceHistory: vi.fn().mockResolvedValue([]),
 		// Test-Pflege #1362: die neue Dashboard-Card „Meilensteine“ lädt ihre Werte beim Mount selbst.
 		getMilestones: vi.fn().mockResolvedValue([]),
 		// #1638: ohne Server-Antwort zeigt das Dashboard-Herz den lokal gerechneten Füllstand.
@@ -350,7 +355,8 @@ describe('App — Homogenerer Header (#222)', () => {
 		await waitFor(() => {
 			expect(screen.getByText(/Hallo/i)).toBeTruthy();
 		});
-		const avatar = document.querySelector('kol-avatar');
+		// #2723-Fixup: Der Namens-Avatar liegt im Popover-Panel; der Trigger-Avatar ist dekorativ (_label="").
+		const avatar = document.querySelector('.app-header__user-menu-panel kol-avatar');
 		expect(avatar).not.toBeNull();
 		expect(avatar?.getAttribute('_label')).toBe('Erika Muster');
 	});

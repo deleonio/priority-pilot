@@ -20,15 +20,20 @@ const OPERATOR = {
 	name: 'Testbetreiber GmbH',
 	address: ['Weg 1', '12345 Ort'],
 	email: 'rechnung@betreiber.example',
-	ustId: '',
+	taxNumber: '154/254/02959',
 };
-const RECIPIENT = { displayName: 'Ada Beispiel', email: 'ada@example.com' };
+const RECIPIENT = { name: 'Ada Beispiel', email: 'ada@example.com' };
 
 const setup = async () => {
 	const user = await User.create({
 		email: 'pdf@example.com',
-		displayName: 'Ada Beispiel',
+		displayName: 'Mo',
 		passwordHash: '__test__',
+		billingName: 'Ada Beispiel',
+		billingStreet: 'Musterweg 3',
+		billingZip: '12345',
+		billingCity: 'Musterstadt',
+		billingCountry: 'Deutschland',
 	});
 	const subscription = await Subscription.create({
 		userId: user.id,
@@ -74,9 +79,17 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 			'Betreiberangaben (Name, Anschrift) müssen drinstehen',
 		);
 		assert.ok(has(OPERATOR.email), 'Betreiber-Kontakt muss drinstehen');
-		assert.ok(has(RECIPIENT.displayName) && has(RECIPIENT.email), 'Empfänger (Name, E-Mail) muss drinstehen');
+		assert.ok(has(RECIPIENT.name), 'Empfänger-Name muss drinstehen');
+		assert.ok(has(RECIPIENT.email), 'Kundenkonto (E-Mail) steht im Einleitungssatz');
 		assert.ok(has('7,99 €'), 'Betrag muss in Euro mit Komma drinstehen');
 		assert.ok(has(TAX_NOTE), '§19-UStG-Hinweis muss drinstehen');
+		assert.ok(has('Steuer-Nr.: 154/254/02959'), 'Steuer-Nr. muss als Pflichtangabe drinstehen');
+		assert.ok(!has('USt-IdNr.'), 'Die USt-IdNr. wird nicht mehr gedruckt');
+		assert.ok(has('Ort, '), 'Ortsdatum wie in der Vorlage muss drinstehen');
+		assert.ok(has('Stk.') && has('ME'), 'Menge- und ME-Spalten müssen drinstehen');
+		assert.ok(has('Zwischensumme:') && has('Gesamtsumme:'), 'Summenzeilen müssen drinstehen');
+		assert.ok(has('Balamentum-Abonnement'), 'Der Produktbezug muss im Anschreiben drinstehen');
+		assert.ok(has('per PayPal beglichen'), 'Der Zahlungsweg-Hinweis muss drinstehen');
 	});
 
 	it('#2142 AK5: lineItems erscheinen mit Bezeichnung und Betrag, ohne lineItems bleibt das PDF unverändert', async () => {
@@ -95,17 +108,32 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 		assert.ok(!pdfContains(await pdf(plain), 'Verrechnung'));
 	});
 
-	it('ohne ustId keine USt-IdNr.-Zeile, mit ustId erscheint sie', async () => {
-		assert.ok(!pdfContains(await pdf(await invoice()), 'USt-IdNr'), 'Ohne ustId darf keine USt-IdNr.-Zeile erscheinen');
-
-		const withId = await pdf(await invoice('INV-2026-100002'), undefined, { ...OPERATOR, ustId: 'DE123456789' });
-		assert.ok(pdfContains(withId, 'DE123456789'), 'Bei gesetzter ustId muss die USt-IdNr. im PDF stehen');
+	it('Steuer-Nr.-Zeile nur bei gesetzter taxNumber', async () => {
+		const without = await pdf(await invoice('INV-2026-100003'), undefined, { ...OPERATOR, taxNumber: undefined });
+		assert.ok(!pdfContains(without, 'Steuer-Nr.'), 'Ohne taxNumber darf keine Steuer-Nr.-Zeile erscheinen');
 	});
 
-	it('Grußzeile trägt den Betreibernamen statt eines festen Personennamens', async () => {
+	it('Rechtsform erscheint, wenn gesetzt', async () => {
+		const bytes = await pdf(await invoice('INV-2026-100006'), undefined, {
+			...OPERATOR,
+			name: 'Musterfirma & Söhne',
+			legalForm: 'Einzelunternehmen',
+		});
+		assert.ok(pdfContains(bytes, 'Einzelunternehmen'), 'Die gesetzte Rechtsform muss im PDF stehen');
+		assert.ok(!pdfContains(await pdf(await invoice('INV-2026-100007')), 'Einzelunternehmen'));
+	});
+
+	it('Grußzeile trägt den Betreibernamen bzw. die Vertreterperson statt eines festen Personennamens', async () => {
 		const bytes = await pdf(await invoice(), undefined, { ...OPERATOR, name: 'Signatur Testname' });
 		assert.ok(pdfContains(bytes, 'Signatur Testname'));
 		assert.ok(!pdfContains(bytes, 'Martin Oppitz'));
+
+		const represented = await pdf(await invoice('INV-2026-100004'), undefined, {
+			...OPERATOR,
+			name: 'Firma Testname',
+			representative: 'Eigene Person',
+		});
+		assert.ok(pdfContains(represented, 'Eigene Person'), 'Mit representative unterschreibt die Person');
 	});
 
 	it('buildInvoicePdf liefert ein echtes PDF (%PDF-Magic)', async () => {
@@ -115,12 +143,12 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 	});
 
 	// #2233 AK1: WinAnsi-only Helvetica wirft bei Kyrillisch/Polnisch/Emoji — Unicode-Schrift gefordert.
-	for (const displayName of ['Иван Петров', 'Łukasz Żółć Ślęzak', 'Anna 🎉']) {
-		it(`#2233 AK1: buildInvoicePdf baut ein gültiges PDF für „${displayName}"`, async () => {
+	for (const name of ['Иван Петров', 'Łukasz Żółć Ślęzak', 'Anna 🎉']) {
+		it(`#2233 AK1: buildInvoicePdf baut ein gültiges PDF für „${name}"`, async () => {
 			const bytes = await buildInvoicePdf(
 				await invoice(),
 				OPERATOR,
-				{ displayName, email: 'x@example.com' },
+				{ name, email: 'x@example.com' },
 				'Paket plus (monthly)',
 			);
 			assert.equal(Buffer.from(bytes).subarray(0, 5).toString(), '%PDF-');
@@ -128,6 +156,38 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 	}
 
 	// #2303 AK2 (Spec docs/spec/issue-2303.md): Gutschrift-Titel statt „Rechnung“, Bezug aufs Original.
+	// #2661: die Rechnungsadresse des Empfängers steht im Adressfeld des PDFs.
+	it('#2661: das PDF enthält die Rechnungsadresse des Empfängers im Adressfeld', async () => {
+		const bytes = await pdf(await invoice(), 'Paket plus (monthly)', {
+			...OPERATOR,
+		});
+		const withAddress = await buildInvoicePdf(
+			await invoice('INV-2026-100002'),
+			OPERATOR,
+			{
+				...RECIPIENT,
+				addressLines: ['Max Mustermann', 'Musterstraße 1', '12345 Musterstadt', 'Deutschland'],
+			},
+			'Paket plus (monthly)',
+		);
+		assert.ok(pdfContains(withAddress, 'Musterstraße 1'), 'Straße der Rechnungsadresse muss im PDF stehen');
+		assert.ok(pdfContains(withAddress, '12345 Musterstadt'), 'PLZ und Ort müssen im PDF stehen');
+		assert.ok(pdfContains(withAddress, 'Deutschland'), 'Land muss im PDF stehen');
+		assert.ok(!pdfContains(bytes, 'Musterstraße 1'), 'Ohne Adresse steht keine fremde Adresse im PDF');
+	});
+
+	// Review #2661: pathologisch lange Adresszeilen werden am Seitenrand geclippt, statt überzulaufen.
+	it('#2661: überlange Adresszeile wird am Seitenrand geclippt statt überzulaufen', async () => {
+		const long = 'X'.repeat(241);
+		const bytes = await buildInvoicePdf(
+			await invoice(),
+			OPERATOR,
+			{ ...RECIPIENT, addressLines: [long] },
+			'Paket plus (monthly)',
+		);
+		assert.ok(!pdfContains(bytes, long), 'Die 241-Zeichen-Zeile darf nicht ungeclippt im PDF stehen');
+		assert.ok(pdfContains(bytes, 'X'.repeat(10)), 'Ein gekürzter Anfang der Zeile muss stehen bleiben');
+	});
 	it('#2303 AK2: Gutschrift trägt Titel „Gutschrift“, Bezug auf die Originalrechnung und kein „Rechnung GS-“', async () => {
 		const credit = await Invoice.create({
 			userId: 1,
@@ -146,7 +206,7 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 		assert.ok(pdfContains(bytes, 'Gutschrift GS-2026-000001'), 'Titel ist der Gutschrift-Titel');
 		assert.ok(pdfContains(bytes, 'INV-2026-000001'), 'Die Nummer der Originalrechnung muss im PDF stehen');
 		assert.ok(!pdfContains(bytes, 'Rechnung GS-'), 'Eine Gutschrift darf nicht als „Rechnung“ betitelt sein');
-		assert.ok(pdfContains(bytes, 'Gutschriftdatum'), 'Datumszeile heißt bei Gutschriften „Gutschriftdatum“');
+		assert.ok(pdfContains(bytes, 'über PayPal erstattet'), 'Der Erstattungs-Hinweis muss drinstehen');
 	});
 });
 
@@ -166,7 +226,7 @@ describe('invoices.ts — PDF-Erzeugung und -Aufbewahrung (#1955 AK1/AK3)', () =
 
 		assert.equal(sent.length, 1, 'Der Erstlauf muss genau eine Mail versenden');
 		const mail = sent[0] as { attachments?: { filename: string; contentType: string; content: Uint8Array }[] };
-		assert.ok(mail.attachments?.length === 1, 'Die Rechnungsmail muss genau einen PDF-Anhang tragen');
+		assert.ok(mail.attachments?.length === 3, 'Die Rechnungsmail muss PDF plus zwei CID-Logos tragen');
 		const attachment = mail.attachments[0]!;
 		assert.equal(attachment.contentType, 'application/pdf');
 		assert.ok(
@@ -175,6 +235,15 @@ describe('invoices.ts — PDF-Erzeugung und -Aufbewahrung (#1955 AK1/AK3)', () =
 		);
 		const mailed = Buffer.from(attachment.content);
 		assert.ok(mailed.length > 0 && mailed.subarray(0, 5).toString() === '%PDF-', 'Der Anhang muss ein echtes PDF sein');
+		assert.deepEqual(
+			mail.attachments.slice(1).map((logo) => logo.contentType),
+			['image/png', 'image/png'],
+			'Hinter dem PDF reisen die beiden CID-Logos (Balamentum, modevel)',
+		);
+		assert.ok(
+			pdfContains(mailed, 'Ada Beispiel') && pdfContains(mailed, 'pdf@example.com') && !pdfContains(mailed, 'Mo'),
+			'Das PDF trägt Rechnungsanschrift und Kundenkonto, nicht den Anzeigenamen',
+		);
 
 		await invoice.reload();
 		const stored = (invoice.get({ plain: true }) as { pdfBytes?: Uint8Array }).pdfBytes;

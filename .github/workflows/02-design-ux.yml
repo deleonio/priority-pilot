@@ -14,6 +14,11 @@ on:
     types: [labeled]
   workflow_dispatch:
     inputs:
+      runner:
+        description: 'Runner-Label für diesen Lauf (leer = vars.PHASE_RUNNER oder ubuntu-latest; z. B. self-hosted, pi5, ubuntu-latest)'
+        required: false
+        default: ''
+        type: string
       issue_number:
         description: 'Issue-Nummer'
         required: true
@@ -32,7 +37,7 @@ jobs:
   precheck:
     # Bei workflow_dispatch immer laufen, sonst nur bei Label ai:needs-ux-ui
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.label.name == 'ai:needs-ux-ui' }}
-    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     permissions:
       contents: read
@@ -78,7 +83,7 @@ jobs:
     if: >-
       ${{ always()
           && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
-    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 20
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin

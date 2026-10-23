@@ -37,10 +37,10 @@ describe('invoices.ts — issueInvoiceForPeriod (#1495 AK8)', () => {
 			status: 'active',
 			currentPeriodEnd: new Date('2026-04-01T00:00:00Z'),
 		});
-		const sent: { subject: string; text: string }[] = [];
+		const sent: { subject: string; text: string; html?: string }[] = [];
 
 		const invoice = await issueInvoiceForPeriod(subscription, now, async (payload) => {
-			sent.push({ subject: payload.subject, text: payload.text });
+			sent.push({ subject: payload.subject, text: payload.text, html: payload.html });
 		});
 
 		assert.equal(invoice.get('amountCents'), 899, 'Betrag kommt aus dem Paketkatalog (plans.ts)');
@@ -48,6 +48,13 @@ describe('invoices.ts — issueInvoiceForPeriod (#1495 AK8)', () => {
 		assert.ok(!Object.keys(Invoice.getAttributes()).includes('taxRate'), 'Kein Steuersatz — §19 UStG');
 		assert.equal(sent.length, 1, 'Die Rechnung muss zugestellt werden');
 		assert.match(sent[0].text, /§19 UStG/);
+		const html = sent[0].html ?? '';
+		assert.ok(
+			html.includes(String(invoice.get('number'))) &&
+				html.includes('cid:balamentum-logo') &&
+				html.includes('cid:modevel-logo'),
+			'HTML-Variante trägt Rechnungsnummer und beide Logo-CIDs',
+		);
 		assert.ok(invoice.get('deliveredAt'), 'Nach erfolgreicher Zustellung ist deliveredAt gesetzt');
 
 		const again = await issueInvoiceForPeriod(subscription, now, async () => {});
@@ -227,5 +234,26 @@ describe('invoices.ts — issueInvoiceForPeriod (#1495 AK8)', () => {
 			hexes.some((hex) => streams.some((stream) => stream.includes(`<${hex}>`))),
 			'Die PDF-Leistungszeile muss das deutsche Label tragen',
 		);
+	});
+
+	// #2554 AK2 (Spec docs/spec/issue-2554.md): ein gespeicherter Plan außerhalb von PLAN_VALUES
+	// ist ein Fehler — keine 0-EUR-Rechnung, keine stille free-Degradierung.
+	it('AK2 (#2554): unbekannter Plan legt keine Rechnung an und meldet den Fehler', async () => {
+		const user = await User.create({ email: 'plan-xyz@example.com', displayName: 'Xyz', passwordHash: 'x' });
+		const subscription = await Subscription.create({
+			userId: user.get('id') as number,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-PLAN-XYZ',
+			plan: 'xyz',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date('2026-04-01T00:00:00Z'),
+		});
+
+		await assert.rejects(
+			issueInvoiceForPeriod(subscription, now, async () => {}),
+			/Plan/,
+		);
+		assert.equal(await Invoice.count({ where: { subscriptionId: subscription.get('id') as number } }), 0);
 	});
 });

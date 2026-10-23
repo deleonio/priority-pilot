@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { seedAccountPreferences, waitForStableView } from './helpers';
 
 /**
  * Spec-Tests für #1984 — Expertenmodus: Prozent- und Gewichtspflege hinter einer Einstellung
@@ -157,8 +157,9 @@ test.describe('#1984 Expertenmodus', () => {
 		await page.goto('/app/');
 		await waitForStableView(page);
 		// Expertenmodus für den Anlage-Teil einschalten (nach dem ersten Load, damit der
-		// localStorage-Wert später über den Schalter umgelegt werden kann).
-		await page.evaluate(() => localStorage.setItem('pp-expert-mode', 'true'));
+		// localStorage-Wert später über den Schalter umgelegt werden kann; #2508: Konto-Seed,
+		// der Reload-Pull übernimmt die Präferenz in den Spiegel).
+		await seedAccountPreferences(page, { expertMode: true });
 		await page.reload();
 		await waitForStableView(page);
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();

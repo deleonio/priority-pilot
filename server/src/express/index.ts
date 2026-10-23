@@ -5,7 +5,7 @@ import passport from 'passport';
 import type { Store } from 'express-session';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import type { components } from '../api';
-import { createTasksRouter, serializeTask } from './routes/tasks.js';
+import { createTasksRouter, serializeTask, taskReadScope } from './routes/tasks.js';
 import { pillarsRouter } from './routes/pillars.js';
 import { categoriesRouter } from './routes/categories.js';
 import { createSuggestPillarsRouter } from './routes/suggestPillars.js';
@@ -16,21 +16,24 @@ import { createSuggestInitialTasksRouter } from './routes/suggestInitialTasks.js
 import { createPillarAdvisorRouter } from './routes/pillarAdvisor.js';
 import { createCareSuggestionsRouter, scoresRouter } from './routes/scores.js';
 import { createSeriesRouter } from './routes/series.js';
-import { groupsRouter } from './routes/groups.js';
+import { createGroupsRouter } from './routes/groups.js';
 import { templatesRouter } from './routes/templates.js';
-import { inviteLinksPublicRouter } from './routes/inviteLinks.js';
+import { createInviteLinksPublicRouter } from './routes/inviteLinks.js';
 import { plansPublicRouter } from './routes/plans.js';
 import { usersRouter } from './routes/users.js';
 import { createAdminRouter } from './routes/admin.js';
 import { authRouter } from './routes/auth.js';
 import { createMagicLinkRouter } from './routes/magicLink.js';
+import { createWaitlistRouter } from './routes/waitlist.js';
 import { createNativeGoogleRouter } from './routes/nativeGoogle.js';
 import { createPushRouter } from './routes/push.js';
 import { createMailRouter } from './routes/mail.js';
 import { createLlmProvidersRouter } from './routes/llmProviders.js';
-import { geoConfigRouter, resolveGeoUser } from './routes/geoConfig.js';
+import { appSprache, geoConfigRouter, resolveGeoUser } from './routes/geoConfig.js';
+import { pillarTextIn } from '../models/pillarData.js';
 import { mcpInstructionsRouter } from './routes/mcpInstructions.js';
 import { careConfigRouter } from './routes/careConfig.js';
+import { pushGroupsRouter } from './routes/pushGroups.js';
 import { splitHintConfigRouter } from './routes/splitHintConfig.js';
 import { kpisRouter } from './routes/kpis.js';
 import { createBalanceVariantRouter } from './routes/balanceVariant.js';
@@ -42,7 +45,7 @@ import { journalRouter } from './routes/journal.js';
 import { calendarRouter } from './routes/calendar.js';
 import { freeSlotsRouter } from './routes/freeSlots.js';
 import { profileRouter } from './routes/profile.js';
-import { mcpRouter } from '../mcp/server.js';
+import { mcpAdminRouter, mcpRouter } from '../mcp/server.js';
 import type { FetchProviderModels, RunProviderTest } from './routes/llmProviders.js';
 import { lektoratRouter } from './routes/lektorat.js';
 import { taskAiDraftRouter } from './routes/taskAiDraft.js';
@@ -85,7 +88,7 @@ import { nativeCors } from './nativeCors.js';
 import { translateMessages } from './messagesEn.js';
 import { createCsrfUtilities } from './csrf.js';
 import { upsertOAuthUser } from '../logics/oauthUser.js';
-import { sendError } from './http-error.js';
+import { errorHandler, sendError, logUrl } from './http-error.js';
 
 type TaskTreeNodeDto = components['schemas']['TaskTreeNode'];
 type TaskGraphDto = components['schemas']['TaskGraph'];
@@ -229,11 +232,11 @@ export const createApp = (deps: AppDeps = {}) => {
 	app.use(apiTokenAuth);
 
 	// CSRF-Schutz für alle schreibenden Endpunkte (siehe csrf.ts), Token-Ausstellung via
-	// GET /auth/csrf. Nur in Produktion aktiv — die E2E-Suite seedet Daten über direkte
-	// page.request-Aufrufe ohne Token, und Dev läuft mit 'dev-secret' ohne echte Sessions.
+	// GET /auth/csrf. Aktiv, sobald SESSION_SECRET gesetzt ist (echte Sessions) — nicht bei
+	// NODE_ENV=test: Die E2E-Suite seedet Daten über direkte page.request-Aufrufe ohne Token.
 	const csrf = createCsrfUtilities(sessionSecret ?? 'dev-secret');
 	app.get('/auth/csrf', csrf.issueCsrfToken);
-	if (process.env.NODE_ENV === 'production') {
+	if (sessionSecret && process.env.NODE_ENV !== 'test') {
 		// Bearer-Requests tragen kein Cookie und können das Double-Submit-Token nicht liefern
 		// (#1352) — sie sind daher von der CSRF-Prüfung ausgenommen. Ebenso die Android-App vor der
 		// Anmeldung (Code-Tausch, ID-Token, Magic Link): Sie ruft von `https://localhost` ohne Cookies auf.
@@ -309,6 +312,7 @@ export const createApp = (deps: AppDeps = {}) => {
 	app.use(authRouter);
 	// Magic-Link-Login per E-Mail (öffentlich, zweiter Anmeldeweg neben Google).
 	app.use(createMagicLinkRouter(deps.mailSender));
+	app.use(createWaitlistRouter(deps.mailSender));
 	// Native Google-Anmeldung der Android-App per ID-Token (ADR 0023).
 	app.use(createNativeGoogleRouter(deps.googleKeys));
 
@@ -320,7 +324,7 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Öffentliche Einladungslink-Preisgabe (#1226): GET + redeem unter /invite-links — bewusst
 	// VOR requireAuth, damit ein Link ohne Session geöffnet werden kann (redeem prüft die
 	// Session selbst und antwortet sonst 401).
-	app.use(inviteLinksPublicRouter);
+	app.use(createInviteLinksPublicRouter({ pushSender: deps.pushSender }));
 
 	// Öffentlicher Paket-Katalog (#1456): Preise und Feature-Matrix sind ohne Session lesbar —
 	// deshalb ebenfalls VOR requireAuth gemountet.
@@ -354,6 +358,7 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Pro-User Geo-Konfiguration: Anzeige-/Alarm-Entfernung, Intervall (#1098).
 	app.use(geoConfigRouter);
 	app.use(careConfigRouter);
+	app.use(pushGroupsRouter);
 	// Aufteilen-Hinweis-Schalter pro User (#1994).
 	app.use(splitHintConfigRouter);
 	// Dialog-Vorgaben für die per MCP verbundene KI (#1935).
@@ -389,6 +394,8 @@ export const createApp = (deps: AppDeps = {}) => {
 	// MCP-Werkzeuge v1 (#1353): POST /mcp/v1. Bewusst HINTER `requireAuth` — ohne gültigen
 	// (Bearer-)Token gibt es 401 und damit keinen Werkzeugaufruf.
 	app.use(mcpRouter);
+	// Admin-MCP-Endpunkt (#1338): POST /mcp/admin/v1, nur lesend, nur für die Systemrolle `admin`.
+	app.use(mcpAdminRouter);
 
 	// Anzeigename selbst festlegen (#1219): GET/PUT /profile.
 	app.use(profileRouter);
@@ -435,7 +442,7 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Gruppen (Issue #1211): CRUD hinter requireAuth — Sichtbarkeit/Rechte über group_members-
 	// Membership, nicht über ownerScope (Group hat kein userId). Einladungen folgen in Ticket 2 (#952).
-	app.use(groupsRouter);
+	app.use(createGroupsRouter({ pushSender: deps.pushSender }));
 
 	// Nutzersuche für den Einladungsfluss (#1212): nur id+displayName, E-Mail nur als Volltreffer.
 	app.use(usersRouter);
@@ -465,11 +472,17 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Adresssuche (Forward Geocoding): Suchtext → Adress-Vorschläge, für die Ortsauswahl im Task-Formular.
 	app.use('/geocode-search', geocodeRateLimiter, geocodeSearchRouter);
 
-	// GET /forest — Aufgabenwald nach Wertschöpfung sortiert (auf den eingeloggten Nutzer gefiltert).
+	// GET /forest — Aufgabenwald nach Wertschöpfung sortiert. #2515: derselbe Lese-Scope wie die
+	// Aufgabenliste (`taskReadScope`, Requester-Auflösung wie `serializeTasksFor`) — der Wald zeigt
+	// dem Ersteller auch übergebene/unclaimte Gruppen-Aufgaben; ohne Session bleibt alles sichtbar.
 	app.get('/forest', async (req, res: express.Response<TaskTreeNodeDto[] | ErrorDto>) => {
 		try {
-			res.json(await buildTaskForest(getUserId(req)));
-		} catch {
+			const userId = getUserId(req);
+			const scope = await taskReadScope(userId, (await resolveGeoUser(req))?.id ?? null);
+			res.json(await buildTaskForest(userId, scope));
+		} catch (error) {
+			// #2549 AK4: Fehler loggen (Methode, Pfad, Fehlermeldung), bevor die 500 geht.
+			console.error(`${req.method} ${logUrl(req)}`, error);
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	});
@@ -479,7 +492,8 @@ export const createApp = (deps: AppDeps = {}) => {
 	app.get('/graph', async (req, res: express.Response<TaskGraphDto | ErrorDto>) => {
 		try {
 			res.json(await buildTaskGraph(getUserId(req)));
-		} catch {
+		} catch (error) {
+			console.error(`${req.method} ${logUrl(req)}`, error);
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	});
@@ -489,21 +503,41 @@ export const createApp = (deps: AppDeps = {}) => {
 		try {
 			const userId = getUserId(req);
 			const next = await findNextBewertung(userId);
+			// #2624 AK2: Leerfall direkt beantworten, bevor resolveGeoUser den Nutzer lädt —
+			// keine Nutzer-Abfrage ohne Treffer.
+			if (!next) {
+				res.json(null);
+				return;
+			}
 			// #1985: Begründungswerte additiv; ohne Anteile entfällt `reasons` komplett.
-			let reasons = next ? toReasons(next) : undefined;
+			let reasons = toReasons(next);
+			// #2523: Säulennamen der Begründung folgen der App-Sprache (`User.sprache`); der
+			// Middleware-Override (`res.locals.saeulenSprache`) hält den Header dagegen.
+			const geoUser = await resolveGeoUser(req);
+			const sprache = appSprache(geoUser, req);
+			if (reasons?.balance) {
+				reasons = {
+					...reasons,
+					balance: { pillars: reasons.balance.pillars.map((name) => pillarTextIn(sprache, name)) },
+				};
+			}
+			if (geoUser) {
+				res.locals.saeulenSprache = sprache;
+			}
 			// #1994: Aufteilen-Hinweis — unabhängig von den Score-Anteilen, per Nutzer-Schalter abschaltbar.
-			if (next && (await resolveGeoUser(req))?.splitHintEnabled !== false) {
+			if (geoUser?.splitHintEnabled !== false) {
 				const split = await erkenneAufteilenHinweis(next.task, userId);
 				if (split) {
 					reasons = { ...reasons, split };
 				}
 			}
-			res.json(
-				next
-					? { ...serializeTask(next.task), scoreBreakdown: toScoreBreakdown(next), ...(reasons ? { reasons } : {}) }
-					: null,
-			);
-		} catch {
+			res.json({
+				...serializeTask(next.task),
+				scoreBreakdown: toScoreBreakdown(next),
+				...(reasons ? { reasons } : {}),
+			});
+		} catch (error) {
+			console.error(`${req.method} ${logUrl(req)}`, error);
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	});
@@ -513,10 +547,15 @@ export const createApp = (deps: AppDeps = {}) => {
 		try {
 			const liste = await findSuggestedBewertungen(getUserId(req));
 			res.json(liste.map((eintrag) => ({ ...serializeTask(eintrag.task), scoreBreakdown: toScoreBreakdown(eintrag) })));
-		} catch {
+		} catch (error) {
+			console.error(`${req.method} ${logUrl(req)}`, error);
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	});
+
+	// Globaler Fehlerhandler (#2549 AK1) — letzte Middleware: fängt alle vorher nicht behandelten
+	// Fehler (async Rejections, next(err)) und antwortet 500 + `{ message }` + Log-Eintrag.
+	app.use(errorHandler);
 
 	return app;
 };

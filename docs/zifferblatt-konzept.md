@@ -84,7 +84,7 @@ trägt weiterhin in beide Komponenten dieselbe Unterdeckung bei und widerspricht
 | Zifferblatt innen   | `RING_INNER = 40`               | Strichlängen 5 bzw. 7,5 (Zehner-Marke)                            |
 | Figurenfeld außen   | `FIGURE_MAX = 33`               | plus Schwingungsreserve 12 % → 37 < 40, nichts läuft in die Skala |
 | Kleinste Form       | `R_MIN = 8`                     | eine Säule ohne Ziel darf nicht verschwinden                      |
-| Auftakt             | `RISE_DURATION = 1,4 s`         | einmalig, `easeOutCubic`                                          |
+| Auftakt             | `RISE_DURATION = 1,4 s`         | einmalig, `easeOutCubic`; startet mit dem ersten Server-Stand     |
 | Ruhepuls            | `1,5–2,6 s` je nach Balance     | `--pp-heart-beat`; ruhiger, je ausgewogener                       |
 | Schwingung je Säule | `6,5–9,9 s`, Phase golden       | damit gleich große Formen unterscheidbar bleiben                  |
 | Drehung je Säule    | `19–26,5 s`, Richtung wechselnd | dasselbe                                                          |
@@ -103,21 +103,26 @@ Winkel) und eine eigene Periode. `balanceFigure.test.ts` nagelt das fest.
 sichtbar und der Tab im Vordergrund ist. Ein aus `u_time` abgeleiteter Auftakt steht bei einem
 Standbild auf 0 — und das Bild ist leer statt fertig (genau der Fall „Dashboard im Hintergrund-Tab
 geöffnet"). Der Fortschritt kommt deshalb als Uniform `u_rise` aus der Komponente, und ein Standbild
-setzt ihn auf 1.
+setzt ihn auf 1. Bis zur ersten Balance-Antwort (`GET /scores/balance`) hält die Komponente den
+Auftakt auf 0 — das Bild wächst einmalig auf den echten Stand, nicht erst auf den lokalen Notwert;
+das leere Zifferblatt ist in diesem Moment wartender Zustand, nicht Fehler.
 
 ## 6. Die Zifferblätter heute
 
-| Schlüssel  | Bild       | Größe ist …                                  | Material                          |
-| ---------- | ---------- | -------------------------------------------- | --------------------------------- |
-| `herz`     | Herz-Gefäß | Füllfläche und Streifenbreite                | Glas, Welle, Meniskus             |
-| `blasen`   | Blasen     | Radius, größte hinten                        | Seifenhaut, Fresnel-Saum, Schein  |
-| `scheiben` | Scheiben   | Radius, größte hinten (Geometrie wie oben)   | deckend, harte Kante, kein Schein |
-| `ringe`    | Ringe      | Spur (außen = stärkste) **und** Bogenlänge   | Bogen mit hellem Kopf             |
-| `strahlen` | Strahlen   | Länge, längster auf 12 Uhr                   | Lichtkeil mit auslaufendem Puls   |
-| `bluete`   | Blüte      | Lappenlänge, weitester auf 12 Uhr            | weiche Neon-Kontur, irisierend    |
-| `kristall` | Kristall   | Lappenlänge (Stützpunkte wie oben)           | Facetten, helle Kanten und Knoten |
-| `segmente` | Segmente   | äußerer Radius je Stück; Breite = Ist-Anteil | satt, Fuge, helle Lippe           |
-| `zeiger`   | Zeiger     | Länge, längster auf 12 Uhr                   | schlanker Lichtkeil, helle Spitze |
+| Schlüssel  | Bild       | Größe ist …                                       | Material                                 |
+| ---------- | ---------- | ------------------------------------------------- | ---------------------------------------- |
+| `herz`     | Herz-Gefäß | Füllfläche und Streifenbreite                     | Glas, Welle, Meniskus                    |
+| `blasen`   | Blasen     | Radius, größte hinten                             | Seifenhaut, Fresnel-Saum, Schein         |
+| `scheiben` | Scheiben   | Radius, größte hinten (Geometrie wie oben)        | deckend, harte Kante, kein Schein        |
+| `ringe`    | Ringe      | Spur (außen = stärkste) **und** Bogenlänge        | Bogen mit hellem Kopf                    |
+| `strahlen` | Strahlen   | Länge, längster auf 12 Uhr                        | Lichtkeil mit auslaufendem Puls          |
+| `bluete`   | Blüte      | Lappenlänge, weitester auf 12 Uhr                 | weiche Neon-Kontur, irisierend           |
+| `kristall` | Kristall   | Lappenlänge (Stützpunkte wie oben)                | Facetten, helle Kanten und Knoten        |
+| `segmente` | Segmente   | äußerer Radius je Stück; Breite = Ist-Anteil      | satt, Fuge, helle Lippe                  |
+| `zeiger`   | Zeiger     | Länge, längster auf 12 Uhr                        | schlanker Lichtkeil, helle Spitze        |
+| `bahnen`   | Bahnen     | große Halbachse der Umlaufbahn, größte auf 12 Uhr | blasse Bahn, Neon-Komet im Kepler-Takt   |
+| `meteore`  | Meteore    | große Halbachse (Geometrie wie Bahnen)            | langer, pulsierend auslaufender Schweif  |
+| `pendel`   | Pendel     | große Halbachse (Geometrie wie Bahnen)            | Schwingbogen, richtungskippender Schweif |
 
 **„Blasen" und „Scheiben" sind derselbe Stapel in zwei Materialien** — gleiche Geometrie, gleiche
 Bewegung, gleiche Slots. Sie teilen sich im Shader einen Zweig (`bool sharp`), weil jede Trennung
@@ -143,8 +148,21 @@ gering gewichteten Stück bleibt die Form klein. **„Zeiger“** folgt dem Must
 schlankerer Geometrie — dieselben Winkel- und Längen-Slots, nur schmaler: Das Zifferblatt ist
 bei ihr Teil der Figur, ein breiter Keil würde die Skala unter sich begraben.
 
-**Die Soll-Marke** ist bei Blasen, Scheiben, Strahlen, Blüte, Kristall und Zeigern ein gestrichelter Kreis,
-bei den Ringen ein Strich quer über jede Spur; das Herz trägt sie in seinem Füllstand.
+**„Bahnen“, „Meteore“ und „Pendel“ sind eine Geometrie in drei Bewegungen** — das Muster der
+Material-Paare (Blasen/Scheiben, Blüte/Kristall), nur trägt hier die Bewegung den Unterschied:
+Jede Säule ein Komet auf eigener Ellipsenbahn um die Mitte, die Bahn blass und dünn (der Weg),
+ihre große Halbachse trägt die Kennzahl — die größte Bahn zeigt auf 12 Uhr und berührt mit dem
+Scheitel dieselbe Stelle wie eine Strahlenspitze. **Bahnen** läuft im Kepler-Takt um (nahe der
+kleinen Achse schneller, am Scheitel langsam — Kepler-Gleichung, eine Näherung genügt dem Auge),
+**Meteore** gleichen Umlauf mit langem, pulsierend auslaufendem Schweif, **Pendel** schwingt um
+seine Phase — der Schweif kippt mit der Bewegungsrichtung und blendet an den Umkehrpunkten ab.
+Die Bahn atmet bei allen dreien im Schwing-Takt. Winkel und Halbachse belegen die Strahlen-Slots
+(`u_ray_angle`/`u_ray_length`), die Abflachung ist Konstante beider Fassungen — die Ellipsenform
+ist Stil, kein Datum.
+
+**Die Soll-Marke** ist bei Blasen, Scheiben, Strahlen, Blüte, Kristall, Zeigern und den drei
+Bahn-Figuren ein gestrichelter Kreis, bei den Ringen ein Strich quer über jede Spur; das Herz
+trägt sie in seinem Füllstand.
 
 **Was die Scheiben nicht bekommen:** keinen Kontaktschatten und keinen Neon-Schein. Ein weicher Saum
 um eine harte Kante nimmt genau die Schärfe zurück, die ihr Stilmittel ist — ihre Tiefe trägt die

@@ -2,6 +2,11 @@
  * Pflichtangaben des Diensteanbieters (§ 5 DDG). Einzige Quelle für das Impressum der App
  * (`components/Impress.tsx`) und der öffentlichen Website (`website/`, ADR 0015).
  */
+// Bewusst das `i18next`-Paket statt `../i18n/config` (Muster `journalDate.ts`): `website/` baut
+// diese Datei per tsx mit, der Vite-only `import.meta.glob` dort würde den Build brechen. Der
+// Default-Export des Pakets ist dieselbe Singleton-Instanz, die `i18n/config.ts` initialisiert.
+import i18next from 'i18next';
+
 export const OPERATOR = {
 	/** Vollständiger Name des Diensteanbieters (natürliche Person oder Firma). */
 	name: 'Martin Oppitz Development',
@@ -26,7 +31,13 @@ const LEGAL_LINKS = {
 export type LegalKey = keyof typeof LEGAL_LINKS.de;
 
 /** Sprache der Rechtsseiten: Englisch hat eigene Seiten, sonst gilt die deutsche Fassung. */
-export const legalLanguage = (language: string): keyof typeof LEGAL_LINKS => (language === 'en' ? 'en' : 'de');
+// Bewusst NICHT exportiert (#2775): einzige Verbraucher sind legalPath/currentLegalLanguage hier;
+// website/ importiert nur OPERATOR, knip würde den toten Export bemängeln.
+const legalLanguage = (language: string): keyof typeof LEGAL_LINKS => (language === 'en' ? 'en' : 'de');
+
+/** Rechtssprache der aktuellen App-Sprache: liest die globale i18next-Instanz (resolvedLanguage ?? language). */
+export const currentLegalLanguage = (): keyof typeof LEGAL_LINKS =>
+	legalLanguage(i18next.resolvedLanguage ?? i18next.language);
 
 /** Pfad der Rechtsseite in der Sprache `language`. */
 export const legalPath = (key: LegalKey, language: string): string => LEGAL_LINKS[legalLanguage(language)][key];

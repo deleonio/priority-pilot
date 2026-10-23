@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { UniqueConstraintError } from 'sequelize';
-import { sendError, type ErrorDto } from '../http-error.js';
+import { parseId, sendError, type ErrorDto } from '../http-error.js';
+import { parseCoordinate } from '../../logics/geo.js';
 import { PlaceFavorite } from '../../models/index.js';
 import { getUserId } from '../requireAuth.js';
 import { requirePlanFeature } from '../planGuard.js';
@@ -32,10 +33,6 @@ const serializePlaceFavorite = (favorite: PlaceFavorite): PlaceFavoriteDto => ({
 	longitude: favorite.longitude ?? null,
 });
 
-/** Koordinaten sind optional; alles außer einer endlichen Zahl gilt als „nicht gesetzt" (AK4). */
-const toCoordinate = (value: unknown): number | null =>
-	typeof value === 'number' && Number.isFinite(value) ? value : null;
-
 /** Vergleichsform für die Duplikatprüfung (#1595 AK4): getrimmt und ohne Groß-/Kleinschreibung. */
 const normalizeAddress = (address: string): string => address.trim().toLowerCase();
 
@@ -44,6 +41,9 @@ const findExisting = async (userId: number, address: string): Promise<PlaceFavor
 	(await PlaceFavorite.findAll({ where: { userId } })).find(
 		(favorite) => normalizeAddress(favorite.address) === normalizeAddress(address),
 	);
+
+/** JSON-„abwesend“: Feld fehlt (`undefined`) oder ist explizit `null` — beide Fälle senden die Frontend-Sender (#2553). */
+const isAbsent = (value: unknown): boolean => value === undefined || value === null;
 
 export const placeFavoritesRouter = Router();
 
@@ -78,6 +78,17 @@ placeFavoritesRouter.post(
 			sendError(res, 400, `Bitte eine Adresse mit 1 bis ${MAX_ADDRESS_LENGTH} Zeichen angeben.`);
 			return;
 		}
+		const latitudeInput = body?.latitude;
+		const longitudeInput = body?.longitude;
+		// #2553 AK3: abwesende Koordinaten bleiben null (#1342 AK4, Freitext-Ort — JSON `undefined`
+		// oder explizites `null`); anwesende müssen über den zentralen Helfer gültig sein — früher
+		// wurden Überschreiter (999) still gespeichert.
+		const latitude = isAbsent(latitudeInput) ? null : parseCoordinate(latitudeInput, 90);
+		const longitude = isAbsent(longitudeInput) ? null : parseCoordinate(longitudeInput, 180);
+		if ((!isAbsent(latitudeInput) && latitude === null) || (!isAbsent(longitudeInput) && longitude === null)) {
+			sendError(res, 400, 'lat und lon müssen Zahlen in gültigem Bereich sein.');
+			return;
+		}
 		try {
 			// #1595 (AK4): Dieselbe Adresse existiert genau einmal. Ein zweiter Speicherversuch ist
 			// kein Fehler, sondern liefert den bestehenden Eintrag zurück — das Frontend braucht so
@@ -90,8 +101,8 @@ placeFavoritesRouter.post(
 			const created = await PlaceFavorite.create({
 				userId,
 				address,
-				latitude: toCoordinate(body?.latitude),
-				longitude: toCoordinate(body?.longitude),
+				latitude,
+				longitude,
 			});
 			res.status(201).json(serializePlaceFavorite(created));
 		} catch (error) {
@@ -121,9 +132,9 @@ placeFavoritesRouter.delete(
 			sendError(res, 401, 'Anmeldung erforderlich.');
 			return;
 		}
-		const id = Number(req.params.id);
-		if (!Number.isInteger(id)) {
-			sendError(res, 404, 'Gespeicherter Ort nicht gefunden.');
+		const id = parseId(req.params.id);
+		if (id === null) {
+			sendError(res, 400, 'Ungültige Orts-Id.');
 			return;
 		}
 		try {

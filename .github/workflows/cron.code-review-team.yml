@@ -1,6 +1,6 @@
-name: Code Review Team
+name: Code-Review-Team
 
-# Täglicher LLM-Job (wie die Phasen 01–06 über setup-agent, aber KEINE Pipeline-Phase):
+# Wöchentlicher LLM-Job (in der Nacht auf Freitag, Abschluss des Team-Blocks; wie die Phasen 01–06 über setup-agent, aber KEINE Pipeline-Phase):
 # Ein Code-Review-Team aus vier Perspektiven (Architekt, Clean-Code-Reviewer, Test-Ingenieur,
 # Betriebs- und Sicherheits-Wächter — Methode: .claude/skills/code-review-team/SKILL.md) begeht
 # den Code gegen die Vorgaben des Repos (AGENTS.md, .ai-knowledge/, docs/, ADRs) und prüft
@@ -15,17 +15,17 @@ name: Code Review Team
 # DELIVERY (zwei Kanäle, beide vom WORKFLOW deterministisch, der Agent liefert nur Commit + Datei):
 #   1. Protokoll: genau EIN offenes Issue mit Label ci:code-review-team (bewusst KEIN ai:*-Label —
 #      das würde die Ticket-Pipeline starten!). Vorhanden → Body durch das neue Protokoll ersetzen
-#      (Titel-Datum wird mit aktualisiert); fehlt → neu anlegen. Der Agent liest das Vortags-
-#      Protokoll per gh zurück (Carry-over mit stabilen Finding-Nummern). 00-Validate übergeht
+#      (Titel-Datum wird mit aktualisiert); fehlt → neu anlegen. Der Agent liest das Protokoll des
+#      Vorlaufs per gh zurück (Carry-over mit stabilen Finding-Nummern). 00-Validate übergeht
 #      ci:*-Issues (Skip im verify-issue-quality.sh). Muster cron.ux-team.yml.
 #   2. Fix: PR vom festen Branch chore/code-review-team. Der Branch wird je Lauf auf origin/main
-#      zurückgesetzt und per Force-Push ersetzt — der offene PR zeigt immer nur den heutigen Fix.
+#      zurückgesetzt und per Force-Push ersetzt — der offene PR zeigt immer nur den Fix des aktuellen Laufs.
 #      Der PR hängt an der KI-Pipeline (ai:needs-review per App-Token → Kreuzverhör-Review →
 #      Gate → Auto-Merge). Muster cron.sync-arc42.yml inkl. Re-Arm (#536).
 #
 # IN-FLIGHT-LOGIK (Abweichung von arc42-sync): Läuft die Pipeline noch auf dem offenen Fix-PR,
 # wird NICHT der ganze Lauf ausgesetzt, sondern nur der Fix (FIX_ALLOWED=false) — Review und
-# Protokoll laufen täglich weiter, der Agent darf dann nichts committen.
+# Protokoll laufen weiterhin, der Agent darf dann nichts committen.
 #
 # POST-ASSERTION (Ehrlichkeits-Kreuzcheck): VERDICT fixed ↔ genau ein Commit, review-only ↔ null
 # Commits; Scope-Guard (nichts unter .github/ außer scripts/, kein Lockfile, package.json, ADRs, OpenAPI, DB-Schicht) und
@@ -36,7 +36,8 @@ name: Code Review Team
 # Review würde nie starten. Deshalb Push, PR und ai:needs-review über steps.setup.outputs.gh-token.
 #
 # STATELESS: kein pro-Issue-Memory (memory-load/expect false). Das Protokoll-Issue und der offene
-# Fix-PR sind der einzige Zustand. Modell: sonnet (überschreibbar via vars.CLAUDE_MODEL_CODE_REVIEW_TEAM),
+# Fix-PR sind der einzige Zustand. Modell: opus mit Effort high (überschreibbar via
+# vars.CLAUDE_MODEL_CODE_REVIEW_TEAM),
 # Fan-out-Recherche auf dem billigen Subagent-Modell (vars.CLAUDE_MODEL_CODE_REVIEW_TEAM_SUBAGENT).
 #
 # KEINE Nummer im Dateinamen: Nummern (00–06) sind lastend (Workflow-Name-Matching), dieser
@@ -44,9 +45,14 @@ name: Code Review Team
 
 on:
   schedule:
-    - cron: '27 4 * * *' # täglich 04:27 UTC — im LLM-Nachtblock hinter Cache-Cleanup (03:17), vor dem z.ai-Peak (ab 06:00 UTC)
+    - cron: '27 3 * * 5' # wöchentlich freitags 03:27 UTC (05:27/04:27 Berlin) — Abschluss des Team-Blocks in der Nacht auf Freitag: Fix-PR und Reports früh am Freitag fertig, der Fix-PR läuft übers Wochenende durch die Pipeline
   workflow_dispatch:
     inputs:
+      runner:
+        description: 'Runner-Label für diesen Lauf (leer = vars.PHASE_RUNNER oder ubuntu-latest; z. B. self-hosted, pi5, ubuntu-latest)'
+        required: false
+        default: ''
+        type: string
       force:
         description: 'Skip-Guard ignorieren (Lauf erzwingen, auch wenn main unverändert ist)'
         type: boolean
@@ -78,7 +84,7 @@ env:
 
 jobs:
   code-review-team:
-    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 45
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -159,7 +165,7 @@ jobs:
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           runtime: ${{ vars.AGENT_RUNTIME }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
-          model: ${{ vars.CLAUDE_MODEL_CODE_REVIEW_TEAM || 'sonnet' }}
+          model: ${{ vars.CLAUDE_MODEL_CODE_REVIEW_TEAM || 'opus' }}
           effort: 'high'
           # Fan-out-Lesen (Code-Durchsicht) auf dem billigen Modell, Muster Triage —
           # sonst liefe der recherche-Subagent auf dem teuren Hauptmodell.
@@ -201,7 +207,7 @@ jobs:
         id: claude
         if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
         env:
-          # Der Agent liest das Vortags-Protokoll + offene Issues/PRs per gh (Carry-over + Dedup).
+          # Der Agent liest das Protokoll des Vorlaufs + offene Issues/PRs per gh (Carry-over + Dedup).
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           FIX_ALLOWED: ${{ steps.inflight.outputs.fix_allowed }}
         run: |
@@ -225,7 +231,7 @@ jobs:
       - name: Protokoll als Artefakt sichern
         # Auch bei Folgefehlern (Post-Assertion, Issue-Step) bleibt das Protokoll auffindbar.
         if: ${{ always() && steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: code-review-team-protokoll
           path: |
@@ -383,8 +389,8 @@ jobs:
             pr_ref="keiner"
           fi
           sed -i "s|^PR: (wird vom Workflow eingetragen)|PR: ${pr_ref}|" "$PROTOCOL"
-          # Historie: nur die heutige (erste) Zeile trägt noch den Platzhalter — ältere Zeilen
-          # kamen bereits mit eingetragener Nummer aus dem Vortags-Issue.
+          # Historie: nur die erste Zeile des Laufs trägt noch den Platzhalter — ältere Zeilen
+          # kamen bereits mit eingetragener Nummer aus dem Issue des Vorlaufs.
           sed -i "0,/PR: (wird vom Workflow eingetragen)/s//PR: ${pr_ref}/" "$PROTOCOL"
 
           size="$(wc -c < "$PROTOCOL" | tr -d ' ')"

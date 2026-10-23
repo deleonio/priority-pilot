@@ -27,6 +27,7 @@ vi.mock('@capacitor/app', () => ({
 import { Browser } from '@capacitor/browser';
 import { api } from '../api';
 import { GoogleSignIn } from './googleSignIn';
+import { LAUNCH_BANNER_DISMISS_KEY } from './launchBanner';
 import { handleAppLink, listenForAppLinks, startNativeGoogleLogin } from './nativeAuth';
 
 const replace = vi.fn();
@@ -62,11 +63,14 @@ describe('nativeAuth (#1678)', () => {
 	it('löst den Code aus dem App Link mit dem gemerkten state ein und schließt den Browser', async () => {
 		await startNativeGoogleLogin();
 		const state = openedUrl().searchParams.get('state');
+		localStorage.setItem(LAUNCH_BANNER_DISMISS_KEY, '1');
 
 		await handleAppLink(`${window.location.origin}/app/auth/native?code=abc`);
 
 		expect(api.exchangeNativeLoginCode).toHaveBeenCalledWith('abc', state);
 		expect(Browser.close).toHaveBeenCalled();
+		// #2480/#2677: Der geräteweite Schließen-Marker des Einladungs-Banners gilt je Login.
+		expect(localStorage.getItem(LAUNCH_BANNER_DISMISS_KEY)).toBeNull();
 	});
 
 	it('ignoriert Links auf fremde Domains', async () => {
@@ -77,10 +81,13 @@ describe('nativeAuth (#1678)', () => {
 
 	it('schickt bei gescheitertem Austausch auf die Login-Seite mit Hinweis', async () => {
 		vi.mocked(api.exchangeNativeLoginCode).mockResolvedValueOnce(false);
+		localStorage.setItem(LAUNCH_BANNER_DISMISS_KEY, '1');
 
 		await handleAppLink(`${window.location.origin}/app/auth/native?code=abc`);
 
 		expect(replace).toHaveBeenCalledWith(`${import.meta.env.BASE_URL}login?error=native_login_failed`);
+		// Gegenprobe: ohne echten Login bleibt der geräteweite Marker bestehen (#2480/#2677).
+		expect(localStorage.getItem(LAUNCH_BANNER_DISMISS_KEY)).toBe('1');
 	});
 
 	describe('native Anmeldung (ADR 0023)', () => {
@@ -220,6 +227,40 @@ describe('nativeAuth (#1678)', () => {
 
 			expect(assign).not.toHaveBeenCalled();
 			expect(replace).toHaveBeenCalledWith(`${import.meta.env.BASE_URL}?magic=tok123`);
+		});
+	});
+
+	// #2563 (docs/spec/issue-2563.md): Der Magic Link kehrt per Custom Scheme in die App zurueck,
+	// statt im Browser (oder still) verbraucht zu werden.
+	describe('Magic-Link-Ruecksprung (#2563)', () => {
+		it('AK3: Magic-Ruecksprung per Schema laedt den Link im WebView statt ihn zu verwerfen', async () => {
+			await handleAppLink('balamentum.app://auth/native?magic=tok-2563');
+
+			expect(replace).toHaveBeenCalledWith(`${import.meta.env.BASE_URL}?magic=tok-2563`);
+		});
+	});
+
+	// Im eingebauten Build ist die eigene Domain SITE_URL; Ursprungs-Varianten derselben Domain
+	// (http statt https, www statt ohne www) duerfen nicht still verworfen werden.
+	describe('Magic-Link mit abweichendem Ursprung (#2563, eingebauter Build)', () => {
+		beforeEach(() => {
+			vi.stubEnv('VITE_SITE_URL', SITE);
+		});
+		afterEach(() => {
+			vi.unstubAllEnvs();
+		});
+
+		it('AK4: http- und www-Varianten der eigenen Domain landen im Magic-Flow statt im Nirgendwo', async () => {
+			await handleAppLink(`${SITE.replace('https:', 'http:')}/app/?magic=tok-2563`);
+			expect(replace, 'http-Variante wird nicht still verworfen').toHaveBeenCalledWith(
+				expect.stringContaining('?magic=tok-2563'),
+			);
+			replace.mockClear();
+
+			await handleAppLink(`${SITE.replace('://', '://www.')}/app/?magic=tok-2563`);
+			expect(replace, 'www-Variante wird nicht still verworfen').toHaveBeenCalledWith(
+				expect.stringContaining('?magic=tok-2563'),
+			);
 		});
 	});
 });

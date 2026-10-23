@@ -4,7 +4,7 @@
 //
 // Datenbasis sind die versiegelten Dateien, NICHT die 90-Tage-Artefakte: Der Report
 // zeigt damit genau das, was dauerhaft erhalten ist. Läuft lokal und im Workflow
-// „Kosten-Uebersicht" (woechentlich, read-only) in die Job-Summary:
+// „Report Pipeline" (woechentlich, read-only) in die Job-Summary:
 //   node .github/scripts/tokens-report.ts --dir .costs [--baseline 2026-W35]
 //
 // FOKUS-MODUS (--issues 1752,1754 — im Workflow der Dispatch-Input „issues"): rendert
@@ -1040,7 +1040,7 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 		}
 		lines.push(
 			'',
-			'> 🟢 ≥ 10 % billiger als die Vorwoche · 🟡 ±10 % (Geld bleibt) · 🔴 ≥ 10 % teurer · „·" = erste Spalte ohne Vorwoche. Ø Wert je Run,',
+			'> 🟢 ≥ 10 % billiger als die Vorwoche · 🟡 ±10 % (Geld bleibt) · 🔴 ≥ 10 % teurer · „·" = erste Spalte ohne Vorwoche oder Vorwoche mit Ø Wert ≤ 0. Ø Wert je Run,',
 			'> nur messende Läufe (0-Werte zählen als 0). Letzte 10 Wochen; „*" = laufende Woche, ihre Kohorte ist noch offen.',
 			'',
 		);

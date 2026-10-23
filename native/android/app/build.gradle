@@ -3,6 +3,8 @@ apply plugin: 'com.android.application'
 android {
     namespace = "balamentum.app"
     compileSdk = rootProject.ext.compileSdkVersion
+    // Gepinnt und identisch zur sdkmanager-Installation in .github/workflows/android.yml
+    ndkVersion "30.0.16248370"
     defaultConfig {
         applicationId "balamentum.app"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -49,6 +51,11 @@ android {
             }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Unstripppte .so als native Debug-Symbole ins AAB betten (Play-Warnung „native Code
+            // ohne Symbole“). R8 bleibt bewusst aus, Begründung: docs/native-apps.md.
+            ndk {
+                debugSymbolLevel 'SYMBOL_TABLE'
+            }
         }
     }
 }

@@ -7,7 +7,7 @@ import { Modal } from './Modal';
 interface MissedCompleteDialogProps {
 	/** Verpasste Aufgabe, die erledigt werden soll (Titel im Dialogtext). */
 	task: Task;
-	/** `true` = „Nein, pünktlich" (Erledigt-Zeitpunkt = Deadline), `false` = „Ja, jetzt". */
+	/** `true` = „Pünktlich erledigt" (Erledigt-Zeitpunkt = Deadline), `false` = „Erst jetzt erledigt". */
 	onAnswer: (onTime: boolean) => void;
 	/** Schließen ohne Statusänderung (Abbrechen, Escape). */
 	onClose: () => void;
@@ -37,6 +37,7 @@ export const MissedCompleteDialog = ({ task, onAnswer, onClose, fallbackFocusRef
 					components={{ title: <strong>{t('common:quoted', { value: task.title })}</strong> }}
 				/>
 			</p>
+			<p>{t('missedComplete.consequence')}</p>
 			<div className="modal-actions">
 				<KolButton
 					ref={cancelRef}

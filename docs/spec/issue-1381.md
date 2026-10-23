@@ -1,7 +1,5 @@
 # Spec: MCP-Server — Gruppen und Gruppenmitglieder auslesen (#1381)
 
-Status: rot (Spec-Phase) — Tests in `server/src/mcp/tools.test.ts`.
-
 ## Ziel
 
 Der eingefrorene v1-Werkzeugkatalog (#1353) bekommt zwei zusätzliche, rein lesende Einträge:

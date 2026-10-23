@@ -23,7 +23,12 @@
 		"rankShared": "Rank {{rank}} (tied)",
 		"thanks": "Thanks for a week of paying attention to balance.",
 		"share": "Share",
-		"startNew": "Start new challenge"
+		"startNew": "Start new challenge",
+		"marken": {
+			"balamentum": "Balamentum",
+			"play": "Get it on Google Play",
+			"pwa": "Installable as an app (PWA)"
+		}
 	},
 	"deleteDialog": {
 		"title": "Delete group",

@@ -1,5 +1,6 @@
 import { Op } from 'sequelize';
 import { Pillar, ScoreEntry, Task } from '../models/index.js';
+import { UEBERLAST_MINDEST_ERLEDIGUNGEN, zaehleErledigungen } from './careDeficit.js';
 import { aggregierePunkteProSaeule, type PunkteBeitrag } from './score.js';
 import { selectSeriesRepresentatives, filterVorlauf } from './series.js';
 import type { PillarWithContribution } from '../models/task.js';
@@ -176,6 +177,8 @@ export interface Bewertung {
 	beitraege: { prio: number; entsperr: number; balance: number; deadline: number; aufwand: number };
 	/** Rohwerte je Faktor für die Begründungssätze der Karte (#1985), additiv zu `beitraege`. */
 	kontext: { defizitSaeulen: string[]; offeneNachfolger: number; tageBisFrist: number | null };
+	/** Kontoweite Erledigungen im jüngeren Fenster (#2527) — steuert nur den Begründungs-Wortlaut. */
+	erledigungen: number;
 }
 
 /** Strukturierte Begründungswerte (#1985): je Faktor mit Beitrag > 0 ein Schlüssel. */
@@ -186,6 +189,9 @@ export interface TaskReasons {
 	priority?: { priority: number };
 	/** Aufteilen-Hinweis (#1994): Verschiebe-Zähler der empfohlenen Aufgabe, nur bei erkanntem Muster. */
 	split?: { postponeCount: number };
+	/** Einstiegssignal (#2527): gesetzt, statt `balance`, solange die Mindestmenge an Erledigungen
+	 *  noch nicht erreicht ist — das Dashboard zeigt dann den einladenden Einstiegssatz. */
+	einstieg?: true;
 }
 
 /** Aufteilen-Hinweis (#1994): ab diesem Aufwands-Bruchteil gilt eine Aufgabe als groß. */
@@ -256,6 +262,16 @@ export const bewerteKandidaten = async (userId?: number, now: Date = new Date())
 	});
 	const ist = istProSaeule(aggregierePunkteProSaeule(punkteBeitraege));
 
+	// #2527: kontoweite Erledigungen im jüngeren Fenster — je Task ein Eintrag (Status Done plus
+	// ScoreEntry-Zeitpunkt im Fenster), dieselbe Quelle wie die Care-Route; steuert nur den
+	// Begründungs-Wortlaut, nie Score oder Ranking.
+	const erledigungen = zaehleErledigungen(
+		[...new Map(scoreEintraege.map((entry) => [entry.taskId, entry])).values()].flatMap((entry) =>
+			entry.Task?.status === 'Done' ? [{ status: entry.Task.status, erledigtAm: entry.zeitpunkt }] : [],
+		),
+		now,
+	);
+
 	const bewertet: Bewertung[] = [];
 	for (const task of kandidaten) {
 		const entsperr = await normUnlock(task);
@@ -277,6 +293,7 @@ export const bewerteKandidaten = async (userId?: number, now: Date = new Date())
 				offeneNachfolger: entsperr.offen,
 				tageBisFrist: task.deadline != null ? tageBisFrist(task.deadline, now) : null,
 			},
+			erledigungen,
 		});
 	}
 
@@ -336,12 +353,18 @@ export const toScoreBreakdown = ({ score, beitraege }: Bewertung) => {
  * `toScoreBreakdown`-Konvention (Beitrag 0 ⇒ Schlüssel fehlt); ganz ohne Anteile `undefined`,
  * damit `reasons` im DTO von `GET /next` komplett entfällt.
  */
-export const toReasons = ({ task, beitraege, kontext }: Bewertung): TaskReasons | undefined => {
+export const toReasons = ({ task, beitraege, kontext, erledigungen }: Bewertung): TaskReasons | undefined => {
 	const reasons: TaskReasons = {};
 	// Balance an den Defizit-Säulen des Tasks gebunden (nicht am Beitrag — ein Task mit share 0
 	// hat trotzdem eine Begründung, der Vertrag folgt TF1 in suggestions.test.ts).
+	// #2527: unter der Überlast-Mindestmenge kein Defizit-Vorwurf — stattdessen das Einstiegs-
+	// signal (Dashboard rendert den einladenden Satz); ab der Mindestmenge wie bisher.
 	if (kontext.defizitSaeulen.length > 0) {
-		reasons.balance = { pillars: kontext.defizitSaeulen };
+		if (erledigungen >= UEBERLAST_MINDEST_ERLEDIGUNGEN) {
+			reasons.balance = { pillars: kontext.defizitSaeulen };
+		} else {
+			reasons.einstieg = true;
+		}
 	}
 	if (beitraege.entsperr > 0) {
 		reasons.unlock = { openCount: kontext.offeneNachfolger };

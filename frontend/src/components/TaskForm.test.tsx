@@ -37,27 +37,28 @@ vi.mock('@public-ui/react-v19', () => ({
 			{_label}
 		</button>
 	),
-	// Kategorie-Kennzeichen unter dem Auswahlfeld (`CategoryBadge`). Der Mock hält Beschriftung und
-	// Farbe fest, damit der Test belegen kann, dass genau die gewählte Kategorie angezeigt wird.
-	KolBadge: ({ _label, _color }: { _label?: string; _color?: string }) => (
-		<span data-testid="category-badge" data-color={_color}>
-			{_label}
-		</span>
-	),
 	KolInputText: ({
 		_label,
 		_value,
+		_disabled,
 		_on,
 	}: {
 		_label?: string;
 		_value?: string;
-		_on?: { onChange?: (_e: unknown, v: string) => void; onBlur?: (_e: unknown) => void };
+		_disabled?: boolean;
+		_on?: {
+			onChange?: (_e: unknown, v: string) => void;
+			onBlur?: (_e: unknown) => void;
+			onKeyDown?: (_e: KeyboardEvent) => void;
+		};
 	}) => (
 		<input
 			aria-label={_label}
 			defaultValue={_value}
+			disabled={_disabled}
 			onChange={(e) => _on?.onChange?.(e.nativeEvent, e.target.value)}
 			onBlur={(e) => _on?.onBlur?.(e.nativeEvent)}
+			onKeyDown={(e) => _on?.onKeyDown?.(e.nativeEvent)}
 		/>
 	),
 	KolCombobox: ({
@@ -1609,6 +1610,76 @@ describe('TaskForm — Checklisten-Feld (#531)', () => {
 });
 
 /**
+ * Rote Spec-Tests für #2771 — Checklisten-Eintrag per Enter-Taste anlegen. Vertrag:
+ * `docs/spec/issue-2771.md`. Der KolInputText-Mock reicht `onKeyDown` als natives keyDown
+ * durch; Enter darf ausschließlich `addChecklistItem()` triggern (Limit-/Leertitel-Guard
+ * geerbt). AK2/AK3 sind Spiegel-Guards: solange TaskForm kein Enter behandelt, sind sie
+ * grün — sie pinnen, dass eine spätere Enter-Implementierung die Guards nicht umgeht.
+ */
+describe('TaskForm — Checklisten-Eintrag per Enter (#2771)', () => {
+	it('AK1: Enter im gefüllten Feld legt den Eintrag an und lässt den Fokus im Feld', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		const input = screen.getByLabelText(/Checklisten-Eintrag/i) as HTMLInputElement;
+		input.focus();
+		await act(async () => {
+			fireEvent.change(input, { target: { value: 'Per Enter' } });
+		});
+		await act(async () => {
+			fireEvent.keyDown(input, { key: 'Enter' });
+		});
+
+		expect(screen.getByTestId('checklist-item')).toBeInTheDocument();
+		expect(screen.getByText('Per Enter')).toBeInTheDocument();
+		expect(document.activeElement).toBe(input);
+	});
+
+	it('AK2: Enter im leeren Feld legt keinen Eintrag an', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		const input = screen.getByLabelText(/Checklisten-Eintrag/i);
+		input.focus();
+		await act(async () => {
+			fireEvent.keyDown(input, { key: 'Enter' });
+		});
+
+		expect(screen.queryByTestId('checklist-item')).toBeNull();
+	});
+
+	it('AK3: Bei CHECKLIST_LIMIT ist das Feld deaktiviert, Enter erzeugt keinen 51. Eintrag', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(
+				<TaskForm
+					task={null}
+					{...defaultProps}
+					initialValues={
+						{ checklist: Array.from({ length: 50 }, (_v, i) => `Punkt ${i + 1}`) } as unknown as TaskFormInitialValues
+					}
+				/>,
+			);
+		});
+
+		const input = screen.getByLabelText(/Checklisten-Eintrag/i) as HTMLInputElement;
+		expect(input).toBeDisabled();
+		expect(screen.getByText(/Checkliste voll/)).toBeInTheDocument();
+
+		input.focus();
+		await act(async () => {
+			fireEvent.keyDown(input, { key: 'Enter' });
+		});
+
+		expect(screen.getAllByTestId('checklist-item')).toHaveLength(50);
+	});
+});
+
+/**
  * Rote Spec-Tests für #1310 (TF5): `initialValues.address`/`initialValues.checklist` (aus der
  * Schnellerfassung) müssen beim Anlegen vorbelegt werden. `TaskFormInitialValues` kennt diese
  * Felder noch nicht — der lokale Cast ist bewusst der einzige Typ-Vertragsbruch (Muster
@@ -1649,23 +1720,9 @@ describe('TaskForm — Vorbelegung aus der Schnellerfassung: Adresse & Checklist
 		expect(screen.getByText('Punkt A')).toBeInTheDocument();
 		expect(screen.getByText('Punkt B')).toBeInTheDocument();
 	});
-
-	it('AK7: im Serien-Modus rendert trotz initialValues.checklist keine Checklist-Section (still verworfen)', async () => {
-		mockSuggestPillars.mockResolvedValue([]);
-		await act(async () => {
-			render(
-				<TaskForm
-					task={null}
-					initialMode="series"
-					initialValues={withExtraInitialValues({ checklist: ['Punkt A'] })}
-					{...defaultProps}
-				/>,
-			);
-		});
-
-		expect(screen.queryByTestId('checklist-section')).toBeNull();
-		expect(screen.queryByTestId('checklist-item')).toBeNull();
-	});
+	// #2501 Test-Pflege: Der frühere AK7-Test („im Serien-Modus rendert trotz initialValues.checklist
+	// keine Checklist-Section — still verworfen") ist mit #2501 widersprüchlich — die Checkliste ist
+	// jetzt gerade im Serie-Modus pflegbar. Ersatz: describe „Checkliste an der Serie (#2501)" unten.
 });
 
 /**
@@ -2606,13 +2663,13 @@ describe('TaskForm — Sektionen als Accordions (#1285)', () => {
 });
 
 /**
- * Kategorie-Feld im Aufgaben- und Serienformular: Die getroffene Wahl steht als Kennzeichen UNTER
- * dem Auswahlfeld — so, wie sie später in den Listen aussieht — und lässt sich wieder abwählen.
+ * Kategorie-Feld im Aufgaben- und Serienformular: Ein optionales Einzelfeld — das Auswahlfeld
+ * zeigt die getroffene Wahl selbst, die erste Option „— ohne Kategorie —" löst sie wieder.
  *
  * `TaskForm` bedient beide Modi (Aufgabe und Serie) mit demselben Feld; die Serien-Fälle prüfen
- * deshalb nur, dass Anzeige und Abwahl auch dort greifen und im Serien-Payload landen.
+ * deshalb nur, dass Auswahl und Abwahl auch dort greifen und im Serien-Payload landen.
  */
-describe('TaskForm — Kategorie: Kennzeichen unter dem Feld und Abwahl', () => {
+describe('TaskForm — Kategorie: Auswahl und Abwahl im Auswahlfeld', () => {
 	const hausbau: Category = { id: 7, name: 'Hausbau', color: '#b42318' };
 	const steuer: Category = { id: 8, name: 'Steuer', color: '#1064d0' };
 	const withCategories = { ...defaultProps, categories: [hausbau, steuer] };
@@ -2624,57 +2681,17 @@ describe('TaskForm — Kategorie: Kennzeichen unter dem Feld und Abwahl', () => 
 		});
 	};
 
-	const badge = (): HTMLElement | null => screen.queryByTestId('category-badge');
-
-	it('zeigt ohne Auswahl kein Kennzeichen und keinen Entfernen-Knopf', async () => {
+	it('steht ohne Auswahl auf dem Platzhalter „— ohne Kategorie —“', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 
 		await act(async () => {
 			render(<TaskForm task={null} {...withCategories} />);
 		});
 
-		expect(badge()).toBeNull();
-		expect(screen.queryByRole('button', { name: 'Kategorie entfernen' })).toBeNull();
+		expect(screen.getByLabelText('Kategorie (optional)')).toHaveValue('0');
 	});
 
-	it('zeigt die gewählte Kategorie als Kennzeichen unter dem Auswahlfeld', async () => {
-		mockSuggestPillars.mockResolvedValue([]);
-
-		await act(async () => {
-			render(<TaskForm task={null} {...withCategories} />);
-		});
-		await chooseCategory(hausbau.id);
-
-		const shown = badge();
-		expect(shown).not.toBeNull();
-		expect(shown).toHaveTextContent('Hausbau');
-		// Die Farbe kommt aus der Kategorie, nicht aus einem Formular-eigenen Stil — nur so sieht das
-		// Kennzeichen hier genauso aus wie später in der Liste.
-		expect(shown).toHaveAttribute('data-color', hausbau.color);
-
-		// „Unter dem Feld" ist die eigentliche Anforderung: Das Kennzeichen steht in der DOM-Reihenfolge
-		// NACH dem Auswahlfeld, nicht daneben oder davor.
-		const select = screen.getByLabelText('Kategorie (optional)');
-		expect(select.compareDocumentPosition(shown!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-	});
-
-	it('tauscht das Kennzeichen beim Wechsel der Kategorie aus', async () => {
-		mockSuggestPillars.mockResolvedValue([]);
-
-		await act(async () => {
-			render(<TaskForm task={null} {...withCategories} />);
-		});
-		await chooseCategory(hausbau.id);
-		await chooseCategory(steuer.id);
-
-		// Genau EIN Kennzeichen, und zwar das der zuletzt gewählten Kategorie — die alte Farbe darf
-		// nicht danebenstehen bleiben. („Hausbau" bleibt als Auswahl-Option im DOM, das ist gewollt.)
-		expect(screen.getAllByTestId('category-badge')).toHaveLength(1);
-		expect(badge()).toHaveTextContent('Steuer');
-		expect(badge()).toHaveAttribute('data-color', steuer.color);
-	});
-
-	it('„Kategorie entfernen" nimmt die Auswahl zurück und speichert die Aufgabe ohne Kategorie', async () => {
+	it('zeigt die gewählte Kategorie im Auswahlfeld und speichert sie am Task', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 		mockCreateTask.mockResolvedValue(minimalNewTask());
 
@@ -2683,15 +2700,29 @@ describe('TaskForm — Kategorie: Kennzeichen unter dem Feld und Abwahl', () => 
 		});
 		await fillTitle('Fliesen aussuchen');
 		await chooseCategory(hausbau.id);
-		expect(badge()).not.toBeNull();
+		expect(screen.getByLabelText('Kategorie (optional)')).toHaveValue(String(hausbau.id));
+
+		await chooseMainPillar();
+		await clickSave();
+
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: Record<string, unknown> }];
+		expect(taskCreate.categoryId).toBe(hausbau.id);
+	});
+
+	it('„— ohne Kategorie —“ nimmt die Auswahl zurück und speichert die Aufgabe ohne Kategorie', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
 
 		await act(async () => {
-			fireEvent.click(screen.getByRole('button', { name: 'Kategorie entfernen' }));
+			render(<TaskForm task={null} {...withCategories} />);
 		});
+		await fillTitle('Fliesen aussuchen');
+		await chooseCategory(hausbau.id);
 
-		// Kennzeichen weg, Auswahlfeld zurück auf dem Platzhalter — und beim Speichern geht `null` mit,
-		// damit eine zuvor gesetzte Kategorie serverseitig wirklich gelöst wird.
-		expect(badge()).toBeNull();
+		await chooseCategory(0);
+
+		// Auswahlfeld zurück auf dem Platzhalter — und beim Speichern geht `null` mit, damit eine
+		// zuvor gesetzte Kategorie serverseitig wirklich gelöst wird.
 		expect(screen.getByLabelText('Kategorie (optional)')).toHaveValue('0');
 		await chooseMainPillar();
 		await clickSave();
@@ -2700,17 +2731,17 @@ describe('TaskForm — Kategorie: Kennzeichen unter dem Feld und Abwahl', () => 
 		expect(taskCreate.categoryId).toBeNull();
 	});
 
-	it('zeigt beim Bearbeiten die bereits zugeordnete Kategorie als Kennzeichen', async () => {
+	it('zeigt beim Bearbeiten die bereits zugeordnete Kategorie im Auswahlfeld', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 
 		await act(async () => {
 			render(<TaskForm task={{ ...minimalNewTask(), categoryId: steuer.id }} {...withCategories} />);
 		});
 
-		expect(badge()).toHaveTextContent('Steuer');
+		expect(screen.getByLabelText('Kategorie (optional)')).toHaveValue(String(steuer.id));
 	});
 
-	it('Serie: Kennzeichen erscheint, die Abwahl landet im Serien-Payload', async () => {
+	it('Serie: Abwahl über den Platzhalter landet im Serien-Payload', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 		mockCreateSeries.mockResolvedValue(minimalSeries());
 
@@ -2720,12 +2751,9 @@ describe('TaskForm — Kategorie: Kennzeichen unter dem Feld und Abwahl', () => 
 		await switchToSeriesMode();
 		await fillTitle('Wöchentlicher Sport');
 		await chooseCategory(steuer.id);
-		expect(badge()).toHaveTextContent('Steuer');
+		await chooseCategory(0);
+		expect(screen.getByLabelText('Kategorie (optional)')).toHaveValue('0');
 
-		await act(async () => {
-			fireEvent.click(screen.getByRole('button', { name: 'Kategorie entfernen' }));
-		});
-		expect(badge()).toBeNull();
 		await chooseMainPillar();
 		await clickSave();
 
@@ -2918,6 +2946,7 @@ describe('TaskForm — Säulen-Berater hinter KI-Gate (#1527)', () => {
 
 	it('AK2 — Gate aus: Überschrift und Säulen-Regler bleiben vorhanden und bedienbar', () => {
 		renderPillarEditorWithContribution(false);
+		fireEvent.click(screen.getByText('Termin & Ort')); // #2525: Säulen-Editor liegt im gefalteten Sekundär-Abschnitt
 
 		expect(screen.getByText('Säulen-Verteilung')).toBeVisible();
 		expect(screen.getByRole('slider', { name: /Körper/ })).toBeVisible();
@@ -2927,6 +2956,7 @@ describe('TaskForm — Säulen-Berater hinter KI-Gate (#1527)', () => {
 		mockSuggestPillars.mockResolvedValue([]);
 		renderPillarEditor(true);
 		fireEvent.click(screen.getByText('Optional'));
+		fireEvent.click(screen.getByText('Termin & Ort')); // #2525: Säulen-Editor liegt im gefalteten Sekundär-Abschnitt
 		await fillTitle('Büro aufräumen'); // #305: suggestPillars bricht ohne Titel früh ab
 
 		const button = screen.getByRole('button', { name: /Säulen vorschlagen/ });
@@ -3938,5 +3968,277 @@ describe('TaskForm — Deadline am Feld entfernen (#2463)', () => {
 			fireEvent.change(deadlineInput, { target: { value: '2026-09-07' } });
 		});
 		expect(deadlineClearButton()).toBeInTheDocument();
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2501 (Spec docs/spec/issue-2501.md): der #531-Checklisten-Editor ist im
+ * Serie-Modus verfügbar — Initialisierung aus `series.checklist`, Einträge OHNE Erledigt-Schalter,
+ * Speichern über den seriesUpdate-Pfad. Rot, bis TaskForm das `!isSeriesMode`-Gate für die
+ * Checkliste entfernt und die Serie-Init/-Save-Pfade erweitert. KEIN Produktivcode.
+ */
+describe('TaskForm — Checkliste an der Serie (#2501)', () => {
+	type SeriesChecklistEntry = { id: string; title: string };
+	const itemA: SeriesChecklistEntry = { id: '22222222-2222-4222-8222-222222222221', title: 'Schritt A' };
+	const itemB: SeriesChecklistEntry = { id: '22222222-2222-4222-8222-222222222222', title: 'Schritt B' };
+
+	// Roter Vertrag: der Series-Client-Typ hat `checklist` noch nicht — der Cast ist die bewusste
+	// Typ-Grenze des TDD-Vertrags (Muster SeriesEditForm oben, MEMORY 2026-08-23).
+	const seriesWithChecklist = () =>
+		({ ...minimalSeries(), checklist: [itemA, itemB] }) as Series & { checklist?: SeriesChecklistEntry[] };
+
+	it('AK1: der Serie-Edit-Modus rendert die Checklist-Section mit den Serien-Einträgen', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={seriesWithChecklist()} {...defaultProps} />);
+		});
+
+		expect(screen.getByTestId('checklist-section')).toBeInTheDocument();
+		expect(screen.getAllByTestId('checklist-item')).toHaveLength(2);
+		// #2636 (AK3): Titel über das Umbenenn-Feld selbst lesen (zugänglicher Name = Positions-Label),
+		// nicht über den entfernten aria-hidden-Spiegel (Spec docs/spec/issue-2636.md).
+		expect(screen.getByLabelText('Checkpunkt 1')).toHaveValue('Schritt A');
+		expect(screen.getByLabelText('Checkpunkt 2')).toHaveValue('Schritt B');
+	});
+
+	it('AK1: Einträge im Serie-Modus haben keinen Erledigt-Schalter', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={seriesWithChecklist()} {...defaultProps} />);
+		});
+
+		for (const item of screen.getAllByTestId('checklist-item')) {
+			expect(within(item).queryByRole('checkbox')).toBeNull();
+		}
+	});
+
+	it('AK1: Speichern schickt checklist im seriesUpdate-Payload', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockUpdateSeries.mockResolvedValue(minimalSeries());
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={seriesWithChecklist()} {...defaultProps} />);
+		});
+
+		// Test-Pflege #2501 (Impl-Phase): Serie-Edit zeigt „Bearbeiten“ (common:actions.edit) —
+		// `clickSave` („Anlegen“) träfe den Anlege-Modus; fachlich unverändert.
+		await clickSaveEdit();
+
+		expect(mockUpdateSeries).toHaveBeenCalledTimes(1);
+		expect(mockUpdateSeries).toHaveBeenCalledWith(
+			expect.objectContaining({
+				seriesUpdate: expect.objectContaining({
+					checklist: expect.arrayContaining([
+						expect.objectContaining({ id: itemA.id, title: 'Schritt A' }),
+						expect.objectContaining({ id: itemB.id, title: 'Schritt B' }),
+					]),
+				}),
+			}),
+		);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2636 (Spec docs/spec/issue-2636.md): das Umbenenn-Feld der Serien-
+ * Checkliste trägt ein festes Positions-Label („Checkpunkt 1“, „Checkpunkt 2“, …) statt des
+ * sich mit dem Titel ändernden zugänglichen Namens; der aria-hidden-Textspiegel entfällt.
+ * Rot, bis TaskForm den i18n-Schlüssel setzt und den Spiegel entfernt. KEIN Produktivcode.
+ */
+describe('TaskForm — Umbenenn-Feld der Serien-Checkliste (#2636)', () => {
+	// Eigenes Fixture (die #2501-Helfer sind lokal in deren Describe) — gleiche Form.
+	type SeriesChecklistEntry2636 = { id: string; title: string };
+	const pointA: SeriesChecklistEntry2636 = { id: '26362636-2636-4636-8636-263626362631', title: 'Schritt A' };
+	const pointB: SeriesChecklistEntry2636 = { id: '26362636-2636-4636-8636-263626362632', title: 'Schritt B' };
+	const seriesWithPoints = () =>
+		({ ...minimalSeries(), checklist: [pointA, pointB] }) as Series & { checklist?: SeriesChecklistEntry2636[] };
+
+	it('AK1: Umsortieren verschiebt die Positions-Nummer mit', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={seriesWithPoints()} {...defaultProps} />);
+		});
+
+		// Der Auf-Button des zweiten Eintrags (Index 0 ist an Position 1 disabled).
+		fireEvent.click(screen.getAllByRole('button', { name: 'Nach oben verschieben' })[1]);
+
+		expect(screen.getByLabelText('Checkpunkt 1')).toHaveValue('Schritt B');
+		expect(screen.getByLabelText('Checkpunkt 2')).toHaveValue('Schritt A');
+	});
+
+	it('AK2: der Titel existiert nur als Feldwert, nicht als aria-hidden-Textspiegel', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={seriesWithPoints()} {...defaultProps} />);
+		});
+
+		expect(screen.queryByText('Schritt A')).toBeNull();
+		expect(screen.queryByText('Schritt B')).toBeNull();
+	});
+
+	it('AK4: Label bleibt beim Tippen stabil, neuer Wert steht im Feld', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={seriesWithPoints()} {...defaultProps} />);
+		});
+
+		fireEvent.input(screen.getByLabelText('Checkpunkt 1'), { target: { value: 'Neuer Schritt' } });
+
+		// Label unverändert (Bug: Label = getippter Titel) und neuer Wert im Feld.
+		expect(screen.getByLabelText('Checkpunkt 1')).toHaveValue('Neuer Schritt');
+		expect(screen.queryByLabelText('Neuer Schritt')).toBeNull();
+	});
+});
+
+/**
+ * Rote TDD-Verträge für #2525 — Säulen-Verteilung und Aufwand wandern in den zugeklappten
+ * Sekundär-Abschnitt („Termin & Ort“); die Priorität bleibt außerhalb. PO-Entscheid im
+ * Kreuzverhör zu PR #2577: kein zweiter `.form-section--secondary` — der bestehende
+ * Sekundär-Abschnitt trägt den Inhalt, den AK5-Startzustand und den AK4-Hinweis
+ * (Spec: docs/spec/issue-2525.md).
+ */
+describe('TaskForm — Faltung im Sekundär-Abschnitt (#2525)', () => {
+	const fivePillars2525: Pillar[] = [
+		{ id: 1, name: 'Körper', description: '', weight: 20 },
+		{ id: 2, name: 'Mentale Gesundheit', description: '', weight: 20 },
+		{ id: 3, name: 'Beziehungen', description: '', weight: 20 },
+		{ id: 4, name: 'Wirksamkeit', description: '', weight: 20 },
+		{ id: 5, name: 'Sinn', description: '', weight: 20 },
+	];
+
+	/** Gleichverteilung als gespeicherte Säulen-Beiträge (Standardwerte, #2525 AK5). */
+	const equalShares2525 = [1, 2, 3, 4, 5].map((id) => ({ pillarId: id, share: 20, confidence: 100 }));
+
+	/** `<details>` des Sekundär-Abschnitts (KolAccordion-Mock spiegelt `_open` in `details.open`). */
+	const secondarySection = (): HTMLDetailsElement =>
+		screen.getByText('Termin & Ort').closest('details') as HTMLDetailsElement;
+
+	// TF2 (AK2) — Regressionsspiegel: Nur-Titel-Speichern sendet unverändert die Gleichverteilung
+	// und den Aufwand-Standard; die zugeklappte Sektion darf daran nichts ändern.
+	it('TF2/AK2 — nur Titel: Payload enthält Gleichverteilung (20 % je Säule) und Aufwand 0.5', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+
+		await act(async () => {
+			render(<TaskForm task={null} pillars={fivePillars2525} onClose={vi.fn()} onSaved={vi.fn()} />);
+		});
+
+		await fillTitle('Nur Titel');
+		await clickSave();
+
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [
+			{ taskCreate: { pillars: { pillarId: number; share: number }[]; estimatedEffort: number } },
+		];
+		expect(taskCreate.pillars.map((p) => p.share)).toEqual([20, 20, 20, 20, 20]);
+		expect(taskCreate.estimatedEffort).toBe(0.5);
+	});
+
+	// TF3 (AK3) — Der Trigger klappt die Sektion auf; innerhalb funktionieren Rangfolge-Tipp
+	// und Treppe wie bisher (bewusst über den Klick kombiniert, nicht nur der Zustand).
+	it('TF3/AK3 — Trigger klappt auf; Rangfolge-Tipp erzeugt die Treppe', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} pillars={fivePillars2525} onClose={vi.fn()} onSaved={vi.fn()} />);
+		});
+
+		expect(secondarySection().open).toBe(false);
+		await act(async () => {
+			fireEvent.click(screen.getByText('Termin & Ort'));
+		});
+		expect(secondarySection().open).toBe(true);
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: /^Körper/ }));
+		});
+		expect(screen.getByRole('button', { name: /Rang 1 von 5: Körper — 50 %/ })).toBeInTheDocument();
+	});
+
+	// TF4 (AK4) — Der Hinweistext existiert und liegt außerhalb des einklappbaren Body-Slots
+	// (KI-UX: zugeklappt rendert KolAccordion nur den Kopf; der Trigger-Name bleibt exakt
+	// Der Hinweis ist eine eigene Zeile unter dem Kopf, kein KolAlert).
+	it('TF4/AK4 — zugeklappt: Standardwerte-Hinweis vorhanden, außerhalb des einklappbaren Bodys', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} pillars={fivePillars2525} onClose={vi.fn()} onSaved={vi.fn()} />);
+		});
+
+		const hint = screen.getByText(/Standardwerte/);
+		const details = hint.closest('details');
+		expect(details === null || hint.closest('summary') !== null).toBe(true);
+	});
+
+	// TF5 (AK5) — Anfangszustand: offen genau bei eigenen Werten; Vorlage-Vorbelegung zählt.
+	it('TF5/AK5 — Bearbeiten mit eigenen Werten (Aufwand 0.75) startet offen', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(
+				<TaskForm
+					task={{ ...minimalNewTask(), pillars: equalShares2525, estimatedEffort: 0.75 }}
+					pillars={fivePillars2525}
+					onClose={vi.fn()}
+					onSaved={vi.fn()}
+				/>,
+			);
+		});
+
+		expect(secondarySection().open).toBe(true);
+	});
+
+	it('TF5/AK5 — Bearbeiten mit Standardwerten (Gleichverteilung + 0.5) startet zugeklappt', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(
+				<TaskForm
+					task={{ ...minimalNewTask(), pillars: equalShares2525, estimatedEffort: 0.5 }}
+					pillars={fivePillars2525}
+					onClose={vi.fn()}
+					onSaved={vi.fn()}
+				/>,
+			);
+		});
+
+		expect(secondarySection().open).toBe(false);
+	});
+
+	it('TF5/AK5 — Anlegen startet zugeklappt', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} pillars={fivePillars2525} onClose={vi.fn()} onSaved={vi.fn()} />);
+		});
+
+		expect(secondarySection().open).toBe(false);
+	});
+
+	it('TF5/AK5 — Vorlage-Flow: initialValues.pillars gelten als eigene Werte, startet offen', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(
+				<TaskForm
+					task={null}
+					initialValues={{ pillars: [{ pillarId: 1, share: 50, confidence: 90 }] }}
+					pillars={fivePillars2525}
+					onClose={vi.fn()}
+					onSaved={vi.fn()}
+				/>,
+			);
+		});
+
+		expect(secondarySection().open).toBe(true);
+	});
+
+	// AK6 — Die Priorität bleibt außerhalb des einklappbaren Bereichs (Sichtbarkeit unverändert).
+	it('AK6 — Priorität liegt nicht im Sekundär-Abschnitt', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} pillars={fivePillars2525} onClose={vi.fn()} onSaved={vi.fn()} />);
+		});
+
+		const slider = screen.getByRole('slider', { name: /Priorität/ });
+		expect(slider.closest('details')).not.toBe(secondarySection());
 	});
 });

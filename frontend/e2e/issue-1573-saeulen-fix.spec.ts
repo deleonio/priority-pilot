@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { seedAccountPreferences, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-e2e für #1573 — „Säulen sind fest: CRUD sperren, Hinweis im Settings-Tab".
@@ -18,8 +18,9 @@ import { waitForStableView } from './helpers';
  * die künftig verbotenes CRUD gegen das echte Backend testeten (Test-Pflege-Bedarf, Spec).
  */
 // #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
-// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+// Präferenz liegt am Konto: API-Seed + localStorage-Spiegel (#2508, Muster ai-disable.spec.ts).
 test.beforeEach(async ({ page }) => {
+	await seedAccountPreferences(page, { expertMode: true });
 	await page.addInitScript(() => {
 		localStorage.setItem('pp-expert-mode', 'true');
 	});

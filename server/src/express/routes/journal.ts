@@ -1,14 +1,10 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { sendError, type ErrorDto } from '../http-error.js';
+import { parseId, sendError, type ErrorDto } from '../http-error.js';
 import { JournalEntry, Pillar, ScoreEntry, Task } from '../../models/index.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
-import {
-	berechneBalanceVerlauf,
-	istGueltigesDatum,
-	zeitraumInTagen,
-	type BalanceHistoryEintrag,
-} from '../../logics/balanceHistory.js';
+import { berechneBalanceVerlauf, type BalanceHistoryEintrag } from '../../logics/balanceHistory.js';
+import { validateQueryEinzelwert, validateZeitraum } from '../../logics/requestValidation.js';
 import { istGueltigeZeitzone } from '../../logics/streak.js';
 import { berechneJournalFenster, fensterListe, type JournalStatsGranularitaet } from '../../logics/journalStats.js';
 import type { PillarWithContribution } from '../../models/task.js';
@@ -81,11 +77,9 @@ const validateInput = async (body: unknown, userId: number): Promise<JournalInpu
 	return input;
 };
 
-/** Eigener Eintrag zur `:id` — oder `null` (fremd/unbekannt → 404). */
-const findOwn = async (req: Request, userId: number): Promise<JournalEntry | null> => {
-	const id = Number(req.params.id);
-	return Number.isInteger(id) ? JournalEntry.findOne({ where: { id, userId } }) : null;
-};
+/** Eigener Eintrag zur Id — oder `null` (fremd/unbekannt → 404). */
+const findOwn = (userId: number, id: number): Promise<JournalEntry | null> =>
+	JournalEntry.findOne({ where: { id, userId } });
 
 export const journalRouter = Router();
 
@@ -121,26 +115,20 @@ journalRouter.get('/journal/stats', async (req: Request, res: Response<JournalSt
 		return;
 	}
 	try {
-		const { von, bis } = req.query;
-		if (typeof von !== 'string' || typeof bis !== 'string') {
-			sendError(res, 400, '"von" und "bis" sind Pflichtparameter (Format YYYY-MM-DD).');
+		const zeitraum = validateZeitraum(req.query, MAX_JOURNAL_STATS_TAGE);
+		if (!zeitraum.ok) {
+			sendError(res, 400, zeitraum.message);
 			return;
 		}
-		if (!istGueltigesDatum(von) || !istGueltigesDatum(bis)) {
-			sendError(res, 400, '"von" und "bis" müssen ein existierendes Datum im Format YYYY-MM-DD angeben.');
-			return;
-		}
-		if (bis < von) {
-			sendError(res, 400, '"bis" darf nicht vor "von" liegen.');
-			return;
-		}
-		if (zeitraumInTagen(von, bis) > MAX_JOURNAL_STATS_TAGE) {
-			sendError(res, 400, `Der Zeitraum darf höchstens ${MAX_JOURNAL_STATS_TAGE} Tage umfassen.`);
+		const { von, bis } = zeitraum.value;
+		const granularitaetErgebnis = validateQueryEinzelwert(req.query.granularitaet, 'granularitaet');
+		if (!granularitaetErgebnis.ok) {
+			sendError(res, 400, granularitaetErgebnis.message);
 			return;
 		}
 		const angefragt: string | undefined =
-			typeof req.query.granularitaet === 'string' && req.query.granularitaet !== ''
-				? req.query.granularitaet
+			granularitaetErgebnis.value !== undefined && granularitaetErgebnis.value !== ''
+				? granularitaetErgebnis.value
 				: undefined;
 		if (angefragt !== undefined && angefragt !== 'tag' && angefragt !== 'woche') {
 			sendError(res, 400, 'Die Granularität muss "tag" oder "woche" sein.');
@@ -156,7 +144,12 @@ journalRouter.get('/journal/stats', async (req: Request, res: Response<JournalSt
 		]);
 		const zeitpunktProTask = new Map(entries.map((entry) => [entry.taskId, entry.zeitpunkt]));
 
-		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+		const tzErgebnis = validateQueryEinzelwert(req.query.tz, 'tz');
+		if (!tzErgebnis.ok) {
+			sendError(res, 400, tzErgebnis.message);
+			return;
+		}
+		const angefragteZone = tzErgebnis.value;
 		const zeitZone = istGueltigeZeitzone(angefragteZone)
 			? angefragteZone
 			: Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -220,8 +213,13 @@ journalRouter.patch('/journal/:id', async (req: Request, res: Response<JournalEn
 		sendError(res, 401, 'Anmeldung erforderlich.');
 		return;
 	}
+	const id = parseId(req.params.id);
+	if (id === null) {
+		sendError(res, 400, 'Ungültige Eintrags-Id.');
+		return;
+	}
 	try {
-		const entry = await findOwn(req, userId);
+		const entry = await findOwn(userId, id);
 		if (!entry) {
 			sendError(res, 404, 'Eintrag nicht gefunden.');
 			return;
@@ -245,8 +243,13 @@ journalRouter.delete('/journal/:id', async (req: Request, res: Response<ErrorDto
 		sendError(res, 401, 'Anmeldung erforderlich.');
 		return;
 	}
+	const id = parseId(req.params.id);
+	if (id === null) {
+		sendError(res, 400, 'Ungültige Eintrags-Id.');
+		return;
+	}
 	try {
-		const entry = await findOwn(req, userId);
+		const entry = await findOwn(userId, id);
 		if (!entry) {
 			sendError(res, 404, 'Eintrag nicht gefunden.');
 			return;

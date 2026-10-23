@@ -14,6 +14,7 @@ import type { MailSender } from './mail.js';
 import { PAYPAL_PLAN_IDS, getPlansCatalog, type Plan } from './plans.js';
 import type { ChargedAmount } from './invoices.js';
 import { sendCancellationConfirmation } from './cancellationMail.js';
+import { resolveCancellationEnd } from './cancellationRefund.js';
 
 export { applyDuePendingPlan, isGracePeriodExpired } from './billing/lifecycle.js';
 
@@ -24,14 +25,21 @@ export { applyDuePendingPlan, isGracePeriodExpired } from './billing/lifecycle.j
  * gespeichert — der Nutzerbezug entsteht ausschließlich über die externe Abo-ID.
  */
 
-/** Ergebnis der Signaturprüfung. `unreachable` ≠ `invalid`: ein Netzfehler verwirft kein Ereignis. */
-export type PaypalVerificationResult = 'verified' | 'invalid' | 'unreachable';
+/**
+ * Ergebnis der Signaturprüfung. `unreachable` ≠ `invalid`: ein Netzfehler verwirft kein Ereignis.
+ * `unconfigured` (#2545): fehlende Zugangsdaten — kein Prüfversuch, auch kein Anlass für erneute
+ * Zustellung.
+ */
+export type PaypalVerificationResult = 'verified' | 'invalid' | 'unreachable' | 'unconfigured';
 
 /** Signatur des injizierbaren Verifiers (Vorbild `MailSender`) — Tests reichen einen Fake herein. */
 export type PaypalVerifier = (rawBody: Buffer, headers: Record<string, string>) => Promise<PaypalVerificationResult>;
 
 /** Abrechnungszeitraum eines Abos, wie ihn `PAYPAL_PLAN_IDS` als Schlüssel führt. */
 type BillingPeriod = 'monthly' | 'quarterly' | 'yearly';
+
+/** Anteilige Restlaufzeit-Erstattung über die Sale-Referenz (#2745) — eigener Schnitt, damit bestehende Fakes ohne `refund` weiter passen (Muster `PaypalSubscriptionReader`). */
+export type PaypalRefunder = (saleId: string, amountCents: number) => Promise<void>;
 
 /**
  * Signatur des injizierbaren Abo-Clients (Issue #1505, T6d; Muster `PaypalVerifier`). Tests
@@ -46,6 +54,8 @@ export interface PaypalClient {
 	): Promise<{ approvalUrl: string; externalSubscriptionId: string }>;
 	cancel(externalSubscriptionId: string): Promise<void>;
 	revise(externalSubscriptionId: string, targetPlanId: string): Promise<{ approvalUrl?: string }>;
+	/** Erstattung (#2745) — nur der produktive Client spricht sie; Fakes reichen sie gezielt herein. */
+	refund?: PaypalRefunder;
 }
 
 /** Abo-Abruf für den täglichen Abgleich (#2300): PayPal-Status und nächster Abrechnungstermin. */
@@ -80,6 +90,16 @@ export class PaypalHttpError extends Error {
 
 const apiBase = (): string => process.env.PAYPAL_API_BASE?.trim() || 'https://api-m.paypal.com';
 
+export type PaypalSandboxAccount = { email: string; password: string };
+export const getPaypalSandboxAccount = (): PaypalSandboxAccount | undefined =>
+	apiBase().includes('sandbox.paypal.com')
+		? { email: 'sb-k6dxv52906900@personal.example.com', password: 'Tester1!' }
+		: undefined;
+
+/** Fester Zeitlimit je PayPal-Fetch (#2546, Muster `obsidianFeedback.ts`) — über `PAYPAL_TIMEOUT_MS` zur Callzeit überschreibbar; Werte < 1 fallen auf 10000 zurück. */
+const paypalTimeoutMs = (): number =>
+	Math.max(1, Number.parseInt(process.env.PAYPAL_TIMEOUT_MS?.trim() || '', 10) || 10000);
+
 /** Die fünf Header, die PayPal zur Signaturprüfung erwartet (Groß-/Kleinschreibung egal). */
 const signatureHeaders = (headers: Record<string, string>) => ({
 	auth_algo: headers['paypal-auth-algo'] ?? '',
@@ -108,6 +128,19 @@ export const verifyWebhookSignature = async (
 	const clientId = process.env.PAYPAL_CLIENT_ID?.trim() ?? '';
 	const clientSecret = process.env.PAYPAL_CLIENT_SECRET?.trim() ?? '';
 	const webhookId = process.env.PAYPAL_WEBHOOK_ID?.trim() ?? '';
+	const missing = [
+		['PAYPAL_CLIENT_ID', clientId],
+		['PAYPAL_CLIENT_SECRET', clientSecret],
+		['PAYPAL_WEBHOOK_ID', webhookId],
+	]
+		.filter(([, value]) => !value)
+		.map(([name]) => name);
+	if (missing.length > 0) {
+		// Fehlende Konfiguration (#2545) ist kein Erreichbarkeitsproblem: ohne Netzaufruf quittieren,
+		// damit die Route ohne 5xx antwortet und PayPal nicht endlos erneut zustellt.
+		console.error(`PayPal-Signaturprüfung nicht möglich, es fehlen: ${missing.join(', ')}`);
+		return 'unconfigured';
+	}
 	const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
 	try {
@@ -115,6 +148,7 @@ export const verifyWebhookSignature = async (
 			method: 'POST',
 			headers: { Authorization: `Basic ${basic}`, 'Content-Type': 'application/x-www-form-urlencoded' },
 			body: 'grant_type=client_credentials',
+			signal: AbortSignal.timeout(paypalTimeoutMs()),
 		});
 		if (!tokenRes.ok) {
 			return 'unreachable';
@@ -124,6 +158,7 @@ export const verifyWebhookSignature = async (
 		const res = await fetchImpl(`${apiBase()}/v1/notifications/verify-webhook-signature`, {
 			method: 'POST',
 			headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+			signal: AbortSignal.timeout(paypalTimeoutMs()),
 			body: JSON.stringify({
 				...signatureHeaders(headers),
 				webhook_id: webhookId,
@@ -181,6 +216,7 @@ const getAccessToken = async (fetchImpl: typeof fetch): Promise<string> => {
 		method: 'POST',
 		headers: { Authorization: `Basic ${basic}`, 'Content-Type': 'application/x-www-form-urlencoded' },
 		body: 'grant_type=client_credentials',
+		signal: AbortSignal.timeout(paypalTimeoutMs()),
 	});
 	if (!res.ok) {
 		throw new Error('PayPal-Zugangstoken konnte nicht geholt werden.');
@@ -205,7 +241,9 @@ const approveLinkOf = (body: { links?: { rel?: string; href?: string }[] }): str
  * `verifyWebhookSignature`/`paypalVerifier`. `returnUrl`/`cancelUrl` zeigen auf eine
  * Frontend-Route der Einstellungen (T6c, #1496), nicht auf `GET /billing/return`.
  */
-export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClient & PaypalSubscriptionReader => ({
+export const createPaypalClient = (
+	fetchImpl: typeof fetch = fetch,
+): PaypalClient & PaypalSubscriptionReader & { refund: PaypalRefunder } => ({
 	async createSubscription(planId, override) {
 		const token = await getAccessToken(fetchImpl);
 		const returnUrl = process.env.PAYPAL_RETURN_URL?.trim() || 'https://app.example/settings?billing=returned';
@@ -214,6 +252,7 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 		const res = await fetchImpl(`${apiBase()}/v1/billing/subscriptions`, {
 			method: 'POST',
 			headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+			signal: AbortSignal.timeout(paypalTimeoutMs()),
 			body: JSON.stringify({
 				plan_id: planId,
 				application_context: { return_url: returnUrl, cancel_url: cancelUrl },
@@ -242,16 +281,31 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 		const res = await fetchImpl(`${apiBase()}/v1/billing/subscriptions/${externalSubscriptionId}/cancel`, {
 			method: 'POST',
 			headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+			signal: AbortSignal.timeout(paypalTimeoutMs()),
 			body: JSON.stringify({ reason: 'Vom Nutzer gekündigt.' }),
 		});
 		if (!res.ok) {
 			throw new PaypalHttpError('PayPal-Abo konnte nicht gekündigt werden.', res.status);
 		}
 	},
+	async refund(saleId, amountCents) {
+		const token = await getAccessToken(fetchImpl);
+		const res = await fetchImpl(`${apiBase()}/v1/payments/sale/${saleId}/refund`, {
+			method: 'POST',
+			headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+			signal: AbortSignal.timeout(paypalTimeoutMs()),
+			// Sale-Erstattung (#2745): anteiliger Betrag der Restlaufzeit; Preise laufen bewusst nur in EUR.
+			body: JSON.stringify({ amount: { total: (amountCents / 100).toFixed(2), currency: 'EUR' } }),
+		});
+		if (!res.ok) {
+			throw new PaypalHttpError('PayPal-Erstattung konnte nicht ausgelöst werden.', res.status);
+		}
+	},
 	async getSubscription(externalSubscriptionId) {
 		const token = await getAccessToken(fetchImpl);
 		const res = await fetchImpl(`${apiBase()}/v1/billing/subscriptions/${externalSubscriptionId}`, {
 			headers: { Authorization: `Bearer ${token}` },
+			signal: AbortSignal.timeout(paypalTimeoutMs()),
 		});
 		if (!res.ok) {
 			throw new PaypalHttpError('PayPal-Abo konnte nicht abgerufen werden.', res.status);
@@ -264,6 +318,7 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 		const res = await fetchImpl(`${apiBase()}/v1/billing/subscriptions/${externalSubscriptionId}/revise`, {
 			method: 'POST',
 			headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+			signal: AbortSignal.timeout(paypalTimeoutMs()),
 			body: JSON.stringify({ plan_id: targetPlanId }),
 		});
 		if (!res.ok) {
@@ -295,14 +350,16 @@ export interface PaypalWebhookEvent {
 }
 
 /**
- * Startprüfung (#2302): In Produktion und mit gesetzten PayPal-Zugangsdaten (Client-ID oder Secret)
- * müssen alle nötigen Variablen gesetzt sein — sonst gälten die Dev-Fallbacks (Fremd-Domain als
- * Return-URL, Variablenname als Plan-ID, unverifizierte Webhooks). Wirft mit den fehlenden
- * Variablennamen, nie mit Werten. Ohne Zugangsdaten (PayPal aus) oder außerhalb von Produktion no-op.
+ * Startprüfung (#2302): In Produktion müssen alle nötigen Variablen gesetzt sein — sonst gälten die
+ * Dev-Fallbacks (Fremd-Domain als Return-URL, Variablenname als Plan-ID, unverifizierte Webhooks).
+ * Wirft bei Teil-Konfiguration mit den fehlenden Variablennamen, nie mit Werten. Ganz ohne
+ * Zugangsdaten (#2545, PO-Entscheidung 2026-10-14) wird nicht abgebrochen: eindeutige
+ * `console.error`-Meldung, der Server läuft weiter und das PayPal-Billing bleibt aus. Außerhalb
+ * von Produktion no-op.
  */
 export const assertPaypalConfig = (env: NodeJS.ProcessEnv = process.env): void => {
 	if (env.NODE_ENV !== 'production') return;
-	if (!env.PAYPAL_CLIENT_ID?.trim() && !env.PAYPAL_CLIENT_SECRET?.trim()) return;
+	const hasNoCredentials = !env.PAYPAL_CLIENT_ID?.trim() && !env.PAYPAL_CLIENT_SECRET?.trim();
 	const required = [
 		'PAYPAL_CLIENT_ID',
 		'PAYPAL_CLIENT_SECRET',
@@ -311,9 +368,14 @@ export const assertPaypalConfig = (env: NodeJS.ProcessEnv = process.env): void =
 		...Object.values(PAYPAL_PLAN_IDS).flatMap((periods) => Object.values(periods).map((entry) => entry.envVar)),
 	];
 	const missing = required.filter((name) => !env[name]?.trim());
-	if (missing.length > 0) {
-		throw new Error(`PayPal-Konfiguration unvollständig, es fehlen: ${missing.join(', ')}`);
+	if (missing.length === 0) return;
+	if (hasNoCredentials) {
+		// Ganz ohne Zugangsdaten ist PayPal-Billing schlicht aus (#2545): eindeutige Meldung statt
+		// Startabbruch — eine fehlende Konfiguration darf die App nicht lahmlegen.
+		console.error(`PayPal-Billing ist deaktiviert, es fehlen: ${missing.join(', ')}`);
+		return;
 	}
+	throw new Error(`PayPal-Konfiguration unvollständig, es fehlen: ${missing.join(', ')}`);
 };
 
 /**
@@ -322,7 +384,11 @@ export const assertPaypalConfig = (env: NodeJS.ProcessEnv = process.env): void =
  */
 export const paypalGraceDeps = (): GracePeriodDeps =>
 	process.env.PAYPAL_CLIENT_ID?.trim() && process.env.PAYPAL_CLIENT_SECRET?.trim()
-		? { cancel: (id) => createPaypalClient().cancel(id) }
+		? {
+				cancel: (id) => createPaypalClient().cancel(id),
+				// Anteilige Restlaufzeit-Erstattung (#2745) — Wiederholung im Kulanz-Sweep wie `cancel` (#2606).
+				refund: (saleId, amountCents) => createPaypalClient().refund(saleId, amountCents),
+			}
 		: {};
 
 /** Abruf-Abhängigkeit des täglichen Abgleichs (#2300): nur mit PayPal-Zugangsdaten, sonst `null` (kein Netzaufruf). */
@@ -377,11 +443,15 @@ export const applyPlanChange = async (
 		const wasLocked = subscription.get('status') === 'locked';
 		// Bestätigung nur für ein laufendes Abo — ein wiederholtes CANCELLED bleibt still (#2308 AK7).
 		const wasRunning = ['active', 'past_due', 'suspended'].includes(String(subscription.get('status')));
+		// #2745 (§ 309 Nr. 9 BGB): ab der zweiten Laufzeit endet ein Quartals-/Jahresabo einen
+		// Kalendermonat nach Kündigungseingang statt zum Periodenende — sonst bleibt es dabei. Die
+		// Erstattung der Restlaufzeit löst der Provider aus (`paypalProvider.ts`), der Client kennt.
+		const shortenedEnd = await resolveCancellationEnd(subscription, now);
 		await subscription.update({
 			status: 'cancelled',
 			pendingPlan: 'free',
 			pendingPeriod: null,
-			pendingPlanEffectiveAt: currentPeriodEnd > now ? currentPeriodEnd : now,
+			pendingPlanEffectiveAt: shortenedEnd ?? (currentPeriodEnd > now ? currentPeriodEnd : now),
 		});
 		if (!wasLocked) {
 			await syncUserPlan(subscription, subscription.get('plan') as Plan);
@@ -481,20 +551,37 @@ export const replacePredecessors = async (
 };
 
 /**
+ * Die eine Regel „Guthaben deckt den ersten Zyklus“ (#2556): das Guthaben deckt, sobald es den
+ * Preis erreicht — der Grenzfall Guthaben = Preis deckt mit. Ohne Angabe zählen die eigenen
+ * Spalten; im Wechsel (#2241-Preview) das gerechnete Prorations-Guthaben samt Zielplan.
+ */
+export const coversFirstCycle = (
+	subscription: Subscription,
+	credit?: { amountCents: number; plan: Plan; period: BillingPeriod },
+): boolean => {
+	const creditCents = credit?.amountCents ?? (subscription.get('creditCents') as number);
+	const price =
+		getPlansCatalog().prices[credit?.plan ?? (subscription.get('plan') as Plan)][
+			credit?.period ?? (subscription.get('period') as BillingPeriod)
+		];
+	return creditCents >= price;
+};
+
+/**
  * Ob die Bestätigung des Abos sofort abbucht: nur ein Upgrade-Abo (#1912), dessen Guthaben den
  * ersten Zyklus nicht deckt (#2238) — bis zum Zahlungseingang bleibt es ausstehend.
  */
 const chargesOnActivation = (subscription: Subscription): boolean => {
 	const creditCents = subscription.get('creditCents') as number;
-	const price = getPlansCatalog().prices[subscription.get('plan') as Plan];
-	return creditCents > 0 && price[subscription.get('period') as keyof typeof price] > creditCents;
+	return creditCents > 0 && !coversFirstCycle(subscription);
 };
 
 /** Injizierbare Abhängigkeiten von {@link applyPaymentEvent} (Muster `deps` in `billing.ts`). */
 export interface ApplyPaymentEventDeps {
 	/**
 	 * `saleId`: Sale-Referenz der Abbuchung (`resource.id`, #2086); `charged`: abgebuchter Betrag (`resource.amount`, #2232);
-	 * `transaction`: die Transaktion der Abbuchung (#2233) — Rechnung und Verlängerung gelingen nur gemeinsam.
+	 * `transaction`: die Transaktion der Abbuchung (#2233) — Rechnung und Verlängerung gelingen nur gemeinsam;
+	 * `periodStart`: Start der bezahlten Periode (Stand vor der Verlängerung, #2654).
 	 */
 	issueInvoice?: (
 		subscription: Subscription,
@@ -502,6 +589,7 @@ export interface ApplyPaymentEventDeps {
 		saleId?: string | null,
 		charged?: ChargedAmount,
 		transaction?: Transaction,
+		periodStart?: Date,
 	) => Promise<unknown>;
 	/**
 	 * Gutschrift zur Originalrechnung (#2237): eigener Beleg statt `refunded` am Original — läuft in
@@ -625,13 +713,15 @@ export const applyPaymentEvent = async (
 			) {
 				currentPeriodEnd.setTime(now.getTime());
 			}
+			// Echter Start der bezahlten Periode = Stand vor der Verlängerung (#2654): rückwärts aus dem
+			// neuen Ende abgeleitet wäre bei Monatsübergang (29.–31.) um Tage daneben.
+			const periodStart = new Date(currentPeriodEnd);
 			currentPeriodEnd.setUTCMonth(currentPeriodEnd.getUTCMonth() + months);
-			// Eine späte Abbuchung hebt die Admin-Sperre nicht auf (#2242).
 			await subscription.update(
 				{ currentPeriodEnd, status: status === 'locked' ? 'locked' : 'active', firstFailureAt: null },
 				{ transaction },
 			);
-			await deps.issueInvoice?.(subscription, now, event.resource?.id ?? null, charged, transaction);
+			await deps.issueInvoice?.(subscription, now, event.resource?.id ?? null, charged, transaction, periodStart);
 		});
 		return;
 	}

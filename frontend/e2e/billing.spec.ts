@@ -36,7 +36,7 @@ const activeSubscription = (overrides: Record<string, unknown> = {}) => ({
 	plan: 'pro',
 	period: 'monthly',
 	status: 'active',
-	currentPeriodEnd: '2026-10-15T00:00:00.000Z',
+	currentPeriodEnd: '2099-10-15T00:00:00.000Z',
 	pendingPlan: null,
 	pendingPlanEffectiveAt: null,
 	graceUntil: null,
@@ -58,6 +58,23 @@ const mockAuthMe = async (page: Page, user: Record<string, unknown>): Promise<vo
 const mockEmptyInvoices = async (page: Page): Promise<void> => {
 	await page.route('**/api/v1/billing/invoices', (route: Route) =>
 		route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) }),
+	);
+};
+
+/** Gespeicherte Rechnungsadresse (#2661) — der Checkout-Dialog lädt sie beim Öffnen. */
+const mockBillingAddress = async (page: Page): Promise<void> => {
+	await page.route('**/api/v1/billing/address', (route: Route) =>
+		route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				name: 'Max Mustermann',
+				street: 'Musterstraße 1',
+				zip: '12345',
+				city: 'Musterstadt',
+				country: 'Deutschland',
+			}),
+		}),
 	);
 };
 
@@ -104,10 +121,12 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 			route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>PayPal-Sandbox</body></html>' }),
 		);
 
+		await mockBillingAddress(page);
 		await gotoPakete(page);
-		// #2307: Erstkauf erst nach der Zustimmung zum sofortigen Leistungsbeginn.
-		await page.getByRole('checkbox').check();
+		// #2661: Bestellen öffnet den Checkout-Dialog — Adresse + Widerrufs-Zustimmung dort.
 		await page.getByTestId('book-pro-monthly').click();
+		await page.getByRole('checkbox').check();
+		await page.getByTestId('order-submit').click();
 
 		await expect
 			.poll(() => capturedBody, { message: 'POST /billing/subscriptions muss plan+period senden' })

@@ -1,6 +1,7 @@
 import type { Pillar } from 'client';
 import { useMemo, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
+import { KolSpin } from '@public-ui/react-v19';
 import { BalanceFigure } from './BalanceFigure';
 import { HeartVessel } from './HeartVessel';
 import { buildHeartBalance, heartHealth } from '../lib/heartBalance';
@@ -14,7 +15,7 @@ import { rampClass } from '../lib/pillarRamp';
  * Die Lebensbalance auf der Startseite: **ein** gerechnetes Ergebnis, mehrere Bilder davon.
  *
  * Diese Komponente rechnet und beschriftet; gezeichnet wird in `HeartVessel` (das Herz-Gefäß) oder
- * `BalanceFigure` (Blasen, Scheiben, Ringe, Strahlen). Welches Bild läuft, wählt der Nutzer in den
+ * `BalanceFigure` (Blasen, Scheiben, Ringe, Strahlen, Blüte, Kristall, Segmente, Zeiger). Welches Bild läuft, wählt der Nutzer in den
  * Einstellungen — wie das Zifferblatt einer Uhr (`lib/balanceVariant.ts`, Default „Herz").
  *
  * **Was über allen Varianten gleich bleibt**, und zwar absichtlich:
@@ -25,7 +26,7 @@ import { rampClass } from '../lib/pillarRamp';
  * - Die **Legende**: je Säule Farbe, Name, Ist-Anteil, Ziel und Abweichung. Sie macht die Farben
  *   im Bild überhaupt erst zuordenbar und trägt die Relief-Regel (ux-design.md §2, Regel 4) —
  *   der Säulenname steht immer als Text neben der Farbe, in jeder Variante.
- * - Die **Bewegungsschalter**: Master „Animationen" (#1183), Feinschalter „Herz animieren" und die
+ * - Die **Bewegungsschalter**: Master „Animationen" (#1183), Feinschalter „Balance animieren" und die
  *   OS-Einstellung „Bewegung reduzieren", die Vorrang hat.
  *
  * Rechnung, Randfälle und das Balance-Maß stehen in `lib/heartBalance.ts`.
@@ -40,6 +41,17 @@ interface HeartBalanceProps {
 	 * den lokal aus den Anteilen gerechneten Wert, damit Herz, Verlauf und MCP dieselbe Zahl zeigen.
 	 */
 	fill?: number;
+	/**
+	 * Urteilsreife (#2645): `false` → Leerzustand statt Stufenurteil, solange die Überlast-Mindestmenge
+	 * an Erledigungen nicht erreicht ist. `undefined` (Server-Felder fehlen) = bisheriges Verhalten.
+	 */
+	urteilsreif?: boolean;
+	/**
+	 * Freigabe des Auftakts der Figuren: `false` hält die GL-Fassung leer, bis der echte
+	 * Balance-Stand aus `fill` da ist — sonst wächst das Bild erst auf den lokalen Notwert und
+	 * wechselt dort mitten in den Auftakt auf den echten Wert (Doppel-Animation).
+	 */
+	auftaktBereit?: boolean;
 }
 
 /** Ganze Prozent für die Anzeige (die Rechnung selbst bleibt ungerundet). */
@@ -48,18 +60,25 @@ const asPercent = (share: number): number => Math.round(share * 100);
 /** Ab dieser Abweichung ist eine Säule keine Delle mehr, sondern eine Schieflage (Prozentpunkte). */
 const DELTA_STARK = 5;
 
-export const HeartBalance = ({ pillars, punkteProSaeule, fill }: HeartBalanceProps) => {
+export const HeartBalance = ({ pillars, punkteProSaeule, fill, urteilsreif, auftaktBereit }: HeartBalanceProps) => {
 	const balance = useMemo(() => {
 		const lokal = buildHeartBalance(pillars, punkteProSaeule);
 		return fill === undefined ? lokal : { ...lokal, fill };
 	}, [pillars, punkteProSaeule, fill]);
 	const { t } = useTranslation('dashboard');
-	const health = heartHealth(balance);
+	const health = heartHealth(balance, urteilsreif);
 	const { variant } = useBalanceVariant();
+	/*
+	 * #2676: Bis der erste Stand freigegeben ist, stehen Bild und Ablesewert unsichtbar (Platz
+	 * bleibt, kein Layout-Shift) — die erste sichtbare Fassung zeigt sofort den echten Wert statt
+	 * erst auf den lokalen Notwert zu wachsen und darauf zu springen. Die Legende bleibt sichtbar:
+	 * Ihre Anteile kommen aus den Säulen, nicht vom Server-Stand.
+	 */
+	const bereit = auftaktBereit !== false;
 
 	/*
 	 * Das Bild bewegt sich nur, wenn beide Schalter es erlauben: der Master „Animationen“ (#1183)
-	 * und der Feinschalter „Herz animieren“. Die OS-Einstellung „Bewegung reduzieren“ hat Vorrang
+	 * und der Feinschalter „Balance animieren“. Die OS-Einstellung „Bewegung reduzieren“ hat Vorrang
 	 * und schaltet hier mit ab — Wellen wie Blasenschwingung laufen per SMIL und lassen sich nicht
 	 * per CSS-Media-Query ausnehmen (Auftakt und Puls bleiben trotzdem im CSS abgesichert).
 	 */
@@ -82,27 +101,47 @@ export const HeartBalance = ({ pillars, punkteProSaeule, fill }: HeartBalancePro
 	if (variant === 'herz') stageClasses.push('heart-balance-stage--herz');
 	if (!animated) stageClasses.push('heart-balance-stage--still');
 
+	/*
+	 * #2676: `visibility` statt `display` — Bühne und Zeilen halten ihre volle Höhe, es entsteht
+	 * kein Layout-Shift. Bewusst Inline statt Selektor in app.css: jsdom lädt das Stylesheet
+	 * nicht, die Unit-Tests auf das Gate brauchen die Angabe direkt am Element.
+	 */
+	const wartetStyle = { visibility: 'hidden' } as const;
+
 	return (
 		<div className="heart-balance">
 			<div
 				className={stageClasses.join(' ')}
 				data-variante={variant}
-				style={{ '--pp-heart-beat': `${beatSeconds.toFixed(2)}s` } as CSSProperties}
+				style={{ '--pp-heart-beat': `${beatSeconds.toFixed(2)}s`, ...(bereit ? null : wartetStyle) } as CSSProperties}
 			>
+				{!bereit && (
+					/*
+					 * Erster Start ohne gerätelokalen Stand: Bis zur ersten Server-Antwort stehen Bild und
+					 * Ablesewert unsichtbar (#2676) — der Drehmelder zentriert in der freigehaltenen Bühne,
+					 * statt ein leeres Feld zu zeigen. Er sitzt an der Bühne (nicht am ganzen Block), also
+					 * über dem Bild und nicht über der verborgenen Ablesezeile.
+					 */
+					<div className="heart-balance-loading">
+						<KolSpin _show _variant="cycle" _label={t('heartBalance.loading')} />
+					</div>
+				)}
 				{variant === 'herz' ? (
+					/* Das Herz hat keinen Auftakt — sein Füllstand steht sofort, ohne Einfahren. */
 					<HeartVessel balance={balance} animated={animated} ariaLabel={ariaLabel} />
 				) : (
 					<BalanceFigure
 						balance={balance}
 						figure={variant}
 						animated={animated}
+						auftaktBereit={auftaktBereit}
 						beatSeconds={beatSeconds}
 						ariaLabel={ariaLabel}
 					/>
 				)}
 			</div>
 
-			<p className="heart-balance-readout">
+			<p className="heart-balance-readout" style={bereit ? undefined : { visibility: 'hidden' }}>
 				<span className="heart-balance-value" data-testid="heart-balance-value">
 					{fillPercent} %
 				</span>

@@ -81,12 +81,29 @@ vi.mock('@public-ui/react-v19', () => ({
 			<input type="email" value={props._value ?? ''} onChange={(e) => props._on?.onInput?.(e, e.target.value)} />
 		</label>
 	),
+	// Dialog „Rechnungsadresse": Felder als native Ersatzelemente (Muster KolInputEmail oben).
+	KolInputText: (
+		props: { _label: string; _value?: string; _on?: { onInput?: (e: unknown, v: string) => void } } & Record<
+			string,
+			unknown
+		>,
+	) => {
+		const { _label, _value, _on, ...rest } = props;
+		return (
+			<label>
+				{_label}
+				<input type="text" value={_value ?? ''} {...rest} onChange={(e) => _on?.onInput?.(e, e.target.value)} />
+			</label>
+		);
+	},
 }));
 
 vi.mock('../api', () => ({
 	api: {
 		listBillingInvoices: vi.fn(async () => []),
 		cancelBillingSubscription: vi.fn(async () => {}),
+		getBillingAddress: vi.fn(async () => ({ name: null, street: null, zip: null, city: null, country: null })),
+		updateBillingAddress: vi.fn(async () => ({})),
 	},
 }));
 
@@ -367,5 +384,69 @@ describe('SubscriptionSection — Kündigungsbutton und Bestätigungsschritt (#2
 		await waitFor(() => {
 			expect(api.cancelBillingSubscription).toHaveBeenCalledWith({ kind: 'ordinary', email: 'kunde@example.com' });
 		});
+	});
+});
+
+describe('SubscriptionSection — Rechnungsadresse bearbeiten', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		subscriptionState.subscription = { ...baseSubscription, status: 'active' };
+	});
+
+	it('zeigt den Knopf „Rechnungsadresse ändern" und öffnet den Dialog mit den Adressfeldern', async () => {
+		render(<SubscriptionSection />);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Rechnungsadresse ändern' }));
+
+		const dialog = screen.getByRole('dialog');
+		expect(dialog).toHaveTextContent('Diese Anschrift erscheint auf künftigen Rechnungen.');
+		expect(await screen.findByTestId('billing-address-name')).toBeInTheDocument();
+		expect(screen.getByTestId('billing-address-save')).toBeInTheDocument();
+	});
+});
+
+describe('SubscriptionSection (#2745): gekürztes Vertragsende im Dialog und Hinweis', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it('Dialog nennt das gekürzte Ende (contractEndsAt) und den Erstattungshinweis', () => {
+		subscriptionState.subscription = {
+			...baseSubscription,
+			period: 'yearly',
+			contractEndsAt: '2026-11-19T10:00:00.000Z',
+		};
+		render(<SubscriptionSection />);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Verträge hier kündigen' }));
+		const dialog = screen.getByRole('dialog');
+		expect(dialog).toHaveTextContent('19.11.2026');
+		expect(dialog).toHaveTextContent(/anteilig/);
+		expect(dialog).not.toHaveTextContent('15.1.2027');
+	});
+
+	it('Dialog ohne contractEndsAt zeigt weiterhin das Laufzeitende ohne Erstattungshinweis', () => {
+		subscriptionState.subscription = { ...baseSubscription };
+		render(<SubscriptionSection />);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Verträge hier kündigen' }));
+		const dialog = screen.getByRole('dialog');
+		expect(dialog).toHaveTextContent('15.1.2027');
+		expect(dialog).not.toHaveTextContent('anteilig');
+	});
+
+	it('Gekündigt-Hinweis nennt das gekürzte Vertragsende (pendingPlanEffectiveAt)', () => {
+		subscriptionState.subscription = {
+			...baseSubscription,
+			status: 'cancelled',
+			pendingPlanEffectiveAt: '2026-11-19T10:00:00.000Z',
+		};
+		render(<SubscriptionSection />);
+
+		expect(screen.getByTestId('subscription-cancelled')).toHaveTextContent(/19\.11\.2026/);
 	});
 });

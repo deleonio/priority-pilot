@@ -3,7 +3,9 @@ import User from '../models/user.js';
 import { adminEmails } from './adminEmails.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { displayLabel } from './invoices.js';
+import { resolveCancellationEnd } from './cancellationRefund.js';
 import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
+import { renderMailHtml } from './mailTemplate.js';
 import type { Plan } from './plans.js';
 
 /**
@@ -76,10 +78,26 @@ export const sendCancellationConfirmation = async (
 	}
 	const extraordinary = subscription.get('cancellationKind') === 'extraordinary';
 	const requestedAt = (subscription.get('cancellationRequestedAt') as Date | null) ?? now;
+	// #2745: ab der zweiten Laufzeit nennt die Bestätigung das gekürzte Vertragsende, sonst das Periodenende.
+	const contractEnd =
+		(await resolveCancellationEnd(subscription, now)) ?? (subscription.get('currentPeriodEnd') as Date);
 	const user = await User.findByPk(subscription.get('userId') as number);
 	const email = (subscription.get('cancellationEmail') as string | null) ?? user?.email ?? null;
 	const sprache = spracheVon(user?.sprache);
 	const t = BESTAETIGUNG[sprache];
+	const mailHtml = renderMailHtml({
+		heading: t.subject,
+		intro: `${t.anrede} ${t.einleitung}`,
+		rows: [
+			{ label: t.vertrag, value: contractLabel(subscription, sprache) },
+			{ label: t.art, value: extraordinary ? t.ausserordentlich : t.ordentlich },
+			...(extraordinary ? [{ label: t.grund, value: String(subscription.get('cancellationReason')) }] : []),
+			{ label: t.eingang, value: formatDate(requestedAt, sprache) },
+			{ label: t.ende, value: formatDate(contractEnd, sprache) },
+		],
+		closing: t.schluss,
+		lang: sprache,
+	});
 	await sendMailToUser(
 		{ email },
 		{
@@ -93,10 +111,12 @@ export const sendCancellationConfirmation = async (
 				`${t.art}: ${extraordinary ? t.ausserordentlich : t.ordentlich}`,
 				...(extraordinary ? [`${t.grund}: ${String(subscription.get('cancellationReason'))}`] : []),
 				`${t.eingang}: ${formatDate(requestedAt, sprache)}`,
-				`${t.ende}: ${formatDate(subscription.get('currentPeriodEnd') as Date, sprache)}`,
+				`${t.ende}: ${formatDate(contractEnd, sprache)}`,
 				'',
 				t.schluss,
 			].join('\n'),
+			html: mailHtml.html,
+			attachments: mailHtml.attachments,
 		},
 		send,
 	);

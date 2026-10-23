@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { registerOwnSession, waitForStableView } from './helpers';
+import { openAccordionSection, registerOwnSession, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #2074 — Säulen-Rangfolge-Treppe (Spec: docs/spec/issue-2074.md).
@@ -26,6 +26,8 @@ const openNewTaskForm = async (page: Page): Promise<void> => {
 	await waitForStableView(page);
 	await page.getByRole('button', { name: 'Überspringen' }).click();
 	await waitForStableView(page);
+	// #2525 (Fixup): Säulen-Rangfolge liegt im gefalteten Sekundär-Abschnitt — vor dem Tippen aufklappen.
+	await openAccordionSection(page, 'Termin & Ort');
 };
 
 /** Tap-Fläche einer Säule — das Label trägt Name, Rang und Anteil. */

@@ -21,6 +21,9 @@ const ENV_KEYS = [
 ] as const;
 
 describe('LLM-Aufrufe mit aktivem Provider', () => {
+	// Legacy-Fake-Host `old.example.com` ist nicht auflösbar; fail-closed (#2685) würde den Call ablehnen.
+	process.env.ENDPOINT_GUARD_ALLOW_UNRESOLVED_HOSTS = '1';
+
 	const envBackup: Record<string, string | undefined> = {};
 
 	before(() => {

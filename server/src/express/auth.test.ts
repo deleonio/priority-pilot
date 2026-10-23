@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, before, after } from 'node:test';
+import { describe, it, beforeEach, before, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import passport from 'passport';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
@@ -324,6 +324,80 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			assert.equal(body.subscription?.graceUntil, null, 'Ohne Zahlungsausfall bleibt graceUntil null');
 		});
 	});
+	// #2546 AK3/AK4 (Spec docs/spec/issue-2546.md): /auth/me darf bei hängendem PayPal nicht
+	// hängen — der Kündigungsaufruf bricht nach dem Zeitlimit ab, der Entzug läuft weiter (Vertrag
+	// #2234). Globaler Fetch nach dem Login ersetzt (Default-Parameter `= fetch` liest zur Callzeit),
+	// im finally restauriert; Watchdog 3 s macht fehlendes Timeout als klares Rot sichtbar.
+	describe('#2546 — /auth/me mit hängendem PayPal (Zeitlimit)', () => {
+		it('AK3: antwortet in begrenzter Zeit, warnt und entzieht das Paket trotzdem (AK4)', async () => {
+			const cookie = await testLogin();
+			const dbUser = await User.findOne({ where: { email: ALLOWED_EMAIL } });
+			assert.ok(dbUser, 'Setup: Session-User muss existieren');
+			const { default: Subscription } = await import('../models/subscription.js');
+			const DAY_MS = 24 * 60 * 60 * 1000;
+			await Subscription.create({
+				userId: (dbUser as unknown as { id: number }).id,
+				provider: 'paypal',
+				externalSubscriptionId: 'I-2546-HANG',
+				plan: 'pro',
+				period: 'monthly',
+				status: 'past_due',
+				currentPeriodEnd: new Date(Date.now() + 10 * DAY_MS),
+				firstFailureAt: new Date(Date.now() - 20 * DAY_MS), // Kulanzfrist abgelaufen
+			});
+
+			const savedEnv = { ...process.env };
+			const realFetch = globalThis.fetch;
+			const warns: string[] = [];
+			const warnSpy = mock.method(console, 'warn', (...args: unknown[]) => warns.push(args.join(' ')));
+			// Hängender, abort-bewusster PayPal-Fake (Muster lektorat.test.ts): nur PayPal-Calls hängen
+			// (produktives fetch bricht über das Signal ab), alles andere fällt zum Original durch —
+			// sonst hängt der eigene /auth/me-Request des Tests am selben Fake.
+			globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+				if (String(input).includes('paypal.com')) {
+					return new Promise<Response>((_resolve, reject) => {
+						init?.signal?.addEventListener('abort', () => reject(new Error('PayPal-Aufruf abgebrochen')));
+					}) as unknown as Response;
+				}
+				return realFetch(input, init);
+			}) as typeof fetch;
+			process.env.PAYPAL_CLIENT_ID = 'id';
+			process.env.PAYPAL_CLIENT_SECRET = 'secret';
+			process.env.PAYPAL_TIMEOUT_MS = '100';
+			let watchdog: NodeJS.Timeout | undefined;
+			const start = Date.now();
+			try {
+				const res = await Promise.race([
+					fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } }),
+					new Promise<never>((_resolve, reject) => {
+						watchdog = setTimeout(
+							() => reject(new Error('/auth/me hängt: PayPal-Aufruf bricht nicht ab (kein Zeitlimit)')),
+							3000,
+						);
+					}),
+				]);
+				assert.equal((res as Response).status, 200, '/auth/me muss trotz hängendem PayPal antworten');
+				assert.ok(
+					Date.now() - start < 1000,
+					`Antwort muss bei PAYPAL_TIMEOUT_MS=100 unter 1 s kommen, dauerte ${Date.now() - start} ms`,
+				);
+				const body = (await (res as Response).json()) as {
+					subscription?: { status?: string; plan?: string } | null;
+				};
+				assert.equal(body.subscription?.status, 'grace_expired', 'Entzug läuft trotz PayPal-Ausfall weiter (AK4)');
+				assert.equal(body.subscription?.plan, 'free', 'Paket wird trotz PayPal-Ausfall entzogen (AK4)');
+				assert.ok(
+					warns.some((m) => /Kulanzfrist/.test(m)),
+					'abgebrochene Kündigung wird protokolliert (AK4)',
+				);
+			} finally {
+				clearTimeout(watchdog);
+				warnSpy.mock.restore();
+				globalThis.fetch = realFetch;
+				process.env = savedEnv;
+			}
+		});
+	});
 
 	// ── AC 5 — /auth/me ohne Session → 401 ───────────────────────────────────
 
@@ -504,8 +578,10 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 		it('GET /auth/error bleibt als API-Fallback erhalten (rohes JSON 400)', async () => {
 			const res = await fetch(`${server.baseUrl}/auth/error`);
 			assert.equal(res.status, 400);
+			// #2549 AK3: Fehlervertrag ist `{ message }`, nicht `{ error }` (Text unverändert).
 			const body = (await res.json()) as Record<string, unknown>;
-			assert.ok(body.error, 'Fallback sollte ein JSON-Fehlerfeld liefern');
+			assert.equal(body.message, 'Login fehlgeschlagen. Bitte prüfe deine Zugangsberechtigung.');
+			assert.equal(body.error, undefined);
 		});
 	});
 

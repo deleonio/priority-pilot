@@ -5,7 +5,11 @@ import { TaskStatus } from 'client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from '@testing-library/react';
 import { Dashboard } from './Dashboard';
+import { HeartBalance } from './HeartBalance';
+import { balanceStatusCacheKey } from '../lib/balanceStatusCache';
 import { api } from '../api';
+// #2527: i18n läuft echt (vitest.setup.ts pinnt `de`) — der Sprach-Test wechselt selbst (Muster CareHint #2063).
+import i18next from '../i18n/config';
 
 // KoliBri-Komponenten sind in jsdom nicht registriert; KolPagination wird zum Klick-Stub, damit
 // `_on.onChangePage` auslösbar ist. Alles andere bleibt echt.
@@ -26,9 +30,19 @@ vi.mock('@public-ui/react-v19', async (importOriginal) => ({
 	),
 }));
 
+// Auftakt-Spiegel: HeartBalance rendert echt, protokolliert aber seine Props — die Freigabe des
+// Auftakts ist im jsdom (kein WebGL, SVG-Rückfall ohne Auftakt) sonst nicht beobachtbar.
+vi.mock('./HeartBalance', async (importOriginal) => {
+	const original = await importOriginal<typeof import('./HeartBalance')>();
+	return { ...original, HeartBalance: vi.fn(original.HeartBalance) };
+});
+
 afterEach(() => {
 	cleanup();
 	vi.restoreAllMocks();
+	vi.useRealTimers();
+	// Balance-Spiegel räumen: er darf zwischen den Tests nicht als Vorbelegung weiterleben.
+	localStorage.removeItem(balanceStatusCacheKey(1));
 });
 
 const pillar = (id: number, name: string, weight: number): Pillar => ({ id, name, description: '', weight });
@@ -68,7 +82,7 @@ describe('Dashboard — Meine Themen: offen/erledigt je Säule (#124)', () => {
 		];
 
 		const { container } = render(
-			<Dashboard tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />,
+			<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />,
 		);
 
 		const pillarItems = container.querySelectorAll('.dashboard-pillars-list .dashboard-pillar');
@@ -91,7 +105,14 @@ describe('Dashboard — Personalisierte Begrüßung (#169)', () => {
 	// AC1: Mit `displayName="Peter"` muss die Begrüßung „Hallo Peter!" sichtbar sein.
 	it('zeigt „Hallo Peter!" wenn displayName="Peter" übergeben wird', () => {
 		const { container } = render(
-			<Dashboard tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} displayName="Peter" />,
+			<Dashboard
+				userId={1}
+				tasks={[]}
+				forest={[] as TaskTreeNode[]}
+				nextTask={null}
+				pillars={[]}
+				displayName="Peter"
+			/>,
 		);
 
 		expect(container.textContent ?? '').toMatch(/Hallo\s+Peter!/i);
@@ -100,7 +121,7 @@ describe('Dashboard — Personalisierte Begrüßung (#169)', () => {
 	// AC2: Bei leerem displayName darf KEINE Begrüßung erscheinen (kein Fallback-Name).
 	it('zeigt keine Begrüßung, wenn displayName leer ist', () => {
 		const { container } = render(
-			<Dashboard tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} displayName="" />,
+			<Dashboard userId={1} tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} displayName="" />,
 		);
 
 		expect(container.textContent ?? '').not.toMatch(/Hallo/i);
@@ -121,7 +142,7 @@ describe('Dashboard — Statuskacheln: genau drei Kacheln (Issue #390)', () => {
 			task(3, [], 1, TaskStatus.Done),
 		];
 		const { container } = render(
-			<Dashboard tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />,
+			<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />,
 		);
 
 		const items = container.querySelectorAll('.dashboard-cards > li');
@@ -135,7 +156,7 @@ describe('Dashboard — Statuskacheln: genau drei Kacheln (Issue #390)', () => {
 	it('AK2: ein Task mit Status InProcess erhöht die Kachel „Offen" um 1', () => {
 		const tasks = [task(1, [], 1, TaskStatus.Open), task(2, [], 1, TaskStatus.InProcess)];
 		const { container } = render(
-			<Dashboard tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />,
+			<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />,
 		);
 
 		// Nach der Umsetzung trägt die „Offen"-Kachel den Akzent „open" und einen Count von 2.
@@ -161,7 +182,9 @@ describe('Dashboard — Empty-State bei 0 Säulen (Issue #440, AK1)', () => {
 	// Test-Pflege #1118: Mit der Sektions-Card „Meine Themen" (AK1) wird der bisherige
 	// Card-in-Card-Leerzustand obsolet — der Hinweis steht jetzt IN der Sektions-Card.
 	it('AK1: zeigt bei pillars=[] den Hinweistext innerhalb der Sektions-Card „Meine Themen" (#1118 AK3/AK4)', () => {
-		const { container } = render(<Dashboard tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />);
+		const { container } = render(
+			<Dashboard userId={1} tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />,
+		);
 
 		// Genau eine Card: die Sektions-Card selbst (Widget-Klasse sitzt am Card-Host) —
 		// kein verschachteltes kol-card.
@@ -182,7 +205,7 @@ describe('Dashboard — Empty-State bei 0 Säulen (Issue #440, AK1)', () => {
 	it('AK1: zeigt bei pillars.length > 0 KEINE Empty-State-KolCard', () => {
 		const koerper = pillar(1, 'Körper', 100);
 		const { container } = render(
-			<Dashboard tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />,
+			<Dashboard userId={1} tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />,
 		);
 
 		// Wenn Säulen vorhanden sind, darf die Empty-State-KolCard nicht erscheinen.
@@ -201,7 +224,7 @@ describe('Dashboard — Säulen-Meter mit 75%-Schwellwert (Issue #410)', () => {
 		const tasks = [task(10, [{ pillarId: 1, share: 100, confidence: 100 }], 3, TaskStatus.Done)];
 
 		const { container } = render(
-			<Dashboard tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />,
+			<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />,
 		);
 
 		// Der Meter wird mit KolMeter gerendert und soll _low=0.15 (75% von 20%) haben
@@ -218,7 +241,7 @@ describe('Dashboard — Säulen-Meter mit 75%-Schwellwert (Issue #410)', () => {
 		const tasks = [task(11, [{ pillarId: 2, share: 100, confidence: 100 }], 2, TaskStatus.Done)];
 
 		const { container } = render(
-			<Dashboard tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[sinn]} />,
+			<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[sinn]} />,
 		);
 
 		const meter = container.querySelector('kol-meter');
@@ -238,7 +261,7 @@ describe('Dashboard — Säulen-Meter mit 75%-Schwellwert (Issue #410)', () => {
 		];
 
 		const { container } = render(
-			<Dashboard tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper, sinn]} />,
+			<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper, sinn]} />,
 		);
 
 		const meters = container.querySelectorAll('kol-meter');
@@ -257,7 +280,7 @@ describe('Dashboard — Säulen-Meter mit 75%-Schwellwert (Issue #410)', () => {
 		const tasks = [task(10, [{ pillarId: 1, share: 100, confidence: 100 }], 1.4, TaskStatus.Done)];
 
 		const { container } = render(
-			<Dashboard tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />,
+			<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />,
 		);
 
 		const meter = container.querySelector('kol-meter');
@@ -279,7 +302,7 @@ describe('Dashboard — Säulen-Meter mit 75%-Schwellwert (Issue #410)', () => {
 		const tasks = [task(10, [{ pillarId: 1, share: 100, confidence: 100 }], 1.6, TaskStatus.Done)];
 
 		const { container } = render(
-			<Dashboard tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />,
+			<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />,
 		);
 
 		const meter = container.querySelector('kol-meter');
@@ -308,6 +331,7 @@ describe('Dashboard — Säulen-Meter mit 75%-Schwellwert (Issue #410)', () => {
 
 		const { container } = render(
 			<Dashboard
+				userId={1}
 				tasks={tasks}
 				forest={[] as TaskTreeNode[]}
 				nextTask={null}
@@ -345,7 +369,7 @@ describe('Dashboard — Sektionen als Kolibri-Cards (Issue #1118)', () => {
 	it('AK1/AK2: je Sektion genau eine Card mit Sektionslabel und dritter Überschriftenebene, kein separates <h3>', () => {
 		const koerper = pillar(1, 'Körper', 100);
 		const { container } = render(
-			<Dashboard tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />,
+			<Dashboard userId={1} tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />,
 		);
 
 		for (const [className, label] of SECTIONS) {
@@ -376,7 +400,9 @@ describe('Dashboard — Sektionen als Kolibri-Cards (Issue #1118)', () => {
 	});
 
 	it('AK3/AK4: Sektions-Leerzustände stehen innerhalb der Card', () => {
-		const { container } = render(<Dashboard tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />);
+		const { container } = render(
+			<Dashboard userId={1} tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />,
+		);
 
 		const emptyExpectations: Array<[string, RegExp]> = [
 			['dashboard-next-task', /keine Aufgabe an/],
@@ -411,6 +437,7 @@ describe('Dashboard — „Erledigt"-Button im Signal-Panel (Issue #1168, docs/s
 
 		const { container } = render(
 			<Dashboard
+				userId={1}
 				tasks={[nextTask]}
 				forest={[] as TaskTreeNode[]}
 				nextTask={nextTask}
@@ -442,7 +469,7 @@ describe('Dashboard — kein Task-ID-Präfix in "Nächste Aufgabe" / "Was ist je
 		nextTask.title = 'Wondershare Filmora kündigen';
 
 		const { container } = render(
-			<Dashboard tasks={[nextTask]} forest={[] as TaskTreeNode[]} nextTask={nextTask} pillars={[]} />,
+			<Dashboard userId={1} tasks={[nextTask]} forest={[] as TaskTreeNode[]} nextTask={nextTask} pillars={[]} />,
 		);
 
 		const titleEl = container.querySelector('.dashboard-next-task-title');
@@ -460,6 +487,7 @@ describe('Dashboard — kein Task-ID-Präfix in "Nächste Aufgabe" / "Was ist je
 
 		const { container } = render(
 			<Dashboard
+				userId={1}
 				tasks={[nextTask, suggestionA, suggestionB]}
 				forest={[] as TaskTreeNode[]}
 				nextTask={nextTask}
@@ -487,6 +515,7 @@ describe('Dashboard — kein Task-ID-Präfix in "Nächste Aufgabe" / "Was ist je
 
 		const { container } = render(
 			<Dashboard
+				userId={1}
 				tasks={[nextTask, suggestion]}
 				forest={[] as TaskTreeNode[]}
 				nextTask={nextTask}
@@ -512,8 +541,9 @@ describe('Dashboard — „Bearbeiten"-Button im Signal-Panel (Issue #1447, docs
 	// `onEditTask` ist die Ziel-Prop aus docs/spec/issue-1447.md — existiert auf `DashboardProps` noch
 	// nicht. Der Cast hält den Spec-Commit tsc-sauber (sonst Build-Fehler statt rotem Testlauf); der
 	// eigentliche Rot-Zustand kommt aus der fehlenden Laufzeit-Umsetzung (Button/Callback fehlen).
-	const renderWithEdit = (props: ComponentProps<typeof Dashboard> & { onEditTask?: (task: Task) => void }) =>
-		render(<Dashboard {...(props as ComponentProps<typeof Dashboard>)} />);
+	const renderWithEdit = (
+		props: Omit<ComponentProps<typeof Dashboard>, 'userId'> & { onEditTask?: (task: Task) => void },
+	) => render(<Dashboard userId={1} {...props} />);
 
 	it('AK1: rendert bei gesetztem nextTask und onEditTask einen Icon-only-Button „Bearbeiten" nach „Erledigen"', () => {
 		const nextTask = task(42, [], 2, TaskStatus.Open);
@@ -597,6 +627,7 @@ describe('Dashboard — „Bearbeiten"-Button im Signal-Panel (Issue #1447, docs
 
 		const { container } = render(
 			<Dashboard
+				userId={1}
 				tasks={[nextTask]}
 				forest={[] as TaskTreeNode[]}
 				nextTask={nextTask}
@@ -630,7 +661,7 @@ describe('Dashboard — kein Task-ID-Präfix in „Wichtigste Tasks" / „Ansteh
 			dependents: [],
 		};
 
-		const { container } = render(<Dashboard tasks={[]} forest={[top]} nextTask={null} pillars={[]} />);
+		const { container } = render(<Dashboard userId={1} tasks={[]} forest={[top]} nextTask={null} pillars={[]} />);
 
 		const title = container.querySelector('.dashboard-top-task-title');
 		expect(title?.textContent).toBe('Kur-Tochter');
@@ -644,7 +675,7 @@ describe('Dashboard — kein Task-ID-Präfix in „Wichtigste Tasks" / „Ansteh
 		withDeadline.deadline = new Date('2026-07-14T00:00:00.000Z');
 
 		const { container } = render(
-			<Dashboard tasks={[withDeadline]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />,
+			<Dashboard userId={1} tasks={[withDeadline]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />,
 		);
 
 		const title = container.querySelector('.dashboard-deadline-title');
@@ -664,6 +695,7 @@ describe('Dashboard — „Erledigen" und „Bearbeiten" in einer Aktionszeile (
 
 		const { container } = render(
 			<Dashboard
+				userId={1}
 				tasks={[nextTask]}
 				forest={[] as TaskTreeNode[]}
 				nextTask={nextTask}
@@ -698,10 +730,167 @@ describe('Dashboard — Herz-Füllstand aus dem Server (#1638)', () => {
 		const koerper = pillar(1, 'Körper', 100);
 		const tasks = [task(11, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Done)];
 
-		render(<Dashboard tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />);
+		render(<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />);
 
 		await waitFor(() => expect(screen.getByTestId('heart-balance-value').textContent).toBe('37 %'));
 		expect(spy).toHaveBeenCalledTimes(1);
+	});
+});
+
+/**
+ * Der Auftakt des Balance-Bilds startet erst mit der Beantwortung der Balance-Frage — sonst wächst
+ * das Zifferblatt auf den lokalen Notwert und wechselt dort mitten im Auftakt auf den echten Stand.
+ * Im Fehlerfall wird trotzdem freigegeben: Der lokale Wert ist dann der Stand.
+ */
+describe('Dashboard — Auftakt-Freigabe des Balance-Bilds', () => {
+	it('hält den Auftakt zurück und gibt ihn mit der Balance-Antwort frei', async () => {
+		const status = {
+			fuellstandProzent: 37,
+			hatPunkte: true,
+			saeulen: [],
+			meilensteine: [],
+		} as unknown as BalanceStatus;
+		let loesen!: (status: BalanceStatus) => void;
+		vi.spyOn(api, 'getBalanceStatus').mockImplementation(
+			() => new Promise<BalanceStatus>((resolve) => (loesen = resolve)),
+		);
+		const koerper = pillar(1, 'Körper', 100);
+		const tasks = [task(11, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Done)];
+
+		render(<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />);
+
+		await waitFor(() => expect(vi.mocked(HeartBalance).mock.calls.at(-1)?.[0]?.auftaktBereit).toBe(false));
+		await act(async () => loesen(status));
+		await waitFor(() => expect(vi.mocked(HeartBalance).mock.calls.at(-1)?.[0]?.auftaktBereit).toBe(true));
+	});
+
+	it('gibt im Fehlerfall für den lokalen Wert frei', async () => {
+		vi.spyOn(api, 'getBalanceStatus').mockRejectedValue(new Error('nicht erreichbar'));
+		const koerper = pillar(1, 'Körper', 100);
+		const tasks = [task(11, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Done)];
+
+		render(<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />);
+
+		await waitFor(() => expect(vi.mocked(HeartBalance).mock.calls.at(-1)?.[0]?.auftaktBereit).toBe(true));
+	});
+});
+
+/**
+ * #2770 AK1/AK3: Hängt der Balance-Status-Request (Server antwortet nicht), blieb der Auftakt
+ * für immer zurückgehalten — das Zifferblatt blieb leer. Der Request bekommt deshalb ein
+ * AbortSignal mit großzügigem Timeout; der Abbruch landet im bestehenden `catch` und gibt den
+ * Auftakt für den lokalen Wert frei (Spec docs/spec/issue-2770.md). Kurze Wartezeiten dürfen
+ * den Timeout nie erreichen.
+ */
+describe('Dashboard — Balance-Status-Timeout (#2770)', () => {
+	const status = {
+		fuellstandProzent: 37,
+		hatPunkte: true,
+		saeulen: [],
+		meilensteine: [],
+	} as unknown as BalanceStatus;
+
+	it('übergibt dem Request ein AbortSignal (#2770 AK1)', async () => {
+		let signal: AbortSignal | null | undefined;
+		vi.spyOn(api, 'getBalanceStatus').mockImplementation((args) => {
+			signal = args?.signal;
+			return new Promise(() => undefined);
+		});
+		const koerper = pillar(1, 'Körper', 100);
+		const tasks = [task(11, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Done)];
+
+		render(<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />);
+
+		await waitFor(() => expect(signal).toBeInstanceOf(AbortSignal));
+	});
+
+	it('gibt den Auftakt nach Timeout-Ablauf für den lokalen Wert frei (#2770 AK1)', async () => {
+		// Nur die Timer — ein gefaktes `Date` bräuchte der Effekt nicht.
+		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+		// Fetch-Semantik: Der Request antwortet nie von selbst, er reagiert nur auf das Signal.
+		vi.spyOn(api, 'getBalanceStatus').mockImplementation(
+			(args) =>
+				new Promise<BalanceStatus>((_, reject) => {
+					args?.signal?.addEventListener('abort', () => reject(new Error('Timeout abgebrochen')));
+				}),
+		);
+		const koerper = pillar(1, 'Körper', 100);
+		const tasks = [task(11, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Done)];
+
+		render(<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />);
+		expect(vi.mocked(HeartBalance).mock.calls.at(-1)?.[0]?.auftaktBereit).toBe(false);
+
+		// Großzügig über den Timeout hinaus (Timeout-Dauer ist Impl-Detail, Plan ≈ 10 s).
+		await act(async () => {
+			vi.advanceTimersByTime(60_000);
+		});
+		expect(vi.mocked(HeartBalance).mock.calls.at(-1)?.[0]?.auftaktBereit).toBe(true);
+	});
+
+	it('bricht kurze Wartezeiten nicht vorzeitig ab und gibt mit der Antwort frei (#2770 AK3)', async () => {
+		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+		let loesen!: (status: BalanceStatus) => void;
+		vi.spyOn(api, 'getBalanceStatus').mockImplementation(
+			(args) =>
+				new Promise<BalanceStatus>((resolve, reject) => {
+					// Ein Abbruch während der Wartezeit wäre ein vorzeitiger Timeout — laut sichtbar machen.
+					args?.signal?.addEventListener('abort', () => reject(new Error('vorzeitig abgebrochen')));
+					loesen = resolve;
+				}),
+		);
+		const koerper = pillar(1, 'Körper', 100);
+		const tasks = [task(11, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Done)];
+
+		render(<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />);
+
+		await act(async () => {
+			vi.advanceTimersByTime(5_000);
+		});
+		// Noch zurückgehalten — ein Abbruch hier hätte die Antwort-Annahme laut verworfen.
+		expect(vi.mocked(HeartBalance).mock.calls.at(-1)?.[0]?.auftaktBereit).toBe(false);
+
+		await act(async () => loesen(status));
+		expect(vi.mocked(HeartBalance).mock.calls.at(-1)?.[0]?.auftaktBereit).toBe(true);
+	});
+});
+
+/**
+ * Gerätelokaler Spiegel des letzten Balance-Stands (`balanceStatusCache.ts`): Beim wiederholten
+ * Öffnen zeigt das Zifferblatt den zuletzt bekannten Stand sofort — die Freigabe kommt dann aus dem
+ * Spiegel, ohne auf die Netzantwort zu warten; jede Antwort frischt den Spiegel nach.
+ */
+describe('Dashboard — gerätelokaler Balance-Spiegel', () => {
+	it('gibt den Auftakt mit dem gespiegelten Stand sofort frei, ohne auf die Netzantwort zu warten', () => {
+		localStorage.setItem(balanceStatusCacheKey(1), JSON.stringify({ fuellstand: 0.42, urteilsreif: true }));
+		// Antwortet nie — die Freigabe muss allein aus dem Spiegel kommen.
+		vi.spyOn(api, 'getBalanceStatus').mockImplementation(() => new Promise(() => undefined));
+		const koerper = pillar(1, 'Körper', 100);
+		const tasks = [task(11, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Done)];
+
+		render(<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />);
+
+		const props = vi.mocked(HeartBalance).mock.calls.at(-1)?.[0];
+		expect(props?.auftaktBereit).toBe(true);
+		expect(props?.fill).toBeCloseTo(0.42);
+		expect(props?.urteilsreif).toBe(true);
+	});
+
+	it('schreibt die Server-Antwort in den Spiegel', async () => {
+		const status = {
+			fuellstandProzent: 55,
+			hatPunkte: true,
+			saeulen: [],
+			meilensteine: [],
+		} as unknown as BalanceStatus;
+		vi.spyOn(api, 'getBalanceStatus').mockResolvedValue(status);
+		const koerper = pillar(1, 'Körper', 100);
+		const tasks = [task(11, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Done)];
+
+		render(<Dashboard userId={1} tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />);
+
+		await waitFor(() =>
+			expect(JSON.parse(localStorage.getItem(balanceStatusCacheKey(1)) ?? 'null')).toMatchObject({ fuellstand: 0.55 }),
+		);
 	});
 });
 
@@ -727,7 +916,13 @@ describe('Dashboard — Fürsorge-Hinweis vor „Nächste Aufgabe" (#1793)', () 
 		});
 
 		const { container } = render(
-			<Dashboard tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[pillar(1, 'Körper', 100)]} />,
+			<Dashboard
+				userId={1}
+				tasks={[]}
+				forest={[] as TaskTreeNode[]}
+				nextTask={null}
+				pillars={[pillar(1, 'Körper', 100)]}
+			/>,
 		);
 
 		const careHint = await waitFor(() => {
@@ -758,7 +953,7 @@ describe('Dashboard — Begründungssätze der „Nächste Aufgabe“-Karte (#19
 		}) as unknown as Task;
 
 	const renderKarte = (nextTask: Task): { container: HTMLElement } =>
-		render(<Dashboard tasks={[nextTask]} forest={[] as TaskTreeNode[]} nextTask={nextTask} pillars={[]} />);
+		render(<Dashboard userId={1} tasks={[nextTask]} forest={[] as TaskTreeNode[]} nextTask={nextTask} pillars={[]} />);
 
 	const saetze = (container: HTMLElement): string[] =>
 		[...container.querySelectorAll('.dashboard-next-task-reasons li')].map((li) => li.textContent ?? '');
@@ -834,8 +1029,9 @@ describe('Dashboard — Begründungssätze der „Nächste Aufgabe“-Karte (#19
  */
 describe('Dashboard — „Kurz zurückstellen"-Button im Signal-Panel (Issue #2244)', () => {
 	// `onSnoozeTask` existiert noch nicht auf `DashboardProps` — Cast hält den Spec-Commit tsc-sauber.
-	const renderWithSnooze = (props: ComponentProps<typeof Dashboard> & { onSnoozeTask?: (task: Task) => void }) =>
-		render(<Dashboard {...(props as ComponentProps<typeof Dashboard>)} />);
+	const renderWithSnooze = (
+		props: Omit<ComponentProps<typeof Dashboard>, 'userId'> & { onSnoozeTask?: (task: Task) => void },
+	) => render(<Dashboard userId={1} {...props} />);
 	const snoozeButton = (container: HTMLElement) =>
 		[...container.querySelectorAll('.dashboard-next-task-content kol-button')].find(
 			(b) => b.getAttribute('_label') === 'Kurz zurückstellen',
@@ -865,7 +1061,7 @@ describe('Dashboard — „Kurz zurückstellen"-Button im Signal-Panel (Issue #2
 	it('AK6: ohne onSnoozeTask kein Snooze-Button', () => {
 		const nextTask = task(42, [], 2, TaskStatus.Open);
 		const { container } = render(
-			<Dashboard tasks={[nextTask]} forest={[] as TaskTreeNode[]} nextTask={nextTask} pillars={[]} />,
+			<Dashboard userId={1} tasks={[nextTask]} forest={[] as TaskTreeNode[]} nextTask={nextTask} pillars={[]} />,
 		);
 		expect(snoozeButton(container)).toBeUndefined();
 	});
@@ -883,8 +1079,9 @@ describe('Dashboard — Aufteilen-Hinweis an der „Nächste Aufgabe“-Karte (#
 			scoreBreakdown: { total: 1, priority: 0.5 },
 			reasons,
 		} as unknown as Task;
-		return render(<Dashboard tasks={[nextTask]} forest={[] as TaskTreeNode[]} nextTask={nextTask} pillars={[]} />)
-			.container;
+		return render(
+			<Dashboard userId={1} tasks={[nextTask]} forest={[] as TaskTreeNode[]} nextTask={nextTask} pillars={[]} />,
+		).container;
 	};
 
 	it('AK5: Satz zum Aufteilen sichtbar, ohne Zahl, ohne zusätzliche Schaltfläche', () => {
@@ -909,7 +1106,7 @@ describe('Dashboard — Deadlines-Pagination (8 je Seite)', () => {
 			return t;
 		});
 	const renderDeadlines = (n: number) =>
-		render(<Dashboard tasks={mitDeadlines(n)} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />);
+		render(<Dashboard userId={1} tasks={mitDeadlines(n)} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />);
 
 	it('10 Deadlines: Seite 1 zeigt 8, Weiter zeigt die restlichen 2', () => {
 		const { container } = renderDeadlines(10);
@@ -928,8 +1125,222 @@ describe('Dashboard — Deadlines-Pagination (8 je Seite)', () => {
 	it('schrumpft die Liste auf Seite 2, klemmt die Seite und blendet den Pager aus', () => {
 		const { container, rerender } = renderDeadlines(10);
 		act(() => screen.getByTestId('pager').click());
-		rerender(<Dashboard tasks={mitDeadlines(3)} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />);
+		rerender(
+			<Dashboard userId={1} tasks={mitDeadlines(3)} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />,
+		);
 		expect(container.querySelectorAll('.dashboard-deadline')).toHaveLength(3);
 		expect(screen.queryByTestId('pager')).toBeNull();
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2526 (docs/spec/issue-2526.md, ADR 0024): „Erledigen“ ohne offene
+ * Checkliste wird DIREKT aus dem Signal-Panel ausgeführt (kein Dialog mehr) und meldet an der
+ * Tipp-Stelle zurück — Erfolg mit Punkten/Streak und „Rückgängig“ in einer aria-live-Region,
+ * Fehler als Inline-KolAlert. Bis zur Umsetzung ruft der Klick noch nichts auf → rot.
+ */
+describe('Dashboard — Direkt-Erledigen mit Inline-Rückmeldung (Issue #2526)', () => {
+	const erledigenButton = (container: HTMLElement) =>
+		[...container.querySelectorAll('.dashboard-next-task-content kol-button')].find(
+			(b) => b.getAttribute('_label') === 'Erledigen',
+		);
+
+	const setup = () => {
+		vi.spyOn(api, 'getBalanceStatus').mockResolvedValue({
+			fuellstandProzent: 0,
+			hatPunkte: true,
+			saeulen: [],
+			meilensteine: [],
+		} as unknown as BalanceStatus);
+		vi.spyOn(api, 'getCareSuggestions').mockResolvedValue({ vorschlaege: [] } as never);
+		vi.spyOn(api, 'getStreak').mockResolvedValue({ aktuell: 4 } as never); // Vertrag: `{ aktuell }` (Fixup #2572)
+	};
+
+	it('AK2: Direkt-Erledigen zeigt die Rückmeldung in einer aria-live-Region mit „Rückgängig“', async () => {
+		setup();
+		const updateSpy = vi.spyOn(api, 'updateTask').mockResolvedValue({} as never);
+		const nextTask = task(51, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Open);
+		const { container } = render(
+			<Dashboard
+				userId={1}
+				tasks={[nextTask]}
+				forest={[] as TaskTreeNode[]}
+				nextTask={nextTask}
+				pillars={[pillar(1, 'Körper', 100)]}
+			/>,
+		);
+
+		const button = erledigenButton(container);
+		expect(button, 'Button „Erledigen“ fehlt im Panel').toBeDefined();
+		(button as unknown as { _on: { onClick: (event: Event) => void } })._on.onClick(new Event('click'));
+
+		await waitFor(() => {
+			const live = container.querySelector('.dashboard-next-task-content [aria-live="polite"]');
+			expect(live, 'Rückmeldung fehlt oder liegt nicht in einer aria-live-Region').not.toBeNull();
+			expect(live!.textContent).toMatch(/\+\d+ Punkte/);
+		});
+		// Der Streak folgt nicht-blockierend nach — er muss im Region-Text landen (Fixup #2572: Mock
+		// am openapi-Vertrag `{ aktuell }`, sonst war die Streak-Zeile hier nie gerendert).
+		await waitFor(() => {
+			expect(container.querySelector('.dashboard-next-task-content [aria-live="polite"]')?.textContent).toContain(
+				'Streak 4 Tage',
+			);
+		});
+		expect(updateSpy).toHaveBeenCalledTimes(1);
+
+		const undo = [...container.querySelectorAll('.dashboard-next-task-content kol-button')].find(
+			(b) => b.getAttribute('_label') === 'Rückgängig',
+		);
+		expect(undo, 'Knopf „Rückgängig“ fehlt im Inline-Zustand').toBeDefined();
+	});
+
+	it('Fixup #2572: die aria-live-Region steht dauerhaft im DOM — schon vor dem Erledigen und leer', () => {
+		setup();
+		const nextTask = task(53, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Open);
+		const { container } = render(
+			<Dashboard
+				userId={1}
+				tasks={[nextTask]}
+				forest={[] as TaskTreeNode[]}
+				nextTask={nextTask}
+				pillars={[pillar(1, 'Körper', 100)]}
+			/>,
+		);
+
+		const live = container.querySelector('.dashboard-next-task-content [aria-live="polite"]');
+		expect(live, 'Live-Region muss schon vor dem Erledigen im DOM stehen').not.toBeNull();
+		expect(live!.textContent, 'Ohne Rückmeldung bleibt die Region leer').toBe('');
+	});
+
+	it('AK7: schlägt das Erledigen fehl, zeigt das Panel eine Inline-Fehlermeldung und die Aufgabe bleibt offen', async () => {
+		setup();
+		vi.spyOn(api, 'updateTask').mockRejectedValue(new Error('Serverfehler'));
+		const nextTask = task(52, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Open);
+		const { container } = render(
+			<Dashboard
+				userId={1}
+				tasks={[nextTask]}
+				forest={[] as TaskTreeNode[]}
+				nextTask={nextTask}
+				pillars={[pillar(1, 'Körper', 100)]}
+			/>,
+		);
+
+		const button = erledigenButton(container);
+		expect(button, 'Button „Erledigen“ fehlt im Panel').toBeDefined();
+		(button as unknown as { _on: { onClick: (event: Event) => void } })._on.onClick(new Event('click'));
+
+		await waitFor(() => {
+			const alert = container.querySelector('.dashboard-next-task-content kol-alert');
+			expect(alert, 'keine Inline-Fehlermeldung im Panel').not.toBeNull();
+			expect(alert?.getAttribute('_type')).toBe('error');
+		});
+		expect(container.querySelector('.dashboard-next-task-content')?.textContent).toContain('T52');
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2527 (docs/spec/issue-2527.md): Das Einstieg-Signal (`reasons.einstieg`)
+ * aus `GET /next` rendert den einladenden Einstiegssatz statt „kam diese Woche zu kurz“ —
+ * in de und en (Ton nach docs/fuersorge-tonalitaet.md).
+ */
+describe('Dashboard — Einstiegssatz unter der Mindestmenge (#2527)', () => {
+	const renderKarte = (reasons: object): { container: HTMLElement } => {
+		const nextTask = {
+			...task(42, [], 2, TaskStatus.Open),
+			scoreBreakdown: { total: 1, balance: 1 },
+			reasons,
+		} as unknown as Task;
+		return render(
+			<Dashboard userId={1} tasks={[nextTask]} forest={[] as TaskTreeNode[]} nextTask={nextTask} pillars={[]} />,
+		);
+	};
+
+	const saetze = (container: HTMLElement): string[] =>
+		[...container.querySelectorAll('.dashboard-next-task-reasons li')].map((li) => li.textContent ?? '');
+
+	it('TF3/AK4: reasons.einstieg → deutscher Einstiegssatz statt „kam diese Woche zu kurz“', () => {
+		const { container } = renderKarte({ einstieg: true });
+		expect(saetze(container)).toEqual([
+			'Such dir eine kleine Aufgabe aus, die dir heute guttut – klein anfangen zählt.',
+		]);
+		expect(container.textContent).not.toMatch(/kam diese Woche zu kurz/);
+	});
+
+	it('TF3/AK4: Sprache en — englischer Einstiegssatz', async () => {
+		await i18next.changeLanguage('en');
+		const { container } = renderKarte({ einstieg: true });
+		expect(saetze(container)).toEqual(['Pick one small task that does you good today – starting small counts.']);
+		expect(container.textContent).not.toMatch(/fell short this week/);
+		await i18next.changeLanguage('de');
+	});
+});
+
+/**
+ * Rote Spec-Tests für #2645 (docs/spec/issue-2645.md): Auf leerem Konto steht der Einstiegssatz
+ * genau einmal — zeigt der CareHint den Satz (`anlass 'einstieg'`), entfällt die inhaltsgleiche
+ * Begründungszeile der nächsten Aufgabe (`reasons.einstieg`). Ohne den Hinweis bleibt die Zeile
+ * stehen (Bestandsvertrag #2527, TF3 oben).
+ */
+describe('Dashboard — Einstiegssatz genau einmal (#2645/AK3)', () => {
+	// CareVorschlag wie `anlass: 'einstieg'` aus GET /scores/care-suggestions (0 Erledigungen).
+	const einstiegVorschlag = {
+		typ: 'vorlage',
+		anlass: 'einstieg',
+		titel: 'Such dir eine kleine Aufgabe aus, die dir heute guttut – klein anfangen zählt.',
+		beschreibung: null,
+		saeuleId: 0,
+		saeuleName: '',
+		saeulenBeitraege: [],
+	} as never;
+
+	it('unterdrückt die Begründungszeile, solange der CareHint den Einstiegssatz zeigt', async () => {
+		vi.spyOn(api, 'getCareSuggestions').mockResolvedValue({ vorschlaege: [einstiegVorschlag] } as never);
+		const nextTask = {
+			...task(42, [], 2, TaskStatus.Open),
+			scoreBreakdown: { total: 1, balance: 1 },
+			reasons: { einstieg: true },
+		} as unknown as Task;
+		const { container } = render(
+			<Dashboard userId={1} tasks={[nextTask]} forest={[] as TaskTreeNode[]} nextTask={nextTask} pillars={[]} />,
+		);
+
+		// Erst absichern, dass der Hinweis den Satz wirklich zeigt (Quelle der ersten Instanz).
+		await waitFor(() => {
+			const hint = container.querySelector('[data-testid="care-hint"]');
+			expect(hint?.textContent).toContain('Such dir eine kleine Aufgabe');
+		});
+
+		const satz = 'Such dir eine kleine Aufgabe aus, die dir heute guttut – klein anfangen zählt.';
+		expect((container.textContent ?? '').split(satz).length - 1).toBe(1);
+		expect(container.querySelector('.dashboard-next-task-reasons')?.textContent ?? '').not.toContain(satz);
+	});
+});
+
+/**
+ * Roter Spec-Test #2632 (docs/spec/issue-2632.md): der Inline-Erfolg nennt den Streak in korrekter
+ * Einzahl/Mehrzahl — Locale-Schluessel `nextTask.streakDays_one`/`streakDays_other` in de und en
+ * (Muster `days_one`/`days_other` bzw. #1819-Hilfetext-Glob in StreakCard.test.tsx). Das Verdrahten
+ * des `count`-Parameters am t()-Aufruf sichert die e2e (issue-1360-streak.spec.ts, #2632-Block).
+ */
+const dashboardLocales = import.meta.glob<{ default: { nextTask?: Record<string, unknown> } }>(
+	'../i18n/locales/*/dashboard.json',
+	{ eager: true },
+);
+
+describe('Dashboard Inline-Erfolg — Streak in Einzahl/Mehrzahl (#2632 AK2)', () => {
+	it('streakDays liegt je Sprache in Einzahl (1) und Mehrzahl (2) vor', () => {
+		expect(Object.keys(dashboardLocales).length).toBeGreaterThanOrEqual(2);
+		for (const [path, module] of Object.entries(dashboardLocales)) {
+			const lang = /locales\/([^/]+)\//.exec(path)![1];
+			const de = lang === 'de';
+			const nextTask = module.default.nextTask ?? {};
+			expect(nextTask.streakDays_one, `${lang} streakDays_one`).toBe(
+				de ? 'Streak {{count}} Tag' : 'Streak {{count}} day',
+			);
+			expect(nextTask.streakDays_other, `${lang} streakDays_other`).toBe(
+				de ? 'Streak {{count}} Tage' : 'Streak {{count}} days',
+			);
+		}
 	});
 });

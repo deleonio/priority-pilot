@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { AiUsage, Pillar, Task, TaskPillar, User } from '../models/index.js';
 import { currentYearMonth } from './aiQuotaMeter.js';
 import type { ActivityAdvisor, AdviseActivitiesInput } from '../llm/llm.js';
+import { UEBERLAST_MINDEST_ERLEDIGUNGEN } from '../logics/careDeficit.js';
 import { SHARE_MIN, SHARE_TOTAL } from '../logics/pillarShares.js';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 
@@ -81,6 +82,26 @@ const createTask = async (cookie: string, title: string, pillarId: number): Prom
 	await TaskPillar.create({ taskId: id, pillarId, share: 100, confidence: 100 });
 };
 
+/** #2527-Test-Pflege: Mindestmenge an Erledigungen OHNE Säulen-Beitrag — KI- und Defizit-Pfade
+ *  greifen erst ab der Überlast-Mindestmenge; ohne Beitrag bleibt die erste Säule defizitär. */
+const erledigeOhneSaeulen = async (cookie: string): Promise<void> => {
+	for (let i = 0; i < UEBERLAST_MINDEST_ERLEDIGUNGEN; i++) {
+		const created = await server.json('/tasks', {
+			method: 'POST',
+			headers: { Cookie: cookie },
+			body: JSON.stringify({ title: 'Erledigt ohne Säule', priority: 3, estimatedEffort: 1 }),
+		});
+		assert.equal(created.status, 201, 'Setup: Task-Anlage muss 201 liefern');
+		const { id } = (await created.json()) as { id: number };
+		const done = await server.json(`/tasks/${id}`, {
+			method: 'PATCH',
+			headers: { Cookie: cookie },
+			body: JSON.stringify({ status: 'Done' }),
+		});
+		assert.equal(done.status, 200, 'Setup: Statuswechsel auf Done muss 200 liefern');
+	}
+};
+
 const verbrauch = async (userId: number): Promise<number> =>
 	(await AiUsage.findOne({ where: { userId, yearMonth: currentYearMonth() } }))?.count ?? 0;
 
@@ -104,6 +125,7 @@ describe('GET /scores/care-suggestions — KI-Vorschlag Plus/Pro (#1804)', () =>
 		it(`AK1 (${plan}): Defizit → genau ein KI-Vorschlag zur ersten Defizit-Säule, nur eigene Aufgaben im Advisor`, async () => {
 			const eigen = await setup(`care-ki-${plan}@example.com`, plan);
 			const fremd = await setup(`care-ki-${plan}-fremd@example.com`, 'plus');
+			await erledigeOhneSaeulen(eigen.cookie); // Test-Pflege #2527
 			await createTask(eigen.cookie, 'EigeneAufgabeAlpha', eigen.saeuleId);
 			await createTask(fremd.cookie, 'FremdeAufgabeGeheim', fremd.saeuleId);
 
@@ -143,8 +165,19 @@ describe('GET /scores/care-suggestions — KI-Vorschlag Plus/Pro (#1804)', () =>
 		assert.equal(await verbrauch(userId), 0);
 	});
 
+	it('#2527 AK5: Plus unter der Überlast-Mindestmenge → Berater nicht aufgerufen, nichts gebucht', async () => {
+		const { cookie, userId, saeuleId } = await setup('care-ki-einstieg@example.com', 'plus');
+		await createTask(cookie, 'EinzigeAufgabe', saeuleId); // Defizit vorhanden, 0 Erledigungen im jüngeren Fenster
+
+		const vorschlaege = await leseVorschlaege(cookie);
+		assert.equal(nurKi(vorschlaege).length, 0, 'kein KI-Vorschlag unter der Mindestmenge');
+		assert.equal(aufrufe.length, 0, 'Beraterlauf unterbleibt (Muster #1873: nur buchen, was angezeigt wird)');
+		assert.equal(await verbrauch(userId), 0, 'nichts gebucht');
+	});
+
 	it('AK4: Advisor wirft → 200 mit Bestand/Vorlagen ohne Fehlerfeld, Buchung zurückgenommen', async () => {
 		const { cookie, userId } = await setup('care-ki-fehler@example.com', 'plus');
+		await erledigeOhneSaeulen(cookie); // Test-Pflege #2527
 		advisorImpl = async () => {
 			throw new Error('Provider nicht erreichbar');
 		};
@@ -160,6 +193,7 @@ describe('GET /scores/care-suggestions — KI-Vorschlag Plus/Pro (#1804)', () =>
 
 	it('AK5: erfolgreicher KI-Vorschlag bucht genau einen Punkt', async () => {
 		const { cookie, userId } = await setup('care-ki-buchung@example.com', 'plus');
+		await erledigeOhneSaeulen(cookie); // Test-Pflege #2527
 		assert.equal(nurKi(await leseVorschlaege(cookie)).length, 1);
 		assert.equal(await verbrauch(userId), 1);
 	});
@@ -171,6 +205,7 @@ describe('GET /scores/care-suggestions — KI-Vorschlag Plus/Pro (#1804)', () =>
 			delete process.env.MONETIZATION_ENFORCED;
 		});
 		const { cookie, userId } = await setup('care-ki-drossel@example.com', 'plus');
+		await erledigeOhneSaeulen(cookie); // Test-Pflege #2527
 		await AiUsage.create({ userId, yearMonth: currentYearMonth(), count: 150 });
 		// Erster Über-Budget-Aufruf belegt den Intervall-Slot (#1783) — der zweite wird gedrosselt.
 		const slot = await server.json('/pillars/advisor', { method: 'POST', headers: { Cookie: cookie }, body: '{}' });
@@ -183,6 +218,7 @@ describe('GET /scores/care-suggestions — KI-Vorschlag Plus/Pro (#1804)', () =>
 
 	it('AK6: zweiter Abruf am selben Tag → gleicher Vorschlag, Advisor 1×, Buchung 1×', async () => {
 		const { cookie, userId } = await setup('care-ki-cache@example.com', 'plus');
+		await erledigeOhneSaeulen(cookie); // Test-Pflege #2527
 		const erster = nurKi(await leseVorschlaege(cookie));
 		const zweiter = nurKi(await leseVorschlaege(cookie));
 		assert.equal(erster.length, 1);
@@ -193,6 +229,7 @@ describe('GET /scores/care-suggestions — KI-Vorschlag Plus/Pro (#1804)', () =>
 
 	it('#1873 AK1: KI-Vorschlag steht an Position 0 der Liste', async () => {
 		const { cookie } = await setup('care-ki-pos0@example.com', 'plus');
+		await erledigeOhneSaeulen(cookie); // Test-Pflege #2527
 		const vorschlaege = await leseVorschlaege(cookie);
 		assert.equal(vorschlaege[0]?.typ, 'ki', 'erster Eintrag ist der KI-Vorschlag');
 	});
@@ -200,25 +237,28 @@ describe('GET /scores/care-suggestions — KI-Vorschlag Plus/Pro (#1804)', () =>
 	it('#1873 AK2: Überlast → Berater nicht aufgerufen, nichts gebucht', async () => {
 		const { cookie, userId } = await setup('care-ki-ueberlast@example.com', 'plus');
 		const wirksamkeit = (await Pillar.findOne({ where: { userId, name: 'Wirksamkeit' } }))!;
-		const created = await server.json('/tasks', {
-			method: 'POST',
-			headers: { Cookie: cookie },
-			body: JSON.stringify({
-				title: 'Überlast',
-				priority: 3,
-				estimatedEffort: 1,
-			}),
-		});
-		const { id } = (await created.json()) as { id: number };
-		// Legacy-Insert außerhalb der Schreib-Regel (#2077): der Überlast-Lesepfad wertet Alt-
-		// Verteilungen aus, die Schreib-Regel ist für dieses Setup bewusst nicht aktiv.
-		await TaskPillar.create({ taskId: id, pillarId: wirksamkeit.id, share: 100, confidence: 100 });
-		const done = await server.json(`/tasks/${id}`, {
-			method: 'PATCH',
-			headers: { Cookie: cookie },
-			body: JSON.stringify({ status: 'Done' }),
-		});
-		assert.equal(done.status, 200, 'Setup: Statuswechsel auf Done');
+		// #2521: Mindestmenge — 3 Erledigungen im jüngeren Fenster, damit Überlast überhaupt greift.
+		for (let i = 0; i < 3; i++) {
+			const created = await server.json('/tasks', {
+				method: 'POST',
+				headers: { Cookie: cookie },
+				body: JSON.stringify({
+					title: 'Überlast',
+					priority: 3,
+					estimatedEffort: 1,
+				}),
+			});
+			const { id } = (await created.json()) as { id: number };
+			// Legacy-Insert außerhalb der Schreib-Regel (#2077): der Überlast-Lesepfad wertet Alt-
+			// Verteilungen aus, die Schreib-Regel ist für dieses Setup bewusst nicht aktiv.
+			await TaskPillar.create({ taskId: id, pillarId: wirksamkeit.id, share: 100, confidence: 100 });
+			const done = await server.json(`/tasks/${id}`, {
+				method: 'PATCH',
+				headers: { Cookie: cookie },
+				body: JSON.stringify({ status: 'Done' }),
+			});
+			assert.equal(done.status, 200, 'Setup: Statuswechsel auf Done');
+		}
 
 		const vorschlaege = await leseVorschlaege(cookie);
 		assert.equal(vorschlaege[0]?.anlass, 'ueberlast', 'Setup: Überlast liegt vor');
@@ -228,6 +268,7 @@ describe('GET /scores/care-suggestions — KI-Vorschlag Plus/Pro (#1804)', () =>
 
 	it('#1873 AK3: zwei gleichzeitige Abrufe → Berater 1×, eine Buchung', async () => {
 		const { cookie, userId } = await setup('care-ki-parallel@example.com', 'plus');
+		await erledigeOhneSaeulen(cookie); // Test-Pflege #2527
 		const [a, b] = await Promise.all([getCare(cookie), getCare(cookie)]);
 		assert.equal(a.status, 200);
 		assert.equal(b.status, 200);
@@ -237,6 +278,7 @@ describe('GET /scores/care-suggestions — KI-Vorschlag Plus/Pro (#1804)', () =>
 
 	it('#1873: wirft die Buchung einmal, wird der Fehler nicht gecacht — zweiter Abruf liefert 200', async (t) => {
 		const { cookie } = await setup('care-ki-buchungsfehler@example.com', 'plus');
+		await erledigeOhneSaeulen(cookie); // Test-Pflege #2527
 		t.mock.method(
 			AiUsage,
 			'update',
@@ -251,6 +293,7 @@ describe('GET /scores/care-suggestions — KI-Vorschlag Plus/Pro (#1804)', () =>
 
 	it('#1873 AK4: Berater erhält die 20 neuesten Aufgaben nach createdAt', async () => {
 		const { cookie, saeuleId } = await setup('care-ki-neueste@example.com', 'plus');
+		await erledigeOhneSaeulen(cookie); // Test-Pflege #2527
 		for (let i = 1; i <= 21; i++) {
 			await createTask(cookie, `Aufgabe-A${String(i).padStart(2, '0')}`, saeuleId);
 		}
@@ -272,6 +315,7 @@ describe('GET /scores/care-suggestions — KI-Vorschlag Plus/Pro (#1804)', () =>
 
 	it('#2075 AK4: auch der KI-Vorschlag trägt die vollständige Form — fünf Beiträge, Ziel-Säule 50, Rest 13/13/12/12', async () => {
 		const { cookie, saeuleId } = await setup('care-ki-2075-form@example.com', 'plus');
+		await erledigeOhneSaeulen(cookie); // Test-Pflege #2527
 		const ki = nurKi(await leseVorschlaege(cookie));
 		assert.equal(ki.length, 1, 'Setup: genau ein KI-Vorschlag');
 		const beitraege = ki[0]?.saeulenBeitraege ?? [];

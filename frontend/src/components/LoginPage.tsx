@@ -5,7 +5,7 @@ import { api } from '../api';
 import { startNativeGoogleLogin } from '../lib/nativeAuth';
 import { isNativeChannel } from '../lib/platform';
 import { getPublicOrigin } from '../lib/siteOrigin';
-import { LAUNCH_BANNER_DISMISS_KEY } from './LaunchBanner';
+import { LAUNCH_BANNER_DISMISS_KEY } from '../lib/launchBanner';
 import { Modal } from './Modal';
 
 type ErrorParam = string | null;
@@ -27,9 +27,14 @@ function getRefFromSearch(): string | null {
 	return new URLSearchParams(window.location.search).get('ref');
 }
 
+/** Token aus dem Bestätigungslink der Wartelisten-Mail (`?waitlist=…`, Double-Opt-in). */
+function getWaitlistTokenFromSearch(): string | null {
+	return new URLSearchParams(window.location.search).get('waitlist');
+}
+
 type MagicLinkState = 'idle' | 'sending' | 'sent' | 'failed';
 type ReviewLoginState = 'idle' | 'sending' | 'failed' | 'throttled';
-type WaitlistState = 'idle' | 'sending' | 'done' | 'failed';
+type WaitlistState = 'idle' | 'sending' | 'done' | 'pending' | 'failed';
 
 // Prüfzugang für Google Play (#2426): so viele Taps auf die Wortmarke öffnen den Dialog; eine längere
 // Pause dazwischen beginnt die Zählung neu.
@@ -49,9 +54,9 @@ const ReviewLoginDialog = ({ onClose }: { onClose: () => void }) => {
 		api
 			.reviewLogin(password)
 			.then(() => {
-				// #2480: Das Schließen des Einladungs-Banners gilt je Login — der Marker der Vorgänger-Session
-				// (sessionStorage überlebt die Navigation im selben Tab) muss hier weg.
-				sessionStorage.removeItem(LAUNCH_BANNER_DISMISS_KEY);
+				// #2480: Das Schließen des Einladungs-Banners gilt je Login — der geräteweite localStorage-
+				// Marker muss beim echten Login weg, damit der Banner wieder erscheint.
+				localStorage.removeItem(LAUNCH_BANNER_DISMISS_KEY);
 				window.location.replace(import.meta.env.BASE_URL);
 			})
 			.catch((err: unknown) =>
@@ -117,6 +122,7 @@ export const LoginPage = () => {
 	const [magicLinkState, setMagicLinkState] = useState<MagicLinkState>('idle');
 	const [referralRef] = useState(getRefFromSearch);
 	const [waitlistEmail, setWaitlistEmail] = useState('');
+	const [waitlistHoneypot, setWaitlistHoneypot] = useState('');
 	const [waitlistState, setWaitlistState] = useState<WaitlistState>('idle');
 	const [waitlistResult, setWaitlistResult] = useState<{ position: number; total?: number; link: string } | null>(null);
 	const [referralCopied, setReferralCopied] = useState(false);
@@ -149,21 +155,45 @@ export const LoginPage = () => {
 			.catch(() => setMagicLinkState('failed'));
 	};
 
-	// Wartelisten-Eintrag (#1982): idempotent — ein wiederholter Eintrag (auch Duplikat) ist
-	// Erfolg und zeigt dieselbe Position erneut. Der ref-Code kommt aus dem persönlichen Link.
+	const showWaitlistPosition = ({
+		position,
+		referralCode,
+		total,
+	}: {
+		position?: number;
+		referralCode?: string;
+		total?: number;
+	}) => {
+		if (position === undefined || referralCode === undefined) {
+			setWaitlistState('pending');
+			return;
+		}
+		setWaitlistResult({ position, total, link: `${getPublicOrigin()}/app/?ref=${referralCode}` });
+		setWaitlistState('done');
+	};
+
+	// Bestätigungslink aus der Wartelisten-Mail: löst den Token ein und zeigt Position und Empfehlungs-Link.
+	useEffect(() => {
+		const token = getWaitlistTokenFromSearch();
+		if (token === null) {
+			return;
+		}
+		setWaitlistState('sending');
+		api
+			.confirmWaitlist(token)
+			.then(showWaitlistPosition)
+			.catch(() => setWaitlistState('failed'));
+	}, []);
+
+	// Wartelisten-Eintrag (#1982): idempotent. Mit Mailversand antwortet der Server mit
+	// `confirmationPending` (Double-Opt-in), Position und Empfehlungs-Link folgen nach dem Klick auf
+	// den Mail-Link. Der ref-Code kommt aus dem persönlichen Link.
 	const handleWaitlistJoin = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		setWaitlistState('sending');
 		api
-			.addToWaitlist(waitlistEmail, referralRef ?? undefined)
-			.then(({ position, referralCode, total }) => {
-				setWaitlistResult({
-					position,
-					total,
-					link: `${getPublicOrigin()}/app/?ref=${referralCode}`,
-				});
-				setWaitlistState('done');
-			})
+			.addToWaitlist(waitlistEmail, referralRef ?? undefined, waitlistHoneypot || undefined)
+			.then(showWaitlistPosition)
 			.catch(() => setWaitlistState('failed'));
 	};
 
@@ -198,9 +228,9 @@ export const LoginPage = () => {
 	};
 
 	const handleLogin = () => {
-		// #2480: Das Schließen des Einladungs-Banners gilt je Login (Reload nach Session-Ablauf behält
-		// sessionStorage), daher vor beiden Zweigen zurücksetzen.
-		sessionStorage.removeItem(LAUNCH_BANNER_DISMISS_KEY);
+		// #2480: Das Schließen des Einladungs-Banners gilt je Login, daher vor beiden Zweigen
+		// zurücksetzen — nach dem echten Login erscheint der Banner wieder.
+		localStorage.removeItem(LAUNCH_BANNER_DISMISS_KEY);
 		// In der App blockiert Google den Login im WebView, er läuft dort im System-Browser.
 		if (isNativeChannel()) {
 			void startNativeGoogleLogin();
@@ -323,6 +353,17 @@ export const LoginPage = () => {
 							onChange={(event) => setWaitlistEmail(event.target.value)}
 							className="login-page__input"
 						/>
+						{/* Honeypot gegen Bots: für Menschen unsichtbar und nicht fokussierbar. */}
+						<div className="login-page__hp" aria-hidden="true">
+							<input
+								type="text"
+								name="website"
+								tabIndex={-1}
+								autoComplete="off"
+								value={waitlistHoneypot}
+								onChange={(event) => setWaitlistHoneypot(event.target.value)}
+							/>
+						</div>
 						<button
 							type="submit"
 							disabled={waitlistState === 'sending'}
@@ -358,12 +399,28 @@ export const LoginPage = () => {
 								</button>
 							</>
 						)}
+						{waitlistState === 'pending' && (
+							<p role="status" className="login-page__status login-page__status--waitlist">
+								{t('login.waitlistPending')}
+							</p>
+						)}
 						{waitlistState === 'failed' && (
 							<p role="alert" className="login-page__alert">
 								{t('login.waitlistFailed')}
 							</p>
 						)}
 					</form>
+					{/* Datenschutz-Hinweis (#2768): dauerhaft sichtbar, schon vor dem Eintrag
+						    (Art.-13-Informationspflicht); Link sprachabhängig wie der Zurück-Link. */}
+					<p className="login-page__privacy-hint">
+						{t('login.waitlistPrivacyPrefix')}{' '}
+						<a
+							className="login-page__privacy-link"
+							href={(i18n.resolvedLanguage ?? i18n.language) === 'en' ? '/en/privacy/' : '/datenschutz/'}
+						>
+							{t('login.waitlistPrivacyLink')}
+						</a>
+					</p>
 				</div>
 
 				{reviewOpen && <ReviewLoginDialog onClose={() => setReviewOpen(false)} />}

@@ -2,9 +2,432 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.34 - 2026-10-23
+
+_Enthält v0.34.0 – v0.34.5._
+
+### 🐞 Bug Fixes
+
+- fix(frontend): align settings accordion content with kol card padding by @deleonio in https://github.com/deleonio/priority-pilot/pull/2899
+
+### 🚀 Improvements
+
+- feat(frontend): move push channel switches into collapsible details by @deleonio in https://github.com/deleonio/priority-pilot/pull/2892
+
+### Other Changes
+
+- feat(frontend): category rows with right-aligned action toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/2895
+- docs(arc42): add adr 0025/0026 to decision table and mariadb note by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2902
+
+## v0.33 - 2026-10-23
+
+_Enthält v0.33.0 – v0.33.23._
+
+### 🎉 New Features
+
+- feat(frontend): edit billing address without checkout flow by @deleonio in https://github.com/deleonio/priority-pilot/pull/2866
+- feat(server): subscription and invoice service pushes (#2852) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2865
+- feat(server): mariadb dialect via env, sqlite stays default (#2825) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2890
+
+### 🐞 Bug Fixes
+
+- feat(billing): recipient from billing address, account email, logo fix by @deleonio in https://github.com/deleonio/priority-pilot/pull/2862
+- fix(billing): remove vat id line from invoice pdf by @deleonio in https://github.com/deleonio/priority-pilot/pull/2864
+- fix(frontend): flex-wrap dashboard cards to remove empty cells by @deleonio in https://github.com/deleonio/priority-pilot/pull/2867
+- docs(website): privacy policy names care switch with old label (#2878) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2886
+
+### 🚀 Improvements
+
+- feat(server): limit challenge-end sweep to 7-day backlog window (#2879) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2885
+- feat(frontend): intro sentence for account deletion accordion by @deleonio in https://github.com/deleonio/priority-pilot/pull/2896
+
+### 🔧 Engineering
+
+- docs(skill): compact ticket-coordination with binding status block by @deleonio in https://github.com/deleonio/priority-pilot/pull/2863
+- chore(deps): update dependency vite to v8.3.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2838
+- chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2869
+
+### Other Changes
+
+- feat(server): existing push notifications open their topic (#2851) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2861
+- feat(server): daily push budget and Dein Tag digest (#2853) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2860
+- feat(push): per-topic push group switches (#2850) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2868
+- feat(server): html email template for all user mails by @deleonio in https://github.com/deleonio/priority-pilot/pull/2870
+- feat(server): group pushes for invitations, joins and challenges by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2872
+- feat(server): add push occasions for praise, recaps, journal and welcome by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2871
+- chore(deps): update node.js to v26.12.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2874
+- feat(server): consent-gated monthly tip push for free users by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2873
+- docs: explain push switch groups, time windows and daily budget (#2857) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2876
+- fix(deps): update dependency nodemailer to v10.0.10 [security] by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2884
+- docs: fix user guide package tab name and weekly recap window (#2881) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2887
+- fix(frontend): symmetric indent for settings accordion content by @deleonio in https://github.com/deleonio/priority-pilot/pull/2891
+- feat(server): type-audit model columns against mariadb (#2826) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2889
+- fix(frontend): keep follow-up modal open during dialog teardown race by @deleonio in https://github.com/deleonio/priority-pilot/pull/2894
+- feat(frontend): compact checklist done switch by hiding its label by @deleonio in https://github.com/deleonio/priority-pilot/pull/2888
+
+## v0.32 - 2026-10-22
+
+_Enthält v0.32.0 – v0.32.13._
+
+### 🎉 New Features
+
+- feat(frontend): land push targets on the right card anchor (#2848) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2859
+
+### 🚀 Improvements
+
+- feat(server): invoice pdf in the modevel.de template look by @deleonio in https://github.com/deleonio/priority-pilot/pull/2839
+- feat(server): hourly scheduler delivers reminders in local windows by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2858
+
+### 🔧 Engineering
+
+- chore(deps): update playwright (npm + docker image) to v1.64.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2819
+- chore(deps): update pi-erweiterungen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2821
+- docs(adr): mariadb as production database (#2823) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2842
+
+### Other Changes
+
+- chore(deps): update pi-erweiterungen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2818
+- fix(server): bind app tokens to mcp plan gates (#2816) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2820
+- fix(ci): port hard deadline watchdog (#2097) to triage phase by @deleonio in https://github.com/deleonio/priority-pilot/pull/2840
+- feat(billing): PayPal-Sandbox-Hinweis mit Testkonto im CheckoutDialog by @deleonio in https://github.com/deleonio/priority-pilot/pull/2843
+- docs(push): goals, time windows, budget and new occasions (#2844) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2845
+- docs: push concept with message targets, budget and switches (#2844) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2846
+
+## v0.31 - 2026-10-21
+
+_Enthält v0.31.0 – v0.31.21._
+
+### 🎉 New Features
+
+- feat(frontend): add withdrawal link, cancel page title in terms (#2776) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2792
+
+### 🐞 Bug Fixes
+
+- fix(ui): launch banner flush with tracking hint and cards by @deleonio in https://github.com/deleonio/priority-pilot/pull/2807
+- feat(server): exempt admin role from mcp_read token gate (#2810) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2812
+
+### 🚀 Improvements
+
+- feat(frontend): switch-dependent accordions for ki tab lower sections by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2815
+
+### 🔧 Engineering
+
+- test(frontend): mirror parseColor and webgl2 context positively (#2777) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2793
+- test(frontend): cover en privacy link on login page (#2796) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2800
+- chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2801
+- chore(deps): update node.js to v26.12.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2817
+
+### Other Changes
+
+- feat(frontend): consolidate legalLanguage and formatDate helpers (#2775) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2791
+- docs: clarify ADR 0001 script-test carve-out via addendum (#2778) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2794
+- chore(deps): update dependency undici@6 to v8.12.3 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2763
+- ci: add monthly hacker-team run and solid yardstick to code review team by @deleonio in https://github.com/deleonio/priority-pilot/pull/2799
+- fix(frontend): branch journalDate by format, not string length (#2797) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2803
+- ci: select runner for manual dispatch runs (default, pi5, ubuntu-latest) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2805
+- feat(server): waitlist double opt-in with mail confirmation and bot protection by @deleonio in https://github.com/deleonio/priority-pilot/pull/2804
+- refactor(server): clean up three request-validation nits (#2798) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2808
+- fix(website): name MLBF enforcement body in accessibility statement by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2802
+- feat(frontend): unify dashboard card spacing rhythm by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2814
+- chore: hacker team gains two attacker perspectives and chain method by @deleonio in https://github.com/deleonio/priority-pilot/pull/2811
+- chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2813
+
+## v0.30 - 2026-10-20
+
+_Enthält v0.30.0 – v0.30.28._
+
+### 🎉 New Features
+
+- feat(server): monthly cancellation for quarterly/yearly abos (#2745) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2750
+- feat(frontend): price and renewal notice in checkout dialog (#2766) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2780
+
+### 🐞 Bug Fixes
+
+- build(frontend): fullscreen and dark manifest colors on android by @deleonio in https://github.com/deleonio/priority-pilot/pull/2749
+- fix(ui): keep banner button labels unwrapped, fit invitation banner to content by @deleonio in https://github.com/deleonio/priority-pilot/pull/2760
+- feat(server): allow removing a task deadline via mcp task_update null by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2762
+- fix(server): series instances inherit series creator (#2757) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2779
+- feat(server): propagate embedded provider errors at HTTP 200 (#2774) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2790
+
+### 🚀 Improvements
+
+- feat(frontend): add checklist entries via Enter key (#2771) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2785
+- feat(frontend): add waitlist privacy section and login privacy hint by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2789
+
+### 🔧 Engineering
+
+- refactor(server): consolidate von/bis guard into requestvalidation by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2752
+
+### Other Changes
+
+- chore: rework terms of use on liability, renewal, withdrawal and account by @deleonio in https://github.com/deleonio/priority-pilot/pull/2748
+- docs(website): add storage-on-your-device section to privacy policy by @deleonio in https://github.com/deleonio/priority-pilot/pull/2746
+- docs(mcp): add guide for setting up the admin MCP endpoint by @deleonio in https://github.com/deleonio/priority-pilot/pull/2747
+- ci: shorten rechts-team label description to 100 characters by @deleonio in https://github.com/deleonio/priority-pilot/pull/2759
+- fix(deps): update kolibri (@public-ui) to v4.5.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2743
+- feat(server): include creator name in write responses (#2755) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2764
+- feat(frontend): clear done-task feedback after reopen (#2767) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2781
+- feat(server): mark system-created tasks as "Balamentum" (#2758) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2782
+- feat(website): accessibility statement per bfsg (#2769) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2783
+- feat(frontend): balance status timeout and webgl context restore by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2784
+- feat(server): centralize request validation, close array gaps (#2772) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2786
+- feat(server): complete creator names for series and system tasks (#2787) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2788
+
+## v0.29 - 2026-10-19
+
+_Enthält v0.29.0 – v0.29.34._
+
+### 🚀 Improvements
+
+- docs(guide): sync user guide to current app state 2026-10-18 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2705
+- feat(frontend): brand elements on all shareable cards by @deleonio in https://github.com/deleonio/priority-pilot/pull/2707
+- feat(server): log failed ai budget refunds instead of swallowing them by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2710
+- feat(frontend): simplify category assignment to a plain single-select by @deleonio in https://github.com/deleonio/priority-pilot/pull/2721
+- docs: add successor issue number to ADR 0025 (#2732) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2738
+- feat(frontend): matomo channel, login funnel, geo push deep link by @deleonio in https://github.com/deleonio/priority-pilot/pull/2739
+- feat(frontend): show balance dial instantly from cached device mirror by @deleonio in https://github.com/deleonio/priority-pilot/pull/2740
+
+### 🔧 Engineering
+
+- docs(spec): sync spec status to implementation state (2026-10-18) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2704
+- refactor(server): centralize effort conversion in logics/effort.ts by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2708
+- test(server): assert template apply counts as fixed literals (#2692) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2711
+- test(frontend): make WeekView unit test timezone-independent (#2730) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2736
+- fix(deps): update dependency react-i18next to v17.1.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2680
+
+### Other Changes
+
+- docs: add ADR 0025 on shared logic as duplicate with mirror tests by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2703
+- feat(server): move score recap logic from routes into logics (#2689) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2706
+- feat(frontend): add tenth dial Bahnen with comets on elliptical orbits by @deleonio in https://github.com/deleonio/priority-pilot/pull/2712
+- feat(server): merge request validation of tasks and series (#2691) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2709
+- feat(server): pin pillar share logic with mirror tests (ADR 0025) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2714
+- feat(server): share email parsing and normalization once (#2693) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2713
+- fix(push): reason-specific push failure message in the android app by @deleonio in https://github.com/deleonio/priority-pilot/pull/2719
+- refactor(frontend): share webgl dial-figure stage in one module (#2696) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2718
+- fix(frontend): onboarding actions without sticky or own background by @deleonio in https://github.com/deleonio/priority-pilot/pull/2720
+- refactor(frontend): merge balance card share logic into one hook (#2695) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2717
+- feat(frontend): voice search no longer sets category filter (#2716) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2724
+- feat(frontend): pause and resume series (#2715) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2722
+- refactor(frontend): drop dead export isGeolocationSupported (#2697) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2726
+- feat(frontend): complete the orbit family with meteors and pendulum by @deleonio in https://github.com/deleonio/priority-pilot/pull/2727
+- docs(matomo): runbook for the self-hosted matomo instance by @deleonio in https://github.com/deleonio/priority-pilot/pull/2728
+- docs: narrow e2e run commands in testing.md to pnpm filter calls (#2698) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2729
+- docs(matomo): document working config:set syntax for trusted_hosts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2733
+- fix(ci): replace mapfile with while-read for macOS bash 3.2 (#2731) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2735
+- feat(frontend): count matomo route changes (404, heartbeat, title, ids) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2737
+- feat(frontend): move help and logout into avatar popover menu (#2723) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2725
+- feat(frontend): show avatar menu as dropdown card with single toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/2741
+- fix(frontend): align tracking notice placement in app shell by @deleonio in https://github.com/deleonio/priority-pilot/pull/2742
+- feat(mcp): separater, nur lesender Admin-MCP-Endpunkt /mcp/admin/v1 (#1338) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2744
+
+## v0.28 - 2026-10-18
+
+_Enthält v0.28.0 – v0.28.15._
+
+### 🐞 Bug Fixes
+
+- fix(server): strip query strings from error logs so tokens stay out by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2674
+- fix(frontend): release dial intro, hide display until real value by @deleonio in https://github.com/deleonio/priority-pilot/pull/2679
+- fix(frontend): persist launch banner dismissal across sessions by @deleonio in https://github.com/deleonio/priority-pilot/pull/2677
+- feat(server): reject unresolvable hosts in endpoint guard (#2685) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2700
+
+### 🚀 Improvements
+
+- feat(server): log errors when loading free time slots (#2686) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2701
+
+### Other Changes
+
+- fix(frontend): keep task list popover button right-aligned on mobile by @deleonio in https://github.com/deleonio/priority-pilot/pull/2669
+- fix(frontend): start balance dial rise only with the real server value by @deleonio in https://github.com/deleonio/priority-pilot/pull/2676
+- docs(arc42): sync architecture doc to current state 2026-10-17 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2678
+- feat(frontend): checkout dialog with address and withdrawal consent by @deleonio in https://github.com/deleonio/priority-pilot/pull/2673
+- fix(deps): update dependency i18next to v26.4.7 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2648
+- ci(cron): prompt audit weekly on friday evening instead of daily by @deleonio in https://github.com/deleonio/priority-pilot/pull/2681
+- fix(android): embed native debug symbols in the release aab by @deleonio in https://github.com/deleonio/priority-pilot/pull/2682
+- fix(llm): add top_p 1 for greedy sampling and surface embedded 200 errors by @deleonio in https://github.com/deleonio/priority-pilot/pull/2683
+- fix(server): raise llm test timeout to 30s and surface body-read timeouts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2699
+- feat(server): log swallowed db errors in provider resolution (#2687) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2702
+
+## v0.27 - 2026-10-17
+
+_Enthält v0.27.0 – v0.27.11._
+
+### 🐞 Bug Fixes
+
+- fix(frontend): keep task list popover button right-aligned by @deleonio in https://github.com/deleonio/priority-pilot/pull/2663
+
+### 🚀 Improvements
+
+- docs(skill): disambiguate ticket-coordination progress counting (#2644) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2657
+
+### 🔧 Engineering
+
+- docs: fix broken ADR 0024 link to ux-design.md (#2622) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2668
+- feat(server): derive e2e overload seed threshold from constant (#2623) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2666
+
+### Other Changes
+
+- docs: unify formatting and cross-references (#2642) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2654
+- ci(workbench): add kill grace period to chromium install timeout (#2643) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2655
+- docs: fix dead links in ADR 0004 (#2638) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2656
+- docs: align outdated code comments with current behavior (#2640) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2660
+- test(frontend): show blossom instead of heart in promo shots (#2641) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2658
+- refactor(frontend): consolidate badge colors in one source (#2637) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2653
+- test: strengthen assertions and silence expected errors (#2639) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2659
+- chore: remove grandfather rule for legacy accounts (#2646) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2662
+- feat(billing): require billing address before subscription checkout by @deleonio in https://github.com/deleonio/priority-pilot/pull/2664
+- feat(frontend): reserve dashboard card heights to avoid layout shift by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2667
+- refactor(server): resolve app language via shared helper by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2665
+
+## v0.26 - 2026-10-15
+
+_Enthält v0.26.0 – v0.26.21._
+
+### 🎉 New Features
+
+- feat(frontend): show 28-day balance history card on dashboard by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2621
+
+### 🐞 Bug Fixes
+
+- ci: align token report legend with code (#2562) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2614
+- feat(frontend): refresh streak instantly after task completion (#2632) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2649
+
+### 🚀 Improvements
+
+- refactor(frontend): use BADGE_COLOR in milestone badges by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2619
+- feat(frontend): judge balance only from minimum completions (#2645) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2651
+
+### 🔧 Engineering
+
+- test(e2e): set expired subscription fixtures to a future date by @deleonio in https://github.com/deleonio/priority-pilot/pull/2607
+- docs: align pnpm runtime version with packageManager pin (V-20) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2613
+- feat(frontend): standardize mobile e2e viewport to 375x812 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2616
+- test(server): add schema snapshot test for column migrations (#2609) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2615
+- docs(tdd-strategy): fix stale workflow links and phase number (V-21) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2626
+
+### Other Changes
+
+- feat(server): remove dead module and history comments (#2557) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2605
+- feat(server): dedupe push notifications via shared helper (#2551) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2598
+- test(frontend): e2e paypal deferred alert + non-empty guards (#2558) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2610
+- docs: align arc42 IF-07 and ADR 0017 with current state (#2561) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2611
+- feat(server): validate reverse-geocode coordinates via parseCoordinate by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2612
+- refactor(frontend): use badge color constant, debounce observer (#2560) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2617
+- Server: Fehlgeschlagene PayPal-Kündigung im Kulanzfrist-Sweep wird später erneut versucht (#2606) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2620
+- fix(deps): update dependency i18next to v26.4.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2602
+- chore(deps): update pi-erweiterungen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2627
+- feat(server): expose balance window count and minimum threshold (#2633) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2647
+- feat(frontend): clarify overdue task completion dialog (#2635) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2650
+- fix(frontend): stable position label for series checklist (#2636) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2652
+
+## v0.25 - 2026-10-15
+
+_Enthält v0.25.0 – v0.25.19._
+
+### 🐞 Bug Fixes
+
+- fix(server): block geocode rate limit header bypass by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2587
+- feat(server): cancel pending PayPal checkouts before delete (#2547) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2592
+- fix(server): return 400 for invalid path ids instead of 500 (#2548) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2595
+- feat(server): abort paypal requests after a fixed timeout (#2546) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2594
+- feat(server): per-job error labels in interval scheduler (#2550) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2596
+
+### 🚀 Improvements
+
+- feat(server): unified error contract and global error handler (#2549) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2597
+
+### 🔧 Engineering
+
+- chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2567
+
+### Other Changes
+
+- docs(arc42): add ADR 0024 to decision table (V-19) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2582
+- docs(skills): german-only chat and full-queue status for coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2583
+- [P0/S] Server: CSRF-Schutz greift, sobald die Anmeldung aktiv ist (#2540) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2584
+- fix(server): user search with literal wildcards and result limit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2585
+- fix(server): book llm provider test against ai quota and throttle it (#2542) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2586
+- fix(server): log invoice delivery errors after commit, don't throw by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2588
+- feat(server): count task effort once per subtree, ending cycles and N+1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2589
+- feat(server): handle missing paypal credentials explicitly (#2545) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2591
+- ci(triage): read container result from both sources (#2590) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2593
+- refactor(server): unify first-cycle credit coverage rule (#2556) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2599
+- refactor(server): column migrations via shared helper (#2552) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2600
+- fix(server): consolidate coordinate parsing into one validated helper by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2601
+- fix(server): replace type assertions with runtime checks (#2554) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2603
+- test(ci): cover ticket-quality gate decision logic with tests (#2555) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2604
+
+## v0.24 - 2026-10-13
+
+_Enthält v0.24.0 – v0.24.13._
+
+### 🎉 New Features
+
+- feat(frontend): starter sentence for new accounts instead of deficit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2573
+- feat(frontend): one-tap complete with success feedback and undo (#2526) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2572
+
+### 🚀 Improvements
+
+- feat(frontend): keep save button in view when creating tasks (#2525) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2577
+
+### Other Changes
+
+- fix(frontend): show app magic-link landing despite existing session by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2566
+- fix(deps): update dependency i18next to v26.4.4 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2512
+- docs(adr): add 0024 direct completion with undo instead of dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2568
+- feat(server): require minimum completions before overload (#2521) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2569
+- feat(frontend): refresh care hint after completing a task (#2522) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2570
+- feat(server): pillar names in care texts follow app language (#2523) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2571
+- feat(frontend): single primary action per missed task (#2524) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2575
+- feat(frontend): show done tasks on their completion day in week view by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2576
+- test(frontend): measure missed/deadlines top edges atomically (#2578) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2579
+- test(frontend): measure missed/deadlines top edges atomically (#2578) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2579
+- test(frontend): mark onboarding dismissed up front in header focus test by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2581
+
+## v0.23 - 2026-10-12
+
+_Enthält v0.23.0 – v0.23.4._
+
+### 🎉 New Features
+
+- feat(frontend): show packages without purchase on Play channel by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2500
+- feat(server): list and revoke android app logins via api-tokens by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2504
+- feat(frontend): revoke android app sessions in token management (#2499) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2506
+
+### 🐞 Bug Fixes
+
+- fix(deps): update dependency @capacitor/browser to v8.0.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2489
+- feat(server): harden token scope, ICS host switch and CORS max-age by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2502
+- fix(server): prevent data loss and silent task/score input errors by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2511
+- feat(frontend): translate fixed balance texts and raw i18n keys (#2496) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2513
+- chore: fix store description and portuguese salutation (#2498) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2516
+- fix(server): forest shows handover and group tasks like the list (#2515) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2531
+
+### 🚀 Improvements
+
+- fix(deps): update capacitor monorepo to v8.5.3 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2486
+- fix(deps): update dependency @capacitor/push-notifications to v8.1.3 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2503
+
+### 🔧 Engineering
+
+- fix(deps): update dependency @capacitor/app to v8.1.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2488
+- docs(arc42): align adr 0016 status row with adr 0021/0023 (v-17) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2490
+- test(frontend): wait for toolbar re-render before settings re-click by @deleonio in https://github.com/deleonio/priority-pilot/pull/2505
+- docs(skills): grep old values in e2e and unit tests during spec phase by @deleonio in https://github.com/deleonio/priority-pilot/pull/2507
+- fix(deps): update dependency express-rate-limit to v8.7.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2509
+- test(e2e): isolate spec data per shard (#2508) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2510
+- test(frontend): stabilize archivo host font check by @deleonio in https://github.com/deleonio/priority-pilot/pull/2514
+
+### Other Changes
+
+- fix(native): stop committing generated capacitor.settings.gradle by @deleonio in https://github.com/deleonio/priority-pilot/pull/2517
+- feat(series): manage checklist on series and templates (#2501) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2530
+- feat(auth): magic link signs in where it was requested (#2563) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2564
+
 ## v0.22 - 2026-10-11
 
-_Enthält v0.22.0 – v0.22.9._
+_Enthält v0.22.0 – v0.22.10._
 
 ### 🐞 Bug Fixes
 
@@ -24,6 +447,7 @@ _Enthält v0.22.0 – v0.22.9._
 - feat(frontend): make launch banner dismissible (#2480) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2481
 - fix(deps): pin dependency pdf-lib to 1.17.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2482
 - fix(frontend): launch banner dismissible per login, demo hint removed by @deleonio in https://github.com/deleonio/priority-pilot/pull/2485
+- feat(frontend): two-column balance image picker with preview above hint by @deleonio in https://github.com/deleonio/priority-pilot/pull/2487
 
 ## v0.21 - 2026-10-10
 
@@ -384,7 +808,6 @@ _Enthält v0.14.0 – v0.14.31._
 - feat(tasks): missed area, postpone counter, archive (#1964) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2139
 - feat(frontend): ai model distribution as adoptable suggestion (#2078) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2149
 - feat(frontend): show install prompt after aha moment, explain PWA limits by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2151
-- perf(server): compute streak once per balance request (#2157) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2160
 - perf(server): compute streak once per balance request (#2157) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2160
 
 ## v0.13 - 2026-10-03

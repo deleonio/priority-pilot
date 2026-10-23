@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { openAccordionSection, waitForStableView } from './helpers';
+import { openAccordionSection, seedAccountPreferences, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #1110 — Radius im Nearby-Card-Titel + echte Distanzen
@@ -75,6 +75,7 @@ test.describe('Balamentum — #1110: Nearby-Card Radius + Distanzkette', () => {
 	});
 
 	test('AK1 — Card-Titel nennt die gespeicherte Anzeige-Entfernung: „In der Nähe (5 km)"', async ({ page }) => {
+		await seedAccountPreferences(page, { geolocationEnabled: true });
 		await page.addInitScript(GEO_INIT(true));
 		await setDisplayDistance(page, 5);
 		await page.goto('/app/');
@@ -84,6 +85,7 @@ test.describe('Balamentum — #1110: Nearby-Card Radius + Distanzkette', () => {
 	});
 
 	test('AK2 — nach Umstellen auf 12 km zeigt die Card beim nächsten Laden „(12 km)"', async ({ page }) => {
+		await seedAccountPreferences(page, { geolocationEnabled: true });
 		await page.addInitScript(GEO_INIT(true));
 		await setDisplayDistance(page, 5);
 		await page.goto('/app/');
@@ -98,6 +100,7 @@ test.describe('Balamentum — #1110: Nearby-Card Radius + Distanzkette', () => {
 	});
 
 	test('AK3 — Task exakt an der Position zeigt „(0,0 km)"', async ({ page }) => {
+		await seedAccountPreferences(page, { geolocationEnabled: true });
 		await page.addInitScript(GEO_INIT(true));
 		await setDisplayDistance(page, 5);
 		await page.request.post('/api/v1/tasks', { data: { title: 'E2E 1110 exakt', latitude: LAT, longitude: LON } });
@@ -118,6 +121,7 @@ test.describe('Balamentum — #1110: Nearby-Card Radius + Distanzkette', () => {
 			route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([SUGGESTION]) }),
 		);
 
+		await seedAccountPreferences(page, { geolocationEnabled: true });
 		await page.addInitScript(GEO_INIT(true));
 		await setDisplayDistance(page, 5);
 		await page.goto('/app/');

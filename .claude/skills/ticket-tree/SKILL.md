@@ -153,11 +153,14 @@ titles and stays in body and epic. The area prefix names the goal, not the solut
 - **Critical path** = the longest blocker chain; name it (per stage, if stages exist).
 - Keep wave 1 wide — as many independent starts as the plan allows.
 
-## Step 6 — Confirm
+## Step 6 — Confirm (immer, auch bei ausdrücklichem Erstellungsauftrag)
 
-Creating an issue tree is a public GitHub write. Show the plan and a table (title, wave,
-blockers, complexity) and wait for the author's go — **unless** the request already explicitly
-asked for the issues to be created.
+Creating an issue tree is a public GitHub write — it happens only after the author's explicit
+go, **even when the request already asked for the issues to be created**. Show the plan, the
+table (title, wave, blockers, complexity) and **every issue draft in full** (title + body) —
+the author approves the actual tickets, not a summary of them. Changes flow into the drafts
+before anything is created; an epic already created as placeholder stays until the go and is
+deleted on rejection.
 
 ## Step 7 — Create
 

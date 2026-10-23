@@ -11,7 +11,7 @@
  * von `/forest` und `/next`.
  */
 import assert from 'node:assert/strict';
-import { describe, it, beforeEach, after } from 'node:test';
+import { describe, it, beforeEach, after, mock } from 'node:test';
 import { Task, Pillar } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
 import { expectError } from '../test/helpers.js';
@@ -171,6 +171,7 @@ describe('Fehler-Response-Vertrag: tasks & pillars', () => {
 	// buildTaskForest und findNextImportantTask lesen über Task.findAll; ein erzwungener
 	// Lesefehler löst den catch-/500-Branch in index.ts aus (kein Produktivcode nötig).
 	it('GET /forest bei internem Fehler → 500 mit message', async () => {
+		const ce = mock.method(console, 'error', () => {});
 		const original = Task.findAll;
 		Task.findAll = (async () => {
 			throw new Error('DB kaputt');
@@ -179,10 +180,12 @@ describe('Fehler-Response-Vertrag: tasks & pillars', () => {
 			await expectError(await get('/forest'), 500);
 		} finally {
 			Task.findAll = original;
+			ce.mock.restore();
 		}
 	});
 
 	it('GET /next bei internem Fehler → 500 mit message', async () => {
+		const ce = mock.method(console, 'error', () => {});
 		const original = Task.findAll;
 		Task.findAll = (async () => {
 			throw new Error('DB kaputt');
@@ -191,7 +194,45 @@ describe('Fehler-Response-Vertrag: tasks & pillars', () => {
 			await expectError(await get('/next'), 500);
 		} finally {
 			Task.findAll = original;
+			ce.mock.restore();
 		}
+	});
+
+	// #2549 AK3: Google-Guard nutzt den Fehlervertrag `{ message }` statt `{ error }`.
+	it('GET /auth/google ohne Google-Env → 503 mit message', async () => {
+		const savedId = process.env.GOOGLE_CLIENT_ID;
+		const savedSecret = process.env.GOOGLE_CLIENT_SECRET;
+		delete process.env.GOOGLE_CLIENT_ID;
+		delete process.env.GOOGLE_CLIENT_SECRET;
+		try {
+			const body = await expectError(await get('/auth/google'), 503);
+			assert.equal(body.message, 'Google-OAuth ist nicht konfiguriert.');
+			assert.equal((body as Record<string, unknown>).error, undefined);
+		} finally {
+			if (savedId !== undefined) process.env.GOOGLE_CLIENT_ID = savedId;
+			if (savedSecret !== undefined) process.env.GOOGLE_CLIENT_SECRET = savedSecret;
+		}
+	});
+
+	// #2549 AK4: der bislang stumme Catch von /forest loggt den Fehler (Methode, Pfad, Fehlermeldung),
+	// bevor er die 500 sendet — Probe für die index.ts-Catch-Familie (/forest, /graph, /next, /suggestions).
+	it('GET /forest bei internem Fehler → genau ein Log-Eintrag mit Methode, Pfad und Fehler', async () => {
+		const ce = mock.method(console, 'error', () => {});
+		const original = Task.findAll;
+		Task.findAll = (async () => {
+			throw new Error('DB kaputt');
+		}) as typeof Task.findAll;
+		try {
+			await expectError(await get('/forest'), 500);
+		} finally {
+			Task.findAll = original;
+			ce.mock.restore();
+		}
+		assert.equal(ce.mock.callCount(), 1, 'Genau ein Log-Eintrag erwartet');
+		const logged = ce.mock.calls[0].arguments.map(String).join(' ');
+		assert.ok(logged.includes('GET'), `Log nennt die Methode: ${logged}`);
+		assert.ok(logged.includes('/forest'), `Log nennt den Pfad: ${logged}`);
+		assert.ok(logged.includes('DB kaputt'), `Log nennt den Fehler: ${logged}`);
 	});
 });
 

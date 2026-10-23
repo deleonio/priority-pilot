@@ -146,3 +146,112 @@ test.describe('Dashboard — Wochenansicht: erledigte Aufgaben (#2012)', () => {
 		expect(box!.x + box!.width).toBeLessThanOrEqual(375);
 	});
 });
+
+/**
+ * E2E-Spec für #2574 (docs/spec/issue-2574.md): erledigte Aufgaben stehen am Tag des Abhakens
+ * (`completedAt`), nicht am Deadline-Tag; nach „Wieder öffnen" (ADR 0024) wieder am Deadline-Tag.
+ * AK3 (offene Aufgaben am Deadline-Tag) ist als Vorbedingung im selben Ablauf gesichert.
+ */
+test.describe('Dashboard — Wochenansicht: erledigt am Erledigt-Tag (#2574)', () => {
+	const deleteAllTasks = async (page: Page): Promise<void> => {
+		const response = await page.request.get('/api/v1/tasks');
+		const tasks = (await response.json()) as { id: number }[];
+		for (const task of tasks) {
+			await page.request.delete(`/api/v1/tasks/${task.id}`);
+		}
+	};
+
+	const item = (page: Page, id: number) => page.getByTestId(`task-list-item-${id}`);
+	const doneToggle = (page: Page, id: number) =>
+		item(page, id).getByRole('button', { name: /Erledigt|Wieder öffnen/i });
+
+	test.afterEach(async ({ page }) => {
+		await deleteAllTasks(page);
+	});
+
+	test('AK1/AK2/AK4: erledigt heute erscheint heute, nach Wieder-Öffnen wieder am Deadline-Tag (375px)', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+
+		// Deadline ≠ heute, aber innerhalb der Woche: Montag — ist heute Montag, Dienstag.
+		const now = new Date();
+		const monday = mondayIsoOf(now);
+		const todayIso = now.toISOString().slice(0, 10);
+		const deadlineIso =
+			todayIso === monday
+				? new Date(Date.parse(`${monday}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10)
+				: monday;
+		const dayIndex = (iso: string): number =>
+			Math.round((Date.parse(`${iso}T00:00:00Z`) - Date.parse(`${monday}T00:00:00Z`)) / 86_400_000);
+
+		const created = await page.request.post('/api/v1/tasks', {
+			data: { title: 'E2E #2574 Erledigt-Tag', deadline: deadlineIso },
+		});
+		const { id } = (await created.json()) as { id: number };
+
+		// Eingefrorene Clock: das 5-s-Auto-Entfernen (#392) feuert nie — die Aufgabe bleibt im
+		// Undo-Fenster sichtbar und der Abhaken-Zeitpunkt bleibt „heute“.
+		await page.clock.install();
+		await page.goto('/');
+		await waitForStableView(page);
+		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
+		await waitForStableView(page);
+		await page.getByRole('checkbox', { name: 'Wochenansicht' }).click();
+		await expect(page.locator('.week-view-grid')).toBeVisible();
+
+		const todayCard = page.locator('.week-view-day').nth(dayIndex(todayIso));
+		const deadlineCard = page.locator('.week-view-day').nth(dayIndex(deadlineIso));
+
+		// Vorbedingung (AK3): offen erscheint die Aufgabe am Deadline-Tag, ohne Done-Klasse.
+		const offenerEintrag = deadlineCard.getByText('E2E #2574 Erledigt-Tag');
+		await expect(offenerEintrag).toHaveCount(1);
+		await expect(offenerEintrag).not.toHaveClass('week-view-done');
+
+		// Abhaken über den echten ADR-0024-Weg (Erledigt-Toggle im Aufgaben-Tab).
+		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
+		await expect(item(page, id)).toBeVisible();
+		await item(page, id)
+			.getByRole('button', { name: /Weitere Aktionen/i })
+			.click();
+		await doneToggle(page, id).click();
+		await expect
+			.poll(async () => {
+				const res = await page.request.get(`/api/v1/tasks/${id}`);
+				return ((await res.json()) as { status: string }).status;
+			})
+			.toBe('Done');
+
+		// Erledigt erscheint am heutigen Tag (Erledigt-Zeitpunkt), NICHT am Deadline-Tag (AK1/AK2).
+		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
+		const doneEntry = page.locator('.week-view-done', { hasText: 'E2E #2574 Erledigt-Tag' });
+		await expect(doneEntry).toHaveCount(1);
+		await expect(todayCard).toContainText('E2E #2574 Erledigt-Tag');
+		await expect(deadlineCard).not.toContainText('E2E #2574 Erledigt-Tag');
+		const box = await doneEntry.boundingBox();
+		expect(box).not.toBeNull();
+		expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+
+		// Rückgängig im Undo-Fenster (Clock eingefroren): „Wieder öffnen".
+		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
+		await expect(item(page, id)).toBeVisible();
+		await item(page, id)
+			.getByRole('button', { name: /Weitere Aktionen/i })
+			.click();
+		await doneToggle(page, id).click();
+		await expect
+			.poll(async () => {
+				const res = await page.request.get(`/api/v1/tasks/${id}`);
+				return ((await res.json()) as { status: string }).status;
+			})
+			.toBe('Open');
+
+		// Nach dem Wieder-Öffnen (AK4): weg vom Erledigt-Tag, wieder offen am Deadline-Tag.
+		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
+		await expect(page.locator('.week-view-done', { hasText: 'E2E #2574 Erledigt-Tag' })).toHaveCount(0);
+		await expect(todayCard).not.toContainText('E2E #2574 Erledigt-Tag');
+		const wiederOffen = deadlineCard.getByText('E2E #2574 Erledigt-Tag');
+		await expect(wiederOffen).toHaveCount(1);
+		await expect(wiederOffen).not.toHaveClass('week-view-done');
+	});
+});

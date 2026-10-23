@@ -1,7 +1,16 @@
-import { describe, it } from 'node:test';
+import { describe, it, mock, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { verifyWebhookSignature, isGracePeriodExpired, createPaypalClient, assertPaypalConfig } from './paypal.js';
-import { PAYPAL_PLAN_IDS } from './plans.js';
+import {
+	verifyWebhookSignature,
+	isGracePeriodExpired,
+	createPaypalClient,
+	assertPaypalConfig,
+	applyPaymentEvent,
+	coversFirstCycle,
+} from './paypal.js';
+import { PAYPAL_PLAN_IDS, getPlansCatalog } from './plans.js';
+import { Subscription, User } from '../models/index.js';
+import { resetDb, closeDb } from '../test/helpers.js';
 
 /**
  * Rote Spec-Tests für #1495 (Spec docs/spec/issue-1495.md) — Webhook-Signaturprüfung (AK2) und
@@ -10,6 +19,18 @@ import { PAYPAL_PLAN_IDS } from './plans.js';
  */
 
 describe('paypal.ts — verifyWebhookSignature (#1495 AK2)', () => {
+	// #2545 Test-Pflege: der neue Config-Guard bricht ohne Zugangsdaten vor dem Netzaufruf ab — die
+	// drei Netzpfad-Tests brauchen jetzt gesetzte Variablen, um unreachable/verified/invalid zu erreichen.
+	const savedEnv = { ...process.env };
+	beforeEach(() => {
+		process.env.PAYPAL_CLIENT_ID = 'id';
+		process.env.PAYPAL_CLIENT_SECRET = 'secret';
+		process.env.PAYPAL_WEBHOOK_ID = 'wh';
+	});
+	after(() => {
+		process.env = savedEnv;
+	});
+
 	it('bei Nichterreichbarkeit von PayPal liefert die Prüfung "unreachable" statt zu werfen', async () => {
 		const unreachableFetch = (async () => {
 			throw new Error('ECONNREFUSED');
@@ -52,6 +73,36 @@ describe('paypal.ts — verifyWebhookSignature (#1495 AK2)', () => {
 		);
 
 		assert.equal(result, 'invalid');
+	});
+});
+
+describe('paypal.ts — verifyWebhookSignature ohne Konfiguration (#2545 AK2)', () => {
+	it('liefert "unconfigured", loggt die fehlenden Variablen und ruft PayPal nicht auf', async () => {
+		const savedEnv = { ...process.env };
+		const errors: string[] = [];
+		const errorSpy = mock.method(console, 'error', (...args: unknown[]) => errors.push(args.join(' ')));
+		const calls: string[] = [];
+		const spyingFetch = (async (input: RequestInfo | URL) => {
+			calls.push(String(input));
+			throw new Error('Netzaufruf bei fehlender Konfiguration unzulässig');
+		}) as unknown as typeof fetch;
+		try {
+			for (const name of ['PAYPAL_CLIENT_ID', 'PAYPAL_CLIENT_SECRET', 'PAYPAL_WEBHOOK_ID']) {
+				delete process.env[name];
+			}
+
+			const result = await verifyWebhookSignature(Buffer.from('{"id":"WH-1"}'), {}, spyingFetch);
+
+			assert.equal(result, 'unconfigured', 'Fehlende Konfiguration muss von "unreachable" unterscheidbar sein');
+			assert.equal(calls.length, 0, 'Ohne Zugangsdaten darf kein PayPal-Netzaufruf versucht werden');
+			assert.ok(
+				errors.some((m) => /PAYPAL_CLIENT_ID|PAYPAL_CLIENT_SECRET|PAYPAL_WEBHOOK_ID/.test(m)),
+				'Log muss die fehlenden Variablennamen nennen',
+			);
+		} finally {
+			errorSpy.mock.restore();
+			process.env = savedEnv;
+		}
 	});
 });
 
@@ -220,8 +271,26 @@ describe('paypal.ts — assertPaypalConfig (#2302)', () => {
 		assert.doesNotThrow(() => assertPaypalConfig(full()));
 	});
 
-	it('wirft ohne Zugangsdaten (PayPal aus) auch in Produktion nicht', () => {
-		assert.doesNotThrow(() => assertPaypalConfig({ NODE_ENV: 'production' }));
+	// #2545 AK1 (PO-Entscheidung 2026-10-14, Test-Pflege): ganz ohne Zugangsdaten läuft der Server
+	// weiter (PayPal-Billing aus) — die Meldung mit den Variablennamen kommt per console.error.
+	it('#2545 AK1: läuft in Produktion ohne ALLE PayPal-Variablen weiter und loggt die Variablen', () => {
+		const errors: string[] = [];
+		const errorSpy = mock.method(console, 'error', (...args: unknown[]) => errors.push(args.join(' ')));
+		try {
+			assert.doesNotThrow(() => assertPaypalConfig({ NODE_ENV: 'production' }));
+			assert.ok(
+				errors.some((m) => /PAYPAL_CLIENT_ID/.test(m) && /PAYPAL_CLIENT_SECRET/.test(m)),
+				'Meldung muss die fehlenden Variablennamen nennen',
+			);
+		} finally {
+			errorSpy.mock.restore();
+		}
+	});
+
+	it('#2545 AK1: ohne Zugangsdaten bleibt Dev/Test erlaubt (kein Wurf außerhalb der Produktion)', () => {
+		for (const NODE_ENV of ['test', 'development']) {
+			assert.doesNotThrow(() => assertPaypalConfig({ NODE_ENV }));
+		}
 	});
 
 	it('wirft außerhalb von Produktion nie', () => {
@@ -257,5 +326,133 @@ describe('paypal.ts — createPaypalClient().getSubscription (#2300)', () => {
 			createPaypalClient(fetchWith(new Response('{}', { status: 404 }), [])).getSubscription('I-X'),
 			(e: unknown) => (e as { status?: number }).status === 404,
 		);
+	});
+});
+
+// #2546 AK1 (Spec docs/spec/issue-2546.md): jeder PayPal-Fetch muss ein AbortSignal tragen —
+// alle 7 Aufrufstellen (verifyWebhookSignature 2×, getAccessToken 1×, createPaypalClient 4×) über
+// die fünf Abläufe mit je Token- + Fachaufruf = 10 Aufrufe abgedeckt. Rot heute: kein Signal.
+describe('paypal.ts — Fetch-Zeitlimit-Signal (#2546 AK1)', () => {
+	it('trägt jeder Fetch-Aufruf (7 Stellen) ein AbortSignal in den Fetch-Optionen', async () => {
+		const savedEnv = { ...process.env };
+		process.env.PAYPAL_CLIENT_ID = 'id';
+		process.env.PAYPAL_CLIENT_SECRET = 'secret';
+		process.env.PAYPAL_WEBHOOK_ID = 'wh';
+		const signals: unknown[] = [];
+		const spyFetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+			signals.push(init?.signal);
+			return new Response(JSON.stringify({}), { status: 200 });
+		}) as unknown as typeof fetch;
+		try {
+			await verifyWebhookSignature(Buffer.from('{"id":"WH-1"}'), { 'paypal-transmission-sig': 'x' }, spyFetch);
+			await createPaypalClient(spyFetch).createSubscription('PLAN-X');
+			await createPaypalClient(spyFetch).cancel('I-1');
+			await createPaypalClient(spyFetch).getSubscription('I-1');
+			await createPaypalClient(spyFetch).revise('I-1', 'PLAN-Y');
+
+			assert.equal(signals.length, 10, 'alle fünf Abläufe müssen ihre Token- und Fachaufrufe gemacht haben');
+			const ohneSignal = signals.filter((signal) => !(signal instanceof AbortSignal)).length;
+			assert.equal(ohneSignal, 0, 'jeder PayPal-Fetch (7 Stellen) muss ein AbortSignal tragen');
+		} finally {
+			process.env = savedEnv;
+		}
+	});
+});
+
+// #2546 AK2 (Spec docs/spec/issue-2546.md): nie antwortender, abort-bewusster Fake + kleines
+// Limit → cancel() lehnt innerhalb des Limits ab. Der Watchdog (3 s) macht den fehlenden Timeout
+// als klares Rot sichtbar, statt den Test hängen zu lassen. Produktives fetch bricht über das
+// Signal ab — der Fake spiegelt exakt dieses Verhalten (abort-Listener → reject).
+describe('paypal.ts — Fetch-Zeitlimit-Abbruch (#2546 AK2)', () => {
+	it('bricht cancel() bei nie antwortendem PayPal nach PAYPAL_TIMEOUT_MS ab (unter 1 s)', async () => {
+		const savedEnv = { ...process.env };
+		process.env.PAYPAL_CLIENT_ID = 'id';
+		process.env.PAYPAL_CLIENT_SECRET = 'secret';
+		process.env.PAYPAL_TIMEOUT_MS = '100';
+		const hangingFetch = (async (_input: RequestInfo | URL, init?: RequestInit) =>
+			new Promise((_resolve, reject) => {
+				init?.signal?.addEventListener('abort', () => reject(new Error('PayPal-Aufruf abgebrochen')));
+			}) as unknown as Response) as unknown as typeof fetch;
+		let rejected = false;
+		const cancelPromise = createPaypalClient(hangingFetch)
+			.cancel('I-TIMEOUT')
+			.then(
+				() => {},
+				() => {
+					rejected = true;
+				},
+			);
+		let watchdog: NodeJS.Timeout | undefined;
+		const start = Date.now();
+		try {
+			await Promise.race([
+				cancelPromise,
+				new Promise((_resolve, reject) => {
+					watchdog = setTimeout(
+						() => reject(new Error('Watchdog: cancel() bricht nicht ab — kein Zeitlimit am Fetch')),
+						3000,
+					);
+				}),
+			]);
+		} finally {
+			clearTimeout(watchdog);
+			process.env = savedEnv;
+		}
+		assert.ok(rejected, 'nie antwortender PayPal-Fetch muss cancel() nach dem Zeitlimit ablehnen');
+		assert.ok(
+			Date.now() - start < 1000,
+			`Abbruch muss bei PAYPAL_TIMEOUT_MS=100 unter 1 s erfolgen, dauerte ${Date.now() - start} ms`,
+		);
+	});
+});
+
+describe('Regel „Guthaben deckt den ersten Zyklus“ an einer Stelle (#2556, Spec docs/spec/issue-2556.md)', () => {
+	const NOW = new Date('2026-11-15T00:00:00Z');
+
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		await closeDb();
+	});
+
+	const seed = async (creditCents: number) => {
+		const user = await User.create({
+			email: `u-2556-${Math.random()}@example.com`,
+			displayName: 'U',
+			passwordHash: 'x',
+			plan: 'pro',
+		});
+		return Subscription.create({
+			userId: user.id,
+			provider: 'paypal',
+			externalSubscriptionId: `I-2556-${Math.random()}`,
+			plan: 'pro',
+			period: 'monthly',
+			status: 'approval_pending',
+			// Pflichtspalte (allowNull: false, subscription.ts) — für den Regelvergleich ohne Bedeutung.
+			currentPeriodEnd: NOW,
+			creditCents,
+		});
+	};
+
+	it('AK2/TF2: coversFirstCycle — Guthaben = Preis → true, 1 ct darunter → false, Guthaben 0 → false', async () => {
+		const price = getPlansCatalog().prices.pro.monthly;
+		assert.equal(coversFirstCycle(await seed(price)), true, 'Grenzfall: exakt der Preis deckt den ersten Zyklus');
+		assert.equal(coversFirstCycle(await seed(price - 1)), false, '1 ct unter dem Preis deckt nicht');
+		assert.equal(coversFirstCycle(await seed(0)), false, 'ohne Guthaben deckt nichts');
+	});
+
+	it('AK1/TF1: ACTIVATED mit Guthaben exakt zum Preis aktiviert sofort — kein Warten auf den Zahlungseingang', async () => {
+		const subscription = await seed(getPlansCatalog().prices.pro.monthly);
+
+		await applyPaymentEvent(
+			subscription,
+			{ event_type: 'BILLING.SUBSCRIPTION.ACTIVATED', resource: { id: 'I-2556' } },
+			NOW,
+		);
+
+		await subscription.reload();
+		assert.equal(subscription.get('status'), 'active', 'Grenzfall Guthaben = Preis deckt: Aktivierung ohne Zahlung');
 	});
 });

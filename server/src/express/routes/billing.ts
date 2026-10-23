@@ -57,6 +57,13 @@ const receiveProviderEvent = (provider: BillingProvider) => async (req: Request,
 		return;
 	}
 
+	if (verification === 'unconfigured') {
+		// Fehlende Anbieter-Konfiguration (#2545): nichts wirksam werden lassen, nichts ablegen — aber
+		// mit 2xx quittieren, sonst stellt der Anbieter endlos erneut zu (nur 2xx beendet den Retry).
+		res.status(200).end();
+		return;
+	}
+
 	const event = provider.parseEvent(rawBody);
 	if (event === null) {
 		sendError(res, 400, 'Webhook-Ereignis ist kein gültiges JSON.');

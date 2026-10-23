@@ -1,6 +1,13 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
+import {
+	resetDb,
+	closeDb,
+	startTestServer,
+	type TestServer,
+	applyTestAuthEnv,
+	seedBillingAddress,
+} from '../test/helpers.js';
 import { Subscription, User } from '../models/index.js';
 import { deleteAccount } from '../logics/deleteAccount.js';
 import { syncUserPlan } from '../logics/billing/lifecycle.js';
@@ -60,6 +67,7 @@ describe('Abo mit Zahlungsrückstand ist offen (#2240)', () => {
 
 	const login = async (email: string) => {
 		const cookie = await server.login(email);
+		await seedBillingAddress(email);
 		const body = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
 			id: number;
 			playAccountId: string;

@@ -1,5 +1,5 @@
 import type { RequestHandler } from 'express';
-import { spracheAusHeader } from '../logics/careSuggestionData.js';
+import { spracheAusHeader, type CareSprache } from '../logics/careSuggestionData.js';
 import { pillarTextIn, SEED_PILLARS } from '../models/pillarData.js';
 import { PILLAR_DISTRIBUTION_RULE } from '../logics/pillarContributions.js';
 import type { FeatureId } from '../logics/plans.js';
@@ -136,6 +136,7 @@ const EXAKT: Record<string, string> = {
 	'Unbekannte Kalender-Art.': 'Unknown calendar type.',
 	'Unbekanntes Abo-Produkt.': 'Unknown subscription product.',
 	'Ungültige Zugangsdaten.': 'Invalid credentials.',
+	'Ungültige Anfrage.': 'Invalid request.',
 	'Ungültiger Anzeigename: erforderlich, 1 bis 60 Zeichen (Leerzeichen am Rand werden entfernt).':
 		'Invalid display name: required, 1 to 60 characters (leading and trailing spaces are removed).',
 	'Ungültiger CSRF-Token.': 'Invalid CSRF token.',
@@ -241,23 +242,24 @@ const SEED_KEYS = new Set(SEED_PILLARS.map((pillar) => pillar.key));
  * nur in Säulen-Objekten (Seed-`key` oder Eintrag eines Säulen-Behälters), damit gleichnamige
  * Kategorien oder Gruppen („Sinn“) unangetastet bleiben.
  */
-const bodyEn = (value: unknown, key?: string, inSaeulen = false): unknown => {
+const bodyEn = (value: unknown, key?: string, inSaeulen = false, saeulenSprache: CareSprache = 'en'): unknown => {
 	if (typeof value === 'string') {
 		if (key === 'message') return meldungEn(value);
-		if (key === 'saeuleName') return pillarTextIn('en', value);
+		if (key === 'saeuleName') return pillarTextIn(saeulenSprache, value);
 		return inSaeulen && key !== undefined && ['name', 'description', 'pillars'].includes(key)
-			? pillarTextIn('en', value)
+			? pillarTextIn(saeulenSprache, value)
 			: value;
 	}
-	if (Array.isArray(value)) return value.map((item) => bodyEn(item, key, SAEULEN_BEHAELTER.has(key ?? '')));
+	if (Array.isArray(value))
+		return value.map((item) => bodyEn(item, key, SAEULEN_BEHAELTER.has(key ?? ''), saeulenSprache));
 	if (value !== null && typeof value === 'object') {
 		// Model-Instanzen und Datumswerte so serialisieren, wie `res.json` es täte.
 		const toJson = (value as { toJSON?: () => unknown }).toJSON;
-		if (typeof toJson === 'function') return bodyEn(toJson.call(value), key, inSaeulen);
+		if (typeof toJson === 'function') return bodyEn(toJson.call(value), key, inSaeulen, saeulenSprache);
 		const seedKey = (value as { key?: unknown }).key;
 		const saeule =
 			inSaeulen || SAEULEN_BEHAELTER.has(key ?? '') || (typeof seedKey === 'string' && SEED_KEYS.has(seedKey));
-		return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, bodyEn(v, k, saeule)]));
+		return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, bodyEn(v, k, saeule, saeulenSprache)]));
 	}
 	return value;
 };
@@ -266,7 +268,17 @@ const bodyEn = (value: unknown, key?: string, inSaeulen = false): unknown => {
 export const translateMessages: RequestHandler = (req, res, next) => {
 	if (spracheAusHeader(req.get('accept-language')) === 'en') {
 		const json = res.json.bind(res);
-		res.json = (body?: unknown) => json(bodyEn(body));
+		// #2523: Säulennamen folgen der App-Sprache, wenn der Endpunkt sie per
+		// `res.locals.saeulenSprache` vorgibt — sonst wie bisher dem Header.
+		res.json = (body?: unknown) =>
+			json(
+				bodyEn(
+					body,
+					undefined,
+					false,
+					(res.locals as { saeulenSprache?: CareSprache } | undefined)?.saeulenSprache ?? 'en',
+				),
+			);
 	}
 	next();
 };

@@ -57,7 +57,7 @@ der **was** zu entscheiden ist, **worauf** es sich bezieht und **welche Optionen
 benennt. „Bitte prüfen" erfüllt das nicht.
 
 > **Nachtrag 2026-08-29:** Das Analyse-Modell ist inzwischen `opus` (Default von
-> `vars.CLAUDE_MODEL_TRIAGE`, [01-claude-triage.yml](../../.github/workflows/01-claude-triage.yml)
+> `vars.CLAUDE_MODEL_TRIAGE`, [01-triage.yml](../../.github/workflows/01-triage.yml)
 > und [ci-architecture.md](../ci-architecture.md)). `fable` bleibt allowlistet und manuell
 > setzbar. Die Kostenargumente dieses ADR tragen unabhängig vom konkreten Topmodell — sie
 > gelten für jede teure Elternsession, die günstige Folgeläufe orchestriert (ebenso die
@@ -66,8 +66,8 @@ benennt. „Bitte prüfen" erfüllt das nicht.
 ### 2. Die Klassifikation steuert das Modell — über ein Label, nicht über eine Variable
 
 Die Analyse stuft **je Subtask** ein und setzt genau ein Label `ai:model:haiku|sonnet|opus`. Die
-Folgephasen lesen es rein statisch aus (`resolve-model-label.sh`) und starten mit dem passenden
-`--model`. Kein LLM-Aufruf, kein Freitext-Parsing.
+Folgephasen lesen es rein statisch aus (`resolve-model-label.sh` — historisch, 2026-10-04 mit
+`ai:model:*` entfernt) und starten mit dem passenden `--model`. Kein LLM-Aufruf, kein Freitext-Parsing.
 
 Ist das Label **mehrdeutig**, bricht der Start ab und das Ticket wird mit `ai:needs-human` beim
 Menschen geparkt. Fehlt es ganz, entscheidet die **Herkunft** (fortgeschrieben mit
@@ -97,7 +97,7 @@ Ab der zweiten Review-Runde am selben PR wird eine Stufe hochgesetzt (`haiku` �
 `opus`).
 
 > **Nachtrag 2026-08-29:** Die Modell-Allowlist lautet inzwischen
-> `fable | opus | sonnet | haiku` ([resolve-model-label.sh](../../.github/scripts/resolve-model-label.sh),
+> `fable | opus | sonnet | haiku` (`resolve-model-label.sh` — historisch, 2026-10-04 entfernt,
 > [setup-claude](../../.github/actions/setup-claude/action.yml)); die Eskalationsketten enden
 > weiter bei der jeweils höchsten Stufe. Zudem gibt es inzwischen **zwei** Eskalationsachsen:
 > die hier beschriebene Review-Runden-Eskalation (nur Fallback-/Label-Pfad, s. Ergänzung
@@ -219,7 +219,8 @@ dem sie im Sinne des Ziels Token _sparen_ statt sie zu vervielfachen.
   überspringen, wenn sie nichts beitragen. Die Serialisierungs-Begründung von ADR 0002 (UX vor
   Spec, Race-Freiheit) bleibt unberührt.
 - **Testbarkeit trotz ADR 0001.** Die Entscheidungslogik liegt bewusst in Shell-Skripten unter
-  `.github/scripts/` (`resolve-model-label.sh`, `resolve-spec-skip.sh`) statt inline in den
+  `.github/scripts/` (`resolve-model-label.sh` — historisch, 2026-10-04 entfernt;
+  `resolve-spec-skip.sh`) statt inline in den
   Workflows. Skripte sind lokal ausführbar und mit `gh`-Stubs testbar — dieselbe Bauform wie
   `check-phase-label.sh`. Das umgeht ADR 0001 nicht, sondern nutzt seine Grenze: Getestet wird
   die Entscheidungslogik, nicht die YAML-Verdrahtung.

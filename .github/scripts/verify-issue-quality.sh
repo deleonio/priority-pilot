@@ -24,6 +24,8 @@
 #
 # Usage:
 #   bash verify-issue-quality.sh --repo <owner/repo> --issue <N>
+#   bash verify-issue-quality.sh --body-file <datei>   (Test-Seam: BODY aus Datei,
+#     gh-Label-/Titel-Abrufe entfallen — Titel gilt als leer, keine Pipeline-Signale)
 #
 # GitHub-Outputs:
 #   ok       – true|false (false = Ticket ungenuegend, nicht analysieren)
@@ -33,14 +35,18 @@ set -uo pipefail
 
 REPO=""
 ISSUE=""
+BODY_FILE=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --repo)  REPO="$2";  shift 2 ;;
     --issue) ISSUE="$2"; shift 2 ;;
+    --body-file) BODY_FILE="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
-[[ -n "$REPO" && -n "$ISSUE" ]] || { echo "verify-issue-quality: --repo und --issue sind Pflicht" >&2; exit 2; }
+if [ -z "$BODY_FILE" ]; then
+  [[ -n "$REPO" && -n "$ISSUE" ]] || { echo "verify-issue-quality: --repo und --issue sind Pflicht" >&2; exit 2; }
+fi
 
 emit() { # ok reason details
   echo "ok=$1"      >> "$GITHUB_OUTPUT"
@@ -58,11 +64,19 @@ fail() { # details-block
   exit 0
 }
 
-BODY="$(gh issue view "$ISSUE" --repo "$REPO" --json body --jq '.body // ""' 2>/dev/null)" || {
-  # Lesefehler: nicht blockieren (fail-safe richtung Pipeline)
-  emit true "Issue-Body nicht lesbar — Guete-Pruefung uebersprungen." ""
-  exit 0
-}
+if [ -n "$BODY_FILE" ]; then
+  BODY="$(cat "$BODY_FILE" 2>/dev/null)" || {
+    # Lesefehler: nicht blockieren (fail-safe richtung Pipeline)
+    emit true "Body-Datei nicht lesbar — Guete-Pruefung uebersprungen." ""
+    exit 0
+  }
+else
+  BODY="$(gh issue view "$ISSUE" --repo "$REPO" --json body --jq '.body // ""' 2>/dev/null)" || {
+    # Lesefehler: nicht blockieren (fail-safe richtung Pipeline)
+    emit true "Issue-Body nicht lesbar — Guete-Pruefung uebersprungen." ""
+    exit 0
+  }
+fi
 [ -n "$BODY" ] || fail "Das Ticket ist leer. Bitte mit dem **Ticket-Template** neu erfassen: Problem, Erwartung, Ort, Loesungskriterien."
 
 # Abschnitt zwischen zwei Markdown-H2/H3-Ueberschriften (oder bis Textende).
@@ -90,8 +104,11 @@ real_text_len() { printf '%s' "$1" | tr -s '[:space:]' ' ' | wc -c | tr -d ' '; 
 # gelaufene Analyse selbst gesichert.
 # ci:*-Issues (Prompt-Audit, UX-Team) sind maschinell erzeugte Helper-Reports, keine
 # Autoren-Tickets — der Template-Check ist auf sie nicht anwendbar.
-SIGNALS="$(gh issue view "$ISSUE" --repo "$REPO" --json labels \
-  --jq '[.labels[].name] | "\(any(. == "ai:analysed")) \(any(startswith("ci:")))"' 2>/dev/null)" || SIGNALS=""
+SIGNALS=""
+if [ -z "$BODY_FILE" ]; then
+  SIGNALS="$(gh issue view "$ISSUE" --repo "$REPO" --json labels \
+    --jq '[.labels[].name] | "\(any(. == "ai:analysed")) \(any(startswith("ci:")))"' 2>/dev/null)" || SIGNALS=""
+fi
 IN_PIPELINE="${SIGNALS%% *}"
 IN_CI="${SIGNALS##* }"
 
@@ -99,7 +116,10 @@ IN_CI="${SIGNALS##* }"
 # muessen — ihre Struktur sind die Sub-Issues. Erkenntnis aus #1789/#1999: Der Fehlalarm
 # parkte die Abschluss-Analyse ohne Grund. Signale: Titel-Praefix „Epic:" bzw. „[Px] Gruppe:"
 # oder der Body-Satz „Sammelticket ohne eigene Umsetzung".
-TITLE="$(gh issue view "$ISSUE" --repo "$REPO" --json title --jq '.title // ""' 2>/dev/null)" || TITLE=""
+TITLE=""
+if [ -z "$BODY_FILE" ]; then
+  TITLE="$(gh issue view "$ISSUE" --repo "$REPO" --json title --jq '.title // ""' 2>/dev/null)" || TITLE=""
+fi
 IS_CONTAINER=false
 if printf '%s' "$TITLE" | grep -qE '^(Epic:|\[P[0-9]\] Gruppe:)' || printf '%s' "$BODY" | grep -q 'Sammelticket ohne eigene Umsetzung'; then
   IS_CONTAINER=true

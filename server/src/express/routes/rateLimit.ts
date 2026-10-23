@@ -35,3 +35,15 @@ export const createCrudRateLimiter = (): RequestHandler =>
 		keyGenerator: (req) => `${ipKeyGenerator(req.ip as string)}:${getUserId(req) ?? ''}`,
 		skip: () => process.env.NODE_ENV !== 'production',
 	});
+
+/** Limiter für `POST /llm-providers/:id/test` (#2542): löst bezahlte Upstream-Aufrufe aus, daher 5 je Nutzer und Minute. */
+export const createProviderTestRateLimiter = (): RequestHandler =>
+	rateLimit({
+		windowMs: 60_000,
+		max: 5,
+		standardHeaders: true,
+		legacyHeaders: false,
+		message: THROTTLED_MESSAGE,
+		keyGenerator: (req) => `${ipKeyGenerator(req.ip as string)}:${getUserId(req) ?? ''}`,
+		skip: () => process.env.NODE_ENV !== 'production',
+	});

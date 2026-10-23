@@ -49,6 +49,8 @@ const openFormWithSuggestion = async (page: Page): Promise<void> => {
 	await page.getByRole('button', { name: 'Überspringen' }).click();
 	await waitForStableView(page);
 	await openAccordionSection(page, 'Optional');
+	// #2525 (Fixup): Säulen-Editor liegt im gefalteten Sekundär-Abschnitt.
+	await openAccordionSection(page, 'Termin & Ort');
 	await page.getByRole('textbox', { name: 'Titel' }).fill('KI-Vorschlag-Task');
 	await page.getByRole('button', { name: 'Säulen vorschlagen' }).click();
 	await expect(page.getByRole('heading', { name: 'KI-Vorschlag' })).toBeVisible();

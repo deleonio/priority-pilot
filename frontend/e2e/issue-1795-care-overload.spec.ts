@@ -4,7 +4,8 @@ import { waitForStableView, fullPillarContributions, registerOwnSession } from '
 /**
  * E2E-Spec für #1795 (docs/spec/issue-1795.md): Bei Überlast einer Säule zeigt der Fürsorge-Hinweis
  * einen Erholungsvorschlag statt „… kam diese Woche zu kurz". Echtes Backend; Überlast entsteht durch
- * eine einzige erledigte Aufgabe der Säule „Wirksamkeit" (100 % des Aufwands im jüngeren Fenster).
+ * drei erledigte Aufgaben der Säule „Wirksamkeit“ (80 % des Aufwands im jüngeren Fenster) — ab
+ * #2521 gilt die Mindestmenge von 3 Erledigungen, darunter käme der Ermutigungs-Satz statt Überlast.
  * ROT, bis Server `anlass` liefert und `CareHint` danach rahmt.
  */
 const erzeugeUeberlast = async (page: Page): Promise<void> => {
@@ -22,18 +23,21 @@ const erzeugeUeberlast = async (page: Page): Promise<void> => {
 	expect(wirksamkeitIndex, 'Säule „Wirksamkeit“ muss existieren, sonst entsteht keine Überlast').toBeGreaterThanOrEqual(
 		0,
 	);
-	const created = await page.request.post('/api/v1/tasks', {
-		// #2077: Vollverteilung mit Schwerpunkt Wirksamkeit (80 % > UEBERLAST_ANTEIL 0.5).
-		data: {
-			title: 'E2E #1795 Überlast',
-			estimatedEffort: 1,
-			pillars: fullPillarContributions(pillars, wirksamkeitIndex),
-		},
-	});
-	expect(created.ok(), `POST /tasks (Überlast-Aufgabe): ${await created.text()}`).toBe(true);
-	const { id } = (await created.json()) as { id: number };
-	const done = await page.request.patch(`/api/v1/tasks/${id}`, { data: { status: 'Done' } });
-	expect(done.ok(), 'PATCH /tasks/:id → Done').toBe(true);
+	// #2521: drei Erledigungen im jüngeren Fenster — unter der Mindestmenge käme der Ermutigungs-Satz.
+	for (let i = 0; i < 3; i++) {
+		const created = await page.request.post('/api/v1/tasks', {
+			// #2077: Vollverteilung mit Schwerpunkt Wirksamkeit (80 % > UEBERLAST_ANTEIL 0.5).
+			data: {
+				title: 'E2E #1795 Überlast',
+				estimatedEffort: 1,
+				pillars: fullPillarContributions(pillars, wirksamkeitIndex),
+			},
+		});
+		expect(created.ok(), `POST /tasks (Überlast-Aufgabe): ${await created.text()}`).toBe(true);
+		const { id } = (await created.json()) as { id: number };
+		const done = await page.request.patch(`/api/v1/tasks/${id}`, { data: { status: 'Done' } });
+		expect(done.ok(), 'PATCH /tasks/:id → Done').toBe(true);
+	}
 };
 
 const openDashboard = async (page: Page): Promise<void> => {

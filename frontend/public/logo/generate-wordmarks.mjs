@@ -9,6 +9,8 @@
  * - proofs/wordmark-light.png + -dark.png (Kontrast-Nachweis AK2 auf beiden surface-0)
  * - native/assets/splash(-dark).png: Quellen für @capacitor/assets (Rezept docs/native-apps.md)
  * - native/…/drawable(-night)-xxxhdpi/splash_branding.png: Schriftzug unter dem Icon (Android 12+)
+ * - src/assets/logo-with-name.horizontal.dark.svg: importierbare Fassung für die Monatskarte
+ *   (Vite-Dev erlaubt keine ?raw-Importe aus public/)
  *
  * Marke: icons/icon-512x512.png (bereits freigestellt). Rendern übernimmt Chromium (Playwright);
  * weicht dessen Version vom Cache ab: CHROMIUM_PATH=/pfad/zu/chrome setzen.

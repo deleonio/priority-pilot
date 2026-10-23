@@ -7,7 +7,15 @@ import { issueAppToken } from '../apiTokenAuth.js';
 import { isDbEmailAllowed, isEmailAllowed, isOpenSignup } from '../../logics/allowedEmails.js';
 import { spracheAusHeader, type CareSprache } from '../../logics/careSuggestionData.js';
 import { sendMailToUser, type MailSender } from '../../logics/mail.js';
-import { buildMagicLinkUrl, consumeLoginToken, createLoginToken, isMagicLinkEnabled } from '../../logics/magicLink.js';
+import { renderMailHtml } from '../../logics/mailTemplate.js';
+import {
+	buildMagicLinkUrl,
+	consumeLoginToken,
+	createLoginToken,
+	isCodeChallenge,
+	isMagicLinkEnabled,
+	matchesCodeChallenge,
+} from '../../logics/magicLink.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
 import { User } from '../../models/index.js';
 import type { components } from '../../api';
@@ -23,32 +31,29 @@ const NOT_CONFIGURED = 'Anmeldung per E-Mail-Link ist nicht konfiguriert (SMTP/P
 // sich zugelassene Adressen über die Antwort ausspähen.
 const ACCEPTED = 'Falls die Adresse zugelassen ist, ist ein Anmeldelink unterwegs.';
 
-const MAIL: Record<CareSprache, { subject: string; text: (link: string) => string }> = {
+const MAIL: Record<
+	CareSprache,
+	{ subject: string; anrede: string; hinweis: string; hinweise: string[]; button: string }
+> = {
 	de: {
 		subject: 'Dein Anmeldelink für Balamentum',
-		text: (link) =>
-			[
-				'Hallo,',
-				'',
-				'mit diesem Link meldest du dich bei Balamentum an:',
-				link,
-				'',
-				'Der Link ist 15 Minuten gültig und funktioniert genau einmal.',
-				'Falls du keinen Link angefordert hast, kannst du diese Mail ignorieren.',
-			].join('\n'),
+		anrede: 'Hallo,',
+		hinweis: 'mit diesem Link meldest du dich bei Balamentum an:',
+		hinweise: [
+			'Der Link ist 15 Minuten gültig und funktioniert genau einmal.',
+			'Falls du keinen Link angefordert hast, kannst du diese Mail ignorieren.',
+		],
+		button: 'Anmelden',
 	},
 	en: {
 		subject: 'Your sign-in link for Balamentum',
-		text: (link) =>
-			[
-				'Hello,',
-				'',
-				'use this link to sign in to Balamentum:',
-				link,
-				'',
-				'The link is valid for 15 minutes and works exactly once.',
-				'If you did not request a link, you can ignore this email.',
-			].join('\n'),
+		anrede: 'Hello,',
+		hinweis: 'use this link to sign in to Balamentum:',
+		hinweise: [
+			'The link is valid for 15 minutes and works exactly once.',
+			'If you did not request a link, you can ignore this email.',
+		],
+		button: 'Sign in',
 	},
 };
 
@@ -78,10 +83,18 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 			sendError(res, 503, NOT_CONFIGURED);
 			return;
 		}
-		const { email } = (req.body ?? {}) as Partial<MagicLinkRequestDto>;
+		const { email, codeChallenge } = (req.body ?? {}) as Partial<MagicLinkRequestDto>;
 		const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
 		if (!normalizedEmail.includes('@') || normalizedEmail.length > 254) {
 			sendError(res, 400, 'Bitte gib eine gültige E-Mail-Adresse an.');
+			return;
+		}
+		// App-Links nur mit PKCE-Challenge (#2563): Ein über das Custom Scheme abgefangener Token wäre
+		// sonst einlösbar. 400 statt stiller 202 — die Prüfung hängt nur an der Eingabe, nicht an der
+		// Allowlist, und verrät daher keine zugelassenen Adressen.
+		const clientChannel = req.get('X-Client-Channel');
+		if (clientChannel === 'play' && !isCodeChallenge(codeChallenge)) {
+			sendError(res, 400, 'Die App muss eine gültige codeChallenge mitschicken.');
 			return;
 		}
 
@@ -93,15 +106,29 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 			: (await isDbEmailAllowed(normalizedEmail)) || isEmailAllowed(normalizedEmail);
 
 		if (mayReceiveLink) {
-			const token = await createLoginToken(normalizedEmail);
+			const token = await createLoginToken(normalizedEmail, clientChannel === 'play' ? codeChallenge : null);
 			if (token) {
 				// Nicht abwarten: die Antwortzeit darf zugelassene Adressen nicht von nicht
 				// zugelassenen/gedrosselten unterscheidbar machen (Zeitkanal). `sendMailToUser`
 				// fängt Fehler bereits selbst ab.
-				const mail = MAIL[spracheAusHeader(req.get('accept-language'))];
+				const sprache = spracheAusHeader(req.get('accept-language'));
+				const mail = MAIL[sprache];
+				const link = buildMagicLinkUrl(token, clientChannel);
+				const mailHtml = renderMailHtml({
+					heading: mail.subject,
+					intro: `${mail.anrede} ${mail.hinweis}`,
+					button: { label: mail.button, url: link },
+					paragraphs: mail.hinweise,
+					lang: sprache,
+				});
 				void sendMailToUser(
 					{ email: normalizedEmail },
-					{ subject: mail.subject, text: mail.text(buildMagicLinkUrl(token)) },
+					{
+						subject: mail.subject,
+						text: [mail.anrede, '', mail.hinweis, link, '', ...mail.hinweise].join('\n'),
+						html: mailHtml.html,
+						attachments: mailHtml.attachments,
+					},
 					mailSender,
 				);
 			}
@@ -117,8 +144,13 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 			sendError(res, 503, NOT_CONFIGURED);
 			return;
 		}
-		const { token } = (req.body ?? {}) as Partial<MagicLinkVerifyRequestDto>;
-		const email = typeof token === 'string' && token !== '' ? await consumeLoginToken(token) : null;
+		const { token, codeVerifier } = (req.body ?? {}) as Partial<MagicLinkVerifyRequestDto>;
+		const isApp = req.get('X-Client-Channel') === 'play';
+		const consumed = typeof token === 'string' && token !== '' ? await consumeLoginToken(token) : null;
+		// PKCE (#2563): Ein gebundener Token gilt nur in der App mit passendem Verifier. Ein Fehlversuch
+		// verbraucht ihn trotzdem — ein abgefangener Token bekommt genau einen Versuch.
+		const bound = consumed?.codeChallenge;
+		const email = consumed && (!bound || (isApp && matchesCodeChallenge(bound, codeVerifier))) ? consumed.email : null;
 		// Allowlist erneut prüfen: Sie kann sich zwischen Anfordern und Einlösen geändert haben.
 		if (!email || (!(await isDbEmailAllowed(email)) && !isEmailAllowed(email))) {
 			sendError(res, 400, 'Der Anmeldelink ist abgelaufen oder wurde schon benutzt.');
@@ -127,7 +159,7 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 
 		// Ohne Profildaten: Name und Avatar eines Bestandsnutzers (z. B. aus Google) bleiben stehen.
 		const user = await upsertOAuthUser({ email });
-		if (req.get('X-Client-Channel') === 'play') {
+		if (isApp) {
 			res.json({ token: await issueAppToken(user.id) });
 			return;
 		}

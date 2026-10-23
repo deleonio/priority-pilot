@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { seedMindestErledigungen, waitForStableView } from './helpers';
 
 /**
  * E2E-Spec für #1977 (docs/spec/issue-1977.md): „Nicht jetzt" öffnet eine Inline-Grundauswahl
@@ -8,6 +8,7 @@ import { waitForStableView } from './helpers';
  * das E2E-Backend läuft im Pass-Through-Modus ohne Sitzung (CSRF-Token-Fetch im Weg).
  */
 const openDashboard = async (page: Page): Promise<void> => {
+	await seedMindestErledigungen(page); // Test-Pflege #2527: Ablehnen braucht bedienbare Vorschläge
 	await page.goto('/app/');
 	await waitForStableView(page);
 	await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();

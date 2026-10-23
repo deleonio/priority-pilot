@@ -253,6 +253,7 @@
 		"cancellation": "Disdici il contratto qui",
 		"mcpGuide": "Guida MCP",
 		"templates": "Modelli",
+		"accessibility": "Accessibilità",
 		"legalGermanOnly": "Testi legali in inglese a titolo informativo; fa fede la versione tedesca."
 	},
 	"imprint": {
@@ -286,5 +287,13 @@
 		"noAccessTitle": "Senza accesso all’app",
 		"noAccess": "Scrivici dall’indirizzo e-mail del tuo account. Eliminiamo l’account entro un mese e te lo confermiamo.",
 		"back": "Torna alla home"
+	},
+	"tracking": {
+		"title": "Misurazione delle visite",
+		"text": "Possiamo contare quali pagine vengono visitate? Senza cookie, sul nostro server e solo per migliorare Balamentum. Senza il tuo sì, la misurazione resta disattivata.",
+		"accept": "Consenti",
+		"decline": "Rifiuta",
+		"privacy": "Scopri di più",
+		"settings": "Misurazione delle visite"
 	}
 }

@@ -44,7 +44,7 @@ Rechnung aus (Google stellt den Beleg, ADR 0017).
 ## PDF-Inhalt (AK2)
 
 Zeilen enthalten: Rechnungsnummer, Rechnungsdatum, Betreiberangaben (Name, Anschriftszeilen,
-Kontakt-E-Mail), Empfänger (Anzeigename, E-Mail), Leistungszeitraum als ISO-Datum (`JJJJ-MM-TT`),
+Kontakt-E-Mail), Empfänger (Name der Rechnungsanschrift; E-Mail als Kundenkonto im Einleitungssatz), Leistungszeitraum als ISO-Datum (`JJJJ-MM-TT`),
 Betrag in Euro mit Komma (z. B. `7,99`), den `taxNote`-Text (§19-UStG-Hinweis); bei gesetztem
 `ustId` zusätzlich die USt-IdNr., sonst **keine** Zeile mit „USt-IdNr“.
 

@@ -253,6 +253,7 @@
 		"cancellation": "Contract hier opzeggen",
 		"mcpGuide": "MCP-handleiding",
 		"templates": "Sjablonen",
+		"accessibility": "Toegankelijkheid",
 		"legalGermanOnly": "Juridische teksten in het Engels ter informatie; de Duitse versie is bindend."
 	},
 	"imprint": {
@@ -286,5 +287,13 @@
 		"noAccessTitle": "Zonder toegang tot de app",
 		"noAccess": "Schrijf ons vanaf het e-mailadres van je account. We verwijderen het account binnen een maand en bevestigen dat aan je.",
 		"back": "Terug naar de startpagina"
+	},
+	"tracking": {
+		"title": "Bereikmeting",
+		"text": "Mogen we tellen welke pagina’s worden bezocht? Zonder cookies, op onze eigen server en alleen om Balamentum te verbeteren. Zonder jouw ja blijft de meting uit.",
+		"accept": "Toestaan",
+		"decline": "Weigeren",
+		"privacy": "Meer informatie",
+		"settings": "Bereikmeting"
 	}
 }

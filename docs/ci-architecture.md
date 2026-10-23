@@ -96,6 +96,32 @@ Eingehängt zentral im
 dem Agenten-Aufruf — laufzeitunabhängig, weil der Tarif am Provider hängt, nicht an der CLI.
 Kill-Switch und Fail-closed-Verhalten: siehe [`tailscale-exit-node.md`](tailscale-exit-node.md).
 
+## Runner je Dispatch wählen (`runner`-Input)
+
+Alle manuell startbaren Workflows (`workflow_dispatch`) haben einen freien String-Input
+`runner` — so lässt sich je Einzellauf der Runner wählen, ohne die Repo-Variable
+`vars.PHASE_RUNNER` umstellen zu müssen. Precedence je Job:
+
+```yaml
+runs-on: ${{ inputs.runner || vars.PHASE_RUNNER || 'ubuntu-latest' }}
+```
+
+- **leer (Vorgabe):** bestehende Kette `vars.PHASE_RUNNER || ubuntu-latest` — Verhalten unverändert.
+- **Runner-Label:** der Wert geht direkt an `runs-on`. `self-hosted` nimmt irgendeinen
+  Self-Hosted-Runner, ein konkretes Label (z. B. `pi5`) gezielt diesen Runner (Heimnetz,
+  deutsche IP — überspringt den Tailscale-Exit-Node, s. o.), `ubuntu-latest` erzwingt
+  GitHub-gehostet (Escape-Hatch, wenn `vars.PHASE_RUNNER=pi5` steht). So können beliebig
+  viele Self-Hosted-Runner (pi5, pi6, …) parallel existieren und je Lauf adressiert werden.
+- **Achtung Tippfehler:** ein Label ohne passenden Runner lässt den Lauf endlos in der
+  Queue stehen (sichtbar, aber ohne Fehlermeldung).
+
+Bei Label-, Push-, PR- und schedule-Läufen ist der `inputs`-Kontext leer — der Ausdruck fällt
+auf die Kette zurück, Cron- und Pipeline-Läufe verhalten sich unverändert. Workflows ohne
+Dispatch-Trigger (die Label-Phasen, `cron.security-scan`) und die hart verdrahteten
+`cron.pi-package-cache`/`cron.model-smoke` nehmen an der Auswahl nicht teil — ebenso `deploy`,
+dessen Job auf `ubuntu-latest` gepinnt ist (Gradle/Android-Builds zu schwer für pi5). Auf dem
+Einzel-Runner pi5 queuen Jobs aller Gruppen serial (s. Concurrency-Kopplung unten).
+
 ## Laufzeit umschalten: Claude Code oder pi
 
 Seit #1184 ist die **Laufzeit** genauso eine Variable wie der Provider. Beide Achsen sind
@@ -546,7 +572,8 @@ Kein `--model`: das Modell wird über `"model": "opus"` in der `settings.json` g
 `ANTHROPIC_DEFAULT_OPUS_MODEL` auf `glm-5.3[1m]` ab.
 
 **Prompt:** Kanonisch in `.github/prompts/` (triage, ux, spec, implement, fixup, review,
-documenter, dazu die Nightly-Helfer spec-sync/guide-sync/prompt-audit/code-review-team;
+documenter, dazu die Helper-Crons spec-sync/guide-sync/prompt-audit/code-review-team/hacker-team
+(Prompt-Audit in der Nacht auf Freitag, Hacker-Team monatlich am 1.);
 Memory-Snippets memory-read.md/memory-write.md am selben Ort);
 per `sed`/`cat` nach `/tmp/claude-prompt.txt` assembliert und via `-p "$(cat /tmp/claude-prompt.txt)"`
 übergeben — vermeidet Shell-Quoting-Probleme. Die Methode je Phase lebt in der `SKILL.md` des
@@ -1022,10 +1049,10 @@ für dieses Ticket die Phasen 2–4; keine Phase setzt das Label je selbst.
 - **Pädagoge:** Der Bericht (Soll/Ist-Kosten, Rollen-Feedback, Gate-Abweichungen) geht in die
   Job-Summary; dauerhafte Lehren nach `.ai-memory/MEMORY.md`.
 
-## Tägliches Code-Review-Team (`cron.code-review-team.yml`)
+## Wöchentliches Code-Review-Team (`cron.code-review-team.yml`)
 
-Keine Pipeline-Phase, sondern ein Helper-Workflow (täglich 04:27 UTC im LLM-Nachtblock, plus
-`workflow_dispatch`): Ein Team aus vier Perspektiven — Architekt, Clean-Code-Reviewer,
+Keine Pipeline-Phase, sondern ein Helper-Workflow (freitags 03:27 UTC (05:27/04:27 Berlin) als Abschluss des
+Team-Blocks in der Nacht auf Freitag, plus `workflow_dispatch`): Ein Team aus vier Perspektiven — Architekt, Clean-Code-Reviewer,
 Test-Ingenieur, Betriebs- und Sicherheits-Wächter (Methode:
 [`code-review-team`](../.claude/skills/code-review-team/SKILL.md)) — begeht `server/src/`,
 `frontend/src/` und `.github/scripts/` gegen die Vorgaben des Repos (`AGENTS.md`,
@@ -1036,13 +1063,13 @@ Vorgaben selbst: Widersprüche zwischen Quellen, Dopplungen mit Drift, unkonkret
 Regeln — jede Beobachtung mit beiden Fundstellen und einem Konsolidierungsvorschlag. Aus allen Findings setzt der Lauf genau **einen** unkritischen,
 wertvollen Fix um: ein Code-Fix oder eine Konsolidierung der Vorgaben (ADRs bleiben tabu, ein
 ADR-Konflikt wird nur gemeldet). Bei Gleichstand gewinnt die Konsolidierung, weil eine vage Regel
-an jedem Folgetag falsche Code-Findings erzeugt.
+bei jedem Folge-Lauf falsche Code-Findings erzeugt.
 
 **Mechanik:**
 
 - **Skip-Guard:** Hat `main` denselben SHA wie der letzte erfolgreiche Lauf, wird der Lauf
   übersprungen (Budget-Heuristik; ein im Vorlauf ausgesetzter Fix, dessen PR ohne Merge geschlossen
-  wurde, verzögert sich dadurch um einen Tag); `workflow_dispatch` mit `force: true` umgeht ihn.
+  wurde, verzögert sich dadurch um eine Woche); `workflow_dispatch` mit `force: true` umgeht ihn.
 - **In-Flight-Guard = Fix-Pause, nicht Lauf-Skip:** Trägt der offene Fix-PR gerade
   `ai:needs-review`, `ai:needs-fixup`, `ai:reviewed` oder `ai:needs-human`, läuft das Review
   trotzdem und das Protokoll wird aktualisiert — nur der Fix pausiert (`FIX_ALLOWED=false` im
@@ -1068,10 +1095,56 @@ an jedem Folgetag falsche Code-Findings erzeugt.
   (erst entfernen, dann setzen — Re-Arm-Muster #536) → Review → Gate → Auto-Merge.
 - **Bewusst stateless:** Kein pro-Issue-Memory — Protokoll-Issue und offener Fix-PR sind der
   einzige Zustand.
-- **Modell:** `vars.CLAUDE_MODEL_CODE_REVIEW_TEAM` (Default `sonnet`), Fan-out-Recherche auf
+- **Modell:** `vars.CLAUDE_MODEL_CODE_REVIEW_TEAM` (Default `opus`, Effort `high`), Fan-out-Recherche auf
   `vars.CLAUDE_MODEL_CODE_REVIEW_TEAM_SUBAGENT` (Default `haiku`), Provider wie alle LLM-Phasen
   via `vars.LLM_PROVIDER` (setup-agent, `tools-tier: full`, inkl. Tailscale-Egress und
   Fair-Usage-Check).
 - **Herkunft:** Ersetzt `cron.optimize-architecture.yml` (`nightly-arch-opt`), das denselben
   Suchraum wöchentlich nur bis zum Ticket brachte. Label `nightly-arch-opt` und offene
   `[arch-opt]`-Issues bleiben bestehen und dienen dem Agenten als Dedup-Inventar.
+
+## Monatliches Hacker-Team (`cron.hacker-team.yml`)
+
+Keine Pipeline-Phase, sondern ein Helper-Workflow (jeden 1. des Monats 04:17 UTC
+(06:17/05:17 Berlin), plus `workflow_dispatch`): Ein Rot-Team aus sechs Angreifer-Perspektiven —
+Datendieb (Vertraulichkeit), Manipulator (Integrität), Berechtigungs-Knacker (Zugriffskontrolle),
+Saboteur (Verfügbarkeit), Schnittstellen-/Protokoll-Spezialist (MCP + Token) und Client-/Session-Spezialist
+(CSRF/Session), die bestätigten Primitive am Ende zu einer Kette komponiert — Methode:
+[`hacker-team`](../.claude/skills/hacker-team/SKILL.md) — fährt über
+[`hacker-instance.sh`](../hacker-instance.sh) eine **lokale Wegwerf-Instanz** hoch und greift sie
+**real an**: Fremddaten lesen, ändern, löschen; Rolle/Plan/Rechte eskalieren; den Dienst crashen.
+Nur **reproduzierte** Brüche werden Findings (Repro = konkrete Requests + beobachtete Responses
+plus `Datei:Zeile` der fehlenden Prüfung); gescheiterte Angriffe heißen `gehärtet` und zählen als
+Bestanden-Nachweis im Angriffsziele-Check.
+
+**Mechanik:**
+
+- **Eigene Angriffsinstanz statt Workbench-Inspect:** `hacker-instance.sh` (Muster
+  `ui-inspect.sh`) startet Backend+Frontend auf den Inspect-Ports (3001/4174 — der Browser-MCP erlaubt genau diese Origins) mit In-Memory-DB und
+  Demo-Seed, aber — anders als die Inspect-Instanz — mit **scharfer Auth**: Dummy-Google-Credentials
+  - `SESSION_SECRET` schalten `isAuthActive()` ein, `NODE_ENV=test` registriert
+    `POST /auth/test-login`, mit dem das Team sich echte Sessions für beliebige E-Mails münzt
+    (Angreifer- wie Opfer-Konten; Allowlist bewusst leer). Ohne echte Secrets sind externe Provider
+    (Google, PayPal, Play, LLM) nicht erreichbar — deren Flächen werden nur quelltextlich beurteilt.
+    Readiness-Beweis: `/tasks` ohne Session → 401.
+- **Crash = Fund, dann Restart:** Der Saboteur darf die Instanz zerstören; der Agent sichert
+  zuerst den Beweis (Log-Auszug + letzte Anfrage) und startet dann mit demselben Skript neu.
+- **Skip-Guard:** Hat `main` denselben SHA wie der letzte erfolgreiche Lauf, wird der Lauf
+  übersprungen; `workflow_dispatch` mit `force: true` umgeht ihn (Fail-open bei API-Fehlern).
+- **Bericht-Issue:** Genau ein offenes Issue mit Label `ci:hacker-team` (kein `ai:*`-Label, sonst
+  startet die Ticket-Pipeline). Der Agent liest den Vormonats-Bericht per `gh` zurück (stabiles
+  Carry-over). **Auch bei `VERDICT: clean` wird das Issue aktualisiert** — das monatliche „alles
+  verteidigt" ist eine Aufzeichnung wert (Abweichung vom Rechts-Team, das bei clean das Issue
+  unangetastet lässt); der Ziel-Check im Bericht ist der Beweis, dass angegriffen wurde.
+- **Post-Assertion (VERDICT-Muster):** `report` (mindestens ein reproduzierter Bruch) oder `clean`
+  (alle Angriffe abgewehrt) — beide verlangen den Bericht unter `/tmp/hacker-team-report.md` mit
+  den Pflicht-Abschnitten „Angriffsziele-Check" (vier Zeilen: Vertraulichkeit, Integrität,
+  Zugriffskontrolle, Verfügbarkeit) und „Schwachstellen". Artefakt sichert Bericht, Agent-Log und
+  Instanz-Log.
+- **Bewusst stateless:** Kein pro-Issue-Memory — das Bericht-Issue ist der einzige Zustand.
+- **Modell:** `vars.CLAUDE_MODEL_HACKER_TEAM` (Default `opus`, Effort `high`),
+  `tools-tier: review` (volles Lesen + Bash für curl/Session-Münzen/Restart, Code
+  schreibgeschützt — der Agent greift an, er fixt nicht), Playwright-MCP als Browser-Werkzeug
+  (`browser-mcp: true`, `needs-mcp: false` — KoliBri ist für Angriffe nutzlos), inkl. Tailscale-
+  Egress und Fair-Usage-Check. Findings fließen über den Findings-Tree-Skill
+  ([`.claude/skills/findings-tree/SKILL.md`](../.claude/skills/findings-tree/SKILL.md)) in Tickets.

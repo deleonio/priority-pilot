@@ -462,3 +462,120 @@ describe('ApiTokensSection — #1646: Fehler und Leer-Zustand nie gleichzeitig',
 		expect(container.textContent).not.toContain('Die Token-Liste konnte nicht geladen werden.');
 	});
 });
+
+/**
+ * Rote Spec-Tests für #2499 AK1–AK3 (Spec docs/spec/issue-2499.md) — Abschnitt „Angemeldete
+ * Geräte" (kind: 'app') mit zweistufigem Widerruf. gleiche Klick-Mechanik wie oben: der Klick
+ * wird am `ButtonAction`-Span abgefangen (ApiTokensSection.tsx), in jsdom per dispatchEvent.
+ *
+ * Rot, bis die Komponente den Geräte-Abschnitt rendert (Selektoren finden nichts) —
+ * `deleteApiToken` und `ApiToken.kind` existieren bereits (#2494).
+ */
+
+const appToken = {
+	id: 9,
+	name: 'Pixel 8',
+	kind: 'app',
+	scope: 'read',
+	createdAt: new Date('2026-01-05T10:00:00Z').toISOString(),
+	lastUsedAt: new Date('2026-02-10T09:30:00Z').toISOString(),
+	expiresAt: null,
+};
+
+/** Klick auf den `ButtonAction`-Span um einen (ggf. per testid gefundenen) KolButton. */
+const clickActionAround = (container: HTMLElement, selector: string): void => {
+	const button = container.querySelector(selector);
+	expect(button, `Element ${selector} fehlt`).not.toBeNull();
+	const wrapper = (button as Element).closest('.api-tokens__action');
+	expect(wrapper, 'ButtonAction-Span um den Button fehlt').not.toBeNull();
+	wrapper!.dispatchEvent(new Event('click', { bubbles: true }));
+};
+
+describe('ApiTokensSection – #2499: Angemeldete Geräte', () => {
+	it('TF1/AK1: zeigt Geräte-Zeile mit Name und Daten, API-Liste bleibt frei von App-Zeilen', async () => {
+		apiMocks.listApiTokens = vi.fn().mockResolvedValue([{ ...readToken, kind: 'api' }, appToken]);
+		const { container } = render(<ApiTokensSection />);
+
+		await act(async () => {
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		const section = container.querySelector('[data-testid="api-devices-section"]');
+		expect(section, 'Abschnitt "Angemeldete Geräte" fehlt').not.toBeNull();
+		expect(section?.textContent).toContain('Pixel 8');
+		// Gleiche Meta-Formatierung wie die API-Zeilen (reuse apiTokens.created/lastUsed).
+		expect(section?.textContent).toContain('erstellt');
+		expect(section?.textContent).toContain('zuletzt genutzt');
+		// App-Zeilen haben keinen Scope-Schalter und keinen PATCH.
+		expect(section?.querySelector('[data-testid="api-token-scope-toggle"]')).toBeNull();
+
+		const apiRows = container.querySelectorAll('[data-testid="api-token-row"]');
+		expect(apiRows, 'API-Liste zeigt genau den API-Token').toHaveLength(1);
+		expect(apiRows[0].textContent).toContain('CLI');
+		expect(apiRows[0].textContent).not.toContain('Pixel 8');
+	});
+
+	it('TF2/AK2: Widerrufen fragt nach dem Gerät; Abbrechen ruft nichts auf, Bestätigen löscht die Zeile', async () => {
+		apiMocks.listApiTokens = vi.fn().mockResolvedValue([appToken]);
+		apiMocks.deleteApiToken = vi.fn().mockResolvedValue(undefined);
+		const { container } = render(<ApiTokensSection />);
+
+		await act(async () => {
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		// Erste Stufe: Frage in der Zeile, nennt das Gerät — noch kein API-Aufruf.
+		// Klick im act-Wrap (Muster AK6): der reine setState flushed in jsdom erst im Microtask.
+		await act(async () => {
+			clickActionAround(container, '[data-testid="api-devices-section"] .api-tokens__action');
+			await Promise.resolve();
+		});
+		const section = () => container.querySelector('[data-testid="api-devices-section"]');
+		expect(section()?.textContent).toContain('Gerät „Pixel 8“ wirklich abmelden?');
+		expect(apiMocks.deleteApiToken).not.toHaveBeenCalled();
+
+		// Abbrechen: kein DELETE, zurück zum Widerrufen-Zustand.
+		const confirmBlock = section()?.querySelector('.api-tokens__confirm');
+		expect(confirmBlock, 'Bestätigungsblock fehlt').not.toBeNull();
+		const cancelWrapper = confirmBlock!.querySelector('.api-tokens__action');
+		expect(cancelWrapper, 'Abbrechen-Aktion fehlt').not.toBeNull();
+		await act(async () => {
+			cancelWrapper!.dispatchEvent(new Event('click', { bubbles: true }));
+			await Promise.resolve();
+		});
+		expect(apiMocks.deleteApiToken).not.toHaveBeenCalled();
+		expect(section()?.querySelector('.api-tokens__confirm')).toBeNull();
+
+		// Zweite Stufe: Bestätigen ruft DELETE auf und entfernt die Zeile (Letztes Gerät → Leerzustand).
+		await act(async () => {
+			clickActionAround(container, '[data-testid="api-devices-section"] .api-tokens__action');
+			await Promise.resolve();
+		});
+		await act(async () => {
+			clickActionAround(container, '[data-testid="api-device-revoke-confirm"]');
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		expect(apiMocks.deleteApiToken).toHaveBeenCalledWith({ id: appToken.id });
+		expect(container.querySelector('[data-testid="api-device-row"]')).toBeNull();
+		expect(section()?.textContent).toContain('Keine angemeldeten Geräte.');
+	});
+
+	it('TF3/AK3: ohne App-Anmeldungen zeigt der Abschnitt den Leerzustand statt einer leeren Liste', async () => {
+		apiMocks.listApiTokens = vi.fn().mockResolvedValue([{ ...readToken, kind: 'api' }]);
+		const { container } = render(<ApiTokensSection />);
+
+		await act(async () => {
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		const section = container.querySelector('[data-testid="api-devices-section"]');
+		expect(section, 'Abschnitt "Angemeldete Geräte" fehlt').not.toBeNull();
+		expect(section?.textContent).toContain('Keine angemeldeten Geräte.');
+		expect(container.querySelector('[data-testid="api-devices-list"]')).toBeNull();
+	});
+});

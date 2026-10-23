@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import sequelize from '../../database.js';
-import { sendError, sendPlanError, type ErrorDto } from '../http-error.js';
+import { parseId, sendError, sendPlanError, type ErrorDto } from '../http-error.js';
 import { CalendarEvent, CalendarSource, User } from '../../models/index.js';
 import { getUserId } from '../requireAuth.js';
 import { CALENDAR_SOURCE_LIMIT, PLAN_VALUES, effectivePlan } from '../../logics/plans.js';
@@ -148,9 +148,13 @@ calendarRouter.delete('/calendar-sources/:id', async (req: Request, res: Respons
 		sendError(res, 401, 'Anmeldung erforderlich.');
 		return;
 	}
-	const id = Number(req.params.id);
+	const id = parseId(req.params.id);
+	if (id === null) {
+		sendError(res, 400, 'Ungültige Kalender-Id.');
+		return;
+	}
 	try {
-		const source = Number.isInteger(id) ? await CalendarSource.findOne({ where: { id, userId } }) : null;
+		const source = await CalendarSource.findOne({ where: { id, userId } });
 		if (!source) {
 			sendError(res, 404, 'Kalender nicht gefunden.');
 			return;

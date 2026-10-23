@@ -61,7 +61,7 @@ Die verbindlichen Kernregeln (Minimalprinzip, KoliBri-First, Commit-/PR-Pflichte
   nach `i18n.language`). Server-Meldungen bleiben deutsch in den Routen; ihre englische Fassung steht
   in `server/src/express/messagesEn.ts` (greift bei `Accept-Language: en`), Push und Mail folgen
   `users.sprache`. Website-Unterseiten gibt es auf Deutsch und unter `/en/…` auf Englisch.
-- **Runtime:** pnpm `11` (Node-Version steht in `.nvmrc`).
+- **Runtime:** pnpm `12` (Pin: `packageManager` in der Root-`package.json`; Node-Version steht in `.nvmrc`).
 - **Coverage-Gate:** Die Logik-Schicht ist gezielt abgedeckt-gegated — `pnpm --filter server test:coverage`
   (node:test, `server/src/logics`, Schwellen 90/85/85) läuft in der CI. `frontend/src/lib` ist ebenfalls
   gegated: `pnpm --filter frontend test:coverage` (Vitest, `vitest.config.ts`, Schwellen 80/80/70/80;
@@ -140,4 +140,6 @@ Schritt still übersprungen.
 ## Datenbank
 
 - SQLite (`server/database.sqlite`). Im Normalbetrieb **kein** Reset.
+- Produktiv-Datenbank wird MariaDB ([ADR 0026](../docs/adr/0026-mariadb-als-produktiv-datenbank.md), Epic #2822): Neue
+  Schema-Änderungen dual-dialect-fähig halten; SQLite bleibt Rückfallpfad und Test-Medium (In-Memory-SQLite).
 - `DB_RESET=true` setzt die DB beim Start zurück; sonst bleiben Daten erhalten, Demo-Daten werden nur in eine leere DB gesät.

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { MOBILE, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-Tests für #1964 „Verpasst-Bereich“ (Spec docs/spec/issue-1964.md).
@@ -58,6 +58,13 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		await expect(item).toContainText('Verpasster Zahnarzt');
 		await expect(item).toContainText(/1× verschoben/);
 		await expect(item.getByRole('button', { name: /^erledigt$/i })).toBeVisible();
+		// Test-Pflege #2524: „Neu planen"/„Archivieren"/„Löschen" liegen hinter dem „…"-Popover
+		// („Weitere Aktionen") — erst öffnen, dann die Einträge prüfen (vormals direkt sichtbar).
+		await item.getByRole('button', { name: /weitere aktionen/i }).click();
+		const popover = item.locator('kol-popover-button').locator('.kol-popover-button__popover');
+		await expect(popover).toBeVisible();
+		// Test-Pflege #2524: die Toolbar-Buttons liegen NICHT im Panel-Subtree (Light-DOM-Slot,
+		// Muster issue-2361) — über das Item selbst finden.
 		await expect(item.getByRole('button', { name: /neu planen/i })).toBeVisible();
 		await expect(item.getByRole('button', { name: /archivieren/i })).toBeVisible();
 		await expect(item.getByRole('button', { name: /löschen/i })).toBeVisible();
@@ -89,9 +96,21 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		await expect(page.getByTestId('missed-section')).toHaveCount(1);
 		await expect(page.getByTestId('missed-section')).toBeVisible();
 		await expect(page.locator('.dashboard-deadlines')).toBeVisible();
-		const missed = await page.getByTestId('missed-section').boundingBox();
-		const deadlines = await page.locator('.dashboard-deadlines').boundingBox();
-		expect(Math.abs(missed!.y - deadlines!.y)).toBeLessThan(2);
+		// Test-Pflege #2578: beide Oberkanten in EINEM page.evaluate-Snapshot messen (atomarer
+		// Layout-Stand). Zwei sequenzielle boundingBox()-Aufrufe lassen zwischen den Messungen ein
+		// Messfenster, in dem eine async nachladende Karte (z. B. CareHint ueber der letzten Reihe)
+		// die Reihe verschieben kann — der gemessene Versatz war dann deren Hoehe.
+		const tops = await page.evaluate(() => {
+			const missed = document.querySelector('[data-testid="missed-section"]');
+			const deadlines = document.querySelector('.dashboard-deadlines');
+			return {
+				missed: missed ? missed.getBoundingClientRect().top : null,
+				deadlines: deadlines ? deadlines.getBoundingClientRect().top : null,
+			};
+		});
+		expect(tops.missed, 'Verpasst-Block muss messbar sein').not.toBeNull();
+		expect(tops.deadlines, 'Deadlines-Block muss messbar sein').not.toBeNull();
+		expect(Math.abs(tops.missed! - tops.deadlines!)).toBeLessThan(2);
 
 		await page.goto('/app/aufgaben');
 		await waitForStableView(page);
@@ -114,7 +133,9 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		expect(itemBox!.x).toBeGreaterThanOrEqual(0);
 		expect(itemBox!.x + itemBox!.width).toBeLessThanOrEqual(375);
 
-		for (const name of [/^erledigt$/i, /neu planen/i, /archivieren/i, /löschen/i]) {
+		// Test-Pflege #2524: „Erledigt" + „…"-Auslöser stehen inline, die drei übrigen Aktionen
+		// liegen im „…"-Popover („Weitere Aktionen") und werden nach dem Öffnen gemessen.
+		for (const name of [/^erledigt$/i, /weitere aktionen/i]) {
 			const button = item.getByRole('button', { name });
 			await expect(button).toBeVisible();
 			// boundingBox() misst einmalig und wartet nicht nach (Memory 2026-09-14): kurze Schleife
@@ -128,9 +149,27 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 			expect(box!.x + box!.width).toBeLessThanOrEqual(375);
 			expect(box!.height).toBeGreaterThanOrEqual(44);
 		}
+
+		await item.getByRole('button', { name: /weitere aktionen/i }).click();
+		const popover = item.locator('kol-popover-button').locator('.kol-popover-button__popover');
+		await expect(popover).toBeVisible();
+		for (const name of [/neu planen/i, /archivieren/i, /löschen/i]) {
+			// Test-Pflege #2524: Buttons nicht im Panel-Subtree (Light-DOM-Slot, Muster issue-2361).
+			const entry = item.getByRole('button', { name });
+			await expect(entry).toBeVisible();
+			let entryBox = await entry.boundingBox();
+			for (let i = 0; i < 30 && !entryBox; i += 1) {
+				await page.waitForTimeout(100);
+				entryBox = await entry.boundingBox();
+			}
+			expect(entryBox, `Popover-Aktion ${String(name)} muss messbar sein`).not.toBeNull();
+			expect(entryBox!.height).toBeGreaterThanOrEqual(44);
+		}
 	});
 
-	test('Erledigt — „Ja, jetzt": die Aufgabe verlässt den Verpasst-Bereich und gilt als verspätet', async ({ page }) => {
+	test('Erledigt — „Erst jetzt erledigt": die Aufgabe verlässt den Verpasst-Bereich und gilt als verspätet', async ({
+		page,
+	}) => {
 		const past = new Date(Date.now() - DAY).toISOString();
 		const id = await createTaskViaApi(page, { title: 'Verpasst und doch erledigt', deadline: past });
 
@@ -138,8 +177,13 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		await waitForStableView(page);
 		const item = page.getByTestId('missed-item').filter({ hasText: 'Verpasst und doch erledigt' });
 		await item.getByRole('button', { name: /^erledigt$/i }).click();
-		await expect(page.getByText(/erst jetzt erledigt\?/i)).toBeVisible();
-		await page.getByRole('button', { name: /^ja, jetzt$/i }).click();
+		await expect(page.getByText(/wann wurde die aufgabe/i)).toBeVisible();
+		// #2635 AK2: der Folge-Halbsatz (Punkte/Streak) ist im Dialog sichtbar
+		// (auf kol-dialog gescoped — der Onboarding-Dialog bleibt gemountet, #2070).
+		const dialog = page.locator('kol-dialog:not([_label="Willkommen bei Balamentum"])');
+		await expect(dialog.getByText(/punkt/i)).toBeVisible();
+		await expect(dialog.getByText(/streak/i)).toBeVisible();
+		await page.getByRole('button', { name: /^erst jetzt erledigt$/i }).click();
 
 		await expect(page.getByTestId('missed-section')).toHaveCount(0);
 		const scores = (await (await page.request.get('/api/v1/scores')).json()) as {
@@ -152,7 +196,7 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		await expect(page.getByText('Verpasst und doch erledigt')).toBeVisible();
 	});
 
-	test('Erledigt — „Nein, pünktlich": Erledigung wird zur Deadline gebucht', async ({ page }) => {
+	test('Erledigt — „Pünktlich erledigt": Erledigung wird zur Deadline gebucht', async ({ page }) => {
 		const past = new Date(Date.now() - DAY).toISOString();
 		const id = await createTaskViaApi(page, { title: 'Pünktlich und nur nicht abgehakt', deadline: past });
 
@@ -163,7 +207,80 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 			.filter({ hasText: 'Pünktlich und nur nicht abgehakt' })
 			.getByRole('button', { name: /^erledigt$/i })
 			.click();
-		await page.getByRole('button', { name: /^nein, pünktlich$/i }).click();
+		await page.getByRole('button', { name: /^pünktlich erledigt$/i }).click();
+
+		await expect(page.getByTestId('missed-section')).toHaveCount(0);
+		const scores = (await (await page.request.get('/api/v1/scores')).json()) as {
+			taskId: number;
+			pünktlich: boolean;
+			zeitpunkt: string;
+		}[];
+		const entry = scores.find((candidate) => candidate.taskId === id);
+		expect(entry?.pünktlich).toBe(true);
+		expect(new Date(entry!.zeitpunkt).toISOString()).toBe(past);
+	});
+
+	// Verpasste Aufgabe MIT offener Checkliste: die Nachfrage muss in den Erledigen-Dialog übergehen
+	// (Checkliste abhaken, #1583), nicht stumm abbrechen und nicht blind auf Done patchen.
+	test('Erledigt mit offener Checkliste — „Erst jetzt erledigt“ öffnet den Erledigen-Dialog, Done erst nach „Alle abhaken“', async ({
+		page,
+	}) => {
+		const past = new Date(Date.now() - DAY).toISOString();
+		const id = await createTaskViaApi(page, {
+			title: 'Verpasst mit offener Checkliste',
+			deadline: past,
+			checklist: [
+				{ id: '11111111-1111-4111-8111-111111111111', title: 'Schritt eins', completed: false },
+				{ id: '22222222-2222-4222-8222-222222222222', title: 'Schritt zwei', completed: false },
+			],
+		});
+
+		await page.goto('/app/');
+		await waitForStableView(page);
+		const item = page.getByTestId('missed-item').filter({ hasText: 'Verpasst mit offener Checkliste' });
+		await item.getByRole('button', { name: /^erledigt$/i }).click();
+		await page.getByRole('button', { name: /^erst jetzt erledigt$/i }).click();
+
+		// Erledigen-Dialog mit Checklisten-Sektion (gescoped — Onboarding-Dialog bleibt gemountet, #2070).
+		const dialog = page.locator('kol-dialog:not([_label="Willkommen bei Balamentum"])');
+		await expect(dialog.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeVisible();
+		await expect(dialog.getByText('Schritt eins')).toBeVisible();
+		await expect(dialog.getByTestId('checklist-item')).toHaveCount(2);
+
+		await dialog.getByRole('button', { name: /alle abhaken/i }).click();
+		await dialog.getByRole('button', { name: /als erledigt markieren/i }).click();
+
+		await expect(page.getByTestId('missed-section')).toHaveCount(0);
+		const scores = (await (await page.request.get('/api/v1/scores')).json()) as {
+			taskId: number;
+			pünktlich: boolean;
+		}[];
+		expect(scores.find((entry) => entry.taskId === id)?.pünktlich).toBe(false);
+	});
+
+	test('Erledigt mit offener Checkliste — „Pünktlich erledigt“ bucht nach dem Abhaken zur Deadline', async ({
+		page,
+	}) => {
+		const past = new Date(Date.now() - DAY).toISOString();
+		const id = await createTaskViaApi(page, {
+			title: 'Verpasst pünktlich mit Checkliste',
+			deadline: past,
+			checklist: [{ id: '33333333-3333-4333-8333-333333333333', title: 'Einziger Schritt', completed: false }],
+		});
+
+		await page.goto('/app/');
+		await waitForStableView(page);
+		await page
+			.getByTestId('missed-item')
+			.filter({ hasText: 'Verpasst pünktlich mit Checkliste' })
+			.getByRole('button', { name: /^erledigt$/i })
+			.click();
+		await page.getByRole('button', { name: /^pünktlich erledigt$/i }).click();
+
+		const dialog = page.locator('kol-dialog:not([_label="Willkommen bei Balamentum"])');
+		await expect(dialog.getByTestId('checklist-item')).toHaveCount(1);
+		await dialog.getByRole('button', { name: /alle abhaken/i }).click();
+		await dialog.getByRole('button', { name: /als erledigt markieren/i }).click();
 
 		await expect(page.getByTestId('missed-section')).toHaveCount(0);
 		const scores = (await (await page.request.get('/api/v1/scores')).json()) as {
@@ -182,11 +299,11 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 
 		await page.goto('/app/');
 		await waitForStableView(page);
-		await page
-			.getByTestId('missed-item')
-			.filter({ hasText: 'Ins Archiv und zurück' })
-			.getByRole('button', { name: /archivieren/i })
-			.click();
+		// Test-Pflege #2524: „Archivieren" liegt hinter dem „…"-Popover — erst öffnen, dann klicken.
+		const archivItem = page.getByTestId('missed-item').filter({ hasText: 'Ins Archiv und zurück' });
+		await archivItem.getByRole('button', { name: /weitere aktionen/i }).click();
+		// Test-Pflege #2524: Buttons nicht im Panel-Subtree (Light-DOM-Slot, Muster issue-2361).
+		await archivItem.getByRole('button', { name: /archivieren/i }).click();
 		await expect(page.getByTestId('missed-section')).toHaveCount(0);
 
 		await page.goto('/app/aufgaben');
@@ -198,5 +315,37 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		await archived.getByRole('button', { name: /wiederherstellen/i }).click();
 		await expect(archived).toHaveCount(0);
 		await expect(page.getByTestId('missed-section')).toBeVisible();
+	});
+	test('#2635 AK4 — Nachfrage-Dialog bei 375 px ohne horizontalen Überlauf (inkl. Folge-Halbsatz)', async ({
+		page,
+	}) => {
+		const past = new Date(Date.now() - DAY).toISOString();
+		await createTaskViaApi(page, { title: 'Dialogbreite bei kleiner Sicht', deadline: past });
+
+		await page.goto('/app/');
+		await waitForStableView(page);
+		// Test-Pflege #2635: verbindliche Mobile-Größe ist MOBILE (375×812, Spiegel-Test #2559).
+		await page.setViewportSize(MOBILE);
+		await page
+			.getByTestId('missed-item')
+			.filter({ hasText: 'Dialogbreite bei kleiner Sicht' })
+			.getByRole('button', { name: /^erledigt$/i })
+			.click();
+
+		// Folge-Halbsatz im Dialog sichtbar (gescoped — Onboarding-Dialog bleibt gemountet, #2070).
+		const dialog = page.locator('kol-dialog:not([_label="Willkommen bei Balamentum"])');
+		await expect(dialog.getByText(/punkt/i)).toBeVisible();
+		await expect(dialog.getByText(/streak/i)).toBeVisible();
+
+		// Bounding-Box statt scrollWidth (App-Shell clippt overflow-x: hidden, Memory 2026-08-24);
+		// native <dialog> messen — der kol-dialog-Host hat selbst keine Box (Memory 2026-10-08).
+		let box = await dialog.locator('dialog').boundingBox();
+		for (let i = 0; i < 30 && !box; i += 1) {
+			await page.waitForTimeout(100);
+			box = await dialog.locator('dialog').boundingBox();
+		}
+		expect(box, 'Dialog muss messbar sein').not.toBeNull();
+		expect(box!.x).toBeGreaterThanOrEqual(0);
+		expect(box!.x + box!.width).toBeLessThanOrEqual(375);
 	});
 });

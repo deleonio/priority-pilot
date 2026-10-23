@@ -42,6 +42,11 @@ name: Design Optimize
 on:
   workflow_dispatch:
     inputs:
+      runner:
+        description: 'Runner-Label für diesen Lauf (leer = vars.PHASE_RUNNER oder ubuntu-latest; z. B. self-hosted, pi5, ubuntu-latest)'
+        required: false
+        default: ''
+        type: string
       design_target:
         description: 'Design-Ziel in der App (kurzer Text, z. B. „Serien-Tab")'
         required: true
@@ -75,7 +80,7 @@ permissions:
 jobs:
   optimize:
     name: Impeccable audit → Maßnahmen laut Audit → PR
-    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 75
     steps:
       - name: Checkout Repository

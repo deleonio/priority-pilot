@@ -1,4 +1,6 @@
 import { api } from '../api';
+import { LAUNCH_BANNER_DISMISS_KEY } from './launchBanner';
+import { base64url } from './magicPkce';
 import { getPublicOrigin } from './siteOrigin';
 
 /**
@@ -7,7 +9,8 @@ import { getPublicOrigin } from './siteOrigin';
  * System-Browser (Custom Tab): Der Server leitet danach über das Custom Scheme
  * `balamentum.app://auth/native?code=…` zurück in die App, ältere Stände über den App Link
  * `/app/auth/native?code=…`; der WebView löst den Code zusammen mit dem vorher gemerkten `state` ein.
- * Magic-Links auf die eigene Domain kommen über den App Link.
+ * Magic-Links auf die eigene Domain kommen über den App Link; der Rücksprung aus der Browser-
+ * Landing (#2563) kommt per Custom Scheme mit `?magic=` und wird im WebView geladen.
  * Im eingebauten Build (#2379) ist die eigene Domain `SITE_URL`, nicht der WebView-Ursprung.
  * Die Capacitor-Plugins werden erst hier nachgeladen, im Web-Bundle stecken sie nicht.
  */
@@ -51,11 +54,7 @@ export const finishNativeLogin = (result: NativeLoginResult): void => {
 };
 
 /** 32 Zufallsbytes als base64url (43 Zeichen), passend zum Format, das der Server erwartet. */
-const createState = (): string =>
-	btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))))
-		.replaceAll('+', '-')
-		.replaceAll('/', '_')
-		.replace(/=+$/, '');
+const createState = (): string => base64url(crypto.getRandomValues(new Uint8Array(32)));
 
 /**
  * „Mit Google anmelden“: erst nativ; ohne Einrichtung oder nach Abbruch im System-Browser. Dort bleibt
@@ -80,14 +79,19 @@ export const startNativeGoogleLogin = async (): Promise<void> => {
 };
 
 /**
- * Verarbeitet einen App Link: den Login-Code löst sie ein und lädt die App neu, jede andere Adresse
- * der eigenen Domain (z. B. ein Magic-Link) öffnet sie im WebView unter `BASE_URL`, damit die App sie
- * selbst einlöst. Fremde Adressen ignoriert sie.
+ * Verarbeitet einen App Link: den Login-Code löst sie ein und lädt die App neu, den Magic-Rücksprung
+ * per Custom Scheme (#2563) und jede andere Adresse der eigenen Domain (z. B. ein Magic-Link aus
+ * http-/www-Varianten) lädt sie im WebView unter `BASE_URL`, damit die App sie selbst einlöst.
+ * Fremde Domains ignoriert sie.
  */
 export const handleAppLink = async (url: string): Promise<void> => {
 	const target = new URL(url);
 	const viaScheme = url.startsWith(`${APP_SCHEME_LOGIN}?`);
-	if (!viaScheme && target.origin !== getPublicOrigin()) {
+	// Ursprungs-Varianten der eigenen Domain zählen als eigen (#2563): Mail-Clients erzeugen beim
+	// Öffnen http-/www-Varianten des Links, die nicht still verworfen werden dürfen — gewertet wird
+	// der Hostname (ohne `www.`), nicht der exakte Ursprung.
+	const eigenerHost = new URL(getPublicOrigin()).hostname.replace(/^www\./, '');
+	if (!viaScheme && target.hostname.replace(/^www\./, '') !== eigenerHost) {
 		return;
 	}
 	const { Browser } = await import('@capacitor/browser');
@@ -95,6 +99,13 @@ export const handleAppLink = async (url: string): Promise<void> => {
 	await Browser.close().catch(() => undefined);
 	const base = import.meta.env.BASE_URL;
 	const code = target.searchParams.get('code');
+	// Magic-Rücksprung per Custom Scheme (#2563): den Link im WebView laden — dort löst der Root den
+	// Token per POST mit Kanal `play` ein (#2377). Ohne diesen Zweig würde der Token still verworfen.
+	const magic = target.searchParams.get('magic');
+	if (viaScheme && magic !== null) {
+		window.location.replace(`${base}?magic=${encodeURIComponent(magic)}`);
+		return;
+	}
 	if (viaScheme && code === null) {
 		const error = target.searchParams.get('error') ?? 'native_login_failed';
 		window.location.replace(`${base}login?error=${encodeURIComponent(error)}`);
@@ -105,6 +116,8 @@ export const handleAppLink = async (url: string): Promise<void> => {
 		localStorage.removeItem(STATE_KEY);
 		// Netzfehler zeigen die Login-Seite mit Hinweis, statt den Nutzer ohne Rückmeldung stehen zu lassen.
 		const ok = await api.exchangeNativeLoginCode(code, state).catch(() => false);
+		// Echter Login (#2480): der geräteweite Schließen-Marker des Einladungs-Banners gilt je Login.
+		if (ok) localStorage.removeItem(LAUNCH_BANNER_DISMISS_KEY);
 		window.location.replace(ok ? base : `${base}login?error=native_login_failed`);
 		return;
 	}

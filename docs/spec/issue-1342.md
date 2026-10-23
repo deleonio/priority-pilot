@@ -1,9 +1,5 @@
 # Spec: Standort-Favoriten (#1342)
 
-Status: rot (Spec-Phase) — Tests in `server/src/express/place-favorites.test.ts`,
-`frontend/src/components/AddressAutocomplete.test.tsx`, `frontend/src/components/TaskForm.test.tsx`,
-`frontend/src/components/PlaceFavoritesSection.test.tsx`, `frontend/e2e/issue-1342-place-favorites.spec.ts`.
-
 ## Ziel
 
 Gespeicherte Orte stehen im Adressfeld von Aufgabe und Serie oberhalb der Suchtreffer und

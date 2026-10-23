@@ -1,5 +1,11 @@
 import { expect, test, type Page } from './fixtures';
-import { headerAction, openAccordionSection, registerOwnSession, waitForStableView } from './helpers';
+import {
+	headerAction,
+	openAccordionSection,
+	registerOwnSession,
+	seedAccountPreferences,
+	waitForStableView,
+} from './helpers';
 
 /**
  * Rote Spec-e2e für #1335 — „Schnellerfassung und Berater verschmelzen" (AK4, AK5).
@@ -25,6 +31,8 @@ const switchControl = (page: Page, name: RegExp) =>
 
 /** Setzt die KI-Präferenz vor dem Seitenaufbau (Wert wie in localStorage: 'true'/'false'). */
 const initAiEnabled = async (page: Page, aiEnabled: boolean): Promise<void> => {
+	// #2508: Mit Session zieht der App-Start den Kontostand nach — die Präferenz liegt zusätzlich am Konto.
+	await seedAccountPreferences(page, { aiEnabled });
 	await page.addInitScript((value: boolean) => {
 		try {
 			localStorage.setItem('pp-ai-enabled', String(value));
@@ -234,7 +242,9 @@ test.describe('#1527 KI-Gate: Säulen-Berater ohne Berechtigung', () => {
 		await headerAction(page, 'Neuen Task anlegen').then((button) => button.click());
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
 
-		// #1596: Die Säulen-Verteilung liegt in den Basisangaben (immer offen) — kein Aufklappen nötig.
+		// #2525 (Fixup): Die Säulen-Verteilung liegt im gefalteten Sekundär-Abschnitt — erst
+		// aufklappen (der #1596-Stand „Basisangaben, immer offen“ ist seit dem Merge überholt).
+		await openAccordionSection(page, 'Termin & Ort');
 		const head = page.locator('.pillar-editor-head');
 		const box = await boundingBoxWhenLaidOut(head);
 		expect(box, '.pillar-editor-head muss eine Bounding-Box haben').not.toBeNull();
@@ -250,7 +260,9 @@ test.describe('#1527 KI-Gate: Säulen-Berater ohne Berechtigung', () => {
 // ── #1903 (AK3): Details folgen dem Schalter, bleiben aber manuell aufklappbar ─────────────────
 
 test.describe('#1903 KI-Tab: Details bei Schalter aus', () => {
-	const LABELS = ['KI-Provider', 'Access-Token'];
+	// Design-Lauf 2026-10: alle vier Gruppen unter dem Schalter folgen ihm — auch „Wissens-Einträge“
+	// und „Dialog-Vorgaben für die KI“ (vorher: Karte ohne Klappfolge bzw. Abschnitt ohne Karte).
+	const LABELS = ['KI-Provider', 'Access-Token', 'Wissens-Einträge', 'Dialog-Vorgaben für die KI'];
 	const detailsSummary = (page: Page, label: string) =>
 		page.locator('.settings-llm kol-accordion summary').filter({ hasText: new RegExp(`^${label}$`) });
 	const isOpen = (page: Page, label: string) =>

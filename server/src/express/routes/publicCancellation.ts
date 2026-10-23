@@ -5,13 +5,15 @@ import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { Op } from 'sequelize';
 import { Subscription, User } from '../../models/index.js';
 import CancellationToken from '../../models/cancellationToken.js';
-import { sendError, type ErrorDto } from '../http-error.js';
+import { sendError, logUrl, type ErrorDto } from '../http-error.js';
 import { THROTTLED_MESSAGE } from './rateLimit.js';
 import { recordCancellation } from './billingSubscriptions.js';
 import { createPaypalProvider, type PaypalProviderDeps } from '../../logics/billing/paypalProvider.js';
 import { sendCancellationConfirmation } from '../../logics/cancellationMail.js';
+import { resolveCancellationEnd } from '../../logics/cancellationRefund.js';
 import { displayLabel } from '../../logics/invoices.js';
 import { isMailConfigured, sendMailToUser, type MailSender } from '../../logics/mail.js';
+import { renderMailHtml } from '../../logics/mailTemplate.js';
 import { publicBaseUrl } from '../../logics/magicLink.js';
 import type { Plan } from '../../logics/plans.js';
 import { EMAIL_RE } from '../../logics/waitlist.js';
@@ -66,7 +68,13 @@ const TEXTE: Record<
 		locale: string;
 		pfad: string;
 		subject: string;
-		mail: (link: string, vertrag: string, art: string, zeitpunkt: string) => string[];
+		anrede: string;
+		einleitung: string;
+		vertragLabel: string;
+		artLabel: string;
+		zeitpunktLabel: string;
+		schluss: string;
+		button: string;
 	}
 > = {
 	de: {
@@ -77,19 +85,15 @@ const TEXTE: Record<
 		locale: 'de-DE',
 		pfad: '/kuendigen/bestaetigen/',
 		subject: 'Balamentum: Kündigung bestätigen',
-		mail: (link, vertrag, art, zeitpunkt) => [
-			'Hallo,',
-			'',
+		anrede: 'Hallo,',
+		einleitung:
 			'wir haben eine Kündigung deines Abos ohne Anmeldung erhalten. Bitte bestätige sie über diesen Link (24 Stunden gültig):',
-			'',
-			link,
-			'',
-			`Vertrag: ${vertrag}`,
-			`Art der Kündigung: ${art}`,
-			`Zeitpunkt: ${zeitpunkt}`,
-			'',
+		vertragLabel: 'Vertrag',
+		artLabel: 'Art der Kündigung',
+		zeitpunktLabel: 'Zeitpunkt',
+		schluss:
 			'Wenn du diese Kündigung nicht angefordert hast, ignoriere diese Mail — dein Abo läuft dann unverändert weiter.',
-		],
+		button: 'Kündigung bestätigen',
 	},
 	en: {
 		zum: (datum) => `as of ${datum}`,
@@ -99,19 +103,15 @@ const TEXTE: Record<
 		locale: 'en-GB',
 		pfad: '/en/cancel/confirm/',
 		subject: 'Balamentum: Confirm cancellation',
-		mail: (link, vertrag, art, zeitpunkt) => [
-			'Hello,',
-			'',
+		anrede: 'Hello,',
+		einleitung:
 			'we have received a cancellation of your subscription without sign-in. Please confirm it using this link (valid for 24 hours):',
-			'',
-			link,
-			'',
-			`Contract: ${vertrag}`,
-			`Type of cancellation: ${art}`,
-			`Effective: ${zeitpunkt}`,
-			'',
+		vertragLabel: 'Contract',
+		artLabel: 'Type of cancellation',
+		zeitpunktLabel: 'Effective',
+		schluss:
 			'If you did not request this cancellation, ignore this email — your subscription will then continue unchanged.',
-		],
+		button: 'Confirm cancellation',
 	},
 };
 
@@ -170,18 +170,41 @@ export const createPublicCancellationRouter = (deps: PublicCancellationDeps = {}
 				// Nicht abwarten: die Antwortzeit verrät sonst, ob ein Abo besteht.
 				const sprache = spracheAusHeader(req.get('accept-language'));
 				const t = TEXTE[sprache];
+				const link = `${publicBaseUrl() ?? ''}${t.pfad}?token=${token}`;
+				const vertrag = displayLabel(subscription.plan as Plan, subscription.period, sprache);
+				const art = kind === 'extraordinary' ? t.ausserordentlich : t.ordentlich;
+				const zeitpunkt = effectiveLabel(effective, sprache);
+				const mailHtml = renderMailHtml({
+					heading: t.subject,
+					intro: `${t.anrede} ${t.einleitung}`,
+					button: { label: t.button, url: link },
+					rows: [
+						{ label: t.vertragLabel, value: vertrag },
+						{ label: t.artLabel, value: art },
+						{ label: t.zeitpunktLabel, value: zeitpunkt },
+					],
+					closing: t.schluss,
+					lang: sprache,
+				});
 				void sendMailToUser(
 					{ email: user.email },
 					{
 						subject: t.subject,
-						text: t
-							.mail(
-								`${publicBaseUrl() ?? ''}${t.pfad}?token=${token}`,
-								displayLabel(subscription.plan as Plan, subscription.period, sprache),
-								kind === 'extraordinary' ? t.ausserordentlich : t.ordentlich,
-								effectiveLabel(effective, sprache),
-							)
-							.join('\n'),
+						text: [
+							t.anrede,
+							'',
+							t.einleitung,
+							'',
+							link,
+							'',
+							`${t.vertragLabel}: ${vertrag}`,
+							`${t.artLabel}: ${art}`,
+							`${t.zeitpunktLabel}: ${zeitpunkt}`,
+							'',
+							t.schluss,
+						].join('\n'),
+						html: mailHtml.html,
+						attachments: mailHtml.attachments,
 					},
 					deps.mailSender,
 				);
@@ -201,10 +224,15 @@ export const createPublicCancellationRouter = (deps: PublicCancellationDeps = {}
 				return;
 			}
 			const sprache = spracheAusHeader(req.get('accept-language'));
+			// #2745: ab der zweiten Laufzeit endet das Abo einen Kalendermonat nach Bestätigung — die
+			// Seite nennt dieses Datum statt des vom Nutzer gewählten Zeitpunkts.
+			const contractEnd = await resolveCancellationEnd(subscription, new Date());
 			res.status(200).json({
 				contract: displayLabel(subscription.plan as Plan, subscription.period, sprache),
 				kind: row.kind === 'extraordinary' ? TEXTE[sprache].ausserordentlich : TEXTE[sprache].ordentlich,
-				effective: effectiveLabel(row.effective, sprache),
+				effective: contractEnd
+					? TEXTE[sprache].zum(contractEnd.toLocaleDateString(TEXTE[sprache].locale, { timeZone: 'UTC' }))
+					: effectiveLabel(row.effective, sprache),
 			});
 		},
 	);
@@ -225,7 +253,8 @@ export const createPublicCancellationRouter = (deps: PublicCancellationDeps = {}
 		}
 		try {
 			await checkout.cancel(subscription.externalSubscriptionId);
-		} catch {
+		} catch (error) {
+			console.error(`${req.method} ${logUrl(req)}`, error);
 			// Kündigung nicht erfolgt — der Link bleibt für einen neuen Versuch gültig.
 			await CancellationToken.update({ usedAt: null }, { where: { id: row.id } });
 			sendError(res, 502, 'PayPal war nicht erreichbar.');

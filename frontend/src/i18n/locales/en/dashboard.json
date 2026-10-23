@@ -6,6 +6,7 @@
 		"dueOn": "Due on {{date}}.",
 		"balance_one": "Pillar {{names}} fell short this week.",
 		"balance_other": "Pillars {{names}} fell short this week.",
+		"einstieg": "Pick one small task that does you good today – starting small counts.",
 		"unlock_one": "Unlocks {{count}} open task.",
 		"unlock_other": "Unlocks {{count}} open tasks.",
 		"overdue_one": "Overdue by {{count}} day.",
@@ -25,7 +26,12 @@
 	"nextTask": {
 		"label": "Next task",
 		"empty": "No task is due right now (all done or blocked by open predecessors).",
-		"complete": "Complete"
+		"complete": "Complete",
+		"earnedPoints": "+{{punkte}} points",
+		"streakDays_one": "Streak {{count}} day",
+		"streakDays_other": "Streak {{count}} days",
+		"undo": "Undo",
+		"errorLabel": "Completing failed"
 	},
 	"suggestions": {
 		"label": "What's next?",
@@ -50,6 +56,7 @@
 	"balance": {
 		"label": "Total balance",
 		"empty": "No points yet — complete tasks to build up your balance.",
+		"arcTitle": "{{value}} of {{total}}",
 		"total": "<total>{{points}}</total> points",
 		"row_one": "{{points}} point ({{share}} %)",
 		"row_other": "{{points}} points ({{share}} %)"
@@ -59,6 +66,7 @@
 		"empty": "No upcoming deadlines."
 	},
 	"heartBalance": {
+		"loading": "Loading life balance…",
 		"ariaLabel": "Balance {{percent}} percent — {{state}}",
 		"legendValue": "{{actual}} % · target {{target}} %",
 		"deltaHint": "deviation from target"
@@ -96,7 +104,10 @@
 		"bluete": "Blossom",
 		"kristall": "Crystal",
 		"segmente": "Segments",
-		"zeiger": "Hands"
+		"zeiger": "Hands",
+		"bahnen": "Orbits",
+		"meteore": "Meteors",
+		"pendel": "Pendulums"
 	},
 	"days_one": "{{count}} day",
 	"days_other": "{{count}} days",

@@ -1465,8 +1465,9 @@ paths:
           in: query
           required: false
           description: >-
-            Filtert auf eine eigene Aufgabe. Fehlt der Wert, werden alle eigenen Einträge
-            geliefert.
+            Filtert auf eine eigene Aufgabe. Fehlt oder ist leer der Wert, werden alle
+            eigenen Einträge geliefert; ein nicht ganzzahliger Wert wird mit 400
+            abgelehnt (#2495).
           schema:
             type: integer
       responses:
@@ -1478,6 +1479,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/CareSuggestionRejection'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalServerError'
     post:
@@ -2458,6 +2461,48 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /push-groups:
+    get:
+      summary: Push-Gruppen des Users lesen
+      description: >-
+        Liefert die serverseitig pro User gespeicherten Push-Gruppen (#2850, docs/push-konzept.md
+        §5): vier Gruppen-Schalter (Defaults: drei Gruppen an, Tipps abweichend aus).
+        "Fürsorge" bleibt der bestehende Schalter an /care-config (#1794).
+      operationId: getPushGroups
+      tags: [care]
+      responses:
+        '200':
+          description: Aktuelle Push-Gruppen (inkl. Defaults)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushGroups'
+    put:
+      summary: Push-Gruppen des Users speichern
+      description: >-
+        Speichert die vier Gruppen-Schalter (#2850). Alle Flags müssen Boolean sein;
+        Verstöße → HTTP 400 ohne Persistenz.
+      operationId: updatePushGroups
+      tags: [care]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushGroups'
+      responses:
+        '200':
+          description: Gespeicherte Push-Gruppen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushGroups'
+        '400':
+          description: Ungültige Werte (ein Flag ist kein Boolean)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /care-config/sprache:
     put:
       summary: App-Sprache für den Fürsorge-Push speichern
@@ -2741,7 +2786,8 @@ paths:
       description: >-
         Trefferliste für den Einladungsfluss (#1212): volle E-Mail-Adresse als
         Exact-Match ODER displayName-Fragment ab 3 Zeichen. Das DTO enthält nie
-        die E-Mail. Zu kurze Anfragen und Nulltreffer liefern 200 mit [].
+        die E-Mail. Zu kurze Anfragen und Nulltreffer liefern 200 mit []. Höchstens
+        10 Treffer; % und _ im Suchtext gelten literal (#2539).
       operationId: searchUsers
       tags: [groups]
       parameters:
@@ -3043,7 +3089,8 @@ paths:
     get:
       summary: Abos eines Nutzers auflisten
       description: >-
-        #2295: nur für Admins (403 sonst). Alle Abos des Nutzers, neueste zuerst.
+        #2295: nur für Admins (403 sonst). Alle Abos des Nutzers, neueste zuerst; `running`
+        kennzeichnet effektiv laufende Abos (#1338).
       operationId: listAdminUserSubscriptions
       tags: [admin]
       responses:
@@ -3063,6 +3110,12 @@ paths:
                 $ref: '#/components/schemas/Error'
         '403':
           description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Nutzer nicht gefunden
           content:
             application/json:
               schema:
@@ -3425,6 +3478,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CareWirkung'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /admin/subscriptions/summary:
+    get:
+      summary: Abo-Übersicht (#1338)
+      description: >-
+        Nur für Admins (403 sonst). Zählungen über alle Abos ohne Personendaten. Laufend heißt
+        `active`, `past_due` oder `suspended` oder `cancelled` mit `currentPeriodEnd` in der
+        Zukunft; `approval_pending` zählt nicht.
+      operationId: getAdminSubscriptionsSummary
+      tags: [admin]
+      responses:
+        '200':
+          description: Übersicht
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSubscriptionsSummary'
         '403':
           description: Angemeldeter Nutzer ist kein Admin
           content:
@@ -4322,7 +4399,8 @@ paths:
       summary: Eigene API-Tokens auflisten
       description: >-
         Liefert die nicht zurückgezogenen persönlichen API-Tokens des angemeldeten
-        Nutzers (#1352) — ausschließlich Metadaten, nie den Klartext oder den Hash.
+        Nutzers (#1352) samt Anmeldungen der Android-App (`kind: app`, #2494) —
+        ausschließlich Metadaten, nie den Klartext oder den Hash.
       operationId: listApiTokens
       tags: [api-tokens]
       responses:
@@ -4367,7 +4445,7 @@ paths:
     delete:
       summary: API-Token zurückziehen
       description: >-
-        Zieht einen eigenen API-Token zurück (#1352). Ab dem nächsten Aufruf wird
+        Zieht einen eigenen API-Token oder eine Android-App-Anmeldung zurück (#1352, #2494). Ab dem nächsten Aufruf wird
         jeder Request mit diesem Token mit 401 abgewiesen. Fremde oder unbekannte
         Tokens liefern 404.
       operationId: deleteApiToken
@@ -4903,6 +4981,10 @@ paths:
         zugelassen ist (E-Mail-Allowlist). Die Antwort ist unabhängig davon immer 202,
         damit sich zugelassene Adressen nicht ausspähen lassen. Pro Adresse gehen
         höchstens drei Links je 15 Minuten raus; weitere Anfragen werden still verworfen.
+        Mit `X-Client-Channel: play` (Android-App) trägt der Mail-Link den App-Marker
+        `client=app` (#2563): Öffnet ihn der Browser, zeigt die Web-App den Rücksprung
+        in die App an, statt den Einmal-Link dort zu verbrauchen. Im Kanal `play` ist
+        `codeChallenge` Pflicht (PKCE); ohne gültige Challenge antwortet die Route 400.
       operationId: requestMagicLink
       tags: [auth]
       requestBody:
@@ -4931,7 +5013,9 @@ paths:
         beim Google-Login). Ein Token gilt genau einmal. Bewusst POST statt GET:
         Mail-Scanner rufen Links vorab auf und würden den Token sonst verbrauchen.
         Mit `X-Client-Channel: play` (Android-App) antwortet die Route statt mit
-        Session-Cookie mit einem App-Token (#2377).
+        Session-Cookie mit einem App-Token (#2377). Ein in der App angeforderter Token
+        gilt nur im Kanal `play` mit passendem `codeVerifier` (PKCE, #2563); jeder
+        Fehlversuch verbraucht ihn.
       operationId: verifyMagicLink
       tags: [auth]
       requestBody:
@@ -4997,11 +5081,14 @@ paths:
     post:
       summary: Auf die Warteliste eintragen
       description: >-
-        Launch-Zugang über die Warteliste (#1982, ADR 0019). Öffentlich und sessionlos:
-        Unbekannte Adressen tragen sich selbst ein und erhalten sofort ihre 1-basierte
-        Position im Referral-Rang und den persönlichen Empfehlungs-Code. Idempotent —
-        wiederholter Aufruf derselben (normalisierten) Adresse liefert denselben Eintrag.
-        Ein unbekannter oder eigener `ref`-Code wird still ignoriert.
+        Launch-Zugang über die Warteliste (#1982, ADR 0019). Öffentlich und sessionlos.
+        Mit konfiguriertem Mailversand gilt Double-Opt-in: Die Antwort ist immer
+        `confirmationPending: true`, die Bestätigungs-Mail (höchstens eine je Adresse und 24 h)
+        trägt den Link `/app/?waitlist=<Token>`, den `POST /auth/waitlist/confirm` einlöst. Ohne
+        Mailversand (Dev/E2E) gilt der Eintrag sofort als bestätigt und die Antwort trägt
+        Position und Empfehlungs-Code. Idempotent — wiederholter Aufruf derselben (normalisierten)
+        Adresse legt keinen zweiten Eintrag an. Ein unbekannter oder eigener `ref`-Code wird still
+        ignoriert. Das Feld `website` ist ein Honeypot für Bots.
       operationId: joinWaitlist
       tags: [auth]
       requestBody:
@@ -5012,13 +5099,52 @@ paths:
               $ref: '#/components/schemas/WaitlistJoinRequest'
       responses:
         '200':
-          description: Position und Empfehlungs-Code
+          description: Bestätigung ausstehend, oder (ohne Mailversand) Position und Empfehlungs-Code
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/WaitlistJoined'
         '400':
           description: Ungültige E-Mail-Adresse
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Zu viele Anfragen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /auth/waitlist/confirm:
+    post:
+      summary: Wartelisten-Eintrag bestätigen
+      description: >-
+        Löst den Token aus der Bestätigungs-Mail ein (Double-Opt-in) und liefert Position und
+        Empfehlungs-Code. Idempotent — der Link darf mehrfach geöffnet werden.
+      operationId: confirmWaitlist
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WaitlistConfirmRequest'
+      responses:
+        '200':
+          description: Position und Empfehlungs-Code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WaitlistJoined'
+        '400':
+          description: Ungültiger Bestätigungslink
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Zu viele Anfragen
           content:
             application/json:
               schema:
@@ -5099,6 +5225,60 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /billing/address:
+    get:
+      summary: Rechnungsadresse abrufen
+      description: >-
+        Gespeicherte Rechnungsadresse des angemeldeten Nutzers (#2661). `null` je Feld,
+        solange keine erfasst ist — ein Abo-Abschluss ohne Adresse lehnt der Server mit 409 ab.
+      operationId: getBillingAddress
+      tags: [billing]
+      responses:
+        '200':
+          description: Rechnungsadresse; Felder sind `null`, solange keine erfasst ist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingAddress'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      summary: Rechnungsadresse erfassen oder ändern
+      description: >-
+        Speichert die Rechnungsadresse am Konto (#2661) — erforderlich vor jedem Abo-Abschluss,
+        Grundlage der Rechnungsstellung und der Rechnungs-PDFs. Alle Felder sind Pflicht;
+        Änderungen wirken auf Rechnungen ab dem Speichern.
+      operationId: updateBillingAddress
+      tags: [billing]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BillingAddressInput'
+      responses:
+        '200':
+          description: Gespeicherte Rechnungsadresse
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingAddress'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /billing/subscriptions:
     post:
       summary: Abo anlegen
@@ -5135,7 +5315,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '409':
-          description: Es besteht bereits ein laufendes Abo, oder die Anfrage kommt aus einer Store-App
+          description: Es besteht bereits ein laufendes Abo, es fehlt die Rechnungsadresse (#2661), oder die Anfrage kommt aus einer Store-App
           content:
             application/json:
               schema:
@@ -5683,6 +5863,25 @@ components:
                 type: integer
               title:
                 type: string
+    PushGroups:
+      type: object
+      description: >-
+        Push-Gruppen pro User (#2850, docs/push-konzept.md §5) — drei Gruppen an,
+        "Tipps und Angebote" abweichend aus (Einwilligung).
+      required: [taskPushEnabled, successPushEnabled, groupPushEnabled, tipPushEnabled]
+      properties:
+        taskPushEnabled:
+          type: boolean
+          description: Aufgaben und Erinnerungen aktiv (Default true)
+        successPushEnabled:
+          type: boolean
+          description: Erfolge und Rückblicke aktiv (Default true)
+        groupPushEnabled:
+          type: boolean
+          description: Gruppen-Pushes aktiv (Default true)
+        tipPushEnabled:
+          type: boolean
+          description: Tipps und Angebote aktiv (Default false)
     CareConfig:
       type: object
       description: >-
@@ -5925,7 +6124,7 @@ components:
     AdminSubscription:
       type: object
       description: Abo eines Nutzers in der Admin-Nutzerverwaltung (#2295).
-      required: [id, provider, plan, status, currentPeriodEnd, createdAt]
+      required: [id, provider, plan, status, currentPeriodEnd, createdAt, running]
       properties:
         id:
           type: integer
@@ -5943,6 +6142,37 @@ components:
         createdAt:
           type: string
           format: date-time
+        running:
+          type: boolean
+          description: Läuft effektiv (#1338) — bezahlt offen oder gekündigt mit Restlaufzeit.
+    AdminSubscriptionsSummary:
+      type: object
+      description: Abo-Übersicht für Admins (#1338), nur Zählungen.
+      required: [byPlanAndStatus, running, overdue, cancelledWithRemainingTerm, endingWithin30Days]
+      properties:
+        byPlanAndStatus:
+          type: object
+          description: Anzahl je Paket und Status.
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: integer
+        running:
+          type: object
+          description: Effektiv laufende Abos je Paket und Laufzeit.
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: integer
+        overdue:
+          type: integer
+          description: Abos mit Status `past_due` oder `suspended`.
+        cancelledWithRemainingTerm:
+          type: integer
+          description: Gekündigte Abos mit Restlaufzeit.
+        endingWithin30Days:
+          type: integer
+          description: Laufende Abos, deren Laufzeit in den nächsten 30 Tagen endet.
     AdminWaitlistEntry:
       type: object
       description: Eintrag der Warteliste im Referral-Rang (#1982, ADR 0019).
@@ -6197,6 +6427,17 @@ components:
           type: object
           additionalProperties:
             $ref: '#/components/schemas/PlanPrice'
+        paypalSandboxAccount:
+          type: object
+          description: >-
+            PayPal-Sandbox-Testkonto — nur im Sandbox-Modus mitgeliefert, im LIVE-Default
+            bleibt das Feld weg.
+          properties:
+            email:
+              type: string
+            password:
+              type: string
+          required: [email, password]
     GroupMember:
       type: object
       description: Mitglied einer Gruppe mit Anzeigename und Rolle (#1212).
@@ -6419,10 +6660,16 @@ components:
       description: >-
         Persönlicher API-Token für externe Clients (#1352) — Metadaten-Sicht ohne
         Klartext und ohne Hash.
-      required: [id, name, createdAt, lastUsedAt, scope, expiresAt]
+      required: [id, name, createdAt, lastUsedAt, scope, expiresAt, kind]
       properties:
         id:
           type: integer
+        kind:
+          type: string
+          enum: [api, app]
+          description: >-
+            Art der Anmeldung (#2494): `api` = persönlicher API-Token, `app` = Anmeldung der
+            Android-App. App-Anmeldungen sind einzeln widerrufbar, aber nicht umschaltbar.
         name:
           type: string
           description: Frei gewählter Name zur Wiedererkennung (1–60 Zeichen)
@@ -6783,6 +7030,12 @@ components:
           properties:
             postponeCount:
               type: integer
+        einstieg:
+          type: boolean
+          description: >-
+            Einstiegssignal (#2527): statt `balance` gesetzt, solange die Überlast-Mindestmenge
+            an Erledigungen noch nicht erreicht ist — das Dashboard zeigt dann den einladenden
+            Einstiegssatz statt der Defizit-Begründung.
     TaskRecommendation:
       allOf:
         - $ref: '#/components/schemas/Task'
@@ -6807,6 +7060,9 @@ components:
         accessMailThrottled:
           type: boolean
           description: Nur gesetzt (true), wenn die Zugangs-Mail an eine neue Empfänger-Adresse wegen der Tagesgrenze je Nutzer entfiel (#2041).
+        vergebenePunkte:
+          type: number
+          description: Nur im PATCH-Response beim echten Übergang auf „Done" gesetzt — die mit diesem Request vergebenen Punkte (Formel score.ts, #2526).
         id:
           type: integer
         title:
@@ -6861,6 +7117,16 @@ components:
           type: string
           format: date-time
           nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: >-
+            Erledigt-Zeitpunkt (#2574), abgeleitet aus `ScoreEntry.zeitpunkt` — bei Erledigen mit
+            nachgetragenem Input `completedAt` dieser Zeitpunkt, sonst der Zeitpunkt des Abhakens.
+            `null`, solange die Aufgabe offen ist; „Wieder öffnen" setzt sie zurück (der ScoreEntry
+            wird zerstört). Nur Ausgabe — nicht zu verwechseln mit dem gleichnamigen
+            `TaskUpdate`-Input (nachgetragener Zeitpunkt).
         autoDeleteAfterDeadline:
           type: boolean
           description: >-
@@ -8406,6 +8672,16 @@ components:
           description: >-
             Ob überhaupt Punkte vergeben sind. Unterscheidet „noch nichts erledigt" (`false`,
             Füllstand `0`) von „unausgewogen".
+        erledigungenImFenster:
+          type: integer
+          description: >-
+            Anzahl erledigter Aufgaben im 28-Tage-Kadenz-Fenster (kontoweit, task-level) — dasselbe
+            Fenster, das der Füllstand beurteilt (#2633).
+        mindestErledigungen:
+          type: integer
+          description: >-
+            Mindestmenge an Erledigungen im Fenster, ab der die Überlast-Regel überhaupt greift
+            (`UEBERLAST_MINDEST_ERLEDIGUNGEN`).
         saeulen:
           type: array
           description: Punktestand und Gewichtung je Säule des Nutzers, aufsteigend nach Säulen-ID.
@@ -8569,10 +8845,15 @@ components:
           enum:
             - defizit
             - ueberlast
+            - ermutigung
+            - einstieg
           description: >-
             Grund des Vorschlags (#1795): `defizit` gegen ein Balance-Defizit, `ueberlast` als
             Erholung (Pause, Körper, Mentale Gesundheit), wenn eine Säule überlastet ist.
-            Erholungsvorschläge stehen vor den Defizit-Vorschlägen.
+            Erholungsvorschläge stehen vor den Defizit-Vorschlägen. `ermutigung` (#2521) ist
+            kein Vorschlag, sondern der Ermutigungs-Satz unter der Überlast-Mindestmenge (1–2
+            Erledigungen im jüngeren Fenster) — ohne `taskId`/`templateKey`, an erster Stelle.
+            `einstieg` (#2527) genauso bei 0 Erledigungen: der einladende Einstiegssatz.
         titel:
           type: string
           description: Anzeigetitel des Vorschlags (in der angefragten Sprache).
@@ -8687,6 +8968,25 @@ components:
         `mon`…`sun` (jeweils genau dieser Wochentag) erzeugen mehrere Termine pro Woche.
         Bei `mon`…`sun` muss `startDate` auf dem benannten Wochentag liegen, sonst 400.
         `none` (#2355, ohne Rhythmus) ist nur bei `autoCreate: false` erlaubt, sonst 400.
+    SeriesChecklistItem:
+      type: object
+      description: >-
+        Checkpunkt einer Serie/Vorlage (#2501): nur `id` und `title` — ohne `completed`,
+        denn das Abhaken gehört allein zur Instanz (der Snapshot bei der Instanz-Erzeugung
+        setzt jedes `completed` auf `false`). Höchstens 50 Einträge je Serie.
+      required:
+        - id
+        - title
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Stabile UUID des Eintrags; Instanzen übernehmen sie aus dem Template.
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Bezeichnung des Eintrags (nach Trim nicht-leer).
     Series:
       type: object
       description: >-
@@ -8811,6 +9111,15 @@ components:
           description: >-
             Thematische Kategorie des Templates (0..1, siehe Schema `Category`); wird beim
             Generieren auf jede Instanz vererbt. `null`, wenn keine zugeordnet ist.
+        checklist:
+          type: array
+          maxItems: 50
+          description: >-
+            Checkpunkte der Vorlage (#2501). Jede neu erzeugte Instanz startet mit einer
+            Kopie (alle `completed: false`); Änderungen an der Serie kaskadieren nicht auf
+            bestehende offene Instanzen.
+          items:
+            $ref: '#/components/schemas/SeriesChecklistItem'
     SeriesCreate:
       type: object
       required:
@@ -8895,6 +9204,14 @@ components:
           description: >-
             Optionale Kategorie des Templates. Muss eine Kategorie des Eigentümer-Kontos
             sein, sonst 400; wird beim Generieren auf jede Instanz vererbt.
+        checklist:
+          type: array
+          maxItems: 50
+          description: >-
+            Checkpunkte der Vorlage (#2501). Ein Eintrag mit `completed` wird mit 400
+            abgewiesen. Fehlt das Feld, startet die Serie ohne Checkpunkte.
+          items:
+            $ref: '#/components/schemas/SeriesChecklistItem'
     SeriesUpdate:
       type: object
       description: Alle Felder optional — gesetzte Felder gelten nur für künftige Instanzen.
@@ -8978,6 +9295,16 @@ components:
           description: >-
             Setzt die Kategorie des Templates (muss dem Eigentümer-Konto gehören) oder
             entfernt sie mit `null`. Fehlt das Feld, bleibt die Zuordnung unverändert.
+        checklist:
+          type: array
+          maxItems: 50
+          description: >-
+            Ersetzt die Checkpunkte der Vorlage vollständig (#2501); ein Eintrag mit
+            `completed` wird mit 400 abgewiesen. Kaskadiert bewusst nie auf bestehende
+            offene Instanzen (Abhak-Stände sind Nutzerfortschritt). Fehlt das Feld,
+            bleibt die Checkliste unverändert.
+          items:
+            $ref: '#/components/schemas/SeriesChecklistItem'
         applyToInstances:
           type: boolean
           description: >-
@@ -9025,7 +9352,18 @@ components:
     MeSubscription:
       type: object
       description: Abo-Status im Vertrag von `GET /auth/me` (#1494/#1495/#1505).
-      required: [provider, plan, period, status, currentPeriodEnd, pendingPlan, pendingPlanEffectiveAt, graceUntil]
+      required:
+        [
+          provider,
+          plan,
+          period,
+          status,
+          currentPeriodEnd,
+          pendingPlan,
+          pendingPlanEffectiveAt,
+          graceUntil,
+          contractEndsAt,
+        ]
       properties:
         provider:
           type: string
@@ -9059,6 +9397,13 @@ components:
           description: >-
             Ende der Kulanzfrist nach Zahlungsausfall (#1505 AK6). Konstant `null`, bis
             T6e (#1506) sie befüllt.
+        contractEndsAt:
+          type: [string, 'null']
+          format: date-time
+          description: >-
+            Gekürztes Vertragsende bei Kündigung (#2745): einen Kalendermonat nach Kündigungseingang,
+            wenn das Quartals-/Jahresabo bereits in der zweiten Laufzeit läuft; sonst `null`.
+            Quelle für das Ende im Kündigungsdialog (§ 312k: vor dem Klick).
     Me:
       type: object
       description: Antwort von `GET /auth/me` (Issue #206/#1456/#1494/#1901) — Session, Paket, Entitlements, Abo, Zustimmung.
@@ -9127,6 +9472,46 @@ components:
         withdrawalConsent:
           type: boolean
           description: Zustimmung zum sofortigen Leistungsbeginn mit Kenntnisnahme vom Erlöschen des Widerrufsrechts (#2329, § 312f BGB). Pflicht (`true`) nur bei `POST /billing/subscriptions`, bei Wechseln ignoriert.
+    BillingAddress:
+      type: object
+      description: Gespeicherte Rechnungsadresse des Nutzers (#2661); `null` je Feld, solange keine erfasst ist.
+      properties:
+        name:
+          type: [string, 'null']
+        street:
+          type: [string, 'null']
+        zip:
+          type: [string, 'null']
+        city:
+          type: [string, 'null']
+        country:
+          type: [string, 'null']
+    BillingAddressInput:
+      type: object
+      description: Eingabe der Rechnungsadresse (#2661) — alle Felder Pflicht, 1 bis 120 Zeichen nach Trim.
+      required: [name, street, zip, city, country]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Name oder Firma des Rechnungsempfängers.
+        street:
+          type: string
+          minLength: 1
+          maxLength: 120
+        zip:
+          type: string
+          minLength: 1
+          maxLength: 120
+        city:
+          type: string
+          minLength: 1
+          maxLength: 120
+        country:
+          type: string
+          minLength: 1
+          maxLength: 120
     BillingCancelInput:
       type: object
       description: Angaben aus dem Bestätigungsschritt der Kündigung (#2308, § 312k BGB).
@@ -9354,6 +9739,12 @@ components:
         email:
           type: string
           description: Adresse, an die der Anmeldelink geht.
+        codeChallenge:
+          type: string
+          pattern: '^[A-Za-z0-9_-]{43}$'
+          description: >-
+            PKCE-Challenge der Android-App, base64url(SHA-256(codeVerifier)) ohne Padding.
+            Pflicht im Kanal `play` (#2563), sonst ignoriert.
     MagicLinkVerifyRequest:
       type: object
       required:
@@ -9362,6 +9753,11 @@ components:
         token:
           type: string
           description: Token aus dem Anmeldelink (Parameter `magic`).
+        codeVerifier:
+          type: string
+          description: >-
+            PKCE-Verifier der Android-App zur Challenge aus dem Antrag (#2563); Pflicht
+            für in der App angeforderte Links.
     ReviewLoginRequest:
       type: object
       required: [password]
@@ -9386,11 +9782,26 @@ components:
         ref:
           type: string
           description: Persönlicher Empfehlungs-Code des Werbers, falls über dessen Link beigetreten.
+        website:
+          type: string
+          description: Honeypot gegen Bots — das Formular lässt das Feld leer und unsichtbar.
+    WaitlistConfirmRequest:
+      type: object
+      description: Token aus dem Bestätigungslink der Wartelisten-Mail.
+      required: [token]
+      properties:
+        token:
+          type: string
     WaitlistJoined:
       type: object
       description: Antwort nach dem Wartelisten-Eintrag (#1982).
-      required: [position, referralCode]
+      required: [confirmationPending]
       properties:
+        confirmationPending:
+          type: boolean
+          description: >-
+            `true`, solange die Adresse nicht per Mail-Link bestätigt ist; Position und Code
+            fehlen dann.
         position:
           type: integer
           minimum: 1

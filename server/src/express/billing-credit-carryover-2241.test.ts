@@ -1,6 +1,13 @@
-import { describe, it, beforeEach, after } from 'node:test';
+import { describe, it, mock, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
+import {
+	resetDb,
+	closeDb,
+	startTestServer,
+	type TestServer,
+	applyTestAuthEnv,
+	seedBillingAddress,
+} from '../test/helpers.js';
 import { Subscription } from '../models/index.js';
 import Invoice from '../models/invoice.js';
 import { getPlansCatalog } from '../logics/plans.js';
@@ -48,6 +55,7 @@ describe('Guthaben-Übertrag beim Upgrade (#2241)', () => {
 	it('AK1/AK2/AK5: Plus jährlich → Pro monatlich — keine Rechnung, k Perioden gedeckt, Rest bleibt, Vorschau nennt das Datum', async () => {
 		server = await startTestServer(deps());
 		const cookie = await server.login('carry-2241@example.com');
+		await seedBillingAddress('carry-2241@example.com');
 		const me = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
 			id: number;
 		};
@@ -89,6 +97,7 @@ describe('Guthaben-Übertrag beim Upgrade (#2241)', () => {
 		const id = 'I-CARRY-2241';
 		server = await startTestServer(deps());
 		const cookie = await server.login('late-2241@example.com');
+		await seedBillingAddress('late-2241@example.com');
 		const me = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
 			id: number;
 		};
@@ -116,5 +125,40 @@ describe('Guthaben-Übertrag beim Upgrade (#2241)', () => {
 		const expected = new Date(oldEnd);
 		expected.setUTCMonth(expected.getUTCMonth() + 1);
 		assert.equal((sub?.get('currentPeriodEnd') as Date).getTime(), expected.getTime());
+	});
+
+	it('AK1 (#2556): Vorschau am Grenzfall Guthaben exakt = Preis nennt creditCoversUntil (deckt)', async () => {
+		// 89-Tage-Fenster 1. Feb → 1. Mai 2027 (kein Schaltjahr), genau 33 Resttage: floor(1347·33/89) = 499 = P.
+		mock.timers.enable({ apis: ['Date'], now: new Date('2027-03-29T12:00:00.000Z') });
+		try {
+			server = await startTestServer(deps());
+			const cookie = await server.login('carry-2556@example.com');
+			await seedBillingAddress('carry-2556@example.com');
+			const me = (await (await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } })).json()) as {
+				id: number;
+			};
+			await Subscription.create({
+				userId: me.id,
+				provider: 'paypal',
+				externalSubscriptionId: 'I-OLD-2556',
+				plan: 'plus',
+				period: 'quarterly',
+				status: 'active',
+				currentPeriodEnd: new Date('2027-05-01T00:00:00Z'),
+			});
+			const price = getPlansCatalog().prices.plus.monthly;
+
+			const preview = (await (
+				await post('/billing/subscriptions/change/preview', cookie, { plan: 'plus', period: 'monthly' })
+			).json()) as { creditCents: number; dueCents: number; creditCoversUntil?: string };
+			assert.equal(
+				preview.creditCents,
+				price,
+				`Vorbedingung: Proration trifft exakt den Preis, war ${preview.creditCents}`,
+			);
+			assert.ok(preview.creditCoversUntil, 'AK1: Grenzfall Guthaben = Preis deckt — creditCoversUntil gesetzt');
+		} finally {
+			mock.timers.reset();
+		}
 	});
 });

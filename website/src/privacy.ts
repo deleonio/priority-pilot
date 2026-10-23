@@ -48,8 +48,8 @@ const DE: PrivacyText = {
 		{
 			heading: 'Keine Auswertung',
 			paragraphs: [
-				'Wir werten deine Daten nicht aus. Es gibt kein Nutzungsprofil, kein Werbe-Tracking und keine Werbung; die Inhalte deiner Aufgaben dienen allein deiner eigenen Planung. Wie viele Menschen Website und App besuchen, zählen wir ohne Cookies auf unserem eigenen Server (Abschnitt „Reichweitenmessung“).',
-				'Einzige Ausnahme ist eine anonyme Zählung, ob Fürsorge-Vorschläge helfen: wie oft Vorschläge angezeigt, übernommen oder abgelehnt werden (ohne Bezug zu deinem Konto) und wie viele Konten 4 und 12 Wochen nach der Registrierung noch Aufgaben erledigen, getrennt nach eingeschalteten und ausgeschalteten Fürsorge-Hinweisen. Dafür speichern wir, wann du die Fürsorge-Hinweise ein- oder ausschaltest; dieser Verlauf wird mit deinem Konto gelöscht. Ausgewertet werden nur Summen, Gruppen mit weniger als fünf Personen werden nicht ausgewiesen.',
+				'Wir werten deine Daten nicht aus. Es gibt kein Nutzungsprofil, kein Werbe-Tracking und keine Werbung; die Inhalte deiner Aufgaben dienen allein deiner eigenen Planung. Wie viele Menschen Website und App besuchen, zählen wir nur mit deiner Zustimmung, ohne Cookies und auf unserem eigenen Server (Abschnitt „Reichweitenmessung“).',
+				'Einzige Ausnahme ist eine anonyme Zählung, ob Fürsorge-Vorschläge helfen: wie oft Vorschläge angezeigt, übernommen oder abgelehnt werden (ohne Bezug zu deinem Konto) und wie viele Konten 4 und 12 Wochen nach der Registrierung noch Aufgaben erledigen, getrennt nach eingeschalteter und ausgeschalteter Fürsorge. Dafür speichern wir, wann du die Fürsorge ein- oder ausschaltest; dieser Verlauf wird mit deinem Konto gelöscht. Ausgewertet werden nur Summen, Gruppen mit weniger als fünf Personen werden nicht ausgewiesen.',
 			],
 		},
 		{
@@ -74,6 +74,21 @@ const DE: PrivacyText = {
 				retention: `Kontodaten ${ACCOUNT_LIFETIME} Anmelde-Links gelten 15 Minuten und werden kurz nach Ablauf gelöscht.`,
 				recipients:
 					'Google (Google-Login), wenn du diese Anmeldeart wählst; unser E-Mail-Versanddienstleister für den Anmelde-Link.',
+			},
+		},
+		{
+			heading: 'Warteliste',
+			paragraphs: [
+				'Bevor du ein Konto hast, kannst du dich auf die Warteliste setzen lassen. Wir speichern dafür deine E-Mail-Adresse, deinen Empfehlungscode und, wie viele Anmeldungen über deinen Empfehlungs-Link erfolgten. Zur Bestätigung schicken wir dir eine E-Mail mit einem Bestätigungslink; erst danach zählt dein Eintrag.',
+			],
+			facts: {
+				purpose:
+					'Eintrag auf die Warteliste für den Zugang zum Launch, Versand einer Bestätigungs-E-Mail (Double-Opt-in), Mitteilung deiner Position und Empfehlung über deinen Empfehlungs-Link.',
+				legalBasis:
+					'Art. 6 Abs. 1 lit. b DSGVO (vorvertragliche Maßnahme: Der Eintrag bereitet dein späteres Konto vor).',
+				retention:
+					'Sofort nach Freischaltung (mit Anlage deines Kontos) löschen wir den Wartelisten-Eintrag. Nicht freigeschaltete Einträge löschen wir 6 Wochen nach Ende der Warteliste; zusätzlich kannst du die Löschung jederzeit auf Anforderung veranlassen.',
+				recipients: 'Keine. Die Warteliste bleibt bei uns.',
 			},
 		},
 		{
@@ -190,15 +205,30 @@ const DE: PrivacyText = {
 			},
 		},
 		{
+			heading: 'Speicher auf deinem Gerät',
+			paragraphs: [],
+			facts: {
+				purpose:
+					'Damit Website und App funktionieren, legen sie einige Angaben im Speicher deines Browsers bzw. der Android-App ab (localStorage und sessionStorage): deine Geräte-Einstellungen wie Darstellung, Position der Kopfzeile, Animationen und Sprach-Start, ob du einen Hinweis schon geschlossen hast, deine Wahl zur Reichweitenmessung, für die Anmeldung per Link und in der Android-App einen Anmeldeschlüssel sowie die Geräteadresse für Push-Nachrichten. Die installierte Web-App speichert außerdem ihre eigenen Programmdateien, damit sie schnell und auch ohne Netz startet; deine Aufgaben liegen dort nicht. Die Schalter für KI, Expertenmodus, Balance-Priorität und Standort gleicht die App mit deinem Konto ab, damit sie auf all deinen Geräten gelten. Werbe- oder Analyse-Kennungen legen wir nicht ab.',
+				legalBasis:
+					'§ 25 Abs. 2 Nr. 2 TDDDG (unbedingt erforderlich für die Funktionen, die du nutzt) und Art. 6 Abs. 1 lit. b DSGVO (Vertrag).',
+				retention:
+					'Bis du die Browserdaten löschst oder die App deinstallierst; den Anmeldeschlüssel bis zum Abmelden, Angaben im sessionStorage bis zum Schließen des Tabs.',
+				recipients:
+					'Keine. Die Angaben bleiben auf deinem Gerät; nur Anmeldeschlüssel und Push-Adresse gehen an unseren Server, um dich anzumelden und Nachrichten zuzustellen.',
+			},
+		},
+		{
 			heading: 'Reichweitenmessung (Matomo)',
 			paragraphs: [],
 			facts: {
 				purpose:
-					'Zählen, wie oft Website und App besucht werden, welche Seiten aufgerufen werden und von welcher Seite Besucher kommen. Wir nutzen Matomo ohne Cookies: Auf deinem Gerät wird nichts gespeichert, übertragen werden der Seitenpfad, der Seitentitel, die verweisende Seite sowie technische Angaben zu Browser und Bildschirm, bei Klicks auf externe Links deren Ziel, nie Suchbegriffe, Aufgabeninhalte oder Anmelde-Links. Die IP-Adresse wird vor dem Speichern gekürzt, ein Besuch lässt sich nicht über den Tag hinaus wiedererkennen. Sendet dein Browser „Do Not Track“, zählen wir dich nicht.',
-				legalBasis: 'Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer datensparsamen Reichweitenmessung).',
+					'Nur mit deiner Zustimmung zählen wir, wie oft Website, Web-App und Android-App besucht werden, welche Seiten aufgerufen werden und von welcher Seite Besucher kommen, allein um Balamentum zu verbessern. Bis du die Messung im Hinweis einschaltest, ist sie aus und dein Gerät verbindet sich nicht mit dem Messserver. Ändern kannst du die Wahl jederzeit: auf der Website über „Reichweitenmessung“ in der Fußzeile, in der App unter Einstellungen → Allgemein. Die Wahl speichern wir nur in deinem Browser bzw. in der App. Wir nutzen Matomo ohne Cookies: Auf deinem Gerät wird nichts gespeichert, übertragen werden der Seitenpfad, der Seitentitel, die verweisende Seite, die Art des Zugangs (Browser, installierte Web-App oder Android-App) sowie technische Angaben zu Browser und Bildschirm, bei Klicks auf externe Links deren Ziel, nie Suchbegriffe, Aufgabeninhalte oder Anmelde-Links. Die IP-Adresse wird vor dem Speichern gekürzt, ein Besuch lässt sich nicht über den Tag hinaus wiedererkennen. Sendet dein Browser „Do Not Track“, zählen wir dich nicht.',
+				legalBasis:
+					'Art. 6 Abs. 1 lit. a DSGVO und § 25 Abs. 1 TDDDG (deine Einwilligung, jederzeit für die Zukunft widerrufbar). Das Speichern deiner Wahl ist technisch notwendig (§ 25 Abs. 2 Nr. 2 TDDDG).',
 				retention: 'Einzelne Besuche 180 Tage, danach nur zusammengefasste Zahlen ohne Personenbezug.',
 				recipients:
-					'Keine. Matomo läuft auf unserem eigenen Server bei Hetzner Online GmbH in Deutschland (siehe Abschnitt „Betrieb, Hosting und Sitzungs-Cookie“).',
+					'Keine. Matomo läuft selbst gehostet unter stats.modevel.de auf unserem eigenen Server bei Hetzner Online GmbH in Deutschland (siehe Abschnitt „Betrieb, Hosting und Sitzungs-Cookie“).',
 			},
 		},
 		{
@@ -263,7 +293,7 @@ const EN: PrivacyText = {
 		{
 			heading: 'No analysis',
 			paragraphs: [
-				'We do not analyse your data. There is no usage profile, no tracking and no advertising; the content of your tasks serves your own planning alone.',
+				'We do not analyse your data. There is no usage profile, no advertising tracking and no advertising; the content of your tasks serves your own planning alone. We count how many people visit the website and the app only with your consent, without cookies and on our own server (section “Reach measurement”).',
 				'The only exception is an anonymous count of whether care suggestions help: how often suggestions are shown, accepted or declined (without reference to your account) and how many accounts are still completing tasks 4 and 12 weeks after sign-up, split by care hints switched on and off. For this we store when you switch the care hints on or off; this history is deleted with your account. Only totals are evaluated; groups of fewer than five people are not reported.',
 			],
 		},
@@ -289,6 +319,20 @@ const EN: PrivacyText = {
 				retention: `Account data ${ACCOUNT_LIFETIME_EN} Sign-in links are valid for 15 minutes and are deleted shortly after they expire.`,
 				recipients:
 					'Google (Google login), if you choose this sign-in method; our email delivery provider for the sign-in link.',
+			},
+		},
+		{
+			heading: 'Waitlist',
+			paragraphs: [
+				'Before you have an account, you can join the waitlist. For that we store your email address, your referral code and how many sign-ups came through your referral link. To confirm your entry we send you an email with a confirmation link; your entry only counts after that.',
+			],
+			facts: {
+				purpose:
+					'Joining the waitlist for launch access, sending a confirmation email (double opt-in), telling you your position and referrals via your referral link.',
+				legalBasis: 'Art. 6(1)(b) GDPR (pre-contractual measure: joining prepares your later account).',
+				retention:
+					'We delete the waitlist entry immediately once access is granted (the data moves into your account). Entries without access are deleted 6 weeks after the waitlist ends; you can request deletion at any time.',
+				recipients: 'None. The waitlist stays with us.',
 			},
 		},
 		{
@@ -404,6 +448,33 @@ const EN: PrivacyText = {
 				retention: 'The cookies until you sign out or until the session expires.',
 				recipients:
 					'Our hosting provider Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Germany, which operates the server on our behalf in Germany (Art. 28 GDPR).',
+			},
+		},
+		{
+			heading: 'Storage on your device',
+			paragraphs: [],
+			facts: {
+				purpose:
+					'For the website and the app to work, they store some details in the storage of your browser or the Android app (localStorage and sessionStorage): your device settings such as appearance, header position, animations and voice start, whether you have already closed a notice, your choice on reach measurement, a sign-in key for the email link and in the Android app, and the device address for push notifications. The installed web app also stores its own program files so that it starts quickly and even offline; your tasks are not stored there. The app syncs the switches for AI, expert mode, balance priority and location with your account so that they apply on all your devices. We do not store any advertising or analytics identifiers.',
+				legalBasis:
+					'Section 25(2) no. 2 TDDDG (strictly necessary for the features you use) and Art. 6(1)(b) GDPR (contract).',
+				retention:
+					'Until you clear your browser data or uninstall the app; the sign-in key until you sign out, details in sessionStorage until you close the tab.',
+				recipients:
+					'None. The details stay on your device; only the sign-in key and the push address go to our server to sign you in and deliver notifications.',
+			},
+		},
+		{
+			heading: 'Reach measurement (Matomo)',
+			paragraphs: [],
+			facts: {
+				purpose:
+					'Only with your consent do we count how often the website, web app and Android app are visited, which pages are opened and which page visitors come from, solely to improve Balamentum. Until you switch measurement on in the notice, it is off and your device does not connect to the measurement server. You can change your choice at any time: on the website via “Reach measurement” in the footer, in the app under Settings → General. Your choice is stored only in your browser or in the app. We use Matomo without cookies: nothing is stored on your device; we transmit the page path, the page title, the referring page, the type of access (browser, installed web app or Android app) and technical details about browser and screen, for clicks on external links their target, never search terms, task contents or sign-in links. The IP address is shortened before it is stored; a visit cannot be recognised beyond the day. If your browser sends “Do Not Track”, we do not count you.',
+				legalBasis:
+					'Art. 6(1)(a) GDPR and Section 25(1) TDDDG (your consent, which you can withdraw at any time with effect for the future). Storing your choice is technically necessary (Section 25(2) no. 2 TDDDG).',
+				retention: 'Individual visits 180 days, after that only aggregated figures without personal reference.',
+				recipients:
+					'None. Matomo runs self-hosted at stats.modevel.de on our own server at Hetzner Online GmbH in Germany (see section “Operation, hosting and session cookie”).',
 			},
 		},
 		{

@@ -8,7 +8,7 @@
 import { findProviderByName, loadActiveProvider, toRuntimeConfig } from './llmProviders.js';
 import { normalizeSuggestedShares } from '../logics/pillarShares.js';
 import { fetchProviderEndpoint } from './endpointGuard.js';
-import { upstreamErrorDetail } from './upstreamError.js';
+import { upstreamBodyDetail, upstreamErrorDetail } from './upstreamError.js';
 import type { LlmProvider as LlmProviderRow } from '../models/index.js';
 import type { LlmSuitability } from '../logics/llmSuitability.js';
 import type { CareSprache } from '../logics/careSuggestionData.js';
@@ -476,8 +476,8 @@ const parseModelContent = (payload: unknown): unknown => {
 
 /**
  * Einzelner API-Call an einen Provider: schickt die Nachrichten an die Chat-Completions-API
- * (JSON-Mode, Temperatur 0, Timeout) und liefert den geparsten JSON-Inhalt der Modell-Antwort —
- * mit `json = false` ohne JSON-Mode den Freitext (#2350).
+ * (JSON-Mode, Greedy-Sampling mit top_p 1, Timeout) und liefert den geparsten JSON-Inhalt der
+ * Modell-Antwort — mit `json = false` ohne JSON-Mode den Freitext (#2350).
  * Wirft {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
  */
 const callProvider = async (
@@ -499,7 +499,10 @@ const callProvider = async (
 				},
 				body: JSON.stringify({
 					model: config.model,
+					// Neuere Mistral-Modelle (z. B. mistral-large-4) verlangen bei Greedy-Sampling
+					// (temperature 0) explizit top_p 1 — ohne ihn antworten sie mit HTTP 400.
 					temperature: 0,
+					top_p: 1,
 					...(json ? { response_format: { type: 'json_object' } } : {}),
 					messages,
 				}),
@@ -528,6 +531,14 @@ const callProvider = async (
 		payload = await response.json();
 	} catch {
 		throw new MistralRequestError(`${config.label}-Antwort konnte nicht als JSON gelesen werden.`);
+	}
+
+	// OpenRouter bettet Provider-Fehler (Credits, Rate-Limit, Moderation) in HTTP 200 ein — ohne
+	// die Ursache bliebe hier nur das wertlose „Antwort des Modells enthielt keinen Text.“
+	// (Muster runProviderTest, llmProviders.ts; gleiche Helper-Instanz, damit beide nicht driften.)
+	const bodyDetail = upstreamBodyDetail(payload);
+	if (bodyDetail !== '') {
+		throw new MistralRequestError(`${config.label} (${config.model}) meldete: ${bodyDetail}`);
 	}
 
 	return json ? parseModelContent(payload) : modelText(payload);
@@ -560,7 +571,11 @@ const resolveProvider = async (pinned?: LlmProvider, userId?: number): Promise<L
 			return await findProviderByName(pinned);
 		}
 		return await loadActiveProvider(userId);
-	} catch {
+	} catch (error) {
+		// Defensiv: die aufgerufenen Loader fangen DB-Fehler selbst — schlägt hier dennoch etwas
+		// durch, loggen wir die Ursache statt sie zu verschlucken. `null` → Aufrufer wirft
+		// MissingApiKeyError (HTTP 503).
+		console.error('LLM-Provider-Auflösung fehlgeschlagen:', error);
 		return null;
 	}
 };

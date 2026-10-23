@@ -5,7 +5,11 @@ import sequelize from '../../database.js';
 import { parseId, sendError, type ErrorDto } from '../http-error.js';
 import Invoice from '../../models/invoice.js';
 import { AiUsage, AllowedEmail, Subscription, User } from '../../models/index.js';
-import { OPEN_SUBSCRIPTION_STATUSES } from '../../models/subscription.js';
+import {
+	OPEN_SUBSCRIPTION_STATUSES,
+	isSubscriptionRunning,
+	runningSubscriptionWhere,
+} from '../../models/subscription.js';
 import type { UserRole } from '../../models/user.js';
 import { PLAN_VALUES, type Plan } from '../../logics/plans.js';
 import { requireRole } from '../requireAuth.js';
@@ -23,6 +27,7 @@ import { acquireGlobalRun, releaseGlobalRun } from '../../logics/reassignLock.js
 import { BACKGROUND_PORTION_SIZE, readBackgroundRun, startBackgroundRun } from '../../logics/reassignBackgroundRun.js';
 import { ladeCareWirkung, type CareWirkung } from '../../logics/careWirkung.js';
 import { ladeKpis, type KpiAuswertung } from '../../logics/kpiKennzahlen.js';
+import { ladeAboUebersicht, type AboUebersicht } from '../../logics/aboUebersicht.js';
 import { activateTopWaitlist, activateWaitlistEntry, listWaitlistRanked } from '../../logics/waitlist.js';
 import { deleteAccount } from '../../logics/deleteAccount.js';
 import { syncUserPlan } from '../../logics/billing/lifecycle.js';
@@ -63,6 +68,10 @@ const toSubscriptionDto = (sub: Subscription): AdminSubscriptionDto => ({
 	status: sub.status,
 	currentPeriodEnd: (sub.get('currentPeriodEnd') as Date | null)?.toISOString() ?? null,
 	createdAt: (sub.get('createdAt') as Date).toISOString(),
+	running: isSubscriptionRunning({
+		status: sub.status,
+		currentPeriodEnd: (sub.get('currentPeriodEnd') as Date | null) ?? null,
+	}),
 });
 
 /** Zugelassene Adresse mit Herkunft (#1983, AK6) — auch ohne bestehendes Konto. */
@@ -197,8 +206,8 @@ export const createAdminRouter = (
 		requireRole('admin'),
 		async (req: Request, res: Response<AdminUserDto | ErrorDto>) => {
 			try {
-				const id = Number(req.params.id);
-				if (!Number.isInteger(id) || id <= 0) {
+				const id = parseId(req.params.id);
+				if (id === null) {
 					sendError(res, 400, 'Ungültige Nutzer-Id.');
 					return;
 				}
@@ -240,8 +249,8 @@ export const createAdminRouter = (
 		requireRole(['admin', 'tester']),
 		async (req: Request, res: Response<AdminUserDto | ErrorDto>) => {
 			try {
-				const id = Number(req.params.id);
-				if (!Number.isInteger(id) || id <= 0) {
+				const id = parseId(req.params.id);
+				if (id === null) {
 					sendError(res, 400, 'Ungültige Nutzer-Id.');
 					return;
 				}
@@ -280,8 +289,8 @@ export const createAdminRouter = (
 		requireRole('admin'),
 		async (req: Request, res: Response<AdminUserDto | ErrorDto>) => {
 			try {
-				const id = Number(req.params.id);
-				if (!Number.isInteger(id) || id <= 0) {
+				const id = parseId(req.params.id);
+				if (id === null) {
 					sendError(res, 400, 'Ungültige Nutzer-Id.');
 					return;
 				}
@@ -356,8 +365,8 @@ export const createAdminRouter = (
 		requireRole('admin'),
 		async (req: Request, res: Response<AdminUserDto | ErrorDto>) => {
 			try {
-				const id = Number(req.params.id);
-				if (!Number.isInteger(id) || id <= 0) {
+				const id = parseId(req.params.id);
+				if (id === null) {
 					sendError(res, 400, 'Ungültige Nutzer-Id.');
 					return;
 				}
@@ -418,6 +427,10 @@ export const createAdminRouter = (
 				return;
 			}
 			try {
+				if (!(await User.findByPk(id, { attributes: ['id'] }))) {
+					sendError(res, 404, 'Nutzer nicht gefunden.');
+					return;
+				}
 				const subscriptions = await Subscription.findAll({ where: { userId: id }, order: [['id', 'DESC']] });
 				res.json(subscriptions.map(toSubscriptionDto));
 			} catch {
@@ -468,13 +481,7 @@ export const createAdminRouter = (
 			await Subscription.destroy({ where: { id: subscriptionIds }, transaction });
 			// Paket des jüngsten noch laufenden Abos (offen oder gekündigt mit Restlaufzeit), sonst free.
 			const running = await Subscription.findOne({
-				where: {
-					userId: target.id,
-					[Op.or]: [
-						{ status: OPEN_SUBSCRIPTION_STATUSES.filter((status) => status !== 'approval_pending') },
-						{ status: 'cancelled', currentPeriodEnd: { [Op.gt]: new Date() } },
-					],
-				},
+				where: { userId: target.id, ...runningSubscriptionWhere() },
 				order: [['id', 'DESC']],
 				transaction,
 			});
@@ -721,6 +728,20 @@ export const createAdminRouter = (
 		},
 	);
 
+	// GET /admin/subscriptions/summary — Abo-Übersicht (#1338): nur Zählungen, keine Personendaten
+	// (`logics/aboUebersicht.ts`).
+	adminRouter.get(
+		'/admin/subscriptions/summary',
+		requireRole('admin'),
+		async (_req: Request, res: Response<AboUebersicht | ErrorDto>) => {
+			try {
+				res.json(await ladeAboUebersicht());
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
 	// GET /admin/kpis — Markteinführungs-Kennzahlen (#1989): Aktivierung, Day-7-Rückkehr, Share-Rate
 	// und Einladungen je Registrierungsperiode als Quoten (`logics/kpiKennzahlen.ts`).
 	adminRouter.get(
@@ -761,8 +782,8 @@ export const createAdminRouter = (
 		'/admin/waitlist/:id/activate',
 		requireRole('admin'),
 		async (req: Request, res: Response<{ status: 'activated'; accessMailStatus: 'sent' | 'failed' } | ErrorDto>) => {
-			const id = Number(req.params.id);
-			if (!Number.isInteger(id) || id <= 0) {
+			const id = parseId(req.params.id);
+			if (id === null) {
 				sendError(res, 400, 'Ungültige Eintrags-Id.');
 				return;
 			}

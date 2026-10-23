@@ -84,4 +84,46 @@ test.describe('Balamentum — #1352: API-Tokens (Settings-Tab „Zugriff")', () 
 		// Bounding-Box darf den Viewport nicht überragen (kein horizontales Scrollen, AK9).
 		expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
 	});
+
+	test('#2499 AK4: 375px — Widerrufen der Geräte-Zeile mindestens 44px hoch, nichts geclippt', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await login(page);
+		// kind:'app'-Tokens entstehen nur im nativen Android-Login (Google-ID-Token-Flow) — im E2E
+		// nicht herstellbar, daher gezielter Mock der Liste (page.route-Regel der E2E-Doku).
+		await page.route('**/api/v1/api-tokens', (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify([
+					{
+						id: 42,
+						name: 'Pixel 8',
+						kind: 'app',
+						scope: 'read',
+						createdAt: '2026-01-05T10:00:00.000Z',
+						lastUsedAt: '2026-02-10T09:30:00.000Z',
+						expiresAt: null,
+					},
+				]),
+			}),
+		);
+		await page.goto('/app/settings/zugriff');
+		await waitForStableView(page, 'Allgemein');
+
+		const section = page.getByTestId('api-devices-section');
+		await expect(section, 'Abschnitt "Angemeldete Geräte" fehlt (rote Spec, #2499)').toBeVisible();
+		const revoke = section.getByRole('button', { name: 'Widerrufen' });
+		await expect(revoke).toBeVisible();
+
+		// Bounding-Box statt scrollWidth (App-Shell clippt mit overflow-x:hidden) und Nachmessen bis
+		// das Layout steht (boundingBox kann einmalig null liefern, Muster ai-disable.spec.ts).
+		let box: { x: number; y: number; width: number; height: number } | null = null;
+		for (let attempt = 0; attempt < 30 && box === null; attempt++) {
+			box = await revoke.boundingBox();
+			if (box === null) await page.waitForTimeout(100);
+		}
+		expect(box, 'Widerrufen-Button muss messbar sein').not.toBeNull();
+		expect(box!.height, 'Touch-Target mindestens 44px hoch').toBeGreaterThanOrEqual(44);
+		expect(box!.x + box!.width, 'nichts über den 375px-Viewport hinaus geclippt').toBeLessThanOrEqual(375 + 1);
+	});
 });

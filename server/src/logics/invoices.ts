@@ -1,14 +1,16 @@
 import { Op, type Transaction } from 'sequelize';
 import sequelize from '../database.js';
-import Invoice from '../models/invoice.js';
+import Invoice, { TAX_NOTE } from '../models/invoice.js';
 import InvoiceSequence from '../models/invoiceSequence.js';
 import CreditSequence from '../models/creditSequence.js';
 import Subscription from '../models/subscription.js';
 import User from '../models/user.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
-import { getPlansCatalog, type Plan } from './plans.js';
+import { getPlansCatalog, parsePlan, type Plan } from './plans.js';
 import { sendMailToUser, type MailSender } from './mail.js';
+import { renderMailHtml } from './mailTemplate.js';
 import { buildInvoicePdf, contractConfirmationLines } from './invoicePdf.js';
+import { billingAddressLines } from './billingAddress.js';
 import { OPERATOR } from './operator.js';
 
 /**
@@ -17,9 +19,6 @@ import { OPERATOR } from './operator.js';
  * nach §19 UStG wird keine Umsatzsteuer erhoben (ADR 0013) — die Rechnung trägt stattdessen den
  * festen Hinweistext {@link TAX_NOTE}.
  */
-
-/** Fester Hinweis statt Steuerausweis (§19 UStG, Kleinunternehmerregelung). */
-const TAX_NOTE = 'Gemäß §19 UStG wird keine Umsatzsteuer ausgewiesen.';
 
 /** Monate je Abrechnungszeitraum — Grundlage für den Rechnungszeitraum (`periodStart`). */
 const PERIOD_MONTHS: Record<string, number> = { monthly: 1, quarterly: 3, yearly: 12 };
@@ -108,6 +107,9 @@ const nextCreditNoteNumber = async (now: Date, transaction?: Transaction): Promi
  *
  * @param mailSend injizierbarer Versand (Default: `sendMailToUser`s nodemailer-Transport).
  * @param pdfBuild injizierbarer PDF-Bau (Default: `buildInvoicePdf`) — Test-Seam wie `mailSend`.
+ * @param creditCents abweichender Gutschriftsbetrag als positiver Erstattungsbetrag (#2745) —
+ *   anteilige Erstattung der Restlaufzeit; auf der Gutschrift negiert gebucht. Ohne Angabe gilt
+ *   der volle Originalbetrag (negiert).
  */
 export const issueCreditNote = async (
 	original: Invoice,
@@ -115,8 +117,9 @@ export const issueCreditNote = async (
 	transaction?: Transaction,
 	mailSend?: MailSender,
 	pdfBuild: typeof buildInvoicePdf = buildInvoicePdf,
+	creditCents?: number,
 ): Promise<Invoice> => {
-	const amountCents = -(original.get('amountCents') as number);
+	const creditAmountCents = creditCents !== undefined ? -creditCents : -(original.get('amountCents') as number);
 	const credit = await Invoice.create(
 		{
 			userId: original.get('userId') as number,
@@ -124,10 +127,10 @@ export const issueCreditNote = async (
 			number: await nextCreditNoteNumber(now, transaction),
 			periodStart: original.get('periodStart') as Date,
 			periodEnd: original.get('periodEnd') as Date,
-			amountCents,
+			amountCents: creditAmountCents,
 			currency: original.get('currency') as string,
 			taxNote: TAX_NOTE,
-			lineItems: [{ label: `Gutschrift zu Rechnung ${original.get('number')}`, amountCents }],
+			lineItems: [{ label: `Gutschrift zu Rechnung ${original.get('number')}`, amountCents: creditAmountCents }],
 			paymentStatus: 'refunded',
 			// Kein `saleId`: die Gutschrift darf nie Ziel künftiger Sale-Lookups sein (sonst
 			// „Gutschrift auf Gutschrift" bei einem zweiten Ereignis derselben Sale).
@@ -139,7 +142,11 @@ export const issueCreditNote = async (
 	const pdfBytes = await pdfBuild(
 		credit,
 		OPERATOR,
-		{ displayName: String(user?.get('displayName') ?? ''), email: String(user?.get('email') ?? '') },
+		{
+			name: String(user?.get('billingName') ?? ''),
+			email: String(user?.get('email') ?? ''),
+			addressLines: user ? billingAddressLines(user) : [],
+		},
 		`Zur Rechnung ${original.get('number')}`,
 	);
 	await credit.update({ pdfBytes: Buffer.from(pdfBytes) }, { transaction });
@@ -153,7 +160,7 @@ export const issueCreditNote = async (
  * `periodEnd`) eines Abos mit gespeicherter Zustimmung; sonst leer. Gemeinsame Quelle für PDF-Erstbau
  * und Mail (auch Nachholversand).
  */
-const confirmationFor = async (
+export const confirmationFor = async (
 	invoice: Invoice,
 	transaction?: Transaction,
 	sprache: CareSprache = 'de',
@@ -178,19 +185,38 @@ const confirmationFor = async (
 	if (first?.get('id') !== invoice.get('id')) {
 		return [];
 	}
-	const plan = String(subscription.get('plan')) as Plan;
+	const plan = parsePlan(String(subscription.get('plan')));
+	if (plan === null) {
+		throw new Error(`Unbekannter Plan '${subscription.get('plan')}' (#2554) — keine Bestätigungszeilen.`);
+	}
 	const period = String(subscription.get('period'));
 	const prices = getPlansCatalog().prices[plan];
-	const priceCents = prices ? prices[period as keyof typeof prices] : 0;
+	const priceCents = prices[period as keyof typeof prices];
 	return contractConfirmationLines(displayLabel(plan, period, sprache), priceCents, consentAt, sprache);
 };
 
 /**
  * Stellt eine bereits angelegte Rechnung per Mail zu und setzt bei Erfolg `deliveredAt` (#2030).
  * Nutzt die gespeicherten `pdfBytes` — das PDF wird nie neu gebaut, Nummer und Anhang bleiben
- * byte-identisch. Ohne gespeichertes PDF oder Empfänger passiert nichts.
+ * byte-identisch. Ohne gespeichertes PDF oder Empfänger passiert nichts. Fehler werden geloggt
+ * statt geworfen (#2541): der Versand läuft nach dem Commit, eine unbehandelte Rejection
+ * würde den Prozess beenden.
  */
 const deliverInvoice = async (
+	invoice: Invoice,
+	user: User | null,
+	label: string,
+	now: Date,
+	mailSend?: MailSender,
+): Promise<void> => {
+	try {
+		await deliverInvoiceUnsafe(invoice, user, label, now, mailSend);
+	} catch (error) {
+		console.error(`Rechnungsversand ${String(invoice.get('number'))} fehlgeschlagen:`, error);
+	}
+};
+
+const deliverInvoiceUnsafe = async (
 	invoice: Invoice,
 	user: User | null,
 	label: string,
@@ -213,33 +239,47 @@ const deliverInvoice = async (
 	const sprache = spracheVon(user.get('sprache') as string | null);
 	const confirmation = await confirmationFor(invoice, undefined, sprache);
 	const amount = (cents: number): string => `${(cents / 100).toFixed(2)} ${currency}`;
+	// Englisch nur die Mail; das PDF bleibt der deutsche Beleg (gespeicherte Bytes).
+	const subject =
+		sprache === 'en' ? `Your ${isCredit ? 'credit note' : 'invoice'} ${number}` : `Ihre ${kind} ${number}`;
+	// Zeitraum, Paket, Positionen, Betrag und Hinweise als gemeinsame Bausteine für Text und HTML
+	// („X: Y“-Zeilen im Text, Label/Wert-Zeilen im HTML) — beide Varianten spiegeln denselben Inhalt.
+	const rows = [
+		{
+			label: sprache === 'en' ? 'Period' : 'Zeitraum',
+			value: `${periodStart.toISOString().slice(0, 10)} ${sprache === 'en' ? 'to' : 'bis'} ${periodEnd.toISOString().slice(0, 10)}`,
+		},
+		...(isCredit
+			? []
+			: [{ label: sprache === 'en' ? 'Plan' : 'Paket', value: sprache === 'en' ? PERIOD_LABEL_EN(label) : label }]),
+		...lineItems.map((item) => ({
+			label: sprache === 'en' ? PERIOD_LABEL_EN(item.label) : item.label,
+			value: amount(item.amountCents),
+		})),
+		{ label: sprache === 'en' ? 'Amount' : 'Betrag', value: amount(amountCents) },
+	];
+	const paragraphs = [
+		sprache === 'en' ? 'No VAT is charged under section 19 of the German VAT Act (UStG).' : TAX_NOTE,
+		...(sprache === 'en' ? ['The attached PDF is issued in German.'] : []),
+	];
+	const mail = renderMailHtml({
+		heading: subject,
+		rows,
+		paragraphs: [...paragraphs, ...confirmation],
+		lang: sprache,
+	});
 	const sent = await sendMailToUser(
 		user,
 		{
-			// Englisch nur die Mail; das PDF bleibt der deutsche Beleg (gespeicherte Bytes).
-			subject: sprache === 'en' ? `Your ${isCredit ? 'credit note' : 'invoice'} ${number}` : `Ihre ${kind} ${number}`,
-			text: (sprache === 'en'
-				? [
-						`${isCredit ? 'Credit note' : 'Invoice'} ${number}`,
-						`Period: ${periodStart.toISOString().slice(0, 10)} to ${periodEnd.toISOString().slice(0, 10)}`,
-						...(isCredit ? [] : [`Plan: ${PERIOD_LABEL_EN(label)}`]),
-						...lineItems.map((item) => `${PERIOD_LABEL_EN(item.label)}: ${amount(item.amountCents)}`),
-						`Amount: ${amount(amountCents)}`,
-						'No VAT is charged under section 19 of the German VAT Act (UStG).',
-						'The attached PDF is issued in German.',
-						...(confirmation.length > 0 ? ['', ...confirmation] : []),
-					]
-				: [
-						`${kind} ${number}`,
-						`Zeitraum: ${periodStart.toISOString().slice(0, 10)} bis ${periodEnd.toISOString().slice(0, 10)}`,
-						...(isCredit ? [] : [`Paket: ${label}`]),
-						...lineItems.map((item) => `${item.label}: ${(item.amountCents / 100).toFixed(2)} ${currency}`),
-						`Betrag: ${(amountCents / 100).toFixed(2)} ${currency}`,
-						TAX_NOTE,
-						...(confirmation.length > 0 ? ['', ...confirmation] : []),
-					]
-			).join('\n'),
-			attachments: [{ filename: `${number}.pdf`, contentType: 'application/pdf', content: pdf }],
+			subject,
+			text: [
+				sprache === 'en' ? `${isCredit ? 'Credit note' : 'Invoice'} ${number}` : `${kind} ${number}`,
+				...rows.map((row) => `${row.label}: ${row.value}`),
+				...paragraphs,
+				...(confirmation.length > 0 ? ['', ...confirmation] : []),
+			].join('\n'),
+			html: mail.html,
+			attachments: [{ filename: `${number}.pdf`, contentType: 'application/pdf', content: pdf }, ...mail.attachments],
 		},
 		mailSend,
 	);
@@ -275,6 +315,8 @@ const enqueueCreation = <T>(run: () => Promise<T>): Promise<T> => {
  * @param transaction Transaktion des Zahlungsereignisses (#2233); der Mailversand folgt erst nach dem Commit.
  *  Ohne sie läuft der Erzeugungsblock in einer eigenen Transaktion (#2236).
  * @param pdfBuild injizierbarer PDF-Bau (Default: `buildInvoicePdf`) — Test-Seam wie `mailSend` (#2236).
+ * @param periodStartOverride echter Start der bezahlten Periode (Stand vor der Verlängerung, #2654);
+ *   ohne Angabe wird er rückwärts aus `periodEnd` abgeleitet.
  */
 export const issueInvoiceForPeriod = async (
 	subscription: Subscription,
@@ -284,13 +326,17 @@ export const issueInvoiceForPeriod = async (
 	charged?: ChargedAmount,
 	transaction?: Transaction,
 	pdfBuild: typeof buildInvoicePdf = buildInvoicePdf,
+	periodStartOverride?: Date,
 ): Promise<Invoice> => {
 	const subscriptionId = subscription.get('id') as number;
 	const periodEnd = subscription.get('currentPeriodEnd') as Date;
 	const period = String(subscription.get('period'));
-	const plan = String(subscription.get('plan')) as Plan;
+	const plan = parsePlan(String(subscription.get('plan')));
+	if (plan === null) {
+		throw new Error(`Unbekannter Plan '${subscription.get('plan')}' (#2554) — keine Rechnung erzeugt.`);
+	}
 	const prices = getPlansCatalog().prices[plan];
-	const priceCents = prices ? prices[period as keyof typeof prices] : 0;
+	const priceCents = prices[period as keyof typeof prices];
 
 	// #2232: ein abgelöstes Abo (#1912) steht auf `free` — eine Abbuchung darauf ist kein „Free“-Beleg.
 	const label =
@@ -342,8 +388,11 @@ export const issueInvoiceForPeriod = async (
 	// sie zurück und verbrennt weder Rechnung noch Nummer. Schachteln ist verboten: die
 	// In-Memory-SQLite (`pool.max = 1`) bricht bei verschachtelten Transaktionen ab.
 	const createInvoice = async (tx?: Transaction): Promise<Invoice> => {
-		const periodStart = new Date(periodEnd);
-		periodStart.setUTCMonth(periodStart.getUTCMonth() - (PERIOD_MONTHS[period] ?? 1));
+		// Echter Periodenstart wird vom Zahlungs-Pfad mitgegeben (#2654); die Rückwärtsableitung aus
+		// dem Ende ist bei Monatsübergang (29.–31.) verlustreich und bleibt nur Fallback.
+		const derivedStart = new Date(periodEnd);
+		derivedStart.setUTCMonth(derivedStart.getUTCMonth() - (PERIOD_MONTHS[period] ?? 1));
+		const periodStart = periodStartOverride ?? derivedStart;
 
 		// #1912: Guthaben aus einem Upgrade wird einmalig als eigene Position verrechnet.
 		const availableCents = Number(subscription.get('creditCents') ?? 0);
@@ -385,8 +434,9 @@ export const issueInvoiceForPeriod = async (
 			invoice,
 			OPERATOR,
 			{
-				displayName: String(user?.get('displayName') ?? ''),
+				name: String(user?.get('billingName') ?? ''),
 				email: String(user?.get('email') ?? ''),
+				addressLines: user ? billingAddressLines(user) : [],
 			},
 			`Paket ${label}`,
 			await confirmationFor(invoice, tx),

@@ -1,5 +1,17 @@
-/** Geo-Helfer (Issues #1066/#1101) — eine Wahrheit für die Distanzberechnung. */
+/** Geo-Helfer (Issues #1066/#1101/#2553) — eine Wahrheit für Koordinaten-Parsing und Distanzberechnung. */
 const EARTH_RADIUS_KM = 6371;
+
+/**
+ * Parst eine Koordinate (#2553): endliche Zahl oder numerischer, getrimmter, nicht-leerer String
+ * (Query-Parameter kommen immer als String), sonst `null` — auch für `""` (die `Number("") === 0`-Falle,
+ * #1101 F1), NaN, Infinity und Arrays. Erzwingt `[-limit, limit]` (90 Breite, 180 Länge).
+ */
+export const parseCoordinate = (value: unknown, limit: number): number | null => {
+	const parsed =
+		typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : Number.NaN;
+	if (!Number.isFinite(parsed) || parsed < -limit || parsed > limit) return null;
+	return parsed;
+};
 
 /** Großkreis-Distanz zweier Punkte in km (Haversine-Formel). */
 const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {

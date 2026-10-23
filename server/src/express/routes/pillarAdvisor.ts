@@ -9,6 +9,7 @@ import { getUserId, ownerScope } from '../requireAuth.js';
 import { requirePlanFeature } from '../planGuard.js';
 import { meterAiQuota } from '../aiQuotaMeter.js';
 import { sendLlmError, validateProviderQuery } from '../llmProviderQuery.js';
+import { validateRequestBody } from '../../logics/requestValidation.js';
 import type { components } from '../../api';
 
 type ActivityAdviceDto = components['schemas']['ActivityAdvice'];
@@ -50,8 +51,11 @@ const validateDistributionEntry = (raw: unknown): { ok: true; entry: PillarDistr
 const validateBody = (
 	body: unknown,
 ): { ok: true; question?: string; distribution?: PillarDistribution[] } | { ok: false; message: string } => {
-	if (body !== undefined && (typeof body !== 'object' || body === null || Array.isArray(body))) {
-		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
+	if (body !== undefined) {
+		const bodyResult = validateRequestBody(body, { rejectArrays: true });
+		if (!bodyResult.ok) {
+			return bodyResult;
+		}
 	}
 	const { question, distribution } = (body ?? {}) as Record<string, unknown>;
 	if (question !== undefined && typeof question !== 'string') {

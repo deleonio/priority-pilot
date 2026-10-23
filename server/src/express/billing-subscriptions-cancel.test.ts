@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, after } from 'node:test';
+import { describe, it, beforeEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
 import { Subscription } from '../models/index.js';
@@ -137,6 +137,37 @@ describe('Cancel-Route #2048', () => {
 		});
 		assert.equal(resNone.status, 404);
 		assert.equal(((await resNone.json()) as { message?: string }).message, 'Kein Abo gefunden.');
+	});
+
+	// #2549 AK5: Ein Fehler im DB-Await VOR dem try-Block (Subscription.findOne, billingSubscriptions.ts:288)
+	// landet beim globalen Fehlerhandler — 500 mit JSON `{ message }` + Log statt der Express-HTML-Seite.
+	it('AK5 (#2549): findOne vor try wirft → 500 mit JSON { message } und Log statt Express-HTML', async () => {
+		server = await startTestServer(withCancel(async () => {}));
+		const { cookie } = await login('ak5-2549@example.com');
+
+		const ce = mock.method(console, 'error', () => {});
+		const original = Subscription.findOne;
+		Subscription.findOne = (async () => {
+			throw new Error('DB kaputt');
+		}) as typeof Subscription.findOne;
+		try {
+			const res = await fetch(`${server.baseUrl}/billing/subscriptions/cancel`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', Cookie: cookie },
+				body: JSON.stringify(ORDINARY),
+			});
+			assert.equal(res.status, 500);
+			const contentType = res.headers.get('content-type') ?? '';
+			assert.ok(contentType.includes('application/json'), `JSON erwartet, war "${contentType}"`);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.ok(typeof body.message === 'string' && body.message.length > 0, 'Body braucht non-leere message');
+			assert.equal(body.error, undefined);
+			const logged = ce.mock.calls.map((c) => c.arguments.map(String).join(' ')).join('\n');
+			assert.ok(logged.includes('/billing/subscriptions/cancel'), `Fehler muss geloggt werden: ${logged}`);
+		} finally {
+			Subscription.findOne = original;
+			ce.mock.restore();
+		}
 	});
 });
 

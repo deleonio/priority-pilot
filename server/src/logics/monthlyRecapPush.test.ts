@@ -17,15 +17,16 @@ import type { PushSender } from './push.js';
  * erste Rot-Zustand.
  */
 
-// 03:00 UTC am 01.10.2026 — erster Scheduler-Lauf im neuen Monat; Recap-Monat = 2026-09.
-const NOW = new Date('2026-10-01T03:00:00Z');
+// 10:00 UTC am 01.10.2026 — UTC-Stunde 10 liegt im Fenster 9–17 (#2849); Recap-Monat = 2026-09.
+const NOW = new Date('2026-10-01T10:00:00Z');
 
 /** Empfänger mit Push-Subscription (ohne Subscription: sent = 0, kein Log — Muster streakReminder). */
-const seedEmpfaenger = async (email: string) => {
+const seedEmpfaenger = async (email: string, zeitzone?: string) => {
 	const user = await User.create({
 		email,
 		displayName: 'Rueckblick',
 		passwordHash: '__test__',
+		...(zeitzone ? { zeitzone } : {}),
 	} as never);
 	await PushSubscription.create({
 		endpoint: `https://push.example.com/${user.id}`,
@@ -68,8 +69,7 @@ describe('runMonthlyRecapPush (#1995 AK3)', () => {
 		assert.ok(payload.title!.length > 0, 'Push-Titel darf nicht leer sein');
 		assert.equal(typeof payload.body, 'string');
 		assert.ok(payload.body!.length > 0, 'Push-Text darf nicht leer sein');
-		assert.equal(typeof payload.url, 'string');
-		assert.ok(payload.url!.startsWith('/'), 'Push-URL ist ein App-Pfad (push-sw-Vertrag)');
+		assert.equal(payload.url, '/#karte-monatsrueckblick', '#2851 AK1: der Push öffnet die Monatsbilanz-Karte');
 		for (const user of [anna, ben]) {
 			const log = await NotificationLog.findOne({ where: { userId: user.id, kind: 'monthly-recap' } });
 			assert.ok(log, `Log-Eintrag für ${user.email} fehlt`);
@@ -100,5 +100,68 @@ describe('runMonthlyRecapPush (#1995 AK3)', () => {
 		assert.equal(retry.usersNotified, 1, 'Ohne Log-Eintrag muss der nächste Lauf erneut zustellen');
 		assert.equal(calls.length, 1);
 		assert.equal(await NotificationLog.count({ where: { userId: anna.id, kind: 'monthly-recap' } }), 1);
+	});
+});
+
+// Rote Spec-Tests für #2849 (Spec docs/spec/issue-2849.md): Fenster lokale Stunde 9–17 an
+// lokalem Monatstag 1–7. KEIN Produktivcode.
+describe('runMonthlyRecapPush — Fenster & Monatstag (#2849 AK6)', () => {
+	beforeEach(resetDb);
+	after(closeDb);
+
+	it('sendet nur bei lokaler Stunde 9–17 — 07:59Z und 18:00Z keiner, 09:00Z ja', async () => {
+		await seedEmpfaenger('recap-fenster-1@example.com');
+		await seedEmpfaenger('recap-fenster-2@example.com');
+		await seedEmpfaenger('recap-fenster-3@example.com');
+		const calls: string[] = [];
+		const send = okSender(calls);
+
+		assert.equal(
+			(await runMonthlyRecapPush(new Date('2026-10-01T07:59:00Z'), send)).usersNotified,
+			0,
+			'07:59 UTC liegt vor dem Fenster',
+		);
+		assert.equal(
+			(await runMonthlyRecapPush(new Date('2026-10-01T09:00:00Z'), send)).usersNotified,
+			3,
+			'09:00 UTC öffnet das Fenster',
+		);
+		await NotificationLog.destroy({ where: {} });
+		assert.equal(
+			(await runMonthlyRecapPush(new Date('2026-10-01T18:00:00Z'), send)).usersNotified,
+			0,
+			'18:00 UTC liegt außerhalb des Fensters',
+		);
+		assert.equal(calls.length, 3);
+	});
+
+	it('sendet nur an lokalem Monatstag 1–7 — Tag 7 ja, Tag 8 (Auckland, lokal) nein', async () => {
+		// Pacific/Auckland, Oktober = NZDT (UTC+13): 2026-10-06T20:00Z = 7. Okt., 09:00 lokal → Tag 7, im Fenster.
+		await seedEmpfaenger('recap-tag7@example.com', 'Pacific/Auckland');
+		const calls: string[] = [];
+		const send = okSender(calls);
+		assert.equal((await runMonthlyRecapPush(new Date('2026-10-06T20:00:00Z'), send)).usersNotified, 1);
+
+		// 2026-10-07T20:00Z = 8. Okt., 09:00 lokal (Tag 8) — der UTC-Kalendertag wäre noch der 7.,
+		// das lokale Datum entscheidet.
+		await seedEmpfaenger('recap-tag8@example.com', 'Pacific/Auckland');
+		assert.equal(
+			(await runMonthlyRecapPush(new Date('2026-10-07T20:00:00Z'), send)).usersNotified,
+			0,
+			'lokaler Monatstag 8 liegt außerhalb 1–7',
+		);
+		assert.equal(calls.length, 1);
+	});
+
+	it('#2850 AK3: Gruppenschalter „Erfolge und Rückblicke“ aus → kein Monatsrückblick-Push', async () => {
+		const anna = await seedEmpfaenger('recap-group-off@example.com');
+		await anna.update({ successPushEnabled: false } as never);
+		const calls: string[] = [];
+
+		const ergebnis = await runMonthlyRecapPush(NOW, okSender(calls));
+
+		assert.equal(ergebnis.usersNotified, 0, 'ausgeschaltete Gruppe stoppt den Rückblick-Push');
+		assert.equal(calls.length, 0);
+		assert.equal(await NotificationLog.count({ where: { userId: anna.id, kind: 'monthly-recap' } }), 0);
 	});
 });

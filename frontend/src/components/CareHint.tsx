@@ -1,9 +1,10 @@
 import { KolAlert, KolButton, KolInputRadio } from '@public-ui/react-v19';
 import type { CareVorschlag, Pillar, TaskCreate } from 'client';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { fillContributions } from '../lib/pillar';
+import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
 
 const TAG_MS = 24 * 60 * 60 * 1000;
 /** Spiegel von `CARE_ABLEHNUNG_TAGE` (`server/src/logics/careSuggestions.ts`) — der Server kennt nur Vorlagen-Ablehnungen. */
@@ -64,9 +65,14 @@ const endeDesTages = (jetzt: Date): number =>
  * Fürsorge-Hinweis auf dem Dashboard (#1793, Ton: `docs/fuersorge-tonalitaet.md`): zeigt den ersten
  * nicht lokal unterdrückten Vorschlag aus `GET /scores/care-suggestions` mit Übernehmen / Nicht
  * jetzt / Ablehnen. Bei `anlass: 'ueberlast'` (#1795) rahmt der Hinweis den Vorschlag als Ausgleich
- * statt als Defizit; ein KI-Vorschlag (`typ: 'ki'`, #1873) trägt die Kennzeichnung „KI-Vorschlag“.
- * Lädt selbst (Muster `DayDoneHint`); bis zur Antwort und bei Ladefehler wird nichts gerendert,
- * damit „Nächste Aufgabe“ nicht springt.
+ * statt als Defizit; bei `anlass: 'ermutigung'` (#2521) und `anlass: 'einstieg'` (#2527) zeigt er
+ * nur den Fürsorge-Satz — ohne
+ * Aktionsreihe (nichts anzunehmen oder abzulehnen, kein Nachrücken, kein Dismissal). Ein
+ * KI-Vorschlag (`typ: 'ki'`, #1873) trägt die Kennzeichnung „KI-Vorschlag“.
+ * Lädt selbst (Muster `DayDoneHint`); bis zur ersten Antwort trägt ein dekorativer Platzhalter die
+ * endgültige Kartenhöhe (#2625 — kein Layout-Sprung), bei Ladefehler wird nichts gerendert. Auf
+ * `TASKS_CHANGED_EVENT` (#2522) lädt er wie beim Mount neu — bis zur Antwort bleibt der alte
+ * Hinweis stehen (der Platzhalter betrifft nur den ersten Ladevorgang).
  *
  * „Nicht jetzt“ (#1977) öffnet eine Inline-Grundauswahl (fünf Gründe, ersetzt die Aktionsreihe):
  * mit Grund geht ein `POST …/rejections` je Aufgabe/Vorlage, ohne Grund wird nur übersprungen —
@@ -76,7 +82,15 @@ const endeDesTages = (jetzt: Date): number =>
  * zurück. Die Statusregion ist ein `div`, weil `KolAlert` ohne `_alert` keine Live-Region setzt
  * und der Hinweis nichts vorlesen soll.
  */
-export const CareHint = () => {
+interface CareHintProps {
+	/**
+	 * #2645: Meldet, ob der Hinweis gerade den Einstiegssatz zeigt — das Dashboard unterdrückt
+	 * dann die inhaltsgleiche Begründungszeile der nächsten Aufgabe (der Satz steht genau einmal).
+	 */
+	onEinstiegssatzGezeigt?: (gezeigt: boolean) => void;
+}
+
+export const CareHint = ({ onEinstiegssatzGezeigt }: CareHintProps) => {
 	const { t } = useTranslation('common');
 	const [vorschlaege, setVorschlaege] = useState<CareVorschlag[] | undefined>(undefined);
 	// Konto-Säulen für die Vollverteilungs-Normierung des Übernahme-Payloads (#2077-Fixup #2132).
@@ -91,19 +105,67 @@ export const CareHint = () => {
 	// Leerzustand erst zeigen, wenn eine „Nicht jetzt“-Aktion die Liste leert — ein frischer Mount
 	// mit nur unterdrückten Vorschlägen bleibt unsichtbar (bestehender #1793-Vertrag).
 	const [leerzustand, setLeerzustand] = useState(false);
+	// #2522: Refresh-Key auf TASKS_CHANGED_EVENT (Muster NearbyCard) — Erledigen auf dem Dashboard
+	// lässt den Hinweis wie beim Mount neu laden.
+	const [refreshKey, setRefreshKey] = useState(0);
+	// #2625: Kennmarke für den ERSTEN Ladevorgang — nur solange trägt der Platzhalter die reservierte
+	// Höhe; der #2522-Refresh lässt den alten Hinweis stehen (kein Platzhalter-Flash).
+	const [initialGeladen, setInitialGeladen] = useState(false);
+
+	useEffect(() => {
+		const onTasksChanged = () => setRefreshKey((key) => key + 1);
+		window.addEventListener(TASKS_CHANGED_EVENT, onTasksChanged);
+		return () => {
+			window.removeEventListener(TASKS_CHANGED_EVENT, onTasksChanged);
+		};
+	}, []);
 
 	useEffect(() => {
 		const controller = new AbortController();
 		api
 			.getCareSuggestions({ signal: controller.signal })
 			.then((result) => setVorschlaege(result.vorschlaege))
-			.catch(() => undefined);
+			.catch(() => undefined)
+			.finally(() => {
+				// Abbruch (Refresh/Unmount/StrictMode-Doppelmount) setzt die Kennmarke nicht — sonst
+				// würde der Platzhalter verschwinden, während der Nachfolge-Fetch noch läuft.
+				if (!controller.signal.aborted) {
+					setInitialGeladen(true);
+				}
+			});
 		api
 			.listPillars({ signal: controller.signal })
 			.then((result) => setSaeulen(result))
 			.catch(() => undefined);
 		return () => controller.abort();
-	}, []);
+	}, [refreshKey]);
+
+	/*
+	 * Nachrücken (#1977): ab Cursor; liegt er hinter dem Listenende, gilt die ganze Liste — so bleibt
+	 * bei nur noch einem Vorschlag die Karte bedienbar statt verschwunden. Bewusst vor den frühen
+	 * Returns berechnet, damit der gezeigte Anlass unten per Effect gemeldet werden kann (Rules of
+	 * Hooks).
+	 */
+	const abCursor = vorschlaege?.slice(nachrueck) ?? [];
+	const vorschlag = (abCursor.length > 0 ? abCursor : (vorschlaege ?? [])).find(
+		(kandidat) => !istUnterdrueckt(kandidat, Date.now()),
+	);
+	// #2645: Der Einstiegssatz steht auf dem Dashboard genau einmal — zeigt der Hinweis ihn, meldet
+	// er das hier (das Dashboard unterdrückt dann die inhaltsgleiche Begründungszeile). Ermutigung
+	// scheidet aus: deren Satz ist ein anderer.
+	const zeigtEinstiegssatz = !ausgeblendet && !leerzustand && vorschlag?.anlass === 'einstieg';
+	// Layout-Effekt (#2645): die Meldung muss IM SELBEN Commit ankommen, in dem der Satz erscheint —
+	// sonst zeigt das Dashboard für einen Commit Satz + duplizierte Begründungszeile zusammen.
+	useLayoutEffect(() => {
+		onEinstiegssatzGezeigt?.(zeigtEinstiegssatz);
+	}, [onEinstiegssatzGezeigt, zeigtEinstiegssatz]);
+
+	// #2625: Bis zur ersten Antwort reserviert der Platzhalter die Höhe der späteren Karte
+	// (Übergang Laden → Geladen hoehenneutral, AK1); Ladefehler, Ausblenden und nur Unterdrücktes
+	// bleiben unsichtbar (#1793-Vertrag).
+	if (!initialGeladen) {
+		return <div className="care-hint care-hint-platzhalter" data-testid="care-hint" aria-hidden="true" />;
+	}
 
 	if (vorschlaege === undefined || ausgeblendet) {
 		return null;
@@ -111,7 +173,14 @@ export const CareHint = () => {
 
 	if (vorschlaege.length === 0 || leerzustand) {
 		return (
-			<div className="care-hint" data-testid="care-hint" role="status" aria-label={t('care.label')}>
+			<div
+				className="care-hint"
+				id="karte-fuersorge"
+				tabIndex={-1}
+				data-testid="care-hint"
+				role="status"
+				aria-label={t('care.label')}
+			>
 				<KolAlert _type="info" _variant="card" _label={t('care.label')}>
 					<p>{t('care.empty')}</p>
 				</KolAlert>
@@ -119,15 +188,29 @@ export const CareHint = () => {
 		);
 	}
 
-	// Nachrücken (#1977): ab Cursor; liegt er hinter dem Listenende, gilt die ganze Liste — so bleibt
-	// bei nur noch einem Vorschlag die Karte bedienbar statt verschwunden.
-	const abCursor = vorschlaege.slice(nachrueck);
-	const vorschlag = (abCursor.length > 0 ? abCursor : vorschlaege).find(
-		(kandidat) => !istUnterdrueckt(kandidat, Date.now()),
-	);
 	if (vorschlag === undefined) {
 		// Frischer Mount mit nur unterdrückten Vorschlägen: unsichtbar bleiben (#1793-Vertrag).
 		return null;
+	}
+
+	// #2521/#2527: Ermutigungs- und Einstiegs-Eintrag sind reine Fürsorge-Sätze — nichts anzunehmen
+	// oder abzulehnen, daher ohne Aktionsreihe, Grundauswahl, Nachrück-Cursor oder Dismissal; sie
+	// verschwinden von selbst, sobald die Überlast-Mindestmenge erreicht ist.
+	if (vorschlag.anlass === 'ermutigung' || vorschlag.anlass === 'einstieg') {
+		return (
+			<div
+				className="care-hint"
+				id="karte-fuersorge"
+				tabIndex={-1}
+				data-testid="care-hint"
+				role="status"
+				aria-label={t('care.label')}
+			>
+				<KolAlert _type="info" _variant="card" _label={t('care.label')}>
+					<p>{vorschlag.titel}</p>
+				</KolAlert>
+			</div>
+		);
 	}
 
 	const schliessen = (aktion: () => Promise<unknown>): void => {
@@ -153,6 +236,8 @@ export const CareHint = () => {
 			priority: 3,
 			estimatedEffort: 0.5,
 			pillars: saeulen.length > 0 ? fillContributions(saeulen, beitraege) : beitraege,
+			// #2758: Herkunftsmerkmal — der Server kennzeichnet die Aufgabe als „Balamentum“.
+			careTemplateKey: vorschlag.templateKey,
 		};
 		return api.createTask({ taskCreate });
 	};
@@ -235,7 +320,14 @@ export const CareHint = () => {
 	};
 
 	return (
-		<div className="care-hint" data-testid="care-hint" role="status" aria-label={t('care.label')}>
+		<div
+			className="care-hint"
+			id="karte-fuersorge"
+			tabIndex={-1}
+			data-testid="care-hint"
+			role="status"
+			aria-label={t('care.label')}
+		>
 			<KolAlert _type="info" _variant="card" _label={t('care.label')}>
 				{/* #1873: `span` statt `KolBadge` wie `SeriesBadge`/`GeoBadge` — der Text läge sonst im Shadow-DOM. */}
 				{vorschlag.typ === 'ki' && (

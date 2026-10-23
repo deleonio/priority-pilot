@@ -2,8 +2,8 @@ import type { Route } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
 
 /**
- * #1674/#1692: Im Kanal `play` kauft die Paketansicht über Google Play, nie über PayPal und ohne
- * Verweis auf den Web-Kauf (ADR 0016). Der Kanal wird über `__PP_CHANNEL__` gesetzt
+ * #1674/#1692/#2492: Im Kanal `play` zeigt die Paketansicht die Katalogpreise ohne Kaufweg und mit
+ * dem Hinweis „Kauf in der App folgt“ (ADR 0016 Nachtrag), nie PayPal und ohne Verweis auf den Web-Kauf. Der Kanal wird über `__PP_CHANNEL__` gesetzt
  * (`lib/platform.ts`), `cordova-plugin-purchase` als globales `CdvPurchase` gemockt; der
  * Paketkatalog kommt vom echten Backend. Der Nutzer hat kein Abo.
  */
@@ -54,40 +54,32 @@ const openPlans = async (page: Page, channel?: 'play'): Promise<void> => {
 };
 
 test.describe('Balamentum — #1674/#1692: Paketansicht im Kanal play', () => {
-	test('Web-Gegenprobe: ohne Abo bietet die Matrix „Zahlungspflichtig bestellen" zu den Katalogpreisen an', async ({
-		page,
-	}) => {
+	test('Web-Gegenprobe: ohne Abo bietet die Matrix „Bestellen" zu den Katalogpreisen an', async ({ page }) => {
 		await openPlans(page);
 
-		await expect(page.getByRole('button', { name: /Zahlungspflichtig bestellen/ }).first()).toBeVisible();
+		// Test-Pflege #2661: Paket-Knopf heißt „Bestellen“ (Paket/Laufzeit unsichtbar im Namen).
+		await expect(page.getByRole('button', { name: /^Bestellen/ }).first()).toBeVisible();
 		await expect(page.getByRole('cell', { name: /^4,99 €/ })).toBeVisible();
 	});
 
-	test('play ohne Store-Plugin: Pakete sichtbar, kein Kauf-Button, Hinweis', async ({ page }) => {
-		await openPlans(page, 'play');
-
-		await expect(page.getByRole('cell', { name: /^4,99 €/ })).toBeVisible();
-		await expect(page.getByText('Google Play nicht erreichbar')).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Buchen' })).toHaveCount(0);
-	});
-
-	test('play bei 375 px: Store-Preise, Kauf-Buttons ≥ 44 px, kein Link, kein Überlauf', async ({ page }) => {
+	test('play bei 375 px: Katalogpreise, Hinweis „Kauf in der App folgt", kein Kaufweg, kein PayPal (#2492)', async ({
+		page,
+	}) => {
 		await mockPlayStore(page);
 		await openPlans(page, 'play');
 
-		await expect(page.getByRole('cell', { name: /^9,49 €/ }).first()).toBeVisible();
-		await expect(page.getByRole('cell', { name: /^4,99 €/ })).toHaveCount(0);
-		const buy = page.getByRole('button', { name: 'Buchen' }).first();
-		await expect(buy).toBeVisible();
-		expect((await buy.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
-		await expect(page.getByTestId('plans-section').getByRole('link')).toHaveCount(0);
+		await expect(page.getByRole('cell', { name: /^4,99 €/ })).toBeVisible();
+		await expect(page.getByRole('cell', { name: /^9,49 €/ })).toHaveCount(0);
+		await expect(page.getByRole('button', { name: 'Buchen' })).toHaveCount(0);
+		const notice = page.getByTestId('store-purchase-notice');
+		await expect(notice).toBeVisible();
+		await expect(notice).toContainText('Kauf in der App folgt');
+		const plans = page.getByTestId('plans-section');
+		await expect(plans.getByRole('link')).toHaveCount(0);
+		await expect(plans).not.toContainText(/PayPal/i);
 
-		const overflow = await page.evaluate(() => {
-			const el = document.scrollingElement;
-			return { scrollWidth: el?.scrollWidth ?? 0, clientWidth: el?.clientWidth ?? 0 };
-		});
-		expect(overflow.scrollWidth, 'die Seite darf nicht horizontal überlaufen').toBeLessThanOrEqual(
-			overflow.clientWidth + 1,
-		);
+		// Bounding-Box statt scrollWidth: die App-Shell clippt overflow-x.
+		const box = await notice.boundingBox();
+		expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(375);
 	});
 });

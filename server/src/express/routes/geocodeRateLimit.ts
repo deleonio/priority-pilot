@@ -1,5 +1,6 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import type { RequestHandler } from 'express';
+import { getUserId } from '../requireAuth.js';
 
 /**
  * Geteilter Rate-Limiter für die Nominatim-Endpunkte (Adresssuche + Reverse-Geocoding, #1280):
@@ -12,10 +13,9 @@ export const geocodeRateLimiter: RequestHandler = rateLimit({
 	max: 1,
 	standardHeaders: true,
 	legacyHeaders: false,
-	// Kontingent je IP + Session-Token — ein Debounce-Kandidat pro Session, nicht pro IP (Muster des
-	// entfernten Eigenbau-Limiters: Key = `${ip}:${session}`). ipKeyGenerator verhindert IPv6-Bypass
-	// (ERR_ERL_KEY_GEN_IPV6).
-	keyGenerator: (req) => `${ipKeyGenerator(req.ip as string)}:${req.headers['x-session-token'] ?? ''}`,
+	// Nur serverseitig bestimmte Werte (IP, Nutzer-ID) — ein Client-Header darf kein frisches Kontingent öffnen (#2543).
+	// ipKeyGenerator verhindert IPv6-Bypass (ERR_ERL_KEY_GEN_IPV6).
+	keyGenerator: (req) => `${ipKeyGenerator(req.ip as string)}:${getUserId(req) ?? ''}`,
 	handler: (req, res) => {
 		// Fallback-Vertrag je Endpunkt (leere Antwort statt 429); der Limiter hängt an beiden Mounts.
 		if (req.originalUrl.includes('/reverse-geocode')) {

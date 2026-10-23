@@ -83,14 +83,17 @@ vi.mock('@public-ui/react-v19', () => ({
 
 afterEach(cleanup);
 
-const categories: Category[] = [{ id: 7, name: 'Hausbau', color: '#b42318' }];
+const categories: Category[] = [
+	{ id: 7, name: 'Hausbau', color: '#b42318' },
+	{ id: 3, name: 'Hobby', color: '#1a7f37' },
+];
 
 /**
  * Tests der Sprachsuche. Der Kern ist ein Fall, der im Kreuzverhör zu PR #1325 aufgefallen ist und
  * still durchging: Liefert das Modell nur eine Kategorie und keinen `text`, darf der gesprochene
  * Suchbegriff nicht verloren gehen — sonst sucht die App nach dem leeren String.
  */
-describe('SearchModal — Sprachsuche mit Kategorie-Erkennung', () => {
+describe('SearchModal — Sprachsuche: Kategorie kommt aus der Maske (#2716)', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		localStorage.clear();
@@ -114,25 +117,46 @@ describe('SearchModal — Sprachsuche mit Kategorie-Erkennung', () => {
 		await waitFor(() => expect(onSearch).toHaveBeenCalled());
 	};
 
-	it('übernimmt Suchbegriff und Kategorie aus der Zerlegung', async () => {
+	it('AK1: übernimmt nur den Suchbegriff aus der Zerlegung, nie die Modell-Kategorie', async () => {
 		vi.mocked(api.parseSearch).mockResolvedValue({ text: 'offene Sachen', categoryId: 7 });
 		const onSearch = vi.fn();
 
 		await searchByVoice(onSearch);
 
 		expect(api.parseSearch).toHaveBeenCalledWith({ text: 'offene Sachen zum Hausbau' });
-		expect(onSearch).toHaveBeenCalledWith('offene Sachen', 7);
+		// Modell-`categoryId` 7 („Hausbau") darf die Nicht-Auswahl (null) der Maske nicht
+		// überschreiben — der Filter wird ausschließlich im Modal gesetzt (#2716).
+		expect(onSearch).toHaveBeenCalledWith('offene Sachen', null);
 	});
 
-	it('filtert nur nach Kategorie, wenn die Zerlegung keinen Suchbegriff übrig lässt', async () => {
+	it('AK2: gewählte Kategorie der Maske gewinnt gegen die Modell-Kategorie', async () => {
+		vi.mocked(api.parseSearch).mockResolvedValue({ text: 'offene Sachen', categoryId: 7 });
+		const onSearch = vi.fn();
+
+		render(
+			<PlanProvider value={{ plan: 'pro', entitlements: aiAssistAllowed }}>
+				<SearchModal categories={categories} onClose={vi.fn()} onSearch={onSearch} />
+			</PlanProvider>,
+		);
+		fireEvent.click(screen.getByRole('button', { name: 'Transkript einspielen' }));
+		fireEvent.change(screen.getByRole('combobox'), { target: { value: '3' } });
+		fireEvent.click(screen.getByRole('button', { name: /suche starten/i }));
+		await waitFor(() => expect(onSearch).toHaveBeenCalled());
+
+		// Nutzer-Wahl (Hobby, 3) schlägt die Modell-Erkennung (Hausbau, 7) immer.
+		expect(onSearch).toHaveBeenCalledWith('offene Sachen', 3);
+	});
+
+	it('AK3: nur Kategorie erkannt — sucht mit dem gesprochenen Text statt leerer Anfrage', async () => {
 		vi.mocked(api.parseSearch).mockResolvedValue({ categoryId: 7 });
 		const onSearch = vi.fn();
 
 		await searchByVoice(onSearch);
 
 		// Der Rohtext wäre hier ein Titel-Filter, den keine Aufgabe erfüllt („offene Sachen zum
-		// Hausbau" steht in keinem Titel) — die Liste bliebe leer statt die Kategorie zu zeigen.
-		expect(onSearch).toHaveBeenCalledWith('', 7);
+		// Hausbau" steht in keinem Titel) — aber ein leerer Suchbegriff verboten: ohne Kategorie-
+		// Auswahl der Maske wird mit dem gesprochenen Text und null gesucht (#2716).
+		expect(onSearch).toHaveBeenCalledWith('offene Sachen zum Hausbau', null);
 	});
 
 	it('sucht mit dem gesprochenen Text, wenn die Zerlegung gar nichts erkennt', async () => {

@@ -1,5 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 import { expect, test } from '@playwright/test';
+import { MOBILE } from './helpers';
 
 /**
  * Rote Spec-Tests Warteliste mit Referral-Rang (#1982, Spec docs/spec/issue-1982.md).
@@ -18,7 +19,7 @@ const mockUnauthenticated = async (page: Page): Promise<void> => {
 };
 
 /** `boundingBox()` misst einmalig und wartet nicht nach — in kurzer Schleife nachmessen (MEMORY 2026-09-14). */
-const boundingBoxWhenLaidOut = async (page: Page, selector: string): Promise<{ width: number } | null> => {
+const boundingBoxWhenLaidOut = async (page: Page, selector: string): Promise<{ x: number; width: number } | null> => {
 	for (let i = 0; i < 30; i++) {
 		const box = await page.locator(selector).first().boundingBox();
 		if (box) {
@@ -73,7 +74,7 @@ test.describe('Warteliste (#1982)', () => {
 	});
 
 	test('AK6: 375 px — Ergebnisblock bricht um statt horizontal zu scrollen', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await mockUnauthenticated(page);
 		await page.goto('/app/');
 		await eintragen(page, `mobil-${Date.now()}@example.com`);
@@ -82,5 +83,57 @@ test.describe('Warteliste (#1982)', () => {
 		const box = await boundingBoxWhenLaidOut(page, '[role="status"]');
 		expect(box, 'Ergebnisblock muss sichtbar vermessen sein').toBeTruthy();
 		expect(box!.width, 'kein horizontales Überlaufen des 375px-Viewports').toBeLessThanOrEqual(375);
+	});
+});
+
+test.describe('Warteliste-Hinweis mit Datenschutz-Link (#2768, docs/spec/issue-2768.md)', () => {
+	test('AK3: Hinweiszeile sichtbar, Link klickbar — Navigation nach /datenschutz/ (375px)', async ({ page }) => {
+		await page.setViewportSize(MOBILE);
+		await mockUnauthenticated(page);
+		await page.goto('/app/');
+
+		const link = page.getByRole('link', { name: /Datenschutzerklärung/ });
+		await expect(link).toBeVisible();
+		await expect(link).toHaveAttribute('href', '/datenschutz/');
+		await link.click();
+		await expect(page).toHaveURL(/\/datenschutz\/$/);
+	});
+
+	test('AK1/AK2 (englisch): Link zeigt auf /en/privacy/ und Ziel antwortet (375px)', async ({ page }) => {
+		await page.setViewportSize(MOBILE);
+		await page.addInitScript(() => localStorage.setItem('i18nextLng', 'en'));
+		await mockUnauthenticated(page);
+		// Website-Seiten (/en/privacy/) bedient der E2E-Stack nicht echt (Randbedingung der Analyse) —
+		// Ziel per Route-Fulfill absichern (Muster `mockLegalPage`); die URL-Assertion bleibt scharf.
+		await page.route('**/en/privacy/', (route: Route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'text/html',
+				body: '<html><body><main id="main"><h1>Privacy policy</h1></main></body></html>',
+			}),
+		);
+		await page.goto('/app/');
+
+		const link = page.getByRole('link', { name: /privacy policy/i });
+		await expect(link).toBeVisible();
+		await expect(link).toHaveAttribute('href', '/en/privacy/');
+		const [response] = await Promise.all([page.waitForResponse((r) => /\/en\/privacy\/$/.test(r.url())), link.click()]);
+		expect(response.status(), 'Ziel antwortet erfolgreich (HTTP < 400)').toBeLessThan(400);
+		await expect(page).toHaveURL(/\/en\/privacy\/$/);
+	});
+
+	test('AK3: Hinweiszeile und Karte laufen nicht horizontal über den 375px-Viewport', async ({ page }) => {
+		await page.setViewportSize(MOBILE);
+		await mockUnauthenticated(page);
+		await page.goto('/app/');
+
+		const box = await boundingBoxWhenLaidOut(page, 'a[href="/datenschutz/"]');
+		expect(box, 'Hinweiszeile muss sichtbar vermessen sein').toBeTruthy();
+		expect(box!.x, 'Hinweis startet im Viewport').toBeGreaterThanOrEqual(0);
+		expect(box!.x + box!.width, 'kein horizontales Überlaufen des 375px-Viewports').toBeLessThanOrEqual(375);
+
+		const karte = await boundingBoxWhenLaidOut(page, 'div.login-page__card:has(a[href="/datenschutz/"])');
+		expect(karte, 'Wartelisten-Karte muss sichtbar vermessen sein').toBeTruthy();
+		expect(karte!.x + karte!.width, 'kein horizontal beschnittener Karteninhalt').toBeLessThanOrEqual(375);
 	});
 });

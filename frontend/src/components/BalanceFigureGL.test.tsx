@@ -1,7 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { toSlots } from './BalanceFigureGL';
+import { render } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { toSlots } from '../lib/webglStage';
 import { buildOrbs } from '../lib/balanceFigure';
 import type { BalanceMetrics } from '../lib/balanceMetric';
+import { BalanceFigureGL } from './BalanceFigureGL';
 
 /**
  * Die Brücke zwischen Rechnung und Shader: `toSlots` legt die Formen auf die acht Uniform-Plätze.
@@ -41,7 +43,18 @@ const metricsOf = (ratios: number[]): BalanceMetrics => {
 
 const stateOf = (
 	metrics: BalanceMetrics,
-	figure: 'blasen' | 'scheiben' | 'ringe' | 'strahlen' | 'bluete' | 'kristall' | 'segmente' | 'zeiger',
+	figure:
+		| 'blasen'
+		| 'scheiben'
+		| 'ringe'
+		| 'strahlen'
+		| 'bluete'
+		| 'kristall'
+		| 'segmente'
+		| 'zeiger'
+		| 'bahnen'
+		| 'meteore'
+		| 'pendel',
 ) => ({
 	figure,
 	metrics,
@@ -187,5 +200,141 @@ describe('BalanceFigureGL toSlots', () => {
 		expect(hands.rayLength[0]).toBeGreaterThan(hands.rayLength[2]);
 		expect(hands.raySpread[0]).toBeLessThan(rays.raySpread[0]);
 		expect(hands.wedgeMid).toHaveLength(0);
+	});
+
+	/* Bahnen, Meteore und Pendel teilen sich die Bahn-Geometrie: Alle drei belegen die
+	 * Strahlen-Plätze mit Winkel und großer Halbachse — die Bewegung wählt der Shader (u_figure). */
+	it('belegt die Slots der drei Bahn-Figuren identisch auf den Strahlen-Plätzen', () => {
+		const metrics = metricsOf([0.2, 1, 0.6]);
+		const strahlen = toSlots(stateOf(metrics, 'strahlen'), colors);
+
+		for (const figur of ['bahnen', 'meteore', 'pendel'] as const) {
+			const slots = toSlots(stateOf(metrics, figur), colors);
+			expect(slots.rayAngle, figur).toEqual(strahlen.rayAngle);
+			expect(slots.rayLength[0]).toBeGreaterThan(slots.rayLength[2]);
+			expect(slots.raySpread).toHaveLength(0);
+			expect(slots.orbRadius).toHaveLength(0);
+			expect(slots.wedgeMid).toHaveLength(0);
+			// Soll-Marke in Radius-Einheit: die Bahn der Säule auf Ziel (hier die stärkste)
+			// berührt den Strichelkreis mit ihrem Scheitel.
+			expect(slots.target).toBeCloseTo(slots.rayLength[0], 6);
+		}
+	});
+});
+
+/**
+ * #2770 AK2: Nach `webglcontextrestored` baut `onRestored` die Engine neu und muss dieselbe
+ * Auftakt-Politik anwenden wie der laufende Effekt — `!(auftaktBereit === false && animated)`.
+ * Der bisher übergebene rohe `stateRef`-Wert leerte das Standbild nach jeder Wiederherstellung:
+ * Ohne Bewegung zeigt die Politik den fertigen Stand, auch wenn der echte Balance-Wert fehlt.
+ *
+ * Kein Render-Test im üblichen Sinn — WebGL gibt es in jsdom nicht: Der Test fährt die echte
+ * Komponente über einen minimalen WebGL2-Ersatz an `canvas.getContext` (kompiliert
+ * „erfolgreich“, protokolliert Uniform-Werte) und löst die Kontext-Events am Canvas aus.
+ */
+describe('BalanceFigureGL — Auftakt-Politik bei Kontext-Wiederherstellung (#2770)', () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+		vi.unstubAllGlobals();
+	});
+
+	/** Minimaler WebGL2-Ersatz: kompiliert „erfolgreich“, protokolliert uniform1f je Name. */
+	const fakeGl = (uniforme: Map<string, number>): WebGL2RenderingContext =>
+		({
+			createShader: () => ({}),
+			shaderSource: () => undefined,
+			compileShader: () => undefined,
+			getShaderParameter: () => true,
+			getShaderInfoLog: () => '',
+			createProgram: () => ({}),
+			attachShader: () => undefined,
+			linkProgram: () => undefined,
+			useProgram: () => undefined,
+			getProgramParameter: () => true,
+			getProgramInfoLog: () => '',
+			createBuffer: () => ({}),
+			bindBuffer: () => undefined,
+			bufferData: () => undefined,
+			getAttribLocation: () => 0,
+			enableVertexAttribArray: () => undefined,
+			vertexAttribPointer: () => undefined,
+			getUniformLocation: (_program: unknown, name: string) => ({ name }),
+			uniform1f: (location: { name: string }, value: number) => {
+				uniforme.set(location.name, value);
+			},
+			uniform1fv: () => undefined,
+			uniform1i: () => undefined,
+			uniform2f: () => undefined,
+			uniform3fv: () => undefined,
+			enable: () => undefined,
+			blendFunc: () => undefined,
+			clearColor: () => undefined,
+			clear: () => undefined,
+			drawArrays: () => undefined,
+			viewport: () => undefined,
+			deleteBuffer: () => undefined,
+			deleteProgram: () => undefined,
+			ARRAY_BUFFER: 34962,
+			STATIC_DRAW: 34962,
+			COMPILE_STATUS: 35713,
+			LINK_STATUS: 35714,
+			VERTEX_SHADER: 35633,
+			FRAGMENT_SHADER: 35632,
+			FLOAT: 5126,
+			BLEND: 3042,
+			ONE: 1,
+			ONE_MINUS_SRC_ALPHA: 771,
+			COLOR_BUFFER_BIT: 16384,
+			TRIANGLES: 4,
+		}) as unknown as WebGL2RenderingContext;
+
+	it('gibt nach webglcontextrestored als Standbild sofort frei — dieselbe Politik wie der laufende Effekt', () => {
+		// jsdom kennt beide Observer nicht; die Engine legt sie bei jedem Aufbau an.
+		vi.stubGlobal(
+			'IntersectionObserver',
+			class {
+				observe(): void {}
+				disconnect(): void {}
+				unobserve(): void {}
+			},
+		);
+		vi.stubGlobal(
+			'ResizeObserver',
+			class {
+				observe(): void {}
+				disconnect(): void {}
+				unobserve(): void {}
+			},
+		);
+		const uniforme = new Map<string, number>();
+		vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+			fakeGl(uniforme) as unknown as CanvasRenderingContext2D,
+		);
+		const onGiveUp = vi.fn();
+
+		const { getByTestId } = render(
+			<BalanceFigureGL
+				figure="blasen"
+				metrics={metricsOf([1])}
+				activeTicks={50}
+				beatSeconds={2}
+				animated={false}
+				auftaktBereit={false}
+				ariaLabel="Test"
+				onGiveUp={onGiveUp}
+			/>,
+		);
+
+		// Laufender Effekt, Standbild: Der fertige Stand wird sofort gezeigt, obwohl der echte
+		// Balance-Wert noch fehlt (u_rise = 1 = freigegeben).
+		expect(onGiveUp).not.toHaveBeenCalled();
+		expect(uniforme.get('u_rise')).toBe(1);
+
+		getByTestId('heart-balance-canvas').dispatchEvent(new Event('webglcontextlost'));
+		getByTestId('heart-balance-canvas').dispatchEvent(new Event('webglcontextrestored'));
+
+		// Nach der Wiederherstellung gilt dieselbe Politik — der rohe stateRef-Wert (false) würde
+		// das Bild hier leer machen (u_rise = 0).
+		expect(uniforme.get('u_rise')).toBe(1);
 	});
 });

@@ -49,11 +49,42 @@ describe('runProviderTest', () => {
 		assert.equal(result.model, 'some-model');
 		assert.equal(typeof result.latencyMs, 'number');
 		assert.equal(result.sample, '{"ok": true}');
-		// Produktions-Shape: derselbe Endpoint, derselbe Key, JSON-Mode.
+		// Produktions-Shape: derselbe Endpoint, derselbe Key, JSON-Mode, Greedy-Sampling.
 		assert.equal(fetchMock.sent.url, 'https://api.example.com/v1/chat/completions');
 		assert.equal(fetchMock.sent.auth, 'Bearer test-key');
 		assert.equal((fetchMock.sent.body.response_format as { type: string })?.type, 'json_object');
 		assert.equal(fetchMock.sent.body.model, 'some-model');
+		assert.equal(fetchMock.sent.body.temperature, 0);
+		assert.equal(fetchMock.sent.body.top_p, 1);
+	});
+
+	it('HTTP 200 mit eingebettetem error (OpenRouter-Form): Ursache wird durchgereicht', async () => {
+		mockFetch(200, { error: { message: 'Insufficient credits' } });
+
+		const result = await runProviderTest(runtime({ label: 'OpenRouter', model: 'some-model' }));
+
+		assert.equal(result.ok, false);
+		assert.match(result.message ?? '', /Insufficient credits/);
+	});
+
+	it('Zeitlimit beim Body-Lesen: klare Timeout-Meldung statt wertlosem JSON-Fehler', async () => {
+		mock.method(
+			globalThis,
+			'fetch',
+			(async () =>
+				({
+					ok: true,
+					json: async () => {
+						throw Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' });
+					},
+				}) as unknown as Response) as typeof fetch,
+		);
+
+		const result = await runProviderTest(runtime({ label: 'OpenRouter' }));
+
+		assert.equal(result.ok, false);
+		assert.match(result.message ?? '', /Zeitlimit/);
+		assert.doesNotMatch(result.message ?? '', /JSON/);
 	});
 
 	it('HTTP 402 mit detail-Body: Ursache wird durchgereicht (Mistral-Abo-Fall)', async () => {

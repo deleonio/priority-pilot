@@ -157,3 +157,48 @@ describe('Serien-Datenisolation — nutzer-eigene Serien (#1157)', () => {
 		assert.equal(ownRes.status, 201, 'eigene Serie bleibt generierbar (kein Über-Scoping)');
 	});
 });
+
+// ── #2501: Checkpunkte an der Serie — Datenisolation (AK6, REST-Teil) ────────────────────────
+// Rot ist die zweite Assertion: der DTO kennt `checklist` heute noch nicht (undefined statt []).
+describe('Checkliste an der Serie — Datenisolation (#2501 AK6)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		await server.close();
+		await closeDb();
+	});
+
+	const createSeries = async (cookie: string, title: string): Promise<number> => {
+		const res = await fetch(`${server.baseUrl}/series`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', cookie },
+			body: JSON.stringify(validSeries(title)),
+		});
+		assert.equal(res.status, 201, 'Setup: Serie muss anlegbar sein');
+		return ((await res.json()) as { id: number }).id;
+	};
+
+	it('PATCH mit checklist auf fremder Serie → 404, die Checkliste der fremden Serie bleibt unberührt', async () => {
+		const cookieAlice = await server.login(TEST_EMAIL_ALICE);
+		const cookieBob = await server.login(TEST_EMAIL_BOB);
+		const bobSeriesId = await createSeries(cookieBob, 'Bobs Checkliste');
+
+		const forbidden = await fetch(`${server.baseUrl}/series/${bobSeriesId}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', cookie: cookieAlice },
+			body: JSON.stringify({
+				checklist: [{ id: '11111111-1111-4111-8111-111111111111', title: 'Gestohlen' }],
+			}),
+		});
+		assert.equal(forbidden.status, 404, 'fremde Serien-ID ist unsichtbar');
+
+		const own = (await (
+			await fetch(`${server.baseUrl}/series/${bobSeriesId}`, { headers: { cookie: cookieBob } })
+		).json()) as { checklist?: unknown };
+		assert.deepEqual(own.checklist, [], 'der abgewiesene PATCH hat keine Checkliste angelegt');
+	});
+});

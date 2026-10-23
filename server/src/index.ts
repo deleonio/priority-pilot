@@ -56,6 +56,10 @@ const seedPillars = async (): Promise<void> => {
  * mehr, die Migration ist dann ein No-op.
  */
 const migrateLegacySinglePillar = async (): Promise<void> => {
+	// MariaDB (#2825): PRAGMA ist SQLite-exklusiv — überspringen; `sync()` legt das Schema an.
+	if (sequelize.getDialect() === 'mysql') {
+		return;
+	}
 	if ((await TaskPillar.count()) > 0) {
 		return;
 	}
@@ -99,6 +103,7 @@ export const main = async (): Promise<void> => {
 			migrateSeriesColumns,
 			migrateSeriesRenameFields,
 			migrateSeriesTable,
+			migrateSeriesChecklist,
 			migrateUsersAvatarUrl,
 			migrateGroupImageUrl,
 			migrateGroupKind,
@@ -113,6 +118,7 @@ export const main = async (): Promise<void> => {
 			migrateInvoiceCreditForColumn,
 			migrateWaitlistAccessMailStatusColumn,
 			migrateWaitlistSpracheColumn,
+			migrateWaitlistConfirmationColumns,
 			migrateLegacyPlans,
 			migrateUserIdColumns,
 			migratePillarDescription,
@@ -136,32 +142,43 @@ export const main = async (): Promise<void> => {
 			migrateApiTokenExpiresAt,
 			migrateApiTokenKind,
 			migrateLoginTokenPurpose,
+			migrateLoginTokenCodeChallenge,
 			migrateTaskPinnedColumns,
 			migratePillarRecalcColumns,
 			migrateTaskMissedColumns,
 			migrateTaskSnoozeColumn,
 			migrateTaskAiDraftColumn,
+			migrateTaskSystemCreatedColumn,
 			migrateUserCareColumns,
+			migrateUserPushGroupColumns,
 			migrateUserTermsColumns,
 			migrateUserMcpInstructionsColumn,
 			migrateUsersBalanceVariantColumn,
 			migrateUserAccountPreferenceColumns,
 			migrateUsersFreeSlotMinMinutesColumn,
 			migrateCalendarSourceCaldavColumns,
+			migrateUserBillingAddressColumns,
 		} = await import('./logics/migrate.js');
-		const { runDueTaskReminders } = await import('./logics/dueTaskReminders.js');
+		const { runDailyDigest } = await import('./logics/dailyDigest.js');
 		const { runDeadlineAutoDelete } = await import('./logics/autoDeleteAfterDeadline.js');
-		const { runDailyTopTasksPush } = await import('./logics/dailyTopTasks.js');
 		const { runCarePush } = await import('./logics/carePush.js');
+		const { runAppreciationPush, runWelcomeBackPush } = await import('./logics/appreciationPush.js');
+		const { runWeeklyRecapPush, runYearlyRecapPush } = await import('./logics/recapPushes.js');
+		const { runJournalImpulsePush } = await import('./logics/journalImpulsePush.js');
+		const { runWelcomeStepsPush } = await import('./logics/welcomeStepsPush.js');
 		const { runStreakReminder } = await import('./logics/streakReminder.js');
 		const { runMonthlyRecapPush } = await import('./logics/monthlyRecapPush.js');
+		const { vorrangVon } = await import('./logics/pushBudget.js');
+		const { runAboServicePush } = await import('./logics/aboPush.js');
+		const { runTipPush } = await import('./logics/tipPush.js');
+		const { runGroupPush } = await import('./logics/groupPush.js');
 		const { runCalendarSync, CALENDAR_SYNC_INTERVAL_MS } = await import('./logics/calendar-ics.js');
 		const { applyDueGracePeriods, reconcilePaypalSubscriptions } = await import('./logics/billing/lifecycle.js');
 		const { paypalGraceDeps, paypalReconcileDeps } = await import('./logics/paypal.js');
 		const { cleanupOrphanedGroupInvitations } = await import('./logics/groupInvitationCleanup.js');
 		const { sendStartupStatusMail } = await import('./logics/startupStatusMail.js');
 		const { launchServer } = await import('./express/index.js');
-		const { startScheduler, startDeadlineAutoDeleteScheduler, startCalendarSyncScheduler } =
+		const { startScheduler, startDeadlineAutoDeleteScheduler, startIntervalScheduler } =
 			await import('./scheduler/index.js');
 
 		// Fehlende Serien-Spalten auf einer Bestands-DB nachziehen, BEVOR sync() den Unique-Index
@@ -174,6 +191,9 @@ export const main = async (): Promise<void> => {
 		await migrateSeriesRenameFields(sequelize);
 		// Fehlende Spalten der series-Tabelle nachziehen (#163).
 		await migrateSeriesTable(sequelize);
+		// Fehlende checklist-Spalte an series nachziehen (#2501) — vor sync(), damit Lese-/Schreib-
+		// zugriffe auf Bestands-DBs nicht mit `no such column` brechen (Muster #531).
+		await migrateSeriesChecklist(sequelize);
 		// Fehlende avatarUrl-Spalte in users nachziehen (#217).
 		await migrateUsersAvatarUrl(sequelize);
 		// Fehlende imageUrl-Spalte (Gruppenbild, #1225) an groups nachziehen — vor sync().
@@ -206,6 +226,7 @@ export const main = async (): Promise<void> => {
 		// Freischalt-Mail-Status der Warteliste nachziehen (#2305) — vor sync().
 		await migrateWaitlistAccessMailStatusColumn(sequelize);
 		await migrateWaitlistSpracheColumn(sequelize);
+		await migrateWaitlistConfirmationColumns(sequelize);
 		// Altpakete max/ultimate auf plus/pro umstellen (#1785) — nach den Spalten-Migrationen.
 		await migrateLegacyPlans(sequelize);
 		// Fehlende userId-Spalte (Datenisolation #207) an tasks nachziehen, BEVOR sync() läuft.
@@ -240,6 +261,8 @@ export const main = async (): Promise<void> => {
 		await migrateUserGeoConfigColumns(sequelize);
 		// Fürsorge-Push-Spalten am User (#1794) — wie oben: sync() ergänzt Bestands-Tabellen nicht.
 		await migrateUserCareColumns(sequelize);
+		// Push-Gruppen-Spalten am User (#2850) — wie oben.
+		await migrateUserPushGroupColumns(sequelize);
 		// Zustimmungs-Spalten am User (#1901) — wie oben.
 		await migrateUserTermsColumns(sequelize);
 		// Dialog-Vorgaben-Spalte am User (#1935) — wie oben.
@@ -252,6 +275,8 @@ export const main = async (): Promise<void> => {
 		await migrateUsersFreeSlotMinMinutesColumn(sequelize);
 		// CalDAV-Spalten an calendar_sources (#2211) — wie oben: sync() ergänzt Bestands-Tabellen nicht.
 		await migrateCalendarSourceCaldavColumns(sequelize);
+		// Rechnungsadresse am User (#2661) — wie oben: sync() ergänzt Bestands-Tabellen nicht.
+		await migrateUserBillingAddressColumns(sequelize);
 		// Fehlende displayNameCustom-Flag-Spalte an users nachziehen (#1256 — Eigen-Speicherung
 		// schützt den Anzeigenamen vor dem OAuth-Sync) — vor sync(), damit User-Zugriffe auf
 		// Bestands-DBs nicht mit `no such column` brechen.
@@ -289,6 +314,8 @@ export const main = async (): Promise<void> => {
 		await migrateApiTokenKind(sequelize);
 		// Fehlende purpose-Spalte an login_tokens nachziehen (#1669) — vor sync(), aus demselben Grund.
 		await migrateLoginTokenPurpose(sequelize);
+		// Fehlende codeChallenge-Spalte (PKCE der App-Links, #2563) — vor sync(), aus demselben Grund.
+		await migrateLoginTokenCodeChallenge(sequelize);
 		// Fehlende pinned/pinnedAt-Spalten an tasks nachziehen (#1582) — vor sync(), damit
 		// Lese-/Schreibzugriffe auf Bestands-DBs nicht mit `no such column` brechen.
 		await migrateTaskPinnedColumns(sequelize);
@@ -302,6 +329,8 @@ export const main = async (): Promise<void> => {
 		await migrateTaskSnoozeColumn(sequelize);
 		// Fehlende aiDraft-Spalte (#2350) an tasks nachziehen — vor sync(), aus demselben Grund.
 		await migrateTaskAiDraftColumn(sequelize);
+		// Fehlende systemCreated-Spalte (#2758) an tasks nachziehen — vor sync(), aus demselben Grund.
+		await migrateTaskSystemCreatedColumn(sequelize);
 
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });
@@ -325,9 +354,29 @@ export const main = async (): Promise<void> => {
 
 		await launchServer();
 
-		// Fachliche Web-Push-Trigger (Issue #355 + #518) — No-Op ohne VAPID-Keys oder ohne
-		// explizites PUSH_REMINDERS_ENABLED=true (siehe scheduler/index.ts).
-		startScheduler([runDueTaskReminders, runDailyTopTasksPush, runCarePush, runStreakReminder, runMonthlyRecapPush]);
+		// Fachliche Web-Push-Trigger (Issue #355 + #518 + #2853) — No-Op ohne VAPID-Keys oder ohne
+		// explizites PUSH_REMINDERS_ENABLED=true (siehe scheduler/index.ts). Der Morgen-Push ist
+		// seit #2853 der Digest „Dein Tag“ (fällige + Top-Aufgaben gebündelt, inkl. Morgen-Mail
+		// #1426); die alten Morgen-Trigger (`runDueTaskReminders`, `runDailyTopTasksPush`) sind
+		// entfallen. Je Tick sendet der Scheduler in §4-Vorrang-Ordnung (F1.2) — über den
+		// Tagesverlauf bleibt es First-Come-First-Served. Der Abo-Service-Push (#2852) bleibt
+		// ungerangt: als Service-Nachricht läuft er nach den gerangten Triggern und budgetfrei.
+		startScheduler([
+			{ rang: vorrangVon('daily-digest'), trigger: runDailyDigest },
+			{ rang: vorrangVon('care-push'), trigger: runCarePush },
+			{ rang: vorrangVon('appreciation'), trigger: runAppreciationPush },
+			{ rang: vorrangVon('welcome-back'), trigger: runWelcomeBackPush },
+			{ rang: vorrangVon('journal-impulse'), trigger: runJournalImpulsePush },
+			{ rang: vorrangVon('streak-reminder'), trigger: runStreakReminder },
+			{ rang: vorrangVon('monthly-recap'), trigger: runMonthlyRecapPush },
+			{ rang: vorrangVon('weekly-recap'), trigger: runWeeklyRecapPush },
+			{ rang: vorrangVon('yearly-recap'), trigger: runYearlyRecapPush },
+			{ rang: vorrangVon('welcome-steps'), trigger: runWelcomeStepsPush },
+			{ rang: vorrangVon('group-challenge'), trigger: runGroupPush },
+			// #2856: Tipps-Hinweis ist KEIN Service-Kind — gerangt wie die Budget-Kinder.
+			{ rang: vorrangVon('tip-push'), trigger: runTipPush },
+			runAboServicePush,
+		]);
 
 		// Deadline-Auto-Löschung (#523) — bewusst push-unabhängig (siehe startDeadlineAutoDeleteScheduler):
 		// das fachliche Opt-in ist das pro-Task-Feld `autoDeleteAfterDeadline`, nicht Web-Push. Default-on,
@@ -335,19 +384,20 @@ export const main = async (): Promise<void> => {
 		startDeadlineAutoDeleteScheduler([runDeadlineAutoDelete]);
 
 		// Kalender-Abruf per ICS (#2209) — alle 30 Minuten, unabhängig von Push.
-		startCalendarSyncScheduler(runCalendarSync, CALENDAR_SYNC_INTERVAL_MS);
+		startIntervalScheduler('Kalender-Abruf', runCalendarSync, CALENDAR_SYNC_INTERVAL_MS);
 
 		// Serien automatisch anlegen (#2356) — einmal beim Start, danach täglich; push-unabhängig, idempotent.
 		const { runSeriesAutoCreate } = await import('./logics/seriesAutoCreate.js');
 		void runSeriesAutoCreate(new Date()).catch((error) => console.error('Serien-Automatik fehlgeschlagen.', error));
-		startCalendarSyncScheduler(runSeriesAutoCreate, 24 * 60 * 60 * 1000);
+		startIntervalScheduler('Serien-Automatik', runSeriesAutoCreate, 24 * 60 * 60 * 1000);
 
 		// Kulanzfrist-Ablauf (#2234) — entzieht das Paket und kündigt das PayPal-Abo auch ohne Login;
 		// push-unabhängig, idempotent (stündlich).
-		startCalendarSyncScheduler((now) => applyDueGracePeriods(now, paypalGraceDeps()), 60 * 60 * 1000);
+		startIntervalScheduler('Kulanzfrist-Sweep', (now) => applyDueGracePeriods(now, paypalGraceDeps()), 60 * 60 * 1000);
 
 		// Täglicher Abgleich der PayPal-Abos (#2300) — zieht verpasste Webhooks nach; nur mit PayPal-Zugangsdaten, idempotent.
-		startCalendarSyncScheduler(
+		startIntervalScheduler(
+			'PayPal-Abgleich',
 			async (now) => {
 				const deps = paypalReconcileDeps();
 				return deps && reconcilePaypalSubscriptions(now, deps);

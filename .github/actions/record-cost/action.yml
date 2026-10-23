@@ -152,14 +152,16 @@ runs:
         [ -n "$FINDINGS" ] && EXTRA_ARGS+=(--findings "$FINDINGS")
         [ -n "$NITS" ] && EXTRA_ARGS+=(--nits "$NITS")
         SCRIPT="${GITHUB_ACTION_PATH}/../../scripts/${SCRIPT_NAME}"
+        # ${ARR[@]+"${ARR[@]}"} statt "${ARR[@]}": unter `set -u` bricht die kurze Form auf
+        # macOS (bash 3.2) bei leeren Arrays mit "unbound variable" — siehe check-phase-label.sh.
         OUT="$(node "$SCRIPT" \
           --issue "$ISSUE" --phase "$PHASE" --provider "$PROVIDER" \
           --runtime "$RUNTIME" --configured-model "$CONFIGURED_MODEL" \
-          "${SCOPE_ARGS[@]}" "${EXTRA_ARGS[@]}" 2>&1)" \
+          ${SCOPE_ARGS[@]+"${SCOPE_ARGS[@]}"} ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} 2>&1)" \
           || OUT="$(pnpm exec tsx "$SCRIPT" \
               --issue "$ISSUE" --phase "$PHASE" --provider "$PROVIDER" \
               --runtime "$RUNTIME" --configured-model "$CONFIGURED_MODEL" \
-              "${SCOPE_ARGS[@]}" "${EXTRA_ARGS[@]}" 2>&1 || true)"
+              ${SCOPE_ARGS[@]+"${SCOPE_ARGS[@]}"} ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} 2>&1 || true)"
         printf '%s\n' "$OUT"
 
         # key=value aus der Skript-Ausgabe ziehen; fehlt etwas, bleibt der Wert leer und
@@ -251,7 +253,7 @@ runs:
       # verschwänden still aus Zusammenfassung und Siegel. Das Präfix ist historisch,
       # nicht laufzeitbezogen; die Laufzeit steht im Datensatz und in der Job-Summary.
       if: always()
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: claude-costs-${{ inputs.phase }}-issue-${{ inputs.issue }}-${{ github.run_id }}
         path: .costs/${{ inputs.issue }}.json

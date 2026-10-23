@@ -302,7 +302,16 @@ test.describe('Dashboard — Sektionen als Kolibri-Cards (#1118)', () => {
 	});
 
 	test('AK8: Signalfäche der „Nächste Aufgabe" bleibt sichtbar, Button per Tastatur auslösbar', async ({ page }) => {
-		await seedTasks(page, 1, 'E2E #1118 Signal', new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString());
+		// #2526-Test-Pflege: Plain-Tasks erledigt das Panel direkt (ADR 0024) — für den Tastatur-Fluss
+		// mit Bestätigungsdialog braucht die Aufgabe eine offene Checkliste (#1583-Fall, UUID-Ids).
+		await page.request.post('/api/v1/tasks', {
+			data: {
+				title: 'E2E #1118 Signal 1',
+				priority: 3,
+				deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+				checklist: [{ id: '31111111-1111-1118-1118-111111111181', title: 'Schritt', completed: false }],
+			},
+		});
 		await openDashboard(page, 1280, 900);
 
 		// `elementFromPoint` arbeitet in Viewport-Koordinaten und liefert außerhalb des sichtbaren

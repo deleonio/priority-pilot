@@ -256,6 +256,7 @@
 		"cancellation": "Wypowiedz umowę tutaj",
 		"mcpGuide": "Przewodnik MCP",
 		"templates": "Szablony",
+		"accessibility": "Dostępność",
 		"legalGermanOnly": "Teksty prawne po angielsku dla wygody; wiążąca jest wersja niemiecka."
 	},
 	"imprint": {
@@ -289,5 +290,13 @@
 		"noAccessTitle": "Bez dostępu do aplikacji",
 		"noAccess": "Napisz do nas z adresu e-mail swojego konta. Usuniemy konto w ciągu miesiąca i potwierdzimy to.",
 		"back": "Powrót do strony głównej"
+	},
+	"tracking": {
+		"title": "Pomiar zasięgu",
+		"text": "Czy możemy liczyć, które strony są odwiedzane? Bez plików cookie, na naszym własnym serwerze i tylko po to, by ulepszać Balamentum. Bez twojej zgody pomiar pozostaje wyłączony.",
+		"accept": "Zezwól",
+		"decline": "Odrzuć",
+		"privacy": "Więcej informacji",
+		"settings": "Pomiar zasięgu"
 	}
 }

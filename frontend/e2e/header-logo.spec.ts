@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAvatarMenu, waitForStableView } from './helpers';
 
 /**
  * Spec-Tests für #395 „Klickbare Bild-Marke im Header (Link zum Dashboard)".
@@ -121,7 +121,8 @@ test.describe('#406 Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen', () =
 		// Kopf-Toolbar bleibt sichtbar.
 		await expect(header.getByRole('toolbar', { name: /Kopf-Aktionen/i })).toBeVisible();
 
-		// Avatar bleibt sichtbar.
+		// Avatar bleibt sichtbar (#2723: im geöffneten Avatar-Popover).
+		await openAvatarMenu(page);
 		await expect(header.locator('kol-avatar').first()).toBeVisible();
 
 		// Der redundante Text-H1 „Balamentum" darf nicht mehr sichtbar sein.

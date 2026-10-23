@@ -79,6 +79,7 @@ graph LR
     AndroidApp[Android-App<br/>Capacitor-Wrapper] -->|HTTPS /api/v1| Caddy
     Betreiber[Betreiber<br/>ssh + PM2] -->|betreibt| Caddy
     MCPClient[Externer MCP-Client<br/>Claude Code / ZCode-Connector] -->|IF-07 MCP| Caddy
+    MCPAdmin[MCP-Client eines Administrators] -->|IF-14 Admin-MCP| Caddy
     subgraph Host[Dedizierter Server]
         Caddy[Caddy, TLS] --> Web["Website (statisch)"]
         Caddy --> SPA[Balamentum SPA /app/]
@@ -98,20 +99,21 @@ graph LR
     API -->|IF-13 ICS/CalDAV| Kal[Kalender-Server des Nutzers]
 ```
 
-| ID    | Schnittstelle            | Teilnehmer                    | Bemerkung                                                                                                                                                                                                                                                             |
-| ----- | ------------------------ | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| IF-01 | REST-API (`openapi.yml`) | Frontend ↔ Server             | Vertrag mit generierten Typen (`client/`, `server/src/api.d.ts`); Caddy bzw. Vite-Proxy streifen `/api/v1` ab                                                                                                                                                         |
-| IF-02 | Google OAuth 2.0         | Server ↔ Google               | `passport-google-oauth20`, Login und stiller Login (`/auth/google`, `/auth/google/silent`)                                                                                                                                                                            |
-| IF-03 | LLM-Chat-Completions     | Server ↔ Mistral / OpenRouter | `server/src/llm/llm.ts`; Provider in der DB (`llm_providers`, instanzweit oder je Nutzer, Auswahl je User), Fix-Provider Mistral über `MISTRAL_API_KEY`                                                                                                               |
-| IF-04 | Geocoding                | Server ↔ Nominatim            | Forward- und Reverse-Geocoding, `server/src/logics/nominatim.ts`                                                                                                                                                                                                      |
-| IF-06 | Web-Push                 | Server ↔ Browser-Push-Dienst  | `web-push` mit VAPID-Keys, Subscriptions in `push_subscriptions`                                                                                                                                                                                                      |
-| IF-07 | MCP (Streamable HTTP)    | Externer Client ↔ Server      | `POST /mcp/v1`, handgerollte Teilmenge ohne SDK (`server/src/mcp/`), Auth per persönlichem API-Token; die `initialize`-Antwort weist auf das Pacing hin (`mcp/tools.ts`): Pacing: at most 1 call per second; space out repeated or bulk calls (pause between writes). |
-| IF-08 | PayPal-Subscriptions     | Server ↔ PayPal               | Abo-Anlage/-Wechsel/-Storno und Rechnungen (`routes/billingSubscriptions.ts`); signierter Webhook `POST /webhooks/paypal` (`routes/billing.ts`, `logics/paypal.ts`)                                                                                                   |
-| IF-09 | SMTP                     | Server ↔ Mailserver           | `nodemailer` (`logics/mail.ts`); ohne `SMTP_HOST`/`MAIL_FROM` deaktiviert (503-Gate); versendet auch Magic-Link-Anmeldelinks (`routes/magicLink.ts`)                                                                                                                  |
-| IF-10 | GitHub-Contents-API      | Server ↔ GitHub               | App-Feedback wird als Markdown im Obsidian-Repo abgelegt (`logics/obsidianFeedback.ts`, PAT aus ENV)                                                                                                                                                                  |
-| IF-11 | Firebase Cloud Messaging | Server ↔ FCM                  | HTTP v1 mit Service-Account (`FCM_SERVICE_ACCOUNT_FILE`), Gerätetoken der Android-App in `fcm_tokens` (`logics/fcm.ts`)                                                                                                                                               |
-| IF-12 | Play Developer API       | Server ↔ Google Play          | Abo-Käufe der Android-App bestätigen (`POST /billing/google/purchase`) und per RTDN-Webhook `/billing/google/rtdn` nachziehen (`logics/googlePlay.ts`, Service-Account aus `GOOGLE_PLAY_SERVICE_ACCOUNT_FILE`)                                                        |
-| IF-13 | Kalender-Abruf           | Server ↔ Kalender-Server      | Lesend per ICS-URL oder CalDAV (`REPORT calendar-query`, HTTP Basic mit App-Passwort), `logics/calendar-ics.ts` und `calendar-caldav.ts`                                                                                                                              |
+| ID    | Schnittstelle            | Teilnehmer                    | Bemerkung                                                                                                                                                                                                                                                                                                            |
+| ----- | ------------------------ | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| IF-01 | REST-API (`openapi.yml`) | Frontend ↔ Server             | Vertrag mit generierten Typen (`client/`, `server/src/api.d.ts`); Caddy bzw. Vite-Proxy streifen `/api/v1` ab                                                                                                                                                                                                        |
+| IF-02 | Google OAuth 2.0         | Server ↔ Google               | `passport-google-oauth20`, Login und stiller Login (`/auth/google`, `/auth/google/silent`)                                                                                                                                                                                                                           |
+| IF-03 | LLM-Chat-Completions     | Server ↔ Mistral / OpenRouter | `server/src/llm/llm.ts`; Provider in der DB (`llm_providers`, instanzweit oder je Nutzer, Auswahl je User), Fix-Provider Mistral über `MISTRAL_API_KEY`                                                                                                                                                              |
+| IF-04 | Geocoding                | Server ↔ Nominatim            | Forward- und Reverse-Geocoding, `server/src/logics/nominatim.ts`                                                                                                                                                                                                                                                     |
+| IF-06 | Web-Push                 | Server ↔ Browser-Push-Dienst  | `web-push` mit VAPID-Keys, Subscriptions in `push_subscriptions`                                                                                                                                                                                                                                                     |
+| IF-07 | MCP (Streamable HTTP)    | Externer Client ↔ Server      | `POST /mcp/v1`, handgerollte Teilmenge ohne SDK (`server/src/mcp/`), Auth per persönlichem API-Token; die Werkzeugbeschreibungen in `tools/list` tragen einen Staffelungs-Hinweis (`MCP_PACING_HINT`, `mcp/tools.ts`): höchstens ein Aufruf pro Sekunde, bei wiederholten oder gebündelten Aufrufen Pausen einlegen. |
+| IF-08 | PayPal-Subscriptions     | Server ↔ PayPal               | Abo-Anlage/-Wechsel/-Storno und Rechnungen (`routes/billingSubscriptions.ts`); signierter Webhook `POST /webhooks/paypal` (`routes/billing.ts`, `logics/paypal.ts`)                                                                                                                                                  |
+| IF-09 | SMTP                     | Server ↔ Mailserver           | `nodemailer` (`logics/mail.ts`); ohne `SMTP_HOST`/`MAIL_FROM` deaktiviert (503-Gate); versendet auch Magic-Link-Anmeldelinks (`routes/magicLink.ts`)                                                                                                                                                                 |
+| IF-10 | GitHub-Contents-API      | Server ↔ GitHub               | App-Feedback wird als Markdown im Obsidian-Repo abgelegt (`logics/obsidianFeedback.ts`, PAT aus ENV)                                                                                                                                                                                                                 |
+| IF-11 | Firebase Cloud Messaging | Server ↔ FCM                  | HTTP v1 mit Service-Account (`FCM_SERVICE_ACCOUNT_FILE`), Gerätetoken der Android-App in `fcm_tokens` (`logics/fcm.ts`)                                                                                                                                                                                              |
+| IF-12 | Play Developer API       | Server ↔ Google Play          | Abo-Käufe der Android-App bestätigen (`POST /billing/google/purchase`) und per RTDN-Webhook `/billing/google/rtdn` nachziehen (`logics/googlePlay.ts`, Service-Account aus `GOOGLE_PLAY_SERVICE_ACCOUNT_FILE`)                                                                                                       |
+| IF-13 | Kalender-Abruf           | Server ↔ Kalender-Server      | Lesend per ICS-URL oder CalDAV (`REPORT calendar-query`, HTTP Basic mit App-Passwort), `logics/calendar-ics.ts` und `calendar-caldav.ts`                                                                                                                                                                             |
+| IF-14 | Admin-MCP                | Admin-Client ↔ Server         | `POST /mcp/admin/v1` (#1338), gleicher Handler wie IF-07 mit eigenem, nur lesendem Katalog (`server/src/mcp/adminTools.ts`); nur Systemrolle `admin`, je Request frisch geprüft; persönlicher API-Token ohne Paket-Gate; jeder Werkzeugaufruf wird ohne Nutzdaten protokolliert                                      |
 
 ## 4. Lösungsstrategie
 
@@ -160,9 +162,7 @@ graph LR
   KI-Hilfe: Free keine, Plus und Pro Fair Use — ein internes Monatsbudget drosselt bei Überschreitung
   auf eine Anfrage je 30 Sekunden (`AI_ASSIST_MONTHLY_QUOTA`, `AI_FAIR_USE_INTERVAL_SECONDS`).
   Durchgesetzt wird erst mit dem Env-Schalter `MONETIZATION_ENFORCED` (Default aus, Rückweg ohne
-  Deploy). Übergangsregel (#1463): Vor dem Einschalten hebt das CLI-Skript
-  `server/src/cli/grandfatherPlans.ts` alle vor einem Stichtag angelegten `free`-Konten einmalig
-  auf `pro` — bewusst außerhalb von `migrate.ts`, Runbook in `docs/deployment.md`.
+  Deploy).
 
 ## 5. Bausteinsicht
 
@@ -193,7 +193,7 @@ graph TB
 | `openapi.yml` | API-Vertrag: Pfade, Schemata                                                         | `openapi.yml`                                   | IF-01          |
 | `client`      | generierte Typen (`paths`, `components`)                                             | `client/src/index.ts`, `client/src/schema.d.ts` | IF-01          |
 | `frontend`    | SPA: Auth-Gate, App-Shell, Komponenten, PWA                                          | `frontend/src/`                                 | IF-01, IF-06   |
-| `server`      | Express-API, Fachlogik, Persistenz, Scheduler                                        | `server/src/`                                   | IF-01 … IF-13  |
+| `server`      | Express-API, Fachlogik, Persistenz, Scheduler                                        | `server/src/`                                   | IF-01 … IF-14  |
 | `website`     | öffentliche Landingpage, statisch vorgerendert, zehn Sprachen, Preise aus `plans.ts` | `website/src/`, `website/scripts/build.ts`      | —              |
 | `native`      | Android-Wrapper (Capacitor) mit gebündelter SPA                                      | `native/capacitor.config.ts`, `native/android/` | IF-01, IF-11   |
 | `.github`     | CI/CD: Pipeline-Phasen, Verify, Deploy                                               | `.github/workflows/`                            | —              |
@@ -321,12 +321,14 @@ Fehlt ein konfigurierter Provider oder Key, antworten die LLM-Routen mit HTTP 50
 ### 6.3 Hintergrundläufe
 
 Die Ticker (`server/src/scheduler/index.ts`) laufen mit festem Intervall und protokollieren einen
-fehlgeschlagenen Lauf, ohne die übrigen zu blockieren. Der Erinnerungs-Ticker prüft im
-15-Minuten-Intervall, ob die konfigurierte UTC-Stunde erreicht ist (`PUSH_REMINDERS_HOUR`,
-Default 8), und feuert jeden Trigger höchstens einmal pro Tag: fällige Aufgaben
-(`dueTaskReminders`), die drei wichtigsten Aufgaben (`dailyTopTasksPush`), der Fürsorge-Push
-(`carePush`), die Streak-Erinnerung (`streakReminder`) und der Monatsrückblick
-(`monthlyRecapPush`). Er läuft nur, wenn ein Push-Kanal konfiguriert ist (Web-Push-VAPID oder
+fehlgeschlagenen Lauf, ohne die übrigen zu blockieren. Der Erinnerungs-Ticker tickt stündlich
+(#2849) und ruft je Tick jeden Trigger auf: fällige Aufgaben (`dueTaskReminders`), die drei
+wichtigsten Aufgaben (`dailyTopTasksPush`), der Fürsorge-Push (`carePush`), die Streak-Erinnerung
+(`streakReminder`) und der Monatsrückblick (`monthlyRecapPush`). Die Zustellfenster prüfen die
+Trigger je Nutzerzeitzone (`users.zeitzone`, Fallback UTC) selbst: Morgen 7–9 und Tag 9–18,
+Abend 18–21, Ruhezeit 21–7 (dann auch keine Ereignis-Pushes); je Trigger geht höchstens eine
+Nachricht je Nutzer und lokalem Tag raus. Er läuft nur, wenn ein Push-Kanal konfiguriert ist
+(Web-Push-VAPID oder
 FCM) und `PUSH_REMINDERS_ENABLED=true` gesetzt ist. Die Deadline-Auto-Löschung
 (`autoDeleteAfterDeadline`) läuft push-unabhängig um Mitternacht UTC und ist standardmäßig
 aktiv; sie lässt sich über `AUTO_DELETE_AFTER_DEADLINE_ENABLED=false` abschalten. Vier weitere
@@ -414,11 +416,14 @@ laufen ausschließlich in GitHub Actions und berühren den Betriebshost nicht.
   injizierbare Kanäle; wiederholte Scheduler-Läufe
   deduplizieren ihre Trigger über Einträge im `notification_log`.
 - **Fehlervertrag:** Handler antworten über `sendError` mit `{ message }` (`http-error.ts`); ein
-  globaler Express-Fehlerhandler existiert nicht — nicht abgefangene Fehler in Routen beantwortet
-  Express mit seiner Standard-HTML-Antwort. Nur echte unbehandelte Fehler und Rejections beenden den
-  Prozess mit Exit-Code 1 (`server/src/index.ts`); `server-error-handler.ts` ist der
-  Error-Callback von `app.listen` (Server-Start), CSRF-Fehler übersetzt ein eigener Handler
-  (`csrf.ts`).
+  globaler Fehlerhandler ist die letzte Middleware von `createApp` — unbehandelte Routen-Fehler
+  (auch async Rejections, Express 5) enden als JSON `{ message }` ohne Fehlerdetails (500;
+  Framework-Fehler mit Status wie 400/413 behalten ihn) und erzeugen genau einen Log-Eintrag mit
+  Methode, Pfad und Fehler (`errorHandler` in `http-error.ts`, Mount in `express/index.ts`). Nur
+  echte unbehandelte Fehler und Rejections beenden den Prozess mit Exit-Code 1
+  (`server/src/index.ts`); `server-error-handler.ts` ist der Error-Callback von `app.listen`
+  (Server-Start), CSRF-Fehler übersetzt ein eigener Handler zu 403 und reicht übrige Fehler über
+  `next(err)` an den globalen Handler weiter (`csrf.ts`).
 - **Injizierbare Abhängigkeiten:** `AppDeps` erlaubt Tests, LLM-, Push- und Session-Abhängigkeiten
   zu ersetzen, ohne den Netzwerkpfad zu berühren.
 - **Rate-Limiting:** Auth-Routen mit eigenem Limiter, Geocode-Routen teilen sich einen
@@ -434,31 +439,34 @@ laufen ausschließlich in GitHub Actions und berühren den Betriebshost nicht.
 
 Die Begründungen stehen vollständig in [docs/adr/](adr/); hier nur der Verweis.
 
-| ADR                                                        | Titel                                                              | Status                                                                                                           |
-| ---------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| [0001](adr/0001-github-workflows-bleiben-ungetestet.md)    | GitHub-Workflows bleiben ungetestet                                | Akzeptiert                                                                                                       |
-| [0002](adr/0002-pipeline-7-phasen-ux-vor-spec.md)          | Pipeline auf 7 sequenzielle Phasen (UX vor Spec)                   | Akzeptiert; Phasenzahl überholt durch ADR 0005                                                                   |
-| [0003](adr/0003-label-schema-ai-needs-und-past.md)         | Label-Schema `ai:needs-*` / `ai:<Vergangenheitsform>`              | Akzeptiert                                                                                                       |
-| [0004](adr/0004-analyse-getriebenes-routing.md)            | Analyse-getriebenes Routing statt starrer Phasenkette              | Akzeptiert                                                                                                       |
-| [0005](adr/0005-fixup-und-umsetzung-sind-eine-phase.md)    | Fixup und Umsetzung sind eine Phase                                | Akzeptiert                                                                                                       |
-| [0006](adr/0006-issue-storage-state-branch.md)             | Issue-Storage: State-Branch pro Issue                              | Ersetzt durch ADR 0007                                                                                           |
-| [0007](adr/0007-issue-storage-harness-branch.md)           | Issue-Storage im Harness-Branch                                    | Akzeptiert; Transport ersetzt durch ADR 0010                                                                     |
-| [0008](adr/0008-delegation-und-mentor-eskalation.md)       | Delegation nach unten, Mentor nach oben                            | Akzeptiert                                                                                                       |
-| [0009](adr/0009-issue-storage-harness-kommentar.md)        | Phasen-Ausgaben im Harness-Kommentar                               | Akzeptiert                                                                                                       |
-| [0010](adr/0010-issue-storage-workflow-artefakt.md)        | Phasen-Notizen als Workflow-Artefakt                               | Akzeptiert                                                                                                       |
-| [0011](adr/0011-umsetzung-worktree-isolation.md)           | Worktree-Isolation für parallele Ticket-Läufe                      | Vorgeschlagen                                                                                                    |
-| [0012](adr/0012-mcp-endpunkt-ohne-sdk.md)                  | MCP-Endpunkt: Streamable-HTTP-Subset ohne offizielles SDK          | Akzeptiert                                                                                                       |
-| [0013](adr/0013-zahlungsweg-paypal-abos.md)                | Zahlungsweg: PayPal-Abos direkt, Stripe als Zielbild               | Akzeptiert                                                                                                       |
-| [0014](adr/0014-paket-angebote-ohne-dialog.md)             | Paketgrenzen: Angebote in den Einstellungen                        | Akzeptiert; teilweise ersetzt durch ADR 0018 (MCP-Grenzen, KI-Kontingent, Verzicht auf Hinweise im Arbeitsfluss) |
-| [0015](adr/0015-oeffentliche-website-und-app-unter-app.md) | Öffentliche Website an der Wurzel, App unter /app/                 | Akzeptiert                                                                                                       |
-| [0016](adr/0016-nativer-wrapper-capacitor-remote-modus.md) | Nativer Wrapper: Capacitor im Remote-Modus                         | Akzeptiert; Entscheidung 1 ersetzt durch ADR 0021                                                                |
-| [0017](adr/0017-store-billing-google-play.md)              | Store-Billing: Google Play Billing mit eigener Server-Verifikation | Akzeptiert; Preisgestaltung entschieden                                                                          |
-| [0018](adr/0018-preismodell-free-plus-pro.md)              | Preismodell: Free, Plus und Pro                                    | Akzeptiert; ersetzt Teile von ADR 0014                                                                           |
-| [0019](adr/0019-zugang-launch-warteliste.md)               | Zugang zum Launch: Warteliste statt Ablehnung                      | Akzeptiert; ersetzt teilweise Punkt 6 von ADR 0015                                                               |
-| [0020](adr/0020-serien-automatisch-anlegen-vorlage.md)     | Serien: Schalter „Automatisch anlegen“, Vorlage                    | Akzeptiert                                                                                                       |
-| [0021](adr/0021-android-app-spa-ohne-service-worker.md)    | Android-App: Web-App als SPA ohne Service Worker                   | Akzeptiert; ersetzt Entscheidung 1 von ADR 0016                                                                  |
-| [0022](adr/0022-e2e-verschluesselung-opt-in.md)            | Ende-zu-Ende-Verschlüsselung als Opt-in                            | Vorgeschlagen                                                                                                    |
-| [0023](adr/0023-android-login-nativ-credential-manager.md) | Android-Login nativ über den Credential Manager                    | Akzeptiert                                                                                                       |
+| ADR                                                           | Titel                                                              | Status                                                                                                           |
+| ------------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| [0001](adr/0001-github-workflows-bleiben-ungetestet.md)       | GitHub-Workflows bleiben ungetestet                                | Akzeptiert                                                                                                       |
+| [0002](adr/0002-pipeline-7-phasen-ux-vor-spec.md)             | Pipeline auf 7 sequenzielle Phasen (UX vor Spec)                   | Akzeptiert; Phasenzahl überholt durch ADR 0005                                                                   |
+| [0003](adr/0003-label-schema-ai-needs-und-past.md)            | Label-Schema `ai:needs-*` / `ai:<Vergangenheitsform>`              | Akzeptiert                                                                                                       |
+| [0004](adr/0004-analyse-getriebenes-routing.md)               | Analyse-getriebenes Routing statt starrer Phasenkette              | Akzeptiert                                                                                                       |
+| [0005](adr/0005-fixup-und-umsetzung-sind-eine-phase.md)       | Fixup und Umsetzung sind eine Phase                                | Akzeptiert                                                                                                       |
+| [0006](adr/0006-issue-storage-state-branch.md)                | Issue-Storage: State-Branch pro Issue                              | Ersetzt durch ADR 0007                                                                                           |
+| [0007](adr/0007-issue-storage-harness-branch.md)              | Issue-Storage im Harness-Branch                                    | Akzeptiert; Transport ersetzt durch ADR 0010                                                                     |
+| [0008](adr/0008-delegation-und-mentor-eskalation.md)          | Delegation nach unten, Mentor nach oben                            | Akzeptiert                                                                                                       |
+| [0009](adr/0009-issue-storage-harness-kommentar.md)           | Phasen-Ausgaben im Harness-Kommentar                               | Akzeptiert                                                                                                       |
+| [0010](adr/0010-issue-storage-workflow-artefakt.md)           | Phasen-Notizen als Workflow-Artefakt                               | Akzeptiert                                                                                                       |
+| [0011](adr/0011-umsetzung-worktree-isolation.md)              | Worktree-Isolation für parallele Ticket-Läufe                      | Vorgeschlagen                                                                                                    |
+| [0012](adr/0012-mcp-endpunkt-ohne-sdk.md)                     | MCP-Endpunkt: Streamable-HTTP-Subset ohne offizielles SDK          | Akzeptiert                                                                                                       |
+| [0013](adr/0013-zahlungsweg-paypal-abos.md)                   | Zahlungsweg: PayPal-Abos direkt, Stripe als Zielbild               | Akzeptiert                                                                                                       |
+| [0014](adr/0014-paket-angebote-ohne-dialog.md)                | Paketgrenzen: Angebote in den Einstellungen                        | Akzeptiert; teilweise ersetzt durch ADR 0018 (MCP-Grenzen, KI-Kontingent, Verzicht auf Hinweise im Arbeitsfluss) |
+| [0015](adr/0015-oeffentliche-website-und-app-unter-app.md)    | Öffentliche Website an der Wurzel, App unter /app/                 | Akzeptiert                                                                                                       |
+| [0016](adr/0016-nativer-wrapper-capacitor-remote-modus.md)    | Nativer Wrapper: Capacitor im Remote-Modus                         | Akzeptiert; Entscheidungen 1 und 5 ersetzt durch ADR 0021/0023, Entscheidung 4 präzisiert                        |
+| [0017](adr/0017-store-billing-google-play.md)                 | Store-Billing: Google Play Billing mit eigener Server-Verifikation | Akzeptiert; Preisgestaltung entschieden; Play-Produkte durch Nachtrag auf plus/pro umgestellt (ADR 0018)         |
+| [0018](adr/0018-preismodell-free-plus-pro.md)                 | Preismodell: Free, Plus und Pro                                    | Akzeptiert; ersetzt Teile von ADR 0014                                                                           |
+| [0019](adr/0019-zugang-launch-warteliste.md)                  | Zugang zum Launch: Warteliste statt Ablehnung                      | Akzeptiert; ersetzt teilweise Punkt 6 von ADR 0015                                                               |
+| [0020](adr/0020-serien-automatisch-anlegen-vorlage.md)        | Serien: Schalter „Automatisch anlegen“, Vorlage                    | Akzeptiert                                                                                                       |
+| [0021](adr/0021-android-app-spa-ohne-service-worker.md)       | Android-App: Web-App als SPA ohne Service Worker                   | Akzeptiert; ersetzt Entscheidung 1 von ADR 0016                                                                  |
+| [0022](adr/0022-e2e-verschluesselung-opt-in.md)               | Ende-zu-Ende-Verschlüsselung als Opt-in                            | Vorgeschlagen                                                                                                    |
+| [0023](adr/0023-android-login-nativ-credential-manager.md)    | Android-Login nativ über den Credential Manager                    | Akzeptiert; ersetzt Entscheidung 5 von ADR 0016                                                                  |
+| [0024](adr/0024-erledigen-direkt-mit-rueckgaengig.md)         | Erledigen direkt mit „Rückgängig“ statt Bestätigungsdialog         | Akzeptiert                                                                                                       |
+| [0025](adr/0025-geteilte-fachlogik-duplikat-spiegel-tests.md) | Geteilte Fachlogik: bewusstes Duplikat mit Spiegel-Tests           | Akzeptiert                                                                                                       |
+| [0026](adr/0026-mariadb-als-produktiv-datenbank.md)           | MariaDB als Produktiv-Datenbank                                    | Akzeptiert                                                                                                       |
 
 ## 10. Qualitätsanforderungen
 

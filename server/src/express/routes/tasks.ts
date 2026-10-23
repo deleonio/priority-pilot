@@ -5,12 +5,23 @@ import { Op, Transaction, type WhereOptions } from 'sequelize';
 import sequelize from '../../database.js';
 import { Group, GroupMember, Pillar, ScoreEntry, Task, TaskPillar, User } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
-import { roundedDistanceKm } from '../../logics/geo.js';
+import { parseCoordinate, roundedDistanceKm } from '../../logics/geo.js';
 import { classifyLlmSuitability } from '../../logics/llmSuitability.js';
 import { shouldBlockFeature } from '../../logics/plans.js';
 import { selectSeriesRepresentatives } from '../../logics/series.js';
 import { ZURUECKSTELLEN_STUNDEN } from '../../logics/find.js';
 import { berechneScore } from '../../logics/score.js';
+import {
+	validateAddress,
+	validateCoordinates,
+	validateDescription,
+	validateEstimatedEffort,
+	validateIsoDate,
+	validatePriority,
+	validateRequestBody,
+	validateTitle,
+} from '../../logics/requestValidation.js';
+import type { ValidationResult } from '../../logics/requestValidation.js';
 import {
 	PillarContribution,
 	validatePillars,
@@ -26,7 +37,7 @@ import { requirePlanFeature } from '../planGuard.js';
 import { GEO_CONFIG_DEFAULTS, resolveGeoUser } from './geoConfig.js';
 import { allowEmail } from '../../logics/allowedEmails.js';
 import { claimAccessMailSlot, sendAccountAccessMail } from '../../logics/accessMail.js';
-import { spracheAusHeader } from '../../logics/careSuggestionData.js';
+import { spracheAusHeader, CARE_VORLAGEN } from '../../logics/careSuggestionData.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
 import { notifyTaskCreated } from '../../logics/taskCreatedNotification.js';
 import { notifyTaskCompleted } from '../../logics/taskCompletedNotification.js';
@@ -64,9 +75,13 @@ interface TaskAttributes {
 	pinnedAt?: Date | null;
 }
 
-type ValidationResult =
-	| { ok: true; attrs: TaskAttributes; pillars: PillarContribution[] | undefined; completedAt: Date | undefined }
-	| { ok: false; message: string };
+/** Erfolgs-Shape der Task-Body-Validierung (Fehler-Kanal: `ValidationResult` aus `requestValidation`). */
+type TaskValidation = {
+	ok: true;
+	attrs: TaskAttributes;
+	pillars: PillarContribution[] | undefined;
+	completedAt: Date | undefined;
+};
 
 const isTaskStatus = (value: unknown): value is TaskStatus =>
 	typeof value === 'string' && VALID_STATUSES.some((status) => status === value);
@@ -162,6 +177,9 @@ export const serializeTask = (task: Task, context: TaskSerializeContext = {}): T
 	// Empfänger bekommt kein „Für:"-Kennzeichen für die eigene Aufgabe (AK3), der Ersteller eines
 	// Selbst-Empfängers ebenso wenig (userId == createdById).
 	const createdBy = task.createdById ?? null;
+	// #2758: System-Herkunft (Fürsorge-Übernahme) — „Balamentum“ ohne Namens-Lookup, da kein
+	// Ersteller-Konto existiert. Bestand ohne Flag bleibt ohne Anzeigename (kein Backfill).
+	const systemCreated = task.systemCreated ?? false;
 	const handedOff =
 		createdBy !== null &&
 		context.requesterId != null &&
@@ -180,6 +198,9 @@ export const serializeTask = (task: Task, context: TaskSerializeContext = {}): T
 		latitude: task.latitude ?? null,
 		longitude: task.longitude ?? null,
 		deadline: task.deadline ? task.deadline.toISOString() : null,
+		// #2574: Erledigt-Zeitpunkt aus dem eager-geladenen ScoreEntry — `null`, solange offen; nach
+		// „Wieder öffnen“ wieder null (der Reopen-Pfad zerstört den ScoreEntry).
+		completedAt: task.ScoreEntry ? task.ScoreEntry.zeitpunkt.toISOString() : null,
 		autoDeleteAfterDeadline: task.autoDeleteAfterDeadline ?? false,
 		// Verschiebe-Zähler + Archiv (#1964).
 		postponeCount: task.postponeCount ?? 0,
@@ -194,7 +215,7 @@ export const serializeTask = (task: Task, context: TaskSerializeContext = {}): T
 		// Empfänger-Serie tragen den Serien-Eigentümer (AK4).
 		userId: task.userId ?? null,
 		createdById: createdBy,
-		createdByName: createdBy !== null ? (context.names?.get(createdBy) ?? null) : null,
+		createdByName: systemCreated ? 'Balamentum' : createdBy !== null ? (context.names?.get(createdBy) ?? null) : null,
 		forUserId: handedOff ? task.userId : null,
 		forUserName: handedOff ? (context.names?.get(task.userId as number) ?? null) : null,
 		// #1521: Gruppen-Adressierung. `groupName` trägt das „Für:"-Kennzeichen der Aufgabenliste
@@ -309,7 +330,7 @@ const loadOwnGroupIds = async (requesterId: number): Promise<number[]> => {
  * sieht die Aufgabe nur, solange er mit dem Eigentümer mindestens eine Gruppe teilt (leere Liste →
  * `IN (NULL)` → nichts sichtbar). Der `userId`-Zweig bleibt davon unberührt.
  */
-const taskReadScope = async (userId: number | undefined, requesterId: number | null): Promise<WhereOptions> => {
+export const taskReadScope = async (userId: number | undefined, requesterId: number | null): Promise<WhereOptions> => {
 	if (userId === undefined) {
 		return {};
 	}
@@ -373,21 +394,20 @@ const findClaimableGroupTask = async (id: number, userId: number | undefined): P
  * `requireTitle` erzwingt einen Titel (POST); bei PATCH sind alle Felder optional. `pillars` ist
  * `undefined`, wenn das Feld fehlt (PATCH lässt die Beiträge dann unverändert).
  */
-const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationResult => {
-	if (typeof body !== 'object' || body === null) {
-		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
+const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationResult<TaskValidation> => {
+	const bodyResult = validateRequestBody(body);
+	if (!bodyResult.ok) {
+		return bodyResult;
 	}
-	const input = body as Record<string, unknown>;
+	const input = bodyResult.value;
 	const attrs: TaskAttributes = {};
 
-	if (input.title !== undefined) {
-		if (typeof input.title !== 'string' || input.title.trim() === '') {
-			return { ok: false, message: 'title muss ein nicht-leerer String sein.' };
-		}
-		attrs.title = input.title.trim();
+	const title = validateTitle(input.title, requireTitle);
+	if (!title.ok) {
+		return title;
 	}
-	if (requireTitle && attrs.title === undefined) {
-		return { ok: false, message: 'title ist erforderlich.' };
+	if (title.value !== undefined) {
+		attrs.title = title.value;
 	}
 
 	if (input.status !== undefined) {
@@ -398,27 +418,19 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 	}
 
 	if (input.priority !== undefined) {
-		if (
-			typeof input.priority !== 'number' ||
-			!Number.isInteger(input.priority) ||
-			input.priority < 1 ||
-			input.priority > 5
-		) {
-			return { ok: false, message: 'priority muss eine Ganzzahl zwischen 1 und 5 sein.' };
+		const priority = validatePriority(input.priority);
+		if (!priority.ok) {
+			return priority;
 		}
-		attrs.priority = input.priority;
+		attrs.priority = priority.value;
 	}
 
 	if (input.estimatedEffort !== undefined) {
-		if (
-			typeof input.estimatedEffort !== 'number' ||
-			!Number.isFinite(input.estimatedEffort) ||
-			input.estimatedEffort < 0.1 ||
-			input.estimatedEffort > 1
-		) {
-			return { ok: false, message: 'estimatedEffort muss eine Zahl zwischen 0.1 und 1 sein.' };
+		const estimatedEffort = validateEstimatedEffort(input.estimatedEffort);
+		if (!estimatedEffort.ok) {
+			return estimatedEffort;
 		}
-		attrs.estimatedEffort = input.estimatedEffort;
+		attrs.estimatedEffort = estimatedEffort.value;
 	}
 
 	if (input.actualEffort !== undefined) {
@@ -432,59 +444,38 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 	}
 
 	if (input.description !== undefined) {
-		if (input.description !== null && typeof input.description !== 'string') {
-			return { ok: false, message: 'description muss ein String oder null sein.' };
+		const description = validateDescription(input.description);
+		if (!description.ok) {
+			return description;
 		}
-		attrs.description = input.description;
+		attrs.description = description.value;
 	}
 
 	if (input.address !== undefined) {
-		if (input.address !== null && (typeof input.address !== 'string' || input.address.length > 255)) {
-			return { ok: false, message: 'address muss ein String (max. 255 Zeichen) oder null sein.' };
+		const address = validateAddress(input.address);
+		if (!address.ok) {
+			return address;
 		}
-		attrs.address = input.address === null ? null : input.address.trim() === '' ? null : input.address.trim();
+		attrs.address = address.value;
 	}
 
-	// Standort-Koordinaten (#1066): nur bei Auswahl eines Adress-Vorschlags gesetzt (Coordinates-only);
-	// Freitext ohne Koordinat bleibt speicherbar (AK10). `null` leert beide Werte.
-	// Standort-Koordinaten (#1066): nur bei Auswahl eines Adress-Vorschlags gesetzt (Coordinates-only);
-	// Freitext ohne Koordinat bleibt speicherbar (AK10). Lat/lon sind ein Paar: `null` auf einer
-	// Seite leert BEIDE Werte — eine Einzel-Koordinate wird paarweise zu null normalisiert.
+	// Standort-Koordinaten (#1066): Lat/lon sind ein Paar — eine Einzel-Koordinate wird paarweise
+	// zu null normalisiert (Einzelheiten: `validateCoordinates`).
 	if (input.latitude !== undefined || input.longitude !== undefined) {
-		if (
-			input.latitude !== null &&
-			input.latitude !== undefined &&
-			(typeof input.latitude !== 'number' ||
-				!Number.isFinite(input.latitude) ||
-				input.latitude < -90 ||
-				input.latitude > 90)
-		) {
-			return { ok: false, message: 'latitude muss eine Zahl zwischen -90 und 90 oder null sein.' };
+		const coordinates = validateCoordinates(input);
+		if (!coordinates.ok) {
+			return coordinates;
 		}
-		if (
-			input.longitude !== null &&
-			input.longitude !== undefined &&
-			(typeof input.longitude !== 'number' ||
-				!Number.isFinite(input.longitude) ||
-				input.longitude < -180 ||
-				input.longitude > 180)
-		) {
-			return { ok: false, message: 'longitude muss eine Zahl zwischen -180 und 180 oder null sein.' };
-		}
-		const lat = input.latitude ?? null;
-		const lon = input.longitude ?? null;
-		attrs.latitude = lat !== null && lon !== null ? lat : null;
-		attrs.longitude = lat !== null && lon !== null ? lon : null;
+		attrs.latitude = coordinates.value.latitude;
+		attrs.longitude = coordinates.value.longitude;
 	}
 
 	if (input.deadline !== undefined) {
-		if (input.deadline === null) {
-			attrs.deadline = null;
-		} else if (typeof input.deadline !== 'string' || Number.isNaN(Date.parse(input.deadline))) {
-			return { ok: false, message: 'deadline muss ein gültiges ISO-Datum oder null sein.' };
-		} else {
-			attrs.deadline = new Date(input.deadline);
+		const deadline = validateIsoDate(input.deadline, 'deadline', true);
+		if (!deadline.ok) {
+			return deadline;
 		}
+		attrs.deadline = deadline.value;
 	}
 
 	if (input.autoDeleteAfterDeadline !== undefined) {
@@ -562,15 +553,20 @@ const replaceContributions = (
 	);
 
 /** Lädt einen Task inkl. seiner Säulen-Beiträge (für die Serialisierung). */
-const findTaskWithPillars = (id: number): Promise<Task | null> => Task.findByPk(id, { include: [Pillar] });
+const findTaskWithPillars = (id: number): Promise<Task | null> => Task.findByPk(id, { include: [Pillar, ScoreEntry] });
 
 /**
  * Vergibt beim Statuswechsel auf `Done` einen Gamification-`ScoreEntry` (Konzept §4.4) — genau
  * **einmal** je Task (`taskId` unique + `findOrCreate` ⇒ idempotent, erneutes „Done" erzeugt keinen
  * zweiten Eintrag; `erledigtAm` ist „jetzt" oder der nachgetragene Zeitpunkt, #1964). Basis-Value = `estimatedEffort × priority` (Owner-Vorgabe), pünktlich/verspätet
- * gemäß Deadline (siehe `berechneScore`).
+ * gemäß Deadline (siehe `berechneScore`). Gibt die vergebenen Punkte zurück (#2526), damit der
+ * PATCH-Handler sie in der Response spiegeln kann — eine Wahrheit, der Client rechnet nichts nach.
  */
-const awardScoreOnDone = async (task: Task, transaction: Transaction, erledigtAm: Date = new Date()): Promise<void> => {
+const awardScoreOnDone = async (
+	task: Task,
+	transaction: Transaction,
+	erledigtAm: Date = new Date(),
+): Promise<number> => {
 	const basisPunkte = task.estimatedEffort * task.priority;
 	const { punkte, pünktlich } = berechneScore(task.deadline ?? null, erledigtAm, basisPunkte);
 	await ScoreEntry.findOrCreate({
@@ -578,6 +574,7 @@ const awardScoreOnDone = async (task: Task, transaction: Transaction, erledigtAm
 		defaults: { taskId: task.id, punkte, pünktlich, zeitpunkt: erledigtAm },
 		transaction,
 	});
+	return punkte;
 };
 
 /**
@@ -634,7 +631,7 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 							}
 						: {}),
 				},
-				include: [Pillar],
+				include: [Pillar, ScoreEntry],
 			});
 			res.json(await serializeTasksFor(req, tasks));
 		} catch (error) {
@@ -649,12 +646,11 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 		'/tasks/nearby',
 		requirePlanFeature('location_reminders'),
 		async (req: Request, res: Response<NearbyTaskDto[] | ErrorDto>) => {
-			// `Number('')` wäre 0 und damit fälschlich gültig — leere/fehlende/Array-Parameter ablehnen.
-			const parseCoord = (value: unknown): number =>
-				typeof value === 'string' && value.trim() !== '' ? Number(value) : Number.NaN;
-			const lat = parseCoord(req.query.lat);
-			const lon = parseCoord(req.query.lon);
-			if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon) || lon < -180 || lon > 180) {
+			// Zentraler Helfer (#2553 AK2) — String-Koersion für Query-Parameter bleibt, die
+			// `Number('')`-Falle und Bereichsüberschreiter (z. B. `lat=999`) laufen auf null → 400.
+			const lat = parseCoordinate(req.query.lat, 90);
+			const lon = parseCoordinate(req.query.lon, 180);
+			if (lat === null || lon === null) {
 				sendError(res, 400, 'lat und lon müssen Zahlen in gültigem Bereich sein.');
 				return;
 			}
@@ -697,6 +693,12 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 		const validation = validateTaskFields(req.body, true);
 		if (!validation.ok) {
 			sendError(res, 400, validation.message);
+			return;
+		}
+		// Checklisten-Done-Guard (#2495): Auch beim Anlegen gilt — „Done“ nur mit vollständig
+		// abgehakter Checkliste, dieselbe Meldung wie der PATCH-Guard (#2467).
+		if (validation.attrs.status === 'Done' && (validation.attrs.checklist ?? []).some((item) => !item.completed)) {
+			sendError(res, 409, 'Der Task kann nicht auf „Erledigt“ gesetzt werden, solange noch Checkpunkte offen sind.');
 			return;
 		}
 		const userId = getUserId(req);
@@ -791,6 +793,19 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				sendError(res, 400, 'categoryId verweist auf eine nicht existierende Kategorie.');
 				return;
 			}
+			// #1798 AK2: Aufgabe aus einer Fürsorge-Vorlage → anonymes Übernahme-Ereignis. #2758: dieselbe
+			// Herkunft setzt das System-Flag — die Aufgabe erhält statt eines Ersteller-Kontos die
+			// System-Kennzeichnung (serializeTask löst dafür „Balamentum“ ohne Lookup auf).
+			const careTemplateKeyRaw = (req.body as { careTemplateKey?: unknown }).careTemplateKey;
+			const careTemplateKey =
+				typeof careTemplateKeyRaw === 'string' && careTemplateKeyRaw.trim() ? careTemplateKeyRaw.trim() : null;
+			// #2787 AK3: nur echte Fürsorge-Vorlagen kennzeichnen die Aufgabe als System-Übernahme —
+			// ein unbekannter Schlüssel ist ein Tippfehler und wird abgewiesen (keine Aufgabe, kein Event).
+			if (careTemplateKey !== null && !CARE_VORLAGEN.some((vorlage) => vorlage.key === careTemplateKey)) {
+				sendError(res, 400, 'careTemplateKey verweist auf keine Fürsorge-Vorlage.');
+				return;
+			}
+			const systemCreated = careTemplateKey !== null;
 			const created = await sequelize.transaction(async (transaction) => {
 				// Neuen Task an den Eigentümer binden (Datenisolation, #207; Empfänger #1213, sonst der
 				// eingeloggte Nutzer; `null` im Pass-Through) und den Ersteller festhalten (AK3).
@@ -800,7 +815,9 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 						// #1521: Gruppen-Aufgabe startet ohne Eigentümer — der Claim beim Erledigen trägt ihn nach.
 						userId: groupTargetId !== null ? null : (recipientId ?? userId ?? null),
 						groupId: groupTargetId,
-						createdById: requesterId,
+						// #2758: Fürsorge-Übernahme läuft ohne Ersteller-Konto (System-Flag statt requesterId).
+						createdById: systemCreated ? null : requesterId,
+						systemCreated,
 					},
 					{ transaction },
 				);
@@ -851,10 +868,9 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 					console.warn('Zugangs-Mail zur delegierten Aufgabe fehlgeschlagen:', error);
 				}
 			}
-			// #1798 AK2: Aufgabe aus einer Fürsorge-Vorlage → anonymes Übernahme-Ereignis.
-			const careTemplateKey = (req.body as { careTemplateKey?: unknown }).careTemplateKey;
-			if (typeof careTemplateKey === 'string' && careTemplateKey.trim()) {
-				await protokolliereCareReaktion(userId, 'uebernommen', [careTemplateKey.trim()]);
+			// #1798 AK2: anonymes Übernahme-Ereignis (Key oben geparst, vor der Transaction).
+			if (careTemplateKey !== null) {
+				await protokolliereCareReaktion(userId, 'uebernommen', [careTemplateKey]);
 			}
 			const withPillars = await findTaskWithPillars(created.id);
 			if (!withPillars) {
@@ -873,7 +889,8 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 		const id = parseId(req.params.id);
 		const userId = getUserId(req);
 		// Nur eigene Tasks sind auffindbar (Datenisolation, #207) — fremde → 404.
-		const task = id === null ? null : await Task.findOne({ where: { id, ...ownerScope(userId) }, include: [Pillar] });
+		const task =
+			id === null ? null : await Task.findOne({ where: { id, ...ownerScope(userId) }, include: [Pillar, ScoreEntry] });
 		if (!task) {
 			sendError(res, 404, 'Task nicht gefunden.');
 			return;
@@ -1023,6 +1040,9 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 		try {
 			// Status vor dem Update festhalten, um den echten Übergang nach „Done" zu erkennen.
 			const warVorherDone = task.status === 'Done';
+			// Vergebene Punkte des Done-Übergangs (#2526) — außerhalb der Transaktion deklariert, damit
+			// die Response sie nach dem Commit spiegeln kann.
+			let vergebenePunkte: number | undefined;
 			// AK2 (#120): Eine individuelle Änderung an einer generierten Serien-Instanz markiert sie als
 			// Ausnahme — der Generator lässt `isException`-Instanzen unangetastet und das Template bleibt
 			// unberührt. Bei gewöhnlichen Tasks (kein `seriesId`) bleibt das Feld unverändert.
@@ -1048,7 +1068,8 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				...validation.attrs,
 				...(istVerschoben ? { postponeCount: task.postponeCount + 1 } : {}),
 				...(task.seriesId != null ? { isException: true } : {}),
-				...(recipientId !== null ? { userId: recipientId, createdById: requesterId } : {}),
+				// #2787 AK4: die Übergabe entzieht die System-Herkunft — der Übergebende wird Ersteller.
+				...(recipientId !== null ? { userId: recipientId, createdById: requesterId, systemCreated: false } : {}),
 				// #1521: Claim — der Erlediger wird Eigentümer, `createdById` bleibt beim Anleger.
 				...(claimUserId !== null ? { userId: claimUserId } : {}),
 				...(handoverCategoryId !== undefined ? { categoryId: handoverCategoryId } : {}),
@@ -1121,8 +1142,10 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				}
 				// Punkte nur beim echten Übergang auf „Done" vergeben (vorher ≠ Done, jetzt Done) — kein
 				// überflüssiges findOrCreate bei weiteren PATCHes eines bereits erledigten Tasks.
+				// Der vergebene Wert reist in der Response mit (#2526): die Inline-Rückmeldung an der
+				// Tipp-Stelle zeigt ihn an, ohne die Formel ein zweites Mal im Client zu spiegeln.
 				if (!warVorherDone && task.status === 'Done') {
-					await awardScoreOnDone(task, transaction, validation.completedAt);
+					vergebenePunkte = await awardScoreOnDone(task, transaction, validation.completedAt);
 				}
 				// #1821: Korrektur an einem erledigten Task — Punkte neu berechnen, wenn Aufwand, Priorität
 				// oder Deadline sich ändern; der Eintrag bleibt erhalten (kein neuer `zeitpunkt`).
@@ -1213,8 +1236,13 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				sendError(res, 404, 'Task nicht gefunden.');
 				return;
 			}
-			const dto = serializeTask(withPillars);
-			res.json(accessMailThrottled ? { ...dto, accessMailThrottled } : dto);
+			// #2755: Wie POST create über serializeTasksFor — erst so trägt die Antwort Ersteller-/Empfänger-Namen.
+			const dto = (await serializeTasksFor(req, [withPillars]))[0];
+			res.json({
+				...dto,
+				...(vergebenePunkte !== undefined ? { vergebenePunkte } : {}),
+				...(accessMailThrottled ? { accessMailThrottled } : {}),
+			});
 		} catch (error) {
 			handleWriteError(res, error);
 		}
@@ -1237,7 +1265,8 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				sendError(res, 404, 'Task nicht gefunden.');
 				return;
 			}
-			res.json(serializeTask(withPillars));
+			// #2755: serializeTasksFor statt kontextlosem serializeTask (Ersteller-Name in der Antwort).
+			res.json((await serializeTasksFor(req, [withPillars]))[0]);
 		} catch (error) {
 			handleWriteError(res, error);
 		}
@@ -1259,7 +1288,8 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				sendError(res, 404, 'Task nicht gefunden.');
 				return;
 			}
-			res.json(serializeTask(withPillars));
+			// #2755: serializeTasksFor statt kontextlosem serializeTask (Ersteller-Name in der Antwort).
+			res.json((await serializeTasksFor(req, [withPillars]))[0]);
 		} catch (error) {
 			handleWriteError(res, error);
 		}
@@ -1280,7 +1310,8 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				sendError(res, 404, 'Task nicht gefunden.');
 				return;
 			}
-			res.json(serializeTask(withPillars));
+			// #2755: serializeTasksFor statt kontextlosem serializeTask (Ersteller-Name in der Antwort).
+			res.json((await serializeTasksFor(req, [withPillars]))[0]);
 		} catch (error) {
 			handleWriteError(res, error);
 		}
@@ -1316,12 +1347,12 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				return;
 			}
 
-			const body: unknown = req.body;
-			if (typeof body !== 'object' || body === null) {
-				sendError(res, 400, 'Request-Body muss ein Objekt sein.');
+			const bodyResult = validateRequestBody(req.body);
+			if (!bodyResult.ok) {
+				sendError(res, 400, bodyResult.message);
 				return;
 			}
-			const input = body as Record<string, unknown>;
+			const input = bodyResult.value;
 
 			if (
 				typeof input.dependingTaskId !== 'number' ||
@@ -1367,7 +1398,8 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 					sendError(res, 404, 'Task nicht gefunden.');
 					return;
 				}
-				res.status(201).json(serializeTask(withPillars));
+				// #2755: serializeTasksFor statt kontextlosem serializeTask (Ersteller-Name in der Antwort).
+				res.status(201).json((await serializeTasksFor(req, [withPillars]))[0]);
 			} catch (error) {
 				handleWriteError(res, error);
 			}

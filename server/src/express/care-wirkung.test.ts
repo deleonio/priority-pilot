@@ -1,5 +1,6 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { UEBERLAST_MINDEST_ERLEDIGUNGEN } from '../logics/careDeficit.js';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 import CareSuggestionEvent from '../models/careSuggestionEvent.js';
 import CarePushToggle from '../models/carePushToggle.js';
@@ -25,6 +26,23 @@ interface Vorschlag {
 const auth = (cookie: string) => ({ headers: { Cookie: cookie } });
 
 const ersterVorschlag = async (cookie: string): Promise<Vorschlag> => {
+	// Test-Pflege #2527: Mindestmenge an Erledigungen ohne Säulen-Beitrag — sonst liefert die
+	// Route nur den Einstiegssatz ohne templateKey; ohne Beitrag bleibt jede Säule defizitär.
+	for (let i = 0; i < UEBERLAST_MINDEST_ERLEDIGUNGEN; i++) {
+		const created = await server.json('/tasks', {
+			method: 'POST',
+			...auth(cookie),
+			body: JSON.stringify({ title: 'Erledigt ohne Säule', priority: 3, estimatedEffort: 1 }),
+		});
+		assert.equal(created.status, 201, 'Setup: Task-Anlage muss 201 liefern');
+		const { id } = (await created.json()) as { id: number };
+		const done = await server.json(`/tasks/${id}`, {
+			method: 'PATCH',
+			...auth(cookie),
+			body: JSON.stringify({ status: 'Done' }),
+		});
+		assert.equal(done.status, 200, 'Setup: Statuswechsel auf Done muss 200 liefern');
+	}
 	const res = await server.json('/scores/care-suggestions', auth(cookie));
 	assert.equal(res.status, 200);
 	const v = ((await res.json()) as { vorschlaege: Vorschlag[] }).vorschlaege.find((x) => x.typ === 'vorlage');

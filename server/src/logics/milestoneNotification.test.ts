@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, after } from 'node:test';
+import { describe, it, beforeEach, afterEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SendResult } from 'web-push';
 import { resetDb, closeDb, applyTestAuthEnv } from '../test/helpers.js';
@@ -42,6 +42,16 @@ const mockSender: PushSender = (subscription, payload) => {
 describe('notifyReachedMilestones (#1363)', () => {
 	let userId: number;
 
+	// #2849 (Test-Pflege): das Ruhezeit-Gate blockt zone-lose Nutzer (UTC-Fallback) zwischen 21 und 7 —
+	// die Suite läuft deshalb mit fester Tageszeit statt echter Wanduhr, sonst wäre sie uhrenabhängig.
+	beforeEach(() => {
+		mock.timers.enable({ apis: ['Date'] });
+		mock.timers.setTime(new Date('2026-07-07T10:00:00Z').getTime());
+	});
+	afterEach(() => {
+		mock.timers.reset();
+	});
+
 	beforeEach(async () => {
 		await resetDb();
 		calls = [];
@@ -75,6 +85,11 @@ describe('notifyReachedMilestones (#1363)', () => {
 
 		await notifyReachedMilestones(userId, vorher, nachher, mockSender);
 		assert.equal(calls.length, 1, 'erster Aufruf sendet genau einmal');
+		assert.equal(
+			JSON.parse(calls[0].body).url,
+			'/#karte-meilensteine',
+			'#2851 AK1: der Push öffnet die Meilenstein-Karte',
+		);
 		const logsNach1 = await NotificationLog.findAll({ where: { kind: 'milestone' } });
 		assert.equal(logsNach1.length, 1, 'erster Aufruf legt genau einen Dedupe-Eintrag an');
 
@@ -113,5 +128,71 @@ describe('notifyReachedMilestones (#1363)', () => {
 			[`${userId}:punkte-250`, `${userId}:punkte-50`].sort(),
 			'dedupeKey enthält userId UND schluessel (sonst wäre der Meilenstein global statt je Nutzer eindeutig)',
 		);
+	});
+});
+
+// Rote Spec-Tests für #2849 (Spec docs/spec/issue-2849.md): Ruhezeit 21–7 Uhr Nutzer-Zeitzone —
+// kein Push, kein NotificationLog. KEIN Produktivcode.
+describe('notifyReachedMilestones — Ruhezeit (#2849 AK4)', () => {
+	beforeEach(async () => {
+		await resetDb();
+		calls = [];
+	});
+
+	it('23:00 lokal (Berlin): kein Push, kein Log — 07:00 lokal: Zustellung wie bisher', async () => {
+		const user = await User.create({
+			email: 'ruhe-milestone@example.com',
+			passwordHash: '__test__',
+			displayName: 'Ruhe-Meilenstein',
+			zeitzone: 'Europe/Berlin',
+		} as never);
+		await PushSubscription.create({
+			endpoint: 'https://push.example/ruhe-milestone',
+			p256dh: 'p256dh',
+			auth: 'auth',
+			expirationTime: null,
+			userId: user.id,
+		});
+		const vorher = [meilenstein('punkte-50', false)];
+		const nachher = [meilenstein('punkte-50', true)];
+
+		mock.timers.enable({ apis: ['Date'] });
+		try {
+			mock.timers.setTime(new Date('2026-07-07T21:00:00Z').getTime()); // 23:00 Berlin
+			await notifyReachedMilestones(user.id, vorher, nachher, mockSender);
+			assert.equal(calls.length, 0, 'Ruhezeit: kein Push');
+			assert.equal(await NotificationLog.count(), 0, 'Ruhezeit: kein NotificationLog-Eintrag');
+
+			mock.timers.setTime(new Date('2026-07-07T05:00:00Z').getTime()); // 07:00 Berlin
+			await notifyReachedMilestones(user.id, vorher, nachher, mockSender);
+			assert.equal(calls.length, 1, '07:00 lokal: Zustellung wie bisher');
+		} finally {
+			mock.timers.reset();
+		}
+	});
+
+	it('#2850 AK3: Gruppenschalter „Erfolge und Rückblicke“ aus → kein Meilenstein-Push', async () => {
+		// Test-Pflege #2850: `userId` ist im Ruhezeit-Describe nicht im Scope — Nutzer hier selbst
+		// anlegen (Muster des Ruhezeit-Tests darüber), sonst matched das UPDATE keine Zeile.
+		const user = await User.create({
+			email: 'milestone-group-off@example.com',
+			passwordHash: '__test__',
+			displayName: 'Gruppe-aus-Empfänger',
+		} as never);
+		await PushSubscription.create({
+			endpoint: 'https://push.example/group-off',
+			p256dh: 'p256dh',
+			auth: 'auth',
+			expirationTime: null,
+			userId: user.id,
+		});
+		await User.update({ successPushEnabled: false } as never, { where: { id: user.id } });
+		const vorher = [meilenstein('punkte-50', false)];
+		const nachher = [meilenstein('punkte-50', true)];
+
+		await notifyReachedMilestones(user.id, vorher, nachher, mockSender);
+
+		assert.equal(calls.length, 0, 'ausgeschaltete Gruppe stoppt den Meilenstein-Push');
+		assert.equal(await NotificationLog.count(), 0);
 	});
 });

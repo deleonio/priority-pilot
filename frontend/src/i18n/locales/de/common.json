@@ -15,6 +15,7 @@
 		"create": "Anlegen",
 		"update": "Aktualisieren",
 		"close": "Schließen",
+		"open": "Öffnen",
 		"edit": "Bearbeiten",
 		"add": "Hinzufügen",
 		"remove": "Entfernen",
@@ -105,6 +106,20 @@
 		"importieren": "Aufgaben aus Todoist oder CSV importieren",
 		"importAiHint": "Ohne KI-Paket bleibt hier der Import: Deine Aufgaben kommen aus Todoist oder CSV, danach legst du im Dashboard direkt los."
 	},
+	"balanceHistory": {
+		"label": "Balance-Verlauf",
+		"laden": "Verlauf wird geladen …",
+		"leer": "Noch kein Verlauf — er entsteht, sobald du Aufgaben abhakst.",
+		"fehler": "Der Verlauf ist gerade nicht erreichbar.",
+		"start": "Vor 28 Tagen: {{wert}} %",
+		"ende": "Heute: {{wert}} %",
+		"chartLabel": "{{trend}}: von {{start}} % auf {{ende}} %, {{von}} bis {{bis}}",
+		"trend": {
+			"aufwaerts": "Aufwärts",
+			"abwaerts": "Abwärts",
+			"stabil": "Stabil"
+		}
+	},
 	"weeklyCard": {
 		"label": "Meine Woche in fünf Säulen",
 		"laden": "Wochenbalance wird geladen …",
@@ -113,7 +128,12 @@
 		"teilen": "Woche teilen",
 		"speichern": "PNG speichern",
 		"erzeuge": "Karte wird erzeugt …",
-		"fehler": "Die Karte konnte nicht erzeugt werden. Versuche es bitte noch einmal."
+		"fehler": "Die Karte konnte nicht erzeugt werden. Versuche es bitte noch einmal.",
+		"marken": {
+			"balamentum": "Balamentum",
+			"play": "Erhältlich bei Google Play",
+			"pwa": "Als App installierbar (PWA)"
+		}
 	},
 	"monthlyCard": {
 		"label": "Mein Monat in fünf Säulen",
@@ -154,5 +174,12 @@
 	"splitHint": {
 		"reason": "Große Aufgaben lassen sich oft leichter angehen, wenn du sie in kleinere Schritte teilst."
 	},
-	"quoted": "„{{value}}“"
+	"quoted": "„{{value}}“",
+	"trackingBanner": {
+		"title": "Reichweitenmessung",
+		"text": "Dürfen wir zählen, welche Seiten du aufrufst? Ohne Cookies, auf unserem eigenen Server und nur, um Balamentum zu verbessern. Ohne dein Ja bleibt die Messung aus.",
+		"accept": "Zulassen",
+		"decline": "Ablehnen",
+		"privacy": "Mehr dazu"
+	}
 }

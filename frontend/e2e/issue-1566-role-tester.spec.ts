@@ -1,6 +1,6 @@
 import type { Route } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { measureHorizontalScroll, waitForStableView } from './helpers';
+import { measureHorizontalScroll, waitForStableView, MOBILE } from './helpers';
 
 /**
  * Rote Spec-E2E für #1566 (Spec `docs/spec/issue-1566.md`): Rolle „Tester" — Admin ohne
@@ -11,8 +11,6 @@ import { measureHorizontalScroll, waitForStableView } from './helpers';
  * LAZY /auth/me); die Backend-Grenzen (403) deckt `server/src/express/admin.api.test.ts` ab —
  * hier geht es um den Frontend-Vertrag (Tab-Gating über `user.role === 'tester'`).
  */
-
-const MOBILE = { width: 375, height: 812 } as const;
 
 /** Mutierbare Fixture — der Plan wechselt über den zustandsbehafteten PATCH-Mock. */
 type FixtureUser = {

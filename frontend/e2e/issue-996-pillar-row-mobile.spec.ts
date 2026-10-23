@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 
 import { expect, test } from './fixtures';
-import { waitForStableView, fullPillarContributions } from './helpers';
+import { waitForStableView, fullPillarContributions, registerOwnSession, seedAccountPreferences } from './helpers';
 
 /**
  * E2E-Spec für #996 — „Mobile: Säulen-Verteilung im Task-Formular, Slider volle Breite".
@@ -19,8 +19,9 @@ import { waitForStableView, fullPillarContributions } from './helpers';
  * stiller Overflow sonst unsichtbar bliebe (#934, gleiche Begründung).
  */
 // #1984: Diese Specs prüfen das Expertenverhalten (Prozent-/Gewichtsregler sichtbar) — die
-// Präferenz kommt per localStorage-Seed vor dem Seitenaufbau (Muster ai-disable.spec.ts).
+// Präferenz liegt am Konto: API-Seed + localStorage-Spiegel (#2508, Muster ai-disable.spec.ts).
 test.beforeEach(async ({ page }) => {
+	await seedAccountPreferences(page, { expertMode: true });
 	await page.addInitScript(() => {
 		localStorage.setItem('pp-expert-mode', 'true');
 	});
@@ -37,6 +38,15 @@ test.describe('#996 Säulen-Verteilung im TaskForm (Mobile-Layout)', () => {
 	 * im `finally`).
 	 */
 	const openTaskFormWithPillarRow = async (page: Page): Promise<{ row: Locator; taskId: number }> => {
+		// Eigene Session (#2260-Muster): der Pass-Through-Account der Shard-DB sammelt Säulen-Reste
+		// anderer Specs — die frische Registrierung säht GENAU die fünf Standard-Säulen und hält die
+		// Vollverteilungs-Fixture deterministisch.
+		await registerOwnSession(page, 'issue-996');
+		// Mit eigener Session zieht die App die Konto-Präferenzen beim Start nach und überschreibt den
+		// localStorage-Seed — Expertenmodus deshalb serverseitig setzen (Muster crud.spec.ts), sonst
+		// fehlen die Säulen-Regler im TaskForm.
+		await seedAccountPreferences(page, { expertMode: true });
+
 		// Erste verfügbare Säule aus dem Backend holen (Muster: series.spec.ts) — weder Existenz
 		// noch Id einer Säule ist garantiert (DB_SEED=false erhält nur Stammdaten, keine festen Ids).
 		const pillarsResponse = await page.request.get('/api/v1/pillars');

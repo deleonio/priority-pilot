@@ -9,6 +9,7 @@ import {
 import sequelize from '../database.js';
 import Dependency from './dependency.js';
 import Pillar from './pillar.js';
+import type ScoreEntry from './scoreEntry.js';
 import TaskPillar from './taskPillar.js';
 
 type TaskStatus = 'Open' | 'In process' | 'Done';
@@ -57,6 +58,10 @@ class Task extends Model {
 
 	// KI-Entwurf (#2350): Ergebnis der Entwurfs-Aktion, getrennt von `description`. `null` ⇒ kein Entwurf.
 	public aiDraft?: string | null;
+
+	// System-Herkunft (#2758): aus einer Fürsorge-Vorlage übernommen (POST /tasks mit careTemplateKey).
+	// serializeTask löst dafür „Balamentum“ als Ersteller auf — ohne Ersteller-Konto. Kein Backfill.
+	public systemCreated?: boolean;
 
 	// Abhakbare Checkliste (Issue #531): JSON-Array aus `{ id, title, completed }`. Default leer;
 	// bestehende Tasks ohne Checkliste liefern `[]` (rückwärtskompatibel).
@@ -117,6 +122,9 @@ class Task extends Model {
 	/** Eager-geladene Säulen-Beiträge (über `include: [Pillar]`); je Eintrag mit `TaskPillar`. */
 	public Pillars?: PillarWithContribution[];
 
+	/** Eager-geladener Gamification-Score-Eintrag (über `include: [ScoreEntry]`); `zeitpunkt` = Erledigt-Zeitpunkt (#2574). */
+	public ScoreEntry?: ScoreEntry;
+
 	public Dependency!: Dependency;
 
 	public readonly createdAt!: Date;
@@ -153,7 +161,7 @@ Task.init(
 			},
 		},
 		estimatedEffort: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: false,
 			defaultValue: 0.5,
 			validate: {
@@ -162,7 +170,7 @@ Task.init(
 			},
 		},
 		actualEffort: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: true,
 		},
 		description: {
@@ -183,7 +191,7 @@ Task.init(
 		},
 		// Standort-Koordinaten (#1066), nullable — Bestand ohne Koordinaten bleibt `NULL`.
 		latitude: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: true,
 			validate: {
 				min: -90,
@@ -191,7 +199,7 @@ Task.init(
 			},
 		},
 		longitude: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: true,
 			validate: {
 				min: -180,
@@ -234,8 +242,11 @@ Task.init(
 			allowNull: false,
 			defaultValue: false,
 		},
+		// DATE(3) (Typ-Audit #2826): Millisekunden-Präzision bleibt unter MariaDB erhalten —
+		// Normalisierungsregel für die Identity-Prüfung: der Wert wird weder gerundet noch abgeschnitten,
+		// Roundtrip (speichern → laden) ist getTime()-identisch.
 		seriesOccurrence: {
-			type: DataTypes.DATE,
+			type: DataTypes.DATE(3),
 			allowNull: true,
 		},
 		// Anpinnen (#1582). Default `false`, damit Bestandsaufgaben unangepinnt bleiben.
@@ -255,6 +266,13 @@ Task.init(
 		aiDraft: {
 			type: DataTypes.TEXT,
 			allowNull: true,
+		},
+		// System-Herkunft (#2758), siehe Feld-Kommentar oben. NOT NULL DEFAULT false (SQLite verlangt
+		// DEFAULT bei nachträglichem ADD COLUMN); Bestandsaufgaben bleiben ohne Kennzeichen.
+		systemCreated: {
+			type: DataTypes.BOOLEAN,
+			allowNull: false,
+			defaultValue: false,
 		},
 		// Säulen-Neuberechnung (#1614), siehe Feld-Kommentar oben.
 		pillarsRecalculatedAt: {

@@ -23,6 +23,12 @@ export type SeriesRhythm =
 type SeriesPillarWithContribution = Pillar & { SeriesPillar: SeriesPillar };
 
 /**
+ * Checkpunkt der Serien-Vorlage (#2501): nur `id` und `title` — bewusst OHNE `completed`, das
+ * Abhaken gehört allein zur Instanz (Snapshot bei `createInstanceFromSeries`).
+ */
+export type SeriesChecklistItem = { id: string; title: string };
+
+/**
  * Serien-Template einer wiederkehrenden Aufgabe (Habit, Konzept §4.2). Das Template hält den
  * Rhythmus und die Default-Werte; jede fällige Wiederholung wird über `generateDueInstances`
  * (siehe `logics/series.ts`) als **eigenständiger** `Task` mit `seriesId` materialisiert. Eine
@@ -63,6 +69,10 @@ class Series extends Model {
 	// die Session-`userId` gebunden. Bei einer Serie für ein anderes Gruppenmitglied (#1222) das
 	// Empfänger-Konto.
 	public userId?: number | null;
+
+	// Checkpunkte der Vorlage (#2501, analog `Task.checklist` #531): werden bei der Instanz-Erzeugung
+	// als Snapshot mit `completed: false` übernommen; das Abhaken bleibt an der Instanz.
+	public checklist!: SeriesChecklistItem[];
 
 	// Ersteller-Konto (#1222, analog `Task.createdById` #1213) — nullable wie `userId`: Bestandsserien
 	// ohne Ersteller-Eintrag bleiben lesbar und unverändert.
@@ -123,7 +133,7 @@ Series.init(
 			},
 		},
 		estimatedEffort: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: false,
 			defaultValue: 0.5,
 			validate: {
@@ -180,7 +190,7 @@ Series.init(
 		// Standort-Koordinaten des Serien-Orts (#1066), analog `Task.latitude/longitude`. Nullable;
 		// Bestand ohne Koordinaten bleibt `NULL`.
 		latitude: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: true,
 			defaultValue: null,
 			validate: {
@@ -189,7 +199,7 @@ Series.init(
 			},
 		},
 		longitude: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: true,
 			defaultValue: null,
 			validate: {
@@ -202,6 +212,13 @@ Series.init(
 			type: DataTypes.BOOLEAN,
 			allowNull: false,
 			defaultValue: false,
+		},
+		// Checkpunkte der Vorlage (#2501), analog `Task.checklist`. Default `[]` für
+		// Rückwärtskompatibilität (Bestandsserien bleiben ohne Einträge).
+		checklist: {
+			type: DataTypes.JSON,
+			allowNull: false,
+			defaultValue: [],
 		},
 		// Kategorie-Bindung (0..1, siehe Feld-Kommentar oben); wird beim Generieren auf jede Instanz
 		// vererbt. Nullable, `defaultValue: null` analog den übrigen optionalen Serien-Feldern.

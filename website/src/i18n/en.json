@@ -250,6 +250,7 @@
 		"cancellation": "Cancel contract here",
 		"mcpGuide": "MCP guide",
 		"templates": "Templates",
+		"accessibility": "Accessibility",
 		"legalGermanOnly": "Legal texts in English for convenience; the German version is binding."
 	},
 	"imprint": {
@@ -283,5 +284,13 @@
 		"noAccessTitle": "Without access to the app",
 		"noAccess": "Write to us from the email address of your account. We delete the account within one month and confirm it to you.",
 		"back": "Back to home"
+	},
+	"tracking": {
+		"title": "Reach measurement",
+		"text": "May we count which pages are visited? Without cookies, on our own server and only to improve Balamentum. Without your yes, measurement stays off.",
+		"accept": "Allow",
+		"decline": "Decline",
+		"privacy": "Learn more",
+		"settings": "Reach measurement"
 	}
 }

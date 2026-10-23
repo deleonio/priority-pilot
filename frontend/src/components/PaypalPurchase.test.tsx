@@ -23,13 +23,15 @@ vi.mock('@public-ui/react-v19', () => ({
 		_disabled,
 		_on,
 		children,
+		'data-testid': testId,
 	}: {
 		_label: string;
 		_disabled?: boolean;
 		_on?: { onClick?: () => void };
 		children?: ReactNode;
+		'data-testid'?: string;
 	}) => (
-		<button type="button" disabled={_disabled} onClick={() => _on?.onClick?.()}>
+		<button type="button" disabled={_disabled} data-testid={testId} onClick={() => _on?.onClick?.()}>
 			{_label}
 			{children}
 		</button>
@@ -53,6 +55,14 @@ vi.mock('@public-ui/react-v19', () => ({
 		</label>
 	),
 	KolLink: ({ _href, _label }: { _href: string; _label: string }) => <a href={_href}>{_label}</a>,
+	KolInputText: () => <input type="text" />,
+	// #2661: das Adress-Details im Checkout-Dialog — offen/zu wie im Produktivcode.
+	KolDetails: ({ _label, _open, children }: { _label: string; _open?: boolean; children?: ReactNode }) => (
+		<details open={_open}>
+			<summary>{_label}</summary>
+			{children}
+		</details>
+	),
 }));
 
 vi.mock('./Modal', () => ({
@@ -68,8 +78,33 @@ vi.mock('../api', () => ({
 		previewBillingChange: () => previewBillingChange(),
 		changeBillingSubscription: (input: unknown) => changeBillingSubscription(input),
 		createBillingSubscription: (input: unknown) => createBillingSubscription(input),
+		// #2661: das Adressformular im Notice-Block lädt beim Mount die gespeicherte Adresse.
+		getBillingAddress: () => getBillingAddress(),
+		updateBillingAddress: (input: unknown) => updateBillingAddress(input),
+		// Der Checkout-Dialog laedt Preis und Sandbox-Konto aus dem Paket-Katalog.
+		getPlansCatalog: () => getPlansCatalog(),
 	},
 }));
+const getBillingAddress = vi.fn<
+	() => Promise<{
+		name: string | null;
+		street: string | null;
+		zip: string | null;
+		city: string | null;
+		country: string | null;
+	}>
+>();
+const updateBillingAddress = vi.fn();
+const getPlansCatalog = vi.fn();
+
+/** Paket-Katalog wie aus `GET /plans` — LIVE-Default ohne Sandbox-Konto. */
+const KATALOG = {
+	features: [],
+	prices: {
+		plus: { monthly: 499, quarterly: 1347, yearly: 4790 },
+		pro: { monthly: 899, quarterly: 2427, yearly: 8630 },
+	},
+};
 
 const subscriptionState = { subscription: { plan: 'pro', period: 'monthly' } as unknown };
 const refresh = vi.fn(async () => {});
@@ -100,6 +135,11 @@ describe('usePaypalPurchase — Warteverhalten nach dem Wechsel', () => {
 		previewBillingChange.mockReset();
 		changeBillingSubscription.mockReset();
 		createBillingSubscription.mockReset();
+		// #2661: das Adressformular im Hinweisbereich lädt beim Mount die gespeicherte Adresse.
+		getBillingAddress.mockReset();
+		getBillingAddress.mockResolvedValue({ name: null, street: null, zip: null, city: null, country: null });
+		updateBillingAddress.mockReset();
+		updateBillingAddress.mockResolvedValue({});
 		refresh.mockClear();
 		subscriptionState.subscription = { plan: 'pro', period: 'monthly' };
 	});
@@ -161,7 +201,7 @@ describe('usePaypalPurchase — Warteverhalten nach dem Wechsel', () => {
 	});
 
 	// #2235 AK6: das Zielpaket eines offenen Checkouts ist kein „Aktuelles Paket", sondern buchbar.
-	it('#2235 AK6: approval_pending im Zielpaket zeigt „Buchen" statt „Aktuelles Paket"', () => {
+	it('#2235 AK6: approval_pending im Zielpaket zeigt „Bestellen" statt „Aktuelles Paket"', () => {
 		subscriptionState.subscription = {
 			plan: 'plus',
 			period: 'monthly',
@@ -171,53 +211,80 @@ describe('usePaypalPurchase — Warteverhalten nach dem Wechsel', () => {
 		render(<Harness targetPlan="plus" />);
 
 		expect(screen.queryByText('Aktuelles Paket')).toBeNull();
-		// Test-Pflege #2307: der Buchen-Knopf heißt jetzt „Zahlungspflichtig bestellen".
-		expect(screen.getByRole('button', { name: /Zahlungspflichtig bestellen/ })).toBeTruthy();
+		// Test-Pflege #2661: der Paket-Knopf heißt „Bestellen“ (Paket/Laufzeit unsichtbar im Namen).
+		expect(screen.getByRole('button', { name: /Bestellen/ })).toBeTruthy();
 	});
 });
 
 /**
- * #2307 (Vertrag: `docs/spec/issue-2307.md`) — Erstkauf „Zahlungspflichtig bestellen": eine
- * gemeinsame Zustimmungs-Checkbox im Hinweisbereich schaltet den Buchen-Knopf frei;
- * „Weiterführen" und „Wechseln" bleiben unverändert (AK1, AK2, AK3, AK6).
+ * #2307/#2661 (Test-Pflege für den Checkout-Dialog) — Der Paket-Knopf heißt „Bestellen“
+ * (#2661) und öffnet den Checkout-Dialog: Rechnungsadresse (offenes Details, solange keine
+ * gespeichert ist) und Widerrufs-Checkbox schalten dort gemeinsam „Zahlungspflichtig bestellen“
+ * frei. „Weiterführen“ und „Wechseln“ bleiben unverändert.
  */
-describe('usePaypalPurchase — Widerrufsbelehrung vor dem Erstkauf (#2307)', () => {
+describe('usePaypalPurchase — Bestell-Dialog vor dem Zahlungsanbieter (#2661)', () => {
 	beforeEach(() => {
 		createBillingSubscription.mockReset();
 		createBillingSubscription.mockResolvedValue({});
+		getBillingAddress.mockReset();
+		updateBillingAddress.mockReset();
+		updateBillingAddress.mockResolvedValue({});
+		getPlansCatalog.mockReset();
+		getPlansCatalog.mockResolvedValue(KATALOG);
 		subscriptionState.subscription = null;
 	});
 	afterEach(cleanup);
-
-	const bookButton = () => screen.getByRole('button', { name: /Zahlungspflichtig bestellen/ });
-
-	it('AK1: der Buchen-Knopf trägt „Zahlungspflichtig bestellen" statt Paket und Laufzeit', () => {
+	/** Öffnet den Dialog über den Bestell-Knopf und wartet auf die geladene Adresse. */
+	const openDialog = async (): Promise<void> => {
+		fireEvent.click(screen.getByRole('button', { name: /Bestellen/ }));
+		await waitFor(() => expect(getBillingAddress).toHaveBeenCalled());
+	};
+	it('AK1: der Paket-Knopf heißt „Bestellen“ und öffnet den Dialog statt direkt zu buchen', async () => {
+		getBillingAddress.mockResolvedValue({ name: null, street: null, zip: null, city: null, country: null });
 		render(<Harness />);
-		expect(bookButton()).toBeTruthy();
-		expect(screen.queryByRole('button', { name: /buchen \(/ })).toBeNull();
+		fireEvent.click(screen.getByRole('button', { name: /Bestellen/ }));
+		expect(createBillingSubscription).not.toHaveBeenCalled();
+		await waitFor(() => expect(screen.getByRole('button', { name: /Zahlungspflichtig bestellen/ })).toBeTruthy());
 	});
-
-	it('AK3: Hinweis verlinkt /widerruf/ und eine Checkbox steht (nicht vorbelegt) vor dem Knopf', () => {
-		const { container } = render(<Harness />);
-		expect(container.querySelector('a[href="/widerruf/"]')).not.toBeNull();
+	it('#2661: ohne gespeicherte Adresse ist das Adress-Details offen und „Zahlungspflichtig bestellen“ deaktiviert', async () => {
+		getBillingAddress.mockResolvedValue({ name: null, street: null, zip: null, city: null, country: null });
+		render(<Harness />);
+		await openDialog();
+		expect(screen.getByText('Rechnungsadresse anlegen')).toBeTruthy();
+		expect(screen.getByTestId('billing-address-save')).toBeTruthy();
+		const submit = screen.getByRole('button', { name: /Zahlungspflichtig bestellen/ }) as HTMLButtonElement;
+		expect(submit.disabled).toBe(true);
+	});
+	it('#2661: mit gespeicherter Adresse bleibt das Details zu, die Checkbox schaltet den Knopf frei', async () => {
+		getBillingAddress.mockResolvedValue({
+			name: 'Max Mustermann',
+			street: 'Musterstraße 1',
+			zip: '12345',
+			city: 'Musterstadt',
+			country: 'Deutschland',
+		});
+		render(<Harness />);
+		await openDialog();
+		expect(screen.getByText('Rechnungsadresse bearbeiten')).toBeTruthy();
 		const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
 		expect(checkbox.checked).toBe(false);
+		const submit = () => screen.getByRole('button', { name: /Zahlungspflichtig bestellen/ }) as HTMLButtonElement;
+		expect(submit().disabled).toBe(true);
+		fireEvent.click(checkbox);
+		expect(submit().disabled).toBe(false);
 	});
-
-	it('AK2: ohne Checkbox ist der Knopf deaktiviert und löst keinen Checkout aus', () => {
+	it('AK2/#2661: Adresse + Zustimmung zusammen starten den Checkout', async () => {
+		getBillingAddress.mockResolvedValue({
+			name: 'Max Mustermann',
+			street: 'Musterstraße 1',
+			zip: '12345',
+			city: 'Musterstadt',
+			country: 'Deutschland',
+		});
 		render(<Harness />);
-		const button = bookButton() as HTMLButtonElement;
-		expect(button.disabled).toBe(true);
-		fireEvent.click(button);
-		expect(createBillingSubscription).not.toHaveBeenCalled();
-	});
-
-	it('AK2: mit gesetzter Checkbox startet der Klick den bisherigen Checkout', async () => {
-		render(<Harness />);
+		await openDialog();
 		fireEvent.click(screen.getByRole('checkbox'));
-		const button = bookButton() as HTMLButtonElement;
-		expect(button.disabled).toBe(false);
-		fireEvent.click(button);
+		fireEvent.click(screen.getByRole('button', { name: /Zahlungspflichtig bestellen/ }));
 		await waitFor(() =>
 			expect(createBillingSubscription).toHaveBeenCalledWith({
 				plan: 'plus',
@@ -226,7 +293,12 @@ describe('usePaypalPurchase — Widerrufsbelehrung vor dem Erstkauf (#2307)', ()
 			}),
 		);
 	});
-
+	it('AK3: der Dialog verlinkt /widerruf/', async () => {
+		getBillingAddress.mockResolvedValue({ name: null, street: null, zip: null, city: null, country: null });
+		const { container } = render(<Harness />);
+		await openDialog();
+		expect(container.querySelector('a[href="/widerruf/"]')).not.toBeNull();
+	});
 	it('AK6: „Wechseln" bleibt ohne Checkbox und mit altem Label', () => {
 		subscriptionState.subscription = { plan: 'pro', period: 'monthly', status: 'active' };
 		render(<Harness targetPlan="plus" />);
@@ -245,5 +317,24 @@ describe('usePaypalPurchase — Widerrufsbelehrung vor dem Erstkauf (#2307)', ()
 		render(<Harness targetPlan="plus" />);
 		expect(screen.getByRole('button', { name: /Plus weiterführen ab/ })).toBeTruthy();
 		expect(screen.queryByRole('checkbox')).toBeNull();
+	});
+
+	// Sandbox-Testkonto: Der Server liefert es nur mit, wenn er selbst gegen die PayPal-Sandbox
+	// läuft — der Dialog zeigt den Hinweis nur dann (LIVE nie).
+	it('zeigt den Sandbox-Hinweis, wenn der Katalog ein Testkonto liefert', async () => {
+		getPlansCatalog.mockResolvedValue({
+			...KATALOG,
+			paypalSandboxAccount: { email: 'sb-k6dxv52906900@personal.example.com', password: 'Tester1!' },
+		});
+		getBillingAddress.mockResolvedValue({ name: null, street: null, zip: null, city: null, country: null });
+		render(<Harness />);
+		await openDialog();
+		expect(screen.getByText(/sb-k6dxv52906900@personal\.example\.com/)).toBeTruthy();
+	});
+	it('ohne Testkonto im Katalog gibt es keinen Sandbox-Hinweis', async () => {
+		getBillingAddress.mockResolvedValue({ name: null, street: null, zip: null, city: null, country: null });
+		render(<Harness />);
+		await openDialog();
+		expect(screen.queryByText(/sb-k6dxv52906900@personal\.example\.com/)).toBeNull();
 	});
 });

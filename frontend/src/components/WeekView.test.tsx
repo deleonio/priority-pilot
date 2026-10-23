@@ -25,20 +25,30 @@ afterEach(cleanup);
 
 const pillars: TaskPillarContribution[] = [];
 
-const task = (id: number, title: string, deadline: Date | null, status: Task['status'] = TaskStatus.Open): Task => ({
-	id,
-	title,
-	status,
-	priority: 3,
-	estimatedEffort: 1,
-	actualEffort: null,
-	description: null,
-	deadline,
-	seriesId: null,
-	isException: false,
-	pinned: false,
-	pillars,
-});
+const task = (
+	id: number,
+	title: string,
+	deadline: Date | null,
+	status: Task['status'] = TaskStatus.Open,
+	// #2574: Erledigt-Zeitpunkt aus dem Task-DTO (serverseitig aus `ScoreEntry.zeitpunkt` abgeleitet).
+	// Cast, weil der generierte Client-Typ das Feld erst mit der Implementierung trägt.
+	completedAt?: string,
+): Task =>
+	({
+		id,
+		title,
+		status,
+		priority: 3,
+		estimatedEffort: 1,
+		actualEffort: null,
+		description: null,
+		deadline,
+		seriesId: null,
+		isException: false,
+		pinned: false,
+		pillars,
+		...(completedAt !== undefined ? { completedAt } : {}),
+	}) as Task;
 
 // Referenzdatum ist ein Mittwoch (2026-09-23, UTC) — feste Kalenderwoche für deterministische Tests.
 const REFERENCE = new Date(Date.UTC(2026, 8, 23));
@@ -295,7 +305,16 @@ describe('WeekView — Kalendertermine (#2210 AK3)', () => {
 	});
 
 	it('ganztägige Termine zeigen „ganztägig" statt einer Uhrzeit', () => {
-		renderWith([event('Urlaub', local(24, 0), local(25, 0), true)]);
+		// Produktions-Kontrakt: ganztägige Termine sind reine UTC-Daten (DATE = UTC-Mitternacht,
+		// server/src/logics/calendar-ics.ts) — Fixture daher über Date.UTC, nicht über local().
+		renderWith([
+			event(
+				'Urlaub',
+				new Date(Date.UTC(2026, 8, 24)).toISOString(),
+				new Date(Date.UTC(2026, 8, 25)).toISOString(),
+				true,
+			),
+		]);
 
 		const thursday = cardOf(/Donnerstag/);
 		expect(within(thursday).getByText(/Urlaub/)).toBeInTheDocument();
@@ -324,5 +343,42 @@ describe('WeekView — Kalendertermine (#2210 AK3)', () => {
 		const text = cardOf(/Mittwoch/).textContent ?? '';
 		expect(text.indexOf('Zahnarzt')).toBeGreaterThanOrEqual(0);
 		expect(text.indexOf('Zahnarzt')).toBeLessThan(text.indexOf('Aufgabe am Mittwoch'));
+	});
+});
+
+/**
+ * #2574 (docs/spec/issue-2574.md): erledigte Aufgaben stehen am Tag des Abhakens (`completedAt`,
+ * serverseitig aus `ScoreEntry.zeitpunkt` abgeleitet) — nicht mehr am Deadline-Tag. Offene Aufgaben
+ * bleiben unverändert am Deadline-Tag ohne `week-view-done` (AK3 — bereits durch die bestehenden
+ * #2012-Tests oben gesichert, Dedup).
+ */
+describe('WeekView — erledigte Aufgaben am Erledigt-Tag (#2574 AK1/AK2)', () => {
+	// 2026-09-23 ist der Mittwoch der Referenzwoche; dazu der Freitag derselben Woche.
+	const FREITAG = new Date(Date.UTC(2026, 8, 25));
+	const COMPLETED_AT = '2026-09-23T10:30:00.000Z';
+
+	it('ordnet eine erledigte Aufgabe ohne Deadline ihrem Erledigt-Tag zu (#2574 AK1)', () => {
+		const erledigt = task(21, 'Abgehakt am Mittwoch', null, TaskStatus.Done, COMPLETED_AT);
+		render(
+			<WeekView tasks={[erledigt]} nextTask={null} suggestions={[]} referenceDate={REFERENCE} onSelectDay={() => {}} />,
+		);
+
+		const mittwochCard = screen.getByRole('heading', { name: /Mittwoch,/i }).closest('.week-view-day') as HTMLElement;
+		const eintrag = within(mittwochCard).getByText('Abgehakt am Mittwoch');
+		expect(eintrag).toHaveClass('week-view-done');
+	});
+
+	it('ordnet eine am Mittwoch erledigte Freitags-Aufgabe ausschließlich dem Mittwoch zu (#2574 AK2)', () => {
+		const erledigt = task(22, 'Freitags-Aufgabe abgehakt', FREITAG, TaskStatus.Done, COMPLETED_AT);
+		render(
+			<WeekView tasks={[erledigt]} nextTask={null} suggestions={[]} referenceDate={REFERENCE} onSelectDay={() => {}} />,
+		);
+
+		const mittwochCard = screen.getByRole('heading', { name: /Mittwoch,/i }).closest('.week-view-day') as HTMLElement;
+		const freitagCard = screen.getByRole('heading', { name: /Freitag,/i }).closest('.week-view-day') as HTMLElement;
+		const eintrag = within(mittwochCard).getByText('Freitags-Aufgabe abgehakt');
+		expect(eintrag).toHaveClass('week-view-done');
+		// Negativ-Kontrolle: nicht am (früheren) Deadline-Tag.
+		expect(within(freitagCard).queryByText('Freitags-Aufgabe abgehakt')).toBeNull();
 	});
 });

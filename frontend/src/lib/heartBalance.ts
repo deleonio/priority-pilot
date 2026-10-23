@@ -219,9 +219,12 @@ const concreteHint = (segments: readonly HeartSegment[]): string | undefined => 
 	return teile.length > 0 ? `${teile.join(', ')}.` : undefined;
 };
 
-/** Leitet den Gesundheitszustand aus dem Füllstand ab; ohne Punkte gilt der eigene Leer-Zustand. */
-export const heartHealth = (balance: BalanceModel): HeartHealth => {
-	if (!balance.hasPoints) {
+/**
+ * Leitet den Gesundheitszustand aus dem Füllstand ab; ohne Punkte — oder ohne Urteilsreife (#2645,
+ * unter der Überlast-Mindestmenge an Erledigungen) — gilt der eigene Leer-Zustand statt eines Urteils.
+ */
+export const heartHealth = (balance: BalanceModel, urteilsreif = true): HeartHealth => {
+	if (!balance.hasPoints || !urteilsreif) {
 		return {
 			state: 'leer',
 			label: healthLabel('leer'),

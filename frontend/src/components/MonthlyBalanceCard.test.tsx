@@ -130,7 +130,9 @@ describe('MonthlyBalanceCard (#1995)', () => {
 			expect(text).toContain(saeule.name);
 		}
 		expect(text).toContain('12');
-		expect(text).toContain('streak-7');
+		// #2496 AK2: übersetzter Meilenstein-Text statt roher Schlüssel (wie im SVG-Export).
+		expect(text).toContain('Streak 7');
+		expect(text, 'roher Schlüssel darf nicht im Card-DOM landen').not.toContain('streak-7');
 	});
 
 	it('AK4: Teilen ruft navigator.share mit der erzeugten PNG auf', async () => {

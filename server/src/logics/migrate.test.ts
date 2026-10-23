@@ -1,10 +1,12 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
+import type { Sequelize } from 'sequelize';
 import sequelize from '../database.js';
 import { Task, User } from '../models/index.js';
 import {
 	migrateSeriesColumns,
 	migrateSeriesTable,
+	migrateSeriesChecklist,
 	migrateUserIdColumns,
 	migratePillarDescription,
 	migrateTaskChecklist,
@@ -19,11 +21,13 @@ import {
 	migrateTaskMissedColumns,
 	migrateTaskSnoozeColumn,
 	migrateTaskAiDraftColumn,
+	migrateTaskSystemCreatedColumn,
 	migratePillarRecalcColumns,
 	migrateTaskGroupId,
 	migratePlaceFavoriteDropName,
 	migratePlaceFavoriteAddressUnique,
 	migrateLoginTokenPurpose,
+	migrateLoginTokenCodeChallenge,
 	migrateSubscriptionExternalIdUnique,
 	migrateInvoiceLineItemsColumn,
 	migrateInvoicePdfBytesColumn,
@@ -149,6 +153,7 @@ describe('migrateSeriesColumns', () => {
 		// Task.create()-INSERT mitgeschrieben — Migration hier nachziehen, damit der Insert nicht
 		// an der fehlenden Spalte bricht.
 		await migrateTaskMissedColumns(sequelize);
+		await migrateTaskSystemCreatedColumn(sequelize); // #2758 (Test-Pflege): systemCreated, NOT NULL — im INSERT mitgeschrieben
 		await sequelize.sync();
 
 		const occurrence = new Date('2026-01-01T00:00:00.000Z');
@@ -260,6 +265,9 @@ describe('migrateSeriesTable', () => {
 
 		// Kategorie-Spalte nachziehen: Series.findAll selektiert sie mit (separate Migration).
 		await migrateCategoryIdColumns(sequelize);
+		// Test-Pflege #2501: checklist-Spalte ebenso nachziehen — Series.findAll selektiert sie mit
+		// (separate Migration, Muster der Kategorie-Spalte oben).
+		await migrateSeriesChecklist(sequelize);
 
 		const { default: Series } = await import('../models/series.js');
 		await assert.doesNotReject(() => Series.findAll(), 'Series.findAll() wirft keinen SQLITE_ERROR mehr');
@@ -385,6 +393,7 @@ describe('migrateUserIdColumns', () => {
 		await migrateTaskMissedColumns(sequelize); // #1964 (Test-Pflege): Zähler/Archiv, ebenfalls von Task.findAll mitselektiert
 		await migrateTaskSnoozeColumn(sequelize); // #2244 (Test-Pflege): snoozedUntil, ebenfalls von Task.findAll mitselektiert
 		await migrateTaskAiDraftColumn(sequelize); // #2350 (Test-Pflege): aiDraft, ebenfalls von Task.findAll mitselektiert
+		await migrateTaskSystemCreatedColumn(sequelize); // #2758 (Test-Pflege): systemCreated, NOT NULL — im INSERT mitgeschrieben
 		await sequelize.sync();
 
 		await assert.doesNotReject(
@@ -631,6 +640,12 @@ describe('migrateUserGeoConfigColumns', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				// Test-Pflege #1994: `splitHintEnabled` ergänzt (Konvention wie oben).
 				'`splitHintEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				// Test-Pflege #2850: Push-Gruppen-Spalten ergänzt — das User-Modell selectiert sie,
+				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention wie oben).
+				'`taskPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`successPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`groupPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`tipPushEnabled` TINYINT NOT NULL DEFAULT 0, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
 				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
@@ -647,6 +662,12 @@ describe('migrateUserGeoConfigColumns', () => {
 				'`termsAcceptedAt` DATETIME, ' +
 				// Test-Pflege #1935: `mcpInstructions` ergänzt (gleiche Begründung wie oben).
 				'`mcpInstructions` TEXT, ' +
+				// Test-Pflege #2661: Rechnungsadresse ergänzt (gleiche Begründung wie oben).
+				'`billingName` VARCHAR(255), ' +
+				'`billingStreet` VARCHAR(255), ' +
+				'`billingZip` VARCHAR(255), ' +
+				'`billingCity` VARCHAR(255), ' +
+				'`billingCountry` VARCHAR(255), ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -717,6 +738,7 @@ describe('migrateTaskAddress', () => {
 		await migratePillarRecalcColumns(sequelize);
 		// #1964 (Test-Pflege): siehe Serien-Test oben — Modell-Spalten für das INSERT nachziehen.
 		await migrateTaskMissedColumns(sequelize);
+		await migrateTaskSystemCreatedColumn(sequelize); // #2758 (Test-Pflege): systemCreated, NOT NULL — im INSERT mitgeschrieben
 
 		assert.ok(!(await taskColumns()).includes('address'), 'Alt-Schema hat address noch nicht');
 
@@ -758,6 +780,7 @@ describe('migrateCategoryIdColumns', () => {
 		await migratePillarRecalcColumns(sequelize);
 		// #1964 (Test-Pflege): siehe Serien-Test oben — Modell-Spalten für das INSERT nachziehen.
 		await migrateTaskMissedColumns(sequelize);
+		await migrateTaskSystemCreatedColumn(sequelize); // #2758 (Test-Pflege): systemCreated, NOT NULL — im INSERT mitgeschrieben
 
 		assert.ok(!(await taskColumns()).includes('categoryId'), 'Alt-Schema hat categoryId noch nicht');
 
@@ -797,6 +820,7 @@ describe('migrateTaskPinnedColumns', () => {
 		await migrateCategoryIdColumns(sequelize);
 		// #1964 (Test-Pflege): siehe Serien-Test oben — Modell-Spalten für das INSERT nachziehen.
 		await migrateTaskMissedColumns(sequelize);
+		await migrateTaskSystemCreatedColumn(sequelize); // #2758 (Test-Pflege): systemCreated, NOT NULL — im INSERT mitgeschrieben
 
 		const before = await taskColumns();
 		assert.ok(!before.includes('pinned'), 'Alt-Schema hat pinned noch nicht');
@@ -851,6 +875,7 @@ describe('migrateTaskMissedColumns', () => {
 		assert.ok(!before.includes('archivedAt'), 'Alt-Schema hat archivedAt noch nicht');
 
 		await migrateTaskMissedColumns(sequelize);
+		await migrateTaskSystemCreatedColumn(sequelize); // #2758 (Test-Pflege): systemCreated, NOT NULL — im INSERT mitgeschrieben
 		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht mehr ab');
 
 		const after = await taskColumns();
@@ -983,6 +1008,12 @@ describe('migrateUsersRoleColumn (Rollensystem admin/member)', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				// Test-Pflege #1994: `splitHintEnabled` ergänzt (Konvention wie oben).
 				'`splitHintEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				// Test-Pflege #2850: Push-Gruppen-Spalten ergänzt — das User-Modell selectiert sie,
+				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention wie oben).
+				'`taskPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`successPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`groupPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`tipPushEnabled` TINYINT NOT NULL DEFAULT 0, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
 				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
@@ -999,6 +1030,12 @@ describe('migrateUsersRoleColumn (Rollensystem admin/member)', () => {
 				'`termsAcceptedAt` DATETIME, ' +
 				// Test-Pflege #1935: `mcpInstructions` ergänzt (gleiche Begründung wie oben).
 				'`mcpInstructions` TEXT, ' +
+				// Test-Pflege #2661: Rechnungsadresse ergänzt (gleiche Begründung wie oben).
+				'`billingName` VARCHAR(255), ' +
+				'`billingStreet` VARCHAR(255), ' +
+				'`billingZip` VARCHAR(255), ' +
+				'`billingCity` VARCHAR(255), ' +
+				'`billingCountry` VARCHAR(255), ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -1080,6 +1117,12 @@ describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				// Test-Pflege #1994: `splitHintEnabled` ergänzt (Konvention wie oben).
 				'`splitHintEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				// Test-Pflege #2850: Push-Gruppen-Spalten ergänzt — das User-Modell selectiert sie,
+				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention wie oben).
+				'`taskPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`successPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`groupPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`tipPushEnabled` TINYINT NOT NULL DEFAULT 0, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
 				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
@@ -1096,6 +1139,12 @@ describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
 				'`termsAcceptedAt` DATETIME, ' +
 				// Test-Pflege #1935: `mcpInstructions` ergänzt (gleiche Begründung wie oben).
 				'`mcpInstructions` TEXT, ' +
+				// Test-Pflege #2661: Rechnungsadresse ergänzt (gleiche Begründung wie oben).
+				'`billingName` VARCHAR(255), ' +
+				'`billingStreet` VARCHAR(255), ' +
+				'`billingZip` VARCHAR(255), ' +
+				'`billingCity` VARCHAR(255), ' +
+				'`billingCountry` VARCHAR(255), ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -1261,6 +1310,12 @@ describe('migrateUsersPlanColumn (#1456 AK1)', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				// Test-Pflege #1994: `splitHintEnabled` ergänzt (Konvention wie oben).
 				'`splitHintEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				// Test-Pflege #2850: Push-Gruppen-Spalten ergänzt — das User-Modell selectiert sie,
+				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention wie oben).
+				'`taskPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`successPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`groupPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`tipPushEnabled` TINYINT NOT NULL DEFAULT 0, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
 				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
@@ -1277,6 +1332,12 @@ describe('migrateUsersPlanColumn (#1456 AK1)', () => {
 				'`termsAcceptedAt` DATETIME, ' +
 				// Test-Pflege #1935: `mcpInstructions` ergänzt (gleiche Begründung wie oben).
 				'`mcpInstructions` TEXT, ' +
+				// Test-Pflege #2661: Rechnungsadresse ergänzt (gleiche Begründung wie oben).
+				'`billingName` VARCHAR(255), ' +
+				'`billingStreet` VARCHAR(255), ' +
+				'`billingZip` VARCHAR(255), ' +
+				'`billingCity` VARCHAR(255), ' +
+				'`billingCountry` VARCHAR(255), ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -1498,6 +1559,27 @@ describe('migrateLoginTokenPurpose (#1669)', () => {
 		const [rows] = await sequelize.query('SELECT purpose FROM `login_tokens`');
 		assert.deepEqual(rows, [{ purpose: 'magic' }]);
 		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht');
+	});
+});
+
+// ── #2563: migrateLoginTokenCodeChallenge — PKCE-Bindung der App-Links an login_tokens ─────────
+describe('migrateLoginTokenCodeChallenge (#2563)', () => {
+	it('zieht codeChallenge nach, Bestandszeilen bleiben (null), zweiter Lauf bleibt stabil', async () => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `login_tokens` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `email` VARCHAR(255) NOT NULL, ' +
+				"`tokenHash` VARCHAR(255) NOT NULL, `purpose` VARCHAR(255) NOT NULL DEFAULT 'magic', " +
+				'`expiresAt` DATETIME NOT NULL, `usedAt` DATETIME, `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL)',
+		);
+		await sequelize.query(
+			"INSERT INTO `login_tokens` (`email`, `tokenHash`, `expiresAt`, `createdAt`, `updatedAt`) VALUES ('a@example.com', 'h', '2026-01-01', '2026-01-01', '2026-01-01')",
+		);
+
+		await migrateLoginTokenCodeChallenge(sequelize);
+		await assert.doesNotReject(() => migrateLoginTokenCodeChallenge(sequelize), 'zweiter Lauf bleibt stabil');
+
+		const [rows] = await sequelize.query('SELECT codeChallenge FROM `login_tokens`');
+		assert.deepEqual(rows, [{ codeChallenge: null }]);
 	});
 });
 
@@ -1945,6 +2027,26 @@ describe('migrateWaitlistSpracheColumn', () => {
 	});
 });
 
+// ── migrateWaitlistConfirmationColumns — Double-Opt-in-Spalten (nullable) ─────────────────────────
+describe('migrateWaitlistConfirmationColumns', () => {
+	it('zieht auf einem Alt-Schema die Spalten nach, Bestandszeilen bleiben unbestätigt (null); zweiter Lauf ist ein No-op', async () => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `waitlist_entries` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `email` VARCHAR(255) NOT NULL UNIQUE)',
+		);
+		await sequelize.query("INSERT INTO waitlist_entries (email) VALUES ('alt@local')");
+		await migrateModule.migrateWaitlistConfirmationColumns(sequelize);
+		await assert.doesNotReject(
+			() => migrateModule.migrateWaitlistConfirmationColumns(sequelize),
+			'zweiter Lauf bleibt stabil',
+		);
+		const [rows] = await sequelize.query(
+			"SELECT confirmedAt, confirmTokenHash, confirmMailSentAt FROM waitlist_entries WHERE email = 'alt@local'",
+		);
+		assert.deepEqual(rows, [{ confirmedAt: null, confirmTokenHash: null, confirmMailSentAt: null }]);
+	});
+});
+
 // ── #2305: migrateWaitlistAccessMailStatusColumn — accessMailStatus (nullable) ───────────────────
 // Die Funktion existiert noch nicht (rote Spec-Tests): Zugriff über den Namespace + Cast hält tsc grün.
 describe('migrateWaitlistAccessMailStatusColumn (#2305 AK7)', () => {
@@ -2058,5 +2160,387 @@ describe('migrateApiTokenKind (#2377)', () => {
 		const row = (rows as { name: string; kind: string }[])[0];
 		assert.equal(row?.name, 'Alt-Token');
 		assert.equal(row?.kind, 'api', 'Bestandszeile bleibt ein persoenlicher API-Token');
+	});
+});
+
+// ── #2501: migrateSeriesChecklist — checklist-Spalte an bestehenden series nachziehen ────────
+// Rote Spec-Tests: `migrateSeriesChecklist` existert noch nicht — Zugriff über den Namespace +
+// Cast (Präzedenz migrateGroupImageUrl oben), damit tsc grün bleibt. Rot ist die Spalten-Assertion.
+describe('migrateSeriesChecklist (#2501)', () => {
+	const migrateSeriesChecklist = (migrateModule as { migrateSeriesChecklist?: (db: unknown) => Promise<void> })
+		.migrateSeriesChecklist;
+
+	it('zieht die checklist-Spalte auf einer bestehenden series-Tabelle nach (vor sync())', async () => {
+		await createLegacySeriesTable();
+
+		await assert.doesNotReject(() => migrateSeriesChecklist?.(sequelize), 'die Migration läuft ohne Fehler');
+		const columns = await seriesColumns();
+		assert.ok(columns.includes('checklist'), `die Spalte checklist wurde nachgezogen, war: ${columns.join(', ')}`);
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht mehr ab');
+	});
+
+	it('ist auf einer DB ohne series-Tabelle ein No-op; sync() legt checklist am frischen Schema an', async () => {
+		// beforeEach hat alle Tabellen gedroppt.
+		await assert.doesNotReject(() => migrateSeriesChecklist?.(sequelize), 'No-op auf frischer DB');
+
+		await assert.doesNotReject(() => sequelize.sync());
+		const columns = await seriesColumns();
+		assert.ok(columns.includes('checklist'), 'sync() legt die checklist-Spalte inkl. Default an');
+	});
+});
+
+// Rote Spec-Tests für #2552 — Spalten-Migrationen über einen Helfer `ensureColumns`.
+//
+// Vertrag (docs/spec/issue-2552.md, AK3): der Helfer ersetzt das wiederholte PRAGMA-table_info-
+// Gerüst — eine fehlende Spalte wird mit ihrer Definition angelegt, eine vorhandene bleibt
+// unverändert (kein zweites ALTER, idempotenter Zweitaufruf), eine fehlende Tabelle ist ein
+// No-op. Es wird KEIN Produktivcode geschrieben; die Tests werden grün, sobald `ensureColumns`
+// in `server/src/logics/migrate.ts` existiert.
+const ensureColumns = (
+	migrateModule as unknown as {
+		ensureColumns?: (
+			db: typeof sequelize,
+			table: string,
+			columns: readonly { name: string; definition: string }[],
+		) => Promise<unknown>;
+	}
+).ensureColumns;
+
+/** Spaltennamen + -typen einer Tabelle (leer, falls die Tabelle nicht existiert). */
+const helperTableColumns = async (table: string): Promise<{ name: string; type: string }[]> => {
+	const [rows] = await sequelize.query(`PRAGMA table_info('${table}')`);
+	return rows as { name: string; type: string }[];
+};
+
+describe('ensureColumns', () => {
+	// ── AK3, Fall 1: fehlende Spalte wird mit ihrer Definition angelegt ───────────────────────
+	it('legt eine fehlende Spalte mit ihrer Definition an', async () => {
+		await sequelize.query('CREATE TABLE `spec_helper` (`id` INTEGER PRIMARY KEY)');
+		assert.ok(ensureColumns, 'ensureColumns ist als Export vorhanden');
+
+		await assert.doesNotReject(() =>
+			ensureColumns(sequelize, 'spec_helper', [{ name: 'notiz', definition: "TEXT NOT NULL DEFAULT ''" }]),
+		);
+
+		const columns = await helperTableColumns('spec_helper');
+		const notiz = columns.find((column) => column.name === 'notiz');
+		assert.ok(notiz, `die Spalte notiz wurde angelegt, war: ${columns.map((c) => c.name).join(', ')}`);
+		assert.equal(notiz.type, 'TEXT', 'die Spalte trägt den Typ aus der Definition');
+		// Die Definition wirkt: Insert ohne die Spalte füllt den NOT-NULL-Default fehlerfrei.
+		await assert.doesNotReject(() => sequelize.query('INSERT INTO `spec_helper` DEFAULT VALUES'));
+	});
+
+	// ── AK3, Fall 2: vorhandene Spalte bleibt unverändert (kein ALTER, idempotenter Zweitaufruf) ─
+	it('lässt eine vorhandene Spalte unverändert und bleibt beim Zweitaufruf stabil', async () => {
+		await sequelize.query('CREATE TABLE `spec_helper` (`id` INTEGER PRIMARY KEY, `notiz` TEXT)');
+		await sequelize.query("INSERT INTO `spec_helper` (`notiz`) VALUES ('bestand')");
+		assert.ok(ensureColumns, 'ensureColumns ist als Export vorhanden');
+
+		await assert.doesNotReject(() =>
+			ensureColumns(sequelize, 'spec_helper', [{ name: 'notiz', definition: "TEXT NOT NULL DEFAULT ''" }]),
+		);
+		await assert.doesNotReject(
+			() => ensureColumns(sequelize, 'spec_helper', [{ name: 'notiz', definition: "TEXT NOT NULL DEFAULT ''" }]),
+			'der Zweitaufruf bleibt fehlerfrei stabil',
+		);
+
+		const columns = await helperTableColumns('spec_helper');
+		assert.equal(
+			columns.filter((column) => column.name === 'notiz').length,
+			1,
+			'die Spalte existiert genau einmal (kein zweites ALTER)',
+		);
+		const [rows] = await sequelize.query('SELECT `notiz` FROM `spec_helper`');
+		assert.equal((rows as { notiz: string }[])[0]?.notiz, 'bestand', 'die Bestandszeile bleibt unverändert');
+	});
+
+	// ── AK3, Fall 3: fehlende Tabelle ist ein No-op ──────────────────────────────────────────
+	it('ist auf einer DB ohne Tabelle ein No-op', async () => {
+		assert.ok(ensureColumns, 'ensureColumns ist als Export vorhanden');
+
+		// beforeEach hat alle Tabellen gedroppt — die Tabelle existiert nicht.
+		await assert.doesNotReject(() =>
+			ensureColumns(sequelize, 'spec_helper_fehlt', [{ name: 'notiz', definition: 'TEXT' }]),
+		);
+		assert.deepEqual(await helperTableColumns('spec_helper_fehlt'), [], 'die Tabelle wurde nicht angelegt');
+	});
+});
+
+// ── Schema-Snapshot (#2609) ─────────────────────────────────────────────────────��────────
+// Sichert die Gesamtspaltenmenge je betroffener Tabelle gegen eine statische, sortierte
+// Erwartungsliste: eine entfernte oder umbenannte Modellspalte schlägt hier rot, auch wenn kein
+// Einzeltest die Spalte anfasst. Setup spiegelt den Fresh-Install-Pfad aus `server/src/index.ts`
+// (startServer): erst alle Spalten-Migrationen (auf leerer DB No-ops — `ensureColumns` guarda
+// fehlende Tabellen), dann `sequelize.sync()`. Die Erwartungslisten sind bewusst statisch —
+// KEINE Ableitung aus den Sequelize-Modellen, sonst könnte eine entfernte Spalte nie rot werden.
+const SNAPSHOT_COLUMNS: Record<string, readonly string[]> = {
+	tasks: [
+		'actualEffort',
+		'address',
+		'aiDraft',
+		'archivedAt',
+		'autoDeleteAfterDeadline',
+		'categoryId',
+		'checklist',
+		'createdAt',
+		'createdById',
+		'deadline',
+		'description',
+		'estimatedEffort',
+		'groupId',
+		'id',
+		'isException',
+		'latitude',
+		'longitude',
+		'originSeriesId',
+		'pillarsRecalculatedAt',
+		'pinned',
+		'pinnedAt',
+		'postponeCount',
+		'priority',
+		'seriesId',
+		'seriesOccurrence',
+		'snoozedUntil',
+		'status',
+		'systemCreated',
+		'title',
+		'updatedAt',
+		'userId',
+	],
+	series: [
+		'active',
+		'address',
+		'autoCreate',
+		'autoDeleteAfterDeadline',
+		'categoryId',
+		'checklist',
+		'createdAt',
+		'createdById',
+		'description',
+		'estimatedEffort',
+		'id',
+		'latitude',
+		'longitude',
+		'priority',
+		'rhythm',
+		'startDate',
+		'title',
+		'updatedAt',
+		'userId',
+	],
+	users: [
+		'aiEnabled',
+		'alarmDistanceKm',
+		'avatarUrl',
+		'balancePriority',
+		'billingCity',
+		'billingCountry',
+		'billingName',
+		'billingStreet',
+		'billingZip',
+		'balanceVariant',
+		'carePushEnabled',
+		'createdAt',
+		'displayDistanceKm',
+		'displayName',
+		'displayNameCustom',
+		'email',
+		'expertMode',
+		'freeSlotMinMinutes',
+		'geolocationEnabled',
+		'groupPushEnabled',
+		'id',
+		'intervalMinutes',
+		'lastGeoLatitude',
+		'lastGeoLongitude',
+		'mcpInstructions',
+		'passwordHash',
+		'pillarRecalcStartedAt',
+		'plan',
+		'role',
+		'selectedLlmProviderId',
+		'splitHintEnabled',
+		'sprache',
+		'successPushEnabled',
+		'taskPushEnabled',
+		'termsAcceptedAt',
+		'termsVersion',
+		'tipPushEnabled',
+		'updatedAt',
+		'zeitzone',
+	],
+	groups: ['createdAt', 'description', 'id', 'imageUrl', 'kind', 'name', 'updatedAt'],
+	pillars: ['createdAt', 'description', 'id', 'key', 'name', 'updatedAt', 'userId', 'weight'],
+	pillar_feedback: ['createdAt', 'description', 'id', 'pillars', 'title', 'updatedAt', 'userId'],
+	llm_providers: [
+		'api_key',
+		'builtin_key',
+		'createdAt',
+		'endpoint',
+		'id',
+		'is_active',
+		'kind',
+		'model',
+		'name',
+		'updatedAt',
+		'userId',
+	],
+	calendar_sources: ['createdAt', 'id', 'name', 'passwordEncrypted', 'type', 'updatedAt', 'url', 'userId', 'username'],
+	api_tokens: [
+		'createdAt',
+		'expiresAt',
+		'id',
+		'kind',
+		'lastUsedAt',
+		'name',
+		'revokedAt',
+		'scope',
+		'tokenHash',
+		'updatedAt',
+		'userId',
+	],
+	login_tokens: [
+		'codeChallenge',
+		'createdAt',
+		'email',
+		'expiresAt',
+		'id',
+		'purpose',
+		'tokenHash',
+		'updatedAt',
+		'usedAt',
+	],
+	subscriptions: [
+		'approvedAt',
+		'cancellationEmail',
+		'cancellationKind',
+		'cancellationReason',
+		'cancellationRequestedAt',
+		'createdAt',
+		'creditCents',
+		'cancelRetryAttempts',
+		'currentPeriodEnd',
+		'externalSubscriptionId',
+		'firstFailureAt',
+		'id',
+		'invoiceReference',
+		'pendingPeriod',
+		'pendingPlan',
+		'refundRetryAttempts',
+		'pendingPlanEffectiveAt',
+		'period',
+		'plan',
+		'provider',
+		'status',
+		'updatedAt',
+		'userId',
+		'withdrawalConsentAt',
+	],
+	invoices: [
+		'amountCents',
+		'createdAt',
+		'creditForInvoiceId',
+		'currency',
+		'deliveredAt',
+		'id',
+		'lineItems',
+		'number',
+		'paymentStatus',
+		'pdfBytes',
+		'periodEnd',
+		'periodStart',
+		'saleId',
+		'subscriptionId',
+		'taxNote',
+		'updatedAt',
+		'userId',
+	],
+	waitlist_entries: [
+		'accessMailStatus',
+		'confirmMailSentAt',
+		'confirmTokenHash',
+		'confirmedAt',
+		'createdAt',
+		'email',
+		'id',
+		'referralCode',
+		'referredByCode',
+		'sprache',
+		'status',
+	],
+	place_favorites: ['address', 'createdAt', 'id', 'latitude', 'longitude', 'updatedAt', 'userId'],
+};
+
+describe('Schema-Snapshot (#2609): Spaltenmengen nach Migrationen + sync', () => {
+	it('bildet nach Fresh-Install je Tabelle exakt die erwartete Spaltenmenge ab', async () => {
+		// Reihenfolge der `await migrate…`-Aufrufe in `startServer` (`server/src/index.ts`), nicht der
+		// Import-Destructuring-Liste davor — dortige Änderungen mitspiegeln.
+		const migrations: readonly ((db: Sequelize) => Promise<void>)[] = [
+			migrateModule.migrateSeriesColumns,
+			migrateModule.migrateSeriesRenameFields,
+			migrateModule.migrateSeriesTable,
+			migrateModule.migrateSeriesChecklist,
+			migrateModule.migrateUsersAvatarUrl,
+			migrateModule.migrateGroupImageUrl,
+			migrateModule.migrateGroupKind,
+			migrateModule.migratePlaceFavoriteDropName,
+			migrateModule.migratePlaceFavoriteAddressUnique,
+			migrateModule.migrateSubscriptionExternalIdUnique,
+			migrateModule.migrateSubscriptionPendingPlanColumns,
+			migrateModule.migrateInvoiceLineItemsColumn,
+			migrateModule.migrateInvoicePdfBytesColumn,
+			migrateModule.migrateInvoicePaymentStatusColumn,
+			migrateModule.migrateInvoiceCurrencyColumn,
+			migrateModule.migrateInvoiceCreditForColumn,
+			migrateModule.migrateWaitlistAccessMailStatusColumn,
+			migrateModule.migrateWaitlistSpracheColumn,
+			migrateModule.migrateWaitlistConfirmationColumns,
+			migrateModule.migrateLegacyPlans,
+			migrateModule.migrateUserIdColumns,
+			migrateModule.migratePillarDescription,
+			migrateModule.migratePillarPerUser,
+			migrateModule.migratePillarRestore,
+			migrateModule.migratePillarKey,
+			migrateModule.migratePillarFeedbackUserId,
+			migrateModule.migrateTaskChecklist,
+			migrateModule.migrateTaskAddress,
+			migrateModule.migrateTaskGroupId,
+			migrateModule.migrateUserGeoConfigColumns,
+			migrateModule.migrateUserCareColumns,
+			migrateModule.migrateUserTermsColumns,
+			migrateModule.migrateUserMcpInstructionsColumn,
+			migrateModule.migrateUsersBalanceVariantColumn,
+			migrateModule.migrateUserAccountPreferenceColumns,
+			migrateModule.migrateUsersFreeSlotMinMinutesColumn,
+			migrateModule.migrateCalendarSourceCaldavColumns,
+			migrateModule.migrateUsersDisplayNameCustom,
+			migrateModule.migrateLlmProviderKindColumns,
+			migrateModule.migrateLlmProviderUserId,
+			migrateModule.migrateTaskCreatedById,
+			migrateModule.migrateUsersRoleColumn,
+			migrateModule.migrateUsersPlanColumn,
+			migrateModule.migrateUsersSelectedLlmProvider,
+			migrateModule.migrateCategoryIdColumns,
+			migrateModule.migrateApiTokenScope,
+			migrateModule.migrateApiTokenExpiresAt,
+			migrateModule.migrateApiTokenKind,
+			migrateModule.migrateLoginTokenPurpose,
+			migrateModule.migrateLoginTokenCodeChallenge,
+			migrateModule.migrateTaskPinnedColumns,
+			migrateModule.migratePillarRecalcColumns,
+			migrateModule.migrateTaskMissedColumns,
+			migrateModule.migrateTaskSnoozeColumn,
+			migrateModule.migrateTaskAiDraftColumn,
+		];
+		for (const migrate of migrations) {
+			await migrate(sequelize);
+		}
+		await sequelize.sync();
+
+		for (const [table, expected] of Object.entries(SNAPSHOT_COLUMNS)) {
+			const [rows] = await sequelize.query(`PRAGMA table_info('${table}')`);
+			const actual = (rows as { name: string }[]).map((row) => row.name).sort();
+			assert.deepEqual(actual, [...expected].sort(), `Spalten von \`${table}\` weichen ab`);
+		}
 	});
 });

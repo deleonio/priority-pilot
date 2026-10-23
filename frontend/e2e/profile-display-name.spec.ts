@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, MOBILE } from './helpers';
 
 /**
  * Rote Spec-e2e für #1219 — Anzeigename selbst festlegen (Spec docs/spec/issue-1219.md).
@@ -17,7 +17,7 @@ test.describe('Balamentum — #1219: Anzeigename', () => {
 	test('AK7: 375px — Feld ohne horizontales Scrollen; nach dem Speichern trägt die Kopfzeile den neuen Namen', async ({
 		page,
 	}) => {
-		await page.setViewportSize({ width: 375, height: 667 });
+		await page.setViewportSize(MOBILE);
 		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Balamentum');
 
@@ -44,7 +44,8 @@ test.describe('Balamentum — #1219: Anzeigename', () => {
 		// (dort stehen nur die Initialen „E1"), sondern als `_label` des Avatars (der
 		// Accessible Name, den Screenreader verlesen). Präzedenz: header-appearance.spec.ts
 		// AK3 (Smoke) prüft `kol-avatar` genauso. Rot vor der Impl: kein Speichern vorhanden.
-		await expect(page.locator('.app-header__user kol-avatar')).toHaveAttribute('_label', uniqueName, {
+		// #2723-Fixup: Der Trigger-Avatar ist dekorativ (`_label=""`) — der Name lebt im Panel-Avatar.
+		await expect(page.locator('.app-header__user-menu-panel kol-avatar')).toHaveAttribute('_label', uniqueName, {
 			timeout: 10_000,
 		});
 	});

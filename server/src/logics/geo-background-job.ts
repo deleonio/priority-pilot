@@ -2,9 +2,12 @@ import { Op } from 'sequelize';
 import { Task, User, NotificationLog } from '../models/index.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { roundedDistanceKm } from './geo.js';
-import { sendPushToUser, type PushSender } from './push.js';
+import { sendDedupedPushBulk } from './dedupedPush.js';
+import type { PushSender } from './push.js';
 import { shouldBlockFeature } from './plans.js';
 import { selectSeriesRepresentatives } from './series.js';
+import { istRuhezeit } from './carePush.js';
+import { nutzerZeitzone } from './streak.js';
 
 /**
  * Fachlicher Push-Trigger „Aufgaben in der Nähe" (Issue #1101). Der Client meldet im
@@ -14,7 +17,8 @@ import { selectSeriesRepresentatives } from './series.js';
  * ohnehin aufeinanderfolgende Pushes — Einzel-Pushes je Aufgabe sind ausgeschlossen).
  * Der Push geht nur beim **Eintritt** in den Alarmabstand (Flanke gegenüber der zuletzt
  * gemeldeten Position, #1926) und je Aufgabe höchstens einmal in 24 h — Wiederholungen werden
- * über {@link NotificationLog} unterdrückt (Muster: `dueTaskReminders.ts`).
+ * über {@link NotificationLog} unterdrückt (Muster: `dueTaskReminders.ts`). Ruhezeit 21–7
+ * Ortszeit des Empfängers: kein Versand, kein Log (#2849 AK4).
  */
 
 const KIND = 'geo-nearby-task';
@@ -142,7 +146,7 @@ const buildPayload = (tasks: NearbyGeoTask[], sprache: CareSprache): { title: st
 
 /**
  * Versendet die gebundelten „Aufgaben in der Nähe"-Nachrichten (eine je Nutzer, an alle
- * Subscriptions via {@link sendPushToUser}) und protokolliert je gemeldeter Aufgabe einen
+ * Subscriptions via {@link sendDedupedPushBulk}) und protokolliert je gemeldeter Aufgabe einen
  * {@link NotificationLog}-Eintrag. Idempotent innerhalb des 24-h-Fensters (#1926 AK4).
  *
  * @param send injizierbarer Versand (siehe `logics/push.ts`); Tests reichen einen Mock herein.
@@ -166,17 +170,20 @@ export const runGeoPushNotifications = async (
 		if (plan !== undefined && shouldBlockFeature(plan, 'location_reminders')) {
 			return;
 		}
-		const { sent } = await sendPushToUser(group.userId, buildPayload(group.tasks, spracheVon(user?.sprache)), send);
+		// #2849 AK4: Ruhezeit 21–7 Ortszeit — kein Versand, kein Log; der nächste Standort-Bericht
+		// im Fenster pusht erneut.
+		if (istRuhezeit(now, nutzerZeitzone(user?.zeitzone))) {
+			return;
+		}
+		const { sent } = await sendDedupedPushBulk(
+			group.userId,
+			KIND,
+			group.tasks.map((task) => dedupeKeyFor(task.id, now)),
+			buildPayload(group.tasks, spracheVon(user?.sprache)),
+			send,
+			now,
+		);
 		if (sent > 0) {
-			await NotificationLog.bulkCreate(
-				group.tasks.map((task) => ({
-					userId: group.userId,
-					kind: KIND,
-					dedupeKey: dedupeKeyFor(task.id, now),
-					sentAt: now,
-				})),
-				{ ignoreDuplicates: true },
-			);
 			usersNotified++;
 		}
 	};

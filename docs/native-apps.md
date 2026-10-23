@@ -13,13 +13,16 @@ auch ohne Netz. Das Website-Deployment (`frontend/dist` nach `/app/`) bleibt dav
 | `native/android/`                  | von `cap add android` erzeugtes Projekt, eingecheckt; Manifest mit Standort-/Mikrofon-Rechten und App Links |
 | `native/android/app/src/main/res/` | Icons aus `frontend/public/logo/logo.png`, Splash aus der Wortmarke (siehe unten)                           |
 
-`capacitor.config.json` und die kopierten Web-Dateien unter `android/app/src/main/assets/` entstehen
-bei jedem `sync` und sind nicht eingecheckt.
+`capacitor.config.json`, die kopierten Web-Dateien unter `android/app/src/main/assets/` und
+`android/capacitor.settings.gradle` entstehen bei jedem `sync` und sind nicht eingecheckt. Vor dem
+ersten Gradle-Lauf also immer `sync` ausführen.
 
 ## Lokal bauen
 
 Voraussetzungen: JDK 21 und ein Android SDK mit `platforms;android-36`, `build-tools;36.0.0` und
-`platform-tools` (`ANDROID_HOME` zeigt darauf).
+`platform-tools` (`ANDROID_HOME` zeigt darauf); Release-Bauten zusätzlich das NDK in der gepinnten
+Version aus `native/android/app/build.gradle` (`sdkmanager --install "ndk;…"`), sonst bricht der Bau
+an den nativen Debug-Symbolen ab.
 
 ```bash
 export SITE_URL=https://example.org
@@ -51,6 +54,22 @@ steht, bleibt die App-Link-Verifikation erhalten — Übergang bis zum internen 
 Store-Start (#1688).
 Den `versionCode` leitet Gradle aus der Root-Version ab (`major*10000000 + minor*10000 + patch`,
 `native/src/version-code.ts`).
+
+### Native Debug-Symbole und R8
+
+Die Play Console warnt bei Bundles mit nativem Code ohne Debug-Symbole. Einziger nativer Anteil ist
+`libdatastore_shared_counter.so` aus der androidx-credentials-Kette der nativen Anmeldung (ADR 0023).
+Gradle bettet im Release-Bau die unstripppten `.so` als Debug-Metadaten ins AAB ein
+(`debugSymbolLevel 'SYMBOL_TABLE'`, `ndkVersion` gepinnt — das NDK installiert der Workflow mit) und
+prüft danach im Log, ob der Metadaten-Ordner `BUNDLE-METADATA/com.android.tools.build.debugsymbols`
+im AAB liegt. Liefern die AARs nur gestrippte Bibliotheken, kann AGP keine Symbole erzeugen und die
+Play-Warnung bleibt — harmlos, behebbar dann nur noch mit manuell aus den AndroidX-Quellen gebauten
+Symbolen.
+
+R8/ProGuard bleibt bewusst aus (`minifyEnabled false`): Das Bundle besteht fast nur aus den gebündelten
+Web-Assets, die R8 unberührt lässt, der Größengewinn wäre minimal — dem steht ein Reflexionsrisiko im
+Bezahlfluss (cordova-plugin-purchase) gegenüber. Die Play-Warnung zur fehlenden Offenlegungsdatei ist
+deshalb informativ und bleibt stehen.
 
 Upload-Schlüssel einmalig erzeugen und sicher aufbewahren (für PKCS12 gilt ein Passwort für
 Keystore und Schlüssel):
@@ -164,6 +183,9 @@ Magic-Links auf `/app/` öffnen die App über den App Link. Der Intent-Filter im
 aus `server.allowNavigation` (Gradle liest sie aus der von `sync` erzeugten `capacitor.config.json`),
 verifiziert wird sie über `/.well-known/assetlinks.json` der Website. `ANDROID_CERT_SHA256` muss dafür den
 SHA-256 des Play-App-Signaturschlüssels nennen, sonst öffnen Links bei Play-Installationen im Browser.
+Öffnet ein in der App angeforderter Link (`client=app`-Marker, #2563) trotzdem den Browser, verbraucht die
+Web-App den Einmal-Token nicht, sondern zeigt die Landing „In der App öffnen“ — der Rücksprung läuft über
+das Custom Scheme `balamentum.app://auth/native?magic=…` in den WebView, der den Token im Kanal `play` einlöst.
 Prüfen auf dem Gerät: `adb shell pm get-app-links balamentum.app` muss die Domain als `verified` zeigen.
 
 Fehlerbilder:
@@ -172,6 +194,15 @@ Fehlerbilder:
   installierten App fehlt der Android-OAuth-Client (Play-Installation: Play-App-Signaturschlüssel). Der
   Credential Manager zeigt dann zwar die Konten, meldet nach der Wahl aber einen Abbruch.
 - **„Der Zugriff wurde verweigert“:** Die Adresse ist nicht freigegeben (Allowlist, Warteliste).
+
+## Reichweitenmessung
+
+Die App bindet dasselbe cookielose Matomo ein wie die Web-App ([`matomo.md`](matomo.md)), sofern
+`MATOMO_URL` und `MATOMO_SITE_ID` beim Android-Build gesetzt sind (`android.yml`). Besuche tragen den
+Kanal `android`, URLs zeigen auf `SITE_URL/app/…` statt `https://localhost`. In der Play Console unter
+„App-Inhalte → Datensicherheit“ deshalb angeben: App-Aktivität → „Seitenaufrufe und Tippen in der
+App“, erhoben, nicht geteilt, Zweck „Analysen“, Erhebung optional (nur nach Zustimmung im Hinweis,
+abwählbar unter Einstellungen → Allgemein).
 
 ## Icons und Splash neu erzeugen
 

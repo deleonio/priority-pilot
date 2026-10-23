@@ -78,10 +78,11 @@ export default defineConfig(({ mode }) => {
 		build: { outDir },
 		plugins: [
 			react(),
-			// Cookieloses Matomo nur in der Web-App, nicht im Android-Build.
+			// Cookieloses Matomo in Web-App und Android-App; die Aufrufe meldet die App selbst (lib/tracking.ts).
 			{
 				name: 'matomo',
-				transformIndexHtml: (html) => html.replace('</head>', `${android ? '' : matomoScript(process.env)}</head>`),
+				transformIndexHtml: (html) =>
+					html.replace('</head>', `${matomoScript(process.env, { pageView: false })}</head>`),
 			},
 			{
 				name: 'serve-docs-user-guide',
@@ -179,9 +180,13 @@ export default defineConfig(({ mode }) => {
 								short_name: 'Balamentum',
 								description:
 									'Aufgaben-Priorisierung über einen gewichteten Abhängigkeitsgraphen und Lebensbalance-Säulen.',
-								theme_color: '#1a1a1a',
-								background_color: '#ffffff',
+								// Deckend (Alpha wird verworfen) und dunkel: Splash und Android-Leisten zeigen sonst
+								// im Dunkelmodus einen weißen Balken. `fullscreen` blendet die Systemleisten aus, ein
+								// Wisch vom Rand holt sie als Overlay zurück; `standalone` bleibt Fallback.
+								theme_color: '#12161c',
+								background_color: '#12161c',
 								display: 'standalone',
+								display_override: ['fullscreen'],
 								// `id` bleibt '/' (die frühere start_url), damit bestehende Installationen dieselbe App
 								// bleiben; neue Starts öffnen direkt die App unter /app/ statt der Website (ADR 0015).
 								id: '/',

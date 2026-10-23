@@ -13,6 +13,8 @@ interface FcmMessage {
 	title: string;
 	body?: string;
 	url?: string;
+	/** Gruppen-Tag (#2853, Konzept §2.3) — Nachrichten derselben Gruppe ersetzen sich auf Android. */
+	tag?: string;
 }
 
 /**
@@ -33,11 +35,18 @@ const fcmErrorCode = async (res: Response): Promise<string | undefined> => {
 
 const createFcmSender = (account: ServiceAccount): FcmSender => {
 	const accessToken = createAccessTokenSource(account, SCOPE);
-	return async (token, { title, body, url }) => {
+	return async (token, { title, body, url, tag }) => {
 		const res = await fetch(`https://fcm.googleapis.com/v1/projects/${account.project_id}/messages:send`, {
 			method: 'POST',
 			headers: { Authorization: `Bearer ${await accessToken()}`, 'Content-Type': 'application/json' },
-			body: JSON.stringify({ message: { token, notification: { title, body }, ...(url ? { data: { url } } : {}) } }),
+			body: JSON.stringify({
+				message: {
+					token,
+					notification: { title, body },
+					...(url ? { data: { url } } : {}),
+					...(tag ? { android: { notification: { tag } } } : {}),
+				},
+			}),
 		});
 		if (!res.ok) {
 			throw Object.assign(httpError(`FCM-Versand fehlgeschlagen (${res.status})`, res.status), {

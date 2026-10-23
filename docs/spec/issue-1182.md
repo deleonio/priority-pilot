@@ -1,6 +1,5 @@
 # Spec #1182 — Konfetti auch über den Dashboard-Pfad (Signal-Panel → CompleteTaskDialog)
 
-Status: rot spezifiziert (Spec-Phase, rote Tests als ausführbarer Vertrag).
 Quellen: Issue #1182, KI-ANALYSE-Block (Harness-Kommentar, stand 2026-09-02T23:28:00Z).
 
 ## Ziel

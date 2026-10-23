@@ -87,6 +87,16 @@ const expectWithinViewport = async (page: Page, name: string, locator: ReturnTyp
 	).toBeLessThanOrEqual(viewport!.width);
 };
 
+// Säulenloser Test-Kontext: Der Test-Login legt Konten OHNE Säulen-Saat an — nur die Registrierung
+// säht die fünf Standard-Säulen (vgl. zifferblatt-shots.spec.ts). Diese Specs prüfen nichts
+// Säulenbezogenes, darum fixiert der Route-Mock GET /pillars auf die leere Liste (gültiger
+// Leervertrag: "oder die Liste ist leer").
+test.beforeEach(async ({ page }) => {
+	await page.route('**/api/v1/pillars', (route) =>
+		route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
+	);
+});
+
 test.describe('Aufgaben-Übergabe im Bearbeiten-Formular (#1252)', () => {
 	/**
 	 * Empfänger-Konto + gemeinsame Gruppe anlegen und die Empfänger-Session liefern

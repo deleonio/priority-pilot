@@ -192,3 +192,62 @@ describe('GroupsSection — Toggle-Semantik der Gruppe (Audit #1257)', () => {
 		expect(screen.getByTestId('avatar').getAttribute('aria-hidden')).toBe('true');
 	});
 });
+
+// #2854 TF6 (AK7): Push-Ziele /settings/gruppen#gruppe-<id> und #einladungen — der Hash klappt
+// die Gruppe auf und springt (Fokus + scrollIntoView), die Einladungs-Karte ist Sprungziel
+// (#2848-Muster). jsdom braucht Stubs für scrollIntoView/getClientRects, sonst bleibt der
+// Anker-Sprung hängen bzw. wirft.
+describe('GroupsSection — Sprunganker für Gruppen-Pushes (#2854 AK7)', () => {
+	const stubAnkerUmgebung = () => {
+		const scrollIntoView = vi.fn();
+		Element.prototype.scrollIntoView = scrollIntoView as unknown as () => void;
+		vi.spyOn(Element.prototype, 'getClientRects').mockReturnValue(
+			[] as unknown as ReturnType<Element['getClientRects']>,
+		);
+		// Ein nicht-leeres Rect simulieren: der Anker-Hook springt erst bei gerendertem Ziel —
+		// eine leere Liste lässt ihn ewig pollen (useSettingsAnchor).
+		vi.mocked(Element.prototype.getClientRects).mockReturnValue([{ width: 10, height: 10 }] as unknown as ReturnType<
+			Element['getClientRects']
+		>);
+		return scrollIntoView;
+	};
+	afterEach(() => {
+		vi.restoreAllMocks();
+		delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+		window.location.hash = '';
+	});
+
+	it('Hash #gruppe-<id> klappt die Gruppe auf und fokussiert ihr Listen-Element', async () => {
+		window.location.hash = '#gruppe-42';
+		const scrollIntoView = stubAnkerUmgebung();
+		mockListGroups.mockResolvedValue([group({ id: 42 })]);
+		mockListReceivedInvitations.mockResolvedValue([]);
+
+		render(<GroupsSection />);
+
+		await waitFor(() =>
+			expect(screen.getByRole('button', { name: 'Familie Müller' })).toHaveAttribute('aria-expanded', 'true'),
+		);
+		const ziel = document.getElementById('gruppe-42');
+		expect(ziel).not.toBeNull();
+		await waitFor(() => expect(ziel).toHaveFocus());
+		expect(scrollIntoView).toHaveBeenCalled();
+	});
+
+	it('Hash #einladungen fokussiert die Karte der empfangenen Einladungen', async () => {
+		window.location.hash = '#einladungen';
+		const scrollIntoView = stubAnkerUmgebung();
+		mockListGroups.mockResolvedValue([]);
+		mockListReceivedInvitations.mockResolvedValue([{ id: 3, groupId: 9, groupName: 'Familie', invitedByName: 'Anna' }]);
+
+		render(<GroupsSection />);
+
+		const ziel = await waitFor(() => {
+			const el = document.getElementById('einladungen');
+			expect(el).not.toBeNull();
+			return el;
+		});
+		await waitFor(() => expect(ziel).toHaveFocus());
+		expect(scrollIntoView).toHaveBeenCalled();
+	});
+});

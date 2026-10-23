@@ -17,9 +17,12 @@ import {
 	type ProviderRuntime,
 } from '../../llm/llmProviders.js';
 import { LlmProvider } from '../../models/index.js';
-import { upstreamErrorDetail } from '../../llm/upstreamError.js';
+import { upstreamBodyDetail, upstreamErrorDetail } from '../../llm/upstreamError.js';
 import { fetchProviderEndpoint, INTERNAL_ENDPOINT_MESSAGE, isPublicEndpoint } from '../../llm/endpointGuard.js';
 import { resolveGeoUser } from './geoConfig.js';
+import { createAiQuotaCounter } from '../aiQuotaMeter.js';
+import { createProviderTestRateLimiter } from './rateLimit.js';
+import { validateRequestBody } from '../../logics/requestValidation.js';
 
 type LlmProviderDto = components['schemas']['LlmProvider'];
 type LlmProviderInputDto = components['schemas']['LlmProviderInput'];
@@ -43,10 +46,11 @@ const isNonEmptyString = (value: unknown): value is string => typeof value === '
 type CreateValidation = { ok: true; input: LlmProviderInputDto } | { ok: false; message: string };
 
 const validateCreate = (body: unknown): CreateValidation => {
-	if (typeof body !== 'object' || body === null || Array.isArray(body)) {
-		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
+	const bodyResult = validateRequestBody(body, { rejectArrays: true });
+	if (!bodyResult.ok) {
+		return bodyResult;
 	}
-	const raw = body as Record<string, unknown>;
+	const raw = bodyResult.value;
 	for (const field of ['name', 'endpoint', 'apiKey', 'model'] as const) {
 		if (!isNonEmptyString(raw[field])) {
 			return { ok: false, message: `${field} muss ein nicht-leerer String sein.` };
@@ -69,10 +73,11 @@ const validateCreate = (body: unknown): CreateValidation => {
 type UpdateValidation = { ok: true; input: LlmProviderUpdateDto } | { ok: false; message: string };
 
 const validateUpdate = (body: unknown): UpdateValidation => {
-	if (typeof body !== 'object' || body === null || Array.isArray(body)) {
-		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
+	const bodyResult = validateRequestBody(body, { rejectArrays: true });
+	if (!bodyResult.ok) {
+		return bodyResult;
 	}
-	const raw = body as Record<string, unknown>;
+	const raw = bodyResult.value;
 	const input: LlmProviderUpdateDto = {};
 	for (const field of ['name', 'endpoint', 'model'] as const) {
 		if (raw[field] === undefined) continue;
@@ -117,8 +122,12 @@ const sendServiceError = (res: Response<ErrorDto>, error: unknown): boolean => {
 
 // ─── Verbindungs-Test (`POST /llm-providers/{id}/test`) ────────────────────────
 
-/** Zeitlimit für den Test-Call — Diagnose-Feedback soll zügig kommen. */
-const TEST_TIMEOUT_MS = 20_000;
+/**
+ * Zeitlimit für den Test-Call — bewusst derselbe Wert wie `REQUEST_TIMEOUT_MS` in llm.ts, damit
+ * der Test repräsentativ bleibt: Ein langsames Modell, das echte KI-Aufrufe gerade noch schafft,
+ * darf nicht am kürzeren Test-Zeitlimit scheitern.
+ */
+const TEST_TIMEOUT_MS = 30_000;
 /** Maximal angezeigte Länge der Modell-Antwort im Ergebnis. */
 const TEST_SAMPLE_MAX_CHARS = 120;
 
@@ -136,9 +145,9 @@ interface ProviderTestResultDto {
 
 /**
  * Führt den Test-Prompt aus — mit EXAKT den Parametern echter KI-Aufrufe (Endpoint, Key, Modell,
- * JSON-Mode, Temperatur 0), damit der Test repräsentativ ist: Schlägt er fehl, schlagen es auch
- * die KI-Features, und die gemeldete Ursache (Auth/Modell/Abo/Netzwerk) ist die echte.
- * Der Prompt verlangt bewusst JSON, weil `response_format: json_object` aktiv ist.
+ * JSON-Mode, Greedy-Sampling mit top_p 1), damit der Test repräsentativ ist: Schlägt er fehl,
+ * schlagen es auch die KI-Features, und die gemeldete Ursache (Auth/Modell/Abo/Netzwerk) ist die
+ * echte. Der Prompt verlangt bewusst JSON, weil `response_format: json_object` aktiv ist.
  * Injizierbar, damit Route-Tests deterministisch ohne echten Provider laufen.
  */
 export const runProviderTest = async (runtime: ProviderRuntime): Promise<ProviderTestResultDto> => {
@@ -155,7 +164,10 @@ export const runProviderTest = async (runtime: ProviderRuntime): Promise<Provide
 				},
 				body: JSON.stringify({
 					model: runtime.model,
+					// Neuere Mistral-Modelle (z. B. mistral-large-4) verlangen bei Greedy-Sampling
+					// (temperature 0) explizit top_p 1 — ohne ihn antworten sie mit HTTP 400.
 					temperature: 0,
+					top_p: 1,
 					response_format: { type: 'json_object' },
 					messages: [{ role: 'user', content: 'Antworte ausschließlich mit JSON: {"ok": true}' }],
 				}),
@@ -179,7 +191,16 @@ export const runProviderTest = async (runtime: ProviderRuntime): Promise<Provide
 		const payload = (await response.json()) as { choices?: { message?: { content?: unknown } }[] };
 		const content = payload.choices?.[0]?.message?.content;
 		if (typeof content !== 'string') {
-			return { ok: false, message: `${runtime.label}-Antwort hatte keine Modell-Ausgabe (unerwartetes Format).` };
+			// OpenRouter bettet Provider-Fehler (Credits, Rate-Limit, Moderation) in HTTP 200 ein —
+			// ohne die Ursache bliebe hier nur das wertlose „unerwartetes Format“.
+			const detail = upstreamBodyDetail(payload);
+			return {
+				ok: false,
+				message:
+					detail !== ''
+						? `${runtime.label} (${runtime.model}) meldete: ${detail}`
+						: `${runtime.label}-Antwort hatte keine Modell-Ausgabe (unerwartetes Format).`,
+			};
 		}
 		return {
 			ok: true,
@@ -187,7 +208,16 @@ export const runProviderTest = async (runtime: ProviderRuntime): Promise<Provide
 			latencyMs,
 			sample: content.length > TEST_SAMPLE_MAX_CHARS ? `${content.slice(0, TEST_SAMPLE_MAX_CHARS)}…` : content,
 		};
-	} catch {
+	} catch (error) {
+		// AbortSignal.timeout bricht auch das Nachladen des Bodys ab — ohne Unterscheidung bliebe
+		// als Ursache nur das wertlose „konnte nicht als JSON gelesen werden“ (beobachtet bei
+		// überlasteten Free-Modellen: 200-Header kommen, der Body erst nach dem Zeitlimit).
+		if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+			return {
+				ok: false,
+				message: `${runtime.label} hat nicht innerhalb von ${TEST_TIMEOUT_MS / 1000} s vollständig geantwortet (Zeitlimit).`,
+			};
+		}
 		return { ok: false, message: `${runtime.label}-Antwort konnte nicht als JSON gelesen werden.` };
 	}
 };
@@ -390,11 +420,12 @@ export const createLlmProvidersRouter = (
 	router.post('/llm-providers/test-dry', async (req, res: Response<ProviderTestResultDto | ErrorDto>) => {
 		const userId = await requireProviderUser(req, res);
 		if (userId === null) return;
-		const raw = req.body as Record<string, unknown> | null | undefined;
-		if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-			sendError(res, 400, 'Request-Body muss ein Objekt sein.');
+		const bodyResult = validateRequestBody(req.body, { rejectArrays: true });
+		if (!bodyResult.ok) {
+			sendError(res, 400, bodyResult.message);
 			return;
 		}
+		const raw = bodyResult.value;
 		if (typeof raw.endpoint !== 'string' || !isValidHttpUrl(raw.endpoint.trim())) {
 			sendError(res, 400, 'endpoint muss eine gültige http(s)-URL sein.');
 			return;
@@ -547,60 +578,72 @@ export const createLlmProvidersRouter = (
 	 * Verbindungstest: schickt den minimalen Test-Prompt über den Provider (unabhängig von der
 	 * Aktivierung) und meldet Erfolg inkl. Latenz/Antwort oder die konkrete Fehlerursache.
 	 */
-	router.post('/llm-providers/:id/test', async (req, res: Response<ProviderTestResultDto | ErrorDto>) => {
-		const id = parseId(req.params.id);
-		if (id === null) {
-			sendError(res, 400, 'Provider-ID muss eine positive Ganzzahl sein.');
-			return;
-		}
-		const userId = await requireProviderUser(req, res);
-		if (userId === null) return;
-		let row: LlmProvider | null;
-		try {
-			row = await LlmProvider.findByPk(id);
-		} catch {
-			sendError(res, 500, 'Interner Serverfehler.');
-			return;
-		}
-		if (row === null || !isProviderAccessible(row, userId)) {
-			sendError(res, 404, 'Provider nicht gefunden.');
-			return;
-		}
-		const runtime = toRuntimeConfig(row);
-		// Vorab-Checks mit klarer Meldung, bevor der Upstream sinnlos gefragt wird.
-		if (runtime.apiKey === '') {
-			res.json({
-				ok: false,
-				message: `Kein API-Key vorhanden (${runtime.keySource}) — Provider kann keine Anfragen stellen.`,
-			});
-			return;
-		}
-		if (runtime.model === '') {
-			res.json({ ok: false, message: 'Kein Modell gewählt — wähle zuerst ein Modell.' });
-			return;
-		}
-		// Serverseitiger Schutz vor Upstream-Hämmern: laufende/frische Tests teilen ein Ergebnis.
-		const cached = testResultsCache.get(id);
-		if (cached !== undefined && cached.expiresAt > Date.now()) {
-			res.json(await cached.promise);
-			return;
-		}
-		const entry: { promise: Promise<ProviderTestResultDto>; expiresAt: number } = {
-			promise: runTest(runtime).then(
-				(result) => {
-					entry.expiresAt = Date.now() + TEST_RESULT_TTL_MS; // TTL ab Antwort, nicht ab Start
-					return result;
-				},
-				(error: unknown) => {
-					testResultsCache.delete(id); // unerwarteter Runner-Fehler → neu testen lassen
-					throw error;
-				},
-			),
-			expiresAt: Number.POSITIVE_INFINITY, // läuft gerade → parallele Aufrufer teilen das Ergebnis
-		};
-		testResultsCache.set(id, entry);
-		res.json(await entry.promise);
-	});
+	router.post(
+		'/llm-providers/:id/test',
+		createProviderTestRateLimiter(),
+		async (req, res: Response<ProviderTestResultDto | ErrorDto>) => {
+			const id = parseId(req.params.id);
+			if (id === null) {
+				sendError(res, 400, 'Provider-ID muss eine positive Ganzzahl sein.');
+				return;
+			}
+			const userId = await requireProviderUser(req, res);
+			if (userId === null) return;
+			let row: LlmProvider | null;
+			try {
+				row = await LlmProvider.findByPk(id);
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+				return;
+			}
+			if (row === null || !isProviderAccessible(row, userId)) {
+				sendError(res, 404, 'Provider nicht gefunden.');
+				return;
+			}
+			const runtime = toRuntimeConfig(row);
+			// Vorab-Checks mit klarer Meldung, bevor der Upstream sinnlos gefragt wird.
+			if (runtime.apiKey === '') {
+				res.json({
+					ok: false,
+					message: `Kein API-Key vorhanden (${runtime.keySource}) — Provider kann keine Anfragen stellen.`,
+				});
+				return;
+			}
+			if (runtime.model === '') {
+				res.json({ ok: false, message: 'Kein Modell gewählt — wähle zuerst ein Modell.' });
+				return;
+			}
+			// Serverseitiger Schutz vor Upstream-Hämmern: laufende/frische Tests teilen ein Ergebnis.
+			const cached = testResultsCache.get(id);
+			if (cached !== undefined && cached.expiresAt > Date.now()) {
+				res.json(await cached.promise);
+				return;
+			}
+			// Nur die instanzweite Zeile kostet die Instanz Geld (#2542) — ein eigener Provider bucht nichts.
+			const quota = row.userId === null ? await createAiQuotaCounter(userId, true) : undefined;
+			if (quota !== undefined && !(await quota.bookOrReject(res))) return;
+			const entry: { promise: Promise<ProviderTestResultDto>; expiresAt: number } = {
+				promise: runTest(runtime).then(
+					(result) => {
+						entry.expiresAt = Date.now() + TEST_RESULT_TTL_MS; // TTL ab Antwort, nicht ab Start
+						return result;
+					},
+					(error: unknown) => {
+						testResultsCache.delete(id); // unerwarteter Runner-Fehler → neu testen lassen
+						void quota?.refund().catch((error: unknown) => {
+							// Eine verlorene Rückbuchung kostet einen Budgetpunkt — Ursache sichtbar machen
+							// (Muster: aiQuotaMeter), ohne die Fehlerantwort zu blockieren.
+							console.warn('KI-Budget-Rückbuchung fehlgeschlagen', error);
+						});
+						throw error;
+					},
+				),
+				expiresAt: Number.POSITIVE_INFINITY, // läuft gerade → parallele Aufrufer teilen das Ergebnis
+			};
+			testResultsCache.set(id, entry);
+			res.json(await entry.promise);
+		},
+	);
 
 	/**
 	 * Verfügbare Modelle eines Providers: fragt dessen OpenAI-kompatiblen `GET /models`-Endpoint

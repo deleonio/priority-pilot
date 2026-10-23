@@ -21,6 +21,12 @@ class WaitlistEntry extends Model {
 	public accessMailStatus!: 'sent' | 'failed' | null;
 	/** App-Sprache beim Eintrag (`Accept-Language`) für die spätere Freischalt-Mail; `null` = Deutsch. */
 	public sprache!: string | null;
+	/** Zeitpunkt der Bestätigung per Mail-Link (Double-Opt-in); nur bestätigte Einträge zählen im Rang. */
+	public confirmedAt!: Date | null;
+	/** SHA-256 des Bestätigungs-Tokens; der Klartext steht nur in der Mail. */
+	public confirmTokenHash!: string | null;
+	/** Letzter Versand der Bestätigungs-Mail (höchstens eine je Adresse und 24 h). */
+	public confirmMailSentAt!: Date | null;
 	public createdAt!: Date;
 }
 
@@ -61,6 +67,21 @@ WaitlistEntry.init(
 		},
 		sprache: {
 			type: DataTypes.STRING,
+			allowNull: true,
+			defaultValue: null,
+		},
+		confirmedAt: {
+			type: DataTypes.DATE,
+			allowNull: true,
+			defaultValue: null,
+		},
+		confirmTokenHash: {
+			type: DataTypes.STRING,
+			allowNull: true,
+			defaultValue: null,
+		},
+		confirmMailSentAt: {
+			type: DataTypes.DATE,
 			allowNull: true,
 			defaultValue: null,
 		},

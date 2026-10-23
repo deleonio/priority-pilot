@@ -4,50 +4,74 @@ import { isPushConfigured } from '../logics/push.js';
 /**
  * Server-interner, dependency-freier Scheduler (Issue #355 — fachlicher Push-Trigger). Läuft nur,
  * wenn Web-Push konfiguriert ist UND explizit über `PUSH_REMINDERS_ENABLED=true` aktiviert wurde
- * (kein stiller Hintergrundlauf ohne bewusstes Opt-in). Prüft in festem Intervall, ob die
- * konfigurierte Tagesstunde (`PUSH_REMINDERS_HOUR`, UTC) erreicht ist, und ruft dann
- * jeden registrierten Trigger genau einmal pro UTC-Kalendertag auf.
+ * (kein stiller Hintergrundlauf ohne bewusstes Opt-in). Tickt stündlich (#2849) und ruft je Tick
+ * jeden registrierten Trigger auf — die Zustellfenster (Morgen 7–9, Tag 9–17, Abend 18–21,
+ * Ruhezeit 21–7, jeweils Nutzer-Zeitzone) prüfen die Trigger selbst.
  */
 
-/** Ein fachlicher Trigger (z. B. `runDueTaskReminders`) — erhält den aktuellen Zeitpunkt des Ticks. */
+/** Ein fachlicher Trigger (z. B. `runDailyDigest`) — erhält den aktuellen Zeitpunkt des Ticks. */
 type SchedulerTrigger = (now: Date) => Promise<unknown>;
+
+/**
+ * Trigger-Eintrag mit Vorrang (#2853/F1.2): Einträge mit `rang` laufen je Tick aufsteigend vor den
+ * übrigen — der Scheduler konsumiert das Push-Budget in §4-Vorrang-Ordnung, das Budget-Tor
+ * (`passtImBudget`) macht daraus die gemeinsame Auswahl des Ticks; über den Tagesverlauf bleibt es
+ * First-Come-First-Served. Ungerangte Trigger folgen in Registrierungs-Reihenfolge.
+ */
+interface RangTrigger {
+	rang: number;
+	trigger: SchedulerTrigger;
+}
+
+type SchedulerEntry = SchedulerTrigger | RangTrigger;
+
+/** Vorrang eines Eintrags — ungerangte laufen nach allen gerangten, in Registrierungs-Reihenfolge. */
+const rangVon = (entry: SchedulerEntry): number => (typeof entry === 'object' ? entry.rang : Number.POSITIVE_INFINITY);
 
 interface SchedulerHandle {
 	stop: () => void;
 }
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000;
-const DEFAULT_HOUR = 8;
+/** Stündlicher Push-Tick (#2849) — die Zustellfenster je Nutzerzeitzone prüfen die Trigger selbst. */
+const HOURLY_INTERVAL_MS = 60 * 60 * 1000;
 
 const isRemindersEnabled = (): boolean => process.env.PUSH_REMINDERS_ENABLED === 'true';
 
-const configuredHour = (): number => {
-	const raw = Number(process.env.PUSH_REMINDERS_HOUR ?? String(DEFAULT_HOUR));
-	return Number.isFinite(raw) && raw >= 0 && raw <= 23 ? raw : DEFAULT_HOUR;
-};
-
 const dayKey = (date: Date): string => date.toISOString().slice(0, 10);
 
-/** Ob ein Tick auslösen soll: die konfigurierte UTC-Stunde ist erreicht UND heute (UTC) wurde noch nicht gefeuert. */
-const shouldFire = (current: Date, lastFiredDay: string | undefined, hour: number): boolean =>
-	current.getUTCHours() >= hour && dayKey(current) !== lastFiredDay;
+/**
+ * Ob ein Tick auslösen soll: mit `hour` nur ab der konfigurierten UTC-Stunde und höchstens einmal
+ * pro UTC-Tag (#523, Deadline-Auto-Löschung); ohne `hour` feuert jeder Tick (#2849 — die
+ * Zustellfenster je Nutzerzeitzone prüfen die Trigger selbst).
+ */
+const shouldFire = (current: Date, lastFiredDay: string | undefined, hour?: number): boolean =>
+	hour === undefined || (current.getUTCHours() >= hour && dayKey(current) !== lastFiredDay);
 
 interface TickerOptions {
 	now?: () => Date;
+	/** UTC-Stunde für Einmal-pro-Tag-Ticker; ohne `hour` feuert jeder Tick (#2849). */
 	hour?: number;
 }
 
 /**
  * Reine Tick-Logik ohne Timer — direkt testbar (injizierbare Uhr `now`, kein echtes Warten nötig).
- * Ein fehlschlagender Trigger wird protokolliert, blockiert aber nicht die übrigen Trigger.
+ * Ein fehlschlagender Trigger wird protokolliert, blockiert aber nicht die übrigen Trigger. Mit
+ * `hour` feuert der Tick höchstens einmal je UTC-Tag ab der konfigurierten Stunde, ohne `hour`
+ * jeder Tick (#2849).
  */
 export const createTicker = (
-	triggers: SchedulerTrigger[],
+	triggers: SchedulerEntry[],
 	options: TickerOptions = {},
 ): { tick: () => Promise<void> } => {
 	const now = options.now ?? (() => new Date());
-	const hour = options.hour ?? configuredHour();
+	const hour = options.hour;
 	let lastFiredDay: string | undefined;
+
+	// Stabile Sortierung (#22 ES2019): gleiche Ränge und ungerangte bleiben in Registrierungs-Reihenfolge.
+	const eintraege = [...triggers]
+		.sort((a, b) => rangVon(a) - rangVon(b))
+		.map((entry) => (typeof entry === 'object' ? entry.trigger : entry));
 
 	const tick = async (): Promise<void> => {
 		const current = now();
@@ -55,7 +79,7 @@ export const createTicker = (
 			return;
 		}
 		lastFiredDay = dayKey(current);
-		for (const trigger of triggers) {
+		for (const trigger of eintraege) {
 			try {
 				await trigger(current);
 			} catch (error) {
@@ -79,10 +103,11 @@ interface StartSchedulerOptions extends TickerOptions {
  * injizierbar, damit Tests den Gate-Entscheid ohne echten Timer prüfen können.
  */
 const wireTicker = (
-	triggers: SchedulerTrigger[],
+	triggers: SchedulerEntry[],
 	options: StartSchedulerOptions,
-	defaultHour: number,
+	defaultHour: number | undefined,
 	tickLabel: string,
+	defaultIntervalMs: number = CHECK_INTERVAL_MS,
 ): SchedulerHandle => {
 	const setIntervalFn = options.setIntervalFn ?? setInterval;
 	const clearIntervalFn = options.clearIntervalFn ?? clearInterval;
@@ -90,22 +115,23 @@ const wireTicker = (
 
 	const interval = setIntervalFn(() => {
 		tick().catch((error) => console.error(`${tickLabel} fehlgeschlagen:`, error));
-	}, options.checkIntervalMs ?? CHECK_INTERVAL_MS);
+	}, options.checkIntervalMs ?? defaultIntervalMs);
 	(interval as NodeJS.Timeout).unref?.();
 
 	return { stop: () => clearIntervalFn(interval as NodeJS.Timeout) };
 };
 
 /**
- * Startet den Push-Scheduler (Interval-Wiring um {@link createTicker}). No-Op-Handle ohne Push-Kanal
+ * Startet den Push-Scheduler (Interval-Wiring um {@link createTicker}) — tickt stündlich (#2849);
+ * die Zustellfenster je Nutzerzeitzone prüfen die Trigger selbst. No-Op-Handle ohne Push-Kanal
  * (weder VAPID-Keys noch FCM-Service-Account) oder ohne `PUSH_REMINDERS_ENABLED=true` — dann läuft
  * kein Timer (kein stiller Hintergrundlauf ohne bewusstes Push-Opt-in).
  */
-export const startScheduler = (triggers: SchedulerTrigger[], options: StartSchedulerOptions = {}): SchedulerHandle => {
+export const startScheduler = (triggers: SchedulerEntry[], options: StartSchedulerOptions = {}): SchedulerHandle => {
 	if (!(isPushConfigured() || isFcmConfigured()) || !isRemindersEnabled()) {
 		return { stop: () => {} };
 	}
-	return wireTicker(triggers, options, configuredHour(), 'Scheduler-Tick');
+	return wireTicker(triggers, options, undefined, 'Scheduler-Tick', HOURLY_INTERVAL_MS);
 };
 
 /** Ob die Deadline-Auto-Löschung (#523) aktiv ist — defaultmäßig an (nur `=false` deaktiviert). */
@@ -122,7 +148,7 @@ const AUTO_DELETE_HOUR = 0;
  * können ihn via `AUTO_DELETE_AFTER_DEADLINE_ENABLED=false` abschalten.
  */
 export const startDeadlineAutoDeleteScheduler = (
-	triggers: SchedulerTrigger[],
+	triggers: SchedulerEntry[],
 	options: StartSchedulerOptions = {},
 ): SchedulerHandle => {
 	if (!isAutoDeleteAfterDeadlineEnabled()) {
@@ -132,12 +158,17 @@ export const startDeadlineAutoDeleteScheduler = (
 };
 
 /**
- * Startet den Kalender-Abruf (#2209) im festen Intervall — push-unabhängig und ohne Tagesstunde,
- * anders als {@link wireTicker}. Ein fehlschlagender Lauf wird protokolliert, der Timer läuft weiter.
+ * Startet einen Intervall-Job im festen Intervall — push-unabhängig und ohne Tagesstunde,
+ * anders als {@link wireTicker}. Ein fehlschlagender Lauf wird unter dem Job-eigenen `label`
+ * protokolliert (#2550), der Timer läuft weiter.
  */
-export const startCalendarSyncScheduler = (trigger: SchedulerTrigger, intervalMs: number): SchedulerHandle => {
+export const startIntervalScheduler = (
+	label: string,
+	trigger: SchedulerTrigger,
+	intervalMs: number,
+): SchedulerHandle => {
 	const interval = setInterval(() => {
-		trigger(new Date()).catch((error) => console.error('Kalender-Abruf fehlgeschlagen:', error));
+		trigger(new Date()).catch((error) => console.error(`${label} fehlgeschlagen:`, error));
 	}, intervalMs);
 	interval.unref();
 	return { stop: () => clearInterval(interval) };

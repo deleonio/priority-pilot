@@ -32,6 +32,11 @@ class User extends Model {
 	public lastGeoLongitude!: number | null;
 	/** Fürsorge-Push (#1794) — eigener Schalter (Default ein), unabhängig vom Push-Hauptschalter. */
 	public carePushEnabled!: boolean;
+	/** Push-Gruppen pro User (#2850, docs/push-konzept.md §5) — `tipPushEnabled` abweichend Default aus. */
+	public taskPushEnabled!: boolean;
+	public successPushEnabled!: boolean;
+	public groupPushEnabled!: boolean;
+	public tipPushEnabled!: boolean;
 	/** Hinweis zum Aufteilen großer, mehrfach verschobener Aufgaben (#1994) — Default ein. */
 	public splitHintEnabled!: boolean;
 	/** IANA-Zeitzone des Nutzers (#1794) — Ruhezeit + Kalendertag-Dedup; `null` = UTC-Fallback. */
@@ -64,6 +69,16 @@ class User extends Model {
 	/** Zustimmung zu den Nutzungsbedingungen (#1901): Fassung (`TERMS_VERSION`) und Zeitpunkt; `null` = noch nie. */
 	public termsVersion!: string | null;
 	public termsAcceptedAt!: Date | null;
+	/**
+	 * Rechnungsadresse (#2661) — Pflicht vor jedem Abo-Abschluss; ohne sie keine Rechnung
+	 * und kein Rechnungs-PDF. Gespeichert am Konto, nicht am Abo: sie gilt für alle
+	 * künftigen Buchungen, Änderungen wirken erst auf Rechnungen ab dann.
+	 */
+	public billingName!: string | null;
+	public billingStreet!: string | null;
+	public billingZip!: string | null;
+	public billingCity!: string | null;
+	public billingCountry!: string | null;
 	/** Dialog-Vorgaben für die per MCP verbundene KI (#1935) — getrimmter Freitext; `null` = keine. */
 	public mcpInstructions!: string | null;
 
@@ -117,12 +132,12 @@ User.init(
 			defaultValue: 5,
 		},
 		lastGeoLatitude: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: true,
 			defaultValue: null,
 		},
 		lastGeoLongitude: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: true,
 			defaultValue: null,
 		},
@@ -130,6 +145,26 @@ User.init(
 			type: DataTypes.BOOLEAN,
 			allowNull: false,
 			defaultValue: true,
+		},
+		taskPushEnabled: {
+			type: DataTypes.BOOLEAN,
+			allowNull: false,
+			defaultValue: true,
+		},
+		successPushEnabled: {
+			type: DataTypes.BOOLEAN,
+			allowNull: false,
+			defaultValue: true,
+		},
+		groupPushEnabled: {
+			type: DataTypes.BOOLEAN,
+			allowNull: false,
+			defaultValue: true,
+		},
+		tipPushEnabled: {
+			type: DataTypes.BOOLEAN,
+			allowNull: false,
+			defaultValue: false,
 		},
 		splitHintEnabled: {
 			type: DataTypes.BOOLEAN,
@@ -203,6 +238,31 @@ User.init(
 		},
 		termsAcceptedAt: {
 			type: DataTypes.DATE,
+			allowNull: true,
+			defaultValue: null,
+		},
+		billingName: {
+			type: DataTypes.STRING,
+			allowNull: true,
+			defaultValue: null,
+		},
+		billingStreet: {
+			type: DataTypes.STRING,
+			allowNull: true,
+			defaultValue: null,
+		},
+		billingZip: {
+			type: DataTypes.STRING,
+			allowNull: true,
+			defaultValue: null,
+		},
+		billingCity: {
+			type: DataTypes.STRING,
+			allowNull: true,
+			defaultValue: null,
+		},
+		billingCountry: {
+			type: DataTypes.STRING,
 			allowNull: true,
 			defaultValue: null,
 		},

@@ -14,8 +14,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { Router } from 'express';
-import { groupsRouter } from './routes/groups.js';
-import { inviteLinksPublicRouter } from './routes/inviteLinks.js';
+import { createGroupsRouter } from './routes/groups.js';
+import { createInviteLinksPublicRouter } from './routes/inviteLinks.js';
 import { geoConfigRouter } from './routes/geoConfig.js';
 import { placeFavoritesRouter } from './routes/placeFavorites.js';
 import { geocodeSearchRouter } from './routes/geocodeSearch.js';
@@ -118,8 +118,8 @@ const openapiYml = readFileSync(fileURLToPath(new URL('../../../openapi.yml', im
 
 describe('Plan-Gating: Abdeckung aller betroffenen Routen (#1457)', () => {
 	const actual = {
-		...gatingOf(groupsRouter),
-		...gatingOf(inviteLinksPublicRouter),
+		...gatingOf(createGroupsRouter()),
+		...gatingOf(createInviteLinksPublicRouter()),
 		...gatingOf(geoConfigRouter),
 		...gatingOf(placeFavoritesRouter),
 		...gatingOf(geocodeSearchRouter, '/geocode-search'),

@@ -221,30 +221,20 @@ export const buildTaskGraph = async (userId?: number): Promise<TaskGraph> => {
 		return result;
 	};
 
-	const effortCache = new Map<number, number>();
-	/** Aufwands-Rollup über die **aktiven** Unteraufgaben, Semantik aus `getEstimatedEffort` (tree.ts). */
-	const effortOf = (id: number, visiting: Set<number>): number => {
-		const cached = effortCache.get(id);
-		if (cached !== undefined) {
-			return cached;
-		}
-		if (visiting.has(id)) {
-			return 0;
-		}
+	/** Aufwands-Rollup über die **aktiven** Unteraufgaben, Semantik aus `getEstimatedEffort` (tree.ts): jeder Knoten einmal. */
+	const effortOf = (id: number, visited: Set<number>): number => {
 		const task = taskById.get(id);
 		if (!task) {
 			return 0;
 		}
-		visiting.add(id);
+		visited.add(id);
 		let total = task.estimatedEffort;
 		for (const dependencyId of dependenciesOf.get(id) ?? []) {
 			const dependency = taskById.get(dependencyId);
-			if (dependency && isActive(dependency.status)) {
-				total += effortOf(dependencyId, visiting);
+			if (dependency && isActive(dependency.status) && !visited.has(dependencyId)) {
+				total += effortOf(dependencyId, visited);
 			}
 		}
-		visiting.delete(id);
-		effortCache.set(id, total);
 		return total;
 	};
 

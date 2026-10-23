@@ -356,6 +356,17 @@ describe('renderPrivacy (#1672)', () => {
 				);
 			}
 		}
+		const accessibility = (SUBPAGES as Record<string, { de: string; en: string }>).accessibility;
+		expect(accessibility, 'SUBPAGES.accessibility fehlt (#2769)').toBeDefined();
+		for (const path of [accessibility!.de, accessibility!.en]) {
+			expect(existsSync(join(websiteRoot, 'dist', path, 'index.html')), `dist${path}index.html fehlt (#2769)`).toBe(
+				true,
+			);
+			expect(
+				readFileSync(join(websiteRoot, 'dist', 'sitemap.xml'), 'utf8'),
+				`${path} fehlt in der Sitemap (#2769)`,
+			).toContain(`<loc>https://example.org${path}</loc>`);
+		}
 	});
 });
 
@@ -507,6 +518,67 @@ describe('renderTerms (#1891)', () => {
 			);
 		},
 	);
+});
+
+// #2769: `renderAccessibility` existiert als Export noch nicht (roter Spec-Zustand) — deshalb optional getippt.
+const renderAccessibility = (
+	renderModule as unknown as {
+		renderAccessibility?: (context: PageContext & { allMessages: Record<Locale, Messages> }) => string;
+	}
+).renderAccessibility;
+
+/**
+ * #2769 (Vertrag: `docs/spec/issue-2769.md`) — Zugänglichkeitserklärung nach BFSG: feste deutsche
+ * Seite unter `/barrierefreiheit/`, Footer-Link in allen zehn Sprachen, Muster {@link renderPrivacy}.
+ */
+describe('renderAccessibility (#2769)', () => {
+	it('verlinkt /barrierefreiheit/ (de) bzw. /en/accessibility/ aus dem Footer aller zehn Sprachen (AK1)', () => {
+		for (const [locale, messages] of Object.entries(allMessages)) {
+			const label = (messages.footer as { accessibility?: string }).accessibility;
+			expect(label, `${locale}: i18n-Key footer.accessibility fehlt`).toBeTruthy();
+			expect(landing(locale as Locale), locale).toContain(
+				`${subpageLink(locale, '/barrierefreiheit/', '/en/accessibility/')}${label}</a>`,
+			);
+		}
+		expect(landing('en'), 'en: Label darf nicht deutsch sein').not.toContain('hreflang="de">Barrierefreiheit</a>');
+	});
+
+	it('nennt in de und en WCAG 2.2, bekannte Einschränkungen, Feedback-Kontakt und Durchsetzungsstelle (AK2)', () => {
+		expect(renderAccessibility, 'renderAccessibility existiert noch nicht (Export in render.ts)').toBeTypeOf(
+			'function',
+		);
+		for (const locale of ['de', 'en'] as const) {
+			const html = renderAccessibility!({ locale, messages: allMessages[locale], siteUrl: '', allMessages });
+			expect(html, `${locale}: Konformitätsgrad WCAG 2.2 fehlt`).toMatch(/WCAG\s*2\.2/);
+			expect(html, `${locale}: Abschnitt „Bekannte Einschränkungen“ fehlt`).toMatch(
+				locale === 'de' ? /<h2[^>]*>Bekannte Einschränkungen<\/h2>/ : /<h2[^>]*>Known limitations<\/h2>/,
+			);
+			expect(html, `${locale}: Feedback-Kontakt fehlt`).toContain('mailto:');
+			expect(html, `${locale}: Durchsetzungsstelle nach BFSG fehlt`).toMatch(
+				locale === 'de' ? /Durchsetzungsstelle/ : /enforcement/i,
+			);
+			expect(html, `${locale}: BFSG fehlt`).toContain('BFSG');
+
+			// #2795 (Spec: docs/spec/issue-2795.md) — Durchsetzungsstelle MLBF konkret statt Platzhalter (AK1–AK3).
+			expect(html, `${locale}: MLBF-Website fehlt`).toContain('www.mlbf-barrierefrei.de');
+			expect(html, `${locale}: Platzhalter zur Durchsetzungsstelle noch vorhanden`).not.toContain(
+				locale === 'de'
+					? 'Welche Stelle konkret zuständig ist, tragen wir hier nach, sobald sie benannt ist.'
+					: 'We will name the competent enforcement body here once it has been determined.',
+			);
+			if (locale === 'de') {
+				expect(html, 'de: vollständiger MLBF-Name fehlt').toContain(
+					'Marktüberwachungsstelle der Länder für die Barrierefreiheit von Produkten und Dienstleistungen (MLBF)',
+				);
+				expect(html, 'de: Postanschrift der MLBF fehlt').toContain('Carl-Miller-Str. 6');
+				expect(html, 'de: E-Mail der MLBF fehlt').toContain('kontakt@mlbf-barrierefrei.de');
+				expect(html, 'de: Telefon der MLBF fehlt').toContain('+49 391 567 6970');
+			} else {
+				expect(html, 'en: MLBF fehlt').toContain('MLBF');
+				expect(html, 'en: englische Funktionsbezeichnung fehlt').toMatch(/Market surveillance authority/i);
+			}
+		}
+	});
 });
 
 describe('robots und sitemap', () => {

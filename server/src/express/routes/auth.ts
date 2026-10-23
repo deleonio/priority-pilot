@@ -4,7 +4,6 @@ import rateLimit from 'express-rate-limit';
 import passport from 'passport';
 import { Op, UniqueConstraintError } from 'sequelize';
 import { allowEmail, isDbEmailAllowed, isEmailAllowed } from '../../logics/allowedEmails.js';
-import { spracheAusHeader } from '../../logics/careSuggestionData.js';
 import sequelize from '../../database.js';
 import { Pillar, Subscription, User } from '../../models/index.js';
 import type { UserRole } from '../../models/user.js';
@@ -15,10 +14,10 @@ import { getEntitlements, PLAN_VALUES, type Plan } from '../../logics/plans.js';
 import { TERMS_VERSION } from '../../logics/legal.js';
 import { applyDuePendingPlan, applyDueGracePeriod, GRACE_PERIOD_DAYS } from '../../logics/billing/lifecycle.js';
 import { paypalGraceDeps } from '../../logics/paypal.js';
+import { resolveCancellationEnd } from '../../logics/cancellationRefund.js';
 import { sanitizeReturnPath } from '../../logics/silentReturnPath.js';
 import { consumeLoginToken, createNativeLoginCode, nativeLoginToken } from '../../logics/magicLink.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
-import { InvalidWaitlistEmailError, joinWaitlist } from '../../logics/waitlist.js';
 import { deleteAccount } from '../../logics/deleteAccount.js';
 import { sendError } from '../http-error.js';
 import { hasGoogleOAuth, isAuthActive } from '../requireAuth.js';
@@ -264,7 +263,7 @@ const signedInCookieOptions = { path: '/', sameSite: 'lax', secure: process.env.
 
 // GET /auth/error — Ziel des OAuth-failureRedirect, liefert eindeutiges Fehler-Feedback statt SPA-Fallback/404.
 authRouter.get('/auth/error', (_req, res) => {
-	res.status(400).json({ error: 'Login fehlgeschlagen. Bitte prüfe deine Zugangsberechtigung.' });
+	res.status(400).json({ message: 'Login fehlgeschlagen. Bitte prüfe deine Zugangsberechtigung.' });
 });
 
 // Guard: passport.authenticate('google') darf nur laufen, wenn die 'google'-Strategie registriert
@@ -273,7 +272,7 @@ authRouter.get('/auth/error', (_req, res) => {
 // Prädikat (hasGoogleOAuth) steuert Registrierung UND Guard, sodass beide nie auseinanderlaufen.
 const requireGoogleStrategy: RequestHandler = (_req, res, next) => {
 	if (!hasGoogleOAuth()) {
-		res.status(503).json({ error: 'Google-OAuth ist nicht konfiguriert.' });
+		res.status(503).json({ message: 'Google-OAuth ist nicht konfiguriert.' });
 		return;
 	}
 	next();
@@ -444,7 +443,7 @@ authRouter.post('/auth/native/exchange', async (req, res) => {
 	const { code, state } = (req.body ?? {}) as { code?: unknown; state?: unknown };
 	const email =
 		typeof code === 'string' && code !== '' && typeof state === 'string' && state !== ''
-			? await consumeLoginToken(nativeLoginToken(code, state), 'native')
+			? (await consumeLoginToken(nativeLoginToken(code, state), 'native'))?.email
 			: null;
 	if (!email || (!(await isDbEmailAllowed(email)) && !isEmailAllowed(email))) {
 		sendError(res, 400, 'Der Anmeldecode ist abgelaufen oder wurde schon benutzt.');
@@ -462,23 +461,6 @@ authRouter.post('/auth/native/exchange', async (req, res) => {
 		}
 		res.status(204).end();
 	});
-});
-
-// POST /auth/waitlist — Launch-Zugang über die Warteliste (#1982, ADR 0019). Öffentlich und
-// sessionlos (läuft unter dem authLimiter oben): Unbekannte tragen sich selbst ein und erhalten
-// sofort ihre 1-basierte Position im Referral-Rang plus persönlichen Empfehlungs-Code.
-// Idempotent — wiederholter Aufruf derselben Adresse liefert denselben Eintrag, kein Duplikat.
-authRouter.post('/auth/waitlist', async (req, res) => {
-	const { email, ref } = (req.body ?? {}) as { email?: string; ref?: string };
-	try {
-		res.json(await joinWaitlist(String(email ?? ''), ref, spracheAusHeader(req.get('accept-language'))));
-	} catch (err) {
-		if (err instanceof InvalidWaitlistEmailError) {
-			sendError(res, 400, 'Bitte gib eine gültige E-Mail-Adresse an.');
-			return;
-		}
-		throw err;
-	}
 });
 
 // GET /auth/me — gibt die aktuelle Session zurück (oder 401). Die Rolle kommt frisch aus der DB
@@ -557,6 +539,7 @@ authRouter.get('/auth/me', async (req, res) => {
 		pendingPlan: string | null;
 		pendingPlanEffectiveAt: Date | null;
 		graceUntil: Date | null;
+		contractEndsAt: Date | null;
 	} | null = null;
 	try {
 		// #1690: das laufende Abo zuerst; sonst das zuletzt angelegte (gekündigt oder abgelaufen). Ein
@@ -618,6 +601,9 @@ authRouter.get('/auth/me', async (req, res) => {
 				pendingPlanEffectiveAt: dbSubscription.pendingPlanEffectiveAt ?? null,
 				// #1506 (AK7): während laufender Kulanzfrist firstFailureAt + Frist, sonst null.
 				graceUntil: firstFailureAt ? new Date(firstFailureAt.getTime() + GRACE_PERIOD_DAYS * DAY_MS) : null,
+				// #2745: gekürztes Vertragsende bei Kündigung (zweite Laufzeit), sonst null — Quelle für
+				// den Kündigungsdialog (§ 312k: das Ende steht schon VOR dem Klick).
+				contractEndsAt: await resolveCancellationEnd(dbSubscription, now),
 			};
 		}
 	} catch (error) {

@@ -1,7 +1,10 @@
+import { createHash, randomBytes } from 'node:crypto';
 import { UniqueConstraintError } from 'sequelize';
 import { allowEmail } from './allowedEmails.js';
 import { sendAccountAccessMail } from './accessMail.js';
-import type { MailSender } from './mail.js';
+import { sendMailToUser, type MailSender } from './mail.js';
+import { renderMailHtml } from './mailTemplate.js';
+import { isMagicLinkEnabled, publicBaseUrl } from './magicLink.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import WaitlistEntry, { newReferralCode } from '../models/waitlistEntry.js';
 
@@ -12,19 +15,25 @@ import WaitlistEntry, { newReferralCode } from '../models/waitlistEntry.js';
  * Werbenden sofort. Freischalten legt eine DB-Zulassung (`AllowedEmail`, origin `'warteliste'`)
  * an, worauf `isDbEmailAllowed` die Adresse annimmt; `WaitlistEntry.status` ist reine Anzeige.
  * E-Mails werden normalisiert (trim + lowercase) wie in allowedEmails.ts.
+ * Double-Opt-in gegen Bots: Mit konfiguriertem Mailversand zählt ein Eintrag erst nach Klick auf den
+ * Bestätigungs-Link (`confirmedAt`) im Rang, bei Empfehlungen und in der Admin-Liste. Ohne
+ * Mailversand (Dev/E2E) gilt ein Eintrag sofort als bestätigt.
  */
 
 /** Signalisiert eine ungültige E-Mail — die Route übersetzt das in 400. */
 export class InvalidWaitlistEmailError extends Error {}
 
-export type WaitlistJoinResult = {
+export type WaitlistPosition = {
 	/** 1-basierte Position im aktuellen Rang. */
 	position: number;
 	/** Persönlicher Empfehlungs-Code (Bestandteil des Empfehlungs-Links). */
 	referralCode: string;
-	/** Gesamtzahl der Einträge — Kontext für die Positions-Anzeige („Position 3 von 87“). */
+	/** Gesamtzahl der bestätigten Einträge — Kontext für die Positions-Anzeige („Position 3 von 87“). */
 	total: number;
 };
+
+/** `confirmationPending`: die Bestätigungs-Mail ist (ggf.) unterwegs, Position und Code erst nach dem Klick. */
+export type WaitlistJoinResult = ({ confirmationPending: false } & WaitlistPosition) | { confirmationPending: true };
 
 export type WaitlistRankedEntry = {
 	id: number;
@@ -40,9 +49,9 @@ export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 
-/** Alle Einträge im Rang, Position 1-basiert; referralCount = geworbene Anmeldungen des Eintrags. */
+/** Bestätigte Einträge im Rang, Position 1-basiert; referralCount = geworbene bestätigte Anmeldungen. */
 const rankedEntries = async (): Promise<(WaitlistEntry & { position: number; referralCount: number })[]> => {
-	const entries = await WaitlistEntry.findAll();
+	const entries = (await WaitlistEntry.findAll()).filter((entry) => entry.confirmedAt !== null);
 	const referralCount = new Map<string, number>();
 	for (const entry of entries) {
 		if (entry.referredByCode !== null) {
@@ -58,15 +67,98 @@ const rankedEntries = async (): Promise<(WaitlistEntry & { position: number; ref
 		.map(({ entry, count }, index) => Object.assign(entry, { position: index + 1, referralCount: count }));
 };
 
+/** Obergrenze an Bestätigungs-Mails je Adresse (ein Intervall) und insgesamt je 24 h gegen Mail-Flut durch Bots. */
+const CONFIRM_MAIL_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const CONFIRM_MAIL_DAILY_LIMIT = 300;
+const confirmMailSends: number[] = [];
+
+/** Gleitendes Fenster im Speicher (Muster `claimAccessMailSlot`): `false` = Tagesgrenze erreicht, die Mail entfällt. */
+const hasConfirmMailCapacity = (now: number = Date.now()): boolean => {
+	while (confirmMailSends.length > 0 && now - confirmMailSends[0] >= CONFIRM_MAIL_INTERVAL_MS) {
+		confirmMailSends.shift();
+	}
+	return confirmMailSends.length < CONFIRM_MAIL_DAILY_LIMIT;
+};
+
+const hashToken = (token: string): string => createHash('sha256').update(token).digest('hex');
+
+const CONFIRM_MAIL: Record<
+	CareSprache,
+	{ subject: string; anrede: string; hinweis: string; referral: string; schluss: string; button: string }
+> = {
+	de: {
+		subject: 'Balamentum: Bitte bestätige deinen Wartelisten-Eintrag',
+		anrede: 'Hallo,',
+		hinweis: 'bitte bestätige deinen Eintrag auf der Warteliste von Balamentum:',
+		referral:
+			'Danach zählt dein Platz. Mit diesem Link lädst du Freundinnen und Freunde ein — je mehr sich darüber anmelden, desto weiter rückst du auf:',
+		schluss: 'Falls du dich nicht eingetragen hast, kannst du diese Mail ignorieren.',
+		button: 'E-Mail bestätigen',
+	},
+	en: {
+		subject: 'Balamentum: Please confirm your waitlist entry',
+		anrede: 'Hello,',
+		hinweis: 'please confirm your entry on the Balamentum waitlist:',
+		referral:
+			'Your spot counts after that. Use this link to invite friends — the more of them sign up through it, the further you move up:',
+		schluss: 'If you did not sign up, you can ignore this email.',
+		button: 'Confirm email',
+	},
+};
+
+/**
+ * Schickt die Bestätigungs-Mail mit frischem Token; höchstens eine je Adresse und 24 h, dazu die globale
+ * Tagesgrenze. Beides wird nur bei erfolgreichem Versand gebucht, ein Fehlschlag erlaubt den nächsten Versuch.
+ */
+const sendConfirmationMail = async (entry: WaitlistEntry, send?: MailSender): Promise<void> => {
+	const sentAt = entry.confirmMailSentAt?.getTime();
+	if (sentAt !== undefined && Date.now() - sentAt < CONFIRM_MAIL_INTERVAL_MS) {
+		return;
+	}
+	if (!hasConfirmMailCapacity()) {
+		return;
+	}
+	const token = randomBytes(32).toString('base64url');
+	await entry.update({ confirmTokenHash: hashToken(token) });
+	const sprache = spracheVon(entry.sprache);
+	const mail = CONFIRM_MAIL[sprache];
+	const confirmLink = `${publicBaseUrl()}/app/?waitlist=${encodeURIComponent(token)}`;
+	const referralLink = `${publicBaseUrl()}/app/?ref=${entry.referralCode}`;
+	const mailHtml = renderMailHtml({
+		heading: mail.subject,
+		intro: `${mail.anrede} ${mail.hinweis}`,
+		button: { label: mail.button, url: confirmLink },
+		paragraphs: [mail.referral, referralLink, mail.schluss],
+		lang: sprache,
+	});
+	const sent = await sendMailToUser(
+		{ email: entry.email },
+		{
+			subject: mail.subject,
+			text: [mail.anrede, '', mail.hinweis, confirmLink, '', mail.referral, referralLink, '', mail.schluss].join('\n'),
+			html: mailHtml.html,
+			attachments: mailHtml.attachments,
+		},
+		send,
+	);
+	if (sent) {
+		confirmMailSends.push(Date.now());
+		await entry.update({ confirmMailSentAt: new Date() });
+	}
+};
+
 /**
  * Trägt eine Adresse ein (idempotent): existiert der Eintrag bereits, wird keine zweite Zeile
  * angelegt und `referredByCode` bleibt unverändert — ein mitgeschickter eigener Code kann so
- * niemals als Selbst-Empfehlung zählen. Ein unbekannter Code wird still ignoriert.
+ * niemals als Selbst-Empfehlung zählen. Ein unbekannter Code wird still ignoriert. Mit Mailversand
+ * antwortet die Funktion immer mit `confirmationPending` (auch für bestätigte Adressen, damit sich
+ * fremde Einträge nicht auslesen lassen); Position und Code liefert erst {@link confirmWaitlistEntry}.
  */
 export const joinWaitlist = async (
 	rawEmail: string,
 	rawRef?: string,
 	sprache?: CareSprache,
+	send?: MailSender,
 ): Promise<WaitlistJoinResult> => {
 	const email = normalizeEmail(String(rawEmail ?? ''));
 	if (!EMAIL_RE.test(email)) {
@@ -80,13 +172,33 @@ export const joinWaitlist = async (
 	}
 	const entry = existing ?? (await createEntry(email, await resolveReferrer(rawRef, email), sprache));
 
+	if (!isMagicLinkEnabled()) {
+		if (entry.confirmedAt === null) {
+			await entry.update({ confirmedAt: new Date() });
+		}
+		return { confirmationPending: false, ...(await positionOf(entry)) };
+	}
+	await sendConfirmationMail(entry, send);
+	return { confirmationPending: true };
+};
+
+/** Position und Code eines bestätigten Eintrags im aktuellen Rang. */
+const positionOf = async (entry: WaitlistEntry): Promise<WaitlistPosition> => {
 	const ranked = await rankedEntries();
 	const own = ranked.find((candidate) => candidate.id === entry.id);
-	return {
-		position: own?.position ?? ranked.length,
-		referralCode: entry.referralCode,
-		total: ranked.length,
-	};
+	return { position: own?.position ?? ranked.length, referralCode: entry.referralCode, total: ranked.length };
+};
+
+/** Bestätigt den Eintrag zum Token aus der Mail (idempotent); `null` bei unbekanntem Token. */
+export const confirmWaitlistEntry = async (token: string): Promise<WaitlistPosition | null> => {
+	const entry = await WaitlistEntry.findOne({ where: { confirmTokenHash: hashToken(token) } });
+	if (entry === null) {
+		return null;
+	}
+	if (entry.confirmedAt === null) {
+		await entry.update({ confirmedAt: new Date() });
+	}
+	return positionOf(entry);
 };
 
 /** Liefert den Code des Werbers, wenn der Code existiert und nicht der eigene ist; sonst null. */
