@@ -208,6 +208,7 @@ _Enthält v0.29.0 – v0.29.34._
 - docs: narrow e2e run commands in testing.md to pnpm filter calls (#2698) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2729
 - docs(matomo): document working config:set syntax for trusted_hosts by @deleonio in https://github.com/deleonio/priority-pilot/pull/2733
 - fix(ci): replace mapfile with while-read for macOS bash 3.2 (#2731) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2735
+- fix(ci): replace mapfile with while-read for macOS bash 3.2 (#2731) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2735
 - feat(frontend): count matomo route changes (404, heartbeat, title, ids) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2737
 - feat(frontend): move help and logout into avatar popover menu (#2723) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2725
 - feat(frontend): show avatar menu as dropdown card with single toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/2741
