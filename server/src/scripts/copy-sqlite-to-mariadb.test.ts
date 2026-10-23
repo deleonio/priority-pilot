@@ -76,7 +76,11 @@ before(async () => {
 	// (z. B. tasks → categories) würde jeden Insert schon an fehlenden Eltern-Tabellen scheitern lassen.
 	await source.query('PRAGMA foreign_keys = OFF');
 	const user = await User.create({ email: 'copy@example.org', passwordHash: 'hash' });
-	const taskA = await Task.create({ title: 'Quellaufgabe', userId: user.id });
+	const taskA = await Task.create({
+		title: 'Quellaufgabe',
+		userId: user.id,
+		checklist: [{ id: 'c1', title: 'Ankreuzen', completed: false }],
+	});
 	const taskB = await Task.create({ title: 'Abhängige Aufgabe', userId: user.id });
 	await Dependency.create({
 		dependentTaskId: taskB.id,
@@ -92,6 +96,7 @@ before(async () => {
 			periodEnd: new Date(Date.UTC(2026, i, 28)),
 			amountCents: 1000 + i,
 			pdfBytes: Buffer.from(`pdf-${i}-${'x'.repeat(i + 1)}`),
+			lineItems: [{ label: `Position ${i}`, amountCents: 1000 + i }],
 		});
 	}
 	for (const [table, model] of TABLE_MODELS) {
@@ -126,6 +131,14 @@ describe('copy-sqlite-to-mariadb — Kopierkern (#2827)', () => {
 		assert.equal(report.ok, true, 'sauberer Lauf meldet ok');
 		assert.equal(report.blobs.checked, 12, 'alle 12 Rechnungen mit pdfBytes geprüft');
 		await expectIdsAndFksPreserved();
+		// JSON-Spalten kommen aus der rohen Quelle als TEXT — im Ziel müssen sie geparst (nicht
+		// doppelt kodiert) ankommen.
+		const copiedTask = await Task.findOne({ where: { title: 'Quellaufgabe' } });
+		assert.deepEqual(
+			copiedTask?.checklist,
+			[{ id: 'c1', title: 'Ankreuzen', completed: false }],
+			'tasks.checklist kommt geparst an (kein Doppel-Encoding)',
+		);
 	});
 
 	it('TF2 (AK2): zweiter Lauf droppt, synct neu und erzeugt keine Duplikate', async () => {
@@ -154,6 +167,11 @@ describe('copy-sqlite-to-mariadb — Kopierkern (#2827)', () => {
 		assert.ok(
 			Buffer.from(sourceRows[0].pdfBytes).equals(targetInvoice.pdfBytes),
 			'PDF-Bytes Quelle und Ziel sind identisch',
+		);
+		assert.deepEqual(
+			targetInvoice.lineItems,
+			[{ label: 'Position 0', amountCents: 1000 }],
+			'invoices.lineItems kommt geparst an (kein Doppel-Encoding)',
 		);
 		await Invoice.update({ pdfBytes: Buffer.from('verfaelscht') }, { where: { id: targetInvoice.id } });
 		const after = await verifyInvoiceBlobs(source, sequelize);

@@ -1,5 +1,5 @@
 import { pathToFileURL } from 'node:url';
-import { Model, ModelStatic, QueryTypes, Sequelize, Transaction } from 'sequelize';
+import { DataTypes, Model, ModelStatic, QueryTypes, Sequelize, Transaction } from 'sequelize';
 // Registriert ALLE Modelle auf der Default-Instanz — ohne diesen Import ist `target.models` leer.
 import '../models/index.js';
 import sequelize from '../database.js';
@@ -81,7 +81,10 @@ const columnToAttribute = (model: ModelStatic<Model>): Map<string, string> => {
 	return map;
 };
 
-/** Dialektabhängiges Session-Statement: mysql nur SET FOREIGN_KEY_CHECKS, sqlite nur PRAGMA. */
+/** Dialektabhängiges Session-Statement: mysql nur SET FOREIGN_KEY_CHECKS, sqlite nur PRAGMA.
+ * SQLite-Sonderfall: PRAGMA foreign_keys ist INNERHALB einer Transaktion ein No-op — bei sqlite-Zielen
+ * bleiben FK-Checks daher auf ihrem Verbindungs-Default (aus); der Lauf verlässt sich nicht auf das
+ * Abschalten. Der Produktionspfad (mysql, SET in der Transaktion) ist unberührt. */
 export const setForeignKeyChecks = async (db: Sequelize, enable: boolean, transaction?: Transaction): Promise<void> => {
 	const sql =
 		db.getDialect() === 'mysql'
@@ -94,20 +97,20 @@ export const verifyInvoiceBlobs = async (source: Sequelize, target: Sequelize): 
 	const invoiceTable = Object.values(target.models).find((model) => tableOf(model) === 'invoices');
 	const sourceTables = new Set((await source.getQueryInterface().showAllTables()).map((n) => n.toLowerCase()));
 	if (!invoiceTable || !sourceTables.has('invoices')) return { checked: 0, mismatched: 0 };
-	const byId = new Map(
-		(await selectAll(target, `SELECT id, pdfBytes FROM ${quoted(target, 'invoices')} WHERE pdfBytes IS NOT NULL`)).map(
-			(row) => [String(row.id), Buffer.from(row.pdfBytes as Buffer)],
-		),
-	);
+	// Blob-Abgleich id-weise: vorab nur die IDs laden, die PDFs einzeln je Seite holen und vergleichen —
+	// der Speicherbedarf bleibt auf einen Blob begrenzt (Produktionskopie: MEDIUMBLOB bis 16 MB).
+	const ids = (
+		await selectAll(source, `SELECT id FROM ${quoted(source, 'invoices')} WHERE pdfBytes IS NOT NULL ORDER BY id`)
+	).map((row) => Number(row.id));
 	let checked = 0;
 	let mismatched = 0;
-	for (const row of await selectAll(
-		source,
-		`SELECT id, pdfBytes FROM ${quoted(source, 'invoices')} WHERE pdfBytes IS NOT NULL`,
-	)) {
+	for (const id of ids) {
 		checked++;
-		const copy = byId.get(String(row.id));
-		if (!copy || !Buffer.from(row.pdfBytes as Buffer).equals(copy)) mismatched++;
+		const sourceRows = await selectAll(source, `SELECT pdfBytes FROM ${quoted(source, 'invoices')} WHERE id = ${id}`);
+		const targetRows = await selectAll(target, `SELECT pdfBytes FROM ${quoted(target, 'invoices')} WHERE id = ${id}`);
+		const sourceBytes = sourceRows[0]?.pdfBytes == null ? null : Buffer.from(sourceRows[0].pdfBytes as Buffer);
+		const targetBytes = targetRows[0]?.pdfBytes == null ? null : Buffer.from(targetRows[0].pdfBytes as Buffer);
+		if (!sourceBytes || !targetBytes || !sourceBytes.equals(targetBytes)) mismatched++;
 	}
 	return { checked, mismatched };
 };
@@ -126,24 +129,53 @@ export const buildCopyReport = async (source: Sequelize, target: Sequelize): Pro
 	};
 };
 
+/** JSON-Spalten liegen in der rohen SQLite-Quelle als TEXT vor; ohne Parse würde Sequelize sie beim
+ * Schreiben erneut stringify (Doppel-Encoding). Nicht-String-Werte (NULL, bereits geparst) bleiben unberührt. */
+const decodeJsonAttributes = (model: ModelStatic<Model>, row: Record<string, unknown>): Record<string, unknown> => {
+	for (const [name, attribute] of Object.entries(model.getAttributes())) {
+		if (attribute.type instanceof DataTypes.JSON && typeof row[name] === 'string') {
+			row[name] = JSON.parse(row[name] as string);
+		}
+	}
+	return row;
+};
+
 export const copySqliteToMariadb = async (source: Sequelize, target: Sequelize): Promise<CopyReport> => {
 	await target.sync({ force: true });
+	// Batchweise (Issue): PK-geordnete Fenster je Tabelle lesen, je Fenster ein bulkCreate —
+	// Speicher und Paketgröße (max_allowed_packet) bleiben begrenzt.
+	const chunkSize = 500;
 	for (const model of await selectedModels(source, target)) {
 		const table = tableOf(model);
 		const remap = columnToAttribute(model);
-		const rows = await selectAll(source, `SELECT * FROM ${quoted(source, table)}`);
+		const pkColumns = (model as typeof Model).primaryKeyAttributes.map(
+			(name) => model.getAttributes()[name]?.field ?? name,
+		);
+		const orderBy =
+			pkColumns.length > 0 ? ` ORDER BY ${pkColumns.map((column) => quoted(source, column)).join(', ')}` : '';
 		// Je Tabelle genau eine Transaktion: FK-Checks aus/an greifen connection-scoped — die
 		// Transaktion pinnt eine Verbindung für beide Statements und das bulkCreate.
 		await target.transaction(async (transaction) => {
 			await setForeignKeyChecks(target, false, transaction);
-			await model.bulkCreate(
-				rows.map((row) =>
-					remap.size === 0
-						? row
-						: Object.fromEntries(Object.entries(row).map(([key, value]) => [remap.get(key) ?? key, value])),
-				),
-				{ transaction, individualHooks: false },
-			);
+			for (let offset = 0; ; offset += chunkSize) {
+				const rows = await selectAll(
+					source,
+					`SELECT * FROM ${quoted(source, table)}${orderBy} LIMIT ${chunkSize} OFFSET ${offset}`,
+				);
+				if (rows.length === 0) break;
+				await model.bulkCreate(
+					rows.map((row) =>
+						decodeJsonAttributes(
+							model,
+							remap.size === 0
+								? row
+								: Object.fromEntries(Object.entries(row).map(([key, value]) => [remap.get(key) ?? key, value])),
+						),
+					),
+					{ transaction, individualHooks: false },
+				);
+				if (rows.length < chunkSize) break;
+			}
 			await setForeignKeyChecks(target, true, transaction);
 		});
 	}
