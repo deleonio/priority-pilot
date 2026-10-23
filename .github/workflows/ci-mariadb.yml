@@ -1,4 +1,4 @@
-# MariaDB-Smoke (#2828): schmoker CI-Lauf, der den Server EINMAL gegen einen echten
+# MariaDB-Smoke (#2828): schlanker CI-Lauf, der den Server EINMAL gegen einen echten
 # MariaDB-Service-Container faehrt (ADR 0026) und die Kernabfragen prueft — Registrieren + Login
 # (Session), Task anlegen/zuruecklesen, Admin-KPIs — und die MariaDB-Version aus der DB loggt.
 # Die regulare Testsuite bleibt auf In-Memory-SQLite (verify.yml unveraendert, AK5): hier geht es
