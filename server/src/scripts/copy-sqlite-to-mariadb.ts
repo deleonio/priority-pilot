@@ -1,0 +1,186 @@
+import { pathToFileURL } from 'node:url';
+import { Model, ModelStatic, QueryTypes, Sequelize, Transaction } from 'sequelize';
+// Registriert ALLE Modelle auf der Default-Instanz — ohne diesen Import ist `target.models` leer.
+import '../models/index.js';
+import sequelize from '../database.js';
+
+// Einmaliges Kopierwerkzeug SQLite → MariaDB (ADR 0026, #2827), Vertrag: docs/spec/issue-2827.md.
+// CLI-Aufruf (tsx): DB_DIALECT=mysql MARIADB_HOST=… MARIADB_USER=… MARIADB_PASSWORD=…
+// MARIADB_DATABASE=… DATABASE_STORAGE=<Pfad zur SQLite-Datei> node --import tsx src/scripts/copy-sqlite-to-mariadb.ts
+// Exit-Code 0 nur bei vollständiger Übereinstimmung (reportExitCode).
+
+export type TableCount = { table: string; source: number; target: number };
+export type BlobSample = { checked: number; mismatched: number };
+export type CopyReport = { tables: TableCount[]; blobs: BlobSample; ok: boolean };
+
+const tableOf = (model: ModelStatic<Model>): string => {
+	const name = model.getTableName();
+	return typeof name === 'string' ? name : name.tableName;
+};
+
+const quoted = (db: Sequelize, table: string): string => db.getQueryInterface().quoteIdentifier(table);
+
+const selectAll = async (db: Sequelize, sql: string): Promise<Array<Record<string, unknown>>> =>
+	(await db.query(sql, { type: QueryTypes.SELECT })) as Array<Record<string, unknown>>;
+
+const countRows = async (db: Sequelize, table: string): Promise<number> => {
+	const rows = await selectAll(db, `SELECT COUNT(*) AS n FROM ${quoted(db, table)}`);
+	return Number(rows[0]?.n ?? 0);
+};
+
+/** Tabellenauswahl = Ziel-Modelle ∩ existierende Quell-Tabellen, FK-topologisch geordnet. */
+const selectedModels = async (source: Sequelize, target: Sequelize): Promise<ModelStatic<Model>[]> => {
+	const sourceTables = new Set((await source.getQueryInterface().showAllTables()).map((name) => name.toLowerCase()));
+	const selected = Object.values(target.models).filter((model) => sourceTables.has(tableOf(model).toLowerCase()));
+	// Voraussetzungen je Tabelle: Referenzierte Tabellen zuerst (BelongsTo/FK auf eigener Tabelle),
+	// Join-Tabellen (BelongsToMany/Through) nach beiden Seiten des n:m.
+	const prerequisites = new Map<string, Set<string>>(selected.map((model) => [tableOf(model), new Set<string>()]));
+	for (const model of selected) {
+		const own = tableOf(model);
+		for (const association of Object.values(model.associations)) {
+			if (association.associationType === 'BelongsTo') {
+				const referenced = tableOf(association.target);
+				if (referenced !== own && prerequisites.has(referenced)) prerequisites.get(own)?.add(referenced);
+			} else if (association.associationType === 'BelongsToMany') {
+				const through = (association as unknown as { through?: { model?: ModelStatic<Model> } }).through?.model;
+				const throughTable = through ? tableOf(through) : '';
+				const other = tableOf(association.target);
+				if (throughTable && throughTable !== own && prerequisites.has(throughTable)) {
+					prerequisites.get(throughTable)?.add(own);
+					if (other !== own && prerequisites.has(other)) prerequisites.get(throughTable)?.add(other);
+				}
+			}
+		}
+	}
+	const remaining = new Set(selected.map(tableOf));
+	const byTable = new Map(selected.map((model) => [tableOf(model), model]));
+	const order: ModelStatic<Model>[] = [];
+	while (remaining.size > 0) {
+		const ready = [...remaining].filter((table) =>
+			[...(prerequisites.get(table) ?? [])].every((pre) => !remaining.has(pre)),
+		);
+		if (ready.length === 0) {
+			// Zirkelreferenz: Rest in stabiler Reihenfolge anhängen (FK-Checks sind im Lauf aus).
+			order.push(...[...remaining].map((table) => byTable.get(table) as ModelStatic<Model>));
+			break;
+		}
+		for (const table of ready) {
+			order.push(byTable.get(table) as ModelStatic<Model>);
+			remaining.delete(table);
+		}
+	}
+	return order;
+};
+
+/** Feld→Attribut-Remapping für Modelle mit underscored-Spalten (z. B. llmProvider). */
+const columnToAttribute = (model: ModelStatic<Model>): Map<string, string> => {
+	const map = new Map<string, string>();
+	for (const [name, attribute] of Object.entries(model.getAttributes())) {
+		if (typeof attribute.field === 'string' && attribute.field !== name) map.set(attribute.field, name);
+	}
+	return map;
+};
+
+/** Dialektabhängiges Session-Statement: mysql nur SET FOREIGN_KEY_CHECKS, sqlite nur PRAGMA. */
+export const setForeignKeyChecks = async (db: Sequelize, enable: boolean, transaction?: Transaction): Promise<void> => {
+	const sql =
+		db.getDialect() === 'mysql'
+			? `SET FOREIGN_KEY_CHECKS = ${enable ? 1 : 0}`
+			: `PRAGMA foreign_keys = ${enable ? 'ON' : 'OFF'}`;
+	await db.query(sql, transaction ? { transaction } : undefined);
+};
+
+export const verifyInvoiceBlobs = async (source: Sequelize, target: Sequelize): Promise<BlobSample> => {
+	const invoiceTable = Object.values(target.models).find((model) => tableOf(model) === 'invoices');
+	const sourceTables = new Set((await source.getQueryInterface().showAllTables()).map((n) => n.toLowerCase()));
+	if (!invoiceTable || !sourceTables.has('invoices')) return { checked: 0, mismatched: 0 };
+	const byId = new Map(
+		(await selectAll(target, `SELECT id, pdfBytes FROM ${quoted(target, 'invoices')} WHERE pdfBytes IS NOT NULL`)).map(
+			(row) => [String(row.id), Buffer.from(row.pdfBytes as Buffer)],
+		),
+	);
+	let checked = 0;
+	let mismatched = 0;
+	for (const row of await selectAll(
+		source,
+		`SELECT id, pdfBytes FROM ${quoted(source, 'invoices')} WHERE pdfBytes IS NOT NULL`,
+	)) {
+		checked++;
+		const copy = byId.get(String(row.id));
+		if (!copy || !Buffer.from(row.pdfBytes as Buffer).equals(copy)) mismatched++;
+	}
+	return { checked, mismatched };
+};
+
+export const buildCopyReport = async (source: Sequelize, target: Sequelize): Promise<CopyReport> => {
+	const tables: TableCount[] = [];
+	for (const model of await selectedModels(source, target)) {
+		const table = tableOf(model);
+		tables.push({ table, source: await countRows(source, table), target: await countRows(target, table) });
+	}
+	const blobs = await verifyInvoiceBlobs(source, target);
+	return {
+		tables,
+		blobs,
+		ok: tables.every((entry) => entry.source === entry.target) && blobs.mismatched === 0,
+	};
+};
+
+export const copySqliteToMariadb = async (source: Sequelize, target: Sequelize): Promise<CopyReport> => {
+	await target.sync({ force: true });
+	for (const model of await selectedModels(source, target)) {
+		const table = tableOf(model);
+		const remap = columnToAttribute(model);
+		const rows = await selectAll(source, `SELECT * FROM ${quoted(source, table)}`);
+		// Je Tabelle genau eine Transaktion: FK-Checks aus/an greifen connection-scoped — die
+		// Transaktion pinnt eine Verbindung für beide Statements und das bulkCreate.
+		await target.transaction(async (transaction) => {
+			await setForeignKeyChecks(target, false, transaction);
+			await model.bulkCreate(
+				rows.map((row) =>
+					remap.size === 0
+						? row
+						: Object.fromEntries(Object.entries(row).map(([key, value]) => [remap.get(key) ?? key, value])),
+				),
+				{ transaction, individualHooks: false },
+			);
+			await setForeignKeyChecks(target, true, transaction);
+		});
+	}
+	return buildCopyReport(source, target);
+};
+
+export const reportExitCode = (report: CopyReport): 0 | 1 => (report.ok ? 0 : 1);
+
+const main = async (): Promise<0 | 1> => {
+	const storage = process.env.DATABASE_STORAGE;
+	if (!storage) throw new Error('DATABASE_STORAGE setzen (Pfad zur SQLite-Quelldatei).');
+	if (sequelize.getDialect() !== 'mysql') {
+		throw new Error('Ziel muss MariaDB sein: DB_DIALECT=mysql und MARIADB_* setzen.');
+	}
+	const source = new Sequelize({ dialect: 'sqlite', storage, logging: false });
+	try {
+		await sequelize.authenticate();
+		const report = await copySqliteToMariadb(source, sequelize);
+		console.log(
+			['tabelle\tquelle\tziel', ...report.tables.map((t) => `${t.table}\t${t.source}\t${t.target}`)].join('\n'),
+		);
+		console.log(`blobs: ${report.blobs.checked} geprueft, ${report.blobs.mismatched} abweichend | ok=${report.ok}`);
+		return reportExitCode(report);
+	} finally {
+		await source.close();
+		await sequelize.close();
+	}
+};
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+	void main().then(
+		(code) => {
+			process.exitCode = code;
+		},
+		(error: unknown) => {
+			console.error(error instanceof Error ? error.message : error);
+			process.exitCode = 1;
+		},
+	);
+}

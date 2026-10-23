@@ -1,6 +1,6 @@
 import { before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { Model, QueryTypes, Sequelize } from 'sequelize';
+import { DataTypes, Model, QueryTypes, Sequelize } from 'sequelize';
 // ROTER Spec-Test (#2827, docs/spec/issue-2827.md): Das Kopierwerkzeug SQLite→MariaDB existiert
 // noch nicht. Der Import schlägt fehl, bis `server/src/scripts/copy-sqlite-to-mariadb.ts`
 // `copySqliteToMariadb`, `buildCopyReport`, `verifyInvoiceBlobs`, `reportExitCode` und
@@ -50,9 +50,16 @@ const expectIdsAndFksPreserved = async (): Promise<void> => {
 			type: QueryTypes.SELECT,
 		})) as Array<Record<string, unknown>>;
 		assert.ok(sourceRows.length > 0, `${table} hat Quelldaten`);
+		// dependencies hat Komposit-PK und keine id-Spalte — Lookup über die echten PK-Attribute.
+		const pkFields: readonly string[] = (model as typeof Model).primaryKeyAttributes;
 		for (const row of sourceRows) {
-			const target = await (model as typeof Model).findByPk(row.id as number);
-			assert.ok(target, `${table}: Zeile ${String(row.id)} im Ziel vorhanden`);
+			const target = await (model as typeof Model).findOne({
+				where: Object.fromEntries(pkFields.map((field) => [field, row[field]])),
+			});
+			assert.ok(
+				target,
+				`${table}: Zeile ${JSON.stringify(Object.fromEntries(pkFields.map((f) => [f, row[f]])))} im Ziel vorhanden`,
+			);
 			const plain = target.get({ plain: true }) as Record<string, unknown>;
 			for (const [key, value] of Object.entries(row)) {
 				if (key === 'id' || key.endsWith('Id')) {
@@ -65,6 +72,9 @@ const expectIdsAndFksPreserved = async (): Promise<void> => {
 
 before(async () => {
 	await sequelize.sync({ force: true });
+	// Teil-Schema: die Quell-Instanz kennt nur die 4 Fixture-Tabellen; die FK-Eltern-Existenzprüfung
+	// (z. B. tasks → categories) würde jeden Insert schon an fehlenden Eltern-Tabellen scheitern lassen.
+	await source.query('PRAGMA foreign_keys = OFF');
 	const user = await User.create({ email: 'copy@example.org', passwordHash: 'hash' });
 	const taskA = await Task.create({ title: 'Quellaufgabe', userId: user.id });
 	const taskB = await Task.create({ title: 'Abhängige Aufgabe', userId: user.id });
@@ -86,9 +96,18 @@ before(async () => {
 	}
 	for (const [table, model] of TABLE_MODELS) {
 		await source.getQueryInterface().createTable(table, (model as typeof Model).getAttributes());
-		const rows = (await (model as typeof Model).findAll()).map((row) => row.get({ plain: true })) as Array<
-			Record<string, unknown>
-		>;
+		// JSON-Spalten (tasks.checklist, invoices.lineItems) vor dem rohen bulkInsert stringifizieren —
+		// der sqlite-Dialekt serialisiert Arrays in bulkInsert sonst zu `` statt '[]' (SQL-Fehler).
+		const jsonFields = Object.entries((model as typeof Model).getAttributes())
+			.filter(([, attribute]) => attribute.type instanceof DataTypes.JSON)
+			.map(([name]) => name);
+		const rows = (await (model as typeof Model).findAll()).map((row) => {
+			const plain = row.get({ plain: true }) as Record<string, unknown>;
+			for (const field of jsonFields) {
+				if (plain[field] != null) plain[field] = JSON.stringify(plain[field]);
+			}
+			return plain;
+		});
 		await source.getQueryInterface().bulkInsert(table, rows, { logging: false });
 	}
 });
