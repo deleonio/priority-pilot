@@ -57,6 +57,7 @@
 			"pushFailedAppErrorText": "Push notifications could not be enabled. Please check your internet connection and try again – if it keeps failing, an app update will probably help.",
 			"pushUnavailableLabel": "Push notifications unavailable",
 			"pushUnavailableText": "This browser does not support push notifications. Install the app or use an up-to-date browser to receive reminders.",
+			"singleNotifications": "Individual notifications",
 			"careLabel": "Care",
 			"tasksLabel": "Tasks and reminders",
 			"tasksHint": "Deadline reminders, your morning top-3 push and task notifications: created, completed or generated from a series.",

@@ -57,6 +57,7 @@
 			"pushFailedAppErrorText": "Push-Nachrichten konnten nicht aktiviert werden. Bitte prüfe deine Internetverbindung und versuche es erneut – wenn es wiederholt scheitert, hilft vermutlich ein App-Update.",
 			"pushUnavailableLabel": "Push-Nachrichten nicht verfügbar",
 			"pushUnavailableText": "Dieser Browser unterstützt keine Push-Nachrichten. Installiere die App bzw. nutze einen aktuellen Browser, um Erinnerungen zu erhalten.",
+			"singleNotifications": "Einzelne Benachrichtigungen",
 			"careLabel": "Fürsorge",
 			"tasksLabel": "Aufgaben und Erinnerungen",
 			"tasksHint": "Frist-Erinnerungen, dein Top-3-Push am Morgen und Meldungen zu Aufgaben: neu angelegt, erledigt oder aus einer Serie entstanden.",

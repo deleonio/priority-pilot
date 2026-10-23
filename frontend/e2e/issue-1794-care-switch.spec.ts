@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { accordionTrigger, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #1794 — Fürsorge-Schalter (Spec: docs/spec/issue-1794.md).
@@ -23,6 +23,10 @@ test.describe('Balamentum — #1794: Fürsorge-Schalter', () => {
 		// ohne Segment ist „Säulen" (`App.tsx` settingsTab-Fallback), also explizit `/general`.
 		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Balamentum');
+
+		// Push-Details-Umbau: der Schalter sitzt im Klappbereich „Einzelne Benachrichtigungen"
+		// — vor Sichtbarkeits-/Bounding-Box-Prüfung und Klick aufklappen (Muster AK8).
+		await accordionTrigger(page, 'Einzelne Benachrichtigungen').click();
 
 		const care = careSwitch(page);
 		await expect(care, 'Fürsorge-Schalter fehlt in den Einstellungen').toHaveCount(1);
@@ -57,6 +61,7 @@ test.describe('Balamentum — #1794: Fürsorge-Schalter', () => {
 
 		await page.reload();
 		await waitForStableView(page, 'Balamentum');
+		await accordionTrigger(page, 'Einzelne Benachrichtigungen').click();
 		await expect(careSwitch(page), 'der gespeicherte Zustand überlebt den Reload').toBeChecked({ checked: !initial });
 	});
 });
