@@ -262,7 +262,8 @@
 		"loading": "Kategorien werden geladen …",
 		"emptyTitle": "Noch keine Kategorien",
 		"emptyText": "Lege deine erste Kategorie an, um Aufgaben nach Thema zu bündeln. Ohne Kategorie bleiben Aufgaben einfach ungeordnet — nichts geht verloren.",
-		"create": "Neue Kategorie anlegen"
+		"create": "Neue Kategorie anlegen",
+		"rowActions": "Aktionen für {{name}}"
 	},
 	"categoryForm": {
 		"nameEmpty": "Name darf nicht leer sein.",

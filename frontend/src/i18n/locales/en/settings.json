@@ -262,7 +262,8 @@
 		"loading": "Loading categories …",
 		"emptyTitle": "No categories yet",
 		"emptyText": "Create your first category to group tasks by topic. Without a category, tasks simply stay unsorted — nothing gets lost.",
-		"create": "Create new category"
+		"create": "Create new category",
+		"rowActions": "Actions for {{name}}"
 	},
 	"categoryForm": {
 		"nameEmpty": "Name must not be empty.",
