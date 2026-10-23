@@ -2,14 +2,15 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.33 - 2026-10-22
+## v0.33 - 2026-10-23
 
-_Enthält v0.33.0 – v0.33.19._
+_Enthält v0.33.0 – v0.33.21._
 
 ### 🎉 New Features
 
 - feat(frontend): edit billing address without checkout flow by @deleonio in https://github.com/deleonio/priority-pilot/pull/2866
 - feat(server): subscription and invoice service pushes (#2852) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2865
+- feat(server): mariadb dialect via env, sqlite stays default (#2825) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2890
 
 ### 🐞 Bug Fixes
 
@@ -41,6 +42,7 @@ _Enthält v0.33.0 – v0.33.19._
 - docs: explain push switch groups, time windows and daily budget (#2857) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2876
 - fix(deps): update dependency nodemailer to v10.0.10 [security] by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2884
 - docs: fix user guide package tab name and weekly recap window (#2881) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2887
+- fix(frontend): symmetric indent for settings accordion content by @deleonio in https://github.com/deleonio/priority-pilot/pull/2891
 
 ## v0.32 - 2026-10-22
 
@@ -186,7 +188,6 @@ _Enthält v0.29.0 – v0.29.34._
 - refactor(frontend): merge balance card share logic into one hook (#2695) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2717
 - feat(frontend): voice search no longer sets category filter (#2716) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2724
 - feat(frontend): pause and resume series (#2715) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2722
-- refactor(frontend): drop dead export isGeolocationSupported (#2697) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2726
 - refactor(frontend): drop dead export isGeolocationSupported (#2697) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2726
 - feat(frontend): complete the orbit family with meteors and pendulum by @deleonio in https://github.com/deleonio/priority-pilot/pull/2727
 - docs(matomo): runbook for the self-hosted matomo instance by @deleonio in https://github.com/deleonio/priority-pilot/pull/2728
