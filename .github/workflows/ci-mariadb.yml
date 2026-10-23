@@ -1,0 +1,96 @@
+# MariaDB-Smoke (#2828): schlanker CI-Lauf, der den Server EINMAL gegen einen echten
+# MariaDB-Service-Container faehrt (ADR 0026) und die Kernabfragen prueft — Registrieren + Login
+# (Session), Task anlegen/zuruecklesen, Admin-KPIs — und die MariaDB-Version aus der DB loggt.
+# Die regulare Testsuite bleibt auf In-Memory-SQLite (verify.yml unveraendert, AK5): hier geht es
+# allein um Dialekt-Details, die SQLite erst spaet auffallen lassen wuerden.
+# Bewusst NICHT "Verify" genannt: der GATE-KONTRAKT (verify.yml, Kopf-Kommentar) keyt auf genau
+# diesen Namen — ein fremder Workflow dieses Namens wuerde das Merge-Gate still gruen faerben.
+name: MariaDB Smoke
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch: # manuelle Nachhol-Laeufe (z. B. Rot-Nachweis auf einem Feature-Branch)
+
+# Least-Privilege wie verify.yml: der GITHUB_TOKEN darf nichts schreiben.
+permissions:
+  contents: read
+
+# Serialisierung wie verify.yml: ein neuer Lauf im selben PR/Branch macht den vorherigen obsolet.
+concurrency:
+  group: ci-mariadb-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    # Kein CI auf Draft-PRs (Muster verify.yml).
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: docker
+    services:
+      mariadb:
+        image: mariadb:11
+        ports:
+          - 3306:3306
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: balamentum_smoke
+          MARIADB_USER: balamentum
+          MARIADB_PASSWORD: balamentum
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Server- UND Smoke-Konfiguration in einem Block: das Smoke-Skript liest BASE_URL/ADMIN_EMAILS
+      # bzw. die MARIADB_*-Zugangsdaten, der Server den Rest. Werte wie im E2E-Backend
+      # (frontend/playwright.config.ts): DB_RESET=true + DB_SEED=false fuer einen leeren,
+      # definierten Zustand; NODE_ENV=test schaltet POST /auth/register frei (#2299).
+      NODE_ENV: test
+      PORT: '3100'
+      DB_RESET: 'true'
+      DB_SEED: 'false'
+      DB_DIALECT: mysql
+      MARIADB_HOST: 127.0.0.1
+      MARIADB_PORT: '3306'
+      MARIADB_USER: balamentum
+      MARIADB_PASSWORD: balamentum
+      MARIADB_DATABASE: balamentum_smoke
+      ADMIN_EMAILS: smoke-admin@example.com
+      BASE_URL: http://127.0.0.1:3100
+      # Auth-Gate deterministisch AN (SESSION_SECRET aktiviert isAuthActive): die Session ist real
+      # und die Admin-Rolle wird pro Request ECHT aus MariaDB gelesen (requireRole) — sonst waere
+      # der KPI-Schritt ein Pass-Through ohne Beweiswert. Die Google-Credentials bleiben bewusst
+      # leer (leere Strings gewinnen gegen eine lokale .env, Muster playwright.config.ts).
+      SESSION_SECRET: mariadb-smoke-secret
+      GOOGLE_CLIENT_ID: ''
+      GOOGLE_CLIENT_SECRET: ''
+      GOOGLE_ALLOWED_EMAILS: ''
+      GOOGLE_ALLOWED_EMAIL: ''
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc # zentrale Node-Version (gleicher Stand wie verify/deploy)
+          cache: pnpm
+      # install loest ueber den client-prepare-Hook die Vertragstypen aus (openapi-typescript).
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Server bauen
+        run: pnpm --filter server build
+      - name: Server gegen MariaDB starten
+        run: |
+          node server/dist/index.js > server-smoke.log 2>&1 &
+          echo $! > server.pid
+      - name: Smoke (Login, Task, Admin-KPIs, MariaDB-Version)
+        run: node .github/scripts/mariadb-smoke.ts
+      - name: Server-Log bei Fehlschlag
+        if: failure()
+        run: cat server-smoke.log
+      - name: Server stoppen
+        if: always()
+        run: |
+          if [ -f server.pid ]; then kill "$(cat server.pid)" 2>/dev/null || true; fi
