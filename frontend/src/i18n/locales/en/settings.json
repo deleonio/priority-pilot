@@ -80,6 +80,7 @@
 			"testErrorText": "Push failed."
 		},
 		"accountData": "Account and data",
+		"accountDataIntro": "Here you can permanently delete your account with all its data. We ask twice beforehand, so nothing happens by accident.",
 		"pillars": {
 			"fixedLabel": "Fixed pillars",
 			"fixedText": "By definition, these 5 pillars address the balance in life and always apply. Your weighting stays individually adjustable.",

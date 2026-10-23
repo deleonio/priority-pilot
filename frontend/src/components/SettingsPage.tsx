@@ -914,6 +914,7 @@ export const SettingsPage = ({
 					    Toggle ist selbst ein Button und darf nicht „Konto löschen“ heißen; Rot erscheint
 					    erst im Bestätigungsdialog (docs/ux-pattern-sequential-confirmation.md). */}
 					<KolAccordion className="settings-accordion" _label={t('settingsPage.accountData')} _level={2}>
+						<p>{t('settingsPage.accountDataIntro')}</p>
 						<DeleteAccountButton userId={currentUserId} />
 					</KolAccordion>
 				</div>
