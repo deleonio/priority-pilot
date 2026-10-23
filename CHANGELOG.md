@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.33 - 2026-10-23
 
-_Enthält v0.33.0 – v0.33.22._
+_Enthält v0.33.0 – v0.33.23._
 
 ### 🎉 New Features
 
@@ -44,6 +44,9 @@ _Enthält v0.33.0 – v0.33.22._
 - fix(deps): update dependency nodemailer to v10.0.10 [security] by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2884
 - docs: fix user guide package tab name and weekly recap window (#2881) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2887
 - fix(frontend): symmetric indent for settings accordion content by @deleonio in https://github.com/deleonio/priority-pilot/pull/2891
+- feat(server): type-audit model columns against mariadb (#2826) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2889
+- fix(frontend): keep follow-up modal open during dialog teardown race by @deleonio in https://github.com/deleonio/priority-pilot/pull/2894
+- feat(frontend): compact checklist done switch by hiding its label by @deleonio in https://github.com/deleonio/priority-pilot/pull/2888
 
 ## v0.32 - 2026-10-22
 
@@ -357,7 +360,6 @@ _Enthält v0.24.0 – v0.24.13._
 - fix(deps): update dependency i18next to v26.4.4 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2512
 - docs(adr): add 0024 direct completion with undo instead of dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2568
 - feat(server): require minimum completions before overload (#2521) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2569
-- feat(frontend): refresh care hint after completing a task (#2522) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2570
 - feat(frontend): refresh care hint after completing a task (#2522) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2570
 - feat(server): pillar names in care texts follow app language (#2523) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2571
 - feat(frontend): single primary action per missed task (#2524) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2575
