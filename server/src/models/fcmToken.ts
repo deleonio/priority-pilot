@@ -26,8 +26,10 @@ FcmToken.init(
 			autoIncrement: true,
 			primaryKey: true,
 		},
+		// STRING(768) statt TEXT (Typ-Audit #2826): TEXT ist unter MariaDB ohne Präfix nicht indexierbar;
+		// 768 × 4 Byte (utf8mb4) = 3072-Byte-Limit.
 		token: {
-			type: DataTypes.TEXT,
+			type: DataTypes.STRING(768),
 			allowNull: false,
 		},
 		userId: {

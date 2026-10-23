@@ -133,7 +133,7 @@ Series.init(
 			},
 		},
 		estimatedEffort: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: false,
 			defaultValue: 0.5,
 			validate: {
@@ -190,7 +190,7 @@ Series.init(
 		// Standort-Koordinaten des Serien-Orts (#1066), analog `Task.latitude/longitude`. Nullable;
 		// Bestand ohne Koordinaten bleibt `NULL`.
 		latitude: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: true,
 			defaultValue: null,
 			validate: {
@@ -199,7 +199,7 @@ Series.init(
 			},
 		},
 		longitude: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: true,
 			defaultValue: null,
 			validate: {
