@@ -53,6 +53,7 @@ import type {
 	FreeSlot,
 	FreeSlotConfig,
 	CareConfig,
+	PushGroups,
 	SplitHintConfig,
 	CareVorschlag,
 	Profile,
@@ -1793,6 +1794,27 @@ export const api = {
 	// Speichert den Schalter; Nicht-Boolean lehnt der Server mit 400 ab.
 	async updateSplitHintConfig(config: SplitHintConfig, init: Init = {}): Promise<SplitHintConfig> {
 		const { data, error, response } = await client.PUT('/split-hint-config', { body: config, signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// --- Push-Gruppen pro User (#2850) ---
+
+	// Die vier Gruppen-Schalter (serverseitig gespeichert, Defaults aus docs/push-konzept.md §5);
+	// „Fürsorge" bleibt der bestehende Schalter an getCareConfig/updateCareConfig.
+	async getPushGroups(init: Init = {}): Promise<PushGroups> {
+		const { data, error, response } = await client.GET('/push-groups', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Speichert die Gruppen; Nicht-Boolean lehnt der Server mit 400 ab.
+	async updatePushGroups(groups: PushGroups, init: Init = {}): Promise<PushGroups> {
+		const { data, error, response } = await client.PUT('/push-groups', { body: groups, signal: init.signal });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}

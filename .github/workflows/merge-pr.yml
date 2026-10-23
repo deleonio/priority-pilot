@@ -1,4 +1,4 @@
-name: Claude PR Gate & Auto-Merge
+name: Merge PR
 
 # Deterministisches, LLM-freies CI-/Reviewer-Gate UND Auto-Merge fuer die label-gesteuerte
 # PR-Pipeline. Zusammenlegung von Claude-PR-Gate (#87) + Claude-PR-AutoMerge (#139) zu

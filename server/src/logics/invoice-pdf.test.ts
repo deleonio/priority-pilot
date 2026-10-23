@@ -226,7 +226,7 @@ describe('invoices.ts — PDF-Erzeugung und -Aufbewahrung (#1955 AK1/AK3)', () =
 
 		assert.equal(sent.length, 1, 'Der Erstlauf muss genau eine Mail versenden');
 		const mail = sent[0] as { attachments?: { filename: string; contentType: string; content: Uint8Array }[] };
-		assert.ok(mail.attachments?.length === 1, 'Die Rechnungsmail muss genau einen PDF-Anhang tragen');
+		assert.ok(mail.attachments?.length === 3, 'Die Rechnungsmail muss PDF plus zwei CID-Logos tragen');
 		const attachment = mail.attachments[0]!;
 		assert.equal(attachment.contentType, 'application/pdf');
 		assert.ok(
@@ -235,6 +235,11 @@ describe('invoices.ts — PDF-Erzeugung und -Aufbewahrung (#1955 AK1/AK3)', () =
 		);
 		const mailed = Buffer.from(attachment.content);
 		assert.ok(mailed.length > 0 && mailed.subarray(0, 5).toString() === '%PDF-', 'Der Anhang muss ein echtes PDF sein');
+		assert.deepEqual(
+			mail.attachments.slice(1).map((logo) => logo.contentType),
+			['image/png', 'image/png'],
+			'Hinter dem PDF reisen die beiden CID-Logos (Balamentum, modevel)',
+		);
 		assert.ok(
 			pdfContains(mailed, 'Ada Beispiel') && pdfContains(mailed, 'pdf@example.com') && !pdfContains(mailed, 'Mo'),
 			'Das PDF trägt Rechnungsanschrift und Kundenkonto, nicht den Anzeigenamen',

@@ -56,6 +56,10 @@ const seedPillars = async (): Promise<void> => {
  * mehr, die Migration ist dann ein No-op.
  */
 const migrateLegacySinglePillar = async (): Promise<void> => {
+	// MariaDB (#2825): PRAGMA ist SQLite-exklusiv — überspringen; `sync()` legt das Schema an.
+	if (sequelize.getDialect() === 'mysql') {
+		return;
+	}
 	if ((await TaskPillar.count()) > 0) {
 		return;
 	}
@@ -146,6 +150,7 @@ export const main = async (): Promise<void> => {
 			migrateTaskAiDraftColumn,
 			migrateTaskSystemCreatedColumn,
 			migrateUserCareColumns,
+			migrateUserPushGroupColumns,
 			migrateUserTermsColumns,
 			migrateUserMcpInstructionsColumn,
 			migrateUsersBalanceVariantColumn,
@@ -157,10 +162,16 @@ export const main = async (): Promise<void> => {
 		const { runDailyDigest } = await import('./logics/dailyDigest.js');
 		const { runDeadlineAutoDelete } = await import('./logics/autoDeleteAfterDeadline.js');
 		const { runCarePush } = await import('./logics/carePush.js');
+		const { runAppreciationPush, runWelcomeBackPush } = await import('./logics/appreciationPush.js');
+		const { runWeeklyRecapPush, runYearlyRecapPush } = await import('./logics/recapPushes.js');
+		const { runJournalImpulsePush } = await import('./logics/journalImpulsePush.js');
+		const { runWelcomeStepsPush } = await import('./logics/welcomeStepsPush.js');
 		const { runStreakReminder } = await import('./logics/streakReminder.js');
 		const { runMonthlyRecapPush } = await import('./logics/monthlyRecapPush.js');
 		const { vorrangVon } = await import('./logics/pushBudget.js');
 		const { runAboServicePush } = await import('./logics/aboPush.js');
+		const { runTipPush } = await import('./logics/tipPush.js');
+		const { runGroupPush } = await import('./logics/groupPush.js');
 		const { runCalendarSync, CALENDAR_SYNC_INTERVAL_MS } = await import('./logics/calendar-ics.js');
 		const { applyDueGracePeriods, reconcilePaypalSubscriptions } = await import('./logics/billing/lifecycle.js');
 		const { paypalGraceDeps, paypalReconcileDeps } = await import('./logics/paypal.js');
@@ -250,6 +261,8 @@ export const main = async (): Promise<void> => {
 		await migrateUserGeoConfigColumns(sequelize);
 		// Fürsorge-Push-Spalten am User (#1794) — wie oben: sync() ergänzt Bestands-Tabellen nicht.
 		await migrateUserCareColumns(sequelize);
+		// Push-Gruppen-Spalten am User (#2850) — wie oben.
+		await migrateUserPushGroupColumns(sequelize);
 		// Zustimmungs-Spalten am User (#1901) — wie oben.
 		await migrateUserTermsColumns(sequelize);
 		// Dialog-Vorgaben-Spalte am User (#1935) — wie oben.
@@ -351,8 +364,17 @@ export const main = async (): Promise<void> => {
 		startScheduler([
 			{ rang: vorrangVon('daily-digest'), trigger: runDailyDigest },
 			{ rang: vorrangVon('care-push'), trigger: runCarePush },
+			{ rang: vorrangVon('appreciation'), trigger: runAppreciationPush },
+			{ rang: vorrangVon('welcome-back'), trigger: runWelcomeBackPush },
+			{ rang: vorrangVon('journal-impulse'), trigger: runJournalImpulsePush },
 			{ rang: vorrangVon('streak-reminder'), trigger: runStreakReminder },
 			{ rang: vorrangVon('monthly-recap'), trigger: runMonthlyRecapPush },
+			{ rang: vorrangVon('weekly-recap'), trigger: runWeeklyRecapPush },
+			{ rang: vorrangVon('yearly-recap'), trigger: runYearlyRecapPush },
+			{ rang: vorrangVon('welcome-steps'), trigger: runWelcomeStepsPush },
+			{ rang: vorrangVon('group-challenge'), trigger: runGroupPush },
+			// #2856: Tipps-Hinweis ist KEIN Service-Kind — gerangt wie die Budget-Kinder.
+			{ rang: vorrangVon('tip-push'), trigger: runTipPush },
 			runAboServicePush,
 		]);
 

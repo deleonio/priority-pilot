@@ -4,9 +4,9 @@ import { measureHorizontalScroll, waitForStableBox, waitForStableView } from './
 /**
  * Rote Spec-e2e für #2014 — Kategorien als Chips statt Kartenzeilen (Spec docs/spec/issue-2014.md).
  *
- * - AK1: Mehrere Chips teilen sich eine Zeile (Desktop); bei 375px Umbrechen ohne horizontalen
- *   Überlauf (Bounding-Box-Assertions, Muster #1098) und ohne echten Scroll-Container in der
- *   Liste (`measureHorizontalScroll`, Muster #1258).
+ * - AK1: Je Kategorie eine volle Zeile (Desktop) — Kennzeichen links, Aktionen rechtsbündig;
+ *   bei 375px ohne horizontalen Überlauf (Bounding-Box-Assertions, Muster #1098) und ohne
+ *   echten Scroll-Container in der Liste (`measureHorizontalScroll`, Muster #1258).
  * - AK2: Bearbeiten (vorbelegter Form-Dialog) und Löschen (Bestätigungsdialog) bleiben je Chip
  *   (`data-category-id`) adressierbar und lauffähig.
  * - AK3: Die Aktions-Schalter je Chip messen mindestens 44×44px (KoliBri `--a11y-min-size`).
@@ -47,7 +47,7 @@ test.describe('Balamentum — #2014: Kategorie-Chips', () => {
 		await resetData(page);
 	});
 
-	test('AK1 — Desktop: mehrere Kategorie-Chips teilen sich eine Zeile', async ({ page }) => {
+	test('AK1 — Desktop: je Kategorie eine volle Zeile, Aktionen rechtsbündig', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 800 });
 		const names = [uniqueName('Hausbau'), uniqueName('Steuer'), uniqueName('Verein')];
 		for (const name of names) {
@@ -63,30 +63,42 @@ test.describe('Balamentum — #2014: Kategorie-Chips', () => {
 		}
 		await waitForStableBox(page, chipLocators[0]);
 
-		// AK1 Kern: EINE umbrechende Flex-Zeile statt Karten-Grid. Heute ist die Liste am Desktop das
-		// Säulen-Grid (app.css:2399, `display:grid` — Karten stehen nebeneinander wie Säulen), nach dem
-		// Umbau eine wrap-fähige Flex-Zeile. Computed Style statt Source-Match: ausgewertet wird das
-		// tatsächliche Layout-Verhalten der gerenderten Liste.
+		// AK1 Kern: EINE einspaltige Zeilen-Liste statt Karten-Grid. Vor dem Umbau war die Liste am
+		// Desktop das Säulen-Grid (`display:grid` — Karten stehen nebeneinander wie Säulen). Computed
+		// Style statt Source-Match: ausgewertet wird das tatsächliche Layout-Verhalten der gerenderten
+		// Liste.
 		const listLayout = await chipLocators[0].evaluate((chip) => {
 			const style = getComputedStyle(chip.parentElement as Element);
-			return { display: style.display, flexWrap: style.flexWrap };
+			return { display: style.display, flexDirection: style.flexDirection };
 		});
-		expect(listLayout.display, 'Kategorien als umbrechende Zeile (heute: Säulen-Grid)').toBe('flex');
-		expect(listLayout.flexWrap, 'Zeile bricht bei Platzmangel um').toBe('wrap');
+		expect(listLayout.display, 'Kategorien als Zeilen-Liste (heute: Säulen-Grid)').toBe('flex');
+		expect(listLayout.flexDirection, 'eine Zeile je Kategorie, untereinander').toBe('column');
 
-		const boxes: ({ x: number; y: number; width: number; height: number } | null)[] = [];
+		// Zeilen-Vertrag: Kennzeichen links, Aktionen rechtsbündig (space-between, durchgehende rechte
+		// Kante). Je Zeile der Computed Style und die rechte Kante der Aktions-Gruppe.
+		const rows: { justifyContent: string; actionsRight: number | null }[] = [];
 		for (const chip of chipLocators) {
-			boxes.push(await chip.boundingBox());
+			rows.push(
+				await chip.evaluate((row) => {
+					const actions = row.querySelector('.category-chip-actions');
+					return {
+						justifyContent: getComputedStyle(row).justifyContent,
+						actionsRight: actions ? Math.round(actions.getBoundingClientRect().right) : null,
+					};
+				}),
+			);
 		}
-
-		// Semantischer Zweitbeleg: mindestens zwei Chips teilen sich dieselbe visuelle Zeile.
-		const sharesRow = boxes.some((a, i) =>
-			boxes.some((b, j) => j > i && a !== null && b !== null && a.y < b.y + b.height && b.y < a.y + a.height),
-		);
-		expect(sharesRow, 'mindestens zwei Kategorie-Chips liegen in derselben Zeile').toBe(true);
+		for (const row of rows) {
+			expect(row.justifyContent, 'Kennzeichen links, Aktionen rechts').toBe('space-between');
+			expect(row.actionsRight, 'Aktions-Gruppe messbar').not.toBeNull();
+		}
+		// Durchgehende rechte Kante: alle Aktions-Gruppen enden auf derselben Höhe (±1px Rundung).
+		for (const row of rows.slice(1)) {
+			expect(Math.abs(row.actionsRight! - rows[0].actionsRight!), 'Aktions-Gruppen bündig').toBeLessThanOrEqual(1);
+		}
 	});
 
-	test('AK1/AK3 — 375px: Chips umbrechen ohne Überlauf, Touch-Ziele ≥ 44px', async ({ page }) => {
+	test('AK1/AK3 — 375px: Zeilen ohne Überlauf, Touch-Ziele ≥ 44px', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		const names = [uniqueName('Mobil'), uniqueName('Umbau'), uniqueName('Reflow')];
 		for (const name of names) {

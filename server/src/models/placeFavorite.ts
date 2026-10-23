@@ -43,11 +43,11 @@ PlaceFavorite.init(
 			allowNull: false,
 		},
 		latitude: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: true,
 		},
 		longitude: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: true,
 		},
 	},

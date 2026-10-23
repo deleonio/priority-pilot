@@ -1,4 +1,4 @@
-import { KolAlert, KolButton, KolSpin } from '@public-ui/react-v19';
+import { KolAlert, KolButton, KolSpin, KolToolbar } from '@public-ui/react-v19';
 import type { Category } from 'client';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
@@ -120,21 +120,31 @@ export const CategoryList = ({ onCategoryChanged }: CategoryListProps) => {
 							<li key={category.id} className="category-chip" data-category-id={category.id}>
 								<CategoryBadge category={category} />
 								<span className="category-chip-actions">
-									{/* Icon-only wie die Zeilen-Aktionen der TaskTable (#2014): Die KolIcons-Font kennt
-									    keinen Stift/Papierkorb → Zahnrad/Kreuz; `_hideLabel` hält das Label im A11y-Baum. */}
-									<KolButton
-										_label={t('common:actions.edit')}
-										_icons={{ left: { icon: 'kolicon-cogwheel' } }}
-										_hideLabel
-										_variant="secondary"
-										_on={{ onClick: () => setFormMode({ kind: 'edit', category }) }}
-									/>
-									<KolButton
-										_label={t('common:actions.delete')}
-										_icons={{ left: { icon: 'fa-solid fa-trash' } }}
-										_hideLabel
-										_variant="danger"
-										_on={{ onClick: () => setDeleteTarget(category) }}
+									{/* Verbundene Aktions-Toolbar wie die Kopf-Aktionen: `kol-toolbar` bringt Rolle und
+									    Pfeiltasten-Navigation im Shadow-DOM mit (bewusst kein zweites role="toolbar" am
+									    Wrapper — Muster AppShell). Icon-only wie die Zeilen-Aktionen der TaskTable
+									    (#2014): Die KolIcons-Font kennt keinen Stift/Papierkorb → Zahnrad/Kreuz. */}
+									<KolToolbar
+										_label={t('categoryList.rowActions', { name: category.name })}
+										_orientation="horizontal"
+										_items={[
+											{
+												type: 'button' as const,
+												_label: t('common:actions.edit'),
+												_hideLabel: true,
+												_icons: { left: { icon: 'kolicon-cogwheel' } },
+												_variant: 'secondary' as const,
+												_on: { onClick: () => setFormMode({ kind: 'edit', category }) },
+											},
+											{
+												type: 'button' as const,
+												_label: t('common:actions.delete'),
+												_hideLabel: true,
+												_icons: { left: { icon: 'fa-solid fa-trash' } },
+												_variant: 'danger' as const,
+												_on: { onClick: () => setDeleteTarget(category) },
+											},
+										]}
 									/>
 								</span>
 							</li>

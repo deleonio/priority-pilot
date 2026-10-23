@@ -54,6 +54,21 @@ vi.mock('@public-ui/react-v19', () => ({
 		// createElement statt JSX: kol-card ist kein deklariertes Intrinsic-Element.
 		createElement('kol-card', { _label }, _label !== undefined ? <h3>{_label}</h3> : null, children),
 	KolSpin: ({ _label }: { _label?: string }) => <div role="status">{_label}</div>,
+	KolToolbar: ({
+		_label,
+		_items,
+	}: {
+		_label?: string;
+		_items?: Array<{ _label?: string; _on?: { onClick?: (_e: MouseEvent) => void } }>;
+	}) => (
+		<div role="toolbar" aria-label={_label}>
+			{(_items ?? []).map((item) => (
+				<button key={item._label} onClick={(e) => item._on?.onClick?.(e.nativeEvent)}>
+					{item._label}
+				</button>
+			))}
+		</div>
+	),
 	KolInputText: ({
 		_label,
 		_value,

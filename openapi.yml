@@ -2461,6 +2461,48 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /push-groups:
+    get:
+      summary: Push-Gruppen des Users lesen
+      description: >-
+        Liefert die serverseitig pro User gespeicherten Push-Gruppen (#2850, docs/push-konzept.md
+        §5): vier Gruppen-Schalter (Defaults: drei Gruppen an, Tipps abweichend aus).
+        "Fürsorge" bleibt der bestehende Schalter an /care-config (#1794).
+      operationId: getPushGroups
+      tags: [care]
+      responses:
+        '200':
+          description: Aktuelle Push-Gruppen (inkl. Defaults)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushGroups'
+    put:
+      summary: Push-Gruppen des Users speichern
+      description: >-
+        Speichert die vier Gruppen-Schalter (#2850). Alle Flags müssen Boolean sein;
+        Verstöße → HTTP 400 ohne Persistenz.
+      operationId: updatePushGroups
+      tags: [care]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushGroups'
+      responses:
+        '200':
+          description: Gespeicherte Push-Gruppen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushGroups'
+        '400':
+          description: Ungültige Werte (ein Flag ist kein Boolean)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /care-config/sprache:
     put:
       summary: App-Sprache für den Fürsorge-Push speichern
@@ -5821,6 +5863,25 @@ components:
                 type: integer
               title:
                 type: string
+    PushGroups:
+      type: object
+      description: >-
+        Push-Gruppen pro User (#2850, docs/push-konzept.md §5) — drei Gruppen an,
+        "Tipps und Angebote" abweichend aus (Einwilligung).
+      required: [taskPushEnabled, successPushEnabled, groupPushEnabled, tipPushEnabled]
+      properties:
+        taskPushEnabled:
+          type: boolean
+          description: Aufgaben und Erinnerungen aktiv (Default true)
+        successPushEnabled:
+          type: boolean
+          description: Erfolge und Rückblicke aktiv (Default true)
+        groupPushEnabled:
+          type: boolean
+          description: Gruppen-Pushes aktiv (Default true)
+        tipPushEnabled:
+          type: boolean
+          description: Tipps und Angebote aktiv (Default false)
     CareConfig:
       type: object
       description: >-
