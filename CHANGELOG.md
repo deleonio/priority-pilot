@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.34 - 2026-10-23
 
-_Enthält v0.34.0 – v0.34.6._
+_Enthält v0.34.0 – v0.34.8._
 
 ### 🐞 Bug Fixes
 
@@ -15,10 +15,15 @@ _Enthält v0.34.0 – v0.34.6._
 - feat(frontend): move push channel switches into collapsible details by @deleonio in https://github.com/deleonio/priority-pilot/pull/2892
 - feat(frontend): category rows use connected edit and delete toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/2904
 
+### 🔧 Engineering
+
+- ci: MariaDB smoke test against service container (#2828) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2906
+
 ### Other Changes
 
 - feat(frontend): category rows with right-aligned action toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/2895
 - docs(arc42): add adr 0025/0026 to decision table and mariadb note by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2902
+- feat(frontend): checklist title as visible switch label in grid by @deleonio in https://github.com/deleonio/priority-pilot/pull/2900
 
 ## v0.33 - 2026-10-23
 
@@ -186,7 +191,6 @@ _Enthält v0.29.0 – v0.29.34._
 - feat(frontend): simplify category assignment to a plain single-select by @deleonio in https://github.com/deleonio/priority-pilot/pull/2721
 - docs: add successor issue number to ADR 0025 (#2732) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2738
 - feat(frontend): matomo channel, login funnel, geo push deep link by @deleonio in https://github.com/deleonio/priority-pilot/pull/2739
-- feat(frontend): show balance dial instantly from cached device mirror by @deleonio in https://github.com/deleonio/priority-pilot/pull/2740
 - feat(frontend): show balance dial instantly from cached device mirror by @deleonio in https://github.com/deleonio/priority-pilot/pull/2740
 
 ### 🔧 Engineering
