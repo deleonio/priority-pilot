@@ -56,6 +56,10 @@ const seedPillars = async (): Promise<void> => {
  * mehr, die Migration ist dann ein No-op.
  */
 const migrateLegacySinglePillar = async (): Promise<void> => {
+	// MariaDB (#2825): PRAGMA ist SQLite-exklusiv — überspringen; `sync()` legt das Schema an.
+	if (sequelize.getDialect() === 'mysql') {
+		return;
+	}
 	if ((await TaskPillar.count()) > 0) {
 		return;
 	}
