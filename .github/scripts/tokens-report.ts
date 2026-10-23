@@ -4,7 +4,7 @@
 //
 // Datenbasis sind die versiegelten Dateien, NICHT die 90-Tage-Artefakte: Der Report
 // zeigt damit genau das, was dauerhaft erhalten ist. Läuft lokal und im Workflow
-// „Kosten-Uebersicht" (woechentlich, read-only) in die Job-Summary:
+// „Report Pipeline" (woechentlich, read-only) in die Job-Summary:
 //   node .github/scripts/tokens-report.ts --dir .costs [--baseline 2026-W35]
 //
 // FOKUS-MODUS (--issues 1752,1754 — im Workflow der Dispatch-Input „issues"): rendert

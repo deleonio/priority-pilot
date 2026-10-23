@@ -41,7 +41,7 @@ Pillar.init(
 			allowNull: false,
 		},
 		weight: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: false,
 			defaultValue: 20,
 			validate: {

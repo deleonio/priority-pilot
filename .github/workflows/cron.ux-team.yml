@@ -1,4 +1,4 @@
-name: UX Team
+name: UX-Team
 
 # Wöchentlicher LLM-Job (wie die Phasen 01–06 über setup-agent, aber KEINE Pipeline-Phase):
 # Ein UX-Team aus vier Perspektiven (Nutzer-Anwalt, Interaktions-Designer, Gewohnheits-Analyst,
@@ -11,7 +11,7 @@ name: UX Team
 # DELIVERY: Genau EIN offenes Issue mit Label ci:ux-team (bewusst KEIN ai:*-Label — das würde
 # die Ticket-Pipeline starten!). Vorhanden → Body durch den neuen Report ersetzen (Titel-Datum
 # wird mit aktualisiert); fehlt → neu anlegen. Issue-Anlegen/Updaten macht der WORKFLOW
-# deterministisch (Muster Audit Prompts: der Agent liefert nur den Report, nie die
+# deterministisch (Muster Prompt-Audit: der Agent liefert nur den Report, nie die
 # GitHub-Seiteneffekte). 00-Validate übergeht ci:*-Issues (Skip im verify-issue-quality.sh).
 #
 # STATELESS: kein pro-Issue-Memory (memory-load/expect false). Modell: opus mit Effort high —

@@ -161,7 +161,7 @@ Task.init(
 			},
 		},
 		estimatedEffort: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: false,
 			defaultValue: 0.5,
 			validate: {
@@ -170,7 +170,7 @@ Task.init(
 			},
 		},
 		actualEffort: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: true,
 		},
 		description: {
@@ -191,7 +191,7 @@ Task.init(
 		},
 		// Standort-Koordinaten (#1066), nullable — Bestand ohne Koordinaten bleibt `NULL`.
 		latitude: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: true,
 			validate: {
 				min: -90,
@@ -199,7 +199,7 @@ Task.init(
 			},
 		},
 		longitude: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: true,
 			validate: {
 				min: -180,
@@ -242,8 +242,11 @@ Task.init(
 			allowNull: false,
 			defaultValue: false,
 		},
+		// DATE(3) (Typ-Audit #2826): Millisekunden-Präzision bleibt unter MariaDB erhalten —
+		// Normalisierungsregel für die Identity-Prüfung: der Wert wird weder gerundet noch abgeschnitten,
+		// Roundtrip (speichern → laden) ist getTime()-identisch.
 		seriesOccurrence: {
-			type: DataTypes.DATE,
+			type: DataTypes.DATE(3),
 			allowNull: true,
 		},
 		// Anpinnen (#1582). Default `false`, damit Bestandsaufgaben unangepinnt bleiben.

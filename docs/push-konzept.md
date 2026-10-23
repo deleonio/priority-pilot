@@ -32,7 +32,7 @@ Befunde, die dieses Konzept beheben soll:
 - **Wichtige Ereignisse bleiben stumm.** Gruppeneinladungen, eine fehlgeschlagene Zahlung, das
   Ende einer Kulanzfrist und neue Rechnungen erzeugen höchstens eine Mail. Abo-Ereignisse aus
   Google Play erzeugen gar nichts.
-- **Kaum Wahl.** Es gibt nur den Hauptschalter und „Fürsorge-Hinweise“ (`users.carePushEnabled`).
+- **Kaum Wahl (vor #2850).** Es gab nur den Hauptschalter und „Fürsorge-Hinweise“ (`users.carePushEnabled`); seit #2850 ergänzen die fünf Gruppenschalter aus §5 die Wahl.
 
 ## 2. Ziele
 

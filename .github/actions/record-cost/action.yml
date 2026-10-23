@@ -152,14 +152,16 @@ runs:
         [ -n "$FINDINGS" ] && EXTRA_ARGS+=(--findings "$FINDINGS")
         [ -n "$NITS" ] && EXTRA_ARGS+=(--nits "$NITS")
         SCRIPT="${GITHUB_ACTION_PATH}/../../scripts/${SCRIPT_NAME}"
+        # ${ARR[@]+"${ARR[@]}"} statt "${ARR[@]}": unter `set -u` bricht die kurze Form auf
+        # macOS (bash 3.2) bei leeren Arrays mit "unbound variable" — siehe check-phase-label.sh.
         OUT="$(node "$SCRIPT" \
           --issue "$ISSUE" --phase "$PHASE" --provider "$PROVIDER" \
           --runtime "$RUNTIME" --configured-model "$CONFIGURED_MODEL" \
-          "${SCOPE_ARGS[@]}" "${EXTRA_ARGS[@]}" 2>&1)" \
+          ${SCOPE_ARGS[@]+"${SCOPE_ARGS[@]}"} ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} 2>&1)" \
           || OUT="$(pnpm exec tsx "$SCRIPT" \
               --issue "$ISSUE" --phase "$PHASE" --provider "$PROVIDER" \
               --runtime "$RUNTIME" --configured-model "$CONFIGURED_MODEL" \
-              "${SCOPE_ARGS[@]}" "${EXTRA_ARGS[@]}" 2>&1 || true)"
+              ${SCOPE_ARGS[@]+"${SCOPE_ARGS[@]}"} ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} 2>&1 || true)"
         printf '%s\n' "$OUT"
 
         # key=value aus der Skript-Ausgabe ziehen; fehlt etwas, bleibt der Wert leer und

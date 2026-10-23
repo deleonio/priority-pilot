@@ -170,4 +170,29 @@ describe('notifyReachedMilestones — Ruhezeit (#2849 AK4)', () => {
 			mock.timers.reset();
 		}
 	});
+
+	it('#2850 AK3: Gruppenschalter „Erfolge und Rückblicke“ aus → kein Meilenstein-Push', async () => {
+		// Test-Pflege #2850: `userId` ist im Ruhezeit-Describe nicht im Scope — Nutzer hier selbst
+		// anlegen (Muster des Ruhezeit-Tests darüber), sonst matched das UPDATE keine Zeile.
+		const user = await User.create({
+			email: 'milestone-group-off@example.com',
+			passwordHash: '__test__',
+			displayName: 'Gruppe-aus-Empfänger',
+		} as never);
+		await PushSubscription.create({
+			endpoint: 'https://push.example/group-off',
+			p256dh: 'p256dh',
+			auth: 'auth',
+			expirationTime: null,
+			userId: user.id,
+		});
+		await User.update({ successPushEnabled: false } as never, { where: { id: user.id } });
+		const vorher = [meilenstein('punkte-50', false)];
+		const nachher = [meilenstein('punkte-50', true)];
+
+		await notifyReachedMilestones(user.id, vorher, nachher, mockSender);
+
+		assert.equal(calls.length, 0, 'ausgeschaltete Gruppe stoppt den Meilenstein-Push');
+		assert.equal(await NotificationLog.count(), 0);
+	});
 });

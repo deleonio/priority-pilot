@@ -6,8 +6,8 @@ import nodemailer from 'nodemailer';
  * kein Secret in der DB — Spiegel des VAPID-Musters in `push.ts`).
  */
 
-/** Anhang (z. B. Rechnungs-PDF, #1955) — wird unverändert an den Versand durchgereicht. */
-interface MailAttachment {
+/** Anhang (z. B. Rechnungs-PDF, #1955; CID-Logos aus `mailTemplate.ts`) — wird unverändert durchgereicht. */
+export interface MailAttachment {
 	filename: string;
 	contentType: string;
 	content: Uint8Array;
@@ -17,6 +17,8 @@ export interface MailPayload {
 	to: string;
 	subject: string;
 	text: string;
+	/** Optionale HTML-Variante (nodemailer legt sie als multipart/alternative unter den Plain-Text). */
+	html?: string;
 	/** Optionale CC-Adresse (z. B. Betriebs-Postfach bei der Status-Mail). */
 	cc?: string;
 	attachments?: MailAttachment[];
@@ -35,7 +37,7 @@ export const isMailConfigured = (): boolean => !!(process.env.SMTP_HOST?.trim() 
  * Standard-Versand über nodemailer. Wird nur erreicht, wenn kein Test-Sender injiziert ist;
  * die aufrufenden Endpunkte/Trigger haben SMTP zuvor über {@link isMailConfigured} abgesichert.
  */
-const defaultSender: MailSender = async ({ to, cc, subject, text, attachments }) => {
+const defaultSender: MailSender = async ({ to, cc, subject, text, html, attachments }) => {
 	const transport = nodemailer.createTransport({
 		host: process.env.SMTP_HOST?.trim(),
 		port: Number(process.env.SMTP_PORT?.trim() || 587),
@@ -50,6 +52,7 @@ const defaultSender: MailSender = async ({ to, cc, subject, text, attachments })
 		cc,
 		subject,
 		text,
+		html,
 		attachments: attachments?.map((attachment) => ({ ...attachment, content: Buffer.from(attachment.content) })),
 	});
 };
@@ -71,7 +74,7 @@ interface MailRecipient {
  */
 export const sendMailToUser = async (
 	user: MailRecipient,
-	payload: { subject: string; text: string; cc?: string; attachments?: MailAttachment[] },
+	payload: { subject: string; text: string; html?: string; cc?: string; attachments?: MailAttachment[] },
 	send: MailSender = defaultSender,
 ): Promise<boolean> => {
 	if (!user.email) {
@@ -83,6 +86,7 @@ export const sendMailToUser = async (
 			cc: payload.cc,
 			subject: payload.subject,
 			text: payload.text,
+			html: payload.html,
 			attachments: payload.attachments,
 		});
 		return true;

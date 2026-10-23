@@ -152,4 +152,16 @@ describe('runMonthlyRecapPush — Fenster & Monatstag (#2849 AK6)', () => {
 		);
 		assert.equal(calls.length, 1);
 	});
+
+	it('#2850 AK3: Gruppenschalter „Erfolge und Rückblicke“ aus → kein Monatsrückblick-Push', async () => {
+		const anna = await seedEmpfaenger('recap-group-off@example.com');
+		await anna.update({ successPushEnabled: false } as never);
+		const calls: string[] = [];
+
+		const ergebnis = await runMonthlyRecapPush(NOW, okSender(calls));
+
+		assert.equal(ergebnis.usersNotified, 0, 'ausgeschaltete Gruppe stoppt den Rückblick-Push');
+		assert.equal(calls.length, 0);
+		assert.equal(await NotificationLog.count({ where: { userId: anna.id, kind: 'monthly-recap' } }), 0);
+	});
 });

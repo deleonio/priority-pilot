@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { useSettingsAnchor } from '../lib/useSettingsAnchor';
 import { GroupDeleteDialog } from './GroupDeleteDialog';
 import { GroupDetail } from './GroupDetail';
 import { GroupFormDialog } from './GroupFormDialog';
@@ -42,6 +43,27 @@ export const GroupsSection = () => {
 	// Ticker für „Daten auffrischen“ am offenen Detail (#1223): Hochzählen löst ein Neuladen aus.
 	const [detailRefreshTick, setDetailRefreshTick] = useState(0);
 	const [invitations, setInvitations] = useState<ReceivedInvitation[]>([]);
+
+	// #2854 AK7: Push-Ziel-Hash `#gruppe-<id>` klappt die Gruppe auf, damit der Anker-Sprung
+	// (`useSettingsAnchor`, #2848-Muster) auf das gerenderte Listen-Element trifft; `#einladungen`
+	// springt zur Karte der empfangenen Einladungen (rendert nur mit offenen Einladungen — ein
+	// fehlendes Ziel erträgt der Hook still). Muster `SubscriptionSection` (#2852).
+	const [ankerId, setAnkerId] = useState<string | null>(null);
+	useEffect(() => {
+		const aktivieren = (): void => {
+			const gruppe = /^#gruppe-(\d+)$/.exec(window.location.hash);
+			if (gruppe !== null) {
+				setAnkerId(`gruppe-${gruppe[1]}`);
+				setOpenGroupId(Number(gruppe[1]));
+			} else if (window.location.hash === '#einladungen') {
+				setAnkerId('einladungen');
+			}
+		};
+		aktivieren();
+		window.addEventListener('hashchange', aktivieren);
+		return () => window.removeEventListener('hashchange', aktivieren);
+	}, []);
+	useSettingsAnchor(ankerId ?? '');
 
 	// Fokus-Rückgabe nach dem Löschen: Der „Löschen“-Trigger fällt mit der Karte aus dem DOM —
 	// stabiler Container mit tabIndex={-1} als Fallback (PillarList-Muster).
@@ -115,35 +137,39 @@ export const GroupsSection = () => {
 			    Styling, sondern der Scope, mit dem Tests „Einladungen an mich" von den „offenen
 			    Einladungen" im Gruppendetail trennen) — die frühere `<section>` mit eigener H3 ist zur
 			    Karte geworden, der Anker nicht. */}
+			{/* #2854 AK7: Flacher Anker-Wrapper (tabIndex -1, Muster SubscriptionSection) — Sprungziel
+			    der Einladungs-Pushes; die Karte selbst bleibt unverändert. */}
 			{invitations.length > 0 && (
-				<KolCard
-					className="settings-card group-received-invitations"
-					_label={t('groups:section.invitations')}
-					_level={2}
-				>
-					<ul className="groups-items">
-						{invitations.map((invitation) => (
-							<li key={invitation.id} className="groups-item">
-								<div className="groups-info">
-									<KolHeading _label={invitation.groupName} _level={3} />
-									<p className="hint">{t('groups:section.invitedBy', { name: invitation.invitedByName })}</p>
-								</div>
-								<div className="groups-actions">
-									<KolButton
-										_label={t('groups:section.accept')}
-										_variant="primary"
-										_on={{ onClick: () => void respondToInvitation(invitation.id, true) }}
-									/>
-									<KolButton
-										_label={t('groups:section.decline')}
-										_variant="secondary"
-										_on={{ onClick: () => void respondToInvitation(invitation.id, false) }}
-									/>
-								</div>
-							</li>
-						))}
-					</ul>
-				</KolCard>
+				<section id="einladungen" tabIndex={-1}>
+					<KolCard
+						className="settings-card group-received-invitations"
+						_label={t('groups:section.invitations')}
+						_level={2}
+					>
+						<ul className="groups-items">
+							{invitations.map((invitation) => (
+								<li key={invitation.id} className="groups-item">
+									<div className="groups-info">
+										<KolHeading _label={invitation.groupName} _level={3} />
+										<p className="hint">{t('groups:section.invitedBy', { name: invitation.invitedByName })}</p>
+									</div>
+									<div className="groups-actions">
+										<KolButton
+											_label={t('groups:section.accept')}
+											_variant="primary"
+											_on={{ onClick: () => void respondToInvitation(invitation.id, true) }}
+										/>
+										<KolButton
+											_label={t('groups:section.decline')}
+											_variant="secondary"
+											_on={{ onClick: () => void respondToInvitation(invitation.id, false) }}
+										/>
+									</div>
+								</li>
+							))}
+						</ul>
+					</KolCard>
+				</section>
 			)}
 			{groups === null ? (
 				<KolSpin _show _variant="cycle" _label={t('groups:section.loading')} />
@@ -174,7 +200,13 @@ export const GroupsSection = () => {
 					) : (
 						<ul className="groups-items">
 							{groups.map((group) => (
-								<li key={group.id} className="groups-item groups-item--accordion" data-group-id={group.id}>
+								<li
+									key={group.id}
+									id={`gruppe-${group.id}`}
+									tabIndex={-1}
+									className="groups-item groups-item--accordion"
+									data-group-id={group.id}
+								>
 									{/*
 									 * Eine Gruppe = ein `KolAccordion` (Design-Lauf 2026-09). Vorher war das ein
 									 * selbstgebauter Aufklapper: ein `onClick` am `<li>` mit einer

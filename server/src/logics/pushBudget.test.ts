@@ -153,4 +153,58 @@ describe('pushBudget — Höchstens drei fachliche Pushes je Nutzer und lokalem 
 
 		assert.equal(JSON.parse(aufrufe[0] ?? '{}').tag, 'pp-fuersorge');
 	});
+
+	// #2855 AK8: die sechs neuen Kinds brauchen VORRANG-Eintrag (kein Fallback-Rang) und den
+	// Gruppentag ihrer Schaltergruppe (Vertrag: docs/spec/issue-2855.md).
+	it('#2855 AK8: neue Kinds in VORRANG (kein Fallback) und TAGS mit korrektem Gruppentag', () => {
+		const neuen = ['appreciation', 'welcome-back', 'journal-impulse', 'weekly-recap', 'yearly-recap', 'welcome-steps'];
+		for (const kind of neuen) {
+			assert.ok(
+				vorrangVon(kind) < vorrangVon('unbekannt-kind-x'),
+				`${kind} fehlt in der VORRANG-Liste (sortiert sonst als unbekannt nach vorn/hinten)`,
+			);
+		}
+		assert.equal(tagVon('appreciation'), 'pp-fuersorge');
+		assert.equal(tagVon('welcome-back'), 'pp-fuersorge');
+		assert.equal(tagVon('journal-impulse'), 'pp-fuersorge');
+		assert.equal(tagVon('weekly-recap'), 'pp-erfolge');
+		assert.equal(tagVon('yearly-recap'), 'pp-erfolge');
+		assert.equal(tagVon('welcome-steps'), 'pp-aufgaben');
+	});
+});
+
+// #2854 TF5 (AK6): die Gruppen-Kinds im Budget registriert (VORRANG-Falle: unregistrierte
+// Kinds sortieren in waehleImBudget mit indexOf −1 nach VORN) und mit dem Tag pp-gruppen.
+describe('pushBudget — Gruppen-Pushes (#2854 AK6)', () => {
+	it('registriert group-invitation in §4-Stufe 1 (neben task-created, vor geo-nearby-task) und taggt alle Gruppen-Kinds pp-gruppen', () => {
+		assert.equal(
+			vorrangVon('group-invitation'),
+			vorrangVon('task-created'),
+			'Einladung gehört in §4 Stufe 1 neben task-created',
+		);
+		assert.ok(vorrangVon('group-invitation') < vorrangVon('geo-nearby-task'), 'Einladung rangiert vor geo-nearby-task');
+		assert.ok(vorrangVon('group-member') < vorrangVon('daily-digest'), 'group-member muss registriert sein');
+		assert.ok(vorrangVon('group-challenge') < vorrangVon('daily-digest'), 'group-challenge muss registriert sein');
+		assert.equal(tagVon('group-invitation'), 'pp-gruppen', '§2.3: Gruppen-Tag');
+		assert.equal(tagVon('group-member'), 'pp-gruppen', '§2.3: Gruppen-Tag');
+		assert.equal(tagVon('group-challenge'), 'pp-gruppen', '§2.3: Gruppen-Tag');
+	});
+});
+
+// #2856 AK5: das Tipps-Kind ist registriert (VORRANG-Falle: unregistrierte Kinds sortieren mit
+// −1 nach vorn) und trägt den Gruppen-Tag pp-tipps — als KEIN Service-Kind in der untersten
+// §4-Stufe nach monthly-recap (Konzept §8).
+describe('pushBudget — Tipps-Hinweis (#2856 AK5)', () => {
+	it('registriert tip-push in der untersten Stufe (nach monthly-recap) und taggt es pp-tipps', () => {
+		assert.ok(
+			vorrangVon('tip-push') >= vorrangVon('monthly-recap'),
+			'tip-push gehört in die unterste Stufe (nach monthly-recap)',
+		);
+		assert.notEqual(
+			vorrangVon('tip-push'),
+			vorrangVon('unregistriert-beispiel'),
+			'Registrierung ist Pflicht (VORRANG-Falle)',
+		);
+		assert.equal(tagVon('tip-push'), 'pp-tipps', '§8/§2.3: Tipps-Tag');
+	});
 });
