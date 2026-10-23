@@ -3969,13 +3969,16 @@ kol-toolbar {
  * Dasselbe Schieflage-Muster in allen Settings-Akkordeons (Kalender #2210, API-Tokens, Orte,
  * Wissen, KI, Geo-Reichweite, „Konto und Daten“): Der Inhalt sitzt links 2.25em ein, rechts
  * nur 0.5rem. Eine Regel für alle Tabs, denn die Sektionen haben keinen gemeinsamen Wrapper —
- * die direkten Light-DOM-Kinder rücken pauschal auf symmetrische 0.5rem. Der Element-Selector
- * hält KolCard-Hosts mit derselben Klasse `.settings-card` außen vor: deren Theme-Padding ist
- * bereits symmetrisch.
+ * die direkten Light-DOM-Kinder rücken beidseits auf das Content-Padding einer KolCard
+ * (`kol-card__content`: 1rem = `--pp-space-4`), damit Akkordeon-Inhalt bündig mit dem Inhalt
+ * der Nachbar-Karten im selben Tab fluchtet. Links trägt der Margin den Ausgleich, rechts
+ * zusätzlich, weil das Theme dort 0.5rem festnäht. Der Element-Selector hält KolCard-Hosts
+ * mit derselben Klasse `.settings-card` außen vor: deren Theme-Padding ist bereits symmetrisch.
  */
 kol-accordion.settings-card > *,
 kol-accordion.settings-accordion > * {
-	margin-left: calc(-2.25em + var(--pp-space-2));
+	margin-left: calc(var(--pp-space-4) - 2.25em);
+	margin-right: calc(var(--pp-space-4) - var(--pp-space-2));
 }
 
 /*
