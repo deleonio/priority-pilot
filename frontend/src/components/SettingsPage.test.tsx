@@ -2141,6 +2141,38 @@ describe('SettingsPage – #2015: zweite Ebene ausschließlich KolDetails (Regel
 		expect(bound(details!, '_open'), 'Master aus → Details zu').toBe('false');
 	});
 
+	it('TF2/AK2: „Einzelne Benachrichtigungen“ ist ein KolDetails und folgt dem Push-Master', async () => {
+		pushState.enabled = true;
+		pushState.supported = true;
+		const { container, rerender } = render(<SettingsPage {...defaultProps} />);
+
+		const details = container.querySelector('kol-details[_label="Einzelne Benachrichtigungen"]');
+		expect(details, 'KolDetails „Einzelne Benachrichtigungen“').not.toBeNull();
+		expect(bound(details!, '_open'), 'Push an → Details offen').toBe('true');
+		expect(details!.querySelectorAll('kol-input-checkbox').length, 'sechs Kanal-Schalter im Klappbereich').toBe(6);
+
+		// Der Sync läuft per Effect auf `pushEnabled` — der gemockte Hook liefert den neuen Stand
+		// beim Rerender, das Details muss ohne Header-Klick mitgehen.
+		pushState.enabled = false;
+		await act(async () => {
+			rerender(<SettingsPage {...defaultProps} />);
+		});
+		expect(bound(details!, '_open'), 'Master aus → Details zu').toBe('false');
+	});
+
+	it('„Einzelne Benachrichtigungen“ ist bei ausgeschaltetem Push zu; Header-Klick klappt auf', () => {
+		pushState.enabled = false;
+		pushState.supported = true;
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		const details = container.querySelector('kol-details[_label="Einzelne Benachrichtigungen"]');
+		expect(bound(details!, '_open'), 'Push aus → Details zu').toBe('false');
+		act(() => {
+			(details as unknown as { _on: { onClick: (event: unknown, open: boolean) => void } })._on.onClick({}, true);
+		});
+		expect(bound(details!, '_open'), 'Header-Klick öffnet unabhängig vom Master').toBe('true');
+	});
+
 	it('„Reichweite und Intervall“ ist ein eigenes KolAccordion unter der Karte „Standorterfassung“, ohne KolDetails', () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
