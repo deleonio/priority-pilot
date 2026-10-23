@@ -140,4 +140,6 @@ Schritt still übersprungen.
 ## Datenbank
 
 - SQLite (`server/database.sqlite`). Im Normalbetrieb **kein** Reset.
+- Produktiv-Datenbank wird MariaDB ([ADR 0026](../docs/adr/0026-mariadb-als-produktiv-datenbank.md), Epic #2822): Neue
+  Schema-Änderungen dual-dialect-fähig halten; SQLite bleibt Rückfallpfad und Test-Medium (In-Memory-SQLite).
 - `DB_RESET=true` setzt die DB beim Start zurück; sonst bleiben Daten erhalten, Demo-Daten werden nur in eine leere DB gesät.
