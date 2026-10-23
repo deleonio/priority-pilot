@@ -105,12 +105,11 @@ export const CompleteTaskDialog = ({
 					{checklist.map((item) => (
 						<div key={item.id} className="checklist-item" data-testid="checklist-item">
 							<KolInputCheckbox
-								_label={t('completeTask.itemLabel')}
+								_label={item.title}
 								_variant="switch"
 								_checked={item.completed}
 								_on={{ onChange: () => toggleItem(item.id) }}
 							/>
-							<span className="checklist-item-title">{item.title}</span>
 						</div>
 					))}
 					<KolButton
