@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.34 - 2026-10-23
 
-_Enthält v0.34.0 – v0.34.3._
+_Enthält v0.34.0 – v0.34.5._
 
 ### 🐞 Bug Fixes
 
@@ -365,7 +365,6 @@ _Enthält v0.24.0 – v0.24.13._
 ### 🎉 New Features
 
 - feat(frontend): starter sentence for new accounts instead of deficit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2573
-- feat(frontend): one-tap complete with success feedback and undo (#2526) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2572
 - feat(frontend): one-tap complete with success feedback and undo (#2526) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2572
 
 ### 🚀 Improvements
