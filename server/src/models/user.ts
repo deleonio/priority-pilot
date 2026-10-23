@@ -132,12 +132,12 @@ User.init(
 			defaultValue: 5,
 		},
 		lastGeoLatitude: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: true,
 			defaultValue: null,
 		},
 		lastGeoLongitude: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: true,
 			defaultValue: null,
 		},

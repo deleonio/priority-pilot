@@ -57,6 +57,7 @@
 			"pushFailedAppErrorText": "Push-Nachrichten konnten nicht aktiviert werden. Bitte prüfe deine Internetverbindung und versuche es erneut – wenn es wiederholt scheitert, hilft vermutlich ein App-Update.",
 			"pushUnavailableLabel": "Push-Nachrichten nicht verfügbar",
 			"pushUnavailableText": "Dieser Browser unterstützt keine Push-Nachrichten. Installiere die App bzw. nutze einen aktuellen Browser, um Erinnerungen zu erhalten.",
+			"singleNotifications": "Einzelne Benachrichtigungen",
 			"careLabel": "Fürsorge",
 			"tasksLabel": "Aufgaben und Erinnerungen",
 			"tasksHint": "Frist-Erinnerungen, dein Top-3-Push am Morgen und Meldungen zu Aufgaben: neu angelegt, erledigt oder aus einer Serie entstanden.",
@@ -65,7 +66,7 @@
 			"groupsLabel": "Gruppen",
 			"groupsHint": "Pushes zu Aktivitäten in deinen Gruppen – gemeint ist der Push, nicht der Einstellungsbereich „Gruppen“.",
 			"tipsLabel": "Tipps und Angebote",
-			"tipsHint": "Hinweise zu Plus- und Pro-Funktionen, die zu deiner Nutzung passen – nur mit deiner Zustimmung, deshalb standardmäßig aus.",
+			"tipsHint": "Höchstens einmal im Monat ein Hinweis auf eine Funktion, die zu deiner Nutzung passt – nur mit deiner Zustimmung, deshalb standardmäßig aus.",
 			"careHint": "Sanfte Hinweise bei deutlichem Defizit oder Überlast einer Säule – höchstens einer pro Tag, nie nachts. Betrifft nur den Fürsorge-Push: Frist-Erinnerungen bleiben an.",
 			"saveFailedLabel": "Einstellung nicht gespeichert",
 			"saveFailedText": "Die Einstellung konnte nicht gespeichert werden. Bitte prüfe die Verbindung und versuche es erneut.",
@@ -80,6 +81,7 @@
 			"testErrorText": "Push fehlgeschlagen."
 		},
 		"accountData": "Konto und Daten",
+		"accountDataIntro": "Hier kannst du dein Konto mit allen Daten endgültig löschen. Wir fragen zuvor zweimal nach, damit nichts versehentlich passiert.",
 		"pillars": {
 			"fixedLabel": "Feste Säulen",
 			"fixedText": "Diese 5 Säulen adressieren per Definition die Balance im Leben und gelten stets. Deine Gewichtung bleibt individuell anpassbar.",

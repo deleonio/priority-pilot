@@ -234,4 +234,57 @@ describe('groupPush — Gruppen-Pushes (#2854)', () => {
 		assert.equal(sendsAnStumm.length, 0, 'kein Push an den stummen Empfänger aus irgendeinem der vier Ereignisse');
 		assert.equal(await NotificationLog.count({ where: { userId: stumm.id } }), 0);
 	});
+
+	it('AK1 (#2879): Challenge, die vor mehr als 7 Tagen endete, versendet weder Push noch NotificationLog', async () => {
+		const group = await createGroup('Zu alt');
+		const anna = await createRecipient('anna@example.com');
+		await addMember(group.id, anna.id);
+		const jetzt = new Date('2026-07-08T10:00:00Z');
+		await GroupChallenge.create({
+			groupId: group.id,
+			startsAt: new Date(jetzt.getTime() - 15 * 24 * 60 * 60 * 1000),
+			endsAt: new Date(jetzt.getTime() - 8 * 24 * 60 * 60 * 1000),
+		});
+
+		const ergebnis = await runGroupPush(jetzt, mockSend);
+
+		assert.equal(ergebnis.sends, 0, 'Rückstands-Schutz: Challenge außerhalb des 7-Tage-Fensters lädt der Sweep nicht');
+		assert.equal(pushCalls.length, 0);
+		assert.equal(
+			await NotificationLog.count({ where: { kind: 'group-challenge' } }),
+			0,
+			'ohne Sendeversuch auch kein Dedupe-Eintrag',
+		);
+	});
+
+	it('AK2 (#2879): das 7-Tage-Fenster ist inklusiv — genau 7 Tage alte Challenge sendet noch, ältere nicht', async () => {
+		const gruppeGrenze = await createGroup('Grenze');
+		const gruppeAlt = await createGroup('Zu alt');
+		const [anna, ben] = await Promise.all([createRecipient('anna@example.com'), createRecipient('ben@example.com')]);
+		await addMember(gruppeGrenze.id, anna.id);
+		await addMember(gruppeAlt.id, ben.id);
+		const jetzt = new Date('2026-07-08T10:00:00Z');
+		const grenze = await GroupChallenge.create({
+			groupId: gruppeGrenze.id,
+			startsAt: new Date(jetzt.getTime() - 14 * 24 * 60 * 60 * 1000),
+			endsAt: new Date(jetzt.getTime() - 7 * 24 * 60 * 60 * 1000),
+		});
+		const zuAlt = await GroupChallenge.create({
+			groupId: gruppeAlt.id,
+			startsAt: new Date(jetzt.getTime() - 15 * 24 * 60 * 60 * 1000),
+			endsAt: new Date(jetzt.getTime() - 8 * 24 * 60 * 60 * 1000),
+		});
+
+		const ergebnis = await runGroupPush(jetzt, mockSend);
+
+		assert.equal(ergebnis.sends, 1, 'nur die exakt 7 Tage alte Challenge liegt noch im Fenster');
+		const keys = await NotificationLog.findAll({ where: { kind: 'group-challenge' } });
+		assert.equal(keys.length, 1, 'genau ein Log: die Grenz-Challenge');
+		assert.equal(keys[0]?.dedupeKey, `challenge-end:${grenze.id}:${anna.id}`);
+		assert.equal(
+			keys.some((row) => row.dedupeKey.startsWith(`challenge-end:${zuAlt.id}:`)),
+			false,
+			'die ältere Challenge bleibt ohne Log',
+		);
+	});
 });

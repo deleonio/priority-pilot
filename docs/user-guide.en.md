@@ -859,24 +859,80 @@ who manages a group is therefore not yet an admin of the app.
 
 ## Notifications (push)
 
-Balamentum can remind you of due tasks via **push notification** – even
-when the app is not open.
+Balamentum can remind you via **push notification** – of due tasks, your
+care pillars, achievements, and activity in your groups. Even when the app
+is not open.
+
+### Switches
 
 - Enable via _Settings → General → "Enable push notifications"_. When you
-  turn it on, the browser asks for notification permission.
-- With **"Test push"** you can trigger a test notification.
+  turn it on, the browser asks for notification permission. With **"Test push"**
+  you can trigger a test notification.
 - If your browser does not support push notifications, a hint appears – installing
   the app usually helps (see below).
-- The app sends reminders once a day as **one bundled notification each**:
-  all open tasks whose deadline expires within the next 24 hours or
-  has already passed ("Tasks due"). In addition, there is a **separate** notification
-  "Your most important tasks" with up to three tasks. A due date that has already been reported
-  is not reported again.
-- If location tracking is active, you additionally get a hint when an
-  open task with a location is closer than your alarm distance (default 1 km):
-  as a single notification with title and distance, or as a bundled notification
-  "X tasks nearby". Here, too, the same task is not reported again
-  right away.
+- Below the main switch there are five group switches:
+  - **Tasks and reminders** – "Your day" in the morning (due tasks and your up to
+    three most important tasks), notifications when someone creates a task for you,
+    completes one, or a series generates new tasks, as well as welcome steps.
+  - **Care** – a care hint about a pillar in deficit or under overload, praise
+    for good balance, streak reminder, journal impulse, "welcome back".
+  - **Achievements and recaps** – milestones (streak, points) as well as weekly,
+    monthly and yearly recaps.
+  - **Groups** – invitations, accepted invitations, and the start and end of a
+    challenge.
+  - **Tips and offers** – at most once a month a usage-based hint about Plus or
+    Pro. This switch is **off** by default.
+- Two special rules:
+  - **Location reminders** ("task nearby", included in the Plus and Pro plans) have
+    their switch under _Settings → Location_ – that is also where you set the
+    distances. With location tracking active, an open task with a location reports
+    itself as soon as it is closer than your alarm distance (default 1 km) – at most
+    once per 24 hours per task.
+  - **Subscription and invoices** have no switch of their own. These service
+    notifications concern your contract: only the main switch turns them off – the
+    email goes out either way.
+
+### When the notifications arrive
+
+The app sends pushes in time windows based on your local time:
+
+| Window        | Used for                                            |
+| ------------- | --------------------------------------------------- |
+| Morning 7–9   | "Your day": due tasks and your most important tasks |
+| Day 9–18      | Care hints, recaps, service notifications           |
+| Evening 18–21 | Streak reminder, journal impulse                    |
+| 21–7          | Quiet hours – nothing is sent                       |
+
+- **Event pushes** (someone creates a task for you, a group invitation arrives)
+  go out immediately – except during quiet hours; then the push is dropped, the
+  content is visible in the app. Open invitations and open service notifications
+  are caught up by the first run in the morning.
+- **Location reminders** are event-driven and also respect the quiet hours.
+
+### Daily budget
+
+- **At most three pushes per day** arrive in total – across all types. Service
+  notifications (subscription and invoices) are exempt; they do not count and are
+  never displaced.
+- When the budget is full, what is addressed directly to you counts first (new
+  task, invitation), then the location reminder, then "Your day".
+- Related notifications are bundled: "Your day" combines due and most important
+  tasks into one notification, and of two recaps on the same day only the larger
+  one is sent (monthly instead of weekly recap).
+
+### Where a push takes you
+
+| Push                             | Target                                                                               |
+| -------------------------------- | ------------------------------------------------------------------------------------ |
+| "Your day"                       | with exactly one task straight to the task, otherwise to the matching dashboard card |
+| Care hint, praise, welcome back  | to the care or balance card                                                          |
+| Streak reminder                  | to the streak card                                                                   |
+| Milestone                        | to the milestone card                                                                |
+| Weekly, monthly and yearly recap | to the respective recap card                                                         |
+| New/completed task, series tasks | to the task or to "Series"                                                           |
+| Group invitation, challenge      | to Settings → Groups (invitations or the group)                                      |
+| Invoice, payment problem         | to Settings → Plans & subscription (invoices)                                        |
+| Location reminder                | straight to the task                                                                 |
 
 > **Note: avoiding duplicate notifications.** If you use Balamentum only as a
 > browser tab (Chrome) and **not** as a standalone app, a **second notification** from Chrome can
@@ -884,9 +940,9 @@ when the app is not open.
 > "Copy URL", "Share", "Open in Chrome"). This duplicate notification is a
 > platform behavior of Chrome, not of Balamentum. **Workaround:** install the
 > app as a standalone app (see "Installing and updating the app" below) – then
-> only the intended app notification is shown. Consecutive pushes
-> also replace each other, so nothing piles up – the app gives its
-> notifications a fixed tag for this.
+> only the intended app notification is shown. Pushes of the same switch group
+> also replace each other, so nothing piles up – the app assigns its own
+> notification tag per group.
 
 ---
 

@@ -93,7 +93,8 @@ Invoice.init(
 			defaultValue: [],
 		},
 		pdfBytes: {
-			type: DataTypes.BLOB,
+			// MEDIUMBLOB (Typ-Audit #2826): MySQL-BLOB endet bei 64 KB — zu klein für Rechnungs-PDFs.
+			type: DataTypes.BLOB('medium'),
 			allowNull: true,
 		},
 		paymentStatus: {

@@ -49,7 +49,7 @@ const DE: PrivacyText = {
 			heading: 'Keine Auswertung',
 			paragraphs: [
 				'Wir werten deine Daten nicht aus. Es gibt kein Nutzungsprofil, kein Werbe-Tracking und keine Werbung; die Inhalte deiner Aufgaben dienen allein deiner eigenen Planung. Wie viele Menschen Website und App besuchen, zählen wir nur mit deiner Zustimmung, ohne Cookies und auf unserem eigenen Server (Abschnitt „Reichweitenmessung“).',
-				'Einzige Ausnahme ist eine anonyme Zählung, ob Fürsorge-Vorschläge helfen: wie oft Vorschläge angezeigt, übernommen oder abgelehnt werden (ohne Bezug zu deinem Konto) und wie viele Konten 4 und 12 Wochen nach der Registrierung noch Aufgaben erledigen, getrennt nach eingeschalteten und ausgeschalteten Fürsorge-Hinweisen. Dafür speichern wir, wann du die Fürsorge-Hinweise ein- oder ausschaltest; dieser Verlauf wird mit deinem Konto gelöscht. Ausgewertet werden nur Summen, Gruppen mit weniger als fünf Personen werden nicht ausgewiesen.',
+				'Einzige Ausnahme ist eine anonyme Zählung, ob Fürsorge-Vorschläge helfen: wie oft Vorschläge angezeigt, übernommen oder abgelehnt werden (ohne Bezug zu deinem Konto) und wie viele Konten 4 und 12 Wochen nach der Registrierung noch Aufgaben erledigen, getrennt nach eingeschalteter und ausgeschalteter Fürsorge. Dafür speichern wir, wann du die Fürsorge ein- oder ausschaltest; dieser Verlauf wird mit deinem Konto gelöscht. Ausgewertet werden nur Summen, Gruppen mit weniger als fünf Personen werden nicht ausgewiesen.',
 			],
 		},
 		{

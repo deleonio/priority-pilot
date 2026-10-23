@@ -31,7 +31,7 @@ ScoreEntry.init(
 			unique: true,
 		},
 		punkte: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: false,
 		},
 		pünktlich: {

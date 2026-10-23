@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { accordionTrigger, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #2850 — Push-Gruppenschalter (Spec: docs/spec/issue-2850.md).
@@ -26,6 +26,11 @@ test.describe('Balamentum — #2850: Push-Gruppenschalter', () => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Balamentum');
+
+		// Push-Details-Umbau: die fünf Schalter sitzen im Klappbereich „Einzelne
+		// Benachrichtigungen" — vor Messung und Klick aufklappen (Push-Master bleibt aus,
+		// app-seitiger Klappzustand, Muster settings-switch-layout AK8).
+		await accordionTrigger(page, 'Einzelne Benachrichtigungen').click();
 
 		// AK5: alle fünf Schalter vorhanden, keiner ragt über den Viewport (Bounding-Box am
 		// KoliBri-Host, Muster issue-1794-care-switch.spec.ts).
@@ -56,6 +61,7 @@ test.describe('Balamentum — #2850: Push-Gruppenschalter', () => {
 
 		await page.reload();
 		await waitForStableView(page, 'Balamentum');
+		await accordionTrigger(page, 'Einzelne Benachrichtigungen').click();
 		const tippsNachReload = groupSwitch(page, /tipps und angebote/i);
 		if (!initial) await expect(tippsNachReload).toBeChecked();
 		else await expect(tippsNachReload).not.toBeChecked();

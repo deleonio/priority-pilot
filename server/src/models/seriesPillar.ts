@@ -33,7 +33,7 @@ SeriesPillar.init(
 			primaryKey: true,
 		},
 		share: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: false,
 			defaultValue: 0,
 			validate: {
@@ -42,7 +42,7 @@ SeriesPillar.init(
 			},
 		},
 		confidence: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: false,
 			defaultValue: 100,
 			validate: {

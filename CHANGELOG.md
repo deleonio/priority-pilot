@@ -2,20 +2,27 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.33 - 2026-10-22
+## v0.33 - 2026-10-23
 
-_Enthält v0.33.0 – v0.33.12._
+_Enthält v0.33.0 – v0.33.23._
 
 ### 🎉 New Features
 
 - feat(frontend): edit billing address without checkout flow by @deleonio in https://github.com/deleonio/priority-pilot/pull/2866
 - feat(server): subscription and invoice service pushes (#2852) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2865
+- feat(server): mariadb dialect via env, sqlite stays default (#2825) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2890
 
 ### 🐞 Bug Fixes
 
 - feat(billing): recipient from billing address, account email, logo fix by @deleonio in https://github.com/deleonio/priority-pilot/pull/2862
 - fix(billing): remove vat id line from invoice pdf by @deleonio in https://github.com/deleonio/priority-pilot/pull/2864
 - fix(frontend): flex-wrap dashboard cards to remove empty cells by @deleonio in https://github.com/deleonio/priority-pilot/pull/2867
+- docs(website): privacy policy names care switch with old label (#2878) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2886
+
+### 🚀 Improvements
+
+- feat(server): limit challenge-end sweep to 7-day backlog window (#2879) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2885
+- feat(frontend): intro sentence for account deletion accordion by @deleonio in https://github.com/deleonio/priority-pilot/pull/2896
 
 ### 🔧 Engineering
 
@@ -31,6 +38,15 @@ _Enthält v0.33.0 – v0.33.12._
 - feat(server): html email template for all user mails by @deleonio in https://github.com/deleonio/priority-pilot/pull/2870
 - feat(server): group pushes for invitations, joins and challenges by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2872
 - feat(server): add push occasions for praise, recaps, journal and welcome by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2871
+- chore(deps): update node.js to v26.12.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2874
+- feat(server): consent-gated monthly tip push for free users by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2873
+- docs: explain push switch groups, time windows and daily budget (#2857) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2876
+- fix(deps): update dependency nodemailer to v10.0.10 [security] by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2884
+- docs: fix user guide package tab name and weekly recap window (#2881) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2887
+- fix(frontend): symmetric indent for settings accordion content by @deleonio in https://github.com/deleonio/priority-pilot/pull/2891
+- feat(server): type-audit model columns against mariadb (#2826) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2889
+- fix(frontend): keep follow-up modal open during dialog teardown race by @deleonio in https://github.com/deleonio/priority-pilot/pull/2894
+- feat(frontend): compact checklist done switch by hiding its label by @deleonio in https://github.com/deleonio/priority-pilot/pull/2888
 
 ## v0.32 - 2026-10-22
 

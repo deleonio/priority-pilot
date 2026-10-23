@@ -2075,6 +2075,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 									<div key={item.id} className="checklist-item" data-testid="checklist-item">
 										<KolInputCheckbox
 											_label={t('taskForm.checklistDone')}
+											_hideLabel
 											_variant="switch"
 											_checked={item.completed}
 											_on={{ onChange: () => toggleChecklistItem(item.id) }}

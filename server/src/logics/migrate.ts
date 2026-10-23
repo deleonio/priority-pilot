@@ -7,6 +7,11 @@ import { SEED_PILLARS } from '../models/pillarData.js';
  * und die Migrationen mit Zusatzlogik (RENAME/DROP/Backfill/Unique-Index).
  */
 const existingColumns = async (db: Sequelize, table: string): Promise<string[]> => {
+	// MariaDB (#2825): Bestands-Migrationen sind dort No-ops (frische DB, `sync()` legt das Schema
+	// an) — kein SQLite-PRAGMA senden; leer wie „Tabelle fehlt" behandeln.
+	if (db.getDialect() === 'mysql') {
+		return [];
+	}
 	const [columns] = await db.query(`PRAGMA table_info('${table}')`);
 	return (columns as { name: string }[]).map((column) => column.name);
 };
@@ -129,6 +134,10 @@ const SERIES_TABLE_COLUMNS = [
  * direkt mit den neuen Namen an).
  */
 export async function migrateSeriesRenameFields(seq: Sequelize): Promise<void> {
+	// MariaDB (#2825): No-op — `sqlite_master` ist SQLite-exklusiv; `sync()` legt das Schema an.
+	if (seq.getDialect() === 'mysql') {
+		return;
+	}
 	// Tabelle existiert nicht → No-Op
 	const [tableCheck] = await seq.query("SELECT name FROM sqlite_master WHERE type='table' AND name='series'");
 	// Rohabfrage ohne generierten Sequelize-Typ: `sqlite_master` liefert nur plain Name-Zeilen,
