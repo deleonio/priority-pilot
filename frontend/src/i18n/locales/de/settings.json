@@ -80,6 +80,7 @@
 			"testErrorText": "Push fehlgeschlagen."
 		},
 		"accountData": "Konto und Daten",
+		"accountDataIntro": "Hier kannst du dein Konto mit allen Daten endgültig löschen. Wir fragen zuvor zweimal nach, damit nichts versehentlich passiert.",
 		"pillars": {
 			"fixedLabel": "Feste Säulen",
 			"fixedText": "Diese 5 Säulen adressieren per Definition die Balance im Leben und gelten stets. Deine Gewichtung bleibt individuell anpassbar.",
