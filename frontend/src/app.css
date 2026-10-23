@@ -4443,6 +4443,16 @@ kol-input-range {
 	min-width: 0;
 }
 
+/* Der hideLabel-Switch („Erledigen“) trägt sein Label unsichtbar im internen Grid — der
+   Theme-Layer hält die 1fr-Spalte auch bei _hideLabel layoutwirksam (Muster .api-tokens__scope,
+   app.css:5830 ff.). Feste Breite zwingt das Grid auf den sichtbaren Schalter. Bewusst über den
+   TaskForm-Editor-Wrapper gescoped statt über .checklist-item: der CompleteTaskDialog nutzt
+   dieselbe Item-Klasse mit SICHTBAREM Label und würde sonst mitgequetscht (Review #2888). */
+.checklist-editor .checklist-item kol-input-checkbox[_variant='switch'] {
+	flex: 0 0 auto;
+	width: 3.6em;
+}
+
 /* #2501: sichtbare Grenz-Rückmeldung, wenn die Checkliste voll ist (Regel 7, nicht still). */
 .checklist-limit-hint {
 	margin: 0;
