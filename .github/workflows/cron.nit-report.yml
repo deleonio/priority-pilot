@@ -1,6 +1,6 @@
-name: Nit Report
+name: Nit-Report
 
-# Woechentlicher LLM-Job (wie UX Team ueber setup-agent, KEINE Pipeline-Phase): sammelt die
+# Woechentlicher LLM-Job (wie UX-Team ueber setup-agent, KEINE Pipeline-Phase): sammelt die
 # Review-Nits der in den letzten 8 Tagen gemergten PRs (Woche + 1 Tag Ueberlappung) und haelt die 10 wichtigsten in EINEM
 # Dauer-Issue fest (Prompt: .github/prompts/nit-report.md).
 #
@@ -77,7 +77,7 @@ jobs:
           memory-load: 'false'
           expect-memory: 'false'
 
-      - name: Nit Report via Claude
+      - name: Nit-Report via Claude
         id: claude
         if: steps.setup.outputs.configured == 'true'
         env:
@@ -124,15 +124,15 @@ jobs:
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 
           if [ "$OUTCOME" != "success" ]; then
-            echo "::error title=❌ Nit Report fehlgeschlagen::Claude-Lauf nicht erfolgreich - kein stiller «clean»."
+            echo "::error title=❌ Nit-Report fehlgeschlagen::Claude-Lauf nicht erfolgreich - kein stiller «clean»."
             exit 1
           fi
           if [ "$verdict" != "report" ] && [ "$verdict" != "clean" ]; then
-            echo "::error title=❌ Nit Report ohne Verdict::Weder «report» noch «clean» - Lauf wiederholen."
+            echo "::error title=❌ Nit-Report ohne Verdict::Weder «report» noch «clean» - Lauf wiederholen."
             exit 1
           fi
           if [ "$verdict" = "clean" ]; then
-            echo "::notice title=✅ Nit Report: keine Nits::Issue bleibt unangetastet."
+            echo "::notice title=✅ Nit-Report: keine Nits::Issue bleibt unangetastet."
             exit 0
           fi
 
@@ -144,7 +144,7 @@ jobs:
           gh label create "ci:nit-report" --repo "$GITHUB_REPOSITORY" --color C5DEF5 \
             --description "Woechentlicher Nit-Digest der gemergten PRs" 2>/dev/null || true
 
-          title="ci: Nit-Digest ($(date -u +%F))"
+          title="ci: Nit-Report — Digest ($(date -u +%F))"
           number="$(gh issue list --repo "$GITHUB_REPOSITORY" --label ci:nit-report --state open \
             --json number --jq '.[0].number // empty' 2>/dev/null || true)"
 

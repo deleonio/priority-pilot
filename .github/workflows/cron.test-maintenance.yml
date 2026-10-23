@@ -1,4 +1,4 @@
-name: Optimize Tests
+name: Test-Maintenance
 
 # Wöchentliche Analyse der Test-Suite nach TDD-Prinzipien (Substance over Quantity).
 # Erkennt tautologische Tests, Redundanzen, fehlende Mutation-Probes, leere Mengen.
@@ -104,7 +104,7 @@ jobs:
                 core.info(`Label „${name}" existiert bereits oder nicht anlegbar: ${err.message}`);
               }
             };
-            await ensureLabel('test-maintenance', 'fbca04');
+            await ensureLabel('ci:test-maintenance', 'fbca04');
             await ensureLabel('automated', '0e8a16');
 
             const body = `> 🔄 Automatisch aktualisiert am ${runDate} (Run #${context.runId})\n\n${report}`;
@@ -113,7 +113,7 @@ jobs:
               owner,
               repo,
               state: 'open',
-              labels: 'test-maintenance',
+              labels: 'ci:test-maintenance',
             });
 
             if (existing.data.length > 0) {
@@ -124,9 +124,9 @@ jobs:
               const created = await github.rest.issues.create({
                 owner,
                 repo,
-                title: '[test-maintenance] Tägliche Test-Optimierung: Kritische Findings',
+                title: `ci: Test-Maintenance — Tägliche Test-Optimierung (${runDate})`,
                 body,
-                labels: ['test-maintenance', 'automated'],
+                labels: ['ci:test-maintenance', 'automated'],
               });
               core.info(`Neues Issue #${created.data.number} erstellt.`);
             }
