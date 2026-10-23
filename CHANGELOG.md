@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.34 - 2026-10-23
 
-_Enthält v0.34.0 – v0.34.5._
+_Enthält v0.34.0 – v0.34.6._
 
 ### 🐞 Bug Fixes
 
@@ -13,6 +13,7 @@ _Enthält v0.34.0 – v0.34.5._
 ### 🚀 Improvements
 
 - feat(frontend): move push channel switches into collapsible details by @deleonio in https://github.com/deleonio/priority-pilot/pull/2892
+- feat(frontend): category rows use connected edit and delete toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/2904
 
 ### Other Changes
 
@@ -185,6 +186,7 @@ _Enthält v0.29.0 – v0.29.34._
 - feat(frontend): simplify category assignment to a plain single-select by @deleonio in https://github.com/deleonio/priority-pilot/pull/2721
 - docs: add successor issue number to ADR 0025 (#2732) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2738
 - feat(frontend): matomo channel, login funnel, geo push deep link by @deleonio in https://github.com/deleonio/priority-pilot/pull/2739
+- feat(frontend): show balance dial instantly from cached device mirror by @deleonio in https://github.com/deleonio/priority-pilot/pull/2740
 - feat(frontend): show balance dial instantly from cached device mirror by @deleonio in https://github.com/deleonio/priority-pilot/pull/2740
 
 ### 🔧 Engineering
@@ -381,7 +383,6 @@ _Enthält v0.24.0 – v0.24.13._
 - feat(server): pillar names in care texts follow app language (#2523) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2571
 - feat(frontend): single primary action per missed task (#2524) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2575
 - feat(frontend): show done tasks on their completion day in week view by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2576
-- test(frontend): measure missed/deadlines top edges atomically (#2578) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2579
 - test(frontend): measure missed/deadlines top edges atomically (#2578) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2579
 - test(frontend): mark onboarding dismissed up front in header focus test by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2581
 
