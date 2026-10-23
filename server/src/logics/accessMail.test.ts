@@ -14,6 +14,7 @@ interface SentMail {
 	to: string;
 	subject: string;
 	text: string;
+	html?: string;
 }
 
 describe('sendAccountAccessMail (#1983 AK4)', () => {
@@ -28,7 +29,7 @@ describe('sendAccountAccessMail (#1983 AK4)', () => {
 	it('verschickt eine Mail mit Betreff und Zugangs-URL an die neue Adresse', async () => {
 		const sent: SentMail[] = [];
 		const sender: MailSender = async (payload) => {
-			sent.push({ to: payload.to, subject: payload.subject, text: payload.text });
+			sent.push({ to: payload.to, subject: payload.subject, text: payload.text, html: payload.html });
 		};
 
 		const ok = await sendAccountAccessMail(
@@ -46,6 +47,7 @@ describe('sendAccountAccessMail (#1983 AK4)', () => {
 		assert.equal(sent[0].subject, 'Einladung zur Gruppe „Familie" bei Balamentum');
 		assert.match(sent[0].text, /Konto öffnen und Passwort setzen/);
 		assert.match(sent[0].text, /https:\/\/test\/app\/\?magic=/);
+		assert.match(sent[0].html ?? '', /href="https:\/\/test\/app\/\?magic=/, 'HTML mit Button-Link');
 	});
 
 	it('ohne konfigurierten Magic-Link wird nichts versendet', async () => {

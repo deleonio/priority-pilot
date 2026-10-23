@@ -9,7 +9,7 @@ import {
 	KolInputText,
 	KolTabs,
 } from '@public-ui/react-v19';
-import type { GeoConfig, Pillar } from 'client';
+import type { GeoConfig, Pillar, PushGroups } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
@@ -261,6 +261,14 @@ export const SettingsPage = ({
 
 	const [pushTestResult, setPushTestResult] = useState<'success' | 'none' | 'error' | null>(null);
 
+	// Klappzustand des Accordion „Einzelne Benachrichtigungen" — folgt dem Push-Master (initial
+	// auf bei aktiviertem Push, sonst zu), manuelles Klappen bleibt möglich (Muster „Einzelne
+	// Animationen", #1552). Sync per Effect, weil `pushEnabled` erst nach dem Mount-Resync stimmt.
+	const [pushDetailsOpen, setPushDetailsOpen] = useState(pushEnabled);
+	useEffect(() => {
+		setPushDetailsOpen(pushEnabled);
+	}, [pushEnabled]);
+
 	// Der Fehlertext folgt Kanal und Grund: In der App helfen die Android-Einstellungen bzw. ein
 	// App-Update weiter, im Browser die Browser-Berechtigung.
 	const pushFailedTextKey = isNativeChannel()
@@ -324,6 +332,42 @@ export const SettingsPage = ({
 			.catch(() => {
 				setSplitHintFailed(true);
 				setSplitHintEnabled(!value);
+			});
+	};
+
+	// #2850: Push-Gruppen pro User (docs/push-konzept.md §5) — vier Gruppen-Schalter, Muster wie
+	// der Fürsorge-/Aufteilen-Schalter: sofortiges Speichern, Fehler als Zeilen-Alert. „Fürsorge“
+	// selbst bleibt der bestehende Fürsorge-Schalter darüber (unverändert an /care-config).
+	const [pushGroups, setPushGroups] = useState<PushGroups>({
+		taskPushEnabled: true,
+		successPushEnabled: true,
+		groupPushEnabled: true,
+		tipPushEnabled: false,
+	});
+	const [pushGroupsFailed, setPushGroupsFailed] = useState<keyof PushGroups | null>(null);
+
+	useEffect(() => {
+		api
+			.getPushGroups()
+			.then((groups) => {
+				if (groups && typeof groups.taskPushEnabled === 'boolean') {
+					setPushGroups(groups);
+				}
+			})
+			.catch(() => {
+				// Netzwerk-/Session-Fehler: Defaults (§5) stehen bleiben, Schalter bleiben bedienbar.
+			});
+	}, []);
+
+	const togglePushGroup = (key: keyof PushGroups, value: boolean): void => {
+		const neu = { ...pushGroups, [key]: value };
+		setPushGroups(neu);
+		api
+			.updatePushGroups(neu)
+			.then(() => setPushGroupsFailed(null))
+			.catch(() => {
+				setPushGroupsFailed(key);
+				setPushGroups({ ...pushGroups, [key]: !value });
 			});
 	};
 
@@ -710,7 +754,7 @@ export const SettingsPage = ({
 										}}
 									/>
 									{/* #971: `pushFailed` gehört zur Switch-Zeile; der „Push testen"-Button und die
-										    Test-Push-Ergebnis-Alerts (#932/#886) bleiben eigene Zeilen außerhalb. */}
+										    Test-Push-Ergebnis-Alerts (#932/#886) bleiben eigene Zeilen direkt unter dem Master; die sechs Kanäle rücken in den Klappbereich darunter. */}
 									{pushFailed && (
 										<KolAlert _type="warning" _label={t('settingsPage.notifications.pushFailedLabel')}>
 											{t(pushFailedTextKey)}
@@ -722,43 +766,6 @@ export const SettingsPage = ({
 									{t('settingsPage.notifications.pushUnavailableText')}
 								</KolAlert>
 							)}
-							<div className="settings-switch-row">
-								<KolInputCheckbox
-									_label={t('settingsPage.notifications.careLabel')}
-									_variant="switch"
-									_checked={carePushEnabled}
-									_hint={t('settingsPage.notifications.careHint')}
-									_on={{
-										onChange: (_event, value) => {
-											toggleCarePush(value === true);
-										},
-									}}
-								/>
-								{/* #1794: `careFailed` gehört zur Switch-Zeile (#971-Muster wie `pushFailed`). */}
-								{careFailed && (
-									<KolAlert _type="warning" _label={t('settingsPage.notifications.saveFailedLabel')}>
-										{t('settingsPage.notifications.saveFailedText')}
-									</KolAlert>
-								)}
-							</div>
-							<div className="settings-switch-row">
-								<KolInputCheckbox
-									_label={t('settingsPage.notifications.splitHintLabel')}
-									_variant="switch"
-									_checked={splitHintEnabled}
-									_hint={t('settingsPage.notifications.splitHintHint')}
-									_on={{
-										onChange: (_event, value) => {
-											toggleSplitHint(value === true);
-										},
-									}}
-								/>
-								{splitHintFailed && (
-									<KolAlert _type="warning" _label={t('settingsPage.notifications.saveFailedLabel')}>
-										{t('settingsPage.notifications.saveFailedText')}
-									</KolAlert>
-								)}
-							</div>
 							{pushEnabled && (
 								<KolButton
 									_label={t('settingsPage.notifications.pushTest')}
@@ -793,6 +800,131 @@ export const SettingsPage = ({
 									{t('settingsPage.notifications.testErrorText')}
 								</KolAlert>
 							)}
+							{/* Die sechs Kanal-Schalter im Klappbereich (Muster „Einzelne Animationen"):
+							    folgt dem Push-Master — an: initial aufgeklappt, aus: zugeklappt; manuelles
+							    Klappen bleibt möglich. */}
+							<KolDetails
+								className="settings-accordion"
+								_label={t('settingsPage.notifications.singleNotifications')}
+								_level={3}
+								_open={pushDetailsOpen}
+								_on={{
+									onClick: (_event, open) => setPushDetailsOpen(open === true),
+								}}
+							>
+								<div className="settings-card-stack">
+									<div className="settings-switch-row">
+										<KolInputCheckbox
+											_label={t('settingsPage.notifications.tasksLabel')}
+											_variant="switch"
+											_checked={pushGroups.taskPushEnabled}
+											_hint={t('settingsPage.notifications.tasksHint')}
+											_on={{
+												onChange: (_event, value) => {
+													togglePushGroup('taskPushEnabled', value === true);
+												},
+											}}
+										/>
+										{pushGroupsFailed === 'taskPushEnabled' && (
+											<KolAlert _type="warning" _label={t('settingsPage.notifications.saveFailedLabel')}>
+												{t('settingsPage.notifications.saveFailedText')}
+											</KolAlert>
+										)}
+									</div>
+									<div className="settings-switch-row">
+										<KolInputCheckbox
+											_label={t('settingsPage.notifications.careLabel')}
+											_variant="switch"
+											_checked={carePushEnabled}
+											_hint={t('settingsPage.notifications.careHint')}
+											_on={{
+												onChange: (_event, value) => {
+													toggleCarePush(value === true);
+												},
+											}}
+										/>
+										{/* #1794: `careFailed` gehört zur Switch-Zeile (#971-Muster wie `pushFailed`). */}
+										{careFailed && (
+											<KolAlert _type="warning" _label={t('settingsPage.notifications.saveFailedLabel')}>
+												{t('settingsPage.notifications.saveFailedText')}
+											</KolAlert>
+										)}
+									</div>
+									{/* #2850: die übrigen drei Gruppen (§5-Reihenfolge Aufgaben → Fürsorge → Erfolge → Gruppen → Tipps). */}
+									<div className="settings-switch-row">
+										<KolInputCheckbox
+											_label={t('settingsPage.notifications.successLabel')}
+											_variant="switch"
+											_checked={pushGroups.successPushEnabled}
+											_hint={t('settingsPage.notifications.successHint')}
+											_on={{
+												onChange: (_event, value) => {
+													togglePushGroup('successPushEnabled', value === true);
+												},
+											}}
+										/>
+										{pushGroupsFailed === 'successPushEnabled' && (
+											<KolAlert _type="warning" _label={t('settingsPage.notifications.saveFailedLabel')}>
+												{t('settingsPage.notifications.saveFailedText')}
+											</KolAlert>
+										)}
+									</div>
+									<div className="settings-switch-row">
+										<KolInputCheckbox
+											_label={t('settingsPage.notifications.groupsLabel')}
+											_variant="switch"
+											_checked={pushGroups.groupPushEnabled}
+											_hint={t('settingsPage.notifications.groupsHint')}
+											_on={{
+												onChange: (_event, value) => {
+													togglePushGroup('groupPushEnabled', value === true);
+												},
+											}}
+										/>
+										{pushGroupsFailed === 'groupPushEnabled' && (
+											<KolAlert _type="warning" _label={t('settingsPage.notifications.saveFailedLabel')}>
+												{t('settingsPage.notifications.saveFailedText')}
+											</KolAlert>
+										)}
+									</div>
+									<div className="settings-switch-row">
+										<KolInputCheckbox
+											_label={t('settingsPage.notifications.tipsLabel')}
+											_variant="switch"
+											_checked={pushGroups.tipPushEnabled}
+											_hint={t('settingsPage.notifications.tipsHint')}
+											_on={{
+												onChange: (_event, value) => {
+													togglePushGroup('tipPushEnabled', value === true);
+												},
+											}}
+										/>
+										{pushGroupsFailed === 'tipPushEnabled' && (
+											<KolAlert _type="warning" _label={t('settingsPage.notifications.saveFailedLabel')}>
+												{t('settingsPage.notifications.saveFailedText')}
+											</KolAlert>
+										)}
+									</div>
+									<div className="settings-switch-row">
+										<KolInputCheckbox
+											_label={t('settingsPage.notifications.splitHintLabel')}
+											_variant="switch"
+											_checked={splitHintEnabled}
+											_hint={t('settingsPage.notifications.splitHintHint')}
+											_on={{
+												onChange: (_event, value) => {
+													toggleSplitHint(value === true);
+												},
+											}}
+										/>
+										{splitHintFailed && (
+											<KolAlert _type="warning" _label={t('settingsPage.notifications.saveFailedLabel')}>
+												{t('settingsPage.notifications.saveFailedText')}
+											</KolAlert>
+										)}
+									</div>
+								</div>
+							</KolDetails>
 						</div>
 					</KolCard>
 
@@ -805,6 +937,7 @@ export const SettingsPage = ({
 					    Toggle ist selbst ein Button und darf nicht „Konto löschen“ heißen; Rot erscheint
 					    erst im Bestätigungsdialog (docs/ux-pattern-sequential-confirmation.md). */}
 					<KolAccordion className="settings-accordion" _label={t('settingsPage.accountData')} _level={2}>
+						<p>{t('settingsPage.accountDataIntro')}</p>
 						<DeleteAccountButton userId={currentUserId} />
 					</KolAccordion>
 				</div>

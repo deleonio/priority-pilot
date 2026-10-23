@@ -1,6 +1,9 @@
-import { describe, it, before, beforeEach, after } from 'node:test';
+import { describe, it, before, beforeEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
+import type { SendResult } from 'web-push';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
+import { NotificationLog, PushSubscription } from '../models/index.js';
+import type { PushSender } from '../logics/push.js';
 
 // Rote Spec-Tests für #1212 (AK3–AK10) — API-Vertrag laut docs/spec/issue-1212.md.
 // Die Routen POST/GET .../invitations, GET .../members und DELETE .../members/:userId
@@ -15,6 +18,30 @@ const TEST_EMAIL_CAROL = 'carol@example.com';
 
 let server: TestServer;
 
+// #2854 TF2 (AK1/AK3): injizierter Push-Sender — die Einladungs-/Annahme-Routen feuern ihre
+// Pushes über den Seam, Tests fangen sie hier ab (Muster logics/taskCreatedNotification.test.ts).
+interface SentPush {
+	endpoint: string;
+	body: string;
+}
+const pushCalls: SentPush[] = [];
+let pushSenderFails = false;
+const mockSender: PushSender = (subscription, payload) => {
+	pushCalls.push({ endpoint: subscription.endpoint, body: payload });
+	if (pushSenderFails) {
+		return Promise.reject(new Error('simulierter Versandfehler'));
+	}
+	return Promise.resolve({ statusCode: 201, body: '', headers: {} } as SendResult);
+};
+
+/** Push-Trigger laufen nach dem Commit, asynchron zur HTTP-Antwort — kurz auf sie warten. */
+const waitForPushes = async (expected: number): Promise<void> => {
+	for (let i = 0; i < 150; i += 1) {
+		if (pushCalls.length >= expected) return;
+		await new Promise((resolve) => setTimeout(resolve, 20));
+	}
+};
+
 type GroupDto = { id: number; name: string; role: string; memberCount: number };
 type InvitationDto = { id: number; groupId: number; userId?: number; status: string; message?: string };
 type MemberDto = { userId: number; displayName: string; role: string };
@@ -22,7 +49,7 @@ type ReceivedInvitationDto = { id: number; groupId: number; groupName: string; i
 
 describe('Gruppen-Einladungen und Mitgliedschaftspflege (#1212)', () => {
 	before(async () => {
-		server = await startTestServer();
+		server = await startTestServer({ pushSender: mockSender });
 	});
 	beforeEach(async () => {
 		await resetDb();
@@ -276,6 +303,111 @@ describe('Gruppen-Einladungen und Mitgliedschaftspflege (#1212)', () => {
 		});
 		const members = (await membersRes.json()) as MemberDto[];
 		assert.equal(members.length, 1, 'letzter Admin bleibt Mitglied');
+	});
+
+	// ── #2854 TF2: Push-Trigger der Einladungs-/Annahme-Routen ──────────────────────────
+
+	it('#2854 AK1: POST /groups/{id}/invitations sendet dem Eingeladenen genau einen Einladungs-Push', async () => {
+		pushCalls.length = 0;
+		// Ruhezeit-Pin 10:00Z: der Einladungs-Push ist ruhezeitgeprüft (AK2) — ohne Pin wäre die
+		// Suite zwischen 21 und 7 UTC uhrenabhängig rot (Muster taskCreatedNotification.test.ts).
+		mock.timers.enable({ apis: ['Date'] });
+		mock.timers.setTime(new Date('2026-07-07T10:00:00Z').getTime());
+		try {
+			const aliceCookie = await server.login(TEST_EMAIL_ALICE, { displayName: 'Alice Admin' });
+			const bobCookie = await server.login(TEST_EMAIL_BOB, { displayName: 'Bob Baumeister' });
+			const group = await createGroup(aliceCookie, 'Familie');
+			const bobId = await ownUserId(bobCookie, 'Bob Baumeister');
+			await PushSubscription.create({
+				endpoint: 'https://push.example/bob',
+				p256dh: 'p256dh',
+				auth: 'auth',
+				expirationTime: null,
+				userId: bobId,
+			});
+
+			const res = await invite(aliceCookie, group.id, bobId);
+			assert.equal(res.status, 201, 'Setup: Einladung muss anlegbar sein');
+			await waitForPushes(1);
+
+			assert.equal(pushCalls.length, 1, 'genau ein Push an die eingeladene Person');
+			assert.equal(pushCalls[0].endpoint, 'https://push.example/bob');
+			const payload = JSON.parse(pushCalls[0].body) as { url?: string };
+			assert.equal(payload.url, '/settings/gruppen#einladungen');
+			const invitation = (await res.json()) as InvitationDto;
+			const log = await NotificationLog.findOne({
+				where: { kind: 'group-invitation', dedupeKey: `invitation:${invitation.id}` },
+			});
+			assert.ok(log, 'Einladungs-Push muss mit dedupeKey invitation:<id> protokolliert sein');
+		} finally {
+			mock.timers.reset();
+		}
+	});
+
+	it('#2854 AK3: POST /invitations/{id}/accept benachrichtigt die einladende Person (group-member)', async () => {
+		pushCalls.length = 0;
+		const aliceCookie = await server.login(TEST_EMAIL_ALICE, { displayName: 'Alice Admin' });
+		const bobCookie = await server.login(TEST_EMAIL_BOB, { displayName: 'Bob Baumeister' });
+		const group = await createGroup(aliceCookie, 'Familie');
+		const aliceId = await ownUserId(aliceCookie, 'Alice Admin');
+		const bobId = await ownUserId(bobCookie, 'Bob Baumeister');
+		await PushSubscription.create({
+			endpoint: 'https://push.example/alice',
+			p256dh: 'p256dh',
+			auth: 'auth',
+			expirationTime: null,
+			userId: aliceId,
+		});
+		const invitation = (await (await invite(aliceCookie, group.id, bobId)).json()) as InvitationDto;
+
+		const res = await fetch(`${server.baseUrl}/invitations/${invitation.id}/accept`, {
+			method: 'POST',
+			headers: { cookie: bobCookie },
+		});
+		assert.equal(res.status, 200, 'Setup: Annahme muss gelingen');
+		await waitForPushes(1);
+
+		assert.equal(pushCalls.length, 1, 'genau ein Push an die einladende Person');
+		assert.equal(pushCalls[0].endpoint, 'https://push.example/alice');
+		const payload = JSON.parse(pushCalls[0].body) as { url?: string };
+		assert.equal(payload.url, `/settings/gruppen#gruppe-${group.id}`);
+		const log = await NotificationLog.findOne({
+			where: { kind: 'group-member', dedupeKey: `member:${group.id}:${bobId}` },
+		});
+		assert.ok(log, 'Beitritts-Push muss mit dedupeKey member:<groupId>:<userId> protokolliert sein');
+	});
+
+	it('#2854 TF2: ein fehlschlagender Push-Versand bricht die Einladungs-Route nicht', async () => {
+		pushCalls.length = 0;
+		mock.timers.enable({ apis: ['Date'] });
+		mock.timers.setTime(new Date('2026-07-07T10:00:00Z').getTime());
+		pushSenderFails = true;
+		try {
+			const aliceCookie = await server.login(TEST_EMAIL_ALICE, { displayName: 'Alice Admin' });
+			const bobCookie = await server.login(TEST_EMAIL_BOB, { displayName: 'Bob Baumeister' });
+			const group = await createGroup(aliceCookie, 'Familie');
+			const bobId = await ownUserId(bobCookie, 'Bob Baumeister');
+			await PushSubscription.create({
+				endpoint: 'https://push.example/bob',
+				p256dh: 'p256dh',
+				auth: 'auth',
+				expirationTime: null,
+				userId: bobId,
+			});
+
+			const res = await invite(aliceCookie, group.id, bobId);
+			assert.equal(res.status, 201, 'das Anlegen darf am Push-Versand nicht scheitern');
+			await waitForPushes(1);
+			assert.equal(pushCalls.length, 1, 'der Versand wurde versucht');
+			assert.equal(
+				await NotificationLog.count({ where: { kind: 'group-invitation' } }),
+				0,
+				'fehlgeschlagene Zustellung wird nicht protokolliert (wiederholbar)',
+			);
+		} finally {
+			pushSenderFails = false;
+			mock.timers.reset();
+		}
 	});
 });
 

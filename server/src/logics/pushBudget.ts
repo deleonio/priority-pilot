@@ -27,19 +27,35 @@ export const SERVICE_KINDS: string[] = ['abo-service'];
 /** Ob ein Kind unter das Budget fällt (Service-Nachrichten nicht). */
 export const istServiceKind = (kind: string): boolean => SERVICE_KINDS.includes(kind);
 
-/** Vorrang bei vollem Budget (Konzept §4, von oben nach unten); unbekannte Kinds (kein §4-Platz) sortiert `indexOf` mit −1 nach vorn. */
-const VORRANG = [
-	'task-created',
-	'task-completed',
-	'series-generated',
-	'geo-nearby-task',
-	'daily-digest',
-	'due-task',
-	'daily-top-tasks',
-	'care-push',
-	'streak-reminder',
-	'milestone',
-	'monthly-recap',
+/**
+ * §4-Stufen der Vorrang-Ordnung (von oben nach unten): Kinds derselben Stufe teilen ihren Rang
+ * ({@link vorrangVon}), die Reihenfolge innerhalb einer Stufe bleibt der Kandidaten-Reihenfolge
+ * überlassen (stabile Sortierung). Unbekannte Kinds (kein §4-Platz) sortiert der rohe Stufen-Index
+ * mit −1 nach vorn — Registrierung ist Pflicht (VORRANG-Falle).
+ */
+const VORRANG: string[][] = [
+	// §4 Stufe 1 (#2854): die Gruppeneinladung neben task-created, vor geo-nearby-task.
+	['task-created', 'group-invitation'],
+	['task-completed'],
+	['series-generated'],
+	['geo-nearby-task'],
+	// #2854: Beitritt und Challenge — vor daily-digest (AK6 bindet nur nach oben).
+	['group-member', 'group-challenge'],
+	['daily-digest'],
+	['due-task'],
+	['daily-top-tasks'],
+	['care-push'],
+	['appreciation'],
+	['welcome-back'],
+	['journal-impulse'],
+	['streak-reminder'],
+	['milestone'],
+	['monthly-recap'],
+	['weekly-recap'],
+	['yearly-recap'],
+	['welcome-steps'],
+	// #2856 AK5: der Tipps-Hinweis (§8) ist Werbung — unterste §4-Stufe, budgetiert.
+	['tip-push'],
 ];
 
 /**
@@ -47,11 +63,13 @@ const VORRANG = [
  * Vertrag der Ordnung; das Tor fragt sie je Send (`passtImBudget`).
  */
 export const waehleImBudget = (kandidaten: string[], freie: number): string[] =>
-	[...kandidaten].sort((a, b) => VORRANG.indexOf(a) - VORRANG.indexOf(b)).slice(0, Math.max(freie, 0));
+	[...kandidaten]
+		.sort((a, b) => VORRANG.findIndex((stufe) => stufe.includes(a)) - VORRANG.findIndex((stufe) => stufe.includes(b)))
+		.slice(0, Math.max(freie, 0));
 
-/** §4-Rang eines Kinds (0 = höchster Vorrang, unbekannt = hinten) — Ordnung der Trigger je Scheduler-Tick (F1.2). */
+/** §4-Rang eines Kinds (Stufen-Index, 0 = höchster Vorrang, unbekannt = hinten) — Ordnung der Trigger je Scheduler-Tick (F1.2). */
 export const vorrangVon = (kind: string): number => {
-	const rang = VORRANG.indexOf(kind);
+	const rang = VORRANG.findIndex((stufe) => stufe.includes(kind));
 	return rang === -1 ? VORRANG.length : rang;
 };
 
@@ -64,11 +82,22 @@ const TAGS: Record<string, string> = {
 	'task-completed': 'pp-aufgaben',
 	'series-generated': 'pp-aufgaben',
 	'geo-nearby-task': 'pp-aufgaben',
+	'group-invitation': 'pp-gruppen',
+	'group-member': 'pp-gruppen',
+	'group-challenge': 'pp-gruppen',
 	'care-push': 'pp-fuersorge',
+	appreciation: 'pp-fuersorge',
+	'welcome-back': 'pp-fuersorge',
+	'journal-impulse': 'pp-fuersorge',
 	'streak-reminder': 'pp-fuersorge',
 	milestone: 'pp-erfolge',
 	'monthly-recap': 'pp-erfolge',
+	'weekly-recap': 'pp-erfolge',
+	'yearly-recap': 'pp-erfolge',
+	'welcome-steps': 'pp-aufgaben',
 	'abo-service': 'pp-abo',
+	// #2856: Tipps und Angebote sind eine eigene Gruppe (§2.3).
+	'tip-push': 'pp-tipps',
 };
 
 /** Gruppen-Tag eines Kinds — für noch nicht zugeordnete Kinds die Aufgabengruppe als Fallback. */

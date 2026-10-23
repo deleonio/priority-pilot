@@ -220,6 +220,79 @@ test.describe('Balamentum — #1964: Verpasst-Bereich', () => {
 		expect(new Date(entry!.zeitpunkt).toISOString()).toBe(past);
 	});
 
+	// Verpasste Aufgabe MIT offener Checkliste: die Nachfrage muss in den Erledigen-Dialog übergehen
+	// (Checkliste abhaken, #1583), nicht stumm abbrechen und nicht blind auf Done patchen.
+	test('Erledigt mit offener Checkliste — „Erst jetzt erledigt“ öffnet den Erledigen-Dialog, Done erst nach „Alle abhaken“', async ({
+		page,
+	}) => {
+		const past = new Date(Date.now() - DAY).toISOString();
+		const id = await createTaskViaApi(page, {
+			title: 'Verpasst mit offener Checkliste',
+			deadline: past,
+			checklist: [
+				{ id: '11111111-1111-4111-8111-111111111111', title: 'Schritt eins', completed: false },
+				{ id: '22222222-2222-4222-8222-222222222222', title: 'Schritt zwei', completed: false },
+			],
+		});
+
+		await page.goto('/app/');
+		await waitForStableView(page);
+		const item = page.getByTestId('missed-item').filter({ hasText: 'Verpasst mit offener Checkliste' });
+		await item.getByRole('button', { name: /^erledigt$/i }).click();
+		await page.getByRole('button', { name: /^erst jetzt erledigt$/i }).click();
+
+		// Erledigen-Dialog mit Checklisten-Sektion (gescoped — Onboarding-Dialog bleibt gemountet, #2070).
+		const dialog = page.locator('kol-dialog:not([_label="Willkommen bei Balamentum"])');
+		await expect(dialog.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeVisible();
+		await expect(dialog.getByText('Schritt eins')).toBeVisible();
+		await expect(dialog.getByTestId('checklist-item')).toHaveCount(2);
+
+		await dialog.getByRole('button', { name: /alle abhaken/i }).click();
+		await dialog.getByRole('button', { name: /als erledigt markieren/i }).click();
+
+		await expect(page.getByTestId('missed-section')).toHaveCount(0);
+		const scores = (await (await page.request.get('/api/v1/scores')).json()) as {
+			taskId: number;
+			pünktlich: boolean;
+		}[];
+		expect(scores.find((entry) => entry.taskId === id)?.pünktlich).toBe(false);
+	});
+
+	test('Erledigt mit offener Checkliste — „Pünktlich erledigt“ bucht nach dem Abhaken zur Deadline', async ({
+		page,
+	}) => {
+		const past = new Date(Date.now() - DAY).toISOString();
+		const id = await createTaskViaApi(page, {
+			title: 'Verpasst pünktlich mit Checkliste',
+			deadline: past,
+			checklist: [{ id: '33333333-3333-4333-8333-333333333333', title: 'Einziger Schritt', completed: false }],
+		});
+
+		await page.goto('/app/');
+		await waitForStableView(page);
+		await page
+			.getByTestId('missed-item')
+			.filter({ hasText: 'Verpasst pünktlich mit Checkliste' })
+			.getByRole('button', { name: /^erledigt$/i })
+			.click();
+		await page.getByRole('button', { name: /^pünktlich erledigt$/i }).click();
+
+		const dialog = page.locator('kol-dialog:not([_label="Willkommen bei Balamentum"])');
+		await expect(dialog.getByTestId('checklist-item')).toHaveCount(1);
+		await dialog.getByRole('button', { name: /alle abhaken/i }).click();
+		await dialog.getByRole('button', { name: /als erledigt markieren/i }).click();
+
+		await expect(page.getByTestId('missed-section')).toHaveCount(0);
+		const scores = (await (await page.request.get('/api/v1/scores')).json()) as {
+			taskId: number;
+			pünktlich: boolean;
+			zeitpunkt: string;
+		}[];
+		const entry = scores.find((candidate) => candidate.taskId === id);
+		expect(entry?.pünktlich).toBe(true);
+		expect(new Date(entry!.zeitpunkt).toISOString()).toBe(past);
+	});
+
 	test('Archiv — Switch zeigt archivierte Aufgabe, Wiederherstellen holt sie zurück', async ({ page }) => {
 		const past = new Date(Date.now() - DAY).toISOString();
 		await createTaskViaApi(page, { title: 'Ins Archiv und zurück', deadline: past });

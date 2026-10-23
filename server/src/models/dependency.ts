@@ -10,7 +10,7 @@ Dependency.init(
 		// `calculateValueContribution` (server/src/logics/value.ts) und `buildTaskGraph`
 		// (server/src/logics/graph.ts).
 		weight: {
-			type: DataTypes.FLOAT,
+			type: DataTypes.DOUBLE,
 			allowNull: false,
 			defaultValue: 1.0,
 		},

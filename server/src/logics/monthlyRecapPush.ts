@@ -45,6 +45,10 @@ export const runMonthlyRecapPush = async (
 	const users = await User.findAll();
 	let usersNotified = 0;
 	for (const user of users) {
+		// #2850 AK3: Gruppenschalter „Erfolge und Rückblicke" aus → kein Versand (Muster carePush).
+		if (user.successPushEnabled === false) {
+			continue;
+		}
 		const zeitzone = nutzerZeitzone(user.zeitzone);
 		// #2849 AK6: Fenster 9–17 Ortszeit an lokalem Monatstag 1–7 (ohne gültige Zone: UTC).
 		const { stunde } = uhrzeitIn(now, zeitzone);

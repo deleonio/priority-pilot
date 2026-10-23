@@ -70,7 +70,10 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		// Seit #1792 kommt der Balance-Schalter als weitere Hauptzeile dazu → 6 Zeilen, seit #1794
 		// kommt der Fürsorge-Schalter dazu → 7, seit #1984 der Expertenmodus-Schalter → 8, seit #1994
 		// der Aufteilen-Hinweis-Schalter → 9.
-		await expect(rows).toHaveCount(9);
+		// Seit #2850: 13 Zeilen (vier Push-Gruppen dazu). Der Push-Details-Umbau rückt diese sechs
+		// Schalter in ein eigenes KolDetails „Einzelne Benachrichtigungen" — die DOM-Gesamtzahl
+		// bleibt 13, sechs davon sind jetzt Sub-Zeilen (unterhalb als subRows gemessen).
+		await expect(rows).toHaveCount(13);
 
 		// Volle Breite gilt für die Hauptzeilen; die Sub-Zeilen sitzen im Accordion-Kollapsbereich
 		// und liegen dafür versetzt unter dem Master.
@@ -118,9 +121,11 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		// Seit #1183: 3 Switches, seit #1227 (s. AK1) 5 Zeilen, seit #1792 6 (Balance-Schalter dazu),
 		// seit #1794 7 (Fürsorge-Schalter dazu), seit #1984 8 (Expertenmodus-Schalter dazu), seit #1994 9
 		// (Aufteilen-Hinweis dazu).
-		await expect(rows).toHaveCount(9);
+		// Seit #2850: 13 Zeilen (vier Push-Gruppen dazu); der Push-Details-Umbau legt die sechs
+		// Push-Gruppen-Zeilen ins KolDetails „Einzelne Benachrichtigungen" (DOM-Zahl unverändert).
+		await expect(rows).toHaveCount(13);
 
-		for (let i = 0; i < 9; i++) {
+		for (let i = 0; i < (await rows.count()); i++) {
 			const style = await rows.nth(i).evaluate((el) => {
 				const computed = window.getComputedStyle(el);
 				return { flexDirection: computed.flexDirection, alignItems: computed.alignItems };
@@ -151,11 +156,25 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		const animationsSwitch = switchControl(page, /^Animationen$/);
 		await animationsSwitch.click();
 
+		// Die sechs Push-Gruppen-Schalter sitzen im eigenen Klappbereich „Einzelne
+		// Benachrichtigungen" — für die Messung ebenfalls öffnen (app-seitiger Klappzustand,
+		// Header-Klick ist seit #1552 zuverlässig, Muster AK8).
+		await accordionTrigger(page, 'Einzelne Benachrichtigungen').click();
+
+		// Öffnen animiert die Zeilenhöhe auch hier — auf den Endzustand des letzten
+		// Push-Schalters warten, bevor die Schleife misst (Muster „Erledigt animieren" unten).
+		const lastPushSwitch = page.locator(
+			'.settings-general kol-input-checkbox[_variant="switch"][_label="Hinweis zum Aufteilen großer Aufgaben"]',
+		);
+		await expect.poll(async () => (await lastPushSwitch.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
 		const switches = page.locator('.settings-general kol-input-checkbox[_variant="switch"]');
 		// Seit #1183: 3 Switches, seit #1227 5 (Sprachaufnahme, Animationen, Balance animieren,
 		// Erledigt animieren, Push), seit #1792 6 (Balance-Priorisierung dazu), seit #1794 7
-		// (Fürsorge-Hinweise dazu), seit #1984 8 (Expertenmodus dazu), seit #1994 9 (Aufteilen-Hinweis dazu).
-		await expect(switches).toHaveCount(9);
+		// (Fürsorge dazu), seit #1984 8 (Expertenmodus dazu), seit #1994 9 (Aufteilen-Hinweis dazu),
+		// seit #2850 13 (vier Push-Gruppen dazu). Push-Details-Umbau: unverändert 13, sechs davon
+		// im neuen Klappbereich — dafür wird dieser vor der Messung geöffnet.
+		await expect(switches).toHaveCount(13);
 
 		// Das Öffnen animiert die Zeilenhöhe (CSS-Transition) — auf den Endzustand des zuletzt
 		// eingeblendeten Feinschalters („Erledigt animieren") warten, bevor gemessen wird. Am
@@ -167,7 +186,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		);
 		await expect.poll(async () => (await lastSwitch.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
-		for (let i = 0; i < 9; i++) {
+		for (let i = 0; i < (await switches.count()); i++) {
 			const box = await switches.nth(i).boundingBox();
 			expect(box).toBeTruthy();
 			expect(box!.height).toBeGreaterThanOrEqual(44);

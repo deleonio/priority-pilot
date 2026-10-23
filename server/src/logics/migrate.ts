@@ -7,6 +7,11 @@ import { SEED_PILLARS } from '../models/pillarData.js';
  * und die Migrationen mit Zusatzlogik (RENAME/DROP/Backfill/Unique-Index).
  */
 const existingColumns = async (db: Sequelize, table: string): Promise<string[]> => {
+	// MariaDB (#2825): Bestands-Migrationen sind dort No-ops (frische DB, `sync()` legt das Schema
+	// an) — kein SQLite-PRAGMA senden; leer wie „Tabelle fehlt" behandeln.
+	if (db.getDialect() === 'mysql') {
+		return [];
+	}
 	const [columns] = await db.query(`PRAGMA table_info('${table}')`);
 	return (columns as { name: string }[]).map((column) => column.name);
 };
@@ -129,6 +134,10 @@ const SERIES_TABLE_COLUMNS = [
  * direkt mit den neuen Namen an).
  */
 export async function migrateSeriesRenameFields(seq: Sequelize): Promise<void> {
+	// MariaDB (#2825): No-op — `sqlite_master` ist SQLite-exklusiv; `sync()` legt das Schema an.
+	if (seq.getDialect() === 'mysql') {
+		return;
+	}
 	// Tabelle existiert nicht → No-Op
 	const [tableCheck] = await seq.query("SELECT name FROM sqlite_master WHERE type='table' AND name='series'");
 	// Rohabfrage ohne generierten Sequelize-Typ: `sqlite_master` liefert nur plain Name-Zeilen,
@@ -717,6 +726,22 @@ const USER_CARE_COLUMNS = [
  */
 export const migrateUserCareColumns = async (db: Sequelize): Promise<void> => {
 	await ensureColumns(db, 'users', USER_CARE_COLUMNS);
+};
+
+/** Push-Gruppen-Spalten am User (#2850, docs/push-konzept.md §5) — drei Gruppen an, Tipps abweichend aus. */
+const USER_PUSH_GROUP_COLUMNS = [
+	{ name: 'taskPushEnabled', definition: 'BOOLEAN NOT NULL DEFAULT 1' },
+	{ name: 'successPushEnabled', definition: 'BOOLEAN NOT NULL DEFAULT 1' },
+	{ name: 'groupPushEnabled', definition: 'BOOLEAN NOT NULL DEFAULT 1' },
+	{ name: 'tipPushEnabled', definition: 'BOOLEAN NOT NULL DEFAULT 0' },
+] as const;
+
+/**
+ * Zieht die Push-Gruppen-Spalten auf einer bestehenden `users`-Tabelle nach (#2850) — idempotent,
+ * No-op bei frischer DB (Muster {@link migrateUserCareColumns}).
+ */
+export const migrateUserPushGroupColumns = async (db: Sequelize): Promise<void> => {
+	await ensureColumns(db, 'users', USER_PUSH_GROUP_COLUMNS);
 };
 
 /** Zustimmungs-Spalten am User (#1901) — Fassung und Zeitpunkt, anfangs leer. */

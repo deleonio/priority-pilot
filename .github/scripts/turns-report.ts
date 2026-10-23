@@ -15,7 +15,7 @@
 // Kohorten aus tokens-report.ts — eine Definition, zwei Renderer.
 //
 // Datenbasis sind die versiegelten Dateien, NICHT die 90-Tage-Artefakte. Läuft lokal und im
-// Workflow „Kosten-Uebersicht" (wöchentlich, read-only) in die Job-Summary:
+// Workflow „Report Pipeline" (wöchentlich, read-only) in die Job-Summary:
 //   node .github/scripts/turns-report.ts --dir .costs [--baseline 2026-W35] [--interventions docs/kosten-interventionen.json]
 //
 // Stil-Spiegel von tokens-report.ts: Node-Eintritt, keine externen Deps, ESM, ausschliesslich

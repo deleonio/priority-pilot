@@ -92,7 +92,7 @@ jobs:
           echo "Kandidaten (offen, ai:reviewed, ohne aktive Pipeline-Labels): $count"
 
           {
-            echo "### Claude PR Gate Sweep"
+            echo "### Merge PR Sweep"
             echo
             if [ "$count" -eq 0 ]; then
               echo "Keine hängenden ai:reviewed-PRs — nichts nachzutriggern. ✅"

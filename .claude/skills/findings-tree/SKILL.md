@@ -19,7 +19,7 @@ the author reads or answers stays German and follows the
 - Read [MEMORY.md](../../../.ai-memory/MEMORY.md).
 - Collect the report issues: `gh issue list --state open --limit 200 --json number,title,labels`
   and keep everything carrying one of the report labels: `ci:ux-team`, `ci:rechts-team`,
-  `ci:code-review-team`, `ci:hacker-team`, `ci:nit-report`, `ci:prompt-audit`, `test-maintenance`.
+  `ci:code-review-team`, `ci:hacker-team`, `ci:nit-report`, `ci:prompt-audit`, `ci:test-maintenance`.
 - Read every report body and extract per report:
   1. the **Umsetzungs-Kandidaten** — already paste-ready ticket drafts, the primary pool;
   2. further **Funde** (ranked, with anchors) — secondary pool, only when a gap of their own;

@@ -57,7 +57,16 @@
 			"pushFailedAppErrorText": "Push notifications could not be enabled. Please check your internet connection and try again – if it keeps failing, an app update will probably help.",
 			"pushUnavailableLabel": "Push notifications unavailable",
 			"pushUnavailableText": "This browser does not support push notifications. Install the app or use an up-to-date browser to receive reminders.",
-			"careLabel": "Care hints",
+			"singleNotifications": "Individual notifications",
+			"careLabel": "Care",
+			"tasksLabel": "Tasks and reminders",
+			"tasksHint": "Deadline reminders, your morning top-3 push and task notifications: created, completed or generated from a series.",
+			"successLabel": "Successes and recaps",
+			"successHint": "Milestone rewards and your monthly recap.",
+			"groupsLabel": "Groups",
+			"groupsHint": "Pushes about activity in your groups – meaning the push, not the “Groups” settings section.",
+			"tipsLabel": "Tips and offers",
+			"tipsHint": "At most once a month, a hint about a feature that fits your usage – only with your consent, therefore off by default.",
 			"careHint": "Gentle hints when a pillar falls clearly short or is overloaded – at most one per day, never at night. Only affects the care push: deadline reminders stay on.",
 			"saveFailedLabel": "Setting not saved",
 			"saveFailedText": "The setting could not be saved. Please check your connection and try again.",
@@ -72,6 +81,7 @@
 			"testErrorText": "Push failed."
 		},
 		"accountData": "Account and data",
+		"accountDataIntro": "Here you can permanently delete your account with all its data. We ask twice beforehand, so nothing happens by accident.",
 		"pillars": {
 			"fixedLabel": "Fixed pillars",
 			"fixedText": "By definition, these 5 pillars address the balance in life and always apply. Your weighting stays individually adjustable.",
@@ -252,7 +262,8 @@
 		"loading": "Loading categories …",
 		"emptyTitle": "No categories yet",
 		"emptyText": "Create your first category to group tasks by topic. Without a category, tasks simply stay unsorted — nothing gets lost.",
-		"create": "Create new category"
+		"create": "Create new category",
+		"rowActions": "Actions for {{name}}"
 	},
 	"categoryForm": {
 		"nameEmpty": "Name must not be empty.",

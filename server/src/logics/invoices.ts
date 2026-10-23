@@ -8,6 +8,7 @@ import User from '../models/user.js';
 import { spracheVon, type CareSprache } from './careSuggestionData.js';
 import { getPlansCatalog, parsePlan, type Plan } from './plans.js';
 import { sendMailToUser, type MailSender } from './mail.js';
+import { renderMailHtml } from './mailTemplate.js';
 import { buildInvoicePdf, contractConfirmationLines } from './invoicePdf.js';
 import { billingAddressLines } from './billingAddress.js';
 import { OPERATOR } from './operator.js';
@@ -238,33 +239,47 @@ const deliverInvoiceUnsafe = async (
 	const sprache = spracheVon(user.get('sprache') as string | null);
 	const confirmation = await confirmationFor(invoice, undefined, sprache);
 	const amount = (cents: number): string => `${(cents / 100).toFixed(2)} ${currency}`;
+	// Englisch nur die Mail; das PDF bleibt der deutsche Beleg (gespeicherte Bytes).
+	const subject =
+		sprache === 'en' ? `Your ${isCredit ? 'credit note' : 'invoice'} ${number}` : `Ihre ${kind} ${number}`;
+	// Zeitraum, Paket, Positionen, Betrag und Hinweise als gemeinsame Bausteine für Text und HTML
+	// („X: Y“-Zeilen im Text, Label/Wert-Zeilen im HTML) — beide Varianten spiegeln denselben Inhalt.
+	const rows = [
+		{
+			label: sprache === 'en' ? 'Period' : 'Zeitraum',
+			value: `${periodStart.toISOString().slice(0, 10)} ${sprache === 'en' ? 'to' : 'bis'} ${periodEnd.toISOString().slice(0, 10)}`,
+		},
+		...(isCredit
+			? []
+			: [{ label: sprache === 'en' ? 'Plan' : 'Paket', value: sprache === 'en' ? PERIOD_LABEL_EN(label) : label }]),
+		...lineItems.map((item) => ({
+			label: sprache === 'en' ? PERIOD_LABEL_EN(item.label) : item.label,
+			value: amount(item.amountCents),
+		})),
+		{ label: sprache === 'en' ? 'Amount' : 'Betrag', value: amount(amountCents) },
+	];
+	const paragraphs = [
+		sprache === 'en' ? 'No VAT is charged under section 19 of the German VAT Act (UStG).' : TAX_NOTE,
+		...(sprache === 'en' ? ['The attached PDF is issued in German.'] : []),
+	];
+	const mail = renderMailHtml({
+		heading: subject,
+		rows,
+		paragraphs: [...paragraphs, ...confirmation],
+		lang: sprache,
+	});
 	const sent = await sendMailToUser(
 		user,
 		{
-			// Englisch nur die Mail; das PDF bleibt der deutsche Beleg (gespeicherte Bytes).
-			subject: sprache === 'en' ? `Your ${isCredit ? 'credit note' : 'invoice'} ${number}` : `Ihre ${kind} ${number}`,
-			text: (sprache === 'en'
-				? [
-						`${isCredit ? 'Credit note' : 'Invoice'} ${number}`,
-						`Period: ${periodStart.toISOString().slice(0, 10)} to ${periodEnd.toISOString().slice(0, 10)}`,
-						...(isCredit ? [] : [`Plan: ${PERIOD_LABEL_EN(label)}`]),
-						...lineItems.map((item) => `${PERIOD_LABEL_EN(item.label)}: ${amount(item.amountCents)}`),
-						`Amount: ${amount(amountCents)}`,
-						'No VAT is charged under section 19 of the German VAT Act (UStG).',
-						'The attached PDF is issued in German.',
-						...(confirmation.length > 0 ? ['', ...confirmation] : []),
-					]
-				: [
-						`${kind} ${number}`,
-						`Zeitraum: ${periodStart.toISOString().slice(0, 10)} bis ${periodEnd.toISOString().slice(0, 10)}`,
-						...(isCredit ? [] : [`Paket: ${label}`]),
-						...lineItems.map((item) => `${item.label}: ${(item.amountCents / 100).toFixed(2)} ${currency}`),
-						`Betrag: ${(amountCents / 100).toFixed(2)} ${currency}`,
-						TAX_NOTE,
-						...(confirmation.length > 0 ? ['', ...confirmation] : []),
-					]
-			).join('\n'),
-			attachments: [{ filename: `${number}.pdf`, contentType: 'application/pdf', content: pdf }],
+			subject,
+			text: [
+				sprache === 'en' ? `${isCredit ? 'Credit note' : 'Invoice'} ${number}` : `${kind} ${number}`,
+				...rows.map((row) => `${row.label}: ${row.value}`),
+				...paragraphs,
+				...(confirmation.length > 0 ? ['', ...confirmation] : []),
+			].join('\n'),
+			html: mail.html,
+			attachments: [{ filename: `${number}.pdf`, contentType: 'application/pdf', content: pdf }, ...mail.attachments],
 		},
 		mailSend,
 	);

@@ -1,10 +1,10 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { accordionTrigger, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #1794 — Fürsorge-Schalter (Spec: docs/spec/issue-1794.md).
  *
- * - AK7 (375px-Viewport): der Schalter „Fürsorge-Hinweise" ist in den Einstellungen sichtbar
+ * - AK7 (375px-Viewport): der Schalter „Fürsorge" (#2850-Rename) ist in den Einstellungen sichtbar
  *   und bedienbar; ein Toggle überlebt den Reload, weil die Einstellung serverseitig pro
  *   Nutzer gespeichert wird (Beweis über GET /api/v1/care-config, Muster #1098 AK7).
  */
@@ -12,8 +12,9 @@ import { waitForStableView } from './helpers';
 /** Fürsorge-Switch (Rolle checkbox/switch, Muster issue-1098-geo-settings.spec.ts). */
 const careSwitch = (page: Page) =>
 	page
-		.getByRole('checkbox', { name: /fürsorge-hinweise/i })
-		.or(page.getByRole('switch', { name: /fürsorge-hinweise/i }));
+		// #2850: Label „Fürsorge-Hinweise" wurde zu „Fürsorge" umbenannt.
+		.getByRole('checkbox', { name: /fürsorge/i })
+		.or(page.getByRole('switch', { name: /fürsorge/i }));
 
 test.describe('Balamentum — #1794: Fürsorge-Schalter', () => {
 	test('AK7 — 375px: Schalter sichtbar und bedienbar, Toggle überlebt den Reload', async ({ page }) => {
@@ -23,6 +24,10 @@ test.describe('Balamentum — #1794: Fürsorge-Schalter', () => {
 		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Balamentum');
 
+		// Push-Details-Umbau: der Schalter sitzt im Klappbereich „Einzelne Benachrichtigungen"
+		// — vor Sichtbarkeits-/Bounding-Box-Prüfung und Klick aufklappen (Muster AK8).
+		await accordionTrigger(page, 'Einzelne Benachrichtigungen').click();
+
 		const care = careSwitch(page);
 		await expect(care, 'Fürsorge-Schalter fehlt in den Einstellungen').toHaveCount(1);
 		await expect(care).toBeVisible();
@@ -31,7 +36,7 @@ test.describe('Balamentum — #1794: Fürsorge-Schalter', () => {
 		// scrollWidth — die App-Shell clippt mit overflow-x:hidden). Gemessen am Host-Element
 		// (Muster settings-switch-layout.spec.ts AK3): die Rollen-Locator lösen auf das native,
 		// visuell verkleinerte `<input>` auf, nicht auf den sichtbaren KoliBri-Switch.
-		const box = await page.locator('kol-input-checkbox[_variant="switch"][_label="Fürsorge-Hinweise"]').boundingBox();
+		const box = await page.locator('kol-input-checkbox[_variant="switch"][_label="Fürsorge"]').boundingBox();
 		expect(box, 'Schalter rendert messbar').not.toBeNull();
 		expect(box!.height).toBeGreaterThanOrEqual(44);
 		expect(box!.x).toBeGreaterThanOrEqual(-1);
@@ -56,6 +61,7 @@ test.describe('Balamentum — #1794: Fürsorge-Schalter', () => {
 
 		await page.reload();
 		await waitForStableView(page, 'Balamentum');
+		await accordionTrigger(page, 'Einzelne Benachrichtigungen').click();
 		await expect(careSwitch(page), 'der gespeicherte Zustand überlebt den Reload').toBeChecked({ checked: !initial });
 	});
 });

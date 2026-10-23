@@ -640,6 +640,12 @@ describe('migrateUserGeoConfigColumns', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				// Test-Pflege #1994: `splitHintEnabled` ergänzt (Konvention wie oben).
 				'`splitHintEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				// Test-Pflege #2850: Push-Gruppen-Spalten ergänzt — das User-Modell selectiert sie,
+				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention wie oben).
+				'`taskPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`successPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`groupPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`tipPushEnabled` TINYINT NOT NULL DEFAULT 0, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
 				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
@@ -1002,6 +1008,12 @@ describe('migrateUsersRoleColumn (Rollensystem admin/member)', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				// Test-Pflege #1994: `splitHintEnabled` ergänzt (Konvention wie oben).
 				'`splitHintEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				// Test-Pflege #2850: Push-Gruppen-Spalten ergänzt — das User-Modell selectiert sie,
+				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention wie oben).
+				'`taskPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`successPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`groupPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`tipPushEnabled` TINYINT NOT NULL DEFAULT 0, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
 				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
@@ -1105,6 +1117,12 @@ describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				// Test-Pflege #1994: `splitHintEnabled` ergänzt (Konvention wie oben).
 				'`splitHintEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				// Test-Pflege #2850: Push-Gruppen-Spalten ergänzt — das User-Modell selectiert sie,
+				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention wie oben).
+				'`taskPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`successPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`groupPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`tipPushEnabled` TINYINT NOT NULL DEFAULT 0, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
 				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
@@ -1292,6 +1310,12 @@ describe('migrateUsersPlanColumn (#1456 AK1)', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				// Test-Pflege #1994: `splitHintEnabled` ergänzt (Konvention wie oben).
 				'`splitHintEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				// Test-Pflege #2850: Push-Gruppen-Spalten ergänzt — das User-Modell selectiert sie,
+				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention wie oben).
+				'`taskPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`successPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`groupPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`tipPushEnabled` TINYINT NOT NULL DEFAULT 0, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
 				// Test-Pflege #2009: `balanceVariant` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
@@ -2324,6 +2348,7 @@ const SNAPSHOT_COLUMNS: Record<string, readonly string[]> = {
 		'expertMode',
 		'freeSlotMinMinutes',
 		'geolocationEnabled',
+		'groupPushEnabled',
 		'id',
 		'intervalMinutes',
 		'lastGeoLatitude',
@@ -2336,8 +2361,11 @@ const SNAPSHOT_COLUMNS: Record<string, readonly string[]> = {
 		'selectedLlmProviderId',
 		'splitHintEnabled',
 		'sprache',
+		'successPushEnabled',
+		'taskPushEnabled',
 		'termsAcceptedAt',
 		'termsVersion',
+		'tipPushEnabled',
 		'updatedAt',
 		'zeitzone',
 	],

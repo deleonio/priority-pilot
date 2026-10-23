@@ -129,4 +129,19 @@ describe('sendMailToUser — Attachments (#1955 AK1)', () => {
 		const forwarded = (calls[0] ?? {}) as { attachments?: unknown };
 		assert.deepEqual(forwarded.attachments, [attachment], 'Attachments müssen 1:1 beim Sender ankommen');
 	});
+
+	it('reicht die HTML-Variante unverändert an den Sender durch', async () => {
+		const calls: unknown[] = [];
+
+		const ok = await sendMailToUser(
+			{ email: 'ada@example.com' },
+			{ subject: 'Ihre Rechnung INV-2026-100006', text: 'Rechnung', html: '<p>Rechnung</p>' },
+			async (sent) => {
+				calls.push(sent);
+			},
+		);
+
+		assert.equal(ok, true);
+		assert.equal((calls[0] as { html?: string }).html, '<p>Rechnung</p>', 'HTML muss 1:1 beim Sender ankommen');
+	});
 });

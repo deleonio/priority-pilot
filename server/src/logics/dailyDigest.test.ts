@@ -81,6 +81,18 @@ describe('dailyDigest — Morgen-Push „Dein Tag“ (#2853 AK3)', () => {
 		assert.equal(payload.url, '/#karte-deadlines', 'mehrere Aufgaben mit fälliger dabei → Karte „Fällig“');
 	});
 
+	it('#2850 AK3: ausgeschaltete Gruppe „Aufgaben und Erinnerungen“ stoppt den Digest', async () => {
+		const empfaenger = await erstelleEmpfaenger('gruppe-aus@example.com');
+		await empfaenger.update({ taskPushEnabled: false } as never);
+		await seedSubscription(empfaenger.id);
+		await createTask({ title: 'Steuer', deadline: new Date('2026-07-07T10:00:00Z'), userId: empfaenger.id });
+
+		const result = await runDailyDigest(NOW, mockSend);
+
+		assert.equal(result.usersNotified, 0);
+		assert.equal(pushCalls.length, 0);
+	});
+
 	it('AK3: enthält die Nachricht genau eine Aufgabe, öffnet sie diese Aufgabe', async () => {
 		await seedSubscription(1);
 		const task = await createTask({ title: 'Steuer', deadline: new Date('2026-07-07T10:00:00Z') });
@@ -188,7 +200,7 @@ describe('dailyDigest — Morgen-Push „Dein Tag“ (#2853 AK3)', () => {
 			await erstelleEmpfaenger('digest-mail@example.com');
 			await seedSubscription(1);
 			await createTask({ title: 'Steuer', deadline: new Date('2026-07-07T10:00:00Z') });
-			const mailCalls: { to: string; subject: string; text: string }[] = [];
+			const mailCalls: { to: string; subject: string; text: string; html?: string }[] = [];
 			const mailSend: MailSender = (payload) => {
 				mailCalls.push(payload);
 				return Promise.resolve();
@@ -201,6 +213,7 @@ describe('dailyDigest — Morgen-Push „Dein Tag“ (#2853 AK3)', () => {
 			assert.equal(pushCalls.length, 1, 'genau eine Push-Nachricht');
 			assert.equal(mailCalls.length, 1, 'genau eine Mail zusätzlich zur Push-Nachricht');
 			assert.equal(mailCalls[0].subject, 'Dein Tag');
+			assert.match(mailCalls[0].html ?? '', /cid:balamentum-logo/, 'HTML-Variante mit Logo');
 			assert.match(mailCalls[0].text, /Steuer/, 'die Mail trägt den Tagesplan (fällige + Top-Aufgaben)');
 			assert.equal(second.usersNotified, 0, 'Wiederholungstick sendet auf keinem Kanal erneut');
 			assert.equal(mailCalls.length, 1, 'kein zweiter Mail-Versand');
