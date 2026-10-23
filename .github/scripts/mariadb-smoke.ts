@@ -134,6 +134,9 @@ const smoke = async (): Promise<void> => {
 			}),
 			200,
 		);
+		// Der Login regeneriert die Session (alte Id wird zerstoert) — ab hier gilt der
+		// frische Cookie der Login-Antwort, nicht mehr der aus dem Register.
+		adminCookie = sessionCookie(loggedIn.cookies);
 		return `als ${String(loggedIn.body.email ?? ADMIN_EMAIL)}`;
 	});
 
