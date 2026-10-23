@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.33 - 2026-10-23
 
-_Enthält v0.33.0 – v0.33.21._
+_Enthält v0.33.0 – v0.33.22._
 
 ### 🎉 New Features
 
@@ -22,6 +22,7 @@ _Enthält v0.33.0 – v0.33.21._
 ### 🚀 Improvements
 
 - feat(server): limit challenge-end sweep to 7-day backlog window (#2879) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2885
+- feat(frontend): intro sentence for account deletion accordion by @deleonio in https://github.com/deleonio/priority-pilot/pull/2896
 
 ### 🔧 Engineering
 
@@ -356,7 +357,7 @@ _Enthält v0.24.0 – v0.24.13._
 - fix(deps): update dependency i18next to v26.4.4 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2512
 - docs(adr): add 0024 direct completion with undo instead of dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2568
 - feat(server): require minimum completions before overload (#2521) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2569
-- feat(server): require minimum completions before overload (#2521) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2569
+- feat(frontend): refresh care hint after completing a task (#2522) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2570
 - feat(frontend): refresh care hint after completing a task (#2522) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2570
 - feat(server): pillar names in care texts follow app language (#2523) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2571
 - feat(frontend): single primary action per missed task (#2524) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2575
