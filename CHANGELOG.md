@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.33 - 2026-10-22
 
-_Enthält v0.33.0 – v0.33.18._
+_Enthält v0.33.0 – v0.33.19._
 
 ### 🎉 New Features
 
@@ -40,6 +40,7 @@ _Enthält v0.33.0 – v0.33.18._
 - feat(server): consent-gated monthly tip push for free users by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2873
 - docs: explain push switch groups, time windows and daily budget (#2857) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2876
 - fix(deps): update dependency nodemailer to v10.0.10 [security] by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2884
+- docs: fix user guide package tab name and weekly recap window (#2881) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2887
 
 ## v0.32 - 2026-10-22
 
@@ -185,6 +186,7 @@ _Enthält v0.29.0 – v0.29.34._
 - refactor(frontend): merge balance card share logic into one hook (#2695) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2717
 - feat(frontend): voice search no longer sets category filter (#2716) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2724
 - feat(frontend): pause and resume series (#2715) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2722
+- refactor(frontend): drop dead export isGeolocationSupported (#2697) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2726
 - refactor(frontend): drop dead export isGeolocationSupported (#2697) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2726
 - feat(frontend): complete the orbit family with meteors and pendulum by @deleonio in https://github.com/deleonio/priority-pilot/pull/2727
 - docs(matomo): runbook for the self-hosted matomo instance by @deleonio in https://github.com/deleonio/priority-pilot/pull/2728
@@ -349,7 +351,6 @@ _Enthält v0.24.0 – v0.24.13._
 
 ### Other Changes
 
-- fix(frontend): show app magic-link landing despite existing session by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2566
 - fix(frontend): show app magic-link landing despite existing session by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2566
 - fix(deps): update dependency i18next to v26.4.4 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2512
 - docs(adr): add 0024 direct completion with undo instead of dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2568
