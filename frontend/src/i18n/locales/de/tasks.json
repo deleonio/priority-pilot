@@ -113,7 +113,6 @@
 		"title": "Aufgabe erledigen",
 		"failed": "Erledigen fehlgeschlagen",
 		"question": "Soll die Aufgabe <title/> als erledigt markiert werden?",
-		"itemLabel": "Erledigen",
 		"checkAll": "Alle abhaken",
 		"completing": "Wird erledigt…",
 		"markDone": "Als erledigt markieren",

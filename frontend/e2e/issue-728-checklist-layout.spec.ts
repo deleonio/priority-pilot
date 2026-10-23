@@ -7,7 +7,7 @@ import { openAccordionSection, waitForStableView, MOBILE } from './helpers';
  *
  * Ziel: Die Checkliste im TaskForm nutzt CSS Gaps für ihre Abstände — vertikal zwischen den Items
  * sowie horizontal zwischen Eingabefeld + „Hinzufügen"-Button und innerhalb eines Items
- * (Checkbox, Titel, Entfernen-Button).
+ * (Switch mit Titel als Label, Entfernen-Button).
  *
  * Spezifikation: docs/spec/issue-728.md
  *
@@ -115,38 +115,31 @@ test.describe('#728 Checklist-Layout über alle Viewports', () => {
 	});
 
 	/**
-	 * AK4 (Desktop) — Die Elemente eines Items (Checkbox, Titel, Entfernen-Button) liegen in einer
-	 * Zeile mit Freiraum — bessere Touch-Targets statt aneinandergeklebter Inline-Inhalte.
+	 * AK4 (Desktop) — Der Switch (Pill + Titel als Label, #2897) und der Entfernen-Button liegen in
+	 * einer Zeile mit Freiraum — bessere Touch-Targets statt aneinandergeklebter Inline-Inhalte.
 	 * Bezug: docs/spec/issue-728.md, Schritt 3 (CSS Gap für effektive Freiraumnutzung).
 	 */
-	test('AK4 (Desktop): Checkbox, Titel und Entfernen-Button eines Items in einer Zeile mit Freiraum', async ({
+	test('AK4 (Desktop): Switch mit Titel und Entfernen-Button eines Items in einer Zeile mit Freiraum', async ({
 		page,
 	}) => {
 		await page.setViewportSize({ width: 1024, height: 768 });
 		const items = await openFormWithChecklistItems(page, ['Erster Schritt']);
 
 		const item = items.first();
-		const checkboxBox = await item.locator('kol-input-checkbox').boundingBox();
-		const titleBox = await item.locator('.checklist-item-title').boundingBox();
+		const switchBox = await item.locator('kol-input-checkbox').boundingBox();
 		const removeBox = await item.locator('kol-button').boundingBox();
 
-		expect(checkboxBox).not.toBeNull();
-		expect(titleBox).not.toBeNull();
+		expect(switchBox).not.toBeNull();
 		expect(removeBox).not.toBeNull();
 
-		// Horizontale Reihenfolge links → rechts: Checkbox, Titel, Entfernen-Button.
-		expect(checkboxBox!.x).toBeLessThan(titleBox!.x);
-		expect(titleBox!.x).toBeLessThan(removeBox!.x);
+		// Horizontale Reihenfolge links → rechts: Switch (Pill + Titel), Entfernen-Button.
+		expect(switchBox!.x).toBeLessThan(removeBox!.x);
 
-		// Alle drei in derselben Zeile (vertikale Zentren ±10px).
+		// Beide in derselben Zeile (vertikale Zentren ±10px).
 		const centerY = (box: { y: number; height: number }) => box.y + box.height / 2;
-		const rowCenter = (centerY(checkboxBox!) + centerY(titleBox!) + centerY(removeBox!)) / 3;
-		expect(Math.abs(centerY(checkboxBox!) - rowCenter)).toBeLessThanOrEqual(10);
-		expect(Math.abs(centerY(titleBox!) - rowCenter)).toBeLessThanOrEqual(10);
-		expect(Math.abs(centerY(removeBox!) - rowCenter)).toBeLessThanOrEqual(10);
+		expect(Math.abs(centerY(switchBox!) - centerY(removeBox!))).toBeLessThanOrEqual(10);
 
-		// Horizontaler Freiraum zwischen den Elementen: jeweils mindestens 6px.
-		expect(titleBox!.x - (checkboxBox!.x + checkboxBox!.width)).toBeGreaterThanOrEqual(6);
-		expect(removeBox!.x - (titleBox!.x + titleBox!.width)).toBeGreaterThanOrEqual(6);
+		// Horizontaler Freiraum zwischen den Elementen: mindestens 6px.
+		expect(removeBox!.x - (switchBox!.x + switchBox!.width)).toBeGreaterThanOrEqual(6);
 	});
 });

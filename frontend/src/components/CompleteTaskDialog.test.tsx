@@ -111,11 +111,11 @@ describe('CompleteTaskDialog — Checklisten-Sektion (#1583 TF1, AK2)', () => {
 			);
 		});
 
-		expect(screen.getByText('Vertrag pruefen')).toBeInTheDocument();
-		expect(screen.getByText('Rechnung stellen')).toBeInTheDocument();
-
+		// #2897: Die Titel sind die Labels der Schalter (kein eigener Titel-Text mehr).
 		const switches = screen.getAllByRole('switch') as HTMLInputElement[];
 		expect(switches).toHaveLength(2);
+		expect(switches[0]).toHaveAccessibleName('Vertrag pruefen');
+		expect(switches[1]).toHaveAccessibleName('Rechnung stellen');
 		expect(switches[0].checked).toBe(true);
 		expect(switches[1].checked).toBe(false);
 
@@ -128,6 +128,26 @@ describe('CompleteTaskDialog — Checklisten-Sektion (#1583 TF1, AK2)', () => {
 			switches[0].click();
 		});
 		expect((screen.getAllByRole('switch')[0] as HTMLInputElement).checked).toBe(false);
+	});
+});
+
+// #2897 (UX-Team): Der Punktitel ist das Label des Schalters — im Accessibility Tree trägt jeder
+// Schalter seinen Eintrag als eindeutigen Namen statt des statischen „Erledigen".
+describe('CompleteTaskDialog — Schalter eindeutig beim Punkttitel benannt (#2897)', () => {
+	it('vergibt je Schalter den Eintrags-Titel als eindeutigen Namen', async () => {
+		await act(async () => {
+			render(
+				<CompleteTaskDialog
+					task={sampleTask(twoItemChecklist())}
+					onConfirm={vi.fn()}
+					onClose={vi.fn()}
+					onCompleted={vi.fn()}
+				/>,
+			);
+		});
+
+		const names = screen.getAllByRole('switch').map((el) => el.getAttribute('aria-label'));
+		expect(names).toEqual(['Vertrag pruefen', 'Rechnung stellen']);
 	});
 });
 

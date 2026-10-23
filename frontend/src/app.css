@@ -4429,15 +4429,18 @@ kol-input-range {
 	gap: 0.75rem;
 }
 
-.checklist-item-title {
-	flex: 1 1 auto;
-	min-width: 0;
-	overflow-wrap: anywhere;
+/* #2897: Der Punktitel ist das Label des Schalters — zweispaltiges Raster: Switch (Pill + Titel)
+   umbricht in Spalte 1, der Entfernen-Knopf bleibt fix rechts zentriert (ruhige, gleiche Zeilen). */
+.checklist-item--toggle {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 0.75rem;
 }
 
-/* #2501: Serie-Modus — der Titel ist ein Inline-Umbenenn-Feld und übernimmt die Rolle von
-   .checklist-item-title (flexibel, umbruchfähig); Auf/ab- und Entfernen-Buttons bleiben fix,
-   bei engen Zeilen wandert die Button-Gruppe via flex-wrap unter das Feld (KI-UX). */
+/* #2501: Serie-Modus — der Titel ist ein Inline-Umbenenn-Feld (flexibel, umbruchfähig); Auf/ab- und
+   Entfernen-Buttons bleiben fix, bei engen Zeilen wandert die Button-Gruppe via flex-wrap unter das
+   Feld (KI-UX). */
 .checklist-item kol-input-text {
 	flex: 1 1 auto;
 	min-width: 0;
