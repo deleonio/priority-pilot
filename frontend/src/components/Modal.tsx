@@ -1,5 +1,13 @@
 import { KolDialog } from '@public-ui/react-v19';
-import { forwardRef, useEffect, useImperativeHandle, useRef, type ReactNode, type RefObject } from 'react';
+import {
+	forwardRef,
+	useEffect,
+	useImperativeHandle,
+	useLayoutEffect,
+	useRef,
+	type ReactNode,
+	type RefObject,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { deepActiveElement } from '../lib/focus';
 
@@ -81,11 +89,23 @@ export const Modal = forwardRef<ModalHandle, ModalProps>(function Modal(
 	}));
 
 	// `onClose` über einen Ref ansprechen, damit der Öffnen-Effekt unabhängig von der Callback-Identität
-	// genau einmal (beim Mount) läuft.
+	// genau einmal (beim Mount) läuft. Beide Effekte bewusst als LAYOUT-Effekte: Das teardown-close
+	// eines unmounteten Dialogs (disconnectedCallback → `close()`) feuert sein natives close-Event
+	// als Macrotask NACH dem Commit, aber noch VOR Reacts passiven Effekten — mit passiven Effekten
+	// träfe dieses Close-Event den noch nicht neutralisierten Callback und schlösse den frisch
+	// gemounteten Folge-Dialog sofort wieder (Dialogwechsel MissedCompleteDialog → CompleteTaskDialog).
 	const onCloseRef = useRef(onClose);
-	useEffect(() => {
+	useLayoutEffect(() => {
 		onCloseRef.current = onClose;
 	}, [onClose]);
+	useLayoutEffect(() => {
+		return () => {
+			// Unmount ist KEIN User-Close: Wenn der Eigentümer das Modal unmountet (z. B. Schrittwechsel
+			// Quick-Capture → Formular, #236), darf kein Close-Event mehr `onClose` aufrufen — sonst
+			// schlösse der Aufrufer (App `closeDialog`) auch den gerade gemounteten Folge-Dialog.
+			onCloseRef.current = () => undefined;
+		};
+	}, []);
 
 	// `initialFocusRef` ebenso über einen stabilen Ref, damit der Öffnen-Effekt seine leere
 	// Abhängigkeitsliste behält (läuft exakt einmal pro Dialog-Instanz) und trotzdem den jeweils
@@ -155,12 +175,6 @@ export const Modal = forwardRef<ModalHandle, ModalProps>(function Modal(
 		);
 		return () => {
 			active = false;
-			// Unmount ist KEIN User-Close: Wenn der Eigentümer das Modal unmountet (z. B. Schrittwechsel
-			// Quick-Capture → Formular, #236), darf kein Close-Event mehr `onClose` aufrufen — sonst
-			// schließt der Aufrufer (App `closeDialog`) auch den gerade gemounteten Folge-Dialog. Beim
-			// StrictMode-Re-Mount stellt der `onCloseRef`-Effekt oben den echten Callback wieder her
-			// (Effekte laufen in Deklarationsreihenfolge).
-			onCloseRef.current = () => undefined;
 			// BEWUSST kein `dialog.close()` im Cleanup: Das Entfernen aus dem DOM räumt einen offenen
 			// Modal-Dialog laut HTML-Spec ohne Close-Event aus dem Top-Layer. Ein `close()` reihte das
 			// native Close-Event dagegen als Macrotask ein — nach einem StrictMode-Re-Mount träfe es den
