@@ -51,11 +51,17 @@ const sessionCookie = (cookies: string[]): string => {
 	return first;
 };
 
-const assertStatus = (name: string, res: HttpResponse, expected: number): { body: Record<string, unknown> } => {
+const assertStatus = (
+	name: string,
+	res: HttpResponse,
+	expected: number,
+): HttpResponse & { body: Record<string, unknown> } => {
 	if (res.status !== expected) {
 		throw new SmokeError(`${name}: erwartet HTTP ${expected}, erhalten ${res.status} — ${JSON.stringify(res.body)}`);
 	}
-	return { body: (res.body ?? {}) as Record<string, unknown> };
+	// Komplette Response durchreichen (Status, Cookies, Body) — der Login-Schritt braucht
+	// z. B. den Session-Cookie aus dem Register-/Login-Header weiter unten.
+	return { ...res, body: (res.body ?? {}) as Record<string, unknown> };
 };
 
 const step = async (name: string, fn: () => Promise<string>): Promise<void> => {
