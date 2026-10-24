@@ -52,7 +52,9 @@ Pillar.init(
 		// Default '' damit bestehende Zeilen beim Nachziehen der Spalte nicht verletzt werden; der
 		// Seed bzw. die Migration füllen die echten Werte (siehe SEED_PILLARS).
 		description: {
-			type: DataTypes.STRING,
+			// TEXT statt STRING: MariaDB erzwingt bei STRING varchar(255), die Seed-Katalogtexte
+			// werden laenger (Host-Befund Parallellauf).
+			type: DataTypes.TEXT,
 			allowNull: false,
 			defaultValue: '',
 		},

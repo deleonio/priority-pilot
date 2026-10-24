@@ -110,7 +110,8 @@ User.init(
 			defaultValue: '',
 		},
 		avatarUrl: {
-			type: DataTypes.STRING,
+			// TEXT statt STRING: Google-Avatar-URLs ueberschreiten varchar(255) (MariaDB-Parallellauf).
+			type: DataTypes.TEXT,
 			allowNull: true,
 		},
 		displayNameCustom: {

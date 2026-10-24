@@ -381,7 +381,55 @@ vom Server wegsichern.
 
 ---
 
-## 10. Troubleshooting
+## 10. MariaDB-Parallellauf (Cutover-Vorbereitung)
+
+Vor dem Cutover von SQLite auf MariaDB ([ADR 0026](adr/0026-mariadb-als-produktiv-datenbank.md))
+läuft täglich ein Parallellauf: Das Skript (`server/src/scripts/mariadb-parallel-run.ts`, im
+Deploy unter `dist/scripts/mariadb-parallel-run.js`) erstellt einen konsistenten Snapshot der
+Produktiv-SQLite (`VACUUM INTO`, Pendant zum `.backup` in `maintenance.sh`), kopiert den Snapshot in die
+MariaDB-Schatten-DB (#2827) und prüft die Identität gegen die Produktiv-Datei (#2829). Je Lauf
+hängt es genau eine JSON-Zeile an die Report-Datei (`{"date","ok","tables","rows","mismatched"}`);
+ein roter Lauf (Abweichung oder Fehler) setzt Exit-Code 1 und mailt die Admin-Nutzer über die
+bestehende SMTP-Einstellungen (§5). Die Produktiv-SQLite bleibt dabei unangetastet; geschrieben
+wird nur die Schatten-DB (`MARIADB_DATABASE`), nie das laufende Schema.
+
+**Die letzten 7 Zeilen sind der 7-Tage-Nachweis für den Cutover** — alle mit `"ok":true` in
+Folge, sonst zählt der Streak von vorn:
+
+```bash
+tail -n 7 /var/www/gh-deploy/priority-pilot/mariadb-parallel/runs.log
+```
+
+Einrichtung (einmalig):
+
+```bash
+# 1. Report-Verzeichnis außerhalb von dist/ und data/:
+sudo -u gh-deploy mkdir -p /var/www/gh-deploy/priority-pilot/mariadb-parallel
+
+# 2. Schatten-DB in MariaDB anlegen (getrennt vom künftigen Prod-Schema):
+mariadb -e "CREATE DATABASE balamentum_schatten; \
+  GRANT ALL ON balamentum_schatten.* TO 'balamentum_parallel'@'localhost' IDENTIFIED BY '…';"
+```
+
+Cron als `gh-deploy`-User (`crontab -u gh-deploy -e`), täglich 02:30 — nach dem Backup um 02:00
+(§9). Die `.env` (§5) liefert SMTP; `DATABASE_STORAGE` steht explizit in der Zeile, weil der
+Produktiv-Host (`backend/`-Layout) den Pfad nur im PM2-Env (`ecosystem.config.cjs`,
+`/home/gh-deploy/database.sqlite`) trägt, nicht in der `backend/.env`. Skript-Zugang und
+Report-Pfad stehen ebenfalls in der Zeile, damit die Schatten-DB nie mit dem künftigen
+Prod-Schema verwechselt werden kann:
+
+```cron
+30 2 * * * cd /var/www/gh-deploy/priority-pilot/backend && set -a && . ./.env && set +a && DATABASE_STORAGE=/home/gh-deploy/database.sqlite DB_DIALECT=mysql MARIADB_HOST=127.0.0.1 MARIADB_USER=balamentum_parallel MARIADB_PASSWORD=… MARIADB_DATABASE=balamentum_schatten MARIADB_PARALLEL_REPORT=/var/www/gh-deploy/priority-pilot/mariadb-parallel/runs.log node dist/scripts/mariadb-parallel-run.js >> /var/www/gh-deploy/priority-pilot/mariadb-parallel/cron.log 2>&1
+```
+
+Der erste Lauf startet mit leerem Report-Verzeichnis (das Skript legt es bei Bedarf selbst an).
+Konsolen-Ausgabe und JSONL-Report sind getrennt: Lesungen/Debugging in `cron.log`, Auswertung
+über `runs.log`. Zum Prüfen eines roten Laufs genügt ein Lauf mit falscher `MARIADB_DATABASE`
+(Exit 1, rote Zeile mit Ursache, Admin-Mail).
+
+---
+
+## 12. Troubleshooting
 
 | Symptom                               | Wahrscheinliche Ursache                                                                      | Prüfen / Fix                                                                                      |
 | ------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
