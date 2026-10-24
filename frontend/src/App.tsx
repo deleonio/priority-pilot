@@ -1083,6 +1083,22 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		[reload],
 	);
 
+	// „Erledigt“ aus der Leseseite (#2939): überfällige Aufgaben fragen zuerst die Pünktlichkeit
+	// (#1964, Muster completeFromPanel), sonst übernimmt der Bestands-Toggle (offene Checkliste →
+	// Erledigen-Dialog, sonst direkter PATCH). notifyTasksChanged spiegelt den Wechsel sofort in
+	// der Ansicht (TASKS_CHANGED_EVENT → TaskView refetcht); der Dialog-Fall meldet über
+	// completeTask selbst.
+	const doneFromView = useCallback(
+		(task: Task): void => {
+			if (istUeberfaellig(task)) {
+				setDialog({ kind: 'missedComplete', task });
+				return;
+			}
+			void handleDoneToggle(task).then(() => notifyTasksChanged());
+		},
+		[handleDoneToggle],
+	);
+
 	// #1582: Pinnt eine Aufgabe an bzw. wieder ab. Bleibt (anders als `handleDoneToggle`) im
 	// `forest` sichtbar — kein sticky-Removal-Pfad nötig, ein `reload()` genügt, damit die neue
 	// `pinned`/`pinnedAt`-Sortierung (`sortPinnedFirst` in `TaskTree`) sofort greift.
@@ -1801,7 +1817,12 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 									_on={tabsCallbacks}
 								/>
 								{taskViewId !== undefined && (
-									<TaskView taskId={Number(taskViewId)} onBack={backToMainView} onEdit={openEdit} />
+									<TaskView
+										taskId={Number(taskViewId)}
+										onBack={backToMainView}
+										onEdit={openEdit}
+										onMarkDone={doneFromView}
+									/>
 								)}
 							</>
 						)}

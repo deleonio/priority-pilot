@@ -2081,3 +2081,24 @@ export const getTask = async ({ id, signal }: Init & { id: number }): Promise<Ta
 	}
 	return reviveTask(data);
 };
+
+// Waldabruf der Aufgabenansicht (#2939): die Unteraufgaben-Sperre liest die Kanten aus
+// `GET /forest` (Muster TaskTree) — als Named-Export neben `getTask`, damit die Ansicht den
+// Abruf im Unit-Test ebenfalls auf Modulebene mocken kann (`vi.mock('../api', …)`).
+export const getForest = async ({ signal }: Init = {}): Promise<TaskTreeNode[]> => {
+	const { data, error, response } = await client.GET('/forest', { signal });
+	if (!response.ok || data === undefined) {
+		throw new ResponseError(response, error);
+	}
+	return data;
+};
+
+// Mutationen der Aufgabenansicht (#2939): Checkliste (komplettes Array, #531), Anpinnen,
+// Wieder-Öffnen, Zurückstellen und Wiederherstellen — dieselben Namen wie die Fassaden-Methoden,
+// als Named-Exports für das Modul-Mock im Unit-Test (Muster `getTask`).
+export const updateTask = ({ id, taskUpdate }: { id: number; taskUpdate: TaskUpdate }): Promise<Task> =>
+	api.updateTask({ id, taskUpdate });
+
+export const snoozeTask = ({ id }: { id: number }): Promise<Task> => api.snoozeTask({ id });
+
+export const unarchiveTask = ({ id }: { id: number }): Promise<Task> => api.unarchiveTask({ id });

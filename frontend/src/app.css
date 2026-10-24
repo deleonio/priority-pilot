@@ -6784,3 +6784,50 @@ a.plan-badge:focus-visible {
 	width: 60%;
 	min-height: 2rem;
 }
+
+/* Status- und Pin-Zeile (#2939 AK3/AK4): Text-Badges — der Zustandswechsel ist ohne Farbe lesbar. */
+.task-view-status {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--pp-space-2);
+	margin-top: var(--pp-space-2);
+}
+
+.task-view-toolbar-actions {
+	display: flex;
+	gap: var(--pp-space-2);
+}
+
+/* Checkliste (#2939 AK1): Zähler tabular-nums (KI-UX), ganze Zeile tappbar (Touch ≥44px, Regel 2). */
+.task-view-checklist {
+	display: grid;
+	gap: var(--pp-space-1);
+	margin-top: var(--pp-space-4);
+}
+
+.task-view-checklist-counter {
+	margin: 0 0 var(--pp-space-1);
+	color: var(--pp-text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.task-view-checklist kol-input-checkbox {
+	padding: var(--pp-space-2) 0;
+}
+
+/* Aktionsbereich (#2939 AK2/AK3/AK5): sticky unten — bei 375×812 ohne Scroll sichtbar, Alerts
+   und Sperr-Grund mit im Blick (Konzept Abschnitt 7), safe-area respektiert (Regel 8). */
+.task-view-actions {
+	position: sticky;
+	bottom: 0;
+	display: grid;
+	gap: var(--pp-space-2);
+	margin-top: var(--pp-space-6);
+	padding-block: var(--pp-space-2) calc(var(--pp-space-3) + env(safe-area-inset-bottom, 0px));
+	background: var(--pp-surface-1);
+}
+
+.task-view-blocked-hint {
+	margin: 0;
+	color: var(--pp-text-muted);
+}

@@ -4,5 +4,11 @@
 	"toTasks": "To the tasks",
 	"deadline": "Deadline",
 	"effort": "Effort",
-	"address": "Location"
+	"address": "Location",
+	"checklistCounter": "{{done}} of {{total}}",
+	"markDone": "Mark done",
+	"reopen": "Reopen",
+	"restore": "Restore",
+	"archivedBanner": "Archived",
+	"actionFailed": "The action failed. Please try again."
 }
