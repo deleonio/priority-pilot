@@ -426,7 +426,7 @@ Konsolen-Ausgabe und JSONL-Report sind getrennt: Lesungen/Debugging in `cron.log
 
 ---
 
-## 11. Troubleshooting
+## 12. Troubleshooting
 
 | Symptom                               | Wahrscheinliche Ursache                                                                      | Prüfen / Fix                                                                                      |
 | ------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |

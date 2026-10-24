@@ -5,10 +5,8 @@ import { join } from 'node:path';
 import { before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { DataTypes, Sequelize } from 'sequelize';
-// ROTER Spec-Test (#2928, docs/spec/issue-2928.md): Der tägliche Parallellauf-Orchestrator
-// existiert noch nicht. Der Import schlägt fehl, bis `server/src/scripts/mariadb-parallel-run.ts`
-// `runParallelCopy` gemäß diesem Vertrag (AK1–AK5) bereitstellt: Snapshot → Kopie (#2827) →
-// Identity-Prüfung (#2829) → genau eine JSONL-Report-Zeile → Status-Mail bei rot.
+// Vertrag (#2928): docs/spec/issue-2928.md — AK1–AK5: Snapshot → Kopie (#2827) → Identity-Prüfung
+// (#2829) → genau eine JSONL-Report-Zeile → Status-Mail bei rot.
 import { runParallelCopy } from './mariadb-parallel-run.js';
 import type { MailSender } from '../logics/mail.js';
 import sequelize from '../database.js';

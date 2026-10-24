@@ -1,12 +1,12 @@
 import { appendFileSync, mkdirSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { Sequelize } from 'sequelize';
+import { QueryTypes, Sequelize } from 'sequelize';
 // Registriert ALLE Modelle auf der Default-Instanz — ohne diesen Import ist `target.models` leer.
 import '../models/index.js';
 import sequelize from '../database.js';
-import { User } from '../models/index.js';
 import { sendMailToUser, type MailSender } from '../logics/mail.js';
 import { copySqliteToMariadb } from './copy-sqlite-to-mariadb.js';
 import { requireMariaDbTarget, verifyDbIdentity, type IdentityReport } from './verify-db-identity.js';
@@ -63,7 +63,18 @@ const appendReport = async (reportFile: string, line: Record<string, unknown>): 
  * bewusst geschluckt und ändert den Exit-Code nicht (AK5). */
 const reportByMail = async (deps: ParallelRunDeps, cause: string): Promise<void> => {
 	try {
-		const admins = await User.findAll({ where: { role: 'admin' } });
+		// Admins aus der PRODUKTIV-SQLite (roher Les-Zugriff auf deps.sourceStorage), nicht von der
+		// Default-Instanz: im CLI-Betrieb (DB_DIALECT=mysql) ist diese die Schatten-DB — bei roten
+		// Läufen mit leerer/teilweiser Schatten-DB bliebe die AK5-Mail sonst still aus.
+		const prod = new Sequelize({ dialect: 'sqlite', storage: deps.sourceStorage, logging: false });
+		let admins: Array<{ email: string }>;
+		try {
+			admins = (await prod.query(`SELECT email FROM users WHERE role = 'admin'`, {
+				type: QueryTypes.SELECT,
+			})) as Array<{ email: string }>;
+		} finally {
+			await prod.close();
+		}
 		for (const admin of admins) {
 			await sendMailToUser(
 				{ email: admin.email },
@@ -93,11 +104,16 @@ const reportByMail = async (deps: ParallelRunDeps, cause: string): Promise<void>
 export const runParallelCopy = async (deps: ParallelRunDeps): Promise<ParallelRunResult> => {
 	try {
 		const snapshotFile = await (deps.snapshot ?? defaultSnapshot)(deps.sourceStorage);
-		const snapshotDb = new Sequelize({ dialect: 'sqlite', storage: snapshotFile, logging: false });
+		// Temp-Snapshot nach der Kopie löschen (täglicher Cron würde sonst in tmpdir() akkumulieren).
 		try {
-			await copySqliteToMariadb(snapshotDb, deps.target);
+			const snapshotDb = new Sequelize({ dialect: 'sqlite', storage: snapshotFile, logging: false });
+			try {
+				await copySqliteToMariadb(snapshotDb, deps.target);
+			} finally {
+				await snapshotDb.close();
+			}
 		} finally {
-			await snapshotDb.close();
+			await rm(snapshotFile, { force: true });
 		}
 		// Identity-Prüfung gegen die PRODUKTIV-Datei (wie das CLI #2829): die Kopie muss dem
 		// Produktionsstand entsprechen — eine Kopie aus einem veralteten/veränderten Snapshot fliegt auf.
@@ -139,15 +155,36 @@ export const runParallelCopy = async (deps: ParallelRunDeps): Promise<ParallelRu
 };
 
 const main = async (): Promise<0 | 1> => {
-	const storage = process.env.DATABASE_STORAGE;
-	if (!storage) throw new Error('DATABASE_STORAGE setzen (Pfad zur SQLite-Quelldatei).');
-	requireMariaDbTarget(sequelize);
+	// Report-Pfad zuerst: auch Fehler VOR runParallelCopy (Env, Dialekt-Guard, authenticate) landen
+	// im Rot-Pfad — genau eine Report-Zeile + Admin-Mail (AK3), sonst überhöht das `tail -n 7`-
+	// Fenster den 7-Tage-Streak still (AK2).
 	const reportFile = process.env.MARIADB_PARALLEL_REPORT?.trim() || join(process.cwd(), 'mariadb-parallel', 'runs.log');
-	await sequelize.authenticate();
 	try {
+		const storage = process.env.DATABASE_STORAGE;
+		if (!storage) throw new Error('DATABASE_STORAGE setzen (Pfad zur SQLite-Quelldatei).');
+		requireMariaDbTarget(sequelize);
+		await sequelize.authenticate();
 		const result = await runParallelCopy({ sourceStorage: storage, target: sequelize, reportFile });
 		console.log(`ok=${result.exitCode === 0}${result.cause ? ` | ${result.cause}` : ''} | report: ${reportFile}`);
 		return result.exitCode;
+	} catch (error) {
+		const cause = error instanceof Error ? error.message : String(error);
+		await appendReport(reportFile, {
+			date: new Date().toISOString(),
+			ok: false,
+			tables: 0,
+			rows: 0,
+			mismatched: 0,
+			cause,
+		});
+		// Admin-Mail nur bei bekannter Produktiv-Datei (dort stehen die Empfänger); ohne sie bleibt
+		// es bei der roten Zeile — der Versand ist bewusst best effort (AK5).
+		const storage = process.env.DATABASE_STORAGE;
+		if (storage) {
+			await reportByMail({ sourceStorage: storage, target: sequelize, reportFile }, cause);
+		}
+		console.error(cause);
+		return 1;
 	} finally {
 		await sequelize.close();
 	}
