@@ -154,6 +154,7 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: balamentum.app
           releaseFiles: native/android/app/build/outputs/bundle/release/app-release.aab
-          tracks: closed
+          # eigener Track-Name aus der Play Console (Standard 'closed' existiert nicht)
+          tracks: Offener Test
           status: completed
           releaseName: ${{ env.RELEASE_TAG }}
