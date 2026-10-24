@@ -1,8 +1,16 @@
 {
 	"retry": "Erneut laden",
-	"moreDetails": "Mehr Details",
 	"toTasks": "Zu den Aufgaben",
 	"deadline": "Fälligkeit",
 	"effort": "Aufwand",
-	"address": "Ort"
+	"address": "Ort",
+	"subtasks": "Unteraufgaben",
+	"subtaskCount": "{{done}} von {{total}}",
+	"blocked": "Blockiert",
+	"origin": "Herkunft",
+	"classification": "Einordnung",
+	"fromSeries": "Aus Serie „{{name}}\"",
+	"fromTemplate": "Aus Vorlage „{{name}}\"",
+	"seriesException": "Abweichend von der Serie bearbeitet",
+	"openInMaps": "In Karten öffnen"
 }

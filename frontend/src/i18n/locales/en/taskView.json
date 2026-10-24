@@ -1,8 +1,16 @@
 {
 	"retry": "Reload",
-	"moreDetails": "More details",
 	"toTasks": "To the tasks",
 	"deadline": "Deadline",
 	"effort": "Effort",
-	"address": "Location"
+	"address": "Location",
+	"subtasks": "Subtasks",
+	"subtaskCount": "{{done}} of {{total}}",
+	"blocked": "Blocked",
+	"origin": "Origin",
+	"classification": "Classification",
+	"fromSeries": "From series \"{{name}}\"",
+	"fromTemplate": "From template \"{{name}}\"",
+	"seriesException": "Edited with deviations from the series",
+	"openInMaps": "Open in maps"
 }

@@ -6767,6 +6767,55 @@ a.plan-badge:focus-visible {
 	overflow-wrap: anywhere;
 }
 
+/* Blöcke Teil 3 (#2940): Ort/Unteraufgaben/Blockiert/Herkunft/Einordnung — untereinander,
+   „Leer bleibt leer“ (Konzept Abschnitt 4.2). */
+.task-view-block {
+	display: grid;
+	gap: var(--pp-space-2);
+	margin-top: var(--pp-space-4);
+}
+
+.task-view-block-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: var(--pp-space-2);
+}
+
+.task-view-count {
+	color: var(--pp-text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.task-view-dep-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: var(--pp-space-1);
+}
+
+/* Touch-Target ≥ 44 px je Listenzeile (Regel 1 der Mobile-UI-Regeln). */
+.task-view-dep {
+	display: flex;
+	align-items: center;
+	gap: var(--pp-space-2);
+	min-height: 44px;
+}
+
+.task-view-dep-status {
+	color: var(--pp-text-muted);
+}
+
+.task-view-address {
+	overflow-wrap: anywhere;
+}
+
+.task-view-exception {
+	color: var(--pp-text-muted);
+	font-size: 0.875rem;
+}
+
 /* Skelett in der Form der Ansicht (Konzept Abschnitt 7) — Light-DOM statt Spinner. */
 .task-view-skeleton {
 	display: grid;
