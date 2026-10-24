@@ -4,7 +4,11 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.35 - 2026-10-24
 
-_Enthält v0.35.0 – v0.35.10._
+_Enthält v0.35.0 – v0.35.11._
+
+### 🔧 Engineering
+
+- ci: extend merge-gate trigger to completed check runs by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2930
 
 ### Other Changes
 
