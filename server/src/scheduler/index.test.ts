@@ -337,3 +337,97 @@ describe('scheduler/startDeadlineAutoDeleteScheduler — push-unabhängiges Gate
 		assert.doesNotThrow(() => handle.stop());
 	});
 });
+
+// Rote Spec-Tests für #2831 (Spec docs/spec/issue-2831.md): der Master-Schalter
+// BACKGROUND_JOBS_ENABLED=false macht ALLE drei Starter zu No-Ops. KEIN Produktivcode.
+describe('scheduler — Master-Schalter BACKGROUND_JOBS_ENABLED (#2831 AK1)', () => {
+	const originalEnv = { ...process.env };
+
+	afterEach(() => {
+		process.env = { ...originalEnv };
+	});
+
+	it('TF1/AK1: startScheduler registriert mit =false keinen Timer — auch mit voller Push-Konfiguration', () => {
+		const keys = webpush.generateVAPIDKeys();
+		process.env.VAPID_PUBLIC_KEY = keys.publicKey;
+		process.env.VAPID_PRIVATE_KEY = keys.privateKey;
+		process.env.PUSH_REMINDERS_ENABLED = 'true';
+		process.env.BACKGROUND_JOBS_ENABLED = 'false';
+		let calledSetInterval = false;
+
+		const handle = startScheduler([], {
+			setIntervalFn: (() => {
+				calledSetInterval = true;
+				return 1 as unknown as NodeJS.Timeout;
+			}) as typeof setInterval,
+			clearIntervalFn: (() => {}) as typeof clearInterval,
+		});
+
+		assert.equal(calledSetInterval, false, 'Master-Schalter =false → kein Push-Timer');
+		assert.doesNotThrow(() => handle.stop());
+	});
+
+	it('TF1/AK1: startDeadlineAutoDeleteScheduler registriert mit =false keinen Timer', () => {
+		process.env.BACKGROUND_JOBS_ENABLED = 'false';
+		let calledSetInterval = false;
+
+		const handle = startDeadlineAutoDeleteScheduler([], {
+			setIntervalFn: (() => {
+				calledSetInterval = true;
+				return 1 as unknown as NodeJS.Timeout;
+			}) as typeof setInterval,
+			clearIntervalFn: (() => {}) as typeof clearInterval,
+		});
+
+		assert.equal(calledSetInterval, false, 'Master-Schalter =false → kein Auto-Lösch-Timer');
+		assert.doesNotThrow(() => handle.stop());
+	});
+
+	it('TF1/AK1: startIntervalScheduler läuft mit =false nicht — Trigger wird nie gefeuert', async () => {
+		process.env.BACKGROUND_JOBS_ENABLED = 'false';
+		mock.timers.enable({ apis: ['setInterval'] });
+		try {
+			const aufrufe: Date[] = [];
+			const handle = startIntervalScheduler(
+				'Master-Gate-Job',
+				(now) => {
+					aufrufe.push(now);
+					return Promise.resolve();
+				},
+				1000,
+			);
+
+			mock.timers.tick(10 * 1000);
+			await flush();
+
+			assert.equal(aufrufe.length, 0, 'Master-Schalter =false → kein Intervall-Job');
+			handle.stop();
+		} finally {
+			mock.timers.reset();
+		}
+	});
+
+	it('TF1/AK4: ohne Schalter läuft startIntervalScheduler wie bisher (default-on)', async () => {
+		delete process.env.BACKGROUND_JOBS_ENABLED;
+		mock.timers.enable({ apis: ['setInterval'] });
+		try {
+			const aufrufe: Date[] = [];
+			const handle = startIntervalScheduler(
+				'Master-Gate-Job',
+				(now) => {
+					aufrufe.push(now);
+					return Promise.resolve();
+				},
+				1000,
+			);
+
+			mock.timers.tick(1000);
+			await flush();
+
+			assert.equal(aufrufe.length, 1, 'default-on: Intervall-Job läuft ohne Schalter');
+			handle.stop();
+		} finally {
+			mock.timers.reset();
+		}
+	});
+});
