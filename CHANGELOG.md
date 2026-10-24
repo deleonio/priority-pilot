@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.34 - 2026-10-23
 
-_Enthält v0.34.0 – v0.34.5._
+_Enthält v0.34.0 – v0.34.8._
 
 ### 🐞 Bug Fixes
 
@@ -13,11 +13,17 @@ _Enthält v0.34.0 – v0.34.5._
 ### 🚀 Improvements
 
 - feat(frontend): move push channel switches into collapsible details by @deleonio in https://github.com/deleonio/priority-pilot/pull/2892
+- feat(frontend): category rows use connected edit and delete toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/2904
+
+### 🔧 Engineering
+
+- ci: MariaDB smoke test against service container (#2828) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2906
 
 ### Other Changes
 
 - feat(frontend): category rows with right-aligned action toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/2895
 - docs(arc42): add adr 0025/0026 to decision table and mariadb note by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2902
+- feat(frontend): checklist title as visible switch label in grid by @deleonio in https://github.com/deleonio/priority-pilot/pull/2900
 
 ## v0.33 - 2026-10-23
 
@@ -219,6 +225,7 @@ _Enthält v0.29.0 – v0.29.34._
 - feat(frontend): move help and logout into avatar popover menu (#2723) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2725
 - feat(frontend): show avatar menu as dropdown card with single toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/2741
 - fix(frontend): align tracking notice placement in app shell by @deleonio in https://github.com/deleonio/priority-pilot/pull/2742
+- fix(frontend): align tracking notice placement in app shell by @deleonio in https://github.com/deleonio/priority-pilot/pull/2742
 - feat(mcp): separater, nur lesender Admin-MCP-Endpunkt /mcp/admin/v1 (#1338) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2744
 
 ## v0.28 - 2026-10-18
@@ -381,7 +388,6 @@ _Enthält v0.24.0 – v0.24.13._
 - feat(server): pillar names in care texts follow app language (#2523) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2571
 - feat(frontend): single primary action per missed task (#2524) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2575
 - feat(frontend): show done tasks on their completion day in week view by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2576
-- test(frontend): measure missed/deadlines top edges atomically (#2578) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2579
 - test(frontend): measure missed/deadlines top edges atomically (#2578) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2579
 - test(frontend): mark onboarding dismissed up front in header focus test by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2581
 

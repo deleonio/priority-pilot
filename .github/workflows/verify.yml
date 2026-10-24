@@ -147,6 +147,40 @@ jobs:
       # `paths`-Globs werden nicht mitgeprueft (das WASM-Modul kann es nicht, es warnt selbst).
       - name: GitHub-Actions-Schema
         run: pnpm lint:actions
+      # jq fuer die Skript-Suite (pnpm test:scripts) und etliche .github/scripts-Skripte:
+      # die Self-Hosted-Docker-Runner (hetzner16a/b, seit d52501e5 Verify-Zuhause) haben kein
+      # System-jq — ubuntu-latest lieferte es vorinstalliert. Fehlendes jq faellt nicht laut
+      # auf: die Skripte gehen in ihre fail-open/fail-safe-Pfaende (leere gh-Ausgaben) und
+      # die Suite scheitert 76x still (ENOENT auf nie geschriebenen Out-Dateien, || ""-Pfaende).
+      # Release-Binary statt apt: kein sudo noetig, ~2 MB, je Lauf frisch in RUNNER_TEMP;
+      # wo jq bereits liegt (ubuntu-latest), tut der Step nichts. SHA256 pinnt den Download.
+      # Achtung Arch: die Docker-Runner sind NICHT alle amd64 (hetzner16b = aarch64) — ein
+      # amd64-Binary dorthin laedt, scheitert aber mit "Exec format error" und erzeugt
+      # dieselben stillen Fail-open-Fehler wie fehlendes jq. Download deshalb per uname -m.
+      - name: jq bereitstellen (falls der Runner keins mitbringt)
+        run: |
+          if ! command -v jq >/dev/null 2>&1; then
+            case "$(uname -m)" in
+              x86_64)
+                JQ_ARCH=amd64
+                JQ_SHA=020468de7539ce70ef1bceaf7cde2e8c4f2ca6c3afb84642aabc5c97d9fc2a0d
+                ;;
+              aarch64)
+                JQ_ARCH=arm64
+                JQ_SHA=6bc62f25981328edd3cfcfe6fe51b073f2d7e7710d7ef7fcdac28d4e384fc3d4
+                ;;
+              *)
+                echo "::error title=jq fehlt::Kein System-jq und unbekannte Architektur $(uname -m) — jq-Release-Binary gibt es nur fuer linux-amd64/arm64."
+                exit 1
+                ;;
+            esac
+            curl --fail --silent --show-error --location \
+              "https://github.com/jqlang/jq/releases/download/jq-1.8.1/jq-linux-$JQ_ARCH" \
+              -o "$RUNNER_TEMP/jq"
+            echo "$JQ_SHA  $RUNNER_TEMP/jq" | sha256sum --check --status
+            chmod +x "$RUNNER_TEMP/jq"
+            echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+          fi
       # Fixtures fuer .github/scripts/*.ts (node:test + tsx). Sichert die riskanteste Logik des
       # Validators ab: die eng gefasste Ausnahme fuer `concurrency.queue` darf GENAU diesen
       # Befund schlucken — ein zu weiter Filter faerbt das Gate still gruen.

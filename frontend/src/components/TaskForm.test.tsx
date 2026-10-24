@@ -1513,7 +1513,7 @@ describe('TaskForm — Auto-Löschen für Serien verfügbar (#534, Anforderung 1
  *  - Ein Text-Eingabefeld (Label „Checklisten-Eintrag") + Button „Hinzufügen": legt einen neuen Eintrag
  *    an (generierte UUID, `completed = false`).
  *  - Jeder Eintrag in einer Zeile `data-testid="checklist-item"` mit einer Checkbox (Toggle `completed`,
- *    Label „Erledigen") und einem Button „Entfernen" (löscht den Eintrag).
+ *    Label = Eintrags-Titel, #2897) und einem Button „Entfernen" (löscht den Eintrag).
  *  - Beim Anlegen/Bearbeiten fließt `checklist` (Array aus `{ id, title, completed }`) ins Payload.
  *
  * Die KoliBri-Mocks rendern KolInputText/KolInputCheckbox/KolButton als native Elemente mit aria-label
@@ -1550,7 +1550,8 @@ describe('TaskForm — Checklisten-Feld (#531)', () => {
 		await addItem('Deployment vorbereiten');
 
 		expect(screen.getByTestId('checklist-item')).toBeInTheDocument();
-		expect(screen.getByText('Deployment vorbereiten')).toBeInTheDocument();
+		// #2897: Der Titel ist das Label des Schalters (kein eigener Titel-Text mehr).
+		expect(screen.getByRole('switch', { name: 'Deployment vorbereiten' })).toBeInTheDocument();
 	});
 
 	it('AK6/T8: „Entfernen" nimmt den Eintrag aus dem DOM', async () => {
@@ -1577,7 +1578,7 @@ describe('TaskForm — Checklisten-Feld (#531)', () => {
 		fireEvent.click(screen.getByText('Optional'));
 
 		await addItem('Abhaken');
-		const toggle = screen.getByRole('switch', { name: /Erledigen/i }) as HTMLInputElement;
+		const toggle = screen.getByRole('switch', { name: /Abhaken/i }) as HTMLInputElement;
 		expect(toggle.checked).toBe(false);
 
 		await act(async () => {
@@ -1633,7 +1634,8 @@ describe('TaskForm — Checklisten-Eintrag per Enter (#2771)', () => {
 		});
 
 		expect(screen.getByTestId('checklist-item')).toBeInTheDocument();
-		expect(screen.getByText('Per Enter')).toBeInTheDocument();
+		// #2897: Der Titel ist das Label des Schalters (kein eigener Titel-Text mehr).
+		expect(screen.getByRole('switch', { name: 'Per Enter' })).toBeInTheDocument();
 		expect(document.activeElement).toBe(input);
 	});
 
@@ -1717,8 +1719,9 @@ describe('TaskForm — Vorbelegung aus der Schnellerfassung: Adresse & Checklist
 		});
 
 		expect(screen.getAllByTestId('checklist-item')).toHaveLength(2);
-		expect(screen.getByText('Punkt A')).toBeInTheDocument();
-		expect(screen.getByText('Punkt B')).toBeInTheDocument();
+		// #2897: Die Titel sind die Labels der Schalter (kein eigener Titel-Text mehr).
+		expect(screen.getByRole('switch', { name: 'Punkt A' })).toBeInTheDocument();
+		expect(screen.getByRole('switch', { name: 'Punkt B' })).toBeInTheDocument();
 	});
 	// #2501 Test-Pflege: Der frühere AK7-Test („im Serien-Modus rendert trotz initialValues.checklist
 	// keine Checklist-Section — still verworfen") ist mit #2501 widersprüchlich — die Checkliste ist

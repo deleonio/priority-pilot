@@ -113,7 +113,6 @@
 		"title": "Complete task",
 		"failed": "Completing failed",
 		"question": "Mark the task <title/> as done?",
-		"itemLabel": "Complete",
 		"checkAll": "Check all",
 		"completing": "Completing…",
 		"markDone": "Mark as done",
