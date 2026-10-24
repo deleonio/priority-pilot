@@ -279,6 +279,25 @@ die Defaults (`./database.sqlite`, Seeding nur in leere DB). Das Frontend ruft d
 Betriebsarten unter `/api/v1/*` auf — in Produktion streift Caddy das Präfix, lokal der Vite-Dev-Proxy
 (derselbe Rewrite, siehe [server-setup.md § 7](server-setup.md#7-caddy-block--dns)).
 
+**Staging gegen die MariaDB-Kopie (#2831):** Eine Kopie der Produktiv-DB darf der Server nicht
+verändern — dazu `BACKGROUND_JOBS_ENABLED=false` setzen: keine Scheduler-Timer, kein Push-Versand,
+keine Startup-Einmaläufe mit Schreibzugriff (eine Deaktiviert-Zeile im Start-Log belegt es). Die
+Kopie vor jedem Staging-Lauf neu erzeugen und **ohne** `DB_RESET` starten (`DB_RESET=true` =
+`sequelize.sync({force})` würde die Kopie leeren):
+
+```bash
+# 1) Kopie neu erzeugen (CLI, siehe server/src/scripts/copy-sqlite-to-mariadb.ts)
+DB_DIALECT=mysql MARIADB_HOST=… MARIADB_USER=… MARIADB_PASSWORD=… MARIADB_DATABASE=… \
+  DATABASE_STORAGE=<Pfad zur Produktiv-SQLite> node --import tsx src/scripts/copy-sqlite-to-mariadb.ts
+# 2) Server OHNE DB_RESET gegen die Kopie starten — Hintergrund-Jobs aus
+BACKGROUND_JOBS_ENABLED=false DB_DIALECT=mysql MARIADB_HOST=… MARIADB_USER=… \
+  MARIADB_PASSWORD=… MARIADB_DATABASE=… node server/dist/index.js
+```
+
+Der automatisierte E2E-Lauf gegen MariaDB läuft im Workflow `MariaDB Smoke` (Job `e2e`) — dort
+deterministisch gegen eine **frische** Service-DB, daher ist `DB_RESET=true` dort gewollt
+(siehe [ci-mariadb.yml](../.github/workflows/ci-mariadb.yml)).
+
 ---
 
 ## Offene Entscheidungen

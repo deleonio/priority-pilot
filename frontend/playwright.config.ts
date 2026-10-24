@@ -53,7 +53,11 @@ export default defineConfig({
 				PORT: String(BACKEND_PORT),
 				DB_RESET: 'true',
 				DB_SEED: 'false',
-				DATABASE_STORAGE: ':memory:',
+				// Dialekt-Wechsel per Env (#2831 AK5): ungesetzt → Wegwerf-In-Memory-SQLite wie bisher.
+				// Mit DB_DIALECT (z. B. `mysql` im MariaDB-E2E-Job in ci-mariadb.yml) entfällt
+				// DATABASE_STORAGE; die MARIADB_*-Zugangsdaten kommen aus der Job-Umgebung — Playwright
+				// startet den webServer mit process.env plus diesen Overrides.
+				...(process.env.DB_DIALECT ? { DB_DIALECT: process.env.DB_DIALECT } : { DATABASE_STORAGE: ':memory:' }),
 				// NODE_ENV=test registriert zusätzlich POST /auth/test-login (siehe
 				// server/src/express/routes/auth.ts) — die einzige Möglichkeit, in der E2E-Umgebung
 				// ohne echten Google-Zyklus eine echte Session zu erzeugen (#1136 AK4). Außer der
