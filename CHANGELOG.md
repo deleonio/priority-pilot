@@ -4,12 +4,13 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.35 - 2026-10-24
 
-_Enthält v0.35.0 – v0.35.17._
+_Enthält v0.35.0 – v0.35.18._
 
 ### 🎉 New Features
 
 - docs: ux concept for task, series and template views by @deleonio in https://github.com/deleonio/priority-pilot/pull/2934
 - feat(server): own daily-mail switch and mail error logging by @deleonio in https://github.com/deleonio/priority-pilot/pull/2935
+- feat(frontend): task read view /aufgaben/<id> by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2945
 
 ### 🔧 Engineering
 
@@ -179,6 +180,7 @@ _Enthält v0.30.0 – v0.30.28._
 - fix(ui): keep banner button labels unwrapped, fit invitation banner to content by @deleonio in https://github.com/deleonio/priority-pilot/pull/2760
 - feat(server): allow removing a task deadline via mcp task_update null by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2762
 - fix(server): series instances inherit series creator (#2757) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2779
+- fix(server): series instances inherit series creator (#2757) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2779
 - feat(server): propagate embedded provider errors at HTTP 200 (#2774) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2790
 
 ### 🚀 Improvements
@@ -340,8 +342,6 @@ _Enthält v0.26.0 – v0.26.21._
 
 ### Other Changes
 
-- feat(server): remove dead module and history comments (#2557) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2605
-- feat(server): dedupe push notifications via shared helper (#2551) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2598
 - feat(server): remove dead module and history comments (#2557) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2605
 - feat(server): dedupe push notifications via shared helper (#2551) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2598
 - test(frontend): e2e paypal deferred alert + non-empty guards (#2558) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2610
