@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.35 - 2026-10-24
 
-_Enthält v0.35.0 – v0.35.7._
+_Enthält v0.35.0 – v0.35.8._
 
 ### Other Changes
 
@@ -12,6 +12,7 @@ _Enthält v0.35.0 – v0.35.7._
 - feat: reassign group task address in the edit dialog (#1521) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2924
 - feat(server): identity check of sqlite source vs mariadb copy (#2829) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2921
 - feat(server): reverse-copy MariaDB to SQLite as rollback path (#2830) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2923
+- docs(server-setup): document MariaDB host database for cutover (#2824) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2927
 
 ## v0.34 - 2026-10-23
 
