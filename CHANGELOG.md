@@ -4,13 +4,14 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.35 - 2026-10-24
 
-_Enthält v0.35.0 – v0.35.5._
+_Enthält v0.35.0 – v0.35.6._
 
 ### Other Changes
 
 - feat(server): background jobs master switch for staging (#2831) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2922
 - feat: reassign group task address in the edit dialog (#1521) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2924
 - feat(server): identity check of sqlite source vs mariadb copy (#2829) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2921
+- feat(server): reverse-copy MariaDB to SQLite as rollback path (#2830) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2923
 
 ## v0.34 - 2026-10-23
 
@@ -366,7 +367,6 @@ _Enthält v0.25.0 – v0.25.19._
 - fix(server): user search with literal wildcards and result limit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2585
 - fix(server): book llm provider test against ai quota and throttle it (#2542) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2586
 - fix(server): log invoice delivery errors after commit, don't throw by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2588
-- feat(server): count task effort once per subtree, ending cycles and N+1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2589
 - feat(server): count task effort once per subtree, ending cycles and N+1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2589
 - feat(server): handle missing paypal credentials explicitly (#2545) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2591
 - ci(triage): read container result from both sources (#2590) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2593
