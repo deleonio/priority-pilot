@@ -17,7 +17,10 @@ let server: TestServer;
 let acknowledged: string[];
 /** Abweichungen vom Plus-Monatsabo je Kauf-Token. */
 let purchases: Record<string, Partial<PlaySubscription>>;
-const PERIOD_END = new Date('2026-10-24T10:00:00Z');
+// Relativ zu `now` (in 30 Tagen, ms=0 wegen DB-Roundtrip) — ein hartes Datum verrottet,
+// sobald die Echtzeit es passiert (MEMORY 2026-10-16, billing-period-start-Präzedenz).
+const PERIOD_END = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+PERIOD_END.setUTCMilliseconds(0);
 
 const fakePlay = (accountId: () => string): GooglePlayClient => ({
 	getSubscription: async (token) => ({
