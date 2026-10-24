@@ -27,7 +27,7 @@ jobs:
   smoke:
     # Kein CI auf Draft-PRs (Muster verify.yml).
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: docker
+    runs-on: ${{ inputs.runner || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     services:
       mariadb:
         image: mariadb:11
@@ -102,7 +102,7 @@ jobs:
   # bereits geshardet je PR (keine E2E-Doppelkosten).
   e2e:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    runs-on: docker
+    runs-on: ${{ inputs.runner || vars.PHASE_RUNNER || 'ubuntu-latest' }}
     services:
       mariadb:
         image: mariadb:11
