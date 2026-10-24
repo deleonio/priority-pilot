@@ -10,7 +10,7 @@ import {
 	KolTabs,
 	KolToolbar,
 } from '@public-ui/react-v19';
-import type { CalendarEvent, Category, ChecklistItem, Pillar, Task, TaskTreeNode } from 'client';
+import type { CalendarEvent, Category, ChecklistItem, Pillar, Series, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -49,6 +49,8 @@ import { SettingsPage } from './components/SettingsPage';
 import { TaskFormModal, taskAsTemplateInitialValues } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
 import { TaskView } from './components/TaskView';
+import { SeriesView } from './components/SeriesView';
+import { TaskForm } from './components/TaskForm';
 import { filterForest, nodeMatchesFilter } from './lib/filterForest';
 import { buildBalancePriorities } from './lib/balancePriority';
 import { clearBalanceStatusCache } from './lib/balanceStatusCache';
@@ -174,7 +176,7 @@ const buildDoneEffortByPillar = (pillars: Pillar[], tasks: Task[]): Map<number, 
 };
 
 const AppShell = ({ user }: { user: AuthUser }) => {
-	const { t, i18n } = useTranslation(['navigation', 'app']);
+	const { t, i18n } = useTranslation(['navigation', 'app', 'capture']);
 	const location = useLocation();
 	const navigate = useNavigate();
 	// #1879: aktive App-Sprache beim Start und bei jedem Wechsel an den Server melden (Sprache des
@@ -228,9 +230,12 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// `/hilfe` und `/settings`), die ID kommt per Regex aus dem Pfad.
 	const taskViewId = /^\/aufgaben\/(\d+)$/.exec(location.pathname)?.[1];
 	const showTaskView = taskViewId !== undefined;
+	// #2942: Leseseite einer Serie/Vorlage — dasselbe Muster wie `/aufgaben/<id>`, Aktiv-Tab ist der Serien-Tab.
+	const seriesViewId = /^\/serien\/(\d+)$/.exec(location.pathname)?.[1];
+	const showSeriesView = seriesViewId !== undefined;
 	// Hauptansichten (Dashboard-Tabs) teilen dasselbe Aktiv-Muster: Der Home-Schalter hebt sich
 	// nur ab, wenn Einstellungen, Hilfe oder die Aufgabenansicht (#2938) als Seite darüber liegen.
-	const showMainView = !showHelp && !showSettings && !showTaskView;
+	const showMainView = !showHelp && !showSettings && !showTaskView && !showSeriesView;
 	const [tasks, setTasks] = useState<Task[] | null>(null);
 	const [forest, setForest] = useState<TaskTreeNode[]>([]);
 	// Verpasst-Aufgaben (#1964): `GET /tasks?missed=1`, geladen zusammen mit den übrigen Daten in
@@ -244,6 +249,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const [calendarEventsFailed, setCalendarEventsFailed] = useState(false);
 	const [pillars, setPillars] = useState<Pillar[]>([]);
 	const [categories, setCategories] = useState<Category[]>([]);
+	// #2942: Serie, die gerade über die Leseseite (`/serien/<id>`, „Bearbeiten") im vorhandenen
+	// Serien-Dialog (`TaskForm` im Serie-Modus, Muster SeriesTab) bearbeitet wird.
+	const [editSeries, setEditSeries] = useState<Series | null>(null);
 	// #2359: Serien je ID — die Aufgabenliste kennzeichnet Aufgaben aus Vorlagen (`autoCreate === false`).
 	const [seriesById, setSeriesById] = useState<ReadonlyMap<number, { autoCreate?: boolean }>>(new Map());
 	const [loadError, setLoadError] = useState<string | null>(null);
@@ -400,15 +408,17 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		[setSearchParams],
 	);
 
-	/** Aktiver Haupt-Tab: reine Funktion des Pfads (AK4); `/aufgaben/<id>` zählt zum Aufgaben-Tab (#2938). */
-	const activeTab = showTaskView ? 1 : Math.max(0, ROUTE_PATHS.indexOf(location.pathname));
+	/** Aktiver Haupt-Tab: reine Funktion des Pfads (AK4); `/aufgaben/<id>` zählt zum Aufgaben-Tab (#2938),
+	 *  `/serien/<id>` zum Serien-Tab (#2942). */
+	const activeTab = showTaskView ? 1 : showSeriesView ? 2 : Math.max(0, ROUTE_PATHS.indexOf(location.pathname));
 	// Matomo: offenes Onboarding zählt als eigener Bildschirm (Login-Trichter), unbekannte Pfade als 404.
 	const onboardingOpen = tasks !== null && tasks.length === 0 && activeTab === 0 && !onboardingDismissed;
 	useEffect(
 		() =>
 			trackPageView(onboardingOpen ? '/willkommen' : location.pathname, {
 				known:
-					ROUTE_PATHS.includes(location.pathname) || /^\/(settings|hilfe|tasks|aufgaben)(\/|$)/.test(location.pathname),
+					ROUTE_PATHS.includes(location.pathname) ||
+					/^\/(settings|hilfe|tasks|aufgaben|serien)(\/|$)/.test(location.pathname),
 			}),
 		[onboardingOpen, location.pathname],
 	);
@@ -811,10 +821,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// zählt ebenfalls nicht als Hauptansicht (#2938).
 	const lastMainViewRef = useRef('/');
 	useEffect(() => {
-		if (!showSettings && !showHelp && !showTaskView) {
+		if (!showSettings && !showHelp && !showTaskView && !showSeriesView) {
 			lastMainViewRef.current = `${location.pathname}${location.search}`;
 		}
-	}, [location.pathname, location.search, showSettings, showHelp, showTaskView]);
+	}, [location.pathname, location.search, showSettings, showHelp, showTaskView, showSeriesView]);
 
 	// #1320: Beim Wechsel auf Einstellungen/Hilfe einen offenen Task-Dialog schließen. Die Dialoge
 	// hängen am `dialog`-State, nicht an der Route, und rendern seit dem Layout-Umbau auf allen drei
@@ -1380,7 +1390,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			    fest „Dashboard", während `SettingsPage`/`HelpPage` ihre eigene Überschrift mitbrachten.
 			    #2938: Die Aufgabenansicht bringt ihre eigene `<h1>` (Aufgabentitel) mit — die Shell-H1
 			    entfällt dort, damit die Seite genau eine Überschrift erster Ordnung hat. */}
-				{!showTaskView && <h1 className="visually-hidden">{pageTitle}</h1>}
+				{!showTaskView && !showSeriesView && <h1 className="visually-hidden">{pageTitle}</h1>}
 
 				<TrackingBanner />
 				<LaunchBanner enabled={user.launchBanner === true} onFeedback={() => navigate('/hilfe/feedback')} />
@@ -1422,7 +1432,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 								</KolAlert>
 							</div>
 						)}
-						{tasks === null && loading && !showTaskView && (
+						{tasks === null && loading && !showTaskView && !showSeriesView && (
 							<div className="loading">
 								<KolSpin _show _variant="cycle" _label={t('app:shell.loading')} />
 								<span>{t('app:shell.loadingTasks')}</span>
@@ -1473,7 +1483,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 							</>
 						)}
 
-						{tasks !== null && !showTaskView && (
+						{tasks !== null && !showTaskView && !showSeriesView && (
 							<KolTabs
 								ref={appTabsRef}
 								className="app-tabs"
@@ -1805,6 +1815,24 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 								)}
 							</>
 						)}
+						{/* #2942 (Konzept §3/§5): Leseseite der Serie/Vorlage — dasselbe Bild wie auf der
+						    Aufgaben-Leseseite: Tab-Leiste sichtbar, Serien-Tab markiert, Hauptansicht
+						    unmontiert. „Bearbeiten" öffnet den vorhandenen Serien-Dialog. */}
+						{showSeriesView && (
+							<>
+								<KolTabs
+									ref={appTabsRef}
+									className="app-tabs"
+									_label={t('tabs.ariaLabel')}
+									_tabs={viewTabs}
+									_selected={activeTab}
+									_on={tabsCallbacks}
+								/>
+								{seriesViewId !== undefined && (
+									<SeriesView seriesId={Number(seriesViewId)} onBack={backToMainView} onEdit={setEditSeries} />
+								)}
+							</>
+						)}
 					</>
 				)}
 
@@ -1876,6 +1904,29 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 							focusTaskFilter();
 						}}
 					/>
+				)}
+				{editSeries !== null && (
+					// #2942: vorhandener Serien-Dialog (`TaskForm` im Serie-Modus, Muster SeriesTab) über
+					// der Leseseite; TaskForm löst nach dem Speichern TASKS_CHANGED_EVENT aus — die
+					// Leseseite übernimmt die Werte ohne Neuladen, der App-Bestand lädt via `reload()`.
+					<Modal
+						title={t('capture:seriesTab.editTitle', { title: editSeries.title })}
+						onClose={() => setEditSeries(null)}
+						width="44rem"
+					>
+						<TaskForm
+							key={editSeries.id}
+							task={null}
+							series={editSeries}
+							pillars={pillars}
+							categories={categories}
+							onClose={() => setEditSeries(null)}
+							onSaved={() => {
+								setEditSeries(null);
+								void reload();
+							}}
+						/>
+					</Modal>
 				)}
 				{dialog?.kind === 'edit' && (
 					<TaskFormModal

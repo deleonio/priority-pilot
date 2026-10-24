@@ -1,0 +1,18 @@
+{
+	"seriesGone": "This series no longer exists.",
+	"toSeries": "To the series",
+	"openTasks": "Open tasks",
+	"lastCompleted": "Recently completed",
+	"everyTaskGets": "Every task gets",
+	"templateTaskGets": "The task gets",
+	"fromTemplate": "Created from it",
+	"onDemand": "Only created on demand.",
+	"primarySeries": "Create task now",
+	"primaryTemplate": "Create task from template",
+	"paused": "Paused",
+	"checklist": "Checklist ({{count}})",
+	"pillars": "Pillars",
+	"autoDelete": "Auto-delete",
+	"autoDeleteOn": "Yes",
+	"autoDeleteOff": "No"
+}

@@ -1,0 +1,18 @@
+{
+	"seriesGone": "Diese Serie gibt es nicht mehr.",
+	"toSeries": "Zu den Serien",
+	"openTasks": "Offene Aufgaben",
+	"lastCompleted": "Zuletzt erledigt",
+	"everyTaskGets": "Jede Aufgabe bekommt",
+	"templateTaskGets": "Die Aufgabe bekommt",
+	"fromTemplate": "Daraus angelegt",
+	"onDemand": "Entsteht nur auf Abruf.",
+	"primarySeries": "Aufgabe jetzt anlegen",
+	"primaryTemplate": "Aufgabe aus Vorlage anlegen",
+	"paused": "Pausiert",
+	"checklist": "Checkliste ({{count}})",
+	"pillars": "Säulen",
+	"autoDelete": "Auto-Löschen",
+	"autoDeleteOn": "Ja",
+	"autoDeleteOff": "Nein"
+}

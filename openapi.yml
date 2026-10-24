@@ -34,6 +34,23 @@ paths:
           description: >-
             Archiv-Ansicht: mit `archived=1` liefert der Endpunkt nur die archivierten Aufgaben
             (ohne den Parameter erscheinen sie nie in der Liste).
+        - name: seriesId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: >-
+            Instanz-Liste einer Serie (#2942): alle Instanzen mit dieser `seriesId` im Lese-Scope
+            des Nutzers — inklusive erledigter und archivierter (der Archiv-Ausschluss gilt in
+            Kombination mit diesem Parameter nicht). Fremde Serie liefert eine leere Liste.
+        - name: originSeriesId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: >-
+            Herkunfts-Liste (#2942): alle Aufgaben, die aus dieser Serie entstanden sind — inklusive
+            abgekoppelter Instanzen (`seriesId` null) und erledigter/archivierter.
       responses:
         '200':
           description: Liste aller Tasks
