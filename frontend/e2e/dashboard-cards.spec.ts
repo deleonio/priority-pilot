@@ -139,4 +139,67 @@ test.describe('Dashboard — drei Statuskacheln (Issue #390)', () => {
 			expect(aktionenRechts, `Aktionszeile rechts bei ${breite} px`).toBeLessThanOrEqual(breite + 1);
 		}
 	});
+
+	/**
+	 * Rote Spec-Tests für #2941 AK2 (docs/spec/issue-2941.md): die Titel der vier Dashboard-Karten
+	 * (Nächste Aufgabe, Top-Aufgaben, Deadlines, Verpasst) sind Links auf die Aufgaben-Ansicht
+	 * `/aufgaben/<id>`; die Karten-Aktionen („Erledigen“, Bearbeiten) bleiben funktionsfähig.
+	 * Karten-scoped Locators, weil ein Task in mehreren Karten auftauchen kann.
+	 */
+	test('#2941 AK2: Karten-Titel sind Links auf die Aufgaben-Ansicht, „Erledigen“ bleibt erreichbar', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/app/');
+		await waitForStableView(page);
+
+		const heute = new Date().toISOString().slice(0, 10);
+		const gestern = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+		const bald = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+		const anlegen = async (data: Record<string, unknown>): Promise<number> => {
+			const response = await page.request.post('/api/v1/tasks', { data });
+			expect(response.ok(), 'Setup: Task-Anlage muss 2xx liefern').toBeTruthy();
+			return ((await response.json()) as { id: number }).id;
+		};
+		// „Nächste“ dient als Panel-Futter — welcher Task das Scoring wählt, prüft der Panel-Vertrag unten.
+		await anlegen({ title: 'E2E #2941 Nächste', priority: 2, deadline: heute });
+		const topId = await anlegen({ title: 'E2E #2941 Top', priority: 3 });
+		const deadlineId = await anlegen({ title: 'E2E #2941 Deadline', priority: 4, deadline: bald });
+		const verpasstId = await anlegen({ title: 'E2E #2941 Verpasst', deadline: gestern });
+
+		await page.reload();
+		await waitForStableView(page);
+		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
+		await waitForStableView(page);
+
+		const titelLink = (bereich: string, titel: string) => page.locator(bereich).getByRole('link', { name: titel });
+		// Test-Pflege #2941 (Impl): der Signal-Panel wählt seine „Nächste Aufgabe“ nach Scoring — im
+		// Seed-Mix kann das je nach Lauf jede der vier Aufgaben sein. Der Link-Vertrag des Panels
+		// zählt (eine Aufgabe mit href auf die Ansicht), nicht die Auswahl-Formel; der Vertreter-
+		// Klick nimmt deshalb den tatsächlichen Panel-Link. Die drei Listenkarten bleiben namens-
+		// bezogen (ihre Aufgaben liegen deterministisch in ihrer Karte).
+		const karten = [
+			{ bereich: '#karte-top-aufgaben', titel: 'E2E #2941 Top', id: topId },
+			{ bereich: '#karte-deadlines', titel: 'E2E #2941 Deadline', id: deadlineId },
+			{ bereich: '.missed-section', titel: 'E2E #2941 Verpasst', id: verpasstId },
+		];
+		for (const karte of karten) {
+			await expect(titelLink(karte.bereich, karte.titel)).toBeVisible();
+			await expect(titelLink(karte.bereich, karte.titel)).toHaveAttribute('href', new RegExp(`/aufgaben/${karte.id}$`));
+		}
+		const panelLink = page.locator('.dashboard-next-task').getByRole('link');
+		await expect(panelLink).toBeVisible();
+		await expect(panelLink).toHaveAttribute('href', /\/aufgaben\/\d+$/);
+
+		// Titel-Klick öffnet die Ansicht (Vertreter: die tatsächlich gewählte „Nächste Aufgabe“) …
+		await panelLink.click();
+		await expect(page).toHaveURL(/\/aufgaben\/\d+$/);
+
+		// … und die Karte bleibt mit „Erledigen“ funktionsfähig (AK2, Präzedenz #1465).
+		await page.goBack();
+		await waitForStableView(page);
+		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
+		await waitForStableView(page);
+		await expect(page.locator('.dashboard-next-task').getByRole('button', { name: 'Erledigen' })).toBeVisible();
+	});
 });

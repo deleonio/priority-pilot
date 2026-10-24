@@ -1,4 +1,4 @@
-import { KolButton, KolCard, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
+import { KolButton, KolCard, KolLink, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
 import type { Task } from 'client';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -40,7 +40,10 @@ const MissedTaskItem = ({ task, onComplete, onEdit, onArchive, onDelete }: Misse
 	return (
 		<li className="missed-item" data-testid="missed-item">
 			<div className="missed-item-main">
-				<span className="missed-item-title">{task.title}</span>
+				{/* #2941 AK2: Titel-Link in die Lesesicht (Muster „Nächste Aufgabe", #2941). */}
+				<span className="missed-item-title">
+					<KolLink _label={task.title} _href={`${import.meta.env.BASE_URL}aufgaben/${task.id}`} />
+				</span>
 				<div className="missed-item-meta">
 					<span className="missed-item-deadline">{t('actions.deadline', { date: formatDeadline(task.deadline) })}</span>
 					{(task.postponeCount ?? 0) > 0 && (

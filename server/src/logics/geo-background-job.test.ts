@@ -166,7 +166,7 @@ describe('logics/geo-background-job — Geo-Push-Trigger (#1101)', () => {
 			!Object.keys(payload).some((key) => !['title', 'body', 'url', 'tag'].includes(key)),
 			'kein Feld außerhalb des SW-Kontrakts',
 		);
-		assert.match(payload.url ?? '', new RegExp(`/\\d`), 'Deep-Link statt generischer App-Wurzel');
+		assert.match(payload.url ?? '', /\/aufgaben\/\d/, 'Deep-Link zur Aufgaben-Ansicht statt generischer App-Wurzel');
 		assert.match(payload.url ?? '', new RegExp(`${task.id}`), 'Deep-Link führt zur konkreten Aufgabe');
 	});
 
@@ -183,7 +183,7 @@ describe('logics/geo-background-job — Geo-Push-Trigger (#1101)', () => {
 		assert.match(payload.body ?? '', /Bäckerei/);
 		assert.match(payload.body ?? '', /Apotheke/);
 		// F4: Deep-Link auf die nächstgelegene Aufgabe — die Apotheke (~0,33 km) liegt näher als die Bäckerei (~0,45 km).
-		assert.equal(payload.url ?? '', `/tasks/${apotheke.id}`, 'Deep-Link führt zur nächsten Aufgabe');
+		assert.equal(payload.url ?? '', `/aufgaben/${apotheke.id}`, '#2941 AK6: Deep-Link führt zur Aufgaben-Ansicht');
 	});
 
 	// #1926: Push nur beim Eintritt in den Alarmabstand (Flanke), je Aufgabe höchstens einmal in 24 h.

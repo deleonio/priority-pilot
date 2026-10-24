@@ -10,16 +10,17 @@ import { PUSH_TARGETS } from './pushTargets.js';
  */
 describe('pushTargets (#2851 AK2) — die §6-Ziele je Push-Art in einer Liste', () => {
 	it('enthält je Push-Art das Ziel aus docs/push-konzept.md §6 (Regel „eine Aufgabe vs. mehrere" als Funktion)', () => {
-		assert.equal(PUSH_TARGETS.dueTask.eine(7), '/tasks/7');
+		// #2941 AK6: Task-Ziele zeigen auf die Aufgaben-Ansicht (Lesesicht) statt Dialog.
+		assert.equal(PUSH_TARGETS.dueTask.eine(7), '/aufgaben/7');
 		assert.equal(PUSH_TARGETS.dueTask.mehrere, '/#karte-deadlines');
-		assert.equal(PUSH_TARGETS.dailyTopTasks.eine(7), '/tasks/7');
+		assert.equal(PUSH_TARGETS.dailyTopTasks.eine(7), '/aufgaben/7');
 		assert.equal(PUSH_TARGETS.dailyTopTasks.mehrere, '/#karte-top-aufgaben');
 		assert.equal(PUSH_TARGETS.carePush, '/#karte-fuersorge');
 		assert.equal(PUSH_TARGETS.streakReminder, '/#karte-streak');
 		assert.equal(PUSH_TARGETS.monthlyRecap, '/#karte-monatsrueckblick');
 		assert.equal(PUSH_TARGETS.milestone, '/#karte-meilensteine');
-		assert.equal(PUSH_TARGETS.taskCreated(7), '/tasks/7');
-		assert.equal(PUSH_TARGETS.taskCompleted(7), '/tasks/7');
+		assert.equal(PUSH_TARGETS.taskCreated(7), '/aufgaben/7');
+		assert.equal(PUSH_TARGETS.taskCompleted(7), '/aufgaben/7');
 		assert.equal(PUSH_TARGETS.seriesGenerated, '/serien');
 	});
 

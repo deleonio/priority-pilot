@@ -4,8 +4,10 @@
  * gleicht die `/#karte-…`-Anker mit den `id="karte-…"`-Anchor-Ids im Frontend ab.
  */
 export const PUSH_TARGETS = {
-	dueTask: { eine: (id: number) => `/tasks/${id}`, mehrere: '/#karte-deadlines' },
-	dailyTopTasks: { eine: (id: number) => `/tasks/${id}`, mehrere: '/#karte-top-aufgaben' },
+	// #2941 AK6: Task-Ziele zeigen auf die Aufgaben-Ansicht (Lesesicht); Alt-Links `/tasks/<id>`
+	// leitet App-seitig mit replace um.
+	dueTask: { eine: (id: number) => `/aufgaben/${id}`, mehrere: '/#karte-deadlines' },
+	dailyTopTasks: { eine: (id: number) => `/aufgaben/${id}`, mehrere: '/#karte-top-aufgaben' },
 	carePush: '/#karte-fuersorge',
 	// #2855: Lob/Willkommen zurück auf die Balance-Karte, Rückblicke auf ihre Cards, Journal auf die Route.
 	appreciation: '/#karte-balance',
@@ -17,8 +19,8 @@ export const PUSH_TARGETS = {
 	streakReminder: '/#karte-streak',
 	monthlyRecap: '/#karte-monatsrueckblick',
 	milestone: '/#karte-meilensteine',
-	taskCreated: (id: number) => `/tasks/${id}`,
-	taskCompleted: (id: number) => `/tasks/${id}`,
+	taskCreated: (id: number) => `/aufgaben/${id}`,
+	taskCompleted: (id: number) => `/aufgaben/${id}`,
 	seriesGenerated: '/serien',
 	// #2852: Abo-/Rechnungs-Service-Pushes zielen auf den Pakete-Tab (Rechnungen mit Anker).
 	aboInvoice: '/settings/pakete#rechnungen',

@@ -1,6 +1,6 @@
 import { Trans, useTranslation } from 'react-i18next';
 import i18next from '../i18n/config';
-import { KolAlert, KolBadge, KolButton, KolCard, KolMeter, KolPagination } from '@public-ui/react-v19';
+import { KolAlert, KolBadge, KolButton, KolCard, KolLink, KolMeter, KolPagination } from '@public-ui/react-v19';
 import { hasOpenChecklistItems } from './CompleteTaskDialog';
 import { MissedTasksSection } from './MissedTasksSection';
 import { FreeTimeCard } from './FreeTimeCard';
@@ -561,7 +561,11 @@ export const Dashboard = ({
 							</p>
 						) : (
 							<div className="dashboard-next-task-content">
-								<span className="dashboard-next-task-title">{nextTask.title}</span>
+								{/* #2941 AK2: Titel ist der Einstieg in die Lesesicht (Expert-Slot-Label hält den
+								    Titeltext im Light-DOM, Muster TaskTree #2941). */}
+								<span className="dashboard-next-task-title">
+									<KolLink _label={nextTask.title} _href={`${import.meta.env.BASE_URL}aufgaben/${nextTask.id}`} />
+								</span>
 								<span className="dashboard-next-task-priority">{t('priority', { priority: nextTask.priority })}</span>
 								{/* #1985: „Warum jetzt?“ — Begründungssätze, stärkster Grund zuerst (DOM-Reihenfolge,
 								    A11y); ohne Anteile der Fallback-Satz. Reine Information im Signal-Panel: keine
@@ -694,7 +698,10 @@ export const Dashboard = ({
 					<ol className="dashboard-top-tasks-list">
 						{topTasks.map((task) => (
 							<li key={task.id} className="dashboard-top-task">
-								<span className="dashboard-top-task-title">{task.title}</span>
+								{/* #2941 AK2: Titel-Link in die Lesesicht (Muster „Nächste Aufgabe“, #2941). */}
+								<span className="dashboard-top-task-title">
+									<KolLink _label={task.title} _href={`${import.meta.env.BASE_URL}aufgaben/${task.id}`} />
+								</span>
 								<span className="dashboard-top-task-meta">
 									{t('topTasks.meta', { priority: task.priority, value: formatNumber(task.value) })}
 								</span>
@@ -857,7 +864,10 @@ export const Dashboard = ({
 									const urgency = deadlineUrgency(task.deadline, now);
 									return (
 										<li key={task.id} className="dashboard-deadline">
-											<span className="dashboard-deadline-title">{task.title}</span>
+											{/* #2941 AK2: Titel-Link in die Lesesicht (Muster „Nächste Aufgabe“, #2941). */}
+											<span className="dashboard-deadline-title">
+												<KolLink _label={task.title} _href={`${import.meta.env.BASE_URL}aufgaben/${task.id}`} />
+											</span>
 											<span className="dashboard-deadline-aside">
 												{urgency !== 'later' && (
 													<KolBadge

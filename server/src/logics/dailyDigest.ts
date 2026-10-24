@@ -34,7 +34,8 @@ const TITEL: Record<CareSprache, string> = { de: 'Dein Tag', en: 'Your Day' };
 const buildPayload = (aufgaben: DigestAufgabe[], hatFaellige: boolean, sprache: CareSprache) => ({
 	title: TITEL[sprache],
 	body: aufgaben.map((aufgabe) => aufgabe.title).join(', '),
-	url: aufgaben.length === 1 ? `/tasks/${aufgaben[0].id}` : hatFaellige ? '/#karte-deadlines' : '/#karte-top-aufgaben',
+	url:
+		aufgaben.length === 1 ? `/aufgaben/${aufgaben[0].id}` : hatFaellige ? '/#karte-deadlines' : '/#karte-top-aufgaben',
 });
 
 /**

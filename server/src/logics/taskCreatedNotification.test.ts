@@ -69,7 +69,7 @@ describe('notifyTaskCreated — Push bei fremd angelegter Aufgabe (#1224)', () =
 		const payload = JSON.parse(pushCalls[0].body) as { title: string; body: string; url: string };
 		assert.match(payload.title, /Anna/);
 		assert.match(payload.body, /Wäsche aufhängen/);
-		assert.equal(payload.url, `/tasks/${task.id}`, '#2851 AK3: Deep-Link zur neu angelegten Aufgabe');
+		assert.equal(payload.url, `/aufgaben/${task.id}`, '#2941 AK6: Deep-Link zur Aufgaben-Ansicht');
 	});
 
 	it('ohne bekannten Ersteller steht „Jemand" in der Nachricht', async () => {

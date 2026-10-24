@@ -1,4 +1,4 @@
-import { KolAlert, KolButton, KolCard, KolDetails, KolHeading, KolSpin } from '@public-ui/react-v19';
+import { KolAlert, KolButton, KolCard, KolDetails, KolHeading, KolLinkButton, KolSpin } from '@public-ui/react-v19';
 import type { Task, TaskGraph } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -254,11 +254,21 @@ export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProp
 									})}
 								</p>
 								{taskById.has(selected.id) && (
-									<KolButton
-										_label={t('actions.editDependencies')}
-										_variant="primary"
-										_on={{ onClick: () => editDependencies(selected.id) }}
-									/>
+									// #2941 AK4: „Ansehen“ als Link-Button mit echtem `href` auf die Lesesicht —
+									// Mittelklick/neuer Tab funktionieren; der Knoten-Klick bleibt beim
+									// Abhängigkeiten-Dialog. Primäraktion zuerst (Präzedenz #1465).
+									<div className="task-graph-detail-actions">
+										<KolButton
+											_label={t('actions.editDependencies')}
+											_variant="primary"
+											_on={{ onClick: () => editDependencies(selected.id) }}
+										/>
+										<KolLinkButton
+											_label={t('graphPanel.view')}
+											_variant="secondary"
+											_href={`${import.meta.env.BASE_URL}aufgaben/${selected.id}`}
+										/>
+									</div>
 								)}
 							</KolCard>
 						)}

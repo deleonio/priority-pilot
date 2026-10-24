@@ -101,7 +101,7 @@ describe('dailyDigest — Morgen-Push „Dein Tag“ (#2853 AK3)', () => {
 
 		assert.equal(pushCalls.length, 1);
 		const payload = JSON.parse(pushCalls[0] ?? '{}');
-		assert.equal(payload.url, `/tasks/${task.id}`);
+		assert.equal(payload.url, `/aufgaben/${task.id}`, '#2941 AK6: Deep-Link zur Aufgaben-Ansicht');
 	});
 
 	it('AK3: mehrere Top-Aufgaben ohne fällige öffnen die Karte „Top-Aufgaben“', async () => {
