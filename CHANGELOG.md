@@ -4,7 +4,11 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.35 - 2026-10-24
 
-_Enthält v0.35.0 – v0.35.13._
+_Enthält v0.35.0 – v0.35.14._
+
+### 🎉 New Features
+
+- docs: ux concept for task, series and template views by @deleonio in https://github.com/deleonio/priority-pilot/pull/2934
 
 ### 🔧 Engineering
 
@@ -188,7 +192,6 @@ _Enthält v0.30.0 – v0.30.28._
 - chore: rework terms of use on liability, renewal, withdrawal and account by @deleonio in https://github.com/deleonio/priority-pilot/pull/2748
 - docs(website): add storage-on-your-device section to privacy policy by @deleonio in https://github.com/deleonio/priority-pilot/pull/2746
 - docs(mcp): add guide for setting up the admin MCP endpoint by @deleonio in https://github.com/deleonio/priority-pilot/pull/2747
-- ci: shorten rechts-team label description to 100 characters by @deleonio in https://github.com/deleonio/priority-pilot/pull/2759
 - ci: shorten rechts-team label description to 100 characters by @deleonio in https://github.com/deleonio/priority-pilot/pull/2759
 - fix(deps): update kolibri (@public-ui) to v4.5.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2743
 - feat(server): include creator name in write responses (#2755) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2764
@@ -381,6 +384,7 @@ _Enthält v0.25.0 – v0.25.19._
 - refactor(server): unify first-cycle credit coverage rule (#2556) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2599
 - refactor(server): column migrations via shared helper (#2552) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2600
 - fix(server): consolidate coordinate parsing into one validated helper by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2601
+- fix(server): replace type assertions with runtime checks (#2554) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2603
 - fix(server): replace type assertions with runtime checks (#2554) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2603
 - test(ci): cover ticket-quality gate decision logic with tests (#2555) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2604
 
