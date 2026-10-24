@@ -50,6 +50,7 @@ import { protokolliereErledigung } from '../../logics/kpiKennzahlen.js';
 import type { components } from '../../api';
 
 type TaskDto = components['schemas']['Task'];
+type TaskDependenciesDto = components['schemas']['TaskDependencies'];
 type ErrorDto = components['schemas']['Error'];
 type TaskStatus = components['schemas']['TaskStatus'];
 type NearbyTaskDto = components['schemas']['NearbyTask'];
@@ -896,6 +897,31 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			return;
 		}
 		res.json((await serializeTasksFor(req, [task]))[0]);
+	});
+
+	// GET /tasks/:id/dependencies — beide Kanten-Richtungen der Aufgabe lesen (#2940, Leseseite):
+	// `subtasks` sind die direkten Unteraufgaben (getDependencies, #336-Richtung — erledigte
+	// Kinder inklusive, Zähler-Grundlage), `dependents` die Aufgaben, die auf diese warten
+	// (getDependents, Block „Blockiert"). Rein lesend, daher ohne Plan-Gate; archivierte
+	// Aufgaben erscheinen in keiner Richtung (#1964/#2188).
+	tasksRouter.get('/tasks/:id/dependencies', async (req: Request, res: Response<TaskDependenciesDto | ErrorDto>) => {
+		const id = parseId(req.params.id);
+		const userId = getUserId(req);
+		const task = id === null ? null : await findOwnTask(id, userId);
+		if (!task) {
+			sendError(res, 404, 'Task nicht gefunden.');
+			return;
+		}
+		const [subtasks, dependents] = await Promise.all([task.getDependencies(), task.getDependents()]);
+		const kante = (kandidat: Task): components['schemas']['TaskRef'] => ({
+			id: kandidat.id,
+			title: kandidat.title,
+			status: kandidat.status,
+		});
+		res.json({
+			subtasks: subtasks.filter((kandidat) => kandidat.archivedAt === null).map(kante),
+			dependents: dependents.filter((kandidat) => kandidat.archivedAt === null).map(kante),
+		});
 	});
 
 	// PATCH /tasks/:id — einen Task teilweise aktualisieren

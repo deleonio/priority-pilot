@@ -275,6 +275,25 @@ paths:
   /tasks/{id}/dependencies:
     parameters:
       - $ref: '#/components/parameters/TaskId'
+    get:
+      summary: Abhängigkeiten eines Tasks lesen (Unteraufgaben und Blockierer)
+      description: >-
+        Liefert beide Kanten-Richtungen des Tasks `{id}` für die Aufgabenansicht
+        (#2940): `subtasks` sind die direkten Unteraufgaben (`getDependencies()`,
+        erledigte Kinder inklusive — Zähler-Grundlage), `dependents` die Aufgaben,
+        die auf `{id}` warten (`getDependents()`, Block „Blockiert").
+        Archivierte Aufgaben erscheinen in keiner Richtung. Rein lesend, daher
+        ohne Plan-Gate. Fremde oder unbekannte ID → `404`.
+      operationId: getTaskDependencies
+      responses:
+        '200':
+          description: Beide Kanten-Richtungen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskDependencies'
+        '404':
+          $ref: '#/components/responses/NotFound'
     post:
       summary: Abhängigkeit (Vorgänger) zu einem Task hinzufügen
       description: >-
@@ -7536,6 +7555,33 @@ components:
           description: >-
             Setzt die Kategorie (muss dem Eigentümer-Konto gehören) oder entfernt sie
             mit `null`. Fehlt das Feld, bleibt die Zuordnung unverändert.
+    TaskRef:
+      type: object
+      required:
+        - id
+        - title
+        - status
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+    TaskDependencies:
+      type: object
+      required:
+        - subtasks
+        - dependents
+      properties:
+        subtasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskRef'
+        dependents:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskRef'
     DependencyInput:
       type: object
       required:

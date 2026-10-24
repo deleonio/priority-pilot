@@ -150,7 +150,7 @@ describe('TaskView (#2938)', () => {
 	// AK3 (#2940/TF5): Serien-Instanz → Herkunfts-Block mit Link auf /serien/<id>.
 	it('AK3: Serien-Instanz zeigt Herkunfts-Block mit Link auf die Serie', async () => {
 		getTaskMock.mockResolvedValue(sampleTask({ seriesId: 5 }));
-		getSeriesMock.mockResolvedValue({ id: 5, name: 'Wochenbericht', autoCreate: true });
+		getSeriesMock.mockResolvedValue({ id: 5, title: 'Wochenbericht', autoCreate: true });
 		renderView();
 
 		expect(await screen.findByRole('heading', { level: 2, name: 'Herkunft' })).toBeVisible();
@@ -164,7 +164,7 @@ describe('TaskView (#2938)', () => {
 	// AK3 (#2940/TF5): Vorlage (autoCreate = false) → „Aus Vorlage"; isException → Abweichungshinweis.
 	it('AK3: Vorlage zeigt „Aus Vorlage", isException den Abweichungshinweis', async () => {
 		getTaskMock.mockResolvedValue(sampleTask({ seriesId: 6, isException: true }));
-		getSeriesMock.mockResolvedValue({ id: 6, name: 'Monatsplanung', autoCreate: false });
+		getSeriesMock.mockResolvedValue({ id: 6, title: 'Monatsplanung', autoCreate: false });
 		renderView();
 
 		expect(await screen.findByRole('link', { name: 'Aus Vorlage „Monatsplanung"' })).toBeVisible();
@@ -183,7 +183,7 @@ describe('TaskView (#2938)', () => {
 
 	// AK5 (#2940/TF5): Säulen- und Kategorienamen als Text im Einordnung-Block.
 	it('AK5: Säulen- und Kategorienamen erscheinen im Einordnung-Block', async () => {
-		getTaskMock.mockResolvedValue(sampleTask({ pillars: [{ pillarId: 7, share: 100 }], categoryId: 3 }));
+		getTaskMock.mockResolvedValue(sampleTask({ pillars: [{ pillarId: 7, share: 100, confidence: 1 }], categoryId: 3 }));
 		getPillarsMock.mockResolvedValue([
 			{ id: 7, name: 'Wirksamkeit' },
 			{ id: 8, name: 'Körper' },

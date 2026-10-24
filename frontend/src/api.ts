@@ -63,7 +63,6 @@ import type {
 	ReassignRunStarted,
 	OwnReassignPillarsStatus,
 	ReassignStatusFilter,
-	paths,
 	Pillar,
 	PillarFeedbackInput,
 	PushSubscriptionInput,
@@ -88,20 +87,14 @@ import type {
 	TaskUpdate,
 	YearlyRecap,
 } from 'client';
-import createClient from 'openapi-fetch';
 import i18next from './i18n/config';
+import { baseUrl, client } from './apiClient';
 import { planRequiredDetail } from './lib/apiError';
 import { appTokenHeaders, clearAppToken, getAppToken, NATIVE_LOGGED_OUT_KEY, setAppToken } from './lib/appToken';
 import { createMagicChallenge, takeMagicVerifier } from './lib/magicPkce';
 import { sortCategoriesByName } from './lib/categories';
 import { getChannel, isNativeChannel } from './lib/platform';
 import { getApiBase } from './lib/siteOrigin';
-
-// Im Dev-Betrieb leitet der Vite-Proxy (siehe vite.config.ts) /api/v1/*-Anfragen an
-// http://localhost:3000 weiter und streift das Präfix ab. In Prod übernimmt Caddy denselben
-// Rewrite. Über VITE_API_BASE_URL lässt sich die Basis-URL bei Bedarf überschreiben.
-const baseUrl = import.meta.env.VITE_API_BASE_URL ?? getApiBase();
-const client = createClient<paths>({ baseUrl });
 
 // CSRF-Schutz (Server: server/src/express/csrf.ts): Vor dem ersten schreibenden Aufruf holt der
 // Client einen Token von GET /auth/csrf und sendet ihn als `x-csrf-token`-Header mit. Bei 403
@@ -2081,3 +2074,10 @@ export const getTask = async ({ id, signal }: Init & { id: number }): Promise<Ta
 	}
 	return reviveTask(data);
 };
+
+// Namensauflösung der Leseseite `/aufgaben/<id>` (#2940): Säulen und Kategorien für den
+// Einordnung-Block, die Serie für den Herkunfts-Block. Benannte Exporte neben der `api`-Fassade —
+// dieselbe Konvention wie `getTask` (die Ansicht mockt die Abrufe im Unit-Test auf Modulebene).
+export const getPillars = api.listPillars;
+export const getCategories = api.listCategories;
+export const getSeries = api.getSeries;
