@@ -63,7 +63,8 @@ export const selectedModels = async (
 			[...(prerequisites.get(table) ?? [])].every((pre) => !remaining.has(pre)),
 		);
 		if (ready.length === 0) {
-			// Zirkelreferenz: Rest in stabiler Reihenfolge anhängen (FK-Checks sind im Lauf aus).
+			// Zirkelreferenz: Rest in stabiler Reihenfolge anhängen (FK-Checks im Lauf aus — mysql: SET
+			// in der Transaktion, sqlite-Ziel: foreignKeys: false am Konstruktor).
 			order.push(...[...remaining].map((table) => byTable.get(table) as ModelStatic<Model>));
 			break;
 		}
@@ -85,9 +86,11 @@ const columnToAttribute = (model: ModelStatic<Model>): Map<string, string> => {
 };
 
 /** Dialektabhängiges Session-Statement: mysql nur SET FOREIGN_KEY_CHECKS, sqlite nur PRAGMA.
- * SQLite-Sonderfall: PRAGMA foreign_keys ist INNERHALB einer Transaktion ein No-op — sqlite-Ziele
- * schalten die Checks deshalb connection-scoped VOR der Transaktion aus (eine Verbindung je
- * Lauf-Instanz, pool: { max: 1 }), mysql innerhalb der gepinnten Transaktion. */
+ * SQLite-Sonderfall: PRAGMA foreign_keys ist INNERHALB einer Transaktion ein No-op, und eine
+ * Transaktion pinnt eine EIGENE Verbindung (pool: { max: 1 } liest der sqlite-Dialekt nicht).
+ * Das PRAGMA hier erreicht deshalb nur geteilte Verbindungen (:memory:); dateibasierte sqlite-
+ * Ziele tragen `foreignKeys: false` am Konstruktor (sonst FOREIGN_KEYS=ON je neuer Verbindung),
+ * mysql setzt innerhalb der gepinnten Transaktion. */
 export const setForeignKeyChecks = async (db: Sequelize, enable: boolean, transaction?: Transaction): Promise<void> => {
 	const sql =
 		db.getDialect() === 'mysql'
@@ -160,10 +163,12 @@ export const copyTableRows = async (
 	);
 	const orderBy =
 		pkColumns.length > 0 ? ` ORDER BY ${pkColumns.map((column) => quoted(source, column)).join(', ')}` : '';
-	// FK-Checks aus: mysql session-scoped INNERHALB der Transaktion (pinnt die Verbindung), sqlite
-	// PRAGMA wäre darin ein No-op — dort connection-scoped VOR der Transaktion (eine Verbindung je
-	// Ziel-Instanz). Kein Re-Enable bei sqlite: das Anschalten liesse Folgestatements auf dem Ziel an
-	// nicht mitkopierten FK-Eltern-Tabellen scheitern (Verbindungs-Default ist ohnehin ON).
+	// FK-Checks aus: mysql session-scoped INNERHALB der Transaktion (pinnt die Verbindung). Bei
+	// sqlite wäre das PRAGMA darin ein No-op — und die Transaktion liefe auf einer EIGENEN
+	// Verbindung, das OFF vor der Transaktion erreicht sie nicht. Dateibasierte sqlite-Ziele
+	// tragen deshalb `foreignKeys: false` am Konstruktor (Reverse-CLI + Test-Fixture); das PRAGMA
+	// hier deckt nur geteilte Verbindungen (:memory:). Kein Re-Enable bei sqlite: die Checks
+	// bleiben aus, sonst scheitern Folgestatements an nicht mitkopierten FK-Eltern-Tabellen.
 	const isSqlite = target.getDialect() === 'sqlite';
 	if (isSqlite) await setForeignKeyChecks(target, false);
 	await target.transaction(async (transaction) => {

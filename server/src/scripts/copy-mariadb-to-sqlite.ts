@@ -46,7 +46,15 @@ export const copyMariadbToSqlite = async (
 
 const main = async (): Promise<0 | 1> => {
 	assertReverseCliEnv(process.env);
-	const target = new Sequelize({ dialect: 'sqlite', storage: process.env.DATABASE_STORAGE, logging: false });
+	// foreignKeys: false — der sqlite-Connection-Manager setzt sonst auf jeder neu geöffneten
+	// Verbindung FOREIGN_KEYS=ON; Transaktionen pinnen eine eigene Verbindung, der Lauf hinge dann
+	// allein an der FK-topologischen Ordnung. Option ist in den v6-Typen ungetippt (Spread).
+	const target = new Sequelize({
+		dialect: 'sqlite',
+		storage: process.env.DATABASE_STORAGE,
+		logging: false,
+		...{ foreignKeys: false },
+	});
 	try {
 		await sequelize.authenticate();
 		const report = await copyMariadbToSqlite(sequelize, target, Object.values(sequelize.models));

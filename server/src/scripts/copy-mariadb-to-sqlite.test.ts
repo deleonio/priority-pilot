@@ -1,5 +1,8 @@
 import { before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { type ModelStatic, QueryTypes, Sequelize } from 'sequelize';
 // ROTER Spec-Test (#2830, docs/spec/issue-2830.md): Das Reverse-Kopierwerkzeug MariaDB→SQLite
 // existiert noch nicht. Der Import schlägt fehl, bis `server/src/scripts/copy-mariadb-to-sqlite.ts`
@@ -14,8 +17,10 @@ import { Dependency, Invoice, Task, User } from '../models/index.js';
 // Fixture wie #2827, Richtung gedreht: Quelle = Default-Instanz (im Test-Umfeld In-Memory-SQLite;
 // im Produktivlauf die MariaDB), Ziel = frische, MODELLLOSE SQLite-Instanz — exakt die
 // Reverse-Lage: das Ziel kennt keine Modelle, der Kern bekommt sie explizit übergeben (AK1).
+// foreignKeys: false wie im CLI-main: sonst setzt der sqlite-Connection-Manager je neu geöffneter
+// Verbindung FOREIGN_KEYS=ON (Option ist in den v6-Typen ungetippt — Spread umgeht die Prüfung).
 const newTarget = (): Sequelize =>
-	new Sequelize({ dialect: 'sqlite', storage: ':memory:', logging: false, pool: { max: 1 } });
+	new Sequelize({ dialect: 'sqlite', storage: ':memory:', logging: false, ...{ foreignKeys: false } });
 
 const COPY_TABLES = ['dependencies', 'invoices', 'tasks', 'users'] as const;
 const COPY_MODELS: ModelStatic<Model>[] = [User, Task, Dependency, Invoice];
@@ -157,6 +162,29 @@ describe('copy-mariadb-to-sqlite — Reverse-Kopierkern (#2830)', () => {
 			[{ label: 'Position 0', amountCents: 1000 }],
 			'invoices.lineItems ist einfach kodiert',
 		);
+	});
+});
+
+describe('copy-mariadb-to-sqlite — FK-Absicherung im dateibasierten Ziel (#2830 Review)', () => {
+	it('TF6: Transaktion läuft im dateibasierten Ziel mit FOREIGN_KEYS=OFF (foreignKeys: false)', async () => {
+		const storage = join(tmpdir(), `pp-reverse-fk-${process.pid}-${Date.now()}.sqlite`);
+		// Exakt der Konstruktor des CLI-main; ohne foreignKeys: false hätte die in der Transaktion
+		// neu gepinnte Verbindung FOREIGN_KEYS=ON (das VOR der Transaktion gesendete PRAGMA erreicht
+		// sie nicht — genau der Review-Befund).
+		const target = new Sequelize({ dialect: 'sqlite', storage, logging: false, ...{ foreignKeys: false } });
+		try {
+			await target.authenticate();
+			await target.transaction(async (transaction) => {
+				const rows = (await target.query('PRAGMA foreign_keys', {
+					type: QueryTypes.SELECT,
+					transaction,
+				})) as Array<{ foreign_keys: number }>;
+				assert.equal(rows[0].foreign_keys, 0, 'FK-Checks sind in der Transaktion aus');
+			});
+		} finally {
+			await target.close();
+			await rm(storage, { force: true });
+		}
 	});
 });
 
