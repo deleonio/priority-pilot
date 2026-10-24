@@ -206,3 +206,91 @@ describe('Gruppen-Aufgabe: Claim durch ein Mitglied (#1521)', () => {
 		assert.ok(alicePillarUnchanged, "AK5: Alice's Säule bleibt unangetastet bestehen");
 	});
 });
+
+describe('Gruppen-Aufgabe: Gruppen-Adresse beim Bearbeiten (#1521 Nachtrag)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	/** Zwei Gruppen: g1 mit Alice + Bob, g2 nur mit Alice — Bob ist in der Zielgruppe außen vor. */
+	const seedTwoGroups = async (): Promise<{ g1: Group; g2: Group; aliceId: number; bobId: number }> => {
+		await server.login(ALICE, { displayName: 'Alice Admin' });
+		await server.login(BOB, { displayName: 'Bob Mitglied' });
+		const [aliceId, bobId] = await Promise.all([ALICE, BOB].map(userIdOf));
+		const g1 = await Group.create({ name: 'Quell-Gruppe', description: null });
+		const g2 = await Group.create({ name: 'Ziel-Gruppe', description: null });
+		await GroupMember.create({ groupId: g1.id, userId: aliceId, role: 'admin', joinedAt: new Date() });
+		await GroupMember.create({ groupId: g1.id, userId: bobId, role: 'member', joinedAt: new Date() });
+		await GroupMember.create({ groupId: g2.id, userId: aliceId, role: 'admin', joinedAt: new Date() });
+		return { g1, g2, aliceId, bobId };
+	};
+
+	const patchTask = (cookie: string, taskId: number, body: Record<string, unknown>): Promise<Response> =>
+		fetch(`${server.baseUrl}/tasks/${taskId}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify(body),
+		});
+
+	it('Umhängen: Mitglied der Zielgruppe richtet die Aufgabe auf die neue Gruppe um (weiterhin ohne Eigentümer)', async () => {
+		const { g1, g2 } = await seedTwoGroups();
+		const task = await seedGroupTask('Wandernde Aufgabe', g1.id);
+
+		const res = await patchTask(await server.login(ALICE), task.id, { groupId: g2.id });
+		assert.equal(res.status, 200, 'Mitglied beider Gruppen muss die Adresse umhängen können');
+
+		const row = await rawTaskRow(task.id);
+		assert.equal(row.groupId, g2.id, 'die Aufgabe zeigt danach auf die Zielgruppe');
+		assert.equal(row.userId, null, 'eine Gruppen-Aufgabe bleibt ohne Einzel-Eigentümer');
+	});
+
+	it('Zurück aufs eigene Konto: groupId null ohne Empfänger gibt die Aufgabe dem Aufrufer', async () => {
+		const { g1, aliceId } = await seedTwoGroups();
+		const task = await seedGroupTask('Heimkehrende Aufgabe', g1.id);
+
+		const res = await patchTask(await server.login(ALICE), task.id, { groupId: null });
+		assert.equal(res.status, 200, 'das Lösen der Gruppen-Adresse muss möglich sein');
+
+		const row = await rawTaskRow(task.id);
+		assert.equal(row.groupId, null, 'die Adresse ist gelöst');
+		assert.equal(row.userId, aliceId, 'ohne Empfänger fällt das Eigentum an den Aufrufer zurück');
+	});
+
+	it('403: Mitglied der Quell-, aber nicht der Zielgruppe darf nicht umhängen', async () => {
+		const { g1, g2 } = await seedTwoGroups();
+		const task = await seedGroupTask('Gesperrte Aufgabe', g1.id);
+
+		const res = await patchTask(await server.login(BOB), task.id, { groupId: g2.id });
+		assert.equal(res.status, 403, 'die Zielgruppe muss dem Aufrufer gehören');
+
+		const row = await rawTaskRow(task.id);
+		assert.equal(row.groupId, g1.id, 'bei 403 bleibt die Adresse unverändert');
+	});
+
+	it('400: Person und Gruppe gleichzeitig ist kein gültiger Vertrag (Spiegel POST)', async () => {
+		const { g1, g2, bobId } = await seedTwoGroups();
+		const task = await seedGroupTask('Doppelt adressierte Aufgabe', g1.id);
+
+		const res = await patchTask(await server.login(ALICE), task.id, { groupId: g2.id, userId: bobId });
+		assert.equal(res.status, 400, 'Person UND Gruppe im selben PATCH wird abgewiesen');
+	});
+
+	it('Übergabe an eine Person räumt die Gruppen-Adresse mit weg (Spiegel POST: Person oder Gruppe)', async () => {
+		const { g1, bobId } = await seedTwoGroups();
+		const task = await seedGroupTask('Übergebene Aufgabe', g1.id);
+
+		const res = await patchTask(await server.login(ALICE), task.id, { userId: bobId });
+		assert.equal(res.status, 200, 'die Personen-Übergabe muss weiterhin möglich sein');
+
+		const row = await rawTaskRow(task.id);
+		assert.equal(row.userId, bobId, 'die Aufgabe gehört dem Empfänger');
+		assert.equal(row.groupId, null, 'die Gruppen-Adresse ist mitgeräumt');
+	});
+});

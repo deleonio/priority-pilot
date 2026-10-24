@@ -12,6 +12,8 @@
 		"recipientsLoading": "Loading recipients …",
 		"handoverTask": "Saving hands this task over to {{name}}. Afterwards you will only see it marked “For:”.",
 		"handoverSeries": "Saving hands this series over to {{name}}. Afterwards you will only see it marked “For:”.",
+		"groupReassign": "Saving assigns this task to the group “{{name}}” — it will then belong to all members jointly.",
+		"groupRelease": "Saving pulls the task out of the group — it will belong to your account afterwards.",
 		"recipientUnavailableTask": "Recipient selection is unavailable — the task will be created for you.",
 		"recipientUnavailableSeries": "Recipient selection is unavailable — the series will be created for you.",
 		"priorityLabel": "Priority (whole number 1–5): {{value}}",
