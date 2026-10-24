@@ -2,10 +2,11 @@ import { expect, test, type Page } from './fixtures';
 import { registerOwnSession } from './helpers';
 
 /**
- * Rote End-to-End-Spec für #2938 — Aufgaben-Ansicht `/aufgaben/<id>` (Schnitt-Teil 1).
- * Vertrag: docs/spec/issue-2938.md. Läuft gegen das echte Backend (In-Memory-DB).
- * Rot, bis App.tsx die Route `/aufgaben/<id>` auf die neue TaskView-Leseseite schaltet
- * (bis dahin rendert der unbekannte Pfad das Dashboard).
+ * Rote End-to-End-Spec für #2938 (Leseseite) und #2939 (Handeln in der Ansicht):
+ * Aufgaben-Ansicht `/aufgaben/<id>` (Schnitt-Teile 1+2).
+ * Vertrag: docs/spec/issue-2938.md und docs/spec/issue-2939.md. Läuft gegen das echte
+ * Backend (In-Memory-DB). #2938-Tests rot, bis App.tsx die Route auf TaskView schaltet;
+ * #2939-Tests zusätzlich rot, bis Checkliste/Primäraktion/Aktionen umgesetzt sind.
  */
 
 const createViewTask = async (page: Page, title: string): Promise<number> => {
@@ -23,7 +24,7 @@ const createViewTask = async (page: Page, title: string): Promise<number> => {
 	return ((await response.json()) as { id: number }).id;
 };
 
-test.describe('Balamentum — Aufgaben-Ansicht #2938', () => {
+test.describe('Balamentum — Aufgaben-Ansicht #2938/#2939', () => {
 	test.use({ viewport: { width: 375, height: 812 } });
 
 	let runId = 0;
@@ -107,5 +108,119 @@ test.describe('Balamentum — Aufgaben-Ansicht #2938', () => {
 		expect(stackedContent).not.toBeNull();
 		expect(stackedFacts).not.toBeNull();
 		expect(stackedFacts!.y).toBeGreaterThanOrEqual(stackedContent!.y + stackedContent!.height);
+	});
+
+	// ── #2939: Handeln in der Ansicht ──────────────────────────────────────────────
+
+	// Aufgabe mit Checkliste anlegen (Ids als UUIDs — validateChecklist lehnt anderes still
+	// mit 400 ab, Memory 2026-10-13).
+	const createChecklistTask = async (page: Page, title: string): Promise<number> => {
+		const response = await page.request.post('/api/v1/tasks', {
+			data: {
+				title,
+				priority: 4,
+				checklist: [
+					{ id: crypto.randomUUID(), title: 'Quellen sichten', completed: true },
+					{ id: crypto.randomUUID(), title: 'Entwurf schreiben', completed: false },
+					{ id: crypto.randomUUID(), title: 'Freigabe holen', completed: false },
+				],
+			},
+		});
+		expect(response.ok(), 'Setup: Task-Anlage muss 2xx liefern').toBeTruthy();
+		return ((await response.json()) as { id: number }).id;
+	};
+
+	// AK1 (#2939): Punkt abhaken → Zähler „1 von 3“ → „2 von 3“; nach Reload bleiben Haken
+	// und Zähler (PATCH mit kompletter Checkliste persistiert, GET /tasks/:id spiegelt sie).
+	test('AK1: Checklistenpunkt abhaken persistiert über Reload', async ({ page }) => {
+		await registerOwnSession(page, 'taskview-2939-checklist');
+		const id = await createChecklistTask(page, uniqueTitle('Checkliste'));
+
+		await page.goto(`/app/aufgaben/${id}`);
+		await expect(page.getByText('1 von 3')).toBeVisible();
+		await page.getByRole('checkbox', { name: 'Entwurf schreiben' }).click();
+		await expect(page.getByText('2 von 3')).toBeVisible();
+
+		await page.reload();
+		await expect(page.getByText('2 von 3')).toBeVisible();
+		await expect(page.getByRole('checkbox', { name: 'Entwurf schreiben' })).toBeChecked();
+		const task = (await (await page.request.get(`/api/v1/tasks/${id}`)).json()) as {
+			checklist: { title: string; completed: boolean }[];
+		};
+		expect(task.checklist.find((item) => item.title === 'Entwurf schreiben')?.completed).toBe(true);
+		expect(task.checklist.find((item) => item.title === 'Freigabe holen')?.completed).toBe(false);
+	});
+
+	// AK2 (#2939): offene direkte Unteraufgabe (per API als Abhängigkeit verdrahtet) sperrt
+	// „Erledigt“ und zeigt den Grund dauerhaft als Text.
+	test('AK2: offene Unteraufgabe sperrt „Erledigt“ mit sichtbarem Grund', async ({ page }) => {
+		await registerOwnSession(page, 'taskview-2939-block');
+		const parentId = await createViewTask(page, uniqueTitle('Elternaufgabe'));
+		const childId = await createViewTask(page, uniqueTitle('Offene Sub'));
+		const linked = await page.request.post(`/api/v1/tasks/${parentId}/dependencies`, {
+			data: { dependingTaskId: childId },
+		});
+		expect(linked.ok(), 'Setup: Unteraufgaben-Verdrahtung muss 2xx liefern').toBeTruthy();
+
+		await page.goto(`/app/aufgaben/${parentId}`);
+		const done = page.getByRole('button', { name: 'Erledigt' });
+		await expect(done).toBeVisible();
+		await expect(done).toBeDisabled();
+		await expect(page.getByText(/offene Unteraufgabe/)).toBeVisible();
+	});
+
+	// AK3 (#2939): „Erledigt“ → erledigt-Zustand (Status-Badge + „Wieder öffnen“), „Wieder
+	// öffnen“ → offen mit `completedAt null`; Primäraktion sticky unten bei 375×812 ohne
+	// Scroll sichtbar (Unterkante im Viewport).
+	test('AK3: Erledigt/Wieder öffnen wechselt den Status, Primäraktion bleibt sticky sichtbar', async ({ page }) => {
+		await registerOwnSession(page, 'taskview-2939-done');
+		const id = await createViewTask(page, uniqueTitle('Zyklus'));
+
+		await page.goto(`/app/aufgaben/${id}`);
+		const done = page.getByRole('button', { name: 'Erledigt' });
+		await expect(done).toBeVisible();
+		// boundingBox misst einmalig und kann nach Re-Render null liefern (Memory 2026-09-14)
+		// → kurz nachmessen, bevor die Sticky-Assertion fällt.
+		let box = await done.boundingBox();
+		for (let i = 0; i < 30 && !box; i += 1) {
+			await page.waitForTimeout(100);
+			box = await done.boundingBox();
+		}
+		expect(box).not.toBeNull();
+		expect(box!.y + box!.height).toBeLessThanOrEqual(812);
+
+		await done.click();
+		await expect(page.getByText('Erledigt', { exact: true })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Erledigt' })).toHaveCount(0);
+		await page.getByRole('button', { name: 'Wieder öffnen' }).click();
+		await expect(page.getByText('Offen', { exact: true })).toBeVisible();
+
+		const task = (await (await page.request.get(`/api/v1/tasks/${id}`)).json()) as {
+			status: string;
+			completedAt: string | null;
+		};
+		expect(task.status).toBe('Open');
+		expect(task.completedAt).toBeNull();
+	});
+
+	// AK3 (#2939): archivierte Aufgabe (per API archiviert) zeigt „Archiviert“-Banner plus
+	// „Wiederherstellen“; der Klick stellt die Aufgabe wieder her (archivedAt null).
+	test('AK3: archivierte Aufgabe zeigt Banner, Wiederherstellen stellt sie wieder her', async ({ page }) => {
+		await registerOwnSession(page, 'taskview-2939-archive');
+		const id = await createViewTask(page, uniqueTitle('Archiv'));
+		const archived = await page.request.post(`/api/v1/tasks/${id}/archive`);
+		expect(archived.ok(), 'Setup: Archivierung muss 2xx liefern').toBeTruthy();
+
+		await page.goto(`/app/aufgaben/${id}`);
+		await expect(page.getByText('Archiviert')).toBeVisible();
+		const restore = page.getByRole('button', { name: 'Wiederherstellen' });
+		await expect(restore).toBeVisible();
+		await restore.click();
+		await expect(page.getByText('Archiviert')).toBeHidden();
+
+		const task = (await (await page.request.get(`/api/v1/tasks/${id}`)).json()) as {
+			archivedAt: string | null;
+		};
+		expect(task.archivedAt).toBeNull();
 	});
 });
