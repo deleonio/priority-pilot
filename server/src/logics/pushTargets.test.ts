@@ -10,7 +10,7 @@ import { PUSH_TARGETS } from './pushTargets.js';
  */
 describe('pushTargets (#2851 AK2) — die §6-Ziele je Push-Art in einer Liste', () => {
 	it('enthält je Push-Art das Ziel aus docs/push-konzept.md §6 (Regel „eine Aufgabe vs. mehrere" als Funktion)', () => {
-		// #2941 AK6: Task-Ziele zeigen auf die Aufgaben-Ansicht (Leseseicht) statt Dialog.
+		// #2941 AK6: Task-Ziele zeigen auf die Aufgaben-Ansicht (Lesesicht) statt Dialog.
 		assert.equal(PUSH_TARGETS.dueTask.eine(7), '/aufgaben/7');
 		assert.equal(PUSH_TARGETS.dueTask.mehrere, '/#karte-deadlines');
 		assert.equal(PUSH_TARGETS.dailyTopTasks.eine(7), '/aufgaben/7');

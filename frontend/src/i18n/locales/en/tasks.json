@@ -92,7 +92,8 @@
 		"legendArrow": "An arrow points down from the subtask to the task it enables.",
 		"legendLine": "The thicker the line, the higher the weight — the number is shown on the line.",
 		"legendNode": "Each node shows number, title, priority, value contribution and progress.",
-		"asList": "Graph as list"
+		"asList": "Graph as list",
+		"view": "View"
 	},
 	"dependencyModal": {
 		"title": "Dependencies: {{title}}",

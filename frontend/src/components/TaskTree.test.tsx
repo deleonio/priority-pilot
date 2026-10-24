@@ -14,9 +14,16 @@ import { TaskTree } from './TaskTree';
  * `KolPopoverButton` forwarded den Ref mit einem `hidePopover`-Stub — der Löschen-Handler in
  * `TaskTree.tsx` ruft `popoverRef.current?.hidePopover().then(...)` auf; ohne Stub wäre
  * `.hidePopover()` `undefined` und `.then(...)` würfe eine TypeError.
+ *
+ * Test-Pflege #2941 (AK1): der Baum-Titel ist jetzt `KolHeading` → `KolLink` — der Heading-Mock
+ * rendert deshalb Kinder statt nur `_label`, und der neue KolLink-Mock gibt Label + href als
+ * Anker aus, damit Titeltext und Link-Vertrag wie bisher im Light-DOM prüfbar bleiben.
  */
 vi.mock('@public-ui/react-v19', () => ({
-	KolHeading: ({ _label }: { _label?: string }) => <h4>{_label}</h4>,
+	KolHeading: ({ _label, children }: { _label?: string; children?: React.ReactNode }) => <h4>{children ?? _label}</h4>,
+	KolLink: ({ _href, _label, children }: { _href?: string; _label?: string; children?: React.ReactNode }) => (
+		<a href={_href}>{children ?? _label}</a>
+	),
 	KolBadge: ({ _label }: { _label?: string }) => <span>{_label}</span>,
 	KolPopoverButton: forwardRef<{ hidePopover: () => Promise<void> }, { children?: React.ReactNode }>(
 		({ children }, ref) => {

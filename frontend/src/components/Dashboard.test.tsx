@@ -47,6 +47,14 @@ afterEach(() => {
 
 const pillar = (id: number, name: string, weight: number): Pillar => ({ id, name, description: '', weight });
 
+/**
+ * #2941 Test-Pflege: die Karten-Titel sind jetzt KolLinks — ihr Label liegt im echten KoliBri in
+ * der Shadow-DOM-Schicht (im jsdom als `_label`-Property am Element), nicht mehr im span-Text.
+ * Der Lesetitel kommt deshalb aus dem Link, mit dem span-Text als Fallback.
+ */
+const kartentitel = (bereich: Element | null): string =>
+	(bereich?.querySelector('kol-link') as (Element & { _label?: string }) | null)?._label ?? bereich?.textContent ?? '';
+
 const task = (
 	id: number,
 	pillars: TaskPillarContribution[],
@@ -474,8 +482,8 @@ describe('Dashboard — kein Task-ID-Präfix in "Nächste Aufgabe" / "Was ist je
 
 		const titleEl = container.querySelector('.dashboard-next-task-title');
 		expect(titleEl, '.dashboard-next-task-title fehlt').not.toBeNull();
-		expect(titleEl?.textContent).toContain('Wondershare Filmora kündigen');
-		expect(titleEl?.textContent, 'Task-ID-Präfix #114 darf nicht mehr im Titel stehen').not.toMatch(/#114/);
+		expect(kartentitel(titleEl)).toContain('Wondershare Filmora kündigen');
+		expect(kartentitel(titleEl), 'Task-ID-Präfix #114 darf nicht mehr im Titel stehen').not.toMatch(/#114/);
 	});
 
 	it('AK2: „Was ist jetzt dran?" zeigt je Vorschlag nur den Titel, keine #<ID>', () => {
@@ -664,7 +672,7 @@ describe('Dashboard — kein Task-ID-Präfix in „Wichtigste Tasks" / „Ansteh
 		const { container } = render(<Dashboard userId={1} tasks={[]} forest={[top]} nextTask={null} pillars={[]} />);
 
 		const title = container.querySelector('.dashboard-top-task-title');
-		expect(title?.textContent).toBe('Kur-Tochter');
+		expect(kartentitel(title)).toBe('Kur-Tochter');
 		const meta = container.querySelector('.dashboard-top-task-meta');
 		expect(meta?.textContent).toContain('Priorität');
 	});
@@ -679,7 +687,7 @@ describe('Dashboard — kein Task-ID-Präfix in „Wichtigste Tasks" / „Ansteh
 		);
 
 		const title = container.querySelector('.dashboard-deadline-title');
-		expect(title?.textContent).toBe('Handy-Anbieter für Amira finden');
+		expect(kartentitel(title)).toBe('Handy-Anbieter für Amira finden');
 		expect(container.querySelector('.dashboard-deadline-date')?.textContent).toMatch(/\d{2}\.\d{2}\.\d{4}/);
 	});
 });
@@ -1235,7 +1243,7 @@ describe('Dashboard — Direkt-Erledigen mit Inline-Rückmeldung (Issue #2526)',
 			expect(alert, 'keine Inline-Fehlermeldung im Panel').not.toBeNull();
 			expect(alert?.getAttribute('_type')).toBe('error');
 		});
-		expect(container.querySelector('.dashboard-next-task-content')?.textContent).toContain('T52');
+		expect(kartentitel(container.querySelector('.dashboard-next-task-content'))).toContain('T52');
 	});
 });
 

@@ -2416,6 +2416,21 @@ kol-toolbar {
 	margin-top: var(--pp-gap-base);
 }
 
+/* #2941 AK4: „Abhängigkeiten bearbeiten“ und „Ansehen“ in einer Reihe — KoliBri-Hosts sind
+   Block-Level (100%); die Reihe teilt die Breite explizit, sonst quetscht ein 100%-Host den
+   Nachbarn auf min-content (Muster docs/mobile-ui-rules.md / Memory 2026-08-24). */
+.task-graph-detail-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--pp-gap-tight);
+}
+
+.task-graph-detail-actions > kol-button,
+.task-graph-detail-actions > kol-link-button {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
 /* Legende und Listenfassung: zusammengehörige, zugeklappte Nachschlage-Ebene unter dem Graphen. */
 .task-graph-aside {
 	display: flex;

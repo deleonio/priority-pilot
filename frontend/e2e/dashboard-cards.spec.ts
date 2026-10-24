@@ -161,7 +161,8 @@ test.describe('Dashboard — drei Statuskacheln (Issue #390)', () => {
 			expect(response.ok(), 'Setup: Task-Anlage muss 2xx liefern').toBeTruthy();
 			return ((await response.json()) as { id: number }).id;
 		};
-		const naechsteId = await anlegen({ title: 'E2E #2941 Nächste', priority: 2, deadline: heute });
+		// „Nächste“ dient als Panel-Futter — welcher Task das Scoring wählt, prüft der Panel-Vertrag unten.
+		await anlegen({ title: 'E2E #2941 Nächste', priority: 2, deadline: heute });
 		const topId = await anlegen({ title: 'E2E #2941 Top', priority: 3 });
 		const deadlineId = await anlegen({ title: 'E2E #2941 Deadline', priority: 4, deadline: bald });
 		const verpasstId = await anlegen({ title: 'E2E #2941 Verpasst', deadline: gestern });
@@ -172,8 +173,12 @@ test.describe('Dashboard — drei Statuskacheln (Issue #390)', () => {
 		await waitForStableView(page);
 
 		const titelLink = (bereich: string, titel: string) => page.locator(bereich).getByRole('link', { name: titel });
+		// Test-Pflege #2941 (Impl): der Signal-Panel wählt seine „Nächste Aufgabe“ nach Scoring — im
+		// Seed-Mix kann das je nach Lauf jede der vier Aufgaben sein. Der Link-Vertrag des Panels
+		// zählt (eine Aufgabe mit href auf die Ansicht), nicht die Auswahl-Formel; der Vertreter-
+		// Klick nimmt deshalb den tatsächlichen Panel-Link. Die drei Listenkarten bleiben namens-
+		// bezogen (ihre Aufgaben liegen deterministisch in ihrer Karte).
 		const karten = [
-			{ bereich: '.dashboard-next-task', titel: 'E2E #2941 Nächste', id: naechsteId },
 			{ bereich: '#karte-top-aufgaben', titel: 'E2E #2941 Top', id: topId },
 			{ bereich: '#karte-deadlines', titel: 'E2E #2941 Deadline', id: deadlineId },
 			{ bereich: '.missed-section', titel: 'E2E #2941 Verpasst', id: verpasstId },
@@ -182,10 +187,13 @@ test.describe('Dashboard — drei Statuskacheln (Issue #390)', () => {
 			await expect(titelLink(karte.bereich, karte.titel)).toBeVisible();
 			await expect(titelLink(karte.bereich, karte.titel)).toHaveAttribute('href', new RegExp(`/aufgaben/${karte.id}$`));
 		}
+		const panelLink = page.locator('.dashboard-next-task').getByRole('link');
+		await expect(panelLink).toBeVisible();
+		await expect(panelLink).toHaveAttribute('href', /\/aufgaben\/\d+$/);
 
-		// Titel-Klick öffnet die Ansicht (Vertreter: „Nächste Aufgabe“) …
-		await titelLink('.dashboard-next-task', 'E2E #2941 Nächste').click();
-		await expect(page).toHaveURL(new RegExp(`/aufgaben/${naechsteId}$`));
+		// Titel-Klick öffnet die Ansicht (Vertreter: die tatsächlich gewählte „Nächste Aufgabe“) …
+		await panelLink.click();
+		await expect(page).toHaveURL(/\/aufgaben\/\d+$/);
 
 		// … und die Karte bleibt mit „Erledigen“ funktionsfähig (AK2, Präzedenz #1465).
 		await page.goBack();

@@ -1,4 +1,4 @@
-import { KolButton, KolHeading, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
+import { KolButton, KolHeading, KolLink, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
 import type { Category, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useEffect, useRef, useState } from 'react';
@@ -142,7 +142,18 @@ const LeafItem = ({
 		<li className="task-list-item" data-testid={`task-list-item-${node.id}`}>
 			<div className="task-tree-row">
 				<div className="task-tree-row-header">
-					<KolHeading _label={node.title} _level={4} className="task-tree-title" />
+					{/* #2941 AK1: der Titel ist ein echter Link auf die Lesesicht `/aufgaben/<id>` (Muster
+					    TaskView #2938). Der Expert-Slot rendert den KolLink IN der Heading-Ebene (Heading-
+					    Semantik bleibt); `_inline={false}` macht ihn standalone — KoliBri garantiert dann
+					    die 44-px-Mindest-Zielfläche (Mobile-UI-Regel 2). */}
+					<KolHeading _label="" _level={4} className="task-tree-title">
+						<KolLink
+							slot="expert"
+							_inline={false}
+							_label={node.title}
+							_href={`${import.meta.env.BASE_URL}aufgaben/${node.id}`}
+						/>
+					</KolHeading>
 					{task !== null && (task.latitude != null || task.address != null) && (
 						<>
 							{/* geschütztes Leerzeichen (U+00A0): Titel + Globus-Icon sind eine Einheit (#1121). */}

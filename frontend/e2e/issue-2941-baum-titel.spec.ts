@@ -26,6 +26,10 @@ test.describe('Balamentum — #2941 Baum-Titel-Einstieg', () => {
 
 		await page.goto('/app/');
 		await waitForStableView(page);
+		// Test-Pflege #2941 (Impl): der Baum liegt auf dem Aufgaben-Tab — ohne Tab-Wechsel ist der
+		// Titel-Link nicht sichtbar (inaktive KolTabs-Panels bleiben gemountet, aber hidden).
+		await page.getByRole('tab', { name: 'Aufgaben' }).click();
+		await waitForStableView(page);
 
 		const titelLink = page.getByRole('link', { name: title });
 		await expect(titelLink).toBeVisible();

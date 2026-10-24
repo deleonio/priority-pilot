@@ -92,7 +92,8 @@
 		"legendArrow": "Ein Pfeil zeigt von der Unteraufgabe nach unten auf die Aufgabe, die sie ermöglicht.",
 		"legendLine": "Je dicker die Linie, desto stärker das Gewicht — die Zahl steht an der Linie.",
 		"legendNode": "Jeder Knoten zeigt Nummer, Titel, Priorität, Wertbeitrag und Fortschritt.",
-		"asList": "Graph als Liste"
+		"asList": "Graph als Liste",
+		"view": "Ansehen"
 	},
 	"dependencyModal": {
 		"title": "Abhängigkeiten: {{title}}",

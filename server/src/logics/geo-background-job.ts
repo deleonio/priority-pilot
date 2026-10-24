@@ -135,13 +135,13 @@ const formatKm = (km: number): string =>
 const buildPayload = (tasks: NearbyGeoTask[], sprache: CareSprache): { title: string; body: string; url: string } => {
 	if (tasks.length === 1) {
 		const [task] = tasks;
-		return { title: task.title, body: `${formatKm(task.distanceKm)} km`, url: `/tasks/${task.id}` };
+		return { title: task.title, body: `${formatKm(task.distanceKm)} km`, url: `/aufgaben/${task.id}` };
 	}
 	// F4: Bei mehreren Tasks auf die nächstgelegene Aufgabe verlinken (Deep-Link nach AK5).
 	const nearest = tasks.reduce((min, task) => (task.distanceKm < min.distanceKm ? task : min));
 	const lines = tasks.map((task) => `${task.title} (${formatKm(task.distanceKm)} km)`);
 	const title = sprache === 'en' ? `${tasks.length} tasks nearby` : `${tasks.length} Aufgaben in der Nähe`;
-	return { title, body: lines.join(', '), url: `/tasks/${nearest.id}` };
+	return { title, body: lines.join(', '), url: `/aufgaben/${nearest.id}` };
 };
 
 /**

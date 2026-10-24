@@ -71,6 +71,9 @@ vi.mock('@public-ui/react-v19', () => ({
 		</details>
 	),
 	KolHeading: ({ _label }: { _label?: string }) => <h2>{_label}</h2>,
+	// #2941 AK4 (Test-Pflege): „Ansehen“ ist ein KolLinkButton (Anker) — der Mock gibt href aus,
+	// damit der Link-Vertrag der Ansicht im jsdom prüfbar bleibt.
+	KolLinkButton: ({ _label, _href }: { _label?: string; _href?: string }) => <a href={_href}>{_label}</a>,
 	KolSpin: () => <span role="status">Lädt</span>,
 	KolBadge: ({ _label }: { _label?: string }) => <span>{_label}</span>,
 }));
@@ -189,7 +192,7 @@ describe('TaskGraphPanel', () => {
 	});
 
 	// #2941 AK4 (docs/spec/issue-2941.md): die Auswahl-Karte bekommt „Ansehen“ mit Ziel auf die
-	// Leseseicht `/aufgaben/<id>` — der Knoten-Klick bleibt beim Abhängigkeiten-Dialog.
+	// Lesesicht `/aufgaben/<id>` — der Knoten-Klick bleibt beim Abhängigkeiten-Dialog.
 	it('#2941 AK4: Auswahl-Karte bietet „Ansehen“ als Link auf die Aufgaben-Ansicht', async () => {
 		getGraph.mockResolvedValue(graph([node(1), node(2)], [edge(1, 2, 0.5)]));
 		render(<TaskGraphPanel tasks={[task(1), task(2)]} onEditDependencies={vi.fn()} />);
