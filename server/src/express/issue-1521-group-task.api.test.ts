@@ -239,6 +239,26 @@ describe('Gruppen-Aufgabe: Gruppen-Adresse beim Bearbeiten (#1521 Nachtrag)', ()
 			body: JSON.stringify(body),
 		});
 
+	it('Unveränderte Gruppe im Edit bleibt No-Op — der Claim eines Mitglieds wird nicht gelöscht', async () => {
+		const { g1, bobId } = await seedTwoGroups();
+		const task = await seedGroupTask('Geclaimte Aufgabe', g1.id);
+		const bob = await server.login(BOB);
+
+		// Claim per Done-Request (#1521 AK3): Bob wird Eigentümer, die Gruppe bleibt als Herkunft.
+		const claimRes = await patchTask(bob, task.id, { status: 'Done' });
+		assert.equal(claimRes.status, 200, 'das Erledigen durch das Mitglied muss klappen');
+		let row = await rawTaskRow(task.id);
+		assert.equal(row.userId, bobId, 'Setup: Bob hat die Aufgabe per Done geclaimt');
+
+		// Edit wie im Bearbeiten-Dialog: das Empfänger-Feld trägt die gespiegelte Gruppe unverändert mit.
+		const editRes = await patchTask(bob, task.id, { groupId: g1.id, title: 'Geclaimte Aufgabe (bearbeitet)' });
+		assert.equal(editRes.status, 200, 'der unveränderte Edit muss durchgehen');
+
+		row = await rawTaskRow(task.id);
+		assert.equal(row.groupId, g1.id, 'die Gruppen-Adresse bleibt unverändert');
+		assert.equal(row.userId, bobId, 'der Claim bleibt — die unveränderte Gruppe ist kein Adress-Wechsel');
+	});
+
 	it('Umhängen: Mitglied der Zielgruppe richtet die Aufgabe auf die neue Gruppe um (weiterhin ohne Eigentümer)', async () => {
 		const { g1, g2 } = await seedTwoGroups();
 		const task = await seedGroupTask('Wandernde Aufgabe', g1.id);

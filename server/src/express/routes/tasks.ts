@@ -1093,6 +1093,11 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				verschobDeadline instanceof Date &&
 				task.deadline != null &&
 				verschobDeadline.getTime() > new Date(task.deadline).getTime();
+			// #1521 (Nachtrag) / #2924-Review: Dieselbe Gruppe wie im Bestand ist kein Adress-Wechsel —
+			// der Bearbeiten-Dialog spiegelt das Empfänger-Feld immer mit, und ein solcher No-Op darf
+			// den Claim (`userId`) nicht löschen. Umhängen/Lösen bleiben unverändert.
+			const groupChange =
+				groupTargetChange !== undefined && groupTargetChange !== task.groupId ? groupTargetChange : undefined;
 			const attrs = {
 				...validation.attrs,
 				...(istVerschoben ? { postponeCount: task.postponeCount + 1 } : {}),
@@ -1107,10 +1112,10 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				...(claimUserId !== null ? { userId: claimUserId } : {}),
 				// #1521 (Nachtrag): Gruppen-Adressierung — eine neue Gruppe macht die Aufgabe wieder
 				// herrenlos (`userId = null` bleibt Claim-Marker); das Lösen übergibt sie dem Empfänger
-				// des Handover-Zweigs oben oder fällt an den Aufrufer zurück.
-				...(groupTargetChange !== undefined ? { groupId: groupTargetChange } : {}),
-				...(groupTargetChange != null ? { userId: null } : {}),
-				...(groupTargetChange === null && recipientId === null ? { userId: requesterId } : {}),
+				// des Handover-Zweigs oben oder fällt an den Aufrufer zurück (No-Op: `groupChange`).
+				...(groupChange !== undefined ? { groupId: groupChange } : {}),
+				...(groupChange != null ? { userId: null } : {}),
+				...(groupChange === null && recipientId === null ? { userId: requesterId } : {}),
 				...(handoverCategoryId !== undefined ? { categoryId: handoverCategoryId } : {}),
 			};
 			// #1363: Meilenstein-Stand des Eigentümers vor dem Statuswechsel-Commit festhalten — nur bei
