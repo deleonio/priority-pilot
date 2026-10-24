@@ -136,25 +136,16 @@ jobs:
             exit 1
           fi
 
-      - name: In Play Console hochladen (interner Test-Track)
+      - name: In Play Console hochladen (interner + geschlossener Test)
         if: env.RELEASE_TAG != ''
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: balamentum.app
           releaseFiles: native/android/app/build/outputs/bundle/release/app-release.aab
-          tracks: internal
-          status: completed
-          releaseName: ${{ env.RELEASE_TAG }}
-
-      - name: In Play Console hochladen (geschlossener Test-Track)
-        if: env.RELEASE_TAG != ''
-        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: balamentum.app
-          releaseFiles: native/android/app/build/outputs/bundle/release/app-release.aab
-          # eigener Track-Name aus der Play Console (Standard 'closed' existiert nicht)
-          tracks: Offener Test
+          # ein Upload, beide Tracks im selben Edit — erneuter Upload derselben
+          # Version waere 'version code already used'. Geschlossener Track trägt
+          # den eigenen Konsolen-Namen (Standard 'closed' existiert nicht).
+          tracks: internal,Offener Test
           status: completed
           releaseName: ${{ env.RELEASE_TAG }}
