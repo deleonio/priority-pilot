@@ -4,12 +4,13 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.35 - 2026-10-24
 
-_Enthält v0.35.0 – v0.35.3._
+_Enthält v0.35.0 – v0.35.4._
 
 ### Other Changes
 
 - feat(server): background jobs master switch for staging (#2831) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2922
 - feat: reassign group task address in the edit dialog (#1521) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2924
+- feat(server): identity check of sqlite source vs mariadb copy (#2829) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2921
 
 ## v0.34 - 2026-10-23
 
@@ -160,7 +161,6 @@ _Enthält v0.30.0 – v0.30.28._
 ### 🐞 Bug Fixes
 
 - build(frontend): fullscreen and dark manifest colors on android by @deleonio in https://github.com/deleonio/priority-pilot/pull/2749
-- build(frontend): fullscreen and dark manifest colors on android by @deleonio in https://github.com/deleonio/priority-pilot/pull/2749
 - fix(ui): keep banner button labels unwrapped, fit invitation banner to content by @deleonio in https://github.com/deleonio/priority-pilot/pull/2760
 - feat(server): allow removing a task deadline via mcp task_update null by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2762
 - fix(server): series instances inherit series creator (#2757) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2779
@@ -179,6 +179,7 @@ _Enthält v0.30.0 – v0.30.28._
 
 - chore: rework terms of use on liability, renewal, withdrawal and account by @deleonio in https://github.com/deleonio/priority-pilot/pull/2748
 - docs(website): add storage-on-your-device section to privacy policy by @deleonio in https://github.com/deleonio/priority-pilot/pull/2746
+- docs(mcp): add guide for setting up the admin MCP endpoint by @deleonio in https://github.com/deleonio/priority-pilot/pull/2747
 - docs(mcp): add guide for setting up the admin MCP endpoint by @deleonio in https://github.com/deleonio/priority-pilot/pull/2747
 - ci: shorten rechts-team label description to 100 characters by @deleonio in https://github.com/deleonio/priority-pilot/pull/2759
 - fix(deps): update kolibri (@public-ui) to v4.5.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2743
