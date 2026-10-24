@@ -1,10 +1,9 @@
 import { before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { DataTypes, Model, QueryTypes, Sequelize } from 'sequelize';
-// ROTER Spec-Test (#2829, docs/spec/issue-2829.md): Das Verifikationsskript existiert noch nicht.
-// Der Import schlägt fehl, bis `server/src/scripts/verify-db-identity.ts` `verifyDbIdentity`,
-// `canonicalRowHash`, `requireMariaDbTarget` und `reportExitCode` gemäß diesem Vertrag
-// (AK1–AK4) bereitstellt.
+// Vertragstest (#2829, docs/spec/issue-2829.md): `server/src/scripts/verify-db-identity.ts`
+// stellt `verifyDbIdentity`, `canonicalRowHash`, `requireMariaDbTarget` und `reportExitCode`
+// gemäß diesem Vertrag (AK1–AK4) bereit.
 import { canonicalRowHash, reportExitCode, requireMariaDbTarget, verifyDbIdentity } from './verify-db-identity.js';
 import sequelize from '../database.js';
 import { Dependency, Invoice, Task, User } from '../models/index.js';
@@ -158,7 +157,8 @@ describe('verify-db-identity — Dialekt-Guard (#2829 TF3, AK3)', () => {
 	it('Ziel ohne mysql-Dialekt wirft klare Fehlermeldung, mysql läuft weiter', () => {
 		assert.throws(
 			() => requireMariaDbTarget({ getDialect: () => 'sqlite' }),
-			/MariaDB.*DB_DIALECT=mysql|MARIADB/s,
+			(error: unknown) =>
+				error instanceof Error && /DB_DIALECT=mysql/.test(error.message) && /MARIADB_/.test(error.message),
 			'Fehlermeldung nennt DB_DIALECT=mysql und MARIADB_*',
 		);
 		assert.doesNotThrow(() => requireMariaDbTarget({ getDialect: () => 'mysql' }));
@@ -168,10 +168,32 @@ describe('verify-db-identity — Dialekt-Guard (#2829 TF3, AK3)', () => {
 describe('verify-db-identity — Kanonisierung (#2829 TF4, AK4)', () => {
 	const hash = (row: Record<string, unknown>): string => canonicalRowHash(row);
 
-	it('Datum: Date-Objekt, ISO-String mit und ohne Millisekunden → gleicher Hash', () => {
+	it('Datum: Sequelize-SQLite-Textform, Date-Objekt, ISO-String → gleicher Hash', () => {
 		const withMs = hash({ d: '2026-03-05T12:34:56.789Z' });
+		assert.equal(
+			hash({ d: '2026-03-05 12:34:56.789 +00:00' }),
+			withMs,
+			'SQLite-Textform (Offset nach Leerzeichen) = ISO-UTC',
+		);
 		assert.equal(hash({ d: new Date('2026-03-05T12:34:56.789Z') }), withMs, 'Date-Objekt = ISO-String');
-		assert.equal(hash({ d: '2026-03-05T12:34:56Z' }), withMs, 'ohne Millisekunden = mit Millisekunden');
+		assert.equal(
+			hash({ d: '2026-03-05T12:34:56Z' }),
+			hash({ d: '2026-03-05T12:34:56.000Z' }),
+			'ohne Millisekunden = explizite .000-Millisekunden',
+		);
+	});
+
+	it('DATEONLY: Datumstext (SQLite) = Mitternachts-Date (MariaDB) → gleicher Hash', () => {
+		assert.equal(
+			hash({ d: '2026-03-05' }),
+			hash({ d: new Date('2026-03-05T00:00:00.000Z') }),
+			'Datumstext = Mitternachts-Date',
+		);
+		assert.equal(
+			hash({ d: '2026-03-05' }),
+			hash({ d: '2026-03-05T00:00:00.000Z' }),
+			'Datumstext = Mitternacht als ISO-UTC',
+		);
 	});
 
 	it('Boolean: 1/true und 0/false → gleicher Hash', () => {
@@ -202,6 +224,12 @@ describe('verify-db-identity — Kanonisierung (#2829 TF4, AK4)', () => {
 			hash({ d: '2026-03-06T12:34:56.789Z' }),
 			'unterschiedliches Datum',
 		);
+		assert.notEqual(
+			hash({ d: '2026-03-05T12:34:56.789Z' }),
+			hash({ d: '2026-03-05T12:34:56Z' }),
+			'Sub-Sekunden-Differenz (Millisekunden bleiben erhalten)',
+		);
+		assert.notEqual(hash({ d: '2026-03-05' }), hash({ d: '2026-03-06' }), 'unterschiedliches DATEONLY-Datum');
 		assert.notEqual(hash({ b: 1 }), hash({ b: 2 }), 'unterschiedlicher Zahlenwert');
 		assert.notEqual(hash({ j: '{"a":1}' }), hash({ j: '{"a":2}' }), 'unterschiedliches JSON');
 		assert.notEqual(hash({ blob: '00' }), hash({ blob: '01' }), 'unterschiedliche Bytes');

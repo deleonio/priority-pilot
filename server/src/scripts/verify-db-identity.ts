@@ -40,9 +40,13 @@ const countRows = async (db: Sequelize, table: string): Promise<number> => {
 };
 
 /** Kanonisierung eines Einzelwerts: beide Dialekt-Darstellungen (SQLite/MariaDB) desselben logischen
- * Werts müssen auf denselben Kanon laufen (AK4) — Sekunden-Präzision (MariaDB DATETIME ohne
- * Bruchteile), Booleans als 0/1, JSON geparst + key-sortiert, BLOBs als Hex. */
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d{1,3})?(Z|[+-]\d{2}:?\d{2})?$/.source;
+ * Werts müssen auf denselben Kanon laufen (AK4) — ISO-8601 UTC mit Millisekunden (Ziel-Spalten
+ * DATE(3), ms bleiben erhalten), exakte Mitternacht UTC auf den DATEONLY-Kanon `YYYY-MM-DD`,
+ * Booleans als 0/1, JSON geparst + key-sortiert, BLOBs als Hex. */
+// ISO-Datum mit Zeit und optionaler Zone — Zone auch nach Leerzeichen (echte Sequelize-SQLite-
+// Textform `YYYY-MM-DD HH:MM:SS.mmm +00:00`); DATEONLY kommt als reiner Datumstext an.
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d{1,3})? ?(?:[Zz]|[+-]\d{2}:?\d{2})?$/;
 
 const canonicalJson = (value: unknown): unknown => {
 	if (Array.isArray(value)) return value.map(canonicalJson);
@@ -63,7 +67,7 @@ const canonicalize = (value: unknown): unknown => {
 	if (typeof value === 'boolean') return value ? 1 : 0;
 	if (typeof value === 'number') return value;
 	if (typeof value === 'string') {
-		if (new RegExp(ISO_DATE).test(value)) return canonicalTimestamp(value);
+		if (DATE_ONLY.test(value) || ISO_DATE.test(value)) return canonicalTimestamp(value);
 		if (value.startsWith('{') || value.startsWith('[')) {
 			try {
 				return canonicalJson(JSON.parse(value));
@@ -77,12 +81,20 @@ const canonicalize = (value: unknown): unknown => {
 	return String(value);
 };
 
-/** ISO-8601 UTC auf Sekunden normalisiert — Datum mit/ohne Millisekunden kanonisieren gleich (AK4). */
+/** ISO-8601 UTC mit Millisekunden — Datum mit/ohne Millisekunden und mit/ohne Offset kanonisieren
+ * gleich (AK4); Sub-Sekunden-Differenzen bleiben sichtbar (Ziel-Spalten DATE(3)). Exakte Mitternacht
+ * UTC läuft auf den DATEONLY-Kanon `YYYY-MM-DD` (MariaDB liefert DATEONLY als Mitternachts-Date). */
 const canonicalTimestamp = (value: string): string => {
-	const normalized = `${value.replace(' ', 'T')}${/[Zz]|[+-]\d{2}:?\d{2}$/.test(value) ? '' : 'Z'}`;
+	if (DATE_ONLY.test(value)) return value;
+	// Leerzeichen vor dem Offset entfernen und Datum/Zeit zu T verbinden — sonst liefert new Date
+	// NaN für die echte Sequelize-SQLite-Textform `YYYY-MM-DD HH:MM:SS.mmm +00:00`.
+	const normalized = `${value.replace(' ', 'T').replace(/\s*([Zz]|[+-]\d{2}:?\d{2})$/, '$1')}${
+		/[Zz]|[+-]\d{2}:?\d{2}$/.test(value) ? '' : 'Z'
+	}`;
 	const parsed = new Date(normalized);
 	if (Number.isNaN(parsed.getTime())) return value;
-	return `${parsed.toISOString().slice(0, 19)}Z`;
+	const iso = parsed.toISOString();
+	return iso.endsWith('T00:00:00.000Z') ? iso.slice(0, 10) : iso;
 };
 
 /** SHA-256 über die kanonisierte Zeile — Spaltenreihenfolge ist irrelevant, Inhalt entscheidet. */

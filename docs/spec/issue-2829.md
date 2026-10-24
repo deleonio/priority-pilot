@@ -11,11 +11,15 @@ Sequelize-SQLite-Instanz auf `DATABASE_STORAGE`, Ziel = modelgebundene Default-I
 ## Vertrag des Prüfkerns (`server/src/scripts/copy-sqlite-to-mariadb.ts` als Muster)
 
 - `verifyDbIdentity(source: Sequelize, target: Sequelize): Promise<IdentityReport>` — Lauf-Kern
-  (Seam, wie Kopierkern): Tabellenauswahl = Ziel-Modelle ∩ existierende Quell-Tabellen,
-  FK-topologisch geordnet (Muster `selectedModels`); je Tabelle beide Seiten PK-geordnet
-  fensterweise lesen (Speicher begrenzen) und zeilenweise vergleichen.
+  (Seam, wie Kopierkern): Tabellenauswahl = Ziel-Modelle ∩ existierende Quell-Tabellen
+  (Muster `selectedModels`); je Tabelle beide Seiten PK-geordnet fensterweise lesen (Speicher
+  begrenzen) und zeilenweise vergleichen. Die FK-topologische Ordnung des Kopierers entfällt —
+  der Lauf liest nur und schreibt nichts.
 - `canonicalRowHash(row: Record<string, unknown>): string` — SHA-256 über die kanonisierte Zeile
-  (AK4): Datum als `Date` oder ISO-String, mit/ohne Millisekunden → ISO-8601 UTC mit ms; Boolean
+  (AK4): Datum als `Date` oder ISO-String, mit/ohne Millisekunden, mit/ohne Offset (auch die
+  Sequelize-SQLite-Textform `YYYY-MM-DD HH:MM:SS.mmm +00:00`) → ISO-8601 UTC mit ms (ohne ms =
+  `.000`; Sub-Sekunden-Differenzen bleiben sichtbar, Ziel-Spalten DATE(3)); exakte Mitternacht UTC
+  und DATEONLY (`YYYY-MM-DD`-Text ↔ Mitternachts-`Date`) → `YYYY-MM-DD`; Boolean
   (`true`/`false` ↔ `1`/`0`) → 0/1; JSON als Text oder geparst → geparst + key-sortiert
   stringifiziert; BLOB als `Buffer` oder Hex-String → Hex; vergleichbare logische Werte beider
   Dialekt-Darstellungen ergeben denselben Hash, verschiedene Werte verschiedene Hashes.
