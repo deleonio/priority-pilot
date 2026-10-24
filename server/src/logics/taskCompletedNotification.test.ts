@@ -78,7 +78,7 @@ describe('notifyTaskCompleted — Mail-Kanal (#1426, TF5/AK5)', () => {
 		);
 
 		assert.equal(pushCalls.length, 1, 'genau eine Push-Nachricht');
-		assert.equal(JSON.parse(pushCalls[0].body).url, '/tasks/1', '#2851 AK1: der Push verlinkt die erledigte Aufgabe');
+		assert.equal(JSON.parse(pushCalls[0].body).url, '/aufgaben/1', '#2941 AK6: der Push verlinkt die Aufgaben-Ansicht');
 		assert.equal(mailCalls.length, 1, 'genau eine Mail zusätzlich zur Push-Nachricht');
 		assert.equal(mailCalls[0].to, 'creator@example.com', 'Mail geht an den Ersteller (Empfänger der Erinnerung)');
 		assert.match(mailCalls[0].html ?? '', /cid:balamentum-logo/, 'HTML-Variante mit Logo');

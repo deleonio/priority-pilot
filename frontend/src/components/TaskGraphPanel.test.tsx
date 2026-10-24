@@ -187,6 +187,19 @@ describe('TaskGraphPanel', () => {
 		screen.getByRole('button', { name: /Abhängigkeiten bearbeiten: T2/ }).click();
 		expect(onEditDependencies).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }));
 	});
+
+	// #2941 AK4 (docs/spec/issue-2941.md): die Auswahl-Karte bekommt „Ansehen“ mit Ziel auf die
+	// Leseseicht `/aufgaben/<id>` — der Knoten-Klick bleibt beim Abhängigkeiten-Dialog.
+	it('#2941 AK4: Auswahl-Karte bietet „Ansehen“ als Link auf die Aufgaben-Ansicht', async () => {
+		getGraph.mockResolvedValue(graph([node(1), node(2)], [edge(1, 2, 0.5)]));
+		render(<TaskGraphPanel tasks={[task(1), task(2)]} onEditDependencies={vi.fn()} />);
+
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Knoten 2 wählen' })).toBeTruthy());
+		screen.getByRole('button', { name: 'Knoten 2 wählen' }).click();
+
+		const ansehen = await screen.findByRole('link', { name: 'Ansehen' });
+		expect(ansehen.getAttribute('href')).toMatch(/\/aufgaben\/2$/);
+	});
 });
 
 describe('TaskGraphPanel Aufklappbereiche (#2328 AK4/AK5)', () => {
