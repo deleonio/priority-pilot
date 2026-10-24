@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.35 - 2026-10-24
 
-_Enthält v0.35.0 – v0.35.1._
+_Enthält v0.35.0 – v0.35.2._
 
 ### Other Changes
 
