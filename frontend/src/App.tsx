@@ -48,6 +48,7 @@ import { JournalTab } from './components/JournalTab';
 import { SettingsPage } from './components/SettingsPage';
 import { TaskFormModal, taskAsTemplateInitialValues } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
+import { TaskView } from './components/TaskView';
 import { filterForest, nodeMatchesFilter } from './lib/filterForest';
 import { buildBalancePriorities } from './lib/balancePriority';
 import { clearBalanceStatusCache } from './lib/balanceStatusCache';
@@ -223,9 +224,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// funktionieren dadurch browser-nativ (AK1–AK4).
 	const showHelp = location.pathname.startsWith('/hilfe');
 	const showSettings = location.pathname.startsWith('/settings');
+	// #2938: Leseseite einer Aufgabe — eigene Route über der Hauptansicht (dasselbe Muster wie
+	// `/hilfe` und `/settings`), die ID kommt per Regex aus dem Pfad.
+	const taskViewId = /^\/aufgaben\/(\d+)$/.exec(location.pathname)?.[1];
+	const showTaskView = taskViewId !== undefined;
 	// Hauptansichten (Dashboard-Tabs) teilen dasselbe Aktiv-Muster: Der Home-Schalter hebt sich
-	// nur ab, wenn Einstellungen oder Hilfe als Seite darüber liegen.
-	const showMainView = !showHelp && !showSettings;
+	// nur ab, wenn Einstellungen, Hilfe oder die Aufgabenansicht (#2938) als Seite darüber liegen.
+	const showMainView = !showHelp && !showSettings && !showTaskView;
 	const [tasks, setTasks] = useState<Task[] | null>(null);
 	const [forest, setForest] = useState<TaskTreeNode[]>([]);
 	// Verpasst-Aufgaben (#1964): `GET /tasks?missed=1`, geladen zusammen mit den übrigen Daten in
@@ -395,14 +400,15 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		[setSearchParams],
 	);
 
-	/** Aktiver Haupt-Tab: reine Funktion des Pfads (AK4). */
-	const activeTab = Math.max(0, ROUTE_PATHS.indexOf(location.pathname));
+	/** Aktiver Haupt-Tab: reine Funktion des Pfads (AK4); `/aufgaben/<id>` zählt zum Aufgaben-Tab (#2938). */
+	const activeTab = showTaskView ? 1 : Math.max(0, ROUTE_PATHS.indexOf(location.pathname));
 	// Matomo: offenes Onboarding zählt als eigener Bildschirm (Login-Trichter), unbekannte Pfade als 404.
 	const onboardingOpen = tasks !== null && tasks.length === 0 && activeTab === 0 && !onboardingDismissed;
 	useEffect(
 		() =>
 			trackPageView(onboardingOpen ? '/willkommen' : location.pathname, {
-				known: ROUTE_PATHS.includes(location.pathname) || /^\/(settings|hilfe|tasks)(\/|$)/.test(location.pathname),
+				known:
+					ROUTE_PATHS.includes(location.pathname) || /^\/(settings|hilfe|tasks|aufgaben)(\/|$)/.test(location.pathname),
 			}),
 		[onboardingOpen, location.pathname],
 	);
@@ -801,13 +807,14 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// Aufgaben-Filter in `?q=`/`?view=`), nicht `navigate(-1)`: Der Rückweg soll an der App-Ansicht
 	// hängen, nicht an der Browser-History — sonst landete er nach einem Tab-Wechsel innerhalb der
 	// Einstellungen wieder in den Einstellungen. Ohne vorherige Hauptansicht (Deep-Link/Kaltstart
-	// direkt auf `/settings/*` oder `/hilfe`) gilt `/` als Fallback (AK5).
+	// direkt auf `/settings/*` oder `/hilfe`) gilt `/` als Fallback (AK5); die Aufgabenansicht
+	// zählt ebenfalls nicht als Hauptansicht (#2938).
 	const lastMainViewRef = useRef('/');
 	useEffect(() => {
-		if (!showSettings && !showHelp) {
+		if (!showSettings && !showHelp && !showTaskView) {
 			lastMainViewRef.current = `${location.pathname}${location.search}`;
 		}
-	}, [location.pathname, location.search, showSettings, showHelp]);
+	}, [location.pathname, location.search, showSettings, showHelp, showTaskView]);
 
 	// #1320: Beim Wechsel auf Einstellungen/Hilfe einen offenen Task-Dialog schließen. Die Dialoge
 	// hängen am `dialog`-State, nicht an der Route, und rendern seit dem Layout-Umbau auf allen drei
@@ -1370,8 +1377,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			</header>
 			<main id="main-content" tabIndex={-1}>
 				{/* #1320: Die eine `<h1>` je Ansicht benennt die geöffnete Seite (AK7) — vorher stand hier
-			    fest „Dashboard", während `SettingsPage`/`HelpPage` ihre eigene Überschrift mitbrachten. */}
-				<h1 className="visually-hidden">{pageTitle}</h1>
+			    fest „Dashboard", während `SettingsPage`/`HelpPage` ihre eigene Überschrift mitbrachten.
+			    #2938: Die Aufgabenansicht bringt ihre eigene `<h1>` (Aufgabentitel) mit — die Shell-H1
+			    entfällt dort, damit die Seite genau eine Überschrift erster Ordnung hat. */}
+				{!showTaskView && <h1 className="visually-hidden">{pageTitle}</h1>}
 
 				<TrackingBanner />
 				<LaunchBanner enabled={user.launchBanner === true} onFeedback={() => navigate('/hilfe/feedback')} />
@@ -1413,7 +1422,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 								</KolAlert>
 							</div>
 						)}
-						{tasks === null && loading && (
+						{tasks === null && loading && !showTaskView && (
 							<div className="loading">
 								<KolSpin _show _variant="cycle" _label={t('app:shell.loading')} />
 								<span>{t('app:shell.loadingTasks')}</span>
@@ -1464,7 +1473,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 							</>
 						)}
 
-						{tasks !== null && (
+						{tasks !== null && !showTaskView && (
 							<KolTabs
 								ref={appTabsRef}
 								className="app-tabs"
@@ -1774,6 +1783,27 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 									{activeTab === 4 && <JournalTab pillars={pillars} />}
 								</div>
 							</KolTabs>
+						)}
+						{/* #2938 (Konzept §3): Auf der Leseseite bleibt die Haupt-Tab-Leiste sichtbar —
+						    der Aufgaben-Tab ist markiert, weil die Ansicht unter `/aufgaben` liegt. Ohne
+						    Panel-Slots (die Hauptansicht bleibt unmontiert, „Leer bleibt leer"); Tab-Klicks
+						    laufen über denselben `onSelect`-Callback wie in der Hauptansicht. Die Leseseite
+						    selbst rendert unter der Leiste — "Bearbeiten" öffnet den vorhandenen Dialog
+						    (`openEdit`), "Zurück" läuft über `backToMainView` (Fallback `/`). */}
+						{showTaskView && (
+							<>
+								<KolTabs
+									ref={appTabsRef}
+									className="app-tabs"
+									_label={t('tabs.ariaLabel')}
+									_tabs={viewTabs}
+									_selected={activeTab}
+									_on={tabsCallbacks}
+								/>
+								{taskViewId !== undefined && (
+									<TaskView taskId={Number(taskViewId)} onBack={backToMainView} onEdit={openEdit} />
+								)}
+							</>
 						)}
 					</>
 				)}
