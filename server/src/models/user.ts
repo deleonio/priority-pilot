@@ -39,6 +39,8 @@ class User extends Model {
 	public tipPushEnabled!: boolean;
 	/** Hinweis zum Aufteilen großer, mehrfach verschobener Aufgaben (#1994) — Default ein. */
 	public splitHintEnabled!: boolean;
+	/** Morgen-Mail „Dein Tag“ (#1426) — eigener Schalter, Default ein. */
+	public dailyMailEnabled!: boolean;
 	/** IANA-Zeitzone des Nutzers (#1794) — Ruhezeit + Kalendertag-Dedup; `null` = UTC-Fallback. */
 	public zeitzone!: string | null;
 	public sprache!: string | null;
@@ -167,6 +169,11 @@ User.init(
 			defaultValue: false,
 		},
 		splitHintEnabled: {
+			type: DataTypes.BOOLEAN,
+			allowNull: false,
+			defaultValue: true,
+		},
+		dailyMailEnabled: {
 			type: DataTypes.BOOLEAN,
 			allowNull: false,
 			defaultValue: true,

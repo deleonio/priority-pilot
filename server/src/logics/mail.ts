@@ -90,10 +90,12 @@ export const sendMailToUser = async (
 			attachments: payload.attachments,
 		});
 		return true;
-	} catch {
-		// Bewusst KEINE Fehlerdetails loggen (könnten Transport-Meldungen mit Zugangsdaten enthalten) —
-		// nur die Tatsache des Fehlschlags, ohne SMTP_USER/SMTP_PASSWORD.
-		console.warn('Mail-Versand fehlgeschlagen.');
+	} catch (error) {
+		// Bewusst KEINE Meldungstexte loggen (könnten Zugangsdaten enthalten) — nur die
+		// Fehlerklasse des Transports (z. B. EAUTH, ECONNECTION, ETIMEDOUT) und den SMTP-Statuscode.
+		const { code, responseCode } = (error ?? {}) as { code?: unknown; responseCode?: unknown };
+		const grund = [code, responseCode].filter((teil) => typeof teil === 'string' || typeof teil === 'number');
+		console.warn(`Mail-Versand fehlgeschlagen${grund.length > 0 ? ` (${grund.join(' ')})` : ''}.`);
 		return false;
 	}
 };

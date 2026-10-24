@@ -70,6 +70,8 @@
 			"careHint": "Gentle hints when a pillar falls clearly short or is overloaded – at most one per day, never at night. Only affects the care push: deadline reminders stay on.",
 			"saveFailedLabel": "Setting not saved",
 			"saveFailedText": "The setting could not be saved. Please check your connection and try again.",
+			"dailyMailLabel": "Morning email “Your Day”",
+			"dailyMailHint": "Once a day between 7 and 9 am, an email with your due and most important tasks – independent of push.",
 			"splitHintLabel": "Hint for splitting large tasks",
 			"splitHintHint": "Shows a friendly hint on the “Next task” card when you have repeatedly postponed several large tasks. The order of the recommendation does not change.",
 			"pushTest": "Test push",

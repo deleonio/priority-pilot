@@ -35,6 +35,7 @@ import { mcpInstructionsRouter } from './routes/mcpInstructions.js';
 import { careConfigRouter } from './routes/careConfig.js';
 import { pushGroupsRouter } from './routes/pushGroups.js';
 import { splitHintConfigRouter } from './routes/splitHintConfig.js';
+import { dailyMailConfigRouter } from './routes/dailyMailConfig.js';
 import { kpisRouter } from './routes/kpis.js';
 import { createBalanceVariantRouter } from './routes/balanceVariant.js';
 import { createAccountPreferencesRouter } from './routes/accountPreferences.js';
@@ -361,6 +362,7 @@ export const createApp = (deps: AppDeps = {}) => {
 	app.use(pushGroupsRouter);
 	// Aufteilen-Hinweis-Schalter pro User (#1994).
 	app.use(splitHintConfigRouter);
+	app.use(dailyMailConfigRouter);
 	// Dialog-Vorgaben für die per MCP verbundene KI (#1935).
 	app.use(mcpInstructionsRouter);
 	// KPI-Share-Ping der Wochenkarte (#1989) — bewusst HINTER `requireAuth` (401 anonym).

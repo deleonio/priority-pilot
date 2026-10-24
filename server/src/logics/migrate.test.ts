@@ -640,6 +640,7 @@ describe('migrateUserGeoConfigColumns', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				// Test-Pflege #1994: `splitHintEnabled` ergänzt (Konvention wie oben).
 				'`splitHintEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`dailyMailEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				// Test-Pflege #2850: Push-Gruppen-Spalten ergänzt — das User-Modell selectiert sie,
 				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention wie oben).
 				'`taskPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
@@ -1008,6 +1009,7 @@ describe('migrateUsersRoleColumn (Rollensystem admin/member)', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				// Test-Pflege #1994: `splitHintEnabled` ergänzt (Konvention wie oben).
 				'`splitHintEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`dailyMailEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				// Test-Pflege #2850: Push-Gruppen-Spalten ergänzt — das User-Modell selectiert sie,
 				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention wie oben).
 				'`taskPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
@@ -1117,6 +1119,7 @@ describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				// Test-Pflege #1994: `splitHintEnabled` ergänzt (Konvention wie oben).
 				'`splitHintEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`dailyMailEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				// Test-Pflege #2850: Push-Gruppen-Spalten ergänzt — das User-Modell selectiert sie,
 				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention wie oben).
 				'`taskPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
@@ -1310,6 +1313,7 @@ describe('migrateUsersPlanColumn (#1456 AK1)', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				// Test-Pflege #1994: `splitHintEnabled` ergänzt (Konvention wie oben).
 				'`splitHintEnabled` TINYINT NOT NULL DEFAULT 1, ' +
+				'`dailyMailEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				// Test-Pflege #2850: Push-Gruppen-Spalten ergänzt — das User-Modell selectiert sie,
 				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention wie oben).
 				'`taskPushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
@@ -2360,6 +2364,7 @@ const SNAPSHOT_COLUMNS: Record<string, readonly string[]> = {
 		'role',
 		'selectedLlmProviderId',
 		'splitHintEnabled',
+		'dailyMailEnabled',
 		'sprache',
 		'successPushEnabled',
 		'taskPushEnabled',

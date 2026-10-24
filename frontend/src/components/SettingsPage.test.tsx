@@ -2149,7 +2149,7 @@ describe('SettingsPage – #2015: zweite Ebene ausschließlich KolDetails (Regel
 		const details = container.querySelector('kol-details[_label="Einzelne Benachrichtigungen"]');
 		expect(details, 'KolDetails „Einzelne Benachrichtigungen“').not.toBeNull();
 		expect(bound(details!, '_open'), 'Push an → Details offen').toBe('true');
-		expect(details!.querySelectorAll('kol-input-checkbox').length, 'sechs Kanal-Schalter im Klappbereich').toBe(6);
+		expect(details!.querySelectorAll('kol-input-checkbox').length, 'sieben Kanal-Schalter im Klappbereich').toBe(7);
 
 		// Der Sync läuft per Effect auf `pushEnabled` — der gemockte Hook liefert den neuen Stand
 		// beim Rerender, das Details muss ohne Header-Klick mitgehen.
@@ -2248,6 +2248,30 @@ describe('SettingsPage – #1994: Aufteilen-Hinweis-Schalter (AK6)', () => {
 		});
 
 		expect(apiMocks.updateSplitHintConfig).toHaveBeenCalledWith({ splitHintEnabled: false });
+	});
+});
+
+describe('SettingsPage – Morgen-Mail-Schalter (#1426)', () => {
+	const querySwitch = (container: HTMLElement) =>
+		container.querySelector('kol-input-checkbox[_label="Morgen-Mail „Dein Tag“"]');
+
+	it('Toggle ruft updateDailyMailConfig mit dem neuen Zustand auf', async () => {
+		apiMocks.getDailyMailConfig = vi.fn().mockResolvedValue({ dailyMailEnabled: true });
+		apiMocks.updateDailyMailConfig = vi.fn().mockResolvedValue({ dailyMailEnabled: false });
+		const { container } = render(<SettingsPage {...defaultProps} />);
+		await waitFor(() => {
+			expect(querySwitch(container), 'Morgen-Mail-Schalter fehlt').not.toBeNull();
+		});
+
+		await act(async () => {
+			const toggle = querySwitch(container)!;
+			(toggle as unknown as { _on: { onChange: (e: unknown, v: boolean) => void } })._on.onChange(
+				{ target: toggle },
+				false,
+			);
+		});
+
+		expect(apiMocks.updateDailyMailConfig).toHaveBeenCalledWith({ dailyMailEnabled: false });
 	});
 });
 
