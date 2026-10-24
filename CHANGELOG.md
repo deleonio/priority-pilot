@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.35 - 2026-10-24
 
-_Enthält v0.35.0 – v0.35.8._
+_Enthält v0.35.0 – v0.35.9._
 
 ### Other Changes
 
@@ -351,9 +351,13 @@ _Enthält v0.25.0 – v0.25.19._
 - fix(server): return 400 for invalid path ids instead of 500 (#2548) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2595
 - feat(server): abort paypal requests after a fixed timeout (#2546) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2594
 - feat(server): per-job error labels in interval scheduler (#2550) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2596
+- fix(server): return 400 for invalid path ids instead of 500 (#2548) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2595
+- feat(server): abort paypal requests after a fixed timeout (#2546) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2594
+- feat(server): per-job error labels in interval scheduler (#2550) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2596
 
 ### 🚀 Improvements
 
+- feat(server): unified error contract and global error handler (#2549) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2597
 - feat(server): unified error contract and global error handler (#2549) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2597
 
 ### 🔧 Engineering
@@ -370,7 +374,6 @@ _Enthält v0.25.0 – v0.25.19._
 - fix(server): log invoice delivery errors after commit, don't throw by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2588
 - feat(server): count task effort once per subtree, ending cycles and N+1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2589
 - feat(server): handle missing paypal credentials explicitly (#2545) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2591
-- ci(triage): read container result from both sources (#2590) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2593
 - ci(triage): read container result from both sources (#2590) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2593
 - refactor(server): unify first-cycle credit coverage rule (#2556) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2599
 - refactor(server): column migrations via shared helper (#2552) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2600
