@@ -13,7 +13,7 @@ export type TableCount = { table: string; source: number; target: number };
 export type BlobSample = { checked: number; mismatched: number };
 export type CopyReport = { tables: TableCount[]; blobs: BlobSample; ok: boolean };
 
-const tableOf = (model: ModelStatic<Model>): string => {
+export const tableOf = (model: ModelStatic<Model>): string => {
 	const name = model.getTableName();
 	return typeof name === 'string' ? name : name.tableName;
 };
@@ -28,10 +28,13 @@ const countRows = async (db: Sequelize, table: string): Promise<number> => {
 	return Number(rows[0]?.n ?? 0);
 };
 
-/** Tabellenauswahl = Ziel-Modelle ∩ existierende Quell-Tabellen, FK-topologisch geordnet. */
-const selectedModels = async (source: Sequelize, target: Sequelize): Promise<ModelStatic<Model>[]> => {
+/** Tabellenauswahl = übergebene Modelle ∩ existierende Quell-Tabellen, FK-topologisch geordnet. */
+export const selectedModels = async (
+	source: Sequelize,
+	models: ModelStatic<Model>[],
+): Promise<ModelStatic<Model>[]> => {
 	const sourceTables = new Set((await source.getQueryInterface().showAllTables()).map((name) => name.toLowerCase()));
-	const selected = Object.values(target.models).filter((model) => sourceTables.has(tableOf(model).toLowerCase()));
+	const selected = models.filter((model) => sourceTables.has(tableOf(model).toLowerCase()));
 	// Voraussetzungen je Tabelle: Referenzierte Tabellen zuerst (BelongsTo/FK auf eigener Tabelle),
 	// Join-Tabellen (BelongsToMany/Through) nach beiden Seiten des n:m.
 	const prerequisites = new Map<string, Set<string>>(selected.map((model) => [tableOf(model), new Set<string>()]));
@@ -82,9 +85,9 @@ const columnToAttribute = (model: ModelStatic<Model>): Map<string, string> => {
 };
 
 /** Dialektabhängiges Session-Statement: mysql nur SET FOREIGN_KEY_CHECKS, sqlite nur PRAGMA.
- * SQLite-Sonderfall: PRAGMA foreign_keys ist INNERHALB einer Transaktion ein No-op — bei sqlite-Zielen
- * bleiben FK-Checks daher auf ihrem Verbindungs-Default (aus); der Lauf verlässt sich nicht auf das
- * Abschalten. Der Produktionspfad (mysql, SET in der Transaktion) ist unberührt. */
+ * SQLite-Sonderfall: PRAGMA foreign_keys ist INNERHALB einer Transaktion ein No-op — sqlite-Ziele
+ * schalten die Checks deshalb connection-scoped VOR der Transaktion aus (eine Verbindung je
+ * Lauf-Instanz, pool: { max: 1 }), mysql innerhalb der gepinnten Transaktion. */
 export const setForeignKeyChecks = async (db: Sequelize, enable: boolean, transaction?: Transaction): Promise<void> => {
 	const sql =
 		db.getDialect() === 'mysql'
@@ -117,7 +120,7 @@ export const verifyInvoiceBlobs = async (source: Sequelize, target: Sequelize): 
 
 export const buildCopyReport = async (source: Sequelize, target: Sequelize): Promise<CopyReport> => {
 	const tables: TableCount[] = [];
-	for (const model of await selectedModels(source, target)) {
+	for (const model of await selectedModels(source, Object.values(target.models))) {
 		const table = tableOf(model);
 		tables.push({ table, source: await countRows(source, table), target: await countRows(target, table) });
 	}
@@ -140,44 +143,58 @@ const decodeJsonAttributes = (model: ModelStatic<Model>, row: Record<string, unk
 	return row;
 };
 
+/** Kopiert eine Tabelle batchweise: PK-geordnete Fenster lesen, je Fenster ein bulkCreate — Speicher
+ * und Paketgröße (max_allowed_packet) bleiben begrenzt. Je Tabelle genau eine Transaktion: FK-Checks
+ * aus/an greifen connection-scoped — die Transaktion pinnt eine Verbindung für beide Statements und
+ * das bulkCreate. Geteilter Kern des Vorwärts- (#2827) und des Rückwärts-Laufs (#2830). */
+export const copyTableRows = async (
+	source: Sequelize,
+	target: Sequelize,
+	model: ModelStatic<Model>,
+	chunkSize = 500,
+): Promise<void> => {
+	const table = tableOf(model);
+	const remap = columnToAttribute(model);
+	const pkColumns = (model as typeof Model).primaryKeyAttributes.map(
+		(name) => model.getAttributes()[name]?.field ?? name,
+	);
+	const orderBy =
+		pkColumns.length > 0 ? ` ORDER BY ${pkColumns.map((column) => quoted(source, column)).join(', ')}` : '';
+	// FK-Checks aus: mysql session-scoped INNERHALB der Transaktion (pinnt die Verbindung), sqlite
+	// PRAGMA wäre darin ein No-op — dort connection-scoped VOR der Transaktion (eine Verbindung je
+	// Ziel-Instanz). Kein Re-Enable bei sqlite: das Anschalten liesse Folgestatements auf dem Ziel an
+	// nicht mitkopierten FK-Eltern-Tabellen scheitern (Verbindungs-Default ist ohnehin ON).
+	const isSqlite = target.getDialect() === 'sqlite';
+	if (isSqlite) await setForeignKeyChecks(target, false);
+	await target.transaction(async (transaction) => {
+		if (!isSqlite) await setForeignKeyChecks(target, false, transaction);
+		for (let offset = 0; ; offset += chunkSize) {
+			const rows = await selectAll(
+				source,
+				`SELECT * FROM ${quoted(source, table)}${orderBy} LIMIT ${chunkSize} OFFSET ${offset}`,
+			);
+			if (rows.length === 0) break;
+			await model.bulkCreate(
+				rows.map((row) =>
+					decodeJsonAttributes(
+						model,
+						remap.size === 0
+							? row
+							: Object.fromEntries(Object.entries(row).map(([key, value]) => [remap.get(key) ?? key, value])),
+					),
+				),
+				{ transaction, individualHooks: false },
+			);
+			if (rows.length < chunkSize) break;
+		}
+		if (!isSqlite) await setForeignKeyChecks(target, true, transaction);
+	});
+};
+
 export const copySqliteToMariadb = async (source: Sequelize, target: Sequelize): Promise<CopyReport> => {
 	await target.sync({ force: true });
-	// Batchweise (Issue): PK-geordnete Fenster je Tabelle lesen, je Fenster ein bulkCreate —
-	// Speicher und Paketgröße (max_allowed_packet) bleiben begrenzt.
-	const chunkSize = 500;
-	for (const model of await selectedModels(source, target)) {
-		const table = tableOf(model);
-		const remap = columnToAttribute(model);
-		const pkColumns = (model as typeof Model).primaryKeyAttributes.map(
-			(name) => model.getAttributes()[name]?.field ?? name,
-		);
-		const orderBy =
-			pkColumns.length > 0 ? ` ORDER BY ${pkColumns.map((column) => quoted(source, column)).join(', ')}` : '';
-		// Je Tabelle genau eine Transaktion: FK-Checks aus/an greifen connection-scoped — die
-		// Transaktion pinnt eine Verbindung für beide Statements und das bulkCreate.
-		await target.transaction(async (transaction) => {
-			await setForeignKeyChecks(target, false, transaction);
-			for (let offset = 0; ; offset += chunkSize) {
-				const rows = await selectAll(
-					source,
-					`SELECT * FROM ${quoted(source, table)}${orderBy} LIMIT ${chunkSize} OFFSET ${offset}`,
-				);
-				if (rows.length === 0) break;
-				await model.bulkCreate(
-					rows.map((row) =>
-						decodeJsonAttributes(
-							model,
-							remap.size === 0
-								? row
-								: Object.fromEntries(Object.entries(row).map(([key, value]) => [remap.get(key) ?? key, value])),
-						),
-					),
-					{ transaction, individualHooks: false },
-				);
-				if (rows.length < chunkSize) break;
-			}
-			await setForeignKeyChecks(target, true, transaction);
-		});
+	for (const model of await selectedModels(source, Object.values(target.models))) {
+		await copyTableRows(source, target, model);
 	}
 	return buildCopyReport(source, target);
 };
