@@ -39,6 +39,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [Zifferblatt-Konzept](docs/zifferblatt-konzept.md) — die fünf Bilder der Lebensbalance: gemeinsame Kennzahl, Rahmen, Regeln für ein neues Bild
 - [Fürsorge-Tonalität](docs/fuersorge-tonalitaet.md) — Ton, Prüffrage und Beispieltexte (de/en plus Referenzsprachen) für Fürsorge-Hinweise, Pushes und Vorschläge
 - [Push-Konzept](docs/push-konzept.md) — alle Push-Arten mit Ziel in der App (Seite, Aufgabe, Dashboard-Karte), Zeitfenster, Tagesbudget, Schaltergruppen, Regeln für Abo-Hinweise und Issue-Schnitt
+- [Ansichten-Konzept](docs/ux-konzept-ansichten.md) — Lesesicht für Aufgabe, Serie und Vorlage als eigene Route statt Formular: Aufbau, Primäraktion je Zustand, Einstiege (Push, Baum, Serien-Tab), Issue-Schnitt
 - [Mobile-UI-Regeln](docs/mobile-ui-rules.md) — Daumen-Zonen, Touch-Targets, async Zustände, Anti-Patterns (Schwesterdatei: Cockpit-Design)
 - [Design-Optimierungsplan](docs/design-optimierungsplan.md) — offene Findings aus Impeccable-Audit + Dashboard-Critique, Arbeitsliste mit Kommandos
 - [Fachlogik-Inventar](docs/fachlogik-inventar.md) — Fachlogik mit Mehrfachnutzung (REST/MCP/Jobs), Befund, Zielpfad und Folge-Ticket-Vorschläge
