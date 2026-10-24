@@ -2,7 +2,7 @@ name: Android App-Bundle
 
 # Baut das signierte Android-App-Bundle (AAB) der Capacitor-App mit gebündelter Web-App (ADR 0021) und legt
 # es als Artefakt ab. Mit Eingabe `tag` (Daily-Version setzt sie je Minor-Release) baut er genau diesen
-# Stand und rollt das AAB zusätzlich im internen Test-Track der Play Console aus; ohne Tag nur Artefakte.
+# Stand und rollt das AAB zusätzlich im internen und geschlossenen Test-Track der Play Console aus; ohne Tag nur Artefakte.
 # Secrets und Keystore-Erzeugung: docs/native-apps.md. Workflows bleiben ungetestet (ADR 0001).
 on:
   workflow_dispatch:
@@ -144,5 +144,16 @@ jobs:
           packageName: balamentum.app
           releaseFiles: native/android/app/build/outputs/bundle/release/app-release.aab
           tracks: internal
+          status: completed
+          releaseName: ${{ env.RELEASE_TAG }}
+
+      - name: In Play Console hochladen (geschlossener Test-Track)
+        if: env.RELEASE_TAG != ''
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: balamentum.app
+          releaseFiles: native/android/app/build/outputs/bundle/release/app-release.aab
+          tracks: closed
           status: completed
           releaseName: ${{ env.RELEASE_TAG }}
