@@ -95,7 +95,11 @@ describe('GET /tasks Instanz-Filter seriesId/originSeriesId (#2942 AK1)', () => 
 		const done = await createInstance(cookie, series.id, 'Instanz erledigt');
 		await patchTask(cookie, done, { status: 'Done' });
 		const archived = await createInstance(cookie, series.id, 'Instanz archiviert');
-		await fetch(`${server.baseUrl}/tasks/${archived}/archive`, { method: 'POST', headers: { Cookie: cookie } });
+		const archiveRes = await fetch(`${server.baseUrl}/tasks/${archived}/archive`, {
+			method: 'POST',
+			headers: { Cookie: cookie },
+		});
+		assert.ok(archiveRes.ok, `POST /tasks/${archived}/archive muss gelingen (ist ${archiveRes.status})`);
 		// Abgekoppelt (#553): Live-Link `seriesId` fällt auf null, Herkunft `originSeriesId` bleibt.
 		const decoupled = await Task.create({
 			title: 'Abgekoppelte Instanz',

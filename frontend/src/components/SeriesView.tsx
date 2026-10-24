@@ -1,3 +1,4 @@
+import { api } from '../api';
 import { KolAlert, KolBadge, KolButton, KolDetails, KolHeading, KolLink } from '@public-ui/react-v19';
 import { ResponseError as ClientResponseError, type Series, type Task } from 'client';
 import { lazy, Suspense, useEffect, useState } from 'react';
@@ -6,17 +7,12 @@ import { PRIORITY_COLOR } from '../lib/badgeColors';
 import { formatDeadline, formatNumber, priorityBadge } from '../lib/task';
 import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
 
-// Dialog dynamisch (gleicher Grund wie der `../api`-Import im Effekt): sein statischer Import
-// würde über seine `../api`-Abhängigkeit die vi.mock-Factory der Spec-Tests vor der Initialisierung
-// der Mock-Klasse auswerten. Der Chunk lädt beim ersten Öffnen — vorher nie („Leer bleibt leer").
+// Dialog dynamisch: der Chunk lädt beim ersten Öffnen — vorher nie („Leer bleibt leer“).
 const SeriesInstanceDialog = lazy(() =>
 	import('./SeriesInstanceDialog').then((module) => ({ default: module.SeriesInstanceDialog })),
 );
 
-/** API-Fassade: produktiv der `api`-Export des Moduls, im Spec-Test-Mock die Namespace-Funktionen. */
-type ApiFacade = (typeof import('../api'))['api'];
-
-/** Zustand der Leseseite: Laden (Skelett), Erfolg, „nicht gefunden" (404) oder Ladefehler. */
+/** Zustand der Leseseite: Laden (Skelett), Erfolg, "nicht gefunden" (404) oder Ladefehler. */
 type SeriesViewState =
 	{ kind: 'loading' } | { kind: 'ready'; series: Series; instanzen: Task[] } | { kind: 'notFound' } | { kind: 'error' };
 
@@ -49,37 +45,19 @@ export const SeriesView = ({ seriesId, onBack, onEdit }: SeriesViewProps) => {
 		let aktiv = true;
 		setState({ kind: 'loading' });
 		setDialogOpen(false);
-		// Dynamischer Import (Laufzeit identisch zum statischen): Der Spec-Test mockt `../api` mit
-		// einer im Testrumpf deklarierten Klasse in der vi.mock-Factory — ein statischer Import
-		// würde die Factory bereits beim Modul-Laden auswerten, bevor die Klasse initialisiert
-		// ist (vitest-Hoisting), und alle Tests dieser Datei unabhängig von der Umsetzung rot machen.
-		void import('../api')
-			.then((module) => {
-				// Produktiv exportiert das Modul die Fassade als `api`-Objekt; der Spec-Test-Mock legt
-				// dieselben Funktionen direkt in den Namespace (Mock-Factory-Vertrag) — Form-Check.
-				const facade = ('api' in module ? module.api : (module as unknown as ApiFacade)) as ApiFacade;
-				return Promise.all([
-					facade.getSeries({ id: seriesId }),
-					facade.listTasks({}, { originSeriesId: seriesId }),
-				]).then(([series, instanzen]) => {
-					if (aktiv) setState({ kind: 'ready', series, instanzen });
-				});
+		void Promise.all([api.getSeries({ id: seriesId }), api.listTasks({}, { originSeriesId: seriesId })])
+			.then(([series, instanzen]) => {
+				if (aktiv) setState({ kind: 'ready', series, instanzen });
 			})
 			.catch((reason: unknown) => {
 				if (!aktiv) return;
-				// Unbekannte oder fremde ID → „nicht gefunden" (Konzept Abschnitt 7: kein Zugriff wird
-				// genauso dargestellt, keine Auskunft, ob es die Serie gibt). Der Spec-Test-Vertrag
-				// legt die ResponseError-Klasse unter `../api` ab (Mock-Factory); produktiv stammt
-				// dieselbe Klasse aus `client` — deshalb der absichernde Zugriff über das Modul.
-				void import('../api').then((module) => {
-					const ResponseError =
-						(module as { ResponseError?: typeof ClientResponseError }).ResponseError ?? ClientResponseError;
-					setState(
-						reason instanceof ResponseError && reason.response.status === 404
-							? { kind: 'notFound' }
-							: { kind: 'error' },
-					);
-				});
+				// Unbekannte oder fremde ID → „nicht gefunden“ (Konzept Abschnitt 7: kein Zugriff wird
+				// genauso dargestellt, keine Auskunft, ob es die Serie gibt).
+				setState(
+					reason instanceof ClientResponseError && reason.response.status === 404
+						? { kind: 'notFound' }
+						: { kind: 'error' },
+				);
 			});
 		return () => {
 			aktiv = false;

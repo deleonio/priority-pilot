@@ -1274,7 +1274,8 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 
 	// #553: Kaskade-Entscheidung aus dem Bestätigungs-Modal. `applyToInstances` steuert, ob die
 	// geänderten Felder auf alle Instanzen übertragen werden (Ja) oder nur das Template aktualisiert
-	// wird (Nein — sicherer Default). Anschließend wie beim normalen Speichern `onSaved()` aufrufen.
+	// wird (Nein — sicherer Default). Anschließend wie beim normalen Speichern das
+	// TASKS_CHANGED_EVENT geben und `onSaved()` aufrufen — auch Leseseiten (Serienansicht) refetchen.
 	const confirmSeriesCascade = async (applyToInstances: boolean): Promise<void> => {
 		if (series === null || pendingSeriesUpdate === null) {
 			return;
@@ -1284,6 +1285,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 		try {
 			await api.updateSeries({ id: series.id, seriesUpdate: { ...pendingSeriesUpdate, applyToInstances } });
 			setPendingSeriesUpdate(null);
+			notifyTasksChanged();
 			onSaved();
 		} catch (reason) {
 			const apiError = await toApiError(reason);

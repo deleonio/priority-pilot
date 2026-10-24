@@ -1,5 +1,5 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
-import type { Series } from 'client';
+import { ResponseError, type Series } from 'client';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
@@ -10,22 +10,10 @@ import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
  * Rot, bis `SeriesView` existiert (fehlt das Modul, ist das der legitime erste Rot-Zustand).
  */
 
-// API-Fassade (Vertrag: getSeries({ id }) → Series, !ok → ResponseError mit response.status)
-// als Mock über vi.hoisted, weil ResponseError samt Klasse im Mock-Modul vorliegen muss
-// (SeriesView unterscheidet 404 über `instanceof ResponseError`).
-class MockResponseError extends Error {
-	response: Response;
-	constructor(response: Response) {
-		super(`HTTP ${response.status}`);
-		this.response = response;
-	}
-}
+// API-Mock (Vertrag: `api.getSeries({ id })` → Series, `api.listTasks`; nicht ok → echte
+// `ResponseError` aus `client`, daran unterscheidet SeriesView 404 via `instanceof`).
 const { getSeriesMock, listTasksMock } = vi.hoisted(() => ({ getSeriesMock: vi.fn(), listTasksMock: vi.fn() }));
-vi.mock('../api', () => ({
-	getSeries: getSeriesMock,
-	listTasks: listTasksMock,
-	ResponseError: MockResponseError,
-}));
+vi.mock('../api', () => ({ api: { getSeries: getSeriesMock, listTasks: listTasksMock } }));
 
 vi.mock('@public-ui/react-v19', () => ({
 	KolAlert: ({ _type, children }: { _type?: string; children?: ReactNode }) => (
@@ -91,7 +79,7 @@ describe('SeriesView (#2942)', () => {
 	// AK5/TF5: 404 (unbekannte oder fremde ID) → KolAlert „Diese Serie gibt es nicht mehr." mit
 	// Rettungslink „Zu den Serien" → /app/serien; kein Redirect, kein Formular.
 	it('AK5: 404 zeigt Nicht-gefunden-Alert mit Link zu den Serien', async () => {
-		getSeriesMock.mockRejectedValue(new MockResponseError(new Response(null, { status: 404 })));
+		getSeriesMock.mockRejectedValue(new ResponseError(new Response(null, { status: 404 })));
 		renderView();
 
 		expect(await screen.findByText('Diese Serie gibt es nicht mehr.')).toBeVisible();
