@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.35 - 2026-10-24
 
-_Enthält v0.35.0 – v0.35.16._
+_Enthält v0.35.0 – v0.35.17._
 
 ### 🎉 New Features
 
@@ -25,6 +25,7 @@ _Enthält v0.35.0 – v0.35.16._
 - docs(arc42): sync to actual implementation state 2026-10-24 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2931
 - ci: mariadb smoke on canonical runner pattern (port 3306 collision) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2933
 - fix(deps): update dependency nodemailer to v10.1.4 [security] by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2936
+- feat(server): daily sqlite to mariadb parallel run with identity report by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2929
 
 ## v0.34 - 2026-10-23
 
@@ -339,6 +340,8 @@ _Enthält v0.26.0 – v0.26.21._
 
 ### Other Changes
 
+- feat(server): remove dead module and history comments (#2557) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2605
+- feat(server): dedupe push notifications via shared helper (#2551) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2598
 - feat(server): remove dead module and history comments (#2557) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2605
 - feat(server): dedupe push notifications via shared helper (#2551) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2598
 - test(frontend): e2e paypal deferred alert + non-empty guards (#2558) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2610
