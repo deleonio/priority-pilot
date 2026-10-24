@@ -237,6 +237,11 @@ Pushes, die zum Abo motivieren, sind Werbung. Sie folgen strengeren Regeln als a
 - **Trennung Werbung und Service.** Abo- und Rechnungs-Nachrichten (Abschnitt 7.3) enthalten nie
   einen werblichen Satz. Vor dem Livegang prüft das [Rechts-Team](../.claude/skills/rechts-team/SKILL.md)
   Einwilligungstext und Trennung.
+- **Freigabe (2026-10-24, #2880).** Der Einwilligungstext (Satz am Schalter „Tipps und
+  Angebote“) ist vom Autor pragmatisch freigegeben — eine externe Rechtsberatung liegt nicht
+  vor und ist vor dem echten Marktstart nachzuholen. Die Zuordnung gilt damit:
+  Tipps-und-Angebote-Pushes sind Einwilligungswerbung, die Service-Nachrichten aus
+  Abschnitt 7.3 bleiben werbefrei.
 
 ## 9. Lösungsplan — Issue-Schnitt
 
