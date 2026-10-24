@@ -84,7 +84,9 @@ test.describe('Balamentum — Aufgaben-Ansicht #2938/#2939', () => {
 		await page.keyboard.press('Escape');
 		await expect(page.getByRole('heading', { name: `Aufgabe bearbeiten: ${title}` })).toBeHidden();
 
-		await page.getByRole('button', { name: 'Zurück' }).click();
+		// Test-Pflege #2939: Der neue Snooze-Button („Kurz zurückstellen") enthält als Substring
+		// „zurück" — ohne exact matcht der Locator zwei Buttons (strict mode violation).
+		await page.getByRole('button', { name: 'Zurück', exact: true }).click();
 		await expect(page).toHaveURL(/\/app\/?$/);
 	});
 

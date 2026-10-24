@@ -4,5 +4,11 @@
 	"toTasks": "Zu den Aufgaben",
 	"deadline": "Fälligkeit",
 	"effort": "Aufwand",
-	"address": "Ort"
+	"address": "Ort",
+	"checklistCounter": "{{done}} von {{total}}",
+	"markDone": "Erledigt",
+	"reopen": "Wieder öffnen",
+	"restore": "Wiederherstellen",
+	"archivedBanner": "Archiviert",
+	"actionFailed": "Aktion fehlgeschlagen. Bitte erneut versuchen."
 }
