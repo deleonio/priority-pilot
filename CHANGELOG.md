@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.35 - 2026-10-24
 
-_Enthält v0.35.0 – v0.35.12._
+_Enthält v0.35.0 – v0.35.13._
 
 ### 🔧 Engineering
 
@@ -18,6 +18,7 @@ _Enthält v0.35.0 – v0.35.12._
 - feat(server): reverse-copy MariaDB to SQLite as rollback path (#2830) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2923
 - docs(server-setup): document MariaDB host database for cutover (#2824) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2927
 - docs(arc42): sync to actual implementation state 2026-10-24 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2931
+- ci: mariadb smoke on canonical runner pattern (port 3306 collision) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2933
 
 ## v0.34 - 2026-10-23
 
@@ -187,6 +188,7 @@ _Enthält v0.30.0 – v0.30.28._
 - chore: rework terms of use on liability, renewal, withdrawal and account by @deleonio in https://github.com/deleonio/priority-pilot/pull/2748
 - docs(website): add storage-on-your-device section to privacy policy by @deleonio in https://github.com/deleonio/priority-pilot/pull/2746
 - docs(mcp): add guide for setting up the admin MCP endpoint by @deleonio in https://github.com/deleonio/priority-pilot/pull/2747
+- ci: shorten rechts-team label description to 100 characters by @deleonio in https://github.com/deleonio/priority-pilot/pull/2759
 - ci: shorten rechts-team label description to 100 characters by @deleonio in https://github.com/deleonio/priority-pilot/pull/2759
 - fix(deps): update kolibri (@public-ui) to v4.5.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2743
 - feat(server): include creator name in write responses (#2755) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2764
