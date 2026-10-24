@@ -4,11 +4,12 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.35 - 2026-10-24
 
-_Enthält v0.35.0 – v0.35.14._
+_Enthält v0.35.0 – v0.35.16._
 
 ### 🎉 New Features
 
 - docs: ux concept for task, series and template views by @deleonio in https://github.com/deleonio/priority-pilot/pull/2934
+- feat(server): own daily-mail switch and mail error logging by @deleonio in https://github.com/deleonio/priority-pilot/pull/2935
 
 ### 🔧 Engineering
 
@@ -23,6 +24,7 @@ _Enthält v0.35.0 – v0.35.14._
 - docs(server-setup): document MariaDB host database for cutover (#2824) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2927
 - docs(arc42): sync to actual implementation state 2026-10-24 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2931
 - ci: mariadb smoke on canonical runner pattern (port 3306 collision) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2933
+- fix(deps): update dependency nodemailer to v10.1.4 [security] by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2936
 
 ## v0.34 - 2026-10-23
 
@@ -384,7 +386,6 @@ _Enthält v0.25.0 – v0.25.19._
 - refactor(server): unify first-cycle credit coverage rule (#2556) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2599
 - refactor(server): column migrations via shared helper (#2552) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2600
 - fix(server): consolidate coordinate parsing into one validated helper by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2601
-- fix(server): replace type assertions with runtime checks (#2554) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2603
 - fix(server): replace type assertions with runtime checks (#2554) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2603
 - test(ci): cover ticket-quality gate decision logic with tests (#2555) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2604
 
