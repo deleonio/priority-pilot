@@ -76,6 +76,13 @@ test.describe('Balamentum — Aufgaben-Ansicht #2938', () => {
 		await page.getByRole('button', { name: 'Bearbeiten' }).click();
 		await expect(page.getByRole('heading', { name: `Aufgabe bearbeiten: ${title}` })).toBeVisible();
 
+		// Test-Pflege #2938: Der native TaskForm-Dialog liegt im Top-Layer und fängt Pointer-Events
+		// ab — ein Klick auf "Zurück" hinter dem offenen Dialog ist browserseitig unmöglich
+		// (document.elementsFromPoint an der Button-Position liefert kol-dialog). Der Nutzer
+		// schließt den Dialog zuerst (Escape, Modal-Vertrag), dann erst geht es zurück.
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('heading', { name: `Aufgabe bearbeiten: ${title}` })).toBeHidden();
+
 		await page.getByRole('button', { name: 'Zurück' }).click();
 		await expect(page).toHaveURL(/\/app\/?$/);
 	});

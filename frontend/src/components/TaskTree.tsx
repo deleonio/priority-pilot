@@ -1,26 +1,14 @@
-import { KolBadge, KolButton, KolHeading, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
+import { KolButton, KolHeading, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
 import type { Category, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BADGE_COLOR, PRIORITY_COLOR } from '../lib/badgeColors';
 import { extractLeaves } from '../lib/extractLeaves';
-import { seriesBadge } from '../lib/series';
-import { CategoryBadge } from './CategoryBadge';
 import { GeoBadge } from './GeoBadge';
-import { PillarMissingBadge } from './PillarMissingBadge';
-import { PinnedBadge } from './PinnedBadge';
-import { SeriesBadge } from './SeriesBadge';
-import { formatNumber, isDoneBlockedBySubtasks, priorityBadge, sortPinnedFirst } from '../lib/task';
-import { sortTasksByBalance, virtualPriorityLabel, type BalancePriority } from '../lib/balancePriority';
+import { TaskBadges } from './TaskBadges';
+import { formatNumber, isDoneBlockedBySubtasks, sortPinnedFirst } from '../lib/task';
+import { sortTasksByBalance, type BalancePriority } from '../lib/balancePriority';
 import { findInnerButton, setupPopoverAlignment } from '../lib/popoverAlign';
-
-/** i18n-Schlüssel des Anzeigenamens der KI-Eignungs-Kategorie (#2349). */
-const AI_SUITABILITY_LABEL = {
-	draft: 'taskTree.aiSuitability.draft',
-	summary: 'taskTree.aiSuitability.summary',
-	research: 'taskTree.aiSuitability.research',
-} as const;
 
 /** Stabiler Default für `seriesById` (kein neues Map-Objekt je Render). */
 const NO_SERIES: ReadonlyMap<number, { autoCreate?: boolean }> = new Map();
@@ -146,22 +134,9 @@ const LeafItem = ({
 		: doneToggleBlocked
 			? t('taskTree.doneBlocked')
 			: t('actions.done');
-	const priority = task?.priority ?? 1;
-	// Im Balance-Modus zeigt das Badge die virtuelle Priorität (~P{n}, eigene Farbe nach Stufe)
-	// statt der Server-Prio — unterscheidbar per Tilde-Präfix, nie nur per Farbe (KI-UX).
-	const priorityBadgeInfo = priorityBadge(balancePriority?.virtualPriority ?? priority);
-	const priorityBadgeLabel =
-		balancePriority != null ? virtualPriorityLabel(balancePriority.virtualPriority) : priorityBadgeInfo.label;
 	// #1213: Ersteller-Sicht auf eine abgegebene Aufgabe — lesbar, aber ohne Schreibrechte (AK5).
 	// Die Aktionen werden ausgeblendet statt anklickbar angeboten, sonst endet jede Aktion in 404.
 	const handedOff = task?.forUserId != null;
-	// #2359: Aufgabe aus einer Vorlage — Text-Badge „Vorlage“/„Vorlage (geändert)“ statt Serien-Icon + „geändert“.
-	const templateBadge =
-		task !== null && task.seriesId != null && seriesById.get(task.seriesId)?.autoCreate === false
-			? seriesBadge(task, seriesById)
-			: null;
-
-	const priorityColor = PRIORITY_COLOR[priorityBadgeInfo.type];
 
 	return (
 		<li className="task-list-item" data-testid={`task-list-item-${node.id}`}>
@@ -177,88 +152,16 @@ const LeafItem = ({
 					)}
 				</div>
 				<div className="task-tree-row-controls">
-					<div className="task-tree-badges">
-						{/* #1213: Provenienz-Hinweise als Text-Badge (KI-UX: nie nur Farbe, muted ohne
-						    weiteren Hex-Wert; umbrechfähig über die bestehende Badge-Zeile). „Für: …"
-						    sieht der Ersteller, „Erstellt von: …" der Empfänger. */}
-						{task !== null && task.forUserName != null && (
-							<KolBadge
-								_label={t('taskTree.forUser', { name: task.forUserName })}
-								className="task-tree-badge task-tree-badge--provenance"
-							/>
-						)}
-						{/* #1521 (AK7): Gruppen-Aufgabe trägt den Gruppennamen statt eines Personennamens —
-						    für jedes Mitglied sichtbar, solange sie niemand erledigt hat. */}
-						{task !== null && task.groupName != null && task.userId == null && (
-							// Bewusst ein Light-DOM-Span statt KolBadge: der Test-Anker (`data-testid`) muss am
-							// sichtbaren Element hängen, und KolBadge nimmt weder Fremd-Attribute entgegen noch
-							// liefert sein Shadow-Label eine messbare Box für die 375px-Prüfung (AK8).
-							<span
-								data-testid="group-task-badge"
-								className="task-tree-badge task-tree-badge--provenance task-tree-badge-anchor"
-							>
-								{t('taskTree.forUser', { name: task.groupName })}
-							</span>
-						)}
-						{/* #2349: KI-Eignung (Heuristik, nur mit ai_assist) als nicht-interaktives Text-Badge; Light-DOM-Span
-						    wie das Gruppen-Badge (Test-Anker + messbare Box), ohne Upsell-Hinweis (ADR 0014). */}
-						{task?.aiSuitability != null && (
-							<span
-								data-testid="ai-suitability-badge"
-								className="task-tree-badge task-tree-badge--provenance task-tree-badge-anchor"
-							>
-								{t(AI_SUITABILITY_LABEL[task.aiSuitability])}
-							</span>
-						)}
-						{task !== null && task.forUserName == null && task.createdByName != null && task.createdById !== userId && (
-							<KolBadge
-								_label={t('taskTree.createdBy', { name: task.createdByName })}
-								className="task-tree-badge task-tree-badge--provenance"
-							/>
-						)}
-						<CategoryBadge category={categories.find((category) => category.id === node.categoryId)} />
-						{/* #1518: Serien-Icon mit Screenreader-Text statt Text-Badge „Serie" — die Liste zeigt je
-						    Serie nur die aktuelle Instanz. */}
-						{templateBadge !== null ? (
-							<KolBadge _label={templateBadge.label} className="task-tree-badge" />
-						) : (
-							task !== null && task.seriesId != null && <SeriesBadge />
-						)}
-						{/* #1582: Der Pin-Zustand steht als Icon-Badge in derselben Zeile wie Serie/Ort — die
-						    Pin-Aktion selbst liegt im „…"-Popover (siehe Toolbar unten). */}
-						{task !== null && task.pinned && <PinnedBadge />}
-						{task !== null && task.isException && templateBadge === null && (
-							<KolBadge _label={t('taskTree.changed')} _color={BADGE_COLOR.changed} className="task-tree-badge" />
-						)}
-						{/* #1465: Zahlt die Aufgabe auf keine Säule ein, zeigt die Zeile das Säulen-Badge —
-						    sichtbar, ohne den Eintrag zu öffnen. Es ersetzt das beschreibungs-getriebene
-						    „Hinweis"-Badge aus #1430. Ohne angelegte Säulen bleibt es aus, sonst trüge es
-						    jede Zeile. */}
-						{task !== null && pillarsConfigured && (task.pillars ?? []).length === 0 && <PillarMissingBadge />}
-						{progress !== undefined && (
-							<KolBadge
-								_label={`${progress.done}/${progress.total}`}
-								_color={BADGE_COLOR.progress}
-								className="task-tree-badge"
-							/>
-						)}
-						{/* #1583 AK6: Checklisten-Fortschritt bleibt sichtbar, solange nicht alle Einträge
-						    abgehakt sind — dieselbe „erledigt/gesamt"-Formatierung wie in TaskTable.tsx. */}
-						{task !== null && (task.checklist?.length ?? 0) > 0 && (
-							<KolBadge
-								_label={`${task.checklist!.filter((item) => item.completed).length}/${task.checklist!.length}`}
-								_color={BADGE_COLOR.info}
-								className="task-tree-badge task-tree-badge--checklist"
-							/>
-						)}
-						{task !== null && (
-							<KolBadge
-								_label={priorityBadgeLabel}
-								_color={priorityColor}
-								className="task-tree-badge task-tree-badge--priority"
-							/>
-						)}
-					</div>
+					<TaskBadges
+						task={task}
+						categoryId={node.categoryId}
+						categories={categories}
+						pillarsConfigured={pillarsConfigured}
+						progress={progress}
+						userId={userId}
+						seriesById={seriesById}
+						balancePriority={balancePriority}
+					/>
 					{task !== null && !handedOff && (
 						<div className="task-tree-actions">
 							<KolPopoverButton

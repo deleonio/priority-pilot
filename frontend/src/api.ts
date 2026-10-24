@@ -2048,3 +2048,15 @@ export const api = {
 		return data;
 	},
 };
+
+// Einzelabruf der Aufgabenansicht `/aufgaben/<id>` (#2938): `GET /tasks/{id}` liefert auch
+// archivierte Aufgaben; 404 (unbekannte/fremde ID) bleibt als `ResponseError`-Status
+// unterscheidbar. Bewusst Named-Export neben der `api`-Fassade — die Ansicht mockt den Abruf
+// im Unit-Test auf Modulebene (`vi.mock('../api', () => ({ getTask }))`), nicht das Objekt.
+export const getTask = async ({ id, signal }: Init & { id: number }): Promise<Task> => {
+	const { data, error, response } = await client.GET('/tasks/{id}', { params: { path: { id } }, signal });
+	if (!response.ok || data === undefined) {
+		throw new ResponseError(response, error);
+	}
+	return reviveTask(data);
+};

@@ -6702,3 +6702,85 @@ a.plan-badge:focus-visible {
 	display: block;
 	min-height: 44px;
 }
+
+/*
+ * #2938: Leseseite einer Aufgabe (/aufgaben/<id>) — eine Fläche, Abschnitte über Heading +
+ * Abstand statt Karten (Konzept docs/ux-konzept-ansichten.md Abschnitte 4.2/8). Eine Spalte bis
+ * 48rem, darüber Inhalt links und schmale Faktenspalte rechts.
+ */
+.task-view {
+	padding: var(--pp-space-4);
+	max-width: 80rem;
+	margin-inline: auto;
+}
+
+.task-view-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--pp-space-3);
+}
+
+.task-view-title {
+	margin-block: var(--pp-space-4) var(--pp-space-2);
+}
+
+.task-view-columns {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--pp-space-6);
+	margin-top: var(--pp-space-4);
+}
+
+@media (min-width: 48rem) {
+	.task-view-columns {
+		grid-template-columns: minmax(0, 1fr) 18rem;
+	}
+}
+
+.task-view-description {
+	white-space: pre-line;
+	overflow-wrap: anywhere;
+}
+
+/* Faktenzeilen (Regel 4 der Mobile-UI-Regeln): Label links, Wert rechts, als ul/li. */
+.task-view-facts-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: var(--pp-space-2);
+}
+
+.task-view-fact {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--pp-space-4);
+}
+
+.task-view-fact-label {
+	color: var(--pp-text-muted);
+}
+
+.task-view-fact-value {
+	text-align: end;
+	overflow-wrap: anywhere;
+}
+
+/* Skelett in der Form der Ansicht (Konzept Abschnitt 7) — Light-DOM statt Spinner. */
+.task-view-skeleton {
+	display: grid;
+	gap: var(--pp-space-3);
+}
+
+.task-view-skeleton-title,
+.task-view-skeleton-row {
+	background: var(--pp-surface-2);
+	border-radius: var(--pp-radius-sm);
+	min-height: 1rem;
+}
+
+.task-view-skeleton-title {
+	width: 60%;
+	min-height: 2rem;
+}

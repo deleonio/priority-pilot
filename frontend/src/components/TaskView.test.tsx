@@ -41,7 +41,6 @@ vi.mock('@public-ui/react-v19', () => ({
 	),
 }));
 
-// @ts-expect-error — TaskView entsteht erst in der Umsetzung (Impl-Phase entfernt diese Zeile).
 import { TaskView } from './TaskView';
 
 const sampleTask = (overrides: Partial<Task> = {}): Task =>
