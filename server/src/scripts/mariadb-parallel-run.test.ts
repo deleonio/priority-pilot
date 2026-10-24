@@ -43,7 +43,10 @@ const snapshotWith =
 	async (storage: string): Promise<string> => {
 		const snapFile = join(workDir, `snap-${Math.random().toString(36).slice(2)}.sqlite`);
 		copyFileSync(storage, snapFile);
-		const snap = new Sequelize({ dialect: 'sqlite', storage: snapFile, logging: false });
+		// foreignKeys: false wie im Reverse-CLI-Fixture (copy-mariadb-to-sqlite.test.ts:20): sonst setzt der
+		// Connection-Manager je neuer Verbindung FOREIGN_KEYS=ON — das Zwei-Tabellen-Fixture hat aber keine
+		// FK-Eltern (categories), und die erste Mutation würde mit „no such table: main.categories“ werfen.
+		const snap = new Sequelize({ dialect: 'sqlite', storage: snapFile, logging: false, ...{ foreignKeys: false } });
 		snap.define('users', User.getAttributes());
 		snap.define('tasks', Task.getAttributes());
 		await mutate(snap);
