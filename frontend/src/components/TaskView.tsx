@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getTask } from '../api';
 import { formatDeadline, formatNumber, formatRelativeDeadline } from '../lib/task';
+import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
 import { TaskBadges } from './TaskBadges';
 
 /** Zustand der Leseseite: Laden (Skelett), Erfolg, „nicht gefunden" (404) oder Ladefehler. */
@@ -49,6 +50,16 @@ export const TaskView = ({ taskId, onBack, onEdit }: TaskViewProps) => {
 			aktiv = false;
 		};
 	}, [taskId, attempt]);
+
+	// Nach dem Speichern im Formular refetchen (TASKS_CHANGED_EVENT, Muster NearbyCard) — die
+	// Leseseite hält den Task-Bestand nicht selbst und sähe sonst veraltete Werte.
+	useEffect(() => {
+		const onTasksChanged = () => setAttempt((value) => value + 1);
+		window.addEventListener(TASKS_CHANGED_EVENT, onTasksChanged);
+		return () => {
+			window.removeEventListener(TASKS_CHANGED_EVENT, onTasksChanged);
+		};
+	}, []);
 
 	const task = state.kind === 'ready' ? state.task : null;
 	// „Leer bleibt leer“: „Mehr Details“ nur mit Inhalt — hier der Ort; Einordnung (Säulen-Namen)
@@ -134,12 +145,10 @@ export const TaskView = ({ taskId, onBack, onEdit }: TaskViewProps) => {
 								// nur mit Inhalt. Einordnung (Säulen) steht hier, bis Teil 3 die Blöcke bringt.
 								<KolDetails _label={t('taskView:moreDetails')}>
 									<ul className="task-view-facts-list">
-										{task.address != null && task.address !== '' && (
-											<li className="task-view-fact">
-												<span className="task-view-fact-label">{t('taskView:address')}</span>
-												<span className="task-view-fact-value">{task.address}</span>
-											</li>
-										)}
+										<li className="task-view-fact">
+											<span className="task-view-fact-label">{t('taskView:address')}</span>
+											<span className="task-view-fact-value">{task.address}</span>
+										</li>
 									</ul>
 								</KolDetails>
 							)}

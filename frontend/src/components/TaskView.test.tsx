@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { TaskStatus } from 'client';
 import type { Task } from 'client';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
 
 /**
  * Rote Spec-Tests für #2938 — AK4 (Lade-/Fehlerzustände) und AK6 (Felder ohne Wert,
@@ -86,6 +87,21 @@ describe('TaskView (#2938)', () => {
 		expect(getTaskMock).toHaveBeenCalledTimes(1);
 
 		fireEvent.click(screen.getByRole('button', { name: 'Erneut laden' }));
+		await waitFor(() => expect(getTaskMock).toHaveBeenCalledTimes(2));
+	});
+
+	// Fixup-Review: TASKS_CHANGED_EVENT (TaskForm löst es nach dem Speichern aus) stößt einen
+	// erneuten Abruf an — die Leseseite zeigt danach die gespeicherten Werte, nicht den alten Stand.
+	it('lädt nach TASKS_CHANGED_EVENT erneut', async () => {
+		getTaskMock.mockResolvedValue(sampleTask());
+		renderView();
+
+		await screen.findByRole('heading', { level: 1, name: 'Kundenbericht fertigstellen' });
+		expect(getTaskMock).toHaveBeenCalledTimes(1);
+
+		act(() => {
+			window.dispatchEvent(new CustomEvent(TASKS_CHANGED_EVENT));
+		});
 		await waitFor(() => expect(getTaskMock).toHaveBeenCalledTimes(2));
 	});
 
