@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.35 - 2026-10-24
 
-_Enthält v0.35.0 – v0.35.4._
+_Enthält v0.35.0 – v0.35.5._
 
 ### Other Changes
 
@@ -179,7 +179,6 @@ _Enthält v0.30.0 – v0.30.28._
 
 - chore: rework terms of use on liability, renewal, withdrawal and account by @deleonio in https://github.com/deleonio/priority-pilot/pull/2748
 - docs(website): add storage-on-your-device section to privacy policy by @deleonio in https://github.com/deleonio/priority-pilot/pull/2746
-- docs(mcp): add guide for setting up the admin MCP endpoint by @deleonio in https://github.com/deleonio/priority-pilot/pull/2747
 - docs(mcp): add guide for setting up the admin MCP endpoint by @deleonio in https://github.com/deleonio/priority-pilot/pull/2747
 - ci: shorten rechts-team label description to 100 characters by @deleonio in https://github.com/deleonio/priority-pilot/pull/2759
 - fix(deps): update kolibri (@public-ui) to v4.5.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2743
@@ -367,6 +366,7 @@ _Enthält v0.25.0 – v0.25.19._
 - fix(server): user search with literal wildcards and result limit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2585
 - fix(server): book llm provider test against ai quota and throttle it (#2542) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2586
 - fix(server): log invoice delivery errors after commit, don't throw by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2588
+- feat(server): count task effort once per subtree, ending cycles and N+1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2589
 - feat(server): count task effort once per subtree, ending cycles and N+1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2589
 - feat(server): handle missing paypal credentials explicitly (#2545) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2591
 - ci(triage): read container result from both sources (#2590) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2593
