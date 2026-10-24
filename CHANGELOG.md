@@ -4,11 +4,12 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.35 - 2026-10-24
 
-_Enthält v0.35.0 – v0.35.2._
+_Enthält v0.35.0 – v0.35.3._
 
 ### Other Changes
 
 - feat(server): background jobs master switch for staging (#2831) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2922
+- feat: reassign group task address in the edit dialog (#1521) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2924
 
 ## v0.34 - 2026-10-23
 
@@ -362,7 +363,6 @@ _Enthält v0.25.0 – v0.25.19._
 - docs(skills): german-only chat and full-queue status for coordinator by @deleonio in https://github.com/deleonio/priority-pilot/pull/2583
 - [P0/S] Server: CSRF-Schutz greift, sobald die Anmeldung aktiv ist (#2540) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2584
 - fix(server): user search with literal wildcards and result limit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2585
-- fix(server): book llm provider test against ai quota and throttle it (#2542) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2586
 - fix(server): book llm provider test against ai quota and throttle it (#2542) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2586
 - fix(server): log invoice delivery errors after commit, don't throw by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2588
 - feat(server): count task effort once per subtree, ending cycles and N+1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2589
