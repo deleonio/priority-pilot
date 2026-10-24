@@ -146,6 +146,6 @@ jobs:
           # ein Upload, beide Tracks im selben Edit — erneuter Upload derselben
           # Version waere 'version code already used'. Geschlossener Track trägt
           # den eigenen Konsolen-Namen (Standard 'closed' existiert nicht).
-          tracks: internal,Offener Test
+          tracks: internal,Offener Test,alpha
           status: completed
           releaseName: ${{ env.RELEASE_TAG }}
