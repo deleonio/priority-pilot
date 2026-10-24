@@ -26,7 +26,7 @@ Das Repository ist ein pnpm-Monorepo mit fünf Workspaces ([pnpm-workspace.yaml]
 - `client/` — aus `openapi.yml` generierte API-Typen, Build-Zeit-Abhängigkeit von Frontend und Server
 - `frontend/` — React-SPA als installierbare PWA, in Produktion unter `/app/` (ADR 0015)
 - `native/` — Android-App als Capacitor-Wrapper mit gebündelter SPA (ADR 0021)
-- `server/` — Node.js-API-Server (Express) mit SQLite-Persistenz
+- `server/` — Node.js-API-Server (Express) mit Sequelize-Persistenz über SQLite oder MariaDB (ADR 0026)
 - `website/` — öffentliche, statisch vorgerenderte Landingpage: Deutsch an `/`, neun weitere Sprachen unter `/<sprache>/` (ADR 0015)
 
 ### 1.1 Aufgabenverteilung (Entwicklung)
@@ -84,7 +84,7 @@ graph LR
         Caddy[Caddy, TLS] --> Web["Website (statisch)"]
         Caddy --> SPA[Balamentum SPA /app/]
         Caddy -->|"/api/v1/* → strip"| API[Balamentum API]
-        API --> DB[(SQLite)]
+        API --> DB[(SQLite / MariaDB)]
     end
     API -->|IF-02 OAuth| Google[Google]
     API -->|IF-03 Chat-Completions| LLM[Mistral / OpenRouter]
@@ -121,7 +121,8 @@ graph LR
   für `client/` (Frontend) und `server/src/api.d.ts`; das Frontend ruft die API typsicher mit
   `openapi-fetch` auf (`frontend/src/api.ts`). Der Server arbeitet mit denselben `components`-Typen.
 - **Getrennte Zuständigkeiten im Server:** HTTP-Schicht (`server/src/express/`), Fachlogik
-  (`server/src/logics/`), Persistenz (`server/src/models/`, Sequelize über SQLite), LLM-Anbindung
+  (`server/src/logics/`), Persistenz (`server/src/models/`, Sequelize über SQLite im Default und
+  in Tests, MariaDB mit `DB_DIALECT=mysql` als Produktiv-Datenbank nach ADR 0026), LLM-Anbindung
   (`server/src/llm/`), Hintergrundläufe (`server/src/scheduler/`). Testbare Abhängigkeiten
   (LLM-Aufrufe, Push-Versand, Session-Store) werden über `AppDeps` injiziert
   (`server/src/express/index.ts`).
@@ -322,14 +323,19 @@ Fehlt ein konfigurierter Provider oder Key, antworten die LLM-Routen mit HTTP 50
 
 Die Ticker (`server/src/scheduler/index.ts`) laufen mit festem Intervall und protokollieren einen
 fehlgeschlagenen Lauf, ohne die übrigen zu blockieren. Der Erinnerungs-Ticker tickt stündlich
-(#2849) und ruft je Tick jeden Trigger auf: fällige Aufgaben (`dueTaskReminders`), die drei
-wichtigsten Aufgaben (`dailyTopTasksPush`), der Fürsorge-Push (`carePush`), die Streak-Erinnerung
-(`streakReminder`) und der Monatsrückblick (`monthlyRecapPush`). Die Zustellfenster prüfen die
+(#2849) und ruft je Tick alle registrierten Trigger auf; ein gemeinsames Push-Budget
+(`logics/pushBudget.ts`, #2853) ordnet die Trigger in Vorrang-Stufen und wählt je Nutzer aus,
+welche Nachrichten bei ausgeschöpftem Tagesbudget noch zustellen dürfen: der Morgen-Digest
+(`runDailyDigest`, bündelt fällige Aufgaben und die drei wichtigsten Aufgaben im Fenster 7–9,
+dazu die Morgen-Mail als zweiter Kanal), der Fürsorge-Push (`runCarePush`, Fenster 9–18),
+Lob- und Willkommen-zurück-Push, Journal-Impuls, Streak-Erinnerung, Monats-, Wochen- und
+Jahresrückblick, Onboarding-Schritte, Gruppen-Challenge-Push, Tipps-Hinweis und der
+Abo-Service-Push. Die Zustellfenster prüfen die
 Trigger je Nutzerzeitzone (`users.zeitzone`, Fallback UTC) selbst: Morgen 7–9 und Tag 9–18,
 Abend 18–21, Ruhezeit 21–7 (dann auch keine Ereignis-Pushes); je Trigger geht höchstens eine
 Nachricht je Nutzer und lokalem Tag raus. Er läuft nur, wenn ein Push-Kanal konfiguriert ist
-(Web-Push-VAPID oder
-FCM) und `PUSH_REMINDERS_ENABLED=true` gesetzt ist. Die Deadline-Auto-Löschung
+(Web-Push-VAPID oder FCM), Hintergrund-Jobs aktiv sind (`BACKGROUND_JOBS_ENABLED`, #2831)
+und `PUSH_REMINDERS_ENABLED=true` gesetzt ist. Die Deadline-Auto-Löschung
 (`autoDeleteAfterDeadline`) läuft push-unabhängig um Mitternacht UTC und ist standardmäßig
 aktiv; sie lässt sich über `AUTO_DELETE_AFTER_DEADLINE_ENABLED=false` abschalten. Vier weitere
 Ticker sind push-unabhängig: Der Kalender-Abruf holt alle 30 Minuten externe Termine per ICS
@@ -368,7 +374,7 @@ graph TD
         Caddy[Caddy, TLS] --> Web["website/dist an der Wurzel"]
         Caddy --> SPA["frontend/dist unter /app/"]
         Caddy -->|"/api/v1/* → strip"| Node["node server/dist/index.js :3000"]
-        Node --> SQLite[("data/database.sqlite<br/>vom rsync ausgenommen")]
+        Node --> DB[("SQLite / MariaDB (DB_DIALECT)<br/>Datei vom rsync ausgenommen")]
         PM2[PM2] --- Node
     end
     Build -->|rsync dist| Caddy
@@ -383,7 +389,8 @@ Web-Root. Danach startet
 `pm2 reload priority-pilot` das Backend genau einmal neu
 ([deployment.md](deployment.md)). Der Session-Store ist in Produktion SQLite oder Redis
 (`SESSION_STORE`, `server/src/express/session.ts`), der Workspace `client` ist nur
-Build-Zeit-Bestandteil und wird nicht ausgeliefert. Die Pipeline-Workflows (`.github/workflows/`)
+Build-Zeit-Bestandteil und wird nicht ausgeliefert. Der MariaDB-Smoke (`.github/workflows/ci-mariadb.yml`) startet das Backend und die E2E-Suite
+gegen eine MariaDB 11 (`DB_DIALECT=mysql`). Die Pipeline-Workflows (`.github/workflows/`)
 laufen ausschließlich in GitHub Actions und berühren den Betriebshost nicht.
 
 ## 8. Querschnittliche Konzepte
@@ -567,9 +574,9 @@ dokumentiert.
 | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | Deployment ohne atomaren Switch: `rsync` spiegelt Dateien, während der Server läuft | Kurzzeitig teilgespiegelte Frontend-/Backend-Stände; kein Ein-Zeilen-Rollback                                                                                                                                                                                                                            | bewusst akzeptiert, [deployment.md](deployment.md)                                                      |
 | Passport ist ein Modul-Singleton                                                    | Mehrere `createApp()`-Aufrufe im selben Prozess überschreiben die Google-Strategie; nur eine App-Konfiguration pro Prozess                                                                                                                                                                               | Kommentar in `server/src/express/index.ts`                                                              |
-| SQLite als Single-File-Store                                                        | Keine horizontale Skalierung; Betrieb auf genau einem Host ist dem Datenmodell eingeschrieben                                                                                                                                                                                                            | `server/src/database.ts`                                                                                |
+| Einzelne Datenbank-Instanz: SQLite-Datei (Default) oder MariaDB (ADR 0026)          | Keine horizontale Skalierung; Betrieb auf genau einem Host ist dem Datenmodell eingeschrieben                                                                                                                                                                                                            | `server/src/database.ts`, [ADR 0026](adr/0026-mariadb-als-produktiv-datenbank.md)                       |
 | `/api/v1`-Prefix wird an zwei Stellen gestreift                                     | Vite-Dev-Proxy und Caddy-Handle müssen dasselbe Strip-Verhalten nachführen                                                                                                                                                                                                                               | `frontend/vite.config.ts`, [server-setup.md](server-setup.md)                                           |
-| Legacy-Spaltenprüfung bei jedem Start                                               | `migrateLegacySinglePillar` liest per `PRAGMA` die `tasks`-Tabelle, solange `task_pillars` leer ist                                                                                                                                                                                                      | `server/src/index.ts`                                                                                   |
+| Legacy-Spaltenprüfung bei jedem Start (nur SQLite-Dialekt)                          | `migrateLegacySinglePillar` liest per `PRAGMA` die `tasks`-Tabelle, solange `task_pillars` leer ist; unter MariaDB übersprungen, dort legt `sync()` das Schema an                                                                                                                                        | `server/src/index.ts`                                                                                   |
 | Externe Clients melden sich ausschließlich über einen HTTP-Header an                | Welche Header-Namen zulässig sind, entscheidet der Connector-Anbieter; streicht er die statische Header-Anmeldung, verlangt ein Client zwingend OAuth oder soll ein Connector mehrere Nutzer bedienen, braucht der Endpunkt zusätzlich eine OAuth-Token-Ausgabe (additiv — Leser und `ApiToken` bleiben) | bewusst akzeptiert, `server/src/express/apiTokenAuth.ts`, [ADR 0012](adr/0012-mcp-endpunkt-ohne-sdk.md) |
 
 ## 12. Glossar
