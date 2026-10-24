@@ -371,6 +371,7 @@ _Enthält v0.25.0 – v0.25.19._
 - feat(server): count task effort once per subtree, ending cycles and N+1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2589
 - feat(server): handle missing paypal credentials explicitly (#2545) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2591
 - ci(triage): read container result from both sources (#2590) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2593
+- ci(triage): read container result from both sources (#2590) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2593
 - refactor(server): unify first-cycle credit coverage rule (#2556) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2599
 - refactor(server): column migrations via shared helper (#2552) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2600
 - fix(server): consolidate coordinate parsing into one validated helper by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2601
