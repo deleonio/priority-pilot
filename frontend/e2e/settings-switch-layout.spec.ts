@@ -71,9 +71,9 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		// kommt der Fürsorge-Schalter dazu → 7, seit #1984 der Expertenmodus-Schalter → 8, seit #1994
 		// der Aufteilen-Hinweis-Schalter → 9.
 		// Seit #2850: 13 Zeilen (vier Push-Gruppen dazu). Der Push-Details-Umbau rückt diese sechs
-		// Schalter in ein eigenes KolDetails „Einzelne Benachrichtigungen" — die DOM-Gesamtzahl
-		// bleibt 13, sechs davon sind jetzt Sub-Zeilen (unterhalb als subRows gemessen).
-		await expect(rows).toHaveCount(13);
+		// Schalter in ein eigenes KolDetails „Einzelne Benachrichtigungen" — sechs davon sind jetzt
+		// Sub-Zeilen (unterhalb als subRows gemessen). Seit #1426: 14 Zeilen (Morgen-Mail dazu).
+		await expect(rows).toHaveCount(14);
 
 		// Volle Breite gilt für die Hauptzeilen; die Sub-Zeilen sitzen im Accordion-Kollapsbereich
 		// und liegen dafür versetzt unter dem Master.
@@ -122,8 +122,9 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		// seit #1794 7 (Fürsorge-Schalter dazu), seit #1984 8 (Expertenmodus-Schalter dazu), seit #1994 9
 		// (Aufteilen-Hinweis dazu).
 		// Seit #2850: 13 Zeilen (vier Push-Gruppen dazu); der Push-Details-Umbau legt die sechs
-		// Push-Gruppen-Zeilen ins KolDetails „Einzelne Benachrichtigungen" (DOM-Zahl unverändert).
-		await expect(rows).toHaveCount(13);
+		// Push-Gruppen-Zeilen ins KolDetails „Einzelne Benachrichtigungen". Seit #1426: 14 Zeilen
+		// (Morgen-Mail dazu).
+		await expect(rows).toHaveCount(14);
 
 		for (let i = 0; i < (await rows.count()); i++) {
 			const style = await rows.nth(i).evaluate((el) => {
@@ -172,9 +173,9 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		// Seit #1183: 3 Switches, seit #1227 5 (Sprachaufnahme, Animationen, Balance animieren,
 		// Erledigt animieren, Push), seit #1792 6 (Balance-Priorisierung dazu), seit #1794 7
 		// (Fürsorge dazu), seit #1984 8 (Expertenmodus dazu), seit #1994 9 (Aufteilen-Hinweis dazu),
-		// seit #2850 13 (vier Push-Gruppen dazu). Push-Details-Umbau: unverändert 13, sechs davon
-		// im neuen Klappbereich — dafür wird dieser vor der Messung geöffnet.
-		await expect(switches).toHaveCount(13);
+		// seit #2850 13 (vier Push-Gruppen dazu), seit #1426 14 (Morgen-Mail dazu).
+		// Push-Details-Umbau: sechs davon im neuen Klappbereich — dafür wird dieser vor der Messung geöffnet.
+		await expect(switches).toHaveCount(14);
 
 		// Das Öffnen animiert die Zeilenhöhe (CSS-Transition) — auf den Endzustand des zuletzt
 		// eingeblendeten Feinschalters („Erledigt animieren") warten, bevor gemessen wird. Am
