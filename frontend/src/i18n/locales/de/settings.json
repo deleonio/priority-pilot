@@ -70,6 +70,8 @@
 			"careHint": "Sanfte Hinweise bei deutlichem Defizit oder Überlast einer Säule – höchstens einer pro Tag, nie nachts. Betrifft nur den Fürsorge-Push: Frist-Erinnerungen bleiben an.",
 			"saveFailedLabel": "Einstellung nicht gespeichert",
 			"saveFailedText": "Die Einstellung konnte nicht gespeichert werden. Bitte prüfe die Verbindung und versuche es erneut.",
+			"dailyMailLabel": "Morgen-Mail „Dein Tag“",
+			"dailyMailHint": "Täglich zwischen 7 und 9 Uhr eine Mail mit deinen fälligen und wichtigsten Aufgaben – unabhängig vom Push.",
 			"splitHintLabel": "Hinweis zum Aufteilen großer Aufgaben",
 			"splitHintHint": "Zeigt an der Karte „Nächste Aufgabe“ einen freundlichen Hinweis, wenn du mehrere große Aufgaben wiederholt verschoben hast. Die Reihenfolge der Empfehlung ändert sich dadurch nicht.",
 			"pushTest": "Push testen",

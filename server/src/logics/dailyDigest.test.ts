@@ -196,6 +196,41 @@ describe('dailyDigest — Morgen-Push „Dein Tag“ (#2853 AK3)', () => {
 	});
 
 	describe('Morgen-Mail (#1426, F2.2)', () => {
+		it('dailyMailEnabled=false: keine Mail, der Push geht trotzdem raus', async () => {
+			const empfaenger = await erstelleEmpfaenger('mail-aus@example.com');
+			await empfaenger.update({ dailyMailEnabled: false } as never);
+			await seedSubscription(empfaenger.id);
+			await createTask({ title: 'Steuer', deadline: new Date('2026-07-07T10:00:00Z'), userId: empfaenger.id });
+			const mails: unknown[] = [];
+			const mailSend: MailSender = (m) => {
+				mails.push(m);
+				return Promise.resolve();
+			};
+
+			await runDailyDigest(NOW, mockSend, mailSend);
+
+			assert.equal(mails.length, 0);
+			assert.equal(pushCalls.length, 1);
+		});
+
+		it('taskPushEnabled=false: kein Push, die Mail geht über ihren eigenen Schalter raus', async () => {
+			const empfaenger = await erstelleEmpfaenger('push-aus@example.com');
+			await empfaenger.update({ taskPushEnabled: false } as never);
+			await seedSubscription(empfaenger.id);
+			await createTask({ title: 'Steuer', deadline: new Date('2026-07-07T10:00:00Z'), userId: empfaenger.id });
+			const mails: unknown[] = [];
+			const mailSend: MailSender = (m) => {
+				mails.push(m);
+				return Promise.resolve();
+			};
+
+			const result = await runDailyDigest(NOW, mockSend, mailSend);
+
+			assert.equal(pushCalls.length, 0);
+			assert.equal(mails.length, 1);
+			assert.equal(result.usersNotified, 1);
+		});
+
 		it('AK5: verschickt zusätzlich zur Push-Nachricht genau eine Mail; zweiter Tick sendet auf keinem Kanal erneut', async () => {
 			await erstelleEmpfaenger('digest-mail@example.com');
 			await seedSubscription(1);

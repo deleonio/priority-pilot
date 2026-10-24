@@ -2461,6 +2461,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /daily-mail-config:
+    get:
+      summary: Schalter „Morgen-Mail“ lesen
+      description: >-
+        Liefert den serverseitig pro User gespeicherten Schalter für die tägliche Morgen-Mail
+        „Dein Tag“ (#1426, Default: ein).
+      operationId: getDailyMailConfig
+      tags: [care]
+      responses:
+        '200':
+          description: Aktueller Schalter (inkl. Default)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyMailConfig'
+    put:
+      summary: Schalter „Morgen-Mail“ speichern
+      description: Speichert den Schalter (#1426); Nicht-Boolean → HTTP 400 ohne Persistenz.
+      operationId: updateDailyMailConfig
+      tags: [care]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyMailConfig'
+      responses:
+        '200':
+          description: Gespeicherter Schalter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyMailConfig'
+        '400':
+          description: Ungültiger Wert (kein Boolean)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /push-groups:
     get:
       summary: Push-Gruppen des Users lesen
@@ -5905,6 +5944,15 @@ components:
         splitHintEnabled:
           type: boolean
           description: Hinweis aktiv (Default true)
+    DailyMailConfig:
+      type: object
+      description: >-
+        Schalter pro User für die tägliche Morgen-Mail „Dein Tag“ (#1426).
+      required: [dailyMailEnabled]
+      properties:
+        dailyMailEnabled:
+          type: boolean
+          description: Morgen-Mail aktiv (Default true)
     CareSprache:
       type: object
       description: App-Sprache des Users für den Fürsorge-Push (#1879).

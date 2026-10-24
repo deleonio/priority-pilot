@@ -74,9 +74,14 @@ export const runDailyDigest = async (
 
 	let usersNotified = 0;
 	for (const [userId, gruppe] of gruppen) {
-		const recipient = await User.findByPk(userId, { attributes: ['sprache', 'zeitzone', 'email', 'taskPushEnabled'] });
-		// #2850 AK3: Gruppenschalter „Aufgaben und Erinnerungen“ aus → weder Push noch Mail.
-		if (recipient?.taskPushEnabled === false) {
+		const recipient = await User.findByPk(userId, {
+			attributes: ['sprache', 'zeitzone', 'email', 'taskPushEnabled', 'dailyMailEnabled'],
+		});
+		// #2850 AK3: Gruppenschalter „Aufgaben und Erinnerungen“ aus → kein Push; die Morgen-Mail
+		// hat einen eigenen Schalter (`dailyMailEnabled`).
+		const pushErlaubt = recipient?.taskPushEnabled !== false;
+		const mailErlaubt = recipient?.dailyMailEnabled !== false;
+		if (!pushErlaubt && !mailErlaubt) {
 			continue;
 		}
 		// #2849 AK2/AK5: Morgenfenster 7–9 in der Nutzer-Zeitzone (ohne gültige Zone: UTC).
@@ -94,11 +99,11 @@ export const runDailyDigest = async (
 		if (await NotificationLog.findOne({ where: { kind: KIND, dedupeKey } })) {
 			continue;
 		}
-		const { sent } = await sendDedupedPush(userId, KIND, dedupeKey, payload, send, now);
+		const sent = pushErlaubt ? (await sendDedupedPush(userId, KIND, dedupeKey, payload, send, now)).sent : 0;
 		// Morgen-Mail als zweiter Kanal (#1426, F2.2): zusätzlich zum Push, ohne Budget-Verbrauch
 		// (Konzept §4 zählt Pushes).
 		let mailSent = false;
-		if (mailSend || isMailConfigured()) {
+		if (mailErlaubt && (mailSend || isMailConfigured())) {
 			const mailHtml = renderMailHtml({ heading: payload.title, paragraphs: [payload.body], lang: sprache });
 			mailSent = await sendMailToUser(
 				{ email: recipient?.email ?? null },

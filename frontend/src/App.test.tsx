@@ -80,6 +80,7 @@ vi.mock('./api', () => ({
 		getCareConfig: vi.fn().mockResolvedValue(undefined),
 		// Test-Pflege #1994: dieselbe Karte lädt den Aufteilen-Hinweis-Schalter.
 		getSplitHintConfig: vi.fn().mockResolvedValue(undefined),
+		getDailyMailConfig: vi.fn().mockResolvedValue(undefined),
 		// #2850: neue Push-Gruppen-Client-Methoden (Default undefined wie die Nachbar-Getter).
 		getPushGroups: vi.fn().mockResolvedValue(undefined),
 		updatePushGroups: vi.fn().mockResolvedValue(undefined),

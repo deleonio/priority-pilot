@@ -335,6 +335,34 @@ export const SettingsPage = ({
 			});
 	};
 
+	// #1426: Schalter „Morgen-Mail“ — serverseitig pro User, Muster wie der Aufteilen-Schalter.
+	const [dailyMailEnabled, setDailyMailEnabled] = useState(true);
+	const [dailyMailFailed, setDailyMailFailed] = useState(false);
+
+	useEffect(() => {
+		api
+			.getDailyMailConfig()
+			.then((config) => {
+				if (config && typeof config.dailyMailEnabled === 'boolean') {
+					setDailyMailEnabled(config.dailyMailEnabled);
+				}
+			})
+			.catch(() => {
+				// Netzwerk-/Session-Fehler: Default (ein) steht bleiben, Schalter bleibt bedienbar.
+			});
+	}, []);
+
+	const toggleDailyMail = (value: boolean): void => {
+		setDailyMailEnabled(value);
+		api
+			.updateDailyMailConfig({ dailyMailEnabled: value })
+			.then(() => setDailyMailFailed(false))
+			.catch(() => {
+				setDailyMailFailed(true);
+				setDailyMailEnabled(!value);
+			});
+	};
+
 	// #2850: Push-Gruppen pro User (docs/push-konzept.md §5) — vier Gruppen-Schalter, Muster wie
 	// der Fürsorge-/Aufteilen-Schalter: sofortiges Speichern, Fehler als Zeilen-Alert. „Fürsorge“
 	// selbst bleibt der bestehende Fürsorge-Schalter darüber (unverändert an /care-config).
@@ -900,6 +928,24 @@ export const SettingsPage = ({
 											}}
 										/>
 										{pushGroupsFailed === 'tipPushEnabled' && (
+											<KolAlert _type="warning" _label={t('settingsPage.notifications.saveFailedLabel')}>
+												{t('settingsPage.notifications.saveFailedText')}
+											</KolAlert>
+										)}
+									</div>
+									<div className="settings-switch-row">
+										<KolInputCheckbox
+											_label={t('settingsPage.notifications.dailyMailLabel')}
+											_variant="switch"
+											_checked={dailyMailEnabled}
+											_hint={t('settingsPage.notifications.dailyMailHint')}
+											_on={{
+												onChange: (_event, value) => {
+													toggleDailyMail(value === true);
+												},
+											}}
+										/>
+										{dailyMailFailed && (
 											<KolAlert _type="warning" _label={t('settingsPage.notifications.saveFailedLabel')}>
 												{t('settingsPage.notifications.saveFailedText')}
 											</KolAlert>

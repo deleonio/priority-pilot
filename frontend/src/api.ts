@@ -55,6 +55,7 @@ import type {
 	CareConfig,
 	PushGroups,
 	SplitHintConfig,
+	DailyMailConfig,
 	CareVorschlag,
 	Profile,
 	ParsedSearch,
@@ -1794,6 +1795,26 @@ export const api = {
 	// Speichert den Schalter; Nicht-Boolean lehnt der Server mit 400 ab.
 	async updateSplitHintConfig(config: SplitHintConfig, init: Init = {}): Promise<SplitHintConfig> {
 		const { data, error, response } = await client.PUT('/split-hint-config', { body: config, signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// --- Morgen-Mail pro User (#1426) ---
+
+	// Schalter „Morgen-Mail“ (serverseitig gespeichert, Default ein).
+	async getDailyMailConfig(init: Init = {}): Promise<DailyMailConfig> {
+		const { data, error, response } = await client.GET('/daily-mail-config', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Speichert den Schalter; Nicht-Boolean lehnt der Server mit 400 ab.
+	async updateDailyMailConfig(config: DailyMailConfig, init: Init = {}): Promise<DailyMailConfig> {
+		const { data, error, response } = await client.PUT('/daily-mail-config', { body: config, signal: init.signal });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}
