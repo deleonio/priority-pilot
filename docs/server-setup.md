@@ -412,11 +412,14 @@ mariadb -e "CREATE DATABASE balamentum_schatten; \
 ```
 
 Cron als `gh-deploy`-User (`crontab -u gh-deploy -e`), täglich 02:30 — nach dem Backup um 02:00
-(§9). Die `.env` (§5) liefert `DATABASE_STORAGE` und SMTP; Skript-Zugang und Report-Pfad stehen
-in der Zeile, damit die Schatten-DB nie mit dem künftigen Prod-Schema verwechselt werden kann:
+(§9). Die `.env` (§5) liefert SMTP; `DATABASE_STORAGE` steht explizit in der Zeile, weil der
+Produktiv-Host (`backend/`-Layout) den Pfad nur im PM2-Env (`ecosystem.config.cjs`,
+`/home/gh-deploy/database.sqlite`) trägt, nicht in der `backend/.env`. Skript-Zugang und
+Report-Pfad stehen ebenfalls in der Zeile, damit die Schatten-DB nie mit dem künftigen
+Prod-Schema verwechselt werden kann:
 
 ```cron
-30 2 * * * cd /var/www/gh-deploy/priority-pilot/app && set -a && . ./.env && set +a && DB_DIALECT=mysql MARIADB_HOST=127.0.0.1 MARIADB_USER=balamentum_parallel MARIADB_PASSWORD=… MARIADB_DATABASE=balamentum_schatten MARIADB_PARALLEL_REPORT=/var/www/gh-deploy/priority-pilot/mariadb-parallel/runs.log node dist/scripts/mariadb-parallel-run.js >> /var/www/gh-deploy/priority-pilot/mariadb-parallel/cron.log 2>&1
+30 2 * * * cd /var/www/gh-deploy/priority-pilot/backend && set -a && . ./.env && set +a && DATABASE_STORAGE=/home/gh-deploy/database.sqlite DB_DIALECT=mysql MARIADB_HOST=127.0.0.1 MARIADB_USER=balamentum_parallel MARIADB_PASSWORD=… MARIADB_DATABASE=balamentum_schatten MARIADB_PARALLEL_REPORT=/var/www/gh-deploy/priority-pilot/mariadb-parallel/runs.log node dist/scripts/mariadb-parallel-run.js >> /var/www/gh-deploy/priority-pilot/mariadb-parallel/cron.log 2>&1
 ```
 
 Der erste Lauf startet mit leerem Report-Verzeichnis (das Skript legt es bei Bedarf selbst an).
