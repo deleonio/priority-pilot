@@ -243,8 +243,13 @@ const toPlaceFavoriteView = ({ latitude, longitude, ...rest }: PlaceFavorite): P
 });
 
 export const api = {
-	async listTasks(init: Init = {}): Promise<Task[]> {
-		const { data, error, response } = await client.GET('/tasks', { signal: init.signal });
+	async listTasks(
+		init: Init = {},
+		// Instanz-Listen (#2942): Serien-/Vorlagenansicht liest per `originSeriesId` (deckt auch
+		// abgekoppelte Instanzen), der Server schließt Archiv nur ohne diese Parameter aus.
+		filter: { seriesId?: number; originSeriesId?: number } = {},
+	): Promise<Task[]> {
+		const { data, error, response } = await client.GET('/tasks', { params: { query: filter }, signal: init.signal });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}

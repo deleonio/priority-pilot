@@ -614,6 +614,21 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 		const missedOnly = req.query.missed === '1';
 		// Archiv-Ansicht (`?archived=1`): umgekehrter Filter — nur archivierte Aufgaben.
 		const archivedOnly = req.query.archived === '1';
+		// Instanz-Listen (#2942): `?seriesId=` bzw. `?originSeriesId=` liefern ALLE Instanzen einer
+		// Serie im Lese-Scope — inklusive erledigter und archivierter (der Archiv-Ausschluss gilt
+		// nur ohne diese Parameter, sonst brächen Serien-/Vorlagenansicht und Archiv gegenseitig).
+		const seriesFilter: { seriesId?: number; originSeriesId?: number } = {};
+		for (const key of ['seriesId', 'originSeriesId'] as const) {
+			if (req.query[key] !== undefined) {
+				const value = Number(req.query[key]);
+				if (!Number.isInteger(value)) {
+					sendError(res, 400, `${key} muss eine Zahl sein.`);
+					return;
+				}
+				seriesFilter[key] = value;
+			}
+		}
+		const instanzListe = seriesFilter.seriesId !== undefined || seriesFilter.originSeriesId !== undefined;
 		try {
 			// #1213: Lese-Scope um selbst angelegte Aufgaben für andere Gruppenmitglieder erweitert
 			// (`createdById`); Schreibzugriffe bleiben an `ownerScope` gebunden (siehe findOwnTask).
@@ -621,7 +636,10 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			const tasks = await Task.findAll({
 				where: {
 					...(await taskReadScope(getUserId(req), requester?.id ?? null)),
-					archivedAt: archivedOnly ? { [Op.not]: null } : { [Op.is]: null },
+					...seriesFilter,
+					// Bei Instanz-Listen entfällt der Archiv-Ausschluss bewusst (s. o.) — der Schlüssel
+					// wird nicht mit `undefined` gesetzt (Sequelize bindet das sonst als Fehler).
+					...(instanzListe ? {} : { archivedAt: archivedOnly ? { [Op.not]: null } : { [Op.is]: null } }),
 					...(missedOnly
 						? {
 								// #2427: Deadline gilt erst ab dem Folgetag als verpasst (UTC-Tagesbeginn, Muster `syncWindow`).

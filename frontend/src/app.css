@@ -6784,3 +6784,115 @@ a.plan-badge:focus-visible {
 	width: 60%;
 	min-height: 2rem;
 }
+
+/* Leseseite einer Serie/Vorlage (#2942, Konzept §5/§8) — dieselbe Anatomie wie `.task-view`:
+   eine Spalte bei 375 px, ab 48rem Inhalt links und Faktenspalte rechts; die Primäraktion
+   liegt unten sticky in der Daumenzone (Safe-Area-Inset) und wechselt auf Desktop nach oben
+   (Grid-Areas statt DOM-Umsortierung — eine einzige Primäraktion je Sicht, KI-UX). */
+.series-view {
+	padding: var(--pp-space-4);
+	max-width: 80rem;
+	margin-inline: auto;
+	display: grid;
+	gap: var(--pp-space-4);
+}
+
+.series-view-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--pp-space-3);
+}
+
+.series-view-title {
+	margin-block: 0 var(--pp-space-2);
+}
+
+@media (min-width: 48rem) {
+	.series-view {
+		grid-template-columns: minmax(0, 1fr) 18rem;
+		grid-template-areas:
+			'toolbar toolbar'
+			'head head'
+			'primary primary'
+			'content facts';
+	}
+
+	.series-view-toolbar {
+		grid-area: toolbar;
+	}
+
+	.series-view-head {
+		grid-area: head;
+	}
+
+	.series-view-primary {
+		grid-area: primary;
+	}
+
+	.series-view-content {
+		grid-area: content;
+	}
+
+	.series-view-facts {
+		grid-area: facts;
+	}
+}
+
+.series-view-tasks {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: var(--pp-space-2);
+}
+
+/* Instanz-Zeile als Link — Zielfläche ganze Zeile, mindestens 44 px (KI-UX/Konzept §6). */
+.series-view-task {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--pp-space-3);
+	min-height: 44px;
+	padding-block: var(--pp-space-1);
+}
+
+.series-view-task-date {
+	color: var(--pp-text-muted);
+	white-space: nowrap;
+}
+
+.series-view-description {
+	white-space: pre-line;
+	overflow-wrap: anywhere;
+}
+
+.series-view-checklist {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: var(--pp-space-1);
+}
+
+.series-view-primary {
+	position: sticky;
+	bottom: calc(var(--pp-space-3) + env(safe-area-inset-bottom));
+}
+
+.series-view-skeleton {
+	display: grid;
+	gap: var(--pp-space-3);
+}
+
+.series-view-skeleton-title,
+.series-view-skeleton-row {
+	background: var(--pp-surface-2);
+	border-radius: var(--pp-radius-sm);
+	min-height: 1rem;
+}
+
+.series-view-skeleton-title {
+	width: 60%;
+	min-height: 2rem;
+}
