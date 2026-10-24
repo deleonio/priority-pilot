@@ -615,7 +615,11 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	const [recipientError, setRecipientError] = useState(false);
 	const [recipientOptions, setRecipientOptions] = useState<{ label: string; value: string }[]>([]);
 	const [ownUserId, setOwnUserId] = useState<number | null>(null);
-	const [recipientId, setRecipientId] = useState<string>('');
+	// #1521 (Nachtrag): Bei einer Gruppen-Aufgabe ist die bestehende Gruppe die Adressierung — sie
+	// wird statt des eigenen Kontos ins Feld gespiegelt (`group:<id>`); die Option existiert, weil
+	// nur Mitglieder einer Gruppen-Aufgabe überhaupt an sie kommen. Sonst startet leer, der
+	// Lade-Effekt unten setzt das eigene Konto nach.
+	const [recipientId, setRecipientId] = useState<string>(() => (task?.groupId != null ? `group:${task.groupId}` : ''));
 
 	// #272: Einmal beim Mount lesen, ob die Auto-Sprachaufnahme aktiv ist → nur das erste (Titel-)
 	// VoiceField startet dann automatisch. Bewusst pro Formular-Instanz konstant (kein Live-Update).
@@ -981,7 +985,8 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 					return;
 				}
 				setOwnUserId(own.id);
-				setRecipientId(String(own.id));
+				// Vorbelegung nur nachziehen, wenn keine Gruppen-Adressierung vorgespiegelt ist (#1521).
+				setRecipientId((current) => (current === '' ? String(own.id) : current));
 				// #1521 (AK1): Gruppen des Nutzers als eigene Optionen — dieselben Gruppen, deren
 				// Mitglieder oben eingesammelt wurden.
 				setRecipientOptions(
@@ -1176,6 +1181,13 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 					// #1252 (AK9): Gewählter fremder Empfänger übergibt die Aufgabe beim Speichern — ohne
 					// Auswahl (oder eigenes Konto) fehlt das Feld und der Ablauf bleibt wie bisher.
 					...(isHandover ? { userId: Number(recipientId) } : {}),
+					// #1521 (Nachtrag): Gruppen-Adressierung beim Bearbeiten — die gewählte Gruppe geht als
+					// `groupId` raus (Umhängen inklusive); eigenes Konto auf einer Gruppen-Aufgabe löst die
+					// Adresse (Eigentum fällt an den Aufrufer zurück), Personen-Übergabe bleibt oben.
+					...(selectedGroupId !== null ? { groupId: selectedGroupId } : {}),
+					...(selectedGroupId === null && !isHandover && recipientId !== '' && task.groupId != null
+						? { groupId: null }
+						: {}),
 				};
 				await api.updateTask({ id: task.id, taskUpdate });
 			} else {
@@ -1456,14 +1468,32 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 									{recipientsLoading && <p className="hint">{t('taskForm.recipientsLoading')}</p>}
 									{/* #1252 (KI-UX): Konsequenz-Hinweis, sobald im Bearbeiten-Modus ein fremdes
 							    Konto gewählt ist — die Übergabe gibt das Eigentum ab (ruhiger Hinweistext
-							    statt Extra-Bestätigungsschritt). */}
-									{isEdit && recipientId !== '' && ownUserId !== null && Number(recipientId) !== ownUserId && (
+							    statt Extra-Bestätigungsaufruf); Gruppen-Optionen (`group:`) zählen nicht
+							    als Personen-Übergabe (#1521). */}
+									{isEdit && recipientId !== '' && ownUserId !== null && !recipientId.startsWith('group:') && (
 										<p className="hint">
 											{t(isSeriesMode ? 'taskForm.handoverSeries' : 'taskForm.handoverTask', {
 												name: recipientOptions.find((option) => option.value === recipientId)?.label,
 											})}
 										</p>
 									)}
+									{/* #1521 (Nachtrag): Konsequenz-Hinweis nur bei echter Änderung — neue Gruppe
+							    bzw. Zurückziehen aufs eigene Konto; die unveränderte Gruppe bleibt still. */}
+									{isEdit &&
+										recipientId.startsWith('group:') &&
+										Number(recipientId.slice('group:'.length)) !== (task?.groupId ?? null) && (
+											<p className="hint">
+												{t('taskForm.groupReassign', {
+													name: recipientOptions.find((option) => option.value === recipientId)?.label,
+												})}
+											</p>
+										)}
+									{isEdit &&
+										task?.groupId != null &&
+										recipientId !== '' &&
+										!recipientId.startsWith('group:') &&
+										ownUserId !== null &&
+										Number(recipientId) === ownUserId && <p className="hint">{t('taskForm.groupRelease')}</p>}
 									{recipientError && (
 										<KolAlert
 											_type="warning"

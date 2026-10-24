@@ -12,6 +12,8 @@
 		"recipientsLoading": "Empfänger werden geladen …",
 		"handoverTask": "Beim Speichern übergibst du diese Aufgabe an {{name}}. Du siehst sie anschließend nur noch mit „Für:\"-Kennzeichen.",
 		"handoverSeries": "Beim Speichern übergibst du diese Serie an {{name}}. Du siehst sie anschließend nur noch mit „Für:\"-Kennzeichen.",
+		"groupReassign": "Beim Speichern wird diese Aufgabe der Gruppe „{{name}}“ zugewiesen — sie gehört dann allen Mitgliedern gemeinsam.",
+		"groupRelease": "Beim Speichern ziehst du die Aufgabe aus der Gruppe zurück — sie gehört danach deinem Konto.",
 		"recipientUnavailableTask": "Empfängerauswahl ist nicht verfügbar — die Aufgabe wird für dich angelegt.",
 		"recipientUnavailableSeries": "Empfängerauswahl ist nicht verfügbar — die Serie wird für dich angelegt.",
 		"priorityLabel": "Priorität (Ganzzahl 1–5): {{value}}",

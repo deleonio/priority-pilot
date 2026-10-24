@@ -2556,6 +2556,113 @@ describe('TaskForm — Empfängerauswahl im Bearbeiten-Modus / Übergabe (#1252 
 	});
 });
 
+// ── #1521 (Nachtrag): Gruppen-Adresse beim Bearbeiten — spiegeln, umhängen, lösen ─────────────
+describe('TaskForm — Gruppen-Adresse im Bearbeiten-Modus (#1521 Nachtrag)', () => {
+	const ownUser = { id: 1, displayName: 'Alex Selbst', email: 'alex@example.com', avatarUrl: null };
+	const groups: Group[] = [
+		{ id: 5, name: 'Erste Gruppe', description: null, role: 'admin', memberCount: 2 },
+		{ id: 6, name: 'Zweite Gruppe', description: null, role: 'admin', memberCount: 2 },
+	];
+	const members: GroupMember[] = [
+		{ userId: 1, displayName: 'Alex Selbst', role: 'admin' },
+		{ userId: 2, displayName: 'Bobi Anderes', role: 'member' },
+	];
+
+	const stubAuthMe = (): void => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async (input: RequestInfo | URL) => {
+				if (String(input).includes('/auth/me')) {
+					return new Response(JSON.stringify(ownUser), { status: 200 });
+				}
+				return new Response('{}', { status: 404 });
+			}),
+		);
+	};
+
+	const seedGroups = (): void => {
+		mockListGroups.mockResolvedValue(groups);
+		mockGetGroupMembers.mockResolvedValue(members);
+		mockUpdateTask.mockResolvedValue(minimalNewTask());
+	};
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	const selectedOptionOf = async (): Promise<string> => {
+		const select = (await screen.findByTestId('select-Empfänger')) as HTMLSelectElement;
+		const selected = select.querySelector('option[selected]') ?? select.selectedOptions[0];
+		return selected?.textContent ?? '';
+	};
+
+	it('Bestehende Gruppe ist ins Empfänger-Feld gespiegelt (nicht das eigene Konto)', async () => {
+		seedGroups();
+		stubAuthMe();
+
+		await act(async () => {
+			render(<TaskForm task={{ ...minimalNewTask(), groupId: 5 }} {...defaultProps} />);
+		});
+
+		expect(await selectedOptionOf()).toBe('Gruppe: Erste Gruppe');
+	});
+
+	it('Andere Gruppe gewählt: updateTask erhält die neue groupId ohne userId', async () => {
+		seedGroups();
+		stubAuthMe();
+
+		await act(async () => {
+			render(<TaskForm task={{ ...minimalNewTask(), groupId: 5 }} {...defaultProps} />);
+		});
+		const select = (await screen.findByTestId('select-Empfänger')) as HTMLSelectElement;
+		await act(async () => {
+			fireEvent.change(select, { target: { value: 'group:6' } });
+		});
+		await clickSaveEdit();
+
+		expect(mockUpdateTask).toHaveBeenCalledTimes(1);
+		const [{ taskUpdate }] = mockUpdateTask.mock.calls[0] as [{ taskUpdate: Record<string, unknown> }];
+		expect(taskUpdate['groupId']).toBe(6);
+		expect(taskUpdate).not.toHaveProperty('userId');
+	});
+
+	it('Eigenes Konto gewählt: updateTask löst die Gruppen-Adresse (groupId: null)', async () => {
+		seedGroups();
+		stubAuthMe();
+
+		await act(async () => {
+			render(<TaskForm task={{ ...minimalNewTask(), groupId: 5 }} {...defaultProps} />);
+		});
+		const select = (await screen.findByTestId('select-Empfänger')) as HTMLSelectElement;
+		await act(async () => {
+			fireEvent.change(select, { target: { value: '1' } });
+		});
+		await clickSaveEdit();
+
+		const [{ taskUpdate }] = mockUpdateTask.mock.calls[0] as [{ taskUpdate: Record<string, unknown> }];
+		expect(taskUpdate['groupId']).toBeNull();
+		expect(taskUpdate).not.toHaveProperty('userId');
+	});
+
+	it('Personen-Übergabe von einer Gruppen-Aufgabe: userId geht raus, groupId nicht (Server räumt ab)', async () => {
+		seedGroups();
+		stubAuthMe();
+
+		await act(async () => {
+			render(<TaskForm task={{ ...minimalNewTask(), groupId: 5 }} {...defaultProps} />);
+		});
+		const select = (await screen.findByTestId('select-Empfänger')) as HTMLSelectElement;
+		await act(async () => {
+			fireEvent.change(select, { target: { value: '2' } });
+		});
+		await clickSaveEdit();
+
+		const [{ taskUpdate }] = mockUpdateTask.mock.calls[0] as [{ taskUpdate: Record<string, unknown> }];
+		expect(taskUpdate['userId']).toBe(2);
+		expect(taskUpdate).not.toHaveProperty('groupId');
+	});
+});
+
 describe('TaskForm — Sektionen als Accordions (#1285)', () => {
 	/** Liefert das `<details>`-Element des gemockten Akkordeons zur Sektion mit dem Label. */
 	const accordionOf = (label: string): HTMLDetailsElement | null =>

@@ -7391,6 +7391,17 @@ components:
             Konto wird wie userId behandelt (Shared-Group-Prüfung), eine unbekannte
             Adresse wird zum Konto angelegt, mit Herkunft delegation freigeschaltet
             und per Zugangs-Mail benachrichtigt.
+        groupId:
+          type: integer
+          nullable: true
+          description: >-
+            Gruppen-Adressierung setzen oder lösen (#1521): eine Ganzzahl richtet die
+            Aufgabe (neu) an die Gruppe — sie ist dann für alle Mitglieder offen und
+            besitzt keinen Eigentümer; der Aufrufer muss Mitglied der Gruppe sein
+            (sonst 403), zusammen mit `userId` ist das Feld ungültig (400). `null`
+            löst die Adressierung — die Aufgabe fällt an das Konto des Aufrufers
+            zurück (oder an den mitgesendeten Empfänger). Fehlt das Feld, bleibt die
+            Adressierung unverändert.
         status:
           $ref: '#/components/schemas/TaskStatus'
         completedAt:

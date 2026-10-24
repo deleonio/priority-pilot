@@ -947,6 +947,35 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			return;
 		}
 		const recipientId = recipientResolution.recipientId;
+		// #1521 (Nachtrag): Gruppen-Adressierung beim Bearbeiten umhängen — Spiegel der POST-Regeln:
+		// nur eigene Gruppen (403), nie neben einem Personen-Empfänger (400), kein Duo (400). `null`
+		// löst die Adressierung; das Eigentum fällt an den Empfänger des Handover-Zweigs bzw. an den
+		// Aufrufer zurück — ein herrenloser Task ohne Gruppe entsteht nie.
+		const groupInput = (req.body as { groupId?: unknown }).groupId;
+		let groupTargetChange: number | null | undefined;
+		if (groupInput !== undefined) {
+			if (groupInput !== null && (typeof groupInput !== 'number' || !Number.isInteger(groupInput))) {
+				sendError(res, 400, 'groupId muss eine Ganzzahl oder null sein.');
+				return;
+			}
+			if (groupInput !== null) {
+				if (recipientId !== null) {
+					sendError(res, 400, 'Eine Aufgabe kann entweder an eine Person oder an eine Gruppe gerichtet sein.');
+					return;
+				}
+				const membership = await GroupMember.findOne({ where: { groupId: groupInput, userId: requesterId ?? -1 } });
+				if (membership === null) {
+					sendError(res, 403, 'Du bist kein Mitglied dieser Gruppe.');
+					return;
+				}
+				// #1974: ein Duo teilt nur Streak und Säulenwerte, keine Aufgaben.
+				if ((await Group.findByPk(groupInput))?.kind === 'duo') {
+					sendError(res, 400, 'Aufgaben lassen sich nicht an ein Duo freigeben.');
+					return;
+				}
+			}
+			groupTargetChange = groupInput;
+		}
 		// #1521 (AK3–AK5): Erledigt ein Mitglied eine unclaimte Gruppen-Aufgabe, übernimmt es sie mit
 		// demselben Request („Claim") — `awardScoreOnDone` hängt den ScoreEntry über `taskId` an den
 		// Task, dessen `userId` nach dem Commit der Erlediger ist, damit landet die Gutschrift bei ihm.
@@ -1064,14 +1093,29 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				verschobDeadline instanceof Date &&
 				task.deadline != null &&
 				verschobDeadline.getTime() > new Date(task.deadline).getTime();
+			// #1521 (Nachtrag) / #2924-Review: Dieselbe Gruppe wie im Bestand ist kein Adress-Wechsel —
+			// der Bearbeiten-Dialog spiegelt das Empfänger-Feld immer mit, und ein solcher No-Op darf
+			// den Claim (`userId`) nicht löschen. Umhängen/Lösen bleiben unverändert.
+			const groupChange =
+				groupTargetChange !== undefined && groupTargetChange !== task.groupId ? groupTargetChange : undefined;
 			const attrs = {
 				...validation.attrs,
 				...(istVerschoben ? { postponeCount: task.postponeCount + 1 } : {}),
 				...(task.seriesId != null ? { isException: true } : {}),
 				// #2787 AK4: die Übergabe entzieht die System-Herkunft — der Übergebende wird Ersteller.
-				...(recipientId !== null ? { userId: recipientId, createdById: requesterId, systemCreated: false } : {}),
+				// #1521 (Nachtrag): die Übergabe an eine Person räumt zugleich die Gruppen-Adresse weg —
+				// die POST-Regel „Person oder Gruppe“ gilt damit auch im Bestand.
+				...(recipientId !== null
+					? { userId: recipientId, createdById: requesterId, systemCreated: false, groupId: null }
+					: {}),
 				// #1521: Claim — der Erlediger wird Eigentümer, `createdById` bleibt beim Anleger.
 				...(claimUserId !== null ? { userId: claimUserId } : {}),
+				// #1521 (Nachtrag): Gruppen-Adressierung — eine neue Gruppe macht die Aufgabe wieder
+				// herrenlos (`userId = null` bleibt Claim-Marker); das Lösen übergibt sie dem Empfänger
+				// des Handover-Zweigs oben oder fällt an den Aufrufer zurück (No-Op: `groupChange`).
+				...(groupChange !== undefined ? { groupId: groupChange } : {}),
+				...(groupChange != null ? { userId: null } : {}),
+				...(groupChange === null && recipientId === null ? { userId: requesterId } : {}),
 				...(handoverCategoryId !== undefined ? { categoryId: handoverCategoryId } : {}),
 			};
 			// #1363: Meilenstein-Stand des Eigentümers vor dem Statuswechsel-Commit festhalten — nur bei

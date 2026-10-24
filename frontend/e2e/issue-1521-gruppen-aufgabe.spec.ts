@@ -49,7 +49,8 @@ const createGroupTaskViaUi = async (page: Page, title: string, groupName: string
 
 	await page.getByRole('textbox', { name: 'Titel' }).fill(title);
 	await page.getByLabel('Empfänger').click();
-	await page.getByRole('option', { name: `Gruppe: ${groupName}` }).click();
+	// exact: true — der Name der zweiten Nachtrag-Gruppe enthält den der ersten als Substring.
+	await page.getByRole('option', { name: `Gruppe: ${groupName}`, exact: true }).click();
 	await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 	await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 };
@@ -66,8 +67,9 @@ test.beforeEach(async ({ page }) => {
 
 test.describe('#1521 Gruppen-Aufgabe', () => {
 	test.afterEach(async ({ page }) => {
+		// Aufräumen: beide Spec-Gruppen (der Nachtrag-Test hängt „ 2“ an — Präfix genügt).
 		const groups = (await (await page.request.get('/api/v1/groups')).json()) as { id: number; name: string }[];
-		for (const group of groups.filter((candidate) => candidate.name === GROUP_NAME)) {
+		for (const group of groups.filter((candidate) => candidate.name.startsWith(GROUP_NAME))) {
 			await page.request.delete(`/api/v1/groups/${group.id}`);
 		}
 	});
@@ -135,5 +137,38 @@ test.describe('#1521 Gruppen-Aufgabe', () => {
 		const badgeBox = await badge.first().boundingBox();
 		expect(badgeBox, 'Gruppen-Badge muss eine Bounding-Box haben').not.toBeNull();
 		expect(badgeBox!.x + badgeBox!.width).toBeLessThanOrEqual(375);
+	});
+
+	test('Nachtrag — Gruppen-Aufgabe lässt sich im Bearbeiten-Dialog einer anderen Gruppe zuweisen', async ({ page }) => {
+		const secondGroup = `${GROUP_NAME} 2`;
+		await openGroupsTab(page);
+		await createGroupViaUi(page, GROUP_NAME);
+		await createGroupViaUi(page, secondGroup);
+		await createGroupTaskViaUi(page, TASK_TITLE, GROUP_NAME);
+
+		// Bearbeiten-Dialog öffnen (Muster issue-1252-handover.spec.ts) und die Empfänger-Gruppe
+		// wechseln: Die bisherige Gruppe ist vorgespiegelt, das Umhängen passiert im einen Speichern.
+		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
+		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
+		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
+		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
+		await waitForStableView(page);
+		await page.getByLabel('Empfänger').click();
+		await page.getByRole('option', { name: `Gruppe: ${secondGroup}`, exact: true }).click();
+		await page.locator('kol-dialog').getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeHidden();
+		await waitForStableView(page);
+
+		// Badge zeigt die Zielgruppe; das Gruppendetail der Zielgruppe listet die Aufgabe.
+		await expect(
+			page
+				.getByTestId('group-task-badge')
+				.filter({ hasText: `Für: ${secondGroup}` })
+				.first(),
+		).toBeVisible();
+		await openGroupsTab(page);
+		await accordionTrigger(page, secondGroup).click();
+		await openAccordionSection(page, 'Offene Gruppen-Aufgaben');
+		await expect(page.getByTestId('group-open-tasks').getByText(TASK_TITLE)).toBeVisible();
 	});
 });
