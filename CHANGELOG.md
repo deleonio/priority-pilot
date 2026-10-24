@@ -231,6 +231,7 @@ _Enthält v0.29.0 – v0.29.34._
 - feat(frontend): show avatar menu as dropdown card with single toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/2741
 - fix(frontend): align tracking notice placement in app shell by @deleonio in https://github.com/deleonio/priority-pilot/pull/2742
 - feat(mcp): separater, nur lesender Admin-MCP-Endpunkt /mcp/admin/v1 (#1338) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2744
+- feat(mcp): separater, nur lesender Admin-MCP-Endpunkt /mcp/admin/v1 (#1338) by @deleonio in https://github.com/deleonio/priority-pilot/pull/2744
 
 ## v0.28 - 2026-10-18
 
