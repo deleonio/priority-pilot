@@ -136,8 +136,8 @@ describe('verify-db-identity — veränderte Kopie (#2829 TF2, AK2)', () => {
 		await expectMutationDetected('invoices', 'periodStart', '2020-05-05T05:05:05.000Z', invoiceB);
 	});
 
-	it('Boolean: gesetztes completed (0 → 1) führt zu Exit 1 mit Tabelle + PK', async () => {
-		await expectMutationDetected('tasks', 'completed', 1, taskAbhaengig);
+	it('Boolean: gesetztes pinned (0 → 1) führt zu Exit 1 mit Tabelle + PK', async () => {
+		await expectMutationDetected('tasks', 'pinned', 1, taskAbhaengig);
 	});
 
 	it('JSON: geänderte checklist führt zu Exit 1 mit Tabelle + PK', async () => {
