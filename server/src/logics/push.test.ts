@@ -99,6 +99,23 @@ describe('logics/push — Versand-Helfer', () => {
 		assert.equal(await PushSubscription.count(), 1, 'transienter Fehler löscht die Subscription nicht');
 	});
 
+	// Roter Spec-Test für #2831 (Spec docs/spec/issue-2831.md): der Master-Schalter
+	// BACKGROUND_JOBS_ENABLED=false hält den Push-Versand VOR DB/Config/Netzwerk an. KEIN Produktivcode.
+	it('TF2/AK2: verschickt mit BACKGROUND_JOBS_ENABLED=false NICHTS — auch mit Subscription und konfiguriertem Sender', async () => {
+		await seedSubscription(1, 'https://push.example.com/gated');
+		const calls: string[] = [];
+		process.env.BACKGROUND_JOBS_ENABLED = 'false';
+		try {
+			const result = await sendPushToUser(1, { title: 'x' }, okSender(calls));
+
+			assert.deepEqual(result, { sent: 0, removed: 0 }, 'Master-Schalter =false → kein Versand');
+			assert.deepEqual(calls, [], 'Sender-Mock wurde nie angerufen');
+			assert.equal(await PushSubscription.count(), 1, 'Subscription bleibt unangetastet');
+		} finally {
+			delete process.env.BACKGROUND_JOBS_ENABLED;
+		}
+	});
+
 	it('nutzt ohne injizierten Sender den web-push-Default (Versand bricht vor dem Netzwerk ab)', async () => {
 		// Bewusst kaputter Endpoint: web-push wirft beim URL-Parsen (kein Statuscode) → die Subscription
 		// gilt nicht als abgelaufen und bleibt bestehen. Deckt den Default-Sender-Pfad ohne Netzwerk ab.

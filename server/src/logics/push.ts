@@ -1,6 +1,7 @@
 import webpush from 'web-push';
 import type { PushSubscription as WebPushSubscription, SendResult } from 'web-push';
 import { FcmToken, PushSubscription } from '../models/index.js';
+import { isBackgroundJobsEnabled } from './backgroundJobs.js';
 import { getFcmSender } from './fcm.js';
 import { ownerScope } from './ownerScope.js';
 
@@ -83,7 +84,7 @@ const deliver = async <Row extends { id: number; destroy: () => Promise<void> }>
  * Verschickt eine Push-Nachricht an **alle Web-Push-Subscriptions und FCM-Token eines Nutzers**
  * (Datenisolation #207 über {@link ownerScope}). FCM läuft nur, wenn ein Service-Account konfiguriert
  * ist. Erloschene Ziele werden entfernt: Web-Push meldet sie mit `404`/`410 Gone`, FCM mit dem
- * Fehlercode `UNREGISTERED`. Ein anderer 404 von FCM, etwa bei falscher `project_id`, löscht nichts. Gibt die Zahl der Zustellungen und entfernten Ziele über beide Kanäle zurück.
+ * Fehlercode `UNREGISTERED`. Ein anderer 404 von FCM, etwa bei falscher `project_id`, löscht nichts. Gibt die Zahl der Zustellungen und entfernten Ziele über beide Kanäle zurück. Der Master-Schalter `BACKGROUND_JOBS_ENABLED=false` (#2831) hält den Versand schon vorher an.
  *
  * @param send  injizierbarer Web-Push-Versand (Default: web-push); Tests reichen einen Mock herein.
  */
@@ -92,6 +93,11 @@ export const sendPushToUser = async (
 	payload: PushPayload,
 	send: PushSender = defaultSender,
 ): Promise<{ sent: number; removed: number }> => {
+	// Master-Schalter (#2831): ganz am Anfang — vor DB-Zugriff, VAPID/FCM-Prüfung und Netzwerk —
+	// kehrt der Versand ohne Seiteneffekte zurück (Staging gegen eine DB-Kopie verschickt nichts).
+	if (!isBackgroundJobsEnabled()) {
+		return { sent: 0, removed: 0 };
+	}
 	const body = JSON.stringify(payload);
 	const web = await deliver(
 		await PushSubscription.findAll({ where: ownerScope(userId) }),

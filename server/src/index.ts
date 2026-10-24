@@ -3,6 +3,7 @@ import './env.js';
 import sequelize from './database.js';
 import { Pillar, TaskPillar } from './models/index.js';
 import { SEED_PILLARS } from './models/pillarData.js';
+import { isBackgroundJobsEnabled } from './logics/backgroundJobs.js';
 import { seedDemoData } from './logics/demoSeed.js';
 
 // Flag um rekursive Exit-Aufrufe zu verhindern
@@ -348,9 +349,19 @@ export const main = async (): Promise<void> => {
 			await seedDemoData();
 		}
 
+		// Master-Schalter (#2831): mit BACKGROUND_JOBS_ENABLED=false laufen keine Scheduler-Timer,
+		// kein Push-Versand und keine Startup-Einmaläufe mit Schreibzugriff — genau eine
+		// Deaktiviert-Zeile beim Start statt je Starter eine.
+		if (!isBackgroundJobsEnabled()) {
+			console.log('Hintergrund-Jobs deaktiviert (BACKGROUND_JOBS_ENABLED=false).');
+		}
+
 		// Verwaiste Gruppen-Einladungen (Gruppe gelöscht, Einladung überlebt — #1251, AK7)
 		// einmalig idempotent beim Start bereinigen; die Routen räumen inzwischen selbst mit auf.
-		await cleanupOrphanedGroupInvitations();
+		// Hintergrund-Jobs aus (#2831): kein Schreibzugriff beim Start.
+		if (isBackgroundJobsEnabled()) {
+			await cleanupOrphanedGroupInvitations();
+		}
 
 		await launchServer();
 
@@ -388,7 +399,10 @@ export const main = async (): Promise<void> => {
 
 		// Serien automatisch anlegen (#2356) — einmal beim Start, danach täglich; push-unabhängig, idempotent.
 		const { runSeriesAutoCreate } = await import('./logics/seriesAutoCreate.js');
-		void runSeriesAutoCreate(new Date()).catch((error) => console.error('Serien-Automatik fehlgeschlagen.', error));
+		// Direktaufruf nur mit Hintergrund-Jobs (#2831); der Intervall-Job darunter ist selbst geregelt.
+		if (isBackgroundJobsEnabled()) {
+			void runSeriesAutoCreate(new Date()).catch((error) => console.error('Serien-Automatik fehlgeschlagen.', error));
+		}
 		startIntervalScheduler('Serien-Automatik', runSeriesAutoCreate, 24 * 60 * 60 * 1000);
 
 		// Kulanzfrist-Ablauf (#2234) — entzieht das Paket und kündigt das PayPal-Abo auch ohne Login;

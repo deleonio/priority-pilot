@@ -1,3 +1,4 @@
+import { isBackgroundJobsEnabled } from '../logics/backgroundJobs.js';
 import { isFcmConfigured } from '../logics/fcm.js';
 import { isPushConfigured } from '../logics/push.js';
 
@@ -124,11 +125,11 @@ const wireTicker = (
 /**
  * Startet den Push-Scheduler (Interval-Wiring um {@link createTicker}) — tickt stündlich (#2849);
  * die Zustellfenster je Nutzerzeitzone prüfen die Trigger selbst. No-Op-Handle ohne Push-Kanal
- * (weder VAPID-Keys noch FCM-Service-Account) oder ohne `PUSH_REMINDERS_ENABLED=true` — dann läuft
- * kein Timer (kein stiller Hintergrundlauf ohne bewusstes Push-Opt-in).
+ * (weder VAPID-Keys noch FCM-Service-Account), ohne `PUSH_REMINDERS_ENABLED=true` oder ohne
+ * Hintergrund-Jobs (`BACKGROUND_JOBS_ENABLED=false`, #2831) — dann läuft kein Timer.
  */
 export const startScheduler = (triggers: SchedulerEntry[], options: StartSchedulerOptions = {}): SchedulerHandle => {
-	if (!(isPushConfigured() || isFcmConfigured()) || !isRemindersEnabled()) {
+	if (!isBackgroundJobsEnabled() || !(isPushConfigured() || isFcmConfigured()) || !isRemindersEnabled()) {
 		return { stop: () => {} };
 	}
 	return wireTicker(triggers, options, undefined, 'Scheduler-Tick', HOURLY_INTERVAL_MS);
@@ -151,7 +152,7 @@ export const startDeadlineAutoDeleteScheduler = (
 	triggers: SchedulerEntry[],
 	options: StartSchedulerOptions = {},
 ): SchedulerHandle => {
-	if (!isAutoDeleteAfterDeadlineEnabled()) {
+	if (!isBackgroundJobsEnabled() || !isAutoDeleteAfterDeadlineEnabled()) {
 		return { stop: () => {} };
 	}
 	return wireTicker(triggers, options, AUTO_DELETE_HOUR, 'Deadline-Auto-Lösch-Tick');
@@ -160,13 +161,17 @@ export const startDeadlineAutoDeleteScheduler = (
 /**
  * Startet einen Intervall-Job im festen Intervall — push-unabhängig und ohne Tagesstunde,
  * anders als {@link wireTicker}. Ein fehlschlagender Lauf wird unter dem Job-eigenen `label`
- * protokolliert (#2550), der Timer läuft weiter.
+ * protokolliert (#2550), der Timer läuft weiter. No-Op ohne Hintergrund-Jobs
+ * (`BACKGROUND_JOBS_ENABLED=false`, #2831).
  */
 export const startIntervalScheduler = (
 	label: string,
 	trigger: SchedulerTrigger,
 	intervalMs: number,
 ): SchedulerHandle => {
+	if (!isBackgroundJobsEnabled()) {
+		return { stop: () => {} };
+	}
 	const interval = setInterval(() => {
 		trigger(new Date()).catch((error) => console.error(`${label} fehlgeschlagen:`, error));
 	}, intervalMs);
